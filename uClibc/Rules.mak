@@ -199,12 +199,12 @@ ifeq ($(DODEBUG),y)
     LDFLAGS:= $(CPU_LDFLAGS-y) -shared --warn-common --warn-once -z combreloc
     STRIPTOOL:= true -Since_we_are_debugging
 else
-    LDFLAGS := $(CPU_LDFLAGS-y) -shared --warn-common --warn-once -z combreloc
+    LDFLAGS := $(CPU_LDFLAGS-y) -s -shared --warn-common --warn-once -z combreloc
 endif
 
 # Sigh, some stupid versions of gcc can't seem to cope with '-iwithprefix include'
 #CFLAGS+=-iwithprefix include
-CFLAGS+=$(shell ($(CC) -print-search-dirs || echo) | sed -ne "s/install: *\(.*\)/-I\1include/gp")
+CFLAGS+=$(shell $(CC) -print-search-dirs  | sed -ne "s/install: *\(.*\)/-I\1include/gp")
 
 ifneq ($(DOASSERTS),y)
     CFLAGS += -DNDEBUG
@@ -227,7 +227,7 @@ ifeq ($(DOPIC),y)
 endif
 
 LIBGCC_CFLAGS ?= $(CFLAGS) $(CPU_CFLAGS-y)
-LIBGCC:=$(shell $(CC) $(LIBGCC_CFLAGS) -print-libgcc-file-name || echo)
+LIBGCC:=$(shell $(CC) $(LIBGCC_CFLAGS) -print-libgcc-file-name)
 LIBGCC_DIR:=$(dir $(LIBGCC))
 
 ########################################

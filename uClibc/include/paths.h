@@ -32,8 +32,6 @@
 #ifndef _PATHS_H_
 #define	_PATHS_H_
 
-/*#include <config/autoconf.h>*/
-
 /* Default search path. */
 #define	_PATH_DEFPATH	"/usr/bin:/bin"
 /* All standard utilities path. */
@@ -76,16 +74,5 @@
 #define	_PATH_VARDB	"/var/lib/misc/"
 #define	_PATH_VARRUN	"/var/run/"
 #define	_PATH_VARTMP	"/var/tmp/"
-
-#ifdef CONFIG_USER_FLATFSD_FLATFSD
-#undef _PATH_SHADOW
-#undef _PATH_PASSWD
-#undef _PATH_GROUP
-#undef _PATH_TZ
-#define _PATH_SHADOW	"/etc/config/shadow"
-#define _PATH_PASSWD	"/etc/config/passwd"
-#define _PATH_GROUP	"/etc/config/group"
-#define _PATH_TZ		"/etc/config/TZ"
-#endif
 
 #endif /* !_PATHS_H_ */
