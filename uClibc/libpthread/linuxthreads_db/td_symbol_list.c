@@ -21,22 +21,27 @@
 #include <assert.h>
 #include "thread_dbP.h"
 
+#ifdef __ARCH_HAS_C_SYMBOL_PREFIX__
+#define THREAD_SYMBOL_PREFIX __C_SYMBOL_PREFIX__
+#else
+#define THREAD_SYMBOL_PREFIX ""
+#endif
 
 static const char *symbol_list_arr[] =
 {
-  [PTHREAD_THREADS_EVENTS] = "__pthread_threads_events",
-  [PTHREAD_LAST_EVENT] = "__pthread_last_event",
-  [PTHREAD_HANDLES_NUM] = "__pthread_handles_num",
-  [PTHREAD_HANDLES] = "__pthread_handles",
-  [PTHREAD_KEYS] = "pthread_keys",
-  [LINUXTHREADS_PTHREAD_THREADS_MAX] = "__linuxthreads_pthread_threads_max",
-  [LINUXTHREADS_PTHREAD_KEYS_MAX] = "__linuxthreads_pthread_keys_max",
-  [LINUXTHREADS_PTHREAD_SIZEOF_DESCR] = "__linuxthreads_pthread_sizeof_descr",
-  [LINUXTHREADS_CREATE_EVENT] = "__linuxthreads_create_event",
-  [LINUXTHREADS_DEATH_EVENT] = "__linuxthreads_death_event",
-  [LINUXTHREADS_REAP_EVENT] = "__linuxthreads_reap_event",
-  [LINUXTHREADS_INITIAL_REPORT_EVENTS] = "__linuxthreads_initial_report_events",
-  [LINUXTHREADS_VERSION] = "__linuxthreads_version",
+  [PTHREAD_THREADS_EVENTS] = THREAD_SYMBOL_PREFIX "__pthread_threads_events",
+  [PTHREAD_LAST_EVENT] = THREAD_SYMBOL_PREFIX "__pthread_last_event",
+  [PTHREAD_HANDLES_NUM] = THREAD_SYMBOL_PREFIX "__pthread_handles_num",
+  [PTHREAD_HANDLES] = THREAD_SYMBOL_PREFIX "__pthread_handles",
+  [PTHREAD_KEYS] = THREAD_SYMBOL_PREFIX "pthread_keys",
+  [LINUXTHREADS_PTHREAD_THREADS_MAX] = THREAD_SYMBOL_PREFIX "__linuxthreads_pthread_threads_max",
+  [LINUXTHREADS_PTHREAD_KEYS_MAX] = THREAD_SYMBOL_PREFIX "__linuxthreads_pthread_keys_max",
+  [LINUXTHREADS_PTHREAD_SIZEOF_DESCR] = THREAD_SYMBOL_PREFIX "__linuxthreads_pthread_sizeof_descr",
+  [LINUXTHREADS_CREATE_EVENT] = THREAD_SYMBOL_PREFIX "__linuxthreads_create_event",
+  [LINUXTHREADS_DEATH_EVENT] = THREAD_SYMBOL_PREFIX "__linuxthreads_death_event",
+  [LINUXTHREADS_REAP_EVENT] = THREAD_SYMBOL_PREFIX "__linuxthreads_reap_event",
+  [LINUXTHREADS_INITIAL_REPORT_EVENTS] = THREAD_SYMBOL_PREFIX "__linuxthreads_initial_report_events",
+  [LINUXTHREADS_VERSION] = THREAD_SYMBOL_PREFIX "__linuxthreads_version",
   [NUM_MESSAGES] = NULL
 };
 

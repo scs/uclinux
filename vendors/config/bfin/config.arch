@@ -49,6 +49,8 @@ ifdef UCLINUX_BUILD_LIB
 
   ifdef CONFIG_LIB_DEBUG
 	CFLAGS  :=  -O0 -g
+	STRIPTOOL = echo
+	STRIP     = $(STRIPTOOL)
   else
 	CFLAGS  :=  -O2
   endif
