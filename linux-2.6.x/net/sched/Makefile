@@ -1,7 +1,6 @@
 #
 # Makefile for the Linux Traffic Control Unit.
 #
-CFLAGS_sch_generic.o = -O0
 obj-y	:= sch_generic.o
 
 obj-$(CONFIG_NET_SCHED)		+= sch_api.o sch_fifo.o
