@@ -20,6 +20,10 @@
 #define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
 #endif
 
+#if defined (CONFIG_BFIN)
+#undef MAX_ORDER
+#define MAX_ORDER 14
+#endif
 /*
  * system hash table size limits
  * - on large memory machines, we may want to allocate a bigger hash than that
