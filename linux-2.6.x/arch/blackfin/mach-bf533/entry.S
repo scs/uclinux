@@ -184,6 +184,18 @@ ENTRY(system_call)
 	cc = r5 == r6;
 	if cc jump l_next;
 
+	r6 = __NR_pread64;		/*FIX for pread64 call*/
+	cc = r5 == r6;
+	if cc jump l_next_4;
+	
+	r6 = __NR_pwrite64;		/*FIX for pwrite64 call*/
+	cc = r5 == r6;
+	if cc jump l_next_4;
+
+	r6 = __NR_llseek;		/*FIX for llseek call*/
+	cc = r5 == r6;
+	if cc jump l_next;
+
 	SP += -12;
 	call (p5);
 	SP += 12;
@@ -489,7 +501,7 @@ sys_call_table:
 	.long sys_ni_syscall	/* old profil syscall holder */
 	.long sys_statfs
 	.long sys_fstatfs	/* 100 */
-	.long sys_ioperm
+	.long sys_ni_syscall
 	.long sys_socketcall
 	.long sys_syslog
 	.long sys_setitimer
