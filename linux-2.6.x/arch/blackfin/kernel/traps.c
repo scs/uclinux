@@ -37,18 +37,15 @@
 #include <asm/blackfin.h>
 
 /*
-.
 . EXCEPTION TRAPS DEBUGGING LEVELS
 .
 0 for normal operation without any error messages
 1 for serious error messages 
 2 for errors but handled somwehre else 
 >2 for various levels of hopefully increasingly useless information
-.
- .*/
-#define TRAPS_DEBUG 1 /* Must be defined here or in in Makefile */
+*/
 
-//#undef TRAPS_DEBUG
+#define TRAPS_DEBUG 1 /* Must be defined here or in in Makefile */
 
 #if (TRAPS_DEBUG > 2 )
 #define DPRINTK3(args...) printk(args)
@@ -115,13 +112,13 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	switch (fp->seqstat & 0x3f) {
 	    case VEC_STEP:
 		info.si_code = TRAP_STEP;
-		fp->pc = fp->retx;      /* gdb wants the value of the pc                         */
+		fp->pc = fp->retx;      /* gdb wants the value of the pc*/
 		sig = SIGTRAP;
 		break;
-	    case VEC_EXCPT01 : /* gdb breakpoint */
+	    case VEC_EXCPT01 :		 /* gdb breakpoint */
 		info.si_code = TRAP_ILLTRAP;
 		fp->retx -=2;		/* For Service, proessor increments to next instruction. */
-		fp->pc = fp->retx;      /* gdb wants the value of the pc                         */
+		fp->pc = fp->retx;      /* gdb wants the value of the pc*/
 		sig = SIGTRAP;
 		break;
 	    case VEC_UNDEF_I:
@@ -147,11 +144,13 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		DPRINTK(EXC_0x24);
+		DPRINTK("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
 	    	break;
 	    case VEC_MISALI_I:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		DPRINTK(EXC_0x2A);
+		DPRINTK("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
 		break;
 	    case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
@@ -169,28 +168,37 @@ asmlinkage void trap_c(struct pt_regs *fp)
                 break;
 	    case VEC_CPLB_I_VL:
 		DPRINTK2(EXC_0x2B);
+		DPRINTK2("ICPLB_FAULT_ADDR: %p\n", *pICPLB_FAULT_ADDR);
 	    case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
 		DPRINTK3(EXC_0x23);
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR)
 		_cplb_hdr();
 		goto nsig;
 		sig = SIGILL;
                 break;
 	    case VEC_CPLB_I_M:
 		DPRINTK3(EXC_0x2C);
+		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
 	    case VEC_CPLB_M:
 		info.si_code = IlL_CPLB_MISS;
-		/*Call the handler to replace the CPLB*/
 		DPRINTK3(EXC_0x26);
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
+		/*Call the handler to replace the CPLB*/
 		_cplb_hdr();
 		goto nsig;
 	    case VEC_CPLB_I_MHIT:
-		DPRINTK3(EXC_0x26);
+		info.si_code = ILL_CPLB_MULHIT;
+		sig = SIGILL;
+		DPRINTK3(EXC_0x2D);
+		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
+		break;
 	    case VEC_CPLB_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
 		sig = SIGILL;
 		DPRINTK3(EXC_0x27);
-                break;
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
+		break;
 	    default:
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
@@ -200,7 +208,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	info.si_errno = 0;
 	info.si_addr = (void *) fp->pc;
 	force_sig_info (sig, &info, current);
-	if (sig) {
+	if (sig != 0 && sig != SIGTRAP) {
         	dump(fp);
 	        dump_stack();
 	}
@@ -283,6 +291,5 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 void dump_stack(void)
 {
 	unsigned long stack;
-
 	show_stack(current, &stack);
 }
