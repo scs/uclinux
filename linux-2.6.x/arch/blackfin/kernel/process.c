@@ -27,6 +27,7 @@
 #include <linux/a.out.h>
 #include <linux/reboot.h>
 
+#include <asm/blackfin.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/traps.h>
@@ -65,12 +66,23 @@ void cpu_idle(void)
 
 void machine_restart(char * __unused)
 {
-	__asm__ __volatile__
-	("cli r3;"
-        "JUMP (%0);"
-	:
-	: "a" (L1_ISRAM)
-	);
+	printk("Restarting\n");
+#if defined(CONFIG_BLKFIN_CACHE)
+	asm("csync;");
+	*pIMEM_CONTROL = 0x01;
+	asm("ssync;");
+#endif
+	asm("csync;"
+	    "p0.h = 0xffc0;"
+	    "p0.l = 0x0204;"
+	    "r0 = 0x10 (z);"
+	    "[p0] = r0;"
+	    "ssync;"
+	    "p0.h = 0xffc0;"
+	    "p0.l = 0x0200;"
+	    "r0 = 0xaf0 (z);"
+	    "w[p0] = r0;"
+	    "ssync;");
 }
 
 void machine_halt(void)
