@@ -127,6 +127,15 @@ static struct bf533_serial bf533_soft =
 #endif
 
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#undef CONFIG_DISABLE_RXDMA
+#ifdef CONFIG_BF531
+#ifdef CONFIG_BF532
+#ifdef CONFIG_DCACHE
+#define CONFIG_DISABLE_RXDMA
+#endif
+#endif
+#endif
+
 static unsigned int tx_xcount=0;
 
 #define RX_XCOUNT  TTY_FLIPBUF_SIZE
@@ -310,6 +319,7 @@ static inline void status_handle(struct bf533_serial *info, unsigned short statu
 }
 
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifndef CONFIG_DISABLE_RXDMA
 static void dma_receive_chars(struct bf533_serial *info, int in_timer)
 {
       struct tty_struct *tty = info->tty;
@@ -375,6 +385,7 @@ static void dma_receive_chars(struct bf533_serial *info, int in_timer)
 unlock_and_exit:
       spin_unlock_bh(info->recv_lock);
 }
+#endif
 
 static void dma_transmit_chars(struct bf533_serial *info)
 {
@@ -633,9 +644,11 @@ static void do_softint(void *private_)
 		wake_up_interruptible(&tty->write_wait);
 	}
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifndef CONFIG_DISABLE_RXDMA
         if (test_and_clear_bit(RS_EVENT_READ, &info->event)) {
                 dma_receive_chars(info, 0);
       }
+#endif
 #endif
 }
 
@@ -666,6 +679,7 @@ static void do_serial_hangup(void *private_)
 
 #define TIME_INTERVAL	5
 
+#ifndef CONFIG_DISABLE_RXDMA
 static void dma_start_recv(struct bf533_serial * info)
 {
        FUNC_ENTER();
@@ -684,6 +698,7 @@ static void dma_start_recv(struct bf533_serial * info)
                 printk("bf533_serial: DMA started while already running!\n");
         }
 }
+#endif
 
 static void uart_dma_xmit_timer(struct bf533_serial * info)
 {
@@ -759,13 +774,14 @@ static int startup(struct bf533_serial * info)
 
 	set_dma_x_modify(CH_UART_TX, 1);
 	info->xmit_lock = SPIN_LOCK_UNLOCKED;
+#ifndef CONFIG_DISABLE_RXDMA
         /*
          * Start the receive DMA
          */
         info->recv_cnt = info->recv_head = info->recv_tail = 0;
         info->recv_lock = SPIN_LOCK_UNLOCKED;
         dma_start_recv(info);
-
+#endif
 	/*
 	 * The timer should only start after the receive DMA engine is working.
 	 */                         
@@ -773,10 +789,12 @@ static int startup(struct bf533_serial * info)
         info->dma_xmit_timer.function = (void *)uart_dma_xmit_timer;
         info->dma_xmit_timer.expires = jiffies + TIME_INTERVAL;
         add_timer(&info->dma_xmit_timer);
+#ifndef CONFIG_DISABLE_RXDMA
         info->dma_recv_timer.data = (unsigned long)info;
         info->dma_recv_timer.function = (void *)uart_dma_recv_timer;
         info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
         add_timer(&info->dma_recv_timer);
+#endif
 #endif
 
 	/*
@@ -815,7 +833,9 @@ static void shutdown(struct bf533_serial * info)
 	SYNC_ALL;
 
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifndef CONFIG_DISABLE_RXDMA
 	disable_dma(CH_UART_RX);
+#endif
 	disable_dma(CH_UART_TX);
 #endif
 	
@@ -1552,6 +1572,7 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 }
 
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifndef CONFIG_DISABLE_RXDMA
 irqreturn_t uart_rxdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 {
 	struct bf533_serial *info;
@@ -1562,6 +1583,7 @@ irqreturn_t uart_rxdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 	schedule_work(&info->tqueue);
 	return IRQ_HANDLED;
 }
+#endif
 
 irqreturn_t uart_txdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 {
@@ -1688,22 +1710,29 @@ static int __init rs_bf533_init(void)
 
 	local_irq_restore(flags);
 
-#ifndef CONFIG_BLKFIN_SIMPLE_DMA
-	if (request_irq(IRQ_UART_RX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_RX",bf533_serial_driver))
-		panic("Unable to attach BlackFin UART RX interrupt\n");
-
-	if (request_irq(IRQ_UART_TX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_TX",bf533_serial_driver))
-		panic("Unable to attach BlackFin UART TX interrupt\n");
-#else
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifndef CONFIG_DISABLE_RXDMA
 	if(request_dma(CH_UART_RX, "BF533_UART_RX")<0)
 		panic("Unable to attach BlackFin UART RX DMA channel\n");
 	else
 	     set_dma_callback(CH_UART_RX, uart_rxdma_done,NULL);
+#else	
+	if (request_irq(IRQ_UART_RX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_RX",bf533_serial_driver))
+		panic("Unable to attach BlackFin UART RX interrupt\n");
+#endif
+#else
+	if (request_irq(IRQ_UART_RX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_RX",bf533_serial_driver))
+		panic("Unable to attach BlackFin UART RX interrupt\n");
+#endif
 	
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
 	if(request_dma(CH_UART_TX, "BF533_UART_TX")<0)
 		panic("Unable to attach BlackFin UART TX DMA channel\n");
 	else 
 	     set_dma_callback(CH_UART_TX,uart_txdma_done,NULL);
+#else
+	if (request_irq(IRQ_UART_TX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_TX",bf533_serial_driver))
+		panic("Unable to attach BlackFin UART TX interrupt\n");
 #endif	
 	
 	printk("Enabling Serial UART Interrupts\n");
