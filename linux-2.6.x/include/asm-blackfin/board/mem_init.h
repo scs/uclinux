@@ -99,16 +99,16 @@
 #if ( CONFIG_MEM_SIZE == 16 )
         #define SDRAM_SIZE      EBSZ_16
 #endif
-#if ( CONFIG_MEM_ADD_WDTH == 11 )
+#if ( CONFIG_MEM_ADD_WIDTH == 11 )
         #define SDRAM_WIDTH     EBCAW_11
 #endif
-#if ( CONFIG_MEM_ADD_WDTH == 10 )
+#if ( CONFIG_MEM_ADD_WIDTH == 10 )
         #define SDRAM_WIDTH     EBCAW_10
 #endif
-#if ( CONFIG_MEM_ADD_WDTH == 9 )
+#if ( CONFIG_MEM_ADD_WIDTH == 9 )
         #define SDRAM_WIDTH     EBCAW_9
 #endif
-#if ( CONFIG_MEM_ADD_WDTH == 8 )
+#if ( CONFIG_MEM_ADD_WIDTH == 8 )
         #define SDRAM_WIDTH     EBCAW_8
 #endif
 
