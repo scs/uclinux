@@ -48,6 +48,7 @@
  .*/
 #define TRAPS_DEBUG 1 /* Must be defined here or in in Makefile */
 
+//#undef TRAPS_DEBUG
 
 #if (TRAPS_DEBUG > 2 )
 #define DPRINTK3(args...) printk(args)
@@ -72,14 +73,6 @@ asmlinkage void system_call(void);
 asmlinkage void trap(void);
 
 extern void _cplb_hdr(void);
-
-enum {
-#undef REG
-#define REG(name, pos) reg_##name,
-#include <asm/regs.h>
-};
-
-#define EXITCODE  *(char volatile *)0xFF7EEEEE
 
 static void __init bfin_trap_init (void)
 {
@@ -108,20 +101,22 @@ asmlinkage void trap_c(struct pt_regs *fp);
 
 int kstack_depth_to_print = 48;
 
-/* MODULE_RANGE is a guess of how much space is likely to be vmalloced.  */
-#define MODULE_RANGE (8*1024*1024)
-
 asmlinkage void trap_c(struct pt_regs *fp)
 {
 	int sig = 0;
 	siginfo_t info;
+
+ 	/* trap_c() will be called for exceptions. During exceptions
+ 	   processing, the pc value should be set with retx value.  
+ 	   With this change we can cleanup some code in signal.c- TODO */
+ 	fp->pc = fp->retx;      
 
 	/* send the appropriate signal to the user program */
 	switch (fp->seqstat & 0x3f) {
 	    case VEC_STEP:
 		info.si_code = TRAP_STEP;
 		sig = SIGTRAP;
-		DPRINTK3(EXC_0x10);
+		DPRINTK(EXC_0x21);
 		break;
 	    case VEC_EXCPT01 : /* gdb breakpoint */
 		info.si_code = TRAP_ILLTRAP;
@@ -132,12 +127,11 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	    case VEC_UNDEF_I:
 		info.si_code = ILL_ILLOPC;
 		sig = SIGILL;
-		DPRINTK3(EXC_0x21);
 		break;
 	    case VEC_OVFLOW:
 		info.si_code = TRAP_TRACEFLOW;
 		sig = SIGTRAP;
-		DPRINTK(EXC_0x11);
+		DPRINTK(EXC_0x21);
 		break;
 	    case VEC_ILGAL_I:
 		info.si_code = ILL_ILLPARAOP;
@@ -167,7 +161,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGTRAP;
 		DPRINTK3(EXC_0x28);
 		break;
-	    case VEC_ISTRU_VL:                   /* ADSP-BF535 only (MH)*/
+	    case VEC_ISTRU_VL:                /* ADSP-BF535 only (MH)*/
 		info.si_code = BUS_OPFETCH;
 		sig = SIGBUS;
                 break;
@@ -210,26 +204,27 @@ nsig:
 
 void die_if_kernel (char *str, struct pt_regs *fp, int nr)
 {
-	if (!(fp->seqstat & PS_S))
+	if (!(fp->ipend))
 		return;
 
 	console_verbose();
-	printk("%s: %08x\n",str,nr);
-	printk("PC: [<%08lu>]    SEQSTAT: %04lu\n",
+	printk(KERN_EMERG "%s: %08x\n",str,nr);
+	printk(KERN_EMERG "PC: [<%08lu>]    SEQSTAT: %04lu\n",
 	       fp->pc, fp->seqstat);
-	printk("r0: %08lx    r1: %08lx    r2: %08lx    r3: %08lx\n",
+	printk(KERN_EMERG "r0: %08lx    r1: %08lx    r2: %08lx    r3: %08lx\n",
 	       fp->r0, fp->r1, fp->r2, fp->r3);
-	printk("r4: %08lx    r5: %08lx    r6: %08lx    r7: %08lx\n",
+	printk(KERN_EMERG "r4: %08lx    r5: %08lx    r6: %08lx    r7: %08lx\n",
 	       fp->r4, fp->r5, fp->r6, fp->r7);
-	printk("p0: %08lx    p1: %08lx    p2: %08lx    p3: %08lx\n",
+	printk(KERN_EMERG "p0: %08lx    p1: %08lx    p2: %08lx    p3: %08lx\n",
 	       fp->p0, fp->p1, fp->p2, fp->p3);
-	printk("p4: %08lx    p5: %08lx    fp: %08lx\n",
+	printk(KERN_EMERG "p4: %08lx    p5: %08lx    fp: %08lx\n",
 	       fp->p4, fp->p5, fp->fp);
-	printk("aow: %08lx    a0.x: %08lx    a1w: %08lx    a1.x: %08lx\n",
+	printk(KERN_EMERG "aow: %08lx    a0.x: %08lx    a1w: %08lx    a1.x: %08lx\n",
 	       fp->a0w, fp->a0x, fp->a1w, fp->a1x);
 
-	printk("Process %s (pid: %d, stackpage=%08lx)\n",
+	printk(KERN_EMERG "Process %s (pid: %d, stackpage=%08lx)\n",
 		current->comm, current->pid, PAGE_SIZE+(unsigned long)current);
+	show_stack(NULL, (unsigned long *)fp);
 	do_exit(SIGSEGV);
 }
 
