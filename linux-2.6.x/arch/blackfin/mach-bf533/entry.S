@@ -57,7 +57,12 @@ ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	CC = r1 == 0;
 	if ! cc jump 1f;
 	raise 14;		/* invoked by TRAP #0, for sys call */
-	RESTORE_ALL_SYS           
+	RESTORE_ALL_SYS
+	[--sp] = r0;
+        r0 = syscfg;
+        bitclr(r0, 0);
+        syscfg = r0;
+        r0 = [sp++];
 	rtx;
 1:
 	r0 = sp; 		/* stack frame pt_regs pointer argument ==> r0 */
