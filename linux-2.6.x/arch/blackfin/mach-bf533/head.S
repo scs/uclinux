@@ -15,7 +15,6 @@
 .global _ramend
 .global _stext
 .global __bss_start
-
 .global start
 .global _start
 
@@ -27,6 +26,29 @@ _stext:
 	/* Set the SYSCFG register */	
 	r0 = 0x30;
 	SYSCFG = r0;
+	r0 = 0;
+	LC0 = r0;
+	LC1 = r0;
+	L0 = r0;
+	L1 = r0;
+	L2 = r0;
+	L3 = r0;
+	
+	R0 = SYSCFG;		/* Enable the Cycle counter */
+	BITSET(R0,1);
+	SYSCFG = R0;
+
+	/* Set the port preferences of DAG0 and DAG1 to be
+	 different. this gives better performance when
+	 performing daul-dag operations on SDRAM.*/
+	
+	P0.L = DMEM_CONTROL & 0xFFFF;
+	P0.H = DMEM_CONTROL >> 16;
+	R0 = [P0];
+	BITCLR(R0, 12);
+	BITSET(R0, 13);
+	[P0] = R0;
+	CSYNC;
 
 #ifdef CONFIG_BLKFIN_STAMP 
 
@@ -214,6 +236,7 @@ _clear_bss_end:
 	r2.h = 0x0000; 
 	r1 = r1 + r2;
 	sp = r1; 
+	usp = sp;
 	call	start_kernel;
 _exit:
 	jump.s	_exit;
