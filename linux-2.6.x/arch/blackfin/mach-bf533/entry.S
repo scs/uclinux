@@ -209,14 +209,13 @@ l_before:
 	CC = r0 == 0;
 	if !CC jump exit_syscall;
 	call kernel_to_user_mode;
-	r0.l = 0x02;
-	r0.h = 0x00;
-	[sp + PT_IPEND] = r0;
 exit_syscall:
 	/* Only allow interrupts when we are really the last one on
 	 * the kernel stack, otherwise stack overflow can occur during
          * heavy interrupt load
 	 */
+	r0 = 0x0;
+	[sp + PT_IPEND] = r0;
 	r7 = sp;
 	r4.l = 0xe000;
 	r4.h = 0xffff;
