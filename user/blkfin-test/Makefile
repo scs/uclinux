@@ -6,6 +6,7 @@ dir_y += dpmc-test
 #dir_y += usb_test
 #dir_y += sport_test
 dir_y += audio_test
+dir_y += video_test
 
 all:
 	for i in $(dir_y) ; do  make -C $$i || exit $? ; done
