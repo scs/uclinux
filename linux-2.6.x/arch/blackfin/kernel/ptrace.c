@@ -53,7 +53,6 @@
    saved.  Notice that usp has no stack-slot and needs to be treated
    specially (see get_reg/put_reg below). */
 
-
 /*
  * Get contents of register REGNO in task TASK.
  */
@@ -65,9 +64,8 @@ static inline long get_reg(struct task_struct *task, int regno)
 	(struct pt_regs *)((unsigned long) task->thread_info + 
 	    ( THREAD_SIZE - sizeof(struct pt_regs)));
 	switch(regno){
-		case PT_ORIG_PC : return regs->orig_pc -  task->mm->start_code - TEXT_OFFSET;
-		case PT_PC :
-		               return regs->pc -  task->mm->start_code - TEXT_OFFSET;
+		case PT_ORIG_PC : return regs->orig_pc;
+		case PT_PC : return regs->pc;
 		case PT_R0 : return regs->r0;
 		case PT_ORIG_R0 : return regs->orig_r0;
 		case PT_R1 : return regs->r1;
@@ -153,8 +151,13 @@ static inline int put_reg(struct task_struct *task, int regno,
 		(struct pt_regs *)((unsigned long) task->thread_info + 
     		( THREAD_SIZE - sizeof(struct pt_regs)));
 	switch(regno){
-		case PT_ORIG_PC : regs->orig_pc = data +  task->mm->start_code + TEXT_OFFSET; break;
-		case PT_PC : regs->pc = data +  task->mm->start_code + TEXT_OFFSET; break;
+		case PT_ORIG_PC : regs->orig_pc = data; break;
+		case PT_PC : /*********************************************************************/
+			     /*	At this point the kernel is most likely in exception.             */
+			     /*	The RETX register will be used to populate the pc of the process. */
+			     /*********************************************************************/
+			     regs->retx = data;
+                             regs->pc = data; break;
 		case PT_R0 : regs->r0 = data; break;
 		case PT_ORIG_R0 : regs->orig_r0 = data; break;
 		case PT_R1 : regs->r1 = data; break;
@@ -179,7 +182,7 @@ static inline int put_reg(struct task_struct *task, int regno,
 		case PT_SEQSTAT : regs->seqstat = data; break;
 		case PT_RETE : regs->rete = data; break;
 		case PT_RETN : regs->retn = data; break;
-		case PT_RETX : regs->retx = data; break;
+		case PT_RETX : break; //regs->retx = data; break;
 		case PT_RETS : regs->rets = data; break;
 		case PT_RESERVED : regs->reserved = data; break;
 		case PT_ASTAT : regs->astat = data; break;
