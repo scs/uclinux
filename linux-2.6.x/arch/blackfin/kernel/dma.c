@@ -1063,7 +1063,7 @@ DMA_RESULT get_dma_transfer_size(unsigned int channel, unsigned short* size)
 	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (size = NULL)
+	if (size == NULL)
 		return DMA_FAIL;
 
 	*size = dma_ch[channel].regs->cfg;

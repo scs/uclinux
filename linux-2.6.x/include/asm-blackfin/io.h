@@ -62,7 +62,7 @@
 #define outsb(port, addr, count) memcpy((void*)port, (void*)addr, count)
 #define outsw(port, addr, count) memcpy((void*)port, (void*)addr, (2*count))
 #define outsl(port, addr, count) memcpy((void*)port, (void*)addr, (4*count))
-#define IO_SPACE_LIMIT 0xffff
+#define IO_SPACE_LIMIT 0xffffffff
 
 
 /* Values for nocacheflag and cmode */

@@ -1395,7 +1395,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 
 #if !defined(CONFIG_M5249C3) && !defined(CONFIG_GILBARCONAP)
 	/* Grab the region so that no one else tries to probe our ioports. */
-	if (!request_region(ioaddr>>20, SMC_IO_EXTENT, dev->name)) 
+	if (!request_region(ioaddr, SMC_IO_EXTENT, dev->name)) 
 	{
 		printk(KERN_DEBUG "SMSC91111:Resource Busy\n");
 		return -EBUSY;
