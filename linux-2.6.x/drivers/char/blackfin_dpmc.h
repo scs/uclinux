@@ -13,8 +13,7 @@ void hibernate_mode(void);
 void program_wdog_timer(unsigned long);
 void unmask_wdog_wakeup_evt(void);
 void clear_wdog_wakeup_evt(void);
-void disable_wdog_timer(void);  
-
+void disable_wdog_timer(void);
 
 #define SDRAM_Tref  	64       /* Refresh period in milliseconds   */
 #define SDRAM_NRA   	8192     /* Number of row addresses in SDRAM */
@@ -31,7 +30,7 @@ void disable_wdog_timer(void);
 #endif
 
 #define MIN_VCO		56000000	/* VCO minimum should get set to 50 only */
-#define MAX_SCLK	132000000
+#define MAX_SCLK	133000000
 
 #ifdef CONFIG_EZKIT
 #define MIN_SCLK	27000000
