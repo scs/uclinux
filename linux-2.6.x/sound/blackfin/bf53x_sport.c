@@ -317,6 +317,8 @@ int sport_disable_dma_tx(struct bf53x_sport* sport){ sport->dma_tx->cfg &= ~(DI_
 
 int bf53x_sport_start(struct bf53x_sport* sport){ 
 
+  asm( "csync;\n\t" );
+
   sport->dma_tx->cfg |= DMAEN;
   sport->dma_rx->cfg |= DMAEN;
   sport->regs->tcr1 |= TSPEN;
@@ -328,6 +330,8 @@ int bf53x_sport_start(struct bf53x_sport* sport){
 
 
 int bf53x_sport_stop(struct bf53x_sport* sport){ 
+
+  asm( "csync;\n\t" );
 
   sport->regs->tcr1 &= ~TSPEN;
   sport->regs->rcr1 &= ~RSPEN;

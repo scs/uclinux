@@ -32,6 +32,7 @@ cache_flush:
         LSETUP (_flush_loop, _flush_loop_end) LC0 = P1;
 _flush_loop:
 	FLUSH[ P0++ ]; 
+	csync;    /* cf adsp-bf533-0.1 anomaly list 2003/06/12 13:52  #10 */
 _flush_loop_end:	
         RTS;
 
@@ -47,6 +48,7 @@ cache_flushinv:
         P0 = R0;  /* start */
         LSETUP (_flushinv_loop, _flushinv_loop_end) LC0 = P1;
 _flushinv_loop:
-	FLUSHINV[ P0++ ]; 
+	FLUSHINV[ P0++ ];
+	csync;    /* cf adsp-bf533-0.1 anomaly list 2003/06/12 13:52  #10 */
 _flushinv_loop_end:	
         RTS;

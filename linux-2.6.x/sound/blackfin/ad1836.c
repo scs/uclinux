@@ -114,7 +114,7 @@ extern void cache_flush(void* start, unsigned int size_bytes);
 extern void cache_flushinv(void* start, unsigned int size_bytes);
 
 
-#define NOCONTROLS  /* define this to omit all the ALSA controls */
+#undef NOCONTROLS  /* define this to omit all the ALSA controls */
 
 
 #define CHIP_NAME "Analog Devices AD1836A"
@@ -135,11 +135,6 @@ static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 #undef INIT_TALKTROUGH
 
 #define ad1836_t_magic  0xa15a4501
-
-#if 0
-#define chip_t_magic    0xa15a4900  /* move to include/sound/sndmagic.h in due time */
-typedef ad1836_t chip_t; /* used in alsa macro's */
-#endif
 
 typedef struct snd_ad1836 ad1836_t;
 struct snd_ad1836 {
@@ -185,9 +180,16 @@ struct snd_ad1836 {
 
 };
 
+
+#ifndef NOCONTROLS
+#define chip_t_magic ad1836_t_magic  /* move to include/sound/sndmagic.h in due time */
+typedef ad1836_t chip_t; /* used in alsa macro's */
+#endif
+
+
+
 unsigned int dummy_buf_rx[16]; /* used for idle rx/tx channel */
 unsigned int dummy_buf_tx[16]; /* used for idle rx/tx channel */
-
 
 static int ad1836_spi_handler(struct bf53x_spi_channel* chan, void* buf, size_t len, void* private){
   ad1836_t *chip = (ad1836_t*) private;
