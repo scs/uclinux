@@ -134,27 +134,25 @@ void se_outl(unsigned int value, unsigned long port)
 void se_insb(unsigned long port, void *addr, unsigned long count)
 {
 	volatile __u16 *p = port2adr(port);
-	__u8 *ap = addr;
 
 	if (sh_pcic_io_start <= port && port <= sh_pcic_io_stop) {
 		volatile __u8 *bp = (__u8 *) (sh_pcic_io_wbase + 0x40000 + port); 
 		while (count--)
-			*ap++ = *bp;
+			*((__u8 *) addr)++ = *bp;
 	} else if (shifted_port(port)) {
 		while (count--)
-			*ap++ = *p >> 8;
+			*((__u8 *) addr)++ = *p >> 8;
 	} else {
 		while (count--)
-			*ap++ = *p;
+			*((__u8 *) addr)++ = *p;
 	}
 }
 
 void se_insw(unsigned long port, void *addr, unsigned long count)
 {
 	volatile __u16 *p = port2adr(port);
-	__u16 *ap = addr;
 	while (count--)
-		*ap++ = *p;
+		*((__u16 *) addr)++ = *p;
 }
 
 void se_insl(unsigned long port, void *addr, unsigned long count)
@@ -165,27 +163,25 @@ void se_insl(unsigned long port, void *addr, unsigned long count)
 void se_outsb(unsigned long port, const void *addr, unsigned long count)
 {
 	volatile __u16 *p = port2adr(port);
-	const __u8 *ap = addr;
 
 	if (sh_pcic_io_start <= port && port <= sh_pcic_io_stop) {
 		volatile __u8 *bp = (__u8 *) (sh_pcic_io_wbase + port); 
 		while (count--)
-			*bp = *ap++;
+			*bp = *((__u8 *) addr)++;
 	} else if (shifted_port(port)) {
 		while (count--)
-			*p = *ap++ << 8;
+			*p = *((__u8 *) addr)++ << 8;
 	} else {
 		while (count--)
-			*p = *ap++;
+			*p = *((__u8 *) addr)++;
 	}
 }
 
 void se_outsw(unsigned long port, const void *addr, unsigned long count)
 {
 	volatile __u16 *p = port2adr(port);
-	const __u16 *ap = addr;
 	while (count--)
-		*p = *ap++;
+		*p = *((__u16 *) addr)++;
 }
 
 void se_outsl(unsigned long port, const void *addr, unsigned long count)

@@ -17,7 +17,7 @@ static spinlock_t cpa_lock = SPIN_LOCK_UNLOCKED;
 static struct list_head df_list = LIST_HEAD_INIT(df_list);
 
 
-pte_t *lookup_address(unsigned long address) 
+static inline pte_t *lookup_address(unsigned long address) 
 { 
 	pgd_t *pgd = pgd_offset_k(address); 
 	pmd_t *pmd;
@@ -75,7 +75,7 @@ static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 		return;
 
 	spin_lock_irqsave(&pgd_lock, flags);
-	for (page = pgd_list; page; page = (struct page *)page->index) {
+	list_for_each_entry(page, &pgd_list, lru) {
 		pgd_t *pgd;
 		pmd_t *pmd;
 		pgd = (pgd_t *)page_address(page) + pgd_index(address);
@@ -121,21 +121,21 @@ __change_page_attr(struct page *page, pgprot_t prot)
 			pte_t standard = mk_pte(page, PAGE_KERNEL); 
 			set_pte_atomic(kpte, mk_pte(page, prot)); 
 			if (pte_same(old,standard))
-				get_page(kpte_page);
+				atomic_inc(&kpte_page->count);
 		} else {
 			struct page *split = split_large_page(address, prot); 
 			if (!split)
 				return -ENOMEM;
-			get_page(kpte_page);
+			atomic_inc(&kpte_page->count);
 			set_pmd_pte(kpte,address,mk_pte(split, PAGE_KERNEL));
 		}	
 	} else if ((pte_val(*kpte) & _PAGE_PSE) == 0) { 
 		set_pte_atomic(kpte, mk_pte(page, PAGE_KERNEL));
-		__put_page(kpte_page);
+		atomic_dec(&kpte_page->count); 
 	}
 
-	if (cpu_has_pse && (page_count(kpte_page) == 1)) {
-		list_add(&kpte_page->lru, &df_list);
+	if (cpu_has_pse && (atomic_read(&kpte_page->count) == 1)) { 
+		list_add(&kpte_page->list, &df_list);
 		revert_page(kpte_page, address);
 	} 
 	return 0;
@@ -188,7 +188,7 @@ void global_flush_tlb(void)
 	flush_map();
 	n = l.next;
 	while (n != &l) {
-		struct page *pg = list_entry(n, struct page, lru);
+		struct page *pg = list_entry(n, struct page, list);
 		n = n->next;
 		__free_page(pg);
 	}

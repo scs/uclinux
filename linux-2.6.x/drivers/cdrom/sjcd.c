@@ -716,10 +716,12 @@ static int sjcd_tray_open(void)
 static int sjcd_ioctl(struct inode *ip, struct file *fp,
 		      unsigned int cmd, unsigned long arg)
 {
-	void __user *argp = (void __user *)arg;
 #if defined( SJCD_TRACE )
 	printk("SJCD:ioctl\n");
 #endif
+
+	if (ip == NULL)
+		return (-EINVAL);
 
 	sjcd_get_status();
 	if (!sjcd_status_valid)
@@ -793,7 +795,7 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 #if defined( SJCD_TRACE )
 			printk("SJCD: ioctl: playtrkind\n");
 #endif
-			if (!copy_from_user(&ti, argp, sizeof(ti))) {
+			if (!copy_from_user(&ti, (void *) arg, sizeof(ti))) {
 				s = 0;
 				if (ti.cdti_trk0 < sjcd_first_track_no)
 					return (-EINVAL);
@@ -831,7 +833,7 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 			printk("SJCD: ioctl: playmsf\n");
 #endif
 			if ((s =
-			     verify_area(VERIFY_READ, argp,
+			     verify_area(VERIFY_READ, (void *) arg,
 					 sizeof(sjcd_msf))) == 0) {
 				if (sjcd_audio_status == CDROM_AUDIO_PLAY) {
 					sjcd_send_cmd(SCMD_PAUSE);
@@ -840,7 +842,7 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 					    CDROM_AUDIO_NO_STATUS;
 				}
 
-				if (copy_from_user(&sjcd_msf, argp,
+				if (copy_from_user(&sjcd_msf, (void *) arg,
 					       sizeof(sjcd_msf)))
 					return (-EFAULT);
 
@@ -875,7 +877,7 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 #endif
 			toc_header.cdth_trk0 = sjcd_first_track_no;
 			toc_header.cdth_trk1 = sjcd_last_track_no;
-			if (copy_to_user(argp, &toc_header,
+			if (copy_to_user((void *)arg, &toc_header,
 					 sizeof(toc_header)))
 				return -EFAULT;
 			return 0;
@@ -888,11 +890,11 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 			printk("SJCD: ioctl: readtocentry\n");
 #endif
 			if ((s =
-			     verify_area(VERIFY_WRITE, argp,
+			     verify_area(VERIFY_WRITE, (void *) arg,
 					 sizeof(toc_entry))) == 0) {
 				struct sjcd_hw_disk_info *tp;
 
-				if (copy_from_user(&toc_entry, argp,
+				if (copy_from_user(&toc_entry, (void *) arg,
 					       sizeof(toc_entry)))
 					return (-EFAULT);
 				if (toc_entry.cdte_track == CDROM_LEADOUT)
@@ -929,7 +931,7 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 				default:
 					return (-EINVAL);
 				}
-				if (copy_to_user(argp, &toc_entry,
+				if (copy_to_user((void *) arg, &toc_entry,
 						 sizeof(toc_entry)))
 					s = -EFAULT;
 			}
@@ -943,11 +945,11 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 			printk("SJCD: ioctl: subchnl\n");
 #endif
 			if ((s =
-			     verify_area(VERIFY_WRITE, argp,
+			     verify_area(VERIFY_WRITE, (void *) arg,
 					 sizeof(subchnl))) == 0) {
 				struct sjcd_hw_qinfo q_info;
 
-				if (copy_from_user(&subchnl, argp,
+				if (copy_from_user(&subchnl, (void *) arg,
 					       sizeof(subchnl)))
 					return (-EFAULT);
 
@@ -988,7 +990,7 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 				default:
 					return (-EINVAL);
 				}
-				if (copy_to_user(argp, &subchnl,
+				if (copy_to_user((void *) arg, &subchnl,
 					         sizeof(subchnl)))
 					s = -EFAULT;
 			}
@@ -1002,11 +1004,11 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 			printk("SJCD: ioctl: volctrl\n");
 #endif
 			if ((s =
-			     verify_area(VERIFY_READ, argp,
+			     verify_area(VERIFY_READ, (void *) arg,
 					 sizeof(vol_ctrl))) == 0) {
 				unsigned char dummy[4];
 
-				if (copy_from_user(&vol_ctrl, argp,
+				if (copy_from_user(&vol_ctrl, (void *) arg,
 					       sizeof(vol_ctrl)))
 					return (-EFAULT);
 				sjcd_send_4_cmd(SCMD_SET_VOLUME,
@@ -1036,7 +1038,8 @@ static int sjcd_ioctl(struct inode *ip, struct file *fp,
 #if defined( SJCD_TRACE )
 			printk("SJCD: ioctl: statistic\n");
 #endif
-			if (copy_to_user(argp, &statistic, sizeof(statistic)))
+			if (copy_to_user((void *)arg, &statistic,
+					 sizeof(statistic)))
 				return -EFAULT;
 			return 0;
 		}
@@ -1697,7 +1700,7 @@ static int __init sjcd_init(void)
 	sprintf(sjcd_disk->disk_name, "sjcd");
 	sprintf(sjcd_disk->devfs_name, "sjcd");
 
-	if (!request_region(sjcd_base, 4,"sjcd")) {
+	if (check_region(sjcd_base, 4)) {
 		printk
 		    ("SJCD: Init failed, I/O port (%X) is already in use\n",
 		     sjcd_base);

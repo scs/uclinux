@@ -87,7 +87,7 @@ static int show_super(struct seq_file *m, struct super_block *sb)
 	struct reiserfs_sb_info *r = REISERFS_SB(sb);
     
 	seq_printf(m,	"state: \t%s\n"
-			"mount options: \t%s%s%s%s%s%s%s%s%s%s%s\n"
+			"mount options: \t%s%s%s%s%s%s%s%s%s%s%s%s\n"
 			"gen. counter: \t%i\n"
 			"s_kmallocs: \t%i\n"
 			"s_disk_reads: \t%i\n"
@@ -131,6 +131,7 @@ static int show_super(struct seq_file *m, struct super_block *sb)
 			reiserfs_test4( sb ) ? "TEST4 " : "",
 			have_large_tails( sb ) ? "TAILS " : have_small_tails(sb)?"SMALL_TAILS ":"NO_TAILS ",
 			replay_only( sb ) ? "REPLAY_ONLY " : "",
+			reiserfs_dont_log( sb ) ? "DONT_LOG " : "LOG ",
 			convert_reiserfs( sb ) ? "CONV " : "",
 
 			atomic_read( &r -> s_generation_counter ),
@@ -369,6 +370,7 @@ static int show_journal(struct seq_file *m, struct super_block *sb)
 			"j_first_unflushed_offset: \t%lu\n"
 			"j_last_flush_trans_id: \t%lu\n"
 			"j_trans_start_time: \t%li\n"
+			"j_journal_list_index: \t%i\n"
 			"j_list_bitmap_index: \t%i\n"
 			"j_must_wait: \t%i\n"
 			"j_next_full_flush: \t%i\n"
@@ -414,6 +416,7 @@ static int show_journal(struct seq_file *m, struct super_block *sb)
 			JF( j_first_unflushed_offset ),
 			JF( j_last_flush_trans_id ),
 			JF( j_trans_start_time ),
+			JF( j_journal_list_index ),
 			JF( j_list_bitmap_index ),
 			JF( j_must_wait ),
 			JF( j_next_full_flush ),
@@ -548,8 +551,8 @@ int reiserfs_proc_info_init( struct super_block *sb )
 		add_file(sb, "journal", show_journal);
 		return 0;
 	}
-	reiserfs_warning(sb, "reiserfs: cannot create /proc/%s/%s",
-			 proc_info_root_name, reiserfs_bdevname (sb) );
+	reiserfs_warning( "reiserfs: cannot create /proc/%s/%s\n",
+			  proc_info_root_name, reiserfs_bdevname (sb) );
 	return 1;
 }
 
@@ -591,12 +594,11 @@ void reiserfs_proc_unregister_global( const char *name )
 int reiserfs_proc_info_global_init( void )
 {
 	if( proc_info_root == NULL ) {
-		proc_info_root = proc_mkdir(proc_info_root_name, NULL);
+		proc_info_root = proc_mkdir( proc_info_root_name, 0 );
 		if( proc_info_root ) {
 			proc_info_root -> owner = THIS_MODULE;
 		} else {
-			reiserfs_warning (NULL,
-					  "reiserfs: cannot create /proc/%s",
+			reiserfs_warning( "reiserfs: cannot create /proc/%s\n",
 					  proc_info_root_name );
 			return 1;
 		}
@@ -608,7 +610,7 @@ int reiserfs_proc_info_global_done( void )
 {
 	if ( proc_info_root != NULL ) {
 		proc_info_root = NULL;
-		remove_proc_entry(proc_info_root_name, NULL);
+		remove_proc_entry( proc_info_root_name, 0 );
 	}
 	return 0;
 }
@@ -638,8 +640,14 @@ int reiserfs_global_version_in_proc( char *buffer, char **start,
 
 /*
  * $Log$
- * Revision 1.1.1.2  2004/09/07 09:41:25  lgsoft
- * Import of 2.6.8
+ * Revision 1.2  2004/09/07 22:53:03  lgsoft
+ * alpha-2.0
+ *
+ * Revision 1.1.1.1  2004/07/19 12:38:25  lgsoft
+ * Import of uClinux 2.6.2
+ *
+ * Revision 1.1.1.1  2004/07/18 13:22:39  nidhi
+ * Importing
  *
  * Revision 1.1.8.2  2001/07/15 17:08:42  god
  *  . use get_super() in procfs.c

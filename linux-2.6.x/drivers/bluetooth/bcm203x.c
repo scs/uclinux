@@ -74,7 +74,7 @@ struct bcm203x_data {
 	struct timer_list	timer;
 
 	struct urb		*urb;
-	unsigned char		*buffer;
+	unsigned char		buffer[4096];
 
 	unsigned char		*fw_data;
 	unsigned int		fw_size;
@@ -99,7 +99,8 @@ static void bcm203x_complete(struct urb *urb, struct pt_regs *regs)
 	case BCM203X_LOAD_MINIDRV:
 		memcpy(data->buffer, "#", 1);
 
-		usb_fill_bulk_urb(urb, udev, usb_sndbulkpipe(udev, BCM203X_OUT_EP),
+		usb_fill_bulk_urb(urb, udev,
+				usb_sndbulkpipe(udev, BCM203X_OUT_EP),
 				data->buffer, 1, bcm203x_complete, data);
 
 		data->state = BCM203X_SELECT_MEMORY;
@@ -108,7 +109,8 @@ static void bcm203x_complete(struct urb *urb, struct pt_regs *regs)
 		break;
 
 	case BCM203X_SELECT_MEMORY:
-		usb_fill_int_urb(urb, udev, usb_rcvintpipe(udev, BCM203X_IN_EP),
+		usb_fill_int_urb(urb, udev,
+				usb_rcvintpipe(udev, BCM203X_IN_EP),
 				data->buffer, 32, bcm203x_complete, data, 1);
 
 		data->state = BCM203X_CHECK_MEMORY;
@@ -128,15 +130,20 @@ static void bcm203x_complete(struct urb *urb, struct pt_regs *regs)
 
 	case BCM203X_LOAD_FIRMWARE:
 		if (data->fw_sent == data->fw_size) {
-			usb_fill_int_urb(urb, udev, usb_rcvintpipe(udev, BCM203X_IN_EP),
-				data->buffer, 32, bcm203x_complete, data, 1);
+			usb_fill_int_urb(urb, udev,
+					usb_rcvintpipe(udev, BCM203X_IN_EP),
+					data->buffer, 32,
+					bcm203x_complete, data, 1);
 
 			data->state = BCM203X_CHECK_FIRMWARE;
 		} else {
-			len = min_t(uint, data->fw_size - data->fw_sent, 4096);
+			len = min_t(uint, data->fw_size - data->fw_sent,
+							sizeof(data->buffer));
 
-			usb_fill_bulk_urb(urb, udev, usb_sndbulkpipe(udev, BCM203X_OUT_EP),
-				data->fw_data + data->fw_sent, len, bcm203x_complete, data);
+			usb_fill_bulk_urb(urb, udev,
+					usb_sndbulkpipe(udev, BCM203X_OUT_EP),
+					data->fw_data + data->fw_sent, len,
+					bcm203x_complete, data);
 
 			data->fw_sent += len;
 		}
@@ -170,11 +177,10 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 	const struct firmware *firmware;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct bcm203x_data *data;
-	int size;
 
 	BT_DBG("intf %p id %p", intf, id);
 
-	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
+	if (intf->altsetting->desc.bInterfaceNumber != 0)
 		return -ENODEV;
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
@@ -204,20 +210,18 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	BT_DBG("minidrv data %p size %d", firmware->data, firmware->size);
 
-	size = max_t(uint, firmware->size, 4096);
-
-	data->buffer = kmalloc(size, GFP_KERNEL);
-	if (!data->buffer) {
-		BT_ERR("Can't allocate memory for mini driver");
+	if (firmware->size > sizeof(data->buffer)) {
+		BT_ERR("Mini driver exceeds size of buffer");
 		release_firmware(firmware);
 		usb_free_urb(data->urb);
 		kfree(data);
-		return -ENOMEM;
+		return -EIO;
 	}
 
 	memcpy(data->buffer, firmware->data, firmware->size);
 
-	usb_fill_bulk_urb(data->urb, udev, usb_sndbulkpipe(udev, BCM203X_OUT_EP),
+	usb_fill_bulk_urb(data->urb, udev,
+			usb_sndbulkpipe(udev, BCM203X_OUT_EP),
 			data->buffer, firmware->size, bcm203x_complete, data);
 
 	release_firmware(firmware);
@@ -225,7 +229,6 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (request_firmware(&firmware, "BCM2033-FW.bin", &udev->dev) < 0) {
 		BT_ERR("Firmware request failed");
 		usb_free_urb(data->urb);
-		kfree(data->buffer);
 		kfree(data);
 		return -EIO;
 	}
@@ -236,7 +239,6 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (!data->fw_data) {
 		BT_ERR("Can't allocate memory for firmware image");
 		usb_free_urb(data->urb);
-		kfree(data->buffer);
 		kfree(data);
 		return -ENOMEM;
 	}
@@ -270,7 +272,6 @@ static void bcm203x_disconnect(struct usb_interface *intf)
 
 	usb_free_urb(data->urb);
 	kfree(data->fw_data);
-	kfree(data->buffer);
 	kfree(data);
 }
 
@@ -295,15 +296,14 @@ static int __init bcm203x_init(void)
 	return err;
 }
 
-static void __exit bcm203x_exit(void)
+static void __exit bcm203x_cleanup(void)
 {
 	usb_deregister(&bcm203x_driver);
 }
 
 module_init(bcm203x_init);
-module_exit(bcm203x_exit);
+module_exit(bcm203x_cleanup);
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Broadcom Blutonium firmware driver ver " VERSION);
-MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");

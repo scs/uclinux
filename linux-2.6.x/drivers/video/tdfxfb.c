@@ -86,9 +86,9 @@
 #define DPRINTK(a,b...)
 #endif 
 
-#define BANSHEE_MAX_PIXCLOCK 270000
-#define VOODOO3_MAX_PIXCLOCK 300000
-#define VOODOO5_MAX_PIXCLOCK 350000
+#define BANSHEE_MAX_PIXCLOCK 270000.0
+#define VOODOO3_MAX_PIXCLOCK 300000.0
+#define VOODOO5_MAX_PIXCLOCK 350000.0
 
 static struct fb_fix_screeninfo tdfx_fix __initdata = {
 	.id =		"3Dfx",
@@ -166,11 +166,7 @@ static int tdfxfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 static void tdfxfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
 static void tdfxfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);  
 static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image); 
-#ifdef CONFIG_FB_3DFX_ACCEL
 static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor);
-#else /* !CONFIG_FB_3DFX_ACCEL */
-#define tdfxfb_cursor soft_cursor
-#endif /* CONFIG_FB_3DFX_ACCEL */
 static int banshee_wait_idle(struct fb_info *info);
 
 static struct fb_ops tdfxfb_ops = {
@@ -184,7 +180,7 @@ static struct fb_ops tdfxfb_ops = {
 	.fb_copyarea	= tdfxfb_copyarea,
 	.fb_imageblit	= tdfxfb_imageblit,
 	.fb_sync	= banshee_wait_idle,
-	.fb_cursor	= tdfxfb_cursor,
+	.fb_cursor	= soft_cursor,
 };
 
 /*
@@ -1005,7 +1001,6 @@ static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image)
 	banshee_wait_idle(info);
 }
 
-#ifdef CONFIG_FB_3DFX_ACCEL
 static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct tdfx_par *par = (struct tdfx_par *) info->par;
@@ -1050,7 +1045,7 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		bg_color = ((cmap.red[cmap.start+1] << 16) |
 			    (cmap.green[cmap.start+1] << 8) |
 			    (cmap.blue[cmap.start+1]));
-		fb_copy_cmap(&cmap, &info->cursor.image.cmap);
+		fb_copy_cmap(&cmap, &info->cursor.image.cmap, 0);
 		spin_lock_irqsave(&par->DAClock, flags);
 		banshee_make_room(par, 2);
 		tdfx_outl(par, HWCURC0, bg_color);
@@ -1101,7 +1096,7 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		 */
 		u8 *cursorbase = (u8 *) info->cursor.image.data;
 		char *bitmap = (char *)cursor->image.data;
-		const char *mask = cursor->mask;
+		char *mask = cursor->mask;
 		int i, j, k, h = 0;
 
 		for (i = 0; i < 64; i++) {
@@ -1142,7 +1137,6 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	spin_unlock_irqrestore(&par->DAClock, flags);
 	return 0;
 }
-#endif /* CONFIG_FB_3DFX_ACCEL */
 
 /**
  *      tdfxfb_probe - Device Initializiation

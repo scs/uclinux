@@ -32,6 +32,8 @@
 
 #define PREFIX			"ACPI: "
 
+extern int			acpi_disabled;
+
 /* TBD: Make dynamic */
 #define ACPI_MAX_HANDLES	10
 struct acpi_handle_list {

@@ -4,6 +4,7 @@
  * (C) 2000 Nicolas Pitre <nico@cam.org>
  * (C) 2004 LG Soft India
  * 
+ * $Id$
  */
 
 #include <linux/config.h>
@@ -42,6 +43,14 @@ volatile unsigned long *pFIO_EDGE = (volatile unsigned long *) 0xffc00738;
 volatile unsigned long *pFIO_INEN = (volatile unsigned long *) 0xffc00740;
 volatile unsigned long *pFIO_FLAG_D = (volatile unsigned long *) 0xffc00700;
 
+
+void init_EBIU(void)
+{
+        *(volatile unsigned long *) ambctl0 = 0xbbc3bbc3;
+        *(volatile unsigned long *) ambctl1 = 0x99b39983;
+        *(volatile unsigned short *) amgctl = 0xf9;
+}
+
 void init_Flags(void)
 {
         *(volatile unsigned short *) pFIO_DIR = 0x1F;
@@ -54,14 +63,29 @@ void init_Flags(void)
         *(volatile unsigned short *) pFIO_FLAG_D = 0x1C;
 }
 
+void asyncbank_init(void)
+{
+#ifdef CONFIG_BLKFIN_STAMP
+        asm("p2.h = 0xFFC0;");
+        asm("p2.l = 0x0730;");
+        asm("r0 = 0x01;");
+        asm("w[p2] = r0;");
+        asm("ssync;");
+
+        asm("p2.h = 0xffc0;");
+        asm("p2.l = 0x0708;");
+        asm("r0 = 0x01;");
+        asm("w[p2] = r0;");
+        asm("ssync;");
+#endif
+}
 
 volatile unsigned short *FLASH_Base = (unsigned short *) 0x20000000;
 unsigned volatile long *FB = (unsigned long *) 0x20000002;
 
-static map_word bf533_read(struct map_info *map, unsigned long ofs)
+static __u16 bf533_read16(struct map_info *map, unsigned long ofs)
 {
 	int nValue = 0x0;
-	map_word test;
 
 #ifdef CONFIG_BLKFIN_STAMP
 	unsigned long offaddr = (0x20000000 + ofs);
@@ -86,45 +110,28 @@ static map_word bf533_read(struct map_info *map, unsigned long ofs)
 		: "=d" (nValue)
 		: "d" (ofs));
 #endif
-	
-	/*return (__u16)nValue;*/
-	test.x[0]=(__u16)nValue;
-	return test;	
+	return (__u16)nValue;
 }
 
 static void bf533_copy_from(struct map_info *map, void *to, unsigned long from, ssize_t len)
 {
 	unsigned long i;
-	map_word test;
 
-	for (i = 0; i < len; i += 2)	{
-		/* *((u16*)(to + i)) = bf533_read(map, from + i);*/
-		test = bf533_read(map,from+i);
-		*((u16*)(to + i)) = test.x[0];
-	}
+	for (i = 0; i < len; i += 2)
+		*((u16*)(to + i)) = bf533_read16(map, from + i);
 	if (len & 0x01)
-		/* *((u8*)(to + (i-1))) = (u8)(bf533_read(map, from + i) >> 8); */
-		test = bf533_read(map, from + i);
-		test.x[0] = (u8)(test.x[0] >>8);
-		*((u8*)(to + (i-1))) = test.x[0];
+		*((u8*)(to + (i-1))) = (u8)(bf533_read16(map, from + i) >> 8);
 }
 
-static void bf533_write(struct map_info *map, map_word d1, unsigned long ofs)
+static void bf533_write16(struct map_info *map, __u16 d, unsigned long ofs)
 {
 
-	__u16 d;
-	d = (__u16)d1.x[0];	
-
 #ifdef CONFIG_BLKFIN_STAMP
-	/* asm("ssync;"); */
-	if((ofs == 0x555) || (ofs == 0x2AA)) {
-		FLASH_Base[ofs] = d;
-		asm("ssync;");
-	} else {
-		*(volatile unsigned short *) (0x20000000 + ofs) = d;		
-		asm("ssync;");
-	}
-        /* asm("ssync;"); */
+/*	unsigned long offaddr = (0x20000000 + ofs);*/
+	FLASH_Base[ofs] = d;
+
+/*	*(volatile unsigned short *) offaddr = d;*/
+	
 #endif
 
 #ifdef CONFIG_EZKIT
@@ -152,13 +159,13 @@ static void bf533_copy_to(struct map_info *map, unsigned long to, const void *fr
 
 static struct map_info bf533_map = {
 	name:    	"BF533 flash",
-	0,
-	0,
-	0,
-	NULL,		
-	read:		bf533_read,
+	read8:		NULL,
+	read16:		bf533_read16,
+	read32:		NULL,
 	copy_from:	bf533_copy_from,
-	write:		bf533_write,
+	write8:		NULL,
+	write16:	bf533_write16,
+	write32: 	NULL,
 	copy_to:	bf533_copy_to
 };
 
@@ -184,12 +191,15 @@ static unsigned long bf533_max_flash_size = 0x00400000;
 static struct mtd_partition bf533_partitions[] = {
 	{
 		name: "bootloader",
-		size: 0x00100000,
+		size: 0x00050000,
 		offset: 0,
 		mask_flags: MTD_CAP_ROM
 	},{
 		name: "File system image",
-		size: 0x200000,
+		/*size: MTDPART_SIZ_FULL,*/
+		/* size: 0x400000, */
+		size: 0x100000,
+		/*offset: MTDPART_OFS_APPEND*/
 		offset: 0x100000
 	}
 };
@@ -205,13 +215,19 @@ int __init bf533_mtd_init(void)
 	int nb_parts = 0;
 	char *part_type;
 
-	bf533_map.bankwidth = 2;
+	bf533_map.buswidth = 2;
 	bf533_map.size = bf533_max_flash_size;
 
-	printk(KERN_NOTICE "BF533 flash: probing %d-bit flash bus\n", bf533_map.bankwidth*8);
+#ifdef CONFIG_BLKFIN_STAMP
+	init_EBIU();
+	init_Flags();
+#endif
+
+	printk(KERN_NOTICE "BF533 flash: probing %d-bit flash bus\n", bf533_map.buswidth*8);
 	mymtd = do_map_probe("stm_flash", &bf533_map);
 	if (!mymtd)
 		return -ENXIO;
+	/*mymtd->module = THIS_MODULE;*/
 
 	/*
 	 * Static partition definition selection
@@ -229,6 +245,9 @@ int __init bf533_mtd_init(void)
 		printk(KERN_NOTICE "Using %s partition definition\n", part_type);
 		add_mtd_partitions(mymtd, parts, nb_parts);
 	}
+#ifdef CONFIG_BLKFIN_STAMP
+	asyncbank_init();
+#endif
 	return 0;
 }
 

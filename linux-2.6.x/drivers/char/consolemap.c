@@ -257,12 +257,12 @@ static void update_user_maps(void)
  * 0xf000-0xf0ff "transparent" Unicodes) whereas the "new" variants set
  * Unicodes explicitly.
  */
-int con_set_trans_old(unsigned char __user * arg)
+int con_set_trans_old(unsigned char * arg)
 {
 	int i;
 	unsigned short *p = translations[USER_MAP];
 
-	i = verify_area(VERIFY_READ, arg, E_TABSZ);
+	i = verify_area(VERIFY_READ, (void *)arg, E_TABSZ);
 	if (i)
 		return i;
 
@@ -276,12 +276,12 @@ int con_set_trans_old(unsigned char __user * arg)
 	return 0;
 }
 
-int con_get_trans_old(unsigned char __user * arg)
+int con_get_trans_old(unsigned char * arg)
 {
 	int i, ch;
 	unsigned short *p = translations[USER_MAP];
 
-	i = verify_area(VERIFY_WRITE, arg, E_TABSZ);
+	i = verify_area(VERIFY_WRITE, (void *)arg, E_TABSZ);
 	if (i)
 		return i;
 
@@ -293,12 +293,13 @@ int con_get_trans_old(unsigned char __user * arg)
 	return 0;
 }
 
-int con_set_trans_new(ushort __user * arg)
+int con_set_trans_new(ushort * arg)
 {
 	int i;
 	unsigned short *p = translations[USER_MAP];
 
-	i = verify_area(VERIFY_READ, arg, E_TABSZ*sizeof(unsigned short));
+	i = verify_area(VERIFY_READ, (void *)arg,
+			E_TABSZ*sizeof(unsigned short));
 	if (i)
 		return i;
 
@@ -312,12 +313,13 @@ int con_set_trans_new(ushort __user * arg)
 	return 0;
 }
 
-int con_get_trans_new(ushort __user * arg)
+int con_get_trans_new(ushort * arg)
 {
 	int i;
 	unsigned short *p = translations[USER_MAP];
 
-	i = verify_area(VERIFY_WRITE, arg, E_TABSZ*sizeof(unsigned short));
+	i = verify_area(VERIFY_WRITE, (void *)arg,
+			E_TABSZ*sizeof(unsigned short));
 	if (i)
 		return i;
 
@@ -468,7 +470,7 @@ int con_clear_unimap(int con, struct unimapinit *ui)
 }
 
 int
-con_set_unimap(int con, ushort ct, struct unipair __user *list)
+con_set_unimap(int con, ushort ct, struct unipair *list)
 {
 	int err = 0, err1, i;
 	struct uni_pagedir *p, *q;
@@ -575,7 +577,6 @@ con_set_default_unimap(int con)
 	dflt = p;
 	return err;
 }
-EXPORT_SYMBOL(con_set_default_unimap);
 
 int
 con_copy_unimap(int dstcon, int srccon)
@@ -596,7 +597,7 @@ con_copy_unimap(int dstcon, int srccon)
 }
 
 int
-con_get_unimap(int con, ushort ct, ushort __user *uct, struct unipair __user *list)
+con_get_unimap(int con, ushort ct, ushort *uct, struct unipair *list)
 {
 	int i, j, k, ect;
 	u16 **p1, *p2;

@@ -331,7 +331,6 @@ struct aha152x_setup {
 };
 
 struct Scsi_Host *aha152x_probe_one(struct aha152x_setup *);
-void aha152x_release(struct Scsi_Host *);
-int aha152x_host_reset(Scsi_Cmnd *);
+int aha152x_host_reset(struct scsi_cmnd *);
 
 #endif /* _AHA152X_H */

@@ -24,8 +24,6 @@ struct fast_timer{ /* Close to timer_list */
   const char *name;
 };
 
-extern struct fast_timer *fast_timer_list;
-
 void start_one_shot_timer(struct fast_timer *t,
                           fast_timer_function_type *function,
                           unsigned long data,

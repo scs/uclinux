@@ -22,10 +22,9 @@ of1275	:= $(boot)/of1275
 images	:= $(boot)/images
 
 OBJCOPY_ARGS	:= -O aixcoff-rs6000 -R .stab -R .stabstr -R .comment
-COFF_LD_ARGS	:= -T $(srctree)/$(boot)/ld.script -e _start -Ttext 0x00500000 \
-			-Bstatic
-CHRP_LD_ARGS	:= -T $(srctree)/$(boot)/ld.script -e _start -Ttext 0x00800000
-NEWWORLD_LD_ARGS:= -T $(srctree)/$(boot)/ld.script -e _start -Ttext 0x01000000
+COFF_LD_ARGS	:= -T $(boot)/ld.script -e _start -Ttext 0x00500000 -Bstatic
+CHRP_LD_ARGS	:= -T $(boot)/ld.script -e _start -Ttext 0x00800000
+NEWWORLD_LD_ARGS:= -T $(boot)/ld.script -e _start -Ttext 0x01000000
 
 COMMONOBJS	:= start.o misc.o common.o
 COFFOBJS	:= coffcrt0.o $(COMMONOBJS) coffmain.o
@@ -76,7 +75,7 @@ $(obj)/image.initrd.o: $(obj)/image.o $(images)/ramdisk.image.gz FORCE
 	$(call if_changed,genimage-initrd)
 
 # Create the note section for New-World PowerMacs.
-quiet_cmd_mknote = MKNOTE  $@
+quit_cmd_mknote  = MKNOTE  $@
      cmd_mknote  = $(utils)/mknote > $@
 targets		+= note
 $(obj)/note: $(utils)/mknote FORCE
@@ -90,14 +89,13 @@ $(obj)/coffcrt0.o $(obj)/crt0.o: $(common)/crt0.S FORCE
 	$(call if_changed_dep,as_o_S)
 
 quiet_cmd_gencoffb = COFF    $@
-      cmd_gencoffb = $(LD) -o $@ $(COFF_LD_ARGS) $(COFFOBJS) $< $(LIBS) && \
+      cmd_gencoffb = $(LD) -o $@ $(COFF_LD_ARGS) $(filter-out FORCE,$^) && \
                      $(OBJCOPY) $@ $@ -R .comment $(del-ramdisk-sec)
 targets += coffboot
-$(obj)/coffboot: $(obj)/image.o $(COFFOBJS) $(LIBS) $(srctree)/$(boot)/ld.script FORCE
+$(obj)/coffboot: $(COFFOBJS) $(obj)/image.o $(LIBS) FORCE
 	$(call if_changed,gencoffb)
 targets += coffboot.initrd
-$(obj)/coffboot.initrd: $(obj)/image.initrd.o $(COFFOBJS) $(LIBS) \
-			$(srctree)/$(boot)/ld.script FORCE
+$(obj)/coffboot.initrd: $(COFFOBJS) $(obj)/image.initrd.o $(LIBS) FORCE
 	$(call if_changed,gencoffb)
 
 
@@ -118,23 +116,19 @@ quiet_cmd_gen-elf-pmac = ELF     $@
 			$(OBJCOPY) $@ $@ --add-section=.note=$(obj)/note \
 					 -R .comment $(del-ramdisk-sec)
 
-$(images)/vmlinux.elf-pmac: $(obj)/image.o $(NEWWORLDOBJS) $(LIBS) \
-			$(obj)/note $(srctree)/$(boot)/ld.script
+$(images)/vmlinux.elf-pmac: $(obj)/image.o $(NEWWORLDOBJS) $(LIBS) $(obj)/note
 	$(call cmd,gen-elf-pmac)
 $(images)/vmlinux.initrd.elf-pmac: $(obj)/image.initrd.o $(NEWWORLDOBJS) \
-				   $(LIBS) $(obj)/note \
-				   $(srctree)/$(boot)/ld.script
+				   $(LIBS) $(obj)/note
 	$(call cmd,gen-elf-pmac)
 
 quiet_cmd_gen-chrp = CHRP    $@
-      cmd_gen-chrp = $(LD) $(CHRP_LD_ARGS) -o $@ $(CHRPOBJS) $< $(LIBS) && \
+      cmd_gen-chrp = $(LD) $(CHRP_LD_ARGS) -o $@ $^ && \
 			$(OBJCOPY) $@ $@ -R .comment $(del-ramdisk-sec)
 
-$(images)/zImage.chrp: $(obj)/image.o $(CHRPOBJS) $(LIBS) \
-				   $(srctree)/$(boot)/ld.script
+$(images)/zImage.chrp: $(CHRPOBJS) $(obj)/image.o $(LIBS)
 	$(call cmd,gen-chrp)
-$(images)/zImage.initrd.chrp: $(obj)/image.initrd.o $(CHRPOBJS) $(LIBS) \
-				   $(srctree)/$(boot)/ld.script
+$(images)/zImage.initrd.chrp: $(CHRPOBJS) $(obj)/image.initrd.o $(LIBS)
 	$(call cmd,gen-chrp)
 
 quiet_cmd_addnote = ADDNOTE $@
@@ -168,7 +162,7 @@ zImage.initrd:	 $(images)/vmlinux.initrd.coff 		\
 		 $(images)/miboot.initrd.image
 	@echo '  kernel: $@ is ready ($<)'
 
-TFTPIMAGE	:= /tftpboot/zImage
+TFTPIMAGE	:= /tftpboot/zImage.
 
 .PHONY: znetboot znetboot.initrd
 znetboot:	$(images)/vmlinux.coff		\

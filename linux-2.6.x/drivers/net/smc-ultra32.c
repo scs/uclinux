@@ -61,8 +61,7 @@ static const char *version = "smc-ultra32.c: 06/97 v1.00\n";
 
 #include "8390.h"
 
-#define DRV_NAME "smc-ultra32"
-
+int ultra32_probe(struct net_device *dev);
 static int ultra32_probe1(struct net_device *dev, int ioaddr);
 static int ultra32_open(struct net_device *dev);
 static void ultra32_reset_8390(struct net_device *dev);
@@ -99,59 +98,26 @@ static int ultra32_close(struct net_device *dev);
 #define ULTRA32_CFG6	(-0x15)	/* 0xc8b */
 #define ULTRA32_CFG7	0x0d	/* 0xcad */
 
-static void cleanup_card(struct net_device *dev)
-{
-	int ioaddr = dev->base_addr - ULTRA32_NIC_OFFSET;
-	/* NB: ultra32_close_card() does free_irq */
-	release_region(ioaddr, ULTRA32_IO_EXTENT);
-}
 
 /*	Probe for the Ultra32.  This looks like a 8013 with the station
 	address PROM at I/O ports <base>+8 to <base>+13, with a checksum
 	following.
 */
 
-struct net_device * __init ultra32_probe(int unit)
+int __init ultra32_probe(struct net_device *dev)
 {
-	struct net_device *dev;
-	int base;
-	int irq;
-	int err = -ENODEV;
+	int ioaddr;
 
-	if (!EISA_bus)
-		return ERR_PTR(-ENODEV);
-
-	dev = alloc_ei_netdev();
-
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	if (unit >= 0) {
-		sprintf(dev->name, "eth%d", unit);
-		netdev_boot_setup_check(dev);
-	}
+	if (!EISA_bus) return -ENODEV;
 
 	SET_MODULE_OWNER(dev);
 
-	irq = dev->irq;
-
 	/* EISA spec allows for up to 16 slots, but 8 is typical. */
-	for (base = 0x1000 + ULTRA32_BASE; base < 0x9000; base += 0x1000) {
-		if (ultra32_probe1(dev, base) == 0)
-			break;
-		dev->irq = irq;
-	}
-	if (base >= 0x9000)
-		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
-	return dev;
-out1:
-	cleanup_card(dev);
-out:
-	free_netdev(dev);
-	return ERR_PTR(err);
+	for (ioaddr = 0x1000 + ULTRA32_BASE; ioaddr < 0x9000; ioaddr += 0x1000)
+		if (ultra32_probe1(dev, ioaddr) == 0)
+			return 0;
+
+	return -ENODEV;
 }
 
 static int __init ultra32_probe1(struct net_device *dev, int ioaddr)
@@ -165,7 +131,7 @@ static int __init ultra32_probe1(struct net_device *dev, int ioaddr)
 	unsigned char reg4;
 	const char *ifmap[] = {"UTP No Link", "", "UTP/AUI", "UTP/BNC"};
 
-	if (!request_region(ioaddr, ULTRA32_IO_EXTENT, DRV_NAME))
+	if (!request_region(ioaddr, ULTRA32_IO_EXTENT, dev->name))
 		return -EBUSY;
 
 	if (inb(ioaddr + ULTRA32_IDPORT) == 0xff ||
@@ -244,6 +210,13 @@ static int __init ultra32_probe1(struct net_device *dev, int ioaddr)
 		dev->irq = irq;
 	}
 
+	/* Allocate dev->priv and fill in 8390 specific dev fields. */
+	if (ethdev_init(dev)) {
+		printk (", no memory for dev->priv.\n");
+                retval = -ENOMEM;
+		goto out;
+        }
+
 	/* The 8390 isn't at the base address, so fake the offset */
 	dev->base_addr = ioaddr + ULTRA32_NIC_OFFSET;
 
@@ -270,9 +243,6 @@ static int __init ultra32_probe1(struct net_device *dev, int ioaddr)
 	ei_status.reset_8390 = &ultra32_reset_8390;
 	dev->open = &ultra32_open;
 	dev->stop = &ultra32_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
 	NS8390_init(dev, 0);
 
 	return 0;
@@ -410,7 +380,7 @@ static void ultra32_block_output(struct net_device *dev,
 
 #ifdef MODULE
 #define MAX_ULTRA32_CARDS   4	/* Max number of Ultra cards per module */
-static struct net_device *dev_ultra[MAX_ULTRA32_CARDS];
+static struct net_device dev_ultra[MAX_ULTRA32_CARDS];
 
 MODULE_DESCRIPTION("SMC Ultra32 EISA ethernet driver");
 MODULE_LICENSE("GPL");
@@ -420,15 +390,18 @@ int init_module(void)
 	int this_dev, found = 0;
 
 	for (this_dev = 0; this_dev < MAX_ULTRA32_CARDS; this_dev++) {
-		struct net_device *dev = ultra32_probe(-1);
-		if (IS_ERR(dev))
-			break;
-		dev_ultra[found++] = dev;
+		struct net_device *dev = &dev_ultra[this_dev];
+		dev->init = ultra32_probe;
+		if (register_netdev(dev) != 0) {
+			if (found > 0) { /* Got at least one. */
+				return 0;
+			}
+			printk(KERN_WARNING "smc-ultra32.c: No SMC Ultra32 found.\n");
+			return -ENXIO;
+		}
+		found++;
 	}
-	if (found)
-		return 0;
-	printk(KERN_WARNING "smc-ultra32.c: No SMC Ultra32 found.\n");
-	return -ENXIO;
+	return 0;
 }
 
 void cleanup_module(void)
@@ -436,11 +409,14 @@ void cleanup_module(void)
 	int this_dev;
 
 	for (this_dev = 0; this_dev < MAX_ULTRA32_CARDS; this_dev++) {
-		struct net_device *dev = dev_ultra[this_dev];
-		if (dev) {
+		struct net_device *dev = &dev_ultra[this_dev];
+		if (dev->priv != NULL) {
+			int ioaddr = dev->base_addr - ULTRA32_NIC_OFFSET;
+			void *priv = dev->priv;
+			/* NB: ultra32_close_card() does free_irq */
+			release_region(ioaddr, ULTRA32_IO_EXTENT);
 			unregister_netdev(dev);
-			cleanup_card(dev);
-			free_netdev(dev);
+			kfree(priv);
 		}
 	}
 }

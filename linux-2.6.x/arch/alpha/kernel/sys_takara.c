@@ -231,12 +231,8 @@ takara_swizzle(struct pci_dev *dev, u8 *pinp)
 	int slot = PCI_SLOT(dev->devfn);
 	int pin = *pinp;
 	unsigned int ctlreg = inl(0x500);
-	unsigned int busslot;
+	unsigned int busslot = PCI_SLOT(dev->bus->self->devfn);
 
-	if (!dev->bus->self)
-		return slot;
-
-	busslot = PCI_SLOT(dev->bus->self->devfn);
 	/* Check for built-in bridges.  */
 	if (dev->bus->number != 0
 	    && busslot > 16

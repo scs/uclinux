@@ -2,7 +2,9 @@
 # Makefile for MIPS-specific library files..
 #
 
-lib-y	+= csum_partial_copy.o dec_and_lock.o memcpy.o promlib.o strlen_user.o \
-	   strncpy_user.o strnlen_user.o
+lib-y	+= csum_partial_copy.o memcpy.o promlib.o rtc-no.o rtc-std.o
+
+lib-$(subst m,y,$(CONFIG_BLK_DEV_FD))	+= floppy-no.o floppy-std.o
+lib-$(subst m,y,$(CONFIG_IDE))		+= ide-no.o ide-std.o
 
 EXTRA_AFLAGS := $(CFLAGS)

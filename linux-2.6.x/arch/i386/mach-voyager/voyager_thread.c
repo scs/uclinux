@@ -28,6 +28,7 @@
 #include <asm/desc.h>
 #include <asm/voyager.h>
 #include <asm/vic.h>
+#include <asm/pgalloc.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
 
@@ -134,7 +135,7 @@ thread(void *unused)
 	init_timer(&wakeup_timer);
 
 	sigfillset(&current->blocked);
-	current->signal->tty = NULL;
+	current->tty = NULL;	/* get rid of controlling tty */
 
 	printk(KERN_NOTICE "Voyager starting monitor thread\n");
 

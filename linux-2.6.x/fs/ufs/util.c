@@ -24,11 +24,10 @@
 
 
 struct ufs_buffer_head * _ubh_bread_ (struct ufs_sb_private_info * uspi,
-	struct super_block *sb, u64 fragment, u64 size)
+	struct super_block *sb, unsigned fragment, unsigned size)
 {
 	struct ufs_buffer_head * ubh;
-	unsigned i, j ;
-	u64  count = 0;
+	unsigned i, j, count;
 	if (size & ~uspi->s_fmask)
 		return NULL;
 	count = size >> uspi->s_fshift;
@@ -54,10 +53,9 @@ failed:
 }
 
 struct ufs_buffer_head * ubh_bread_uspi (struct ufs_sb_private_info * uspi,
-	struct super_block *sb, u64 fragment, u64 size)
+	struct super_block *sb, unsigned fragment, unsigned size)
 {
-	unsigned i, j;
-	u64 count = 0;
+	unsigned i, j, count;
 	if (size & ~uspi->s_fmask)
 		return NULL;
 	count = size >> uspi->s_fshift;

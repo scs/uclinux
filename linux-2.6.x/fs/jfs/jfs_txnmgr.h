@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) International Business Machines Corp., 2000-2004
+ *   Copyright (c) International Business Machines Corp., 2000-2002
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ struct tblock {
 	u32 logtid;		/* log transaction id */
 
 	/* commit management */
-	struct list_head cqueue;	/* commit queue list */
+	struct tblock *cqnext;	/* commit queue link */
 	s32 clsn;		/* commit lsn */
 	struct lbuf *bp;
 	s32 pn;			/* commit record log page number */
@@ -62,11 +62,7 @@ struct tblock {
 					 * ready transactions wait on this
 					 * event for group commit completion.
 					 */
-	union {
-		struct inode *ip; /* inode being deleted */
-		pxd_t ixpxd;	/* pxd of inode extent for created inode */
-	} u;
-	u32 ino;		/* inode number being created */
+	struct inode *ip;	/* inode being created or deleted */
 };
 
 extern struct tblock *TxBlock;	/* transaction block table */
@@ -93,16 +89,16 @@ extern struct tblock *TxBlock;	/* transaction block table */
  *	transaction lock
  */
 struct tlock {
-	lid_t next;		/* 2: index next lockword on tid locklist
+	lid_t next;		/* index next lockword on tid locklist
 				 *          next lockword on freelist
 				 */
-	tid_t tid;		/* 2: transaction id holding lock */
+	tid_t tid;		/* transaction id holding lock */
 
 	u16 flag;		/* 2: lock control */
 	u16 type;		/* 2: log type */
 
-	struct metapage *mp;	/* 4/8: object page buffer locked */
-	struct inode *ip;	/* 4/8: object */
+	struct metapage *mp;	/* 4: object page buffer locked */
+	struct inode *ip;	/* 4: object */
 	/* (16) */
 
 	s16 lock[24];		/* 48: overlay area */
@@ -167,7 +163,7 @@ struct lv {
 #define	TLOCKLONG	28
 
 struct linelock {
-	lid_t next;		/* 2: next linelock */
+	u16 next;		/* 2: next linelock */
 
 	s8 maxcnt;		/* 1: */
 	s8 index;		/* 1: */
@@ -183,7 +179,7 @@ struct linelock {
 #define dt_lock	linelock
 
 struct xtlock {
-	lid_t next;		/* 2: */
+	u16 next;		/* 2: */
 
 	s8 maxcnt;		/* 1: */
 	s8 index;		/* 1: */
@@ -214,7 +210,7 @@ struct xtlock {
  * free maplock (i.e., number of maplock) in the tlock; 
  */
 struct maplock {
-	lid_t next;		/* 2: */
+	u16 next;		/* 2: */
 
 	u8 maxcnt;		/* 2: */
 	u8 index;		/* 2: next free maplock index */
@@ -242,7 +238,7 @@ struct maplock {
 #define	pxd_lock	maplock
 
 struct xdlistlock {
-	lid_t next;		/* 2: */
+	u16 next;		/* 2: */
 
 	u8 maxcnt;		/* 2: */
 	u8 index;		/* 2: */

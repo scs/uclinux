@@ -55,8 +55,7 @@ static void snd_seq_simple_instr_free(snd_simple_ops_t *ops,
 }
 
 static int snd_seq_simple_put(void *private_data, snd_seq_kinstr_t *instr,
-			      char __user *instr_data, long len,
-			      int atomic, int cmd)
+			      char *instr_data, long len, int atomic, int cmd)
 {
 	snd_simple_ops_t *ops = (snd_simple_ops_t *)private_data;
 	simple_instrument_t *ip;
@@ -104,8 +103,7 @@ static int snd_seq_simple_put(void *private_data, snd_seq_kinstr_t *instr,
 }
 
 static int snd_seq_simple_get(void *private_data, snd_seq_kinstr_t *instr,
-			      char __user *instr_data, long len,
-			      int atomic, int cmd)
+			      char *instr_data, long len, int atomic, int cmd)
 {
 	snd_simple_ops_t *ops = (snd_simple_ops_t *)private_data;
 	simple_instrument_t *ip;

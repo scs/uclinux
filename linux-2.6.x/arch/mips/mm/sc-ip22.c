@@ -65,8 +65,8 @@ static void indy_sc_wback_invalidate(unsigned long addr, unsigned long size)
 	printk("indy_sc_wback_invalidate[%08lx,%08lx]", addr, size);
 #endif
 
-	/* Catch bad driver code */
-	BUG_ON(size == 0);
+	if (!size)
+		return;
 
 	/* Which lines to flush?  */
 	first_line = SC_INDEX(addr);

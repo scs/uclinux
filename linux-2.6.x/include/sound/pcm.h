@@ -95,7 +95,7 @@ typedef struct _snd_pcm_ops {
 	int (*trigger)(snd_pcm_substream_t * substream, int cmd);
 	snd_pcm_uframes_t (*pointer)(snd_pcm_substream_t * substream);
 	int (*copy)(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos,
-		    void __user *buf, snd_pcm_uframes_t count);
+		    void *buf, snd_pcm_uframes_t count);
 	int (*silence)(snd_pcm_substream_t *substream, int channel, 
 		       snd_pcm_uframes_t pos, snd_pcm_uframes_t count);
 	struct page *(*page)(snd_pcm_substream_t *substream, unsigned long offset);
@@ -427,10 +427,6 @@ struct _snd_pcm_str {
 	snd_minor_t *reg;
 	snd_info_entry_t *proc_root;
 	snd_info_entry_t *proc_info_entry;
-#ifdef CONFIG_SND_DEBUG
-	unsigned int xrun_debug;	/* 0 = disabled, 1 = verbose, 2 = stacktrace */
-	snd_info_entry_t *proc_xrun_debug_entry;
-#endif
 };
 
 struct _snd_pcm {
@@ -465,6 +461,8 @@ typedef struct _snd_pcm_notify {
 extern snd_pcm_t *snd_pcm_devices[];
 extern snd_minor_t snd_pcm_reg[2];
 
+void snd_pcm_lock(int unlock);
+
 int snd_pcm_new(snd_card_t * card, char *id, int device,
 		int playback_count, int capture_count,
 		snd_pcm_t **rpcm);
@@ -479,7 +477,7 @@ int snd_pcm_notify(snd_pcm_notify_t *notify, int nfree);
 extern rwlock_t snd_pcm_link_rwlock;
 
 int snd_pcm_info(snd_pcm_substream_t * substream, snd_pcm_info_t *info);
-int snd_pcm_info_user(snd_pcm_substream_t * substream, snd_pcm_info_t __user *info);
+int snd_pcm_info_user(snd_pcm_substream_t * substream, snd_pcm_info_t *info);
 int snd_pcm_status(snd_pcm_substream_t * substream, snd_pcm_status_t *status);
 int snd_pcm_prepare(snd_pcm_substream_t *substream);
 int snd_pcm_start(snd_pcm_substream_t *substream);
@@ -881,17 +879,13 @@ void snd_pcm_tick_set(snd_pcm_substream_t *substream, unsigned long ticks);
 void snd_pcm_tick_elapsed(snd_pcm_substream_t *substream);
 void snd_pcm_period_elapsed(snd_pcm_substream_t *substream);
 snd_pcm_sframes_t snd_pcm_lib_write(snd_pcm_substream_t *substream,
-				    const void __user *buf,
-				    snd_pcm_uframes_t frames);
+				    const void *buf, snd_pcm_uframes_t frames);
 snd_pcm_sframes_t snd_pcm_lib_read(snd_pcm_substream_t *substream,
-				   void __user *buf, snd_pcm_uframes_t frames);
+				   void *buf, snd_pcm_uframes_t frames);
 snd_pcm_sframes_t snd_pcm_lib_writev(snd_pcm_substream_t *substream,
-				     void __user **bufs, snd_pcm_uframes_t frames);
+				     void **bufs, snd_pcm_uframes_t frames);
 snd_pcm_sframes_t snd_pcm_lib_readv(snd_pcm_substream_t *substream,
-				    void __user **bufs, snd_pcm_uframes_t frames);
-
-int snd_pcm_limit_hw_rates(snd_pcm_runtime_t *runtime);
-
+				    void **bufs, snd_pcm_uframes_t frames);
 
 /*
  *  Timer interface
@@ -908,18 +902,49 @@ void snd_pcm_timer_done(snd_pcm_substream_t * substream);
 int snd_pcm_lib_preallocate_free(snd_pcm_substream_t *substream);
 int snd_pcm_lib_preallocate_free_for_all(snd_pcm_t *pcm);
 int snd_pcm_lib_preallocate_pages(snd_pcm_substream_t *substream,
-				  int type, struct device *data,
-				  size_t size, size_t max);
+				  size_t size, size_t max,
+				  unsigned int flags);
 int snd_pcm_lib_preallocate_pages_for_all(snd_pcm_t *pcm,
-					  int type, void *data,
-					  size_t size, size_t max);
+					  size_t size, size_t max,
+					  unsigned int flags);
 int snd_pcm_lib_malloc_pages(snd_pcm_substream_t *substream, size_t size);
 int snd_pcm_lib_free_pages(snd_pcm_substream_t *substream);
 
+#ifdef CONFIG_ISA
+int snd_pcm_lib_preallocate_isa_pages(snd_pcm_substream_t *substream,
+				      size_t size, size_t max);
+int snd_pcm_lib_preallocate_isa_pages_for_all(snd_pcm_t *pcm,
+					      size_t size, size_t max);
+#endif
+#ifdef CONFIG_PCI
+int snd_pcm_lib_preallocate_pci_pages(struct pci_dev *pci,
+				      snd_pcm_substream_t *substream,
+				      size_t size, size_t max);
+int snd_pcm_lib_preallocate_pci_pages_for_all(struct pci_dev *pci,
+					      snd_pcm_t *pcm,
+					      size_t size,
+					      size_t max);
+int snd_pcm_lib_preallocate_sg_pages(struct pci_dev *pci,
+				     snd_pcm_substream_t *substream,
+				     size_t size, size_t max);
+int snd_pcm_lib_preallocate_sg_pages_for_all(struct pci_dev *pci,
+					     snd_pcm_t *pcm,
+					     size_t size, size_t max);
 #define snd_pcm_substream_sgbuf(substream) ((substream)->runtime->dma_private)
 #define snd_pcm_sgbuf_pages(size) snd_sgbuf_aligned_pages(size)
 #define snd_pcm_sgbuf_get_addr(sgbuf,ofs) snd_sgbuf_get_addr(sgbuf,ofs)
 struct page *snd_pcm_sgbuf_ops_page(snd_pcm_substream_t *substream, unsigned long offset);
+#endif
+
+#ifdef CONFIG_SBUS
+int snd_pcm_lib_preallocate_sbus_pages(struct sbus_dev *sdev,
+				       snd_pcm_substream_t *substream,
+				       size_t size, size_t max);
+int snd_pcm_lib_preallocate_sbus_pages_for_all(struct sbus_dev *sdev,
+					       snd_pcm_t *pcm,
+					       size_t size,
+					       size_t max);
+#endif
 
 static inline void snd_pcm_limit_isa_dma_size(int dma, size_t *max)
 {

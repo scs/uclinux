@@ -203,7 +203,6 @@ static void print_bad_sector_map(void)
 	    ft_format_code == fmt_1100ft) {
 		SectorCount *ptr = (SectorCount *)bad_sector_map;
 		unsigned int sector;
-		__u16 *ptr16;
 
 		while((sector = get_sector(ptr++)) != 0) {
 			if ((ft_format_code == fmt_big || 
@@ -219,10 +218,9 @@ static void print_bad_sector_map(void)
 		}
 		/*  Display old ftape's end-of-file marks
 		 */
-		ptr16 = (__u16*)ptr;
-		while ((sector = get_unaligned(ptr16++)) != 0) {
+		while ((sector = get_unaligned(((__u16*)ptr)++)) != 0) {
 			TRACE(ft_t_noise, "Old ftape eof mark: %4d/%2d",
-			      sector, get_unaligned(ptr16++));
+			      sector, get_unaligned(((__u16*)ptr)++));
 		}
 	} else { /* fixed size format */
 		for (i = ft_first_data_segment;

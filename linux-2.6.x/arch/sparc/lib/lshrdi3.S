@@ -1,7 +1,9 @@
 /* $Id$ */
 
-	.globl	__lshrdi3
-__lshrdi3:
+#include <asm/cprefix.h>
+
+	.globl	C_LABEL(__lshrdi3)
+C_LABEL(__lshrdi3):
 	cmp	%o2, 0
 	be	3f
 	 mov	0x20, %g2

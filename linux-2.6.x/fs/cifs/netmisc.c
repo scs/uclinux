@@ -125,10 +125,10 @@ const struct smb_to_posix_error mapping_table_ERRHRD[] = {
 /* Convert string containing dotted ip address to binary form */
 /* returns 0 if invalid address */
 
-/* BB add address family, change rc to status flag and return union or for ipv6 */
-/*  will need parent to call something like inet_pton to convert ipv6 address  BB */
+/* BB add address family, change rc to status flag and return *//* also see inet_pton */
+/* To identify v4 vs. v6 - 1) check for colon (v6 only) 2) then call inet_pton to parse for bad address  */
 int
-cifs_inet_pton(int address_family, char *cp,void *dst)
+inet_addr(char *cp)
 {
 	struct in_addr address;
 	int value;
@@ -139,9 +139,6 @@ cifs_inet_pton(int address_family, char *cp,void *dst)
 	char *end = bytes;
 	static const int addr_class_max[4] =
 	    { 0xffffffff, 0xffffff, 0xffff, 0xff };
-
-	if(address_family != AF_INET)
-		return -EAFNOSUPPORT;
 
 	for (i = 0; i < 4; i++) {
 		bytes[i] = 0;
@@ -169,9 +166,6 @@ cifs_inet_pton(int address_family, char *cp,void *dst)
 				return 0;
 			*end++ = value;
 			temp = *++cp;
-		} else if (temp == ':') {
-			cFYI(1,("IPv6 addresses not supported for CIFS mounts yet"));
-			return -1;
 		} else
 			break;
 	}
@@ -188,8 +182,8 @@ cifs_inet_pton(int address_family, char *cp,void *dst)
 		return 0;
 
 	address.s_addr = *((int *) bytes) | htonl(value);
-	*((int *)dst) = address.s_addr;
-	return 1; /* success */
+	return address.s_addr;
+
 }
 
 /*****************************************************************************

@@ -29,7 +29,7 @@
 struct map_info pnc_map = {
 	.name = "PNC-2000",
 	.size = WINDOW_SIZE,
-	.bankwidth = 4,
+	.buswidth = 4,
 	.phys = 0xFFFFFFFF,
 	.virt = WINDOW_ADDR,
 };

@@ -85,12 +85,6 @@ static void destroy_inodecache(void)
 		printk(KERN_INFO "ncp_inode_cache: not all structures were freed\n");
 }
 
-static int ncp_remount(struct super_block *sb, int *flags, char* data)
-{
-	*flags |= MS_NODIRATIME;
-	return 0;
-}
-
 static struct super_operations ncp_sops =
 {
 	.alloc_inode	= ncp_alloc_inode,
@@ -99,7 +93,6 @@ static struct super_operations ncp_sops =
 	.delete_inode	= ncp_delete_inode,
 	.put_super	= ncp_put_super,
 	.statfs		= ncp_statfs,
-	.remount_fs	= ncp_remount,
 };
 
 extern struct dentry_operations ncp_root_dentry_operations;
@@ -486,7 +479,6 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	else
 		default_bufsize = 1024;
 
-	sb->s_flags |= MS_NODIRATIME;	/* probably even noatime */
 	sb->s_maxbytes = 0xFFFFFFFFU;
 	sb->s_blocksize = 1024;	/* Eh...  Is this correct? */
 	sb->s_blocksize_bits = 10;
@@ -873,9 +865,7 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 				tmpattr.ia_valid = ATTR_MODE;
 				tmpattr.ia_mode = attr->ia_mode;
 
-				result = inode_setattr(inode, &tmpattr);
-				if (result)
-					goto out;
+				inode_setattr(inode, &tmpattr);
 			}
 		}
 #endif
@@ -901,17 +891,13 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 		   closing the file */
 		ncp_inode_close(inode);
 		result = ncp_make_closed(inode);
-		if (result)
-			goto out;
 		{
 			struct iattr tmpattr;
 			
 			tmpattr.ia_valid = ATTR_SIZE;
 			tmpattr.ia_size = attr->ia_size;
 			
-			result = inode_setattr(inode, &tmpattr);
-			if (result)
-				goto out;
+			inode_setattr(inode, &tmpattr);
 		}
 	}
 	if ((attr->ia_valid & ATTR_CTIME) != 0) {
@@ -931,7 +917,7 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 	if ((attr->ia_valid & ATTR_ATIME) != 0) {
 		__u16 dummy;
 		info_mask |= (DM_LAST_ACCESS_DATE);
-		ncp_date_unix2dos(attr->ia_atime.tv_sec,
+		ncp_date_unix2dos(attr->ia_ctime.tv_sec,
 				  &(dummy), &(info.lastAccessDate));
 		info.lastAccessDate = le16_to_cpu(info.lastAccessDate);
 	}
@@ -957,7 +943,7 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 #endif
 	}
 	if (!result)
-		result = inode_setattr(inode, attr);
+		inode_setattr(inode, attr);
 out:
 	unlock_kernel();
 	return result;

@@ -30,6 +30,8 @@
 #ifndef _VXFS_SUPER_H_
 #define _VXFS_SUPER_H_
 
+#ident "$Id$"
+
 /*
  * Veritas filesystem driver - superblock structure.
  *

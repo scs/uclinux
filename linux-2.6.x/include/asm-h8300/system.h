@@ -57,14 +57,14 @@ asmlinkage void resume(void);
 #define __cli() asm volatile ("orc  #0x80,ccr")
 
 #define __save_flags(x) \
-       asm volatile ("stc ccr,%w0":"=r" (x))
+       asm volatile ("stc ccr,r0l\n\tmov.l er0,%0":"=r" (x) : : "er0")
 
 #define __restore_flags(x) \
-       asm volatile ("ldc %w0,ccr": :"r" (x))
+       asm volatile ("mov.l %0,er0\n\tldc r0l,ccr": :"r" (x) : "er0")
 
 #define	irqs_disabled()			\
 ({					\
-	unsigned char flags;		\
+	unsigned long flags;		\
 	__save_flags(flags);	        \
 	((flags & 0x80) == 0x80);	\
 })

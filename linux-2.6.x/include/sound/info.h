@@ -54,11 +54,9 @@ struct snd_info_entry_ops {
 	int (*release) (snd_info_entry_t * entry,
 			unsigned short mode, void *file_private_data);
 	long (*read) (snd_info_entry_t *entry, void *file_private_data,
-		      struct file * file, char __user *buf,
-		      unsigned long count, unsigned long pos);
+		      struct file * file, char *buf, long count);
 	long (*write) (snd_info_entry_t *entry, void *file_private_data,
-		       struct file * file, const char __user *buf,
-		       unsigned long count, unsigned long pos);
+		       struct file * file, const char *buf, long count);
 	long long (*llseek) (snd_info_entry_t *entry, void *file_private_data,
 			    struct file * file, long long offset, int orig);
 	unsigned int (*poll) (snd_info_entry_t *entry, void *file_private_data,
@@ -136,13 +134,12 @@ void snd_remove_proc_entry(struct proc_dir_entry *parent,
 /* for card drivers */
 int snd_card_proc_new(snd_card_t *card, const char *name, snd_info_entry_t **entryp);
 
-static inline void snd_info_set_text_ops(snd_info_entry_t *entry, 
+inline static void snd_info_set_text_ops(snd_info_entry_t *entry, 
 					 void *private_data,
-					 long read_size,
 					 void (*read)(snd_info_entry_t *, snd_info_buffer_t *))
 {
 	entry->private_data = private_data;
-	entry->c.text.read_size = read_size;
+	entry->c.text.read_size = 1024;
 	entry->c.text.read = read;
 }
 
@@ -173,7 +170,7 @@ static inline void snd_remove_proc_entry(struct proc_dir_entry *parent,
 					 struct proc_dir_entry *de) { ; }
 
 #define snd_card_proc_new(card,name,entryp)  0 /* always success */
-#define snd_info_set_text_ops(entry,private_data,read_size,read) /*NOP*/
+#define snd_info_set_text_ops(entry,private_data,read) /*NOP*/
 
 #endif
 

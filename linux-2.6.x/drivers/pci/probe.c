@@ -18,8 +18,6 @@
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
 #define CARDBUS_RESERVE_BUSNR	3
-#define PCI_CFG_SPACE_SIZE	256
-#define PCI_CFG_SPACE_EXP_SIZE	4096
 
 /* Ugh.  Need to stop exporting this to modules. */
 LIST_HEAD(pci_root_buses);
@@ -57,7 +55,7 @@ static ssize_t pci_bus_show_cpuaffinity(struct class_device *class_dev, char *bu
 	cpumask_t cpumask = pcibus_to_cpumask((to_pci_bus(class_dev))->number);
 	int ret;
 
-	ret = cpumask_scnprintf(buf, PAGE_SIZE, cpumask);
+	ret = cpumask_snprintf(buf, PAGE_SIZE, cpumask);
 	if (ret < PAGE_SIZE)
 		buf[ret++] = '\n';
 	return ret;
@@ -193,7 +191,7 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		return;
 
 	if (dev->transparent) {
-		printk(KERN_INFO "PCI: Transparent bridge - %s\n", pci_name(dev));
+		printk("Transparent bridge - %s\n", pci_name(dev));
 		for(i = 0; i < PCI_BUS_NUM_RESOURCES; i++)
 			child->resource[i] = child->parent->resource[i];
 		return;
@@ -216,7 +214,7 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		limit |= (io_limit_hi << 16);
 	}
 
-	if (base <= limit) {
+	if (base && base <= limit) {
 		res->flags = (io_base_lo & PCI_IO_RANGE_TYPE_MASK) | IORESOURCE_IO;
 		res->start = base;
 		res->end = limit + 0xfff;
@@ -227,7 +225,7 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 	pci_read_config_word(dev, PCI_MEMORY_LIMIT, &mem_limit_lo);
 	base = (mem_base_lo & PCI_MEMORY_RANGE_MASK) << 16;
 	limit = (mem_limit_lo & PCI_MEMORY_RANGE_MASK) << 16;
-	if (base <= limit) {
+	if (base && base <= limit) {
 		res->flags = (mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) | IORESOURCE_MEM;
 		res->start = base;
 		res->end = limit + 0xfffff;
@@ -253,7 +251,7 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		}
 #endif
 	}
-	if (base <= limit) {
+	if (base && base <= limit) {
 		res->flags = (mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) | IORESOURCE_MEM | IORESOURCE_PREFETCH;
 		res->start = base;
 		res->end = limit + 0xfffff;
@@ -326,7 +324,7 @@ struct pci_bus * __devinit pci_add_new_bus(struct pci_bus *parent, struct pci_de
 	return child;
 }
 
-unsigned int __devinit pci_scan_child_bus(struct pci_bus *bus);
+static unsigned int __devinit pci_scan_child_bus(struct pci_bus *bus);
 
 /*
  * If it's a bridge, configure it and scan the bus behind it.
@@ -366,12 +364,8 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 			return max;
 		busnr = (buses >> 8) & 0xFF;
 		child = pci_alloc_child_bus(bus, dev, busnr);
-		if (!child)
-			return max;
 		child->primary = buses & 0xFF;
 		child->subordinate = (buses >> 16) & 0xFF;
-		child->bridge_ctl = bctl;
-
 		cmax = pci_scan_child_bus(child);
 		if (cmax > max) max = cmax;
 	} else {
@@ -406,8 +400,6 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 		pci_write_config_dword(dev, PCI_PRIMARY_BUS, buses);
 
 		if (!is_cardbus) {
-			child->bridge_ctl = PCI_BRIDGE_CTL_NO_ISA;
-
 			/* Now we can scan all subordinate buses... */
 			max = pci_scan_child_bus(child);
 		} else {
@@ -463,6 +455,8 @@ static int pci_setup_device(struct pci_dev * dev)
 	dev->slot_name = dev->dev.bus_id;
 	sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(dev->bus),
 		dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
+
+	INIT_LIST_HEAD(&dev->pools);
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
 	class >>= 8;				    /* upper 3 bytes */
@@ -534,43 +528,6 @@ static void pci_release_dev(struct device *dev)
 	kfree(pci_dev);
 }
 
-/**
- * pci_cfg_space_size - get the configuration space size of the PCI device.
- *
- * Regular PCI devices have 256 bytes, but PCI-X 2 and PCI Express devices
- * have 4096 bytes.  Even if the device is capable, that doesn't mean we can
- * access it.  Maybe we don't have a way to generate extended config space
- * accesses, or the device is behind a reverse Express bridge.  So we try
- * reading the dword at 0x100 which must either be 0 or a valid extended
- * capability header.
- */
-static int pci_cfg_space_size(struct pci_dev *dev)
-{
-	int pos;
-	u32 status;
-
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
-	if (!pos) {
-		pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
-		if (!pos)
-			goto fail;
-
-		pci_read_config_dword(dev, pos + PCI_X_STATUS, &status);
-		if (!(status & (PCI_X_STATUS_266MHZ | PCI_X_STATUS_533MHZ)))
-			goto fail;
-	}
-
-	if (pci_read_config_dword(dev, 256, &status) != PCIBIOS_SUCCESSFUL)
-		goto fail;
-	if (status == 0xffffffff)
-		goto fail;
-
-	return PCI_CFG_SPACE_EXP_SIZE;
-
- fail:
-	return PCI_CFG_SPACE_SIZE;
-}
-
 /*
  * Read the config data for a PCI device, sanity-check it
  * and fill in the dev structure...
@@ -607,11 +564,11 @@ pci_scan_device(struct pci_bus *bus, int devfn)
 	dev->multifunction = !!(hdr_type & 0x80);
 	dev->vendor = l & 0xffff;
 	dev->device = (l >> 16) & 0xffff;
-	dev->cfg_size = pci_cfg_space_size(dev);
 
 	/* Assume 32-bit PCI; let 64-bit PCI cards (which are far rarer)
 	   set this higher, assuming the system even supports it.  */
 	dev->dma_mask = 0xffffffff;
+	dev->consistent_dma_mask = 0xffffffff;
 	if (pci_setup_device(dev) < 0) {
 		kfree(dev);
 		return NULL;
@@ -623,7 +580,6 @@ pci_scan_device(struct pci_bus *bus, int devfn)
 	pci_name_device(dev);
 
 	dev->dev.dma_mask = &dev->dma_mask;
-	dev->dev.coherent_dma_mask = 0xffffffffull;
 
 	return dev;
 }
@@ -664,9 +620,6 @@ pci_scan_single_device(struct pci_bus *bus, int devfn)
 int __devinit pci_scan_slot(struct pci_bus *bus, int devfn)
 {
 	int func, nr = 0;
-	int scan_all_fns;
-
-	scan_all_fns = pcibios_scan_all_fns(bus, devfn);
 
 	for (func = 0; func < 8; func++, devfn++) {
 		struct pci_dev *dev;
@@ -687,14 +640,14 @@ int __devinit pci_scan_slot(struct pci_bus *bus, int devfn)
 				}
 			}
 		} else {
-			if (func == 0 && !scan_all_fns)
+			if (func == 0)
 				break;
 		}
 	}
 	return nr;
 }
 
-unsigned int __devinit pci_scan_child_bus(struct pci_bus *bus)
+static unsigned int __devinit pci_scan_child_bus(struct pci_bus *bus)
 {
 	unsigned int devfn, pass, max = bus->secondary;
 	struct pci_dev *dev;
@@ -801,5 +754,4 @@ EXPORT_SYMBOL(pci_do_scan_bus);
 EXPORT_SYMBOL(pci_scan_slot);
 EXPORT_SYMBOL(pci_scan_bridge);
 EXPORT_SYMBOL(pci_scan_single_device);
-EXPORT_SYMBOL_GPL(pci_scan_child_bus);
 #endif

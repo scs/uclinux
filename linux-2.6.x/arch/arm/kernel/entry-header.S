@@ -66,15 +66,6 @@
 	msr	cpsr_c, \mode
 	.endm
 
-#if __LINUX_ARM_ARCH__ >= 6
-	.macro	disable_irq, temp
-	cpsid	i
-	.endm
-
-	.macro	enable_irq, temp
-	cpsie	i
-	.endm
-#else
 	.macro	disable_irq, temp
 	set_cpsr_c \temp, #PSR_I_BIT | MODE_SVC
 	.endm
@@ -82,7 +73,6 @@
 	.macro	enable_irq, temp
 	set_cpsr_c \temp, #MODE_SVC
 	.endm
-#endif
 
 	.macro	save_user_regs
 	sub	sp, sp, #S_FRAME_SIZE
@@ -99,7 +89,7 @@
 	ldr	r1, [sp, #S_PSR]		@ Get calling cpsr
 	disable_irq ip				@ disable IRQs
 	ldr	lr, [sp, #S_PC]!		@ Get PC
-	msr	spsr_cxsf, r1			@ save in spsr_svc
+	msr	spsr, r1			@ save in spsr_svc
 	ldmdb	sp, {r0 - lr}^			@ Get calling r0 - lr
 	mov	r0, r0
 	add	sp, sp, #S_FRAME_SIZE - S_PC
@@ -112,7 +102,7 @@
 	.macro	fast_restore_user_regs
 	ldr	r1, [sp, #S_OFF + S_PSR]	@ get calling cpsr
 	ldr	lr, [sp, #S_OFF + S_PC]!	@ get pc
-	msr	spsr_cxsf, r1			@ save in spsr_svc
+	msr	spsr, r1			@ save in spsr_svc
 	ldmdb	sp, {r1 - lr}^			@ get calling r1 - lr
 	mov	r0, r0
 	add	sp, sp, #S_FRAME_SIZE - S_PC
@@ -125,7 +115,7 @@
 	.macro	slow_restore_user_regs
 	ldr	r1, [sp, #S_PSR]		@ get calling cpsr
 	ldr	lr, [sp, #S_PC]!		@ get pc
-	msr	spsr_cxsf, r1			@ save in spsr_svc
+	msr	spsr, r1			@ save in spsr_svc
 	ldmdb	sp, {r0 - lr}^			@ get calling r1 - lr
 	mov	r0, r0
 	add	sp, sp, #S_FRAME_SIZE - S_PC

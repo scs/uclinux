@@ -27,11 +27,9 @@
 #elif defined(CONFIG_SANDPOINT)
 #include <platforms/sandpoint.h>
 #elif defined(CONFIG_SPRUCE)
-#include <platforms/spruce.h>
+#include <platforms/spruce_serial.h>
 #elif defined(CONFIG_4xx)
 #include <asm/ibm4xx.h>
-#elif defined(CONFIG_85xx)
-#include <asm/mpc85xx.h>
 #else
 
 /*

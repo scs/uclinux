@@ -47,17 +47,8 @@
 
 /* Definition for rcupdate control block. */
 struct rcu_ctrlblk rcu_ctrlblk = 
-	{ .cur = -300, .completed = -300 , .lock = SEQCNT_ZERO };
-
-/* Bookkeeping of the progress of the grace period */
-struct {
-	spinlock_t	mutex; /* Guard this struct and writes to rcu_ctrlblk */
-	cpumask_t	rcu_cpu_mask; /* CPUs that need to switch in order    */
-	                              /* for current batch to proceed.        */
-} rcu_state ____cacheline_maxaligned_in_smp =
-	  {.mutex = SPIN_LOCK_UNLOCKED, .rcu_cpu_mask = CPU_MASK_NONE };
-
-
+	{ .mutex = SPIN_LOCK_UNLOCKED, .curbatch = 1, 
+	  .maxbatch = 1, .rcu_cpu_mask = CPU_MASK_NONE };
 DEFINE_PER_CPU(struct rcu_data, rcu_data) = { 0L };
 
 /* Fake initialization required by compiler */
@@ -68,24 +59,23 @@ static DEFINE_PER_CPU(struct tasklet_struct, rcu_tasklet) = {NULL};
  * call_rcu - Queue an RCU update request.
  * @head: structure to be used for queueing the RCU updates.
  * @func: actual update function to be invoked after the grace period
+ * @arg: argument to be passed to the update function
  *
  * The update function will be invoked as soon as all CPUs have performed 
  * a context switch or been seen in the idle loop or in a user process. 
  * The read-side of critical section that use call_rcu() for updation must 
  * be protected by rcu_read_lock()/rcu_read_unlock().
  */
-void fastcall call_rcu(struct rcu_head *head,
-				void (*func)(struct rcu_head *rcu))
+void call_rcu(struct rcu_head *head, void (*func)(void *arg), void *arg)
 {
 	int cpu;
 	unsigned long flags;
 
 	head->func = func;
-	head->next = NULL;
+	head->arg = arg;
 	local_irq_save(flags);
 	cpu = smp_processor_id();
-	*RCU_nxttail(cpu) = head;
-	RCU_nxttail(cpu) = &head->next;
+	list_add_tail(&head->list, &RCU_nxtlist(cpu));
 	local_irq_restore(flags);
 }
 
@@ -93,70 +83,34 @@ void fastcall call_rcu(struct rcu_head *head,
  * Invoke the completed RCU callbacks. They are expected to be in
  * a per-cpu list.
  */
-static void rcu_do_batch(struct rcu_head *list)
+static void rcu_do_batch(struct list_head *list)
 {
-	struct rcu_head *next;
+	struct list_head *entry;
+	struct rcu_head *head;
 
-	while (list) {
-		next = list->next;
-		list->func(list);
-		list = next;
+	while (!list_empty(list)) {
+		entry = list->next;
+		list_del(entry);
+		head = list_entry(entry, struct rcu_head, list);
+		head->func(head->arg);
 	}
 }
 
-/*
- * Grace period handling:
- * The grace period handling consists out of two steps:
- * - A new grace period is started.
- *   This is done by rcu_start_batch. The start is not broadcasted to
- *   all cpus, they must pick this up by comparing rcu_ctrlblk.cur with
- *   RCU_quiescbatch(cpu). All cpus are recorded  in the
- *   rcu_state.rcu_cpu_mask bitmap.
- * - All cpus must go through a quiescent state.
- *   Since the start of the grace period is not broadcasted, at least two
- *   calls to rcu_check_quiescent_state are required:
- *   The first call just notices that a new grace period is running. The
- *   following calls check if there was a quiescent state since the beginning
- *   of the grace period. If so, it updates rcu_state.rcu_cpu_mask. If
- *   the bitmap is empty, then the grace period is completed.
- *   rcu_check_quiescent_state calls rcu_start_batch(0) to start the next grace
- *   period (if necessary).
- */
 /*
  * Register a new batch of callbacks, and start it up if there is currently no
  * active batch and the batch to be registered has not already occurred.
- * Caller must hold rcu_state.mutex.
+ * Caller must hold the rcu_ctrlblk lock.
  */
-static void rcu_start_batch(int next_pending)
+static void rcu_start_batch(long newbatch)
 {
-	if (next_pending)
-		rcu_ctrlblk.next_pending = 1;
-
-	if (rcu_ctrlblk.next_pending &&
-			rcu_ctrlblk.completed == rcu_ctrlblk.cur) {
-		/* Can't change, since spin lock held. */
-		cpus_andnot(rcu_state.rcu_cpu_mask, cpu_online_map,
-							nohz_cpu_mask);
-		write_seqcount_begin(&rcu_ctrlblk.lock);
-		rcu_ctrlblk.next_pending = 0;
-		rcu_ctrlblk.cur++;
-		write_seqcount_end(&rcu_ctrlblk.lock);
+	if (rcu_batch_before(rcu_ctrlblk.maxbatch, newbatch)) {
+		rcu_ctrlblk.maxbatch = newbatch;
 	}
-}
-
-/*
- * cpu went through a quiescent state since the beginning of the grace period.
- * Clear it from the cpu mask and complete the grace period if it was the last
- * cpu. Start another grace period if someone has further entries pending
- */
-static void cpu_quiet(int cpu)
-{
-	cpu_clear(cpu, rcu_state.rcu_cpu_mask);
-	if (cpus_empty(rcu_state.rcu_cpu_mask)) {
-		/* batch completed ! */
-		rcu_ctrlblk.completed = rcu_ctrlblk.cur;
-		rcu_start_batch(0);
+	if (rcu_batch_before(rcu_ctrlblk.maxbatch, rcu_ctrlblk.curbatch) ||
+	    !cpus_empty(rcu_ctrlblk.rcu_cpu_mask)) {
+		return;
 	}
+	rcu_ctrlblk.rcu_cpu_mask = cpu_online_map;
 }
 
 /*
@@ -168,19 +122,7 @@ static void rcu_check_quiescent_state(void)
 {
 	int cpu = smp_processor_id();
 
-	if (RCU_quiescbatch(cpu) != rcu_ctrlblk.cur) {
-		/* new grace period: record qsctr value. */
-		RCU_qs_pending(cpu) = 1;
-		RCU_last_qsctr(cpu) = RCU_qsctr(cpu);
-		RCU_quiescbatch(cpu) = rcu_ctrlblk.cur;
-		return;
-	}
-
-	/* Grace period already completed for this cpu?
-	 * qs_pending is checked instead of the actual bitmap to avoid
-	 * cacheline trashing.
-	 */
-	if (!RCU_qs_pending(cpu))
+	if (!cpu_isset(cpu, rcu_ctrlblk.rcu_cpu_mask))
 		return;
 
 	/* 
@@ -188,70 +130,29 @@ static void rcu_check_quiescent_state(void)
 	 * we may miss one quiescent state of that CPU. That is
 	 * tolerable. So no need to disable interrupts.
 	 */
+	if (RCU_last_qsctr(cpu) == RCU_QSCTR_INVALID) {
+		RCU_last_qsctr(cpu) = RCU_qsctr(cpu);
+		return;
+	}
 	if (RCU_qsctr(cpu) == RCU_last_qsctr(cpu))
 		return;
-	RCU_qs_pending(cpu) = 0;
 
-	spin_lock(&rcu_state.mutex);
-	/*
-	 * RCU_quiescbatch/batch.cur and the cpu bitmap can come out of sync
-	 * during cpu startup. Ignore the quiescent state.
-	 */
-	if (likely(RCU_quiescbatch(cpu) == rcu_ctrlblk.cur))
-		cpu_quiet(cpu);
+	spin_lock(&rcu_ctrlblk.mutex);
+	if (!cpu_isset(cpu, rcu_ctrlblk.rcu_cpu_mask))
+		goto out_unlock;
 
-	spin_unlock(&rcu_state.mutex);
+	cpu_clear(cpu, rcu_ctrlblk.rcu_cpu_mask);
+	RCU_last_qsctr(cpu) = RCU_QSCTR_INVALID;
+	if (!cpus_empty(rcu_ctrlblk.rcu_cpu_mask))
+		goto out_unlock;
+
+	rcu_ctrlblk.curbatch++;
+	rcu_start_batch(rcu_ctrlblk.maxbatch);
+
+out_unlock:
+	spin_unlock(&rcu_ctrlblk.mutex);
 }
 
-
-#ifdef CONFIG_HOTPLUG_CPU
-
-/* warning! helper for rcu_offline_cpu. do not use elsewhere without reviewing
- * locking requirements, the list it's pulling from has to belong to a cpu
- * which is dead and hence not processing interrupts.
- */
-static void rcu_move_batch(struct rcu_head *list)
-{
-	int cpu;
-
-	local_irq_disable();
-
-	cpu = smp_processor_id();
-
-	while (list != NULL) {
-		*RCU_nxttail(cpu) = list;
-		RCU_nxttail(cpu) = &list->next;
-		list = list->next;
-	}
-	local_irq_enable();
-}
-
-static void rcu_offline_cpu(int cpu)
-{
-	/* if the cpu going offline owns the grace period
-	 * we can block indefinitely waiting for it, so flush
-	 * it here
-	 */
-	spin_lock_bh(&rcu_state.mutex);
-	if (rcu_ctrlblk.cur != rcu_ctrlblk.completed)
-		cpu_quiet(cpu);
-	spin_unlock_bh(&rcu_state.mutex);
-
-	rcu_move_batch(RCU_curlist(cpu));
-	rcu_move_batch(RCU_nxtlist(cpu));
-
-	tasklet_kill_immediate(&RCU_tasklet(cpu), cpu);
-}
-
-#endif
-
-void rcu_restart_cpu(int cpu)
-{
-	spin_lock_bh(&rcu_state.mutex);
-	RCU_quiescbatch(cpu) = rcu_ctrlblk.completed;
-	RCU_qs_pending(cpu) = 0;
-	spin_unlock_bh(&rcu_state.mutex);
-}
 
 /*
  * This does the RCU processing work from tasklet context. 
@@ -259,45 +160,33 @@ void rcu_restart_cpu(int cpu)
 static void rcu_process_callbacks(unsigned long unused)
 {
 	int cpu = smp_processor_id();
-	struct rcu_head *rcu_list = NULL;
+	LIST_HEAD(list);
 
-	if (RCU_curlist(cpu) &&
-	    !rcu_batch_before(rcu_ctrlblk.completed, RCU_batch(cpu))) {
-		rcu_list = RCU_curlist(cpu);
-		RCU_curlist(cpu) = NULL;
+	if (!list_empty(&RCU_curlist(cpu)) &&
+	    rcu_batch_after(rcu_ctrlblk.curbatch, RCU_batch(cpu))) {
+		list_splice(&RCU_curlist(cpu), &list);
+		INIT_LIST_HEAD(&RCU_curlist(cpu));
 	}
 
 	local_irq_disable();
-	if (RCU_nxtlist(cpu) && !RCU_curlist(cpu)) {
-		int next_pending, seq;
-
-		RCU_curlist(cpu) = RCU_nxtlist(cpu);
-		RCU_nxtlist(cpu) = NULL;
-		RCU_nxttail(cpu) = &RCU_nxtlist(cpu);
+	if (!list_empty(&RCU_nxtlist(cpu)) && list_empty(&RCU_curlist(cpu))) {
+		list_splice(&RCU_nxtlist(cpu), &RCU_curlist(cpu));
+		INIT_LIST_HEAD(&RCU_nxtlist(cpu));
 		local_irq_enable();
 
 		/*
 		 * start the next batch of callbacks
 		 */
-		do {
-			seq = read_seqcount_begin(&rcu_ctrlblk.lock);
-			/* determine batch number */
-			RCU_batch(cpu) = rcu_ctrlblk.cur + 1;
-			next_pending = rcu_ctrlblk.next_pending;
-		} while (read_seqcount_retry(&rcu_ctrlblk.lock, seq));
-
-		if (!next_pending) {
-			/* and start it/schedule start if it's a new batch */
-			spin_lock(&rcu_state.mutex);
-			rcu_start_batch(1);
-			spin_unlock(&rcu_state.mutex);
-		}
+		spin_lock(&rcu_ctrlblk.mutex);
+		RCU_batch(cpu) = rcu_ctrlblk.curbatch + 1;
+		rcu_start_batch(RCU_batch(cpu));
+		spin_unlock(&rcu_ctrlblk.mutex);
 	} else {
 		local_irq_enable();
 	}
 	rcu_check_quiescent_state();
-	if (rcu_list)
-		rcu_do_batch(rcu_list);
+	if (!list_empty(&list))
+		rcu_do_batch(&list);
 }
 
 void rcu_check_callbacks(int cpu, int user)
@@ -313,9 +202,8 @@ static void __devinit rcu_online_cpu(int cpu)
 {
 	memset(&per_cpu(rcu_data, cpu), 0, sizeof(struct rcu_data));
 	tasklet_init(&RCU_tasklet(cpu), rcu_process_callbacks, 0UL);
-	RCU_nxttail(cpu) = &RCU_nxtlist(cpu);
-	RCU_quiescbatch(cpu) = rcu_ctrlblk.completed;
-	RCU_qs_pending(cpu) = 0;
+	INIT_LIST_HEAD(&RCU_nxtlist(cpu));
+	INIT_LIST_HEAD(&RCU_curlist(cpu));
 }
 
 static int __devinit rcu_cpu_notify(struct notifier_block *self, 
@@ -326,11 +214,7 @@ static int __devinit rcu_cpu_notify(struct notifier_block *self,
 	case CPU_UP_PREPARE:
 		rcu_online_cpu(cpu);
 		break;
-#ifdef CONFIG_HOTPLUG_CPU
-	case CPU_DEAD:
-		rcu_offline_cpu(cpu);
-		break;
-#endif
+	/* Space reserved for CPU_OFFLINE :) */
 	default:
 		break;
 	}
@@ -355,18 +239,11 @@ void __init rcu_init(void)
 	register_cpu_notifier(&rcu_nb);
 }
 
-struct rcu_synchronize {
-	struct rcu_head head;
-	struct completion completion;
-};
 
 /* Because of FASTCALL declaration of complete, we use this wrapper */
-static void wakeme_after_rcu(struct rcu_head  *head)
+static void wakeme_after_rcu(void *completion)
 {
-	struct rcu_synchronize *rcu;
-
-	rcu = container_of(head, struct rcu_synchronize, head);
-	complete(&rcu->completion);
+	complete(completion);
 }
 
 /**
@@ -375,14 +252,14 @@ static void wakeme_after_rcu(struct rcu_head  *head)
  */
 void synchronize_kernel(void)
 {
-	struct rcu_synchronize rcu;
+	struct rcu_head rcu;
+	DECLARE_COMPLETION(completion);
 
-	init_completion(&rcu.completion);
 	/* Will wake me after RCU finished */
-	call_rcu(&rcu.head, wakeme_after_rcu);
+	call_rcu(&rcu, wakeme_after_rcu, &completion);
 
 	/* Wait for it */
-	wait_for_completion(&rcu.completion);
+	wait_for_completion(&completion);
 }
 
 

@@ -16,7 +16,6 @@
 #include <linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/syscalls.h>
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/utsname.h>
@@ -36,7 +35,7 @@
 #include <asm/sysmips.h>
 #include <asm/uaccess.h>
 
-asmlinkage int sys_pipe(nabi_no_regargs volatile struct pt_regs regs)
+asmlinkage int sys_pipe(nabi_no_regargs struct pt_regs regs)
 {
 	int fd[2];
 	int error, res;
@@ -63,13 +62,6 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 {
 	struct vm_area_struct * vmm;
 	int do_color_align;
-	unsigned long task_size;
-
-#if CONFIG_MIPS32
-	task_size = TASK_SIZE;
-#else
-	task_size = (current->thread.mflags & MF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE;
-#endif
 
 	if (flags & MAP_FIXED) {
 		/*
@@ -81,7 +73,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		return addr;
 	}
 
-	if (len > task_size)
+	if (len > TASK_SIZE)
 		return -ENOMEM;
 	do_color_align = 0;
 	if (filp || (flags & MAP_SHARED))
@@ -92,7 +84,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		else
 			addr = PAGE_ALIGN(addr);
 		vmm = find_vma(current->mm, addr);
-		if (task_size - len >= addr &&
+		if (TASK_SIZE - len >= addr &&
 		    (!vmm || addr + len <= vmm->vm_start))
 			return addr;
 	}
@@ -104,7 +96,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 
 	for (vmm = find_vma(current->mm, addr); ; vmm = vmm->vm_next) {
 		/* At this point:  (!vmm || addr < vmm->vm_end). */
-		if (task_size - len < addr)
+		if (TASK_SIZE - len < addr)
 			return -ENOMEM;
 		if (!vmm || addr + len <= vmm->vm_start)
 			return addr;
@@ -119,7 +111,7 @@ static inline long
 do_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
         unsigned long flags, unsigned long fd, unsigned long pgoff)
 {
-	unsigned long error = -EBADF;
+	int error = -EBADF;
 	struct file * file = NULL;
 
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
@@ -142,7 +134,7 @@ out:
 asmlinkage unsigned long old_mmap(unsigned long addr, size_t len, int prot,
                                   int flags, int fd, off_t offset)
 {
-	unsigned long result;
+	int result;
 
 	result = -EINVAL;
 	if (offset & ~PAGE_MASK)
@@ -164,6 +156,7 @@ sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
 save_static_function(sys_fork);
 static_unused int _sys_fork(nabi_no_regargs struct pt_regs regs)
 {
+	save_static(&regs);
 	return do_fork(SIGCHLD, regs.regs[29], &regs, 0, NULL, NULL);
 }
 
@@ -174,6 +167,7 @@ static_unused int _sys_clone(nabi_no_regargs struct pt_regs regs)
 	unsigned long newsp;
 	int *parent_tidptr, *child_tidptr;
 
+	save_static(&regs);
 	clone_flags = regs.regs[4];
 	newsp = regs.regs[5];
 	if (!newsp)
@@ -303,11 +297,7 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 
 	switch (call) {
 	case SEMOP:
-		return sys_semtimedop (first, (struct sembuf *)ptr, second,
-		                       NULL);
-	case SEMTIMEDOP:
-		return sys_semtimedop (first, (struct sembuf *)ptr, second,
-		                       (const struct timespec __user *)fifth);
+		return sys_semop (first, (struct sembuf *)ptr, second);
 	case SEMGET:
 		return sys_semget (first, second, third);
 	case SEMCTL: {
@@ -350,7 +340,7 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 		switch (version) {
 		default: {
 			ulong raddr;
-			ret = do_shmat (first, (char *) ptr, second, &raddr);
+			ret = sys_shmat (first, (char *) ptr, second, &raddr);
 			if (ret)
 				return ret;
 			return put_user (raddr, (ulong *) third);
@@ -358,7 +348,7 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 		case 1:	/* iBCS2 emulator entry point */
 			if (!segment_eq(get_fs(), get_ds()))
 				return -EINVAL;
-			return do_shmat (first, (char *) ptr, second, (ulong *) third);
+			return sys_shmat (first, (char *) ptr, second, (ulong *) third);
 		}
 	case SHMDT:
 		return sys_shmdt ((char *)ptr);
@@ -370,22 +360,6 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 	default:
 		return -ENOSYS;
 	}
-}
-
-/*
- * Native ABI that is O32 or N64 version
- */
-asmlinkage long sys_shmat(int shmid, char __user *shmaddr,
-                          int shmflg, unsigned long *addr)
-{
-	unsigned long raddr;
-	int err;
-
-	err = do_shmat(shmid, shmaddr, shmflg, &raddr);
-	if (err)
-		return err;
-
-	return put_user(raddr, addr);
 }
 
 /*

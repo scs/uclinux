@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#ident "$Id$"
+
 /*
  * Veritas filesystem driver - inode routines.
  */

@@ -112,46 +112,46 @@ sclp_tty_ioctl(struct tty_struct *tty, struct file * file,
 	switch (cmd) {
 	case TIOCSCLPSHTAB:
 		/* set width of horizontal tab	*/
-		if (get_user(sclp_ioctls.htab, (unsigned short __user *) arg))
+		if (get_user(sclp_ioctls.htab, (unsigned short *) arg))
 			rc = -EFAULT;
 		else
 			check = 1;
 		break;
 	case TIOCSCLPGHTAB:
 		/* get width of horizontal tab	*/
-		if (put_user(sclp_ioctls.htab, (unsigned short __user *) arg))
+		if (put_user(sclp_ioctls.htab, (unsigned short *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPSECHO:
 		/* enable/disable echo of input */
-		if (get_user(sclp_ioctls.echo, (unsigned char __user *) arg))
+		if (get_user(sclp_ioctls.echo, (unsigned char *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPGECHO:
 		/* Is echo of input enabled ?  */
-		if (put_user(sclp_ioctls.echo, (unsigned char __user *) arg))
+		if (put_user(sclp_ioctls.echo, (unsigned char *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPSCOLS:
 		/* set number of columns for output  */
-		if (get_user(sclp_ioctls.columns, (unsigned short __user *) arg))
+		if (get_user(sclp_ioctls.columns, (unsigned short *) arg))
 			rc = -EFAULT;
 		else
 			check = 1;
 		break;
 	case TIOCSCLPGCOLS:
 		/* get number of columns for output  */
-		if (put_user(sclp_ioctls.columns, (unsigned short __user *) arg))
+		if (put_user(sclp_ioctls.columns, (unsigned short *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPSNL:
 		/* enable/disable writing without final new line character  */
-		if (get_user(sclp_ioctls.final_nl, (signed char __user *) arg))
+		if (get_user(sclp_ioctls.final_nl, (signed char *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPGNL:
 		/* Is writing without final new line character enabled ?  */
-		if (put_user(sclp_ioctls.final_nl, (signed char __user *) arg))
+		if (put_user(sclp_ioctls.final_nl, (signed char *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPSOBUF:
@@ -160,7 +160,7 @@ sclp_tty_ioctl(struct tty_struct *tty, struct file * file,
 		 * up to next 4kB boundary and stored as number of SCCBs
 		 * (4kB Buffers) limitation: 256 x 4kB
 		 */
-		if (get_user(obuf, (unsigned int __user *) arg) == 0) {
+		if (get_user(obuf, (unsigned int *) arg) == 0) {
 			if (obuf & 0xFFF)
 				sclp_ioctls.max_sccb = (obuf >> 12) + 1;
 			else
@@ -171,22 +171,22 @@ sclp_tty_ioctl(struct tty_struct *tty, struct file * file,
 	case TIOCSCLPGOBUF:
 		/* get the maximum buffers size for output  */
 		obuf = sclp_ioctls.max_sccb << 12;
-		if (put_user(obuf, (unsigned int __user *) arg))
+		if (put_user(obuf, (unsigned int *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPGKBUF:
 		/* get the number of buffers got from kernel at startup */
-		if (put_user(sclp_ioctls.kmem_sccb, (unsigned short __user *) arg))
+		if (put_user(sclp_ioctls.kmem_sccb, (unsigned short *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPSCASE:
 		/* enable/disable conversion from upper to lower case */
-		if (get_user(sclp_ioctls.tolower, (unsigned char __user *) arg))
+		if (get_user(sclp_ioctls.tolower, (unsigned char *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPGCASE:
 		/* Is conversion from upper to lower case of input enabled? */
-		if (put_user(sclp_ioctls.tolower, (unsigned char __user *) arg))
+		if (put_user(sclp_ioctls.tolower, (unsigned char *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPSDELIM:
@@ -194,7 +194,7 @@ sclp_tty_ioctl(struct tty_struct *tty, struct file * file,
 		 * set special character used for separating upper and
 		 * lower case, 0x00 disables this feature
 		 */
-		if (get_user(sclp_ioctls.delim, (unsigned char __user *) arg))
+		if (get_user(sclp_ioctls.delim, (unsigned char *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPGDELIM:
@@ -202,7 +202,7 @@ sclp_tty_ioctl(struct tty_struct *tty, struct file * file,
 		 * get special character used for separating upper and
 		 * lower case, 0x00 disables this feature
 		 */
-		if (put_user(sclp_ioctls.delim, (unsigned char __user *) arg))
+		if (put_user(sclp_ioctls.delim, (unsigned char *) arg))
 			rc = -EFAULT;
 		break;
 	case TIOCSCLPSINIT:
@@ -415,8 +415,7 @@ sclp_tty_write(struct tty_struct *tty, int from_user,
 	while (count > 0) {
 		length = count < SCLP_TTY_BUF_SIZE ?
 			count : SCLP_TTY_BUF_SIZE;
-		length -= copy_from_user(sclp_tty_chars,
-				(const unsigned char __user *)buf, length);
+		length -= copy_from_user(sclp_tty_chars, buf, length);
 		if (length == 0) {
 			if (!ret)
 				ret = -EFAULT;
@@ -530,8 +529,8 @@ sclp_tty_input(unsigned char* buf, unsigned int count)
 		/* send (normal) input to line discipline */
 		memcpy(sclp_tty->flip.char_buf_ptr, buf, count);
 		if (count < 2 ||
-		    (strncmp ((const char *) buf + count - 2, "^n", 2) &&
-		     strncmp ((const char *) buf + count - 2, "\0252n", 2))) {
+		    strncmp ((const char *) buf + count - 2, "^n", 2) ||
+		    strncmp ((const char *) buf + count - 2, "\0252n", 2)) {
 			sclp_tty->flip.char_buf_ptr[count] = '\n';
 			count++;
 		} else
@@ -637,7 +636,7 @@ find_gds_vector(struct gds_vector *start, struct gds_vector *end, u16 id)
 {
 	struct gds_vector *vec;
 
-	for (vec = start; vec < end; vec = (void *) vec + vec->length)
+	for (vec = start; vec < end; (void *) vec += vec->length)
 		if (vec->gds_id == id)
 			return vec;
 	return NULL;
@@ -649,8 +648,7 @@ find_gds_subvector(struct gds_subvector *start,
 {
 	struct gds_subvector *subvec;
 
-	for (subvec = start; subvec < end;
-	     subvec = (void *) subvec + subvec->length)
+	for (subvec = start; subvec < end; (void *) subvec += subvec->length)
 		if (subvec->key == key)
 			return subvec;
 	return NULL;
@@ -669,7 +667,7 @@ sclp_eval_selfdeftextmsg(struct gds_subvector *start,
 			break;
 		sclp_get_input((unsigned char *)(subvec + 1),
 			       (unsigned char *) subvec + subvec->length);
-		subvec = (void *) subvec + subvec->length;
+		(void *) subvec += subvec->length;
 	}
 }
 
@@ -687,7 +685,7 @@ sclp_eval_textcmd(struct gds_subvector *start,
 			break;
 		sclp_eval_selfdeftextmsg((struct gds_subvector *)(subvec + 1),
 					 (void *)subvec + subvec->length);
-		subvec = (void *) subvec + subvec->length;
+		(void *) subvec += subvec->length;
 	}
 }
 
@@ -703,7 +701,7 @@ sclp_eval_cpmsu(struct gds_vector *start, struct gds_vector *end)
 			break;
 		sclp_eval_textcmd((struct gds_subvector *)(vec + 1),
 				  (void *) vec + vec->length);
-		vec = (void *) vec + vec->length;
+		(void *) vec += vec->length;
 	}
 }
 

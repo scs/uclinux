@@ -78,7 +78,6 @@
 
 
 #ifdef CONFIG_PREEMPT
-# include <linux/smp_lock.h>
 # define in_atomic()   ((preempt_count() & ~PREEMPT_ACTIVE) != kernel_locked())
 # define IRQ_EXIT_OFFSET (HARDIRQ_OFFSET-1)
 #else

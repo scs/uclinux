@@ -76,16 +76,6 @@ struct i2o_device
 };
 
 /*
- * context queue entry, used for 32-bit context on 64-bit systems
- */
-struct i2o_context_list_element {
-	struct i2o_context_list_element *next;
-	u32 context;
-	void *ptr;
-	unsigned int flags;
-};
-
-/*
  * Each I2O controller has one of these objects
  */
 struct i2o_controller
@@ -99,7 +89,6 @@ struct i2o_controller
 	int		irq;
 	int		short_req:1;	/* Use small block sizes        */
 	int		dpt:1;		/* Don't quiesce                */
-	int		raptor:1;	/* split bar                    */
 	int		promise:1;	/* Promise controller		*/
 #ifdef CONFIG_MTRR
 	int		mtrr_reg0;
@@ -110,9 +99,9 @@ struct i2o_controller
 	atomic_t users;
 	struct i2o_device *devices;		/* I2O device chain */
 	struct i2o_controller *next;		/* Controller chain */
-	void *post_port;			/* Inbout port address */
-	void *reply_port;			/* Outbound port address */
-	void *irq_mask;				/* Interrupt register address */
+	unsigned long post_port;		/* Inbout port address */
+	unsigned long reply_port;		/* Outbound port address */
+	unsigned long irq_mask;			/* Interrupt register address */
 
 	/* Dynamic LCT related data */
 	struct semaphore lct_sem;
@@ -129,11 +118,8 @@ struct i2o_controller
 	dma_addr_t hrt_phys;
 	u32 hrt_len;
 
-	void *base_virt;			/* base virtual address */
-	unsigned long base_phys;		/* base physical address */
-
-	void *msg_virt;				/* messages virtual address */
-	unsigned long msg_phys;			/* messages physical address */
+	unsigned long mem_offset;		/* MFA offset */
+	unsigned long mem_phys;			/* MFA physical */
 
 	int battery:1;				/* Has a battery backup */
 	int io_alloc:1;				/* An I/O resource was allocated */
@@ -147,11 +133,6 @@ struct i2o_controller
 
 	void *page_frame;			/* Message buffers */
 	dma_addr_t page_frame_map;		/* Cache map */
-#if BITS_PER_LONG == 64
-	spinlock_t context_list_lock;		/* lock for context_list */
-	struct i2o_context_list_element *context_list; /* list of context id's
-						    and pointers */
-#endif
 };
 
 /*
@@ -340,27 +321,6 @@ extern int i2o_install_controller(struct i2o_controller *);
 extern int i2o_activate_controller(struct i2o_controller *);
 extern void i2o_run_queue(struct i2o_controller *);
 extern int i2o_delete_controller(struct i2o_controller *);
-
-#if BITS_PER_LONG == 64
-extern u32 i2o_context_list_add(void *, struct i2o_controller *);
-extern void *i2o_context_list_get(u32, struct i2o_controller *);
-extern u32 i2o_context_list_remove(void *, struct i2o_controller *);
-#else
-static inline u32 i2o_context_list_add(void *ptr, struct i2o_controller *c)
-{
-	return (u32)ptr;
-}
-
-static inline void *i2o_context_list_get(u32 context, struct i2o_controller *c)
-{
-	return (void *)context;
-}
-
-static inline u32 i2o_context_list_remove(void *ptr, struct i2o_controller *c)
-{
-	return (u32)ptr;
-}
-#endif
 
 /*
  *	Cache strategies
@@ -584,25 +544,6 @@ static inline u32 i2o_context_list_remove(void *ptr, struct i2o_controller *c)
 #define I2O_DSC_DEVICE_BUSY                    0x001B
 #define I2O_DSC_DEVICE_NOT_AVAILABLE           0x001C
 
-/* DetailedStatusCode defines for Block Storage Operation: Table 6-7 Detailed
-   Status Codes.*/
-
-#define I2O_BSA_DSC_SUCCESS               0x0000
-#define I2O_BSA_DSC_MEDIA_ERROR           0x0001
-#define I2O_BSA_DSC_ACCESS_ERROR          0x0002
-#define I2O_BSA_DSC_DEVICE_FAILURE        0x0003
-#define I2O_BSA_DSC_DEVICE_NOT_READY      0x0004
-#define I2O_BSA_DSC_MEDIA_NOT_PRESENT     0x0005
-#define I2O_BSA_DSC_MEDIA_LOCKED          0x0006
-#define I2O_BSA_DSC_MEDIA_FAILURE         0x0007
-#define I2O_BSA_DSC_PROTOCOL_FAILURE      0x0008
-#define I2O_BSA_DSC_BUS_FAILURE           0x0009
-#define I2O_BSA_DSC_ACCESS_VIOLATION      0x000A
-#define I2O_BSA_DSC_WRITE_PROTECTED       0x000B
-#define I2O_BSA_DSC_DEVICE_RESET          0x000C
-#define I2O_BSA_DSC_VOLUME_CHANGED        0x000D
-#define I2O_BSA_DSC_TIMEOUT               0x000E
-
 /* FailureStatusCodes, Table 3-3 Message Failure Codes */
 
 #define I2O_FSC_TRANSPORT_SERVICE_SUSPENDED             0x81
@@ -680,18 +621,12 @@ static inline u32 i2o_context_list_remove(void *ptr, struct i2o_controller *c)
 #define HOST_TID		1
 
 #define MSG_FRAME_SIZE		64	/* i2o_scsi assumes >= 32 */
-#define REPLY_FRAME_SIZE	17
-#define SG_TABLESIZE		30
 #define NMBR_MSG_FRAMES		128
 
 #define MSG_POOL_SIZE		(MSG_FRAME_SIZE*NMBR_MSG_FRAMES*sizeof(u32))
 
 #define I2O_POST_WAIT_OK	0
 #define I2O_POST_WAIT_TIMEOUT	-ETIMEDOUT
-
-#define I2O_CONTEXT_LIST_MIN_LENGTH	15
-#define I2O_CONTEXT_LIST_USED		0x01
-#define I2O_CONTEXT_LIST_DELETED	0x02
 
 #endif /* __KERNEL__ */
 #endif /* _I2O_H */

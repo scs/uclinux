@@ -17,7 +17,7 @@
 #include <asm/system.h>
 
 #include "../scsi.h"
-#include <scsi/scsi_host.h>
+#include "../hosts.h"
 
 #include <scsi/scsicam.h>
 

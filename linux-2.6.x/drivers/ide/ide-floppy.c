@@ -830,7 +830,7 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	if (test_and_clear_bit(PC_DMA_IN_PROGRESS, &pc->flags)) {
 		printk(KERN_ERR "ide-floppy: The floppy wants to issue "
 			"more interrupts in DMA mode\n");
-		(void)__ide_dma_off(drive);
+		(void) HWIF(drive)->ide_dma_off(drive);
 		return ide_do_reset(drive);
 	}
 
@@ -1045,7 +1045,7 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 	bcount.all = min(pc->request_transfer, 63 * 1024);
 
 	if (test_and_clear_bit(PC_DMA_ERROR, &pc->flags)) {
-		(void)__ide_dma_off(drive);
+		(void) HWIF(drive)->ide_dma_off(drive);
 	}
 	feature.all = 0;
 
@@ -1317,7 +1317,6 @@ static int idefloppy_get_flexible_disk_page (ide_drive_t *drive)
 	}
 	header = (idefloppy_mode_parameter_header_t *) pc.buffer;
 	floppy->wp = header->wp;
-	set_disk_ro(drive->disk, floppy->wp);
 	page = (idefloppy_flexible_disk_page_t *) (header + 1);
 
 	page->transfer_rate = ntohs(page->transfer_rate);
@@ -1482,7 +1481,7 @@ static int idefloppy_get_capacity (ide_drive_t *drive)
 **
 */
 
-static int idefloppy_get_format_capacities(ide_drive_t *drive, int __user *arg)
+static int idefloppy_get_format_capacities(ide_drive_t *drive, int *arg)
 {
         idefloppy_pc_t pc;
 	idefloppy_capacity_header_t *header;
@@ -1490,7 +1489,7 @@ static int idefloppy_get_format_capacities(ide_drive_t *drive, int __user *arg)
 	int i, descriptors, blocks, length;
 	int u_array_size;
 	int u_index;
-	int __user *argp;
+	int *argp;
 
 	if (get_user(u_array_size, arg))
 		return (-EFAULT);
@@ -1558,7 +1557,7 @@ static int idefloppy_get_format_capacities(ide_drive_t *drive, int __user *arg)
 **        0x01 - verify media after format.
 */
 
-static int idefloppy_begin_format(ide_drive_t *drive, int __user *arg)
+static int idefloppy_begin_format(ide_drive_t *drive, int *arg)
 {
 	int blocks;
 	int length;
@@ -1591,7 +1590,7 @@ static int idefloppy_begin_format(ide_drive_t *drive, int __user *arg)
 ** the dsc bit, and return either 0 or 65536.
 */
 
-static int idefloppy_get_format_progress(ide_drive_t *drive, int __user *arg)
+static int idefloppy_get_format_progress(ide_drive_t *drive, int *arg)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	idefloppy_pc_t pc;
@@ -1945,8 +1944,7 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 	struct block_device *bdev = inode->i_bdev;
 	ide_drive_t *drive = bdev->bd_disk->private_data;
 	idefloppy_floppy_t *floppy = drive->driver_data;
-	void __user *argp = (void __user *)arg;
-	int err = generic_ide_ioctl(file, bdev, cmd, arg);
+	int err = generic_ide_ioctl(bdev, cmd, arg);
 	int prevent = (arg) ? 1 : 0;
 	idefloppy_pc_t pc;
 	if (err != -EINVAL)
@@ -1973,7 +1971,7 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 	case IDEFLOPPY_IOCTL_FORMAT_SUPPORTED:
 		return 0;
 	case IDEFLOPPY_IOCTL_FORMAT_GET_CAPACITY:
-		return idefloppy_get_format_capacities(drive, argp);
+		return idefloppy_get_format_capacities(drive, (int *)arg);
 	case IDEFLOPPY_IOCTL_FORMAT_START:
 
 		if (!(file->f_mode & 2))
@@ -1989,7 +1987,7 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 
 		set_bit(IDEFLOPPY_FORMAT_IN_PROGRESS, &floppy->flags);
 
-		err = idefloppy_begin_format(drive, argp);
+		err = idefloppy_begin_format(drive, (int *)arg);
 		if (err)
 			clear_bit(IDEFLOPPY_FORMAT_IN_PROGRESS, &floppy->flags);
 		return err;
@@ -2000,7 +1998,7 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 		** format progress reporting.
 		*/
 	case IDEFLOPPY_IOCTL_FORMAT_GET_PROGRESS:
-		return idefloppy_get_format_progress(drive, argp);
+		return idefloppy_get_format_progress(drive, (int *)arg);
 	}
  	return -EINVAL;
 }
@@ -2056,7 +2054,7 @@ static int idefloppy_attach (ide_drive_t *drive)
 		printk (KERN_ERR "ide-floppy: %s: Can't allocate a floppy structure\n", drive->name);
 		goto failed;
 	}
-	if (ide_register_subdriver(drive, &idefloppy_driver)) {
+	if (ide_register_subdriver (drive, &idefloppy_driver, IDE_SUBDRIVER_VERSION)) {
 		printk (KERN_ERR "ide-floppy: %s: Failed to register the driver with ide.c\n", drive->name);
 		kfree (floppy);
 		goto failed;

@@ -21,7 +21,7 @@
 
 #include <asm/io.h>
 
-#define DISPLAY_SLC90E66_TIMINGS
+#include "slc90e66.h"
 
 #if defined(DISPLAY_SLC90E66_TIMINGS) && defined(CONFIG_PROC_FS)
 #include <linux/stat.h>
@@ -275,7 +275,7 @@ static int slc90e66_config_drive_xfer_rate (ide_drive_t *drive)
 
 	if (id && (id->capability & 1) && drive->autodma) {
 		/* Consult the list of known "bad" drives */
-		if (__ide_dma_bad_drive(drive))
+		if (hwif->ide_dma_bad_drive(drive))
 			goto fast_ata_pio;
 
 		if (id->field_valid & 4) {
@@ -293,7 +293,7 @@ try_dma_modes:
 				if (!slc90e66_config_drive_for_dma(drive))
 					goto no_dma_set;
 			}
-		} else if (__ide_dma_good_drive(drive) &&
+		} else if (hwif->ide_dma_good_drive(drive) &&
 			   (id->eide_dma_time < 150)) {
 			/* Consult the list of known "good" drives */
 			if (!slc90e66_config_drive_for_dma(drive))
@@ -319,7 +319,7 @@ static unsigned int __init init_chipset_slc90e66 (struct pci_dev *dev, const cha
 	if (!slc90e66_proc) {
 		slc90e66_proc = 1;
 		bmide_dev = dev;
-		ide_pci_create_host_proc("slc90e66", slc90e66_get_info);
+		ide_pci_register_host_proc(&slc90e66_procs[0]);
 	}
 #endif /* DISPLAY_SLC90E66_TIMINGS && CONFIG_PROC_FS */
 	return 0;
@@ -364,19 +364,16 @@ static void __init init_hwif_slc90e66 (ide_hwif_t *hwif)
 #endif /* !CONFIG_BLK_DEV_IDEDMA */
 }
 
-static ide_pci_device_t slc90e66_chipset __devinitdata = {
-	.name		= "SLC90E66",
-	.init_chipset	= init_chipset_slc90e66,
-	.init_hwif	= init_hwif_slc90e66,
-	.channels	= 2,
-	.autodma	= AUTODMA,
-	.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}},
-	.bootable	= ON_BOARD,
-};
+extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
+
 
 static int __devinit slc90e66_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_setup_pci_device(dev, &slc90e66_chipset);
+	ide_pci_device_t *d = &slc90e66_chipsets[id->driver_data];
+	if (dev->device != d->device)
+		BUG();
+	ide_setup_pci_device(dev, d);
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -384,7 +381,6 @@ static struct pci_device_id slc90e66_pci_tbl[] = {
 	{ PCI_VENDOR_ID_EFAR, PCI_DEVICE_ID_EFAR_SLC90E66_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
-MODULE_DEVICE_TABLE(pci, slc90e66_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "SLC90e66 IDE",
@@ -397,7 +393,13 @@ static int slc90e66_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void slc90e66_ide_exit(void)
+{
+	ide_pci_unregister_driver(&driver);
+}
+
 module_init(slc90e66_ide_init);
+module_exit(slc90e66_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for SLC90E66 IDE");

@@ -130,6 +130,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	mtspr	HID0,r4			/* Disable DPM */
 	sync
 
+	/* Flush & disable L1 */
+	mr	r5,r3
+	bl	__flush_disable_L1
+	mr	r3,r5
+
 	/* Get the current enable bit of the L2CR into r4 */
 	mfspr	r4,L2CR
 
@@ -231,6 +236,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 	sync
 
 4:
+	bl	__inval_enable_L1
 
 	/* Restore HID0[DPM] to whatever it was before */
 	sync
@@ -388,10 +394,11 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
  	sync
 
-	/* Load counter to 0x4000 cache lines (512k) and
+	/* Load counter to 0x1000 cache lines (128k) and
 	 * load cache with datas
 	 */
-	li	r3,0x4000	/* 512kB / 32B */
+	lis	r3,0x0002
+//	li	r3,0x1000	/* 128kB / 32B */
 	mtctr	r3
 	li	r3, 0
 1:
@@ -402,7 +409,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	sync
 
 	/* Now flush those cache lines */
-	li	r3,0x4000	/* 512kB / 32B */
+	lis	r3,0x0002
+//	li	r3,0x1000	/* 128kB / 32B */
 	mtctr	r3
 	li	r3, 0
 1:

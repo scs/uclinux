@@ -23,7 +23,6 @@ typedef struct {
 
 #define spin_is_locked(x)	((x)->lock != 0)
 #define spin_unlock_wait(x)	do { barrier(); } while ((x)->lock)
-#define _raw_spin_lock_flags(lock, flags) _raw_spin_lock(lock)
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
@@ -37,7 +36,7 @@ static inline void _raw_spin_lock(spinlock_t *lock)
 	unsigned int tmp;
 
 	__asm__ __volatile__(
-	".set\tnoreorder\t\t\t# _raw_spin_lock\n"
+	".set\tnoreorder\t\t\t# spin_lock\n"
 	"1:\tll\t%1, %2\n\t"
 	"bnez\t%1, 1b\n\t"
 	" li\t%1, 1\n\t"
@@ -53,7 +52,7 @@ static inline void _raw_spin_lock(spinlock_t *lock)
 static inline void _raw_spin_unlock(spinlock_t *lock)
 {
 	__asm__ __volatile__(
-	".set\tnoreorder\t\t\t# _raw_spin_unlock\n\t"
+	".set\tnoreorder\t\t\t# spin_unlock\n\t"
 	"sync\n\t"
 	"sw\t$0, %0\n\t"
 	".set\treorder"
@@ -67,7 +66,7 @@ static inline unsigned int _raw_spin_trylock(spinlock_t *lock)
 	unsigned int temp, res;
 
 	__asm__ __volatile__(
-	".set\tnoreorder\t\t\t# _raw_spin_trylock\n\t"
+	".set\tnoreorder\t\t\t# spin_trylock\n\t"
 	"1:\tll\t%0, %3\n\t"
 	"ori\t%2, %0, 1\n\t"
 	"sc\t%2, %1\n\t"
@@ -105,7 +104,7 @@ static inline void _raw_read_lock(rwlock_t *rw)
 	unsigned int tmp;
 
 	__asm__ __volatile__(
-	".set\tnoreorder\t\t\t# _raw_read_lock\n"
+	".set\tnoreorder\t\t\t# read_lock\n"
 	"1:\tll\t%1, %2\n\t"
 	"bltz\t%1, 1b\n\t"
 	" addu\t%1, 1\n\t"
@@ -126,7 +125,7 @@ static inline void _raw_read_unlock(rwlock_t *rw)
 	unsigned int tmp;
 
 	__asm__ __volatile__(
-	".set\tnoreorder\t\t\t# _raw_read_unlock\n"
+	".set\tnoreorder\t\t\t# read_unlock\n"
 	"1:\tll\t%1, %2\n\t"
 	"sub\t%1, 1\n\t"
 	"sc\t%1, %0\n\t"
@@ -143,7 +142,7 @@ static inline void _raw_write_lock(rwlock_t *rw)
 	unsigned int tmp;
 
 	__asm__ __volatile__(
-	".set\tnoreorder\t\t\t# _raw_write_lock\n"
+	".set\tnoreorder\t\t\t# write_lock\n"
 	"1:\tll\t%1, %2\n\t"
 	"bnez\t%1, 1b\n\t"
 	" lui\t%1, 0x8000\n\t"
@@ -159,37 +158,13 @@ static inline void _raw_write_lock(rwlock_t *rw)
 static inline void _raw_write_unlock(rwlock_t *rw)
 {
 	__asm__ __volatile__(
-	".set\tnoreorder\t\t\t# _raw_write_unlock\n\t"
+	".set\tnoreorder\t\t\t# write_unlock\n\t"
 	"sync\n\t"
 	"sw\t$0, %0\n\t"
 	".set\treorder"
 	: "=m" (rw->lock)
 	: "m" (rw->lock)
 	: "memory");
-}
-
-static inline int _raw_write_trylock(rwlock_t *rw)
-{
-	unsigned int tmp;
-	int ret;
-
-	__asm__ __volatile__(
-	".set\tnoreorder\t\t\t# _raw_write_trylock\n"
-	"li\t%2, 0\n\t"
-	"1:\tll\t%1, %3\n\t"
-	"bnez\t%1, 2f\n\t"
-	"lui\t%1, 0x8000\n\t"
-	"sc\t%1, %0\n\t"
-	"beqz\t%1, 1b\n\t"
-	"sync\n\t"
-	"li\t%2, 1\n\t"
-	".set\treorder\n"
-	"2:"
-	: "=m" (rw->lock), "=&r" (tmp), "=&r" (ret)
-	: "m" (rw->lock)
-	: "memory");
-
-	return ret;
 }
 
 #endif /* _ASM_SPINLOCK_H */

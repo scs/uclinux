@@ -44,10 +44,10 @@
 
 #define WORDSWAP(a)     ((((a)>>8)&0xff) | ((a)<<8))
 
+static struct net_device *root_hydra_dev;
 
-static int __devinit hydra_init_one(struct zorro_dev *z,
-				    const struct zorro_device_id *ent);
-static int __devinit hydra_init(struct zorro_dev *z);
+static int __init hydra_probe(void);
+static int __init hydra_init(unsigned long board);
 static int hydra_open(struct net_device *dev);
 static int hydra_close(struct net_device *dev);
 static void hydra_reset_8390(struct net_device *dev);
@@ -57,50 +57,45 @@ static void hydra_block_input(struct net_device *dev, int count,
 			      struct sk_buff *skb, int ring_offset);
 static void hydra_block_output(struct net_device *dev, int count,
 			       const unsigned char *buf, int start_page);
-static void __devexit hydra_remove_one(struct zorro_dev *z);
+static void __exit hydra_cleanup(void);
 
-static struct zorro_device_id hydra_zorro_tbl[] __devinitdata = {
-    { ZORRO_PROD_HYDRA_SYSTEMS_AMIGANET },
-    { 0 }
-};
-
-static struct zorro_driver hydra_driver = {
-    .name	= "hydra",
-    .id_table	= hydra_zorro_tbl,
-    .probe	= hydra_init_one,
-    .remove	= __devexit_p(hydra_remove_one),
-};
-
-static int __devinit hydra_init_one(struct zorro_dev *z,
-				    const struct zorro_device_id *ent)
+static int __init hydra_probe(void)
 {
-    int err;
+    struct zorro_dev *z = NULL;
+    unsigned long board;
+    int err = -ENODEV;
 
-    if (!request_mem_region(z->resource.start, 0x10000, "Hydra"))
-	return -EBUSY;
-    if ((err = hydra_init(z))) {
-	release_mem_region(z->resource.start, 0x10000);
-	return -EBUSY;
+    while ((z = zorro_find_device(ZORRO_PROD_HYDRA_SYSTEMS_AMIGANET, z))) {
+	board = z->resource.start;
+	if (!request_mem_region(board, 0x10000, "Hydra"))
+	    continue;
+	if ((err = hydra_init(ZTWO_VADDR(board)))) {
+	    release_mem_region(board, 0x10000);
+	    return err;
+	}
+	err = 0;
     }
-    return 0;
+
+    if (err == -ENODEV)
+	printk("No Hydra ethernet card found.\n");
+
+    return err;
 }
 
-static int __devinit hydra_init(struct zorro_dev *z)
+static int __init hydra_init(unsigned long board)
 {
     struct net_device *dev;
-    unsigned long board = ZTWO_VADDR(z->resource.start);
     unsigned long ioaddr = board+HYDRA_NIC_BASE;
     const char name[] = "NE2000";
     int start_page, stop_page;
     int j;
-    int err;
 
     static u32 hydra_offsets[16] = {
 	0x00, 0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e,
 	0x10, 0x12, 0x14, 0x16, 0x18, 0x1a, 0x1c, 0x1e,
     };
 
-    dev = alloc_ei_netdev();
+    dev = init_etherdev(NULL, 0);
     if (!dev)
 	return -ENOMEM;
     SET_MODULE_OWNER(dev);
@@ -118,10 +113,18 @@ static int __devinit hydra_init(struct zorro_dev *z)
 
     /* Install the Interrupt handler */
     if (request_irq(IRQ_AMIGA_PORTS, ei_interrupt, SA_SHIRQ, "Hydra Ethernet",
-		    dev)) {
-	free_netdev(dev);
+		    dev))
 	return -EAGAIN;
+
+    /* Allocate dev->priv and fill in 8390 specific dev fields. */
+    if (ethdev_init(dev)) {
+	printk("Unable to get memory for dev->priv.\n");
+	return -ENOMEM;
     }
+
+    printk("%s: hydra at 0x%08lx, address %02x:%02x:%02x:%02x:%02x:%02x (hydra.c " HYDRA_VERSION ")\n", dev->name, ZTWO_PADDR(board),
+	dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
+	dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
 
     ei_status.name = name;
     ei_status.tx_start_page = start_page;
@@ -138,27 +141,11 @@ static int __devinit hydra_init(struct zorro_dev *z)
     ei_status.reg_offset = hydra_offsets;
     dev->open = &hydra_open;
     dev->stop = &hydra_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-    dev->poll_controller = ei_poll;
+#ifdef MODULE
+    ei_status.priv = (unsigned long)root_hydra_dev;
+    root_hydra_dev = dev;
 #endif
-
     NS8390_init(dev, 0);
-
-    err = register_netdev(dev);
-    if (err) {
-	free_irq(IRQ_AMIGA_PORTS, dev);
-	free_netdev(dev);
-	return err;
-    }
-
-    zorro_set_drvdata(z, dev);
-
-    printk(KERN_INFO "%s: Hydra at 0x%08lx, address "
-	   "%02x:%02x:%02x:%02x:%02x:%02x (hydra.c " HYDRA_VERSION ")\n",
-	   dev->name, z->resource.start, dev->dev_addr[0], dev->dev_addr[1],
-	   dev->dev_addr[2], dev->dev_addr[3], dev->dev_addr[4],
-	   dev->dev_addr[5]);
-
     return 0;
 }
 
@@ -171,14 +158,14 @@ static int hydra_open(struct net_device *dev)
 static int hydra_close(struct net_device *dev)
 {
     if (ei_debug > 1)
-	printk(KERN_DEBUG "%s: Shutting down ethercard.\n", dev->name);
+	printk("%s: Shutting down ethercard.\n", dev->name);
     ei_close(dev);
     return 0;
 }
 
 static void hydra_reset_8390(struct net_device *dev)
 {
-    printk(KERN_INFO "Hydra hw reset not there\n");
+    printk("Hydra hw reset not there\n");
 }
 
 static void hydra_get_8390_hdr(struct net_device *dev,
@@ -230,27 +217,20 @@ static void hydra_block_output(struct net_device *dev, int count,
     z_memcpy_toio(mem_base+((start_page - NESM_START_PG)<<8), buf, count);
 }
 
-static void __devexit hydra_remove_one(struct zorro_dev *z)
+static void __exit hydra_cleanup(void)
 {
-    struct net_device *dev = zorro_get_drvdata(z);
+    struct net_device *dev, *next;
 
-    unregister_netdev(dev);
-    free_irq(IRQ_AMIGA_PORTS, dev);
-    release_mem_region(ZTWO_PADDR(dev->base_addr)-HYDRA_NIC_BASE, 0x10000);
-    free_netdev(dev);
+    while ((dev = root_hydra_dev)) {
+	next = (struct net_device *)(ei_status.priv);
+	unregister_netdev(dev);
+	free_irq(IRQ_AMIGA_PORTS, dev);
+	release_mem_region(ZTWO_PADDR(dev->base_addr)-HYDRA_NIC_BASE, 0x10000);
+	free_netdev(dev);
+	root_hydra_dev = next;
+    }
 }
 
-static int __init hydra_init_module(void)
-{
-    return zorro_module_init(&hydra_driver);
-}
-
-static void __exit hydra_cleanup_module(void)
-{
-    zorro_unregister_driver(&hydra_driver);
-}
-
-module_init(hydra_init_module);
-module_exit(hydra_cleanup_module);
-
+module_init(hydra_probe);
+module_exit(hydra_cleanup);
 MODULE_LICENSE("GPL");

@@ -7,7 +7,6 @@
 
 #include <linux/config.h>
 #include <linux/mm.h>
-#include <linux/hugetlb.h>
 #include <linux/mman.h>
 #include <linux/slab.h>
 #include <linux/kernel_stat.h>
@@ -22,9 +21,8 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/rmap.h>
+#include <linux/rmap-locking.h>
 #include <linux/security.h>
-#include <linux/backing-dev.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -32,7 +30,7 @@
 
 spinlock_t swaplock = SPIN_LOCK_UNLOCKED;
 unsigned int nr_swapfiles;
-long total_swap_pages;
+int total_swap_pages;
 static int swap_overflow;
 
 EXPORT_SYMBOL(total_swap_pages);
@@ -46,42 +44,7 @@ struct swap_list_t swap_list = {-1, -1};
 
 struct swap_info_struct swap_info[MAX_SWAPFILES];
 
-static DECLARE_MUTEX(swapon_sem);
-
-/*
- * We need this because the bdev->unplug_fn can sleep and we cannot
- * hold swap_list_lock while calling the unplug_fn. And swap_list_lock
- * cannot be turned into a semaphore.
- */
-static DECLARE_RWSEM(swap_unplug_sem);
-
 #define SWAPFILE_CLUSTER 256
-
-void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
-{
-	swp_entry_t entry;
-
-	down_read(&swap_unplug_sem);
-	entry.val = page->private;
-	if (PageSwapCache(page)) {
-		struct block_device *bdev = swap_info[swp_type(entry)].bdev;
-		struct backing_dev_info *bdi;
-
-		/*
-		 * If the page is removed from swapcache from under us (with a
-		 * racy try_to_unuse/swapoff) we need an additional reference
-		 * count to avoid reading garbage from page->private above. If
-		 * the WARN_ON triggers during a swapoff it maybe the race
-		 * condition and it's harmless. However if it triggers without
-		 * swapoff it signals a problem.
-		 */
-		WARN_ON(page_count(page) <= 1);
-
-		bdi = bdev->bd_inode->i_mapping->backing_dev_info;
-		bdi->unplug_io_fn(bdi, page);
-	}
-	up_read(&swap_unplug_sem);
-}
 
 static inline int scan_swap_map(struct swap_info_struct *si)
 {
@@ -110,7 +73,7 @@ static inline int scan_swap_map(struct swap_info_struct *si)
  check_next_cluster:
 	if (offset+SWAPFILE_CLUSTER-1 <= si->highest_bit)
 	{
-		unsigned long nr;
+		int nr;
 		for (nr = offset; nr < offset+SWAPFILE_CLUSTER; nr++)
 			if (si->swap_map[nr])
 			{
@@ -284,16 +247,16 @@ static int exclusive_swap_page(struct page *page)
 	struct swap_info_struct * p;
 	swp_entry_t entry;
 
-	entry.val = page->private;
+	entry.val = page->index;
 	p = swap_info_get(entry);
 	if (p) {
 		/* Is the only swap cache user the cache itself? */
 		if (p->swap_map[swp_offset(entry)] == 1) {
-			/* Recheck the page count with the swapcache lock held.. */
-			spin_lock_irq(&swapper_space.tree_lock);
-			if (page_count(page) == 2)
+			/* Recheck the page count with the pagecache lock held.. */
+			spin_lock(&swapper_space.page_lock);
+			if (page_count(page) - !!PagePrivate(page) == 2)
 				retval = 1;
-			spin_unlock_irq(&swapper_space.tree_lock);
+			spin_unlock(&swapper_space.page_lock);
 		}
 		swap_info_put(p);
 	}
@@ -352,7 +315,7 @@ int remove_exclusive_swap_page(struct page *page)
 	if (page_count(page) != 2) /* 2: us + cache */
 		return 0;
 
-	entry.val = page->private;
+	entry.val = page->index;
 	p = swap_info_get(entry);
 	if (!p)
 		return 0;
@@ -360,14 +323,14 @@ int remove_exclusive_swap_page(struct page *page)
 	/* Is the only swap cache user the cache itself? */
 	retval = 0;
 	if (p->swap_map[swp_offset(entry)] == 1) {
-		/* Recheck the page count with the swapcache lock held.. */
-		spin_lock_irq(&swapper_space.tree_lock);
+		/* Recheck the page count with the pagecache lock held.. */
+		spin_lock(&swapper_space.page_lock);
 		if ((page_count(page) == 2) && !PageWriteback(page)) {
 			__delete_from_swap_cache(page);
 			SetPageDirty(page);
 			retval = 1;
 		}
-		spin_unlock_irq(&swapper_space.tree_lock);
+		spin_unlock(&swapper_space.page_lock);
 	}
 	swap_info_put(p);
 
@@ -390,14 +353,8 @@ void free_swap_and_cache(swp_entry_t entry)
 
 	p = swap_info_get(entry);
 	if (p) {
-		if (swap_entry_free(p, swp_offset(entry)) == 1) {
-			spin_lock_irq(&swapper_space.tree_lock);
-			page = radix_tree_lookup(&swapper_space.page_tree,
-				entry.val);
-			if (page && TestSetPageLocked(page))
-				page = NULL;
-			spin_unlock_irq(&swapper_space.tree_lock);
-		}
+		if (swap_entry_free(p, swp_offset(entry)) == 1)
+			page = find_trylock_page(&swapper_space, entry.val);
 		swap_info_put(p);
 	}
 	if (page) {
@@ -428,19 +385,19 @@ void free_swap_and_cache(swp_entry_t entry)
 /* vma->vm_mm->page_table_lock is held */
 static void
 unuse_pte(struct vm_area_struct *vma, unsigned long address, pte_t *dir,
-	swp_entry_t entry, struct page *page)
+	swp_entry_t entry, struct page *page, struct pte_chain **pte_chainp)
 {
 	vma->vm_mm->rss++;
 	get_page(page);
 	set_pte(dir, pte_mkold(mk_pte(page, vma->vm_page_prot)));
-	page_add_anon_rmap(page, vma, address);
+	*pte_chainp = page_add_rmap(page, dir, *pte_chainp);
 	swap_free(entry);
 }
 
 /* vma->vm_mm->page_table_lock is held */
-static unsigned long unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
+static int unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
 	unsigned long address, unsigned long size, unsigned long offset,
-	swp_entry_t entry, struct page *page)
+	swp_entry_t entry, struct page *page, struct pte_chain **pte_chainp)
 {
 	pte_t * pte;
 	unsigned long end;
@@ -465,17 +422,10 @@ static unsigned long unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
 		 * Test inline before going to call unuse_pte.
 		 */
 		if (unlikely(pte_same(*pte, swp_pte))) {
-			unuse_pte(vma, offset + address, pte, entry, page);
+			unuse_pte(vma, offset + address, pte,
+					entry, page, pte_chainp);
 			pte_unmap(pte);
-
-			/*
-			 * Move the page to the active list so it is not
-			 * immediately swapped out again after swapon.
-			 */
-			activate_page(page);
-
-			/* add 1 since address may be 0 */
-			return 1 + offset + address;
+			return 1;
 		}
 		address += PAGE_SIZE;
 		pte++;
@@ -485,13 +435,12 @@ static unsigned long unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
 }
 
 /* vma->vm_mm->page_table_lock is held */
-static unsigned long unuse_pgd(struct vm_area_struct * vma, pgd_t *dir,
+static int unuse_pgd(struct vm_area_struct * vma, pgd_t *dir,
 	unsigned long address, unsigned long size,
-	swp_entry_t entry, struct page *page)
+	swp_entry_t entry, struct page *page, struct pte_chain **pte_chainp)
 {
 	pmd_t * pmd;
 	unsigned long offset, end;
-	unsigned long foundaddr;
 
 	if (pgd_none(*dir))
 		return 0;
@@ -509,10 +458,9 @@ static unsigned long unuse_pgd(struct vm_area_struct * vma, pgd_t *dir,
 	if (address >= end)
 		BUG();
 	do {
-		foundaddr = unuse_pmd(vma, pmd, address, end - address,
-						offset, entry, page);
-		if (foundaddr)
-			return foundaddr;
+		if (unuse_pmd(vma, pmd, address, end - address,
+				offset, entry, page, pte_chainp))
+			return 1;
 		address = (address + PMD_SIZE) & PMD_MASK;
 		pmd++;
 	} while (address && (address < end));
@@ -520,19 +468,17 @@ static unsigned long unuse_pgd(struct vm_area_struct * vma, pgd_t *dir,
 }
 
 /* vma->vm_mm->page_table_lock is held */
-static unsigned long unuse_vma(struct vm_area_struct * vma, pgd_t *pgdir,
-	swp_entry_t entry, struct page *page)
+static int unuse_vma(struct vm_area_struct * vma, pgd_t *pgdir,
+	swp_entry_t entry, struct page *page, struct pte_chain **pte_chainp)
 {
 	unsigned long start = vma->vm_start, end = vma->vm_end;
-	unsigned long foundaddr;
 
 	if (start >= end)
 		BUG();
 	do {
-		foundaddr = unuse_pgd(vma, pgdir, start, end - start,
-						entry, page);
-		if (foundaddr)
-			return foundaddr;
+		if (unuse_pgd(vma, pgdir, start, end - start,
+				entry, page, pte_chainp))
+			return 1;
 		start = (start + PGDIR_SIZE) & PGDIR_MASK;
 		pgdir++;
 	} while (start && (start < end));
@@ -543,35 +489,23 @@ static int unuse_process(struct mm_struct * mm,
 			swp_entry_t entry, struct page* page)
 {
 	struct vm_area_struct* vma;
-	unsigned long foundaddr = 0;
+	struct pte_chain *pte_chain;
+
+	pte_chain = pte_chain_alloc(GFP_KERNEL);
+	if (!pte_chain)
+		return -ENOMEM;
 
 	/*
 	 * Go through process' page directory.
 	 */
-	if (!down_read_trylock(&mm->mmap_sem)) {
-		/*
-		 * Our reference to the page stops try_to_unmap_one from
-		 * unmapping its ptes, so swapoff can make progress.
-		 */
-		unlock_page(page);
-		down_read(&mm->mmap_sem);
-		lock_page(page);
-	}
 	spin_lock(&mm->page_table_lock);
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-		if (!is_vm_hugetlb_page(vma)) {
-			pgd_t * pgd = pgd_offset(mm, vma->vm_start);
-			foundaddr = unuse_vma(vma, pgd, entry, page);
-			if (foundaddr)
-				break;
-		}
+		pgd_t * pgd = pgd_offset(mm, vma->vm_start);
+		if (unuse_vma(vma, pgd, entry, page, &pte_chain))
+			break;
 	}
 	spin_unlock(&mm->page_table_lock);
-	up_read(&mm->mmap_sem);
-	/*
-	 * Currently unuse_process cannot fail, but leave error handling
-	 * at call sites for now, since we change it from time to time.
-	 */
+	pte_chain_free(pte_chain);
 	return 0;
 }
 
@@ -660,7 +594,7 @@ static int try_to_unuse(unsigned int type)
 	 * open() method called) - so swap entries may be invisible
 	 * to swapoff for a while, then reappear - but that is rare.
 	 */
-	while ((i = find_next_to_unuse(si, i)) != 0) {
+	while ((i = find_next_to_unuse(si, i))) {
 		if (signal_pending(current)) {
 			retval = -EINTR;
 			break;
@@ -673,7 +607,7 @@ static int try_to_unuse(unsigned int type)
 		 */
 		swap_map = &si->swap_map[i];
 		entry = swp_entry(type, i);
-		page = read_swap_cache_async(entry, NULL, 0);
+		page = read_swap_cache_async(entry);
 		if (!page) {
 			/*
 			 * Either swap_duplicate() failed because entry
@@ -907,8 +841,7 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
 	lh = sis->extent_list.next;	/* The highest-addressed block */
 	while (lh != &sis->extent_list) {
 		se = list_entry(lh, struct swap_extent, list);
-		if (se->start_block + se->nr_pages == start_block &&
-		    se->start_page  + se->nr_pages == start_page) {
+		if (se->start_block + se->nr_pages == start_block) {
 			/* Merge it */
 			se->nr_pages += nr_pages;
 			return 0;
@@ -1062,14 +995,14 @@ int page_queue_congested(struct page *page)
 
 	BUG_ON(!PageLocked(page));	/* It pins the swap_info_struct */
 
+	bdi = page->mapping->backing_dev_info;
 	if (PageSwapCache(page)) {
-		swp_entry_t entry = { .val = page->private };
+		swp_entry_t entry = { .val = page->index };
 		struct swap_info_struct *sis;
 
 		sis = get_swap_info_struct(swp_type(entry));
 		bdi = sis->bdev->bd_inode->i_mapping->backing_dev_info;
-	} else
-		bdi = page->mapping->backing_dev_info;
+	}
 	return bdi_write_congested(bdi);
 }
 #endif
@@ -1080,7 +1013,6 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	unsigned short *swap_map;
 	struct file *swap_file, *victim;
 	struct address_space *mapping;
-	struct inode *inode;
 	char * pathname;
 	int i, type, prev;
 	int err;
@@ -1093,7 +1025,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	if (IS_ERR(pathname))
 		goto out;
 
-	victim = filp_open(pathname, O_RDWR|O_LARGEFILE, 0);
+	victim = filp_open(pathname, O_RDWR, 0);
 	putname(pathname);
 	err = PTR_ERR(victim);
 	if (IS_ERR(victim))
@@ -1138,11 +1070,6 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	current->flags |= PF_SWAPOFF;
 	err = try_to_unuse(type);
 	current->flags &= ~PF_SWAPOFF;
-
-	/* wait for any unplug function to finish */
-	down_write(&swap_unplug_sem);
-	up_write(&swap_unplug_sem);
-
 	if (err) {
 		/* re-insert swap space back into swap_list */
 		swap_list_lock();
@@ -1160,7 +1087,6 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 		swap_list_unlock();
 		goto out_dput;
 	}
-	down(&swapon_sem);
 	swap_list_lock();
 	swap_device_lock(p);
 	swap_file = p->swap_file;
@@ -1172,17 +1098,13 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	destroy_swap_extents(p);
 	swap_device_unlock(p);
 	swap_list_unlock();
-	up(&swapon_sem);
 	vfree(swap_map);
-	inode = mapping->host;
-	if (S_ISBLK(inode->i_mode)) {
-		struct block_device *bdev = I_BDEV(inode);
+	if (S_ISBLK(mapping->host->i_mode)) {
+		struct block_device *bdev = I_BDEV(mapping->host);
 		set_blocksize(bdev, p->old_block_size);
 		bd_release(bdev);
 	} else {
-		down(&inode->i_sem);
-		inode->i_flags &= ~S_SWAPFILE;
-		up(&inode->i_sem);
+		up(&mapping->host->i_sem);
 	}
 	filp_close(swap_file, NULL);
 	err = 0;
@@ -1201,7 +1123,7 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
 	int i;
 	loff_t l = *pos;
 
-	down(&swapon_sem);
+	swap_list_lock();
 
 	for (i = 0; i < nr_swapfiles; i++, ptr++) {
 		if (!(ptr->flags & SWP_USED) || !ptr->swap_map)
@@ -1216,9 +1138,9 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
 static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
 {
 	struct swap_info_struct *ptr = v;
-	struct swap_info_struct *endptr = swap_info + nr_swapfiles;
+	void *endptr = (void *) swap_info + nr_swapfiles * sizeof(struct swap_info_struct);
 
-	for (++ptr; ptr < endptr; ptr++) {
+	for (++ptr; ptr < (struct swap_info_struct *) endptr; ptr++) {
 		if (!(ptr->flags & SWP_USED) || !ptr->swap_map)
 			continue;
 		++*pos;
@@ -1230,7 +1152,7 @@ static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
 
 static void swap_stop(struct seq_file *swap, void *v)
 {
-	up(&swapon_sem);
+	swap_list_unlock();
 }
 
 static int swap_show(struct seq_file *swap, void *v)
@@ -1244,7 +1166,7 @@ static int swap_show(struct seq_file *swap, void *v)
 
 	file = ptr->swap_file;
 	len = seq_path(swap, file->f_vfsmnt, file->f_dentry, " \t\n\\");
-	seq_printf(swap, "%*s%s\t%d\t%ld\t%d\n",
+	seq_printf(swap, "%*s %s\t%d\t%ld\t%d\n",
 		       len < 40 ? 40 - len : 1, " ",
 		       S_ISBLK(file->f_dentry->d_inode->i_mode) ?
 				"partition" : "file\t",
@@ -1301,7 +1223,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	int i, prev;
 	int error;
 	static int least_priority;
-	union swap_header *swap_header = NULL;
+	union swap_header *swap_header = 0;
 	int swap_header_version;
 	int nr_good_pages = 0;
 	unsigned long maxpages = 1;
@@ -1319,19 +1241,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		if (!(p->flags & SWP_USED))
 			break;
 	error = -EPERM;
-	/*
-	 * Test if adding another swap device is possible. There are
-	 * two limiting factors: 1) the number of bits for the swap
-	 * type swp_entry_t definition and 2) the number of bits for
-	 * the swap type in the swap ptes as defined by the different
-	 * architectures. To honor both limitations a swap entry
-	 * with swap offset 0 and swap type ~0UL is created, encoded
-	 * to a swap pte, decoded to a swp_entry_t again and finally
-	 * the swap type part is extracted. This will mask all bits
-	 * from the initial ~0UL that can't be encoded in either the
-	 * swp_entry_t or the architecture definition of a swap pte.
-	 */
-	if (type > swp_type(pte_to_swp_entry(swp_entry_to_pte(swp_entry(~0UL,0))))) {
+	if (type >= MAX_SWAPFILES) {
 		swap_list_unlock();
 		goto out;
 	}
@@ -1358,11 +1268,9 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	swap_list_unlock();
 	name = getname(specialfile);
 	error = PTR_ERR(name);
-	if (IS_ERR(name)) {
-		name = NULL;
+	if (IS_ERR(name))
 		goto bad_swap_2;
-	}
-	swap_file = filp_open(name, O_RDWR|O_LARGEFILE, 0);
+	swap_file = filp_open(name, O_RDWR, 0);
 	error = PTR_ERR(swap_file);
 	if (IS_ERR(swap_file)) {
 		swap_file = NULL;
@@ -1400,10 +1308,6 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		p->bdev = inode->i_sb->s_bdev;
 		down(&inode->i_sem);
 		did_down = 1;
-		if (IS_SWAPFILE(inode)) {
-			error = -EBUSY;
-			goto bad_swap;
-		}
 	} else {
 		goto bad_swap;
 	}
@@ -1457,21 +1361,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		}
 
 		p->lowest_bit  = 1;
-		/*
-		 * Find out how many pages are allowed for a single swap
-		 * device. There are two limiting factors: 1) the number of
-		 * bits for the swap offset in the swp_entry_t type and
-		 * 2) the number of bits in the a swap pte as defined by
-		 * the different architectures. In order to find the
-		 * largest possible bit mask a swap entry with swap type 0
-		 * and swap offset ~0UL is created, encoded to a swap pte,
-		 * decoded to a swp_entry_t again and finally the swap
-		 * offset is extracted. This will mask all the bits from
-		 * the initial ~0UL mask that can't be encoded in either
-		 * the swp_entry_t or the architecture definition of a
-		 * swap pte.
-		 */
-		maxpages = swp_offset(pte_to_swp_entry(swp_entry_to_pte(swp_entry(0,~0UL)))) - 1;
+		maxpages = swp_offset(swp_entry(0,~0UL)) - 1;
 		if (maxpages > swap_header->info.last_page)
 			maxpages = swap_header->info.last_page;
 		p->highest_bit = maxpages - 1;
@@ -1521,7 +1411,6 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	if (error)
 		goto bad_swap;
 
-	down(&swapon_sem);
 	swap_list_lock();
 	swap_device_lock(p);
 	p->flags = SWP_ACTIVE;
@@ -1547,7 +1436,6 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	}
 	swap_device_unlock(p);
 	swap_list_unlock();
-	up(&swapon_sem);
 	error = 0;
 	goto out;
 bad_swap:
@@ -1567,7 +1455,7 @@ bad_swap_2:
 	destroy_swap_extents(p);
 	if (swap_map)
 		vfree(swap_map);
-	if (swap_file)
+	if (swap_file && !IS_ERR(swap_file))
 		filp_close(swap_file, NULL);
 out:
 	if (page && !IS_ERR(page)) {
@@ -1576,11 +1464,8 @@ out:
 	}
 	if (name)
 		putname(name);
-	if (did_down) {
-		if (!error)
-			inode->i_flags |= S_SWAPFILE;
+	if (error && did_down)
 		up(&inode->i_sem);
-	}
 	return error;
 }
 

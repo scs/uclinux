@@ -17,7 +17,9 @@
 const char CommandLine[] = Delimiter
   "root=/dev/hda3                                                                                                                                                                                                                                            ";
 
-void __init prom_init(void)
+char arcs_cmdline[CL_SIZE];
+
+int __init prom_init(int argc, char ** argv, char **envp)
 {
 	ulong mem_size = get_mem_avail();
         int reserve_size = 0;
@@ -41,10 +43,11 @@ void __init prom_init(void)
 	mips_machtype   = MACH_UNKNOWN;
 
 	strcpy(arcs_cmdline, CommandLine+strlen(Delimiter));
+
+	return 0;
 }
 
 
-unsigned long __init prom_free_prom_memory(void)
+void prom_free_prom_memory (void)
 {
-	return 0;
 }

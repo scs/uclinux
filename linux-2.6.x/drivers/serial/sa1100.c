@@ -894,7 +894,6 @@ static int sa1100_serial_probe(struct device *_dev)
 			if (sa1100_ports[i].port.mapbase != res->start)
 				continue;
 
-			sa1100_ports[i].port.dev = _dev;
 			uart_add_one_port(&sa1100_reg, &sa1100_ports[i].port);
 			dev_set_drvdata(_dev, &sa1100_ports[i]);
 			break;
@@ -954,4 +953,3 @@ module_exit(sa1100_serial_exit);
 MODULE_AUTHOR("Deep Blue Solutions Ltd");
 MODULE_DESCRIPTION("SA1100 generic serial port driver $Revision$");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_CHARDEV_MAJOR(SERIAL_SA1100_MAJOR);

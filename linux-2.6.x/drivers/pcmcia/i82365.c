@@ -32,7 +32,6 @@
 ======================================================================*/
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/config.h>
 #include <linux/types.h>
@@ -65,21 +64,16 @@
 #include "cirrus.h"
 #include "vg468.h"
 #include "ricoh.h"
+#include "o2micro.h"
 
-#ifdef DEBUG
-static const char version[] =
+#ifdef PCMCIA_DEBUG
+static int pc_debug = PCMCIA_DEBUG;
+MODULE_PARM(pc_debug, "i");
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+static const char *version =
 "i82365.c 1.265 1999/11/10 18:36:21 (David Hinds)";
-
-static int pc_debug;
-
-module_param(pc_debug, int, 0644);
-
-#define debug(lvl, fmt, arg...) do {				\
-	if (pc_debug > (lvl))					\
-		printk(KERN_DEBUG "i82365: " fmt , ## arg);	\
-} while (0)
 #else
-#define debug(lvl, fmt, arg...) do { } while (0)
+#define DEBUG(n, args...) do { } while (0)
 #endif
 
 static irqreturn_t i365_count_irq(int, void *, struct pt_regs *);
@@ -103,8 +97,7 @@ static int extra_sockets = 0;
 static int ignore = -1;
 /* Bit map or list of interrupts to choose from */
 static u_int irq_mask = 0xffff;
-static int irq_list[16];
-static int irq_list_count;
+static int irq_list[16] = { -1 };
 /* The card status change interrupt -- 0 means autoselect */
 static int cs_irq = 0;
 
@@ -130,27 +123,27 @@ static int async_clock = -1;
 static int cable_mode = -1;
 static int wakeup = 0;
 
-module_param(i365_base, int, 0444);
-module_param(ignore, int, 0444);
-module_param(extra_sockets, int, 0444);
-module_param(irq_mask, int, 0444);
-module_param_array(irq_list, int, irq_list_count, 0444);
-module_param(cs_irq, int, 0444);
-module_param(async_clock, int, 0444);
-module_param(cable_mode, int, 0444);
-module_param(wakeup, int, 0444);
+MODULE_PARM(i365_base, "i");
+MODULE_PARM(ignore, "i");
+MODULE_PARM(extra_sockets, "i");
+MODULE_PARM(irq_mask, "i");
+MODULE_PARM(irq_list, "1-16i");
+MODULE_PARM(cs_irq, "i");
+MODULE_PARM(async_clock, "i");
+MODULE_PARM(cable_mode, "i");
+MODULE_PARM(wakeup, "i");
 
-module_param(do_scan, int, 0444);
-module_param(poll_interval, int, 0444);
-module_param(cycle_time, int, 0444);
-module_param(has_dma, int, 0444);
-module_param(has_led, int, 0444);
-module_param(has_ring, int, 0444);
-module_param(dynamic_mode, int, 0444);
-module_param(freq_bypass, int, 0444);
-module_param(setup_time, int, 0444);
-module_param(cmd_time, int, 0444);
-module_param(recov_time, int, 0444);
+MODULE_PARM(do_scan, "i");
+MODULE_PARM(poll_interval, "i");
+MODULE_PARM(cycle_time, "i");
+MODULE_PARM(has_dma, "i");
+MODULE_PARM(has_led, "i");
+MODULE_PARM(has_ring, "i");
+MODULE_PARM(dynamic_mode, "i");
+MODULE_PARM(freq_bypass, "i");
+MODULE_PARM(setup_time, "i");
+MODULE_PARM(cmd_time, "i");
+MODULE_PARM(recov_time, "i");
 
 /*====================================================================*/
 
@@ -503,13 +496,13 @@ static irqreturn_t i365_count_irq(int irq, void *dev, struct pt_regs *regs)
 {
     i365_get(irq_sock, I365_CSC);
     irq_hits++;
-    debug(2, "-> hit on irq %d\n", irq);
+    DEBUG(2, "-> hit on irq %d\n", irq);
     return IRQ_HANDLED;
 }
 
 static u_int __init test_irq(u_short sock, int irq)
 {
-    debug(2, "  testing ISA irq %d\n", irq);
+    DEBUG(2, "  testing ISA irq %d\n", irq);
     if (request_irq(irq, i365_count_irq, 0, "scan", i365_count_irq) != 0)
 	return 1;
     irq_hits = 0; irq_sock = sock;
@@ -517,7 +510,7 @@ static u_int __init test_irq(u_short sock, int irq)
     schedule_timeout(HZ/100);
     if (irq_hits) {
 	free_irq(irq, i365_count_irq);
-	debug(2, "    spurious hit!\n");
+	DEBUG(2, "    spurious hit!\n");
 	return 1;
     }
 
@@ -530,7 +523,7 @@ static u_int __init test_irq(u_short sock, int irq)
 
     /* mask all interrupts */
     i365_set(sock, I365_CSCINT, 0);
-    debug(2, "    hits = %d\n", irq_hits);
+    DEBUG(2, "    hits = %d\n", irq_hits);
     
     return (irq_hits != 1);
 }
@@ -705,10 +698,10 @@ static void __init add_pcic(int ns, int type)
     printk(", %d socket%s\n", ns, ((ns > 1) ? "s" : ""));
 
     /* Set host options, build basic interrupt mask */
-    if (irq_list_count == 0)
+    if (irq_list[0] == -1)
 	mask = irq_mask;
     else
-	for (i = mask = 0; i < irq_list_count; i++)
+	for (i = mask = 0; i < 16; i++)
 	    mask |= (1<<irq_list[i]);
     mask &= I365_MASK & set_bridge_opts(base, ns);
     /* Scan for ISA interrupts */
@@ -857,7 +850,7 @@ static irqreturn_t pcic_interrupt(int irq, void *dev,
     u_long flags = 0;
     int handled = 0;
 
-    debug(4, "pcic_interrupt(%d)\n", irq);
+    DEBUG(4, "i82365: pcic_interrupt(%d)\n", irq);
 
     for (j = 0; j < 20; j++) {
 	active = 0;
@@ -881,7 +874,7 @@ static irqreturn_t pcic_interrupt(int irq, void *dev,
 		events |= (csc & I365_CSC_READY) ? SS_READY : 0;
 	    }
 	    ISA_UNLOCK(i, flags);
-	    debug(2, "socket %d event 0x%02x\n", i, events);
+	    DEBUG(2, "i82365: socket %d event 0x%02x\n", i, events);
 
 	    if (events)
 		pcmcia_parse_events(&socket[i].socket, events);
@@ -893,7 +886,7 @@ static irqreturn_t pcic_interrupt(int irq, void *dev,
     if (j == 20)
 	printk(KERN_NOTICE "i82365: infinite loop in interrupt handler\n");
 
-    debug(4, "interrupt done\n");
+    DEBUG(4, "i82365: interrupt done\n");
     return IRQ_RETVAL(handled);
 } /* pcic_interrupt */
 
@@ -935,7 +928,7 @@ static int i365_get_status(u_short sock, u_int *value)
 	}
     }
     
-    debug(1, "GetStatus(%d) = %#4.4x\n", sock, *value);
+    DEBUG(1, "i82365: GetStatus(%d) = %#4.4x\n", sock, *value);
     return 0;
 } /* i365_get_status */
 
@@ -1005,7 +998,7 @@ static int i365_get_socket(u_short sock, socket_state_t *state)
 	state->csc_mask |= (reg & I365_CSC_READY) ? SS_READY : 0;
     }
     
-    debug(1, "GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
+    DEBUG(1, "i82365: GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
 	  "io_irq %d, csc_mask %#2.2x\n", sock, state->flags,
 	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
     return 0;
@@ -1018,7 +1011,7 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
     struct i82365_socket *t = &socket[sock];
     u_char reg;
     
-    debug(1, "SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
+    DEBUG(1, "i82365: SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
 	  "io_irq %d, csc_mask %#2.2x)\n", sock, state->flags,
 	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
     
@@ -1127,7 +1120,7 @@ static int i365_set_io_map(u_short sock, struct pccard_io_map *io)
 {
     u_char map, ioctl;
     
-    debug(1, "SetIOMap(%d, %d, %#2.2x, %d ns, "
+    DEBUG(1, "i82365: SetIOMap(%d, %d, %#2.2x, %d ns, "
 	  "%#4.4x-%#4.4x)\n", sock, io->map, io->flags,
 	  io->speed, io->start, io->stop);
     map = io->map;
@@ -1157,7 +1150,7 @@ static int i365_set_mem_map(u_short sock, struct pccard_mem_map *mem)
     u_short base, i;
     u_char map;
     
-    debug(1, "SetMemMap(%d, %d, %#2.2x, %d ns, %#5.5lx-%#5.5"
+    DEBUG(1, "i82365: SetMemMap(%d, %d, %#2.2x, %d ns, %#5.5lx-%#5.5"
 	  "lx, %#5.5x)\n", sock, mem->map, mem->flags, mem->speed,
 	  mem->sys_start, mem->sys_stop, mem->card_start);
 
@@ -1307,10 +1300,10 @@ static int pcic_set_mem_map(struct pcmcia_socket *s, struct pccard_mem_map *mem)
 static int pcic_init(struct pcmcia_socket *s)
 {
 	int i;
-	struct resource res = { .start = 0, .end = 0x1000 };
 	pccard_io_map io = { 0, 0, 0, 0, 1 };
-	pccard_mem_map mem = { .res = &res, .sys_stop = 0x1000, };
+	pccard_mem_map mem = { 0, 0, 0, 0, 0, 0 };
 
+	mem.sys_stop = 0x1000;
 	for (i = 0; i < 2; i++) {
 		io.map = i;
 		pcic_set_io_map(s, &io);
@@ -1371,15 +1364,8 @@ static int __init init_i82365(void)
 {
     int i, ret;
 
-    ret = driver_register(&i82365_driver);
-    if (ret)
-	return ret;
-
-    ret = platform_device_register(&i82365_device);
-    if (ret) {
-	driver_unregister(&i82365_driver);
-	return ret;
-    }
+    if (driver_register(&i82365_driver))
+	return -1;
 
     printk(KERN_INFO "Intel ISA PCIC probe: ");
     sockets = 0;
@@ -1388,10 +1374,11 @@ static int __init init_i82365(void)
 
     if (sockets == 0) {
 	printk("not found.\n");
-	platform_device_unregister(&i82365_device);
 	driver_unregister(&i82365_driver);
 	return -ENODEV;
     }
+
+    platform_device_register(&i82365_device);
 
     /* Set up interrupt handler(s) */
     if (grab_irq != 0)

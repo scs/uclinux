@@ -1,14 +1,5 @@
 /* Masquerade.  Simple mapping which alters range to a local IP address
    (depending on route). */
-
-/* (C) 1999-2001 Paul `Rusty' Russell
- * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
-
 #include <linux/config.h>
 #include <linux/types.h>
 #include <linux/ip.h>
@@ -16,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/netfilter.h>
 #include <net/protocol.h>
-#include <net/ip.h>
 #include <net/checksum.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
@@ -46,7 +36,7 @@ masquerade_check(const char *tablename,
 	const struct ip_nat_multi_range *mr = targinfo;
 
 	if (strcmp(tablename, "nat") != 0) {
-		DEBUGP("masquerade_check: bad table `%s'.\n", tablename);
+		DEBUGP("masquerade_check: bad table `%s'.\n", table);
 		return 0;
 	}
 	if (targinfosize != IPT_ALIGN(sizeof(*mr))) {
@@ -117,7 +107,6 @@ masquerade_target(struct sk_buff **pskb,
 			if (net_ratelimit())
 				printk("MASQUERADE:"
 				       " Route sent us somewhere else.\n");
-			ip_rt_put(rt);
 			return NF_DROP;
 		}
 	}

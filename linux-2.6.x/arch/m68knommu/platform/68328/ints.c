@@ -83,22 +83,27 @@ unsigned int local_irq_count[NR_CPUS];
 static irq_node_t int_irq_list[NR_IRQS];
 
 #if !defined(CONFIG_DRAGEN2)
-asm (".global _start, __ramend/n/t"
-     ".section .romvec/n"
-     "e_vectors:\n\t"
-     ".long __ramend-4, _start, buserr, trap, trap, trap, trap, trap\n\t"
-     ".long trap, trap, trap, trap, trap, trap, trap, trap\n\t"
-     ".long trap, trap, trap, trap, trap, trap, trap, trap\n\t"
-     ".long trap, trap, trap, trap\n\t"
-     ".long trap, trap, trap, trap\n\t"
+asm ("
+	.global _start, __ramend
+	.section .romvec
+ 
+e_vectors:
+	.long __ramend-4, _start, buserr, trap, trap, trap, trap, trap
+	.long trap, trap, trap, trap, trap, trap, trap, trap
+	.long trap, trap, trap, trap, trap, trap, trap, trap
+	.long trap, trap, trap, trap
+	.long trap, trap, trap, trap
 	/*.long inthandler, inthandler, inthandler, inthandler
 	.long inthandler4, inthandler, inthandler, inthandler   */
 	/* TRAP #0-15 */
-     ".long system_call, trap, trap, trap, trap, trap, trap, trap\n\t"
-     ".long trap, trap, trap, trap, trap, trap, trap, trap\n\t"
-     ".long 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n\t"
-     ".text\n"
-     "ignore: rte");
+	.long system_call, trap, trap, trap, trap, trap, trap, trap
+	.long trap, trap, trap, trap, trap, trap, trap, trap
+	.long 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	.text
+
+ignore: rte
+
+");
 #endif
 
 /*

@@ -32,6 +32,10 @@
   ---------------------------------------------------------------------------*/
 
 #include <linux/config.h>
+#ifdef CONFIG_I2C_DEBUG_BUS
+#define DEBUG	1
+#endif
+
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -125,7 +129,7 @@ static void iop3xx_adap_final_cleanup(struct i2c_algo_iop3xx_data *iop3xx_adap)
  * NB: the handler has to clear the source of the interrupt! 
  * Then it passes the SR flags of interest to BH via adap data
  */
-static irqreturn_t iop3xx_i2c_handler(int this_irq, 
+static void iop3xx_i2c_handler(int this_irq, 
 				void *dev_id, 
 				struct pt_regs *regs) 
 {
@@ -138,7 +142,6 @@ static irqreturn_t iop3xx_i2c_handler(int this_irq,
 		iop3xx_adap->biu->SR_received |= sr;
 		wake_up_interruptible(&iop3xx_adap->waitq);
 	}
-	return IRQ_HANDLED;
 }
 
 /* check all error conditions, clear them , report most important */
@@ -182,7 +185,7 @@ static int iop3xx_adap_wait_event(struct i2c_algo_iop3xx_data *iop3xx_adap,
 	unsigned sr = 0;
 	int interrupted;
 	int done;
-	int rc = 0;
+	int rc;
 
 	do {
 		interrupted = wait_event_interruptible_timeout (
@@ -195,13 +198,13 @@ static int iop3xx_adap_wait_event(struct i2c_algo_iop3xx_data *iop3xx_adap,
 			return rc;
 		}else if (!interrupted) {
 			*status = sr;
-			return -ETIMEDOUT;
+			return rc = -ETIMEDOUT;
 		}
 	} while(!done);
 
 	*status = sr;
 
-	return 0;
+	return rc = 0;
 }
 
 /*
@@ -281,7 +284,7 @@ static int iop3xx_adap_write_byte(struct i2c_algo_iop3xx_data *iop3xx_adap, char
 {
 	unsigned cr = *iop3xx_adap->biu->CR;
 	int status;
-	int rc = 0;
+	int rc;
 
 	*iop3xx_adap->biu->DBR = byte;
 	cr &= ~IOP321_ICR_MSTART;
@@ -301,7 +304,7 @@ static int iop3xx_adap_read_byte(struct i2c_algo_iop3xx_data *iop3xx_adap,
 {
 	unsigned cr = *iop3xx_adap->biu->CR;
 	int status;
-	int rc = 0;
+	int rc;
 
 	cr &= ~IOP321_ICR_MSTART;
 
@@ -383,16 +386,13 @@ static int iop3xx_master_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[
 	iop3xx_adap_reset(iop3xx_adap);
 	iop3xx_adap_enable(iop3xx_adap);
 
-	for (im = 0; ret == 0 && im != num; im++) {
+	for (im = 0; ret == 0 && im != num; ++im) {
 		ret = iop3xx_handle_msg(i2c_adap, &msgs[im]);
 	}
 
 	iop3xx_adap_transaction_cleanup(iop3xx_adap);
-	
-	if(ret)
-		return ret;
 
-	return im;   
+	return ret;   
 }
 
 static int algo_control(struct i2c_adapter *adapter, unsigned int cmd,

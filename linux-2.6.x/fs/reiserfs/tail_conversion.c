@@ -50,9 +50,9 @@ int direct2indirect (struct reiserfs_transaction_handle *th, struct inode * inod
 
     // FIXME: we could avoid this 
     if ( search_for_position_by_key (sb, &end_key, path) == POSITION_FOUND ) {
-	reiserfs_warning (sb, "PAP-14030: direct2indirect: "
+	reiserfs_warning ("PAP-14030: direct2indirect: "
 			"pasted or inserted byte exists in the tree %K. "
-			"Use fsck to repair.", &end_key);
+			"Use fsck to repair.\n", &end_key);
 	pathrelse(path);
 	return -EIO;
     }
@@ -66,11 +66,11 @@ int direct2indirect (struct reiserfs_transaction_handle *th, struct inode * inod
 	set_ih_free_space (&ind_ih, 0); /* delete at nearest future */
         put_ih_item_len( &ind_ih, UNFM_P_SIZE );
 	PATH_LAST_POSITION (path)++;
-	n_retval = reiserfs_insert_item (th, path, &end_key, &ind_ih, inode,
+	n_retval = reiserfs_insert_item (th, path, &end_key, &ind_ih, 
 					 (char *)&unfm_ptr);
     } else {
 	/* Paste into last indirect item of an object. */
-	n_retval = reiserfs_paste_into_item(th, path, &end_key, inode,
+	n_retval = reiserfs_paste_into_item(th, path, &end_key,
 					    (char *)&unfm_ptr, UNFM_P_SIZE);
     }
     if ( n_retval ) {
@@ -139,20 +139,20 @@ int direct2indirect (struct reiserfs_transaction_handle *th, struct inode * inod
 
 /* stolen from fs/buffer.c */
 void reiserfs_unmap_buffer(struct buffer_head *bh) {
-    lock_buffer(bh) ;
+  if (buffer_mapped(bh)) {
     if (buffer_journaled(bh) || buffer_journal_dirty(bh)) {
       BUG() ;
     }
     clear_buffer_dirty(bh) ;
+    lock_buffer(bh) ;
     /* Remove the buffer from whatever list it belongs to. We are mostly
        interested in removing it from per-sb j_dirty_buffers list, to avoid
         BUG() on attempt to write not mapped buffer */
-    if ( (!list_empty(&bh->b_assoc_buffers) || bh->b_private) && bh->b_page) {
+    if ( !list_empty(&bh->b_assoc_buffers) && bh->b_page) {
 	struct inode *inode = bh->b_page->mapping->host;
 	struct reiserfs_journal *j = SB_JOURNAL(inode->i_sb);
 	spin_lock(&j->j_dirty_buffers_lock);
 	list_del_init(&bh->b_assoc_buffers);
-	reiserfs_free_jh(bh);
 	spin_unlock(&j->j_dirty_buffers_lock);
     }
     clear_buffer_mapped(bh) ;
@@ -160,6 +160,43 @@ void reiserfs_unmap_buffer(struct buffer_head *bh) {
     clear_buffer_new(bh);
     bh->b_bdev = NULL;
     unlock_buffer(bh) ;
+  }
+}
+
+static void
+unmap_buffers(struct page *page, loff_t pos) {
+  struct buffer_head *bh ;
+  struct buffer_head *head ;
+  struct buffer_head *next ;
+  unsigned long tail_index ;
+  unsigned long cur_index ;
+
+  if (page) {
+    if (page_has_buffers(page)) {
+      tail_index = pos & (PAGE_CACHE_SIZE - 1) ;
+      cur_index = 0 ;
+      head = page_buffers(page) ;
+      bh = head ;
+      do {
+	next = bh->b_this_page ;
+
+        /* we want to unmap the buffers that contain the tail, and
+        ** all the buffers after it (since the tail must be at the
+        ** end of the file).  We don't want to unmap file data 
+        ** before the tail, since it might be dirty and waiting to 
+        ** reach disk
+        */
+        cur_index += bh->b_size ;
+        if (cur_index > tail_index) {
+          reiserfs_unmap_buffer(bh) ;
+        }
+	bh = next ;
+      } while (bh != head) ;
+      if ( PAGE_SIZE == bh->b_size ) {
+	clear_page_dirty(page);
+      }
+    }
+  } 
 }
 
 /* this first locks inode (neither reads nor sync are permitted),
@@ -223,7 +260,7 @@ int indirect2direct (struct reiserfs_transaction_handle *th,
 
 
     /* Set direct item header to insert. */
-    make_le_item_head (&s_ih, NULL, get_inode_item_key_version (p_s_inode), pos1 + 1,
+    make_le_item_head (&s_ih, 0, get_inode_item_key_version (p_s_inode), pos1 + 1,
 		       TYPE_DIRECT, round_tail_len, 0xffff/*ih_free_space*/);
 
     /* we want a pointer to the first byte of the tail in the page.
@@ -238,7 +275,7 @@ int indirect2direct (struct reiserfs_transaction_handle *th,
     set_cpu_key_k_type (&key, TYPE_DIRECT);
     key.key_length = 4;
     /* Insert tail as new direct item in the tree */
-    if ( reiserfs_insert_item(th, p_s_path, &key, &s_ih, p_s_inode,
+    if ( reiserfs_insert_item(th, p_s_path, &key, &s_ih,
 			      tail ? tail : NULL) < 0 ) {
 	/* No disk memory. So we can not convert last unformatted node
 	   to the direct item.  In this case we used to adjust
@@ -251,8 +288,10 @@ int indirect2direct (struct reiserfs_transaction_handle *th,
     }
     kunmap(page) ;
 
-    /* make sure to get the i_blocks changes from reiserfs_insert_item */
-    reiserfs_update_sd(th, p_s_inode);
+    /* this will invalidate all the buffers in the page after
+    ** pos1
+    */
+    unmap_buffers(page, pos1) ;
 
     // note: we have now the same as in above direct2indirect
     // conversion: there are two keys which have matching first three
@@ -260,6 +299,7 @@ int indirect2direct (struct reiserfs_transaction_handle *th,
 
     /* We have inserted new direct item and must remove last
        unformatted node. */
+    p_s_inode->i_blocks += (p_s_sb->s_blocksize / 512);
     *p_c_mode = M_CUT;
 
     /* we store position of first direct item in the in-core inode */

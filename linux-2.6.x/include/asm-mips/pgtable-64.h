@@ -10,10 +10,13 @@
 #define _ASM_PGTABLE_64_H
 
 #include <linux/config.h>
-#include <linux/linkage.h>
-
 #include <asm/addrspace.h>
 #include <asm/page.h>
+
+#ifndef __ASSEMBLY__
+
+#include <linux/linkage.h>
+#include <linux/mmzone.h>
 #include <asm/cachectl.h>
 
 /*
@@ -36,6 +39,8 @@
  * vmalloc range translations, which the fault handler looks at.
  */
 
+#endif /* !__ASSEMBLY__ */
+
 /* PMD_SHIFT determines the size of the area a second-level page table can map */
 #define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT - 3))
 #define PMD_SIZE	(1UL << PMD_SHIFT)
@@ -46,48 +51,14 @@
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-/*
- * For 4kB page size we use a 3 level page tree and a 8kB pmd and pgds which
- * permits us mapping 40 bits of virtual address space.
- *
- * We used to implement 41 bits by having an order 1 pmd level but that seemed
- * rather pointless.
- *
- * For 8kB page size we use a 3 level page tree which permits a total of
- * 8TB of address space.  Alternatively a 33-bit / 8GB organization using
- * two levels would be easy to implement.
- *
- * For 16kB page size we use a 2 level page tree which permits a total of
- * 36 bits of virtual address space.  We could add a third leve. but it seems
- * like at the moment there's no need for this.
- *
- * For 64kB page size we use a 2 level page table tree for a total of 42 bits
- * of virtual address space.
- */
-#ifdef CONFIG_PAGE_SIZE_4KB
+/* Entries per page directory level: we use two-level, so we don't really
+   have any PMD directory physically.  */
+#define PTRS_PER_PGD		1024
+#define PTRS_PER_PMD		1024
+#define PTRS_PER_PTE		512
 #define PGD_ORDER		1
 #define PMD_ORDER		1
 #define PTE_ORDER		0
-#endif
-#ifdef CONFIG_PAGE_SIZE_8KB
-#define PGD_ORDER		0
-#define PMD_ORDER		0
-#define PTE_ORDER		0
-#endif
-#ifdef CONFIG_PAGE_SIZE_16KB
-#define PGD_ORDER		0
-#define PMD_ORDER		0
-#define PTE_ORDER		0
-#endif
-#ifdef CONFIG_PAGE_SIZE_64KB
-#define PGD_ORDER		0
-#define PMD_ORDER		0
-#define PTE_ORDER		0
-#endif
-
-#define PTRS_PER_PGD	((PAGE_SIZE << PGD_ORDER) / sizeof(pgd_t))
-#define PTRS_PER_PMD	((PAGE_SIZE << PMD_ORDER) / sizeof(pmd_t))
-#define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t))
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
 #define FIRST_USER_PGD_NR	0
@@ -95,6 +66,8 @@
 #define VMALLOC_START		XKSEG
 #define VMALLOC_END	\
 	(VMALLOC_START + ((1 << PGD_ORDER) * PTRS_PER_PTE * PAGE_SIZE))
+
+#ifndef __ASSEMBLY__
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %016lx.\n", __FILE__, __LINE__, pte_val(e))
@@ -148,14 +121,26 @@ static inline void pgd_clear(pgd_t *pgdp)
 	pgd_val(*pgdp) = ((unsigned long) invalid_pmd_table);
 }
 
-#define pte_page(x)		pfn_to_page((unsigned long)((pte_val(x) >> PAGE_SHIFT)))
-#ifdef CONFIG_CPU_VR41XX
-#define pte_pfn(x)		((unsigned long)((x).pte >> (PAGE_SHIFT + 2)))
-#define pfn_pte(pfn, prot)	__pte(((pfn) << (PAGE_SHIFT + 2)) | pgprot_val(prot))
+#ifdef CONFIG_DISCONTIGMEM
+
+#define pte_page(x) (NODE_MEM_MAP(PHYSADDR_TO_NID(pte_val(x))) +	\
+	PLAT_NODE_DATA_LOCALNR(pte_val(x), PHYSADDR_TO_NID(pte_val(x))))
+				  
 #else
+#define pte_page(x)		(mem_map+(unsigned long)((pte_val(x) >> PAGE_SHIFT)))
 #define pte_pfn(x)		((unsigned long)((x).pte >> PAGE_SHIFT))
 #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 #endif
+
+/*
+ * Bits 0, 1, 2, 7 and 8 are taken, split up the 27 bits of offset
+ * into this range:
+ */
+#define pte_to_pgoff(_pte) \
+	((((_pte).pte >> 3) & 0x1f ) + (((_pte).pte >> 9) << 6 ))
+
+#define pgoff_to_pte(off) \
+	((pte_t) { (((off) & 0x1f) << 3) + (((off) >> 6) << 9) + _PAGE_FILE })
 
 #define __pgd_offset(address)	pgd_index(address)
 #define page_pte(page) page_pte_prot(page, __pgprot(0))
@@ -200,6 +185,9 @@ static inline pmd_t *pmd_offset(pgd_t * dir, unsigned long address)
 extern void pgd_init(unsigned long page);
 extern void pmd_init(unsigned long page, unsigned long pagetable);
 
+extern pgd_t swapper_pg_dir[1024];
+extern void paging_init(void);
+
 /*
  * Non-present pages:  high 24 bits are offset, next 8 bits type,
  * low 32 bits zero.
@@ -213,22 +201,8 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 
-/*
- * Bits 0, 1, 2, 7 and 8 are taken, split up the 32 bits of offset
- * into this range:
- */
-#define PTE_FILE_MAX_BITS	32
+typedef pte_t *pte_addr_t;
 
-#define pte_to_pgoff(_pte) \
-	((((_pte).pte >> 3) & 0x1f ) + (((_pte).pte >> 9) << 6 ))
-
-#define pgoff_to_pte(off) \
-	((pte_t) { (((off) & 0x1f) << 3) + (((off) >> 6) << 9) + _PAGE_FILE })
-
-/*
- * Used for the b0rked handling of kernel pagetables on the 64-bit kernel.
- */
-extern pte_t kptbl[(PAGE_SIZE << PGD_ORDER)/sizeof(pte_t)];
-extern pmd_t kpmdtbl[PTRS_PER_PMD];
+#endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_PGTABLE_64_H */

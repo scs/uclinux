@@ -19,7 +19,6 @@
 #include <asm/hardware.h>
 #include <asm/memory.h>
 #include <asm/system.h>
-#include <asm/arch/lubbock.h>
 
 
 /*
@@ -33,11 +32,6 @@ extern void pxa_cpu_resume(void);
 #define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x
 #define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]
 
-#define RESTORE_GPLEVEL(n) do { \
-	GPSR##n = sleep_save[SLEEP_SAVE_GPLR##n]; \
-	GPCR##n = ~sleep_save[SLEEP_SAVE_GPLR##n]; \
-} while (0)
-
 /*
  * List of global PXA peripheral registers to preserve.
  * More ones like CP and general purpose register values are preserved
@@ -48,12 +42,15 @@ enum {	SLEEP_SAVE_START = 0,
 	SLEEP_SAVE_OSCR, SLEEP_SAVE_OIER,
 	SLEEP_SAVE_OSMR0, SLEEP_SAVE_OSMR1, SLEEP_SAVE_OSMR2, SLEEP_SAVE_OSMR3,
 
-	SLEEP_SAVE_GPLR0, SLEEP_SAVE_GPLR1, SLEEP_SAVE_GPLR2,
 	SLEEP_SAVE_GPDR0, SLEEP_SAVE_GPDR1, SLEEP_SAVE_GPDR2,
 	SLEEP_SAVE_GRER0, SLEEP_SAVE_GRER1, SLEEP_SAVE_GRER2,
 	SLEEP_SAVE_GFER0, SLEEP_SAVE_GFER1, SLEEP_SAVE_GFER2,
 	SLEEP_SAVE_GAFR0_L, SLEEP_SAVE_GAFR1_L, SLEEP_SAVE_GAFR2_L,
 	SLEEP_SAVE_GAFR0_U, SLEEP_SAVE_GAFR1_U, SLEEP_SAVE_GAFR2_U,
+
+	SLEEP_SAVE_FFIER, SLEEP_SAVE_FFLCR, SLEEP_SAVE_FFMCR,
+	SLEEP_SAVE_FFSPR, SLEEP_SAVE_FFISR,
+	SLEEP_SAVE_FFDLL, SLEEP_SAVE_FFDLH,
 
 	SLEEP_SAVE_ICMR,
 	SLEEP_SAVE_CKEN,
@@ -77,6 +74,21 @@ static int pxa_pm_enter(u32 state)
 	/* preserve current time */
 	delta = xtime.tv_sec - RCNR;
 
+	/*
+	 * Temporary solution.  This won't be necessary once
+	 * we move pxa support into the serial driver
+	 * Save the FF UART
+	 */
+	SAVE(FFIER);
+	SAVE(FFLCR);
+	SAVE(FFMCR);
+	SAVE(FFSPR);
+	SAVE(FFISR);
+	FFLCR |= 0x80;
+	SAVE(FFDLL);
+	SAVE(FFDLH);
+	FFLCR &= 0xef;
+
 	/* save vital registers */
 	SAVE(OSCR);
 	SAVE(OSMR0);
@@ -85,7 +97,6 @@ static int pxa_pm_enter(u32 state)
 	SAVE(OSMR3);
 	SAVE(OIER);
 
-	SAVE(GPLR0); SAVE(GPLR1); SAVE(GPLR2);
 	SAVE(GPDR0); SAVE(GPDR1); SAVE(GPDR2);
 	SAVE(GRER0); SAVE(GRER1); SAVE(GRER2);
 	SAVE(GFER0); SAVE(GFER1); SAVE(GFER2);
@@ -135,15 +146,14 @@ static int pxa_pm_enter(u32 state)
 	PSPR = 0;
 
 	/* restore registers */
-	RESTORE(GAFR0_L); RESTORE(GAFR0_U);
-	RESTORE(GAFR1_L); RESTORE(GAFR1_U);
-	RESTORE(GAFR2_L); RESTORE(GAFR2_U);
-	RESTORE_GPLEVEL(0); RESTORE_GPLEVEL(1); RESTORE_GPLEVEL(2);
 	RESTORE(GPDR0); RESTORE(GPDR1); RESTORE(GPDR2);
 	RESTORE(GRER0); RESTORE(GRER1); RESTORE(GRER2);
 	RESTORE(GFER0); RESTORE(GFER1); RESTORE(GFER2);
+	RESTORE(GAFR0_L); RESTORE(GAFR0_U);
+	RESTORE(GAFR1_L); RESTORE(GAFR1_U);
+	RESTORE(GAFR2_L); RESTORE(GAFR2_U);
 
-	PSSR = PSSR_RDH | PSSR_PH;
+	PSSR = PSSR_PH;
 
 	RESTORE(OSMR0);
 	RESTORE(OSMR1);
@@ -157,6 +167,22 @@ static int pxa_pm_enter(u32 state)
 	ICLR = 0;
 	ICCR = 1;
 	RESTORE(ICMR);
+
+	/*
+	 * Temporary solution.  This won't be necessary once
+	 * we move pxa support into the serial driver.
+	 * Restore the FF UART.
+	 */
+	RESTORE(FFMCR);
+	RESTORE(FFSPR);
+	RESTORE(FFLCR);
+	FFLCR |= 0x80;
+	RESTORE(FFDLH);
+	RESTORE(FFDLL);
+	RESTORE(FFLCR);
+	RESTORE(FFISR);
+	FFFCR = 0x07;
+	RESTORE(FFIER);
 
 	/* restore current time */
 	xtime.tv_sec = RCNR + delta;

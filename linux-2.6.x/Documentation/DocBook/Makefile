@@ -7,10 +7,11 @@
 # list of DOCBOOKS.
 
 DOCBOOKS := wanbook.sgml z8530book.sgml mcabook.sgml videobook.sgml \
-	    kernel-hacking.sgml kernel-locking.sgml via-audio.sgml \
-	    mousedrivers.sgml deviceiobook.sgml procfs-guide.sgml \
-	    tulip-user.sgml writing_usb_driver.sgml scsidrivers.sgml \
-	    sis900.sgml kernel-api.sgml journal-api.sgml lsm.sgml usb.sgml \
+	    parportbook.sgml kernel-hacking.sgml \
+	    kernel-locking.sgml via-audio.sgml mousedrivers.sgml \
+	    deviceiobook.sgml procfs-guide.sgml tulip-user.sgml \
+	    writing_usb_driver.sgml scsidrivers.sgml sis900.sgml \
+	    kernel-api.sgml journal-api.sgml lsm.sgml usb.sgml \
 	    gadget.sgml libata.sgml
 
 ###
@@ -46,7 +47,7 @@ installmandocs: mandocs
 ###
 #External programs used
 KERNELDOC = scripts/kernel-doc
-DOCPROC   = scripts/basic/docproc
+DOCPROC   = scripts/docproc
 SPLITMAN  = $(PERL) $(srctree)/scripts/split-man
 MAKEMAN   = $(PERL) $(srctree)/scripts/makeman
 
@@ -90,6 +91,16 @@ $(BOOKS): $(KERNELDOC)
 C-procfs-example = procfs_example.sgml
 C-procfs-example2 = $(addprefix $(obj)/,$(C-procfs-example))
 $(obj)/procfs-guide.sgml: $(C-procfs-example2)
+
+###
+# The parportbook includes a few images.
+# Force them to be build before the books 
+IMG-parportbook := parport-share.fig parport-multi.fig parport-structure.fig
+IMG-parportbook2 := $(addprefix $(obj)/,$(IMG-parportbook))
+EPS-parportbook := $(patsubst %.fig,%.eps, $(IMG-parportbook2))
+PNG-parportbook := $(patsubst %.fig,%.png, $(IMG-parportbook2))
+$(obj)/parportbook.html: $(PNG-parportbook)
+$(obj)/parportbook.ps $(obj)/parportbook.pdf: $(EPS-parportbook) $(PNG-parportbook)
 
 ###
 # Rules to generate postscript, PDF and HTML
@@ -138,18 +149,12 @@ quiet_cmd_fig2eps = FIG2EPS $@
       cmd_fig2eps = fig2dev -Leps $< $@
 
 %.eps: %.fig
-	@(which fig2dev > /dev/null 2>&1) || \
-	 (echo "*** You need to install transfig ***"; \
-	  exit 1)
 	$(call cmd,fig2eps)
 
 quiet_cmd_fig2png = FIG2PNG $@
       cmd_fig2png = fig2dev -Lpng $< $@
 
 %.png: %.fig
-	@(which fig2dev > /dev/null 2>&1) || \
-	 (echo "*** You need to install transfig ***"; \
-	  exit 1)
 	$(call cmd,fig2png)
 
 ###
@@ -183,6 +188,8 @@ clean-files := $(DOCBOOKS) \
 	$(patsubst %.sgml, %.pdf,  $(DOCBOOKS)) \
 	$(patsubst %.sgml, %.html, $(DOCBOOKS)) \
 	$(patsubst %.sgml, %.9,    $(DOCBOOKS)) \
+	$(patsubst %.fig,%.eps,    $(IMG-parportbook)) \
+	$(patsubst %.fig,%.png,    $(IMG-parportbook)) \
 	$(C-procfs-example)
 
 ifneq ($(wildcard $(patsubst %.html,%,$(HTML))),)

@@ -32,13 +32,10 @@ static int mlock_fixup(struct vm_area_struct * vma,
 			goto out;
 		}
 	}
-
-	/*
-	 * vm_flags is protected by the mmap_sem held in write mode.
-	 * It's okay if try_to_unmap_one unmaps a page just after we
-	 * set VM_LOCKED, make_pages_present below will bring it back.
-	 */
+	
+	spin_lock(&mm->page_table_lock);
 	vma->vm_flags = newflags;
+	spin_unlock(&mm->page_table_lock);
 
 	/*
 	 * Keep track of amount of locked VM.

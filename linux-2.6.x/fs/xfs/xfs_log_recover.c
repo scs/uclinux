@@ -1867,7 +1867,6 @@ xlog_recover_do_inode_buffer(
 
 			nbits = xfs_contig_bits(data_map, map_size,
 							 bit);
-			ASSERT(nbits > 0);
 			reg_buf_offset = bit << XFS_BLI_SHIFT;
 			reg_buf_bytes = nbits << XFS_BLI_SHIFT;
 			item_index++;
@@ -1952,7 +1951,6 @@ xlog_recover_do_reg_buffer(
 		if (bit == -1)
 			break;
 		nbits = xfs_contig_bits(data_map, map_size, bit);
-		ASSERT(nbits > 0);
 		ASSERT(item->ri_buf[i].i_addr != 0);
 		ASSERT(item->ri_buf[i].i_len % XFS_BLI_CHUNK == 0);
 		ASSERT(XFS_BUF_COUNT(bp) >=
@@ -3418,7 +3416,6 @@ xlog_unpack_data_checksum(
 {
 	uint			*up = (uint *)dp;
 	uint			chksum = 0;
-	int			i;
 
 	/* divide length by 4 to get # words */
 	for (i=0; i < INT_GET(rhead->h_len, ARCH_CONVERT) >> 2; i++) {
@@ -3479,7 +3476,7 @@ xlog_valid_rec_header(
 	xlog_rec_header_t	*rhead,
 	xfs_daddr_t		blkno)
 {
-	int			hlen;
+	int			bblks;
 
 	if (unlikely(
 	    (INT_GET(rhead->h_magicno, ARCH_CONVERT) !=
@@ -3498,8 +3495,8 @@ xlog_valid_rec_header(
 	}
 
 	/* LR body must have data or it wouldn't have been written */
-	hlen = INT_GET(rhead->h_len, ARCH_CONVERT);
-	if (unlikely( hlen <= 0 || hlen > INT_MAX )) {
+	bblks = INT_GET(rhead->h_len, ARCH_CONVERT);
+	if (unlikely( bblks <= 0 || bblks > INT_MAX )) {
 		XFS_ERROR_REPORT("xlog_valid_rec_header(2)",
 				XFS_ERRLEVEL_LOW, log->l_mp);
 		return XFS_ERROR(EFSCORRUPTED);
@@ -3661,7 +3658,7 @@ xlog_do_recovery_pass(
 				error = xlog_bread(log, 0, wrapped_hblks, hbp);
 				if (error)
 					goto bread_err2;
-				XFS_BUF_SET_PTR(hbp, bufaddr, BBTOB(hblks));
+				XFS_BUF_SET_PTR(hbp, bufaddr, hblks);
 				if (!offset)
 					offset = xlog_align(log, 0,
 							wrapped_hblks, hbp);
@@ -3719,7 +3716,8 @@ xlog_do_recovery_pass(
 				if ((error = xlog_bread(log, wrapped_hblks,
 						bblks - split_bblks, dbp)))
 					goto bread_err2;
-				XFS_BUF_SET_PTR(dbp, bufaddr, h_size);
+				XFS_BUF_SET_PTR(dbp, bufaddr,
+						XLOG_BIG_RECORD_BSIZE);
 				if (!offset)
 					offset = xlog_align(log, wrapped_hblks,
 						bblks - split_bblks, dbp);
@@ -4044,7 +4042,7 @@ xlog_recover_check_summary(
 				XFS_FSS_TO_BB(mp, 1), 0);
 		if (XFS_BUF_ISERROR(agibp)) {
 			xfs_ioerror_alert("xlog_recover_check_summary(agi)",
-					  mp, agibp, agidaddr);
+					  log->l_mp, agibp, agidaddr);
 		}
 		agip = XFS_BUF_TO_AGI(agibp);
 		ASSERT(XFS_AGI_MAGIC ==
@@ -4060,8 +4058,7 @@ xlog_recover_check_summary(
 
 	sbbp = xfs_getsb(mp, 0);
 #ifdef XFS_LOUD_RECOVERY
-	sbp = &mp->m_sb;
-	xfs_xlatesb(XFS_BUF_TO_SBP(sbbp), sbp, 1, ARCH_CONVERT, XFS_SB_ALL_BITS);
+	sbp = XFS_BUF_TO_SBP(sbbp);
 	cmn_err(CE_NOTE,
 		"xlog_recover_check_summary: sb_icount %Lu itotal %Lu",
 		sbp->sb_icount, itotal);

@@ -17,7 +17,6 @@
 
 #include <linux/interrupt.h>
 #include <asm/cio.h>
-#include <asm/ccwdev.h>
 
 #define QDIO_NAME "qdio "
 

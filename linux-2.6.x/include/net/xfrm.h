@@ -166,7 +166,7 @@ struct xfrm_policy_afinfo {
 	struct dst_ops		*dst_ops;
 	void			(*garbage_collect)(void);
 	int			(*dst_lookup)(struct xfrm_dst **dst, struct flowi *fl);
-	struct dst_entry	*(*find_bundle)(struct flowi *fl, struct xfrm_policy *policy);
+	struct dst_entry	*(*find_bundle)(struct flowi *fl, struct rtable *rt, struct xfrm_policy *policy);
 	int			(*bundle_create)(struct xfrm_policy *policy, 
 						 struct xfrm_state **xfrm, 
 						 int nx,
@@ -216,7 +216,7 @@ struct xfrm_type
 	void			(*destructor)(struct xfrm_state *);
 	int			(*input)(struct xfrm_state *, struct xfrm_decap_state *, struct sk_buff *skb);
 	int			(*post_input)(struct xfrm_state *, struct xfrm_decap_state *, struct sk_buff *skb);
-	int			(*output)(struct sk_buff **pskb);
+	int			(*output)(struct sk_buff *skb);
 	/* Estimate maximal size of result of transformation of a dgram */
 	u32			(*get_max_size)(struct xfrm_state *, int size);
 };
@@ -496,6 +496,10 @@ xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
 	}
 	return 0;
 }
+
+/* placeholder until xfrm6_tunnel.c is written */
+static inline int xfrm6_tunnel_check_size(struct sk_buff *skb)
+{ return 0; }
 
 /* A struct encoding bundle of transformations to apply to some set of flow.
  *
@@ -779,12 +783,6 @@ struct xfrm_tunnel {
 	void (*err_handler)(struct sk_buff *skb, void *info);
 };
 
-struct xfrm6_tunnel {
-	int (*handler)(struct sk_buff **pskb, unsigned int *nhoffp);
-	void (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			    int type, int code, int offset, __u32 info);
-};
-
 extern void xfrm_init(void);
 extern void xfrm4_init(void);
 extern void xfrm4_fini(void);
@@ -795,8 +793,6 @@ extern void xfrm4_state_init(void);
 extern void xfrm4_state_fini(void);
 extern void xfrm6_state_init(void);
 extern void xfrm6_state_fini(void);
-extern void xfrm6_tunnel_init(void);
-extern void xfrm6_tunnel_fini(void);
 
 extern int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*), void *);
 extern struct xfrm_state *xfrm_state_alloc(void);
@@ -816,25 +812,19 @@ extern void xfrm_state_flush(u8 proto);
 extern int xfrm_replay_check(struct xfrm_state *x, u32 seq);
 extern void xfrm_replay_advance(struct xfrm_state *x, u32 seq);
 extern int xfrm_check_selectors(struct xfrm_state **x, int n, struct flowi *fl);
-extern int xfrm_state_check(struct xfrm_state *x, struct sk_buff *skb);
+extern int xfrm_check_output(struct xfrm_state *x, struct sk_buff *skb, unsigned short family);
 extern int xfrm4_rcv(struct sk_buff *skb);
-extern int xfrm4_output(struct sk_buff **pskb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler);
+extern int xfrm4_tunnel_check_size(struct sk_buff *skb);
 extern int xfrm6_rcv(struct sk_buff **pskb, unsigned int *nhoffp);
-extern int xfrm6_tunnel_register(struct xfrm6_tunnel *handler);
-extern int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler);
-extern u32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr);
-extern void xfrm6_tunnel_free_spi(xfrm_address_t *saddr);
-extern u32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr);
-extern int xfrm6_output(struct sk_buff **pskb);
 
 #ifdef CONFIG_XFRM
 extern int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type);
-extern int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen);
+extern int xfrm_user_policy(struct sock *sk, int optname, u8 *optval, int optlen);
 extern int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, unsigned short family);
 #else
-static inline int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen)
+static inline int xfrm_user_policy(struct sock *sk, int optname, u8 *optval, int optlen)
 {
  	return -ENOPROTOOPT;
 } 

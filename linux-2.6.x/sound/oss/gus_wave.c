@@ -978,13 +978,6 @@ int __init gus_wave_detect(int baseaddr)
 	unsigned long   loc;
 	unsigned char   val;
 
-	if (!request_region(baseaddr, 16, "GUS"))
-		return 0;
-	if (!request_region(baseaddr + 0x100, 12, "GUS")) { /* 0x10c-> is MAX */
-		release_region(baseaddr, 16);
-		return 0;
-	}
-
 	gus_base = baseaddr;
 
 	gus_write8(0x4c, 0);	/* Reset GF1 */
@@ -1022,11 +1015,8 @@ int __init gus_wave_detect(int baseaddr)
 
 	/* See if there is first block there.... */
 	gus_poke(0L, 0xaa);
-	if (gus_peek(0L) != 0xaa) {
-		release_region(baseaddr + 0x100, 12);
-		release_region(baseaddr, 16);
-		return 0;
-	}
+	if (gus_peek(0L) != 0xaa)
+		return (0);
 
 	/* Now zero it out so that I can check for mirroring .. */
 	gus_poke(0L, 0x00);
@@ -1055,7 +1045,7 @@ int __init gus_wave_detect(int baseaddr)
 	return 1;
 }
 
-static int guswave_ioctl(int dev, unsigned int cmd, void __user *arg)
+static int guswave_ioctl(int dev, unsigned int cmd, caddr_t arg)
 {
 
 	switch (cmd) 
@@ -1632,7 +1622,7 @@ static void guswave_close(int dev)
 		DMAbuf_close_dma(gus_devnum);
 }
 
-static int guswave_load_patch(int dev, int format, const char __user *addr,
+static int guswave_load_patch(int dev, int format, const char *addr,
 		   int offs, int count, int pmgr_flag)
 {
 	struct patch_info patch;
@@ -1790,7 +1780,7 @@ static int guswave_load_patch(int dev, int format, const char __user *addr,
 
 			for (i = 0; i < blk_sz; i++)
 			{
-				get_user(*(unsigned char *) &data, (unsigned char __user *) &((addr)[sizeof_patch + i]));
+				get_user(*(unsigned char *) &data, (unsigned char *) &((addr)[sizeof_patch + i]));
 				if (patch.mode & WAVE_UNSIGNED)
 					if (!(patch.mode & WAVE_16_BITS) || (i & 0x01))
 						data ^= 0x80;	/* Convert to signed */
@@ -2092,14 +2082,14 @@ static int gus_audio_set_bits(int bits)
 	return bits;
 }
 
-static int gus_audio_ioctl(int dev, unsigned int cmd, void __user *arg)
+static int gus_audio_ioctl(int dev, unsigned int cmd, caddr_t arg)
 {
 	int val;
 
 	switch (cmd) 
 	{
 		case SOUND_PCM_WRITE_RATE:
-			if (get_user(val, (int __user*)arg))
+			if (get_user(val, (int *)arg))
 				return -EFAULT;
 			val = gus_audio_set_speed(val);
 			break;
@@ -2109,13 +2099,13 @@ static int gus_audio_ioctl(int dev, unsigned int cmd, void __user *arg)
 			break;
 
 		case SNDCTL_DSP_STEREO:
-			if (get_user(val, (int __user *)arg))
+			if (get_user(val, (int *)arg))
 				return -EFAULT;
 			val = gus_audio_set_channels(val + 1) - 1;
 			break;
 
 		case SOUND_PCM_WRITE_CHANNELS:
-			if (get_user(val, (int __user *)arg))
+			if (get_user(val, (int *)arg))
 				return -EFAULT;
 			val = gus_audio_set_channels(val);
 			break;
@@ -2125,7 +2115,7 @@ static int gus_audio_ioctl(int dev, unsigned int cmd, void __user *arg)
 			break;
 		
 		case SNDCTL_DSP_SETFMT:
-			if (get_user(val, (int __user *)arg))
+			if (get_user(val, (int *)arg))
 				return -EFAULT;
 			val = gus_audio_set_bits(val);
 			break;
@@ -2141,7 +2131,7 @@ static int gus_audio_ioctl(int dev, unsigned int cmd, void __user *arg)
 		default:
 			return -EINVAL;
 	}
-	return put_user(val, (int __user *)arg);
+	return put_user(val, (int *)arg);
 }
 
 static void gus_audio_reset(int dev)
@@ -2697,19 +2687,19 @@ static void set_input_volumes(void)
 #define MIX_DEVS	(SOUND_MASK_MIC|SOUND_MASK_LINE| \
 			 SOUND_MASK_SYNTH|SOUND_MASK_PCM)
 
-int gus_default_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
+int gus_default_mixer_ioctl(int dev, unsigned int cmd, caddr_t arg)
 {
 	int vol, val;
 
 	if (((cmd >> 8) & 0xff) != 'M')
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_WRITE, arg, sizeof(int)))
+	if (!access_ok(VERIFY_WRITE, (int *)arg, sizeof(int)))
 		return -EFAULT;
 
 	if (_SIOC_DIR(cmd) & _SIOC_WRITE) 
 	{
-		if (__get_user(val, (int __user *) arg))
+		if (__get_user(val, (int *) arg))
 			return -EFAULT;
 
 		switch (cmd & 0xff) 
@@ -2820,7 +2810,7 @@ int gus_default_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
 				return -EINVAL;
 		}
 	}
-	return __put_user(val, (int __user *)arg);
+	return __put_user(val, (int *)arg);
 }
 
 static struct mixer_operations gus_mixer_operations =

@@ -7,12 +7,7 @@
 
 #include <linux/config.h>
 
-#define KSYM_NAME_LEN 127
-
 #ifdef CONFIG_KALLSYMS
-/* Lookup the address for a symbol. Returns 0 if not found. */
-unsigned long kallsyms_lookup_name(const char *name);
-
 /* Lookup an address.  modname is set to NULL if it's in the kernel. */
 const char *kallsyms_lookup(unsigned long addr,
 			    unsigned long *symbolsize,
@@ -23,11 +18,6 @@ const char *kallsyms_lookup(unsigned long addr,
 extern void __print_symbol(const char *fmt, unsigned long address);
 
 #else /* !CONFIG_KALLSYMS */
-
-static inline unsigned long kallsyms_lookup_name(const char *name)
-{
-	return 0;
-}
 
 static inline const char *kallsyms_lookup(unsigned long addr,
 					  unsigned long *symbolsize,

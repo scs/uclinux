@@ -7,7 +7,7 @@ menu "Character devices"
 config VT
 	bool "Virtual terminal" if EMBEDDED
 	select INPUT
-	default y if !VIOCONS
+	default n
 	---help---
 	  If you say Y here, you will get support for terminal devices with
 	  display and keyboard devices. These are called "virtual" because you
@@ -110,14 +110,16 @@ config ROCKETPORT
 
 config CYCLADES
 	tristate "Cyclades async mux support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP
 	---help---
-	  This driver supports Cyclades Z and Y multiserial boards.
-	  You would need something like this to connect more than two modems to
+	  This is a driver for a card that gives you many serial ports. You
+	  would need something like this to connect more than two modems to
 	  your Linux box, for instance in order to become a dial-in server.
-
 	  For information about the Cyclades-Z card, read
 	  <file:drivers/char/README.cycladesZ>.
+
+	  As of 1.3.9x kernels, this driver's minor numbers start at 0 instead
+	  of 32.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyclades.
@@ -203,7 +205,7 @@ config MOXA_SMARTIO
 
 config ISI
 	tristate "Multi-Tech multiport card support (EXPERIMENTAL)"
-	depends on SERIAL_NONSTANDARD && PCI && EXPERIMENTAL && BROKEN_ON_SMP && m
+	depends on SERIAL_NONSTANDARD && EXPERIMENTAL && BROKEN_ON_SMP && m
 	help
 	  This is a driver for the Multi-Tech cards which provide several
 	  serial ports.  The driver is experimental and can currently only be
@@ -212,7 +214,7 @@ config ISI
 
 config SYNCLINK
 	tristate "Microgate SyncLink card support"
-	depends on SERIAL_NONSTANDARD && PCI
+	depends on SERIAL_NONSTANDARD
 	help
 	  Provides support for the SyncLink ISA and PCI multiprotocol serial
 	  adapters. These adapters support asynchronous and HDLC bit
@@ -303,7 +305,7 @@ config RIO
 	help
 	  This is a driver for the Specialix RIO, a smart serial card which
 	  drives an outboard box that can support up to 128 ports.  Product
-	  information is at <http://www.perle.com/support/documentation.html#multiport>.
+	  information is at <http://www.sphinxcst.co.uk/perle/multi.htm>.
 	  There are both ISA and PCI versions.
 
 config RIO_OLDPCI
@@ -349,7 +351,7 @@ config ISTALLION
 	  module will be called istallion.
 
 config SERIAL_TX3912
-	bool "TX3912/PR31700 serial port support"
+	bool "TMPTX3912/PR31700 serial port support"
 	depends on SERIAL_NONSTANDARD && MIPS && BROKEN_ON_SMP
 	help
 	  The TX3912 is a Toshiba RISC processor based o the MIPS 3900 core;
@@ -357,7 +359,7 @@ config SERIAL_TX3912
 	  Say Y here to enable kernel support for the on-board serial port.
 
 config SERIAL_TX3912_CONSOLE
-	bool "Console on TX3912/PR31700 serial port"
+	bool "Console on TMPTX3912/PR31700 serial port"
 	depends on SERIAL_TX3912
 	help
 	  The TX3912 is a Toshiba RISC processor based o the MIPS 3900 core;
@@ -370,6 +372,22 @@ config AU1000_UART
 	help
 	  If you have an Alchemy AU1000 processor (MIPS based) and you want
 	  to use serial ports, say Y.  Otherwise, say N.
+
+config SGI_L1_SERIAL
+	bool "SGI Altix L1 serial support"
+	depends on SERIAL_NONSTANDARD && IA64
+	help
+	  If you have an SGI Altix and you want to use the serial port
+	  connected to the system controller (you want this!), say Y.
+	  Otherwise, say N.
+
+config SGI_L1_SERIAL_CONSOLE
+	bool "SGI Altix L1 serial console support"
+	depends on SGI_L1_SERIAL
+	help
+	  If you have an SGI Altix and you would like to use the system
+	  controller serial port as your console (you want this!),
+	  say Y.  Otherwise, say N.
 
 config AU1000_SERIAL_CONSOLE
 	bool "Enable Au1000 serial console"
@@ -397,7 +415,7 @@ config IT8172_SCR0
 	  Say Y here to support smart-card reader 0 (SCR0) on the Integrated
 	  Technology Express, Inc. ITE8172 SBC.  Vendor page at
 	  <http://www.ite.com.tw/ia/brief_it8172bsp.htm>; picture of the
-	  board at <http://www.mvista.com/partners/semiconductor/ite.html>.
+	  board at <http://www.mvista.com/allies/semiconductor/ite.html>.
 
 config IT8172_SCR1
 	bool "Enable Smart Card Reader 1 Support "
@@ -406,7 +424,7 @@ config IT8172_SCR1
 	  Say Y here to support smart-card reader 1 (SCR1) on the Integrated
 	  Technology Express, Inc. ITE8172 SBC.  Vendor page at
 	  <http://www.ite.com.tw/ia/brief_it8172bsp.htm>; picture of the
-	  board at <http://www.mvista.com/partners/semiconductor/ite.html>.
+	  board at <http://www.mvista.com/allies/semiconductor/ite.html>.
 
 config A2232
 	tristate "Commodore A2232 serial support (EXPERIMENTAL)"
@@ -424,11 +442,20 @@ config A2232
 	  will also be built as a module. This has to be loaded before
 	  "ser_a2232". If you want to do this, answer M here.
 
+config LEDMAN
+	bool "LED Manager support"
+	help
+	  Enbale the LED manager driver.
+
+config RESETSWITCH
+	bool "Reset switch support"
+	help
+	  Support the hardware reset switch.
+
 source "drivers/serial/Kconfig"
 
 config UNIX98_PTYS
-	bool "Unix98 PTY support" if EMBEDDED
-	default y
+	bool "Unix98 PTY support"
 	---help---
 	  A pseudo terminal (PTY) is a software device consisting of two
 	  halves: a master and a slave. The slave device behaves identical to
@@ -446,38 +473,28 @@ config UNIX98_PTYS
 	  terminal slave can be accessed as /dev/pts/<number>. What was
 	  traditionally /dev/ttyp2 will then be /dev/pts/2, for example.
 
-	  All modern Linux systems use the Unix98 ptys.  Say Y unless
-	  you're on an embedded system and want to conserve memory.
+	  The entries in /dev/pts/ are created on the fly by a virtual
+	  file system; therefore, if you say Y here you should say Y to
+	  "/dev/pts file system for Unix98 PTYs" as well.
 
-config LEGACY_PTYS
-	bool "Legacy (BSD) PTY support"
-	default y
-	---help---
-	  A pseudo terminal (PTY) is a software device consisting of two
-	  halves: a master and a slave. The slave device behaves identical to
-	  a physical terminal; the master device is used by a process to
-	  read data from and write data to the slave, thereby emulating a
-	  terminal. Typical programs for the master side are telnet servers
-	  and xterms.
+	  If you want to say Y here, you need to have the C library glibc 2.1
+	  or later (equal to libc-6.1, check with "ls -l /lib/libc.so.*").
+	  Read the instructions in <file:Documentation/Changes> pertaining to
+	  pseudo terminals. It's safe to say N.
 
-	  Linux has traditionally used the BSD-like names /dev/ptyxx
-	  for masters and /dev/ttyxx for slaves of pseudo
-	  terminals. This scheme has a number of problems, including
-	  security.  This option enables these legacy devices; on most
-	  systems, it is safe to say N.
-
-
-config LEGACY_PTY_COUNT
-	int "Maximum number of legacy PTY in use"
-	depends on LEGACY_PTYS
+config UNIX98_PTY_COUNT
+	int "Maximum number of Unix98 PTYs in use (0-2048)"
+	depends on UNIX98_PTYS
 	default "256"
-	---help---
-	  The maximum number of legacy PTYs that can be used at any one time.
-	  The default is 256, and should be more than enough.  Embedded
-	  systems may want to reduce this to save memory.
+	help
+	  The maximum number of Unix98 PTYs that can be used at any one time.
+	  The default is 256, and should be enough for desktop systems. Server
+	  machines which support incoming telnet/rlogin/ssh connections and/or
+	  serve several X terminals may want to increase this: every incoming
+	  connection and every xterm uses up one PTY.
 
-	  When not in use, each legacy PTY occupies 12 bytes on 32-bit
-	  architectures and 24 bytes on 64-bit architectures.
+	  When not in use, each additional set of 256 PTYs occupy
+	  approximately 8 KB of kernel memory on 32-bit architectures.
 
 config PRINTER
 	tristate "Parallel printer support"
@@ -570,22 +587,40 @@ config HVC_CONSOLE
 	  console. This driver allows each pSeries partition to have a console
 	  which is accessed via the HMC.
 
-config HVCS
-	tristate "IBM Hypervisor Virtual Console Server support"
-	depends on PPC_PSERIES
-	help
-	  Partitionable IBM Power5 ppc64 machines allow hosting of
-	  firmware virtual consoles from one Linux partition by
-	  another Linux partition.  This driver allows console data
-	  from Linux partitions to be accessed through TTY device
-	  interfaces in the device tree of a Linux partition running
-	  this driver.
+config PC9800_OLDLP
+	tristate "NEC PC-9800 old-style printer port support"
+	depends on X86_PC9800 && !PARPORT
+	---help---
+	  If you intend to attach a printer to the parallel port of NEC PC-9801
+	  /PC-9821 with OLD compatibility mode, Say Y.
+
+config PC9800_OLDLP_CONSOLE
+	bool "Support for console on line printer"
+	depends on PC9800_OLDLP
+
+
+menu "Mice"
+
+config BUSMOUSE
+	tristate "Bus Mouse Support"
+	---help---
+	  Say Y here if your machine has a bus mouse as opposed to a serial
+	  mouse. Most people have a regular serial MouseSystem or
+	  Microsoft mouse (made by Logitech) that plugs into a COM port
+	  (rectangular with 9 or 25 pins). These people say N here. 
+
+	  If you have a laptop, you either have to check the documentation or
+	  experiment a bit to find out whether the trackball is a serial mouse
+	  or not; it's best to say Y here for you.
+
+	  This is the generic bus mouse driver code. If you have a bus mouse,
+	  you will have to say Y here and also to the specific driver for your
+	  mouse below.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called hvcs.ko.  Additionally, this module
-	  will depend on arch specific APIs exported from hvcserver.ko
-	  which will also be compiled when this driver is built as a
-	  module.
+	  module will be called busmouse.
+
+endmenu
 
 config QIC02_TAPE
 	tristate "QIC-02 tape support"
@@ -704,7 +739,6 @@ config HW_RANDOM
 
 config NVRAM
 	tristate "/dev/nvram support"
-	depends on ATARI || X86 || X86_64 || ARM || GENERIC_NVRAM
 	---help---
 	  If you say Y here and create a character special file /dev/nvram
 	  with major number 10 and minor number 144 using mknod ("man mknod"),
@@ -730,7 +764,7 @@ config NVRAM
 
 config RTC
 	tristate "Enhanced Real Time Clock Support"
-	depends on !PPC32 && !PARISC && !IA64 && !M68K
+	depends on !PPC32 && !PARISC && !IA64 && !X86_PC9800
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -754,31 +788,9 @@ config RTC
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc.
 
-config SGI_DS1286
-	tristate "SGI DS1286 RTC support"
-	depends on SGI_IP22
-	help
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock built into your computer.
-	  Every SGI has such a clock built in. It reports status information
-	  via the file /proc/rtc and its behaviour is set by various ioctls on
-	  /dev/rtc.
-
-config SGI_IP27_RTC
-	bool "SGI M48T35 RTC support"
-	depends on SGI_IP27
-	help
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock built into your computer.
-	  Every SGI has such a clock built in. It reports status information
-	  via the file /proc/rtc and its behaviour is set by various ioctls on
-	  /dev/rtc.
-
 config GEN_RTC
 	tristate "Generic /dev/rtc emulation"
-	depends on RTC!=y && !IA64
+	depends on RTC!=y
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -792,7 +804,8 @@ config GEN_RTC
 	  precision in some cases.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called genrtc.
+	  module will be called genrtc. To load the module automatically
+	  add 'alias char-major-10-135 genrtc' to your /etc/modules.conf
 
 config GEN_RTC_X
 	bool "Extended RTC operation"
@@ -801,28 +814,34 @@ config GEN_RTC_X
 	  Provides an emulation for RTC_UIE which is required by some programs
 	  and may improve precision of the generic RTC support in some cases.
 
-config BLACKFIN_RTC
-        tristate "Blackfin Real Time Clock Support"
-        default n
-        ---help---
-
-config BLACKFIN_DPMC
-        tristate "Blackfin Power Management support"
-        default n
-        help
-	  This feature is not completly tested. This module is under construction.
-	  Use at your own risk !	
-
 config EFI_RTC
 	bool "EFI Real Time Clock Services"
 	depends on IA64
 
-config COBALT_LCD
-	bool "Support for Cobalt LCD"
-	depends on MIPS_COBALT
+config RTC98
+	tristate "NEC PC-9800 Real Time Clock Support"
+	depends on X86_PC9800
+	default y
+	---help---
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock (or hardware clock) built
+
+config BLACKFIN_RTC
+	tristate "Blackfin Real Time Clock Support"
+	default n
+	---help---
+	  	  
+	 
+config H8
+	bool "Tadpole ANA H8 Support (OBSOLETE)"
+	depends on OBSOLETE && ALPHA_BOOK1
 	help
-	  This option enables support for the LCD display and buttons found
-	  on Cobalt systems through a misc device.
+	  The Hitachi H8/337 is a microcontroller used to deal with the power
+	  and thermal environment. If you say Y here, you will be able to
+	  communicate with it via a character special device.
+
+	  If unsure, say N.
 
 config DTLK
 	tristate "Double Talk PC internal speech card support"
@@ -848,7 +867,6 @@ config R3964
 
 config APPLICOM
 	tristate "Applicom intelligent fieldbus card support"
-	depends on PCI
 	---help---
 	  This driver provides the kernel-side support for the intelligent
 	  fieldbus cards made by Applicom International. More information
@@ -879,7 +897,7 @@ menu "Ftape, the floppy tape device driver"
 
 config FTAPE
 	tristate "Ftape (QIC-80/Travan) support"
-	depends on BROKEN_ON_SMP && (ALPHA || X86)
+	depends on BROKEN_ON_SMP
 	---help---
 	  If you have a tape drive that is connected to your floppy
 	  controller, say Y here.
@@ -960,46 +978,11 @@ config SCx200_GPIO
 	  If compiled as a module, it will be called scx200_gpio.
 
 config RAW_DRIVER
-	tristate "RAW driver (/dev/raw/rawN) (OBSOLETE)"
+	tristate "RAW driver (/dev/raw/rawN)"
 	help
 	  The raw driver permits block devices to be bound to /dev/raw/rawN. 
 	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O. 
 	  See the raw(8) manpage for more details.
-
-          The raw driver is deprecated and may be removed from 2.7
-          kernels.  Applications should simply open the device (eg /dev/hda1)
-          with the O_DIRECT flag.
-
-config HPET
-	bool "HPET - High Precision Event Timer" if (X86 || IA64)
-	default n
-	depends on ACPI
-	help
-	  If you say Y here, you will have a miscdevice named "/dev/hpet/".  Each
-	  open selects one of the timers supported by the HPET.  The timers are
-	  non-periodioc and/or periodic.
-
-config HPET_RTC_IRQ
-	bool "HPET Control RTC IRQ" if !HPET_EMULATE_RTC
-	default n
-	depends on HPET
-	help
-	  If you say Y here, you will disable RTC_IRQ in drivers/char/rtc.c. It
-	  is assumed the platform called hpet_alloc with the RTC IRQ values for
-	  the HPET timers.
-
-config HPET_MMAP
-	bool "Allow mmap of HPET"
-	default y
-	depends on HPET
-	help
-	  If you say Y here, user applications will be able to mmap
-	  the HPET registers.
-
-	  In some hardware implementations, the page containing HPET
-	  registers may also contain other things that shouldn't be
-	  exposed to the user.  If this applies to your hardware,
-	  say N here.
 
 config MAX_RAW_DEVS
 	int "Maximum number of RAW devices to support (1-8192)"

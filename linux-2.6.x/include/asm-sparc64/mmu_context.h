@@ -83,8 +83,7 @@ do { \
 	paddr = __pa((__mm)->pgd); \
 	pgd_cache = 0UL; \
 	if ((__tsk)->thread_info->flags & _TIF_32BIT) \
-		pgd_cache = \
-		  ((unsigned long)pgd_val((__mm)->pgd[0])) << 11UL; \
+		pgd_cache = pgd_val((__mm)->pgd[0]) << 11UL; \
 	__asm__ __volatile__("wrpr	%%g0, 0x494, %%pstate\n\t" \
 			     "mov	%3, %%g4\n\t" \
 			     "mov	%0, %%g7\n\t" \
@@ -141,6 +140,8 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 	}
 	spin_unlock(&mm->page_table_lock);
 }
+
+extern void __flush_tlb_mm(unsigned long, unsigned long);
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
 

@@ -34,7 +34,7 @@ struct smb_request {
 	int rq_bytes_sent;
 
 	int rq_iovlen;
-	struct kvec rq_iov[4];
+	struct iovec rq_iov[4];
 
 	int (*rq_setup_read) (struct smb_request *);
 	void (*rq_callback) (struct smb_request *);

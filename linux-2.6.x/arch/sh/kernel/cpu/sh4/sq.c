@@ -3,13 +3,13 @@
  *
  * General management API for SH-4 integrated Store Queues
  *
- * Copyright (C) 2001, 2002, 2003, 2004  Paul Mundt
+ * Copyright (C) 2001, 2002, 2003  Paul Mundt
  * Copyright (C) 2001, 2002  M. R. Brown
  *
  * Some of this code has been adopted directly from the old arch/sh/mm/sq.c
- * hack that was part of the LinuxDC project. For all intents and purposes,
- * this is a completely new interface that really doesn't have much in common
- * with the old zone-based approach at all. In fact, it's only listed here for
+ * hack that was part of the LinuxDC project. For all intensive purposes, this
+ * is a completely new interface that really doesn't have much in common with
+ * the old zone-based approach at all. Infact, I'm only listing it here for
  * general completeness.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -24,7 +24,6 @@
 #include <linux/list.h>
 #include <linux/proc_fs.h>
 #include <linux/miscdevice.h>
-#include <linux/vmalloc.h>
 
 #include <asm/io.h>
 #include <asm/page.h>
@@ -32,7 +31,6 @@
 #include <asm/cpu/sq.h>
 
 static LIST_HEAD(sq_mapping_list);
-static spinlock_t sq_mapping_lock = SPIN_LOCK_UNLOCKED;
 
 /**
  * sq_flush - Flush (prefetch) the store queue cache
@@ -44,7 +42,7 @@ static spinlock_t sq_mapping_lock = SPIN_LOCK_UNLOCKED;
  */
 inline void sq_flush(void *addr)
 {
-	__asm__ __volatile__ ("pref @%0" : : "r" (addr) : "memory");
+	__asm__ __volatile__ ("pref @%0": "=r" (addr) : : "memory");
 }
 
 /**
@@ -59,17 +57,13 @@ inline void sq_flush(void *addr)
 void sq_flush_range(unsigned long start, unsigned int len)
 {
 	volatile unsigned long *sq = (unsigned long *)start;
-	unsigned long dummy;
 
 	/* Flush the queues */
 	for (len >>= 5; len--; sq += 8)
 		sq_flush((void *)sq);
-
+	
 	/* Wait for completion */
-	dummy = ctrl_inl(P4SEG_STORE_QUE);
-
-	ctrl_outl(0, P4SEG_STORE_QUE + 0);
-	ctrl_outl(0, P4SEG_STORE_QUE + 8);
+	sq = (volatile unsigned long *)start;
 }
 
 static struct sq_mapping *__sq_alloc_mapping(unsigned long virt, unsigned long phys, unsigned long size, const char *name)
@@ -87,7 +81,7 @@ static struct sq_mapping *__sq_alloc_mapping(unsigned long virt, unsigned long p
 
 	map->sq_addr	= virt;
 	map->addr	= phys;
-	map->size	= size + 1;
+	map->size	= size;
 	map->name	= name;
 
 	list_add(&map->list, &sq_mapping_list);
@@ -134,20 +128,24 @@ static unsigned long __sq_get_next_addr(void)
  */
 static struct sq_mapping *__sq_remap(struct sq_mapping *map)
 {
-	unsigned long flags, pteh, ptel;
-	struct vm_struct *vma;
-	pgprot_t pgprot;
-
+	/*
+	 * First check the MMU status..
+	 */
+#ifndef CONFIG_MMU
 	/*
 	 * Without an MMU (or with it turned off), this is much more
 	 * straightforward, as we can just load up each queue's QACR with
 	 * the physical address appropriately masked.
 	 */
-
 	ctrl_outl(((map->addr >> 26) << 2) & 0x1c, SQ_QACR0);
 	ctrl_outl(((map->addr >> 26) << 2) & 0x1c, SQ_QACR1);
+#else
+	unsigned long flags, pteh, ptel;
+	pgprot_t pgprot;
+	pgd_t *pgd;
+	pmd_t *pmd;
+	pte_t *pte;
 
-#ifdef CONFIG_MMU
 	/*
 	 * With an MMU on the other hand, things are slightly more involved.
 	 * Namely, we have to have a direct mapping between the SQ addr and
@@ -163,7 +161,7 @@ static struct sq_mapping *__sq_remap(struct sq_mapping *map)
 	 * We could also probably get by without explicitly setting PTEA, but
 	 * we do it here just for good measure.
 	 */
-	spin_lock_irqsave(&sq_mapping_lock, flags);
+	local_irq_save(flags);
 
 	pteh = map->sq_addr;
 	ctrl_outl((pteh & MMU_VPN_MASK) | get_asid(), MMU_PTEH);
@@ -179,8 +177,6 @@ static struct sq_mapping *__sq_remap(struct sq_mapping *map)
 
 	__asm__ __volatile__ ("ldtlb" : : : "memory");
 
-	spin_unlock_irqrestore(&sq_mapping_lock, flags);
-
 	/*
 	 * Next, we need to map ourselves in the kernel page table, so that
 	 * future accesses after a TLB flush will be handled when we take a
@@ -192,17 +188,31 @@ static struct sq_mapping *__sq_remap(struct sq_mapping *map)
 	 * writeout before we hit the TLB flush, we do it anyways. This way
 	 * we at least save ourselves the initial page fault overhead.
 	 */
-	vma = __get_vm_area(map->size, VM_ALLOC, map->sq_addr, SQ_ADDRMAX);
-	if (!vma)
-		return ERR_PTR(-ENOMEM);
+	pgd = pgd_offset_k(map->sq_addr);
 
-	vma->phys_addr = map->addr;
+	spin_lock(&init_mm.page_table_lock);
 
-	if (remap_area_pages((unsigned long)vma->addr, vma->phys_addr,
-			     map->size, pgprot_val(pgprot))) {
-		vunmap(vma->addr);
-		return NULL;
+	pmd = pmd_alloc(&init_mm, pgd, map->sq_addr);
+	if (!pmd)
+		goto out;
+	
+	pte = pte_alloc_map(&init_mm, pmd, map->sq_addr);
+	if (!pte)
+		goto out;
+	if (!pte_none(*pte)) {
+		pte_unmap(pte);
+		goto out;
 	}
+
+	set_pte(pte, mk_pte(phys_to_page(map->addr), pgprot));
+	pte_unmap(pte);
+
+out:
+	spin_unlock(&init_mm.page_table_lock);
+	sq_flush((void *)pteh);
+
+	local_irq_restore(flags);
+
 #endif /* CONFIG_MMU */
 
 	return map;
@@ -226,20 +236,11 @@ static struct sq_mapping *__sq_remap(struct sq_mapping *map)
 struct sq_mapping *sq_remap(unsigned long phys, unsigned int size, const char *name)
 {
 	struct sq_mapping *map;
-	unsigned long virt, end;
+	unsigned long virt;
 	unsigned int psz;
-
-	/* Don't allow wraparound or zero size */
-	end = phys + size - 1;
-	if (!size || end < phys)
-		return NULL;
-	/* Don't allow anyone to remap normal memory.. */
-	if (phys < virt_to_phys(high_memory))
-		return NULL;
 
 	phys &= PAGE_MASK;
 
-	size  = PAGE_ALIGN(end + 1) - phys;
 	virt  = __sq_get_next_addr();
 	psz   = (size + (PAGE_SIZE - 1)) / PAGE_SIZE;
 	map   = __sq_alloc_mapping(virt, phys, size, name);
@@ -263,8 +264,30 @@ struct sq_mapping *sq_remap(unsigned long phys, unsigned int size, const char *n
  */
 void sq_unmap(struct sq_mapping *map)
 {
-	if (map->sq_addr > (unsigned long)high_memory)
-		vfree((void *)(map->sq_addr & PAGE_MASK));
+#ifdef CONFIG_MMU
+	pgd_t *pgd;
+	pmd_t *pmd;
+	pte_t *pte;
+	
+	pgd = pgd_offset_k(map->sq_addr);
+	pmd = pmd_offset(pgd, map->sq_addr);
+
+	if (pmd_none(*pmd))
+		return;
+	if (pmd_bad(*pmd)) {
+		pmd_ERROR(*pmd);
+		pmd_clear(pmd);
+		return;
+	}
+
+	pte = pte_offset_kernel(pmd, map->sq_addr);
+	if (pte_none(*pte) || pte_not_present(*pte))
+		return;
+
+	ptep_get_and_clear(pte);
+
+	__flush_tlb_page(get_asid(), map->sq_addr & PAGE_MASK);
+#endif
 
 	list_del(&map->list);
 	kfree(map);
@@ -452,7 +475,6 @@ module_exit(sq_api_exit);
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>, M. R. Brown <mrbrown@0xd6.org>");
 MODULE_DESCRIPTION("Simple API for SH-4 integrated Store Queues");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(STORE_QUEUE_MINOR);
 
 EXPORT_SYMBOL(sq_remap);
 EXPORT_SYMBOL(sq_unmap);

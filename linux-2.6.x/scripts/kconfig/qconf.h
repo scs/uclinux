@@ -4,39 +4,17 @@
  */
 
 #include <qlistview.h>
-#if QT_VERSION >= 300
-#include <qsettings.h>
-#else
-class QSettings { };
-#endif
 
 class ConfigList;
 class ConfigItem;
 class ConfigLineEdit;
 class ConfigMainWindow;
 
-
-class ConfigSettings : public QSettings {
-public:
-	ConfigSettings();
-
-#if QT_VERSION >= 300
-	void readListSettings();
-	QValueList<int> ConfigSettings::readSizes(const QString& key, bool *ok);
-	bool ConfigSettings::writeSizes(const QString& key, const QValueList<int>& value);
-#endif
-
-	bool showAll;
-	bool showName;
-	bool showRange;
-	bool showData;
-};
-
 class ConfigView : public QVBox {
 	Q_OBJECT
 	typedef class QVBox Parent;
 public:
-	ConfigView(QWidget* parent, ConfigMainWindow* cview, ConfigSettings* configSettings);
+	ConfigView(QWidget* parent, ConfigMainWindow* cview);
 	~ConfigView(void);
 	static void updateList(ConfigItem* item);
 	static void updateListAll(void);
@@ -60,7 +38,7 @@ class ConfigList : public QListView {
 	Q_OBJECT
 	typedef class QListView Parent;
 public:
-	ConfigList(ConfigView* p, ConfigMainWindow* cview, ConfigSettings *configSettings);
+	ConfigList(ConfigView* p, ConfigMainWindow* cview);
 	void reinit(void);
 	ConfigView* parent(void) const
 	{
@@ -244,7 +222,6 @@ public slots:
 	void setShowData(bool);
 	void showIntro(void);
 	void showAbout(void);
-	void saveSettings(void);
 
 protected:
 	void closeEvent(QCloseEvent *e);
@@ -256,8 +233,6 @@ protected:
 	QTextView *helpText;
 	QToolBar *toolBar;
 	QAction *backAction;
-	QSplitter* split1;
-	QSplitter* split2;
 
 	bool showDebug;
 };

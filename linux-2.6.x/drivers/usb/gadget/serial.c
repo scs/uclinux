@@ -33,6 +33,7 @@
 #include <linux/uts.h>
 #include <linux/version.h>
 #include <linux/wait.h>
+#include <linux/list.h>
 #include <linux/proc_fs.h>
 #include <linux/device.h>
 #include <linux/tty.h>
@@ -154,8 +155,9 @@ do {									\
 
 #define GS_CLOSE_TIMEOUT		15
 
-/* debug settings */
+/* debug macro */
 #if G_SERIAL_DEBUG
+
 static int debug = G_SERIAL_DEBUG;
 
 #define gs_debug(format, arg...) \
@@ -205,27 +207,6 @@ static inline void hw_optimize(struct usb_gadget *gadget)
 
 
 /*
- * Dummy_hcd, software-based loopback controller.
- *
- * This imitates the abilities of the NetChip 2280, so we will use
- * the same configuration.
- */
-#ifdef	CONFIG_USB_GADGET_DUMMY_HCD
-#define CHIP				"dummy"
-#define EP0_MAXPACKET			64
-static const char EP_OUT_NAME[] =	"ep-a";
-#define EP_OUT_NUM			2
-static const char EP_IN_NAME[] =	"ep-b";
-#define EP_IN_NUM			2
-#define HIGHSPEED
-#define SELFPOWER			USB_CONFIG_ATT_SELFPOWER
-
-/* no hw optimizations to apply */
-#define hw_optimize(g)			do {} while (0)
-#endif
-
-
-/*
  * PXA-2xx UDC:  widely used in second gen Linux-capable PDAs.
  *
  * This has fifteen fixed-function full speed endpoints, and it
@@ -247,20 +228,6 @@ static const char EP_IN_NAME[] =	"ep1in-bulk";
 
 /* no hw optimizations to apply */
 #define hw_optimize(g)			do {} while (0)
-#endif
-
-#ifdef	CONFIG_USB_GADGET_OMAP
-#define CHIP			"omap"
-#define EP0_MAXPACKET			64
-static const char EP_OUT_NAME [] = "ep2out-bulk";
-#define EP_OUT_NUM	2
-static const char EP_IN_NAME [] = "ep1in-bulk";
-#define EP_IN_NUM	1
-#define SELFPOWER 			USB_CONFIG_ATT_SELFPOWER
-/* supports remote wakeup, but this driver doesn't */
-
-/* no hw optimizations to apply */
-#define hw_optimize(g) do {} while (0)
 #endif
 
 
@@ -607,10 +574,8 @@ MODULE_DESCRIPTION(GS_LONG_NAME);
 MODULE_AUTHOR("Al Borchers");
 MODULE_LICENSE("GPL");
 
-#if G_SERIAL_DEBUG
 MODULE_PARM(debug, "i");
 MODULE_PARM_DESC(debug, "Enable debugging, 0=off, 1=on");
-#endif
 
 MODULE_PARM(read_q_size, "i");
 MODULE_PARM_DESC(read_q_size, "Read request queue size, default=32");
@@ -1587,8 +1552,6 @@ static int gs_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctr
 	/* respond with data transfer before status phase? */
 	if (ret >= 0) {
 		req->length = ret;
-		req->zero = ret < ctrl->wLength
-				&& (ret % gadget->ep0->maxpacket) == 0;
 		ret = usb_ep_queue(gadget->ep0, req, GFP_ATOMIC);
 		if (ret < 0) {
 			printk(KERN_ERR

@@ -35,7 +35,6 @@
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 
-#include <net/ip.h>
 #include <net/sock.h>
 #include <net/snmp.h>
 
@@ -43,7 +42,6 @@
 #include <net/ndisc.h>
 #include <net/protocol.h>
 #include <net/ip6_route.h>
-#include <net/ip6_checksum.h>
 #include <net/addrconf.h>
 #include <net/transp_v6.h>
 #include <net/udp.h>
@@ -83,7 +81,7 @@ struct sock *__raw_v6_lookup(struct sock *sk, unsigned short num,
 			     struct in6_addr *loc_addr, struct in6_addr *rmt_addr)
 {
 	struct hlist_node *node;
-	int is_multicast = ipv6_addr_is_multicast(loc_addr);
+	int addr_type = ipv6_addr_type(loc_addr);
 
 	sk_for_each_from(sk, node)
 		if (inet_sk(sk)->num == num) {
@@ -96,7 +94,7 @@ struct sock *__raw_v6_lookup(struct sock *sk, unsigned short num,
 			if (!ipv6_addr_any(&np->rcv_saddr)) {
 				if (!ipv6_addr_cmp(&np->rcv_saddr, loc_addr))
 					goto found;
-				if (is_multicast &&
+				if ((addr_type & IPV6_ADDR_MULTICAST) &&
 				    inet6_mc_check(sk, loc_addr, rmt_addr))
 					goto found;
 				continue;
@@ -224,7 +222,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		}
 		
 		/* ipv4 addr of the socket is invalid.  Only the
-		 * unspecified and mapped address have a v4 equivalent.
+		 * unpecified and mapped address have a v4 equivalent.
 		 */
 		v4addr = LOOPBACK4_IPV6;
 		if (!(addr_type & IPV6_ADDR_MULTICAST))	{
@@ -285,8 +283,7 @@ void rawv6_err(struct sock *sk, struct sk_buff *skb,
 
 static inline int rawv6_rcv_skb(struct sock * sk, struct sk_buff * skb)
 {
-	if ((raw6_sk(sk)->checksum || sk->sk_filter) && 
-	    skb->ip_summed != CHECKSUM_UNNECESSARY) {
+	if (sk->sk_filter && skb->ip_summed != CHECKSUM_UNNECESSARY) {
 		if ((unsigned short)csum_fold(skb_checksum(skb, 0, skb->len, skb->csum))) {
 			/* FIXME: increment a raw6 drops counter here */
 			kfree_skb(skb);
@@ -309,7 +306,7 @@ static inline int rawv6_rcv_skb(struct sock * sk, struct sk_buff * skb)
  *	This is next to useless... 
  *	if we demultiplex in network layer we don't need the extra call
  *	just to queue the skb... 
- *	maybe we could have the network decide upon a hint if it 
+ *	maybe we could have the network decide uppon a hint if it 
  *	should call raw_rcv for demultiplexing
  */
 int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
@@ -331,8 +328,7 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 			if (csum_ipv6_magic(&skb->nh.ipv6h->saddr,
 					    &skb->nh.ipv6h->daddr,
 					    skb->len, inet->num, skb->csum)) {
-				LIMIT_NETDEBUG(
-			        printk(KERN_DEBUG "raw v6 hw csum failure.\n"));
+				NETDEBUG(if (net_ratelimit()) printk(KERN_DEBUG "raw v6 hw csum failure.\n"));
 				skb->ip_summed = CHECKSUM_NONE;
 			}
 		}
@@ -411,18 +407,17 @@ static int rawv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 		ipv6_addr_copy(&sin6->sin6_addr, &skb->nh.ipv6h->saddr);
 		sin6->sin6_flowinfo = 0;
 		sin6->sin6_scope_id = 0;
-		if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL)
-			sin6->sin6_scope_id = IP6CB(skb)->iif;
+		if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL) {
+			struct inet6_skb_parm *opt = (struct inet6_skb_parm *) skb->cb;
+			sin6->sin6_scope_id = opt->iif;
+		}
 	}
 
 	sock_recv_timestamp(msg, sk, skb);
 
 	if (np->rxopt.all)
 		datagram_recv_ctl(sk, msg, skb);
-
 	err = copied;
-	if (flags & MSG_TRUNC)
-		err = skb->len;
 
 out_free:
 	skb_free_datagram(sk, skb);
@@ -456,10 +451,6 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl, struct r
 	struct sk_buff *skb;
 	int err = 0;
 	u16 *csum;
-	u32 tmp_csum;
-
-	if (!opt->checksum)
-		goto send;
 
 	if ((skb = skb_peek(&sk->sk_write_queue)) == NULL)
 		goto out;
@@ -471,32 +462,29 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl, struct r
 		goto out;
 	}
 
-	/* should be check HW csum miyazawa */
 	if (skb_queue_len(&sk->sk_write_queue) == 1) {
 		/*
 		 * Only one fragment on the socket.
 		 */
-		tmp_csum = skb->csum;
+		/* should be check HW csum miyazawa */
+		*csum = csum_ipv6_magic(&fl->fl6_src,
+					&fl->fl6_dst,
+					len, fl->proto, skb->csum);
 	} else {
-		tmp_csum = 0;
+		u32 tmp_csum = 0;
 
 		skb_queue_walk(&sk->sk_write_queue, skb) {
 			tmp_csum = csum_add(tmp_csum, skb->csum);
 		}
+
+		tmp_csum = csum_ipv6_magic(&fl->fl6_src,
+					   &fl->fl6_dst,
+					   len, fl->proto, tmp_csum);
+		*csum = tmp_csum;
 	}
-
-	/* in case cksum was not initialized */
-	if (unlikely(*csum))
-		tmp_csum = csum_sub(tmp_csum, *csum);
-
-	*csum = csum_ipv6_magic(&fl->fl6_src,
-				&fl->fl6_dst,
-				len, fl->proto, tmp_csum);
-
 	if (*csum == 0)
 		*csum = -1;
-send:
-	err = ip6_push_pending_frames(sk);
+	ip6_push_pending_frames(sk);
 out:
 	return err;
 }
@@ -538,7 +526,6 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 	if (err)
 		goto error_fault;
 
-	IP6_INC_STATS(IPSTATS_MIB_OUTREQUESTS);		
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, rt->u.dst.dev,
 		      dst_output);
 	if (err > 0)
@@ -552,7 +539,7 @@ error_fault:
 	err = -EFAULT;
 	kfree_skb(skb);
 error:
-	IP6_INC_STATS(IPSTATS_MIB_OUTDISCARDS);
+	IP6_INC_STATS(Ip6OutDiscards);
 	return err; 
 }
 static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
@@ -640,7 +627,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	if (ipv6_addr_any(daddr)) {
 		/* 
-		 * unspecified destination address 
+		 * unspecfied destination address 
 		 * treated as error... is this correct ?
 		 */
 		fl6_sock_release(flowlabel);
@@ -713,8 +700,13 @@ back_from_confirm:
 
 		if (err)
 			ip6_flush_pending_frames(sk);
-		else if (!(msg->msg_flags & MSG_MORE))
-			err = rawv6_push_pending_frames(sk, &fl, raw_opt, len);
+		else if (!(msg->msg_flags & MSG_MORE)) {
+			if (raw_opt->checksum) {
+				err = rawv6_push_pending_frames(sk, &fl, raw_opt, len);
+			} else {
+				err = ip6_push_pending_frames(sk);
+			}
+		}
 	}
 done:
 	ip6_dst_store(sk, dst,
@@ -736,7 +728,7 @@ do_confirm:
 }
 
 static int rawv6_seticmpfilter(struct sock *sk, int level, int optname, 
-			       char __user *optval, int optlen)
+			       char *optval, int optlen)
 {
 	switch (optname) {
 	case ICMPV6_FILTER:
@@ -753,7 +745,7 @@ static int rawv6_seticmpfilter(struct sock *sk, int level, int optname,
 }
 
 static int rawv6_geticmpfilter(struct sock *sk, int level, int optname, 
-			       char __user *optval, int __user *optlen)
+			       char *optval, int *optlen)
 {
 	int len;
 
@@ -779,7 +771,7 @@ static int rawv6_geticmpfilter(struct sock *sk, int level, int optname,
 
 
 static int rawv6_setsockopt(struct sock *sk, int level, int optname, 
-			    char __user *optval, int optlen)
+			    char *optval, int optlen)
 {
 	struct raw6_opt *opt = raw6_sk(sk);
 	int val;
@@ -801,7 +793,7 @@ static int rawv6_setsockopt(struct sock *sk, int level, int optname,
 					       optlen);
 	};
 
-  	if (get_user(val, (int __user *)optval))
+  	if (get_user(val, (int *)optval))
 		return -EFAULT;
 
 	switch (optname) {
@@ -826,7 +818,7 @@ static int rawv6_setsockopt(struct sock *sk, int level, int optname,
 }
 
 static int rawv6_getsockopt(struct sock *sk, int level, int optname, 
-			    char __user *optval, int __user *optlen)
+			    char *optval, int *optlen)
 {
 	struct raw6_opt *opt = raw6_sk(sk);
 	int val, len;
@@ -878,7 +870,7 @@ static int rawv6_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		case SIOCOUTQ:
 		{
 			int amount = atomic_read(&sk->sk_wmem_alloc);
-			return put_user(amount, (int __user *)arg);
+			return put_user(amount, (int *)arg);
 		}
 		case SIOCINQ:
 		{
@@ -890,7 +882,7 @@ static int rawv6_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			if (skb != NULL)
 				amount = skb->tail - skb->h.raw;
 			spin_unlock_irq(&sk->sk_receive_queue.lock);
-			return put_user(amount, (int __user *)arg);
+			return put_user(amount, (int *)arg);
 		}
 
 		default:
@@ -903,7 +895,7 @@ static void rawv6_close(struct sock *sk, long timeout)
 	if (inet_sk(sk)->num == IPPROTO_RAW)
 		ip6_ra_control(sk, -1, NULL);
 
-	sk_common_release(sk);
+	inet_sock_release(sk);
 }
 
 static int rawv6_init_sk(struct sock *sk)
@@ -919,7 +911,7 @@ static int rawv6_init_sk(struct sock *sk)
 struct proto rawv6_prot = {
 	.name =		"RAW",
 	.close =	rawv6_close,
-	.connect =	ip6_datagram_connect,
+	.connect =	udpv6_connect,
 	.disconnect =	udp_disconnect,
 	.ioctl =	rawv6_ioctl,
 	.init =		rawv6_init_sk,

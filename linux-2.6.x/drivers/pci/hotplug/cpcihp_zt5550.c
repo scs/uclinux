@@ -32,7 +32,6 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
@@ -43,7 +42,11 @@
 #define DRIVER_AUTHOR	"Scott Murray <scottm@somanetworks.com>"
 #define DRIVER_DESC	"ZT5550 CompactPCI Hot Plug Driver"
 
+#if !defined(CONFIG_HOTPLUG_PCI_CPCI_ZT5550_MODULE)
 #define MY_NAME	"cpcihp_zt5550"
+#else
+#define MY_NAME	THIS_MODULE->name
+#endif
 
 #define dbg(format, arg...)					\
 	do {							\
@@ -172,7 +175,7 @@ static int zt5550_hc_enable_irq(void)
 	return 0;
 }
 
-static int zt5550_hc_disable_irq(void)
+int zt5550_hc_disable_irq(void)
 {
 	u8 reg;
 
@@ -298,7 +301,7 @@ module_exit(zt5550_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-module_param(debug, bool, 644);
+MODULE_PARM(debug, "i");
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
-module_param(poll, bool, 644);
+MODULE_PARM(poll, "i");
 MODULE_PARM_DESC(poll, "#ENUM polling mode enabled or not");

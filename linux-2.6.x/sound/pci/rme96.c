@@ -29,7 +29,6 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/moduleparam.h>
 
 #include <sound/core.h>
 #include <sound/info.h>
@@ -37,6 +36,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/asoundef.h>
+#define SNDRV_GET_ID
 #include <sound/initval.h>
 
 #include <asm/io.h>
@@ -57,15 +57,14 @@ MODULE_DEVICES("{{RME,Digi96},"
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int boot_devs;
 
-module_param_array(index, int, boot_devs, 0444);
+MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(index, "Index value for RME Digi96 soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-module_param_array(id, charp, boot_devs, 0444);
+MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
 MODULE_PARM_DESC(id, "ID string for RME Digi96 soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-module_param_array(enable, bool, boot_devs, 0444);
+MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(enable, "Enable RME Digi96 soundcard.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
 
@@ -361,7 +360,7 @@ static int
 snd_rme96_playback_copy(snd_pcm_substream_t *substream,
 			int channel, /* not used (interleaved data) */
 			snd_pcm_uframes_t pos,
-			void __user *src,
+			void *src,
 			snd_pcm_uframes_t count)
 {
 	rme96_t *rme96 = _snd_pcm_substream_chip(substream);
@@ -376,7 +375,7 @@ static int
 snd_rme96_capture_copy(snd_pcm_substream_t *substream,
 		       int channel, /* not used (interleaved data) */
 		       snd_pcm_uframes_t pos,
-		       void __user *dst,
+		       void *dst,
 		       snd_pcm_uframes_t count)
 {
 	rme96_t *rme96 = _snd_pcm_substream_chip(substream);
@@ -1525,21 +1524,21 @@ snd_rme96_playback_pointer(snd_pcm_substream_t *substream)
 		bytes = diff << rme96->playback_frlog;
 		
 		if (bytes > RME96_BUFFER_SIZE - rme96->playback_ptr) {
-			memcpy_toio((void *)(rme96->iobase + RME96_IO_PLAY_BUFFER +
-					     rme96->playback_ptr),
+			memcpy_toio(rme96->iobase + RME96_IO_PLAY_BUFFER +
+				    rme96->playback_ptr,
 				    runtime->dma_area + rme96->playback_ptr,
 				    RME96_BUFFER_SIZE - rme96->playback_ptr);
 		        bytes -= RME96_BUFFER_SIZE - rme96->playback_ptr;
 			if (bytes > RME96_BUFFER_SIZE) {
 			        bytes = RME96_BUFFER_SIZE;
 			}
-			memcpy_toio((void *)(rme96->iobase + RME96_IO_PLAY_BUFFER),
+			memcpy_toio(rme96->iobase + RME96_IO_PLAY_BUFFER,
 				    runtime->dma_area,
 				    bytes);
 			rme96->playback_ptr = bytes;
 		} else if (bytes != 0) {
-			memcpy_toio((void *)(rme96->iobase + RME96_IO_PLAY_BUFFER +
-					     rme96->playback_ptr),
+			memcpy_toio(rme96->iobase + RME96_IO_PLAY_BUFFER +
+				    rme96->playback_ptr,
 				    runtime->dma_area + rme96->playback_ptr,
 				    bytes);
 			rme96->playback_ptr += bytes;
@@ -1561,17 +1560,17 @@ snd_rme96_capture_pointer(snd_pcm_substream_t *substream)
 		ptr = frameptr << rme96->capture_frlog;
 		if (ptr > rme96->capture_ptr) {
 			memcpy_fromio(runtime->dma_area + rme96->capture_ptr,
-				      (void *)(rme96->iobase + RME96_IO_REC_BUFFER +
-					       rme96->capture_ptr),
+				      rme96->iobase + RME96_IO_REC_BUFFER +
+				      rme96->capture_ptr,
 				      ptr - rme96->capture_ptr);
 			rme96->capture_ptr += ptr - rme96->capture_ptr;
 		} else if (ptr < rme96->capture_ptr) {
 			memcpy_fromio(runtime->dma_area + rme96->capture_ptr,
-				      (void *)(rme96->iobase + RME96_IO_REC_BUFFER +
-					       rme96->capture_ptr),
+				      rme96->iobase + RME96_IO_REC_BUFFER +
+				      rme96->capture_ptr,
 				      RME96_BUFFER_SIZE - rme96->capture_ptr);
 			memcpy_fromio(runtime->dma_area,
-				      (void *)(rme96->iobase + RME96_IO_REC_BUFFER),
+				      rme96->iobase + RME96_IO_REC_BUFFER,
 				      ptr);
 			rme96->capture_ptr = ptr;
 		}
@@ -1719,11 +1718,7 @@ snd_rme96_create(rme96_t *rme96)
 
 	rme96->spdif_pcm->info_flags = 0;
 
-	snd_pcm_lib_preallocate_pages_for_all(rme96->spdif_pcm,
-					      SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data(GFP_KERNEL),
-					      RME96_BUFFER_SIZE,
-					      RME96_BUFFER_SIZE);
+	snd_pcm_lib_preallocate_pages_for_all(rme96->spdif_pcm, RME96_BUFFER_SIZE, RME96_BUFFER_SIZE, GFP_KERNEL);
 
 	/* set up ALSA pcm device for ADAT */
 	if (pci->device == PCI_DEVICE_ID_DIGI96) {
@@ -1743,11 +1738,7 @@ snd_rme96_create(rme96_t *rme96)
 		
 		rme96->adat_pcm->info_flags = 0;
 
-		snd_pcm_lib_preallocate_pages_for_all(rme96->adat_pcm,
-						      SNDRV_DMA_TYPE_CONTINUOUS,
-						      snd_dma_continuous_data(GFP_KERNEL),
-						      RME96_BUFFER_SIZE,
-						      RME96_BUFFER_SIZE);
+		snd_pcm_lib_preallocate_pages_for_all(rme96->adat_pcm, RME96_BUFFER_SIZE, RME96_BUFFER_SIZE, GFP_KERNEL);
 	}
 
 	rme96->playback_periodsize = 0;
@@ -1939,7 +1930,7 @@ snd_rme96_proc_init(rme96_t *rme96)
 	snd_info_entry_t *entry;
 
 	if (! snd_card_proc_new(rme96->card, "rme96", &entry))
-		snd_info_set_text_ops(entry, rme96, 1024, snd_rme96_proc_read);
+		snd_info_set_text_ops(entry, rme96, snd_rme96_proc_read);
 }
 
 /*
@@ -2513,7 +2504,6 @@ snd_rme96_probe(struct pci_dev *pci,
 	rme96 = (rme96_t *)card->private_data;	
 	rme96->card = card;
 	rme96->pci = pci;
-	snd_card_set_dev(card, &pci->dev);
 	if ((err = snd_rme96_create(rme96)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -2566,7 +2556,15 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_rme96_init(void)
 {
-	return pci_module_init(&driver);
+	int err;
+
+	if ((err = pci_module_init(&driver)) < 0) {
+#ifdef MODULE
+		printk(KERN_ERR "No RME Digi96 cards found\n");
+#endif
+		return err;
+	}
+	return 0;
 }
 
 static void __exit alsa_card_rme96_exit(void)
@@ -2576,3 +2574,24 @@ static void __exit alsa_card_rme96_exit(void)
 
 module_init(alsa_card_rme96_init)
 module_exit(alsa_card_rme96_exit)
+
+#ifndef MODULE
+
+/* format is: snd-rme96=enable,index,id */
+
+static int __init alsa_card_rme96_setup(char *str)
+{
+	static unsigned __initdata nr_dev = 0;
+
+	if (nr_dev >= SNDRV_CARDS)
+		return 0;
+	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
+	       get_option(&str,&index[nr_dev]) == 2 &&
+	       get_id(&str,&id[nr_dev]) == 2);
+	nr_dev++;
+	return 1;
+}
+
+__setup("snd-rme96=", alsa_card_rme96_setup);
+
+#endif /* ifndef MODULE */

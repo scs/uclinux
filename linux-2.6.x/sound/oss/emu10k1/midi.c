@@ -185,7 +185,7 @@ match:
 
 	up(&card->open_sem);
 
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 static int emu10k1_midi_release(struct inode *inode, struct file *file)
@@ -244,7 +244,7 @@ static int emu10k1_midi_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t emu10k1_midi_read(struct file *file, char __user *buffer, size_t count, loff_t * pos)
+static ssize_t emu10k1_midi_read(struct file *file, char *buffer, size_t count, loff_t * pos)
 {
 	struct emu10k1_mididevice *midi_dev = (struct emu10k1_mididevice *) file->private_data;
 	ssize_t ret = 0;
@@ -252,6 +252,9 @@ static ssize_t emu10k1_midi_read(struct file *file, char __user *buffer, size_t 
 	unsigned long flags;
 
 	DPD(4, "emu10k1_midi_read(), count %#x\n", (u32) count);
+
+	if (pos != &file->f_pos)
+		return -ESPIPE;
 
 	if (!access_ok(VERIFY_WRITE, buffer, count))
 		return -EFAULT;
@@ -316,7 +319,7 @@ static ssize_t emu10k1_midi_read(struct file *file, char __user *buffer, size_t 
 	return ret;
 }
 
-static ssize_t emu10k1_midi_write(struct file *file, const char __user *buffer, size_t count, loff_t * pos)
+static ssize_t emu10k1_midi_write(struct file *file, const char *buffer, size_t count, loff_t * pos)
 {
 	struct emu10k1_mididevice *midi_dev = (struct emu10k1_mididevice *) file->private_data;
 	struct midi_hdr *midihdr;
@@ -324,6 +327,9 @@ static ssize_t emu10k1_midi_write(struct file *file, const char __user *buffer, 
 	unsigned long flags;
 
 	DPD(4, "emu10k1_midi_write(), count=%#x\n", (u32) count);
+
+	if (pos != &file->f_pos)
+		return -ESPIPE;
 
 	if (!access_ok(VERIFY_READ, buffer, count))
 		return -EFAULT;
@@ -526,7 +532,7 @@ void emu10k1_seq_midi_close(int dev)
 
 	if (card->seq_mididev) {
 		kfree(card->seq_mididev);
-		card->seq_mididev = NULL;
+		card->seq_mididev = 0;
 	}
 }
 

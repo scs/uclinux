@@ -201,7 +201,7 @@ _GLOBAL(call_setup_cpu)
 	mr	r4,r24
 	bctr
 
-#if defined(CONFIG_CPU_FREQ_PMAC) && defined(CONFIG_6xx)
+#ifdef CONFIG_CPU_FREQ_PMAC
 
 /* This gets called by via-pmu.c to switch the PLL selection
  * on 750fx CPU. This function should really be moved to some
@@ -253,25 +253,7 @@ _GLOBAL(low_choose_750fx_pll)
 	mtmsr	r7
 	blr
 
-_GLOBAL(low_choose_7447a_dfs)
-	/* Clear MSR:EE */
-	mfmsr	r7
-	rlwinm	r0,r7,0,17,15
-	mtmsr	r0
-	
-	/* Calc new HID1 value */
-	mfspr	r4,SPRN_HID1
-	insrwi	r4,r3,1,9	/* insert parameter into bit 9 */
-	sync
-	mtspr	SPRN_HID1,r4
-	sync
-	isync
-
-	/* Return */
-	mtmsr	r7
-	blr
-
-#endif /* CONFIG_CPU_FREQ_PMAC && CONFIG_6xx */
+#endif /* CONFIG_CPU_FREQ_PMAC */
 
 /* void local_save_flags_ptr(unsigned long *flags) */
 _GLOBAL(local_save_flags_ptr)
@@ -424,37 +406,19 @@ _GLOBAL(_tlbia)
 	tlbia
 	isync			/* Flush shadow TLB */
 #elif defined(CONFIG_44x)
-	li	r3,0
+	lis	r3,0
 	sync
-
-	/* Load high watermark */
-	lis	r4,tlb_44x_hwater@ha
-	lwz	r5,tlb_44x_hwater@l(r4)
-
-1:	tlbwe	r3,r3,PPC44x_TLB_PAGEID
+1:
+	tlbwe	r3,r3,PPC44x_TLB_PAGEID
 	addi	r3,r3,1
+	/* Load high watermark */
+	lis	r4,tlb_44x_hwater@h
+	ori	r4,r4,tlb_44x_hwater@l
+	lwz	r5,0(r4)
 	cmpw	0,r3,r5
 	ble	1b
-
 	isync
-#elif defined(CONFIG_FSL_BOOKE)
-	/* Invalidate all entries in TLB0 */
-	li	r3, 0x04
-	tlbivax	0,3
-	/* Invalidate all entries in TLB1 */
-	li	r3, 0x0c
-	tlbivax	0,3
-	/* Invalidate all entries in TLB2 */
-	li	r3, 0x14
-	tlbivax	0,3
-	/* Invalidate all entries in TLB3 */
-	li	r3, 0x1c
-	tlbivax	0,3
-	msync
-#ifdef CONFIG_SMP
-	tlbsync
-#endif /* CONFIG_SMP */
-#else /* !(CONFIG_40x || CONFIG_44x || CONFIG_FSL_BOOKE) */
+#else /* !(CONFIG_40x || CONFIG_44x) */
 #if defined(CONFIG_SMP)
 	rlwinm	r8,r1,0,0,18
 	lwz	r8,TI_CPU(r8)
@@ -506,10 +470,17 @@ _GLOBAL(_tlbie)
 	isync
 10:
 #elif defined(CONFIG_44x)
-	mfspr	r4,SPRN_MMUCR
+	mfspr	r4,SPRN_MMUCR			/* Get MMUCR */
+	lis	r5,PPC44x_MMUCR_STS@h
+	ori	r5,r5,PPC44x_MMUCR_TID@l	/* Create mask */
+	andc	r4,r4,r5			/* Clear out TID/STS bits */
 	mfspr	r5,SPRN_PID			/* Get PID */
-	rlwimi	r4,r5,0,24,31			/* Set TID */
-	mtspr	SPRN_MMUCR,r4
+	or	r4,r4,r5			/* Set TID bits */
+	mfmsr	r6				/* Get MSR */
+	andi.	r6,r6,MSR_IS@l			/* TS=1? */
+	beq	11f				/* If not, leave STS=0 */
+	oris	r4,r4,PPC44x_MMUCR_STS@h	/* Set STS=1 */
+11:	mtspr	SPRN_MMUCR, r4			/* Put MMUCR */
 
 	tlbsx.	r3, 0, r3
 	bne	10f
@@ -522,20 +493,7 @@ _GLOBAL(_tlbie)
 	tlbwe	r3, r3, PPC44x_TLB_PAGEID
 	isync
 10:
-#elif defined(CONFIG_FSL_BOOKE)
-	rlwinm	r4, r3, 0, 0, 19
-	ori	r5, r4, 0x08	/* TLBSEL = 1 */
-	ori	r6, r4, 0x10	/* TLBSEL = 2 */
-	ori	r7, r4, 0x18	/* TLBSEL = 3 */
-	tlbivax	0, r4
-	tlbivax	0, r5
-	tlbivax	0, r6
-	tlbivax	0, r7
-	msync
-#if defined(CONFIG_SMP)
-	tlbsync
-#endif /* CONFIG_SMP */
-#else /* !(CONFIG_40x || CONFIG_44x || CONFIG_FSL_BOOKE) */
+#else /* !(CONFIG_40x || CONFIG_44x) */
 #if defined(CONFIG_SMP)
 	rlwinm	r8,r1,0,0,18
 	lwz	r8,TI_CPU(r8)
@@ -592,10 +550,6 @@ _GLOBAL(flush_instruction_cache)
 	lis	r3, KERNELBASE@h
 	iccci	0,r3
 #endif
-#elif CONFIG_FSL_BOOKE
-	mfspr	r3,SPRN_L1CSR1
-	ori	r3,r3,L1CSR1_ICFI|L1CSR1_ICLFR
-	mtspr	SPRN_L1CSR1,r3
 #else
 	mfspr	r3,PVR
 	rlwinm	r3,r3,16,16,31
@@ -790,15 +744,12 @@ _GLOBAL(__flush_dcache_icache_phys)
 	blr
 
 /*
- * Clear pages using the dcbz instruction, which doesn't cause any
+ * Clear a page using the dcbz instruction, which doesn't cause any
  * memory traffic (except to write out any cache lines which get
  * displaced).  This only works on cacheable memory.
- *
- * void clear_pages(void *page, int order) ;
  */
-_GLOBAL(clear_pages)
+_GLOBAL(clear_page)
 	li	r0,4096/L1_CACHE_LINE_SIZE
-	slw	r0,r0,r4
 	mtctr	r0
 #ifdef CONFIG_8xx
 	li	r4, 0
@@ -832,18 +783,9 @@ _GLOBAL(clear_pages)
 _GLOBAL(copy_page)
 	addi	r3,r3,-4
 	addi	r4,r4,-4
-
-#ifdef CONFIG_8xx
-	/* don't use prefetch on 8xx */
-    	li	r0,4096/L1_CACHE_LINE_SIZE
-	mtctr	r0
-1:	COPY_16_BYTES
-	bdnz	1b
-	blr
-
-#else	/* not 8xx, we can prefetch */
 	li	r5,4
 
+#ifndef CONFIG_8xx
 #if MAX_COPY_PREFETCH > 1
 	li	r0,MAX_COPY_PREFETCH
 	li	r11,4
@@ -851,17 +793,19 @@ _GLOBAL(copy_page)
 11:	dcbt	r11,r4
 	addi	r11,r11,L1_CACHE_LINE_SIZE
 	bdnz	11b
-#else /* MAX_COPY_PREFETCH == 1 */
+#else /* MAX_L1_COPY_PREFETCH == 1 */
 	dcbt	r5,r4
 	li	r11,L1_CACHE_LINE_SIZE+4
-#endif /* MAX_COPY_PREFETCH */
-	li	r0,4096/L1_CACHE_LINE_SIZE - MAX_COPY_PREFETCH
-	crclr	4*cr0+eq
-2:
+#endif /* MAX_L1_COPY_PREFETCH */
+#endif /* CONFIG_8xx */
+
+	li	r0,4096/L1_CACHE_LINE_SIZE
 	mtctr	r0
 1:
+#ifndef CONFIG_8xx
 	dcbt	r11,r4
 	dcbz	r5,r3
+#endif
 	COPY_16_BYTES
 #if L1_CACHE_LINE_SIZE >= 32
 	COPY_16_BYTES
@@ -877,12 +821,7 @@ _GLOBAL(copy_page)
 #endif
 #endif
 	bdnz	1b
-	beqlr
-	crnot	4*cr0+eq,4*cr0+eq
-	li	r0,MAX_COPY_PREFETCH
-	li	r11,4
-	b	2b
-#endif	/* CONFIG_8xx */
+	blr
 
 /*
  * void atomic_clear_mask(atomic_t mask, atomic_t *addr)
@@ -1099,7 +1038,7 @@ _GLOBAL(_get_SP)
  * and exceptions as if the cpu had performed the load or store.
  */
 
-#if defined(CONFIG_4xx) || defined(CONFIG_E500)
+#if defined(CONFIG_4xx)
 _GLOBAL(cvt_fd)
 	lfs	0,0(r3)
 	stfd	0,0(r4)
@@ -1175,7 +1114,17 @@ _GLOBAL(name) \
 	li	r3,-1; \
 	blr
 
+#define __NR__exit __NR_exit
+
+SYSCALL(setsid)
+SYSCALL(open)
+SYSCALL(read)
+SYSCALL(write)
+SYSCALL(lseek)
+SYSCALL(close)
+SYSCALL(dup)
 SYSCALL(execve)
+SYSCALL(waitpid)
 
 /* Why isn't this a) automatic, b) written in 'C'? */
 	.data
@@ -1430,23 +1379,10 @@ _GLOBAL(sys_call_table)
 	.long sys_clock_gettime
 	.long sys_clock_getres
 	.long sys_clock_nanosleep
-	.long ppc_swapcontext
+	.long sys_swapcontext
 	.long sys_tgkill	/* 250 */
 	.long sys_utimes
 	.long sys_statfs64
 	.long sys_fstatfs64
 	.long ppc_fadvise64_64
-	.long sys_ni_syscall		/* 255 - rtas (used on ppc64) */
-	.long sys_ni_syscall		/* 256 reserved for sys_debug_setcontext */
-	.long sys_ni_syscall		/* 257 reserved for vserver */
-	.long sys_ni_syscall		/* 258 reserved for new sys_remap_file_pages */
-	.long sys_ni_syscall		/* 259 reserved for new sys_mbind */
-	.long sys_ni_syscall		/* 260 reserved for new sys_get_mempolicy */
-	.long sys_ni_syscall		/* 261 reserved for new sys_set_mempolicy */
-	.long sys_mq_open
-	.long sys_mq_unlink
-	.long sys_mq_timedsend
-	.long sys_mq_timedreceive	/* 265 */
-	.long sys_mq_notify
-	.long sys_mq_getsetattr
-	.long sys_ni_syscall		/* 268 reserved for sys_kexec_load */
+	.long sys_ni_syscall	/* 255 - rtas (used on ppc64) */

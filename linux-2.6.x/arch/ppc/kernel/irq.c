@@ -106,7 +106,7 @@ void *irq_kmalloc(size_t size, int pri)
 			cache_bitmask |= (1<<i);
 			return (void *)(&malloc_cache[i]);
 		}
-	return NULL;
+	return 0;
 }
 
 void irq_kfree(void *ptr)
@@ -171,12 +171,7 @@ setup_irq(unsigned int irq, struct irqaction * new)
 	if (!shared) {
 		desc->depth = 0;
 		desc->status &= ~(IRQ_DISABLED | IRQ_AUTODETECT | IRQ_WAITING);
-		if (desc->handler) {
-			if (desc->handler->startup)
-				desc->handler->startup(irq);
-			else if (desc->handler->enable)
-				desc->handler->enable(irq);
-		}
+		unmask_irq(irq);
 	}
 	spin_unlock_irqrestore(&desc->lock,flags);
 
@@ -246,7 +241,7 @@ int request_irq(unsigned int irq,
 
 	action->handler = handler;
 	action->flags = irqflags;			
-	cpus_clear(action->mask);
+	action->mask = 0;
 	action->name = devname;
 	action->dev_id = dev_id;
 	action->next = NULL;
@@ -309,10 +304,8 @@ void disable_irq_nosync(unsigned int irq)
 
 void disable_irq(unsigned int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
 	disable_irq_nosync(irq);
-	if (desc->action)
-		synchronize_irq(irq);
+	synchronize_irq(irq);
 }
 
 /**
@@ -582,7 +575,7 @@ cpumask_t irq_affinity [NR_IRQS];
 static int irq_affinity_read_proc (char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
-	int len = cpumask_scnprintf(page, count, irq_affinity[(long)data]);
+	int len = cpumask_snprintf(page, count, irq_affinity[(long)data]);
 	if (count - len < 2)
 		return -EINVAL;
 	len += sprintf(page + len, "\n");
@@ -623,7 +616,7 @@ static int irq_affinity_write_proc (struct file *file, const char __user *buffer
 static int prof_cpu_mask_read_proc (char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
-	int len = cpumask_scnprintf(page, count, *(cpumask_t *)data);
+	int len = cpumask_snprintf(page, count, *(cpumask_t *)data);
 	if (count - len < 2)
 		return -EINVAL;
 	len += sprintf(page + len, "\n");
@@ -633,9 +626,7 @@ static int prof_cpu_mask_read_proc (char *page, char **start, off_t off,
 static int prof_cpu_mask_write_proc (struct file *file, const char __user *buffer,
 					unsigned long count, void *data)
 {
-	int err;
-	int full_count = count;
-	cpumask_t *mask = (cpumask_t *)data;
+	cpumask_t *mask = (cpumask_t *)data, full_count = count, err;
 	cpumask_t new_value;
 
 	err = cpumask_parse(buffer, count, new_value);
@@ -681,7 +672,7 @@ void init_irq_proc (void)
 	int i;
 
 	/* create /proc/irq */
-	root_irq_dir = proc_mkdir("irq", NULL);
+	root_irq_dir = proc_mkdir("irq", 0);
 
 	/* create /proc/irq/prof_cpu_mask */
 	entry = create_proc_entry("prof_cpu_mask", 0600, root_irq_dir);

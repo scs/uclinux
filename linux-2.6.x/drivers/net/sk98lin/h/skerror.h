@@ -22,6 +22,47 @@
  *
  ******************************************************************************/
 
+/******************************************************************************
+ *
+ * History:
+ *	$Log$
+ *	Revision 1.2  2004/09/07 22:32:04  lgsoft
+ *	alpha-2.0
+ *
+ *	Revision 1.1.1.1  2004/07/19 12:13:11  lgsoft
+ *	Import of uClinux 2.6.2
+ *	
+ *	Revision 1.1.1.1  2004/07/18 13:21:34  nidhi
+ *	Importing
+ *	
+ *	Revision 1.7  2003/05/13 17:25:13  mkarl
+ *	Editorial changes.
+ *	
+ *	Revision 1.6  2003/03/31 07:17:48  mkarl
+ *	Corrected Copyright.
+ *	
+ *	Revision 1.5  2002/04/25 11:05:10  rschmidt
+ *	Editorial changes
+ *	
+ *	Revision 1.4  1999/11/22 13:51:59  cgoos
+ *	Changed license header to GPL.
+ *	
+ *	Revision 1.3  1999/09/14 14:04:42  rwahl
+ *	Added error base SK_ERRBASE_PECP.
+ *	Changed error base for driver.
+ *	
+ *	Revision 1.2  1998/08/11 11:15:41  gklug
+ *	chg: comments
+ *	
+ *	Revision 1.1  1998/08/11 11:09:38  gklug
+ *	add: error bases
+ *	add: error Classes
+ *	first version
+ *	
+ *	
+ *
+ ******************************************************************************/
+
 #ifndef _INC_SKERROR_H_
 #define _INC_SKERROR_H_
 

@@ -1,7 +1,7 @@
 
 /*
-   Copyright 2003-2004 Red Hat, Inc.  All rights reserved.
-   Copyright 2003-2004 Jeff Garzik
+   Copyright 2003 Red Hat, Inc.  All rights reserved.
+   Copyright 2003 Jeff Garzik
 
    The contents of this file are subject to the Open
    Software License version 1.1 that can be found at
@@ -38,7 +38,6 @@ enum {
 
 	ATA_ID_WORDS		= 256,
 	ATA_ID_PROD_OFS		= 27,
-	ATA_ID_FW_REV_OFS	= 23,
 	ATA_ID_SERNO_OFS	= 10,
 	ATA_ID_MAJOR_VER	= 80,
 	ATA_ID_PIO_MODES	= 64,
@@ -78,11 +77,9 @@ enum {
 	ATA_NIEN		= (1 << 1),	/* disable-irq flag */
 	ATA_LBA			= (1 << 6),	/* LBA28 selector */
 	ATA_DEV1		= (1 << 4),	/* Select Device 1 (slave) */
+	ATA_BUSY		= (1 << 7),	/* BSY status bit */
 	ATA_DEVICE_OBS		= (1 << 7) | (1 << 5), /* obs bits in dev reg */
 	ATA_DEVCTL_OBS		= (1 << 3),	/* obsolete bit in devctl reg */
-	ATA_BUSY		= (1 << 7),	/* BSY status bit */
-	ATA_DRDY		= (1 << 6),	/* device ready */
-	ATA_DF			= (1 << 5),	/* device fault */
 	ATA_DRQ			= (1 << 3),	/* data request i/o */
 	ATA_ERR			= (1 << 0),	/* have an error */
 	ATA_SRST		= (1 << 2),	/* software reset */
@@ -105,11 +102,18 @@ enum {
 	ATA_REG_DEVSEL		= ATA_REG_DEVICE,
 	ATA_REG_IRQ		= ATA_REG_NSECT,
 
+	/* ATA taskfile protocols */
+	ATA_PROT_UNKNOWN	= 0,
+	ATA_PROT_NODATA		= 1,
+	ATA_PROT_PIO_READ	= 2,
+	ATA_PROT_PIO_WRITE	= 3,
+	ATA_PROT_DMA_READ	= 4,
+	ATA_PROT_DMA_WRITE	= 5,
+	ATA_PROT_ATAPI		= 6,
+	ATA_PROT_ATAPI_DMA	= 7,
+
 	/* ATA device commands */
-	ATA_CMD_CHK_POWER	= 0xE5, /* check power mode */
 	ATA_CMD_EDD		= 0x90,	/* execute device diagnostic */
-	ATA_CMD_FLUSH		= 0xE7,
-	ATA_CMD_FLUSH_EXT	= 0xEA,
 	ATA_CMD_ID_ATA		= 0xEC,
 	ATA_CMD_ID_ATAPI	= 0xA1,
 	ATA_CMD_READ		= 0xC8,
@@ -138,8 +142,6 @@ enum {
 
 	/* ATAPI stuff */
 	ATAPI_PKT_DMA		= (1 << 0),
-	ATAPI_DMADIR		= (1 << 2),	/* ATAPI data dir:
-						   0=to device, 1=to host */
 
 	/* cable types */
 	ATA_CBL_NONE		= 0,
@@ -154,64 +156,18 @@ enum {
 	SCR_CONTROL		= 2,
 	SCR_ACTIVE		= 3,
 	SCR_NOTIFICATION	= 4,
-
-	/* struct ata_taskfile flags */
-	ATA_TFLAG_LBA48		= (1 << 0), /* enable 48-bit LBA and "HOB" */
-	ATA_TFLAG_ISADDR	= (1 << 1), /* enable r/w to nsect/lba regs */
-	ATA_TFLAG_DEVICE	= (1 << 2), /* enable r/w to device reg */
-	ATA_TFLAG_WRITE		= (1 << 3), /* data dir: host->dev==1 (write) */
-};
-
-enum ata_tf_protocols {
-	/* ATA taskfile protocols */
-	ATA_PROT_UNKNOWN,	/* unknown/invalid */
-	ATA_PROT_NODATA,	/* no data */
-	ATA_PROT_PIO,		/* PIO single sector */
-	ATA_PROT_PIO_MULT,	/* PIO multiple sector */
-	ATA_PROT_DMA,		/* DMA */
-	ATA_PROT_ATAPI,		/* packet command */
-	ATA_PROT_ATAPI_DMA,	/* packet command with special DMA sauce */
 };
 
 /* core structures */
-
 struct ata_prd {
 	u32			addr;
 	u32			flags_len;
 } __attribute__((packed));
 
-struct ata_taskfile {
-	unsigned long		flags;		/* ATA_TFLAG_xxx */
-	u8			protocol;	/* ATA_PROT_xxx */
-
-	u8			ctl;		/* control reg */
-
-	u8			hob_feature;	/* additional data */
-	u8			hob_nsect;	/* to support LBA48 */
-	u8			hob_lbal;
-	u8			hob_lbam;
-	u8			hob_lbah;
-
-	u8			feature;
-	u8			nsect;
-	u8			lbal;
-	u8			lbam;
-	u8			lbah;
-
-	u8			device;
-
-	u8			command;	/* IO operation */
-};
-
 #define ata_id_is_ata(dev)	(((dev)->id[0] & (1 << 15)) == 0)
-#define ata_id_rahead_enabled(dev) ((dev)->id[85] & (1 << 6))
-#define ata_id_wcache_enabled(dev) ((dev)->id[85] & (1 << 5))
 #define ata_id_has_lba48(dev)	((dev)->id[83] & (1 << 10))
-#define ata_id_has_wcache(dev)	((dev)->id[82] & (1 << 5))
-#define ata_id_has_pm(dev)	((dev)->id[82] & (1 << 3))
-#define ata_id_has_lba(dev)	((dev)->id[49] & (1 << 9))
-#define ata_id_has_dma(dev)	((dev)->id[49] & (1 << 8))
-#define ata_id_removeable(dev)	((dev)->id[0] & (1 << 7))
+#define ata_id_has_lba(dev)	((dev)->id[49] & (1 << 8))
+#define ata_id_has_dma(dev)	((dev)->id[49] & (1 << 9))
 #define ata_id_u32(dev,n)	\
 	(((u32) (dev)->id[(n) + 1] << 16) | ((u32) (dev)->id[(n)]))
 #define ata_id_u64(dev,n)	\
@@ -219,17 +175,5 @@ struct ata_taskfile {
 	  ((u64) dev->id[(n) + 2] << 32) |	\
 	  ((u64) dev->id[(n) + 1] << 16) |	\
 	  ((u64) dev->id[(n) + 0]) )
-
-static inline int is_atapi_taskfile(struct ata_taskfile *tf)
-{
-	return (tf->protocol == ATA_PROT_ATAPI) ||
-	       (tf->protocol == ATA_PROT_ATAPI_DMA);
-}
-
-static inline int ata_ok(u8 status)
-{
-	return ((status & (ATA_BUSY | ATA_DRDY | ATA_DF | ATA_DRQ | ATA_ERR))
-			== ATA_DRDY);
-}
 
 #endif /* __LINUX_ATA_H__ */

@@ -11,14 +11,11 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#ifndef _ASM_VIO_H
-#define _ASM_VIO_H
+#ifndef _VIO_H
+#define _VIO_H
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/errno.h>
-#include <linux/device.h>
-#include <linux/dma-mapping.h>
 #include <asm/hvcall.h>
 #include <asm/prom.h>
 #include <asm/scatterlist.h>
@@ -40,55 +37,38 @@
 struct vio_dev;
 struct vio_driver;
 struct vio_device_id;
-struct iommu_table;
+struct TceTable;
 
 int vio_register_driver(struct vio_driver *drv);
-void vio_unregister_driver(struct vio_driver *drv);
-
-#ifdef CONFIG_PPC_PSERIES
-struct vio_dev * __devinit vio_register_device_node(
-		struct device_node *node_vdev);
-#endif
-void __devinit vio_unregister_device(struct vio_dev *dev);
-struct vio_dev *vio_find_node(struct device_node *vnode);
-
+int vio_unregister_driver(struct vio_driver *drv);
+const struct vio_device_id * vio_match_device(const struct vio_device_id *ids, 
+						const struct vio_dev *dev);
+struct vio_dev * __devinit vio_register_device(struct device_node *node_vdev);
+int __devinit vio_unregister_device(struct vio_dev *dev);
 const void * vio_get_attribute(struct vio_dev *vdev, void* which, int* length);
 int vio_get_irq(struct vio_dev *dev);
+struct TceTable * vio_build_tce_table(struct vio_dev *dev);
 int vio_enable_interrupts(struct vio_dev *dev);
 int vio_disable_interrupts(struct vio_dev *dev);
 
 dma_addr_t vio_map_single(struct vio_dev *dev, void *vaddr, 
-			  size_t size, enum dma_data_direction direction);
+			  size_t size, int direction);
 void vio_unmap_single(struct vio_dev *dev, dma_addr_t dma_handle, 
-		      size_t size, enum dma_data_direction direction);
+		      size_t size, int direction);
 int vio_map_sg(struct vio_dev *vdev, struct scatterlist *sglist, 
-	       int nelems, enum dma_data_direction direction);
+	       int nelems, int direction);
 void vio_unmap_sg(struct vio_dev *vdev, struct scatterlist *sglist, 
-		  int nelems, enum dma_data_direction direction);
+		  int nelems, int direction);
 void *vio_alloc_consistent(struct vio_dev *dev, size_t size, 
 			   dma_addr_t *dma_handle);
 void vio_free_consistent(struct vio_dev *dev, size_t size, void *vaddr, 
 			 dma_addr_t dma_handle);
 
-static inline int vio_dma_supported(struct vio_dev *hwdev, u64 mask)
-{
-	return 1;
-}
-
-#define vio_map_page(dev, page, off, size, dir) \
-		vio_map_single(dev, (page_address(page) + (off)), size, dir)
-#define vio_unmap_page(dev,addr,sz,dir) vio_unmap_single(dev,addr,sz,dir)
-
-static inline int vio_set_dma_mask(struct vio_dev *dev, u64 mask)
-{
-	return -EIO;
-}
-
-extern struct bus_type vio_bus_type;
-
 struct vio_device_id {
 	char *type;
 	char *compat;
+/* I don't think we need this
+	unsigned long driver_data;	*/ /* Data private to the driver */
 };
 
 struct vio_driver {
@@ -96,33 +76,55 @@ struct vio_driver {
 	char *name;
 	const struct vio_device_id *id_table;	/* NULL if wants all devices */
 	int  (*probe)  (struct vio_dev *dev, const struct vio_device_id *id);	/* New device inserted */
-	int (*remove) (struct vio_dev *dev);	/* Device removed (NULL if not a hot-plug capable driver) */
+	void (*remove) (struct vio_dev *dev);	/* Device removed (NULL if not a hot-plug capable driver) */
 	unsigned long driver_data;
-
-	struct device_driver driver;
 };
 
-static inline struct vio_driver *to_vio_driver(struct device_driver *drv)
-{
-	return container_of(drv, struct vio_driver, driver);
-}
-
+struct vio_bus;
 /*
  * The vio_dev structure is used to describe virtual I/O devices.
  */
 struct vio_dev {
-	struct iommu_table *iommu_table;     /* vio_map_* uses this */
-	char *name;
-	char *type;
-	uint32_t unit_address;	
-	unsigned int irq;
+	struct list_head devices_list;   /* node in list of all vio devices */
+	struct device_node *archdata;    /* Open Firmware node */
+	struct vio_bus *bus;            /* bus this device is on */
+	struct vio_driver *driver;      /* owning driver */
+	void *driver_data;              /* data private to the driver */
+	unsigned long unit_address;	
 
-	struct device dev;
+	struct TceTable *tce_table; /* vio_map_* uses this */
+	unsigned int irq;
+	struct proc_dir_entry *procent; /* device entry in /proc/bus/vio */
 };
 
-static inline struct vio_dev *to_vio_dev(struct device *dev)
+struct vio_bus {
+	struct list_head devices;       /* list of virtual devices */
+};
+
+
+static inline int vio_module_init(struct vio_driver *drv)
 {
-	return container_of(dev, struct vio_dev, dev);
+        int rc = vio_register_driver (drv);
+
+        if (rc > 0)
+                return 0;
+
+        /* iff CONFIG_HOTPLUG and built into kernel, we should
+         * leave the driver around for future hotplug events.
+         * For the module case, a hotplug daemon of some sort
+         * should load a module in response to an insert event. */
+#if defined(CONFIG_HOTPLUG) && !defined(MODULE)
+        if (rc == 0)
+                return 0;
+#else
+        if (rc == 0)
+                rc = -ENODEV;
+#endif
+
+        /* if we get here, we need to clean up vio driver instance
+         * and return some sort of error */
+
+        return rc;
 }
 
-#endif /* _ASM_VIO_H */
+#endif /* _PHYP_H */

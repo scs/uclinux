@@ -21,7 +21,6 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
-#include <linux/syscalls.h>
 #include <linux/file.h>
 #include <asm/kbio.h>
 
@@ -33,6 +32,9 @@ extern char sunkbd_layout;
 /* NR_OPEN is now larger and dynamic in recent kernels. */
 #define SUNOS_NR_OPEN	256
 
+extern asmlinkage int sys_ioctl(unsigned int, unsigned int, unsigned long);
+extern asmlinkage int sys_setsid(void);
+
 asmlinkage int sunos_ioctl (int fd, unsigned long cmd, unsigned long arg)
 {
 	int ret = -EBADF;
@@ -41,19 +43,18 @@ asmlinkage int sunos_ioctl (int fd, unsigned long cmd, unsigned long arg)
 		goto out;
 
 	/* First handle an easy compat. case for tty ldisc. */
-	if (cmd == TIOCSETD) {
-		int __user *p;
-		int ntty = N_TTY, tmp;
+	if(cmd == TIOCSETD) {
+		int *p, ntty = N_TTY, tmp;
 		mm_segment_t oldfs;
 
-		p = (int __user *) arg;
+		p = (int *) arg;
 		ret = -EFAULT;
-		if (get_user(tmp, p))
+		if(get_user(tmp, p))
 			goto out;
-		if (tmp == 2) {
+		if(tmp == 2) {
 			oldfs = get_fs();
 			set_fs(KERNEL_DS);
-			ret = sys_ioctl(fd, cmd, (unsigned long) &ntty);
+			ret = sys_ioctl(fd, cmd, (int) &ntty);
 			set_fs(oldfs);
 			ret = (ret == -EINVAL ? -EOPNOTSUPP : ret);
 			goto out;
@@ -61,7 +62,7 @@ asmlinkage int sunos_ioctl (int fd, unsigned long cmd, unsigned long arg)
 	}
 
 	/* Binary compatibility is good American knowhow fuckin' up. */
-	if (cmd == TIOCNOTTY) {
+	if(cmd == TIOCNOTTY) {
 		ret = sys_setsid();
 		goto out;
 	}
@@ -177,39 +178,39 @@ asmlinkage int sunos_ioctl (int fd, unsigned long cmd, unsigned long arg)
 		goto out;
 	/* Non posix grp */
 	case _IOW('t', 118, int): {
-		int oldval, newval, __user *ptr;
+		int oldval, newval, *ptr;
 
 		cmd = TIOCSPGRP;
-		ptr = (int __user *) arg;
+		ptr = (int *) arg;
 		ret = -EFAULT;
-		if (get_user(oldval, ptr))
+		if(get_user(oldval, ptr))
 			goto out;
 		ret = sys_ioctl(fd, cmd, arg);
 		__get_user(newval, ptr);
-		if (newval == -1) {
+		if(newval == -1) {
 			__put_user(oldval, ptr);
 			ret = -EIO;
 		}
-		if (ret == -ENOTTY)
+		if(ret == -ENOTTY)
 			ret = -EIO;
 		goto out;
 	}
 
 	case _IOR('t', 119, int): {
-		int oldval, newval, __user *ptr;
+		int oldval, newval, *ptr;
 
 		cmd = TIOCGPGRP;
-		ptr = (int __user *) arg;
+		ptr = (int *) arg;
 		ret = -EFAULT;
-		if (get_user(oldval, ptr))
+		if(get_user(oldval, ptr))
 			goto out;
 		ret = sys_ioctl(fd, cmd, arg);
 		__get_user(newval, ptr);
-		if (newval == -1) {
+		if(newval == -1) {
 			__put_user(oldval, ptr);
 			ret = -EIO;
 		}
-		if (ret == -ENOTTY)
+		if(ret == -ENOTTY)
 			ret = -EIO;
 		goto out;
 	}

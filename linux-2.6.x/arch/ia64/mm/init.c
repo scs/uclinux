@@ -18,7 +18,6 @@
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
-#include <linux/proc_fs.h>
 
 #include <asm/a.out.h>
 #include <asm/bitops.h>
@@ -63,7 +62,6 @@ check_pgt_cache (void)
 	low = pgt_cache_water[0];
 	high = pgt_cache_water[1];
 
-	preempt_disable();
 	if (pgtable_cache_size > (u64) high) {
 		do {
 			if (pgd_quicklist)
@@ -72,7 +70,6 @@ check_pgt_cache (void)
 				free_page((unsigned long)pmd_alloc_one_fast(0, 0));
 		} while (pgtable_cache_size > (u64) low);
 	}
-	preempt_enable();
 }
 
 void
@@ -125,12 +122,15 @@ ia64_init_addr_space (void)
 	 */
 	vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
 	if (vma) {
-		memset(vma, 0, sizeof(*vma));
 		vma->vm_mm = current->mm;
 		vma->vm_start = current->thread.rbs_bot & PAGE_MASK;
 		vma->vm_end = vma->vm_start + PAGE_SIZE;
 		vma->vm_page_prot = protection_map[VM_DATA_DEFAULT_FLAGS & 0x7];
-		vma->vm_flags = VM_DATA_DEFAULT_FLAGS | VM_GROWSUP;
+		vma->vm_flags = VM_READ|VM_WRITE|VM_MAYREAD|VM_MAYWRITE|VM_GROWSUP;
+		vma->vm_ops = NULL;
+		vma->vm_pgoff = 0;
+		vma->vm_file = NULL;
+		vma->vm_private_data = NULL;
 		insert_vm_struct(current->mm, vma);
 	}
 
@@ -171,7 +171,7 @@ free_initrd_mem (unsigned long start, unsigned long end)
 {
 	struct page *page;
 	/*
-	 * EFI uses 4KB pages while the kernel can use 4KB or bigger.
+	 * EFI uses 4KB pages while the kernel can use 4KB  or bigger.
 	 * Thus EFI and the kernel may have different page sizes. It is
 	 * therefore possible to have the initrd share the same page as
 	 * the end of the kernel (given current setup).
@@ -219,7 +219,7 @@ free_initrd_mem (unsigned long start, unsigned long end)
 }
 
 /*
- * This installs a clean page in the kernel's page table.
+ * This is like put_dirty_page() but installs a clean page in the kernel's page table.
  */
 struct page *
 put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
@@ -274,12 +274,14 @@ setup_gate (void)
 	ia64_patch_gate();
 }
 
-void __devinit
+void __init
 ia64_mmu_init (void *my_cpu_data)
 {
 	unsigned long psr, pta, impl_va_bits;
-	extern void __devinit tlb_init (void);
+	extern void __init tlb_init (void);
+#ifdef CONFIG_IA64_MCA
 	int cpu;
+#endif
 
 #ifdef CONFIG_DISABLE_VHPT
 #	define VHPT_ENABLE_BIT	0
@@ -340,11 +342,7 @@ ia64_mmu_init (void *my_cpu_data)
 
 	ia64_tlb_init();
 
-#ifdef	CONFIG_HUGETLB_PAGE
-	ia64_set_rr(HPAGE_REGION_BASE, HPAGE_SHIFT << 2);
-	ia64_srlz_d();
-#endif
-
+#ifdef	CONFIG_IA64_MCA
 	cpu = smp_processor_id();
 
 	/* mca handler uses cr.lid as key to pick the right entry */
@@ -358,6 +356,7 @@ ia64_mmu_init (void *my_cpu_data)
 	ia64_mca_tlb_list[cpu].ptce_count[1] = local_cpu_data->ptce_count[1];
 	ia64_mca_tlb_list[cpu].ptce_stride[0] = local_cpu_data->ptce_stride[0];
 	ia64_mca_tlb_list[cpu].ptce_stride[1] = local_cpu_data->ptce_stride[1];
+#endif
 }
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
@@ -456,11 +455,8 @@ int
 ia64_pfn_valid (unsigned long pfn)
 {
 	char byte;
-	struct page *pg = pfn_to_page(pfn);
 
-	return     (__get_user(byte, (char *) pg) == 0)
-		&& ((((u64)pg & PAGE_MASK) == (((u64)(pg + 1) - 1) & PAGE_MASK))
-			|| (__get_user(byte, (char *) (pg + 1) - 1) == 0));
+	return __get_user(byte, (char *) pfn_to_page(pfn)) == 0;
 }
 EXPORT_SYMBOL(ia64_pfn_valid);
 
@@ -582,7 +578,7 @@ mem_init (void)
 		if (!fsyscall_table[i] || nolwsys)
 			fsyscall_table[i] = sys_call_table[i] | 1;
 	}
-	setup_gate();
+	setup_gate();	/* setup gate pages before we free up boot memory... */
 
 #ifdef CONFIG_IA32_SUPPORT
 	ia32_boot_gdt_init();

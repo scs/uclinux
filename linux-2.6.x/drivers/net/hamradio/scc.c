@@ -7,7 +7,7 @@
  *            ------------------
  *
  * You can find a subset of the documentation in 
- * Documentation/networking/z8530drv.txt.
+ * linux/Documentation/networking/z8530drv.txt.
  */
 
 /*
@@ -163,7 +163,6 @@
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-#include <linux/rtnetlink.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #include <linux/socket.h>
@@ -1521,10 +1520,8 @@ static int scc_net_alloc(const char *name, struct scc_channel *scc)
 	dev->priv = scc;
 	scc->dev = dev;
 	spin_lock_init(&scc->lock);
-	init_timer(&scc->tx_t);
-	init_timer(&scc->tx_wdog);
 
-	err = register_netdevice(dev);
+	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_ERR "%s: can't register network device (%d)\n", 
 		       name, err);
@@ -1628,7 +1625,6 @@ static void scc_net_rx(struct scc_channel *scc, struct sk_buff *skb)
 	}
 		
 	scc->dev_stat.rx_packets++;
-	scc->dev_stat.rx_bytes += skb->len;
 
 	skb->dev      = scc->dev;
 	skb->protocol = htons(ETH_P_AX25);
@@ -1655,7 +1651,6 @@ static int scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 	
 	scc->dev_stat.tx_packets++;
-	scc->dev_stat.tx_bytes += skb->len;
 	scc->stat.txframes++;
 	
 	kisscmd = *skb->data & 0x1f;
@@ -1714,11 +1709,13 @@ static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct scc_mem_config memcfg;
 	struct scc_hw_config hwcfg;
 	struct scc_calibrate cal;
-	struct scc_channel *scc = (struct scc_channel *) dev->priv;
+	struct scc_channel *scc;
 	int chan;
 	unsigned char device_name[IFNAMSIZ];
-	void __user *arg = ifr->ifr_data;
+	void *arg;
 	
+	scc = (struct scc_channel *) dev->priv;
+	arg = (void *) ifr->ifr_data;
 	
 	if (!Driver_Initialized)
 	{
@@ -2117,13 +2114,10 @@ static int __init scc_init_driver (void)
 	
 	sprintf(devname,"%s0", SCC_DriverName);
 	
-	rtnl_lock();
 	if (scc_net_alloc(devname, SCC_Info)) {
-		rtnl_unlock();
 		printk(KERN_ERR "z8530drv: cannot initialize module\n");
 		return -EIO;
 	}
-	rtnl_unlock();
 
 	proc_net_fops_create("z8530drv", 0, &scc_net_seq_fops);
 

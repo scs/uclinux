@@ -1,7 +1,6 @@
 #ifndef	_SPARC64_OPENPROMIO_H
 #define	_SPARC64_OPENPROMIO_H
 
-#include <linux/compiler.h>
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
@@ -53,9 +52,9 @@ struct opiocdesc
 {
 	int	op_nodeid;		/* PROM Node ID (value-result) */
 	int	op_namelen;		/* Length of op_name. */
-	char	__user *op_name;	/* Pointer to the property name. */
+	char	*op_name;		/* Pointer to the property name. */
 	int	op_buflen;		/* Length of op_buf (value-result) */
-	char	__user *op_buf;		/* Pointer to buffer. */
+	char	*op_buf;		/* Pointer to buffer. */
 };
 
 #define	OPIOCGET	_IOWR('O', 1, struct opiocdesc)

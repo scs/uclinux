@@ -13,6 +13,10 @@
 
 #define EXEC_PAGESIZE	4096
 
+#ifndef NGROUPS
+#define NGROUPS		32
+#endif
+
 #ifndef NOGROUP
 #define NOGROUP		(-1)
 #endif

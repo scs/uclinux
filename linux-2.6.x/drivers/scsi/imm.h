@@ -66,6 +66,7 @@
  */
 /* ------ END OF USER CONFIGURABLE PARAMETERS ----- */
 
+#ifdef IMM_CODE
 #include  <linux/config.h>
 #include  <linux/stddef.h>
 #include  <linux/module.h>
@@ -79,7 +80,7 @@
 #include  <linux/interrupt.h>
 
 #include  <asm/io.h>
-#include  <scsi/scsi_host.h>
+#include  "hosts.h"
 /* batteries not included :-) */
 
 /*
@@ -108,7 +109,11 @@ static char *IMM_MODE_STRING[] =
 	[IMM_UNKNOWN]	 = "Unknown",
 };
 
+/* This is a global option */
+int imm_sg = SG_ALL;		/* enable/disable scatter-gather. */
+
 /* other options */
+#define IMM_CAN_QUEUE   1	/* use "queueing" interface */
 #define IMM_BURST_SIZE	512	/* data burst size */
 #define IMM_SELECT_TMO  500	/* 500 how long to wait for target ? */
 #define IMM_SPIN_TMO    5000	/* 50000 imm_wait loop limiter */
@@ -139,6 +144,24 @@ static char *IMM_MODE_STRING[] =
 #define w_ctr(x,y)      outb(y, (x)+2)
 #endif
 
-static int imm_engine(imm_struct *, struct scsi_cmnd *);
+static int imm_engine(imm_struct *, Scsi_Cmnd *);
+static int imm_in(int, char *, int);
+static int imm_init(int);
+static void imm_interrupt(void *);
+static int imm_out(int, char *, int);
+
+#else
+#define imm_release 0
+#endif
+
+int imm_detect(Scsi_Host_Template *);
+const char *imm_info(struct Scsi_Host *);
+int imm_command(Scsi_Cmnd *);
+int imm_queuecommand(Scsi_Cmnd *, void (*done) (Scsi_Cmnd *));
+int imm_abort(Scsi_Cmnd *);
+int imm_reset(Scsi_Cmnd *);
+int imm_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
+int imm_biosparam(struct scsi_device *, struct block_device *,
+		sector_t, int *);
 
 #endif				/* _IMM_H */

@@ -3,14 +3,14 @@
  * tiglusb -- Texas Instruments' USB GraphLink (aka SilverLink) driver.
  * Target: Texas Instruments graphing calculators (http://lpg.ticalc.org).
  *
- * Copyright (C) 2001-2004:
+ * Copyright (C) 2001-2002:
  *   Romain Lievin <roms@lpg.ticalc.org>
  *   Julien BLACHE <jb@technologeek.org>
  * under the terms of the GNU General Public License.
  *
  * Based on dabusb.c, printer.c & scanner.c
  *
- * Please see the file: Documentation/usb/silverlink.txt
+ * Please see the file: linux/Documentation/usb/SilverLink.txt
  * and the website at:  http://lpg.ticalc.org/prj_usb/
  * for more info.
  *
@@ -20,8 +20,6 @@
  *   1.04, Julien: clean-up & fixes; Romain: 2.4 backport.
  *   1.05, Randy Dunlap: bug fix with the timeout parameter (divide-by-zero).
  *   1.06, Romain: synched with 2.5, version/firmware changed (confusing).
- *   1.07, Romain: fixed bad use of usb_clear_halt (invalid argument);
- *          timeout argument checked in ioctl + clean-up.
  */
 
 #include <linux/module.h>
@@ -33,7 +31,6 @@
 #include <linux/usb.h>
 #include <linux/smp_lock.h>
 #include <linux/devfs_fs_kernel.h>
-#include <linux/device.h>
 
 #include <linux/ticable.h>
 #include "tiglusb.h"
@@ -41,8 +38,8 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "1.07"
-#define DRIVER_AUTHOR  "Romain Lievin <roms@tilp.info> & Julien Blache <jb@jblache.org>"
+#define DRIVER_VERSION "1.06"
+#define DRIVER_AUTHOR  "Romain Lievin <roms@lpg.ticalc.org> & Julien Blache <jb@jblache.org>"
 #define DRIVER_DESC    "TI-GRAPH LINK USB (aka SilverLink) driver"
 #define DRIVER_LICENSE "GPL"
 
@@ -50,7 +47,6 @@
 
 static tiglusb_t tiglusb[MAXTIGL];
 static int timeout = TIMAXTIME;	/* timeout in tenth of seconds     */
-static struct class_simple *tiglusb_class;
 
 /*---------- misc functions ------------------------------------------- */
 
@@ -76,15 +72,15 @@ clear_pipes (struct usb_device *dev)
 {
 	unsigned int pipe;
 
-	pipe = usb_sndbulkpipe (dev, 2);
-	if (usb_clear_halt (dev, pipe)) {
-		err ("clear_pipe (w), request failed");
+	pipe = usb_sndbulkpipe (dev, 1);
+	if (usb_clear_halt (dev, usb_pipeendpoint (pipe))) {
+		err ("clear_pipe (r), request failed");
 		return -1;
 	}
 
-	pipe = usb_rcvbulkpipe (dev, 1);
-	if (usb_clear_halt (dev, pipe)) {
-		err ("clear_pipe (r), request failed");
+	pipe = usb_sndbulkpipe (dev, 2);
+	if (usb_clear_halt (dev, usb_pipeendpoint (pipe))) {
+		err ("clear_pipe (w), request failed");
 		return -1;
 	}
 
@@ -132,7 +128,7 @@ tiglusb_open (struct inode *inode, struct file *filp)
 	filp->f_pos = 0;
 	filp->private_data = s;
 
-	return nonseekable_open(inode, filp);
+	return 0;
 }
 
 static int
@@ -185,16 +181,17 @@ tiglusb_read (struct file *filp, char __user *buf, size_t count, loff_t * f_pos)
 
 	pipe = usb_rcvbulkpipe (s->dev, 1);
 	result = usb_bulk_msg (s->dev, pipe, buffer, bytes_to_read,
-			       &bytes_read, (HZ * timeout) / 10);
+			       &bytes_read, HZ * 10 / timeout);
 	if (result == -ETIMEDOUT) {	/* NAK */
-		if (!bytes_read)
-			dbg ("quirk !");
-		warn ("tiglusb_read, NAK received.");
 		ret = result;
+		if (!bytes_read) {
+			dbg ("quirk !");
+		}
+		warn ("tiglusb_read, NAK received.");
 		goto out;
 	} else if (result == -EPIPE) {	/* STALL -- shouldn't happen */
 		warn ("clear_halt request to remove STALL condition.");
-		if (usb_clear_halt (s->dev, pipe))
+		if (usb_clear_halt (s->dev, usb_pipeendpoint (pipe)))
 			err ("clear_halt, request failed");
 		clear_device (s->dev);
 		ret = result;
@@ -246,7 +243,7 @@ tiglusb_write (struct file *filp, const char __user *buf, size_t count, loff_t *
 
 	pipe = usb_sndbulkpipe (s->dev, 2);
 	result = usb_bulk_msg (s->dev, pipe, buffer, bytes_to_write,
-			       &bytes_written, (HZ * timeout) / 10);
+			       &bytes_written, HZ * 10 / timeout);
 
 	if (result == -ETIMEDOUT) {	/* NAK */
 		warn ("tiglusb_write, NAK received.");
@@ -254,7 +251,7 @@ tiglusb_write (struct file *filp, const char __user *buf, size_t count, loff_t *
 		goto out;
 	} else if (result == -EPIPE) {	/* STALL -- shouldn't happen */
 		warn ("clear_halt request to remove STALL condition.");
-		if (usb_clear_halt (s->dev, pipe))
+		if (usb_clear_halt (s->dev, usb_pipeendpoint (pipe)))
 			err ("clear_halt, request failed");
 		clear_device (s->dev);
 		ret = result;
@@ -295,16 +292,15 @@ tiglusb_ioctl (struct inode *inode, struct file *filp,
 
 	switch (cmd) {
 	case IOCTL_TIUSB_TIMEOUT:
-		if (arg > 0)
-			timeout = arg;
-		else
-			ret = -EINVAL;
+		timeout = arg;	// timeout value in tenth of seconds
 		break;
 	case IOCTL_TIUSB_RESET_DEVICE:
+		dbg ("IOCTL_TIGLUSB_RESET_DEVICE");
 		if (clear_device (s->dev))
 			ret = -EIO;
 		break;
 	case IOCTL_TIUSB_RESET_PIPES:
+		dbg ("IOCTL_TIGLUSB_RESET_PIPES");
 		if (clear_pipes (s->dev))
 			ret = -EIO;
 		break;
@@ -338,7 +334,7 @@ tiglusb_probe (struct usb_interface *intf,
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
 	int minor = -1;
-	int i, err = 0;
+	int i;
 	ptiglusb_t s;
 
 	dbg ("probing vendor id 0x%x, device id 0x%x",
@@ -349,23 +345,18 @@ tiglusb_probe (struct usb_interface *intf,
 	 * the TIGL hardware, there's only 1 configuration.
 	 */
 
-	if (dev->descriptor.bNumConfigurations != 1) {
-		err = -ENODEV;
-		goto out;
-	}
+	if (dev->descriptor.bNumConfigurations != 1)
+		return -ENODEV;
 
 	if ((dev->descriptor.idProduct != 0xe001)
-	    && (dev->descriptor.idVendor != 0x451)) {
-		err = -ENODEV;
-		goto out;
-	}
+	    && (dev->descriptor.idVendor != 0x451))
+		return -ENODEV;
 
 	// NOTE:  it's already in this config, this shouldn't be needed.
 	// is this working around some hardware bug?
 	if (usb_reset_configuration (dev) < 0) {
 		err ("tiglusb_probe: reset_configuration failed");
-		err = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 
 	/*
@@ -379,10 +370,8 @@ tiglusb_probe (struct usb_interface *intf,
 		}
 	}
 
-	if (minor == -1) {
-		err = -ENODEV;
-		goto out;
-	}
+	if (minor == -1)
+		return -ENODEV;
 
 	s = &tiglusb[minor];
 
@@ -392,14 +381,9 @@ tiglusb_probe (struct usb_interface *intf,
 	up (&s->mutex);
 	dbg ("bound to interface");
 
-	class_simple_device_add(tiglusb_class, MKDEV(TIUSB_MAJOR, TIUSB_MINOR + s->minor),
-			NULL, "usb%d", s->minor);
-	err = devfs_mk_cdev(MKDEV(TIUSB_MAJOR, TIUSB_MINOR) + s->minor,
+	devfs_mk_cdev(MKDEV(TIUSB_MAJOR, TIUSB_MINOR) + s->minor,
 			S_IFCHR | S_IRUGO | S_IWUGO,
 			"ticables/usb/%d", s->minor);
-
-	if (err)
-		goto out_class;
 
 	/* Display firmware version */
 	info ("firmware revision %i.%02x",
@@ -407,13 +391,7 @@ tiglusb_probe (struct usb_interface *intf,
 		dev->descriptor.bcdDevice & 0xff);
 
 	usb_set_intfdata (intf, s);
-	err = 0;
-	goto out;
-
-out_class:
-	class_simple_device_remove(MKDEV(TIUSB_MAJOR, TIUSB_MINOR + s->minor));
-out:
-	return err;
+	return 0;
 }
 
 static void
@@ -443,7 +421,6 @@ tiglusb_disconnect (struct usb_interface *intf)
 	s->dev = NULL;
 	s->opened = 0;
 
-	class_simple_device_remove(MKDEV(TIUSB_MAJOR, TIUSB_MINOR + s->minor));
 	devfs_remove("ticables/usb/%d", s->minor);
 
 	info ("device %d removed", s->minor);
@@ -470,7 +447,7 @@ static struct usb_driver tiglusb_driver = {
 
 #ifndef MODULE
 /*
- * You can use 'tiusb=timeout' to set timeout.
+ * You can use 'tiusb=timeout'
  */
 static int __init
 tiglusb_setup (char *str)
@@ -480,11 +457,10 @@ tiglusb_setup (char *str)
 	str = get_options (str, ARRAY_SIZE (ints), ints);
 
 	if (ints[0] > 0) {
-		if (ints[1] > 0)
-			timeout = ints[1];
-		else
-			info ("tiglusb: wrong timeout value (0), using default value.");
+		timeout = ints[1];
 	}
+	if (timeout <= 0)
+		timeout = TIMAXTIME;
 
 	return 1;
 }
@@ -494,7 +470,7 @@ static int __init
 tiglusb_init (void)
 {
 	unsigned u;
-	int result, err = 0;
+	int result;
 
 	/* initialize struct */
 	for (u = 0; u < MAXTIGL; u++) {
@@ -511,41 +487,31 @@ tiglusb_init (void)
 	/* register device */
 	if (register_chrdev (TIUSB_MAJOR, "tiglusb", &tiglusb_fops)) {
 		err ("unable to get major %d", TIUSB_MAJOR);
-		err = -EIO;
-		goto out;
+		return -EIO;
 	}
 
 	/* Use devfs, tree: /dev/ticables/usb/[0..3] */
 	devfs_mk_dir ("ticables/usb");
 
-	tiglusb_class = class_simple_create(THIS_MODULE, "tiglusb");
-	if (IS_ERR(tiglusb_class)) {
-		err = PTR_ERR(tiglusb_class);
-		goto out_chrdev;
-	}
 	/* register USB module */
 	result = usb_register (&tiglusb_driver);
 	if (result < 0) {
-		err = -1;
-		goto out_chrdev;
+		unregister_chrdev (TIUSB_MAJOR, "tiglusb");
+		return -1;
 	}
 
 	info (DRIVER_DESC ", version " DRIVER_VERSION);
 
-	err = 0;
-	goto out;
+	if (timeout <= 0)
+		timeout = TIMAXTIME;
 
-out_chrdev:
-	unregister_chrdev (TIUSB_MAJOR, "tiglusb");
-out:
-	return err;
+	return 0;
 }
 
 static void __exit
 tiglusb_cleanup (void)
 {
 	usb_deregister (&tiglusb_driver);
-	class_simple_destroy(tiglusb_class);
 	devfs_remove("ticables/usb");
 	unregister_chrdev (TIUSB_MAJOR, "tiglusb");
 }

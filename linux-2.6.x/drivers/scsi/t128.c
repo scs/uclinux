@@ -104,8 +104,14 @@
  
 /*
  * $Log$
- * Revision 1.1.1.2  2004/09/07 09:30:53  lgsoft
- * Import of 2.6.8
+ * Revision 1.2  2004/09/07 22:37:22  lgsoft
+ * alpha-2.0
+ *
+ * Revision 1.1.1.1  2004/07/19 12:19:12  lgsoft
+ * Import of uClinux 2.6.2
+ *
+ * Revision 1.1.1.1  2004/07/18 13:21:59  nidhi
+ * Importing
  *
  */
 
@@ -121,7 +127,7 @@
 #include <linux/delay.h>
 
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 #include "t128.h"
 #define AUTOPROBE_IRQ
 #include "NCR5380.h"

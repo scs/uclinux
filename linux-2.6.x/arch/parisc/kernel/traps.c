@@ -38,16 +38,11 @@
 #include <asm/smp.h>
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>
-#include <asm/unwind.h>
 
 #include "../math-emu/math-emu.h"	/* for handle_fpe() */
 
 #define PRINT_USER_FAULTS /* (turn this on if you want user faults to be */
 			  /*  dumped to the console via printk)          */
-
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
-spinlock_t pa_dbit_lock = SPIN_LOCK_UNLOCKED;
-#endif
 
 int printbinary(char *buf, unsigned long x, int nbits)
 {
@@ -130,37 +125,73 @@ void show_regs(struct pt_regs *regs)
 
 void dump_stack(void)
 {
-	show_stack(NULL, NULL);
+	unsigned long stack;
+	show_trace(current, &stack);
 }
 
 EXPORT_SYMBOL(dump_stack);
 
-void show_stack(struct task_struct *task, unsigned long *s)
+#ifndef __LP64__
+static int kstack_depth_to_print = 64 * 4;
+#else
+static int kstack_depth_to_print = 128 * 4;
+#endif
+
+void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	int i = 1;
-	struct unwind_frame_info info;
+	unsigned long *stack;
+	int i;
 
-	if (!task) {
-		unsigned long sp, ip, rp;
+	/*
+	 * debugging aid: "show_stack(NULL);" prints the
+	 * back trace for this cpu.
+	 */
+	if (task==NULL)
+		sp = (unsigned long*)&sp;
+	else if(sp == NULL)
+		sp = (unsigned long*)task->thread.regs.ksp;
 
-HERE:
-		asm volatile ("copy %%r30, %0" : "=r"(sp));
-		ip = (unsigned long)&&HERE;
-		rp = (unsigned long)__builtin_return_address(0);
-		unwind_frame_init(&info, current, sp, ip, rp);
-	} else {
-		unwind_frame_init_from_blocked_task(&info, task);
-	}
-
-	printk("Backtrace:\n");
-	while (i <= 16) {
-		if (unwind_once(&info) < 0 || info.ip == 0)
+	stack = sp;
+	printk("\n" KERN_CRIT "Stack Dump:\n");
+	printk(KERN_CRIT " " RFMT ":  ", (unsigned long) stack);
+	for (i=0; i < kstack_depth_to_print; i++) {
+		if (((long) stack & (THREAD_SIZE-1)) == 0)
 			break;
+		if (i && ((i & 0x03) == 0))
+			printk("\n" KERN_CRIT " " RFMT ":  ",
+				(unsigned long) stack);
+		printk(RFMT " ", *stack--);
+	}
+	printk("\n" KERN_CRIT "\n");
+	show_trace(task, sp);
+}
 
-		if (__kernel_text_address(info.ip)) {
-			printk(" [<" RFMT ">] ", info.ip);
+
+void show_trace(struct task_struct *task, unsigned long *stack)
+{
+	unsigned long *startstack;
+	unsigned long addr;
+	int i;
+
+	startstack = (unsigned long *)((unsigned long)stack & ~(THREAD_SIZE - 1));
+	i = 1;
+	stack = (long *)((long)(stack + 32) &~ (FRAME_SIZE-1)); /* Align */
+	printk("Kernel addresses on the stack:\n");
+	while (stack > startstack) {
+		stack -= 16;	/* Stack frames are a multiple of 16 words */
+		addr = stack[16 - RP_OFFSET / sizeof(long)];
+		/*
+		 * If the address is either in the text segment of the
+		 * kernel, or in the region which contains vmalloc'ed
+		 * memory, it *may* be the address of a calling
+		 * routine; if so, print it so that someone tracing
+		 * down the cause of the crash will be able to figure
+		 * out the call path that was taken.
+		 */
+		if (kernel_text_address(addr)) {
+			printk(" [<" RFMT ">] ", addr);
 #ifdef CONFIG_KALLSYMS
-			print_symbol("%s\n", info.ip);
+			print_symbol("%s\n", addr);
 #else
 			if ((i & 0x03) == 0)
 				printk("\n");
@@ -169,6 +200,11 @@ HERE:
 		}
 	}
 	printk("\n");
+}
+
+void show_trace_task(struct task_struct *tsk)
+{
+	show_trace(tsk, (unsigned long *)tsk->thread.regs.ksp);
 }
 
 void die_if_kernel(char *str, struct pt_regs *regs, long err)

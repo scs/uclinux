@@ -36,10 +36,10 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/security.h>
-#include <linux/syscalls.h>
 
 #include <asm/uaccess.h>
 #include <asm/param.h>
+#include <asm/pgalloc.h>
 
 #include <linux/elf.h>
 
@@ -109,21 +109,21 @@ static void padzero(unsigned long elf_bss)
 	nbyte = ELF_PAGEOFFSET(elf_bss);
 	if (nbyte) {
 		nbyte = ELF_MIN_ALIGN - nbyte;
-		clear_user((void __user *) elf_bss, nbyte);
+		clear_user((void *) elf_bss, nbyte);
 	}
 }
 
 /* Let's use some macros to make this stack manipulation a litle clearer */
 #ifdef CONFIG_STACK_GROWSUP
-#define STACK_ADD(sp, items) ((elf_addr_t __user *)(sp) + (items))
+#define STACK_ADD(sp, items) ((elf_addr_t *)(sp) + (items))
 #define STACK_ROUND(sp, items) \
 	((15 + (unsigned long) ((sp) + (items))) &~ 15UL)
-#define STACK_ALLOC(sp, len) ({ elf_addr_t __user *old_sp = (elf_addr_t __user *)sp; sp += len; old_sp; })
+#define STACK_ALLOC(sp, len) ({ elf_addr_t *old_sp = (elf_addr_t *)sp; sp += len; old_sp; })
 #else
-#define STACK_ADD(sp, items) ((elf_addr_t __user *)(sp) - (items))
+#define STACK_ADD(sp, items) ((elf_addr_t *)(sp) - (items))
 #define STACK_ROUND(sp, items) \
 	(((unsigned long) (sp - items)) &~ 15UL)
-#define STACK_ALLOC(sp, len) ({ sp -= len ; sp; })
+#define STACK_ALLOC(sp, len) sp -= len
 #endif
 
 static void
@@ -134,10 +134,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr * exec,
 	unsigned long p = bprm->p;
 	int argc = bprm->argc;
 	int envc = bprm->envc;
-	elf_addr_t __user *argv;
-	elf_addr_t __user *envp;
-	elf_addr_t __user *sp;
-	elf_addr_t __user *u_platform;
+	elf_addr_t *argv, *envp;
+	elf_addr_t *sp, *u_platform;
 	const char *k_platform = ELF_PLATFORM;
 	int items;
 	elf_addr_t *elf_info;
@@ -170,7 +168,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr * exec,
 		if (smp_num_siblings > 1)
 			STACK_ALLOC(p, ((current->pid % 64) << 7));
 #endif
-		u_platform = (elf_addr_t __user *)STACK_ALLOC(p, len);
+		u_platform = (elf_addr_t *) STACK_ALLOC(p, len);
 		__copy_to_user(u_platform, k_platform, len);
 	}
 
@@ -201,10 +199,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr * exec,
 	NEW_AUX_ENT(AT_EGID, (elf_addr_t) tsk->egid);
  	NEW_AUX_ENT(AT_SECURE, (elf_addr_t) security_bprm_secureexec(bprm));
 	if (k_platform) {
-		NEW_AUX_ENT(AT_PLATFORM, (elf_addr_t)(unsigned long)u_platform);
-	}
-	if (bprm->interp_flags & BINPRM_FLAGS_EXECFD) {
-		NEW_AUX_ENT(AT_EXECFD, (elf_addr_t) bprm->interp_data);
+		NEW_AUX_ENT(AT_PLATFORM, (elf_addr_t)(long)u_platform);
 	}
 #undef NEW_AUX_ENT
 	/* AT_NULL is zero; clear the rest too */
@@ -226,10 +221,10 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr * exec,
 
 	/* Point sp at the lowest address on the stack */
 #ifdef CONFIG_STACK_GROWSUP
-	sp = (elf_addr_t __user *)bprm->p - items - ei_index;
+	sp = (elf_addr_t *)bprm->p - items - ei_index;
 	bprm->exec = (unsigned long) sp; /* XXX: PARISC HACK */
 #else
-	sp = (elf_addr_t __user *)bprm->p;
+	sp = (elf_addr_t *)bprm->p;
 #endif
 
 	/* Now, let's put argc (and argv, envp if appropriate) on the stack */
@@ -237,8 +232,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr * exec,
 	if (interp_aout) {
 		argv = sp + 2;
 		envp = argv + argc + 1;
-		__put_user((elf_addr_t)(unsigned long)argv, sp++);
-		__put_user((elf_addr_t)(unsigned long)envp, sp++);
+		__put_user((elf_addr_t)(long)argv, sp++);
+		__put_user((elf_addr_t)(long)envp, sp++);
 	} else {
 		argv = sp;
 		envp = argv + argc + 1;
@@ -249,7 +244,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr * exec,
 	while (argc-- > 0) {
 		size_t len;
 		__put_user((elf_addr_t)p, argv++);
-		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
+		len = strnlen_user((void *)p, PAGE_SIZE*MAX_ARG_PAGES);
 		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
 			return;
 		p += len;
@@ -259,7 +254,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr * exec,
 	while (envc-- > 0) {
 		size_t len;
 		__put_user((elf_addr_t)p, envp++);
-		len = strnlen_user((void __user *)p, PAGE_SIZE*MAX_ARG_PAGES);
+		len = strnlen_user((void *)p, PAGE_SIZE*MAX_ARG_PAGES);
 		if (!len || len > PAGE_SIZE*MAX_ARG_PAGES)
 			return;
 		p += len;
@@ -268,7 +263,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr * exec,
 	current->mm->env_end = p;
 
 	/* Put the elf_info on the stack in the right place.  */
-	sp = (elf_addr_t __user *)envp + 1;
+	sp = (elf_addr_t *)envp + 1;
 	copy_to_user(sp, elf_info, ei_index * sizeof(elf_addr_t));
 }
 
@@ -364,18 +359,6 @@ static unsigned long load_elf_interp(struct elfhdr * interp_elf_ex,
 	    }
 
 	    /*
-	     * Check to see if the section's size will overflow the
-	     * allowed task size. Note that p_filesz must always be
-	     * <= p_memsize so it is only necessary to check p_memsz.
-	     */
-	    k = load_addr + eppnt->p_vaddr;
-	    if (k > TASK_SIZE || eppnt->p_filesz > eppnt->p_memsz ||
-		eppnt->p_memsz > TASK_SIZE || TASK_SIZE - eppnt->p_memsz < k) {
-	        error = -ENOMEM;
-		goto out_close;
-	    }
-
-	    /*
 	     * Find the end of the file mapping for this phdr, and keep
 	     * track of the largest address we see for this.
 	     */
@@ -422,7 +405,7 @@ static unsigned long load_aout_interp(struct exec * interp_ex,
 			     struct file * interpreter)
 {
 	unsigned long text_data, elf_entry = ~0UL;
-	char __user * addr;
+	char * addr;
 	loff_t offset;
 
 	current->mm->end_code = interp_ex->a_text;
@@ -433,12 +416,12 @@ static unsigned long load_aout_interp(struct exec * interp_ex,
 	switch (N_MAGIC(*interp_ex)) {
 	case OMAGIC:
 		offset = 32;
-		addr = (char __user *)0;
+		addr = (char *) 0;
 		break;
 	case ZMAGIC:
 	case QMAGIC:
 		offset = N_TXTOFF(*interp_ex);
-		addr = (char __user *) N_TXTADDR(*interp_ex);
+		addr = (char *) N_TXTADDR(*interp_ex);
 		break;
 	default:
 		goto out;
@@ -492,8 +475,6 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
   	struct exec interp_ex;
 	char passed_fileno[6];
 	struct files_struct *files;
-	int have_pt_gnu_stack, executable_stack = EXSTACK_DEFAULT;
-	unsigned long def_flags = 0;
 	
 	/* Get the exec-header */
 	elf_ex = *((struct elfhdr *) bprm->buf);
@@ -527,8 +508,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		goto out_free_ph;
 
 	files = current->files;		/* Refcounted so ok */
-	retval = unshare_files();
-	if (retval < 0)
+	if(unshare_files() < 0)
 		goto out_free_ph;
 	if (files == current->files) {
 		put_files_struct(files);
@@ -618,17 +598,6 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		elf_ppnt++;
 	}
 
-	elf_ppnt = elf_phdata;
-	for (i = 0; i < elf_ex.e_phnum; i++, elf_ppnt++)
-		if (elf_ppnt->p_type == PT_GNU_STACK) {
-			if (elf_ppnt->p_flags & PF_X)
-				executable_stack = EXSTACK_ENABLE_X;
-			else
-				executable_stack = EXSTACK_DISABLE_X;
-			break;
-		}
-	have_pt_gnu_stack = (i < elf_ex.e_phnum);
-
 	/* Some simple consistency checks for the interpreter */
 	if (elf_interpreter) {
 		interpreter_type = INTERPRETER_ELF | INTERPRETER_AOUT;
@@ -695,19 +664,16 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	current->mm->end_code = 0;
 	current->mm->mmap = NULL;
 	current->flags &= ~PF_FORKNOEXEC;
-	current->mm->def_flags = def_flags;
 
 	/* Do this immediately, since STACK_TOP as used in setup_arg_pages
 	   may depend on the personality.  */
 	SET_PERSONALITY(elf_ex, ibcs2_interpreter);
-	if (elf_read_implies_exec(elf_ex, have_pt_gnu_stack))
-		current->personality |= READ_IMPLIES_EXEC;
 
 	/* Do this so that we can load the interpreter, if need be.  We will
 	   change some of these later */
 	current->mm->rss = 0;
 	current->mm->free_area_cache = TASK_UNMAPPED_BASE;
-	retval = setup_arg_pages(bprm, executable_stack);
+	retval = setup_arg_pages(bprm);
 	if (retval < 0) {
 		send_sig(SIGKILL, current, 0);
 		goto out_free_dentry;
@@ -744,7 +710,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 				nbyte = ELF_MIN_ALIGN - nbyte;
 				if (nbyte > elf_brk - elf_bss)
 					nbyte = elf_brk - elf_bss;
-				clear_user((void __user *) elf_bss + load_bias, nbyte);
+				clear_user((void *) elf_bss + load_bias, nbyte);
 			}
 		}
 
@@ -781,19 +747,6 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		k = elf_ppnt->p_vaddr;
 		if (k < start_code) start_code = k;
 		if (start_data < k) start_data = k;
-
-		/*
-		 * Check to see if the section's size will overflow the
-		 * allowed task size. Note that p_filesz must always be
-		 * <= p_memsz so it is only necessary to check p_memsz.
-		 */
-		if (k > TASK_SIZE || elf_ppnt->p_filesz > elf_ppnt->p_memsz ||
-		    elf_ppnt->p_memsz > TASK_SIZE ||
-		    TASK_SIZE - elf_ppnt->p_memsz < k) {
-			/* set_brk can never work.  Avoid overflows.  */
-			send_sig(SIGKILL, current, 0);
-			goto out_free_dentry;
-		}
 
 		k = elf_ppnt->p_vaddr + elf_ppnt->p_filesz;
 
@@ -876,8 +829,9 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		   and some applications "depend" upon this behavior.
 		   Since we do not have the power to recompile these, we
 		   emulate the SVr4 behavior.  Sigh.  */
+		/* N.B. Shouldn't the size here be PAGE_SIZE?? */
 		down_write(&current->mm->mmap_sem);
-		error = do_mmap(NULL, 0, PAGE_SIZE, PROT_READ | PROT_EXEC,
+		error = do_mmap(NULL, 0, 4096, PROT_READ | PROT_EXEC,
 				MAP_FIXED | MAP_PRIVATE, 0);
 		up_write(&current->mm->mmap_sem);
 	}
@@ -1175,7 +1129,7 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 	prstatus->pr_pid = p->pid;
 	prstatus->pr_ppid = p->parent->pid;
 	prstatus->pr_pgrp = process_group(p);
-	prstatus->pr_sid = p->signal->session;
+	prstatus->pr_sid = p->session;
 	jiffies_to_timeval(p->utime, &prstatus->pr_utime);
 	jiffies_to_timeval(p->stime, &prstatus->pr_stime);
 	jiffies_to_timeval(p->cutime, &prstatus->pr_cutime);
@@ -1194,7 +1148,7 @@ static void fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 	if (len >= ELF_PRARGSZ)
 		len = ELF_PRARGSZ-1;
 	copy_from_user(&psinfo->pr_psargs,
-		       (const char __user *)mm->arg_start, len);
+		       (const char *)mm->arg_start, len);
 	for(i = 0; i < len; i++)
 		if (psinfo->pr_psargs[i] == 0)
 			psinfo->pr_psargs[i] = ' ';
@@ -1203,7 +1157,7 @@ static void fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 	psinfo->pr_pid = p->pid;
 	psinfo->pr_ppid = p->parent->pid;
 	psinfo->pr_pgrp = process_group(p);
-	psinfo->pr_sid = p->signal->session;
+	psinfo->pr_sid = p->session;
 
 	i = p->state ? ffz(~p->state) + 1 : 0;
 	psinfo->pr_state = i;
@@ -1494,13 +1448,7 @@ static int elf_core_dump(long signr, struct pt_regs * regs, struct file * file)
 					void *kaddr;
 					flush_cache_page(vma, addr);
 					kaddr = kmap(page);
-					if ((size += PAGE_SIZE) > limit ||
-					    !dump_write(file, kaddr,
-					    PAGE_SIZE)) {
-						kunmap(page);
-						page_cache_release(page);
-						goto end_coredump;
-					}
+					DUMP_WRITE(kaddr, PAGE_SIZE);
 					kunmap(page);
 				}
 				page_cache_release(page);
@@ -1553,6 +1501,6 @@ static void __exit exit_elf_binfmt(void)
 	unregister_binfmt(&elf_format);
 }
 
-core_initcall(init_elf_binfmt);
-module_exit(exit_elf_binfmt);
+module_init(init_elf_binfmt)
+module_exit(exit_elf_binfmt)
 MODULE_LICENSE("GPL");

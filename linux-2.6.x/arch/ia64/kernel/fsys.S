@@ -165,6 +165,7 @@ ENTRY(fsys_gettimeofday)
 	add r9=TI_FLAGS+IA64_TASK_SIZE,r16
 	addl r3=THIS_CPU(cpu_info),r0
 
+	mov.m r31=ar.itc		// put time stamp into r31 (ITC) == now		(35 cyc)
 #ifdef CONFIG_SMP
 	movl r10=__per_cpu_offset
 	movl r2=sal_platform_features
@@ -239,13 +240,12 @@ EX(.fail_efault, probe.w.fault r10, 3)		// this must come _after_ NaT-check
 	;;
 
 	ldf8 f8=[r21]			// f8 now contains itm_next
-	mov.m r31=ar.itc		// put time stamp into r31 (ITC) == now
 	sub r28=r29, r28, 1		// r28 now contains "-(lost + 1)"
+	tbit.nz p9, p10=r23, 0		// p9 <- is_odd(r23), p10 <- is_even(r23)
 	;;
 
 	ld8 r2=[r19]			// r2 = sec = xtime.tv_sec
 	ld8 r29=[r20]			// r29 = nsec = xtime.tv_nsec
-	tbit.nz p9, p10=r23, 0		// p9 <- is_odd(r23), p10 <- is_even(r23)
 
 	setf.sig f6=r28			// f6 <- -(lost + 1)				(6 cyc)
 	;;
@@ -260,6 +260,7 @@ EX(.fail_efault, probe.w.fault r10, 3)		// this must come _after_ NaT-check
 	nop 0
 	;;
 
+	mov r31=ar.itc			// re-read ITC in case we .retry		(35 cyc)
 	xma.l f8=f11, f8, f12	// f8 (elapsed_cycles) <- (-1*last_tick + now) = (now - last_tick)
 	nop 0
 	;;
@@ -344,33 +345,40 @@ ENTRY(fsys_rt_sigprocmask)
 	.altrp b6
 	.body
 
+	mf					// ensure reading of current->blocked is ordered
 	add r2=IA64_TASK_BLOCKED_OFFSET,r16
 	add r9=TI_FLAGS+IA64_TASK_SIZE,r16
-	cmp4.ltu p6,p0=SIG_SETMASK,r32
-
-	cmp.ne p15,p0=r0,r34			// oset != NULL?
-	tnat.nz p8,p0=r34
-	add r31=IA64_TASK_SIGHAND_OFFSET,r16
 	;;
-	ld8 r3=[r2]				// read/prefetch current->blocked
+	/*
+	 * Since we're only reading a single word, we can do it
+	 * atomically without acquiring current->sighand->siglock.  To
+	 * be on the safe side, we need a fully-ordered load, though:
+	 */
+	ld8.acq r3=[r2]				// read/prefetch current->blocked
 	ld4 r9=[r9]
-	tnat.nz.or p6,p0=r35
-
-	cmp.ne.or p6,p0=_NSIG_WORDS*8,r35
-	tnat.nz.or p6,p0=r32
-(p6)	br.spnt.few .fail_einval		// fail with EINVAL
+	add r31=IA64_TASK_SIGHAND_OFFSET,r16
 	;;
 #ifdef CONFIG_SMP
 	ld8 r31=[r31]				// r31 <- current->sighand
 #endif
 	and r9=TIF_ALLWORK_MASK,r9
-	tnat.nz.or p8,p0=r33
+	tnat.nz p6,p0=r32
 	;;
 	cmp.ne p7,p0=0,r9
-	cmp.eq p6,p0=r0,r33			// set == NULL?
-	add r31=IA64_SIGHAND_SIGLOCK_OFFSET,r31	// r31 <- current->sighand->siglock
-(p8)	br.spnt.few .fail_efault		// fail with EFAULT
+	tnat.nz.or p6,p0=r35
+	tnat.nz p8,p0=r34
+	;;
+	cmp.ne p15,p0=r0,r34			// oset != NULL?
+	cmp.ne.or p6,p0=_NSIG_WORDS*8,r35
+	tnat.nz.or p8,p0=r33
+
+(p6)	br.spnt.few .fail_einval		// fail with EINVAL
 (p7)	br.spnt.many fsys_fallback_syscall	// got pending kernel work...
+(p8)	br.spnt.few .fail_efault		// fail with EFAULT
+	;;
+
+	cmp.eq p6,p7=r0,r33			// set == NULL?
+	add r31=IA64_SIGHAND_SIGLOCK_OFFSET,r31	// r31 <- current->sighand->siglock
 (p6)	br.dpnt.many .store_mask		// -> short-circuit to just reading the signal mask
 
 	/* Argh, we actually have to do some work and _update_ the signal mask: */
@@ -454,10 +462,12 @@ EX(.fail_efault, ld8 r14=[r33])			// r14 <- *set
 	st4.rel [r31]=r0			// release the lock
 #endif
 	ssm psr.i
+	cmp.ne p9,p0=r8,r0			// check for bad HOW value
 	;;
 
 	srlz.d					// ensure psr.i is set again
 	mov r18=0					// i must not leak kernel bits...
+(p9)	br.spnt.few .fail_einval		// bail out for bad HOW value
 
 .store_mask:
 EX(.fail_efault, (p15) probe.w.fault r34, 3)	// verify user has write-access to *oset
@@ -501,7 +511,6 @@ ENTRY(fsys_fallback_syscall)
 	adds r17=-1024,r15
 	movl r14=sys_call_table
 	;;
-	rsm psr.i
 	shladd r18=r17,3,r14
 	;;
 	ld8 r18=[r18]				// load normal (heavy-weight) syscall entry-point
@@ -542,7 +551,7 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	 * to synthesize.
 	 */
 #	define PSR_ONE_BITS		((3 << IA64_PSR_CPL0_BIT) | (0x1 << IA64_PSR_RI_BIT) \
-					 | IA64_PSR_BN | IA64_PSR_I)
+					 | IA64_PSR_BN)
 
 	invala
 	movl r8=PSR_ONE_BITS
@@ -565,10 +574,6 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	or r29=r8,r29			// construct cr.ipsr value to save
 	addl r22=IA64_RBS_OFFSET,r2	// compute base of RBS
 	;;
-	// GAS reports a spurious RAW hazard on the read of ar.rnat because it thinks
-	// we may be reading ar.itc after writing to psr.l.  Avoid that message with
-	// this directive:
-	dv_serialize_data
 	mov.m r24=ar.rnat		// read ar.rnat (5 cyc lat)
 	lfetch.fault.excl.nt1 [r22]
 	adds r16=IA64_TASK_THREAD_ON_USTACK_OFFSET,r2
@@ -846,13 +851,13 @@ fsyscall_table:
 	data8 0
 	data8 0							// 1260
 	data8 0
-	data8 0				// mq_open
-	data8 0				// mq_unlink
-	data8 0				// mq_timedsend
-	data8 0				// mq_timedreceive	// 1265
-	data8 0				// mq_notify
-	data8 0				// mq_getsetattr
-	data8 0				// kexec_load
+	data8 0
+	data8 0
+	data8 0
+	data8 0							// 1265
+	data8 0
+	data8 0
+	data8 0
 	data8 0
 	data8 0							// 1270
 	data8 0

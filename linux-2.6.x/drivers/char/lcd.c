@@ -12,7 +12,7 @@
  *
  */
 
-#define RTC_IO_EXTENT	0x10	/*Only really two ports, but... */
+#define RTC_IO_EXTENT	0x10    /*Only really two ports, but...	*/
 
 #include <linux/config.h>
 #include <linux/types.h>
@@ -32,8 +32,8 @@
 
 #include "lcd.h"
 
-static int lcd_ioctl(struct inode *inode, struct file *file,
-		     unsigned int cmd, unsigned long arg);
+static int lcd_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
+                     unsigned long arg);
 
 static int lcd_present = 1;
 
@@ -57,8 +57,8 @@ int lcd_register_linkcheck_func(int iface_num, void *func, void *cookie)
 }
 #endif
 
-static int lcd_ioctl(struct inode *inode, struct file *file,
-		     unsigned int cmd, unsigned long arg)
+static int lcd_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
+			unsigned long arg)
 {
 	struct lcd_display button_display;
 	unsigned long address, a;
@@ -69,7 +69,7 @@ static int lcd_ioctl(struct inode *inode, struct file *file,
 		udelay(150);
 		BusyCheck();
 		LCDWriteInst(0x0F);
-		break;
+		break;		
 
 	case LCD_Off:
 		udelay(150);
@@ -95,7 +95,7 @@ static int lcd_ioctl(struct inode *inode, struct file *file,
 	case LCD_Clear:
 		udelay(150);
 		BusyCheck();
-		LCDWriteInst(0x01);
+       		LCDWriteInst(0x01);     
 		break;
 
 	case LCD_Cursor_Left:
@@ -108,95 +108,86 @@ static int lcd_ioctl(struct inode *inode, struct file *file,
 		udelay(150);
 		BusyCheck();
 		LCDWriteInst(0x14);
-		break;
+		break;	
 
 	case LCD_Cursor_Off:
 		udelay(150);
-		BusyCheck();
-		LCDWriteInst(0x0C);
-		break;
+                BusyCheck();
+                LCDWriteInst(0x0C);
+	        break;
 
-	case LCD_Cursor_On:
-		udelay(150);
-		BusyCheck();
-		LCDWriteInst(0x0F);
-		break;
+        case LCD_Cursor_On:
+                udelay(150);
+                BusyCheck();
+                LCDWriteInst(0x0F);
+                break;
 
-	case LCD_Blink_Off:
-		udelay(150);
-		BusyCheck();
-		LCDWriteInst(0x0E);
-		break;
+        case LCD_Blink_Off:
+                udelay(150);
+                BusyCheck();
+                LCDWriteInst(0x0E);
+                break;
 
 	case LCD_Get_Cursor_Pos:{
-			struct lcd_display display;
+                struct lcd_display display;
 
-			udelay(150);
-			BusyCheck();
-			display.cursor_address = (LCDReadInst);
-			display.cursor_address =
-			    (display.cursor_address & 0x07F);
-			if (copy_to_user
-			    ((struct lcd_display *) arg, &display,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
+		udelay(150);
+                BusyCheck();
+		display.cursor_address = ( LCDReadInst ); 
+		display.cursor_address = ( display.cursor_address & 0x07F );
+		if(copy_to_user((struct lcd_display*)arg, &display, sizeof(struct lcd_display)))
+		  return -EFAULT;
 
-			break;
+		break;
 		}
 
 
-	case LCD_Set_Cursor_Pos:{
-			struct lcd_display display;
+	case LCD_Set_Cursor_Pos: {
+                struct lcd_display display;
 
-			if (copy_from_user
-			    (&display, (struct lcd_display *) arg,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
+                if(copy_from_user(&display, (struct lcd_display*)arg, sizeof(struct lcd_display)))
+		  return -EFAULT;
 
-			a = (display.cursor_address | kLCD_Addr);
+		a = (display.cursor_address | kLCD_Addr ); 
 
-			udelay(150);
-			BusyCheck();
-			LCDWriteInst(a);
+                udelay(150);
+                BusyCheck();    
+                LCDWriteInst( a );
 
-			break;
+                break;
 		}
+	
+	case LCD_Get_Cursor: {
+                struct lcd_display display;
 
-	case LCD_Get_Cursor:{
-			struct lcd_display display;
+                udelay(150);
+                BusyCheck();    
+		display.character = LCDReadData;	
 
-			udelay(150);
-			BusyCheck();
-			display.character = LCDReadData;
+		if(copy_to_user((struct lcd_display*)arg, &display, sizeof(struct lcd_display)))
+		  return -EFAULT;
+                udelay(150);
+                BusyCheck();
+                LCDWriteInst(0x10);
 
-			if (copy_to_user
-			    ((struct lcd_display *) arg, &display,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
-			udelay(150);
-			BusyCheck();
-			LCDWriteInst(0x10);
-
-			break;
+		break;
 		}
 
 	case LCD_Set_Cursor:{
-			struct lcd_display display;
+                struct lcd_display display;
+   
+                if(copy_from_user(&display, (struct lcd_display*)arg, sizeof(struct lcd_display)))
+		  return -EFAULT;
 
-			if (copy_from_user
-			    (&display, (struct lcd_display *) arg,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
+                udelay(150);
+		BusyCheck();    
+                LCDWriteData( display.character );
+                udelay(150);
+                BusyCheck();
+                LCDWriteInst(0x10);
 
-			udelay(150);
-			BusyCheck();
-			LCDWriteData(display.character);
-			udelay(150);
-			BusyCheck();
-			LCDWriteInst(0x10);
-
-			break;
-		}
+                break;
+                }
 
 
 	case LCD_Disp_Left:
@@ -217,330 +208,294 @@ static int lcd_ioctl(struct inode *inode, struct file *file,
 		LCDWriteInst(0x02);
 		break;
 
-	case LCD_Write:{
-			struct lcd_display display;
+	case LCD_Write: {
+		struct lcd_display display;
+   
 
+                if(copy_from_user(&display, (struct lcd_display*)arg, sizeof(struct lcd_display)))
+		  return -EFAULT;
+ 
+		udelay(150);
+                BusyCheck();    
+                LCDWriteInst(0x80);
+		udelay(150);
+		BusyCheck();
+	
+		for (index = 0; index < (display.size1); index++) {
+			udelay(150);
+			BusyCheck();	
+			LCDWriteData( display.line1[index]);
+			BusyCheck();	
+		}		
+		
+		udelay(150);
+		BusyCheck();	
+		LCDWriteInst(0xC0);	
+		udelay(150);
+		BusyCheck();	
+                for (index = 0; index < (display.size2); index++) {
+                        udelay(150);
+                        BusyCheck();    
+                        LCDWriteData( display.line2[index]);
+		}
+ 
+		break;	
+	}
+	
+	case LCD_Read: {	
+        	struct lcd_display display;
 
-			if (copy_from_user
-			    (&display, (struct lcd_display *) arg,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
+		BusyCheck();
+		for (address = kDD_R00; address <= kDD_R01; address++) {
+			a = (address | kLCD_Addr );	
 
 			udelay(150);
 			BusyCheck();
-			LCDWriteInst(0x80);
+			LCDWriteInst( a );
 			udelay(150);
 			BusyCheck();
-
-			for (index = 0; index < (display.size1); index++) {
-				udelay(150);
-				BusyCheck();
-				LCDWriteData(display.line1[index]);
-				BusyCheck();
-			}
-
-			udelay(150);
-			BusyCheck();
-			LCDWriteInst(0xC0);
-			udelay(150);
-			BusyCheck();
-			for (index = 0; index < (display.size2); index++) {
-				udelay(150);
-				BusyCheck();
-				LCDWriteData(display.line2[index]);
-			}
-
-			break;
+			display.line1[address] = LCDReadData;
 		}
 
-	case LCD_Read:{
-			struct lcd_display display;
+		display.line1[ 0x27 ] = '\0';
+	
+		for (address = kDD_R10; address <= kDD_R11; address++) {
+			a = (address | kLCD_Addr );     
+        
+			udelay(150);
+	 		BusyCheck();
+        		LCDWriteInst( a );
+       
+        		udelay(150);
+	 		BusyCheck();
+        		display.line2[address - 0x40 ] = LCDReadData;
+		 }
 
-			BusyCheck();
-			for (address = kDD_R00; address <= kDD_R01;
-			     address++) {
-				a = (address | kLCD_Addr);
+		display.line2[ 0x27 ] = '\0';
 
-				udelay(150);
-				BusyCheck();
-				LCDWriteInst(a);
-				udelay(150);
-				BusyCheck();
-				display.line1[address] = LCDReadData;
-			}
+		if(copy_to_user((struct lcd_display*)arg, &display,
+				sizeof(struct lcd_display)))
+		  return -EFAULT;
+		break;
+	}
 
-			display.line1[0x27] = '\0';
+//  set all GPIO leds to led_display.leds 
 
-			for (address = kDD_R10; address <= kDD_R11;
-			     address++) {
-				a = (address | kLCD_Addr);
+	case LED_Set: {	
+		struct lcd_display led_display;
+	
 
-				udelay(150);
-				BusyCheck();
-				LCDWriteInst(a);
+	        if(copy_from_user(&led_display, (struct lcd_display*)arg,
+				  sizeof(struct lcd_display)))
+		  return -EFAULT;
 
-				udelay(150);
-				BusyCheck();
-				display.line2[address - 0x40] =
-				    LCDReadData;
-			}
+		led_state = led_display.leds;
+		LEDSet(led_state);
 
-			display.line2[0x27] = '\0';
-
-			if (copy_to_user
-			    ((struct lcd_display *) arg, &display,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
-			break;
-		}
-
-//  set all GPIO leds to led_display.leds
-
-	case LED_Set:{
-			struct lcd_display led_display;
-
-
-			if (copy_from_user
-			    (&led_display, (struct lcd_display *) arg,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
-
-			led_state = led_display.leds;
-			LEDSet(led_state);
-
-			break;
-		}
+        	break;
+	}
 
 
 //  set only bit led_display.leds
 
-	case LED_Bit_Set:{
-			int i;
-			int bit = 1;
-			struct lcd_display led_display;
+        case LED_Bit_Set: {
+                int i;
+		int bit=1;
+                struct lcd_display led_display;
 
 
-			if (copy_from_user
-			    (&led_display, (struct lcd_display *) arg,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
+                if(copy_from_user(&led_display, (struct lcd_display*)arg,
+				  sizeof(struct lcd_display)))
+		  return -EFAULT;
 
-			for (i = 0; i < (int) led_display.leds; i++) {
-				bit = 2 * bit;
+		for (i=0;i<(int)led_display.leds;i++)
+			{
+				bit = 2*bit;	
 			}
 
-			led_state = led_state | bit;
-			LEDSet(led_state);
-			break;
-		}
+		led_state = led_state | bit;
+                LEDSet(led_state);
+                break;
+        }
 
 //  clear only bit led_display.leds
 
-	case LED_Bit_Clear:{
-			int i;
-			int bit = 1;
-			struct lcd_display led_display;
+        case LED_Bit_Clear: {
+                int i;
+		int bit=1;
+                struct lcd_display led_display;
 
 
-			if (copy_from_user
-			    (&led_display, (struct lcd_display *) arg,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
+                if(copy_from_user(&led_display, (struct lcd_display*)arg,
+				  sizeof(struct lcd_display)))
+		  return -EFAULT;
 
-			for (i = 0; i < (int) led_display.leds; i++) {
-				bit = 2 * bit;
-			}
+                for (i=0;i<(int)led_display.leds;i++)
+                        {
+                                bit = 2*bit;
+                        }
 
-			led_state = led_state & ~bit;
-			LEDSet(led_state);
-			break;
-		}
+		led_state = led_state &  ~bit;
+                LEDSet(led_state);
+                break;
+        }
 
 
-	case BUTTON_Read:{
-			button_display.buttons = GPIRead;
-			if (copy_to_user
-			    ((struct lcd_display *) arg, &button_display,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
-			break;
-		}
+	case BUTTON_Read: {
+		button_display.buttons = GPIRead;
+                if(copy_to_user((struct lcd_display*)arg, &button_display, sizeof(struct lcd_display)))
+		  return -EFAULT;
+		break;
+	}
 
-	case LINK_Check:{
-			button_display.buttons =
-			    *((volatile unsigned long *) (0xB0100060));
-			if (copy_to_user
-			    ((struct lcd_display *) arg, &button_display,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
-			break;
-		}
+        case LINK_Check: {
+                button_display.buttons = *((volatile unsigned long *) (0xB0100060) );
+                if(copy_to_user((struct lcd_display*)arg, &button_display, sizeof(struct lcd_display)))
+		  return -EFAULT;
+                break;
+        }
 
-	case LINK_Check_2:{
-			int iface_num;
+	case LINK_Check_2: {
+		int iface_num;
 
-			/* panel-utils should pass in the desired interface status is wanted for
-			 * in "buttons" of the structure.  We will set this to non-zero if the
-			 * link is in fact up for the requested interface.  --DaveM
-			 */
-			if (copy_from_user
-			    (&button_display, (struct lcd_display *) arg,
-			     sizeof(button_display)))
-				return -EFAULT;
-			iface_num = button_display.buttons;
+		/* panel-utils should pass in the desired interface status is wanted for
+		 * in "buttons" of the structure.  We will set this to non-zero if the
+		 * link is in fact up for the requested interface.  --DaveM
+		 */
+		if(copy_from_user(&button_display, (struct lcd_display *)arg, sizeof(button_display)))
+		  return -EFAULT;
+		iface_num = button_display.buttons;
 #if defined(CONFIG_TULIP) && 0
-			if (iface_num >= 0 &&
-			    iface_num < MAX_INTERFACES &&
-			    linkcheck_callbacks[iface_num] != NULL) {
-				button_display.buttons =
-				    linkcheck_callbacks[iface_num]
-				    (linkcheck_cookies[iface_num]);
-			} else
+		if (iface_num >= 0 &&
+		    iface_num < MAX_INTERFACES &&
+		    linkcheck_callbacks[iface_num] != NULL) {
+			button_display.buttons =
+				linkcheck_callbacks[iface_num](linkcheck_cookies[iface_num]);
+		} else
 #endif
-				button_display.buttons = 0;
+			button_display.buttons = 0;
 
-			if (__copy_to_user
-			    ((struct lcd_display *) arg, &button_display,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
-			break;
-		}
+                if(__copy_to_user((struct lcd_display*)arg, &button_display, sizeof(struct lcd_display)))
+		  return -EFAULT;
+                break;
+	}
 
 //  Erase the flash
 
-	case FLASH_Erase:{
+	case FLASH_Erase: {
 
-			int ctr = 0;
+		int ctr=0;
 
-			// Chip Erase Sequence
-			WRITE_FLASH(kFlash_Addr1, kFlash_Data1);
-			WRITE_FLASH(kFlash_Addr2, kFlash_Data2);
-			WRITE_FLASH(kFlash_Addr1, kFlash_Erase3);
-			WRITE_FLASH(kFlash_Addr1, kFlash_Data1);
-			WRITE_FLASH(kFlash_Addr2, kFlash_Data2);
-			WRITE_FLASH(kFlash_Addr1, kFlash_Erase6);
+		    // Chip Erase Sequence
+		WRITE_FLASH( kFlash_Addr1, kFlash_Data1 );
+		WRITE_FLASH( kFlash_Addr2, kFlash_Data2 );
+		WRITE_FLASH( kFlash_Addr1, kFlash_Erase3 );
+		WRITE_FLASH( kFlash_Addr1, kFlash_Data1 );
+		WRITE_FLASH( kFlash_Addr2, kFlash_Data2 );
+		WRITE_FLASH( kFlash_Addr1, kFlash_Erase6 );
 
-			printk("Erasing Flash.\n");
+		printk( "Erasing Flash.\n");
 
-			while ((!dqpoll(0x00000000, 0xFF))
-			       && (!timeout(0x00000000))) {
-				ctr++;
-			}
-
-			printk("\n");
-			printk("\n");
-			printk("\n");
-
-			if (READ_FLASH(0x07FFF0) == 0xFF) {
-				printk("Erase Successful\r\n");
-			} else if (timeout) {
-				printk("Erase Timed Out\r\n");
-			}
-
-			break;
+		while ( (!dqpoll(0x00000000,0xFF)) && (!timeout(0x00000000)) ) {
+		    ctr++;
 		}
 
-// burn the flash
+		printk("\n");
+		printk("\n");
+		printk("\n");
 
-	case FLASH_Burn:{
+		if (READ_FLASH(0x07FFF0)==0xFF) { printk("Erase Successful\r\n"); }
+		else if (timeout) { printk("Erase Timed Out\r\n"); }
 
-			volatile unsigned long burn_addr;
-			unsigned long flags;
-			int i;
-			unsigned char *rom;
+	break;
+	}
 
+// burn the flash 
 
-			struct lcd_display display;
+	case FLASH_Burn: {
 
-			if (copy_from_user
-			    (&display, (struct lcd_display *) arg,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
-			rom = (unsigned char *) kmalloc((128), GFP_ATOMIC);
-			if (rom == NULL) {
-				printk("broken\n");
-				return 1;
-			}
+		volatile unsigned long burn_addr;
+		unsigned long flags;
+		int i;
+		unsigned char *rom;
+		
 
-			printk("Churning and Burning -");
-			save_flags(flags);
-			for (i = 0; i < FLASH_SIZE; i = i + 128) {
+                struct lcd_display display;
 
-				if (copy_from_user
-				    (rom, display.RomImage + i, 128))
-					return -EFAULT;
-				burn_addr = kFlashBase + i;
-				cli();
-				for (index = 0; index < (128); index++) {
+                if(copy_from_user(&display, (struct lcd_display*)arg, sizeof(struct lcd_display)))
+		  return -EFAULT;
+		rom = (unsigned char *) kmalloc((128),GFP_ATOMIC);
+                if ( rom == NULL ) {
+                       printk ("broken\n");
+                       return 1;
+                   }
 
-					WRITE_FLASH(kFlash_Addr1,
-						    kFlash_Data1);
-					WRITE_FLASH(kFlash_Addr2,
-						    kFlash_Data2);
-					WRITE_FLASH(kFlash_Addr1,
-						    kFlash_Prog);
-					*((volatile unsigned char *)
-					  burn_addr) =
-		 (volatile unsigned char) rom[index];
+		printk("Churning and Burning -");
+		save_flags(flags);
+		for (i=0; i<FLASH_SIZE; i=i+128) {
 
-					while ((!dqpoll
-						(burn_addr,
-						 (volatile unsigned char)
-						 rom[index]))
-					       && (!timeout(burn_addr))) {
-					}
-					burn_addr++;
-				}
-				restore_flags(flags);
-				if (*
-				    ((volatile unsigned char *) (burn_addr
-								 - 1)) ==
-				    (volatile unsigned char) rom[index -
-								 1]) {
-				} else if (timeout) {
-					printk("Program timed out\r\n");
-				}
+		        if(copy_from_user(rom, display.RomImage + i, 128))
+			   return -EFAULT;
+			burn_addr = kFlashBase + i;
+			cli();
+			for ( index = 0; index < ( 128 ) ; index++ ) 
+		  	  {
+
+				WRITE_FLASH( kFlash_Addr1, kFlash_Data1 );
+		 	    	WRITE_FLASH( kFlash_Addr2, kFlash_Data2 );
+		 	    	WRITE_FLASH( kFlash_Addr1, kFlash_Prog );
+		 	    	*((volatile unsigned char *)burn_addr) = (volatile unsigned char) rom[index];
+
+		   	 	 while ( (!dqpoll(burn_addr,(volatile unsigned char) rom[index])) && (!timeout(burn_addr)) ) {
+		  	   		}
+		  	   	burn_addr++;
+		  	  }
+			restore_flags(flags);
+                	if ( *((volatile unsigned char *)(burn_addr-1)) == (volatile unsigned char) rom[index-1]  ) {
+               		 } else if (timeout) {
+                	    printk("Program timed out\r\n");
+               		 }
 
 
-			}
-			kfree(rom);
+		}
+		kfree(rom);
 
-			break;
+	break;
+	}
+
+//  read the flash all at once 
+	
+	case FLASH_Read: {
+
+		unsigned char *user_bytes;
+                volatile unsigned long read_addr;
+                int i;
+
+		user_bytes = &(((struct lcd_display *)arg)->RomImage[0]);
+
+		if(!access_ok(VERIFY_WRITE, user_bytes, FLASH_SIZE))
+                         return -EFAULT;
+
+		printk("Reading Flash");
+		for (i=0; i<FLASH_SIZE; i++) {
+			unsigned char tmp_byte;
+			read_addr = kFlashBase + i;
+			tmp_byte = *((volatile unsigned char *)read_addr);
+			if(__put_user (tmp_byte, &user_bytes[i]))
+			  return -EFAULT;
 		}
 
-//  read the flash all at once
 
-	case FLASH_Read:{
-
-			unsigned char *user_bytes;
-			volatile unsigned long read_addr;
-			int i;
-
-			user_bytes =
-			    &(((struct lcd_display *) arg)->RomImage[0]);
-
-			if (!access_ok
-			    (VERIFY_WRITE, user_bytes, FLASH_SIZE))
-				return -EFAULT;
-
-			printk("Reading Flash");
-			for (i = 0; i < FLASH_SIZE; i++) {
-				unsigned char tmp_byte;
-				read_addr = kFlashBase + i;
-				tmp_byte =
-				    *((volatile unsigned char *)
-				      read_addr);
-				if (__put_user(tmp_byte, &user_bytes[i]))
-					return -EFAULT;
-			}
+	break;
+	}
 
 
-			break;
-		}
+
+
 
 	default:
 		return 0;
-		break;
+	break;
 
 	}
 
@@ -562,8 +517,7 @@ static inline int button_pressed(void)
 {
 	unsigned long buttons = GPIRead;
 
-	if ((buttons == BUTTON_Next) || (buttons == BUTTON_Next_B)
-	    || (buttons == BUTTON_Reset_B))
+	if ( (buttons == BUTTON_Next) || (buttons == BUTTON_Next_B) || (buttons == BUTTON_Reset_B) )
 		return buttons;
 	return 0;
 }
@@ -572,23 +526,22 @@ static inline int button_pressed(void)
 
 static int lcd_waiters = 0;
 
-static long lcd_read(struct inode *inode, struct file *file, char *buf,
-		     unsigned long count)
+static long lcd_read(struct inode *inode, struct file *file, char *buf, unsigned long count)
 {
 	long buttons_now;
 
-	if (lcd_waiters > 0)
+	if(lcd_waiters > 0)
 		return -EINVAL;
 
 	lcd_waiters++;
-	while (((buttons_now = (long) button_pressed()) == 0) &&
-	       !(signal_pending(current))) {
+	while(((buttons_now = (long)button_pressed()) == 0) &&
+	      !(signal_pending(current))) {
 		current->state = TASK_INTERRUPTIBLE;
 		schedule_timeout(2 * HZ);
 	}
 	lcd_waiters--;
 
-	if (signal_pending(current))
+	if(signal_pending(current))
 		return -ERESTARTSYS;
 	return buttons_now;
 }
@@ -598,20 +551,21 @@ static long lcd_read(struct inode *inode, struct file *file, char *buf,
  */
 
 static struct file_operations lcd_fops = {
-	.read = lcd_read,
-	.ioctl = lcd_ioctl,
-	.open = lcd_open,
+	.read		= lcd_read,
+	.ioctl		= lcd_ioctl,
+	.open		= lcd_open,
 };
 
-static struct miscdevice lcd_dev = {
-	MISC_DYNAMIC_MINOR,
+static struct miscdevice lcd_dev=
+{
+	LCD_MINOR,
 	"lcd",
 	&lcd_fops
 };
 
-static int lcd_init(void)
+int lcd_init(void)
 {
-	unsigned long data;
+unsigned long data;
 
 	printk("%s\n", LCD_DRIVER);
 	misc_register(&lcd_dev);
@@ -621,22 +575,19 @@ static int lcd_init(void)
 
 	udelay(150);
 	data = LCDReadData;
-	if ((data & 0x000000FF) == (0x00)) {
+	if ( (data & 0x000000FF) == (0x00) ) {
 		lcd_present = 0;
 		printk("LCD Not Present\n");
-	} else {
+	        }
+	else {
 		lcd_present = 1;
-		WRITE_GAL(kGal_DevBank2PReg, kGal_DevBank2Cfg);
-		WRITE_GAL(kGal_DevBank3PReg, kGal_DevBank3Cfg);
-	}
+		WRITE_GAL( kGal_DevBank2PReg, kGal_DevBank2Cfg );
+		WRITE_GAL( kGal_DevBank3PReg, kGal_DevBank3Cfg );
+		}
 
 	return 0;
 }
 
-static void __exit lcd_exit(void)
-{
-	misc_deregister(&lcd_dev);
-}
 
 //
 // Function: dqpoll
@@ -649,14 +600,16 @@ static void __exit lcd_exit(void)
 //
 //
 
-static int dqpoll(volatile unsigned long address, volatile unsigned char data)
-{
-	volatile unsigned char dq7;
+int dqpoll( volatile unsigned long address, volatile unsigned char data ) {
 
-	dq7 = data & 0x80;
+volatile unsigned char dq7;
 
-	return ((READ_FLASH(address) & 0x80) == dq7);
+dq7 = data & 0x80;
+
+return ( (READ_FLASH(address) & 0x80) == dq7  );
+
 }
+
 
 //
 // Function: timeout
@@ -669,13 +622,12 @@ static int dqpoll(volatile unsigned long address, volatile unsigned char data)
 //
 // Out: 0 = not timed out, 1 = timed out
 
-static int timeout(volatile unsigned long address)
-{
-	return (READ_FLASH(address) & 0x20) == 0x20;
+int timeout( volatile unsigned long address ) {
+
+
+return (  (READ_FLASH(address) & 0x20) ==  0x20 );
+
 }
 
-module_init(lcd_init);
-module_exit(lcd_exit);
 
-MODULE_AUTHOR("Andrew Bose");
-MODULE_LICENSE("GPL");
+

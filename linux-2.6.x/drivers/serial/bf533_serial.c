@@ -42,7 +42,6 @@
 #include <asm/bitops.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>
-#include <asm/board/cdefBF533.h>
 
 #include "bf533_serial.h"
 
@@ -50,8 +49,8 @@
 #define SERIAL_PARANOIA_CHECK
 
 #define SYNC_ALL	__asm__ __volatile__ ("ssync;\n")
-#define ACCESS_LATCH		*pUART_LCR |= DLAB;
-#define ACCESS_PORT_IER		*pUART_LCR &= (~DLAB);
+#define ACCESS_LATCH		UART_LCR |= UART_LCR_DLAB;
+#define ACCESS_PORT_IER		UART_LCR &= (~UART_LCR_DLAB);
 #ifndef CONFIG_SERIAL_CONSOLE_PORT
 #define	CONFIG_SERIAL_CONSOLE_PORT 0 /* default UART1 as serial console */
 #endif
@@ -320,8 +319,8 @@ static inline int get_baud(struct bf533_serial *info)
         int i;
  
         ACCESS_LATCH /* change access to divisor latch */
-        baud_lo = *pUART_DLL;
-        baud_hi = *pUART_DLH;
+        baud_lo = UART_DLL;
+        baud_hi = UART_DLH;
  
         for (i=0; i<BAUD_TABLE_SIZE ; i++){
                 if ( baud_lo == hw_baud_table[i].dl_low && baud_hi == hw_baud_table[i].dl_high)
@@ -352,7 +351,7 @@ static void rs_stop(struct tty_struct *tty)
 	
 	local_irq_save(flags);
 	   ACCESS_PORT_IER /* Change access to IER & data port */
-	   *pUART_IER = 0;
+	   UART_IER = 0;
 	local_irq_restore(flags);
 }
 
@@ -371,15 +370,15 @@ static void local_put_char(char ch)
 
 	local_irq_save(flags);
 
-	while (!(*pUART_LSR & THRE)) {
+	while (!(UART_LSR & UART_LSR_THRE)) {
 		SYNC_ALL;
 	}
 
 	ACCESS_PORT_IER
-	*pUART_THR = ch;
+	UART_THR = ch;
 	SYNC_ALL;
 	
-/*	while (*pUART_LSR(hub2) & THRE) {
+/*	while (UART_LSR(hub2) & UART_LSR_THRE) {
 		udelay(5);
 	}*/
 
@@ -402,8 +401,8 @@ static void rs_start(struct tty_struct *tty)
 	
 	local_irq_save(flags);
 	ACCESS_PORT_IER	/* Change access to IER & data port */
-	if (info->xmit_cnt && info->xmit_buf && !(*pUART_IER & ETBEI))
-		*pUART_IER |= ETBEI;
+	if (info->xmit_cnt && info->xmit_buf && !(UART_IER & UART_IER_ETBEI))
+		UART_IER |= UART_IER_ETBEI;
 	 
 	local_irq_restore(flags);
 }
@@ -422,7 +421,7 @@ static _INLINE_ void status_handle(struct bf533_serial *info, unsigned short sta
 	 * 'break asserted' status change interrupt
 	 * see if we can drop into the debugger
 	 */
-	if((status & BI) && info->break_abort)
+	if((status & UART_LSR_BI) && info->break_abort)
 		batten_down_hatches();
 	return;
 }
@@ -453,8 +452,8 @@ static void receive_chars(struct bf533_serial *info, struct pt_regs *regs, unsig
 		ch = (unsigned char) rx;
 	
 		if(info->is_cons) {
-			if (*pUART_LSR & BI){ /* break received */ 
-				status_handle(info, *pUART_LSR);
+			if (UART_LSR & UART_LSR_BI){ /* break received */ 
+				status_handle(info, UART_LSR);
 				return;
 			} else if (ch == 0x10) { /* ^P */
 				show_state();
@@ -483,15 +482,15 @@ static void receive_chars(struct bf533_serial *info, struct pt_regs *regs, unsig
 			return;
 		}
 
-		if(*pUART_LSR & PE) {
+		if(UART_LSR & UART_LSR_PE) {
 			*tty->flip.flag_buf_ptr++ = TTY_PARITY;
-			status_handle(info, *pUART_LSR);
-		} else if(*pUART_LSR & OE) {
+			status_handle(info, UART_LSR);
+		} else if(UART_LSR & UART_LSR_OE) {
 			*tty->flip.flag_buf_ptr++ = TTY_OVERRUN;
-			status_handle(info, *pUART_LSR);
-		} else if(*pUART_LSR & FE) {
+			status_handle(info, UART_LSR);
+		} else if(UART_LSR & UART_LSR_FE) {
 			*tty->flip.flag_buf_ptr++ = TTY_FRAME;
-			status_handle(info, *pUART_LSR);
+			status_handle(info, UART_LSR);
 		} else {
 			*tty->flip.flag_buf_ptr++ = 0; /* XXX */
 		}
@@ -500,8 +499,8 @@ static void receive_chars(struct bf533_serial *info, struct pt_regs *regs, unsig
                 *tty->flip.char_buf_ptr++ = ch;
 
 		ACCESS_PORT_IER /* change access to port data */
-		rx = *pUART_RBR;
-	} while(*pUART_LSR & DR);
+		rx = UART_RBR;
+	} while(UART_LSR & UART_LSR_DR);
 
 	schedule_work(&tty->flip.work);
 
@@ -520,7 +519,7 @@ static void transmit_chars(struct bf533_serial *info)
 
 	if((info->xmit_cnt <= 0) || info->tty->stopped) { /* TX ints off */
 		ACCESS_PORT_IER /* Change access to IER & data port */
-		*pUART_IER &= ~ETBEI;
+		UART_IER &= ~UART_IER_ETBEI;
 		goto clear_and_return;
 	}
 
@@ -534,7 +533,7 @@ static void transmit_chars(struct bf533_serial *info)
 
 	if(info->xmit_cnt <= 0) { /* All done for now... TX ints off */
 		ACCESS_PORT_IER /* Change access to IER & data port */
-		*pUART_IER &= ~ETBEI;
+		UART_IER &= ~UART_IER_ETBEI;
 		goto clear_and_return;
 	}
 
@@ -556,35 +555,35 @@ int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	struct bf533_serial *info; // = &bf533_soft[CONFIG_SERIAL_CONSOLE_PORT];
 	unsigned short iir; /* Interrupt Identification Register */
 	unsigned short rx; 
-	unsigned int sic_status = *pSIC_ISR;
+	unsigned int sic_status = SIC_ISR;
 	if (sic_status & 0xC000)
 	{ 
 		/* test bit 10-11 and 12-13 */
-		iir = *pUART_IIR;
+		iir = UART_IIR;
 		info = &bf533_soft;
 
-		if (!(iir & NINT))
+		if (!(iir & UART_IIR_NOINT))
 		{
-			switch (iir & 0x06)
+			switch (iir & UART_IIR_STATUS)
 			{
-		   	case 0x06:
+		   	case UART_IIR_LSR:
 				break;
-		   	case STATUS(2):			/*UART_IIR_RBR:*/
+		   	case UART_IIR_RBR:
 		   		/* Change access to IER & data port */
 				ACCESS_PORT_IER 
-				if (*pUART_LSR & DR){
-				   rx = *pUART_RBR;
+				if (UART_LSR & UART_LSR_DR){
+				   rx = UART_RBR;
 				   receive_chars(info, regs, rx);
 				}
 				break;
-		   	case STATUS_P1:				/*UART_IIR_THR:*/
+		   	case UART_IIR_THR:
 		   		/* Change access to IER & data port */
 				ACCESS_PORT_IER 
-				if (*pUART_LSR & THRE){
+				if (UART_LSR & UART_LSR_THRE){
 				    transmit_chars(info);
 				}
 				break;
-		   	case 	STATUS(0):			/*UART_IIR_MSR:*/
+		   	case UART_IIR_MSR:
 				break;
 	   	   	}
 		}
@@ -655,15 +654,15 @@ static int startup(struct bf533_serial * info)
 	info->xmit_fifo_size = 1;
 	ACCESS_PORT_IER /* Change access to IER & data port */
 		
-	*pUART_GCTL |= UCEN;
+	UART_GCTL |= UART_GCTL_UCEN;
 
-	*pUART_IER = ERBFI | ETBEI | ELSI | 0x08;
-	(void)*pUART_RBR;
+	UART_IER = UART_IER_ERBFI | UART_IER_ETBEI | UART_IER_ELSI | UART_IER_EDDSI;
+	(void)UART_RBR;
 
 	/*
 	 * Finally, enable sequencing and interrupts
 	 */
-	*pUART_IER = ERBFI | ELSI | 0x08;
+	UART_IER = UART_IER_ERBFI | UART_IER_ELSI | UART_IER_EDDSI;
 	bf533_rtsdtr(info, 1);
 
 	if (info->tty)
@@ -699,11 +698,11 @@ static void shutdown(struct bf533_serial * info)
       
 	local_irq_save(flags);
 
-	*pUART_LCR = 0;
+	UART_LCR = 0;
 	ACCESS_PORT_IER /* Change access to IER & data port */
-	*pUART_IER = 0;
+	UART_IER = 0;
 
-	*pUART_GCTL &= ~UCEN;
+	UART_GCTL &= ~UART_GCTL_UCEN;
 
 	
         if (!info->tty || (info->tty->termios->c_cflag & HUPCL))
@@ -737,6 +736,7 @@ static void bf533_change_speed(struct bf533_serial *info)
 
 	local_irq_save(flags);
 	ACCESS_PORT_IER /* Change access to IER & data port */
+/*	UART_IER(idx) = 0;*/  /* disable all interrupts for UART0 */
 
 	i = cflag & CBAUD;
         if (i & CBAUDEX) {
@@ -745,32 +745,32 @@ static void bf533_change_speed(struct bf533_serial *info)
 
 	info->baud = baud_table[i];
 	ACCESS_LATCH	/* change to access of divisor latch */
-	*pUART_DLL = hw_baud_table[i].dl_low;
-	*pUART_DLH = hw_baud_table[i].dl_high;
+	UART_DLL = hw_baud_table[i].dl_low;
+	UART_DLH = hw_baud_table[i].dl_high;
 
-	*pUART_LCR &= DLAB; /* clear all except DLAB bit */
-	uart_lcr = *pUART_LCR;
+	UART_LCR &= UART_LCR_DLAB; /* clear all except DLAB bit */
+	uart_lcr = UART_LCR;
 
 	switch (cflag & CSIZE) {
-	case CS6:	uart_lcr |= WLS(6); break;
-	case CS7:	uart_lcr |= WLS(7); break;
-	case CS8:	uart_lcr |= WLS(8); break;
+	case CS6:	uart_lcr |= UART_LCR_WLS6; break;
+	case CS7:	uart_lcr |= UART_LCR_WLS7; break;
+	case CS8:	uart_lcr |= UART_LCR_WLS8; break;
 	default: 	break;
 	}
 		
 	if (cflag & CSTOPB)
-		uart_lcr |= STB;
+		uart_lcr |= UART_LCR_STB;
 
 	if (cflag & PARENB){
-		uart_lcr |= PEN;
+		uart_lcr |= UART_LCR_PEN;
 		if (cflag & PARODD)
-		uart_lcr &= ~(EPS | STP);
+		uart_lcr &= ~(UART_LCR_EPS | UART_LCR_SP);
 	}
 
         if (cflag & CRTSCTS) {
-		uart_lcr |= SB;
+		uart_lcr |= UART_LCR_SB;
         }
-		*pUART_LCR = uart_lcr;
+		UART_LCR = uart_lcr;
 
 	local_irq_restore(flags);
 	return;
@@ -806,10 +806,10 @@ static void rs_flush_chars(struct tty_struct *tty)
 
 		ACCESS_PORT_IER /* Change access to IER & data port */
 #ifdef USE_INTS
-		*pUART_IER |= ETBEI;
-		if (*pUART_LSR & TEMT) {
+		UART_IER |= UART_IER_ETBEI;
+		if (UART_LSR & UART_LSR_TEMT) {
 #else
-		*pUART_IER = 0; /* disable all interrupts for UART0  */
+		UART_IER = 0; /* disable all interrupts for UART0  */
 		if (1) {
 #endif
 			/* Send char */
@@ -819,7 +819,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 		}
 
 #ifndef USE_INTS
-		while (!(*pUART_LSR & TEMT)) 
+		while (!(UART_LSR & UART_LSR_TEMT)) 
 			SYNC_ALL;
 	}
 #endif
@@ -868,14 +868,14 @@ static int rs_write(struct tty_struct * tty, int from_user,
 		local_irq_save(flags);
 #ifdef USE_INTS
 		ACCESS_PORT_IER /* Change access to IER & data port */
-		*pUART_IER |= ETBEI;
+		UART_IER |= UART_IER_ETBEI;
 #else
 		while(info->xmit_cnt) {
 #endif
-		while (!(*pUART_LSR & TEMT))
+		while (!(UART_LSR & UART_LSR_TEMT))
 			SYNC_ALL;
 
-		if (*pUART_LSR & TEMT) {
+		if (UART_LSR & UART_LSR_TEMT) {
 			local_put_char(info->xmit_buf[info->xmit_tail++]);
 			info->xmit_tail = info->xmit_tail&(SERIAL_XMIT_SIZE-1);
 			info->xmit_cnt--;
@@ -1068,9 +1068,9 @@ static void send_break(	struct bf533_serial * info, int duration)
 
         current->state = TASK_INTERRUPTIBLE;
 	local_irq_save(flags);
-	*pUART_LCR |= SB;
+	UART_LCR |= UART_LCR_SB;
         schedule_timeout(duration);
-	*pUART_LCR &= ~SB;
+	UART_LCR &= ~UART_LCR_SB;
 	local_irq_restore(flags);
 }
 
@@ -1240,7 +1240,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	 */
 
 	ACCESS_PORT_IER /* Change access to IER & data port */
-	*pUART_IER = 0;
+	UART_IER = 0;
 
 	shutdown(info);
 	if (tty->driver->flush_buffer)
@@ -1268,6 +1268,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	info->flags &= ~(S_NORMAL_ACTIVE|S_CALLOUT_ACTIVE|
 			 S_CLOSING);
 	wake_up_interruptible(&info->close_wait);
+/*	restore_flags(flags);*/
 	local_irq_restore(flags);
 }
 
@@ -1405,6 +1406,7 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 	if ((line < 0) || (line >= NR_PORTS)) 
 		return -ENODEV;
 
+/*	info = bf533_soft + line;	*/
 	info = &bf533_soft;
 
 	if (serial_paranoia_check(info, tty->name, "rs_open"))
@@ -1465,11 +1467,17 @@ static */ int __init rs_bf533_init(void)
 	bf533_serial_driver = alloc_tty_driver(NR_PORTS);
 	if (!bf533_serial_driver)
 		return -ENOMEM;
+/*
+	bf533_callout_driver = alloc_tty_driver(NR_PORTS);
+	if (!bf533_callout_driver)
+		return -ENOMEM;
+*/
 	/* Setup base handler, and timer table. */
 	show_serial_version();
 
 	/* Initialize the tty_driver structure */
 	/* NOTE: Not all of this is exactly right for us. */
+	
 	bf533_serial_driver->magic = TTY_DRIVER_MAGIC;
 	bf533_serial_driver->name = "ttyS";
 	bf533_serial_driver->major = TTY_MAJOR;
@@ -1529,7 +1537,24 @@ static */ int __init rs_bf533_init(void)
 
 	return 0;
 }
+
+/*
+ * register_serial and unregister_serial allows for serial ports to be
+ * configured at run-time, to support PCMCIA modems.
+ */
+/* NOTE : Unused at this time, just here to make things link. */
+/*int register_serial(struct serial_struct *req)
+{
+	return -1;
+}
+
+void unregister_serial(int line)
+{
+	return;
+}*/
+	
 module_init(rs_bf533_init);
+
 
 /* setting console baud rate: CONFIG_SERIAL_CONSOLE_PORT */
 static void bf533_set_baud( void )
@@ -1538,7 +1563,7 @@ static void bf533_set_baud( void )
 
 	/* Change access to IER & data port */
 	ACCESS_PORT_IER 
-	*pUART_IER &= ~ETBEI;
+	UART_IER &= ~UART_IER_ETBEI;
 
 again:
 	for (i = 0; i < sizeof(baud_table) / sizeof(baud_table[0]); i++)
@@ -1550,17 +1575,17 @@ again:
 	}
 
 	ACCESS_LATCH /*Set to access divisor latch*/
-	*pUART_DLL = hw_baud_table[i].dl_low;
-	*pUART_DLH = hw_baud_table[i].dl_high;
+	UART_DLL = hw_baud_table[i].dl_low;
+	UART_DLH = hw_baud_table[i].dl_high;
 
-	*pUART_LCR |= WLS(8);
-	*pUART_LCR &= ~PEN;
+	UART_LCR |= UART_LCR_WLS8;
+	UART_LCR &= ~UART_LCR_PEN;
 
 	/* Change access to IER & data port */
 	ACCESS_PORT_IER 
-        *pUART_IER |=(ETBEI | ELSI);
+        UART_IER |=(UART_IER_ETBEI | UART_IER_ELSI);
 	/* Enable the UART */
-	*pUART_GCTL |= UCEN;
+	UART_GCTL |= UART_GCTL_UCEN;
 
 	bf533_console_initted = 1;
 	return;
@@ -1621,10 +1646,9 @@ static struct console bf533_driver = {
 	.index		CONFIG_SERIAL_CONSOLE_PORT,
 };
 
-static int bf533_console_init(void)
+void bf533_console_init(void)
 {
 	register_console(&bf533_driver);
-	return 0;
 }
 
 console_initcall(bf533_console_init); 

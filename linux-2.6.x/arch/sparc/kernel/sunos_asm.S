@@ -9,6 +9,7 @@
  * Copyright (C) 1995 Adrian M. Rodriguez (adrian@remus.rutgers.edu)
  */
 
+#include <asm/cprefix.h>
 #include <asm/ptrace.h>
 
 	.text
@@ -18,50 +19,50 @@
 	 * value as in [%sp + STACKFRAME_SZ + PT_I0] */
 
 	/* SunOS getpid() returns pid in %o0 and ppid in %o1 */
-	.globl	sunos_getpid
-sunos_getpid:
-	call	sys_getppid
+	.globl	C_LABEL(sunos_getpid)
+C_LABEL(sunos_getpid):
+	call	C_LABEL(sys_getppid)
 	 nop
 
-	call	sys_getpid
+	call	C_LABEL(sys_getpid)
 	 st	%o0, [%sp + STACKFRAME_SZ + PT_I1]
 
-	b	ret_sys_call
+	b	C_LABEL(ret_sys_call)
 	 st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
 
 	/* SunOS getuid() returns uid in %o0 and euid in %o1 */
-	.globl	sunos_getuid
-sunos_getuid:
-	call	sys_geteuid16
+	.globl	C_LABEL(sunos_getuid)
+C_LABEL(sunos_getuid):
+	call	C_LABEL(sys_geteuid16)
 	 nop
 
-	call	sys_getuid16
+	call	C_LABEL(sys_getuid16)
 	 st	%o0, [%sp + STACKFRAME_SZ + PT_I1]
 
-	b	ret_sys_call
+	b	C_LABEL(ret_sys_call)
 	 st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
 
 	/* SunOS getgid() returns gid in %o0 and egid in %o1 */
-	.globl	sunos_getgid
-sunos_getgid:
-	call	sys_getegid16
+	.globl	C_LABEL(sunos_getgid)
+C_LABEL(sunos_getgid):
+	call	C_LABEL(sys_getegid16)
 	 nop
 
-	call	sys_getgid16
+	call	C_LABEL(sys_getgid16)
 	 st	%o0, [%sp + STACKFRAME_SZ + PT_I1]
 
-	b	ret_sys_call
+	b	C_LABEL(ret_sys_call)
 	 st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
 
 	/* SunOS's execv() call only specifies the argv argument, the
 	 * environment settings are the same as the calling processes.
 	 */
-	.globl	sunos_execv
-sunos_execv:
+	.globl	C_LABEL(sunos_execv)
+C_LABEL(sunos_execv):
 	st	%g0, [%sp + STACKFRAME_SZ + PT_I2]
 
-	call	sparc_execve
+	call	C_LABEL(sparc_execve)
 	 add	%sp, STACKFRAME_SZ, %o0
 
-	b	ret_sys_call
+	b	C_LABEL(ret_sys_call)
 	 ld	[%sp + STACKFRAME_SZ + PT_I0], %o0

@@ -26,6 +26,3 @@ extern void display_cacheinfo(struct cpuinfo_x86 *c);
 
 extern void generic_identify(struct cpuinfo_x86 * c);
 extern int have_cpuid_p(void);
-
-extern void early_intel_workaround(struct cpuinfo_x86 *c);
-

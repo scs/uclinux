@@ -42,7 +42,7 @@ onchip_setup(dsp);
  */
 static void __init cache_init(void)
 {
-	unsigned long ccr, flags;
+	unsigned long ccr, flags = 0;
 
 	if (cpu_data->type == CPU_SH_NONE)
 		panic("Unknown CPU");
@@ -54,51 +54,39 @@ static void __init cache_init(void)
 	 * If the cache is already enabled .. flush it.
 	 */
 	if (ccr & CCR_CACHE_ENABLE) {
-		unsigned long ways, waysize, addrstart;
+		unsigned long entries, i, j;
 
-		waysize = cpu_data->dcache.sets;
+		entries = cpu_data->dcache.sets;
 
 		/*
 		 * If the OC is already in RAM mode, we only have
 		 * half of the entries to flush..
 		 */
 		if (ccr & CCR_CACHE_ORA)
-			waysize >>= 1;
+			entries >>= 1;
 
-		waysize <<= cpu_data->dcache.entry_shift;
+		for (i = 0; i < entries; i++) {
+			for (j = 0; j < cpu_data->dcache.ways; j++) {
+				unsigned long data, addr;
 
-#ifdef CCR_CACHE_EMODE
-		/* If EMODE is not set, we only have 1 way to flush. */
-		if (!(ccr & CCR_CACHE_EMODE))
-			ways = 1;
-		else
-#endif
-			ways = cpu_data->dcache.ways;
+				addr = CACHE_OC_ADDRESS_ARRAY |
+					(j << cpu_data->dcache.way_shift) |
+					(i << cpu_data->dcache.entry_shift);
 
-		addrstart = CACHE_OC_ADDRESS_ARRAY;
-		do {
-			unsigned long addr;
+				data = ctrl_inl(addr);
 
-			for (addr = addrstart;
-			     addr < addrstart + waysize;
-			     addr += cpu_data->dcache.linesz)
-				ctrl_outl(0, addr);
-
-			addrstart += cpu_data->dcache.way_incr;
-		} while (--ways);
+				if ((data & (SH_CACHE_UPDATED | SH_CACHE_VALID))
+					== (SH_CACHE_UPDATED | SH_CACHE_VALID))
+					ctrl_outl(data & ~SH_CACHE_UPDATED, addr);
+			}
+		}
 	}
 
 	/* 
 	 * Default CCR values .. enable the caches
-	 * and invalidate them immediately..
+	 * and flush them immediately..
 	 */
-	flags = CCR_CACHE_ENABLE | CCR_CACHE_INVALIDATE;
-
-#ifdef CCR_CACHE_EMODE
-	/* Force EMODE if possible */
-	if (cpu_data->dcache.ways > 1)
-		flags |= CCR_CACHE_EMODE;
-#endif
+	flags |= CCR_CACHE_ENABLE | CCR_CACHE_INVALIDATE | (ccr & CCR_CACHE_EMODE);
 
 #ifdef CONFIG_SH_WRITETHROUGH
 	/* Turn on Write-through caching */
@@ -153,8 +141,8 @@ static void __init dsp_init(void)
 
 	/* If the DSP bit is still set, this CPU has a DSP */
 	if (sr & SR_DSP)
-		cpu_data->flags |= CPU_HAS_DSP;
-
+		set_bit(CPU_HAS_DSP, &(cpu_data->flags));
+	
 	/* Now that we've determined the DSP status, clear the DSP bit. */
 	release_dsp();
 }
@@ -188,11 +176,11 @@ asmlinkage void __init sh_cpu_init(void)
 	if (fpu_disabled) {
 		printk("FPU Disabled\n");
 		cpu_data->flags &= ~CPU_HAS_FPU;
-		disable_fpu();
+		release_fpu();
 	}
 
 	/* FPU initialization */
-	if ((cpu_data->flags & CPU_HAS_FPU)) {
+	if (test_bit(CPU_HAS_FPU, &(cpu_data->flags))) {
 		clear_thread_flag(TIF_USEDFPU);
 		current->used_math = 0;
 	}

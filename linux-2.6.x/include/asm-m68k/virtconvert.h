@@ -8,7 +8,6 @@
 #ifdef __KERNEL__
 
 #include <linux/config.h>
-#include <linux/compiler.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 
@@ -20,8 +19,8 @@
  * Change virtual addresses to physical addresses and vv.
  */
 #ifndef CONFIG_SUN3
-extern unsigned long mm_vtop(unsigned long addr) __attribute_const__;
-extern unsigned long mm_ptov(unsigned long addr) __attribute_const__;
+extern unsigned long mm_vtop(unsigned long addr) __attribute__ ((const));
+extern unsigned long mm_ptov(unsigned long addr) __attribute__ ((const));
 #else
 static inline unsigned long mm_vtop(unsigned long vaddr)
 {
@@ -32,7 +31,7 @@ static inline unsigned long mm_ptov(unsigned long paddr)
 {
 	return (unsigned long)__va(paddr);
 }
-#endif
+#endif 
 
 #ifdef CONFIG_SINGLE_MEMORY_CHUNK
 static inline unsigned long virt_to_phys(void *vaddr)

@@ -27,6 +27,10 @@
 */
 
 #include <linux/config.h>
+#ifdef CONFIG_I2C_DEBUG_CHIP
+#define DEBUG	1
+#endif
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -63,7 +67,6 @@ enum eeprom_nature {
 
 /* Each client has this additional data */
 struct eeprom_data {
-	struct i2c_client client;
 	struct semaphore update_lock;
 	u8 valid;			/* bitfield, bit!=0 if slice is valid */
 	unsigned long last_updated[8];	/* In jiffies, 8 slices */
@@ -155,7 +158,6 @@ static struct bin_attribute eeprom_attr = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO,
-		.owner = THIS_MODULE,
 	},
 	.size = EEPROM_SIZE,
 	.read = eeprom_read,
@@ -189,26 +191,28 @@ int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* OK. For now, we presume we have a valid client. We now create the
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access eeprom_{read,write}_value. */
-	if (!(data = kmalloc(sizeof(struct eeprom_data), GFP_KERNEL))) {
+	if (!(new_client = kmalloc(sizeof(struct i2c_client) +
+				   sizeof(struct eeprom_data),
+				   GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct eeprom_data));
+	memset(new_client, 0x00, sizeof(struct i2c_client) +
+				 sizeof(struct eeprom_data));
 
-	new_client = &data->client;
-	memset(data->data, 0xff, EEPROM_SIZE);
+	data = (struct eeprom_data *) (new_client + 1);
+	memset(data, 0xff, EEPROM_SIZE);
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
 	new_client->adapter = adapter;
 	new_client->driver = &eeprom_driver;
 	new_client->flags = 0;
 
-	/* prevent 24RF08 corruption */
-	i2c_smbus_write_quick(new_client, 0);
-
 	/* Now, we do the remaining detection. It is not there, unless you force
 	   the checksum to work out. */
 	if (checksum) {
+		/* prevent 24RF08 corruption */
+		i2c_smbus_write_quick(new_client, 0);
 		cs = 0;
 		for (i = 0; i <= 0x3e; i++)
 			cs += i2c_smbus_read_byte_data(new_client, i);
@@ -244,7 +248,7 @@ int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 	return 0;
 
 exit_kfree:
-	kfree(data);
+	kfree(new_client);
 exit:
 	return err;
 }
@@ -259,7 +263,7 @@ static int eeprom_detach_client(struct i2c_client *client)
 		return err;
 	}
 
-	kfree(i2c_get_clientdata(client));
+	kfree(client);
 
 	return 0;
 }

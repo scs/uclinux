@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -115,12 +115,20 @@ ktrace_t *xfs_attr_trace_buf;
  * Overall external interface routines.
  *========================================================================*/
 
-int
-xfs_attr_fetch(xfs_inode_t *ip, char *name, int namelen,
-	       char *value, int *valuelenp, int flags, struct cred *cred)
+/*ARGSUSED*/
+STATIC int
+xfs_attr_get_int(xfs_inode_t *ip, char *name, char *value, int *valuelenp,
+	     int flags, int lock, struct cred *cred)
 {
 	xfs_da_args_t   args;
 	int             error;
+	int             namelen;
+
+	ASSERT(MAXNAMELEN-1 <= 0xff);	/* length is stored in uint8 */
+	namelen = strlen(name);
+	if (namelen >= MAXNAMELEN)
+		return(EFAULT);		/* match IRIX behaviour */
+	XFS_STATS_INC(xs_attr_get);
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return(EIO);
@@ -130,11 +138,12 @@ xfs_attr_fetch(xfs_inode_t *ip, char *name, int namelen,
 	     ip->i_d.di_anextents == 0))
 		return(ENOATTR);
 
-	if (!(flags & ATTR_KERNACCESS)) {
+	if (lock) {
 		xfs_ilock(ip, XFS_ILOCK_SHARED);
-
-		if (!(flags & ATTR_SECURE) &&
-		    ((error = xfs_iaccess(ip, S_IRUSR, cred)))) {
+		/*
+		 * Do we answer them, or ignore them?
+		 */
+		if ((error = xfs_iaccess(ip, S_IRUSR, cred))) {
 			xfs_iunlock(ip, XFS_ILOCK_SHARED);
 			return(XFS_ERROR(error));
 		}
@@ -152,6 +161,7 @@ xfs_attr_fetch(xfs_inode_t *ip, char *name, int namelen,
 	args.hashval = xfs_da_hashname(args.name, args.namelen);
 	args.dp = ip;
 	args.whichfork = XFS_ATTR_FORK;
+	args.trans = NULL;
 
 	/*
 	 * Decide on what work routines to call based on the inode size.
@@ -168,7 +178,7 @@ xfs_attr_fetch(xfs_inode_t *ip, char *name, int namelen,
 		error = xfs_attr_node_get(&args);
 	}
 
-	if (!(flags & ATTR_KERNACCESS))
+	if (lock)
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 	/*
@@ -182,21 +192,20 @@ xfs_attr_fetch(xfs_inode_t *ip, char *name, int namelen,
 }
 
 int
+xfs_attr_fetch(xfs_inode_t *ip, char *name, char *value, int valuelen)
+{
+	return xfs_attr_get_int(ip, name, value, &valuelen, ATTR_ROOT, 0, NULL);
+}
+
+int
 xfs_attr_get(bhv_desc_t *bdp, char *name, char *value, int *valuelenp,
 	     int flags, struct cred *cred)
 {
 	xfs_inode_t	*ip = XFS_BHVTOI(bdp);
-	int		namelen;
-
-	XFS_STATS_INC(xs_attr_get);
 
 	if (!name)
 		return(EINVAL);
-	namelen = strlen(name);
-	if (namelen >= MAXNAMELEN)
-		return(EFAULT);		/* match IRIX behaviour */
-
-	return xfs_attr_fetch(ip, name, namelen, value, valuelenp, flags, cred);
+	return xfs_attr_get_int(ip, name, value, valuelenp, flags, 1, cred);
 }
 
 /*ARGSUSED*/
@@ -215,20 +224,22 @@ xfs_attr_set(bhv_desc_t *bdp, char *name, char *value, int valuelen, int flags,
 	int             rsvd = (flags & ATTR_ROOT) != 0;
 	int             namelen;
 
+	ASSERT(MAXNAMELEN-1 <= 0xff); /* length is stored in uint8 */
 	namelen = strlen(name);
 	if (namelen >= MAXNAMELEN)
-		return EFAULT;		/* match IRIX behaviour */
+		return EFAULT; /* match irix behaviour */
 
 	XFS_STATS_INC(xs_attr_set);
-
+	/*
+	 * Do we answer them, or ignore them?
+	 */
 	dp = XFS_BHVTOI(bdp);
 	mp = dp->i_mount;
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return (EIO);
 
 	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	if (!(flags & ATTR_SECURE) &&
-	     (error = xfs_iaccess(dp, S_IWUSR, cred))) {
+	if ((error = xfs_iaccess(dp, S_IWUSR, cred))) {
 		xfs_iunlock(dp, XFS_ILOCK_SHARED);
 		return(XFS_ERROR(error));
 	}
@@ -478,14 +489,16 @@ xfs_attr_remove(bhv_desc_t *bdp, char *name, int flags, struct cred *cred)
 
 	XFS_STATS_INC(xs_attr_remove);
 
+	/*
+	 * Do we answer them, or ignore them?
+	 */
 	dp = XFS_BHVTOI(bdp);
 	mp = dp->i_mount;
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return (EIO);
 
 	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	if (!(flags & ATTR_SECURE) &&
-	     (error = xfs_iaccess(dp, S_IWUSR, cred))) {
+	if ((error = xfs_iaccess(dp, S_IWUSR, cred))) {
 		xfs_iunlock(dp, XFS_ILOCK_SHARED);
 		return(XFS_ERROR(error));
 	} else if (XFS_IFORK_Q(dp) == 0 ||
@@ -670,10 +683,11 @@ xfs_attr_list(bhv_desc_t *bdp, char *buffer, int bufsize, int flags,
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return (EIO);
-
+	/*
+	 * Do they have permission?
+	 */
 	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	if (!(flags & ATTR_SECURE) &&
-	     (error = xfs_iaccess(dp, S_IRUSR, cred))) {
+	if ((error = xfs_iaccess(dp, S_IRUSR, cred))) {
 		xfs_iunlock(dp, XFS_ILOCK_SHARED);
 		return(XFS_ERROR(error));
 	}
@@ -2149,8 +2163,8 @@ xfs_attr_rmtval_remove(xfs_da_args_t *args)
 		/*
 		 * If the "remote" value is in the cache, remove it.
 		 */
-		bp = xfs_incore(mp->m_ddev_targp, dblkno, blkcnt,
-				XFS_INCORE_TRYLOCK);
+		/* bp = incore(mp->m_dev, dblkno, blkcnt, 1); */
+		bp = xfs_incore(mp->m_ddev_targp, dblkno, blkcnt, 1);
 		if (bp) {
 			XFS_BUF_STALE(bp);
 			XFS_BUF_UNDELAYWRITE(bp);

@@ -33,8 +33,14 @@
  *
  * Revision history:
  * $Log$
- * Revision 1.1.1.2  2004/09/07 09:25:38  lgsoft
- * Import of 2.6.8
+ * Revision 1.2  2004/09/07 22:13:09  lgsoft
+ * alpha-2.0
+ *
+ * Revision 1.1.1.1  2004/07/19 12:02:52  lgsoft
+ * Import of uClinux 2.6.2
+ *
+ * Revision 1.1.1.1  2004/07/18 13:20:54  nidhi
+ * Importing
  *
  * Revision 1.33  2000/03/09 10:00:00  pvdl,wolff
  * - Fixed module and port counting
@@ -254,13 +260,11 @@
 #define PCI_DEVICE_ID_SPECIALIX_SX_XIO_IO8 0x2000
 #endif
 
-#ifdef CONFIG_PCI
 static struct pci_device_id sx_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SPECIALIX, PCI_DEVICE_ID_SPECIALIX_SX_XIO_IO8, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, sx_pci_tbl);
-#endif /* CONFIG_PCI */
 
 /* Configurable options: 
    (Don't be too sure that it'll work if you toggle them) */
@@ -1425,7 +1429,7 @@ static int sx_open  (struct tty_struct * tty, struct file * filp)
 
 	line = tty->index;
 	sx_dprintk (SX_DEBUG_OPEN, "%d: opening line %d. tty=%p ctty=%p, np=%d)\n", 
-	            current->pid, line, tty, current->signal->tty, sx_nports);
+	            current->pid, line, tty, current->tty, sx_nports);
 
 	if ((line < 0) || (line >= SX_NPORTS) || (line >= sx_nports))
 		return -ENODEV;
@@ -1597,8 +1601,7 @@ static int sx_fw_ioctl (struct inode *inode, struct file *filp,
                         unsigned int cmd, unsigned long arg)
 {
 	int rc = 0;
-	int __user *descr = (int __user *)arg;
-	int i;
+	int *descr = (int *)arg, i;
 	static struct sx_board *board = NULL;
 	int nbytes, offset;
 	unsigned long data;
@@ -1674,7 +1677,7 @@ static int sx_fw_ioctl (struct inode *inode, struct file *filp,
 		get_user (data,	 descr++);
 		while (nbytes && data) {
 			for (i=0;i<nbytes;i += SX_CHUNK_SIZE) {
-				if (copy_from_user(tmp, (char __user *)data+i, 
+				if (copy_from_user(tmp, (char *)data + i, 
 						   (i + SX_CHUNK_SIZE >
 						    nbytes) ? nbytes - i :
 						   	      SX_CHUNK_SIZE)) {
@@ -1749,38 +1752,11 @@ static void sx_break (struct tty_struct * tty, int flag)
 }
 
 
-static int sx_tiocmget(struct tty_struct *tty, struct file *file)
-{
-	struct sx_port *port = tty->driver_data;
-	return sx_getsignals(port);
-}
-
-static int sx_tiocmset(struct tty_struct *tty, struct file *file,
-		       unsigned int set, unsigned int clear)
-{
-	struct sx_port *port = tty->driver_data;
-	int rts = -1, dtr = -1;
-
-	if (set & TIOCM_RTS)
-		rts = 1;
-	if (set & TIOCM_DTR)
-		dtr = 1;
-	if (clear & TIOCM_RTS)
-		rts = 0;
-	if (clear & TIOCM_DTR)
-		dtr = 0;
-
-	sx_setsignals(port, dtr, rts);
-	sx_reconfigure_port(port);
-	return 0;
-}
-
 static int sx_ioctl (struct tty_struct * tty, struct file * filp, 
                      unsigned int cmd, unsigned long arg)
 {
 	int rc;
 	struct sx_port *port = tty->driver_data;
-	void __user *argp = (void __user *)arg;
 	int ival;
 
 	/* func_enter2(); */
@@ -1789,20 +1765,52 @@ static int sx_ioctl (struct tty_struct * tty, struct file * filp,
 	switch (cmd) {
 	case TIOCGSOFTCAR:
 		rc = put_user(((tty->termios->c_cflag & CLOCAL) ? 1 : 0),
-		              (unsigned __user *) argp);
+		              (unsigned int *) arg);
 		break;
 	case TIOCSSOFTCAR:
-		if ((rc = get_user(ival, (unsigned __user *) argp)) == 0) {
+		if ((rc = get_user(ival, (unsigned int *) arg)) == 0) {
 			tty->termios->c_cflag =
 				(tty->termios->c_cflag & ~CLOCAL) |
 				(ival ? CLOCAL : 0);
 		}
 		break;
 	case TIOCGSERIAL:
-		rc = gs_getserial(&port->gs, argp);
+		if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
+		                      sizeof(struct serial_struct))) == 0)
+			rc = gs_getserial(&port->gs, (struct serial_struct *) arg);
 		break;
 	case TIOCSSERIAL:
-		rc = gs_setserial(&port->gs, argp);
+		if ((rc = verify_area(VERIFY_READ, (void *) arg,
+		                      sizeof(struct serial_struct))) == 0)
+			rc = gs_setserial(&port->gs, (struct serial_struct *) arg);
+		break;
+	case TIOCMGET:
+		if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
+		                      sizeof(unsigned int))) == 0) {
+			ival = sx_getsignals(port);
+			put_user(ival, (unsigned int *) arg);
+		}
+		break;
+	case TIOCMBIS:
+		if ((rc = get_user(ival, (unsigned int *) arg)) == 0) {
+			sx_setsignals(port, ((ival & TIOCM_DTR) ? 1 : -1),
+			                     ((ival & TIOCM_RTS) ? 1 : -1));
+			sx_reconfigure_port(port);
+		}
+		break;
+	case TIOCMBIC:
+		if ((rc = get_user(ival, (unsigned int *) arg)) == 0) {
+			sx_setsignals(port, ((ival & TIOCM_DTR) ? 0 : -1),
+			                     ((ival & TIOCM_RTS) ? 0 : -1));
+			sx_reconfigure_port(port);
+		}
+		break;
+	case TIOCMSET:
+		if ((rc = get_user(ival, (unsigned int *) arg)) == 0) {
+			sx_setsignals(port, ((ival & TIOCM_DTR) ? 1 : 0),
+			                     ((ival & TIOCM_RTS) ? 1 : 0));
+			sx_reconfigure_port(port);
+		}
 		break;
 	default:
 		rc = -ENOIOCTLCMD;
@@ -2218,8 +2226,6 @@ static struct tty_operations sx_ops = {
 	.stop = gs_stop,
 	.start = gs_start,
 	.hangup = gs_hangup,
-	.tiocmget = sx_tiocmget,
-	.tiocmset = sx_tiocmset,
 };
 
 static int sx_init_drivers(void)

@@ -27,7 +27,7 @@
 #define FPCR_DYN_PLUS	 (0x3UL << FPCR_DYN_SHIFT)	/* towards +INF */
 #define FPCR_DYN_MASK	 (0x3UL << FPCR_DYN_SHIFT)
 
-#define FPCR_MASK	0xffff800000000000L
+#define FPCR_MASK	0xffff800000000000
 
 /*
  * IEEE trap enables are implemented in software.  These per-thread

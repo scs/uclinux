@@ -71,32 +71,16 @@ unsigned int generic_inl_p(unsigned long port)
 	return v;
 }
 
-/*
- * insb/w/l all read a series of bytes/words/longs from a fixed port
- * address. However as the port address doesn't change we only need to
- * convert the port address to real address once.
- */
-
 void generic_insb(unsigned long port, void *buffer, unsigned long count)
 {
-	volatile unsigned char *port_addr;
 	unsigned char *buf=buffer;
-
-	port_addr = (volatile unsigned char *)PORT2ADDR(port);
-
-	while(count--)
-	    *buf++ = *port_addr;
+	while(count--) *buf++=inb(port);
 }
 
 void generic_insw(unsigned long port, void *buffer, unsigned long count)
 {
-	volatile unsigned short *port_addr;
 	unsigned short *buf=buffer;
-
-	port_addr = (volatile unsigned short *)PORT2ADDR(port);
-
-	while(count--)
-	    *buf++ = *port_addr;
+	while(count--) *buf++=inw(port);
 #ifdef SH3_PCMCIA_BUG_WORKAROUND
 	ctrl_inb (DUMMY_READ_AREA6);
 #endif
@@ -104,13 +88,8 @@ void generic_insw(unsigned long port, void *buffer, unsigned long count)
 
 void generic_insl(unsigned long port, void *buffer, unsigned long count)
 {
-	volatile unsigned long *port_addr;
 	unsigned long *buf=buffer;
-
-	port_addr = (volatile unsigned long *)PORT2ADDR(port);
-
-	while(count--)
-	    *buf++ = *port_addr;
+	while(count--) *buf++=inl(port);
 #ifdef SH3_PCMCIA_BUG_WORKAROUND
 	ctrl_inb (DUMMY_READ_AREA6);
 #endif
@@ -149,33 +128,16 @@ void generic_outl_p(unsigned int b, unsigned long port)
 	delay();
 }
 
-/*
- * outsb/w/l all write a series of bytes/words/longs to a fixed port
- * address. However as the port address doesn't change we only need to
- * convert the port address to real address once.
- */
-
 void generic_outsb(unsigned long port, const void *buffer, unsigned long count)
 {
-	volatile unsigned char *port_addr;
 	const unsigned char *buf=buffer;
-
-	port_addr = (volatile unsigned char *)PORT2ADDR(port);
-
-	while(count--)
-	    *port_addr = *buf++;
+	while(count--) outb(*buf++, port);
 }
 
 void generic_outsw(unsigned long port, const void *buffer, unsigned long count)
 {
-	volatile unsigned short *port_addr;
 	const unsigned short *buf=buffer;
-
-	port_addr = (volatile unsigned short *)PORT2ADDR(port);
-
-	while(count--)
-	    *port_addr = *buf++;
-
+	while(count--) outw(*buf++, port);
 #ifdef SH3_PCMCIA_BUG_WORKAROUND
 	ctrl_inb (DUMMY_READ_AREA6);
 #endif
@@ -183,14 +145,8 @@ void generic_outsw(unsigned long port, const void *buffer, unsigned long count)
 
 void generic_outsl(unsigned long port, const void *buffer, unsigned long count)
 {
-	volatile unsigned long *port_addr;
 	const unsigned long *buf=buffer;
-
-	port_addr = (volatile unsigned long *)PORT2ADDR(port);
-
-	while(count--)
-	    *port_addr = *buf++;
-
+	while(count--) outl(*buf++, port);
 #ifdef SH3_PCMCIA_BUG_WORKAROUND
 	ctrl_inb (DUMMY_READ_AREA6);
 #endif

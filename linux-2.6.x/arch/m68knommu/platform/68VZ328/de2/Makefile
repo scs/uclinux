@@ -2,11 +2,13 @@
 # Makefile for arch/m68knommu/platform/68VZ328/de2.
 #
 
-obj-y := config.o
+obj-$(CONFIG_DRAGEN2) := config.o
 
-EXTRA_TARGETS := bootlogo.rh crt0_$(MODEL).o
+extra-$(CONFIG_DRAGEN2) := crt0_ram.o
 
-$(obj)/bootlogo.rh: $(src)/../../68EZ328/bootlogo.h
-	perl $(src)/../../68328/bootlogo.pl < $(src)/../../68EZ328/bootlogo.h \
-		> $(obj)/bootlogo.rh
+$(obj)/config.o: $(obj)/screen.h
 
+$(obj)/screen.h: $(src)/screen.xbm $(src)/xbm2lcd.pl
+	perl $(src)/xbm2lcd.pl < $(src)/screen.xbm > $(obj)/screen.h
+
+clean-files := $(obj)/screen.h

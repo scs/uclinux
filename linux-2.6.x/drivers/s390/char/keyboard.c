@@ -338,7 +338,7 @@ kbd_keycode(struct kbd_data *kbd, unsigned int keycode)
  * Ioctl stuff.
  */
 static int
-do_kdsk_ioctl(struct kbd_data *kbd, struct kbentry __user *user_kbe,
+do_kdsk_ioctl(struct kbd_data *kbd, struct kbentry *user_kbe,
 	      int cmd, int perm)
 {
 	struct kbentry tmp;
@@ -410,7 +410,7 @@ do_kdsk_ioctl(struct kbd_data *kbd, struct kbentry __user *user_kbe,
 }
 
 static int
-do_kdgkb_ioctl(struct kbd_data *kbd, struct kbsentry __user *u_kbs,
+do_kdgkb_ioctl(struct kbd_data *kbd, struct kbsentry *u_kbs,
 	       int cmd, int perm)
 {
 	unsigned char kb_func;
@@ -464,28 +464,25 @@ int
 kbd_ioctl(struct kbd_data *kbd, struct file *file,
 	  unsigned int cmd, unsigned long arg)
 {
-	struct kbdiacrs __user *a;
-	void __user *argp;
+	struct kbdiacrs *a;
 	int ct, perm;
-
-	argp = (void __user *)arg;
 
 	/*
 	 * To have permissions to do most of the vt ioctls, we either have
 	 * to be the owner of the tty, or have CAP_SYS_TTY_CONFIG.
 	 */
-	perm = current->signal->tty == kbd->tty || capable(CAP_SYS_TTY_CONFIG);
+	perm = current->tty == kbd->tty || capable(CAP_SYS_TTY_CONFIG);
 	switch (cmd) {
 	case KDGKBTYPE:
-		return put_user(KB_101, (char __user *)argp);
+		return put_user(KB_101, (char*) arg);
 	case KDGKBENT:
 	case KDSKBENT:
-		return do_kdsk_ioctl(kbd, argp, cmd, perm);
+		return do_kdsk_ioctl(kbd, (struct kbentry *)arg, cmd, perm);
 	case KDGKBSENT:
 	case KDSKBSENT:
-		return do_kdgkb_ioctl(kbd, argp, cmd, perm);
+		return do_kdgkb_ioctl(kbd, (struct kbsentry *)arg, cmd, perm);
 	case KDGKBDIACR:
-		a = argp;
+		a = (struct kbdiacrs *) arg;
 
 		if (put_user(kbd->accent_table_size, &a->kb_cnt))
 			return -EFAULT;
@@ -495,7 +492,7 @@ kbd_ioctl(struct kbd_data *kbd, struct file *file,
 			return -EFAULT;
 		return 0;
 	case KDSKBDIACR:
-		a = argp;
+		a = (struct kbdiacrs *) arg;
 		if (!perm)
 			return -EPERM;
 		if (get_user(ct, &a->kb_cnt))

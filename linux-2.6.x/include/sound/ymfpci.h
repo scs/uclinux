@@ -25,7 +25,6 @@
 #include "pcm.h"
 #include "rawmidi.h"
 #include "ac97_codec.h"
-#include "timer.h"
 #include <linux/gameport.h>
 
 #ifndef PCI_VENDOR_ID_YAMAHA
@@ -312,12 +311,15 @@ struct _snd_ymfpci {
 
 	unsigned short old_legacy_ctrl;
 #if defined(CONFIG_GAMEPORT) || defined(CONFIG_GAMEPORT_MODULE)
+	unsigned int joystick_port;
+	struct semaphore joystick_mutex;
 	struct resource *joystick_res;
 	struct gameport gameport;
 #endif
 
-	struct snd_dma_device dma_dev;
-	struct snd_dma_buffer work_ptr;
+	void *work_ptr;
+	dma_addr_t work_ptr_addr;
+	unsigned long work_ptr_size;
 
 	unsigned int bank_size_playback;
 	unsigned int bank_size_capture;
@@ -332,7 +334,8 @@ struct _snd_ymfpci {
 	dma_addr_t bank_base_capture_addr;
 	dma_addr_t bank_base_effect_addr;
 	dma_addr_t work_base_addr;
-	struct snd_dma_buffer ac3_tmp_base;
+	void *ac3_tmp_base;
+	dma_addr_t ac3_tmp_base_addr;
 
 	u32 *ctrl_playback;
 	snd_ymfpci_playback_bank_t *bank_playback[YDSXG_PLAYBACK_VOICES][2];
@@ -344,10 +347,8 @@ struct _snd_ymfpci {
 	u32 active_bank;
 	ymfpci_voice_t voices[64];
 
-	ac97_bus_t *ac97_bus;
 	ac97_t *ac97;
 	snd_rawmidi_t *rawmidi;
-	snd_timer_t *timer;
 
 	struct pci_dev *pci;
 	snd_card_t *card;
@@ -388,13 +389,16 @@ int snd_ymfpci_pcm2(ymfpci_t *chip, int device, snd_pcm_t **rpcm);
 int snd_ymfpci_pcm_spdif(ymfpci_t *chip, int device, snd_pcm_t **rpcm);
 int snd_ymfpci_pcm_4ch(ymfpci_t *chip, int device, snd_pcm_t **rpcm);
 int snd_ymfpci_mixer(ymfpci_t *chip, int rear_switch);
-int snd_ymfpci_timer(ymfpci_t *chip, int device);
+#if defined(CONFIG_GAMEPORT) || defined(CONFIG_GAMEPORT_MODULE)
+int snd_ymfpci_joystick(ymfpci_t *chip);
+#endif
 
 int snd_ymfpci_voice_alloc(ymfpci_t *chip, ymfpci_voice_type_t type, int pair, ymfpci_voice_t **rvoice);
 int snd_ymfpci_voice_free(ymfpci_t *chip, ymfpci_voice_t *pvoice);
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
-#define SUPPORT_JOYSTICK
+#ifdef CONFIG_PM
+void snd_ymfpci_suspend(ymfpci_t *chip);
+void snd_ymfpci_resume(ymfpci_t *chip);
 #endif
 
 #endif /* __SOUND_YMFPCI_H */

@@ -50,7 +50,7 @@ static struct resource sun4c_intr_eb = { "sun4c_intr" };
  *
  * so don't go making it static, like I tried. sigh.
  */
-unsigned char *interrupt_enable = NULL;
+unsigned char *interrupt_enable = 0;
 
 static int sun4c_pil_map[] = { 0, 1, 2, 3, 5, 7, 8, 9 };
 
@@ -68,7 +68,7 @@ static void sun4c_disable_irq(unsigned int irq_nr)
 	unsigned long flags;
 	unsigned char current_mask, new_mask;
     
-	local_irq_save(flags);
+	save_and_cli(flags);
 	irq_nr &= (NR_IRQS - 1);
 	current_mask = *interrupt_enable;
 	switch(irq_nr) {
@@ -85,11 +85,11 @@ static void sun4c_disable_irq(unsigned int irq_nr)
 		new_mask = ((current_mask) & (~(SUN4C_INT_E14)));
 		break;
 	default:
-		local_irq_restore(flags);
+		restore_flags(flags);
 		return;
 	}
 	*interrupt_enable = new_mask;
-	local_irq_restore(flags);
+	restore_flags(flags);
 }
 
 static void sun4c_enable_irq(unsigned int irq_nr)
@@ -97,7 +97,7 @@ static void sun4c_enable_irq(unsigned int irq_nr)
 	unsigned long flags;
 	unsigned char current_mask, new_mask;
     
-	local_irq_save(flags);
+	save_and_cli(flags);
 	irq_nr &= (NR_IRQS - 1);
 	current_mask = *interrupt_enable;
 	switch(irq_nr) {
@@ -114,11 +114,11 @@ static void sun4c_enable_irq(unsigned int irq_nr)
 		new_mask = ((current_mask) | SUN4C_INT_E14);
 		break;
 	default:
-		local_irq_restore(flags);
+		restore_flags(flags);
 		return;
 	}
 	*interrupt_enable = new_mask;
-	local_irq_restore(flags);
+	restore_flags(flags);
 }
 
 #define TIMER_IRQ  	10    /* Also at level 14, but we ignore that one. */

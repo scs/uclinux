@@ -129,10 +129,6 @@ enum
 	KERN_HPPA_UNALIGNED=59,	/* int: hppa unaligned-trap enable */
 	KERN_PRINTK_RATELIMIT=60, /* int: tune printk ratelimiting */
 	KERN_PRINTK_RATELIMIT_BURST=61,	/* int: tune printk ratelimiting */
-	KERN_PTY=62,		/* dir: pty driver */
-	KERN_NGROUPS_MAX=63,	/* int: NGROUPS_MAX */
-	KERN_SPARC_SCONS_PWROFF=64, /* int: serial console power-off halt */
-	KERN_HZ_TIMER=65,	/* int: hz timer on or off */
 };
 
 
@@ -160,11 +156,6 @@ enum
 	VM_SWAPPINESS=19,	/* Tendency to steal mapped memory */
 	VM_LOWER_ZONE_PROTECTION=20,/* Amount of protection of lower zones */
 	VM_MIN_FREE_KBYTES=21,	/* Minimum free kilobytes to maintain */
-	VM_MAX_MAP_COUNT=22,	/* int: Maximum number of mmaps/address-space */
-	VM_LAPTOP_MODE=23,	/* vm laptop mode */
-	VM_BLOCK_DUMP=24,	/* block dump mode */
-	VM_HUGETLB_GROUP=25,	/* permitted hugetlb group */
-	VM_VFS_CACHE_PRESSURE=26, /* dcache/icache reclaim pressure */
 };
 
 
@@ -199,13 +190,6 @@ enum
 	RANDOM_WRITE_THRESH=4,
 	RANDOM_BOOT_ID=5,
 	RANDOM_UUID=6
-};
-
-/* /proc/sys/kernel/pty */
-enum
-{
-	PTY_MAX=1,
-	PTY_NR=2
 };
 
 /* /proc/sys/bus/isa */
@@ -327,18 +311,6 @@ enum
 	NET_TCP_FRTO=92,
 	NET_TCP_LOW_LATENCY=93,
 	NET_IPV4_IPFRAG_SECRET_INTERVAL=94,
-	NET_TCP_WESTWOOD=95,
-	NET_IPV4_IGMP_MAX_MSF=96,
-	NET_TCP_NO_METRICS_SAVE=97,
-	NET_TCP_VEGAS=98,
-	NET_TCP_VEGAS_ALPHA=99,
-	NET_TCP_VEGAS_BETA=100,
-	NET_TCP_VEGAS_GAMMA=101,
- 	NET_TCP_BIC=102,
- 	NET_TCP_BIC_FAST_CONVERGENCE=103,
-	NET_TCP_BIC_LOW_WINDOW=104,
-	NET_TCP_DEFAULT_WIN_SCALE=105,
-	NET_TCP_MODERATE_RCVBUF=106,
 };
 
 enum {
@@ -388,9 +360,6 @@ enum
 	NET_IPV4_CONF_MEDIUM_ID=14,
 	NET_IPV4_CONF_NOXFRM=15,
 	NET_IPV4_CONF_NOPOLICY=16,
-	NET_IPV4_CONF_FORCE_IGMP_VERSION=17,
-	NET_IPV4_CONF_ARP_ANNOUNCE=18,
-	NET_IPV4_CONF_ARP_IGNORE=19,
 };
 
 /* /proc/sys/net/ipv4/netfilter */
@@ -409,7 +378,6 @@ enum
 	NET_IPV4_NF_CONNTRACK_UDP_TIMEOUT_STREAM=11,
 	NET_IPV4_NF_CONNTRACK_ICMP_TIMEOUT=12,
 	NET_IPV4_NF_CONNTRACK_GENERIC_TIMEOUT=13,
-	NET_IPV4_NF_CONNTRACK_BUCKETS=14,
 };
  
 /* /proc/sys/net/ipv6 */
@@ -422,8 +390,7 @@ enum {
 	NET_IPV6_IP6FRAG_HIGH_THRESH=21,
 	NET_IPV6_IP6FRAG_LOW_THRESH=22,
 	NET_IPV6_IP6FRAG_TIME=23,
-	NET_IPV6_IP6FRAG_SECRET_INTERVAL=24,
-	NET_IPV6_MLD_MAX_MSF=25,
+	NET_IPV6_IP6FRAG_SECRET_INTERVAL=24
 };
 
 enum {
@@ -454,8 +421,7 @@ enum {
 	NET_IPV6_TEMP_PREFERED_LFT=13,
 	NET_IPV6_REGEN_MAX_RETRY=14,
 	NET_IPV6_MAX_DESYNC_FACTOR=15,
-	NET_IPV6_MAX_ADDRESSES=16,
-	NET_IPV6_FORCE_MLD_VERSION=17
+	NET_IPV6_MAX_ADDRESSES=16
 };
 
 /* /proc/sys/net/ipv6/icmp */
@@ -615,7 +581,6 @@ enum {
 	NET_SCTP_PRESERVE_ENABLE         = 11,
 	NET_SCTP_MAX_BURST               = 12,
 	NET_SCTP_ADDIP_ENABLE		 = 13,
-	NET_SCTP_PRSCTP_ENABLE		 = 14,
 };
 
 /* /proc/sys/net/bridge */
@@ -648,8 +613,6 @@ enum
 	FS_LEASE_TIME=15,	/* int: maximum time to wait for a lease break */
 	FS_DQSTATS=16,	/* disc quota usage statistics */
 	FS_XFS=17,	/* struct: control xfs parameters */
-	FS_AIO_NR=18,	/* current system-wide number of aio requests */
-	FS_AIO_MAX_NR=19,	/* system-wide maximum number of aio requests */
 };
 
 /* /proc/sys/fs/quota/ */
@@ -752,6 +715,7 @@ enum
 
 #ifdef __KERNEL__
 
+extern asmlinkage long sys_sysctl(struct __sysctl_args __user *);
 extern void sysctl_init(void);
 
 typedef struct ctl_table ctl_table;
@@ -762,24 +726,24 @@ typedef int ctl_handler (ctl_table *table, int __user *name, int nlen,
 			 void **context);
 
 typedef int proc_handler (ctl_table *ctl, int write, struct file * filp,
-			  void __user *buffer, size_t *lenp, loff_t *ppos);
+			  void __user *buffer, size_t *lenp);
 
 extern int proc_dostring(ctl_table *, int, struct file *,
-			 void __user *, size_t *, loff_t *);
+			 void __user *, size_t *);
 extern int proc_dointvec(ctl_table *, int, struct file *,
-			 void __user *, size_t *, loff_t *);
+			 void __user *, size_t *);
 extern int proc_dointvec_bset(ctl_table *, int, struct file *,
-			      void __user *, size_t *, loff_t *);
+			      void __user *, size_t *);
 extern int proc_dointvec_minmax(ctl_table *, int, struct file *,
-				void __user *, size_t *, loff_t *);
+				void __user *, size_t *);
 extern int proc_dointvec_jiffies(ctl_table *, int, struct file *,
-				 void __user *, size_t *, loff_t *);
+				 void __user *, size_t *);
 extern int proc_dointvec_userhz_jiffies(ctl_table *, int, struct file *,
-					void __user *, size_t *, loff_t *);
+					void __user *, size_t *);
 extern int proc_doulongvec_minmax(ctl_table *, int, struct file *,
-				  void __user *, size_t *, loff_t *);
+				  void __user *, size_t *);
 extern int proc_doulongvec_ms_jiffies_minmax(ctl_table *table, int,
-				      struct file *, void __user *, size_t *, loff_t *);
+				      struct file *, void __user *, size_t *);
 
 extern int do_sysctl (int __user *name, int nlen,
 		      void __user *oldval, size_t __user *oldlenp,

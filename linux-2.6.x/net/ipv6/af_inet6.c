@@ -56,12 +56,18 @@
 #include <net/transp_v6.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
-#ifdef CONFIG_IPV6_TUNNEL
+#if CONFIG_IPV6_TUNNEL
 #include <net/ip6_tunnel.h>
 #endif
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
+
+#if 0 /*def MODULE*/
+static int unloadable;     /* XX: Turn to one when all is ok within the
+			      module for allowing unload */
+MODULE_PARM(unloadable, "i");
+#endif
 
 MODULE_AUTHOR("Cast of dozens");
 MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
@@ -82,6 +88,11 @@ extern int ac6_proc_init(void);
 extern void ac6_proc_exit(void);
 extern int if6_proc_init(void);
 extern void if6_proc_exit(void);
+#endif
+
+#ifdef CONFIG_SYSCTL
+extern void ipv6_sysctl_register(void);
+extern void ipv6_sysctl_unregister(void);
 #endif
 
 int sysctl_ipv6_bindv6only;
@@ -250,7 +261,7 @@ static int inet6_create(struct socket *sock, int protocol)
 	if (sk->sk_prot->init) {
 		int err = sk->sk_prot->init(sk);
 		if (err != 0) {
-			sk_common_release(sk);
+			inet_sock_release(sk);
 			return err;
 		}
 	}
@@ -453,7 +464,7 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 		if (np->sndflow)
 			sin->sin6_flowinfo = np->flow_label;
 	} else {
-		if (ipv6_addr_any(&np->rcv_saddr))
+		if (ipv6_addr_type(&np->rcv_saddr) == IPV6_ADDR_ANY)
 			ipv6_addr_copy(&sin->sin6_addr, &np->saddr);
 		else
 			ipv6_addr_copy(&sin->sin6_addr, &np->rcv_saddr);
@@ -474,23 +485,29 @@ int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	switch(cmd) 
 	{
 	case SIOCGSTAMP:
-		return sock_get_timestamp(sk, (struct timeval __user *)arg);
+		if (!sk->sk_stamp.tv_sec)
+			return -ENOENT;
+		err = copy_to_user((void *)arg, &sk->sk_stamp,
+				   sizeof(struct timeval));
+		if (err)
+			return -EFAULT;
+		return 0;
 
 	case SIOCADDRT:
 	case SIOCDELRT:
 	  
-		return(ipv6_route_ioctl(cmd,(void __user *)arg));
+		return(ipv6_route_ioctl(cmd,(void *)arg));
 
 	case SIOCSIFADDR:
-		return addrconf_add_ifaddr((void __user *) arg);
+		return addrconf_add_ifaddr((void *) arg);
 	case SIOCDIFADDR:
-		return addrconf_del_ifaddr((void __user *) arg);
+		return addrconf_del_ifaddr((void *) arg);
 	case SIOCSIFDSTADDR:
-		return addrconf_set_dstaddr((void __user *) arg);
+		return addrconf_set_dstaddr((void *) arg);
 	default:
 		if (!sk->sk_prot->ioctl ||
 		    (err = sk->sk_prot->ioctl(sk, cmd, arg)) == -ENOIOCTLCMD)
-			return(dev_ioctl(cmd,(void __user *) arg));		
+			return(dev_ioctl(cmd,(void *) arg));		
 		return err;
 	}
 	/*NOTREACHED*/
@@ -510,10 +527,10 @@ struct proto_ops inet6_stream_ops = {
 	.ioctl =	inet6_ioctl,			/* must change  */
 	.listen =	inet_listen,			/* ok		*/
 	.shutdown =	inet_shutdown,			/* ok		*/
-	.setsockopt =	sock_common_setsockopt,		/* ok		*/
-	.getsockopt =	sock_common_getsockopt,		/* ok		*/
+	.setsockopt =	inet_setsockopt,		/* ok		*/
+	.getsockopt =	inet_getsockopt,		/* ok		*/
 	.sendmsg =	inet_sendmsg,			/* ok		*/
-	.recvmsg =	sock_common_recvmsg,		/* ok		*/
+	.recvmsg =	inet_recvmsg,			/* ok		*/
 	.mmap =		sock_no_mmap,
 	.sendpage =	tcp_sendpage
 };
@@ -531,21 +548,32 @@ struct proto_ops inet6_dgram_ops = {
 	.ioctl =	inet6_ioctl,			/* must change  */
 	.listen =	sock_no_listen,			/* ok		*/
 	.shutdown =	inet_shutdown,			/* ok		*/
-	.setsockopt =	sock_common_setsockopt,		/* ok		*/
-	.getsockopt =	sock_common_getsockopt,		/* ok		*/
+	.setsockopt =	inet_setsockopt,		/* ok		*/
+	.getsockopt =	inet_getsockopt,		/* ok		*/
 	.sendmsg =	inet_sendmsg,			/* ok		*/
-	.recvmsg =	sock_common_recvmsg,		/* ok		*/
+	.recvmsg =	inet_recvmsg,			/* ok		*/
 	.mmap =		sock_no_mmap,
 	.sendpage =	sock_no_sendpage,
 };
 
-static struct net_proto_family inet6_family_ops = {
+struct net_proto_family inet6_family_ops = {
 	.family = PF_INET6,
 	.create = inet6_create,
 	.owner	= THIS_MODULE,
 };
 
-#ifdef CONFIG_SYSCTL
+#ifdef MODULE
+#if 0 /* FIXME --RR */
+int ipv6_unload(void)
+{
+	if (!unloadable) return 1;
+	/* We keep internally 3 raw sockets */
+	return atomic_read(&(__this_module.uc.usecount)) - 3;
+}
+#endif
+#endif
+
+#if defined(MODULE) && defined(CONFIG_SYSCTL)
 extern void ipv6_sysctl_register(void);
 extern void ipv6_sysctl_unregister(void);
 #endif
@@ -560,6 +588,8 @@ static struct inet_protosw rawv6_protosw = {
 	.flags		= INET_PROTOSW_REUSE,
 };
 
+#define INETSW6_ARRAY_LEN (sizeof(inetsw6_array) / sizeof(struct inet_protosw))
+
 void
 inet6_register_protosw(struct inet_protosw *p)
 {
@@ -570,7 +600,7 @@ inet6_register_protosw(struct inet_protosw *p)
 
 	spin_lock_bh(&inetsw6_lock);
 
-	if (p->type >= SOCK_MAX)
+	if (p->type > SOCK_MAX)
 		goto out_illegal;
 
 	/* If we are trying to override a permanent protocol, bail. */
@@ -665,14 +695,14 @@ snmp6_mib_free(void *ptr[2])
 
 static int __init init_ipv6_mibs(void)
 {
-	if (snmp6_mib_init((void **)ipv6_statistics, sizeof (struct ipstats_mib),
-			   __alignof__(struct ipstats_mib)) < 0)
+	if (snmp6_mib_init((void **)ipv6_statistics, sizeof (struct ipv6_mib),
+			   __alignof__(struct ipv6_mib)) < 0)
 		goto err_ip_mib;
 	if (snmp6_mib_init((void **)icmpv6_statistics, sizeof (struct icmpv6_mib),
-			   __alignof__(struct icmpv6_mib)) < 0)
+			   __alignof__(struct ipv6_mib)) < 0)
 		goto err_icmp_mib;
 	if (snmp6_mib_init((void **)udp_stats_in6, sizeof (struct udp_mib),
-			   __alignof__(struct udp_mib)) < 0)
+			   __alignof__(struct ipv6_mib)) < 0)
 		goto err_udp_mib;
 	return 0;
 
@@ -717,13 +747,13 @@ static int __init inet6_init(void)
 	/* allocate our sock slab caches */
         tcp6_sk_cachep = kmem_cache_create("tcp6_sock",
 					   sizeof(struct tcp6_sock), 0,
-                                           SLAB_HWCACHE_ALIGN, NULL, NULL);
+                                           SLAB_HWCACHE_ALIGN, 0, 0);
         udp6_sk_cachep = kmem_cache_create("udp6_sock",
 					   sizeof(struct udp6_sock), 0,
-                                           SLAB_HWCACHE_ALIGN, NULL, NULL);
+                                           SLAB_HWCACHE_ALIGN, 0, 0);
         raw6_sk_cachep = kmem_cache_create("raw6_sock",
 					   sizeof(struct raw6_sock), 0,
-                                           SLAB_HWCACHE_ALIGN, NULL, NULL);
+                                           SLAB_HWCACHE_ALIGN, 0, 0);
         if (!tcp6_sk_cachep || !udp6_sk_cachep || !raw6_sk_cachep)
                 printk(KERN_CRIT "%s: Can't create protocol sock SLAB "
 		       "caches!\n", __FUNCTION__);
@@ -754,7 +784,7 @@ static int __init inet6_init(void)
 	 *	able to communicate via both network protocols.
 	 */
 
-#ifdef CONFIG_SYSCTL
+#if defined(MODULE) && defined(CONFIG_SYSCTL)
 	ipv6_sysctl_register();
 #endif
 	err = icmpv6_init(&inet6_family_ops);
@@ -763,6 +793,11 @@ static int __init inet6_init(void)
 	err = ndisc_init(&inet6_family_ops);
 	if (err)
 		goto ndisc_fail;
+#ifdef CONFIG_IPV6_TUNNEL
+	err = ip6_tunnel_init();
+	if (err)
+		goto ip6_tunnel_fail;
+#endif
 	err = igmp6_init(&inet6_family_ops);
 	if (err)
 		goto igmp_fail;
@@ -816,11 +851,15 @@ proc_raw6_fail:
 	igmp6_cleanup();
 #endif
 igmp_fail:
+#ifdef CONFIG_IPV6_TUNNEL
+	ip6_tunnel_cleanup();
+ip6_tunnel_fail:
+#endif
 	ndisc_cleanup();
 ndisc_fail:
 	icmpv6_cleanup();
 icmp_fail:
-#ifdef CONFIG_SYSCTL
+#if defined(MODULE) && defined(CONFIG_SYSCTL)
 	ipv6_sysctl_unregister();
 #endif
 	cleanup_ipv6_mibs();
@@ -829,7 +868,9 @@ init_mib_fail:
 }
 module_init(inet6_init);
 
-static void __exit inet6_exit(void)
+
+#ifdef MODULE
+static void inet6_exit(void)
 {
 	/* First of all disallow new sockets creation. */
 	sock_unregister(PF_INET6);
@@ -848,6 +889,9 @@ static void __exit inet6_exit(void)
 	ip6_route_cleanup();
 	ipv6_packet_cleanup();
 	igmp6_cleanup();
+#ifdef CONFIG_IPV6_TUNNEL
+	ip6_tunnel_cleanup();
+#endif
 	ndisc_cleanup();
 	icmpv6_cleanup();
 #ifdef CONFIG_SYSCTL
@@ -859,5 +903,6 @@ static void __exit inet6_exit(void)
 	kmem_cache_destroy(raw6_sk_cachep);
 }
 module_exit(inet6_exit);
+#endif /* MODULE */
 
 MODULE_ALIAS_NETPROTO(PF_INET6);

@@ -434,7 +434,7 @@ pnp_set_current_resources(struct device * dmdev, const char * ubuf, size_t count
 		goto done;
 	}
  done:
-	if (retval < 0)
+	if (retval)
 		return retval;
 	return count;
 }

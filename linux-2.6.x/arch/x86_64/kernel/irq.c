@@ -488,7 +488,7 @@ int request_irq(unsigned int irq,
 
 	action->handler = handler;
 	action->flags = irqflags;
-	cpus_clear(action->mask);
+	action->mask = 0;
 	action->name = devname;
 	action->next = NULL;
 	action->dev_id = dev_id;
@@ -826,15 +826,14 @@ static cpumask_t irq_affinity [NR_IRQS] = { [0 ... NR_IRQS-1] = CPU_MASK_ALL };
 static int irq_affinity_read_proc (char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
-	int len = cpumask_scnprintf(page, count, irq_affinity[(long)data]);
+	int len = cpumask_snprintf(page, count, irq_affinity[(long)data]);
 	if (count - len < 2)
 		return -EINVAL;
 	len += sprintf(page + len, "\n");
 	return len;
 }
 
-static int irq_affinity_write_proc (struct file *file,
-					const char __user *buffer,
+static int irq_affinity_write_proc (struct file *file, const char *buffer,
 					unsigned long count, void *data)
 {
 	int irq = (long) data, full_count = count, err;
@@ -865,15 +864,14 @@ static int irq_affinity_write_proc (struct file *file,
 static int prof_cpu_mask_read_proc (char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
-	int len = cpumask_scnprintf(page, count, *(cpumask_t *)data);
+	int len = cpumask_snprintf(page, count, *(cpumask_t *)data);
 	if (count - len < 2)
 		return -EINVAL;
 	len += sprintf(page + len, "\n");
 	return len;
 }
 
-static int prof_cpu_mask_write_proc (struct file *file,
-					const char __user *buffer,
+static int prof_cpu_mask_write_proc (struct file *file, const char *buffer,
 					unsigned long count, void *data)
 {
 	unsigned long full_count = count, err;
@@ -930,7 +928,7 @@ void init_irq_proc (void)
 	int i;
 
 	/* create /proc/irq */
-	root_irq_dir = proc_mkdir("irq", NULL);
+	root_irq_dir = proc_mkdir("irq", 0);
 
 	/* create /proc/irq/prof_cpu_mask */
 	entry = create_proc_entry("prof_cpu_mask", 0600, root_irq_dir);

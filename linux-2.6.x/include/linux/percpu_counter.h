@@ -1,5 +1,3 @@
-#ifndef _LINUX_PERCPU_COUNTER_H
-#define _LINUX_PERCPU_COUNTER_H
 /*
  * A simple "approximate counter" for use in ext2 and ext3 superblocks.
  *
@@ -103,5 +101,3 @@ static inline void percpu_counter_dec(struct percpu_counter *fbc)
 {
 	percpu_counter_mod(fbc, -1);
 }
-
-#endif /* _LINUX_PERCPU_COUNTER_H */

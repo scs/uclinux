@@ -24,7 +24,10 @@
  *
  */
 
+#include <linux/config.h>
+#include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/compiler.h>
 #include <linux/vmalloc.h>
 #include <linux/proc_fs.h>		/* for proc_net_* */
 #include <linux/seq_file.h>
@@ -125,27 +128,25 @@ static unsigned int ip_vs_conn_hashkey(unsigned proto, __u32 addr, __u16 port)
 static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 {
 	unsigned hash;
-	int ret;
+
+	if (cp->flags & IP_VS_CONN_F_HASHED) {
+		IP_VS_ERR("ip_vs_conn_hash(): request for already hashed, "
+			  "called from %p\n", __builtin_return_address(0));
+		return 0;
+	}
 
 	/* Hash by protocol, client address and port */
 	hash = ip_vs_conn_hashkey(cp->protocol, cp->caddr, cp->cport);
 
 	ct_write_lock(hash);
 
-	if (!(cp->flags & IP_VS_CONN_F_HASHED)) {
-		list_add(&cp->c_list, &ip_vs_conn_tab[hash]);
-		cp->flags |= IP_VS_CONN_F_HASHED;
-		atomic_inc(&cp->refcnt);
-		ret = 1;
-	} else {
-		IP_VS_ERR("ip_vs_conn_hash(): request for already hashed, "
-			  "called from %p\n", __builtin_return_address(0));
-		ret = 0;
-	}
+	list_add(&cp->c_list, &ip_vs_conn_tab[hash]);
+	cp->flags |= IP_VS_CONN_F_HASHED;
+	atomic_inc(&cp->refcnt);
 
 	ct_write_unlock(hash);
 
-	return ret;
+	return 1;
 }
 
 
@@ -156,24 +157,24 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
 {
 	unsigned hash;
-	int ret;
+
+	if (!(cp->flags & IP_VS_CONN_F_HASHED)) {
+		IP_VS_ERR("ip_vs_conn_unhash(): request for unhash flagged, "
+			  "called from %p\n", __builtin_return_address(0));
+		return 0;
+	}
 
 	/* unhash it and decrease its reference counter */
 	hash = ip_vs_conn_hashkey(cp->protocol, cp->caddr, cp->cport);
-
 	ct_write_lock(hash);
 
-	if (cp->flags & IP_VS_CONN_F_HASHED) {
-		list_del(&cp->c_list);
-		cp->flags &= ~IP_VS_CONN_F_HASHED;
-		atomic_dec(&cp->refcnt);
-		ret = 1;
-	} else
-		ret = 0;
+	list_del(&cp->c_list);
+	cp->flags &= ~IP_VS_CONN_F_HASHED;
+	atomic_dec(&cp->refcnt);
 
 	ct_write_unlock(hash);
 
-	return ret;
+	return 1;
 }
 
 
@@ -287,18 +288,12 @@ void ip_vs_conn_put(struct ip_vs_conn *cp)
  */
 void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __u16 cport)
 {
-	if (ip_vs_conn_unhash(cp)) {
-		spin_lock(&cp->lock);
-		if (cp->flags & IP_VS_CONN_F_NO_CPORT) {
-			atomic_dec(&ip_vs_conn_no_cport_cnt);
-			cp->flags &= ~IP_VS_CONN_F_NO_CPORT;
-			cp->cport = cport;
-		}
-		spin_unlock(&cp->lock);
-
-		/* hash on new dport */
-		ip_vs_conn_hash(cp);
-	}
+	atomic_dec(&ip_vs_conn_no_cport_cnt);
+	ip_vs_conn_unhash(cp);
+	cp->flags &= ~IP_VS_CONN_F_NO_CPORT;
+	cp->cport = cport;
+	/* hash on new dport */
+	ip_vs_conn_hash(cp);
 }
 
 
@@ -465,14 +460,11 @@ int ip_vs_check_template(struct ip_vs_conn *ct)
 		/*
 		 * Invalidate the connection template
 		 */
-		if (ct->cport) {
-			if (ip_vs_conn_unhash(ct)) {
-				ct->dport = 65535;
-				ct->vport = 65535;
-				ct->cport = 0;
-				ip_vs_conn_hash(ct);
-			}
-		}
+		ip_vs_conn_unhash(ct);
+		ct->dport = 65535;
+		ct->vport = 65535;
+		ct->cport = 0;
+		ip_vs_conn_hash(ct);
 
 		/*
 		 * Simply decrease the refcnt of the template,
@@ -504,8 +496,7 @@ static void ip_vs_conn_expire(unsigned long data)
 	/*
 	 *	unhash it if it is hashed in the conn table
 	 */
-	if (!ip_vs_conn_unhash(cp))
-		goto expire_later;
+	ip_vs_conn_unhash(cp);
 
 	/*
 	 *	refcnt==1 implies I'm the only one referrer

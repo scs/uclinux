@@ -45,10 +45,10 @@ struct sembuf {
 /* arg for semctl system calls. */
 union semun {
 	int val;			/* value for SETVAL */
-	struct semid_ds __user *buf;	/* buffer for IPC_STAT & IPC_SET */
-	unsigned short __user *array;	/* array for GETALL & SETALL */
-	struct seminfo __user *__buf;	/* buffer for IPC_INFO */
-	void __user *__pad;
+	struct semid_ds *buf;		/* buffer for IPC_STAT & IPC_SET */
+	unsigned short *array;		/* array for GETALL & SETALL */
+	struct seminfo *__buf;		/* buffer for IPC_INFO */
+	void *__pad;
 };
 
 struct  seminfo {
@@ -134,22 +134,13 @@ struct sysv_sem {
 	struct sem_undo_list *undo_list;
 };
 
-#ifdef CONFIG_SYSVIPC
+asmlinkage long sys_semget (key_t key, int nsems, int semflg);
+asmlinkage long sys_semop (int semid, struct sembuf __user *sops, unsigned nsops);
+asmlinkage long sys_semctl (int semid, int semnum, int cmd, union semun arg);
+asmlinkage long sys_semtimedop(int semid, struct sembuf __user *sops,
+			unsigned nsops, const struct timespec __user *timeout);
 
-extern int copy_semundo(unsigned long clone_flags, struct task_struct *tsk);
-extern void exit_sem(struct task_struct *tsk);
-
-#else
-static inline int copy_semundo(unsigned long clone_flags, struct task_struct *tsk)
-{
-	return 0;
-}
-
-static inline void exit_sem(struct task_struct *tsk)
-{
-	return;
-}
-#endif
+void exit_sem(struct task_struct *p);
 
 #endif /* __KERNEL__ */
 

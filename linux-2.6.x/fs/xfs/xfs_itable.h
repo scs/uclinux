@@ -39,6 +39,7 @@
  * see xfs_bulkstat_one() and xfs_dm_bulkstat_one() in dmapi_xfs.c
  */
 typedef int (*bulkstat_one_pf)(struct xfs_mount	*mp,
+			       struct xfs_trans	*tp,
 			       xfs_ino_t	ino,
 			       void		*buffer,
 			       int		ubsize,
@@ -68,6 +69,7 @@ typedef int (*bulkstat_one_pf)(struct xfs_mount	*mp,
 int					/* error status */
 xfs_bulkstat(
 	xfs_mount_t	*mp,		/* mount point for filesystem */
+	xfs_trans_t	*tp,		/* transaction pointer */
 	xfs_ino_t	*lastino,	/* last inode returned */
 	int		*count,		/* size of buffer/count returned */
 	bulkstat_one_pf formatter,	/* func that'd fill a single buf */
@@ -87,6 +89,7 @@ xfs_bulkstat_single(
 int
 xfs_bulkstat_one(
 	xfs_mount_t		*mp,
+	xfs_trans_t		*tp,
 	xfs_ino_t		ino,
 	void			*buffer,
 	int			ubsize,
@@ -99,6 +102,7 @@ xfs_bulkstat_one(
 int					/* error status */
 xfs_inumbers(
 	xfs_mount_t		*mp,	/* mount point for filesystem */
+	xfs_trans_t		*tp,	/* transaction pointer */
 	xfs_ino_t		*last,	/* last inode returned */
 	int			*count,	/* size of buffer/count returned */
 	xfs_caddr_t		buffer);/* buffer with inode descriptions */

@@ -1,7 +1,6 @@
 #ifndef _ALPHA_CHECKSUM_H
 #define _ALPHA_CHECKSUM_H
 
-#include <linux/in6.h>
 
 /*
  *	This is a version of ip_compute_csum() optimized for IP headers,
@@ -44,7 +43,7 @@ extern unsigned int csum_partial(const unsigned char * buff, int len, unsigned i
  * here even more important to align src and dst on a 32-bit (or even
  * better 64-bit) boundary
  */
-unsigned int csum_partial_copy_from_user(const char __user *src, char *dst, int len, unsigned int sum, int *errp);
+unsigned int csum_partial_copy_from_user(const char *src, char *dst, int len, unsigned int sum, int *errp);
 
 unsigned int csum_partial_copy_nocheck(const char *src, char *dst, int len, unsigned int sum);
 

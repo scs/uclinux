@@ -165,10 +165,7 @@ static void qtd_copy_status (
 		/* if async CSPLIT failed, try cleaning out the TT buffer */
 		} else if (urb->dev->tt && !usb_pipeint (urb->pipe)
 				&& ((token & QTD_STS_MMF) != 0
-					|| QTD_CERR(token) == 0)
-				&& (!ehci_is_ARC(ehci)
-                	                || urb->dev->tt->hub !=
-						ehci->hcd.self.root_hub)) {
+					|| QTD_CERR(token) == 0)) {
 #ifdef DEBUG
 			struct usb_device *tt = urb->dev->tt->hub;
 			dev_dbg (&tt->dev,
@@ -193,11 +190,11 @@ ehci_urb_done (struct ehci_hcd *ehci, struct urb *urb, struct pt_regs *regs)
 			/* ... update hc-wide periodic stats (for usbfs) */
 			hcd_to_bus (&ehci->hcd)->bandwidth_int_reqs--;
 		}
-		qh_put (qh);
+		qh_put (ehci, qh);
 	}
 
 	spin_lock (&urb->lock);
-	urb->hcpriv = NULL;
+	urb->hcpriv = 0;
 	switch (urb->status) {
 	case -EINPROGRESS:		/* success */
 		urb->status = 0;
@@ -242,7 +239,7 @@ ehci_urb_done (struct ehci_hcd *ehci, struct urb *urb, struct pt_regs *regs)
 static unsigned
 qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh, struct pt_regs *regs)
 {
-	struct ehci_qtd		*last = NULL, *end = qh->dummy;
+	struct ehci_qtd		*last = 0, *end = qh->dummy;
 	struct list_head	*entry, *tmp;
 	int			stopped;
 	unsigned		count = 0;
@@ -282,7 +279,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh, struct pt_regs *regs)
 				count++;
 			}
 			ehci_qtd_free (ehci, last);
-			last = NULL;
+			last = 0;
 		}
 
 		/* ignore urbs submitted during completions we reported */
@@ -383,7 +380,7 @@ halt:
 					struct ehci_qtd, qtd_list);
 			/* first qtd may already be partially processed */
 			if (cpu_to_le32 (end->qtd_dma) == qh->hw_current)
-				end = NULL;
+				end = 0;
 		}
 		if (end)
 			qh_update (ehci, qh, end);
@@ -440,7 +437,7 @@ qh_urb_transaction (
 	 */
 	qtd = ehci_qtd_alloc (ehci, flags);
 	if (unlikely (!qtd))
-		return NULL;
+		return 0;
 	list_add_tail (&qtd->qtd_list, head);
 	qtd->urb = urb;
 
@@ -555,7 +552,7 @@ qh_urb_transaction (
 
 cleanup:
 	qtd_list_free (ehci, urb, head);
-	return NULL;
+	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -579,7 +576,7 @@ clear_toggle (struct usb_device *udev, int ep, int is_out, struct ehci_qh *qh)
 // when each interface/altsetting is established.  Unlink
 // any previous qh and cancel its urbs first; endpoints are
 // implicitly reset then (data toggle too).
-// That'd mean updating how usbcore talks to HCDs. (2.7?)
+// That'd mean updating how usbcore talks to HCDs. (2.5?)
 
 
 /*
@@ -677,13 +674,7 @@ qh_make (
 
 		info2 |= (EHCI_TUNE_MULT_TT << 30);
 		info2 |= urb->dev->ttport << 23;
-
-		/* set the address of the TT; for ARC's integrated
-		 * root hub tt, leave it zeroed.
-		 */
-		if (!ehci_is_ARC(ehci)
-				|| urb->dev->tt->hub != ehci->hcd.self.root_hub)
-			info2 |= urb->dev->tt->hub->devnum << 16;
+		info2 |= urb->dev->tt->hub->devnum << 16;
 
 		/* NOTE:  if (PIPE_INTERRUPT) { scheduler sets c-mask } */
 
@@ -708,8 +699,8 @@ qh_make (
 	default:
  		dbg ("bogus dev %p speed %d", urb->dev, urb->dev->speed);
 done:
-		qh_put (qh);
-		return NULL;
+		qh_put (ehci, qh);
+		return 0;
 	}
 
 	/* NOTE:  if (PIPE_INTERRUPT) { scheduler sets s-mask } */
@@ -780,19 +771,19 @@ static struct ehci_qh *qh_append_tds (
 	void			**ptr
 )
 {
-	struct ehci_qh		*qh = NULL;
+	struct ehci_qh		*qh = 0;
 
 	qh = (struct ehci_qh *) *ptr;
-	if (unlikely (qh == NULL)) {
+	if (unlikely (qh == 0)) {
 		/* can't sleep here, we have ehci->lock... */
-		qh = qh_make (ehci, urb, GFP_ATOMIC);
+		qh = qh_make (ehci, urb, SLAB_ATOMIC);
 		*ptr = qh;
 	}
-	if (likely (qh != NULL)) {
+	if (likely (qh != 0)) {
 		struct ehci_qtd	*qtd;
 
 		if (unlikely (list_empty (qtd_list)))
-			qtd = NULL;
+			qtd = 0;
 		else
 			qtd = list_entry (qtd_list->next, struct ehci_qtd,
 					qtd_list);
@@ -900,7 +891,7 @@ submit_async (
 	struct hcd_dev		*dev;
 	int			epnum;
 	unsigned long		flags;
-	struct ehci_qh		*qh = NULL;
+	struct ehci_qh		*qh = 0;
 
 	qtd = list_entry (qtd_list->next, struct ehci_qtd, qtd_list);
 	dev = (struct hcd_dev *)urb->dev->hcpriv;
@@ -950,14 +941,14 @@ static void end_unlink_async (struct ehci_hcd *ehci, struct pt_regs *regs)
 
 	// qh->hw_next = cpu_to_le32 (qh->qh_dma);
 	qh->qh_state = QH_STATE_IDLE;
-	qh->qh_next.qh = NULL;
-	qh_put (qh);			// refcount from reclaim 
+	qh->qh_next.qh = 0;
+	qh_put (ehci, qh);			// refcount from reclaim 
 
 	/* other unlink(s) may be pending (in QH_STATE_UNLINK_WAIT) */
 	next = qh->reclaim;
 	ehci->reclaim = next;
 	ehci->reclaim_ready = 0;
-	qh->reclaim = NULL;
+	qh->reclaim = 0;
 
 	qh_completions (ehci, qh, regs);
 
@@ -965,7 +956,7 @@ static void end_unlink_async (struct ehci_hcd *ehci, struct pt_regs *regs)
 			&& HCD_IS_RUNNING (ehci->hcd.state))
 		qh_link_async (ehci, qh);
 	else {
-		qh_put (qh);		// refcount from async list
+		qh_put (ehci, qh);		// refcount from async list
 
 		/* it's not free to turn the async schedule on/off; leave it
 		 * active but idle for a while once it empties.
@@ -976,7 +967,7 @@ static void end_unlink_async (struct ehci_hcd *ehci, struct pt_regs *regs)
 	}
 
 	if (next) {
-		ehci->reclaim = NULL;
+		ehci->reclaim = 0;
 		start_unlink_async (ehci, next);
 	}
 }
@@ -1067,7 +1058,7 @@ rescan:
 				qh = qh_get (qh);
 				qh->stamp = ehci->stamp;
 				temp = qh_completions (ehci, qh, regs);
-				qh_put (qh);
+				qh_put (ehci, qh);
 				if (temp != 0) {
 					goto rescan;
 				}

@@ -4,18 +4,10 @@
 #ifdef __CHECKER__
 # define __user		__attribute__((noderef, address_space(1)))
 # define __kernel	/* default address space */
-# define __safe		__attribute__((safe))
-# define __force	__attribute__((force))
-extern void __chk_user_ptr(void __user *);
 #else
 # define __user
 # define __kernel
-# define __safe
-# define __force
-# define __chk_user_ptr(x) (void)0
 #endif
-
-#ifdef __KERNEL__
 
 #ifndef __ASSEMBLY__
 #if __GNUC__ > 3
@@ -45,20 +37,6 @@ extern void __chk_user_ptr(void __user *);
 #define likely(x)	__builtin_expect(!!(x), 1)
 #define unlikely(x)	__builtin_expect(!!(x), 0)
 
-/* Optimization barrier */
-#ifndef barrier
-# define barrier() __memory_barrier()
-#endif
-
-#ifndef RELOC_HIDE
-# define RELOC_HIDE(ptr, off)					\
-  ({ unsigned long __ptr;					\
-     __ptr = (unsigned long) (ptr);				\
-    (typeof(ptr)) (__ptr + (off)); })
-#endif
-
-#endif /* __KERNEL__ */
-
 /*
  * Allow us to mark functions as 'deprecated' and have gcc emit a nice
  * warning for each use, in hopes of speeding the functions removal.
@@ -67,10 +45,6 @@ extern void __chk_user_ptr(void __user *);
  */
 #ifndef __deprecated
 # define __deprecated		/* unimplemented */
-#endif
-
-#ifndef __must_check
-#define __must_check
 #endif
 
 /*
@@ -120,8 +94,16 @@ extern void __chk_user_ptr(void __user *);
 # define __attribute_const__	/* unimplemented */
 #endif
 
-#ifndef noinline
-#define noinline
+/* Optimization barrier */
+#ifndef barrier
+# define barrier() __memory_barrier()
+#endif
+
+#ifndef RELOC_HIDE
+# define RELOC_HIDE(ptr, off)					\
+  ({ unsigned long __ptr;					\
+     __ptr = (unsigned long) (ptr);				\
+    (typeof(ptr)) (__ptr + (off)); })
 #endif
 
 #endif /* __LINUX_COMPILER_H */

@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/input.h>
-#include <asm/8253pit.h>
 #include <asm/io.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
@@ -41,11 +40,11 @@ static int pcspkr_event(struct input_dev *dev, unsigned int type, unsigned int c
 		case SND_BELL: if (value) value = 1000;
 		case SND_TONE: break;
 		default: return -1;
-	}
+	} 
 
 	if (value > 20 && value < 32767)
-		count = PIT_TICK_RATE / value;
-
+		count = CLOCK_TICK_RATE / value;
+	
 	spin_lock_irqsave(&i8253_beep_lock, flags);
 
 	if (count) {

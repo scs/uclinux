@@ -11,6 +11,8 @@
 #include <asm/page.h>
 #include <asm/io.h>
 
+typedef pte_t *pte_addr_t;
+
 /*
  * Trivial page table functions.
  */

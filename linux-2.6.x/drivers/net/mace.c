@@ -20,10 +20,9 @@
 #include <asm/dbdma.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
-#include <asm/macio.h>
-
 #include "mace.h"
 
+static struct net_device *mace_devs;
 static int port_aaui = -1;
 
 #define N_RX_RING	8
@@ -62,7 +61,8 @@ struct mace_data {
     int timeout_active;
     int port_aaui;
     int chipid;
-    struct macio_dev *mdev;
+    struct device_node* of_node;
+    struct net_device *next_mace;
     spinlock_t lock;
 };
 
@@ -76,6 +76,8 @@ struct mace_data {
 	+ (N_RX_RING + NCMDS_TX * N_TX_RING + 3) * sizeof(struct dbdma_cmd))
 
 static int bitrev(int);
+static int mace_probe(void);
+static void mace_probe1(struct device_node *mace);
 static int mace_open(struct net_device *dev);
 static int mace_close(struct net_device *dev);
 static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev);
@@ -108,19 +110,26 @@ bitrev(int b)
     return d;
 }
 
-
-static int __devinit mace_probe(struct macio_dev *mdev, const struct of_match *match)
+static int __init mace_probe(void)
 {
-	struct device_node *mace = macio_get_of_node(mdev);
+	struct device_node *mace;
+
+	for (mace = find_devices("mace"); mace != NULL; mace = mace->next)
+		mace_probe1(mace);
+	return mace_devs? 0: -ENODEV;
+}
+
+static void __init mace_probe1(struct device_node *mace)
+{
+	int j, rev;
 	struct net_device *dev;
 	struct mace_data *mp;
 	unsigned char *addr;
-	int j, rev, rc = -EBUSY;
 
-	if (macio_resource_count(mdev) != 3 || macio_irq_count(mdev) != 3) {
+	if (mace->n_addrs != 3 || mace->n_intrs != 3) {
 		printk(KERN_ERR "can't use MACE %s: need 3 addrs and 3 irqs\n",
 		       mace->full_name);
-		return -ENODEV;
+		return;
 	}
 
 	addr = get_property(mace, "mac-address", NULL);
@@ -129,77 +138,64 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_match *m
 		if (addr == NULL) {
 			printk(KERN_ERR "Can't get mac-address for MACE %s\n",
 			       mace->full_name);
-			return -ENODEV;
+			return;
 		}
 	}
 
-	/*
-	 * lazy allocate the driver-wide dummy buffer. (Note that we
-	 * never have more than one MACE in the system anyway)
-	 */
 	if (dummy_buf == NULL) {
 		dummy_buf = kmalloc(RX_BUFLEN+2, GFP_KERNEL);
 		if (dummy_buf == NULL) {
 			printk(KERN_ERR "MACE: couldn't allocate dummy buffer\n");
-			return -ENOMEM;
+			return;
 		}
 	}
 
-	if (macio_request_resources(mdev, "mace")) {
-		printk(KERN_ERR "MACE: can't request IO resources !\n");
-		return -EBUSY;
-	}
-
-	dev = alloc_etherdev(PRIV_BYTES);
-	if (!dev) {
-		printk(KERN_ERR "MACE: can't allocate ethernet device !\n");
-		rc = -ENOMEM;
-		goto err_release;
-	}
+	dev = init_etherdev(0, PRIV_BYTES);
+	if (!dev)
+		return;
 	SET_MODULE_OWNER(dev);
-	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
 
 	mp = dev->priv;
-	mp->mdev = mdev;
-	macio_set_drvdata(mdev, dev);
-
-	dev->base_addr = macio_resource_start(mdev, 0);
-	mp->mace = (volatile struct mace *)ioremap(dev->base_addr, 0x1000);
-	if (mp->mace == NULL) {
-		printk(KERN_ERR "MACE: can't map IO resources !\n");
-		rc = -ENOMEM;
-		goto err_free;
+	mp->of_node = mace;
+	
+	if (!request_OF_resource(mace, 0, " (mace)")) {
+		printk(KERN_ERR "MACE: can't request IO resource !\n");
+		goto err_out;
 	}
-	dev->irq = macio_irq(mdev, 0);
+	if (!request_OF_resource(mace, 1, " (mace tx dma)")) {
+		printk(KERN_ERR "MACE: can't request TX DMA resource !\n");
+		goto err_out;
+	}
 
+	if (!request_OF_resource(mace, 2, " (mace tx dma)")) {
+		printk(KERN_ERR "MACE: can't request RX DMA resource !\n");
+		goto err_out;
+	}
+
+	dev->base_addr = mace->addrs[0].address;
+	mp->mace = (volatile struct mace *)
+		ioremap(mace->addrs[0].address, 0x1000);
+	dev->irq = mace->intrs[0].line;
+
+	printk(KERN_INFO "%s: MACE at", dev->name);
 	rev = addr[0] == 0 && addr[1] == 0xA0;
 	for (j = 0; j < 6; ++j) {
 		dev->dev_addr[j] = rev? bitrev(addr[j]): addr[j];
+		printk("%c%.2x", (j? ':': ' '), dev->dev_addr[j]);
 	}
 	mp->chipid = (in_8(&mp->mace->chipid_hi) << 8) |
 			in_8(&mp->mace->chipid_lo);
+	printk(", chip revision %d.%d\n", mp->chipid >> 8, mp->chipid & 0xff);
 		
 
 	mp = (struct mace_data *) dev->priv;
 	mp->maccc = ENXMT | ENRCV;
-
 	mp->tx_dma = (volatile struct dbdma_regs *)
-		ioremap(macio_resource_start(mdev, 1), 0x1000);
-	if (mp->tx_dma == NULL) {
-		printk(KERN_ERR "MACE: can't map TX DMA resources !\n");
-		rc = -ENOMEM;
-		goto err_unmap_io;
-	}
-	mp->tx_dma_intr = macio_irq(mdev, 1);
-
+		ioremap(mace->addrs[1].address, 0x1000);
+	mp->tx_dma_intr = mace->intrs[1].line;
 	mp->rx_dma = (volatile struct dbdma_regs *)
-		ioremap(macio_resource_start(mdev, 2), 0x1000);
-	if (mp->rx_dma == NULL) {
-		printk(KERN_ERR "MACE: can't map RX DMA resources !\n");
-		rc = -ENOMEM;
-		goto err_unmap_tx_dma;
-	}
-	mp->rx_dma_intr = macio_irq(mdev, 2);
+		ioremap(mace->addrs[2].address, 0x1000);
+	mp->rx_dma_intr = mace->intrs[2].line;
 
 	mp->tx_cmds = (volatile struct dbdma_cmd *) DBDMA_ALIGN(mp + 1);
 	mp->rx_cmds = mp->tx_cmds + NCMDS_TX * N_TX_RING + 1;
@@ -233,87 +229,31 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_match *m
 	dev->set_multicast_list = mace_set_multicast;
 	dev->set_mac_address = mace_set_address;
 
-	/*
-	 * Most of what is below could be moved to mace_open()
-	 */
+	ether_setup(dev);
+
 	mace_reset(dev);
 
-	rc = request_irq(dev->irq, mace_interrupt, 0, "MACE", dev);
-	if (rc) {
+	if (request_irq(dev->irq, mace_interrupt, 0, "MACE", dev))
 		printk(KERN_ERR "MACE: can't get irq %d\n", dev->irq);
-		goto err_unmap_rx_dma;
-	}
-	rc = request_irq(mp->tx_dma_intr, mace_txdma_intr, 0, "MACE-txdma", dev);
-	if (rc) {
+	if (request_irq(mace->intrs[1].line, mace_txdma_intr, 0, "MACE-txdma",
+			dev))
 		printk(KERN_ERR "MACE: can't get irq %d\n", mace->intrs[1].line);
-		goto err_free_irq;
-	}
-	rc = request_irq(mp->rx_dma_intr, mace_rxdma_intr, 0, "MACE-rxdma", dev);
-	if (rc) {
+	if (request_irq(mace->intrs[2].line, mace_rxdma_intr, 0, "MACE-rxdma",
+			dev))
 		printk(KERN_ERR "MACE: can't get irq %d\n", mace->intrs[2].line);
-		goto err_free_tx_irq;
-	}
 
-	rc = register_netdev(dev);
-	if (rc) {
-		printk(KERN_ERR "MACE: Cannot register net device, aborting.\n");
-		goto err_free_rx_irq;
-	}
-
-	printk(KERN_INFO "%s: MACE at", dev->name);
-	for (j = 0; j < 6; ++j) {
-		printk("%c%.2x", (j? ':': ' '), dev->dev_addr[j]);
-	}
-	printk(", chip revision %d.%d\n", mp->chipid >> 8, mp->chipid & 0xff);
-
-	return 0;
- 
- err_free_rx_irq:
-	free_irq(macio_irq(mdev, 2), dev);
- err_free_tx_irq:
-	free_irq(macio_irq(mdev, 1), dev);
- err_free_irq:
-	free_irq(macio_irq(mdev, 0), dev);
- err_unmap_rx_dma:
-	iounmap((void*)mp->rx_dma);
- err_unmap_tx_dma:
-	iounmap((void*)mp->tx_dma);
- err_unmap_io:
-	iounmap((void*)mp->mace);
- err_free:
-	free_netdev(dev);
- err_release:
-	macio_release_resources(mdev);
-
-	return rc;
-}
-
-static int __devexit mace_remove(struct macio_dev *mdev)
-{
-	struct net_device *dev = macio_get_drvdata(mdev);
-	struct mace_data *mp;
-
-	BUG_ON(dev == NULL);
-
-	macio_set_drvdata(mdev, NULL);
-
-	mp = dev->priv;
-
+	mp->next_mace = mace_devs;
+	mace_devs = dev;
+	return;
+	
+err_out:
 	unregister_netdev(dev);
-
-	free_irq(dev->irq, dev);
-	free_irq(mp->tx_dma_intr, dev);
-	free_irq(mp->rx_dma_intr, dev);
-
-	iounmap((void*)mp->rx_dma);
-	iounmap((void*)mp->tx_dma);
-	iounmap((void*)mp->mace);
-
+	if (mp->of_node) {
+		release_OF_resource(mp->of_node, 0);
+		release_OF_resource(mp->of_node, 1);
+		release_OF_resource(mp->of_node, 2);
+	}
 	free_netdev(dev);
-
-	macio_release_resources(mdev);
-
-	return 0;
 }
 
 static void dbdma_reset(volatile struct dbdma_regs *dma)
@@ -432,7 +372,7 @@ static inline void mace_clean_rings(struct mace_data *mp)
     for (i = 0; i < N_RX_RING; ++i) {
 	if (mp->rx_bufs[i] != 0) {
 	    dev_kfree_skb(mp->rx_bufs[i]);
-	    mp->rx_bufs[i] = NULL;
+	    mp->rx_bufs[i] = 0;
 	}
     }
     for (i = mp->tx_empty; i != mp->tx_fill; ) {
@@ -475,7 +415,7 @@ static int mace_open(struct net_device *dev)
 	cp->xfer_status = 0;
 	++cp;
     }
-    mp->rx_bufs[i] = NULL;
+    mp->rx_bufs[i] = 0;
     st_le16(&cp->command, DBDMA_STOP);
     mp->rx_fill = i;
     mp->rx_empty = 0;
@@ -959,7 +899,7 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id, struct pt_regs *regs)
 		mp->stats.rx_bytes += skb->len;
 		netif_rx(skb);
 		dev->last_rx = jiffies;
-		mp->rx_bufs[i] = NULL;
+		mp->rx_bufs[i] = 0;
 		++mp->stats.rx_packets;
 	    }
 	} else {
@@ -1011,45 +951,37 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id, struct pt_regs *regs)
     return IRQ_HANDLED;
 }
 
-static struct of_match mace_match[] = 
-{
-	{
-	.name 		= "mace",
-	.type		= OF_ANY_MATCH,
-	.compatible	= OF_ANY_MATCH
-	},
-	{},
-};
-
-static struct macio_driver mace_driver = 
-{
-	.name 		= "mace",
-	.match_table	= mace_match,
-	.probe		= mace_probe,
-	.remove		= mace_remove,
-};
-
-
-static int __init mace_init(void)
-{
-	return macio_register_driver(&mace_driver);
-}
-
-static void __exit mace_cleanup(void)
-{
-	macio_unregister_driver(&mace_driver);
-
-	if (dummy_buf) {
-		kfree(dummy_buf);
-		dummy_buf = NULL;
-	}
-}
-
 MODULE_AUTHOR("Paul Mackerras");
 MODULE_DESCRIPTION("PowerMac MACE driver.");
 MODULE_PARM(port_aaui, "i");
 MODULE_PARM_DESC(port_aaui, "MACE uses AAUI port (0-1)");
 MODULE_LICENSE("GPL");
 
-module_init(mace_init);
+static void __exit mace_cleanup (void)
+{
+    struct net_device *dev;
+    struct mace_data *mp;
+
+    while ((dev = mace_devs) != 0) {
+		mp = (struct mace_data *) mace_devs->priv;
+		mace_devs = mp->next_mace;
+
+		unregister_netdev(dev);
+		free_irq(dev->irq, dev);
+		free_irq(mp->tx_dma_intr, dev);
+		free_irq(mp->rx_dma_intr, dev);
+
+		release_OF_resource(mp->of_node, 0);
+		release_OF_resource(mp->of_node, 1);
+		release_OF_resource(mp->of_node, 2);
+
+		kfree(dev);
+    }
+    if (dummy_buf != NULL) {
+		kfree(dummy_buf);
+		dummy_buf = NULL;
+    }
+}
+
+module_init(mace_probe);
 module_exit(mace_cleanup);

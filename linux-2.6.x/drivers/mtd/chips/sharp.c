@@ -30,7 +30,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/cfi.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 
 #define CMD_RESET		0xffffffff
 #define CMD_READ_ID		0x90909090
@@ -155,7 +154,7 @@ struct mtd_info *sharp_probe(struct map_info *map)
 	map->fldrv = &sharp_chipdrv;
 	map->fldrv_priv = sharp;
 
-	__module_get(THIS_MODULE);
+	MOD_INC_USE_COUNT;
 	return mtd;
 }
 
@@ -425,7 +424,8 @@ static int sharp_erase(struct mtd_info *mtd, struct erase_info *instr)
 	}
 
 	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
+	if(instr->callback)
+		instr->callback(instr);
 
 	return 0;
 }

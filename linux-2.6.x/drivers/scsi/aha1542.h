@@ -5,8 +5,14 @@
  * Header file for the adaptec 1542 driver for Linux
  *
  * $Log$
- * Revision 1.1.1.2  2004/09/07 09:30:30  lgsoft
- * Import of 2.6.8
+ * Revision 1.2  2004/09/07 22:37:21  lgsoft
+ * alpha-2.0
+ *
+ * Revision 1.1.1.1  2004/07/19 12:16:35  lgsoft
+ * Import of uClinux 2.6.2
+ *
+ * Revision 1.1.1.1  2004/07/18 13:21:51  nidhi
+ * Importing
  *
  * Revision 1.1  1992/07/24  06:27:38  root
  * Initial revision

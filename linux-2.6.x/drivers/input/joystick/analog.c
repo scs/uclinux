@@ -11,18 +11,18 @@
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 2 of the License, or 
  * (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * 
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
@@ -32,7 +32,6 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
@@ -51,12 +50,9 @@ MODULE_LICENSE("GPL");
 #define ANALOG_PORTS		16
 
 static char *js[ANALOG_PORTS];
-static int js_nargs;
 static int analog_options[ANALOG_PORTS];
-module_param_array_named(map, js, charp, js_nargs, 0);
-MODULE_PARM_DESC(map, "Describes analog joysticks type/capabilities");
-
-__obsolete_setup("js=");
+MODULE_PARM(js, "1-" __MODULE_STRING(ANALOG_PORTS) "s");
+MODULE_PARM_DESC(js, "Analog joystick options");
 
 /*
  * Times, feature definitions.
@@ -142,7 +138,7 @@ struct analog_port {
 
 #ifdef __i386__
 #define GET_TIME(x)	do { if (cpu_has_tsc) rdtscl(x); else x = get_time_pit(); } while (0)
-#define DELTA(x,y)	(cpu_has_tsc ? ((y) - (x)) : ((x) - (y) + ((x) < (y) ? CLOCK_TICK_RATE / HZ : 0)))
+#define DELTA(x,y)	(cpu_has_tsc?((y)-(x)):((x)-(y)+((x)<(y)?1193182L/HZ:0)))
 #define TIME_NAME	(cpu_has_tsc?"TSC":"PIT")
 static unsigned int get_time_pit(void)
 {
@@ -158,11 +154,11 @@ static unsigned int get_time_pit(void)
 
         return count;
 }
-#elif defined(__x86_64__)
+#elif __x86_64__
 #define GET_TIME(x)	rdtscl(x)
 #define DELTA(x,y)	((y)-(x))
 #define TIME_NAME	"TSC"
-#elif defined(__alpha__)
+#elif __alpha__
 #define GET_TIME(x)	do { x = get_cycles(); } while (0)
 #define DELTA(x,y)	((y)-(x))
 #define TIME_NAME	"PCC"
@@ -237,7 +233,7 @@ static int analog_cooked_read(struct analog_port *port)
 
 	loopout = (ANALOG_LOOP_TIME * port->loop) / 1000;
 	timeout = ANALOG_MAX_TIME * port->speed;
-
+	
 	local_irq_save(flags);
 	gameport_trigger(gameport);
 	GET_TIME(now);
@@ -284,7 +280,7 @@ static int analog_button_read(struct analog_port *port, char saitek, char chf)
 
 	u = gameport_read(port->gameport);
 
-	if (!chf) {
+	if (!chf) { 
 		port->buttons = (~u >> 4) & 0xf;
 		return 0;
 	}
@@ -333,7 +329,7 @@ static void analog_timer(unsigned long data)
 		}
 	}
 
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < 2; i++) 
 		if (port->analog[i].mask)
 			analog_decode(port->analog + i, port->axes, port->initial, port->buttons);
 
@@ -348,7 +344,7 @@ static int analog_open(struct input_dev *dev)
 {
 	struct analog_port *port = dev->private;
 	if (!port->used++)
-		mod_timer(&port->timer, jiffies + ANALOG_REFRESH_TIME);
+		mod_timer(&port->timer, jiffies + ANALOG_REFRESH_TIME);	
 	return 0;
 }
 
@@ -408,7 +404,7 @@ static void analog_calibrate_timer(struct analog_port *port)
 
 static void analog_name(struct analog *analog)
 {
-	sprintf(analog->name, "Analog %d-axis %d-button",
+	sprintf(analog->name, "Analog %d-axis %d-button", 
 		hweight8(analog->mask & ANALOG_AXES_STD),
 		hweight8(analog->mask & ANALOG_BTNS_STD) + !!(analog->mask & ANALOG_BTNS_CHF) * 2 +
 		hweight16(analog->mask & ANALOG_BTNS_GAMEPAD) + !!(analog->mask & ANALOG_HBTN_CHF) * 4);
@@ -450,10 +446,10 @@ static void analog_init_device(struct analog_port *port, struct analog *analog, 
 	analog->dev.close = analog_close;
 	analog->dev.private = port;
 	analog->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-
+	
 	for (i = j = 0; i < 4; i++)
 		if (analog->mask & (1 << i)) {
-
+			
 			t = analog_axes[j];
 			x = port->axes[i];
 			y = (port->axes[0] + port->axes[1]) >> 1;
@@ -481,8 +477,8 @@ static void analog_init_device(struct analog_port *port, struct analog *analog, 
 			j++;
 		}
 
-	for (i = j = 0; i < 3; i++)
-		if (analog->mask & analog_exts[i])
+	for (i = j = 0; i < 3; i++) 
+		if (analog->mask & analog_exts[i]) 
 			for (x = 0; x < 2; x++) {
 				t = analog_hats[j++];
 				set_bit(t, analog->dev.absbit);
@@ -517,7 +513,7 @@ static void analog_init_device(struct analog_port *port, struct analog *analog, 
 	else
 		printk(" [%s timer, %d %sHz clock, %d ns res]\n", TIME_NAME,
 		port->speed > 10000 ? (port->speed + 800) / 1000 : port->speed,
-		port->speed > 10000 ? "M" : "k",
+		port->speed > 10000 ? "M" : "k", 
 		port->speed > 10000 ? (port->loop * 1000) / (port->speed / 1000)
 				    : (port->loop * 1000000) / port->speed);
 }
@@ -580,11 +576,11 @@ static int analog_init_masks(struct analog_port *port)
 
 		gameport_calibrate(port->gameport, port->axes, max);
 	}
-
-	for (i = 0; i < 4; i++)
+		
+	for (i = 0; i < 4; i++) 
 		port->initial[i] = port->axes[i];
 
-	return -!(analog[0].mask || analog[1].mask);
+	return -!(analog[0].mask || analog[1].mask);	
 }
 
 static int analog_init_port(struct gameport *gameport, struct gameport_dev *dev, struct analog_port *port)
@@ -603,25 +599,25 @@ static int analog_init_port(struct gameport *gameport, struct gameport_dev *dev,
 
 		gameport_trigger(gameport);
 		t = gameport_read(gameport);
-		msleep(ANALOG_MAX_TIME);
+		wait_ms(ANALOG_MAX_TIME);
 		port->mask = (gameport_read(gameport) ^ t) & t & 0xf;
 		port->fuzz = (port->speed * ANALOG_FUZZ_MAGIC) / port->loop / 1000 + ANALOG_FUZZ_BITS;
-
+	
 		for (i = 0; i < ANALOG_INIT_RETRIES; i++) {
 			if (!analog_cooked_read(port)) break;
-			msleep(ANALOG_MAX_TIME);
+			wait_ms(ANALOG_MAX_TIME);
 		}
 
 		u = v = 0;
 
-		msleep(ANALOG_MAX_TIME);
+		wait_ms(ANALOG_MAX_TIME);
 		t = gameport_time(gameport, ANALOG_MAX_TIME * 1000);
 		gameport_trigger(gameport);
-		while ((gameport_read(port->gameport) & port->mask) && (u < t)) u++;
+		while ((gameport_read(port->gameport) & port->mask) && (u < t)) u++; 
 		udelay(ANALOG_SAITEK_DELAY);
 		t = gameport_time(gameport, ANALOG_SAITEK_TIME);
 		gameport_trigger(gameport);
-		while ((gameport_read(port->gameport) & port->mask) && (v < t)) v++;
+		while ((gameport_read(port->gameport) & port->mask) && (v < t)) v++; 
 
 		if (v < (u >> 1)) { /* FIXME - more than one port */
 			analog_options[0] |= /* FIXME - more than one port */
@@ -715,13 +711,13 @@ static void analog_parse_options(void)
 	int i, j;
 	char *end;
 
-	for (i = 0; i < js_nargs; i++) {
+	for (i = 0; i < ANALOG_PORTS && js[i]; i++) {
 
 		for (j = 0; analog_types[j].name; j++)
 			if (!strcmp(analog_types[j].name, js[i])) {
 				analog_options[i] = analog_types[j].value;
 				break;
-			}
+			} 
 		if (analog_types[j].name) continue;
 
 		analog_options[i] = simple_strtoul(js[i], &end, 0);
@@ -745,6 +741,24 @@ static struct gameport_dev analog_dev = {
 	.connect =	analog_connect,
 	.disconnect =	analog_disconnect,
 };
+
+#ifndef MODULE
+static int __init analog_setup(char *str)
+{
+	char *s = str;
+	int i = 0;
+
+	if (!str || !*str) return 0;
+
+	while ((str = s) && (i < ANALOG_PORTS)) {
+		if ((s = strchr(str,','))) *s++ = 0;
+		js[i++] = str;
+	}
+
+	return 1;
+}
+__setup("js=", analog_setup);
+#endif
 
 int __init analog_init(void)
 {

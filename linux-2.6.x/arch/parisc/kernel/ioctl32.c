@@ -8,8 +8,6 @@
  * ioctls.
  */
 
-#include <linux/syscalls.h>
-
 #define INCLUDES
 #include "compat_ioctl.c"
 

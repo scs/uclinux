@@ -56,9 +56,12 @@
  */
 
 #include <linux/config.h>
+#ifdef CONFIG_I2C_DEBUG_BUS
+#define DEBUG	1
+#endif
+
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -240,7 +243,7 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 
 	/* We will always wait for a fraction of a second! */
 	do {
-		msleep(1);
+		i2c_delay(1);
 		temp = sis5595_read(SMB_STS_LO);
 	} while (!(temp & 0x40) && (timeout++ < MAX_TIMEOUT));
 
@@ -361,7 +364,6 @@ static struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter sis5595_adapter = {
 	.owner		= THIS_MODULE,
-	.class          = I2C_CLASS_HWMON,
 	.name		= "unset",
 	.algo		= &smbus_algorithm,
 };
@@ -389,7 +391,6 @@ static int __devinit sis5595_probe(struct pci_dev *dev, const struct pci_device_
 static void __devexit sis5595_remove(struct pci_dev *dev)
 {
 	i2c_del_adapter(&sis5595_adapter);
-	release_region(sis5595_base + SMB_INDEX, 2);
 }
 
 static struct pci_driver sis5595_driver = {
@@ -407,6 +408,7 @@ static int __init i2c_sis5595_init(void)
 static void __exit i2c_sis5595_exit(void)
 {
 	pci_unregister_driver(&sis5595_driver);
+	release_region(sis5595_base + SMB_INDEX, 2);
 }
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");

@@ -1,5 +1,5 @@
 /*
- *	Industrial Computer Source WDT500/501 driver
+ *	Industrial Computer Source WDT500/501 driver for Linux 2.1.x
  *
  *	(c) Copyright 1996-1997 Alan Cox <alan@redhat.com>, All Rights Reserved.
  *				http://www.redhat.com
@@ -15,7 +15,7 @@
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
- *	Release 0.10.
+ *	Release 0.09.
  *
  *	Fixes
  *		Dave Gregorich	:	Modularisation and minor bugs
@@ -34,7 +34,6 @@
 #include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
@@ -53,15 +52,17 @@ static unsigned long wdt_is_open;
 static char expect_close;
 
 /*
- *	Module parameters
+ *	You must set these - there is no sane way to probe for this board.
+ *	You can use wdt=x,y to set these now.
  */
 
-#define WD_TIMO 60			/* Default heartbeat = 60 seconds */
+static int io=0x240;
+static int irq=11;
 
-static int heartbeat = WD_TIMO;
-static int wd_heartbeat;
-module_param(heartbeat, int, 0);
-MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (0<heartbeat<65536, default=" __MODULE_STRING(WD_TIMO) ")");
+/* Default margin */
+#define WD_TIMO (100*60)		/* 1 minute */
+
+static int wd_margin = WD_TIMO;
 
 #ifdef CONFIG_WATCHDOG_NOWAYOUT
 static int nowayout = 1;
@@ -69,25 +70,44 @@ static int nowayout = 1;
 static int nowayout = 0;
 #endif
 
-module_param(nowayout, int, 0);
+MODULE_PARM(nowayout,"i");
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 
-/* You must set these - there is no sane way to probe for this board. */
-static int io=0x240;
-static int irq=11;
+#ifndef MODULE
 
-module_param(io, int, 0);
+/**
+ *	wdt_setup:
+ *	@str: command line string
+ *
+ *	Setup options. The board isn't really probe-able so we have to
+ *	get the user to tell us the configuration. Sane people build it
+ *	modular but the others come here.
+ */
+
+static int __init wdt_setup(char *str)
+{
+	int ints[4];
+
+	str = get_options (str, ARRAY_SIZE(ints), ints);
+
+	if (ints[0] > 0)
+	{
+		io = ints[1];
+		if(ints[0] > 1)
+			irq = ints[2];
+	}
+
+	return 1;
+}
+
+__setup("wdt=", wdt_setup);
+
+#endif /* !MODULE */
+
+MODULE_PARM(io, "i");
 MODULE_PARM_DESC(io, "WDT io port (default=0x240)");
-module_param(irq, int, 0);
+MODULE_PARM(irq, "i");
 MODULE_PARM_DESC(irq, "WDT irq (default=11)");
-
-#ifdef CONFIG_WDT_501
-/* Support for the Fan Tachometer on the WDT501-P */
-static int tachometer;
-
-module_param(tachometer, int, 0);
-MODULE_PARM_DESC(tachometer, "WDT501-P Fan Tachometer support (0=disable, default=0)");
-#endif /* CONFIG_WDT_501 */
 
 /*
  *	Programming support
@@ -107,77 +127,13 @@ static void wdt_ctr_load(int ctr, int val)
 	outb_p(val>>8, WDT_COUNT0+ctr);
 }
 
-/**
- *	wdt_start:
- *
- *	Start the watchdog driver.
+/*
+ *	Kernel methods.
  */
 
-static int wdt_start(void)
-{
-	inb_p(WDT_DC);			/* Disable watchdog */
-	wdt_ctr_mode(0,3);		/* Program CTR0 for Mode 3: Square Wave Generator */
-	wdt_ctr_mode(1,2);		/* Program CTR1 for Mode 2: Rate Generator */
-	wdt_ctr_mode(2,0);		/* Program CTR2 for Mode 0: Pulse on Terminal Count */
-	wdt_ctr_load(0, 8948);		/* Count at 100Hz */
-	wdt_ctr_load(1,wd_heartbeat);	/* Heartbeat */
-	wdt_ctr_load(2,65535);		/* Length of reset pulse */
-	outb_p(0, WDT_DC);		/* Enable watchdog */
-	return 0;
-}
 
 /**
- *	wdt_stop:
- *
- *	Stop the watchdog driver.
- */
-
-static int wdt_stop (void)
-{
-	/* Turn the card off */
-	inb_p(WDT_DC);			/* Disable watchdog */
-	wdt_ctr_load(2,0);		/* 0 length reset pulses now */
-	return 0;
-}
-
-/**
- *	wdt_ping:
- *
- *	Reload counter one with the watchdog heartbeat. We don't bother reloading
- *	the cascade counter.
- */
-
-static int wdt_ping(void)
-{
-	/* Write a watchdog value */
-	inb_p(WDT_DC);			/* Disable watchdog */
-	wdt_ctr_mode(1,2);		/* Re-Program CTR1 for Mode 2: Rate Generator */
-	wdt_ctr_load(1,wd_heartbeat);	/* Heartbeat */
-	outb_p(0, WDT_DC);		/* Enable watchdog */
-	return 0;
-}
-
-/**
- *	wdt_set_heartbeat:
- *	@t:		the new heartbeat value that needs to be set.
- *
- *	Set a new heartbeat value for the watchdog device. If the heartbeat value is
- *	incorrect we keep the old value and return -EINVAL. If successfull we
- *	return 0.
- */
-static int wdt_set_heartbeat(int t)
-{
-	if ((t < 1) || (t > 65535))
-		return -EINVAL;
-
-	heartbeat = t;
-	wd_heartbeat = t * 100;
-	return 0;
-}
-
-/**
- *	wdt_get_status:
- *	@status:		the new status.
+ *	wdt_status:
  *
  *	Extract the status information from a WDT watchdog device. There are
  *	several board variants so we have to know which bits are valid. Some
@@ -186,46 +142,31 @@ static int wdt_set_heartbeat(int t)
  *	we then map the bits onto the status ioctl flags.
  */
 
-static int wdt_get_status(int *status)
+static int wdt_status(void)
 {
-	unsigned char new_status=inb_p(WDT_SR);
+	/*
+	 *	Status register to bit flags
+	 */
 
-	*status=0;
-	if (new_status & WDC_SR_ISOI0)
-		*status |= WDIOF_EXTERN1;
-	if (new_status & WDC_SR_ISII1)
-		*status |= WDIOF_EXTERN2;
-#ifdef CONFIG_WDT_501
-	if (!(new_status & WDC_SR_TGOOD))
-		*status |= WDIOF_OVERHEAT;
-	if (!(new_status & WDC_SR_PSUOVER))
-		*status |= WDIOF_POWEROVER;
-	if (!(new_status & WDC_SR_PSUUNDR))
-		*status |= WDIOF_POWERUNDER;
-	if (tachometer) {
-		if (!(new_status & WDC_SR_FANGOOD))
-			*status |= WDIOF_FANFAULT;
-	}
-#endif /* CONFIG_WDT_501 */
-	return 0;
+	int flag=0;
+	unsigned char status=inb_p(WDT_SR);
+	status|=FEATUREMAP1;
+	status&=~FEATUREMAP2;
+
+	if(!(status&WDC_SR_TGOOD))
+		flag|=WDIOF_OVERHEAT;
+	if(!(status&WDC_SR_PSUOVER))
+		flag|=WDIOF_POWEROVER;
+	if(!(status&WDC_SR_PSUUNDR))
+		flag|=WDIOF_POWERUNDER;
+	if(!(status&WDC_SR_FANGOOD))
+		flag|=WDIOF_FANFAULT;
+	if(status&WDC_SR_ISOI0)
+		flag|=WDIOF_EXTERN1;
+	if(status&WDC_SR_ISII1)
+		flag|=WDIOF_EXTERN2;
+	return flag;
 }
-
-#ifdef CONFIG_WDT_501
-/**
- *	wdt_get_temperature:
- *
- *	Reports the temperature in degrees Fahrenheit. The API is in
- *	farenheit. It was designed by an imperial measurement luddite.
- */
-
-static int wdt_get_temperature(int *temperature)
-{
-	unsigned short c=inb_p(WDT_RT);
-
-	*temperature = (c * 11 / 15) + 7;
-	return 0;
-}
-#endif /* CONFIG_WDT_501 */
 
 /**
  *	wdt_interrupt:
@@ -244,23 +185,23 @@ static irqreturn_t wdt_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 *	Read the status register see what is up and
 	 *	then printk it.
 	 */
+
 	unsigned char status=inb_p(WDT_SR);
+
+	status|=FEATUREMAP1;
+	status&=~FEATUREMAP2;
 
 	printk(KERN_CRIT "WDT status %d\n", status);
 
-#ifdef CONFIG_WDT_501
-	if (!(status & WDC_SR_TGOOD))
+	if(!(status&WDC_SR_TGOOD))
 		printk(KERN_CRIT "Overheat alarm.(%d)\n",inb_p(WDT_RT));
-	if (!(status & WDC_SR_PSUOVER))
+	if(!(status&WDC_SR_PSUOVER))
 		printk(KERN_CRIT "PSU over voltage.\n");
-	if (!(status & WDC_SR_PSUUNDR))
+	if(!(status&WDC_SR_PSUUNDR))
 		printk(KERN_CRIT "PSU under voltage.\n");
-	if (tachometer) {
-		if (!(status & WDC_SR_FANGOOD))
-			printk(KERN_CRIT "Possible fan fault.\n");
-	}
-#endif /* CONFIG_WDT_501 */
-	if (!(status & WDC_SR_WCCR))
+	if(!(status&WDC_SR_FANGOOD))
+		printk(KERN_CRIT "Possible fan fault.\n");
+	if(!(status&WDC_SR_WCCR))
 #ifdef SOFTWARE_REBOOT
 #ifdef ONLY_TESTING
 		printk(KERN_CRIT "Would Reboot.\n");
@@ -276,6 +217,22 @@ static irqreturn_t wdt_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 
 /**
+ *	wdt_ping:
+ *
+ *	Reload counter one with the watchdog timeout. We don't bother reloading
+ *	the cascade counter.
+ */
+
+static void wdt_ping(void)
+{
+	/* Write a watchdog value */
+	inb_p(WDT_DC);
+	wdt_ctr_mode(1,2);
+	wdt_ctr_load(1,wd_margin);		/* Timeout */
+	outb_p(0, WDT_DC);
+}
+
+/**
  *	wdt_write:
  *	@file: file handle to the watchdog
  *	@buf: buffer to write (unused as data does not matter here
@@ -286,8 +243,12 @@ static irqreturn_t wdt_interrupt(int irq, void *dev_id, struct pt_regs *regs)
  *	write of data will do, as we we don't define content meaning.
  */
 
-static ssize_t wdt_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+static ssize_t wdt_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
+	/*  Can't seek (pwrite) on this device  */
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
+
 	if(count) {
 		if (!nowayout) {
 			size_t i;
@@ -309,6 +270,40 @@ static ssize_t wdt_write(struct file *file, const char __user *buf, size_t count
 }
 
 /**
+ *	wdt_read:
+ *	@file: file handle to the watchdog board
+ *	@buf: buffer to write 1 byte into
+ *	@count: length of buffer
+ *	@ptr: offset (no seek allowed)
+ *
+ *	Read reports the temperature in degrees Fahrenheit. The API is in
+ *	farenheit. It was designed by an imperial measurement luddite.
+ */
+
+static ssize_t wdt_read(struct file *file, char *buf, size_t count, loff_t *ptr)
+{
+	unsigned short c=inb_p(WDT_RT);
+	unsigned char cp;
+
+	/*  Can't seek (pread) on this device  */
+	if (ptr != &file->f_pos)
+		return -ESPIPE;
+
+	switch(iminor(file->f_dentry->d_inode))
+	{
+		case TEMP_MINOR:
+			c*=11;
+			c/=15;
+			cp=c+7;
+			if(copy_to_user(buf,&cp,1))
+				return -EFAULT;
+			return 1;
+		default:
+			return -EINVAL;
+	}
+}
+
+/**
  *	wdt_ioctl:
  *	@inode: inode of the device
  *	@file: file handle to the device
@@ -323,53 +318,43 @@ static ssize_t wdt_write(struct file *file, const char __user *buf, size_t count
 static int wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	unsigned long arg)
 {
-	void __user *argp = (void __user *)arg;
-	int __user *p = argp;
-	int new_heartbeat;
-	int status;
+	int new_margin;
 
-	static struct watchdog_info ident = {
-		.options =		WDIOF_SETTIMEOUT|
-					WDIOF_MAGICCLOSE|
-					WDIOF_KEEPALIVEPING,
-		.firmware_version =	1,
-		.identity =		"WDT500/501",
+	static struct watchdog_info ident=
+	{
+		.options = WDIOF_OVERHEAT|WDIOF_POWERUNDER|WDIOF_POWEROVER
+					|WDIOF_EXTERN1|WDIOF_EXTERN2|WDIOF_FANFAULT
+					|WDIOF_SETTIMEOUT|WDIOF_MAGICCLOSE,
+		.firmware_version = 1,
+		.identity = "WDT500/501",
 	};
 
-	/* Add options according to the card we have */
-	ident.options |= (WDIOF_EXTERN1|WDIOF_EXTERN2);
-#ifdef CONFIG_WDT_501
-	ident.options |= (WDIOF_OVERHEAT|WDIOF_POWERUNDER|WDIOF_POWEROVER);
-	if (tachometer)
-		ident.options |= WDIOF_FANFAULT;
-#endif /* CONFIG_WDT_501 */
-
+	ident.options&=WDT_OPTION_MASK;	/* Mask down to the card we have */
 	switch(cmd)
 	{
 		default:
 			return -ENOIOCTLCMD;
 		case WDIOC_GETSUPPORT:
-			return copy_to_user(argp, &ident, sizeof(ident))?-EFAULT:0;
+			return copy_to_user((struct watchdog_info *)arg, &ident, sizeof(ident))?-EFAULT:0;
 
 		case WDIOC_GETSTATUS:
-			wdt_get_status(&status);
-			return put_user(status, p);
+			return put_user(wdt_status(),(int *)arg);
 		case WDIOC_GETBOOTSTATUS:
-			return put_user(0, p);
+			return put_user(0, (int *)arg);
 		case WDIOC_KEEPALIVE:
 			wdt_ping();
 			return 0;
 		case WDIOC_SETTIMEOUT:
-			if (get_user(new_heartbeat, p))
+			if (get_user(new_margin, (int *)arg))
 				return -EFAULT;
-
-			if (wdt_set_heartbeat(new_heartbeat))
+			/* Arbitrary, can't find the card's limits */
+			if ((new_margin < 0) || (new_margin > 60))
 				return -EINVAL;
-
+			wd_margin = new_margin * 100;
 			wdt_ping();
 			/* Fall */
 		case WDIOC_GETTIMEOUT:
-			return put_user(heartbeat, p);
+			return put_user(wd_margin / 100, (int *)arg);
 	}
 }
 
@@ -378,26 +363,43 @@ static int wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
  *	@inode: inode of device
  *	@file: file handle to device
  *
- *	The watchdog device has been opened. The watchdog device is single
- *	open and on opening we load the counters. Counter zero is a 100Hz
- *	cascade, into counter 1 which downcounts to reboot. When the counter
- *	triggers counter 2 downcounts the length of the reset pulse which
- *	set set to be as long as possible.
+ *	One of our two misc devices has been opened. The watchdog device is
+ *	single open and on opening we load the counters. Counter zero is a
+ *	100Hz cascade, into counter 1 which downcounts to reboot. When the
+ *	counter triggers counter 2 downcounts the length of the reset pulse
+ *	which set set to be as long as possible.
  */
 
 static int wdt_open(struct inode *inode, struct file *file)
 {
-	if(test_and_set_bit(0, &wdt_is_open))
-		return -EBUSY;
-	/*
-	 *	Activate
-	 */
-	wdt_start();
-	return nonseekable_open(inode, file);
+	switch(iminor(inode))
+	{
+		case WATCHDOG_MINOR:
+			if(test_and_set_bit(0, &wdt_is_open))
+				return -EBUSY;
+			/*
+			 *	Activate
+			 */
+
+			wdt_is_open=1;
+			inb_p(WDT_DC);		/* Disable */
+			wdt_ctr_mode(0,3);
+			wdt_ctr_mode(1,2);
+			wdt_ctr_mode(2,0);
+			wdt_ctr_load(0, 8948);		/* count at 100Hz */
+			wdt_ctr_load(1,wd_margin);	/* Timeout 120 seconds */
+			wdt_ctr_load(2,65535);
+			outb_p(0, WDT_DC);	/* Enable */
+			return 0;
+		case TEMP_MINOR:
+			return 0;
+		default:
+			return -ENODEV;
+	}
 }
 
 /**
- *	wdt_release:
+ *	wdt_close:
  *	@inode: inode to board
  *	@file: file handle to board
  *
@@ -410,68 +412,19 @@ static int wdt_open(struct inode *inode, struct file *file)
 
 static int wdt_release(struct inode *inode, struct file *file)
 {
-	if (expect_close == 42) {
-		wdt_stop();
+	if(iminor(inode)==WATCHDOG_MINOR)
+	{
+		if (expect_close == 42) {
+			inb_p(WDT_DC);		/* Disable counters */
+			wdt_ctr_load(2,0);	/* 0 length reset pulses now */
+		} else {
+			printk(KERN_CRIT "wdt: WDT device closed unexpectedly.  WDT will not stop!\n");
+		}
 		clear_bit(0, &wdt_is_open);
-	} else {
-		printk(KERN_CRIT "wdt: WDT device closed unexpectedly.  WDT will not stop!\n");
-		wdt_ping();
+		expect_close = 0;
 	}
-	expect_close = 0;
 	return 0;
 }
-
-#ifdef CONFIG_WDT_501
-/**
- *	wdt_temp_read:
- *	@file: file handle to the watchdog board
- *	@buf: buffer to write 1 byte into
- *	@count: length of buffer
- *	@ptr: offset (no seek allowed)
- *
- *	Temp_read reports the temperature in degrees Fahrenheit. The API is in
- *	farenheit. It was designed by an imperial measurement luddite.
- */
-
-static ssize_t wdt_temp_read(struct file *file, char __user *buf, size_t count, loff_t *ptr)
-{
-	int temperature;
-
-	if (wdt_get_temperature(&temperature))
-		return -EFAULT;
-
-	if (copy_to_user (buf, &temperature, 1))
-		return -EFAULT;
-
-	return 1;
-}
-
-/**
- *	wdt_temp_open:
- *	@inode: inode of device
- *	@file: file handle to device
- *
- *	The temperature device has been opened.
- */
-
-static int wdt_temp_open(struct inode *inode, struct file *file)
-{
-	return nonseekable_open(inode, file);
-}
-
-/**
- *	wdt_temp_release:
- *	@inode: inode to board
- *	@file: file handle to board
- *
- *	The temperature device has been closed.
- */
-
-static int wdt_temp_release(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-#endif /* CONFIG_WDT_501 */
 
 /**
  *	notify_sys:
@@ -488,9 +441,11 @@ static int wdt_temp_release(struct inode *inode, struct file *file)
 static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
 	void *unused)
 {
-	if(code==SYS_DOWN || code==SYS_HALT) {
+	if(code==SYS_DOWN || code==SYS_HALT)
+	{
 		/* Turn the card off */
-		wdt_stop();
+		inb_p(WDT_DC);
+		wdt_ctr_load(2,0);
 	}
 	return NOTIFY_DONE;
 }
@@ -503,41 +458,39 @@ static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
 static struct file_operations wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
+	.read		= wdt_read,
 	.write		= wdt_write,
 	.ioctl		= wdt_ioctl,
 	.open		= wdt_open,
 	.release	= wdt_release,
 };
 
-static struct miscdevice wdt_miscdev = {
+static struct miscdevice wdt_miscdev=
+{
 	.minor	= WATCHDOG_MINOR,
 	.name	= "watchdog",
 	.fops	= &wdt_fops,
 };
 
 #ifdef CONFIG_WDT_501
-static struct file_operations wdt_temp_fops = {
-	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
-	.read		= wdt_temp_read,
-	.open		= wdt_temp_open,
-	.release	= wdt_temp_release,
-};
-
-static struct miscdevice temp_miscdev = {
+static struct miscdevice temp_miscdev=
+{
 	.minor	= TEMP_MINOR,
 	.name	= "temperature",
-	.fops	= &wdt_temp_fops,
+	.fops	= &wdt_fops,
 };
-#endif /* CONFIG_WDT_501 */
+#endif
 
 /*
  *	The WDT card needs to learn about soft shutdowns in order to
  *	turn the timebomb registers off.
  */
 
-static struct notifier_block wdt_notifier = {
+static struct notifier_block wdt_notifier=
+{
 	.notifier_call = wdt_notify_sys,
+	.next = NULL,
+	.priority = 0,
 };
 
 /**
@@ -555,10 +508,10 @@ static void __exit wdt_exit(void)
 	misc_deregister(&wdt_miscdev);
 #ifdef CONFIG_WDT_501
 	misc_deregister(&temp_miscdev);
-#endif /* CONFIG_WDT_501 */
+#endif
 	unregister_reboot_notifier(&wdt_notifier);
-	free_irq(irq, NULL);
 	release_region(io,8);
+	free_irq(irq, NULL);
 }
 
 /**
@@ -573,67 +526,51 @@ static int __init wdt_init(void)
 {
 	int ret;
 
-	/* Check that the heartbeat value is within it's range ; if not reset to the default */
-	if (wdt_set_heartbeat(heartbeat)) {
-		wdt_set_heartbeat(WD_TIMO);
-		printk(KERN_INFO "wdt: heartbeat value must be 0<heartbeat<65536, using %d\n",
-			WD_TIMO);
-	}
-
-	if (!request_region(io, 8, "wdt501p")) {
-		printk(KERN_ERR "wdt: I/O address 0x%04x already in use\n", io);
-		ret = -EBUSY;
+	ret = misc_register(&wdt_miscdev);
+	if (ret) {
+		printk(KERN_ERR "wdt: can't misc_register on minor=%d\n", WATCHDOG_MINOR);
 		goto out;
 	}
-
 	ret = request_irq(irq, wdt_interrupt, SA_INTERRUPT, "wdt501p", NULL);
 	if(ret) {
 		printk(KERN_ERR "wdt: IRQ %d is not free.\n", irq);
-		goto outreg;
+		goto outmisc;
 	}
-
+	if (!request_region(io, 8, "wdt501p")) {
+		printk(KERN_ERR "wdt: IO %X is not free.\n", io);
+		ret = -EBUSY;
+		goto outirq;
+	}
 	ret = register_reboot_notifier(&wdt_notifier);
 	if(ret) {
-		printk(KERN_ERR "wdt: cannot register reboot notifier (err=%d)\n", ret);
-		goto outirq;
+		printk(KERN_ERR "wdt: can't register reboot notifier (err=%d)\n", ret);
+		goto outreg;
 	}
 
 #ifdef CONFIG_WDT_501
 	ret = misc_register(&temp_miscdev);
 	if (ret) {
-		printk(KERN_ERR "wdt: cannot register miscdev on minor=%d (err=%d)\n",
-			TEMP_MINOR, ret);
+		printk(KERN_ERR "wdt: can't misc_register (temp) on minor=%d\n", TEMP_MINOR);
 		goto outrbt;
 	}
-#endif /* CONFIG_WDT_501 */
-
-	ret = misc_register(&wdt_miscdev);
-	if (ret) {
-		printk(KERN_ERR "wdt: cannot register miscdev on minor=%d (err=%d)\n",
-			WATCHDOG_MINOR, ret);
-		goto outmisc;
-	}
+#endif
 
 	ret = 0;
-	printk(KERN_INFO "WDT500/501-P driver 0.10 at 0x%04x (Interrupt %d). heartbeat=%d sec (nowayout=%d)\n",
-		io, irq, heartbeat, nowayout);
-#ifdef CONFIG_WDT_501
-	printk(KERN_INFO "wdt: Fan Tachometer is %s\n", (tachometer ? "Enabled" : "Disabled"));
-#endif /* CONFIG_WDT_501 */
-
+	printk(KERN_INFO "WDT500/501-P driver 0.07 at %X (Interrupt %d)\n", io, irq);
 out:
 	return ret;
 
-outmisc:
 #ifdef CONFIG_WDT_501
-	misc_deregister(&temp_miscdev);
 outrbt:
-#endif /* CONFIG_WDT_501 */
 	unregister_reboot_notifier(&wdt_notifier);
-outirq:
-	free_irq(irq, NULL);
+#endif
+
 outreg:
 	release_region(io,8);
+outirq:
+	free_irq(irq, NULL);
+outmisc:
+	misc_deregister(&wdt_miscdev);
 	goto out;
 }
 

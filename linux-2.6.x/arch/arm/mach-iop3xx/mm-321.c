@@ -21,6 +21,7 @@
 #include <asm/page.h>
 
 #include <asm/mach/map.h>
+#include <asm/mach-types.h>
 
 
 /*

@@ -12,7 +12,8 @@
 #include <asm/psr.h>
 #include <asm/system.h>
 
-#ifdef CONFIG_SMP
+/* To enable this code, just define SPIN_LOCK_DEBUG in asm/spinlock.h */
+#ifdef SPIN_LOCK_DEBUG
 
 /* Some notes on how these debugging routines work.  When a lock is acquired
  * an extra debugging member lock->owner_pc is set to the caller of the lock
@@ -199,4 +200,4 @@ void _do_write_unlock(rwlock_t *rw)
 	rw->lock = 0;
 }
 
-#endif /* SMP */
+#endif /* SPIN_LOCK_DEBUG */

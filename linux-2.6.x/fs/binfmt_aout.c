@@ -27,6 +27,7 @@
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/pgalloc.h>
 #include <asm/cacheflush.h>
 
 static int load_aout_binary(struct linux_binprm *, struct pt_regs * regs);
@@ -140,14 +141,14 @@ static int aout_core_dump(long signr, struct pt_regs * regs, struct file *file)
 /* make sure we actually have a data and stack area to dump */
 	set_fs(USER_DS);
 #ifdef __sparc__
-	if (verify_area(VERIFY_READ, (void __user *)START_DATA(dump), dump.u_dsize))
+	if (verify_area(VERIFY_READ, (void *) START_DATA(dump), dump.u_dsize))
 		dump.u_dsize = 0;
-	if (verify_area(VERIFY_READ, (void __user *)START_STACK(dump), dump.u_ssize))
+	if (verify_area(VERIFY_READ, (void *) START_STACK(dump), dump.u_ssize))
 		dump.u_ssize = 0;
 #else
-	if (verify_area(VERIFY_READ, (void __user *)START_DATA(dump), dump.u_dsize << PAGE_SHIFT))
+	if (verify_area(VERIFY_READ, (void *) START_DATA(dump), dump.u_dsize << PAGE_SHIFT))
 		dump.u_dsize = 0;
-	if (verify_area(VERIFY_READ, (void __user *)START_STACK(dump), dump.u_ssize << PAGE_SHIFT))
+	if (verify_area(VERIFY_READ, (void *) START_STACK(dump), dump.u_ssize << PAGE_SHIFT))
 		dump.u_ssize = 0;
 #endif
 
@@ -193,18 +194,17 @@ end_coredump:
  * memory and creates the pointer tables from them, and puts their
  * addresses on the "stack", returning the new stack pointer value.
  */
-static unsigned long __user *create_aout_tables(char __user *p, struct linux_binprm * bprm)
+static unsigned long * create_aout_tables(char * p, struct linux_binprm * bprm)
 {
-	char __user * __user *argv;
-	char __user * __user *envp;
-	unsigned long __user *sp;
+	char **argv, **envp;
+	unsigned long * sp;
 	int argc = bprm->argc;
 	int envc = bprm->envc;
 
-	sp = (void __user *)((-(unsigned long)sizeof(char *)) & (unsigned long) p);
+	sp = (unsigned long *) ((-(unsigned long)sizeof(char *)) & (unsigned long) p);
 #ifdef __sparc__
 	/* This imposes the proper stack alignment for a new process. */
-	sp = (void __user *) (((unsigned long) sp) & ~7);
+	sp = (unsigned long *) (((unsigned long) sp) & ~7);
 	if ((envc+argc+3)&1) --sp;
 #endif
 #ifdef __alpha__
@@ -221,9 +221,9 @@ static unsigned long __user *create_aout_tables(char __user *p, struct linux_bin
 	put_user(0x3e9, --sp);
 #endif
 	sp -= envc+1;
-	envp = (char __user * __user *) sp;
+	envp = (char **) sp;
 	sp -= argc+1;
-	argv = (char __user * __user *) sp;
+	argv = (char **) sp;
 #if defined(__i386__) || defined(__mc68000__) || defined(__arm__) || defined(__arch_um__)
 	put_user((unsigned long) envp,--sp);
 	put_user((unsigned long) argv,--sp);
@@ -348,8 +348,7 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 			return error;
 		}
 
-		error = bprm->file->f_op->read(bprm->file,
-			  (char __user *)text_addr,
+		error = bprm->file->f_op->read(bprm->file, (char *)text_addr,
 			  ex.a_text+ex.a_data, &pos);
 		if ((signed long)error < 0) {
 			send_sig(SIGKILL, current, 0);
@@ -378,8 +377,7 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		if (!bprm->file->f_op->mmap||((fd_offset & ~PAGE_MASK) != 0)) {
 			loff_t pos = fd_offset;
 			do_brk(N_TXTADDR(ex), ex.a_text+ex.a_data);
-			bprm->file->f_op->read(bprm->file,
-					(char __user *)N_TXTADDR(ex),
+			bprm->file->f_op->read(bprm->file,(char *)N_TXTADDR(ex),
 					ex.a_text+ex.a_data, &pos);
 			flush_icache_range((unsigned long) N_TXTADDR(ex),
 					   (unsigned long) N_TXTADDR(ex) +
@@ -415,7 +413,7 @@ beyond_if:
 
 	set_brk(current->mm->start_brk, current->mm->brk);
 
-	retval = setup_arg_pages(bprm, EXSTACK_DEFAULT);
+	retval = setup_arg_pages(bprm); 
 	if (retval < 0) { 
 		/* Someone check-me: is this error path enough? */ 
 		send_sig(SIGKILL, current, 0); 
@@ -423,7 +421,7 @@ beyond_if:
 	}
 
 	current->mm->start_stack =
-		(unsigned long) create_aout_tables((char __user *) bprm->p, bprm);
+		(unsigned long) create_aout_tables((char *) bprm->p, bprm);
 #ifdef __alpha__
 	regs->gp = ex.a_gpvalue;
 #endif
@@ -481,7 +479,7 @@ static int load_aout_library(struct file *file)
 
 		do_brk(start_addr, ex.a_text + ex.a_data + ex.a_bss);
 		
-		file->f_op->read(file, (char __user *)start_addr,
+		file->f_op->read(file, (char *)start_addr,
 			ex.a_text + ex.a_data, &pos);
 		flush_icache_range((unsigned long) start_addr,
 				   (unsigned long) start_addr + ex.a_text + ex.a_data);
@@ -523,6 +521,6 @@ static void __exit exit_aout_binfmt(void)
 	unregister_binfmt(&aout_format);
 }
 
-core_initcall(init_aout_binfmt);
+module_init(init_aout_binfmt);
 module_exit(exit_aout_binfmt);
 MODULE_LICENSE("GPL");

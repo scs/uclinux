@@ -168,8 +168,7 @@ static inline int restore_sigcontext_fpu(struct sigcontext __user *sc)
 				sizeof(long)*(16*2+2));
 }
 
-static inline int save_sigcontext_fpu(struct sigcontext __user *sc,
-				      struct pt_regs *regs)
+static inline int save_sigcontext_fpu(struct sigcontext __user *sc)
 {
 	struct task_struct *tsk = current;
 
@@ -188,7 +187,7 @@ static inline int save_sigcontext_fpu(struct sigcontext __user *sc,
 	   */
 	tsk->used_math = 0;
 
-	unlazy_fpu(tsk, regs);
+	unlazy_fpu(tsk);
 	return __copy_to_user(&sc->sc_fpregs[0], &tsk->thread.fpu.hard,
 			      sizeof(long)*(16*2+2));
 }
@@ -219,7 +218,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *r0_p
 		struct task_struct *tsk = current;
 
 		regs->sr |= SR_FD; /* Release FPU */
-		clear_fpu(tsk, regs);
+		clear_fpu(tsk);
 		tsk->used_math = 0;
 		__get_user (owned_fp, &sc->sc_ownedfp);
 		if (owned_fp)
@@ -327,7 +326,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 #undef COPY
 
 #ifdef CONFIG_CPU_SH4
-	err |= save_sigcontext_fpu(sc, regs);
+	err |= save_sigcontext_fpu(sc);
 #endif
 
 	/* non-iBCS2 extensions.. */
@@ -522,13 +521,9 @@ handle_signal(unsigned long sig, siginfo_t *info, sigset_t *oldset,
 			case -ERESTARTNOINTR:
 				regs->pc -= 2;
 		}
+#ifndef CONFIG_PREEMPT
 	} else {
 		/* gUSA handling */
-#ifdef CONFIG_PREEMPT
-		unsigned long flags;
-
-		local_irq_save(flags);
-#endif
 		if (regs->regs[15] >= 0xc0000000) {
 			int offset = (int)regs->regs[15];
 
@@ -538,8 +533,6 @@ handle_signal(unsigned long sig, siginfo_t *info, sigset_t *oldset,
 				/* Go to rewind point #1 */
 				regs->pc = regs->regs[0] + offset - 2;
 		}
-#ifdef CONFIG_PREEMPT
-		local_irq_restore(flags);
 #endif
 	}
 

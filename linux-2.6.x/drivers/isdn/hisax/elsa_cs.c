@@ -53,7 +53,6 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-#include "hisax_cfg.h"
 
 MODULE_DESCRIPTION("ISDN4Linux: PCMCIA client driver for Elsa PCM cards");
 MODULE_AUTHOR("Klaus Lichtenwalder");
@@ -93,6 +92,8 @@ MODULE_PARM(irq_list, "1-4i");
 
 static int protocol = 2;        /* EURO-ISDN Default */
 MODULE_PARM(protocol, "i");
+
+extern int elsa_init_pcmcia(int, int, int*, int);
 
 /*====================================================================*/
 
@@ -167,7 +168,6 @@ typedef struct local_info_t {
     dev_link_t          link;
     dev_node_t          node;
     int                 busy;
-    int			cardnr;
 } local_info_t;
 
 /*======================================================================
@@ -188,6 +188,7 @@ static dev_link_t *elsa_cs_attach(void)
     dev_link_t *link;
     local_info_t *local;
     int ret, i;
+    void elsa_interrupt(int, void *, struct pt_regs *);
 
     DEBUG(0, "elsa_cs_attach()\n");
 
@@ -195,7 +196,6 @@ static dev_link_t *elsa_cs_attach(void)
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local) return NULL;
     memset(local, 0, sizeof(local_info_t));
-    local->cardnr = -1;
     link = &local->link; link->priv = local;
 
     /* Interrupt setup */
@@ -271,6 +271,19 @@ static void elsa_cs_detach(dev_link_t *link)
     if (link->state & DEV_CONFIG)
         elsa_cs_release(link);
 
+    /*
+       If the device is currently configured and active, we won't
+       actually delete it yet.  Instead, it is marked so that when
+       the release() function is called, that will trigger a proper
+       detach().
+    */
+    if (link->state & DEV_CONFIG) {
+      DEBUG(0, "elsa_cs: detach postponed, '%s' "
+               "still locked\n", link->dev->dev_name);
+        link->state |= DEV_STALE_LINK;
+        return;
+    }
+
     /* Break the link with Card Services */
     if (link->handle) {
         ret = pcmcia_deregister_client(link->handle);
@@ -324,7 +337,6 @@ static void elsa_cs_config(dev_link_t *link)
     int i, j, last_fn;
     u_short buf[128];
     cistpl_cftable_entry_t *cf = &parse.cftable_entry;
-    IsdnCard_t icard;
 
     DEBUG(0, "elsa_config(0x%p)\n", link);
     handle = link->handle;
@@ -418,19 +430,9 @@ static void elsa_cs_config(dev_link_t *link)
 
     link->state &= ~DEV_CONFIG_PENDING;
 
-    icard.para[0] = link->irq.AssignedIRQ;
-    icard.para[1] = link->io.BasePort1;
-    icard.protocol = protocol;
-    icard.typ = ISDN_CTYPE_ELSA_PCMCIA;
-    
-    i = hisax_init_pcmcia(link, &(((local_info_t*)link->priv)->busy), &icard);
-    if (i < 0) {
-    	printk(KERN_ERR "elsa_cs: failed to initialize Elsa PCMCIA %d at i/o %#x\n",
-    		i, link->io.BasePort1);
-    	elsa_cs_release(link);
-    } else
-    	((local_info_t*)link->priv)->cardnr = i;
-
+    elsa_init_pcmcia(link->io.BasePort1, link->irq.AssignedIRQ,
+                     &(((local_info_t*)link->priv)->busy),
+                     protocol);
     return;
 cs_failed:
     cs_error(link->handle, last_fn, i);
@@ -447,16 +449,9 @@ cs_failed:
 
 static void elsa_cs_release(dev_link_t *link)
 {
-    local_info_t *local = link->priv;
 
     DEBUG(0, "elsa_cs_release(0x%p)\n", link);
 
-    if (local) {
-    	if (local->cardnr >= 0) {
-    	    /* no unregister function with hisax */
-	    HiSax_closecard(local->cardnr);
-	}
-    }
     /* Unlink the device chain */
     link->dev = NULL;
 
@@ -467,6 +462,10 @@ static void elsa_cs_release(dev_link_t *link)
     pcmcia_release_io(link->handle, &link->io);
     pcmcia_release_irq(link->handle, &link->irq);
     link->state &= ~DEV_CONFIG;
+
+    if (link->state & DEV_STALE_LINK)
+        elsa_cs_detach(link);
+
 } /* elsa_cs_release */
 
 /*======================================================================

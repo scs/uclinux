@@ -12,6 +12,7 @@
    next 0x4000 loaded. This may change in future versions.
  */
 
+#define __KERNEL_SYSCALLS__
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
@@ -23,7 +24,7 @@
 #include <linux/fcntl.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
-#include <linux/syscalls.h>
+
 
 #include "dvb_frontend.h"
 #include "dvb_functions.h"
@@ -56,15 +57,14 @@ static char *sp887x_firmware = DVB_SP887X_FIRMWARE_FILE;
 
 static
 struct dvb_frontend_info sp887x_info = {
-	.name = "Microtune MT7202DTF",
+	.name = "Microtune MT7072DTF",
 	.type = FE_OFDM,
 	.frequency_min =  50500000,
 	.frequency_max = 858000000,
 	.frequency_stepsize = 166666,
 	.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
-		FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
-                FE_CAN_RECOVER
+		FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 | FE_CAN_RECOVER
 };
 
 static int errno;
@@ -73,7 +73,7 @@ static
 int i2c_writebytes (struct dvb_frontend *fe, u8 addr, u8 *buf, u8 len)
 {
 	struct dvb_i2c_bus *i2c = fe->i2c;
-	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = buf, .len = len };
+	struct i2c_msg msg = { addr: addr, flags: 0, buf: buf, len: len };
 	int err;
 
 	LOG("i2c_writebytes", msg.addr, msg.buf, msg.len);
@@ -210,13 +210,13 @@ int sp887x_initial_setup (struct dvb_frontend *fe)
 
 	// Load the firmware
 	set_fs(get_ds());
-	fd = sys_open(sp887x_firmware, 0, 0);
+	fd = open(sp887x_firmware, 0, 0);
 	if (fd < 0) {
 		printk(KERN_WARNING "%s: Unable to open firmware %s\n", __FUNCTION__,
 		       sp887x_firmware);
 		return -EIO;
 	}
-	filesize = sys_lseek(fd, 0L, 2);
+	filesize = lseek(fd, 0L, 2);
 	if (filesize <= 0) {
 		printk(KERN_WARNING "%s: Firmware %s is empty\n", __FUNCTION__,
 		       sp887x_firmware);
@@ -238,8 +238,8 @@ int sp887x_initial_setup (struct dvb_frontend *fe)
 	// read it!
 	// read the first 16384 bytes from the file
 	// ignore the first 10 bytes
-	sys_lseek(fd, 10, 0);
-	if (sys_read(fd, firmware, fw_size) != fw_size) {
+	lseek(fd, 10, 0);
+	if (read(fd, firmware, fw_size) != fw_size) {
 		printk(KERN_WARNING "%s: Failed to read firmware\n", __FUNCTION__);
 		vfree(firmware);
 		sys_close(fd);
@@ -632,15 +632,6 @@ int sp887x_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		sp887x_writereg(fe, 0xc18, 0x00d);
 		break;
 
-	case FE_GET_TUNE_SETTINGS:
-	{
-	        struct dvb_frontend_tune_settings* fesettings = (struct dvb_frontend_tune_settings*) arg;
-	        fesettings->min_delay_ms = 50;
-	        fesettings->step_size = 0;
-	        fesettings->max_drift = 0;
-	        return 0;
-	}	    
-
 	default:
 		return -EOPNOTSUPP;
         };
@@ -653,7 +644,7 @@ int sp887x_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 static
 int sp887x_attach (struct dvb_i2c_bus *i2c, void **data)
 {
-	struct i2c_msg msg = {.addr = 0x70, .flags = 0, .buf = NULL, .len = 0 };
+	struct i2c_msg msg = { addr: 0x70, flags: 0, buf: NULL, len: 0 };
 
 	dprintk ("%s\n", __FUNCTION__);
 

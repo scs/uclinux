@@ -1,13 +1,14 @@
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include <asm/tlbflush.h>
 
-void *__kmap(struct page *page)
+void *kmap(struct page *page)
 {
 	void *addr;
 
-	might_sleep();
+	if (in_interrupt())
+		BUG();
+
 	if (page < highmem_start_page)
 		return page_address(page);
 	addr = kmap_high(page);
@@ -16,7 +17,7 @@ void *__kmap(struct page *page)
 	return addr;
 }
 
-void __kunmap(struct page *page)
+void kunmap(struct page *page)
 {
 	if (in_interrupt())
 		BUG();
@@ -34,7 +35,7 @@ void __kunmap(struct page *page)
  * kmaps are appropriate for short, tight code paths only.
  */
 
-void *__kmap_atomic(struct page *page, enum km_type type)
+void *kmap_atomic(struct page *page, enum km_type type)
 {
 	enum fixed_addresses idx;
 	unsigned long vaddr;
@@ -56,7 +57,7 @@ void *__kmap_atomic(struct page *page, enum km_type type)
 	return (void*) vaddr;
 }
 
-void __kunmap_atomic(void *kvaddr, enum km_type type)
+void kunmap_atomic(void *kvaddr, enum km_type type)
 {
 #ifdef CONFIG_DEBUG_HIGHMEM
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
@@ -83,7 +84,7 @@ void __kunmap_atomic(void *kvaddr, enum km_type type)
 	preempt_check_resched();
 }
 
-struct page *__kmap_atomic_to_page(void *ptr)
+struct page *kmap_atomic_to_page(void *ptr)
 {
 	unsigned long idx, vaddr = (unsigned long)ptr;
 	pte_t *pte;
@@ -96,8 +97,8 @@ struct page *__kmap_atomic_to_page(void *ptr)
 	return pte_page(*pte);
 }
 
-EXPORT_SYMBOL(__kmap);
-EXPORT_SYMBOL(__kunmap);
-EXPORT_SYMBOL(__kmap_atomic);
-EXPORT_SYMBOL(__kunmap_atomic);
-EXPORT_SYMBOL(__kmap_atomic_to_page);
+EXPORT_SYMBOL(kmap);
+EXPORT_SYMBOL(kunmap);
+EXPORT_SYMBOL(kmap_atomic);
+EXPORT_SYMBOL(kunmap_atomic);
+EXPORT_SYMBOL(kmap_atomic_to_page);

@@ -19,13 +19,11 @@
 #define SZLONG_MASK 31UL
 #define __LL	"ll"
 #define __SC	"sc"
-#define cpu_to_lelongp(x) cpu_to_le32p((__u32 *) (x)) 
 #elif (_MIPS_SZLONG == 64)
 #define SZLONG_LOG 6
 #define SZLONG_MASK 63UL
 #define __LL	"lld"
 #define __SC	"scd"
-#define cpu_to_lelongp(x) cpu_to_le64p((__u64 *) (x)) 
 #endif
 
 #ifdef __KERNEL__
@@ -296,7 +294,7 @@ static inline int __test_and_clear_bit(unsigned long nr,
 }
 
 /*
- * test_and_change_bit - Change a bit and return its old value
+ * test_and_change_bit - Change a bit and return its new value
  * @nr: Bit to change
  * @addr: Address to count from
  *
@@ -567,7 +565,7 @@ static inline int __test_and_clear_bit(unsigned long nr,
 }
 
 /*
- * test_and_change_bit - Change a bit and return its old value
+ * test_and_change_bit - Change a bit and return its new value
  * @nr: Bit to change
  * @addr: Address to count from
  *
@@ -629,7 +627,7 @@ static inline int __test_and_change_bit(unsigned long nr,
  */
 static inline int test_bit(unsigned long nr, const volatile unsigned long *addr)
 {
-	return 1UL & (addr[nr >> SZLONG_LOG] >> (nr & SZLONG_MASK));
+	return 1UL & (((const volatile unsigned long *) addr)[nr >> SZLONG_LOG] >> (nr & SZLONG_MASK));
 }
 
 /*
@@ -685,10 +683,10 @@ static inline unsigned long __ffs(unsigned long word)
  * @offset: The bitnumber to start searching at
  * @size: The maximum size to search
  */
-static inline unsigned long find_next_zero_bit(const unsigned long *addr,
+static inline unsigned long find_next_zero_bit(unsigned long *addr,
 	unsigned long size, unsigned long offset)
 {
-	const unsigned long *p = addr + (offset >> SZLONG_LOG);
+	unsigned long *p = ((unsigned long *) addr) + (offset >> SZLONG_LOG);
 	unsigned long result = offset & ~SZLONG_MASK;
 	unsigned long tmp;
 
@@ -733,10 +731,10 @@ found_middle:
  * @offset: The bitnumber to start searching at
  * @size: The maximum size to search
  */
-static inline unsigned long find_next_bit(const unsigned long *addr,
+static inline unsigned long find_next_bit(unsigned long *addr,
 	unsigned long size, unsigned long offset)
 {
-	const unsigned long *p = addr + (offset >> SZLONG_LOG);
+	unsigned long *p = addr + (offset >> SZLONG_LOG);
 	unsigned long result = offset & ~SZLONG_MASK;
 	unsigned long tmp;
 
@@ -791,7 +789,7 @@ found_middle:
  * unlikely to be set. It's guaranteed that at least one of the 140
  * bits is cleared.
  */
-static inline int sched_find_first_bit(const unsigned long *b)
+static inline int sched_find_first_bit(unsigned long *b)
 {
 #ifdef CONFIG_MIPS32
 	if (unlikely(b[0]))
@@ -831,7 +829,6 @@ static inline int sched_find_first_bit(const unsigned long *b)
  * The Hamming Weight of a number is the total number of bits set in it.
  */
 
-#define hweight64(x)	generic_hweight64(x)
 #define hweight32(x)	generic_hweight32(x)
 #define hweight16(x)	generic_hweight16(x)
 #define hweight8(x)	generic_hweight8(x)
@@ -873,44 +870,59 @@ static inline int test_le_bit(unsigned long nr, const unsigned long * addr)
 	return ((mask & *ADDR) != 0);
 }
 
+static inline unsigned long ext2_ffz(unsigned int word)
+{
+	int b = 0, s;
+
+	word = ~word;
+	s = 16; if (word << 16 != 0) s = 0; b += s; word >>= s;
+	s =  8; if (word << 24 != 0) s = 0; b += s; word >>= s;
+	s =  4; if (word << 28 != 0) s = 0; b += s; word >>= s;
+	s =  2; if (word << 30 != 0) s = 0; b += s; word >>= s;
+	s =  1; if (word << 31 != 0) s = 0; b += s;
+
+	return b;
+}
+
 static inline unsigned long find_next_zero_le_bit(unsigned long *addr,
 	unsigned long size, unsigned long offset)
 {
-	unsigned long *p = ((unsigned long *) addr) + (offset >> SZLONG_LOG);
-	unsigned long result = offset & ~SZLONG_MASK;
-	unsigned long tmp;
+	unsigned int *p = ((unsigned int *) addr) + (offset >> SZLONG_LOG);
+	unsigned int result = offset & ~SZLONG_MASK;
+	unsigned int tmp;
 
 	if (offset >= size)
 		return size;
+
 	size -= result;
 	offset &= SZLONG_MASK;
 	if (offset) {
-		tmp = cpu_to_lelongp(p++);
-		tmp |= ~0UL >> (_MIPS_SZLONG-offset); /* bug or feature ? */
-		if (size < _MIPS_SZLONG)
+		tmp = cpu_to_le32p(p++);
+		tmp |= ~0U >> (32-offset); /* bug or feature ? */
+		if (size < 32)
 			goto found_first;
-		if (~tmp)
+		if (tmp != ~0U)
 			goto found_middle;
-		size -= _MIPS_SZLONG;
-		result += _MIPS_SZLONG;
+		size -= 32;
+		result += 32;
 	}
-	while (size & ~SZLONG_MASK) {
-		if (~(tmp = cpu_to_lelongp(p++)))
+	while (size >= 32) {
+		if ((tmp = cpu_to_le32p(p++)) != ~0U)
 			goto found_middle;
-		result += _MIPS_SZLONG;
-		size -= _MIPS_SZLONG;
+		result += 32;
+		size -= 32;
 	}
 	if (!size)
 		return result;
-	tmp = cpu_to_lelongp(p);
 
+	tmp = cpu_to_le32p(p);
 found_first:
-	tmp |= ~0UL << size;
-	if (tmp == ~0UL)		/* Are any bits zero? */
+	tmp |= ~0 << size;
+	if (tmp == ~0U)			/* Are any bits zero? */
 		return result + size;	/* Nope. */
 
 found_middle:
-	return result + ffz(tmp);
+	return result + ext2_ffz(tmp);
 }
 
 #define find_first_zero_le_bit(addr, size) \

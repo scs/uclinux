@@ -1,4 +1,5 @@
 /*
+ *
  * BRIEF MODULE DESCRIPTION
  *	PB1000 board setup
  *
@@ -36,6 +37,7 @@
 #include <linux/config.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
 
 int prom_argc;
 char **prom_argv, **prom_envp;
@@ -44,31 +46,28 @@ extern char *prom_getenv(char *envname);
 
 const char *get_system_type(void)
 {
-#ifdef CONFIG_MIPS_BOSPORUS
-	return "Alchemy Bosporus Gateway Reference";
-#else
-	return "Alchemy Db1x00";
-#endif
+	return "Alchemy Db1000";
 }
 
-void __init prom_init(void)
+int __init prom_init(int argc, char **argv, char **envp, int *prom_vec)
 {
 	unsigned char *memsize_str;
 	unsigned long memsize;
 
-	prom_argc = fw_arg0;
-	prom_argv = (char **) fw_arg1;
-	prom_envp = (char **) fw_arg2;
+	prom_argc = argc;
+	prom_argv = argv;
+	prom_envp = envp;
 
 	mips_machgroup = MACH_GROUP_ALCHEMY;
 	mips_machtype = MACH_DB1000;	/* set the platform # */   
-
 	prom_init_cmdline();
 
 	memsize_str = prom_getenv("memsize");
-	if (!memsize_str)
+	if (!memsize_str) {
 		memsize = 0x04000000;
-	else
+	} else {
 		memsize = simple_strtol(memsize_str, NULL, 0);
+	}
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
+	return 0;
 }

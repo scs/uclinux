@@ -28,7 +28,6 @@
 #include <asm/page.h>
 #include <asm/time.h>
 #include <asm/io.h>
-#include <asm/ibm_ocp_pci.h>
 #include <asm/todc.h>
 
 #undef DEBUG
@@ -119,8 +118,6 @@ sycamore_setup_arch(void)
 	void *fpga_trigger;
 
 	ppc4xx_setup_arch();
-
-	ibm_ocp_set_emac(0, 1);
 
 	kb_data = ioremap(SYCAMORE_PS2_BASE, 8);
 	if (!kb_data) {
@@ -221,25 +218,21 @@ bios_fixup(struct pci_controller *hose, struct pcil0_regs *pcip)
 						(PPC405_PCI_UPPER_MEM -
 						 PPC405_PCI_MEM_BASE)) | 0x01));
 
-	/* Enable inbound region one - 1GB size */
-	out_le32((void *) &(pcip->ptm1ms), 0xc0000001);
-
-	/* Disable outbound region one */
+	/* Disable region one */
 	out_le32((void *) &(pcip->pmm[1].ma), 0x00000000);
 	out_le32((void *) &(pcip->pmm[1].la), 0x00000000);
 	out_le32((void *) &(pcip->pmm[1].pcila), 0x00000000);
 	out_le32((void *) &(pcip->pmm[1].pciha), 0x00000000);
 	out_le32((void *) &(pcip->pmm[1].ma), 0x00000000);
+	out_le32((void *) &(pcip->ptm1ms), 0x00000000);
 
-	/* Disable inbound region two */
-	out_le32((void *) &(pcip->ptm2ms), 0x00000000);
-
-	/* Disable outbound region two */
+	/* Disable region two */
 	out_le32((void *) &(pcip->pmm[2].ma), 0x00000000);
 	out_le32((void *) &(pcip->pmm[2].la), 0x00000000);
 	out_le32((void *) &(pcip->pmm[2].pcila), 0x00000000);
 	out_le32((void *) &(pcip->pmm[2].pciha), 0x00000000);
 	out_le32((void *) &(pcip->pmm[2].ma), 0x00000000);
+	out_le32((void *) &(pcip->ptm2ms), 0x00000000);
 
 	/* Zero config bars */
 	for (bar = PCI_BASE_ADDRESS_1; bar <= PCI_BASE_ADDRESS_2; bar += 4) {
@@ -290,11 +283,9 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.setup_arch = sycamore_setup_arch;
 	ppc_md.setup_io_mappings = sycamore_map_io;
 
-#ifdef CONFIG_GEN_RTC
 	ppc_md.time_init = todc_time_init;
 	ppc_md.set_rtc_time = todc_set_rtc_time;
 	ppc_md.get_rtc_time = todc_get_rtc_time;
 	ppc_md.nvram_read_val = todc_direct_read_val;
 	ppc_md.nvram_write_val = todc_direct_write_val;
-#endif
 }

@@ -154,14 +154,15 @@ ext2_iset_acl(struct inode *inode, struct posix_acl **i_acl,
 static struct posix_acl *
 ext2_get_acl(struct inode *inode, int type)
 {
+	const size_t max_size = ext2_acl_size(EXT2_ACL_MAX_ENTRIES);
 	struct ext2_inode_info *ei = EXT2_I(inode);
 	int name_index;
-	char *value = NULL;
+	char *value;
 	struct posix_acl *acl;
 	int retval;
 
 	if (!test_opt(inode->i_sb, POSIX_ACL))
-		return NULL;
+		return 0;
 
 	switch(type) {
 		case ACL_TYPE_ACCESS:
@@ -181,21 +182,17 @@ ext2_get_acl(struct inode *inode, int type)
 		default:
 			return ERR_PTR(-EINVAL);
 	}
-	retval = ext2_xattr_get(inode, name_index, "", NULL, 0);
-	if (retval > 0) {
-		value = kmalloc(retval, GFP_KERNEL);
-		if (!value)
-			return ERR_PTR(-ENOMEM);
-		retval = ext2_xattr_get(inode, name_index, "", value, retval);
-	}
-	if (retval > 0)
+	value = kmalloc(max_size, GFP_KERNEL);
+	if (!value)
+		return ERR_PTR(-ENOMEM);
+
+	retval = ext2_xattr_get(inode, name_index, "", value, max_size);
+	acl = ERR_PTR(retval);
+	if (retval >= 0)
 		acl = ext2_acl_from_disk(value, retval);
 	else if (retval == -ENODATA || retval == -ENOSYS)
 		acl = NULL;
-	else
-		acl = ERR_PTR(retval);
-	if (value)
-		kfree(value);
+	kfree(value);
 
 	if (!IS_ERR(acl)) {
 		switch(type) {
@@ -325,8 +322,7 @@ check_groups:
 
 check_capabilities:
 	/* Allowed to override Discretionary Access Control? */
-	if (!(mask & MAY_EXEC) ||
-	    (inode->i_mode & S_IXUGO) || S_ISDIR(inode->i_mode))
+	if ((mask & (MAY_READ|MAY_WRITE)) || (inode->i_mode & S_IXUGO))
 		if (capable(CAP_DAC_OVERRIDE))
 			return 0;
 	/* Read and search granted if capable(CAP_DAC_READ_SEARCH) */

@@ -25,21 +25,6 @@
 #define MD_DRIVER
 #define MD_PERSONALITY
 
-static void raid0_unplug(request_queue_t *q)
-{
-	mddev_t *mddev = q->queuedata;
-	raid0_conf_t *conf = mddev_to_conf(mddev);
-	mdk_rdev_t **devlist = conf->strip_zone[0].dev;
-	int i;
-
-	for (i=0; i<mddev->raid_disks; i++) {
-		request_queue_t *r_queue = bdev_get_queue(devlist[i]->bdev);
-
-		if (r_queue->unplug_fn)
-			r_queue->unplug_fn(r_queue);
-	}
-}
-
 static int create_strip_zones (mddev_t *mddev)
 {
 	int i, c, j;
@@ -217,8 +202,6 @@ static int create_strip_zones (mddev_t *mddev)
 			conf->hash_spacing = sz;
 	}
 
-	mddev->queue->unplug_fn = raid0_unplug;
-
 	printk("raid0: done.\n");
 	return 0;
  abort:
@@ -236,7 +219,7 @@ static int create_strip_zones (mddev_t *mddev)
 static int raid0_mergeable_bvec(request_queue_t *q, struct bio *bio, struct bio_vec *biovec)
 {
 	mddev_t *mddev = q->queuedata;
-	sector_t sector = bio->bi_sector + get_start_sect(bio->bi_bdev);
+	sector_t sector = bio->bi_sector;
 	int max;
 	unsigned int chunk_sectors = mddev->chunk_size >> 9;
 	unsigned int bio_sectors = bio->bi_size >> 9;
@@ -257,8 +240,8 @@ static int raid0_run (mddev_t *mddev)
 	mdk_rdev_t *rdev;
 	struct list_head *tmp;
 
-	printk("%s: setting max_sectors to %d, segment boundary to %d\n",
-	       mdname(mddev),
+	printk("md%d: setting max_sectors to %d, segment boundary to %d\n",
+	       mdidx(mddev),
 	       mddev->chunk_size >> 9,
 	       (mddev->chunk_size>>1)-1);
 	blk_queue_max_sectors(mddev->queue, mddev->chunk_size >> 9);
@@ -330,8 +313,8 @@ static int raid0_run (mddev_t *mddev)
 
 	/* calculate the max read-ahead size.
 	 * For read-ahead of large files to be effective, we need to
-	 * readahead at least twice a whole stripe. i.e. number of devices
-	 * multiplied by chunk size times 2.
+	 * readahead at least a whole stripe. i.e. number of devices
+	 * multiplied by chunk size.
 	 * If an individual device has an ra_pages greater than the
 	 * chunk size, then we will not drive that device as hard as it
 	 * wants.  We consider this a configuration error: a larger
@@ -339,8 +322,8 @@ static int raid0_run (mddev_t *mddev)
 	 */
 	{
 		int stripe = mddev->raid_disks * mddev->chunk_size / PAGE_CACHE_SIZE;
-		if (mddev->queue->backing_dev_info.ra_pages < 2* stripe)
-			mddev->queue->backing_dev_info.ra_pages = 2* stripe;
+		if (mddev->queue->backing_dev_info.ra_pages < stripe)
+			mddev->queue->backing_dev_info.ra_pages = stripe;
 	}
 
 
@@ -381,14 +364,6 @@ static int raid0_make_request (request_queue_t *q, struct bio *bio)
 	mdk_rdev_t *tmp_dev;
 	unsigned long chunk;
 	sector_t block, rsect;
-
-	if (bio_data_dir(bio)==WRITE) {
-		disk_stat_inc(mddev->gendisk, writes);
-		disk_stat_add(mddev->gendisk, write_sectors, bio_sectors(bio));
-	} else {
-		disk_stat_inc(mddev->gendisk, reads);
-		disk_stat_add(mddev->gendisk, read_sectors, bio_sectors(bio));
-	}
 
 	chunk_size = mddev->chunk_size >> 10;
 	chunk_sects = mddev->chunk_size >> 9;

@@ -122,6 +122,10 @@ struct saa5249_device
 #define FALSE 0
 #define TRUE 1
 #endif
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
 
 #define RESCHED do { cond_resched(); } while(0)
 
@@ -219,7 +223,7 @@ static int saa5249_attach(struct i2c_adapter *adap, int addr, int kind)
  
 static int saa5249_probe(struct i2c_adapter *adap)
 {
-	if (adap->class & I2C_CLASS_TV_ANALOG)
+	if (adap->class & I2C_ADAP_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, saa5249_attach);
 	return 0;
 }
@@ -514,8 +518,8 @@ static int do_saa5249_ioctl(struct inode *inode, struct file *file,
 			{
 				int len;
 				char buf[16];  
-				start = max(req->start, 32);
-				end = min(req->end, 39);
+				start = MAX(req->start, 32);
+				end = MIN(req->end, 39);
 				len=end-start+1;
 				if (i2c_senddata(t, 8, 0, 0, start, -1) ||
 					i2c_getdata(t, len, buf))
@@ -528,8 +532,8 @@ static int do_saa5249_ioctl(struct inode *inode, struct file *file,
 			{
 				char buf[32];
 				int len;
-				start = max(req->start, 7);
-				end = min(req->end, 31);
+				start = MAX(req->start, 7);
+				end = MIN(req->end, 31);
 				len=end-start+1;
 				if (i2c_senddata(t, 8, 0, 0, start, -1) ||
 					i2c_getdata(t, len, buf))

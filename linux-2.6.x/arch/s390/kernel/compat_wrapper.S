@@ -102,7 +102,7 @@ sys32_mount_wrapper:
 	llgtr	%r4,%r4			# char *
 	llgfr	%r5,%r5			# unsigned long
 	llgtr	%r6,%r6			# void *
-	jg	compat_sys_mount	# branch to system call
+	jg	sys32_mount		# branch to system call
 
 	.globl  sys32_oldumount_wrapper 
 sys32_oldumount_wrapper:
@@ -126,7 +126,7 @@ sys32_ptrace_wrapper:
 
 	.globl  sys32_alarm_wrapper 
 sys32_alarm_wrapper:
-	llgfr	%r2,%r2			# unsigned int
+	llgtr	%r2,%r2			# unsigned int
 	jg	sys_alarm		# branch to system call
 
 #sys32_pause_wrapper			# void 
@@ -203,7 +203,7 @@ sys32_setgid16_wrapper:
 	.globl sys32_signal_wrapper
 sys32_signal_wrapper:
 	lgfr	%r2,%r2			# int 
-	llgtr	%r3,%r3			# __sighandler_t
+	llgfr	%r3,%r3			# __sighandler_t 
 	jg	sys_signal
 
 #sys32_geteuid16_wrapper		# void 
@@ -243,7 +243,7 @@ sys32_setpgid_wrapper:
 
 	.globl  sys32_umask_wrapper 
 sys32_umask_wrapper:
-	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
 	jg	sys_umask		# branch to system call
 
 	.globl  sys32_chroot_wrapper 
@@ -273,7 +273,6 @@ sys32_dup2_wrapper:
 sys32_sigaction_wrapper:
 	lgfr	%r2,%r2			# int 
 	llgtr	%r3,%r3			# const struct old_sigaction *
-	llgtr	%r4,%r4			# struct old_sigaction32 *
 	jg	sys32_sigaction		# branch to system call
 
 	.globl  sys32_setreuid16_wrapper 
@@ -425,8 +424,8 @@ sys32_fchmod_wrapper:
 	.globl  sys32_fchown16_wrapper 
 sys32_fchown16_wrapper:
 	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# compat_uid_t
-	llgfr	%r4,%r4			# compat_uid_t
+	llgtr	%r3,%r3			# __kernel_old_uid_emu31_t *
+	llgtr	%r4,%r4			# __kernel_old_gid_emu31_t *
 	jg	sys32_fchown16		# branch to system call
 
 	.globl  sys32_getpriority_wrapper 
@@ -524,7 +523,7 @@ sys32_ipc_wrapper:
 	lgfr	%r3,%r3			# int
 	lgfr	%r4,%r4			# int
 	lgfr	%r5,%r5			# int
-	llgfr	%r6,%r6			# u32
+	llgtr	%r6,%r6			# void *
 	jg	sys32_ipc		# branch to system call
 
 	.globl  sys32_fsync_wrapper 
@@ -568,22 +567,20 @@ compat_sys_sigprocmask_wrapper:
 
 	.globl  sys32_init_module_wrapper 
 sys32_init_module_wrapper:
-	llgtr	%r2,%r2			# void *
-	llgfr	%r3,%r3			# unsigned long
-	llgtr	%r4,%r4			# char *
+	llgtr	%r2,%r2			# const char *
+	llgtr	%r3,%r3			# struct module *
 	jg	sys32_init_module	# branch to system call
 
 	.globl  sys32_delete_module_wrapper 
 sys32_delete_module_wrapper:
 	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# unsigned int
 	jg	sys32_delete_module	# branch to system call
 
 	.globl  sys32_quotactl_wrapper 
 sys32_quotactl_wrapper:
-	llgfr	%r2,%r2			# unsigned int
+	lgfr	%r2,%r2			# int
 	llgtr	%r3,%r3			# const char *
-	llgfr	%r4,%r4			# qid_t
+	lgfr	%r4,%r4			# int
 	llgtr	%r5,%r5			# caddr_t
 	jg	sys_quotactl		# branch to system call
 
@@ -641,14 +638,14 @@ sys32_getdents_wrapper:
 	llgfr	%r4,%r4			# unsigned int
 	jg	sys32_getdents		# branch to system call
 
-	.globl  compat_sys_select_wrapper
-compat_sys_select_wrapper:
+	.globl  sys32_select_wrapper 
+sys32_select_wrapper:
 	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# compat_fd_set *
-	llgtr	%r4,%r4			# compat_fd_set *
-	llgtr	%r5,%r5			# compat_fd_set *
-	llgtr	%r6,%r6			# struct compat_timeval *
-	jg	compat_sys_select	# branch to system call
+	llgtr	%r3,%r3			# fd_set *
+	llgtr	%r4,%r4			# fd_set *
+	llgtr	%r5,%r5			# fd_set *
+	llgtr	%r6,%r6			# struct timeval_emu31 *
+	jg	sys32_select		# branch to system call
 
 	.globl  sys32_flock_wrapper 
 sys32_flock_wrapper:
@@ -663,19 +660,19 @@ sys32_msync_wrapper:
 	lgfr	%r4,%r4			# int
 	jg	sys_msync		# branch to system call
 
-	.globl  compat_sys_readv_wrapper
-compat_sys_readv_wrapper:
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const struct compat_iovec *
+	.globl  sys32_readv_wrapper 
+sys32_readv_wrapper:
+	llgfr	%r2,%r2			# unsigned long
+	llgtr	%r3,%r3			# const struct iovec_emu31 *
 	llgfr	%r4,%r4			# unsigned long
-	jg	compat_sys_readv	# branch to system call
+	jg	sys32_readv		# branch to system call
 
-	.globl  compat_sys_writev_wrapper
-compat_sys_writev_wrapper:
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# const struct compat_iovec *
+	.globl  sys32_writev_wrapper 
+sys32_writev_wrapper:
+	llgfr	%r2,%r2			# unsigned long
+	llgtr	%r3,%r3			# const struct iovec_emu31 *
 	llgfr	%r4,%r4			# unsigned long
-	jg	compat_sys_writev	# branch to system call
+	jg	sys32_writev		# branch to system call
 
 	.globl  sys32_getsid_wrapper 
 sys32_getsid_wrapper:
@@ -786,12 +783,12 @@ sys32_poll_wrapper:
 	lgfr	%r4,%r4			# long 
 	jg	sys_poll		# branch to system call
 
-	.globl  compat_sys_nfsservctl_wrapper
-compat_sys_nfsservctl_wrapper:
+	.globl  sys32_nfsservctl_wrapper 
+sys32_nfsservctl_wrapper:
 	lgfr	%r2,%r2			# int 
-	llgtr	%r3,%r3			# struct compat_nfsctl_arg*
-	llgtr	%r4,%r4			# union compat_nfsctl_res*
-	jg	compat_sys_nfsservctl	# branch to system call
+	llgtr	%r3,%r3			# struct nfsctl_arg_emu31 * 
+	llgtr	%r4,%r4			# union nfsctl_res_emu31 * 
+	jg	sys32_nfsservctl	# branch to system call
 
 	.globl  sys32_setresgid16_wrapper 
 sys32_setresgid16_wrapper:
@@ -831,7 +828,6 @@ sys32_rt_sigprocmask_wrapper:
 	lgfr	%r2,%r2			# int
 	llgtr	%r3,%r3			# old_sigset_emu31 *
 	llgtr	%r4,%r4			# old_sigset_emu31 *
-	llgfr	%r5,%r5			# size_t
 	jg	sys32_rt_sigprocmask	# branch to system call
 
 	.globl  sys32_rt_sigpending_wrapper 
@@ -919,15 +915,15 @@ sys32_sendfile_wrapper:
 	.globl  sys32_truncate64_wrapper 
 sys32_truncate64_wrapper:
 	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# unsigned long
-	llgfr	%r4,%r4			# unsigned long
+	lgfr	%r3,%r3			# s32 
+	llgfr	%r4,%r4			# u32 
 	jg	sys32_truncate64	# branch to system call
 
 	.globl  sys32_ftruncate64_wrapper 
 sys32_ftruncate64_wrapper:
 	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# unsigned long
-	llgfr	%r4,%r4			# unsigned long
+	lgfr	%r3,%r3			# s32 
+	llgfr	%r4,%r4			# u32 
 	jg	sys32_ftruncate64	# branch to system call
 
 	.globl sys32_lchown_wrapper	
@@ -1066,12 +1062,14 @@ compat_sys_fcntl64_wrapper:
 sys32_stat64_wrapper:
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# struct stat64 *
+	llgfr	%r4,%r4			# long
 	jg	sys32_stat64		# branch to system call
 
 	.globl	sys32_lstat64_wrapper
 sys32_lstat64_wrapper:
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# struct stat64 *
+	llgfr	%r4,%r4			# long
 	jg	sys32_lstat64		# branch to system call
 
 	.globl	sys32_stime_wrapper
@@ -1088,6 +1086,7 @@ sys32_sysctl_wrapper:
 sys32_fstat64_wrapper:
 	llgfr	%r2,%r2			# unsigned long
 	llgtr	%r3,%r3			# struct stat64 *
+	llgfr	%r4,%r4			# long
 	jg	sys32_fstat64		# branch to system call
 
 	.globl  compat_sys_futex_wrapper 
@@ -1096,9 +1095,6 @@ compat_sys_futex_wrapper:
 	lgfr	%r3,%r3			# int
 	lgfr	%r4,%r4			# int
 	llgtr	%r5,%r5			# struct compat_timespec *
-	llgtr	%r6,%r6			# u32 *
-	lgf	%r0,164(%r15)		# int
-	stg	%r0,160(%r15)
 	jg	compat_sys_futex	# branch to system call
 
 	.globl	sys32_setxattr_wrapper
@@ -1236,14 +1232,6 @@ sys_epoll_wait_wrapper:
 	lgfr	%r5,%r5			# int
 	jg	sys_epoll_wait		# branch to system call
 
-	.globl	sys32_lookup_dcookie_wrapper
-sys32_lookup_dcookie_wrapper:
-	sllg	%r2,%r2,32		# get high word of 64bit dcookie
-	or	%r2,%r3			# get low word of 64bit dcookie
-	llgtr	%r3,%r4			# char *
-	llgfr	%r4,%r5			# size_t
-	jg	sys_lookup_dcookie
-
 	.globl	sys32_fadvise64_wrapper
 sys32_fadvise64_wrapper:
 	lgfr	%r2,%r2			# int
@@ -1348,61 +1336,3 @@ sys32_io_cancel_wrapper:
 	llgtr	%r3,%r3			# struct iocb *
 	llgtr	%r4,%r4			# struct io_event *
 	jg	sys_io_cancel
-
-	.globl compat_sys_statfs64_wrapper
-compat_sys_statfs64_wrapper:
-	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# compat_size_t
-	llgtr	%r4,%r4			# struct compat_statfs64 *
-	jg	compat_statfs64
-
-	.globl compat_sys_fstatfs64_wrapper
-compat_sys_fstatfs64_wrapper:
-	llgfr	%r2,%r2			# unsigned int fd
-	llgfr	%r3,%r3			# compat_size_t
-	llgtr	%r4,%r4			# struct compat_statfs64 *
-	jg	compat_fstatfs64
-
-	.globl	compat_sys_mq_open_wrapper
-compat_sys_mq_open_wrapper:
-	llgtr	%r2,%r2			# const char *
-	lgfr	%r3,%r3			# int
-	llgfr	%r4,%r4			# mode_t
-	llgtr	%r5,%r5			# struct compat_mq_attr *
-	jg	compat_sys_mq_open
-
-	.globl	sys32_mq_unlink_wrapper
-sys32_mq_unlink_wrapper:
-	llgtr	%r2,%r2			# const char *
-	jg	sys_mq_unlink
-
-	.globl	compat_sys_mq_timedsend_wrapper
-compat_sys_mq_timedsend_wrapper:
-	lgfr	%r2,%r2			# mqd_t
-	llgtr	%r3,%r3			# const char *
-	llgfr	%r4,%r4			# size_t
-	llgfr	%r5,%r5			# unsigned int
-	llgtr	%r6,%r6			# const struct compat_timespec *
-	jg	compat_sys_mq_timedsend
-
-	.globl	compat_sys_mq_timedreceive_wrapper
-compat_sys_mq_timedreceive_wrapper:
-	lgfr	%r2,%r2			# mqd_t
-	llgtr	%r3,%r3			# char *
-	llgfr	%r4,%r4			# size_t
-	llgtr	%r5,%r5			# unsigned int *
-	llgtr	%r6,%r6			# const struct compat_timespec *
-	jg	compat_sys_mq_timedreceive
-
-	.globl	compat_sys_mq_notify_wrapper
-compat_sys_mq_notify_wrapper:
-	lgfr	%r2,%r2			# mqd_t
-	llgtr	%r3,%r3			# struct compat_sigevent *
-	jg	compat_sys_mq_notify
-
-	.globl	compat_sys_mq_getsetattr_wrapper
-compat_sys_mq_getsetattr_wrapper:
-	lgfr	%r2,%r2			# mqd_t
-	llgtr	%r3,%r3			# struct compat_mq_attr *
-	llgtr	%r4,%r4			# struct compat_mq_attr *
-	jg	compat_sys_mq_getsetattr

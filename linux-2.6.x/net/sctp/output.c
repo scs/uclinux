@@ -62,35 +62,29 @@
 #include <net/sctp/sm.h>
 
 /* Forward declarations for private helpers. */
+static void sctp_packet_reset(struct sctp_packet *packet);
 static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
 					   struct sctp_chunk *chunk);
 
 /* Config a packet.
- * This appears to be a followup set of initializations.
+ * This appears to be a followup set of initializations.)
  */
 struct sctp_packet *sctp_packet_config(struct sctp_packet *packet,
-				       __u32 vtag, int ecn_capable)
+				       __u32 vtag, int ecn_capable,
+				       sctp_packet_phandler_t *prepend_handler)
 {
-	struct sctp_chunk *chunk = NULL;
-
-	SCTP_DEBUG_PRINTK("%s: packet:%p vtag:0x%x\n", __FUNCTION__,
-			  packet, vtag);
+	int packet_empty = (packet->size == SCTP_IP_OVERHEAD);
 
 	packet->vtag = vtag;
+	packet->ecn_capable = ecn_capable;
+	packet->get_prepend_chunk = prepend_handler;
 	packet->has_cookie_echo = 0;
 	packet->has_sack = 0;
 	packet->ipfragok = 0;
 
-	if (ecn_capable && sctp_packet_empty(packet)) {
-		chunk = sctp_get_ecne_prepend(packet->transport->asoc);
-
-		/* If there a is a prepend chunk stick it on the list before
-	 	 * any other chunks get appended.
-	 	 */
-		if (chunk)
-			sctp_packet_append_chunk(packet, chunk);
-	}
-
+	/* We might need to call the prepend_handler right away.  */
+	if (packet_empty)
+		sctp_packet_reset(packet);
 	return packet;
 }
 
@@ -99,30 +93,19 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 				     struct sctp_transport *transport,
 				     __u16 sport, __u16 dport)
 {
-	struct sctp_association *asoc = transport->asoc;
-	size_t overhead;
-
-	SCTP_DEBUG_PRINTK("%s: packet:%p transport:%p\n", __FUNCTION__,
-			  packet, transport);
-
 	packet->transport = transport;
 	packet->source_port = sport;
 	packet->destination_port = dport;
 	skb_queue_head_init(&packet->chunks);
-	if (asoc) {
-		struct sctp_opt *sp = sctp_sk(asoc->base.sk);	
-		overhead = sp->pf->af->net_header_len; 
-	} else {
-		overhead = sizeof(struct ipv6hdr);
-	}
-	overhead += sizeof(struct sctphdr);
-	packet->overhead = overhead;
-	packet->size = overhead;
+	packet->size = SCTP_IP_OVERHEAD;
 	packet->vtag = 0;
+	packet->ecn_capable = 0;
+	packet->get_prepend_chunk = NULL;
 	packet->has_cookie_echo = 0;
 	packet->has_sack = 0;
 	packet->ipfragok = 0;
 	packet->malloced = 0;
+	sctp_packet_reset(packet);
 	return packet;
 }
 
@@ -131,9 +114,7 @@ void sctp_packet_free(struct sctp_packet *packet)
 {
 	struct sctp_chunk *chunk;
 
-	SCTP_DEBUG_PRINTK("%s: packet:%p\n", __FUNCTION__, packet);
-
-        while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks)) != NULL)
+        while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks)))
 		sctp_chunk_free(chunk);
 
 	if (packet->malloced)
@@ -153,9 +134,6 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 	sctp_xmit_t retval;
 	int error = 0;
 
-	SCTP_DEBUG_PRINTK("%s: packet:%p chunk:%p\n", __FUNCTION__,
-			  packet, chunk);
-
 	switch ((retval = (sctp_packet_append_chunk(packet, chunk)))) {
 	case SCTP_XMIT_PMTU_FULL:
 		if (!packet->has_cookie_echo) {
@@ -170,6 +148,7 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 		}
 		break;
 
+	case SCTP_XMIT_MUST_FRAG:
 	case SCTP_XMIT_RWND_FULL:
 	case SCTP_XMIT_OK:
 	case SCTP_XMIT_NAGLE_DELAY:
@@ -222,9 +201,6 @@ sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *packet,
 	size_t pmtu;
 	int too_big;
 
-	SCTP_DEBUG_PRINTK("%s: packet:%p chunk:%p\n", __FUNCTION__, packet,
-			  chunk);
-
 	retval = sctp_packet_bundle_sack(packet, chunk);
 	psize = packet->size;
 
@@ -239,14 +215,17 @@ sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *packet,
 
 	/* Decide if we need to fragment or resubmit later. */
 	if (too_big) {
+		int packet_empty = (packet->size == SCTP_IP_OVERHEAD);
+
 		/* Both control chunks and data chunks with TSNs are
 		 * non-fragmentable.
 		 */
-		if (sctp_packet_empty(packet) || !sctp_chunk_is_data(chunk)) {
+		if (packet_empty || !sctp_chunk_is_data(chunk)) {
 			/* We no longer do re-fragmentation.
 			 * Just fragment at the IP layer, if we
 			 * actually hit this condition
 			 */
+
 			packet->ipfragok = 1;
 			goto append;
 
@@ -254,6 +233,9 @@ sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *packet,
 			retval = SCTP_XMIT_PMTU_FULL;
 			goto finish;
 		}
+	} else {
+		/* The chunk fits in the packet.  */
+		goto append;
 	}
 
 append:
@@ -278,7 +260,6 @@ append:
 	/* It is OK to send this chunk.  */
 	__skb_queue_tail(&packet->chunks, (struct sk_buff *)chunk);
 	packet->size += chunk_len;
-	chunk->transport = packet->transport;
 finish:
 	return retval;
 }
@@ -302,8 +283,6 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	__u8 has_data = 0;
 	struct dst_entry *dst;
 
-	SCTP_DEBUG_PRINTK("%s: packet:%p\n", __FUNCTION__, packet);
-
 	/* Do NOT generate a chunkless packet. */
 	chunk = (struct sctp_chunk *)skb_peek(&packet->chunks);
 	if (unlikely(!chunk))
@@ -318,7 +297,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 		goto nomem;
 
 	/* Make sure the outbound skb has enough header room reserved. */
-	skb_reserve(nskb, packet->overhead);
+	skb_reserve(nskb, SCTP_IP_OVERHEAD);
 
 	/* Set the owning socket so that we know where to get the
 	 * destination IP address.
@@ -370,7 +349,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 * [This whole comment explains WORD_ROUND() below.]
 	 */
 	SCTP_DEBUG_PRINTK("***sctp_transmit_packet***\n");
-	while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks)) != NULL) {
+	while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks))) {
 		if (sctp_chunk_is_data(chunk)) {
 
 			if (!chunk->has_tsn) {
@@ -492,11 +471,11 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	(*tp->af_specific->sctp_xmit)(nskb, tp, packet->ipfragok);
 
 out:
-	packet->size = packet->overhead;
+	packet->size = SCTP_IP_OVERHEAD;
 	return err;
 no_route:
 	kfree_skb(nskb);
-	IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
+	IP_INC_STATS_BH(IpOutNoRoutes);
 
 	/* FIXME: Returning the 'err' will effect all the associations
 	 * associated with a socket, although only one of the paths of the
@@ -511,19 +490,39 @@ err:
 	 * will get resent or dropped later.
 	 */
 
-	while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks)) != NULL) {
+	while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks))) {
 		if (!sctp_chunk_is_data(chunk))
     			sctp_chunk_free(chunk);
 	}
 	goto out;
 nomem:
 	err = -ENOMEM;
+	printk("%s alloc_skb failed.\n", __FUNCTION__);
 	goto err;
 }
 
 /********************************************************************
  * 2nd Level Abstractions
  ********************************************************************/
+
+/*
+ * This private function resets the packet to a fresh state.
+ */
+static void sctp_packet_reset(struct sctp_packet *packet)
+{
+	struct sctp_chunk *chunk = NULL;
+
+	packet->size = SCTP_IP_OVERHEAD;
+
+	if (packet->get_prepend_chunk)
+		chunk = packet->get_prepend_chunk(packet->transport->asoc);
+
+	/* If there a is a prepend chunk stick it on the list before
+	 * any other chunks get appended.
+	 */
+	if (chunk)
+		sctp_packet_append_chunk(packet, chunk);
+}
 
 /* This private function handles the specifics of appending DATA chunks.  */
 static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
@@ -610,7 +609,7 @@ static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
 	 * if any previously transmitted data on the connection remains
 	 * unacknowledged.
 	 */
-	if (!sp->nodelay && sctp_packet_empty(packet) &&
+	if (!sp->nodelay && SCTP_IP_OVERHEAD == packet->size &&
 	    q->outstanding_bytes && sctp_state(asoc, ESTABLISHED)) {
 		unsigned len = datasize + q->out_qlen;
 
@@ -618,7 +617,7 @@ static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
 		 * data will fit or delay in hopes of bundling a full
 		 * sized packet.
 		 */
-		if (len < asoc->pmtu - packet->overhead) {
+		if (len < asoc->pmtu - SCTP_IP_OVERHEAD) {
 			retval = SCTP_XMIT_NAGLE_DELAY;
 			goto finish;
 		}
@@ -638,8 +637,7 @@ static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
 
 	asoc->peer.rwnd = rwnd;
 	/* Has been accepted for transmission. */
-	if (!asoc->peer.prsctp_capable)
-		chunk->msg->can_abandon = 0;
+	chunk->msg->can_expire = 0;
 
 finish:
 	return retval;

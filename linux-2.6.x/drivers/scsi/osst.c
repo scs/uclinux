@@ -61,7 +61,7 @@ const char * osst_version = "0.99.1";
 #define OSST_DEB_MSG  KERN_NOTICE
 
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_ioctl.h>
 
@@ -154,8 +154,8 @@ static int modes_defined = FALSE;
 static OSST_buffer *new_tape_buffer(int, int, int);
 static int enlarge_buffer(OSST_buffer *, int);
 static void normalize_buffer(OSST_buffer *);
-static int append_to_buffer(const char __user *, OSST_buffer *, int);
-static int from_buffer(OSST_buffer *, char __user *, int);
+static int append_to_buffer(const char *, OSST_buffer *, int);
+static int from_buffer(OSST_buffer *, char *, int);
 static int osst_zero_buffer_tail(OSST_buffer *);
 static int osst_copy_to_buffer(OSST_buffer *, unsigned char *);
 static int osst_copy_from_buffer(OSST_buffer *, unsigned char *);
@@ -3157,13 +3157,13 @@ static void reset_state(OS_Scsi_Tape *STp)
 /* Entry points to osst */
 
 /* Write command */
-static ssize_t osst_write(struct file * filp, const char __user * buf, size_t count, loff_t *ppos)
+static ssize_t osst_write(struct file * filp, const char * buf, size_t count, loff_t *ppos)
 {
 	ssize_t        total, retval = 0;
 	ssize_t        i, do_count, blks, transfer;
 	int            write_threshold;
 	int            doing_write = 0;
-	const char   __user * b_point;
+	const char   * b_point;
 	Scsi_Request * SRpnt = NULL;
 	ST_mode      * STm;
 	ST_partstat  * STps;
@@ -3185,6 +3185,12 @@ static ssize_t osst_write(struct file * filp, const char __user * buf, size_t co
 		goto out;
 	}
 	
+	if (ppos != &filp->f_pos) {
+	 	/* "A request was outside the capabilities of the device." */
+		retval = (-ENXIO);
+		goto out;
+	}
+
 	if (STp->ready != ST_READY) {
 		if (STp->ready == ST_NO_TAPE)
 			retval = (-ENOMEDIUM);
@@ -3480,7 +3486,7 @@ out:
 
 
 /* Read command */
-static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, loff_t *ppos)
+static ssize_t osst_read(struct file * filp, char * buf, size_t count, loff_t *ppos)
 {
 	ssize_t        total, retval = 0;
 	ssize_t        i, transfer;
@@ -3506,6 +3512,12 @@ static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, lo
 		goto out;
 	}
 	
+	if (ppos != &filp->f_pos) {
+		/* "A request was outside the capabilities of the device." */
+		retval = (-ENXIO);
+		goto out;
+	}
+
 	if (STp->ready != ST_READY) {
 		if (STp->ready == ST_NO_TAPE)
 			retval = (-ENOMEDIUM);
@@ -4242,7 +4254,6 @@ static int os_scsi_tape_open(struct inode * inode, struct file * filp)
 	int            dev  = TAPE_NR(inode);
 	int            mode = TAPE_MODE(inode);
 
-	nonseekable_open(inode, filp);
 	write_lock(&os_scsi_tapes_lock);
 	if (dev >= osst_max_dev || os_scsi_tapes == NULL ||
 	    (STp = os_scsi_tapes[dev]) == NULL || !STp->device) {
@@ -4714,7 +4725,6 @@ static int osst_ioctl(struct inode * inode,struct file * file,
 	Scsi_Request * SRpnt = NULL;
 	OS_Scsi_Tape * STp   = file->private_data;
 	char         * name  = tape_name(STp);
-	void __user *p = (void __user *)arg;
 
 	if (down_interruptible(&STp->lock))
 		return -ERESTARTSYS;
@@ -4755,7 +4765,7 @@ static int osst_ioctl(struct inode * inode,struct file * file,
 			goto out;
 		}
 
-		i = copy_from_user((char *) &mtc, p, sizeof(struct mtop));
+		i = copy_from_user((char *) &mtc, (char *)arg, sizeof(struct mtop));
 		if (i) {
 			retval = (-EFAULT);
 			goto out;
@@ -4993,7 +5003,8 @@ static int osst_ioctl(struct inode * inode,struct file * file,
 		    STp->drv_buffer != 0)
 			mt_status.mt_gstat |= GMT_IM_REP_EN(0xffffffff);
 
-		i = copy_to_user(p, &mt_status, sizeof(struct mtget));
+		i = copy_to_user((char *)arg, (char *)&mt_status,
+		      sizeof(struct mtget));
 		if (i) {
 			retval = (-EFAULT);
 			goto out;
@@ -5020,7 +5031,7 @@ static int osst_ioctl(struct inode * inode,struct file * file,
 			goto out;
 		}
 		mt_pos.mt_blkno = blk;
-		i = copy_to_user(p, &mt_pos, sizeof(struct mtpos));
+		i = copy_to_user((char *)arg, (char *) (&mt_pos), sizeof(struct mtpos));
 		if (i)
 			retval = -EFAULT;
 		goto out;
@@ -5029,7 +5040,7 @@ static int osst_ioctl(struct inode * inode,struct file * file,
 
 	up(&STp->lock);
 
-	return scsi_ioctl(STp->device, cmd_in, p);
+	return scsi_ioctl(STp->device, cmd_in, (void *) arg);
 
 out:
 	if (SRpnt) scsi_release_request(SRpnt);
@@ -5094,8 +5105,6 @@ static int enlarge_buffer(OSST_buffer *STbuffer, int need_dma)
 	priority = GFP_KERNEL;
 	if (need_dma)
 		priority |= GFP_DMA;
-
-	priority |= __GFP_NOWARN;
 
 	/* Try to allocate the first segment up to OS_DATA_SIZE and the others
 	   big enough to reach the goal (code assumes no segments in place) */
@@ -5178,7 +5187,7 @@ static void normalize_buffer(OSST_buffer *STbuffer)
 
 /* Move data from the user buffer to the tape buffer. Returns zero (success) or
    negative error code. */
-static int append_to_buffer(const char __user *ubp, OSST_buffer *st_bp, int do_count)
+static int append_to_buffer(const char *ubp, OSST_buffer *st_bp, int do_count)
 {
 	int i, cnt, res, offset;
 
@@ -5211,7 +5220,7 @@ static int append_to_buffer(const char __user *ubp, OSST_buffer *st_bp, int do_c
 
 /* Move data from the tape buffer to the user buffer. Returns zero (success) or
    negative error code. */
-static int from_buffer(OSST_buffer *st_bp, char __user *ubp, int do_count)
+static int from_buffer(OSST_buffer *st_bp, char *ubp, int do_count)
 {
 	int i, cnt, res, offset;
 

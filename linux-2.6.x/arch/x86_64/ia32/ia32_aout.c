@@ -35,7 +35,7 @@
 #undef WARN_OLD
 #undef CORE_DUMP /* probably broken */
 
-extern int ia32_setup_arg_pages(struct linux_binprm *bprm, int exec_stack);
+extern int ia32_setup_arg_pages(struct linux_binprm *bprm);
 
 static int load_aout_binary(struct linux_binprm *, struct pt_regs * regs);
 static int load_aout_library(struct file*);
@@ -216,19 +216,18 @@ end_coredump:
  * memory and creates the pointer tables from them, and puts their
  * addresses on the "stack", returning the new stack pointer value.
  */
-static u32 __user *create_aout_tables(char __user *p, struct linux_binprm *bprm)
+static u32 * create_aout_tables(char * p, struct linux_binprm * bprm)
 {
-	u32 __user *argv;
-	u32 __user *envp;
-	u32 __user *sp;
+	u32 *argv, *envp;
+	u32 * sp;
 	int argc = bprm->argc;
 	int envc = bprm->envc;
 
-	sp = (u32 __user *) ((-(unsigned long)sizeof(u32)) & (unsigned long) p);
+	sp = (u32 *) ((-(unsigned long)sizeof(u32)) & (unsigned long) p);
 	sp -= envc+1;
-	envp = sp;
+	envp = (u32 *) sp;
 	sp -= argc+1;
-	argv = sp;
+	argv = (u32 *) sp;
 	put_user((unsigned long) envp,--sp);
 	put_user((unsigned long) argv,--sp);
 	put_user(argc,--sp);
@@ -396,7 +395,7 @@ beyond_if:
 
 	set_brk(current->mm->start_brk, current->mm->brk);
 
-	retval = ia32_setup_arg_pages(bprm, EXSTACK_DEFAULT);
+	retval = ia32_setup_arg_pages(bprm); 
 	if (retval < 0) { 
 		/* Someone check-me: is this error path enough? */ 
 		send_sig(SIGKILL, current, 0); 
@@ -404,7 +403,7 @@ beyond_if:
 	}
 
 	current->mm->start_stack =
-		(unsigned long)create_aout_tables((char __user *)bprm->p, bprm);
+		(unsigned long) create_aout_tables((char *) bprm->p, bprm);
 	/* start thread */
 	asm volatile("movl %0,%%fs" :: "r" (0)); \
 	asm volatile("movl %0,%%es; movl %0,%%ds": :"r" (__USER32_DS));

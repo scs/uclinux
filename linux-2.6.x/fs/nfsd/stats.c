@@ -26,7 +26,6 @@
 #include <linux/kernel.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <linux/stat.h>
 #include <linux/module.h>
 
@@ -40,11 +39,14 @@ struct svc_stat		nfsd_svcstats = {
 	.program	= &nfsd_program,
 };
 
-static int nfsd_proc_show(struct seq_file *seq, void *v)
+static int
+nfsd_proc_read(char *buffer, char **start, off_t offset, int count,
+				int *eof, void *data)
 {
-	int i;
+	int	len;
+	int	i;
 
-	seq_printf(seq, "rc %u %u %u\nfh %u %u %u %u %u\nio %u %u\n",
+	len = sprintf(buffer, "rc %u %u %u\nfh %u %u %u %u %u\nio %u %u\n",
 		      nfsdstats.rchits,
 		      nfsdstats.rcmisses,
 		      nfsdstats.rcnocache,
@@ -56,42 +58,57 @@ static int nfsd_proc_show(struct seq_file *seq, void *v)
 		      nfsdstats.io_read,
 		      nfsdstats.io_write);
 	/* thread usage: */
-	seq_printf(seq, "th %u %u", nfsdstats.th_cnt, nfsdstats.th_fullcnt);
+	len += sprintf(buffer+len, "th %u %u", nfsdstats.th_cnt, nfsdstats.th_fullcnt);
 	for (i=0; i<10; i++) {
 		unsigned int jifs = nfsdstats.th_usage[i];
 		unsigned int sec = jifs / HZ, msec = (jifs % HZ)*1000/HZ;
-		seq_printf(seq, " %u.%03u", sec, msec);
+		len += sprintf(buffer+len, " %u.%03u", sec, msec);
 	}
 
 	/* newline and ra-cache */
-	seq_printf(seq, "\nra %u", nfsdstats.ra_size);
+	len += sprintf(buffer+len, "\nra %u", nfsdstats.ra_size);
 	for (i=0; i<11; i++)
-		seq_printf(seq, " %u", nfsdstats.ra_depth[i]);
-	seq_putc(seq, '\n');
+		len += sprintf(buffer+len, " %u", nfsdstats.ra_depth[i]);
+	len += sprintf(buffer+len, "\n");
 	
-	/* show my rpc info */
-	svc_seq_show(seq, &nfsd_svcstats);
 
-	return 0;
+	/* Assume we haven't hit EOF yet. Will be set by svc_proc_read. */
+	*eof = 0;
+
+	/*
+	 * Append generic nfsd RPC statistics if there's room for it.
+	 */
+	if (len <= offset) {
+		len = svc_proc_read(buffer, start, offset - len, count,
+				    eof, data);
+		return len;
+	}
+
+	if (len < count) {
+		len += svc_proc_read(buffer + len, start, 0, count - len,
+				     eof, data);
+	}
+
+	if (offset >= len) {
+		*start = buffer;
+		return 0;
+	}
+
+	*start = buffer + offset;
+	if ((len -= offset) > count)
+		return count;
+	return len;
 }
-
-static int nfsd_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, nfsd_proc_show, NULL);
-}
-
-static struct file_operations nfsd_proc_fops = {
-	.owner = THIS_MODULE,
-	.open = nfsd_proc_open,
-	.read  = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
 
 void
 nfsd_stat_init(void)
 {
-	svc_proc_register(&nfsd_svcstats, &nfsd_proc_fops);
+	struct proc_dir_entry	*ent;
+
+	if ((ent = svc_proc_register(&nfsd_svcstats)) != 0) {
+		ent->read_proc = nfsd_proc_read;
+		ent->owner = THIS_MODULE;
+	}
 }
 
 void

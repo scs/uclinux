@@ -12,14 +12,17 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/cacheflush.h>
 #include <asm/io.h>
+#include <asm/pgtable.h>
+#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
 #define CONSISTENT_BASE	(0xffc00000)
@@ -73,27 +76,34 @@ static struct vm_region consistent_head = {
 	.vm_end		= CONSISTENT_END,
 };
 
-static struct vm_region *
-vm_region_alloc(struct vm_region *head, size_t size, int gfp)
+#if 0
+static void vm_region_dump(struct vm_region *head, char *fn)
+{
+	struct vm_region *c;
+
+	printk("Consistent Allocation Map (%s):\n", fn);
+	list_for_each_entry(c, &head->vm_list, vm_list) {
+		printk(" %p:  %08lx - %08lx   (0x%08x)\n", c,
+		       c->vm_start, c->vm_end, c->vm_end - c->vm_start);
+	}
+}
+#else
+#define vm_region_dump(head,fn)	do { } while(0)
+#endif
+
+static int vm_region_alloc(struct vm_region *head, struct vm_region *new, size_t size)
 {
 	unsigned long addr = head->vm_start, end = head->vm_end - size;
-	unsigned long flags;
-	struct vm_region *c, *new;
-
-	new = kmalloc(sizeof(struct vm_region), gfp);
-	if (!new)
-		goto out;
-
-	spin_lock_irqsave(&consistent_lock, flags);
+	struct vm_region *c;
 
 	list_for_each_entry(c, &head->vm_list, vm_list) {
 		if ((addr + size) < addr)
-			goto nospc;
+			goto out;
 		if ((addr + size) <= c->vm_start)
 			goto found;
 		addr = c->vm_end;
 		if (addr > end)
-			goto nospc;
+			goto out;
 	}
 
  found:
@@ -104,14 +114,10 @@ vm_region_alloc(struct vm_region *head, size_t size, int gfp)
 	new->vm_start = addr;
 	new->vm_end = addr + size;
 
-	spin_unlock_irqrestore(&consistent_lock, flags);
-	return new;
+	return 0;
 
- nospc:
-	spin_unlock_irqrestore(&consistent_lock, flags);
-	kfree(new);
  out:
-	return NULL;
+	return -ENOMEM;
 }
 
 static struct vm_region *vm_region_find(struct vm_region *head, unsigned long addr)
@@ -127,46 +133,27 @@ static struct vm_region *vm_region_find(struct vm_region *head, unsigned long ad
 	return c;
 }
 
-#ifdef CONFIG_HUGETLB_PAGE
-#error ARM Coherent DMA allocator does not (yet) support huge TLB
-#endif
-
-static void *
-__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, int gfp,
-	    pgprot_t prot)
+/*
+ * This allocates one page of cache-coherent memory space and returns
+ * both the virtual and a "dma" address to that space.
+ */
+void *consistent_alloc(int gfp, size_t size, dma_addr_t *handle,
+		       unsigned long cache_flags)
 {
 	struct page *page;
 	struct vm_region *c;
-	unsigned long order;
-	u64 mask = 0x00ffffff, limit; /* ISA default */
+	unsigned long order, flags;
+	void *ret = NULL;
+	int res;
 
 	if (!consistent_pte) {
-		printk(KERN_ERR "%s: not initialised\n", __func__);
+		printk(KERN_ERR "consistent_alloc: not initialised\n");
 		dump_stack();
 		return NULL;
 	}
 
-	if (dev) {
-		mask = dev->coherent_dma_mask;
-		if (mask == 0) {
-			dev_warn(dev, "coherent DMA mask is unset\n");
-			return NULL;
-		}
-	}
-
 	size = PAGE_ALIGN(size);
-	limit = (mask + 1) & ~mask;
-	if ((limit && size >= limit) || size >= (CONSISTENT_END - CONSISTENT_BASE)) {
-		printk(KERN_WARNING "coherent allocation too big (requested %#x mask %#Lx)\n",
-		       size, mask);
-		*handle = ~0;
-		return NULL;
-	}
-
 	order = get_order(size);
-
-	if (mask != 0xffffffff)
-		gfp |= GFP_DMA;
 
 	page = alloc_pages(gfp, order);
 	if (!page)
@@ -178,23 +165,41 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, int gfp,
 	 */
 	{
 		unsigned long kaddr = (unsigned long)page_address(page);
-		memset(page_address(page), 0, size);
-		dmac_flush_range(kaddr, kaddr + size);
+		dmac_inv_range(kaddr, kaddr + size);
 	}
 
 	/*
-	 * Allocate a virtual address in the consistent mapping region.
+	 * Our housekeeping doesn't need to come from DMA,
+	 * but it must not come from highmem.
 	 */
-	c = vm_region_alloc(&consistent_head, size,
-			    gfp & ~(__GFP_DMA | __GFP_HIGHMEM));
-	if (c) {
+	c = kmalloc(sizeof(struct vm_region),
+		    gfp & ~(__GFP_DMA | __GFP_HIGHMEM));
+	if (!c)
+		goto no_remap;
+
+	/*
+	 * Attempt to allocate a virtual address in the
+	 * consistent mapping region.
+	 */
+	spin_lock_irqsave(&consistent_lock, flags);
+	vm_region_dump(&consistent_head, "before alloc");
+
+	res = vm_region_alloc(&consistent_head, c, size);
+
+	vm_region_dump(&consistent_head, "after alloc");
+	spin_unlock_irqrestore(&consistent_lock, flags);
+
+	if (!res) {
 		pte_t *pte = consistent_pte + CONSISTENT_OFFSET(c->vm_start);
 		struct page *end = page + (1 << order);
+		pgprot_t prot = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG |
+					 L_PTE_DIRTY | L_PTE_WRITE |
+					 cache_flags);
 
 		/*
 		 * Set the "dma handle"
 		 */
-		*handle = page_to_dma(dev, page);
+		*handle = page_to_bus(page);
 
 		do {
 			BUG_ON(!pte_none(*pte));
@@ -215,43 +220,38 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, int gfp,
 			page++;
 		}
 
-		return (void *)c->vm_start;
+		ret = (void *)c->vm_start;
 	}
 
-	if (page)
+ no_remap:
+	if (ret == NULL) {
+		kfree(c);
 		__free_pages(page, order);
+	}
  no_page:
-	return NULL;
+	return ret;
 }
 
 /*
- * Allocate DMA-coherent memory space and return both the kernel remapped
- * virtual and bus address for that space.
+ * Since we have the DMA mask available to us here, we could try to do
+ * a normal allocation, and only fall back to a "DMA" allocation if the
+ * resulting bus address does not satisfy the dma_mask requirements.
  */
 void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, int gfp)
 {
-	return __dma_alloc(dev, size, handle, gfp,
-			   pgprot_noncached(pgprot_kernel));
-}
-EXPORT_SYMBOL(dma_alloc_coherent);
+	if (dev == NULL || *dev->dma_mask != 0xffffffff)
+		gfp |= GFP_DMA;
 
-/*
- * Allocate a writecombining region, in much the same way as
- * dma_alloc_coherent above.
- */
-void *
-dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *handle, int gfp)
-{
-	return __dma_alloc(dev, size, handle, gfp,
-			   pgprot_writecombine(pgprot_kernel));
+	return consistent_alloc(gfp, size, handle, 0);
 }
-EXPORT_SYMBOL(dma_alloc_writecombine);
+
+EXPORT_SYMBOL(dma_alloc_coherent);
 
 /*
  * free a page as defined by the above mapping.
  */
-void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr_t handle)
+void consistent_free(void *vaddr, size_t size, dma_addr_t handle)
 {
 	struct vm_region *c;
 	unsigned long flags;
@@ -260,14 +260,15 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	size = PAGE_ALIGN(size);
 
 	spin_lock_irqsave(&consistent_lock, flags);
+	vm_region_dump(&consistent_head, "before free");
 
-	c = vm_region_find(&consistent_head, (unsigned long)cpu_addr);
+	c = vm_region_find(&consistent_head, (unsigned long)vaddr);
 	if (!c)
 		goto no_area;
 
 	if ((c->vm_end - c->vm_start) != size) {
-		printk(KERN_ERR "%s: freeing wrong coherent size (%ld != %d)\n",
-		       __func__, c->vm_end - c->vm_start, size);
+		printk(KERN_ERR "consistent_free: wrong size (%ld != %d)\n",
+		       c->vm_end - c->vm_start, size);
 		dump_stack();
 		size = c->vm_end - c->vm_start;
 	}
@@ -291,14 +292,15 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 			}
 		}
 
-		printk(KERN_CRIT "%s: bad page in kernel page table\n",
-		       __func__);
+		printk(KERN_CRIT "consistent_free: bad page in kernel page "
+		       "table\n");
 	} while (size -= PAGE_SIZE);
 
 	flush_tlb_kernel_range(c->vm_start, c->vm_end);
 
 	list_del(&c->vm_list);
 
+	vm_region_dump(&consistent_head, "after free");
 	spin_unlock_irqrestore(&consistent_lock, flags);
 
 	kfree(c);
@@ -306,11 +308,10 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 
  no_area:
 	spin_unlock_irqrestore(&consistent_lock, flags);
-	printk(KERN_ERR "%s: trying to free invalid coherent area: %p\n",
-	       __func__, cpu_addr);
+	printk(KERN_ERR "consistent_free: trying to free "
+	       "invalid area: %p\n", vaddr);
 	dump_stack();
 }
-EXPORT_SYMBOL(dma_free_coherent);
 
 /*
  * Initialise the consistent memory allocation.
@@ -328,7 +329,7 @@ static int __init consistent_init(void)
 		pgd = pgd_offset(&init_mm, CONSISTENT_BASE);
 		pmd = pmd_alloc(&init_mm, pgd, CONSISTENT_BASE);
 		if (!pmd) {
-			printk(KERN_ERR "%s: no pmd tables\n", __func__);
+			printk(KERN_ERR "consistent_init: no pmd tables\n");
 			ret = -ENOMEM;
 			break;
 		}
@@ -336,7 +337,7 @@ static int __init consistent_init(void)
 
 		pte = pte_alloc_kernel(&init_mm, pmd, CONSISTENT_BASE);
 		if (!pte) {
-			printk(KERN_ERR "%s: no pte tables\n", __func__);
+			printk(KERN_ERR "consistent_init: no pte tables\n");
 			ret = -ENOMEM;
 			break;
 		}
@@ -373,4 +374,3 @@ void consistent_sync(void *vaddr, size_t size, int direction)
 		BUG();
 	}
 }
-EXPORT_SYMBOL(consistent_sync);

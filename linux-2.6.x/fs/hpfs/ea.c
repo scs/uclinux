@@ -6,6 +6,8 @@
  *  handling extended attributes
  */
 
+#include <linux/buffer_head.h>
+#include <linux/string.h>
 #include "hpfs_fn.h"
 
 /* Remove external extended attributes. ano specifies whether a is a 
@@ -50,7 +52,7 @@ void hpfs_ea_ext_remove(struct super_block *s, secno a, int ano, unsigned len)
 static char *get_indirect_ea(struct super_block *s, int ano, secno a, int size)
 {
 	char *ret;
-	if (!(ret = kmalloc(size + 1, GFP_NOFS))) {
+	if (!(ret = kmalloc(size + 1, GFP_KERNEL))) {
 		printk("HPFS: out of memory for EA\n");
 		return NULL;
 	}
@@ -138,7 +140,7 @@ char *hpfs_get_ea(struct super_block *s, struct fnode *fnode, char *key, int *si
 		if (!strcmp(ea->name, key)) {
 			if (ea->indirect)
 				return get_indirect_ea(s, ea->anode, ea_sec(ea), *size = ea_len(ea));
-			if (!(ret = kmalloc((*size = ea->valuelen) + 1, GFP_NOFS))) {
+			if (!(ret = kmalloc((*size = ea->valuelen) + 1, GFP_KERNEL))) {
 				printk("HPFS: out of memory for EA\n");
 				return NULL;
 			}
@@ -164,7 +166,7 @@ char *hpfs_get_ea(struct super_block *s, struct fnode *fnode, char *key, int *si
 		if (!strcmp(ea->name, key)) {
 			if (ea->indirect)
 				return get_indirect_ea(s, ea->anode, ea_sec(ea), *size = ea_len(ea));
-			if (!(ret = kmalloc((*size = ea->valuelen) + 1, GFP_NOFS))) {
+			if (!(ret = kmalloc((*size = ea->valuelen) + 1, GFP_KERNEL))) {
 				printk("HPFS: out of memory for EA\n");
 				return NULL;
 			}
@@ -234,7 +236,7 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, char *key, char *data
 		}
 		pos += ea->namelen + ea->valuelen + 5;
 	}
-	if (!fnode->ea_offs) {
+	if (!fnode->ea_size_s) {
 		/*if (fnode->ea_size_s) {
 			hpfs_error(s, "fnode %08x: ea_size_s == %03x, ea_offs == 0",
 				inode->i_ino, fnode->ea_size_s);
@@ -242,13 +244,15 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, char *key, char *data
 		}*/
 		fnode->ea_offs = 0xc4;
 	}
-	if (fnode->ea_offs < 0xc4 || fnode->ea_offs + fnode->acl_size_s + fnode->ea_size_s > 0x200) {
+	if (fnode->ea_offs < 0xc4 || fnode->ea_offs + fnode->ea_size_s > 0x200) {
 		hpfs_error(s, "fnode %08x: ea_offs == %03x, ea_size_s == %03x",
 			inode->i_ino, fnode->ea_offs, fnode->ea_size_s);
 		return;
 	}
 	if ((fnode->ea_size_s || !fnode->ea_size_l) &&
-	     fnode->ea_offs + fnode->acl_size_s + fnode->ea_size_s + strlen(key) + size + 5 <= 0x200) {
+	     fnode->ea_offs + fnode->ea_size_s + strlen(key) + size + 5 <= 0x200) {
+		/* I'm not sure ... maybe we overwrite ACL here. I have no info
+		   on it right now :-( */
 		ea = fnode_end_ea(fnode);
 		*(char *)ea = 0;
 		ea->namelen = strlen(key);

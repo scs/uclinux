@@ -11,8 +11,14 @@
  *	2 of the License, or (at your option) any later version.
  *
  * $Log$
- * Revision 1.1.1.2  2004/09/07 09:24:00  lgsoft
- * Import of 2.6.8
+ * Revision 1.2  2004/09/07 22:33:04  lgsoft
+ * alpha-2.0
+ *
+ * Revision 1.1.1.1  2004/07/19 12:14:13  lgsoft
+ * Import of uClinux 2.6.2
+ *
+ * Revision 1.1.1.1  2004/07/18 13:21:38  nidhi
+ * Importing
  *
  * Revision 3.12  2002/03/07 14:17:09  henrique
  * License data fixed
@@ -334,7 +340,7 @@ typedef struct pc300dev {
 	uclong line_off;
 #ifdef __KERNEL__
 	char name[16];
-	struct net_device *dev;
+	hdlc_device *hdlc;
 
 	void *private;
 	struct sk_buff *tx_skb;
@@ -486,7 +492,7 @@ void rx_dma_start(pc300_t *, int);
 void tx_dma_stop(pc300_t *, int);
 void rx_dma_stop(pc300_t *, int);
 int cpc_queue_xmit(struct sk_buff *, struct net_device *);
-void cpc_net_rx(struct net_device *);
+void cpc_net_rx(hdlc_device *);
 void cpc_sca_status(pc300_t *, int);
 int cpc_change_mtu(struct net_device *, int);
 int cpc_ioctl(struct net_device *, struct ifreq *, int);

@@ -16,15 +16,16 @@
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 
+#define PCI_CFG_SPACE_SIZE 256
+
 static int proc_initialized;	/* = 0 */
 
 static loff_t
 proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 {
 	loff_t new = -1;
-	struct inode *inode = file->f_dentry->d_inode;
 
-	down(&inode->i_sem);
+	down(&file->f_dentry->d_inode->i_sem);
 	switch (whence) {
 	case 0:
 		new = off;
@@ -33,14 +34,14 @@ proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 		new = file->f_pos + off;
 		break;
 	case 2:
-		new = inode->i_size + off;
+		new = PCI_CFG_SPACE_SIZE + off;
 		break;
 	}
-	if (new < 0 || new > inode->i_size)
+	if (new < 0 || new > PCI_CFG_SPACE_SIZE)
 		new = -EINVAL;
 	else
 		file->f_pos = new;
-	up(&inode->i_sem);
+	up(&file->f_dentry->d_inode->i_sem);
 	return new;
 }
 
@@ -60,7 +61,7 @@ proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *pp
 	 */
 
 	if (capable(CAP_SYS_ADMIN))
-		size = dev->cfg_size;
+		size = PCI_CFG_SPACE_SIZE;
 	else if (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
 		size = 128;
 	else
@@ -89,7 +90,7 @@ proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *pp
 	if ((pos & 3) && cnt > 2) {
 		unsigned short val;
 		pci_read_config_word(dev, pos, &val);
-		__put_user(cpu_to_le16(val), (unsigned short __user *) buf);
+		__put_user(cpu_to_le16(val), (unsigned short *) buf);
 		buf += 2;
 		pos += 2;
 		cnt -= 2;
@@ -98,7 +99,7 @@ proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *pp
 	while (cnt >= 4) {
 		unsigned int val;
 		pci_read_config_dword(dev, pos, &val);
-		__put_user(cpu_to_le32(val), (unsigned int __user *) buf);
+		__put_user(cpu_to_le32(val), (unsigned int *) buf);
 		buf += 4;
 		pos += 4;
 		cnt -= 4;
@@ -107,7 +108,7 @@ proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *pp
 	if (cnt >= 2) {
 		unsigned short val;
 		pci_read_config_word(dev, pos, &val);
-		__put_user(cpu_to_le16(val), (unsigned short __user *) buf);
+		__put_user(cpu_to_le16(val), (unsigned short *) buf);
 		buf += 2;
 		pos += 2;
 		cnt -= 2;
@@ -133,15 +134,14 @@ proc_bus_pci_write(struct file *file, const char __user *buf, size_t nbytes, lof
 	const struct proc_dir_entry *dp = PDE(ino);
 	struct pci_dev *dev = dp->data;
 	int pos = *ppos;
-	int size = dev->cfg_size;
 	int cnt;
 
-	if (pos >= size)
+	if (pos >= PCI_CFG_SPACE_SIZE)
 		return 0;
-	if (nbytes >= size)
-		nbytes = size;
-	if (pos + nbytes > size)
-		nbytes = size - pos;
+	if (nbytes >= PCI_CFG_SPACE_SIZE)
+		nbytes = PCI_CFG_SPACE_SIZE;
+	if (pos + nbytes > PCI_CFG_SPACE_SIZE)
+		nbytes = PCI_CFG_SPACE_SIZE - pos;
 	cnt = nbytes;
 
 	if (!access_ok(VERIFY_READ, buf, cnt))
@@ -158,7 +158,7 @@ proc_bus_pci_write(struct file *file, const char __user *buf, size_t nbytes, lof
 
 	if ((pos & 3) && cnt > 2) {
 		unsigned short val;
-		__get_user(val, (unsigned short __user *) buf);
+		__get_user(val, (unsigned short *) buf);
 		pci_write_config_word(dev, pos, le16_to_cpu(val));
 		buf += 2;
 		pos += 2;
@@ -167,7 +167,7 @@ proc_bus_pci_write(struct file *file, const char __user *buf, size_t nbytes, lof
 
 	while (cnt >= 4) {
 		unsigned int val;
-		__get_user(val, (unsigned int __user *) buf);
+		__get_user(val, (unsigned int *) buf);
 		pci_write_config_dword(dev, pos, le32_to_cpu(val));
 		buf += 4;
 		pos += 4;
@@ -176,7 +176,7 @@ proc_bus_pci_write(struct file *file, const char __user *buf, size_t nbytes, lof
 
 	if (cnt >= 2) {
 		unsigned short val;
-		__get_user(val, (unsigned short __user *) buf);
+		__get_user(val, (unsigned short *) buf);
 		pci_write_config_word(dev, pos, le16_to_cpu(val));
 		buf += 2;
 		pos += 2;
@@ -403,7 +403,7 @@ int pci_proc_attach_device(struct pci_dev *dev)
 		return -ENOMEM;
 	e->proc_fops = &proc_bus_pci_operations;
 	e->data = dev;
-	e->size = dev->cfg_size;
+	e->size = PCI_CFG_SPACE_SIZE;
 
 	return 0;
 }

@@ -250,7 +250,7 @@ static struct ip_tunnel * ipip_tunnel_locate(struct ip_tunnel_parm *parms, int c
 	nt->parms = *parms;
 
 	if (register_netdevice(dev) < 0) {
-		free_netdev(dev);
+		kfree(dev);
 		goto failed;
 	}
 
@@ -479,7 +479,6 @@ static int ipip_rcv(struct sk_buff *skb)
 	read_lock(&ipip_lock);
 	if ((tunnel = ipip_tunnel_lookup(iph->saddr, iph->daddr)) != NULL) {
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-			read_unlock(&ipip_lock);
 			kfree_skb(skb);
 			return 0;
 		}
@@ -497,7 +496,13 @@ static int ipip_rcv(struct sk_buff *skb)
 		skb->dev = tunnel->dev;
 		dst_release(skb->dst);
 		skb->dst = NULL;
-		nf_reset(skb);
+#ifdef CONFIG_NETFILTER
+		nf_conntrack_put(skb->nfct);
+		skb->nfct = NULL;
+#ifdef CONFIG_NETFILTER_DEBUG
+		skb->nf_debug = 0;
+#endif
+#endif
 		ipip_ecn_decapsulate(iph, skb);
 		netif_rx(skb);
 		read_unlock(&ipip_lock);
@@ -642,7 +647,13 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if ((iph->ttl = tiph->ttl) == 0)
 		iph->ttl	=	old_iph->ttl;
 
-	nf_reset(skb);
+#ifdef CONFIG_NETFILTER
+	nf_conntrack_put(skb->nfct);
+	skb->nfct = NULL;
+#ifdef CONFIG_NETFILTER_DEBUG
+	skb->nf_debug = 0;
+#endif
+#endif
 
 	IPTUNNEL_XMIT();
 	tunnel->recursion--;
@@ -861,7 +872,7 @@ static struct xfrm_tunnel ipip_handler = {
 static char banner[] __initdata =
 	KERN_INFO "IPv4 over IPv4 tunneling driver\n";
 
-static int __init ipip_init(void)
+int __init ipip_init(void)
 {
 	int err;
 
@@ -888,7 +899,7 @@ static int __init ipip_init(void)
 	return err;
  fail:
 	xfrm4_tunnel_deregister(&ipip_handler);
-	free_netdev(ipip_fb_tunnel_dev);
+	kfree(ipip_fb_tunnel_dev);
 	goto out;
 }
 
@@ -900,6 +911,8 @@ static void __exit ipip_fini(void)
 	unregister_netdev(ipip_fb_tunnel_dev);
 }
 
+#ifdef MODULE
 module_init(ipip_init);
+#endif
 module_exit(ipip_fini);
 MODULE_LICENSE("GPL");

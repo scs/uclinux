@@ -105,7 +105,6 @@ typedef struct pccard_mem_map {
     u_short	speed;
     u_long	sys_start, sys_stop;
     u_int	card_start;
-    struct resource *res;
 } pccard_mem_map;
 
 typedef struct cb_bridge_map {
@@ -146,7 +145,6 @@ typedef struct io_window_t {
 	u_int			Attributes;
 	ioaddr_t		BasePort, NumPorts;
 	ioaddr_t		InUse, Config;
-	struct resource		*res;
 } io_window_t;
 
 #define WINDOW_MAGIC	0xB35C
@@ -155,6 +153,8 @@ typedef struct window_t {
 	u_short			index;
 	client_handle_t		handle;
 	struct pcmcia_socket 	*sock;
+	u_long			base;
+	u_long			size;
 	pccard_mem_map		ctl;
 } window_t;
 

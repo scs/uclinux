@@ -58,6 +58,13 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
+
+#ifdef CONFIG_USB_SERIAL_DEBUG
+	static int debug = 1;
+#else
+	static int debug;
+#endif
+
 #include "usb-serial.h"
 
 /*
@@ -94,11 +101,9 @@ struct irda_class_desc {
 	u8	bMaxUnicastList;
 } __attribute__ ((packed));
 
-static int debug;
-
 /* if overridden by the user, then use their value for the size of the read and
  * write urbs */
-static int buffer_size;
+static int buffer_size = 0;
 /* if overridden by the user, then use the specified number of XBOFs */
 static int xbof = -1;
 
@@ -133,7 +138,7 @@ static struct usb_driver ir_driver = {
 };
 
 
-static struct usb_serial_device_type ir_device = {
+struct usb_serial_device_type ir_device = {
 	.owner =		THIS_MODULE,
 	.name =			"IR Dongle",
 	.id_table =		id_table,
@@ -274,9 +279,13 @@ static int ir_startup (struct usb_serial *serial)
 
 static int ir_open (struct usb_serial_port *port, struct file *filp)
 {
+	struct usb_serial *serial = port->serial;
 	char *buffer;
 	int result = 0;
 
+	if (port_paranoia_check (port, __FUNCTION__))
+		return -ENODEV;
+	
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (buffer_size) {
@@ -304,8 +313,8 @@ static int ir_open (struct usb_serial_port *port, struct file *filp)
 	/* Start reading from the device */
 	usb_fill_bulk_urb (
 		port->read_urb,
-		port->serial->dev, 
-		usb_rcvbulkpipe(port->serial->dev, port->bulk_in_endpointAddress),
+		serial->dev, 
+		usb_rcvbulkpipe(serial->dev, port->bulk_in_endpointAddress),
 		port->read_urb->transfer_buffer,
 		port->read_urb->transfer_buffer_length,
 		ir_read_bulk_callback,
@@ -319,10 +328,21 @@ static int ir_open (struct usb_serial_port *port, struct file *filp)
 
 static void ir_close (struct usb_serial_port *port, struct file * filp)
 {
+	struct usb_serial *serial;
+
+	if (port_paranoia_check (port, __FUNCTION__))
+		return;
+	
 	dbg("%s - port %d", __FUNCTION__, port->number);
 			 
-	/* shutdown our bulk read */
-	usb_unlink_urb (port->read_urb);
+	serial = get_usb_serial (port, __FUNCTION__);
+	if (!serial)
+		return;
+	
+	if (serial->dev) {
+		/* shutdown our bulk read */
+		usb_unlink_urb (port->read_urb);
+	}
 }
 
 static int ir_write (struct usb_serial_port *port, int from_user, const unsigned char *buf, int count)
@@ -391,6 +411,9 @@ static void ir_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 
+	if (port_paranoia_check (port, __FUNCTION__))
+		return;
+	
 	dbg("%s - port %d", __FUNCTION__, port->number);
 	
 	if (urb->status) {
@@ -399,8 +422,7 @@ static void ir_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 	}
 
 	usb_serial_debug_data (
-		debug,
-		&port->dev,
+		__FILE__,
 		__FUNCTION__,
 		urb->actual_length,
 		urb->transfer_buffer);
@@ -411,11 +433,20 @@ static void ir_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 static void ir_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial *serial = get_usb_serial (port, __FUNCTION__);
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int result;
 
+	if (port_paranoia_check (port, __FUNCTION__))
+		return;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
+
+	if (!serial) {
+		dbg("%s - bad serial pointer, exiting", __FUNCTION__);
+		return;
+	}
 
 	if (!port->open_count) {
 		dbg("%s - port closed.", __FUNCTION__);
@@ -435,8 +466,7 @@ static void ir_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 				ir_baud = *data & 0x0f;
 
 			usb_serial_debug_data (
-				debug,
-				&port->dev,
+				__FILE__,
 				__FUNCTION__,
 				urb->actual_length,
 				data);
@@ -466,8 +496,8 @@ static void ir_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 			/* Continue trying to always read */
 			usb_fill_bulk_urb (
 				port->read_urb,
-				port->serial->dev, 
-				usb_rcvbulkpipe(port->serial->dev,
+				serial->dev, 
+				usb_rcvbulkpipe(serial->dev,
 					port->bulk_in_endpointAddress),
 				port->read_urb->transfer_buffer,
 				port->read_urb->transfer_buffer_length,
@@ -611,10 +641,10 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(debug, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM(debug, "i");
 MODULE_PARM_DESC(debug, "Debug enabled or not");
-module_param(xbof, int, 0);
+MODULE_PARM(xbof, "i");
 MODULE_PARM_DESC(xbof, "Force specific number of XBOFs");
-module_param(buffer_size, int, 0);
+MODULE_PARM(buffer_size, "i");
 MODULE_PARM_DESC(buffer_size, "Size of the transfer buffers");
 

@@ -146,14 +146,14 @@ static __inline__ unsigned dn_hash(unsigned short src, unsigned short dst)
 
 static inline void dnrt_free(struct dn_route *rt)
 {
-	call_rcu(&rt->u.dst.rcu_head, dst_rcu_free);
+	call_rcu(&rt->u.dst.rcu_head, (void (*)(void *))dst_free, &rt->u.dst);
 }
 
 static inline void dnrt_drop(struct dn_route *rt)
 {
 	if (rt)
 		dst_release(&rt->u.dst);
-	call_rcu(&rt->u.dst.rcu_head, dst_rcu_free);
+	call_rcu(&rt->u.dst.rcu_head, (void (*)(void *))dst_free, &rt->u.dst);
 }
 
 static void dn_dst_check_expire(unsigned long dummy)
@@ -684,9 +684,8 @@ out:
 	return NET_RX_DROP;
 }
 
-static int dn_output(struct sk_buff **pskb)
+static int dn_output(struct sk_buff *skb)
 {
-	struct sk_buff *skb = *pskb;
 	struct dst_entry *dst = skb->dst;
 	struct dn_route *rt = (struct dn_route *)dst;
 	struct net_device *dev = dst->dev;
@@ -795,11 +794,6 @@ static int dn_rt_bug(struct sk_buff *skb)
 	kfree_skb(skb);
 
 	return NET_RX_BAD;
-}
-
-static int dn_rt_bug_out(struct sk_buff **pskb)
-{
-	return dn_rt_bug(*pskb);
 }
 
 static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
@@ -1393,7 +1387,7 @@ make_route:
 	rt->u.dst.neighbour = neigh;
 	rt->u.dst.dev = out_dev;
 	rt->u.dst.lastuse = jiffies;
-	rt->u.dst.output = dn_rt_bug_out;
+	rt->u.dst.output = dn_rt_bug;
 	switch(res.type) {
 		case RTN_UNICAST:
 			rt->u.dst.input = dn_forward;
@@ -1726,8 +1720,7 @@ static void *dn_rt_cache_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void dn_rt_cache_seq_stop(struct seq_file *seq, void *v)
 {
-	if (v)
-		rcu_read_unlock();
+	rcu_read_unlock();
 }
 
 static int dn_rt_cache_seq_show(struct seq_file *seq, void *v)

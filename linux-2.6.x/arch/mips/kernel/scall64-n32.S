@@ -14,7 +14,6 @@
 #include <asm/mipsregs.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
-#include <asm/thread_info.h>
 #include <asm/unistd.h>
 
 /* This duplicates the definition from <linux/sched.h> */
@@ -36,26 +35,21 @@ NESTED(handle_sysn32, PT_SIZE, sp)
 	STI
 	.set	at
 #endif
+	ld	t1, PT_EPC(sp)		# skip syscall on return
 
 	subu	t0, v0, __NR_N32_Linux	# check syscall number
 	sltiu	t0, t0,	__NR_N32_Linux_syscalls + 1
-
-#ifndef CONFIG_MIPS32_O32
-	ld	t1, PT_EPC(sp)		# skip syscall on return
 	daddiu	t1, 4			# skip to next instruction
-	sd	t1, PT_EPC(sp)
-#endif
 	beqz	t0, not_n32_scall
+	sd	t1, PT_EPC(sp)
 
 	dsll	t0, v0, 3		# offset into table
 	ld	t2, (sysn32_call_table - (__NR_N32_Linux * 8))(t0)
 
 	sd	a3, PT_R26(sp)		# save a3 for syscall restarting
 
-	li	t1, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
 	LONG_L	t0, TI_FLAGS($28)	# syscall tracing enabled?
-	and	t0, t1, t0
-	bnez	t0, n32_syscall_trace_entry
+	bltz	t0, n32_syscall_trace_entry
 
 	jalr	t2			# Do The Real Thing (TM)
 
@@ -73,22 +67,20 @@ FEXPORT(n32_syscall_exit)
 					# signals dont change between
 					# sampling and return
 	LONG_L  a2, TI_FLAGS($28)	# current->work
-	li	t0, _TIF_ALLWORK_MASK
-	and	t0, a2, t0
-	bnez	t0, n32_syscall_exit_work
+	bnez	a2, n32_syscall_exit_work
 
-	j	restore_partial
+	RESTORE_SOME
+	RESTORE_SP_AND_RET
 
 n32_syscall_exit_work:
-	j	syscall_exit_work_partial
+	SAVE_STATIC
+	j	syscall_exit_work
 
 /* ------------------------------------------------------------------------ */
 
 n32_syscall_trace_entry:
 	SAVE_STATIC
 	sd	t2,PT_R1(sp)
-	move	a0, sp
-	li	a1, 0
 	jal	do_syscall_trace
 	ld	t2,PT_R1(sp)
 
@@ -126,7 +118,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_newlstat
 	PTR	sys_poll
 	PTR	sys_lseek
-	PTR	old_mmap
+	PTR	sys_mmap2
 	PTR	sys_mprotect			/* 6010 */
 	PTR	sys_munmap
 	PTR	sys_brk
@@ -135,18 +127,18 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_ioctl		/* 6015 */
 	PTR	sys_pread64
 	PTR	sys_pwrite64
-	PTR	compat_sys_readv
-	PTR	compat_sys_writev
+	PTR	sys32_readv
+	PTR	sys32_writev
 	PTR	sys_access			/* 6020 */
 	PTR	sys_pipe
-	PTR	compat_sys_select
+	PTR	sys32_select
 	PTR	sys_sched_yield
 	PTR	sys_mremap
 	PTR	sys_msync			/* 6025 */
 	PTR	sys_mincore
 	PTR	sys_madvise
 	PTR	sys_shmget
-	PTR	sys32_shmat
+	PTR	sys_shmat
 	PTR	sys_shmctl			/* 6030 */
 	PTR	sys_dup
 	PTR	sys_dup2
@@ -310,10 +302,10 @@ EXPORT(sysn32_call_table)
 	PTR	sys_lremovexattr		/* 6190 */
 	PTR	sys_fremovexattr
 	PTR	sys_tkill
-	PTR	sys_ni_syscall
+	PTR	sys_time
 	PTR	compat_sys_futex
-	PTR	compat_sys_sched_setaffinity	/* 6195 */
-	PTR	compat_sys_sched_getaffinity
+	PTR	sys32_sched_setaffinity		/* 6195 */
+	PTR	sys32_sched_getaffinity
 	PTR	sys_cacheflush
 	PTR	sys_cachectl
 	PTR	sys_sysmips
@@ -333,7 +325,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_set_tid_address
 	PTR	sys_restart_syscall
 	PTR	sys_semtimedop			/* 6215 */
-	PTR	sys_fadvise64_64
+	PTR	sys_fadvise64
 	PTR	sys_statfs64
 	PTR	sys_fstatfs64
 	PTR	sys_sendfile64
@@ -348,13 +340,3 @@ EXPORT(sysn32_call_table)
 	PTR	sys_clock_nanosleep
 	PTR	sys_tgkill
 	PTR	compat_sys_utimes		/* 6230 */
-	PTR	sys_ni_syscall			/* sys_mbind */
-	PTR	sys_ni_syscall			/* sys_get_mempolicy */
-	PTR	sys_ni_syscall			/* sys_set_mempolicy */
-	PTR	compat_sys_mq_open
-	PTR	sys_mq_unlink			/* 6235 */
-	PTR	compat_sys_mq_timedsend
-	PTR	compat_sys_mq_timedreceive
-	PTR	compat_sys_mq_notify
-	PTR	compat_sys_mq_getsetattr	/* 6239 */
-	PTR	sys_ni_syscall			/* sys_vserver */

@@ -37,8 +37,6 @@
 #include <asm/jazz.h>
 #include <asm/jazzdma.h>
 
-#define DRV_NAME "jazzsonic"
-
 #define SREGS_PAD(n)    u16 n;
 
 #include "sonic.h"
@@ -82,6 +80,7 @@ static unsigned short known_revisions[] =
 
 /* Index to functions, as function prototypes. */
 
+extern int sonic_probe(struct net_device *dev);
 static int sonic_probe1(struct net_device *dev, unsigned int base_addr,
                         unsigned int irq);
 
@@ -90,57 +89,29 @@ static int sonic_probe1(struct net_device *dev, unsigned int base_addr,
  * Probe for a SONIC ethernet controller on a Mips Jazz board.
  * Actually probing is superfluous but we're paranoid.
  */
-struct net_device * __init sonic_probe(int unit)
+int __init sonic_probe(struct net_device *dev)
 {
-	struct net_device *dev;
-	struct sonic_local *lp;
-	unsigned int base_addr;
-	int err = 0;
+	unsigned int base_addr = dev ? dev->base_addr : 0;
 	int i;
 
 	/*
 	 * Don't probe if we're not running on a Jazz board.
 	 */
 	if (mips_machgroup != MACH_GROUP_JAZZ)
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
+	if (base_addr >= KSEG0)	/* Check a single specified location. */
+		return sonic_probe1(dev, base_addr, dev->irq);
+	else if (base_addr != 0)	/* Don't probe at all. */
+		return -ENXIO;
 
-	dev = alloc_etherdev(0);
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	sprintf(dev->name, "eth%d", unit);
-	netdev_boot_setup_check(dev);
-	base_addr = dev->base_addr;
-
-	if (base_addr >= KSEG0)	{ /* Check a single specified location. */
-		err = sonic_probe1(dev, base_addr, dev->irq);
-	} else if (base_addr != 0) { /* Don't probe at all. */
-		err = -ENXIO;
-	} else {
-		for (i = 0; sonic_portlist[i].port; i++) {
-			int io = sonic_portlist[i].port;
-			if (sonic_probe1(dev, io, sonic_portlist[i].irq) == 0)
-				break;
-		}
-		if (!sonic_portlist[i].port)
-			err = -ENODEV;
+	for (i = 0; sonic_portlist[i].port; i++) {
+		int base_addr = sonic_portlist[i].port;
+		if (check_region(base_addr, 0x100))
+			continue;
+		if (sonic_probe1(dev, base_addr, sonic_portlist[i].irq) == 0)
+			return 0;
 	}
-	if (err)
-		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
-	return dev;
-out1:
-	lp = dev->priv;
-	vdma_free(lp->rba_laddr);
-	kfree(lp->rba);
-	vdma_free(lp->cda_laddr);
-	kfree(lp);
-	release_region(dev->base_addr, 0x100);
-out:
-	free_netdev(dev);
-	return ERR_PTR(err);
+	return -ENODEV;
 }
 
 static int __init sonic_probe1(struct net_device *dev, unsigned int base_addr,
@@ -150,11 +121,8 @@ static int __init sonic_probe1(struct net_device *dev, unsigned int base_addr,
 	unsigned int silicon_revision;
 	unsigned int val;
 	struct sonic_local *lp;
-	int err = -ENODEV;
 	int i;
 
-	if (!request_region(base_addr, 0x100, DRV_NAME))
-		return -EBUSY;
 	/*
 	 * get the Silicon Revision ID. If this is one of the known
 	 * one assume that we found a SONIC ethernet controller at
@@ -172,9 +140,12 @@ static int __init sonic_probe1(struct net_device *dev, unsigned int base_addr,
 	if (known_revisions[i] == 0xffff) {
 		printk("SONIC ethernet controller not found (0x%4x)\n",
 		       silicon_revision);
-		goto out;
+		return -ENODEV;
 	}
     
+	if (!request_region(base_addr, 0x100, dev->name))
+		return -EBUSY;
+
 	if (sonic_debug  &&  version_printed++ == 0)
 		printk(version);
 
@@ -204,8 +175,6 @@ static int __init sonic_probe1(struct net_device *dev, unsigned int base_addr,
 	}
 
 	printk(" IRQ %d\n", irq);
-
-	err = -ENOMEM;
     
 	/* Initialize the device structure. */
 	if (dev->priv == NULL) {
@@ -227,7 +196,7 @@ static int __init sonic_probe1(struct net_device *dev, unsigned int base_addr,
 		if (lp == NULL) {
 			printk("%s: couldn't allocate memory for descriptors\n",
 			       dev->name);
-			goto out;
+			return -ENOMEM;
 		}
 
 		memset(lp, 0, sizeof(struct sonic_local));
@@ -237,7 +206,7 @@ static int __init sonic_probe1(struct net_device *dev, unsigned int base_addr,
 		if (lp->cda_laddr == ~0UL) {
 			printk("%s: couldn't get DMA page entry for "
 			       "descriptors\n", dev->name);
-			goto out1;
+			return -ENOMEM;
 		}
 
 		lp->tda_laddr = lp->cda_laddr + sizeof (lp->cda);
@@ -250,7 +219,7 @@ static int __init sonic_probe1(struct net_device *dev, unsigned int base_addr,
 		if (!lp->rba) {
 			printk("%s: couldn't allocate receive buffers\n",
 			       dev->name);
-			goto out2;
+			return -ENOMEM;
 		}
 
 		/* get virtual dma address */
@@ -259,7 +228,7 @@ static int __init sonic_probe1(struct net_device *dev, unsigned int base_addr,
 		if (lp->rba_laddr == ~0UL) {
 			printk("%s: couldn't get DMA page entry for receive "
 			       "buffers\n",dev->name);
-			goto out3;
+			return -ENOMEM;
 		}
 
 		/* now convert pointer to KSEG1 pointer */
@@ -283,16 +252,9 @@ static int __init sonic_probe1(struct net_device *dev, unsigned int base_addr,
 	SONIC_WRITE(SONIC_FAET,0xffff);
 	SONIC_WRITE(SONIC_MPT,0xffff);
 
+	/* Fill in the fields of the device structure with ethernet values. */
+	ether_setup(dev);
 	return 0;
-out3:
-	kfree(lp->rba);
-out2:
-	vdma_free(lp->cda_laddr);
-out1:
-	kfree(lp);
-out:
-	release_region(base_addr, 0x100);
-	return err;
 }
 
 /*

@@ -100,8 +100,6 @@ struct rtc_time {
 #define RTC_RD_TIME		_IOR(RTC_MAGIC, 0x09, struct rtc_time)	/* Read RTC time. */
 #define RTC_SET_TIME		_IOW(RTC_MAGIC, 0x0a, struct rtc_time)	/* Set RTC time. */
 #define RTC_SET_CHARGE  	_IOW(RTC_MAGIC, 0x0b, int) 		
-#define RTC_VLOW_RD     _IOR(RTC_MAGIC, 0x11, int)  /* Voltage Low detector */
-#define RTC_VLOW_SET    _IO(RTC_MAGIC, 0x12)        /* Clear voltage low information */
-#define RTC_MAX_IOCTL 0x12
+#define RTC_MAX_IOCTL 0x0b
 
 #endif /* __RTC_H__ */

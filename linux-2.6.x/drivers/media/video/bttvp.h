@@ -25,7 +25,7 @@
 #define _BTTVP_H_
 
 #include <linux/version.h>
-#define BTTV_VERSION_CODE KERNEL_VERSION(0,9,15)
+#define BTTV_VERSION_CODE KERNEL_VERSION(0,9,12)
 
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -127,6 +127,7 @@ struct bttv_buffer {
 struct bttv_buffer_set {
 	struct bttv_buffer     *top;       /* top field buffer    */
 	struct bttv_buffer     *bottom;    /* bottom field buffer */
+	struct bttv_buffer     *vbi;       /* vbi buffer */
 	unsigned int           irqflags;
 	unsigned int           topirq;
 };
@@ -196,10 +197,8 @@ int bttv_risc_hook(struct bttv *btv, int slot, struct btcx_riscmem *risc,
 
 /* capture buffer handling */
 int bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf);
-int bttv_buffer_activate_video(struct bttv *btv,
-			       struct bttv_buffer_set *set);
-int bttv_buffer_activate_vbi(struct bttv *btv,
-			     struct bttv_buffer *vbi);
+int bttv_buffer_set_activate(struct bttv *btv,
+			     struct bttv_buffer_set *set);
 void bttv_dma_free(struct bttv *btv, struct bttv_buffer *buf);
 
 /* overlay handling */
@@ -280,8 +279,7 @@ struct bttv_suspend_state {
 	u32  gpio_enable;
 	u32  gpio_data;
 	int  disabled;
-	struct bttv_buffer_set video;
-	struct bttv_buffer     *vbi;
+	struct bttv_buffer_set set;
 };
 
 struct bttv {
@@ -300,7 +298,6 @@ struct bttv {
 	struct bttv_pll_info pll;
 	int triton1;
 	int gpioirq;
-	int use_i2c_hw;
 
 	/* old gpio interface */
 	wait_queue_head_t gpioq;
@@ -379,7 +376,6 @@ struct bttv {
 	struct list_head        capture;    /* video capture queue */
 	struct list_head        vcapture;   /* vbi capture queue   */
 	struct bttv_buffer_set  curr;       /* active buffers      */
-	struct bttv_buffer      *cvbi;      /* active vbi buffer   */
 	int                     new_input;
 
 	unsigned long cap_ctl;
@@ -388,10 +384,9 @@ struct bttv {
 	struct bttv_suspend_state state;
 
 	/* stats */
-	unsigned int errors;
-	unsigned int framedrop;
 	unsigned int irq_total;
 	unsigned int irq_me;
+	unsigned int errors;
 
 	unsigned int users;
 	struct bttv_fh init;

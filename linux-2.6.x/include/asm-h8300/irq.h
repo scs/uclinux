@@ -13,16 +13,6 @@
 #define EXT_IRQ5 17
 #define EXT_IRQ6 18
 #define EXT_IRQ7 19
-#define EXT_IRQS 5
-
-#include <asm/regs306x.h>
-#define h8300_clear_isr(irq)                                                \
-do {                                                                        \
-	if (irq >= EXT_IRQ0 && irq <= EXT_IRQ5)                             \
-		*(volatile unsigned char *)ISR &= ~(1 << (irq - EXT_IRQ0)); \
-} while(0)
-
-#define IER_REGS *(volatile unsigned char *)IER
 #endif
 #if defined(CONFIG_CPU_H8S)
 #define NR_IRQS 128
@@ -42,16 +32,6 @@ do {                                                                        \
 #define EXT_IRQ13 29
 #define EXT_IRQ14 30
 #define EXT_IRQ15 31
-#define EXT_IRQS 15
-
-#include <asm/regs267x.h>
-#define h8300_clear_isr(irq)                                                 \
-do {                                                                         \
-	if (irq >= EXT_IRQ0 && irq <= EXT_IRQ15)                             \
-		*(volatile unsigned short *)ISR &= ~(1 << (irq - EXT_IRQ0)); \
-} while(0)
-
-#define IER_REGS *(volatile unsigned short *)IER
 #endif
 
 static __inline__ int irq_canonicalize(int irq)
@@ -67,9 +47,5 @@ extern void disable_irq(unsigned int);
  */
 #define enable_irq_nosync(x)	enable_irq(x)
 #define disable_irq_nosync(x)	disable_irq(x)
-
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
 
 #endif /* _H8300_IRQ_H_ */

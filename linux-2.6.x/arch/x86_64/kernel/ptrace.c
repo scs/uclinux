@@ -16,7 +16,6 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/security.h>
-#include <linux/audit.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -232,7 +231,7 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 		ret = -EIO;
 		if (copied != sizeof(tmp))
 			break;
-		ret = put_user(tmp,(unsigned long __user *) data);
+		ret = put_user(tmp,(unsigned long *) data);
 		break;
 	}
 
@@ -271,7 +270,7 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 			tmp = 0;
 			break;
 		}
-		ret = put_user(tmp,(unsigned long __user *) data);
+		ret = put_user(tmp,(unsigned long *) data);
 		break;
 	}
 
@@ -360,20 +359,19 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 		   don't use it against 64bit processes, use
 		   PTRACE_ARCH_PRCTL instead. */
 	case PTRACE_SET_THREAD_AREA: {
-		struct user_desc __user *p;
 		int old; 
-		p = (struct user_desc __user *)data;
-		get_user(old,  &p->entry_number); 
-		put_user(addr, &p->entry_number);
-		ret = do_set_thread_area(&child->thread, p);
-		put_user(old,  &p->entry_number); 
+		get_user(old,  &((struct user_desc *)data)->entry_number); 
+		put_user(addr, &((struct user_desc *)data)->entry_number);
+		ret = do_set_thread_area(&child->thread, 
+					 (struct user_desc *)data);
+		put_user(old,  &((struct user_desc *)data)->entry_number); 
 		break;
 	case PTRACE_GET_THREAD_AREA:
-		p = (struct user_desc __user *)data;
-		get_user(old,  &p->entry_number); 
-		put_user(addr, &p->entry_number);
-		ret = do_get_thread_area(&child->thread, p);
-		put_user(old,  &p->entry_number); 
+		get_user(old,  &((struct user_desc *)data)->entry_number); 
+		put_user(addr, &((struct user_desc *)data)->entry_number);
+		ret = do_get_thread_area(&child->thread, 
+					 (struct user_desc *)data);
+		put_user(old,  &((struct user_desc *)data)->entry_number); 
 		break;
 	} 
 #endif
@@ -429,12 +427,12 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 		break;
 
 	case PTRACE_GETREGS: { /* Get all gp regs from the child. */
-	  	if (!access_ok(VERIFY_WRITE, (unsigned __user *)data, FRAME_SIZE)) {
+	  	if (!access_ok(VERIFY_WRITE, (unsigned *)data, FRAME_SIZE)) {
 			ret = -EIO;
 			break;
 		}
 		for (ui = 0; ui < sizeof(struct user_regs_struct); ui += sizeof(long)) {
-			__put_user(getreg(child, ui),(unsigned long __user *) data);
+			__put_user(getreg(child, ui),(unsigned long *) data);
 			data += sizeof(long);
 		}
 		ret = 0;
@@ -443,12 +441,12 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 
 	case PTRACE_SETREGS: { /* Set all gp regs in the child. */
 		unsigned long tmp;
-	  	if (!access_ok(VERIFY_READ, (unsigned __user *)data, FRAME_SIZE)) {
+	  	if (!access_ok(VERIFY_READ, (unsigned *)data, FRAME_SIZE)) {
 			ret = -EIO;
 			break;
 		}
 		for (ui = 0; ui < sizeof(struct user_regs_struct); ui += sizeof(long)) {
-			__get_user(tmp, (unsigned long __user *) data);
+			__get_user(tmp, (unsigned long *) data);
 			putreg(child, ui, tmp);
 			data += sizeof(long);
 		}
@@ -457,23 +455,23 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 	}
 
 	case PTRACE_GETFPREGS: { /* Get the child extended FPU state. */
-		if (!access_ok(VERIFY_WRITE, (unsigned __user *)data,
+		if (!access_ok(VERIFY_WRITE, (unsigned *)data,
 			       sizeof(struct user_i387_struct))) {
 			ret = -EIO;
 			break;
 		}
-		ret = get_fpregs((struct user_i387_struct __user *)data, child);
+		ret = get_fpregs((struct user_i387_struct *)data, child);
 		break;
 	}
 
 	case PTRACE_SETFPREGS: { /* Set the child extended FPU state. */
-		if (!access_ok(VERIFY_READ, (unsigned __user *)data,
+		if (!access_ok(VERIFY_READ, (unsigned *)data,
 			       sizeof(struct user_i387_struct))) {
 			ret = -EIO;
 			break;
 		}
 		child->used_math = 1;
-		ret = set_fpregs(child, (struct user_i387_struct __user *)data);
+		ret = set_fpregs(child, (struct user_i387_struct *)data);
 		break;
 	}
 
@@ -488,7 +486,7 @@ out:
 	return ret;
 }
 
-static void syscall_trace(struct pt_regs *regs)
+asmlinkage void syscall_trace(struct pt_regs *regs)
 {
 
 #if 0
@@ -498,6 +496,11 @@ static void syscall_trace(struct pt_regs *regs)
 	       current_thread_info()->flags, current->ptrace); 
 #endif
 
+	if (!test_thread_flag(TIF_SYSCALL_TRACE))
+		return; 
+	if (!(current->ptrace & PT_PTRACED))
+		return;
+	
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
 				? 0x80 : 0));
 	/*
@@ -509,26 +512,4 @@ static void syscall_trace(struct pt_regs *regs)
 		send_sig(current->exit_code, current, 1);
 		current->exit_code = 0;
 	}
-}
-
-asmlinkage void syscall_trace_enter(struct pt_regs *regs)
-{
-	if (unlikely(current->audit_context))
-		audit_syscall_entry(current, regs->orig_rax,
-				    regs->rdi, regs->rsi,
-				    regs->rdx, regs->r10);
-
-	if (test_thread_flag(TIF_SYSCALL_TRACE)
-	    && (current->ptrace & PT_PTRACED))
-		syscall_trace(regs);
-}
-
-asmlinkage void syscall_trace_leave(struct pt_regs *regs)
-{
-	if (unlikely(current->audit_context))
-		audit_syscall_exit(current, regs->rax);
-
-	if (test_thread_flag(TIF_SYSCALL_TRACE)
-	    && (current->ptrace & PT_PTRACED))
-		syscall_trace(regs);
 }

@@ -72,6 +72,10 @@
 #define BIT(x)		(1ul<<(x))
 #define POW2(x)		(1ul<<(x))
 
+#ifndef ABS
+# define ABS(x)		(((x)<0)?-(x):(x))
+#endif
+
 /*
  *
  *  Const

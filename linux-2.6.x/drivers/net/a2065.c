@@ -1,7 +1,7 @@
 /*
  * Amiga Linux/68k A2065 Ethernet Driver
  *
- * (C) Copyright 1995-2003 by Geert Uytterhoeven <geert@linux-m68k.org>
+ * (C) Copyright 1995 by Geert Uytterhoeven <geert@linux-m68k.org>
  *
  * Fixes and tips by:
  *	- Janos Farkas (CHEXUM@sparta.banki.hu)
@@ -130,7 +130,13 @@ struct lance_private {
 	int burst_sizes;	      /* ledma SBus burst sizes */
 #endif
 	struct timer_list         multicast_timer;
+	struct net_device *dev;		/* Backpointer */
+	struct lance_private *next_module;
 };
+
+#ifdef MODULE
+static struct lance_private *root_a2065_dev;
+#endif
 
 #define TX_BUFFS_AVAIL ((lp->tx_old<=lp->tx_new)?\
 			lp->tx_old+lp->tx_ring_mod_mask-lp->tx_new:\
@@ -164,7 +170,7 @@ static void load_csrs (struct lance_private *lp)
 /* Setup the Lance Rx and Tx rings */
 static void lance_init_ring (struct net_device *dev)
 {
-	struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = (struct lance_private *) dev->priv;
 	volatile struct lance_init_block *ib = lp->init_block;
 	volatile struct lance_init_block *aib; /* for LANCE_ADDR computations */
 	int leptr;
@@ -190,7 +196,7 @@ static void lance_init_ring (struct net_device *dev)
 	ib->phys_addr [5] = dev->dev_addr [4];
 
 	if (ZERO)
-		printk(KERN_DEBUG "TX rings:\n");
+		printk ("TX rings:\n");
     
 	/* Setup the Tx ring entries */
 	for (i = 0; i <= (1<<lp->lance_log_tx_bufs); i++) {
@@ -200,13 +206,13 @@ static void lance_init_ring (struct net_device *dev)
 		ib->btx_ring [i].tmd1_bits = 0;
 		ib->btx_ring [i].length    = 0xf000; /* The ones required by tmd2 */
 		ib->btx_ring [i].misc      = 0;
-		if (i < 3 && ZERO)
-			printk(KERN_DEBUG "%d: 0x%8.8x\n", i, leptr);
+		if (i < 3)
+			if (ZERO) printk ("%d: 0x%8.8x\n", i, leptr);
 	}
 
 	/* Setup the Rx ring entries */
 	if (ZERO)
-		printk(KERN_DEBUG "RX rings:\n");
+		printk ("RX rings:\n");
 	for (i = 0; i < (1<<lp->lance_log_rx_bufs); i++) {
 		leptr = LANCE_ADDR(&aib->rx_buf[i][0]);
 
@@ -216,7 +222,7 @@ static void lance_init_ring (struct net_device *dev)
 		ib->brx_ring [i].length    = -RX_BUFF_SIZE | 0xf000;
 		ib->brx_ring [i].mblength  = 0;
 		if (i < 3 && ZERO)
-			printk(KERN_DEBUG "%d: 0x%8.8x\n", i, leptr);
+			printk ("%d: 0x%8.8x\n", i, leptr);
 	}
 
 	/* Setup the initialization block */
@@ -226,14 +232,14 @@ static void lance_init_ring (struct net_device *dev)
 	ib->rx_len = (lp->lance_log_rx_bufs << 13) | (leptr >> 16);
 	ib->rx_ptr = leptr;
 	if (ZERO)
-		printk(KERN_DEBUG "RX ptr: %8.8x\n", leptr);
+		printk ("RX ptr: %8.8x\n", leptr);
     
 	/* Setup tx descriptor pointer */
 	leptr = LANCE_ADDR(&aib->btx_ring);
 	ib->tx_len = (lp->lance_log_tx_bufs << 13) | (leptr >> 16);
 	ib->tx_ptr = leptr;
 	if (ZERO)
-		printk(KERN_DEBUG "TX ptr: %8.8x\n", leptr);
+		printk ("TX ptr: %8.8x\n", leptr);
 
 	/* Clear the multicast filter */
 	ib->filter [0] = 0;
@@ -252,8 +258,7 @@ static int init_restart_lance (struct lance_private *lp)
 	for (i = 0; (i < 100) && !(ll->rdp & (LE_C0_ERR | LE_C0_IDON)); i++)
 		barrier();
 	if ((i == 100) || (ll->rdp & LE_C0_ERR)) {
-		printk(KERN_ERR "LANCE unopened after %d ticks, csr0=%4.4x.\n",
-		       i, ll->rdp);
+		printk ("LANCE unopened after %d ticks, csr0=%4.4x.\n", i, ll->rdp);
 		return -EIO;
 	}
 
@@ -266,7 +271,7 @@ static int init_restart_lance (struct lance_private *lp)
 
 static int lance_rx (struct net_device *dev)
 {
-	struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = (struct lance_private *) dev->priv;
 	volatile struct lance_init_block *ib = lp->init_block;
 	volatile struct lance_regs *ll = lp->ll;
 	volatile struct lance_rx_desc *rd;
@@ -275,8 +280,7 @@ static int lance_rx (struct net_device *dev)
 	struct sk_buff *skb = 0;	/* XXX shut up gcc warnings */
 
 #ifdef TEST_HITS
-	int i;
-	printk(KERN_DEBUG "[");
+	printk ("[");
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		if (i == lp->rx_new)
 			printk ("%s",
@@ -285,7 +289,7 @@ static int lance_rx (struct net_device *dev)
 			printk ("%s",
 				ib->brx_ring [i].rmd1_bits & LE_R1_OWN ? "." : "1");
 	}
-	printk ("]\n");
+	printk ("]");
 #endif
     
 	ll->rdp = LE_C0_RINT|LE_C0_INEA;
@@ -312,8 +316,8 @@ static int lance_rx (struct net_device *dev)
 			skb = dev_alloc_skb (len+2);
 
 			if (skb == 0) {
-				printk(KERN_WARNING "%s: Memory squeeze, "
-				       "deferring packet.\n", dev->name);
+				printk ("%s: Memory squeeze, deferring packet.\n",
+					dev->name);
 				lp->stats.rx_dropped++;
 				rd->mblength = 0;
 				rd->rmd1_bits = LE_R1_OWN;
@@ -344,7 +348,7 @@ static int lance_rx (struct net_device *dev)
 
 static int lance_tx (struct net_device *dev)
 {
-	struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = (struct lance_private *) dev->priv;
 	volatile struct lance_init_block *ib = lp->init_block;
 	volatile struct lance_regs *ll = lp->ll;
 	volatile struct lance_tx_desc *td;
@@ -374,9 +378,8 @@ static int lance_tx (struct net_device *dev)
 				lp->stats.tx_carrier_errors++;
 				if (lp->auto_select) {
 					lp->tpe = 1 - lp->tpe;
-					printk(KERN_ERR "%s: Carrier Lost, "
-					       "trying %s\n", dev->name,
-					       lp->tpe?"TPE":"AUI");
+					printk("%s: Carrier Lost, trying %s\n",
+					       dev->name, lp->tpe?"TPE":"AUI");
 					/* Stop the lance */
 					ll->rap = LE_CSR0;
 					ll->rdp = LE_C0_STOP;
@@ -392,8 +395,8 @@ static int lance_tx (struct net_device *dev)
 			if (status & (LE_T3_BUF|LE_T3_UFL)) {
 				lp->stats.tx_fifo_errors++;
 
-				printk(KERN_ERR "%s: Tx: ERR_BUF|ERR_UFL, "
-				       "restarting\n", dev->name);
+				printk ("%s: Tx: ERR_BUF|ERR_UFL, restarting\n",
+					dev->name);
 				/* Stop the lance */
 				ll->rap = LE_CSR0;
 				ll->rdp = LE_C0_STOP;
@@ -436,7 +439,7 @@ lance_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 
 	dev = (struct net_device *) dev_id;
 
-	lp = netdev_priv(dev);
+	lp = (struct lance_private *) dev->priv;
 	ll = lp->ll;
 
 	ll->rap = LE_CSR0;		/* LANCE Controller Status */
@@ -466,8 +469,7 @@ lance_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 	if (csr0 & LE_C0_MISS)
 		lp->stats.rx_errors++;       /* Missed a Rx frame. */
 	if (csr0 & LE_C0_MERR) {
-		printk(KERN_ERR "%s: Bus master arbitration failure, status "
-		       "%4.4x.\n", dev->name, csr0);
+		printk("%s: Bus master arbitration failure, status %4.4x.\n", dev->name, csr0);
 		/* Restart the chip. */
 		ll->rdp = LE_C0_STRT;
 	}
@@ -485,7 +487,7 @@ struct net_device *last_dev = 0;
 
 static int lance_open (struct net_device *dev)
 {
-	struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = (struct lance_private *)dev->priv;
 	volatile struct lance_regs *ll = lp->ll;
 	int ret;
 
@@ -510,7 +512,7 @@ static int lance_open (struct net_device *dev)
 
 static int lance_close (struct net_device *dev)
 {
-	struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = (struct lance_private *) dev->priv;
 	volatile struct lance_regs *ll = lp->ll;
 
 	netif_stop_queue(dev);
@@ -526,7 +528,7 @@ static int lance_close (struct net_device *dev)
 
 static inline int lance_reset (struct net_device *dev)
 {
-	struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = (struct lance_private *)dev->priv;
 	volatile struct lance_regs *ll = lp->ll;
 	int status;
     
@@ -542,14 +544,14 @@ static inline int lance_reset (struct net_device *dev)
 
 	status = init_restart_lance (lp);
 #ifdef DEBUG_DRIVER
-	printk(KERN_DEBUG "Lance restart=%d\n", status);
+	printk ("Lance restart=%d\n", status);
 #endif
 	return status;
 }
 
 static void lance_tx_timeout(struct net_device *dev)
 {
-	struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = (struct lance_private *) dev->priv;
 	volatile struct lance_regs *ll = lp->ll;
 
 	printk(KERN_ERR "%s: transmit timed out, status %04x, reset\n",
@@ -560,7 +562,7 @@ static void lance_tx_timeout(struct net_device *dev)
 
 static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 {
-	struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = (struct lance_private *)dev->priv;
 	volatile struct lance_regs *ll = lp->ll;
 	volatile struct lance_init_block *ib = lp->init_block;
 	int entry, skblen, len;
@@ -592,10 +594,9 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	
 		for (i = 0; i < 64; i++) {
 			if ((i % 16) == 0)
-				printk("\n" KERN_DEBUG);
+				printk ("\n");
 			printk ("%2.2x ", skb->data [i]);
 		}
-		printk("\n");
 	}
 #endif
 	entry = lp->tx_new & lp->tx_ring_mod_mask;
@@ -629,7 +630,7 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *lance_get_stats (struct net_device *dev)
 {
-	struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = (struct lance_private *) dev->priv;
 
 	return &lp->stats;
 }
@@ -637,7 +638,7 @@ static struct net_device_stats *lance_get_stats (struct net_device *dev)
 /* taken from the depca driver */
 static void lance_load_multicast (struct net_device *dev)
 {
-	struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = (struct lance_private *) dev->priv;
 	volatile struct lance_init_block *ib = lp->init_block;
 	volatile u16 *mcast_table = (u16 *)&ib->filter;
 	struct dev_mc_list *dmi=dev->mc_list;
@@ -673,7 +674,7 @@ static void lance_load_multicast (struct net_device *dev)
 
 static void lance_set_multicast (struct net_device *dev)
 {
-	struct lance_private *lp = netdev_priv(dev);
+	struct lance_private *lp = (struct lance_private *) dev->priv;
 	volatile struct lance_init_block *ib = lp->init_block;
 	volatile struct lance_regs *ll = lp->ll;
 
@@ -703,141 +704,128 @@ static void lance_set_multicast (struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
-static int __devinit a2065_init_one(struct zorro_dev *z,
-				    const struct zorro_device_id *ent);
-static void __devexit a2065_remove_one(struct zorro_dev *z);
-
-
-static struct zorro_device_id a2065_zorro_tbl[] __devinitdata = {
-	{ ZORRO_PROD_CBM_A2065_1 },
-	{ ZORRO_PROD_CBM_A2065_2 },
-	{ ZORRO_PROD_AMERISTAR_A2065 },
-	{ 0 }
-};
-
-static struct zorro_driver a2065_driver = {
-	.name		= "a2065",
-	.id_table	= a2065_zorro_tbl,
-	.probe		= a2065_init_one,
-	.remove		= __devexit_p(a2065_remove_one),
-};
-
-static int __devinit a2065_init_one(struct zorro_dev *z,
-				    const struct zorro_device_id *ent)
+static int __init a2065_probe(void)
 {
+	struct zorro_dev *z = NULL;
 	struct net_device *dev;
 	struct lance_private *priv;
-	unsigned long board, base_addr, mem_start;
-	struct resource *r1, *r2;
-	int err;
+	int res = -ENODEV;
 
-	board = z->resource.start;
-	base_addr = board+A2065_LANCE;
-	mem_start = board+A2065_RAM;
+	while ((z = zorro_find_device(ZORRO_WILDCARD, z))) {
+		unsigned long board, base_addr, mem_start;
+		struct resource *r1, *r2;
+		int is_cbm;
 
-	r1 = request_mem_region(base_addr, sizeof(struct lance_regs),
-				"Am7990");
-	if (!r1)
-		return -EBUSY;
-	r2 = request_mem_region(mem_start, A2065_RAM_SIZE, "RAM");
-	if (!r2) {
-		release_resource(r1);
-		return -EBUSY;
+		if (z->id == ZORRO_PROD_CBM_A2065_1 ||
+		    z->id == ZORRO_PROD_CBM_A2065_2)
+			is_cbm = 1;
+		else if (z->id == ZORRO_PROD_AMERISTAR_A2065)
+			is_cbm = 0;
+		else
+			continue;
+
+		board = z->resource.start;
+		base_addr = board+A2065_LANCE;
+		mem_start = board+A2065_RAM;
+
+		r1 = request_mem_region(base_addr, sizeof(struct lance_regs),
+					"Am7990");
+		if (!r1) continue;
+		r2 = request_mem_region(mem_start, A2065_RAM_SIZE, "RAM");
+		if (!r2) {
+			release_resource(r1);
+			continue;
+		}
+
+		dev = init_etherdev(NULL, sizeof(struct lance_private));
+
+		if (dev == NULL) {
+			release_resource(r1);
+			release_resource(r2);
+			return -ENOMEM;
+		}
+		SET_MODULE_OWNER(dev);
+		priv = dev->priv;
+
+		r1->name = dev->name;
+		r2->name = dev->name;
+
+		priv->dev = dev;
+		dev->dev_addr[0] = 0x00;
+		if (is_cbm) {				/* Commodore */
+			dev->dev_addr[1] = 0x80;
+			dev->dev_addr[2] = 0x10;
+		} else {				/* Ameristar */
+			dev->dev_addr[1] = 0x00;
+			dev->dev_addr[2] = 0x9f;
+		}
+		dev->dev_addr[3] = (z->rom.er_SerialNumber>>16) & 0xff;
+		dev->dev_addr[4] = (z->rom.er_SerialNumber>>8) & 0xff;
+		dev->dev_addr[5] = z->rom.er_SerialNumber & 0xff;
+		printk("%s: A2065 at 0x%08lx, Ethernet Address "
+		       "%02x:%02x:%02x:%02x:%02x:%02x\n", dev->name, board,
+		       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
+		       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+
+		dev->base_addr = ZTWO_VADDR(base_addr);
+		dev->mem_start = ZTWO_VADDR(mem_start);
+		dev->mem_end = dev->mem_start+A2065_RAM_SIZE;
+
+		priv->ll = (volatile struct lance_regs *)dev->base_addr;
+		priv->init_block = (struct lance_init_block *)dev->mem_start;
+		priv->lance_init_block = (struct lance_init_block *)A2065_RAM;
+		priv->auto_select = 0;
+		priv->busmaster_regval = LE_C3_BSWP;
+
+		priv->lance_log_rx_bufs = LANCE_LOG_RX_BUFFERS;
+		priv->lance_log_tx_bufs = LANCE_LOG_TX_BUFFERS;
+		priv->rx_ring_mod_mask = RX_RING_MOD_MASK;
+		priv->tx_ring_mod_mask = TX_RING_MOD_MASK;
+
+		dev->open = &lance_open;
+		dev->stop = &lance_close;
+		dev->hard_start_xmit = &lance_start_xmit;
+		dev->tx_timeout = &lance_tx_timeout;
+		dev->watchdog_timeo = 5*HZ;
+		dev->get_stats = &lance_get_stats;
+		dev->set_multicast_list = &lance_set_multicast;
+		dev->dma = 0;
+
+#ifdef MODULE
+		priv->next_module = root_a2065_dev;
+		root_a2065_dev = priv;
+#endif
+		ether_setup(dev);
+		init_timer(&priv->multicast_timer);
+		priv->multicast_timer.data = (unsigned long) dev;
+		priv->multicast_timer.function =
+			(void (*)(unsigned long)) &lance_set_multicast;
+
+		res = 0;
 	}
+	return res;
+}
 
-	dev = alloc_etherdev(sizeof(struct lance_private));
-	if (dev == NULL) {
-		release_resource(r1);
-		release_resource(r2);
-		return -ENOMEM;
-	}
 
-	SET_MODULE_OWNER(dev);
-	priv = netdev_priv(dev);
+static void __exit a2065_cleanup(void)
+{
+#ifdef MODULE
+	struct lance_private *next;
+	struct net_device *dev;
 
-	r1->name = dev->name;
-	r2->name = dev->name;
-
-	dev->dev_addr[0] = 0x00;
-	if (z->id != ZORRO_PROD_AMERISTAR_A2065) {	/* Commodore */
-		dev->dev_addr[1] = 0x80;
-		dev->dev_addr[2] = 0x10;
-	} else {					/* Ameristar */
-		dev->dev_addr[1] = 0x00;
-		dev->dev_addr[2] = 0x9f;
-	}
-	dev->dev_addr[3] = (z->rom.er_SerialNumber>>16) & 0xff;
-	dev->dev_addr[4] = (z->rom.er_SerialNumber>>8) & 0xff;
-	dev->dev_addr[5] = z->rom.er_SerialNumber & 0xff;
-	dev->base_addr = ZTWO_VADDR(base_addr);
-	dev->mem_start = ZTWO_VADDR(mem_start);
-	dev->mem_end = dev->mem_start+A2065_RAM_SIZE;
-
-	priv->ll = (volatile struct lance_regs *)dev->base_addr;
-	priv->init_block = (struct lance_init_block *)dev->mem_start;
-	priv->lance_init_block = (struct lance_init_block *)A2065_RAM;
-	priv->auto_select = 0;
-	priv->busmaster_regval = LE_C3_BSWP;
-
-	priv->lance_log_rx_bufs = LANCE_LOG_RX_BUFFERS;
-	priv->lance_log_tx_bufs = LANCE_LOG_TX_BUFFERS;
-	priv->rx_ring_mod_mask = RX_RING_MOD_MASK;
-	priv->tx_ring_mod_mask = TX_RING_MOD_MASK;
-
-	dev->open = &lance_open;
-	dev->stop = &lance_close;
-	dev->hard_start_xmit = &lance_start_xmit;
-	dev->tx_timeout = &lance_tx_timeout;
-	dev->watchdog_timeo = 5*HZ;
-	dev->get_stats = &lance_get_stats;
-	dev->set_multicast_list = &lance_set_multicast;
-	dev->dma = 0;
-
-	init_timer(&priv->multicast_timer);
-	priv->multicast_timer.data = (unsigned long) dev;
-	priv->multicast_timer.function =
-		(void (*)(unsigned long)) &lance_set_multicast;
-
-	err = register_netdev(dev);
-	if (err) {
-		release_resource(r1);
-		release_resource(r2);
+	while (root_a2065_dev) {
+		next = root_a2065_dev->next_module;
+		dev = root_a2065_dev->dev;
+		unregister_netdev(dev);
+		release_mem_region(ZTWO_PADDR(dev->base_addr),
+				   sizeof(struct lance_regs));
+		release_mem_region(ZTWO_PADDR(dev->mem_start), A2065_RAM_SIZE);
 		free_netdev(dev);
-		return err;
+		root_a2065_dev = next;
 	}
-	zorro_set_drvdata(z, dev);
-
-	printk(KERN_INFO "%s: A2065 at 0x%08lx, Ethernet Address "
-	       "%02x:%02x:%02x:%02x:%02x:%02x\n", dev->name, board,
-	       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
-
-	return 0;
+#endif
 }
 
-
-static void __devexit a2065_remove_one(struct zorro_dev *z)
-{
-	struct net_device *dev = zorro_get_drvdata(z);
-
-	unregister_netdev(dev);
-	release_mem_region(ZTWO_PADDR(dev->base_addr),
-			   sizeof(struct lance_regs));
-	release_mem_region(ZTWO_PADDR(dev->mem_start), A2065_RAM_SIZE);
-	free_netdev(dev);
-}
-
-static int __init a2065_init_module(void)
-{
-	return zorro_module_init(&a2065_driver);
-}
-
-static void __exit a2065_cleanup_module(void)
-{
-	zorro_unregister_driver(&a2065_driver);
-}
-
-module_init(a2065_init_module);
-module_exit(a2065_cleanup_module);
-
+module_init(a2065_probe);
+module_exit(a2065_cleanup);
 MODULE_LICENSE("GPL");

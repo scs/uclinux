@@ -72,12 +72,11 @@ static const char version[] =
 
 #include "8390.h"
 
-#define DRV_NAME "smc-ultra"
-
 /* A zero-terminated list of I/O addresses to be probed. */
 static unsigned int ultra_portlist[] __initdata =
 {0x200, 0x220, 0x240, 0x280, 0x300, 0x340, 0x380, 0};
 
+int ultra_probe(struct net_device *dev);
 static int ultra_probe1(struct net_device *dev, int ioaddr);
 
 #ifdef __ISAPNP__
@@ -123,30 +122,18 @@ MODULE_DEVICE_TABLE(isapnp, ultra_device_ids);
 #define ULTRA_IO_EXTENT 32
 #define EN0_ERWCNT		0x08	/* Early receive warning count. */
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void ultra_poll(struct net_device *dev)
-{
-	disable_irq(dev->irq);
-	ei_interrupt(dev->irq, dev, NULL);
-	enable_irq(dev->irq);
-}
-#endif
 /*	Probe for the Ultra.  This looks like a 8013 with the station
 	address PROM at I/O ports <base>+8 to <base>+13, with a checksum
 	following.
 */
 
-static int __init do_ultra_probe(struct net_device *dev)
+int __init ultra_probe(struct net_device *dev)
 {
 	int i;
 	int base_addr = dev->base_addr;
-	int irq = dev->irq;
 
 	SET_MODULE_OWNER(dev);
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = &ultra_poll;
-#endif
 	if (base_addr > 0x1ff)		/* Check a single specified location. */
 		return ultra_probe1(dev, base_addr);
 	else if (base_addr != 0)	/* Don't probe at all. */
@@ -160,52 +147,12 @@ static int __init do_ultra_probe(struct net_device *dev)
 	printk(KERN_NOTICE "smc-ultra.c: No ISAPnP cards found, trying standard ones...\n");
 #endif
 
-	for (i = 0; ultra_portlist[i]; i++) {
-		dev->irq = irq;
+	for (i = 0; ultra_portlist[i]; i++)
 		if (ultra_probe1(dev, ultra_portlist[i]) == 0)
 			return 0;
-	}
 
 	return -ENODEV;
 }
-
-static void cleanup_card(struct net_device *dev)
-{
-	/* NB: ultra_close_card() does free_irq */
-#ifdef __ISAPNP__
-	struct pnp_dev *idev = (struct pnp_dev *)ei_status.priv;
-	if (idev)
-		pnp_device_detach(idev);
-#endif
-	release_region(dev->base_addr - ULTRA_NIC_OFFSET, ULTRA_IO_EXTENT);
-}
-
-#ifndef MODULE
-struct net_device * __init ultra_probe(int unit)
-{
-	struct net_device *dev = alloc_ei_netdev();
-	int err;
-
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	sprintf(dev->name, "eth%d", unit);
-	netdev_boot_setup_check(dev);
-
-	err = do_ultra_probe(dev);
-	if (err)
-		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
-	return dev;
-out1:
-	cleanup_card(dev);
-out:
-	free_netdev(dev);
-	return ERR_PTR(err);
-}
-#endif
 
 static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 {
@@ -219,7 +166,7 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 	unsigned char idreg = inb(ioaddr + 7);
 	unsigned char reg4 = inb(ioaddr + 4) & 0x7f;
 
-	if (!request_region(ioaddr, ULTRA_IO_EXTENT, DRV_NAME))
+	if (!request_region(ioaddr, ULTRA_IO_EXTENT, dev->name))
 		return -EBUSY;
 
 	/* Check the ID nibble. */
@@ -279,6 +226,13 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 		eeprom_irq = 1;
 	}
 
+	/* Allocate dev->priv and fill in 8390 specific dev fields. */
+	if (ethdev_init(dev)) {
+		printk (", no memory for dev->priv.\n");
+                retval = -ENOMEM;
+		goto out;
+        }
+
 	/* The 8390 isn't at the base address, so fake the offset */
 	dev->base_addr = ioaddr+ULTRA_NIC_OFFSET;
 
@@ -316,9 +270,6 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 	ei_status.reset_8390 = &ultra_reset_8390;
 	dev->open = &ultra_open;
 	dev->stop = &ultra_close_card;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
 	NS8390_init(dev, 0);
 
 	return 0;
@@ -549,7 +500,7 @@ ultra_close_card(struct net_device *dev)
 
 #ifdef MODULE
 #define MAX_ULTRA_CARDS	4	/* Max number of Ultra cards per module */
-static struct net_device *dev_ultra[MAX_ULTRA_CARDS];
+static struct net_device dev_ultra[MAX_ULTRA_CARDS];
 static int io[MAX_ULTRA_CARDS];
 static int irq[MAX_ULTRA_CARDS];
 
@@ -565,33 +516,26 @@ ISA device autoprobes on a running machine are not recommended. */
 int
 init_module(void)
 {
-	struct net_device *dev;
 	int this_dev, found = 0;
 
 	for (this_dev = 0; this_dev < MAX_ULTRA_CARDS; this_dev++) {
+		struct net_device *dev = &dev_ultra[this_dev];
+		dev->irq = irq[this_dev];
+		dev->base_addr = io[this_dev];
+		dev->init = ultra_probe;
 		if (io[this_dev] == 0)  {
 			if (this_dev != 0) break; /* only autoprobe 1st one */
 			printk(KERN_NOTICE "smc-ultra.c: Presently autoprobing (not recommended) for a single card.\n");
 		}
-		dev = alloc_ei_netdev();
-		if (!dev)
-			break;
-		dev->irq = irq[this_dev];
-		dev->base_addr = io[this_dev];
-		if (do_ultra_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_ultra[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+		if (register_netdev(dev) != 0) {
+			printk(KERN_WARNING "smc-ultra.c: No SMC Ultra card found (i/o = 0x%x).\n", io[this_dev]);
+			if (found != 0) return 0;	/* Got at least one. */
+			return -ENXIO;
 		}
-		free_netdev(dev);
-		printk(KERN_WARNING "smc-ultra.c: No SMC Ultra card found (i/o = 0x%x).\n", io[this_dev]);
-		break;
+		found++;
 	}
-	if (found)
-		return 0;
-	return -ENXIO;
+
+	return 0;
 }
 
 void
@@ -600,11 +544,20 @@ cleanup_module(void)
 	int this_dev;
 
 	for (this_dev = 0; this_dev < MAX_ULTRA_CARDS; this_dev++) {
-		struct net_device *dev = dev_ultra[this_dev];
-		if (dev) {
+		struct net_device *dev = &dev_ultra[this_dev];
+		if (dev->priv != NULL) {
+			/* NB: ultra_close_card() does free_irq */
+			int ioaddr = dev->base_addr - ULTRA_NIC_OFFSET;
+
+#ifdef __ISAPNP__
+			struct pnp_dev *idev = (struct pnp_dev *)ei_status.priv;
+			if (idev)
+				pnp_device_detach(idev);
+#endif
+
 			unregister_netdev(dev);
-			cleanup_card(dev);
-			free_netdev(dev);
+			release_region(ioaddr, ULTRA_IO_EXTENT);
+			kfree(dev->priv);
 		}
 	}
 }

@@ -1,6 +1,6 @@
 #ifndef _dmasound_h_
 /*
- *  linux/sound/oss/dmasound/dmasound.h
+ *  linux/drivers/sound/dmasound/dmasound.h
  *
  *
  *  Minor numbers for the sound driver.
@@ -44,12 +44,12 @@
 #define le2be16dbl(x)	(((x)<<8 & 0xff00ff00) | ((x)>>8 & 0x00ff00ff))
 
 #define IOCTL_IN(arg, ret) \
-	do { int error = get_user(ret, (int __user *)(arg)); \
+	do { int error = get_user(ret, (int *)(arg)); \
 		if (error) return error; \
 	} while (0)
-#define IOCTL_OUT(arg, ret)	ioctl_return((int __user *)(arg), ret)
+#define IOCTL_OUT(arg, ret)	ioctl_return((int *)(arg), ret)
 
-static inline int ioctl_return(int __user *addr, int value)
+static inline int ioctl_return(int *addr, int value)
 {
 	return value < 0 ? value : put_user(value, addr);
 }
@@ -153,14 +153,14 @@ typedef struct {
      */
 
 typedef struct {
-    ssize_t (*ct_ulaw)(const u_char __user *, size_t, u_char *, ssize_t *, ssize_t);
-    ssize_t (*ct_alaw)(const u_char __user *, size_t, u_char *, ssize_t *, ssize_t);
-    ssize_t (*ct_s8)(const u_char __user *, size_t, u_char *, ssize_t *, ssize_t);
-    ssize_t (*ct_u8)(const u_char __user *, size_t, u_char *, ssize_t *, ssize_t);
-    ssize_t (*ct_s16be)(const u_char __user *, size_t, u_char *, ssize_t *, ssize_t);
-    ssize_t (*ct_u16be)(const u_char __user *, size_t, u_char *, ssize_t *, ssize_t);
-    ssize_t (*ct_s16le)(const u_char __user *, size_t, u_char *, ssize_t *, ssize_t);
-    ssize_t (*ct_u16le)(const u_char __user *, size_t, u_char *, ssize_t *, ssize_t);
+    ssize_t (*ct_ulaw)(const u_char *, size_t, u_char *, ssize_t *, ssize_t);
+    ssize_t (*ct_alaw)(const u_char *, size_t, u_char *, ssize_t *, ssize_t);
+    ssize_t (*ct_s8)(const u_char *, size_t, u_char *, ssize_t *, ssize_t);
+    ssize_t (*ct_u8)(const u_char *, size_t, u_char *, ssize_t *, ssize_t);
+    ssize_t (*ct_s16be)(const u_char *, size_t, u_char *, ssize_t *, ssize_t);
+    ssize_t (*ct_u16be)(const u_char *, size_t, u_char *, ssize_t *, ssize_t);
+    ssize_t (*ct_s16le)(const u_char *, size_t, u_char *, ssize_t *, ssize_t);
+    ssize_t (*ct_u16le)(const u_char *, size_t, u_char *, ssize_t *, ssize_t);
 } TRANS;
 
 struct sound_settings {
@@ -267,11 +267,10 @@ extern int dmasound_catchRadius;
 */
 #define BS_VAL 1
 
-#define SW_INPUT_VOLUME_SCALE	4
-#define SW_INPUT_VOLUME_DEFAULT	(128 / SW_INPUT_VOLUME_SCALE)
-
-extern int expand_bal;	/* Balance factor for expanding (not volume!) */
-extern int expand_read_bal;	/* Balance factor for reading */
-extern uint software_input_volume; /* software implemented recording volume! */
+static inline void wait_ms(unsigned int ms)
+{
+	current->state = TASK_UNINTERRUPTIBLE;
+	schedule_timeout(1 + ms * HZ / 1000);
+}
 
 #endif /* _dmasound_h_ */

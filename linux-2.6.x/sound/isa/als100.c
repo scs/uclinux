@@ -25,8 +25,8 @@
 #include <linux/wait.h>
 #include <linux/time.h>
 #include <linux/pnp.h>
-#include <linux/moduleparam.h>
 #include <sound/core.h>
+#define SNDRV_GET_ID
 #include <sound/initval.h>
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
@@ -59,36 +59,35 @@ static int irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* PnP setup */
 static int mpu_irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* PnP setup */
 static int dma8[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* PnP setup */
 static int dma16[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* PnP setup */
-static int boot_devs;
 
-module_param_array(index, int, boot_devs, 0444);
+MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(index, "Index value for als100 based soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-module_param_array(id, charp, boot_devs, 0444);
+MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
 MODULE_PARM_DESC(id, "ID string for als100 based soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-module_param_array(enable, bool, boot_devs, 0444);
+MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(enable, "Enable als100 based soundcard.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-module_param_array(port, long, boot_devs, 0444);
+MODULE_PARM(port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(port, "Port # for als100 driver.");
 MODULE_PARM_SYNTAX(port, SNDRV_PORT12_DESC);
-module_param_array(mpu_port, long, boot_devs, 0444);
+MODULE_PARM(mpu_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for als100 driver.");
 MODULE_PARM_SYNTAX(mpu_port, SNDRV_PORT12_DESC);
-module_param_array(fm_port, long, boot_devs, 0444);
+MODULE_PARM(fm_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(fm_port, "FM port # for als100 driver.");
 MODULE_PARM_SYNTAX(fm_port, SNDRV_PORT12_DESC);
-module_param_array(irq, int, boot_devs, 0444);
+MODULE_PARM(irq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(irq, "IRQ # for als100 driver.");
 MODULE_PARM_SYNTAX(irq, SNDRV_IRQ_DESC);
-module_param_array(mpu_irq, int, boot_devs, 0444);
+MODULE_PARM(mpu_irq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for als100 driver.");
 MODULE_PARM_SYNTAX(mpu_irq, SNDRV_IRQ_DESC);
-module_param_array(dma8, int, boot_devs, 0444);
+MODULE_PARM(dma8, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(dma8, "8-bit DMA # for als100 driver.");
 MODULE_PARM_SYNTAX(dma8, SNDRV_DMA8_DESC);
-module_param_array(dma16, int, boot_devs, 0444);
+MODULE_PARM(dma16, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(dma16, "16-bit DMA # for als100 driver.");
 MODULE_PARM_SYNTAX(dma16, SNDRV_DMA16_DESC);
 
@@ -229,7 +228,6 @@ static int __init snd_card_als100_probe(int dev,
 		snd_card_free(card);
 		return error;
 	}
-	snd_card_set_dev(card, &pcard->card->dev);
 
 	if ((error = snd_sbdsp_create(card, port[dev],
 				      irq[dev],
@@ -241,12 +239,6 @@ static int __init snd_card_als100_probe(int dev,
 		return error;
 	}
 
-	strcpy(card->driver, "ALS100");
-	strcpy(card->shortname, "Avance Logic ALS100");
-	sprintf(card->longname, "%s, %s at 0x%lx, irq %d, dma %d&%d",
-		card->shortname, chip->name, chip->port,
-		irq[dev], dma8[dev], dma16[dev]);
-
 	if ((error = snd_sb16dsp_pcm(chip, 0, NULL)) < 0) {
 		snd_card_free(card);
 		return error;
@@ -257,7 +249,7 @@ static int __init snd_card_als100_probe(int dev,
 		return error;
 	}
 
-	if (mpu_port[dev] > 0 && mpu_port[dev] != SNDRV_AUTO_PORT) {
+	if (mpu_port[dev] > 0) {
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_ALS100,
 					mpu_port[dev], 0, 
 					mpu_irq[dev], SA_INTERRUPT,
@@ -265,7 +257,7 @@ static int __init snd_card_als100_probe(int dev,
 			snd_printk(KERN_ERR PFX "no MPU-401 device at 0x%lx\n", mpu_port[dev]);
 	}
 
-	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
+	if (fm_port[dev] > 0) {
 		if (snd_opl3_create(card,
 				    fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_AUTO, 0, &opl3) < 0) {
@@ -283,6 +275,11 @@ static int __init snd_card_als100_probe(int dev,
 		}
 	}
 
+	strcpy(card->driver, "ALS100");
+	strcpy(card->shortname, "Avance Logic ALS100");
+	sprintf(card->longname, "%s soundcard, %s at 0x%lx, irq %d, dma %d&%d",
+		card->shortname, chip->name, chip->port,
+		irq[dev], dma8[dev], dma16[dev]);
 	if ((error = snd_card_register(card)) < 0) {
 		snd_card_free(card);
 		return error;
@@ -346,3 +343,33 @@ static void __exit alsa_card_als100_exit(void)
 
 module_init(alsa_card_als100_init)
 module_exit(alsa_card_als100_exit)
+
+#ifndef MODULE
+
+/* format is: snd-als100=enable,index,id,port,
+			 mpu_port,fm_port,irq,mpu_irq,
+			 dma8,dma16 */
+
+static int __init alsa_card_als100_setup(char *str)
+{
+	static unsigned __initdata nr_dev = 0;
+
+	if (nr_dev >= SNDRV_CARDS)
+		return 0;
+	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
+	       get_option(&str,&index[nr_dev]) == 2 &&
+	       get_id(&str,&id[nr_dev]) == 2 &&
+	       get_option(&str,(int *)&port[nr_dev]) == 2 &&
+	       get_option(&str,(int *)&mpu_port[nr_dev]) == 2 &&
+	       get_option(&str,(int *)&fm_port[nr_dev]) == 2 &&
+	       get_option(&str,&irq[nr_dev]) == 2 &&
+	       get_option(&str,&mpu_irq[nr_dev]) == 2 &&
+	       get_option(&str,&dma8[nr_dev]) == 2 &&
+	       get_option(&str,&dma16[nr_dev]) == 2);
+	nr_dev++;
+	return 1;
+}
+
+__setup("snd-als100=", alsa_card_als100_setup);
+
+#endif /* ifndef MODULE */

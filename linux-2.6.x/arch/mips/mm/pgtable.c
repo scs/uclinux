@@ -4,7 +4,6 @@
 
 void show_mem(void)
 {
-#ifndef CONFIG_DISCONTIGMEM  /* XXX(hch): later.. */
 	int pfn, total = 0, reserved = 0;
 	int shared = 0, cached = 0;
 	int highmem = 0;
@@ -12,7 +11,7 @@ void show_mem(void)
 
 	printk("Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+	printk("Free swap:       %6dkB\n",nr_swap_pages<<(PAGE_SHIFT-10));
 	pfn = max_mapnr;
 	while (pfn-- > 0) {
 		page = pfn_to_page(pfn);
@@ -31,5 +30,4 @@ void show_mem(void)
 	printk("%d reserved pages\n",reserved);
 	printk("%d pages shared\n",shared);
 	printk("%d pages swap cached\n",cached);
-#endif
 }

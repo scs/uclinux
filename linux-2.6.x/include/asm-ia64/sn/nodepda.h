@@ -9,14 +9,14 @@
 #define _ASM_IA64_SN_NODEPDA_H
 
 
-#include <asm/semaphore.h>
+#include <linux/config.h>
+#include <asm/sn/sgi.h>
 #include <asm/irq.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/router.h>
 #include <asm/sn/pda.h>
 #include <asm/sn/module.h>
 #include <asm/sn/bte.h>
-#include <asm/sn/sn2/arch.h>
 
 /*
  * NUMA Node-Specific Data structures are defined in this file.
@@ -36,6 +36,13 @@
 
 
 struct nodepda_s {
+
+
+	cpuid_t         node_first_cpu; /* Starting cpu number for node */
+					/* WARNING: no guarantee that   */
+					/*  the second cpu on a node is */
+					/*  node_first_cpu+1.           */
+
 	vertex_hdl_t 	xbow_vhdl;
 	nasid_t		xbow_peer;	/* NASID of our peer hub on xbow */
 	struct semaphore xbow_sema;	/* Sema for xbow synchronization */

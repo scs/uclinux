@@ -117,7 +117,7 @@ int open_private_file(struct file *filp, struct dentry *dentry, int flags)
 	memset(filp, 0, sizeof(*filp));
 	eventpoll_init_file(filp);
 	filp->f_flags  = flags;
-	filp->f_mode   = ((flags+1) & O_ACCMODE) | FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
+	filp->f_mode   = (flags+1) & O_ACCMODE;
 	atomic_set(&filp->f_count, 1);
 	filp->f_dentry = dentry;
 	filp->f_mapping = dentry->d_inode->i_mapping;
@@ -152,7 +152,7 @@ void close_private_file(struct file *file)
 
 EXPORT_SYMBOL(close_private_file);
 
-void fastcall fput(struct file *file)
+void fput(struct file *file)
 {
 	if (atomic_dec_and_test(&file->f_count))
 		__fput(file);
@@ -163,7 +163,7 @@ EXPORT_SYMBOL(fput);
 /* __fput is called from task context when aio completion releases the last
  * last use of a struct file *.  Do not use otherwise.
  */
-void fastcall __fput(struct file *file)
+void __fput(struct file *file)
 {
 	struct dentry *dentry = file->f_dentry;
 	struct vfsmount *mnt = file->f_vfsmnt;
@@ -192,13 +192,13 @@ void fastcall __fput(struct file *file)
 	mntput(mnt);
 }
 
-struct file fastcall *fget(unsigned int fd)
+struct file *fget(unsigned int fd)
 {
 	struct file *file;
 	struct files_struct *files = current->files;
 
 	spin_lock(&files->file_lock);
-	file = fcheck_files(files, fd);
+	file = fcheck(fd);
 	if (file)
 		get_file(file);
 	spin_unlock(&files->file_lock);
@@ -214,17 +214,17 @@ EXPORT_SYMBOL(fget);
  * and a flag is returned to be passed to the corresponding fput_light().
  * There must not be a cloning between an fget_light/fput_light pair.
  */
-struct file fastcall *fget_light(unsigned int fd, int *fput_needed)
+struct file *fget_light(unsigned int fd, int *fput_needed)
 {
 	struct file *file;
 	struct files_struct *files = current->files;
 
 	*fput_needed = 0;
 	if (likely((atomic_read(&files->count) == 1))) {
-		file = fcheck_files(files, fd);
+		file = fcheck(fd);
 	} else {
 		spin_lock(&files->file_lock);
-		file = fcheck_files(files, fd);
+		file = fcheck(fd);
 		if (file) {
 			get_file(file);
 			*fput_needed = 1;

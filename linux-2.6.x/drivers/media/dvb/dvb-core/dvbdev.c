@@ -191,7 +191,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 
 	if ((id = dvbdev_get_free_id (adap, type)) < 0) {
 		up (&dvbdev_register_lock);
-		*pdvbdev = NULL;
+		*pdvbdev = 0;
 		printk ("%s: could get find free device id...\n", __FUNCTION__);
 		return -ENFILE;
 	}
@@ -211,8 +211,6 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	dvbdev->adapter = adap;
 	dvbdev->priv = priv;
 
-	dvbdev->fops->owner = adap->module;
-
 	list_add_tail (&dvbdev->list_head, &adap->device_list);
 
 	devfs_mk_cdev(MKDEV(DVB_MAJOR, nums2minor(adap->num, type, id)),
@@ -229,15 +227,13 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 
 void dvb_unregister_device(struct dvb_device *dvbdev)
 {
-	if (!dvbdev)
-		return;
-
+	if (dvbdev) {
 		devfs_remove("dvb/adapter%d/%s%d", dvbdev->adapter->num,
 				dnames[dvbdev->type], dvbdev->id);
-
 		list_del(&dvbdev->list_head);
 		kfree(dvbdev);
 	}
+}
 
 
 static int dvbdev_get_free_adapter_num (void)
@@ -261,7 +257,7 @@ skip:
 }
 
 
-int dvb_register_adapter(struct dvb_adapter **padap, const char *name, struct module *module)
+int dvb_register_adapter(struct dvb_adapter **padap, const char *name)
 {
 	struct dvb_adapter *adap;
 	int num;
@@ -285,10 +281,8 @@ int dvb_register_adapter(struct dvb_adapter **padap, const char *name, struct mo
 	printk ("DVB: registering new adapter (%s).\n", name);
 	
 	devfs_mk_dir("dvb/adapter%d", num);
-
 	adap->num = num;
 	adap->name = name;
-	adap->module = module;
 
 	list_add_tail (&adap->list_head, &dvb_adapter_list);
 

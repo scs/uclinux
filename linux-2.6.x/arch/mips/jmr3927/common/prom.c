@@ -41,6 +41,9 @@
 
 #include <asm/bootinfo.h>
 
+/* #define DEBUG_CMDLINE */
+
+char arcs_cmdline[CL_SIZE];
 extern int prom_argc;
 extern char **prom_argv, **prom_envp;
 
@@ -75,7 +78,6 @@ void  __init prom_init_cmdline(void)
 	*cp = '\0';
 }
 
-unsigned long __init prom_free_prom_memory(void)
+void prom_free_prom_memory (void)
 {
-	return 0;
 }

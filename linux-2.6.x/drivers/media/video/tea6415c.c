@@ -57,7 +57,7 @@ static int tea6415c_id = 0;
 /* this function is called by i2c_probe */
 static int tea6415c_detect(struct i2c_adapter *adapter, int address, int kind)
 {
-	struct	i2c_client *client = NULL;
+	struct	i2c_client *client = 0;
 	int err = 0;
 
 	/* let's see whether this adapter can support what we need */
@@ -217,12 +217,13 @@ static struct i2c_driver driver = {
         .command	= tea6415c_command,
 };
 
-static int __init tea6415c_init_module(void)
+static int tea6415c_init_module(void)
 {
-	return i2c_add_driver(&driver);
+	i2c_add_driver(&driver);
+	return 0;
 }
 
-static void __exit tea6415c_cleanup_module(void)
+static void tea6415c_cleanup_module(void)
 {
         i2c_del_driver(&driver);
 }

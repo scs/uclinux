@@ -8,7 +8,8 @@
 
 static inline cpumask_t target_cpus(void)
 {
-	return CPU_MASK_ALL;
+	cpumask_t tmp = CPU_MASK_ALL;
+	return tmp;
 }
 
 #define TARGET_CPUS (target_cpus())
@@ -21,6 +22,7 @@ static inline cpumask_t target_cpus(void)
 #define INT_DELIVERY_MODE dest_LowestPrio
 #define INT_DEST_MODE 0     /* physical delivery on LOCAL quad */
  
+#define APIC_BROADCAST_ID      0x0F
 #define check_apicid_used(bitmap, apicid) physid_isset(apicid, bitmap)
 #define check_apicid_present(bit) physid_isset(bit, phys_cpu_present_map)
 #define apicid_cluster(apicid) (apicid & 0xF0)
@@ -134,7 +136,7 @@ static inline void enable_apic_mode(void)
  * We use physical apicids here, not logical, so just return the default
  * physical broadcast to stop people from breaking us
  */
-static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
+static inline unsigned int cpu_mask_to_apicid(cpumask_const_t cpumask)
 {
 	return (int) 0xF;
 }

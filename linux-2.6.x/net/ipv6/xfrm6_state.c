@@ -16,7 +16,7 @@
 #include <linux/ipsec.h>
 #include <net/ipv6.h>
 
-static struct xfrm_state_afinfo xfrm6_state_afinfo;
+extern struct xfrm_state_afinfo xfrm6_state_afinfo;
 
 static void
 __xfrm6_init_tempsel(struct xfrm_state *x, struct flowi *fl,
@@ -81,13 +81,18 @@ __xfrm6_find_acq(u8 mode, u32 reqid, u8 proto,
 		    proto == x->id.proto &&
 		    !ipv6_addr_cmp((struct in6_addr *)saddr, (struct in6_addr *)x->props.saddr.a6) &&
 		    reqid == x->props.reqid &&
-		    x->km.state == XFRM_STATE_ACQ &&
-		    !x->id.spi) {
+		    x->km.state == XFRM_STATE_ACQ) {
+			    if (!x0)
+				    x0 = x;
+			    if (x->id.spi)
+				    continue;
 			    x0 = x;
 			    break;
 		    }
 	}
-	if (!x0 && create && (x0 = xfrm_state_alloc()) != NULL) {
+	if (x0) {
+		xfrm_state_hold(x0);
+	} else if (create && (x0 = xfrm_state_alloc()) != NULL) {
 		ipv6_addr_copy((struct in6_addr *)x0->sel.daddr.a6,
 			       (struct in6_addr *)daddr);
 		ipv6_addr_copy((struct in6_addr *)x0->sel.saddr.a6,
@@ -105,14 +110,11 @@ __xfrm6_find_acq(u8 mode, u32 reqid, u8 proto,
 		x0->props.reqid = reqid;
 		x0->lft.hard_add_expires_seconds = XFRM_ACQ_EXPIRES;
 		xfrm_state_hold(x0);
-		x0->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
-		add_timer(&x0->timer);
+		mod_timer(&x0->timer, jiffies + XFRM_ACQ_EXPIRES*HZ);
 		xfrm_state_hold(x0);
 		list_add_tail(&x0->bydst, xfrm6_state_afinfo.state_bydst+h);
 		wake_up(&km_waitq);
 	}
-	if (x0)
-		xfrm_state_hold(x0);
 	return x0;
 }
 

@@ -290,11 +290,11 @@ typedef struct _drm_i830_vertex {
 typedef struct _drm_i830_copy_t {
    	int idx;		/* buffer index */
 	int used;		/* nr bytes in use */
-	void __user *address;		/* Address to copy from */
+	void *address;		/* Address to copy from */
 } drm_i830_copy_t;
 
 typedef struct drm_i830_dma {
-	void __user *virtual;
+	void *virtual;
 	int request_idx;
 	int request_size;
 	int granted;
@@ -304,7 +304,7 @@ typedef struct drm_i830_dma {
 /* 1.3: Userspace can request & wait on irq's:
  */
 typedef struct drm_i830_irq_emit {
-	int __user *irq_seq;
+	int *irq_seq;
 } drm_i830_irq_emit_t;
 
 typedef struct drm_i830_irq_wait {
@@ -318,7 +318,7 @@ typedef struct drm_i830_irq_wait {
 
 typedef struct drm_i830_getparam {
 	int param;
-	int __user *value;
+	int *value;
 } drm_i830_getparam_t;
 
 

@@ -15,14 +15,14 @@
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 2 of the License, or 
  * (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
@@ -35,7 +35,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/parport.h>
 #include <linux/input.h>
@@ -44,39 +43,23 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("NES, SNES, N64, MultiSystem, PSX gamepad driver");
 MODULE_LICENSE("GPL");
 
-static int gc[] __initdata = { -1, 0, 0, 0, 0, 0 };
-static int gc_nargs __initdata = 0;
-module_param_array_named(map, gc, int, gc_nargs, 0);
-MODULE_PARM_DESC(map, "Describers first set of devices (<parport#>,<pad1>,<pad2>,..<pad5>)");
-
-static int gc_2[] __initdata = { -1, 0, 0, 0, 0, 0 };
-static int gc_nargs_2 __initdata = 0;
-module_param_array_named(map2, gc_2, int, gc_nargs_2, 0);
-MODULE_PARM_DESC(map2, "Describers second set of devices");
-
-static int gc_3[] __initdata = { -1, 0, 0, 0, 0, 0 };
-static int gc_nargs_3 __initdata = 0;
-module_param_array_named(map3, gc_3, int, gc_nargs_3, 0);
-MODULE_PARM_DESC(map3, "Describers third set of devices");
-
-__obsolete_setup("gc=");
-__obsolete_setup("gc_2=");
-__obsolete_setup("gc_3=");
-
-/* see also gs_psx_delay parameter in PSX support section */
+MODULE_PARM(gc, "2-6i");
+MODULE_PARM(gc_2,"2-6i");
+MODULE_PARM(gc_3,"2-6i");
+MODULE_PARM(gc_psx_delay, "i");
 
 #define GC_SNES		1
 #define GC_NES		2
 #define GC_NES4		3
 #define GC_MULTI	4
 #define GC_MULTI2	5
-#define GC_N64		6
+#define GC_N64		6	
 #define GC_PSX		7
 
 #define GC_MAX		7
 
 #define GC_REFRESH_TIME	HZ/100
-
+ 
 struct gc {
 	struct pardevice *pd;
 	struct input_dev dev[5];
@@ -87,6 +70,10 @@ struct gc {
 };
 
 static struct gc *gc_base[3];
+
+static int gc[] __initdata = { -1, 0, 0, 0, 0, 0 };
+static int gc_2[] __initdata = { -1, 0, 0, 0, 0, 0 };
+static int gc_3[] __initdata = { -1, 0, 0, 0, 0, 0 };
 
 static int gc_status_bit[] = { 0x40, 0x80, 0x20, 0x10, 0x08 };
 
@@ -104,7 +91,7 @@ static short gc_n64_btn[] = { BTN_A, BTN_B, BTN_C, BTN_X, BTN_Y, BTN_Z, BTN_TL, 
 #define GC_N64_DELAY		133		/* delay between transmit request, and response ready (us) */
 #define GC_N64_REQUEST		0x1dd1111111ULL /* the request data command (encoded for 000000011) */
 #define GC_N64_DWS		3		/* delay between write segments (required for sound playback because of ISA DMA) */
-						/* GC_N64_DWS > 24 is known to fail */
+						/* GC_N64_DWS > 24 is known to fail */ 
 #define GC_N64_POWER_W		0xe2		/* power during write (transmit request) */
 #define GC_N64_POWER_R		0xfd		/* power during read */
 #define GC_N64_OUT		0x1d		/* output bits to the 4 pads */
@@ -113,8 +100,8 @@ static short gc_n64_btn[] = { BTN_A, BTN_B, BTN_C, BTN_X, BTN_Y, BTN_Z, BTN_TL, 
 						/* than 123 us */
 #define GC_N64_CLOCK		0x02		/* clock bits for read */
 
-/*
- * gc_n64_read_packet() reads an N64 packet.
+/* 
+ * gc_n64_read_packet() reads an N64 packet. 
  * Each pad uses one bit per byte. So all pads connected to this port are read in parallel.
  */
 
@@ -224,7 +211,7 @@ static void gc_multi_read_packet(struct gc *gc, int length, unsigned char *data)
  *	http://www.dim.com/~mackys/psxmemcard/ps-eng2.txt
  *	http://www.gamesx.com/controldata/psxcont/psxcont.htm
  *	ftp://milano.usal.es/pablo/
- *
+ *	
  */
 
 #define GC_PSX_DELAY	25		/* 25 usec */
@@ -245,11 +232,6 @@ static void gc_multi_read_packet(struct gc *gc, int length, unsigned char *data)
 #define GC_PSX_LEN(x)	((x) & 0xf)	/* Low nibble is length in words */
 
 static int gc_psx_delay = GC_PSX_DELAY;
-module_param_named(psx_delay, gc_psx_delay, uint, 0);
-MODULE_PARM_DESC(psx_delay, "Delay when accessing Sony PSX controller (usecs)");
-
-__obsolete_setup("gc_psx_delay=");
-
 static short gc_psx_abs[] = { ABS_X, ABS_Y, ABS_RX, ABS_RY, ABS_HAT0X, ABS_HAT0Y };
 static short gc_psx_btn[] = { BTN_TL, BTN_TR, BTN_TL2, BTN_TR2, BTN_A, BTN_B, BTN_X, BTN_Y,
 				BTN_START, BTN_SELECT, BTN_THUMBL, BTN_THUMBR };
@@ -331,13 +313,13 @@ static void gc_timer(unsigned long private)
 			s = gc_status_bit[i];
 
 			if (s & gc->pads[GC_N64] & ~(data[8] | data[9])) {
-
+	
 				signed char axes[2];
 				axes[0] = axes[1] = 0;
 
 				for (j = 0; j < 8; j++) {
-					if (data[23 - j] & s) axes[0] |= 1 << j;
-					if (data[31 - j] & s) axes[1] |= 1 << j;
+					if (data[23 - j] & s) axes[0] |= 1 << j; 
+					if (data[31 - j] & s) axes[1] |= 1 << j; 
 				}
 
 				input_report_abs(dev + i, ABS_X,  axes[0]);
@@ -486,7 +468,7 @@ static void gc_close(struct input_dev *dev)
 	}
 }
 
-static struct gc __init *gc_probe(int *config, int nargs)
+static struct gc __init *gc_probe(int *config)
 {
 	struct gc *gc;
 	struct parport *pp;
@@ -496,27 +478,19 @@ static struct gc __init *gc_probe(int *config, int nargs)
 	if (config[0] < 0)
 		return NULL;
 
-	if (nargs < 2) {
-		printk(KERN_ERR "gamecon.c: at least one device must be specified\n");
-		return NULL;
-	}
-
-	pp = parport_find_number(config[0]);
+	for (pp = parport_enumerate(); pp && (config[0] > 0); pp = pp->next)
+		config[0]--;
 
 	if (!pp) {
 		printk(KERN_ERR "gamecon.c: no such parport\n");
 		return NULL;
 	}
 
-	if (!(gc = kmalloc(sizeof(struct gc), GFP_KERNEL))) {
-		parport_put_port(pp);
+	if (!(gc = kmalloc(sizeof(struct gc), GFP_KERNEL)))
 		return NULL;
-	}
 	memset(gc, 0, sizeof(struct gc));
 
 	gc->pd = parport_register_device(pp, "gamecon", NULL, NULL, NULL, PARPORT_DEV_EXCL, NULL);
-
-	parport_put_port(pp);
 
 	if (!gc->pd) {
 		printk(KERN_ERR "gamecon.c: parport busy already - lp.o loaded?\n");
@@ -530,7 +504,7 @@ static struct gc __init *gc_probe(int *config, int nargs)
 	gc->timer.data = (long) gc;
 	gc->timer.function = gc_timer;
 
-	for (i = 0; i < nargs - 1; i++) {
+	for (i = 0; i < 5; i++) {
 
 		if (!config[i + 1])
 			continue;
@@ -588,7 +562,7 @@ static struct gc __init *gc_probe(int *config, int nargs)
 				break;
 
 			case GC_PSX:
-
+				
 				psx = gc_psx_read_packet(gc, data);
 
 				switch(psx) {
@@ -629,7 +603,7 @@ static struct gc __init *gc_probe(int *config, int nargs)
 		}
 
 		sprintf(gc->phys[i], "%s/input%d", gc->pd->port->name, i);
-
+		
                 gc->dev[i].name = gc_names[config[i + 1]];
 		gc->dev[i].phys = gc->phys[i];
                 gc->dev[i].id.bustype = BUS_PARPORT;
@@ -646,7 +620,7 @@ static struct gc __init *gc_probe(int *config, int nargs)
 		return NULL;
 	}
 
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < 5; i++) 
 		if (gc->pads[0] & gc_status_bit[i]) {
 			input_register_device(gc->dev + i);
 			printk(KERN_INFO "input: %s on %s\n", gc->dev[i].name, gc->pd->port->name);
@@ -655,11 +629,44 @@ static struct gc __init *gc_probe(int *config, int nargs)
 	return gc;
 }
 
+#ifndef MODULE
+static int __init gc_setup(char *str)
+{
+	int i, ints[7];
+	get_options(str, ARRAY_SIZE(ints), ints);
+	for (i = 0; i <= ints[0] && i < 6; i++) gc[i] = ints[i + 1];
+	return 1;
+}
+static int __init gc_setup_2(char *str)
+{
+	int i, ints[7];
+	get_options(str, ARRAY_SIZE(ints), ints);
+	for (i = 0; i <= ints[0] && i < 6; i++) gc_2[i] = ints[i + 1];
+	return 1;
+}
+static int __init gc_setup_3(char *str)
+{
+	int i, ints[7];
+	get_options(str, ARRAY_SIZE(ints), ints);
+	for (i = 0; i <= ints[0] && i < 6; i++) gc_3[i] = ints[i + 1];
+	return 1;
+}
+static int __init gc_psx_setup(char *str)
+{
+        get_option(&str, &gc_psx_delay);
+        return 1;
+}
+__setup("gc=", gc_setup);
+__setup("gc_2=", gc_setup_2);
+__setup("gc_3=", gc_setup_3);
+__setup("gc_psx_delay=", gc_psx_setup);
+#endif
+
 int __init gc_init(void)
 {
-	gc_base[0] = gc_probe(gc, gc_nargs);
-	gc_base[1] = gc_probe(gc_2, gc_nargs_2);
-	gc_base[2] = gc_probe(gc_3, gc_nargs_3);
+	gc_base[0] = gc_probe(gc);
+	gc_base[1] = gc_probe(gc_2);
+	gc_base[2] = gc_probe(gc_3);
 
 	if (gc_base[0] || gc_base[1] || gc_base[2])
 		return 0;
@@ -675,7 +682,7 @@ void __exit gc_exit(void)
 		if (gc_base[i]) {
 			for (j = 0; j < 5; j++)
 				if (gc_base[i]->pads[0] & gc_status_bit[j])
-					input_unregister_device(gc_base[i]->dev + j);
+					input_unregister_device(gc_base[i]->dev + j); 
 			parport_unregister_device(gc_base[i]->pd);
 		}
 }

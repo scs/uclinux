@@ -63,8 +63,13 @@ static DECLARE_MUTEX(misc_sem);
 #define DYNAMIC_MINORS 64 /* like dynamic majors */
 static unsigned char misc_minors[DYNAMIC_MINORS / 8];
 
+#ifdef CONFIG_SGI_NEWPORT_GFX
+extern void gfx_register(void);
+#endif
+extern void streamable_init(void);
 extern int rtc_DP8570A_init(void);
 extern int rtc_MK48T08_init(void);
+extern int ds1286_init(void);
 extern int pmu_device_init(void);
 extern int tosh_init(void);
 extern int i8k_init(void);
@@ -207,9 +212,6 @@ static struct file_operations misc_fops = {
 int misc_register(struct miscdevice * misc)
 {
 	struct miscdevice *c;
-	struct class_device *class;
-	dev_t dev;
-	int err;
 	
 	down(&misc_sem);
 	list_for_each_entry(c, &misc_list, list) {
@@ -238,30 +240,19 @@ int misc_register(struct miscdevice * misc)
 		snprintf(misc->devfs_name, sizeof(misc->devfs_name),
 				"misc/%s", misc->name);
 	}
-	dev = MKDEV(MISC_MAJOR, misc->minor);
 
-	class = class_simple_device_add(misc_class, dev,
-					misc->dev, misc->name);
-	if (IS_ERR(class)) {
-		err = PTR_ERR(class);
-		goto out;
-	}
-
-	err = devfs_mk_cdev(dev, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP, 
-			    misc->devfs_name);
-	if (err) {
-		class_simple_device_remove(dev);
-		goto out;
-	}
+	class_simple_device_add(misc_class, MKDEV(MISC_MAJOR, misc->minor),
+				misc->dev, misc->name);
+	devfs_mk_cdev(MKDEV(MISC_MAJOR, misc->minor),
+			S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP, misc->devfs_name);
 
 	/*
 	 * Add it to the front, so that later devices can "override"
 	 * earlier defaults
 	 */
 	list_add(&misc->list, &misc_list);
- out:
 	up(&misc_sem);
-	return err;
+	return 0;
 }
 
 /**
@@ -313,8 +304,20 @@ static int __init misc_init(void)
 #ifdef CONFIG_BVME6000
 	rtc_DP8570A_init();
 #endif
+#ifdef CONFIG_SGI_DS1286
+	ds1286_init();
+#endif
 #ifdef CONFIG_PMAC_PBOOK
 	pmu_device_init();
+#endif
+#ifdef CONFIG_SGI_NEWPORT_GFX
+	gfx_register ();
+#endif
+#ifdef CONFIG_SGI_IP22
+	streamable_init ();
+#endif
+#ifdef CONFIG_SGI_NEWPORT_GFX
+	gfx_register ();
 #endif
 #ifdef CONFIG_TOSHIBA
 	tosh_init();
@@ -325,7 +328,6 @@ static int __init misc_init(void)
 	if (register_chrdev(MISC_MAJOR,"misc",&misc_fops)) {
 		printk("unable to get major %d for misc devices\n",
 		       MISC_MAJOR);
-		class_simple_destroy(misc_class);
 		return -EIO;
 	}
 	return 0;

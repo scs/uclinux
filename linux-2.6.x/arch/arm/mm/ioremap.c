@@ -20,18 +20,17 @@
  * We use MMU protection domains to trap any attempt to access the bank
  * that is not currently mapped.  (This isn't fully implemented yet.)
  */
-#include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 
-#include <asm/cacheflush.h>
+#include <asm/page.h>
+#include <asm/pgalloc.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 
-static inline void
-remap_area_pte(pte_t * pte, unsigned long address, unsigned long size,
-	       unsigned long phys_addr, pgprot_t pgprot)
+static inline void remap_area_pte(pte_t * pte, unsigned long address, unsigned long size,
+	unsigned long phys_addr, pgprot_t pgprot)
 {
 	unsigned long end;
 
@@ -39,26 +38,22 @@ remap_area_pte(pte_t * pte, unsigned long address, unsigned long size,
 	end = address + size;
 	if (end > PMD_SIZE)
 		end = PMD_SIZE;
-	BUG_ON(address >= end);
+	if (address >= end)
+		BUG();
 	do {
-		if (!pte_none(*pte))
-			goto bad;
-
+		if (!pte_none(*pte)) {
+			printk("remap_area_pte: page already exists\n");
+			BUG();
+		}
 		set_pte(pte, pfn_pte(phys_addr >> PAGE_SHIFT, pgprot));
 		address += PAGE_SIZE;
 		phys_addr += PAGE_SIZE;
 		pte++;
 	} while (address && (address < end));
-	return;
-
- bad:
-	printk("remap_area_pte: page already exists\n");
-	BUG();
 }
 
-static inline int
-remap_area_pmd(pmd_t * pmd, unsigned long address, unsigned long size,
-	       unsigned long phys_addr, unsigned long flags)
+static inline int remap_area_pmd(pmd_t * pmd, unsigned long address, unsigned long size,
+	unsigned long phys_addr, unsigned long flags)
 {
 	unsigned long end;
 	pgprot_t pgprot;
@@ -70,7 +65,8 @@ remap_area_pmd(pmd_t * pmd, unsigned long address, unsigned long size,
 		end = PGDIR_SIZE;
 
 	phys_addr -= address;
-	BUG_ON(address >= end);
+	if (address >= end)
+		BUG();
 
 	pgprot = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY | L_PTE_WRITE | flags);
 	do {
@@ -84,38 +80,35 @@ remap_area_pmd(pmd_t * pmd, unsigned long address, unsigned long size,
 	return 0;
 }
 
-static int
-remap_area_pages(unsigned long start, unsigned long phys_addr,
-		 unsigned long size, unsigned long flags)
+static int remap_area_pages(unsigned long address, unsigned long phys_addr,
+				 unsigned long size, unsigned long flags)
 {
-	unsigned long address = start;
-	unsigned long end = start + size;
-	int err = 0;
+	int error;
 	pgd_t * dir;
+	unsigned long end = address + size;
 
 	phys_addr -= address;
 	dir = pgd_offset(&init_mm, address);
-	BUG_ON(address >= end);
+	flush_cache_all();
+	if (address >= end)
+		BUG();
 	spin_lock(&init_mm.page_table_lock);
 	do {
-		pmd_t *pmd = pmd_alloc(&init_mm, dir, address);
-		if (!pmd) {
-			err = -ENOMEM;
+		pmd_t *pmd;
+		pmd = pmd_alloc(&init_mm, dir, address);
+		error = -ENOMEM;
+		if (!pmd)
 			break;
-		}
 		if (remap_area_pmd(pmd, address, end - address,
-					 phys_addr + address, flags)) {
-			err = -ENOMEM;
+					 phys_addr + address, flags))
 			break;
-		}
-
+		error = 0;
 		address = (address + PGDIR_SIZE) & PGDIR_MASK;
 		dir++;
 	} while (address && (address < end));
-
 	spin_unlock(&init_mm.page_table_lock);
-	flush_cache_vmap(start, end);
-	return err;
+	flush_tlb_all();
+	return error;
 }
 
 /*
@@ -163,10 +156,8 @@ __ioremap(unsigned long phys_addr, size_t size, unsigned long flags,
 	}
 	return (void *) (offset + (char *)addr);
 }
-EXPORT_SYMBOL(__ioremap);
 
 void __iounmap(void *addr)
 {
 	vfree((void *) (PAGE_MASK & (unsigned long) addr));
 }
-EXPORT_SYMBOL(__iounmap);

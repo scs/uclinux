@@ -82,7 +82,6 @@ SECTIONS
     *(__ksymtab)
     *(__ksymtab_strings)
     *(__bug_table)
-    *(__kcrctab)
   }
 
 }

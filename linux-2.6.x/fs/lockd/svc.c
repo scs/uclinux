@@ -12,6 +12,7 @@
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
+#define __KERNEL_SYSCALLS__
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -22,6 +23,7 @@
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/uio.h>
+#include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>

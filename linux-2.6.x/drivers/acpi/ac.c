@@ -158,7 +158,6 @@ acpi_ac_add_fs (
 			acpi_ac_dir);
 		if (!acpi_device_dir(device))
 			return_VALUE(-ENODEV);
-		acpi_device_dir(device)->owner = THIS_MODULE;
 	}
 
 	/* 'state' [R] */
@@ -171,7 +170,6 @@ acpi_ac_add_fs (
 	else {
 		entry->proc_fops = &acpi_ac_fops;
 		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
 	}
 
 	return_VALUE(0);
@@ -185,9 +183,6 @@ acpi_ac_remove_fs (
 	ACPI_FUNCTION_TRACE("acpi_ac_remove_fs");
 
 	if (acpi_device_dir(device)) {
-		remove_proc_entry(ACPI_AC_FILE_STATE,
-				  acpi_device_dir(device));
-
 		remove_proc_entry(acpi_device_bid(device), acpi_ac_dir);
 		acpi_device_dir(device) = NULL;
 	}
@@ -251,8 +246,8 @@ acpi_ac_add (
 	memset(ac, 0, sizeof(struct acpi_ac));
 
 	ac->handle = device->handle;
-	strcpy(acpi_device_name(device), ACPI_AC_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_AC_CLASS);
+	sprintf(acpi_device_name(device), "%s", ACPI_AC_DEVICE_NAME);
+	sprintf(acpi_device_class(device), "%s", ACPI_AC_CLASS);
 	acpi_driver_data(device) = ac;
 
 	result = acpi_ac_get_state(ac);
@@ -325,7 +320,6 @@ acpi_ac_init (void)
 	acpi_ac_dir = proc_mkdir(ACPI_AC_CLASS, acpi_root_dir);
 	if (!acpi_ac_dir)
 		return_VALUE(-ENODEV);
-	acpi_ac_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&acpi_ac_driver);
 	if (result < 0) {

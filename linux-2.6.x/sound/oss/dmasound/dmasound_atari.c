@@ -1,9 +1,9 @@
 /*
- *  linux/sound/oss/dmasound/dmasound_atari.c
+ *  linux/drivers/sound/dmasound/dmasound_atari.c
  *
  *  Atari TT and Falcon DMA Sound Driver
  *
- *  See linux/sound/oss/dmasound/dmasound_core.c for copyright and credits
+ *  See linux/drivers/sound/dmasound/dmasound_core.c for copyright and credits
  *  prior to 28/01/2001
  *
  *  28/01/2001 [0.1] Iain Sandoe
@@ -22,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 
+#include <asm/pgalloc.h>
 #include <asm/uaccess.h>
 #include <asm/atariints.h>
 #include <asm/atari_stram.h>

@@ -6,6 +6,7 @@
  *  handling directory dnode tree - adding, deleteing & searching for dirents
  */
 
+#include <linux/buffer_head.h>
 #include "hpfs_fn.h"
 
 static loff_t get_pos(struct dnode *d, struct hpfs_dirent *fde)
@@ -31,7 +32,7 @@ void hpfs_add_pos(struct inode *inode, loff_t *pos)
 		for (; hpfs_inode->i_rddir_off[i]; i++)
 			if (hpfs_inode->i_rddir_off[i] == pos) return;
 	if (!(i&0x0f)) {
-		if (!(ppos = kmalloc((i+0x11) * sizeof(loff_t*), GFP_NOFS))) {
+		if (!(ppos = kmalloc((i+0x11) * sizeof(loff_t*), GFP_KERNEL))) {
 			printk("HPFS: out of memory for position list\n");
 			return;
 		}
@@ -235,7 +236,7 @@ int hpfs_add_to_dnode(struct inode *i, dnode_secno dno, unsigned char *name, uns
 	struct buffer_head *bh;
 	struct fnode *fnode;
 	int c1, c2 = 0;
-	if (!(nname = kmalloc(256, GFP_NOFS))) {
+	if (!(nname = kmalloc(256, GFP_KERNEL))) {
 		printk("HPFS: out of memory, can't add to dnode\n");
 		return 1;
 	}
@@ -272,7 +273,7 @@ int hpfs_add_to_dnode(struct inode *i, dnode_secno dno, unsigned char *name, uns
 		kfree(nname);
 		return 0;
 	}
-	if (!nd) if (!(nd = kmalloc(0x924, GFP_NOFS))) {
+	if (!nd) if (!(nd = kmalloc(0x924, GFP_KERNEL))) {
 		/* 0x924 is a max size of dnode after adding a dirent with
 		   max name length. We alloc this only once. There must
 		   not be any error while splitting dnodes, otherwise the
@@ -477,7 +478,7 @@ static secno move_to_top(struct inode *i, dnode_secno from, dnode_secno to)
 	t = get_pos(dnode, de);
 	for_all_poss(i, hpfs_pos_subst, t, 4);
 	for_all_poss(i, hpfs_pos_subst, t + 1, 5);
-	if (!(nde = kmalloc(de->length, GFP_NOFS))) {
+	if (!(nde = kmalloc(de->length, GFP_KERNEL))) {
 		hpfs_error(i->i_sb, "out of memory for dirent - directory will be corrupted");
 		hpfs_brelse4(&qbh);
 		return 0;
@@ -587,7 +588,7 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 		struct quad_buffer_head qbh1;
 		if (!de_next->down) goto endm;
 		ndown = de_down_pointer(de_next);
-		if (!(de_cp = kmalloc(de->length, GFP_NOFS))) {
+		if (!(de_cp = kmalloc(de->length, GFP_KERNEL))) {
 			printk("HPFS: out of memory for dtree balancing\n");
 			goto endm;
 		}
@@ -649,7 +650,7 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 			} else if (down)
 				*(dnode_secno *) ((void *) del + del->length - 4) = down;
 		} else goto endm;
-		if (!(de_cp = kmalloc(de_prev->length, GFP_NOFS))) {
+		if (!(de_cp = kmalloc(de_prev->length, GFP_KERNEL))) {
 			printk("HPFS: out of memory for dtree balancing\n");
 			hpfs_brelse4(&qbh1);
 			goto endm;
@@ -993,7 +994,7 @@ struct hpfs_dirent *map_fnode_dirent(struct super_block *s, fnode_secno fno,
 	int c1, c2 = 0;
 	int d1, d2 = 0;
 	name1 = f->name;
-	if (!(name2 = kmalloc(256, GFP_NOFS))) {
+	if (!(name2 = kmalloc(256, GFP_KERNEL))) {
 		printk("HPFS: out of memory, can't map dirent\n");
 		return NULL;
 	}

@@ -22,7 +22,6 @@
 #include <linux/ip.h>
 #include <linux/skbuff.h>
 #endif
-#include <linux/compiler.h>
 #include <linux/netfilter_ipv4.h>
 
 #define IPT_FUNCTION_MAXNAMELEN 30
@@ -253,7 +252,7 @@ struct ipt_replace
 	/* Number of counters (must be equal to current number of entries). */
 	unsigned int num_counters;
 	/* The old entries' counters. */
-	struct ipt_counters __user *counters;
+	struct ipt_counters *counters;
 
 	/* The entries (hang off end: not really an array). */
 	struct ipt_entry entries[0];
@@ -336,7 +335,6 @@ ipt_get_target(struct ipt_entry *e)
  *	Main firewall chains definitions and global var's definitions.
  */
 #ifdef __KERNEL__
-static DECLARE_MUTEX(ipt_mutex);
 
 #include <linux/init.h>
 extern void ipt_init(void) __init;
@@ -407,11 +405,6 @@ struct ipt_target
 	/* Set this to THIS_MODULE. */
 	struct module *me;
 };
-
-extern struct ipt_target *
-ipt_find_target_lock(const char *name, int *error, struct semaphore *mutex);
-extern struct arpt_target *
-arpt_find_target_lock(const char *name, int *error, struct semaphore *mutex);
 
 extern int ipt_register_target(struct ipt_target *target);
 extern void ipt_unregister_target(struct ipt_target *target);

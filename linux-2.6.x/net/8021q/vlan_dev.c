@@ -138,15 +138,15 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	/* We have 12 bits of vlan ID.
 	 *
-	 * We must not drop allow preempt until we hold a
+	 * We must not drop the vlan_group_lock until we hold a
 	 * reference to the device (netif_rx does that) or we
 	 * fail.
 	 */
 
-	rcu_read_lock();
+	spin_lock_bh(&vlan_group_lock);
 	skb->dev = __find_vlan_dev(dev, vid);
 	if (!skb->dev) {
-		rcu_read_unlock();
+		spin_unlock_bh(&vlan_group_lock);
 
 #ifdef VLAN_DEBUG
 		printk(VLAN_DBG "%s: ERROR: No net_device for VID: %i on dev: %s [%i]\n",
@@ -170,7 +170,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	 */
 
 	if (dev != VLAN_DEV_INFO(skb->dev)->real_dev) {
-		rcu_read_unlock();
+		spin_unlock_bh(&vlan_group_lock);
 
 #ifdef VLAN_DEBUG
 		printk(VLAN_DBG "%s: dropping skb: %p because came in on wrong device, dev: %s  real_dev: %s, skb_dev: %s\n",
@@ -244,7 +244,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			/* TODO:  Add a more specific counter here. */
 			stats->rx_errors++;
 		}
-		rcu_read_lock();
+		spin_unlock_bh(&vlan_group_lock);
 		return 0;
 	}
 
@@ -273,7 +273,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			/* TODO:  Add a more specific counter here. */
 			stats->rx_errors++;
 		}
-		rcu_read_unlock();
+		spin_unlock_bh(&vlan_group_lock);
 		return 0;
 	}
 
@@ -296,7 +296,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		/* TODO:  Add a more specific counter here. */
 		stats->rx_errors++;
 	}
-	rcu_read_unlock();
+	spin_unlock_bh(&vlan_group_lock);
 	return 0;
 }
 
@@ -445,7 +445,6 @@ int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 
 	if (veth->h_vlan_proto != __constant_htons(ETH_P_8021Q)) {
-		int orig_headroom = skb_headroom(skb);
 		unsigned short veth_TCI;
 
 		/* This is not a VLAN frame...but we can fix that! */
@@ -455,7 +454,33 @@ int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(VLAN_DBG "%s: proto to encap: 0x%hx (hbo)\n",
 			__FUNCTION__, htons(veth->h_vlan_proto));
 #endif
-		/* Construct the second two bytes. This field looks something
+
+		if (skb_headroom(skb) < VLAN_HLEN) {
+			struct sk_buff *sk_tmp = skb;
+			skb = skb_realloc_headroom(sk_tmp, VLAN_HLEN);
+			kfree_skb(sk_tmp);
+			if (skb == NULL) {
+				stats->tx_dropped++;
+				return 0;
+			}
+			VLAN_DEV_INFO(dev)->cnt_inc_headroom_on_tx++;
+		} else {
+			if (!(skb = skb_unshare(skb, GFP_ATOMIC))) {
+				printk(KERN_ERR "vlan: failed to unshare skbuff\n");
+				stats->tx_dropped++;
+				return 0;
+			}
+		}
+		veth = (struct vlan_ethhdr *)skb_push(skb, VLAN_HLEN);
+
+		/* Move the mac addresses to the beginning of the new header. */
+		memmove(skb->data, skb->data + VLAN_HLEN, 12);
+
+		/* first, the ethernet type */
+		/* put_unaligned(__constant_htons(ETH_P_8021Q), &veth->h_vlan_proto); */
+		veth->h_vlan_proto = __constant_htons(ETH_P_8021Q);
+
+		/* Now, construct the second two bytes. This field looks something
 		 * like:
 		 * usr_priority: 3 bits	 (high bits)
 		 * CFI		 1 bit
@@ -464,16 +489,10 @@ int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		veth_TCI = VLAN_DEV_INFO(dev)->vlan_id;
 		veth_TCI |= vlan_dev_get_egress_qos_mask(dev, skb);
 
-		skb = __vlan_put_tag(skb, veth_TCI);
-		if (!skb) {
-			stats->tx_dropped++;
-			return 0;
-		}
-
-		if (orig_headroom < VLAN_HLEN) {
-			VLAN_DEV_INFO(dev)->cnt_inc_headroom_on_tx++;
-		}
+		veth->h_vlan_TCI = htons(veth_TCI);
 	}
+
+	skb->dev = VLAN_DEV_INFO(dev)->real_dev;
 
 #ifdef VLAN_DEBUG
 	printk(VLAN_DBG "%s: about to send skb: %p to dev: %s\n",
@@ -487,7 +506,10 @@ int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	stats->tx_packets++; /* for statics only */
 	stats->tx_bytes += skb->len;
 
-	skb->dev = VLAN_DEV_INFO(dev)->real_dev;
+	skb->protocol = __constant_htons(ETH_P_8021Q);
+	skb->mac.raw -= VLAN_HLEN;
+	skb->nh.raw -= VLAN_HLEN;
+
 	dev_queue_xmit(skb);
 
 	return 0;
@@ -496,22 +518,17 @@ int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_device_stats *stats = vlan_dev_get_stats(dev);
-	unsigned short veth_TCI;
-
-	/* Construct the second two bytes. This field looks something
-	 * like:
-	 * usr_priority: 3 bits	 (high bits)
-	 * CFI		 1 bit
-	 * VLAN ID	 12 bits (low bits)
-	 */
-	veth_TCI = VLAN_DEV_INFO(dev)->vlan_id;
-	veth_TCI |= vlan_dev_get_egress_qos_mask(dev, skb);
-	skb = __vlan_hwaccel_put_tag(skb, veth_TCI);
+	struct vlan_skb_tx_cookie *cookie;
 
 	stats->tx_packets++;
 	stats->tx_bytes += skb->len;
 
 	skb->dev = VLAN_DEV_INFO(dev)->real_dev;
+	cookie = VLAN_TX_SKB_CB(skb);
+	cookie->magic = VLAN_TX_COOKIE_MAGIC;
+	cookie->vlan_tag = (VLAN_DEV_INFO(dev)->vlan_id |
+			    vlan_dev_get_egress_qos_mask(dev, skb));
+
 	dev_queue_xmit(skb);
 
 	return 0;
@@ -727,6 +744,7 @@ static void vlan_flush_mc_list(struct net_device *dev)
 	struct dev_mc_list *dmi = dev->mc_list;
 
 	while (dmi) {
+		dev_mc_delete(dev, dmi->dmi_addr, dmi->dmi_addrlen, 0);
 		printk(KERN_DEBUG "%s: del %.2x:%.2x:%.2x:%.2x:%.2x:%.2x mcast address from vlan interface\n",
 		       dev->name,
 		       dmi->dmi_addr[0],
@@ -735,7 +753,6 @@ static void vlan_flush_mc_list(struct net_device *dev)
 		       dmi->dmi_addr[3],
 		       dmi->dmi_addr[4],
 		       dmi->dmi_addr[5]);
-		dev_mc_delete(dev, dmi->dmi_addr, dmi->dmi_addrlen, 0);
 		dmi = dev->mc_list;
 	}
 
@@ -757,34 +774,6 @@ int vlan_dev_stop(struct net_device *dev)
 	vlan_flush_mc_list(dev);
 	return 0;
 }
-
-int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
-	struct ifreq ifrr;
-	int err = -EOPNOTSUPP;
-
-	strncpy(ifrr.ifr_name, real_dev->name, IFNAMSIZ);
-	ifrr.ifr_ifru = ifr->ifr_ifru;
-
-	switch(cmd) {
-	case SIOCGMIIPHY:
-	case SIOCGMIIREG:
-	case SIOCSMIIREG:
-		if (real_dev->do_ioctl && netif_device_present(real_dev)) 
-			err = real_dev->do_ioctl(dev, &ifrr, cmd);
-		break;
-
-	case SIOCETHTOOL:
-		err = dev_ethtool(&ifrr);
-	}
-
-	if (!err) 
-		ifr->ifr_ifru = ifrr.ifr_ifru;
-
-	return err;
-}
-
 /** Taken from Gleb + Lennert's VLAN code, and modified... */
 void vlan_dev_set_multicast_list(struct net_device *vlan_dev)
 {

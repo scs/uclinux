@@ -64,11 +64,10 @@ struct hd_struct {
 	int policy, partno;
 };
 
-#define GENHD_FL_REMOVABLE			1
-#define GENHD_FL_DRIVERFS			2
-#define GENHD_FL_CD				8
-#define GENHD_FL_UP				16
-#define GENHD_FL_SUPPRESS_PARTITION_INFO	32
+#define GENHD_FL_REMOVABLE  1
+#define GENHD_FL_DRIVERFS  2
+#define GENHD_FL_CD	8
+#define GENHD_FL_UP	16
 
 struct disk_stats {
 	unsigned read_sectors, write_sectors;
@@ -82,8 +81,7 @@ struct disk_stats {
 struct gendisk {
 	int major;			/* major number of driver */
 	int first_minor;
-	int minors;                     /* maximum number of minors, =1 for
-                                         * disks that can't be partitioned. */
+	int minors;
 	char disk_name[32];		/* name of major driver */
 	struct hd_struct **part;	/* [indexed by minor] */
 	struct block_device_operations *fops;

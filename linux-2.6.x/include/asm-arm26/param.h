@@ -22,6 +22,10 @@
 # define HZ		100
 #endif
 
+#ifndef NGROUPS
+#define NGROUPS         32
+#endif
+
 #ifndef NOGROUP
 #define NOGROUP         (-1)
 #endif

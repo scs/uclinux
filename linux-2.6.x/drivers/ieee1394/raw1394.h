@@ -27,7 +27,6 @@
 #define RAW1394_REQ_GET_ROM         203
 #define RAW1394_REQ_UPDATE_ROM      204
 #define RAW1394_REQ_ECHO            205
-#define RAW1394_REQ_MODIFY_ROM      206
 
 #define RAW1394_REQ_ARM_REGISTER    300
 #define RAW1394_REQ_ARM_UNREGISTER  301
@@ -105,18 +104,18 @@ typedef struct arm_request {
         __u8            extended_transaction_code;
         __u32           generation;
         __u16           buffer_length;
-        __u8            __user *buffer;
+        __u8            *buffer;
 } *arm_request_t;
 
 typedef struct arm_response {
         __s32           response_code;
         __u16           buffer_length;
-        __u8            __user *buffer;
+        __u8            *buffer;
 } *arm_response_t;
 
 typedef struct arm_request_response {
-        struct arm_request  __user *request;
-        struct arm_response __user *response;
+        struct arm_request  *request;
+        struct arm_response *response;
 } *arm_request_response_t;
 
 /* rawiso API */
@@ -136,7 +135,7 @@ struct raw1394_iso_packet_info {
 /* argument for RAW1394_ISO_RECV/XMIT_PACKETS ioctls */
 struct raw1394_iso_packets {
 	__u32 n_packets;
-	struct raw1394_iso_packet_info __user *infos;
+	struct raw1394_iso_packet_info *infos;
 };
 
 struct raw1394_iso_config {

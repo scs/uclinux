@@ -36,7 +36,6 @@ struct pci_bus_info
 };
 
 #define pcibios_assign_all_busses()	0
-#define pcibios_scan_all_fns(a, b)	0
 
 static inline void pcibios_set_master(struct pci_dev *dev)
 {
@@ -53,9 +52,5 @@ static inline void pcibios_penalize_isa_irq(int irq)
  * this boolean for bounce buffer decisions.
  */
 #define PCI_DMA_BUS_IS_PHYS	(1)
-
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
 
 #endif /* _ASM_M68K_PCI_H */

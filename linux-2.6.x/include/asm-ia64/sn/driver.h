@@ -23,11 +23,15 @@ typedef struct device_driver_s *device_driver_t;
 /* == Driver thread priority support == */
 typedef int ilvl_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct eframe_s;
 struct piomap;
 struct dmamap;
 
-typedef unsigned long iobush_t;
+typedef __psunsigned_t iobush_t;
 
 /* interrupt function */
 typedef void	       *intr_arg_t;

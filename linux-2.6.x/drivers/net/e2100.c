@@ -51,8 +51,6 @@ static const char version[] =
 
 #include "8390.h"
 
-#define DRV_NAME "e2100"
-
 static int e21_probe_list[] = {0x300, 0x280, 0x380, 0x220, 0};
 
 /* Offsets from the base_addr.
@@ -97,6 +95,7 @@ static inline void mem_off(short port)
 #define E21_BIG_RX_STOP_PG	0xF0	/* Last page +1 of RX ring */
 #define E21_TX_START_PG		E21_RX_STOP_PG	/* First page of TX buffer */
 
+int e2100_probe(struct net_device *dev);
 static int e21_probe1(struct net_device *dev, int ioaddr);
 
 static int e21_open(struct net_device *dev);
@@ -118,11 +117,10 @@ static int e21_close(struct net_device *dev);
 	station address).
  */
 
-static int  __init do_e2100_probe(struct net_device *dev)
+int  __init e2100_probe(struct net_device *dev)
 {
 	int *port;
 	int base_addr = dev->base_addr;
-	int irq = dev->irq;
 
 	SET_MODULE_OWNER(dev);
 
@@ -131,47 +129,12 @@ static int  __init do_e2100_probe(struct net_device *dev)
 	else if (base_addr != 0)	/* Don't probe at all. */
 		return -ENXIO;
 
-	for (port = e21_probe_list; *port; port++) {
-		dev->irq = irq;
+	for (port = e21_probe_list; *port; port++)
 		if (e21_probe1(dev, *port) == 0)
 			return 0;
-	}
 
 	return -ENODEV;
 }
-
-static void cleanup_card(struct net_device *dev)
-{
-	/* NB: e21_close() handles free_irq */
-	release_region(dev->base_addr, E21_IO_EXTENT);
-}
-
-#ifndef MODULE
-struct net_device * __init e2100_probe(int unit)
-{
-	struct net_device *dev = alloc_ei_netdev();
-	int err;
-
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	sprintf(dev->name, "eth%d", unit);
-	netdev_boot_setup_check(dev);
-
-	err = do_e2100_probe(dev);
-	if (err)
-		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
-	return dev;
-out1:
-	cleanup_card(dev);
-out:
-	free_netdev(dev);
-	return ERR_PTR(err);
-}
-#endif
 
 static int __init e21_probe1(struct net_device *dev, int ioaddr)
 {
@@ -179,7 +142,7 @@ static int __init e21_probe1(struct net_device *dev, int ioaddr)
 	unsigned char *station_addr = dev->dev_addr;
 	static unsigned version_printed;
 
-	if (!request_region(ioaddr, E21_IO_EXTENT, DRV_NAME))
+	if (!request_region(ioaddr, E21_IO_EXTENT, dev->name))
 		return -EBUSY;
 
 	/* First check the station address for the Ctron prefix. */
@@ -212,6 +175,13 @@ static int __init e21_probe1(struct net_device *dev, int ioaddr)
 	for (i = 0; i < 6; i++)
 		printk(" %02X", station_addr[i]);
 
+	/* Allocate dev->priv and fill in 8390 specific dev fields. */
+	if (ethdev_init(dev)) {
+		printk (" unable to get memory for dev->priv.\n");
+		retval = -ENOMEM;
+		goto out;
+	}
+
 	if (dev->irq < 2) {
 		int irqlist[] = {15,11,10,12,5,9,3,4}, i;
 		for (i = 0; i < 8; i++)
@@ -221,6 +191,8 @@ static int __init e21_probe1(struct net_device *dev, int ioaddr)
 			}
 		if (i >= 8) {
 			printk(" unable to get IRQ %d.\n", dev->irq);
+			kfree(dev->priv);
+			dev->priv = NULL;
 			retval = -EAGAIN;
 			goto out;
 		}
@@ -273,9 +245,6 @@ static int __init e21_probe1(struct net_device *dev, int ioaddr)
 	ei_status.get_8390_hdr = &e21_get_8390_hdr;
 	dev->open = &e21_open;
 	dev->stop = &e21_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
 	NS8390_init(dev, 0);
 
 	return 0;
@@ -407,7 +376,7 @@ e21_close(struct net_device *dev)
 
 #ifdef MODULE
 #define MAX_E21_CARDS	4	/* Max number of E21 cards per module */
-static struct net_device *dev_e21[MAX_E21_CARDS];
+static struct net_device dev_e21[MAX_E21_CARDS];
 static int io[MAX_E21_CARDS];
 static int irq[MAX_E21_CARDS];
 static int mem[MAX_E21_CARDS];
@@ -429,35 +398,29 @@ ISA device autoprobes on a running machine are not recommended. */
 int
 init_module(void)
 {
-	struct net_device *dev;
 	int this_dev, found = 0;
 
 	for (this_dev = 0; this_dev < MAX_E21_CARDS; this_dev++) {
-		if (io[this_dev] == 0)  {
-			if (this_dev != 0) break; /* only autoprobe 1st one */
-			printk(KERN_NOTICE "e2100.c: Presently autoprobing (not recommended) for a single card.\n");
-		}
-		dev = alloc_ei_netdev();
-		if (!dev)
-			break;
+		struct net_device *dev = &dev_e21[this_dev];
 		dev->irq = irq[this_dev];
 		dev->base_addr = io[this_dev];
 		dev->mem_start = mem[this_dev];
 		dev->mem_end = xcvr[this_dev];	/* low 4bits = xcvr sel. */
-		if (do_e2100_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_e21[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+		dev->init = e2100_probe;
+		if (io[this_dev] == 0)  {
+			if (this_dev != 0) break; /* only autoprobe 1st one */
+			printk(KERN_NOTICE "e2100.c: Presently autoprobing (not recommended) for a single card.\n");
 		}
-		free_netdev(dev);
-		printk(KERN_WARNING "e2100.c: No E2100 card found (i/o = 0x%x).\n", io[this_dev]);
-		break;
+		if (register_netdev(dev) != 0) {
+			printk(KERN_WARNING "e2100.c: No E2100 card found (i/o = 0x%x).\n", io[this_dev]);
+			if (found != 0) {	/* Got at least one. */
+				return 0;
+			}
+			return -ENXIO;
+		}
+		found++;
 	}
-	if (found)
-		return 0;
-	return -ENXIO;
+	return 0;
 }
 
 void
@@ -466,11 +429,13 @@ cleanup_module(void)
 	int this_dev;
 
 	for (this_dev = 0; this_dev < MAX_E21_CARDS; this_dev++) {
-		struct net_device *dev = dev_e21[this_dev];
-		if (dev) {
+		struct net_device *dev = &dev_e21[this_dev];
+		if (dev->priv != NULL) {
+			void *priv = dev->priv;
+			/* NB: e21_close() handles free_irq */
+			release_region(dev->base_addr, E21_IO_EXTENT);
 			unregister_netdev(dev);
-			cleanup_card(dev);
-			free_netdev(dev);
+			kfree(priv);
 		}
 	}
 }

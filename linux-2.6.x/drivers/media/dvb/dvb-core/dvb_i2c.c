@@ -191,10 +191,8 @@ dvb_register_i2c_bus (int (*xfer) (struct dvb_i2c_bus *i2c,
 	if (down_interruptible (&dvb_i2c_mutex))
 		return NULL;
 
-	if (!(i2c = kmalloc (sizeof (struct dvb_i2c_bus), GFP_KERNEL))) {
-		up (&dvb_i2c_mutex);
+	if (!(i2c = kmalloc (sizeof (struct dvb_i2c_bus), GFP_KERNEL)))
 		return NULL;
-	}
 
 	INIT_LIST_HEAD(&i2c->list_head);
 	INIT_LIST_HEAD(&i2c->client_list);
@@ -241,10 +239,8 @@ int dvb_register_i2c_device (struct module *owner,
 	if (down_interruptible (&dvb_i2c_mutex))
 		return -ERESTARTSYS;
 
-	if (!(entry = kmalloc (sizeof (struct dvb_i2c_device), GFP_KERNEL))) {
-		up(&dvb_i2c_mutex);
+	if (!(entry = kmalloc (sizeof (struct dvb_i2c_device), GFP_KERNEL)))
 		return -ENOMEM;
-	}
 
 	entry->owner = owner;
 	entry->attach = attach;

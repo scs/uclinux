@@ -457,7 +457,13 @@ promcon_cursor(struct vc_data *conp, int mode)
 }
 
 static int
-promcon_blank(struct vc_data *conp, int blank, int mode_switch)
+promcon_font_op(struct vc_data *conp, struct console_font_op *op)
+{
+	return -ENOSYS;
+}
+        
+static int
+promcon_blank(struct vc_data *conp, int blank)
 {
 	if (blank) {
 		promcon_puts("\033[H\033[J\033[7m \033[m\b", 15);
@@ -568,7 +574,6 @@ static int promcon_dummy(void)
 #define DUMMY (void *) promcon_dummy
 
 const struct consw prom_con = {
-	.owner =		THIS_MODULE,
 	.con_startup =		promcon_startup,
 	.con_init =		promcon_init,
 	.con_deinit =		promcon_deinit,
@@ -580,6 +585,7 @@ const struct consw prom_con = {
 	.con_bmove =		promcon_bmove,
 	.con_switch =		promcon_switch,
 	.con_blank =		promcon_blank,
+	.con_font_op =		promcon_font_op,
 	.con_set_palette =	DUMMY,
 	.con_scrolldelta =	DUMMY,
 #if !(PROMCON_COLOR)

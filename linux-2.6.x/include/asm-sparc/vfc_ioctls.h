@@ -52,7 +52,7 @@ struct vfc_debug_inout
 	unsigned long addr;
 	unsigned long ret;
 	unsigned long len;
-	unsigned char __user *buffer;
+	unsigned char *buffer;
 };
 
 #endif /* _LINUX_VFC_IOCTLS_H_ */

@@ -11,18 +11,22 @@
  * Code common to all CIA core logic chips.
  */
 
+#include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/pci.h>
+#include <linux/sched.h>
+#include <linux/init.h>
+
+#include <asm/system.h>
+#include <asm/ptrace.h>
+#include <asm/hwrpb.h>
+
 #define __EXTERN_INLINE inline
 #include <asm/io.h>
 #include <asm/core_cia.h>
 #undef __EXTERN_INLINE
 
-#include <linux/types.h>
-#include <linux/pci.h>
-#include <linux/sched.h>
-#include <linux/init.h>
 #include <linux/bootmem.h>
-
-#include <asm/ptrace.h>
 
 #include "proto.h"
 #include "pci_impl.h"
@@ -762,7 +766,7 @@ do_init_arch(int is_pyxis)
 		*(vip)CIA_IOC_PCI_W3_MASK = 0xfff00000;
 		*(vip)CIA_IOC_PCI_T3_BASE = 0 >> 2;
 
-		alpha_mv.pci_dac_offset = 0x200000000UL;
+		alpha_mv.pci_dac_offset = 0x200000000;
 		*(vip)CIA_IOC_PCI_W_DAC = alpha_mv.pci_dac_offset >> 32;
 	}
 

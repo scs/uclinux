@@ -113,7 +113,7 @@ void auxio_set_lte(int on)
 void __init auxio_probe(void)
 {
         struct sbus_bus *sbus;
-        struct sbus_dev *sdev = NULL;
+        struct sbus_dev *sdev = 0;
 
         for_each_sbus(sbus) {
                 for_each_sbusdev(sdev, sbus) {
@@ -131,7 +131,7 @@ found_sdev:
 #ifdef CONFIG_PCI
 	else {
 		struct linux_ebus *ebus;
-		struct linux_ebus_device *edev = NULL;
+		struct linux_ebus_device *edev = 0;
 
 		for_each_ebus(ebus) {
 			for_each_ebusdev(edev, ebus) {

@@ -33,7 +33,6 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/major.h>
@@ -79,21 +78,19 @@ static const u_int exponent[] = {
 
 /* Parameters that can be set with 'insmod' */
 
-#define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0444)
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
 INT_MODULE_PARM(cis_width,	0);		/* 16-bit CIS? */
 
 void release_cis_mem(struct pcmcia_socket *s)
 {
-    if (s->cis_mem.flags & MAP_ACTIVE) {
+    if (s->cis_mem.sys_start != 0) {
 	s->cis_mem.flags &= ~MAP_ACTIVE;
 	s->ops->set_mem_map(s, &s->cis_mem);
-	if (s->cis_mem.res) {
-	    release_resource(s->cis_mem.res);
-	    kfree(s->cis_mem.res);
-	    s->cis_mem.res = NULL;
-	}
+	if (!(s->features & SS_CAP_STATIC_MAP))
+	    release_mem_region(s->cis_mem.sys_start, s->map_size);
 	iounmap(s->cis_virt);
+	s->cis_mem.sys_start = 0;
 	s->cis_virt = NULL;
     }
 }
@@ -107,16 +104,17 @@ static unsigned char *
 set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flags)
 {
     pccard_mem_map *mem = &s->cis_mem;
-    if (!(s->features & SS_CAP_STATIC_MAP) && mem->res == NULL) {
-	mem->res = find_mem_region(0, s->map_size, s->map_size, 0,
-				   "card services", s);
-	if (mem->res == NULL) {
+    if (!(s->features & SS_CAP_STATIC_MAP) &&
+	mem->sys_start == 0) {
+	validate_mem(s);
+	mem->sys_start = 0;
+	if (find_mem_region(&mem->sys_start, s->map_size,
+			    s->map_size, 0, "card services", s)) {
 	    printk(KERN_NOTICE "cs: unable to map card memory!\n");
 	    return NULL;
 	}
-	mem->sys_start = mem->res->start;
-	mem->sys_stop = mem->res->end;
-	s->cis_virt = ioremap(mem->res->start, s->map_size);
+	mem->sys_stop = mem->sys_start+s->map_size-1;
+	s->cis_virt = ioremap(mem->sys_start, s->map_size);
     }
     mem->card_start = card_offset;
     mem->flags = flags;
@@ -145,7 +143,7 @@ int read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 {
     u_char *sys, *end, *buf = ptr;
     
-    cs_dbg(s, 3, "read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    DEBUG(3, "cs: read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -197,7 +195,7 @@ int read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	    addr = 0;
 	}
     }
-    cs_dbg(s, 3, "  %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
+    DEBUG(3, "cs:  %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
 	  *(u_char *)(ptr+0), *(u_char *)(ptr+1),
 	  *(u_char *)(ptr+2), *(u_char *)(ptr+3));
     return 0;
@@ -208,7 +206,7 @@ void write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 {
     u_char *sys, *end, *buf = ptr;
     
-    cs_dbg(s, 3, "write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    DEBUG(3, "cs: write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -580,7 +578,8 @@ int pcmcia_get_next_tuple(client_handle_t handle, tuple_t *tuple)
 	ofs += link[1] + 2;
     }
     if (i == MAX_TUPLES) {
-	cs_dbg(s, 1, "cs: overrun in pcmcia_get_next_tuple\n");
+	DEBUG(1, "cs: overrun in pcmcia_get_next_tuple for socket %d\n",
+	      handle->Socket);
 	return CS_NO_MORE_ITEMS;
     }
     

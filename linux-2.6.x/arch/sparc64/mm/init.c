@@ -37,6 +37,8 @@
 #include <asm/spitfire.h>
 #include <asm/sections.h>
 
+DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
+
 extern void device_scan(void);
 
 struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS];
@@ -102,7 +104,7 @@ void check_pgt_cache(void)
                                 if (page2)
                                         page2->lru.next = page->lru.next;
                                 else
-                                        pgd_quicklist = (void *) page->lru.next;
+                                        (struct page *)pgd_quicklist = page->lru.next;
                                 pgd_cache_size -= 2;
                                 __free_page(page);
                                 if (page2)
@@ -135,13 +137,13 @@ __inline__ void flush_dcache_page_impl(struct page *page)
 #endif
 
 #if (L1DCACHE_SIZE > PAGE_SIZE)
-	__flush_dcache_page(page_address(page),
+	__flush_dcache_page(page->virtual,
 			    ((tlb_type == spitfire) &&
-			     page_mapping(page) != NULL));
+			     page->mapping != NULL));
 #else
-	if (page_mapping(page) != NULL &&
+	if (page->mapping != NULL &&
 	    tlb_type == spitfire)
-		__flush_icache_page(__pa(page_address(page)));
+		__flush_icache_page(__pa(page->virtual));
 #endif
 }
 
@@ -150,9 +152,9 @@ __inline__ void flush_dcache_page_impl(struct page *page)
 #define dcache_dirty_cpu(page) \
 	(((page)->flags >> 24) & (NR_CPUS - 1UL))
 
-static __inline__ void set_dcache_dirty(struct page *page, int this_cpu)
+static __inline__ void set_dcache_dirty(struct page *page)
 {
-	unsigned long mask = this_cpu;
+	unsigned long mask = smp_processor_id();
 	unsigned long non_cpu_bits = ~((NR_CPUS - 1UL) << 24UL);
 	mask = (mask << 24) | (1UL << PG_dcache_dirty);
 	__asm__ __volatile__("1:\n\t"
@@ -201,22 +203,19 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 
 	pfn = pte_pfn(pte);
 	if (pfn_valid(pfn) &&
-	    (page = pfn_to_page(pfn), page_mapping(page)) &&
+	    (page = pfn_to_page(pfn), page->mapping) &&
 	    ((pg_flags = page->flags) & (1UL << PG_dcache_dirty))) {
 		int cpu = ((pg_flags >> 24) & (NR_CPUS - 1UL));
-		int this_cpu = get_cpu();
 
 		/* This is just to optimize away some function calls
 		 * in the SMP case.
 		 */
-		if (cpu == this_cpu)
+		if (cpu == smp_processor_id())
 			flush_dcache_page_impl(page);
 		else
 			smp_flush_dcache_page_impl(page, cpu);
 
 		clear_dcache_dirty_cpu(page, cpu);
-
-		put_cpu();
 	}
 	if (get_thread_fault_code())
 		__update_mmu_cache(vma->vm_mm->context & TAG_CONTEXT_BITS,
@@ -225,29 +224,107 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 
 void flush_dcache_page(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
 	int dirty = test_bit(PG_dcache_dirty, &page->flags);
 	int dirty_cpu = dcache_dirty_cpu(page);
-	int this_cpu = get_cpu();
 
-	if (mapping && !mapping_mapped(mapping)) {
+	if (page->mapping &&
+	    list_empty(&page->mapping->i_mmap) &&
+	    list_empty(&page->mapping->i_mmap_shared)) {
 		if (dirty) {
-			if (dirty_cpu == this_cpu)
-				goto out;
+			if (dirty_cpu == smp_processor_id())
+				return;
 			smp_flush_dcache_page_impl(page, dirty_cpu);
 		}
-		set_dcache_dirty(page, this_cpu);
+		set_dcache_dirty(page);
 	} else {
-		/* We could delay the flush for the !page_mapping
+		/* We could delay the flush for the !page->mapping
 		 * case too.  But that case is for exec env/arg
 		 * pages and those are %99 certainly going to get
 		 * faulted into the tlb (and thus flushed) anyways.
 		 */
 		flush_dcache_page_impl(page);
 	}
+}
 
-out:
-	put_cpu();
+/* When shared+writable mmaps of files go away, we lose all dirty
+ * page state, so we have to deal with D-cache aliasing here.
+ *
+ * This code relies on the fact that flush_cache_range() is always
+ * called for an area composed by a single VMA.  It also assumes that
+ * the MM's page_table_lock is held.
+ */
+static inline void flush_cache_pte_range(struct mm_struct *mm, pmd_t *pmd, unsigned long address, unsigned long size)
+{
+	unsigned long offset;
+	pte_t *ptep;
+
+	if (pmd_none(*pmd))
+		return;
+	ptep = pte_offset_map(pmd, address);
+	offset = address & ~PMD_MASK;
+	if (offset + size > PMD_SIZE)
+		size = PMD_SIZE - offset;
+	size &= PAGE_MASK;
+	for (offset = 0; offset < size; ptep++, offset += PAGE_SIZE) {
+		pte_t pte = *ptep;
+
+		if (pte_none(pte))
+			continue;
+
+		if (pte_present(pte) && pte_dirty(pte)) {
+			struct page *page;
+			unsigned long pgaddr, uaddr;
+			unsigned long pfn = pte_pfn(pte);
+
+			if (!pfn_valid(pfn))
+				continue;
+			page = pfn_to_page(pfn);
+			if (PageReserved(page) || !page->mapping)
+				continue;
+			pgaddr = (unsigned long) page_address(page);
+			uaddr = address + offset;
+			if ((pgaddr ^ uaddr) & (1 << 13))
+				flush_dcache_page_all(mm, page);
+		}
+	}
+	pte_unmap(ptep - 1);
+}
+
+static inline void flush_cache_pmd_range(struct mm_struct *mm, pgd_t *dir, unsigned long address, unsigned long size)
+{
+	pmd_t *pmd;
+	unsigned long end;
+
+	if (pgd_none(*dir))
+		return;
+	pmd = pmd_offset(dir, address);
+	end = address + size;
+	if (end > ((address + PGDIR_SIZE) & PGDIR_MASK))
+		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
+	do {
+		flush_cache_pte_range(mm, pmd, address, end - address);
+		address = (address + PMD_SIZE) & PMD_MASK;
+		pmd++;
+	} while (address < end);
+}
+
+void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	pgd_t *dir = pgd_offset(mm, start);
+
+	if (mm == current->mm)
+		flushw_user();
+
+	if (vma->vm_file == NULL ||
+	    ((vma->vm_flags & (VM_SHARED|VM_WRITE)) != (VM_SHARED|VM_WRITE)))
+		return;
+
+	do {
+		flush_cache_pmd_range(mm, dir, start, end - start);
+		start = (start + PGDIR_SIZE) & PGDIR_MASK;
+		dir++;
+	} while (start && (start < end));
 }
 
 void flush_icache_range(unsigned long start, unsigned long end)
@@ -261,21 +338,11 @@ void flush_icache_range(unsigned long start, unsigned long end)
 	}
 }
 
-unsigned long page_to_pfn(struct page *page)
-{
-	return (unsigned long) ((page - mem_map) + pfn_base);
-}
-
-struct page *pfn_to_page(unsigned long pfn)
-{
-	return (mem_map + (pfn - pfn_base));
-}
-
 void show_mem(void)
 {
 	printk("Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n",
+	printk("Free swap:       %6dkB\n",
 	       nr_swap_pages << (PAGE_SHIFT-10));
 	printk("%ld pages of RAM\n", num_physpages);
 	printk("%d free pages\n", nr_free_pages());
@@ -1090,7 +1157,7 @@ struct pgtable_cache_struct pgt_quicklists;
 #else
 #define DC_ALIAS_SHIFT	0
 #endif
-pte_t *__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
 	struct page *page;
 	unsigned long color;
@@ -1356,6 +1423,7 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 
 /* paging_init() sets up the page tables */
 
+extern void sun_serial_setup(void);
 extern void cheetah_ecache_flush_init(void);
 
 static unsigned long last_valid_pfn;
@@ -1457,10 +1525,8 @@ void __init paging_init(void)
 	/* Now can init the kernel/bad page tables. */
 	pgd_set(&swapper_pg_dir[0], swapper_pmd_dir + (shift / sizeof(pgd_t)));
 	
-	sparc64_vpte_patchme1[0] |=
-		(((unsigned long)pgd_val(init_mm.pgd[0])) >> 10);
-	sparc64_vpte_patchme2[0] |=
-		(((unsigned long)pgd_val(init_mm.pgd[0])) & 0x3ff);
+	sparc64_vpte_patchme1[0] |= (pgd_val(init_mm.pgd[0]) >> 10);
+	sparc64_vpte_patchme2[0] |= (pgd_val(init_mm.pgd[0]) & 0x3ff);
 	flushi((long)&sparc64_vpte_patchme1[0]);
 	
 	/* Setup bootmem... */
@@ -1481,6 +1547,15 @@ void __init paging_init(void)
 	}
 
 	inherit_locked_prom_mappings(1);
+
+#ifdef CONFIG_SUN_SERIAL
+	/* This does not logically belong here, but we need to call it at
+	 * the moment we are able to use the bootmem allocator. This _has_
+	 * to be done after the prom_mappings above so since
+	 * __alloc_bootmem() doesn't work correctly until then.
+	 */
+	sun_serial_setup();
+#endif
 
 	/* We only created DTLB mapping of this stuff. */
 	spitfire_flush_dtlb_nucleus_page(alias_base);
@@ -1516,7 +1591,7 @@ void __init paging_init(void)
  * prom_set_traptable() call, and OBP is allocating a scratchpad
  * for saving client program register state etc.
  */
-static void __init sort_memlist(struct linux_mlist_p1275 *thislist)
+void __init sort_memlist(struct linux_mlist_p1275 *thislist)
 {
 	int swapi = 0;
 	int i, mitr;

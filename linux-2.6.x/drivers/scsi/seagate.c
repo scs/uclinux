@@ -103,7 +103,7 @@
 #include <asm/uaccess.h>
 
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 #include "seagate.h"
 
 #include <scsi/scsi_ioctl.h>

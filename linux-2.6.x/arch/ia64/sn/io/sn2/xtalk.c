@@ -30,6 +30,9 @@
  * completely disappear.
  */
 
+#define	NEW(ptr)	(ptr = kmalloc(sizeof (*(ptr)), GFP_KERNEL))
+#define	DEL(ptr)	(kfree(ptr))
+
 char                    widget_info_fingerprint[] = "widget_info";
 
 /* =====================================================================
@@ -47,10 +50,13 @@ static caddr_t          null_xtalk_early_piotrans_addr(xwidget_part_num_t, xwidg
 xtalk_dmamap_t          xtalk_dmamap_alloc(vertex_hdl_t, device_desc_t, size_t, unsigned);
 void                    xtalk_dmamap_free(xtalk_dmamap_t);
 iopaddr_t               xtalk_dmamap_addr(xtalk_dmamap_t, paddr_t, size_t);
+alenlist_t              xtalk_dmamap_list(xtalk_dmamap_t, alenlist_t, unsigned);
 void                    xtalk_dmamap_done(xtalk_dmamap_t);
 iopaddr_t               xtalk_dmatrans_addr(vertex_hdl_t, device_desc_t, paddr_t, size_t, unsigned);
+alenlist_t              xtalk_dmatrans_list(vertex_hdl_t, device_desc_t, alenlist_t, unsigned);
 void			xtalk_dmamap_drain(xtalk_dmamap_t);
 void			xtalk_dmaaddr_drain(vertex_hdl_t, iopaddr_t, size_t);
+void			xtalk_dmalist_drain(vertex_hdl_t, alenlist_t);
 xtalk_intr_t            xtalk_intr_alloc(vertex_hdl_t, device_desc_t, vertex_hdl_t);
 xtalk_intr_t            xtalk_intr_alloc_nothd(vertex_hdl_t, device_desc_t, vertex_hdl_t);
 void                    xtalk_intr_free(xtalk_intr_t);
@@ -349,6 +355,16 @@ xtalk_dmamap_addr(xtalk_dmamap_t xtalk_dmamap,	/* use these mapping resources */
 }
 
 
+alenlist_t
+xtalk_dmamap_list(xtalk_dmamap_t xtalk_dmamap,	/* use these mapping resources */
+		  alenlist_t alenlist,	/* map this Address/Length List */
+		  unsigned flags)
+{
+    return DMAMAP_FUNC(xtalk_dmamap, dmamap_list)
+	(CAST_DMAMAP(xtalk_dmamap), alenlist, flags);
+}
+
+
 void
 xtalk_dmamap_done(xtalk_dmamap_t xtalk_dmamap)
 {
@@ -369,6 +385,16 @@ xtalk_dmatrans_addr(vertex_hdl_t dev,	/* translate for this device */
 }
 
 
+alenlist_t
+xtalk_dmatrans_list(vertex_hdl_t dev,	/* translate for this device */
+		    device_desc_t dev_desc,	/* device descriptor */
+		    alenlist_t palenlist,	/* system address/length list */
+		    unsigned flags)
+{				/* defined in dma.h */
+    return DEV_FUNC(dev, dmatrans_list)
+	(dev, dev_desc, palenlist, flags);
+}
+
 void
 xtalk_dmamap_drain(xtalk_dmamap_t map)
 {
@@ -381,6 +407,13 @@ xtalk_dmaaddr_drain(vertex_hdl_t dev, paddr_t addr, size_t size)
 {
     DEV_FUNC(dev, dmaaddr_drain)
 	(dev, addr, size);
+}
+
+void
+xtalk_dmalist_drain(vertex_hdl_t dev, alenlist_t list)
+{
+    DEV_FUNC(dev, dmalist_drain)
+	(dev, list);
 }
 
 /* =====================================================================
@@ -822,9 +855,7 @@ xwidget_register(xwidget_hwid_t hwid,		/* widget's hardware ID */
     char		    *s,devnm[MAXDEVNAME];
 
     /* Allocate widget_info and associate it with widget vertex */
-    widget_info = kmalloc(sizeof(*widget_info), GFP_KERNEL);
-     if (!widget_info)
- 	return - ENOMEM;
+    NEW(widget_info);
 
     /* Initialize widget_info */
     widget_info->w_vertex = widget;
@@ -867,13 +898,16 @@ xwidget_unregister(vertex_hdl_t widget)
 
     /* Make sure that we have valid widget information initialized */
     if (!(widget_info = xwidget_info_get(widget)))
-	return 1;
+	return(1);
 
     hwid = &(widget_info->w_hwid);
 
-    kfree(widget_info->w_name);
-    kfree(widget_info);
-    return 0;
+    /* Clean out the xwidget information */
+    (void)kfree(widget_info->w_name);
+    memset((void *)widget_info, 0, sizeof(widget_info));
+    DEL(widget_info);
+    
+    return(0);
 }
 
 void

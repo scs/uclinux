@@ -100,8 +100,12 @@ advwdt_disable(void)
 }
 
 static ssize_t
-advwdt_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+advwdt_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
+	/*  Can't seek (pwrite) on this device  */
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
+
 	if (count) {
 		if (!nowayout) {
 			size_t i;
@@ -126,8 +130,6 @@ advwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	  unsigned long arg)
 {
 	int new_timeout;
-	void __user *argp = (void __user *)arg;
-	int __user *p = argp;
 	static struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
 		.firmware_version = 1,
@@ -136,20 +138,20 @@ advwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-	  if (copy_to_user(argp, &ident, sizeof(ident)))
+	  if (copy_to_user((struct watchdog_info *)arg, &ident, sizeof(ident)))
 	    return -EFAULT;
 	  break;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-	  return put_user(0, p);
+	  return put_user(0, (int *)arg);
 
 	case WDIOC_KEEPALIVE:
 	  advwdt_ping();
 	  break;
 
 	case WDIOC_SETTIMEOUT:
-	  if (get_user(new_timeout, p))
+	  if (get_user(new_timeout, (int *)arg))
 		  return -EFAULT;
 	  if ((new_timeout < 1) || (new_timeout > 63))
 		  return -EINVAL;
@@ -158,13 +160,13 @@ advwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	  /* Fall */
 
 	case WDIOC_GETTIMEOUT:
-	  return put_user(timeout, p);
+	  return put_user(timeout, (int *)arg);
 
 	case WDIOC_SETOPTIONS:
 	{
 	  int options, retval = -EINVAL;
 
-	  if (get_user(options, p))
+	  if (get_user(options, (int *)arg))
 	    return -EFAULT;
 
 	  if (options & WDIOS_DISABLECARD) {
@@ -196,7 +198,7 @@ advwdt_open(struct inode *inode, struct file *file)
 	 */
 
 	advwdt_ping();
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 static int
@@ -254,6 +256,8 @@ static struct miscdevice advwdt_miscdev = {
 
 static struct notifier_block advwdt_notifier = {
 	.notifier_call = advwdt_notify_sys,
+	.next = NULL,
+	.priority = 0,
 };
 
 static int __init
@@ -330,4 +334,4 @@ module_exit(advwdt_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marek Michalkiewicz <marekm@linux.org.pl>");
 MODULE_DESCRIPTION("Advantech Single Board Computer WDT driver");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
+

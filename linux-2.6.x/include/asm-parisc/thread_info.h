@@ -9,11 +9,11 @@
 struct thread_info {
 	struct task_struct *task;	/* main task structure */
 	struct exec_domain *exec_domain;/* execution domain */
-	unsigned long flags;		/* thread_info flags (see TIF_*) */
-	mm_segment_t addr_limit;	/* user-level address space limit */
+	__u32 flags;			/* thread_info flags (see TIF_*) */
 	__u32 cpu;			/* current CPU */
-	__s32 preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
+	mm_segment_t addr_limit;	/* user-level address space limit */
 	struct restart_block restart_block;
+	__s32 preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 };
 
 #define INIT_THREAD_INFO(tsk)			\

@@ -11,32 +11,27 @@
 
 #include <linux/config.h>
 
-#ifdef __KERNEL__
+#ifdef CONFIG_MIPS32
+#include <asm/page-32.h>
+#endif
+#ifdef CONFIG_MIPS64
+#include <asm/page-64.h>
+#endif
 
-#include <spaces.h>
-
-/*
- * PAGE_SHIFT determines the page size
- */
-#ifdef CONFIG_PAGE_SIZE_4KB
+/* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT	12
-#endif
-#ifdef CONFIG_PAGE_SIZE_8KB
-#define PAGE_SHIFT	13
-#endif
-#ifdef CONFIG_PAGE_SIZE_16KB
-#define PAGE_SHIFT	14
-#endif
-#ifdef CONFIG_PAGE_SIZE_64KB
-#define PAGE_SHIFT	16
-#endif
 #define PAGE_SIZE	(1UL << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 
+#ifdef __KERNEL__
+
 #ifndef __ASSEMBLY__
 
-extern void clear_page(void * page);
-extern void copy_page(void * to, void * from);
+extern void (*_clear_page)(void * page);
+extern void (*_copy_page)(void * to, void * from);
+
+#define clear_page(addr)		_clear_page((void *)(addr))
+#define copy_page(to, from)		_copy_page((void *)(to), (void *)(from))
 
 extern unsigned long shm_align_mask;
 
@@ -119,11 +114,11 @@ static __inline__ int get_order(unsigned long size)
 #ifndef CONFIG_DISCONTIGMEM
 #define pfn_to_page(pfn)	(mem_map + (pfn))
 #define page_to_pfn(page)	((unsigned long)((page) - mem_map))
-#define pfn_valid(pfn)		((pfn) < max_mapnr)
-#endif
-
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+
+#define pfn_valid(pfn)		((pfn) < max_mapnr)
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
+#endif
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
@@ -132,9 +127,5 @@ static __inline__ int get_order(unsigned long size)
 #define CAC_ADDR(addr)		((addr) - UNCAC_BASE + PAGE_OFFSET)
 
 #endif /* defined (__KERNEL__) */
-
-#ifdef CONFIG_LIMITED_DMA
-#define WANT_PAGE_VIRTUAL
-#endif
 
 #endif /* _ASM_PAGE_H */

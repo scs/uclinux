@@ -84,6 +84,7 @@ int __init uclinux_mtd_init(void)
 
 #ifdef CONFIG_BFIN
 	extern char ramdisk_begin,ramdisk_end;
+	unsigned long magic;
 	addr = (unsigned long) &ramdisk_begin;
 #endif
 	mapp = &uclinux_ram_map;
@@ -99,7 +100,7 @@ int __init uclinux_mtd_init(void)
 	mapp->size = (&ramdisk_begin - &ramdisk_end); 
 #endif
 #endif
-	mapp->bankwidth = 4;
+	mapp->buswidth = 4;
 	printk("uclinux[mtd]: RAM probe address=0x%x size=0x%x\n",
 	       	(int) mapp->map_priv_2, (int) mapp->size);
 

@@ -22,6 +22,57 @@
  *
  ******************************************************************************/
 
+/******************************************************************************
+ *
+ * History:
+ *
+ *	$Log$
+ *	Revision 1.2  2004/09/07 22:32:04  lgsoft
+ *	alpha-2.0
+ *
+ *	Revision 1.1.1.1  2004/07/19 12:13:15  lgsoft
+ *	Import of uClinux 2.6.2
+ *	
+ *	Revision 1.1.1.1  2004/07/18 13:21:34  nidhi
+ *	Importing
+ *	
+ *	Revision 1.11  2003/09/16 12:58:18  rschmidt
+ *	Editorial changes
+ *	
+ *	Revision 1.10  2003/05/13 17:56:44  mkarl
+ *	Editorial changes.
+ *	
+ *	Revision 1.9  1999/11/22 14:00:29  cgoos
+ *	Changed license header to GPL.
+ *	
+ *	Revision 1.8  1998/09/08 08:48:02  gklug
+ *	add: init level handling
+ *	
+ *	Revision 1.7  1998/08/20 12:31:29  gklug
+ *	fix: SK_TIMCTRL needs to be defined
+ *	
+ *	Revision 1.6  1998/08/19 09:51:00  gklug
+ *	fix: remove struct keyword from C-code (see CCC) add typedefs
+ *	
+ *	Revision 1.5  1998/08/17 13:43:21  gklug
+ *	chg: Parameter will be union of 64bit para, 2 times SK_U32 or SK_PTR
+ *	
+ *	Revision 1.4  1998/08/14 07:09:31  gklug
+ *	fix: chg pAc -> pAC
+ *	
+ *	Revision 1.3  1998/08/07 12:54:24  gklug
+ *	fix: first compiled version
+ *	
+ *	Revision 1.2  1998/08/07 09:35:29  gklug
+ *	add: Timer control struct for Adapters context
+ *	add: function prototypes
+ *	
+ *	Revision 1.1  1998/08/05 11:27:01  gklug
+ *	First version: adapted from SMT
+ *	
+ *
+ ******************************************************************************/
+
 /*
  * SKTIMER.H	contains all defines and types for the timer functions
  */

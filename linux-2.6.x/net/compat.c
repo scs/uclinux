@@ -18,7 +18,6 @@
 #include <linux/file.h>
 #include <linux/icmpv6.h>
 #include <linux/socket.h>
-#include <linux/syscalls.h>
 #include <linux/filter.h>
 #include <linux/compat.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
@@ -29,7 +28,7 @@
 #include <net/compat.h>
 
 static inline int iov_from_user_compat_to_kern(struct iovec *kiov,
-					  struct compat_iovec __user *uiov32,
+					  struct compat_iovec *uiov32,
 					  int niov)
 {
 	int tot_len = 0;
@@ -53,7 +52,7 @@ static inline int iov_from_user_compat_to_kern(struct iovec *kiov,
 	return tot_len;
 }
 
-int get_compat_msghdr(struct msghdr *kmsg, struct compat_msghdr __user *umsg)
+int get_compat_msghdr(struct msghdr *kmsg, struct compat_msghdr *umsg)
 {
 	compat_uptr_t tmp1, tmp2, tmp3;
 
@@ -98,7 +97,7 @@ int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *kern_iov,
 	}
 
 	tot_len = iov_from_user_compat_to_kern(kern_iov,
-					  (struct compat_iovec __user *)kern_msg->msg_iov,
+					  (struct compat_iovec *)kern_msg->msg_iov,
 					  kern_msg->msg_iovlen);
 	if(tot_len >= 0)
 		kern_msg->msg_iov = kern_iov;
@@ -112,7 +111,7 @@ int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *kern_iov,
 #define CMSG_COMPAT_ALIGN(len)	ALIGN((len), sizeof(s32))
 
 #define CMSG_COMPAT_DATA(cmsg)				\
-	((void __user *)((char __user *)(cmsg) + CMSG_COMPAT_ALIGN(sizeof(struct compat_cmsghdr))))
+	((void *)((char *)(cmsg) + CMSG_COMPAT_ALIGN(sizeof(struct compat_cmsghdr))))
 #define CMSG_COMPAT_SPACE(len)				\
 	(CMSG_COMPAT_ALIGN(sizeof(struct compat_cmsghdr)) + CMSG_COMPAT_ALIGN(len))
 #define CMSG_COMPAT_LEN(len)				\
@@ -120,17 +119,20 @@ int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *kern_iov,
 
 #define CMSG_COMPAT_FIRSTHDR(msg)			\
 	(((msg)->msg_controllen) >= sizeof(struct compat_cmsghdr) ?	\
-	 (struct compat_cmsghdr __user *)((msg)->msg_control) :		\
-	 (struct compat_cmsghdr __user *)NULL)
+	 (struct compat_cmsghdr *)((msg)->msg_control) :		\
+	 (struct compat_cmsghdr *)NULL)
 
-static inline struct compat_cmsghdr __user *cmsg_compat_nxthdr(struct msghdr *msg,
-		struct compat_cmsghdr __user *cmsg, int cmsg_len)
+static inline struct compat_cmsghdr *cmsg_compat_nxthdr(struct msghdr *msg,
+		struct compat_cmsghdr *cmsg, int cmsg_len)
 {
-	char __user *ptr = (char __user *)cmsg + CMSG_COMPAT_ALIGN(cmsg_len);
-	if ((unsigned long)(ptr + 1 - (char __user *)msg->msg_control) >
+	struct compat_cmsghdr *ptr;
+
+	ptr = (struct compat_cmsghdr *)(((unsigned char *)cmsg) +
+			CMSG_COMPAT_ALIGN(cmsg_len));
+	if ((unsigned long)((char *)(ptr + 1) - (char *)msg->msg_control) >
 			msg->msg_controllen)
 		return NULL;
-	return (struct compat_cmsghdr __user *)ptr;
+	return ptr;
 }
 
 /* There is a lot of hair here because the alignment rules (and
@@ -140,7 +142,7 @@ static inline struct compat_cmsghdr __user *cmsg_compat_nxthdr(struct msghdr *ms
 int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg,
 			       unsigned char *stackbuf, int stackbuf_size)
 {
-	struct compat_cmsghdr __user *ucmsg;
+	struct compat_cmsghdr *ucmsg;
 	struct cmsghdr *kcmsg, *kcmsg_base;
 	compat_size_t ucmlen;
 	__kernel_size_t kcmlen, tmp;
@@ -156,7 +158,7 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg,
 		if(CMSG_COMPAT_ALIGN(ucmlen) <
 		   CMSG_COMPAT_ALIGN(sizeof(struct compat_cmsghdr)))
 			return -EINVAL;
-		if((unsigned long)(((char __user *)ucmsg - (char __user *)kmsg->msg_control)
+		if((unsigned long)(((char *)ucmsg - (char *)kmsg->msg_control)
 				   + ucmlen) > kmsg->msg_controllen)
 			return -EINVAL;
 
@@ -214,7 +216,7 @@ out_free_efault:
 int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *data)
 {
 	struct compat_timeval ctv;
-	struct compat_cmsghdr __user *cm = (struct compat_cmsghdr __user *) kmsg->msg_control;
+	struct compat_cmsghdr *cm = (struct compat_cmsghdr *) kmsg->msg_control;
 	struct compat_cmsghdr cmhdr;
 	int cmlen;
 
@@ -252,17 +254,17 @@ int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *dat
 
 void scm_detach_fds_compat(struct msghdr *kmsg, struct scm_cookie *scm)
 {
-	struct compat_cmsghdr __user *cm = (struct compat_cmsghdr __user *) kmsg->msg_control;
+	struct compat_cmsghdr *cm = (struct compat_cmsghdr *) kmsg->msg_control;
 	int fdmax = (kmsg->msg_controllen - sizeof(struct compat_cmsghdr)) / sizeof(int);
 	int fdnum = scm->fp->count;
 	struct file **fp = scm->fp->fp;
-	int __user *cmfptr;
+	int *cmfptr;
 	int err = 0, i;
 
 	if (fdnum < fdmax)
 		fdmax = fdnum;
 
-	for (i = 0, cmfptr = (int __user *) CMSG_COMPAT_DATA(cm); i < fdmax; i++, cmfptr++) {
+	for (i = 0, cmfptr = (int *) CMSG_COMPAT_DATA(cm); i < fdmax; i++, cmfptr++) {
 		int new_fd;
 		err = get_unused_fd();
 		if (err < 0)
@@ -302,6 +304,9 @@ void scm_detach_fds_compat(struct msghdr *kmsg, struct scm_cookie *scm)
 	__scm_destroy(scm);
 }
 
+extern asmlinkage long sys_setsockopt(int fd, int level, int optname,
+				     char *optval, int optlen);
+
 /*
  * For now, we assume that the compatibility and native version
  * of struct ipt_entry are the same - sfr.  FIXME
@@ -319,10 +324,10 @@ struct compat_ipt_replace {
 };
 
 static int do_netfilter_replace(int fd, int level, int optname,
-				char __user *optval, int optlen)
+				char *optval, int optlen)
 {
-	struct compat_ipt_replace __user *urepl;
-	struct ipt_replace __user *repl_nat;
+	struct compat_ipt_replace *urepl = (struct compat_ipt_replace *)optval;
+	struct ipt_replace *repl_nat;
 	char name[IPT_TABLE_MAXNAMELEN];
 	u32 origsize, tmp32, num_counters;
 	unsigned int repl_nat_size;
@@ -330,7 +335,6 @@ static int do_netfilter_replace(int fd, int level, int optname,
 	int i;
 	compat_uptr_t ucntrs;
 
-	urepl = (struct compat_ipt_replace __user *)optval;
 	if (get_user(origsize, &urepl->size))
 		return -EFAULT;
 
@@ -397,7 +401,7 @@ static int do_netfilter_replace(int fd, int level, int optname,
 
 
 	ret = sys_setsockopt(fd, level, optname,
-			     (char __user *)repl_nat, repl_nat_size);
+			     (char *)repl_nat, repl_nat_size);
 
 out:
 	return ret;
@@ -412,10 +416,10 @@ struct compat_sock_fprog {
 };
 
 static int do_set_attach_filter(int fd, int level, int optname,
-				char __user *optval, int optlen)
+				char *optval, int optlen)
 {
-	struct compat_sock_fprog __user *fprog32 = (struct compat_sock_fprog __user *)optval;
-	struct sock_fprog __user *kfprog = compat_alloc_user_space(sizeof(struct sock_fprog)); 
+	struct compat_sock_fprog *fprog32 = (struct compat_sock_fprog *)optval;
+	struct sock_fprog *kfprog = compat_alloc_user_space(sizeof(struct sock_fprog)); 
 	compat_uptr_t ptr;
 	u16 len;
 
@@ -427,13 +431,13 @@ static int do_set_attach_filter(int fd, int level, int optname,
 	    __put_user(compat_ptr(ptr), &kfprog->filter))
 		return -EFAULT;
 
-	return sys_setsockopt(fd, level, optname, (char __user *)kfprog, 
+	return sys_setsockopt(fd, level, optname, (char *)kfprog, 
 			      sizeof(struct sock_fprog));
 }
 
-static int do_set_sock_timeout(int fd, int level, int optname, char __user *optval, int optlen)
+static int do_set_sock_timeout(int fd, int level, int optname, char *optval, int optlen)
 {
-	struct compat_timeval __user *up = (struct compat_timeval __user *) optval;
+	struct compat_timeval *up = (struct compat_timeval *) optval;
 	struct timeval ktime;
 	mm_segment_t old_fs;
 	int err;
@@ -453,7 +457,7 @@ static int do_set_sock_timeout(int fd, int level, int optname, char __user *optv
 }
 
 asmlinkage long compat_sys_setsockopt(int fd, int level, int optname,
-				char __user *optval, int optlen)
+				char *optval, int optlen)
 {
 	if (optname == IPT_SO_SET_REPLACE)
 		return do_netfilter_replace(fd, level, optname,
@@ -467,15 +471,17 @@ asmlinkage long compat_sys_setsockopt(int fd, int level, int optname,
 	return sys_setsockopt(fd, level, optname, optval, optlen);
 }
 
-static int do_get_sock_timeout(int fd, int level, int optname,
-		char __user *optval, int __user *optlen)
+extern asmlinkage long sys_getsockopt(int fd, int level, int optname,
+				       void * optval, int *optlen);
+
+static int do_get_sock_timeout(int fd, int level, int optname, char *optval,
+		int *optlen)
 {
-	struct compat_timeval __user *up;
+	struct compat_timeval *up = (struct compat_timeval *) optval;
 	struct timeval ktime;
 	mm_segment_t old_fs;
 	int len, err;
 
-	up = (struct compat_timeval __user *) optval;
 	if (get_user(len, optlen))
 		return -EFAULT;
 	if (len < sizeof(*up))
@@ -497,7 +503,7 @@ static int do_get_sock_timeout(int fd, int level, int optname,
 }
 
 asmlinkage long compat_sys_getsockopt(int fd, int level, int optname,
-				char __user *optval, int __user *optlen)
+				char *optval, int *optlen)
 {
 	if (optname == SO_RCVTIMEO || optname == SO_SNDTIMEO)
 		return do_get_sock_timeout(fd, level, optname, optval, optlen);
@@ -511,17 +517,33 @@ static unsigned char nas[18]={AL(0),AL(3),AL(3),AL(3),AL(2),AL(3),
 				AL(6),AL(2),AL(5),AL(5),AL(3),AL(3)};
 #undef AL
 
-asmlinkage long compat_sys_sendmsg(int fd, struct compat_msghdr __user *msg, unsigned flags)
+extern asmlinkage long sys_bind(int, struct sockaddr *, int);
+extern asmlinkage long sys_connect(int, struct sockaddr *, int);
+extern asmlinkage long sys_accept(int, struct sockaddr *, int *); 
+extern asmlinkage long sys_getsockname(int, struct sockaddr *, int *);
+extern asmlinkage long sys_getpeername(int, struct sockaddr *, int *);
+extern asmlinkage long sys_send(int, void *, size_t, unsigned);
+extern asmlinkage long sys_sendto(int, void *, size_t, unsigned,
+		struct sockaddr *, int);
+extern asmlinkage long sys_recv(int, void *, size_t, unsigned);
+extern asmlinkage long sys_recvfrom(int, void *, size_t, unsigned,
+		struct sockaddr *, int *);
+extern asmlinkage long sys_socket(int, int, int);
+extern asmlinkage long sys_socketpair(int, int, int, int [2]);
+extern asmlinkage long sys_shutdown(int, int);
+extern asmlinkage long sys_listen(int, int);
+
+asmlinkage long compat_sys_sendmsg(int fd, struct compat_msghdr *msg, unsigned flags)
 {
-	return sys_sendmsg(fd, (struct msghdr __user *)msg, flags | MSG_CMSG_COMPAT);
+	return sys_sendmsg(fd, (struct msghdr *)msg, flags | MSG_CMSG_COMPAT);
 }
 
-asmlinkage long compat_sys_recvmsg(int fd, struct compat_msghdr __user *msg, unsigned int flags)
+asmlinkage long compat_sys_recvmsg(int fd, struct compat_msghdr *msg, unsigned int flags)
 {
-	return sys_recvmsg(fd, (struct msghdr __user *)msg, flags | MSG_CMSG_COMPAT);
+	return sys_recvmsg(fd, (struct msghdr *)msg, flags | MSG_CMSG_COMPAT);
 }
 
-asmlinkage long compat_sys_socketcall(int call, u32 __user *args)
+asmlinkage long compat_sys_socketcall(int call, u32 *args)
 {
 	int ret;
 	u32 a[6];

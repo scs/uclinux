@@ -14,7 +14,6 @@
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
 #include <linux/parser.h>
-#include <linux/namei.h>
 
 #include "befs.h"
 #include "btree.h"
@@ -41,8 +40,8 @@ static struct inode *befs_alloc_inode(struct super_block *sb);
 static void befs_destroy_inode(struct inode *inode);
 static int befs_init_inodecache(void);
 static void befs_destroy_inodecache(void);
-static int befs_follow_link(struct dentry *, struct nameidata *);
-static void befs_put_link(struct dentry *, struct nameidata *);
+static int befs_readlink(struct dentry *, char __user *, int);
+static int befs_follow_link(struct dentry *, struct nameidata *nd);
 static int befs_utf2nls(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
 static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
@@ -86,9 +85,8 @@ struct address_space_operations befs_aops = {
 };
 
 static struct inode_operations befs_symlink_inode_operations = {
-	.readlink	= generic_readlink,
+	.readlink	= befs_readlink,
 	.follow_link	= befs_follow_link,
-	.put_link	= befs_put_link,
 };
 
 /* 
@@ -327,7 +325,7 @@ befs_read_inode(struct inode *inode)
 		   befs_ino->i_inode_num.allocation_group,
 		   befs_ino->i_inode_num.start, befs_ino->i_inode_num.len);
 
-	bh = befs_bread(sb, inode->i_ino);
+	bh = befs_bread_iaddr(sb, befs_ino->i_inode_num);
 	if (!bh) {
 		befs_error(sb, "unable to read inode block - "
 			   "inode = %lu", inode->i_ino);
@@ -378,7 +376,7 @@ befs_read_inode(struct inode *inode)
 	befs_ino->i_attribute = fsrun_to_cpu(sb, raw_inode->attributes);
 	befs_ino->i_flags = fs32_to_cpu(sb, raw_inode->flags);
 
-	if (S_ISLNK(inode->i_mode) && !(befs_ino->i_flags & BEFS_LONG_SYMLINK)){
+	if (S_ISLNK(inode->i_mode) && !(inode->i_flags & BEFS_LONG_SYMLINK)) {
 		inode->i_size = 0;
 		inode->i_blocks = befs_sb->block_size / VFS_BLOCK_SIZE;
 		strncpy(befs_ino->i_data.symlink, raw_inode->data.symlink,
@@ -464,40 +462,71 @@ befs_destroy_inodecache(void)
 static int
 befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
+	struct super_block *sb = dentry->d_sb;
 	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
 	char *link;
+	int res;
 
 	if (befs_ino->i_flags & BEFS_LONG_SYMLINK) {
-		struct super_block *sb = dentry->d_sb;
 		befs_data_stream *data = &befs_ino->i_data.ds;
-		befs_off_t len = data->size;
+		befs_off_t linklen = data->size;
 
 		befs_debug(sb, "Follow long symlink");
 
-		link = kmalloc(len, GFP_NOFS);
-		if (!link) {
-			link = ERR_PTR(-ENOMEM);
-		} else if (befs_read_lsymlink(sb, data, link, len) != len) {
+		link = kmalloc(linklen, GFP_NOFS);
+		if (link == NULL)
+			return -ENOMEM;
+
+		if (befs_read_lsymlink(sb, data, link, linklen) != linklen) {
 			kfree(link);
 			befs_error(sb, "Failed to read entire long symlink");
-			link = ERR_PTR(-EIO);
+			return -EIO;
 		}
+
+		res = vfs_follow_link(nd, link);
+
+		kfree(link);
 	} else {
 		link = befs_ino->i_data.symlink;
+		res = vfs_follow_link(nd, link);
 	}
 
-	nd_set_link(nd, link);
-	return 0;
+	return res;
 }
 
-static void befs_put_link(struct dentry *dentry, struct nameidata *nd)
+static int
+befs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
+	struct super_block *sb = dentry->d_sb;
 	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
+	char *link;
+	int res;
+
 	if (befs_ino->i_flags & BEFS_LONG_SYMLINK) {
-		char *p = nd_get_link(nd);
-		if (!IS_ERR(p))
-			kfree(p);
+		befs_data_stream *data = &befs_ino->i_data.ds;
+		befs_off_t linklen = data->size;
+
+		befs_debug(sb, "Read long symlink");
+
+		link = kmalloc(linklen, GFP_NOFS);
+		if (link == NULL)
+			return -ENOMEM;
+
+		if (befs_read_lsymlink(sb, data, link, linklen) != linklen) {
+			kfree(link);
+			befs_error(sb, "Failed to read entire long symlink");
+			return -EIO;
+		}
+
+		res = vfs_readlink(dentry, buffer, buflen, link);
+
+		kfree(link);
+	} else {
+		link = befs_ino->i_data.symlink;
+		res = vfs_readlink(dentry, buffer, buflen, link);
 	}
+
+	return res;
 }
 
 /*
@@ -542,7 +571,7 @@ befs_utf2nls(struct super_block *sb, const char *in,
 		}
 
 		/* convert from Unicode to nls */
-		unilen = nls->uni2char(uni, &result[o], in_len - o);
+		unilen = nls->uni2char(uni, &result[o], 1);
 		if (unilen < 0) {
 			goto conv_err;
 		}
@@ -555,7 +584,7 @@ befs_utf2nls(struct super_block *sb, const char *in,
 	return o;
 
       conv_err:
-	befs_error(sb, "Name using character set %s contains a character that "
+	befs_error(sb, "Name using charecter set %s contains a charecter that "
 		   "cannot be converted to unicode.", nls->charset);
 	befs_debug(sb, "<--- utf2nls()");
 	kfree(result);
@@ -760,7 +789,6 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	struct buffer_head *bh;
 	befs_sb_info *befs_sb;
 	befs_super_block *disk_sb;
-	struct inode *root;
 
 	const unsigned long sb_block = 0;
 	const off_t x86_sb_off = 512;
@@ -827,13 +855,6 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	if (befs_check_sb(sb) != BEFS_OK)
 		goto unaquire_priv_sbp;
 
-	if( befs_sb->num_blocks > ~((sector_t)0) ) {
-		befs_error(sb, "blocks count: %Lu "
-			"is larger than the host can use",
-			befs_sb->num_blocks);
-		goto unaquire_priv_sbp;
-	}
-
 	/*
 	 * set up enough so that it can read an inode
 	 * Fill in kernel superblock fields from private sb
@@ -842,10 +863,9 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	/* Set real blocksize of fs */
 	sb_set_blocksize(sb, (ulong) befs_sb->block_size);
 	sb->s_op = (struct super_operations *) &befs_sops;
-	root = iget(sb, iaddr2blockno(sb, &(befs_sb->root_dir)));
-	sb->s_root = d_alloc_root(root);
+	sb->s_root =
+	    d_alloc_root(iget(sb, iaddr2blockno(sb, &(befs_sb->root_dir))));
 	if (!sb->s_root) {
-		iput(root);
 		befs_error(sb, "get root inode failed");
 		goto unaquire_priv_sbp;
 	}

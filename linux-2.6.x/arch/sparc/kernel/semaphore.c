@@ -4,7 +4,6 @@
 
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 
 #include <asm/semaphore.h>
 
@@ -46,7 +45,7 @@ void __up(struct semaphore *sem)
 
 static spinlock_t semaphore_lock = SPIN_LOCK_UNLOCKED;
 
-void __sched __down(struct semaphore * sem)
+void __down(struct semaphore * sem)
 {
 	struct task_struct *tsk = current;
 	DECLARE_WAITQUEUE(wait, tsk);
@@ -62,7 +61,7 @@ void __sched __down(struct semaphore * sem)
 		 * Add "everybody else" into it. They aren't
 		 * playing, because we own the spinlock.
 		 */
-		if (!atomic24_add_negative(sleepers - 1, &sem->count)) {
+		if (!atomic_add_negative(sleepers - 1, &sem->count)) {
 			sem->sleepers = 0;
 			break;
 		}
@@ -79,7 +78,7 @@ void __sched __down(struct semaphore * sem)
 	wake_up(&sem->wait);
 }
 
-int __sched __down_interruptible(struct semaphore * sem)
+int __down_interruptible(struct semaphore * sem)
 {
 	int retval = 0;
 	struct task_struct *tsk = current;
@@ -102,7 +101,7 @@ int __sched __down_interruptible(struct semaphore * sem)
 		if (signal_pending(current)) {
 			retval = -EINTR;
 			sem->sleepers = 0;
-			atomic24_add(sleepers, &sem->count);
+			atomic_add(sleepers, &sem->count);
 			break;
 		}
 
@@ -112,7 +111,7 @@ int __sched __down_interruptible(struct semaphore * sem)
 		 * "-1" is because we're still hoping to get
 		 * the lock.
 		 */
-		if (!atomic24_add_negative(sleepers - 1, &sem->count)) {
+		if (!atomic_add_negative(sleepers - 1, &sem->count)) {
 			sem->sleepers = 0;
 			break;
 		}
@@ -147,7 +146,7 @@ int __down_trylock(struct semaphore * sem)
 	 * Add "everybody else" and us into it. They aren't
 	 * playing, because we own the spinlock.
 	 */
-	if (!atomic24_add_negative(sleepers, &sem->count))
+	if (!atomic_add_negative(sleepers, &sem->count))
 		wake_up(&sem->wait);
 
 	spin_unlock_irqrestore(&semaphore_lock, flags);

@@ -52,7 +52,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
-#include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -64,7 +63,7 @@
 #include <net/irda/irda.h>
 #include <net/irda/irda_device.h>
 
-#include "nsc-ircc.h"
+#include <net/irda/nsc-ircc.h>
 
 #define CHIP_IO_EXTENT 8
 #define BROKEN_DONGLE_ID
@@ -303,14 +302,15 @@ static int __init nsc_ircc_open(int i, chipio_t *info)
 	self->qos.min_turn_time.bits = qos_mtt_bits;
 	irda_qos_bits_to_value(&self->qos);
 	
+	self->flags = IFF_FIR|IFF_MIR|IFF_SIR|IFF_DMA|IFF_PIO|IFF_DONGLE;
+
 	/* Max DMA buffer size needed = (data_size + 6) * (window_size) + 6; */
 	self->rx_buff.truesize = 14384; 
 	self->tx_buff.truesize = 14384;
 
 	/* Allocate memory if needed */
-	self->rx_buff.head =
-		dma_alloc_coherent(NULL, self->rx_buff.truesize,
-				   &self->rx_buff_dma, GFP_KERNEL);
+	self->rx_buff.head = (__u8 *) kmalloc(self->rx_buff.truesize,
+					      GFP_KERNEL|GFP_DMA);
 	if (self->rx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto out2;
@@ -318,9 +318,8 @@ static int __init nsc_ircc_open(int i, chipio_t *info)
 	}
 	memset(self->rx_buff.head, 0, self->rx_buff.truesize);
 	
-	self->tx_buff.head =
-		dma_alloc_coherent(NULL, self->tx_buff.truesize,
-				   &self->tx_buff_dma, GFP_KERNEL);
+	self->tx_buff.head = (__u8 *) kmalloc(self->tx_buff.truesize, 
+					      GFP_KERNEL|GFP_DMA);
 	if (self->tx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto out3;
@@ -371,11 +370,9 @@ static int __init nsc_ircc_open(int i, chipio_t *info)
 
 	return 0;
  out4:
-	dma_free_coherent(NULL, self->tx_buff.truesize,
-			  self->tx_buff.head, self->tx_buff_dma);
+	kfree(self->tx_buff.head);
  out3:
-	dma_free_coherent(NULL, self->rx_buff.truesize,
-			  self->rx_buff.head, self->rx_buff_dma);
+	kfree(self->rx_buff.head);
  out2:
 	release_region(self->io.fir_base, self->io.fir_ext);
  out1:
@@ -409,12 +406,10 @@ static int __exit nsc_ircc_close(struct nsc_ircc_cb *self)
 	release_region(self->io.fir_base, self->io.fir_ext);
 
 	if (self->tx_buff.head)
-		dma_free_coherent(NULL, self->tx_buff.truesize,
-				  self->tx_buff.head, self->tx_buff_dma);
+		kfree(self->tx_buff.head);
 	
 	if (self->rx_buff.head)
-		dma_free_coherent(NULL, self->rx_buff.truesize,
-				  self->rx_buff.head, self->rx_buff_dma);
+		kfree(self->rx_buff.head);
 
 	dev_self[self->index] = NULL;
 	free_netdev(self->netdev);
@@ -1415,11 +1410,10 @@ static void nsc_ircc_dma_xmit(struct nsc_ircc_cb *self, int iobase)
 	switch_bank(iobase, BANK2);
 	outb(ECR1_DMASWP|ECR1_DMANF|ECR1_EXT_SL, iobase+ECR1);
 	
-	irda_setup_dma(self->io.dma, 
-		       ((u8 *)self->tx_fifo.queue[self->tx_fifo.ptr].start -
-			self->tx_buff.head) + self->tx_buff_dma,
-		       self->tx_fifo.queue[self->tx_fifo.ptr].len, 
-		       DMA_TX_MODE);
+	setup_dma(self->io.dma, 
+		  self->tx_fifo.queue[self->tx_fifo.ptr].start, 
+		  self->tx_fifo.queue[self->tx_fifo.ptr].len, 
+		  DMA_TX_MODE);
 
 	/* Enable DMA and SIR interaction pulse */
  	switch_bank(iobase, BANK0);	
@@ -1574,8 +1568,8 @@ static int nsc_ircc_dma_receive(struct nsc_ircc_cb *self)
 	self->st_fifo.len = self->st_fifo.pending_bytes = 0;
 	self->st_fifo.tail = self->st_fifo.head = 0;
 	
-	irda_setup_dma(self->io.dma, self->rx_buff_dma, self->rx_buff.truesize,
-		       DMA_RX_MODE);
+	setup_dma(self->io.dma, self->rx_buff.data, self->rx_buff.truesize, 
+		  DMA_RX_MODE);
 
 	/* Enable DMA */
 	switch_bank(iobase, BANK0);
@@ -1955,7 +1949,7 @@ static irqreturn_t nsc_ircc_interrupt(int irq, void *dev_id,
 	outb(bsr, iobase+BSR);       /* Restore bank register */
 
 	spin_unlock(&self->lock);
-	return IRQ_RETVAL(eir);
+	return IRQ_HANDLED;
 }
 
 /*

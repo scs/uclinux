@@ -40,7 +40,6 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/time.h>
-#include <asm/rtas.h>
 
 #include <asm/iSeries/LparData.h>
 #include <asm/iSeries/mf.h>
@@ -56,7 +55,9 @@ extern int piranha_simulator;
  *	ioctls.
  */
 
-static ssize_t rtc_read(struct file *file, char __user *buf,
+static loff_t rtc_llseek(struct file *file, loff_t offset, int origin);
+
+static ssize_t rtc_read(struct file *file, char *buf,
 			size_t count, loff_t *ppos);
 
 static int rtc_ioctl(struct inode *inode, struct file *file,
@@ -79,7 +80,12 @@ static const unsigned char days_in_mo[] =
  *	Now all the various file operations that we export.
  */
 
-static ssize_t rtc_read(struct file *file, char __user *buf,
+static loff_t rtc_llseek(struct file *file, loff_t offset, int origin)
+{
+	return -ESPIPE;
+}
+
+static ssize_t rtc_read(struct file *file, char *buf,
 			size_t count, loff_t *ppos)
 {
 	return -EIO;
@@ -106,7 +112,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		if (!capable(CAP_SYS_TIME))
 			return -EACCES;
 
-		if (copy_from_user(&rtc_tm, (struct rtc_time __user *)arg,
+		if (copy_from_user(&rtc_tm, (struct rtc_time*)arg,
 				   sizeof(struct rtc_time)))
 			return -EFAULT;
 
@@ -140,7 +146,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	}
 	case RTC_EPOCH_READ:	/* Read the epoch.	*/
 	{
-		return put_user (epoch, (unsigned long __user *)arg);
+		return put_user (epoch, (unsigned long *)arg);
 	}
 	case RTC_EPOCH_SET:	/* Set the epoch.	*/
 	{
@@ -159,12 +165,11 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	default:
 		return -EINVAL;
 	}
-	return copy_to_user((void __user *)arg, &wtime, sizeof wtime) ? -EFAULT : 0;
+	return copy_to_user((void *)arg, &wtime, sizeof wtime) ? -EFAULT : 0;
 }
 
 static int rtc_open(struct inode *inode, struct file *file)
 {
-	nonseekable_open(inode, file);
 	return 0;
 }
 
@@ -178,7 +183,7 @@ static int rtc_release(struct inode *inode, struct file *file)
  */
 static struct file_operations rtc_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
+	.llseek =	rtc_llseek,
 	.read =		rtc_read,
 	.ioctl =	rtc_ioctl,
 	.open =		rtc_open,
@@ -201,7 +206,7 @@ static int __init rtc_init(void)
 		return retval;
 
 #ifdef CONFIG_PROC_FS
-	if (create_proc_read_entry ("driver/rtc", 0, NULL, rtc_read_proc, NULL) == NULL)
+	if(create_proc_read_entry ("driver/rtc", 0, 0, rtc_read_proc, NULL) == NULL)
 		misc_deregister(&rtc_dev);
 		return -ENOMEM;
 #endif
@@ -341,13 +346,13 @@ void iSeries_get_boot_time(struct rtc_time *tm)
 #define RTAS_CLOCK_BUSY (-2)
 void pSeries_get_boot_time(struct rtc_time *rtc_tm)
 {
-	int ret[8];
+	unsigned long ret[8];
 	int error, wait_time;
 	unsigned long max_wait_tb;
 
 	max_wait_tb = __get_tb() + tb_ticks_per_usec * 1000 * MAX_RTC_WAIT;
 	do {
-		error = rtas_call(rtas_token("get-time-of-day"), 0, 8, ret);
+		error = rtas_call(rtas_token("get-time-of-day"), 0, 8, (void *)&ret);
 		if (error == RTAS_CLOCK_BUSY || rtas_is_extended_busy(error)) {
 			wait_time = rtas_extended_busy_delay_time(error);
 			/* This is boot time so we spin. */
@@ -376,13 +381,13 @@ void pSeries_get_boot_time(struct rtc_time *rtc_tm)
  */
 void pSeries_get_rtc_time(struct rtc_time *rtc_tm)
 {
-        int ret[8];
+        unsigned long ret[8];
 	int error, wait_time;
 	unsigned long max_wait_tb;
 
 	max_wait_tb = __get_tb() + tb_ticks_per_usec * 1000 * MAX_RTC_WAIT;
 	do {
-		error = rtas_call(rtas_token("get-time-of-day"), 0, 8, ret);
+		error = rtas_call(rtas_token("get-time-of-day"), 0, 8, (void *)&ret);
 		if (error == RTAS_CLOCK_BUSY || rtas_is_extended_busy(error)) {
 			if (in_interrupt()) {
 				printk(KERN_WARNING "error: reading clock would delay interrupt\n");

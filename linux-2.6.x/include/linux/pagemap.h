@@ -8,7 +8,6 @@
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/highmem.h>
-#include <linux/compiler.h>
 #include <asm/uaccess.h>
 #include <linux/gfp.h>
 
@@ -70,10 +69,9 @@ extern struct page * find_trylock_page(struct address_space *mapping,
 				unsigned long index);
 extern struct page * find_or_create_page(struct address_space *mapping,
 				unsigned long index, unsigned int gfp_mask);
-unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
-			unsigned int nr_pages, struct page **pages);
-unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
-			int tag, unsigned int nr_pages, struct page **pages);
+extern unsigned int find_get_pages(struct address_space *mapping,
+				pgoff_t start, unsigned int nr_pages,
+				struct page **pages);
 
 /*
  * Returns locked page at given index in given cache, creating it if needed.
@@ -137,18 +135,18 @@ static inline void pagecache_acct(int count)
 
 static inline unsigned long get_page_cache_size(void)
 {
-	int ret = atomic_read(&nr_pagecache);
-	if (unlikely(ret < 0))
-		ret = 0;
-	return ret;
+        return atomic_read(&nr_pagecache);
 }
 
-static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
-					unsigned long address)
+static inline void ___add_to_page_cache(struct page *page,
+		struct address_space *mapping, unsigned long index)
 {
-	pgoff_t pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
-	pgoff += vma->vm_pgoff;
-	return pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+	list_add(&page->list, &mapping->clean_pages);
+	page->mapping = mapping;
+	page->index = index;
+
+	mapping->nrpages++;
+	pagecache_acct(1);
 }
 
 extern void FASTCALL(__lock_page(struct page *page));
@@ -224,13 +222,13 @@ static inline void fault_in_pages_readable(const char __user *uaddr, int size)
 	volatile char c;
 	int ret;
 
-	ret = __get_user(c, uaddr);
+	ret = __get_user(c, (char *)uaddr);
 	if (ret == 0) {
 		const char __user *end = uaddr + size - 1;
 
 		if (((unsigned long)uaddr & PAGE_MASK) !=
 				((unsigned long)end & PAGE_MASK))
-		 	__get_user(c, end);
+		 	__get_user(c, (char *)end);
 	}
 }
 

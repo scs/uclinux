@@ -15,7 +15,6 @@
 #define __ASM_IBM4XX_H__
 
 #include <linux/config.h>
-#include <asm/types.h>
 
 #ifdef CONFIG_40x
 
@@ -23,8 +22,8 @@
 #include <platforms/4xx/ash.h>
 #endif
 
-#if defined(CONFIG_BUBINGA)
-#include <platforms/4xx/bubinga.h>
+#if defined (CONFIG_CEDAR)
+#include <platforms/4xx/cedar.h>
 #endif
 
 #if defined(CONFIG_CPCI405)
@@ -47,27 +46,17 @@
 #include <platforms/4xx/redwood5.h>
 #endif
 
-#if defined(CONFIG_REDWOOD_6)
-#include <platforms/4xx/redwood6.h>
-#endif
-
-#if defined(CONFIG_SYCAMORE)
-#include <platforms/4xx/sycamore.h>
-#endif
-
 #if defined(CONFIG_WALNUT)
 #include <platforms/4xx/walnut.h>
 #endif
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_40x
 /*
  * The "residual" board information structure the boot loader passes
  * into the kernel.
  */
 extern bd_t __res;
-#endif
 
 void ppc4xx_setup_arch(void);
 void ppc4xx_map_io(void);
@@ -102,13 +91,11 @@ void ppc4xx_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #endif
 
 #ifndef __ASSEMBLY__
-#ifdef CONFIG_40x
 /*
  * The "residual" board information structure the boot loader passes
  * into the kernel.
  */
 extern bd_t __res;
-#endif
 #endif
 #endif /* CONFIG_40x */
 

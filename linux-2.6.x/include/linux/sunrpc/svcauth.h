@@ -16,11 +16,10 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/hash.h>
 
-#define SVC_CRED_NGROUPS	32
 struct svc_cred {
 	uid_t			cr_uid;
 	gid_t			cr_gid;
-	struct group_info	*cr_group_info;
+	gid_t			cr_groups[NGROUPS];
 };
 
 struct svc_rqst;		/* forward decl */
@@ -66,10 +65,6 @@ struct auth_domain {
  *      GARBAGE - rpc garbage_args error
  *      SYSERR - rpc system_err error
  *      DENIED - authp holds reason for denial.
- *      COMPLETE - the reply is encoded already and ready to be sent; no
- *		further processing is necessary.  (This is used for processing
- *		null procedure calls which are used to set up encryption
- *		contexts.)
  *
  *   accept is passed the proc number so that it can accept NULL rpc requests
  *   even if it cannot authenticate the client (as is sometimes appropriate).
@@ -87,12 +82,12 @@ struct auth_domain {
  */
 struct auth_ops {
 	char *	name;
-	struct module *owner;
 	int	flavour;
 	int	(*accept)(struct svc_rqst *rq, u32 *authp);
 	int	(*release)(struct svc_rqst *rq);
 	void	(*domain_release)(struct auth_domain *);
 };
+extern struct auth_ops	*authtab[RPC_AUTH_MAXFLAVOR];
 
 #define	SVC_GARBAGE	1
 #define	SVC_SYSERR	2
@@ -102,7 +97,6 @@ struct auth_ops {
 #define	SVC_DROP	6
 #define	SVC_DENIED	7
 #define	SVC_PENDING	8
-#define	SVC_COMPLETE	9
 
 
 extern int	svc_authenticate(struct svc_rqst *rqstp, u32 *authp);

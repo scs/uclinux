@@ -190,7 +190,7 @@ nlm_encode_testres(u32 *p, struct nlm_res *resp)
 	s32		start, len;
 
 	if (!(p = nlm_encode_cookie(p, &resp->cookie)))
-		return NULL;
+		return 0;
 	*p++ = resp->status;
 
 	if (resp->status == nlm_lck_denied) {
@@ -201,7 +201,7 @@ nlm_encode_testres(u32 *p, struct nlm_res *resp)
 
 		/* Encode owner handle. */
 		if (!(p = xdr_encode_netobj(p, &resp->lock.oh)))
-			return NULL;
+			return 0;
 
 		start = loff_t_to_s32(fl->fl_start);
 		if (fl->fl_end == OFFSET_MAX)

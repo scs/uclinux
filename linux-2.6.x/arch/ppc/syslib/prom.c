@@ -126,7 +126,7 @@ finish_device_tree(void)
 
 	/* All newworld pmac machines and CHRPs now use the interrupt tree */
 	for (np = allnodes; np != NULL; np = np->allnext) {
-		if (get_property(np, "interrupt-parent", NULL)) {
+		if (get_property(np, "interrupt-parent", 0)) {
 			use_of_interrupt_tree = 1;
 			break;
 		}
@@ -160,7 +160,7 @@ finish_device_tree(void)
 			   match on /chosen.interrupt_controller */
 			if ((name != NULL
 			     && strcmp(name, "interrupt-controller") == 0)
-			    || (ic != NULL && iclen == 0 && strcmp(name, "AppleKiwi"))) {
+			    || (ic != NULL && iclen == 0)) {
 				if (n == 0)
 					dflt_interrupt_controller = np;
 				++n;
@@ -181,8 +181,8 @@ finish_node(struct device_node *np, unsigned long mem_start,
 	struct device_node *child;
 	int *ip;
 
-	np->name = get_property(np, "name", NULL);
-	np->type = get_property(np, "device_type", NULL);
+	np->name = get_property(np, "name", 0);
+	np->type = get_property(np, "device_type", 0);
 
 	if (!np->name)
 		np->name = "<NULL>";
@@ -197,10 +197,10 @@ finish_node(struct device_node *np, unsigned long mem_start,
 		mem_start = finish_node_interrupts(np, mem_start);
 
 	/* Look for #address-cells and #size-cells properties. */
-	ip = (int *) get_property(np, "#address-cells", NULL);
+	ip = (int *) get_property(np, "#address-cells", 0);
 	if (ip != NULL)
 		naddrc = *ip;
-	ip = (int *) get_property(np, "#size-cells", NULL);
+	ip = (int *) get_property(np, "#size-cells", 0);
 	if (ip != NULL)
 		nsizec = *ip;
 
@@ -217,7 +217,7 @@ finish_node(struct device_node *np, unsigned long mem_start,
 		ifunc = interpret_macio_props;
 	else if (!strcmp(np->type, "isa"))
 		ifunc = interpret_isa_props;
-	else if (!strcmp(np->name, "uni-n") || !strcmp(np->name, "u3"))
+	else if (!strcmp(np->name, "uni-n"))
 		ifunc = interpret_root_props;
 	else if (!((ifunc == interpret_dbdma_props
 		    || ifunc == interpret_macio_props)
@@ -431,21 +431,10 @@ finish_node_interrupts(struct device_node *np, unsigned long mem_start)
 		 * This doesn't cope with the general case of multiple
 		 * cascaded interrupt controllers, but then neither will
 		 * irq.c at the moment either.  -- paulus
-		 * The G5 triggers that code, I add a machine test. On
-		 * those machines, we want to offset interrupts from the
-		 * second openpic by 128 -- BenH
 		 */
-		if (_machine != _MACH_Pmac && num_interrupt_controllers > 1
-		    && ic != NULL
+		if (num_interrupt_controllers > 1 && ic != NULL
 		    && get_property(ic, "interrupt-parent", NULL) == NULL)
 			offset = 16;
-		else if (_machine == _MACH_Pmac && num_interrupt_controllers > 1
-			 && ic != NULL && ic->parent != NULL) {
-			char *name = get_property(ic->parent, "name", NULL);
-			if (name && !strcmp(name, "u3"))
-				offset = 128;
-		}
-
 		np->intrs[i].line = irq[0] + offset;
 		if (n > 1)
 			np->intrs[i].sense = irq[1];
@@ -501,7 +490,7 @@ prom_n_addr_cells(struct device_node* np)
 	do {
 		if (np->parent)
 			np = np->parent;
-		ip = (int *) get_property(np, "#address-cells", NULL);
+		ip = (int *) get_property(np, "#address-cells", 0);
 		if (ip != NULL)
 			return *ip;
 	} while (np->parent);
@@ -516,7 +505,7 @@ prom_n_size_cells(struct device_node* np)
 	do {
 		if (np->parent)
 			np = np->parent;
-		ip = (int *) get_property(np, "#size-cells", NULL);
+		ip = (int *) get_property(np, "#size-cells", 0);
 		if (ip != NULL)
 			return *ip;
 	} while (np->parent);
@@ -836,7 +825,7 @@ find_devices(const char *name)
 			prevp = &np->next;
 		}
 	}
-	*prevp = NULL;
+	*prevp = 0;
 	return head;
 }
 
@@ -855,7 +844,7 @@ find_type_devices(const char *type)
 			prevp = &np->next;
 		}
 	}
-	*prevp = NULL;
+	*prevp = 0;
 	return head;
 }
 
@@ -872,7 +861,7 @@ find_all_nodes(void)
 		*prevp = np;
 		prevp = &np->next;
 	}
-	*prevp = NULL;
+	*prevp = 0;
 	return head;
 }
 
@@ -934,7 +923,7 @@ find_compatible_devices(const char *type, const char *compat)
 			prevp = &np->next;
 		}
 	}
-	*prevp = NULL;
+	*prevp = 0;
 	return head;
 }
 
@@ -1159,7 +1148,7 @@ get_property(struct device_node *np, const char *name, int *lenp)
 				*lenp = pp->length;
 			return pp->value;
 		}
-	return NULL;
+	return 0;
 }
 
 /*
@@ -1223,6 +1212,8 @@ find_parent_pci_resource(struct pci_dev* pdev, struct address_range *range)
  * Request an OF device resource. Currently handles child of PCI devices,
  * or other nodes attached to the root node. Ultimately, put some
  * link to resources in the OF node.
+ * WARNING: out_resource->name should be initialized before calling this
+ * function.
  */
 struct resource* __openfirmware
 request_OF_resource(struct device_node* node, int index, const char* name_postfix)
@@ -1285,7 +1276,7 @@ release_OF_resource(struct device_node* node, int index)
 {
 	struct pci_dev* pcidev;
 	u8 pci_bus, pci_devfn;
-	unsigned long iomask, start, end;
+	unsigned long iomask;
 	struct device_node* nd;
 	struct resource* parent;
 	struct resource *res = NULL;
@@ -1314,23 +1305,18 @@ release_OF_resource(struct device_node* node, int index)
 	if (pcidev)
 		parent = find_parent_pci_resource(pcidev, &node->addrs[index]);
 	if (!parent) {
-		printk(KERN_WARNING "release_OF_resource(%s), parent not found\n",
+		printk(KERN_WARNING "request_OF_resource(%s), parent not found\n",
 			node->name);
 		return -ENODEV;
 	}
 
-	/* Find us in the parent and its childs */
+	/* Find us in the parent */
 	res = parent->child;
-	start = node->addrs[index].address;
-	end = start + node->addrs[index].size - 1;
 	while (res) {
-		if (res->start == start && res->end == end &&
-		    (res->flags & IORESOURCE_BUSY))
+		if (res->start == node->addrs[index].address &&
+		    res->end == (res->start + node->addrs[index].size - 1))
 		    	break;
-		if (res->start <= start && res->end >= end)
-			res = res->child;
-		else
-			res = res->sibling;
+		res = res->sibling;
 	}
 	if (!res)
 		return -ENODEV;

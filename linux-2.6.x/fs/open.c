@@ -23,8 +23,6 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 
-#include <asm/unistd.h>
-
 int vfs_statfs(struct super_block *sb, struct kstatfs *buf)
 {
 	int retval = -ENODEV;
@@ -59,18 +57,9 @@ static int vfs_statfs_native(struct super_block *sb, struct statfs *buf)
 		memcpy(buf, &st, sizeof(st));
 	else {
 		if (sizeof buf->f_blocks == 4) {
-			if ((st.f_blocks | st.f_bfree | st.f_bavail) &
+			if ((st.f_blocks | st.f_bfree |
+			     st.f_bavail | st.f_files | st.f_ffree) &
 			    0xffffffff00000000ULL)
-				return -EOVERFLOW;
-			/*
-			 * f_files and f_ffree may be -1; it's okay to stuff
-			 * that into 32 bits
-			 */
-			if (st.f_files != -1 &&
-			    (st.f_files & 0xffffffff00000000ULL))
-				return -EOVERFLOW;
-			if (st.f_ffree != -1 &&
-			    (st.f_ffree & 0xffffffff00000000ULL))
 				return -EOVERFLOW;
 		}
 
@@ -203,9 +192,7 @@ int do_truncate(struct dentry *dentry, loff_t length)
 	newattrs.ia_size = length;
 	newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
 	down(&dentry->d_inode->i_sem);
-	down_write(&dentry->d_inode->i_alloc_sem);
 	err = notify_change(dentry, &newattrs);
-	up_write(&dentry->d_inode->i_alloc_sem);
 	up(&dentry->d_inode->i_sem);
 	return err;
 }
@@ -337,7 +324,7 @@ asmlinkage long sys_ftruncate64(unsigned int fd, loff_t length)
 }
 #endif
 
-#ifdef __ARCH_WANT_SYS_UTIME
+#if !(defined(__alpha__) || defined(__ia64__))
 
 /*
  * sys_utime() can be implemented in user-level using sys_utimes().
@@ -781,7 +768,7 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 	if (!f)
 		goto cleanup_dentry;
 	f->f_flags = flags;
-	f->f_mode = ((flags+1) & O_ACCMODE) | FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
+	f->f_mode = (flags+1) & O_ACCMODE;
 	inode = dentry->d_inode;
 	if (f->f_mode & FMODE_WRITE) {
 		error = get_write_access(inode);
@@ -790,6 +777,7 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 	}
 
 	f->f_mapping = inode->i_mapping;
+	file_ra_state_init(&f->f_ra, f->f_mapping);
 	f->f_dentry = dentry;
 	f->f_vfsmnt = mnt;
 	f->f_pos = 0;
@@ -803,13 +791,12 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 	}
 	f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
 
-	file_ra_state_init(&f->f_ra, f->f_mapping->host->i_mapping);
-
 	/* NB: we're sure to have correct a_ops only after f_op->open */
 	if (f->f_flags & O_DIRECT) {
-		if (!f->f_mapping->a_ops || !f->f_mapping->a_ops->direct_IO) {
-			fput(f);
-			f = ERR_PTR(-EINVAL);
+		if (!f->f_mapping || !f->f_mapping->a_ops ||
+			!f->f_mapping->a_ops->direct_IO) {
+				fput(f);
+				f = ERR_PTR(-EINVAL);
 		}
 	}
 
@@ -903,7 +890,7 @@ static inline void __put_unused_fd(struct files_struct *files, unsigned int fd)
 		files->next_fd = fd;
 }
 
-void fastcall put_unused_fd(unsigned int fd)
+void put_unused_fd(unsigned int fd)
 {
 	struct files_struct *files = current->files;
 	spin_lock(&files->file_lock);
@@ -926,7 +913,7 @@ EXPORT_SYMBOL(put_unused_fd);
  * will follow.
  */
 
-void fastcall fd_install(unsigned int fd, struct file * file)
+void fd_install(unsigned int fd, struct file * file)
 {
 	struct files_struct *files = current->files;
 	spin_lock(&files->file_lock);
@@ -967,7 +954,6 @@ out_error:
 	fd = error;
 	goto out;
 }
-EXPORT_SYMBOL_GPL(sys_open);
 
 #ifndef __alpha__
 
@@ -1050,7 +1036,7 @@ EXPORT_SYMBOL(sys_close);
 asmlinkage long sys_vhangup(void)
 {
 	if (capable(CAP_SYS_TTY_CONFIG)) {
-		tty_vhangup(current->signal->tty);
+		tty_vhangup(current->tty);
 		return 0;
 	}
 	return -EPERM;
@@ -1070,15 +1056,3 @@ int generic_file_open(struct inode * inode, struct file * filp)
 }
 
 EXPORT_SYMBOL(generic_file_open);
-
-/*
- * This is used by subsystems that don't want seekable
- * file descriptors
- */
-int nonseekable_open(struct inode *inode, struct file *filp)
-{
-	filp->f_mode &= ~(FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE);
-	return 0;
-}
-
-EXPORT_SYMBOL(nonseekable_open);

@@ -34,7 +34,6 @@
 # include <asm/smp.h>
 #endif
 #include <asm/irq.h>
-#include <asm/hw_irq.h>
 
 
 #undef DEBUG
@@ -54,33 +53,21 @@ struct pci_fixup pcibios_fixups[1];
  * synchronization mechanism here.
  */
 
-#define PCI_SAL_ADDRESS(seg, bus, devfn, reg)	\
-	((u64)(seg << 24) | (u64)(bus << 16) |	\
+#define PCI_SAL_ADDRESS(seg, bus, devfn, reg) \
+	((u64)(seg << 24) | (u64)(bus << 16) | \
 	 (u64)(devfn << 8) | (u64)(reg))
 
-/* SAL 3.2 adds support for extended config space. */
-
-#define PCI_SAL_EXT_ADDRESS(seg, bus, devfn, reg)	\
-	((u64)(seg << 28) | (u64)(bus << 20) |		\
-	 (u64)(devfn << 12) | (u64)(reg))
 
 static int
 pci_sal_read (int seg, int bus, int devfn, int reg, int len, u32 *value)
 {
-	u64 addr, mode, data = 0;
 	int result = 0;
+	u64 data = 0;
 
-	if ((seg > 255) || (bus > 255) || (devfn > 255) || (reg > 4095))
+	if (!value || (seg > 255) || (bus > 255) || (devfn > 255) || (reg > 255))
 		return -EINVAL;
 
-	if ((seg | reg) <= 255) {
-		addr = PCI_SAL_ADDRESS(seg, bus, devfn, reg);
-		mode = 0;
-	} else {
-		addr = PCI_SAL_EXT_ADDRESS(seg, bus, devfn, reg);
-		mode = 1;
-	}
-	result = ia64_sal_pci_config_read(addr, mode, len, &data);
+	result = ia64_sal_pci_config_read(PCI_SAL_ADDRESS(seg, bus, devfn, reg), len, &data);
 
 	*value = (u32) data;
 
@@ -90,40 +77,32 @@ pci_sal_read (int seg, int bus, int devfn, int reg, int len, u32 *value)
 static int
 pci_sal_write (int seg, int bus, int devfn, int reg, int len, u32 value)
 {
-	u64 addr, mode;
-
-	if ((seg > 65535) || (bus > 255) || (devfn > 255) || (reg > 4095))
+	if ((seg > 255) || (bus > 255) || (devfn > 255) || (reg > 255))
 		return -EINVAL;
 
-	if ((seg | reg) <= 255) {
-		addr = PCI_SAL_ADDRESS(seg, bus, devfn, reg);
-		mode = 0;
-	} else {
-		addr = PCI_SAL_EXT_ADDRESS(seg, bus, devfn, reg);
-		mode = 1;
-	}
-	return ia64_sal_pci_config_write(addr, mode, len, value);
+	return ia64_sal_pci_config_write(PCI_SAL_ADDRESS(seg, bus, devfn, reg), len, value);
 }
 
-static struct pci_raw_ops pci_sal_ops = {
+struct pci_raw_ops pci_sal_ops = {
 	.read = 	pci_sal_read,
 	.write =	pci_sal_write
 };
 
-struct pci_raw_ops *raw_pci_ops = &pci_sal_ops;
+struct pci_raw_ops *raw_pci_ops = &pci_sal_ops;	/* default to SAL */
+
 
 static int
 pci_read (struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *value)
 {
 	return raw_pci_ops->read(pci_domain_nr(bus), bus->number,
-				 devfn, where, size, value);
+			devfn, where, size, value);
 }
 
 static int
 pci_write (struct pci_bus *bus, unsigned int devfn, int where, int size, u32 value)
 {
 	return raw_pci_ops->write(pci_domain_nr(bus), bus->number,
-				  devfn, where, size, value);
+			devfn, where, size, value);
 }
 
 static struct pci_ops pci_root_ops = {
@@ -134,18 +113,10 @@ static struct pci_ops pci_root_ops = {
 static int __init
 pci_acpi_init (void)
 {
-	struct pci_dev *dev = NULL;
-
-	printk(KERN_INFO "PCI: Using ACPI for IRQ routing\n");
-
-	/*
-	 * PCI IRQ routing is set up by pci_enable_device(), but we
-	 * also do it here in case there are still broken drivers that
-	 * don't use pci_enable_device().
-	 */
-	while ((dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL)
-		acpi_pci_irq_enable(dev);
-
+	if (!acpi_pci_irq_init())
+		printk(KERN_INFO "PCI: Using ACPI for IRQ routing\n");
+	else
+		printk(KERN_WARNING "PCI: Invalid ACPI-PCI IRQ routing table\n");
 	return 0;
 }
 
@@ -168,8 +139,7 @@ alloc_pci_controller (int seg)
 }
 
 static int __devinit
-alloc_resource (char *name, struct resource *root, unsigned long start, unsigned long end,
-		unsigned long flags)
+alloc_resource (char *name, struct resource *root, unsigned long start, unsigned long end, unsigned long flags)
 {
 	struct resource *res;
 
@@ -183,10 +153,8 @@ alloc_resource (char *name, struct resource *root, unsigned long start, unsigned
 	res->end = end;
 	res->flags = flags;
 
-	if (insert_resource(root, res))	{
-		kfree(res);
+	if (insert_resource(root, res))
 		return -EBUSY;
-	}
 
 	return 0;
 }
@@ -331,10 +299,8 @@ pcibios_fixup_device_resources (struct pci_dev *dev, struct pci_bus *bus)
 	struct pci_controller *controller = PCI_CONTROLLER(dev);
 	struct pci_window *window;
 	int i, j;
-	int limit = (dev->hdr_type == PCI_HEADER_TYPE_NORMAL) ? \
-		PCI_ROM_RESOURCE : PCI_NUM_RESOURCES;
 
-	for (i = 0; i < limit; i++) {
+	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
 		if (!dev->resource[i].start)
 			continue;
 
@@ -352,7 +318,6 @@ pcibios_fixup_device_resources (struct pci_dev *dev, struct pci_bus *bus)
 				dev->resource[i].end   += window->offset;
 			}
 		}
-		pci_claim_resource(dev, i);
 	}
 }
 
@@ -425,6 +390,7 @@ pcibios_enable_device (struct pci_dev *dev, int mask)
 	if (ret < 0)
 		return ret;
 
+	printk(KERN_INFO "PCI: Found IRQ %d for device %s\n", dev->irq, pci_name(dev));
 	return acpi_pci_irq_enable(dev);
 }
 
@@ -549,13 +515,4 @@ pcibios_prep_mwi (struct pci_dev *dev)
 		}
 	}
 	return rc;
-}
-
-int pci_vector_resources(int last, int nr_released)
-{
-	int count = nr_released;
-
- 	count += (IA64_LAST_DEVICE_VECTOR - last);
-
-	return count;
 }

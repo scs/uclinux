@@ -13,6 +13,7 @@
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
 #include <asm/addrspace.h>
+#include <asm/ip32/ip32_ints.h>
 
 		.text
 		.set    noreorder

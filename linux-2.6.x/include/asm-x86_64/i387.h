@@ -20,10 +20,8 @@
 #include <asm/uaccess.h>
 
 extern void fpu_init(void);
-extern unsigned int mxcsr_feature_mask;
-extern void mxcsr_feature_mask_init(void);
 extern void init_fpu(struct task_struct *child);
-extern int save_i387(struct _fpstate __user *buf);
+extern int save_i387(struct _fpstate *buf);
 
 static inline int need_signal_i387(struct task_struct *me) 
 { 
@@ -48,19 +46,24 @@ static inline int need_signal_i387(struct task_struct *me)
 
 #define clear_fpu(tsk) do { \
 	if ((tsk)->thread_info->status & TS_USEDFPU) {		\
-		asm volatile("fnclex ; fwait");			\
+		asm volatile("fwait");				\
 		(tsk)->thread_info->status &= ~TS_USEDFPU;	\
 		stts();						\
 	}							\
 } while (0)
 
+#define load_mxcsr(val) do { \
+		unsigned long __mxcsr = ((unsigned long)(val) & 0xffbf); \
+		asm volatile("ldmxcsr %0" : : "m" (__mxcsr)); \
+} while (0)
+
 /*
  * ptrace request handers...
  */
-extern int get_fpregs(struct user_i387_struct __user *buf,
+extern int get_fpregs(struct user_i387_struct *buf,
 		      struct task_struct *tsk);
 extern int set_fpregs(struct task_struct *tsk,
-		      struct user_i387_struct __user *buf);
+		      struct user_i387_struct *buf);
 
 /*
  * i387 state interaction
@@ -72,6 +75,7 @@ extern int set_fpregs(struct task_struct *tsk,
 #define set_fpu_cwd(t,val) ((t)->thread.i387.fxsave.cwd = (val))
 #define set_fpu_swd(t,val) ((t)->thread.i387.fxsave.swd = (val))
 #define set_fpu_fxsr_twd(t,val) ((t)->thread.i387.fxsave.twd = (val))
+#define set_fpu_mxcsr(t,val) ((t)->thread.i387.fxsave.mxcsr = (val)&0xffbf)
 
 static inline int restore_fpu_checking(struct i387_fxsave_struct *fx) 
 { 
@@ -93,7 +97,7 @@ static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
 	return err;
 } 
 
-static inline int save_i387_checking(struct i387_fxsave_struct __user *fx) 
+static inline int save_i387_checking(struct i387_fxsave_struct *fx) 
 { 
 	int err;
 	asm volatile("1:  rex64 ; fxsave (%[fx])\n\t"
@@ -136,9 +140,9 @@ static inline void save_init_fpu( struct task_struct *tsk )
 /* 
  * This restores directly out of user space. Exceptions are handled.
  */
-static inline int restore_i387(struct _fpstate __user *buf)
+static inline int restore_i387(struct _fpstate *buf)
 {
-	return restore_fpu_checking((__force struct i387_fxsave_struct *)buf);
+	return restore_fpu_checking((struct i387_fxsave_struct *)buf);
 }
 
 #endif /* __ASM_X86_64_I387_H */

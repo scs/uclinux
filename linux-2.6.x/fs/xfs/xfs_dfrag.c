@@ -119,11 +119,6 @@ xfs_swapext(
 		tip = XFS_BHVTOI(tbdp);
 	}
 
-	if (ip->i_mount != tip->i_mount) {
-		error =  XFS_ERROR(EINVAL);
-		goto error0;
-	}
-
 	if (ip->i_ino == tip->i_ino) {
 		error =  XFS_ERROR(EINVAL);
 		goto error0;
@@ -152,17 +147,20 @@ xfs_swapext(
 	xfs_lock_inodes(ips, 2, 0, lock_flags);
 
 	/* Check permissions */
-	error = xfs_iaccess(ip, S_IWUSR, NULL);
-	if (error)
+	if ((error = _MAC_XFS_IACCESS(ip, MACWRITE, NULL))) {
 		goto error0;
-
-	error = xfs_iaccess(tip, S_IWUSR, NULL);
-	if (error)
+	}
+	if ((error = _MAC_XFS_IACCESS(tip, MACWRITE, NULL))) {
 		goto error0;
-
-	/* Verify that both files have the same format */
-	if ((ip->i_d.di_mode & S_IFMT) != (tip->i_d.di_mode & S_IFMT)) {
-		error = XFS_ERROR(EINVAL);
+	}
+	if ((current_fsuid(cred) != ip->i_d.di_uid) &&
+	    (error = xfs_iaccess(ip, S_IWUSR, NULL)) &&
+	    !capable_cred(NULL, CAP_FOWNER)) {
+		goto error0;
+	}
+	if ((current_fsuid(cred) != tip->i_d.di_uid) &&
+	    (error = xfs_iaccess(tip, S_IWUSR, NULL)) &&
+	    !capable_cred(NULL, CAP_FOWNER)) {
 		goto error0;
 	}
 

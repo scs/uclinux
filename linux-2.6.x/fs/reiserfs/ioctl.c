@@ -36,7 +36,7 @@ int reiserfs_ioctl (struct inode * inode, struct file * filp, unsigned int cmd,
 	case REISERFS_IOC_GETFLAGS:
 		flags = REISERFS_I(inode) -> i_attrs;
 		i_attrs_to_sd_attrs( inode, ( __u16 * ) &flags );
-		return put_user(flags, (int __user *) arg);
+		return put_user(flags, (int *) arg);
 	case REISERFS_IOC_SETFLAGS: {
 		if (IS_RDONLY(inode))
 			return -EROFS;
@@ -44,7 +44,7 @@ int reiserfs_ioctl (struct inode * inode, struct file * filp, unsigned int cmd,
 		if ((current->fsuid != inode->i_uid) && !capable(CAP_FOWNER))
 			return -EPERM;
 
-		if (get_user(flags, (int __user *) arg))
+		if (get_user(flags, (int *) arg))
 			return -EFAULT;
 
 		if ( ( ( flags ^ REISERFS_I(inode) -> i_attrs) & ( REISERFS_IMMUTABLE_FL | REISERFS_APPEND_FL)) &&
@@ -66,13 +66,13 @@ int reiserfs_ioctl (struct inode * inode, struct file * filp, unsigned int cmd,
 		return 0;
 	}
 	case REISERFS_IOC_GETVERSION:
-		return put_user(inode->i_generation, (int __user *) arg);
+		return put_user(inode->i_generation, (int *) arg);
 	case REISERFS_IOC_SETVERSION:
 		if ((current->fsuid != inode->i_uid) && !capable(CAP_FOWNER))
 			return -EPERM;
 		if (IS_RDONLY(inode))
 			return -EROFS;
-		if (get_user(inode->i_generation, (int __user *) arg))
+		if (get_user(inode->i_generation, (int *) arg))
 			return -EFAULT;	
 		inode->i_ctime = CURRENT_TIME;
 		mark_inode_dirty(inode);
@@ -92,7 +92,6 @@ int reiserfs_unpack (struct inode * inode, struct file * filp)
     int retval = 0;
     int index ;
     struct page *page ;
-    struct address_space *mapping ;
     unsigned long write_from ;
     unsigned long blocksize = inode->i_sb->s_blocksize ;
     	
@@ -123,19 +122,17 @@ int reiserfs_unpack (struct inode * inode, struct file * filp)
     ** reiserfs_get_block to unpack the tail for us.
     */
     index = inode->i_size >> PAGE_CACHE_SHIFT ;
-    mapping = inode->i_mapping ;
-    page = grab_cache_page(mapping, index) ;
+    page = grab_cache_page(inode->i_mapping, index) ;
     retval = -ENOMEM;
     if (!page) {
         goto out ;
     }
-    retval = mapping->a_ops->prepare_write(NULL, page, write_from, write_from) ;
+    retval = reiserfs_prepare_write(NULL, page, write_from, blocksize) ;
     if (retval)
         goto out_unlock ;
 
     /* conversion can change page contents, must flush */
     flush_dcache_page(page) ;
-    retval = mapping->a_ops->commit_write(NULL, page, write_from, write_from) ;
     REISERFS_I(inode)->i_flags |= i_nopack_mask;
 
 out_unlock:

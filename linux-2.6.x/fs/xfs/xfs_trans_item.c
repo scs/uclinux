@@ -397,8 +397,7 @@ xfs_trans_unlock_items(xfs_trans_t *tp, xfs_lsn_t commit_lsn)
  * Stamp the commit lsn into each item if necessary.
  * Free descriptors pointing to items which are not dirty if freeing_chunk
  * is zero. If freeing_chunk is non-zero, then we need to unlock all
- * items in the chunk.
- * 
+ * items in the chunk including those with XFS_LID_SYNC_UNLOCK set.
  * Return the number of descriptors freed.
  */
 STATIC int
@@ -424,9 +423,18 @@ xfs_trans_unlock_chunk(
 
 		if (commit_lsn != NULLCOMMITLSN)
 			IOP_COMMITTING(lip, commit_lsn);
+
+		/* XXXsup */
 		if (abort)
 			lip->li_flags |= XFS_LI_ABORTED;
-		IOP_UNLOCK(lip);
+
+		/* if (abort) {
+			IOP_ABORT(lip);
+		} else */
+		if (!(lidp->lid_flags & XFS_LID_SYNC_UNLOCK) ||
+			   freeing_chunk || abort) {
+			IOP_UNLOCK(lip);
+		}
 
 		/*
 		 * Free the descriptor if the item is not dirty

@@ -22,7 +22,7 @@
  *  support added by Michael Neuffer <mike@i-connect.net>
  *
  *  Added request_module("scsi_hostadapter") for kerneld:
- *  (Put an "alias scsi_hostadapter your_hostadapter" in /etc/modprobe.conf)
+ *  (Put an "alias scsi_hostadapter your_hostadapter" in /etc/modules.conf)
  *  Bjorn Ekwall  <bj0rn@blox.se>
  *  (changed to kmod)
  *
@@ -53,17 +53,9 @@
 #include <linux/spinlock.h>
 #include <linux/kmod.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
-#include <linux/cpu.h>
 
-#include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_dbg.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
-#include <scsi/scsi_tcq.h>
-#include <scsi/scsi_request.h>
+#include "scsi.h"
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
@@ -112,7 +104,7 @@ const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE] = {
 	"Communications   ",
 	"Unknown          ",
 	"Unknown          ",
-	"RAID             ",
+	"Unknown          ",
 	"Enclosure        ",
 };
 
@@ -406,7 +398,7 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 			 * output in scsi_log_completion.
 			 */
 			printk("                 ");
-			scsi_print_command(cmd);
+			print_command(cmd->cmnd);
 			if (level > 3) {
 				printk(KERN_INFO "buffer = 0x%p, bufflen = %d,"
 				       " done = 0x%p, queuecommand 0x%p\n",
@@ -474,13 +466,13 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 				printk("UNKNOWN");
 			}
 			printk(" %8x ", cmd->result);
-			scsi_print_command(cmd);
+			print_command(cmd->cmnd);
 			if (status_byte(cmd->result) & CHECK_CONDITION) {
 				/*
 				 * XXX The print_sense formatting/prefix
 				 * doesn't match this function.
 				 */
-				scsi_print_sense("", cmd);
+				print_sense("", cmd);
 			}
 			if (level > 3) {
 				printk(KERN_INFO "scsi host busy %d failed %d\n",
@@ -695,6 +687,8 @@ static DEFINE_PER_CPU(struct list_head, scsi_done_q);
  */
 void scsi_done(struct scsi_cmnd *cmd)
 {
+	unsigned long flags;
+
 	/*
 	 * We don't have to worry about this one timing out any more.
 	 * If we are unable to remove the timer, then the command
@@ -705,14 +699,6 @@ void scsi_done(struct scsi_cmnd *cmd)
 	 */
 	if (!scsi_delete_timer(cmd))
 		return;
-	__scsi_done(cmd);
-}
-
-/* Private entry to scsi_done() to complete a command when the timer
- * isn't running --- used by scsi_times_out */
-void __scsi_done(struct scsi_cmnd *cmd)
-{
-	unsigned long flags;
 
 	/*
 	 * Set the serial numbers back to zero
@@ -798,7 +784,7 @@ int scsi_retry_command(struct scsi_cmnd *cmd)
          */
 	memset(cmd->sense_buffer, 0, sizeof(cmd->sense_buffer));
 
-	return scsi_queue_insert(cmd, SCSI_MLQUEUE_EH_RETRY);
+	return scsi_dispatch_cmd(cmd);
 }
 
 /*
@@ -861,7 +847,6 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 
 	cmd->done(cmd);
 }
-EXPORT_SYMBOL(scsi_finish_command);
 
 /*
  * Function:	scsi_adjust_queue_depth()
@@ -989,7 +974,7 @@ int scsi_track_queue_full(struct scsi_device *sdev, int depth)
  */
 int scsi_device_get(struct scsi_device *sdev)
 {
-	if (sdev->sdev_state == SDEV_DEL || sdev->sdev_state == SDEV_CANCEL)
+	if (sdev->sdev_state == SDEV_DEL)
 		return -ENXIO;
 	if (!get_device(&sdev->sdev_gendev))
 		return -ENXIO;
@@ -1111,7 +1096,7 @@ int scsi_device_cancel(struct scsi_device *sdev, int recovery)
 	struct list_head *lh, *lh_sf;
 	unsigned long flags;
 
-	scsi_device_set_state(sdev, SDEV_CANCEL);
+	sdev->sdev_state = SDEV_CANCEL;
 
 	spin_lock_irqsave(&sdev->list_lock, flags);
 	list_for_each_entry(scmd, &sdev->cmd_list, list) {
@@ -1143,38 +1128,6 @@ int scsi_device_cancel(struct scsi_device *sdev, int recovery)
 
 	return 0;
 }
-
-#ifdef CONFIG_HOTPLUG_CPU
-static int scsi_cpu_notify(struct notifier_block *self,
-			   unsigned long action, void *hcpu)
-{
-	int cpu = (unsigned long)hcpu;
-
-	switch(action) {
-	case CPU_DEAD:
-		/* Drain scsi_done_q. */
-		local_irq_disable();
-		list_splice_init(&per_cpu(scsi_done_q, cpu),
-				 &__get_cpu_var(scsi_done_q));
-		raise_softirq_irqoff(SCSI_SOFTIRQ);
-		local_irq_enable();
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block __devinitdata scsi_cpu_nb = {
-	.notifier_call	= scsi_cpu_notify,
-};
-
-#define register_scsi_cpu() register_cpu_notifier(&scsi_cpu_nb)
-#define unregister_scsi_cpu() unregister_cpu_notifier(&scsi_cpu_nb)
-#else
-#define register_scsi_cpu()
-#define unregister_scsi_cpu()
-#endif /* CONFIG_HOTPLUG_CPU */
 
 MODULE_DESCRIPTION("SCSI core");
 MODULE_LICENSE("GPL");
@@ -1210,7 +1163,6 @@ static int __init init_scsi(void)
 
 	devfs_mk_dir("scsi");
 	open_softirq(SCSI_SOFTIRQ, scsi_softirq, NULL);
-	register_scsi_cpu();
 	printk(KERN_NOTICE "SCSI subsystem initialized\n");
 	return 0;
 
@@ -1238,7 +1190,6 @@ static void __exit exit_scsi(void)
 	devfs_remove("scsi");
 	scsi_exit_procfs();
 	scsi_exit_queue();
-	unregister_scsi_cpu();
 }
 
 subsys_initcall(init_scsi);

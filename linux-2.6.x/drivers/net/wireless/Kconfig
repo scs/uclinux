@@ -58,7 +58,7 @@ config STRIP
 
 config ARLAN
 	tristate "Aironet Arlan 655 & IC2200 DS support"
-	depends on NET_RADIO && ISA && !64BIT
+	depends on NET_RADIO && ISA
 	---help---
 	  Aironet makes Arlan, a class of wireless LAN adapters. These use the
 	  www.Telxon.com chip, which is also used on several similar cards.
@@ -139,7 +139,7 @@ comment "Wireless 802.11b ISA/PCI cards support"
 
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
-	depends on NET_RADIO && ISA && (PCI || BROKEN)
+	depends on NET_RADIO && (ISA || PCI)
 	---help---
 	  This is the standard Linux driver to support Cisco/Aironet ISA and
 	  PCI 802.11 wireless cards.
@@ -221,29 +221,6 @@ config PCI_HERMES
 	  common.  Some of the built-in wireless adaptors in laptops are of
 	  this variety.
 
-config ATMEL
-      tristate "Atmel at76c50x chipset  802.11b support"
-      depends on NET_RADIO && EXPERIMENTAL
-      select FW_LOADER
-      select CRC32
-       ---help---
-        A driver 802.11b wireless cards based on the Atmel fast-vnet
-        chips. This driver supports standard Linux wireless extensions. 
- 
-        Many  cards based on this chipset do not have flash memory
-        and need their firmware loaded at start-up. If yours is 
-        one of these, you will need to provide a firmware image
-        to be loaded into the card by the driver. The Atmel
-        firmware package can be downloaded from
-        http://www.thekelleys.org.uk/atmel
-
-config PCI_ATMEL
-      tristate "Atmel at76c506 PCI cards"
-      depends on ATMEL && PCI
-       ---help---
-        Enable support for PCI and mini-PCI cards containing the
-        Atmel at76c506 chip.
-
 # If Pcmcia is compiled in, offer Pcmcia cards...
 comment "Wireless 802.11b Pcmcia/Cardbus cards support"
 	depends on NET_RADIO && PCMCIA
@@ -291,13 +268,21 @@ config AIRO_CS
 	  available from <http://www.tldp.org/docs.html#howto>.
 
 config PCMCIA_ATMEL
-	tristate "Atmel at76c502/at76c504 PCMCIA cards"
-	depends on NET_RADIO && ATMEL && PCMCIA
-	select FW_LOADER
-	select CRC32
-	---help---
-	  Enable support for PCMCIA cards containing the
-	  Atmel at76c502 and at76c504 chips.
+      tristate "Atmel at76c502/at76c504 PCMCIA cards"
+      depends on NET_RADIO && EXPERIMENTAL && PCMCIA
+      enable FW_LOADER
+      enable CRC32
+       ---help---
+         A driver for PCMCIA 802.11 wireless cards based on the 
+         Atmel fast-vnet chips. This driver supports standard
+         Linux wireless extensions. 
+ 
+         Many  cards based on this chipset do not have flash memory
+         and need their firmware loaded at start-up. If yours is 
+         one of these, you will need to provide a firmware image
+	 to be loaded into the card by the driver. The Atmel
+	 firmware package can be downloaded from
+	 http://www.thekelleys.org.uk/atmel
 
 config PCMCIA_WL3501
       tristate "Planet WL3501 PCMCIA cards"
@@ -306,54 +291,6 @@ config PCMCIA_WL3501
          A driver for WL3501 PCMCIA 802.11 wireless cards made by Planet.
 	 It has basic support for Linux wireless extensions and initial
 	 micro support for ethtool.
-
-comment "Prism GT/Duette 802.11(a/b/g) PCI/Cardbus support"
-	depends on NET_RADIO && PCI
-config PRISM54
-	tristate 'Intersil Prism GT/Duette/Indigo PCI/Cardbus' 
-	depends on PCI && NET_RADIO && EXPERIMENTAL && HOTPLUG
-	select FW_LOADER
-	---help---
-	  Enable PCI and Cardbus support for the following chipset based cards:
-
-	  ISL3880 - Prism GT            802.11 b/g
-	  ISL3877 - Prism Indigo        802.11 a
-	  ISL3890 - Prism Duette        802.11 a/b/g
-	  
-	  For a complete list of supported cards visit <http://prism54.org>.
-	  Here is the latest confirmed list of supported cards:
-
-	  3com OfficeConnect 11g Cardbus Card aka 3CRWE154G72
-	  Allnet ALL0271 PCI Card
-	  Compex WL54G Cardbus Card
-	  Corega CG-WLCB54GT Cardbus Card
-	  D-Link Air Plus Xtreme G A1 Cardbus Card aka DWL-g650
-	  I-O Data WN-G54/CB Cardbus Card
-	  Kobishi XG-300 aka Z-Com Cardbus Card
-	  Netgear WG511 Cardbus Card
-	  Ovislink WL-5400PCI PCI Card
-	  Peabird WLG-PCI PCI Card
-	  Sitecom WL-100i Cardbus Card
-	  Sitecom WL-110i PCI Card
-	  SMC2802W -    EZ Connect g 2.4GHz 54 Mbps Wireless PCI Card
-	  SMC2835W -    EZ Connect g 2.4GHz 54 Mbps Wireless Cardbus Card
-	  SMC2835W-V2 - EZ Connect g 2.4GHz 54 Mbps Wireless Cardbus Card
-	  Z-Com XG-900 PCI Card
-	  Zyxel G-100 Cardbus Card
-
-	  If you enable this you will need a firmware file as well.
-	  You will need to copy this to /usr/lib/hotplug/firmware/isl3890.
-	  You can get this non-GPL'd firmware file from the Prism54 project page:
-	  <http://prism54.org>
-	  You will also need the /etc/hotplug/firmware.agent script from
-	  a current hotplug package.
-
-	  Note: You need a motherboard with DMA support to use any of these cards 
-	  
-	  If you want to compile the driver as a module ( = code which can be
-	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/modules.txt>.  The module
-	  will be called prism54.ko.
 
 # yes, this works even when no drivers are selected
 config NET_WIRELESS

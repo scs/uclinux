@@ -3,12 +3,26 @@
 #
 # $Id$
 
-# Core functionality.
-mtd-y				:= mtdcore.o
-mtd-$(CONFIG_MTD_PARTITIONS)	+= mtdpart.o
-obj-$(CONFIG_MTD)		+= $(mtd-y)
+#                       *** BIG UGLY NOTE ***
+#
+# The shiny new inter_module_xxx has introduced yet another ugly link
+# order dependency, which I'd previously taken great care to avoid.
+# We now have to ensure that the chip drivers are initialised before the
+# map drivers, and that the doc200[01] drivers are initialised before
+# docprobe.
+#
+# We'll hopefully merge the doc200[01] drivers and docprobe back into
+# a single driver some time soon, but the CFI drivers are going to have
+# to stay like that.
+#
+# Urgh.
+# 
+# dwmw2 21/11/0
 
+# Core functionality.
+obj-$(CONFIG_MTD)		+= mtdcore.o
 obj-$(CONFIG_MTD_CONCAT)	+= mtdconcat.o
+obj-$(CONFIG_MTD_PARTITIONS)	+= mtdpart.o
 obj-$(CONFIG_MTD_REDBOOT_PARTS) += redboot.o
 obj-$(CONFIG_MTD_CMDLINE_PARTS) += cmdlinepart.o
 obj-$(CONFIG_MTD_AFS_PARTS)	+= afs.o

@@ -7,7 +7,6 @@
  */
 
 #include <linux/config.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
@@ -51,16 +50,17 @@
 
 DEFINE_PER_CPU(struct pda_s, pda_percpu);
 
+#define pxm_to_nasid(pxm) ((pxm)<<1)
+
 #define MAX_PHYS_MEMORY		(1UL << 49)     /* 1 TB */
 
 extern void bte_init_node (nodepda_t *, cnodeid_t);
+extern void bte_init_cpu (void);
 extern void sn_timer_init(void);
 extern unsigned long last_time_offset;
 extern void init_platform_hubinfo(nodepda_t **nodepdaindr);
 extern void (*ia64_mark_idle)(int);
 extern void snidle(int);
-extern unsigned char acpi_kbd_controller_present;
-
 
 unsigned long sn_rtc_cycles_per_second;   
 
@@ -70,9 +70,8 @@ u64 sn_partition_serial_number;
 
 short physical_node_map[MAX_PHYSNODE_ID];
 
-EXPORT_SYMBOL(physical_node_map);
+int     numionodes;
 
-int	numionodes;
 /*
  * This is the address of the RRegs in the HSpace of the global
  * master.  It is used by a hack in serial.c (serial_[in|out],
@@ -84,7 +83,6 @@ int	numionodes;
 u64 master_node_bedrock_address;
 
 static void sn_init_pdas(char **);
-static void scan_for_ionodes(void);
 
 
 static nodepda_t	*nodepdaindr[MAX_COMPACT_NODES];
@@ -122,29 +120,6 @@ extern char drive_info[4*16];
 char drive_info[4*16];
 #endif
 
-/*
- * This routine can only be used during init, since
- * smp_boot_data is an init data structure.
- * We have to use smp_boot_data.cpu_phys_id to find
- * the physical id of the processor because the normal
- * cpu_physical_id() relies on data structures that
- * may not be initialized yet.
- */
-
-static int __init
-pxm_to_nasid(int pxm)
-{
-	int i;
-	int nid;
-
-	nid = pxm_to_nid_map[pxm];
-	for (i = 0; i < num_node_memblks; i++) {
-		if (node_memblk[i].nid == nid) {
-			return NASID_GET(node_memblk[i].start_paddr);
-		}
-	}
-	return -1;
-}
 /**
  * early_sn_setup - early setup routine for SN platforms
  *
@@ -193,7 +168,10 @@ early_sn_setup(void)
 	}
 }
 
+#ifdef CONFIG_IA64_MCA
 extern int platform_intr_list[];
+#endif
+
 extern nasid_t master_nasid;
 static int shub_1_1_found __initdata;
 
@@ -225,25 +203,7 @@ sn_check_for_wars(void)
 			shub_1_1_found = 1;
 }
 
-/**
- * sn_set_error_handling_features - Tell the SN prom how to handle certain
- * error types.
- */
-static void __init
-sn_set_error_handling_features(void)
-{
-	u64 ret;
-	u64 sn_ehf_bits[7];	/* see ia64_sn_set_error_handling_features */
-	memset(sn_ehf_bits, 0, sizeof(sn_ehf_bits));
-#define EHF(x) __set_bit(SN_SAL_EHF_ ## x, sn_ehf_bits)
-	EHF(MCA_SLV_TO_OS_INIT_SLV);
-	EHF(NO_RZ_TLBC);
-	// Uncomment once Jesse's code goes in - EHF(NO_RZ_IO_READ); 
-#undef	EHF
-	ret = ia64_sn_set_error_handling_features(sn_ehf_bits);
-	if (ret)
-		printk(KERN_ERR "%s: failed, return code %ld\n", __FUNCTION__, ret);
-}
+
 
 /**
  * sn_setup - SN platform setup routine
@@ -263,22 +223,6 @@ sn_setup(char **cmdline_p)
 	extern void sn_cpu_init(void);
 	extern nasid_t snia_get_console_nasid(void);
 
-	/*
-	 * If the generic code has enabled vga console support - lets
-	 * get rid of it again. This is a kludge for the fact that ACPI
-	 * currtently has no way of informing us if legacy VGA is available
-	 * or not.
-	 */
-#if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
-	if (conswitchp == &vga_con) {
-		printk(KERN_DEBUG "SGI: Disabling VGA console\n");
-#ifdef CONFIG_DUMMY_CONSOLE
-		conswitchp = &dummy_con;
-#else
-		conswitchp = NULL;
-#endif /* CONFIG_DUMMY_CONSOLE */
-	}
-#endif /* def(CONFIG_VT) && def(CONFIG_VGA_CONSOLE) */
 
 	MAX_DMA_ADDRESS = PAGE_OFFSET + MAX_PHYS_MEMORY;
 
@@ -286,19 +230,6 @@ sn_setup(char **cmdline_p)
 	for (pxm=0; pxm<MAX_PXM_DOMAINS; pxm++)
 		if (pxm_to_nid_map[pxm] != -1)
 			physical_node_map[pxm_to_nasid(pxm)] = pxm_to_nid_map[pxm];
-
-
-	/*
-	 * Old PROMs do not provide an ACPI FADT. Disable legacy keyboard
-	 * support here so we don't have to listen to failed keyboard probe
-	 * messages.
-	 */
-	if ((major < 2 || (major == 2 && minor <= 9)) &&
-	    acpi_kbd_controller_present) {
-		printk(KERN_INFO "Disabling legacy keyboard support as prom "
-		       "is too old and doesn't provide FADT\n");
-		acpi_kbd_controller_present = 0;
-	}
 
 	printk("SGI SAL version %x.%02x\n", major, minor);
 
@@ -335,9 +266,6 @@ sn_setup(char **cmdline_p)
 		       master_node_bedrock_address);
 	}
 
-	/* Tell the prom how to handle certain error types */
-	sn_set_error_handling_features();
-
 	/*
 	 * we set the default root device to /dev/hda
 	 * to make simulation easy
@@ -348,6 +276,11 @@ sn_setup(char **cmdline_p)
 	 * Create the PDAs and NODEPDAs for all the cpus.
 	 */
 	sn_init_pdas(cmdline_p);
+
+	/*
+	 * Check for WARs.
+	 */
+	sn_check_for_wars();
 
 	ia64_mark_idle = &snidle;
 
@@ -376,10 +309,18 @@ sn_setup(char **cmdline_p)
  *
  * One time setup for Node Data Area.  Called by sn_setup().
  */
-void __init
+void
 sn_init_pdas(char **cmdline_p)
 {
 	cnodeid_t	cnode;
+	void scan_for_ionodes(void);
+
+	/*
+	 * Make sure that the PDA fits entirely in the same page as the 
+	 * cpu_data area.
+	 */
+	if ((((unsigned long)pda & (~PAGE_MASK)) + sizeof(pda_t)) > PAGE_SIZE)
+		panic("overflow of cpu_data page");
 
 	memset(pda->cnodeid_to_nasid_table, -1, sizeof(pda->cnodeid_to_nasid_table));
 	for (cnode=0; cnode<numnodes; cnode++)
@@ -399,7 +340,7 @@ sn_init_pdas(char **cmdline_p)
 	/*
 	 * Now copy the array of nodepda pointers to each nodepda.
 	 */
-        for (cnode=0; cnode < numionodes; cnode++)
+        for (cnode=0; cnode < numnodes; cnode++)
 		memcpy(nodepdaindr[cnode]->pernode_pdaindr, nodepdaindr, sizeof(nodepdaindr));
 
 
@@ -430,8 +371,7 @@ sn_cpu_init(void)
 	int	cpuphyid;
 	int	nasid;
 	int	slice;
-	int	cnode;
-	static int	wars_have_been_checked;
+	int	cnode, i;
 
 	/*
 	 * The boot cpu makes this call again after platform initialization is
@@ -453,24 +393,16 @@ sn_cpu_init(void)
 	pda->hb_count = HZ/2;
 	pda->hb_state = 0;
 	pda->idle_flag = 0;
-
-	if (cpuid != 0){
-		memcpy(pda->cnodeid_to_nasid_table, pdacpu(0)->cnodeid_to_nasid_table,
-				sizeof(pda->cnodeid_to_nasid_table));
-	}
-
-	/*
-	 * Check for WARs.
-	 * Only needs to be done once, on BSP.
-	 * Has to be done after loop above, because it uses pda.cnodeid_to_nasid_table[i].
-	 * Has to be done before assignment below.
-	 */
-	if (!wars_have_been_checked) {
-		sn_check_for_wars();
-		wars_have_been_checked = 1;
-	}
 	pda->shub_1_1_found = shub_1_1_found;
 	
+	memset(pda->cnodeid_to_nasid_table, -1, sizeof(pda->cnodeid_to_nasid_table));
+	for (i=0; i<numnodes; i++)
+		pda->cnodeid_to_nasid_table[i] = pxm_to_nasid(nid_to_pxm_map[i]);
+
+	if (local_node_data->active_cpu_count == 1)
+		nodepda->node_first_cpu = cpuid;
+
+
 
 	/*
 	 * We must use different memory allocators for first cpu (bootmem 
@@ -490,11 +422,13 @@ sn_cpu_init(void)
 	pda->mem_write_status_addr = (volatile u64 *)
 			LOCAL_MMR_ADDR((slice < 2 ? SH_MEMORY_WRITE_STATUS_0 : SH_MEMORY_WRITE_STATUS_1 ) );
 
-	if (local_node_data->active_cpu_count++ == 0) {
+	if (nodepda->node_first_cpu == cpuid) {
 		int	buddy_nasid;
 		buddy_nasid = cnodeid_to_nasid(numa_node_id() == numnodes-1 ? 0 : numa_node_id()+ 1);
 		pda->pio_shub_war_cam_addr = (volatile unsigned long*)GLOBAL_MMR_ADDR(nasid, SH_PI_CAM_CONTROL);
 	}
+
+	bte_init_cpu();
 }
 
 /*
@@ -502,11 +436,9 @@ sn_cpu_init(void)
  * physical_node_map and the pda and increment numionodes.
  */
 
-static void __init
-scan_for_ionodes(void)
-{
+void
+scan_for_ionodes(void) {
 	int nasid = 0;
-	lboard_t *brd;
 
 	/* Setup ionodes with memory */
 	for (nasid = 0; nasid < MAX_PHYSNODE_ID; nasid +=2) {
@@ -518,40 +450,12 @@ scan_for_ionodes(void)
 
 		klgraph_header = cnodeid = -1;
 		klgraph_header = ia64_sn_get_klconfig_addr(nasid);
-		if (klgraph_header <= 0) {
-			if ( IS_RUNNING_ON_SIMULATOR() )
-				continue;
+		if (klgraph_header <= 0)
 			BUG(); /* All nodes must have klconfig tables! */
-		}
 		cnodeid = nasid_to_cnodeid(nasid);
 		root_lboard[cnodeid] = (lboard_t *)
 					NODE_OFFSET_TO_LBOARD( (nasid),
 					((kl_config_hdr_t *)(klgraph_header))->
 					ch_board_info);
-	}
-
-	/* Scan headless/memless IO Nodes. */
-	for (nasid = 0; nasid < MAX_PHYSNODE_ID; nasid +=2) {
-		/* if there's no nasid, don't try to read the klconfig on the node */
-		if (physical_node_map[nasid] == -1) continue;
-		brd = find_lboard_any((lboard_t *)root_lboard[nasid_to_cnodeid(nasid)], KLTYPE_SNIA);
-		if (brd) {
-			brd = KLCF_NEXT_ANY(brd); /* Skip this node's lboard */
-			if (!brd)
-				continue;
-		}
-
-		brd = find_lboard_any(brd, KLTYPE_SNIA);
-		while (brd) {
-			pda->cnodeid_to_nasid_table[numionodes] = brd->brd_nasid;
-			physical_node_map[brd->brd_nasid] = numionodes;
-			root_lboard[numionodes] = brd;
-			numionodes++;
-			brd = KLCF_NEXT_ANY(brd);
-			if (!brd)
-				break;
-
-			brd = find_lboard_any(brd, KLTYPE_SNIA);
-		}
 	}
 }

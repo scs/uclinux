@@ -28,9 +28,6 @@
 #define GREG_CFG_IBURST		0x00000001	/* Infinite Burst		*/
 #define GREG_CFG_TXDMALIM	0x0000003e	/* TX DMA grant limit		*/
 #define GREG_CFG_RXDMALIM	0x000007c0	/* RX DMA grant limit		*/
-#define GREG_CFG_RONPAULBIT	0x00000800	/* Use mem read multiple for PCI read
-						 * after infinite burst (Apple) */
-#define GREG_CFG_ENBUG2FIX	0x00001000	/* Fix Rx hang after overflow */
 
 /* Global Interrupt Status Register.
  *
@@ -911,7 +908,7 @@ struct gem_rxd {
 	  (GP)->tx_old - (GP)->tx_new - 1)
 
 #define RX_OFFSET          2
-#define RX_BUF_ALLOC_SIZE(gp)	((gp)->rx_buf_sz + 28 + RX_OFFSET + 64)
+#define RX_BUF_ALLOC_SIZE(gp)	((gp)->dev->mtu + 46 + RX_OFFSET + 64)
 
 #define RX_COPY_THRESHOLD  256
 
@@ -979,7 +976,6 @@ struct gem {
 	int			rx_fifo_sz;
 	int			rx_pause_off;
 	int			rx_pause_on;
-	int			rx_buf_sz;
 	int			mii_phy_addr;
 
 	u32			mac_rx_cfg;

@@ -43,10 +43,14 @@ static int __xfrm4_bundle_ok(struct xfrm_dst *xdst, struct flowi *fl)
 }
 
 static struct dst_entry *
-__xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
+__xfrm4_find_bundle(struct flowi *fl, struct rtable *rt, struct xfrm_policy *policy)
 {
 	struct dst_entry *dst;
 
+	if (!fl->fl4_src)
+		fl->fl4_src = rt->rt_src;
+	if (!fl->fl4_dst)
+		fl->fl4_dst = rt->rt_dst;
 	read_lock_bh(&policy->lock);
 	for (dst = policy->bundles; dst; dst = dst->next) {
 		struct xfrm_dst *xdst = (struct xfrm_dst*)dst;
@@ -90,6 +94,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 			goto error;
 		}
 
+		dst1->xfrm = xfrm[i];
 		if (!dst)
 			dst = dst1;
 		else {
@@ -119,12 +124,10 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		dst_hold(&rt->u.dst);
 	}
 	dst_prev->child = &rt->u.dst;
-	i = 0;
 	for (dst_prev = dst; dst_prev != &rt->u.dst; dst_prev = dst_prev->child) {
 		struct xfrm_dst *x = (struct xfrm_dst*)dst_prev;
 		x->u.rt.fl = *fl;
 
-		dst_prev->xfrm = xfrm[i++];
 		dst_prev->dev = rt->u.dst.dev;
 		if (rt->u.dst.dev)
 			dev_hold(rt->u.dst.dev);
@@ -139,7 +142,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		/* Copy neighbout for reachability confirmation */
 		dst_prev->neighbour	= neigh_clone(rt->u.dst.neighbour);
 		dst_prev->input		= rt->u.dst.input;
-		dst_prev->output	= xfrm4_output;
+		dst_prev->output	= dst_prev->xfrm->type->output;
 		if (rt->peer)
 			atomic_inc(&rt->peer->refcnt);
 		x->u.rt.peer = rt->peer;

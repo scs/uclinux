@@ -2,7 +2,7 @@
  * device driver for Conexant 2388x based TV cards
  * video4linux video interface
  *
- * (c) 2003-04 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2003 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define __NO_VERSION__ 1
+
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -30,8 +32,6 @@
 
 #include "cx88.h"
 
-#define V4L2_I2C_CLIENTS 1
-
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
@@ -41,10 +41,6 @@ MODULE_LICENSE("GPL");
 static unsigned int video_nr[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 MODULE_PARM(video_nr,"1-" __stringify(CX88_MAXBOARDS) "i");
 MODULE_PARM_DESC(video_nr,"video device numbers");
-
-static unsigned int vbi_nr[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
-MODULE_PARM(vbi_nr,"1-" __stringify(CX88_MAXBOARDS) "i");
-MODULE_PARM_DESC(vbi_nr,"vbi device numbers");
 
 static unsigned int radio_nr[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 MODULE_PARM(radio_nr,"1-" __stringify(CX88_MAXBOARDS) "i");
@@ -135,74 +131,45 @@ static unsigned int inline norm_htotal(struct cx8800_tvnorm *norm)
 	return (norm->id & V4L2_STD_625_50) ? 1135 : 910;
 }
 
-static unsigned int inline norm_vbipack(struct cx8800_tvnorm *norm)
-{
-	return (norm->id & V4L2_STD_625_50) ? 511 : 288;
-}
-
 static struct cx8800_tvnorm tvnorms[] = {
 	{
 		.name      = "NTSC-M",
 		.id        = V4L2_STD_NTSC_M,
 		.cxiformat = VideoFormatNTSC,
-		.cxoformat = 0x181f0008,
 	},{
 		.name      = "NTSC-JP",
 		.id        = V4L2_STD_NTSC_M_JP,
 		.cxiformat = VideoFormatNTSCJapan,
-		.cxoformat = 0x181f0008,
 #if 0
 	},{
 		.name      = "NTSC-4.43",
 		.id        = FIXME,
 		.cxiformat = VideoFormatNTSC443,
-		.cxoformat = 0x181f0008,
 #endif
 	},{
-		.name      = "PAL-BG",
-		.id        = V4L2_STD_PAL_BG,
+		.name      = "PAL",
+		.id        = V4L2_STD_PAL,
 		.cxiformat = VideoFormatPAL,
-		.cxoformat = 0x181f0008,
-	},{
-		.name      = "PAL-DK",
-		.id        = V4L2_STD_PAL_DK,
-		.cxiformat = VideoFormatPAL,
-		.cxoformat = 0x181f0008,
-	},{
-		.name      = "PAL-I",
-		.id        = V4L2_STD_PAL_I,
-		.cxiformat = VideoFormatPAL,
-		.cxoformat = 0x181f0008,
         },{
 		.name      = "PAL-M",
 		.id        = V4L2_STD_PAL_M,
 		.cxiformat = VideoFormatPALM,
-		.cxoformat = 0x1c1f0008,
 	},{
 		.name      = "PAL-N",
 		.id        = V4L2_STD_PAL_N,
 		.cxiformat = VideoFormatPALN,
-		.cxoformat = 0x1c1f0008,
 	},{
 		.name      = "PAL-Nc",
 		.id        = V4L2_STD_PAL_Nc,
 		.cxiformat = VideoFormatPALNC,
-		.cxoformat = 0x1c1f0008,
 	},{
 		.name      = "PAL-60",
 		.id        = V4L2_STD_PAL_60,
 		.cxiformat = VideoFormatPAL60,
-		.cxoformat = 0x181f0008,
 	},{
-		.name      = "SECAM-L",
-		.id        = V4L2_STD_SECAM_L,
+		.name      = "SECAM",
+		.id        = V4L2_STD_SECAM,
 		.cxiformat = VideoFormatSECAM,
-		.cxoformat = 0x181f0008,
-	},{
-		.name      = "SECAM-DK",
-		.id        = V4L2_STD_SECAM_DK,
-		.cxiformat = VideoFormatSECAM,
-		.cxoformat = 0x181f0008,
 	}
 };
 
@@ -299,10 +266,10 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.default_value = 0,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
-		.off                   = 128,
-		.reg                   = MO_CONTR_BRIGHT,
-		.mask                  = 0x00ff,
-		.shift                 = 0,
+		.off             = 128,
+		.reg             = MO_CONTR_BRIGHT,
+		.mask            = 0x00ff,
+		.shift           = 0,
 	},{
 		.v = {
 			.id            = V4L2_CID_CONTRAST,
@@ -313,42 +280,12 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.default_value = 0,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
-		.reg                   = MO_CONTR_BRIGHT,
-		.mask                  = 0xff00,
-		.shift                 = 8,
-	},{
-		.v = {
-			.id            = V4L2_CID_HUE,
-			.name          = "Hue",
-			.minimum       = 0,
-			.maximum       = 0xff,
-			.step          = 1,
-			.default_value = 0,
-			.type          = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off                   = 0,
-		.reg                   = MO_HUE,
-		.mask                  = 0x00ff,
-		.shift                 = 0,
-	},{
-		/* strictly, this only describes only U saturation.
-		 * V saturation is handled specially through code.
-		 */
-		.v = {
-			.id            = V4L2_CID_SATURATION,
-			.name          = "Saturation",
-			.minimum       = 0,
-			.maximum       = 0xff,
-			.step          = 1,
-			.default_value = 0,
-			.type          = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off                   = 0,
-		.reg                   = MO_UV_SATURATION,
-		.mask                  = 0x00ff,
-		.shift                 = 0,
+		.reg             = MO_CONTR_BRIGHT,
+		.mask            = 0xff00,
+		.shift           = 8,
 	},{
 	/* --- audio --- */
+#if 0
 		.v = {
 			.id            = V4L2_CID_AUDIO_MUTE,
 			.name          = "Mute",
@@ -356,11 +293,11 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.maximum       = 1,
 			.type          = V4L2_CTRL_TYPE_BOOLEAN,
 		},
-		.reg                   = AUD_VOL_CTL,
-		.sreg                  = SHADOW_AUD_VOL_CTL,
-		.mask                  = (1 << 6),
-		.shift                 = 6,
+		.reg             = AUD_VOL_CTL,
+		.mask            = (1 << 6),
+		.shift           = 6,
 	},{
+#endif
 		.v = {
 			.id            = V4L2_CID_AUDIO_VOLUME,
 			.name          = "Volume",
@@ -370,24 +307,9 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.default_value = 0,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
-		.reg                   = AUD_VOL_CTL,
-		.sreg                  = SHADOW_AUD_VOL_CTL,
-		.mask                  = 0x3f,
-		.shift                 = 0,
-	},{
-		.v = {
-			.id            = V4L2_CID_AUDIO_BALANCE,
-			.name          = "Balance",
-			.minimum       = 0,
-			.maximum       = 0x7f,
-			.step          = 1,
-			.default_value = 0x40,
-			.type          = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.reg                   = AUD_BAL_CTL,
-		.sreg                  = SHADOW_AUD_BAL_CTL,
-		.mask                  = 0x7f,
-		.shift                 = 0,
+		.reg             = AUD_VOL_CTL,
+		.mask            = 0x3f,
+		.shift           = 0,
 	}
 };
 const int CX8800_CTLS = ARRAY_SIZE(cx8800_ctls);
@@ -422,11 +344,13 @@ int res_check(struct cx8800_fh *fh, unsigned int bit)
 	return (fh->resources & bit);
 }
 
+#if 0
 static
 int res_locked(struct cx8800_dev *dev, unsigned int bit)
 {
 	return (dev->resources & bit);
 }
+#endif
 
 static
 void res_free(struct cx8800_dev *dev, struct cx8800_fh *fh, unsigned int bits)
@@ -488,42 +412,21 @@ static int set_tvaudio(struct cx8800_dev *dev)
 	if (CX88_VMUX_TELEVISION != INPUT(dev->input)->type)
 		return 0;
 
-	if (V4L2_STD_PAL_BG & dev->tvnorm->id) {
-		dev->tvaudio = nicam ? WW_NICAM_BGDKL : WW_A2_BG;
 
-	} else if (V4L2_STD_PAL_DK & dev->tvnorm->id) {
-		dev->tvaudio = nicam ? WW_NICAM_BGDKL : WW_A2_DK;
-
-	} else if (V4L2_STD_PAL_I & dev->tvnorm->id) {
-		dev->tvaudio = WW_NICAM_I;
-
-	} else if (V4L2_STD_SECAM_L & dev->tvnorm->id) {
-		dev->tvaudio = WW_SYSTEM_L_AM;
-
-	} else if (V4L2_STD_SECAM_DK & dev->tvnorm->id) {
-		dev->tvaudio = WW_A2_DK;
-
-	} else if ((V4L2_STD_NTSC_M & dev->tvnorm->id) ||
-		   (V4L2_STD_PAL_M  & dev->tvnorm->id)) {
-		dev->tvaudio = WW_BTSC;
-
-	} else if (V4L2_STD_NTSC_M_JP & dev->tvnorm->id) {
-		dev->tvaudio = WW_EIAJ;
-
-	} else {
-		printk("%s: tvaudio support needs work for this tv norm [%s], sorry\n",
-		       dev->name, dev->tvnorm->name);
-		dev->tvaudio = 0;
-		return 0;
+	dev->tvaudio = 0;
+	if (dev->tvnorm->id & V4L2_STD_PAL) {
+		if (nicam)
+			dev->tvaudio = WW_NICAM_BGDKL;
+		else
+			dev->tvaudio = WW_A2_BG;
 	}
+	if (0 == dev->tvaudio)
+		return 0;
 
-	cx_andor(MO_AFECFG_IO, 0x1f, 0x0);
+	cx_andor(MO_AFECFG_IO,    0x1f, 0x0);
 	cx88_set_tvaudio(dev);
-	// cx88_set_stereo(dev,V4L2_TUNER_MODE_STEREO);
-
-	cx_write(MO_AUDD_LNGTH, 128/8);  /* fifo size */
-	cx_write(MO_AUDR_LNGTH, 128/8);  /* fifo size */
-	cx_write(MO_AUD_DMACNTRL, 0x03); /* need audio fifo */
+	//cx88_set_stereo(dev,norm->tvaudio, V4L2_TUNER_MODE_MONO);
+	//cx_write(MO_AUD_DMACNTRL, 0x03); /* need audio fifo */
 	return 0;
 }
 
@@ -534,6 +437,7 @@ static int set_tvnorm(struct cx8800_dev *dev, struct cx8800_tvnorm *norm)
 	u32 vdec_clock;
 	u64 tmp64;
 	u32 bdelay,agcdelay,htotal;
+	struct video_channel c;
 	
 	dev->tvnorm = norm;
 	fsc8       = norm_fsc8(norm);
@@ -551,8 +455,8 @@ static int set_tvnorm(struct cx8800_dev *dev, struct cx8800_tvnorm *norm)
 #if 1
 	// FIXME: as-is from DScaler
 	dprintk(1,"set_tvnorm: MO_OUTPUT_FORMAT 0x%08x [old=0x%08x]\n",
-		norm->cxoformat, cx_read(MO_OUTPUT_FORMAT));
-	cx_write(MO_OUTPUT_FORMAT, norm->cxoformat);
+		0x1c1f0008, cx_read(MO_OUTPUT_FORMAT));
+	cx_write(MO_OUTPUT_FORMAT, 0x1c1f0008);
 #endif
 
 	// MO_SCONV_REG = adc clock / video dec clock * 2^17
@@ -590,52 +494,35 @@ static int set_tvnorm(struct cx8800_dev *dev, struct cx8800_tvnorm *norm)
 	dprintk(1,"set_tvnorm: MO_HTOTAL        0x%08x [old=0x%08x,htotal=%d]\n",
 		htotal, cx_read(MO_HTOTAL), (u32)tmp64);
 	cx_write(MO_HTOTAL, htotal);
-
-	// vbi stuff
-	cx_write(MO_VBI_PACKET, ((1 << 11) | /* (norm_vdelay(norm)   << 11) | */
-				 norm_vbipack(norm)));
 	
 	// audio
 	set_tvaudio(dev);
 
 	// tell i2c chips
-#ifdef V4L2_I2C_CLIENTS
-	cx8800_call_i2c_clients(dev,VIDIOC_S_STD,&norm->id);
-#else
-	{
-		struct video_channel c;
-		memset(&c,0,sizeof(c));
-		c.channel = dev->input;
-		c.norm = VIDEO_MODE_PAL;
-		if ((norm->id & (V4L2_STD_NTSC_M|V4L2_STD_NTSC_M_JP)))
-			c.norm = VIDEO_MODE_NTSC;
-		if (norm->id & V4L2_STD_SECAM)
-			c.norm = VIDEO_MODE_SECAM;
-		cx8800_call_i2c_clients(dev,VIDIOCSCHAN,&c);
-	}
-#endif
+	memset(&c,0,sizeof(c));
+	c.channel = dev->input;
+	c.norm = VIDEO_MODE_PAL;
+	if ((norm->id & (V4L2_STD_NTSC_M|V4L2_STD_NTSC_M_JP)))
+		c.norm = VIDEO_MODE_NTSC;
+	if (norm->id & V4L2_STD_SECAM)
+		c.norm = VIDEO_MODE_SECAM;
+	cx8800_call_i2c_clients(dev,VIDIOCSCHAN,&c);
 
 	// done
 	return 0;
 }
 
 static int set_scale(struct cx8800_dev *dev, unsigned int width, unsigned int height,
-		     enum v4l2_field field)
+		     int interlaced)
 {
 	unsigned int swidth  = norm_swidth(dev->tvnorm);
 	unsigned int sheight = norm_maxh(dev->tvnorm);
 	u32 value;
 
-	dprintk(1,"set_scale: %dx%d [%s%s,%s]\n", width, height,
-		V4L2_FIELD_HAS_TOP(field)    ? "T" : "",
-		V4L2_FIELD_HAS_BOTTOM(field) ? "B" : "",
-		dev->tvnorm->name);
-	if (!V4L2_FIELD_HAS_BOTH(field))
-		height *= 2;
+	dprintk(1,"set_scale: %dx%d [%s]\n", width, height, dev->tvnorm->name);
 
 	// recalc H delay and scale registers
 	value = (width * norm_hdelay(dev->tvnorm)) / swidth;
-	value &= 0x3fe;
 	cx_write(MO_HDELAY_EVEN,  value);
 	cx_write(MO_HDELAY_ODD,   value);
 	dprintk(1,"set_scale: hdelay  0x%04x\n", value);
@@ -665,14 +552,9 @@ static int set_scale(struct cx8800_dev *dev, unsigned int width, unsigned int he
 
 	// setup filters
 	value = 0;
-	value |= (1 << 19);        // CFILT (default)
-	if (V4L2_FIELD_INTERLACED == field)
+	value |= (1 << 19);  // CFILT (default)
+	if (interlaced)
 		value |= (1 << 3); // VINT (interlaced vertical scaling)
-	if (width < 385)
-		value |= (1 << 0); // 3-tap interpolation
-	if (width < 193)
-		value |= (1 << 1); // 5-tap interpolation
-
 	cx_write(MO_FILTER_EVEN,  value);
 	cx_write(MO_FILTER_ODD,   value);
 	dprintk(1,"set_scale: filter  0x%04x\n", value);
@@ -682,27 +564,11 @@ static int set_scale(struct cx8800_dev *dev, unsigned int width, unsigned int he
 
 static int video_mux(struct cx8800_dev *dev, unsigned int input)
 {
-	dprintk(1,"video_mux: %d [vmux=%d,gpio=0x%x,0x%x,0x%x,0x%x]\n",
-		input, INPUT(input)->vmux,
-		INPUT(input)->gpio0,INPUT(input)->gpio1,
-		INPUT(input)->gpio2,INPUT(input)->gpio3);
+	dprintk(1,"video_mux: %d [vmux=%d,gpio=0x%x]\n",
+		input, INPUT(input)->vmux, INPUT(input)->gpio0);
 	dev->input = input;
 	cx_andor(MO_INPUT_FORMAT, 0x03 << 14, INPUT(input)->vmux << 14);
 	cx_write(MO_GP0_IO, INPUT(input)->gpio0);
-	cx_write(MO_GP1_IO, INPUT(input)->gpio1);
-	cx_write(MO_GP2_IO, INPUT(input)->gpio2);
-	cx_write(MO_GP3_IO, INPUT(input)->gpio3);
-
-	switch (INPUT(input)->type) {
-	case CX88_VMUX_SVIDEO:
-		cx_set(MO_AFECFG_IO,    0x00000001);
-		cx_set(MO_INPUT_FORMAT, 0x00010010);
-		break;
-	default:
-		cx_clear(MO_AFECFG_IO,    0x00000001);
-		cx_clear(MO_INPUT_FORMAT, 0x00010010);
-		break;
-	}
 	return 0;
 }
 
@@ -715,7 +581,7 @@ static int start_video_dma(struct cx8800_dev    *dev,
 	/* setup fifo + format */
 	cx88_sram_channel_setup(dev, &cx88_sram_channels[SRAM_CH21],
 				buf->bpl, buf->risc.dma);
-	set_scale(dev, buf->vb.width, buf->vb.height, buf->vb.field);
+	set_scale(dev, buf->vb.width, buf->vb.height, 1);
 	cx_write(MO_COLOR_CTRL, buf->fmt->cxformat | ColorFormatGamma);
 
 	/* reset counter */
@@ -855,20 +721,6 @@ buffer_prepare(struct file *file, struct videobuf_buffer *vb,
 					 buf->bpl, buf->bpl,
 					 buf->vb.height >> 1);
 			break;
-		case V4L2_FIELD_SEQ_TB:
-			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist,
-					 0, buf->bpl * (buf->vb.height >> 1),
-					 buf->bpl, 0,
-					 buf->vb.height >> 1);
-			break;
-		case V4L2_FIELD_SEQ_BT:
-			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist,
-					 buf->bpl * (buf->vb.height >> 1), 0,
-					 buf->bpl, 0,
-					 buf->vb.height >> 1);
-			break;
 		default:
 			BUG();
 		}
@@ -943,7 +795,7 @@ static void buffer_release(struct file *file, struct videobuf_buffer *vb)
 	cx88_free_buffer(fh->dev->pci,buf);
 }
 
-struct videobuf_queue_ops cx8800_video_qops = {
+static struct videobuf_queue_ops cx8800_video_qops = {
 	.buf_setup    = buffer_setup,
 	.buf_prepare  = buffer_prepare,
 	.buf_queue    = buffer_queue,
@@ -1180,51 +1032,19 @@ static int setup_window(struct cx8800_dev *dev, struct cx8800_fh *fh,
 
 /* ------------------------------------------------------------------ */
 
-static struct videobuf_queue* get_queue(struct cx8800_fh *fh)
-{
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		return &fh->vidq;
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return &fh->vbiq;
-	default:
-		BUG();
-		return NULL;
-	}
-}
-
-static int get_ressource(struct cx8800_fh *fh)
-{
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		return RESOURCE_VIDEO;
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return RESOURCE_VBI;
-	default:
-		BUG();
-		return 0;
-	}
-}
-
 static int video_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
 	struct cx8800_dev *h,*dev = NULL;
 	struct cx8800_fh *fh;
 	struct list_head *list;
-	enum v4l2_buf_type type = 0;
+	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	int radio = 0;
 	
 	list_for_each(list,&cx8800_devlist) {
 		h = list_entry(list, struct cx8800_dev, devlist);
-		if (h->video_dev->minor == minor) {
-			dev  = h;
-			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		}
-		if (h->vbi_dev->minor == minor) {
-			dev  = h;
-			type = V4L2_BUF_TYPE_VBI_CAPTURE;
-		}
+		if (h->video_dev->minor == minor)
+			dev = h;
 		if (h->radio_dev &&
 		    h->radio_dev->minor == minor) {
 			radio = 1;
@@ -1255,20 +1075,11 @@ static int video_open(struct inode *inode, struct file *file)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx88_buffer));
-	videobuf_queue_init(&fh->vbiq, &cx8800_vbi_qops,
-			    dev->pci, &dev->slock,
-			    V4L2_BUF_TYPE_VBI_CAPTURE,
-			    V4L2_FIELD_SEQ_TB,
-			    sizeof(struct cx88_buffer));
 	init_MUTEX(&fh->vidq.lock);
-	init_MUTEX(&fh->vbiq.lock);
 
 	if (fh->radio) {
 		dprintk(1,"video_open: setting radio device\n");
 		cx_write(MO_GP0_IO, cx88_boards[dev->board].radio.gpio0);
-		cx_write(MO_GP1_IO, cx88_boards[dev->board].radio.gpio1);
-		cx_write(MO_GP2_IO, cx88_boards[dev->board].radio.gpio2);
-		cx_write(MO_GP3_IO, cx88_boards[dev->board].radio.gpio3);
 		dev->tvaudio = WW_FM;
 		cx88_set_tvaudio(dev);
 		cx88_set_stereo(dev,V4L2_TUNER_MODE_STEREO);
@@ -1279,34 +1090,16 @@ static int video_open(struct inode *inode, struct file *file)
 }
 
 static ssize_t
-video_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
+video_read(struct file *file, char *data, size_t count, loff_t *ppos)
 {
 	struct cx8800_fh *fh = file->private_data;
 
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		if (res_locked(fh->dev,RESOURCE_VIDEO))
-			return -EBUSY;
-		return videobuf_read_one(file, &fh->vidq, data, count, ppos);
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		if (!res_get(fh->dev,fh,RESOURCE_VBI))
-			return -EBUSY;
-		return videobuf_read_stream(file, &fh->vbiq, data, count, ppos, 1);
-	default:
-		BUG();
-		return 0;
-	}
+	return videobuf_read_one(file, &fh->vidq, data, count, ppos);
 }
 
 static unsigned int
 video_poll(struct file *file, struct poll_table_struct *wait)
 {
-	struct cx8800_fh *fh = file->private_data;
-
-	if (V4L2_BUF_TYPE_VBI_CAPTURE == fh->type)
-		return videobuf_poll_stream(file, &fh->vbiq, wait);
-
-	/* FIXME */
 	return POLLERR;
 }
 
@@ -1331,15 +1124,6 @@ static int video_release(struct inode *inode, struct file *file)
 		kfree(fh->vidq.read_buf);
 	}
 
-	/* stop vbi capture */
-	if (res_check(fh, RESOURCE_VBI)) {
-		if (fh->vbiq.streaming)
-			videobuf_streamoff(file,&fh->vbiq);
-		if (fh->vbiq.reading)
-			videobuf_read_stop(file,&fh->vbiq);
-		res_free(dev,fh,RESOURCE_VBI);
-	}
-
 	file->private_data = NULL;
 	kfree(fh);
 	return 0;
@@ -1350,7 +1134,7 @@ video_mmap(struct file *file, struct vm_area_struct * vma)
 {
 	struct cx8800_fh *fh = file->private_data;
 
-	return videobuf_mmap_mapper(vma, get_queue(fh));
+	return videobuf_mmap_mapper(vma,&fh->vidq);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1367,25 +1151,14 @@ static int get_control(struct cx8800_dev *dev, struct v4l2_control *ctl)
 	if (NULL == c)
 		return -EINVAL;
 
-	value = c->sreg ? cx_sread(c->sreg) : cx_read(c->reg);
-	switch (ctl->id) {
-	case V4L2_CID_AUDIO_BALANCE:
-		ctl->value = (value & 0x40) ? (value & 0x3f) : (0x40 - (value & 0x3f));
-		break;
-	case V4L2_CID_AUDIO_VOLUME:
-		ctl->value = 0x3f - (value & 0x3f);
-		break;
-	default:
-		ctl->value = ((value + (c->off << c->shift)) & c->mask) >> c->shift;
-		break;
-	}
+	value = cx_read(c->reg);
+	ctl->value = ((value + (c->off << c->shift)) & c->mask) >> c->shift;
 	return 0;
 }
 
 static int set_control(struct cx8800_dev *dev, struct v4l2_control *ctl)
 {
 	struct cx88_ctrl *c = NULL;
-        u32 v_sat_value;
 	u32 value;
 	int i;
 
@@ -1399,49 +1172,9 @@ static int set_control(struct cx8800_dev *dev, struct v4l2_control *ctl)
 		return -ERANGE;
 	if (ctl->value > c->v.maximum)
 		return -ERANGE;
-	switch (ctl->id) {
-	case V4L2_CID_AUDIO_BALANCE:
-		value = (ctl->value < 0x40) ? (0x40 - ctl->value) : ctl->value;
-		break;
-	case V4L2_CID_AUDIO_VOLUME:
-		value = 0x3f - (ctl->value & 0x3f);
-		break;
-	case V4L2_CID_SATURATION:
-		/* special v_sat handling */
-		v_sat_value = ctl->value - (0x7f - 0x5a);
-		if (v_sat_value > 0xff)
-			v_sat_value = 0xff;
-		if (v_sat_value < 0x00)
-			v_sat_value = 0x00;
-		cx_andor(MO_UV_SATURATION, 0xff00, v_sat_value << 8);
-		/* fall through to default route for u_sat */
-	default:
-		value = ((ctl->value - c->off) << c->shift) & c->mask;
-		break;
-	}
-	dprintk(1,"set_control id=0x%X reg=0x%x val=0x%x%s\n",
-		ctl->id, c->reg, value, c->sreg ? " [shadowed]" : "");
-	if (c->sreg) {
-		cx_sandor(c->sreg, c->reg, c->mask, value);
-	} else {
-		cx_andor(c->reg, c->mask, value);
-	}
+	value = ((ctl->value - c->off) << c->shift) & c->mask;
+	cx_andor(c->reg, c->mask, value);
 	return 0;
-}
-
-static void init_controls(struct cx8800_dev *dev)
-{
-	static struct v4l2_control mute = {
-		.id    = V4L2_CID_AUDIO_MUTE,
-		.value = 1,
-	};
-	static struct v4l2_control volume = {
-		.id    = V4L2_CID_AUDIO_VOLUME,
-		.value = 0x3f,
-	};
-
-	set_control(dev,&mute);
-	set_control(dev,&volume);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1460,9 +1193,6 @@ static int cx8800_g_fmt(struct cx8800_dev *dev, struct cx8800_fh *fh,
 			(f->fmt.pix.width * fh->fmt->depth) >> 3;
 		f->fmt.pix.sizeimage =
 			f->fmt.pix.height * f->fmt.pix.bytesperline;
-		return 0;
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		cx8800_vbi_fmt(dev, f);
 		return 0;
 	default:
 		return -EINVAL;
@@ -1487,12 +1217,15 @@ static int cx8800_try_fmt(struct cx8800_dev *dev, struct cx8800_fh *fh,
 		maxw  = norm_maxw(dev->tvnorm);
 		maxh  = norm_maxh(dev->tvnorm);
 
+#if 0
 		if (V4L2_FIELD_ANY == field) {
 			field = (f->fmt.pix.height > maxh/2)
 				? V4L2_FIELD_INTERLACED
 				: V4L2_FIELD_BOTTOM;
 		}
-
+#else
+		field = V4L2_FIELD_INTERLACED;
+#endif
 		switch (field) {
 		case V4L2_FIELD_TOP:
 		case V4L2_FIELD_BOTTOM:
@@ -1505,15 +1238,14 @@ static int cx8800_try_fmt(struct cx8800_dev *dev, struct cx8800_fh *fh,
 		}
 
 		f->fmt.pix.field = field;
-		if (f->fmt.pix.height < 32)
-			f->fmt.pix.height = 32;
-		if (f->fmt.pix.height > maxh)
-			f->fmt.pix.height = maxh;
 		if (f->fmt.pix.width < 48)
 			f->fmt.pix.width = 48;
+		if (f->fmt.pix.height < 32)
+			f->fmt.pix.height = 32;
 		if (f->fmt.pix.width > maxw)
 			f->fmt.pix.width = maxw;
-		f->fmt.pix.width &= ~0x03;
+		if (f->fmt.pix.height > maxh)
+			f->fmt.pix.height = maxh;
 		f->fmt.pix.bytesperline =
 			(f->fmt.pix.width * fmt->depth) >> 3;
 		f->fmt.pix.sizeimage =
@@ -1521,9 +1253,6 @@ static int cx8800_try_fmt(struct cx8800_dev *dev, struct cx8800_fh *fh,
 
 		return 0;
 	}
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		cx8800_vbi_fmt(dev, f);
-		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1544,9 +1273,6 @@ static int cx8800_s_fmt(struct cx8800_dev *dev, struct cx8800_fh *fh,
 		fh->width      = f->fmt.pix.width;
 		fh->height     = f->fmt.pix.height;
 		fh->vidq.field = f->fmt.pix.field;
-		return 0;
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		cx8800_vbi_fmt(dev, f);
 		return 0;
 	default:
 		return -EINVAL;
@@ -1585,9 +1311,9 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			V4L2_CAP_VIDEO_CAPTURE |
 			V4L2_CAP_READWRITE     |
 			V4L2_CAP_STREAMING     |
-			V4L2_CAP_VBI_CAPTURE   |
 #if 0
 			V4L2_CAP_VIDEO_OVERLAY |
+			V4L2_CAP_VBI_CAPTURE   |
 #endif
 			0;
 		if (UNSET != dev->tuner_type)
@@ -1809,68 +1535,36 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 		down(&dev->lock);
 		dev->freq = f->frequency;
-#ifdef V4L2_I2C_CLIENTS
-		cx8800_call_i2c_clients(dev,VIDIOC_S_FREQUENCY,f);
-#else
 		cx8800_call_i2c_clients(dev,VIDIOCSFREQ,&dev->freq);
-#endif
 		up(&dev->lock);
 		return 0;
 	}
 
 	/* --- streaming capture ------------------------------------- */
-	case VIDIOCGMBUF:
-	{
-		struct video_mbuf *mbuf = arg;
-		struct videobuf_queue *q;
-		struct v4l2_requestbuffers req;
-		unsigned int i;
-
-		q = get_queue(fh);
-		memset(&req,0,sizeof(req));
-		req.type   = q->type;
-		req.count  = 8;
-		req.memory = V4L2_MEMORY_MMAP;
-		err = videobuf_reqbufs(file,q,&req);
-		if (err < 0)
-			return err;
-		memset(mbuf,0,sizeof(*mbuf));
-		mbuf->frames = req.count;
-		mbuf->size   = 0;
-		for (i = 0; i < mbuf->frames; i++) {
-			mbuf->offsets[i]  = q->bufs[i]->boff;
-			mbuf->size       += q->bufs[i]->bsize;
-		}
-		return 0;
-	}
 	case VIDIOC_REQBUFS:
-		return videobuf_reqbufs(file, get_queue(fh), arg);
+		return videobuf_reqbufs(file,&fh->vidq,arg);
 
 	case VIDIOC_QUERYBUF:
-		return videobuf_querybuf(get_queue(fh), arg);
+		return videobuf_querybuf(&fh->vidq,arg);
 
 	case VIDIOC_QBUF:
-		return videobuf_qbuf(file, get_queue(fh), arg);
+		return videobuf_qbuf(file,&fh->vidq,arg);
 
 	case VIDIOC_DQBUF:
-		return videobuf_dqbuf(file, get_queue(fh), arg);
+		return videobuf_dqbuf(file,&fh->vidq,arg);
 
 	case VIDIOC_STREAMON:
 	{
-		int res = get_ressource(fh);
-
-                if (!res_get(dev,fh,res))
+                if (!res_get(dev,fh,RESOURCE_VIDEO))
 			return -EBUSY;
-		return videobuf_streamon(file, get_queue(fh));
+		return videobuf_streamon(file,&fh->vidq);
 	}
 	case VIDIOC_STREAMOFF:
 	{
-		int res = get_ressource(fh);
-
-		err = videobuf_streamoff(file, get_queue(fh));
+		err = videobuf_streamoff(file,&fh->vidq);
 		if (err < 0)
 			return err;
-		res_free(dev,fh,res);
+		res_free(dev,fh,RESOURCE_VIDEO);
 		return 0;
 	}
 
@@ -1915,6 +1609,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_TUNER:
 	{
 		struct v4l2_tuner *t = arg;
+		struct video_tuner vt;
 
 		if (t->index > 0)
 			return -EINVAL;
@@ -1924,16 +1619,9 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
                 t->rangelow  = (int)(65*16);
                 t->rangehigh = (int)(108*16);
 		
-#ifdef V4L2_I2C_CLIENTS
-		cx8800_call_i2c_clients(dev,VIDIOC_G_TUNER,t);
-#else
-		{
-			struct video_tuner vt;
-			memset(&vt,0,sizeof(vt));
-			cx8800_call_i2c_clients(dev,VIDIOCGTUNER,&vt);
-			t->signal = vt.signal;
-		}
-#endif
+		memset(&vt,0,sizeof(vt));
+		cx8800_call_i2c_clients(dev,VIDIOCGTUNER,&vt);
+		t->signal = vt.signal;
 		return 0;
 	}
 	case VIDIOC_ENUMINPUT:
@@ -2038,34 +1726,9 @@ static void cx8800_vid_timeout(unsigned long data)
 	spin_unlock_irqrestore(&dev->slock,flags);
 }
 
-static void cx8800_wakeup(struct cx8800_dev *dev,
-			  struct cx88_dmaqueue *q, u32 count)
-{
-	struct cx88_buffer *buf;
-
-	for (;;) {
-		if (list_empty(&q->active))
-			break;
-		buf = list_entry(q->active.next,
-				 struct cx88_buffer, vb.queue);
-		if (buf->count > count)
-			break;
-		do_gettimeofday(&buf->vb.ts);
-		dprintk(2,"[%p/%d] wakeup reg=%d buf=%d\n",buf,buf->vb.i,
-			count, buf->count);
-		buf->vb.state = STATE_DONE;
-		list_del(&buf->vb.queue);
-		wake_up(&buf->vb.done);
-	}
-	if (list_empty(&q->active)) {
-		del_timer(&q->timeout);
-	} else {
-		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
-	}
-}
-
 static void cx8800_vid_irq(struct cx8800_dev *dev)
 {
+	struct cx88_buffer *buf;
 	u32 status, mask, count;
 
 	status = cx_read(MO_VID_INTSTAT);
@@ -2089,31 +1752,33 @@ static void cx8800_vid_irq(struct cx8800_dev *dev)
 	if (status & 0x01) {
 		spin_lock(&dev->slock);
 		count = cx_read(MO_VIDY_GPCNT);
-		cx8800_wakeup(dev, &dev->vidq, count);
-		spin_unlock(&dev->slock);
-	}
-
-	/* risc1 vbi */
-	if (status & 0x08) {
-		spin_lock(&dev->slock);
-		count = cx_read(MO_VBI_GPCNT);
-		cx8800_wakeup(dev, &dev->vbiq, count);
+		for (;;) {
+			if (list_empty(&dev->vidq.active))
+				break;
+			buf = list_entry(dev->vidq.active.next,
+					 struct cx88_buffer, vb.queue);
+			if (buf->count > count)
+				break;
+			do_gettimeofday(&buf->vb.ts);
+			dprintk(2,"[%p/%d] wakeup reg=%d buf=%d\n",buf,buf->vb.i,
+				count, buf->count);
+			buf->vb.state = STATE_DONE;
+			list_del(&buf->vb.queue);
+			wake_up(&buf->vb.done);
+		}
+		if (list_empty(&dev->vidq.active)) {
+			del_timer(&dev->vidq.timeout);
+		} else {
+			mod_timer(&dev->vidq.timeout, jiffies+BUFFER_TIMEOUT);
+		}
 		spin_unlock(&dev->slock);
 	}
 
 	/* risc2 y */
 	if (status & 0x10) {
-		dprintk(2,"stopper video\n");
+		dprintk(2,"stopper\n");
 		spin_lock(&dev->slock);
 		restart_video_queue(dev,&dev->vidq);
-		spin_unlock(&dev->slock);
-	}
-
-	/* risc2 vbi */
-	if (status & 0x80) {
-		dprintk(2,"stopper vbi\n");
-		spin_lock(&dev->slock);
-		cx8800_restart_vbi_queue(dev,&dev->vbiq);
 		spin_unlock(&dev->slock);
 	}
 }
@@ -2166,16 +1831,8 @@ static struct file_operations video_fops =
 struct video_device cx8800_video_template =
 {
 	.name          = "cx8800-video",
-	.type          = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES,
-	.hardware      = 0,
-	.fops          = &video_fops,
-	.minor         = -1,
-};
-
-struct video_device cx8800_vbi_template =
-{
-	.name          = "cx8800-vbi",
-	.type          = VID_TYPE_TELETEXT|VID_TYPE_TUNER,
+	.type          = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_OVERLAY|
+	                 VID_TYPE_CLIPPING|VID_TYPE_SCALES,
 	.hardware      = 0,
 	.fops          = &video_fops,
 	.minor         = -1,
@@ -2301,13 +1958,6 @@ static void cx8800_unregister_video(struct cx8800_dev *dev)
 			video_device_release(dev->radio_dev);
 		dev->radio_dev = NULL;
 	}
-	if (dev->vbi_dev) {
-		if (-1 != dev->vbi_dev->minor)
-			video_unregister_device(dev->vbi_dev);
-		else
-			video_device_release(dev->vbi_dev);
-		dev->vbi_dev = NULL;
-	}
 	if (dev->video_dev) {
 		if (-1 != dev->video_dev->minor)
 			video_unregister_device(dev->video_dev);
@@ -2366,10 +2016,8 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		if (pci_dev->subsystem_vendor == cx88_subids[i].subvendor &&
 		    pci_dev->subsystem_device == cx88_subids[i].subdevice)
 			dev->board = cx88_subids[i].card;
-	if (UNSET == dev->board) {
+	if (UNSET == dev->board)
 		dev->board = CX88_BOARD_UNKNOWN;
-		cx88_card_list(dev);
-	}
         printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
 	       dev->name,pci_dev->subsystem_vendor,
 	       pci_dev->subsystem_device,cx88_boards[dev->board].name,
@@ -2391,14 +2039,13 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	}
 	dev->lmmio = ioremap(pci_resource_start(pci_dev,0),
 			     pci_resource_len(pci_dev,0));
-	dev->bmmio = (u8*)dev->lmmio;
 
 	/* initialize driver struct */
         init_MUTEX(&dev->lock);
 	dev->slock = SPIN_LOCK_UNLOCKED;
 	dev->tvnorm = tvnorms;
 
-	/* init video dma queues */
+	/* init dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
 	INIT_LIST_HEAD(&dev->vidq.queued);
 	dev->vidq.timeout.function = cx8800_vid_timeout;
@@ -2406,16 +2053,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	init_timer(&dev->vidq.timeout);
 	cx88_risc_stopper(dev->pci,&dev->vidq.stopper,
 			  MO_VID_DMACNTRL,0x11,0x00);
-
-	/* init vbi dma queues */
-	INIT_LIST_HEAD(&dev->vbiq.active);
-	INIT_LIST_HEAD(&dev->vbiq.queued);
-	dev->vbiq.timeout.function = cx8800_vbi_timeout;
-	dev->vbiq.timeout.data     = (unsigned long)dev;
-	init_timer(&dev->vbiq.timeout);
-	cx88_risc_stopper(dev->pci,&dev->vbiq.stopper,
-			  MO_VID_DMACNTRL,0x88,0x00);
-
+	
 	/* initialize hardware */
 	cx8800_reset(dev);
 
@@ -2435,8 +2073,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	/* load and configure helper modules */
 	if (TUNER_ABSENT != dev->tuner_type)
 		request_module("tuner");
-	if (cx88_boards[dev->board].needs_tda9887)
-		request_module("tda9887");
 	if (dev->tuner_type != UNSET)
 		cx8800_call_i2c_clients(dev,TUNER_SET_TYPE,&dev->tuner_type);
 
@@ -2451,17 +2087,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	}
 	printk(KERN_INFO "%s: registered device video%d [v4l2]\n",
 	       dev->name,dev->video_dev->minor & 0x1f);
-
-	dev->vbi_dev = vdev_init(dev,&cx8800_vbi_template,"vbi");
-	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
-				    vbi_nr[cx8800_devcount]);
-	if (err < 0) {
-		printk(KERN_INFO "%s: can't register vbi device\n",
-		       dev->name);
-		goto fail3;
-	}
-	printk(KERN_INFO "%s: registered device vbi%d\n",
-	       dev->name,dev->vbi_dev->minor & 0x1f);
 
 	if (dev->has_radio) {
 		dev->radio_dev = vdev_init(dev,&cx8800_radio_template,"radio");
@@ -2483,14 +2108,9 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* initial device configuration */
 	down(&dev->lock);
-	init_controls(dev);
 	set_tvnorm(dev,tvnorms);
 	video_mux(dev,0);
 	up(&dev->lock);
-
-	/* start tvaudio thread */
-	init_completion(&dev->texit);
-	dev->tpid = kernel_thread(cx88_audio_thread, dev, 0);
 	return 0;
 
  fail3:
@@ -2509,11 +2129,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 static void __devexit cx8800_finidev(struct pci_dev *pci_dev)
 {
         struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
-
-	/* stop thread */
-	dev->shutdown = 1;
-	if (dev->tpid >= 0)
-		wait_for_completion(&dev->texit);
 
 	cx8800_shutdown(dev);
 	pci_disable_device(pci_dev);

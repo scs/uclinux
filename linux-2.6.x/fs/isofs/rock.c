@@ -15,7 +15,6 @@
 #include <linux/pagemap.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
-#include <asm/page.h>
 
 #include "rock.h"
 
@@ -41,7 +40,7 @@
 
 #define CONTINUE_DECLS \
   int cont_extent = 0, cont_offset = 0, cont_size = 0;   \
-  void *buffer = NULL
+  void * buffer = 0
 
 #define CHECK_CE	       			\
       {cont_extent = isonum_733(rr->u.CE.extent); \
@@ -306,7 +305,9 @@ int parse_rock_ridge_inode_internal(struct iso_directory_record * de,
 	goto out;
       case SIG('C','L'):
 	ISOFS_I(inode)->i_first_extent = isonum_733(rr->u.CL.location);
-	reloc = isofs_iget(inode->i_sb, ISOFS_I(inode)->i_first_extent, 0);
+	reloc = iget(inode->i_sb,
+		     (ISOFS_I(inode)->i_first_extent <<
+		      ISOFS_SB(inode->i_sb)->s_log_zone_size));
 	if (!reloc)
 		goto out;
 	inode->i_mode = reloc->i_mode;
@@ -357,7 +358,7 @@ int parse_rock_ridge_inode_internal(struct iso_directory_record * de,
   return 0;
 }
 
-static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
+static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr)
 {
 	int slen;
 	int rootflag;
@@ -369,25 +370,16 @@ static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
 		rootflag = 0;
 		switch (slp->flags & ~1) {
 		case 0:
-			if (slp->len > plimit - rpnt)
-				return NULL;
 			memcpy(rpnt, slp->text, slp->len);
 			rpnt+=slp->len;
 			break;
-		case 2:
-			if (rpnt >= plimit)
-				return NULL;
-			*rpnt++='.';
-			break;
 		case 4:
-			if (2 > plimit - rpnt)
-				return NULL;
 			*rpnt++='.';
+			/* fallthru */
+		case 2:
 			*rpnt++='.';
 			break;
 		case 8:
-			if (rpnt >= plimit)
-				return NULL;
 			rootflag = 1;
 			*rpnt++='/';
 			break;
@@ -404,23 +396,17 @@ static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
 			 * If there is another SL record, and this component
 			 * record isn't continued, then add a slash.
 			 */
-			if ((!rootflag) && (rr->u.SL.flags & 1) &&
-			    !(oldslp->flags & 1)) {
-				if (rpnt >= plimit)
-					return NULL;
+			if ((!rootflag) && (rr->u.SL.flags & 1) && !(oldslp->flags & 1))
 				*rpnt++='/';
-			}
 			break;
 		}
 
 		/*
 		 * If this component record isn't continued, then append a '/'.
 		 */
-		if (!rootflag && !(oldslp->flags & 1)) {
-			if (rpnt >= plimit)
-				return NULL;
+		if (!rootflag && !(oldslp->flags & 1))
 			*rpnt++='/';
-		}
+
 	}
 	return rpnt;
 }
@@ -445,15 +431,15 @@ int parse_rock_ridge_inode(struct iso_directory_record * de,
 static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
-        struct iso_inode_info *ei = ISOFS_I(inode);
 	char *link = kmap(page);
 	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
+	unsigned char bufbits = ISOFS_BUFFER_BITS(inode);
 	struct buffer_head *bh;
 	char *rpnt = link;
 	unsigned char *pnt;
 	struct iso_directory_record *raw_inode;
 	CONTINUE_DECLS;
-	unsigned long block, offset;
+	int block;
 	int sig;
 	int len;
 	unsigned char *chr;
@@ -462,21 +448,20 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 	if (!ISOFS_SB(inode->i_sb)->s_rock)
 		panic ("Cannot have symlink with high sierra variant of iso filesystem\n");
 
-	block = ei->i_iget5_block;
+	block = inode->i_ino >> bufbits;
 	lock_kernel();
 	bh = sb_bread(inode->i_sb, block);
 	if (!bh)
 		goto out_noread;
 
-        offset = ei->i_iget5_offset;
-	pnt = (unsigned char *) bh->b_data + offset;
+	pnt = (unsigned char *) bh->b_data + (inode->i_ino & (bufsize - 1));
 
 	raw_inode = (struct iso_directory_record *) pnt;
 
 	/*
 	 * If we go past the end of the buffer, there is some sort of error.
 	 */
-	if (offset + *pnt > bufsize)
+	if ((inode->i_ino & (bufsize - 1)) + *pnt > bufsize)
 		goto out_bad_span;
 
 	/* Now test for possible Rock Ridge extensions which will override
@@ -502,10 +487,7 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 			CHECK_SP(goto out);
 			break;
 		case SIG('S', 'L'):
-			rpnt = get_symlink_chunk(rpnt, rr,
-						 link + (PAGE_SIZE - 1));
-			if (rpnt == NULL)
-				goto out;
+			rpnt = get_symlink_chunk(rpnt, rr);
 			break;
 		case SIG('C', 'E'):
 			/* This tells is if there is a continuation record */

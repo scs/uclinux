@@ -7,15 +7,18 @@ DIRBASE=`basename $PWD`
 
 {
 cat <<EOT
-Please do a
+Linus, please do a
 
-	bk pull bk://gkernel.bkbits.net/$DIRBASE
+	bk pull http://gkernel.bkbits.net/$DIRBASE
 
 This will update the following files:
 
 EOT
 
-bk export -tpatch -hdu -r`bk repogca $LINUS_REPO`,+ | diffstat -p1 2>/dev/null
+bk changes -L -d'$unless(:MERGE:){:CSETREV:\n}' $LINUS_REPO |
+while read rev; do
+  bk export -tpatch -r$rev
+done | diffstat -p1 2>/dev/null
 
 cat <<EOT
 

@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 
 #include <asm/page.h>
+#include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 

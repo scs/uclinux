@@ -6,21 +6,18 @@
  *  Authors:  Bjorn Wesen 
  * 
  *  $Log$
- *  Revision 1.1.1.2  2004/09/07 09:14:14  lgsoft
- *  Import of 2.6.8
+ *  Revision 1.2  2004/09/07 21:09:37  lgsoft
+ *  alpha-2.0
  *
- *  Revision 1.11  2004/05/14 07:58:05  starvik
- *  Merge of changes from 2.4
+ *  Revision 1.1.1.1  2004/07/19 11:41:48  lgsoft
+ *  Import of uClinux 2.6.2
  *
- *  Revision 1.10  2003/10/27 14:51:24  starvik
- *  Removed debugcode
- *
- *  Revision 1.9  2003/10/27 14:50:42  starvik
- *  Changed do_page_fault signature
+ *  Revision 1.1.1.1  2004/07/18 13:20:11  nidhi
+ *  Importing
  *
  *  Revision 1.8  2003/07/04 13:02:48  tobiasa
  *  Moved code snippet from arch/cris/mm/fault.c that searches for fixup code
- *  to seperate function in arch-specific files.
+ *  to separate function in arch-specific files.
  *
  *  Revision 1.7  2003/01/22 06:48:38  starvik
  *  Fixed warnings issued by GCC 3.2.1
@@ -107,6 +104,10 @@
 extern int find_fixup_code(struct pt_regs *);
 extern void die_if_kernel(const char *, struct pt_regs *, long);
 
+asmlinkage void do_invalid_op (struct pt_regs *, unsigned long);
+asmlinkage void do_page_fault(unsigned long address, struct pt_regs *regs,
+			      int error_code);
+
 /* debug of low-level TLB reload */
 #undef DEBUG
 
@@ -142,15 +143,13 @@ volatile pgd_t *current_pgd;
 
 asmlinkage void
 do_page_fault(unsigned long address, struct pt_regs *regs,
-	      int protection, int writeaccess)
+	      int error_code)
 {
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
+	int writeaccess;
 	siginfo_t info;
-
-        D(printk("Page fault for %X at %X, prot %d write %d\n",
-                 address, regs->erp, protection, writeaccess));
 
 	tsk = current;
 
@@ -174,7 +173,7 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 	 */
 
 	if (address >= VMALLOC_START &&
-	    !protection &&
+	    !(error_code & 1) &&
 	    !user_mode(regs))
 		goto vmalloc_fault;
 
@@ -182,6 +181,7 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 	sti();
 
 	mm = tsk->mm;
+	writeaccess = error_code & 2;
 	info.si_code = SEGV_MAPERR;
 
 	/*
@@ -300,7 +300,7 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 		printk(KERN_ALERT "Unable to handle kernel access");
 	printk(" at virtual address %08lx\n",address);
 
-	die_if_kernel("Oops", regs, (writeaccess << 1) | protection);
+	die_if_kernel("Oops", regs, error_code);
 
 	do_exit(SIGKILL);
 

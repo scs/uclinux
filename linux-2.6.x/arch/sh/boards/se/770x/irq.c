@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/irq.h>
-#include <asm/se/se.h>
+#include <asm/hitachi_se.h>
 
 /*
  * Initialize IRQ setting

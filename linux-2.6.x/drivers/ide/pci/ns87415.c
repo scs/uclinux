@@ -25,6 +25,8 @@
 
 #include <asm/io.h>
 
+#include "ns87415.h"
+
 static unsigned int ns87415_count = 0, ns87415_control[MAX_HWIFS] = { 0 };
 
 /*
@@ -196,7 +198,7 @@ static void __init init_hwif_ns87415 (ide_hwif_t *hwif)
 	}
 
 	if (!using_inta)
-		hwif->irq = ide_default_irq(hwif->io_ports[IDE_DATA_OFFSET]);
+		hwif->irq = hwif->channel ? 15 : 14;	/* legacy mode */
 	else if (!hwif->irq && hwif->mate && hwif->mate->irq)
 		hwif->irq = hwif->mate->irq;	/* share IRQ with mate */
 
@@ -215,17 +217,15 @@ static void __init init_hwif_ns87415 (ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
-static ide_pci_device_t ns87415_chipset __devinitdata = {
-	.name		= "NS87415",
-	.init_hwif	= init_hwif_ns87415,
-	.channels	= 2,
-	.autodma	= AUTODMA,
-	.bootable	= ON_BOARD,
-};
+extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
 
 static int __devinit ns87415_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_setup_pci_device(dev, &ns87415_chipset);
+	ide_pci_device_t *d = &ns87415_chipsets[id->driver_data];
+	if (dev->device != d->device)
+		BUG();
+	ide_setup_pci_device(dev, d);
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -233,7 +233,6 @@ static struct pci_device_id ns87415_pci_tbl[] = {
 	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87415, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
-MODULE_DEVICE_TABLE(pci, ns87415_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "NS87415IDE",
@@ -246,7 +245,13 @@ static int ns87415_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void ns87415_ide_exit(void)
+{
+	ide_pci_unregister_driver(&driver);
+}
+
 module_init(ns87415_ide_init);
+module_exit(ns87415_ide_exit);
 
 MODULE_AUTHOR("Mark Lord, Eddie Dost, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for NS87415 IDE");

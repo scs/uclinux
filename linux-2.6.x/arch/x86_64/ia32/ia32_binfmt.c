@@ -32,7 +32,7 @@
 #define AT_SYSINFO 32
 #define AT_SYSINFO_EHDR		33
 
-int sysctl_vsyscall32 = 1;
+int sysctl_vsyscall32;
 
 #define ARCH_DLINFO do {  \
 	if (sysctl_vsyscall32) { \
@@ -46,7 +46,7 @@ struct elf_phdr;
 
 #define IA32_EMULATOR 1
 
-#define ELF_ET_DYN_BASE		(TASK_UNMAPPED_32 + 0x1000000)
+#define ELF_ET_DYN_BASE		(IA32_PAGE_OFFSET/3 + 0x1000000)
 
 #undef ELF_ARCH
 #define ELF_ARCH EM_386
@@ -261,6 +261,7 @@ do {							\
 		set_thread_flag(TIF_ABI_PENDING);		\
 	else							\
 		clear_thread_flag(TIF_ABI_PENDING);		\
+	set_personality((ibcs2)?PER_SVR4:current->personality);	\
 } while (0)
 
 /* Override some function names */
@@ -271,9 +272,19 @@ do {							\
 
 #define load_elf_binary load_elf32_binary
 
+#undef CONFIG_BINFMT_ELF
+#ifdef CONFIG_BINFMT_ELF32
+# define CONFIG_BINFMT_ELF		CONFIG_BINFMT_ELF32
+#endif
+
+#undef CONFIG_BINFMT_ELF_MODULE
+#ifdef CONFIG_BINFMT_ELF32_MODULE
+# define CONFIG_BINFMT_ELF_MODULE	CONFIG_BINFMT_ELF32_MODULE
+#endif
+
 #define ELF_PLAT_INIT(r, load_addr)	elf32_init(r)
-#define setup_arg_pages(bprm, exec_stack)	ia32_setup_arg_pages(bprm, exec_stack)
-int ia32_setup_arg_pages(struct linux_binprm *bprm, int executable_stack);
+#define setup_arg_pages(bprm)		ia32_setup_arg_pages(bprm)
+int ia32_setup_arg_pages(struct linux_binprm *bprm);
 
 #undef start_thread
 #define start_thread(regs,new_rip,new_rsp) do { \
@@ -325,7 +336,7 @@ static void elf32_init(struct pt_regs *regs)
 	me->thread.es = __USER_DS;
 }
 
-int setup_arg_pages(struct linux_binprm *bprm, int executable_stack)
+int setup_arg_pages(struct linux_binprm *bprm)
 {
 	unsigned long stack_base;
 	struct vm_area_struct *mpnt;
@@ -349,21 +360,19 @@ int setup_arg_pages(struct linux_binprm *bprm, int executable_stack)
 		return -ENOMEM;
 	}
 
-	memset(mpnt, 0, sizeof(*mpnt));
-
 	down_write(&mm->mmap_sem);
 	{
 		mpnt->vm_mm = mm;
 		mpnt->vm_start = PAGE_MASK & (unsigned long) bprm->p;
 		mpnt->vm_end = IA32_STACK_TOP;
-		if (executable_stack == EXSTACK_ENABLE_X)
-			mpnt->vm_flags = vm_stack_flags32 |  VM_EXEC;
-		else if (executable_stack == EXSTACK_DISABLE_X)
-			mpnt->vm_flags = vm_stack_flags32 & ~VM_EXEC;
-		else
-			mpnt->vm_flags = vm_stack_flags32;
+		mpnt->vm_flags = vm_stack_flags32; 
  		mpnt->vm_page_prot = (mpnt->vm_flags & VM_EXEC) ? 
  			PAGE_COPY_EXEC : PAGE_COPY;
+		mpnt->vm_ops = NULL;
+		mpnt->vm_pgoff = 0;
+		mpnt->vm_file = NULL;
+		INIT_LIST_HEAD(&mpnt->shared);
+		mpnt->vm_private_data = (void *) 0;
 		insert_vm_struct(mm, mpnt);
 		mm->total_vm = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
 	} 
@@ -372,7 +381,7 @@ int setup_arg_pages(struct linux_binprm *bprm, int executable_stack)
 		struct page *page = bprm->page[i];
 		if (page) {
 			bprm->page[i] = NULL;
-			install_arg_page(mpnt, page, stack_base);
+			put_dirty_page(current,page,stack_base,PAGE_COPY_EXEC);
 		}
 		stack_base += PAGE_SIZE;
 	}
@@ -399,26 +408,3 @@ elf32_map (struct file *filep, unsigned long addr, struct elf_phdr *eppnt, int p
 	return(map_addr);
 }
 
-#ifdef CONFIG_SYSCTL
-/* Register vsyscall32 into the ABI table */
-#include <linux/sysctl.h>
-
-static ctl_table abi_table2[] = {
-	{ 99, "vsyscall32", &sysctl_vsyscall32, sizeof(int), 0644, NULL,
-	  proc_dointvec },
-	{ 0, }
-}; 
-
-static ctl_table abi_root_table2[] = { 
-	{ .ctl_name = CTL_ABI, .procname = "abi", .mode = 0555, 
-	  .child = abi_table2 }, 
-	{ 0 }, 
-}; 
-
-static __init int ia32_binfmt_init(void)
-{ 
-	register_sysctl_table(abi_root_table2, 1);
-	return 0;
-}
-__initcall(ia32_binfmt_init);
-#endif

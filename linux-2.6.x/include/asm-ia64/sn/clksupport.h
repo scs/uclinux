@@ -23,17 +23,20 @@
 #ifndef _ASM_IA64_SN_CLKSUPPORT_H
 #define _ASM_IA64_SN_CLKSUPPORT_H
 
+#include <linux/config.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/addrs.h>
-#include <asm/sn/sn2/addrs.h>
-#include <asm/sn/sn2/shubio.h>
-#include <asm/sn/sn2/shub_mmr.h>
 
 typedef long clkreg_t;
 
 extern unsigned long sn_rtc_cycles_per_second;
 extern unsigned long sn_rtc_per_itc;
 
+
+#include <asm/sn/addrs.h>
+#include <asm/sn/sn2/addrs.h>
+#include <asm/sn/sn2/shubio.h>
+#include <asm/sn/sn2/shub_mmr.h>
 #define RTC_MASK		SH_RTC_MASK
 #define RTC_COUNTER_ADDR	((clkreg_t*)LOCAL_MMR_ADDR(SH_RTC))
 #define RTC_COMPARE_A_ADDR      ((clkreg_t*)LOCAL_MMR_ADDR(SH_RTC))

@@ -37,6 +37,8 @@ MODULE_DESCRIPTION("ESS ESx688 lowlevel module");
 MODULE_CLASSES("{sound}");
 MODULE_LICENSE("GPL");
 
+#define chip_t es1688_t
+
 static int snd_es1688_dsp_command(es1688_t *chip, unsigned char val)
 {
 	int i;
@@ -657,18 +659,15 @@ int snd_es1688_create(snd_card_t * card,
 	chip->dma8 = -1;
 	
 	if ((chip->res_port = request_region(port + 4, 12, "ES1688")) == NULL) {
-		snd_printk(KERN_ERR "es1688: can't grab port 0x%lx\n", port + 4);
 		snd_es1688_free(chip);
 		return -EBUSY;
 	}
 	if (request_irq(irq, snd_es1688_interrupt, SA_INTERRUPT, "ES1688", (void *) chip)) {
-		snd_printk(KERN_ERR "es1688: can't grab IRQ %d\n", irq);
 		snd_es1688_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = irq;
 	if (request_dma(dma8, "ES1688")) {
-		snd_printk(KERN_ERR "es1688: can't grab DMA8 %d\n", dma8);
 		snd_es1688_free(chip);
 		return -EBUSY;
 	}
@@ -750,9 +749,7 @@ int snd_es1688_pcm(es1688_t * chip, int device, snd_pcm_t ** rpcm)
 	sprintf(pcm->name, snd_es1688_chip_id(chip));
 	chip->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
-					      64*1024, 64*1024);
+	snd_pcm_lib_preallocate_isa_pages_for_all(pcm, 64*1024, 64*1024);
 
 	if (rpcm)
 		*rpcm = pcm;

@@ -15,7 +15,6 @@
 #ifndef _ASM_DEC_PROM_H
 #define _ASM_DEC_PROM_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 #include <asm/addrspace.h>
@@ -166,8 +165,5 @@ int _prom_printf(int (*)(char *, ...), char *, ...) __DEC_PROM_O32;
 extern void prom_meminit(u32);
 extern void prom_identify_arch(u32);
 extern void prom_init_cmdline(s32, s32 *, u32);
-
-extern void register_prom_console(void);
-extern void unregister_prom_console(void);
 
 #endif /* _ASM_DEC_PROM_H */

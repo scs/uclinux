@@ -115,7 +115,6 @@ static int romfs_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct buffer_head *bh;
 	struct romfs_super_block *rsb;
-	struct inode *root;
 	int sz;
 
 	/* I would parse the options here, but there are none.. :) */
@@ -155,25 +154,23 @@ static int romfs_fill_super(struct super_block *s, void *data, int silent)
 	      strnlen(rsb->name, ROMFS_MAXFN) + 1 + ROMFH_PAD)
 	     & ROMFH_MASK;
 
-	s->s_op	= &romfs_ops;
-	root = iget(s, sz);
-	if (!root)
-		goto out;
+	brelse(bh);
 
+	s->s_op	= &romfs_ops;
 	s->s_root = d_alloc_root(iget(s, sz));
 
 	if (!s->s_root)
-		goto outiput;
+		goto outnobh;
 
-	brelse(bh);
-	return 0;
-
-outiput:
-	iput(root);
+	/* Ehrhm; sorry.. :)  And thanks to Hans-Joachim Widmaier  :) */
+	if (0) {
 out:
-	brelse(bh);
+		brelse(bh);
 outnobh:
-	return -EINVAL;
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /* That's simple too. */
@@ -457,6 +454,23 @@ err_out:
 	return result;
 }
 
+#ifdef MAGIC_ROM_PTR
+static int
+romfs_romptr(struct file * filp, struct vm_area_struct * vma)
+{
+	struct inode * inode = filp->f_dentry->d_inode;
+
+	vma->vm_pgoff += ROMFS_I(inode)->i_dataoffset >> PAGE_SHIFT;
+
+	if ((vma->vm_flags & VM_WRITE) || bromptr(inode->i_dev, vma))
+		return -ENOSYS;
+
+	vma->vm_start += (ROMFS_I(inode)->i_dataoffset & ~PAGE_MASK);
+
+	return 0;
+}
+#endif
+
 /* Mapping from our types to the kernel */
 
 static struct address_space_operations romfs_aops = {
@@ -466,6 +480,14 @@ static struct address_space_operations romfs_aops = {
 static struct file_operations romfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= romfs_readdir,
+};
+
+struct file_operations romfs_file_operations = {
+	read:		generic_file_read,
+	mmap:		generic_file_mmap,
+#ifdef MAGIC_ROM_PTR
+	romptr:		romfs_romptr,
+#endif
 };
 
 static struct inode_operations romfs_dir_inode_operations = {
@@ -486,7 +508,6 @@ romfs_read_inode(struct inode *i)
 
 	ino = i->i_ino & ROMFH_MASK;
 	i->i_mode = 0;
-
 	/* Loop for finding the real hard link */
 	for(;;) {
 		if (romfs_copyfrom(i, &ri, ino, ROMFH_SIZE) <= 0) {
@@ -531,7 +552,7 @@ romfs_read_inode(struct inode *i)
 			i->i_mode = ino;
 			break;
 		case 2:
-			i->i_fop = &generic_ro_fops;
+			i->i_fop = &romfs_file_operations;
 			i->i_data.a_ops = &romfs_aops;
 			if (nextfh & ROMFH_EXEC)
 				ino |= S_IXUGO;
@@ -592,18 +613,11 @@ static void destroy_inodecache(void)
 		printk(KERN_INFO "romfs_inode_cache: not all structures were freed\n");
 }
 
-static int romfs_remount(struct super_block *sb, int *flags, char *data)
-{
-	*flags |= MS_RDONLY;
-	return 0;
-}
-
 static struct super_operations romfs_ops = {
 	.alloc_inode	= romfs_alloc_inode,
 	.destroy_inode	= romfs_destroy_inode,
 	.read_inode	= romfs_read_inode,
 	.statfs		= romfs_statfs,
-	.remount_fs	= romfs_remount,
 };
 
 static struct super_block *romfs_get_sb(struct file_system_type *fs_type,

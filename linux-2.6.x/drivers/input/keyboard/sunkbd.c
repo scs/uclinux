@@ -11,18 +11,18 @@
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 2 of the License, or 
  * (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * 
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
@@ -77,12 +77,11 @@ struct sunkbd {
 	struct input_dev dev;
 	struct serio *serio;
 	struct work_struct tq;
-	wait_queue_head_t wait;
 	char name[64];
 	char phys[32];
 	char type;
-	volatile s8 reset;
-	volatile s8 layout;
+	volatile char reset;
+	volatile char layout;
 };
 
 /*
@@ -97,13 +96,11 @@ static irqreturn_t sunkbd_interrupt(struct serio *serio,
 
 	if (sunkbd->reset <= -1) {		/* If cp[i] is 0xff, sunkbd->reset will stay -1. */
 		sunkbd->reset = data;		/* The keyboard sends 0xff 0xff 0xID on powerup */
-		wake_up_interruptible(&sunkbd->wait);
 		goto out;
 	}
 
 	if (sunkbd->layout == -1) {
 		sunkbd->layout = data;
-		wake_up_interruptible(&sunkbd->wait);
 		goto out;
 	}
 
@@ -148,7 +145,7 @@ static int sunkbd_event(struct input_dev *dev, unsigned int type, unsigned int c
 		case EV_LED:
 
 			sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_SETLED);
-			sunkbd->serio->write(sunkbd->serio,
+			sunkbd->serio->write(sunkbd->serio, 
 				(!!test_bit(LED_CAPSL, dev->led) << 3) | (!!test_bit(LED_SCROLLL, dev->led) << 2) |
 				(!!test_bit(LED_COMPOSE, dev->led) << 1) | !!test_bit(LED_NUML, dev->led));
 			return 0;
@@ -160,7 +157,7 @@ static int sunkbd_event(struct input_dev *dev, unsigned int type, unsigned int c
 				case SND_CLICK:
 					sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_NOCLICK - value);
 					return 0;
-
+	
 				case SND_BELL:
 					sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_BELLOFF - value);
 					return 0;
@@ -179,19 +176,22 @@ static int sunkbd_event(struct input_dev *dev, unsigned int type, unsigned int c
 
 static int sunkbd_initialize(struct sunkbd *sunkbd)
 {
+	int t;
+
+	t = 1000;
 	sunkbd->reset = -2;
 	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_RESET);
-	wait_event_interruptible_timeout(sunkbd->wait, sunkbd->reset >= 0, HZ);
-	if (sunkbd->reset <0)
-		return -1;
+	while (sunkbd->reset < 0 && --t) mdelay(1);
+	if (!t) return -1;
 
 	sunkbd->type = sunkbd->reset;
 
 	if (sunkbd->type == 4) {	/* Type 4 keyboard */
+		t = 250;
 		sunkbd->layout = -2;
 		sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_LAYOUT);
-		wait_event_interruptible_timeout(sunkbd->wait, sunkbd->layout >= 0, HZ/4);
-		if (sunkbd->layout < 0) return -1;
+		while (sunkbd->layout < 0 && --t) mdelay(1);
+		if (!t) return -1;
 		if (sunkbd->layout & SUNKBD_LAYOUT_5_MASK) sunkbd->type = 5;
 	}
 
@@ -206,11 +206,12 @@ static int sunkbd_initialize(struct sunkbd *sunkbd)
 static void sunkbd_reinit(void *data)
 {
 	struct sunkbd *sunkbd = data;
+	int t = 1000;
 
-	wait_event_interruptible_timeout(sunkbd->wait, sunkbd->reset >= 0, HZ);
+	while (sunkbd->reset < 0 && --t) mdelay(1);
 
 	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_SETLED);
-	sunkbd->serio->write(sunkbd->serio,
+	sunkbd->serio->write(sunkbd->serio, 
 		(!!test_bit(LED_CAPSL, sunkbd->dev.led) << 3) | (!!test_bit(LED_SCROLLL, sunkbd->dev.led) << 2) |
 		(!!test_bit(LED_COMPOSE, sunkbd->dev.led) << 1) | !!test_bit(LED_NUML, sunkbd->dev.led));
 	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_NOCLICK - !!test_bit(SND_CLICK, sunkbd->dev.snd));
@@ -231,14 +232,13 @@ static void sunkbd_connect(struct serio *serio, struct serio_dev *dev)
 
 	if ((serio->type & SERIO_PROTO) && (serio->type & SERIO_PROTO) != SERIO_SUNKBD)
 		return;
-
+	
 	if (!(sunkbd = kmalloc(sizeof(struct sunkbd), GFP_KERNEL)))
 		return;
 
 	memset(sunkbd, 0, sizeof(struct sunkbd));
 
 	init_input_dev(&sunkbd->dev);
-	init_waitqueue_head(&sunkbd->wait);
 
 	sunkbd->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_LED) | BIT(EV_SND) | BIT(EV_REP);
 	sunkbd->dev.ledbit[0] = BIT(LED_CAPSL) | BIT(LED_COMPOSE) | BIT(LED_SCROLLL) | BIT(LED_NUML);
@@ -275,7 +275,7 @@ static void sunkbd_connect(struct serio *serio, struct serio_dev *dev)
 		set_bit(sunkbd->keycode[i], sunkbd->dev.keybit);
 	clear_bit(0, sunkbd->dev.keybit);
 
-	sprintf(sunkbd->phys, "%s/input0", serio->phys);
+	sprintf(sunkbd->name, "%s/input", serio->phys);
 
 	sunkbd->dev.name = sunkbd->name;
 	sunkbd->dev.phys = sunkbd->phys;

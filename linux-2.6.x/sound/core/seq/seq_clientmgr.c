@@ -1,6 +1,6 @@
 /*
  *  ALSA sequencer Client Manager
- *  Copyright (c) 1998-2001 by Frank van de Pol <fvdpol@coil.demon.nl>
+ *  Copyright (c) 1998-2001 by Frank van de Pol <fvdpol@home.nl>
  *                             Jaroslav Kysela <perex@suse.cz>
  *                             Takashi Iwai <tiwai@suse.de>
  *
@@ -137,7 +137,7 @@ client_t *snd_seq_client_use_ptr(int clientid)
 		if (clientid < 64) {
 			int idx;
 			
-			if (! client_requested[clientid] && current->fs->root) {
+			if (! client_requested[clientid]) {
 				client_requested[clientid] = 1;
 				for (idx = 0; idx < 64; idx++) {
 					if (seq_client_load[idx] < 0)
@@ -328,7 +328,7 @@ static int snd_seq_open(struct inode *inode, struct file *file)
 	up(&register_mutex);
 
 	c = client->number;
-	file->private_data = client;
+	(user_client_t *) file->private_data = client;
 
 	/* fill client data */
 	user->file = file;
@@ -547,36 +547,6 @@ static int update_timestamp_of_queue(snd_seq_event_t *event, int queue, int real
 
 
 /*
- * expand a quoted event.
- */
-static int expand_quoted_event(snd_seq_event_t *event)
-{
-	snd_seq_event_t *quoted;
-
-	quoted = event->data.quote.event;
-	if (quoted == NULL) {
-		snd_printd("seq: quoted event is NULL\n");
-		return -EINVAL;
-	}
-
-	event->type = quoted->type;
-	event->tag = quoted->tag;
-	event->source = quoted->source;
-	/* don't use quoted destination */
-	event->data = quoted->data;
-	/* use quoted timestamp only if subscription/port didn't update it */
-	if (event->queue == SNDRV_SEQ_QUEUE_DIRECT) {
-		event->flags = quoted->flags;
-		event->queue = quoted->queue;
-		event->time = quoted->time;
-	} else {
-		event->flags = (event->flags & SNDRV_SEQ_TIME_STAMP_MASK)
-			| (quoted->flags & ~SNDRV_SEQ_TIME_STAMP_MASK);
-	}
-	return 0;
-}
-
-/*
  * deliver an event to the specified destination.
  * if filter is non-zero, client filter bitmap is tested.
  *
@@ -611,9 +581,12 @@ static int snd_seq_deliver_single_event(client_t *client,
 		update_timestamp_of_queue(event, dest_port->time_queue,
 					  dest_port->time_real);
 
+	/* expand the quoted event */
 	if (event->type == SNDRV_SEQ_EVENT_KERNEL_QUOTE) {
 		quoted = 1;
-		if (expand_quoted_event(event) < 0) {
+		event = event->data.quote.event;
+		if (event == NULL) {
+			snd_printd("seq: quoted event is NULL\n");
 			result = 0; /* do not send bounce error */
 			goto __skip;
 		}
@@ -721,8 +694,8 @@ static int port_broadcast_event(client_t *client,
 	if (dest_client == NULL)
 		return 0; /* no matching destination */
 
-	read_lock(&dest_client->ports_lock);
-	list_for_each(p, &dest_client->ports_list_head) {
+	read_lock(&client->ports_lock);
+	list_for_each(p, &client->ports_list_head) {
 		client_port_t *port = list_entry(p, client_port_t, list);
 		event->dest.port = port->addr.port;
 		/* pass NULL as source client to avoid error bounce */
@@ -733,7 +706,7 @@ static int port_broadcast_event(client_t *client,
 			break;
 		num_ev++;
 	}
-	read_unlock(&dest_client->ports_lock);
+	read_unlock(&client->ports_lock);
 	snd_seq_client_unlock(dest_client);
 	event->dest.port = SNDRV_SEQ_ADDRESS_BROADCAST; /* restore */
 	return (err < 0) ? err : num_ev;
@@ -1055,7 +1028,7 @@ static ssize_t snd_seq_write(struct file *file, const char __user *buf, size_t c
 		} else {
 #if defined(CONFIG_SND_BIT32_EMUL) || defined(CONFIG_SND_BIT32_EMUL_MODULE)
 			if (client->convert32 && snd_seq_ev_is_varusr(&event)) {
-				void *ptr = compat_ptr(event.data.raw32.d[1]);
+				void *ptr = (void*)A(event.data.raw32.d[1]);
 				event.data.ext.ptr = ptr;
 			}
 #endif
@@ -2154,17 +2127,17 @@ static int snd_seq_do_ioctl(client_t *client, unsigned int cmd, void __user *arg
 	switch (cmd) {
 	case SNDRV_SEQ_IOCTL_PVERSION:
 		/* return sequencer version number */
-		return put_user(SNDRV_SEQ_VERSION, (int __user *)arg) ? -EFAULT : 0;
+		return put_user(SNDRV_SEQ_VERSION, (int *)arg) ? -EFAULT : 0;
 	case SNDRV_SEQ_IOCTL_CLIENT_ID:
 		/* return the id of this client */
-		return put_user(client->number, (int __user *)arg) ? -EFAULT : 0;
+		return put_user(client->number, (int *)arg) ? -EFAULT : 0;
 	}
 
 	if (! arg)
 		return -EFAULT;
 	for (p = ioctl_tables; p->cmd; p++) {
 		if (p->cmd == cmd)
-			return p->func(client, arg);
+			return p->func(client, (void __user *) arg);
 	}
 	snd_printd("seq unknown ioctl() 0x%x (type='%c', number=0x%2x)\n",
 		   cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
@@ -2348,7 +2321,7 @@ int snd_seq_kernel_client_dispatch(int client, snd_seq_event_t * ev,
  * exported, called by kernel clients to perform same functions as with
  * userland ioctl() 
  */
-int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
+int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void __user *arg)
 {
 	client_t *client;
 	mm_segment_t fs;

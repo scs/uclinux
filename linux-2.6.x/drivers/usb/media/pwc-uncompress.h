@@ -24,15 +24,9 @@
 #define PWC_UNCOMPRESS_H
 
 #include <linux/config.h>
-#include <linux/linkage.h>
 #include <linux/list.h>
 
-#include "pwc-ioctl.h"
-
-/* from pwc-dec.h */
-#define PWCX_FLAG_PLANAR        0x0001
-/* */
-
+#include "pwc.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,11 +42,10 @@ struct pwc_decompressor
 	int  type;		/* type of camera (645, 680, etc) */
 	int  table_size;	/* memory needed */
 
-	void (* init)(int type, int release, void *buffer, void *table);	/* Initialization routine; should be called after each set_video_mode */
+	void (* init)(int release, void *buffer, void *table);	/* Initialization routine; should be called after each set_video_mode */
 	void (* exit)(void);	/* Cleanup routine */
-	void (* decompress)(struct pwc_coord *image, struct pwc_coord *view,
-			    struct pwc_coord *offset,
-                            void *src, void *dst, int flags,
+	void (* decompress)(struct pwc_coord *image, struct pwc_coord *view, struct pwc_coord *offset,
+                            void *src, void *dst, int planar,
 	                    void *table, int bandlength);
 	void (* lock)(void);	/* make sure module cannot be unloaded */
 	void (* unlock)(void);	/* release lock on module */

@@ -35,7 +35,7 @@
 #include "power.h"
 
 
-extern asmlinkage int pmdisk_arch_suspend(int resume);
+extern int pmdisk_arch_suspend(int resume);
 
 #define __ADDRESS(x)  ((unsigned long) phys_to_virt(x))
 #define ADDRESS(x) __ADDRESS((x) << PAGE_SHIFT)
@@ -732,6 +732,19 @@ int pmdisk_resume(void)
 
 /* More restore stuff */
 
+/* FIXME: Why not memcpy(to, from, 1<<pagedir_order*PAGE_SIZE)? */
+static void __init copy_pagedir(suspend_pagedir_t *to, suspend_pagedir_t *from)
+{
+	int i;
+	char *topointer=(char *)to, *frompointer=(char *)from;
+
+	for(i=0; i < 1 << pagedir_order; i++) {
+		copy_page(topointer, frompointer);
+		topointer += PAGE_SIZE;
+		frompointer += PAGE_SIZE;
+	}
+}
+
 #define does_collide(addr) does_collide_order(pm_pagedir_nosave, addr, 0)
 
 /*
@@ -779,10 +792,9 @@ static int __init relocate_pagedir(void)
 	 * We have to avoid recursion (not to overflow kernel stack),
 	 * and that's why code looks pretty cryptic 
 	 */
-	suspend_pagedir_t *old_pagedir = pm_pagedir_nosave;
+	suspend_pagedir_t *new_pagedir, *old_pagedir = pm_pagedir_nosave;
 	void **eaten_memory = NULL;
 	void **c = eaten_memory, *m, *f;
-	int err;
 
 	pr_debug("pmdisk: Relocating pagedir\n");
 
@@ -791,31 +803,32 @@ static int __init relocate_pagedir(void)
 		return 0;
 	}
 
-	err = -ENOMEM;
-	while ((m = (void *) __get_free_pages(GFP_ATOMIC, pagedir_order)) != NULL) {
-		if (!does_collide_order(old_pagedir, (unsigned long)m,
-					pagedir_order)) {
-			pm_pagedir_nosave =
-				memcpy(m, old_pagedir,
-				       PAGE_SIZE << pagedir_order);
-			err = 0;
+	while ((m = (void *) __get_free_pages(GFP_ATOMIC, pagedir_order))) {
+		memset(m, 0, PAGE_SIZE);
+		if (!does_collide_order(old_pagedir, (unsigned long)m, pagedir_order))
 			break;
-		}
 		eaten_memory = m;
 		printk( "." ); 
 		*eaten_memory = c;
 		c = eaten_memory;
 	}
 
+	if (!m)
+		return -ENOMEM;
+
+	pm_pagedir_nosave = new_pagedir = m;
+	copy_pagedir(new_pagedir, old_pagedir);
+
 	c = eaten_memory;
 	while(c) {
 		printk(":");
-		f = c;
+		f = *c;
 		c = *c;
-		free_pages((unsigned long)f, pagedir_order);
+		if (f)
+			free_pages((unsigned long)f, pagedir_order);
 	}
 	printk("|\n");
-	return err;
+	return 0;
 }
 
 
@@ -846,6 +859,7 @@ static int end_io(struct bio * bio, unsigned int num, int err)
 
 static void wait_io(void)
 {
+	blk_run_queues();
 	while(atomic_read(&io_done))
 		io_schedule();
 }
@@ -884,7 +898,7 @@ static int submit(int rw, pgoff_t page_off, void * page)
 	if (rw == WRITE)
 		bio_set_pages_dirty(bio);
 	start_io();
-	submit_bio(rw | (1 << BIO_RW_SYNC), bio);
+	submit_bio(rw,bio);
 	wait_io();
  Done:
 	bio_put(bio);
@@ -953,7 +967,7 @@ static const char * __init sanity_check(void)
 		return "machine";
 	if(pmdisk_info.cpus != num_online_cpus())
 		return "number of cpus";
-	return NULL;
+	return 0;
 }
 
 
@@ -1107,11 +1121,11 @@ int __init pmdisk_read(void)
 	resume_device = name_to_dev_t(resume_file);
 	pr_debug("pmdisk: Resume From Partition: %s\n", resume_file);
 
-	resume_bdev = open_by_devnum(resume_device, FMODE_READ);
+	resume_bdev = open_by_devnum(resume_device, FMODE_READ, BDEV_RAW);
 	if (!IS_ERR(resume_bdev)) {
 		set_blocksize(resume_bdev, PAGE_SIZE);
 		error = read_suspend_image();
-		blkdev_put(resume_bdev);
+		blkdev_put(resume_bdev, BDEV_RAW);
 	} else
 		error = PTR_ERR(resume_bdev);
 

@@ -15,7 +15,7 @@
 #include <asm/irq.h>
 
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 #include "wd33c93.h"
 #include "a3000.h"
 

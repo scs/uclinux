@@ -60,7 +60,7 @@
 #define _PAGE_SILENT_WRITE          (1<<8)
 #define _CACHE_MASK                 (7<<9)
 
-#ifdef CONFIG_CPU_SB1
+#if defined(CONFIG_CPU_SB1)
 
 /* No penalty for being coherent on the SB1, so just
    use it for "noncoherent" spaces, too.  Shouldn't hurt. */
@@ -69,20 +69,6 @@
 #define _CACHE_CACHABLE_COW         (5<<9)
 #define _CACHE_CACHABLE_NONCOHERENT (5<<9)
 #define _CACHE_UNCACHED_ACCELERATED (7<<9)
-
-#elif defined(CONFIG_CPU_RM9000)
-
-#define _CACHE_WT			(0 << 9)
-#define _CACHE_WTWA			(1 << 9)
-#define _CACHE_UC_B			(2 << 9)
-#define _CACHE_WB			(3 << 9)
-#define _CACHE_CWBEA			(4 << 9)
-#define _CACHE_CWB			(5 << 9)
-#define _CACHE_UCNB			(6 << 9)
-#define _CACHE_FPC			(7 << 9)
-
-#define _CACHE_UNCACHED			_CACHE_UC_B
-#define _CACHE_CACHABLE_NONCOHERENT	_CACHE_WB
 
 #else
 
@@ -105,10 +91,8 @@
 
 #ifdef CONFIG_MIPS_UNCACHED
 #define PAGE_CACHABLE_DEFAULT	_CACHE_UNCACHED
-#elif defined(CONFIG_DMA_NONCOHERENT)
+#elif defined(CONFIG_NONCOHERENT_IO)
 #define PAGE_CACHABLE_DEFAULT	_CACHE_CACHABLE_NONCOHERENT
-#elif defined(CONFIG_CPU_RM9000)
-#define PAGE_CACHABLE_DEFAULT	_CACHE_CWBEA
 #else
 #define PAGE_CACHABLE_DEFAULT	_CACHE_CACHABLE_COW
 #endif

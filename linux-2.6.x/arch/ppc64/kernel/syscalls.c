@@ -22,7 +22,6 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/syscalls.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
@@ -57,7 +56,7 @@ check_bugs(void)
  * This is really horribly ugly.
  */
 asmlinkage int 
-sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fifth)
+sys_ipc (uint call, int first, int second, long third, void *ptr, long fifth)
 {
 	int version, ret;
 
@@ -67,12 +66,12 @@ sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fi
 	ret = -ENOSYS;
 	switch (call) {
 	case SEMOP:
-		ret = sys_semtimedop (first, (struct sembuf __user *)ptr, second,
+		ret = sys_semtimedop (first, (struct sembuf *)ptr, second,
 				      NULL);
 		break;
 	case SEMTIMEDOP:
-		ret = sys_semtimedop (first, (struct sembuf __user *)ptr, second,
-				      (const struct timespec __user *) fifth);
+		ret = sys_semtimedop (first, (struct sembuf *)ptr, second,
+				      (const struct timespec *) fifth);
 		break;
 	case SEMGET:
 		ret = sys_semget (first, second, third);
@@ -83,13 +82,13 @@ sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fi
 		ret = -EINVAL;
 		if (!ptr)
 			break;
-		if ((ret = get_user(fourth.__pad, (void __user * __user *)ptr)))
+		if ((ret = get_user(fourth.__pad, (void **)ptr)))
 			break;
 		ret = sys_semctl (first, second, third, fourth);
 		break;
 	}
 	case MSGSND:
-		ret = sys_msgsnd (first, (struct msgbuf __user *) ptr, second, third);
+		ret = sys_msgsnd (first, (struct msgbuf *) ptr, second, third);
 		break;
 	case MSGRCV:
 		switch (version) {
@@ -100,7 +99,7 @@ sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fi
 			if (!ptr)
 				break;
 			if ((ret = copy_from_user(&tmp,
-						(struct ipc_kludge __user *) ptr,
+						(struct ipc_kludge *) ptr,
 						sizeof (tmp)) ? -EFAULT : 0))
 				break;
 			ret = sys_msgrcv (first, tmp.msgp, second, tmp.msgtyp,
@@ -108,7 +107,7 @@ sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fi
 			break;
 		}
 		default:
-			ret = sys_msgrcv (first, (struct msgbuf __user *) ptr,
+			ret = sys_msgrcv (first, (struct msgbuf *) ptr,
 					  second, fifth, third);
 			break;
 		}
@@ -117,35 +116,35 @@ sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fi
 		ret = sys_msgget ((key_t) first, second);
 		break;
 	case MSGCTL:
-		ret = sys_msgctl (first, second, (struct msqid_ds __user *) ptr);
+		ret = sys_msgctl (first, second, (struct msqid_ds *) ptr);
 		break;
 	case SHMAT:
 		switch (version) {
 		default: {
 			ulong raddr;
-			ret = do_shmat (first, (char __user *) ptr, second, &raddr);
+			ret = sys_shmat (first, (char *) ptr, second, &raddr);
 			if (ret)
 				break;
-			ret = put_user (raddr, (ulong __user *) third);
+			ret = put_user (raddr, (ulong *) third);
 			break;
 		}
 		case 1:	/* iBCS2 emulator entry point */
 			ret = -EINVAL;
 			if (!segment_eq(get_fs(), get_ds()))
 				break;
-			ret = do_shmat (first, (char __user *) ptr, second,
+			ret = sys_shmat (first, (char *) ptr, second,
 					 (ulong *) third);
 			break;
 		}
 		break;
 	case SHMDT: 
-		ret = sys_shmdt ((char __user *)ptr);
+		ret = sys_shmdt ((char *)ptr);
 		break;
 	case SHMGET:
 		ret = sys_shmget (first, second, third);
 		break;
 	case SHMCTL:
-		ret = sys_shmctl (first, second, (struct shmid_ds __user *) ptr);
+		ret = sys_shmctl (first, second, (struct shmid_ds *) ptr);
 		break;
 	}
 
@@ -156,7 +155,7 @@ sys_ipc (uint call, int first, int second, long third, void __user *ptr, long fi
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
  */
-asmlinkage int sys_pipe(int __user *fildes)
+asmlinkage int sys_pipe(int *fildes)
 {
 	int fd[2];
 	int error;
@@ -202,7 +201,7 @@ static int __init set_fakeppc(char *str)
 }
 __setup("fakeppc", set_fakeppc);
 
-asmlinkage int sys_uname(struct old_utsname __user * name)
+asmlinkage int sys_uname(struct old_utsname * name)
 {
 	int err = -EFAULT;
 	
@@ -214,7 +213,7 @@ asmlinkage int sys_uname(struct old_utsname __user * name)
 	return err;
 }
 
-asmlinkage time_t sys64_time(time_t __user * tloc)
+asmlinkage time_t sys64_time(time_t* tloc)
 {
 	time_t secs;
 	time_t usecs;
@@ -235,20 +234,6 @@ asmlinkage time_t sys64_time(time_t __user * tloc)
 	}
 
 	return secs;
-}
-
-void do_show_syscall(unsigned long r3, unsigned long r4, unsigned long r5,
-		     unsigned long r6, unsigned long r7, unsigned long r8,
-		     struct pt_regs *regs)
-{
-	printk("syscall %ld(%lx, %lx, %lx, %lx, %lx, %lx) regs=%p current=%p"
-	       " cpu=%d\n", regs->gpr[0], r3, r4, r5, r6, r7, r8, regs,
-	       current, smp_processor_id());
-}
-
-void do_show_syscall_exit(unsigned long r3)
-{
-	printk(" -> %lx, current=%p cpu=%d\n", r3, current, smp_processor_id());
 }
 
 /* Only exists on P-series. */

@@ -157,11 +157,11 @@
 
 /* does not return a value */
 #define INT_MOD_EXPR(reference,arch,code) \
-    (((arch) == ARCH_NOCONVERT) \
+    (void)(((arch) == ARCH_NOCONVERT) \
 	? \
-	    (void)((reference) code) \
+	    ((reference) code) \
 	: \
-	    (void)( \
+	    ( \
 		(reference) = INT_GET((reference),arch) , \
 		((reference) code), \
 		INT_SET(reference, arch, reference) \
@@ -187,10 +187,10 @@
 
 /* does not return a value */
 #define INT_COPY(dst,src,arch) \
-    ( \
+    (void)( \
 	((sizeof(dst) == sizeof(src)) || ((arch) == ARCH_NOCONVERT)) \
 	    ? \
-		(void)((dst) = (src)) \
+		((dst) = (src)) \
 	    : \
 		INT_SET(dst, arch, INT_GET(src, arch)) \
     )

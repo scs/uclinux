@@ -3,15 +3,6 @@
  * Added support for customized reject packets (Jozsef Kadlecsik).
  * Added support for ICMP type-3-code-13 (Maciej Soltysiak). [RFC 1812]
  */
-
-/* (C) 1999-2001 Paul `Rusty' Russell
- * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -24,9 +15,6 @@
 #include <net/route.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_REJECT.h>
-#ifdef CONFIG_BRIDGE_NETFILTER
-#include <linux/netfilter_bridge.h>
-#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
@@ -59,13 +47,7 @@ static inline struct rtable *route_reverse(struct sk_buff *skb, int hook)
 	struct flowi fl = {};
 	struct rtable *rt;
 
-	/* We don't require ip forwarding to be enabled to be able to
-	 * send a RST reply for bridged traffic. */
-	if (hook != NF_IP_FORWARD
-#ifdef CONFIG_BRIDGE_NETFILTER
-	    || (skb->nf_bridge && skb->nf_bridge->mask & BRNF_BRIDGED)
-#endif
-	   ) {
+	if (hook != NF_IP_FORWARD) {
 		fl.nl_u.ip4_u.daddr = iph->saddr;
 		if (hook == NF_IP_LOCAL_IN)
 			fl.nl_u.ip4_u.saddr = iph->daddr;
@@ -126,7 +108,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	if ((rt = route_reverse(oldskb, hook)) == NULL)
 		return;
 
-	hh_len = LL_RESERVED_SPACE(rt->u.dst.dev);
+	hh_len = (rt->u.dst.dev->hard_header_len + 15)&~15;
 
 	/* We need a linear, writeable skb.  We also need to expand
 	   headroom in case hh_len of incoming interface < hh_len of
@@ -142,8 +124,12 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	nskb->dst = &rt->u.dst;
 
 	/* This packet will not be the same as the other: clear nf fields */
-	nf_reset(nskb);
+	nf_conntrack_put(nskb->nfct);
+	nskb->nfct = NULL;
 	nskb->nfcache = 0;
+#ifdef CONFIG_NETFILTER_DEBUG
+	nskb->nf_debug = 0;
+#endif
 	nskb->nfmark = 0;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	nf_bridge_put(nskb->nf_bridge);
@@ -310,9 +296,9 @@ static void send_unreach(struct sk_buff *skb_in, int code)
 	if (length > 576)
 		length = 576;
 
-	hh_len = LL_RESERVED_SPACE(rt->u.dst.dev);
+	hh_len = (rt->u.dst.dev->hard_header_len + 15)&~15;
 
-	nskb = alloc_skb(hh_len + length, GFP_ATOMIC);
+	nskb = alloc_skb(hh_len+15+length, GFP_ATOMIC);
 	if (!nskb) {
 		ip_rt_put(rt);
 		return;
@@ -463,7 +449,9 @@ static struct ipt_target ipt_reject_reg = {
 
 static int __init init(void)
 {
-	return ipt_register_target(&ipt_reject_reg);
+	if (ipt_register_target(&ipt_reject_reg))
+		return -EINVAL;
+	return 0;
 }
 
 static void __exit fini(void)

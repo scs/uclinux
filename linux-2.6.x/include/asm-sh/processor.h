@@ -12,7 +12,6 @@
 #include <asm/types.h>
 #include <asm/cache.h>
 #include <linux/threads.h>
-#include <asm/ptrace.h>
 
 /*
  * Default implementation of macro that returns current
@@ -22,7 +21,6 @@
 
 /* Core Processor Version Register */
 #define CCN_PVR		0xff000030
-#define CCN_CVR		0xff000040
 #define CCN_PRR		0xff000044
 
 /*
@@ -37,8 +35,8 @@ enum cpu_type {
 	CPU_SH7604,
 
 	/* SH-3 types */
-	CPU_SH7705, CPU_SH7707,  CPU_SH7708, CPU_SH7708S, CPU_SH7708R,
-	CPU_SH7709, CPU_SH7709A, CPU_SH7729, CPU_SH7300,
+	CPU_SH7707,  CPU_SH7708, CPU_SH7708S, CPU_SH7708R, CPU_SH7709,
+	CPU_SH7709A, CPU_SH7729, CPU_SH7300,
 
 	/* SH-4 types */
 	CPU_SH7750, CPU_SH7750S, CPU_SH7750R, CPU_SH7751, CPU_SH7751R,
@@ -169,7 +167,7 @@ extern int ubc_usercnt;
 #define start_thread(regs, new_pc, new_sp)	 \
 	set_fs(USER_DS);			 \
 	regs->pr = 0;   		 	 \
-	regs->sr = SR_FD;	/* User mode. */ \
+	regs->sr = 0;		/* User mode. */ \
 	regs->pc = new_pc;			 \
 	regs->regs[15] = new_sp
 
@@ -202,7 +200,7 @@ extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
  * FPU lazy state save handling.
  */
 
-static __inline__ void disable_fpu(void)
+static __inline__ void release_fpu(void)
 {
 	unsigned long __dummy;
 
@@ -214,7 +212,7 @@ static __inline__ void disable_fpu(void)
 			     : "r" (SR_FD));
 }
 
-static __inline__ void enable_fpu(void)
+static __inline__ void grab_fpu(void)
 {
 	unsigned long __dummy;
 
@@ -226,32 +224,22 @@ static __inline__ void enable_fpu(void)
 			     : "r" (~SR_FD));
 }
 
-static __inline__ void release_fpu(struct pt_regs *regs)
-{
-	regs->sr |= SR_FD;
-}
-
-static __inline__ void grab_fpu(struct pt_regs *regs)
-{
-	regs->sr &= ~SR_FD;
-}
-
 #ifdef CONFIG_CPU_SH4
-extern void save_fpu(struct task_struct *__tsk, struct pt_regs *regs);
+extern void save_fpu(struct task_struct *__tsk);
 #else
 #define save_fpu(tsk)	do { } while (0)
 #endif
 
-#define unlazy_fpu(tsk, regs) do { 				\
+#define unlazy_fpu(tsk) do { 				\
 	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {	\
-		save_fpu(tsk, regs); 				\
+		save_fpu(tsk); 				\
 	}						\
 } while (0)
 
-#define clear_fpu(tsk, regs) do { 					\
+#define clear_fpu(tsk) do { 					\
 	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) { 		\
 		clear_tsk_thread_flag(tsk, TIF_USEDFPU); 	\
-		release_fpu(regs);					\
+		release_fpu();					\
 	}							\
 } while (0)
 
@@ -271,7 +259,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_EIP(tsk)  ((tsk)->thread.pc)
 #define KSTK_ESP(tsk)  ((tsk)->thread.sp)
 
-#define cpu_sleep()	__asm__ __volatile__ ("sleep" : : : "memory")
-#define cpu_relax()	do { } while (0)
+#define cpu_relax()	__asm__ __volatile__ ("sleep" : : : "memory")
 
 #endif /* __ASM_SH_PROCESSOR_H */

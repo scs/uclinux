@@ -1,6 +1,8 @@
 #ifndef _ASM_X8664_HPET_H
 #define _ASM_X8664_HPET_H 1
 
+#include <linux/interrupt.h>
+
 /*
  * Documentation on HPET can be found at:
  *      http://www.intel.com/ial/home/sp/pcmmspec.htm
@@ -51,6 +53,7 @@ extern int hpet_set_alarm_time(unsigned char hrs, unsigned char min, unsigned ch
 extern int hpet_set_periodic_freq(unsigned long freq);
 extern int hpet_rtc_dropped_irq(void);
 extern int hpet_rtc_timer_init(void);
+extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 #endif /* CONFIG_HPET_EMULATE_RTC */
 
 #endif

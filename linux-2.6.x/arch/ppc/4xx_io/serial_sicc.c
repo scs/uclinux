@@ -32,7 +32,6 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -190,6 +189,10 @@
 #ifndef FALSE
 #define FALSE 0
 #endif
+
+#define DEBUG 0
+
+
 
 /*
  * Things needed by tty driver
@@ -760,7 +763,9 @@ static void siccuart_change_speed(struct SICC_info *info, struct termios *old_te
 
     cflag = info->tty->termios->c_cflag;
 
-    pr_debug("siccuart_set_cflag(0x%x) called\n", cflag);
+#if DEBUG
+    printk("siccuart_set_cflag(0x%x) called\n", cflag);
+#endif
     /* byte size and parity */
     switch (cflag & CSIZE) {
     case CS7: lcr_h =   _LCR_PE_DISABLE | _LCR_DB_7_BITS | _LCR_SB_1_BIT; bits = 9;  break;
@@ -1022,7 +1027,9 @@ static void siccuart_flush_buffer(struct tty_struct *tty)
     struct SICC_info *info = tty->driver_data;
     unsigned long flags;
 
-    pr_debug("siccuart_flush_buffer(%d) called\n", tty->index);
+#if DEBUG
+    printk("siccuart_flush_buffer(%d) called\n", tty->index);
+#endif
     save_flags(flags); cli();
     info->xmit.head = info->xmit.tail = 0;
     restore_flags(flags);
@@ -1426,11 +1433,14 @@ static void siccuart_close(struct tty_struct *tty, struct file *filp)
 
     state = info->state;
 
-    //pr_debug("siccuart_close() called\n");
+#if DEBUG
+    //printk("siccuart_close() called\n");
+#endif
 
     save_flags(flags); cli();
 
     if (tty_hung_up_p(filp)) {
+        MOD_DEC_USE_COUNT;
         restore_flags(flags);
         return;
     }
@@ -1451,6 +1461,7 @@ static void siccuart_close(struct tty_struct *tty, struct file *filp)
         state->count = 0;
     }
     if (state->count) {
+        MOD_DEC_USE_COUNT;
         restore_flags(flags);
         return;
     }
@@ -1493,6 +1504,7 @@ static void siccuart_close(struct tty_struct *tty, struct file *filp)
     }
     info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
     wake_up_interruptible(&info->close_wait);
+    MOD_DEC_USE_COUNT;
 }
 
 static void siccuart_wait_until_sent(struct tty_struct *tty, int timeout)
@@ -1532,9 +1544,11 @@ static void siccuart_wait_until_sent(struct tty_struct *tty, int timeout)
         timeout = 2 * info->timeout;
 
     expire = jiffies + timeout;
-    pr_debug("siccuart_wait_until_sent(%d), jiff=%lu, expire=%lu  char_time=%lu...\n",
+#if DEBUG
+    printk("siccuart_wait_until_sent(%d), jiff=%lu, expire=%lu  char_time=%lu...\n",
            tty->index, jiffies,
            expire, char_time);
+#endif
     while ((readb(info->port->uart_base + BL_SICC_LSR) & _LSR_TX_ALL) != _LSR_TX_ALL) {
         set_current_state(TASK_INTERRUPTIBLE);
         schedule_timeout(char_time);
@@ -1682,7 +1696,9 @@ static int siccuart_open(struct tty_struct *tty, struct file *filp)
 
 
     // is this a line that we've got?
+    MOD_INC_USE_COUNT;
     if (line >= SERIAL_SICC_NR) {
+        MOD_DEC_USE_COUNT;
         return -ENODEV;
     }
 
@@ -1702,6 +1718,7 @@ static int siccuart_open(struct tty_struct *tty, struct file *filp)
         if (tmp_buf)
             free_page(page);
         else if (!page) {
+            MOD_DEC_USE_COUNT;
             return -ENOMEM;
         }
         tmp_buf = (u_char *)page;
@@ -1714,6 +1731,7 @@ static int siccuart_open(struct tty_struct *tty, struct file *filp)
         (info->flags & ASYNC_CLOSING)) {
         if (info->flags & ASYNC_CLOSING)
             interruptible_sleep_on(&info->close_wait);
+        MOD_DEC_USE_COUNT;
         return -EAGAIN;
     }
 
@@ -1722,11 +1740,13 @@ static int siccuart_open(struct tty_struct *tty, struct file *filp)
      */
     retval = siccuart_startup(info);
     if (retval) {
+        MOD_DEC_USE_COUNT;
         return retval;
     }
 
     retval = block_til_ready(tty, filp, info);
     if (retval) {
+        MOD_DEC_USE_COUNT;
         return retval;
     }
 
@@ -1769,7 +1789,6 @@ int __init siccuart_init(void)
 	return -ENOMEM;
     printk("IBM Vesta SICC serial port driver V 0.1 by Yudong Yang and Yi Ge / IBM CRL .\n");
     siccnormal_driver->driver_name = "serial_sicc";
-    siccnormal_driver->owner = THIS_MODULE;
     siccnormal_driver->name = SERIAL_SICC_NAME;
     siccnormal_driver->major = SERIAL_SICC_MAJOR;
     siccnormal_driver->minor_start = SERIAL_SICC_MINOR;
@@ -1812,8 +1831,9 @@ static int siccuart_console_read(struct console *co, const char *s, u_int count)
     unsigned int status;
     char *w;
     int c;
-
-    pr_debug("siccuart_console_read() called\n");
+#if DEBUG
+    printk("siccuart_console_read() called\n");
+#endif
 
     c = 0;
     w = s;

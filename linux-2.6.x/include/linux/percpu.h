@@ -35,6 +35,7 @@ struct percpu_data {
 
 extern void *__alloc_percpu(size_t size, size_t align);
 extern void free_percpu(const void *);
+extern void kmalloc_percpu_init(void);
 
 #else /* CONFIG_SMP */
 
@@ -51,6 +52,7 @@ static inline void free_percpu(const void *ptr)
 {	
 	kfree(ptr);
 }
+static inline void kmalloc_percpu_init(void) { }
 
 #endif /* CONFIG_SMP */
 

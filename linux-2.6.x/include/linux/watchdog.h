@@ -10,7 +10,6 @@
 #define _LINUX_WATCHDOG_H
 
 #include <linux/ioctl.h>
-#include <linux/types.h>
 
 #define	WATCHDOG_IOCTL_BASE	'W'
 

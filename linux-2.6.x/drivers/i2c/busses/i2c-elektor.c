@@ -26,6 +26,10 @@
    for Alpha Processor Inc. UP-2000(+) boards */
 
 #include <linux/config.h>
+#ifdef CONFIG_I2C_DEBUG_BUS
+#define DEBUG	1
+#endif
+
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
@@ -143,7 +147,7 @@ static int pcf_isa_init(void)
 		}
 	}
 	if (irq > 0) {
-		if (request_irq(irq, pcf_isa_handler, 0, "PCF8584", NULL) < 0) {
+		if (request_irq(irq, pcf_isa_handler, 0, "PCF8584", 0) < 0) {
 			printk(KERN_ERR "i2c-elektor: Request irq%d failed\n", irq);
 			irq = 0;
 		} else
@@ -244,7 +248,7 @@ static int __init i2c_pcfisa_init(void)
  fail:
 	if (irq > 0) {
 		disable_irq(irq);
-		free_irq(irq, NULL);
+		free_irq(irq, 0);
 	}
 
 	if (!mmapped)
@@ -258,7 +262,7 @@ static void i2c_pcfisa_exit(void)
 
 	if (irq > 0) {
 		disable_irq(irq);
-		free_irq(irq, NULL);
+		free_irq(irq, 0);
 	}
 
 	if (!mmapped)

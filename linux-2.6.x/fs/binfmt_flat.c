@@ -40,11 +40,9 @@
 #include <asm/byteorder.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/pgalloc.h>
 #include <asm/unaligned.h>
 #include <asm/cacheflush.h>
-#ifdef CONFIG_BFIN
-#include <asm/pgalloc.h>
-#endif
 
 /****************************************************************************/
 
@@ -285,12 +283,11 @@ static int decompress_exec(
 	if (ret < 0) {
 		DBG_FLT("binfmt_flat: decompression failed (%d), %s\n",
 			ret, strm.msg);
-		goto out_zlib;
+		goto out_free_buf;
 	}
 
-	retval = 0;
-out_zlib:
 	zlib_inflateEnd(&strm);
+	retval = 0;
 out_free_buf:
 	kfree(buf);
 out_free:
@@ -350,6 +347,11 @@ calc_reloc(unsigned long r, struct lib_info *p, int curid, int internalp)
 	start_data = p->lib_list[id].start_data;
 	start_code = p->lib_list[id].start_code;
 	text_len = p->lib_list[id].text_len;
+	printk("start_brk = %ld\n",start_brk);
+	printk("start_data = %ld\n",start_data);
+	printk("start_code = %ld\n",start_code);
+	printk("text_len = %ld\n",text_len);
+	printk("r= %ld\n",r);
 
 	if (!flat_reloc_valid(r, start_brk - start_data + text_len)) {
 		printk("BINFMT_FLAT: reloc outside program 0x%x (0 - 0x%x/0x%x)",
@@ -372,8 +374,6 @@ failed:
 	return RELOC_FAILED;
 }
 
-/****************************************************************************/
-#ifdef CONFIG_BFIN
 
 void calc_v5_reloc(int i, unsigned long rl)
 {
@@ -386,7 +386,7 @@ void calc_v5_reloc(int i, unsigned long rl)
 	unsigned long *ptr;
 	unsigned short *usptr;
 #ifdef CONFIG_BFIN
-	unsigned long offset=0;
+	unsigned long offset;
 	static unsigned long carry = 0;
 #endif
 
@@ -505,7 +505,7 @@ void calc_v5_reloc(int i, unsigned long rl)
 #endif
 }
 
-#endif
+/****************************************************************************/
 
 void old_reloc(unsigned long rl)
 {
@@ -556,7 +556,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 	struct flat_hdr * hdr;
 	unsigned long textpos = 0, datapos = 0, result;
 	unsigned long realdatastart = 0;
-	unsigned long entry,text_len, data_len, bss_len, stack_len, flags;
+	unsigned long entry, text_len, data_len, bss_len, stack_len, flags;
 	unsigned long memp = 0; /* for finding the brk area */
 	unsigned long extra, rlim;
 	unsigned long *reloc = 0, *rp;
@@ -564,13 +564,11 @@ static int load_flat_file(struct linux_binprm * bprm,
 	int i, rev, relocs = 0;
 	loff_t fpos;
 	unsigned long start_code, end_code;
-
+        flat_v5_reloc_t r;
 	hdr = ((struct flat_hdr *) bprm->buf);		/* exec-header */
+  
 	inode = bprm->file->f_dentry->d_inode;
-#ifdef CONFIG_BFIN
         entry     = ntohl(hdr->entry);
-#endif
-
 	text_len  = ntohl(hdr->data_start);
 	data_len  = ntohl(hdr->data_end) - ntohl(hdr->data_start);
 	bss_len   = ntohl(hdr->bss_end) - ntohl(hdr->data_end);
@@ -582,7 +580,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 	relocs    = ntohl(hdr->reloc_count);
 	flags     = ntohl(hdr->flags);
 	rev       = ntohl(hdr->rev);
-
+	
 	if (flags & FLAT_FLAG_KTRACE)
 		printk("BINFMT_FLAT: Loading file: %s\n", bprm->filename);
 
@@ -657,7 +655,6 @@ static int load_flat_file(struct linux_binprm * bprm,
 		 * really care
 		 */
 		DBG_FLT("BINFMT_FLAT: ROM mapping of file (we hope)\n");
-
 		down_write(&current->mm->mmap_sem);
 		textpos = do_mmap(bprm->file, 0, text_len, PROT_READ|PROT_EXEC, 0, 0);
 		up_write(&current->mm->mmap_sem);
@@ -761,6 +758,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 					data_len + (relocs * sizeof(unsigned long)), &fpos);
 			}
 		}
+
 		if (result >= (unsigned long)-4096) {
 			printk("Unable to read code+data+bss, errno %d\n",(int)-result);
 			do_munmap(current->mm, textpos, text_len + data_len + extra +
@@ -847,9 +845,8 @@ static int load_flat_file(struct linux_binprm * bprm,
 	 * reference to be statically initialised to _stext (I've moved
 	 * __start to address 4 so that is okay).
 	 */
-#ifdef CONFIG_BFIN
-
-DBG_FLT("rev= %d\n", rev);
+	
+	DBG_FLT("rev= %d\n", rev);
 	switch(rev)
 	{
 		case 5 : {
@@ -872,7 +869,7 @@ DBG_FLT("rev= %d\n", rev);
 					rp = (unsigned long*)calc_reloc(addr,libinfo, id, 1);
 					if((unsigned long*)RELOC_FAILED == rp)
 						return -ENOEXEC;
-					addr = flat_get_addr_from_rp(rp, reloc_tmp,flags);
+					addr = flat_get_addr_from_rp(rp, reloc_tmp);
 					if(addr != 0)
 					{
 					 	if ((flags & FLAT_FLAG_GOTPIC) == 0)
@@ -897,10 +894,11 @@ DBG_FLT("rev= %d\n", rev);
 		default :
 		       printk("Invalid binary version number.\n");
 	}
-#endif
+			
+			 
 
-#if 0
-
+#if 0 
+	/*old version*/
 	if (rev > OLD_FLAT_VERSION) {
 		for (i=0; i < relocs; i++) {
 			unsigned long addr, relval;
@@ -915,7 +913,7 @@ DBG_FLT("rev= %d\n", rev);
 				return -ENOEXEC;
 
 			/* Get the pointer's value.  */
-			addr = flat_get_addr_from_rp(rp, relval, flags);
+			addr = flat_get_addr_from_rp(rp, relval);
 			if (addr != 0) {
 				/*
 				 * Do the relocation.  PIC relocs in the data section are
@@ -935,7 +933,7 @@ DBG_FLT("rev= %d\n", rev);
 		for (i=0; i < relocs; i++)
 			old_reloc(ntohl(reloc[i]));
 	}
-#endif	
+#endif 
 	flush_icache_range(start_code, end_code);
 
 	/* zero the BSS,  BRK and stack areas */
@@ -1015,11 +1013,12 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	stack_len += (bprm->argc + 1) * sizeof(char *); /* the argv array */
 	stack_len += (bprm->envc + 1) * sizeof(char *); /* the envp array */
 
-	
 	res = load_flat_file(bprm, &libinfo, 0, &stack_len);
 	if (res > (unsigned long)-4096)
+        {
+            printk("Failed to load binary file: %s\n",  bprm->filename); 
 		return res;
-	
+	}
 	/* Update data segment pointers for all libraries */
 	for (i=0; i<MAX_SHARED_LIBS; i++)
 		if (libinfo.lib_list[i].loaded)
@@ -1027,7 +1026,6 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 				(-(j+1))[(unsigned long *)(libinfo.lib_list[i].start_data)] =
 					(libinfo.lib_list[j].loaded)?
 						libinfo.lib_list[j].start_data:UNLOADED_LIB;
-
 	compute_creds(bprm);
  	current->flags &= ~PF_FORKNOEXEC;
 
@@ -1088,7 +1086,7 @@ static void __exit exit_flat_binfmt(void)
 
 /****************************************************************************/
 
-core_initcall(init_flat_binfmt);
+module_init(init_flat_binfmt);
 module_exit(exit_flat_binfmt);
 
 /****************************************************************************/

@@ -35,8 +35,7 @@ int inode_change_ok(struct inode *inode, struct iattr *attr)
 
 	/* Make sure caller can chgrp. */
 	if ((ia_valid & ATTR_GID) &&
-	    (current->fsuid != inode->i_uid ||
-	    (!in_group_p(attr->ia_gid) && attr->ia_gid != inode->i_gid)) &&
+	    (!in_group_p(attr->ia_gid) && attr->ia_gid != inode->i_gid) &&
 	    !capable(CAP_CHOWN))
 		goto error;
 

@@ -240,6 +240,7 @@ void unregister_chrdev_region(dev_t from, unsigned count)
 int unregister_chrdev(unsigned int major, const char *name)
 {
 	struct char_device_struct *cd;
+	cdev_unmap(MKDEV(major, 0), 256);
 	cd = __unregister_chrdev_region(major, 0, 256);
 	if (cd && cd->cdev)
 		cdev_del(cd->cdev);
@@ -265,7 +266,7 @@ int chrdev_open(struct inode * inode, struct file * filp)
 		spin_unlock(&cdev_lock);
 		kobj = kobj_lookup(cdev_map, inode->i_rdev, &idx);
 		if (!kobj)
-			return -ENXIO;
+			return -ENODEV;
 		new = container_of(kobj, struct cdev, kobj);
 		spin_lock(&cdev_lock);
 		p = inode->i_cdev;
@@ -275,9 +276,9 @@ int chrdev_open(struct inode * inode, struct file * filp)
 			list_add(&inode->i_devices, &p->list);
 			new = NULL;
 		} else if (!cdev_get(p))
-			ret = -ENXIO;
+			ret = -ENODEV;
 	} else if (!cdev_get(p))
-		ret = -ENXIO;
+		ret = -ENODEV;
 	spin_unlock(&cdev_lock);
 	cdev_put(new);
 	if (ret)
@@ -285,7 +286,7 @@ int chrdev_open(struct inode * inode, struct file * filp)
 	filp->f_op = fops_get(p->ops);
 	if (!filp->f_op) {
 		cdev_put(p);
-		return -ENXIO;
+		return -ENODEV;
 	}
 	if (filp->f_op->open) {
 		lock_kernel();
@@ -340,19 +341,23 @@ static int exact_lock(dev_t dev, void *data)
 
 int cdev_add(struct cdev *p, dev_t dev, unsigned count)
 {
-	p->dev = dev;
-	p->count = count;
-	return kobj_map(cdev_map, dev, count, NULL, exact_match, exact_lock, p);
+	int err = kobject_add(&p->kobj);
+	if (err)
+		return err;
+	err = kobj_map(cdev_map, dev, count, NULL, exact_match, exact_lock, p);
+	if (err)
+		kobject_del(&p->kobj);
+	return err;
 }
 
-static void cdev_unmap(dev_t dev, unsigned count)
+void cdev_unmap(dev_t dev, unsigned count)
 {
 	kobj_unmap(cdev_map, dev, count);
 }
 
 void cdev_del(struct cdev *p)
 {
-	cdev_unmap(p->dev, p->count);
+	kobject_del(&p->kobj);
 	kobject_put(&p->kobj);
 }
 
@@ -400,12 +405,18 @@ static struct kobj_type ktype_cdev_dynamic = {
 	.release	= cdev_dynamic_release,
 };
 
+static struct kset kset_dynamic = {
+	.subsys = &cdev_subsys,
+	.kobj = {.name = "major",},
+	.ktype = &ktype_cdev_dynamic,
+};
+
 struct cdev *cdev_alloc(void)
 {
 	struct cdev *p = kmalloc(sizeof(struct cdev), GFP_KERNEL);
 	if (p) {
 		memset(p, 0, sizeof(struct cdev));
-		p->kobj.ktype = &ktype_cdev_dynamic;
+		p->kobj.kset = &kset_dynamic;
 		INIT_LIST_HEAD(&p->list);
 		kobject_init(&p->kobj);
 	}
@@ -415,6 +426,7 @@ struct cdev *cdev_alloc(void)
 void cdev_init(struct cdev *cdev, struct file_operations *fops)
 {
 	INIT_LIST_HEAD(&cdev->list);
+	kobj_set_kset_s(cdev, cdev_subsys);
 	cdev->kobj.ktype = &ktype_cdev_default;
 	kobject_init(&cdev->kobj);
 	cdev->ops = fops;
@@ -430,12 +442,8 @@ static struct kobject *base_probe(dev_t dev, int *part, void *data)
 
 void __init chrdev_init(void)
 {
-/*
- * Keep cdev_subsys around because (and only because) the kobj_map code
- * depends on the rwsem it contains.  We don't make it public in sysfs,
- * however.
- */
-	subsystem_init(&cdev_subsys);
+	subsystem_register(&cdev_subsys);
+	kset_register(&kset_dynamic);
 	cdev_map = kobj_map_init(base_probe, &cdev_subsys);
 }
 
@@ -450,5 +458,6 @@ EXPORT_SYMBOL(cdev_get);
 EXPORT_SYMBOL(cdev_put);
 EXPORT_SYMBOL(cdev_del);
 EXPORT_SYMBOL(cdev_add);
+EXPORT_SYMBOL(cdev_unmap);
 EXPORT_SYMBOL(register_chrdev);
 EXPORT_SYMBOL(unregister_chrdev);

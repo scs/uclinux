@@ -29,7 +29,6 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/ioport.h>
@@ -38,7 +37,6 @@
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/pnp.h>
-#include <linux/fs.h>
 #include <linux/pci.h>
 
 #include <asm/semaphore.h>
@@ -82,13 +80,13 @@ spinlock_t sc1200wdt_lock;	/* io port access serialisation */
 static int isapnp = 1;
 static struct pnp_dev *wdt_dev;
 
-module_param(isapnp, int, 0);
+MODULE_PARM(isapnp, "i");
 MODULE_PARM_DESC(isapnp, "When set to 0 driver ISA PnP support will be disabled");
 #endif
 
-module_param(io, int, 0);
+MODULE_PARM(io, "i");
 MODULE_PARM_DESC(io, "io port");
-module_param(timeout, int, 0);
+MODULE_PARM(timeout, "i");
 MODULE_PARM_DESC(timeout, "range is 0-255 minutes, default is 1");
 
 #ifdef CONFIG_WATCHDOG_NOWAYOUT
@@ -97,7 +95,7 @@ static int nowayout = 1;
 static int nowayout = 0;
 #endif
 
-module_param(nowayout, int, 0);
+MODULE_PARM(nowayout,"i");
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 
 
@@ -157,8 +155,6 @@ static inline int sc1200wdt_status(void)
 
 static int sc1200wdt_open(struct inode *inode, struct file *file)
 {
-	nonseekable_open(inode, file);
-
 	/* allow one at a time */
 	if (down_trylock(&open_sem))
 		return -EBUSY;
@@ -176,8 +172,6 @@ static int sc1200wdt_open(struct inode *inode, struct file *file)
 static int sc1200wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int new_timeout;
-	void __user *argp = (void __user *)arg;
-	int __user *p = argp;
 	static struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
 		.firmware_version = 0,
@@ -189,22 +183,22 @@ static int sc1200wdt_ioctl(struct inode *inode, struct file *file, unsigned int 
 			return -ENOIOCTLCMD;	/* Keep Pavel Machek amused ;) */
 
 		case WDIOC_GETSUPPORT:
-			if (copy_to_user(argp, &ident, sizeof ident))
+			if (copy_to_user((struct watchdog_info *)arg, &ident, sizeof ident))
 				return -EFAULT;
 			return 0;
 
 		case WDIOC_GETSTATUS:
-			return put_user(sc1200wdt_status(), p);
+			return put_user(sc1200wdt_status(), (int *)arg);
 
 		case WDIOC_GETBOOTSTATUS:
-			return put_user(0, p);
+			return put_user(0, (int *)arg);
 
 		case WDIOC_KEEPALIVE:
 			sc1200wdt_write_data(WDTO, timeout);
 			return 0;
 
 		case WDIOC_SETTIMEOUT:
-			if (get_user(new_timeout, p))
+			if (get_user(new_timeout, (int *)arg))
 				return -EFAULT;
 
 			/* the API states this is given in secs */
@@ -217,13 +211,13 @@ static int sc1200wdt_ioctl(struct inode *inode, struct file *file, unsigned int 
 			/* fall through and return the new timeout */
 
 		case WDIOC_GETTIMEOUT:
-			return put_user(timeout * 60, p);
+			return put_user(timeout * 60, (int *)arg);
 
 		case WDIOC_SETOPTIONS:
 		{
 			int options, retval = -EINVAL;
 
-			if (get_user(options, p))
+			if (get_user(options, (int *)arg))
 				return -EFAULT;
 
 			if (options & WDIOS_DISABLECARD) {
@@ -258,8 +252,11 @@ static int sc1200wdt_release(struct inode *inode, struct file *file)
 }
 
 
-static ssize_t sc1200wdt_write(struct file *file, const char __user *data, size_t len, loff_t *ppos)
+static ssize_t sc1200wdt_write(struct file *file, const char *data, size_t len, loff_t *ppos)
 {
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
+
 	if (len) {
 		if (!nowayout) {
 			size_t i;
@@ -457,10 +454,35 @@ static void __exit sc1200wdt_exit(void)
 	release_region(io, io_len);
 }
 
+
+#ifndef MODULE
+static int __init sc1200wdt_setup(char *str)
+{
+	int ints[4];
+
+	str = get_options (str, ARRAY_SIZE(ints), ints);
+
+	if (ints[0] > 0) {
+		io = ints[1];
+		if (ints[0] > 1)
+			timeout = ints[2];
+
+#if defined CONFIG_PNP
+		if (ints[0] > 2)
+			isapnp = ints[3];
+#endif
+	}
+
+	return 1;
+}
+
+__setup("sc1200wdt=", sc1200wdt_setup);
+#endif /* MODULE */
+
+
 module_init(sc1200wdt_init);
 module_exit(sc1200wdt_exit);
 
 MODULE_AUTHOR("Zwane Mwaikambo <zwane@commfireservices.com>");
 MODULE_DESCRIPTION("Driver for National Semiconductor PC87307/PC97307 watchdog component");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

@@ -407,10 +407,8 @@ titan_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
 	/*
 	 * Only handle system errors here 
 	 */
-	if ((vector != SCB_Q_SYSMCHK) && (vector != SCB_Q_SYSERR)) {
-		ev6_machine_check(vector, la_ptr, regs);
-		return;
-	}
+	if ((vector != SCB_Q_SYSMCHK) && (vector != SCB_Q_SYSERR)) 
+		return ev6_machine_check(vector, la_ptr, regs);
 
 	/* 
 	 * It's a system error, handle it here

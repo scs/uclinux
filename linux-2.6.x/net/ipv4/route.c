@@ -138,20 +138,18 @@ static struct timer_list rt_secret_timer;
 
 static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie);
 static void		 ipv4_dst_destroy(struct dst_entry *dst);
-static void		 ipv4_dst_ifdown(struct dst_entry *dst, int how);
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst);
 static void		 ipv4_link_failure(struct sk_buff *skb);
 static void		 ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
 static int rt_garbage_collect(void);
 
 
-static struct dst_ops ipv4_dst_ops = {
+struct dst_ops ipv4_dst_ops = {
 	.family =		AF_INET,
 	.protocol =		__constant_htons(ETH_P_IP),
 	.gc =			rt_garbage_collect,
 	.check =		ipv4_dst_check,
 	.destroy =		ipv4_dst_destroy,
-	.ifdown =		ipv4_dst_ifdown,
 	.negative_advice =	ipv4_negative_advice,
 	.link_failure =		ipv4_link_failure,
 	.update_pmtu =		ip_rt_update_pmtu,
@@ -432,20 +430,20 @@ static struct file_operations rt_cpu_seq_fops = {
 	.open	 = rt_cpu_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_private,
 };
 
 #endif /* CONFIG_PROC_FS */
   
 static __inline__ void rt_free(struct rtable *rt)
 {
-	call_rcu(&rt->u.dst.rcu_head, dst_rcu_free);
+	call_rcu(&rt->u.dst.rcu_head, (void (*)(void *))dst_free, &rt->u.dst);
 }
 
 static __inline__ void rt_drop(struct rtable *rt)
 {
 	ip_rt_put(rt);
-	call_rcu(&rt->u.dst.rcu_head, dst_rcu_free);
+	call_rcu(&rt->u.dst.rcu_head, (void (*)(void *))dst_free, &rt->u.dst);
 }
 
 static __inline__ int rt_fast_clean(struct rtable *rth)
@@ -1042,8 +1040,6 @@ void ip_rt_redirect(u32 old_gw, u32 daddr, u32 new_gw,
 				rt->u.dst.child		= NULL;
 				if (rt->u.dst.dev)
 					dev_hold(rt->u.dst.dev);
-				if (rt->idev)
-					in_dev_hold(rt->idev);
 				rt->u.dst.obsolete	= 0;
 				rt->u.dst.lastuse	= jiffies;
 				rt->u.dst.path		= &rt->u.dst;
@@ -1325,26 +1321,10 @@ static void ipv4_dst_destroy(struct dst_entry *dst)
 {
 	struct rtable *rt = (struct rtable *) dst;
 	struct inet_peer *peer = rt->peer;
-	struct in_device *idev = rt->idev;
 
 	if (peer) {
 		rt->peer = NULL;
 		inet_putpeer(peer);
-	}
-
-	if (idev) {
-		rt->idev = NULL;
-		in_dev_put(idev);
-	}
-}
-
-static void ipv4_dst_ifdown(struct dst_entry *dst, int how)
-{
-	struct rtable *rt = (struct rtable *) dst;
-	struct in_device *idev = rt->idev;
-	if (idev) {
-		rt->idev = NULL;
-		in_dev_put(idev);
 	}
 }
 
@@ -1359,10 +1339,8 @@ static void ipv4_link_failure(struct sk_buff *skb)
 		dst_set_expires(&rt->u.dst, 0);
 }
 
-static int ip_rt_bug(struct sk_buff **pskb)
+static int ip_rt_bug(struct sk_buff *skb)
 {
-	struct sk_buff *skb = *pskb;
-
 	printk(KERN_DEBUG "ip_rt_bug: %u.%u.%u.%u -> %u.%u.%u.%u, %s\n",
 		NIPQUAD(skb->nh.iph->saddr), NIPQUAD(skb->nh.iph->daddr),
 		skb->dev ? skb->dev->name : "?");
@@ -1508,7 +1486,6 @@ static int ip_route_input_mc(struct sk_buff *skb, u32 daddr, u32 saddr,
 	rth->fl.iif	= dev->ifindex;
 	rth->u.dst.dev	= &loopback_dev;
 	dev_hold(rth->u.dst.dev);
-	rth->idev	= in_dev_get(rth->u.dst.dev);
 	rth->fl.oif	= 0;
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
@@ -1548,7 +1525,7 @@ e_inval:
  *	2. IP spoofing attempts are filtered with 100% of guarantee.
  */
 
-static int ip_route_input_slow(struct sk_buff *skb, u32 daddr, u32 saddr,
+int ip_route_input_slow(struct sk_buff *skb, u32 daddr, u32 saddr,
 			u8 tos, struct net_device *dev)
 {
 	struct fib_result res;
@@ -1718,7 +1695,6 @@ static int ip_route_input_slow(struct sk_buff *skb, u32 daddr, u32 saddr,
 	rth->fl.iif	= dev->ifindex;
 	rth->u.dst.dev	= out_dev->dev;
 	dev_hold(rth->u.dst.dev);
-	rth->idev	= in_dev_get(rth->u.dst.dev);
 	rth->fl.oif 	= 0;
 	rth->rt_spec_dst= spec_dst;
 
@@ -1728,6 +1704,17 @@ static int ip_route_input_slow(struct sk_buff *skb, u32 daddr, u32 saddr,
 	rt_set_nexthop(rth, &res, itag);
 
 	rth->rt_flags = flags;
+
+#ifdef CONFIG_NET_FASTROUTE
+	if (netdev_fastroute && !(flags&(RTCF_NAT|RTCF_MASQ|RTCF_DOREDIRECT))) {
+		struct net_device *odev = rth->u.dst.dev;
+		if (odev != dev &&
+		    dev->accept_fastpath &&
+		    odev->mtu >= dev->mtu &&
+		    dev->accept_fastpath(dev, &rth->u.dst) == 0)
+			rth->rt_flags |= RTCF_FAST;
+	}
+#endif
 
 intern:
 	err = rt_intern_hash(hash, rth, (struct rtable**)&skb->dst);
@@ -1787,7 +1774,6 @@ local_input:
 	rth->fl.iif	= dev->ifindex;
 	rth->u.dst.dev	= &loopback_dev;
 	dev_hold(rth->u.dst.dev);
-	rth->idev	= in_dev_get(rth->u.dst.dev);
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
 	rth->u.dst.input= ip_local_deliver;
@@ -1924,7 +1910,7 @@ int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,
  * Major route resolver routine.
  */
 
-static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
+int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 {
 	u32 tos	= oldflp->fl4_tos & (IPTOS_RT_MASK | RTO_ONLINK);
 	struct flowi fl = { .nl_u = { .ip4_u =
@@ -2171,7 +2157,6 @@ make_route:
 	rth->rt_iif	= oldflp->oif ? : dev_out->ifindex;
 	rth->u.dst.dev	= dev_out;
 	dev_hold(dev_out);
-	rth->idev	= in_dev_get(dev_out);
 	rth->rt_gateway = fl.fl4_dst;
 	rth->rt_spec_dst= fl.fl4_src;
 
@@ -2497,11 +2482,11 @@ void ip_rt_multicast_event(struct in_device *in_dev)
 static int flush_delay;
 
 static int ipv4_sysctl_rtcache_flush(ctl_table *ctl, int write,
-					struct file *filp, void __user *buffer,
-					size_t *lenp, loff_t *ppos)
+					struct file *filp, void *buffer,
+					size_t *lenp)
 {
 	if (write) {
-		proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+		proc_dointvec(ctl, write, filp, buffer, lenp);
 		rt_cache_flush(flush_delay);
 		return 0;
 	} 
@@ -2509,19 +2494,15 @@ static int ipv4_sysctl_rtcache_flush(ctl_table *ctl, int write,
 	return -EINVAL;
 }
 
-static int ipv4_sysctl_rtcache_flush_strategy(ctl_table *table,
-						int __user *name,
-						int nlen,
-						void __user *oldval,
-						size_t __user *oldlenp,
-						void __user *newval,
-						size_t newlen,
-						void **context)
+static int ipv4_sysctl_rtcache_flush_strategy(ctl_table *table, int *name,
+						int nlen, void *oldval,
+						size_t *oldlenp, void *newval,
+						size_t newlen, void **context)
 {
 	int delay;
 	if (newlen != sizeof(int))
 		return -EINVAL;
-	if (get_user(delay, (int __user *)newval))
+	if (get_user(delay, (int *)newval))
 		return -EFAULT; 
 	rt_cache_flush(delay); 
 	return 0;
@@ -2736,16 +2717,6 @@ static int ip_rt_acct_read(char *buffer, char **start, off_t offset,
 #endif /* CONFIG_PROC_FS */
 #endif /* CONFIG_NET_CLS_ROUTE */
 
-static __initdata unsigned long rhash_entries;
-static int __init set_rhash_entries(char *str)
-{
-	if (!str)
-		return 0;
-	rhash_entries = simple_strtoul(str, &str, 0);
-	return 1;
-}
-__setup("rhash_entries=", set_rhash_entries);
-
 int __init ip_rt_init(void)
 {
 	int i, order, goal, rc = 0;
@@ -2772,8 +2743,7 @@ int __init ip_rt_init(void)
 		panic("IP: failed to allocate ip_dst_cache\n");
 
 	goal = num_physpages >> (26 - PAGE_SHIFT);
-	if (rhash_entries)
-		goal = (rhash_entries * sizeof(struct rt_hash_bucket)) >> PAGE_SHIFT;
+
 	for (order = 0; (1UL << order) < goal; order++)
 		/* NOTHING */;
 

@@ -6,9 +6,7 @@
  * Copyright (C) 1994 - 1999, 2000 by Ralf Baechle and others.
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
-#include <linux/config.h>
 #include <linux/errno.h>
-#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -248,8 +246,7 @@ static int __init get_frame_info(struct mips_frame_info *info, void *func)
 
 	return 0;
 }
-
-static int __init frame_info_init(void)
+void __init frame_info_init(void)
 {
 	mips_frame_info_initialized =
 		!get_frame_info(&schedule_frame, schedule) &&
@@ -257,11 +254,7 @@ static int __init frame_info_init(void)
 		!get_frame_info(&sleep_on_frame, sleep_on) &&
 		!get_frame_info(&sleep_on_timeout_frame, sleep_on_timeout) &&
 		!get_frame_info(&wait_for_completion_frame, wait_for_completion);
-
-	return 0;
 }
-
-arch_initcall(frame_info_init);
 
 /*
  * Return saved PC of a blocked thread.
@@ -280,6 +273,14 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return ((unsigned long *)t->reg29)[schedule_frame.pc_offset];
 }
 
+/*
+ * These bracket the sleeping functions..
+ */
+extern void scheduling_functions_start_here(void);
+extern void scheduling_functions_end_here(void);
+#define first_sched	((unsigned long) scheduling_functions_start_here)
+#define last_sched	((unsigned long) scheduling_functions_end_here)
+
 /* get_wchan - a maintenance nightmare^W^Wpain in the ass ...  */
 unsigned long get_wchan(struct task_struct *p)
 {
@@ -291,7 +292,7 @@ unsigned long get_wchan(struct task_struct *p)
 	if (!mips_frame_info_initialized)
 		return 0;
 	pc = thread_saved_pc(p);
-	if (!in_sched_functions(pc))
+	if (pc < first_sched || pc >= last_sched)
 		goto out;
 
 	if (pc >= (unsigned long) sleep_on_timeout)
@@ -325,7 +326,7 @@ schedule_timeout_caller:
 	 */
 	pc    = ((unsigned long *)frame)[schedule_timeout_frame.pc_offset];
 
-	if (in_sched_functions(pc)) {
+	if (pc >= first_sched && pc < last_sched) {
 		/* schedule_timeout called by [interruptible_]sleep_on_timeout */
 		frame = ((unsigned long *)frame)[schedule_timeout_frame.frame_offset];
 		pc    = ((unsigned long *)frame)[sleep_on_timeout_frame.pc_offset];
@@ -340,5 +341,3 @@ out:
 
 	return pc;
 }
-
-EXPORT_SYMBOL(get_wchan);

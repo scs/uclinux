@@ -101,8 +101,3 @@ ArcFlushAllCaches(VOID)
 {
 	ARC_CALL0(cache_flush);
 }
-
-DISPLAY_STATUS * __init ArcGetDisplayStatus(ULONG FileID)
-{
-	return ARC_CALL1(GetDisplayStatus, FileID);
-}

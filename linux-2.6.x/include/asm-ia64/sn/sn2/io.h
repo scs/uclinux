@@ -8,11 +8,10 @@
 
 #ifndef _ASM_SN_SN2_IO_H
 #define _ASM_SN_SN2_IO_H
-#include <linux/compiler.h>
-#include <asm/intrinsics.h>
 
-extern void * sn_io_addr(unsigned long port) __attribute_const__; /* Forward definition */
+extern void * sn_io_addr(unsigned long port); /* Forward definition */
 extern void sn_mmiob(void); /* Forward definition */
+#include <asm/intrinsics.h>
 
 #define __sn_mf_a()   ia64_mfa()
 
@@ -28,10 +27,6 @@ extern void sn_dma_flush(unsigned long);
 #define __sn_readw ___sn_readw
 #define __sn_readl ___sn_readl
 #define __sn_readq ___sn_readq
-#define __sn_readb_relaxed ___sn_readb_relaxed
-#define __sn_readw_relaxed ___sn_readw_relaxed
-#define __sn_readl_relaxed ___sn_readl_relaxed
-#define __sn_readq_relaxed ___sn_readq_relaxed
 
 /*
  * The following routines are SN Platform specific, called when
@@ -213,25 +208,25 @@ sn_inl_fast (unsigned long port)
 }
 
 static inline unsigned char
-___sn_readb_relaxed (void *addr)
+sn_readb_fast (void *addr)
 {
 	return *(volatile unsigned char *)addr;
 }
 
 static inline unsigned short
-___sn_readw_relaxed (void *addr)
+sn_readw_fast (void *addr)
 {
 	return *(volatile unsigned short *)addr;
 }
 
 static inline unsigned int
-___sn_readl_relaxed (void *addr)
+sn_readl_fast (void *addr)
 {
 	return *(volatile unsigned int *) addr;
 }
 
 static inline unsigned long
-___sn_readq_relaxed (void *addr)
+sn_readq_fast (void *addr)
 {
 	return *(volatile unsigned long *) addr;
 }

@@ -62,7 +62,7 @@
 #include <asm/semaphore.h>
 #include <asm/byteorder.h>
 
-#undef DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #define kaweth_dbg(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" ,##arg)
@@ -123,10 +123,9 @@ static int kaweth_probe(
 		const struct usb_device_id *id	/* from id_table */
 	);
 static void kaweth_disconnect(struct usb_interface *intf);
-static int kaweth_internal_control_msg(struct usb_device *usb_dev,
-				       unsigned int pipe,
-				       struct usb_ctrlrequest *cmd, void *data,
-				       int len, int timeout);
+int kaweth_internal_control_msg(struct usb_device *usb_dev, unsigned int pipe,
+				struct usb_ctrlrequest *cmd, void *data,
+				int len, int timeout);
 
 /****************************************************************
  *     usb_device_id
@@ -592,7 +591,7 @@ static void kaweth_usb_receive(struct urb *urb, struct pt_regs *regs)
 
 	struct sk_buff *skb;
 
-	if(unlikely(urb->status == -ECONNRESET || urb->status == -ECONNABORTED || urb->status == -ESHUTDOWN))
+	if(unlikely(urb->status == -ECONNRESET || urb->status == -ECONNABORTED))
 	/* we are killed - set a flag and wake the disconnect handler */
 	{
 		kaweth->end = 1;
@@ -737,7 +736,7 @@ static int kaweth_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
 {
 	switch (cmd) {
 	case SIOCETHTOOL:
-		return netdev_ethtool_ioctl(net, rq->ifr_data);
+		return netdev_ethtool_ioctl(net, (void __user *)rq->ifr_data);
 	}
 	return -EOPNOTSUPP;
 }
@@ -1151,7 +1150,7 @@ err_tx_and_rx:
 err_only_tx:
 	usb_free_urb(kaweth->tx_urb);
 err_no_urb:
-	free_netdev(netdev);
+	kfree(netdev);
 err_no_netdev:
 	kfree(kaweth);
 	return -EIO;
@@ -1240,21 +1239,20 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int* actual_length)
         init_waitqueue_head(&awd.wqh);
         awd.done = 0;
 
+        set_current_state(TASK_INTERRUPTIBLE);
         add_wait_queue(&awd.wqh, &wait);
         urb->context = &awd;
-        status = usb_submit_urb(urb, GFP_NOIO);
+        status = usb_submit_urb(urb, GFP_ATOMIC);
         if (status) {
                 // something went wrong
                 usb_free_urb(urb);
+                set_current_state(TASK_RUNNING);
                 remove_wait_queue(&awd.wqh, &wait);
                 return status;
         }
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	while (timeout && !awd.done) {
+	while (timeout && !awd.done)
 		timeout = schedule_timeout(timeout);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-	}
 
         set_current_state(TASK_RUNNING);
         remove_wait_queue(&awd.wqh, &wait);
@@ -1279,10 +1277,9 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int* actual_length)
 
 /*-------------------------------------------------------------------*/
 // returns status (negative) or length (positive)
-static int kaweth_internal_control_msg(struct usb_device *usb_dev,
-				       unsigned int pipe,
-				       struct usb_ctrlrequest *cmd, void *data,
-				       int len, int timeout)
+int kaweth_internal_control_msg(struct usb_device *usb_dev, unsigned int pipe,
+                            struct usb_ctrlrequest *cmd, void *data, int len,
+			    int timeout)
 {
         struct urb *urb;
         int retv;
@@ -1293,7 +1290,7 @@ static int kaweth_internal_control_msg(struct usb_device *usb_dev,
                 return -ENOMEM;
 
         usb_fill_control_urb(urb, usb_dev, pipe, (unsigned char*)cmd, data,
-			 len, usb_api_blocking_completion, NULL);
+			 len, usb_api_blocking_completion,0);
 
         retv = usb_start_wait_urb(urb, timeout, &length);
         if (retv < 0) {
@@ -1308,7 +1305,7 @@ static int kaweth_internal_control_msg(struct usb_device *usb_dev,
 /****************************************************************
  *     kaweth_init
  ****************************************************************/
-static int __init kaweth_init(void)
+int __init kaweth_init(void)
 {
 	kaweth_dbg("Driver loading");
 	return usb_register(&kaweth_driver);
@@ -1317,7 +1314,7 @@ static int __init kaweth_init(void)
 /****************************************************************
  *     kaweth_exit
  ****************************************************************/
-static void __exit kaweth_exit(void)
+void __exit kaweth_exit(void)
 {
 	usb_deregister(&kaweth_driver);
 }

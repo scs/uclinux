@@ -56,8 +56,7 @@ int dpcm_transport(Scsi_Cmnd *srb, struct us_data *us)
     /*
      * LUN 0 corresponds to the CompactFlash card reader.
      */
-    ret = usb_stor_CB_transport(srb, us);
-    break;
+    return usb_stor_CB_transport(srb, us);
 
 #ifdef CONFIG_USB_STORAGE_SDDR09
   case 1:
@@ -72,14 +71,12 @@ int dpcm_transport(Scsi_Cmnd *srb, struct us_data *us)
     srb->device->lun = 0; us->srb->device->lun = 0;
     ret = sddr09_transport(srb, us);
     srb->device->lun = 1; us->srb->device->lun = 1;
-    break;
 
+    return ret;
 #endif
 
   default:
     US_DEBUGP("dpcm_transport: Invalid LUN %d\n", srb->device->lun);
-    ret = USB_STOR_TRANSPORT_ERROR;
-    break;
+    return USB_STOR_TRANSPORT_ERROR;
   }
-  return ret;
 }

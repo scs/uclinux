@@ -22,7 +22,9 @@
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <linux/ptrace.h>
-#include <linux/moduleparam.h>
+
+#ifdef CONFIG_SECURITY
+
 
 static struct security_operations capability_ops = {
 	.ptrace =			cap_ptrace,
@@ -33,7 +35,7 @@ static struct security_operations capability_ops = {
 	.netlink_send =			cap_netlink_send,
 	.netlink_recv =			cap_netlink_recv,
 
-	.bprm_apply_creds =		cap_bprm_apply_creds,
+	.bprm_compute_creds =		cap_bprm_compute_creds,
 	.bprm_set_security =		cap_bprm_set_security,
 	.bprm_secureexec =		cap_bprm_secureexec,
 
@@ -48,23 +50,22 @@ static struct security_operations capability_ops = {
 	.vm_enough_memory =             cap_vm_enough_memory,
 };
 
-#define MY_NAME __stringify(KBUILD_MODNAME)
+#if defined(CONFIG_SECURITY_CAPABILITIES_MODULE)
+#define MY_NAME THIS_MODULE->name
+#else
+#define MY_NAME "capability"
+#endif
 
 /* flag to keep track of how we were registered */
 static int secondary;
 
-static int capability_disable;
-module_param_named(disable, capability_disable, int, 0);
-MODULE_PARM_DESC(disable, "To disable capabilities module set disable = 1");
 
 static int __init capability_init (void)
 {
-	if (capability_disable) {
-		printk(KERN_INFO "Capabilities disabled at initialization\n");
-		return 0;
-	}
 	/* register ourselves with the security framework */
 	if (register_security (&capability_ops)) {
+		printk (KERN_INFO
+			"Failure registering capabilities with the kernel\n");
 		/* try registering with primary module */
 		if (mod_reg_security (MY_NAME, &capability_ops)) {
 			printk (KERN_INFO "Failure registering capabilities "
@@ -73,15 +74,12 @@ static int __init capability_init (void)
 		}
 		secondary = 1;
 	}
-	printk (KERN_INFO "Capability LSM initialized%s\n",
-		secondary ? " as secondary" : "");
+	printk (KERN_INFO "Capability LSM initialized\n");
 	return 0;
 }
 
 static void __exit capability_exit (void)
 {
-	if (capability_disable)
-		return;
 	/* remove ourselves from the security framework */
 	if (secondary) {
 		if (mod_unreg_security (MY_NAME, &capability_ops))
@@ -101,3 +99,5 @@ module_exit (capability_exit);
 
 MODULE_DESCRIPTION("Standard Linux Capabilities Security Module");
 MODULE_LICENSE("GPL");
+
+#endif	/* CONFIG_SECURITY */

@@ -1,7 +1,7 @@
-/*
+/* 
  * Copyright 2001-2003 SuSE Labs.
  * Distributed under the GNU public license, v2.
- *
+ * 
  * This is a GART driver for the AMD Opteron/Athlon64 on-CPU northbridge.
  * It also includes support for the AMD 8151 AGP bridge,
  * although it doesn't actually do much, as all the real
@@ -16,7 +16,11 @@
 #include "agp.h"
 
 /* Will need to be increased if AMD64 ever goes >8-way. */
+#ifdef CONFIG_SMP
 #define MAX_HAMMER_GARTS   8
+#else
+#define MAX_HAMMER_GARTS   1
+#endif
 
 /* PTE bits. */
 #define GPTE_VALID	1
@@ -30,21 +34,6 @@
 /* GART cache control register bits. */
 #define INVGART		(1<<0)
 #define GARTPTEERR	(1<<1)
-
-/* K8 On-cpu GART registers */
-#define AMD64_GARTAPERTURECTL	0x90
-#define AMD64_GARTAPERTUREBASE	0x94
-#define AMD64_GARTTABLEBASE	0x98
-#define AMD64_GARTCACHECTL	0x9c
-#define AMD64_GARTEN		(1<<0)
-
-/* NVIDIA K8 registers */
-#define NVIDIA_X86_64_0_APBASE		0x10
-#define NVIDIA_X86_64_1_APBASE1		0x50
-#define NVIDIA_X86_64_1_APLIMIT1	0x54
-#define NVIDIA_X86_64_1_APSIZE		0xa8
-#define NVIDIA_X86_64_1_APBASE2		0xd8
-#define NVIDIA_X86_64_1_APLIMIT2	0xdc
 
 static int nr_garts;
 static struct pci_dev * hammers[MAX_HAMMER_GARTS];
@@ -194,7 +183,7 @@ static u64 amd64_configure (struct pci_dev *hammer, u64 gatt_table)
 
 	/* keep CPU's coherent. */
 	flush_amd64_tlb (hammer);
-
+	
 	return aper_base;
 }
 
@@ -261,53 +250,53 @@ struct agp_bridge_driver amd_8151_driver = {
 
 /* Some basic sanity checks for the aperture. */
 static int __devinit aperture_valid(u64 aper, u32 size)
-{
+{ 
 	u32 pfn, c;
-	if (aper == 0) {
+	if (aper == 0) { 
 		printk(KERN_ERR PFX "No aperture\n");
-		return 0;
+		return 0; 
 	}
 	if (size < 32*1024*1024) {
 		printk(KERN_ERR PFX "Aperture too small (%d MB)\n", size>>20);
 		return 0;
 	}
-	if (aper + size > 0xffffffff) {
-		printk(KERN_ERR PFX "Aperture out of bounds\n");
+	if (aper + size > 0xffffffff) { 
+		printk(KERN_ERR PFX "Aperture out of bounds\n"); 
 		return 0;
-	}
+	} 
 	pfn = aper >> PAGE_SHIFT;
-	for (c = 0; c < size/PAGE_SIZE; c++) {
+	for (c = 0; c < size/PAGE_SIZE; c++) { 
 		if (!pfn_valid(pfn + c))
 			break;
-		if (!PageReserved(pfn_to_page(pfn + c))) {
+		if (!PageReserved(pfn_to_page(pfn + c))) { 
 			printk(KERN_ERR PFX "Aperture pointing to RAM\n");
 			return 0;
 		}
 	}
 
 	/* Request the Aperture. This catches cases when someone else
-	   already put a mapping in there - happens with some very broken BIOS
+	   already put a mapping in there - happens with some very broken BIOS 
 
-	   Maybe better to use pci_assign_resource/pci_enable_device instead
-	   trusting the bridges? */
+	   Maybe better to use pci_assign_resource/pci_enable_device instead trusting
+	   the bridges? */
 	if (!aperture_resource &&
 	    !(aperture_resource = request_mem_region(aper, size, "aperture"))) {
-		printk(KERN_ERR PFX "Aperture conflicts with PCI mapping.\n");
+		printk(KERN_ERR PFX "Aperture conflicts with PCI mapping.\n"); 
 		return 0;
 	}
 	return 1;
-}
+} 
 
-/*
+/* 
  * W*s centric BIOS sometimes only set up the aperture in the AGP
- * bridge, not the northbridge. On AMD64 this is handled early
+ * bridge, not the northbridge. On AMD64 this is handled early 
  * in aperture.c, but when GART_IOMMU is not enabled or we run
- * on a 32bit kernel this needs to be redone.
+ * on a 32bit kernel this needs to be redone. 
  * Unfortunately it is impossible to fix the aperture here because it's too late
  * to allocate that much memory. But at least error out cleanly instead of
  * crashing.
- */
-static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
+ */ 
+static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, 
 								 u16 cap)
 {
 	u32 aper_low, aper_hi;
@@ -316,38 +305,38 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 	u32 nb_order, nb_base;
 	u16 apsize;
 
-	pci_read_config_dword(nb, 0x90, &nb_order);
+	pci_read_config_dword(nb, 0x90, &nb_order); 
 	nb_order = (nb_order >> 1) & 7;
-	pci_read_config_dword(nb, 0x94, &nb_base);
-	nb_aper = nb_base << 25;
-	if (aperture_valid(nb_aper, (32*1024*1024)<<nb_order)) {
+	pci_read_config_dword(nb, 0x94, &nb_base); 
+	nb_aper = nb_base << 25;	
+	if (aperture_valid(nb_aper, (32*1024*1024)<<nb_order)) { 
 		return 0;
 	}
 
 	/* Northbridge seems to contain crap. Try the AGP bridge. */
 
-	pci_read_config_word(agp, cap+0x14, &apsize);
-	if (apsize == 0xffff)
-		return -1;
+	pci_read_config_word(agp, cap+0x14, &apsize); 
+	if (apsize == 0xffff) 
+		return -1; 
 
 	apsize &= 0xfff;
 	/* Some BIOS use weird encodings not in the AGPv3 table. */
-	if (apsize & 0xff)
-		apsize |= 0xf00;
-	order = 7 - hweight16(apsize);
+	if (apsize & 0xff) 
+		apsize |= 0xf00; 
+	order = 7 - hweight16(apsize); 
 
 	pci_read_config_dword(agp, 0x10, &aper_low);
 	pci_read_config_dword(agp, 0x14, &aper_hi);
-	aper = (aper_low & ~((1<<22)-1)) | ((u64)aper_hi << 32);
+	aper = (aper_low & ~((1<<22)-1)) | ((u64)aper_hi << 32); 
 	printk(KERN_INFO PFX "Aperture from AGP @ %Lx size %u MB\n", aper, 32 << order);
 	if (order < 0 || !aperture_valid(aper, (32*1024*1024)<<order))
-		return -1;
-
-	pci_write_config_dword(nb, 0x90, order << 1);
-	pci_write_config_dword(nb, 0x94, aper >> 25);
+		return -1; 
+	
+	pci_write_config_dword(nb, 0x90, order << 1); 
+	pci_write_config_dword(nb, 0x94, aper >> 25); 
 
 	return 0;
-}
+} 
 
 static __devinit int cache_nbs (struct pci_dev *pdev, u32 cap_ptr)
 {
@@ -355,126 +344,40 @@ static __devinit int cache_nbs (struct pci_dev *pdev, u32 cap_ptr)
 	int i = 0;
 
 	/* cache pci_devs of northbridges. */
-	while ((loop_dev = pci_find_device(PCI_VENDOR_ID_AMD, 0x1103, loop_dev))
+	while ((loop_dev = pci_find_device(PCI_VENDOR_ID_AMD, 0x1103, loop_dev)) 
 			!= NULL) {
-		if (i == MAX_HAMMER_GARTS) {
+		if (fix_northbridge(loop_dev, pdev, cap_ptr) < 0) { 
+			printk(KERN_ERR PFX "No usable aperture found.\n");
+#ifdef __x86_64__ 
+			/* should port this to i386 */
+			printk(KERN_ERR PFX "Consider rebooting with iommu=memaper=2 to get a good aperture.\n");
+#endif 
+			return -1;  
+		}
+		hammers[i++] = loop_dev;
+		nr_garts = i;
+#ifdef CONFIG_SMP
+		if (i > MAX_HAMMER_GARTS) { 
 			printk(KERN_ERR PFX "Too many northbridges for AGP\n");
 			return -1;
 		}
-		if (fix_northbridge(loop_dev, pdev, cap_ptr) < 0) {
-			printk(KERN_ERR PFX "No usable aperture found.\n");
-#ifdef __x86_64__
-			/* should port this to i386 */
-			printk(KERN_ERR PFX "Consider rebooting with iommu=memaper=2 to get a good aperture.\n");
+#else
+		/* Uniprocessor case, return after finding first bridge.
+		   (There may be more, but in UP, we don't care). */
+		return 0;
 #endif
-			return -1;
-		}
-		hammers[i++] = loop_dev;
 	}
-		nr_garts = i;
+
 	return i == 0 ? -1 : 0;
-}
-
-/* Handle AMD 8151 quirks */
-static void __devinit amd8151_init(struct pci_dev *pdev, struct agp_bridge_data *bridge)
-{
-	char *revstring;
-	u8 rev_id;
-
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
-	switch (rev_id) {
-	case 0x01: revstring="A0"; break;
-	case 0x02: revstring="A1"; break;
-	case 0x11: revstring="B0"; break;
-	case 0x12: revstring="B1"; break;
-	case 0x13: revstring="B2"; break;
-	case 0x14: revstring="B3"; break;
-	default:   revstring="??"; break;
-	}
-
-	printk (KERN_INFO PFX "Detected AMD 8151 AGP Bridge rev %s\n", revstring);
-
-	/*
-	 * Work around errata.
-	 * Chips before B2 stepping incorrectly reporting v3.5
-	 */
-	if (rev_id < 0x13) {
-		printk (KERN_INFO PFX "Correcting AGP revision (reports 3.5, is really 3.0)\n");
-		bridge->major_version = 3;
-		bridge->minor_version = 0;
-	}
-}
-
-static struct aper_size_info_32 nforce3_sizes[5] =
-{
-	{512,  131072, 7, 0x00000000 },
-	{256,  65536,  6, 0x00000008 },
-	{128,  32768,  5, 0x0000000C },
-	{64,   16384,  4, 0x0000000E },
-	{32,   8192,   3, 0x0000000F }
-};
-
-/* Handle shadow device of the Nvidia NForce3 */
-/* CHECK-ME original 2.4 version set up some IORRs. Check if that is needed. */
-static int __devinit nforce3_agp_init(struct pci_dev *pdev)
-{
-	u32 tmp, apbase, apbar, aplimit;
-	struct pci_dev *dev1;
-	int i;
-	unsigned size = amd64_fetch_size();
-
-	printk(KERN_INFO PFX "Setting up Nforce3 AGP.\n");
-
-	dev1 = pci_find_slot((unsigned int)pdev->bus->number, PCI_DEVFN(11, 0));
-	if (dev1 == NULL) {
-		printk(KERN_INFO PFX "agpgart: Detected an NVIDIA "
-			"nForce3 chipset, but could not find "
-			"the secondary device.\n");
-		return -ENODEV;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(nforce3_sizes); i++)
-		if (nforce3_sizes[i].size == size)
-			break;
-
-	if (i == ARRAY_SIZE(nforce3_sizes)) {
-		printk(KERN_INFO PFX "No NForce3 size found for %d\n", size);
-		return -ENODEV;
-	}
-
-	pci_read_config_dword(dev1, NVIDIA_X86_64_1_APSIZE, &tmp);
-	tmp &= ~(0xf);
-	tmp |= nforce3_sizes[i].size_value;
-	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APSIZE, tmp);
-
-	/* shadow x86-64 registers into NVIDIA registers */
-	pci_read_config_dword (hammers[0], AMD64_GARTAPERTUREBASE, &apbase);
-
-	/* if x86-64 aperture base is beyond 4G, exit here */
-	if ( (apbase & 0x7fff) >> (32 - 25) )
-		 return -ENODEV;
-
-	apbase = (apbase & 0x7fff) << 25;
-
-	pci_read_config_dword(pdev, NVIDIA_X86_64_0_APBASE, &apbar);
-	apbar &= ~PCI_BASE_ADDRESS_MEM_MASK;
-	apbar |= apbase;
-	pci_write_config_dword(pdev, NVIDIA_X86_64_0_APBASE, apbar);
-
-	aplimit = apbase + (size * 1024 * 1024) - 1;
-	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APBASE1, apbase);
-	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APLIMIT1, aplimit);
-	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APBASE2, apbase);
-	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APLIMIT2, aplimit);
-
-	return 0;
 }
 
 static int __devinit agp_amd64_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
 	struct agp_bridge_data *bridge;
+	u8 rev_id;
 	u8 cap_ptr;
+	char *revstring=NULL;
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
@@ -488,9 +391,35 @@ static int __devinit agp_amd64_probe(struct pci_dev *pdev,
 
 	if (pdev->vendor == PCI_VENDOR_ID_AMD &&
 	    pdev->device == PCI_DEVICE_ID_AMD_8151_0) {
-		amd8151_init(pdev, bridge);
+
+		pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
+		switch (rev_id) {
+		case 0x01:	revstring="A0";
+				break;
+		case 0x02:	revstring="A1";
+				break;
+		case 0x11:	revstring="B0";
+				break;
+		case 0x12:	revstring="B1";
+				break;
+		case 0x13:	revstring="B2";
+				break;
+		default:	revstring="??";
+				break;
+		}
+		printk (KERN_INFO PFX "Detected AMD 8151 AGP Bridge rev %s\n", revstring);
+		/*
+		 * Work around errata.
+		 * Chips before B2 stepping incorrectly reporting v3.5
+		 */
+		if (rev_id < 0x13) {
+			printk (KERN_INFO PFX "Correcting AGP revision (reports 3.5, is really 3.0)\n");
+			bridge->major_version = 3;
+			bridge->minor_version = 0;
+		}
 	} else {
-		printk(KERN_INFO PFX "Detected AGP bridge %x\n", pdev->devfn);
+		printk(KERN_INFO PFX "Detected AGP bridge %x\n",
+			pdev->devfn);
 	}
 
 	bridge->driver = &amd_8151_driver;
@@ -505,14 +434,6 @@ static int __devinit agp_amd64_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	if (pdev->vendor == PCI_VENDOR_ID_NVIDIA) {
-		int ret = nforce3_agp_init(pdev);
-		if (ret) {
-			agp_put_bridge(bridge);
-			return ret;
-		}
-	}
-
 	pci_set_drvdata(pdev, bridge);
 	return agp_add_bridge(bridge);
 }
@@ -521,8 +442,8 @@ static void __devexit agp_amd64_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 
-	release_mem_region(virt_to_phys(bridge->gatt_table_real),
-			   amd64_aperture_sizes[bridge->aperture_size_idx].size);
+	release_mem_region(virt_to_phys(bridge->gatt_table_real), 
+			   amd64_aperture_sizes[bridge->aperture_size_idx].size); 
 	agp_remove_bridge(bridge);
 	agp_put_bridge(bridge);
 }
@@ -533,15 +454,6 @@ static struct pci_device_id agp_amd64_pci_table[] = {
 	.class_mask	= ~0,
 	.vendor		= PCI_VENDOR_ID_AMD,
 	.device		= PCI_DEVICE_ID_AMD_8151_0,
-	.subvendor	= PCI_ANY_ID,
-	.subdevice	= PCI_ANY_ID,
-	},
-	/* VIA K8T800Pro */
-	{
-	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
-	.class_mask	= ~0,
-	.vendor		= PCI_VENDOR_ID_VIA,
-	.device		= PCI_DEVICE_ID_VIA_K8T800PRO_0,
 	.subvendor	= PCI_ANY_ID,
 	.subdevice	= PCI_ANY_ID,
 	},
@@ -563,43 +475,6 @@ static struct pci_device_id agp_amd64_pci_table[] = {
 	.subvendor	= PCI_ANY_ID,
 	.subdevice	= PCI_ANY_ID,
 	},
-	/* VIA K8T890 */
-	{
-	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
-	.class_mask	= ~0,
-	.vendor		= PCI_VENDOR_ID_VIA,
-	.device		= PCI_DEVICE_ID_VIA_3238_0,
-	.subvendor	= PCI_ANY_ID,
-	.subdevice	= PCI_ANY_ID,
-	},
-	/* VIA K8T800/K8M800/K8N800 */
-	{
-	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
-	.class_mask	= ~0,
-	.vendor		= PCI_VENDOR_ID_VIA,
-	.device		= PCI_DEVICE_ID_VIA_838X_1,
-	.subvendor	= PCI_ANY_ID,
-	.subdevice	= PCI_ANY_ID,
-	},
-
-	/* NForce3 */
-	{
-	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
-	.class_mask	= ~0,
-	.vendor		= PCI_VENDOR_ID_NVIDIA,
-	.device		= PCI_DEVICE_ID_NVIDIA_NFORCE3,
-	.subvendor	= PCI_ANY_ID,
-	.subdevice	= PCI_ANY_ID,
-	},
-	{
-	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
-	.class_mask	= ~0,
-	.vendor		= PCI_VENDOR_ID_NVIDIA,
-	.device		= PCI_DEVICE_ID_NVIDIA_NFORCE3S,
-	.subvendor	= PCI_ANY_ID,
-	.subdevice	= PCI_ANY_ID,
-	},
-	/* SIS 755 */
 	{
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
 	.class_mask	= ~0,
@@ -627,15 +502,15 @@ int __init agp_amd64_init(void)
 	int err = 0;
 	if (agp_off)
 		return -EINVAL;
-	if (pci_module_init(&agp_amd64_pci_driver) > 0) {
+	if (pci_module_init(&agp_amd64_pci_driver) > 0) { 
 		struct pci_dev *dev;
-		if (!agp_try_unsupported && !agp_try_unsupported_boot) {
+		if (!agp_try_unsupported && !agp_try_unsupported_boot) { 
 			printk(KERN_INFO PFX "No supported AGP bridge found.\n");
-#ifdef MODULE
+#ifdef MODULE			
 			printk(KERN_INFO PFX "You can try agp_try_unsupported=1\n");
 #else
 			printk(KERN_INFO PFX "You can boot with agp=try_unsupported\n");
-#endif
+#endif			
 			return -ENODEV;
 		}
 
@@ -649,12 +524,12 @@ int __init agp_amd64_init(void)
 		while ((dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev))) {
 			if (!pci_find_capability(dev, PCI_CAP_ID_AGP))
 				continue;
-			/* Only one bridge supported right now */
+			/* Only one bridge supported right now */	
 			if (agp_amd64_probe(dev, NULL) == 0) {
 				err = 0;
 				break;
-			}
-		}
+			}	
+		}		
 	}
 	return err;
 }

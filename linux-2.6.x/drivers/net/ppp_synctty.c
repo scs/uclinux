@@ -29,7 +29,7 @@
  * PPP driver, written by Michael Callahan and Al Longyear, and
  * subsequently hacked by Paul Mackerras.
  *
- * ==FILEVERSION 20040616==
+ * ==FILEVERSION 20020125==
  */
 
 #include <linux/module.h>
@@ -65,9 +65,7 @@ struct syncppp {
 	struct sk_buff	*tpkt;
 	unsigned long	last_xmit;
 
-	struct sk_buff_head rqueue;
-
-	struct tasklet_struct tsk;
+	struct sk_buff	*rpkt;
 
 	atomic_t	refcnt;
 	struct semaphore dead_sem;
@@ -90,7 +88,6 @@ static struct sk_buff* ppp_sync_txmunge(struct syncppp *ap, struct sk_buff *);
 static int ppp_sync_send(struct ppp_channel *chan, struct sk_buff *skb);
 static int ppp_sync_ioctl(struct ppp_channel *chan, unsigned int cmd,
 			  unsigned long arg);
-static void ppp_sync_process(unsigned long arg);
 static int ppp_sync_push(struct syncppp *ap);
 static void ppp_sync_flush_output(struct syncppp *ap);
 static void ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
@@ -220,9 +217,6 @@ ppp_sync_open(struct tty_struct *tty)
 	ap->xaccm[3] = 0x60000000U;
 	ap->raccm = ~0U;
 
-	skb_queue_head_init(&ap->rqueue);
-	tasklet_init(&ap->tsk, ppp_sync_process, (unsigned long) ap);
-
 	atomic_set(&ap->refcnt, 1);
 	init_MUTEX_LOCKED(&ap->dead_sem);
 
@@ -257,10 +251,10 @@ ppp_sync_close(struct tty_struct *tty)
 {
 	struct syncppp *ap;
 
-	write_lock_irq(&disc_data_lock);
+	write_lock(&disc_data_lock);
 	ap = tty->disc_data;
-	tty->disc_data = NULL;
-	write_unlock_irq(&disc_data_lock);
+	tty->disc_data = 0;
+	write_unlock(&disc_data_lock);
 	if (ap == 0)
 		return;
 
@@ -273,10 +267,10 @@ ppp_sync_close(struct tty_struct *tty)
 	 */
 	if (!atomic_dec_and_test(&ap->refcnt))
 		down(&ap->dead_sem);
-	tasklet_kill(&ap->tsk);
 
 	ppp_unregister_channel(&ap->chan);
-	skb_queue_purge(&ap->rqueue);
+	if (ap->rpkt != 0)
+		kfree_skb(ap->rpkt);
 	if (ap->tpkt != 0)
 		kfree_skb(ap->tpkt);
 	kfree(ap);
@@ -288,7 +282,7 @@ ppp_sync_close(struct tty_struct *tty)
  */
 static ssize_t
 ppp_sync_read(struct tty_struct *tty, struct file *file,
-	       unsigned char __user *buf, size_t count)
+	       unsigned char *buf, size_t count)
 {
 	return -EAGAIN;
 }
@@ -299,7 +293,7 @@ ppp_sync_read(struct tty_struct *tty, struct file *file,
  */
 static ssize_t
 ppp_sync_write(struct tty_struct *tty, struct file *file,
-		const unsigned char __user *buf, size_t count)
+		const unsigned char *buf, size_t count)
 {
 	return -EAGAIN;
 }
@@ -309,7 +303,6 @@ ppp_synctty_ioctl(struct tty_struct *tty, struct file *file,
 		  unsigned int cmd, unsigned long arg)
 {
 	struct syncppp *ap = sp_get(tty);
-	int __user *p = (int __user *)arg;
 	int err, val;
 
 	if (ap == 0)
@@ -321,7 +314,7 @@ ppp_synctty_ioctl(struct tty_struct *tty, struct file *file,
 		if (ap == 0)
 			break;
 		err = -EFAULT;
-		if (put_user(ppp_channel_index(&ap->chan), p))
+		if (put_user(ppp_channel_index(&ap->chan), (int *) arg))
 			break;
 		err = 0;
 		break;
@@ -331,7 +324,7 @@ ppp_synctty_ioctl(struct tty_struct *tty, struct file *file,
 		if (ap == 0)
 			break;
 		err = -EFAULT;
-		if (put_user(ppp_unit_number(&ap->chan), p))
+		if (put_user(ppp_unit_number(&ap->chan), (int *) arg))
 			break;
 		err = 0;
 		break;
@@ -350,7 +343,7 @@ ppp_synctty_ioctl(struct tty_struct *tty, struct file *file,
 
 	case FIONREAD:
 		val = 0;
-		if (put_user(val, p))
+		if (put_user(val, (int *) arg))
 			break;
 		err = 0;
 		break;
@@ -376,24 +369,17 @@ ppp_sync_room(struct tty_struct *tty)
 	return 65535;
 }
 
-/*
- * This can now be called from hard interrupt level as well
- * as soft interrupt level or mainline.
- */
 static void
 ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
-		  char *cflags, int count)
+		  char *flags, int count)
 {
 	struct syncppp *ap = sp_get(tty);
-	unsigned long flags;
 
 	if (ap == 0)
 		return;
-	spin_lock_irqsave(&ap->recv_lock, flags);
-	ppp_sync_input(ap, buf, cflags, count);
-	spin_unlock_irqrestore(&ap->recv_lock, flags);
-	if (skb_queue_len(&ap->rqueue))
-		tasklet_schedule(&ap->tsk);
+	spin_lock_bh(&ap->recv_lock);
+	ppp_sync_input(ap, buf, flags, count);
+	spin_unlock_bh(&ap->recv_lock);
 	sp_put(ap);
 	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags)
 	    && tty->driver->unthrottle)
@@ -408,8 +394,8 @@ ppp_sync_wakeup(struct tty_struct *tty)
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 	if (ap == 0)
 		return;
-	set_bit(XMIT_WAKEUP, &ap->xmit_flags);
-	tasklet_schedule(&ap->tsk);
+	if (ppp_sync_push(ap))
+		ppp_output_wakeup(&ap->chan);
 	sp_put(ap);
 }
 
@@ -450,56 +436,54 @@ ppp_sync_ioctl(struct ppp_channel *chan, unsigned int cmd, unsigned long arg)
 	struct syncppp *ap = chan->private;
 	int err, val;
 	u32 accm[8];
-	void __user *argp = (void __user *)arg;
-	u32 __user *p = argp;
 
 	err = -EFAULT;
 	switch (cmd) {
 	case PPPIOCGFLAGS:
 		val = ap->flags | ap->rbits;
-		if (put_user(val, (int __user *) argp))
+		if (put_user(val, (int *) arg))
 			break;
 		err = 0;
 		break;
 	case PPPIOCSFLAGS:
-		if (get_user(val, (int __user *) argp))
+		if (get_user(val, (int *) arg))
 			break;
 		ap->flags = val & ~SC_RCV_BITS;
-		spin_lock_irq(&ap->recv_lock);
+		spin_lock_bh(&ap->recv_lock);
 		ap->rbits = val & SC_RCV_BITS;
-		spin_unlock_irq(&ap->recv_lock);
+		spin_unlock_bh(&ap->recv_lock);
 		err = 0;
 		break;
 
 	case PPPIOCGASYNCMAP:
-		if (put_user(ap->xaccm[0], p))
+		if (put_user(ap->xaccm[0], (u32 *) arg))
 			break;
 		err = 0;
 		break;
 	case PPPIOCSASYNCMAP:
-		if (get_user(ap->xaccm[0], p))
+		if (get_user(ap->xaccm[0], (u32 *) arg))
 			break;
 		err = 0;
 		break;
 
 	case PPPIOCGRASYNCMAP:
-		if (put_user(ap->raccm, p))
+		if (put_user(ap->raccm, (u32 *) arg))
 			break;
 		err = 0;
 		break;
 	case PPPIOCSRASYNCMAP:
-		if (get_user(ap->raccm, p))
+		if (get_user(ap->raccm, (u32 *) arg))
 			break;
 		err = 0;
 		break;
 
 	case PPPIOCGXASYNCMAP:
-		if (copy_to_user(argp, ap->xaccm, sizeof(ap->xaccm)))
+		if (copy_to_user((void *) arg, ap->xaccm, sizeof(ap->xaccm)))
 			break;
 		err = 0;
 		break;
 	case PPPIOCSXASYNCMAP:
-		if (copy_from_user(accm, argp, sizeof(accm)))
+		if (copy_from_user(accm, (void *) arg, sizeof(accm)))
 			break;
 		accm[2] &= ~0x40000000U;	/* can't escape 0x5e */
 		accm[3] |= 0x60000000U;		/* must escape 0x7d, 0x7e */
@@ -508,12 +492,12 @@ ppp_sync_ioctl(struct ppp_channel *chan, unsigned int cmd, unsigned long arg)
 		break;
 
 	case PPPIOCGMRU:
-		if (put_user(ap->mru, (int __user *) argp))
+		if (put_user(ap->mru, (int *) arg))
 			break;
 		err = 0;
 		break;
 	case PPPIOCSMRU:
-		if (get_user(val, (int __user *) argp))
+		if (get_user(val, (int *) arg))
 			break;
 		if (val < PPP_MRU)
 			val = PPP_MRU;
@@ -525,32 +509,6 @@ ppp_sync_ioctl(struct ppp_channel *chan, unsigned int cmd, unsigned long arg)
 		err = -ENOTTY;
 	}
 	return err;
-}
-
-/*
- * This is called at softirq level to deliver received packets
- * to the ppp_generic code, and to tell the ppp_generic code
- * if we can accept more output now.
- */
-static void ppp_sync_process(unsigned long arg)
-{
-	struct syncppp *ap = (struct syncppp *) arg;
-	struct sk_buff *skb;
-
-	/* process received packets */
-	while ((skb = skb_dequeue(&ap->rqueue)) != NULL) {
-		if (skb->len == 0) {
-			/* zero length buffers indicate error */
-			ppp_input_error(&ap->chan, 0);
-			kfree_skb(skb);
-		}
-		else
-			ppp_input(&ap->chan, skb);
-	}
-
-	/* try to push more stuff out */
-	if (test_bit(XMIT_WAKEUP, &ap->xmit_flags) && ppp_sync_push(ap))
-		ppp_output_wakeup(&ap->chan);
 }
 
 /*
@@ -642,6 +600,7 @@ ppp_sync_push(struct syncppp *ap)
 	struct tty_struct *tty = ap->tty;
 	int tty_stuffed = 0;
 
+	set_bit(XMIT_WAKEUP, &ap->xmit_flags);
 	if (!spin_trylock_bh(&ap->xmit_lock))
 		return 0;
 	for (;;) {
@@ -656,7 +615,7 @@ ppp_sync_push(struct syncppp *ap)
 				tty_stuffed = 1;
 			} else {
 				kfree_skb(ap->tpkt);
-				ap->tpkt = NULL;
+				ap->tpkt = 0;
 				clear_bit(XMIT_FULL, &ap->xmit_flags);
 				done = 1;
 			}
@@ -675,7 +634,7 @@ ppp_sync_push(struct syncppp *ap)
 flush:
 	if (ap->tpkt != 0) {
 		kfree_skb(ap->tpkt);
-		ap->tpkt = NULL;
+		ap->tpkt = 0;
 		clear_bit(XMIT_FULL, &ap->xmit_flags);
 		done = 1;
 	}
@@ -695,7 +654,7 @@ ppp_sync_flush_output(struct syncppp *ap)
 	spin_lock_bh(&ap->xmit_lock);
 	if (ap->tpkt != NULL) {
 		kfree_skb(ap->tpkt);
-		ap->tpkt = NULL;
+		ap->tpkt = 0;
 		clear_bit(XMIT_FULL, &ap->xmit_flags);
 		done = 1;
 	}
@@ -708,44 +667,15 @@ ppp_sync_flush_output(struct syncppp *ap)
  * Receive-side routines.
  */
 
-/* called when the tty driver has data for us.
- *
- * Data is frame oriented: each call to ppp_sync_input is considered
- * a whole frame. If the 1st flag byte is non-zero then the whole
- * frame is considered to be in error and is tossed.
- */
-static void
-ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
-		char *flags, int count)
+static inline void
+process_input_packet(struct syncppp *ap)
 {
 	struct sk_buff *skb;
 	unsigned char *p;
+	int code = 0;
 
-	if (count == 0)
-		return;
-
-	if (ap->flags & SC_LOG_INPKT)
-		ppp_print_buffer ("receive buffer", buf, count);
-
-	/* stuff the chars in the skb */
-	if ((skb = dev_alloc_skb(ap->mru + PPP_HDRLEN + 2)) == 0) {
-		printk(KERN_ERR "PPPsync: no memory (input pkt)\n");
-		goto err;
-	}
-	/* Try to get the payload 4-byte aligned */
-	if (buf[0] != PPP_ALLSTATIONS)
-		skb_reserve(skb, 2 + (buf[0] & 1));
-
-	if (flags != 0 && *flags) {
-		/* error flag set, ignore frame */
-		goto err;
-	} else if (count > skb_tailroom(skb)) {
-		/* packet overflowed MRU */
-		goto err;
-	}
-
-	p = skb_put(skb, count);
-	memcpy(p, buf, count);
+	skb = ap->rpkt;
+	ap->rpkt = 0;
 
 	/* strip address/control field if present */
 	p = skb->data;
@@ -763,15 +693,59 @@ ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
 	} else if (skb->len < 2)
 		goto err;
 
-	/* queue the frame to be processed */
-	skb_queue_tail(&ap->rqueue, skb);
+	/* pass to generic layer */
+	ppp_input(&ap->chan, skb);
 	return;
 
-err:
-	/* queue zero length packet as error indication */
-	if (skb || (skb = dev_alloc_skb(0))) {
-		skb_trim(skb, 0);
-		skb_queue_tail(&ap->rqueue, skb);
+ err:
+	kfree_skb(skb);
+	ppp_input_error(&ap->chan, code);
+}
+
+/* called when the tty driver has data for us. 
+ *
+ * Data is frame oriented: each call to ppp_sync_input is considered
+ * a whole frame. If the 1st flag byte is non-zero then the whole
+ * frame is considered to be in error and is tossed.
+ */
+static void
+ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
+		char *flags, int count)
+{
+	struct sk_buff *skb;
+	unsigned char *sp;
+
+	if (count == 0)
+		return;
+
+	/* if flag set, then error, ignore frame */
+	if (flags != 0 && *flags) {
+		ppp_input_error(&ap->chan, *flags);
+		return;
+	}
+
+	if (ap->flags & SC_LOG_INPKT)
+		ppp_print_buffer ("receive buffer", buf, count);
+
+	/* stuff the chars in the skb */
+	if ((skb = ap->rpkt) == 0) {
+		if ((skb = dev_alloc_skb(ap->mru + PPP_HDRLEN + 2)) == 0) {
+			printk(KERN_ERR "PPPsync: no memory (input pkt)\n");
+			ppp_input_error(&ap->chan, 0);
+			return;
+		}
+		/* Try to get the payload 4-byte aligned */
+		if (buf[0] != PPP_ALLSTATIONS)
+			skb_reserve(skb, 2 + (buf[0] & 1));
+		ap->rpkt = skb;
+	}
+	if (count > skb_tailroom(skb)) {
+		/* packet overflowed MRU */
+		ppp_input_error(&ap->chan, 1);
+	} else {
+		sp = skb_put(skb, count);
+		memcpy(sp, buf, count);
+		process_input_packet(ap);
 	}
 }
 

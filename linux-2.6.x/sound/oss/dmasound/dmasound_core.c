@@ -1,5 +1,5 @@
 /*
- *  linux/sound/oss/dmasound/dmasound_core.c
+ *  linux/drivers/sound/dmasound/dmasound_core.c
  *
  *
  *  OSS/Free compatible Atari TT/Falcon and Amiga DMA sound driver for
@@ -218,10 +218,6 @@ static int state_unit = -1;
 static int irq_installed;
 #endif /* MODULE */
 
-/* software implemented recording volume! */
-uint software_input_volume = SW_INPUT_VOLUME_SCALE * SW_INPUT_VOLUME_DEFAULT;
-EXPORT_SYMBOL(software_input_volume);
-
 /* control over who can modify resources shared between play/record */
 static mode_t shared_resource_owner;
 static int shared_resources_initialised;
@@ -241,7 +237,6 @@ static inline int sound_set_format(int format)
 {
 	return dmasound.mach.setFormat(format);
 }
-
 
 static int sound_set_speed(int speed)
 {
@@ -279,11 +274,11 @@ static int sound_set_stereo(int stereo)
 	return stereo;
 }
 
-static ssize_t sound_copy_translate(TRANS *trans, const u_char __user *userPtr,
+static ssize_t sound_copy_translate(TRANS *trans, const u_char *userPtr,
 				    size_t userCount, u_char frame[],
 				    ssize_t *frameUsed, ssize_t frameLeft)
 {
-	ssize_t (*ct_func)(const u_char __user *, size_t, u_char *, ssize_t *, ssize_t);
+	ssize_t (*ct_func)(const u_char *, size_t, u_char *, ssize_t *, ssize_t);
 
 	switch (dmasound.soft.format) {
 	    case AFMT_MU_LAW:
@@ -361,7 +356,7 @@ static int mixer_ioctl(struct inode *inode, struct file *file, u_int cmd,
 		    strlcpy(info.id, dmasound.mach.name2, sizeof(info.id));
 		    strlcpy(info.name, dmasound.mach.name2, sizeof(info.name));
 		    info.modify_counter = mixer.modify_counter;
-		    if (copy_to_user((void __user *)arg, &info, sizeof(info)))
+		    if (copy_to_user((int *)arg, &info, sizeof(info)))
 			    return -EFAULT;
 		    return 0;
 		}
@@ -425,7 +420,7 @@ static int sq_allocate_buffers(struct sound_queue *sq, int num, int size)
 			while (i--)
 				dmasound.mach.dma_free(sq->buffers[i], size);
 			kfree(sq->buffers);
-			sq->buffers = NULL;
+			sq->buffers = 0;
 			return -ENOMEM;
 		}
 	}
@@ -447,7 +442,7 @@ static void sq_release_buffers(struct sound_queue *sq)
 
 static int sq_setup(struct sound_queue *sq)
 {
-	int (*setup_func)(void) = NULL;
+	int (*setup_func)(void) = 0;
 	int hard_frame ;
 
 	if (sq->locked) { /* are we already set? - and not changeable */
@@ -546,7 +541,7 @@ static inline void sq_play(void)
 	dmasound.mach.play();
 }
 
-static ssize_t sq_write(struct file *file, const char __user *src, size_t uLeft,
+static ssize_t sq_write(struct file *file, const char *src, size_t uLeft,
 			loff_t *ppos)
 {
 	ssize_t uWritten = 0;
@@ -703,7 +698,7 @@ static unsigned int sq_poll(struct file *file, struct poll_table_struct *wait)
      *  it and restart the DMA.
      */
 
-static ssize_t sq_read(struct file *file, char __user *dst, size_t uLeft,
+static ssize_t sq_read(struct file *file, char *dst, size_t uLeft,
 		       loff_t *ppos)
 {
 
@@ -1004,7 +999,6 @@ static void sq_reset(void)
 static int sq_fsync(struct file *filp, struct dentry *dentry)
 {
 	int rc = 0;
-	int timeout = 5;
 
 	write_sq.syncing |= 1;
 	sq_play();	/* there may be an incomplete frame waiting */
@@ -1017,12 +1011,6 @@ static int sq_fsync(struct file *filp, struct dentry *dentry)
 			 * and clear the queue. */
 			sq_reset_output();
 			rc = -EINTR;
-			break;
-		}
-		if (!--timeout) {
-			printk(KERN_WARNING "dmasound: Timeout draining output\n");
-			sq_reset_output();
-			rc = -EIO;
 			break;
 		}
 	}
@@ -1276,13 +1264,15 @@ static int sq_ioctl(struct inode *inode, struct file *file, u_int cmd,
 			result = IOCTL_OUT(arg, format);
 			if (result < 0)
 				return result;
-			if (format != data && data != AFMT_QUERY)
+			if (format != data)
 				return -EINVAL;
 			return 0;
 		} else
 			return -EINVAL ;
+		break ;
 	case SNDCTL_DSP_SUBDIVIDE:
 		return -EINVAL ;
+		break;
 	case SNDCTL_DSP_SETFRAGMENT:
 		/* we can do this independently for the two queues - with the
 		   proviso that for fds opened O_RDWR we cannot separate the
@@ -1321,7 +1311,7 @@ static int sq_ioctl(struct inode *inode, struct file *file, u_int cmd,
 			info.fragstotal = write_sq.max_active;
 			info.fragsize = write_sq.user_frag_size;
 			info.bytes = info.fragments * info.fragsize;
-			if (copy_to_user((void __user *)arg, &info, sizeof(info)))
+			if (copy_to_user((void *)arg, &info, sizeof(info)))
 				return -EFAULT;
 			return 0;
 		} else
@@ -1547,7 +1537,7 @@ static int state_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t state_read(struct file *file, char __user *buf, size_t count,
+static ssize_t state_read(struct file *file, char *buf, size_t count,
 			  loff_t *ppos)
 {
 	int n = state.len - state.ptr;

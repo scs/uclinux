@@ -67,6 +67,7 @@
 #include <linux/ppp_channel.h>
 #include <linux/ppp_defs.h>
 #include <linux/if_ppp.h>
+#include <linux/if_pppvar.h>
 #include <linux/notifier.h>
 #include <linux/file.h>
 #include <linux/proc_fs.h>
@@ -79,8 +80,6 @@
 #define PPPOE_HASH_BITS 4
 #define PPPOE_HASH_SIZE (1<<PPPOE_HASH_BITS)
 
-static struct ppp_channel_ops pppoe_chan_ops;
-
 static int pppoe_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 static int pppoe_xmit(struct ppp_channel *chan, struct sk_buff *skb);
 static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb);
@@ -88,7 +87,6 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb);
 static struct proto_ops pppoe_ops;
 static rwlock_t pppoe_hash_lock = RW_LOCK_UNLOCKED;
 
-static struct ppp_channel_ops pppoe_chan_ops;
 
 static inline int cmp_2_addr(struct pppoe_addr *a, struct pppoe_addr *b)
 {
@@ -519,7 +517,7 @@ static int pppoe_create(struct socket *sock)
 	sk->sk_protocol	   = PX_PROTO_OE;
 	sk->sk_destruct	   = pppoe_sk_free;
 
-	po = sk->sk_protinfo = kmalloc(sizeof(*po), GFP_KERNEL);
+	po = pppox_sk(sk) = kmalloc(sizeof(*po), GFP_KERNEL);
 	if (!po)
 		goto frees;
 	memset(po, 0, sizeof(*po));
@@ -694,7 +692,7 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 		if (put_user(po->pppoe_dev->mtu -
 			     sizeof(struct pppoe_hdr) -
 			     PPP_HDRLEN,
-			     (int __user *) arg))
+			     (int *) arg))
 			break;
 		err = 0;
 		break;
@@ -705,7 +703,7 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 			break;
 
 		err = -EFAULT;
-		if (get_user(val,(int __user *) arg))
+		if (get_user(val,(int *) arg))
 			break;
 
 		if (val < (po->pppoe_dev->mtu
@@ -718,7 +716,7 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 
 	case PPPIOCSFLAGS:
 		err = -EFAULT;
-		if (get_user(val, (int __user *) arg))
+		if (get_user(val, (int *) arg))
 			break;
 		err = 0;
 		break;
@@ -739,7 +737,7 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 		   PPPoE address to which frames are forwarded to */
 		err = -EFAULT;
 		if (copy_from_user(&po->pppoe_relay,
-				   (void __user *)arg,
+				   (void*)arg,
 				   sizeof(struct sockaddr_pppox)))
 			break;
 
@@ -1078,20 +1076,6 @@ static struct file_operations pppoe_seq_fops = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
-
-static int __init pppoe_proc_init(void)
-{
-	struct proc_dir_entry *p;
-
-	p = create_proc_entry("pppoe", S_IRUGO, proc_net);
-	if (!p)
-		return -ENOMEM;
-
-	p->proc_fops = &pppoe_seq_fops;
-	return 0;
-}
-#else /* CONFIG_PROC_FS */
-static inline int pppoe_proc_init(void) { return 0; }
 #endif /* CONFIG_PROC_FS */
 
 /* ->ioctl are set at pppox_create */
@@ -1128,18 +1112,26 @@ static int __init pppoe_init(void)
 
 	if (err)
 		goto out;
-
-	err = pppoe_proc_init();
-	if (err) {
-		unregister_pppox_proto(PX_PROTO_OE);
-		goto out;
-	}
+#ifdef CONFIG_PROC_FS
+{
+	struct proc_dir_entry *p = create_proc_entry("pppoe", S_IRUGO,
+						     proc_net);
+	err = -ENOMEM;
+	if (!p)
+		goto out_unregister;
 	
+	p->proc_fops = &pppoe_seq_fops;
+	err = 0;
+}
+#endif /* CONFIG_PROC_FS */
 	dev_add_pack(&pppoes_ptype);
 	dev_add_pack(&pppoed_ptype);
 	register_netdevice_notifier(&pppoe_notifier);
 out:
 	return err;
+out_unregister:
+	unregister_pppox_proto(PX_PROTO_OE);
+	goto out;
 }
 
 static void __exit pppoe_exit(void)
@@ -1148,7 +1140,9 @@ static void __exit pppoe_exit(void)
 	dev_remove_pack(&pppoes_ptype);
 	dev_remove_pack(&pppoed_ptype);
 	unregister_netdevice_notifier(&pppoe_notifier);
+#ifdef CONFIG_PROC_FS
 	remove_proc_entry("pppoe", proc_net);
+#endif
 }
 
 module_init(pppoe_init);

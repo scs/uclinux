@@ -84,7 +84,7 @@ extern void i810fb_init_ringbuffer(struct fb_info *info);
 extern void i810fb_load_front     (u32 offset, struct fb_info *info);
 
 /* Conditionals */
-#ifdef CONFIG_X86
+#if defined(__i386__)
 inline void flush_cache(void)
 {
 	asm volatile ("wbinvd":::"memory");

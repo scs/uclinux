@@ -135,12 +135,16 @@ static void
 ibwdt_ping(void)
 {
 	/* Write a watchdog value */
-	outb_p(wd_margin, WDT_START);
+	outb_p(wd_times[wd_margin], WDT_START);
 }
 
 static ssize_t
-ibwdt_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+ibwdt_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
+	/*  Can't seek (pwrite) on this device  */
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
+
 	if (count) {
 		if (!nowayout) {
 			size_t i;
@@ -166,8 +170,6 @@ ibwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	  unsigned long arg)
 {
 	int i, new_margin;
-	void __user *argp = (void __user *)arg;
-	int __user *p = argp;
 
 	static struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
@@ -177,19 +179,19 @@ ibwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-	  if (copy_to_user(argp, &ident, sizeof(ident)))
+	  if (copy_to_user((struct watchdog_info *)arg, &ident, sizeof(ident)))
 	    return -EFAULT;
 	  break;
 
 	case WDIOC_GETSTATUS:
-	  return put_user(0, p);
+	  return put_user(0, (int *) arg);
 
 	case WDIOC_KEEPALIVE:
 	  ibwdt_ping();
 	  break;
 
 	case WDIOC_SETTIMEOUT:
-	  if (get_user(new_margin, p))
+	  if (get_user(new_margin, (int *)arg))
 		  return -EFAULT;
 	  if ((new_margin < 0) || (new_margin > 30))
 		  return -EINVAL;
@@ -201,7 +203,7 @@ ibwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	  /* Fall */
 
 	case WDIOC_GETTIMEOUT:
-	  return put_user(wd_times[wd_margin], p);
+	  return put_user(wd_times[wd_margin], (int *)arg);
 	  break;
 
 	default:
@@ -224,7 +226,7 @@ ibwdt_open(struct inode *inode, struct file *file)
 	/* Activate */
 	ibwdt_ping();
 	spin_unlock(&ibwdt_lock);
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 static int
@@ -232,7 +234,7 @@ ibwdt_close(struct inode *inode, struct file *file)
 {
 	spin_lock(&ibwdt_lock);
 	if (expect_close == 42)
-		outb_p(0, WDT_STOP);
+		outb_p(wd_times[wd_margin], WDT_STOP);
 	else
 		printk(KERN_CRIT PFX "WDT device closed unexpectedly.  WDT will not stop!\n");
 
@@ -252,7 +254,7 @@ ibwdt_notify_sys(struct notifier_block *this, unsigned long code,
 {
 	if (code == SYS_DOWN || code == SYS_HALT) {
 		/* Turn the WDT off */
-		outb_p(0, WDT_STOP);
+		outb_p(wd_times[wd_margin], WDT_STOP);
 	}
 	return NOTIFY_DONE;
 }
@@ -282,6 +284,8 @@ static struct miscdevice ibwdt_miscdev = {
 
 static struct notifier_block ibwdt_notifier = {
 	.notifier_call = ibwdt_notify_sys,
+	.next = NULL,
+	.priority = 0,
 };
 
 static int __init ibwdt_init(void)
@@ -346,6 +350,5 @@ module_exit(ibwdt_exit);
 MODULE_AUTHOR("Charles Howes <chowes@vsol.net>");
 MODULE_DESCRIPTION("IB700 SBC watchdog driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 /* end of ib700wdt.c */

@@ -8,7 +8,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/config.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/ioport.h>
@@ -22,7 +21,6 @@
 #include <linux/init.h>
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
-#include <linux/interrupt.h>
 
 #include <asm/elf.h>
 #include <asm/hardware.h>
@@ -35,7 +33,6 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
-#include <asm/mach/time.h>
 
 #ifndef MEM_SIZE
 #define MEM_SIZE	(16*1024*1024)
@@ -64,20 +61,10 @@ extern int _stext, _text, _etext, _edata, _end;
 
 unsigned int processor_id;
 unsigned int __machine_arch_type;
-EXPORT_SYMBOL(__machine_arch_type);
-
 unsigned int system_rev;
-EXPORT_SYMBOL(system_rev);
-
 unsigned int system_serial_low;
-EXPORT_SYMBOL(system_serial_low);
-
 unsigned int system_serial_high;
-EXPORT_SYMBOL(system_serial_high);
-
 unsigned int elf_hwcap;
-EXPORT_SYMBOL(elf_hwcap);
-
 
 #ifdef MULTI_CPU
 struct processor processor;
@@ -93,10 +80,8 @@ struct cpu_cache_fns cpu_cache;
 #endif
 
 unsigned char aux_device_present;
-
 char elf_platform[ELF_PLATFORM_SIZE];
-EXPORT_SYMBOL(elf_platform);
-
+char saved_command_line[COMMAND_LINE_SIZE];
 unsigned long phys_initrd_start __initdata = 0;
 unsigned long phys_initrd_size __initdata = 0;
 
@@ -133,21 +118,21 @@ static struct resource io_res[] = {
 #define lp2 io_res[2]
 
 static const char *cache_types[16] = {
-	"VIVT write-through",
-	"VIVT write-back",
-	"VIVT write-back",
+	"write-through",
+	"write-back",
+	"write-back",
 	"undefined 3",
 	"undefined 4",
 	"undefined 5",
-	"VIVT write-back",
-	"VIVT write-back",
+	"write-back",
+	"write-back",
 	"undefined 8",
 	"undefined 9",
 	"undefined 10",
 	"undefined 11",
 	"undefined 12",
 	"undefined 13",
-	"VIPT write-back",
+	"undefined 14",
 	"undefined 15",
 };
 
@@ -166,7 +151,7 @@ static const char *cache_clean[16] = {
 	"undefined 11",
 	"undefined 12",
 	"undefined 13",
-	"cp15 c7 ops",
+	"undefined 14",
 	"undefined 15",
 };
 
@@ -185,7 +170,7 @@ static const char *cache_lockdown[16] = {
 	"undefined 11",
 	"undefined 12",
 	"undefined 13",
-	"format C",
+	"undefined 14",
 	"undefined 15",
 };
 
@@ -198,7 +183,7 @@ static const char *proc_arch[] = {
 	"5T",
 	"5TE",
 	"5TEJ",
-	"6TEJ",
+	"?(9)",
 	"?(10)",
 	"?(11)",
 	"?(12)",
@@ -234,7 +219,9 @@ static inline void dump_cache(const char *prefix, unsigned int cache)
 
 static void __init dump_cpu_info(void)
 {
-	unsigned int info = read_cpuid(CPUID_CACHETYPE);
+	unsigned int info;
+
+	asm("mrc p15, 0, %0, c0, c0, 1" : "=r" (info));
 
 	if (info != processor_id) {
 		printk("CPU: D %s cache\n", cache_types[CACHE_TYPE(info)]);
@@ -728,7 +715,6 @@ void __init setup_arch(char **cmdline_p)
 	 * Set up various architecture-specific pointers
 	 */
 	init_arch_irq = mdesc->init_irq;
-	init_arch_time = mdesc->init_time;
 	init_machine = mdesc->init_machine;
 
 #ifdef CONFIG_VT
@@ -817,7 +803,9 @@ static int c_show(struct seq_file *m, void *v)
 	seq_printf(m, "CPU revision\t: %d\n", processor_id & 15);
 
 	{
-		unsigned int cache_info = read_cpuid(CPUID_CACHETYPE);
+		unsigned int cache_info;
+
+		asm("mrc p15, 0, %0, c0, c0, 1" : "=r" (cache_info));
 		if (cache_info != processor_id) {
 			seq_printf(m, "Cache type\t: %s\n"
 				      "Cache clean\t: %s\n"

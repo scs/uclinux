@@ -1,10 +1,10 @@
 /*
- *  linux/sound/oss/dmasound/dmasound_awacs.c
+ *  linux/drivers/sound/dmasound/dmasound_awacs.c
  *
  *  PowerMac `AWACS' and `Burgundy' DMA Sound Driver
  *  with some limited support for DACA & Tumbler
  *
- *  See linux/sound/oss/dmasound/dmasound_core.c for copyright and
+ *  See linux/drivers/sound/dmasound/dmasound_core.c for copyright and
  *  history prior to 2001/01/26.
  *
  *	26/01/2001 ed 0.1 Iain Sandoe
@@ -52,10 +52,6 @@
  *	        - Support for snapper & better tumbler integration by Toby Sargeant
  *	        - Headphone detect for scremer by Julien Blache
  *	        - More tumbler fixed by Andreas Schwab
- *	11/29/2003 [0.8.1] - Renzo Davoli (King Enzo)
- *		- Support for Snapper line in
- *		- snapper input resampling (for rates < 44100)
- *		- software line gain control
  */
 
 /* GENERAL FIXME/TODO: check that the assumptions about what is written to
@@ -80,7 +76,6 @@
 #include <linux/spinlock.h>
 #include <linux/kmod.h>
 #include <linux/interrupt.h>
-#include <linux/input.h>
 #include <asm/semaphore.h>
 #ifdef CONFIG_ADB_CUDA
 #include <linux/cuda.h>
@@ -124,6 +119,7 @@ static volatile u32 *i2s;
 static volatile struct dbdma_regs *awacs_txdma, *awacs_rxdma;
 static int awacs_rate_index;
 static int awacs_subframe;
+static int awacs_spkr_vol;
 static struct device_node* awacs_node;
 static struct device_node* i2s_node;
 
@@ -268,7 +264,6 @@ struct pmu_sleep_notifier awacs_sleep_notifier = {
 
 /* for (soft) sample rate translations */
 int expand_bal;		/* Balance factor for expanding (not volume!) */
-int expand_read_bal;	/* Balance factor for expanding reads (not volume!) */
 
 /*** Low level stuff *********************************************************/
 
@@ -290,6 +285,8 @@ static irqreturn_t pmac_awacs_intr(int irq, void *devid, struct pt_regs *regs);
 static void awacs_write(int val);
 static int awacs_get_volume(int reg, int lshift);
 static int awacs_volume_setter(int volume, int n, int mute, int lshift);
+static void awacs_mksound(unsigned int hz, unsigned int ticks);
+static void awacs_nosound(unsigned long xx);
 
 
 /*** Mid level stuff **********************************************************/
@@ -302,7 +299,6 @@ static void PMacAbortRead(void);
 extern TRANS transAwacsNormal ;
 extern TRANS transAwacsExpand ;
 extern TRANS transAwacsNormalRead ;
-extern TRANS transAwacsExpandRead ;
 
 extern int daca_init(void);
 extern void daca_cleanup(void);
@@ -326,12 +322,12 @@ extern int daca_leave_sleep(void);
 #undef IOCTL_OUT
 
 #define IOCTL_IN(arg, ret)	\
-	rc = get_user(ret, (int __user *)(arg)); \
+	rc = get_user(ret, (int *)(arg)); \
 	if (rc) break;
 #define IOCTL_OUT(arg, ret)	\
-	ioctl_return2((int __user *)(arg), ret)
+	ioctl_return2((int *)(arg), ret)
 
-static inline int ioctl_return2(int __user *addr, int value)
+static inline int ioctl_return2(int *addr, int value)
 {
 	return value < 0 ? value : put_user(value, addr);
 }
@@ -457,11 +453,11 @@ tas_dmasound_init(void)
 			&gpio_headphone_detect_pol);
 
 	write_audio_gpio(gpio_audio_reset, gpio_audio_reset_pol);
-	msleep(100);
+	wait_ms(100);
 	write_audio_gpio(gpio_audio_reset, !gpio_audio_reset_pol);
-	msleep(100);
+	wait_ms(100);
   	if (gpio_headphone_irq) {
-		if (request_irq(gpio_headphone_irq,headphone_intr,0,"Headphone detect",NULL) < 0) {
+		if (request_irq(gpio_headphone_irq,headphone_intr,0,"Headphone detect",0) < 0) {
     			printk(KERN_ERR "tumbler: Can't request headphone interrupt\n");
     			gpio_headphone_irq = 0;
     		} else {
@@ -470,7 +466,7 @@ tas_dmasound_init(void)
 			val = pmac_call_feature(PMAC_FTR_READ_GPIO, NULL, gpio_headphone_detect, 0);
 			pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL, gpio_headphone_detect, val | 0x80);
 			/* Trigger it */
-  			headphone_intr(0,NULL,NULL);
+  			headphone_intr(0,0,0);
   		}
   	}
   	if (!gpio_headphone_irq) {
@@ -487,7 +483,7 @@ static int
 tas_dmasound_cleanup(void)
 {
 	if (gpio_headphone_irq)
-		free_irq(gpio_headphone_irq, NULL);
+		free_irq(gpio_headphone_irq, 0);
 	return 0;
 }
 
@@ -514,7 +510,6 @@ tas_set_frame_rate(void)
 static int
 tas_mixer_ioctl(u_int cmd, u_long arg)
 {
-	int __user *argp = (int __user *)arg;
 	int data;
 	int rc;
 
@@ -525,16 +520,16 @@ tas_mixer_ioctl(u_int cmd, u_long arg)
 
         if ((cmd & ~0xff) == MIXER_WRITE(0) &&
             tas_supported_mixers() & (1<<(cmd & 0xff))) {
-		rc = get_user(data, argp);
+		rc = get_user(data, (int *)(arg));
                 if (rc<0) return rc;
 		tas_set_mixer_level(cmd & 0xff, data);
 		tas_get_mixer_level(cmd & 0xff, &data);
-		return ioctl_return2(argp, data);
+		return ioctl_return2((int *)(arg), data);
         }
         if ((cmd & ~0xff) == MIXER_READ(0) &&
             tas_supported_mixers() & (1<<(cmd & 0xff))) {
 		tas_get_mixer_level(cmd & 0xff, &data);
-		return ioctl_return2(argp, data);
+		return ioctl_return2((int *)(arg), data);
         }
 
 	switch(cmd) {
@@ -550,15 +545,11 @@ tas_mixer_ioctl(u_int cmd, u_long arg)
 		rc = IOCTL_OUT(arg, 0);
 		break;
 	case SOUND_MIXER_READ_RECMASK:
-		// XXX FIXME: find a way to check what is really available */
-		data = SOUND_MASK_LINE | SOUND_MASK_MIC;
+		data = 0;
 		rc = IOCTL_OUT(arg, data);
 		break;
 	case SOUND_MIXER_READ_RECSRC:
-		if (awacs_reg[0] & MASK_MUX_AUDIN)
-			data |= SOUND_MASK_LINE;
-		if (awacs_reg[0] & MASK_MUX_MIC)
-			data |= SOUND_MASK_MIC;
+		data = 0;
 		rc = IOCTL_OUT(arg, data);
 		break;
 	case SOUND_MIXER_WRITE_RECSRC:
@@ -628,10 +619,10 @@ static void PMacFree(void *ptr, unsigned int size)
 static int __init PMacIrqInit(void)
 {
 	if (awacs)
-		if (request_irq(awacs_irq, pmac_awacs_intr, 0, "Built-in Sound misc", NULL))
+		if (request_irq(awacs_irq, pmac_awacs_intr, 0, "Built-in Sound misc", 0))
 			return 0;
-	if (request_irq(awacs_tx_irq, pmac_awacs_tx_intr, 0, "Built-in Sound out", NULL)
-	    || request_irq(awacs_rx_irq, pmac_awacs_rx_intr, 0, "Built-in Sound in", NULL))
+	if (request_irq(awacs_tx_irq, pmac_awacs_tx_intr, 0, "Built-in Sound out", 0)
+	    || request_irq(awacs_rx_irq, pmac_awacs_rx_intr, 0, "Built-in Sound in", 0))
 		return 0;
 	return 1;
 }
@@ -654,12 +645,12 @@ static void PMacIrqCleanup(void)
 	    machine_is_compatible("PowerBook3,2")) && awacs) {
 		awacs_reg[1] |= MASK_PAROUT0 | MASK_PAROUT1;
 		awacs_write(MASK_ADDR1 | awacs_reg[1]);
-		msleep(200);
+		wait_ms(200);
 	}
 	if (awacs)
-		free_irq(awacs_irq, NULL);
-	free_irq(awacs_tx_irq, NULL);
-	free_irq(awacs_rx_irq, NULL);
+		free_irq(awacs_irq, 0);
+	free_irq(awacs_tx_irq, 0);
+	free_irq(awacs_rx_irq, 0);
 	
 	if (awacs)
 		iounmap((void *)awacs);
@@ -776,10 +767,10 @@ awacs_recalibrate(void)
 	/* Sorry for the horrible delays... I hope to get that improved
 	 * by making the whole PM process asynchronous in a future version
 	 */
-	msleep(750);
+	wait_ms(750);
 	awacs_reg[1] |= MASK_CMUTE | MASK_AMUTE;
 	awacs_write(awacs_reg[1] | MASK_RECALIBRATE | MASK_ADDR1);
-	msleep(1000);
+	wait_ms(1000);
 	awacs_write(awacs_reg[1] | MASK_ADDR1);
 }
 
@@ -808,13 +799,11 @@ static void PMacInit(void)
 	set_frame_rate(dmasound.soft.speed, catchRadius) ;
 
 	tolerance = (catchRadius * dmasound.hard.speed) / 100;
-	if (dmasound.soft.speed >= dmasound.hard.speed - tolerance) {
+	if (dmasound.soft.speed >= dmasound.hard.speed - tolerance)
 		dmasound.trans_write = &transAwacsNormal;
-		dmasound.trans_read = &transAwacsNormalRead;
-	} else {
+	else
 		dmasound.trans_write = &transAwacsExpand;
-		dmasound.trans_read = &transAwacsExpandRead;
-	}
+	dmasound.trans_read = &transAwacsNormalRead;
 
 	if (awacs) {
 		if (hw_can_byteswap && (dmasound.hard.format == AFMT_S16_LE))
@@ -824,7 +813,6 @@ static void PMacInit(void)
 	}
 	
 	expand_bal = -dmasound.soft.speed;
-	expand_read_bal = -dmasound.soft.speed;
 }
 
 static int PMacSetFormat(int format)
@@ -1292,14 +1280,15 @@ static void awacs_nosound(unsigned long xx)
 	spin_unlock_irqrestore(&dmasound.lock, flags);
 }
 
-/*
- * We generate the beep with a single dbdma command that loops a buffer
- * forever - without generating interrupts.
- *
- * So, to stop it you have to stop dma output as per awacs_nosound.
- */
-static int awacs_beep_event(struct input_dev *dev, unsigned int type,
-		unsigned int code, int hz)
+static struct timer_list beep_timer = TIMER_INITIALIZER(awacs_nosound, 0, 0);
+
+#if 0 /* would need to go through the input layer in 2.6, later..  --hch */
+/* we generate the beep with a single dbdma command that loops a buffer
+   forever - without generating interrupts.
+   So, to stop it you have to stop dma output as per awacs_nosound.
+*/
+
+static void awacs_mksound(unsigned int hz, unsigned int ticks)
 {
 	unsigned long flags;
 	int beep_speed = 0;
@@ -1311,21 +1300,8 @@ static int awacs_beep_event(struct input_dev *dev, unsigned int type,
 	static int beep_nsamples_cache;
 	static int beep_volume_cache;
 
-	if (type != EV_SND)
-		return -1;
-	switch (code) {
-	case SND_BELL:
-		if (hz)
-			hz = 1000;
-		break;
-	case SND_TONE:
-		break;
-	default:
-		return -1;
-	}
-
 	if (beep_buf == NULL)
-		return -1;
+		return;
 
 	/* quick-hack fix for DACA, Burgundy & Tumbler */
 
@@ -1337,17 +1313,26 @@ static int awacs_beep_event(struct input_dev *dev, unsigned int type,
 				beep_speed = i;
 		srate = awacs_freqs[beep_speed];
 	}
-
 	if (hz <= srate / BEEP_BUFLEN || hz > srate / 2) {
+#if 1
+		/* this is a hack for broken X server code */
+		hz = 750;
+		ticks = 12;
+#else
 		/* cancel beep currently playing */
 		awacs_nosound(0);
-		return 0;
+		return;
+#endif
 	}
-
 	spin_lock_irqsave(&dmasound.lock, flags);
+	del_timer(&beep_timer);
+	if (ticks) {
+		beep_timer.expires = jiffies + ticks;
+		add_timer(&beep_timer);
+	}
 	if (beep_playing || write_sq.active || beep_buf == NULL) {
 		spin_unlock_irqrestore(&dmasound.lock, flags);
-		return -1;		/* too hard, sorry :-( */
+		return;		/* too hard, sorry :-( */
 	}
 	beep_playing = 1;
 	st_le16(&beep_dbdma_cmd->command, OUTPUT_MORE + BR_ALWAYS);
@@ -1390,9 +1375,8 @@ static int awacs_beep_event(struct input_dev *dev, unsigned int type,
 		out_le32(&awacs_txdma->control, RUN | (RUN << 16));
 	}
 	spin_unlock_irqrestore(&dmasound.lock, flags);
-
-	return 0;
 }
+#endif
 
 /* used in init and for wake-up */
 
@@ -1406,9 +1390,9 @@ load_awacs(void)
 
 	if (awacs_revision == AWACS_SCREAMER) {
 		awacs_write(awacs_reg[5] + MASK_ADDR5);
-		msleep(100);
+		wait_ms(100);
 		awacs_write(awacs_reg[6] + MASK_ADDR6);
-		msleep(2);
+		wait_ms(2);
 		awacs_write(awacs_reg[1] + MASK_ADDR1);
 		awacs_write(awacs_reg[7] + MASK_ADDR7);
 	}
@@ -1480,7 +1464,7 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when)
 		    machine_is_compatible("PowerBook3,2")) && awacs) {
 			awacs_reg[1] |= MASK_PAROUT0 | MASK_PAROUT1;
 			awacs_write(MASK_ADDR1 | awacs_reg[1]);
-			msleep(200);
+			wait_ms(200);
 		}
 		break;
 	case PBOOK_WAKE:
@@ -1488,12 +1472,12 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when)
 		pmac_call_feature(PMAC_FTR_SOUND_CHIP_ENABLE, awacs_node, 0, 1);
 		if ((machine_is_compatible("PowerBook3,1") ||
 		    machine_is_compatible("PowerBook3,2")) && awacs) {
-			msleep(100);
+			wait_ms(100);
 			awacs_reg[1] &= ~(MASK_PAROUT0 | MASK_PAROUT1);
 			awacs_write(MASK_ADDR1 | awacs_reg[1]);
-			msleep(300);
+			wait_ms(300);
 		} else
-			msleep(1000);
+			wait_ms(1000);
  		/* restore settings */
 		switch (awacs_revision) {
 			case AWACS_TUMBLER:
@@ -1501,14 +1485,14 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when)
 				write_audio_gpio(gpio_headphone_mute, gpio_headphone_mute_pol);
 				write_audio_gpio(gpio_amp_mute, gpio_amp_mute_pol);
 				write_audio_gpio(gpio_audio_reset, gpio_audio_reset_pol);
-				msleep(100);
+				wait_ms(100);
 				write_audio_gpio(gpio_audio_reset, !gpio_audio_reset_pol);
-				msleep(150);
+				wait_ms(150);
 				tas_leave_sleep(); /* Stub for now */
-				headphone_intr(0,NULL,NULL);
+				headphone_intr(0,0,0);
 				break;
 			case AWACS_DACA:
-				msleep(10); /* Check this !!! */
+				wait_ms(10); /* Check this !!! */
 				daca_leave_sleep();
 				break ;		/* dont know how yet */
 			case AWACS_BURGUNDY:
@@ -1780,6 +1764,7 @@ awacs_enable_amp(int spkr_vol)
 #ifdef CONFIG_ADB_CUDA
 	struct adb_request req;
 
+	awacs_spkr_vol = spkr_vol;
 	if (sys_ctrler != SYS_CTRLER_CUDA)
 		return;
 
@@ -2433,7 +2418,7 @@ static void PMacAbortRead(void)
 	 * release the memory.
 	 */
 
-	msleep(100) ; /* give it a (small) chance to act */
+	wait_ms(100) ; /* give it a (small) chance to act */
 
 	/* apply the sledgehammer approach - just stop it now */
 
@@ -2812,17 +2797,6 @@ __init setup_beep(void)
 	return 0 ;
 }
 
-static struct input_dev awacs_beep_dev = {
-	.evbit		= { BIT(EV_SND) },
-	.sndbit		= { BIT(SND_BELL) | BIT(SND_TONE) },
-	.event		= awacs_beep_event,
-	.name		= "dmasound beeper",
-	.phys		= "macio/input0", /* what the heck is this?? */
-	.id		= {
-		.bustype	= BUS_HOST,
-	},
-};
-
 int __init dmasound_awacs_init(void)
 {
 	struct device_node *io = NULL, *info = NULL;
@@ -2970,7 +2944,7 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 
 		sound_device_id = 0;
 		/* device ID appears post g3 b&w */
-		prop = (unsigned int *)get_property(info, "device-id", NULL);
+		prop = (unsigned int *)get_property(info, "device-id", 0);
 		if (prop != 0)
 			sound_device_id = *prop;
 
@@ -3081,7 +3055,7 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 
 	} else if (is_pbook_g3) {
 		struct device_node* mio;
-		macio_base = NULL;
+		macio_base = 0;
 		for (mio = io->parent; mio; mio = mio->parent) {
 			if (strcmp(mio->name, "mac-io") == 0
 			    && mio->n_addrs > 0) {
@@ -3112,9 +3086,13 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 	/* shut out chips that do output only.
 	 * may need to extend this to machines which have no inputs - even tho'
 	 * they use screamer - IIRC one of the powerbooks is like this.
+	 *
+	 * FIXME: Actually, some TUMBLER and SNAPPER do have inputs...  
 	 */
 
-	if (awacs_revision != AWACS_DACA) {
+	if (awacs_revision != AWACS_TUMBLER &&
+            awacs_revision != AWACS_SNAPPER &&
+            awacs_revision != AWACS_DACA) {
 		dmasound.mach.capabilities = DSP_CAP_DUPLEX ;
 		dmasound.mach.record = PMacRecord ;
 	}
@@ -3144,19 +3122,11 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 			break ;
 	}
 
-	/*
-	 * XXX: we should handle errors here, but that would mean
-	 * rewriting the whole init code.  later..
-	 */
-	input_register_device(&awacs_beep_dev);
-
 	return dmasound_init();
 }
 
 static void __exit dmasound_awacs_cleanup(void)
 {
-	input_unregister_device(&awacs_beep_dev);
-
 	switch (awacs_revision) {
 		case AWACS_TUMBLER:
 		case AWACS_SNAPPER:
@@ -3168,7 +3138,6 @@ static void __exit dmasound_awacs_cleanup(void)
 			break;
 	}
 	dmasound_deinit();
-
 }
 
 MODULE_DESCRIPTION("PowerMac built-in audio driver.");

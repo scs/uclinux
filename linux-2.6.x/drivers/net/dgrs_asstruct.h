@@ -4,7 +4,7 @@
  *	$Id$
  */
 
-#ifdef ASSEMBLER
+#if ASSEMBLER
 
 #	define MO(t,a)		(a)
 #	define VMO(t,a)		(a)

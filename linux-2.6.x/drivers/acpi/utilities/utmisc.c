@@ -529,7 +529,6 @@ acpi_ut_strupr (
 	return (src_string);
 }
 
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_mutex_initialize
@@ -563,8 +562,10 @@ acpi_ut_mutex_initialize (
 		}
 	}
 
+
 	status = acpi_os_create_lock (&acpi_gbl_gpe_lock);
-	return_ACPI_STATUS (status);
+
+	return_ACPI_STATUS (AE_OK);
 }
 
 

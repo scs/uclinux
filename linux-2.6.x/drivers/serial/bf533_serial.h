@@ -19,6 +19,7 @@
 #define _Bf533_SERIAL_H
 
 #include <linux/config.h>
+#include <asm/blackfin.h>
 
 struct serial_struct { /****** ??do we need a specific serial_struct */
 	int	type;

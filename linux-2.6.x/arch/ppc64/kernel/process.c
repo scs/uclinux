@@ -34,7 +34,6 @@
 #include <linux/prctl.h>
 #include <linux/ptrace.h>
 #include <linux/kallsyms.h>
-#include <linux/version.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -50,58 +49,20 @@
 #include <asm/hardirq.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
-#include <asm/tlbflush.h>
 
 #ifndef CONFIG_SMP
 struct task_struct *last_task_used_math = NULL;
 struct task_struct *last_task_used_altivec = NULL;
 #endif
 
-struct mm_struct ioremap_mm = {
-	.pgd		= ioremap_dir,
-	.mm_users	= ATOMIC_INIT(2),
-	.mm_count	= ATOMIC_INIT(1),
-	.cpu_vm_mask	= CPU_MASK_ALL,
-	.page_table_lock = SPIN_LOCK_UNLOCKED,
-};
+struct mm_struct ioremap_mm = { pgd             : ioremap_dir  
+                               ,page_table_lock : SPIN_LOCK_UNLOCKED };
 
-/*
- * Make sure the floating-point register state in the
- * the thread_struct is up to date for task tsk.
- */
-void flush_fp_to_thread(struct task_struct *tsk)
-{
-	if (tsk->thread.regs) {
-		/*
-		 * We need to disable preemption here because if we didn't,
-		 * another process could get scheduled after the regs->msr
-		 * test but before we have finished saving the FP registers
-		 * to the thread_struct.  That process could take over the
-		 * FPU, and then when we get scheduled again we would store
-		 * bogus values for the remaining FP registers.
-		 */
-		preempt_disable();
-		if (tsk->thread.regs->msr & MSR_FP) {
-#ifdef CONFIG_SMP
-			/*
-			 * This should only ever be called for current or
-			 * for a stopped child process.  Since we save away
-			 * the FP register state on context switch on SMP,
-			 * there is something wrong if a stopped child appears
-			 * to still have its FP state in the CPU registers.
-			 */
-			BUG_ON(tsk != current);
-#endif
-			giveup_fpu(current);
-		}
-		preempt_enable();
-	}
-}
+char *sysmap = NULL;
+unsigned long sysmap_size = 0;
 
 void enable_kernel_fp(void)
 {
-	WARN_ON(preemptible());
-
 #ifdef CONFIG_SMP
 	if (current->thread.regs && (current->thread.regs->msr & MSR_FP))
 		giveup_fpu(current);
@@ -115,9 +76,12 @@ EXPORT_SYMBOL(enable_kernel_fp);
 
 int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
 {
-	if (!tsk->thread.regs)
+	struct pt_regs *regs = tsk->thread.regs;
+
+	if (!regs)
 		return 0;
-	flush_fp_to_thread(current);
+	if (tsk == current && (regs->msr & MSR_FP))
+		giveup_fpu(current);
 
 	memcpy(fpregs, &tsk->thread.fpr[0], sizeof(*fpregs));
 
@@ -128,8 +92,6 @@ int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
 
 void enable_kernel_altivec(void)
 {
-	WARN_ON(preemptible());
-
 #ifdef CONFIG_SMP
 	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC))
 		giveup_altivec(current);
@@ -141,29 +103,10 @@ void enable_kernel_altivec(void)
 }
 EXPORT_SYMBOL(enable_kernel_altivec);
 
-/*
- * Make sure the VMX/Altivec register state in the
- * the thread_struct is up to date for task tsk.
- */
-void flush_altivec_to_thread(struct task_struct *tsk)
-{
-#ifdef CONFIG_ALTIVEC
-	if (tsk->thread.regs) {
-		preempt_disable();
-		if (tsk->thread.regs->msr & MSR_VEC) {
-#ifdef CONFIG_SMP
-			BUG_ON(tsk != current);
-#endif
-			giveup_altivec(current);
-		}
-		preempt_enable();
-	}
-#endif
-}
-
 int dump_task_altivec(struct pt_regs *regs, elf_vrregset_t *vrregs)
 {
-	flush_altivec_to_thread(current);
+	if (regs->msr & MSR_VEC)
+		giveup_altivec(current);
 	memcpy(vrregs, &current->thread.vr[0], sizeof(*vrregs));
 	return 1;
 }
@@ -203,14 +146,34 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		new->thread.regs->msr |= MSR_VEC;
 #endif /* CONFIG_ALTIVEC */
 
-	flush_tlb_pending();
-
 	new_thread = &new->thread;
 	old_thread = &current->thread;
 
 	local_irq_save(flags);
 	last = _switch(old_thread, new_thread);
 
+	/*
+	 * force our kernel stack out of the ERAT and SLB, this is to
+	 * avoid the race where we it hangs around in the ERAT but not the
+	 * SLB and the ERAT gets invalidated at just the wrong moment by
+	 * another CPU doing a tlbie.
+	 *
+	 * We definitely dont want to flush our bolted segment, so check
+	 * for that first.
+	 */
+	if ((cur_cpu_spec->cpu_features & CPU_FTR_SLB) &&
+	    GET_ESID((unsigned long)_get_SP()) != GET_ESID(PAGE_OFFSET)) {
+		union {
+			unsigned long word0;
+			slb_dword0 data;
+		} esid_data;
+
+		esid_data.word0 = 0;
+		/* class bit is in valid field for slbie instruction */
+		esid_data.data.v = 1;
+		esid_data.data.esid = GET_ESID((unsigned long)_get_SP());
+		asm volatile("isync; slbie %0; isync" : : "r" (esid_data));
+	}
 	local_irq_restore(flags);
 
 	return last;
@@ -219,35 +182,33 @@ struct task_struct *__switch_to(struct task_struct *prev,
 void show_regs(struct pt_regs * regs)
 {
 	int i;
-	unsigned long trap;
 
 	printk("NIP: %016lX XER: %016lX LR: %016lX\n",
 	       regs->nip, regs->xer, regs->link);
-	printk("REGS: %p TRAP: %04lx   %s  (%s)\n",
-	       regs, regs->trap, print_tainted(), UTS_RELEASE);
+	printk("REGS: %p TRAP: %04lx    %s\n",
+	       regs, regs->trap, print_tainted());
 	printk("MSR: %016lx EE: %01x PR: %01x FP: %01x ME: %01x IR/DR: %01x%01x\n",
 	       regs->msr, regs->msr&MSR_EE ? 1 : 0, regs->msr&MSR_PR ? 1 : 0,
 	       regs->msr & MSR_FP ? 1 : 0,regs->msr&MSR_ME ? 1 : 0,
 	       regs->msr&MSR_IR ? 1 : 0,
 	       regs->msr&MSR_DR ? 1 : 0);
-	trap = TRAP(regs);
-	if (trap == 0x300 || trap == 0x380 || trap == 0x600)
+	if (regs->trap == 0x300 || regs->trap == 0x380 || regs->trap == 0x600)
 		printk("DAR: %016lx, DSISR: %016lx\n", regs->dar, regs->dsisr);
-	printk("TASK: %p[%d] '%s' THREAD: %p",
-	       current, current->pid, current->comm, current->thread_info);
+	printk("TASK = %p[%d] '%s' ",
+	       current, current->pid, current->comm);
 
 #ifdef CONFIG_SMP
 	printk(" CPU: %d", smp_processor_id());
 #endif /* CONFIG_SMP */
 
 	for (i = 0; i < 32; i++) {
+		long r;
 		if ((i % 4) == 0) {
 			printk("\n" KERN_INFO "GPR%02d: ", i);
 		}
-
-		printk("%016lX ", regs->gpr[i]);
-		if (i == 13 && !FULL_REGS(regs))
-			break;
+		if (__get_user(r, &(regs->gpr[i])))
+		    return;
+		printk("%016lX ", r);
 	}
 	printk("\n");
 	/*
@@ -256,8 +217,6 @@ void show_regs(struct pt_regs * regs)
 	 */
 	printk("NIP [%016lx] ", regs->nip);
 	print_symbol("%s\n", regs->nip);
-	printk("LR [%016lx] ", regs->link);
-	print_symbol("%s\n", regs->link);
 	show_stack(current, (unsigned long *)regs->gpr[1]);
 }
 
@@ -302,8 +261,16 @@ release_thread(struct task_struct *t)
  */
 void prepare_to_copy(struct task_struct *tsk)
 {
-	flush_fp_to_thread(current);
-	flush_altivec_to_thread(current);
+	struct pt_regs *regs = tsk->thread.regs;
+
+	if (regs == NULL)
+		return;
+	if (regs->msr & MSR_FP)
+		giveup_fpu(current);
+#ifdef CONFIG_ALTIVEC
+	if (regs->msr & MSR_VEC)
+		giveup_altivec(current);
+#endif /* CONFIG_ALTIVEC */
 }
 
 /*
@@ -381,8 +348,8 @@ void start_thread(struct pt_regs *regs, unsigned long fdptr, unsigned long sp)
          * entry is the TOC value we need to use.
          */
 	set_fs(USER_DS);
-	__get_user(entry, (unsigned long __user *)fdptr);
-	__get_user(toc, (unsigned long __user *)fdptr+1);
+	__get_user(entry, (unsigned long *)fdptr);
+	__get_user(toc, (unsigned long *)fdptr+1);
 
 	/* Check whether the e_entry function descriptor entries
 	 * need to be relocated before we can use them.
@@ -435,7 +402,7 @@ int get_fpexc_mode(struct task_struct *tsk, unsigned long adr)
 	unsigned int val;
 
 	val = __unpack_fe01(tsk->thread.fpexc_mode);
-	return put_user(val, (unsigned int __user *) adr);
+	return put_user(val, (unsigned int *) adr);
 }
 
 int sys_clone(unsigned long clone_flags, unsigned long p2, unsigned long p3,
@@ -459,7 +426,7 @@ int sys_clone(unsigned long clone_flags, unsigned long p2, unsigned long p3,
 	}
 
 	return do_fork(clone_flags & ~CLONE_IDLETASK, p2, regs, 0,
-		    (int __user *)parent_tidptr, (int __user *)child_tidptr);
+		    (int *)parent_tidptr, (int *)child_tidptr);
 }
 
 int sys_fork(unsigned long p1, unsigned long p2, unsigned long p3,
@@ -484,14 +451,17 @@ int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 	int error;
 	char * filename;
 	
-	filename = getname((char __user *) a0);
+	filename = getname((char *) a0);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	flush_fp_to_thread(current);
-	flush_altivec_to_thread(current);
-	error = do_execve(filename, (char __user * __user *) a1,
-				    (char __user * __user *) a2, regs);
+	if (regs->msr & MSR_FP)
+		giveup_fpu(current);
+#ifdef CONFIG_ALTIVEC
+	if (regs->msr & MSR_VEC)
+		giveup_altivec(current);
+#endif /* CONFIG_ALTIVEC */
+	error = do_execve(filename, (char **) a1, (char **) a2, regs);
   
 	if (error == 0)
 		current->ptrace &= ~PT_DTRACE;
@@ -501,52 +471,35 @@ out:
 	return error;
 }
 
-static int kstack_depth_to_print = 64;
-
-static int validate_sp(unsigned long sp, struct task_struct *p,
-		       unsigned long nbytes)
-{
-	unsigned long stack_page = (unsigned long)p->thread_info;
-
-	if (sp >= stack_page + sizeof(struct thread_struct)
-	    && sp <= stack_page + THREAD_SIZE - nbytes)
-		return 1;
-
-#ifdef CONFIG_IRQSTACKS
-	stack_page = (unsigned long) hardirq_ctx[task_cpu(p)];
-	if (sp >= stack_page + sizeof(struct thread_struct)
-	    && sp <= stack_page + THREAD_SIZE - nbytes)
-		return 1;
-
-	stack_page = (unsigned long) softirq_ctx[task_cpu(p)];
-	if (sp >= stack_page + sizeof(struct thread_struct)
-	    && sp <= stack_page + THREAD_SIZE - nbytes)
-		return 1;
-#endif
-
-	return 0;
-}
+/*
+ * These bracket the sleeping functions..
+ */
+extern void scheduling_functions_start_here(void);
+extern void scheduling_functions_end_here(void);
+#define first_sched    (*(unsigned long *)scheduling_functions_start_here)
+#define last_sched     (*(unsigned long *)scheduling_functions_end_here)
 
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long ip, sp;
+	unsigned long stack_page = (unsigned long)p->thread_info;
 	int count = 0;
-
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
-
 	sp = p->thread.ksp;
-	if (!validate_sp(sp, p, 112))
-		return 0;
-
 	do {
 		sp = *(unsigned long *)sp;
-		if (!validate_sp(sp, p, 112))
+		if (sp < (stack_page + sizeof(struct thread_struct)) ||
+		    sp >= (stack_page + THREAD_SIZE))
 			return 0;
 		if (count > 0) {
 			ip = *(unsigned long *)(sp + 16);
-			if (!in_sched_functions(ip))
-				return ip;
+			/*
+			 * XXX we mask the upper 32 bits until procps
+			 * gets fixed.
+			 */
+			if (ip < first_sched || ip >= last_sched)
+				return (ip & 0xFFFFFFFF);
 		}
 	} while (count++ < 16);
 	return 0;
@@ -554,59 +507,39 @@ unsigned long get_wchan(struct task_struct *p)
 
 void show_stack(struct task_struct *p, unsigned long *_sp)
 {
-	unsigned long ip, newsp, lr;
+	unsigned long ip;
+	unsigned long stack_page = (unsigned long)p->thread_info;
 	int count = 0;
 	unsigned long sp = (unsigned long)_sp;
-	int firstframe = 1;
 
-	if (sp == 0) {
-		if (p) {
-			sp = p->thread.ksp;
-		} else {
-			sp = __get_SP();
-			p = current;
-		}
-	}
+	if (!p)
+		return;
 
-	lr = 0;
+	if (sp == 0)
+		sp = p->thread.ksp;
 	printk("Call Trace:\n");
 	do {
-		if (!validate_sp(sp, p, 112))
-			return;
-
-		_sp = (unsigned long *) sp;
-		newsp = _sp[0];
-		ip = _sp[2];
-		if (!firstframe || ip != lr) {
-			printk("[%016lx] [%016lx] ", sp, ip);
-			print_symbol("%s", ip);
-			if (firstframe)
-				printk(" (unreliable)");
-			printk("\n");
-		}
-		firstframe = 0;
-
-		/*
-		 * See if this is an exception frame.
-		 * We look for the "regshere" marker in the current frame.
-		 */
-		if (validate_sp(sp, p, sizeof(struct pt_regs) + 400)
-		    && _sp[12] == 0x7265677368657265ul) {
-			struct pt_regs *regs = (struct pt_regs *)
-				(sp + STACK_FRAME_OVERHEAD);
-			printk("--- Exception: %lx", regs->trap);
-			print_symbol(" at %s\n", regs->nip);
-			lr = regs->link;
-			print_symbol("    LR = %s\n", lr);
-			firstframe = 1;
-		}
-
-		sp = newsp;
-	} while (count++ < kstack_depth_to_print);
+		if (__get_user(sp, (unsigned long *)sp))
+			break;
+		if (sp < stack_page + sizeof(struct thread_struct))
+			break;
+		if (sp >= stack_page + THREAD_SIZE)
+			break;
+		if (__get_user(ip, (unsigned long *)(sp + 16)))
+			break;
+		printk("[%016lx] ", ip);
+		print_symbol("%s\n", ip);
+	} while (count++ < 32);
 }
 
 void dump_stack(void)
 {
-	show_stack(current, (unsigned long *)__get_SP());
+	show_stack(current, (unsigned long *)_get_SP());
 }
+
 EXPORT_SYMBOL(dump_stack);
+
+void show_trace_task(struct task_struct *tsk)
+{
+	show_stack(tsk, (unsigned long *)tsk->thread.ksp);
+}

@@ -65,6 +65,7 @@ static int bfs_readdir(struct file * f, void * dirent, filldir_t filldir)
 		brelse(bh);
 	}
 
+	update_atime(dir);
 	unlock_kernel();
 	return 0;	
 }
@@ -274,7 +275,7 @@ static int bfs_add_entry(struct inode * dir, const char * name, int namelen, int
 {
 	struct buffer_head * bh;
 	struct bfs_dirent * de;
-	int block, sblock, eblock, off, eoff;
+	int block, sblock, eblock, off;
 	int i;
 
 	dprintf("name=%s, namelen=%d\n", name, namelen);
@@ -286,17 +287,12 @@ static int bfs_add_entry(struct inode * dir, const char * name, int namelen, int
 
 	sblock = BFS_I(dir)->i_sblock;
 	eblock = BFS_I(dir)->i_eblock;
-	eoff = dir->i_size % BFS_BSIZE;
 	for (block=sblock; block<=eblock; block++) {
 		bh = sb_bread(dir->i_sb, block);
 		if(!bh) 
 			return -ENOSPC;
 		for (off=0; off<BFS_BSIZE; off+=BFS_DIRENT_SIZE) {
 			de = (struct bfs_dirent *)(bh->b_data + off);
-			if (block==eblock && off>=eoff) {
-				/* Do not read/interpret the garbage in the end of eblock. */
-				de->ino = 0;
-			}
 			if (!de->ino) {
 				if ((block-sblock)*BFS_BSIZE + off >= dir->i_size) {
 					dir->i_size += BFS_DIRENT_SIZE;

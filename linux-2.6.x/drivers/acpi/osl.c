@@ -63,10 +63,9 @@ int acpi_in_debugger;
 extern char line_buf[80];
 #endif /*ENABLE_DEBUGGER*/
 
-static unsigned int acpi_irq_irq;
+static int acpi_irq_irq;
 static OSD_HANDLER acpi_irq_handler;
 static void *acpi_irq_context;
-static struct workqueue_struct *kacpid_wq;
 
 acpi_status
 acpi_os_initialize(void)
@@ -81,8 +80,6 @@ acpi_os_initialize(void)
 		return AE_NULL_ENTRY;
 	}
 #endif
-	kacpid_wq = create_singlethread_workqueue("kacpid");
-	BUG_ON(!kacpid_wq);
 
 	return AE_OK;
 }
@@ -94,8 +91,6 @@ acpi_os_terminate(void)
 		acpi_os_remove_interrupt_handler(acpi_irq_irq,
 						 acpi_irq_handler);
 	}
-
-	destroy_workqueue(kacpid_wq);
 
 	return AE_OK;
 }
@@ -220,8 +215,7 @@ acpi_os_predefined_override (const struct acpi_predefined_names *init_val,
 
 	*new_val = NULL;
 	if (!memcmp (init_val->name, "_OS_", 4) && strlen(acpi_os_name)) {
-		printk(KERN_INFO PREFIX "Overriding _OS definition %s\n",
-			acpi_os_name);
+		printk(KERN_INFO PREFIX "Overriding _OS definition\n");
 		*new_val = acpi_os_name;
 	}
 
@@ -246,22 +240,23 @@ acpi_irq(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 acpi_status
-acpi_os_install_interrupt_handler(u32 gsi, OSD_HANDLER handler, void *context)
+acpi_os_install_interrupt_handler(u32 irq, OSD_HANDLER handler, void *context)
 {
-	unsigned int irq;
-
 	/*
-	 * Ignore the GSI from the core, and use the value in our copy of the
+	 * Ignore the irq from the core, and use the value in our copy of the
 	 * FADT. It may not be the same if an interrupt source override exists
 	 * for the SCI.
 	 */
-	gsi = acpi_fadt.sci_int;
-	if (acpi_gsi_to_irq(gsi, &irq) < 0) {
-		printk(KERN_ERR PREFIX "SCI (ACPI GSI %d) not registered\n",
-		       gsi);
+	irq = acpi_fadt.sci_int;
+
+#ifdef CONFIG_IA64
+	irq = acpi_irq_to_vector(irq);
+	if (irq < 0) {
+		printk(KERN_ERR PREFIX "SCI (ACPI interrupt %d) not registered\n",
+		       acpi_fadt.sci_int);
 		return AE_OK;
 	}
-
+#endif
 	acpi_irq_handler = handler;
 	acpi_irq_context = context;
 	if (request_irq(irq, acpi_irq, SA_SHIRQ, "acpi", acpi_irq)) {
@@ -277,6 +272,9 @@ acpi_status
 acpi_os_remove_interrupt_handler(u32 irq, OSD_HANDLER handler)
 {
 	if (irq) {
+#ifdef CONFIG_IA64
+		irq = acpi_irq_to_vector(irq);
+#endif
 		free_irq(irq, acpi_irq);
 		acpi_irq_handler = NULL;
 		acpi_irq_irq = 0;
@@ -659,20 +657,13 @@ acpi_os_queue_for_execution(
 	task = (void *)(dpc+1);
 	INIT_WORK(task, acpi_os_execute_deferred, (void*)dpc);
 
-	if (!queue_work(kacpid_wq, task)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Call to queue_work() failed.\n"));
+	if (!schedule_work(task)) {
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Call to schedule_work() failed.\n"));
 		kfree(dpc);
 		status = AE_ERROR;
 	}
 
 	return_ACPI_STATUS (status);
-}
-
-void
-acpi_os_wait_events_complete(
-	void *context)
-{
-	flush_workqueue(kacpid_wq);
 }
 
 /*
@@ -1021,60 +1012,3 @@ acpi_os_name_setup(char *str)
 }
 
 __setup("acpi_os_name=", acpi_os_name_setup);
-
-/*
- * _OSI control
- * empty string disables _OSI
- * TBD additional string adds to _OSI
- */
-int __init
-acpi_osi_setup(char *str)
-{
-	if (str == NULL || *str == '\0') {
-		printk(KERN_INFO PREFIX "_OSI method disabled\n");
-		acpi_gbl_create_osi_method = FALSE;
-	} else
-	{
-		/* TBD */
-		printk(KERN_ERR PREFIX "_OSI additional string ignored -- %s\n", str);
-	}
-
-	return 1;
-}
-
-__setup("acpi_osi=", acpi_osi_setup);
-
-/* enable serialization to combat AE_ALREADY_EXISTS errors */
-int __init
-acpi_serialize_setup(char *str)
-{
-	printk(KERN_INFO PREFIX "serialize enabled\n");
-
-	acpi_gbl_all_methods_serialized = TRUE;
-
-	return 1;
-}
-
-__setup("acpi_serialize", acpi_serialize_setup);
-
-/*
- * Wake and Run-Time GPES are expected to be separate.
- * We disable wake-GPEs at run-time to prevent spurious
- * interrupts.
- *
- * However, if a system exists that shares Wake and
- * Run-time events on the same GPE this flag is available
- * to tell Linux to keep the wake-time GPEs enabled at run-time.
- */
-static int __init
-acpi_leave_gpes_disabled_setup(char *str)
-{
-	printk(KERN_INFO PREFIX "leave wake GPEs disabled\n");
-
-	acpi_gbl_leave_wake_gpes_disabled = TRUE;
-
-	return 1;
-}
-
-__setup("acpi_leave_gpes_disabled", acpi_leave_gpes_disabled_setup);
-

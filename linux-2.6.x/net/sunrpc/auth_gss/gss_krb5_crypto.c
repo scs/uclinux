@@ -39,8 +39,6 @@
 #include <linux/slab.h>
 #include <asm/scatterlist.h>
 #include <linux/crypto.h>
-#include <linux/highmem.h>
-#include <linux/pagemap.h>
 #include <linux/sunrpc/gss_krb5.h>
 
 #ifdef RPC_DEBUG
@@ -59,36 +57,33 @@ krb5_encrypt(
         struct scatterlist sg[1];
 	u8 local_iv[16] = {0};
 
-	dprintk("RPC:      krb5_encrypt: input data:\n");
+	dprintk("RPC: gss_k5encrypt: TOP in %p out %p\nin data:\n", out, in);
 	print_hexl((u32 *)in, length, 0);
 
 	if (length % crypto_tfm_alg_blocksize(tfm) != 0)
 		goto out;
 
 	if (crypto_tfm_alg_ivsize(tfm) > 16) {
-		dprintk("RPC:      gss_k5encrypt: tfm iv size to large %d\n",
+		dprintk("RPC: gss_k5encrypt: tfm iv size to large %d\n",
 		         crypto_tfm_alg_ivsize(tfm));
 		goto out;
 	}
 
 	if (iv)
 		memcpy(local_iv, iv, crypto_tfm_alg_ivsize(tfm));
+	crypto_cipher_set_iv(tfm, local_iv, crypto_tfm_alg_ivsize(tfm));
 
 	memcpy(out, in, length);
 	sg[0].page = virt_to_page(out);
 	sg[0].offset = offset_in_page(out);
 	sg[0].length = length;
 
-	ret = crypto_cipher_encrypt_iv(tfm, sg, sg, length, local_iv);
+	ret = crypto_cipher_encrypt(tfm, sg, sg, length);
 
-	dprintk("RPC:      krb5_encrypt: output data:\n");
-	print_hexl((u32 *)out, length, 0);
 out:
-	dprintk("RPC:      krb5_encrypt returns %d\n",ret);
+	dprintk("gss_k5encrypt returns %d\n",ret);
 	return(ret);
 }
-
-EXPORT_SYMBOL(krb5_encrypt);
 
 u32
 krb5_decrypt(
@@ -102,108 +97,72 @@ krb5_decrypt(
 	struct scatterlist sg[1];
 	u8 local_iv[16] = {0};
 
-	dprintk("RPC:      krb5_decrypt: input data:\n");
-	print_hexl((u32 *)in, length, 0);
+	dprintk("RPC: gss_k5decrypt: TOP in %p out %p\nin data:\n", in, out);
+	print_hexl((u32 *)in,length,0);
 
 	if (length % crypto_tfm_alg_blocksize(tfm) != 0)
 		goto out;
 
 	if (crypto_tfm_alg_ivsize(tfm) > 16) {
-		dprintk("RPC:      gss_k5decrypt: tfm iv size to large %d\n",
+		dprintk("RPC: gss_k5decrypt: tfm iv size to large %d\n",
 			crypto_tfm_alg_ivsize(tfm));
 		goto out;
 	}
 	if (iv)
 		memcpy(local_iv,iv, crypto_tfm_alg_ivsize(tfm));
+	crypto_cipher_set_iv(tfm, local_iv, crypto_tfm_alg_blocksize(tfm));
 
 	memcpy(out, in, length);
 	sg[0].page = virt_to_page(out);
 	sg[0].offset = offset_in_page(out);
 	sg[0].length = length;
 
-	ret = crypto_cipher_decrypt_iv(tfm, sg, sg, length, local_iv);
+	ret = crypto_cipher_decrypt(tfm, sg, sg, length);
 
-	dprintk("RPC:      krb5_decrypt: output_data:\n");
-	print_hexl((u32 *)out, length, 0);
 out:
-	dprintk("RPC:      gss_k5decrypt returns %d\n",ret);
+	dprintk("gss_k5decrypt returns %d\n",ret);
 	return(ret);
 }
 
-EXPORT_SYMBOL(krb5_decrypt);
-
-void
-buf_to_sg(struct scatterlist *sg, char *ptr, int len) {
-	sg->page = virt_to_page(ptr);
-	sg->offset = offset_in_page(ptr);
-	sg->length = len;
-}
-
-/* checksum the plaintext data and hdrlen bytes of the token header */
 s32
-make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
+krb5_make_checksum(s32 cksumtype, struct xdr_netobj *input,
 		   struct xdr_netobj *cksum)
 {
-	char                            *cksumname;
-	struct crypto_tfm               *tfm = NULL; /* XXX add to ctx? */
-	struct scatterlist              sg[1];
-	u32                             code = GSS_S_FAILURE;
-	int				len, thislen, offset;
-	int				i;
+	s32			ret = -EINVAL;
+	struct scatterlist	sg[1];
+	char			*cksumname;
+	struct crypto_tfm	*tfm;
 
 	switch (cksumtype) {
 		case CKSUMTYPE_RSA_MD5:
 			cksumname = "md5";
 			break;
 		default:
-			dprintk("RPC:      krb5_make_checksum:"
+			dprintk("RPC: krb5_make_checksum:"
 				" unsupported checksum %d", cksumtype);
 			goto out;
 	}
 	if (!(tfm = crypto_alloc_tfm(cksumname, 0)))
 		goto out;
 	cksum->len = crypto_tfm_alg_digestsize(tfm);
-	if ((cksum->data = kmalloc(cksum->len, GFP_KERNEL)) == NULL)
-		goto out;
+
+	if ((cksum->data = kmalloc(cksum->len, GFP_KERNEL)) == NULL) {
+		ret = -ENOMEM;
+		goto out_free_tfm;
+	}
+	sg[0].page = virt_to_page(input->data);
+	sg[0].offset = offset_in_page(input->data);
+	sg[0].length = input->len;
 
 	crypto_digest_init(tfm);
-	buf_to_sg(sg, header, hdrlen);
 	crypto_digest_update(tfm, sg, 1);
-	if (body->head[0].iov_len) {
-		buf_to_sg(sg, body->head[0].iov_base, body->head[0].iov_len);
-		crypto_digest_update(tfm, sg, 1);
-	}
-
-	len = body->page_len;
-	if (len != 0) {
-		offset = body->page_base & (PAGE_CACHE_SIZE - 1);
-		i = body->page_base >> PAGE_CACHE_SHIFT;
-		thislen = PAGE_CACHE_SIZE - offset;
-		do {
-			if (thislen > len)
-				thislen = len;
-			sg->page = body->pages[i];
-			sg->offset = offset;
-			sg->length = thislen;
-			kmap(sg->page); /* XXX kmap_atomic? */
-			crypto_digest_update(tfm, sg, 1);
-			kunmap(sg->page);
-			len -= thislen;
-			i++;
-			offset = 0;
-			thislen = PAGE_CACHE_SIZE;
-		} while(len != 0);
-	}
-	if (body->tail[0].iov_len) {
-		buf_to_sg(sg, body->tail[0].iov_base, body->tail[0].iov_len);
-		crypto_digest_update(tfm, sg, 1);
-	}
 	crypto_digest_final(tfm, cksum->data);
-	code = 0;
-out:
-	if (tfm)
-		crypto_free_tfm(tfm);
-	return code;
-}
 
-EXPORT_SYMBOL(make_checksum);
+	ret = 0;
+
+out_free_tfm:
+	crypto_free_tfm(tfm);
+out:
+	dprintk("RPC: gss_k5cksum: returning %d\n", ret);
+	return (ret);
+}

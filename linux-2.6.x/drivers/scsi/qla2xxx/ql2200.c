@@ -1,7 +1,7 @@
 /*
  * QLogic ISP2200 device driver for Linux 2.6.x
  * Copyright (C) 2003 Christoph Hellwig.
- * Copyright (C) 2003-2004 QLogic Corporation (www.qlogic.com)
+ * Copyright (C) 2003 QLogic Corporation (www.qlogic.com)
  *
  * Released under GPL v2.
  */
@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#include "qla_os.h"
 #include "qla_def.h"
 
 static char qla_driver_name[] = "qla2200";

@@ -9,14 +9,14 @@
  *             Johan Adolfsson  (read/set directions, write, port G)
  *
  * $Log$
- * Revision 1.1.1.2  2004/09/07 09:14:10  lgsoft
- * Import of 2.6.8
+ * Revision 1.2  2004/09/07 21:08:38  lgsoft
+ * alpha-2.0
  *
- * Revision 1.11  2004/05/14 07:58:03  starvik
- * Merge of changes from 2.4
+ * Revision 1.1.1.1  2004/07/19 11:41:26  lgsoft
+ * Import of uClinux 2.6.2
  *
- * Revision 1.9  2003/09/11 07:29:48  starvik
- * Merge of Linux 2.6.0-test5
+ * Revision 1.1.1.1  2004/07/18 13:20:11  nidhi
+ * Importing
  *
  * Revision 1.8  2003/07/04 08:27:37  starvik
  * Merge of Linux 2.5.74
@@ -192,7 +192,6 @@ struct gpio_private {
 static struct gpio_private *alarmlist = 0;
 
 static int gpio_some_alarms = 0; /* Set if someone uses alarm */
-static unsigned long gpio_pa_irq_enabled_mask = 0;
 
 /* Port A and B use 8 bit access, but Port G is 32 bit */
 #define NUM_PORTS (GPIO_MINOR_B+1)
@@ -262,19 +261,13 @@ gpio_poll(struct file *file,
 	unsigned long data;
 	poll_wait(file, &priv->alarm_wq, wait);
 	if (priv->minor == GPIO_MINOR_A) {
-		unsigned long flags;
 		unsigned long tmp;
 		data = *R_PORT_PA_DATA;
 		/* PA has support for high level interrupt -
 		 * lets activate for those low and with highalarm set
 		 */
 		tmp = ~data & priv->highalarm & 0xFF;
-		tmp = (tmp << R_IRQ_MASK1_SET__pa0__BITNR);
-		save_flags(flags); cli();
-		gpio_pa_irq_enabled_mask |= tmp;
-		*R_IRQ_MASK1_SET = tmp;
-		restore_flags(flags);
-
+		*R_IRQ_MASK1_SET = (tmp << R_IRQ_MASK1_SET__pa0__BITNR);
 	} else if (priv->minor == GPIO_MINOR_B)
 		data = *R_PORT_PB_DATA;
 	else if (priv->minor == GPIO_MINOR_G)
@@ -328,15 +321,12 @@ gpio_pa_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	unsigned long tmp;
 	/* Find what PA interrupts are active */
-	tmp = (*R_IRQ_READ1);
-
-	/* Find those that we have enabled */
-	tmp &= gpio_pa_irq_enabled_mask;
-
+	tmp = (*R_IRQ_READ1 >> R_IRQ_READ1__pa0__BITNR) & 0xFF;
 	/* Clear them.. */
-	*R_IRQ_MASK1_CLR = tmp;
-	gpio_pa_irq_enabled_mask &= ~tmp;
-
+	/* NOTE: Maybe we need to be more careful here if some other
+	 * driver uses PA interrupt as well?
+	 */
+	*R_IRQ_MASK1_CLR = (tmp << R_IRQ_MASK1_CLR__pa0__BITNR);
 	if (gpio_some_alarms) {
 		return IRQ_RETVAL(etrax_gpio_wake_up_check());
 	}
@@ -405,7 +395,7 @@ static int
 gpio_open(struct inode *inode, struct file *filp)
 {
 	struct gpio_private *priv;
-	int p = MINOR(inode->i_rdev);
+	int p = iminor(inode);
 
 	if (p > GPIO_MINOR_LAST)
 		return -EINVAL;
@@ -498,7 +488,6 @@ unsigned long inline setget_input(struct gpio_private *priv, unsigned long arg)
 		return ~(*priv->dir_shadow) & 0xFF; /* Only 8 bits */
 	} else if (priv->minor == GPIO_MINOR_G) {
 		/* We must fiddle with R_GEN_CONFIG to change dir */
-		save_flags(flags); cli();
 		if (((arg & dir_g_in_bits) != arg) && 
 		    (arg & changeable_dir_g)) {
 			arg &= changeable_dir_g;
@@ -523,17 +512,16 @@ unsigned long inline setget_input(struct gpio_private *priv, unsigned long arg)
 				dir_g_in_bits |= (1<<24);
 				dir_g_out_bits &= ~(1<<24);
 			}
-			D(printk(KERN_INFO "gpio: SETINPUT on port G set "
-				 "genconfig to 0x%08lX "
-				 "in_bits: 0x%08lX "
-				 "out_bits: 0x%08lX\n",
-			         (unsigned long)genconfig_shadow,
-			         dir_g_in_bits, dir_g_out_bits));
+			printk("gpio: SETINPUT on port G set "
+				"genconfig to 0x%08lX "
+				"in_bits: 0x%08lX "
+				"out_bits: 0x%08lX\n", 
+			       (unsigned long)genconfig_shadow, 
+			       dir_g_in_bits, dir_g_out_bits);
 			*R_GEN_CONFIG = genconfig_shadow;
 			/* Must be a >120 ns delay before writing this again */
 				
 		}
-		restore_flags(flags);
 		return dir_g_in_bits;
 	}
 	return 0;
@@ -550,7 +538,6 @@ unsigned long inline setget_output(struct gpio_private *priv, unsigned long arg)
 		return *priv->dir_shadow;
 	} else if (priv->minor == GPIO_MINOR_G) {
 		/* We must fiddle with R_GEN_CONFIG to change dir */			
-		save_flags(flags); cli();
 		if (((arg & dir_g_out_bits) != arg) &&
 		    (arg & changeable_dir_g)) {
 			/* Set bits in genconfig to set to output */
@@ -574,16 +561,15 @@ unsigned long inline setget_output(struct gpio_private *priv, unsigned long arg)
 				dir_g_out_bits |= (1<<24);
 				dir_g_in_bits &= ~(1<<24);
 			}
-			D(printk(KERN_INFO "gpio: SETOUTPUT on port G set "
-				 "genconfig to 0x%08lX "
-				 "in_bits: 0x%08lX "
-				 "out_bits: 0x%08lX\n",
-			         (unsigned long)genconfig_shadow,
-			         dir_g_in_bits, dir_g_out_bits));
+			printk("gpio: SETOUTPUT on port G set "
+				"genconfig to 0x%08lX "
+				"in_bits: 0x%08lX "
+				"out_bits: 0x%08lX\n", 
+			       (unsigned long)genconfig_shadow, 
+			       dir_g_in_bits, dir_g_out_bits);
 			*R_GEN_CONFIG = genconfig_shadow;
 			/* Must be a >120 ns delay before writing this again */
 		}
-		restore_flags(flags);
 		return dir_g_out_bits & 0x7FFFFFFF;
 	}
 	return 0;
@@ -648,20 +634,6 @@ gpio_ioctl(struct inode *inode, struct file *file,
 		// clear alarm for bits with 1 in arg
 		priv->highalarm &= ~arg;
 		priv->lowalarm  &= ~arg;
-		{
-			/* Must update gpio_some_alarms */
-			struct gpio_private *p = alarmlist;
-			int some_alarms;
-			some_alarms = 0;
-			while (p) {
-				if (p->highalarm | p->lowalarm) {
-					some_alarms = 1;
-					break;
-				}
-				p = p->next;
-			}
-			gpio_some_alarms = some_alarms;
-		}
 		break;
 	case IO_READDIR: /* Use IO_SETGET_INPUT/OUTPUT instead! */
 		/* Read direction 0=input 1=output */
@@ -881,9 +853,9 @@ static void __init gpio_init_port_g(void)
 	dir_g_in_bits |= (~dir_g_shadow & changeable_dir_g);
 
 
-	printk(KERN_INFO "GPIO port G: in_bits: 0x%08lX out_bits: 0x%08lX val: %08lX\n",
+	printk("GPIO port G: in_bits: 0x%08lX out_bits: 0x%08lX val: %08lX\n",
 	       dir_g_in_bits, dir_g_out_bits, (unsigned long)*R_PORT_G_DATA);
-	printk(KERN_INFO "GPIO port G: dir: %08lX changeable: %08lX\n",
+	printk("GPIO port G: dir: %08lX changeable: %08lX\n", 
 	       dir_g_shadow, changeable_dir_g);
 }
 
@@ -920,7 +892,7 @@ gpio_init(void)
 
 #endif
 	gpio_init_port_g();
-	printk(KERN_INFO "ETRAX 100LX GPIO driver v2.5, (c) 2001, 2002 Axis Communications AB\n");
+	printk("ETRAX 100LX GPIO driver v2.5, (c) 2001, 2002 Axis Communications AB\n");
 	/* We call etrax_gpio_wake_up_check() from timer interrupt and
 	 * from cpu_idle() in kernel/process.c
 	 * The check in cpu_idle() reduces latency from ~15 ms to ~6 ms
@@ -928,11 +900,11 @@ gpio_init(void)
 	 */  
 	if (request_irq(TIMER0_IRQ_NBR, gpio_poll_timer_interrupt,
 			SA_SHIRQ | SA_INTERRUPT,"gpio poll", NULL)) {
-		printk(KERN_CRIT "err: timer0 irq for gpio\n");
+		printk("err: timer0 irq for gpio\n");
 	}
 	if (request_irq(PA_IRQ_NBR, gpio_pa_interrupt,
 			SA_SHIRQ | SA_INTERRUPT,"gpio PA", NULL)) {
-		printk(KERN_CRIT "err: PA irq for gpio\n");
+		printk("err: PA irq for gpio\n");
 	}
 	
 

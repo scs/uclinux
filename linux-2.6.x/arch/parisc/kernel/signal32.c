@@ -1,25 +1,4 @@
-/*    Signal support for 32-bit kernel builds
- *
- *    Copyright (C) 2001 Matthew Wilcox <willy at parisc-linux.org>
- *    Code was mostly borrowed from kernel/signal.c.
- *    See kernel/signal.c for additional Copyrights.
- *
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
+/* mostly borrowed from kernel/signal.c */
 #include <linux/config.h>
 #include <linux/compat.h>
 #include <linux/slab.h>
@@ -28,7 +7,6 @@
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/syscalls.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 
@@ -93,6 +71,9 @@ get_sigset32(compat_sigset_t *up, sigset_t *set, size_t sz)
 int sys32_rt_sigprocmask(int how, compat_sigset_t *set, compat_sigset_t *oset,
 				    unsigned int sigsetsize)
 {
+	extern long sys_rt_sigprocmask(int how,
+				    sigset_t *set, sigset_t *oset,
+				   size_t sigsetsize);
 	sigset_t old_set, new_set;
 	int ret;
 
@@ -113,6 +94,7 @@ int sys32_rt_sigpending(compat_sigset_t *uset, unsigned int sigsetsize)
 {
 	int ret;
 	sigset_t set;
+	extern long sys_rt_sigpending(sigset_t *set, size_t sigsetsize);
 
 	KERNEL_SYSCALL(ret, sys_rt_sigpending, &set, sigsetsize);
 

@@ -4,13 +4,8 @@
    These are not required by the compatibility layer.
 */
 
-/* (C) 1999-2001 Paul `Rusty' Russell
- * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+/* (c) 1999 Paul `Rusty' Russell.  Licenced under the GNU General
+   Public Licence. */
 
 #include <linux/config.h>
 #include <linux/types.h>
@@ -24,7 +19,6 @@
 #include <linux/sysctl.h>
 #endif
 #include <net/checksum.h>
-#include <net/ip.h>
 
 #define ASSERT_READ_LOCK(x) MUST_BE_READ_LOCKED(&ip_conntrack_lock)
 #define ASSERT_WRITE_LOCK(x) MUST_BE_WRITE_LOCKED(&ip_conntrack_lock)
@@ -160,7 +154,6 @@ list_conntracks(char *buffer, char **start, off_t offset, int length)
 	}
 
 	/* Now iterate through expecteds. */
-	READ_LOCK(&ip_conntrack_expect_tuple_lock);
 	list_for_each(e, &ip_conntrack_expect_list) {
 		unsigned int last_len;
 		struct ip_conntrack_expect *expect
@@ -171,12 +164,10 @@ list_conntracks(char *buffer, char **start, off_t offset, int length)
 		len += print_expect(buffer + len, expect);
 		if (len > length) {
 			len = last_len;
-			goto finished_expects;
+			goto finished;
 		}
 	}
 
- finished_expects:
-	READ_UNLOCK(&ip_conntrack_expect_tuple_lock);
  finished:
 	READ_UNLOCK(&ip_conntrack_lock);
 
@@ -193,26 +184,6 @@ static unsigned int ip_confirm(unsigned int hooknum,
 {
 	/* We've seen it coming out the other side: confirm it */
 	return ip_conntrack_confirm(*pskb);
-}
-
-static unsigned int ip_conntrack_defrag(unsigned int hooknum,
-				        struct sk_buff **pskb,
-				        const struct net_device *in,
-				        const struct net_device *out,
-				        int (*okfn)(struct sk_buff *))
-{
-	/* Previously seen (loopback)?  Ignore.  Do this before
-           fragment check. */
-	if ((*pskb)->nfct)
-		return NF_ACCEPT;
-
-	/* Gather fragments. */
-	if ((*pskb)->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
-		*pskb = ip_ct_gather_frags(*pskb);
-		if (!*pskb)
-			return NF_STOLEN;
-	}
-	return NF_ACCEPT;
 }
 
 static unsigned int ip_refrag(unsigned int hooknum,
@@ -257,28 +228,12 @@ static unsigned int ip_conntrack_local(unsigned int hooknum,
 
 /* Connection tracking may drop packets, but never alters them, so
    make it the first hook. */
-static struct nf_hook_ops ip_conntrack_defrag_ops = {
-	.hook		= ip_conntrack_defrag,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum	= NF_IP_PRE_ROUTING,
-	.priority	= NF_IP_PRI_CONNTRACK_DEFRAG,
-};
-
 static struct nf_hook_ops ip_conntrack_in_ops = {
 	.hook		= ip_conntrack_in,
 	.owner		= THIS_MODULE,
 	.pf		= PF_INET,
 	.hooknum	= NF_IP_PRE_ROUTING,
 	.priority	= NF_IP_PRI_CONNTRACK,
-};
-
-static struct nf_hook_ops ip_conntrack_defrag_local_out_ops = {
-	.hook		= ip_conntrack_defrag,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum	= NF_IP_LOCAL_OUT,
-	.priority	= NF_IP_PRI_CONNTRACK_DEFRAG,
 };
 
 static struct nf_hook_ops ip_conntrack_local_out_ops = {
@@ -312,7 +267,6 @@ static struct nf_hook_ops ip_conntrack_local_in_ops = {
 
 /* From ip_conntrack_core.c */
 extern int ip_conntrack_max;
-extern unsigned int ip_conntrack_htable_size;
 
 /* From ip_conntrack_proto_tcp.c */
 extern unsigned long ip_ct_tcp_timeout_syn_sent;
@@ -337,159 +291,66 @@ extern unsigned long ip_ct_generic_timeout;
 static struct ctl_table_header *ip_ct_sysctl_header;
 
 static ctl_table ip_ct_sysctl_table[] = {
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_MAX,
-		.procname	= "ip_conntrack_max",
-		.data		= &ip_conntrack_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_BUCKETS,
-		.procname	= "ip_conntrack_buckets",
-		.data		= &ip_conntrack_htable_size,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_SYN_SENT,
-		.procname	= "ip_conntrack_tcp_timeout_syn_sent",
-		.data		= &ip_ct_tcp_timeout_syn_sent,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_SYN_RECV,
-		.procname	= "ip_conntrack_tcp_timeout_syn_recv",
-		.data		= &ip_ct_tcp_timeout_syn_recv,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_ESTABLISHED,
-		.procname	= "ip_conntrack_tcp_timeout_established",
-		.data		= &ip_ct_tcp_timeout_established,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_FIN_WAIT,
-		.procname	= "ip_conntrack_tcp_timeout_fin_wait",
-		.data		= &ip_ct_tcp_timeout_fin_wait,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_CLOSE_WAIT,
-		.procname	= "ip_conntrack_tcp_timeout_close_wait",
-		.data		= &ip_ct_tcp_timeout_close_wait,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_LAST_ACK,
-		.procname	= "ip_conntrack_tcp_timeout_last_ack",
-		.data		= &ip_ct_tcp_timeout_last_ack,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_TIME_WAIT,
-		.procname	= "ip_conntrack_tcp_timeout_time_wait",
-		.data		= &ip_ct_tcp_timeout_time_wait,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_CLOSE,
-		.procname	= "ip_conntrack_tcp_timeout_close",
-		.data		= &ip_ct_tcp_timeout_close,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_UDP_TIMEOUT,
-		.procname	= "ip_conntrack_udp_timeout",
-		.data		= &ip_ct_udp_timeout,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_UDP_TIMEOUT_STREAM,
-		.procname	= "ip_conntrack_udp_timeout_stream",
-		.data		= &ip_ct_udp_timeout_stream,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_ICMP_TIMEOUT,
-		.procname	= "ip_conntrack_icmp_timeout",
-		.data		= &ip_ct_icmp_timeout,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_GENERIC_TIMEOUT,
-		.procname	= "ip_conntrack_generic_timeout",
-		.data		= &ip_ct_generic_timeout,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{ .ctl_name = 0 }
+	{NET_IPV4_NF_CONNTRACK_MAX, "ip_conntrack_max",
+	 &ip_conntrack_max, sizeof(int), 0644, NULL,
+	 &proc_dointvec},
+	{NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_SYN_SENT, "ip_conntrack_tcp_timeout_syn_sent",
+	 &ip_ct_tcp_timeout_syn_sent, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_SYN_RECV, "ip_conntrack_tcp_timeout_syn_recv",
+	 &ip_ct_tcp_timeout_syn_recv, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_ESTABLISHED, "ip_conntrack_tcp_timeout_established",
+	 &ip_ct_tcp_timeout_established, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_FIN_WAIT, "ip_conntrack_tcp_timeout_fin_wait",
+	 &ip_ct_tcp_timeout_fin_wait, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_CLOSE_WAIT, "ip_conntrack_tcp_timeout_close_wait",
+	 &ip_ct_tcp_timeout_close_wait, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_LAST_ACK, "ip_conntrack_tcp_timeout_last_ack",
+	 &ip_ct_tcp_timeout_last_ack, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_TIME_WAIT, "ip_conntrack_tcp_timeout_time_wait",
+	 &ip_ct_tcp_timeout_time_wait, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_CLOSE, "ip_conntrack_tcp_timeout_close",
+	 &ip_ct_tcp_timeout_close, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{NET_IPV4_NF_CONNTRACK_UDP_TIMEOUT, "ip_conntrack_udp_timeout",
+	 &ip_ct_udp_timeout, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{NET_IPV4_NF_CONNTRACK_UDP_TIMEOUT_STREAM, "ip_conntrack_udp_timeout_stream",
+	 &ip_ct_udp_timeout_stream, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{NET_IPV4_NF_CONNTRACK_ICMP_TIMEOUT, "ip_conntrack_icmp_timeout",
+	 &ip_ct_icmp_timeout, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{NET_IPV4_NF_CONNTRACK_GENERIC_TIMEOUT, "ip_conntrack_generic_timeout",
+	 &ip_ct_generic_timeout, sizeof(unsigned int), 0644, NULL,
+	 &proc_dointvec_jiffies},
+	{0}
 };
 
 #define NET_IP_CONNTRACK_MAX 2089
 
 static ctl_table ip_ct_netfilter_table[] = {
-	{
-		.ctl_name	= NET_IPV4_NETFILTER,
-		.procname	= "netfilter",
-		.mode		= 0555,
-		.child		= ip_ct_sysctl_table,
-	},
-	{
-		.ctl_name	= NET_IP_CONNTRACK_MAX,
-		.procname	= "ip_conntrack_max",
-		.data		= &ip_conntrack_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{ .ctl_name = 0 }
+	{NET_IPV4_NETFILTER, "netfilter", NULL, 0, 0555, ip_ct_sysctl_table, 0, 0, 0, 0, 0},
+	{NET_IP_CONNTRACK_MAX, "ip_conntrack_max",
+	 &ip_conntrack_max, sizeof(int), 0644, NULL,
+	 &proc_dointvec},
+	{0}
 };
 
 static ctl_table ip_ct_ipv4_table[] = {
-	{
-		.ctl_name	= NET_IPV4,
-		.procname	= "ipv4",
-		.mode		= 0555,
-		.child		= ip_ct_netfilter_table,
-	},
-	{ .ctl_name = 0 }
+	{NET_IPV4, "ipv4", NULL, 0, 0555, ip_ct_netfilter_table, 0, 0, 0, 0, 0},
+	{0}
 };
 
 static ctl_table ip_ct_net_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555, 
-		.child		= ip_ct_ipv4_table,
-	},
-	{ .ctl_name = 0 }
+	{CTL_NET, "net", NULL, 0, 0555, ip_ct_ipv4_table, 0, 0, 0, 0, 0},
+	{0}
 };
 #endif
 static int init_or_cleanup(int init)
@@ -503,24 +364,14 @@ static int init_or_cleanup(int init)
 	if (ret < 0)
 		goto cleanup_nothing;
 
-	proc = proc_net_create("ip_conntrack", 0440, list_conntracks);
+	proc = proc_net_create("ip_conntrack",0,list_conntracks);
 	if (!proc) goto cleanup_init;
 	proc->owner = THIS_MODULE;
 
-	ret = nf_register_hook(&ip_conntrack_defrag_ops);
-	if (ret < 0) {
-		printk("ip_conntrack: can't register pre-routing defrag hook.\n");
-		goto cleanup_proc;
-	}
-	ret = nf_register_hook(&ip_conntrack_defrag_local_out_ops);
-	if (ret < 0) {
-		printk("ip_conntrack: can't register local_out defrag hook.\n");
-		goto cleanup_defragops;
-	}
 	ret = nf_register_hook(&ip_conntrack_in_ops);
 	if (ret < 0) {
 		printk("ip_conntrack: can't register pre-routing hook.\n");
-		goto cleanup_defraglocalops;
+		goto cleanup_proc;
 	}
 	ret = nf_register_hook(&ip_conntrack_local_out_ops);
 	if (ret < 0) {
@@ -558,10 +409,6 @@ static int init_or_cleanup(int init)
 	nf_unregister_hook(&ip_conntrack_local_out_ops);
  cleanup_inops:
 	nf_unregister_hook(&ip_conntrack_in_ops);
- cleanup_defraglocalops:
-	nf_unregister_hook(&ip_conntrack_defrag_local_out_ops);
- cleanup_defragops:
-	nf_unregister_hook(&ip_conntrack_defrag_ops);
  cleanup_proc:
 	proc_net_remove("ip_conntrack");
  cleanup_init:
@@ -642,7 +489,6 @@ EXPORT_SYMBOL(ip_ct_refresh);
 EXPORT_SYMBOL(ip_ct_find_proto);
 EXPORT_SYMBOL(__ip_ct_find_proto);
 EXPORT_SYMBOL(ip_ct_find_helper);
-EXPORT_SYMBOL(ip_conntrack_expect_alloc);
 EXPORT_SYMBOL(ip_conntrack_expect_related);
 EXPORT_SYMBOL(ip_conntrack_change_expect);
 EXPORT_SYMBOL(ip_conntrack_unexpect_related);
@@ -654,6 +500,5 @@ EXPORT_SYMBOL(ip_conntrack_htable_size);
 EXPORT_SYMBOL(ip_conntrack_expect_list);
 EXPORT_SYMBOL(ip_conntrack_lock);
 EXPORT_SYMBOL(ip_conntrack_hash);
-EXPORT_SYMBOL(ip_conntrack_untracked);
 EXPORT_SYMBOL_GPL(ip_conntrack_find_get);
 EXPORT_SYMBOL_GPL(ip_conntrack_put);

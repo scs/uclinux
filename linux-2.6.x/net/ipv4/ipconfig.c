@@ -183,14 +183,7 @@ static int __init ic_open_devs(void)
 
 	last = &ic_first_dev;
 	rtnl_shlock();
-
-	/* bring loopback device up first */
-	if (dev_change_flags(&loopback_dev, loopback_dev.flags | IFF_UP) < 0)
-		printk(KERN_ERR "IP-Config: Failed to open %s\n", loopback_dev.name);
-
 	for (dev = dev_base; dev; dev = dev->next) {
-		if (dev == &loopback_dev)
-			continue;
 		if (user_dev_name[0] ? !strcmp(dev->name, user_dev_name) :
 		    (!(dev->flags & IFF_LOOPBACK) &&
 		     (dev->flags & (IFF_POINTOPOINT|IFF_BROADCAST)) &&
@@ -279,7 +272,7 @@ static int __init ic_dev_ioctl(unsigned int cmd, struct ifreq *arg)
 
 	mm_segment_t oldfs = get_fs();
 	set_fs(get_ds());
-	res = devinet_ioctl(cmd, (struct ifreq __user *) arg);
+	res = devinet_ioctl(cmd, arg);
 	set_fs(oldfs);
 	return res;
 }
@@ -290,7 +283,7 @@ static int __init ic_route_ioctl(unsigned int cmd, struct rtentry *arg)
 
 	mm_segment_t oldfs = get_fs();
 	set_fs(get_ds());
-	res = ip_rt_ioctl(cmd, (void __user *) arg);
+	res = ip_rt_ioctl(cmd, arg);
 	set_fs(oldfs);
 	return res;
 }
@@ -825,7 +818,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	struct bootp_pkt *b;
 	struct iphdr *h;
 	struct ic_device *d;
-	int len, ext_len;
+	int len;
 
 	/* Perform verifications before taking the lock.  */
 	if (skb->pkt_type == PACKET_OTHERHOST)
@@ -866,11 +859,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 		goto drop;
 
 	len = ntohs(b->udph.len) - sizeof(struct udphdr);
-	ext_len = len - (sizeof(*b) -
-			 sizeof(struct iphdr) -
-			 sizeof(struct udphdr) -
-			 sizeof(b->exten));
-	if (ext_len < 0)
+	if (len < 300)
 		goto drop;
 
 	/* Ok the front looks good, make sure we can get at the rest.  */
@@ -905,8 +894,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	}
 
 	/* Parse extensions */
-	if (ext_len >= 4 &&
-	    !memcmp(b->exten, ic_bootp_cookie, 4)) { /* Check magic cookie */
+	if (!memcmp(b->exten, ic_bootp_cookie, 4)) { /* Check magic cookie */
                 u8 *end = (u8 *) b + ntohs(b->iph.tot_len);
 		u8 *ext;
 
@@ -1201,47 +1189,12 @@ static struct file_operations pnp_seq_fops = {
 #endif /* CONFIG_PROC_FS */
 
 /*
- *  Extract IP address from the parameter string if needed. Note that we
- *  need to have root_server_addr set _before_ IPConfig gets called as it
- *  can override it.
- */
-u32 __init root_nfs_parse_addr(char *name)
-{
-	u32 addr;
-	int octets = 0;
-	char *cp, *cq;
-
-	cp = cq = name;
-	while (octets < 4) {
-		while (*cp >= '0' && *cp <= '9')
-			cp++;
-		if (cp == cq || cp - cq > 3)
-			break;
-		if (*cp == '.' || octets == 3)
-			octets++;
-		if (octets < 4)
-			cp++;
-		cq = cp;
-	}
-	if (octets == 4 && (*cp == ':' || *cp == '\0')) {
-		if (*cp == ':')
-			*cp++ = '\0';
-		addr = in_aton(name);
-		strcpy(name, cp);
-	} else
-		addr = INADDR_NONE;
-
-	return addr;
-}
-
-/*
  *	IP Autoconfig dispatcher.
  */
 
 static int __init ip_auto_config(void)
 {
 	unsigned long jiff;
-	u32 addr;
 
 #ifdef CONFIG_PROC_FS
 	proc_net_fops_create("pnp", S_IRUGO, &pnp_seq_fops);
@@ -1330,10 +1283,6 @@ static int __init ip_auto_config(void)
 		ic_dev = ic_first_dev->dev;
 	}
 
-	addr = root_nfs_parse_addr(root_server_path);
-	if (root_server_addr == INADDR_NONE)
-		root_server_addr = addr;
-
 	/*
 	 * Use defaults whereever applicable.
 	 */
@@ -1375,7 +1324,7 @@ static int __init ip_auto_config(void)
 	return 0;
 }
 
-late_initcall(ip_auto_config);
+module_init(ip_auto_config);
 
 
 /*

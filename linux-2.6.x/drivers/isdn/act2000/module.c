@@ -62,18 +62,19 @@ find_channel(act2000_card *card, int channel)
 static void
 act2000_clear_msn(act2000_card *card)
 {
-	struct msn_entry *p = card->msn_list;
-	struct msn_entry *q;
+        struct msn_entry *p = card->msn_list;
+        struct msn_entry *q;
 	unsigned long flags;
 
-	spin_lock_irqsave(&card->lock, flags);
-	card->msn_list = NULL;
-	spin_unlock_irqrestore(&card->lock, flags);
-	while (p) {
-		q  = p->next;
-		kfree(p);
-		p = q;
-	}
+	save_flags(flags);
+	cli();
+        card->msn_list = NULL;
+	restore_flags(flags);
+        while (p) {
+                q  = p->next;
+                kfree(p);
+                p = q;
+        }
 }
 
 /*
@@ -142,12 +143,13 @@ act2000_set_msn(act2000_card *card, char *eazmsn)
 		/* Delete a single MSN */
 		while (p) {
 			if (p->eaz == eazmsn[0]) {
-				spin_lock_irqsave(&card->lock, flags);
+				save_flags(flags);
+				cli();
 				if (q)
 					q->next = p->next;
 				else
 					card->msn_list = p->next;
-				spin_unlock_irqrestore(&card->lock, flags);
+				restore_flags(flags);
 				kfree(p);
 				printk(KERN_DEBUG
 				       "Mapping for EAZ %c deleted\n",
@@ -163,9 +165,10 @@ act2000_set_msn(act2000_card *card, char *eazmsn)
 	while (p) {
 		/* Found in list, replace MSN */
 		if (p->eaz == eazmsn[0]) {
-			spin_lock_irqsave(&card->lock, flags);
+			save_flags(flags);
+			cli();
 			strcpy(p->msn, &eazmsn[1]);
-			spin_unlock_irqrestore(&card->lock, flags);
+			restore_flags(flags);
 			printk(KERN_DEBUG
 			       "Mapping for EAZ %c changed to %s\n",
 			       eazmsn[0],
@@ -181,9 +184,10 @@ act2000_set_msn(act2000_card *card, char *eazmsn)
 	p->eaz = eazmsn[0];
 	strcpy(p->msn, &eazmsn[1]);
 	p->next = card->msn_list;
-	spin_lock_irqsave(&card->lock, flags);
+	save_flags(flags);
+	cli();
 	card->msn_list = p;
-	spin_unlock_irqrestore(&card->lock, flags);
+	restore_flags(flags);
 	printk(KERN_DEBUG
 	       "Mapping %c -> %s added\n",
 	       eazmsn[0],
@@ -228,9 +232,10 @@ act2000_poll(unsigned long data)
 	unsigned long flags;
 
 	act2000_receive(card);
-	spin_lock_irqsave(&card->lock, flags);
-	mod_timer(&card->ptimer, jiffies+3);
-	spin_unlock_irqrestore(&card->lock, flags);
+        save_flags(flags);
+        cli();
+        mod_timer(&card->ptimer, jiffies+3);
+        restore_flags(flags);
 }
 
 static int
@@ -243,18 +248,16 @@ act2000_command(act2000_card * card, isdn_ctrl * c)
 	char tmp[17];
 	int ret;
 	unsigned long flags;
-	void __user *arg;
  
         switch (c->command) {
 		case ISDN_CMD_IOCTL:
 			memcpy(&a, c->parm.num, sizeof(ulong));
-			arg = (void __user *)a;
 			switch (c->arg) {
 				case ACT2000_IOCTL_LOADBOOT:
 					switch (card->bus) {
 						case ACT2000_BUS_ISA:
 							ret = act2000_isa_download(card,
-									   arg);
+									   (act2000_ddef *)a);
 							if (!ret) {
 								card->flags |= ACT2000_FLAGS_LOADED;
 								if (!(card->flags & ACT2000_FLAGS_IVALID)) {
@@ -280,7 +283,7 @@ act2000_command(act2000_card * card, isdn_ctrl * c)
 					actcapi_manufacturer_req_net(card);
 					return 0;
 				case ACT2000_IOCTL_SETMSN:
-					if (copy_from_user(tmp, arg,
+					if (copy_from_user(tmp, (char *)a,
 							   sizeof(tmp)))
 						return -EFAULT;
 					if ((ret = act2000_set_msn(card, tmp)))
@@ -289,7 +292,7 @@ act2000_command(act2000_card * card, isdn_ctrl * c)
 						return(actcapi_manufacturer_req_msn(card));
 					return 0;
 				case ACT2000_IOCTL_ADDCARD:
-					if (copy_from_user(&cdef, arg,
+					if (copy_from_user(&cdef, (char *)a,
 							   sizeof(cdef)))
 						return -EFAULT;
 					if (act2000_addcard(cdef.bus, cdef.port, cdef.irq, cdef.id))
@@ -308,9 +311,10 @@ act2000_command(act2000_card * card, isdn_ctrl * c)
 				return -ENODEV;
 			if (!(chan = find_channel(card, c->arg & 0x0f)))
 				break;
-			spin_lock_irqsave(&card->lock, flags);
+			save_flags(flags);
+			cli();
 			if (chan->fsm_state != ACT2000_STATE_NULL) {
-				spin_unlock_irqrestore(&card->lock, flags);
+				restore_flags(flags);
 				printk(KERN_WARNING "Dial on channel with state %d\n",
 					chan->fsm_state);
 				return -EBUSY;
@@ -321,7 +325,7 @@ act2000_command(act2000_card * card, isdn_ctrl * c)
 				tmp[0] = c->parm.setup.eazmsn[0];
 			chan->fsm_state = ACT2000_STATE_OCALL;
 			chan->callref = 0xffff;
-			spin_unlock_irqrestore(&card->lock, flags);
+			restore_flags(flags);
 			ret = actcapi_connect_req(card, chan, c->parm.setup.phone,
 						  tmp[0], c->parm.setup.si1,
 						  c->parm.setup.si2);
@@ -465,15 +469,18 @@ act2000_sendbuf(act2000_card *card, int channel, int ack, struct sk_buff *skb)
 
 /* Read the Status-replies from the Interface */
 static int
-act2000_readstatus(u_char __user * buf, int len, act2000_card * card)
+act2000_readstatus(u_char * buf, int len, int user, act2000_card * card)
 {
         int count;
-        u_char __user *p;
+        u_char *p;
 
         for (p = buf, count = 0; count < len; p++, count++) {
                 if (card->status_buf_read == card->status_buf_write)
                         return count;
-		put_user(*card->status_buf_read++, p);
+                if (user)
+                        put_user(*card->status_buf_read++, p);
+                else
+                        *p = *card->status_buf_read++;
                 if (card->status_buf_read > card->status_buf_end)
                         card->status_buf_read = card->status_buf;
         }
@@ -513,7 +520,7 @@ if_command(isdn_ctrl * c)
 }
 
 static int
-if_writecmd(const u_char __user *buf, int len, int id, int channel)
+if_writecmd(const u_char * buf, int len, int user, int id, int channel)
 {
         act2000_card *card = act2000_findcard(id);
 
@@ -528,14 +535,14 @@ if_writecmd(const u_char __user *buf, int len, int id, int channel)
 }
 
 static int
-if_readstatus(u_char __user * buf, int len, int id, int channel)
+if_readstatus(u_char * buf, int len, int user, int id, int channel)
 {
         act2000_card *card = act2000_findcard(id);
 	
         if (card) {
                 if (!card->flags & ACT2000_FLAGS_RUNNING)
                         return -ENODEV;
-                return (act2000_readstatus(buf, len, card));
+                return (act2000_readstatus(buf, len, user, card));
         }
         printk(KERN_ERR
                "act2000: if_readstatus called with invalid driverId!\n");
@@ -573,8 +580,6 @@ act2000_alloccard(int bus, int port, int irq, char *id)
                 return;
         }
         memset((char *) card, 0, sizeof(act2000_card));
-        spin_lock_init(&card->lock);
-        spin_lock_init(&card->mnlock);
 	skb_queue_head_init(&card->sndq);
 	skb_queue_head_init(&card->rcvq);
 	skb_queue_head_init(&card->ackq);

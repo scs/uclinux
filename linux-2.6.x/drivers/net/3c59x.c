@@ -238,6 +238,12 @@ static int vortex_debug = VORTEX_DEBUG;
 static int vortex_debug = 1;
 #endif
 
+#ifndef __OPTIMIZE__
+#error You must compile this file with the correct options!
+#error See the last lines of the source file.
+#error You must compile this driver with "-O".
+#endif
+
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -285,8 +291,6 @@ MODULE_PARM(global_full_duplex, "i");
 MODULE_PARM(full_duplex, "1-" __MODULE_STRING(8) "i");
 MODULE_PARM(hw_checksums, "1-" __MODULE_STRING(8) "i");
 MODULE_PARM(flow_ctrl, "1-" __MODULE_STRING(8) "i");
-MODULE_PARM(global_enable_wol, "i");
-MODULE_PARM(enable_wol, "1-" __MODULE_STRING(8) "i");
 MODULE_PARM(rx_copybreak, "i");
 MODULE_PARM(max_interrupt_work, "i");
 MODULE_PARM(compaq_ioaddr, "i");
@@ -300,8 +304,6 @@ MODULE_PARM_DESC(full_duplex, "3c59x full duplex setting(s) (1)");
 MODULE_PARM_DESC(global_full_duplex, "3c59x: same as full_duplex, but applies to all NICs if options is unset");
 MODULE_PARM_DESC(hw_checksums, "3c59x Hardware checksum checking by adapter(s) (0-1)");
 MODULE_PARM_DESC(flow_ctrl, "3c59x 802.3x flow control usage (PAUSE only) (0-1)");
-MODULE_PARM_DESC(enable_wol, "3c59x: Turn on Wake-on-LAN for adapter(s) (0-1)");
-MODULE_PARM_DESC(global_enable_wol, "3c59x: same as enable_wol, but applies to all NICs if options is unset");
 MODULE_PARM_DESC(rx_copybreak, "3c59x copy breakpoint for copy-only-tiny-frames");
 MODULE_PARM_DESC(max_interrupt_work, "3c59x maximum events handled per interrupt");
 MODULE_PARM_DESC(compaq_ioaddr, "3c59x PCI I/O base address (Compaq BIOS problem workaround)");
@@ -440,7 +442,6 @@ enum vortex_chips {
 	CH_3C905B_2,
 	CH_3C905B_FX,
 	CH_3C905C,
-	CH_3C9202,
 	CH_3C980,
 	CH_3C9805,
 
@@ -515,14 +516,12 @@ static struct vortex_chip_info {
 	{"3c905B-FX Cyclone 100baseFx",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_HWCKSM, 128, },
 	{"3c905C Tornado",
-	PCI_USES_IO|PCI_USES_MASTER, IS_TORNADO|HAS_NWAY|HAS_HWCKSM|EXTRA_PREAMBLE, 128, },
-	{"3c920B-EMB-WNM (ATI Radeon 9100 IGP)",
-	 PCI_USES_IO|PCI_USES_MASTER, IS_TORNADO|HAS_MII|HAS_HWCKSM, 128, },
+	 PCI_USES_IO|PCI_USES_MASTER, IS_TORNADO|HAS_NWAY|HAS_HWCKSM, 128, },
 	{"3c980 Cyclone",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_HWCKSM, 128, },
-
 	{"3c980C Python-T",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_HWCKSM, 128, },
+
 	{"3cSOHO100-TX Hurricane",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_HWCKSM, 128, },
 	{"3c555 Laptop Hurricane",
@@ -533,9 +532,9 @@ static struct vortex_chip_info {
 	{"3c556B Laptop Hurricane",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_TORNADO|HAS_NWAY|EEPROM_OFFSET|HAS_CB_FNS|INVERT_MII_PWR|
 	                                WNO_XCVR_PWR|HAS_HWCKSM, 128, },
-
 	{"3c575 [Megahertz] 10/100 LAN 	CardBus",
 	PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG|HAS_MII|EEPROM_8BIT, 128, },
+
 	{"3c575 Boomerang CardBus",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG|HAS_MII|EEPROM_8BIT, 128, },
 	{"3CCFE575BT Cyclone CardBus",
@@ -547,10 +546,10 @@ static struct vortex_chip_info {
 	{"3CCFE656 Cyclone CardBus",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS|EEPROM_8BIT|INVERT_MII_PWR|
 									INVERT_LED_PWR|HAS_HWCKSM, 128, },
-
 	{"3CCFEM656B Cyclone+Winmodem CardBus",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS|EEPROM_8BIT|INVERT_MII_PWR|
 									INVERT_LED_PWR|HAS_HWCKSM, 128, },
+
 	{"3CXFEM656C Tornado+Winmodem CardBus",			/* From pcmcia-cs-3.1.5 */
 	 PCI_USES_IO|PCI_USES_MASTER, IS_TORNADO|HAS_NWAY|HAS_CB_FNS|EEPROM_8BIT|INVERT_MII_PWR|
 									MAX_COLLISION_RESET|HAS_HWCKSM, 128, },
@@ -560,15 +559,15 @@ static struct vortex_chip_info {
 	 PCI_USES_IO|PCI_USES_MASTER, IS_TORNADO|HAS_NWAY|HAS_HWCKSM, 128, },
 	{"3c982 Hydra Dual Port A",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_TORNADO|HAS_HWCKSM|HAS_NWAY, 128, },
-
 	{"3c982 Hydra Dual Port B",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_TORNADO|HAS_HWCKSM|HAS_NWAY, 128, },
+
 	{"3c905B-T4",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_HWCKSM|EXTRA_PREAMBLE, 128, },
 	{"3c920B-EMB-WNM Tornado",
 	 PCI_USES_IO|PCI_USES_MASTER, IS_TORNADO|HAS_NWAY|HAS_HWCKSM, 128, },
 
-	{NULL,}, /* NULL terminated list. */
+	{0,}, /* 0 terminated list. */
 };
 
 
@@ -594,7 +593,6 @@ static struct pci_device_id vortex_pci_tbl[] = {
 	{ 0x10B7, 0x9058, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C905B_2 },
 	{ 0x10B7, 0x905A, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C905B_FX },
 	{ 0x10B7, 0x9200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C905C },
-	{ 0x10B7, 0x9202, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C9202 },
 	{ 0x10B7, 0x9800, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C980 },
 	{ 0x10B7, 0x9805, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C9805 },
 
@@ -815,7 +813,6 @@ struct vortex_private {
 		flow_ctrl:1,					/* Use 802.3x flow control (PAUSE only) */
 		partner_flow_ctrl:1,			/* Partner supports flow control */
 		has_nway:1,
-		enable_wol:1,					/* Wake-on-LAN is enabled */
 		pm_state_valid:1,				/* power_state[] has sane contents */
 		open:1,
 		medialock:1,
@@ -882,7 +879,7 @@ static struct media_table {
 static int vortex_probe1(struct device *gendev, long ioaddr, int irq,
 				   int chip_idx, int card_idx);
 static void vortex_up(struct net_device *dev);
-static void vortex_down(struct net_device *dev, int final);
+static void vortex_down(struct net_device *dev);
 static int vortex_open(struct net_device *dev);
 static void mdio_sync(long ioaddr, int bits);
 static int mdio_read(struct net_device *dev, int phy_id, int location);
@@ -912,10 +909,8 @@ static int options[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1,};
 static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 static int hw_checksums[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 static int flow_ctrl[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
-static int enable_wol[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 static int global_options = -1;
 static int global_full_duplex = -1;
-static int global_enable_wol = -1;
 
 /* #define dev_alloc_skb dev_alloc_skb_debug */
 
@@ -924,18 +919,6 @@ static int compaq_ioaddr, compaq_irq, compaq_device_id = 0x5900;
 static struct net_device *compaq_net_device;
 
 static int vortex_cards_found;
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void poll_vortex(struct net_device *dev)
-{
-	struct vortex_private *vp = (struct vortex_private *)dev->priv;
-	unsigned long flags;
-	local_save_flags(flags);
-	local_irq_disable();
-	(vp->full_bus_master_rx ? boomerang_interrupt:vortex_interrupt)(dev->irq,dev,NULL);
-	local_irq_restore(flags);
-} 
-#endif
 
 #ifdef CONFIG_PM
 
@@ -946,7 +929,7 @@ static int vortex_suspend (struct pci_dev *pdev, u32 state)
 	if (dev && dev->priv) {
 		if (netif_running(dev)) {
 			netif_device_detach(dev);
-			vortex_down(dev, 1);
+			vortex_down(dev);
 		}
 	}
 	return 0;
@@ -1023,7 +1006,7 @@ static int vortex_eisa_remove (struct device *device)
 		BUG();
 	}
 
-	vp = netdev_priv(dev);
+	vp = dev->priv;
 	ioaddr = dev->base_addr;
 	
 	unregister_netdev (dev);
@@ -1125,7 +1108,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	}
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, gendev);
-	vp = netdev_priv(dev);
+	vp = dev->priv;
 
 	option = global_options;
 
@@ -1147,8 +1130,6 @@ static int __devinit vortex_probe1(struct device *gendev,
 			vortex_debug = 7;
 		if (option & 0x4000)
 			vortex_debug = 2;
-		if (option & 0x0400)
-			vp->enable_wol = 1;
 	}
 
 	print_info = (vortex_debug > 1);
@@ -1236,16 +1217,12 @@ static int __devinit vortex_probe1(struct device *gendev,
 
 	if (global_full_duplex > 0)
 		vp->full_duplex = 1;
-	if (global_enable_wol > 0)
-		vp->enable_wol = 1;
 
 	if (card_idx < MAX_UNITS) {
 		if (full_duplex[card_idx] > 0)
 			vp->full_duplex = 1;
 		if (flow_ctrl[card_idx] > 0)
 			vp->flow_ctrl = 1;
-		if (enable_wol[card_idx] > 0)
-			vp->enable_wol = 1;
 	}
 
 	vp->force_fd = vp->full_duplex;
@@ -1473,10 +1450,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	dev->set_multicast_list = set_rx_mode;
 	dev->tx_timeout = vortex_tx_timeout;
 	dev->watchdog_timeo = (watchdog * HZ) / 1000;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = poll_vortex; 
-#endif
-	if (pdev && vp->enable_wol) {
+	if (pdev) {
 		vp->pm_state_valid = 1;
  		pci_save_state(VORTEX_PCI(vp), vp->power_state);
  		acpi_set_WOL(dev);
@@ -1529,11 +1503,11 @@ static void
 vortex_up(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	unsigned int config;
 	int i;
 
-	if (VORTEX_PCI(vp) && vp->enable_wol) {
+	if (VORTEX_PCI(vp)) {
 		pci_set_power_state(VORTEX_PCI(vp), 0);	/* Go active */
 		pci_restore_state(VORTEX_PCI(vp), vp->power_state);
 	}
@@ -1695,7 +1669,7 @@ vortex_up(struct net_device *dev)
 		for (i = 0; i < RX_RING_SIZE; i++)	/* AKPM: this is done in vortex_open, too */
 			vp->rx_ring[i].status = 0;
 		for (i = 0; i < TX_RING_SIZE; i++)
-			vp->tx_skbuff[i] = NULL;
+			vp->tx_skbuff[i] = 0;
 		outl(0, ioaddr + DownListPtr);
 	}
 	/* Set receiver mode: presumably accept b-case and phys addr only. */
@@ -1727,7 +1701,7 @@ vortex_up(struct net_device *dev)
 static int
 vortex_open(struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	int i;
 	int retval;
 
@@ -1760,7 +1734,7 @@ vortex_open(struct net_device *dev)
 			for (j = 0; j < i; j++) {
 				if (vp->rx_skbuff[j]) {
 					dev_kfree_skb(vp->rx_skbuff[j]);
-					vp->rx_skbuff[j] = NULL;
+					vp->rx_skbuff[j] = 0;
 				}
 			}
 			retval = -ENOMEM;
@@ -1785,7 +1759,7 @@ static void
 vortex_timer(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int next_tick = 60*HZ;
 	int ok = 0;
@@ -1911,7 +1885,7 @@ leave_media_alone:
 
 static void vortex_tx_timeout(struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 
 	printk(KERN_ERR "%s: transmit timed out, tx_status %2.2x status %4.4x.\n",
@@ -1938,9 +1912,9 @@ static void vortex_tx_timeout(struct net_device *dev)
 			unsigned long flags;
 			local_irq_save(flags);
 			if (vp->full_bus_master_tx)
-				boomerang_interrupt(dev->irq, dev, NULL);
+				boomerang_interrupt(dev->irq, dev, 0);
 			else
-				vortex_interrupt(dev->irq, dev, NULL);
+				vortex_interrupt(dev->irq, dev, 0);
 			local_irq_restore(flags);
 		}
 	}
@@ -1981,7 +1955,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 static void
 vortex_error(struct net_device *dev, int status)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int do_tx_reset = 0, reset_mask = 0;
 	unsigned char tx_status = 0;
@@ -2057,8 +2031,7 @@ vortex_error(struct net_device *dev, int status)
 				printk(KERN_ERR "%s: PCI bus error, bus status %8.8x\n", dev->name, bus_status);
 
 			/* In this case, blow the card away */
-			/* Must not enter D3 or we can't legally issue the reset! */
-			vortex_down(dev, 0);
+			vortex_down(dev);
 			issue_and_wait(dev, TotalReset | 0xff);
 			vortex_up(dev);		/* AKPM: bug.  vortex_up() assumes that the rx ring is full. It may not be. */
 		} else if (fifo_diag & 0x0400)
@@ -2084,7 +2057,7 @@ vortex_error(struct net_device *dev, int status)
 static int
 vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 
 	/* Put out the doubleword header... */
@@ -2139,7 +2112,7 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static int
 boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	/* Calculate the next Tx descriptor entry. */
 	int entry = vp->cur_tx % TX_RING_SIZE;
@@ -2239,7 +2212,7 @@ static irqreturn_t
 vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = dev_id;
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr;
 	int status;
 	int work_done = max_interrupt_work;
@@ -2344,7 +2317,7 @@ static irqreturn_t
 boomerang_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = dev_id;
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr;
 	int status;
 	int work_done = max_interrupt_work;
@@ -2419,7 +2392,7 @@ boomerang_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 						le32_to_cpu(vp->tx_ring[entry].addr), skb->len, PCI_DMA_TODEVICE);
 #endif
 					dev_kfree_skb_irq(skb);
-					vp->tx_skbuff[entry] = NULL;
+					vp->tx_skbuff[entry] = 0;
 				} else {
 					printk(KERN_DEBUG "boomerang_interrupt: no skb!\n");
 				}
@@ -2469,7 +2442,7 @@ handler_exit:
 
 static int vortex_rx(struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int i;
 	short rx_status;
@@ -2539,7 +2512,7 @@ static int vortex_rx(struct net_device *dev)
 static int
 boomerang_rx(struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	int entry = vp->cur_rx % RX_RING_SIZE;
 	long ioaddr = dev->base_addr;
 	int rx_status;
@@ -2576,12 +2549,11 @@ boomerang_rx(struct net_device *dev)
 			if (pkt_len < rx_copybreak && (skb = dev_alloc_skb(pkt_len + 2)) != 0) {
 				skb->dev = dev;
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
-				pci_dma_sync_single_for_cpu(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
+				pci_dma_sync_single(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				/* 'skb_put()' points to the start of sk_buff data area. */
 				memcpy(skb_put(skb, pkt_len),
 					   vp->rx_skbuff[entry]->tail,
 					   pkt_len);
-				pci_dma_sync_single_for_device(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				vp->rx_copy++;
 			} else {
 				/* Pass up the skbuff already on the Rx ring. */
@@ -2642,7 +2614,7 @@ static void
 rx_oom_timer(unsigned long arg)
 {
 	struct net_device *dev = (struct net_device *)arg;
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 
 	spin_lock_irq(&vp->lock);
 	if ((vp->cur_rx - vp->dirty_rx) == RX_RING_SIZE)	/* This test is redundant, but makes me feel good */
@@ -2655,9 +2627,9 @@ rx_oom_timer(unsigned long arg)
 }
 
 static void
-vortex_down(struct net_device *dev, int final_down)
+vortex_down(struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 
 	netif_stop_queue (dev);
@@ -2684,7 +2656,7 @@ vortex_down(struct net_device *dev, int final_down)
 	if (vp->full_bus_master_tx)
 		outl(0, ioaddr + DownListPtr);
 
-	if (final_down && VORTEX_PCI(vp) && vp->enable_wol) {
+	if (VORTEX_PCI(vp)) {
 		pci_save_state(VORTEX_PCI(vp), vp->power_state);
 		acpi_set_WOL(dev);
 	}
@@ -2693,12 +2665,12 @@ vortex_down(struct net_device *dev, int final_down)
 static int
 vortex_close(struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int i;
 
 	if (netif_device_present(dev))
-		vortex_down(dev, 1);
+		vortex_down(dev);
 
 	if (vortex_debug > 1) {
 		printk(KERN_DEBUG"%s: vortex_close() status %4.4x, Tx status %2.2x.\n",
@@ -2724,7 +2696,7 @@ vortex_close(struct net_device *dev)
 				pci_unmap_single(	VORTEX_PCI(vp), le32_to_cpu(vp->rx_ring[i].addr),
 									PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				dev_kfree_skb(vp->rx_skbuff[i]);
-				vp->rx_skbuff[i] = NULL;
+				vp->rx_skbuff[i] = 0;
 			}
 	}
 	if (vp->full_bus_master_tx) { /* Free Boomerang bus master Tx buffers. */
@@ -2743,7 +2715,7 @@ vortex_close(struct net_device *dev)
 				pci_unmap_single(VORTEX_PCI(vp), le32_to_cpu(vp->tx_ring[i].addr), skb->len, PCI_DMA_TODEVICE);
 #endif
 				dev_kfree_skb(skb);
-				vp->tx_skbuff[i] = NULL;
+				vp->tx_skbuff[i] = 0;
 			}
 		}
 	}
@@ -2755,7 +2727,7 @@ static void
 dump_tx_ring(struct net_device *dev)
 {
 	if (vortex_debug > 0) {
-	struct vortex_private *vp = netdev_priv(dev);
+		struct vortex_private *vp = (struct vortex_private *)dev->priv;
 		long ioaddr = dev->base_addr;
 		
 		if (vp->full_bus_master_tx) {
@@ -2788,7 +2760,7 @@ dump_tx_ring(struct net_device *dev)
 
 static struct net_device_stats *vortex_get_stats(struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	unsigned long flags;
 
 	if (netif_device_present(dev)) {	/* AKPM: Used to be netif_running */
@@ -2808,7 +2780,7 @@ static struct net_device_stats *vortex_get_stats(struct net_device *dev)
 	*/
 static void update_stats(long ioaddr, struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	int old_window = inw(ioaddr + EL3_CMD);
 
 	if (old_window == 0xffff)	/* Chip suspended or ejected. */
@@ -2849,7 +2821,7 @@ static void update_stats(long ioaddr, struct net_device *dev)
 static void vortex_get_drvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *info)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = dev->priv;
 
 	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, DRV_VERSION);
@@ -2868,11 +2840,11 @@ static struct ethtool_ops vortex_ethtool_ops = {
 	.get_drvinfo =		vortex_get_drvinfo,
 };
 
-static int vortex_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
-	struct mii_ioctl_data *data = if_mii(rq);
+	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&rq->ifr_data;
 	int phy = vp->phys[0] & 0x1f;
 	int retval;
 
@@ -2902,30 +2874,6 @@ static int vortex_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	return retval;
 }
-
-/*
- *	Must power the device up to do MDIO operations
- */
-static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	int err;
-	struct vortex_private *vp = netdev_priv(dev);
-	int state = 0;
-
-	if(VORTEX_PCI(vp))
-		state = VORTEX_PCI(vp)->current_state;
-
-	/* The kernel core really should have pci_get_power_state() */
-
-	if(state != 0)
-		pci_set_power_state(VORTEX_PCI(vp), 0);
-	err = vortex_do_ioctl(dev, rq, cmd);
-	if(state != 0)
-		pci_set_power_state(VORTEX_PCI(vp), state);
-
-	return err;
-}
-
 
 /* Pre-Cyclone chips have no documented multicast filter, so the only
    multicast setting is to receive all multicast frames.  At least
@@ -2981,7 +2929,7 @@ static void mdio_sync(long ioaddr, int bits)
 
 static int mdio_read(struct net_device *dev, int phy_id, int location)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	int i;
 	long ioaddr = dev->base_addr;
 	int read_cmd = (0xf6 << 10) | (phy_id << 5) | location;
@@ -3015,7 +2963,7 @@ static int mdio_read(struct net_device *dev, int phy_id, int location)
 
 static void mdio_write(struct net_device *dev, int phy_id, int location, int value)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int write_cmd = 0x50020000 | (phy_id << 23) | (location << 18) | value;
 	long mdio_addr = ioaddr + Wn4_PhysicalMgmt;
@@ -3049,7 +2997,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 /* Set Wake-On-LAN mode and put the board into D3 (power-down) state. */
 static void acpi_set_WOL(struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 
 	/* Power up on: 1==Downloaded Filter, 2==Magic Packets, 4==Link Status. */
@@ -3075,21 +3023,21 @@ static void __devexit vortex_remove_one (struct pci_dev *pdev)
 		BUG();
 	}
 
-	vp = netdev_priv(dev);
+	vp = dev->priv;
 
 	/* AKPM: FIXME: we should have
 	 *	if (vp->cb_fn_base) iounmap(vp->cb_fn_base);
 	 * here
 	 */
 	unregister_netdev(dev);
+	/* Should really use issue_and_wait() here */
+	outw(TotalReset|0x14, dev->base_addr + EL3_CMD);
 
-	if (VORTEX_PCI(vp) && vp->enable_wol) {
+	if (VORTEX_PCI(vp)) {
 		pci_set_power_state(VORTEX_PCI(vp), 0);	/* Go active */
 		if (vp->pm_state_valid)
 			pci_restore_state(VORTEX_PCI(vp), vp->power_state);
 	}
-	/* Should really use issue_and_wait() here */
-	outw(TotalReset|0x14, dev->base_addr + EL3_CMD);
 
 	pci_free_consistent(pdev,
 						sizeof(struct boom_rx_desc) * RX_RING_SIZE

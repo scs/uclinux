@@ -47,7 +47,6 @@ union palette {
 };
 
 struct acornfb_par {
-	struct device	*dev;
 	unsigned long	screen_end;
 	unsigned int	dram_size;
 	unsigned int	vram_half_sam;
@@ -58,7 +57,10 @@ struct acornfb_par {
 
 	union palette palette[VIDC_PALETTE_SIZE];
 
-	u32		pseudo_palette[16];
+	union {
+		unsigned short cfb16[16];
+		unsigned long  cfb32[16];
+	} cmap;
 };
 
 struct vidc_timing {

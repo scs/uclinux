@@ -18,6 +18,10 @@
  * 10/13/00 Goutham Rao <goutham.rao@intel.com> Updated smp_call_function and
  *		smp_call_function_single to resend IPI on timeouts
  */
+#define __KERNEL_SYSCALLS__
+
+#include <linux/config.h>
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -28,6 +32,7 @@
 #include <linux/mm.h>
 #include <linux/cache.h>
 #include <linux/delay.h>
+#include <linux/cache.h>
 #include <linux/efi.h>
 
 #include <asm/atomic.h>
@@ -70,23 +75,10 @@ static volatile struct call_data_struct *call_data;
 /* This needs to be cacheline aligned because it is written to by *other* CPUs.  */
 static DEFINE_PER_CPU(u64, ipi_operation) ____cacheline_aligned;
 
-extern void cpu_halt (void);
-
-void
-lock_ipi_calllock(void)
-{
-	spin_lock_irq(&call_lock);
-}
-
-void
-unlock_ipi_calllock(void)
-{
-	spin_unlock_irq(&call_lock);
-}
-
 static void
 stop_this_cpu (void)
 {
+	extern void cpu_halt (void);
 	/*
 	 * Remove this CPU:
 	 */
@@ -96,23 +88,15 @@ stop_this_cpu (void)
 	cpu_halt();
 }
 
-void
-cpu_die(void)
-{
-	max_xtp();
-	local_irq_disable();
-	cpu_halt();
-	/* Should never be here */
-	BUG();
-	for (;;);
-}
-
 irqreturn_t
 handle_IPI (int irq, void *dev_id, struct pt_regs *regs)
 {
 	int this_cpu = get_cpu();
 	unsigned long *pending_ipis = &__ia64_per_cpu_var(ipi_operation);
 	unsigned long ops;
+
+	/* Count this now; we may make a call that never returns. */
+	local_cpu_data->ipi_count++;
 
 	mb();	/* Order interrupt and bit testing. */
 	while ((ops = xchg(pending_ipis, 0)) != 0) {
@@ -331,9 +315,6 @@ smp_call_function (void (*func) (void *info), void *info, int nonatomic, int wai
 	if (!cpus)
 		return 0;
 
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
-
 	data.func = func;
 	data.info = info;
 	atomic_set(&data.started, 0);
@@ -360,6 +341,17 @@ smp_call_function (void (*func) (void *info), void *info, int nonatomic, int wai
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function);
+
+void
+smp_do_timer (struct pt_regs *regs)
+{
+	int user = user_mode(regs);
+
+	if (--local_cpu_data->prof_counter <= 0) {
+		local_cpu_data->prof_counter = local_cpu_data->prof_multiplier;
+		update_process_times(user);
+	}
+}
 
 /*
  * this function calls the 'stop' function on all other CPUs in the system.

@@ -95,7 +95,7 @@ _GLOBAL(__hash_page)
 	/* Write the linux PTE atomically (setting busy) */
 	stdcx.	r30,0,r6
 	bne-	1b
-	isync
+	
 
 	/* Step 2:
 	 *
@@ -126,12 +126,10 @@ _GLOBAL(__hash_page)
 	 * code rather than call a C function...) 
 	 */
 BEGIN_FTR_SECTION
-BEGIN_FTR_SECTION
 	mr	r4,r30
 	mr	r5,r7
 	bl	.hash_page_do_lazy_icache
 END_FTR_SECTION_IFSET(CPU_FTR_NOEXECUTE)
-END_FTR_SECTION_IFCLR(CPU_FTR_COHERENT_ICACHE)
 
 	/* At this point, r3 contains new PP bits, save them in
 	 * place of "access" in the param area (sic)
@@ -178,6 +176,7 @@ _GLOBAL(htab_call_hpte_insert1)
 	beq-	htab_pte_insert_failure
 
 	/* Now try secondary slot */
+	ori	r30,r30,_PAGE_SECONDARY
 	
 	/* page number in r5 */
 	rldicl	r5,r31,64-PTE_SHIFT,PTE_SHIFT
@@ -216,8 +215,8 @@ _GLOBAL(htab_call_hpte_remove)
 	b	htab_insert_pte	
 
 htab_pte_insert_ok:
-	/* Insert slot number & secondary bit in PTE */
-	rldimi	r30,r3,12,63-15
+	/* Insert slot number in PTE */
+	rldimi	r30,r3,12,63-14
 		
 	/* Write out the PTE with a normal write
 	 * (maybe add eieio may be good still ?)

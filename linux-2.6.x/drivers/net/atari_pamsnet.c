@@ -110,6 +110,8 @@ static char *version =
 #undef READ
 #undef WRITE
 
+extern struct net_device *init_etherdev(struct net_device *dev, int sizeof_private);
+
 /* use 0 for production, 1 for verification, >2 for debug
  */
 #ifndef NET_DEBUG
@@ -155,6 +157,8 @@ static int	send_first (int target, unsigned char byte);
 static int	send_1_5 (int lun, unsigned char *command, int dma);
 static int	get_status (void);
 static int	calc_received (void *start_address);
+
+extern int pamsnet_probe(struct net_device *dev);
 
 static int pamsnet_open(struct net_device *dev);
 static int pamsnet_send_packet(struct sk_buff *skb, struct net_device *dev);
@@ -484,7 +488,7 @@ static HADDR
 	    !acsi_wait_for_IRQ(TIMEOUTDMA) ||
 	    get_status())
 		goto bad;
-	ret = phys_to_virt((unsigned long)&(((DMAHWADDR *)buffer)->hwaddr));
+	ret = phys_to_virt(&(((DMAHWADDR *)buffer)->hwaddr));
 	dma_cache_maintenance((unsigned long)buffer, 512, 0);
 bad:
 	return (ret);
@@ -558,12 +562,12 @@ bad:
 /* Check for a network adaptor of this type, and return '0' if one exists.
  */
 
-struct net_device * __init pamsnet_probe (int unit)
-{
+int __init 
+pamsnet_probe (dev)
 	struct net_device *dev;
+{
 	int i;
 	HADDR *hwaddr;
-	int err;
 
 	unsigned char station_addr[6];
 	static unsigned version_printed;
@@ -571,17 +575,11 @@ struct net_device * __init pamsnet_probe (int unit)
 	static int no_more_found;
 
 	if (no_more_found)
-		return ERR_PTR(-ENODEV);
-	no_more_found = 1;
+		return -ENODEV;
 
-	dev = alloc_etherdev(sizeof(struct net_local));
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-	if (unit >= 0) {
-		sprintf(dev->name, "eth%d", unit);
-		netdev_boot_setup_check(dev);
-	}
 	SET_MODULE_OWNER(dev);
+
+	no_more_found = 1;
 
 	printk("Probing for PAM's Net/GK Adapter...\n");
 
@@ -620,12 +618,11 @@ struct net_device * __init pamsnet_probe (int unit)
 	ENABLE_IRQ();
 	stdma_release();
 
-	if (lance_target < 0) {
+	if (lance_target < 0)
 		printk("No PAM's Net/GK found.\n");
-		free_netdev(dev);
-		return ERR_PTR(-ENODEV);
-	}
 
+	if ((dev == NULL) || (lance_target < 0))
+		return -ENODEV;
 	if (pamsnet_debug > 0 && version_printed++ == 0)
 		printk(version);
 
@@ -635,6 +632,12 @@ struct net_device * __init pamsnet_probe (int unit)
 		station_addr[3], station_addr[4], station_addr[5]);
 
 	/* Initialize the device structure. */
+	if (dev->priv == NULL)
+		dev->priv = kmalloc(sizeof(struct net_local), GFP_KERNEL);
+	if (!dev->priv)
+		return -ENOMEM;
+	memset(dev->priv, 0, sizeof(struct net_local));
+
 	dev->open		= pamsnet_open;
 	dev->stop		= pamsnet_close;
 	dev->hard_start_xmit	= pamsnet_send_packet;
@@ -650,12 +653,9 @@ struct net_device * __init pamsnet_probe (int unit)
 #endif
 		dev->dev_addr[i]  = station_addr[i];
 	}
-	err = register_netdev(dev);
-	if (!err)
-		return dev;
+	ether_setup(dev);
 
-	free_netdev(dev);
-	return ERR_PTR(err);
+	return(0);
 }
 
 /* Open/initialize the board.  This is called (in the current kernel)
@@ -667,7 +667,7 @@ struct net_device * __init pamsnet_probe (int unit)
  */
 static int
 pamsnet_open(struct net_device *dev) {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 
 	if (pamsnet_debug > 0)
 		printk("pamsnet_open\n");
@@ -696,7 +696,7 @@ pamsnet_open(struct net_device *dev) {
 
 static int
 pamsnet_send_packet(struct sk_buff *skb, struct net_device *dev) {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	unsigned long flags;
 
 	/* Block a timer-based transmit from overlapping.  This could better be
@@ -742,7 +742,7 @@ pamsnet_send_packet(struct sk_buff *skb, struct net_device *dev) {
  */
 static void
 pamsnet_poll_rx(struct net_device *dev) {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	int boguscount;
 	int pkt_len;
 	struct sk_buff *skb;
@@ -817,7 +817,7 @@ pamsnet_poll_rx(struct net_device *dev) {
 static void
 pamsnet_tick(unsigned long data) {
 	struct net_device	 *dev = (struct net_device *)data;
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 
 	if( pamsnet_debug > 0 && (lp->open_time++ & 7) == 8 )
 		printk("pamsnet_tick: %ld\n", lp->open_time);
@@ -832,7 +832,7 @@ pamsnet_tick(unsigned long data) {
  */
 static int
 pamsnet_close(struct net_device *dev) {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 
 	if (pamsnet_debug > 0)
 		printk("pamsnet_close, open_time=%ld\n", lp->open_time);
@@ -859,27 +859,32 @@ pamsnet_close(struct net_device *dev) {
  */
 static struct net_device_stats *net_get_stats(struct net_device *dev) 
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	return &lp->stats;
 }
 
 
 #ifdef MODULE
 
-static struct net_device *pam_dev;
+static struct net_device pam_dev;
 
-int init_module(void)
-{
-	pam_dev = pamsnet_probe(-1);
-	if (IS_ERR(pam_dev))
-		return PTR_ERR(pam_dev);
+int
+init_module(void) {
+	int err;
+
+	pam_dev.init = pamsnet_probe;
+	if ((err = register_netdev(&pam_dev))) {
+		if (err == -EEXIST)  {
+			printk("PAM's Net/GK: devices already present. Module not loaded.\n");
+		}
+		return err;
+	}
 	return 0;
 }
 
-void cleanup_module(void)
-{
-	unregister_netdev(pam_dev);
-	free_netdev(pam_dev);
+void
+cleanup_module(void) {
+	unregister_netdev(&pam_dev);
 }
 
 #endif /* MODULE */

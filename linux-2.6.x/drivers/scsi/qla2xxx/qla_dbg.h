@@ -2,7 +2,7 @@
  *                  QLOGIC LINUX SOFTWARE
  *
  * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2004 QLogic Corporation
+ * Copyright (C) 2003 QLogic Corporation
  * (www.qlogic.com)
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -16,6 +16,55 @@
  * General Public License for more details.
  *
  ******************************************************************************/
+
+/*
+ * Firmware Dump structure definition
+ */
+#define FW_DUMP_SIZE	0xBC000		/* bytes */
+
+struct qla2300_fw_dump {
+	uint16_t hccr;
+	uint16_t pbiu_reg[8];
+	uint16_t risc_host_reg[8];
+	uint16_t mailbox_reg[32];
+	uint16_t resp_dma_reg[32];
+	uint16_t dma_reg[48];
+	uint16_t risc_hdw_reg[16];
+	uint16_t risc_gp0_reg[16];
+	uint16_t risc_gp1_reg[16];
+	uint16_t risc_gp2_reg[16];
+	uint16_t risc_gp3_reg[16];
+	uint16_t risc_gp4_reg[16];
+	uint16_t risc_gp5_reg[16];
+	uint16_t risc_gp6_reg[16];
+	uint16_t risc_gp7_reg[16];
+	uint16_t frame_buf_hdw_reg[64];
+	uint16_t fpm_b0_reg[64];
+	uint16_t fpm_b1_reg[64];
+	uint16_t risc_ram[0xf800];
+	uint16_t stack_ram[0x1000];
+	uint16_t data_ram[0xF000];
+};
+
+struct qla2100_fw_dump {
+	uint16_t hccr;
+	uint16_t pbiu_reg[8];
+	uint16_t mailbox_reg[32];
+	uint16_t dma_reg[48];
+	uint16_t risc_hdw_reg[16];
+	uint16_t risc_gp0_reg[16];
+	uint16_t risc_gp1_reg[16];
+	uint16_t risc_gp2_reg[16];
+	uint16_t risc_gp3_reg[16];
+	uint16_t risc_gp4_reg[16];
+	uint16_t risc_gp5_reg[16];
+	uint16_t risc_gp6_reg[16];
+	uint16_t risc_gp7_reg[16];
+	uint16_t frame_buf_hdw_reg[16];
+	uint16_t fpm_b0_reg[64];
+	uint16_t fpm_b1_reg[64];
+	uint16_t risc_ram[0xf000];
+};
 
 /*
  * Driver debug definitions.
@@ -178,56 +227,3 @@
 #else
 #define DEBUG14(x)	do {} while (0)
 #endif
-
-/*
- * Firmware Dump structure definition
- */
-#define FW_DUMP_SIZE_128K	0xBC000
-#define FW_DUMP_SIZE_512K	0x2FC000
-#define FW_DUMP_SIZE_1M		0x5FC000
-
-struct qla2300_fw_dump {
-	uint16_t hccr;
-	uint16_t pbiu_reg[8];
-	uint16_t risc_host_reg[8];
-	uint16_t mailbox_reg[32];
-	uint16_t resp_dma_reg[32];
-	uint16_t dma_reg[48];
-	uint16_t risc_hdw_reg[16];
-	uint16_t risc_gp0_reg[16];
-	uint16_t risc_gp1_reg[16];
-	uint16_t risc_gp2_reg[16];
-	uint16_t risc_gp3_reg[16];
-	uint16_t risc_gp4_reg[16];
-	uint16_t risc_gp5_reg[16];
-	uint16_t risc_gp6_reg[16];
-	uint16_t risc_gp7_reg[16];
-	uint16_t frame_buf_hdw_reg[64];
-	uint16_t fpm_b0_reg[64];
-	uint16_t fpm_b1_reg[64];
-	uint16_t risc_ram[0xf800];
-	uint16_t stack_ram[0x1000];
-	uint16_t data_ram[1];
-};
-
-struct qla2100_fw_dump {
-	uint16_t hccr;
-	uint16_t pbiu_reg[8];
-	uint16_t mailbox_reg[32];
-	uint16_t dma_reg[48];
-	uint16_t risc_hdw_reg[16];
-	uint16_t risc_gp0_reg[16];
-	uint16_t risc_gp1_reg[16];
-	uint16_t risc_gp2_reg[16];
-	uint16_t risc_gp3_reg[16];
-	uint16_t risc_gp4_reg[16];
-	uint16_t risc_gp5_reg[16];
-	uint16_t risc_gp6_reg[16];
-	uint16_t risc_gp7_reg[16];
-	uint16_t frame_buf_hdw_reg[16];
-	uint16_t fpm_b0_reg[64];
-	uint16_t fpm_b1_reg[64];
-	uint16_t risc_ram[0xf000];
-};
-
-

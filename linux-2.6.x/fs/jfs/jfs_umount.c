@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) International Business Machines Corp., 2000-2004
+ *   Copyright (c) International Business Machines Corp., 2000-2002
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -121,17 +121,14 @@ int jfs_umount(struct super_block *sb)
 	 * list (to signify skip logredo()).
 	 */
 	if (log) {		/* log = NULL if read-only mount */
-		updateSuper(sb, FM_CLEAN);
-
-		/* Restore default gfp_mask for bdev */
-		mapping_set_gfp_mask(bdev_mapping, GFP_USER);
+		rc = updateSuper(sb, FM_CLEAN);
 
 		/*
 		 * close log: 
 		 *
 		 * remove file system from log active file system list.
 		 */
-		rc = lmLogClose(sb);
+		rc = lmLogClose(sb, log);
 	}
 	jfs_info("UnMount JFS Complete: rc = %d", rc);
 	return rc;
@@ -170,9 +167,7 @@ int jfs_umount_rw(struct super_block *sb)
 	filemap_fdatawait(bdev_mapping);
 
 	updateSuper(sb, FM_CLEAN);
+	sbi->log = NULL;
 
-	/* Restore default gfp_mask for bdev */
-	mapping_set_gfp_mask(bdev_mapping, GFP_USER);
-
-	return lmLogClose(sb);
+	return lmLogClose(sb, log);
 }

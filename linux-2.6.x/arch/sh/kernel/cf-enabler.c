@@ -88,7 +88,7 @@ static int __init cf_init_default(void)
 }
 
 #if defined(CONFIG_SH_SOLUTION_ENGINE)
-#include <asm/se/se.h>
+#include <asm/hitachi_se.h>
 
 /*
  * SolutionEngine

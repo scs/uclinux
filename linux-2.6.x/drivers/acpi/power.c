@@ -23,18 +23,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-/*
- * ACPI power-managed devices may be controlled in two ways:
- * 1. via "Device Specific (D-State) Control"
- * 2. via "Power Resource Control".
- * This module is used to manage devices relying on Power Resource Control.
- * 
- * An ACPI "power resource object" describes a software controllable power
- * plane, clock plane, or other resource used by a power managed device.
- * A device may rely on multiple power resources, and a power resource
- * may be shared by multiple devices.
- */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -482,8 +470,6 @@ acpi_power_remove_fs (
 	ACPI_FUNCTION_TRACE("acpi_power_remove_fs");
 
 	if (acpi_device_dir(device)) {
-		remove_proc_entry(ACPI_POWER_FILE_STATUS,
-				  acpi_device_dir(device));
 		remove_proc_entry(acpi_device_bid(device), acpi_power_dir);
 		acpi_device_dir(device) = NULL;
 	}
@@ -517,9 +503,9 @@ acpi_power_add (
 	memset(resource, 0, sizeof(struct acpi_power_resource));
 
 	resource->handle = device->handle;
-	strcpy(resource->name, device->pnp.bus_id);
-	strcpy(acpi_device_name(device), ACPI_POWER_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_POWER_CLASS);
+	sprintf(resource->name, "%s", device->pnp.bus_id);
+	sprintf(acpi_device_name(device), "%s", ACPI_POWER_DEVICE_NAME);
+	sprintf(acpi_device_class(device), "%s", ACPI_POWER_CLASS);
 	acpi_driver_data(device) = resource;
 
 	/* Evalute the object to get the system level and resource order. */

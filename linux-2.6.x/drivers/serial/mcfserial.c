@@ -14,7 +14,7 @@
  * Changes:
  * 08/07/2003    Daniele Bellucci <bellucda@tiscali.it>
  *               some cleanups in mcfrs_write.
- *
+ * 
  */
  
 #include <linux/module.h>
@@ -773,7 +773,7 @@ static int mcfrs_write(struct tty_struct * tty, int from_user,
 			if (copy_from_user(mcfrs_tmp_buf, buf, c))
 				return -EFAULT;
 
-			local_irq_disable();
+			local_irq_disable();		
 			c = min(c, (int) min(((int)SERIAL_XMIT_SIZE) - info->xmit_cnt - 1,
 				       ((int)SERIAL_XMIT_SIZE) - info->xmit_head));
 			local_irq_restore(flags);
@@ -782,7 +782,7 @@ static int mcfrs_write(struct tty_struct * tty, int from_user,
 		} else
 			memcpy(info->xmit_buf + info->xmit_head, buf, c);
 
-		local_irq_disable();
+		local_irq_disable();		
 		info->xmit_head = (info->xmit_head + c) & (SERIAL_XMIT_SIZE-1);
 		info->xmit_cnt += c;
 		local_irq_restore(flags);
@@ -1269,10 +1269,10 @@ mcfrs_wait_until_sent(struct tty_struct *tty, int timeout)
 	struct mcf_serial * info = (struct mcf_serial *)tty->driver_data;
 	volatile unsigned char *uartp;
 	unsigned long orig_jiffies, fifo_time, char_time, fifo_cnt;
-
+	
 	if (serial_paranoia_check(info, tty->name, "mcfrs_wait_until_sent"))
 		return;
-
+	
 	orig_jiffies = jiffies;
 
 	/*

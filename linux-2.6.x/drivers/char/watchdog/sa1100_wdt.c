@@ -1,5 +1,5 @@
 /*
- *	Watchdog driver for the SA11x0/PXA2xx
+ *	Watchdog driver for the SA11x0
  *
  *      (c) Copyright 2000 Oleg Drokin <green@crimea.edu>
  *          Based on SoftDog driver by Alan Cox <alan@redhat.com>
@@ -49,7 +49,6 @@ static int nowayout = 0;
  */
 static int sa1100dog_open(struct inode *inode, struct file *file)
 {
-	nonseekable_open(inode, file);
 	if (test_and_set_bit(1,&sa1100wdt_users))
 		return -EBUSY;
 
@@ -85,6 +84,10 @@ static int sa1100dog_release(struct inode *inode, struct file *file)
 
 static ssize_t sa1100dog_write(struct file *file, const char *data, size_t len, loff_t *ppos)
 {
+	/* Can't seek (pwrite) on this device  */
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
+
 	if (len) {
 		if (!nowayout) {
 			size_t i;
@@ -171,7 +174,7 @@ static struct file_operations sa1100dog_fops =
 static struct miscdevice sa1100dog_miscdev =
 {
 	.minor		= WATCHDOG_MINOR,
-	.name		= "SA1100/PXA2xx watchdog",
+	.name		= "SA1100 watchdog",
 	.fops		= &sa1100dog_fops,
 };
 
@@ -191,7 +194,7 @@ static int __init sa1100dog_init(void)
 
 	ret = misc_register(&sa1100dog_miscdev);
 	if (ret == 0)
-		printk("SA1100/PXA2xx Watchdog Timer: timer margin %d sec\n",
+		printk("SA1100 Watchdog Timer: timer margin %d sec\n",
 		       margin);
 
 	return ret;
@@ -206,7 +209,7 @@ module_init(sa1100dog_init);
 module_exit(sa1100dog_exit);
 
 MODULE_AUTHOR("Oleg Drokin <green@crimea.edu>");
-MODULE_DESCRIPTION("SA1100/PXA2xx Watchdog");
+MODULE_DESCRIPTION("SA1100 Watchdog");
 
 module_param(margin, int, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds (default 60s)");
@@ -215,4 +218,3 @@ module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

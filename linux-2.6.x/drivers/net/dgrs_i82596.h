@@ -95,7 +95,7 @@ typedef volatile struct
 /************************************************************************/
 typedef volatile struct _I596_RBD
 {
-#ifdef INTEL_RETENTIVE
+#if INTEL_RETENTIVE
 	ushort			count;	/* Length of data in buf */
 	ushort			offset;
 #else
@@ -103,7 +103,7 @@ typedef volatile struct _I596_RBD
 #endif
 	vol struct _I596_RBD	*next;	/* Next buffer descriptor in list */
 	uchar			*buf;	/* Data buffer */
-#ifdef INTEL_RETENTIVE
+#if INTEL_RETENTIVE
 	ushort			size;	/* Size of buf (constant) */
 	ushort			zero;
 #else

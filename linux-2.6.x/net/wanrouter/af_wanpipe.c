@@ -552,7 +552,7 @@ static int wanpipe_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (sk->sk_state != WANSOCK_CONNECTED)
 		return -ENOTCONN;	
 
-	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_CMSG_COMPAT)) 
+	if (msg->msg_flags&~MSG_DONTWAIT) 
 		return(-EINVAL);
 
 	/* it was <=, now one can send
@@ -591,14 +591,14 @@ static int wanpipe_sendmsg(struct kiocb *iocb, struct socket *sock,
   		return -EMSGSIZE;
 	}
 
-	skb = sock_alloc_send_skb(sk, len + LL_RESERVED_SPACE(dev),
+	skb = sock_alloc_send_skb(sk, len+dev->hard_header_len+15, 
 				msg->msg_flags & MSG_DONTWAIT, &err);
 
 	if (skb==NULL){
 		goto out_unlock;
 	}
 		
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
+	skb_reserve(skb, (dev->hard_header_len+15)&~15);
 	skb->nh.raw = skb->data;
 
 	/* Returns -EFAULT on error */
@@ -1765,7 +1765,13 @@ static int wanpipe_ioctl(struct socket *sock, unsigned int cmd, unsigned long ar
 	switch(cmd) 
 	{
 		case SIOCGSTAMP:
-			return sock_get_timestamp(sk, (struct timeval __user *)arg);
+			if (!sk->sk_stamp.tv_sec)
+				return -ENOENT;
+			err = -EFAULT;
+			if (!copy_to_user((void *)arg, &sk->sk_stamp,
+			    sizeof(struct timeval)))
+				err = 0;
+			return err;
 
 		case SIOC_WANPIPE_CHECK_TX:
 
@@ -1832,7 +1838,7 @@ static int wanpipe_ioctl(struct socket *sock, unsigned int cmd, unsigned long ar
 #endif
 
 		default:
-			return dev_ioctl(cmd,(void __user *) arg);
+			return dev_ioctl(cmd,(void *) arg);
 	}
 	/*NOTREACHED*/
 }

@@ -53,7 +53,7 @@ struct biovec_pool {
  * unsigned short
  */
 
-#define BV(x) { .nr_vecs = x, .name = "biovec-"__stringify(x) }
+#define BV(x) { .nr_vecs = x, .name = "biovec-" #x }
 static struct biovec_pool bvec_array[BIOVEC_NR_POOLS] = {
 	BV(1), BV(4), BV(16), BV(64), BV(128), BV(BIO_MAX_PAGES),
 };
@@ -116,8 +116,6 @@ inline void bio_init(struct bio *bio)
 	bio->bi_idx = 0;
 	bio->bi_phys_segments = 0;
 	bio->bi_hw_segments = 0;
-	bio->bi_hw_front_size = 0;
-	bio->bi_hw_back_size = 0;
 	bio->bi_size = 0;
 	bio->bi_max_vecs = 0;
 	bio->bi_end_io = NULL;
@@ -283,9 +281,23 @@ int bio_get_nr_vecs(struct block_device *bdev)
 	return nr_pages;
 }
 
-static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
-			  *page, unsigned int len, unsigned int offset)
+/**
+ *	bio_add_page	-	attempt to add page to bio
+ *	@bio: destination bio
+ *	@page: page to add
+ *	@len: vec entry length
+ *	@offset: vec entry offset
+ *
+ *	Attempt to add a page to the bio_vec maplist. This can fail for a
+ *	number of reasons, such as the bio being full or target block
+ *	device limitations. The target block device must allow bio's
+ *      smaller than PAGE_SIZE, so it is always possible to add a single
+ *      page to an empty bio.
+ */
+int bio_add_page(struct bio *bio, struct page *page, unsigned int len,
+		 unsigned int offset)
 {
+	request_queue_t *q = bdev_get_queue(bio->bi_bdev);
 	int retried_segments = 0;
 	struct bio_vec *bvec;
 
@@ -306,15 +318,14 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
 	 * make this too complex.
 	 */
 
-	while (bio->bi_phys_segments >= q->max_phys_segments
-	       || bio->bi_hw_segments >= q->max_hw_segments
-	       || BIOVEC_VIRT_OVERSIZE(bio->bi_size)) {
+	while (bio_phys_segments(q, bio) >= q->max_phys_segments
+	    || bio_hw_segments(q, bio) >= q->max_hw_segments) {
 
 		if (retried_segments)
 			return 0;
 
+		bio->bi_flags &= ~(1 << BIO_SEG_VALID);
 		retried_segments = 1;
-		blk_recount_segments(q, bio);
 	}
 
 	/*
@@ -344,11 +355,6 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
 		}
 	}
 
-	/* If we may be able to merge these biovecs, force a recount */
-	if (bio->bi_vcnt && (BIOVEC_PHYS_MERGEABLE(bvec-1, bvec) ||
-	    BIOVEC_VIRT_MERGEABLE(bvec-1, bvec)))
-		bio->bi_flags &= ~(1 << BIO_SEG_VALID);
-
 	bio->bi_vcnt++;
 	bio->bi_phys_segments++;
 	bio->bi_hw_segments++;
@@ -356,142 +362,14 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
 	return len;
 }
 
-/**
- *	bio_add_page	-	attempt to add page to bio
- *	@bio: destination bio
- *	@page: page to add
- *	@len: vec entry length
- *	@offset: vec entry offset
- *
- *	Attempt to add a page to the bio_vec maplist. This can fail for a
- *	number of reasons, such as the bio being full or target block
- *	device limitations. The target block device must allow bio's
- *      smaller than PAGE_SIZE, so it is always possible to add a single
- *      page to an empty bio.
- */
-int bio_add_page(struct bio *bio, struct page *page, unsigned int len,
-		 unsigned int offset)
-{
-	return __bio_add_page(bdev_get_queue(bio->bi_bdev), bio, page,
-			      len, offset);
-}
-
-/**
- *	bio_uncopy_user	-	finish previously mapped bio
- *	@bio: bio being terminated
- *
- *	Free pages allocated from bio_copy_user() and write back data
- *	to user space in case of a read.
- */
-int bio_uncopy_user(struct bio *bio)
-{
-	struct bio_vec *bvec;
-	int i, ret = 0;
-
-	if (bio_data_dir(bio) == READ) {
-		char *uaddr = bio->bi_private;
-
-		__bio_for_each_segment(bvec, bio, i, 0) {
-			char *addr = page_address(bvec->bv_page);
-
-			if (!ret && copy_to_user(uaddr, addr, bvec->bv_len))
-				ret = -EFAULT;
-
-			__free_page(bvec->bv_page);
-			uaddr += bvec->bv_len;
-		}
-	}
-
-	bio_put(bio);
-	return ret;
-}
-
-/**
- *	bio_copy_user	-	copy user data to bio
- *	@q: destination block queue
- *	@uaddr: start of user address
- *	@len: length in bytes
- *	@write_to_vm: bool indicating writing to pages or not
- *
- *	Prepares and returns a bio for indirect user io, bouncing data
- *	to/from kernel pages as necessary. Must be paired with
- *	call bio_uncopy_user() on io completion.
- */
-struct bio *bio_copy_user(request_queue_t *q, unsigned long uaddr,
-			  unsigned int len, int write_to_vm)
-{
-	unsigned long end = (uaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	unsigned long start = uaddr >> PAGE_SHIFT;
-	struct bio_vec *bvec;
-	struct page *page;
-	struct bio *bio;
-	int i, ret;
-
-	bio = bio_alloc(GFP_KERNEL, end - start);
-	if (!bio)
-		return ERR_PTR(-ENOMEM);
-
-	ret = 0;
-	while (len) {
-		unsigned int bytes = PAGE_SIZE;
-
-		if (bytes > len)
-			bytes = len;
-
-		page = alloc_page(q->bounce_gfp | GFP_KERNEL);
-		if (!page) {
-			ret = -ENOMEM;
-			break;
-		}
-
-		if (__bio_add_page(q, bio, page, bytes, 0) < bytes) {
-			ret = -EINVAL;
-			break;
-		}
-
-		len -= bytes;
-	}
-
-	/*
-	 * success
-	 */
-	if (!ret) {
-		if (!write_to_vm) {
-			bio->bi_rw |= (1 << BIO_RW);
-			/*
-	 		 * for a write, copy in data to kernel pages
-			 */
-			ret = -EFAULT;
-			bio_for_each_segment(bvec, bio, i) {
-				char *addr = page_address(bvec->bv_page);
-
-				if (copy_from_user(addr, (char *) uaddr, bvec->bv_len))
-					goto cleanup;
-			}
-		}
-
-		bio->bi_private = (void *) uaddr;
-		return bio;
-	}
-
-	/*
-	 * cleanup
-	 */
-cleanup:
-	bio_for_each_segment(bvec, bio, i)
-		__free_page(bvec->bv_page);
-
-	bio_put(bio);
-	return ERR_PTR(ret);
-}
-
-static struct bio *__bio_map_user(request_queue_t *q, struct block_device *bdev,
+static struct bio *__bio_map_user(struct block_device *bdev,
 				  unsigned long uaddr, unsigned int len,
 				  int write_to_vm)
 {
 	unsigned long end = (uaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	unsigned long start = uaddr >> PAGE_SHIFT;
 	const int nr_pages = end - start;
+	request_queue_t *q = bdev_get_queue(bdev);
 	int ret, offset, i;
 	struct page **pages;
 	struct bio *bio;
@@ -501,13 +379,12 @@ static struct bio *__bio_map_user(request_queue_t *q, struct block_device *bdev,
 	 * size for now, in the future we can relax this restriction
 	 */
 	if ((uaddr & queue_dma_alignment(q)) || (len & queue_dma_alignment(q)))
-		return ERR_PTR(-EINVAL);
+		return NULL;
 
 	bio = bio_alloc(GFP_KERNEL, nr_pages);
 	if (!bio)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
-	ret = -ENOMEM;
 	pages = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		goto out;
@@ -535,7 +412,7 @@ static struct bio *__bio_map_user(request_queue_t *q, struct block_device *bdev,
 		/*
 		 * sorry...
 		 */
-		if (__bio_add_page(q, bio, pages[i], bytes, offset) < bytes)
+		if (bio_add_page(bio, pages[i], bytes, offset) < bytes)
 			break;
 
 		len -= bytes;
@@ -556,12 +433,12 @@ static struct bio *__bio_map_user(request_queue_t *q, struct block_device *bdev,
 	if (!write_to_vm)
 		bio->bi_rw |= (1 << BIO_RW);
 
-	bio->bi_flags |= (1 << BIO_USER_MAPPED);
+	blk_queue_bounce(q, &bio);
 	return bio;
 out:
 	kfree(pages);
 	bio_put(bio);
-	return ERR_PTR(ret);
+	return NULL;
 }
 
 /**
@@ -572,38 +449,35 @@ out:
  *	@write_to_vm: bool indicating writing to pages or not
  *
  *	Map the user space address into a bio suitable for io to a block
- *	device. Returns an error pointer in case of error.
+ *	device.
  */
-struct bio *bio_map_user(request_queue_t *q, struct block_device *bdev,
-			 unsigned long uaddr, unsigned int len, int write_to_vm)
+struct bio *bio_map_user(struct block_device *bdev, unsigned long uaddr,
+			 unsigned int len, int write_to_vm)
 {
 	struct bio *bio;
 
-	bio = __bio_map_user(q, bdev, uaddr, len, write_to_vm);
+	bio = __bio_map_user(bdev, uaddr, len, write_to_vm);
 
-	if (IS_ERR(bio))
-		return bio;
+	if (bio) {
+		/*
+		 * subtle -- if __bio_map_user() ended up bouncing a bio,
+		 * it would normally disappear when its bi_end_io is run.
+		 * however, we need it for the unmap, so grab an extra
+		 * reference to it
+		 */
+		bio_get(bio);
 
-	/*
-	 * subtle -- if __bio_map_user() ended up bouncing a bio,
-	 * it would normally disappear when its bi_end_io is run.
-	 * however, we need it for the unmap, so grab an extra
-	 * reference to it
-	 */
-	bio_get(bio);
+		if (bio->bi_size < len) {
+			bio_endio(bio, bio->bi_size, 0);
+			bio_unmap_user(bio, 0);
+			return NULL;
+		}
+	}
 
-	if (bio->bi_size == len)
-		return bio;
-
-	/*
-	 * don't support partial mappings
-	 */
-	bio_endio(bio, bio->bi_size, 0);
-	bio_unmap_user(bio);
-	return ERR_PTR(-EINVAL);
+	return bio;
 }
 
-static void __bio_unmap_user(struct bio *bio)
+static void __bio_unmap_user(struct bio *bio, int write_to_vm)
 {
 	struct bio_vec *bvec;
 	int i;
@@ -624,7 +498,7 @@ static void __bio_unmap_user(struct bio *bio)
 	 * make sure we dirty pages we wrote to
 	 */
 	__bio_for_each_segment(bvec, bio, i, 0) {
-		if (bio_data_dir(bio) == READ)
+		if (write_to_vm)
 			set_page_dirty_lock(bvec->bv_page);
 
 		page_cache_release(bvec->bv_page);
@@ -636,15 +510,17 @@ static void __bio_unmap_user(struct bio *bio)
 /**
  *	bio_unmap_user	-	unmap a bio
  *	@bio:		the bio being unmapped
+ *	@write_to_vm:	bool indicating whether pages were written to
  *
- *	Unmap a bio previously mapped by bio_map_user(). Must be called with
+ *	Unmap a bio previously mapped by bio_map_user(). The @write_to_vm
+ *	must be the same as passed into bio_map_user(). Must be called with
  *	a process context.
  *
  *	bio_unmap_user() may sleep.
  */
-void bio_unmap_user(struct bio *bio)
+void bio_unmap_user(struct bio *bio, int write_to_vm)
 {
-	__bio_unmap_user(bio);
+	__bio_unmap_user(bio, write_to_vm);
 	bio_put(bio);
 }
 
@@ -820,11 +696,10 @@ static int bio_pair_end_1(struct bio * bi, unsigned int done, int err)
 {
 	struct bio_pair *bp = container_of(bi, struct bio_pair, bio1);
 
-	if (err)
-		bp->error = err;
-
 	if (bi->bi_size)
 		return 1;
+	if (err)
+		bp->error = err;
 
 	bio_pair_release(bp);
 	return 0;
@@ -834,11 +709,10 @@ static int bio_pair_end_2(struct bio * bi, unsigned int done, int err)
 {
 	struct bio_pair *bp = container_of(bi, struct bio_pair, bio2);
 
-	if (err)
-		bp->error = err;
-
 	if (bi->bi_size)
 		return 1;
+	if (err)
+		bp->error = err;
 
 	bio_pair_release(bp);
 	return 0;
@@ -927,7 +801,9 @@ static void __init biovec_init_pools(void)
 		size = bp->nr_vecs * sizeof(struct bio_vec);
 
 		bp->slab = kmem_cache_create(bp->name, size, 0,
-				SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+						SLAB_HWCACHE_ALIGN, NULL, NULL);
+		if (!bp->slab)
+			panic("biovec: can't init slab cache\n");
 
 		if (i >= scale)
 			pool_entries >>= 1;
@@ -942,16 +818,16 @@ static void __init biovec_init_pools(void)
 static int __init init_bio(void)
 {
 	bio_slab = kmem_cache_create("bio", sizeof(struct bio), 0,
-				SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
-	bio_pool = mempool_create(BIO_POOL_SIZE, mempool_alloc_slab,
-				mempool_free_slab, bio_slab);
+					SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if (!bio_slab)
+		panic("bio: can't create slab cache\n");
+	bio_pool = mempool_create(BIO_POOL_SIZE, mempool_alloc_slab, mempool_free_slab, bio_slab);
 	if (!bio_pool)
 		panic("bio: can't create mempool\n");
 
 	biovec_init_pools();
 
-	bio_split_pool = mempool_create(BIO_SPLIT_ENTRIES,
-				bio_pair_alloc, bio_pair_free, NULL);
+	bio_split_pool = mempool_create(BIO_SPLIT_ENTRIES, bio_pair_alloc, bio_pair_free, NULL);
 	if (!bio_split_pool)
 		panic("bio: can't create split pool\n");
 
@@ -975,5 +851,3 @@ EXPORT_SYMBOL(bio_unmap_user);
 EXPORT_SYMBOL(bio_pair_release);
 EXPORT_SYMBOL(bio_split);
 EXPORT_SYMBOL(bio_split_pool);
-EXPORT_SYMBOL(bio_copy_user);
-EXPORT_SYMBOL(bio_uncopy_user);

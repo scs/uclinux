@@ -26,10 +26,19 @@
 #ifndef __ALSA_IOCTL32_H
 #define __ALSA_IOCTL32_H
 
-#include <linux/compat.h>
+#ifndef A
+#ifdef CONFIG_PPC64
+#include <asm/ppc32.h>
+#else
+/* x86-64, sparc64 */
+#define A(__x) ((void *)(unsigned long)(__x))
+#endif
+#endif
+
+#define TO_PTR(x)  A(x)
 
 #define COPY(x)  (dst->x = src->x)
-#define CPTR(x)	 (dst->x = compat_ptr(src->x))
+#define CPTR(x)	 (dst->x = (typeof(dst->x))A(src->x))
 
 #define convert_from_32(type, dstp, srcp)\
 {\
@@ -53,7 +62,7 @@ static int _snd_ioctl32_##type(unsigned int fd, unsigned int cmd, unsigned long 
 	struct sndrv_##type data;\
 	mm_segment_t oldseg;\
 	int err;\
-	if (copy_from_user(&data32, (void __user *)arg, sizeof(data32)))\
+	if (copy_from_user(&data32, (void*)arg, sizeof(data32)))\
 		return -EFAULT;\
 	memset(&data, 0, sizeof(data));\
 	convert_from_32(type, &data, &data32);\
@@ -65,7 +74,7 @@ static int _snd_ioctl32_##type(unsigned int fd, unsigned int cmd, unsigned long 
 		return err;\
 	if (native_ctl & (_IOC_READ << _IOC_DIRSHIFT)) {\
 		convert_to_32(type, &data32, &data);\
-		if (copy_to_user((void __user *)arg, &data32, sizeof(data32)))\
+		if (copy_to_user((void*)arg, &data32, sizeof(data32)))\
 			return -EFAULT;\
 	}\
 	return 0;\
@@ -84,7 +93,7 @@ static int _snd_ioctl32_##type(unsigned int fd, unsigned int cmd, unsigned long 
 		err = -ENOMEM; \
 		goto __end; \
 	}\
-	if (copy_from_user(data32, (void __user *)arg, sizeof(*data32))) { \
+	if (copy_from_user(data32, (void*)arg, sizeof(*data32))) { \
 		err = -EFAULT; \
 		goto __end; \
 	}\
@@ -99,7 +108,7 @@ static int _snd_ioctl32_##type(unsigned int fd, unsigned int cmd, unsigned long 
 	err = 0;\
 	if (native_ctl & (_IOC_READ << _IOC_DIRSHIFT)) {\
 		convert_to_32(type, data32, data);\
-		if (copy_to_user((void __user *)arg, data32, sizeof(*data32)))\
+		if (copy_to_user((void*)arg, data32, sizeof(*data32)))\
 			err = -EFAULT;\
 	}\
       __end:\

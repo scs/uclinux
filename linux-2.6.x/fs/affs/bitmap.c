@@ -272,7 +272,8 @@ err_full:
 	return 0;
 }
 
-int affs_init_bitmap(struct super_block *sb, int *flags)
+int
+affs_init_bitmap(struct super_block *sb)
 {
 	struct affs_bm_info *bm;
 	struct buffer_head *bmap_bh = NULL, *bh = NULL;
@@ -281,13 +282,13 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 	int i, res = 0;
 	struct affs_sb_info *sbi = AFFS_SB(sb);
 
-	if (*flags & MS_RDONLY)
+	if (sb->s_flags & MS_RDONLY)
 		return 0;
 
 	if (!AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag) {
 		printk(KERN_NOTICE "AFFS: Bitmap invalid - mounting %s read only\n",
 			sb->s_id);
-		*flags |= MS_RDONLY;
+		sb->s_flags |= MS_RDONLY;
 		return 0;
 	}
 
@@ -300,7 +301,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 	bm = sbi->s_bitmap = kmalloc(size, GFP_KERNEL);
 	if (!sbi->s_bitmap) {
 		printk(KERN_ERR "AFFS: Bitmap allocation failed\n");
-		return -ENOMEM;
+		return 1;
 	}
 	memset(sbi->s_bitmap, 0, size);
 
@@ -315,13 +316,13 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 		bh = affs_bread(sb, bm->bm_key);
 		if (!bh) {
 			printk(KERN_ERR "AFFS: Cannot read bitmap\n");
-			res = -EIO;
+			res = 1;
 			goto out;
 		}
 		if (affs_checksum_block(sb, bh)) {
 			printk(KERN_WARNING "AFFS: Bitmap %u invalid - mounting %s read only.\n",
 			       bm->bm_key, sb->s_id);
-			*flags |= MS_RDONLY;
+			sb->s_flags |= MS_RDONLY;
 			goto out;
 		}
 		pr_debug("AFFS: read bitmap block %d: %d\n", blk, bm->bm_key);
@@ -337,7 +338,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 		bmap_bh = affs_bread(sb, be32_to_cpu(bmap_blk[blk]));
 		if (!bmap_bh) {
 			printk(KERN_ERR "AFFS: Cannot read bitmap extension\n");
-			res = -EIO;
+			res = 1;
 			goto out;
 		}
 		bmap_blk = (u32 *)bmap_bh->b_data;
@@ -381,18 +382,4 @@ out:
 	affs_brelse(bh);
 	affs_brelse(bmap_bh);
 	return res;
-}
-
-void affs_free_bitmap(struct super_block *sb)
-{
-	struct affs_sb_info *sbi = AFFS_SB(sb);
-
-	if (!sbi->s_bitmap)
-		return;
-
-	affs_brelse(sbi->s_bmap_bh);
-	sbi->s_bmap_bh = NULL;
-	sbi->s_last_bmap = ~0;
-	kfree(sbi->s_bitmap);
-	sbi->s_bitmap = NULL;
 }

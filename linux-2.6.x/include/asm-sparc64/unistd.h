@@ -287,20 +287,14 @@
 #define __NR_timer_create	266
 /* #define __NR_vserver		267 Reserved for VSERVER */
 #define __NR_io_setup		268
-#define __NR_io_destroy		269
-#define __NR_io_submit		270
-#define __NR_io_cancel		271
-#define __NR_io_getevents	272
-#define __NR_mq_open		273
-#define __NR_mq_unlink		(__NR_mq_open+1)
-#define __NR_mq_timedsend	(__NR_mq_open+2)
-#define __NR_mq_timedreceive	(__NR_mq_open+3)
-#define __NR_mq_notify		(__NR_mq_open+4)
-#define __NR_mq_getsetattr	(__NR_mq_open+5)
-/* WARNING: You MAY NOT add syscall numbers larger than 282, since
+#define __NR_io_destroy		268
+#define __NR_io_submit		269
+#define __NR_io_cancel		270
+#define __NR_io_getevents	271
+/* WARNING: You MAY NOT add syscall numbers larger than 271, since
  *          all of the syscall tables in the Sparc kernel are
- *          sized to have 283 entries (starting at zero).  Therefore
- *          find a free slot in the 0-282 range.
+ *          sized to have 272 entries (starting at zero).  Therefore
+ *          find a free slot in the 0-271 range.
  */
 
 #define _syscall0(type,name) \
@@ -422,9 +416,6 @@ return -1; \
 }
 #ifdef __KERNEL_SYSCALLS__
 
-#include <linux/compiler.h>
-#include <linux/types.h>
-
 /*
  * we need this inline - forking from kernel space will result
  * in NO COPY ON WRITE (!!!), until an execve is executed. This
@@ -446,20 +437,8 @@ static __inline__ _syscall1(int,dup,int,fd)
 static __inline__ _syscall3(int,execve,__const__ char *,file,char **,argv,char **,envp)
 static __inline__ _syscall3(int,open,__const__ char *,file,int,flag,int,mode)
 static __inline__ _syscall1(int,close,int,fd)
+static __inline__ _syscall1(int,_exit,int,exitcode)
 static __inline__ _syscall3(pid_t,waitpid,pid_t,pid,int *,wait_stat,int,options)
-
-#include <linux/linkage.h>
-
-asmlinkage unsigned long sys_mmap(
-				unsigned long addr, unsigned long len,
-				unsigned long prot, unsigned long flags,
-				unsigned long fd, unsigned long off);
-struct sigaction;
-asmlinkage long sys_rt_sigaction(int sig,
-				const struct sigaction __user *act,
-				struct sigaction __user *oact,
-				void __user *restorer,
-				size_t sigsetsize);
 
 #endif /* __KERNEL_SYSCALLS__ */
 
@@ -473,27 +452,6 @@ asmlinkage long sys_rt_sigaction(int sig,
 #define   _SC_JOB_CONTROL         6
 #define   _SC_SAVED_IDS           7
 #define   _SC_VERSION             8
-
-#define __ARCH_WANT_IPC_PARSE_VERSION
-#define __ARCH_WANT_OLD_READDIR
-#define __ARCH_WANT_STAT64
-#define __ARCH_WANT_SYS_ALARM
-#define __ARCH_WANT_SYS_GETHOSTNAME
-#define __ARCH_WANT_SYS_PAUSE
-#define __ARCH_WANT_SYS_SGETMASK
-#define __ARCH_WANT_SYS_SIGNAL
-#define __ARCH_WANT_SYS_TIME
-#define __ARCH_WANT_SYS_UTIME
-#define __ARCH_WANT_SYS_WAITPID
-#define __ARCH_WANT_SYS_SOCKETCALL
-#define __ARCH_WANT_SYS_FADVISE64
-#define __ARCH_WANT_SYS_GETPGRP
-#define __ARCH_WANT_SYS_LLSEEK
-#define __ARCH_WANT_SYS_NICE
-#define __ARCH_WANT_SYS_OLD_GETRLIMIT
-#define __ARCH_WANT_SYS_OLDUMOUNT
-#define __ARCH_WANT_SYS_SIGPENDING
-#define __ARCH_WANT_SYS_SIGPROCMASK
 #endif
 
 /*

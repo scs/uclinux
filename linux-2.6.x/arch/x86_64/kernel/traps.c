@@ -115,7 +115,7 @@ unsigned long *in_exception_stack(int cpu, unsigned long stack)
 		if (stack >= init_tss[cpu].ist[k]  && stack <= end) 
 			return (unsigned long *)end;
 	}
-	return NULL;
+	return 0;
 } 
 
 /*
@@ -140,7 +140,7 @@ void show_trace(unsigned long *stack)
 	if (estack_end) { 
 		while (stack < estack_end) { 
 			addr = *stack++; 
-			if (__kernel_text_address(addr)) {
+			if (kernel_text_address(addr)) {  
 				i += printk_address(addr);
 				i += printk(" "); 
 				if (i > 50) {
@@ -169,7 +169,7 @@ void show_trace(unsigned long *stack)
 			 * down the cause of the crash will be able to figure
 			 * out the call path that was taken.
 			 */
-			 if (__kernel_text_address(addr)) {
+			 if (kernel_text_address(addr)) {  
 				 i += printk_address(addr);
 				 i += printk(" "); 
 				 if (i > 50) { 
@@ -185,7 +185,7 @@ void show_trace(unsigned long *stack)
 
 	while (((long) stack & (THREAD_SIZE-1)) != 0) {
 		addr = *stack++;
-		if (__kernel_text_address(addr)) {
+		if (kernel_text_address(addr)) { 	 
 			i += printk_address(addr);
 			i += printk(" "); 
 			if (i > 50) { 
@@ -195,6 +195,16 @@ void show_trace(unsigned long *stack)
 		}
 	}
 	printk("\n");
+}
+
+void show_trace_task(struct task_struct *tsk)
+{
+	unsigned long rsp = tsk->thread.rsp;
+
+	/* User space on another CPU? */
+	if ((rsp ^ (unsigned long)tsk->thread_info) & (PAGE_MASK<<1))
+		return;
+	show_trace((unsigned long *)rsp);
 }
 
 void show_stack(struct task_struct *tsk, unsigned long * rsp)
@@ -256,8 +266,8 @@ void show_registers(struct pt_regs *regs)
 
 	printk("CPU %d ", cpu);
 	__show_regs(regs);
-	printk("Process %s (pid: %d, threadinfo %p, task %p)\n",
-		cur->comm, cur->pid, cur->thread_info, cur);
+	printk("Process %s (pid: %d, stackpage=%08lx)\n",
+		cur->comm, cur->pid, 4096+(unsigned long)cur);
 
 	/*
 	 * When in-kernel, we also print out the stack and code at the
@@ -302,7 +312,7 @@ void handle_BUG(struct pt_regs *regs)
 	if (__get_user(tmp, f.filename))
 		f.filename = "unmapped filename"; 
 	printk("----------- [cut here ] --------- [please bite here ] ---------\n");
-	printk(KERN_ALERT "Kernel BUG at %.50s:%d\n", f.filename, f.line);
+	printk("Kernel BUG at %.50s:%d\n", f.filename, f.line); 	
 } 
 
 void out_of_line_bug(void)
@@ -342,21 +352,11 @@ void oops_end(void)
 void __die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
-	printk(KERN_EMERG "%s: %04lx [%u] ", str, err & 0xffff,++die_counter);
-#ifdef CONFIG_PREEMPT
-	printk("PREEMPT ");
-#endif
-#ifdef CONFIG_SMP
-	printk("SMP ");
-#endif
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	printk("DEBUG_PAGEALLOC");
-#endif
-		printk("\n");
+	printk(KERN_EMERG "%s: %04lx [%u]\n", str, err & 0xffff,++die_counter);
 	notify_die(DIE_OOPS, (char *)str, regs, err, 255, SIGSEGV);
 	show_registers(regs);
 	/* Executive summary in case the oops scrolled away */
-	printk(KERN_ALERT "RIP ");
+	printk("RIP "); 
 	printk_address(regs->rip); 
 	printk(" RSP <%016lx>\n", regs->rsp); 
 }
@@ -448,7 +448,7 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 	info.si_signo = signr; \
 	info.si_errno = 0; \
 	info.si_code = sicode; \
-	info.si_addr = (void __user *)siaddr; \
+	info.si_addr = (void *)siaddr; \
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) == NOTIFY_BAD) \
 		return; \
 	do_trap(trapnr, signr, str, regs, error_code, &info); \
@@ -460,28 +460,13 @@ DO_ERROR( 4, SIGSEGV, "overflow", overflow)
 DO_ERROR( 5, SIGSEGV, "bounds", bounds)
 DO_ERROR_INFO( 6, SIGILL,  "invalid operand", invalid_op, ILL_ILLOPN, regs->rip)
 DO_ERROR( 7, SIGSEGV, "device not available", device_not_available)
+DO_ERROR( 8, SIGSEGV, "double fault", double_fault)
 DO_ERROR( 9, SIGFPE,  "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
+DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, get_cr2())
 DO_ERROR(18, SIGSEGV, "reserved", reserved)
-
-#define DO_ERROR_STACK(trapnr, signr, str, name) \
-asmlinkage void *do_##name(struct pt_regs * regs, long error_code) \
-{ \
-	struct pt_regs *pr = ((struct pt_regs *)(current->thread.rsp0))-1; \
-	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) == NOTIFY_BAD) \
-		return regs; \
-	if (regs->cs & 3) { \
-		memcpy(pr, regs, sizeof(struct pt_regs)); \
-		regs = pr; \
-	} \
-	do_trap(trapnr, signr, str, regs, error_code, NULL); \
-	return regs;		\
-}
-
-DO_ERROR_STACK(12, SIGBUS,  "stack segment", stack_segment)
-DO_ERROR_STACK( 8, SIGSEGV, "double fault", double_fault)
 
 asmlinkage void do_general_protection(struct pt_regs * regs, long error_code)
 {
@@ -571,7 +556,7 @@ asmlinkage void default_do_nmi(struct pt_regs * regs)
 		 * Ok, so this is none of the documented NMI sources,
 		 * so it must be the NMI watchdog.
 		 */
-		if (nmi_watchdog > 0) {
+		if (nmi_watchdog) {
 			nmi_watchdog_tick(regs,reason);
 			return;
 		}
@@ -596,19 +581,11 @@ asmlinkage void default_do_nmi(struct pt_regs * regs)
 	inb(0x71);		/* dummy */
 }
 
-/* runs on IST stack. */
-asmlinkage void *do_debug(struct pt_regs * regs, unsigned long error_code)
+asmlinkage void do_debug(struct pt_regs * regs, long error_code)
 {
-	struct pt_regs *pr;
 	unsigned long condition;
 	struct task_struct *tsk = current;
 	siginfo_t info;
-
-	pr = (struct pt_regs *)(current->thread.rsp0)-1;
-	if (regs->cs & 3) {
-		memcpy(pr, regs, sizeof(struct pt_regs));
-		regs = pr;
-	}	
 
 #ifdef CONFIG_CHECKING
        { 
@@ -662,23 +639,21 @@ asmlinkage void *do_debug(struct pt_regs * regs, unsigned long error_code)
 	if ((regs->cs & 3) == 0) 
 		goto clear_dr7; 
 
-	info.si_addr = (void __user *)regs->rip;
+	info.si_addr = (void *)regs->rip;
 	force_sig_info(SIGTRAP, &info, tsk);	
 clear_dr7:
 	asm volatile("movq %0,%%db7"::"r"(0UL));
-	notify_die(DIE_DEBUG, "debug", regs, condition, 1, SIGTRAP);
-	return regs;
+	notify_die(DIE_DEBUG, "debug", regs, error_code, 1, SIGTRAP);
+	return;
 
 clear_TF_reenable:
-	printk("clear_tf_reenable\n");
 	set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
 
 clear_TF:
 	/* RED-PEN could cause spurious errors */
-	if (notify_die(DIE_DEBUG, "debug2", regs, condition, 1, SIGTRAP) 
-	    != NOTIFY_BAD)
+	if (notify_die(DIE_DEBUG, "debug2", regs, error_code, 1, SIGTRAP) != NOTIFY_BAD)
 	regs->eflags &= ~TF_MASK;
-	return regs;	
+	return;
 }
 
 /*
@@ -686,7 +661,7 @@ clear_TF:
  * the correct behaviour even in the presence of the asynchronous
  * IRQ13 behaviour
  */
-void math_error(void __user *rip)
+void math_error(void *rip)
 {
 	struct task_struct * task;
 	siginfo_t info;
@@ -740,10 +715,10 @@ void math_error(void __user *rip)
 	force_sig_info(SIGFPE, &info, task);
 }
 
-asmlinkage void do_coprocessor_error(struct pt_regs * regs)
+asmlinkage void do_coprocessor_error(struct pt_regs * regs, long error_code)
 {
 	conditional_sti(regs);
-	math_error((void __user *)regs->rip);
+	math_error((void *)regs->rip);
 }
 
 asmlinkage void bad_intr(void)
@@ -751,7 +726,7 @@ asmlinkage void bad_intr(void)
 	printk("bad interrupt"); 
 }
 
-static inline void simd_math_error(void __user *rip)
+static inline void simd_math_error(void *rip)
 {
 	struct task_struct * task;
 	siginfo_t info;
@@ -799,10 +774,11 @@ static inline void simd_math_error(void __user *rip)
 	force_sig_info(SIGFPE, &info, task);
 }
 
-asmlinkage void do_simd_coprocessor_error(struct pt_regs * regs)
+asmlinkage void do_simd_coprocessor_error(struct pt_regs * regs,
+					  long error_code)
 {
 	conditional_sti(regs);
-		simd_math_error((void __user *)regs->rip);
+		simd_math_error((void *)regs->rip);
 }
 
 asmlinkage void do_spurious_interrupt_bug(struct pt_regs * regs)
@@ -827,6 +803,11 @@ asmlinkage void math_state_restore(void)
 	me->thread_info->status |= TS_USEDFPU;
 }
 
+asmlinkage void math_emulate(void)
+{
+	BUG();
+}
+
 void do_call_debug(struct pt_regs *regs) 
 { 
 	notify_die(DIE_CALL, "debug call", regs, 0, 255, SIGINT); 
@@ -835,7 +816,7 @@ void do_call_debug(struct pt_regs *regs)
 void __init trap_init(void)
 {
 	set_intr_gate(0,&divide_error);
-	set_intr_gate_ist(1,&debug,DEBUG_STACK);
+	set_intr_gate(1,&debug);
 	set_intr_gate_ist(2,&nmi,NMI_STACK);
 	set_system_gate(3,&int3);	/* int3-5 can be called from all */
 	set_system_gate(4,&overflow);
@@ -852,7 +833,7 @@ void __init trap_init(void)
 	set_intr_gate(15,&spurious_interrupt_bug);
 	set_intr_gate(16,&coprocessor_error);
 	set_intr_gate(17,&alignment_check);
-	set_intr_gate_ist(18,&machine_check, MCE_STACK); 
+	set_intr_gate(18,&machine_check); 
 	set_intr_gate(19,&simd_coprocessor_error);
 
 #ifdef CONFIG_IA32_EMULATION

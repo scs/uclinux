@@ -1,16 +1,17 @@
-if ARCH_CAMELOT
 
 menu "Epxa10db"
 
 comment "PLD hotswap support"
+	depends on ARCH_CAMELOT
 
 config PLD
 	bool
+	depends on ARCH_CAMELOT
 	default y
 
 config PLD_HOTSWAP
 	bool "Support for PLD device hotplugging (experimental)"
-	depends on EXPERIMENTAL
+	depends on ARCH_CAMELOT && EXPERIMENTAL
 	help
 	  This enables support for the dynamic loading and configuration of
 	  compatible drivers when the contents of the PLD are changed. This
@@ -20,4 +21,3 @@ config PLD_HOTSWAP
 
 endmenu
 
-endif

@@ -36,16 +36,16 @@ static int secondary;
 static int vendor_id = 0x0557;
 static int product_id = 0x2008;
 
-module_param(vendor_id, uint, 0400);
+MODULE_PARM(vendor_id, "h");
 MODULE_PARM_DESC(vendor_id, "USB Vendor ID of device to look for");
 
-module_param(product_id, uint, 0400);
+MODULE_PARM(product_id, "h");
 MODULE_PARM_DESC(product_id, "USB Product ID of device to look for");
 
 /* should we print out debug messages */
 static int debug = 0;
 
-module_param(debug, bool, 0600);
+MODULE_PARM(debug, "i");
 MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 #if defined(CONFIG_SECURITY_ROOTPLUG_MODULE)
@@ -90,7 +90,7 @@ static struct security_operations rootplug_security_ops = {
 	.capset_set =			cap_capset_set,
 	.capable =			cap_capable,
 
-	.bprm_apply_creds =		cap_bprm_apply_creds,
+	.bprm_compute_creds =		cap_bprm_compute_creds,
 	.bprm_set_security =		cap_bprm_set_security,
 
 	.task_post_setuid =		cap_task_post_setuid,

@@ -14,8 +14,9 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/if_ether.h>
+#include <linux/if_bridge.h>
 #include <linux/netfilter_bridge.h>
-
 #include "br_private.h"
 #include "br_private_stp.h"
 

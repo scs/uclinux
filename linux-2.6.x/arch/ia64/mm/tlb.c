@@ -166,7 +166,7 @@ flush_tlb_range (struct vm_area_struct *vma, unsigned long start, unsigned long 
 }
 EXPORT_SYMBOL(flush_tlb_range);
 
-void __devinit
+void __init
 ia64_tlb_init (void)
 {
 	ia64_ptce_info_t ptce_info;

@@ -29,7 +29,6 @@
 /************************************************************************/
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/irq.h>
 
@@ -101,4 +100,3 @@ int iSeries_Device_ToggleReset(struct pci_dev *PciDev, int AssertTime,
 	}
 	return DeviceNode->ReturnCode;
 }
-EXPORT_SYMBOL(iSeries_Device_ToggleReset);

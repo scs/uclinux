@@ -19,9 +19,6 @@
  *	   not being read in sd_open. Fix problem where removable media 
  *	   could be ejected after sd_open.
  *	 - Douglas Gilbert <dgilbert@interlog.com> cleanup for lk 2.5.x
- *	 - Badari Pulavarty <pbadari@us.ibm.com>, Matthew Wilcox 
- *	   <willy@debian.org>, Kurt Garloff <garloff@suse.de>: 
- *	   Support 32k/1M disks.
  *
  *	Logging policy (needs CONFIG_SCSI_LOGGING defined):
  *	 - setting up transfer: SCSI_LOG_HLQUEUE levels 1 and 2
@@ -44,20 +41,17 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/reboot.h>
+#include <linux/vmalloc.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
-#include <linux/kref.h>
 #include <asm/uaccess.h>
 
-#include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_dbg.h>
-#include <scsi/scsi_device.h>
+#include "scsi.h"
+#include "hosts.h"
+
 #include <scsi/scsi_driver.h>
-#include <scsi/scsi_eh.h>
-#include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
-#include <scsi/scsi_request.h>
 #include <scsi/scsicam.h>
 
 #include "scsi_logging.h"
@@ -67,7 +61,7 @@
  * Remaining dev_t-handling stuff
  */
 #define SD_MAJORS	16
-#define SD_DISKS	32768	/* anything between 256 and 262144 */
+#define SD_DISKS	(SD_MAJORS << 4)
 
 /*
  * Time out in seconds for disks and Magneto-opticals (which are slower).
@@ -80,12 +74,16 @@
  */
 #define SD_MAX_RETRIES		5
 
-static void scsi_disk_release(struct kref *kref);
+static void scsi_disk_release (struct kobject *kobj);
+
+static struct kobj_type scsi_disk_kobj_type = {
+	.release = scsi_disk_release,
+};
 
 struct scsi_disk {
 	struct scsi_driver *driver;	/* always &sd_template */
 	struct scsi_device *device;
-	struct kref	kref;
+	struct kobject	kobj;
 	struct gendisk	*disk;
 	unsigned int	openers;	/* protected by BKL for now, yuck */
 	sector_t	capacity;	/* size in 512-byte sectors */
@@ -99,11 +97,6 @@ struct scsi_disk {
 
 static unsigned long sd_index_bits[SD_DISKS / BITS_PER_LONG];
 static spinlock_t sd_index_lock = SPIN_LOCK_UNLOCKED;
-
-/* This semaphore is used to mediate the 0->1 reference get in the
- * face of object destruction (i.e. we can't allow a get on an
- * object after last put) */
-static DECLARE_MUTEX(sd_ref_sem);
 
 static int sd_revalidate_disk(struct gendisk *disk);
 static void sd_rw_intr(struct scsi_cmnd * SCpnt);
@@ -128,20 +121,6 @@ static struct scsi_driver sd_template = {
 	.init_command		= sd_init_command,
 };
 
-/* Device no to disk mapping:
- * 
- *       major         disc2     disc  p1
- *   |............|.............|....|....| <- dev_t
- *    31        20 19          8 7  4 3  0
- * 
- * Inside a major, we have 16k disks, however mapped non-
- * contiguously. The first 16 disks are for major0, the next
- * ones with major1, ... Disk 256 is for major0 again, disk 272 
- * for major1, ... 
- * As we stay compatible with our numbering scheme, we can reuse 
- * the well-know SCSI majors 8, 65--71, 136--143.
- */
-
 static int sd_major(int major_idx)
 {
 	switch (major_idx) {
@@ -157,51 +136,31 @@ static int sd_major(int major_idx)
 	}
 }
 
-static unsigned int make_sd_dev(unsigned int sd_nr, unsigned int part)
-{
-	return  (part & 0xf) | ((sd_nr & 0xf) << 4) |
-		(sd_major((sd_nr & 0xf0) >> 4) << 20) | (sd_nr & 0xfff00);
-}
-
-/* reverse mapping dev -> (sd_nr, part) not currently needed */
-
-#define to_scsi_disk(obj) container_of(obj,struct scsi_disk,kref)
+#define to_scsi_disk(obj) container_of(obj,struct scsi_disk,kobj);
 
 static inline struct scsi_disk *scsi_disk(struct gendisk *disk)
 {
 	return container_of(disk->private_data, struct scsi_disk, driver);
 }
 
-static struct scsi_disk *scsi_disk_get(struct gendisk *disk)
+static int scsi_disk_get(struct scsi_disk *sdkp)
 {
-	struct scsi_disk *sdkp = NULL;
-
-	down(&sd_ref_sem);
-	if (disk->private_data == NULL)
+	if (!kobject_get(&sdkp->kobj))
 		goto out;
-	sdkp = scsi_disk(disk);
-	if (!kref_get(&sdkp->kref))
-		goto out_sdkp;
 	if (scsi_device_get(sdkp->device))
-		goto out_put;
-	up(&sd_ref_sem);
-	return sdkp;
+		goto out_put_kobj;
+	return 0;
 
- out_put:
-	kref_put(&sdkp->kref);
- out_sdkp:
-	sdkp = NULL;
- out:
-	up(&sd_ref_sem);
-	return sdkp;
+out_put_kobj:
+	kobject_put(&sdkp->kobj);
+out:
+	return -ENXIO;
 }
 
 static void scsi_disk_put(struct scsi_disk *sdkp)
 {
-	down(&sd_ref_sem);
 	scsi_device_put(sdkp->device);
-	kref_put(&sdkp->kref);
-	up(&sd_ref_sem);
+	kobject_put(&sdkp->kobj);
 }
 
 /**
@@ -219,7 +178,9 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 	sector_t block;
 	struct scsi_device *sdp = SCpnt->device;
 
-	timeout = sdp->timeout;
+	timeout = SD_TIMEOUT;
+	if (SCpnt->device->type != TYPE_DISK)
+		timeout = SD_MOD_TIMEOUT;
 
 	/*
 	 * these are already setup, just copy cdb basically
@@ -259,7 +220,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 	SCSI_LOG_HLQUEUE(1, printk("sd_init_command: disk=%s, block=%llu, "
 			    "count=%d\n", disk->disk_name, (unsigned long long)block, this_count));
 
-	if (!sdp || !scsi_device_online(sdp) ||
+	if (!sdp || !sdp->online ||
  	    block + SCpnt->request->nr_sectors > get_capacity(disk)) {
 		SCSI_LOG_HLQUEUE(2, printk("Finishing %ld sectors\n", 
 				 SCpnt->request->nr_sectors));
@@ -420,15 +381,15 @@ queue:
 static int sd_open(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct scsi_disk *sdkp;
+	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdev;
 	int retval;
 
-	if (!(sdkp = scsi_disk_get(disk)))
-		return -ENXIO;
-
-
 	SCSI_LOG_HLQUEUE(3, printk("sd_open: disk=%s\n", disk->disk_name));
+
+	retval = scsi_disk_get(sdkp);
+	if (retval)
+		return retval;
 
 	sdev = sdkp->device;
 
@@ -466,7 +427,7 @@ static int sd_open(struct inode *inode, struct file *filp)
 	 * open actually succeeded.
 	 */
 	retval = -ENXIO;
-	if (!scsi_device_online(sdev))
+	if (!sdev->online)
 		goto error_out;
 
 	if (!sdkp->openers++ && sdev->removable) {
@@ -513,7 +474,7 @@ static int sd_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int sd_hdio_getgeo(struct block_device *bdev, struct hd_geometry __user *loc)
+static int sd_hdio_getgeo(struct block_device *bdev, struct hd_geometry *loc)
 {
 	struct scsi_disk *sdkp = scsi_disk(bdev->bd_disk);
 	struct scsi_device *sdp = sdkp->device;
@@ -538,7 +499,7 @@ static int sd_hdio_getgeo(struct block_device *bdev, struct hd_geometry __user *
 	if (put_user(diskinfo[2], &loc->cylinders))
 		return -EFAULT;
 	if (put_user((unsigned)get_start_sect(bdev),
-	             (unsigned long __user *)&loc->start))
+	             (unsigned long *)&loc->start))
 		return -EFAULT;
 	return 0;
 }
@@ -563,7 +524,6 @@ static int sd_ioctl(struct inode * inode, struct file * filp,
 	struct block_device *bdev = inode->i_bdev;
 	struct gendisk *disk = bdev->bd_disk;
 	struct scsi_device *sdp = scsi_disk(disk)->device;
-	void __user *p = (void __user *)arg;
 	int error;
     
 	SCSI_LOG_IOCTL(1, printk("sd_ioctl: disk=%s, cmd=0x%x\n",
@@ -581,7 +541,7 @@ static int sd_ioctl(struct inode * inode, struct file * filp,
 	if (cmd == HDIO_GETGEO) {
 		if (!arg)
 			return -EINVAL;
-		return sd_hdio_getgeo(bdev, p);
+		return sd_hdio_getgeo(bdev, (struct hd_geometry *)arg);
 	}
 
 	/*
@@ -592,13 +552,13 @@ static int sd_ioctl(struct inode * inode, struct file * filp,
 	switch (cmd) {
 		case SCSI_IOCTL_GET_IDLUN:
 		case SCSI_IOCTL_GET_BUS_NUMBER:
-			return scsi_ioctl(sdp, cmd, p);
+			return scsi_ioctl(sdp, cmd, (void *)arg);
 		default:
-			error = scsi_cmd_ioctl(filp, disk, cmd, p);
+			error = scsi_cmd_ioctl(bdev, cmd, arg);
 			if (error != -ENOTTY)
 				return error;
 	}
-	return scsi_ioctl(sdp, cmd, p);
+	return scsi_ioctl(sdp, cmd, (void *)arg);
 }
 
 static void set_media_not_present(struct scsi_disk *sdkp)
@@ -634,7 +594,7 @@ static int sd_media_changed(struct gendisk *disk)
 	 * can deal with it then.  It is only because of unrecoverable errors
 	 * that we would ever take a device offline in the first place.
 	 */
-	if (!scsi_device_online(sdp))
+	if (!sdp->online)
 		goto not_present;
 
 	/*
@@ -701,8 +661,8 @@ static struct block_device_operations sd_fops = {
 static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 {
 	int result = SCpnt->result;
-	int this_count = SCpnt->bufflen;
-	int good_bytes = (result == 0 ? this_count : 0);
+	int this_count = SCpnt->bufflen >> 9;
+	int good_sectors = (result == 0 ? this_count : 0);
 	sector_t block_sectors = 1;
 	sector_t error_sector;
 #ifdef CONFIG_SCSI_LOGGING
@@ -727,8 +687,6 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 		switch (SCpnt->sense_buffer[2]) {
 		case MEDIUM_ERROR:
 			if (!(SCpnt->sense_buffer[0] & 0x80))
-				break;
-			if (!blk_fs_request(SCpnt->request))
 				break;
 			error_sector = (SCpnt->sense_buffer[3] << 24) |
 			(SCpnt->sense_buffer[4] << 16) |
@@ -760,21 +718,21 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 			}
 
 			error_sector &= ~(block_sectors - 1);
-			good_bytes = (error_sector - SCpnt->request->sector) << 9;
-			if (good_bytes < 0 || good_bytes >= this_count)
-				good_bytes = 0;
+			good_sectors = error_sector - SCpnt->request->sector;
+			if (good_sectors < 0 || good_sectors >= this_count)
+				good_sectors = 0;
 			break;
 
-		case RECOVERED_ERROR: /* an error occurred, but it recovered */
-		case NO_SENSE: /* LLDD got sense data */
+		case RECOVERED_ERROR:
 			/*
-			 * Inform the user, but make sure that it's not treated
-			 * as a hard error.
+			 * An error occurred, but it recovered.  Inform the
+			 * user, but make sure that it's not treated as a
+			 * hard error.
 			 */
-			scsi_print_sense("sd", SCpnt);
+			print_sense("sd", SCpnt);
 			SCpnt->result = 0;
 			SCpnt->sense_buffer[0] = 0x0;
-			good_bytes = this_count;
+			good_sectors = this_count;
 			break;
 
 		case ILLEGAL_REQUEST:
@@ -797,7 +755,7 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 	 * how many actual sectors finished, and how many sectors we need
 	 * to say have failed.
 	 */
-	scsi_io_completion(SCpnt, good_bytes, block_sectors << 9);
+	scsi_io_completion(SCpnt, good_sectors, block_sectors);
 }
 
 static int media_not_present(struct scsi_disk *sdkp, struct scsi_request *srp)
@@ -920,7 +878,7 @@ sd_spinup_disk(struct scsi_disk *sdkp, char *diskname,
 			 * probably pointless to loop */
 			if(!spintime) {
 				printk(KERN_NOTICE "%s: Unit Not Ready, sense:\n", diskname);
-				scsi_print_req_sense("", SRpnt);
+				print_req_sense("", SRpnt);
 			}
 			break;
 		}
@@ -989,7 +947,7 @@ repeat:
 		       driver_byte(the_result));
 
 		if (driver_byte(the_result) & DRIVER_SENSE)
-			scsi_print_req_sense("sd", SRpnt);
+			print_req_sense("sd", SRpnt);
 		else
 			printk("%s : sense not available. \n", diskname);
 
@@ -1131,45 +1089,37 @@ sd_read_write_protect_flag(struct scsi_disk *sdkp, char *diskname,
 	int res;
 	struct scsi_mode_data data;
 
-	set_disk_ro(sdkp->disk, 0);
 	if (sdkp->device->skip_ms_page_3f) {
 		printk(KERN_NOTICE "%s: assuming Write Enabled\n", diskname);
 		return;
 	}
 
-	if (sdkp->device->use_192_bytes_for_3f) {
-		res = sd_do_mode_sense(SRpnt, 0, 0x3F, buffer, 192, &data);
-	} else {
-		/*
-		 * First attempt: ask for all pages (0x3F), but only 4 bytes.
-		 * We have to start carefully: some devices hang if we ask
-		 * for more than is available.
-		 */
-		res = sd_do_mode_sense(SRpnt, 0, 0x3F, buffer, 4, &data);
+	/*
+	 * First attempt: ask for all pages (0x3F), but only 4 bytes.
+	 * We have to start carefully: some devices hang if we ask
+	 * for more than is available.
+	 */
+	res = sd_do_mode_sense(SRpnt, 0, 0x3F, buffer, 4, &data);
 
-		/*
-		 * Second attempt: ask for page 0 When only page 0 is
-		 * implemented, a request for page 3F may return Sense Key
-		 * 5: Illegal Request, Sense Code 24: Invalid field in
-		 * CDB.
-		 */
-		if (!scsi_status_is_good(res))
-			res = sd_do_mode_sense(SRpnt, 0, 0, buffer, 4, &data);
+	/*
+	 * Second attempt: ask for page 0
+	 * When only page 0 is implemented, a request for page 3F may return
+	 * Sense Key 5: Illegal Request, Sense Code 24: Invalid field in CDB.
+	 */
+	if (!scsi_status_is_good(res))
+		res = sd_do_mode_sense(SRpnt, 0, 0, buffer, 4, &data);
 
-		/*
-		 * Third attempt: ask 255 bytes, as we did earlier.
-		 */
-		if (!scsi_status_is_good(res))
-			res = sd_do_mode_sense(SRpnt, 0, 0x3F, buffer, 255,
-					       &data);
-	}
+	/*
+	 * Third attempt: ask 255 bytes, as we did earlier.
+	 */
+	if (!scsi_status_is_good(res))
+		res = sd_do_mode_sense(SRpnt, 0, 0x3F, buffer, 255, &data);
 
 	if (!scsi_status_is_good(res)) {
 		printk(KERN_WARNING
 		       "%s: test WP failed, assume Write Enabled\n", diskname);
 	} else {
 		sdkp->write_prot = ((data.device_specific & 0x80) != 0);
-		set_disk_ro(sdkp->disk, sdkp->write_prot);
 		printk(KERN_NOTICE "%s: Write Protect is %s\n", diskname,
 		       sdkp->write_prot ? "on" : "off");
 		printk(KERN_DEBUG "%s: Mode Sense: %02x %02x %02x %02x\n",
@@ -1275,7 +1225,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	 * If the device is offline, don't try and read capacity or any
 	 * of the other niceties.
 	 */
-	if (!scsi_device_online(sdp))
+	if (!sdp->online)
 		goto out;
 
 	sreq = scsi_allocate_request(sdp, GFP_KERNEL);
@@ -1347,7 +1297,7 @@ static int sd_probe(struct device *dev)
 	struct scsi_disk *sdkp;
 	struct gendisk *gd;
 	u32 index;
-	int error, devno;
+	int error;
 
 	error = -ENODEV;
 	if ((sdp->type != TYPE_DISK) && (sdp->type != TYPE_MOD))
@@ -1362,14 +1312,9 @@ static int sd_probe(struct device *dev)
 		goto out;
 
 	memset (sdkp, 0, sizeof(*sdkp));
-	kref_init(&sdkp->kref, scsi_disk_release);
+	kobject_init(&sdkp->kobj);
+	sdkp->kobj.ktype = &scsi_disk_kobj_type;
 
-	/* Note: We can accomodate 64 partitions, but the genhd code
-	 * assumes partitions allocate consecutive minors, which they don't.
-	 * So for now stay with max 16 partitions and leave two spare bits. 
-	 * Later, we may change the genhd code and the alloc_disk() call
-	 * and the ->minors assignment here. 	KG, 2004-02-10
-	 */ 
 	gd = alloc_disk(16);
 	if (!gd)
 		goto out_free;
@@ -1390,30 +1335,16 @@ static int sd_probe(struct device *dev)
 	sdkp->index = index;
 	sdkp->openers = 0;
 
-	if (!sdp->timeout) {
-		if (sdp->type == TYPE_DISK)
-			sdp->timeout = SD_TIMEOUT;
-		else
-			sdp->timeout = SD_MOD_TIMEOUT;
-	}
-
-	devno = make_sd_dev(index, 0);
-	gd->major = MAJOR(devno);
-	gd->first_minor = MINOR(devno);
+	gd->major = sd_major(index >> 4);
+	gd->first_minor = (index & 15) << 4;
 	gd->minors = 16;
 	gd->fops = &sd_fops;
 
-	if (index < 26) {
-		sprintf(gd->disk_name, "sd%c", 'a' + index % 26);
-	} else if (index < (26*27)) {
+	if (index >= 26) {
 		sprintf(gd->disk_name, "sd%c%c",
-			'a' + index / 26 - 1,'a' + index % 26);
+			'a' + index/26-1,'a' + index % 26);
 	} else {
-		const unsigned int m1 = (index / 26 - 1) / 26 - 1;
-		const unsigned int m2 = (index / 26 - 1) % 26;
-		const unsigned int m3 =  index % 26;
-		sprintf(gd->disk_name, "sd%c%c%c",
-			'a' + m1, 'a' + m2, 'a' + m3);
+		sprintf(gd->disk_name, "sd%c", 'a' + index % 26);
 	}
 
 	strcpy(gd->devfs_name, sdp->devfs_name);
@@ -1463,34 +1394,24 @@ static int sd_remove(struct device *dev)
 
 	del_gendisk(sdkp->disk);
 	sd_shutdown(dev);
-	down(&sd_ref_sem);
-	kref_put(&sdkp->kref);
-	up(&sd_ref_sem);
+	kobject_put(&sdkp->kobj);
 
 	return 0;
 }
 
 /**
  *	scsi_disk_release - Called to free the scsi_disk structure
- *	@kref: pointer to embedded kref
- *
- *	sd_ref_sem must be held entering this routine.  Because it is
- *	called on last put, you should always use the scsi_disk_get()
- *	scsi_disk_put() helpers which manipulate the semaphore directly
- *	and never do a direct kref_put().
+ *	@kobj: pointer to embedded kobject
  **/
-static void scsi_disk_release(struct kref *kref)
+static void scsi_disk_release(struct kobject *kobj)
 {
-	struct scsi_disk *sdkp = to_scsi_disk(kref);
-	struct gendisk *disk = sdkp->disk;
+	struct scsi_disk *sdkp = to_scsi_disk(kobj);
 	
+	put_disk(sdkp->disk);
+
 	spin_lock(&sd_index_lock);
 	clear_bit(sdkp->index, sd_index_bits);
 	spin_unlock(&sd_index_lock);
-
-	disk->private_data = NULL;
-
-	put_disk(disk);
 
 	kfree(sdkp);
 }
@@ -1511,7 +1432,7 @@ static void sd_shutdown(struct device *dev)
 	if (!sdkp)
                return;         /* this can happen */
 
-	if (!scsi_device_online(sdp) || !sdkp->WCE)
+	if (!sdp->online || !sdkp->WCE)
 		return;
 
 	printk(KERN_NOTICE "Synchronizing SCSI cache for disk %s: ",
@@ -1544,7 +1465,7 @@ static void sd_shutdown(struct device *dev)
 				    status_byte(res), msg_byte(res),
 				    host_byte(res), driver_byte(res));
 			if (driver_byte(res) & DRIVER_SENSE)
-				scsi_print_req_sense("sd", sreq);
+				print_req_sense("sd", sreq);
 	}
 	
 	scsi_release_request(sreq);

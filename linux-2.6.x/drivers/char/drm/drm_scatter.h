@@ -66,7 +66,6 @@ int DRM(sg_alloc)( struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->dev;
-	drm_scatter_gather_t __user *argp = (void __user *)arg;
 	drm_scatter_gather_t request;
 	drm_sg_mem_t *entry;
 	unsigned long pages, i, j;
@@ -76,7 +75,9 @@ int DRM(sg_alloc)( struct inode *inode, struct file *filp,
 	if ( dev->sg )
 		return -EINVAL;
 
-	if ( copy_from_user( &request, argp, sizeof(request) ) )
+	if ( copy_from_user( &request,
+			     (drm_scatter_gather_t *)arg,
+			     sizeof(request) ) )
 		return -EFAULT;
 
 	entry = DRM(alloc)( sizeof(*entry), DRM_MEM_SGLISTS );
@@ -144,7 +145,9 @@ int DRM(sg_alloc)( struct inode *inode, struct file *filp,
 
 	request.handle = entry->handle;
 
-	if ( copy_to_user( argp, &request, sizeof(request) ) ) {
+	if ( copy_to_user( (drm_scatter_gather_t *)arg,
+			   &request,
+			   sizeof(request) ) ) {
 		DRM(sg_cleanup)( entry );
 		return -EFAULT;
 	}
@@ -207,7 +210,7 @@ int DRM(sg_free)( struct inode *inode, struct file *filp,
 	drm_sg_mem_t *entry;
 
 	if ( copy_from_user( &request,
-			     (drm_scatter_gather_t __user *)arg,
+			     (drm_scatter_gather_t *)arg,
 			     sizeof(request) ) )
 		return -EFAULT;
 

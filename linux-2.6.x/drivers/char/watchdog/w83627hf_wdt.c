@@ -72,7 +72,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CON
 #define WDT_EFDR (WDT_EFIR+1) /* Extended Function Data Register */
 
 static void
-w83627hf_select_wd_register(void)
+wdt_ctrl(int timeout)
 {
 	outb_p(0x87, WDT_EFER); /* Enter extended function mode */
 	outb_p(0x87, WDT_EFER); /* Again according to manual */
@@ -81,69 +81,32 @@ w83627hf_select_wd_register(void)
 	outb_p(0x08, WDT_EFDR); /* select logical device 8 (GPIO2) */
 	outb_p(0x30, WDT_EFER); /* select CR30 */
 	outb_p(0x01, WDT_EFDR); /* set bit 0 to activate GPIO2 */
-}
-
-static void
-w83627hf_unselect_wd_register(void)
-{
-	outb_p(0xAA, WDT_EFER); /* Leave extended function mode */
-}
-
-/* tyan motherboards seem to set F5 to 0x4C ?
- * So explicitly init to appropriate value. */
-static void
-w83627hf_init(void)
-{
-	unsigned char t;
-
-	w83627hf_select_wd_register();
-
-	outb_p(0xF5, WDT_EFER); /* Select CRF5 */
-	t=inb_p(WDT_EFDR);      /* read CRF5 */
-	t&=~0x0C;               /* set second mode & disable keyboard turning off watchdog */
-	outb_p(t, WDT_EFDR);    /* Write back to CRF5 */
-
-	w83627hf_unselect_wd_register();
-}
-
-static void
-wdt_ctrl(int timeout)
-{
-	w83627hf_select_wd_register();
 
 	outb_p(0xF6, WDT_EFER);    /* Select CRF6 */
 	outb_p(timeout, WDT_EFDR); /* Write Timeout counter to CRF6 */
 
-	w83627hf_unselect_wd_register();
+	outb_p(0xAA, WDT_EFER); /* Leave extended function mode */
 }
 
-static int
+static void
 wdt_ping(void)
 {
 	wdt_ctrl(timeout);
-	return 0;
 }
 
-static int
+static void
 wdt_disable(void)
 {
 	wdt_ctrl(0);
-	return 0;
-}
-
-static int
-wdt_set_heartbeat(int t)
-{
-	if ((t < 1) || (t > 63))
-		return -EINVAL;
-
-	timeout = t;
-	return 0;
 }
 
 static ssize_t
-wdt_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+wdt_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
+	/*  Can't seek (pwrite) on this device  */
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
+
 	if (count) {
 		if (!nowayout) {
 			size_t i;
@@ -167,45 +130,44 @@ static int
 wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	  unsigned long arg)
 {
-	void __user *argp = (void __user *)arg;
-	int __user *p = argp;
 	int new_timeout;
 	static struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
 		.firmware_version = 1,
-		.identity = "W83627HF WDT",
+		.identity = "Advantech WDT",
 	};
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-	  if (copy_to_user(argp, &ident, sizeof(ident)))
+	  if (copy_to_user((struct watchdog_info *)arg, &ident, sizeof(ident)))
 	    return -EFAULT;
 	  break;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-	  return put_user(0, p);
+	  return put_user(0, (int *)arg);
 
 	case WDIOC_KEEPALIVE:
 	  wdt_ping();
 	  break;
 
 	case WDIOC_SETTIMEOUT:
-	  if (get_user(new_timeout, p))
+	  if (get_user(new_timeout, (int *)arg))
 		  return -EFAULT;
-	  if (wdt_set_heartbeat(new_timeout))
+	  if ((new_timeout < 1) || (new_timeout > 63))
 		  return -EINVAL;
+	  timeout = new_timeout;
 	  wdt_ping();
 	  /* Fall */
 
 	case WDIOC_GETTIMEOUT:
-	  return put_user(timeout, p);
+	  return put_user(timeout, (int *)arg);
 
 	case WDIOC_SETOPTIONS:
 	{
 	  int options, retval = -EINVAL;
 
-	  if (get_user(options, p))
+	  if (get_user(options, (int *)arg))
 	    return -EFAULT;
 
 	  if (options & WDIOS_DISABLECARD) {
@@ -237,7 +199,7 @@ wdt_open(struct inode *inode, struct file *file)
 	 */
 
 	wdt_ping();
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 static int
@@ -249,8 +211,8 @@ wdt_close(struct inode *inode, struct file *file)
 		printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
 		wdt_ping();
 	}
-	expect_close = 0;
 	clear_bit(0, &wdt_is_open);
+	expect_close = 0;
 	return 0;
 }
 
@@ -295,6 +257,8 @@ static struct miscdevice wdt_miscdev = {
 
 static struct notifier_block wdt_notifier = {
 	.notifier_call = wdt_notify_sys,
+	.next = NULL,
+	.priority = 0,
 };
 
 static int __init
@@ -302,12 +266,12 @@ wdt_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "WDT driver for the Winbond(TM) W83627HF Super I/O chip initialising.\n");
+	printk(KERN_INFO "WDT driver for Advantech single board computer initialising.\n");
 
-	if (wdt_set_heartbeat(timeout)) {
-		wdt_set_heartbeat(WATCHDOG_TIMEOUT);
-		printk (KERN_INFO PFX "timeout value must be 1<=timeout<=63, using %d\n",
-			WATCHDOG_TIMEOUT);
+	if (timeout < 1 || timeout > 63) {
+		timeout = WATCHDOG_TIMEOUT;
+		printk (KERN_INFO PFX "timeout value must be 1<=x<=63, using %d\n",
+			timeout);
 	}
 
 	if (!request_region(wdt_io, 1, WATCHDOG_NAME)) {
@@ -316,8 +280,6 @@ wdt_init(void)
 		ret = -EIO;
 		goto out;
 	}
-
-	w83627hf_init();
 
 	ret = register_reboot_notifier(&wdt_notifier);
 	if (ret != 0) {
@@ -359,4 +321,4 @@ module_exit(wdt_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pádraig Brady <P@draigBrady.com>");
 MODULE_DESCRIPTION("w38627hf WDT driver");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
+

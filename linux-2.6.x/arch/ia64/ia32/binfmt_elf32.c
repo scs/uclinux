@@ -21,12 +21,24 @@
 #include "ia32priv.h"
 #include "elfcore32.h"
 
+#define CONFIG_BINFMT_ELF32
+
 /* Override some function names */
 #undef start_thread
 #define start_thread			ia32_start_thread
 #define elf_format			elf32_format
 #define init_elf_binfmt			init_elf32_binfmt
 #define exit_elf_binfmt			exit_elf32_binfmt
+
+#undef CONFIG_BINFMT_ELF
+#ifdef CONFIG_BINFMT_ELF32
+# define CONFIG_BINFMT_ELF		CONFIG_BINFMT_ELF32
+#endif
+
+#undef CONFIG_BINFMT_ELF_MODULE
+#ifdef CONFIG_BINFMT_ELF32_MODULE
+# define CONFIG_BINFMT_ELF_MODULE	CONFIG_BINFMT_ELF32_MODULE
+#endif
 
 #undef CLOCKS_PER_SEC
 #define CLOCKS_PER_SEC	IA32_CLOCKS_PER_SEC
@@ -35,13 +47,11 @@ extern void ia64_elf32_init (struct pt_regs *regs);
 
 static void elf32_set_personality (void);
 
-#define setup_arg_pages(bprm,exec)		ia32_setup_arg_pages(bprm,exec)
+#define setup_arg_pages(bprm)		ia32_setup_arg_pages(bprm)
 #define elf_map				elf32_map
 
 #undef SET_PERSONALITY
 #define SET_PERSONALITY(ex, ibcs2)	elf32_set_personality()
-
-#define elf_read_implies_exec(ex, have_pt_gnu_stack)	(!(have_pt_gnu_stack))
 
 /* Ugly but avoids duplication */
 #include "../../../fs/binfmt_elf.c"
@@ -75,13 +85,15 @@ ia64_elf32_init (struct pt_regs *regs)
 	 */
 	vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
 	if (vma) {
-		memset(vma, 0, sizeof(*vma));
 		vma->vm_mm = current->mm;
 		vma->vm_start = IA32_GDT_OFFSET;
 		vma->vm_end = vma->vm_start + PAGE_SIZE;
 		vma->vm_page_prot = PAGE_SHARED;
-		vma->vm_flags = VM_READ|VM_MAYREAD|VM_RESERVED;
+		vma->vm_flags = VM_READ|VM_MAYREAD;
 		vma->vm_ops = &ia32_shared_page_vm_ops;
+		vma->vm_pgoff = 0;
+		vma->vm_file = NULL;
+		vma->vm_private_data = NULL;
 		down_write(&current->mm->mmap_sem);
 		{
 			insert_vm_struct(current->mm, vma);
@@ -95,12 +107,15 @@ ia64_elf32_init (struct pt_regs *regs)
 	 */
 	vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
 	if (vma) {
-		memset(vma, 0, sizeof(*vma));
 		vma->vm_mm = current->mm;
 		vma->vm_start = IA32_LDT_OFFSET;
 		vma->vm_end = vma->vm_start + PAGE_ALIGN(IA32_LDT_ENTRIES*IA32_LDT_ENTRY_SIZE);
 		vma->vm_page_prot = PAGE_SHARED;
 		vma->vm_flags = VM_READ|VM_WRITE|VM_MAYREAD|VM_MAYWRITE;
+		vma->vm_ops = NULL;
+		vma->vm_pgoff = 0;
+		vma->vm_file = NULL;
+		vma->vm_private_data = NULL;
 		down_write(&current->mm->mmap_sem);
 		{
 			insert_vm_struct(current->mm, vma);
@@ -146,7 +161,7 @@ ia64_elf32_init (struct pt_regs *regs)
 }
 
 int
-ia32_setup_arg_pages (struct linux_binprm *bprm, int executable_stack)
+ia32_setup_arg_pages (struct linux_binprm *bprm)
 {
 	unsigned long stack_base;
 	struct vm_area_struct *mpnt;
@@ -165,27 +180,22 @@ ia32_setup_arg_pages (struct linux_binprm *bprm, int executable_stack)
 	if (!mpnt)
 		return -ENOMEM;
 
-	if (security_vm_enough_memory((IA32_STACK_TOP - (PAGE_MASK & (unsigned long) bprm->p))
-				      >> PAGE_SHIFT)) {
+	if (security_vm_enough_memory((IA32_STACK_TOP - (PAGE_MASK & (unsigned long) bprm->p))>>PAGE_SHIFT)) {
 		kmem_cache_free(vm_area_cachep, mpnt);
 		return -ENOMEM;
 	}
-
-	memset(mpnt, 0, sizeof(*mpnt));
 
 	down_write(&current->mm->mmap_sem);
 	{
 		mpnt->vm_mm = current->mm;
 		mpnt->vm_start = PAGE_MASK & (unsigned long) bprm->p;
 		mpnt->vm_end = IA32_STACK_TOP;
-		if (executable_stack == EXSTACK_ENABLE_X)
-			mpnt->vm_flags = VM_STACK_FLAGS |  VM_EXEC;
-		else if (executable_stack == EXSTACK_DISABLE_X)
-			mpnt->vm_flags = VM_STACK_FLAGS & ~VM_EXEC;
-		else
-			mpnt->vm_flags = VM_STACK_FLAGS;
-		mpnt->vm_page_prot = (mpnt->vm_flags & VM_EXEC)?
-					PAGE_COPY_EXEC: PAGE_COPY;
+		mpnt->vm_page_prot = PAGE_COPY;
+		mpnt->vm_flags = VM_STACK_FLAGS;
+		mpnt->vm_ops = NULL;
+		mpnt->vm_pgoff = 0;
+		mpnt->vm_file = NULL;
+		mpnt->vm_private_data = 0;
 		insert_vm_struct(current->mm, mpnt);
 		current->mm->total_vm = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
 	}
@@ -194,15 +204,11 @@ ia32_setup_arg_pages (struct linux_binprm *bprm, int executable_stack)
 		struct page *page = bprm->page[i];
 		if (page) {
 			bprm->page[i] = NULL;
-			install_arg_page(mpnt, page, stack_base);
+			put_dirty_page(current, page, stack_base, PAGE_COPY);
 		}
 		stack_base += PAGE_SIZE;
 	}
 	up_write(&current->mm->mmap_sem);
-
-	/* Can't do it in ia64_elf32_init(). Needs to be done before calls to
-	   elf32_map() */
-	current->thread.ppl = ia32_init_pp_list();
 
 	return 0;
 }
@@ -213,6 +219,7 @@ elf32_set_personality (void)
 	set_personality(PER_LINUX32);
 	current->thread.map_base  = IA32_PAGE_OFFSET/3;
 	current->thread.task_size = IA32_PAGE_OFFSET;	/* use what Linux/x86 uses... */
+	current->thread.flags |= IA64_THREAD_XSTACK;	/* data must be executable */
 	set_fs(USER_DS);				/* set addr limit for new TASK_SIZE */
 }
 
@@ -224,16 +231,3 @@ elf32_map (struct file *filep, unsigned long addr, struct elf_phdr *eppnt, int p
 	return ia32_do_mmap(filep, (addr & IA32_PAGE_MASK), eppnt->p_filesz + pgoff, prot, type,
 			    eppnt->p_offset - pgoff);
 }
-
-#define cpu_uses_ia32el()	(local_cpu_data->family > 0x1f)
-
-static int __init check_elf32_binfmt(void)
-{
-	if (cpu_uses_ia32el()) {
-		printk("Please use IA-32 EL for executing IA-32 binaries\n");
-		return unregister_binfmt(&elf_format);
-	}
-	return 0;
-}
-
-module_init(check_elf32_binfmt)

@@ -9,10 +9,9 @@ config USB_DABUSB
 	depends on USB
 	---help---
 	  A Digital Audio Broadcasting (DAB) Receiver for USB and Linux
-	  brought to you by the DAB-Team
-	  <http://wwwbode.cs.tum.edu/Par/arch/dab/>.  This driver can be taken
-	  as an example for URB-based bulk, control, and isochronous
-	  transactions. URB's are explained in
+	  brought to you by the DAB-Team (<http://dab.in.tum.de/>).  This
+	  driver can be taken as an example for URB-based bulk, control, and
+	  isochronous transactions. URB's are explained in
 	  <file:Documentation/usb/URB.txt>.
 
 	  To compile this driver as a module, choose M here: the
@@ -30,7 +29,7 @@ config USB_VICAM
 	  This driver uses the Video For Linux API. You must say Y or M to
 	  "Video For Linux" (under Multimedia Devices) to use this driver.
 	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
+	  on the WWW at <http://roadrunner.swansea.uk.linux.org/v4l.shtml>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vicam.
@@ -47,8 +46,8 @@ config USB_DSBR
 	  This driver uses the Video For Linux API.  You must enable
 	  (Y or M in config) Video For Linux (under Character Devices)
 	  to use this driver.  Information on this API and pointers to
-	  "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  "v4l" programs may be found on the WWW at
+	  <http://roadrunner.swansea.uk.linux.org/v4l.shtml>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dsbr100.
@@ -64,8 +63,8 @@ config USB_IBMCAM
 	  This driver uses the Video For Linux API.  You must enable
 	  (Y or M in config) Video For Linux (under Character Devices)
 	  to use this driver.  Information on this API and pointers to
-	  "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  "v4l" programs may be found on the WWW at
+	  <http://roadrunner.swansea.uk.linux.org/v4l.shtml>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmcam.
@@ -84,8 +83,8 @@ config USB_KONICAWC
 	  This driver uses the Video For Linux API.  You must enable
 	  (Y or M in config) Video For Linux (under Character Devices)
 	  to use this driver.  Information on this API and pointers to
-	  "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  "v4l" programs may be found on the WWW at
+	  <http://roadrunner.swansea.uk.linux.org/v4l.shtml>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called konicawc.
@@ -101,7 +100,7 @@ config USB_OV511
 	  This driver uses the Video For Linux API. You must say Y or M to
 	  "Video For Linux" (under Character Devices) to use this driver.
 	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
+	  on the WWW at <http://roadrunner.swansea.uk.linux.org/v4l.shtml>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov511.
@@ -141,7 +140,7 @@ config USB_PWC
 	  This driver uses the Video For Linux API. You must say Y or M to
 	  "Video For Linux" (under Character Devices) to use this driver.
 	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
+	  on the WWW at <http://roadrunner.swansea.uk.linux.org/v4l.shtml>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pwc.
@@ -157,25 +156,10 @@ config USB_SE401
 	  This driver uses the Video For Linux API. You must say Y or M to
 	  "Video For Linux" (under Multimedia Devices) to use this driver.
 	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
+	  on the WWW at <http://roadrunner.swansea.uk.linux.org/v4l.shtml>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called se401.
-
-config USB_SN9C102
-	tristate "USB SN9C10[12] PC Camera Controller support (EXPERIMENTAL)"
-	depends on USB && VIDEO_DEV && EXPERIMENTAL
-	---help---
-	  Say Y here if you want support for cameras based on SN9C101 and
-	  SN9C102 PC Camera Controllers.
-
-	  See <file:Documentation/usb/sn9c102.txt> for more informations.
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" to use this driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called sn9c102.
 
 config USB_STV680
 	tristate "USB STV680 (Pencam) Camera support"
@@ -189,14 +173,14 @@ config USB_STV680
 	  This driver uses the Video For Linux API. You must say Y or M to
 	  "Video For Linux" (under Multimedia Devices) to use this driver.
 	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
+	  on the WWW at <http://roadrunner.swansea.uk.linux.org/v4l.shtml>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stv680.
 
 config USB_W9968CF
 	tristate "USB W996[87]CF JPEG Dual Mode Camera support"
-	depends on USB && VIDEO_DEV && I2C && VIDEO_OVCAMCHIP
+	depends on USB && VIDEO_DEV && I2C
 	---help---
 	  Say Y here if you want support for cameras based on OV681 or
 	  Winbond W9967CF/W9968CF JPEG USB Dual Mode Camera Chips.
@@ -205,13 +189,16 @@ config USB_W9968CF
 	  separate module only (released under GPL). It allows to use higher 
 	  resolutions and framerates, but cannot be included in the official 
 	  Linux kernel for performance purposes.
-
-	  See <file:Documentation/usb/w9968cf.txt> for more informations.
-
-	  This driver uses the Video For Linux and the I2C APIs. It needs the
-	  OmniVision Camera Chip support as well. You must say Y or M to
-	  "Video For Linux", "I2C Support" and "OmniVision Camera Chip 
-	  support" to use this driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called w9968cf.
+	  At the moment the driver needs a third-party module for the CMOS 
+	  sensors, which is available on internet: it is recommended to read
+	  <file:Documentation/usb/w9968cf.txt> for more informations and for
+	  a list of supported cameras.
+	
+	  This driver uses the Video For Linux and the I2C APIs. You must say
+	  Y or M to both "Video For Linux" and "I2C Support" to use this 
+	  driver.
+	
+	  This code is also available as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called w9968cf.o. If you want to compile it as a
+	  module, say M here and read <file:Documentation/modules.txt>.

@@ -3,7 +3,6 @@
  *
  * Copyright (C) 2003 Ladislav Michl (ladis@linux-mips.org)
  */
-#include <linux/module.h>
 
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ip22.h>
@@ -96,8 +95,6 @@ unsigned short ip22_eeprom_read(volatile unsigned int *ctrl, int reg)
 	return res;
 }
 
-EXPORT_SYMBOL(ip22_eeprom_read);
-
 /*
  * Read specified register from main NVRAM
  */
@@ -115,5 +112,3 @@ unsigned short ip22_nvram_read(int reg)
 		return (tmp << 8) | (hpc3c0->bbram[reg] & 0xff);
 	}		
 }
-
-EXPORT_SYMBOL(ip22_nvram_read);

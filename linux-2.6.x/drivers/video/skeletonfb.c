@@ -539,13 +539,7 @@ int __init xxxfb_init(void)
     info.fbops = &xxxfb_ops;
     info.fix = xxxfb_fix;
     info.pseudo_palette = pseudo_palette;
-
-    /*
-     * Set up flags to indicate what sort of acceleration your
-     * driver can provide (pan/wrap/copyarea/etc.) and whether it
-     * is a module -- see FBINFO_* in include/linux/fb.h
-     */
-    info.flags = FBINFO_DEFAULT;
+    info.flags = FBINFO_FLAG_DEFAULT;
     info.par = current_par;
 
     /*

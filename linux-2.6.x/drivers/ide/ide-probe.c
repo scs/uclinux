@@ -48,8 +48,8 @@
 #include <linux/delay.h>
 #include <linux/ide.h>
 #include <linux/spinlock.h>
-#include <linux/kmod.h>
 #include <linux/pci.h>
+#include <linux/kmod.h>
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
@@ -102,8 +102,7 @@ static inline int drive_is_flashcard (ide_drive_t *drive)
 		if (id->config == 0x848a) return 1;	/* CompactFlash */
 		if (!strncmp(id->model, "KODAK ATA_FLASH", 15)	/* Kodak */
 		 || !strncmp(id->model, "Hitachi CV", 10)	/* Hitachi */
-		 || !strncmp(id->model, "SunDisk SDCFB", 13)	/* old SanDisk */
-		 || !strncmp(id->model, "SanDisk SDCFB", 13)	/* SanDisk */
+		 || !strncmp(id->model, "SunDisk SDCFB", 13)	/* SunDisk */
 		 || !strncmp(id->model, "HAGIWARA HPC", 12)	/* Hagiwara */
 		 || !strncmp(id->model, "LEXAR ATA_FLASH", 15)	/* Lexar */
 		 || !strncmp(id->model, "ATA_FLASH", 9))	/* Simple Tech */
@@ -137,6 +136,9 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	drive->id_read = 1;
 	local_irq_enable();
 	ide_fix_driveid(id);
+
+	if (!drive->forced_lun)
+		drive->last_lun = id->last_lun & 0x7;
 
 #if defined (CONFIG_SCSI_EATA_DMA) || defined (CONFIG_SCSI_EATA_PIO) || defined (CONFIG_SCSI_EATA)
 	/*
@@ -235,12 +237,41 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	 */
 	if (id->config & (1<<7))
 		drive->removable = 1;
-
-	if (drive_is_flashcard(drive))
+		
+	/*
+	 * Prevent long system lockup probing later for non-existant
+	 * slave drive if the hwif is actually a flash memory card of
+	 * some variety:
+	 */
+	drive->is_flash = 0;
+	if (drive_is_flashcard(drive)) {
+#if 0
+		/* The new IDE adapter widgets don't follow this heuristic
+		   so we must nowdays just bite the bullet and take the
+		   probe hit */	
+		ide_drive_t *mate = &hwif->drives[1^drive->select.b.unit];		
+		ide_drive_t *mate = &hwif->drives[1^drive->select.b.unit];
+		if (!mate->ata_flash) {
+			mate->present = 0;
+			mate->noprobe = 1;
+		}
+#endif		
 		drive->is_flash = 1;
+	}
 	drive->media = ide_disk;
 	printk("%s DISK drive\n", (drive->is_flash) ? "CFA" : "ATA" );
 	QUIRK_LIST(drive);
+
+	/* Initialize queue depth settings */
+	drive->queue_depth = 1;
+#ifdef CONFIG_BLK_DEV_IDE_TCQ_DEPTH
+	drive->queue_depth = CONFIG_BLK_DEV_IDE_TCQ_DEPTH;
+#else
+	drive->queue_depth = drive->id->queue_depth + 1;
+#endif
+	if (drive->queue_depth < 1 || drive->queue_depth > IDE_MAX_TAG)
+		drive->queue_depth = IDE_MAX_TAG;
+
 	return;
 
 err_misc:
@@ -272,10 +303,9 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	unsigned long timeout;
 	u8 s = 0, a = 0;
 
-	/* take a deep breath */
-	msleep(50);
-
 	if (IDE_CONTROL_REG) {
+		/* take a deep breath */
+		ide_delay_50ms();
 		a = hwif->INB(IDE_ALTSTATUS_REG);
 		s = hwif->INB(IDE_STATUS_REG);
 		if ((a ^ s) & ~INDEX_STAT) {
@@ -287,8 +317,10 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 			/* use non-intrusive polling */
 			hd_status = IDE_ALTSTATUS_REG;
 		}
-	} else
+	} else {
+		ide_delay_50ms();
 		hd_status = IDE_STATUS_REG;
+	}
 
 	/* set features register for atapi
 	 * identify command to be sure of reply
@@ -312,11 +344,11 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 			return 1;
 		}
 		/* give drive a breather */
-		msleep(50);
+		ide_delay_50ms();
 	} while ((hwif->INB(hd_status)) & BUSY_STAT);
 
 	/* wait for IRQ and DRQ_STAT */
-	msleep(50);
+	ide_delay_50ms();
 	if (OK_STAT((hwif->INB(IDE_STATUS_REG)), DRQ_STAT, BAD_R_STAT)) {
 		unsigned long flags;
 
@@ -445,15 +477,15 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	/* needed for some systems
 	 * (e.g. crw9624 as drive0 with disk as slave)
 	 */
-	msleep(50);
+	ide_delay_50ms();
 	SELECT_DRIVE(drive);
-	msleep(50);
+	ide_delay_50ms();
 	if (hwif->INB(IDE_SELECT_REG) != drive->select.all && !drive->present) {
 		if (drive->select.b.unit != 0) {
 			/* exit with drive0 selected */
 			SELECT_DRIVE(&hwif->drives[0]);
 			/* allow BUSY_STAT to assert & clear */
-			msleep(50);
+			ide_delay_50ms();
 		}
 		/* no i/f present: mmm.. this should be a 4 -ml */
 		return 3;
@@ -476,14 +508,14 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			printk("%s: no response (status = 0x%02x), "
 				"resetting drive\n", drive->name,
 				hwif->INB(IDE_STATUS_REG));
-			msleep(50);
+			ide_delay_50ms();
 			hwif->OUTB(drive->select.all, IDE_SELECT_REG);
-			msleep(50);
+			ide_delay_50ms();
 			hwif->OUTB(WIN_SRST, IDE_COMMAND_REG);
 			timeout = jiffies;
 			while (((hwif->INB(IDE_STATUS_REG)) & BUSY_STAT) &&
 			       time_before(jiffies, timeout + WAIT_WORSTCASE))
-				msleep(50);
+				ide_delay_50ms();
 			rc = try_to_identify(drive, cmd);
 		}
 		if (rc == 1)
@@ -498,7 +530,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	if (drive->select.b.unit != 0) {
 		/* exit with drive0 selected */
 		SELECT_DRIVE(&hwif->drives[0]);
-		msleep(50);
+		ide_delay_50ms();
 		/* ensure drive irq is clear */
 		(void) hwif->INB(IDE_STATUS_REG);
 	}
@@ -515,7 +547,7 @@ static void enable_nest (ide_drive_t *drive)
 
 	printk("%s: enabling %s -- ", hwif->name, drive->id->model);
 	SELECT_DRIVE(drive);
-	msleep(50);
+	ide_delay_50ms();
 	hwif->OUTB(EXABYTE_ENABLE_NEST, IDE_COMMAND_REG);
 	timeout = jiffies + WAIT_WORSTCASE;
 	do {
@@ -523,10 +555,10 @@ static void enable_nest (ide_drive_t *drive)
 			printk("failed (timeout)\n");
 			return;
 		}
-		msleep(50);
+		ide_delay_50ms();
 	} while ((hwif->INB(IDE_STATUS_REG)) & BUSY_STAT);
 
-	msleep(50);
+	ide_delay_50ms();
 
 	if (!OK_STAT((hwif->INB(IDE_STATUS_REG)), 0, BAD_STAT)) {
 		printk("failed (status = 0x%02x)\n", hwif->INB(IDE_STATUS_REG));
@@ -635,6 +667,8 @@ static void hwif_register (ide_hwif_t *hwif)
 	device_register(&hwif->gendev);
 }
 
+//EXPORT_SYMBOL(hwif_register);
+
 #ifdef CONFIG_PPC
 static int wait_hwif_ready(ide_hwif_t *hwif)
 {
@@ -677,7 +711,7 @@ static int wait_hwif_ready(ide_hwif_t *hwif)
  * This routine only knows how to look for drive units 0 and 1
  * on an interface, so any setting of MAX_DRIVES > 2 won't work here.
  */
-static void probe_hwif(ide_hwif_t *hwif)
+void probe_hwif (ide_hwif_t *hwif)
 {
 	unsigned int unit;
 	unsigned long flags;
@@ -767,7 +801,7 @@ static void probe_hwif(ide_hwif_t *hwif)
 		udelay(10);
 		hwif->OUTB(8, hwif->io_ports[IDE_CONTROL_OFFSET]);
 		do {
-			msleep(50);
+			ide_delay_50ms();
 			stat = hwif->INB(hwif->io_ports[IDE_STATUS_OFFSET]);
 		} while ((stat & BUSY_STAT) && time_after(timeout, jiffies));
 
@@ -787,12 +821,18 @@ static void probe_hwif(ide_hwif_t *hwif)
 
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
+		int enable_dma = 1;
 
 		if (drive->present) {
 			if (hwif->tuneproc != NULL && 
 				drive->autotune == IDE_TUNE_AUTO)
 				/* auto-tune PIO mode */
 				hwif->tuneproc(drive, 255);
+
+#ifdef CONFIG_IDEDMA_ONLYDISK
+			if (drive->media != ide_disk)
+				enable_dma = 0;
+#endif
 			/*
 			 * MAJOR HACK BARF :-/
 			 *
@@ -812,18 +852,19 @@ static void probe_hwif(ide_hwif_t *hwif)
 				 *   PARANOIA!!!
 				 */
 				hwif->ide_dma_off_quietly(drive);
-#ifdef CONFIG_IDEDMA_ONLYDISK
-				if (drive->media == ide_disk)
-#endif
+				if (enable_dma)
 					hwif->ide_dma_check(drive);
 			}
 		}
 	}
 }
 
-static int hwif_init(ide_hwif_t *hwif);
+EXPORT_SYMBOL(probe_hwif);
+
+int hwif_init (ide_hwif_t *hwif);
 int probe_hwif_init (ide_hwif_t *hwif)
 {
+	hwif->initializing = 1;
 	probe_hwif(hwif);
 	hwif_init(hwif);
 
@@ -839,6 +880,7 @@ int probe_hwif_init (ide_hwif_t *hwif)
 			}
 		}
 	}
+	hwif->initializing = 0;
 	return 0;
 }
 
@@ -856,7 +898,7 @@ EXPORT_SYMBOL(probe_hwif_init);
  *
  * This routine detects and reports such situations, but does not fix them.
  */
-static void save_match(ide_hwif_t *hwif, ide_hwif_t *new, ide_hwif_t **match)
+void save_match (ide_hwif_t *hwif, ide_hwif_t *new, ide_hwif_t **match)
 {
 	ide_hwif_t *m = *match;
 
@@ -869,6 +911,7 @@ static void save_match(ide_hwif_t *hwif, ide_hwif_t *new, ide_hwif_t **match)
 	if (!m || m->irq != hwif->irq) /* don't undo a prior perfect match */
 		*match = new;
 }
+EXPORT_SYMBOL(save_match);
 #endif /* MAX_HWIFS > 1 */
 
 /*
@@ -879,7 +922,6 @@ static int ide_init_queue(ide_drive_t *drive)
 	request_queue_t *q;
 	ide_hwif_t *hwif = HWIF(drive);
 	int max_sectors = 256;
-	int max_sg_entries = PRD_ENTRIES;
 
 	/*
 	 *	Our default set up assumes the normal IDE case,
@@ -902,22 +944,11 @@ static int ide_init_queue(ide_drive_t *drive)
 		max_sectors = hwif->rqsize;
 	blk_queue_max_sectors(q, max_sectors);
 
-#ifdef CONFIG_PCI
-	/* When we have an IOMMU, we may have a problem where pci_map_sg()
-	 * creates segments that don't completely match our boundary
-	 * requirements and thus need to be broken up again. Because it
-	 * doesn't align properly neither, we may actually have to break up
-	 * to more segments than what was we got in the first place, a max
-	 * worst case is twice as many.
-	 * This will be fixed once we teach pci_map_sg() about our boundary
-	 * requirements, hopefully soon
-	 */
-	if (!PCI_DMA_BUS_IS_PHYS)
-		max_sg_entries >>= 1;
-#endif /* CONFIG_PCI */
+	/* IDE DMA can do PRD_ENTRIES number of segments. */
+	blk_queue_max_hw_segments(q, PRD_ENTRIES);
 
-	blk_queue_max_hw_segments(q, max_sg_entries);
-	blk_queue_max_phys_segments(q, max_sg_entries);
+	/* This is a driver limit and could be eliminated. */
+	blk_queue_max_phys_segments(q, PRD_ENTRIES);
 
 	/* assign drive and gendisk queue */
 	drive->queue = q;
@@ -1215,7 +1246,9 @@ static void init_gendisk (ide_hwif_t *hwif)
 			THIS_MODULE, ata_probe, ata_lock, hwif);
 }
 
-static int hwif_init(ide_hwif_t *hwif)
+EXPORT_SYMBOL(init_gendisk);
+
+int hwif_init (ide_hwif_t *hwif)
 {
 	int old_irq, unit;
 
@@ -1282,6 +1315,8 @@ out:
 	unregister_blkdev(hwif->major, hwif->name);
 	return 0;
 }
+
+EXPORT_SYMBOL(hwif_init);
 
 int ideprobe_init (void)
 {

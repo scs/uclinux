@@ -131,8 +131,8 @@ ENTRY(ret_from_fork)
 	CFI_DEFAULT_STACK
 	call schedule_tail
 	GET_THREAD_INFO(%rcx)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),threadinfo_flags(%rcx)
-	jnz rff_trace
+	bt $TIF_SYSCALL_TRACE,threadinfo_flags(%rcx)
+	jc rff_trace
 rff_action:	
 	RESTORE_REST
 	testl $3,CS-ARGOFFSET(%rsp)	# from kernel_thread?
@@ -143,7 +143,7 @@ rff_action:
 	jmp ret_from_sys_call
 rff_trace:
 	movq %rsp,%rdi
-	call syscall_trace_leave
+	call syscall_trace
 	GET_THREAD_INFO(%rcx)	
 	jmp rff_action
 	CFI_ENDPROC
@@ -185,8 +185,8 @@ ENTRY(system_call)
 	movq  %rax,ORIG_RAX-ARGOFFSET(%rsp) 
 	movq  %rcx,RIP-ARGOFFSET(%rsp)  
 	GET_THREAD_INFO(%rcx)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),threadinfo_flags(%rcx)
-	jnz tracesys
+	bt    $TIF_SYSCALL_TRACE,threadinfo_flags(%rcx) 
+	jc    tracesys
 	cmpq $__NR_syscall_max,%rax
 	ja badsys
 	movq %r10,%rcx
@@ -226,7 +226,7 @@ sysret_careful:
 	/* Handle a signal */ 
 sysret_signal:
 	sti
-	testl $(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME|_TIF_SINGLESTEP),%edx
+	testl $(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME),%edx
 	jz    1f
 
 	/* Really a signal */
@@ -244,7 +244,7 @@ tracesys:
 	movq $-ENOSYS,RAX(%rsp)
 	FIXUP_TOP_OF_STACK %rdi
 	movq %rsp,%rdi
-	call syscall_trace_enter
+	call syscall_trace
 	LOAD_ARGS ARGOFFSET  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
 	cmpq $__NR_syscall_max,%rax
@@ -254,7 +254,7 @@ tracesys:
 	movq %rax,RAX-ARGOFFSET(%rsp)
 1:	SAVE_REST
 	movq %rsp,%rdi
-	call syscall_trace_leave
+	call syscall_trace
 	RESTORE_TOP_OF_STACK %rbx
 	RESTORE_REST
 	jmp ret_from_sys_call
@@ -297,18 +297,17 @@ int_very_careful:
 	sti
 	SAVE_REST
 	/* Check for syscall exit trace */	
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),%edx
-	jz int_signal
+	bt $TIF_SYSCALL_TRACE,%edx
+	jnc int_signal
 	pushq %rdi
 	leaq 8(%rsp),%rdi	# &ptregs -> arg1	
-	call syscall_trace_leave
+	call syscall_trace
 	popq %rdi
 	btr  $TIF_SYSCALL_TRACE,%edi
-	btr  $TIF_SYSCALL_AUDIT,%edi
 	jmp int_restore_rest
 	
 int_signal:
-	testl $(_TIF_NOTIFY_RESUME|_TIF_SIGPENDING|_TIF_SINGLESTEP),%edx
+	testl $(_TIF_NOTIFY_RESUME|_TIF_SIGPENDING),%edx
 	jz 1f
 	movq %rsp,%rdi		# &ptregs -> arg1
 	xorl %esi,%esi		# oldset -> arg2
@@ -403,9 +402,9 @@ ENTRY(stub_rt_sigreturn)
 /* 0(%rsp): interrupt number */ 
 	.macro interrupt func
 	CFI_STARTPROC	simple
-	CFI_DEF_CFA	rsp,(SS-RDI)
-	CFI_REL_OFFSET	rsp,(RSP-ORIG_RAX)
-	CFI_REL_OFFSET	rip,(RIP-ORIG_RAX)
+	CFI_DEF_CFA	rsp,(SS-ORIG_RAX)
+	CFI_OFFSET	rsp,(RSP-SS)
+	CFI_OFFSET	rip,(RIP-SS)
 	cld
 #ifdef CONFIG_DEBUG_INFO
 	SAVE_ALL	
@@ -437,7 +436,7 @@ ret_from_intr:
 	popq  %rdi
 	cli	
 	subl $1,%gs:pda_irqcount
-#ifdef CONFIG_DEBUG_INFO
+#ifdef CONFIG_KGDB
 	movq RBP(%rdi),%rbp
 #endif
 	leaq ARGOFFSET(%rdi),%rsp
@@ -490,7 +489,7 @@ retint_careful:
 	jmp retint_check
 	
 retint_signal:
-	testl $(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME|_TIF_SINGLESTEP),%edx
+	testl $(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME),%edx
 	jz    retint_swapgs
 	sti
 	SAVE_REST
@@ -573,24 +572,6 @@ ENTRY(spurious_interrupt)
 	jmp error_entry
 	.endm
 
-	/* error code is on the stack already */
-	/* handle NMI like exceptions that can happen everywhere */
-	.macro paranoidentry sym
-	SAVE_ALL
-	cld
-	movl $1,%ebx
-	movl  $MSR_GS_BASE,%ecx
-	rdmsr
-	testl %edx,%edx
-	js    1f
-	swapgs
-	xorl  %ebx,%ebx
-1:	movq %rsp,%rdi
-	movq ORIG_RAX(%rsp),%rsi
-	movq $-1,ORIG_RAX(%rsp)
-	call \sym
-	.endm
-	
 /*
  * Exception entry point. This expects an error code/orig_rax on the stack
  * and the exception handler in %rax.	
@@ -644,7 +625,6 @@ error_sti:
 	movq ORIG_RAX(%rsp),%rsi	/* get error code */ 
 	movq $-1,ORIG_RAX(%rsp)
 	call *%rax
-	/* ebx:	no swapgs flag (1: don't need swapgs, 0: need it) */	 
 error_exit:		
 	movl %ebx,%eax		
 	RESTORE_REST
@@ -796,56 +776,48 @@ ENTRY(simd_coprocessor_error)
 	zeroentry do_simd_coprocessor_error	
 
 ENTRY(device_not_available)
-	zeroentry math_state_restore
-
-	/* runs on exception stack */
-ENTRY(debug)
 	CFI_STARTPROC
-	pushq $0
-	CFI_ADJUST_CFA_OFFSET 8		
-	paranoidentry do_debug
-	/* switch back to process stack to restore the state ptrace touched */
-	movq %rax,%rsp	
+	pushq $-1	#error code
+	SAVE_ALL
+	movl  $1,%ebx
 	testl $3,CS(%rsp)
-	jnz   paranoid_userspace	
-	jmp paranoid_exit
+	je 1f
+	xorl %ebx,%ebx
+	swapgs
+1:	movq  %cr0,%rax
+	leaq  math_state_restore(%rip),%rcx
+	leaq  math_emulate(%rip),%rdx
+	testl $0x4,%eax
+	cmoveq %rcx,%rdx
+	call  *%rdx
+	jmp  error_exit
 	CFI_ENDPROC
 
-	/* runs on exception stack */	
+ENTRY(debug)
+	zeroentry do_debug
+
 ENTRY(nmi)
 	CFI_STARTPROC
 	pushq $-1
-	CFI_ADJUST_CFA_OFFSET 8		
-	paranoidentry do_nmi
-	/* ebx:	no swapgs flag */
-paranoid_exit:
-	testl %ebx,%ebx				/* swapgs needed? */
-	jnz paranoid_restore
-paranoid_swapgs:	
-	cli
+	SAVE_ALL
+        /* NMI could happen inside the critical section of a swapgs,
+           so it is needed to use this expensive way to check. */
+        movl  $MSR_GS_BASE,%ecx
+        rdmsr
+        xorl  %ebx,%ebx
+        testl %edx,%edx
+        js    1f
 	swapgs
-paranoid_restore:	
-	RESTORE_ALL 8
-	iretq
-paranoid_userspace:	
+	movl $1,%ebx
+1:	movq %rsp,%rdi # regs -> arg1
+	call do_nmi
+	/* XXX: should do preemption checks here */
 	cli
-	GET_THREAD_INFO(%rcx)
-	movl threadinfo_flags(%rcx),%edx
-	testl $_TIF_NEED_RESCHED,%edx
-	jnz paranoid_resched
-	testl $(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME|_TIF_SINGLESTEP),%edx
-	jnz paranoid_signal
-	jmp paranoid_swapgs
-paranoid_resched:		
-	sti
-	call schedule
-	jmp paranoid_exit
-paranoid_signal:		
-	sti
-	xorl %esi,%esi /* oldset */
-	movq %rsp,%rdi /* &pt_regs */
-	call do_notify_resume
-	jmp paranoid_exit
+	testl %ebx,%ebx
+	jz 2f
+	swapgs
+2:	RESTORE_ALL 8
+	iretq
 	CFI_ENDPROC
 	
 ENTRY(int3)
@@ -866,15 +838,8 @@ ENTRY(coprocessor_segment_overrun)
 ENTRY(reserved)
 	zeroentry do_reserved
 
-	/* runs on exception stack */
 ENTRY(double_fault)
-	CFI_STARTPROC
-	paranoidentry do_double_fault
-	movq %rax,%rsp
-	testl $3,CS(%rsp)
-	jnz paranoid_userspace		
-	jmp paranoid_exit
-	CFI_ENDPROC
+	errorentry do_double_fault	
 
 ENTRY(invalid_TSS)
 	errorentry do_invalid_TSS
@@ -882,15 +847,8 @@ ENTRY(invalid_TSS)
 ENTRY(segment_not_present)
 	errorentry do_segment_not_present
 
-	/* runs on exception stack */
 ENTRY(stack_segment)
-	CFI_STARTPROC
-	paranoidentry do_stack_segment
-	movq %rax,%rsp
-	testl $3,CS(%rsp)
-	jnz paranoid_userspace
-	jmp paranoid_exit
-	CFI_ENDPROC
+	errorentry do_stack_segment
 
 ENTRY(general_protection)
 	errorentry do_general_protection
@@ -904,14 +862,8 @@ ENTRY(divide_error)
 ENTRY(spurious_interrupt_bug)
 	zeroentry do_spurious_interrupt_bug
 
-	/* runs on exception stack */
 ENTRY(machine_check)
-	CFI_STARTPROC
-	pushq $0
-	CFI_ADJUST_CFA_OFFSET 8	
-	paranoidentry do_machine_check
-	jmp paranoid_exit
-	CFI_ENDPROC
+       zeroentry do_machine_check      
 
 ENTRY(call_debug)
        zeroentry do_call_debug

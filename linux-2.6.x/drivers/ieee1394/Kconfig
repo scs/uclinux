@@ -1,10 +1,10 @@
 # -*- shell-script -*-
 
-menu "IEEE 1394 (FireWire) support"
+menu "IEEE 1394 (FireWire) support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
 
 config IEEE1394
-	tristate "IEEE 1394 (FireWire) support"
-	depends on PCI || BROKEN
+	tristate "IEEE 1394 (FireWire) support (EXPERIMENTAL)"
 	help
 	  IEEE 1394 describes a high performance serial bus, which is also
 	  known as FireWire(tm) or i.Link(tm) and is used for connecting all
@@ -47,23 +47,6 @@ config IEEE1394_OUI_DB
 
 	  This option is not needed for userspace programs like gscanbus
 	  to show this information.
-
-config IEEE1394_EXTRA_CONFIG_ROMS
-	bool "Build in extra config rom entries for certain functionality"
-	depends on IEEE1394
-	help
-	  Some IEEE1394 functionality depends on extra config rom entries
-	  being available in the host adapters CSR. These options will
-	  allow you to choose which ones.
-
-config IEEE1394_CONFIG_ROM_IP1394
-	bool "IP-1394 Entry"
-	depends on IEEE1394_EXTRA_CONFIG_ROMS && IEEE1394
-	help
-	  Adds an entry for using IP-over-1394. If you want to use your
-	  IEEE1394 bus as a network for IP systems (including interacting
-	  with MacOSX and WinXP IP-over-1394), enable this option and the
-	  eth1394 option below.
 
 comment "Device Drivers"
 	depends on IEEE1394
@@ -114,7 +97,7 @@ config IEEE1394_VIDEO1394
 
 config IEEE1394_SBP2
 	tristate "SBP-2 support (Harddisks etc.)"
-	depends on IEEE1394 && SCSI && (PCI || BROKEN)
+	depends on IEEE1394 && SCSI
 	help
 	  This option enables you to use SBP-2 devices connected to your IEEE
 	  1394 bus.  SBP-2 devices include harddrives and DVD devices.
@@ -125,16 +108,10 @@ config IEEE1394_SBP2_PHYS_DMA
 
 config IEEE1394_ETH1394
 	tristate "Ethernet over 1394"
-	depends on IEEE1394 && EXPERIMENTAL && INET
-	select IEEE1394_CONFIG_ROM_IP1394
-	select IEEE1394_EXTRA_CONFIG_ROMS
+	depends on IEEE1394
 	help
-	  This driver implements a functional majority of RFC 2734: IPv4 over
-	  1394.  It will provide IP connectivity with implementations of RFC
-	  2734 found on other operating systems.  It will not communicate with
-	  older versions of this driver found in stock kernels prior to 2.6.3.
-	  This driver is still considered experimental.  It does not yet support
-	  MCAP, therefore multicast support is significantly limited.
+	  Extremely Experimental! This driver is a Linux specific way to use your
+	  IEEE1394 Host as an Ethernet type device. This is _NOT_ IP1394.
 
 config IEEE1394_DV1394
 	tristate "OHCI-DV I/O support"

@@ -326,22 +326,6 @@ static struct sa1100fb_mach_info brutus_info __initdata = {
 };
 #endif
 
-#ifdef CONFIG_SA1100_COLLIE
-static struct sa1100fb_mach_info collie_info __initdata = {
-	.pixclock	= 171521,	.bpp		= 16,
-	.xres		= 320,		.yres		= 240,
-
-	.hsync_len	= 5,		.vsync_len	= 1,
-	.left_margin	= 11,		.upper_margin	= 2,
-	.right_margin	= 30,		.lower_margin	= 0,
-
-	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-
-	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
-};
-#endif
-
 #ifdef CONFIG_SA1100_FREEBIRD
 #warning Please check this carefully
 static struct sa1100fb_mach_info freebird_info __initdata = {
@@ -649,11 +633,6 @@ sa1100fb_get_machine_info(struct sa1100fb_info *fbi)
 #ifdef CONFIG_SA1100_BRUTUS
 	if (machine_is_brutus()) {
 		inf = &brutus_info;
-	}
-#endif
-#ifdef CONFIG_SA1100_COLLIE
-	if (machine_is_collie()) {
-		inf = &collie_info;
 	}
 #endif
 #ifdef CONFIG_SA1100_FREEBIRD
@@ -1074,7 +1053,7 @@ static int sa1100fb_blank(int blank, struct fb_info *info)
 	case VESA_NO_BLANKING:
 		if (fbi->fb.fix.visual == FB_VISUAL_PSEUDOCOLOR ||
 		    fbi->fb.fix.visual == FB_VISUAL_STATIC_PSEUDOCOLOR)
-			fb_set_cmap(&fbi->fb.cmap, info);
+			fb_set_cmap(&fbi->fb.cmap, 1, info);
 		sa1100fb_schedule_work(fbi, C_ENABLE);
 	}
 	return 0;
@@ -1291,7 +1270,8 @@ static void sa1100fb_enable_controller(struct sa1100fb_info *fbi)
 #error Where is GPIO24 set as an output?  Can we fit this in somewhere else?
 	if (machine_is_graphicsclient()) {
 		// From ADS doc again...same as disable
-		msleep(20);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(20 * HZ / 1000);
 		GPSR |= GPIO_GPIO24;
 	}
 #endif
@@ -1326,7 +1306,8 @@ static void sa1100fb_disable_controller(struct sa1100fb_info *fbi)
 		 * We'll wait 20msec.
 		 */
 		GPCR |= GPIO_GPIO24;
-		msleep(20);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(20 * HZ / 1000);
 	}
 #endif
 #ifdef CONFIG_SA1100_HUW_WEBPANEL
@@ -1614,18 +1595,12 @@ static int __init sa1100fb_map_video_memory(struct sa1100fb_info *fbi)
 	 * of the framebuffer.
 	 */
 	fbi->map_size = PAGE_ALIGN(fbi->fb.fix.smem_len + PAGE_SIZE);
-	fbi->map_cpu = dma_alloc_writecombine(fbi->dev, fbi->map_size,
-					      &fbi->map_dma, GFP_KERNEL);
+	fbi->map_cpu = consistent_alloc(GFP_KERNEL, fbi->map_size,
+					&fbi->map_dma, PTE_BUFFERABLE);
 
 	if (fbi->map_cpu) {
 		fbi->fb.screen_base = fbi->map_cpu + PAGE_SIZE;
 		fbi->screen_dma = fbi->map_dma + PAGE_SIZE;
-		/*
-		 * FIXME: this is actually the wrong thing to place in
-		 * smem_start.  But fbdev suffers from the problem that
-		 * it needs an API which doesn't exist (in this case,
-		 * dma_writecombine_mmap)
-		 */
 		fbi->fb.fix.smem_start = fbi->screen_dma;
 	}
 
@@ -1634,14 +1609,11 @@ static int __init sa1100fb_map_video_memory(struct sa1100fb_info *fbi)
 
 /* Fake monspecs to fill in fbinfo structure */
 static struct fb_monspecs monspecs __initdata = {
-	.hfmin	= 30000,
-	.hfmax	= 70000,
-	.vfmin	= 50,
-	.vfmax	= 65,
+	30000, 70000, 50, 65, 0	/* Generic */
 };
 
 
-static struct sa1100fb_info * __init sa1100fb_init_fbinfo(struct device *dev)
+static struct sa1100fb_info * __init sa1100fb_init_fbinfo(void)
 {
 	struct sa1100fb_mach_info *inf;
 	struct sa1100fb_info *fbi;
@@ -1652,7 +1624,6 @@ static struct sa1100fb_info * __init sa1100fb_init_fbinfo(struct device *dev)
 		return NULL;
 
 	memset(fbi, 0, sizeof(struct sa1100fb_info));
-	fbi->dev = dev;
 
 	strcpy(fbi->fb.fix.id, SA1100_NAME);
 
@@ -1732,7 +1703,7 @@ static int __init sa1100fb_probe(struct device *dev)
 	if (!request_mem_region(0xb0100000, 0x10000, "LCD"))
 		return -EBUSY;
 
-	fbi = sa1100fb_init_fbinfo(dev);
+	fbi = sa1100fb_init_fbinfo();
 	ret = -ENOMEM;
 	if (!fbi)
 		goto failed;
@@ -1784,6 +1755,8 @@ static int __init sa1100fb_probe(struct device *dev)
 #endif
 
 	/* This driver cannot be unloaded at the moment */
+	MOD_INC_USE_COUNT;
+
 	return 0;
 
 failed:

@@ -22,6 +22,8 @@
     
 */
 
+#define __NO_VERSION__ 1
+
 #include <linux/module.h>
 #include <linux/init.h>
 
@@ -126,8 +128,8 @@ static struct i2c_adapter cx8800_i2c_adap_template = {
 	.inc_use           = cx8800_inc_use,
 	.dec_use           = cx8800_dec_use,
 #endif
-#ifdef I2C_CLASS_TV_ANALOG
-	.class             = I2C_CLASS_TV_ANALOG,
+#ifdef I2C_ADAP_CLASS_TV_ANALOG
+	.class             = I2C_ADAP_CLASS_TV_ANALOG,
 #endif
 	I2C_DEVNAME("cx2388x"),
 	.id                = I2C_HW_B_BT848,
@@ -150,7 +152,7 @@ int __devinit cx8800_i2c_init(struct cx8800_dev *dev)
 	       sizeof(dev->i2c_client));
 
 	dev->i2c_adap.dev.parent = &dev->pci->dev;
-	strlcpy(dev->i2c_adap.name,dev->name,sizeof(dev->i2c_adap.name));
+	strcpy(dev->i2c_adap.name,dev->name);
         dev->i2c_algo.data = dev;
         i2c_set_adapdata(&dev->i2c_adap,dev);
         dev->i2c_adap.algo_data = &dev->i2c_algo;
@@ -160,8 +162,6 @@ int __devinit cx8800_i2c_init(struct cx8800_dev *dev)
 	cx8800_bit_setsda(dev,1);
 
 	dev->i2c_rc = i2c_bit_add_bus(&dev->i2c_adap);
-	printk("%s: i2c register %s\n", dev->name,
-	       (0 == dev->i2c_rc) ? "ok" : "FAILED");
 	return dev->i2c_rc;
 }
 

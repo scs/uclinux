@@ -26,7 +26,6 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/net.h>
 #include <linux/netdevice.h>
@@ -161,10 +160,10 @@ static int min_priority[1];
 static int max_priority[] = { 127 }; /* From DECnet spec */
 
 static int dn_forwarding_proc(ctl_table *, int, struct file *,
-			void __user *, size_t *, loff_t *);
-static int dn_forwarding_sysctl(ctl_table *table, int __user *name, int nlen,
-			void __user *oldval, size_t __user *oldlenp,
-			void __user *newval, size_t newlen,
+			void *, size_t *);
+static int dn_forwarding_sysctl(ctl_table *table, int *name, int nlen,
+			void *oldval, size_t *oldlenp,
+			void *newval, size_t newlen,
 			void **context);
 
 static struct dn_dev_sysctl_table {
@@ -362,8 +361,7 @@ static void dn_dev_check_default(struct net_device *dev)
 
 static int dn_forwarding_proc(ctl_table *table, int write, 
 				struct file *filep,
-				void __user *buffer,
-				size_t *lenp, loff_t *ppos)
+				void *buffer, size_t *lenp)
 {
 #ifdef CONFIG_DECNET_ROUTER
 	struct net_device *dev = table->extra1;
@@ -377,7 +375,7 @@ static int dn_forwarding_proc(ctl_table *table, int write,
 	dn_db = dev->dn_ptr;
 	old = dn_db->parms.forwarding;
 
-	err = proc_dointvec(table, write, filep, buffer, lenp, ppos);
+	err = proc_dointvec(table, write, filep, buffer, lenp);
 
 	if ((err >= 0) && write) {
 		if (dn_db->parms.forwarding < 0)
@@ -405,9 +403,9 @@ static int dn_forwarding_proc(ctl_table *table, int write,
 #endif
 }
 
-static int dn_forwarding_sysctl(ctl_table *table, int __user *name, int nlen,
-			void __user *oldval, size_t __user *oldlenp,
-			void __user *newval, size_t newlen,
+static int dn_forwarding_sysctl(ctl_table *table, int *name, int nlen,
+			void *oldval, size_t *oldlenp,
+			void *newval, size_t newlen,
 			void **context)
 {
 #ifdef CONFIG_DECNET_ROUTER
@@ -424,7 +422,7 @@ static int dn_forwarding_sysctl(ctl_table *table, int __user *name, int nlen,
 		if (newlen != sizeof(int))
 			return -EINVAL;
 
-		if (get_user(value, (int __user *)newval))
+		if (get_user(value, (int *)newval))
 			return -EFAULT;
 		if (value < 0)
 			return -EINVAL;
@@ -554,7 +552,7 @@ static int dn_dev_set_ifa(struct net_device *dev, struct dn_ifaddr *ifa)
 }
 
 
-int dn_dev_ioctl(unsigned int cmd, void __user *arg)
+int dn_dev_ioctl(unsigned int cmd, void *arg)
 {
 	char buffer[DN_IFREQ_SIZE];
 	struct ifreq *ifr = (struct ifreq *)buffer;
@@ -1295,43 +1293,35 @@ int unregister_dnaddr_notifier(struct notifier_block *nb)
  * it as a compile time option. Probably you should use the
  * rtnetlink interface instead.
  */
-int dnet_gifconf(struct net_device *dev, char __user *buf, int len)
+int dnet_gifconf(struct net_device *dev, char *buf, int len)
 {
 	struct dn_dev *dn_db = (struct dn_dev *)dev->dn_ptr;
 	struct dn_ifaddr *ifa;
-	char buffer[DN_IFREQ_SIZE];
-	struct ifreq *ifr = (struct ifreq *)buffer;
-	struct sockaddr_dn *addr = (struct sockaddr_dn *)&ifr->ifr_addr;
+	struct ifreq *ifr = (struct ifreq *)buf;
 	int done = 0;
 
 	if ((dn_db == NULL) || ((ifa = dn_db->ifa_list) == NULL))
 		return 0;
 
 	for(; ifa; ifa = ifa->ifa_next) {
-		if (!buf) {
+		if (!ifr) {
 			done += sizeof(DN_IFREQ_SIZE);
 			continue;
 		}
 		if (len < DN_IFREQ_SIZE)
 			return done;
-		memset(buffer, 0, DN_IFREQ_SIZE);
+		memset(ifr, 0, DN_IFREQ_SIZE);
 
 		if (ifa->ifa_label)
 			strcpy(ifr->ifr_name, ifa->ifa_label);
 		else
 			strcpy(ifr->ifr_name, dev->name);
 
-		addr->sdn_family = AF_DECnet;
-		addr->sdn_add.a_len = 2;
-		memcpy(addr->sdn_add.a_addr, &ifa->ifa_local,
-			sizeof(dn_address));
+		(*(struct sockaddr_dn *) &ifr->ifr_addr).sdn_family = AF_DECnet;
+		(*(struct sockaddr_dn *) &ifr->ifr_addr).sdn_add.a_len = 2;
+		(*(dn_address *)(*(struct sockaddr_dn *) &ifr->ifr_addr).sdn_add.a_addr) = ifa->ifa_local;
 
-		if (copy_to_user(buf, buffer, DN_IFREQ_SIZE)) {
-			done = -EFAULT;
-			break;
-		}
-
-		buf  += DN_IFREQ_SIZE;
+		ifr = (struct ifreq *)((char *)ifr + DN_IFREQ_SIZE);
 		len  -= DN_IFREQ_SIZE;
 		done += DN_IFREQ_SIZE;
 	}
@@ -1480,13 +1470,16 @@ static struct rtnetlink_link dnet_rtnetlink_table[RTM_MAX-RTM_BASE+1] =
 
 };
 
-static int __initdata addr[2];
-static int __initdata num;
-module_param_array(addr, int, num, 0444);
+#ifdef MODULE
+static int addr[2];
+
+MODULE_PARM(addr, "2i");
 MODULE_PARM_DESC(addr, "The DECnet address of this machine: area,node");
+#endif
 
 void __init dn_dev_init(void)
 {
+#ifdef MODULE
         if (addr[0] > 63 || addr[0] < 0) {
                 printk(KERN_ERR "DECnet: Area must be between 0 and 63");
                 return;
@@ -1498,6 +1491,7 @@ void __init dn_dev_init(void)
         }
 
         decnet_address = dn_htons((addr[0] << 10) | addr[1]);
+#endif
 
 	dn_dev_devices_on();
 #ifdef CONFIG_DECNET_SIOCGIFCONF
@@ -1537,3 +1531,18 @@ void __exit dn_dev_cleanup(void)
 
 	dn_dev_devices_off();
 }
+
+#ifndef MODULE
+static int __init decnet_setup(char *str)
+{
+        unsigned short area = simple_strtoul(str, &str, 0);
+        unsigned short node = simple_strtoul(*str > 0 ? ++str : str, &str, 0);
+
+        decnet_address = dn_htons(area << 10 | node);
+
+        return 1;
+}
+
+__setup("decnet=", decnet_setup);  
+#endif
+

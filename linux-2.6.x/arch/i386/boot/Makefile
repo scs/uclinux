@@ -31,8 +31,6 @@ subdir- 	:= compressed
 
 host-progs	:= tools/build
 
-HOSTCFLAGS_build.o := -Iinclude
-
 # ---------------------------------------------------------------------------
 
 $(obj)/zImage:  IMAGE_OFFSET := 0x1000

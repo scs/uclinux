@@ -160,9 +160,6 @@ video_fix_command(unsigned int cmd)
 	case VIDIOC_G_AUDOUT_OLD:
 		cmd = VIDIOC_G_AUDOUT;
 		break;
-	case VIDIOC_CROPCAP_OLD:
-		cmd = VIDIOC_CROPCAP;
-		break;
 	}
 	return cmd;
 }
@@ -183,7 +180,7 @@ video_usercopy(struct inode *inode, struct file *file,
 	/*  Copy arguments into temp kernel buffer  */
 	switch (_IOC_DIR(cmd)) {
 	case _IOC_NONE:
-		parg = NULL;
+		parg = (void *)arg;
 		break;
 	case _IOC_READ:
 	case _IOC_WRITE:
@@ -200,7 +197,7 @@ video_usercopy(struct inode *inode, struct file *file,
 		
 		err = -EFAULT;
 		if (_IOC_DIR(cmd) & _IOC_WRITE)
-			if (copy_from_user(parg, (void __user *)arg, _IOC_SIZE(cmd)))
+			if (copy_from_user(parg, (void *)arg, _IOC_SIZE(cmd)))
 				goto out;
 		break;
 	}
@@ -217,7 +214,7 @@ video_usercopy(struct inode *inode, struct file *file,
 	{
 	case _IOC_READ:
 	case (_IOC_WRITE | _IOC_READ):
-		if (copy_to_user((void __user *)arg, parg, _IOC_SIZE(cmd)))
+		if (copy_to_user((void *)arg, parg, _IOC_SIZE(cmd)))
 			err = -EFAULT;
 		break;
 	}
@@ -231,7 +228,7 @@ out:
 /*
  * open/release helper functions -- handle exclusive opens
  */
-int video_exclusive_open(struct inode *inode, struct file *file)
+extern int video_exclusive_open(struct inode *inode, struct file *file)
 {
 	struct  video_device *vfl = video_devdata(file);
 	int retval = 0;
@@ -246,7 +243,7 @@ int video_exclusive_open(struct inode *inode, struct file *file)
 	return retval;
 }
 
-int video_exclusive_release(struct inode *inode, struct file *file)
+extern int video_exclusive_release(struct inode *inode, struct file *file)
 {
 	struct  video_device *vfl = video_devdata(file);
 	
@@ -316,19 +313,19 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 
 	/* pick a minor number */
 	down(&videodev_lock);
-	if (nr >= 0  &&  nr < end-base) {
-		/* use the one the driver asked for */
-		i = base+nr;
-		if (NULL != video_device[i]) {
-			up(&videodev_lock);
-			return -ENFILE;
-		}
-	} else {
+	if (-1 == nr) {
 		/* use first free */
 		for(i=base;i<end;i++)
 			if (NULL == video_device[i])
 				break;
 		if (i == end) {
+			up(&videodev_lock);
+			return -ENFILE;
+		}
+	} else {
+		/* use the one the driver asked for */
+		i = base+nr;
+		if (NULL != video_device[i]) {
 			up(&videodev_lock);
 			return -ENFILE;
 		}
@@ -397,21 +394,12 @@ static struct file_operations video_fops=
  
 static int __init videodev_init(void)
 {
-	int ret;
-
 	printk(KERN_INFO "Linux video capture interface: v1.00\n");
-	if (register_chrdev(VIDEO_MAJOR, VIDEO_NAME, &video_fops)) {
-		printk(KERN_WARNING "video_dev: unable to get major %d\n", VIDEO_MAJOR);
+	if (register_chrdev(VIDEO_MAJOR,VIDEO_NAME, &video_fops)) {
+		printk("video_dev: unable to get major %d\n", VIDEO_MAJOR);
 		return -EIO;
 	}
-
-	ret = class_register(&video_class);
-	if (ret < 0) {
-		unregister_chrdev(VIDEO_MAJOR, VIDEO_NAME);
-		printk(KERN_WARNING "video_dev: class_register failed\n");
-		return -EIO;
-	}
-
+	class_register(&video_class);
 	return 0;
 }
 

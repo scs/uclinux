@@ -8,7 +8,6 @@
 
 #include <linux/config.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/stddef.h>
 #include <linux/reboot.h>
 #include <linux/nvram.h>
@@ -37,10 +36,6 @@ register_backlight_controller(struct backlight_controller *ctrler, void *data, c
 	struct device_node* bk_node;
 	char *prop;
 	int valid = 0;
-
-	/* There's already a matching controller, bail out */
-	if (backlighter != NULL)
-		return;
 
 	bk_node = find_devices("backlight");
 
@@ -89,7 +84,6 @@ register_backlight_controller(struct backlight_controller *ctrler, void *data, c
 	printk(KERN_INFO "Registered \"%s\" backlight controller, level: %d/15\n",
 		type, backlight_level);
 }
-EXPORT_SYMBOL(register_backlight_controller);
 
 void __pmac
 unregister_backlight_controller(struct backlight_controller *ctrler, void *data)
@@ -98,7 +92,6 @@ unregister_backlight_controller(struct backlight_controller *ctrler, void *data)
 	if (ctrler == backlighter && data == backlighter_data)
 		backlighter = NULL;
 }
-EXPORT_SYMBOL(unregister_backlight_controller);
 
 int __pmac
 set_backlight_enable(int enable)
@@ -112,7 +105,6 @@ set_backlight_enable(int enable)
 		backlight_enabled = enable;
 	return rc;
 }
-EXPORT_SYMBOL(set_backlight_enable);
 
 int __pmac
 get_backlight_enable(void)
@@ -121,7 +113,6 @@ get_backlight_enable(void)
 		return -ENODEV;
 	return backlight_enabled;
 }
-EXPORT_SYMBOL(get_backlight_enable);
 
 int __pmac
 set_backlight_level(int level)
@@ -146,7 +137,6 @@ set_backlight_level(int level)
 	}
 	return rc;
 }
-EXPORT_SYMBOL(set_backlight_level);
 
 int __pmac
 get_backlight_level(void)
@@ -155,4 +145,3 @@ get_backlight_level(void)
 		return -ENODEV;
 	return backlight_level;
 }
-EXPORT_SYMBOL(get_backlight_level);

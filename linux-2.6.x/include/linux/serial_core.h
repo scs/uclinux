@@ -16,6 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ *  $Id$
  */
 
 /*
@@ -36,7 +38,7 @@
 #define PORT_16850	12
 #define PORT_RSA	13
 #define PORT_NS16550A	14
-#define PORT_XSCALE	15
+#define	PORT_XSCALE	15
 #define PORT_MAX_8250	15	/* max port ID */
 
 /*
@@ -45,7 +47,6 @@
  * separate so any additions to the old serial.c that occur before
  * we are merged can be easily merged here.
  */
-#define PORT_PXA	31
 #define PORT_AMBA	32
 #define PORT_CLPS711X	33
 #define PORT_SA1100	34
@@ -59,35 +60,26 @@
 /* NEC v850.  */
 #define PORT_V850E_UART	40
 
+/* NEC PC-9800 */
+#define PORT_8251_PC98	41
+#define PORT_19K_PC98	42
+#define PORT_FIFO_PC98	43
+#define PORT_VFAST_PC98	44
+#define PORT_PC9861	45
+#define PORT_PC9801_101	46
+
 /* DZ */
 #define PORT_DZ		47
 
 /* Parisc type numbers. */
 #define PORT_MUX	48
 
+/* Motorola ColdFire */
+#define	PORT_MCF	49
+
 /* Macintosh Zilog type numbers */
 #define PORT_MAC_ZILOG	50	/* m68k : not yet implemented */
 #define PORT_PMAC_ZILOG	51
-
-/* SH-SCI */
-#define PORT_SCI	52
-#define PORT_SCIF	53
-#define PORT_IRDA	54
-
-/* Samsung S3C2410 SoC and derivatives thereof */
-#define PORT_S3C2410    55
-
-/* SGI IP22 aka Indy / Challenge S / Indigo 2 */
-#define PORT_IP22ZILOG	56
-
-/* Sharp LH7a40x -- an ARM9 SoC series */
-#define PORT_LH7A40X	57
-
-/* PPC CPM type number */
-#define PORT_CPM        58
-
-/* MPC52xx type numbers */
-#define PORT_MPC52xx	59
 
 #ifdef __KERNEL__
 
@@ -95,12 +87,10 @@
 #include <linux/interrupt.h>
 #include <linux/circ_buf.h>
 #include <linux/spinlock.h>
-#include <linux/sched.h>
 
 struct uart_port;
 struct uart_info;
 struct serial_struct;
-struct device;
 
 /*
  * This structure describes all the operations that can be
@@ -189,6 +179,7 @@ struct uart_port {
 
 	unsigned int		flags;
 
+#define UPF_HUP_NOTIFY		(1 << 0)
 #define UPF_FOURPORT		(1 << 1)
 #define UPF_SAK			(1 << 2)
 #define UPF_SPD_MASK		(0x1030)
@@ -208,6 +199,7 @@ struct uart_port {
 #define UPF_CONS_FLOW		(1 << 23)
 #define UPF_SHARE_IRQ		(1 << 24)
 #define UPF_BOOT_AUTOCONF	(1 << 28)
+#define UPF_RESOURCES		(1 << 30)
 #define UPF_IOREMAP		(1 << 31)
 
 #define UPF_CHANGE_MASK		(0x17fff)
@@ -220,7 +212,6 @@ struct uart_port {
 	unsigned int		custom_divisor;
 	unsigned int		line;			/* port index */
 	unsigned long		mapbase;		/* for ioremap */
-	struct device		*dev;			/* parent device */
 	unsigned char		hub6;			/* this should be in the 8250 driver */
 	unsigned char		unused[3];
 };

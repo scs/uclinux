@@ -1,9 +1,5 @@
-/* (C) 2001-2002 Magnus Boden <mb@ozaba.mine.nu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
+/*
+ * Licensed under GNU GPL version 2 Copyright Magnus Boden <mb@ozaba.mine.nu>
  * Version: 0.0.7
  *
  * Thu 21 Mar 2002 Harald Welte <laforge@gnumonks.org>
@@ -27,12 +23,14 @@ MODULE_LICENSE("GPL");
 #define MAX_PORTS 8
 static int ports[MAX_PORTS];
 static int ports_c;
+#ifdef MODULE_PARM
 MODULE_PARM(ports, "1-" __MODULE_STRING(MAX_PORTS) "i");
 MODULE_PARM_DESC(ports, "port numbers of tftp servers");
+#endif
 
 #if 0
-#define DEBUGP(format, args...) printk("%s:%s:" format, \
-                                       __FILE__, __FUNCTION__ , ## args)
+#define DEBUGP(format, args...) printk(__FILE__ ":" __FUNCTION__ ": " \
+				       format, ## args)
 #else
 #define DEBUGP(format, args...)
 #endif
@@ -42,7 +40,7 @@ static int tftp_help(struct sk_buff *skb,
 		     enum ip_conntrack_info ctinfo)
 {
 	struct tftphdr tftph;
-	struct ip_conntrack_expect *exp;
+	struct ip_conntrack_expect exp;
 
 	if (skb_copy_bits(skb, skb->nh.iph->ihl * 4 + sizeof(struct udphdr),
 			  &tftph, sizeof(tftph)) != 0)
@@ -55,29 +53,19 @@ static int tftp_help(struct sk_buff *skb,
 		DEBUGP("");
 		DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 		DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+		memset(&exp, 0, sizeof(exp));
 
-		exp = ip_conntrack_expect_alloc();
-		if (exp == NULL)
-			return NF_ACCEPT;
-
-		exp->tuple = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-		exp->mask.src.ip = 0xffffffff;
-		exp->mask.dst.ip = 0xffffffff;
-		exp->mask.dst.u.udp.port = 0xffff;
-		exp->mask.dst.protonum = 0xffff;
-		exp->expectfn = NULL;
+		exp.tuple = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
+		exp.mask.src.ip = 0xffffffff;
+		exp.mask.dst.ip = 0xffffffff;
+		exp.mask.dst.u.udp.port = 0xffff;
+		exp.mask.dst.protonum = 0xffff;
+		exp.expectfn = NULL;
 
 		DEBUGP("expect: ");
-		DUMP_TUPLE(&exp->tuple);
-		DUMP_TUPLE(&exp->mask);
-		ip_conntrack_expect_related(exp, ct);
-		break;
-	case TFTP_OPCODE_DATA:
-	case TFTP_OPCODE_ACK:
-		DEBUGP("Data/ACK opcode\n");
-		break;
-	case TFTP_OPCODE_ERROR:
-		DEBUGP("Error opcode\n");
+		DUMP_TUPLE(&exp.tuple);
+		DUMP_TUPLE(&exp.mask);
+		ip_conntrack_expect_related(ct, &exp);
 		break;
 	default:
 		DEBUGP("Unknown opcode\n");

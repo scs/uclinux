@@ -63,9 +63,14 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
 
-static int debug;
+#ifdef CONFIG_USB_SERIAL_DEBUG
+	static int debug = 1;
+#else
+	static int debug;
+#endif
+
+#include "usb-serial.h"
 
 /*
  * Version Information
@@ -150,7 +155,10 @@ static int		bytes_out;
 static int empeg_open (struct usb_serial_port *port, struct file *filp)
 {
 	struct usb_serial *serial = port->serial;
-	int result = 0;
+	int result = 0;;
+
+	if (port_paranoia_check (port, __FUNCTION__))
+		return -ENODEV;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -182,10 +190,21 @@ static int empeg_open (struct usb_serial_port *port, struct file *filp)
 
 static void empeg_close (struct usb_serial_port *port, struct file * filp)
 {
+	struct usb_serial *serial;
+
+	if (port_paranoia_check (port, __FUNCTION__))
+		return;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	/* shutdown our bulk read */
-	usb_unlink_urb (port->read_urb);
+	serial = get_usb_serial (port, __FUNCTION__);
+	if (!serial)
+		return;
+
+	if (serial->dev) {
+		/* shutdown our bulk read */
+		usb_unlink_urb (port->read_urb);
+	}
 	/* Uncomment the following line if you want to see some statistics in your syslog */
 	/* dev_info (&port->dev, "Bytes In = %d  Bytes Out = %d\n", bytes_in, bytes_out); */
 }
@@ -244,7 +263,7 @@ static int empeg_write (struct usb_serial_port *port, int from_user, const unsig
 			memcpy (urb->transfer_buffer, current_position, transfer_size);
 		}
 
-		usb_serial_debug_data(debug, &port->dev, __FUNCTION__, transfer_size, urb->transfer_buffer);
+		usb_serial_debug_data (__FILE__, __FUNCTION__, transfer_size, urb->transfer_buffer);
 
 		/* build up our urb */
 		usb_fill_bulk_urb (
@@ -334,6 +353,9 @@ static void empeg_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 
+	if (port_paranoia_check (port, __FUNCTION__))
+		return;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (urb->status) {
@@ -348,19 +370,28 @@ static void empeg_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 static void empeg_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial *serial = get_usb_serial (port, __FUNCTION__);
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int i;
 	int result;
 
+	if (port_paranoia_check (port, __FUNCTION__))
+		return;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
+
+	if (!serial) {
+		dbg("%s - bad serial pointer, exiting", __FUNCTION__);
+		return;
+	}
 
 	if (urb->status) {
 		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
 		return;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
+	usb_serial_debug_data (__FILE__, __FUNCTION__, urb->actual_length, data);
 
 	tty = port->tty;
 
@@ -385,8 +416,8 @@ static void empeg_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 	/* Continue trying to always read  */
 	usb_fill_bulk_urb(
 		port->read_urb,
-		port->serial->dev, 
-		usb_rcvbulkpipe(port->serial->dev,
+		serial->dev, 
+		usb_rcvbulkpipe(serial->dev,
 			port->bulk_in_endpointAddress),
 		port->read_urb->transfer_buffer,
 		port->read_urb->transfer_buffer_length,
@@ -604,5 +635,6 @@ MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );
 MODULE_LICENSE("GPL");
 
-module_param(debug, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM(debug, "i");
 MODULE_PARM_DESC(debug, "Debug enabled or not");
+

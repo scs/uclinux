@@ -32,20 +32,17 @@
  *	even pass file to fsync ?
  */
 
-int ext2_sync_file(struct file *file, struct dentry *dentry, int datasync)
+int ext2_sync_file(struct file * file, struct dentry *dentry, int datasync)
 {
 	struct inode *inode = dentry->d_inode;
 	int err;
-	int ret;
-
-	ret = sync_mapping_buffers(inode->i_mapping);
+	
+	err  = sync_mapping_buffers(inode->i_mapping);
 	if (!(inode->i_state & I_DIRTY))
-		return ret;
+		return err;
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
-		return ret;
-
-	err = ext2_sync_inode(inode);
-	if (ret == 0)
-		ret = err;
-	return ret;
+		return err;
+	
+	err |= ext2_sync_inode(inode);
+	return err ? -EIO : 0;
 }

@@ -14,7 +14,7 @@ struct namespace {
 
 extern void umount_tree(struct vfsmount *);
 extern int copy_namespace(int, struct task_struct *);
-extern void __put_namespace(struct namespace *namespace);
+void __put_namespace(struct namespace *namespace);
 
 static inline void put_namespace(struct namespace *namespace)
 {

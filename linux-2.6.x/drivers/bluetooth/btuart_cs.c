@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
@@ -78,7 +77,7 @@ typedef struct btuart_info_t {
 	dev_link_t link;
 	dev_node_t node;
 
-	struct hci_dev *hdev;
+	struct hci_dev hdev;
 
 	spinlock_t lock;	/* For serializing operations */
 
@@ -149,7 +148,7 @@ static int btuart_write(unsigned int iobase, int fifo_size, __u8 *buf, int len)
 static void btuart_write_wakeup(btuart_info_t *info)
 {
 	if (!info) {
-		BT_ERR("Unknown device");
+		printk(KERN_WARNING "btuart_cs: Call of write_wakeup for unknown device.\n");
 		return;
 	}
 
@@ -182,7 +181,7 @@ static void btuart_write_wakeup(btuart_info_t *info)
 			skb_queue_head(&(info->txq), skb);
 		}
 
-		info->hdev->stat.byte_tx += len;
+		info->hdev.stat.byte_tx += len;
 
 	} while (test_bit(XMIT_WAKEUP, &(info->tx_state)));
 
@@ -196,28 +195,28 @@ static void btuart_receive(btuart_info_t *info)
 	int boguscount = 0;
 
 	if (!info) {
-		BT_ERR("Unknown device");
+		printk(KERN_WARNING "btuart_cs: Call of receive for unknown device.\n");
 		return;
 	}
 
 	iobase = info->link.io.BasePort1;
 
 	do {
-		info->hdev->stat.byte_rx++;
+		info->hdev.stat.byte_rx++;
 
 		/* Allocate packet */
 		if (info->rx_skb == NULL) {
 			info->rx_state = RECV_WAIT_PACKET_TYPE;
 			info->rx_count = 0;
 			if (!(info->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC))) {
-				BT_ERR("Can't allocate mem for new packet");
+				printk(KERN_WARNING "btuart_cs: Can't allocate mem for new packet.\n");
 				return;
 			}
 		}
 
 		if (info->rx_state == RECV_WAIT_PACKET_TYPE) {
 
-			info->rx_skb->dev = (void *) info->hdev;
+			info->rx_skb->dev = (void *)&(info->hdev);
 			info->rx_skb->pkt_type = inb(iobase + UART_RX);
 
 			switch (info->rx_skb->pkt_type) {
@@ -239,9 +238,9 @@ static void btuart_receive(btuart_info_t *info)
 
 			default:
 				/* Unknown packet */
-				BT_ERR("Unknown HCI packet with type 0x%02x received", info->rx_skb->pkt_type);
-				info->hdev->stat.err_rx++;
-				clear_bit(HCI_RUNNING, &(info->hdev->flags));
+				printk(KERN_WARNING "btuart_cs: Unknown HCI packet with type 0x%02x received.\n", info->rx_skb->pkt_type);
+				info->hdev.stat.err_rx++;
+				clear_bit(HCI_RUNNING, &(info->hdev.flags));
 
 				kfree_skb(info->rx_skb);
 				info->rx_skb = NULL;
@@ -309,8 +308,8 @@ static irqreturn_t btuart_interrupt(int irq, void *dev_inst, struct pt_regs *reg
 	int boguscount = 0;
 	int iir, lsr;
 
-	if (!info || !info->hdev) {
-		BT_ERR("Call of irq %d for unknown device", irq);
+	if (!info) {
+		printk(KERN_WARNING "btuart_cs: Call of irq %d for unknown device.\n", irq);
 		return IRQ_NONE;
 	}
 
@@ -326,7 +325,7 @@ static irqreturn_t btuart_interrupt(int irq, void *dev_inst, struct pt_regs *reg
 
 		switch (iir) {
 		case UART_IIR_RLSI:
-			BT_ERR("RLSI");
+			printk(KERN_NOTICE "btuart_cs: RLSI\n");
 			break;
 		case UART_IIR_RDI:
 			/* Receive interrupt */
@@ -339,7 +338,7 @@ static irqreturn_t btuart_interrupt(int irq, void *dev_inst, struct pt_regs *reg
 			}
 			break;
 		default:
-			BT_ERR("Unhandled IIR=%#x", iir);
+			printk(KERN_NOTICE "btuart_cs: Unhandled IIR=%#x\n", iir);
 			break;
 		}
 
@@ -366,7 +365,7 @@ static void btuart_change_speed(btuart_info_t *info, unsigned int speed)
 	int divisor;
 
 	if (!info) {
-		BT_ERR("Unknown device");
+		printk(KERN_WARNING "btuart_cs: Call of change speed for unknown device.\n");
 		return;
 	}
 
@@ -448,7 +447,7 @@ static int btuart_hci_send_frame(struct sk_buff *skb)
 	struct hci_dev *hdev = (struct hci_dev *)(skb->dev);
 
 	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device (hdev=NULL)");
+		printk(KERN_WARNING "btuart_cs: Frame for unknown HCI device (hdev=NULL).");
 		return -ENODEV;
 	}
 
@@ -505,27 +504,6 @@ int btuart_open(btuart_info_t *info)
 	info->rx_count = 0;
 	info->rx_skb = NULL;
 
-	/* Initialize HCI device */
-	hdev = hci_alloc_dev();
-	if (!hdev) {
-		BT_ERR("Can't allocate HCI device");
-		return -ENOMEM;
-	}
-
-	info->hdev = hdev;
-
-	hdev->type = HCI_PCCARD;
-	hdev->driver_data = info;
-
-	hdev->open     = btuart_hci_open;
-	hdev->close    = btuart_hci_close;
-	hdev->flush    = btuart_hci_flush;
-	hdev->send     = btuart_hci_send_frame;
-	hdev->destruct = btuart_hci_destruct;
-	hdev->ioctl    = btuart_hci_ioctl;
-
-	hdev->owner = THIS_MODULE;
-
 	spin_lock_irqsave(&(info->lock), flags);
 
 	/* Reset UART */
@@ -546,13 +524,28 @@ int btuart_open(btuart_info_t *info)
 	btuart_change_speed(info, DEFAULT_BAUD_RATE);
 
 	/* Timeout before it is safe to send the first HCI packet */
-	msleep(1000);
+	set_current_state(TASK_INTERRUPTIBLE);
+	schedule_timeout(HZ);
 
-	/* Register HCI device */
+
+	/* Initialize and register HCI device */
+
+	hdev = &(info->hdev);
+
+	hdev->type = HCI_PCCARD;
+	hdev->driver_data = info;
+
+	hdev->open = btuart_hci_open;
+	hdev->close = btuart_hci_close;
+	hdev->flush = btuart_hci_flush;
+	hdev->send = btuart_hci_send_frame;
+	hdev->destruct = btuart_hci_destruct;
+	hdev->ioctl = btuart_hci_ioctl;
+
+	hdev->owner = THIS_MODULE;
+	
 	if (hci_register_dev(hdev) < 0) {
-		BT_ERR("Can't register HCI device");
-		info->hdev = NULL;
-		hci_free_dev(hdev);
+		printk(KERN_WARNING "btuart_cs: Can't register HCI device %s.\n", hdev->name);
 		return -ENODEV;
 	}
 
@@ -564,10 +557,7 @@ int btuart_close(btuart_info_t *info)
 {
 	unsigned long flags;
 	unsigned int iobase = info->link.io.BasePort1;
-	struct hci_dev *hdev = info->hdev;
-
-	if (!hdev)
-		return -ENODEV;
+	struct hci_dev *hdev = &(info->hdev);
 
 	btuart_hci_close(hdev);
 
@@ -582,9 +572,7 @@ int btuart_close(btuart_info_t *info)
 	spin_unlock_irqrestore(&(info->lock), flags);
 
 	if (hci_unregister_dev(hdev) < 0)
-		BT_ERR("Can't unregister HCI device %s", hdev->name);
-
-	hci_free_dev(hdev);
+		printk(KERN_WARNING "btuart_cs: Can't unregister HCI device %s.\n", hdev->name);
 
 	return 0;
 }
@@ -781,7 +769,7 @@ next_entry:
 
 found_port:
 	if (i != CS_SUCCESS) {
-		BT_ERR("No usable port range found");
+		printk(KERN_NOTICE "btuart_cs: No usable port range found. Giving up.\n");
 		cs_error(link->handle, RequestIO, i);
 		goto failed;
 	}
@@ -801,7 +789,7 @@ found_port:
 	if (btuart_open(info) != 0)
 		goto failed;
 
-	strcpy(info->node.dev_name, info->hdev->name);
+	strcpy(info->node.dev_name, info->hdev.name);
 	link->dev = &info->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 

@@ -1,3 +1,4 @@
+#ident "$Id$"
 /* ----------------------------------------------------------------------- *
  *   
  *   Copyright 2000 H. Peter Anvin - All Rights Reserved
@@ -186,10 +187,10 @@ static loff_t msr_seek(struct file *file, loff_t offset, int orig)
   return ret;
 }
 
-static ssize_t msr_read(struct file * file, char __user * buf,
+static ssize_t msr_read(struct file * file, char * buf,
 			size_t count, loff_t *ppos)
 {
-  char __user *tmp = buf;
+  u32 *tmp = (u32 *)buf;
   u32 data[2];
   size_t rv;
   u32 reg = *ppos;
@@ -205,16 +206,16 @@ static ssize_t msr_read(struct file * file, char __user * buf,
       return err;
     if ( copy_to_user(tmp,&data,8) )
       return -EFAULT;
-    tmp += 8;
+    tmp += 2;
   }
 
-  return tmp - buf;
+  return ((char *)tmp) - buf;
 }
 
-static ssize_t msr_write(struct file * file, const char __user * buf,
+static ssize_t msr_write(struct file * file, const char * buf,
 			 size_t count, loff_t *ppos)
 {
-  const char __user *tmp = buf;
+  const u32 *tmp = (const u32 *)buf;
   u32 data[2];
   size_t rv;
   u32 reg = *ppos;
@@ -230,10 +231,10 @@ static ssize_t msr_write(struct file * file, const char __user * buf,
     err = do_wrmsr(cpu, reg, data[0], data[1]);
     if ( err )
       return err;
-    tmp += 8;
+    tmp += 2;
   }
 
-  return tmp - buf;
+  return ((char *)tmp) - buf;
 }
 
 static int msr_open(struct inode *inode, struct file *file)
@@ -241,7 +242,7 @@ static int msr_open(struct inode *inode, struct file *file)
   int cpu = iminor(file->f_dentry->d_inode);
   struct cpuinfo_x86 *c = &(cpu_data)[cpu];
   
-  if (cpu >= NR_CPUS || !cpu_online(cpu))
+  if (!cpu_online(cpu))
     return -ENXIO;		/* No such CPU */
   if ( !cpu_has(c, X86_FEATURE_MSR) )
     return -EIO;		/* MSR not supported */

@@ -3,6 +3,8 @@
 
 struct file;
 
+extern long sys_ioctl(unsigned int, unsigned int, unsigned long);
+
 /* 
  * Register an 32bit ioctl translation handler for ioctl cmd.
  *

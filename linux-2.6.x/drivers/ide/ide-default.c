@@ -51,7 +51,8 @@ ide_driver_t idedefault_driver = {
 
 static int idedefault_attach (ide_drive_t *drive)
 {
-	if (ide_register_subdriver(drive, &idedefault_driver)) {
+	if (ide_register_subdriver(drive,
+			&idedefault_driver, IDE_SUBDRIVER_VERSION)) {
 		printk(KERN_ERR "ide-default: %s: Failed to register the "
 			"driver with ide.c\n", drive->name);
 		return 1;

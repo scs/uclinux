@@ -91,7 +91,6 @@
 #define SPRN_TBRU	0x10D	/* Time Base Read Upper Register (user, R/O) */
 #define SPRN_TBWL	0x11C	/* Time Base Lower Register (super, R/W) */
 #define SPRN_TBWU	0x11D	/* Time Base Upper Register (super, R/W) */
-#define SPRN_HIOR	0x137	/* 970 Hypervisor interrupt offset */
 #define SPRN_DBAT0L	0x219	/* Data BAT 0 Lower Register */
 #define SPRN_DBAT0U	0x218	/* Data BAT 0 Upper Register */
 #define SPRN_DBAT1L	0x21B	/* Data BAT 1 Lower Register */
@@ -174,17 +173,13 @@
 
 #define SPRN_HID1	0x3F1		/* Hardware Implementation Register 1 */
 #define HID1_EMCP	(1<<31)		/* 7450 Machine Check Pin Enable */
-#define HID1_DFS	(1<<22)		/* 7447A Dynamic Frequency Scaling */
 #define HID1_PC0	(1<<16)		/* 7450 PLL_CFG[0] */
 #define HID1_PC1	(1<<15)		/* 7450 PLL_CFG[1] */
 #define HID1_PC2	(1<<14)		/* 7450 PLL_CFG[2] */
 #define HID1_PC3	(1<<13)		/* 7450 PLL_CFG[3] */
 #define HID1_SYNCBE	(1<<11)		/* 7450 ABE for sync, eieio */
 #define HID1_ABE	(1<<10)		/* 7450 Address Broadcast Enable */
-#define SPRN_HID2	0x3F8		/* Hardware Implementation Register 2 */
 #define SPRN_IABR	0x3F2	/* Instruction Address Breakpoint Register */
-#define SPRN_HID4	0x3F4		/* 970 HID4 */
-#define SPRN_HID5	0x3F6		/* 970 HID5 */
 #if !defined(SPRN_IAC1) && !defined(SPRN_IAC2)
 #define SPRN_IAC1	0x3F4		/* Instruction Address Compare 1 */
 #define SPRN_IAC2	0x3F5		/* Instruction Address Compare 2 */
@@ -295,9 +290,6 @@
 #define SPRN_SPRG7	0x117	/* Special Purpose Register General 7 */
 #define SPRN_SRR0	0x01A	/* Save/Restore Register 0 */
 #define SPRN_SRR1	0x01B	/* Save/Restore Register 1 */
-#ifndef SPRN_SVR
-#define SPRN_SVR	0x11E	/* System Version Register */
-#endif
 #define SPRN_THRM1	0x3FC		/* Thermal Management Register 1 */
 /* these bits were defined in inverted endian sense originally, ugh, confusing */
 #define THRM1_TIN	(1 << 31)
@@ -350,7 +342,7 @@
 #define DBAT6U	SPRN_DBAT6U	/* Data BAT 6 Upper Register */
 #define DBAT7L	SPRN_DBAT7L	/* Data BAT 7 Lower Register */
 #define DBAT7U	SPRN_DBAT7U	/* Data BAT 7 Upper Register */
-//#define DEC	SPRN_DEC	/* Decrement Register */
+#define DEC	SPRN_DEC	/* Decrement Register */
 #define DMISS	SPRN_DMISS	/* Data TLB Miss Register */
 #define DSISR	SPRN_DSISR	/* Data Storage Interrupt Status Register */
 #define EAR	SPRN_EAR	/* External Address Register */
@@ -380,9 +372,9 @@
 #define IMMR	SPRN_IMMR	/* PPC 860/821 Internal Memory Map Register */
 #define L2CR	SPRN_L2CR	/* Classic PPC L2 cache control register */
 #define L3CR	SPRN_L3CR	/* PPC 745x L3 cache control register */
-//#define LR	SPRN_LR
+#define LR	SPRN_LR
 #define PVR	SPRN_PVR	/* Processor Version */
-//#define RPA	SPRN_RPA	/* Required Physical Address Register */
+#define RPA	SPRN_RPA	/* Required Physical Address Register */
 #define SDR1	SPRN_SDR1	/* MMU hash base register */
 #define SPR0	SPRN_SPRG0	/* Supervisor Private Registers */
 #define SPR1	SPRN_SPRG1
@@ -404,7 +396,6 @@
 #define SRR1	SPRN_SRR1	/* Save and Restore Register 1 */
 #define SRR2	SPRN_SRR2	/* Save and Restore Register 2 */
 #define SRR3	SPRN_SRR3	/* Save and Restore Register 3 */
-#define SVR	SPRN_SVR	/* System Version Register */
 #define ICTC	SPRN_ICTC	/* Instruction Cache Throttling Control Reg */
 #define THRM1	SPRN_THRM1	/* Thermal Management Register 1 */
 #define THRM2	SPRN_THRM2	/* Thermal Management Register 2 */
@@ -447,9 +438,7 @@
 #define PVR_440GP_RB	0x40120440
 #define PVR_440GP_RC1	0x40120481
 #define PVR_440GP_RC2	0x40200481
-#define PVR_440GX_RA	0x51b21850
-#define PVR_440GX_RB	0x51b21851
-#define PVR_440GX_RC	0x51b21892
+#define PVR_440GX_RC1	0x51b21850
 #define PVR_601		0x00010000
 #define PVR_602		0x00050000
 #define PVR_603		0x00030000
@@ -467,8 +456,6 @@
 #define PVR_7400	0x000C0000
 #define PVR_7410	0x800C0000
 #define PVR_7450	0x80000000
-#define PVR_8540	0x80200000
-#define PVR_8560	0x80200000
 /*
  * For the 8xx processors, all of them report the same PVR family for
  * the PowerPC core. The various versions of these processors must be
@@ -483,13 +470,6 @@
 #define PVR_8245	0x80811014
 #define PVR_8260	PVR_8240
 
-/* System Version Numbers */
-#define SVR_8540	0x80300000
-#define SVR_8541E	0x807A0000
-#define SVR_8555E	0x80790000
-#define SVR_8560	0x80700000
-
-#if 0
 /* Segment Registers */
 #define SR0	0
 #define SR1	1
@@ -507,7 +487,6 @@
 #define SR13	13
 #define SR14	14
 #define SR15	15
-#endif
 
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__

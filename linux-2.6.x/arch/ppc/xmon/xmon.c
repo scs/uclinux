@@ -239,7 +239,7 @@ xmon(struct pt_regs *excp)
 		set_backlight_level(BACKLIGHT_MAX);
 		sync();
 	}
-	debugger_fault_handler = NULL;
+	debugger_fault_handler = 0;
 #endif	/* CONFIG_PMAC_BACKLIGHT */
 	cmd = cmds(excp);
 	if (cmd == 's') {
@@ -253,7 +253,7 @@ xmon(struct pt_regs *excp)
 		insert_bpts();
 	}
 	xmon_leave();
-	xmon_regs[smp_processor_id()] = NULL;
+	xmon_regs[smp_processor_id()] = 0;
 #ifdef CONFIG_SMP
 	clear_bit(0, &got_xmon);
 	clear_bit(smp_processor_id(), &cpus_in_xmon);
@@ -352,7 +352,7 @@ at_breakpoint(unsigned pc)
 	for (i = 0; i < NBPTS; ++i, ++bp)
 		if (bp->enabled && pc == bp->address)
 			return bp;
-	return NULL;
+	return 0;
 }
 
 static void
@@ -962,7 +962,7 @@ print_sysmap(void)
 			xmon_puts(sysmap);
 			sync();
 		}
-		debugger_fault_handler = NULL;
+		debugger_fault_handler = 0;
 	}
 	else
 		printf("No System.map\n");
@@ -1203,7 +1203,7 @@ mread(unsigned adrs, void *buf, int size)
 		__delay(200);
 		n = size;
 	}
-	debugger_fault_handler = NULL;
+	debugger_fault_handler = 0;
 	return n;
 }
 
@@ -1233,7 +1233,7 @@ mwrite(unsigned adrs, void *buf, int size)
 	} else {
 		printf("*** Error writing address %x\n", adrs + n);
 	}
-	debugger_fault_handler = NULL;
+	debugger_fault_handler = 0;
 	return n;
 }
 
@@ -1673,7 +1673,7 @@ void proccall(void)
 	} else {
 		printf("*** %x exception occurred\n", fault_except);
 	}
-	debugger_fault_handler = NULL;
+	debugger_fault_handler = 0;
 }
 
 /* Input scanning routines */
@@ -1886,7 +1886,7 @@ sysmap_lookup(void)
 				} while (cur);
 				sync();
 			}
-			debugger_fault_handler = NULL;
+			debugger_fault_handler = 0;
 			termch = 0;
 			break;
 	}
@@ -1939,7 +1939,7 @@ xmon_find_symbol(unsigned long addr, unsigned long* saddr)
 				*(ep++) = 0;
 				if (saddr)
 					*saddr = prev;
-				debugger_fault_handler = NULL;
+				debugger_fault_handler = 0;
 				return rbuffer;
 			}
 			prev = next;
@@ -1951,7 +1951,7 @@ xmon_find_symbol(unsigned long addr, unsigned long* saddr)
 bail:
 		sync();
 	}
-	debugger_fault_handler = NULL;
+	debugger_fault_handler = 0;
 	return NULL;
 }
 
@@ -2003,6 +2003,6 @@ xmon_symbol_to_addr(char* symbol)
 		}
 		sync();
 	}
-	debugger_fault_handler = NULL;
+	debugger_fault_handler = 0;
 	return result;
 }		

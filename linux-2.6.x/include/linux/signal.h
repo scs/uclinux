@@ -7,9 +7,6 @@
 #include <asm/siginfo.h>
 
 #ifdef __KERNEL__
-
-#define MAX_SIGPENDING	1024
-
 /*
  * Real Time signals may be queued.
  */
@@ -19,7 +16,6 @@ struct sigqueue {
 	spinlock_t *lock;
 	int flags;
 	siginfo_t info;
-	struct user_struct *user;
 };
 
 /* flags values. */

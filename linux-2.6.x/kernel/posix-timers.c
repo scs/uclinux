@@ -2,29 +2,8 @@
  * linux/kernel/posix_timers.c
  *
  *
- * 2002-10-15  Posix Clocks & timers
- *                           by George Anzinger george@mvista.com
- *
- *			     Copyright (C) 2002 2003 by MontaVista Software.
- *
- * 2004-06-01  Fix CLOCK_REALTIME clock/timer TIMER_ABSTIME bug.
- *			     Copyright (C) 2004 Boris Hu
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * MontaVista Software | 1237 East Arques Avenue | Sunnyvale | CA 94085 | USA
+ * 2002-10-15  Posix Clocks & timers by George Anzinger
+ *			     Copyright (C) 2002 by MontaVista Software.
  */
 
 /* These are all the functions necessary to implement
@@ -44,7 +23,6 @@
 #include <linux/idr.h>
 #include <linux/posix-timers.h>
 #include <linux/wait.h>
-#include <linux/workqueue.h>
 
 #ifndef div_long_long_rem
 #include <asm/div64.h>
@@ -55,7 +33,7 @@
 		       result; })
 
 #endif
-#define CLOCK_REALTIME_RES TICK_NSEC  /* In nano seconds. */
+#define CLOCK_REALTIME_RES TICK_NSEC  // In nano seconds.
 
 static inline u64  mpy_l_X_l_ll(unsigned long mpy1,unsigned long mpy2)
 {
@@ -104,15 +82,17 @@ static spinlock_t idr_lock = SPIN_LOCK_UNLOCKED;
 # define timer_active(tmr) BARFY	// error to use outside of SMP
 # define set_timer_inactive(tmr) do { } while (0)
 #endif
-/*
- * we assume that the new SIGEV_THREAD_ID shares no bits with the other
- * SIGEV values.  Here we put out an error if this assumption fails.
- */
-#if SIGEV_THREAD_ID != (SIGEV_THREAD_ID & \
-                       ~(SIGEV_SIGNAL | SIGEV_NONE | SIGEV_THREAD))
-#error "SIGEV_THREAD_ID must not share bit with other SIGEV values!"
-#endif
 
+/*
+ * For some reason mips/mips64 define the SIGEV constants plus 128.
+ * Here we define a mask to get rid of the common bits.	 The
+ * optimizer should make this costless to all but mips.
+ * Note that no common bits (the non-mips case) will give 0xffffffff.
+ */
+#define MIPS_SIGEV ~(SIGEV_NONE & \
+		      SIGEV_SIGNAL & \
+		      SIGEV_THREAD &  \
+		      SIGEV_THREAD_ID)
 
 #define REQUEUE_PENDING 1
 /*
@@ -173,12 +153,6 @@ static spinlock_t idr_lock = SPIN_LOCK_UNLOCKED;
  */
 
 static struct k_clock posix_clocks[MAX_CLOCKS];
-/*
- * We only have one real clock that can be set so we need only one abs list,
- * even if we should want to have several clocks with differing resolutions.
- */
-static struct k_clock_abs abs_list = {.list = LIST_HEAD_INIT(abs_list.list),
-				      .lock = SPIN_LOCK_UNLOCKED};
 
 #define if_clock_do(clock_fun,alt_fun,parms) \
 		(!clock_fun) ? alt_fun parms : clock_fun parms
@@ -199,22 +173,15 @@ static u64 do_posix_clock_monotonic_gettime_parts(
 int do_posix_clock_monotonic_gettime(struct timespec *tp);
 int do_posix_clock_monotonic_settime(struct timespec *tp);
 static struct k_itimer *lock_timer(timer_t timer_id, unsigned long *flags);
-
-static inline void unlock_timer(struct k_itimer *timr, unsigned long flags)
-{
-	spin_unlock_irqrestore(&timr->it_lock, flags);
-}
+static inline void unlock_timer(struct k_itimer *timr, unsigned long flags);
 
 /*
  * Initialize everything, well, just everything in Posix clocks/timers ;)
  */
 static __init int init_posix_timers(void)
 {
-	struct k_clock clock_realtime = {.res = CLOCK_REALTIME_RES,
-					 .abs_struct = &abs_list
-	};
+	struct k_clock clock_realtime = {.res = CLOCK_REALTIME_RES };
 	struct k_clock clock_monotonic = {.res = CLOCK_REALTIME_RES,
-		.abs_struct = NULL,
 		.clock_get = do_posix_clock_monotonic_gettime,
 		.clock_set = do_posix_clock_monotonic_settime
 	};
@@ -223,8 +190,9 @@ static __init int init_posix_timers(void)
 	register_posix_clock(CLOCK_MONOTONIC, &clock_monotonic);
 
 	posix_timers_cache = kmem_cache_create("posix_timers_cache",
-					sizeof (struct k_itimer), 0, 0, NULL, NULL);
+					sizeof (struct k_itimer), 0, 0, 0, 0);
 	idr_init(&posix_timers_id);
+
 	return 0;
 }
 
@@ -251,92 +219,19 @@ static void tstojiffie(struct timespec *tp, int res, u64 *jiff)
 		   (NSEC_JIFFIE_SC - SEC_JIFFIE_SC))) >> SEC_JIFFIE_SC;
 }
 
-/*
- * This function adjusts the timer as needed as a result of the clock
- * being set.  It should only be called for absolute timers, and then
- * under the abs_list lock.  It computes the time difference and sets
- * the new jiffies value in the timer.  It also updates the timers
- * reference wall_to_monotonic value.  It is complicated by the fact
- * that tstojiffies() only handles positive times and it needs to work
- * with both positive and negative times.  Also, for negative offsets,
- * we need to defeat the res round up.
- *
- * Return is true if there is a new time, else false.
- */
-static long add_clockset_delta(struct k_itimer *timr,
-			       struct timespec *new_wall_to)
-{
-	struct timespec delta;
-	int sign = 0;
-	u64 exp;
-
-	set_normalized_timespec(&delta,
-				new_wall_to->tv_sec -
-				timr->wall_to_prev.tv_sec,
-				new_wall_to->tv_nsec -
-				timr->wall_to_prev.tv_nsec);
-	if (likely(!(delta.tv_sec | delta.tv_nsec)))
-		return 0;
-	if (delta.tv_sec < 0) {
-		set_normalized_timespec(&delta,
-					-delta.tv_sec,
-					1 - delta.tv_nsec -
-					posix_clocks[timr->it_clock].res);
-		sign++;
-	}
-	tstojiffie(&delta, posix_clocks[timr->it_clock].res, &exp);
-	timr->wall_to_prev = *new_wall_to;
-	timr->it_timer.expires += (sign ? -exp : exp);
-	return 1;
-}
-
-static void remove_from_abslist(struct k_itimer *timr)
-{
-	if (!list_empty(&timr->abs_timer_entry)) {
-		spin_lock(&abs_list.lock);
-		list_del_init(&timr->abs_timer_entry);
-		spin_unlock(&abs_list.lock);
-	}
-}
-
 static void schedule_next_timer(struct k_itimer *timr)
 {
-	struct timespec new_wall_to;
 	struct now_struct now;
-	unsigned long seq;
 
-	/*
-	 * Set up the timer for the next interval (if there is one).
-	 * Note: this code uses the abs_timer_lock to protect
-	 * wall_to_prev and must hold it until exp is set, not exactly
-	 * obvious...
-
-	 * This function is used for CLOCK_REALTIME* and
-	 * CLOCK_MONOTONIC* timers.  If we ever want to handle other
-	 * CLOCKs, the calling code (do_schedule_next_timer) would need
-	 * to pull the "clock" info from the timer and dispatch the
-	 * "other" CLOCKs "next timer" code (which, I suppose should
-	 * also be added to the k_clock structure).
-	 */
+	/* Set up the timer for the next interval (if there is one) */
 	if (!timr->it_incr) 
 		return;
 
+	posix_get_now(&now);
 	do {
-		seq = read_seqbegin(&xtime_lock);
-		new_wall_to =	wall_to_monotonic;
-		posix_get_now(&now);
-	} while (read_seqretry(&xtime_lock, seq));
+		posix_bump_timer(timr);
+	}while (posix_time_before(&timr->it_timer, &now));
 
-	if (!list_empty(&timr->abs_timer_entry)) {
-		spin_lock(&abs_list.lock);
-		add_clockset_delta(timr, &new_wall_to);
-
-		posix_bump_timer(timr, now);
-
-		spin_unlock(&abs_list.lock);
-	} else {
-		posix_bump_timer(timr, now);
-	}
 	timr->it_overrun_last = timr->it_overrun;
 	timr->it_overrun = -1;
 	++timr->it_requeue_pending;
@@ -397,15 +292,7 @@ static void timer_notify_task(struct k_itimer *timr)
 
 	memset(&timr->sigq->info, 0, sizeof(siginfo_t));
 
-	/*
-	 * Send signal to the process that owns this timer.
-
-	 * This code assumes that all the possible abs_lists share the
-	 * same lock (there is only one list at this time). If this is
-	 * not the case, the CLOCK info would need to be used to find
-	 * the proper abs list lock.
-	 */
-
+	/* Send signal to the process that owns this timer. */
 	timr->sigq->info.si_signo = timr->it_sigev_signo;
 	timr->sigq->info.si_errno = 0;
 	timr->sigq->info.si_code = SI_TIMER;
@@ -413,25 +300,13 @@ static void timer_notify_task(struct k_itimer *timr)
 	timr->sigq->info.si_value = timr->it_sigev_value;
 	if (timr->it_incr)
 		timr->sigq->info.si_sys_private = ++timr->it_requeue_pending;
-	else {
-		remove_from_abslist(timr);
-	}
 
-	if (timr->it_sigev_notify & SIGEV_THREAD_ID) {
-		if (unlikely(timr->it_process->flags & PF_EXITING)) {
-			timr->it_sigev_notify = SIGEV_SIGNAL;
-			put_task_struct(timr->it_process);
-			timr->it_process = timr->it_process->group_leader;
-			goto group;
-		}
+	if (timr->it_sigev_notify & SIGEV_THREAD_ID & MIPS_SIGEV)
 		ret = send_sigqueue(timr->it_sigev_signo, timr->sigq,
 			timr->it_process);
-	}
-	else {
-	group:
+	else
 		ret = send_group_sigqueue(timr->it_sigev_signo, timr->sigq,
 			timr->it_process);
-	}
 	if (ret) {
 		/*
 		 * signal was not sent because of sig_ignor
@@ -446,66 +321,31 @@ static void timer_notify_task(struct k_itimer *timr)
  * This function gets called when a POSIX.1b interval timer expires.  It
  * is used as a callback from the kernel internal timer.  The
  * run_timer_list code ALWAYS calls with interrutps on.
-
- * This code is for CLOCK_REALTIME* and CLOCK_MONOTONIC* timers.
  */
 static void posix_timer_fn(unsigned long __data)
 {
 	struct k_itimer *timr = (struct k_itimer *) __data;
 	unsigned long flags;
-	unsigned long seq;
-	struct timespec delta, new_wall_to;
-	u64 exp = 0;
-	int do_notify = 1;
 
 	spin_lock_irqsave(&timr->it_lock, flags);
  	set_timer_inactive(timr);
-	if (!list_empty(&timr->abs_timer_entry)) {
-		spin_lock(&abs_list.lock);
-		do {
-			seq = read_seqbegin(&xtime_lock);
-			new_wall_to =	wall_to_monotonic;
-		} while (read_seqretry(&xtime_lock, seq));
-		set_normalized_timespec(&delta,
-					new_wall_to.tv_sec -
-					timr->wall_to_prev.tv_sec,
-					new_wall_to.tv_nsec -
-					timr->wall_to_prev.tv_nsec);
-		if (likely((delta.tv_sec | delta.tv_nsec ) == 0)) {
-			/* do nothing, timer is on time */
-		} else if (delta.tv_sec < 0) {
-			/* do nothing, timer is already late */
-		} else {
-			/* timer is early due to a clock set */
-			tstojiffie(&delta,
-				   posix_clocks[timr->it_clock].res,
-				   &exp);
-			timr->wall_to_prev = new_wall_to;
-			timr->it_timer.expires += exp;
-			add_timer(&timr->it_timer);
-			do_notify = 0;
-		}
-		spin_unlock(&abs_list.lock);
-
-	}
-	if (do_notify)
-		timer_notify_task(timr);
-	unlock_timer(timr, flags); /* hold thru abs lock to keep irq off */
+	timer_notify_task(timr);
+	unlock_timer(timr, flags);
 }
 
 
 static inline struct task_struct * good_sigevent(sigevent_t * event)
 {
-	struct task_struct *rtn = current->group_leader;
+	struct task_struct *rtn = current;
 
-	if ((event->sigev_notify & SIGEV_THREAD_ID ) &&
+	if ((event->sigev_notify & SIGEV_THREAD_ID & MIPS_SIGEV) &&
 		(!(rtn = find_task_by_pid(event->sigev_notify_thread_id)) ||
-		 rtn->tgid != current->tgid ||
-		 (event->sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_SIGNAL))
+			rtn->tgid != current->tgid))
 		return NULL;
 
-	if (((event->sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_NONE) &&
-	    ((event->sigev_signo <= 0) || (event->sigev_signo > SIGRTMAX)))
+	if ((event->sigev_notify & ~SIGEV_NONE & MIPS_SIGEV) &&
+			event->sigev_signo &&
+			((unsigned) (event->sigev_signo > SIGRTMAX)))
 		return NULL;
 
 	return rtn;
@@ -525,31 +365,23 @@ static struct k_itimer * alloc_posix_timer(void)
 {
 	struct k_itimer *tmr;
 	tmr = kmem_cache_alloc(posix_timers_cache, GFP_KERNEL);
-	if (!tmr)
-		return tmr;
 	memset(tmr, 0, sizeof (struct k_itimer));
-	INIT_LIST_HEAD(&tmr->abs_timer_entry);
+	tmr->it_id = (timer_t)-1;
 	if (unlikely(!(tmr->sigq = sigqueue_alloc()))) {
 		kmem_cache_free(posix_timers_cache, tmr);
-		tmr = NULL;
+		tmr = 0;
 	}
 	return tmr;
 }
 
-#define IT_ID_SET	1
-#define IT_ID_NOT_SET	0
-static void release_posix_timer(struct k_itimer *tmr, int it_id_set)
+static void release_posix_timer(struct k_itimer *tmr)
 {
-	if (it_id_set) {
-		unsigned long flags;
-		spin_lock_irqsave(&idr_lock, flags);
+	if (tmr->it_id != -1) {
+		spin_lock_irq(&idr_lock);
 		idr_remove(&posix_timers_id, tmr->it_id);
-		spin_unlock_irqrestore(&idr_lock, flags);
+		spin_unlock_irq(&idr_lock);
 	}
 	sigqueue_free(tmr->sigq);
-	if (unlikely(tmr->it_process) &&
-	    tmr->it_sigev_notify == (SIGEV_SIGNAL|SIGEV_THREAD_ID))
-		put_task_struct(tmr->it_process);
 	kmem_cache_free(posix_timers_cache, tmr);
 }
 
@@ -562,11 +394,9 @@ sys_timer_create(clockid_t which_clock,
 {
 	int error = 0;
 	struct k_itimer *new_timer = NULL;
-	int new_timer_id;
-	struct task_struct *process = NULL;
-	unsigned long flags;
+	timer_t new_timer_id;
+	struct task_struct *process = 0;
 	sigevent_t event;
-	int it_id_set = IT_ID_NOT_SET;
 
 	if ((unsigned) which_clock >= MAX_CLOCKS ||
 				!posix_clocks[which_clock].res)
@@ -577,38 +407,19 @@ sys_timer_create(clockid_t which_clock,
 		return -EAGAIN;
 
 	spin_lock_init(&new_timer->it_lock);
- retry:
-	if (unlikely(!idr_pre_get(&posix_timers_id, GFP_KERNEL))) {
-		error = -EAGAIN;
-		goto out;
-	}
-	spin_lock_irq(&idr_lock);
-	error = idr_get_new(&posix_timers_id,
-			    (void *) new_timer,
-			    &new_timer_id);
-	spin_unlock_irq(&idr_lock);
-	if (error == -EAGAIN)
-		goto retry;
-	else if (error) {
-		/*
-		 * Wierd looking, but we return EAGAIN if the IDR is
-		 * full (proper POSIX return value for this)
-		 */
-		error = -EAGAIN;
-		goto out;
-	}
+	do {
+		if (unlikely(!idr_pre_get(&posix_timers_id))) {
+			error = -EAGAIN;
+			new_timer->it_id = (timer_t)-1;
+			goto out;
+		}
+		spin_lock_irq(&idr_lock);
+		new_timer_id = (timer_t) idr_get_new(&posix_timers_id,
+							(void *) new_timer);
+		spin_unlock_irq(&idr_lock);
+	} while (unlikely(new_timer_id == -1));
 
-	it_id_set = IT_ID_SET;
-	new_timer->it_id = (timer_t) new_timer_id;
-	new_timer->it_clock = which_clock;
-	new_timer->it_incr = 0;
-	new_timer->it_overrun = -1;
-	init_timer(&new_timer->it_timer);
-	new_timer->it_timer.expires = 0;
-	new_timer->it_timer.data = (unsigned long) new_timer;
-	new_timer->it_timer.function = posix_timer_fn;
-	set_timer_inactive(new_timer);
-
+	new_timer->it_id = new_timer_id;
 	/*
 	 * return the timer_id now.  The next step is hard to
 	 * back out if there is an error.
@@ -623,17 +434,13 @@ sys_timer_create(clockid_t which_clock,
 			error = -EFAULT;
 			goto out;
 		}
-		new_timer->it_sigev_notify = event.sigev_notify;
-		new_timer->it_sigev_signo = event.sigev_signo;
-		new_timer->it_sigev_value = event.sigev_value;
-
 		read_lock(&tasklist_lock);
 		if ((process = good_sigevent(&event))) {
 			/*
 			 * We may be setting up this process for another
 			 * thread.  It may be exiting.  To catch this
 			 * case the we check the PF_EXITING flag.  If
-			 * the flag is not set, the siglock will catch
+			 * the flag is not set, the task_lock will catch
 			 * him before it is too late (in exit_itimers).
 			 *
 			 * The exec case is a bit more invloved but easy
@@ -644,16 +451,14 @@ sys_timer_create(clockid_t which_clock,
 			 * for us to die which means we can finish this
 			 * linkage with our last gasp. I.e. no code :)
 			 */
-			spin_lock_irqsave(&process->sighand->siglock, flags);
+			task_lock(process);
 			if (!(process->flags & PF_EXITING)) {
-				new_timer->it_process = process;
 				list_add(&new_timer->list,
-					 &process->signal->posix_timers);
-				spin_unlock_irqrestore(&process->sighand->siglock, flags);
-				get_task_struct(process);
+					 &process->posix_timers);
+				task_unlock(process);
 			} else {
-				spin_unlock_irqrestore(&process->sighand->siglock, flags);
-				process = NULL;
+				task_unlock(process);
+				process = 0;
 			}
 		}
 		read_unlock(&tasklist_lock);
@@ -661,27 +466,35 @@ sys_timer_create(clockid_t which_clock,
 			error = -EINVAL;
 			goto out;
 		}
+		new_timer->it_sigev_notify = event.sigev_notify;
+		new_timer->it_sigev_signo = event.sigev_signo;
+		new_timer->it_sigev_value = event.sigev_value;
 	} else {
 		new_timer->it_sigev_notify = SIGEV_SIGNAL;
 		new_timer->it_sigev_signo = SIGALRM;
 		new_timer->it_sigev_value.sival_int = new_timer->it_id;
-		process = current->group_leader;
-		spin_lock_irqsave(&process->sighand->siglock, flags);
-		new_timer->it_process = process;
-		list_add(&new_timer->list, &process->signal->posix_timers);
-		spin_unlock_irqrestore(&process->sighand->siglock, flags);
+		process = current;
+		task_lock(process);
+		list_add(&new_timer->list, &process->posix_timers);
+		task_unlock(process);
 	}
 
- 	/*
-	 * In the case of the timer belonging to another task, after
-	 * the task is unlocked, the timer is owned by the other task
-	 * and may cease to exist at any time.  Don't use or modify
-	 * new_timer after the unlock call.
-	 */
+	new_timer->it_clock = which_clock;
+	new_timer->it_incr = 0;
+	new_timer->it_overrun = -1;
+	init_timer(&new_timer->it_timer);
+	new_timer->it_timer.expires = 0;
+	new_timer->it_timer.data = (unsigned long) new_timer;
+	new_timer->it_timer.function = posix_timer_fn;
+	set_timer_inactive(new_timer);
 
+	/*
+	 * Once we set the process, it can be found so do it last...
+	 */
+	new_timer->it_process = process;
 out:
 	if (error)
-		release_posix_timer(new_timer, it_id_set);
+		release_posix_timer(new_timer);
 
 	return error;
 }
@@ -705,6 +518,11 @@ static int good_timespec(const struct timespec *ts)
 			((unsigned) ts->tv_nsec >= NSEC_PER_SEC))
 		return 0;
 	return 1;
+}
+
+static inline void unlock_timer(struct k_itimer *timr, unsigned long flags)
+{
+	spin_unlock_irqrestore(&timr->it_lock, flags);
 }
 
 /*
@@ -768,17 +586,14 @@ do_timer_gettime(struct k_itimer *timr, struct itimerspec *cur_setting)
 
 	posix_get_now(&now);
 
-	if (expires &&
-	    ((timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE) &&
-	    !timr->it_incr &&
-	    posix_time_before(&timr->it_timer, &now))
+	if (expires && (timr->it_sigev_notify & SIGEV_NONE) && !timr->it_incr &&
+			posix_time_before(&timr->it_timer, &now))
 		timr->it_timer.expires = expires = 0;
 	if (expires) {
 		if (timr->it_requeue_pending & REQUEUE_PENDING ||
-		    (timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE) {
-			posix_bump_timer(timr, now);
-			expires = timr->it_timer.expires;
-		}
+		    (timr->it_sigev_notify & SIGEV_NONE))
+			while (posix_time_before(&timr->it_timer, &now))
+				posix_bump_timer(timr);
 		else
 			if (!timer_pending(&timr->it_timer))
 				expires = 0;
@@ -852,10 +667,11 @@ sys_timer_getoverrun(timer_t timer_id)
  * time to it to get the proper time for the timer.
  */
 static int adjust_abs_time(struct k_clock *clock, struct timespec *tp, 
-			   int abs, u64 *exp, struct timespec *wall_to)
+			   int abs, u64 *exp)
 {
 	struct timespec now;
 	struct timespec oc = *tp;
+	struct timespec wall_to_mono;
 	u64 jiffies_64_f;
 	int rtn =0;
 
@@ -863,15 +679,15 @@ static int adjust_abs_time(struct k_clock *clock, struct timespec *tp,
 		/*
 		 * The mask pick up the 4 basic clocks 
 		 */
-		if (!((clock - &posix_clocks[0]) & ~CLOCKS_MASK)) {
+		if (!(clock - &posix_clocks[0]) & ~CLOCKS_MASK) {
 			jiffies_64_f = do_posix_clock_monotonic_gettime_parts(
-				&now,  wall_to);
+				&now,  &wall_to_mono);
 			/*
 			 * If we are doing a MONOTONIC clock
 			 */
 			if((clock - &posix_clocks[0]) & CLOCKS_MONO){
-				now.tv_sec += wall_to->tv_sec;
-				now.tv_nsec += wall_to->tv_nsec;
+				now.tv_sec += wall_to_mono.tv_sec;
+				now.tv_nsec += wall_to_mono.tv_nsec;
 			}
 		} else {
 			/*
@@ -961,8 +777,6 @@ do_timer_settime(struct k_itimer *timr, int flags,
 #else
 	del_timer(&timr->it_timer);
 #endif
-	remove_from_abslist(timr);
-
 	timr->it_requeue_pending = (timr->it_requeue_pending + 2) & 
 		~REQUEUE_PENDING;
 	timr->it_overrun_last = 0;
@@ -977,25 +791,24 @@ do_timer_settime(struct k_itimer *timr, int flags,
 
 	if (adjust_abs_time(clock,
 			    &new_setting->it_value, flags & TIMER_ABSTIME, 
-			    &expire_64, &(timr->wall_to_prev))) {
+			    &expire_64)) {
 		return -EINVAL;
 	}
 	timr->it_timer.expires = (unsigned long)expire_64;	
 	tstojiffie(&new_setting->it_interval, clock->res, &expire_64);
 	timr->it_incr = (unsigned long)expire_64;
 
-	/*
-	 * We do not even queue SIGEV_NONE timers!  But we do put them
-	 * in the abs list so we can do that right.
-	 */
-	if (((timr->it_sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_NONE))
-		add_timer(&timr->it_timer);
 
-	if (flags & TIMER_ABSTIME && clock->abs_struct) {
-		spin_lock(&clock->abs_struct->lock);
-		list_add_tail(&(timr->abs_timer_entry),
-			      &(clock->abs_struct->list));
-		spin_unlock(&clock->abs_struct->lock);
+	/*
+	 * For some reason the timer does not fire immediately if expires is
+	 * equal to jiffies, so the timer notify function is called directly.
+	 * We do not even queue SIGEV_NONE timers!
+	 */
+	if (!(timr->it_sigev_notify & SIGEV_NONE)) {
+		if (timr->it_timer.expires == jiffies)
+			timer_notify_task(timr);
+		else
+			add_timer(&timr->it_timer);
 	}
 	return 0;
 }
@@ -1029,7 +842,7 @@ retry:
 	if (!posix_clocks[timr->it_clock].timer_set)
 		error = do_timer_settime(timr, flags, &new_spec, rtn);
 	else
-	        error = posix_clocks[timr->it_clock].timer_set(timr,
+		error = posix_clocks[timr->it_clock].timer_set(timr,
 							       flags,
 							       &new_spec, rtn);
 	unlock_timer(timr, flag);
@@ -1062,8 +875,6 @@ static inline int do_timer_delete(struct k_itimer *timer)
 #else
 	del_timer(&timer->it_timer);
 #endif
-	remove_from_abslist(timer);
-
 	return 0;
 }
 
@@ -1092,20 +903,16 @@ retry_delete:
 #else
 	p_timer_del(&posix_clocks[timer->it_clock], timer);
 #endif
-	spin_lock(&current->sighand->siglock);
+	task_lock(timer->it_process);
 	list_del(&timer->list);
-	spin_unlock(&current->sighand->siglock);
+	task_unlock(timer->it_process);
 	/*
 	 * This keeps any tasks waiting on the spin lock from thinking
 	 * they got something (see the lock code above).
 	 */
-	if (timer->it_process) {
-		if (timer->it_sigev_notify == (SIGEV_SIGNAL|SIGEV_THREAD_ID))
-			put_task_struct(timer->it_process);
 	timer->it_process = NULL;
-	}
 	unlock_timer(timer, flags);
-	release_posix_timer(timer, IT_ID_SET);
+	release_posix_timer(timer);
 	return 0;
 }
 /*
@@ -1113,50 +920,24 @@ retry_delete:
  */
 static inline void itimer_delete(struct k_itimer *timer)
 {
-	unsigned long flags;
-
-#ifdef CONFIG_SMP
-	int error;
-retry_delete:
-#endif
-	spin_lock_irqsave(&timer->it_lock, flags);
-
-#ifdef CONFIG_SMP
-	error = p_timer_del(&posix_clocks[timer->it_clock], timer);
-
-	if (error == TIMER_RETRY) {
-		unlock_timer(timer, flags);
-		goto retry_delete;
-	}
-#else
-	p_timer_del(&posix_clocks[timer->it_clock], timer);
-#endif
-	list_del(&timer->list);
-	/*
-	 * This keeps any tasks waiting on the spin lock from thinking
-	 * they got something (see the lock code above).
-	 */
-	if (timer->it_process) {
-		if (timer->it_sigev_notify == (SIGEV_SIGNAL|SIGEV_THREAD_ID))
-			put_task_struct(timer->it_process);
-		timer->it_process = NULL;
-	}
-	unlock_timer(timer, flags);
-	release_posix_timer(timer, IT_ID_SET);
+	if (sys_timer_delete(timer->it_id))
+		BUG();
 }
-
 /*
- * This is called by __exit_signal, only when there are no more
- * references to the shared signal_struct.
+ * This is exported to exit and exec
  */
-void exit_itimers(struct signal_struct *sig)
+void exit_itimers(struct task_struct *tsk)
 {
 	struct k_itimer *tmr;
 
-	while (!list_empty(&sig->posix_timers)) {
-		tmr = list_entry(sig->posix_timers.next, struct k_itimer, list);
+	task_lock(tsk);
+	while (!list_empty(&tsk->posix_timers)) {
+		tmr = list_entry(tsk->posix_timers.next, struct k_itimer, list);
+		task_unlock(tsk);
 		itimer_delete(tmr);
+		task_lock(tsk);
 	}
+	task_unlock(tsk);
 }
 
 /*
@@ -1186,6 +967,9 @@ static int do_posix_gettime(struct k_clock *clock, struct timespec *tp)
  * if we are interrupted since we don't take lock that will stall us or
  * any other cpu. Voila, no irq lock is needed.
  *
+ * Note also that the while loop assures that the sub_jiff_offset
+ * will be less than a jiffie, thus no need to normalize the result.
+ * Well, not really, if called with ints off :(
  */
 
 static u64 do_posix_clock_monotonic_gettime_parts(
@@ -1306,93 +1090,13 @@ static void nanosleep_wake_up(unsigned long __data)
  * On locking, clock_was_set() is called from update_wall_clock which
  * holds (or has held for it) a write_lock_irq( xtime_lock) and is
  * called from the timer bh code.  Thus we need the irq save locks.
- *
- * Also, on the call from update_wall_clock, that is done as part of a
- * softirq thing.  We don't want to delay the system that much (possibly
- * long list of timers to fix), so we defer that work to keventd.
  */
 
 static DECLARE_WAIT_QUEUE_HEAD(nanosleep_abs_wqueue);
-static DECLARE_WORK(clock_was_set_work, (void(*)(void*))clock_was_set, NULL);
-
-static DECLARE_MUTEX(clock_was_set_lock);
 
 void clock_was_set(void)
 {
-	struct k_itimer *timr;
-	struct timespec new_wall_to;
-	LIST_HEAD(cws_list);
-	unsigned long seq;
-
-
-	if (unlikely(in_interrupt())) {
-		schedule_work(&clock_was_set_work);
-		return;
-	}
 	wake_up_all(&nanosleep_abs_wqueue);
-
-	/*
-	 * Check if there exist TIMER_ABSTIME timers to correct.
-	 *
-	 * Notes on locking: This code is run in task context with irq
-	 * on.  We CAN be interrupted!  All other usage of the abs list
-	 * lock is under the timer lock which holds the irq lock as
-	 * well.  We REALLY don't want to scan the whole list with the
-	 * interrupt system off, AND we would like a sequence lock on
-	 * this code as well.  Since we assume that the clock will not
-	 * be set often, it seems ok to take and release the irq lock
-	 * for each timer.  In fact add_timer will do this, so this is
-	 * not an issue.  So we know when we are done, we will move the
-	 * whole list to a new location.  Then as we process each entry,
-	 * we will move it to the actual list again.  This way, when our
-	 * copy is empty, we are done.  We are not all that concerned
-	 * about preemption so we will use a semaphore lock to protect
-	 * aginst reentry.  This way we will not stall another
-	 * processor.  It is possible that this may delay some timers
-	 * that should have expired, given the new clock, but even this
-	 * will be minimal as we will always update to the current time,
-	 * even if it was set by a task that is waiting for entry to
-	 * this code.  Timers that expire too early will be caught by
-	 * the expire code and restarted.
-
-	 * Absolute timers that repeat are left in the abs list while
-	 * waiting for the task to pick up the signal.  This means we
-	 * may find timers that are not in the "add_timer" list, but are
-	 * in the abs list.  We do the same thing for these, save
-	 * putting them back in the "add_timer" list.  (Note, these are
-	 * left in the abs list mainly to indicate that they are
-	 * ABSOLUTE timers, a fact that is used by the re-arm code, and
-	 * for which we have no other flag.)
-
-	 */
-
-	down(&clock_was_set_lock);
-	spin_lock_irq(&abs_list.lock);
-	list_splice_init(&abs_list.list, &cws_list);
-	spin_unlock_irq(&abs_list.lock);
-	do {
-		do {
-			seq = read_seqbegin(&xtime_lock);
-			new_wall_to =	wall_to_monotonic;
-		} while (read_seqretry(&xtime_lock, seq));
-
-		spin_lock_irq(&abs_list.lock);
-		if (list_empty(&cws_list)) {
-			spin_unlock_irq(&abs_list.lock);
-			break;
-		}
-		timr = list_entry(cws_list.next, struct k_itimer,
-				   abs_timer_entry);
-
-		list_del_init(&timr->abs_timer_entry);
-		if (add_clockset_delta(timr, &new_wall_to) &&
-		    del_timer(&timr->it_timer))  /* timer run yet? */
-			add_timer(&timr->it_timer);
-		list_add(&timr->abs_timer_entry, &abs_list.list);
-		spin_unlock_irq(&abs_list.lock);
-	} while (1);
-
-	up(&clock_was_set_lock);
 }
 
 long clock_nanosleep_restart(struct restart_block *restart_block);
@@ -1435,7 +1139,7 @@ sys_clock_nanosleep(clockid_t which_clock, int flags,
 long
 do_clock_nanosleep(clockid_t which_clock, int flags, struct timespec *tsave)
 {
-	struct timespec t, dum;
+	struct timespec t;
 	struct timer_list new_timer;
 	DECLARE_WAITQUEUE(abs_wqueue, current);
 	u64 rq_time = (u64)0;
@@ -1475,7 +1179,7 @@ do_clock_nanosleep(clockid_t which_clock, int flags, struct timespec *tsave)
 		t = *tsave;
 		if (abs || !rq_time) {
 			adjust_abs_time(&posix_clocks[which_clock], &t, abs,
-					&rq_time, &dum);
+					&rq_time);
 			rq_time += (t.tv_sec || t.tv_nsec);
 		}
 

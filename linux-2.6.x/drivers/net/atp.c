@@ -195,7 +195,7 @@ static void atp_timed_checker(unsigned long ignored);
 
 /* Index to functions, as function prototypes. */
 
-static int atp_probe1(long ioaddr);
+static int atp_probe1(struct net_device *dev, long ioaddr);
 static void get_node_ID(struct net_device *dev);
 static unsigned short eeprom_op(long ioaddr, unsigned int cmd);
 static int net_open(struct net_device *dev);
@@ -224,13 +224,13 @@ static struct net_device *root_atp_dev;
    
    FIXME: we should use the parport layer for this
    */
-static int __init atp_init(void)
+static int __init atp_init(struct net_device *dev)
 {
 	int *port, ports[] = {0x378, 0x278, 0x3bc, 0};
-	int base_addr = io[0];
+	int base_addr = dev ? dev->base_addr : io[0];
 
 	if (base_addr > 0x1ff)		/* Check a single specified location. */
-		return atp_probe1(base_addr);
+		return atp_probe1(dev, base_addr);
 	else if (base_addr == 1)	/* Don't probe at all. */
 		return -ENXIO;
 
@@ -239,19 +239,17 @@ static int __init atp_init(void)
 		outb(0x57, ioaddr + PAR_DATA);
 		if (inb(ioaddr + PAR_DATA) != 0x57)
 			continue;
-		if (atp_probe1(ioaddr) == 0)
+		if (atp_probe1(dev, ioaddr) == 0)
 			return 0;
 	}
 
 	return -ENODEV;
 }
 
-static int __init atp_probe1(long ioaddr)
+static int __init atp_probe1(struct net_device *dev, long ioaddr)
 {
-	struct net_device *dev = NULL;
 	struct net_local *lp;
 	int saved_ctrl_reg, status, i;
-	int res;
 
 	outb(0xff, ioaddr + PAR_DATA);
 	/* Save the original value of the Control register, in case we guessed
@@ -298,7 +296,7 @@ static int __init atp_probe1(long ioaddr)
 		return -ENODEV;
 	}
 
-	dev = alloc_etherdev(sizeof(struct net_local));
+	dev = init_etherdev(dev, sizeof(struct net_local));
 	if (!dev)
 		return -ENOMEM;
 	SET_MODULE_OWNER(dev);
@@ -333,12 +331,23 @@ static int __init atp_probe1(long ioaddr)
 		   dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
 
 	/* Reset the ethernet hardware and activate the printer pass-through. */
-	write_reg_high(ioaddr, CMR1, CMR1h_RESET | CMR1h_MUX);
+    write_reg_high(ioaddr, CMR1, CMR1h_RESET | CMR1h_MUX);
 
-	lp = netdev_priv(dev);
+	/* Initialize the device structure. */
+	ether_setup(dev);
+	if (dev->priv == NULL)
+		dev->priv = kmalloc(sizeof(struct net_local), GFP_KERNEL);
+	if (dev->priv == NULL)
+		return -ENOMEM;
+	memset(dev->priv, 0, sizeof(struct net_local));
+
+	lp = (struct net_local *)dev->priv;
 	lp->chip_type = RTL8002;
 	lp->addr_mode = CMR2h_Normal;
 	spin_lock_init(&lp->lock);
+
+	lp->next_module = root_atp_dev;
+	root_atp_dev = dev;
 
 	/* For the ATP adapter the "if_port" is really the data transfer mode. */
 	if (xcvr[0])
@@ -356,15 +365,6 @@ static int __init atp_probe1(long ioaddr)
 	  lp->chip_type == RTL8002 ? &set_rx_mode_8002 : &set_rx_mode_8012;
 	dev->tx_timeout		= tx_timeout;
 	dev->watchdog_timeo	= TX_TIMEOUT;
-
-	res = register_netdev(dev);
-	if (res) {
-		free_netdev(dev);
-		return res;
-	}
-
-	lp->next_module = root_atp_dev;
-	root_atp_dev = dev;
 
 	return 0;
 }
@@ -432,7 +432,7 @@ static unsigned short __init eeprom_op(long ioaddr, u32 cmd)
    */
 static int net_open(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	int ret;
 
 	/* The interrupt line is turned off (tri-stated) when the device isn't in
@@ -458,7 +458,7 @@ static int net_open(struct net_device *dev)
    the hardware may have been temporarily detached. */
 static void hardware_init(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	long ioaddr = dev->base_addr;
     int i;
 
@@ -541,7 +541,7 @@ static void write_packet(long ioaddr, int length, unsigned char *packet, int pad
 
 static void tx_timeout(struct net_device *dev)
 {
-	struct net_local *np = netdev_priv(dev);
+	struct net_local *np = (struct net_local *)dev->priv;
 	long ioaddr = dev->base_addr;
 
 	printk(KERN_WARNING "%s: Transmit timed out, %s?\n", dev->name,
@@ -557,7 +557,7 @@ static void tx_timeout(struct net_device *dev)
 
 static int atp_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int length;
 	unsigned long flags;
@@ -611,7 +611,7 @@ atp_interrupt(int irq, void *dev_instance, struct pt_regs * regs)
 		return IRQ_NONE;
 	}
 	ioaddr = dev->base_addr;
-	lp = netdev_priv(dev);
+	lp = (struct net_local *)dev->priv;
 
 	spin_lock(&lp->lock);
 
@@ -726,7 +726,7 @@ static void atp_timed_checker(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
 	long ioaddr = dev->base_addr;
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	int tickssofar = jiffies - lp->last_rx_time;
 	int i;
 
@@ -740,7 +740,7 @@ static void atp_timed_checker(unsigned long data)
 		for (i = 0; i < 6; i++)
 			if (read_cmd_byte(ioaddr, PAR0 + i) != atp_timed_dev->dev_addr[i])
 				{
-			struct net_local *lp = netdev_priv(atp_timed_dev);
+			struct net_local *lp = (struct net_local *)atp_timed_dev->priv;
 			write_reg_byte(ioaddr, PAR0 + i, atp_timed_dev->dev_addr[i]);
 			if (i == 2)
 			  lp->stats.tx_errors++;
@@ -762,7 +762,7 @@ static void atp_timed_checker(unsigned long data)
 /* We have a good packet(s), get it/them out of the buffers. */
 static void net_rx(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	long ioaddr = dev->base_addr;
 	struct rx_header rx_head;
 
@@ -838,7 +838,7 @@ static void read_block(long ioaddr, int length, unsigned char *p, int data_mode)
 static int
 net_close(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	long ioaddr = dev->base_addr;
 
 	netif_stop_queue(dev);
@@ -863,7 +863,7 @@ net_close(struct net_device *dev)
 static struct net_device_stats *
 net_get_stats(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	return &lp->stats;
 }
 
@@ -873,7 +873,7 @@ net_get_stats(struct net_device *dev)
 
 static void set_rx_mode_8002(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	long ioaddr = dev->base_addr;
 
 	if ( dev->mc_count > 0 || (dev->flags & (IFF_ALLMULTI|IFF_PROMISC))) {
@@ -890,7 +890,7 @@ static void set_rx_mode_8002(struct net_device *dev)
 
 static void set_rx_mode_8012(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	long ioaddr = dev->base_addr;
 	unsigned char new_mode, mc_filter[8]; /* Multicast hash filter */
 	int i;
@@ -933,7 +933,7 @@ static void set_rx_mode_8012(struct net_device *dev)
 static int __init atp_init_module(void) {
 	if (debug)					/* Emit version even if no cards detected. */
 		printk(KERN_INFO "%s" KERN_INFO "%s", versionA, versionB);
-	return atp_init();
+	return atp_init(NULL);
 }
 
 static void __exit atp_cleanup_module(void) {

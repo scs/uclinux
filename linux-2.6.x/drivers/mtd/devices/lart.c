@@ -433,7 +433,7 @@ static int flash_erase (struct mtd_info *mtd,struct erase_info *instr)
 	 }
 
    instr->state = MTD_ERASE_DONE;
-   mtd_erase_callback(instr);
+   if (instr->callback) instr->callback (instr);
 
    return (0);
 }

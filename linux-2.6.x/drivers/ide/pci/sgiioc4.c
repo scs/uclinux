@@ -303,6 +303,14 @@ sgiioc4_ide_dma_on(ide_drive_t * drive)
 }
 
 static int
+sgiioc4_ide_dma_off(ide_drive_t * drive)
+{
+	printk(KERN_INFO "%s: DMA disabled\n", drive->name);
+
+	return HWIF(drive)->ide_dma_off_quietly(drive);
+}
+
+static int
 sgiioc4_ide_dma_off_quietly(ide_drive_t * drive)
 {
 	drive->using_dma = 0;
@@ -636,11 +644,16 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	hwif->ide_dma_end = &sgiioc4_ide_dma_end;
 	hwif->ide_dma_check = &sgiioc4_ide_dma_check;
 	hwif->ide_dma_on = &sgiioc4_ide_dma_on;
+	hwif->ide_dma_off = &sgiioc4_ide_dma_off;
 	hwif->ide_dma_off_quietly = &sgiioc4_ide_dma_off_quietly;
 	hwif->ide_dma_test_irq = &sgiioc4_ide_dma_test_irq;
 	hwif->ide_dma_host_on = &sgiioc4_ide_dma_host_on;
 	hwif->ide_dma_host_off = &sgiioc4_ide_dma_host_off;
+	hwif->ide_dma_bad_drive = &__ide_dma_bad_drive;
+	hwif->ide_dma_good_drive = &__ide_dma_good_drive;
+	hwif->ide_dma_count = &__ide_dma_count;
 	hwif->ide_dma_verbose = &sgiioc4_ide_dma_verbose;
+	hwif->ide_dma_retune = &__ide_dma_retune;
 	hwif->ide_dma_lostirq = &sgiioc4_ide_dma_lostirq;
 	hwif->ide_dma_timeout = &__ide_dma_timeout;
 	hwif->INB = &sgiioc4_INB;
@@ -757,6 +770,8 @@ pci_init_sgiioc4(struct pci_dev *dev, ide_pci_device_t * d)
 static ide_pci_device_t sgiioc4_chipsets[] __devinitdata = {
 	{
 	 /* Channel 0 */
+	 .vendor = PCI_VENDOR_ID_SGI,
+	 .device = PCI_DEVICE_ID_SGI_IOC4,
 	 .name = "SGIIOC4",
 	 .init_hwif = ide_init_sgiioc4,
 	 .init_dma = ide_dma_sgiioc4,
@@ -770,7 +785,18 @@ static ide_pci_device_t sgiioc4_chipsets[] __devinitdata = {
 static int __devinit
 sgiioc4_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	pci_init_sgiioc4(dev, &sgiioc4_chipsets[id->driver_data]);
+	ide_pci_device_t *d = &sgiioc4_chipsets[id->driver_data];
+	if (dev->device != d->device) {
+		printk(KERN_ERR "Error in %s(dev 0x%p | id 0x%p )\n",
+		       __FUNCTION__, (void *) dev, (void *) id);
+		BUG();
+	}
+
+	if (pci_init_sgiioc4(dev, d))
+		return 0;
+
+	MOD_INC_USE_COUNT;
+
 	return 0;
 }
 
@@ -779,7 +805,6 @@ static struct pci_device_id sgiioc4_pci_tbl[] = {
 	 PCI_ANY_ID, 0x0b4000, 0xFFFFFF, 0},
 	{0}
 };
-MODULE_DEVICE_TABLE(pci, sgiioc4_pci_tbl);
 
 static struct pci_driver driver = {
 	.name = "SGI-IOC4 IDE",
@@ -793,7 +818,14 @@ sgiioc4_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void
+sgiioc4_ide_exit(void)
+{
+	ide_pci_unregister_driver(&driver);
+}
+
 module_init(sgiioc4_ide_init);
+module_exit(sgiioc4_ide_exit);
 
 MODULE_AUTHOR("Aniket Malatpure - Silicon Graphics Inc. (SGI)");
 MODULE_DESCRIPTION("PCI driver module for SGI IOC4 Base-IO Card");

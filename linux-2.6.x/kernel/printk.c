@@ -62,15 +62,6 @@ int oops_in_progress;
  */
 static DECLARE_MUTEX(console_sem);
 struct console *console_drivers;
-/*
- * This is used for debugging the mess that is the VT code by
- * keeping track if we have the console semaphore held. It's
- * definitely not the perfect debug tool (we don't know if _WE_
- * hold it are racing, but it helps tracking those weird code
- * path in the console code where we end up in places I want
- * locked without the console sempahore held
- */
-static int console_locked;
 
 /*
  * logbuf_lock protects log_buf, log_start, log_end, con_start and logged_chars
@@ -240,7 +231,6 @@ __setup("log_buf_len=", log_buf_len_setup);
  * 	7 -- Enable printk's to console
  *	8 -- Set level of messages printed to console
  *	9 -- Return number of unread characters in the log buffer
- *     10 -- Return size of the log buffer
  */
 int do_syslog(int type, char __user * buf, int len)
 {
@@ -360,9 +350,6 @@ int do_syslog(int type, char __user * buf, int len)
 	case 9:		/* Number of chars in the log buffer */
 		error = log_end - log_start;
 		break;
-	case 10:	/* Size of the log buffer */
-		error = log_buf_len;
-		break;
 	default:
 		error = -EINVAL;
 		break;
@@ -472,27 +459,6 @@ static void emit_log_char(char c)
 }
 
 /*
- * Zap console related locks when oopsing. Only zap at most once
- * every 10 seconds, to leave time for slow consoles to print a
- * full oops.
- */
-static void zap_locks(void)
-{
-	static unsigned long oops_timestamp;
-
-	if (time_after_eq(jiffies, oops_timestamp) &&
-			!time_after(jiffies, oops_timestamp + 30*HZ))
-		return;
-
-	oops_timestamp = jiffies;
-
-	/* If a crash is occurring, make sure we can't deadlock */
-	spin_lock_init(&logbuf_lock);
-	/* And make sure that we print immediately */
-	init_MUTEX(&console_sem);
-}
-
-/*
  * This is printk.  It can be called from any context.  We want it to work.
  * 
  * We try to grab the console_sem.  If we succeed, it's easy - we log the output and
@@ -514,15 +480,19 @@ asmlinkage int printk(const char *fmt, ...)
 	static char printk_buf[1024];
 	static int log_level_unknown = 1;
 
-	if (unlikely(oops_in_progress))
-		zap_locks();
+	if (oops_in_progress) {
+		/* If a crash is occurring, make sure we can't deadlock */
+		spin_lock_init(&logbuf_lock);
+		/* And make sure that we print immediately */
+		init_MUTEX(&console_sem);
+	}
 
 	/* This stops the holder of console_sem just where we want him */
 	spin_lock_irqsave(&logbuf_lock, flags);
 
 	/* Emit the output into the temporary buffer */
 	va_start(args, fmt);
-	printed_len = vscnprintf(printk_buf, sizeof(printk_buf), fmt, args);
+	printed_len = vsnprintf(printk_buf, sizeof(printk_buf), fmt, args);
 	va_end(args);
 
 	/*
@@ -543,8 +513,7 @@ asmlinkage int printk(const char *fmt, ...)
 			log_level_unknown = 1;
 	}
 
-	if (!cpu_online(smp_processor_id()) &&
-	    system_state != SYSTEM_RUNNING) {
+	if (!cpu_online(smp_processor_id())) {
 		/*
 		 * Some console drivers may assume that per-cpu resources have
 		 * been allocated.  So don't allow them to be called by this
@@ -555,7 +524,6 @@ asmlinkage int printk(const char *fmt, ...)
 		goto out;
 	}
 	if (!down_trylock(&console_sem)) {
-		console_locked = 1;
 		/*
 		 * We own the drivers.  We can drop the spinlock and let
 		 * release_console_sem() print the text
@@ -589,16 +557,9 @@ void acquire_console_sem(void)
 	if (in_interrupt())
 		BUG();
 	down(&console_sem);
-	console_locked = 1;
 	console_may_schedule = 1;
 }
 EXPORT_SYMBOL(acquire_console_sem);
-
-int is_console_locked(void)
-{
-	return console_locked;
-}
-EXPORT_SYMBOL(is_console_locked);
 
 /**
  * release_console_sem - unlock the console system
@@ -631,14 +592,12 @@ void release_console_sem(void)
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 		call_console_drivers(_con_start, _log_end);
 	}
-	console_locked = 0;
 	console_may_schedule = 0;
 	up(&console_sem);
 	spin_unlock_irqrestore(&logbuf_lock, flags);
 	if (wake_klogd && !oops_in_progress && waitqueue_active(&log_wait))
 		wake_up_interruptible(&log_wait);
 }
-EXPORT_SYMBOL(release_console_sem);
 
 /** console_conditional_schedule - yield the CPU if required
  *
@@ -674,7 +633,6 @@ void console_unblank(void)
 	 */
 	if (down_trylock(&console_sem) != 0)
 		return;
-	console_locked = 1;
 	console_may_schedule = 0;
 	for (c = console_drivers; c != NULL; c = c->next)
 		if ((c->flags & CON_ENABLED) && c->unblank)
@@ -682,47 +640,6 @@ void console_unblank(void)
 	release_console_sem();
 }
 EXPORT_SYMBOL(console_unblank);
-
-/*
- * Return the console tty driver structure and its associated index
- */
-struct tty_driver *console_device(int *index)
-{
-	struct console *c;
-	struct tty_driver *driver = NULL;
-
-	acquire_console_sem();
-	for (c = console_drivers; c != NULL; c = c->next) {
-		if (!c->device)
-			continue;
-		driver = c->device(c, index);
-		if (driver)
-			break;
-	}
-	release_console_sem();
-	return driver;
-}
-
-/*
- * Prevent further output on the passed console device so that (for example)
- * serial drivers can disable console output before suspending a port, and can
- * re-enable output afterwards.
- */
-void console_stop(struct console *console)
-{
-	acquire_console_sem();
-	console->flags &= ~CON_ENABLED;
-	release_console_sem();
-}
-EXPORT_SYMBOL(console_stop);
-
-void console_start(struct console *console)
-{
-	acquire_console_sem();
-	console->flags |= CON_ENABLED;
-	release_console_sem();
-}
-EXPORT_SYMBOL(console_start);
 
 /*
  * The console driver calls this routine during kernel initialization
@@ -847,6 +764,12 @@ void tty_write_message(struct tty_struct *tty, char *msg)
 	return;
 }
 
+/* minimum time in jiffies between messages */
+int printk_ratelimit_jiffies = 5*HZ;
+
+/* number of messages we send before ratelimiting */
+int printk_ratelimit_burst = 10;
+
 /*
  * printk rate limiting, lifted from the networking subsystem.
  *
@@ -854,7 +777,7 @@ void tty_write_message(struct tty_struct *tty, char *msg)
  * every printk_ratelimit_jiffies to make a denial-of-service
  * attack impossible.
  */
-int __printk_ratelimit(int ratelimit_jiffies, int ratelimit_burst)
+int printk_ratelimit(void)
 {
 	static spinlock_t ratelimit_lock = SPIN_LOCK_UNLOCKED;
 	static unsigned long toks = 10*5*HZ;
@@ -866,12 +789,12 @@ int __printk_ratelimit(int ratelimit_jiffies, int ratelimit_burst)
 	spin_lock_irqsave(&ratelimit_lock, flags);
 	toks += now - last_msg;
 	last_msg = now;
-	if (toks > (ratelimit_burst * ratelimit_jiffies))
-		toks = ratelimit_burst * ratelimit_jiffies;
-	if (toks >= ratelimit_jiffies) {
+	if (toks > (printk_ratelimit_burst * printk_ratelimit_jiffies))
+		toks = printk_ratelimit_burst * printk_ratelimit_jiffies;
+	if (toks >= printk_ratelimit_jiffies) {
 		int lost = missed;
 		missed = 0;
-		toks -= ratelimit_jiffies;
+		toks -= printk_ratelimit_jiffies;
 		spin_unlock_irqrestore(&ratelimit_lock, flags);
 		if (lost)
 			printk(KERN_WARNING "printk: %d messages suppressed.\n", lost);
@@ -880,18 +803,5 @@ int __printk_ratelimit(int ratelimit_jiffies, int ratelimit_burst)
 	missed++;
 	spin_unlock_irqrestore(&ratelimit_lock, flags);
 	return 0;
-}
-EXPORT_SYMBOL(__printk_ratelimit);
-
-/* minimum time in jiffies between messages */
-int printk_ratelimit_jiffies = 5*HZ;
-
-/* number of messages we send before ratelimiting */
-int printk_ratelimit_burst = 10;
-
-int printk_ratelimit(void)
-{
-	return __printk_ratelimit(printk_ratelimit_jiffies,
-				printk_ratelimit_burst);
 }
 EXPORT_SYMBOL(printk_ratelimit);

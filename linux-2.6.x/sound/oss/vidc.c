@@ -116,7 +116,7 @@ vidc_mixer_set(int mdev, unsigned int level)
 #undef SCALE
 }
 
-static int vidc_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
+static int vidc_mixer_ioctl(int dev, unsigned int cmd, caddr_t arg)
 {
 	unsigned int val;
 	unsigned int mdev;
@@ -127,7 +127,7 @@ static int vidc_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
 	mdev = _SIOC_NR(cmd);
 
 	if (_SIOC_DIR(cmd) & _SIOC_WRITE) {
-		if (get_user(val, (unsigned int __user *)arg))
+		if (get_user(val, (unsigned int *)arg))
 			return -EFAULT;
 
 		if (mdev < SOUND_MIXER_NRDEVICES)
@@ -167,7 +167,7 @@ static int vidc_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
 			return -EINVAL;
 	}
 
-	return put_user(val, (unsigned int __user *)arg) ? -EFAULT : 0;
+	return put_user(val, (unsigned int *)arg) ? -EFAULT : 0;
 }
 
 static unsigned int vidc_audio_set_format(int dev, unsigned int fmt)
@@ -324,10 +324,9 @@ static int vidc_audio_prepare_for_input(int dev, int bsize, int bcount)
 	return -EINVAL;
 }
 
-static irqreturn_t vidc_audio_dma_interrupt(void)
+static void vidc_audio_dma_interrupt(void)
 {
 	DMAbuf_outputintr(vidc_adev, 1);
-	return IRQ_HANDLED;
 }
 
 /*

@@ -11,6 +11,7 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
+#define __KERNEL_SYSCALLS__
 #include <stdarg.h>
 
 #include <linux/errno.h>
@@ -22,13 +23,13 @@
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/stddef.h>
+#include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/user.h>
 #include <linux/a.out.h>
 #include <linux/interrupt.h>
 #include <linux/config.h>
-#include <linux/version.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
@@ -202,10 +203,6 @@ static int __init idle_setup (char *str)
 	if (!strncmp(str, "poll", 4)) {
 		printk("using polling idle threads.\n");
 		pm_idle = poll_idle;
-#ifdef CONFIG_X86_SMP
-		if (smp_num_siblings > 1)
-			printk("WARNING: polling idle and HT enabled, performance may degrade.\n");
-#endif
 	} else if (!strncmp(str, "halt", 4)) {
 		printk("using halt in idle threads.\n");
 		pm_idle = default_idle;
@@ -227,7 +224,7 @@ void show_regs(struct pt_regs * regs)
 
 	if (regs->xcs & 3)
 		printk(" ESP: %04x:%08lx",0xffff & regs->xss,regs->esp);
-	printk(" EFLAGS: %08lx    %s  (%s)\n",regs->eflags, print_tainted(),UTS_RELEASE);
+	printk(" EFLAGS: %08lx    %s\n",regs->eflags, print_tainted());
 	printk("EAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx\n",
 		regs->eax,regs->ebx,regs->ecx,regs->edx);
 	printk("ESI: %08lx EDI: %08lx EBP: %08lx",
@@ -255,15 +252,13 @@ void show_regs(struct pt_regs * regs)
  * the "args".
  */
 extern void kernel_thread_helper(void);
-__asm__(".section .text\n"
-	".align 4\n"
+__asm__(".align 4\n"
 	"kernel_thread_helper:\n\t"
 	"movl %edx,%eax\n\t"
 	"pushl %edx\n\t"
 	"call *%ebx\n\t"
 	"pushl %eax\n\t"
-	"call do_exit\n"
-	".previous");
+	"call do_exit");
 
 /*
  * Create a kernel thread
@@ -282,7 +277,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	regs.orig_eax = -1;
 	regs.eip = (unsigned long) kernel_thread_helper;
 	regs.xcs = __KERNEL_CS;
-	regs.eflags = X86_EFLAGS_IF | X86_EFLAGS_SF | X86_EFLAGS_PF | 0x2;
+	regs.eflags = 0x286;
 
 	/* Ok, create the new process.. */
 	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
@@ -297,12 +292,8 @@ void exit_thread(void)
 
 	/* The process may have allocated an io port bitmap... nuke it. */
 	if (unlikely(NULL != tsk->thread.io_bitmap_ptr)) {
-		int cpu = get_cpu();
-		struct tss_struct *tss = init_tss + cpu;
 		kfree(tsk->thread.io_bitmap_ptr);
 		tsk->thread.io_bitmap_ptr = NULL;
-		tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
-		put_cpu();
 	}
 }
 
@@ -353,7 +344,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 	int err;
 
 	childregs = ((struct pt_regs *) (THREAD_SIZE + (unsigned long) p->thread_info)) - 1;
-	*childregs = *regs;
+	struct_cpy(childregs, regs);
 	childregs->eax = 0;
 	childregs->esp = esp;
 	p->set_child_tid = p->clear_child_tid = NULL;
@@ -502,7 +493,7 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
  * the task-switch, and shows up in ret_from_fork in entry.S,
  * for example.
  */
-struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
+struct task_struct * __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread,
 				 *next = &next_p->thread;
@@ -637,8 +628,13 @@ out:
 	return error;
 }
 
-#define top_esp                (THREAD_SIZE - sizeof(unsigned long))
-#define top_ebp                (THREAD_SIZE - 2*sizeof(unsigned long))
+/*
+ * These bracket the sleeping functions..
+ */
+extern void scheduling_functions_start_here(void);
+extern void scheduling_functions_end_here(void);
+#define first_sched	((unsigned long) scheduling_functions_start_here)
+#define last_sched	((unsigned long) scheduling_functions_end_here)
 
 unsigned long get_wchan(struct task_struct *p)
 {
@@ -649,20 +645,22 @@ unsigned long get_wchan(struct task_struct *p)
 		return 0;
 	stack_page = (unsigned long)p->thread_info;
 	esp = p->thread.esp;
-	if (!stack_page || esp < stack_page || esp > top_esp+stack_page)
+	if (!stack_page || esp < stack_page || esp > 8188+stack_page)
 		return 0;
 	/* include/asm-i386/system.h:switch_to() pushes ebp last. */
 	ebp = *(unsigned long *) esp;
 	do {
-		if (ebp < stack_page || ebp > top_ebp+stack_page)
+		if (ebp < stack_page || ebp > 8184+stack_page)
 			return 0;
 		eip = *(unsigned long *) (ebp+4);
-		if (!in_sched_functions(eip))
+		if (eip < first_sched || eip >= last_sched)
 			return eip;
 		ebp = *(unsigned long *) ebp;
 	} while (count++ < 16);
 	return 0;
 }
+#undef last_sched
+#undef first_sched
 
 /*
  * sys_alloc_thread_area: get a yet unused TLS descriptor index.
@@ -741,7 +739,7 @@ asmlinkage int sys_set_thread_area(struct user_desc __user *u_info)
 	((desc)->a & 0x0ffff) | \
 	 ((desc)->b & 0xf0000) )
 	
-#define GET_32BIT(desc)		(((desc)->b >> 22) & 1)
+#define GET_32BIT(desc)		(((desc)->b >> 23) & 1)
 #define GET_CONTENTS(desc)	(((desc)->b >> 10) & 3)
 #define GET_WRITABLE(desc)	(((desc)->b >>  9) & 1)
 #define GET_LIMIT_PAGES(desc)	(((desc)->b >> 23) & 1)

@@ -28,8 +28,8 @@
 #define BUSWIDTH    2
 #define FLASH_BLOCKSIZE_MAIN	0x20000
 #define FLASH_NUMBLOCKS_MAIN	128
-/* can be "cfi_probe", "jedec_probe", "map_rom", NULL }; */
-#define PROBETYPES { "cfi_probe", NULL }
+/* can be "cfi_probe", "jedec_probe", "map_rom", 0 }; */
+#define PROBETYPES { "cfi_probe", 0 }
 
 #define MSG_PREFIX "EDB7312-NOR:"   /* prefix for our printk()'s */
 #define MTDID      "edb7312-nor"    /* for mtdparts= partitioning */
@@ -39,7 +39,7 @@ static struct mtd_info *mymtd;
 struct map_info edb7312nor_map = {
 	.name = "NOR flash on EDB7312",
 	.size = WINDOW_SIZE,
-	.bankwidth = BUSWIDTH,
+	.buswidth = BUSWIDTH,
 	.phys = WINDOW_ADDR,
 };
 

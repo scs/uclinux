@@ -76,7 +76,8 @@ static void vgacon_init(struct vc_data *c, int init);
 static void vgacon_deinit(struct vc_data *c);
 static void vgacon_cursor(struct vc_data *c, int mode);
 static int vgacon_switch(struct vc_data *c);
-static int vgacon_blank(struct vc_data *c, int blank, int mode_switch);
+static int vgacon_blank(struct vc_data *c, int blank);
+static int vgacon_font_op(struct vc_data *c, struct console_font_op *op);
 static int vgacon_set_palette(struct vc_data *vc, unsigned char *table);
 static int vgacon_scrolldelta(struct vc_data *c, int lines);
 static int vgacon_set_origin(struct vc_data *c);
@@ -660,7 +661,7 @@ static void vga_pal_blank(struct vgastate *state)
 	}
 }
 
-static int vgacon_blank(struct vc_data *c, int blank, int mode_switch)
+static int vgacon_blank(struct vc_data *c, int blank)
 {
 	switch (blank) {
 	case 0:		/* Unblank */
@@ -677,8 +678,7 @@ static int vgacon_blank(struct vc_data *c, int blank, int mode_switch)
 		/* Tell console.c that it has to restore the screen itself */
 		return 1;
 	case 1:		/* Normal blanking */
-	case -1:	/* Obsolete */
-		if (!mode_switch && vga_video_type == VIDEO_TYPE_VGAC) {
+		if (vga_video_type == VIDEO_TYPE_VGAC) {
 			vga_pal_blank(&state);
 			vga_palette_blanked = 1;
 			return 0;
@@ -686,8 +686,11 @@ static int vgacon_blank(struct vc_data *c, int blank, int mode_switch)
 		vgacon_set_origin(c);
 		scr_memsetw((void *) vga_vram_base, BLANK,
 			    c->vc_screenbuf_size);
-		if (mode_switch)
-			vga_is_gfx = 1;
+		return 1;
+	case -1:		/* Entering graphic mode */
+		scr_memsetw((void *) vga_vram_base, BLANK,
+			    c->vc_screenbuf_size);
+		vga_is_gfx = 1;
 		return 1;
 	default:		/* VESA blanking */
 		if (vga_video_type == VIDEO_TYPE_VGAC) {
@@ -907,43 +910,38 @@ static int vgacon_adjust_height(struct vc_data *vc, unsigned fontheight)
 	return 0;
 }
 
-static int vgacon_font_set(struct vc_data *c, struct console_font *font, unsigned flags)
+static int vgacon_font_op(struct vc_data *c, struct console_font_op *op)
 {
-	unsigned charcount = font->charcount;
 	int rc;
 
 	if (vga_video_type < VIDEO_TYPE_EGAM)
 		return -EINVAL;
 
-	if (font->width != 8 || (charcount != 256 && charcount != 512))
-		return -EINVAL;
-
-	rc = vgacon_do_font_op(&state, font->data, 1, charcount == 512);
-	if (rc)
-		return rc;
-
-	if (!(flags & KD_FONT_FLAG_DONT_RECALC))
-		rc = vgacon_adjust_height(c, font->height);
+	if (op->op == KD_FONT_OP_SET) {
+		if (op->width != 8
+		    || (op->charcount != 256 && op->charcount != 512))
+			return -EINVAL;
+		rc = vgacon_do_font_op(&state, op->data, 1, op->charcount == 512);
+		if (!rc && !(op->flags & KD_FONT_FLAG_DONT_RECALC))
+			rc = vgacon_adjust_height(c, op->height);
+	} else if (op->op == KD_FONT_OP_GET) {
+		op->width = 8;
+		op->height = c->vc_font.height;
+		op->charcount = vga_512_chars ? 512 : 256;
+		if (!op->data)
+			return 0;
+		rc = vgacon_do_font_op(&state, op->data, 0, 0);
+	} else
+		rc = -ENOSYS;
 	return rc;
-}
-
-static int vgacon_font_get(struct vc_data *c, struct console_font *font)
-{
-	if (vga_video_type < VIDEO_TYPE_EGAM)
-		return -EINVAL;
-
-	font->width = 8;
-	font->height = c->vc_font.height;
-	font->charcount = vga_512_chars ? 512 : 256;
-	if (!font->data)
-		return 0;
-	return vgacon_do_font_op(&state, font->data, 0, 0);
 }
 
 #else
 
-#define vgacon_font_set NULL
-#define vgacon_font_get NULL
+static int vgacon_font_op(struct vc_data *c, struct console_font_op *op)
+{
+	return -ENOSYS;
+}
 
 #endif
 
@@ -967,8 +965,6 @@ static int vgacon_scrolldelta(struct vc_data *c, int lines)
 		p = (c->vc_visible_origin - vga_vram_base - ul + we) % we +
 		    lines * c->vc_size_row;
 		st = (c->vc_origin - vga_vram_base - ul + we) % we;
-		if (st < 2 * margin)
-			margin = 0;
 		if (p < margin)
 			p = 0;
 		if (p > st - margin)
@@ -1071,7 +1067,6 @@ static int vgacon_dummy(struct vc_data *c)
 #define DUMMY (void *) vgacon_dummy
 
 const struct consw vga_con = {
-	.owner = THIS_MODULE,
 	.con_startup = vgacon_startup,
 	.con_init = vgacon_init,
 	.con_deinit = vgacon_deinit,
@@ -1083,8 +1078,7 @@ const struct consw vga_con = {
 	.con_bmove = DUMMY,
 	.con_switch = vgacon_switch,
 	.con_blank = vgacon_blank,
-	.con_font_set = vgacon_font_set,
-	.con_font_get = vgacon_font_get,
+	.con_font_op = vgacon_font_op,
 	.con_set_palette = vgacon_set_palette,
 	.con_scrolldelta = vgacon_scrolldelta,
 	.con_set_origin = vgacon_set_origin,

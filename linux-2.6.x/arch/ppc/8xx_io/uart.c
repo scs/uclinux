@@ -583,7 +583,9 @@ static _INLINE_ void check_modem_status(struct async_struct *info)
 #ifdef SERIAL_DEBUG_OPEN
 			printk("scheduling hangup...");
 #endif
-			schedule_task(&info->tqueue_hangup);
+			MOD_INC_USE_COUNT;
+			if (schedule_task(&info->tqueue_hangup) == 0)
+				MOD_DEC_USE_COUNT;
 		}
 	}
 	if (info->flags & ASYNC_CTS_FLOW) {
@@ -717,6 +719,7 @@ static void do_serial_hangup(void *private_)
 	tty = info->tty;
 	if (tty)
 		tty_hangup(tty);
+	MOD_DEC_USE_COUNT;
 }
 
 /*static void rs_8xx_timer(void)
@@ -1661,6 +1664,7 @@ static void rs_8xx_close(struct tty_struct *tty, struct file * filp)
 
 	if (tty_hung_up_p(filp)) {
 		DBG_CNT("before DEC-hung");
+		MOD_DEC_USE_COUNT;
 		restore_flags(flags);
 		return;
 	}
@@ -1687,6 +1691,7 @@ static void rs_8xx_close(struct tty_struct *tty, struct file * filp)
 	}
 	if (state->count) {
 		DBG_CNT("before DEC-2");
+		MOD_DEC_USE_COUNT;
 		restore_flags(flags);
 		return;
 	}
@@ -1741,6 +1746,7 @@ static void rs_8xx_close(struct tty_struct *tty, struct file * filp)
 	}
 	info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
 	wake_up_interruptible(&info->close_wait);
+	MOD_DEC_USE_COUNT;
 	restore_flags(flags);
 }
 
@@ -2002,12 +2008,14 @@ static int rs_8xx_open(struct tty_struct *tty, struct file * filp)
 	if (retval)
 		return retval;
 
+	MOD_INC_USE_COUNT;
 	retval = block_til_ready(tty, filp, info);
 	if (retval) {
 #ifdef SERIAL_DEBUG_OPEN
 		printk("rs_open returning after block_til_ready with %d\n",
 		       retval);
 #endif
+		MOD_DEC_USE_COUNT;
 		return retval;
 	}
 
@@ -2491,7 +2499,7 @@ static int __init rs_8xx_init(void)
 {
 	struct serial_state * state;
 	ser_info_t	*info;
-	uint		mem_addr, iobits, dp_offset;
+	uint		mem_addr, dp_addr, iobits;
 	int		i, j, idx;
 	ushort		chan;
 	volatile	cbd_t		*bdp;
@@ -2512,7 +2520,6 @@ static int __init rs_8xx_init(void)
 
 	/* Initialize the tty_driver structure */
 
-	serial_driver->owner = THIS_MODULE;
 	serial_driver->driver_name = "serial";
 	serial_driver->devfs_name = "tts/";
 	serial_driver->name = "ttyS";
@@ -2623,7 +2630,7 @@ static int __init rs_8xx_init(void)
 			 * descriptors from dual port ram, and a character
 			 * buffer area from host mem.
 			 */
-			dp_offset = cpm_dpalloc(sizeof(cbd_t) * RX_NUM_FIFO, 8);
+			dp_addr = m8xx_cpm_dpalloc(sizeof(cbd_t) * RX_NUM_FIFO);
 
 			/* Allocate space for FIFOs in the host memory.
 			*/
@@ -2634,7 +2641,7 @@ static int __init rs_8xx_init(void)
 			 * buffers in the buffer descriptors, and the
 			 * virtual address for us to work with.
 			 */
-			bdp = (cbd_t *)&cp->cp_dpmem[dp_offset];
+			bdp = (cbd_t *)&cp->cp_dpmem[dp_addr];
 			info->rx_cur = info->rx_bd_base = (cbd_t *)bdp;
 
 			for (j=0; j<(RX_NUM_FIFO-1); j++) {
@@ -2650,15 +2657,15 @@ static int __init rs_8xx_init(void)
 			if (info->state->smc_scc_num & NUM_IS_SCC) {
 				scp = &cp->cp_scc[idx];
 				sup = (scc_uart_t *)&cp->cp_dparam[state->port];
-				sup->scc_genscc.scc_rbase = dp_offset;
+				sup->scc_genscc.scc_rbase = dp_addr;
 			}
 			else {
 				sp = &cp->cp_smc[idx];
 				up = (smc_uart_t *)&cp->cp_dparam[state->port];
-				up->smc_rbase = dp_offset;
+				up->smc_rbase = dp_addr;
 			}
 
-			dp_offset = cpm_dpalloc(sizeof(cbd_t) * TX_NUM_FIFO, 8);
+			dp_addr = m8xx_cpm_dpalloc(sizeof(cbd_t) * TX_NUM_FIFO);
 
 			/* Allocate space for FIFOs in the host memory.
 			*/
@@ -2669,7 +2676,7 @@ static int __init rs_8xx_init(void)
 			 * buffers in the buffer descriptors, and the
 			 * virtual address for us to work with.
 			 */
-			bdp = (cbd_t *)&cp->cp_dpmem[dp_offset];
+			bdp = (cbd_t *)&cp->cp_dpmem[dp_addr];
 			info->tx_cur = info->tx_bd_base = (cbd_t *)bdp;
 
 			for (j=0; j<(TX_NUM_FIFO-1); j++) {
@@ -2682,7 +2689,7 @@ static int __init rs_8xx_init(void)
 			bdp->cbd_sc = (BD_SC_WRAP | BD_SC_INTRPT);
 
 			if (info->state->smc_scc_num & NUM_IS_SCC) {
-				sup->scc_genscc.scc_tbase = dp_offset;
+				sup->scc_genscc.scc_tbase = dp_addr;
 
 				/* Set up the uart parameters in the
 				 * parameter ram.
@@ -2779,7 +2786,7 @@ static int __init rs_8xx_init(void)
 				cp->cp_simode &= ~(0xffff << (idx * 16));
 				cp->cp_simode |= (i << ((idx * 16) + 12));
 
-				up->smc_tbase = dp_offset;
+				up->smc_tbase = dp_addr;
 
 				/* Set up the uart parameters in the
 				 * parameter ram.
@@ -2843,7 +2850,7 @@ module_init(rs_8xx_init);
 static int __init serial_console_setup(struct console *co, char *options)
 {
 	struct		serial_state *ser;
-	uint		mem_addr, bidx, idx, dp_offset;
+	uint		mem_addr, dp_addr, bidx, idx;
 	ushort		chan;
 	volatile	cbd_t		*bdp;
 	volatile	cpm8xx_t	*cp;
@@ -2889,17 +2896,17 @@ static int __init serial_console_setup(struct console *co, char *options)
 	 * memory yet because vm allocator isn't initialized
 	 * during this early console init.
 	 */
-	dp_offset = cpm_dpalloc(8, 8);
-	mem_addr = (uint)(&cpmp->cp_dpmem[dp_offset]);
+	dp_addr = m8xx_cpm_dpalloc(8);
+	mem_addr = (uint)(&cpmp->cp_dpmem[dp_addr]);
 
 	/* Allocate space for two buffer descriptors in the DP ram.
 	*/
-	dp_offset = cpm_dpalloc(sizeof(cbd_t) * 2, 8);
+	dp_addr = m8xx_cpm_dpalloc(sizeof(cbd_t) * 2);
 
 	/* Set the physical address of the host memory buffers in
 	 * the buffer descriptors.
 	 */
-	bdp = (cbd_t *)&cp->cp_dpmem[dp_offset];
+	bdp = (cbd_t *)&cp->cp_dpmem[dp_addr];
 	bdp->cbd_bufaddr = iopa(mem_addr);
 	(bdp+1)->cbd_bufaddr = iopa(mem_addr+4);
 
@@ -2918,8 +2925,8 @@ static int __init serial_console_setup(struct console *co, char *options)
 	*/
 	if (ser->smc_scc_num & NUM_IS_SCC) {
 
-		sup->scc_genscc.scc_rbase = dp_offset;
-		sup->scc_genscc.scc_tbase = dp_offset + sizeof(cbd_t);
+		sup->scc_genscc.scc_rbase = dp_addr;
+		sup->scc_genscc.scc_tbase = dp_addr + sizeof(cbd_t);
 
 		/* Set up the uart parameters in the
 		 * parameter ram.
@@ -2977,8 +2984,8 @@ static int __init serial_console_setup(struct console *co, char *options)
 
 	}
 	else {
-		up->smc_rbase = dp_offset;	/* Base of receive buffer desc. */
-		up->smc_tbase = dp_offset+sizeof(cbd_t);	/* Base of xmt buffer desc. */
+		up->smc_rbase = dp_addr;	/* Base of receive buffer desc. */
+		up->smc_tbase = dp_addr+sizeof(cbd_t);	/* Base of xmt buffer desc. */
 		up->smc_rfcr = SMC_EB;
 		up->smc_tfcr = SMC_EB;
 

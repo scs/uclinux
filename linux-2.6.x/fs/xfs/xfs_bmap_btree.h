@@ -673,7 +673,7 @@ xfs_bmbt_update(
 	xfs_filblks_t,
 	xfs_exntst_t);
 
-#ifdef DEBUG
+#ifdef XFSDEBUG
 /*
  * Get the data from the pointed-to record.
  */

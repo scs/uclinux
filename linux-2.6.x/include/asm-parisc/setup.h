@@ -1,6 +1,10 @@
-#ifndef _PARISC_SETUP_H
-#define _PARISC_SETUP_H
+/*
+ *	Just a place holder. We don't want to have to test x86 before
+ *	we include stuff
+ */
 
-#define COMMAND_LINE_SIZE	1024
+#ifndef _i386_SETUP_H
+#define _i386_SETUP_H
 
-#endif /* _PARISC_SETUP_H */
+
+#endif /* _i386_SETUP_H */

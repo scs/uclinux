@@ -75,6 +75,8 @@ extern void breakpoint(void);
 
 #define ALLINTS_NOTIMER (IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3 | IE_IRQ4)
 
+unsigned int local_bh_count[NR_CPUS];
+unsigned int local_irq_count[NR_CPUS];
 void disable_it8172_irq(unsigned int irq_nr);
 void enable_it8172_irq(unsigned int irq_nr);
 
@@ -82,8 +84,8 @@ extern void set_debug_traps(void);
 extern void mips_timer_interrupt(int irq, struct pt_regs *regs);
 extern asmlinkage void it8172_IRQ(void);
 
-struct it8172_intc_regs volatile *it8172_hw0_icregs =
-	(struct it8172_intc_regs volatile *)(KSEG1ADDR(IT8172_PCI_IO_BASE + IT_INTC_BASE));
+struct it8172_intc_regs volatile *it8172_hw0_icregs
+	= (struct it8172_intc_regs volatile *)(KSEG1ADDR(IT8172_PCI_IO_BASE + IT_INTC_BASE));
 
 /* Function for careful CP0 interrupt mask access */
 static inline void modify_cp0_intmask(unsigned clr_mask, unsigned set_mask)
@@ -242,6 +244,7 @@ static struct hw_interrupt_type cp0_irq_type = {
 	end_none
 };
 
+
 void enable_cpu_timer(void)
 {
         unsigned long flags;
@@ -250,6 +253,7 @@ void enable_cpu_timer(void)
 	unmask_irq(1<<EXT_IRQ5_TO_IP); /* timer interrupt */
         local_irq_restore(flags);
 }
+
 
 void __init init_IRQ(void)
 {
@@ -330,7 +334,8 @@ void it8172_hw0_irqdispatch(struct pt_regs *regs)
 	intstatus = it8172_hw0_icregs->intstatus;
 	if (intstatus & 0x8) {
 		panic("Got NMI interrupt");
-	} else if (intstatus & 0x4) {
+	}
+	else if (intstatus & 0x4) {
 		/* PCI interrupt */
 		irq = 0;
 		status |= it8172_hw0_icregs->pci_req;
@@ -367,9 +372,10 @@ void it8172_hw0_irqdispatch(struct pt_regs *regs)
 		}
 		irq += IT8172_LPC_IRQ_BASE;
 		//printk("LPC int %d\n", irq);
-	} else
+	}
+	else {
 		return;
-
+	}
 	do_IRQ(irq, regs);
 }
 

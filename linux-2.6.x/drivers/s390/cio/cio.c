@@ -52,6 +52,15 @@ cio_setup (char *parm)
 
 __setup ("cio_msg=", cio_setup);
 
+
+#ifdef CONFIG_PROC_FS
+void
+init_irq_proc(void)
+{
+	/* For now, nothing... */
+}
+#endif
+
 /*
  * Function: cio_debug_init
  * Initializes three debug logs (under /proc/s390dbf) for common I/O:
@@ -67,17 +76,17 @@ cio_debug_init (void)
 	if (!cio_debug_msg_id)
 		goto out_unregister;
 	debug_register_view (cio_debug_msg_id, &debug_sprintf_view);
-	debug_set_level (cio_debug_msg_id, 2);
+	debug_set_level (cio_debug_msg_id, 6);
 	cio_debug_trace_id = debug_register ("cio_trace", 4, 4, 8);
 	if (!cio_debug_trace_id)
 		goto out_unregister;
 	debug_register_view (cio_debug_trace_id, &debug_hex_ascii_view);
-	debug_set_level (cio_debug_trace_id, 2);
+	debug_set_level (cio_debug_trace_id, 6);
 	cio_debug_crw_id = debug_register ("cio_crw", 2, 4, 16*sizeof (long));
 	if (!cio_debug_crw_id)
 		goto out_unregister;
 	debug_register_view (cio_debug_crw_id, &debug_sprintf_view);
-	debug_set_level (cio_debug_crw_id, 2);
+	debug_set_level (cio_debug_crw_id, 6);
 	pr_debug("debugging initialized\n");
 	return 0;
 
@@ -164,7 +173,7 @@ cio_start_handle_notoper(struct subchannel *sch, __u8 lpm)
 	stsch (sch->irq, &sch->schib);
 
 	CIO_MSG_EVENT(0, "cio_start: 'not oper' status for "
-		      "subchannel %04x!\n", sch->irq);
+		      "subchannel %s!\n", sch->dev.bus_id);
 	sprintf(dbf_text, "no%s", sch->dev.bus_id);
 	CIO_TRACE_EVENT(0, dbf_text);
 	CIO_HEX_EVENT(0, &sch->schib, sizeof (struct schib));
@@ -563,9 +572,9 @@ cio_validate_subchannel (struct subchannel *sch, unsigned int irq)
 		sch->opm;
 
 	CIO_DEBUG(KERN_INFO, 0,
-		  "Detected device %04X on subchannel %04X"
+		  "Detected device %04X on subchannel %s"
 		  " - PIM = %02X, PAM = %02X, POM = %02X\n",
-		  sch->schib.pmcw.dev, sch->irq, sch->schib.pmcw.pim,
+		  sch->schib.pmcw.dev, sch->dev.bus_id, sch->schib.pmcw.pim,
 		  sch->schib.pmcw.pam, sch->schib.pmcw.pom);
 
 	/*
@@ -598,7 +607,6 @@ do_IRQ (struct pt_regs *regs)
 	struct irb *irb;
 
 	irq_enter ();
-	asm volatile ("mc 0,0");
 	if (S390_lowcore.int_clock >= S390_lowcore.jiffy_timer)
 		account_ticks(regs);
 	/*
@@ -688,15 +696,15 @@ cio_console_irq(void)
 		if (stsch(console_irq, &console_subchannel.schib) != 0 ||
 		    !console_subchannel.schib.pmcw.dnv)
 			return -1;
-		console_devno = console_subchannel.schib.pmcw.dev;
-	} else if (console_devno != -1) {
+		console_device = console_subchannel.schib.pmcw.dev;
+	} else if (console_device != -1) {
 		/* At least the console device number is known. */
 		for (irq = 0; irq < __MAX_SUBCHANNELS; irq++) {
 			if (stsch(irq, &console_subchannel.schib) != 0)
 				break;
 			if (console_subchannel.schib.pmcw.dnv &&
 			    console_subchannel.schib.pmcw.dev ==
-			    console_devno) {
+			    console_device) {
 				console_irq = irq;
 				break;
 			}
@@ -774,68 +782,3 @@ cio_get_console_subchannel(void)
 }
 
 #endif
-static inline int
-__disable_subchannel_easy(unsigned int schid, struct schib *schib)
-{
-	int retry, cc;
-
-	cc = 0;
-	for (retry=0;retry<3;retry++) {
-		schib->pmcw.ena = 0;
-		cc = msch(schid, schib);
-		if (cc)
-			return (cc==3?-ENODEV:-EBUSY);
-		stsch(schid, schib);
-		if (!schib->pmcw.ena)
-			return 0;
-	}
-	return -EBUSY; /* uhm... */
-}
-
-static inline int
-__clear_subchannel_easy(unsigned int schid)
-{
-	int retry;
-
-	if (csch(schid))
-		return -ENODEV;
-	for (retry=0;retry<20;retry++) {
-		struct tpi_info ti;
-
-		if (tpi(&ti)) {
-			tsch(schid, (struct irb *)__LC_IRB);
-			return 0;
-		}
-		udelay(100);
-	}
-	return -EBUSY;
-}
-
-extern void do_reipl(unsigned long devno);
-/* Make sure all subchannels are quiet before we re-ipl an lpar. */
-void
-reipl(unsigned long devno)
-{
-	unsigned int schid;
-
-	local_irq_disable();
-	for (schid=0;schid<=highest_subchannel;schid++) {
-		struct schib schib;
-		if (stsch(schid, &schib))
-			goto out;
-		if (!schib.pmcw.ena)
-			continue;
-		switch(__disable_subchannel_easy(schid, &schib)) {
-		case 0:
-		case -ENODEV:
-			break;
-		default: /* -EBUSY */
-			if (__clear_subchannel_easy(schid))
-				break; /* give up... */
-			stsch(schid, &schib);
-			__disable_subchannel_easy(schid, &schib);
-		}
-	}
-out:
-	do_reipl(devno);
-}

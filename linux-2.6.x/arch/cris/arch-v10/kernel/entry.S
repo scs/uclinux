@@ -7,14 +7,14 @@
  *  Authors:	Bjorn Wesen (bjornw@axis.com)
  *
  *  $Log$
- *  Revision 1.1.1.2  2004/09/07 09:14:09  lgsoft
- *  Import of 2.6.8
+ *  Revision 1.2  2004/09/07 21:08:57  lgsoft
+ *  alpha-2.0
  *
- *  Revision 1.18  2004/05/11 12:28:25  starvik
- *  Merge of Linux 2.6.6
+ *  Revision 1.1.1.1  2004/07/19 11:41:33  lgsoft
+ *  Import of uClinux 2.6.2
  *
- *  Revision 1.17  2003/09/11 07:29:49  starvik
- *  Merge of Linux 2.6.0-test5
+ *  Revision 1.1.1.1  2004/07/18 13:20:11  nidhi
+ *  Importing
  *
  *  Revision 1.16  2003/07/04 08:27:41  starvik
  *  Merge of Linux 2.5.74
@@ -1069,19 +1069,6 @@ sys_call_table:
  	.long sys_clock_nanosleep
 	.long sys_statfs64
 	.long sys_fstatfs64	
-	.long sys_tgkill	/* 270 */
-	.long sys_utimes
- 	.long sys_fadvise64_64
-	.long sys_ni_syscall	/* sys_vserver */
-	.long sys_ni_syscall	/* sys_mbind */
-	.long sys_ni_syscall	/* 275 sys_get_mempolicy */
-	.long sys_ni_syscall	/* sys_set_mempolicy */
-	.long sys_mq_open
-	.long sys_mq_unlink
-	.long sys_mq_timedsend
-	.long sys_mq_timedreceive	/* 280 */
-	.long sys_mq_notify
-	.long sys_mq_getsetattr
 		
         /*
          * NOTE!! This doesn't have to be exact - we just have

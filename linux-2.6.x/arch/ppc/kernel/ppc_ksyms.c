@@ -32,6 +32,8 @@
 #include <linux/pmu.h>
 #include <asm/prom.h>
 #include <asm/system.h>
+#define __KERNEL_SYSCALLS__
+#include <asm/unistd.h>
 #include <asm/pci-bridge.h>
 #include <asm/irq.h>
 #include <asm/pmac_feature.h>
@@ -68,11 +70,11 @@ extern int sys_sigreturn(struct pt_regs *regs);
 long long __ashrdi3(long long, int);
 long long __ashldi3(long long, int);
 long long __lshrdi3(long long, int);
+int abs(int);
 
 extern unsigned long mm_ptov (unsigned long paddr);
 
-EXPORT_SYMBOL(clear_pages);
-EXPORT_SYMBOL(clear_user_page);
+EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(do_signal);
 EXPORT_SYMBOL(do_syscall_trace);
 EXPORT_SYMBOL(transfer_to_handler);
@@ -180,14 +182,22 @@ EXPORT_SYMBOL(pci_bus_to_phys);
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
+EXPORT_SYMBOL(consistent_alloc);
+EXPORT_SYMBOL(consistent_free);
+EXPORT_SYMBOL(consistent_sync);
 EXPORT_SYMBOL(flush_dcache_all);
 #endif
 
+EXPORT_SYMBOL(open);
+EXPORT_SYMBOL(read);
+EXPORT_SYMBOL(lseek);
+EXPORT_SYMBOL(close);
 EXPORT_SYMBOL(start_thread);
 EXPORT_SYMBOL(kernel_thread);
 
 EXPORT_SYMBOL(flush_instruction_cache);
 EXPORT_SYMBOL(giveup_fpu);
+EXPORT_SYMBOL(enable_kernel_fp);
 EXPORT_SYMBOL(flush_icache_range);
 EXPORT_SYMBOL(flush_dcache_range);
 EXPORT_SYMBOL(flush_icache_user_range);
@@ -198,11 +208,16 @@ EXPORT_SYMBOL(flush_tlb_page);
 EXPORT_SYMBOL(last_task_used_altivec);
 EXPORT_SYMBOL(giveup_altivec);
 #endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_SPE
-EXPORT_SYMBOL(last_task_used_spe);
-EXPORT_SYMBOL(giveup_spe);
-#endif /* CONFIG_SPE */
 #ifdef CONFIG_SMP
+#ifdef CONFIG_DEBUG_SPINLOCK
+EXPORT_SYMBOL(_raw_spin_lock);
+EXPORT_SYMBOL(_raw_spin_unlock);
+EXPORT_SYMBOL(_raw_spin_trylock);
+EXPORT_SYMBOL(_raw_read_lock);
+EXPORT_SYMBOL(_raw_read_unlock);
+EXPORT_SYMBOL(_raw_write_lock);
+EXPORT_SYMBOL(_raw_write_unlock);
+#endif
 EXPORT_SYMBOL(smp_call_function);
 EXPORT_SYMBOL(smp_hw_index);
 EXPORT_SYMBOL(synchronize_irq);
@@ -221,6 +236,12 @@ EXPORT_SYMBOL(adb_try_handler_change);
 EXPORT_SYMBOL(cuda_request);
 EXPORT_SYMBOL(cuda_poll);
 #endif /* CONFIG_ADB_CUDA */
+#ifdef CONFIG_PMAC_BACKLIGHT
+EXPORT_SYMBOL(get_backlight_level);
+EXPORT_SYMBOL(set_backlight_level);
+EXPORT_SYMBOL(set_backlight_enable);
+EXPORT_SYMBOL(register_backlight_controller);
+#endif /* CONFIG_PMAC_BACKLIGHT */
 #ifdef CONFIG_PPC_MULTIPLATFORM
 EXPORT_SYMBOL(_machine);
 #endif
@@ -261,6 +282,14 @@ EXPORT_SYMBOL(note_scsi_host);
 #ifdef CONFIG_VT
 EXPORT_SYMBOL(kd_mksound);
 #endif
+#ifdef CONFIG_NVRAM
+EXPORT_SYMBOL(nvram_read_byte);
+EXPORT_SYMBOL(nvram_write_byte);
+#ifdef CONFIG_PPC_PMAC
+EXPORT_SYMBOL(pmac_xpram_read);
+EXPORT_SYMBOL(pmac_xpram_write);
+#endif
+#endif /* CONFIG_NVRAM */
 EXPORT_SYMBOL(to_tm);
 
 EXPORT_SYMBOL(pm_power_off);
@@ -274,6 +303,8 @@ EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memchr);
+
+EXPORT_SYMBOL(abs);
 
 #if defined(CONFIG_FB_VGA16_MODULE)
 EXPORT_SYMBOL(screen_info);
@@ -325,7 +356,7 @@ EXPORT_SYMBOL(debugger_fault_handler);
 EXPORT_SYMBOL(cpm_install_handler);
 EXPORT_SYMBOL(cpm_free_handler);
 #endif /* CONFIG_8xx */
-#if defined(CONFIG_8xx) || defined(CONFIG_40x) || defined(CONFIG_85xx)
+#if defined(CONFIG_8xx) || defined(CONFIG_4xx)
 EXPORT_SYMBOL(__res);
 #endif
 #if defined(CONFIG_8xx)

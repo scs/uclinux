@@ -30,7 +30,10 @@ static struct dentry *afs_mntpt_lookup(struct inode *dir,
 				       struct dentry *dentry,
 				       struct nameidata *nd);
 static int afs_mntpt_open(struct inode *inode, struct file *file);
+
+#ifdef AFS_AUTOMOUNT_SUPPORT
 static int afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd);
+#endif
 
 struct file_operations afs_mntpt_file_operations = {
 	.open		= afs_mntpt_open,
@@ -38,11 +41,14 @@ struct file_operations afs_mntpt_file_operations = {
 
 struct inode_operations afs_mntpt_inode_operations = {
 	.lookup		= afs_mntpt_lookup,
+#ifdef AFS_AUTOMOUNT_SUPPORT
 	.follow_link	= afs_mntpt_follow_link,
+#endif
 	.readlink	= page_readlink,
 	.getattr	= afs_inode_getattr,
 };
 
+#ifdef AFS_AUTOMOUNT_SUPPORT
 static LIST_HEAD(afs_vfsmounts);
 
 static void afs_mntpt_expiry_timed_out(struct afs_timer *timer);
@@ -54,6 +60,7 @@ struct afs_timer_ops afs_mntpt_expiry_timer_ops = {
 struct afs_timer afs_mntpt_expiry_timer;
 
 unsigned long afs_mntpt_expiry_timeout = 20;
+#endif
 
 /*****************************************************************************/
 /*
@@ -149,6 +156,7 @@ static int afs_mntpt_open(struct inode *inode, struct file *file)
 	return -EREMOTE;
 } /* end afs_mntpt_open() */
 
+#ifdef AFS_AUTOMOUNT_SUPPORT
 /*****************************************************************************/
 /*
  * create a vfsmount to be automounted
@@ -160,7 +168,6 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	struct page *page = NULL;
 	size_t size;
 	char *buf, *devname = NULL, *options = NULL;
-	filler_t *filler;
 	int ret;
 
 	kenter("{%s}", mntpt->d_name.name);
@@ -182,7 +189,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 		goto error;
 
 	/* read the contents of the AFS special symlink */
-	filler = (filler_t *)mntpt->d_inode->i_mapping->a_ops->readpage;
+	filler_t *filler = mntpt->d_inode->i_mapping->a_ops->readpage;
 
 	page = read_cache_page(mntpt->d_inode->i_mapping, 0, filler, NULL);
 	if (IS_ERR(page)) {
@@ -250,7 +257,7 @@ static int afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 	if (IS_ERR(newmnt))
 		return PTR_ERR(newmnt);
 
-	newnd = *nd;
+	struct_cpy(&newnd, nd);
 	newnd.dentry = dentry;
 	err = do_add_mount(newmnt, &newnd, 0, &afs_vfsmounts);
 
@@ -281,3 +288,4 @@ static void afs_mntpt_expiry_timed_out(struct afs_timer *timer)
 
 	kleave("");
 } /* end afs_mntpt_expiry_timed_out() */
+#endif

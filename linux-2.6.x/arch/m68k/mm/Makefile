@@ -4,5 +4,8 @@
 
 obj-y		:= init.o fault.o hwtest.o
 
-obj-$(CONFIG_MMU_MOTOROLA)	+= kmap.o memory.o motorola.o
-obj-$(CONFIG_MMU_SUN3)		+= sun3kmap.o sun3mmu.o
+ifndef CONFIG_SUN3
+obj-y		+= kmap.o memory.o motorola.o
+else
+obj-y		+= sun3kmap.o sun3mmu.o
+endif

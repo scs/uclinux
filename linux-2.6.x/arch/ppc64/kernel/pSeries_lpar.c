@@ -21,7 +21,6 @@
 
 #include <linux/config.h>
 #include <linux/kernel.h>
-#include <linux/dma-mapping.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
@@ -30,20 +29,13 @@
 #include <asm/abs_addr.h>
 #include <asm/mmu_context.h>
 #include <asm/ppcdebug.h>
-#include <asm/iommu.h>
+#include <asm/pci_dma.h>
+#include <linux/pci.h>
 #include <asm/naca.h>
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 #include <asm/hvcall.h>
 #include <asm/prom.h>
-#include <asm/abs_addr.h>
-#include <asm/cputable.h>
-
-/* in pSeries_hvCall.S */
-EXPORT_SYMBOL(plpar_hcall);
-EXPORT_SYMBOL(plpar_hcall_4out);
-EXPORT_SYMBOL(plpar_hcall_norets);
-EXPORT_SYMBOL(plpar_hcall_8arg_2ret);
 
 long poll_pending(void)
 {
@@ -130,60 +122,51 @@ long plpar_put_term_char(unsigned long termno,
 				  lbuf[1]);
 }
 
-static void tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
-		long npages, unsigned long uaddr,
-		enum dma_data_direction direction)
+static void tce_build_pSeriesLP(struct TceTable *tbl, long tcenum, 
+				unsigned long uaddr, int direction )
 {
-	u64 rc;
-	union tce_entry tce;
+	u64 set_tce_rc;
+	union Tce tce;
+	
+	PPCDBG(PPCDBG_TCE, "build_tce: uaddr = 0x%lx\n", uaddr);
+	PPCDBG(PPCDBG_TCE, "\ttcenum = 0x%lx, tbl = 0x%lx, index=%lx\n", 
+	       tcenum, tbl, tbl->index);
 
-	tce.te_word = 0;
-	tce.te_rpn = (virt_to_abs(uaddr)) >> PAGE_SHIFT;
-	tce.te_rdwr = 1;
-	if (direction != DMA_TO_DEVICE)
-		tce.te_pciwr = 1;
+	tce.wholeTce = 0;
+	tce.tceBits.rpn = (virt_to_absolute(uaddr)) >> PAGE_SHIFT;
 
-	while (npages--) {
-		rc = plpar_tce_put((u64)tbl->it_index, 
-				   (u64)tcenum << 12, 
-				   tce.te_word );
-		
-		if (rc && printk_ratelimit()) {
-			printk("tce_build_pSeriesLP: plpar_tce_put failed. rc=%ld\n", rc);
-			printk("\tindex   = 0x%lx\n", (u64)tbl->it_index);
-			printk("\ttcenum  = 0x%lx\n", (u64)tcenum);
-			printk("\ttce val = 0x%lx\n", tce.te_word );
-			show_stack(current, (unsigned long *)__get_SP());
-		}
-			
-		tcenum++;
-		tce.te_rpn++;
+	tce.tceBits.readWrite = 1;
+	if ( direction != PCI_DMA_TODEVICE ) tce.tceBits.pciWrite = 1;
+
+	set_tce_rc = plpar_tce_put((u64)tbl->index, 
+				 (u64)tcenum << 12, 
+				 tce.wholeTce );
+
+	if(set_tce_rc) {
+		printk("tce_build_pSeriesLP: plpar_tce_put failed. rc=%ld\n", set_tce_rc);
+		printk("\tindex   = 0x%lx\n", (u64)tbl->index);
+		printk("\ttcenum  = 0x%lx\n", (u64)tcenum);
+		printk("\ttce val = 0x%lx\n", tce.wholeTce );
 	}
 }
 
-static void tce_free_pSeriesLP(struct iommu_table *tbl, long tcenum, long npages)
+static void tce_free_one_pSeriesLP(struct TceTable *tbl, long tcenum)
 {
-	u64 rc;
-	union tce_entry tce;
+	u64 set_tce_rc;
+	union Tce tce;
 
-	tce.te_word = 0;
-
-	while (npages--) {
-		rc = plpar_tce_put((u64)tbl->it_index, 
-				   (u64)tcenum << 12,
-				   tce.te_word );
-		
-		if (rc && printk_ratelimit()) {
-			printk("tce_free_pSeriesLP: plpar_tce_put failed\n");
-			printk("\trc      = %ld\n", rc);
-			printk("\tindex   = 0x%lx\n", (u64)tbl->it_index);
-			printk("\ttcenum  = 0x%lx\n", (u64)tcenum);
-			printk("\ttce val = 0x%lx\n", tce.te_word );
-			show_stack(current, (unsigned long *)__get_SP());
-		}
-		
-		tcenum++;
+	tce.wholeTce = 0;
+	set_tce_rc = plpar_tce_put((u64)tbl->index, 
+				 (u64)tcenum << 12,
+				 tce.wholeTce );
+	if ( set_tce_rc ) {
+		printk("tce_free_one_pSeriesLP: plpar_tce_put failed\n");
+		printk("\trc      = %ld\n", set_tce_rc);
+		printk("\tindex   = 0x%lx\n", (u64)tbl->index);
+		printk("\ttcenum  = 0x%lx\n", (u64)tcenum);
+		printk("\ttce val = 0x%lx\n", tce.wholeTce );
 	}
+
 }
 
 int vtermno;	/* virtual terminal# for udbg  */
@@ -269,7 +252,7 @@ static int find_udbg_vterm(void)
 	}
 
 	/* now we have the stdout node; figure out what type of device it is. */
-	name = (char *)get_property(stdout_node, "name", NULL);
+	name = (char *)get_property(stdout_node, "name", 0);
 	if (!name) {
 		printk(KERN_WARNING "stdout node missing 'name' property!\n");
 		goto out;
@@ -277,7 +260,7 @@ static int find_udbg_vterm(void)
 
 	if (strncmp(name, "vty", 3) == 0) {
 		if (device_is_compatible(stdout_node, "hvterm1")) {
-			termno = (u32 *)get_property(stdout_node, "reg", NULL);
+			termno = (u32 *)get_property(stdout_node, "reg", 0);
 			if (termno) {
 				vtermno = termno[0];
 				ppc_md.udbg_putc = udbg_putcLP;
@@ -313,12 +296,8 @@ void pSeriesLP_init_early(void)
 {
 	pSeries_lpar_mm_init();
 
-	tce_init_pSeries();
-
-	ppc_md.tce_build = tce_build_pSeriesLP;
-	ppc_md.tce_free	 = tce_free_pSeriesLP;
-
-	pci_iommu_init();
+	ppc_md.tce_build	 = tce_build_pSeriesLP;
+	ppc_md.tce_free_one	 = tce_free_one_pSeriesLP;
 
 #ifdef CONFIG_SMP
 	smp_init_pSeries();
@@ -332,6 +311,69 @@ void pSeriesLP_init_early(void)
 		printk(KERN_WARNING
 			"can't use stdout; can't print early debug messages.\n");
 	}
+}
+
+int hvc_get_chars(int index, char *buf, int count)
+{
+	unsigned long got;
+
+	if (plpar_hcall(H_GET_TERM_CHAR, index, 0, 0, 0, &got,
+		(unsigned long *)buf, (unsigned long *)buf+1) == H_Success) {
+		/*
+		 * Work around a HV bug where it gives us a null
+		 * after every \r.  -- paulus
+		 */
+		if (got > 0) {
+			int i;
+			for (i = 1; i < got; ++i) {
+				if (buf[i] == 0 && buf[i-1] == '\r') {
+					--got;
+					if (i < got)
+						memmove(&buf[i], &buf[i+1],
+							got - i);
+				}
+			}
+		}
+		return got;
+	}
+	return 0;
+}
+
+int hvc_put_chars(int index, const char *buf, int count)
+{
+	unsigned long *lbuf = (unsigned long *) buf;
+	long ret;
+
+	ret = plpar_hcall_norets(H_PUT_TERM_CHAR, index, count, lbuf[0],
+				 lbuf[1]);
+	if (ret == H_Success)
+		return count;
+	if (ret == H_Busy)
+		return 0;
+	return -1;
+}
+
+/* return the number of client vterms present */
+/* XXX this requires an interface change to handle multiple discontiguous
+ * vterms */
+int hvc_count(int *start_termno)
+{
+	struct device_node *vty;
+	int num_found = 0;
+
+	/* consider only the first vty node.
+	 * we should _always_ be able to find one. */
+	vty = of_find_node_by_name(NULL, "vty");
+	if (vty && device_is_compatible(vty, "hvterm1")) {
+		u32 *termno = (u32 *)get_property(vty, "reg", 0);
+
+		if (termno && start_termno)
+			*start_termno = *termno;
+		num_found = 1;
+		of_node_put(vty);
+	}
+
+	return num_found;
 }
 
 long pSeries_lpar_hpte_insert(unsigned long hpte_group,
@@ -388,10 +430,7 @@ long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	if (lpar_rc != H_Success)
 		return -2;
 
-	/* Because of iSeries, we have to pass down the secondary
-	 * bucket bit here as well
-	 */
-	return (slot & 7) | (secondary << 3);
+	return slot;
 }
 
 static spinlock_t pSeries_lpar_tlbie_lock = SPIN_LOCK_UNLOCKED;
@@ -444,8 +483,10 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot, unsigned long newpp,
 
 	lpar_rc = plpar_pte_protect(flags, slot, (avpn << 7));
 
-	if (lpar_rc == H_Not_Found)
+	if (lpar_rc == H_Not_Found) {
+		udbg_printf("updatepp missed\n");
 		return -1;
+	}
 
 	if (lpar_rc != H_Success)
 		panic("bad return code from pte protect rc = %lx\n", lpar_rc);
@@ -543,8 +584,10 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 	lpar_rc = plpar_pte_remove(H_AVPN, slot, (avpn << 7), &dummy1,
 				   &dummy2);
 
-	if (lpar_rc == H_Not_Found)
+	if (lpar_rc == H_Not_Found) {
+		udbg_printf("invalidate missed\n");
 		return;
+	}
 
 	if (lpar_rc != H_Success)
 		panic("Bad return code from invalidate rc = %lx\n", lpar_rc);
@@ -559,16 +602,14 @@ void pSeries_lpar_flush_hash_range(unsigned long context, unsigned long number,
 {
 	int i;
 	unsigned long flags;
-	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
+	struct ppc64_tlb_batch *batch = &ppc64_tlb_batch[smp_processor_id()];
 
-	if (!(cur_cpu_spec->cpu_features & CPU_FTR_LOCKLESS_TLBIE))
-		spin_lock_irqsave(&pSeries_lpar_tlbie_lock, flags);
+	spin_lock_irqsave(&pSeries_lpar_tlbie_lock, flags);
 
 	for (i = 0; i < number; i++)
 		flush_hash_page(context, batch->addr[i], batch->pte[i], local);
 
-	if (!(cur_cpu_spec->cpu_features & CPU_FTR_LOCKLESS_TLBIE))
-		spin_unlock_irqrestore(&pSeries_lpar_tlbie_lock, flags);
+	spin_unlock_irqrestore(&pSeries_lpar_tlbie_lock, flags);
 }
 
 void pSeries_lpar_mm_init(void)

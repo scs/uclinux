@@ -103,7 +103,7 @@ long pSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 
 	__asm__ __volatile__ ("ptesync" : : : "memory");
 
-	return i | (secondary << 3);
+	return i;
 }
 
 static long pSeries_hpte_remove(unsigned long hpte_group)
@@ -198,6 +198,7 @@ static long pSeries_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	HPTE *hptep = htab_data.htab + slot;
 	Hpte_dword0 dw0;
 	unsigned long avpn = va >> 23;
+	unsigned long flags;
 	int ret = 0;
 
 	if (large)
@@ -220,11 +221,9 @@ static long pSeries_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	if ((cur_cpu_spec->cpu_features & CPU_FTR_TLBIEL) && !large && local) {
 		tlbiel(va);
 	} else {
-		if (!(cur_cpu_spec->cpu_features & CPU_FTR_LOCKLESS_TLBIE))
-			spin_lock(&pSeries_tlbie_lock);
+		spin_lock_irqsave(&pSeries_tlbie_lock, flags);
 		tlbie(va, large);
-		if (!(cur_cpu_spec->cpu_features & CPU_FTR_LOCKLESS_TLBIE))
-			spin_unlock(&pSeries_tlbie_lock);
+		spin_unlock_irqrestore(&pSeries_tlbie_lock, flags);
 	}
 
 	return ret;
@@ -256,11 +255,9 @@ static void pSeries_hpte_updateboltedpp(unsigned long newpp, unsigned long ea)
 	set_pp_bit(newpp, hptep);
 
 	/* Ensure it is out of the tlb too */
-	if (!(cur_cpu_spec->cpu_features & CPU_FTR_LOCKLESS_TLBIE))
-		spin_lock_irqsave(&pSeries_tlbie_lock, flags);
+	spin_lock_irqsave(&pSeries_tlbie_lock, flags);
 	tlbie(va, 0);
-	if (!(cur_cpu_spec->cpu_features & CPU_FTR_LOCKLESS_TLBIE))
-		spin_unlock_irqrestore(&pSeries_tlbie_lock, flags);
+	spin_unlock_irqrestore(&pSeries_tlbie_lock, flags);
 }
 
 static void pSeries_hpte_invalidate(unsigned long slot, unsigned long va,
@@ -274,7 +271,6 @@ static void pSeries_hpte_invalidate(unsigned long slot, unsigned long va,
 	if (large)
 		avpn &= ~0x1UL;
 
-	local_irq_save(flags);
 	pSeries_lock_hpte(hptep);
 
 	dw0 = hptep->dw0.dw0;
@@ -291,13 +287,10 @@ static void pSeries_hpte_invalidate(unsigned long slot, unsigned long va,
 	if ((cur_cpu_spec->cpu_features & CPU_FTR_TLBIEL) && !large && local) {
 		tlbiel(va);
 	} else {
-		if (!(cur_cpu_spec->cpu_features & CPU_FTR_LOCKLESS_TLBIE))
-			spin_lock(&pSeries_tlbie_lock);
+		spin_lock_irqsave(&pSeries_tlbie_lock, flags);
 		tlbie(va, large);
-		if (!(cur_cpu_spec->cpu_features & CPU_FTR_LOCKLESS_TLBIE))
-			spin_unlock(&pSeries_tlbie_lock);
+		spin_unlock_irqrestore(&pSeries_tlbie_lock, flags);
 	}
-	local_irq_restore(flags);
 }
 
 static void pSeries_flush_hash_range(unsigned long context,
@@ -307,12 +300,10 @@ static void pSeries_flush_hash_range(unsigned long context,
 	int i, j;
 	HPTE *hptep;
 	Hpte_dword0 dw0;
-	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
+	struct ppc64_tlb_batch *batch = &ppc64_tlb_batch[smp_processor_id()];
 
 	/* XXX fix for large ptes */
 	unsigned long large = 0;
-
-	local_irq_save(flags);
 
 	j = 0;
 	for (i = 0; i < number; i++) {
@@ -365,8 +356,7 @@ static void pSeries_flush_hash_range(unsigned long context,
 		asm volatile("ptesync":::"memory");
 	} else {
 		/* XXX double check that it is safe to take this late */
-		if (!(cur_cpu_spec->cpu_features & CPU_FTR_LOCKLESS_TLBIE))
-			spin_lock(&pSeries_tlbie_lock);
+		spin_lock_irqsave(&pSeries_tlbie_lock, flags);
 
 		asm volatile("ptesync":::"memory");
 
@@ -375,11 +365,8 @@ static void pSeries_flush_hash_range(unsigned long context,
 
 		asm volatile("eieio; tlbsync; ptesync":::"memory");
 
-		if (!(cur_cpu_spec->cpu_features & CPU_FTR_LOCKLESS_TLBIE))
-			spin_unlock(&pSeries_tlbie_lock);
+		spin_unlock_irqrestore(&pSeries_tlbie_lock, flags);
 	}
-
-	local_irq_restore(flags);
 }
 
 void hpte_init_pSeries(void)
@@ -397,12 +384,8 @@ void hpte_init_pSeries(void)
 	root = of_find_node_by_path("/");
 	if (root) {
 		model = get_property(root, "model", NULL);
-		if (!strcmp(model, "CHRP IBM,9076-N81")) {
-			of_node_put(root);
-			return;
-		}
+		if (strcmp(model, "CHRP IBM,9076-N81"))
+			ppc_md.flush_hash_range = pSeries_flush_hash_range;
 		of_node_put(root);
 	}
-
-	ppc_md.flush_hash_range = pSeries_flush_hash_range;
 }

@@ -5,7 +5,7 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_DEBUG_HIGHMEM
+#if CONFIG_DEBUG_HIGHMEM
 # define D(n) __KM_FENCE_##n ,
 #else
 # define D(n)

@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#ident "$Id$"
+
 /*
  * Veritas filesystem driver - lookup and other directory related code.
  */

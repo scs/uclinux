@@ -38,7 +38,6 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/completion.h>
-#include <linux/time.h>
 #include <linux/interrupt.h>
 #include <asm/semaphore.h>
 
@@ -301,52 +300,23 @@ static void aac_sa_start_adapter(struct aac_dev *dev)
 }
 
 /**
- *	aac_sa_check_health
- *	@dev: device to check if healthy
- *
- *	Will attempt to determine if the specified adapter is alive and
- *	capable of handling requests, returning 0 if alive.
- */
-static int aac_sa_check_health(struct aac_dev *dev)
-{
-	long status = sa_readl(dev, Mailbox7);
-
-	/*
-	 *	Check to see if the board failed any self tests.
-	 */
-	if (status & SELF_TEST_FAILED)
-		return -1;
-	/*
-	 *	Check to see if the board panic'd while booting.
-	 */
-	if (status & KERNEL_PANIC)
-		return -2;
-	/*
-	 *	Wait for the adapter to be up and running. Wait up to 3 minutes
-	 */
-	if (!(status & KERNEL_UP_AND_RUNNING))
-		return -3;
-	/*
-	 *	Everything is OK
-	 */
-	return 0;
-}
-
-/**
  *	aac_sa_init	-	initialize an ARM based AAC card
  *	@dev: device to configure
+ *	@devnum: adapter number
  *
  *	Allocate and set up resources for the ARM based AAC variants. The 
  *	device_interface in the commregion will be allocated and linked 
  *	to the comm region.
  */
 
-int aac_sa_init(struct aac_dev *dev)
+int aac_sa_init(struct aac_dev *dev, unsigned long devnum)
 {
 	unsigned long start;
 	unsigned long status;
 	int instance;
 	const char *name;
+
+	dev->devnum = devnum;
 
 	dprintk(("PREINST\n"));
 	instance = dev->id;
@@ -360,21 +330,21 @@ int aac_sa_init(struct aac_dev *dev)
 	if((dev->regs.sa = (struct sa_registers *)ioremap((unsigned long)dev->scsi_host_ptr->base, 8192))==NULL)
 	{	
 		printk(KERN_WARNING "aacraid: unable to map ARM.\n" );
-		goto error_iounmap;
+		return -1;
 	}
 	/*
 	 *	Check to see if the board failed any self tests.
 	 */
 	if (sa_readl(dev, Mailbox7) & SELF_TEST_FAILED) {
 		printk(KERN_WARNING "%s%d: adapter self-test failed.\n", name, instance);
-		goto error_iounmap;
+		return -1;
 	}
 	/*
 	 *	Check to see if the board panic'd while booting.
 	 */
 	if (sa_readl(dev, Mailbox7) & KERNEL_PANIC) {
 		printk(KERN_WARNING "%s%d: adapter kernel panic'd.\n", name, instance);
-		goto error_iounmap;
+		return -1;
 	}
 	start = jiffies;
 	/*
@@ -384,7 +354,7 @@ int aac_sa_init(struct aac_dev *dev)
 		if (time_after(jiffies, start+180*HZ)) {
 			status = sa_readl(dev, Mailbox7) >> 16;
 			printk(KERN_WARNING "%s%d: adapter kernel failed to start, init status = %d.\n", name, instance, le32_to_cpu(status));
-			goto error_iounmap;
+			return -1;
 		}
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
@@ -393,7 +363,7 @@ int aac_sa_init(struct aac_dev *dev)
 	dprintk(("ATIRQ\n"));
 	if (request_irq(dev->scsi_host_ptr->irq, aac_sa_intr, SA_SHIRQ|SA_INTERRUPT, "aacraid", (void *)dev ) < 0) {
 		printk(KERN_WARNING "%s%d: Interrupt unavailable.\n", name, instance);
-		goto error_iounmap;
+		return -1;
 	}
 
 	/*
@@ -405,23 +375,17 @@ int aac_sa_init(struct aac_dev *dev)
 	dev->a_ops.adapter_disable_int = aac_sa_disable_interrupt;
 	dev->a_ops.adapter_notify = aac_sa_notify_adapter;
 	dev->a_ops.adapter_sync_cmd = sa_sync_cmd;
-	dev->a_ops.adapter_check_health = aac_sa_check_health;
 
 	dprintk(("FUNCDONE\n"));
 
 	if(aac_init_adapter(dev) == NULL)
-		goto error_irq;
+		return -1;
 
 	dprintk(("NEWADAPTDONE\n"));
 	/*
 	 *	Start any kernel threads needed
 	 */
 	dev->thread_pid = kernel_thread((int (*)(void *))aac_command_thread, dev, 0);
-	if (dev->thread_pid < 0) {
-		printk(KERN_ERR "aacraid: Unable to create command thread.\n");
-		goto error_kfree;
-	}
-
 	/*
 	 *	Tell the adapter that all is configure, and it can start 
 	 *	accepting requests
@@ -430,17 +394,5 @@ int aac_sa_init(struct aac_dev *dev)
 	aac_sa_start_adapter(dev);
 	dprintk(("STARTED\n"));
 	return 0;
-
-
-error_kfree:
-	kfree(dev->queues);
-
-error_irq:
-	free_irq(dev->scsi_host_ptr->irq, (void *)dev);
-
-error_iounmap:
-	iounmap(dev->regs.sa);
-
-	return -1;
 }
 

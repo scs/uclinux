@@ -3,11 +3,13 @@
  *            generic strncmp routine.
  */
 
+#include <asm/cprefix.h>
+
 	.text
 	.align 4
-	.global __strncmp, strncmp
-__strncmp:
-strncmp:
+	.global C_LABEL(__strncmp), C_LABEL(strncmp)
+C_LABEL(__strncmp):
+C_LABEL(strncmp):
 	mov	%o0, %g3
 	mov	0, %o3
 

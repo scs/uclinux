@@ -13,6 +13,12 @@
 #include <linux/suspend.h>
 #include <linux/module.h>
 
+#ifdef DEBUG_SLOW
+#define MDELAY(a) mdelay(a)
+#else
+#define MDELAY(a)
+#endif
+
 /* 
  * Timeout for stopping processes
  */
@@ -22,10 +28,9 @@
 static inline int freezeable(struct task_struct * p)
 {
 	if ((p == current) || 
-	    (p->flags & PF_NOFREEZE) ||
+	    (p->flags & PF_IOTHREAD) || 
 	    (p->state == TASK_ZOMBIE) ||
-	    (p->state == TASK_DEAD) ||
-	    (p->state == TASK_STOPPED))
+	    (p->state == TASK_DEAD))
 		return 0;
 	return 1;
 }
@@ -33,19 +38,21 @@ static inline int freezeable(struct task_struct * p)
 /* Refrigerator is place where frozen processes are stored :-). */
 void refrigerator(unsigned long flag)
 {
-	/* Hmm, should we be allowed to suspend when there are realtime
-	   processes around? */
+	/* You need correct to work with real-time processes.
+	   OTOH, this way one process may see (via /proc/) some other
+	   process in stopped state (and thereby discovered we were
+	   suspended. We probably do not care. 
+	 */
 	long save;
 	save = current->state;
-	current->state = TASK_UNINTERRUPTIBLE;
+	current->state = TASK_STOPPED;
 	pr_debug("%s entered refrigerator\n", current->comm);
 	printk("=");
 	current->flags &= ~PF_FREEZE;
-
-	spin_lock_irq(&current->sighand->siglock);
-	recalc_sigpending(); /* We sent fake signal, clean it up */
-	spin_unlock_irq(&current->sighand->siglock);
-
+	if (flag)
+		flush_signals(current); /* We have signaled a kernel thread, which isn't normal behaviour
+					   and that may lead to 100%CPU sucking because those threads
+					   just don't manage signals. */
 	current->flags |= PF_FROZEN;
 	while (current->flags & PF_FROZEN)
 		schedule();
@@ -109,11 +116,13 @@ void thaw_processes(void)
 			wake_up_process(p);
 		} else
 			printk(KERN_INFO " Strange, %s not stopped\n", p->comm );
+		wake_up_process(p);
 	} while_each_thread(g, p);
 
 	read_unlock(&tasklist_lock);
 	schedule();
 	printk( " done\n" );
+	MDELAY(500);
 }
 
 EXPORT_SYMBOL(refrigerator);

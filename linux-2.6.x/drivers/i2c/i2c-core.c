@@ -22,13 +22,16 @@
    SMBus 2.0 support by Mark Studebaker <mdsxyz123@yahoo.com>                */
 
 #include <linux/config.h>
+#ifdef CONFIG_I2C_DEBUG_CORE
+#define DEBUG	1
+#endif
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
-#include <linux/idr.h>
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
 
@@ -36,7 +39,6 @@
 static LIST_HEAD(adapters);
 static LIST_HEAD(drivers);
 static DECLARE_MUTEX(core_lists);
-static DEFINE_IDR(i2c_adapter_idr);
 
 int i2c_device_probe(struct device *dev)
 {
@@ -115,25 +117,13 @@ static struct device_attribute dev_attr_client_name = {
  */
 int i2c_add_adapter(struct i2c_adapter *adap)
 {
-	int id, res = 0;
+	static int nr = 0;
 	struct list_head   *item;
 	struct i2c_driver  *driver;
 
 	down(&core_lists);
 
-	if (idr_pre_get(&i2c_adapter_idr, GFP_KERNEL) == 0) {
-		res = -ENOMEM;
-		goto out_unlock;
-	}
-
-	res = idr_get_new(&i2c_adapter_idr, NULL, &id);
-	if (res < 0) {
-		if (res == -EAGAIN)
-			res = -ENOMEM;
-		goto out_unlock;
-	}
-
-	adap->nr =  id & MAX_ID_MASK;
+	adap->nr = nr++;
 	init_MUTEX(&adap->bus_lock);
 	init_MUTEX(&adap->clist_lock);
 	list_add_tail(&adap->list,&adapters);
@@ -165,12 +155,10 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 			/* We ignore the return code; if it fails, too bad */
 			driver->attach_adapter(adap);
 	}
+	up(&core_lists);
 
 	dev_dbg(&adap->dev, "registered as adapter #%d\n", adap->nr);
-
-out_unlock:
-	up(&core_lists);
-	return res;
+	return 0;
 }
 
 
@@ -187,7 +175,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 		driver = list_entry(item, struct i2c_driver, list);
 		if (driver->detach_adapter)
 			if ((res = driver->detach_adapter(adap))) {
-				dev_warn(&adap->dev, "can't detach adapter "
+				dev_warn(&adap->dev, "can't detach adapter"
 					 "while detaching driver %s: driver not "
 					 "detached!", driver->name);
 				goto out_unlock;
@@ -223,9 +211,6 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	/* wait for sysfs to drop all references */
 	wait_for_completion(&adap->dev_released);
 	wait_for_completion(&adap->class_dev_released);
-
-	/* free dynamically allocated bus id */
-	idr_remove(&i2c_adapter_idr, adap->nr);
 
 	dev_dbg(&adap->dev, "adapter unregistered\n");
 
@@ -452,11 +437,8 @@ static void i2c_dec_use_client(struct i2c_client *client)
 
 int i2c_use_client(struct i2c_client *client)
 {
-	int ret;
-
-	ret = i2c_inc_use_client(client);
-	if (ret)
-		return ret;
+	if (!i2c_inc_use_client(client))
+		return -ENODEV;
 
 	if (client->flags & I2C_CLIENT_ALLOW_USE) {
 		if (client->flags & I2C_CLIENT_ALLOW_MULTIPLE_USE)
@@ -616,7 +598,7 @@ int i2c_master_recv(struct i2c_client *client, char *buf ,int count)
 		ret = adap->algo->master_xfer(adap,&msg,1);
 		up(&adap->bus_lock);
 	
-		dev_dbg(&client->adapter->dev, "master_recv: return:%d (count:%d, addr:0x%02x)\n",
+		dev_dbg(&client->dev, "master_recv: return:%d (count:%d, addr:0x%02x)\n",
 			ret, count, client->addr);
 	
 		/* if everything went ok (i.e. 1 msg transmitted), return #bytes
@@ -636,7 +618,7 @@ int i2c_control(struct i2c_client *client,
 	int ret = 0;
 	struct i2c_adapter *adap = client->adapter;
 
-	dev_dbg(&client->adapter->dev, "i2c ioctl, cmd: 0x%x, arg: %#lx\n", cmd, arg);
+	dev_dbg(&client->dev, "i2c ioctl, cmd: 0x%x, arg: %#lx\n", cmd, arg);
 	switch (cmd) {
 		case I2C_RETRIES:
 			adap->retries = arg;

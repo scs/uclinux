@@ -3,7 +3,7 @@
  *
  *      (c) Copyright 2000 Red Hat Software
  *      (c) Copyright 2000 Helge Deller <hdeller@redhat.com>
- *      (c) Copyright 2001-2004 Helge Deller <deller@gmx.de>
+ *      (c) Copyright 2001-2003 Helge Deller <deller@gmx.de>
  *      (c) Copyright 2001 Randolph Chung <tausq@debian.org>
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -56,7 +56,6 @@ static int led_heartbeat = 1;
 static int led_diskio = 1;
 static int led_lanrxtx = 1;
 static char lcd_text[32];
-static char lcd_text_default[] = "Linux " UTS_RELEASE;
 
 #if 0
 #define DPRINTK(x)	printk x
@@ -157,13 +156,13 @@ static int led_proc_read(char *page, char **start, off_t off, int count,
 static int led_proc_write(struct file *file, const char *buf, 
 	unsigned long count, void *data)
 {
-	char *cur, lbuf[count + 1];
+	char *cur, lbuf[count];
 	int d;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	memset(lbuf, 0, count + 1);
+	memset(lbuf, 0, count);
 
 	if (copy_from_user(lbuf, buf, count))
 		return -EFAULT;
@@ -197,11 +196,19 @@ static int led_proc_write(struct file *file, const char *buf,
 
 		break;
 	case LED_HASLCD:
-		if (*cur && cur[strlen(cur)-1] == '\n')
-			cur[strlen(cur)-1] = 0;
 		if (*cur == 0) 
-			cur = lcd_text_default;
-		lcd_print(cur);
+		{
+			/* reset to default */
+			lcd_print("Linux " UTS_RELEASE);
+		}
+		else
+		{
+			/* chop off trailing \n.. if the user gives multiple
+			 * \n then it's all their fault.. */
+			if (*cur && cur[strlen(cur)-1] == '\n')
+				cur[strlen(cur)-1] = 0;
+			lcd_print(cur);
+		}
 		break;
 	default:
 		return 0;
@@ -431,7 +438,11 @@ static __inline__ int led_get_diskio_activity(void)
 #define HEARTBEAT_2ND_RANGE_START (HZ*22/100)
 #define HEARTBEAT_2ND_RANGE_END   (HEARTBEAT_2ND_RANGE_START + HEARTBEAT_LEN)
 
-#define NORMALIZED_COUNT(count) (count/(HZ/100))
+#if HZ==100
+ #define NORMALIZED_COUNT(count) (count)
+#else
+ #define NORMALIZED_COUNT(count) (count/(HZ/100))
+#endif
 
 static void led_tasklet_func(unsigned long unused)
 {
@@ -556,7 +567,7 @@ int __init register_led_driver(int model, char *cmd_reg, char *data_reg)
 		printk(KERN_INFO "LCD display at %p,%p registered\n", 
 			LCD_CMD_REG , LCD_DATA_REG);
 		led_func_ptr = led_LCD_driver;
-		lcd_print( lcd_text_default );
+		lcd_print( "Linux " UTS_RELEASE );
 		led_type = LED_HASLCD;
 		break;
 

@@ -49,7 +49,7 @@
 #include <linux/smp_lock.h>
 #include <linux/completion.h>
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 
 struct us_data;
 
@@ -69,7 +69,6 @@ struct us_unusual_dev {
 /* Flag definitions: these entries are static */
 #define US_FL_SINGLE_LUN      0x00000001 /* allow access to only LUN 0	    */
 #define US_FL_MODE_XLATE      0          /* [no longer used]                */
-#define US_FL_NEED_OVERRIDE   0x00000004 /* unusual_devs entry is necessary */
 #define US_FL_IGNORE_SER      0		 /* [no longer used]		    */
 #define US_FL_SCM_MULT_TARG   0x00000020 /* supports multiple targets	    */
 #define US_FL_FIX_INQUIRY     0x00000040 /* INQUIRY response needs faking   */
@@ -80,9 +79,8 @@ struct us_unusual_dev {
 #define US_FLIDX_SG_ACTIVE	19  /* 0x00080000  current_sg is in use   */
 #define US_FLIDX_ABORTING	20  /* 0x00100000  abort is in progress   */
 #define US_FLIDX_DISCONNECTING	21  /* 0x00200000  disconnect in progress */
-#define ABORTING_OR_DISCONNECTING	((1UL << US_FLIDX_ABORTING) | \
-					 (1UL << US_FLIDX_DISCONNECTING))
-#define US_FLIDX_RESETTING	22  /* 0x00400000  device reset in progress */
+#define DONT_SUBMIT	((1UL << US_FLIDX_ABORTING) | \
+			 (1UL << US_FLIDX_DISCONNECTING))
 
 
 /* processing state machine states */
@@ -158,10 +156,9 @@ struct us_data {
 	dma_addr_t		cr_dma;		 /* buffer DMA addresses */
 	dma_addr_t		iobuf_dma;
 
-	/* mutual exclusion and synchronization structures */
+	/* mutual exclusion structures */
 	struct semaphore	sema;		 /* to sleep thread on   */
-	struct completion	notify;		 /* thread begin/end	 */
-	wait_queue_head_t	dev_reset_wait;  /* wait during reset    */
+	struct completion	notify;		 /* thread begin/end	    */
 
 	/* subdriver information */
 	void			*extra;		 /* Any extra data          */
@@ -179,5 +176,6 @@ extern void fill_inquiry_response(struct us_data *us,
  * single queue element srb for write access */
 #define scsi_unlock(host)	spin_unlock_irq(host->host_lock)
 #define scsi_lock(host)		spin_lock_irq(host->host_lock)
+#define sg_address(psg)		(page_address((psg).page) + (psg).offset)
 
 #endif

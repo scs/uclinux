@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) International Business Machines Corp., 2000-2004
+ *   Copyright (c) International Business Machines Corp., 2000-2002
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -34,12 +34,9 @@
 
 /*
  * transaction and lock id's
- *
- * Don't change these without carefully considering the impact on the
- * size and alignment of all of the linelock variants
  */
-typedef u16 tid_t;
-typedef u16 lid_t;
+typedef uint tid_t;
+typedef uint lid_t;
 
 /*
  * Almost identical to Linux's timespec, but not quite
@@ -113,12 +110,11 @@ typedef struct {
 #define	addressPXD(pxd)\
 	( ((s64)((pxd)->addr1)) << 32 | __le32_to_cpu((pxd)->addr2))
 
-#define MAXTREEHEIGHT 8
 /* pxd list */
 struct pxdlist {
 	s16 maxnpxd;
 	s16 npxd;
-	pxd_t pxd[MAXTREEHEIGHT];
+	pxd_t pxd[8];
 };
 
 

@@ -8,18 +8,20 @@
  * Code common to all LCA core logic chips.
  */
 
-#define __EXTERN_INLINE inline
-#include <asm/io.h>
-#include <asm/core_lca.h>
-#undef __EXTERN_INLINE
-
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/tty.h>
 
 #include <asm/ptrace.h>
+#include <asm/system.h>
 #include <asm/smp.h>
+
+#define __EXTERN_INLINE inline
+#include <asm/io.h>
+#include <asm/core_lca.h>
+#undef __EXTERN_INLINE
 
 #include "proto.h"
 #include "pci_impl.h"

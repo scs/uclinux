@@ -29,7 +29,7 @@
 #include <linux/stat.h>
 
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 #include "NCR53C9x.h"
 
 #include <asm/irq.h>
@@ -124,8 +124,6 @@ static Scsi_Host_Template driver_template = {
 	.proc_info		= &esp_proc_info,
 	.name			= "NCR53C94",
 	.detect			= dec_esp_detect,
-	.slave_alloc		= esp_slave_alloc,
-	.slave_destroy		= esp_slave_destroy,
 	.release		= dec_esp_release,
 	.info			= esp_info,
 	.queuecommand		= esp_queue,
@@ -378,7 +376,7 @@ static void dma_drain(struct NCR_ESP *esp)
 
 static int dma_can_transfer(struct NCR_ESP *esp, Scsi_Cmnd * sp)
 {
-	return sp->SCp.this_residual;
+	return sp->SCp.this_residual;;
 }
 
 static void dma_dump_state(struct NCR_ESP *esp)

@@ -58,7 +58,7 @@
 
 #include <net/irda/irda.h>
 #include <net/irda/wrapper.h>
-#include "irport.h"
+#include <net/irda/irport.h>
 
 #define IO_EXTENT 8
 
@@ -178,6 +178,9 @@ irport_open(int i, unsigned int iobase, unsigned int irq)
 	self->qos.min_turn_time.bits = qos_mtt_bits;
 	irda_qos_bits_to_value(&self->qos);
 	
+	self->flags = IFF_SIR|IFF_PIO;
+	self->mode = IRDA_IRLAP;
+
 	/* Bootstrap ZeroCopy Rx */
 	self->rx_buff.truesize = IRDA_SKB_MAX_MTU;
 	self->rx_buff.skb = __dev_alloc_skb(self->rx_buff.truesize,
@@ -452,7 +455,7 @@ int __irport_change_speed(struct irda_task *task)
 			task->state = IRDA_TASK_WAIT;
 
 			/* Try again later */
-			ret = msecs_to_jiffies(20);
+			ret = MSECS_TO_JIFFIES(20);
 			break;
 		}
 
@@ -474,7 +477,7 @@ int __irport_change_speed(struct irda_task *task)
 			irda_task_next_state(task, IRDA_TASK_CHILD_WAIT);
 
 			/* Give dongle 1 sec to finish */
-			ret = msecs_to_jiffies(1000);
+			ret = MSECS_TO_JIFFIES(1000);
 		} else
 			/* Child finished immediately */
 			irda_task_next_state(task, IRDA_TASK_CHILD_DONE);

@@ -3,8 +3,6 @@
 
 #include <linux/list.h>
 
-struct reiserfs_journal_list;
-
 /** bitmasks for i_flags field in reiserfs-specific part of inode */
 typedef enum {
     /** this says what format of key do all items (but stat data) of
@@ -22,10 +20,7 @@ typedef enum {
       truncate or unlink. Safe link is used to avoid leakage of disk
       space on crash with some files open, but unlinked. */
     i_link_saved_unlink_mask   =  0x0010,
-    i_link_saved_truncate_mask =  0x0020,
-    i_priv_object              =  0x0080,
-    i_has_xattr_dir            =  0x0100,
-    i_data_log	               =  0x0200,
+    i_link_saved_truncate_mask =  0x0020
 } reiserfs_inode_flags;
 
 
@@ -53,11 +48,7 @@ struct reiserfs_inode_info {
     ** needs to be committed in order for this inode to be properly
     ** flushed */
     unsigned long i_trans_id ;
-    struct reiserfs_journal_list *i_jl;
-
-    struct posix_acl *i_acl_access;
-    struct posix_acl *i_acl_default;
-    struct rw_semaphore xattr_sem;
+    unsigned long i_trans_index ;
     struct inode vfs_inode;
 };
 

@@ -45,6 +45,7 @@ static irqreturn_t ps2_rxint(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct ps2if *ps2if = dev_id;
 	unsigned int scancode, flag, status;
+	int handled = IRQ_NONE;
 
 	status = sa1111_readl(ps2if->base + SA1111_PS2STAT);
 	while (status & PS2STAT_RXF) {
@@ -62,9 +63,11 @@ static irqreturn_t ps2_rxint(int irq, void *dev_id, struct pt_regs *regs)
 		serio_interrupt(&ps2if->io, scancode, flag, regs);
 
 		status = sa1111_readl(ps2if->base + SA1111_PS2STAT);
+
+		handled = IRQ_HANDLED;
         }
 
-        return IRQ_HANDLED;
+        return handled;
 }
 
 /*

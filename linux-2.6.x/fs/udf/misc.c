@@ -16,7 +16,7 @@
  *	Each contributing author retains all rights to their own work.
  *
  *  (C) 1998 Dave Boynton
- *  (C) 1998-2004 Ben Fennema
+ *  (C) 1998-2001 Ben Fennema
  *  (C) 1999-2000 Stelias Computing Inc
  *
  * HISTORY
@@ -34,7 +34,19 @@
 #include "udf_i.h"
 #include "udf_sb.h"
 
-struct buffer_head *
+uint32_t
+udf64_low32(uint64_t indat)
+{
+	return indat & 0x00000000FFFFFFFFULL;
+}
+
+uint32_t
+udf64_high32(uint64_t indat)
+{
+	return indat >> 32;
+}
+
+extern struct buffer_head *
 udf_tgetblk(struct super_block *sb, int block)
 {
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV))
@@ -43,7 +55,7 @@ udf_tgetblk(struct super_block *sb, int block)
 		return sb_getblk(sb, block);
 }
 
-struct buffer_head *
+extern struct buffer_head *
 udf_tread(struct super_block *sb, int block)
 {
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV))
@@ -52,26 +64,44 @@ udf_tread(struct super_block *sb, int block)
 		return sb_bread(sb, block);
 }
 
-struct genericFormat *
+extern struct genericFormat *
 udf_add_extendedattr(struct inode * inode, uint32_t size, uint32_t type,
-	uint8_t loc)
+	uint8_t loc, struct buffer_head **bh)
 {
 	uint8_t *ea = NULL, *ad = NULL;
+	long_ad eaicb;
 	int offset;
-	uint16_t crclen;
-	int i;
 
-	ea = UDF_I_DATA(inode);
-	if (UDF_I_LENEATTR(inode))
-		ad = UDF_I_DATA(inode) + UDF_I_LENEATTR(inode);
+	*bh = udf_tread(inode->i_sb, inode->i_ino);
+
+	if (UDF_I_EFE(inode) == 0)
+	{
+		struct fileEntry *fe;
+
+		fe = (struct fileEntry *)(*bh)->b_data;
+		eaicb = lela_to_cpu(fe->extendedAttrICB);
+		offset = sizeof(struct fileEntry);
+	}
 	else
 	{
-		ad = ea;
-		size += sizeof(struct extendedAttrHeaderDesc);
+		struct extendedFileEntry *efe;
+
+		efe = (struct extendedFileEntry *)(*bh)->b_data;
+		eaicb = lela_to_cpu(efe->extendedAttrICB);
+		offset = sizeof(struct extendedFileEntry);
 	}
 
-	offset = inode->i_sb->s_blocksize - udf_file_entry_alloc_offset(inode) -
-		UDF_I_LENALLOC(inode);
+	ea = &(*bh)->b_data[offset];
+	if (UDF_I_LENEATTR(inode))
+		offset += UDF_I_LENEATTR(inode);
+	else
+		size += sizeof(struct extendedAttrHeaderDesc);
+
+	ad = &(*bh)->b_data[offset];
+	if (UDF_I_LENALLOC(inode))
+		offset += UDF_I_LENALLOC(inode);
+
+	offset = inode->i_sb->s_blocksize - offset;
 
 	/* TODO - Check for FreeEASpace */
 
@@ -91,6 +121,7 @@ udf_add_extendedattr(struct inode * inode, uint32_t size, uint32_t type,
 			if (le16_to_cpu(eahd->descTag.tagIdent) != TAG_IDENT_EAHD ||
 				le32_to_cpu(eahd->descTag.tagLocation) != UDF_I_LOCATION(inode).logicalBlockNum)
 			{
+				udf_release_data(*bh);
 				return NULL;
 			}
 		}
@@ -99,11 +130,8 @@ udf_add_extendedattr(struct inode * inode, uint32_t size, uint32_t type,
 			size -= sizeof(struct extendedAttrHeaderDesc);
 			UDF_I_LENEATTR(inode) += sizeof(struct extendedAttrHeaderDesc);
 			eahd->descTag.tagIdent = cpu_to_le16(TAG_IDENT_EAHD);
-			if (UDF_SB_UDFREV(inode->i_sb) >= 0x0200)
-				eahd->descTag.descVersion = cpu_to_le16(3);
-			else
-				eahd->descTag.descVersion = cpu_to_le16(2);
-			eahd->descTag.tagSerialNum = cpu_to_le16(UDF_SB_SERIALNUM(inode->i_sb));
+			eahd->descTag.descVersion = cpu_to_le16(2);
+			eahd->descTag.tagSerialNum = cpu_to_le16(1);
 			eahd->descTag.tagLocation = cpu_to_le32(UDF_I_LOCATION(inode).logicalBlockNum);
 			eahd->impAttrLocation = cpu_to_le32(0xFFFFFFFF);
 			eahd->appAttrLocation = cpu_to_le32(0xFFFFFFFF);
@@ -141,30 +169,45 @@ udf_add_extendedattr(struct inode * inode, uint32_t size, uint32_t type,
 			}
 		}
 		/* rewrite CRC + checksum of eahd */
-		crclen = sizeof(struct extendedAttrHeaderDesc) - sizeof(tag);
-		eahd->descTag.descCRCLength = cpu_to_le16(crclen);
-		eahd->descTag.descCRC = cpu_to_le16(udf_crc((char *)eahd + sizeof(tag), crclen, 0));
-		eahd->descTag.tagChecksum = 0;
-		for (i=0; i<16; i++)
-			if (i != 4)
-				eahd->descTag.tagChecksum += ((uint8_t *)&(eahd->descTag))[i];
 		UDF_I_LENEATTR(inode) += size;
 		return (struct genericFormat *)&ea[offset];
 	}
 	if (loc & 0x02)
 	{
 	}
+	udf_release_data(*bh);
 	return NULL;
 }
 
-struct genericFormat *
-udf_get_extendedattr(struct inode *inode, uint32_t type, uint8_t subtype)
+extern struct genericFormat *
+udf_get_extendedattr(struct inode * inode, uint32_t type, uint8_t subtype,
+	struct buffer_head **bh)
 {
 	struct genericFormat *gaf;
 	uint8_t *ea = NULL;
+	long_ad eaicb;
 	uint32_t offset;
 
-	ea = UDF_I_DATA(inode);
+	*bh = udf_tread(inode->i_sb, inode->i_ino);
+
+	if (UDF_I_EFE(inode) == 0)
+	{
+		struct fileEntry *fe;
+
+		fe = (struct fileEntry *)(*bh)->b_data;
+		eaicb = lela_to_cpu(fe->extendedAttrICB);
+		if (UDF_I_LENEATTR(inode))
+			ea = fe->extendedAttr;
+	}
+	else
+	{
+		struct extendedFileEntry *efe;
+
+		efe = (struct extendedFileEntry *)(*bh)->b_data;
+		eaicb = lela_to_cpu(efe->extendedAttrICB);
+		if (UDF_I_LENEATTR(inode))
+			ea = efe->extendedAttr;
+	}
 
 	if (UDF_I_LENEATTR(inode))
 	{
@@ -175,6 +218,7 @@ udf_get_extendedattr(struct inode *inode, uint32_t type, uint8_t subtype)
 		if (le16_to_cpu(eahd->descTag.tagIdent) != TAG_IDENT_EAHD ||
 			le32_to_cpu(eahd->descTag.tagLocation) != UDF_I_LOCATION(inode).logicalBlockNum)
 		{
+			udf_release_data(*bh);
 			return NULL;
 		}
 	
@@ -194,6 +238,12 @@ udf_get_extendedattr(struct inode *inode, uint32_t type, uint8_t subtype)
 				offset += le32_to_cpu(gaf->attrLength);
 		}
 	}
+
+	udf_release_data(*bh);
+	if (eaicb.extLength)
+	{
+		/* TODO */
+	}
 	return NULL;
 }
 
@@ -207,7 +257,7 @@ udf_get_extendedattr(struct inode *inode, uint32_t type, uint8_t subtype)
  *	July 1, 1997 - Andrew E. Mileski
  *	Written, tested, and released.
  */
-struct buffer_head *
+extern struct buffer_head *
 udf_read_tagged(struct super_block *sb, uint32_t block, uint32_t location, uint16_t *ident)
 {
 	tag *tag_p;
@@ -272,7 +322,7 @@ error_out:
 	return NULL;
 }
 
-struct buffer_head *
+extern struct buffer_head *
 udf_read_ptagged(struct super_block *sb, lb_addr loc, uint32_t offset, uint16_t *ident)
 {
 	return udf_read_tagged(sb, udf_get_lb_pblock(sb, loc, offset),

@@ -168,6 +168,8 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 	    ? (__pgprot((pgprot_val(prot) & _CACHEMASK040) | _PAGE_NOCACHE_S))	\
 	    : (prot)))
 
+typedef pte_t *pte_addr_t;
+
 #endif /* !__ASSEMBLY__ */
 
 /*

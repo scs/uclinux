@@ -32,7 +32,6 @@
 
 
 extern struct font_desc font_vga_8x16;
-extern unsigned long sgi_gfxaddr;
 
 #define FONT_DATA ((unsigned char *)font_vga_8x16.data)
 
@@ -44,15 +43,13 @@ extern unsigned long sgi_gfxaddr;
 
 static unsigned char *font_data[MAX_NR_CONSOLES];
 
-static struct newport_regs *npregs;
+extern struct newport_regs *npregs;
 
 static int logo_active;
 static int topscan;
 static int xcurs_correction = 29;
 static int newport_xsize;
 static int newport_ysize;
-
-static int newport_set_def_font(int unit, struct console_font *op);
 
 #define BMASK(c) (c << 24)
 
@@ -98,33 +95,11 @@ static inline void newport_init_cmap(void)
 	}
 }
 
-static void newport_show_logo(void)
-{
 #ifdef CONFIG_LOGO_SGI_CLUT224
-	const struct linux_logo *logo = fb_find_logo(8);
-	const unsigned char *clut = logo->clut;
-	const unsigned char *data = logo->data;
-	unsigned long i;
-
-	for (i = 0; i < logo->clutsize; i++) {
-		newport_bfwait();
-		newport_cmap_setaddr(npregs, i + 0x20);
-		newport_cmap_setrgb(npregs, clut[0], clut[1], clut[2]);
-		clut += 3;
-	}
-
-	newport_wait();
-	npregs->set.drawmode0 = (NPORT_DMODE0_DRAW | NPORT_DMODE0_BLOCK |
-				 NPORT_DMODE0_CHOST);
-
-	npregs->set.xystarti = ((newport_xsize - logo->width) << 16) | (0);
-	npregs->set.xyendi = ((newport_xsize - 1) << 16);
-	newport_wait();
-
-	for (i = 0; i < logo->width*logo->height; i++)
-		npregs->go.hostrw0 = *data++ << 24;
-#endif /* CONFIG_LOGO_SGI_CLUT224 */
-}
+static void newport_show_logo(void);
+#else
+#define newport_show_logo()	do { } while (0)
+#endif
 
 static inline void newport_clear_screen(int xstart, int ystart, int xend,
 					int yend, int ci)
@@ -283,22 +258,26 @@ static void newport_get_revisions(void)
 		xcurs_correction = 21;
 }
 
-/* Can't be __init, take_over_console may call it later */
+#ifdef MODULE
 static const char *newport_startup(void)
+#else
+static const char *__init newport_startup(void)
+#endif
 {
 	int i;
+	struct newport_regs *p;
 
-	if (!sgi_gfxaddr)
-		return NULL;
-	npregs = (struct newport_regs *) (KSEG1 + sgi_gfxaddr);
-	npregs->cset.config = NPORT_CFG_GD0;
+	npregs = (struct newport_regs *) (KSEG1 + 0x1f0f0000);
+
+	p = npregs;
+	p->cset.config = NPORT_CFG_GD0;
 
 	if (newport_wait()) {
 		return NULL;
 	}
 
-	npregs->set.xstarti = TESTVAL;
-	if (npregs->set._xstart.word != XSTI_TO_FXSTART(TESTVAL))
+	p->set.xstarti = TESTVAL;
+	if (p->set._xstart.word != XSTI_TO_FXSTART(TESTVAL))
 		return NULL;
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
@@ -308,6 +287,8 @@ static const char *newport_startup(void)
 	newport_get_revisions();
 	newport_get_screensize();
 
+	/* gfx_init (display_desc); */
+
 	return "SGI Newport";
 }
 
@@ -316,15 +297,6 @@ static void newport_init(struct vc_data *vc, int init)
 	vc->vc_cols = newport_xsize / 8;
 	vc->vc_rows = newport_ysize / 16;
 	vc->vc_can_do_color = 1;
-}
-
-static void newport_deinit(struct vc_data *c)
-{
-	int i;
-
-	/* free memory used by user font */
-	for (i = 0; i < MAX_NR_CONSOLES; i++)
-		newport_set_def_font(i, NULL);
 }
 
 static void newport_clear(struct vc_data *vc, int sy, int sx, int height,
@@ -477,7 +449,7 @@ static int newport_blank(struct vc_data *c, int blank)
 	return 1;
 }
 
-static int newport_set_font(int unit, struct console_font *op)
+static int newport_set_font(int unit, struct console_font_op *op)
 {
 	int w = op->width;
 	int h = op->height;
@@ -531,7 +503,7 @@ static int newport_set_font(int unit, struct console_font *op)
 	return 0;
 }
 
-static int newport_set_def_font(int unit, struct console_font *op)
+static int newport_set_def_font(int unit, struct console_font_op *op)
 {
 	if (font_data[unit] != FONT_DATA) {
 		if (--REFCOUNT(font_data[unit]) == 0)
@@ -543,14 +515,18 @@ static int newport_set_def_font(int unit, struct console_font *op)
 	return 0;
 }
 
-static int newport_font_default(struct vc_data *vc, struct console_font *op, char *name)
+static int newport_font_op(struct vc_data *vc, struct console_font_op *op)
 {
-	return newport_set_def_font(vc->vc_num, op);
-}
+	int unit = vc->vc_num;
 
-static int newport_font_set(struct vc_data *vc, struct console_font *font, unsigned flags)
-{
-	return newport_set_font(vc->vc_num, font);
+	switch (op->op) {
+	case KD_FONT_OP_SET:
+		return newport_set_font(unit, op);
+	case KD_FONT_OP_SET_DEFAULT:
+		return newport_set_def_font(unit, op);
+	default:
+		return -ENOSYS;
+	}
 }
 
 static int newport_set_palette(struct vc_data *vc, unsigned char *table)
@@ -701,10 +677,9 @@ static int newport_dummy(struct vc_data *c)
 #define DUMMY (void *) newport_dummy
 
 const struct consw newport_con = {
-    .owner =		THIS_MODULE,
     .con_startup =	newport_startup,
     .con_init =		newport_init,
-    .con_deinit =	newport_deinit,
+    .con_deinit =	DUMMY,
     .con_clear =	newport_clear,
     .con_putc =		newport_putc,
     .con_putcs =	newport_putcs,
@@ -713,8 +688,7 @@ const struct consw newport_con = {
     .con_bmove =	newport_bmove,
     .con_switch =	newport_switch,
     .con_blank =	newport_blank,
-    .con_font_set =	newport_font_set,
-    .con_font_default =	newport_font_default,
+    .con_font_op =	newport_font_op,
     .con_set_palette =	newport_set_palette,
     .con_scrolldelta =	newport_scrolldelta,
     .con_set_origin =	DUMMY,
@@ -722,18 +696,63 @@ const struct consw newport_con = {
 };
 
 #ifdef MODULE
-static int __init newport_console_init(void)
+MODULE_LICENSE("GPL");
+
+int init_module(void)
 {
-	return take_over_console(&newport_con, 0, MAX_NR_CONSOLES - 1, 1);
+	if (!newport_startup())
+		printk("Error loading SGI Newport Console driver\n");
+	else
+		printk("Loading SGI Newport Console Driver\n");
+	take_over_console(&newport_con, 0, MAX_NR_CONSOLES - 1, 1);
+
+	return 0;
 }
 
-static void __exit newport_console_exit(void)
+int cleanup_module(void)
 {
-	give_up_console(&newport_con);
-}
+	int i;
 
-module_init(newport_console_init);
-module_exit(newport_console_exit);
+	printk("Unloading SGI Newport Console Driver\n");
+	/* free memory used by user font */
+	for (i = 0; i < MAX_NR_CONSOLES; i++)
+		newport_set_def_font(i, NULL);
+
+	return 0;
+}
 #endif
 
-MODULE_LICENSE("GPL");
+
+#ifdef CONFIG_LOGO_SGI_CLUT224
+
+#undef __initdata
+#define __initdata
+#include "../logo/logo_sgi_clut224.c"
+
+static void newport_show_logo(void)
+{
+	const struct linux_logo *logo = &logo_sgi_clut224;
+	const unsigned char *clut = logo->clut;
+	const unsigned char *data = logo->data;
+	unsigned long i;
+
+	for (i = 0; i < logo->clutsize; i++) {
+		newport_bfwait();
+		newport_cmap_setaddr(npregs, i + 0x20);
+		newport_cmap_setrgb(npregs, clut[0], clut[1], clut[2]);
+		clut += 3;
+	}
+
+	newport_wait();
+	npregs->set.drawmode0 = (NPORT_DMODE0_DRAW | NPORT_DMODE0_BLOCK |
+				 NPORT_DMODE0_CHOST);
+
+	npregs->set.xystarti = ((newport_xsize - logo->width) << 16) | (0);
+	npregs->set.xyendi = ((newport_xsize - 1) << 16);
+	newport_wait();
+
+	for (i = 0; i < logo->width*logo->height; i++)
+		npregs->go.hostrw0 = *data++ << 24;
+}
+#endif /* CONFIG_LOGO_SGI_CLUT224 */
+

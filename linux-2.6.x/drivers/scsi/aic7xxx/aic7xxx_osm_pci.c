@@ -198,8 +198,7 @@ int
 ahc_linux_pci_init(void)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
-	/* Translate error or zero return into zero or one */
-	return pci_module_init(&aic7xxx_pci_driver) ? 0 : 1;
+	return (pci_module_init(&aic7xxx_pci_driver));
 #else
 	struct pci_dev *pdev;
 	u_int class;

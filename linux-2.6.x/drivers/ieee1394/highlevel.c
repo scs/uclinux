@@ -20,7 +20,6 @@
 #include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/list.h>
-#include <linux/bitops.h>
 
 #include "ieee1394.h"
 #include "ieee1394_types.h"
@@ -45,6 +44,7 @@ static DECLARE_RWSEM(hl_drivers_sem);
 static LIST_HEAD(hl_irqs);
 static rwlock_t hl_irqs_lock = RW_LOCK_UNLOCKED;
 
+static LIST_HEAD(addr_space);
 static rwlock_t addr_space_lock = RW_LOCK_UNLOCKED;
 
 /* addr_space list will have zero and max already included as bounds */
@@ -56,20 +56,21 @@ static struct hl_host_info *hl_get_hostinfo(struct hpsb_highlevel *hl,
 					      struct hpsb_host *host)
 {
 	struct hl_host_info *hi = NULL;
+	struct list_head *lh;
 
 	if (!hl || !host)
 		return NULL;
 
 	read_lock(&hl->host_info_lock);
-	list_for_each_entry(hi, &hl->host_info_list, list) {
-		if (hi->host == host) {
-			read_unlock(&hl->host_info_lock);
-			return hi;
-		}
+	list_for_each (lh, &hl->host_info_list) {
+		hi = list_entry(lh, struct hl_host_info, list);
+		if (hi->host == host)
+			break;
+		hi = NULL;
 	}
 	read_unlock(&hl->host_info_lock);
 
-	return NULL;
+	return hi;
 }
 
 
@@ -187,6 +188,7 @@ unsigned long hpsb_get_hostinfo_key(struct hpsb_highlevel *hl, struct hpsb_host 
 
 void *hpsb_get_hostinfo_bykey(struct hpsb_highlevel *hl, unsigned long key)
 {
+	struct list_head *lh;
 	struct hl_host_info *hi;
 	void *data = NULL;
 
@@ -194,7 +196,8 @@ void *hpsb_get_hostinfo_bykey(struct hpsb_highlevel *hl, unsigned long key)
 		return NULL;
 
 	read_lock(&hl->host_info_lock);
-	list_for_each_entry(hi, &hl->host_info_list, list) {
+	list_for_each (lh, &hl->host_info_list) {
+		hi = list_entry(lh, struct hl_host_info, list);
 		if (hi->key == key) {
 			data = hi->data;
 			break;
@@ -208,6 +211,7 @@ void *hpsb_get_hostinfo_bykey(struct hpsb_highlevel *hl, unsigned long key)
 
 struct hpsb_host *hpsb_get_host_bykey(struct hpsb_highlevel *hl, unsigned long key)
 {
+	struct list_head *lh;
 	struct hl_host_info *hi;
 	struct hpsb_host *host = NULL;
 
@@ -215,7 +219,8 @@ struct hpsb_host *hpsb_get_host_bykey(struct hpsb_highlevel *hl, unsigned long k
 		return NULL;
 
 	read_lock(&hl->host_info_lock);
-	list_for_each_entry(hi, &hl->host_info_list, list) {
+	list_for_each (lh, &hl->host_info_list) {
+		hi = list_entry(lh, struct hl_host_info, list);
 		if (hi->key == key) {
 			host = hi->host;
 			break;
@@ -231,13 +236,6 @@ static int highlevel_for_each_host_reg(struct hpsb_host *host, void *__data)
 	struct hpsb_highlevel *hl = __data;
 
 	hl->add_host(host);
-
-        if (host->update_config_rom) {
-		if (hpsb_update_config_rom_image(host) < 0) {
-			HPSB_ERR("Failed to generate Configuration ROM image for host "
-				 "%s-%d", hl->name, host->id);
-		}
-	}
 
 	return 0;
 }
@@ -263,20 +261,12 @@ void hpsb_register_highlevel(struct hpsb_highlevel *hl)
         return;
 }
 
-static void __delete_addr(struct hpsb_address_serve *as)
-{
-	list_del(&as->host_list);
-	list_del(&as->hl_list);
-	kfree(as);
-}
-
-static void __unregister_host(struct hpsb_highlevel *hl, struct hpsb_host *host, int update_cr)
+static void __unregister_host(struct hpsb_highlevel *hl, struct hpsb_host *host)
 {
 	unsigned long flags;
 	struct list_head *lh, *next;
 	struct hpsb_address_serve *as;
 
-	/* First, let the highlevel driver unreg */
 	if (hl->remove_host)
 		hl->remove_host(host);
 
@@ -284,24 +274,19 @@ static void __unregister_host(struct hpsb_highlevel *hl, struct hpsb_host *host,
 	 * and this particular host. */
 	write_lock_irqsave(&addr_space_lock, flags);
 	list_for_each_safe (lh, next, &hl->addr_list) {
-		as = list_entry(lh, struct hpsb_address_serve, hl_list);
+		as = list_entry(lh, struct hpsb_address_serve, addr_list);
 
-		if (as->host == host)
-			__delete_addr(as);
+		if (as->host != host)
+			continue;
+
+		if (!list_empty(&as->addr_list)) {
+			list_del(&as->as_list);
+			list_del(&as->addr_list);
+			kfree(as);
+		}
 	}
 	write_unlock_irqrestore(&addr_space_lock, flags);
 
-	/* Now update the config-rom to reflect anything removed by the
-	 * highlevel driver. */
-	if (update_cr && host->update_config_rom) {
-		if (hpsb_update_config_rom_image(host) < 0) {
-			HPSB_ERR("Failed to generate Configuration ROM image for host "
-				 "%s-%d", hl->name, host->id);
-		}
-	}
-
-	/* And finally, remove all the host info associated between these
-	 * two. */
 	hpsb_destroy_hostinfo(hl, host);
 }
 
@@ -309,7 +294,7 @@ static int highlevel_for_each_host_unreg(struct hpsb_host *host, void *__data)
 {
 	struct hpsb_highlevel *hl = __data;
 
-	__unregister_host(hl, host, 1);
+	__unregister_host(hl, host);
 
 	return 0;
 }
@@ -327,86 +312,11 @@ void hpsb_unregister_highlevel(struct hpsb_highlevel *hl)
 	nodemgr_for_each_host(hl, highlevel_for_each_host_unreg);
 }
 
-u64 hpsb_allocate_and_register_addrspace(struct hpsb_highlevel *hl,
-					 struct hpsb_host *host,
-					 struct hpsb_address_ops *ops,
-					 u64 size, u64 alignment,
-					 u64 start, u64 end)
-{
-	struct hpsb_address_serve *as, *a1, *a2;
-	struct list_head *entry;
-	u64 retval = ~0ULL;
-	unsigned long flags;
-	u64 align_mask = ~(alignment - 1);
-
-	if ((alignment & 3) || (alignment > 0x800000000000ULL) ||
-	    ((hweight32(alignment >> 32) +
-	      hweight32(alignment & 0xffffffff) != 1))) {
-		HPSB_ERR("%s called with invalid alignment: 0x%048llx",
-			 __FUNCTION__, (unsigned long long)alignment);
-		return retval;
-	}
-
-	if (start == ~0ULL && end == ~0ULL) {
-		start = CSR1212_ALL_SPACE_BASE + 0xffff00000000ULL;  /* ohci1394.c limit */
-		end = CSR1212_ALL_SPACE_END;
-	}
-
-	if (((start|end) & ~align_mask) || (start >= end) || (end > 0x1000000000000ULL)) {
-		HPSB_ERR("%s called with invalid addresses (start = %012Lx    end = %012Lx)",
-			 __FUNCTION__, (unsigned long long)start, (unsigned long long)end);
-		return retval;
-	}
-
-	as = (struct hpsb_address_serve *)
-		kmalloc(sizeof(struct hpsb_address_serve), GFP_KERNEL);
-	if (as == NULL) {
-		return retval;
-	}
-
-	INIT_LIST_HEAD(&as->host_list);
-	INIT_LIST_HEAD(&as->hl_list);
-	as->op = ops;
-	as->host = host;
-
-	write_lock_irqsave(&addr_space_lock, flags);
-
-	list_for_each(entry, &host->addr_space) {
-		u64 a1sa, a1ea;
-		u64 a2sa, a2ea;
-
-		a1 = list_entry(entry, struct hpsb_address_serve, host_list);
-		a2 = list_entry(entry->next, struct hpsb_address_serve, host_list);
-
-		a1sa = a1->start & align_mask;
-		a1ea = (a1->end + alignment -1) & align_mask;
-		a2sa = a2->start & align_mask;
-		a2ea = (a2->end + alignment -1) & align_mask;
-
-		if ((a2sa - a1ea >= size) && (a2sa - start >= size) && (a2sa > start)) {
-			as->start = max(start, a1ea);
-			as->end = as->start + size;
-			list_add(&as->host_list, entry);
-			list_add_tail(&as->hl_list, &hl->addr_list);
-			retval = as->start;
-			break;
-		}
-	}
-
-	write_unlock_irqrestore(&addr_space_lock, flags);
-
-	if (retval == ~0ULL) {
-		kfree(as);
-	}
-
-	return retval;
-}
-
 int hpsb_register_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
                             struct hpsb_address_ops *ops, u64 start, u64 end)
 {
         struct hpsb_address_serve *as;
-	struct list_head *lh;
+        struct list_head *entry;
         int retval = 0;
         unsigned long flags;
 
@@ -421,35 +331,31 @@ int hpsb_register_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
                 return 0;
         }
 
-        INIT_LIST_HEAD(&as->host_list);
-        INIT_LIST_HEAD(&as->hl_list);
+        INIT_LIST_HEAD(&as->as_list);
+        INIT_LIST_HEAD(&as->addr_list);
         as->op = ops;
         as->start = start;
         as->end = end;
-	as->host = host;
 
-	write_lock_irqsave(&addr_space_lock, flags);
+        write_lock_irqsave(&addr_space_lock, flags);
+        entry = host->addr_space.next;
 
-	list_for_each(lh, &host->addr_space) {
-		struct hpsb_address_serve *as_this =
-			list_entry(lh, struct hpsb_address_serve, host_list);
-		struct hpsb_address_serve *as_next =
-			list_entry(lh->next, struct hpsb_address_serve, host_list);
+        while (list_entry(entry, struct hpsb_address_serve, as_list)->end
+               <= start) {
+                if (list_entry(entry->next, struct hpsb_address_serve, as_list)
+                    ->start >= end) {
+                        list_add(&as->as_list, entry);
+                        list_add_tail(&as->addr_list, &hl->addr_list);
+                        retval = 1;
+                        break;
+                }
+                entry = entry->next;
+        }
+        write_unlock_irqrestore(&addr_space_lock, flags);
 
-		if (as_this->end > as->start)
-			break;
-
-		if (as_next->start >= as->end) {
-			list_add(&as->host_list, lh);
-			list_add_tail(&as->hl_list, &hl->addr_list);
-			retval = 1;
-			break;
-		}
-	}
-	write_unlock_irqrestore(&addr_space_lock, flags);
-
-	if (retval == 0)
-		kfree(as);
+        if (retval == 0) {
+                kfree(as);
+        }
 
         return retval;
 }
@@ -459,15 +365,20 @@ int hpsb_unregister_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
 {
         int retval = 0;
         struct hpsb_address_serve *as;
-        struct list_head *lh, *next;
+        struct list_head *entry;
         unsigned long flags;
 
         write_lock_irqsave(&addr_space_lock, flags);
 
-	list_for_each_safe (lh, next, &hl->addr_list) {
-                as = list_entry(lh, struct hpsb_address_serve, hl_list);
+        entry = hl->addr_list.next;
+
+        while (entry != &hl->addr_list) {
+                as = list_entry(entry, struct hpsb_address_serve, addr_list);
+                entry = entry->next;
                 if (as->start == start && as->host == host) {
-			__delete_addr(as);
+                        list_del(&as->as_list);
+                        list_del(&as->addr_list);
+                        kfree(as);
                         retval = 1;
                         break;
                 }
@@ -493,7 +404,7 @@ int hpsb_listen_channel(struct hpsb_highlevel *hl, struct hpsb_host *host,
 	return 0;
 }
 
-void hpsb_unlisten_channel(struct hpsb_highlevel *hl, struct hpsb_host *host,
+void hpsb_unlisten_channel(struct hpsb_highlevel *hl, struct hpsb_host *host, 
                            unsigned int channel)
 {
         if (channel > 63) {
@@ -508,18 +419,18 @@ void hpsb_unlisten_channel(struct hpsb_highlevel *hl, struct hpsb_host *host,
 
 static void init_hpsb_highlevel(struct hpsb_host *host)
 {
-	INIT_LIST_HEAD(&dummy_zero_addr.host_list);
-	INIT_LIST_HEAD(&dummy_zero_addr.hl_list);
-	INIT_LIST_HEAD(&dummy_max_addr.host_list);
-	INIT_LIST_HEAD(&dummy_max_addr.hl_list);
+	INIT_LIST_HEAD(&dummy_zero_addr.as_list);
+	INIT_LIST_HEAD(&dummy_zero_addr.addr_list);
+	INIT_LIST_HEAD(&dummy_max_addr.as_list);
+	INIT_LIST_HEAD(&dummy_max_addr.addr_list);
 
 	dummy_zero_addr.op = dummy_max_addr.op = &dummy_ops;
 
 	dummy_zero_addr.start = dummy_zero_addr.end = 0;
 	dummy_max_addr.start = dummy_max_addr.end = ((u64) 1) << 48;
 
-	list_add_tail(&dummy_zero_addr.host_list, &host->addr_space);
-	list_add_tail(&dummy_max_addr.host_list, &host->addr_space);
+	list_add_tail(&dummy_zero_addr.as_list, &host->addr_space);
+	list_add_tail(&dummy_max_addr.as_list, &host->addr_space);
 }
 
 void highlevel_add_host(struct hpsb_host *host)
@@ -534,11 +445,6 @@ void highlevel_add_host(struct hpsb_host *host)
 			hl->add_host(host);
         }
 	up_read(&hl_drivers_sem);
-	if (host->update_config_rom) {
-		if (hpsb_update_config_rom_image(host) < 0)
-			HPSB_ERR("Failed to generate Configuration ROM image for "
-				 "host %s-%d", hl->name, host->id);
-	}
 }
 
 void highlevel_remove_host(struct hpsb_host *host)
@@ -547,7 +453,7 @@ void highlevel_remove_host(struct hpsb_host *host)
 
 	down_read(&hl_drivers_sem);
 	list_for_each_entry(hl, &hl_drivers, hl_list)
-		__unregister_host(hl, host, 0);
+		__unregister_host(hl, host);
 	up_read(&hl_drivers_sem);
 }
 
@@ -595,15 +501,16 @@ int highlevel_read(struct hpsb_host *host, int nodeid, void *data,
                    u64 addr, unsigned int length, u16 flags)
 {
         struct hpsb_address_serve *as;
+        struct list_head *entry;
         unsigned int partlength;
         int rcode = RCODE_ADDRESS_ERROR;
 
         read_lock(&addr_space_lock);
 
-	list_for_each_entry(as, &host->addr_space, host_list) {
-		if (as->start > addr)
-			break;
+        entry = host->addr_space.next;
+        as = list_entry(entry, struct hpsb_address_serve, as_list);
 
+        while (as->start <= addr) {
                 if (as->end > addr) {
                         partlength = min(as->end - addr, (u64) length);
 
@@ -614,7 +521,7 @@ int highlevel_read(struct hpsb_host *host, int nodeid, void *data,
                                 rcode = RCODE_TYPE_ERROR;
                         }
 
-			data += partlength;
+			(u8 *)data += partlength;
                         length -= partlength;
                         addr += partlength;
 
@@ -622,6 +529,9 @@ int highlevel_read(struct hpsb_host *host, int nodeid, void *data,
                                 break;
                         }
                 }
+
+                entry = entry->next;
+                as = list_entry(entry, struct hpsb_address_serve, as_list);
         }
 
         read_unlock(&addr_space_lock);
@@ -637,15 +547,16 @@ int highlevel_write(struct hpsb_host *host, int nodeid, int destid,
 		    void *data, u64 addr, unsigned int length, u16 flags)
 {
         struct hpsb_address_serve *as;
+        struct list_head *entry;
         unsigned int partlength;
         int rcode = RCODE_ADDRESS_ERROR;
 
         read_lock(&addr_space_lock);
 
-	list_for_each_entry(as, &host->addr_space, host_list) {
-		if (as->start > addr)
-			break;
+        entry = host->addr_space.next;
+        as = list_entry(entry, struct hpsb_address_serve, as_list);
 
+        while (as->start <= addr) {
                 if (as->end > addr) {
                         partlength = min(as->end - addr, (u64) length);
 
@@ -656,7 +567,7 @@ int highlevel_write(struct hpsb_host *host, int nodeid, int destid,
                                 rcode = RCODE_TYPE_ERROR;
                         }
 
-			data += partlength;
+			(u8 *)data += partlength;
                         length -= partlength;
                         addr += partlength;
 
@@ -664,6 +575,9 @@ int highlevel_write(struct hpsb_host *host, int nodeid, int destid,
                                 break;
                         }
                 }
+
+                entry = entry->next;
+                as = list_entry(entry, struct hpsb_address_serve, as_list);
         }
 
         read_unlock(&addr_space_lock);
@@ -680,14 +594,15 @@ int highlevel_lock(struct hpsb_host *host, int nodeid, quadlet_t *store,
                    u64 addr, quadlet_t data, quadlet_t arg, int ext_tcode, u16 flags)
 {
         struct hpsb_address_serve *as;
+        struct list_head *entry;
         int rcode = RCODE_ADDRESS_ERROR;
 
         read_lock(&addr_space_lock);
 
-	list_for_each_entry(as, &host->addr_space, host_list) {
-		if (as->start > addr)
-			break;
+        entry = host->addr_space.next;
+        as = list_entry(entry, struct hpsb_address_serve, as_list);
 
+        while (as->start <= addr) {
                 if (as->end > addr) {
                         if (as->op->lock) {
                                 rcode = as->op->lock(host, nodeid, store, addr,
@@ -698,6 +613,9 @@ int highlevel_lock(struct hpsb_host *host, int nodeid, quadlet_t *store,
 
                         break;
                 }
+
+                entry = entry->next;
+                as = list_entry(entry, struct hpsb_address_serve, as_list);
         }
 
         read_unlock(&addr_space_lock);
@@ -709,14 +627,15 @@ int highlevel_lock64(struct hpsb_host *host, int nodeid, octlet_t *store,
                      u64 addr, octlet_t data, octlet_t arg, int ext_tcode, u16 flags)
 {
         struct hpsb_address_serve *as;
+        struct list_head *entry;
         int rcode = RCODE_ADDRESS_ERROR;
 
         read_lock(&addr_space_lock);
 
-	list_for_each_entry(as, &host->addr_space, host_list) {
-		if (as->start > addr)
-			break;
+        entry = host->addr_space.next;
+        as = list_entry(entry, struct hpsb_address_serve, as_list);
 
+        while (as->start <= addr) {
                 if (as->end > addr) {
                         if (as->op->lock64) {
                                 rcode = as->op->lock64(host, nodeid, store,
@@ -728,6 +647,9 @@ int highlevel_lock64(struct hpsb_host *host, int nodeid, octlet_t *store,
 
                         break;
                 }
+
+                entry = entry->next;
+                as = list_entry(entry, struct hpsb_address_serve, as_list);
         }
 
         read_unlock(&addr_space_lock);

@@ -43,6 +43,9 @@ static inline int cpu_to_node(int cpu)
 	return cpu_2_node[cpu];
 }
 
+/* Returns the number of the node containing MemBlk 'memblk' */
+#define memblk_to_node(memblk) (memblk)
+
 /* Returns the number of the node containing Node 'node'.  This architecture is flat, 
    so it is a pretty simple function! */
 #define parent_node(node) (node)
@@ -60,14 +63,14 @@ static inline int node_to_first_cpu(int node)
 	return first_cpu(mask);
 }
 
+/* Returns the number of the first MemBlk on Node 'node' */
+#define node_to_memblk(node) (node)
+
 /* Returns the number of the node containing PCI bus 'bus' */
 static inline cpumask_t pcibus_to_cpumask(int bus)
 {
 	return node_to_cpumask(mp_bus_id_to_node[bus]);
 }
-
-/* Node-to-Node distance */
-#define node_distance(from, to) (from != to)
 
 /* Cross-node load balancing interval. */
 #define NODE_BALANCE_RATE 100

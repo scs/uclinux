@@ -3,7 +3,7 @@
  * This is included late in kernel/setup.c so that it can make use of all of
  * the static functions. */
 
-static char * __init machine_specific_memory_setup(void)
+static inline char * __init machine_specific_memory_setup(void)
 {
 	char *who;
 

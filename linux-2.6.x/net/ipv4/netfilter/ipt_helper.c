@@ -1,15 +1,12 @@
-/* iptables module to match on related connections */
 /*
- * (C) 2001 Martin Josefsson <gandalf@wlug.westbo.se>
+ * iptables module to match on related connections
+ *   (c) 2001 Martin Josefsson <gandalf@wlug.westbo.se>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Released under the terms of GNU GPLv2.
  *
  *   19 Mar 2002 Harald Welte <laforge@gnumonks.org>:
  *   		 - Port to newnat infrastructure
  */
-
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
@@ -41,17 +38,17 @@ match(const struct sk_buff *skb,
 	struct ip_conntrack_expect *exp;
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
-	int ret = info->invert;
+	int ret = 0;
 	
 	ct = ip_conntrack_get((struct sk_buff *)skb, &ctinfo);
 	if (!ct) {
 		DEBUGP("ipt_helper: Eek! invalid conntrack?\n");
-		return ret;
+		return 0;
 	}
 
 	if (!ct->master) {
 		DEBUGP("ipt_helper: conntrack %p has no master\n", ct);
-		return ret;
+		return 0;
 	}
 
 	exp = ct->master;
@@ -71,11 +68,8 @@ match(const struct sk_buff *skb,
 	DEBUGP("master's name = %s , info->name = %s\n", 
 		exp->expectant->helper->name, info->name);
 
-	if (info->name[0] == '\0')
-		ret ^= 1;
-	else
-		ret ^= !strncmp(exp->expectant->helper->name, info->name, 
-		                strlen(exp->expectant->helper->name));
+	ret = !strncmp(exp->expectant->helper->name, info->name, 
+	               strlen(exp->expectant->helper->name)) ^ info->invert;
 out_unlock:
 	READ_UNLOCK(&ip_conntrack_lock);
 	return ret;
@@ -95,6 +89,10 @@ static int check(const char *tablename,
 	if (matchsize != IPT_ALIGN(sizeof(struct ipt_helper_info)))
 		return 0;
 
+	/* verify that we actually should match anything */
+	if ( strlen(info->name) == 0 )
+		return 0;
+	
 	return 1;
 }
 
@@ -107,6 +105,7 @@ static struct ipt_match helper_match = {
 
 static int __init init(void)
 {
+	need_ip_conntrack();
 	return ipt_register_match(&helper_match);
 }
 

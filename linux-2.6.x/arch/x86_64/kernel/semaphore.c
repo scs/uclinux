@@ -14,7 +14,6 @@
  */
 #include <linux/config.h>
 #include <linux/sched.h>
-#include <linux/init.h>
 #include <asm/errno.h>
 
 #include <asm/semaphore.h>
@@ -55,7 +54,7 @@ void __up(struct semaphore *sem)
 	wake_up(&sem->wait);
 }
 
-void __sched __down(struct semaphore * sem)
+void __down(struct semaphore * sem)
 {
 	struct task_struct *tsk = current;
 	DECLARE_WAITQUEUE(wait, tsk);
@@ -92,7 +91,7 @@ void __sched __down(struct semaphore * sem)
 	tsk->state = TASK_RUNNING;
 }
 
-int __sched __down_interruptible(struct semaphore * sem)
+int __down_interruptible(struct semaphore * sem)
 {
 	int retval = 0;
 	struct task_struct *tsk = current;

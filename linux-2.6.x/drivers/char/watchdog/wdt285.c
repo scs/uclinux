@@ -97,7 +97,6 @@ static int watchdog_open(struct inode *inode, struct file *file)
 
 	ret = 0;
 #endif
-	nonseekable_open(inode, file);
 	return ret;
 }
 
@@ -118,6 +117,10 @@ static int watchdog_release(struct inode *inode, struct file *file)
 static ssize_t
 watchdog_write(struct file *file, const char *data, size_t len, loff_t *ppos)
 {
+	/* Can't seek (pwrite) on this device  */
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
+
 	/*
 	 *	Refresh the timer.
 	 */
@@ -219,7 +222,6 @@ static void __exit footbridge_watchdog_exit(void)
 MODULE_AUTHOR("Phil Blundell <pb@nexus.co.uk>");
 MODULE_DESCRIPTION("Footbridge watchdog driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 module_param(soft_margin, int, 0);
 MODULE_PARM_DESC(soft_margin,"Watchdog timeout in seconds");

@@ -188,7 +188,13 @@ adding a machine called vapor):
  - add a new file include/asm-sh/vapor/io.h which contains prototypes for
    any machine specific IO functions prefixed with the machine name, for
    example vapor_inb. These will be needed when filling out the machine
-   vector.
+   vector. In addition, a section is required which defines what to do when
+   building a machine specific version. For example:
+
+     #ifdef __WANT_IO_DEF
+     #define inb  vapor_inb
+     ...
+     #endif
 
    This is the minimum that is required, however there are ample
    opportunities to optimise this. In particular, by making the prototypes
@@ -282,22 +288,22 @@ for reference instead of trying to guess what settings are supposed to be
 used on it.
 
 Also, as soon as you have copied over a sample .config for your new board
-(assume arch/sh/configs/vapor_defconfig), you can also use this directly as a
+(assume arch/sh/configs/defconfig-vapor), you can also use this directly as a
 build target, and it will be implicitly listed as such in the help text.
 
 Looking at the 'make help' output, you should now see something like:
 
 Architecture specific targets (sh):
   zImage                  - Compressed kernel image (arch/sh/boot/zImage)
-  adx_defconfig           - Build for adx
-  cqreek_defconfig        - Build for cqreek
-  dreamcast_defconfig     - Build for dreamcast
+  defconfig-adx           - Build for adx
+  defconfig-cqreek        - Build for cqreek
+  defconfig-dreamcast     - Build for dreamcast
 ...
-  vapor_defconfig         - Build for vapor
+  defconfig-vapor         - Build for vapor
 
 which then allows you to do:
 
-$ make ARCH=sh CROSS_COMPILE=sh4-linux- vapor_defconfig vmlinux
+$ make ARCH=sh CROSS_COMPILE=sh4-linux- defconfig-vapor vmlinux
 
 which will in turn copy the defconfig for this board, run it through
 oldconfig (prompting you for any new options since the time of creation),

@@ -38,24 +38,21 @@
 #include <linux/module.h>
 #include <linux/efi.h>
 #include <linux/init.h>
-#include <linux/edd.h>
 #include <video/edid.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
+#include <asm/edd.h>
 #include <asm/setup.h>
 #include <asm/arch_hooks.h>
 #include <asm/sections.h>
 #include <asm/io_apic.h>
 #include <asm/ist.h>
-#include <asm/io.h>
 #include "setup_arch_pre.h"
-
-/* This value is set up by the early boot code to point to the value
-   immediately after the boot time page tables.  It contains a *physical*
-   address, and must not be in the .bss segment! */
-unsigned long init_pg_tables_end __initdata = ~0UL;
+#include "mach_resources.h"
 
 int disable_pse __initdata = 0;
+
+static inline char * __init machine_specific_memory_setup(void);
 
 /*
  * Machine setup..
@@ -63,7 +60,6 @@ int disable_pse __initdata = 0;
 
 #ifdef CONFIG_EFI
 int efi_enabled = 0;
-EXPORT_SYMBOL(efi_enabled);
 #endif
 
 /* cpu data as detected by the assembly code in head.S */
@@ -82,8 +78,8 @@ EXPORT_SYMBOL_GPL(mmu_cr4_features);
 EXPORT_SYMBOL(acpi_disabled);
 
 #ifdef	CONFIG_ACPI_BOOT
+extern int __initdata acpi_ht;
 int __initdata acpi_force = 0;
-extern acpi_interrupt_flags	acpi_sci_flags;
 #endif
 
 int MCA_bus;
@@ -119,6 +115,7 @@ extern void early_cpu_init(void);
 extern void dmi_scan_machine(void);
 extern void generic_apic_probe(char *);
 extern int root_mountflags;
+extern char _end[];
 
 unsigned long saved_videomode;
 
@@ -127,205 +124,22 @@ unsigned long saved_videomode;
 #define RAMDISK_LOAD_FLAG		0x4000	
 
 static char command_line[COMMAND_LINE_SIZE];
+       char saved_command_line[COMMAND_LINE_SIZE];
 
-unsigned char __initdata boot_params[PARAM_SIZE];
-
-static struct resource data_resource = {
-	.name	= "Kernel data",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
-
-static struct resource code_resource = {
-	.name	= "Kernel code",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
-
-static struct resource system_rom_resource = {
-	.name	= "System ROM",
-	.start	= 0xf0000,
-	.end	= 0xfffff,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
-};
-
-static struct resource extension_rom_resource = {
-	.name	= "Extension ROM",
-	.start	= 0xe0000,
-	.end	= 0xeffff,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
-};
-
-static struct resource adapter_rom_resources[] = { {
-	.name 	= "Adapter ROM",
-	.start	= 0xc8000,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
-}, {
-	.name 	= "Adapter ROM",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
-}, {
-	.name 	= "Adapter ROM",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
-}, {
-	.name 	= "Adapter ROM",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
-}, {
-	.name 	= "Adapter ROM",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
-}, {
-	.name 	= "Adapter ROM",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
-} };
-
-#define ADAPTER_ROM_RESOURCES \
-	(sizeof adapter_rom_resources / sizeof adapter_rom_resources[0])
-
-static struct resource video_rom_resource = {
-	.name 	= "Video ROM",
-	.start	= 0xc0000,
-	.end	= 0xc7fff,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
-};
-
-static struct resource video_ram_resource = {
-	.name	= "Video RAM area",
-	.start	= 0xa0000,
-	.end	= 0xbffff,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
-
-static struct resource standard_io_resources[] = { {
-	.name	= "dma1",
-	.start	= 0x0000,
-	.end	= 0x001f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "pic1",
-	.start	= 0x0020,
-	.end	= 0x0021,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "timer",
-	.start	= 0x0040,
-	.end	= 0x005f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "keyboard",
-	.start	= 0x0060,
-	.end	= 0x006f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "dma page reg",
-	.start	= 0x0080,
-	.end	= 0x008f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "pic2",
-	.start	= 0x00a0,
-	.end	= 0x00a1,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "dma2",
-	.start	= 0x00c0,
-	.end	= 0x00df,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "fpu",
-	.start	= 0x00f0,
-	.end	= 0x00ff,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-} };
-
-#define STANDARD_IO_RESOURCES \
-	(sizeof standard_io_resources / sizeof standard_io_resources[0])
-
-#define romsignature(x) (*(unsigned short *)(x) == 0xaa55)
-
-static int __init romchecksum(unsigned char *rom, unsigned long length)
-{
-	unsigned char *p, sum = 0;
-
-	for (p = rom; p < rom + length; p++)
-		sum += *p;
-	return sum == 0;
-}
+static struct resource code_resource = { "Kernel code", 0x100000, 0 };
+static struct resource data_resource = { "Kernel data", 0, 0 };
 
 static void __init probe_roms(void)
 {
-	unsigned long start, length, upper;
-	unsigned char *rom;
-	int	      i;
+	int roms = 1;
 
-	/* video rom */
-	upper = adapter_rom_resources[0].start;
-	for (start = video_rom_resource.start; start < upper; start += 2048) {
-		rom = isa_bus_to_virt(start);
-		if (!romsignature(rom))
-			continue;
+	request_resource(&iomem_resource, rom_resources+0);
 
-		video_rom_resource.start = start;
+	/* Video ROM is standard at C000:0000 - C7FF:0000, check signature */
+	probe_video_rom(roms);
 
-		/* 0 < length <= 0x7f * 512, historically */
-		length = rom[2] * 512;
-
-		/* if checksum okay, trust length byte */
-		if (length && romchecksum(rom, length))
-			video_rom_resource.end = start + length - 1;
-
-		request_resource(&iomem_resource, &video_rom_resource);
-		break;
-	}
-
-	start = (video_rom_resource.end + 1 + 2047) & ~2047UL;
-	if (start < upper)
-		start = upper;
-
-	/* system rom */
-	request_resource(&iomem_resource, &system_rom_resource);
-	upper = system_rom_resource.start;
-
-	/* check for extension rom (ignore length byte!) */
-	rom = isa_bus_to_virt(extension_rom_resource.start);
-	if (romsignature(rom)) {
-		length = extension_rom_resource.end - extension_rom_resource.start + 1;
-		if (romchecksum(rom, length)) {
-			request_resource(&iomem_resource, &extension_rom_resource);
-			upper = extension_rom_resource.start;
-		}
-	}
-
-	/* check for adapter roms on 2k boundaries */
-	for (i = 0; i < ADAPTER_ROM_RESOURCES && start < upper; start += 2048) {
-		rom = isa_bus_to_virt(start);
-		if (!romsignature(rom))
-			continue;
-
-		/* 0 < length <= 0x7f * 512, historically */
-		length = rom[2] * 512;
-
-		/* but accept any length that fits if checksum okay */
-		if (!length || start + length > upper || !romchecksum(rom, length))
-			continue;
-
-		adapter_rom_resources[i].start = start;
-		adapter_rom_resources[i].end = start + length - 1;
-		request_resource(&iomem_resource, &adapter_rom_resources[i]);
-
-		start = adapter_rom_resources[i++].end & ~2047UL;
-	}
+	/* Extension roms */
+	probe_extension_roms(roms);
 }
 
 static void __init limit_regions(unsigned long long size)
@@ -628,26 +442,20 @@ static int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
 }
 
 #if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
-struct edd edd;
-#ifdef CONFIG_EDD_MODULE
-EXPORT_SYMBOL(edd);
-#endif
+unsigned char eddnr;
+struct edd_info edd[EDDMAXNR];
 /**
  * copy_edd() - Copy the BIOS EDD information
- *              from boot_params into a safe place.
+ *              from empty_zero_page into a safe place.
  *
  */
 static inline void copy_edd(void)
 {
-     memcpy(edd.mbr_signature, EDD_MBR_SIGNATURE, sizeof(edd.mbr_signature));
-     memcpy(edd.edd_info, EDD_BUF, sizeof(edd.edd_info));
-     edd.mbr_signature_nr = EDD_MBR_SIG_NR;
-     edd.edd_info_nr = EDD_NR;
+     eddnr = EDD_NR;
+     memcpy(edd, EDD_BUF, sizeof(edd));
 }
 #else
-static inline void copy_edd(void)
-{
-}
+#define copy_edd() do {} while (0)
 #endif
 
 /*
@@ -656,13 +464,22 @@ static inline void copy_edd(void)
  */
 #define LOWMEMSIZE()	(0x9f000)
 
+static void __init setup_memory_region(void)
+{
+	char *who = machine_specific_memory_setup();
+	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
+	print_memory_map(who);
+} /* setup_memory_region */
+
+
 static void __init parse_cmdline_early (char ** cmdline_p)
 {
-	char c = ' ', *to = command_line, *from = saved_command_line;
+	char c = ' ', *to = command_line, *from = COMMAND_LINE;
 	int len = 0;
 	int userdef = 0;
 
 	/* Save unparsed command line copy for /proc/cmdline */
+	memcpy(saved_command_line, COMMAND_LINE, COMMAND_LINE_SIZE);
 	saved_command_line[COMMAND_LINE_SIZE-1] = '\0';
 
 	for (;;) {
@@ -731,68 +548,30 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 			}
 		}
 
-#ifdef  CONFIG_X86_SMP
-		/*
-		 * If the BIOS enumerates physical processors before logical,
-		 * maxcpus=N at enumeration-time can be used to disable HT.
-		 */
-		else if (!memcmp(from, "maxcpus=", 8)) {
-			extern unsigned int maxcpus;
-
-			maxcpus = simple_strtoul(from + 8, NULL, 0);
-		}
-#endif
-
 #ifdef CONFIG_ACPI_BOOT
 		/* "acpi=off" disables both ACPI table parsing and interpreter */
 		else if (!memcmp(from, "acpi=off", 8)) {
-			disable_acpi();
+			acpi_ht = 0;
+			acpi_disabled = 1;
 		}
 
 		/* acpi=force to over-ride black-list */
 		else if (!memcmp(from, "acpi=force", 10)) {
 			acpi_force = 1;
-			acpi_ht = 1;
+			acpi_ht=1;
 			acpi_disabled = 0;
-		}
-
-		/* acpi=strict disables out-of-spec workarounds */
-		else if (!memcmp(from, "acpi=strict", 11)) {
-			acpi_strict = 1;
 		}
 
 		/* Limit ACPI just to boot-time to enable HT */
 		else if (!memcmp(from, "acpi=ht", 7)) {
-			if (!acpi_force)
-				disable_acpi();
 			acpi_ht = 1;
+			if (!acpi_force) acpi_disabled = 1;
 		}
-		
-		/* "pci=noacpi" disable ACPI IRQ routing and PCI scan */
+
+		/* "pci=noacpi" disables ACPI interrupt routing */
 		else if (!memcmp(from, "pci=noacpi", 10)) {
-			acpi_disable_pci();
-		}
-		/* "acpi=noirq" disables ACPI interrupt routing */
-		else if (!memcmp(from, "acpi=noirq", 10)) {
 			acpi_noirq_set();
 		}
-
-		else if (!memcmp(from, "acpi_sci=edge", 13))
-			acpi_sci_flags.trigger =  1;
-
-		else if (!memcmp(from, "acpi_sci=level", 14))
-			acpi_sci_flags.trigger = 3;
-
-		else if (!memcmp(from, "acpi_sci=high", 13))
-			acpi_sci_flags.polarity = 1;
-
-		else if (!memcmp(from, "acpi_sci=low", 12))
-			acpi_sci_flags.polarity = 3;
-
-#ifdef CONFIG_X86_IO_APIC
-		else if (!memcmp(from, "acpi_skip_timer_override", 24))
-			acpi_skip_timer_override = 1;
-#endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
 		/* disable IO-APIC */
@@ -999,7 +778,7 @@ static unsigned long __init setup_memory(void)
 	 * partially used pages are not usable - thus
 	 * we are rounding upwards:
 	 */
-	start_pfn = PFN_UP(init_pg_tables_end);
+	start_pfn = PFN_UP(__pa(_end));
 
 	find_max_pfn();
 
@@ -1036,13 +815,6 @@ static unsigned long __init setup_memory(void)
 	 * enabling clean reboots, SMP operation, laptop functions.
 	 */
 	reserve_bootmem(0, PAGE_SIZE);
-
-    /* could be an AMD 768MPX chipset. Reserve a page  before VGA to prevent
-       PCI prefetch into it (errata #56). Usually the page is reserved anyways,
-       unless you have no PS/2 mouse plugged in. */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
-	    boot_cpu_data.x86 == 6)
-	     reserve_bootmem(0xa0000 - 4096, 4096);
 
 #ifdef CONFIG_SMP
 	/*
@@ -1131,19 +903,19 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 static void __init register_memory(unsigned long max_low_pfn)
 {
 	unsigned long low_mem_size;
-	int	      i;
+	int i;
 
 	if (efi_enabled)
 		efi_initialize_iomem_resources(&code_resource, &data_resource);
 	else
 		legacy_init_iomem_resources(&code_resource, &data_resource);
 
-	/* EFI systems may still have VGA */
-	request_resource(&iomem_resource, &video_ram_resource);
+ 	 /* EFI systems may still have VGA */
+	request_graphics_resource();
 
 	/* request I/O space for devices used on all i[345]86 PCs */
 	for (i = 0; i < STANDARD_IO_RESOURCES; i++)
-		request_resource(&ioport_resource, &standard_io_resources[i]);
+		request_resource(&ioport_resource, standard_io_resources+i);
 
 	/* Tell the PCI layer not to allocate too close to the RAM area.. */
 	low_mem_size = ((max_low_pfn << PAGE_SHIFT) + 0xfffff) & ~0xfffff;
@@ -1204,7 +976,7 @@ static struct nop {
 } noptypes[] = { 
      { X86_FEATURE_K8, k8_nops }, 
      { X86_FEATURE_K7, k7_nops }, 
-     { -1, NULL }
+     { -1, 0 }
 }; 
 
 /* Replace instructions with better alternatives for this CPU type.
@@ -1258,8 +1030,6 @@ static int __init noreplacement_setup(char *s)
 
 __setup("noreplacement", noreplacement_setup); 
 
-static char * __init machine_specific_memory_setup(void);
-
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
@@ -1310,10 +1080,8 @@ void __init setup_arch(char **cmdline_p)
 	ARCH_SETUP
 	if (efi_enabled)
 		efi_init();
-	else {
-		printk(KERN_INFO "BIOS-provided physical RAM map:\n");
-		print_memory_map(machine_specific_memory_setup());
-	}
+	else
+		setup_memory_region();
 
 	copy_edd();
 
@@ -1322,7 +1090,7 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
-	init_mm.brk = init_pg_tables_end + PAGE_OFFSET;
+	init_mm.brk = (unsigned long) _end;
 
 	code_resource.start = virt_to_phys(_text);
 	code_resource.end = virt_to_phys(_etext)-1;
@@ -1342,19 +1110,6 @@ void __init setup_arch(char **cmdline_p)
 	smp_alloc_memory(); /* AP processor realmode stacks in low memory*/
 #endif
 	paging_init();
-
-#ifdef CONFIG_EARLY_PRINTK
-	{
-		char *s = strstr(*cmdline_p, "earlyprintk=");
-		if (s) {
-			extern void setup_early_printk(char *);
-
-			setup_early_printk(s);
-			printk("early console enabled\n");
-		}
-	}
-#endif
-
 
 	dmi_scan_machine();
 

@@ -28,6 +28,7 @@ befs_bread_iaddr(struct super_block *sb, befs_inode_addr iaddr)
 {
 	struct buffer_head *bh = NULL;
 	befs_blocknr_t block = 0;
+	vfs_blocknr_t vfs_block = 0;
 	befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	befs_debug(sb, "---> Enter befs_read_iaddr() "
@@ -41,10 +42,17 @@ befs_bread_iaddr(struct super_block *sb, befs_inode_addr iaddr)
 	}
 
 	block = iaddr2blockno(sb, &iaddr);
+	vfs_block = (vfs_blocknr_t) block;
+
+	if (vfs_block != block) {
+		befs_error(sb, "Error converting to host blocknr_t. %Lu "
+			   "is larger than the host can use", block);
+		goto error;
+	}
 
 	befs_debug(sb, "befs_read_iaddr: offset = %lu", block);
 
-	bh = sb_bread(sb, block);
+	bh = sb_bread(sb, vfs_block);
 
 	if (bh == NULL) {
 		befs_error(sb, "Failed to read block %lu", block);
@@ -63,13 +71,20 @@ struct buffer_head *
 befs_bread(struct super_block *sb, befs_blocknr_t block)
 {
 	struct buffer_head *bh = NULL;
+	vfs_blocknr_t vfs_block = (vfs_blocknr_t) block;
 
 	befs_debug(sb, "---> Enter befs_read() %Lu", block);
 
-	bh = sb_bread(sb, block);
+	if (vfs_block != block) {
+		befs_error(sb, "Error converting to host blocknr_t. %Lu "
+			   "is larger than the host can use", block);
+		goto error;
+	}
+
+	bh = sb_bread(sb, vfs_block);
 
 	if (bh == NULL) {
-		befs_error(sb, "Failed to read block %lu", block);
+		befs_error(sb, "Failed to read block %lu", vfs_block);
 		goto error;
 	}
 

@@ -173,7 +173,7 @@ static int __init irq_init_sysfs(void)
 {
 	int ret = sysdev_class_register(&irq_class);
 	if (ret == 0)
-		ret = sysdev_register(&irq_device);
+		ret = sys_device_register(&irq_device);
 	return ret;
 }
 
@@ -251,12 +251,12 @@ static struct platform_device cfi_flash_device = {
 	.resource	= &cfi_flash_resource,
 };
 
-static void __init ap_init(void)
+static int __init ap_init(void)
 {
 	unsigned long sc_dec;
 	int i;
 
-	platform_device_register(&cfi_flash_device);
+	platform_add_device(&cfi_flash_device);
 
 	sc_dec = readl(VA_SC_BASE + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
@@ -279,12 +279,11 @@ static void __init ap_init(void)
 
 		lm_device_register(lmdev);
 	}
+
+	return 0;
 }
 
-static void ap_time_init(void)
-{
-	integrator_time_init(1000000 * TICKS_PER_uSEC / HZ, 0);
-}
+arch_initcall(ap_init);
 
 MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	MAINTAINER("ARM Ltd/Deep Blue Solutions Ltd")
@@ -292,6 +291,4 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	BOOT_PARAMS(0x00000100)
 	MAPIO(ap_map_io)
 	INITIRQ(ap_init_irq)
-	INITTIME(ap_time_init)
-	INIT_MACHINE(ap_init)
 MACHINE_END

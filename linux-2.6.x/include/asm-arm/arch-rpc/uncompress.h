@@ -56,12 +56,7 @@ static const unsigned long palette_4[16] = {
 #define palette_setpixel(p)	*(unsigned long *)(IO_START+0x00400000) = 0x10000000|((p) & 255)
 #define palette_write(v)	*(unsigned long *)(IO_START+0x00400000) = 0x00000000|((v) & 0x00ffffff)
 
-/*
- * params_phys is a linker defined symbol - see
- * arch/arm/boot/compressed/Makefile
- */
-extern struct param_struct params_phys;
-#define params (&params_phys)
+static struct param_struct *params = (struct param_struct *)PARAMS_PHYS;
 
 #ifndef STANDALONE_DEBUG 
 /*

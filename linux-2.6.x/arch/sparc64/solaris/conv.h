@@ -17,7 +17,7 @@
 	__asm__ ("srl	%0, 0, %0"	\
 		 : "=r" (__ret)		\
 		 : "0" (__x));		\
-	(void __user *)__ret;		\
+	__ret;				\
 })
 
 extern unsigned sys_call_table[];

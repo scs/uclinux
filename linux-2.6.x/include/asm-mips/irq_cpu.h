@@ -14,6 +14,5 @@
 #define _ASM_IRQ_CPU_H
 
 extern void mips_cpu_irq_init(int irq_base);
-extern void rm7k_cpu_irq_init(int irq_base);
 
 #endif /* _ASM_IRQ_CPU_H */

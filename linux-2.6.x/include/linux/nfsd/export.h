@@ -110,10 +110,6 @@ static inline void exp_put(struct svc_export *exp)
 	svc_export_put(&exp->h, &svc_export_cache);
 }
 
-static inline void exp_get(struct svc_export *exp)
-{
-	cache_get(&exp->h);
-}
 static inline struct svc_export *
 exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
 	 struct cache_req *reqp)
@@ -122,9 +118,10 @@ exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
 	if (ek && !IS_ERR(ek)) {
 		struct svc_export *exp = ek->ek_export;
 		int err;
-		exp_get(exp);
+		cache_get(&exp->h);
 		expkey_put(&ek->h, &svc_expkey_cache);
-		if ((err = cache_check(&svc_export_cache, &exp->h, reqp)))
+		if (exp &&
+		    (err = cache_check(&svc_export_cache, &exp->h, reqp)))
 			exp = ERR_PTR(err);
 		return exp;
 	} else

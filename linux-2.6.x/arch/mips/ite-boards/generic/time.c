@@ -29,6 +29,7 @@
 #include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/spinlock.h>
+#include <linux/mc146818rtc.h>
 
 #include <asm/time.h>
 #include <asm/mipsregs.h>
@@ -113,7 +114,7 @@ hour_hw_to_bin(unsigned char c)
 
 static unsigned long r4k_offset; /* Amount to increment compare reg each time */
 static unsigned long r4k_cur;    /* What counter should be at next timer irq */
-extern unsigned int mips_hpt_frequency;
+extern unsigned int mips_counter_frequency;
 
 /*
  * Figure out the r4k offset, the amount to increment the compare
@@ -137,12 +138,12 @@ static unsigned long __init cal_r4koff(void)
 	while (CMOS_READ(RTC_REG_A) & RTC_UIP);
 	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
 
-	mips_hpt_frequency = read_c0_count();
+	mips_counter_frequency = read_c0_count();
 
 	/* restore interrupts */
 	local_irq_restore(flags);
 
-	return (mips_hpt_frequency / HZ);
+	return (mips_counter_frequency / HZ);
 }
 
 static unsigned long 

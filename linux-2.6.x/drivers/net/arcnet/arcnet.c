@@ -92,7 +92,6 @@ EXPORT_SYMBOL(arc_proto_null);
 EXPORT_SYMBOL(arcnet_unregister_proto);
 EXPORT_SYMBOL(arcnet_debug);
 EXPORT_SYMBOL(arcdev_setup);
-EXPORT_SYMBOL(alloc_arcdev);
 EXPORT_SYMBOL(arcnet_interrupt);
 
 /* Internal function prototypes */
@@ -332,11 +331,6 @@ void arcdev_setup(struct net_device *dev)
 	dev->rebuild_header = arcnet_rebuild_header;
 }
 
-struct net_device *alloc_arcdev(char *name)
-{
-	return alloc_netdev(sizeof(struct arcnet_local),
-			    name && *name ? name : "arc%d", arcdev_setup);
-}
 
 /*
  * Open/initialize the board.  This is called sometime after booting when
@@ -479,7 +473,7 @@ static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 		*(uint16_t *) skb_push(skb, 2) = type;
 		if (skb->nh.raw - skb->mac.raw != 2)
 			BUGMSG(D_NORMAL, "arcnet_header: Yikes!  diff (%d) is not 2!\n",
-			       (int)(skb->nh.raw - skb->mac.raw));
+			       skb->nh.raw - skb->mac.raw);
 		return -2;	/* return error -- can't transmit yet! */
 	}
 	/* otherwise, we can just add the header as usual. */
@@ -514,7 +508,7 @@ static int arcnet_rebuild_header(struct sk_buff *skb)
 	if (skb->nh.raw - skb->mac.raw != 2) {
 		BUGMSG(D_NORMAL,
 		     "rebuild_header: shouldn't be here! (hdrsize=%d)\n",
-		     (int)(skb->nh.raw - skb->mac.raw));
+		       skb->nh.raw - skb->mac.raw);
 		return 0;
 	}
 	type = *(uint16_t *) skb_pull(skb, 2);

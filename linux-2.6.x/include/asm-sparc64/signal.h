@@ -6,7 +6,6 @@
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
-#include <linux/config.h>
 #include <linux/personality.h>
 #include <linux/types.h>
 #include <linux/compat.h>
@@ -187,14 +186,9 @@ struct sigstack {
 
 /* Type of a signal handler.  */
 #ifdef __KERNEL__
-typedef void __signalfn_t(int);
-typedef __signalfn_t __user *__sighandler_t;
-
-typedef void __restorefn_t(void);
-typedef __restorefn_t __user *__sigrestore_t;
+typedef void (*__sighandler_t)(int, struct sigcontext *);
 #else
 typedef void (*__sighandler_t)(int);
-typedef void (*__sigrestore_t)(void);
 #endif
 
 #define SIG_DFL	((__sighandler_t)0)	/* default signal handling */
@@ -204,24 +198,21 @@ typedef void (*__sigrestore_t)(void);
 struct __new_sigaction {
 	__sighandler_t		sa_handler;
 	unsigned long		sa_flags;
-	__sigrestore_t 		sa_restorer;  /* not used by Linux/SPARC yet */
+	void 			(*sa_restorer)(void);     /* not used by Linux/SPARC yet */
 	__new_sigset_t		sa_mask;
 };
 
 #ifdef __KERNEL__
-
-#ifdef CONFIG_COMPAT
 struct __new_sigaction32 {
 	unsigned		sa_handler;
 	unsigned int    	sa_flags;
 	unsigned		sa_restorer;     /* not used by Linux/SPARC yet */
 	compat_sigset_t 	sa_mask;
 };
-#endif
 
 struct k_sigaction {
 	struct __new_sigaction 	sa;
-	void __user		*ka_restorer;
+	void			*ka_restorer;
 };
 #endif
 
@@ -233,8 +224,6 @@ struct __old_sigaction {
 };
 
 #ifdef __KERNEL__
-
-#ifdef CONFIG_COMPAT
 struct __old_sigaction32 {
 	unsigned		sa_handler;
 	compat_old_sigset_t  	sa_mask;
@@ -243,33 +232,48 @@ struct __old_sigaction32 {
 };
 #endif
 
-#endif
-
 typedef struct sigaltstack {
-	void			__user *ss_sp;
+	void			*ss_sp;
 	int			ss_flags;
 	size_t			ss_size;
 } stack_t;
 
 #ifdef __KERNEL__
-
-#ifdef CONFIG_COMPAT
 typedef struct sigaltstack32 {
 	u32			ss_sp;
 	int			ss_flags;
 	compat_size_t		ss_size;
 } stack_t32;
-#endif
 
 struct signal_deliver_cookie {
 	int restart_syscall;
 	unsigned long orig_i0;
 };
 
-struct pt_regs;
-extern void ptrace_signal_deliver(struct pt_regs *regs, void *cookie);
+#define ptrace_signal_deliver(REGS, COOKIE) \
+do {	struct signal_deliver_cookie *cp = (COOKIE); \
+	if (cp->restart_syscall && \
+	    (regs->u_regs[UREG_I0] == ERESTARTNOHAND || \
+	     regs->u_regs[UREG_I0] == ERESTARTSYS || \
+	     regs->u_regs[UREG_I0] == ERESTARTNOINTR)) { \
+		/* replay the system call when we are done */ \
+		regs->u_regs[UREG_I0] = cp->orig_i0; \
+		regs->tpc -= 4; \
+		regs->tnpc -= 4; \
+		cp->restart_syscall = 0; \
+	} \
+	if (cp->restart_syscall && \
+	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) { \
+		regs->u_regs[UREG_G1] = __NR_restart_syscall; \
+		regs->tpc -= 4; \
+		regs->tnpc -= 4; \
+		cp->restart_syscall = 0; \
+	} \
+} while (0)
 
-#endif /* !(__KERNEL__) */
+#define HAVE_ARCH_SYS_PAUSE
+
+#endif
 
 #endif /* !(__ASSEMBLY__) */
 

@@ -27,7 +27,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		/* AMD-defined */
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, "syscall", NULL, NULL, NULL, NULL,
-		NULL, NULL, NULL, "mp", "nx", NULL, "mmxext", NULL,
+		NULL, NULL, NULL, "mp", NULL, NULL, "mmxext", NULL,
 		NULL, NULL, NULL, NULL, NULL, "lm", "3dnowext", "3dnow",
 
 		/* Transmeta-defined */
@@ -50,7 +50,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* VIA/Cyrix/Centaur-defined */
-		NULL, NULL, "rng", "rng_en", NULL, NULL, "ace", "ace_en",
+		NULL, NULL, "xstore", NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,

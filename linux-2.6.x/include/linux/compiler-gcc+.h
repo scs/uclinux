@@ -13,4 +13,3 @@
 #define __attribute_used__	__attribute__((__used__))
 #define __attribute_pure__	__attribute__((pure))
 #define __attribute_const__	__attribute__((__const__))
-#define __must_check 		__attribute__((warn_unused_result))

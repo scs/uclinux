@@ -72,7 +72,7 @@
 static struct map_info arctic_mtd_map = {
 	.name		= NAME,
 	.size		= SIZE,
-	.bankwidth	= BUSWIDTH,
+	.buswidth	= BUSWIDTH,
 	.phys		= PADDR,
 };
 

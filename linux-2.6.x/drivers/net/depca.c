@@ -681,7 +681,8 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 	lp->sh_mem = ioremap(mem_start, mem_len);
 	if (lp->sh_mem == NULL) {
 		printk(KERN_ERR "depca: cannot remap ISA memory, aborting\n");
-		goto out1;
+		release_mem_region (mem_start, mem_len);
+		goto out_priv;
 	}
 
 	lp->mem_start = mem_start;
@@ -770,7 +771,7 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 		status = -ENXIO;
 		if (!irqnum) {
 			printk(" and failed to detect IRQ line.\n");
-			goto out2;
+			goto out_priv;
 		} else {
 			for (dev->irq = 0, i = 0; (depca_irq[i]) && (!dev->irq); i++)
 				if (irqnum == depca_irq[i]) {
@@ -780,7 +781,7 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 
 			if (!dev->irq) {
 				printk(" but incorrect IRQ line detected.\n");
-				goto out2;
+				return -ENXIO;
 			}
 		}
 	} else {
@@ -806,14 +807,11 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 	device->driver_data = dev;
 	SET_NETDEV_DEV (dev, device);
 	
-	status = register_netdev(dev);
-	if (status == 0)
-		return 0;
-out2:
-	iounmap(lp->sh_mem);
-out1:
-	release_mem_region (mem_start, mem_len);
-out_priv:
+	register_netdev (dev);
+	return 0;
+
+ out_priv:
+	
 	return status;
 }
 
@@ -1461,7 +1459,7 @@ static int __init depca_mca_probe(struct device *device)
  out_unclaim:
 	mca_device_set_claim(mdev, 0);
 
-	return err;
+	return err;;
 }
 #endif
 
@@ -1937,7 +1935,7 @@ static void depca_dbg_open(struct net_device *dev)
 static int depca_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct depca_private *lp = (struct depca_private *) dev->priv;
-	struct depca_ioctl *ioc = (struct depca_ioctl *) &rq->ifr_ifru;
+	struct depca_ioctl *ioc = (struct depca_ioctl *) &rq->ifr_data;
 	int i, status = 0;
 	u_long ioaddr = dev->base_addr;
 	union {
@@ -2086,7 +2084,7 @@ static int __init depca_module_init (void)
 {
         int err = 0;
 
-#ifdef CONFIG_MCA
+#if CONFIG_MCA
         err = mca_register_driver (&depca_mca_driver);
 #endif
 #ifdef CONFIG_EISA
@@ -2101,7 +2099,7 @@ static int __init depca_module_init (void)
 static void __exit depca_module_exit (void)
 {
 	int i;
-#ifdef CONFIG_MCA
+#if CONFIG_MCA
         mca_unregister_driver (&depca_mca_driver);
 #endif
 #ifdef CONFIG_EISA

@@ -116,7 +116,7 @@ static void
 def_tmr_close(int dev)
 {
 	opened = tmr_running = 0;
-	del_timer(&def_tmr);
+	del_timer(&def_tmr);;
 }
 
 static int
@@ -191,14 +191,13 @@ def_tmr_get_time(int dev)
 }
 
 /* same as sound_timer.c:timer_ioctl!? */
-static int def_tmr_ioctl(int dev, unsigned int cmd, void __user *arg)
+static int def_tmr_ioctl(int dev, unsigned int cmd, caddr_t arg)
 {
-	int __user *p = arg;
 	int val;
 
 	switch (cmd) {
 	case SNDCTL_TMR_SOURCE:
-		return __put_user(TMR_INTERNAL, p);
+		return __put_user(TMR_INTERNAL, (int *)arg);
 
 	case SNDCTL_TMR_START:
 		tmr_reset();
@@ -214,7 +213,7 @@ static int def_tmr_ioctl(int dev, unsigned int cmd, void __user *arg)
 		return 0;
 
 	case SNDCTL_TMR_TIMEBASE:
-		if (__get_user(val, p))
+		if (__get_user(val, (int *)arg))
 			return -EFAULT;
 		if (val) {
 			if (val < 1)
@@ -223,10 +222,10 @@ static int def_tmr_ioctl(int dev, unsigned int cmd, void __user *arg)
 				val = 1000;
 			curr_timebase = val;
 		}
-		return __put_user(curr_timebase, p);
+		return __put_user(curr_timebase, (int *)arg);
 
 	case SNDCTL_TMR_TEMPO:
-		if (__get_user(val, p))
+		if (__get_user(val, (int *)arg))
 			return -EFAULT;
 		if (val) {
 			if (val < 8)
@@ -239,18 +238,18 @@ static int def_tmr_ioctl(int dev, unsigned int cmd, void __user *arg)
 			curr_tempo = val;
 			reprogram_timer();
 		}
-		return __put_user(curr_tempo, p);
+		return __put_user(curr_tempo, (int *)arg);
 
 	case SNDCTL_SEQ_CTRLRATE:
-		if (__get_user(val, p))
+		if (__get_user(val, (int *)arg))
 			return -EFAULT;
 		if (val != 0)	/* Can't change */
 			return -EINVAL;
 		val = ((curr_tempo * curr_timebase) + 30) / 60;
-		return __put_user(val, p);
+		return __put_user(val, (int *)arg);
 		
 	case SNDCTL_SEQ_GETTIME:
-		return __put_user(curr_ticks, p);
+		return __put_user(curr_ticks, (int *)arg);
 		
 	case SNDCTL_TMR_METRONOME:
 		/* NOP */

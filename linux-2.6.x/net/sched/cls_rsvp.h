@@ -278,7 +278,7 @@ static void rsvp_destroy(struct tcf_proto *tp)
 					if ((cl = __cls_set_class(&f->res.class, 0)) != 0)
 						tp->q->ops->cl_ops->unbind_tcf(tp->q, cl);
 #ifdef CONFIG_NET_CLS_POLICE
-					tcf_police_release(f->police,TCA_ACT_UNBIND);
+					tcf_police_release(f->police);
 #endif
 					kfree(f);
 				}
@@ -310,7 +310,7 @@ static int rsvp_delete(struct tcf_proto *tp, unsigned long arg)
 				tp->q->ops->cl_ops->unbind_tcf(tp->q, cl);
 
 #ifdef CONFIG_NET_CLS_POLICE
-			tcf_police_release(f->police,TCA_ACT_UNBIND);
+			tcf_police_release(f->police);
 #endif
 
 			kfree(f);
@@ -452,7 +452,7 @@ static int rsvp_change(struct tcf_proto *tp, unsigned long base,
 			police = xchg(&f->police, police);
 			tcf_tree_unlock(tp);
 
-			tcf_police_release(police,TCA_ACT_UNBIND);
+			tcf_police_release(police);
 		}
 #endif
 		return 0;
@@ -656,8 +656,7 @@ static int rsvp_dump(struct tcf_proto *tp, unsigned long fh,
 	rta->rta_len = skb->tail - b;
 #ifdef CONFIG_NET_CLS_POLICE
 	if (f->police) {
-		if (qdisc_copy_stats(skb, &f->police->stats,
-				     f->police->stats_lock))
+		if (qdisc_copy_stats(skb, &f->police->stats))
 			goto rtattr_failure;
 	}
 #endif
@@ -668,7 +667,7 @@ rtattr_failure:
 	return -1;
 }
 
-static struct tcf_proto_ops RSVP_OPS = {
+struct tcf_proto_ops RSVP_OPS = {
 	.next		=	NULL,
 	.kind		=	RSVP_ID,
 	.classify	=	rsvp_classify,
@@ -683,15 +682,14 @@ static struct tcf_proto_ops RSVP_OPS = {
 	.owner		=	THIS_MODULE,
 };
 
-static int __init init_rsvp(void)
+#ifdef MODULE
+int init_module(void)
 {
 	return register_tcf_proto_ops(&RSVP_OPS);
 }
 
-static void __exit exit_rsvp(void) 
+void cleanup_module(void) 
 {
 	unregister_tcf_proto_ops(&RSVP_OPS);
 }
-
-module_init(init_rsvp)
-module_exit(exit_rsvp)
+#endif

@@ -3,8 +3,14 @@
  *	       Hans-Peter Nilsson (hp@axis.com)
  *
  * $Log$
- * Revision 1.1.1.2  2004/09/07 09:08:01  lgsoft
- * Import of 2.6.8
+ * Revision 1.2  2004/09/07 22:58:37  lgsoft
+ * alpha-2.0
+ *
+ * Revision 1.1.1.1  2004/07/19 12:40:05  lgsoft
+ * Import of uClinux 2.6.2
+ *
+ * Revision 1.1.1.1  2004/07/18 13:22:47  nidhi
+ * Importing
  *
  * Revision 1.8  2001/10/29 13:01:48  bjornw
  * Removed unused variable tmp2 in strnlen_user

@@ -32,7 +32,6 @@
 ======================================================================*/
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -55,8 +54,6 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/cisreg.h>
 
-#include "8250.h"
-
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
@@ -72,18 +69,17 @@ static char *version = "serial_cs.c 1.134 2002/05/04 05:48:53 (David Hinds)";
 
 /* Bit map of interrupts to choose from */
 static u_int irq_mask = 0xdeb8;
-static int irq_list[4];
-static unsigned int irq_list_count;
+static int irq_list[4] = { -1 };
 
 /* Enable the speaker? */
 static int do_sound = 1;
 /* Skip strict UART tests? */
 static int buggy_uart;
 
-module_param(irq_mask, uint, 0444);
-module_param_array(irq_list, int, irq_list_count, 0444);
-module_param(do_sound, int, 0444);
-module_param(buggy_uart, int, 0444);
+MODULE_PARM(irq_mask, "i");
+MODULE_PARM(irq_list, "1-4i");
+MODULE_PARM(do_sound, "i");
+MODULE_PARM(buggy_uart, "i");
 
 /*====================================================================*/
 
@@ -162,38 +158,6 @@ static void serial_remove(dev_link_t *link)
 	}
 }
 
-static void serial_suspend(dev_link_t *link)
-{
-	link->state |= DEV_SUSPEND;
-
-	if (link->state & DEV_CONFIG) {
-		struct serial_info *info = link->priv;
-		int i;
-
-		for (i = 0; i < info->ndev; i++)
-			serial8250_suspend_port(info->line[i]);
-
-		if (!info->slave)
-			pcmcia_release_configuration(link->handle);
-	}
-}
-
-static void serial_resume(dev_link_t *link)
-{
-	link->state &= ~DEV_SUSPEND;
-
-	if (DEV_OK(link)) {
-		struct serial_info *info = link->priv;
-		int i;
-
-		if (!info->slave)
-			pcmcia_request_configuration(link->handle, &link->conf);
-
-		for (i = 0; i < info->ndev; i++)
-			serial8250_resume_port(info->line[i]);
-	}
-}
-
 /*======================================================================
 
     serial_attach() creates an "instance" of the driver, allocating
@@ -223,10 +187,10 @@ static dev_link_t *serial_attach(void)
 	link->io.NumPorts1 = 8;
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 	link->irq.IRQInfo1 = IRQ_INFO2_VALID | IRQ_LEVEL_ID;
-	if (irq_list_count == 0)
+	if (irq_list[0] == -1)
 		link->irq.IRQInfo2 = irq_mask;
 	else
-		for (i = 0; i < irq_list_count; i++)
+		for (i = 0; i < 4; i++)
 			link->irq.IRQInfo2 |= 1 << irq_list[i];
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	if (do_sound) {
@@ -710,18 +674,16 @@ serial_event(event_t event, int priority, event_callback_args_t * args)
 		break;
 
 	case CS_EVENT_PM_SUSPEND:
-		serial_suspend(link);
-		break;
-
+		link->state |= DEV_SUSPEND;
+		/* Fall through... */
 	case CS_EVENT_RESET_PHYSICAL:
 		if ((link->state & DEV_CONFIG) && !info->slave)
 			pcmcia_release_configuration(link->handle);
 		break;
 
 	case CS_EVENT_PM_RESUME:
-		serial_resume(link);
-		break;
-
+		link->state &= ~DEV_SUSPEND;
+		/* Fall through... */
 	case CS_EVENT_CARD_RESET:
 		if (DEV_OK(link) && !info->slave)
 			pcmcia_request_configuration(link->handle, &link->conf);

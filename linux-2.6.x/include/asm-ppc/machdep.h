@@ -5,8 +5,6 @@
 #include <linux/config.h>
 #include <linux/init.h>
 
-#include <asm/setup.h>
-
 #ifdef CONFIG_APUS
 #include <asm-m68k/machdep.h>
 #endif
@@ -45,8 +43,6 @@ struct machdep_calls {
 	long		(*time_init)(void); /* Optional, may be NULL */
 	int		(*set_rtc_time)(unsigned long nowtime);
 	unsigned long	(*get_rtc_time)(void);
-	unsigned char 	(*rtc_read_val)(int addr);
-	void		(*rtc_write_val)(int addr, unsigned char val);
 	void		(*calibrate_decr)(void);
 
 	void		(*heartbeat)(void);
@@ -57,11 +53,9 @@ struct machdep_calls {
 	void		(*setup_io_mappings)(void);
 
   	void		(*progress)(char *, unsigned short);
-	void		(*kgdb_map_scc)(void);
 
 	unsigned char 	(*nvram_read_val)(int addr);
 	void		(*nvram_write_val)(int addr, unsigned char val);
-	void		(*nvram_sync)(void);
 
 	/*
 	 * optional PCI "hooks"
@@ -99,7 +93,7 @@ struct machdep_calls {
 	 * hook used to control some machine specific features (like reset
 	 * lines, chip power control, etc...).
 	 */
-	long (*feature_call)(unsigned int feature, ...);
+	int (*feature_call)(unsigned int feature, ...);
 
 #ifdef CONFIG_SMP
 	/* functions for dealing with other cpus */
@@ -108,7 +102,7 @@ struct machdep_calls {
 };
 
 extern struct machdep_calls ppc_md;
-extern char cmd_line[COMMAND_LINE_SIZE];
+extern char cmd_line[512];
 
 extern void setup_pci_ptrs(void);
 

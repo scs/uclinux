@@ -36,11 +36,7 @@ int dvb_usercopy(struct inode *inode, struct file *file,
         /*  Copy arguments into temp kernel buffer  */
         switch (_IOC_DIR(cmd)) {
         case _IOC_NONE:
-		/*
-		 * For this command, the pointer is actually an integer
-		 * argument.
-		 */
-                parg = (void *) arg;
+                parg = (void *)arg;
                 break;
         case _IOC_READ: /* some v4l ioctls are marked wrong ... */
         case _IOC_WRITE:
@@ -56,7 +52,7 @@ int dvb_usercopy(struct inode *inode, struct file *file,
                 }
 
                 err = -EFAULT;
-                if (copy_from_user(parg, (void __user *)arg, _IOC_SIZE(cmd)))
+                if (copy_from_user(parg, (void *)arg, _IOC_SIZE(cmd)))
                         goto out;
                 break;
         }
@@ -73,7 +69,7 @@ int dvb_usercopy(struct inode *inode, struct file *file,
         {
         case _IOC_READ:
         case (_IOC_WRITE | _IOC_READ):
-                if (copy_to_user((void __user *)arg, parg, _IOC_SIZE(cmd)))
+                if (copy_to_user((void *)arg, parg, _IOC_SIZE(cmd)))
                         err = -EFAULT;
                 break;
         }

@@ -27,7 +27,7 @@ typedef struct {
 	int device;
 	int channel;
 	unsigned long command;
-	void __user *dataptr;
+	void *dataptr;
 } scs_ioctl;
 
 /* Size of strings */

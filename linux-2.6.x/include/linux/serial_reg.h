@@ -119,9 +119,16 @@
 #define UART_IERX_SLEEP  0x10	/* Enable sleep mode */
 
 /*
+ * The Intel PXA250/210 & IXP425 chips define these bits
+ */
+#define UART_IER_DMAE	0x80	/* DMA Requests Enable */
+#define UART_IER_UUE	0x40	/* UART Unit Enable */
+#define UART_IER_NRZE	0x20	/* NRZ coding Enable */
+#define UART_IER_RTOIE	0x10	/* Receiver Time Out Interrupt Enable */
+
+/*
  * These are the definitions for the Modem Control Register
  */
-#define UART_MCR_AFE	0x20	/* Enable auto-RTS/CTS (TI16C750) */
 #define UART_MCR_LOOP	0x10	/* Enable loopback test mode */
 #define UART_MCR_OUT2	0x08	/* Out2 complement */
 #define UART_MCR_OUT1	0x04	/* Out1 complement */
@@ -140,21 +147,6 @@
 #define UART_MSR_DDSR	0x02	/* Delta DSR */
 #define UART_MSR_DCTS	0x01	/* Delta CTS */
 #define UART_MSR_ANY_DELTA 0x0F	/* Any of the delta bits! */
-
-/*
- * The Intel XScale on-chip UARTs define these bits
- */
-#define UART_IER_DMAE	0x80	/* DMA Requests Enable */
-#define UART_IER_UUE	0x40	/* UART Unit Enable */
-#define UART_IER_NRZE	0x20	/* NRZ coding Enable */
-#define UART_IER_RTOIE	0x10	/* Receiver Time Out Interrupt Enable */
-
-#define UART_IIR_TOD	0x08	/* Character Timeout Indication Detected */
-
-#define UART_FCR_PXAR1	0x00	/* receive FIFO treshold = 1 */
-#define UART_FCR_PXAR8	0x40	/* receive FIFO treshold = 8 */
-#define UART_FCR_PXAR16	0x80	/* receive FIFO treshold = 16 */
-#define UART_FCR_PXAR32	0xc0	/* receive FIFO treshold = 32 */
 
 /*
  * These are the definitions for the Extended Features Register

@@ -18,11 +18,8 @@
 
 #include <asm/uaccess.h>
 
-#define TAPE_DBF_AREA	tape_core_dbf
-
 #include "tape.h"
 #include "tape_std.h"
-#include "tape_class.h"
 
 #define PRINTK_HEADER "TAPE_CHAR: "
 
@@ -31,8 +28,8 @@
 /*
  * file operation structure for tape character frontend
  */
-static ssize_t tapechar_read(struct file *, char __user *, size_t, loff_t *);
-static ssize_t tapechar_write(struct file *, const char __user *, size_t, loff_t *);
+static ssize_t tapechar_read(struct file *, char *, size_t, loff_t *);
+static ssize_t tapechar_write(struct file *, const char *, size_t, loff_t *);
 static int tapechar_open(struct inode *,struct file *);
 static int tapechar_release(struct inode *,struct file *);
 static int tapechar_ioctl(struct inode *, struct file *, unsigned int,
@@ -56,35 +53,14 @@ static int tapechar_major = TAPECHAR_MAJOR;
 int
 tapechar_setup_device(struct tape_device * device)
 {
-	char	device_name[20];
-
-	sprintf(device_name, "ntibm%i", device->first_minor / 2);
-	device->nt = register_tape_dev(
-		&device->cdev->dev,
-		MKDEV(tapechar_major, device->first_minor),
-		&tape_fops,
-		device_name,
-		"non-rewinding"
-	);
-	device_name[0] = 'r';
-	device->rt = register_tape_dev(
-		&device->cdev->dev,
-		MKDEV(tapechar_major, device->first_minor + 1),
-		&tape_fops,
-		device_name,
-		"rewinding"
-	);
-
+	tape_hotplug_event(device, tapechar_major, TAPE_HOTPLUG_CHAR_ADD);
 	return 0;
 }
 
 void
 tapechar_cleanup_device(struct tape_device *device)
 {
-	unregister_tape_dev(device->rt);
-	device->rt = NULL;
-	unregister_tape_dev(device->nt);
-	device->nt = NULL;
+	tape_hotplug_event(device, tapechar_major, TAPE_HOTPLUG_CHAR_REMOVE);
 }
 
 /*
@@ -136,7 +112,7 @@ tapechar_check_idalbuffer(struct tape_device *device, size_t block_size)
  * Tape device read function
  */
 ssize_t
-tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
+tapechar_read (struct file *filp, char *data, size_t count, loff_t *ppos)
 {
 	struct tape_device *device;
 	struct tape_request *request;
@@ -145,6 +121,16 @@ tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 
 	DBF_EVENT(6, "TCHAR:read\n");
 	device = (struct tape_device *) filp->private_data;
+	/* Check position. */
+	if (ppos != &filp->f_pos) {
+		/*
+		 * "A request was outside the capabilities of the device."
+		 * This check uses internal knowledge about how pread and
+		 * read work...
+		 */
+		DBF_EVENT(6, "TCHAR:ppos wrong\n");
+		return -EOVERFLOW;
+	}
 
 	/*
 	 * If the tape isn't terminated yet, do it now. And since we then
@@ -200,7 +186,7 @@ tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
  * Tape device write function
  */
 ssize_t
-tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t *ppos)
+tapechar_write(struct file *filp, const char *data, size_t count, loff_t *ppos)
 {
 	struct tape_device *device;
 	struct tape_request *request;
@@ -211,6 +197,12 @@ tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t 
 
 	DBF_EVENT(6, "TCHAR:write\n");
 	device = (struct tape_device *) filp->private_data;
+	/* Check position */
+	if (ppos != &filp->f_pos) {
+		/* "A request was outside the capabilities of the device." */
+		DBF_EVENT(6, "TCHAR:ppos wrong\n");
+		return -EOVERFLOW;
+	}
 	/* Find out block size and number of blocks */
 	if (device->char_data.block_size != 0) {
 		if (count < device->char_data.block_size) {
@@ -313,7 +305,7 @@ tapechar_open (struct inode *inode, struct file *filp)
 	rc = tape_open(device);
 	if (rc == 0) {
 		filp->private_data = device;
-		return nonseekable_open(inode, filp);
+		return 0;
 	}
 	tape_put_device(device);
 
@@ -375,7 +367,7 @@ tapechar_ioctl(struct inode *inp, struct file *filp,
 	if (no == MTIOCTOP) {
 		struct mtop op;
 
-		if (copy_from_user(&op, (char __user *) data, sizeof(op)) != 0)
+		if (copy_from_user(&op, (char *) data, sizeof(op)) != 0)
 			return -EFAULT;
 		if (op.mt_count < 0)
 			return -EINVAL;
@@ -422,7 +414,7 @@ tapechar_ioctl(struct inode *inp, struct file *filp,
 		if (rc < 0)
 			return rc;
 		pos.mt_blkno = rc;
-		if (copy_to_user((char __user *) data, &pos, sizeof(pos)) != 0)
+		if (copy_to_user((char *) data, &pos, sizeof(pos)) != 0)
 			return -EFAULT;
 		return 0;
 	}
@@ -452,7 +444,7 @@ tapechar_ioctl(struct inode *inp, struct file *filp,
 			get.mt_blkno = rc;
 		}
 
-		if (copy_to_user((char __user *) data, &get, sizeof(get)) != 0)
+		if (copy_to_user((char *) data, &get, sizeof(get)) != 0)
 			return -EFAULT;
 
 		return 0;
@@ -469,14 +461,20 @@ tapechar_ioctl(struct inode *inp, struct file *filp,
 int
 tapechar_init (void)
 {
-	dev_t	dev;
+	int rc;
 
-	if (alloc_chrdev_region(&dev, 0, 256, "tape") != 0)
-		return -1;
-
-	tapechar_major = MAJOR(dev);
-	PRINT_INFO("tape gets major %d for character devices\n", MAJOR(dev));
-
+	/* Register the tape major number to the kernel */
+	rc = register_chrdev(tapechar_major, "tape", &tape_fops);
+	if (rc < 0) {
+		PRINT_ERR("can't get major %d\n", tapechar_major);
+		DBF_EVENT(3, "TCHAR:initfail\n");
+		return rc;
+	}
+	if (tapechar_major == 0)
+		tapechar_major = rc;  /* accept dynamic major number */
+	PRINT_ERR("Tape gets major %d for char device\n", tapechar_major);
+	DBF_EVENT(3, "Tape gets major %d for char device\n", rc);
+	DBF_EVENT(3, "TCHAR:init ok\n");
 	return 0;
 }
 
@@ -486,7 +484,5 @@ tapechar_init (void)
 void
 tapechar_exit(void)
 {
-	PRINT_INFO("tape releases major %d for character devices\n",
-		tapechar_major);
-	unregister_chrdev_region(MKDEV(tapechar_major, 0), 256);
+	unregister_chrdev (tapechar_major, "tape");
 }

@@ -85,7 +85,7 @@ dasd_eckd_probe (struct ccw_device *cdev)
 	ret = dasd_generic_probe (cdev, &dasd_eckd_discipline);
 	if (ret)
 		return ret;
-	ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP | CCWDEV_ALLOW_FORCE);
+	ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP);
 	return 0;
 }
 
@@ -983,8 +983,8 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 				return ERR_PTR(-EINVAL);
 			count += bv->bv_len >> (device->s2b_shift + 9);
 #if defined(CONFIG_ARCH_S390X)
-			if (idal_is_needed (page_address(bv->bv_page), bv->bv_len))
-				cidaw += bv->bv_len >> (device->s2b_shift + 9);
+			cidaw += idal_nr_words(page_address(bv->bv_page) +
+					       bv->bv_offset, bv->bv_len);
 #endif
 		}
 	}
@@ -1070,7 +1070,7 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 	cqr->device = device;
 	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */
 	cqr->lpm = LPM_ANYPATH;
-	cqr->retries = 256;
+	cqr->retries = 2;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
@@ -1130,9 +1130,8 @@ dasd_eckd_release(struct block_device *bdev, int no, long args)
         cqr->cpaddr->count = 32;
 	cqr->cpaddr->cda = (__u32)(addr_t) cqr->data;
 	cqr->device = device;
-	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	cqr->retries = 0;
-	cqr->expires = 2 * HZ;
+	cqr->expires = 10 * HZ;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
 
@@ -1174,9 +1173,8 @@ dasd_eckd_reserve(struct block_device *bdev, int no, long args)
         cqr->cpaddr->count = 32;
 	cqr->cpaddr->cda = (__u32)(addr_t) cqr->data;
 	cqr->device = device;
-	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	cqr->retries = 0;
-	cqr->expires = 2 * HZ;
+	cqr->expires = 10 * HZ;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
 
@@ -1217,9 +1215,8 @@ dasd_eckd_steal_lock(struct block_device *bdev, int no, long args)
         cqr->cpaddr->count = 32;
 	cqr->cpaddr->cda = (__u32)(addr_t) cqr->data;
 	cqr->device = device;
-	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	cqr->retries = 0;
-	cqr->expires = 2 * HZ;
+	cqr->expires = 10 * HZ;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
 
@@ -1277,7 +1274,6 @@ dasd_eckd_performance(struct block_device *bdev, int no, long args)
 	stats = (struct dasd_rssd_perf_stats_t *) (prssdp + 1);
 	memset(stats, 0, sizeof (struct dasd_rssd_perf_stats_t));
 
-	ccw++;
 	ccw->cmd_code = DASD_ECKD_CCW_RSSD;
 	ccw->count = sizeof (struct dasd_rssd_perf_stats_t);
 	ccw->cda = (__u32)(addr_t) stats;
@@ -1289,7 +1285,7 @@ dasd_eckd_performance(struct block_device *bdev, int no, long args)
 		/* Prepare for Read Subsystem Data */
 		prssdp = (struct dasd_psf_prssd_data *) cqr->data;
 		stats = (struct dasd_rssd_perf_stats_t *) (prssdp + 1);
-		rc = copy_to_user((long __user *) args, (long *) stats,
+		rc = copy_to_user((long *) args, (long *) stats,
 				  sizeof(struct dasd_rssd_perf_stats_t));
 	}
 	dasd_sfree_request(cqr, cqr->device);
@@ -1319,10 +1315,10 @@ dasd_eckd_get_attrib (struct block_device *bdev, int no, long args)
 
         private = (struct dasd_eckd_private *) device->private;
         attrib = private->attrib;
-
-        rc = copy_to_user((long __user *) args, (long *) &attrib,
+	
+        rc = copy_to_user((long *) args, (long *) &attrib,
 			  sizeof (struct attrib_data_t));
-
+	
 	return rc;
 }
 
@@ -1346,7 +1342,7 @@ dasd_eckd_set_attrib(struct block_device *bdev, int no, long args)
 	if (device == NULL)
 		return -ENODEV;
 
-	if (copy_from_user(&attrib, (void __user *) args,
+	if (copy_from_user(&attrib, (void *) args,
 			   sizeof (struct attrib_data_t))) {
 		return -EFAULT;
 	}
@@ -1424,9 +1420,6 @@ dasd_eckd_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 				       "Exception class %x\n",
 				       irb->ecw[6] & 0x0f, irb->ecw[22] >> 4);
 		}
-	} else {
-	        len += sprintf(page + len, KERN_ERR PRINTK_HEADER
-			       "SORRY - NO VALID SENSE AVAILABLE\n");
 	}
 
 	MESSAGE(KERN_ERR, "Sense data:\n%s", page);

@@ -29,7 +29,7 @@
 
 #include <linux/input.h>
 
-#undef DEBUG
+#define DEBUG
 #include <linux/usb.h>
 
 #include "hid.h"

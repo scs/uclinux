@@ -127,12 +127,6 @@ int __init proc_init_inodecache(void)
 	return 0;
 }
 
-static int proc_remount(struct super_block *sb, int *flags, char *data)
-{
-	*flags |= MS_NODIRATIME;
-	return 0;
-}
-
 static struct super_operations proc_sops = { 
 	.alloc_inode	= proc_alloc_inode,
 	.destroy_inode	= proc_destroy_inode,
@@ -140,7 +134,6 @@ static struct super_operations proc_sops = {
 	.drop_inode	= generic_delete_inode,
 	.delete_inode	= proc_delete_inode,
 	.statfs		= simple_statfs,
-	.remount_fs	= proc_remount,
 };
 
 enum {
@@ -188,8 +181,8 @@ static int parse_options(char *options,uid_t *uid,gid_t *gid)
 	return 1;
 }
 
-struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
-				struct proc_dir_entry *de)
+struct inode * proc_get_inode(struct super_block * sb, int ino,
+				struct proc_dir_entry * de)
 {
 	struct inode * inode;
 
@@ -197,8 +190,11 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 	 * Increment the use count so the dir entry can't disappear.
 	 */
 	de_get(de);
-
-	WARN_ON(de && de->deleted);
+#if 1
+/* shouldn't ever happen */
+if (de && de->deleted)
+printk("proc_iget: using deleted entry %s, count=%d\n", de->name, atomic_read(&de->count));
+#endif
 
 	inode = iget(sb, ino);
 	if (!inode)
@@ -235,7 +231,6 @@ int proc_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct inode * root_inode;
 
-	s->s_flags |= MS_NODIRATIME;
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
 	s->s_magic = PROC_SUPER_MAGIC;

@@ -27,6 +27,8 @@
 #include "conv.h"
 #include "socksys.h"
 
+extern asmlinkage int sys_ioctl(unsigned int fd, unsigned int cmd, 
+	unsigned long arg);
 asmlinkage int solaris_ioctl(unsigned int fd, unsigned int cmd, u32 arg);
 
 static spinlock_t timod_pagelock = SPIN_LOCK_UNLOCKED;
@@ -219,7 +221,7 @@ static void timod_ok(unsigned int fd, int prim)
 	SOLD("done");
 }
 
-static int timod_optmgmt(unsigned int fd, int flag, char __user *opt_buf, int opt_len, int do_ret)
+static int timod_optmgmt(unsigned int fd, int flag, char *opt_buf, int opt_len, int do_ret)
 {
 	int error, failed;
 	int ret_space, ret_len;
@@ -296,7 +298,7 @@ static int timod_optmgmt(unsigned int fd, int flag, char __user *opt_buf, int op
 		SOLD("calling GETSOCKOPT");
 		set_fs(KERNEL_DS);
 		error = sys_socketcall(SYS_GETSOCKOPT, args);
-		set_fs(old_fs);
+		set_fs(old_fs);;
 		if (error) {
 			failed = TBADOPT;
 			break;
@@ -337,8 +339,8 @@ static int timod_optmgmt(unsigned int fd, int flag, char __user *opt_buf, int op
 	return 0;
 }
 
-int timod_putmsg(unsigned int fd, char __user *ctl_buf, int ctl_len,
-			char __user *data_buf, int data_len, int flags)
+int timod_putmsg(unsigned int fd, char *ctl_buf, int ctl_len,
+			char *data_buf, int data_len, int flags)
 {
 	int ret, error, terror;
 	char *buf;
@@ -347,15 +349,15 @@ int timod_putmsg(unsigned int fd, char __user *ctl_buf, int ctl_len,
 	struct sol_socket_struct *sock;
 	mm_segment_t old_fs = get_fs();
 	long args[6];
-	int (*sys_socketcall)(int, unsigned long __user *) =
-		(int (*)(int, unsigned long __user *))SYS(socketcall);
-	int (*sys_sendto)(int, void __user *, size_t, unsigned, struct sockaddr __user *, int) =
-		(int (*)(int, void __user *, size_t, unsigned, struct sockaddr __user *, int))SYS(sendto);
+	int (*sys_socketcall)(int, unsigned long *) =
+		(int (*)(int, unsigned long *))SYS(socketcall);
+	int (*sys_sendto)(int, void *, size_t, unsigned, struct sockaddr *, int) =
+		(int (*)(int, void *, size_t, unsigned, struct sockaddr *, int))SYS(sendto);
 	filp = current->files->fd[fd];
 	ino = filp->f_dentry->d_inode;
 	sock = (struct sol_socket_struct *)filp->private_data;
 	SOLD("entry");
-	if (get_user(ret, (int __user *)A(ctl_buf)))
+	if (get_user(ret, (int *)A(ctl_buf)))
 		return -EFAULT;
 	switch (ret) {
 	case T_BIND_REQ:
@@ -596,7 +598,7 @@ int timod_putmsg(unsigned int fd, char __user *ctl_buf, int ctl_len,
 			printk("\n");
 		}
 #endif		
-		err = sys_sendto(fd, data_buf, data_len, 0, req.DEST_length > 0 ? (struct sockaddr __user *)(ctl_buf+req.DEST_offset) : NULL, req.DEST_length);
+		err = sys_sendto(fd, data_buf, data_len, 0, req.DEST_length > 0 ? (struct sockaddr*)(ctl_buf+req.DEST_offset) : NULL, req.DEST_length);
 		if (err == data_len)
 			return 0;
 		if(err >= 0) {
@@ -613,8 +615,8 @@ int timod_putmsg(unsigned int fd, char __user *ctl_buf, int ctl_len,
 	return -EINVAL;
 }
 
-int timod_getmsg(unsigned int fd, char __user *ctl_buf, int ctl_maxlen, s32 __user *ctl_len,
-			char __user *data_buf, int data_maxlen, s32 __user *data_len, int *flags_p)
+int timod_getmsg(unsigned int fd, char *ctl_buf, int ctl_maxlen, s32 *ctl_len,
+			char *data_buf, int data_maxlen, s32 *data_len, int *flags_p)
 {
 	int error;
 	int oldflags;
@@ -624,11 +626,11 @@ int timod_getmsg(unsigned int fd, char __user *ctl_buf, int ctl_maxlen, s32 __us
 	struct T_unitdata_ind udi;
 	mm_segment_t old_fs = get_fs();
 	long args[6];
-	char __user *tmpbuf;
+	char *tmpbuf;
 	int tmplen;
-	int (*sys_socketcall)(int, unsigned long __user *) =
-		(int (*)(int, unsigned long __user *))SYS(socketcall);
-	int (*sys_recvfrom)(int, void __user *, size_t, unsigned, struct sockaddr __user *, int __user *);
+	int (*sys_socketcall)(int, unsigned long *) =
+		(int (*)(int, unsigned long *))SYS(socketcall);
+	int (*sys_recvfrom)(int, void *, size_t, unsigned, struct sockaddr *, int *);
 	
 	SOLD("entry");
 	SOLDD(("%u %p %d %p %p %d %p %d\n", fd, ctl_buf, ctl_maxlen, ctl_len, data_buf, data_maxlen, data_len, *flags_p));
@@ -808,8 +810,8 @@ int timod_getmsg(unsigned int fd, char __user *ctl_buf, int ctl_maxlen, s32 __us
 	oldflags = filp->f_flags;
 	filp->f_flags |= O_NONBLOCK;
 	SOLD("calling recvfrom");
-	sys_recvfrom = (int (*)(int, void __user *, size_t, unsigned, struct sockaddr __user *, int __user *))SYS(recvfrom);
-	error = sys_recvfrom(fd, data_buf, data_maxlen, 0, (struct sockaddr __user *)tmpbuf, ctl_len);
+	sys_recvfrom = (int (*)(int, void *, size_t, unsigned, struct sockaddr *, int *))SYS(recvfrom);
+	error = sys_recvfrom(fd, data_buf, data_maxlen, 0, (struct sockaddr*)tmpbuf, ctl_len);
 	filp->f_flags = oldflags;
 	if (error < 0)
 		return error;
@@ -838,10 +840,9 @@ asmlinkage int solaris_getmsg(unsigned int fd, u32 arg1, u32 arg2, u32 arg3)
 {
 	struct file *filp;
 	struct inode *ino;
-	struct strbuf __user *ctlptr;
-	struct strbuf __user *datptr;
+	struct strbuf *ctlptr, *datptr;
 	struct strbuf ctl, dat;
-	int __user *flgptr;
+	int *flgptr;
 	int flags;
 	int error = -EBADF;
 
@@ -858,9 +859,9 @@ asmlinkage int solaris_getmsg(unsigned int fd, u32 arg1, u32 arg2, u32 arg3)
 	if (!ino->i_sock)
 		goto out;
 
-	ctlptr = (struct strbuf __user *)A(arg1);
-	datptr = (struct strbuf __user *)A(arg2);
-	flgptr = (int __user *)A(arg3);
+	ctlptr = (struct strbuf *)A(arg1);
+	datptr = (struct strbuf *)A(arg2);
+	flgptr = (int *)A(arg3);
 
 	error = -EFAULT;
 
@@ -892,8 +893,8 @@ asmlinkage int solaris_getmsg(unsigned int fd, u32 arg1, u32 arg2, u32 arg3)
 		goto out;
 	}
 
-	error = timod_getmsg(fd,A(ctl.buf),ctl.maxlen,&ctlptr->len,
-				A(dat.buf),dat.maxlen,&datptr->len,&flags);
+	error = timod_getmsg(fd,(char*)A(ctl.buf),ctl.maxlen,&ctlptr->len,
+				(char*)A(dat.buf),dat.maxlen,&datptr->len,&flags);
 
 	if (!error && put_user(flags,flgptr))
 		error = -EFAULT;
@@ -907,8 +908,7 @@ asmlinkage int solaris_putmsg(unsigned int fd, u32 arg1, u32 arg2, u32 arg3)
 {
 	struct file *filp;
 	struct inode *ino;
-	struct strbuf __user *ctlptr;
-	struct strbuf __user *datptr;
+	struct strbuf *ctlptr, *datptr;
 	struct strbuf ctl, dat;
 	int flags = (int) arg3;
 	int error = -EBADF;
@@ -927,8 +927,8 @@ asmlinkage int solaris_putmsg(unsigned int fd, u32 arg1, u32 arg2, u32 arg3)
 		(imajor(ino) != 30 || iminor(ino) != 1))
 		goto out;
 
-	ctlptr = A(arg1);
-	datptr = A(arg2);
+	ctlptr = (struct strbuf *)A(arg1);
+	datptr = (struct strbuf *)A(arg2);
 
 	error = -EFAULT;
 
@@ -952,8 +952,8 @@ asmlinkage int solaris_putmsg(unsigned int fd, u32 arg1, u32 arg2, u32 arg3)
 		dat.buf = 0;
 	}
 
-	error = timod_putmsg(fd,A(ctl.buf),ctl.len,
-				A(dat.buf),dat.len,flags);
+	error = timod_putmsg(fd,(char*)A(ctl.buf),ctl.len,
+				(char*)A(dat.buf),dat.len,flags);
 out:
 	unlock_kernel();
 	SOLD("done");

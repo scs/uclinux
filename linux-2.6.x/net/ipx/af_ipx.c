@@ -90,7 +90,7 @@ extern int ipxrtr_route_packet(struct sock *sk, struct sockaddr_ipx *usipx,
 			       struct iovec *iov, int len, int noblock);
 extern int ipxrtr_route_skb(struct sk_buff *skb);
 extern struct ipx_route *ipxrtr_lookup(__u32 net);
-extern int ipxrtr_ioctl(unsigned int cmd, void __user *arg);
+extern int ipxrtr_ioctl(unsigned int cmd, void *arg);
 
 #undef IPX_REFCNT_DEBUG
 #ifdef IPX_REFCNT_DEBUG
@@ -114,7 +114,7 @@ static void ipxcfg_set_auto_select(char val)
 		ipx_primary_net = ipx_interfaces_head();
 }
 
-static int ipxcfg_get_config_data(struct ipx_config_data __user *arg)
+static int ipxcfg_get_config_data(struct ipx_config_data *arg)
 {
 	struct ipx_config_data vals;
 
@@ -1141,7 +1141,7 @@ out:
 	return intrfc;
 }
 
-static int ipxitf_ioctl(unsigned int cmd, void __user *arg)
+static int ipxitf_ioctl(unsigned int cmd, void *arg)
 {
 	int rc = -EINVAL;
 	struct ifreq ifr;
@@ -1204,14 +1204,14 @@ static int ipxitf_ioctl(unsigned int cmd, void __user *arg)
 	}
 	case SIOCAIPXITFCRT: 
 		rc = -EFAULT;
-		if (get_user(val, (unsigned char __user *) arg))
+		if (get_user(val, (unsigned char *) arg))
 			break;
 		rc = 0;
 		ipxcfg_auto_create_interfaces = val;
 		break;
 	case SIOCAIPXPRISLT: 
 		rc = -EFAULT;
-		if (get_user(val, (unsigned char __user *) arg))
+		if (get_user(val, (unsigned char *) arg))
 			break;
 		rc = 0;
 		ipxcfg_set_auto_select(val);
@@ -1285,7 +1285,7 @@ const char *ipx_device_name(struct ipx_interface *intrfc)
  * socket object. */
 
 static int ipx_setsockopt(struct socket *sock, int level, int optname,
-			  char __user *optval, int optlen)
+			  char *optval, int optlen)
 {
 	struct sock *sk = sock->sk;
 	int opt;
@@ -1295,7 +1295,7 @@ static int ipx_setsockopt(struct socket *sock, int level, int optname,
 		goto out;
 
 	rc = -EFAULT;
-	if (get_user(opt, (unsigned int __user *)optval))
+	if (get_user(opt, (unsigned int *)optval))
 		goto out;
 
 	rc = -ENOPROTOOPT;
@@ -1309,7 +1309,7 @@ out:
 }
 
 static int ipx_getsockopt(struct socket *sock, int level, int optname,
-	char __user *optval, int __user *optlen)
+	char *optval, int *optlen)
 {
 	struct sock *sk = sock->sk;
 	int val = 0;
@@ -1351,7 +1351,7 @@ static int ipx_create(struct socket *sock, int protocol)
         	rc = -ENOMEM;
 		if (!sk)
 			goto out;
-		ipx = sk->sk_protinfo = kmalloc(sizeof(*ipx), GFP_KERNEL);
+		ipx = ipx_sk(sk) = kmalloc(sizeof(*ipx), GFP_KERNEL);
 		if (!ipx)
 			goto outsk;
 		memset(ipx, 0, sizeof(*ipx));
@@ -1695,7 +1695,7 @@ static int ipx_sendmsg(struct kiocb *iocb, struct socket *sock,
 	/* Socket gets bound below anyway */
 /*	if (sk->sk_zapped)
 		return -EIO; */	/* Socket not bound */
-	if (flags & ~(MSG_DONTWAIT|MSG_CMSG_COMPAT))
+	if (flags & ~MSG_DONTWAIT)
 		goto out;
 
 	/* Max possible packet size limited by 16 bit pktsize in header */
@@ -1797,8 +1797,7 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 				     copied);
 	if (rc)
 		goto out_free;
-	if (skb->stamp.tv_sec)
-		sk->sk_stamp = skb->stamp;
+	sk->sk_stamp = skb->stamp;
 
 	msg->msg_namelen = sizeof(*sipx);
 
@@ -1823,14 +1822,13 @@ static int ipx_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	int rc = 0;
 	long amount = 0;
 	struct sock *sk = sock->sk;
-	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
 	case TIOCOUTQ:
 		amount = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
 		if (amount < 0)
 			amount = 0;
-		rc = put_user(amount, (int __user *)argp);
+		rc = put_user(amount, (int *)arg);
 		break;
 	case TIOCINQ: {
 		struct sk_buff *skb = skb_peek(&sk->sk_receive_queue);
@@ -1838,14 +1836,14 @@ static int ipx_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		 * user tasks fiddle here */
 		if (skb)
 			amount = skb->len - sizeof(struct ipxhdr);
-		rc = put_user(amount, (int __user *)argp);
+		rc = put_user(amount, (int *)arg);
 		break;
 	}
 	case SIOCADDRT:
 	case SIOCDELRT:
 		rc = -EPERM;
 		if (capable(CAP_NET_ADMIN))
-			rc = ipxrtr_ioctl(cmd, argp);
+			rc = ipxrtr_ioctl(cmd, (void *)arg);
 		break;
 	case SIOCSIFADDR:
 	case SIOCAIPXITFCRT:
@@ -1854,10 +1852,10 @@ static int ipx_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		if (!capable(CAP_NET_ADMIN))
 			break;
 	case SIOCGIFADDR:
-		rc = ipxitf_ioctl(cmd, argp);
+		rc = ipxitf_ioctl(cmd, (void *)arg);
 		break;
 	case SIOCIPXCFGDATA:
-		rc = ipxcfg_get_config_data(argp);
+		rc = ipxcfg_get_config_data((void *)arg);
 		break;
 	case SIOCIPXNCPCONN:
 		/*
@@ -1868,12 +1866,19 @@ static int ipx_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
         	if (!capable(CAP_NET_ADMIN))
 			break;
 		rc = get_user(ipx_sk(sk)->ipx_ncp_conn,
-			      (const unsigned short __user *)argp);
+			      (const unsigned short *)(arg));
 		break;
 	case SIOCGSTAMP:
 		rc = -EINVAL;
-		if (sk) 
-			rc = sock_get_timestamp(sk, argp);
+		if (sk) {
+			rc = -ENOENT;
+			if (!sk->sk_stamp.tv_sec)
+				break;
+			rc = -EFAULT;
+			if (!copy_to_user((void *)arg, &sk->sk_stamp,
+					  sizeof(struct timeval)))
+				rc = 0;
+		}
 		break;
 	case SIOCGIFDSTADDR:
 	case SIOCSIFDSTADDR:
@@ -1884,7 +1889,7 @@ static int ipx_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		rc = -EINVAL;
 		break;
 	default:
-		rc = dev_ioctl(cmd, argp);
+		rc = dev_ioctl(cmd,(void *) arg);
 		break;
 	}
 

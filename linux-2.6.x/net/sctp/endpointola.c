@@ -129,7 +129,7 @@ struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	ep->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] =
 		SCTP_DEFAULT_TIMEOUT_T1_INIT;
 	ep->timeouts[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN] =
-		msecs_to_jiffies(sp->rtoinfo.srto_initial);
+		MSECS_TO_JIFFIES(sp->rtoinfo.srto_initial);
 	ep->timeouts[SCTP_EVENT_TIMEOUT_T3_RTX] = 0;
 	ep->timeouts[SCTP_EVENT_TIMEOUT_T4_RTO] = 0;
 
@@ -138,7 +138,7 @@ struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	 * recommended value of 5 times 'RTO.Max'.
 	 */
         ep->timeouts[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]
-		= 5 * msecs_to_jiffies(sp->rtoinfo.srto_max);
+		= 5 * MSECS_TO_JIFFIES(sp->rtoinfo.srto_max);
 
 	ep->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] =
 		SCTP_DEFAULT_TIMEOUT_HEARTBEAT;
@@ -146,6 +146,14 @@ struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 		SCTP_DEFAULT_TIMEOUT_SACK;
 	ep->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
 		sp->autoclose * HZ;
+
+	/* Set up the default send/receive buffer space.  */
+
+	/* FIXME - Should the min and max window size be configurable
+	 * sysctl parameters as opposed to be constants?
+	 */
+	sk->sk_rcvbuf = SCTP_DEFAULT_MAXWINDOW;
+	sk->sk_sndbuf = SCTP_DEFAULT_MAXWINDOW * 2;
 
 	/* Use SCTP specific send buffer space queues.  */
 	sk->sk_write_space = sctp_write_space;
@@ -369,7 +377,7 @@ static void sctp_endpoint_bh_rcv(struct sctp_endpoint *ep)
 		if (asoc && sctp_chunk_is_data(chunk))
 			asoc->peer.last_data_from = chunk->transport;
 		else
-			SCTP_INC_STATS(SCTP_MIB_INCTRLCHUNKS);
+			SCTP_INC_STATS(SctpInCtrlChunks);
 
 		if (chunk->transport)
 			chunk->transport->last_time_heard = jiffies;

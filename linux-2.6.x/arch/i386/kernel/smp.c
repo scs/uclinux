@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 
 #include <asm/mtrr.h>
+#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <mach_ipi.h>
 #include <mach_apic.h>
@@ -149,7 +150,7 @@ inline void __send_IPI_shortcut(unsigned int shortcut, int vector)
 	apic_write_around(APIC_ICR, cfg);
 }
 
-void fastcall send_IPI_self(int vector)
+void send_IPI_self(int vector)
 {
 	__send_IPI_shortcut(APIC_DEST_SELF, vector);
 }
@@ -159,7 +160,7 @@ void fastcall send_IPI_self(int vector)
  */
 inline void send_IPI_mask_bitmask(cpumask_t cpumask, int vector)
 {
-	unsigned long mask = cpus_addr(cpumask)[0];
+	unsigned long mask = cpus_coerce(cpumask);
 	unsigned long cfg;
 	unsigned long flags;
 
@@ -463,7 +464,7 @@ static void do_flush_tlb_all(void* info)
 
 void flush_tlb_all(void)
 {
-	on_each_cpu(do_flush_tlb_all, NULL, 1, 1);
+	on_each_cpu(do_flush_tlb_all, 0, 1, 1);
 }
 
 /*
@@ -517,9 +518,6 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 
 	if (!cpus)
 		return 0;
-
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
 
 	data.func = func;
 	data.info = info;

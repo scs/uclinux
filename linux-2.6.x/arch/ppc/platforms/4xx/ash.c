@@ -18,8 +18,6 @@
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/io.h>
-#include <asm/ocp.h>
-#include <asm/ibm_ocp_pci.h>
 #include <asm/todc.h>
 
 #ifdef DEBUG
@@ -55,9 +53,9 @@ ppc405_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 void __init
 ash_setup_arch(void)
 {
-	ppc4xx_setup_arch();
+	bd_t *bip = &__res;
 
-	ibm_ocp_set_emac(0, 3);
+	ppc4xx_setup_arch();
 
 #ifdef CONFIG_DEBUG_BRINGUP
 	int i;
@@ -98,6 +96,8 @@ ash_setup_arch(void)
 void __init
 bios_fixup(struct pci_controller *hose, struct pcil0_regs *pcip)
 {
+
+	unsigned int bar_response, bar;
 	/*
 	 * Expected PCI mapping:
 	 *

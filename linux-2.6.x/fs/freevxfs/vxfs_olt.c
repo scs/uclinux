@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#ident "$Id$"
+
 /* 
  * Veritas filesystem driver - object location table support.
  */

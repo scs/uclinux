@@ -33,7 +33,6 @@ EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(enable_irq);
 EXPORT_SYMBOL(disable_irq);
-EXPORT_SYMBOL(probe_irq_mask);
 EXPORT_SYMBOL(kernel_thread);
 EXPORT_SYMBOL(disable_irq_nosync);
 EXPORT_SYMBOL(irq_desc);
@@ -84,7 +83,6 @@ EXPORT_SYMBOL(__down);
 EXPORT_SYMBOL(__down_interruptible);
 
 EXPORT_SYMBOL(__udelay);
-EXPORT_SYMBOL(__ndelay);
 EXPORT_SYMBOL(__const_udelay);
 
 #define DECLARE_EXPORT(name) extern void name(void);EXPORT_SYMBOL_NOVERS(name)
@@ -102,7 +100,6 @@ DECLARE_EXPORT(__movstr);
  
 DECLARE_EXPORT(__movstr_i4_even);
 DECLARE_EXPORT(__movstr_i4_odd);
-DECLARE_EXPORT(__movstrSI12_i4);
 
 /* needed by some modules */
 EXPORT_SYMBOL(flush_cache_all);
@@ -116,6 +113,3 @@ EXPORT_SYMBOL(__down_trylock);
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(synchronize_irq);
 #endif
-
-EXPORT_SYMBOL(csum_partial);
-EXPORT_SYMBOL(consistent_sync);

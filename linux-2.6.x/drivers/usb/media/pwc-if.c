@@ -1,6 +1,6 @@
-/* Linux driver for Philips webcam
+/* Linux driver for Philips webcam 
    USB and Video4Linux interface part.
-   (C) 1999-2004 Nemosoft Unv.
+   (C) 1999-2003 Nemosoft Unv.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@
    - Alistar Moire: QuickCam 3000 Pro device/product ID
    - Tony Hoyle: Creative Labs Webcam 5 device/product ID
    - Mark Burazin: solving hang in VIDIOCSYNC when camera gets unplugged
-   - Jk Fang: Sotec Afina Eye ID
+   - Jk Fang: SOTEC Afina Eye ID
    - Xavier Roche: QuickCam Pro 4000 ID
    - Jens Knudsen: QuickCam Zoom ID
    - J. Debert: QuickCam for Notebooks ID
@@ -90,7 +90,6 @@ static struct usb_device_id pwc_device_table [] = {
 	{ USB_DEVICE(0x041E, 0x400C) }, /* Creative Webcam 5 */
 	{ USB_DEVICE(0x041E, 0x4011) }, /* Creative Webcam Pro Ex */
 	{ USB_DEVICE(0x04CC, 0x8116) }, /* Afina Eye */
-	{ USB_DEVICE(0x06BE, 0x8116) }, /* new Afina Eye */
 	{ USB_DEVICE(0x0d81, 0x1910) }, /* Visionite */
 	{ USB_DEVICE(0x0d81, 0x1900) },
 	{ }
@@ -130,7 +129,8 @@ static struct {
 
 static int pwc_video_open(struct inode *inode, struct file *file);
 static int pwc_video_close(struct inode *inode, struct file *file);
-static ssize_t pwc_video_read(struct file *file, char __user *buf,
+static int pwc_video_release(struct video_device *);			  
+static ssize_t pwc_video_read(struct file *file, char *buf,
 			  size_t count, loff_t *ppos);
 static unsigned int pwc_video_poll(struct file *file, poll_table *wait);
 static int  pwc_video_ioctl(struct inode *inode, struct file *file,
@@ -152,9 +152,7 @@ static struct video_device pwc_template = {
 	.name =		"Philips Webcam",	/* Filled in later */
 	.type =		VID_TYPE_CAPTURE,
 	.hardware =	VID_HARDWARE_PWC,
-	.release =	video_device_release,
 	.fops =         &pwc_fops,
-	.minor =        -1,
 };
 
 /***************************************************************************/
@@ -261,7 +259,7 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 		return -ENXIO;
 	}
 #endif	
-	/* Allocate Isochronuous pipe buffers */
+	/* Allocate Isochronous pipe buffers */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		if (pdev->sbuf[i].data == NULL) {
 			kbuf = kmalloc(ISO_BUFFER_SIZE, GFP_KERNEL);
@@ -446,7 +444,7 @@ static inline int pwc_next_fill_frame(struct pwc_device *pdev)
 {
 	int ret;
 	unsigned long flags;
-
+	
 	ret = 0;
 	spin_lock_irqsave(&pdev->ptrlock, flags);
 	if (pdev->fill_frame != NULL) {
@@ -491,7 +489,7 @@ static inline int pwc_next_fill_frame(struct pwc_device *pdev)
 
 /**
   \brief Reset all buffers, pointers and lists, except for the image_used[] buffer.
-
+  
   If the image_used[] buffer is cleared too, mmap()/VIDIOCSYNC will run into trouble.
  */
 static void pwc_reset_buffers(struct pwc_device *pdev)
@@ -528,7 +526,7 @@ static int pwc_handle_frame(struct pwc_device *pdev)
 {
 	int ret = 0;
 	unsigned long flags;
-
+	
 	spin_lock_irqsave(&pdev->ptrlock, flags);
 	/* First grab our read_frame; this is removed from all lists, so
 	   we can release the lock after this without problems */
@@ -551,7 +549,7 @@ static int pwc_handle_frame(struct pwc_device *pdev)
 			Trace(TRACE_SEQUENCE, "Decompressing frame %d\n", pdev->read_frame->sequence);
 #endif
 			/* Decompression is a lenghty process, so it's outside of the lock.
-			   This gives the isoc_handler the opportunity to fill more frames
+			   This gives the isoc_handler the opportunity to fill more frames 
 			   in the mean time.
 			*/
 			spin_unlock_irqrestore(&pdev->ptrlock, flags);
@@ -593,8 +591,7 @@ static void pwc_isoc_handler(struct urb *urb, struct pt_regs *regs)
 	int i, fst, flen;
 	int awake;
 	struct pwc_frame_buf *fbuf;
-	unsigned char *fillptr = NULL;
-	unsigned char *iso_buf = NULL;
+	unsigned char *fillptr = 0, *iso_buf = 0;
 
 	awake = 0;
 	pdev = (struct pwc_device *)urb->context;
@@ -647,7 +644,7 @@ static void pwc_isoc_handler(struct urb *urb, struct pt_regs *regs)
 	else {
 		fillptr = fbuf->data + fbuf->filled;
 	}
-
+	
 	/* Reset ISOC error counter. We did get here, after all. */
 	pdev->visoc_errors = 0;
 
@@ -666,8 +663,8 @@ static void pwc_isoc_handler(struct urb *urb, struct pt_regs *regs)
 					pdev->vsync = 2;
 
 					/* ...copy data to frame buffer, if possible */
-					if (flen + fbuf->filled > pdev->frame_total_size) {
-						Trace(TRACE_FLOW, "Frame buffer overflow (flen = %d, frame_total_size = %d).\n", flen, pdev->frame_total_size);
+					if (flen + fbuf->filled > pdev->frame_size) {
+						Trace(TRACE_FLOW, "Frame buffer overflow (flen = %d, frame_size = %d).\n", flen, pdev->frame_size);
 						pdev->vsync = 0; /* Hmm, let's wait for an EOF (end-of-frame) */
 						pdev->vframes_error++;
 					}
@@ -732,7 +729,7 @@ static void pwc_isoc_handler(struct urb *urb, struct pt_regs *regs)
 						pdev->drop_frames--;
 					else {
 						/* Check for underflow first */
-						if (fbuf->filled < pdev->frame_total_size) {
+						if (fbuf->filled < pdev->frame_size) {
 							Trace(TRACE_FLOW, "Frame buffer underflow (%d bytes); discarded.\n", fbuf->filled);
 							pdev->vframes_error++;
 						}
@@ -792,8 +789,7 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	struct urb *urb;
 	int i, j, ret;
 
-	struct usb_interface *intf;
-	struct usb_host_interface *idesc = NULL;
+	struct usb_host_interface *idesc;
 
 	if (pdev == NULL)
 		return -EFAULT;
@@ -805,9 +801,7 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	/* Get the current alternate interface, adjust packet size */
 	if (!udev->actconfig)
 		return -EFAULT;
-	intf = usb_ifnum_to_if(udev, 0);
-	if (intf)
-		idesc = usb_altnum_to_altsetting(intf, pdev->valternate);
+	idesc = &udev->actconfig->interface[0]->altsetting[pdev->valternate];
 	if (!idesc)
 		return -EFAULT;
 
@@ -821,7 +815,7 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	
 	if (pdev->vmax_packet_size < 0 || pdev->vmax_packet_size > ISO_MAX_FRAME_SIZE) {
 		Err("Failed to find packet size for video endpoint in current alternate setting.\n");
-		return -ENFILE; /* Odd error, that should be noticable */
+		return -ENFILE; /* Odd error, that should be noticeable */
 	}
 
 	/* Set alternate interface */
@@ -878,7 +872,7 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 		if (ret)
 			Err("isoc_init() submit_urb %d failed with error %d\n", i, ret);
 		else
-			Trace(TRACE_MEMORY, "URB 0x%p submitted.\n", pdev->sbuf[i].urb);
+			Trace(TRACE_OPEN, "URB 0x%p submitted.\n", pdev->sbuf[i].urb);
 	}
 
 	/* All is done... */
@@ -890,7 +884,7 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 static void pwc_isoc_cleanup(struct pwc_device *pdev)
 {
 	int i;
-
+	
 	Trace(TRACE_OPEN, ">> pwc_isoc_cleanup()\n");
 	if (pdev == NULL)
 		return;
@@ -941,9 +935,9 @@ int pwc_try_video_mode(struct pwc_device *pdev, int width, int height, int new_f
 		        Trace(TRACE_FLOW, "pwc_set_video_mode attempt 2 failed.\n");
 		}
 	}
-	if (start == 0)
+	if (start == 0) 
 	{
-		if (pwc_isoc_init(pdev) < 0)
+		if (pwc_isoc_init(pdev) < 0) 
 		{
 			Info("Failed to restart ISOC transfers in pwc_try_video_mode.\n");
 			ret = -EAGAIN; /* let's try again, who knows if it works a second time */
@@ -976,31 +970,27 @@ static int pwc_video_open(struct inode *inode, struct file *file)
 		Trace(TRACE_OPEN, "Doing first time initialization.\n");
 		pdev->usb_init = 1;
 		
-		if (pwc_trace & TRACE_OPEN)
-		{
+		if (pwc_trace & TRACE_OPEN) {
 			/* Query sensor type */
 			const char *sensor_type = NULL;
-			int ret;
 
-			ret = pwc_get_cmos_sensor(pdev, &i);
-			if (ret >= 0)
-			{
-				switch(i) {
-				case 0x00:  sensor_type = "Hyundai CMOS sensor"; break;
-				case 0x20:  sensor_type = "Sony CCD sensor + TDA8787"; break;
-				case 0x2E:  sensor_type = "Sony CCD sensor + Exas 98L59"; break;
-				case 0x2F:  sensor_type = "Sony CCD sensor + ADI 9804"; break;
-				case 0x30:  sensor_type = "Sharp CCD sensor + TDA8787"; break;
-				case 0x3E:  sensor_type = "Sharp CCD sensor + Exas 98L59"; break;
-				case 0x3F:  sensor_type = "Sharp CCD sensor + ADI 9804"; break;
-				case 0x40:  sensor_type = "UPA 1021 sensor"; break;
-				case 0x100: sensor_type = "VGA sensor"; break;
-				case 0x101: sensor_type = "PAL MR sensor"; break;
-				default:    sensor_type = "unknown type of sensor"; break;
-				}
+			i = pwc_get_cmos_sensor(pdev);
+			switch(i) {
+			case -1: /* Unknown, show nothing */; break;
+			case 0x00:  sensor_type = "Hyundai CMOS sensor"; break;
+			case 0x20:  sensor_type = "Sony CCD sensor + TDA8787"; break;
+			case 0x2E:  sensor_type = "Sony CCD sensor + Exas 98L59"; break;
+			case 0x2F:  sensor_type = "Sony CCD sensor + ADI 9804"; break;
+			case 0x30:  sensor_type = "Sharp CCD sensor + TDA8787"; break;
+			case 0x3E:  sensor_type = "Sharp CCD sensor + Exas 98L59"; break;
+			case 0x3F:  sensor_type = "Sharp CCD sensor + ADI 9804"; break;
+			case 0x40:  sensor_type = "UPA 1021 sensor"; break;
+			case 0x100: sensor_type = "VGA sensor"; break;
+			case 0x101: sensor_type = "PAL MR sensor"; break;
+			default:    sensor_type = "unknown type of sensor"; break;
 			}
 			if (sensor_type != NULL)
-				Info("This %s camera is equipped with a %s (%d).\n", pdev->vdev->name, sensor_type, i);
+				Info("This %s camera is equipped with a %s (%d).\n", pdev->vdev.name, sensor_type, i);
 		}
 	}
 
@@ -1045,7 +1035,6 @@ static int pwc_video_open(struct inode *inode, struct file *file)
 
 	/* Set some defaults */
 	pdev->vsnapshot = 0;
-
 	/* Start iso pipe for video; first try the last used video size
 	   (or the default one); if that fails try QCIF/10 or QSIF/10;
 	   it that fails too, give up.
@@ -1099,7 +1088,7 @@ static int pwc_video_close(struct inode *inode, struct file *file)
 
 	/* Dump statistics, but only if a reasonable amount of frames were
 	   processed (to prevent endless log-entries in case of snap-shot
-	   programs)
+	   programs) 
 	 */
 	if (pdev->vframe_count > 20)
 		Info("Closing video device: %d frames received, dumped %d frames, %d frames with errors.\n", pdev->vframe_count, pdev->vframes_dumped, pdev->vframes_error);
@@ -1120,7 +1109,7 @@ static int pwc_video_close(struct inode *inode, struct file *file)
 			Info("Failed to set LED on/off time.\n");
 		if (power_save) {
 			i = pwc_camera_power(pdev, 0);
-			if (i < 0)
+			if (i < 0) 
 				Err("Failed to power down camera (%d)\n", i);
 		}
 	}
@@ -1128,6 +1117,12 @@ static int pwc_video_close(struct inode *inode, struct file *file)
 	Trace(TRACE_OPEN, "<< video_close()\n");
 	return 0;
 }
+
+static int pwc_video_release(struct video_device *vfd)
+{
+	Trace(TRACE_OPEN, "pwc_video_release() called. Now what?\n");
+}
+		
 
 /*
  *	FIXME: what about two parallel reads ????
@@ -1141,16 +1136,15 @@ static int pwc_video_close(struct inode *inode, struct file *file)
                 device is tricky anyhow.
  */
 
-static ssize_t pwc_video_read(struct file *file, char __user *buf,
+static ssize_t pwc_video_read(struct file *file, char *buf,
 			  size_t count, loff_t *ppos)
 {
 	struct video_device *vdev = file->private_data;
 	struct pwc_device *pdev;
 	int noblock = file->f_flags & O_NONBLOCK;
 	DECLARE_WAITQUEUE(wait, current);
-        int bytes_to_read;
 
-	Trace(TRACE_READ, "video_read(0x%p, %p, %zd) called.\n", vdev, buf, count);
+	Trace(TRACE_READ, "video_read(0x%p, %p, %d) called.\n", vdev, buf, count);
 	if (vdev == NULL)
 		return -EFAULT;
 	pdev = vdev->priv;
@@ -1185,25 +1179,20 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 		}
 		remove_wait_queue(&pdev->frameq, &wait);
 		set_current_state(TASK_RUNNING);
-                                                                                                                                                                                
+	                                                                                                                                                                                
 		/* Decompress and release frame */
 		if (pwc_handle_frame(pdev))
 			return -EFAULT;
 	}
 
 	Trace(TRACE_READ, "Copying data to user space.\n");
-	if (pdev->vpalette == VIDEO_PALETTE_RAW)
-		bytes_to_read = pdev->frame_size;
-	else
- 		bytes_to_read = pdev->view.size;
-
 	/* copy bytes to user space; we allow for partial reads */
-	if (count + pdev->image_read_pos > bytes_to_read)
-		count = bytes_to_read - pdev->image_read_pos;
+	if (count + pdev->image_read_pos > pdev->view.size)
+		count = pdev->view.size - pdev->image_read_pos;
 	if (copy_to_user(buf, pdev->image_ptr[pdev->fill_image] + pdev->image_read_pos, count))
 		return -EFAULT;
 	pdev->image_read_pos += count;
-	if (pdev->image_read_pos >= bytes_to_read) { /* All data has been read */
+	if (pdev->image_read_pos >= pdev->view.size) { /* All data has been read */
 		pdev->image_read_pos = 0;
 		pwc_next_image(pdev);
 	}
@@ -1275,7 +1264,7 @@ static int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 		}
 
 		case VIDIOCSCHAN:
-		{
+		{	
 			/* The spec says the argument is an integer, but
 			   the bttv driver uses a video_channel arg, which
 			   makes sense becasue it also has the norm flag.
@@ -1293,6 +1282,8 @@ static int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 			struct video_picture *p = arg;
 			int val;
 
+			p->colour = 0x8000;
+			p->hue = 0x8000;
 			val = pwc_get_brightness(pdev);
 			if (val >= 0)
 				p->brightness = val;
@@ -1315,11 +1306,11 @@ static int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 			else
 				p->colour = 0xffff;
 			p->depth = 24;
-			p->palette = pdev->vpalette;
+			p->palette = VIDEO_PALETTE_YUV420P;
 			p->hue = 0xFFFF; /* N/A */
 			break;
 		}
-
+		
 		case VIDIOCSPICT:
 		{
 			struct video_picture *p = arg;
@@ -1331,22 +1322,13 @@ static int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 			                is used exactly once in the uncompress
 			                routine.
 			 */
+			if (p->palette && p->palette != VIDEO_PALETTE_YUV420P) {
+				return -EINVAL;
+			}
 			pwc_set_brightness(pdev, p->brightness);
 			pwc_set_contrast(pdev, p->contrast);
 			pwc_set_gamma(pdev, p->whiteness);
 			pwc_set_saturation(pdev, p->colour);
-			if (p->palette && p->palette != pdev->vpalette) {
-				switch (p->palette) {
-					case VIDEO_PALETTE_YUV420P:
-					case VIDEO_PALETTE_RAW:
-						pdev->vpalette = p->palette;
-						return pwc_try_video_mode(pdev, pdev->image.x, pdev->image.y, pdev->vframes, pdev->vcompression, pdev->vsnapshot);
-						break;
-					default:
-						return -EINVAL;
-						break;
-				}
-			}
 			break;
 		}
 
@@ -1420,23 +1402,13 @@ static int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 			   various palettes... The driver doesn't support
 			   such small images, so I'm working around it.
 			 */
-			if (vm->format)
-			{
-				switch (vm->format)
-				{
-					case VIDEO_PALETTE_YUV420P:
-					case VIDEO_PALETTE_RAW:
-						break;
-					default:
-						return -EINVAL;
-						break;
-				}
-			}
-
+			if (vm->format && vm->format != VIDEO_PALETTE_YUV420P)
+				return -EINVAL;
+			 
 			if ((vm->width != pdev->view.x || vm->height != pdev->view.y) &&
 			    (vm->width >= pdev->view_min.x && vm->height >= pdev->view_min.y)) {
 				int ret;
-
+				
 				Trace(TRACE_OPEN, "VIDIOCMCAPTURE: changing size to please xawtv :-(.\n");
 				ret = pwc_try_video_mode(pdev, vm->width, vm->height, pdev->vframes, pdev->vcompression, pdev->vsnapshot);
 				if (ret)
@@ -1555,7 +1527,7 @@ static int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 		{
 			struct video_unit *vu = arg;
 			
-			vu->video = pdev->vdev->minor & 0x3F;
+			vu->video = pdev->vdev.minor & 0x3F;
 			vu->audio = -1; /* not known yet */
 			vu->vbi = -1;
 			vu->radio = -1;
@@ -1668,12 +1640,12 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			type_id = 690;
 			break;
 		case 0x0310:
-			Info("Philips PCVC730K (ToUCam Fun)/PCVC830 (ToUCam II) USB webcam detected.\n");
+			Info("Philips PCVC730K (ToUCam Fun) USB webcam detected.\n");
 			name = "Philips 730 webcam";
 			type_id = 730;
 			break;
 		case 0x0311:
-			Info("Philips PCVC740K (ToUCam Pro)/PCVC840 (ToUCam II) USB webcam detected.\n");
+			Info("Philips PCVC740K (ToUCam Pro) USB webcam detected.\n");
 			name = "Philips 740 webcam";
 			type_id = 740;
 			break;
@@ -1787,44 +1759,17 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			break;
 		}
 	}
-	else if (vendor_id == 0x04cc) {
+	else if (vendor_id == 0x04cc) { 
 		switch(product_id) {
 		case 0x8116:
 			Info("Sotec Afina Eye USB webcam detected.\n");
 			name = "Sotec Afina Eye";
 			type_id = 730;
-			break;
+			break;  
 		default:
 			return -ENODEV;
 			break;
 		}
-	}
-	else if (vendor_id == 0x06be) {
-		switch(product_id) {
-		case 0x8116:
-			/* Basicly the same as the Sotec Afina Eye */                
-			Info("AME CU-001 USB webcam detected.\n");
-			name = "AME CU-001";
-			type_id = 730;
-			break;
-		default:
-			return -ENODEV;
-			break;
-		}
-	}
-	else if (vendor_id == 0x06be) {
-		switch(product_id) {
-		case 0x8116:
-			/* This is essentially the same cam as the Sotec Afina Eye */
-			Info("AME Co. Afina Eye USB webcam detected.\n");
-			name = "AME Co. Afina Eye";
-			type_id = 750;
-			break;
-		default:
-			return -ENODEV;
-			break;
-		}
-	
 	}
 	else if (vendor_id == 0x0d81) {
 		switch(product_id) {
@@ -1863,7 +1808,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pdev->type = type_id;
 	pdev->vsize = default_size;
 	pdev->vframes = default_fps;
-	strcpy(pdev->serial, serial_number);
 	pdev->features = features;
 	if (vendor_id == 0x046D && product_id == 0x08B5)
 	{
@@ -1875,6 +1819,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		pdev->angle_range.pan_max  =  7000;
 		pdev->angle_range.tilt_min = -3000;
 		pdev->angle_range.tilt_max =  2500;
+		pdev->angle_range.zoom_min = -1;
+		pdev->angle_range.zoom_max = -1;
 	}
 
 	init_MUTEX(&pdev->modlock);
@@ -1884,19 +1830,11 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	init_waitqueue_head(&pdev->frameq);
 	pdev->vcompression = pwc_preferred_compression;
 
-	/* Allocate video_device structure */
-	pdev->vdev = video_device_alloc();
-	if (pdev->vdev == 0)
-	{
-		Err("Err, cannot allocate video_device struture. Failing probe.");
-		kfree(pdev);
-		return -ENOMEM;
-	}
-	memcpy(pdev->vdev, &pwc_template, sizeof(pwc_template));
-	strcpy(pdev->vdev->name, name);
-	pdev->vdev->owner = THIS_MODULE;
-	video_set_drvdata(pdev->vdev, pdev);
-
+	memcpy(&pdev->vdev, &pwc_template, sizeof(pwc_template));
+	strcpy(pdev->vdev.name, name);
+	pdev->vdev.owner = THIS_MODULE;
+	pdev->vdev.priv = pdev;
+	
 	pdev->release = udev->descriptor.bcdDevice;
 	Trace(TRACE_PROBE, "Release: %04x\n", pdev->release);
 
@@ -1914,16 +1852,15 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		}
 	}
 
-	pdev->vdev->release = video_device_release;
-	i = video_register_device(pdev->vdev, VFL_TYPE_GRABBER, video_nr);
+	pdev->vdev.release = pwc_video_release;
+	i = video_register_device(&pdev->vdev, VFL_TYPE_GRABBER, video_nr);
 	if (i < 0) {
 		Err("Failed to register as video device (%d).\n", i);
-		video_device_release(pdev->vdev); /* Drip... drip... drip... */
 		kfree(pdev); /* Oops, no memory leaks please */
 		return -EIO;
 	}
 	else {
-		Info("Registered as /dev/video%d.\n", pdev->vdev->minor & 0x3F);
+		Info("Registered as /dev/video%d.\n", pdev->vdev.minor & 0x3F);
 	}
 
 	/* occupy slot */
@@ -1961,14 +1898,14 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 		Err("pwc_disconnect() Magic number failed. Consult your scrolls and try again.\n");
 		goto disconnect_out;
 	}
-#endif
+#endif	
 	
 	/* We got unplugged; this is signalled by an EPIPE error code */
 	if (pdev->vopen) {
 		Info("Disconnected while webcam is in use!\n");
 		pdev->error_status = EPIPE;
 	}
-
+	
 	/* Alert waiting processes */
 	wake_up_interruptible(&pdev->frameq);
 	/* Wait until device is closed */
@@ -1976,7 +1913,7 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 		schedule();
 	/* Device is now closed, so we can safely unregister it */
 	Trace(TRACE_PROBE, "Unregistering video device in disconnect().\n");
-	video_unregister_device(pdev->vdev);
+	video_unregister_device(&pdev->vdev); 
 
 	/* Free memory (don't set pdev to 0 just yet) */
 	kfree(pdev);
@@ -1995,7 +1932,7 @@ disconnect_out:
 static int pwc_atoi(const char *s)
 {
 	int k = 0;
-
+	
 	k = 0;
 	while (*s != '\0' && *s >= '0' && *s <= '9') {
 		k = 10 * k + (*s - '0');
@@ -2038,7 +1975,7 @@ MODULE_PARM(dev_hint, "0-20s");
 MODULE_PARM_DESC(dev_hint, "Device node hints");
 
 MODULE_DESCRIPTION("Philips & OEM USB webcam driver");
-MODULE_AUTHOR("Nemosoft Unv. <webcam@smcc.demon.nl>");
+MODULE_AUTHOR("Nemosoft Unv. <nemosoft@smcc.demon.nl>");
 MODULE_LICENSE("GPL");
 
 static int __init usb_pwc_init(void)
@@ -2046,10 +1983,9 @@ static int __init usb_pwc_init(void)
 	int i, sz;
 	char *sizenames[PSZ_MAX] = { "sqcif", "qsif", "qcif", "sif", "cif", "vga" };
 
-	Info("Philips webcam module version " PWC_VERSION " loaded.\n");
-	Info("Supports Philips PCA645/646, PCVC675/680/690, PCVC720[40]/730/740/750 & PCVC830/840.\n");
-	Info("Also supports the Askey VC010, various Logitech Quickcams, Samsung MPC-C10 and MPC-C30,\n");
-	Info("the Creative WebCam 5 & Pro Ex, SOTEC Afina Eye and Visionite VCS-UC300 and VCS-UM100.\n");
+	Info("Philips PCA645/646 + PCVC675/680/690 + PCVC730/740/750 webcam module version " PWC_VERSION " loaded.\n");
+	Info("Also supports the Askey VC010, various Logitech QuickCams, Samsung MPC-C10 and MPC-C30,\n");
+	Info("the Creative WebCam 5, SOTEC Afina Eye and Visionite VCS-UC300 and VCS-UM100.\n");
 
 	if (fps) {
 		if (fps < 4 || fps > 30) {
@@ -2059,7 +1995,7 @@ static int __init usb_pwc_init(void)
 		default_fps = fps;
 		Info("Default framerate set to %d.\n", default_fps);
 	}
-
+	
 	if (size) {
 		/* string; try matching with array */
 		for (sz = 0; sz < PSZ_MAX; sz++) {
@@ -2109,12 +2045,12 @@ static int __init usb_pwc_init(void)
 	if (leds[1] >= 0)
 		led_off = leds[1];
 
-	/* Big device node whoopla. Basicly, it allows you to assign a
-	   device node (/dev/videoX) to a camera, based on its type
+	/* Big device node whoopla. Basically, it allows you to assign a 
+	   device node (/dev/videoX) to a camera, based on its type 
 	   & serial number. The format is [type[.serialnumber]:]node.
 
-	   Any camera that isn't matched by these rules gets the next
-	   available free device node.
+           Any camera that isn't matched by these rules gets the next 
+           available free device node.
 	 */
 	for (i = 0; i < MAX_DEV_HINTS; i++) {
 		char *s, *colon, *dot;

@@ -27,6 +27,7 @@ config RWSEM_XCHGADD_ALGORITHM
 
 source "init/Kconfig"
 
+
 menu "System type"
 
 choice
@@ -43,12 +44,6 @@ config SH_7751_SOLUTION_ENGINE
 	bool "SolutionEngine7751"
 	help
 	  Select 7751 SolutionEngine if configuring for a Hitachi SH7751
-	  evalutation board.
-
-config SH_7300_SOLUTION_ENGINE
-	bool "SolutionEngine7300"
-	help
-	  Select 7300 SolutionEngine if configuring for a Hitachi SH7300(SH-Mobile V)
 	  evalutation board.
 
 config SH_7751_SYSTEMH
@@ -144,18 +139,6 @@ config SH_SECUREEDGE5410
 	  This includes both the OEM SecureEdge products as well as the
 	  SME product line.
 
-config SH_HS7751RVOIP
-	bool "HS7751RVOIP"
-	help
-	  Select HS7751RVOIP if configuring for a Renesas Technology
-	  Sales VoIP board.
-
-config SH_RTS7751R2D
-	bool "RTS7751R2D"
-	help
-	  Select RTS7751R2D if configuring for a Renesas Technology
-	  Sales SH-Graphics board.
-
 config SH_UNKNOWN
 	bool "BareCPU"
 	help
@@ -204,11 +187,7 @@ config CPU_SUBTYPE_SH7604
 config CPU_SUBTYPE_SH7300
 	bool "SH7300"
 	depends on CPU_SH3
-
-config CPU_SUBTYPE_SH7705
-	bool "SH7705"
-	depends on CPU_SH3
-
+	  
 config CPU_SUBTYPE_SH7707
 	bool "SH7707"
 	depends on CPU_SH3
@@ -246,17 +225,10 @@ config CPU_SUBTYPE_SH7760
 	depends on CPU_SH4
 
 config CPU_SUBTYPE_ST40STB1
-       bool "ST40STB1 / ST40RA"
-       depends on CPU_SH4
-       help
-         Select ST40STB1 if you have a ST40RA CPU.
-         This was previously called the ST40STB1, hence the option name.
-
-config CPU_SUBTYPE_ST40GX1
-       bool "ST40GX1"
-       depends on CPU_SH4
-       help
-         Select ST40GX1 if you have a ST40GX1 CPU.
+	bool "ST40STB1"
+	depends on CPU_SH4
+	help
+	  Select ST40STB1 if you have a ST40STB1 CPU.
 
 endchoice
 
@@ -272,18 +244,14 @@ config MMU
 	  turning this off will boot the kernel on these machines with the
 	  MMU implicitly switched off.
 
-choice
-	prompt "HugeTLB page size"
-	depends on HUGETLB_PAGE && CPU_SH4 && MMU
-	default HUGETLB_PAGE_SIZE_64K
-
-config HUGETLB_PAGE_SIZE_64K
-	bool "64K"
-
-config HUGETLB_PAGE_SIZE_1MB
-	bool "1MB"
-
-endchoice
+config SH_CONCAT_FS
+	bool "Fixup fileystem concated to kernel image"
+	default n
+	help
+	  Some SH platforms boot a kernel with the root filesystem at the end
+	  of the kernel binary (Where the BSS appears) and enabling this option
+	  moved the filesystem to the end of the kernel and reserves the memory
+	  it occupies.
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
@@ -297,7 +265,7 @@ config CMDLINE
 config MEMORY_START
 	hex "Physical memory start address" if !MEMORY_SET || MEMORY_OVERRIDE
 	default "0x08000000" if !MEMORY_SET || MEMORY_OVERRIDE || !MEMORY_OVERRIDE && SH_ADX || SH_MPC1211 || SH_SECUREEDGE5410
-	default "0x0c000000" if !MEMORY_OVERRIDE && (SH_DREAMCAST || SH_HP600 || SH_BIGSUR || SH_SH2000 || SH_7751_SOLUTION_ENGINE || SH_SOLUTION_ENGINE || SH_HS7751RVOIP || SH_RTS7751R2D)
+	default "0x0c000000" if !MEMORY_OVERRIDE && (SH_DREAMCAST || SH_HP600 || SH_BIGSUR || SH_SH2000 || SH_7751_SOLUTION_ENGINE || SH_SOLUTION_ENGINE)
 	---help---
 	  Computers built with Hitachi SuperH processors always
 	  map the ROM starting at address zero.  But the processor
@@ -316,7 +284,7 @@ config MEMORY_SIZE
 	hex "Physical memory size" if !MEMORY_SET || MEMORY_OVERRIDE
 	default "0x00400000" if !MEMORY_SET || MEMORY_OVERRIDE || !MEMORY_OVERRIDE && SH_ADX || !MEMORY_OVERRIDE && (SH_HP600 || SH_BIGSUR || SH_SH2000)
 	default "0x01000000" if !MEMORY_OVERRIDE && SH_DREAMCAST || SH_SECUREEDGE5410
-	default "0x04000000" if !MEMORY_OVERRIDE && (SH_7751_SOLUTION_ENGINE || SH_HS7751RVOIP || SH_RTS7751R2D)
+	default "0x04000000" if !MEMORY_OVERRIDE && SH_7751_SOLUTION_ENGINE
 	default "0x02000000" if !MEMORY_OVERRIDE && SH_SOLUTION_ENGINE
 	default "0x08000000" if SH_MPC1211
 	help
@@ -328,7 +296,7 @@ config MEMORY_SIZE
 
 config MEMORY_SET
 	bool
-	depends on !MEMORY_OVERRIDE && (SH_MPC1211 || SH_ADX || SH_DREAMCAST || SH_HP600 || SH_BIGSUR || SH_SH2000 || SH_7751_SOLUTION_ENGINE || SH_SOLUTION_ENGINE || SH_SECUREEDGE5410 || SH_HS7751RVOIP || SH_RTS7751R2D)
+	depends on !MEMORY_OVERRIDE && (SH_MPC1211 || SH_ADX || SH_DREAMCAST || SH_HP600 || SH_BIGSUR || SH_SH2000 || SH_7751_SOLUTION_ENGINE || SH_SOLUTION_ENGINE || SH_SECUREEDGE5410)
 	default y
 	help
 	  This is an option about which you will never be asked a question.
@@ -387,7 +355,7 @@ config CF_BASE_ADDR
 # The SH7750 RTC module is disabled in the Dreamcast
 config SH_RTC
 	bool
-	depends on !SH_DREAMCAST && !SH_SATURN && !SH_7300_SOLUTION_ENGINE
+	depends on !SH_DREAMCAST && !SH_SATURN
 	default y
 	help
 	  Selecting this option will allow the Linux kernel to emulate
@@ -406,25 +374,10 @@ config SH_DSP
 
 	  This option must be set in order to enable the DSP.
 
-config SH_ADC
-	bool "ADC support"
-	depends on CPU_SH3
-	default y
-	help
-	  Selecting this option will allow the Linux kernel to use SH3 on-chip
-	  ADC module.
-
-	  If unsure, say N.
-
 config SH_HP600
 	bool
 	depends on SH_HP620 || SH_HP680 || SH_HP690
 	default y
-
-config CPU_SUBTYPE_ST40
-       bool
-       depends on CPU_SUBTYPE_ST40STB1 || CPU_SUBTYPE_ST40GX1
-       default y
 
 config DISCONTIGMEM
 	bool
@@ -539,9 +492,10 @@ config SMP
 	  People using multiprocessor machines who say Y here should also say
 	  Y to "Enhanced Real Time Clock Support", below.
 
-	  See also the <file:Documentation/smp.txt>,
-	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available
-	  at <http://www.tldp.org/docs.html#howto>.
+	  See also the <file:Documentation/smp.tex>,
+	  <file:Documentation/smp.txt>, <file:Documentation/nmi_watchdog.txt>
+	  and the SMP-HOWTO available at
+	  <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
 
@@ -558,32 +512,10 @@ config NR_CPUS
 	  This is purely to save memory - each supported CPU adds
 	  approximately eight kilobytes to the kernel image.
 
-config HS7751RVOIP_CODEC
-	bool "Support VoIP Codec section"
-	depends on SH_HS7751RVOIP
-	help
-	  Selecting this option will support CODEC section.
-
-config RTS7751R2D_REV11
-	bool "RTS7751R2D Rev. 1.1 board support"
-	depends on SH_RTS7751R2D
-	help
-	  Selecting this option will support version rev. 1.1.
-
-config SH_PCLK_CALC
-	bool
-	default n if CPU_SUBTYPE_SH7300
-	default y
-	help
-	  This option will cause the PCLK value to be probed at run-time. It
-	  will display a notification if the probed value has greater than a
-	  1% variance of the hardcoded CONFIG_SH_PCLK_FREQ.
-
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
 	default "49876504" if CPU_SUBTYPE_SH7750
 	default "60013568" if CPU_SUBTYPE_SH7751
-	default "33333333" if CPU_SUBTYPE_SH7300
 	default "1193182"
 	help
 	  This option is used to specify the peripheral clock frequency. This
@@ -593,19 +525,15 @@ config SH_PCLK_FREQ
 	  with an auto-probed frequency which should be considered the proper
 	  value for your hardware.
 
-menu "CPU Frequency scaling"
-
 config CPU_FREQ
 	bool "CPU Frequency scaling"
 	help
 	  CPU clock scaling allows you to change the clock speed of the
 	  running CPU on the fly.
 
-	  For details, take a look at <file:Documentation/cpu-freq>.
+	  For details, take a look at <file:Documentation/cpufreq>.
 
 	  If unsure, say N.
-
-source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_TABLE
 	tristate "CPU frequency table helpers"
@@ -624,29 +552,15 @@ config SH_CPU_FREQ
 	  This adds the cpufreq driver for SuperH. At present, only
 	  the SH-4 is supported.
 
-	  For details, take a look at <file:Documentation/cpu-freq>.
+	  For details, take a look at <file:Documentation/cpufreq>.
 
 	  If unsure, say N.
 
-endmenu
+source "drivers/cpufreq/Kconfig"
 
 source "arch/sh/drivers/dma/Kconfig"
 
 source "arch/sh/cchips/Kconfig"
-
-config HEARTBEAT
-	bool "Heartbeat LED"
-	depends on SH_MPC1211 || SH_CAT68701 || SH_STB1_HARP || SH_STB1_OVERDRIVE || SH_BIGSUR || SH_7751_SOLUTION_ENGINE || SH_7300_SOLUTION_ENGINE || SH_SOLUTION_ENGINE || SH_RTS7751R2D
-	help
-	  Use the power-on LED on your machine as a load meter.  The exact
-	  behavior is platform-dependent, but normally the flash frequency is
-	  a hyperbolic function of the 5-minute load average.
-
-config RTC_9701JE
-	tristate "EPSON RTC-9701JE support"
-	depends on SH_RTS7751R2D
-	help
-	  Selecting this option will support EPSON RTC-9701JE.
 
 endmenu
 
@@ -697,13 +611,30 @@ config SBUS
 	bool
 
 config MAPLE
-	tristate "Maple Bus support"
-	depends on SH_DREAMCAST
-	default y
+	bool
+	default y if SH_DREAMCAST
 
 source "arch/sh/drivers/pci/Kconfig"
 
 source "drivers/pci/Kconfig"
+
+config HOTPLUG
+	bool "Support for hot-pluggable devices"
+	---help---
+	  Say Y here if you want to plug devices into your computer while
+	  the system is running, and be able to use them quickly.  In many
+	  cases, the devices can likewise be unplugged at any time too.
+
+	  One well known example of this is PCMCIA- or PC-cards, credit-card
+	  size devices such as network cards, modems or hard drives which are
+	  plugged into slots found on all modern laptop computers.  Another
+	  example, used on modern desktops as well as laptops, is USB.
+
+	  Enable HOTPLUG and KMOD, and build a modular kernel.  Get agent
+	  software (at <http://linux-hotplug.sourceforge.net/>) and install it.
+	  Then your kernel will automatically call out to a user mode "policy
+	  agent" (/sbin/hotplug) to load modules and set up software needed
+	  to use devices as you hotplug them.
 
 source "drivers/pcmcia/Kconfig"
 
@@ -718,27 +649,414 @@ source "fs/Kconfig.binfmt"
 
 endmenu
 
-menu "SH initrd options"
-	depends on BLK_DEV_INITRD
+source "drivers/base/Kconfig"
 
-config EMBEDDED_RAMDISK
-	bool "Embed root filesystem ramdisk into the kernel"
+source "drivers/mtd/Kconfig"
 
-config EMBEDDED_RAMDISK_IMAGE
-	string "Filename of gziped ramdisk image"
-	depends on EMBEDDED_RAMDISK
-	default "ramdisk.gz"
+source "drivers/parport/Kconfig"
+
+source "drivers/block/Kconfig"
+
+source "drivers/ide/Kconfig"
+
+source "drivers/scsi/Kconfig"
+
+source "drivers/cdrom/Kconfig"
+
+source "drivers/md/Kconfig"
+
+source "drivers/ieee1394/Kconfig"
+
+source "net/Kconfig"
+
+source "drivers/isdn/Kconfig"
+
+source "drivers/telephony/Kconfig"
+
+#
+# input - input/joystick depends on it. As does USB.
+#
+source "drivers/input/Kconfig"
+
+menu "Character devices"
+
+config VT
+	bool "Virtual terminal"
+	---help---
+	  If you say Y here, you will get support for terminal devices with
+	  display and keyboard devices. These are called "virtual" because you
+	  can run several virtual terminals (also called virtual consoles) on
+	  one physical terminal. This is rather useful, for example one
+	  virtual terminal can collect system messages and warnings, another
+	  one can be used for a text-mode user session, and a third could run
+	  an X session, all in parallel. Switching between virtual terminals
+	  is done with certain key combinations, usually Alt-<function key>.
+
+	  The setterm command ("man setterm") can be used to change the
+	  properties (such as colors or beeping) of a virtual terminal. The
+	  man page console_codes(4) ("man console_codes") contains the special
+	  character sequences that can be used to change those properties
+	  directly. The fonts used on virtual terminals can be changed with
+	  the setfont ("man setfont") command and the key bindings are defined
+	  with the loadkeys ("man loadkeys") command.
+
+	  You need at least one virtual terminal device in order to make use
+	  of your keyboard and monitor. Therefore, only people configuring an
+	  embedded system would want to say N here in order to save some
+	  memory; the only way to log into such a system is then via a serial
+	  or network connection.
+
+	  If unsure, say Y, or else you won't be able to do much with your new
+	  shiny Linux system :-)
+
+config VT_CONSOLE
+	bool "Support for console on virtual terminal"
+	depends on VT
+	---help---
+	  The system console is the device which receives all kernel messages
+	  and warnings and which allows logins in single user mode. If you
+	  answer Y here, a virtual terminal (the device used to interact with
+	  a physical terminal) can be used as system console. This is the most
+	  common mode of operations, so you should say Y here unless you want
+	  the kernel messages be output only to a serial port (in which case
+	  you should say Y to "Console on serial port", below).
+
+	  If you do say Y here, by default the currently visible virtual
+	  terminal (/dev/tty0) will be used as system console. You can change
+	  that with a kernel command line option such as "console=tty3" which
+	  would use the third virtual terminal as system console. (Try "man
+	  bootparam" or see the documentation of your boot loader (lilo or
+	  loadlin) about how to pass options to the kernel at boot time.)
+
+	  If unsure, say Y.
+
+config HW_CONSOLE
+	bool
+	depends on VT && !S390 && !UM
+	default y
+
+config SERIAL
+	tristate "Serial (8250, 16450, 16550 or compatible) support"
+	---help---
+	  This selects whether you want to include the driver for the standard
+	  serial ports.  The standard answer is Y.  People who might say N
+	  here are those that are setting up dedicated Ethernet WWW/FTP
+	  servers, or users that have one of the various bus mice instead of a
+	  serial mouse and don't intend to use their machine's standard serial
+	  port for anything.  (Note that the Cyclades and Stallion multi
+	  serial port drivers do not need this driver built in for them to
+	  work.)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called serial.
+	  [WARNING: Do not compile this driver as a module if you are using
+	  non-standard serial ports, since the configuration information will
+	  be lost when the driver is unloaded.  This limitation may be lifted
+	  in the future.]
+
+	  BTW1: If you have a mouseman serial mouse which is not recognized by
+	  the X window system, try running gpm first.
+
+	  BTW2: If you intend to use a software modem (also called Winmodem)
+	  under Linux, forget it.  These modems are crippled and require
+	  proprietary drivers which are only available under Windows.
+
+	  Most people will say Y or M here, so that they can use serial mice,
+	  modems and similar devices connecting to the standard serial ports.
+
+config SH_SCI
+	tristate "Serial (SCI, SCIF) support"
 	help
-	  This is the filename of the ramdisk image to be built into the
-	  kernel.  Relative pathnames are relative to arch/mips/ramdisk/.
-	  The ramdisk image is not part of the kernel distribution; you must
-	  provide one yourself.
+	  Selecting this option will allow the Linux kernel to transfer data
+	  over SCI (Serial Communication Interface) and/or SCIF (Serial
+	  Communication Interface with FIFO) which are built into the Hitachi
+	  SuperH processor.  The option provides 1 to 3 (depending
+	  on the CPU model) standard Linux tty devices, /dev/ttySC[012]; one
+	  of these is normally used as the system console.
+
+	  If in doubt, press "y".
+
+config SERIAL_CONSOLE
+	bool "Support for console on serial port"
+	depends on SERIAL=y || SH_SCI=y
+	---help---
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode). This could be useful if some terminal or printer is connected
+	  to that serial port.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyS1". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+	  If you don't have a VGA card installed and you say Y here, the
+	  kernel will automatically use the first serial line, /dev/ttyS0, as
+	  system console.
+
+	  If unsure, say N.
+
+comment "Unix98 PTY support"
+
+config UNIX98_PTYS
+	bool "Unix98 PTY support"
+	---help---
+	  A pseudo terminal (PTY) is a software device consisting of two
+	  halves: a master and a slave. The slave device behaves identical to
+	  a physical terminal; the master device is used by a process to
+	  read data from and write data to the slave, thereby emulating a
+	  terminal. Typical programs for the master side are telnet servers
+	  and xterms.
+
+	  Linux has traditionally used the BSD-like names /dev/ptyxx for
+	  masters and /dev/ttyxx for slaves of pseudo terminals. This scheme
+	  has a number of problems. The GNU C library glibc 2.1 and later,
+	  however, supports the Unix98 naming standard: in order to acquire a
+	  pseudo terminal, a process opens /dev/ptmx; the number of the pseudo
+	  terminal is then made available to the process and the pseudo
+	  terminal slave can be accessed as /dev/pts/<number>. What was
+	  traditionally /dev/ttyp2 will then be /dev/pts/2, for example.
+
+	  The entries in /dev/pts/ are created on the fly by a virtual
+	  file system; therefore, if you say Y here you should say Y to
+	  "/dev/pts file system for Unix98 PTYs" as well.
+
+	  If you want to say Y here, you need to have the C library glibc 2.1
+	  or later (equal to libc-6.1, check with "ls -l /lib/libc.so.*").
+	  Read the instructions in <file:Documentation/Changes> pertaining to
+	  pseudo terminals. It's safe to say N.
+
+config UNIX98_PTY_COUNT
+	int "Maximum number of Unix98 PTYs in use (0-2048)"
+	depends on UNIX98_PTYS
+	default "256"
+	help
+	  The maximum number of Unix98 PTYs that can be used at any one time.
+	  The default is 256, and should be enough for desktop systems. Server
+	  machines which support incoming telnet/rlogin/ssh connections and/or
+	  serve several X terminals may want to increase this: every incoming
+	  connection and every xterm uses up one PTY.
+
+	  When not in use, each additional set of 256 PTYs occupy
+	  approximately 8 KB of kernel memory on 32-bit architectures.
+
+config HEARTBEAT
+	bool "Heartbeat LED"
+	depends on SH_MPC1211 || SH_CAT68701 || SH_STB1_HARP || SH_STB1_OVERDRIVE || SH_BIGSUR || SH_7751_SOLUTION_ENGINE || SH_SOLUTION_ENGINE
+	help
+	  Use the power-on LED on your machine as a load meter.  The exact
+	  behavior is platform-dependent, but normally the flash frequency is
+	  a hyperbolic function of the 5-minute load average.
+
+
+menu "Maple Bus input peripherals"
+	depends on SH_DREAMCAST && MAPLE
+
+config MAPLE_KEYBOARD
+	tristate "Maple Bus keyboard support"
+	depends on INPUT
+
+config MAPLE_MOUSE
+	tristate "Maple Bus mouse support"
+	depends on INPUT
+
+comment "Input core support is required for Maple input peripherals"
+	depends on INPUT=n
 
 endmenu
 
-source "drivers/Kconfig"
+config PRINTER
+	tristate "Parallel printer support"
+	depends on PARPORT
+	---help---
+	  If you intend to attach a printer to the parallel port of your Linux
+	  box (as opposed to using a serial printer; if the connector at the
+	  printer has 9 or 25 holes ["female"], then it's serial), say Y.
+	  Also read the Printing-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  It is possible to share one parallel port among several devices
+	  (e.g. printer and ZIP drive) and it is safe to compile the
+	  corresponding drivers into the kernel.
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/parport.txt>.  The module will be called lp.
+
+	  If you have several parallel ports, you can specify which ports to
+	  use with the "lp" kernel command line option.  (Try "man bootparam"
+	  or see the documentation of your boot loader (lilo or loadlin) about
+	  how to pass options to the kernel at boot time.)  The syntax of the
+	  "lp" command line option can be found in <file:drivers/char/lp.c>.
+
+	  If you have more than 8 printers, you need to increase the LP_NO
+	  macro in lp.c and the PARPORT_MAX macro in parport.h.
+
+config LP_CONSOLE
+	bool "Support for console on line printer"
+	depends on PRINTER
+	---help---
+	  If you want kernel messages to be printed out as they occur, you
+	  can have a console on the printer. This option adds support for
+	  doing that; to actually get it to happen you need to pass the
+	  option "console=lp0" to the kernel at boot time.
+
+	  If the printer is out of paper (or off, or unplugged, or too
+	  busy..) the kernel will stall until the printer is ready again.
+	  By defining CONSOLE_LP_STRICT to 0 (at your own risk) you
+	  can make the kernel continue when this happens,
+	  but it'll lose the kernel messages.
+
+	  If unsure, say N.
+
+config PPDEV
+	tristate "Support for user-space parallel port device drivers"
+	depends on PARPORT
+	---help---
+	  Saying Y to this adds support for /dev/parport device nodes.  This
+	  is needed for programs that want portable access to the parallel
+	  port, for instance deviceid (which displays Plug-and-Play device
+	  IDs).
+
+	  This is the parallel port equivalent of SCSI generic support (sg).
+	  It is safe to say N to this -- it is not needed for normal printing
+	  or parallel port CD-ROM/disk support.
+
+	  To compile this support as a module, choose M here: the
+	  module will be called ppdev.
+
+	  If unsure, say N.
+
+config PSMOUSE
+	bool "PS/2 mouse (aka \"auxiliary device\") support"
+	---help---
+	  The PS/2 mouse connects to a special mouse port that looks much like
+	  the keyboard port (small circular connector with 6 pins). This way,
+	  the mouse does not use any serial ports. This port can also be used
+	  for other input devices like light pens, tablets, keypads. Compaq,
+	  AST and IBM all use this as their mouse port on currently shipping
+	  machines. The trackballs of some laptops are PS/2 mice also. In
+	  particular, the C&T 82C710 mouse on TI Travelmates is a PS/2 mouse.
+
+	  Although PS/2 mice are not technically bus mice, they are explained
+	  in detail in the Busmouse-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  When using a PS/2 mouse, you can get problems if you want to use the
+	  mouse both on the Linux console and under X. Using the "-R" option
+	  of the Linux mouse managing program gpm (available from
+	  <ftp://gnu.systemy.it/pub/gpm/>) solves this problem, or you can get
+	  the "mconv2" utility from <ftp://ibiblio.org/pub/Linux/system/mouse/>.
+
+
+menu "Watchdog Cards"
+
+config WATCHDOG
+	bool "Watchdog Timer Support"
+	---help---
+	  If you say Y here (and to one of the following options) and create a
+	  character special file /dev/watchdog with major number 10 and minor
+	  number 130 using mknod ("man mknod"), you will get a watchdog, i.e.:
+	  subsequently opening the file and then failing to write to it for
+	  longer than 1 minute will result in rebooting the machine. This
+	  could be useful for a networked machine that needs to come back
+	  online as fast as possible after a lock-up. There's both a watchdog
+	  implementation entirely in software (which can sometimes fail to
+	  reboot the machine) and a driver for hardware watchdog boards, which
+	  are more robust and can also keep track of the temperature inside
+	  your computer. For details, read <file:Documentation/watchdog/watchdog.txt>
+	  in the kernel source.
+
+	  The watchdog is usually used together with the watchdog daemon
+	  which is available from
+	  <ftp://ibiblio.org/pub/Linux/system/daemons/watchdog/>. This daemon can
+	  also monitor NFS connections and can reboot the machine when the process
+	  table is full.
+
+	  If unsure, say N.
+
+config WATCHDOG_NOWAYOUT
+	bool "Disable watchdog shutdown on close"
+	depends on WATCHDOG
+	help
+	  The default watchdog behaviour (which you get if you say N here) is
+	  to stop the timer if the process managing it closes the file
+	  /dev/watchdog. It's always remotely possible that this process might
+	  get killed. If you say Y here, the watchdog cannot be stopped once
+	  it has been started.
+
+config SH_WDT
+	tristate "SuperH Watchdog"
+	depends on WATCHDOG
+	help
+	  This driver adds watchdog support for the integrated watchdog in the
+	  SuperH processors. If you have one of these processors and wish
+	  to have watchdog support enabled, say Y, otherwise say N.
+
+	  As a side note, saying Y here will automatically boost HZ to 1000
+	  so that the timer has a chance to clear the overflow counter. On
+	  slower systems (such as the SH-2 and SH-3) this will likely yield
+	  some performance issues. As such, the WDT should be avoided here
+	  unless it is absolutely necessary.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called shwdt.
+
+endmenu
+
+config RTC
+	tristate "Enhanced Real Time Clock Support"
+	---help---
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock (or hardware clock) built
+	  into your computer.
+
+	  Every PC has such a clock built in. It can be used to generate
+	  signals from as low as 1Hz up to 8192Hz, and can also be used
+	  as a 24 hour alarm. It reports status information via the file
+	  /proc/driver/rtc and its behaviour is set by various ioctls on
+	  /dev/rtc.
+
+	  If you run Linux on a multiprocessor machine and said Y to
+	  "Symmetric Multi Processing" above, you should say Y here to read
+	  and set the RTC in an SMP compatible fashion.
+
+	  If you think you have a use for such a device (such as periodic data
+	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
+	  for details.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc.
+
+config LEDMAN
+	bool "LED Manager support"
+	help
+	  Enbale the LED manager driver.
+
+config RESETSWITCH
+	bool "Reset switch support"
+	help
+	  Support the hardware reset switch.
+
+source "drivers/char/pcmcia/Kconfig"
+
+source "drivers/serial/Kconfig"
+
+source "drivers/i2c/Kconfig"
+ 
+endmenu
 
 source "fs/Kconfig"
+
+source "drivers/media/Kconfig"
+
+source "drivers/video/Kconfig"
+
+source "sound/Kconfig"
+
+source "drivers/usb/Kconfig"
 
 source "arch/sh/oprofile/Kconfig"
 
@@ -765,14 +1083,6 @@ config DEBUG_SPINLOCK
 	  best used in conjunction with the NMI watchdog so that spinlock
 	  deadlocks are also debuggable.
 
-config DEBUG_INFO
-        bool "Compile the kernel with debug info"
-        help
-          If you say Y here the resulting kernel image will include
-          debugging info resulting in a larger kernel image.
-          Say Y here only if you plan to use gdb to debug the kernel.
-          If you don't debug the kernel, you can say N.
-
 config SH_STANDARD_BIOS
 	bool "Use LinuxSH standard BIOS"
 	help
@@ -786,13 +1096,9 @@ config SH_STANDARD_BIOS
 	  mask ROM and no flash (WindowsCE machines fall in this category).
 	  If unsure, say N.
 
-config EARLY_SCIF_CONSOLE
-	bool "Use early SCIF console"
-	depends on CPU_SH4
-
-config EARLY_PRINTK
+config SH_EARLY_PRINTK
 	bool "Early printk support"
-	depends on SH_STANDARD_BIOS || EARLY_SCIF_CONSOLE
+	depends on SH_STANDARD_BIOS
 	help
 	  Say Y here to redirect kernel printk messages to the serial port
 	  used by the SH-IPL bootloader, starting very early in the boot

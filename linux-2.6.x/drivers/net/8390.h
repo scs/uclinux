@@ -39,19 +39,12 @@ extern int ei_debug;
 #define ei_debug 1
 #endif
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-extern void ei_poll(struct net_device *dev);
-#endif
-
+extern int ethdev_init(struct net_device *dev);
 extern void NS8390_init(struct net_device *dev, int startp);
 extern int ei_open(struct net_device *dev);
 extern int ei_close(struct net_device *dev);
 extern irqreturn_t ei_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-extern struct net_device *__alloc_ei_netdev(int size);
-static inline struct net_device *alloc_ei_netdev(void)
-{
-	return __alloc_ei_netdev(0);
-}
+extern struct net_device *alloc_ei_netdev(void);
 
 /* You have one of these per-board */
 struct ei_device {
@@ -91,7 +84,7 @@ struct ei_device {
 /* The maximum time waited (in jiffies) before assuming a Tx failed. (20ms) */
 #define TX_TIMEOUT (20*HZ/100)
 
-#define ei_status (*(struct ei_device *)netdev_priv(dev))
+#define ei_status (*(struct ei_device *)(dev->priv))
 
 /* Some generic ethernet register configurations. */
 #define E8390_TX_IRQ_MASK	0xa	/* For register EN0_ISR */
@@ -131,19 +124,8 @@ struct ei_device {
 #define inb_p(port)   in_8(port)
 #define outb_p(val,port)  out_8(port,val)
 
-#elif defined(CONFIG_ARM_ETHERH) || defined(CONFIG_ARM_ETHERH_MODULE)
-#define EI_SHIFT(x)	(ei_local->reg_offset[x])
-#undef inb
-#undef inb_p
-#undef outb
-#undef outb_p
-
-#define inb(_p)		readb(_p)
-#define outb(_v,_p)	writeb(_v,_p)
-#define inb_p(_p)	inb(_p)
-#define outb_p(_v,_p)	outb(_v,_p)
-
-#elif defined(CONFIG_NET_CBUS) || defined(CONFIG_NE_H8300) || defined(CONFIG_NE_H8300_MODULE)
+#elif defined(CONFIG_ARM_ETHERH) || defined(CONFIG_ARM_ETHERH_MODULE) || \
+      defined(CONFIG_NET_CBUS)
 #define EI_SHIFT(x)	(ei_local->reg_offset[x])
 #else
 #define EI_SHIFT(x)	(x)

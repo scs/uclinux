@@ -107,19 +107,39 @@ static inline void elan_104nc_page(struct map_info *map, unsigned long ofs)
 }
 
 
-static map_word elan_104nc_read16(struct map_info *map, unsigned long ofs)
+static __u8 elan_104nc_read8(struct map_info *map, unsigned long ofs)
 {
-	map_word ret;
+	__u8 ret;
 	spin_lock(&elan_104nc_spin);
 	elan_104nc_page(map, ofs);
-	ret.x[0] = readw(iomapadr + (ofs & WINDOW_MASK));
+	ret = readb(iomapadr + (ofs & WINDOW_MASK));
+	spin_unlock(&elan_104nc_spin);
+	return ret;
+}
+
+static __u16 elan_104nc_read16(struct map_info *map, unsigned long ofs)
+{
+	__u16 ret;
+	spin_lock(&elan_104nc_spin);
+	elan_104nc_page(map, ofs);
+	ret = readw(iomapadr + (ofs & WINDOW_MASK));
+	spin_unlock(&elan_104nc_spin);
+	return ret;
+}
+
+static __u32 elan_104nc_read32(struct map_info *map, unsigned long ofs)
+{
+	__u32 ret;
+	spin_lock(&elan_104nc_spin);
+	elan_104nc_page(map, ofs);
+	ret = readl(iomapadr + (ofs & WINDOW_MASK));
 	spin_unlock(&elan_104nc_spin);
 	return ret;
 }
 
 static void elan_104nc_copy_from(struct map_info *map, void *to, unsigned long from, ssize_t len)
 {
-	while (len) {
+	while(len) {
 		unsigned long thislen = len;
 		if (len > (WINDOW_LENGTH - (from & WINDOW_MASK)))
 			thislen = WINDOW_LENGTH-(from & WINDOW_MASK);
@@ -128,17 +148,33 @@ static void elan_104nc_copy_from(struct map_info *map, void *to, unsigned long f
 		elan_104nc_page(map, from);
 		memcpy_fromio(to, iomapadr + (from & WINDOW_MASK), thislen);
 		spin_unlock(&elan_104nc_spin);
-		to += thislen;
+		(__u8*)to += thislen;
 		from += thislen;
 		len -= thislen;
 	}
 }
 
-static void elan_104nc_write16(struct map_info *map, map_word d, unsigned long adr)
+static void elan_104nc_write8(struct map_info *map, __u8 d, unsigned long adr)
 {
 	spin_lock(&elan_104nc_spin);
 	elan_104nc_page(map, adr);
-	writew(d.x[0], iomapadr + (adr & WINDOW_MASK));
+	writeb(d, iomapadr + (adr & WINDOW_MASK));
+	spin_unlock(&elan_104nc_spin);
+}
+
+static void elan_104nc_write16(struct map_info *map, __u16 d, unsigned long adr)
+{
+	spin_lock(&elan_104nc_spin);
+	elan_104nc_page(map, adr);
+	writew(d, iomapadr + (adr & WINDOW_MASK));
+	spin_unlock(&elan_104nc_spin);
+}
+
+static void elan_104nc_write32(struct map_info *map, __u32 d, unsigned long adr)
+{
+	spin_lock(&elan_104nc_spin);
+	elan_104nc_page(map, adr);
+	writel(d, iomapadr + (adr & WINDOW_MASK));
 	spin_unlock(&elan_104nc_spin);
 }
 
@@ -165,10 +201,14 @@ static struct map_info elan_104nc_map = {
 	.size = 8*1024*1024, /* this must be set to a maximum possible amount
 			of flash so the cfi probe routines find all
 			the chips */
-	.bankwidth = 2,
-	.read = elan_104nc_read16,
+	.buswidth = 2,
+	.read8 = elan_104nc_read8,
+	.read16 = elan_104nc_read16,
+	.read32 = elan_104nc_read32,
 	.copy_from = elan_104nc_copy_from,
-	.write = elan_104nc_write16,
+	.write8 = elan_104nc_write8,
+	.write16 = elan_104nc_write16,
+	.write32 = elan_104nc_write32,
 	.copy_to = elan_104nc_copy_to
 };
 

@@ -37,9 +37,6 @@
 
     Get rid of check_region, check kmalloc return in lance_probe1
     Arnaldo Carvalho de Melo <acme@conectiva.com.br> - 11/01/2001
-
-	Reworked detection, added support for Racal InterLan EtherBlaster cards
-	Vesselin Kostadinov <vesok at yahoo dot com > - 22/4/2004
 */
 
 static const char version[] = "lance.c:v1.15ac 1999/11/13 dplatt@3do.com, becker@cesdis.gsfc.nasa.gov\n";
@@ -62,28 +59,8 @@ static const char version[] = "lance.c:v1.15ac 1999/11/13 dplatt@3do.com, becker
 #include <asm/dma.h>
 
 static unsigned int lance_portlist[] __initdata = { 0x300, 0x320, 0x340, 0x360, 0};
+int lance_probe(struct net_device *dev);
 static int lance_probe1(struct net_device *dev, int ioaddr, int irq, int options);
-static int __init do_lance_probe(struct net_device *dev);
-
-
-static struct card {
-	char id_offset14;
-	char id_offset15;
-} cards[] = {
-	{	//"normal"
-		.id_offset14 = 0x57,
-		.id_offset15 = 0x57,
-	},
-	{	//NI6510EB
-		.id_offset14 = 0x52,
-		.id_offset15 = 0x44,
-	},
-	{	//Racal InterLan EtherBlaster
-		.id_offset14 = 0x52,
-		.id_offset15 = 0x49,
-	},
-};
-#define NUM_CARDS 3
 
 #ifdef LANCE_DEBUG
 static int lance_debug = LANCE_DEBUG;
@@ -297,6 +274,7 @@ enum {OLD_LANCE = 0, PCNET_ISA=1, PCNET_ISAP=2, PCNET_PCI=3, PCNET_VLB=4, PCNET_
 static unsigned char lance_need_isa_bounce_buffers = 1;
 
 static int lance_open(struct net_device *dev);
+static int lance_open_fail(struct net_device *dev);
 static void lance_init_ring(struct net_device *dev, int mode);
 static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int lance_rx(struct net_device *dev);
@@ -308,21 +286,10 @@ static void lance_tx_timeout (struct net_device *dev);
 
 
 
-static void cleanup_card(struct net_device *dev)
-{
-	struct lance_private *lp = dev->priv;
-	if (dev->dma != 4)
-		free_dma(dev->dma);
-	release_region(dev->base_addr, LANCE_TOTAL_SIZE);
-	kfree(lp->tx_bounce_buffs);
-	kfree((void*)lp->rx_buffs);
-	kfree(lp);
-}
-
 #ifdef MODULE
 #define MAX_CARDS		8	/* Max number of interfaces (cards) per module */
 
-static struct net_device *dev_lance[MAX_CARDS];
+static struct net_device dev_lance[MAX_CARDS];
 static int io[MAX_CARDS];
 static int dma[MAX_CARDS];
 static int irq[MAX_CARDS];
@@ -338,35 +305,28 @@ MODULE_PARM_DESC(lance_debug, "LANCE/PCnet debug level (0-7)");
 
 int init_module(void)
 {
-	struct net_device *dev;
 	int this_dev, found = 0;
 
 	for (this_dev = 0; this_dev < MAX_CARDS; this_dev++) {
-		if (io[this_dev] == 0)  {
-			if (this_dev != 0) /* only complain once */
-				break;
-			printk(KERN_NOTICE "lance.c: Module autoprobing not allowed. Append \"io=0xNNN\" value(s).\n");
-			return -EPERM;
-		}
-		dev = alloc_etherdev(0);
-		if (!dev)
-			break;
+		struct net_device *dev = &dev_lance[this_dev];
 		dev->irq = irq[this_dev];
 		dev->base_addr = io[this_dev];
 		dev->dma = dma[this_dev];
-		if (do_lance_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_lance[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+		dev->init = lance_probe;
+		if (io[this_dev] == 0)  {
+			if (this_dev != 0) break; /* only complain once */
+			printk(KERN_NOTICE "lance.c: Module autoprobing not allowed. Append \"io=0xNNN\" value(s).\n");
+			return -EPERM;
 		}
-		free_netdev(dev);
-		break;
+		if (register_netdev(dev) != 0) {
+			printk(KERN_WARNING "lance.c: No PCnet/LANCE card found (i/o = 0x%x).\n", io[this_dev]);
+			if (found != 0) return 0;	/* Got at least one. */
+			return -ENXIO;
+		}
+		found++;
 	}
-	if (found != 0)
-		return 0;
-	return -ENXIO;
+
+	return 0;
 }
 
 void cleanup_module(void)
@@ -374,11 +334,13 @@ void cleanup_module(void)
 	int this_dev;
 
 	for (this_dev = 0; this_dev < MAX_CARDS; this_dev++) {
-		struct net_device *dev = dev_lance[this_dev];
-		if (dev) {
+		struct net_device *dev = &dev_lance[this_dev];
+		if (dev->priv != NULL) {
 			unregister_netdev(dev);	
-			cleanup_card(dev);
-			free_netdev(dev);
+			free_dma(dev->dma);
+			release_region(dev->base_addr, LANCE_TOTAL_SIZE);
+			kfree(dev->priv);
+			dev->priv = NULL;
 		}
 	}
 }
@@ -390,7 +352,7 @@ MODULE_LICENSE("GPL");
    board probes now that kmalloc() can allocate ISA DMA-able regions.
    This also allows the LANCE driver to be used as a module.
    */
-static int __init do_lance_probe(struct net_device *dev)
+int __init lance_probe(struct net_device *dev)
 {
 	int *port, result;
 
@@ -403,20 +365,13 @@ static int __init do_lance_probe(struct net_device *dev)
 							"lance-probe");
 
 		if (r) {
-			/* Detect the card with minimal I/O reads */
-			char offset14 = inb(ioaddr + 14);
-			int card;
-			for (card = 0; card < NUM_CARDS; ++card)
-				if (cards[card].id_offset14 == offset14)
-					break;
-			if (card < NUM_CARDS) {/*yes, the first byte matches*/
-				char offset15 = inb(ioaddr + 15);
-				for (card = 0; card < NUM_CARDS; ++card)
-					if ((cards[card].id_offset14 == offset14) &&
-						(cards[card].id_offset15 == offset15))
-						break;
-			}
-			if (card < NUM_CARDS) { /*Signature OK*/
+			/* Detect "normal" 0x57 0x57 and the NI6510EB 0x52 0x44
+			   signatures w/ minimal I/O reads */
+			char offset15, offset14 = inb(ioaddr + 14);
+			
+			if ((offset14 == 0x52 || offset14 == 0x57) &&
+				((offset15 = inb(ioaddr + 15)) == 0x57 ||
+				 offset15 == 0x44)) {
 				result = lance_probe1(dev, ioaddr, 0, 0);
 				if (!result) {
 					struct lance_private *lp = dev->priv;
@@ -432,33 +387,6 @@ static int __init do_lance_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-#ifndef MODULE
-struct net_device * __init lance_probe(int unit)
-{
-	struct net_device *dev = alloc_etherdev(0);
-	int err;
-
-	if (!dev)
-		return ERR_PTR(-ENODEV);
-
-	sprintf(dev->name, "eth%d", unit);
-	netdev_boot_setup_check(dev);
-
-	err = do_lance_probe(dev);
-	if (err)
-		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
-	return dev;
-out1:
-	cleanup_card(dev);
-out:
-	free_netdev(dev);
-	return ERR_PTR(err);
-}
-#endif
-
 static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int options)
 {
 	struct lance_private *lp;
@@ -470,7 +398,6 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	int hp_builtin = 0;			/* HP on-board ethernet. */
 	static int did_version;			/* Already printed version info. */
 	unsigned long flags;
-	int err = -ENOMEM;
 
 	/* First we look for special cases.
 	   Check for HP's on-board ethernet by looking for 'HP' in the BIOS.
@@ -505,7 +432,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	outw(88, ioaddr+LANCE_ADDR);
 	if (inw(ioaddr+LANCE_ADDR) != 88) {
 		lance_version = 0;
-	} else {			/* Good, it's a newer chip. */
+	} else {							/* Good, it's a newer chip. */
 		int chip_version = inw(ioaddr+LANCE_DATA);
 		outw(89, ioaddr+LANCE_ADDR);
 		chip_version |= inw(ioaddr+LANCE_DATA) << 16;
@@ -520,9 +447,13 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 		}
 	}
 
-	/* We can't allocate dev->priv from alloc_etherdev() because it must
+	/* We can't use init_etherdev() to allocate dev->priv because it must
 	   a ISA DMA-able region. */
+	dev = init_etherdev(dev, 0);
+	if (!dev)
+		return -ENOMEM;
 	SET_MODULE_OWNER(dev);
+	dev->open = lance_open_fail;
 	chipname = chip_table[lance_version].name;
 	printk("%s: %s at %#3x,", dev->name, chipname, ioaddr);
 
@@ -534,7 +465,8 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	dev->base_addr = ioaddr;
 	/* Make certain the data structures used by the LANCE are aligned and DMAble. */
 		
-	lp = kmalloc(sizeof(*lp), GFP_DMA | GFP_KERNEL);
+	lp = (struct lance_private *)(((unsigned long)kmalloc(sizeof(*lp)+7,
+					   GFP_DMA | GFP_KERNEL)+7) & ~7);
 	if(lp==NULL)
 		return -ENODEV;
 	if (lance_debug > 6) printk(" (#0x%05lx)", (unsigned long)lp);
@@ -554,7 +486,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 		lp->tx_bounce_buffs = NULL;
 
 	lp->chip_version = lance_version;
-	spin_lock_init(&lp->devlock);
+	lp->devlock = SPIN_LOCK_UNLOCKED;
 
 	lp->init_block.mode = 0x0003;		/* Disable Rx and Tx. */
 	for (i = 0; i < 6; i++)
@@ -608,7 +540,6 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 		dma_channels = ((inb(DMA1_STAT_REG) >> 4) & 0x0f) |
 			(inb(DMA2_STAT_REG) & 0xf0);
 	}
-	err = -ENODEV;
 	if (dev->irq >= 2)
 		printk(" assigned IRQ %d", dev->irq);
 	else if (lance_version != 0)  {	/* 7990 boards need DMA detection first. */
@@ -628,7 +559,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 			printk(", probed IRQ %d", dev->irq);
 		else {
 			printk(", failed to detect IRQ line.\n");
-			goto out_tx;
+			return -ENODEV;
 		}
 
 		/* Check for the initialization done bit, 0x0100, which means
@@ -642,7 +573,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	} else if (dev->dma) {
 		if (request_dma(dev->dma, chipname)) {
 			printk("DMA %d allocation failed.\n", dev->dma);
-			goto out_tx;
+			return -ENODEV;
 		} else
 			printk(", assigned DMA %d.\n", dev->dma);
 	} else {			/* OK, we have to auto-DMA. */
@@ -682,7 +613,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 		}
 		if (i == 4) {			/* Failure: bail. */
 			printk("DMA detection failed.\n");
-			goto out_tx;
+			return -ENODEV;
 		}
 	}
 
@@ -698,7 +629,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 		dev->irq = probe_irq_off(irq_mask);
 		if (dev->irq == 0) {
 			printk("  Failed to detect the 7990 IRQ line.\n");
-			goto out_dma;
+			return -ENODEV;
 		}
 		printk("  Auto-IRQ detected IRQ%d.\n", dev->irq);
 	}
@@ -724,17 +655,17 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	return 0;
-out_dma:
-	if (dev->dma != 4)
-		free_dma(dev->dma);
-out_tx:
-	kfree(lp->tx_bounce_buffs);
-out_rx:
-	kfree((void*)lp->rx_buffs);
-out_lp:
-	kfree(lp);
-	return err;
+out_rx:	kfree((void*)lp->rx_buffs);
+out_lp:	kfree(lp);
+	return -ENOMEM;
 }
+
+static int
+lance_open_fail(struct net_device *dev)
+{
+	return -ENODEV;
+}
+
 
 
 static int
@@ -834,7 +765,7 @@ lance_purge_ring(struct net_device *dev)
 	/* Free all the skbuffs in the Rx and Tx queues. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		struct sk_buff *skb = lp->rx_skbuff[i];
-		lp->rx_skbuff[i] = NULL;
+		lp->rx_skbuff[i] = 0;
 		lp->rx_ring[i].base = 0;		/* Not owned by LANCE chip. */
 		if (skb)
 			dev_kfree_skb_any(skb);
@@ -878,7 +809,7 @@ lance_init_ring(struct net_device *dev, int gfp)
 	/* The Tx buffer address is filled in as needed, but we do need to clear
 	   the upper ownership bit. */
 	for (i = 0; i < TX_RING_SIZE; i++) {
-		lp->tx_skbuff[i] = NULL;
+		lp->tx_skbuff[i] = 0;
 		lp->tx_ring[i].base = 0;
 	}
 
@@ -1083,7 +1014,7 @@ lance_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				   in the bounce buffer. */
 				if (lp->tx_skbuff[entry]) {
 					dev_kfree_skb_irq(lp->tx_skbuff[entry]);
-					lp->tx_skbuff[entry] = NULL;
+					lp->tx_skbuff[entry] = 0;
 				}
 				dirty_tx++;
 			}

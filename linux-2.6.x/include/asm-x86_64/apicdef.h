@@ -370,6 +370,4 @@ struct local_apic {
 
 #undef u32
 
-#define BAD_APICID 0xFFu
-
 #endif

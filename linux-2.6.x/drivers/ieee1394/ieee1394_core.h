@@ -4,7 +4,6 @@
 
 #include <linux/slab.h>
 #include <linux/devfs_fs_kernel.h>
-#include <asm/atomic.h>
 #include <asm/semaphore.h>
 #include "hosts.h"
 
@@ -12,13 +11,9 @@
 struct hpsb_packet {
         /* This struct is basically read-only for hosts with the exception of
          * the data buffer contents and xnext - see below. */
+        struct list_head list;
 
-	/* This can be used for host driver internal linking.
-	 *
-	 * NOTE: This must be left in init state when the driver is done
-	 * with it (e.g. by using list_del_init()), since the core does
-	 * some sanity checks to make sure the packet is not on a
-	 * driver_list when free'ing it. */
+        /* This can be used for host driver internal linking. */
 	struct list_head driver_list;
 
         nodeid_t node_id;
@@ -31,9 +26,10 @@ struct hpsb_packet {
          * queued   = queued for sending
          * pending  = sent, waiting for response
          * complete = processing completed, successful or not
+         * incoming = incoming packet
          */
-        enum {
-                hpsb_unused, hpsb_queued, hpsb_pending, hpsb_complete
+        enum { 
+                hpsb_unused, hpsb_queued, hpsb_pending, hpsb_complete, hpsb_incoming 
         } __attribute__((packed)) state;
 
         /* These are core internal. */
@@ -63,15 +59,10 @@ struct hpsb_packet {
         struct hpsb_host *host;
         unsigned int generation;
 
-	atomic_t refcnt;
-
 	/* Function (and possible data to pass to it) to call when this
 	 * packet is completed.  */
 	void (*complete_routine)(void *);
 	void *complete_data;
-
-	/* XXX This is just a hack at the moment */
-	struct sk_buff *skb;
 
         /* Store jiffies for implementing bus timeouts. */
         unsigned long sendtime;
@@ -101,6 +92,8 @@ void hpsb_free_packet(struct hpsb_packet *packet);
  *
  * Use the functions, not the variable.
  */
+#include <asm/atomic.h>
+
 static inline unsigned int get_hpsb_generation(struct hpsb_host *host)
 {
         return atomic_read(&host->generation);
@@ -145,7 +138,7 @@ int hpsb_bus_reset(struct hpsb_host *host);
  */
 void hpsb_selfid_received(struct hpsb_host *host, quadlet_t sid);
 
-/*
+/* 
  * Notify completion of SelfID stage to the core and report new physical ID
  * and whether host is root now.
  */
@@ -222,6 +215,5 @@ static inline unsigned char ieee1394_file_to_instance(struct file *file)
 
 /* Our sysfs bus entry */
 extern struct bus_type ieee1394_bus_type;
-extern struct class hpsb_host_class;
 
 #endif /* _IEEE1394_CORE_H */

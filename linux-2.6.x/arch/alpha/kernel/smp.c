@@ -39,6 +39,9 @@
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
 
+#define __KERNEL_SYSCALLS__
+#include <asm/unistd.h>
+
 #include "proto.h"
 #include "irq_impl.h"
 
@@ -68,7 +71,7 @@ enum ipi_message_type {
 static int smp_secondary_alive __initdata = 0;
 
 /* Which cpus ids came online.  */
-cpumask_t cpu_present_mask;
+unsigned long cpu_present_mask;
 cpumask_t cpu_online_map;
 
 EXPORT_SYMBOL(cpu_online_map);
@@ -522,7 +525,7 @@ setup_smp(void)
 		smp_num_probed = 1;
 		hwrpb_cpu_present_mask = (1UL << boot_cpuid);
 	}
-	cpu_present_mask = cpumask_of_cpu(boot_cpuid);
+	cpu_present_mask = 1UL << boot_cpuid;
 
 	printk(KERN_INFO "SMP: %d CPUs probed -- cpu_present_mask = %lx\n",
 	       smp_num_probed, hwrpb_cpu_present_mask);
@@ -547,7 +550,7 @@ smp_prepare_cpus(unsigned int max_cpus)
 
 	/* Nothing to do on a UP box, or when told not to.  */
 	if (smp_num_probed == 1 || max_cpus == 0) {
-		cpu_present_mask = cpumask_of_cpu(boot_cpuid);
+		cpu_present_mask = 1UL << boot_cpuid;
 		printk(KERN_INFO "SMP mode deactivated.\n");
 		return;
 	}
@@ -562,7 +565,7 @@ smp_prepare_cpus(unsigned int max_cpus)
 		if (((hwrpb_cpu_present_mask >> i) & 1) == 0)
 			continue;
 
-		cpu_set(i, cpu_possible_map);
+		cpu_present_mask |= 1UL << i;
 		cpu_count++;
 	}
 
@@ -597,7 +600,7 @@ smp_cpus_done(unsigned int max_cpus)
 		if (cpu_online(cpu))
 			bogosum += cpu_data[cpu].loops_per_jiffy;
 	
-	printk(KERN_INFO "SMP: Total of %d processors activated "
+	printk(KERN_INFO "SMP: Total of %ld processors activated "
 	       "(%lu.%02lu BogoMIPS).\n",
 	       num_online_cpus(), 
 	       (bogosum + 2500) / (500000/HZ),
@@ -638,17 +641,23 @@ setup_profiling_timer(unsigned int multiplier)
 
 
 static void
-send_ipi_message(cpumask_t to_whom, enum ipi_message_type operation)
+send_ipi_message(unsigned long to_whom, enum ipi_message_type operation)
 {
-	int i;
+	unsigned long i, set, n;
 
 	mb();
-	for_each_cpu_mask(i, to_whom)
-		set_bit(operation, &ipi_data[i].bits);
+	for (i = to_whom; i ; i &= ~set) {
+		set = i & -i;
+		n = __ffs(set);
+		set_bit(operation, &ipi_data[n].bits);
+	}
 
 	mb();
-	for_each_cpu_mask(i, to_whom)
-		wripir(i);
+	for (i = to_whom; i ; i &= ~set) {
+		set = i & -i;
+		n = __ffs(set);
+		wripir(n);
+	}
 }
 
 /* Structure and data for smp_call_function.  This is designed to 
@@ -773,20 +782,19 @@ handle_ipi(struct pt_regs *regs)
 void
 smp_send_reschedule(int cpu)
 {
-#ifdef DEBUG_IPI_MSG
+#if DEBUG_IPI_MSG
 	if (cpu == hard_smp_processor_id())
 		printk(KERN_WARNING
 		       "smp_send_reschedule: Sending IPI to self.\n");
 #endif
-	send_ipi_message(cpumask_of_cpu(cpu), IPI_RESCHEDULE);
+	send_ipi_message(1UL << cpu, IPI_RESCHEDULE);
 }
 
 void
 smp_send_stop(void)
 {
-	cpumask_t to_whom = cpu_possible_map;
-	cpu_clear(smp_processor_id(), to_whom);
-#ifdef DEBUG_IPI_MSG
+	unsigned long to_whom = cpu_present_mask & ~(1UL << smp_processor_id());
+#if DEBUG_IPI_MSG
 	if (hard_smp_processor_id() != boot_cpu_id)
 		printk(KERN_WARNING "smp_send_stop: Not on boot cpu.\n");
 #endif
@@ -809,21 +817,18 @@ smp_send_stop(void)
 
 int
 smp_call_function_on_cpu (void (*func) (void *info), void *info, int retry,
-			  int wait, cpumask_t to_whom)
+			  int wait, unsigned long to_whom)
 {
 	struct smp_call_struct data;
 	unsigned long timeout;
 	int num_cpus_to_call;
 	
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
-
 	data.func = func;
 	data.info = info;
 	data.wait = wait;
 
-	cpu_clear(smp_processor_id(), to_whom);
-	num_cpus_to_call = cpus_weight(to_whom);
+	to_whom &= ~(1L << smp_processor_id());
+	num_cpus_to_call = hweight64(to_whom);
 
 	atomic_set(&data.unstarted_count, num_cpus_to_call);
 	atomic_set(&data.unfinished_count, num_cpus_to_call);
@@ -864,7 +869,7 @@ smp_call_function_on_cpu (void (*func) (void *info), void *info, int retry,
 
 	/* We either got one or timed out -- clear the lock. */
 	mb();
-	smp_call_function_data = NULL;
+	smp_call_function_data = 0;
 
 	/* 
 	 * If after both the initial and long timeout periods we still don't

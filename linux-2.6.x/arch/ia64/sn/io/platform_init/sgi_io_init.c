@@ -26,6 +26,7 @@ extern vertex_hdl_t hwgraph_root;
 extern void io_module_init(void);
 extern int pci_bus_to_hcl_cvlink(void);
 
+cpuid_t master_procid;
 nasid_t console_nasid = (nasid_t) - 1;
 char master_baseio_wid;
 
@@ -37,7 +38,7 @@ nasid_t master_nasid = INVALID_NASID;	/* This is the partition master nasid */
  *
  * 	This code is executed once for each Hub chip.
  */
-static void __init
+static void
 per_hub_init(cnodeid_t cnode)
 {
 	nasid_t nasid;
@@ -46,10 +47,10 @@ per_hub_init(cnodeid_t cnode)
 	ii_ibcr_u_t ii_ibcr;
 	ii_ilcsr_u_t ii_ilcsr;
 
-	nasid = cnodeid_to_nasid(cnode);
+	nasid = COMPACT_TO_NASID_NODEID(cnode);
 
 	ASSERT(nasid != INVALID_NASID);
-	ASSERT(nasid_to_cnodeid(nasid) == cnode);
+	ASSERT(NASID_TO_COMPACT_NODEID(nasid) == cnode);
 
 	npdap = NODEPDA(cnode);
 
@@ -130,8 +131,10 @@ sgi_master_io_infr_init(void)
 	klhwg_add_all_modules(hwgraph_root);
 	klhwg_add_all_nodes(hwgraph_root);
 
-	for (cnode = 0; cnode < numionodes; cnode++)
+	for (cnode = 0; cnode < numnodes; cnode++) {
+		extern void per_hub_init(cnodeid_t);
 		per_hub_init(cnode);
+	}
 
 	/*
 	 *
@@ -147,7 +150,7 @@ inline int
 check_nasid_equiv(nasid_t nasida, nasid_t nasidb)
 {
 	if ((nasida == nasidb)
-	    || (nasida == NODEPDA(nasid_to_cnodeid(nasidb))->xbow_peer))
+	    || (nasida == NODEPDA(NASID_TO_COMPACT_NODEID(nasidb))->xbow_peer))
 		return 1;
 	else
 		return 0;

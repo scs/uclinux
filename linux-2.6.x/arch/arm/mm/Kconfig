@@ -58,9 +58,8 @@ config CPU_ARM720T
 
 # ARM920T
 config CPU_ARM920T
-	bool "Support ARM920T processor" if !ARCH_S3C2410
-	depends on ARCH_INTEGRATOR || ARCH_S3C2410
-	default y if ARCH_S3C2410
+	bool "Support ARM920T processor"
+	depends on ARCH_INTEGRATOR
 	select CPU_32v4
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
@@ -68,9 +67,7 @@ config CPU_ARM920T
 	select CPU_TLB_V4WBI
 	help
 	  The ARM920T is licensed to be produced by numerous vendors,
-	  and is used in the Maverick EP9312 and the Samsung S3C2410.
-
-	  More information on the Maverick EP9312 at
+	  and is used in the Maverick EP9312.  More information at
 	  <http://linuxdevices.com/products/PD2382866068.html>.
 
 	  Say Y if you want support for the ARM920T processor.
@@ -79,7 +76,7 @@ config CPU_ARM920T
 # ARM922T
 config CPU_ARM922T
 	bool
-	depends on ARCH_CAMELOT || ARCH_LH7A40X
+	depends on ARCH_CAMELOT
 	default y
 	select CPU_32v4
 	select CPU_ABRT_EV4T
@@ -94,29 +91,10 @@ config CPU_ARM922T
 	  Say Y if you want support for the ARM922T processor.
 	  Otherwise, say N.
 
-# ARM925T
-config CPU_ARM925T
- 	bool
- 	depends on ARCH_OMAP1510
- 	default y
-	select CPU_32v4
-	select CPU_ABRT_EV4T
-	select CPU_CACHE_V4WT
-	select CPU_COPY_V4WB
-	select CPU_TLB_V4WBI
- 	help
- 	  The ARM925T is a mix between the ARM920T and ARM926T, but with
-	  different instruction and data caches. It is used in TI's OMAP
- 	  device family.
-
- 	  Say Y if you want support for the ARM925T processor.
- 	  Otherwise, say N.
-
 # ARM926T
 config CPU_ARM926T
-	bool "Support ARM926T processor" if ARCH_INTEGRATOR
-	depends on ARCH_INTEGRATOR || ARCH_VERSATILE_PB || ARCH_OMAP730 || ARCH_OMAP1610 || ARCH_OMAP5912
-	default y if ARCH_VERSATILE_PB
+	bool "Support ARM926T processor"
+	depends on ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
 	select CPU_COPY_V4WB
@@ -189,8 +167,8 @@ config CPU_ARM1026
 
 # SA110
 config CPU_SA110
-	bool "Support StrongARM(R) SA-110 processor" if !ARCH_EBSA110 && !FOOTBRIDGE && !ARCH_TBOX && !ARCH_SHARK && !ARCH_NEXUSPCI && ARCH_RPC
-	default y if ARCH_EBSA110 || FOOTBRIDGE || ARCH_TBOX || ARCH_SHARK || ARCH_NEXUSPCI
+	bool "Support StrongARM(R) SA-110 processor" if !ARCH_EBSA110 && !FOOTBRIDGE && !ARCH_TBOX && !ARCH_SHARK && !ARCH_NEXUSPCI && !ARCH_ANAKIN && ARCH_RPC
+	default y if ARCH_EBSA110 || FOOTBRIDGE || ARCH_TBOX || ARCH_SHARK || ARCH_NEXUSPCI || ARCH_ANAKIN
 	select CPU_32v3 if ARCH_RPC
 	select CPU_32v4 if !ARCH_RPC
 	select CPU_ABRT_EV4
@@ -220,24 +198,13 @@ config CPU_SA1100
 # XScale
 config CPU_XSCALE
 	bool
-	depends on ARCH_IOP3XX || ARCH_PXA || ARCH_IXP4XX
+	depends on ARCH_IOP3XX || ARCH_ADIFCC || ARCH_PXA || ARCH_IXP425
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
 	select CPU_TLB_V4WBI
 	select CPU_MINICACHE
 
-# ARMv6
-config CPU_V6
-	bool "Support ARM V6 processor"
-	depends on ARCH_INTEGRATOR
-	select CPU_32v6
-	select CPU_ABRT_EV6
-	select CPU_CACHE_V6
-	select CPU_COPY_V6
-	select CPU_TLB_V6
-
-# Figure out what processor architecture version we should be using.
 # This defines the compiler instruction set which depends on the machine type.
 config CPU_32v3
 	bool
@@ -246,9 +213,6 @@ config CPU_32v4
 	bool
 
 config CPU_32v5
-	bool
-
-config CPU_32v6
 	bool
 
 # The abort model
@@ -267,9 +231,6 @@ config CPU_ABRT_EV5T
 config CPU_ABRT_EV5TJ
 	bool
 
-config CPU_ABRT_EV6
-	bool
-
 # The cache model
 config CPU_CACHE_V3
 	bool
@@ -283,9 +244,6 @@ config CPU_CACHE_V4WT
 config CPU_CACHE_V4WB
 	bool
 
-config CPU_CACHE_V6
-	bool
-
 # The copy-page model
 config CPU_COPY_V3
 	bool
@@ -294,9 +252,6 @@ config CPU_COPY_V4WT
 	bool
 
 config CPU_COPY_V4WB
-	bool
-
-config CPU_COPY_V6
 	bool
 
 # This selects the TLB model
@@ -333,11 +288,11 @@ comment "Processor Features"
 
 config ARM_THUMB
 	bool "Support Thumb user binaries"
-	depends on CPU_ARM720T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_V6
+	depends on CPU_ARM720T || CPU_ARM920T || CPU_ARM922T || CPU_ARM926T || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE
 	default y
 	help
-	  Say Y if you want to include kernel support for running user space
-	  Thumb binaries.
+	  Say Y if you want to have kernel support for ARM Thumb instructions,
+	  fault handlers, and system calls.
 
 	  The Thumb instruction set is a compressed form of the standard ARM
 	  instruction set resulting in smaller binaries at the expense of
@@ -351,26 +306,26 @@ config CPU_BIG_ENDIAN
 	help
 	  Say Y if you plan on running a kernel in big-endian mode.
 	  Note that your board must be properly built and your board
-	  port must properly enable any big-endian related features
+	  port must properly enable and big-endian related features
 	  of your chipset/board/processor.
 
 config CPU_ICACHE_DISABLE
 	bool "Disable I-Cache"
-	depends on CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020
+	depends on CPU_ARM920T || CPU_ARM922T || CPU_ARM926T || CPU_ARM1020
 	help
 	  Say Y here to disable the processor instruction cache. Unless
 	  you have a reason not to or are unsure, say N.
 
 config CPU_DCACHE_DISABLE
 	bool "Disable D-Cache"
-	depends on CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020
+	depends on CPU_ARM920T || CPU_ARM922T || CPU_ARM926T || CPU_ARM1020
 	help
 	  Say Y here to disable the processor data cache. Unless
 	  you have a reason not to or are unsure, say N.
 
 config CPU_DCACHE_WRITETHROUGH
 	bool "Force write through D-cache"
-	depends on (CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020) && !CPU_DISABLE_DCACHE
+	depends on (CPU_ARM920T || CPU_ARM922T || CPU_ARM926T || CPU_ARM1020) && !CPU_DISABLE_DCACHE
 	help
 	  Say Y here to use the data cache in writethough mode. Unless you
 	  specifically require this or are unsure, say N.

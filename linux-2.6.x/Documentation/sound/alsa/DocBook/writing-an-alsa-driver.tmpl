@@ -18,8 +18,8 @@
       </affiliation>
      </author>
 
-     <date>Mar. 6, 2004</date>
-     <edition>0.3.1</edition>
+     <date>Mar. 26, 2003</date>
+     <edition>0.3</edition>
 
     <abstract>
       <para>
@@ -30,7 +30,7 @@
 
     <legalnotice>
     <para>
-    Copyright (c) 2002-2004  Takashi Iwai <email>tiwai@suse.de</email>
+    Copyright (c) 2002, 2003  Takashi Iwai <email>tiwai@suse.de</email>
     </para>
 
     <para>
@@ -111,18 +111,18 @@
 
       <para>
         One is the the trees provided as a tarball or via cvs from the
-      ALSA's ftp site, and another is the 2.6 (or later) Linux kernel
+      ALSA's ftp site, and another is the 2.5 (or later) Linux kernel
       tree. To synchronize both, the ALSA driver tree is split to
       two different trees: alsa-kernel and alsa-driver. The former
-      contains purely the source codes for the Linux 2.6 (or later)
-      tree. This tree is designed only for compilation on 2.6 or
+      contains purely the source codes for the Linux 2.5 (or later)
+      tree. This tree is designed only for compilation on 2.5 or
       later environment. The latter, alsa-driver, contains many subtle
       files for compiling the ALSA driver on the outside of Linux
       kernel like configure script, the wrapper functions for older,
       2.2 and 2.4 kernels, to adapt the latest kernel API,
       and additional drivers which are still in development or in
       tests.  The drivers in alsa-driver tree will be moved to
-      alsa-kernel (eventually 2.6 kernel tree) once when they are
+      alsa-kernel (eventually 2.5 kernel tree) once when they are
       finished and confirmed to work fine.
       </para>
 
@@ -341,12 +341,16 @@
       drivers will be on pci directory, because its API is identical
       with the standard PCI cards. 
       </para>
+
+      <para>
+        At this moment, only VX-pocket driver exists.
+      </para>
     </section>
 
     <section id="file-tree-oss-directory">
       <title>oss directory</title>
       <para>
-        The OSS/Lite source files are stored here on Linux 2.6 (or
+        The OSS/Lite source files are stored here on Linux 2.5 (or
       later) tree. (In the ALSA driver tarball, it's empty, of course :) 
       </para>
     </section>
@@ -496,13 +500,13 @@
           }
 
           // (4)
+          // implemented later
+
+          // (5)
           strcpy(card->driver, "My Chip");
           strcpy(card->shortname, "My Own Chip 123");
           sprintf(card->longname, "%s at 0x%lx irq %i",
                   card->shortname, chip->ioport, chip->irq);
-
-          // (5)
-          // implemented later
 
           // (6)
           if ((err = snd_card_register(card)) < 0) {
@@ -511,7 +515,7 @@
           }
 
           // (7)
-          pci_set_drvdata(pci, card);
+          pci_set_drvdata(pci, chip);
           dev++;
           return 0;
   }
@@ -519,7 +523,10 @@
   // destructor -- see "Destructor" sub-section
   static void __devexit snd_mychip_remove(struct pci_dev *pci)
   {
-          snd_card_free(pci_get_drvdata(pci));
+          mychip_t *chip = snd_magic_cast(mychip_t,
+                                     pci_get_drvdata(pci), return);
+          if (chip)
+                  snd_card_free(chip->card);
           pci_set_drvdata(pci, NULL);
   }
 ]]>
@@ -619,8 +626,21 @@
         </para>
       </section>
 
+      <section id="basic-flow-constructor-create-other">
+        <title>4) Create other components, such as mixer, MIDI, etc.</title>
+        <para>
+          Here you define the basic components such as
+          <link linkend="pcm-interface"><citetitle>PCM</citetitle></link>,
+          mixer (e.g. <link linkend="api-ac97"><citetitle>AC97</citetitle></link>),
+          MIDI (e.g. <link linkend="midi-interface"><citetitle>MPU-401</citetitle></link>),
+          and other interfaces.
+          Also, if you want a <link linkend="proc-interface"><citetitle>proc
+        file</citetitle></link>, define it here, too.
+        </para>
+      </section>
+        
       <section id="basic-flow-constructor-main-component">
-        <title>4) Set the driver ID and name strings.</title>
+        <title>5) Set the driver ID and name strings.</title>
         <para>
           <informalexample>
             <programlisting>
@@ -644,19 +664,6 @@
           The shortname field is a string shown as more verbose
         name. The longname field contains the information which is
         shown in <filename>/proc/asound/cards</filename>. 
-        </para>
-      </section>
-
-      <section id="basic-flow-constructor-create-other">
-        <title>5) Create other components, such as mixer, MIDI, etc.</title>
-        <para>
-          Here you define the basic components such as
-          <link linkend="pcm-interface"><citetitle>PCM</citetitle></link>,
-          mixer (e.g. <link linkend="api-ac97"><citetitle>AC97</citetitle></link>),
-          MIDI (e.g. <link linkend="midi-interface"><citetitle>MPU-401</citetitle></link>),
-          and other interfaces.
-          Also, if you want a <link linkend="proc-interface"><citetitle>proc
-        file</citetitle></link>, define it here, too.
         </para>
       </section>
 
@@ -688,16 +695,21 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-        pci_set_drvdata(pci, card);
+        pci_set_drvdata(pci, chip);
         dev++;
         return 0;
 ]]>
             </programlisting>
           </informalexample>
 
-          In the above, the card record is stored. This pointer is
+          In the above, the chip record is stored. This pointer is
         referred in the remove callback and power-management
         callbacks, too. 
+	If the card doesn't support the suspend/resume, you can store
+        the card pointer instead of the chip pointer, so that
+        <function>snd_card_free</function> can be called directly
+        without cast in the remove callback.  But anyway, be sure
+        which pointer is used.
         </para>
       </section>
     </section>
@@ -718,15 +730,21 @@
 <![CDATA[
   static void __devexit snd_mychip_remove(struct pci_dev *pci)
   {
-          snd_card_free(pci_get_drvdata(pci));
+          mychip_t *chip = snd_magic_cast(mychip_t,
+                                    pci_get_drvdata(pci), return);
+          if (chip)
+                  snd_card_free(chip->card);
           pci_set_drvdata(pci, NULL);
   }
 ]]>
           </programlisting>
         </informalexample>
 
-        The above code assumes that the card pointer is set to the PCI
-	driver data.
+        The above code assumes that the chip is allocated
+	with snd_magic stuff and
+      has the field to hold the card pointer (see <link
+      linkend="card-management"><citetitle>the next
+      section</citetitle></link>). 
       </para>
     </section>
 
@@ -1277,11 +1295,11 @@
           // check PCI availability (28bit DMA)
           if ((err = pci_enable_device(pci)) < 0)
                   return err;
-          if (pci_set_dma_mask(pci, 0x0fffffff) < 0 ||
-              pci_set_consistent_dma_mask(pci, 0x0fffffff) < 0) {
+          if (!pci_dma_supported(pci, 0x0fffffff)) {
                   printk(KERN_ERR "error to set 28bit mask DMA\n");
                   return -ENXIO;
           }
+          pci_set_dma_mask(pci, 0x0fffffff);
 
           chip = snd_magic_kcalloc(mychip_t, 0, GFP_KERNEL);
           if (chip == NULL)
@@ -1341,7 +1359,16 @@
   // initialization of the module
   static int __init alsa_card_mychip_init(void)
   {
-          return pci_module_init(&driver);
+          int err;
+
+          if ((err = pci_module_init(&driver)) < 0) {
+  #ifdef MODULE
+                  printk(KERN_ERR "My chip soundcard not found "
+                                  "or device busy\n");
+  #endif
+                  return err;
+          }
+          return 0;
   }
 
   // clean up the module
@@ -1386,12 +1413,11 @@
 <![CDATA[
   if ((err = pci_enable_device(pci)) < 0)
           return err;
-  if (pci_set_dma_mask(pci, 0x0fffffff) < 0 ||
-      pci_set_consistent_dma_mask(pci, 0x0fffffff) < 0) {
+  if (!pci_dma_supported(pci, 0x0fffffff)) {
           printk(KERN_ERR "error to set 28bit mask DMA\n");
           return -ENXIO;
   }
-  
+  pci_set_dma_mask(pci, 0x0fffffff);
 ]]>
           </programlisting>
         </informalexample>
@@ -1758,7 +1784,16 @@
 <![CDATA[
   static int __init alsa_card_mychip_init(void)
   {
-          return pci_module_init(&driver);
+          int err;
+
+          if ((err = pci_module_init(&driver)) < 0) {
+  #ifdef MODULE
+                  printk(KERN_ERR "My chip soundcard not found"
+                                  " or device busy\n");
+  #endif
+                  return err;
+          }
+          return 0;
   }
 
   static void __exit alsa_card_mychip_exit(void)
@@ -1783,7 +1818,7 @@
 
       <para>
         Oh, one thing was forgotten. If you have no exported symbols,
-        you need to declare it on 2.2 or 2.4 kernels (on 2.6 kernels
+        you need to declare it on 2.2 or 2.4 kernels (on 2.5 kernels
         it's not necessary, though).
 
         <informalexample>
@@ -1879,27 +1914,8 @@
           .periods_max =      1024,
   };
 
-  /* hardware definition */
-  static snd_pcm_hardware_t snd_mychip_capture_hw = {
-          .info = (SNDRV_PCM_INFO_MMAP |
-                   SNDRV_PCM_INFO_INTERLEAVED |
-                   SNDRV_PCM_INFO_BLOCK_TRANSFER |
-                   SNDRV_PCM_INFO_MMAP_VALID),
-          .formats =          SNDRV_PCM_FMTBIT_S16_LE,
-          .rates =            SNDRV_PCM_RATE_8000_48000,
-          .rate_min =         8000,
-          .rate_max =         48000,
-          .channels_min =     2,
-          .channels_max =     2,
-          .buffer_bytes_max = 32768,
-          .period_bytes_min = 4096,
-          .period_bytes_max = 32768,
-          .periods_min =      1,
-          .periods_max =      1024,
-  };
-
   /* open callback */
-  static int snd_mychip_playback_open(snd_pcm_substream_t *substream)
+  static int snd_mychip_pcm_open(snd_pcm_substream_t *substream)
   {
           mychip_t *chip = snd_pcm_substream_chip(substream);
           snd_pcm_runtime_t *runtime = substream->runtime;
@@ -1910,27 +1926,7 @@
   }
 
   /* close callback */
-  static int snd_mychip_playback_close(snd_pcm_substream_t *substream)
-  {
-          mychip_t *chip = snd_pcm_substream_chip(substream);
-          // the hardware-specific codes will be here
-          return 0;
-
-  }
-
-  /* open callback */
-  static int snd_mychip_capture_open(snd_pcm_substream_t *substream)
-  {
-          mychip_t *chip = snd_pcm_substream_chip(substream);
-          snd_pcm_runtime_t *runtime = substream->runtime;
-
-          runtime->hw = snd_mychip_capture_hw;
-          // more hardware-initialization will be done here
-          return 0;
-  }
-
-  /* close callback */
-  static int snd_mychip_capture_close(snd_pcm_substream_t *substream)
+  static int snd_mychip_pcm_close(snd_pcm_substream_t *substream)
   {
           mychip_t *chip = snd_pcm_substream_chip(substream);
           // the hardware-specific codes will be here
@@ -2009,18 +2005,6 @@
           .pointer =     snd_mychip_pcm_pointer,
   };
 
-  /* operators */
-  static snd_pcm_ops_t snd_mychip_capture_ops = {
-          .open =        snd_mychip_capture_open,
-          .close =       snd_mychip_capture_close,
-          .ioctl =       snd_pcm_lib_ioctl,
-          .hw_params =   snd_mychip_pcm_hw_params,
-          .hw_free =     snd_mychip_pcm_hw_free,
-          .prepare =     snd_mychip_pcm_prepare,
-          .trigger =     snd_mychip_pcm_trigger,
-          .pointer =     snd_mychip_pcm_pointer,
-  };
-
   /*
    *  definitions of capture are omitted here...
    */
@@ -2043,9 +2027,8 @@
           snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
                           &snd_mychip_capture_ops);
           /* pre-allocation of buffers */
-          snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-                                                snd_dma_pci_data(chip->pci),
-                                                64*1024, 64*1024);
+          snd_pcm_lib_preallocate_pci_pages_for_all(chip->pci, pcm,
+                                                    64*1024, 64*1024);
           return 0;
   }
 ]]>
@@ -2171,9 +2154,8 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-                                        snd_dma_pci_data(chip->pci),
-                                        64*1024, 64*1024);
+  snd_pcm_lib_preallocate_pci_pages_for_all(chip->pci, pcm,
+                                          64*1024, 64*1024);
 ]]>
           </programlisting>
         </informalexample>
@@ -3641,7 +3623,7 @@ struct _snd_pcm_runtime {
 
         <para>
           More precise information can be found in
-        <filename>Documentation/sound/alsa/ControlNames.txt</filename>.
+        <filename>alsa-kernel/Documentation/sound/alsa/ControlNames.txt</filename>.
         </para>
       </section>
     </section>
@@ -3739,20 +3721,14 @@ struct _snd_pcm_runtime {
             <programlisting>
 <![CDATA[
   static int snd_myctl_info(snd_kcontrol_t *kcontrol,
-                          snd_ctl_elem_info_t *uinfo)
-  {
-          static char *texts[4] = {
-                  "First", "Second", "Third", "Fourth"
-          };
-          uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-          uinfo->count = 1;
-          uinfo->value.enumerated.items = 4;
-          if (uinfo->value.enumerated.item > 3)
-                  uinfo->value.enumerated.item = 3;
-          strcpy(uinfo->value.enumerated.name,
-                 texts[uinfo->value.enumerated.item]);
-          return 0;
-  }
+  static char *texts[4] = {
+          "First", "Second", "Third", "Fourth"
+  };
+  uinfo->value.enumerated.items = 4;
+  if (uinfo->value.enumerated.item > 3)
+          uinfo->value.enumerated.item = 3;
+  strcpy(uinfo->value.enumerated.name,
+         texts[uinfo->value.enumerated.item]);
 ]]>
             </programlisting>
           </informalexample>
@@ -4006,18 +3982,13 @@ struct _snd_pcm_runtime {
 
   static int snd_mychip_ac97(mychip_t *chip)
   {
-          ac97_bus_t bus, *pbus;
           ac97_t ac97;
-          int err;
 
-          memset(&bus, 0, sizeof(bus));
-          bus.write = snd_mychip_ac97_write;
-          bus.read = snd_mychip_ac97_read;
-          if ((err = snd_ac97_bus(chip->card, &bus, &pbus)) < 0)
-                  return err;
           memset(&ac97, 0, sizeof(ac97));
+          ac97.write = snd_mychip_ac97_write;
+          ac97.read = snd_mychip_ac97_read;
           ac97.private_data = chip;
-          return snd_ac97_mixer(pbus, &ac97, &chip->ac97);
+          return snd_ac97_mixer(card, &ac97, &chip->ac97);
   }
 
 ]]>
@@ -4029,29 +4000,9 @@ struct _snd_pcm_runtime {
     <section id="api-ac97-constructor">
       <title>Constructor</title>
       <para>
-        For creating an ac97 instance, first call <function>snd_ac97_bus</function>
-      with <type>ac97_bus_t</type> record including callback functions.
-
-        <informalexample>
-          <programlisting>
-<![CDATA[
-  ac97_bus_t bus, *pbus;
-  int err;
-
-  memset(&bus, 0, sizeof(bus));
-  bus.write = snd_mychip_ac97_write;
-  bus.read = snd_mychip_ac97_read;
-  snd_ac97_bus(card, &bus, &pbus);
-]]>
-          </programlisting>
-        </informalexample>
-
-      The bus record is shared among all belonging ac97 instances.
-      </para>
-
-      <para>
-      And then call <function>snd_ac97_mixer()</function> with an <type>ac97_t</type>
-      record together with the bus pointer created above.
+        For creating an ac97 instance, call
+      <function>snd_ac97_mixer()</function> with an <type>ac97_t</type>
+      record, in which the callbacks and the private_data is set.
 
         <informalexample>
           <programlisting>
@@ -4060,16 +4011,16 @@ struct _snd_pcm_runtime {
   int err;
 
   memset(&ac97, 0, sizeof(ac97));
+  ac97.write = snd_mychip_ac97_write;
+  ac97.read = snd_mychip_ac97_read;
   ac97.private_data = chip;
-  snd_ac97_mixer(bus, &ac97, &chip->ac97);
+  snd_ac97_mixer(card, &ac97, &chip->ac97);
 ]]>
           </programlisting>
         </informalexample>
 
         where chip-&gt;ac97 is the pointer of a newly created
         <type>ac97_t</type> instance.
-        In this case, the chip pointer is set as the private data, so that
-        the read/write callback functions can refer to this chip instance.
         This instance is not necessarily stored in the chip
 	record.  When you need to change the register values from the
         driver, or need the suspend/resume of ac97 codecs, keep this
@@ -4143,11 +4094,14 @@ struct _snd_pcm_runtime {
         The <structfield>wait</structfield> callback is used for a
       certain wait at the standard initialization of the codec. If the
       chip requires the extra wait-time, define this callback. 
+      This callback is always non-atomic, because it's never called
+      in the resume mode.
       </para>
 
       <para>
         The <structfield>init</structfield> callback is used for
-      additional initialization of the codec.
+      additional initialization of the codec.  This callback is called
+      after the reset, and should be atomic in the resume mode.
       </para>
     </section>
 
@@ -4694,8 +4648,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-                                        snd_dma_pci_data(pci), size, max);
+  snd_pcm_lib_preallocate_pci_pages_for_all(pci, pcm, size, max);
 ]]>
           </programlisting>
         </informalexample>
@@ -4705,25 +4658,8 @@ struct _snd_pcm_runtime {
       size to be changed via <filename>prealloc</filename> proc file.
       The allocator will try to get as the large area as possible
       within the given size. 
-      </para>
-
-      <para>
-      The second argument (type) and the third argument (device pointer)
-      are dependent on the bus.
-      In the case of ISA bus, pass <function>snd_dma_isa_data()</function>
-      as the third argument with <constant>SNDRV_DMA_TYPE_DEV</constant> type.
-      For the continuous buffer unrelated to the bus can be pre-allocated
-      with <constant>SNDRV_DMA_TYPE_CONTINUOUS</constant> type and the
-      <function>snd_dma_continuous_data(GFP_KERNEL)</function> device pointer,
-      whereh <constant>GFP_KERNEL</constant> is the kernel allocation flag to
-      use.  For the SBUS, <constant>SNDRV_DMA_TYPE_SBUS</constant> and
-      <function>snd_dma_sbus_data(sbus_dev)</function> are used instead.
-      For the PCI scatter-gather buffers, use
-      <constant>SNDRV_DMA_TYPE_DEV_SG</constant> with
-      <function>snd_dma_pci_data(pci)</function>
-      (see the section
-          <link linkend="buffer-and-memory-non-contiguous"><citetitle>Non-Contiguous Buffers
-          </citetitle></link>).
+      There are different versions of pre-allocator for different
+      buses.
       </para>
 
       <para>
@@ -4738,7 +4674,10 @@ struct _snd_pcm_runtime {
           </programlisting>
         </informalexample>
 
-        Note that you have to pre-allocate to use this function.
+        Note that you have to pre-allocate to use this function
+        (i.e. you cannot use this function for
+        <link linkend="buffer-and-memory-non-contiguous"><citetitle>
+        a scatter-gather buffer</citetitle></link>).
       </para>
     </section>
 
@@ -4930,13 +4869,11 @@ struct _snd_pcm_runtime {
 
       <para>
         For creating the SG-buffer handler, call
-        <function>snd_pcm_lib_preallocate_pages()</function> or
-        <function>snd_pcm_lib_preallocate_pages_for_all()</function>
-        with <constant>SNDRV_DMA_TYPE_DEV_SG</constant>
+        <function>snd_pcm_lib_preallocate_sg_pages()</function> or
+        <function>snd_pcm_lib_preallocate_sg_pages_for_all()</function>
 	in the PCM constructor like other PCI pre-allocator.
-        You need to pass the <function>snd_dma_pci_data(pci)</function>,
-        where pci is the struct <structname>pci_dev</structname> pointer
-        of the chip as well.
+        You need to pass the
+        <structname>pci_dev</structname> struct pointer of the chip.
         The <type>snd_sg_buf_t</type> instance is created as
         substream-&gt;dma_private. You can cast
         the pointer like: 
@@ -4968,8 +4905,6 @@ struct _snd_pcm_runtime {
         When a SG-handler is used, you need to set
       <function>snd_pcm_sgbuf_ops_page</function> as
       the <structfield>page</structfield> callback.
-      (See <link linkend="pcm-interface-operators-page-callback">
-      <citetitle>page callback section</citetitle></link>.)
       </para>
 
       <para>
@@ -5064,14 +4999,13 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  snd_info_set_text_ops(entry, chip, read_size, my_proc_read);
+  snd_info_set_text_ops(entry, chip, my_proc_read);
 ]]>
         </programlisting>
       </informalexample>
     
     where the second argument (<parameter>chip</parameter>) is the
-    private data to be used in the callbacks. The third parameter
-    specifies the read buffer size and the fourth
+    private data to be used in the callbacks and the third
     (<parameter>my_proc_read</parameter>) is the callback function, which
     is defined like
 
@@ -5182,7 +5116,7 @@ struct _snd_pcm_runtime {
       The callback is much more complicated than the text-file
       version. You need to use a low-level i/o functions such as
       <function>copy_from/to_user()</function> to transfer the
-      data.
+      data. Also, you have to keep tracking the file position, too. 
 
       <informalexample>
         <programlisting>
@@ -5190,15 +5124,14 @@ struct _snd_pcm_runtime {
   static long my_file_io_read(snd_info_entry_t *entry,
                               void *file_private_data,
                               struct file *file,
-                              char *buf,
-                              unsigned long count,
-                              unsigned long pos)
+                              char *buf, long count)
   {
           long size = count;
-          if (pos + size > local_max_size)
-                  size = local_max_size - pos;
-          if (copy_to_user(buf, local_data + pos, size))
+          if (file->f_pos + size > local_max_size)
+                  size = local_max_size - file->f_pos;
+          if (copy_to_user(buf, local_data + file->f_pos, size))
                   return -EFAULT;
+          file->f_pos += size;
           return size;
   }
 ]]>
@@ -5223,22 +5156,46 @@ struct _snd_pcm_runtime {
     </para>
 
     <para>
-      ALSA provides the common power-management layer. Each card driver
-      needs to have only low-level suspend and resume callbacks.
+      Basic jobs of suspend/resume are done in
+      <structfield>suspend</structfield> and
+      <structfield>resume</structfield> callbacks of
+      <structname>pci_driver</structname> struct. Unfortunately, the
+      API of these callbacks was changed at the middle time of Linux
+      2.4.x, if you want to keep the support for older kernels, you
+      have to write two different callbacks. The example below is the
+      skeleton callbacks which just call the real suspend and resume
+      functions. 
 
       <informalexample>
         <programlisting>
 <![CDATA[
-  #ifdef CONFIG_PM
-  static int snd_my_suspend(snd_card_t *card, unsigned int state)
+  #ifndef PCI_OLD_SUSPEND
+  static int snd_my_suspend(struct pci_dev *dev, u32 state)
   {
-          .... // do things for suspsend
+          mychip_t *chip = snd_magic_cast(mychip_t,
+                             pci_get_drvdata(dev), return -ENXIO);
+          mychip_suspend(chip);
           return 0;
   }
-  static int snd_my_resume(snd_card_t *card, unsigned int state)
+  static int snd_my_resume(struct pci_dev *dev)
   {
-          .... // do things for suspsend
+          mychip_t *chip = snd_magic_cast(mychip_t,
+                             pci_get_drvdata(dev), return -ENXIO);
+          mychip_resume(chip);
           return 0;
+  }
+  #else
+  static void snd_my_suspend(struct pci_dev *dev)
+  {
+          mychip_t *chip = snd_magic_cast(mychip_t,
+                             pci_get_drvdata(dev), return);
+          mychip_suspend(chip);
+  }
+  static void snd_mychip_resume(struct pci_dev *dev)
+  {
+          mychip_t *chip = snd_magic_cast(mychip_t,
+                             pci_get_drvdata(dev), return);
+          mychip_resume(chip);
   }
   #endif
 ]]>
@@ -5247,10 +5204,17 @@ struct _snd_pcm_runtime {
     </para>
 
     <para>
+      For keeping the readability of 2.5 source code, it's recommended to
+      separate the above ifdef condition as the patch file in alsa-driver
+      directory.
+      See <filename>alsa-driver/pci/ali5451.c</filename> for example.
+   </para>
+
+    <para>
       The scheme of the real suspend job is as following.
 
       <orderedlist>
-        <listitem><para>Retrieve the chip data from pm_private_data field.</para></listitem>
+        <listitem><para>Check whether the power-state is already D3hot. If yes, skip the job.</para></listitem>
         <listitem><para>Call <function>snd_pcm_suspend_all()</function> to suspend the running PCM streams.</para></listitem>
         <listitem><para>Save the register values if necessary.</para></listitem>
         <listitem><para>Stop the hardware if necessary.</para></listitem>
@@ -5264,11 +5228,12 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static int mychip_suspend(snd_card_t *card, unsigned int state)
+  static void mychip_suspend(mychip_t *chip)
   {
+          snd_card_t *card = chip->card;
           // (1)
-          mychip_t *chip = snd_magic_cast(mychip_t, card->pm_private_data,
-                                          return -ENXIO);
+          if (card->power_state == SNDRV_CTL_POWER_D3hot)
+                  return;
           // (2)
           snd_pcm_suspend_all(chip->pcm);
           // (3)
@@ -5277,7 +5242,6 @@ struct _snd_pcm_runtime {
           snd_mychip_stop_hardware(chip);
           // (5)
           snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-          return 0;
   }
 ]]>
         </programlisting>
@@ -5288,7 +5252,8 @@ struct _snd_pcm_runtime {
     The scheme of the real resume job is as following.
 
     <orderedlist>
-    <listitem><para>Retrieve the chip data from pm_private_data field.</para></listitem>
+    <listitem><para>Check whether the power-state is already D0.
+    If yes, skip the job.</para></listitem>
     <listitem><para>Enable the pci device again by calling
     <function>pci_enable_device()</function>.</para></listitem>
     <listitem><para>Re-initialize the chip.</para></listitem>
@@ -5309,9 +5274,10 @@ struct _snd_pcm_runtime {
 <![CDATA[
   static void mychip_resume(mychip_t *chip)
   {
+          snd_card_t *card = chip->card;
           // (1)
-          mychip_t *chip = snd_magic_cast(mychip_t, card->pm_private_data,
-                                          return -ENXIO);
+          if (card->power_state == SNDRV_CTL_POWER_D0)
+                  return;
           // (2)
           pci_enable_device(chip->pci);
           // (3)
@@ -5324,6 +5290,38 @@ struct _snd_pcm_runtime {
           snd_mychip_restart_chip(chip);
           // (7)
           snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+  }
+]]>
+        </programlisting>
+      </informalexample>
+    </para>
+
+    <para>
+      In addition to the callbacks above, you should define a callback
+      for the changes via the ALSA control interface. It's defined
+      like below: 
+
+      <informalexample>
+        <programlisting>
+<![CDATA[
+  static int snd_mychip_set_power_state(snd_card_t *card,
+                                        unsigned int power_state)
+  {
+          mychip_t *chip = snd_magic_cast(mychip_t,
+                   card->power_state_private_data, return -ENXIO);
+          switch (power_state) {
+          case SNDRV_CTL_POWER_D0:
+          case SNDRV_CTL_POWER_D1:
+          case SNDRV_CTL_POWER_D2:
+                  mychip_resume(chip);
+                  break;
+          case SNDRV_CTL_POWER_D3hot:
+          case SNDRV_CTL_POWER_D3cold:
+                  mychip_suspend(chip);
+                  break;
+          default:
+                  return -EINVAL;
+          }
           return 0;
   }
 ]]>
@@ -5343,42 +5341,41 @@ struct _snd_pcm_runtime {
   {
           ....
           snd_card_t *card;
-          mychip_t *chip;
           ....
-          snd_card_set_pm_callback(card, snd_my_suspend, snd_my_resume, chip);
+  #ifdef CONFIG_PM
+          card->set_power_state = snd_mychip_set_power_state;
+          card->power_state_private_data = chip;
+  #endif
           ....
   }
 ]]>
         </programlisting>
       </informalexample>
-
-    Here you don't have to put ifdef CONFIG_PM around, since it's already
-    checked in the header and expanded to empty if not needed.
     </para>
 
     <para>
       If you need a space for saving the registers, you'll need to
-    allocate the buffer for it here, too, since it would be fatal
-    if you cannot allocate a memory in the suspend phase.
+    allocate the buffer for it here, too, since you cannot call
+    <function>kmalloc()</function> with
+    <constant>GFP_KERNEL</constant> flag or
+    <function>vmalloc()</function> in the suspend callback.
     The allocated buffer should be released in the corresponding
     destructor.
     </para>
 
     <para>
       And next, set suspend/resume callbacks to the pci_driver,
-      This can be done by passing a macro SND_PCI_PM_CALLBACKS
-      in the pci_driver struct.  This macro is expanded to the correct
-      (global) callbacks if CONFIG_PM is set.
 
       <informalexample>
         <programlisting>
 <![CDATA[
   static struct pci_driver driver = {
           .name = "My Chip",
-          .id_table = snd_my_ids,
-          .probe = snd_my_probe,
-          .remove = __devexit_p(snd_my_remove),
-          SND_PCI_PM_CALLBACKS
+          ....
+  #ifdef CONFIG_PM
+          .suspend = snd_mychip_suspend,
+          .resume = snd_mychip_resume,
+  #endif
   };
 ]]>
         </programlisting>
@@ -5426,8 +5423,7 @@ struct _snd_pcm_runtime {
 
     <para>
       The module parameters must be declared with the standard
-    <function>module_param()()</function>,
-    <function>module_param_array()()</function> and
+    <function>MODULE_PARM()</function> and
     <function>MODULE_PARM_DESC()</function> macros. The ALSA provides
     an additional macro, <function>MODULE_PARM_SYNTAX()</function>,
     for describing its syntax. The strings will be written to
@@ -5451,22 +5447,18 @@ struct _snd_pcm_runtime {
 <![CDATA[
   #define CARD_NAME "My Chip"
 
-  static int boot_devs;
-  module_param_array(index, int, boot_devs, 0444);
+  MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
   MODULE_PARM_DESC(index, "Index value for " CARD_NAME " soundcard.");
   MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-  module_param_array(id, charp, boot_devs, 0444);
+  MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
   MODULE_PARM_DESC(id, "ID string for " CARD_NAME " soundcard.");
   MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-  module_param_array(enable, bool, boot_devs, 0444);
+  MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
   MODULE_PARM_DESC(enable, "Enable " CARD_NAME " soundcard.");
   MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
 ]]>
         </programlisting>
       </informalexample>
-
-    Here boot_devs is passed but simply ignored since we don't care
-    the number of parsed parameters.
     </para>
 
     <para>
@@ -5487,6 +5479,39 @@ struct _snd_pcm_runtime {
       </informalexample>
     </para>
 
+    <para>
+      For building the driver into kernel, you should define the
+      <function>setup()</function> function in addition, too. 
+      ALSA provides <function>get_id()</function> function to retrieve
+      a string argument from the kernel boot parameters.
+
+      <informalexample>
+        <programlisting>
+<![CDATA[
+  #ifndef MODULE
+
+  /* format is: snd-mychip=enable,index,id */
+
+  static int __init alsa_card_mychip_setup(char *str)
+  {
+          static unsigned __initdata nr_dev = 0;
+
+          if (nr_dev >= SNDRV_CARDS)
+                  return 0;
+          (void)(get_option(&str,&enable[nr_dev]) == 2 &&
+                 get_option(&str,&index[nr_dev]) == 2 &&
+                 get_id(&str,&id[nr_dev]) == 2);
+          nr_dev++;
+          return 1;
+  }
+
+  __setup("snd-mychip=", alsa_card_mychip_setup);
+
+  #endif /* ifndef MODULE */
+]]>
+        </programlisting>
+      </informalexample>
+    </para>
   </chapter>
 
 
@@ -5508,14 +5533,10 @@ struct _snd_pcm_runtime {
 	Suppose that you'll create a new PCI driver for the card
 	<quote>xyz</quote>.  The card module name would be
 	snd-xyz.  The new driver is usually put into alsa-driver
-	tree, <filename>alsa-driver/pci</filename> directory in
-	the case of PCI cards.
-	Then the driver is evaluated, audited and tested
+	tree.  Then the driver is evaluated, audited and tested
 	by developers and users.  After a certain time, the driver
-	will go to alsa-kernel tree (to the corresponding directory,
-	such as <filename>alsa-kernel/pci</filename>) and eventually
-	integrated into Linux 2.6 tree (the directory would be
-	<filename>linux/sound/pci</filename>).
+	will go to alsa-kernel tree and eventually integrated into
+	Linux 2.5 tree.
 	</para>
 
 	<para>
@@ -5542,7 +5563,7 @@ struct _snd_pcm_runtime {
         <programlisting>
 <![CDATA[
   snd-xyz-objs := xyz.o
-  obj-$(CONFIG_SND_XYZ) += snd-xyz.o
+  extra-obj-$(CONFIG_SND_XYZ) += snd-xyz.o
 ]]>
         </programlisting>
       </informalexample>
@@ -5551,44 +5572,61 @@ struct _snd_pcm_runtime {
 
 	<listitem>
 	<para>
-	Create the Kconfig entry
+	Modify alsa-driver/acore/Makefile
 	</para>
 
 	<para>
-	Add the new entry of Kconfig for your xyz driver.
+	Here define the dependent modules.
       <informalexample>
         <programlisting>
 <![CDATA[
-  config SND_XYZ
-          tristate "Foobar XYZ"
-          depends on SND
-          select SND_PCM
-          help
-            Say 'Y' or 'M' to include support for Foobar XYZ soundcard.
+  obj-$(CONFIG_SND_XYZ) += snd.o ...
 ]]>
         </programlisting>
       </informalexample>
 
-	the line, select SND_PCM, specifies that the driver xyz supports
-	PCM.  In addition to SND_PCM, the following components are
-	supported for select command:
-	SND_RAWMIDI, SND_TIMER, SND_HWDEP, SND_MPU401_UART,
-	SND_OPL3_LIB, SND_OPL4_LIB, SND_VX_LIB, SND_AC97_CODEC.
-	Add the select command for each supported component.
+	If the driver supports PCM, snd-pcm.o,
+	snd-timer.o and snd-page-alloc.o
+	will be needed.
+	</para>
+	<para>
+	For rawmidi, snd-rawmidi.o is needed in addition.
+	The MIDI stuff is also related to the sequencer.
+	You'll need to modify alsa-driver/acore/seq/Makefile.
 	</para>
 
 	<para>
-	Note that some selections imply the lowlevel selections.
-	For example, PCM includes TIMER, MPU401_UART includes RAWMIDI,
-	AC97_CODEC includes PCM, and OPL3_LIB includes HWDEP.
-	You don't need to give the lowlevel selections again.
+	For OPL3, snd-hwdep.o is needed, too.
+	It's involved with the sequencer, and as well as rawmidi,
+	you'll need to modify alsa-driver/acore/seq/Makefile
+	and acore/seq/instr/Makefile in addition.
+	Also, a new entry is necessary in
+	alsa-driver/drivers/opl3/Makefile.
+	</para>
+
+	</listitem>
+
+	<listitem>
+	<para>
+	Modify alsa-driver/utils/Modules.dep
 	</para>
 
 	<para>
-	For the details of Kconfig script, refer to the kbuild
-	documentation.
-	</para>
+	Add the module definition for configure, here.
+	The beginning of the line must be a vertical bar, following
+	the card module name (snd-xyz) and the list of its all 
+	dependent modules.
 
+      <informalexample>
+        <programlisting>
+<![CDATA[
+  %dir linux/sound/pci
+  |snd-azt3328 snd-pcm snd-mpu401-uart snd-opl3-lib snd-opl3-synth
+  |snd-xyz snd-pcm ...
+]]>
+        </programlisting>
+      </informalexample>
+	</para>
 	</listitem>
 
 	<listitem>
@@ -5611,13 +5649,12 @@ struct _snd_pcm_runtime {
 	<orderedlist>
 	<listitem>
 	<para>
-	Add a new directory (<filename>xyz</filename>) in
-	<filename>alsa-driver/pci/Makefile</filename> like below
+	Add a new directory (xyz) to extra-subdir-y list in alsa-driver/pci/Makefile
 
       <informalexample>
         <programlisting>
 <![CDATA[
-  obj-$(CONFIG_SND) += xyz/
+  extra-subdir-y := pdplus vx222 xyz
 ]]>
         </programlisting>
       </informalexample>
@@ -5626,18 +5663,18 @@ struct _snd_pcm_runtime {
 
 	<listitem>
 	<para>
-	Under the directory <filename>xyz</filename>, create a Makefile
+	Under the directory xyz, create a Makefile
 
       <example>
 	<title>Sample Makefile for a driver xyz</title>
         <programlisting>
 <![CDATA[
-  ifndef SND_TOPDIR
-  SND_TOPDIR=../..
-  endif
+  TOPDIR = ../..
 
   include $(TOPDIR)/toplevel.config
   include $(TOPDIR)/Makefile.conf
+
+  TOPDIR = $(MAINSRCDIR)
 
   snd-xyz-objs := xyz.o abc.o def.o
 
@@ -5652,11 +5689,28 @@ struct _snd_pcm_runtime {
 
 	<listitem>
 	<para>
-	Create the Kconfig entry
+	Modify alsa-driver/acore/Makefile
 	</para>
 
 	<para>
 	This procedure is as same as in the last section.
+	</para>
+	</listitem>
+
+	<listitem>
+	<para>
+	Modify alsa-driver/utils/Modules.dep
+	</para>
+
+	<para>
+      <informalexample>
+        <programlisting>
+<![CDATA[
+	%dir linux/sound/pci/xyz
+	|snd-xyz snd-pcm ...
+]]>
+        </programlisting>
+      </informalexample>
 	</para>
 	</listitem>
 

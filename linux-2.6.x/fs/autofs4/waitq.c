@@ -3,7 +3,6 @@
  * linux/fs/autofs/waitq.c
  *
  *  Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
- *  Copyright 2001-2003 Ian Kent <raven@themaw.net>
  *
  * This file is part of the Linux kernel and is made available under
  * the terms of the GNU General Public License, version 2, or at your
@@ -28,7 +27,7 @@ void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
 {
 	struct autofs_wait_queue *wq, *nwq;
 
-	DPRINTK("entering catatonic mode");
+	DPRINTK(("autofs: entering catatonic mode\n"));
 
 	sbi->catatonic = 1;
 	wq = sbi->queues;
@@ -38,7 +37,7 @@ void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
 		wq->status = -ENOENT; /* Magic is gone - report failure */
 		kfree(wq->name);
 		wq->name = NULL;
-		wake_up_interruptible(&wq->queue);
+		wake_up(&wq->queue);
 		wq = nwq;
 	}
 	if (sbi->pipe) {
@@ -91,8 +90,8 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 	union autofs_packet_union pkt;
 	size_t pktsz;
 
-	DPRINTK("wait id = 0x%08lx, name = %.*s, type=%d",
-		wq->wait_queue_token, wq->len, wq->name, type);
+	DPRINTK(("autofs_notify: wait id = 0x%08lx, name = %.*s, type=%d\n",
+		 wq->wait_queue_token, wq->len, wq->name, type));
 
 	memset(&pkt,0,sizeof pkt); /* For security reasons */
 
@@ -117,7 +116,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 		memcpy(ep->name, wq->name, wq->len);
 		ep->name[wq->len] = '\0';
 	} else {
-		printk("autofs4_notify_daemon: bad type %d!\n", type);
+		printk("autofs_notify_daemon: bad type %d!\n", type);
 		return;
 	}
 
@@ -125,107 +124,62 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 		autofs4_catatonic_mode(sbi);
 }
 
-static int autofs4_getpath(struct autofs_sb_info *sbi,
-			   struct dentry *dentry, char **name)
-{
-	struct dentry *root = sbi->sb->s_root;
-	struct dentry *tmp;
-	char *buf = *name;
-	char *p;
-	int len = 0;
-
-	spin_lock(&dcache_lock);
-	for (tmp = dentry ; tmp != root ; tmp = tmp->d_parent)
-		len += tmp->d_name.len + 1;
-
-	if (--len > NAME_MAX) {
-		spin_unlock(&dcache_lock);
-		return 0;
-	}
-
-	*(buf + len) = '\0';
-	p = buf + len - dentry->d_name.len;
-	strncpy(p, dentry->d_name.name, dentry->d_name.len);
-
-	for (tmp = dentry->d_parent; tmp != root ; tmp = tmp->d_parent) {
-		*(--p) = '/';
-		p -= tmp->d_name.len;
-		strncpy(p, tmp->d_name.name, tmp->d_name.len);
-	}
-	spin_unlock(&dcache_lock);
-
-	return len;
-}
-
-int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
+int autofs4_wait(struct autofs_sb_info *sbi, struct qstr *name,
 		enum autofs_notify notify)
 {
 	struct autofs_wait_queue *wq;
-	char *name;
-	int len, status;
+	int status;
 
 	/* In catatonic mode, we don't wait for nobody */
 	if ( sbi->catatonic )
 		return -ENOENT;
 	
-	name = kmalloc(NAME_MAX + 1, GFP_KERNEL);
-	if (!name)
-		return -ENOMEM;
-
-	len = autofs4_getpath(sbi, dentry, &name);
-	if (!len) {
-		kfree(name);
+	/* We shouldn't be able to get here, but just in case */
+	if ( name->len > NAME_MAX )
 		return -ENOENT;
-	}
 
-	if (down_interruptible(&sbi->wq_sem)) {
-		kfree(name);
-		return -EINTR;
-	}
-
-	for (wq = sbi->queues ; wq ; wq = wq->next) {
-		if (wq->hash == dentry->d_name.hash &&
-		    wq->len == len &&
-		    wq->name && !memcmp(wq->name, name, len))
+	for ( wq = sbi->queues ; wq ; wq = wq->next ) {
+		if ( wq->hash == name->hash &&
+		     wq->len == name->len &&
+		     wq->name && !memcmp(wq->name,name->name,name->len) )
 			break;
 	}
-
+	
 	if ( !wq ) {
 		/* Create a new wait queue */
 		wq = kmalloc(sizeof(struct autofs_wait_queue),GFP_KERNEL);
-		if ( !wq ) {
-			kfree(name);
-			up(&sbi->wq_sem);
+		if ( !wq )
+			return -ENOMEM;
+
+		wq->name = kmalloc(name->len,GFP_KERNEL);
+		if ( !wq->name ) {
+			kfree(wq);
 			return -ENOMEM;
 		}
-
 		wq->wait_queue_token = autofs4_next_wait_queue;
 		if (++autofs4_next_wait_queue == 0)
 			autofs4_next_wait_queue = 1;
+		init_waitqueue_head(&wq->queue);
+		wq->hash = name->hash;
+		wq->len = name->len;
+		wq->status = -EINTR; /* Status return if interrupted */
+		memcpy(wq->name, name->name, name->len);
 		wq->next = sbi->queues;
 		sbi->queues = wq;
-		init_waitqueue_head(&wq->queue);
-		wq->hash = dentry->d_name.hash;
-		wq->name = name;
-		wq->len = len;
-		wq->status = -EINTR; /* Status return if interrupted */
-		atomic_set(&wq->wait_ctr, 2);
-		up(&sbi->wq_sem);
 
-		DPRINTK("new wait id = 0x%08lx, name = %.*s, nfy=%d",
-			(unsigned long) wq->wait_queue_token, wq->len, wq->name, notify);
+		DPRINTK(("autofs_wait: new wait id = 0x%08lx, name = %.*s, nfy=%d\n",
+			 wq->wait_queue_token, wq->len, wq->name, notify));
 		/* autofs4_notify_daemon() may block */
+		wq->wait_ctr = 2;
 		if (notify != NFY_NONE) {
 			autofs4_notify_daemon(sbi,wq, 
-					notify == NFY_MOUNT ?
-						  autofs_ptype_missing :
-						  autofs_ptype_expire_multi);
+					      notify == NFY_MOUNT ? autofs_ptype_missing :
+								    autofs_ptype_expire_multi);
 		}
 	} else {
-		atomic_inc(&wq->wait_ctr);
-		up(&sbi->wq_sem);
-		DPRINTK("existing wait id = 0x%08lx, name = %.*s, nfy=%d",
-			(unsigned long) wq->wait_queue_token, wq->len, wq->name, notify);
+		wq->wait_ctr++;
+		DPRINTK(("autofs_wait: existing wait id = 0x%08lx, name = %.*s, nfy=%d\n",
+			 wq->wait_queue_token, wq->len, wq->name, notify));
 	}
 
 	/* wq->name is NULL if and only if the lock is already released */
@@ -250,20 +204,19 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		recalc_sigpending();
 		spin_unlock_irqrestore(&current->sighand->siglock, irqflags);
 
-		wait_event_interruptible(wq->queue, wq->name == NULL);
+		interruptible_sleep_on(&wq->queue);
 
 		spin_lock_irqsave(&current->sighand->siglock, irqflags);
 		current->blocked = oldset;
 		recalc_sigpending();
 		spin_unlock_irqrestore(&current->sighand->siglock, irqflags);
 	} else {
-		DPRINTK("skipped sleeping");
+		DPRINTK(("autofs_wait: skipped sleeping\n"));
 	}
 
 	status = wq->status;
 
-	/* Are we the last process to need status? */
-	if (atomic_dec_and_test(&wq->wait_ctr))
+	if (--wq->wait_ctr == 0)	/* Are we the last process to need status? */
 		kfree(wq);
 
 	return status;
@@ -274,28 +227,23 @@ int autofs4_wait_release(struct autofs_sb_info *sbi, autofs_wqt_t wait_queue_tok
 {
 	struct autofs_wait_queue *wq, **wql;
 
-	down(&sbi->wq_sem);
-	for ( wql = &sbi->queues ; (wq = *wql) != 0 ; wql = &wq->next ) {
+	for ( wql = &sbi->queues ; (wq = *wql) ; wql = &wq->next ) {
 		if ( wq->wait_queue_token == wait_queue_token )
 			break;
 	}
-
-	if ( !wq ) {
-		up(&sbi->wq_sem);
+	if ( !wq )
 		return -EINVAL;
-	}
 
 	*wql = wq->next;	/* Unlink from chain */
-	up(&sbi->wq_sem);
 	kfree(wq->name);
 	wq->name = NULL;	/* Do not wait on this queue */
 
 	wq->status = status;
 
-	if (atomic_dec_and_test(&wq->wait_ctr))	/* Is anyone still waiting for this guy? */
+	if (--wq->wait_ctr == 0)	/* Is anyone still waiting for this guy? */
 		kfree(wq);
 	else
-		wake_up_interruptible(&wq->queue);
+		wake_up(&wq->queue);
 
 	return 0;
 }

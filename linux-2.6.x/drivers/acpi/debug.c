@@ -55,7 +55,7 @@ end:
 static int
 acpi_system_write_debug (
 	struct file             *file,
-        const char              __user *buffer,
+        const char              *buffer,
 	unsigned long           count,
         void                    *data)
 {

@@ -549,7 +549,7 @@ int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_
 
 	action->handler = handler;
 	action->flags = irq_flags;
-	cpus_clear(action->mask);
+	action->mask = 0;
 	action->name = devname;
 	action->next = NULL;
 	action->dev_id = dev_id;

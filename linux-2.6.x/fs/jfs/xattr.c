@@ -550,8 +550,7 @@ static int ea_get(struct inode *inode, struct ea_buffer *ea_buf, int min_size)
 	}
 	ea_buf->flag = EA_EXTENT;
 	ea_buf->mp = read_metapage(inode, addressDXD(&ji->ea),
-				   lengthDXD(&ji->ea) << sb->s_blocksize_bits,
-				   1);
+				   lengthDXD(&ji->ea), 1);
 	if (ea_buf->mp == NULL)
 		return -EIO;
 	ea_buf->xattr = ea_buf->mp->data;
@@ -592,7 +591,7 @@ static int ea_put(struct inode *inode, struct ea_buffer *ea_buf, int new_size)
 
 	if (new_size == 0) {
 		ea_release(inode, ea_buf);
-		ea_buf = NULL;
+		ea_buf = 0;
 	} else if (ea_buf->flag & EA_INLINE) {
 		assert(new_size <= sizeof (ji->i_inline_ea));
 		ji->mode2 &= ~INLINEEA;
@@ -633,7 +632,7 @@ static int ea_put(struct inode *inode, struct ea_buffer *ea_buf, int new_size)
 		}
 		ji->ea = ea_buf->new_ea;
 	} else {
-		txEA(tid, inode, &ji->ea, NULL);
+		txEA(tid, inode, &ji->ea, 0);
 		if (ji->ea.flag & DXD_INLINE)
 			ji->mode2 |= INLINEEA;
 		ji->ea.flag = 0;
@@ -641,7 +640,6 @@ static int ea_put(struct inode *inode, struct ea_buffer *ea_buf, int new_size)
 	}
 
 	inode->i_blocks += LBLK2PBLK(inode->i_sb, new_blocks - old_blocks);
-	inode->i_ctime = CURRENT_TIME;
 	rc = txCommit(tid, 1, &inode, 0);
 	txEnd(tid);
 	up(&ji->commit_sem);
@@ -688,26 +686,17 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 			}
 			inode->i_mode = mode;
 			mark_inode_dirty(inode);
+			if (rc == 0)
+				value = NULL;
 		}
 		/*
 		 * We're changing the ACL.  Get rid of the cached one
 		 */
 		acl =JFS_IP(inode)->i_acl;
-		if (acl != JFS_ACL_NOT_CACHED)
+		if (acl && (acl != JFS_ACL_NOT_CACHED))
 			posix_acl_release(acl);
 		JFS_IP(inode)->i_acl = JFS_ACL_NOT_CACHED;
-
-		return 0;
 	} else if (strcmp(name, XATTR_NAME_ACL_DEFAULT) == 0) {
-		acl = posix_acl_from_xattr(value, value_len);
-		if (IS_ERR(acl)) {
-			rc = PTR_ERR(acl);
-			printk(KERN_ERR "posix_acl_from_xattr returned %d\n",
-			       rc);
-			return rc;
-		}
-		posix_acl_release(acl);
-
 		/*
 		 * We're changing the default ACL.  Get rid of the cached one
 		 */
@@ -715,11 +704,13 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 		if (acl && (acl != JFS_ACL_NOT_CACHED))
 			posix_acl_release(acl);
 		JFS_IP(inode)->i_default_acl = JFS_ACL_NOT_CACHED;
-
-		return 0;
-	}
-#endif			/* CONFIG_JFS_POSIX_ACL */
+	} else
+		/* Invalid xattr name */
+		return -EINVAL;
+	return 0;
+#else			/* CONFIG_JFS_POSIX_ACL */
 	return -EOPNOTSUPP;
+#endif			/* CONFIG_JFS_POSIX_ACL */
 }
 
 static int can_set_xattr(struct inode *inode, const char *name,
@@ -745,7 +736,11 @@ static int can_set_xattr(struct inode *inode, const char *name,
 	    (!S_ISDIR(inode->i_mode) || inode->i_mode &S_ISVTX))
 		return -EPERM;
 
+#ifdef CONFIG_JFS_POSIX_ACL
+	return jfs_permission(inode, MAY_WRITE, NULL);
+#else
 	return permission(inode, MAY_WRITE, NULL);
+#endif
 }
 
 int __jfs_setxattr(struct inode *inode, const char *name, const void *value,
@@ -904,9 +899,13 @@ int jfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 
 static int can_get_xattr(struct inode *inode, const char *name)
 {
+#ifdef CONFIG_JFS_POSIX_ACL
 	if(strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) == 0)
 		return 0;
+	return jfs_permission(inode, MAY_READ, NULL);
+#else
 	return permission(inode, MAY_READ, NULL);
+#endif
 }
 
 ssize_t __jfs_getxattr(struct inode *inode, const char *name, void *data,
@@ -1039,5 +1038,5 @@ ssize_t jfs_listxattr(struct dentry * dentry, char *data, size_t buf_size)
 
 int jfs_removexattr(struct dentry *dentry, const char *name)
 {
-	return __jfs_setxattr(dentry->d_inode, name, NULL, 0, XATTR_REPLACE);
+	return __jfs_setxattr(dentry->d_inode, name, 0, 0, XATTR_REPLACE);
 }

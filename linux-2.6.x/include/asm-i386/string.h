@@ -23,10 +23,6 @@
  *		consider these trivial functions to be PD.
  */
 
-/* AK: in fact I bet it would be better to move this stuff all out of line.
- */
-#if !defined(IN_STRING_C)
-
 #define __HAVE_ARCH_STRCPY
 static inline char * strcpy(char * dest,const char *src)
 {
@@ -180,8 +176,6 @@ __asm__ __volatile__(
 return __res;
 }
 
-#endif
-
 #define __HAVE_ARCH_STRLEN
 static inline size_t strlen(const char * s)
 {
@@ -285,8 +279,41 @@ static __inline__ void *__memcpy3d(void *to, const void *from, size_t len)
 
 #endif
 
+/*
+ * struct_cpy(x,y), copy structure *x into (matching structure) *y.
+ *
+ * We get link-time errors if the structure sizes do not match.
+ * There is no runtime overhead, it's all optimized away at
+ * compile time.
+ */
+extern void __struct_cpy_bug (void);
+
+#define struct_cpy(x,y) 			\
+({						\
+	if (sizeof(*(x)) != sizeof(*(y))) 	\
+		__struct_cpy_bug();		\
+	memcpy(x, y, sizeof(*(x)));		\
+})
+
 #define __HAVE_ARCH_MEMMOVE
-void *memmove(void * dest,const void * src, size_t n);
+static inline void * memmove(void * dest,const void * src, size_t n)
+{
+int d0, d1, d2;
+if (dest<src) {
+	memcpy(dest,src,n);
+} else
+__asm__ __volatile__(
+	"std\n\t"
+	"rep\n\t"
+	"movsb\n\t"
+	"cld"
+	: "=&c" (d0), "=&S" (d1), "=&D" (d2)
+	:"0" (n),
+	 "1" (n-1+(const char *)src),
+	 "2" (n-1+(char *)dest)
+	:"memory");
+return dest;
+}
 
 #define memcmp __builtin_memcmp
 

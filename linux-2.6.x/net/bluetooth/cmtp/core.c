@@ -201,7 +201,7 @@ static inline int cmtp_recv_frame(struct cmtp_session *session, struct sk_buff *
 static int cmtp_send_frame(struct cmtp_session *session, unsigned char *data, int len)
 {
 	struct socket *sock = session->sock;
-	struct kvec iv = { data, len };
+	struct iovec iv = { data, len };
 	struct msghdr msg;
 
 	BT_DBG("session %p data %p len %d", session, data, len);
@@ -210,8 +210,10 @@ static int cmtp_send_frame(struct cmtp_session *session, unsigned char *data, in
 		return 0;
 
 	memset(&msg, 0, sizeof(msg));
+	msg.msg_iovlen = 1;
+	msg.msg_iov = &iv;
 
-	return kernel_sendmsg(sock, &msg, &iv, 1, len);
+	return sock_sendmsg(sock, &msg, len);
 }
 
 static int cmtp_process_transmit(struct cmtp_session *session)
@@ -291,7 +293,9 @@ static int cmtp_session(void *arg)
 
 	daemonize("kcmtpd_ctr_%d", session->num);
 	set_user_nice(current, -15);
-	current->flags |= PF_NOFREEZE;
+	current->flags |= PF_IOTHREAD;
+
+	set_fs(KERNEL_DS);
 
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(sk->sk_sleep, &wait);
@@ -478,7 +482,7 @@ int cmtp_get_conninfo(struct cmtp_conninfo *ci)
 }
 
 
-static int __init cmtp_init(void)
+int __init init_cmtp(void)
 {
 	l2cap_load();
 
@@ -489,16 +493,15 @@ static int __init cmtp_init(void)
 	return 0;
 }
 
-static void __exit cmtp_exit(void)
+void __exit exit_cmtp(void)
 {
 	cmtp_cleanup_sockets();
 }
 
-module_init(cmtp_init);
-module_exit(cmtp_exit);
+module_init(init_cmtp);
+module_exit(exit_cmtp);
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth CMTP ver " VERSION);
-MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("bt-proto-5");

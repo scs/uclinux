@@ -8,6 +8,12 @@
 #ifndef _ASM_IA64_SN_MODULE_H
 #define _ASM_IA64_SN_MODULE_H
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
+
+#include <linux/config.h>
 #include <asm/sn/klconfig.h>
 #include <asm/sn/ksys/elsc.h>
 
@@ -152,9 +158,12 @@ struct module_s {
     spinlock_t		lock;		/* Lock for this structure	   */
 
     /* List of nodes in this module */
-    cnodeid_t		nodes[MAX_SLABS + 1];
-    geoid_t		geoid[MAX_SLABS + 1];
-
+    cnodeid_t		nodes[MODULE_MAX_NODES];
+    geoid_t		geoid[MODULE_MAX_NODES];
+    struct {
+		char	moduleid[8];
+    } io[MODULE_MAX_NODES];
+    int			nodecnt;	/* Number of nodes in array        */
     /* Fields for Module System Controller */
     int			mesgpend;	/* Message pending                 */
     int			shutdown;	/* Shutdown in progress            */
@@ -180,10 +189,14 @@ struct module_s {
 };
 
 /* module.c */
-extern module_t	       *sn_modules[MODULE_MAX];	/* Indexed by cmoduleid_t   */
+extern module_t	       *modules[MODULE_MAX];	/* Indexed by cmoduleid_t   */
 extern int		nummodules;
 
 extern module_t	       *module_lookup(moduleid_t id);
+
+extern int		get_kmod_sys_snum(cmoduleid_t cmod,
+					  char *snum);
+
 extern void		format_module_id(char *buffer, moduleid_t m, int fmt);
 extern int		parse_module_id(char *buffer);
 

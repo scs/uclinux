@@ -624,7 +624,6 @@ static void ad1848_mixer_reset(ad1848_info * devc)
 			devc->supported_devices = MODE3_MIXER_DEVICES;
 			break;
 		case MD_4232:
-		case MD_4235:
 		case MD_4236:
 			devc->supported_devices = MODE3_MIXER_DEVICES;
 			break;
@@ -673,14 +672,14 @@ static void ad1848_mixer_reset(ad1848_info * devc)
 	spin_unlock_irqrestore(&devc->lock,flags);
 }
 
-static int ad1848_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
+static int ad1848_mixer_ioctl(int dev, unsigned int cmd, caddr_t arg)
 {
 	ad1848_info *devc = mixer_devs[dev]->devc;
 	int val;
 
 	if (cmd == SOUND_MIXER_PRIVATE1) 
 	{
-		if (get_user(val, (int __user *)arg))
+		if (get_user(val, (int *)arg))
 			return -EFAULT;
 
 		if (val != 0xffff) 
@@ -698,11 +697,11 @@ static int ad1848_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
 			spin_unlock_irqrestore(&devc->lock,flags);
 		}
 		val = devc->mixer_output_port;
-		return put_user(val, (int __user *)arg);
+		return put_user(val, (int *)arg);
 	}
 	if (cmd == SOUND_MIXER_PRIVATE2)
 	{
-		if (get_user(val, (int __user *)arg))
+		if (get_user(val, (int *)arg))
 			return -EFAULT;
 		return(ad1848_control(AD1848_MIXER_REROUTE, val));
 	}
@@ -713,18 +712,18 @@ static int ad1848_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
 			switch (cmd & 0xff) 
 			{
 				case SOUND_MIXER_RECSRC:
-					if (get_user(val, (int __user *)arg))
+					if (get_user(val, (int *)arg))
 						return -EFAULT;
 					val = ad1848_set_recmask(devc, val);
 					break;
 				
 				default:
-					if (get_user(val, (int __user *)arg))
+					if (get_user(val, (int *)arg))
 					return -EFAULT;
 					val = ad1848_mixer_set(devc, cmd & 0xff, val);
 					break;
 			} 
-			return put_user(val, (int __user *)arg);
+			return put_user(val, (int *)arg);
 		}
 		else
 		{
@@ -760,7 +759,7 @@ static int ad1848_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
 					val = ad1848_mixer_get(devc, cmd & 0xff);
 					break;
 			}
-			return put_user(val, (int __user *)arg);
+			return put_user(val, (int *)arg);
 		}
 	}
 	else
@@ -2962,7 +2961,7 @@ static struct {
 		ISAPNP_VENDOR('G','R','V'), ISAPNP_DEVICE(0x0001),
 		ISAPNP_VENDOR('G','R','V'), ISAPNP_FUNCTION(0x0000),
 		0, 0, 0, 1, 0},
-	{NULL}
+	{0}
 };
 
 static struct isapnp_device_id id_table[] __devinitdata = {

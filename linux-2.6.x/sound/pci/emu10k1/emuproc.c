@@ -117,7 +117,7 @@ static void snd_emu10k1_proc_read(snd_info_entry_t *entry,
 	snd_iprintf(buffer, "Card                  : %s\n",
 		    emu->audigy ? "Audigy" : (emu->APS ? "EMU APS" : "Creative"));
 	snd_iprintf(buffer, "Internal TRAM (words) : 0x%x\n", emu->fx8010.itram_size);
-	snd_iprintf(buffer, "External TRAM (words) : 0x%x\n", emu->fx8010.etram_pages.bytes);
+	snd_iprintf(buffer, "External TRAM (words) : 0x%x\n", emu->fx8010.etram_size);
 	snd_iprintf(buffer, "\n");
 	if (emu->audigy) {
 		snd_iprintf(buffer, "Effect Send Routing   : A=%i, B=%i, C=%i, D=%i\n",
@@ -191,8 +191,7 @@ static void snd_emu10k1_proc_acode_read(snd_info_entry_t *entry,
 #define TOTAL_SIZE_CODE		(0x200*8)
 
 static long snd_emu10k1_fx8010_read(snd_info_entry_t *entry, void *file_private_data,
-				    struct file *file, char __user *buf,
-				    unsigned long count, unsigned long pos)
+				    struct file *file, char *buf, long count)
 {
 	long size;
 	emu10k1_t *emu = snd_magic_cast(emu10k1_t, entry->private_data, return -ENXIO);
@@ -210,20 +209,21 @@ static long snd_emu10k1_fx8010_read(snd_info_entry_t *entry, void *file_private_
 		offset = emu->audigy ? A_FXGPREGBASE : FXGPREGBASE;
 	}
 	size = count;
-	if (pos + size > entry->size)
-		size = (long)entry->size - pos;
+	if (file->f_pos + size > entry->size)
+		size = (long)entry->size - file->f_pos;
 	if (size > 0) {
 		unsigned int *tmp;
 		long res;
 		unsigned int idx;
 		if ((tmp = kmalloc(size + 8, GFP_KERNEL)) == NULL)
 			return -ENOMEM;
-		for (idx = 0; idx < ((pos & 3) + size + 3) >> 2; idx++)
-			tmp[idx] = snd_emu10k1_ptr_read(emu, offset + idx + (pos >> 2), 0);
-		if (copy_to_user(buf, ((char *)tmp) + (pos & 3), size))
+		for (idx = 0; idx < ((file->f_pos & 3) + size + 3) >> 2; idx++)
+			tmp[idx] = snd_emu10k1_ptr_read(emu, offset + idx + (file->f_pos >> 2), 0);
+		if (copy_to_user(buf, ((char *)tmp) + (file->f_pos & 3), size))
 			res = -EFAULT;
 		else {
 			res = size;
+			file->f_pos += size;
 		}
 		kfree(tmp);
 		return res;
@@ -240,7 +240,7 @@ int __devinit snd_emu10k1_proc_init(emu10k1_t * emu)
 	snd_info_entry_t *entry;
 	
 	if (! snd_card_proc_new(emu->card, "emu10k1", &entry))
-		snd_info_set_text_ops(entry, emu, 1024, snd_emu10k1_proc_read);
+		snd_info_set_text_ops(entry, emu, snd_emu10k1_proc_read);
 
 	if (! snd_card_proc_new(emu->card, "fx8010_gpr", &entry)) {
 		entry->content = SNDRV_INFO_CONTENT_DATA;

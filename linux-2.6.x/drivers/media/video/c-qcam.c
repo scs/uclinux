@@ -358,7 +358,7 @@ get_fragment:
 
 #define BUFSZ	150
 
-static long qc_capture(struct qcam_device *q, char __user *buf, unsigned long len)
+static long qc_capture(struct qcam_device *q, char *buf, unsigned long len)
 {
 	unsigned lines, pixelsperline, bitsperxfer;
 	unsigned int is_bi_dir = q->bidirectional;
@@ -667,7 +667,7 @@ static int qcam_ioctl(struct inode *inode, struct file *file,
 	return video_usercopy(inode, file, cmd, arg, qcam_do_ioctl);
 }
 
-static ssize_t qcam_read(struct file *file, char __user *buf,
+static ssize_t qcam_read(struct file *file, char *buf,
 			 size_t count, loff_t *ppos)
 {
 	struct video_device *v = video_devdata(file);
@@ -818,9 +818,10 @@ static void cq_detach(struct parport *port)
 }
 
 static struct parport_driver cqcam_driver = {
-	.name = "cqcam",
-	.attach = cq_attach,
-	.detach = cq_detach,
+	"cqcam",
+	cq_attach,
+	cq_detach,
+	NULL
 };
 
 static int __init cqcam_init (void)

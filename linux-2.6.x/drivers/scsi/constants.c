@@ -6,16 +6,13 @@
  *   by D. Gilbert and aeb (20020609)
  */
 
+#include <linux/module.h>
+
 #include <linux/config.h>
 #include <linux/blkdev.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
-
-#include <scsi/scsi.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_host.h>
-#include <scsi/scsi_request.h>
-
+#include "scsi.h"
+#include "hosts.h"
 
 #define CONST_COMMAND   0x01
 #define CONST_STATUS    0x02
@@ -34,8 +31,6 @@ static const char unknown[] = "UNKNOWN";
 #endif
 #define CONSTANTS (CONST_COMMAND | CONST_STATUS | CONST_SENSE | CONST_XSENSE \
 		   | CONST_CMND | CONST_MSG | CONST_HOST | CONST_DRIVER)
-#else
-#define CONSTANTS 0
 #endif
 
 #if (CONSTANTS & CONST_COMMAND)
@@ -157,7 +152,7 @@ static void print_opcode(int opcode) {
 }
 #endif  
 
-void __scsi_print_command (unsigned char *command) {
+void print_command (unsigned char *command) {
     int i,s;
     print_opcode(command[0]);
     for ( i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i) 
@@ -176,7 +171,7 @@ void __scsi_print_command (unsigned char *command) {
  *	(e.g. "0x2" for Check Condition).
  **/
 void
-scsi_print_status(unsigned char scsi_status) {
+print_status(unsigned char scsi_status) {
 #if (CONSTANTS & CONST_STATUS)
 	const char * ccp;
 
@@ -1017,12 +1012,12 @@ print_sense_internal(const char *devclass,
 #endif
 }
 
-void scsi_print_sense(const char *devclass, struct scsi_cmnd *cmd)
+void print_sense(const char *devclass, struct scsi_cmnd *cmd)
 {
 	print_sense_internal(devclass, cmd->sense_buffer, cmd->request);
 }
 
-void scsi_print_req_sense(const char *devclass, struct scsi_request *sreq)
+void print_req_sense(const char *devclass, struct scsi_request *sreq)
 {
 	print_sense_internal(devclass, sreq->sr_sense_buffer, sreq->sr_request);
 }
@@ -1054,7 +1049,7 @@ static const char *extended_msgs[] = {
 #define NO_EXTENDED_MSGS (sizeof(two_byte_msgs)  / sizeof (const char *))
 #endif /* (CONSTANTS & CONST_MSG) */
 
-int scsi_print_msg (const unsigned char *msg) {
+int print_msg (const unsigned char *msg) {
     int len = 0, i;
     if (msg[0] == EXTENDED_MESSAGE) {
 	len = 3 + msg[1];
@@ -1127,22 +1122,22 @@ int scsi_print_msg (const unsigned char *msg) {
     return len;
 }
 
-void scsi_print_command(struct scsi_cmnd *cmd) {
+void print_Scsi_Cmnd(struct scsi_cmnd *cmd) {
     printk("scsi%d : destination target %d, lun %d\n", 
 	   cmd->device->host->host_no, 
 	   cmd->device->id, 
 	   cmd->device->lun);
     printk("        command = ");
-    __scsi_print_command(cmd->cmnd);
+    print_command(cmd->cmnd);
 }
 
 #if (CONSTANTS & CONST_HOST)
 static const char * hostbyte_table[]={
 "DID_OK", "DID_NO_CONNECT", "DID_BUS_BUSY", "DID_TIME_OUT", "DID_BAD_TARGET", 
 "DID_ABORT", "DID_PARITY", "DID_ERROR", "DID_RESET", "DID_BAD_INTR",
-"DID_PASSTHROUGH", "DID_SOFT_ERROR", "DID_IMM_RETRY", NULL};
+"DID_PASSTHROUGH", "DID_SOFT_ERROR", NULL};
 
-void scsi_print_hostbyte(int scsiresult)
+void print_hostbyte(int scsiresult)
 {   static int maxcode=0;
     int i;
    
@@ -1158,7 +1153,7 @@ void scsi_print_hostbyte(int scsiresult)
     printk("(%s) ",hostbyte_table[host_byte(scsiresult)]);
 }
 #else
-void scsi_print_hostbyte(int scsiresult)
+void print_hostbyte(int scsiresult)
 {   printk("Hostbyte=0x%02x ",host_byte(scsiresult));
 }
 #endif
@@ -1173,7 +1168,7 @@ static const char * driversuggest_table[]={"SUGGEST_OK",
 unknown,unknown,unknown, "SUGGEST_SENSE",NULL};
 
 
-void scsi_print_driverbyte(int scsiresult)
+void print_driverbyte(int scsiresult)
 {   static int driver_max=0,suggest_max=0;
     int i,dr=driver_byte(scsiresult)&DRIVER_MASK, 
 	su=(driver_byte(scsiresult)&SUGGEST_MASK)>>4;
@@ -1190,7 +1185,7 @@ void scsi_print_driverbyte(int scsiresult)
 	su<suggest_max ? driversuggest_table[su]:"invalid");
 }
 #else
-void scsi_print_driverbyte(int scsiresult)
+void print_driverbyte(int scsiresult)
 {   printk("Driverbyte=0x%02x ",driver_byte(scsiresult));
 }
 #endif

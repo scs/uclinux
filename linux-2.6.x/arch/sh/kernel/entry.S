@@ -77,8 +77,7 @@ EINVAL = 22
 #if defined(CONFIG_CPU_SH3)
 TRA     = 0xffffffd0
 EXPEVT  = 0xffffffd4
-#if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7705)
+#if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709)
 INTEVT  = 0xa4000000		! INTEVTE2(0xa4000000)
 #else
 INTEVT  = 0xffffffd8
@@ -352,22 +351,18 @@ ret_from_irq:
 	 GET_THREAD_INFO(r8)
 
 #ifdef CONFIG_PREEMPT
-	bra	resume_userspace
-	 nop
 ENTRY(resume_kernel)
 	mov.l	@(TI_PRE_COUNT,r8), r0	! current_thread_info->preempt_count
 	tst	r0, r0
-	bf	noresched
+	bf	restore_all
 need_resched:
 	mov.l	@(TI_FLAGS,r8), r0	! current_thread_info->flags
 	tst	#_TIF_NEED_RESCHED, r0	! need_resched set?
-	bt	noresched
+	bt	restore_all
 
-	mov	#OFF_SR, r0
-	mov.l	@(r0,r15), r0		! get status register
-	and	#0xf0, r0		! interrupts off (exception path)?
-	cmp/eq	#0xf0, r0
-	bt	noresched
+	stc	sr, r0			! interrupts disabled?
+	tst	#0xf0, r0
+	bf	restore_all
 
 	mov.l	1f, r0
 	mov.l	r0, @(TI_PRE_COUNT,r8)
@@ -380,10 +375,7 @@ need_resched:
 	mov.l	r0, @(TI_PRE_COUNT,r8)
 	CLI()
 
-	bra	need_resched
-	 nop
-noresched:
-	bra	restore_all
+	bra need_resched
 	 nop
 
 	.align 2
@@ -533,7 +525,7 @@ ENTRY(system_call)
 	! Is the trap argument >= 0x20? (TRA will be >= 0x80)
 	mov	#0x7f, r9
 	cmp/hi	r9, r8
-	bt/s	0f
+	bt/s	debug_trap
 	 mov	#OFF_TRA, r9
 	add	r15, r9
 	!
@@ -550,10 +542,6 @@ syscall_badsys:			! Bad syscall number
 	mov	#-ENOSYS, r0
 	bra	resume_userspace
 	 mov.l	r0, @(OFF_R0,r15)	! Return value
-	!
-0:
-	bra	debug_trap
-	 nop
 	!
 good_system_call:		! Good syscall number
 	mov.l	@(TI_FLAGS,r8), r8
@@ -644,8 +632,12 @@ skip_restore:
 	!
 	! Calculate new SR value
 	mov	k3, k2			! original SR value
+	mov.l	8f, k1
+	stc	sr, k0
+	and	k1, k0			! Get current FD-bit
 	mov.l	9f, k1
 	and	k1, k2			! Mask orignal SR value
+	or	k0, k2			! Inherit current FD-bit
 	!
 	mov	k3, k0			! Calculate IMASK-bits
 	shlr2	k0
@@ -676,7 +668,8 @@ skip_restore:
 4:	.long	do_syscall_trace
 5:	.long	0x00001000	! DSP
 7:	.long	0x30000000
-9:
+8:	.long	0x00008000	! FD
+9:	.long	0xffff7f0f	! ~(IMASK+FD)
 __INV_IMASK:
 	.long	0xffffff0f	! ~(IMASK)
 
@@ -845,7 +838,7 @@ skip_save:
 
 	.align	2
 1:	.long	0x00001000	! DSP=1
-2:	.long	0x000080f0	! FD=1, IMASK=15
+2:	.long	0x000000f0	! FD=0, IMASK=15
 3:	.long	0xcfffffff	! RB=0, BL=0
 4:	.long	exception_handling_table
 
@@ -1130,14 +1123,9 @@ ENTRY(sys_call_table)
 	.long sys_utimes
  	.long sys_fadvise64_64_wrapper
 	.long sys_ni_syscall	/* Reserved for vserver */
-	.long sys_ni_syscall	/* Reserved for mbind */
-	.long sys_ni_syscall	/* 275 - get_mempolicy */
-	.long sys_ni_syscall	/* set_mempolicy */
-	.long sys_mq_open
-	.long sys_mq_unlink
-	.long sys_mq_timedsend
-	.long sys_mq_timedreceive       /* 280 */
-	.long sys_mq_notify
-	.long sys_mq_getsetattr
+
+	.rept NR_syscalls-(.-sys_call_table)/4
+		.long sys_ni_syscall
+	.endr
 
 /* End of entry.S */

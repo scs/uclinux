@@ -19,7 +19,6 @@
 #include <asm/thread_info.h>
 #include <asm/glue.h>
 #include <asm/ptrace.h>
-#include <asm/vfpmacros.h>
 
 #include "entry-header.S"
 
@@ -464,37 +463,6 @@ ENTRY(soft_irq_mask)
 		.macro	irq_prio_table
 		.endm
 
-#elif defined(CONFIG_ARCH_VERSATILE_PB)
-
-		.macro	disable_fiq
-		.endm
-
-		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		ldr	\base, =IO_ADDRESS(VERSATILE_VIC_BASE)
-		ldr	\irqstat, [\base, #VIC_IRQ_STATUS]	@ get masked status
-		mov	\irqnr, #0
-		teq	\irqstat, #0
-		beq	1003f
-
-1001:		tst	\irqstat, #15
-		bne	1002f
-		add	\irqnr, \irqnr, #4
-		movs	\irqstat, \irqstat, lsr #4
-		bne	1001b
-1002:		tst	\irqstat, #1
-		bne	1003f
-		add	\irqnr, \irqnr, #1
-		movs	\irqstat, \irqstat, lsr #1
-		bne	1002b
-1003:		/* EQ will be set if no irqs pending */
-
-@		clz	\irqnr, \irqstat
-@1003:		/* EQ will be set if we reach MAXIRQNUM */
-		.endm
-
-		.macro	irq_prio_table
-		.endm
-
 #elif defined(CONFIG_ARCH_CLPS711X)
 
 #include <asm/hardware/clps7111.h>
@@ -562,7 +530,34 @@ ENTRY(soft_irq_mask)
 		.macro	irq_prio_table
 		.endm
 
-#elif defined(CONFIG_ARCH_IOP310)
+#elif defined(CONFIG_ARCH_ANAKIN)
+
+		.macro	disable_fiq
+		.endm
+
+		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
+		mov	\base, #IO_BASE
+		mov	\irqstat, #INTERRUPT_CONTROLLER
+		ldr	\tmp, =anakin_irq_mask
+		ldr	\irqstat, [\base, \irqstat]
+		ldr	\tmp, [\tmp]
+		ands	\irqstat, \irqstat, \tmp
+		ldrne	\tmp, =anakin_active_irqs
+		strne	\irqstat, [\tmp]
+		movne	\irqnr, #IRQ_ANAKIN
+		.endm
+
+		.macro	irq_prio_table
+		.ltorg
+		.bss
+ENTRY(anakin_irq_mask)
+		.word	0
+ENTRY(anakin_active_irqs)
+		.space	4
+		.text
+		.endm
+
+#elif defined(CONFIG_ARCH_IOP310) || defined(CONFIG_ARCH_ADIFCC)
 
 		.macro	disable_fiq
 		.endm
@@ -624,15 +619,10 @@ ENTRY(soft_irq_mask)
 		.endm
 
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-#ifdef CONFIG_PXA27x
-		mrc	p6, 0, \irqstat, c0, c0, 0		@ ICIP
-		mrc	p6, 0, \irqnr, c1, c0, 0		@ ICMR
-#else
 		mov	\base, #io_p2v(0x40000000)	@ IIR Ctl = 0x40d00000
 		add	\base, \base, #0x00d00000
 		ldr	\irqstat, [\base, #0]		@ ICIP
 		ldr	\irqnr, [\base, #4]		@ ICMR
-#endif
 		ands	\irqnr, \irqstat, \irqnr
 		beq	1001f
 		rsb	\irqstat, \irqnr, #0
@@ -645,244 +635,25 @@ ENTRY(soft_irq_mask)
 		.macro	irq_prio_table
 		.endm
 
-#elif defined (CONFIG_ARCH_IXP4XX)
+#elif defined (CONFIG_ARCH_IXP425)
 
 		.macro	disable_fiq
 		.endm
 		
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		ldr	\irqstat, =(IXP4XX_INTC_BASE_VIRT+IXP4XX_ICIP_OFFSET)
+		ldr	\irqstat, =(IXP425_INTC_BASE_VIRT+IXP425_ICIP_OFFSET)
 		ldr	\irqstat, [\irqstat]		@ get interrupts
-		cmp	\irqstat, #0
-		beq	1002f
-		clz     \irqnr, \irqstat
-		mov     \base, #31
-		subs    \irqnr, \base, \irqnr
-		
-/*
+		mov	\irqnr, #0
 1001:		tst	\irqstat, #1
 		addeq	\irqnr, \irqnr, #1
 		moveq	\irqstat, \irqstat, lsr #1
 		tsteq	\irqnr, #32
 		beq	1001b
 		teq	\irqnr, #32
-*/
-1002:
 		.endm
 
                 .macro  irq_prio_table
                 .endm
-
-#elif defined(CONFIG_ARCH_OMAP)
-
-		.macro	disable_fiq
-		.endm
-
-		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		ldr	\base, =IO_ADDRESS(OMAP_IH1_BASE)
-		ldr	\irqnr, [\base, #IRQ_ITR_REG_OFFSET]
-		ldr	\tmp, [\base, #IRQ_MIR_REG_OFFSET]
-		mov	\irqstat, #0xffffffff
-		bic	\tmp, \irqstat, \tmp
-		tst	\irqnr, \tmp
-		beq	1510f
-
-		ldr	\irqnr, [\base, #IRQ_SIR_FIQ_REG_OFFSET]
-		cmp	\irqnr, #0
-		ldreq	\irqnr, [\base, #IRQ_SIR_IRQ_REG_OFFSET]
-		cmpeq	\irqnr, #INT_IH2_IRQ
-		ldreq	\base, =IO_ADDRESS(OMAP_IH2_BASE)
-		ldreq	\irqnr, [\base, #IRQ_SIR_IRQ_REG_OFFSET]
-		addeqs	\irqnr, \irqnr, #32
-1510:
-		.endm
-
-		.macro	irq_prio_table
-		.endm
-
-#elif defined(CONFIG_ARCH_S3C2410)
-		/* S3C2410X IRQ Handler, <ben@simtec.co.uk> */
-
-		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-
-30000:
-		mov	\tmp, #S3C2410_VA_IRQ
-		ldr	\irqnr, [ \tmp, #0x14 ]		@ get irq no
-		teq	\irqnr, #4
-		teqne	\irqnr, #5
-		beq	1002f				@ external irq reg
-		teq	\irqnr, #16
-		beq	1003f				@ lcd controller
-
-		@ debug check to see if interrupt reported is the same
-		@ as the offset....
-
-		teq	\irqnr, #0
-		beq	20002f
-		ldr	\irqstat, [ \tmp, #0x10 ]	@ INTPND
-		mov	\irqstat, \irqstat, lsr \irqnr
-		tst	\irqstat, #1
-		bne	20002f
-
-#if 1
-		stmfd	r13!, { r0 - r4 , r14 }
-		ldr	r1,	[ \tmp, #0x14 ]		@ intoffset
-		ldr	r2,	[ \tmp, #0x10 ]		@ INTPND
-		ldr	r3,	[ \tmp, #0x00 ]		@ SRCPND
-		adr	r0, 20003f
-		bl	printk
-		b	20004f
-#endif
-20003:
-		.ascii	"<7>irq: err - bad offset %d, intpnd=%08x, srcpnd=%08x\n"
-		.byte	0
-		.align	4
-20004:
-		mov	r1, #1
-		mov	\tmp, #S3C2410_VA_IRQ
-		ldmfd	r13!, { r0 - r4 , r14 }
-
-		@ try working out interript number for ourselves
-		mov	\irqnr, #0
-		ldr	\irqstat, [ \tmp, #0x10 ]	@ INTPND
-10021:
-		movs	\irqstat, \irqstat, lsr#1
-		bcs	30000b		@ try and re-start the proccess
-		add	\irqnr, \irqnr, #1
-		cmp	\irqnr, #32
-		ble	10021b
-
-		@ found no interrupt, set Z flag and leave
-		movs	\irqnr, #0
-		b	1001f
-
-20005:
-20002:		@ exit
-		@ we base the s3c2410x interrupts at 16 and above to allow
-		@ isa peripherals to have their standard interrupts, also
-		@ ensure that Z flag is un-set on exit
-
-		@ note, we cannot be sure if we get IRQ_EINT0 (0) that
-		@ there is simply no interrupt pending, so in all other
-		@ cases we jump to say we have found something, otherwise
-		@ we check to see if the interrupt really is assrted
-		adds	\irqnr, \irqnr, #IRQ_EINT0
-		teq	\irqnr, #IRQ_EINT0
-		bne	1001f				@ exit
-		ldr	\irqstat, [ \tmp, #0x10 ]	@ INTPND
-		teq	\irqstat, #0
-		moveq	\irqnr, #0
-		b	1001f
-
-		@ we get here from no main or external interrupts pending
-1002:
-		add	\tmp, \tmp, #S3C2410_VA_GPIO - S3C2410_VA_IRQ
-		ldr	\irqstat, [ \tmp, # 0xa8 ]	@ EXTINTPEND
-		ldr	\irqnr, [ \tmp, # 0xa4 ]	@ EXTINTMASK
-
-		bic	\irqstat, \irqstat, \irqnr	@ clear masked irqs
-
-		mov	\irqnr, #IRQ_EINT4		@ start extint nos
-		mov	\irqstat, \irqstat, lsr#4	@ ignore bottom 4 bits
-10021:
-		movs	\irqstat, \irqstat, lsr#1
-		bcs	1004f
-		add	\irqnr, \irqnr, #1
-		cmp	\irqnr, #IRQ_EINT23
-		ble	10021b
-
-		@ found no interrupt, set Z flag and leave
-		movs	\irqnr, #0
-		b	1001f
-
-1003:
-		@ lcd interrupt has been asserted...
-		add	\tmp, \tmp, #S3C2410_VA_LCD - S3C2410_VA_IRQ
-		ldr	\irqstat, [ \tmp, # 0x54 ]	@ lcd int pending
-
-		tst	\irqstat, #2
-		movne	\irqnr, #IRQ_LCD_FRAME
-		tst	\irqstat, #1
-		movne	\irqnr, #IRQ_LCD_FIFO
-
-		@ fall through to exit with flags updated
-
-1004:		@ ensure Z flag clear in case our MOVS shifted out the last bit
-		teq	\irqnr, #0
-1001:
-		@ exit irq routine
-		.endm
-
-
-		/* currently don't need an disable_fiq macro */
-
-		.macro	disable_fiq
-		.endm
-
-		/* we don't have an irq priority table */
-		.macro irq_prio_table
-		.endm
-
-#elif defined(CONFIG_ARCH_LH7A400)
-
-# if defined (CONFIG_ARCH_LH7A404)
-#  error "LH7A400 and LH7A404 are mutually exclusive"
-# endif
-		.macro	disable_fiq
-		.endm
-
-		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		mov	\irqnr, #0
-		mov	\base, #io_p2v(0x80000000)	@ APB registers
-		ldr	\irqstat, [\base, #0x500]	@ PIC INTSR
-
-1001:		movs	\irqstat, \irqstat, lsr #1	@ Shift into carry
-		bcs	1008f				@ Bit set; irq found
-		add	\irqnr, \irqnr, #1
-		bne	1001b				@ Until no bits
-		b	1009f				@ Nothing?  Hmm.
-1008:		movs	\irqstat, #1			@ Force !Z
-1009:
-               .endm
-
-               .macro  irq_prio_table
-               .endm
-
-#elif defined(CONFIG_ARCH_LH7A404)
-
-		.macro	disable_fiq
-		.endm
-
-		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		mov	\irqnr, #0			@ VIC1 irq base
-		mov	\base, #io_p2v(0x80000000)	@ APB registers
-		add	\base, \base, #0x8000
-		ldr	\tmp, [\base, #0x0030]		@ VIC1_VECTADDR
-		tst	\tmp, #VA_VECTORED		@ Direct vectored
-		bne	1002f
-		tst	\tmp, #VA_VIC1DEFAULT		@ Default vectored VIC1
-		ldrne	\irqstat, [\base, #0]		@ VIC1_IRQSTATUS
-		bne	1001f
-		add	\base, \base, #(0xa000 - 0x8000)
-		ldr	\tmp, [\base, #0x0030]		@ VIC2_VECTADDR
-		tst	\tmp, #VA_VECTORED		@ Direct vectored
-		bne	1002f
-		ldr	\irqstat, [\base, #0]		@ VIC2_IRQSTATUS
-		mov	\irqnr, #32			@ VIC2 irq base
-
-1001:		movs	\irqstat, \irqstat, lsr #1	@ Shift into carry
-		bcs	1008f				@ Bit set; irq found
-		add	\irqnr, \irqnr, #1
-		bne	1001b				@ Until no bits
-		b	1009f				@ Nothing?  Hmm.
-1002:		and	\irqnr, \tmp, #0x3f		@ Mask for valid bits
-1008:		movs	\irqstat, #1			@ Force !Z
-		str	\tmp, [\base, #0x0030]		@ Clear vector
-1009:
-               .endm
-
-               .macro  irq_prio_table
-               .endm
 
 #else
 #error Unknown architecture
@@ -952,7 +723,7 @@ __dabt_svc:	sub	sp, sp, #S_FRAME_SIZE
 		bl	do_DataAbort
 		disable_irq r0
 		ldr	r0, [sp, #S_PSR]
-		msr	spsr_cxsf, r0
+		msr	spsr, r0
 		ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
 
 		.align	5
@@ -988,7 +759,7 @@ preempt_return:
 		strne	r0, [r0, -r0]			@ bug()
 #endif
 		ldr	r0, [sp, #S_PSR]		@ irqs are already disabled
-		msr	spsr_cxsf, r0
+		msr	spsr, r0
 		ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
 
 		.ltorg
@@ -1031,7 +802,7 @@ __und_svc:	sub	sp, sp, #S_FRAME_SIZE
 
 1:		disable_irq r0
 		ldr	lr, [sp, #S_PSR]		@ Get SVC cpsr
-		msr	spsr_cxsf, lr
+		msr	spsr, lr
 		ldmia	sp, {r0 - pc}^			@ Restore SVC registers
 
 		.align	5
@@ -1052,7 +823,7 @@ __pabt_svc:	sub	sp, sp, #S_FRAME_SIZE
 		bl	do_PrefetchAbort		@ call abort handler
 		disable_irq r0
 		ldr	r0, [sp, #S_PSR]
-		msr	spsr_cxsf, r0
+		msr	spsr, r0
 		ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
 
 		.align	5
@@ -1199,13 +970,8 @@ call_fpe:	enable_irq r10				@ Enable interrupts
 		mov	pc, lr				@ CP#7
 		mov	pc, lr				@ CP#8
 		mov	pc, lr				@ CP#9
-#ifdef CONFIG_VFP
-		b	do_vfp				@ CP#10 (VFP)
-		b	do_vfp				@ CP#11 (VFP)
-#else
 		mov	pc, lr				@ CP#10 (VFP)
 		mov	pc, lr				@ CP#11 (VFP)
-#endif
 		mov	pc, lr				@ CP#12
 		mov	pc, lr				@ CP#13
 		mov	pc, lr				@ CP#14 (Debug)
@@ -1258,7 +1024,7 @@ ENTRY(ret_from_exception)
 
 /*
  * Register switch for ARMv3 and ARMv4 processors
- * r0 = previous task_struct, r1 = previous thread_info, r2 = next thread_info
+ * r0 = previous thread_info, r1 = next thread_info
  * previous and next are guaranteed not to be the same.
  */
 ENTRY(__switch_to)
@@ -1266,13 +1032,6 @@ ENTRY(__switch_to)
 		ldr	r3, [r2, #TI_CPU_DOMAIN]!
 		stmia	ip, {r4 - sl, fp, sp, lr}	@ Store most regs on stack
 		mcr	p15, 0, r3, c3, c0, 0		@ Set domain register
-#ifdef CONFIG_VFP
-		@ Always disable VFP so we can lazily save/restore the old
-		@ state. This occurs in the context of the previous thread.
-		VFPFMRX	r4, FPEXC
-		bic	r4, r4, #FPEXC_ENABLE
-		VFPFMXR	FPEXC, r4
-#endif
 		ldmib	r2, {r4 - sl, fp, sp, pc}	@ Load all regs saved previously
 
 		__INIT
@@ -1303,7 +1062,7 @@ vector_IRQ:	@
 		mrs	r13, cpsr
 		bic	r13, r13, #MODE_MASK
 		orr	r13, r13, #MODE_SVC
-		msr	spsr_cxsf, r13			@ switch to SVC_32 mode
+		msr	spsr, r13			@ switch to SVC_32 mode
 
 		and	lr, lr, #15
 		ldr	lr, [pc, lr, lsl #2]
@@ -1346,7 +1105,7 @@ vector_data:	@
 		mrs	r13, cpsr
 		bic	r13, r13, #MODE_MASK
 		orr	r13, r13, #MODE_SVC
-		msr	spsr_cxsf, r13			@ switch to SVC_32 mode
+		msr	spsr, r13			@ switch to SVC_32 mode
 
 		and	lr, lr, #15
 		ldr	lr, [pc, lr, lsl #2]
@@ -1390,7 +1149,7 @@ vector_prefetch:
 		mrs	r13, cpsr
 		bic	r13, r13, #MODE_MASK
 		orr	r13, r13, #MODE_SVC
-		msr	spsr_cxsf, r13			@ switch to SVC_32 mode
+		msr	spsr, r13			@ switch to SVC_32 mode
 
 		ands	lr, lr, #15
 		ldr	lr, [pc, lr, lsl #2]
@@ -1433,7 +1192,7 @@ vector_undefinstr:
 		mrs	r13, cpsr
 		bic	r13, r13, #MODE_MASK
 		orr	r13, r13, #MODE_SVC
-		msr	spsr_cxsf, r13			@ switch to SVC_32 mode
+		msr	spsr, r13			@ switch to SVC_32 mode
 
 		and	lr, lr, #15
 		ldr	lr, [pc, lr, lsl #2]

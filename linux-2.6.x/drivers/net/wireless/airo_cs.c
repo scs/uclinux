@@ -264,13 +264,16 @@ static void airo_detach(dev_link_t *link)
 	if (*linkp == NULL)
 		return;
 	
-	if (link->state & DEV_CONFIG)
+	if (link->state & DEV_CONFIG) {
 		airo_release(link);
+		if (link->state & DEV_STALE_CONFIG)
+			return;
+	}
 	
 	if ( ((local_info_t*)link->priv)->eth_dev ) {
 		stop_airo_card( ((local_info_t*)link->priv)->eth_dev, 0 );
 	}
-	((local_info_t*)link->priv)->eth_dev = NULL;   
+	((local_info_t*)link->priv)->eth_dev = 0;   
 	
 	/* Break the link with Card Services */
 	if (link->handle)
@@ -501,6 +504,18 @@ static void airo_release(dev_link_t *link)
 {
 	DEBUG(0, "airo_release(0x%p)\n", link);
 	
+	/*
+	  If the device is currently in use, we won't release until it
+	  is actually closed, because until then, we can't be sure that
+	  no one will try to access the device or its data structures.
+	*/
+	if (link->open) {
+		DEBUG(1, "airo_cs: release postponed, '%s' still open\n",
+		      link->dev->dev_name);
+		link->state |= DEV_STALE_CONFIG;
+		return;
+	}
+	
 	/* Unlink the device chain */
 	link->dev = NULL;
 	
@@ -518,6 +533,9 @@ static void airo_release(dev_link_t *link)
 	if (link->irq.AssignedIRQ)
 		pcmcia_release_irq(link->handle, &link->irq);
 	link->state &= ~DEV_CONFIG;
+
+	if (link->state & DEV_STALE_CONFIG)
+		airo_detach(link);
 }
 
 /*======================================================================

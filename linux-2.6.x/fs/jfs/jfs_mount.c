@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) International Business Machines Corp., 2000-2004
+ *   Copyright (c) International Business Machines Corp., 2000-2003
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -166,7 +166,7 @@ int jfs_mount(struct super_block *sb)
 		}
 	} else
 		/* Secondary aggregate inode table is not valid */
-		sbi->ipaimap2 = NULL;
+		sbi->ipaimap2 = 0;
 
 	/*
 	 *      mount (the only/single) fileset
@@ -242,6 +242,7 @@ int jfs_mount(struct super_block *sb)
 int jfs_mount_rw(struct super_block *sb, int remount)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(sb);  
+	struct jfs_log *log;
 	int rc;
 
 	/*
@@ -271,15 +272,18 @@ int jfs_mount_rw(struct super_block *sb, int remount)
 	/*
 	 * open/initialize log
 	 */
-	if ((rc = lmLogOpen(sb)))
+	if ((rc = lmLogOpen(sb, &log)))
 		return rc;
+
+	JFS_SBI(sb)->log = log;
 
 	/*
 	 * update file system superblock;
 	 */
 	if ((rc = updateSuper(sb, FM_MOUNT))) {
 		jfs_err("jfs_mount: updateSuper failed w/rc = %d", rc);
-		lmLogClose(sb);
+		lmLogClose(sb, log);
+		JFS_SBI(sb)->log = 0;
 		return rc;
 	}
 
@@ -287,11 +291,6 @@ int jfs_mount_rw(struct super_block *sb, int remount)
 	 * write MOUNT log record of the file system
 	 */
 	logMOUNT(sb);
-
-	/*
-	 * Set page cache allocation policy
-	 */
-	mapping_set_gfp_mask(sb->s_bdev->bd_inode->i_mapping, GFP_NOFS);
 
 	return rc;
 }

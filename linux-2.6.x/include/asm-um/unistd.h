@@ -6,41 +6,26 @@
 #ifndef _UM_UNISTD_H_
 #define _UM_UNISTD_H_
 
-#include <linux/syscalls.h>
 #include "linux/resource.h"
 #include "asm/uaccess.h"
 
+extern long sys_open(const char *filename, int flags, int mode);
+extern long sys_dup(unsigned int fildes);
+extern long sys_close(unsigned int fd);
 extern int um_execve(const char *file, char *const argv[], char *const env[]);
-
-#ifdef __KERNEL__
-#define __ARCH_WANT_IPC_PARSE_VERSION
-#define __ARCH_WANT_OLD_READDIR
-#define __ARCH_WANT_OLD_STAT
-#define __ARCH_WANT_STAT64
-#define __ARCH_WANT_SYS_ALARM
-#define __ARCH_WANT_SYS_GETHOSTNAME
-#define __ARCH_WANT_SYS_PAUSE
-#define __ARCH_WANT_SYS_SGETMASK
-#define __ARCH_WANT_SYS_SIGNAL
-#define __ARCH_WANT_SYS_TIME
-#define __ARCH_WANT_SYS_UTIME
-#define __ARCH_WANT_SYS_WAITPID
-#define __ARCH_WANT_SYS_SOCKETCALL
-#define __ARCH_WANT_SYS_FADVISE64
-#define __ARCH_WANT_SYS_GETPGRP
-#define __ARCH_WANT_SYS_LLSEEK
-#define __ARCH_WANT_SYS_NICE
-#define __ARCH_WANT_SYS_OLD_GETRLIMIT
-#define __ARCH_WANT_SYS_OLDUMOUNT
-#define __ARCH_WANT_SYS_SIGPENDING
-#define __ARCH_WANT_SYS_SIGPROCMASK
-#define __ARCH_WANT_SYS_RT_SIGACTION
-#endif
+extern long sys_setsid(void);
+extern long sys_waitpid(pid_t pid, unsigned int * stat_addr, int options);
+extern long sys_wait4(pid_t pid,unsigned int *stat_addr, int options, 
+		      struct rusage *ru);
+extern long sys_mount(char *dev_name, char *dir_name, char *type, 
+		      unsigned long flags, void *data);
+extern long sys_select(int n, fd_set *inp, fd_set *outp, fd_set *exp, 
+		       struct timeval *tvp);
+extern long sys_lseek(unsigned int fildes, unsigned long offset, int whence);
+extern long sys_read(unsigned int fildes, char *buf, int len);
+extern long sys_write(int fildes, const char *buf, size_t len);
 
 #ifdef __KERNEL_SYSCALLS__
-
-#include <linux/compiler.h>
-#include <linux/types.h>
 
 #define KERNEL_CALL(ret_t, sys, args...)	\
 	mm_segment_t fs = get_fs();		\
@@ -95,22 +80,6 @@ static inline int write(unsigned int fd, char * buf, int len)
 {
 	KERNEL_CALL(int, sys_write, fd, buf, len)
 }
-
-long sys_mmap2(unsigned long addr, unsigned long len,
-		unsigned long prot, unsigned long flags,
-		unsigned long fd, unsigned long pgoff);
-int sys_execve(char *file, char **argv, char **env);
-long sys_clone(unsigned long clone_flags, unsigned long newsp,
-		int *parent_tid, int *child_tid);
-long sys_fork(void);
-long sys_vfork(void);
-int sys_pipe(unsigned long *fildes);
-int sys_ptrace(long request, long pid, long addr, long data);
-struct sigaction;
-asmlinkage long sys_rt_sigaction(int sig,
-				const struct sigaction __user *act,
-				struct sigaction __user *oact,
-				size_t sigsetsize);
 
 #endif
 

@@ -131,7 +131,7 @@ static int usb_mouse_probe(struct usb_interface * intf, const struct usb_device_
 	char path[64];
 	char *buf;
 
-	interface = intf->cur_altsetting;
+	interface = &intf->altsetting[intf->act_altsetting];
 
 	if (interface->desc.bNumEndpoints != 1) 
 		return -ENODEV;

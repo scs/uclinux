@@ -27,7 +27,8 @@ typedef struct { volatile int counter; } atomic_t;
  * atomic_read - read atomic variable
  * @v: pointer of type atomic_t
  * 
- * Atomically reads the value of @v.
+ * Atomically reads the value of @v.  Note that the guaranteed
+ * useful range of an atomic_t is only 24 bits.
  */ 
 #define atomic_read(v)		((v)->counter)
 
@@ -36,7 +37,8 @@ typedef struct { volatile int counter; } atomic_t;
  * @v: pointer of type atomic_t
  * @i: required value
  * 
- * Atomically sets the value of @v to @i.
+ * Atomically sets the value of @v to @i.  Note that the guaranteed
+ * useful range of an atomic_t is only 24 bits.
  */ 
 #define atomic_set(v,i)		(((v)->counter) = (i))
 
@@ -45,7 +47,8 @@ typedef struct { volatile int counter; } atomic_t;
  * @i: integer value to add
  * @v: pointer of type atomic_t
  * 
- * Atomically adds @i to @v.
+ * Atomically adds @i to @v.  Note that the guaranteed useful range
+ * of an atomic_t is only 24 bits.
  */
 static __inline__ void atomic_add(int i, atomic_t *v)
 {
@@ -60,7 +63,8 @@ static __inline__ void atomic_add(int i, atomic_t *v)
  * @i: integer value to subtract
  * @v: pointer of type atomic_t
  * 
- * Atomically subtracts @i from @v.
+ * Atomically subtracts @i from @v.  Note that the guaranteed
+ * useful range of an atomic_t is only 24 bits.
  */
 static __inline__ void atomic_sub(int i, atomic_t *v)
 {
@@ -77,7 +81,8 @@ static __inline__ void atomic_sub(int i, atomic_t *v)
  * 
  * Atomically subtracts @i from @v and returns
  * true if the result is zero, or false for all
- * other cases.
+ * other cases.  Note that the guaranteed
+ * useful range of an atomic_t is only 24 bits.
  */
 static __inline__ int atomic_sub_and_test(int i, atomic_t *v)
 {
@@ -94,7 +99,8 @@ static __inline__ int atomic_sub_and_test(int i, atomic_t *v)
  * atomic_inc - increment atomic variable
  * @v: pointer of type atomic_t
  * 
- * Atomically increments @v by 1.
+ * Atomically increments @v by 1.  Note that the guaranteed
+ * useful range of an atomic_t is only 24 bits.
  */ 
 static __inline__ void atomic_inc(atomic_t *v)
 {
@@ -108,7 +114,8 @@ static __inline__ void atomic_inc(atomic_t *v)
  * atomic_dec - decrement atomic variable
  * @v: pointer of type atomic_t
  * 
- * Atomically decrements @v by 1.
+ * Atomically decrements @v by 1.  Note that the guaranteed
+ * useful range of an atomic_t is only 24 bits.
  */ 
 static __inline__ void atomic_dec(atomic_t *v)
 {
@@ -124,7 +131,8 @@ static __inline__ void atomic_dec(atomic_t *v)
  * 
  * Atomically decrements @v by 1 and
  * returns true if the result is 0, or false for all other
- * cases.
+ * cases.  Note that the guaranteed
+ * useful range of an atomic_t is only 24 bits.
  */ 
 static __inline__ int atomic_dec_and_test(atomic_t *v)
 {
@@ -143,7 +151,8 @@ static __inline__ int atomic_dec_and_test(atomic_t *v)
  * 
  * Atomically increments @v by 1
  * and returns true if the result is zero, or false for all
- * other cases.
+ * other cases.  Note that the guaranteed
+ * useful range of an atomic_t is only 24 bits.
  */ 
 static __inline__ int atomic_inc_and_test(atomic_t *v)
 {
@@ -163,7 +172,8 @@ static __inline__ int atomic_inc_and_test(atomic_t *v)
  * 
  * Atomically adds @i to @v and returns true
  * if the result is negative, or false when
- * result is greater than or equal to zero.
+ * result is greater than or equal to zero.  Note that the guaranteed
+ * useful range of an atomic_t is only 24 bits.
  */ 
 static __inline__ int atomic_add_negative(int i, atomic_t *v)
 {

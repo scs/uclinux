@@ -167,6 +167,7 @@ int replace_cis(client_handle_t handle, cisdump_t *cis);
 int read_tuple(client_handle_t handle, cisdata_t code, void *parse);
 
 /* In bulkmem.c */
+void retry_erase_list(struct erase_busy_t *list, u_int cause);
 int get_first_region(client_handle_t handle, region_info_t *rgn);
 int get_next_region(client_handle_t handle, region_info_t *rgn);
 int register_mtd(client_handle_t handle, mtd_reg_t *reg);
@@ -180,41 +181,24 @@ int write_memory(memory_handle_t handle, mem_op_t *req, caddr_t buf);
 int copy_memory(memory_handle_t handle, copy_op_t *req);
 
 /* In rsrc_mgr */
-void pcmcia_validate_mem(struct pcmcia_socket *s);
-struct resource *find_io_region(unsigned long base, int num, unsigned long align,
+void validate_mem(struct pcmcia_socket *s);
+int find_io_region(ioaddr_t *base, ioaddr_t num, ioaddr_t align,
 		   char *name, struct pcmcia_socket *s);
-int adjust_io_region(struct resource *res, unsigned long r_start,
-		     unsigned long r_end, struct pcmcia_socket *s);
-struct resource *find_mem_region(u_long base, u_long num, u_long align,
+int find_mem_region(u_long *base, u_long num, u_long align,
 		    int low, char *name, struct pcmcia_socket *s);
 int try_irq(u_int Attributes, int irq, int specific);
 void undo_irq(u_int Attributes, int irq);
 int adjust_resource_info(client_handle_t handle, adjust_t *adj);
 void release_resource_db(void);
 
-/* In socket_sysfs.c */
-extern struct class_interface pccard_sysfs_interface;
-
-/* In cs.c */
 extern struct rw_semaphore pcmcia_socket_list_rwsem;
 extern struct list_head pcmcia_socket_list;
 
-#define cs_socket_name(skt)	((skt)->dev.class_id)
-
-#ifdef DEBUG
-extern int cs_debug_level(int);
-
-#define cs_dbg(skt, lvl, fmt, arg...) do {		\
-	if (cs_debug_level(lvl))			\
-		printk(KERN_DEBUG "cs: %s: " fmt, 	\
-		       cs_socket_name(skt) , ## arg);	\
-} while (0)
-
+#ifdef PCMCIA_DEBUG
+extern int pc_debug;
+#define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_DEBUG args); } while (0)
 #else
-#define cs_dbg(skt, lvl, fmt, arg...) do { } while (0)
+#define DEBUG(n, args...) do { } while (0)
 #endif
-
-#define cs_err(skt, fmt, arg...) \
-	printk(KERN_ERR "cs: %s: " fmt, (skt)->dev.class_id , ## arg)
 
 #endif /* _LINUX_CS_INTERNAL_H */

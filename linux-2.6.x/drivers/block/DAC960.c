@@ -97,8 +97,7 @@ static int DAC960_ioctl(struct inode *inode, struct file *file,
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	DAC960_Controller_T *p = disk->queue->queuedata;
 	int drive_nr = (long)disk->private_data;
-	struct hd_geometry g;
-	struct hd_geometry __user *loc = (struct hd_geometry __user *)arg;
+	struct hd_geometry g, *loc = (struct hd_geometry *)arg;
 
 	if (cmd != HDIO_GETGEO || !loc)
 		return -EINVAL;
@@ -6456,8 +6455,7 @@ static int DAC960_ProcReadUserCommand(char *Page, char **Start, off_t Offset,
   DAC960_ProcWriteUserCommand implements writing /proc/rd/cN/user_command.
 */
 
-static int DAC960_ProcWriteUserCommand(struct file *file,
-				       const char __user *Buffer,
+static int DAC960_ProcWriteUserCommand(struct file *file, const char *Buffer,
 				       unsigned long Count, void *Data)
 {
   DAC960_Controller_T *Controller = (DAC960_Controller_T *) Data;
@@ -6545,8 +6543,8 @@ static int DAC960_gam_ioctl(struct inode *inode, struct file *file,
       return DAC960_ControllerCount;
     case DAC960_IOCTL_GET_CONTROLLER_INFO:
       {
-	DAC960_ControllerInfo_T __user *UserSpaceControllerInfo =
-	  (DAC960_ControllerInfo_T __user *) Argument;
+	DAC960_ControllerInfo_T *UserSpaceControllerInfo =
+	  (DAC960_ControllerInfo_T *) Argument;
 	DAC960_ControllerInfo_T ControllerInfo;
 	DAC960_Controller_T *Controller;
 	int ControllerNumber;
@@ -6576,8 +6574,8 @@ static int DAC960_gam_ioctl(struct inode *inode, struct file *file,
       }
     case DAC960_IOCTL_V1_EXECUTE_COMMAND:
       {
-	DAC960_V1_UserCommand_T __user *UserSpaceUserCommand =
-	  (DAC960_V1_UserCommand_T __user *) Argument;
+	DAC960_V1_UserCommand_T *UserSpaceUserCommand =
+	  (DAC960_V1_UserCommand_T *) Argument;
 	DAC960_V1_UserCommand_T UserCommand;
 	DAC960_Controller_T *Controller;
 	DAC960_Command_T *Command = NULL;
@@ -6736,8 +6734,8 @@ static int DAC960_gam_ioctl(struct inode *inode, struct file *file,
       }
     case DAC960_IOCTL_V2_EXECUTE_COMMAND:
       {
-	DAC960_V2_UserCommand_T __user *UserSpaceUserCommand =
-	  (DAC960_V2_UserCommand_T __user *) Argument;
+	DAC960_V2_UserCommand_T *UserSpaceUserCommand =
+	  (DAC960_V2_UserCommand_T *) Argument;
 	DAC960_V2_UserCommand_T UserCommand;
 	DAC960_Controller_T *Controller;
 	DAC960_Command_T *Command = NULL;
@@ -6890,8 +6888,8 @@ static int DAC960_gam_ioctl(struct inode *inode, struct file *file,
       }
     case DAC960_IOCTL_V2_GET_HEALTH_STATUS:
       {
-	DAC960_V2_GetHealthStatus_T __user *UserSpaceGetHealthStatus =
-	  (DAC960_V2_GetHealthStatus_T __user *) Argument;
+	DAC960_V2_GetHealthStatus_T *UserSpaceGetHealthStatus =
+	  (DAC960_V2_GetHealthStatus_T *) Argument;
 	DAC960_V2_GetHealthStatus_T GetHealthStatus;
 	DAC960_V2_HealthStatusBuffer_T HealthStatusBuffer;
 	DAC960_Controller_T *Controller;

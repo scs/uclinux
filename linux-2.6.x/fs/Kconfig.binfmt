@@ -44,7 +44,7 @@ config BINFMT_SHARED_FLAT
 
 config BINFMT_AOUT
 	tristate "Kernel support for a.out and ECOFF binaries"
-	depends on (X86 && !X86_64) || ALPHA || ARM || M68K || SPARC32
+	depends on (X86 && !X86_64) || ALPHA || ARM || M68K || MIPS || SPARC
 	---help---
 	  A.out (Assembler.OUTput) is a set of formats for libraries and
 	  executables used in the earliest versions of UNIX.  Linux used
@@ -99,7 +99,7 @@ config BINFMT_MISC
 	---help---
 	  If you say Y here, it will be possible to plug wrapper-driven binary
 	  formats into the kernel. You will like this especially when you use
-	  programs that need an interpreter to run like Java, Python, .NET or
+	  programs that need an interpreter to run like Java, Python or
 	  Emacs-Lisp. It's also useful if you often run DOS executables under
 	  the Linux DOS emulator DOSEMU (read the DOSEMU-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>). Once you have
@@ -109,9 +109,8 @@ config BINFMT_MISC
 
 	  You can do other nice things, too. Read the file
 	  <file:Documentation/binfmt_misc.txt> to learn how to use this
-	  feature, <file:Documentation/java.txt> for information about how
-	  to include Java support. and <file:Documentation/mono.txt> for
-          information about how to include Mono-based .NET support.
+	  feature, and <file:Documentation/java.txt> for information about how
+	  to include Java support.
 
           To use binfmt_misc, you will need to mount it:
 		mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc

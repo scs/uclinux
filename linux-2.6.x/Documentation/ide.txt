@@ -65,7 +65,9 @@ sixth..     ide5, usually PCI, probed
 
 To access devices on interfaces > ide0, device entries please make sure that
 device files for them are present in /dev.  If not, please create such
-entries, by using /dev/MAKEDEV.
+entries, by simply running the included shell script:
+
+	/usr/src/linux/scripts/MAKEDEV.ide
 
 This driver automatically probes for most IDE interfaces (including all PCI
 ones), for the drives/geometries attached to those interfaces, and for the IRQ
@@ -196,11 +198,12 @@ drivers can always be compiled as loadable modules, the chipset drivers
 can only be compiled into the kernel, and the core code (ide.c) can be
 compiled as a loadable module provided no chipset support is needed.
 
-When using ide.c as a module in combination with kmod, add:
+When using ide.c/ide-tape.c as modules in combination with kerneld, add:
 
 	alias block-major-3 ide-probe
+	alias char-major-37 ide-tape
 
-to /etc/modprobe.conf.
+respectively to /etc/modules.conf.
 
 When ide.c is used as a module, you can pass command line parameters to the
 driver using the "options=" keyword to insmod, while replacing any ',' with
@@ -228,10 +231,9 @@ Summary of ide driver parameters for kernel command line
  
  "hdx=cyl,head,sect"	: disk drive is present, with specified geometry
 
- "hdx=remap"		: remap access of sector 0 to sector 1 (for EZDrive)
+ "hdx=remap"		: remap access of sector 0 to sector 1 (for EZD)
 
- "hdx=remap63"		: remap the drive: add 63 to all sector numbers
-			  (for DM OnTrack)
+ "hdx=remap63"		: remap the drive: shift all by 63 sectors (for DM)
  
  "hdx=autotune"		: driver will attempt to tune interface speed
 			  to the fastest PIO mode supported,
@@ -240,20 +242,22 @@ Summary of ide driver parameters for kernel command line
 			  and quite likely to cause trouble with
 			  older/odd IDE drives.
 
+ "hdx=slow"		: insert a huge pause after each access to the data
+			  port. Should be used only as a last resort.
+
  "hdx=swapdata"		: when the drive is a disk, byte swap all data
 
  "hdx=bswap"		: same as above..........
 
+ "hdx=flash"		: allows for more than one ata_flash disk to be
+ 			  registered. In most cases, only one device
+ 			  will be present.
+
  "hdx=scsi"		: the return of the ide-scsi flag, this is useful for
  			  allowing ide-floppy, ide-tape, and ide-cdrom|writers
  			  to use ide-scsi emulation on a device specific option.
-
- "hdx=stroke"		: Should you have a system w/ an AWARD Bios and your
-			  drives are larger than 32GB and it will not boot,
-			  one is required to perform a few OEM operations first.
-			  The option is called "stroke" because it allows one
-			  to "soft clip" the drive to work around a barrier
-			  limit.
+				
+ "hdxlun=xx"		: set the drive last logical unit
 
  "idebus=xx"		: inform IDE driver of VESA/PCI bus speed in MHz,
 			  where "xx" is between 20 and 66 inclusive,
@@ -349,7 +353,7 @@ The character device interface consists of the following devices:
  nht1		major 37, minor 129	second IDE tape, no rewind on close.
  ...
 
-Run /dev/MAKEDEV to create the above entries.
+Run linux/scripts/MAKEDEV.ide to create the above entries.
 
 The general magnetic tape commands compatible interface, as defined by
 include/linux/mtio.h, is accessible through the character device.

@@ -597,112 +597,126 @@ static inline u16 rx_q_entry_to_rx_channel (u32 x) {
 
 // p ranges from 1 to a power of 2
 #define CR_MAXPEXP 4
- 
+
 static int make_rate (const hrz_dev * dev, u32 c, rounding r,
-		      u16 * bits, unsigned int * actual)
-{
-	// note: rounding the rate down means rounding 'p' up
-	const unsigned long br = test_bit(ultra, &dev->flags) ? BR_ULT : BR_HRZ;
+		      u16 * bits, unsigned int * actual) {
   
-	u32 div = CR_MIND;
-	u32 pre;
+  // note: rounding the rate down means rounding 'p' up
   
-	// br_exp and br_man are used to avoid overflowing (c*maxp*2^d) in
-	// the tests below. We could think harder about exact possibilities
-	// of failure...
+  const unsigned long br = test_bit(ultra, &dev->flags) ? BR_ULT : BR_HRZ;
   
-	unsigned long br_man = br;
-	unsigned int br_exp = 0;
+  u32 div = CR_MIND;
+  u32 pre;
   
-	PRINTD (DBG_QOS|DBG_FLOW, "make_rate b=%lu, c=%u, %s", br, c,
-		r == round_up ? "up" : r == round_down ? "down" : "nearest");
+  // local fn to build the timer bits
+  int set_cr (void) {
+    // paranoia
+    if (div > CR_MAXD || (!pre) || pre > 1<<CR_MAXPEXP) {
+      PRINTD (DBG_QOS, "set_cr internal failure: d=%u p=%u",
+	      div, pre);
+      return -EINVAL;
+    } else {
+      if (bits)
+	*bits = (div<<CLOCK_SELECT_SHIFT) | (pre-1);
+      if (actual) {
+	*actual = (br + (pre<<div) - 1) / (pre<<div);
+	PRINTD (DBG_QOS, "actual rate: %u", *actual);
+      }
+      return 0;
+    }
+  }
   
-	// avoid div by zero
-	if (!c) {
-		PRINTD (DBG_QOS|DBG_ERR, "zero rate is not allowed!");
-		return -EINVAL;
-	}
+  // br_exp and br_man are used to avoid overflowing (c*maxp*2^d) in
+  // the tests below. We could think harder about exact possibilities
+  // of failure...
   
-	while (br_exp < CR_MAXPEXP + CR_MIND && (br_man % 2 == 0)) {
-		br_man = br_man >> 1;
-		++br_exp;
-	}
-	// (br >>br_exp) <<br_exp == br and
-	// br_exp <= CR_MAXPEXP+CR_MIND
+  unsigned long br_man = br;
+  unsigned int br_exp = 0;
   
-	if (br_man <= (c << (CR_MAXPEXP+CR_MIND-br_exp))) {
-		// Equivalent to: B <= (c << (MAXPEXP+MIND))
-		// take care of rounding
-		switch (r) {
-			case round_down:
-				pre = (br+(c<<div)-1)/(c<<div);
-				// but p must be non-zero
-				if (!pre)
-					pre = 1;
-				break;
-			case round_nearest:
-				pre = (br+(c<<div)/2)/(c<<div);
-				// but p must be non-zero
-				if (!pre)
-					pre = 1;
-				break;
-			default:	/* round_up */
-				pre = br/(c<<div);
-				// but p must be non-zero
-				if (!pre)
-					return -EINVAL;
-		}
-		PRINTD (DBG_QOS, "A: p=%u, d=%u", pre, div);
-		goto got_it;
-	}
+  PRINTD (DBG_QOS|DBG_FLOW, "make_rate b=%lu, c=%u, %s", br, c,
+	  (r == round_up) ? "up" : (r == round_down) ? "down" : "nearest");
   
-	// at this point we have
-	// d == MIND and (c << (MAXPEXP+MIND)) < B
-	while (div < CR_MAXD) {
-		div++;
-		if (br_man <= (c << (CR_MAXPEXP+div-br_exp))) {
-			// Equivalent to: B <= (c << (MAXPEXP+d))
-			// c << (MAXPEXP+d-1) < B <= c << (MAXPEXP+d)
-			// 1 << (MAXPEXP-1) < B/2^d/c <= 1 << MAXPEXP
-			// MAXP/2 < B/c2^d <= MAXP
-			// take care of rounding
-			switch (r) {
-				case round_down:
-					pre = (br+(c<<div)-1)/(c<<div);
-					break;
-				case round_nearest:
-					pre = (br+(c<<div)/2)/(c<<div);
-					break;
-				default: /* round_up */
-					pre = br/(c<<div);
-			}
-			PRINTD (DBG_QOS, "B: p=%u, d=%u", pre, div);
-			goto got_it;
-		}
-	}
-	// at this point we have
-	// d == MAXD and (c << (MAXPEXP+MAXD)) < B
-	// but we cannot go any higher
-	// take care of rounding
-	if (r == round_down)
-		return -EINVAL;
-	pre = 1 << CR_MAXPEXP;
-	PRINTD (DBG_QOS, "C: p=%u, d=%u", pre, div);
-got_it:
-	// paranoia
-	if (div > CR_MAXD || (!pre) || pre > 1<<CR_MAXPEXP) {
-		PRINTD (DBG_QOS, "set_cr internal failure: d=%u p=%u",
-			div, pre);
-		return -EINVAL;
-	} else {
-		if (bits)
-			*bits = (div<<CLOCK_SELECT_SHIFT) | (pre-1);
-		if (actual) {
-			*actual = (br + (pre<<div) - 1) / (pre<<div);
-			PRINTD (DBG_QOS, "actual rate: %u", *actual);
-		}
-		return 0;
-	}
+  // avoid div by zero
+  if (!c) {
+    PRINTD (DBG_QOS|DBG_ERR, "zero rate is not allowed!");
+    return -EINVAL;
+  }
+  
+  while (br_exp < CR_MAXPEXP + CR_MIND && (br_man % 2 == 0)) {
+    br_man = br_man >> 1;
+    ++br_exp;
+  }
+  // (br >>br_exp) <<br_exp == br and
+  // br_exp <= CR_MAXPEXP+CR_MIND
+  
+  if (br_man <= (c << (CR_MAXPEXP+CR_MIND-br_exp))) {
+    // Equivalent to: B <= (c << (MAXPEXP+MIND))
+    // take care of rounding
+    switch (r) {
+      case round_down:
+	pre = (br+(c<<div)-1)/(c<<div);
+	// but p must be non-zero
+	if (!pre)
+	  pre = 1;
+	break;
+      case round_nearest:
+	pre = (br+(c<<div)/2)/(c<<div);
+	// but p must be non-zero
+	if (!pre)
+	  pre = 1;
+	break;
+      case round_up:
+	pre = br/(c<<div);
+	// but p must be non-zero
+	if (!pre)
+	  return -EINVAL;
+	break;
+    }
+    PRINTD (DBG_QOS, "A: p=%u, d=%u", pre, div);
+    return set_cr ();
+  }
+  
+  // at this point we have
+  // d == MIND and (c << (MAXPEXP+MIND)) < B
+  while (div < CR_MAXD) {
+    div++;
+    if (br_man <= (c << (CR_MAXPEXP+div-br_exp))) {
+      // Equivalent to: B <= (c << (MAXPEXP+d))
+      // c << (MAXPEXP+d-1) < B <= c << (MAXPEXP+d)
+      // 1 << (MAXPEXP-1) < B/2^d/c <= 1 << MAXPEXP
+      // MAXP/2 < B/c2^d <= MAXP
+      // take care of rounding
+      switch (r) {
+	case round_down:
+	  pre = (br+(c<<div)-1)/(c<<div);
+	  break;
+	case round_nearest:
+	  pre = (br+(c<<div)/2)/(c<<div);
+	  break;
+	case round_up:
+	  pre = br/(c<<div);
+	  break;
+      }
+      PRINTD (DBG_QOS, "B: p=%u, d=%u", pre, div);
+      return set_cr ();
+    }
+  }
+  // at this point we have
+  // d == MAXD and (c << (MAXPEXP+MAXD)) < B
+  // but we cannot go any higher
+  // take care of rounding
+  switch (r) {
+    case round_down:
+      return -EINVAL;
+      break;
+    case round_nearest:
+      break;
+    case round_up:
+      break;
+  }
+  pre = 1 << CR_MAXPEXP;
+  PRINTD (DBG_QOS, "C: p=%u, d=%u", pre, div);
+  return set_cr ();
 }
 
 static int make_rate_with_tolerance (const hrz_dev * dev, u32 c, rounding r, unsigned int tol,
@@ -1184,7 +1198,7 @@ static void tx_schedule (hrz_dev * const dev, int irq) {
 	// tx_regions == 0
 	// that's all folks - end of frame
 	struct sk_buff * skb = dev->tx_skb;
-	dev->tx_iovec = NULL;
+	dev->tx_iovec = 0;
 	
 	// VC layer stats
 	atomic_inc(&ATM_SKB(skb)->vcc->stats->tx);
@@ -1761,7 +1775,7 @@ static int hrz_send (struct atm_vcc * atm_vcc, struct sk_buff * skb) {
     if (tx_iovcnt) {
       // scatter gather transfer
       dev->tx_regions = tx_iovcnt;
-      dev->tx_iovec = NULL;		/* @@@ needs rewritten */
+      dev->tx_iovec = 0;		/* @@@ needs rewritten */
       dev->tx_bytes = 0;
       PRINTD (DBG_TX|DBG_BUS, "TX start scatter-gather transfer (iovec %p, len %d)",
 	      skb->data, tx_len);
@@ -1771,7 +1785,7 @@ static int hrz_send (struct atm_vcc * atm_vcc, struct sk_buff * skb) {
     } else {
       // simple transfer
       dev->tx_regions = 0;
-      dev->tx_iovec = NULL;
+      dev->tx_iovec = 0;
       dev->tx_bytes = tx_len;
       dev->tx_addr = skb->data;
       PRINTD (DBG_TX|DBG_BUS, "TX start simple transfer (addr %p, len %d)",
@@ -1788,7 +1802,7 @@ static int hrz_send (struct atm_vcc * atm_vcc, struct sk_buff * skb) {
 
 /********** reset a card **********/
 
-static void hrz_reset (const hrz_dev * dev) {
+static void __init hrz_reset (const hrz_dev * dev) {
   u32 control_0_reg = rd_regl (dev, CONTROL_0_REG);
   
   // why not set RESET_HORIZON to one and wait for the card to
@@ -1809,22 +1823,22 @@ static void hrz_reset (const hrz_dev * dev) {
 
 /********** read the burnt in address **********/
 
-static inline void WRITE_IT_WAIT (const hrz_dev *dev, u32 ctrl)
-{
-	wr_regl (dev, CONTROL_0_REG, ctrl);
-	udelay (5);
-}
+static u16 __init read_bia (const hrz_dev * dev, u16 addr) {
   
-static inline void CLOCK_IT (const hrz_dev *dev, u32 ctrl)
-{
-	// DI must be valid around rising SK edge
-	WRITE_IT_WAIT(dev, ctrl & ~SEEPROM_SK);
-	WRITE_IT_WAIT(dev, ctrl | SEEPROM_SK);
-}
-
-static u16 __init read_bia (const hrz_dev * dev, u16 addr)
-{
   u32 ctrl = rd_regl (dev, CONTROL_0_REG);
+  
+  void WRITE_IT_WAIT (void) {
+    wr_regl (dev, CONTROL_0_REG, ctrl);
+    udelay (5);
+  }
+  
+  void CLOCK_IT (void) {
+    // DI must be valid around rising SK edge
+    ctrl &= ~SEEPROM_SK;
+    WRITE_IT_WAIT();
+    ctrl |= SEEPROM_SK;
+    WRITE_IT_WAIT();
+  }
   
   const unsigned int addr_bits = 6;
   const unsigned int data_bits = 16;
@@ -1834,17 +1848,17 @@ static u16 __init read_bia (const hrz_dev * dev, u16 addr)
   u16 res;
   
   ctrl &= ~(SEEPROM_CS | SEEPROM_SK | SEEPROM_DI);
-  WRITE_IT_WAIT(dev, ctrl);
+  WRITE_IT_WAIT();
   
   // wake Serial EEPROM and send 110 (READ) command
   ctrl |=  (SEEPROM_CS | SEEPROM_DI);
-  CLOCK_IT(dev, ctrl);
+  CLOCK_IT();
   
   ctrl |= SEEPROM_DI;
-  CLOCK_IT(dev, ctrl);
+  CLOCK_IT();
   
   ctrl &= ~SEEPROM_DI;
-  CLOCK_IT(dev, ctrl);
+  CLOCK_IT();
   
   for (i=0; i<addr_bits; i++) {
     if (addr & (1 << (addr_bits-1)))
@@ -1852,7 +1866,7 @@ static u16 __init read_bia (const hrz_dev * dev, u16 addr)
     else
       ctrl &= ~SEEPROM_DI;
     
-    CLOCK_IT(dev, ctrl);
+    CLOCK_IT();
     
     addr = addr << 1;
   }
@@ -1864,14 +1878,14 @@ static u16 __init read_bia (const hrz_dev * dev, u16 addr)
   for (i=0;i<data_bits;i++) {
     res = res >> 1;
     
-    CLOCK_IT(dev, ctrl);
+    CLOCK_IT();
     
     if (rd_regl (dev, CONTROL_0_REG) & SEEPROM_DO)
       res |= (1 << (data_bits-1));
   }
   
   ctrl &= ~(SEEPROM_SK | SEEPROM_CS);
-  WRITE_IT_WAIT(dev, ctrl);
+  WRITE_IT_WAIT();
   
   return res;
 }
@@ -2278,7 +2292,7 @@ static int hrz_open (struct atm_vcc *atm_vcc)
 	// we take "the PCR" as a rate-cap
 	// not reserved
 	vcc.tx_rate = 0;
-	make_rate (dev, 1<<30, round_nearest, &vcc.tx_pcr_bits, NULL);
+	make_rate (dev, 1<<30, round_nearest, &vcc.tx_pcr_bits, 0);
 	vcc.tx_xbr_bits = ABR_RATE_TYPE;
 	break;
       }
@@ -2583,7 +2597,7 @@ static void hrz_close (struct atm_vcc * atm_vcc) {
       PRINTK (KERN_ERR, "%s atm_vcc=%p rxer[channel]=%p",
 	      "arghhh! we're going to die!",
 	      atm_vcc, dev->rxer[channel]);
-    dev->rxer[channel] = NULL;
+    dev->rxer[channel] = 0;
   }
   
   // atomically release our rate reservation
@@ -2806,8 +2820,8 @@ static int __init hrz_probe (void) {
 	
 	dev->tx_regions = 0;
 	dev->tx_bytes = 0;
-	dev->tx_skb = NULL;
-	dev->tx_iovec = NULL;
+	dev->tx_skb = 0;
+	dev->tx_iovec = 0;
 	
 	dev->tx_cell_count = 0;
 	dev->rx_cell_count = 0;

@@ -34,8 +34,11 @@
 */
 
 #include <linux/config.h>
+#ifdef CONFIG_I2C_DEBUG_BUS
+#define DEBUG	1
+#endif
+
 #include <linux/module.h>
-#include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
@@ -139,7 +142,7 @@ static int vt596_transaction(void)
 	/* We will always wait for a fraction of a second! 
 	   I don't know if VIA needs this, Intel did  */
 	do {
-		msleep(1);
+		i2c_delay(1);
 		temp = inb_p(SMBHSTSTS);
 	} while ((temp & 0x01) && (timeout++ < MAX_TIMEOUT));
 
@@ -290,7 +293,7 @@ static struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter vt596_adapter = {
 	.owner		= THIS_MODULE,
-	.class		= I2C_CLASS_HWMON,
+	.class		= I2C_ADAP_CLASS_SMBUS,
 	.algo		= &smbus_algorithm,
 	.name		= "unset",
 };

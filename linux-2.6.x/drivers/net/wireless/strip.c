@@ -82,7 +82,6 @@ static const char StripVersion[] = "1.3A-STUART.CHESHIRE";
 /* Header files								*/
 
 #include <linux/config.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <asm/system.h>
@@ -409,12 +408,12 @@ static const MetricomAddress zero_address;
 static const MetricomAddress broadcast_address =
     { {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} };
 
-static const MetricomKey SIP0Key = { "SIP0" };
-static const MetricomKey ARP0Key = { "ARP0" };
-static const MetricomKey ATR_Key = { "ATR " };
-static const MetricomKey ACK_Key = { "ACK_" };
-static const MetricomKey INF_Key = { "INF_" };
-static const MetricomKey ERR_Key = { "ERR_" };
+static const MetricomKey SIP0Key = { {"SIP0"} };
+static const MetricomKey ARP0Key = { {"ARP0"} };
+static const MetricomKey ATR_Key = { {"ATR "} };
+static const MetricomKey ACK_Key = { {"ACK_"} };
+static const MetricomKey INF_Key = { {"INF_"} };
+static const MetricomKey ERR_Key = { {"ERR_"} };
 
 static const long MaxARPInterval = 60 * HZ;	/* One minute */
 
@@ -455,7 +454,10 @@ static spinlock_t strip_lock = SPIN_LOCK_UNLOCKED;
 
 #define READDEC(X) ((X)>='0' && (X)<='9' ? (X)-'0' : 0)
 
-#define ARRAY_END(X) (&((X)[ARRAY_SIZE(X)]))
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
+#define ELEMENTS_OF(X) (sizeof(X) / sizeof((X)[0]))
+#define ARRAY_END(X) (&((X)[ELEMENTS_OF(X)]))
 
 #define JIFFIE_TO_SEC(X) ((X) / HZ)
 
@@ -845,7 +847,7 @@ static __u8 *radio_address_to_string(const MetricomAddress * addr,
 static int allocate_buffers(struct strip *strip_info, int mtu)
 {
 	struct net_device *dev = strip_info->dev;
-	int sx_size = max_t(int, STRIP_ENCAP_SIZE(MAX_RECV_MTU), 4096);
+	int sx_size = MAX(STRIP_ENCAP_SIZE(MAX_RECV_MTU), 4096);
 	int tx_size = STRIP_ENCAP_SIZE(mtu) + MaxCommandStringLength;
 	__u8 *r = kmalloc(MAX_RECV_MTU, GFP_ATOMIC);
 	__u8 *s = kmalloc(sx_size, GFP_ATOMIC);
@@ -951,7 +953,6 @@ static void strip_unlock(struct strip *strip_info)
  * ascii representation of the number plus 9 charactes for the " seconds"
  * and the null character.
  */
-#ifdef CONFIG_PROC_FS
 static char *time_delta(char buffer[], long time)
 {
 	time -= jiffies;
@@ -1172,7 +1173,6 @@ static struct file_operations strip_seq_fops = {
 	.llseek  = seq_lseek,
 	.release = seq_release,
 };
-#endif
 
 
 
@@ -1465,7 +1465,7 @@ static void strip_send(struct strip *strip_info, struct sk_buff *skb)
 		/* Cycle to next periodic command? */
 		if (strip_info->firmware_level >= StructuredMessages)
 			if (++strip_info->next_command >=
-			    ARRAY_SIZE(CommandString))
+			    ELEMENTS_OF(CommandString))
 				strip_info->next_command = 0;
 #ifdef EXT_COUNTERS
 		strip_info->tx_ebytes += ts.length;
@@ -1709,7 +1709,7 @@ static void get_radio_version(struct strip *strip_info, __u8 * ptr, __u8 * end)
 	p++;
 
 	len = value_end - value_begin;
-	len = min_t(int, len, sizeof(FirmwareVersion) - 1);
+	len = MIN(len, sizeof(FirmwareVersion) - 1);
 	if (strip_info->firmware_version.c[0] == 0)
 		printk(KERN_INFO "%s: Radio Firmware: %.*s\n",
 		       strip_info->dev->name, len, value_begin);
@@ -1727,7 +1727,7 @@ static void get_radio_version(struct strip *strip_info, __u8 * ptr, __u8 * end)
 		sprintf(strip_info->serial_number.c, "%.*s", len, p);
 	} else {
 		printk(KERN_DEBUG
-		       "STRIP: radio serial number shorter (%zd) than expected (%d)\n",
+		       "STRIP: radio serial number shorter (%d) than expected (%d)\n",
 		       end - p, len);
 	}
 }
@@ -1745,7 +1745,7 @@ static void get_radio_voltage(struct strip *strip_info, __u8 * ptr, __u8 * end)
 		sprintf(strip_info->battery_voltage.c, "%.*s", len, ptr);
 	} else {
 		printk(KERN_DEBUG
-		       "STRIP: radio voltage string shorter (%zd) than expected (%d)\n",
+		       "STRIP: radio voltage string shorter (%d) than expected (%d)\n",
 		       end - ptr, len);
 	}
 }
@@ -2330,7 +2330,7 @@ static void strip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			if (*cp == 0x0D) {	/* If end of packet, decide what to do with it */
 				if (strip_info->sx_count > 3000)
 					printk(KERN_INFO
-					       "%s: Cut a %d byte packet (%zd bytes remaining)%s\n",
+					       "%s: Cut a %d byte packet (%d bytes remaining)%s\n",
 					       strip_info->dev->name,
 					       strip_info->sx_count,
 					       end - cp - 1,
@@ -2564,7 +2564,7 @@ static void strip_free(struct strip *strip_info)
 
 	strip_info->magic = 0;
 
-	free_netdev(strip_info->dev);
+	kfree(strip_info->dev);
 }
 
 
@@ -2707,7 +2707,7 @@ static void strip_close(struct tty_struct *tty)
 
 	unregister_netdev(strip_info->dev);
 
-	tty->disc_data = NULL;
+	tty->disc_data = 0;
 	strip_info->tty = NULL;
 	printk(KERN_INFO "STRIP: device \"%s\" closed down\n",
 	       strip_info->dev->name);
@@ -2733,14 +2733,14 @@ static int strip_ioctl(struct tty_struct *tty, struct file *file,
 
 	switch (cmd) {
 	case SIOCGIFNAME:
-		if(copy_to_user((void __user *) arg, strip_info->dev->name, strlen(strip_info->dev->name) + 1))
+		if(copy_to_user((void *) arg, strip_info->dev->name, strlen(strip_info->dev->name) + 1))
 			return -EFAULT;
 		break;
 	case SIOCSIFHWADDR:
 	{
 		MetricomAddress addr;
 		//printk(KERN_INFO "%s: SIOCSIFHWADDR\n", strip_info->dev->name);
-		if(copy_from_user(&addr, (void __user *) arg, sizeof(MetricomAddress)))
+		if(copy_from_user(&addr, (void *) arg, sizeof(MetricomAddress)))
 			return -EFAULT;
 		return set_mac_address(strip_info, &addr);
 	}
@@ -2750,7 +2750,7 @@ static int strip_ioctl(struct tty_struct *tty, struct file *file,
 
 	case TCGETS:
 	case TCGETA:
-		return n_tty_ioctl(tty, file, cmd, arg);
+		return n_tty_ioctl(tty, (struct file *) file, cmd, (unsigned long) arg);
 		break;
 	default:
 		return -ENOIOCTLCMD;

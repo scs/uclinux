@@ -283,11 +283,10 @@ static void flow_cache_flush_per_cpu(void *data)
 void flow_cache_flush(void)
 {
 	struct flow_flush_info info;
-	static DECLARE_MUTEX(flow_flush_sem);
 
-	/* Don't want cpus going down or up during this. */
+	/* Don't want cpus going down or up during this, also protects
+	 * against multiple callers. */
 	lock_cpu_hotplug();
-	down(&flow_flush_sem);
 	atomic_set(&info.cpuleft, num_online_cpus());
 	init_completion(&info.completion);
 
@@ -297,7 +296,6 @@ void flow_cache_flush(void)
 	local_bh_enable();
 
 	wait_for_completion(&info.completion);
-	up(&flow_flush_sem);
 	unlock_cpu_hotplug();
 }
 
@@ -326,17 +324,6 @@ static void __devinit flow_cache_cpu_prepare(int cpu)
 	tasklet_init(tasklet, flow_cache_flush_tasklet, 0);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-static int flow_cache_cpu(struct notifier_block *nfb,
-			  unsigned long action,
-			  void *hcpu)
-{
-	if (action == CPU_DEAD)
-		__flow_cache_shrink((unsigned long)hcpu, 0);
-	return NOTIFY_OK;
-}
-#endif /* CONFIG_HOTPLUG_CPU */
-
 static int __init flow_cache_init(void)
 {
 	int i;
@@ -361,7 +348,6 @@ static int __init flow_cache_init(void)
 	for_each_cpu(i)
 		flow_cache_cpu_prepare(i);
 
-	hotcpu_notifier(flow_cache_cpu, 0);
 	return 0;
 }
 

@@ -11,14 +11,23 @@
 #ifndef _ASM_IA64_SN_ARCH_H
 #define _ASM_IA64_SN_ARCH_H
 
-#include <asm/types.h>
+#include <linux/config.h>
+#include <linux/threads.h>
+#include <linux/mmzone.h>
 #include <asm/sn/types.h>
-#include <asm/sn/sn_cpuid.h>
+
+#include <asm/sn/sn2/arch.h>
 
 typedef u64	shubreg_t;
 typedef u64	hubreg_t;
 typedef u64	mmr_t;
 typedef u64	nic_t;
+
+#define CNODE_TO_CPU_BASE(_cnode)	(NODEPDA(_cnode)->node_first_cpu)
+
+#define NASID_TO_COMPACT_NODEID(nasid)  (nasid_to_cnodeid(nasid))
+#define COMPACT_TO_NASID_NODEID(cnode)  (cnodeid_to_nasid(cnode))
+
 
 #define INVALID_NASID		((nasid_t)-1)
 #define INVALID_CNODEID		((cnodeid_t)-1)
@@ -28,7 +37,9 @@ typedef u64	nic_t;
 #define	INVALID_PARTID		((partid_t)-1)
 
 extern cpuid_t cnodetocpu(cnodeid_t);
-extern void sn_flush_all_caches(long addr, long bytes);
-extern int is_fine_dirmode(void);
+void   sn_flush_all_caches(long addr, long bytes);
+
+extern int     is_fine_dirmode(void);
+
 
 #endif /* _ASM_IA64_SN_ARCH_H */

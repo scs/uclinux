@@ -12,6 +12,7 @@
 #define USE_BOTTOM_HALF
 #endif
 
+#define __KERNEL_SYSCALLS__
 #include <linux/module.h>
 
 #include <linux/kernel.h>
@@ -29,7 +30,7 @@
 
 
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 #include "NCR53C9x.h"
 
 #include <linux/zorro.h>
@@ -41,6 +42,8 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #endif
+
+#include <linux/unistd.h>
 
 /* The controller registers can be found in the Z2 config area at these
  * offsets:
@@ -592,8 +595,6 @@ static Scsi_Host_Template driver_template = {
 	.proc_info		= &esp_proc_info,
 	.name			= "BSC Oktagon SCSI",
 	.detect			= oktagon_esp_detect,
-	.slave_alloc		= esp_slave_alloc,
-	.slave_destroy		= esp_slave_destroy,
 	.release		= oktagon_esp_release,
 	.queuecommand		= esp_queue,
 	.eh_abort_handler	= esp_abort,

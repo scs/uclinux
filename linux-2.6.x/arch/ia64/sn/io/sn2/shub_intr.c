@@ -11,6 +11,7 @@
 #include <asm/sn/types.h>
 #include <asm/sn/sgi.h>
 #include <asm/sn/driver.h>
+#include <asm/sn/iograph.h>
 #include <asm/param.h>
 #include <asm/sn/pio.h>
 #include <asm/sn/xtalk/xwidget.h>
@@ -200,6 +201,7 @@ sn_shub_redirect_intr(pcibr_intr_t intr, unsigned long cpu)
 	int cpuphys, slice;
 	nasid_t nasid;
 	unsigned long xtalk_addr;
+	void		*bridge = intr->bi_soft->bs_base;
 	int		irq;
 	int		i;
 	int		old_cpu;
@@ -236,13 +238,13 @@ sn_shub_redirect_intr(pcibr_intr_t intr, unsigned long cpu)
 	for (bit = 0; bit < 8; bit++) {
 		if (intr->bi_ibits & (1 << bit) ) {
 			/* Disable interrupts. */
-			pcireg_intr_enable_bit_clr(intr->bi_soft, bit);
+			pcireg_intr_enable_bit_clr(bridge, bit);
 			/* Reset Host address (Interrupt destination) */
-			pcireg_intr_addr_addr_set(intr->bi_soft, bit, xtalk_addr);
+			pcireg_intr_addr_addr_set(bridge, bit, xtalk_addr);
 			/* Enable interrupt */
-			pcireg_intr_enable_bit_set(intr->bi_soft, bit);
+			pcireg_intr_enable_bit_set(bridge, bit);
 			/* Force an interrupt, just in case. */
-			pcireg_force_intr_set(intr->bi_soft, bit);
+			pcireg_force_intr_set(bridge, bit);
 		}
 	}
 	irq = intr->bi_irq;

@@ -4,4 +4,4 @@
 
 obj-$(CONFIG_MSDOS_FS) += msdos.o
 
-msdos-y := namei.o
+msdos-objs := namei.o msdosfs_syms.o

@@ -19,8 +19,8 @@ extern unsigned long bus_to_virt_not_defined_use_pci_map(volatile void *addr);
 #define bus_to_virt bus_to_virt_not_defined_use_pci_map
 
 /* BIO layer definitions. */
-extern unsigned long kern_base, kern_size;
-#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
+extern unsigned long phys_base, kern_base, kern_size;
+#define page_to_phys(page)	((((page) - mem_map) << PAGE_SHIFT)+phys_base)
 #define BIO_VMERGE_BOUNDARY	8192
 
 /* Different PCI controllers we support have their PCI MEM space
@@ -31,7 +31,7 @@ extern unsigned long pci_memspace_mask;
 
 #define bus_dvma_to_mem(__vaddr) ((__vaddr) & pci_memspace_mask)
 
-static __inline__ u8 _inb(unsigned long addr)
+static __inline__ u8 inb(unsigned long addr)
 {
 	u8 ret;
 
@@ -42,7 +42,7 @@ static __inline__ u8 _inb(unsigned long addr)
 	return ret;
 }
 
-static __inline__ u16 _inw(unsigned long addr)
+static __inline__ u16 inw(unsigned long addr)
 {
 	u16 ret;
 
@@ -53,7 +53,7 @@ static __inline__ u16 _inw(unsigned long addr)
 	return ret;
 }
 
-static __inline__ u32 _inl(unsigned long addr)
+static __inline__ u32 inl(unsigned long addr)
 {
 	u32 ret;
 
@@ -64,40 +64,33 @@ static __inline__ u32 _inl(unsigned long addr)
 	return ret;
 }
 
-static __inline__ void _outb(u8 b, unsigned long addr)
+static __inline__ void outb(u8 b, unsigned long addr)
 {
 	__asm__ __volatile__("stba\t%r0, [%1] %2\t/* pci_outb */"
 			     : /* no outputs */
 			     : "Jr" (b), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L));
 }
 
-static __inline__ void _outw(u16 w, unsigned long addr)
+static __inline__ void outw(u16 w, unsigned long addr)
 {
 	__asm__ __volatile__("stha\t%r0, [%1] %2\t/* pci_outw */"
 			     : /* no outputs */
 			     : "Jr" (w), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L));
 }
 
-static __inline__ void _outl(u32 l, unsigned long addr)
+static __inline__ void outl(u32 l, unsigned long addr)
 {
 	__asm__ __volatile__("stwa\t%r0, [%1] %2\t/* pci_outl */"
 			     : /* no outputs */
 			     : "Jr" (l), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L));
 }
 
-#define inb(__addr)		(_inb((unsigned long)(__addr)))
-#define inw(__addr)		(_inw((unsigned long)(__addr)))
-#define inl(__addr)		(_inl((unsigned long)(__addr)))
-#define outb(__b, __addr)	(_outb((u8)(__b), (unsigned long)(__addr)))
-#define outw(__w, __addr)	(_outw((u16)(__w), (unsigned long)(__addr)))
-#define outl(__l, __addr)	(_outl((u32)(__l), (unsigned long)(__addr)))
-
-#define inb_p(__addr) 		inb(__addr)
-#define outb_p(__b, __addr)	outb(__b, __addr)
-#define inw_p(__addr)		inw(__addr)
-#define outw_p(__w, __addr)	outw(__w, __addr)
-#define inl_p(__addr)		inl(__addr)
-#define outl_p(__l, __addr)	outl(__l, __addr)
+#define inb_p inb
+#define outb_p outb
+#define inw_p inw
+#define outw_p outw
+#define inl_p inl
+#define outl_p outl
 
 extern void outsb(unsigned long addr, const void *src, unsigned long count);
 extern void outsw(unsigned long addr, const void *src, unsigned long count);
@@ -183,10 +176,6 @@ static __inline__ void _writeq(u64 q, unsigned long addr)
 #define readw(__addr)		(_readw((unsigned long)(__addr)))
 #define readl(__addr)		(_readl((unsigned long)(__addr)))
 #define readq(__addr)		(_readq((unsigned long)(__addr)))
-#define readb_relaxed(a)	readb(a)
-#define readw_relaxed(a)	readw(a)
-#define readl_relaxed(a)	readl(a)
-#define readq_relaxed(a)	readq(a)
 #define writeb(__b, __addr)	(_writeb((u8)(__b), (unsigned long)(__addr)))
 #define writew(__w, __addr)	(_writew((u16)(__w), (unsigned long)(__addr)))
 #define writel(__l, __addr)	(_writel((u32)(__l), (unsigned long)(__addr)))

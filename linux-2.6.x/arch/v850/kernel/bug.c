@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/reboot.h>
 #include <linux/sched.h>
-#include <linux/module.h>
 
 #include <asm/errno.h>
 #include <asm/ptrace.h>

@@ -258,15 +258,15 @@ static int __init mca_init(void)
 
 	/* Make sure the MCA bus is present */
 
-	if (mca_system_init()) {
-		printk(KERN_ERR "MCA bus system initialisation failed\n");
-		return -ENODEV;
-	}
-
-	if (!MCA_bus)
+	if(!MCA_bus)
 		return -ENODEV;
 
 	printk(KERN_INFO "Micro Channel bus detected.\n");
+
+	if(mca_system_init()) {
+		printk(KERN_ERR "MCA bus system initialisation failed\n");
+		return -ENODEV;
+	}
 
 	/* All MCA systems have at least a primary bus */
 	bus = mca_attach_bus(MCA_PRIMARY_BUS);

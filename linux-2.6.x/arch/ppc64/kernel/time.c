@@ -56,7 +56,6 @@
 #include <asm/cache.h>
 #include <asm/machdep.h>
 #ifdef CONFIG_PPC_ISERIES
-#include <asm/iSeries/ItLpQueue.h>
 #include <asm/iSeries/HvCallXm.h>
 #endif
 #include <asm/uaccess.h>
@@ -67,7 +66,7 @@
 
 void smp_local_timer_interrupt(struct pt_regs *);
 
-u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
+u64 jiffies_64 = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 
@@ -98,7 +97,7 @@ unsigned long tb_to_ns_shift;
 struct gettimeofday_struct do_gtod;
 
 extern unsigned long wall_jiffies;
-extern unsigned long lpevent_count;
+extern unsigned long lpEvent_count;
 extern int smp_tb_synchronized;
 
 void ppc_adjtimex(void);
@@ -257,7 +256,7 @@ static void iSeries_tb_recal(void)
  * call will not be needed)
  */
 
-unsigned long tb_last_stamp __cacheline_aligned_in_smp;
+unsigned long tb_last_stamp=0;
 
 /*
  * timer_interrupt - gets called when the decrementer overflows,
@@ -268,7 +267,7 @@ int timer_interrupt(struct pt_regs * regs)
 	int next_dec;
 	unsigned long cur_tb;
 	struct paca_struct *lpaca = get_paca();
-	unsigned long cpu = smp_processor_id();
+	unsigned long cpu = lpaca->xPacaIndex;
 
 	irq_enter();
 
@@ -276,7 +275,7 @@ int timer_interrupt(struct pt_regs * regs)
 	ppc64_do_profile(regs);
 #endif
 
-	lpaca->lppaca.xIntDword.xFields.xDecrInt = 0;
+	lpaca->xLpPaca.xIntDword.xFields.xDecrInt = 0;
 
 	while (lpaca->next_jiffy_update_tb <= (cur_tb = get_tb())) {
 
@@ -303,9 +302,9 @@ int timer_interrupt(struct pt_regs * regs)
 
 #ifdef CONFIG_PPC_ISERIES
 	{
-		struct ItLpQueue *lpq = lpaca->lpqueue_ptr;
+		struct ItLpQueue *lpq = lpaca->lpQueuePtr;
 		if (lpq && ItLpQueue_isLpIntPending(lpq))
-			lpevent_count += ItLpQueue_process(lpq, regs);
+			lpEvent_count += ItLpQueue_process(lpq, regs);
 	}
 #endif
 
@@ -419,7 +418,6 @@ int do_settimeofday(struct timespec *tv)
 	}
 
 	write_sequnlock_irqrestore(&xtime_lock, flags);
-	clock_was_set();
 	return 0;
 }
 
@@ -431,7 +429,7 @@ EXPORT_SYMBOL(do_settimeofday);
  * fields itself.  This way, the fields which are used for 
  * do_settimeofday get updated too.
  */
-long ppc64_sys32_stime(int __user * tptr)
+long ppc64_sys32_stime(int* tptr)
 {
 	int value;
 	struct timespec myTimeval;
@@ -456,7 +454,7 @@ long ppc64_sys32_stime(int __user * tptr)
  * fields itself.  This way, the fields which are used for 
  * do_settimeofday get updated too.
  */
-long ppc64_sys_stime(long __user * tptr)
+long ppc64_sys_stime(long* tptr)
 {
 	long value;
 	struct timespec myTimeval;

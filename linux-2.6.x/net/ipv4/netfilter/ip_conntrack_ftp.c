@@ -1,13 +1,4 @@
 /* FTP extension for IP connection tracking. */
-
-/* (C) 1999-2001 Paul `Rusty' Russell  
- * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/netfilter.h>
@@ -33,7 +24,9 @@ struct module *ip_conntrack_ftp = THIS_MODULE;
 #define MAX_PORTS 8
 static int ports[MAX_PORTS];
 static int ports_c;
+#ifdef MODULE_PARM
 MODULE_PARM(ports, "1-" __MODULE_STRING(MAX_PORTS) "i");
+#endif
 
 static int loose;
 MODULE_PARM(loose, "i");
@@ -254,8 +247,8 @@ static int help(struct sk_buff *skb,
 	int dir = CTINFO2DIR(ctinfo);
 	unsigned int matchlen, matchoff;
 	struct ip_ct_ftp_master *ct_ftp_info = &ct->help.ct_ftp_info;
-	struct ip_conntrack_expect *exp;
-	struct ip_ct_ftp_expect *exp_ftp_info;
+	struct ip_conntrack_expect expect, *exp = &expect;
+	struct ip_ct_ftp_expect *exp_ftp_info = &exp->help.exp_ftp_info;
 
 	unsigned int i;
 	int found = 0;
@@ -344,15 +337,8 @@ static int help(struct sk_buff *skb,
 	DEBUGP("conntrack_ftp: match `%.*s' (%u bytes at %u)\n",
 	       (int)matchlen, data + matchoff,
 	       matchlen, ntohl(tcph.seq) + matchoff);
-
-	/* Allocate expectation which will be inserted */
-	exp = ip_conntrack_expect_alloc();
-	if (exp == NULL) {
-		ret = NF_ACCEPT;
-		goto out;
-	}
-
-	exp_ftp_info = &exp->help.exp_ftp_info;
+	       
+	memset(&expect, 0, sizeof(expect));
 
 	/* Update the ftp info */
 	if (htonl((array[0] << 24) | (array[1] << 16) | (array[2] << 8) | array[3])
@@ -394,7 +380,7 @@ static int help(struct sk_buff *skb,
 	exp->expectfn = NULL;
 
 	/* Ignore failure; should only happen with NAT */
-	ip_conntrack_expect_related(exp, ct);
+	ip_conntrack_expect_related(ct, &expect);
 	ret = NF_ACCEPT;
  out:
 	UNLOCK_BH(&ip_ftp_lock);

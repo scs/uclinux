@@ -45,7 +45,7 @@ static int gs_debug;
 #define func_enter() gs_dprintk (GS_DEBUG_FLOW, "gs: enter %s\n", __FUNCTION__)
 #define func_exit()  gs_dprintk (GS_DEBUG_FLOW, "gs: exit  %s\n", __FUNCTION__)
 
-#ifdef NEW_WRITE_LOCKING
+#if NEW_WRITE_LOCKING
 #define DECL      /* Nothing */
 #define LOCKIT    down (& port->port_write_sem);
 #define RELEASEIT up (&port->port_write_sem);
@@ -526,7 +526,7 @@ void gs_shutdown_port (struct gs_port *port)
 
 	if (port->xmit_buf) {
 		free_page((unsigned long) port->xmit_buf);
-		port->xmit_buf = NULL;
+		port->xmit_buf = 0;
 	}
 
 	if (port->tty)
@@ -767,7 +767,7 @@ void gs_close(struct tty_struct * tty, struct file * filp)
 	port->event = 0;
 	port->rd->close (port);
 	port->rd->shutdown_port (port);
-	port->tty = NULL;
+	port->tty = 0;
 
 	if (port->blocked_open) {
 		if (port->close_delay) {
@@ -967,7 +967,7 @@ int gs_init_port(struct gs_port *port)
 }
 
 
-int gs_setserial(struct gs_port *port, struct serial_struct __user *sp)
+int gs_setserial(struct gs_port *port, struct serial_struct *sp)
 {
 	struct serial_struct sio;
 
@@ -1002,7 +1002,7 @@ int gs_setserial(struct gs_port *port, struct serial_struct __user *sp)
  *      Generate the serial struct info.
  */
 
-int gs_getserial(struct gs_port *port, struct serial_struct __user *sp)
+int gs_getserial(struct gs_port *port, struct serial_struct *sp)
 {
 	struct serial_struct    sio;
 

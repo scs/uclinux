@@ -83,7 +83,7 @@ void pci_remove_bus_device(struct pci_dev *dev)
 		list_del(&b->node);
 		spin_unlock(&pci_bus_lock);
 
-		class_device_unregister(&b->class_dev);
+		kfree(b);
 		dev->subordinate = NULL;
 	}
 

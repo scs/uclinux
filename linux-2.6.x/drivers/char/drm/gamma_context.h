@@ -42,7 +42,7 @@
    the circular buffer), is based on Alessandro Rubini's LINUX DEVICE
    DRIVERS (Cambridge: O'Reilly, 1998), pages 111-113. */
 
-ssize_t DRM(read)(struct file *filp, char __user *buf, size_t count, loff_t *off)
+ssize_t DRM(read)(struct file *filp, char *buf, size_t count, loff_t *off)
 {
 	drm_file_t    *priv   = filp->private_data;
 	drm_device_t  *dev    = priv->dev;
@@ -84,7 +84,7 @@ ssize_t DRM(read)(struct file *filp, char __user *buf, size_t count, loff_t *off
 	}
 
 	wake_up_interruptible(&dev->buf_writers);
-	return DRM_MIN(avail, count);
+	return DRM_MIN(avail, count);;
 }
 
 
@@ -295,13 +295,12 @@ static int DRM(alloc_queue)(drm_device_t *dev)
 int DRM(resctx)(struct inode *inode, struct file *filp,
 		unsigned int cmd, unsigned long arg)
 {
-	drm_ctx_res_t __user *argp = (void __user *)arg;
 	drm_ctx_res_t	res;
 	drm_ctx_t	ctx;
 	int		i;
 
 	DRM_DEBUG("%d\n", DRM_RESERVED_CONTEXTS);
-	if (copy_from_user(&res, argp, sizeof(res)))
+	if (copy_from_user(&res, (drm_ctx_res_t *)arg, sizeof(res)))
 		return -EFAULT;
 	if (res.count >= DRM_RESERVED_CONTEXTS) {
 		memset(&ctx, 0, sizeof(ctx));
@@ -314,7 +313,7 @@ int DRM(resctx)(struct inode *inode, struct file *filp,
 		}
 	}
 	res.count = DRM_RESERVED_CONTEXTS;
-	if (copy_to_user(argp, &res, sizeof(res)))
+	if (copy_to_user((drm_ctx_res_t *)arg, &res, sizeof(res)))
 		return -EFAULT;
 	return 0;
 }
@@ -325,9 +324,8 @@ int DRM(addctx)(struct inode *inode, struct file *filp,
 	drm_file_t	*priv	= filp->private_data;
 	drm_device_t	*dev	= priv->dev;
 	drm_ctx_t	ctx;
-	drm_ctx_t	__user *argp = (void __user *)arg;
 
-	if (copy_from_user(&ctx, argp, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t *)arg, sizeof(ctx)))
 		return -EFAULT;
 	if ((ctx.handle = DRM(alloc_queue)(dev)) == DRM_KERNEL_CONTEXT) {
 				/* Init kernel's context and get a new one. */
@@ -336,7 +334,7 @@ int DRM(addctx)(struct inode *inode, struct file *filp,
 	}
 	DRM(init_queue)(dev, dev->queuelist[ctx.handle], &ctx);
 	DRM_DEBUG("%d\n", ctx.handle);
-	if (copy_to_user(argp, &ctx, sizeof(ctx)))
+	if (copy_to_user((drm_ctx_t *)arg, &ctx, sizeof(ctx)))
 		return -EFAULT;
 	return 0;
 }
@@ -349,7 +347,7 @@ int DRM(modctx)(struct inode *inode, struct file *filp,
 	drm_ctx_t	ctx;
 	drm_queue_t	*q;
 
-	if (copy_from_user(&ctx, (drm_ctx_t __user *)arg, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t *)arg, sizeof(ctx)))
 		return -EFAULT;
 
 	DRM_DEBUG("%d\n", ctx.handle);
@@ -380,11 +378,10 @@ int DRM(getctx)(struct inode *inode, struct file *filp,
 {
 	drm_file_t	*priv	= filp->private_data;
 	drm_device_t	*dev	= priv->dev;
-	drm_ctx_t	__user *argp = (void __user *)arg;
 	drm_ctx_t	ctx;
 	drm_queue_t	*q;
 
-	if (copy_from_user(&ctx, argp, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t *)arg, sizeof(ctx)))
 		return -EFAULT;
 
 	DRM_DEBUG("%d\n", ctx.handle);
@@ -402,7 +399,7 @@ int DRM(getctx)(struct inode *inode, struct file *filp,
 	ctx.flags = q->flags;
 	atomic_dec(&q->use_count);
 
-	if (copy_to_user(argp, &ctx, sizeof(ctx)))
+	if (copy_to_user((drm_ctx_t *)arg, &ctx, sizeof(ctx)))
 		return -EFAULT;
 
 	return 0;
@@ -415,7 +412,7 @@ int DRM(switchctx)(struct inode *inode, struct file *filp,
 	drm_device_t	*dev	= priv->dev;
 	drm_ctx_t	ctx;
 
-	if (copy_from_user(&ctx, (drm_ctx_t __user *)arg, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t *)arg, sizeof(ctx)))
 		return -EFAULT;
 	DRM_DEBUG("%d\n", ctx.handle);
 	return DRM(context_switch)(dev, dev->last_context, ctx.handle);
@@ -428,7 +425,7 @@ int DRM(newctx)(struct inode *inode, struct file *filp,
 	drm_device_t	*dev	= priv->dev;
 	drm_ctx_t	ctx;
 
-	if (copy_from_user(&ctx, (drm_ctx_t __user *)arg, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t *)arg, sizeof(ctx)))
 		return -EFAULT;
 	DRM_DEBUG("%d\n", ctx.handle);
 	DRM(context_switch_complete)(dev, ctx.handle);
@@ -445,7 +442,7 @@ int DRM(rmctx)(struct inode *inode, struct file *filp,
 	drm_queue_t	*q;
 	drm_buf_t	*buf;
 
-	if (copy_from_user(&ctx, (drm_ctx_t __user *)arg, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t *)arg, sizeof(ctx)))
 		return -EFAULT;
 	DRM_DEBUG("%d\n", ctx.handle);
 

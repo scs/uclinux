@@ -33,6 +33,8 @@
 
 #include <asm/io.h>
 
+#include "rz1000.h"
+
 static void __init init_hwif_rz1000 (ide_hwif_t *hwif)
 {
 	u16 reg;
@@ -52,26 +54,23 @@ static void __init init_hwif_rz1000 (ide_hwif_t *hwif)
 	}
 }
 
-static ide_pci_device_t rz1000_chipset __devinitdata = {
-	.name		= "RZ100x",
-	.init_hwif	= init_hwif_rz1000,
-	.channels	= 2,
-	.autodma	= NODMA,
-	.bootable	= ON_BOARD,
-};
+extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
 
 static int __devinit rz1000_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_setup_pci_device(dev, &rz1000_chipset);
+	ide_pci_device_t *d = &rz1000_chipsets[id->driver_data];
+	if (dev->device != d->device)
+		BUG();
+	ide_setup_pci_device(dev, d);
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 
 static struct pci_device_id rz1000_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PCTECH, PCI_DEVICE_ID_PCTECH_RZ1000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_PCTECH, PCI_DEVICE_ID_PCTECH_RZ1001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_PCTECH, PCI_DEVICE_ID_PCTECH_RZ1001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
 	{ 0, },
 };
-MODULE_DEVICE_TABLE(pci, rz1000_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "RZ1000 IDE",
@@ -84,7 +83,13 @@ static int rz1000_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void rz1000_ide_exit(void)
+{
+	ide_pci_unregister_driver(&driver);
+}
+
 module_init(rz1000_ide_init);
+module_exit(rz1000_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for RZ1000 IDE");

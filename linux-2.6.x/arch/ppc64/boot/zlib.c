@@ -102,8 +102,9 @@ extern char *z_errmsg[]; /* indexed by 1-zlib_error */
 
          /* functions */
 
-extern void *memcpy(void *, const void *, unsigned long);
+#include <linux/string.h>
 #define zmemcpy memcpy
+#define zmemzero(dest, len)	memset(dest, 0, len)
 
 /* Diagnostic functions */
 #ifdef DEBUG_ZLIB

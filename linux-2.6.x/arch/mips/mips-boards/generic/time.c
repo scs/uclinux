@@ -2,6 +2,8 @@
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
  *
+ * ########################################################################
+ *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -15,7 +17,10 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
+ * ########################################################################
+ *
  * Setting up the clock on the MIPS boards.
+ *
  */
 
 #include <linux/types.h>
@@ -35,18 +40,14 @@
 #include <asm/div64.h>
 #include <asm/cpu.h>
 #include <asm/time.h>
-#include <asm/mc146818-time.h>
 
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
 
-unsigned long cpu_khz;
+static unsigned int r4k_offset; /* Amount to increment compare reg each time */
+static unsigned int r4k_cur;    /* What counter should be at next timer irq */
 
-#if defined(CONFIG_MIPS_SEAD)
-#define ALLINTS (IE_IRQ0 | IE_IRQ1 | IE_IRQ5)
-#else
 #define ALLINTS (IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3 | IE_IRQ4 | IE_IRQ5)
-#endif
 
 #if defined(CONFIG_MIPS_ATLAS)
 static char display_string[] = "        LINUX ON ATLAS       ";
@@ -54,15 +55,18 @@ static char display_string[] = "        LINUX ON ATLAS       ";
 #if defined(CONFIG_MIPS_MALTA)
 static char display_string[] = "        LINUX ON MALTA       ";
 #endif
-#if defined(CONFIG_MIPS_SEAD)
-static char display_string[] = "        LINUX ON SEAD       ";
-#endif
 static unsigned int display_count = 0;
 #define MAX_DISPLAY_COUNT (sizeof(display_string) - 8)
 
-#define MIPS_CPU_TIMER_IRQ (NR_IRQS-1)
+#define MIPS_CPU_TIMER_IRQ 7
 
 static unsigned int timer_tick_count=0;
+
+
+static inline void ack_r4ktimer(unsigned int newval)
+{
+	write_c0_compare(newval);
+}
 
 void mips_timer_interrupt(struct pt_regs *regs)
 {
@@ -77,27 +81,12 @@ void mips_timer_interrupt(struct pt_regs *regs)
 }
 
 /*
- * Estimate CPU frequency.  Sets mips_counter_frequency as a side-effect
+ * Figure out the r4k offset, the amount to increment the compare
+ * register for each time tick.
+ * Use the RTC to calculate offset.
  */
-static unsigned int __init estimate_cpu_frequency(void)
+static unsigned int __init cal_r4koff(void)
 {
-	unsigned int prid = read_c0_prid() & 0xffff00;
-	unsigned int count;
-
-#ifdef CONFIG_MIPS_SEAD
-	/*
-	 * The SEAD board doesn't have a real time clock, so we can't
-	 * really calculate the timer frequency
-	 * For now we hardwire the SEAD board frequency to 12MHz.
-	 */
-	
-	if ((prid == (PRID_COMP_MIPS | PRID_IMP_20KC)) ||
-	    (prid == (PRID_COMP_MIPS | PRID_IMP_25KF)))
-		count = 12000000;
-	else
-		count = 6000000;
-#endif
-#if defined(CONFIG_MIPS_ATLAS) || defined(CONFIG_MIPS_MALTA)
 	unsigned int flags;
 
 	local_irq_save(flags);
@@ -113,45 +102,72 @@ static unsigned int __init estimate_cpu_frequency(void)
 	while (CMOS_READ(RTC_REG_A) & RTC_UIP);
 	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
 
-	count = read_c0_count();
+	mips_counter_frequency = read_c0_count();
 
 	/* restore interrupts */
 	local_irq_restore(flags);
-#endif
 
-	mips_hpt_frequency = count;
-	if ((prid != (PRID_COMP_MIPS | PRID_IMP_20KC)) &&
-	    (prid != (PRID_COMP_MIPS | PRID_IMP_25KF)))
-		count *= 2;
-
-	count += 5000;    /* round */
-	count -= count%10000;
-
-	return count;
+	return (mips_counter_frequency / HZ);
 }
 
 unsigned long __init mips_rtc_get_time(void)
 {
-	return mc146818_get_cmos_time();
+	unsigned int year, mon, day, hour, min, sec;
+	unsigned char save_control;
+
+	save_control = CMOS_READ(RTC_CONTROL);
+
+	/* Freeze it. */
+	CMOS_WRITE(save_control | RTC_SET, RTC_CONTROL);
+
+	/* Read regs. */
+	sec = CMOS_READ(RTC_SECONDS);
+	min = CMOS_READ(RTC_MINUTES);
+	hour = CMOS_READ(RTC_HOURS);
+
+	if (!(save_control & RTC_24H))
+	{
+		if ((hour & 0xf) == 0xc)
+		        hour &= 0x80;
+	        if (hour & 0x80)
+		        hour = (hour & 0xf) + 12;
+	}
+	day = CMOS_READ(RTC_DAY_OF_MONTH);
+	mon = CMOS_READ(RTC_MONTH);
+	year = CMOS_READ(RTC_YEAR);
+
+	/* Unfreeze clock. */
+	CMOS_WRITE(save_control, RTC_CONTROL);
+
+	if ((year += 1900) < 1970)
+	        year += 100;
+
+	return mktime(year, mon, day, hour, min, sec);
 }
 
 void __init mips_time_init(void)
 {
-	unsigned int est_freq, flags;
+        unsigned int est_freq, flags;
 
 	local_irq_save(flags);
 
-#if defined(CONFIG_MIPS_ATLAS) || defined(CONFIG_MIPS_MALTA)
         /* Set Data mode - binary. */
         CMOS_WRITE(CMOS_READ(RTC_CONTROL) | RTC_DM_BINARY, RTC_CONTROL);
-#endif
 
-	est_freq = estimate_cpu_frequency ();
+	printk("calculating r4koff... ");
+	r4k_offset = cal_r4koff();
+	printk("%08x(%d)\n", r4k_offset, r4k_offset);
 
+        if ((read_c0_prid() & 0xffff00) ==
+	    (PRID_COMP_MIPS | PRID_IMP_20KC))
+		est_freq = r4k_offset*HZ;
+	else
+		est_freq = 2*r4k_offset*HZ;
+
+	est_freq += 5000;    /* round */
+	est_freq -= est_freq%10000;
 	printk("CPU frequency %d.%02d MHz\n", est_freq/1000000,
 	       (est_freq%1000000)*100/1000000);
-
-        cpu_khz = est_freq / 1000;
 
 	local_irq_restore(flags);
 }
@@ -163,6 +179,7 @@ void __init mips_timer_setup(struct irqaction *irq)
 	setup_irq(MIPS_CPU_TIMER_IRQ, irq);
 
         /* to generate the first timer interrupt */
-	write_c0_compare (read_c0_count() + mips_hpt_frequency/HZ);
+	r4k_cur = (read_c0_count() + r4k_offset);
+	write_c0_compare(r4k_cur);
 	set_c0_status(ALLINTS);
 }

@@ -44,18 +44,10 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	cifs_sb_target = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb_target->tcon;
 
-/* No need to check for cross device links since server will do that
-   BB note DFS case in future though (when we may have to check) */
+/* No need to check for cross device links since server will do that - BB note DFS case in future though (when we may have to check) */
 
-	down(&inode->i_sb->s_vfs_rename_sem);
 	fromName = build_path_from_dentry(old_file);
 	toName = build_path_from_dentry(direntry);
-	up(&inode->i_sb->s_vfs_rename_sem);
-	if((fromName == NULL) || (toName == NULL)) {
-		rc = -ENOMEM;
-		goto cifs_hl_exit;
-	}
-
 	if (cifs_sb_target->tcon->ses->capabilities & CAP_UNIX)
 		rc = CIFSUnixCreateHardLink(xid, pTcon, fromName, toName,
 					    cifs_sb_target->local_nls);
@@ -78,7 +70,6 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	cifsInode = CIFS_I(old_file->d_inode);
 	cifsInode->time = 0;	/* will force revalidate to go get info when needed */
 
-cifs_hl_exit:
 	if (fromName)
 		kfree(fromName);
 	if (toName)
@@ -99,22 +90,12 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	struct cifsTconInfo *pTcon;
 
 	xid = GetXid();
-
-	down(&direntry->d_sb->s_vfs_rename_sem);
 	full_path = build_path_from_dentry(direntry);
-	up(&direntry->d_sb->s_vfs_rename_sem);
-
-	if(full_path == NULL) {
-		FreeXid(xid);
-		return -ENOMEM;
-	}
 	cFYI(1, ("Full path: %s inode = 0x%p", full_path, inode));
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 	target_path = kmalloc(PATH_MAX, GFP_KERNEL);
 	if(target_path == NULL) {
-		if (full_path)
-			kfree(full_path);
 		FreeXid(xid);
 		return -ENOMEM;
 	}
@@ -166,15 +147,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
-	down(&inode->i_sb->s_vfs_rename_sem);
 	full_path = build_path_from_dentry(direntry);
-	up(&inode->i_sb->s_vfs_rename_sem);
-
-	if(full_path == NULL) {
-		FreeXid(xid);
-		return -ENOMEM;
-	}
-
 	cFYI(1, ("Full path: %s ", full_path));
 	cFYI(1, ("symname is %s", symname));
 
@@ -188,10 +161,10 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 	if (rc == 0) {
 		if (pTcon->ses->capabilities & CAP_UNIX)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
-						      inode->i_sb,xid);
+						      inode->i_sb);
 		else
 			rc = cifs_get_inode_info(&newinode, full_path, NULL,
-						 inode->i_sb,xid);
+						 inode->i_sb);
 
 		if (rc != 0) {
 			cFYI(1,
@@ -210,7 +183,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 }
 
 int
-cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
+cifs_readlink(struct dentry *direntry, char *pBuffer, int buflen)
 {
 	struct inode *inode = direntry->d_inode;
 	int rc = -EACCES;
@@ -229,18 +202,7 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 	xid = GetXid();
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
-
-/* BB would it be safe against deadlock to grab this sem 
-      even though rename itself grabs the sem and calls lookup? */
-/*       down(&inode->i_sb->s_vfs_rename_sem);*/
 	full_path = build_path_from_dentry(direntry);
-/*       up(&inode->i_sb->s_vfs_rename_sem);*/
-
-	if(full_path == NULL) {
-		FreeXid(xid);
-		return -ENOMEM;
-	}
-
 	cFYI(1,
 	     ("Full path: %s inode = 0x%p pBuffer = 0x%p buflen = %d",
 	      full_path, inode, pBuffer, buflen));
@@ -250,8 +212,6 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 		len = buflen;
 	tmpbuffer = kmalloc(len,GFP_KERNEL);   
 	if(tmpbuffer == NULL) {
-		if (full_path)
-			kfree(full_path);
 		FreeXid(xid);
 		return -ENOMEM;
 	}
@@ -291,11 +251,10 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 						cFYI(1,("num referral: %d",num_referrals));
 						if(referrals) {
 							cFYI(1,("referral string: %s ",referrals));
-							strncpy(tmpbuffer, referrals, len-1);                            
+							strncpy(tmpbuffer, referrals, len-1);
 						}
 					}
-					if(referrals)
-						kfree(referrals);
+
 					kfree(tmp_path);
 					if(referrals) {
 						kfree(referrals);

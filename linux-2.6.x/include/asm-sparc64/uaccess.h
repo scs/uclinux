@@ -101,12 +101,10 @@ extern void __ret_efault(void);
  */
 #define put_user(x,ptr) ({ \
 unsigned long __pu_addr = (unsigned long)(ptr); \
-__chk_user_ptr(ptr); \
 __put_user_nocheck((__typeof__(*(ptr)))(x),__pu_addr,sizeof(*(ptr))); })
 
 #define get_user(x,ptr) ({ \
 unsigned long __gu_addr = (unsigned long)(ptr); \
-__chk_user_ptr(ptr); \
 __get_user_nocheck((x),__gu_addr,sizeof(*(ptr)),__typeof__(*(ptr))); })
 
 #define __put_user(x,ptr) put_user(x,ptr)
@@ -165,7 +163,7 @@ __asm__ __volatile__(							\
 	".previous\n\n\t"						\
        : "=r" (foo) : "r" (x), "r" (__m(addr)));			\
 else									\
-__asm__ __volatile__(							\
+__asm__ __volatile(							\
 	"/* Put user asm ret, inline. */\n"				\
 "1:\t"	"st"#size "a %1, [%2] %%asi\n\n\t"				\
 	".section .fixup,#alloc,#execinstr\n\t"				\
@@ -265,12 +263,12 @@ extern unsigned long __copy_in_user(void __user *to, const void __user *from,
 #define copy_to_user __copy_to_user
 #define copy_in_user __copy_in_user
 
-extern unsigned long __bzero_noasi(void __user *, unsigned long);
+extern unsigned long __bzero_noasi(void *, unsigned long);
 
 static inline unsigned long __clear_user(void __user *addr, unsigned long size)
 {
 	
-	return __bzero_noasi(addr, size);
+	return __bzero_noasi((void *) addr, size);
 }
 
 #define clear_user __clear_user

@@ -3,7 +3,7 @@
 /*
  *	stallion.c  -- stallion multiport serial driver.
  *
- *	Copyright (C) 1996-1999  Stallion Technologies
+ *	Copyright (C) 1996-1999  Stallion Technologies (support@stallion.oz.au).
  *	Copyright (C) 1994-1996  Greg Ungerer.
  *
  *	This code is loosely based on the Linux serial driver, written by
@@ -41,7 +41,6 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/devfs_fs_kernel.h>
-#include <linux/device.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -504,13 +503,13 @@ static int	stl_readproc(char *page, char **start, off_t off, int count, int *eof
 static int	stl_brdinit(stlbrd_t *brdp);
 static int	stl_initports(stlbrd_t *brdp, stlpanel_t *panelp);
 static int	stl_mapirq(int irq, char *name);
-static int	stl_getserial(stlport_t *portp, struct serial_struct __user *sp);
-static int	stl_setserial(stlport_t *portp, struct serial_struct __user *sp);
-static int	stl_getbrdstats(combrd_t __user *bp);
-static int	stl_getportstats(stlport_t *portp, comstats_t __user *cp);
-static int	stl_clrportstats(stlport_t *portp, comstats_t __user *cp);
-static int	stl_getportstruct(stlport_t __user *arg);
-static int	stl_getbrdstruct(stlbrd_t __user *arg);
+static int	stl_getserial(stlport_t *portp, struct serial_struct *sp);
+static int	stl_setserial(stlport_t *portp, struct serial_struct *sp);
+static int	stl_getbrdstats(combrd_t *bp);
+static int	stl_getportstats(stlport_t *portp, comstats_t *cp);
+static int	stl_clrportstats(stlport_t *portp, comstats_t *cp);
+static int	stl_getportstruct(unsigned long arg);
+static int	stl_getbrdstruct(unsigned long arg);
 static int	stl_waitcarrier(stlport_t *portp, struct file *filp);
 static void	stl_delay(int len);
 static void	stl_eiointr(stlbrd_t *brdp);
@@ -733,8 +732,6 @@ static struct file_operations	stl_fsiomem = {
 
 /*****************************************************************************/
 
-static struct class_simple *stallion_class;
-
 #ifdef MODULE
 
 /*
@@ -745,7 +742,7 @@ static int __init stallion_module_init(void)
 {
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("init_module()\n");
 #endif
 
@@ -767,7 +764,7 @@ static void __exit stallion_module_exit(void)
 	unsigned long	flags;
 	int		i, j, k;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("cleanup_module()\n");
 #endif
 
@@ -791,15 +788,12 @@ static void __exit stallion_module_exit(void)
 		restore_flags(flags);
 		return;
 	}
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 4; i++)
 		devfs_remove("staliomem/%d", i);
-		class_simple_device_remove(MKDEV(STL_SIOMEMMAJOR, i));
-	}
 	devfs_remove("staliomem");
 	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
 		printk("STALLION: failed to un-register serial memory device, "
 			"errno=%d\n", -i);
-	class_simple_destroy(stallion_class);
 
 	if (stl_tmpwritebuf != (char *) NULL)
 		kfree(stl_tmpwritebuf);
@@ -847,13 +841,13 @@ module_exit(stallion_module_exit);
  *	Check for any arguments passed in on the module load command line.
  */
 
-static void stl_argbrds(void)
+static void stl_argbrds()
 {
 	stlconf_t	conf;
 	stlbrd_t	*brdp;
 	int		nrargs, i;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_argbrds()\n");
 #endif
 
@@ -923,7 +917,7 @@ static int stl_parsebrd(stlconf_t *confp, char **argp)
 	char	*sp;
 	int	nrbrdnames, i;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_parsebrd(confp=%x,argp=%x)\n", (int) confp, (int) argp);
 #endif
 
@@ -978,7 +972,7 @@ static void *stl_memalloc(int len)
  *	Allocate a new board structure. Fill out the basic info in it.
  */
 
-static stlbrd_t *stl_allocbrd(void)
+static stlbrd_t *stl_allocbrd()
 {
 	stlbrd_t	*brdp;
 
@@ -1003,7 +997,7 @@ static int stl_open(struct tty_struct *tty, struct file *filp)
 	unsigned int	minordev;
 	int		brdnr, panelnr, portnr, rc;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_open(tty=%x,filp=%x): device=%s\n", (int) tty,
 		(int) filp, tty->name);
 #endif
@@ -1096,7 +1090,7 @@ static int stl_waitcarrier(stlport_t *portp, struct file *filp)
 	unsigned long	flags;
 	int		rc, doclocal;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_waitcarrier(portp=%x,filp=%x)\n", (int) portp, (int) filp);
 #endif
 
@@ -1148,7 +1142,7 @@ static void stl_close(struct tty_struct *tty, struct file *filp)
 	stlport_t	*portp;
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_close(tty=%x,filp=%x)\n", (int) tty, (int) filp);
 #endif
 
@@ -1224,7 +1218,7 @@ static void stl_close(struct tty_struct *tty, struct file *filp)
 
 static void stl_delay(int len)
 {
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_delay(len=%d)\n", len);
 #endif
 	if (len > 0) {
@@ -1247,7 +1241,7 @@ static int stl_write(struct tty_struct *tty, int from_user, const unsigned char 
 	unsigned char	*chbuf;
 	char		*head, *tail;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_write(tty=%x,from_user=%d,buf=%x,count=%d)\n",
 		(int) tty, from_user, (int) buf, count);
 #endif
@@ -1324,7 +1318,7 @@ static void stl_putchar(struct tty_struct *tty, unsigned char ch)
 	unsigned int	len;
 	char		*head, *tail;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_putchar(tty=%x,ch=%x)\n", (int) tty, (int) ch);
 #endif
 
@@ -1362,7 +1356,7 @@ static void stl_flushchars(struct tty_struct *tty)
 {
 	stlport_t	*portp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_flushchars(tty=%x)\n", (int) tty);
 #endif
 
@@ -1389,7 +1383,7 @@ static int stl_writeroom(struct tty_struct *tty)
 	stlport_t	*portp;
 	char		*head, *tail;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_writeroom(tty=%x)\n", (int) tty);
 #endif
 
@@ -1423,7 +1417,7 @@ static int stl_charsinbuffer(struct tty_struct *tty)
 	unsigned int	size;
 	char		*head, *tail;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_charsinbuffer(tty=%x)\n", (int) tty);
 #endif
 
@@ -1449,12 +1443,12 @@ static int stl_charsinbuffer(struct tty_struct *tty)
  *	Generate the serial struct info.
  */
 
-static int stl_getserial(stlport_t *portp, struct serial_struct __user *sp)
+static int stl_getserial(stlport_t *portp, struct serial_struct *sp)
 {
 	struct serial_struct	sio;
 	stlbrd_t		*brdp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_getserial(portp=%x,sp=%x)\n", (int) portp, (int) sp);
 #endif
 
@@ -1490,11 +1484,11 @@ static int stl_getserial(stlport_t *portp, struct serial_struct __user *sp)
  *	just quietly ignore any requests to change irq, etc.
  */
 
-static int stl_setserial(stlport_t *portp, struct serial_struct __user *sp)
+static int stl_setserial(stlport_t *portp, struct serial_struct *sp)
 {
 	struct serial_struct	sio;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_setserial(portp=%x,sp=%x)\n", (int) portp, (int) sp);
 #endif
 
@@ -1520,56 +1514,13 @@ static int stl_setserial(stlport_t *portp, struct serial_struct __user *sp)
 
 /*****************************************************************************/
 
-static int stl_tiocmget(struct tty_struct *tty, struct file *file)
-{
-	stlport_t	*portp;
-
-	if (tty == (struct tty_struct *) NULL)
-		return(-ENODEV);
-	portp = tty->driver_data;
-	if (portp == (stlport_t *) NULL)
-		return(-ENODEV);
-	if (tty->flags & (1 << TTY_IO_ERROR))
-		return(-EIO);
-
-	return stl_getsignals(portp);
-}
-
-static int stl_tiocmset(struct tty_struct *tty, struct file *file,
-			unsigned int set, unsigned int clear)
-{
-	stlport_t	*portp;
-	int rts = -1, dtr = -1;
-
-	if (tty == (struct tty_struct *) NULL)
-		return(-ENODEV);
-	portp = tty->driver_data;
-	if (portp == (stlport_t *) NULL)
-		return(-ENODEV);
-	if (tty->flags & (1 << TTY_IO_ERROR))
-		return(-EIO);
-
-	if (set & TIOCM_RTS)
-		rts = 1;
-	if (set & TIOCM_DTR)
-		dtr = 1;
-	if (clear & TIOCM_RTS)
-		rts = 0;
-	if (clear & TIOCM_DTR)
-		dtr = 0;
-
-	stl_setsignals(portp, dtr, rts);
-	return 0;
-}
-
 static int stl_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg)
 {
 	stlport_t	*portp;
 	unsigned int	ival;
 	int		rc;
-	void __user *argp = (void __user *)arg;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_ioctl(tty=%x,file=%x,cmd=%x,arg=%x)\n",
 		(int) tty, (int) file, cmd, (int) arg);
 #endif
@@ -1591,26 +1542,67 @@ static int stl_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd
 	switch (cmd) {
 	case TIOCGSOFTCAR:
 		rc = put_user(((tty->termios->c_cflag & CLOCAL) ? 1 : 0),
-			(unsigned __user *) argp);
+			(unsigned int *) arg);
 		break;
 	case TIOCSSOFTCAR:
-		if (get_user(ival, (unsigned int __user *) arg))
-			return -EFAULT;
-		tty->termios->c_cflag =
+		if ((rc = verify_area(VERIFY_READ, (void *) arg,
+		    sizeof(int))) == 0) {
+			get_user(ival, (unsigned int *) arg);
+			tty->termios->c_cflag =
 				(tty->termios->c_cflag & ~CLOCAL) |
 				(ival ? CLOCAL : 0);
+		}
+		break;
+	case TIOCMGET:
+		if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
+		    sizeof(unsigned int))) == 0) {
+			ival = stl_getsignals(portp);
+			put_user(ival, (unsigned int *) arg);
+		}
+		break;
+	case TIOCMBIS:
+		if ((rc = verify_area(VERIFY_READ, (void *) arg,
+		    sizeof(unsigned int))) == 0) {
+			get_user(ival, (unsigned int *) arg);
+			stl_setsignals(portp, ((ival & TIOCM_DTR) ? 1 : -1),
+				((ival & TIOCM_RTS) ? 1 : -1));
+		}
+		break;
+	case TIOCMBIC:
+		if ((rc = verify_area(VERIFY_READ, (void *) arg,
+		    sizeof(unsigned int))) == 0) {
+			get_user(ival, (unsigned int *) arg);
+			stl_setsignals(portp, ((ival & TIOCM_DTR) ? 0 : -1),
+				((ival & TIOCM_RTS) ? 0 : -1));
+		}
+		break;
+	case TIOCMSET:
+		if ((rc = verify_area(VERIFY_READ, (void *) arg,
+		    sizeof(unsigned int))) == 0) {
+			get_user(ival, (unsigned int *) arg);
+			stl_setsignals(portp, ((ival & TIOCM_DTR) ? 1 : 0),
+				((ival & TIOCM_RTS) ? 1 : 0));
+		}
 		break;
 	case TIOCGSERIAL:
-		rc = stl_getserial(portp, argp);
+		if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
+		    sizeof(struct serial_struct))) == 0)
+			rc = stl_getserial(portp, (struct serial_struct *) arg);
 		break;
 	case TIOCSSERIAL:
-		rc = stl_setserial(portp, argp);
+		if ((rc = verify_area(VERIFY_READ, (void *) arg,
+		    sizeof(struct serial_struct))) == 0)
+			rc = stl_setserial(portp, (struct serial_struct *) arg);
 		break;
 	case COM_GETPORTSTATS:
-		rc = stl_getportstats(portp, argp);
+		if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
+		    sizeof(comstats_t))) == 0)
+			rc = stl_getportstats(portp, (comstats_t *) arg);
 		break;
 	case COM_CLRPORTSTATS:
-		rc = stl_clrportstats(portp, argp);
+		if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
+		    sizeof(comstats_t))) == 0)
+			rc = stl_clrportstats(portp, (comstats_t *) arg);
 		break;
 	case TIOCSERCONFIG:
 	case TIOCSERGWILD:
@@ -1634,7 +1626,7 @@ static void stl_settermios(struct tty_struct *tty, struct termios *old)
 	stlport_t	*portp;
 	struct termios	*tiosp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_settermios(tty=%x,old=%x)\n", (int) tty, (int) old);
 #endif
 
@@ -1671,7 +1663,7 @@ static void stl_throttle(struct tty_struct *tty)
 {
 	stlport_t	*portp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_throttle(tty=%x)\n", (int) tty);
 #endif
 
@@ -1693,7 +1685,7 @@ static void stl_unthrottle(struct tty_struct *tty)
 {
 	stlport_t	*portp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_unthrottle(tty=%x)\n", (int) tty);
 #endif
 
@@ -1716,7 +1708,7 @@ static void stl_stop(struct tty_struct *tty)
 {
 	stlport_t	*portp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_stop(tty=%x)\n", (int) tty);
 #endif
 
@@ -1738,7 +1730,7 @@ static void stl_start(struct tty_struct *tty)
 {
 	stlport_t	*portp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_start(tty=%x)\n", (int) tty);
 #endif
 
@@ -1762,7 +1754,7 @@ static void stl_hangup(struct tty_struct *tty)
 {
 	stlport_t	*portp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_hangup(tty=%x)\n", (int) tty);
 #endif
 
@@ -1798,7 +1790,7 @@ static void stl_flushbuffer(struct tty_struct *tty)
 {
 	stlport_t	*portp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_flushbuffer(tty=%x)\n", (int) tty);
 #endif
 
@@ -1821,7 +1813,7 @@ static void stl_breakctl(struct tty_struct *tty, int state)
 {
 	stlport_t	*portp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_breakctl(tty=%x,state=%d)\n", (int) tty, state);
 #endif
 
@@ -1841,7 +1833,7 @@ static void stl_waituntilsent(struct tty_struct *tty, int timeout)
 	stlport_t	*portp;
 	unsigned long	tend;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_waituntilsent(tty=%x,timeout=%d)\n", (int) tty, timeout);
 #endif
 
@@ -1870,7 +1862,7 @@ static void stl_sendxchar(struct tty_struct *tty, char ch)
 {
 	stlport_t	*portp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sendxchar(tty=%x,ch=%x)\n", (int) tty, ch);
 #endif
 
@@ -1951,7 +1943,7 @@ static int stl_readproc(char *page, char **start, off_t off, int count, int *eof
 	int		curoff, maxoff;
 	char		*pos;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_readproc(page=%x,start=%x,off=%x,count=%d,eof=%x,"
 		"data=%x\n", (int) page, (int) start, (int) off, count,
 		(int) eof, (int) data);
@@ -2034,7 +2026,7 @@ static irqreturn_t stl_intr(int irq, void *dev_id, struct pt_regs *regs)
 	int		i;
 	int handled = 0;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_intr(irq=%d,regs=%x)\n", irq, (int) regs);
 #endif
 
@@ -2180,7 +2172,7 @@ static void stl_offintr(void *private)
 
 	portp = private;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_offintr(portp=%x)\n", (int) portp);
 #endif
 
@@ -2224,7 +2216,7 @@ static int __init stl_mapirq(int irq, char *name)
 {
 	int	rc, i;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_mapirq(irq=%d,name=%s)\n", irq, name);
 #endif
 
@@ -2256,7 +2248,7 @@ static int __init stl_initports(stlbrd_t *brdp, stlpanel_t *panelp)
 	stlport_t	*portp;
 	int		chipmask, i;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_initports(brdp=%x,panelp=%x)\n", (int) brdp, (int) panelp);
 #endif
 
@@ -2310,7 +2302,7 @@ static inline int stl_initeio(stlbrd_t *brdp)
 	char		*name;
 	int		rc;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_initeio(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -2448,7 +2440,7 @@ static inline int stl_initech(stlbrd_t *brdp)
 	int		panelnr, banknr, i;
 	char		*name;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_initech(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -2652,7 +2644,7 @@ static int __init stl_brdinit(stlbrd_t *brdp)
 {
 	int	i;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_brdinit(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -2698,7 +2690,7 @@ static int __init stl_brdinit(stlbrd_t *brdp)
  *	Find the next available board number that is free.
  */
 
-static inline int stl_getbrdnr(void)
+static inline int stl_getbrdnr()
 {
 	int	i;
 
@@ -2726,7 +2718,7 @@ static inline int stl_initpcibrd(int brdtype, struct pci_dev *devp)
 {
 	stlbrd_t	*brdp;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_initpcibrd(brdtype=%d,busnr=%x,devnr=%x)\n", brdtype,
 		devp->bus->number, devp->devfn);
 #endif
@@ -2746,7 +2738,7 @@ static inline int stl_initpcibrd(int brdtype, struct pci_dev *devp)
  *	Different Stallion boards use the BAR registers in different ways,
  *	so set up io addresses based on board type.
  */
-#ifdef DEBUG
+#if DEBUG
 	printk("%s(%d): BAR[]=%x,%x,%x,%x IRQ=%x\n", __FILE__, __LINE__,
 		pci_resource_start(devp, 0), pci_resource_start(devp, 1),
 		pci_resource_start(devp, 2), pci_resource_start(devp, 3), devp->irq);
@@ -2788,12 +2780,12 @@ static inline int stl_initpcibrd(int brdtype, struct pci_dev *devp)
  */
 
 
-static inline int stl_findpcibrds(void)
+static inline int stl_findpcibrds()
 {
 	struct pci_dev	*dev = NULL;
 	int		i, rc;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_findpcibrds()\n");
 #endif
 
@@ -2826,13 +2818,13 @@ static inline int stl_findpcibrds(void)
  *	since the initial search and setup is too different.
  */
 
-static inline int stl_initbrds(void)
+static inline int stl_initbrds()
 {
 	stlbrd_t	*brdp;
 	stlconf_t	*confp;
 	int		i;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_initbrds()\n");
 #endif
 
@@ -2882,7 +2874,7 @@ static inline int stl_initbrds(void)
  *	Return the board stats structure to user app.
  */
 
-static int stl_getbrdstats(combrd_t __user *bp)
+static int stl_getbrdstats(combrd_t *bp)
 {
 	stlbrd_t	*brdp;
 	stlpanel_t	*panelp;
@@ -2950,12 +2942,12 @@ static stlport_t *stl_getport(int brdnr, int panelnr, int portnr)
  *	what port to get stats for (used through board control device).
  */
 
-static int stl_getportstats(stlport_t *portp, comstats_t __user *cp)
+static int stl_getportstats(stlport_t *portp, comstats_t *cp)
 {
 	unsigned char	*head, *tail;
 	unsigned long	flags;
 
-	if (!portp) {
+	if (portp == (stlport_t *) NULL) {
 		if (copy_from_user(&stl_comstats, cp, sizeof(comstats_t)))
 			return -EFAULT;
 		portp = stl_getport(stl_comstats.brd, stl_comstats.panel,
@@ -3008,9 +3000,9 @@ static int stl_getportstats(stlport_t *portp, comstats_t __user *cp)
  *	Clear the port stats structure. We also return it zeroed out...
  */
 
-static int stl_clrportstats(stlport_t *portp, comstats_t __user *cp)
+static int stl_clrportstats(stlport_t *portp, comstats_t *cp)
 {
-	if (!portp) {
+	if (portp == (stlport_t *) NULL) {
 		if (copy_from_user(&stl_comstats, cp, sizeof(comstats_t)))
 			return -EFAULT;
 		portp = stl_getport(stl_comstats.brd, stl_comstats.panel,
@@ -3033,17 +3025,18 @@ static int stl_clrportstats(stlport_t *portp, comstats_t __user *cp)
  *	Return the entire driver ports structure to a user app.
  */
 
-static int stl_getportstruct(stlport_t __user *arg)
+static int stl_getportstruct(unsigned long arg)
 {
 	stlport_t	*portp;
 
-	if (copy_from_user(&stl_dummyport, arg, sizeof(stlport_t)))
+	if (copy_from_user(&stl_dummyport, (void *) arg, sizeof(stlport_t)))
 		return -EFAULT;
 	portp = stl_getport(stl_dummyport.brdnr, stl_dummyport.panelnr,
 		 stl_dummyport.portnr);
-	if (!portp)
-		return -ENODEV;
-	return copy_to_user(arg, portp, sizeof(stlport_t)) ? -EFAULT : 0;
+	if (portp == (stlport_t *) NULL)
+		return(-ENODEV);
+	return copy_to_user((void *)arg, portp,
+			    sizeof(stlport_t)) ? -EFAULT : 0;
 }
 
 /*****************************************************************************/
@@ -3052,18 +3045,18 @@ static int stl_getportstruct(stlport_t __user *arg)
  *	Return the entire driver board structure to a user app.
  */
 
-static int stl_getbrdstruct(stlbrd_t __user *arg)
+static int stl_getbrdstruct(unsigned long arg)
 {
 	stlbrd_t	*brdp;
 
-	if (copy_from_user(&stl_dummybrd, arg, sizeof(stlbrd_t)))
+	if (copy_from_user(&stl_dummybrd, (void *) arg, sizeof(stlbrd_t)))
 		return -EFAULT;
 	if ((stl_dummybrd.brdnr < 0) || (stl_dummybrd.brdnr >= STL_MAXBRDS))
-		return -ENODEV;
-	brdp = stl_brds[stl_dummybrd.brdnr];
-	if (!brdp)
 		return(-ENODEV);
-	return copy_to_user(arg, brdp, sizeof(stlbrd_t)) ? -EFAULT : 0;
+	brdp = stl_brds[stl_dummybrd.brdnr];
+	if (brdp == (stlbrd_t *) NULL)
+		return(-ENODEV);
+	return copy_to_user((void *)arg, brdp, sizeof(stlbrd_t)) ? -EFAULT : 0;
 }
 
 /*****************************************************************************/
@@ -3077,9 +3070,8 @@ static int stl_getbrdstruct(stlbrd_t __user *arg)
 static int stl_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	int	brdnr, rc;
-	void __user *argp = (void __user *)arg;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_memioctl(ip=%x,fp=%x,cmd=%x,arg=%x)\n", (int) ip,
 		(int) fp, cmd, (int) arg);
 #endif
@@ -3091,19 +3083,31 @@ static int stl_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, uns
 
 	switch (cmd) {
 	case COM_GETPORTSTATS:
-		rc = stl_getportstats(NULL, argp);
+		if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
+		    sizeof(comstats_t))) == 0)
+			rc = stl_getportstats((stlport_t *) NULL,
+				(comstats_t *) arg);
 		break;
 	case COM_CLRPORTSTATS:
-		rc = stl_clrportstats(NULL, argp);
+		if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
+		    sizeof(comstats_t))) == 0)
+			rc = stl_clrportstats((stlport_t *) NULL,
+				(comstats_t *) arg);
 		break;
 	case COM_GETBRDSTATS:
-		rc = stl_getbrdstats(argp);
+		if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
+		    sizeof(combrd_t))) == 0)
+			rc = stl_getbrdstats((combrd_t *) arg);
 		break;
 	case COM_READPORT:
-		rc = stl_getportstruct(argp);
+		if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
+		    sizeof(stlport_t))) == 0)
+			rc = stl_getportstruct(arg);
 		break;
 	case COM_READBOARD:
-		rc = stl_getbrdstruct(argp);
+		if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
+		    sizeof(stlbrd_t))) == 0)
+			rc = stl_getbrdstruct(arg);
 		break;
 	default:
 		rc = -ENOIOCTLCMD;
@@ -3133,8 +3137,6 @@ static struct tty_operations stl_ops = {
 	.wait_until_sent = stl_waituntilsent,
 	.send_xchar = stl_sendxchar,
 	.read_proc = stl_readproc,
-	.tiocmget = stl_tiocmget,
-	.tiocmset = stl_tiocmset,
 };
 
 /*****************************************************************************/
@@ -3166,12 +3168,10 @@ int __init stl_init(void)
 		printk("STALLION: failed to register serial board device\n");
 	devfs_mk_dir("staliomem");
 
-	stallion_class = class_simple_create(THIS_MODULE, "staliomem");
 	for (i = 0; i < 4; i++) {
 		devfs_mk_cdev(MKDEV(STL_SIOMEMMAJOR, i),
 				S_IFCHR|S_IRUSR|S_IWUSR,
 				"staliomem/%d", i);
-		class_simple_device_add(stallion_class, MKDEV(STL_SIOMEMMAJOR, i), NULL, "staliomem%d", i);
 	}
 
 	stl_serial->owner = THIS_MODULE;
@@ -3241,7 +3241,7 @@ static int stl_cd1400panelinit(stlbrd_t *brdp, stlpanel_t *panelp)
 	int		chipmask, i, j;
 	int		nrchips, uartaddr, ioaddr;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_panelinit(brdp=%x,panelp=%x)\n", (int) brdp, (int) panelp);
 #endif
 
@@ -3293,7 +3293,7 @@ static int stl_cd1400panelinit(stlbrd_t *brdp, stlpanel_t *panelp)
 
 static void stl_cd1400portinit(stlbrd_t *brdp, stlpanel_t *panelp, stlport_t *portp)
 {
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400portinit(brdp=%x,panelp=%x,portp=%x)\n",
 		(int) brdp, (int) panelp, (int) portp);
 #endif
@@ -3508,7 +3508,7 @@ static void stl_cd1400setport(stlport_t *portp, struct termios *tiosp)
  *	them all up.
  */
 
-#ifdef DEBUG
+#if DEBUG
 	printk("SETPORT: portnr=%d panelnr=%d brdnr=%d\n",
 		portp->portnr, portp->panelnr, portp->brdnr);
 	printk("    cor1=%x cor2=%x cor3=%x cor4=%x cor5=%x\n",
@@ -3573,7 +3573,7 @@ static void stl_cd1400setsignals(stlport_t *portp, int dtr, int rts)
 	unsigned char	msvr1, msvr2;
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400setsignals(portp=%x,dtr=%d,rts=%d)\n",
 		(int) portp, dtr, rts);
 #endif
@@ -3609,7 +3609,7 @@ static int stl_cd1400getsignals(stlport_t *portp)
 	unsigned long	flags;
 	int		sigs;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400getsignals(portp=%x)\n", (int) portp);
 #endif
 
@@ -3647,7 +3647,7 @@ static void stl_cd1400enablerxtx(stlport_t *portp, int rx, int tx)
 	unsigned char	ccr;
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400enablerxtx(portp=%x,rx=%d,tx=%d)\n",
 		(int) portp, rx, tx);
 #endif
@@ -3684,7 +3684,7 @@ static void stl_cd1400startrxtx(stlport_t *portp, int rx, int tx)
 	unsigned char	sreron, sreroff;
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400startrxtx(portp=%x,rx=%d,tx=%d)\n",
 		(int) portp, rx, tx);
 #endif
@@ -3724,7 +3724,7 @@ static void stl_cd1400disableintrs(stlport_t *portp)
 {
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400disableintrs(portp=%x)\n", (int) portp);
 #endif
 	save_flags(flags);
@@ -3742,7 +3742,7 @@ static void stl_cd1400sendbreak(stlport_t *portp, int len)
 {
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400sendbreak(portp=%x,len=%d)\n", (int) portp, len);
 #endif
 
@@ -3771,7 +3771,7 @@ static void stl_cd1400flowctrl(stlport_t *portp, int state)
 	struct tty_struct	*tty;
 	unsigned long		flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400flowctrl(portp=%x,state=%x)\n", (int) portp, state);
 #endif
 
@@ -3836,7 +3836,7 @@ static void stl_cd1400sendflow(stlport_t *portp, int state)
 	struct tty_struct	*tty;
 	unsigned long		flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400sendflow(portp=%x,state=%x)\n", (int) portp, state);
 #endif
 
@@ -3871,7 +3871,7 @@ static void stl_cd1400flush(stlport_t *portp)
 {
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400flush(portp=%x)\n", (int) portp);
 #endif
 
@@ -3901,7 +3901,7 @@ static void stl_cd1400flush(stlport_t *portp)
 
 static int stl_cd1400datastate(stlport_t *portp)
 {
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400datastate(portp=%x)\n", (int) portp);
 #endif
 
@@ -3921,7 +3921,7 @@ static void stl_cd1400eiointr(stlpanel_t *panelp, unsigned int iobase)
 {
 	unsigned char	svrtype;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400eiointr(panelp=%x,iobase=%x)\n",
 		(int) panelp, iobase);
 #endif
@@ -3951,7 +3951,7 @@ static void stl_cd1400echintr(stlpanel_t *panelp, unsigned int iobase)
 {
 	unsigned char	svrtype;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400echintr(panelp=%x,iobase=%x)\n", (int) panelp,
 		iobase);
 #endif
@@ -4025,7 +4025,7 @@ static void stl_cd1400txisr(stlpanel_t *panelp, int ioaddr)
 	char		*head, *tail;
 	unsigned char	ioack, srer;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400txisr(panelp=%x,ioaddr=%x)\n", (int) panelp, ioaddr);
 #endif
 
@@ -4107,7 +4107,7 @@ static void stl_cd1400rxisr(stlpanel_t *panelp, int ioaddr)
 	unsigned char		status;
 	char			ch;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400rxisr(panelp=%x,ioaddr=%x)\n", (int) panelp, ioaddr);
 #endif
 
@@ -4216,7 +4216,7 @@ static void stl_cd1400mdmisr(stlpanel_t *panelp, int ioaddr)
 	unsigned int	ioack;
 	unsigned char	misr;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_cd1400mdmisr(panelp=%x)\n", (int) panelp);
 #endif
 
@@ -4305,7 +4305,7 @@ static int stl_sc26198panelinit(stlbrd_t *brdp, stlpanel_t *panelp)
 	int	chipmask, i;
 	int	nrchips, ioaddr;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198panelinit(brdp=%x,panelp=%x)\n",
 		(int) brdp, (int) panelp);
 #endif
@@ -4350,7 +4350,7 @@ static int stl_sc26198panelinit(stlbrd_t *brdp, stlpanel_t *panelp)
 
 static void stl_sc26198portinit(stlbrd_t *brdp, stlpanel_t *panelp, stlport_t *portp)
 {
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198portinit(brdp=%x,panelp=%x,portp=%x)\n",
 		(int) brdp, (int) panelp, (int) portp);
 #endif
@@ -4527,7 +4527,7 @@ static void stl_sc26198setport(stlport_t *portp, struct termios *tiosp)
  *	them all up.
  */
 
-#ifdef DEBUG
+#if DEBUG
 	printk("SETPORT: portnr=%d panelnr=%d brdnr=%d\n",
 		portp->portnr, portp->panelnr, portp->brdnr);
 	printk("    mr0=%x mr1=%x mr2=%x clk=%x\n", mr0, mr1, mr2, clk);
@@ -4579,7 +4579,7 @@ static void stl_sc26198setsignals(stlport_t *portp, int dtr, int rts)
 	unsigned char	iopioron, iopioroff;
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198setsignals(portp=%x,dtr=%d,rts=%d)\n",
 		(int) portp, dtr, rts);
 #endif
@@ -4616,7 +4616,7 @@ static int stl_sc26198getsignals(stlport_t *portp)
 	unsigned long	flags;
 	int		sigs;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198getsignals(portp=%x)\n", (int) portp);
 #endif
 
@@ -4647,7 +4647,7 @@ static void stl_sc26198enablerxtx(stlport_t *portp, int rx, int tx)
 	unsigned char	ccr;
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198enablerxtx(portp=%x,rx=%d,tx=%d)\n",
 		(int) portp, rx, tx);
 #endif
@@ -4682,7 +4682,7 @@ static void stl_sc26198startrxtx(stlport_t *portp, int rx, int tx)
 	unsigned char	imr;
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198startrxtx(portp=%x,rx=%d,tx=%d)\n",
 		(int) portp, rx, tx);
 #endif
@@ -4718,7 +4718,7 @@ static void stl_sc26198disableintrs(stlport_t *portp)
 {
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198disableintrs(portp=%x)\n", (int) portp);
 #endif
 
@@ -4737,7 +4737,7 @@ static void stl_sc26198sendbreak(stlport_t *portp, int len)
 {
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198sendbreak(portp=%x,len=%d)\n", (int) portp, len);
 #endif
 
@@ -4766,7 +4766,7 @@ static void stl_sc26198flowctrl(stlport_t *portp, int state)
 	unsigned long		flags;
 	unsigned char		mr0;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198flowctrl(portp=%x,state=%x)\n", (int) portp, state);
 #endif
 
@@ -4838,7 +4838,7 @@ static void stl_sc26198sendflow(stlport_t *portp, int state)
 	unsigned long		flags;
 	unsigned char		mr0;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198sendflow(portp=%x,state=%x)\n", (int) portp, state);
 #endif
 
@@ -4878,7 +4878,7 @@ static void stl_sc26198flush(stlport_t *portp)
 {
 	unsigned long	flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198flush(portp=%x)\n", (int) portp);
 #endif
 
@@ -4910,7 +4910,7 @@ static int stl_sc26198datastate(stlport_t *portp)
 	unsigned long	flags;
 	unsigned char	sr;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198datastate(portp=%x)\n", (int) portp);
 #endif
 
@@ -4940,7 +4940,7 @@ static void stl_sc26198wait(stlport_t *portp)
 {
 	int	i;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198wait(portp=%x)\n", (int) portp);
 #endif
 
@@ -5018,7 +5018,7 @@ static void stl_sc26198txisr(stlport_t *portp)
 	int		len, stlen;
 	char		*head, *tail;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198txisr(portp=%x)\n", (int) portp);
 #endif
 
@@ -5079,7 +5079,7 @@ static void stl_sc26198rxisr(stlport_t *portp, unsigned int iack)
 	struct tty_struct	*tty;
 	unsigned int		len, buflen, ioaddr;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198rxisr(portp=%x,iack=%x)\n", (int) portp, iack);
 #endif
 
@@ -5235,7 +5235,7 @@ static void stl_sc26198otherisr(stlport_t *portp, unsigned int iack)
 {
 	unsigned char	cir, ipr, xisr;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("stl_sc26198otherisr(portp=%x,iack=%x)\n", (int) portp, iack);
 #endif
 

@@ -158,6 +158,10 @@ static void dma_init(struct mac_serial * info);
 static void rxdma_start(struct mac_serial * info, int current);
 static void rxdma_to_tty(struct mac_serial * info);
 
+#ifndef MIN
+#define MIN(a,b)	((a) < (b) ? (a) : (b))
+#endif
+
 /*
  * tmp_buf is used as a temporary buffer by serial_write.  We need to
  * lock it in case the copy_from_user blocks while swapping in a page,
@@ -1481,8 +1485,9 @@ static int rs_write(struct tty_struct * tty, int from_user,
 	if (from_user) {
 		down(&tmp_buf_sem);
 		while (1) {
-			c = min_t(int, count, min(SERIAL_XMIT_SIZE - info->xmit_cnt - 1,
-						  SERIAL_XMIT_SIZE - info->xmit_head));
+			c = MIN(count,
+				MIN(SERIAL_XMIT_SIZE - info->xmit_cnt - 1,
+				    SERIAL_XMIT_SIZE - info->xmit_head));
 			if (c <= 0)
 				break;
 
@@ -1493,8 +1498,8 @@ static int rs_write(struct tty_struct * tty, int from_user,
 				break;
 			}
 			spin_lock_irqsave(&info->lock, flags);
-			c = min_t(int, c, min(SERIAL_XMIT_SIZE - info->xmit_cnt - 1,
-					      SERIAL_XMIT_SIZE - info->xmit_head));
+			c = MIN(c, MIN(SERIAL_XMIT_SIZE - info->xmit_cnt - 1,
+				       SERIAL_XMIT_SIZE - info->xmit_head));
 			memcpy(info->xmit_buf + info->xmit_head, tmp_buf, c);
 			info->xmit_head = ((info->xmit_head + c) &
 					   (SERIAL_XMIT_SIZE-1));
@@ -1508,8 +1513,9 @@ static int rs_write(struct tty_struct * tty, int from_user,
 	} else {
 		while (1) {
 			spin_lock_irqsave(&info->lock, flags);
-			c = min_t(int, count, min(SERIAL_XMIT_SIZE - info->xmit_cnt - 1,
-						  SERIAL_XMIT_SIZE - info->xmit_head));
+			c = MIN(count,
+				MIN(SERIAL_XMIT_SIZE - info->xmit_cnt - 1,
+				    SERIAL_XMIT_SIZE - info->xmit_head));
 			if (c <= 0) {
 				spin_unlock_irqrestore(&info->lock, flags);
 				break;
@@ -1771,59 +1777,47 @@ static int get_lsr_info(struct mac_serial * info, unsigned int *value)
 	return put_user(status,value);
 }
 
-static int rs_tiocmget(struct tty_struct *tty, struct file *file)
+static int get_modem_info(struct mac_serial *info, unsigned int *value)
 {
-	struct mac_serial * info = (struct mac_serial *)tty->driver_data;
 	unsigned char control, status;
+	unsigned int result;
 	unsigned long flags;
-
-#ifdef CONFIG_KGDB
-	if (info->kgdb_channel)
-		return -ENODEV;
-#endif
-	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
-		return -ENODEV;
-
-	if (tty->flags & (1 << TTY_IO_ERROR))
-		return -EIO;
 
 	spin_lock_irqsave(&info->lock, flags);
 	control = info->curregs[5];
 	status = read_zsreg(info->zs_channel, 0);
 	spin_unlock_irqrestore(&info->lock, flags);
-	return    ((control & RTS) ? TIOCM_RTS: 0)
+	result =  ((control & RTS) ? TIOCM_RTS: 0)
 		| ((control & DTR) ? TIOCM_DTR: 0)
 		| ((status  & DCD) ? TIOCM_CAR: 0)
 		| ((status  & CTS) ? 0: TIOCM_CTS);
+	return put_user(result,value);
 }
 
-static int rs_tiocmset(struct tty_struct *tty, struct file *file,
-		       unsigned int set, unsigned int clear)
+static int set_modem_info(struct mac_serial *info, unsigned int cmd,
+			  unsigned int *value)
 {
-	struct mac_serial * info = (struct mac_serial *)tty->driver_data;
 	unsigned int arg, bits;
 	unsigned long flags;
 
-#ifdef CONFIG_KGDB
-	if (info->kgdb_channel)
-		return -ENODEV;
-#endif
-	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
-		return -ENODEV;
-
-	if (tty->flags & (1 << TTY_IO_ERROR))
-		return -EIO;
-
+	if (get_user(arg, value))
+		return -EFAULT;
+	bits = (arg & TIOCM_RTS? RTS: 0) + (arg & TIOCM_DTR? DTR: 0);
 	spin_lock_irqsave(&info->lock, flags);
-	if (set & TIOCM_RTS)
-		info->curregs[5] |= RTS;
-	if (set & TIOCM_DTR)
-		info->curregs[5] |= DTR;
-	if (clear & TIOCM_RTS)
-		info->curregs[5] &= ~RTS;
-	if (clear & TIOCM_DTR)
-		info->curregs[5] &= ~DTR;
-
+	switch (cmd) {
+	case TIOCMBIS:
+		info->curregs[5] |= bits;
+		break;
+	case TIOCMBIC:
+		info->curregs[5] &= ~bits;
+		break;
+	case TIOCMSET:
+		info->curregs[5] = (info->curregs[5] & ~(DTR | RTS)) | bits;
+		break;
+	default:
+		spin_unlock_irqrestore(&info->lock, flags);
+		return -EINVAL;
+	}
 	info->pendregs[5] = info->curregs[5];
 	write_zsreg(info->zs_channel, 5, info->curregs[5]);
 	spin_unlock_irqrestore(&info->lock, flags);
@@ -1869,6 +1863,12 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 	}
 
 	switch (cmd) {
+		case TIOCMGET:
+			return get_modem_info(info, (unsigned int *) arg);
+		case TIOCMBIS:
+		case TIOCMBIC:
+		case TIOCMSET:
+			return set_modem_info(info, cmd, (unsigned int *) arg);
 		case TIOCGSERIAL:
 			return get_serial_info(info,
 					(struct serial_struct __user *) arg);
@@ -2046,7 +2046,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	} else if (char_time == 0)
 		char_time = 1;
 	if (timeout)
-		char_time = min_t(unsigned long, char_time, timeout);
+		char_time = MIN(char_time, timeout);
 	while ((read_zsreg(info->zs_channel, 1) & ALL_SNT) == 0) {
 		current->state = TASK_INTERRUPTIBLE;
 		schedule_timeout(char_time);
@@ -2488,8 +2488,6 @@ static struct tty_operations serial_ops = {
 	.break_ctl = rs_break,
 	.wait_until_sent = rs_wait_until_sent,
 	.read_proc = macserial_read_proc,
-	.tiocmget = rs_tiocmget,
-	.tiocmset = rs_tiocmset,
 };
 
 static int macserial_init(void)

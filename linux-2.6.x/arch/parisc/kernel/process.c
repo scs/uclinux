@@ -1,37 +1,13 @@
 /*
- *    PARISC Architecture-dependent parts of process handling
- *    based on the work for i386
- *
- *    Copyright (C) 1999-2003 Matthew Wilcox <willy at parisc-linux.org>
- *    Copyright (C) 2000 Martin K Petersen <mkp at mkp.net>
- *    Copyright (C) 2000 John Marvin <jsm at parisc-linux.org>
- *    Copyright (C) 2000 David Huggins-Daines <dhd with pobox.org>
- *    Copyright (C) 2000-2003 Paul Bame <bame at parisc-linux.org>
- *    Copyright (C) 2000 Philipp Rumpf <prumpf with tux.org>
- *    Copyright (C) 2000 David Kennedy <dkennedy with linuxcare.com>
- *    Copyright (C) 2000 Richard Hirst <rhirst with parisc-lixux.org>
- *    Copyright (C) 2000 Grant Grundler <grundler with parisc-linux.org>
- *    Copyright (C) 2001 Alan Modra <amodra at parisc-linux.org>
- *    Copyright (C) 2001-2002 Ryan Bradetich <rbrad at parisc-linux.org>
- *    Copyright (C) 2001-2002 Helge Deller <deller at parisc-linux.org>
- *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
- *
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  linux/arch/parisc/kernel/process.c
+ *	based on the work for i386
  */
 
+/*
+ * This file handles the architecture-dependent parts of process handling..
+ */
+
+#define __KERNEL_SYSCALLS__
 #include <stdarg.h>
 
 #include <linux/elf.h>
@@ -44,7 +20,6 @@
 #include <linux/sched.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
-#include <linux/kallsyms.h>
 
 #include <asm/io.h>
 #include <asm/offsets.h>
@@ -52,7 +27,6 @@
 #include <asm/pdc_chassis.h>
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
-#include <asm/unwind.h>
 
 int hlt_counter;
 
@@ -252,16 +226,6 @@ sys_clone(unsigned long clone_flags, unsigned long usp,
 	  struct pt_regs *regs)
 {
 	int *user_tid = (int *)regs->gr[26];
-
-	/* usp must be word aligned.  This also prevents users from
-	 * passing in the value 1 (which is the signal for a special
-	 * return for a kernel thread) */
-	usp = ALIGN(usp, 4);
-
-	/* A zero value for usp means use the current stack */
-	if(usp == 0)
-		usp = regs->gr[30];
-
 	return do_fork(clone_flags & ~CLONE_IDLETASK, usp, regs, 0, user_tid, NULL);
 }
 
@@ -302,7 +266,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	 * We rely on the fact that kernel_thread passes
 	 * in zero for usp.
 	 */
-	if (usp == 1) {
+	if (usp == 0) {
 		/* kernel thread */
 		cregs->ksp = (((unsigned long)(ti)) + THREAD_SZ_ALGN);
 		/* Must exit via ret_from_kernel_thread in order
@@ -327,7 +291,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 
 		/* Use same stack depth as parent */
 		cregs->ksp = ((unsigned long)(ti))
-			+ (pregs->gr[21] & (THREAD_SIZE - 1));
+			+ (pregs->gr[21] & (INIT_THREAD_SIZE - 1));
 		cregs->gr[30] = usp;
 		if (p->personality == PER_HPUX) {
 #ifdef CONFIG_HPUX
@@ -369,25 +333,4 @@ asmlinkage int sys_execve(struct pt_regs *regs)
 out:
 
 	return error;
-}
-
-unsigned long 
-get_wchan(struct task_struct *p)
-{
-	struct unwind_frame_info info;
-	unsigned long ip;
-	int count = 0;
-	/*
-	 * These bracket the sleeping functions..
-	 */
-
-	unwind_frame_init_from_blocked_task(&info, p);
-	do {
-		if (unwind_once(&info) < 0)
-			return 0;
-		ip = info.ip;
-		if (!in_sched_functions(ip))
-			return ip;
-	} while (count++ < 16);
-	return 0;
 }

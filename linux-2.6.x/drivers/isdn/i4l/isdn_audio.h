@@ -1,6 +1,4 @@
-/* $Id$
- *
- * Linux ISDN subsystem, audio conversion and compression (linklevel).
+/* Linux ISDN subsystem, audio conversion and compression
  *
  * Copyright 1994-1999 by Fritz Elfert (fritz@isdn4linux.de)
  *
@@ -20,7 +18,6 @@ typedef struct adpcm_state {
 
 typedef struct dtmf_state {
 	char last;
-	char llast;
 	int idx;
 	int buf[DTMF_NPOINTS];
 } dtmf_state;

@@ -1,5 +1,5 @@
 /*
- *	IndyDog	0.3	A Hardware Watchdog Device for SGI IP22
+ *	IndyDog	0.2	A Hardware Watchdog Device for SGI IP22
  *
  *	(c) Copyright 2002 Guido Guenther <agx@sigxcpu.org>, All Rights Reserved.
  *
@@ -12,7 +12,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -20,14 +19,14 @@
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
 #include <linux/init.h>
+#include <linux/moduleparam.h>
 #include <asm/uaccess.h>
-#include <asm/sgi/mc.h>
+#include <asm/sgi/sgimc.h>
 
-#define PFX "indydog: "
-static int indydog_alive;
+static unsigned long indydog_alive;
+static struct sgimc_misc_ctrl *mcmisc_regs;
+static char expect_close;
 
 #ifdef CONFIG_WATCHDOG_NOWAYOUT
 static int nowayout = 1;
@@ -35,71 +34,85 @@ static int nowayout = 1;
 static int nowayout = 0;
 #endif
 
-#define WATCHDOG_TIMEOUT 30		/* 30 sec default timeout */
-
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 
-static void indydog_start(void)
+static void indydog_ping()
 {
-	u32 mc_ctrl0 = sgimc->cpuctrl0;
-
-	mc_ctrl0 = sgimc->cpuctrl0 | SGIMC_CCTRL0_WDOG;
-	sgimc->cpuctrl0 = mc_ctrl0;
+	mcmisc_regs->watchdogt = 0;
 }
 
-static void indydog_stop(void)
-{
-	u32 mc_ctrl0 = sgimc->cpuctrl0;
-
-	mc_ctrl0 &= ~SGIMC_CCTRL0_WDOG;
-	sgimc->cpuctrl0 = mc_ctrl0;
-
-	printk(KERN_INFO PFX "Stopped watchdog timer.\n");
-}
-
-static void indydog_ping(void)
-{
-	sgimc->watchdogt = 0;
-}
 
 /*
  *	Allow only one person to hold it open
  */
+
 static int indydog_open(struct inode *inode, struct file *file)
 {
-	if (indydog_alive)
+	u32 mc_ctrl0;
+
+	if( test_and_set_bit(0,&indydog_alive) )
 		return -EBUSY;
 
 	if (nowayout)
 		__module_get(THIS_MODULE);
 
-	/* Activate timer */
-	indydog_start();
+	/*
+	 *	Activate timer
+	 */
+	mcmisc_regs = (struct sgimc_misc_ctrl *)(KSEG1+0x1fa00000);
+
+	mc_ctrl0 = mcmisc_regs->cpuctrl0 | SGIMC_CCTRL0_WDOG;
+	mcmisc_regs->cpuctrl0 = mc_ctrl0;
 	indydog_ping();
 
-	indydog_alive = 1;
-	printk(KERN_INFO "Started watchdog timer.\n");
-
-	return nonseekable_open(inode, file);
+	printk("Started watchdog timer.\n");
+	return 0;
 }
 
 static int indydog_release(struct inode *inode, struct file *file)
 {
-	/* Shut off the timer.
-	 * Lock it in if it's a module and we defined ...NOWAYOUT */
-	if (!nowayout)
-		indydog_stop();		/* Turn the WDT off */
+	/*
+	 *	Shut off the timer.
+	 * 	Lock it in if it's a module and we set nowayout
+	 */
 
-	indydog_alive = 0;
-
+	if (expect_close == 42) {
+		u32 mc_ctrl0 = mcmisc_regs->cpuctrl0;
+		mc_ctrl0 &= ~SGIMC_CCTRL0_WDOG;
+		mcmisc_regs->cpuctrl0 = mc_ctrl0;
+		printk("Stopped watchdog timer.\n");
+	} else {
+		printk(KERN_CRIT "WDT device closed unexpectedly.  WDT will not stop!\n");
+	}
+	clear_bit(0,&indydog_alive);
+	expect_close = 0;
 	return 0;
 }
 
 static ssize_t indydog_write(struct file *file, const char *data, size_t len, loff_t *ppos)
 {
+	/*  Can't seek (pwrite) on this device  */
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
+
 	/* Refresh the timer. */
 	if (len) {
+		if (!nowayout) {
+			size_t i;
+
+			/* In case it was set long ago */
+			expect_close = 0;
+
+			for (i = 0; i != len; i++) {
+				char c;
+
+				if (get_user(c, data + i))
+					return -EFAULT;
+				if (c == 'V')
+					expect_close = 42;
+			}
+		}
 		indydog_ping();
 	}
 	return len;
@@ -108,20 +121,16 @@ static ssize_t indydog_write(struct file *file, const char *data, size_t len, lo
 static int indydog_ioctl(struct inode *inode, struct file *file,
 	unsigned int cmd, unsigned long arg)
 {
-	int options, retval = -EINVAL;
 	static struct watchdog_info ident = {
-		.options		= WDIOF_KEEPALIVEPING |
-					  WDIOF_MAGICCLOSE,
-		.firmware_version	= 0,
-		.identity		= "Hardware Watchdog for SGI IP22",
+		.options = WDIOF_MAGICCLOSE,
+		.identity = "Hardware Watchdog for SGI IP22",
 	};
 
 	switch (cmd) {
 		default:
 			return -ENOIOCTLCMD;
 		case WDIOC_GETSUPPORT:
-			if (copy_to_user((struct watchdog_info *)arg,
-					 &ident, sizeof(ident)))
+			if(copy_to_user((struct watchdog_info *)arg, &ident, sizeof(ident)))
 				return -EFAULT;
 			return 0;
 		case WDIOC_GETSTATUS:
@@ -130,75 +139,33 @@ static int indydog_ioctl(struct inode *inode, struct file *file,
 		case WDIOC_KEEPALIVE:
 			indydog_ping();
 			return 0;
-		case WDIOC_GETTIMEOUT:
-			return put_user(WATCHDOG_TIMEOUT,(int *)arg);
-		case WDIOC_SETOPTIONS:
-		{
-			if (get_user(options, (int *)arg))
-				return -EFAULT;
-
-			if (options & WDIOS_DISABLECARD) {
-				indydog_stop();
-				retval = 0;
-			}
-
-			if (options & WDIOS_ENABLECARD) {
-				indydog_start();
-				retval = 0;
-			}
-
-			return retval;
-		}
 	}
 }
 
-static int indydog_notify_sys(struct notifier_block *this, unsigned long code, void *unused)
-{
-	if (code == SYS_DOWN || code == SYS_HALT)
-		indydog_stop();		/* Turn the WDT off */
-
-	return NOTIFY_DONE;
-}
-
 static struct file_operations indydog_fops = {
-	.owner		= THIS_MODULE,
-	.write		= indydog_write,
-	.ioctl		= indydog_ioctl,
-	.open		= indydog_open,
-	.release	= indydog_release,
+	.owner	= THIS_MODULE,
+	.write	= indydog_write,
+	.ioctl	= indydog_ioctl,
+	.open	= indydog_open,
+	.release= indydog_release,
 };
 
 static struct miscdevice indydog_miscdev = {
-	.minor		= WATCHDOG_MINOR,
-	.name		= "watchdog",
-	.fops		= &indydog_fops,
+	.minor	= WATCHDOG_MINOR,
+	.name	= "watchdog",
+	.fops	= &indydog_fops,
 };
 
-static struct notifier_block indydog_notifier = {
-	.notifier_call = indydog_notify_sys,
-};
-
-static char banner[] __initdata =
-	KERN_INFO PFX "Hardware Watchdog Timer for SGI IP22: 0.3\n";
+static char banner[] __initdata = KERN_INFO "Hardware Watchdog Timer for SGI IP22: 0.2\n";
 
 static int __init watchdog_init(void)
 {
 	int ret;
 
-	ret = register_reboot_notifier(&indydog_notifier);
-	if (ret) {
-		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
-			ret);
-		return ret;
-	}
-
 	ret = misc_register(&indydog_miscdev);
-	if (ret) {
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-			WATCHDOG_MINOR, ret);
-		unregister_reboot_notifier(&indydog_notifier);
+
+	if (ret)
 		return ret;
-	}
 
 	printk(banner);
 
@@ -208,13 +175,8 @@ static int __init watchdog_init(void)
 static void __exit watchdog_exit(void)
 {
 	misc_deregister(&indydog_miscdev);
-	unregister_reboot_notifier(&indydog_notifier);
 }
 
 module_init(watchdog_init);
 module_exit(watchdog_exit);
-
-MODULE_AUTHOR("Guido Guenther <agx@sigxcpu.org>");
-MODULE_DESCRIPTION("Hardware Watchdog Device for SGI IP22");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) International Business Machines Corp., 2000-2004
+ *   Copyright (C) International Business Machines Corp., 2000-2003
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -124,7 +124,7 @@ static int dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb,
 		     s64 * results);
 static int dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkno,
 		      s64 * results);
-static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks);
+int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks);
 static int dbFindBits(u32 word, int l2nb);
 static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno);
 static int dbFindLeaf(dmtree_t * tp, int l2nb, int *leafidx);
@@ -134,10 +134,10 @@ static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
 		      int nblocks);
 static int dbMaxBud(u8 * cp);
 s64 dbMapFileSizeToMapSize(struct inode *ipbmap);
-static int blkstol2(s64 nb);
+int blkstol2(s64 nb);
 
-static int cntlz(u32 value);
-static int cnttz(u32 word);
+int cntlz(u32 value);
+int cnttz(u32 word);
 
 static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkno,
 			 int nblocks);
@@ -155,7 +155,7 @@ static int dbGetL2AGSize(s64 nblocks);
  * into the table, with the table elements yielding the maximum
  * binary buddy of free bits within the character.
  */
-static s8 budtab[256] = {
+signed char budtab[256] = {
 	3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 	2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -382,7 +382,7 @@ int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
 	IREAD_LOCK(ipbmap);
 
 	/* block to be freed better be within the mapsize. */
-	if (unlikely((blkno == 0) || (blkno + nblocks > bmp->db_mapsize))) {
+	if (blkno + nblocks > bmp->db_mapsize) {
 		IREAD_UNLOCK(ipbmap);
 		printk(KERN_ERR "blkno = %Lx, nblocks = %Lx\n",
 		       (unsigned long long) blkno,
@@ -942,7 +942,7 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	return (rc);
 }
 
-#ifdef _NOTYET
+
 /*
  * NAME:	dbAllocExact()
  *
@@ -1009,7 +1009,7 @@ int dbAllocExact(struct inode *ip, s64 blkno, int nblocks)
 
 	return (rc);
 }
-#endif /* _NOTYET */
+
 
 /*
  * NAME:	dbReAlloc()
@@ -1092,7 +1092,7 @@ dbReAlloc(struct inode *ip,
  *      -ENOSPC	- insufficient disk resources
  *      -EIO	- i/o error
  */
-static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
+int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(ip->i_sb);
 	s64 lblkno, lastblkno, extblkno;
@@ -1203,12 +1203,6 @@ static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	int l2size;
 	s8 *leaf;
 	u32 mask;
-
-	if (dp->tree.leafidx != cpu_to_le32(LEAFIND)) {
-		jfs_error(bmp->db_ipbmap->i_sb,
-			  "dbAllocNext: Corrupt dmap page");
-		return -EIO;
-	}
 
 	/* pick up a pointer to the leaves of the dmap tree.
 	 */
@@ -1333,15 +1327,7 @@ dbAllocNear(struct bmap * bmp,
 	    struct dmap * dp, s64 blkno, int nblocks, int l2nb, s64 * results)
 {
 	int word, lword, rc;
-	s8 *leaf;
-
-	if (dp->tree.leafidx != cpu_to_le32(LEAFIND)) {
-		jfs_error(bmp->db_ipbmap->i_sb,
-			  "dbAllocNear: Corrupt dmap page");
-		return -EIO;
-	}
-
-	leaf = dp->tree.stree + le32_to_cpu(dp->tree.leafidx);
+	s8 *leaf = dp->tree.stree + le32_to_cpu(dp->tree.leafidx);
 
 	/* determine the word within the dmap that holds the hint
 	 * (i.e. blkno).  also, determine the last word in the dmap
@@ -1503,13 +1489,6 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 	dcp = (struct dmapctl *) mp->data;
 	budmin = dcp->budmin;
 
-	if (dcp->leafidx != cpu_to_le32(CTLLEAFIND)) {
-		jfs_error(bmp->db_ipbmap->i_sb,
-			  "dbAllocAG: Corrupt dmapctl page");
-		release_metapage(mp);
-		return -EIO;
-	}
-
 	/* search the subtree(s) of the dmap control page that describes
 	 * the allocation group, looking for sufficient free space.  to begin,
 	 * determine how many allocation groups are represented in a dmap
@@ -1547,7 +1526,6 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 			if (n == 4) {
 				jfs_error(bmp->db_ipbmap->i_sb,
 					  "dbAllocAG: failed descending stree");
-				release_metapage(mp);
 				return -EIO;
 			}
 		}
@@ -1717,13 +1695,6 @@ static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno)
 			return -EIO;
 		dcp = (struct dmapctl *) mp->data;
 		budmin = dcp->budmin;
-
-		if (dcp->leafidx != cpu_to_le32(CTLLEAFIND)) {
-			jfs_error(bmp->db_ipbmap->i_sb,
-				  "dbFindCtl: Corrupt dmapctl page");
-			release_metapage(mp);
-			return -EIO;
-		}
 
 		/* search the tree within the dmap control page for
 		 * sufficent free space.  if sufficient free space is found,
@@ -2487,13 +2458,6 @@ dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
 		return -EIO;
 	dcp = (struct dmapctl *) mp->data;
 
-	if (dcp->leafidx != cpu_to_le32(CTLLEAFIND)) {
-		jfs_error(bmp->db_ipbmap->i_sb,
-			  "dbAdjCtl: Corrupt dmapctl page");
-		release_metapage(mp);
-		return -EIO;
-	}
-
 	/* determine the leaf number corresponding to the block and
 	 * the index within the dmap control tree.
 	 */
@@ -3058,7 +3022,7 @@ static int dbMaxBud(u8 * cp)
  * RETURN VALUES:
  *      count of trailing zeros
  */
-static int cnttz(u32 word)
+int cnttz(u32 word)
 {
 	int n;
 
@@ -3083,7 +3047,7 @@ static int cnttz(u32 word)
  * RETURN VALUES:
  *      count of leading zeros
  */
-static int cntlz(u32 value)
+int cntlz(u32 value)
 {
 	int n;
 
@@ -3346,7 +3310,7 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 	int i, i0 = TRUE, j, j0 = TRUE, k, n;
 	s64 newsize;
 	s64 p;
-	struct metapage *mp, *l2mp, *l1mp = NULL, *l0mp = NULL;
+	struct metapage *mp, *l2mp, *l1mp, *l0mp;
 	struct dmapctl *l2dcp, *l1dcp, *l0dcp;
 	struct dmap *dp;
 	s8 *l0leaf, *l1leaf, *l2leaf;
@@ -3549,7 +3513,6 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 			 */
 			*l1leaf = dbInitDmapCtl(l0dcp, 0, ++i);
 			write_metapage(l0mp);
-			l0mp = NULL;
 
 			if (nblocks)
 				l1leaf++;	/* continue for next L0 */
@@ -3573,7 +3536,6 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 		 */
 		*l2leaf = dbInitDmapCtl(l1dcp, 1, ++j);
 		write_metapage(l1mp);
-		l1mp = NULL;
 
 		if (nblocks)
 			l2leaf++;	/* continue for next L1 */
@@ -3592,20 +3554,17 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 
 	jfs_error(ipbmap->i_sb,
 		  "dbExtendFS: function has not returned as expected");
-errout:
-	if (l0mp)
-		release_metapage(l0mp);
-	if (l1mp)
-		release_metapage(l1mp);
-	release_metapage(l2mp);
 	return -EIO;
 
 	/*
 	 *      finalize bmap control page
 	 */
-finalize:
+      finalize:
 
 	return 0;
+
+      errout:
+	return -EIO;
 }
 
 

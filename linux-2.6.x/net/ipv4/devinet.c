@@ -165,7 +165,6 @@ struct in_device *inetdev_init(struct net_device *dev)
 #ifdef CONFIG_SYSCTL
 	devinet_sysctl_register(in_dev, &in_dev->cnf);
 #endif
-	ip_mc_init_dev(in_dev);
 	if (dev->flags & IFF_UP)
 		ip_mc_up(in_dev);
 out:
@@ -489,7 +488,7 @@ static __inline__ int inet_abc_len(u32 addr)
 }
 
 
-int devinet_ioctl(unsigned int cmd, void __user *arg)
+int devinet_ioctl(unsigned int cmd, void *arg)
 {
 	struct ifreq ifr;
 	struct sockaddr_in sin_orig;
@@ -699,20 +698,6 @@ int devinet_ioctl(unsigned int cmd, void __user *arg)
 			inet_del_ifa(in_dev, ifap, 0);
 			ifa->ifa_mask = sin->sin_addr.s_addr;
 			ifa->ifa_prefixlen = inet_mask_len(ifa->ifa_mask);
-
-			/* See if current broadcast address matches
-			 * with current netmask, then recalculate
-			 * the broadcast address. Otherwise it's a
-			 * funny address, so don't touch it since
-			 * the user seems to know what (s)he's doing...
-			 */
-			if ((dev->flags & IFF_BROADCAST) &&
-			    (ifa->ifa_prefixlen < 31) &&
-			    (ifa->ifa_broadcast ==
-			     (ifa->ifa_local|~ifa->ifa_mask))) {
-				ifa->ifa_broadcast = (ifa->ifa_local |
-						      ~sin->sin_addr.s_addr);
-			}
 			inet_insert_ifa(ifa);
 		}
 		break;
@@ -727,7 +712,7 @@ rarok:
 	goto out;
 }
 
-static int inet_gifconf(struct net_device *dev, char __user *buf, int len)
+static int inet_gifconf(struct net_device *dev, char *buf, int len)
 {
 	struct in_device *in_dev = __in_dev_get(dev);
 	struct in_ifaddr *ifa;
@@ -822,84 +807,6 @@ out:
 out_unlock_inetdev:
 	read_unlock(&inetdev_lock);
 	goto out;
-}
-
-static u32 confirm_addr_indev(struct in_device *in_dev, u32 dst,
-			      u32 local, int scope)
-{
-	int same = 0;
-	u32 addr = 0;
-
-	for_ifa(in_dev) {
-		if (!addr &&
-		    (local == ifa->ifa_local || !local) &&
-		    ifa->ifa_scope <= scope) {
-			addr = ifa->ifa_local;
-			if (same)
-				break;
-		}
-		if (!same) {
-			same = (!local || inet_ifa_match(local, ifa)) &&
-				(!dst || inet_ifa_match(dst, ifa));
-			if (same && addr) {
-				if (local || !dst)
-					break;
-				/* Is the selected addr into dst subnet? */
-				if (inet_ifa_match(addr, ifa))
-					break;
-				/* No, then can we use new local src? */
-				if (ifa->ifa_scope <= scope) {
-					addr = ifa->ifa_local;
-					break;
-				}
-				/* search for large dst subnet for addr */
-				same = 0;
-			}
-		}
-	} endfor_ifa(in_dev);
-
-	return same? addr : 0;
-}
-
-/*
- * Confirm that local IP address exists using wildcards:
- * - dev: only on this interface, 0=any interface
- * - dst: only in the same subnet as dst, 0=any dst
- * - local: address, 0=autoselect the local address
- * - scope: maximum allowed scope value for the local address
- */
-u32 inet_confirm_addr(const struct net_device *dev, u32 dst, u32 local, int scope)
-{
-	u32 addr = 0;
-	struct in_device *in_dev;
-
-	if (dev) {
-		read_lock(&inetdev_lock);
-		if ((in_dev = __in_dev_get(dev))) {
-			read_lock(&in_dev->lock);
-			addr = confirm_addr_indev(in_dev, dst, local, scope);
-			read_unlock(&in_dev->lock);
-		}
-		read_unlock(&inetdev_lock);
-
-		return addr;
-	}
-
-	read_lock(&dev_base_lock);
-	read_lock(&inetdev_lock);
-	for (dev = dev_base; dev; dev = dev->next) {
-		if ((in_dev = __in_dev_get(dev))) {
-			read_lock(&in_dev->lock);
-			addr = confirm_addr_indev(in_dev, dst, local, scope);
-			read_unlock(&in_dev->lock);
-			if (addr)
-				break;
-		}
-	}
-	read_unlock(&inetdev_lock);
-	read_unlock(&dev_base_lock);
-
-	return addr;
 }
 
 /*
@@ -1012,7 +919,7 @@ out:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block ip_netdev_notifier = {
+struct notifier_block ip_netdev_notifier = {
 	.notifier_call =inetdev_event,
 };
 
@@ -1150,12 +1057,12 @@ void inet_forward_change(void)
 }
 
 static int devinet_sysctl_forward(ctl_table *ctl, int write,
-				  struct file* filp, void __user *buffer,
-				  size_t *lenp, loff_t *ppos)
+				  struct file* filp, void *buffer,
+				  size_t *lenp)
 {
 	int *valp = ctl->data;
 	int val = *valp;
-	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+	int ret = proc_dointvec(ctl, write, filp, buffer, lenp);
 
 	if (write && *valp != val) {
 		if (valp == &ipv4_devconf.forwarding)
@@ -1168,12 +1075,12 @@ static int devinet_sysctl_forward(ctl_table *ctl, int write,
 }
 
 int ipv4_doint_and_flush(ctl_table *ctl, int write,
-			 struct file* filp, void __user *buffer,
-			 size_t *lenp, loff_t *ppos)
+			 struct file* filp, void *buffer,
+			 size_t *lenp)
 {
 	int *valp = ctl->data;
 	int val = *valp;
-	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+	int ret = proc_dointvec(ctl, write, filp, buffer, lenp);
 
 	if (write && *valp != val)
 		rt_cache_flush(0);
@@ -1181,9 +1088,9 @@ int ipv4_doint_and_flush(ctl_table *ctl, int write,
 	return ret;
 }
 
-int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
-				  void __user *oldval, size_t __user *oldlenp,
-				  void __user *newval, size_t newlen, 
+int ipv4_doint_and_flush_strategy(ctl_table *table, int *name, int nlen,
+				  void *oldval, size_t *oldlenp,
+				  void *newval, size_t newlen, 
 				  void **context)
 {
 	int *valp = table->data;
@@ -1195,7 +1102,7 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 	if (newlen != sizeof(int))
 		return -EINVAL;
 
-	if (get_user(new, (int __user *)newval))
+	if (get_user(new, (int *)newval))
 		return -EFAULT;
 
 	if (new == *valp)
@@ -1225,7 +1132,7 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 
 static struct devinet_sysctl_table {
 	struct ctl_table_header *sysctl_header;
-	ctl_table		devinet_vars[20];
+	ctl_table		devinet_vars[17];
 	ctl_table		devinet_dev[2];
 	ctl_table		devinet_conf_dir[2];
 	ctl_table		devinet_proto_dir[2];
@@ -1345,22 +1252,6 @@ static struct devinet_sysctl_table {
 			.proc_handler	= &proc_dointvec,
 		},
 		{
-			.ctl_name	= NET_IPV4_CONF_ARP_ANNOUNCE,
-			.procname	= "arp_announce",
-			.data		= &ipv4_devconf.arp_announce,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_ARP_IGNORE,
-			.procname	= "arp_ignore",
-			.data		= &ipv4_devconf.arp_ignore,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &proc_dointvec,
-		},
-		{
 			.ctl_name	= NET_IPV4_CONF_NOXFRM,
 			.procname	= "disable_xfrm",
 			.data		= &ipv4_devconf.no_xfrm,
@@ -1373,15 +1264,6 @@ static struct devinet_sysctl_table {
 			.ctl_name	= NET_IPV4_CONF_NOPOLICY,
 			.procname	= "disable_policy",
 			.data		= &ipv4_devconf.no_policy,
-			.maxlen		= sizeof(int),
-			.mode		= 0644,
-			.proc_handler	= &ipv4_doint_and_flush,
-			.strategy	= &ipv4_doint_and_flush_strategy,
-		},
-		{
-			.ctl_name	= NET_IPV4_CONF_FORCE_IGMP_VERSION,
-			.procname	= "force_igmp_version",
-			.data		= &ipv4_devconf.force_igmp_version,
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= &ipv4_doint_and_flush,

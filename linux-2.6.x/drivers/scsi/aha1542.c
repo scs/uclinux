@@ -47,7 +47,7 @@
 #include <asm/io.h>
 
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 #include "aha1542.h"
 
 #define SCSI_BUF_PA(address)	isa_virt_to_bus(address)
@@ -545,7 +545,7 @@ static void aha1542_intr_handle(struct Scsi_Host *shost, void *dev_id, struct pt
 		my_done = SCtmp->scsi_done;
 		if (SCtmp->host_scribble) {
 			kfree(SCtmp->host_scribble);
-			SCtmp->host_scribble = NULL;
+			SCtmp->host_scribble = 0;
 		}
 		/* Fetch the sense data, and tuck it away, in the required slot.  The
 		   Adaptec automatically fetches it, and there is no guarantee that
@@ -704,14 +704,11 @@ static int aha1542_queuecommand(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 #endif
 		int i;
 		ccb[mbo].op = 2;	/* SCSI Initiator Command  w/scatter-gather */
-		SCpnt->host_scribble = (unsigned char *) kmalloc(512, GFP_KERNEL | GFP_DMA);
+		SCpnt->host_scribble = (unsigned char *) kmalloc(512, GFP_DMA);
 		sgpnt = (struct scatterlist *) SCpnt->request_buffer;
 		cptr = (struct chain *) SCpnt->host_scribble;
-		if (cptr == NULL) {
-			/* free the claimed mailbox slot */
-			HOSTDATA(SCpnt->device->host)->SCint[mbo] = NULL;
-			return SCSI_MLQUEUE_HOST_BUSY;
-		}
+		if (cptr == NULL)
+			panic("aha1542.c: unable to allocate DMA memory\n");
 		for (i = 0; i < SCpnt->use_sg; i++) {
 			if (sgpnt[i].length == 0 || SCpnt->use_sg > 16 ||
 			    (((int) sgpnt[i].offset) & 1) || (sgpnt[i].length & 1)) {
@@ -1069,7 +1066,7 @@ static int __init aha1542_detect(Scsi_Host_Template * tpnt)
 	/*
 	 *	Find MicroChannel cards (AHA1640)
 	 */
-#ifdef CONFIG_MCA_LEGACY
+#ifdef CONFIG_MCA
 	if(MCA_bus) {
 		int slot = 0;
 		int pos = 0;

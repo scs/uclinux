@@ -11,7 +11,6 @@
 #include "linux/msg.h"
 #include "linux/shm.h"
 #include "linux/sys.h"
-#include "linux/syscalls.h"
 #include "linux/unistd.h"
 #include "linux/slab.h"
 #include "linux/utime.h"
@@ -236,7 +235,7 @@ int sys_ipc (uint call, int first, int second,
 		switch (version) {
 		default: {
 			ulong raddr;
-			ret = do_shmat (first, (char *) ptr, second, &raddr);
+			ret = sys_shmat (first, (char *) ptr, second, &raddr);
 			if (ret)
 				return ret;
 			return put_user (raddr, (ulong *) third);
@@ -244,7 +243,7 @@ int sys_ipc (uint call, int first, int second,
 		case 1:	/* iBCS2 emulator entry point */
 			if (!segment_eq(get_fs(), get_ds()))
 				return -EINVAL;
-			return do_shmat (first, (char *) ptr, second, (ulong *) third);
+			return sys_shmat (first, (char *) ptr, second, (ulong *) third);
 		}
 	case SHMDT: 
 		return sys_shmdt ((char *)ptr);

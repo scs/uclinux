@@ -6,7 +6,6 @@
 #include <asm/atomic.h>
 #include <asm/bitops.h>
 #include <asm/mmu.h>
-#include <asm/cputable.h>
 
 /*
  * On 32-bit PowerPC 6xx/7xx/7xxx CPUs, we use a set of 16 VSIDs
@@ -59,11 +58,6 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 #define FIRST_CONTEXT    	0
 
 #elif defined(CONFIG_4xx)
-#define NO_CONTEXT      	256
-#define LAST_CONTEXT    	255
-#define FIRST_CONTEXT    	1
-
-#elif defined(CONFIG_E500)
 #define NO_CONTEXT      	256
 #define LAST_CONTEXT    	255
 #define FIRST_CONTEXT    	1
@@ -161,24 +155,7 @@ static inline void destroy_context(struct mm_struct *mm)
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
-#ifdef CONFIG_ALTIVEC
-	asm volatile (
- BEGIN_FTR_SECTION
-	"dssall;\n"
-#ifndef CONFIG_POWER4
-	 "sync;\n" /* G4 needs a sync here, G5 apparently not */
-#endif
- END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
-	 : : );
-#endif /* CONFIG_ALTIVEC */
-
 	tsk->thread.pgdir = next->pgd;
-
-	/* No need to flush userspace segments if the mm doesnt change */
-	if (prev == next)
-		return;
-
-	/* Setup new userspace context */
 	get_mmu_context(next);
 	set_context(next->context, next->pgd);
 }
@@ -189,7 +166,12 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  * After we have set current->mm to a new value, this activates
  * the context for the new mm so we see the new mappings.
  */
-#define activate_mm(active_mm, mm)   switch_mm(active_mm, mm, current)
+static inline void activate_mm(struct mm_struct *active_mm, struct mm_struct *mm)
+{
+	current->thread.pgdir = mm->pgd;
+	get_mmu_context(mm);
+	set_context(mm->context, mm->pgd);
+}
 
 extern void mmu_context_init(void);
 

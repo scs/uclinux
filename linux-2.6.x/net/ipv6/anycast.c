@@ -111,7 +111,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
-	if (ipv6_addr_is_multicast(addr))
+	if (ipv6_addr_type(addr) & IPV6_ADDR_MULTICAST)
 		return -EINVAL;
 	if (ipv6_chk_addr(addr, NULL, 0))
 		return -EINVAL;
@@ -202,7 +202,7 @@ int ipv6_sock_ac_drop(struct sock *sk, int ifindex, struct in6_addr *addr)
 	struct ipv6_ac_socklist *pac, *prev_pac;
 
 	write_lock_bh(&ipv6_sk_ac_lock);
-	prev_pac = NULL;
+	prev_pac = 0;
 	for (pac = np->ipv6_ac_list; pac; pac = pac->acl_next) {
 		if ((ifindex == 0 || pac->acl_ifindex == ifindex) &&
 		     ipv6_addr_cmp(&pac->acl_addr, addr) == 0)
@@ -232,13 +232,13 @@ int ipv6_sock_ac_drop(struct sock *sk, int ifindex, struct in6_addr *addr)
 void ipv6_sock_ac_close(struct sock *sk)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct net_device *dev = NULL;
+	struct net_device *dev = 0;
 	struct ipv6_ac_socklist *pac;
 	int	prev_index;
 
 	write_lock_bh(&ipv6_sk_ac_lock);
 	pac = np->ipv6_ac_list;
-	np->ipv6_ac_list = NULL;
+	np->ipv6_ac_list = 0;
 	write_unlock_bh(&ipv6_sk_ac_lock);
 
 	prev_index = 0;
@@ -373,7 +373,7 @@ int ipv6_dev_ac_dec(struct net_device *dev, struct in6_addr *addr)
 		return -ENODEV;
 
 	write_lock_bh(&idev->lock);
-	prev_aca = NULL;
+	prev_aca = 0;
 	for (aca = idev->ac_list; aca; aca = aca->aca_next) {
 		if (ipv6_addr_cmp(&aca->aca_addr, addr) == 0)
 			break;

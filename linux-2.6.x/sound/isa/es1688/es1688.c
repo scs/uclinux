@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/wait.h>
-#include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/es1688.h>
 #include <sound/mpu401.h>
@@ -32,7 +31,10 @@
 #define SNDRV_LEGACY_AUTO_PROBE
 #define SNDRV_LEGACY_FIND_FREE_IRQ
 #define SNDRV_LEGACY_FIND_FREE_DMA
+#define SNDRV_GET_ID
 #include <sound/initval.h>
+
+#define chip_t es1688_t
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("ESS ESx688 AudioDrive");
@@ -51,30 +53,29 @@ static long mpu_port[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = -1};
 static int irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* 5,7,9,10 */
 static int mpu_irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* 5,7,9,10 */
 static int dma8[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* 0,1,3 */
-static int boot_devs;
 
-module_param_array(index, int, boot_devs, 0444);
+MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(index, "Index value for ESx688 soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-module_param_array(id, charp, boot_devs, 0444);
+MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
 MODULE_PARM_DESC(id, "ID string for ESx688 soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-module_param_array(enable, bool, boot_devs, 0444);
+MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(enable, "Enable ESx688 soundcard.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-module_param_array(port, long, boot_devs, 0444);
+MODULE_PARM(port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(port, "Port # for ESx688 driver.");
 MODULE_PARM_SYNTAX(port, SNDRV_PORT12_DESC);
-module_param_array(mpu_port, long, boot_devs, 0444);
+MODULE_PARM(mpu_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for ESx688 driver.");
 MODULE_PARM_SYNTAX(mpu_port, SNDRV_PORT12_DESC);
-module_param_array(irq, int, boot_devs, 0444);
+MODULE_PARM(irq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(irq, "IRQ # for ESx688 driver.");
 MODULE_PARM_SYNTAX(irq, SNDRV_IRQ_DESC);
-module_param_array(mpu_irq, int, boot_devs, 0444);
+MODULE_PARM(mpu_irq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for ESx688 driver.");
 MODULE_PARM_SYNTAX(mpu_irq, SNDRV_IRQ_DESC);
-module_param_array(dma8, int, boot_devs, 0444);
+MODULE_PARM(dma8, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(dma8, "8-bit DMA # for ESx688 driver.");
 MODULE_PARM_SYNTAX(dma8, SNDRV_DMA8_DESC);
 
@@ -129,10 +130,6 @@ static int __init snd_audiodrive_probe(int dev)
 		return err;
 	}
 
-	strcpy(card->driver, "ES1688");
-	strcpy(card->shortname, pcm->name);
-	sprintf(card->longname, "%s at 0x%lx, irq %i, dma %i", pcm->name, chip->port, xirq, xdma);
-
 	if ((snd_opl3_create(card, chip->port, chip->port + 2, OPL3_HW_OPL3, 0, &opl3)) < 0) {
 		printk(KERN_ERR "es1688: opl3 not detected at 0x%lx\n", chip->port);
 	} else {
@@ -142,7 +139,7 @@ static int __init snd_audiodrive_probe(int dev)
 		}
 	}
 
-	if (xmpu_irq >= 0 && xmpu_irq != SNDRV_AUTO_IRQ && chip->mpu_port > 0) {
+	if (xmpu_irq >= 0) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_ES1688,
 					       chip->mpu_port, 0,
 					       xmpu_irq,
@@ -152,6 +149,9 @@ static int __init snd_audiodrive_probe(int dev)
 			return err;
 		}
 	}
+	strcpy(card->driver, "ES1688");
+	strcpy(card->shortname, pcm->name);
+	sprintf(card->longname, "%s at 0x%lx, irq %i, dma %i", pcm->name, chip->port, xirq, xdma);
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -181,7 +181,7 @@ static int __init snd_audiodrive_legacy_auto_probe(unsigned long xport)
 static int __init alsa_card_es1688_init(void)
 {
 	static unsigned long possible_ports[] = {0x220, 0x240, 0x260, -1};
-	int dev, cards = 0, i;
+	int dev, cards = 0;
 
 	for (dev = cards = 0; dev < SNDRV_CARDS && enable[dev]; dev++) {
 		if (port[dev] == SNDRV_AUTO_PORT)
@@ -189,10 +189,7 @@ static int __init alsa_card_es1688_init(void)
 		if (snd_audiodrive_probe(dev) >= 0)
 			cards++;
 	}
-	i = snd_legacy_auto_probe(possible_ports, snd_audiodrive_legacy_auto_probe);
-	if (i > 0)
-		cards += i;
-
+	cards += snd_legacy_auto_probe(possible_ports, snd_audiodrive_legacy_auto_probe);
 	if (!cards) {
 #ifdef MODULE
 		printk(KERN_ERR "ESS AudioDrive ES1688 soundcard not found or device busy\n");
@@ -212,3 +209,32 @@ static void __exit alsa_card_es1688_exit(void)
 
 module_init(alsa_card_es1688_init)
 module_exit(alsa_card_es1688_exit)
+
+#ifndef MODULE
+
+/* format is: snd-es1688=enable,index,id,
+			 port,mpu_port,
+			 irq,mpu_irq,
+			 dma8 */
+
+static int __init alsa_card_es1688_setup(char *str)
+{
+	static unsigned __initdata nr_dev = 0;
+
+	if (nr_dev >= SNDRV_CARDS)
+		return 0;
+	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
+	       get_option(&str,&index[nr_dev]) == 2 &&
+	       get_id(&str,&id[nr_dev]) == 2 &&
+	       get_option(&str,(int *)&port[nr_dev]) == 2 &&
+	       get_option(&str,(int *)&mpu_port[nr_dev]) == 2 &&
+	       get_option(&str,&irq[nr_dev]) == 2 &&
+	       get_option(&str,&mpu_irq[nr_dev]) == 2 &&
+	       get_option(&str,&dma8[nr_dev]) == 2);
+	nr_dev++;
+	return 1;
+}
+
+__setup("snd-es1688=", alsa_card_es1688_setup);
+
+#endif /* ifndef MODULE */

@@ -175,7 +175,7 @@ static int macio_send_request(struct adb_request *req, int sync)
 		req->data[i] = req->data[i+1];
 	--req->nbytes;
 	
-	req->next = NULL;
+	req->next = 0;
 	req->sent = 0;
 	req->complete = 0;
 	req->reply_len = 0;
@@ -280,6 +280,6 @@ static void macio_adb_poll(void)
 
 	local_irq_save(flags);
 	if (in_8(&adb->intr.r) != 0)
-		macio_adb_interrupt(0, NULL, NULL);
+		macio_adb_interrupt(0, 0, 0);
 	local_irq_restore(flags);
 }

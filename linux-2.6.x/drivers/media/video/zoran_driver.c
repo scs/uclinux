@@ -424,15 +424,17 @@ v4l_fbuffer_alloc (struct file *file)
 						ZR_DEVNAME(zr), size >> 10);
 					return -ENOBUFS;
 				}
-				fh->v4l_buffers.buffer[0].fbuffer = NULL;
-				fh->v4l_buffers.buffer[0].fbuffer_phys = pmem;
-				fh->v4l_buffers.buffer[0].fbuffer_bus = pmem;
+				fh->v4l_buffers.buffer[0].fbuffer = 0;
+				fh->v4l_buffers.buffer[0].fbuffer_phys =
+				    pmem;
+				fh->v4l_buffers.buffer[0].fbuffer_bus =
+				    pmem;
 				dprintk(4,
 					KERN_INFO
 					"%s: v4l_fbuffer_alloc() - using %d KB high memory\n",
 					ZR_DEVNAME(zr), size >> 10);
 			} else {
-				fh->v4l_buffers.buffer[i].fbuffer = NULL;
+				fh->v4l_buffers.buffer[i].fbuffer = 0;
 				fh->v4l_buffers.buffer[i].fbuffer_phys =
 				    pmem + i * fh->v4l_buffers.buffer_size;
 				fh->v4l_buffers.buffer[i].fbuffer_bus =
@@ -1470,7 +1472,7 @@ zoran_close (struct inode *inode,
 
 static ssize_t
 zoran_read (struct file *file,
-	    char        __user *data,
+	    char        *data,
 	    size_t       count,
 	    loff_t      *ppos)
 {
@@ -1481,7 +1483,7 @@ zoran_read (struct file *file,
 
 static ssize_t
 zoran_write (struct file *file,
-	     const char  __user *data,
+	     const char  *data,
 	     size_t       count,
 	     loff_t      *ppos)
 {
@@ -1567,9 +1569,9 @@ setup_window (struct file       *file,
 	      int                y,
 	      int                width,
 	      int                height,
-	      struct video_clip __user *clips,
+	      struct video_clip *clips,
 	      int                clipcount,
-	      void              __user *bitmap)
+	      void              *bitmap)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
@@ -2813,7 +2815,7 @@ zoran_do_ioctl (struct inode *inode,
 				     fh->jpg_settings.TmpDcm);
 				fmt->fmt.pix.sizeimage =
 				    zoran_v4l2_calc_bufsize(&fh->
-							    jpg_settings);
+							    jpg_settings);;
 				fmt->fmt.pix.pixelformat =
 				    V4L2_PIX_FMT_MJPEG;
 				if (fh->jpg_settings.TmpDcm == 1)
@@ -2871,7 +2873,7 @@ zoran_do_ioctl (struct inode *inode,
 					 fmt->fmt.win.w.top,
 					 fmt->fmt.win.w.width,
 					 fmt->fmt.win.w.height,
-					 (struct video_clip __user *)
+					 (struct video_clip *)
 					   fmt->fmt.win.clips,
 					 fmt->fmt.win.clipcount,
 					 fmt->fmt.win.bitmap);

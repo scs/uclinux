@@ -33,12 +33,13 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/bootmem.h>
-#include <linux/string.h>
-#include <linux/kernel.h>
-
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
-#include <asm/gt64120.h>
+#include <linux/string.h>
+#include <linux/kernel.h>
+#include <linux/sched.h>
+
+#include <asm/galileo-boards/ev96100.h>
 
 
 /* Environment variable */
@@ -50,6 +51,7 @@ typedef struct {
 
 int prom_argc;
 char **prom_argv, **prom_envp;
+char arcs_cmdline[CL_SIZE];
 
 int init_debug = 0;
 
@@ -58,9 +60,8 @@ char * __init prom_getcmdline(void)
 	return &(arcs_cmdline[0]);
 }
 
-unsigned long __init prom_free_prom_memory(void)
+void prom_free_prom_memory (void)
 {
-	return 0;
 }
 
 void  __init prom_init_cmdline(void)
@@ -154,14 +155,14 @@ const char *get_system_type(void)
 	return "Galileo EV96100";
 }
 
-void __init prom_init(void)
+void __init prom_init(int argc, char **argv, char **envp, int *prom_vec)
 {
 	volatile unsigned char *uart;
 	char ppbuf[8];
 
-	prom_argc = fw_arg0;
-	prom_argv = (char **) fw_arg1;
-	prom_envp = (char **) fw_arg2;
+	prom_argc = argc;
+	prom_argv = argv;
+	prom_envp = envp;
 
 	mips_machgroup = MACH_GROUP_GALILEO;
 	mips_machtype = MACH_EV96100;

@@ -62,18 +62,22 @@
 #include <linux/rtnetlink.h>
 #include <linux/usb.h>
 
-#include "irda-usb.h"
+#include <net/irda/irda-usb.h>
 
 /*------------------------------------------------------------------*/
 
 static int qos_mtt_bits = 0;
+
+/* Master instance for each hardware found */
+#define NIRUSB 4		/* Max number of USB-IrDA dongles */
+static struct irda_usb_cb irda_instance[NIRUSB];
 
 /* These are the currently known IrDA USB dongles. Add new dongles here */
 static struct usb_device_id dongles[] = {
 	/* ACTiSYS Corp.,  ACT-IR2000U FIR-USB Adapter */
 	{ USB_DEVICE(0x9c4, 0x011), .driver_info = IUC_SPEED_BUG | IUC_NO_WINDOW },
 	/* Look like ACTiSYS, Report : IBM Corp., IBM UltraPort IrDA */
-	{ USB_DEVICE(0x4428, 0x012), .driver_info = IUC_SPEED_BUG | IUC_NO_WINDOW },
+	{ USB_DEVICE(0x4428, 0x012), driver_info: IUC_SPEED_BUG | IUC_NO_WINDOW },
 	/* KC Technology Inc.,  KC-180 USB IrDA Device */
 	{ USB_DEVICE(0x50f, 0x180), .driver_info = IUC_SPEED_BUG | IUC_NO_WINDOW },
 	/* Extended Systems, Inc.,  XTNDAccess IrDA USB (ESI-9685) */
@@ -104,7 +108,7 @@ static void irda_usb_disconnect(struct usb_interface *intf);
 static void irda_usb_change_speed_xbofs(struct irda_usb_cb *self);
 static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *dev);
 static int irda_usb_open(struct irda_usb_cb *self);
-static void irda_usb_close(struct irda_usb_cb *self);
+static int irda_usb_close(struct irda_usb_cb *self);
 static void speed_bulk_callback(struct urb *urb, struct pt_regs *regs);
 static void write_bulk_callback(struct urb *urb, struct pt_regs *regs);
 static void irda_usb_receive(struct urb *urb, struct pt_regs *regs);
@@ -268,7 +272,7 @@ static void irda_usb_change_speed_xbofs(struct irda_usb_cb *self)
                       speed_bulk_callback, self);
 	urb->transfer_buffer_length = USB_IRDA_HEADER;
 	urb->transfer_flags = URB_ASYNC_UNLINK;
-	urb->timeout = msecs_to_jiffies(100);
+	urb->timeout = MSECS_TO_JIFFIES(100);
 
 	/* Irq disabled -> GFP_ATOMIC */
 	if ((ret = usb_submit_urb(urb, GFP_ATOMIC))) {
@@ -412,7 +416,7 @@ static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 	 * This is how the dongle will detect the end of packet - Jean II */
 	urb->transfer_flags |= URB_ZERO_PACKET;
 	/* Timeout need to be shorter than NET watchdog timer */
-	urb->timeout = msecs_to_jiffies(200);
+	urb->timeout = MSECS_TO_JIFFIES(200);
 
 	/* Generate min turn time. FIXME: can we do better than this? */
 	/* Trying to a turnaround time at this level is trying to measure
@@ -1136,6 +1140,14 @@ static inline void irda_usb_init_qos(struct irda_usb_cb *self)
 	 * the transmit path will be set differently - Jean II 
 	 */
 	irda_qos_bits_to_value(&self->qos);
+
+	self->flags |= IFF_SIR;
+	if (self->qos.baud_rate.value > 115200)
+		self->flags |= IFF_MIR;
+	if (self->qos.baud_rate.value > 1152000)
+		self->flags |= IFF_FIR;
+	if (self->qos.baud_rate.value > 4000000)
+		self->flags |= IFF_VFIR;
 }
 
 /*------------------------------------------------------------------*/
@@ -1145,11 +1157,35 @@ static inline void irda_usb_init_qos(struct irda_usb_cb *self)
  */
 static inline int irda_usb_open(struct irda_usb_cb *self)
 {
-	struct net_device *netdev = self->netdev;
+	struct net_device *netdev;
+	int err;
 
 	IRDA_DEBUG(1, "%s()\n", __FUNCTION__);
 
+	spin_lock_init(&self->lock);
+
 	irda_usb_init_qos(self);
+
+	/* Allocate the buffer for speed changes */
+	/* Don't change this buffer size and allocation without doing
+	 * some heavy and complete testing. Don't ask why :-(
+	 * Jean II */
+	self->speed_buff = (char *) kmalloc(IRDA_USB_SPEED_MTU, GFP_KERNEL);
+	if (self->speed_buff == NULL) 
+		return -1;
+	memset(self->speed_buff, 0, IRDA_USB_SPEED_MTU);
+
+	/* Create a network device for us */
+	netdev = alloc_irdadev(0);
+	if (!netdev) {
+		ERROR("%s(), alloc_net_dev() failed!\n", __FUNCTION__);
+		return -ENOMEM;
+	}
+
+	SET_MODULE_OWNER(dev);
+
+	self->netdev = netdev;
+ 	netdev->priv = (void *) self;
 
 	/* Override the network functions we need to use */
 	netdev->hard_start_xmit = irda_usb_hard_xmit;
@@ -1160,7 +1196,16 @@ static inline int irda_usb_open(struct irda_usb_cb *self)
 	netdev->get_stats	= irda_usb_net_get_stats;
 	netdev->do_ioctl        = irda_usb_net_ioctl;
 
-	return register_netdev(netdev);
+	err = register_netdev(netdev);
+	if (err) {
+		ERROR("%s(), register_netdev() failed!\n", __FUNCTION__);
+		self->netdev = NULL;
+		free_netdev(netdev);
+		return err;
+	}
+	MESSAGE("IrDA: Registered device %s\n", netdev->name);
+
+	return 0;
 }
 
 /*------------------------------------------------------------------*/
@@ -1168,18 +1213,26 @@ static inline int irda_usb_open(struct irda_usb_cb *self)
  * Cleanup the network side of the irda-usb instance
  * Called when a USB instance is removed in irda_usb_disconnect()
  */
-static inline void irda_usb_close(struct irda_usb_cb *self)
+static inline int irda_usb_close(struct irda_usb_cb *self)
 {
 	IRDA_DEBUG(1, "%s()\n", __FUNCTION__);
 
+	ASSERT(self != NULL, return -1;);
+
 	/* Remove netdevice */
-	unregister_netdev(self->netdev);
+	if (self->netdev) {
+		unregister_netdev(self->netdev);
+		free_netdev(self->netdev);
+		self->netdev = NULL;
+	}
 
 	/* Remove the speed buffer */
 	if (self->speed_buff != NULL) {
 		kfree(self->speed_buff);
 		self->speed_buff = NULL;
 	}
+
+	return 0;
 }
 
 /********************** USB CONFIG SUBROUTINES **********************/
@@ -1311,7 +1364,7 @@ static inline struct irda_class_desc *irda_usb_find_class_desc(struct usb_interf
 		IU_REQ_GET_CLASS_DESC,
 		USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 		0, intf->altsetting->desc.bInterfaceNumber, desc,
-		sizeof(*desc), msecs_to_jiffies(500));
+		sizeof(*desc), MSECS_TO_JIFFIES(500));
 	
 	IRDA_DEBUG(1, "%s(), ret=%d\n", __FUNCTION__, ret);
 	if (ret < sizeof(*desc)) {
@@ -1349,12 +1402,11 @@ static inline struct irda_class_desc *irda_usb_find_class_desc(struct usb_interf
 static int irda_usb_probe(struct usb_interface *intf,
 			  const struct usb_device_id *id)
 {
-	struct net_device *net;
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct irda_usb_cb *self = NULL;
 	struct usb_host_interface *interface;
 	struct irda_class_desc *irda_desc;
-	int ret = -ENOMEM;
+	int ret;
 	int i;		/* Driver instance index / Rx URB index */
 
 	/* Note : the probe make sure to call us only for devices that
@@ -1366,29 +1418,53 @@ static int irda_usb_probe(struct usb_interface *intf,
 		dev->devnum, dev->descriptor.idVendor,
 		dev->descriptor.idProduct);
 
-	net = alloc_irdadev(sizeof(*self));
-	if (!net) 
-		goto err_out;
+	/* Try to cleanup all instance that have a pending disconnect
+	 * In theory, it can't happen any longer.
+	 * Jean II */
+	for (i = 0; i < NIRUSB; i++) {
+		struct irda_usb_cb *irda = &irda_instance[i];
+		if((irda->usbdev != NULL) &&
+		   (irda->present == 0) &&
+		   (irda->netopen == 0)) {
+			IRDA_DEBUG(0, "%s(), found a zombie instance !!!\n", __FUNCTION__);
+			irda_usb_disconnect(irda->usbintf);
+		}
+	}
 
-	self = net->priv;
-	self->netdev = net;
-	spin_lock_init(&self->lock);
+	/* Find an free instance to handle this new device... */
+	self = NULL;
+	for (i = 0; i < NIRUSB; i++) {
+		if(irda_instance[i].usbdev == NULL) {
+			self = &irda_instance[i];
+			break;
+		}
+	}
+	if(self == NULL) {
+		WARNING("Too many USB IrDA devices !!! (max = %d)\n",
+			   NIRUSB);
+		return -ENFILE;
+	}
 
-	SET_MODULE_OWNER(net);
+	/* Reset the instance */
+	self->present = 0;
+	self->netopen = 0;
 
 	/* Create all of the needed urbs */
 	for (i = 0; i < IU_MAX_RX_URBS; i++) {
 		self->rx_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!self->rx_urb[i]) {
+			ret = -ENOMEM;
 			goto err_out_1;
 		}
 	}
 	self->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!self->tx_urb) {
+		ret = -ENOMEM;
 		goto err_out_1;
 	}
 	self->speed_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!self->speed_urb) {
+		ret = -ENOMEM;
 		goto err_out_2;
 	}
 
@@ -1421,7 +1497,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 	}
 
 	/* Find our endpoints */
-	interface = intf->cur_altsetting;
+	interface = &intf->altsetting[0];
 	if(!irda_usb_parse_endpoints(self, interface->endpoint,
 				     interface->desc.bNumEndpoints)) {
 		ERROR("%s(), Bogus endpoints...\n", __FUNCTION__);
@@ -1441,27 +1517,13 @@ static int irda_usb_probe(struct usb_interface *intf,
 	self->capability = id->driver_info;
 	self->usbdev = dev;
 	self->usbintf = intf;
-
-	/* Allocate the buffer for speed changes */
-	/* Don't change this buffer size and allocation without doing
-	 * some heavy and complete testing. Don't ask why :-(
-	 * Jean II */
-	self->speed_buff = (char *) kmalloc(IRDA_USB_SPEED_MTU, GFP_KERNEL);
-	if (self->speed_buff == NULL) 
+	ret = irda_usb_open(self);
+	if (ret)
 		goto err_out_3;
 
-	memset(self->speed_buff, 0, IRDA_USB_SPEED_MTU);
-
-	ret = irda_usb_open(self);
-	if (ret) 
-		goto err_out_4;
-
-	MESSAGE("IrDA: Registered device %s\n", net->name);
 	usb_set_intfdata(intf, self);
 	return 0;
 
-err_out_4:
-	kfree(self->speed_buff);
 err_out_3:
 	/* Free all urbs that we may have created */
 	usb_free_urb(self->speed_urb);
@@ -1472,8 +1534,7 @@ err_out_1:
 		if (self->rx_urb[i])
 			usb_free_urb(self->rx_urb[i]);
 	}
-	free_netdev(net);
-err_out:
+
 	return ret;
 }
 
@@ -1541,8 +1602,6 @@ static void irda_usb_disconnect(struct usb_interface *intf)
 	usb_free_urb(self->tx_urb);
 	usb_free_urb(self->speed_urb);
 
-	/* Free self and network device */
-	free_netdev(self->netdev);
 	IRDA_DEBUG(0, "%s(), USB IrDA Disconnected\n", __FUNCTION__);
 }
 
@@ -1587,6 +1646,20 @@ module_init(usb_irda_init);
  */
 static void __exit usb_irda_cleanup(void)
 {
+	struct irda_usb_cb *irda = NULL;
+	int	i;
+
+	/* Find zombie instances and kill them...
+	 * In theory, it can't happen any longer. Jean II */
+	for (i = 0; i < NIRUSB; i++) {
+		irda = &irda_instance[i];
+		/* If the Device is zombie */
+		if((irda->usbdev != NULL) && (irda->present == 0)) {
+			IRDA_DEBUG(0, "%s(), disconnect zombie now !\n", __FUNCTION__);
+			irda_usb_disconnect(irda->usbintf);
+		}
+	}
+
 	/* Deregister the driver and remove all pending instances */
 	usb_deregister(&irda_driver);
 }

@@ -1,7 +1,7 @@
 /* SCTP kernel reference Implementation
- * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
+ * Copyright (c) 2001-2003 International Business Machines, Corp.
  * Copyright (c) 2001 Intel Corp.
  * Copyright (c) 2001 Nokia, Inc.
  * Copyright (c) 2001 La Monte H.P. Yarroll
@@ -49,10 +49,10 @@
 #include <net/sctp/sm.h>
 
 /* Forward declarations for internal helpers.  */
-static struct sctp_ulpevent * sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
-						struct sctp_ulpevent *);
-static struct sctp_ulpevent * sctp_ulpq_order(struct sctp_ulpq *,
-						struct sctp_ulpevent *);
+static inline struct sctp_ulpevent * sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
+						     struct sctp_ulpevent *);
+static inline struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *,
+						    struct sctp_ulpevent *);
 
 /* 1st Level Abstractions */
 
@@ -79,7 +79,7 @@ fail:
 struct sctp_ulpq *sctp_ulpq_init(struct sctp_ulpq *ulpq,
 				 struct sctp_association *asoc)
 {
-	memset(ulpq, 0, sizeof(struct sctp_ulpq));
+	memset(ulpq, sizeof(struct sctp_ulpq), 0x00);
 
 	ulpq->asoc = asoc;
 	skb_queue_head_init(&ulpq->reasm);
@@ -97,12 +97,12 @@ void sctp_ulpq_flush(struct sctp_ulpq *ulpq)
 	struct sk_buff *skb;
 	struct sctp_ulpevent *event;
 
-	while ((skb = __skb_dequeue(&ulpq->lobby)) != NULL) {
+	while ((skb = __skb_dequeue(&ulpq->lobby))) {
 		event = sctp_skb2event(skb);
 		sctp_ulpevent_free(event);
 	}
 
-	while ((skb = __skb_dequeue(&ulpq->reasm)) != NULL) {
+	while ((skb = __skb_dequeue(&ulpq->reasm))) {
 		event = sctp_skb2event(skb);
 		sctp_ulpevent_free(event);
 	}
@@ -251,7 +251,7 @@ static inline void sctp_ulpq_store_reasm(struct sctp_ulpq *ulpq,
 	struct sctp_ulpevent *cevent;
 	__u32 tsn, ctsn;
 
-	tsn = event->tsn;
+	tsn = event->sndrcvinfo.sinfo_tsn;
 
 	/* See if it belongs at the end. */
 	pos = skb_peek_tail(&ulpq->reasm);
@@ -262,7 +262,7 @@ static inline void sctp_ulpq_store_reasm(struct sctp_ulpq *ulpq,
 
 	/* Short circuit just dropping it at the end. */
 	cevent = sctp_skb2event(pos);
-	ctsn = cevent->tsn;
+	ctsn = cevent->sndrcvinfo.sinfo_tsn;
 	if (TSN_lt(ctsn, tsn)) {
 		__skb_queue_tail(&ulpq->reasm, sctp_event2skb(event));
 		return;
@@ -271,7 +271,7 @@ static inline void sctp_ulpq_store_reasm(struct sctp_ulpq *ulpq,
 	/* Find the right place in this list. We store them by TSN.  */
 	skb_queue_walk(&ulpq->reasm, pos) {
 		cevent = sctp_skb2event(pos);
-		ctsn = cevent->tsn;
+		ctsn = cevent->sndrcvinfo.sinfo_tsn;
 
 		if (TSN_lt(tsn, ctsn))
 			break;
@@ -334,7 +334,7 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff *f_frag,
 	};
 
 	event = sctp_skb2event(f_frag);
-	SCTP_INC_STATS(SCTP_MIB_REASMUSRMSGS);
+	SCTP_INC_STATS(SctpReasmUsrMsgs);
 
 	return event;
 }
@@ -368,7 +368,7 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_u
 	 */
 	skb_queue_walk(&ulpq->reasm, pos) {
 		cevent = sctp_skb2event(pos);
-		ctsn = cevent->tsn;
+		ctsn = cevent->sndrcvinfo.sinfo_tsn;
 
 		switch (cevent->msg_flags & SCTP_DATA_FRAG_MASK) {
 		case SCTP_DATA_FIRST_FRAG:
@@ -425,7 +425,7 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_partial(struct sctp_ulpq 
 
 	skb_queue_walk(&ulpq->reasm, pos) {
 		cevent = sctp_skb2event(pos);
-		ctsn = cevent->tsn;
+		ctsn = cevent->sndrcvinfo.sinfo_tsn;
 
 		switch (cevent->msg_flags & SCTP_DATA_FRAG_MASK) {
 		case SCTP_DATA_MIDDLE_FRAG:
@@ -466,8 +466,8 @@ done:
 /* Helper function to reassemble chunks.  Hold chunks on the reasm queue that
  * need reassembling.
  */
-static struct sctp_ulpevent *sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
-						struct sctp_ulpevent *event)
+static inline struct sctp_ulpevent *sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
+						   struct sctp_ulpevent *event)
 {
 	struct sctp_ulpevent *retval = NULL;
 
@@ -486,7 +486,7 @@ static struct sctp_ulpevent *sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
 		/* Do not even bother unless this is the next tsn to
 		 * be delivered.
 		 */
-		ctsn = event->tsn;
+		ctsn = event->sndrcvinfo.sinfo_tsn;
 		ctsnap = sctp_tsnmap_get_ctsn(&ulpq->asoc->peer.tsn_map);
 		if (TSN_lte(ctsn, ctsnap))
 			retval = sctp_ulpq_retrieve_partial(ulpq);
@@ -517,7 +517,7 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_first(struct sctp_ulpq *u
 
 	skb_queue_walk(&ulpq->reasm, pos) {
 		cevent = sctp_skb2event(pos);
-		ctsn = cevent->tsn;
+		ctsn = cevent->sndrcvinfo.sinfo_tsn;
 
 		switch (cevent->msg_flags & SCTP_DATA_FRAG_MASK) {
 		case SCTP_DATA_FIRST_FRAG:
@@ -563,15 +563,15 @@ static inline void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
 	__u16 sid, csid;
 	__u16 ssn, cssn;
 
-	sid = event->stream;
-	ssn = event->ssn;
+	sid = event->sndrcvinfo.sinfo_stream;
+	ssn = event->sndrcvinfo.sinfo_ssn;
 	in  = &ulpq->asoc->ssnmap->in;
 
 	/* We are holding the chunks by stream, by SSN.  */
 	sctp_skb_for_each(pos, &ulpq->lobby, tmp) {
 		cevent = (struct sctp_ulpevent *) pos->cb;
-		csid = cevent->stream;
-		cssn = cevent->ssn;
+		csid = cevent->sndrcvinfo.sinfo_stream;
+		cssn = cevent->sndrcvinfo.sinfo_ssn;
 
 		/* Have we gone too far?  */
 		if (csid > sid)
@@ -609,12 +609,12 @@ static inline void sctp_ulpq_store_ordered(struct sctp_ulpq *ulpq,
 		return;
 	}
 
-	sid = event->stream;
-	ssn = event->ssn;
+	sid = event->sndrcvinfo.sinfo_stream;
+	ssn = event->sndrcvinfo.sinfo_ssn;
 	
 	cevent = (struct sctp_ulpevent *) pos->cb;
-	csid = cevent->stream;
-	cssn = cevent->ssn;
+	csid = cevent->sndrcvinfo.sinfo_stream;
+	cssn = cevent->sndrcvinfo.sinfo_ssn;
 	if (sid > csid) {
 		__skb_queue_tail(&ulpq->lobby, sctp_event2skb(event));
 		return;
@@ -630,8 +630,8 @@ static inline void sctp_ulpq_store_ordered(struct sctp_ulpq *ulpq,
 	 */
 	skb_queue_walk(&ulpq->lobby, pos) {
 		cevent = (struct sctp_ulpevent *) pos->cb;
-		csid = cevent->stream;
-		cssn = cevent->ssn;
+		csid = cevent->sndrcvinfo.sinfo_stream;
+		cssn = cevent->sndrcvinfo.sinfo_ssn;
 
 		if (csid > sid)
 			break;
@@ -645,8 +645,8 @@ static inline void sctp_ulpq_store_ordered(struct sctp_ulpq *ulpq,
 
 }
 
-static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *ulpq,
-						struct sctp_ulpevent *event)
+static inline struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *ulpq,
+					struct sctp_ulpevent *event)
 {
 	__u16 sid, ssn;
 	struct sctp_stream *in;
@@ -656,8 +656,8 @@ static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *ulpq,
 		return event;
 
 	/* Note: The stream ID must be verified before this routine.  */
-	sid = event->stream;
-	ssn = event->ssn;
+	sid = event->sndrcvinfo.sinfo_stream;
+	ssn = event->sndrcvinfo.sinfo_ssn;
 	in  = &ulpq->asoc->ssnmap->in;
 
 	/* Is this the expected SSN for this stream ID?  */
@@ -680,71 +680,6 @@ static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *ulpq,
 	return event;
 }
 
-/* Helper function to gather skbs that have possibly become
- * ordered by forward tsn skipping their dependencies.
- */
-static inline void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq)
-{
-	struct sk_buff *pos, *tmp;
-	struct sctp_ulpevent *cevent;
-	struct sctp_ulpevent *event = NULL;
-	struct sctp_stream *in;
-	struct sk_buff_head temp;
-	__u16 csid, cssn;
-
-	in  = &ulpq->asoc->ssnmap->in;
-
-	/* We are holding the chunks by stream, by SSN.  */
-	sctp_skb_for_each(pos, &ulpq->lobby, tmp) {
-		cevent = (struct sctp_ulpevent *) pos->cb;
-		csid = cevent->stream;
-		cssn = cevent->ssn;
-
-		if (cssn != sctp_ssn_peek(in, csid))
-			break;
-
-		/* Found it, so mark in the ssnmap. */	       
-		sctp_ssn_next(in, csid);
-
-		__skb_unlink(pos, pos->list);
-		if (!event) {						
-			/* Create a temporary list to collect chunks on.  */
-			event = sctp_skb2event(pos);
-			skb_queue_head_init(&temp);
-			__skb_queue_tail(&temp, sctp_event2skb(event));
-		} else {
-			/* Attach all gathered skbs to the event.  */
-			__skb_queue_tail(sctp_event2skb(event)->list, pos);
-		}
-	}
-
-	/* Send event to the ULP.  */
-	if (event)
-		sctp_ulpq_tail_event(ulpq, event);
-}
-
-/* Skip over an SSN. */
-void sctp_ulpq_skip(struct sctp_ulpq *ulpq, __u16 sid, __u16 ssn)
-{
-	struct sctp_stream *in;
-
-	/* Note: The stream ID must be verified before this routine.  */
-	in  = &ulpq->asoc->ssnmap->in;
-
-	/* Is this an old SSN?  If so ignore. */
-	if (SSN_lt(ssn, sctp_ssn_peek(in, sid)))
-		return;
-
-	/* Mark that we are no longer expecting this SSN or lower. */
-	sctp_ssn_skip(in, sid, ssn);
-
-	/* Go find any other chunks that were waiting for
-	 * ordering and deliver them if needed. 
-	 */
-	sctp_ulpq_reap_ordered(ulpq);
-	return;
-}
-
 /* Renege 'needed' bytes from the ordering queue. */
 static __u16 sctp_ulpq_renege_order(struct sctp_ulpq *ulpq, __u16 needed)
 {
@@ -756,10 +691,10 @@ static __u16 sctp_ulpq_renege_order(struct sctp_ulpq *ulpq, __u16 needed)
 
 	tsnmap = &ulpq->asoc->peer.tsn_map;
 
-	while ((skb = __skb_dequeue_tail(&ulpq->lobby)) != NULL) {
+	while ((skb = __skb_dequeue_tail(&ulpq->lobby))) {
 		freed += skb_headlen(skb);
 		event = sctp_skb2event(skb);
-		tsn = event->tsn;
+		tsn = event->sndrcvinfo.sinfo_tsn;
 
 		sctp_ulpevent_free(event);
 		sctp_tsnmap_renege(tsnmap, tsn);
@@ -782,10 +717,10 @@ static __u16 sctp_ulpq_renege_frags(struct sctp_ulpq *ulpq, __u16 needed)
 	tsnmap = &ulpq->asoc->peer.tsn_map;
 
 	/* Walk backwards through the list, reneges the newest tsns. */
-	while ((skb = __skb_dequeue_tail(&ulpq->reasm)) != NULL) {
+	while ((skb = __skb_dequeue_tail(&ulpq->reasm))) {
 		freed += skb_headlen(skb);
 		event = sctp_skb2event(skb);
-		tsn = event->tsn;
+		tsn = event->sndrcvinfo.sinfo_tsn;
 
 		sctp_ulpevent_free(event);
 		sctp_tsnmap_renege(tsnmap, tsn);

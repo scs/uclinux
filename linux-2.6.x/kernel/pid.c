@@ -57,7 +57,7 @@ static pidmap_t *map_limit = pidmap_array + PIDMAP_ENTRIES;
 
 static spinlock_t pidmap_lock __cacheline_aligned_in_smp = SPIN_LOCK_UNLOCKED;
 
-fastcall void free_pidmap(int pid)
+inline void free_pidmap(int pid)
 {
 	pidmap_t *map = pidmap_array + pid / BITS_PER_PAGE;
 	int offset = pid & BITS_PER_PAGE_MASK;
@@ -146,11 +146,10 @@ failure:
 	return -1;
 }
 
-fastcall struct pid *find_pid(enum pid_type type, int nr)
+inline struct pid *find_pid(enum pid_type type, int nr)
 {
 	struct list_head *elem, *bucket = &pid_hash[type][pid_hashfn(nr)];
 	struct pid *pid;
-
 	__list_for_each(elem, bucket) {
 		pid = list_entry(elem, struct pid, hash_chain);
 		if (pid->nr == nr)
@@ -159,17 +158,16 @@ fastcall struct pid *find_pid(enum pid_type type, int nr)
 	return NULL;
 }
 
-void fastcall link_pid(task_t *task, struct pid_link *link, struct pid *pid)
+void link_pid(task_t *task, struct pid_link *link, struct pid *pid)
 {
 	atomic_inc(&pid->count);
 	list_add_tail(&link->pid_chain, &pid->task_list);
 	link->pidptr = pid;
 }
 
-int fastcall attach_pid(task_t *task, enum pid_type type, int nr)
+int attach_pid(task_t *task, enum pid_type type, int nr)
 {
 	struct pid *pid = find_pid(type, nr);
-
 	if (pid)
 		atomic_inc(&pid->count);
 	else {
@@ -209,7 +207,7 @@ static void _detach_pid(task_t *task, enum pid_type type)
 	__detach_pid(task, type);
 }
 
-void fastcall detach_pid(task_t *task, enum pid_type type)
+void detach_pid(task_t *task, enum pid_type type)
 {
 	int nr = __detach_pid(task, type);
 
@@ -253,14 +251,14 @@ void switch_exec_pids(task_t *leader, task_t *thread)
 
 	attach_pid(thread, PIDTYPE_PID, thread->pid);
 	attach_pid(thread, PIDTYPE_TGID, thread->tgid);
-	attach_pid(thread, PIDTYPE_PGID, thread->signal->pgrp);
-	attach_pid(thread, PIDTYPE_SID, thread->signal->session);
+	attach_pid(thread, PIDTYPE_PGID, leader->__pgrp);
+	attach_pid(thread, PIDTYPE_SID, thread->session);
 	list_add_tail(&thread->tasks, &init_task.tasks);
 
 	attach_pid(leader, PIDTYPE_PID, leader->pid);
 	attach_pid(leader, PIDTYPE_TGID, leader->tgid);
-	attach_pid(leader, PIDTYPE_PGID, leader->signal->pgrp);
-	attach_pid(leader, PIDTYPE_SID, leader->signal->session);
+	attach_pid(leader, PIDTYPE_PGID, leader->__pgrp);
+	attach_pid(leader, PIDTYPE_SID, leader->session);
 }
 
 /*
@@ -280,7 +278,6 @@ void __init pidhash_init(void)
 	printk("PID hash table entries: %d (order %d: %Zd bytes)\n",
 		pidhash_size, pidhash_shift,
 		pidhash_size * sizeof(struct list_head));
-
 	for (i = 0; i < PIDTYPE_MAX; i++) {
 		pid_hash[i] = alloc_bootmem(pidhash_size *
 					sizeof(struct list_head));

@@ -22,6 +22,8 @@
 #include <asm/cache.h>
 #include <asm/cputable.h>
 
+void disable_kernel_fp(void); /* asm function from head.S */
+
 struct aligninfo {
 	unsigned char len;
 	unsigned char flags;
@@ -213,9 +215,8 @@ fix_alignment(struct pt_regs *regs)
 	unsigned long i;
 	int ret;
 	unsigned dsisr;
-	unsigned char __user *addr;
-	unsigned char __user *p;
-	unsigned long __user *lp;
+	unsigned char *addr, *p;
+	unsigned long *lp;
 	union {
 		long ll;
 		double dd;
@@ -240,9 +241,9 @@ fix_alignment(struct pt_regs *regs)
 
 	if (cur_cpu_spec->cpu_features & CPU_FTR_NODSISRALIGN) {
 	    unsigned int real_instr;
-	    if (__get_user(real_instr, (unsigned int __user *)regs->nip))
+	    if (__get_user(real_instr, (unsigned int *)regs->nip))
 		return 0;
-	    dsisr = make_dsisr(real_instr);
+	    dsisr = make_dsisr(*((unsigned *)regs->nip));
 	}
 
 	/* extract the operation and registers from the dsisr */
@@ -256,7 +257,7 @@ fix_alignment(struct pt_regs *regs)
 	flags = aligninfo[instr].flags;
 
 	/* DAR has the operand effective address */
-	addr = (unsigned char __user *)regs->dar;
+	addr = (unsigned char *)regs->dar;
 
 	/* A size of 0 indicates an instruction we don't support */
 	/* we also don't support the multiples (lmw, stmw, lmd, stmd) */
@@ -269,7 +270,7 @@ fix_alignment(struct pt_regs *regs)
 	 * storage
 	 */
 	if (instr == DCBZ)
-		addr = (unsigned char __user *) ((unsigned long)addr & -L1_CACHE_BYTES);
+		addr = (unsigned char *) ((unsigned long)addr & -L1_CACHE_BYTES);
 
 	/* Verify the address of the operand */
 	if (user_mode(regs)) {
@@ -278,11 +279,8 @@ fix_alignment(struct pt_regs *regs)
 	}
 
 	/* Force the fprs into the save area so we can reference them */
-	if (flags & F) {
-		if (!user_mode(regs))
-			return 0;
-		flush_fp_to_thread(current);
-	}
+	if ((flags & F) && (regs->msr & MSR_FP))
+		giveup_fpu(current);
 	
 	/* If we are loading, get the data from user space */
 	if (flags & LD) {
@@ -311,11 +309,9 @@ fix_alignment(struct pt_regs *regs)
 		if (flags & F) {
 			if (nb == 4) {
 				/* Doing stfs, have to convert to single */
-				preempt_disable();
 				enable_kernel_fp();
 				cvt_df(&current->thread.fpr[reg], (float *)&data.v[4], &current->thread.fpscr);
 				disable_kernel_fp();
-				preempt_enable();
 			}
 			else
 				data.dd = current->thread.fpr[reg];
@@ -347,11 +343,9 @@ fix_alignment(struct pt_regs *regs)
 		if (flags & F) {
 			if (nb == 4) {
 				/* Doing lfs, have to convert to double */
-				preempt_disable();
 				enable_kernel_fp();
 				cvt_fd((float *)&data.v[4], &current->thread.fpr[reg], &current->thread.fpscr);
 				disable_kernel_fp();
-				preempt_enable();
 			}
 			else
 				current->thread.fpr[reg] = data.dd;
@@ -366,7 +360,7 @@ fix_alignment(struct pt_regs *regs)
 		p = addr;
 		switch (nb) {
 		case 128:	/* Special case - must be dcbz */
-			lp = (unsigned long __user *)p;
+			lp = (unsigned long *)p;
 			for (i = 0; i < L1_CACHE_BYTES / sizeof(long); ++i)
 				ret |= __put_user(0, lp++);
 			break;

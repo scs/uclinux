@@ -718,7 +718,7 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 		       "memory for MTD erase region info\n", map->name);
 		kfree(mtd);
 		map->fldrv_priv = NULL;
-		return NULL;
+		return 0;
 	}
 
 	reg_idx = 0;
@@ -780,8 +780,8 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 	map->fldrv_priv = private;
 
 	map->fldrv = &amd_flash_chipdrv;
+	MOD_INC_USE_COUNT;
 
-	__module_get(THIS_MODULE);
 	return mtd;
 }
 
@@ -1307,7 +1307,9 @@ static int amd_flash_erase(struct mtd_info *mtd, struct erase_info *instr)
 	}
 		
 	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
+	if (instr->callback) {
+		instr->callback(instr);
+	}
 	
 	return 0;
 }

@@ -8,22 +8,22 @@
  * 02/01/15 David Mosberger	Updated for v2.5.1
  * 99/12/18 David Mosberger	Added support for READ10/WRITE10 needed by linux v2.3.33
  */
+#include <linux/config.h>
 #include <linux/blkdev.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/timer.h>
-#include <asm/irq.h>
 
 #include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_host.h>
+
+#include <asm/irq.h>
+
+#include "../drivers/scsi/scsi.h"
+#include "../drivers/scsi/hosts.h"
+#include "simscsi.h"
 
 #define DEBUG_SIMSCSI	0
-
-#define SIMSCSI_REQ_QUEUE_LEN	64
-#define DEFAULT_SIMSCSI_ROOT	"/var/ski-disks/sd"
 
 /* Simulator system calls: */
 
@@ -47,7 +47,7 @@
 static struct Scsi_Host *host;
 
 static void simscsi_interrupt (unsigned long val);
-static DECLARE_TASKLET(simscsi_tasklet, simscsi_interrupt, 0);
+DECLARE_TASKLET(simscsi_tasklet, simscsi_interrupt, 0);
 
 struct disk_req {
 	unsigned long addr;
@@ -66,7 +66,7 @@ static int desc[16] = {
 };
 
 static struct queue_entry {
-	struct scsi_cmnd *sc;
+	Scsi_Cmnd *sc;
 } queue[SIMSCSI_REQ_QUEUE_LEN];
 
 static int rd, wr;
@@ -99,7 +99,7 @@ __setup("simscsi=", simscsi_setup);
 static void
 simscsi_interrupt (unsigned long val)
 {
-	struct scsi_cmnd *sc;
+	Scsi_Cmnd *sc;
 
 	while ((sc = queue[rd].sc) != 0) {
 		atomic_dec(&num_reqs);
@@ -111,7 +111,30 @@ simscsi_interrupt (unsigned long val)
 	}
 }
 
-static int
+int
+simscsi_detect (Scsi_Host_Template *templ)
+{
+	templ->proc_name = "simscsi";
+	host = scsi_register(templ, 0);
+	if(host == NULL)
+		return 0;
+
+	return 1;	/* fake one SCSI host adapter */
+}
+
+int
+simscsi_release (struct Scsi_Host *host)
+{
+	return 0;	/* this is easy...  */
+}
+
+const char *
+simscsi_info (struct Scsi_Host *host)
+{
+	return "simulated SCSI host adapter";
+}
+
+int
 simscsi_biosparam (struct scsi_device *sdev, struct block_device *n,
 		sector_t capacity, int ip[])
 {
@@ -122,7 +145,7 @@ simscsi_biosparam (struct scsi_device *sdev, struct block_device *n,
 }
 
 static void
-simscsi_readwrite (struct scsi_cmnd *sc, int mode, unsigned long offset, unsigned long len)
+simscsi_readwrite (Scsi_Cmnd *sc, int mode, unsigned long offset, unsigned long len)
 {
 	struct disk_stat stat;
 	struct disk_req req;
@@ -148,7 +171,7 @@ simscsi_readwrite (struct scsi_cmnd *sc, int mode, unsigned long offset, unsigne
 }
 
 static void
-simscsi_sg_readwrite (struct scsi_cmnd *sc, int mode, unsigned long offset)
+simscsi_sg_readwrite (Scsi_Cmnd *sc, int mode, unsigned long offset)
 {
 	int list_len = sc->use_sg;
 	struct scatterlist *sl = (struct scatterlist *)sc->buffer;
@@ -185,7 +208,7 @@ simscsi_sg_readwrite (struct scsi_cmnd *sc, int mode, unsigned long offset)
  * Added 02/26/99 S.Eranian
  */
 static void
-simscsi_readwrite6 (struct scsi_cmnd *sc, int mode)
+simscsi_readwrite6 (Scsi_Cmnd *sc, int mode)
 {
 	unsigned long offset;
 
@@ -221,7 +244,7 @@ simscsi_get_disk_size (int fd)
 }
 
 static void
-simscsi_readwrite10 (struct scsi_cmnd *sc, int mode)
+simscsi_readwrite10 (Scsi_Cmnd *sc, int mode)
 {
 	unsigned long offset;
 
@@ -233,8 +256,8 @@ simscsi_readwrite10 (struct scsi_cmnd *sc, int mode)
 		simscsi_readwrite(sc, mode, offset, ((sc->cmnd[7] << 8) | sc->cmnd[8])*512);
 }
 
-static int
-simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
+int
+simscsi_queuecommand (Scsi_Cmnd *sc, void (*done)(Scsi_Cmnd *))
 {
 	unsigned int target_id = sc->device->id;
 	char fname[MAX_ROOT_LEN+16];
@@ -357,16 +380,18 @@ simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	return 0;
 }
 
-static int
-simscsi_host_reset (struct scsi_cmnd *sc)
+int
+simscsi_host_reset (Scsi_Cmnd *sc)
 {
 	printk(KERN_ERR "simscsi_host_reset: not implemented\n");
 	return 0;
 }
 
-static struct scsi_host_template driver_template = {
-	.name			= "simulated SCSI host adapter",
-	.proc_name		= "simscsi",
+static Scsi_Host_Template driver_template = {
+	.name			= "simscsi",
+	.detect			= simscsi_detect,
+	.release		= simscsi_release,
+	.info			= simscsi_info,	
 	.queuecommand		= simscsi_queuecommand,
 	.eh_host_reset_handler	= simscsi_host_reset,
 	.bios_param		= simscsi_biosparam,
@@ -377,28 +402,4 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun		= SIMSCSI_REQ_QUEUE_LEN,
 	.use_clustering		= DISABLE_CLUSTERING,
 };
-
-static int __init
-simscsi_init(void)
-{
-	int error;
-
-	host = scsi_host_alloc(&driver_template, 0);
-	if (!host)
-		return -ENOMEM;
-
-	error = scsi_add_host(host, NULL);
-	if (!error)
-		scsi_scan_host(host);
-	return error;
-}
-
-static void __exit
-simscsi_exit(void)
-{
-	scsi_remove_host(host);
-	scsi_host_put(host);
-}
-
-module_init(simscsi_init);
-module_exit(simscsi_exit);
+#include "../drivers/scsi/scsi_module.c"

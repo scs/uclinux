@@ -16,8 +16,14 @@
  *                  network device driver which uses this chip 
  *
  * $Log$
- * Revision 1.1.1.2  2004/09/07 09:22:18  lgsoft
- * Import of 2.6.8
+ * Revision 1.2  2004/09/07 22:29:43  lgsoft
+ * alpha-2.0
+ *
+ * Revision 1.1.1.1  2004/07/19 12:10:34  lgsoft
+ * Import of uClinux 2.6.2
+ *
+ * Revision 1.1.1.1  2004/07/18 13:21:26  nidhi
+ * Importing
  *
 -*/
 

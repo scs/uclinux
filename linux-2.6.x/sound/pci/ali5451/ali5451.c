@@ -25,6 +25,8 @@
  *
  */
 
+#define __SNDRV_OSS_COMPAT__
+
 #include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
@@ -32,12 +34,12 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/info.h>
 #include <sound/ac97_codec.h>
 #include <sound/mpu401.h>
+#define SNDRV_GET_ID
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Matt Wu <Matt_Wu@acersoftech.com.cn>");
@@ -51,21 +53,20 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 static int pcm_channels[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 32};
 static int spdif[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
-static int boot_devs;
 
-module_param_array(index, int, boot_devs, 0444);
+MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(index, "Index value for ALI M5451 PCI Audio.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-module_param_array(id, charp, boot_devs, 0444);
+MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
 MODULE_PARM_DESC(id, "ID string for ALI M5451 PCI Audio.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-module_param_array(enable, bool, boot_devs, 0444);
+MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(enable, "Enable ALI 5451 PCI Audio.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-module_param_array(pcm_channels, int, boot_devs, 0444);
+MODULE_PARM(pcm_channels, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(pcm_channels, "PCM Channels");
 MODULE_PARM_SYNTAX(pcm_channels, SNDRV_ENABLED ",default:32,allows:{{1,32}}");
-module_param_array(spdif, bool, boot_devs, 0444);
+MODULE_PARM(spdif, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(spdif, "Support SPDIF I/O");
 MODULE_PARM_SYNTAX(spdif, SNDRV_ENABLED "," SNDRV_BOOLEAN_FALSE_DESC);
 
@@ -264,7 +265,6 @@ struct snd_stru_ali {
 	unsigned int spurious_irq_count;
 	unsigned int spurious_irq_max_delta;
 
-	ac97_bus_t *ac97_bus;
 	ac97_t *ac97;
 	unsigned short	ac97_ext_id;
 	unsigned short	ac97_ext_status;
@@ -1741,8 +1741,7 @@ static int __devinit snd_ali_pcm(ali_t * codec, int device, snd_pcm_t ** rpcm)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ali_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ali_capture_ops);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(codec->pci), 64*1024, 128*1024);
+	snd_pcm_lib_preallocate_pci_pages_for_all(codec->pci, pcm, 64*1024, 128*1024);
 
 	pcm->info_flags = 0;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
@@ -1861,12 +1860,6 @@ static snd_kcontrol_new_t snd_ali5451_mixer_spdif[] __devinitdata = {
 	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, 2)
 };
 
-static void snd_ali_mixer_free_ac97_bus(ac97_bus_t *bus)
-{
-	ali_t *codec = snd_magic_cast(ali_t, bus->private_data, return);
-	codec->ac97_bus = NULL;
-}
-
 static void snd_ali_mixer_free_ac97(ac97_t *ac97)
 {
 	ali_t *codec = snd_magic_cast(ali_t, ac97->private_data, return);
@@ -1875,23 +1868,16 @@ static void snd_ali_mixer_free_ac97(ac97_t *ac97)
 
 static int __devinit snd_ali_mixer(ali_t * codec)
 {
-	ac97_bus_t bus;
 	ac97_t ac97;
 	unsigned int idx;
 	int err;
 
-	memset(&bus, 0, sizeof(bus));
-	bus.write = snd_ali_codec_write;
-	bus.read = snd_ali_codec_read;
-	bus.private_data = codec;
-	bus.private_free = snd_ali_mixer_free_ac97_bus;
-	if ((err = snd_ac97_bus(codec->card, &bus, &codec->ac97_bus)) < 0)
-		return err;
-
 	memset(&ac97, 0, sizeof(ac97));
+	ac97.write = snd_ali_codec_write;
+	ac97.read = snd_ali_codec_read;
 	ac97.private_data = codec;
 	ac97.private_free = snd_ali_mixer_free_ac97;
-	if ((err = snd_ac97_mixer(codec->ac97_bus, &ac97, &codec->ac97)) < 0) {
+	if ((err = snd_ac97_mixer(codec->card, &ac97, &codec->ac97)) < 0) {
 		snd_printk("ali mixer creating error.\n");
 		return err;
 	}
@@ -1905,18 +1891,14 @@ static int __devinit snd_ali_mixer(ali_t * codec)
 }
 
 #ifdef CONFIG_PM
-static int ali_suspend(snd_card_t *card, unsigned int state)
+static void ali_suspend(ali_t *chip)
 {
-	ali_t *chip = snd_magic_cast(ali_t, card->pm_private_data, return -EINVAL);
 	ali_image_t *im;
 	int i, j;
 
 	im = chip->image;
 	if (! im)
-		return 0;
-
-	snd_pcm_suspend_all(chip->pcm);
-	snd_ac97_suspend(chip->ac97);
+		return;
 
 	spin_lock_irq(&chip->reg_lock);
 	
@@ -1943,18 +1925,16 @@ static int ali_suspend(snd_card_t *card, unsigned int state)
 	outl(0xffffffff, ALI_REG(chip, ALI_STOP));
 
 	spin_unlock_irq(&chip->reg_lock);
-	return 0;
 }
 
-static int ali_resume(snd_card_t *card, unsigned int state)
+static void ali_resume(ali_t *chip)
 {
-	ali_t *chip = snd_magic_cast(ali_t, card->pm_private_data, return -EINVAL);
 	ali_image_t *im;
 	int i, j;
 
 	im = chip->image;
 	if (! im)
-		return 0;
+		return;
 
 	pci_enable_device(chip->pci);
 
@@ -1972,15 +1952,27 @@ static int ali_resume(snd_card_t *card, unsigned int state)
 		outl(im->regs[i], ALI_REG(chip, i*4));
 	}
 	
+	snd_ac97_resume(chip->ac97);
+	
 	// start HW channel
 	outl(im->regs[ALI_START >> 2], ALI_REG(chip, ALI_START));
 	// restore IRQ enable bits
 	outl(im->regs[ALI_MISCINT >> 2], ALI_REG(chip, ALI_MISCINT));
 	
 	spin_unlock_irq(&chip->reg_lock);
+	return;
+}
 
-	snd_ac97_resume(chip->ac97);
-	
+static int snd_ali_suspend(struct pci_dev *dev, u32 state)
+{
+	ali_t *chip = snd_magic_cast(ali_t, pci_get_drvdata(dev), return -ENXIO);
+	ali_suspend(chip);
+	return 0;
+}
+static int snd_ali_resume(struct pci_dev *dev)
+{
+	ali_t *chip = snd_magic_cast(ali_t, pci_get_drvdata(dev), return -ENXIO);
+	ali_resume(chip);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -2100,11 +2092,11 @@ static int __devinit snd_ali_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 	/* check, if we can restrict PCI DMA transfers to 31 bits */
-	if (pci_set_dma_mask(pci, 0x7fffffff) < 0 ||
-	    pci_set_consistent_dma_mask(pci, 0x7fffffff) < 0) {
+	if (!pci_dma_supported(pci, 0x7fffffff)) {
 		snd_printk("architecture does not support 31bit PCI busmaster DMA\n");
 		return -ENXIO;
 	}
+	pci_set_dma_mask(pci, 0x7fffffff);
 
 	if ((codec = snd_magic_kcalloc(ali_t, 0, GFP_KERNEL)) == NULL)
 		return -ENOMEM;
@@ -2196,9 +2188,7 @@ static int __devinit snd_ali_create(snd_card_t * card,
 #ifdef CONFIG_PM
 	codec->image = kmalloc(sizeof(*codec->image), GFP_KERNEL);
 	if (! codec->image)
-		snd_printk(KERN_WARNING "can't allocate apm buffer\n");
-	else
-		snd_card_set_pm_callback(card, ali_suspend, ali_resume, codec);
+		snd_printk("can't allocate apm buffer\n");
 #endif
 
 	snd_ali_enable_address_interrupt(codec);
@@ -2258,14 +2248,16 @@ static int __devinit snd_ali_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
-	pci_set_drvdata(pci, card);
+	pci_set_drvdata(pci, codec);
 	dev++;
 	return 0;
 }
 
 static void __devexit snd_ali_remove(struct pci_dev *pci)
 {
-	snd_card_free(pci_get_drvdata(pci));
+	ali_t *chip = snd_magic_cast(ali_t, pci_get_drvdata(pci), return);
+	if (chip)
+		snd_card_free(chip->card);
 	pci_set_drvdata(pci, NULL);
 }
 
@@ -2274,12 +2266,23 @@ static struct pci_driver driver = {
 	.id_table = snd_ali_ids,
 	.probe = snd_ali_probe,
 	.remove = __devexit_p(snd_ali_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = snd_ali_suspend,
+	.resume = snd_ali_resume,
+#endif
 };                                
 
 static int __init alsa_card_ali_init(void)
 {
-	return pci_module_init(&driver);
+	int err;
+
+	if ((err = pci_module_init(&driver)) < 0) {
+#ifdef MODULE
+		printk(KERN_ERR "ALi pci audio not found or device busy.\n");
+#endif
+		return err;
+	}
+	return 0;
 }
 
 static void __exit alsa_card_ali_exit(void)
@@ -2289,3 +2292,25 @@ static void __exit alsa_card_ali_exit(void)
 
 module_init(alsa_card_ali_init)
 module_exit(alsa_card_ali_exit)
+
+#ifndef MODULE
+
+/* format is: snd-ali5451=enable,index,id,pcm_channels */
+
+static int __init alsa_card_ali_setup(char *str)
+{
+	static unsigned __initdata nr_dev = 0;
+
+	if (nr_dev >= SNDRV_CARDS)
+		return 0;
+	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
+	       get_option(&str,&index[nr_dev]) == 2 &&
+	       get_id(&str,&id[nr_dev]) == 2 &&
+	       get_option(&str,&pcm_channels[nr_dev]) == 2);
+	nr_dev++;
+	return 1;
+}
+
+__setup("snd-ali5451=", alsa_card_ali_setup);
+
+#endif /* ifndef */

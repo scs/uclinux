@@ -264,7 +264,7 @@ static int emu8k_pcm_close(snd_pcm_substream_t *subs)
 	emu8k_pcm_t *rec = subs->runtime->private_data;
 	if (rec)
 		kfree(rec);
-	subs->runtime->private_data = NULL;
+	subs->runtime->private_data = 0;
 	return 0;
 }
 
@@ -515,12 +515,12 @@ static int emu8k_pcm_silence(snd_pcm_substream_t *subs,
 static int emu8k_pcm_copy(snd_pcm_substream_t *subs,
 			  int voice,
 			  snd_pcm_uframes_t pos,
-			  void __user *src,
+			  void *src,
 			  snd_pcm_uframes_t count)
 {
 	emu8k_pcm_t *rec = subs->runtime->private_data;
 	emu8000_t *emu = rec->emu;
-	unsigned short __user *buf = src;
+	unsigned short *buf = src;
 
 	snd_emu8000_write_wait(emu, 1);
 	EMU8000_SMALW_WRITE(emu, pos + rec->loop_start[0]);

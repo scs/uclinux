@@ -231,12 +231,15 @@ void pnp_free_option(struct pnp_option *option)
 
 #define length(start, end) (*(end) - *(start) + 1)
 
-/* Two ranges conflict if one doesn't end before the other starts */
-#define ranged_conflict(starta, enda, startb, endb) \
-	!((*(enda) < *(startb)) || (*(endb) < *(starta)))
+/* ranged_conflict - used to determine if two resource ranges conflict
+ * condition 1: check if the start of a is within b
+ * condition 2: check if the end of a is within b
+ * condition 3: check if b is engulfed by a */
 
-#define cannot_compare(flags) \
-((flags) & (IORESOURCE_UNSET | IORESOURCE_DISABLED))
+#define ranged_conflict(starta, enda, startb, endb) \
+((*(starta) >= *(startb) && *(starta) <= *(endb)) || \
+ (*(enda) >= *(startb) && *(enda) <= *(endb)) || \
+ (*(starta) < *(startb) && *(enda) > *(endb)))
 
 int pnp_check_port(struct pnp_dev * dev, int idx)
 {
@@ -247,7 +250,7 @@ int pnp_check_port(struct pnp_dev * dev, int idx)
 	end = &dev->res.port_resource[idx].end;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(dev->res.port_resource[idx].flags))
+	if (dev->res.port_resource[idx].flags & IORESOURCE_UNSET)
 		return 1;
 
 	/* check if the resource is already in use, skip if the
@@ -281,7 +284,7 @@ int pnp_check_port(struct pnp_dev * dev, int idx)
 			continue;
 		for (tmp = 0; tmp < PNP_MAX_PORT; tmp++) {
 			if (tdev->res.port_resource[tmp].flags & IORESOURCE_IO) {
-				if (cannot_compare(tdev->res.port_resource[tmp].flags))
+				if (pnp_port_flags(dev, tmp) & IORESOURCE_DISABLED)
 					continue;
 				tport = &tdev->res.port_resource[tmp].start;
 				tend = &tdev->res.port_resource[tmp].end;
@@ -303,7 +306,7 @@ int pnp_check_mem(struct pnp_dev * dev, int idx)
 	end = &dev->res.mem_resource[idx].end;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(dev->res.mem_resource[idx].flags))
+	if (dev->res.mem_resource[idx].flags & IORESOURCE_UNSET)
 		return 1;
 
 	/* check if the resource is already in use, skip if the
@@ -337,7 +340,7 @@ int pnp_check_mem(struct pnp_dev * dev, int idx)
 			continue;
 		for (tmp = 0; tmp < PNP_MAX_MEM; tmp++) {
 			if (tdev->res.mem_resource[tmp].flags & IORESOURCE_MEM) {
-				if (cannot_compare(tdev->res.mem_resource[tmp].flags))
+				if (pnp_mem_flags(dev, tmp) & IORESOURCE_DISABLED)
 					continue;
 				taddr = &tdev->res.mem_resource[tmp].start;
 				tend = &tdev->res.mem_resource[tmp].end;
@@ -362,7 +365,7 @@ int pnp_check_irq(struct pnp_dev * dev, int idx)
 	unsigned long * irq = &dev->res.irq_resource[idx].start;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(dev->res.irq_resource[idx].flags))
+	if (dev->res.irq_resource[idx].flags & IORESOURCE_UNSET)
 		return 1;
 
 	/* check if the resource is valid */
@@ -408,7 +411,7 @@ int pnp_check_irq(struct pnp_dev * dev, int idx)
 			continue;
 		for (tmp = 0; tmp < PNP_MAX_IRQ; tmp++) {
 			if (tdev->res.irq_resource[tmp].flags & IORESOURCE_IRQ) {
-				if (cannot_compare(tdev->res.irq_resource[tmp].flags))
+				if (pnp_irq_flags(dev, tmp) & IORESOURCE_DISABLED)
 					continue;
 				if ((tdev->res.irq_resource[tmp].start == *irq))
 					return 0;
@@ -426,7 +429,7 @@ int pnp_check_dma(struct pnp_dev * dev, int idx)
 	unsigned long * dma = &dev->res.dma_resource[idx].start;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(dev->res.dma_resource[idx].flags))
+	if (dev->res.dma_resource[idx].flags & IORESOURCE_UNSET)
 		return 1;
 
 	/* check if the resource is valid */
@@ -461,7 +464,7 @@ int pnp_check_dma(struct pnp_dev * dev, int idx)
 			continue;
 		for (tmp = 0; tmp < PNP_MAX_DMA; tmp++) {
 			if (tdev->res.dma_resource[tmp].flags & IORESOURCE_DMA) {
-				if (cannot_compare(tdev->res.dma_resource[tmp].flags))
+				if (pnp_dma_flags(dev, tmp) & IORESOURCE_DISABLED)
 					continue;
 				if ((tdev->res.dma_resource[tmp].start == *dma))
 					return 0;

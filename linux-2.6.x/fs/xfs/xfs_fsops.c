@@ -576,41 +576,53 @@ xfs_fs_log_dummy(xfs_mount_t *mp)
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_ihold(tp, ip);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	xfs_trans_set_sync(tp);
-	xfs_trans_commit(tp, 0, NULL);
+	xfs_trans_commit(tp, XFS_TRANS_SYNC, NULL);
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 }
 
 int
-xfs_fs_goingdown(
-	xfs_mount_t	*mp,
-	__uint32_t	inflags)
+xfs_fs_freeze(
+	xfs_mount_t	*mp)
 {
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
+	vfs_t		*vfsp;
+	/*REFERENCED*/
+	int		error;
 
-	switch (inflags) {
-	case XFS_FSOP_GOING_FLAGS_DEFAULT: {
-		struct vfs *vfsp = XFS_MTOVFS(mp);
-		struct super_block *sb = freeze_bdev(vfsp->vfs_super->s_bdev);
+	vfsp = XFS_MTOVFS(mp);
 
-		if (sb) {
-			xfs_force_shutdown(mp, XFS_FORCE_UMOUNT);
-			thaw_bdev(sb->s_bdev, sb);
-		}
+	/* Stop new writers */
+	xfs_start_freeze(mp, XFS_FREEZE_WRITE);
 
-		break;
+	/* Flush the refcache */
+	xfs_refcache_purge_mp(mp);
+
+	/* Flush delalloc and delwri data */
+	VFS_SYNC(vfsp, SYNC_DELWRI|SYNC_WAIT, NULL, error);
+
+	/* Pause transaction subsystem */
+	xfs_start_freeze(mp, XFS_FREEZE_TRANS);
+
+	/* Flush any remaining inodes into buffers */
+	VFS_SYNC(vfsp, SYNC_ATTR|SYNC_WAIT, NULL, error);
+
+	/* Push all buffers out to disk */
+	xfs_binval(mp->m_ddev_targp);
+	if (mp->m_rtdev_targp) {
+		xfs_binval(mp->m_rtdev_targp);
 	}
-	case XFS_FSOP_GOING_FLAGS_LOGFLUSH:
-		xfs_force_shutdown(mp, XFS_FORCE_UMOUNT);
-		break;
-	case XFS_FSOP_GOING_FLAGS_NOLOGFLUSH:
-		xfs_force_shutdown(mp, XFS_FORCE_UMOUNT|XFS_LOG_IO_ERROR);
-		break;
-	default:
-		return XFS_ERROR(EINVAL);
-	}
 
+	/* Push the superblock and write an unmount record */
+	xfs_log_unmount_write(mp);
+	xfs_unmountfs_writesb(mp);
+
+	return 0;
+}
+
+int
+xfs_fs_thaw(
+	xfs_mount_t	*mp)
+{
+	xfs_finish_freeze(mp);
 	return 0;
 }

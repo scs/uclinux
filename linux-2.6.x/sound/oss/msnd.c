@@ -25,6 +25,9 @@
  ********************************************************************/
 
 #include <linux/version.h>
+#if LINUX_VERSION_CODE < 0x020101
+#  define LINUX20
+#endif
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -32,10 +35,18 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
-#include <linux/init.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
-#include <linux/spinlock.h>
+#ifdef LINUX20
+#  include <linux/major.h>
+#  include <linux/fs.h>
+#  include <linux/sound.h>
+#  include <asm/segment.h>
+#  include "sound_config.h"
+#else
+#  include <linux/init.h>
+#  include <asm/io.h>
+#  include <asm/uaccess.h>
+#  include <linux/spinlock.h>
+#endif
 #include <asm/irq.h>
 #include "msnd.h"
 
@@ -59,6 +70,9 @@ int __init msnd_register(multisound_dev_t *dev)
 
 	devs[i] = dev;
 	++num_devs;
+
+	MOD_INC_USE_COUNT;
+
 	return 0;
 }
 
@@ -77,6 +91,8 @@ void msnd_unregister(multisound_dev_t *dev)
 
 	devs[i] = NULL;
 	--num_devs;
+
+	MOD_DEC_USE_COUNT;
 }
 
 int msnd_get_num_devs(void)
@@ -139,9 +155,12 @@ void msnd_fifo_make_empty(msnd_fifo *f)
 	f->len = f->tail = f->head = 0;
 }
 
-int msnd_fifo_write(msnd_fifo *f, const char *buf, size_t len)
+int msnd_fifo_write(msnd_fifo *f, const char *buf, size_t len, int user)
 {
 	int count = 0;
+
+	if (f->len == f->n)
+		return 0;
 
 	while ((count < len) && (f->len != f->n)) {
 
@@ -158,7 +177,11 @@ int msnd_fifo_write(msnd_fifo *f, const char *buf, size_t len)
 				nwritten = len - count;
 		}
 
-		isa_memcpy_fromio(f->data + f->tail, (unsigned long) buf, nwritten);
+		if (user) {
+			if (copy_from_user(f->data + f->tail, buf, nwritten))
+				return -EFAULT;
+		} else
+			isa_memcpy_fromio(f->data + f->tail, (unsigned long) buf, nwritten);
 
 		count += nwritten;
 		buf += nwritten;
@@ -170,9 +193,12 @@ int msnd_fifo_write(msnd_fifo *f, const char *buf, size_t len)
 	return count;
 }
 
-int msnd_fifo_read(msnd_fifo *f, char *buf, size_t len)
+int msnd_fifo_read(msnd_fifo *f, char *buf, size_t len, int user)
 {
 	int count = 0;
+
+	if (f->len == 0)
+		return f->len;
 
 	while ((count < len) && (f->len > 0)) {
 
@@ -189,7 +215,11 @@ int msnd_fifo_read(msnd_fifo *f, char *buf, size_t len)
 				nread = len - count;
 		}
 
-		isa_memcpy_toio((unsigned long) buf, f->data + f->head, nread);
+		if (user) {
+			if (copy_to_user(buf, f->data + f->head, nread))
+				return -EFAULT;
+		} else
+			isa_memcpy_toio((unsigned long) buf, f->data + f->head, nread);
 
 		count += nread;
 		buf += nread;

@@ -329,10 +329,10 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 
 	pagevec_init(&lru_pvec, 0);
 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-		struct page *page = list_entry(pages->prev, struct page, lru);
+		struct page *page = list_entry(pages->prev, struct page, list);
 
 		prefetchw(&page->flags);
-		list_del(&page->lru);
+		list_del(&page->list);
 		if (!add_to_page_cache(page, mapping,
 					page->index, GFP_KERNEL)) {
 			bio = do_mpage_readpage(bio, page,
@@ -404,7 +404,6 @@ mpage_writepage(struct bio *bio, struct page *page, get_block_t get_block,
 	struct block_device *boundary_bdev = NULL;
 	int length;
 	struct buffer_head map_bh;
-	loff_t i_size = i_size_read(inode);
 
 	if (page_has_buffers(page)) {
 		struct buffer_head *head = page_buffers(page);
@@ -461,7 +460,7 @@ mpage_writepage(struct bio *bio, struct page *page, get_block_t get_block,
 	 */
 	BUG_ON(!PageUptodate(page));
 	block_in_file = page->index << (PAGE_CACHE_SHIFT - blkbits);
-	last_block = (i_size - 1) >> blkbits;
+	last_block = (i_size_read(inode) - 1) >> blkbits;
 	map_bh.b_page = page;
 	for (page_block = 0; page_block < blocks_per_page; ) {
 
@@ -486,22 +485,14 @@ mpage_writepage(struct bio *bio, struct page *page, get_block_t get_block,
 			break;
 		block_in_file++;
 	}
-	BUG_ON(page_block == 0);
+	if (page_block == 0)
+		buffer_error();
 
 	first_unmapped = page_block;
 
-page_is_mapped:
-	end_index = i_size >> PAGE_CACHE_SHIFT;
+	end_index = i_size_read(inode) >> PAGE_CACHE_SHIFT;
 	if (page->index >= end_index) {
-		/*
-		 * The page straddles i_size.  It must be zeroed out on each
-		 * and every writepage invokation because it may be mmapped.
-		 * "A file is mapped in multiples of the page size.  For a file
-		 * that is not a multiple of the page size, the remaining memory
-		 * is zeroed when mapped, and writes to that region are not
-		 * written out to the file."
-		 */
-		unsigned offset = i_size & (PAGE_CACHE_SIZE - 1);
+		unsigned offset = i_size_read(inode) & (PAGE_CACHE_SIZE - 1);
 		char *kaddr;
 
 		if (page->index > end_index || !offset)
@@ -511,6 +502,8 @@ page_is_mapped:
 		flush_dcache_page(page);
 		kunmap_atomic(kaddr, KM_USER0);
 	}
+
+page_is_mapped:
 
 	/*
 	 * This page will go to BIO.  Do we need to send this BIO off first?
@@ -524,17 +517,6 @@ alloc_new:
 				bio_get_nr_vecs(bdev), GFP_NOFS|__GFP_HIGH);
 		if (bio == NULL)
 			goto confused;
-	}
-
-	/*
-	 * Must try to add the page before marking the buffer clean or
-	 * the confused fail path above (OOM) will be very confused when
-	 * it finds all bh marked clean (i.e. it will not write anything)
-	 */
-	length = first_unmapped << blkbits;
-	if (bio_add_page(bio, page, length, 0) < length) {
-		bio = mpage_bio_submit(WRITE, bio);
-		goto alloc_new;
 	}
 
 	/*
@@ -553,17 +535,18 @@ alloc_new:
 			bh = bh->b_this_page;
 		} while (bh != head);
 
-		/*
-		 * we cannot drop the bh if the page is not uptodate
-		 * or a concurrent readpage would fail to serialize with the bh
-		 * and it would read from disk before we reach the platter.
-		 */
-		if (buffer_heads_over_limit && PageUptodate(page))
+		if (buffer_heads_over_limit)
 			try_to_free_buffers(page);
 	}
 
+	length = first_unmapped << blkbits;
+	if (bio_add_page(bio, page, length, 0) < length) {
+		bio = mpage_bio_submit(WRITE, bio);
+		goto alloc_new;
+	}
+
 	BUG_ON(PageWriteback(page));
-	set_page_writeback(page);
+	SetPageWriteback(page);
 	unlock_page(page);
 	if (boundary || (first_unmapped != blocks_per_page)) {
 		bio = mpage_bio_submit(WRITE, bio);
@@ -606,13 +589,31 @@ out:
  * This is a library function, which implements the writepages()
  * address_space_operation.
  *
+ * (The next two paragraphs refer to code which isn't here yet, but they
+ *  explain the presence of address_space.io_pages)
+ *
+ * Pages can be moved from clean_pages or locked_pages onto dirty_pages
+ * at any time - it's not possible to lock against that.  So pages which
+ * have already been added to a BIO may magically reappear on the dirty_pages
+ * list.  And mpage_writepages() will again try to lock those pages.
+ * But I/O has not yet been started against the page.  Thus deadlock.
+ *
+ * To avoid this, mpage_writepages() will only write pages from io_pages. The
+ * caller must place them there.  We walk io_pages, locking the pages and
+ * submitting them for I/O, moving them to locked_pages.
+ *
+ * This has the added benefit of preventing a livelock which would otherwise
+ * occur if pages are being dirtied faster than we can write them out.
+ *
  * If a page is already under I/O, generic_writepages() skips it, even
  * if it's dirty.  This is desirable behaviour for memory-cleaning writeback,
  * but it is INCORRECT for data-integrity system calls such as fsync().  fsync()
  * and msync() need to guarantee that all the data which was dirty at the time
- * the call was made get new I/O started against them.  If wbc->sync_mode is
- * WB_SYNC_ALL then we were called for data integrity and we must wait for
- * existing IO to complete.
+ * the call was made get new I/O started against them.  So if called_for_sync()
+ * is true, we must wait for existing IO to complete.
+ *
+ * It's fairly rare for PageWriteback pages to be on ->dirty_pages.  It
+ * means that someone redirtied the page while it was under I/O.
  */
 int
 mpage_writepages(struct address_space *mapping,
@@ -624,10 +625,6 @@ mpage_writepages(struct address_space *mapping,
 	int ret = 0;
 	int done = 0;
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
-	struct pagevec pvec;
-	int nr_pages;
-	pgoff_t index;
-	int scanned = 0;
 
 	if (wbc->nonblocking && bdi_write_congested(bdi)) {
 		wbc->encountered_congestion = 1;
@@ -638,41 +635,42 @@ mpage_writepages(struct address_space *mapping,
 	if (get_block == NULL)
 		writepage = mapping->a_ops->writepage;
 
-	pagevec_init(&pvec, 0);
-	if (wbc->sync_mode == WB_SYNC_NONE) {
-		index = mapping->writeback_index; /* Start from prev offset */
-	} else {
-		index = 0;			  /* whole-file sweep */
-		scanned = 1;
-	}
-retry:
-	while (!done && (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
-					PAGECACHE_TAG_DIRTY, PAGEVEC_SIZE))) {
-		unsigned i;
-
-		scanned = 1;
-		for (i = 0; i < nr_pages; i++) {
-			struct page *page = pvec.pages[i];
-
-			/*
-			 * At this point we hold neither mapping->tree_lock nor
-			 * lock on the page itself: the page may be truncated or
-			 * invalidated (changing page->mapping to NULL), or even
-			 * swizzled back from swapper_space to tmpfs file
-			 * mapping
-			 */
-
-			lock_page(page);
-
-			if (wbc->sync_mode != WB_SYNC_NONE)
-				wait_on_page_writeback(page);
-
-			if (page->mapping != mapping || PageWriteback(page) ||
-					!clear_page_dirty_for_io(page)) {
-				unlock_page(page);
+	spin_lock(&mapping->page_lock);
+	while (!list_empty(&mapping->io_pages) && !done) {
+		struct page *page = list_entry(mapping->io_pages.prev,
+					struct page, list);
+		list_del(&page->list);
+		if (PageWriteback(page) && wbc->sync_mode == WB_SYNC_NONE) {
+			if (PageDirty(page)) {
+				list_add(&page->list, &mapping->dirty_pages);
 				continue;
 			}
+			list_add(&page->list, &mapping->locked_pages);
+			continue;
+		}
+		if (!PageDirty(page)) {
+			list_add(&page->list, &mapping->clean_pages);
+			continue;
+		}
+		list_add(&page->list, &mapping->locked_pages);
 
+		page_cache_get(page);
+		spin_unlock(&mapping->page_lock);
+
+		/*
+		 * At this point we hold neither mapping->page_lock nor
+		 * lock on the page itself: the page may be truncated or
+		 * invalidated (changing page->mapping to NULL), or even
+		 * swizzled back from swapper_space to tmpfs file mapping.
+		 */
+
+		lock_page(page);
+
+		if (wbc->sync_mode != WB_SYNC_NONE)
+			wait_on_page_writeback(page);
+
+		if (page->mapping == mapping && !PageWriteback(page) &&
+					test_clear_page_dirty(page)) {
 			if (writepage) {
 				ret = (*writepage)(page, wbc);
 				if (ret) {
@@ -685,7 +683,7 @@ retry:
 				}
 			} else {
 				bio = mpage_writepage(bio, page, get_block,
-						&last_block_in_bio, &ret, wbc);
+					&last_block_in_bio, &ret, wbc);
 			}
 			if (ret || (--(wbc->nr_to_write) <= 0))
 				done = 1;
@@ -693,20 +691,16 @@ retry:
 				wbc->encountered_congestion = 1;
 				done = 1;
 			}
+		} else {
+			unlock_page(page);
 		}
-		pagevec_release(&pvec);
-		cond_resched();
+		page_cache_release(page);
+		spin_lock(&mapping->page_lock);
 	}
-	if (!scanned && !done) {
-		/*
-		 * We hit the last page and there is more work to be done: wrap
-		 * back to the start of the file
-		 */
-		scanned = 1;
-		index = 0;
-		goto retry;
-	}
-	mapping->writeback_index = index;
+	/*
+	 * Leave any remaining dirty pages on ->io_pages
+	 */
+	spin_unlock(&mapping->page_lock);
 	if (bio)
 		mpage_bio_submit(WRITE, bio);
 	return ret;

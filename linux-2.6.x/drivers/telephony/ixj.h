@@ -60,6 +60,13 @@ typedef __u8 BOOL;
 #define TRUE 1
 #define FALSE 0
 
+#ifndef min
+#define min(a,b) (((a)<(b))?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) (((a)>(b))?(a):(b))
+#endif
+
 /******************************************************************************
 *
 *  This structure when unioned with the structures below makes simple byte
@@ -1167,12 +1174,6 @@ typedef struct {
 ******************************************************************************/
 
 typedef struct {
-	int elements_used;
-	IXJ_CADENCE_TERM termination;
-	IXJ_CADENCE_ELEMENT *ce;
-} ixj_cadence;
-
-typedef struct {
 	struct phone_device p;
 	struct timer_list timer;
 	unsigned int board;
@@ -1204,13 +1205,22 @@ typedef struct {
 	int aec_level;
 	int cid_play_aec_level;
 	int readers, writers;
+#if LINUX_VERSION_CODE < 0x020400
+	struct wait_queue *poll_q;
+	struct wait_queue *read_q;
+#else
         wait_queue_head_t poll_q;
         wait_queue_head_t read_q;
+#endif
 	char *read_buffer, *read_buffer_end;
 	char *read_convert_buffer;
 	size_t read_buffer_size;
 	unsigned int read_buffer_ready;
+#if LINUX_VERSION_CODE < 0x020400
+	struct wait_queue *write_q;
+#else
         wait_queue_head_t write_q;
+#endif
 	char *write_buffer, *write_buffer_end;
 	char *write_convert_buffer;
 	size_t write_buffer_size;
@@ -1226,8 +1236,8 @@ typedef struct {
 	char tone_index;
 	char tone_state;
 	char maxrings;
-	ixj_cadence *cadence_t;
-	ixj_cadence *cadence_r;
+	IXJ_CADENCE *cadence_t;
+	IXJ_CADENCE *cadence_r;
 	int tone_cadence_state;
 	IXJ_CADENCE_F cadence_f[6];
 	DTMF dtmf;

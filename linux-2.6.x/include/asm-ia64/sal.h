@@ -35,7 +35,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/bcd.h>
 #include <linux/spinlock.h>
 #include <linux/efi.h>
 
@@ -229,10 +228,6 @@ typedef struct ia64_sal_desc_ap_wakeup {
 
 extern ia64_sal_handler ia64_sal;
 extern struct ia64_sal_desc_ptc *ia64_ptc_domain_info;
-
-extern unsigned short sal_revision;	/* supported SAL spec revision */
-extern unsigned short sal_version;	/* SAL version; OEM dependent */
-#define SAL_VERSION_CODE(major, minor) ((BIN2BCD(major) << 8) | BIN2BCD(minor))
 
 extern const char *ia64_sal_strerror (long status);
 extern void ia64_sal_init (struct ia64_sal_systab *sal_systab);
@@ -746,10 +741,10 @@ ia64_sal_mc_set_params (u64 param_type, u64 i_or_m, u64 i_or_m_val, u64 timeout,
 
 /* Read from PCI configuration space */
 static inline s64
-ia64_sal_pci_config_read (u64 pci_config_addr, int type, u64 size, u64 *value)
+ia64_sal_pci_config_read (u64 pci_config_addr, u64 size, u64 *value)
 {
 	struct ia64_sal_retval isrv;
-	SAL_CALL(isrv, SAL_PCI_CONFIG_READ, pci_config_addr, size, type, 0, 0, 0, 0);
+	SAL_CALL(isrv, SAL_PCI_CONFIG_READ, pci_config_addr, size, 0, 0, 0, 0, 0);
 	if (value)
 		*value = isrv.v0;
 	return isrv.status;
@@ -757,11 +752,11 @@ ia64_sal_pci_config_read (u64 pci_config_addr, int type, u64 size, u64 *value)
 
 /* Write to PCI configuration space */
 static inline s64
-ia64_sal_pci_config_write (u64 pci_config_addr, int type, u64 size, u64 value)
+ia64_sal_pci_config_write (u64 pci_config_addr, u64 size, u64 value)
 {
 	struct ia64_sal_retval isrv;
 	SAL_CALL(isrv, SAL_PCI_CONFIG_WRITE, pci_config_addr, size, value,
-	         type, 0, 0, 0);
+	         0, 0, 0, 0);
 	return isrv.status;
 }
 

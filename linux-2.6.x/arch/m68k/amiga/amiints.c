@@ -61,25 +61,11 @@ extern int cia_get_irq_list(struct ciabase *base, struct seq_file *p);
 static irq_node_t *ami_irq_list[AMI_STD_IRQS];
 
 static unsigned short amiga_intena_vals[AMI_STD_IRQS] = {
-	[IRQ_AMIGA_VERTB]	= IF_VERTB,
-	[IRQ_AMIGA_COPPER]	= IF_COPER,
-	[IRQ_AMIGA_AUD0]	= IF_AUD0,
-	[IRQ_AMIGA_AUD1]	= IF_AUD1,
-	[IRQ_AMIGA_AUD2]	= IF_AUD2,
-	[IRQ_AMIGA_AUD3]	= IF_AUD3,
-	[IRQ_AMIGA_BLIT]	= IF_BLIT,
-	[IRQ_AMIGA_DSKSYN]	= IF_DSKSYN,
-	[IRQ_AMIGA_DSKBLK]	= IF_DSKBLK,
-	[IRQ_AMIGA_RBF]		= IF_RBF,
-	[IRQ_AMIGA_TBE]		= IF_TBE,
-	[IRQ_AMIGA_SOFT]	= IF_SOFT,
-	[IRQ_AMIGA_PORTS]	= IF_PORTS,
-	[IRQ_AMIGA_EXTER]	= IF_EXTER
+	IF_VERTB, IF_COPER, IF_AUD0, IF_AUD1, IF_AUD2, IF_AUD3, IF_BLIT,
+	IF_DSKSYN, IF_DSKBLK, IF_RBF, IF_TBE, IF_SOFT, IF_PORTS, IF_EXTER
 };
 static const unsigned char ami_servers[AMI_STD_IRQS] = {
-	[IRQ_AMIGA_VERTB]	= 1,
-	[IRQ_AMIGA_PORTS]	= 1,
-	[IRQ_AMIGA_EXTER]	= 1
+	1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
 };
 
 static short ami_ablecount[AMI_IRQS];
@@ -211,7 +197,7 @@ int amiga_request_irq(unsigned int irq,
 	}
 
 	if (irq >= IRQ_AMIGA_AUTO)
-		return cpu_request_irq(irq - IRQ_AMIGA_AUTO, handler,
+		return sys_request_irq(irq - IRQ_AMIGA_AUTO, handler,
 		                       flags, devname, dev_id);
 
 	if (irq >= IRQ_AMIGA_CIAB)
@@ -258,7 +244,7 @@ void amiga_free_irq(unsigned int irq, void *dev_id)
 	}
 
 	if (irq >= IRQ_AMIGA_AUTO)
-		cpu_free_irq(irq - IRQ_AMIGA_AUTO, dev_id);
+		sys_free_irq(irq - IRQ_AMIGA_AUTO, dev_id);
 
 	if (irq >= IRQ_AMIGA_CIAB) {
 		cia_free_irq(&ciab_base, irq - IRQ_AMIGA_CIAB, dev_id);
@@ -483,14 +469,8 @@ static irqreturn_t ami_int7(int irq, void *dev_id, struct pt_regs *fp)
 }
 
 irqreturn_t (*amiga_default_handler[SYS_IRQS])(int, void *, struct pt_regs *) = {
-	[0] = ami_badint,
-	[1] = ami_int1,
-	[2] = ami_badint,
-	[3] = ami_int3,
-	[4] = ami_int4,
-	[5] = ami_int5,
-	[6] = ami_badint,
-	[7] = ami_int7
+	ami_badint, ami_int1, ami_badint, ami_int3,
+	ami_int4, ami_int5, ami_badint, ami_int7
 };
 
 int show_amiga_interrupts(struct seq_file *p, void *v)

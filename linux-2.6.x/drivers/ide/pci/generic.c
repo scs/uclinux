@@ -72,11 +72,16 @@ static void __init init_hwif_generic (ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
-#if 0
-	/* Logic to add back later on */
+extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
 
+#if 0
+
+	/* Logic to add back later on */
+	
 	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
 		ide_pci_device_t *unknown = unknown_chipset;
+//		unknown->vendor = dev->vendor;
+//		unknown->device = dev->device;
 		init_setup_unknown(dev, unknown);
 		return 1;
 	}
@@ -97,13 +102,15 @@ static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_devi
 	ide_pci_device_t *d = &generic_chipsets[id->driver_data];
 	u16 command;
 
-	if (dev->vendor == PCI_VENDOR_ID_UMC &&
-	    dev->device == PCI_DEVICE_ID_UMC_UM8886A &&
+	if (dev->device != d->device)
+		BUG();
+	if ((d->vendor == PCI_VENDOR_ID_UMC) &&
+	    (d->device == PCI_DEVICE_ID_UMC_UM8886A) &&
 	    (!(PCI_FUNC(dev->devfn) & 1)))
 		return 1; /* UM8886A/BF pair */
 
-	if (dev->vendor == PCI_VENDOR_ID_OPTI &&
-	    dev->device == PCI_DEVICE_ID_OPTI_82C558 &&
+	if ((d->vendor == PCI_VENDOR_ID_OPTI) &&
+	    (d->device == PCI_DEVICE_ID_OPTI_82C558) &&
 	    (!(PCI_FUNC(dev->devfn) & 1)))
 		return 1;
 
@@ -114,6 +121,7 @@ static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_devi
 		return 1; 
 	}
 	ide_setup_pci_device(dev, d);
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -127,15 +135,9 @@ static struct pci_device_id generic_pci_tbl[] = {
 	{ PCI_VENDOR_ID_HINT,   PCI_DEVICE_ID_HINT_VXPROII_IDE,    PCI_ANY_ID, PCI_ANY_ID, 0, 0, 6},
 	{ PCI_VENDOR_ID_VIA,    PCI_DEVICE_ID_VIA_82C561,          PCI_ANY_ID, PCI_ANY_ID, 0, 0, 7},
 	{ PCI_VENDOR_ID_OPTI,   PCI_DEVICE_ID_OPTI_82C558,         PCI_ANY_ID, PCI_ANY_ID, 0, 0, 8},
-#ifdef CONFIG_BLK_DEV_IDE_SATA
 	{ PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237_SATA,	   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 9},
-#endif
-	{ PCI_VENDOR_ID_TOSHIBA,PCI_DEVICE_ID_TOSHIBA_PICCOLO,     PCI_ANY_ID, PCI_ANY_ID, 0, 0, 10},
-	{ PCI_VENDOR_ID_TOSHIBA,PCI_DEVICE_ID_TOSHIBA_PICCOLO_1,   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 11},
-	{ PCI_VENDOR_ID_TOSHIBA,PCI_DEVICE_ID_TOSHIBA_PICCOLO_2,   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 12},
 	{ 0, },
 };
-MODULE_DEVICE_TABLE(pci, generic_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "PCI IDE",
@@ -148,7 +150,13 @@ static int generic_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void generic_ide_exit(void)
+{
+	ide_pci_unregister_driver(&driver);
+}
+
 module_init(generic_ide_init);
+module_exit(generic_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for generic PCI IDE");

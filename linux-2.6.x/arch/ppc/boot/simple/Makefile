@@ -26,7 +26,6 @@ common				:= $(boot)/common
 utils				:= $(boot)/utils
 bootlib				:= $(boot)/lib
 images				:= $(boot)/images
-of1275				:= $(boot)/of1275
 tftpboot			:= /tftpboot
 
 # Normally, we use the 'misc.c' file for decompress_kernel and
@@ -90,19 +89,12 @@ zimageinitrd-$(motorola)		:= zImage.initrd-PPLUS
 
 # Overrides previous assingment
      extra.o-$(CONFIG_PPLUS)		:= legacy.o
-     extra.o-$(CONFIG_LOPEC)		:= mpc10x_memory.o
 
       zimage-$(pcore)			:= zImage-STRIPELF
 zimageinitrd-$(pcore)			:= zImage.initrd-STRIPELF
      extra.o-$(pcore)			:= chrpmap.o
          end-$(pcore)			:= pcore
    cacheflag-$(pcore)			:= -include $(clear_L2_L3)
-
-      zimage-$(CONFIG_PPC_PREP)		:= zImage-PPLUS
-zimageinitrd-$(CONFIG_PPC_PREP)		:= zImage.initrd-PPLUS
-     extra.o-$(CONFIG_PPC_PREP)		:= legacy.o
-        misc-$(CONFIG_PPC_PREP)		+= misc-prep.o mpc10x_memory.o
-         end-$(CONFIG_PPC_PREP)		:= prep
 
          end-$(CONFIG_SANDPOINT)	:= sandpoint
    cacheflag-$(CONFIG_SANDPOINT)	:= -include $(clear_L2_L3)
@@ -111,16 +103,10 @@ zimageinitrd-$(CONFIG_PPC_PREP)		:= zImage.initrd-PPLUS
 zimageinitrd-$(CONFIG_SPRUCE)		:= zImage.initrd-TREE
          end-$(CONFIG_SPRUCE)		:= spruce
   entrypoint-$(CONFIG_SPRUCE)		:= 0x00800000
-        misc-$(CONFIG_SPRUCE)		+= misc-spruce.o
-
-      zimage-$(CONFIG_LITE5200)		:= zImage-STRIPELF
-zimageinitrd-$(CONFIG_LITE5200)		:= zImage.initrd-STRIPELF
-         end-$(CONFIG_LITE5200)		:= lite5200
-   cacheflag-$(CONFIG_LITE5200)		:= -include $(clear_L2_L3)
-
+        misc-$(CONFIG_SPRUCE)		:= misc-spruce.o
 
 # SMP images should have a '.smp' suffix.
-         end-$(CONFIG_SMP)             := $(end-y).smp
+         end-$(CONFIG_SMP)		+= .smp
 
 # This is a treeboot that needs init functions until the
 # boot rom is sorted out (i.e. this is short lived)
@@ -131,7 +117,7 @@ EXTRA_AFLAGS := $(extra-aflags-y)
 AFLAGS_head.o				+= $(cacheflag-y)
 
 # Linker args.  This specifies where the image will be run at.
-LD_ARGS					:= -T $(srctree)/$(boot)/ld.script \
+LD_ARGS				:= -T $(boot)/ld.script \
 				   -Ttext $(CONFIG_BOOT_LOAD) -Bstatic
 OBJCOPY_ARGS			:= -O elf32-powerpc
 
@@ -145,17 +131,13 @@ boot-$(CONFIG_MBX)		+= iic.o pci.o qspan_pci.o
 boot-$(CONFIG_RPXCLASSIC)	+= iic.o pci.o qspan_pci.o
 boot-$(CONFIG_RPXLITE)		+= iic.o
 # Different boards need different serial implementations.
-ifeq ($(CONFIG_SERIAL_CPM_CONSOLE),y)
+ifeq ($(CONFIG_SERIAL_CONSOLE),y)
 boot-$(CONFIG_8xx)		+= m8xx_tty.o
 boot-$(CONFIG_8260)		+= m8260_tty.o
-endif
-boot-$(CONFIG_SERIAL_MPC52xx_CONSOLE) += mpc52xx_tty.o
 boot-$(CONFIG_GT64260_CONSOLE)	+= gt64260_tty.o
+endif
 
 LIBS				:= $(common)/lib.a $(bootlib)/lib.a
-ifeq ($(CONFIG_PPC_PREP),y)
-LIBS 				+= $(of1275)/lib.a
-endif
 
 OBJS				:= $(addprefix $(obj)/,$(boot-y))
 
@@ -166,8 +148,8 @@ MKTREE				:= $(utils)/mktree
 
 targets := dummy.o
 
-$(obj)/zvmlinux: $(OBJS) $(LIBS) $(srctree)/$(boot)/ld.script \
-		$(images)/vmlinux.gz $(obj)/dummy.o
+$(obj)/zvmlinux: $(OBJS) $(LIBS) $(boot)/ld.script $(images)/vmlinux.gz \
+		$(obj)/dummy.o
 	$(OBJCOPY) $(OBJCOPY_ARGS) \
 		--add-section=.image=$(images)/vmlinux.gz \
 		--set-section-flags=.image=contents,alloc,load,readonly,data \
@@ -176,7 +158,7 @@ $(obj)/zvmlinux: $(OBJS) $(LIBS) $(srctree)/$(boot)/ld.script \
 	$(OBJCOPY) $(OBJCOPY_ARGS) $@ $@ -R .comment -R .stab \
 		-R .stabstr -R .ramdisk -R .sysmap
 
-$(obj)/zvmlinux.initrd: $(OBJS) $(LIBS) $(srctree)/$(boot)/ld.script \
+$(obj)/zvmlinux.initrd: $(OBJS) $(LIBS) $(boot)/ld.script \
 		$(images)/vmlinux.gz $(obj)/dummy.o
 	$(OBJCOPY) $(OBJCOPY_ARGS) \
 		--add-section=.ramdisk=$(images)/ramdisk.image.gz \
@@ -218,9 +200,9 @@ $(images)/zImage.initrd-TREE: $(obj)/zvmlinux.initrd $(MKTREE)
 		$(ENTRYPOINT)
 
 $(images)/zImage-PPLUS: $(obj)/zvmlinux $(MKPREP) $(MKBUGBOOT)
-	$(MKPREP) -pbp $(obj)/zvmlinux $(images)/zImage.$(end-y)
+	$(MKPREP) -pbp $(obj)/zvmlinux $(images)/zImage.pplus
 	$(MKBUGBOOT) $(obj)/zvmlinux $(images)/zImage.bugboot
 
 $(images)/zImage.initrd-PPLUS: $(obj)/zvmlinux.initrd $(MKPREP) $(MKBUGBOOT)
-	$(MKPREP) -pbp $(obj)/zvmlinux.initrd $(images)/zImage.initrd.$(end-y)
+	$(MKPREP) -pbp $(obj)/zvmlinux.initrd $(images)/zImage.initrd.pplus
 	$(MKBUGBOOT) $(obj)/zvmlinux.initrd $(images)/zImage.initrd.bugboot

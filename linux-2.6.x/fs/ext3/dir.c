@@ -129,7 +129,7 @@ static int ext3_readdir(struct file * filp,
 
 	while (!error && !stored && filp->f_pos < inode->i_size) {
 		blk = (filp->f_pos) >> EXT3_BLOCK_SIZE_BITS(sb);
-		bh = ext3_bread(NULL, inode, blk, 0, &err);
+		bh = ext3_bread (0, inode, blk, 0, &err);
 		if (!bh) {
 			ext3_error (sb, "ext3_readdir",
 				"directory #%lu contains a hole at offset %lu",
@@ -224,6 +224,7 @@ revalidate:
 		offset = 0;
 		brelse (bh);
 	}
+       update_atime(inode);
 out:
 	return ret;
 }
@@ -295,14 +296,14 @@ static void free_rb_tree_fname(struct rb_root *root)
 			kfree (old);
 		}
 		if (!parent)
-			root->rb_node = NULL;
+			root->rb_node = 0;
 		else if (parent->rb_left == n)
-			parent->rb_left = NULL;
+			parent->rb_left = 0;
 		else if (parent->rb_right == n)
-			parent->rb_right = NULL;
+			parent->rb_right = 0;
 		n = parent;
 	}
-	root->rb_node = NULL;
+	root->rb_node = 0;
 }
 
 
@@ -313,9 +314,9 @@ struct dir_private_info *create_dir_info(loff_t pos)
 	p = kmalloc(sizeof(struct dir_private_info), GFP_KERNEL);
 	if (!p)
 		return NULL;
-	p->root.rb_node = NULL;
-	p->curr_node = NULL;
-	p->extra_fname = NULL;
+	p->root.rb_node = 0;
+	p->curr_node = 0;
+	p->extra_fname = 0;
 	p->last_pos = 0;
 	p->curr_hash = pos2maj_hash(pos);
 	p->curr_minor_hash = pos2min_hash(pos);
@@ -447,8 +448,8 @@ static int ext3_dx_readdir(struct file * filp,
 	/* Some one has messed with f_pos; reset the world */
 	if (info->last_pos != filp->f_pos) {
 		free_rb_tree_fname(&info->root);
-		info->curr_node = NULL;
-		info->extra_fname = NULL;
+		info->curr_node = 0;
+		info->extra_fname = 0;
 		info->curr_hash = pos2maj_hash(filp->f_pos);
 		info->curr_minor_hash = pos2min_hash(filp->f_pos);
 	}
@@ -472,7 +473,7 @@ static int ext3_dx_readdir(struct file * filp,
 		 */
 		if ((!info->curr_node) ||
 		    (filp->f_version != inode->i_version)) {
-			info->curr_node = NULL;
+			info->curr_node = 0;
 			free_rb_tree_fname(&info->root);
 			filp->f_version = inode->i_version;
 			ret = ext3_htree_fill_tree(filp, info->curr_hash,
@@ -505,6 +506,7 @@ static int ext3_dx_readdir(struct file * filp,
 	}
 finished:
 	info->last_pos = filp->f_pos;
+	update_atime(inode);
 	return 0;
 }
 

@@ -31,7 +31,6 @@
 #include <linux/seq_file.h>
 #include <linux/errno.h>
 #include <linux/list.h>
-#include <linux/kallsyms.h>
 
 #include <asm/irq.h>
 #include <asm/system.h>
@@ -47,7 +46,7 @@
 #define MAX_IRQ_CNT	100000
 
 static volatile unsigned long irq_err_count;
-static spinlock_t irq_controller_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t irq_controller_lock;
 static LIST_HEAD(irq_pending);
 
 struct irqdesc irq_desc[NR_IRQS];
@@ -103,7 +102,6 @@ void disable_irq(unsigned int irq)
 	list_del_init(&desc->pend);
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
-EXPORT_SYMBOL(disable_irq);
 
 /**
  *	enable_irq - enable interrupt handling on an irq
@@ -143,7 +141,6 @@ void enable_irq(unsigned int irq)
 	}
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
-EXPORT_SYMBOL(enable_irq);
 
 /*
  * Enable wake on selected irq
@@ -158,7 +155,6 @@ void enable_irq_wake(unsigned int irq)
 		desc->chip->wake(irq, 1);
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
-EXPORT_SYMBOL(enable_irq_wake);
 
 void disable_irq_wake(unsigned int irq)
 {
@@ -170,7 +166,6 @@ void disable_irq_wake(unsigned int irq)
 		desc->chip->wake(irq, 0);
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
-EXPORT_SYMBOL(disable_irq_wake);
 
 int show_interrupts(struct seq_file *p, void *v)
 {
@@ -230,34 +225,6 @@ static int check_irq_lock(struct irqdesc *desc, int irq, struct pt_regs *regs)
 }
 
 static void
-report_bad_irq(unsigned int irq, struct pt_regs *regs, struct irqdesc *desc, int ret)
-{
-	static int count = 100;
-	struct irqaction *action;
-
-	if (!count)
-		return;
-
-	count--;
-
-	if (ret != IRQ_HANDLED && ret != IRQ_NONE) {
-		printk("irq%u: bogus retval mask %x\n", irq, ret);
-	} else {
-		printk("irq%u: nobody cared\n", irq);
-	}
-	show_regs(regs);
-	dump_stack();
-	printk(KERN_ERR "handlers:");
-	action = desc->action;
-	do {
-		printk("\n" KERN_ERR "[<%p>]", action->handler);
-		print_symbol(" (%s)", (unsigned long)action->handler);
-		action = action->next;
-	} while (action);
-	printk("\n");
-}
-
-static int
 __do_irq(unsigned int irq, struct irqaction *action, struct pt_regs *regs)
 {
 	unsigned int status;
@@ -280,7 +247,18 @@ __do_irq(unsigned int irq, struct irqaction *action, struct pt_regs *regs)
 
 	spin_lock_irq(&irq_controller_lock);
 
-	return retval;
+	if (retval != 1) {
+		static int count = 100;
+		if (count) {
+			count--;
+			if (retval) {
+				printk("irq event %d: bogus retval mask %x\n",
+					irq, retval);
+			} else {
+				printk("irq %d: nobody cared\n", irq);
+			}
+		}
+	}
 }
 
 /*
@@ -298,11 +276,8 @@ do_simple_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 	kstat_cpu(cpu).irqs[irq]++;
 
 	action = desc->action;
-	if (action) {
-		int ret = __do_irq(irq, action, regs);
-		if (ret != IRQ_HANDLED)
-			report_bad_irq(irq, regs, desc, ret);
-	}
+	if (action)
+		__do_irq(irq, desc->action, regs);
 }
 
 /*
@@ -338,7 +313,6 @@ do_edge_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 
 	do {
 		struct irqaction *action;
-		int ret;
 
 		action = desc->action;
 		if (!action)
@@ -349,9 +323,7 @@ do_edge_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 			desc->chip->unmask(irq);
 		}
 
-		ret = __do_irq(irq, action, regs);
-		if (ret != IRQ_HANDLED)
-			report_bad_irq(irq, regs, desc, ret);
+		__do_irq(irq, action, regs);
 	} while (desc->pending && !desc->disable_depth);
 
 	desc->running = 0;
@@ -396,10 +368,7 @@ do_level_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 		 */
 		action = desc->action;
 		if (action) {
-			int ret = __do_irq(irq, desc->action, regs);
-
-			if (ret != IRQ_HANDLED)
-				report_bad_irq(irq, regs, desc, ret);
+			__do_irq(irq, desc->action, regs);
 
 			if (likely(!desc->disable_depth &&
 				   !check_irq_lock(desc, irq, regs)))
@@ -447,7 +416,7 @@ static void do_pending_irqs(struct pt_regs *regs)
  * come via this function.  Instead, they should provide their
  * own 'handler'
  */
-asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
+asmlinkage void asm_do_IRQ(int irq, struct pt_regs *regs)
 {
 	struct irqdesc *desc = irq_desc + irq;
 
@@ -545,7 +514,6 @@ int set_irq_type(unsigned int irq, unsigned int type)
 
 	return ret;
 }
-EXPORT_SYMBOL(set_irq_type);
 
 void set_irq_flags(unsigned int irq, unsigned int iflags)
 {
@@ -674,7 +642,7 @@ int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_
 
 	action->handler = handler;
 	action->flags = irq_flags;
-	cpus_clear(action->mask);
+	action->mask = 0;
 	action->name = devname;
 	action->next = NULL;
 	action->dev_id = dev_id;
@@ -803,7 +771,6 @@ unsigned int probe_irq_mask(unsigned long irqs)
 
 	return mask;
 }
-EXPORT_SYMBOL(probe_irq_mask);
 
 /*
  * Possible return values:

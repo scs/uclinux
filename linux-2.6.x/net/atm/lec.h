@@ -2,7 +2,7 @@
  *
  * Lan Emulation client header file
  *
- * Marko Kiiskila mkiiskila@yahoo.com
+ * Marko Kiiskila carnil@cs.tut.fi
  *
  */
 
@@ -16,7 +16,6 @@
 
 #if defined (CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
 #include <linux/if_bridge.h>
-struct net_bridge;
 extern struct net_bridge_fdb_entry *(*br_fdb_get_hook)(struct net_bridge *br,
                                                 unsigned char *addr);
 extern void (*br_fdb_put_hook)(struct net_bridge_fdb_entry *ent);
@@ -140,15 +139,8 @@ struct lec_priv {
         int is_trdev;      /* Device type, 0 = Ethernet, 1 = TokenRing */
 };
 
-struct lec_vcc_priv {
-	void (*old_pop)(struct atm_vcc *vcc, struct sk_buff *skb);
-	int xoff;
-};
-
-#define LEC_VCC_PRIV(vcc)	((struct lec_vcc_priv *)((vcc)->user_back))
-
 int lecd_attach(struct atm_vcc *vcc, int arg);
-int lec_vcc_attach(struct atm_vcc *vcc, void __user *arg);
+int lec_vcc_attach(struct atm_vcc *vcc, void *arg);
 int lec_mcast_attach(struct atm_vcc *vcc, int arg);
 struct net_device *get_dev_lec(int itf);
 int make_lec(struct atm_vcc *vcc);

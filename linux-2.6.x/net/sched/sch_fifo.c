@@ -45,7 +45,7 @@ struct fifo_sched_data
 static int
 bfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
-	struct fifo_sched_data *q = qdisc_priv(sch);
+	struct fifo_sched_data *q = (struct fifo_sched_data *)sch->data;
 
 	if (sch->stats.backlog + skb->len <= q->limit) {
 		__skb_queue_tail(&sch->q, skb);
@@ -106,7 +106,7 @@ fifo_reset(struct Qdisc* sch)
 static int
 pfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
-	struct fifo_sched_data *q = qdisc_priv(sch);
+	struct fifo_sched_data *q = (struct fifo_sched_data *)sch->data;
 
 	if (sch->q.qlen < q->limit) {
 		__skb_queue_tail(&sch->q, skb);
@@ -138,15 +138,13 @@ pfifo_dequeue(struct Qdisc* sch)
 
 static int fifo_init(struct Qdisc *sch, struct rtattr *opt)
 {
-	struct fifo_sched_data *q = qdisc_priv(sch);
+	struct fifo_sched_data *q = (void*)sch->data;
 
 	if (opt == NULL) {
-		unsigned int limit = sch->dev->tx_queue_len ? : 1;
-
 		if (sch->ops == &bfifo_qdisc_ops)
-			q->limit = limit*sch->dev->mtu;
+			q->limit = sch->dev->tx_queue_len*sch->dev->mtu;
 		else	
-			q->limit = limit;
+			q->limit = sch->dev->tx_queue_len;
 	} else {
 		struct tc_fifo_qopt *ctl = RTA_DATA(opt);
 		if (opt->rta_len < RTA_LENGTH(sizeof(*ctl)))
@@ -158,7 +156,7 @@ static int fifo_init(struct Qdisc *sch, struct rtattr *opt)
 
 static int fifo_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
-	struct fifo_sched_data *q = qdisc_priv(sch);
+	struct fifo_sched_data *q = (void*)sch->data;
 	unsigned char	 *b = skb->tail;
 	struct tc_fifo_qopt opt;
 

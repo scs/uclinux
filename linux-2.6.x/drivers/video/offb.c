@@ -235,7 +235,7 @@ static int offb_blank(int blank, struct fb_info *info)
 				break;
 			}
 	} else
-		fb_set_cmap(&info->cmap, info);
+		fb_set_cmap(&info->cmap, 1, info);
 	return 0;
 }
 
@@ -247,7 +247,7 @@ int __init offb_init(void)
 {
 	struct device_node *dp;
 	unsigned int dpy;
-#if defined(CONFIG_BOOTX_TEXT) && defined(CONFIG_PPC32)
+#ifdef CONFIG_BOOTX_TEXT
 	struct device_node *displays = find_type_devices("display");
 	struct device_node *macos_display = NULL;
 
@@ -323,7 +323,7 @@ int __init offb_init(void)
 			     boot_infos->dispDeviceDepth,
 			     boot_infos->dispDeviceRowBytes, addr, NULL);
 	}
-#endif /* defined(CONFIG_BOOTX_TEXT) && defined(CONFIG_PPC32) */
+#endif
 
 	for (dpy = 0; dpy < prom_num_displays; dpy++) {
 		if ((dp = find_path_device(prom_display_paths[dpy])))

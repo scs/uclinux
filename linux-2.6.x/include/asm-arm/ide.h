@@ -17,18 +17,14 @@
 #define MAX_HWIFS	4
 #endif
 
-#if defined(CONFIG_ARCH_SA1100)
-# include <asm/arch/ide.h>	/* obsolete + broken */
-#endif
+#include <asm/arch/ide.h>
 
-#if !defined(CONFIG_ARCH_L7200)
-# define IDE_ARCH_OBSOLETE_INIT
-# ifdef CONFIG_ARCH_CLPS7500
-#  define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
-# else
-#  define ide_default_io_ctl(base)	(0)
-# endif
-#endif /* !ARCH_L7200 */
+/*
+ * We always use the new IDE port registering,
+ * so these are fixed here.
+ */
+#define ide_default_io_base(i)		((ide_ioreg_t)0)
+#define ide_default_irq(b)		(0)
 
 #define __ide_mm_insw(port,addr,len)	readsw(port,addr,len)
 #define __ide_mm_insl(port,addr,len)	readsl(port,addr,len)

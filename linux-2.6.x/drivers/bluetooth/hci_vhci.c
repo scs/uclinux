@@ -127,7 +127,7 @@ static unsigned int hci_vhci_chr_poll(struct file *file, poll_table * wait)
 }
 
 /* Get packet from user space buffer(already verified) */
-static inline ssize_t hci_vhci_get_user(struct hci_vhci_struct *hci_vhci, const char __user *buf, size_t count)
+static inline ssize_t hci_vhci_get_user(struct hci_vhci_struct *hci_vhci, const char *buf, size_t count)
 {
 	struct sk_buff *skb;
 
@@ -142,7 +142,7 @@ static inline ssize_t hci_vhci_get_user(struct hci_vhci_struct *hci_vhci, const 
 		return -EFAULT;
 	}
 
-	skb->dev = (void *) hci_vhci->hdev;
+	skb->dev = (void *) &hci_vhci->hdev;
 	skb->pkt_type = *((__u8 *) skb->data);
 	skb_pull(skb, 1);
 
@@ -152,7 +152,7 @@ static inline ssize_t hci_vhci_get_user(struct hci_vhci_struct *hci_vhci, const 
 } 
 
 /* Write */
-static ssize_t hci_vhci_chr_write(struct file * file, const char __user * buf, 
+static ssize_t hci_vhci_chr_write(struct file * file, const char * buf, 
 			     size_t count, loff_t *pos)
 {
 	struct hci_vhci_struct *hci_vhci = (struct hci_vhci_struct *) file->private_data;
@@ -165,29 +165,28 @@ static ssize_t hci_vhci_chr_write(struct file * file, const char __user * buf,
 
 /* Put packet to user space buffer(already verified) */
 static inline ssize_t hci_vhci_put_user(struct hci_vhci_struct *hci_vhci,
-				       struct sk_buff *skb, char __user *buf,
-				       int count)
+				       struct sk_buff *skb, char *buf, int count)
 {
 	int len = count, total = 0;
-	char __user *ptr = buf;
+	char *ptr = buf;
 
 	len = min_t(unsigned int, skb->len, len);
 	if (copy_to_user(ptr, skb->data, len))
 		return -EFAULT;
 	total += len;
 
-	hci_vhci->hdev->stat.byte_tx += len;
+	hci_vhci->hdev.stat.byte_tx += len;
 	switch (skb->pkt_type) {
 		case HCI_COMMAND_PKT:
-			hci_vhci->hdev->stat.cmd_tx++;
+			hci_vhci->hdev.stat.cmd_tx++;
 			break;
 
 		case HCI_ACLDATA_PKT:
-			hci_vhci->hdev->stat.acl_tx++;
+			hci_vhci->hdev.stat.acl_tx++;
 			break;
 
 		case HCI_SCODATA_PKT:
-			hci_vhci->hdev->stat.cmd_tx++;
+			hci_vhci->hdev.stat.cmd_tx++;
 			break;
 	};
 
@@ -195,7 +194,7 @@ static inline ssize_t hci_vhci_put_user(struct hci_vhci_struct *hci_vhci,
 }
 
 /* Read */
-static ssize_t hci_vhci_chr_read(struct file * file, char __user * buf, size_t count, loff_t *pos)
+static ssize_t hci_vhci_chr_read(struct file * file, char * buf, size_t count, loff_t *pos)
 {
 	struct hci_vhci_struct *hci_vhci = (struct hci_vhci_struct *) file->private_data;
 	DECLARE_WAITQUEUE(wait, current);
@@ -276,13 +275,7 @@ static int hci_vhci_chr_open(struct inode *inode, struct file * file)
 	init_waitqueue_head(&hci_vhci->read_wait);
 
 	/* Initialize and register HCI device */
-	hdev = hci_alloc_dev();
-	if (!hdev) {
-		kfree(hci_vhci);
-		return -ENOMEM;
-	}
-
-	hci_vhci->hdev = hdev;
+	hdev = &hci_vhci->hdev;
 
 	hdev->type = HCI_VHCI;
 	hdev->driver_data = hci_vhci;
@@ -297,23 +290,20 @@ static int hci_vhci_chr_open(struct inode *inode, struct file * file)
 	
 	if (hci_register_dev(hdev) < 0) {
 		kfree(hci_vhci);
-		hci_free_dev(hdev);
 		return -EBUSY;
 	}
 
 	file->private_data = hci_vhci;
-	return nonseekable_open(inode, file);   
+	return 0;   
 }
 
 static int hci_vhci_chr_close(struct inode *inode, struct file *file)
 {
 	struct hci_vhci_struct *hci_vhci = (struct hci_vhci_struct *) file->private_data;
 
-	if (hci_unregister_dev(hci_vhci->hdev) < 0) {
-		BT_ERR("Can't unregister HCI device %s", hci_vhci->hdev->name);
+	if (hci_unregister_dev(&hci_vhci->hdev) < 0) {
+		BT_ERR("Can't unregister HCI device %s", hci_vhci->hdev.name);
 	}
-
-	hci_free_dev(hci_vhci->hdev);
 
 	file->private_data = NULL;
 	return 0;

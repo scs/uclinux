@@ -75,7 +75,7 @@ typedef struct {
 
 
 typedef struct pvc_device_struct {
-	struct net_device *master;
+	struct hdlc_device_struct *master;
 	struct net_device *main;
 	struct net_device *ether; /* bridged Ethernet interface */
 	struct pvc_device_struct *next;	/* Sorted in ascending DLCI order */
@@ -96,10 +96,11 @@ typedef struct pvc_device_struct {
 
 typedef struct hdlc_device_struct {
 	/* To be initialized by hardware driver */
+	struct net_device netdev; /* master net device - must be first */
 	struct net_device_stats stats;
 
 	/* used by HDLC layer to take control over HDLC device from hw driver*/
-	int (*attach)(struct net_device *dev,
+	int (*attach)(struct hdlc_device_struct *hdlc,
 		      unsigned short encoding, unsigned short parity);
 
 	/* hardware driver must handle this instead of dev->hard_start_xmit */
@@ -108,13 +109,13 @@ typedef struct hdlc_device_struct {
 
 	/* Things below are for HDLC layer internal use only */
 	struct {
-		int (*open)(struct net_device *dev);
-		void (*close)(struct net_device *dev);
+		int (*open)(struct hdlc_device_struct *hdlc);
+		void (*close)(struct hdlc_device_struct *hdlc);
 
 		/* if open & DCD */
-		void (*start)(struct net_device *dev);
+		void (*start)(struct hdlc_device_struct *hdlc);
 		/* if open & !DCD */
-		void (*stop)(struct net_device *dev);
+		void (*stop)(struct hdlc_device_struct *hdlc);
 
 		void (*detach)(struct hdlc_device_struct *hdlc);
 		int (*netif_rx)(struct sk_buff *skb);
@@ -134,7 +135,7 @@ typedef struct hdlc_device_struct {
 			int dce_pvc_count;
 
 			struct timer_list timer;
-			unsigned long last_poll;
+			int last_poll;
 			int reliable;
 			int dce_changed;
 			int request;
@@ -149,9 +150,8 @@ typedef struct hdlc_device_struct {
 			cisco_proto settings;
 
 			struct timer_list timer;
-			unsigned long last_poll;
+			int last_poll;
 			int up;
-			int request_sent;
 			u32 txseq; /* TX sequence number */
 			u32 rxseq; /* RX sequence number */
 		}cisco;
@@ -167,17 +167,16 @@ typedef struct hdlc_device_struct {
 					      int new_mtu);
 		}ppp;
 	}state;
-	void *priv;
 }hdlc_device;
 
 
 
-int hdlc_raw_ioctl(struct net_device *dev, struct ifreq *ifr);
-int hdlc_raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr);
-int hdlc_cisco_ioctl(struct net_device *dev, struct ifreq *ifr);
-int hdlc_ppp_ioctl(struct net_device *dev, struct ifreq *ifr);
-int hdlc_fr_ioctl(struct net_device *dev, struct ifreq *ifr);
-int hdlc_x25_ioctl(struct net_device *dev, struct ifreq *ifr);
+int hdlc_raw_ioctl(hdlc_device *hdlc, struct ifreq *ifr);
+int hdlc_raw_eth_ioctl(hdlc_device *hdlc, struct ifreq *ifr);
+int hdlc_cisco_ioctl(hdlc_device *hdlc, struct ifreq *ifr);
+int hdlc_ppp_ioctl(hdlc_device *hdlc, struct ifreq *ifr);
+int hdlc_fr_ioctl(hdlc_device *hdlc, struct ifreq *ifr);
+int hdlc_x25_ioctl(hdlc_device *hdlc, struct ifreq *ifr);
 
 
 /* Exported from hdlc.o */
@@ -186,20 +185,31 @@ int hdlc_x25_ioctl(struct net_device *dev, struct ifreq *ifr);
 int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 
 /* Must be used by hardware driver on module startup/exit */
-int register_hdlc_device(struct net_device *dev);
-void unregister_hdlc_device(struct net_device *dev);
+int register_hdlc_device(hdlc_device *hdlc);
+void unregister_hdlc_device(hdlc_device *hdlc);
 
-struct net_device *alloc_hdlcdev(void *priv);
+
+static __inline__ struct net_device* hdlc_to_dev(hdlc_device *hdlc)
+{
+	return &hdlc->netdev;
+}
+
 
 static __inline__ hdlc_device* dev_to_hdlc(struct net_device *dev)
 {
-	return netdev_priv(dev);
+	return (hdlc_device*)dev;
 }
 
 
 static __inline__ pvc_device* dev_to_pvc(struct net_device *dev)
 {
 	return (pvc_device*)dev->priv;
+}
+
+
+static __inline__ const char *hdlc_to_name(hdlc_device *hdlc)
+{
+	return hdlc_to_dev(hdlc)->name;
 }
 
 
@@ -219,11 +229,11 @@ static __inline__ void debug_frame(const struct sk_buff *skb)
 
 
 /* Must be called by hardware driver when HDLC device is being opened */
-int hdlc_open(struct net_device *dev);
+int hdlc_open(hdlc_device *hdlc);
 /* Must be called by hardware driver when HDLC device is being closed */
-void hdlc_close(struct net_device *dev);
+void hdlc_close(hdlc_device *hdlc);
 /* Called by hardware driver when DCD line level changes */
-void hdlc_set_carrier(int on, struct net_device *dev);
+void hdlc_set_carrier(int on, hdlc_device *hdlc);
 
 /* May be used by hardware driver to gain control over HDLC device */
 static __inline__ void hdlc_proto_detach(hdlc_device *hdlc)
@@ -231,12 +241,6 @@ static __inline__ void hdlc_proto_detach(hdlc_device *hdlc)
 	if (hdlc->proto.detach)
 		hdlc->proto.detach(hdlc);
 	hdlc->proto.detach = NULL;
-}
-
-
-static __inline__ struct net_device_stats *hdlc_stats(struct net_device *dev)
-{
-	return &dev_to_hdlc(dev)->stats;
 }
 
 

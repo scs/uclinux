@@ -286,11 +286,11 @@ wake event from:
 +------------------+
 |  Bit  |  State   |
 +------------------+
-|  11   |   D0     |
-|  12   |   D1     |
+|  15   |   D0     |
+|  14   |   D1     |
 |  13   |   D2     |
-|  14   |   D3hot  |
-|  15   |   D3cold |
+|  12   |   D3hot  |
+|  11   |   D3cold |
 +------------------+
 
 A device can use this to enable wake events:

@@ -51,7 +51,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#define DISPLAY_CS5520_TIMINGS
+#include "cs5520.h"
 
 #if defined(DISPLAY_CS5520_TIMINGS) && defined(CONFIG_PROC_FS)
 #include <linux/stat.h>
@@ -196,7 +196,7 @@ static unsigned int __devinit init_chipset_cs5520(struct pci_dev *dev, const cha
 	if (!cs5520_proc) {
 		cs5520_proc = 1;
 		bmide_dev = dev;
-		ide_pci_create_host_proc("cs5520", cs5520_get_info);
+		ide_pci_register_host_proc(&cs5520_procs[0]);
 	}
 #endif /* DISPLAY_CS5520_TIMINGS && CONFIG_PROC_FS */
 	return 0;
@@ -251,24 +251,7 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 	hwif->drives[0].autodma = hwif->autodma;
 	hwif->drives[1].autodma = hwif->autodma;
 }
-
-#define DECLARE_CS_DEV(name_str)				\
-	{							\
-		.name		= name_str,			\
-		.init_chipset	= init_chipset_cs5520,		\
-		.init_setup_dma = cs5520_init_setup_dma,	\
-		.init_hwif	= init_hwif_cs5520,		\
-		.channels	= 2,				\
-		.autodma	= AUTODMA,			\
-		.bootable	= ON_BOARD,			\
-		.flags		= IDEPCI_FLAG_ISA_PORTS,	\
-	}
-
-static ide_pci_device_t cyrix_chipsets[] __devinitdata = {
-	/* 0 */ DECLARE_CS_DEV("Cyrix 5510"),
-	/* 1 */ DECLARE_CS_DEV("Cyrix 5520")
-};
-
+		
 /*
  *	The 5510/5520 are a bit weird. They don't quite set up the way
  *	the PCI helper layer expects so we must do much of the set up 
@@ -308,6 +291,7 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 		probe_hwif_init(&ide_hwifs[index.b.low]);
 	if((index.b.high & 0xf0) != 0xf0)
 		probe_hwif_init(&ide_hwifs[index.b.high]);
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -316,7 +300,6 @@ static struct pci_device_id cs5520_pci_tbl[] = {
 	{ PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
 	{ 0, },
 };
-MODULE_DEVICE_TABLE(pci, cs5520_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "CyrixIDE",
@@ -329,7 +312,13 @@ static int cs5520_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void cs5520_ide_exit(void)
+{
+	return ide_pci_unregister_driver(&driver);
+}
+
 module_init(cs5520_ide_init);
+module_exit(cs5520_ide_exit);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("PCI driver module for Cyrix 5510/5520 IDE");

@@ -143,7 +143,7 @@ void insb (unsigned long port, void *dst, unsigned long count)
 			return;
 		count--;
 		*(unsigned char *) dst = inb(port);
-		dst += 1;
+		((unsigned char *) dst)++;
 	}
 
 	while (count >= 4) {
@@ -154,13 +154,13 @@ void insb (unsigned long port, void *dst, unsigned long count)
 		w |= inb(port) << 16;
 		w |= inb(port) << 24;
 		*(unsigned int *) dst = w;
-		dst += 4;
+		((unsigned int *) dst)++;
 	}
 
 	while (count) {
 		--count;
 		*(unsigned char *) dst = inb(port);
-		dst += 1;
+		((unsigned char *) dst)++;
 	}
 }
 
@@ -181,8 +181,8 @@ void insw (unsigned long port, void *dst, unsigned long count)
 		if (!count)
 			return;
 		count--;
-		*(unsigned short *) dst = inw(port);
-		dst += 2;
+		*(unsigned short* ) dst = inw(port);
+		((unsigned short *) dst)++;
 	}
 
 	while (count >= 2) {
@@ -191,7 +191,7 @@ void insw (unsigned long port, void *dst, unsigned long count)
 		w = inw(port);
 		w |= inw(port) << 16;
 		*(unsigned int *) dst = w;
-		dst += 4;
+		((unsigned int *) dst)++;
 	}
 
 	if (count) {
@@ -209,72 +209,70 @@ void insw (unsigned long port, void *dst, unsigned long count)
 void insl (unsigned long port, void *dst, unsigned long count)
 {
 	unsigned int l = 0, l2;
-
+	
 	if (!count)
 		return;
-
+	
 	switch (((unsigned long) dst) & 0x3)
 	{
 	 case 0x00:			/* Buffer 32-bit aligned */
 		while (count--)
 		{
 			*(unsigned int *) dst = inl(port);
-			dst += 4;
+			((unsigned int *) dst)++;
 		}
 		break;
-
+	
 	/* Assuming little endian Alphas in cases 0x01 -- 0x03 ... */
-
+	
 	 case 0x02:			/* Buffer 16-bit aligned */
 		--count;
-
+		
 		l = inl(port);
 		*(unsigned short *) dst = l;
-		dst += 2;
-
+		((unsigned short *) dst)++;
+		
 		while (count--)
 		{
 			l2 = inl(port);
 			*(unsigned int *) dst = l >> 16 | l2 << 16;
-			dst += 4;
+			((unsigned int *) dst)++;
 			l = l2;
 		}
 		*(unsigned short *) dst = l >> 16;
 		break;
-
 	 case 0x01:			/* Buffer 8-bit aligned */
 		--count;
-
+		
 		l = inl(port);
 		*(unsigned char *) dst = l;
-		dst += 1;
+		((unsigned char *) dst)++;
 		*(unsigned short *) dst = l >> 8;
-		dst += 2;
+		((unsigned short *) dst)++;
 		while (count--)
 		{
 			l2 = inl(port);
 			*(unsigned int *) dst = l >> 24 | l2 << 8;
-			dst += 4;
+			((unsigned int *) dst)++;
 			l = l2;
 		}
 		*(unsigned char *) dst = l >> 24;
 		break;
-
 	 case 0x03:			/* Buffer 8-bit aligned */
 		--count;
-
+		
 		l = inl(port);
 		*(unsigned char *) dst = l;
-		dst += 1;
+		((unsigned char *) dst)++;
 		while (count--)
 		{
 			l2 = inl(port);
 			*(unsigned int *) dst = l << 24 | l2 >> 8;
-			dst += 4;
+			((unsigned int *) dst)++;
 			l = l2;
 		}
 		*(unsigned short *) dst = l >> 8;
-		dst += 2;
+		((unsigned short *) dst)++;
 		*(unsigned char *) dst = l >> 24;
 		break;
 	}
@@ -292,7 +290,7 @@ void outsb(unsigned long port, const void * src, unsigned long count)
 	while (count) {
 		count--;
 		outb(*(char *)src, port);
-		src += 1;
+		((char *) src)++;
 	}
 }
 
@@ -309,7 +307,7 @@ void outsw (unsigned long port, const void *src, unsigned long count)
 			panic("outsw: memory not short aligned");
 		}
 		outw(*(unsigned short*)src, port);
-		src += 2;
+		((unsigned short *) src)++;
 		--count;
 	}
 
@@ -317,7 +315,7 @@ void outsw (unsigned long port, const void *src, unsigned long count)
 		unsigned int w;
 		count -= 2;
 		w = *(unsigned int *) src;
-		src += 4;
+		((unsigned int *) src)++;
 		outw(w >>  0, port);
 		outw(w >> 16, port);
 	}
@@ -337,69 +335,69 @@ void outsw (unsigned long port, const void *src, unsigned long count)
 void outsl (unsigned long port, const void *src, unsigned long count)
 {
 	unsigned int l = 0, l2;
-
+	
 	if (!count)
 		return;
-
+	
 	switch (((unsigned long) src) & 0x3)
 	{
 	 case 0x00:			/* Buffer 32-bit aligned */
 		while (count--)
 		{
 			outl(*(unsigned int *) src, port);
-			src += 4;
+			((unsigned int *) src)++;
 		}
 		break;
-
+	
+	/* Assuming little endian Alphas in cases 0x01 -- 0x03 ... */
+	
 	 case 0x02:			/* Buffer 16-bit aligned */
 		--count;
-
+		
 		l = *(unsigned short *) src << 16;
-		src += 2;
-
+		((unsigned short *) src)++;
+		
 		while (count--)
 		{
 			l2 = *(unsigned int *) src;
-			src += 4;
+			((unsigned int *) src)++;
 			outl (l >> 16 | l2 << 16, port);
 			l = l2;
 		}
 		l2 = *(unsigned short *) src;
 		outl (l >> 16 | l2 << 16, port);
 		break;
-
 	 case 0x01:			/* Buffer 8-bit aligned */
 		--count;
-
+		
 		l  = *(unsigned char *) src << 8;
-		src += 1;
+		((unsigned char *) src)++;
 		l |= *(unsigned short *) src << 16;
-		src += 2;
+		((unsigned short *) src)++;
 		while (count--)
 		{
 			l2 = *(unsigned int *) src;
-			src += 4;
+			((unsigned int *) src)++;
 			outl (l >> 8 | l2 << 24, port);
 			l = l2;
 		}
 		l2 = *(unsigned char *) src;
 		outl (l >> 8 | l2 << 24, port);
 		break;
-
 	 case 0x03:			/* Buffer 8-bit aligned */
 		--count;
-
+		
 		l  = *(unsigned char *) src << 24;
-		src += 1;
+		((unsigned char *) src)++;
 		while (count--)
 		{
 			l2 = *(unsigned int *) src;
-			src += 4;
+			((unsigned int *) src)++;
 			outl (l >> 24 | l2 << 8, port);
 			l = l2;
 		}
 		l2  = *(unsigned short *) src;
-		src += 2;
+		((unsigned short *) src)++;
 		l2 |= *(unsigned char *) src << 16;
 		outl (l >> 24 | l2 << 8, port);
 		break;
@@ -437,7 +435,7 @@ void _memcpy_fromio(void * to, unsigned long from, long count)
 		} while (count >= 0);
 		count += 4;
 	}
-
+		
 	if (count >= 2 && ((unsigned long)to & 1) == (from & 1)) {
 		count -= 2;
 		do {
@@ -488,7 +486,7 @@ void _memcpy_toio(unsigned long to, const void * from, long count)
 		} while (count >= 0);
 		count += 4;
 	}
-
+		
 	if (count >= 2 && (to & 1) == ((unsigned long)from & 1)) {
 		count -= 2;
 		do {

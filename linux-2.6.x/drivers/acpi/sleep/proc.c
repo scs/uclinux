@@ -44,10 +44,10 @@ static int acpi_system_sleep_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_system_sleep_seq_show, PDE(inode)->data);
 }
 
-static ssize_t
+static int
 acpi_system_write_sleep (
 	struct file		*file,
-	const char __user	*buffer,
+	const char		*buffer,
 	size_t			count,
 	loff_t			*ppos)
 {
@@ -99,7 +99,7 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 	if (acpi_gbl_FADT->mon_alrm)
 		mo = CMOS_READ(acpi_gbl_FADT->mon_alrm);
 	else
-		mo = CMOS_READ(RTC_MONTH);
+		mo = CMOS_READ(RTC_MONTH);;
 	if (acpi_gbl_FADT->century)
 		yr = CMOS_READ(acpi_gbl_FADT->century) * 100 + CMOS_READ(RTC_YEAR);
 	else
@@ -189,10 +189,10 @@ get_date_field (
 }
 
 
-static ssize_t
+static int
 acpi_system_write_alarm (
 	struct file		*file,
-	const char __user	*buffer,
+	const char		*buffer,
 	size_t			count,
 	loff_t			*ppos)
 {
@@ -345,7 +345,7 @@ acpi_system_write_alarm (
 
 	acpi_set_register(ACPI_BITREG_RT_CLOCK_ENABLE, 1, ACPI_MTX_LOCK);
 
-	*ppos += count;
+	file->f_pos += count;
 
 	result = 0;
 end:

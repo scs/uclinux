@@ -39,7 +39,7 @@ static struct mtd_info *sram_mtd;
 struct map_info autcpu12_sram_map = {
 	.name = "SRAM",
 	.size = 32768,
-	.bankwidth = 4,
+	.buswidth = 4,
 	.phys = 0x12000000,
 };
 

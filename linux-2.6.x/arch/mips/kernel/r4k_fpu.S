@@ -12,7 +12,6 @@
  * Copyright (C) 2000 MIPS Technologies, Inc.
  * Copyright (C) 1999, 2001 Silicon Graphics, Inc.
  */
-#include <linux/config.h>
 #include <asm/asm.h>
 #include <asm/errno.h>
 #include <asm/fpregdef.h>
@@ -81,7 +80,7 @@ LEAF(_save_fp_context)
 	 li	v0, 0					# success
 	END(_save_fp_context)
 
-#ifdef CONFIG_MIPS32_COMPAT
+#ifdef CONFIG_MIPS64
 	/* Save 32-bit process floating point context */
 LEAF(_save_fp_context32)
 	cfc1	t1, fcr31
@@ -157,7 +156,7 @@ LEAF(_restore_fp_context)
 	 li	v0, 0					# success
 	END(_restore_fp_context)
 
-#ifdef CONFIG_MIPS32_COMPAT
+#ifdef CONFIG_MIPS64
 LEAF(_restore_fp_context32)
 	/* Restore an o32 sigcontext.  */
 	EX	lw t0, SC32_FPC_CSR(a0)

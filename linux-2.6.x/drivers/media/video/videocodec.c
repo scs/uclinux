@@ -108,17 +108,13 @@ videocodec_attach (struct videocodec_master *master)
 		if ((master->flags & h->codec->flags) == master->flags) {
 			dprintk(4, "videocodec_attach: try '%s'\n",
 				h->codec->name);
-
-			if (!try_module_get(h->codec->owner))
-				return NULL;
-
 			codec =
 			    kmalloc(sizeof(struct videocodec), GFP_KERNEL);
 			if (!codec) {
 				dprintk(1,
 					KERN_ERR
 					"videocodec_attach: no mem\n");
-				goto out_module_put;
+				return NULL;
 			}
 			memcpy(codec, h->codec, sizeof(struct videocodec));
 
@@ -136,11 +132,25 @@ videocodec_attach (struct videocodec_master *master)
 					dprintk(1,
 						KERN_ERR
 						"videocodec_attach: no memory\n");
-					goto out_kfree;
+					kfree(codec);
+					return NULL;
 				}
 				memset(ptr, 0,
 				       sizeof(struct attached_list));
 				ptr->codec = codec;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+				MOD_INC_USE_COUNT;
+#else
+				if (!try_module_get(THIS_MODULE)) {
+					dprintk(1,
+						KERN_ERR
+						"videocodec: failed to increment usecount\n");
+					kfree(codec);
+					kfree(ptr);
+					return NULL;
+				}
+#endif
 
 				a = h->list;
 				if (!a) {
@@ -166,12 +176,6 @@ videocodec_attach (struct videocodec_master *master)
 	}
 
 	dprintk(1, KERN_ERR "videocodec_attach: no codec found!\n");
-	return NULL;
-
- out_module_put:
-	module_put(h->codec->owner);
- out_kfree:
-	kfree(codec);
 	return NULL;
 }
 
@@ -224,10 +228,16 @@ videocodec_detach (struct videocodec *codec)
 					dprintk(4,
 						"videocodec: delete middle\n");
 				}
-				module_put(a->codec->owner);
 				kfree(a->codec);
 				kfree(a);
 				h->attached -= 1;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+				MOD_DEC_USE_COUNT;
+#else
+				module_put(THIS_MODULE);
+#endif
+
 				return 0;
 			}
 			prev = a;
@@ -263,6 +273,18 @@ videocodec_register (const struct videocodec *codec)
 	}
 	memset(ptr, 0, sizeof(struct codec_list));
 	ptr->codec = codec;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+	MOD_INC_USE_COUNT;
+#else
+	if (!try_module_get(THIS_MODULE)) {
+		dprintk(1,
+			KERN_ERR
+			"videocodec: failed to increment module count\n");
+		kfree(ptr);
+		return -ENODEV;
+	}
+#endif
 
 	if (!h) {
 		codeclist_top = ptr;
@@ -320,6 +342,13 @@ videocodec_unregister (const struct videocodec *codec)
 					"videocodec: delete middle element\n");
 			}
 			kfree(h);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+			MOD_DEC_USE_COUNT;
+#else
+			module_put(THIS_MODULE);
+#endif
+
 			return 0;
 		}
 		prev = h;
@@ -363,15 +392,15 @@ videocodec_build_table (void)
 	videocodec_buf = (char *) kmalloc(size, GFP_KERNEL);
 
 	i = 0;
-	i += scnprintf(videocodec_buf + i, size - 1,
+	i += snprintf(videocodec_buf + i, size - 1,
 		      "<S>lave or attached <M>aster name  type flags    magic    ");
-	i += scnprintf(videocodec_buf + i, size -i - 1, "(connected as)\n");
+	i += snprintf(videocodec_buf + i, size - 1, "(connected as)\n");
 
 	h = codeclist_top;
 	while (h) {
 		if (i > (size - LINESIZE))
 			break;	// security check
-		i += scnprintf(videocodec_buf + i, size -i -1,
+		i += snprintf(videocodec_buf + i, size,
 			      "S %32s %04x %08lx %08lx (TEMPLATE)\n",
 			      h->codec->name, h->codec->type,
 			      h->codec->flags, h->codec->magic);
@@ -379,7 +408,7 @@ videocodec_build_table (void)
 		while (a) {
 			if (i > (size - LINESIZE))
 				break;	// security check
-			i += scnprintf(videocodec_buf + i, size -i -1,
+			i += snprintf(videocodec_buf + i, size,
 				      "M %32s %04x %08lx %08lx (%s)\n",
 				      a->codec->master_data->name,
 				      a->codec->master_data->type,
@@ -458,7 +487,7 @@ videocodec_init (void)
 	videocodec_buf = NULL;
 	videocodec_bufsize = 0;
 
-	videocodec_proc_entry = create_proc_entry("videocodecs", 0, NULL);
+	videocodec_proc_entry = create_proc_entry("videocodecs", 0, 0);
 	if (videocodec_proc_entry) {
 		videocodec_proc_entry->read_proc = videocodec_info;
 		videocodec_proc_entry->write_proc = NULL;
@@ -475,7 +504,7 @@ static void __exit
 videocodec_exit (void)
 {
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry("videocodecs", NULL);
+	remove_proc_entry("videocodecs", 0);
 	if (videocodec_buf)
 		kfree(videocodec_buf);
 #endif

@@ -906,7 +906,7 @@ static cachefs_match_val_t afs_vlocation_cache_match(void *target,
 		if (!vlocation->valid ||
 		    vlocation->vldb.rtime == vldb->rtime
 		    ) {
-			vlocation->vldb = *vldb;
+			struct_cpy(&vlocation->vldb, vldb);
 			vlocation->valid = 1;
 			_leave(" = SUCCESS [c->m]");
 			return CACHEFS_MATCH_SUCCESS;
@@ -947,7 +947,7 @@ static void afs_vlocation_cache_update(void *source, void *entry)
 
 	_enter("");
 
-	*vldb = vlocation->vldb;
+	struct_cpy(vldb,&vlocation->vldb);
 
 } /* end afs_vlocation_cache_update() */
 #endif

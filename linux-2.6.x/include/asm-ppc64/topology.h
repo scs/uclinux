@@ -19,6 +19,8 @@ static inline int cpu_to_node(int cpu)
 	return node;
 }
 
+#define memblk_to_node(memblk)	(memblk)
+
 #define parent_node(node)	(node)
 
 static inline cpumask_t node_to_cpumask(int node)
@@ -32,6 +34,8 @@ static inline int node_to_first_cpu(int node)
 	tmp = node_to_cpumask(node);
 	return first_cpu(tmp);
 }
+
+#define node_to_memblk(node)	(node)
 
 #define pcibus_to_cpumask(bus)	(cpu_online_map)
 

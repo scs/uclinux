@@ -14,11 +14,11 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/rcupdate.h>
 
 #include "cio_debug.h"
 #include "airq.h"
 
+static spinlock_t adapter_lock = SPIN_LOCK_UNLOCKED;
 static adapter_int_handler_t adapter_handler;
 
 /*
@@ -40,17 +40,23 @@ s390_register_adapter_interrupt (adapter_int_handler_t handler)
 
 	CIO_TRACE_EVENT (4, "rgaint");
 
+	spin_lock (&adapter_lock);
+
 	if (handler == NULL)
 		ret = -EINVAL;
-	else
-		ret = (cmpxchg(&adapter_handler, NULL, handler) ? -EBUSY : 0);
-	if (!ret)
-		synchronize_kernel();
+	else if (adapter_handler)
+		ret = -EBUSY;
+	else {
+		adapter_handler = handler;
+		ret = 0;
+	}
+
+	spin_unlock (&adapter_lock);
 
 	sprintf (dbf_txt, "ret:%d", ret);
 	CIO_TRACE_EVENT (4, dbf_txt);
 
-	return ret;
+	return (ret);
 }
 
 int
@@ -61,26 +67,38 @@ s390_unregister_adapter_interrupt (adapter_int_handler_t handler)
 
 	CIO_TRACE_EVENT (4, "urgaint");
 
+	spin_lock (&adapter_lock);
+
 	if (handler == NULL)
+		ret = -EINVAL;
+	else if (handler != adapter_handler)
 		ret = -EINVAL;
 	else {
 		adapter_handler = NULL;
-		synchronize_kernel();
 		ret = 0;
 	}
+
+	spin_unlock (&adapter_lock);
+
 	sprintf (dbf_txt, "ret:%d", ret);
 	CIO_TRACE_EVENT (4, dbf_txt);
 
-	return ret;
+	return (ret);
 }
 
 void
 do_adapter_IO (void)
 {
-	CIO_TRACE_EVENT (6, "doaio");
+	CIO_TRACE_EVENT (4, "doaio");
+
+	spin_lock (&adapter_lock);
 
 	if (adapter_handler)
 		(*adapter_handler) ();
+
+	spin_unlock (&adapter_lock);
+
+	return;
 }
 
 EXPORT_SYMBOL (s390_register_adapter_interrupt);

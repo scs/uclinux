@@ -71,22 +71,26 @@ abs_chunk(unsigned long pchunk)
 	return PTRRELOC(_msChunks->abs)[pchunk];
 }
 
-/* A macro so it can take pointers or unsigned long. */
-#define phys_to_abs(pa)						     \
-	({ unsigned long _pa = (unsigned long)(pa);			     \
-	   chunk_to_addr(abs_chunk(addr_to_chunk(_pa))) + chunk_offset(_pa); \
-	})
+
+static inline unsigned long
+phys_to_absolute(unsigned long pa)
+{
+	return chunk_to_addr(abs_chunk(addr_to_chunk(pa))) + chunk_offset(pa);
+}
 
 static inline unsigned long
 physRpn_to_absRpn(unsigned long rpn)
 {
 	unsigned long pa = rpn << PAGE_SHIFT;
-	unsigned long aa = phys_to_abs(pa);
+	unsigned long aa = phys_to_absolute(pa);
 	return (aa >> PAGE_SHIFT);
 }
 
-/* A macro so it can take pointers or unsigned long. */
-#define abs_to_phys(aa) lmb_abs_to_phys((unsigned long)(aa))
+static inline unsigned long
+absolute_to_phys(unsigned long aa)
+{
+	return lmb_abs_to_phys(aa);
+}
 
 #else  /* !CONFIG_MSCHUNKS */
 
@@ -95,14 +99,23 @@ physRpn_to_absRpn(unsigned long rpn)
 #define chunk_offset(addr) (0)
 #define abs_chunk(pchunk) (pchunk)
 
-#define phys_to_abs(pa) (pa)
+#define phys_to_absolute(pa) (pa)
 #define physRpn_to_absRpn(rpn) (rpn)
-#define abs_to_phys(aa) (aa)
+#define absolute_to_phys(aa) (aa)
 
 #endif /* !CONFIG_MSCHUNKS */
 
-/* Convenience macros */
-#define virt_to_abs(va) phys_to_abs(__pa(va))
-#define abs_to_virt(aa) __va(abs_to_phys(aa))
+
+static inline unsigned long
+virt_to_absolute(unsigned long ea)
+{
+	return phys_to_absolute(__pa(ea));
+}
+
+static inline unsigned long
+absolute_to_virt(unsigned long aa)
+{
+	return (unsigned long)__va(absolute_to_phys(aa));
+}
 
 #endif /* _ABS_ADDR_H */

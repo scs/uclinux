@@ -9,17 +9,6 @@
 #include <linux/agp_backend.h>
 #include "agp.h"
 
-static struct pci_device_id agp_via_pci_table[];
-
-#define VIA_GARTCTRL	0x80
-#define VIA_APSIZE	0x84
-#define VIA_ATTBASE	0x88
-
-#define VIA_AGP3_GARTCTRL	0x90
-#define VIA_AGP3_APSIZE		0x94
-#define VIA_AGP3_ATTBASE	0x98
-#define VIA_AGPSEL		0xfd
-
 static int via_fetch_size(void)
 {
 	int i;
@@ -162,9 +151,23 @@ static void via_tlbflush_agp3(struct agp_memory *mem)
 }
 
 
+static struct aper_size_info_16 via_generic_agp3_sizes[11] =
+{
+	{ 4,     1024,  0, 1<<11|1<<10|1<<9|1<<8|1<<5|1<<4|1<<3|1<<2|1<<1|1<<0 },
+	{ 8,     2048,  1, 1<<11|1<<10|1<<9|1<<8|1<<5|1<<4|1<<3|1<<2|1<<1},
+	{ 16,    4096,  2, 1<<11|1<<10|1<<9|1<<8|1<<5|1<<4|1<<3|1<<2},
+	{ 32,    8192,  3, 1<<11|1<<10|1<<9|1<<8|1<<5|1<<4|1<<3},
+	{ 64,   16384,  4, 1<<11|1<<10|1<<9|1<<8|1<<5|1<<4},
+	{ 128,  32768,  5, 1<<11|1<<10|1<<9|1<<8|1<<5},
+	{ 256,  65536,  6, 1<<11|1<<10|1<<9|1<<8},
+	{ 512,  131072, 7, 1<<11|1<<10|1<<9},
+	{ 1024, 262144, 8, 1<<11|1<<10},
+	{ 2048, 524288, 9, 1<<11}	/* 2GB <- Max supported */
+};
+
 struct agp_bridge_driver via_agp3_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= agp3_generic_sizes,
+	.aperture_sizes		= via_generic_agp3_sizes,
 	.size_type		= U8_APER_SIZE,
 	.num_aperture_sizes	= 10,
 	.configure		= via_configure_agp3,
@@ -348,21 +351,6 @@ static struct agp_device_ids via_agp_device_ids[] __devinitdata =
 		.device_id	= PCI_DEVICE_ID_VIA_PX8X0_0,
 		.chipset_name	= "PM800/PN800/PM880/PN880",
 	},
-	/* KT880 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_3269_0,
-		.chipset_name	= "KT880",
-	},
-	/* KTxxx/Px8xx */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_83_87XX_1,
-		.chipset_name	= "VT83xx/VT87xx/KTxxx/Px8xx",
-	},
-	/* P4M800 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_3296_0,
-		.chipset_name	= "P4M800",
-	},
 
 	{ }, /* dummy final entry, always present */
 };
@@ -395,9 +383,20 @@ static int __devinit agp_via_probe(struct pci_dev *pdev,
 	if (!cap_ptr)
 		return -ENODEV;
 
-	j = ent - agp_via_pci_table;
-	printk (KERN_INFO PFX "Detected VIA %s chipset\n", devs[j].chipset_name);
+	/* probe for known chipsets */
+	for (j = 0; devs[j].chipset_name; j++) {
+		if (pdev->device == devs[j].device_id) {
+			printk (KERN_INFO PFX "Detected VIA %s chipset\n",
+					devs[j].chipset_name);
+			goto found;
+		}
+	}
 
+	printk(KERN_ERR PFX "Unsupported VIA chipset (device id: %04x)\n",
+		    pdev->device);
+	return -ENODEV;
+
+found:
 	bridge = agp_alloc_bridge();
 	if (!bridge)
 		return -ENOMEM;
@@ -438,44 +437,15 @@ static void __devexit agp_via_remove(struct pci_dev *pdev)
 	agp_put_bridge(bridge);
 }
 
-/* must be the same order as name table above */
 static struct pci_device_id agp_via_pci_table[] = {
-#define ID(x) \
-	{						\
-	.class		= (PCI_CLASS_BRIDGE_HOST << 8),	\
-	.class_mask	= ~0,				\
-	.vendor		= PCI_VENDOR_ID_VIA,		\
-	.device		= x,				\
-	.subvendor	= PCI_ANY_ID,			\
-	.subdevice	= PCI_ANY_ID,			\
-	}
-	ID(PCI_DEVICE_ID_VIA_82C597_0),
-	ID(PCI_DEVICE_ID_VIA_82C598_0),
-	ID(PCI_DEVICE_ID_VIA_8501_0),
-	ID(PCI_DEVICE_ID_VIA_8601_0),
-	ID(PCI_DEVICE_ID_VIA_82C691_0),
-	ID(PCI_DEVICE_ID_VIA_8371_0),
-	ID(PCI_DEVICE_ID_VIA_8633_0),
-	ID(PCI_DEVICE_ID_VIA_XN266),
-	ID(PCI_DEVICE_ID_VIA_8361),
-	ID(PCI_DEVICE_ID_VIA_8363_0),
-	ID(PCI_DEVICE_ID_VIA_8753_0),
-	ID(PCI_DEVICE_ID_VIA_8367_0),
-	ID(PCI_DEVICE_ID_VIA_8653_0),
-	ID(PCI_DEVICE_ID_VIA_XM266),
-	ID(PCI_DEVICE_ID_VIA_862X_0),
-	ID(PCI_DEVICE_ID_VIA_8377_0),
-	ID(PCI_DEVICE_ID_VIA_8605_0),
-	ID(PCI_DEVICE_ID_VIA_8703_51_0),
-	ID(PCI_DEVICE_ID_VIA_8754C_0),
-	ID(PCI_DEVICE_ID_VIA_8763_0),
-	ID(PCI_DEVICE_ID_VIA_8378_0),
-	ID(PCI_DEVICE_ID_VIA_PT880),
-	ID(PCI_DEVICE_ID_VIA_8783_0),
-	ID(PCI_DEVICE_ID_VIA_PX8X0_0),
-	ID(PCI_DEVICE_ID_VIA_3269_0),
-	ID(PCI_DEVICE_ID_VIA_83_87XX_1),
-	ID(PCI_DEVICE_ID_VIA_3296_0),
+	{
+	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+	.class_mask	= ~0,
+	.vendor		= PCI_VENDOR_ID_VIA,
+	.device		= PCI_ANY_ID,
+	.subvendor	= PCI_ANY_ID,
+	.subdevice	= PCI_ANY_ID,
+	},
 	{ }
 };
 

@@ -2,21 +2,15 @@
 #define _LINUX_TIMES_H
 
 #ifdef __KERNEL__
-#include <linux/timex.h>
 #include <asm/div64.h>
 #include <asm/types.h>
 #include <asm/param.h>
 
-static inline clock_t jiffies_to_clock_t(long x)
-{
-#if (TICK_NSEC % (NSEC_PER_SEC / USER_HZ)) == 0
-	return x / (HZ / USER_HZ);
+#if (HZ % USER_HZ)==0
+# define jiffies_to_clock_t(x) ((x) / (HZ / USER_HZ))
 #else
-	u64 tmp = (u64)x * TICK_NSEC;
-	do_div(tmp, (NSEC_PER_SEC / USER_HZ));
-	return (long)tmp;
+# define jiffies_to_clock_t(x) ((clock_t) jiffies_64_to_clock_t((u64) x))
 #endif
-}
 
 static inline unsigned long clock_t_to_jiffies(unsigned long x)
 {
@@ -40,7 +34,7 @@ static inline unsigned long clock_t_to_jiffies(unsigned long x)
 
 static inline u64 jiffies_64_to_clock_t(u64 x)
 {
-#if (TICK_NSEC % (NSEC_PER_SEC / USER_HZ)) == 0
+#if (HZ % USER_HZ)==0
 	do_div(x, HZ / USER_HZ);
 #else
 	/*
@@ -48,8 +42,8 @@ static inline u64 jiffies_64_to_clock_t(u64 x)
 	 * but even this doesn't overflow in hundreds of years
 	 * in 64 bits, so..
 	 */
-	x *= TICK_NSEC;
-	do_div(x, (NSEC_PER_SEC / USER_HZ));
+	x *= USER_HZ;
+	do_div(x, HZ);
 #endif
 	return x;
 }

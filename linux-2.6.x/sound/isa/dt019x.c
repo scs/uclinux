@@ -26,8 +26,8 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/pnp.h>
-#include <linux/moduleparam.h>
 #include <sound/core.h>
+#define SNDRV_GET_ID
 #include <sound/initval.h>
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
@@ -53,33 +53,32 @@ static long fm_port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;	/* PnP setup */
 static int irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* PnP setup */
 static int mpu_irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* PnP setup */
 static int dma8[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* PnP setup */
-static int boot_devs;
 
-module_param_array(index, int, boot_devs, 0444);
+MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(index, "Index value for DT-019X based soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-module_param_array(id, charp, boot_devs, 0444);
+MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
 MODULE_PARM_DESC(id, "ID string for DT-019X based soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-module_param_array(enable, bool, boot_devs, 0444);
+MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(enable, "Enable DT-019X based soundcard.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-module_param_array(port, long, boot_devs, 0444);
+MODULE_PARM(port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(port, "Port # for dt019x driver.");
 MODULE_PARM_SYNTAX(port, SNDRV_PORT12_DESC);
-module_param_array(mpu_port, long, boot_devs, 0444);
+MODULE_PARM(mpu_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for dt019x driver.");
 MODULE_PARM_SYNTAX(mpu_port, SNDRV_PORT12_DESC);
-module_param_array(fm_port, long, boot_devs, 0444);
+MODULE_PARM(fm_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(fm_port, "FM port # for dt019x driver.");
 MODULE_PARM_SYNTAX(fm_port, SNDRV_PORT12_DESC);
-module_param_array(irq, int, boot_devs, 0444);
+MODULE_PARM(irq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(irq, "IRQ # for dt019x driver.");
 MODULE_PARM_SYNTAX(irq, SNDRV_IRQ_DESC);
-module_param_array(mpu_irq, int, boot_devs, 0444);
+MODULE_PARM(mpu_irq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for dt019x driver.");
 MODULE_PARM_SYNTAX(mpu_irq, SNDRV_IRQ_DESC);
-module_param_array(dma8, int, boot_devs, 0444);
+MODULE_PARM(dma8, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(dma8, "8-bit DMA # for dt019x driver.");
 MODULE_PARM_SYNTAX(dma8, SNDRV_DMA8_DESC);
 
@@ -144,7 +143,7 @@ static int __devinit snd_card_dt019x_pnp(int dev, struct snd_card_dt019x *acard,
 	port[dev] = pnp_port_start(pdev, 0);
 	dma8[dev] = pnp_dma(pdev, 0);
 	irq[dev] = pnp_irq(pdev, 0);
-	snd_printdd("dt019x: found audio interface: port=0x%lx, irq=0x%x, dma=0x%x\n",
+	snd_printdd("dt019x: found audio interface: port=0x%lx, irq=0x%lx, dma=0x%lx\n",
 			port[dev],irq[dev],dma8[dev]);
 
 	pdev = acard->devmpu;
@@ -165,7 +164,7 @@ static int __devinit snd_card_dt019x_pnp(int dev, struct snd_card_dt019x *acard,
 		}
 		mpu_port[dev] = pnp_port_start(pdev, 0);
 		mpu_irq[dev] = pnp_irq(pdev, 0);
-		snd_printdd("dt019x: found MPU-401: port=0x%lx, irq=0x%x\n",
+		snd_printdd("dt019x: found MPU-401: port=0x%lx, irq=0x%lx\n",
 			 	mpu_port[dev],mpu_irq[dev]);
 	} else {
 	__mpu_error:
@@ -211,7 +210,6 @@ static int __devinit snd_card_dt019x_probe(int dev, struct pnp_card_link *pcard,
 		return -ENOMEM;
 	acard = (struct snd_card_dt019x *)card->private_data;
 
-	snd_card_set_dev(card, &pcard->card->dev);
 	if ((error = snd_card_dt019x_pnp(dev, acard, pcard, pid))) {
 		snd_card_free(card);
 		return error;
@@ -228,12 +226,6 @@ static int __devinit snd_card_dt019x_probe(int dev, struct pnp_card_link *pcard,
 		return error;
 	}
 
-	strcpy(card->driver, "DT-019X");
-	strcpy(card->shortname, "Diamond Tech. DT-019X");
-	sprintf(card->longname, "%s, %s at 0x%lx, irq %d, dma %d",
-		card->shortname, chip->name, chip->port,
-		irq[dev], dma8[dev]);
-
 	if ((error = snd_sb16dsp_pcm(chip, 0, NULL)) < 0) {
 		snd_card_free(card);
 		return error;
@@ -243,20 +235,18 @@ static int __devinit snd_card_dt019x_probe(int dev, struct pnp_card_link *pcard,
 		return error;
 	}
 
-	if (mpu_port[dev] > 0 && mpu_port[dev] != SNDRV_AUTO_PORT) {
-		if (mpu_irq[dev] == SNDRV_AUTO_IRQ)
-			mpu_irq[dev] = -1;
+	if (mpu_port[dev] > 0) {
 		if (snd_mpu401_uart_new(card, 0,
 /*					MPU401_HW_SB,*/
 					MPU401_HW_MPU401,
 					mpu_port[dev], 0,
 					mpu_irq[dev],
-					mpu_irq[dev] >= 0 ? SA_INTERRUPT : 0,
+					SA_INTERRUPT,
 					NULL) < 0)
 			snd_printk(KERN_ERR PFX "no MPU-401 device at 0x%lx ?\n", mpu_port[dev]);
 	}
 
-	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
+	if (fm_port[dev] > 0) {
 		if (snd_opl3_create(card,
 				    fm_port[dev],
 				    fm_port[dev] + 2,
@@ -275,6 +265,11 @@ static int __devinit snd_card_dt019x_probe(int dev, struct pnp_card_link *pcard,
 		}
 	}
 
+	strcpy(card->driver, "DT-019X");
+	strcpy(card->shortname, "Diamond Tech. DT-019X");
+	sprintf(card->longname, "%s soundcard, %s at 0x%lx, irq %d, dma %d",
+		card->shortname, chip->name, chip->port,
+		irq[dev], dma8[dev]);
 	if ((error = snd_card_register(card)) < 0) {
 		snd_card_free(card);
 		return error;
@@ -297,8 +292,8 @@ static int __devinit snd_dt019x_pnp_probe(struct pnp_card_link *card,
 			return res;
 		dev++;
 		return 0;
-	}
-	return -ENODEV;
+        }
+        return -ENODEV;
 }
 
 static void __devexit snd_dt019x_pnp_remove(struct pnp_card_link * pcard)
@@ -323,10 +318,8 @@ static int __init alsa_card_dt019x_init(void)
 	cards += pnp_register_card_driver(&dt019x_pnpc_driver);
 
 #ifdef MODULE
-	if (!cards) {
-		pnp_unregister_card_driver(&dt019x_pnpc_driver);
+	if (!cards)
 		snd_printk(KERN_ERR "no DT-019X / ALS-007 based soundcards found\n");
-	}
 #endif
 	return cards ? 0 : -ENODEV;
 }
@@ -338,3 +331,32 @@ static void __exit alsa_card_dt019x_exit(void)
 
 module_init(alsa_card_dt019x_init)
 module_exit(alsa_card_dt019x_exit)
+
+#ifndef MODULE
+
+/* format is: snd-dt019x=enable,index,id,
+			  port,mpu_port,fm_port,
+			  irq,mpu_irq,dma8,dma8_size */
+
+static int __init alsa_card_dt019x_setup(char *str)
+{
+	static unsigned __initdata nr_dev = 0;
+
+	if (nr_dev >= SNDRV_CARDS)
+		return 0;
+	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
+	       get_option(&str,&index[nr_dev]) == 2 &&
+	       get_id(&str,&id[nr_dev]) == 2 &&
+	       get_option(&str,(int *)&port[nr_dev]) == 2 &&
+	       get_option(&str,(int *)&mpu_port[nr_dev]) == 2 &&
+	       get_option(&str,(int *)&fm_port[nr_dev]) == 2 &&
+	       get_option(&str,&irq[nr_dev]) == 2 &&
+	       get_option(&str,&mpu_irq[nr_dev]) == 2 &&
+	       get_option(&str,&dma8[nr_dev]) == 2);
+	nr_dev++;
+	return 1;
+}
+
+__setup("snd-dt019x=", alsa_card_dt019x_setup);
+
+#endif /* ifndef MODULE */

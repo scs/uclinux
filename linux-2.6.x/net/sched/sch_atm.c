@@ -5,7 +5,6 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
@@ -56,7 +55,7 @@ extern struct socket *sockfd_lookup(int fd, int *err); /* @@@ fix this */
  */
 
 
-#define PRIV(sch) qdisc_priv(sch)
+#define PRIV(sch) ((struct atm_qdisc_data *) (sch)->data)
 #define VCC2FLOW(vcc) ((struct atm_flow_data *) ((vcc)->user_back))
 
 
@@ -70,7 +69,6 @@ struct atm_flow_data {
 	u32			classid;	/* x:y type ID */
 	int			ref;		/* reference count */
 	struct tc_stats		stats;
-	spinlock_t		*stats_lock;
 	struct atm_flow_data	*next;
 	struct atm_flow_data	*excess;	/* flow for excess traffic;
 						   NULL to set CLP instead */
@@ -104,10 +102,9 @@ static int find_flow(struct atm_qdisc_data *qdisc,struct atm_flow_data *flow)
 static __inline__ struct atm_flow_data *lookup_flow(struct Qdisc *sch,
     u32 classid)
 {
-	struct atm_qdisc_data *p = PRIV(sch);
 	struct atm_flow_data *flow;
 
-        for (flow = p->flows; flow; flow = flow->next)
+        for (flow = PRIV(sch)->flows; flow; flow = flow->next)
 		if (flow->classid == classid) break;
 	return flow;
 }
@@ -685,7 +682,7 @@ static struct Qdisc_class_ops atm_class_ops = {
 	.dump		=	atm_tc_dump_class,
 };
 
-static struct Qdisc_ops atm_qdisc_ops = {
+struct Qdisc_ops atm_qdisc_ops = {
 	.next		=	NULL,
 	.cl_ops		=	&atm_class_ops,
 	.id		=	"atm",
@@ -703,15 +700,15 @@ static struct Qdisc_ops atm_qdisc_ops = {
 };
 
 
-static int __init atm_init(void)
+#ifdef MODULE
+int init_module(void)
 {
 	return register_qdisc(&atm_qdisc_ops);
 }
 
-static void __exit atm_exit(void) 
+
+void cleanup_module(void) 
 {
 	unregister_qdisc(&atm_qdisc_ops);
 }
-
-module_init(atm_init)
-module_exit(atm_exit)
+#endif

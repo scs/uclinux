@@ -48,8 +48,6 @@
 #include <asm/au1000.h>
 #include <asm/au1000_pcmcia.h>
 
-#define debug(fmt, arg...) do { } while (0)
-
 #ifdef CONFIG_MIPS_PB1000
 #include <asm/pb1000.h>
 #define PCMCIA_IRQ AU1000_GPIO_15
@@ -215,7 +213,7 @@ pb1x00_pcmcia_configure_socket(const struct pcmcia_configure *configure)
 	}
 
 	pcr &= ~PCR_SLOT_0_RST;
-	debug("Vcc %dV Vpp %dV, pcr %x\n", 
+	DEBUG(KERN_INFO "Vcc %dV Vpp %dV, pcr %x\n", 
 			configure->vcc, configure->vpp, pcr);
 	switch(configure->vcc){
 		case 0:  /* Vcc 0 */
@@ -326,7 +324,7 @@ pb1x00_pcmcia_configure_socket(const struct pcmcia_configure *configure)
 
 	pcr = au_readw(PB1100_MEM_PCMCIA) & ~0xf;
 
-	debug("Vcc %dV Vpp %dV, pcr %x, reset %d\n", 
+	DEBUG(KERN_INFO "Vcc %dV Vpp %dV, pcr %x, reset %d\n", 
 			configure->vcc, configure->vpp, pcr, configure->reset);
 
 

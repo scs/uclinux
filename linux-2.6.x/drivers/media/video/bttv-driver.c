@@ -59,7 +59,6 @@ static unsigned int gbufsize = 0x208000;
 static int video_nr = -1;
 static int radio_nr = -1;
 static int vbi_nr = -1;
-static int debug_latency = 0;
 
 static unsigned int fdsr = 0;
 
@@ -99,7 +98,6 @@ MODULE_PARM_DESC(gbufsize,"size of the capture buffers, default is 0x208000");
 MODULE_PARM(video_nr,"i");
 MODULE_PARM(radio_nr,"i");
 MODULE_PARM(vbi_nr,"i");
-MODULE_PARM(debug_latency,"i");
 
 MODULE_PARM(fdsr,"i");
 
@@ -797,7 +795,6 @@ static void bt848_bright(struct bttv *btv, int bright)
 {
 	int value;
 
-	// printk("bttv: set bright: %d\n",bright); // DEBUG
 	btv->bright = bright;
 
 	/* We want -128 to 127 we get 0-65535 */
@@ -1051,11 +1048,6 @@ static void init_bt848(struct bttv *btv)
 	btwrite(whitecrush_upper, BT848_WC_UP);
 	btwrite(whitecrush_lower, BT848_WC_DOWN);
 
-	bt848_bright(btv,   btv->bright);
-	bt848_hue(btv,      btv->hue);
-	bt848_contrast(btv, btv->contrast);
-	bt848_sat(btv,      btv->saturation);
-
 	if (btv->opt_lumafilter) {
 		btwrite(0, BT848_E_CONTROL);
 		btwrite(0, BT848_O_CONTROL);
@@ -1068,7 +1060,7 @@ static void init_bt848(struct bttv *btv)
 	init_irqreg(btv);
 }
 
-void bttv_reinit_bt848(struct bttv *btv)
+extern void bttv_reinit_bt848(struct bttv *btv)
 {
 	unsigned long flags;
 
@@ -1334,8 +1326,7 @@ bttv_switch_overlay(struct bttv *btv, struct bttv_fh *fh,
 	spin_lock_irqsave(&btv->s_lock,flags);
 	old = btv->screen;
 	btv->screen = new;
-	btv->curr.irqflags |= 1;
-	bttv_set_dma(btv, 0x03, btv->curr.irqflags);
+	bttv_set_dma(btv, 0x03, 1);
 	spin_unlock_irqrestore(&btv->s_lock,flags);
 	if (NULL == new)
 		free_btres(btv,fh,RESOURCE_OVERLAY);
@@ -1442,8 +1433,7 @@ buffer_queue(struct file *file, struct videobuf_buffer *vb)
 
 	buf->vb.state = STATE_QUEUED;
 	list_add_tail(&buf->vb.queue,&fh->btv->capture);
-	fh->btv->curr.irqflags |= 1;
-	bttv_set_dma(fh->btv, 0x03, fh->btv->curr.irqflags);
+	bttv_set_dma(fh->btv, 0x03, 1);
 }
 
 static void buffer_release(struct file *file, struct videobuf_buffer *vb)
@@ -2180,13 +2170,13 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 				VID_TYPE_OVERLAY|
 				VID_TYPE_CLIPPING|
 				VID_TYPE_SCALES;
+			cap->channels  = bttv_tvcards[btv->c.type].video_inputs;
+			cap->audios    = bttv_tvcards[btv->c.type].audio_inputs;
 			cap->maxwidth  = bttv_tvnorms[btv->tvnorm].swidth;
 			cap->maxheight = bttv_tvnorms[btv->tvnorm].sheight;
 			cap->minwidth  = 48;
 			cap->minheight = 32;
 		}
-		cap->channels  = bttv_tvcards[btv->c.type].video_inputs;
-		cap->audios    = bttv_tvcards[btv->c.type].audio_inputs;
                 return 0;
 	}
 
@@ -2261,7 +2251,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		w2.w.width   = win->width;
 		w2.w.height  = win->height;
 		w2.clipcount = win->clipcount;
-		w2.clips     = (struct v4l2_clip __user *)win->clips;
+		w2.clips     = (struct v4l2_clip*)win->clips;
 		retval = setup_window(fh, btv, &w2, 0);
 		if (0 == retval) {
 			/* on v4l1 this ioctl affects the read() size too */
@@ -2821,7 +2811,7 @@ static int bttv_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-static ssize_t bttv_read(struct file *file, char __user *data,
+static ssize_t bttv_read(struct file *file, char *data,
 			 size_t count, loff_t *ppos)
 {
 	struct bttv_fh *fh = file->private_data;
@@ -3165,27 +3155,10 @@ static struct video_device radio_template =
 /* ----------------------------------------------------------------------- */
 /* irq handler                                                             */
 
-static char *irq_name[] = {
-	"FMTCHG",  // format change detected (525 vs. 625)
-	"VSYNC",   // vertical sync (new field)
-	"HSYNC",   // horizontal sync
-	"OFLOW",   // chroma/luma AGC overflow
-	"HLOCK",   // horizontal lock changed
-	"VPRES",   // video presence changed
-	"6", "7",
-	"I2CDONE", // hw irc operation finished
-	"GPINT",   // gpio port triggered irq
-	"10",
-	"RISCI",   // risc instruction triggered irq
-	"FBUS",    // pixel data fifo dropped data (high pci bus latencies)
-	"FTRGT",   // pixel data fifo overrun
-	"FDSR",    // fifo data stream resyncronisation
-	"PPERR",   // parity error (data transfer)
-	"RIPERR",  // parity error (read risc instructions)
-	"PABORT",  // pci abort
-	"OCERR",   // risc instruction error
-	"SCERR",   // syncronisation error
-};
+static char *irq_name[] = { "FMTCHG", "VSYNC", "HSYNC", "OFLOW", "HLOCK",
+			    "VPRES", "6", "7", "I2CDONE", "GPINT", "10",
+			    "RISCI", "FBUS", "FTRGT", "FDSR", "PPERR",
+			    "RIPERR", "PABORT", "OCERR", "SCERR" };
 
 static void bttv_print_irqbits(u32 print, u32 mark)
 {
@@ -3205,8 +3178,8 @@ static void bttv_print_riscaddr(struct bttv *btv)
 	printk("  main: %08Lx\n",
 	       (unsigned long long)btv->main.dma);
 	printk("  vbi : o=%08Lx e=%08Lx\n",
-	       btv->cvbi ? (unsigned long long)btv->cvbi->top.dma : 0,
-	       btv->cvbi ? (unsigned long long)btv->cvbi->bottom.dma : 0);
+	       btv->curr.vbi ? (unsigned long long)btv->curr.vbi->top.dma : 0,
+	       btv->curr.vbi ? (unsigned long long)btv->curr.vbi->bottom.dma : 0);
 	printk("  cap : o=%08Lx e=%08Lx\n",
 	       btv->curr.top    ? (unsigned long long)btv->curr.top->top.dma : 0,
 	       btv->curr.bottom ? (unsigned long long)btv->curr.bottom->bottom.dma : 0);
@@ -3215,34 +3188,18 @@ static void bttv_print_riscaddr(struct bttv *btv)
 	       btv->screen ? (unsigned long long)btv->screen->bottom.dma : 0);
 }
 
-static void bttv_irq_debug_low_latency(struct bttv *btv, u32 rc)
-{
-	printk("bttv%d: irq: skipped frame [main=%lx,o_vbi=%lx,o_field=%lx,rc=%lx]\n",
-	       btv->c.nr,
-	       (unsigned long)btv->main.dma,
-	       (unsigned long)btv->main.cpu[RISC_SLOT_O_VBI+1],
-	       (unsigned long)btv->main.cpu[RISC_SLOT_O_FIELD+1],
-	       (unsigned long)rc);
-
-	if (0 == (btread(BT848_DSTATUS) & BT848_DSTATUS_HLOC)) {
-		printk("bttv%d: Oh, there (temporarely?) is no input signal. "
-		       "Ok, then this is harmless, don't worry ;)\n",
-		       btv->c.nr);
-		return;
-	}
-	printk("bttv%d: Uhm. Looks like we have unusual high IRQ latencies.\n",
-	       btv->c.nr);
-	printk("bttv%d: Lets try to catch the culpit red-handed ...\n",
-	       btv->c.nr);
-	dump_stack();
-}
-
 static int
-bttv_irq_next_video(struct bttv *btv, struct bttv_buffer_set *set)
+bttv_irq_next_set(struct bttv *btv, struct bttv_buffer_set *set)
 {
 	struct bttv_buffer *item;
 
 	memset(set,0,sizeof(*set));
+
+	/* vbi request ? */
+	if (!list_empty(&btv->vcapture)) {
+		set->irqflags = 1;
+		set->vbi = list_entry(btv->vcapture.next, struct bttv_buffer, vb.queue);
+	}
 
 	/* capture request ? */
 	if (!list_empty(&btv->capture)) {
@@ -3291,20 +3248,27 @@ bttv_irq_next_video(struct bttv *btv, struct bttv_buffer_set *set)
 		}
 	}
 
-	dprintk("bttv%d: next set: top=%p bottom=%p [screen=%p,irq=%d,%d]\n",
-		btv->c.nr,set->top, set->bottom,
+	dprintk("bttv%d: next set: top=%p bottom=%p vbi=%p "
+		"[screen=%p,irq=%d,%d]\n",
+		btv->c.nr,set->top, set->bottom, set->vbi,
 		btv->screen,set->irqflags,set->topirq);
 	return 0;
 }
 
 static void
-bttv_irq_wakeup_video(struct bttv *btv, struct bttv_buffer_set *wakeup,
-		      struct bttv_buffer_set *curr, unsigned int state)
+bttv_irq_wakeup_set(struct bttv *btv, struct bttv_buffer_set *wakeup,
+		    struct bttv_buffer_set *curr, unsigned int state)
 {
 	struct timeval ts;
 
 	do_gettimeofday(&ts);
 
+	if (NULL != wakeup->vbi) {
+		wakeup->vbi->vb.ts = ts;
+		wakeup->vbi->vb.field_count = btv->field_count;
+		wakeup->vbi->vb.state = state;
+		wake_up(&wakeup->vbi->vb.done);
+	}
 	if (wakeup->top == wakeup->bottom) {
 		if (NULL != wakeup->top && curr->top != wakeup->top) {
 			if (irq_debug > 1)
@@ -3334,33 +3298,16 @@ bttv_irq_wakeup_video(struct bttv *btv, struct bttv_buffer_set *wakeup,
 	}
 }
 
-static void
-bttv_irq_wakeup_vbi(struct bttv *btv, struct bttv_buffer *wakeup,
-		    unsigned int state)
-{
-	struct timeval ts;
-
-	if (NULL == wakeup)
-		return;
-
-	do_gettimeofday(&ts);
-	wakeup->vb.ts = ts;
-	wakeup->vb.field_count = btv->field_count;
-	wakeup->vb.state = state;
-	wake_up(&wakeup->vb.done);
-}
-
 static void bttv_irq_timeout(unsigned long data)
 {
 	struct bttv *btv = (struct bttv *)data;
 	struct bttv_buffer_set old,new;
-	struct bttv_buffer *ovbi;
 	struct bttv_buffer *item;
 	unsigned long flags;
 	
 	if (bttv_verbose) {
-		printk(KERN_INFO "bttv%d: timeout: drop=%d irq=%d/%d, risc=%08x, ",
-		       btv->c.nr, btv->framedrop, btv->irq_me, btv->irq_total,
+		printk(KERN_INFO "bttv%d: timeout: irq=%d/%d, risc=%08x, ",
+		       btv->c.nr, btv->irq_me, btv->irq_total,
 		       btread(BT848_RISC_COUNT));
 		bttv_print_irqbits(btread(BT848_INT_STAT),0);
 		printk("\n");
@@ -3370,17 +3317,13 @@ static void bttv_irq_timeout(unsigned long data)
 	
 	/* deactivate stuff */
 	memset(&new,0,sizeof(new));
-	old  = btv->curr;
-	ovbi = btv->cvbi;
+	old = btv->curr;
 	btv->curr = new;
-	btv->cvbi = NULL;
-	bttv_buffer_activate_video(btv, &new);
-	bttv_buffer_activate_vbi(btv,   NULL);
+	bttv_buffer_set_activate(btv, &new);
 	bttv_set_dma(btv, 0, 0);
 
 	/* wake up */
-	bttv_irq_wakeup_video(btv, &old, &new, STATE_ERROR);
-	bttv_irq_wakeup_vbi(btv, ovbi, STATE_ERROR);
+	bttv_irq_wakeup_set(btv, &old, &new, STATE_ERROR);
 
 	/* cancel all outstanding capture / vbi requests */
 	while (!list_empty(&btv->capture)) {
@@ -3420,17 +3363,8 @@ bttv_irq_wakeup_top(struct bttv *btv)
 	spin_unlock(&btv->s_lock);
 }
 
-static inline int is_active(struct btcx_riscmem *risc, u32 rc)
-{
-	if (rc < risc->dma)
-		return 0;
-	if (rc > risc->dma + risc->size)
-		return 0;
-	return 1;
-}
-
 static void
-bttv_irq_switch_video(struct bttv *btv)
+bttv_irq_switch_fields(struct bttv *btv)
 {
 	struct bttv_buffer_set new;
 	struct bttv_buffer_set old;
@@ -3439,13 +3373,17 @@ bttv_irq_switch_video(struct bttv *btv)
 	spin_lock(&btv->s_lock);
 
 	/* new buffer set */
-	bttv_irq_next_video(btv, &new);
+	bttv_irq_next_set(btv, &new);
 	rc = btread(BT848_RISC_COUNT);
-	if ((btv->curr.top    && is_active(&btv->curr.top->top,       rc)) ||
-	    (btv->curr.bottom && is_active(&btv->curr.bottom->bottom, rc))) {
-		btv->framedrop++;
-		if (debug_latency)
-			bttv_irq_debug_low_latency(btv, rc);
+	if (rc < btv->main.dma || rc > btv->main.dma + 0x100) {
+		if (1 /* irq_debug */)
+			printk("bttv%d: skipped frame. no signal? high irq latency? "
+			       "[main=%lx,o_vbi=%lx,o_field=%lx,rc=%lx]\n",
+			       btv->c.nr,
+			       (unsigned long)btv->main.dma,
+			       (unsigned long)btv->main.cpu[RISC_SLOT_O_VBI+1],
+			       (unsigned long)btv->main.cpu[RISC_SLOT_O_FIELD+1],
+			       (unsigned long)rc);
 		spin_unlock(&btv->s_lock);
 		return;
 	}
@@ -3453,7 +3391,7 @@ bttv_irq_switch_video(struct bttv *btv)
 	/* switch over */
 	old = btv->curr;
 	btv->curr = new;
-	bttv_buffer_activate_video(btv, &new);
+	bttv_buffer_set_activate(btv, &new);
 	bttv_set_dma(btv, 0, new.irqflags);
 
 	/* switch input */
@@ -3463,39 +3401,7 @@ bttv_irq_switch_video(struct bttv *btv)
 	}
 
 	/* wake up finished buffers */
-	bttv_irq_wakeup_video(btv, &old, &new, STATE_DONE);
-	spin_unlock(&btv->s_lock);
-}
-
-static void
-bttv_irq_switch_vbi(struct bttv *btv)
-{
-	struct bttv_buffer *new = NULL;
-	struct bttv_buffer *old;
-	u32 rc;
-
-	spin_lock(&btv->s_lock);
-
-	if (!list_empty(&btv->vcapture))
-		new = list_entry(btv->vcapture.next, struct bttv_buffer, vb.queue);
-	old = btv->cvbi;
-
-	rc = btread(BT848_RISC_COUNT);
-	if (NULL != old && (is_active(&old->top,    rc) ||
-			    is_active(&old->bottom, rc))) {
-		btv->framedrop++;
-		if (debug_latency)
-			bttv_irq_debug_low_latency(btv, rc);
-		spin_unlock(&btv->s_lock);
-		return;
-	}
-
-	/* switch */
-	btv->cvbi = new;
-	bttv_buffer_activate_vbi(btv, new);
-	bttv_set_dma(btv, 0, btv->curr.irqflags);
-
-	bttv_irq_wakeup_vbi(btv, old, STATE_DONE);
+	bttv_irq_wakeup_set(btv, &old, &new, STATE_DONE);
 	spin_unlock(&btv->s_lock);
 }
 
@@ -3552,14 +3458,11 @@ static irqreturn_t bttv_irq(int irq, void *dev_id, struct pt_regs * regs)
 			wake_up(&btv->i2c_queue);
 		}
 
-                if ((astat & BT848_INT_RISCI)  &&  (stat & (4<<28)))
-			bttv_irq_switch_vbi(btv);
-
                 if ((astat & BT848_INT_RISCI)  &&  (stat & (2<<28)))
 			bttv_irq_wakeup_top(btv);
 
                 if ((astat & BT848_INT_RISCI)  &&  (stat & (1<<28)))
-			bttv_irq_switch_video(btv);
+			bttv_irq_switch_fields(btv);
 
 		if ((astat & BT848_INT_HLOCK)  &&  btv->opt_automute)
 			audio_mux(btv, -1);
@@ -3927,11 +3830,9 @@ static int bttv_suspend(struct pci_dev *pci_dev, u32 state)
 	/* stop dma + irqs */
 	spin_lock_irqsave(&btv->s_lock,flags);
 	memset(&idle, 0, sizeof(idle));
-	btv->state.video = btv->curr;
-	btv->state.vbi   = btv->cvbi;
+	btv->state.set = btv->curr;
 	btv->curr = idle;
-	bttv_buffer_activate_video(btv, &idle);
-	bttv_buffer_activate_vbi(btv, NULL);
+	bttv_buffer_set_activate(btv, &idle);
 	bttv_set_dma(btv, 0, 0);
 	btwrite(0, BT848_INT_MASK);
 	spin_unlock_irqrestore(&btv->s_lock,flags);
@@ -3969,12 +3870,15 @@ static int bttv_resume(struct pci_dev *pci_dev)
 	gpio_inout(0xffffff, btv->state.gpio_enable);
 	gpio_write(btv->state.gpio_data);
 
+	bt848_bright(btv,   btv->bright);
+	bt848_hue(btv,      btv->hue);
+	bt848_contrast(btv, btv->contrast);
+	bt848_sat(btv,      btv->saturation);
+
 	/* restart dma */
 	spin_lock_irqsave(&btv->s_lock,flags);
-	btv->curr = btv->state.video;
-	btv->cvbi = btv->state.vbi;
-	bttv_buffer_activate_video(btv, &btv->curr);
-	bttv_buffer_activate_vbi(btv, btv->cvbi);
+	btv->curr = btv->state.set;
+	bttv_buffer_set_activate(btv, &btv->curr);
 	bttv_set_dma(btv, 0, btv->curr.irqflags);
 	spin_unlock_irqrestore(&btv->s_lock,flags);
 	return 0;

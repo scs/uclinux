@@ -10,8 +10,6 @@
 #include <linux/kobject.h>
 #include "sysfs.h"
 
-DECLARE_RWSEM(sysfs_rename_sem);
-
 static int init_dir(struct inode * inode)
 {
 	inode->i_op = &simple_dir_inode_operations;
@@ -122,36 +120,29 @@ void sysfs_remove_dir(struct kobject * kobj)
 	down(&dentry->d_inode->i_sem);
 
 	spin_lock(&dcache_lock);
-restart:
 	node = dentry->d_subdirs.next;
 	while (node != &dentry->d_subdirs) {
 		struct dentry * d = list_entry(node,struct dentry,d_child);
+		list_del_init(node);
 
-		node = node->next;
 		pr_debug(" o %s (%d): ",d->d_name.name,atomic_read(&d->d_count));
-		if (!d_unhashed(d) && (d->d_inode)) {
+		if (d->d_inode) {
 			d = dget_locked(d);
 			pr_debug("removing");
 
 			/**
 			 * Unlink and unhash.
 			 */
-			__d_drop(d);
 			spin_unlock(&dcache_lock);
-			/* release the target kobject in case of 
-			 * a symlink
-			 */
-			if (S_ISLNK(d->d_inode->i_mode))
-				kobject_put(d->d_fsdata);
-			
+			d_delete(d);
 			simple_unlink(dentry->d_inode,d);
 			dput(d);
-			pr_debug(" done\n");
 			spin_lock(&dcache_lock);
-			/* re-acquired dcache_lock, need to restart */
-			goto restart;
 		}
+		pr_debug(" done\n");
+		node = dentry->d_subdirs.next;
 	}
+	list_del_init(&dentry->d_child);
 	spin_unlock(&dcache_lock);
 	up(&dentry->d_inode->i_sem);
 
@@ -162,35 +153,24 @@ restart:
 	dput(dentry);
 }
 
-int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
+void sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 {
-	int error = 0;
 	struct dentry * new_dentry, * parent;
 
 	if (!strcmp(kobject_name(kobj), new_name))
-		return -EINVAL;
+		return;
 
 	if (!kobj->parent)
-		return -EINVAL;
+		return;
 
-	down_write(&sysfs_rename_sem);
 	parent = kobj->parent->dentry;
 
 	down(&parent->d_inode->i_sem);
 
 	new_dentry = sysfs_get_dentry(parent, new_name);
-	if (!IS_ERR(new_dentry)) {
-  		if (!new_dentry->d_inode) {
-			error = kobject_set_name(kobj,new_name);
-			if (!error)
-				d_move(kobj->dentry, new_dentry);
-		}
-		dput(new_dentry);
-	}
+	d_move(kobj->dentry, new_dentry);
+	kobject_set_name(kobj,new_name);
 	up(&parent->d_inode->i_sem);	
-	up_write(&sysfs_rename_sem);
-
-	return error;
 }
 
 EXPORT_SYMBOL(sysfs_create_dir);

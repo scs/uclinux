@@ -267,7 +267,7 @@ void ebus_dma_enable(struct ebus_dma_info *p, int on)
 }
 EXPORT_SYMBOL(ebus_dma_enable);
 
-struct linux_ebus *ebus_chain = NULL;
+struct linux_ebus *ebus_chain = 0;
 
 #ifdef CONFIG_SUN_AUXIO
 extern void auxio_probe(void);
@@ -503,17 +503,17 @@ probe_interrupts:
 		dev->children = ebus_alloc(sizeof(struct linux_ebus_child));
 
 		child = dev->children;
-		child->next = NULL;
+		child->next = 0;
 		child->parent = dev;
 		child->bus = dev->bus;
 		fill_ebus_child(node, &regs[0],
 				child, child_regs_nonstandard(dev));
 
-		while ((node = prom_getsibling(node)) != 0) {
+		while ((node = prom_getsibling(node))) {
 			child->next = ebus_alloc(sizeof(struct linux_ebus_child));
 
 			child = child->next;
-			child->next = NULL;
+			child->next = 0;
 			child->parent = dev;
 			child->bus = dev->bus;
 			fill_ebus_child(node, &regs[0],
@@ -563,7 +563,7 @@ void __init ebus_init(void)
 	ebusnd = cookie->prom_node;
 
 	ebus_chain = ebus = ebus_alloc(sizeof(struct linux_ebus));
-	ebus->next = NULL;
+	ebus->next = 0;
 	ebus->is_rio = is_rio;
 
 	while (ebusnd) {
@@ -606,17 +606,17 @@ void __init ebus_init(void)
 		ebus->devices = ebus_alloc(sizeof(struct linux_ebus_device));
 
 		dev = ebus->devices;
-		dev->next = NULL;
-		dev->children = NULL;
+		dev->next = 0;
+		dev->children = 0;
 		dev->bus = ebus;
 		fill_ebus_device(nd, dev);
 
-		while ((nd = prom_getsibling(nd)) != 0) {
+		while ((nd = prom_getsibling(nd))) {
 			dev->next = ebus_alloc(sizeof(struct linux_ebus_device));
 
 			dev = dev->next;
-			dev->next = NULL;
-			dev->children = NULL;
+			dev->next = 0;
+			dev->children = 0;
 			dev->bus = ebus;
 			fill_ebus_device(nd, dev);
 		}
@@ -633,7 +633,7 @@ void __init ebus_init(void)
 
 		ebus->next = ebus_alloc(sizeof(struct linux_ebus));
 		ebus = ebus->next;
-		ebus->next = NULL;
+		ebus->next = 0;
 		ebus->is_rio = is_rio;
 		++num_ebus;
 	}

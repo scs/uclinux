@@ -197,12 +197,13 @@ static struct i2c_driver driver = {
         .command	= tea6420_command,
 };
 
-static int __init tea6420_init_module(void)
+static int tea6420_init_module(void)
 {
-	return i2c_add_driver(&driver);
+	i2c_add_driver(&driver);
+	return 0;
 }
 
-static void __exit tea6420_cleanup_module(void)
+static void tea6420_cleanup_module(void)
 {
         i2c_del_driver(&driver);
 }

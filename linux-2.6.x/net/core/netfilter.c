@@ -8,10 +8,8 @@
  *
  * February 2000: Modified by James Morris to have 1 queue per protocol.
  * 15-Mar-2000:   Added NF_REPEAT --RR.
- * 08-May-2003:	  Internal logging interface added by Jozsef Kadlecsik.
  */
 #include <linux/config.h>
-#include <linux/kernel.h>
 #include <linux/netfilter.h>
 #include <net/protocol.h>
 #include <linux/init.h>
@@ -28,6 +26,9 @@
 #include <net/sock.h>
 #include <net/route.h>
 #include <linux/ip.h>
+
+#define __KERNEL_SYSCALLS__
+#include <linux/unistd.h>
 
 /* In this code, we can be waiting indefinitely for userspace to
  * service a packet if a hook returns NF_QUEUE.  We could keep a count
@@ -286,7 +287,7 @@ void nf_debug_ip_finish_output2(struct sk_buff *skb)
 
 /* Call get/setsockopt() */
 static int nf_sockopt(struct sock *sk, int pf, int val, 
-		      char __user *opt, int *len, int get)
+		      char *opt, int *len, int get)
 {
 	struct list_head *i;
 	struct nf_sockopt_ops *ops;
@@ -329,13 +330,13 @@ static int nf_sockopt(struct sock *sk, int pf, int val,
 	return ret;
 }
 
-int nf_setsockopt(struct sock *sk, int pf, int val, char __user *opt,
+int nf_setsockopt(struct sock *sk, int pf, int val, char *opt,
 		  int len)
 {
 	return nf_sockopt(sk, pf, val, opt, &len, 0);
 }
 
-int nf_getsockopt(struct sock *sk, int pf, int val, char __user *opt, int *len)
+int nf_getsockopt(struct sock *sk, int pf, int val, char *opt, int *len)
 {
 	return nf_sockopt(sk, pf, val, opt, len, 1);
 }
@@ -504,6 +505,14 @@ int nf_hook_slow(int pf, unsigned int hook, struct sk_buff *skb,
 	unsigned int verdict;
 	int ret = 0;
 
+	if (skb->ip_summed == CHECKSUM_HW) {
+		if (outdev == NULL) {
+			skb->ip_summed = CHECKSUM_NONE;
+		} else {
+			skb_checksum_help(skb);
+		}
+	}
+
 	/* We may already have this, but read-locks nest anyway */
 	rcu_read_lock();
 
@@ -630,7 +639,6 @@ int ip_route_me_harder(struct sk_buff **pskb)
 #ifdef CONFIG_IP_ROUTE_FWMARK
 		fl.nl_u.ip4_u.fwmark = (*pskb)->nfmark;
 #endif
-		fl.proto = iph->protocol;
 		if (ip_route_output_key(&rt, &fl) != 0)
 			return -1;
 
@@ -735,72 +743,6 @@ pull_skb:
 EXPORT_SYMBOL(skb_ip_make_writable);
 #endif /*CONFIG_INET*/
 
-/* Internal logging interface, which relies on the real 
-   LOG target modules */
-
-#define NF_LOG_PREFIXLEN		128
-
-static nf_logfn *nf_logging[NPROTO]; /* = NULL */
-static int reported = 0;
-static spinlock_t nf_log_lock = SPIN_LOCK_UNLOCKED;
-
-int nf_log_register(int pf, nf_logfn *logfn)
-{
-	int ret = -EBUSY;
-
-	/* Any setup of logging members must be done before
-	 * substituting pointer. */
-	smp_wmb();
-	spin_lock(&nf_log_lock);
-	if (!nf_logging[pf]) {
-		nf_logging[pf] = logfn;
-		ret = 0;
-	}
-	spin_unlock(&nf_log_lock);
-	return ret;
-}		
-
-void nf_log_unregister(int pf, nf_logfn *logfn)
-{
-	spin_lock(&nf_log_lock);
-	if (nf_logging[pf] == logfn)
-		nf_logging[pf] = NULL;
-	spin_unlock(&nf_log_lock);
-
-	/* Give time to concurrent readers. */
-	synchronize_net();
-}		
-
-void nf_log_packet(int pf,
-		   unsigned int hooknum,
-		   const struct sk_buff *skb,
-		   const struct net_device *in,
-		   const struct net_device *out,
-		   const char *fmt, ...)
-{
-	va_list args;
-	char prefix[NF_LOG_PREFIXLEN];
-	nf_logfn *logfn;
-	
-	rcu_read_lock();
-	logfn = nf_logging[pf];
-	if (logfn) {
-		va_start(args, fmt);
-		vsnprintf(prefix, sizeof(prefix), fmt, args);
-		va_end(args);
-		/* We must read logging before nf_logfn[pf] */
-		smp_read_barrier_depends();
-		logfn(hooknum, skb, in, out, prefix);
-	} else if (!reported) {
-		printk(KERN_WARNING "nf_log_packet: can\'t log yet, "
-		       "no backend logging module loaded in!\n");
-		reported++;
-	}
-	rcu_read_unlock();
-}
-EXPORT_SYMBOL(nf_log_register);
-EXPORT_SYMBOL(nf_log_unregister);
-EXPORT_SYMBOL(nf_log_packet);
 
 /* This does not belong here, but ipt_REJECT needs it if connection
    tracking in use: without this, connection may not be in hash table,

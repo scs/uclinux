@@ -15,7 +15,7 @@ waitforCEC(struct IsdnCardState *cs, int jade, int reg)
 {
   	int to = 50;
   	int mask = (reg == jade_HDLC_XCMD ? jadeSTAR_XCEC : jadeSTAR_RCEC);
-  	while ((READJADE(cs, jade, jade_HDLC_STAR) & mask) && to) {
+  	while ((jade_read_reg(cs, jade, jade_HDLC_STAR) & mask) && to) {
   		udelay(1);
   		to--;
   	}
@@ -25,16 +25,17 @@ waitforCEC(struct IsdnCardState *cs, int jade, int reg)
 
 
 static inline void
-waitforXFW(struct IsdnCardState *cs, int jade)
+waitforXFW(struct BCState *bcs)
 {
-  	/* Does not work on older jade versions, don't care */
 }
 
 static inline void
-WriteJADECMDR(struct IsdnCardState *cs, int jade, int reg, u_char data)
+WriteJADECMDR(struct BCState *bcs, int reg, u8 data)
 {
-	waitforCEC(cs, jade, reg);
-	WRITEJADE(cs, jade, reg, data);
+	int jade = bcs->unit;
+
+	waitforCEC(bcs->cs, jade, reg);
+	jade_write_reg(bcs->cs, jade, reg, data);
 }
 
 
@@ -42,80 +43,33 @@ WriteJADECMDR(struct IsdnCardState *cs, int jade, int reg, u_char data)
 static void
 jade_empty_fifo(struct BCState *bcs, int count)
 {
-	u_char *ptr;
-	struct IsdnCardState *cs = bcs->cs;
-
-	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
-		debugl1(cs, "jade_empty_fifo");
-
-	if (bcs->hw.hscx.rcvidx + count > HSCX_BUFMAX) {
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "jade_empty_fifo: incoming packet too large");
-		WriteJADECMDR(cs, bcs->hw.hscx.hscx, jade_HDLC_RCMD, jadeRCMD_RMC);
-		bcs->hw.hscx.rcvidx = 0;
-		return;
-	}
-	ptr = bcs->hw.hscx.rcvbuf + bcs->hw.hscx.rcvidx;
-	bcs->hw.hscx.rcvidx += count;
-	READJADEFIFO(cs, bcs->hw.hscx.hscx, ptr, count);
-	WriteJADECMDR(cs, bcs->hw.hscx.hscx, jade_HDLC_RCMD, jadeRCMD_RMC);
-	if (cs->debug & L1_DEB_HSCX_FIFO) {
-		char *t = bcs->blog;
-
-		t += sprintf(t, "jade_empty_fifo %c cnt %d",
-			     bcs->hw.hscx.hscx ? 'B' : 'A', count);
-		QuickHex(t, ptr, count);
-		debugl1(cs, bcs->blog);
-	}
+	recv_empty_fifo_b(bcs, count);
+	WriteJADECMDR(bcs, jade_HDLC_RCMD, jadeRCMD_RMC);
 }
 
 static void
 jade_fill_fifo(struct BCState *bcs)
 {
-	struct IsdnCardState *cs = bcs->cs;
 	int more, count;
 	int fifo_size = 32;
-	u_char *ptr;
+	unsigned char *p;
 
-	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
-		debugl1(cs, "jade_fill_fifo");
-
-	if (!bcs->tx_skb)
-		return;
-	if (bcs->tx_skb->len <= 0)
+	p = xmit_fill_fifo_b(bcs, fifo_size, &count, &more);
+	if (!p)
 		return;
 
-	more = (bcs->mode == L1_MODE_TRANS) ? 1 : 0;
-	if (bcs->tx_skb->len > fifo_size) {
-		more = !0;
-		count = fifo_size;
-	} else
-		count = bcs->tx_skb->len;
-
-	waitforXFW(cs, bcs->hw.hscx.hscx);
-	ptr = bcs->tx_skb->data;
-	skb_pull(bcs->tx_skb, count);
-	bcs->tx_cnt -= count;
-	bcs->hw.hscx.count += count;
-	WRITEJADEFIFO(cs, bcs->hw.hscx.hscx, ptr, count);
-	WriteJADECMDR(cs, bcs->hw.hscx.hscx, jade_HDLC_XCMD, more ? jadeXCMD_XF : (jadeXCMD_XF|jadeXCMD_XME));
-	if (cs->debug & L1_DEB_HSCX_FIFO) {
-		char *t = bcs->blog;
-
-		t += sprintf(t, "jade_fill_fifo %c cnt %d",
-			     bcs->hw.hscx.hscx ? 'B' : 'A', count);
-		QuickHex(t, ptr, count);
-		debugl1(cs, bcs->blog);
-	}
+	waitforXFW(bcs);
+	jade_write_fifo(bcs, p, count);
+	WriteJADECMDR(bcs, jade_HDLC_XCMD,
+		      more ? jadeXCMD_XF : (jadeXCMD_XF|jadeXCMD_XME));
 }
 
 
 static inline void
-jade_interrupt(struct IsdnCardState *cs, u_char val, u_char jade)
+jade_interrupt(struct IsdnCardState *cs, u8 val, u8 jade)
 {
-	u_char r;
+	u8 r;
 	struct BCState *bcs = cs->bcs + jade;
-	struct sk_buff *skb;
 	int fifo_size = 32;
 	int count;
 	int i_jade = (int) jade; /* To satisfy the compiler */
@@ -124,7 +78,7 @@ jade_interrupt(struct IsdnCardState *cs, u_char val, u_char jade)
 		return;
 
 	if (val & 0x80) {	/* RME */
-		r = READJADE(cs, i_jade, jade_HDLC_RSTA);
+		r = jade_read_reg(cs, i_jade, jade_HDLC_RSTA);
 		if ((r & 0xf0) != 0xa0) {
 			if (!(r & 0x80))
 				if (cs->debug & L1_DEB_WARN)
@@ -135,72 +89,34 @@ jade_interrupt(struct IsdnCardState *cs, u_char val, u_char jade)
 			if (!(r & 0x20))
 				if (cs->debug & L1_DEB_WARN)
 					debugl1(cs, "JADE %c CRC error", 'A'+jade);
-			WriteJADECMDR(cs, jade, jade_HDLC_RCMD, jadeRCMD_RMC);
+			WriteJADECMDR(bcs, jade_HDLC_RCMD, jadeRCMD_RMC);
+			bcs->rcvidx = 0;
 		} else {
-			count = READJADE(cs, i_jade, jade_HDLC_RBCL) & 0x1F;
+			count = jade_read_reg(cs, i_jade, jade_HDLC_RBCL) & 0x1F;
 			if (count == 0)
 				count = fifo_size;
+
 			jade_empty_fifo(bcs, count);
-			if ((count = bcs->hw.hscx.rcvidx - 1) > 0) {
-				if (cs->debug & L1_DEB_HSCX_FIFO)
-					debugl1(cs, "HX Frame %d", count);
-				if (!(skb = dev_alloc_skb(count)))
-					printk(KERN_WARNING "JADE %s receive out of memory\n", (jade ? "B":"A"));
-				else {
-					memcpy(skb_put(skb, count), bcs->hw.hscx.rcvbuf, count);
-					skb_queue_tail(&bcs->rqueue, skb);
-				}
-			}
+			recv_rme_b(bcs);
 		}
-		bcs->hw.hscx.rcvidx = 0;
-		schedule_event(bcs, B_RCVBUFREADY);
 	}
 	if (val & 0x40) {	/* RPF */
 		jade_empty_fifo(bcs, fifo_size);
-		if (bcs->mode == L1_MODE_TRANS) {
-			/* receive audio data */
-			if (!(skb = dev_alloc_skb(fifo_size)))
-				printk(KERN_WARNING "HiSax: receive out of memory\n");
-			else {
-				memcpy(skb_put(skb, fifo_size), bcs->hw.hscx.rcvbuf, fifo_size);
-				skb_queue_tail(&bcs->rqueue, skb);
-			}
-			bcs->hw.hscx.rcvidx = 0;
-			schedule_event(bcs, B_RCVBUFREADY);
-		}
+		recv_rpf_b(bcs);
 	}
 	if (val & 0x10) {	/* XPR */
-		if (bcs->tx_skb) {
-			if (bcs->tx_skb->len) {
-				jade_fill_fifo(bcs);
-				return;
-			} else {
-				if (test_bit(FLG_LLI_L1WAKEUP,&bcs->st->lli.flag) &&
-					(PACKET_NOACK != bcs->tx_skb->pkt_type)) {
-					u_long	flags;
-					spin_lock_irqsave(&bcs->aclock, flags);
-					bcs->ackcnt += bcs->hw.hscx.count;
-					spin_unlock_irqrestore(&bcs->aclock, flags);
-					schedule_event(bcs, B_ACKPENDING);
-				}
-				dev_kfree_skb_irq(bcs->tx_skb);
-				bcs->hw.hscx.count = 0;
-				bcs->tx_skb = NULL;
-			}
-		}
-		if ((bcs->tx_skb = skb_dequeue(&bcs->squeue))) {
-			bcs->hw.hscx.count = 0;
-			test_and_set_bit(BC_FLG_BUSY, &bcs->Flag);
-			jade_fill_fifo(bcs);
-		} else {
-			test_and_clear_bit(BC_FLG_BUSY, &bcs->Flag);
-			schedule_event(bcs, B_XMTBUFREADY);
-		}
+		xmit_xpr_b(bcs);
 	}
 }
 
-static inline void
-jade_int_main(struct IsdnCardState *cs, u_char val, int jade)
+static void
+reset_xmit(struct BCState *bcs)
+{
+	WriteJADECMDR(bcs, jade_HDLC_XCMD, jadeXCMD_XRES);
+}
+
+void
+jade_int_main(struct IsdnCardState *cs, u8 val, int jade)
 {
 	struct BCState *bcs;
 	bcs = cs->bcs + jade;
@@ -210,23 +126,7 @@ jade_int_main(struct IsdnCardState *cs, u_char val, int jade)
 		val &= ~jadeISR_RFO;
 	}
 	if (val & jadeISR_XDU) {
-		/* relevant in HDLC mode only */
-		/* don't reset XPR here */
-		if (bcs->mode == 1)
-			jade_fill_fifo(bcs);
-		else {
-			/* Here we lost an TX interrupt, so
-			   * restart transmitting the whole frame.
-			 */
-			if (bcs->tx_skb) {
-			   	skb_push(bcs->tx_skb, bcs->hw.hscx.count);
-				bcs->tx_cnt += bcs->hw.hscx.count;
-				bcs->hw.hscx.count = 0;
-			}
-			WriteJADECMDR(cs, bcs->hw.hscx.hscx, jade_HDLC_XCMD, jadeXCMD_XRES);
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "JADE %c EXIR %x Lost TX", 'A'+jade, val);
-		}
+		xmit_xdu_b(bcs, reset_xmit);
 	}
 	if (val & (jadeISR_RME|jadeISR_RPF|jadeISR_XPR)) {
 		if (cs->debug & L1_DEB_HSCX)

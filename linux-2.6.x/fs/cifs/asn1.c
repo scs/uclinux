@@ -201,7 +201,7 @@ asn1_header_decode(struct asn1_ctx *ctx,
 	if (def)
 		*eoc = ctx->pointer + len;
 	else
-		*eoc = NULL;
+		*eoc = 0;
 	return 1;
 }
 

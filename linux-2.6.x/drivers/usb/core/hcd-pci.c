@@ -80,8 +80,7 @@ int usb_hcd_pci_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		return -ENODEV;
 	
         if (!dev->irq) {
-        	dev_err (&dev->dev,
-			"Found HC with no IRQ.  Check BIOS/PCI %s setup!\n",
+        	err ("Found HC with no IRQ.  Check BIOS/PCI %s setup!",
 			pci_name(dev));
    	        return -ENODEV;
         }
@@ -91,17 +90,16 @@ int usb_hcd_pci_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		resource = pci_resource_start (dev, 0);
 		len = pci_resource_len (dev, 0);
 		if (!request_mem_region (resource, len, driver->description)) {
-			dev_dbg (&dev->dev, "controller already in use\n");
+			dbg ("controller already in use");
 			return -EBUSY;
 		}
 		base = ioremap_nocache (resource, len);
 		if (base == NULL) {
-			dev_dbg (&dev->dev, "error mapping memory\n");
+			dbg ("error mapping memory");
 			retval = -EFAULT;
 clean_1:
 			release_mem_region (resource, len);
-			dev_err (&dev->dev, "init %s fail, %d\n",
-				pci_name(dev), retval);
+			err ("init %s fail, %d", pci_name(dev), retval);
 			return retval;
 		}
 
@@ -118,7 +116,7 @@ clean_1:
 				break;
 		}
 		if (region == PCI_ROM_RESOURCE) {
-			dev_dbg (&dev->dev, "no i/o regions available\n");
+			dbg ("no i/o regions available");
 			return -EBUSY;
 		}
 		base = (void *) resource;
@@ -129,7 +127,7 @@ clean_1:
 
 	hcd = driver->hcd_alloc ();
 	if (hcd == NULL){
-		dev_dbg (&dev->dev, "hcd alloc fail\n");
+		dbg ("hcd alloc fail");
 		retval = -ENOMEM;
 clean_2:
 		if (driver->flags & HCD_MEMORY) {
@@ -137,8 +135,7 @@ clean_2:
 			goto clean_1;
 		} else {
 			release_region (resource, len);
-			dev_err (&dev->dev, "init %s fail, %d\n",
-				pci_name(dev), retval);
+			err ("init %s fail, %d", pci_name(dev), retval);
 			return retval;
 		}
 	}
@@ -149,14 +146,12 @@ clean_2:
 	pci_set_drvdata (dev, hcd);
 	hcd->driver = driver;
 	hcd->description = driver->description;
+	hcd->pdev = dev;
 	hcd->self.bus_name = pci_name(dev);
-#ifdef CONFIG_PCI_NAMES
-	hcd->product_desc = dev->pretty_name;
-#else
 	if (hcd->product_desc == NULL)
 		hcd->product_desc = "USB Host Controller";
-#endif
 	hcd->self.controller = &dev->dev;
+	hcd->controller = hcd->self.controller;
 
 	if ((retval = hcd_buffer_create (hcd)) != 0) {
 clean_3:
@@ -164,11 +159,11 @@ clean_3:
 		goto clean_2;
 	}
 
-	dev_info (hcd->self.controller, "%s\n", hcd->product_desc);
+	dev_info (hcd->controller, "%s\n", hcd->product_desc);
 
 	/* till now HC has been in an indeterminate state ... */
 	if (driver->reset && (retval = driver->reset (hcd)) < 0) {
-		dev_err (hcd->self.controller, "can't reset\n");
+		dev_err (hcd->controller, "can't reset\n");
 		goto clean_3;
 	}
 	hcd->state = USB_STATE_HALT;
@@ -182,13 +177,13 @@ clean_3:
 	retval = request_irq (dev->irq, usb_hcd_irq, SA_SHIRQ,
 				hcd->description, hcd);
 	if (retval != 0) {
-		dev_err (hcd->self.controller,
+		dev_err (hcd->controller,
 				"request interrupt %s failed\n", bufp);
 		goto clean_3;
 	}
 	hcd->irq = dev->irq;
 
-	dev_info (hcd->self.controller, "irq %s, %s %p\n", bufp,
+	dev_info (hcd->controller, "irq %s, %s %p\n", bufp,
 		(driver->flags & HCD_MEMORY) ? "pci mem" : "io base",
 		base);
 
@@ -196,16 +191,13 @@ clean_3:
 	hcd->self.op = &usb_hcd_operations;
 	hcd->self.hcpriv = (void *) hcd;
 	hcd->self.release = &hcd_pci_release;
-	init_timer (&hcd->rh_timer);
 
 	INIT_LIST_HEAD (&hcd->dev_list);
 
 	usb_register_bus (&hcd->self);
 
-	if ((retval = driver->start (hcd)) < 0) {
-		dev_err (hcd->self.controller, "init error %d\n", retval);
+	if ((retval = driver->start (hcd)) < 0)
 		usb_hcd_pci_remove (dev);
-	}
 
 	return retval;
 } 
@@ -229,25 +221,27 @@ EXPORT_SYMBOL (usb_hcd_pci_probe);
 void usb_hcd_pci_remove (struct pci_dev *dev)
 {
 	struct usb_hcd		*hcd;
+	struct usb_device	*hub;
 
 	hcd = pci_get_drvdata(dev);
 	if (!hcd)
 		return;
-	dev_info (hcd->self.controller, "remove, state %x\n", hcd->state);
+	dev_info (hcd->controller, "remove, state %x\n", hcd->state);
 
 	if (in_interrupt ())
 		BUG ();
 
+	hub = hcd->self.root_hub;
 	if (HCD_IS_RUNNING (hcd->state))
 		hcd->state = USB_STATE_QUIESCING;
 
-	dev_dbg (hcd->self.controller, "roothub graceful disconnect\n");
-	usb_disconnect (&hcd->self.root_hub);
+	dev_dbg (hcd->controller, "roothub graceful disconnect\n");
+	usb_disconnect (&hub);
 
 	hcd->driver->stop (hcd);
 	hcd_buffer_destroy (hcd);
 	hcd->state = USB_STATE_HALT;
-	pci_set_drvdata(dev, NULL);
+	pci_set_drvdata (dev, 0);
 
 	free_irq (hcd->irq, hcd);
 	if (hcd->driver->flags & HCD_MEMORY) {
@@ -277,54 +271,35 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, u32 state)
 {
 	struct usb_hcd		*hcd;
 	int			retval = 0;
-	int			has_pci_pm;
 
 	hcd = pci_get_drvdata(dev);
-
-	/* even when the PCI layer rejects some of the PCI calls
-	 * below, HCs can try global suspend and reduce DMA traffic.
-	 * PM-sensitive HCDs may already have done this.
-	 */
-	has_pci_pm = pci_find_capability(dev, PCI_CAP_ID_PM);
-	if (has_pci_pm)
-		dev_dbg(hcd->self.controller, "suspend D%d --> D%d\n",
+	dev_dbg (hcd->controller, "suspend D%d --> D%d\n",
 			dev->current_state, state);
 
 	switch (hcd->state) {
 	case USB_STATE_HALT:
-		dev_dbg (hcd->self.controller, "halted; hcd not suspended\n");
+		dev_dbg (hcd->controller, "halted; hcd not suspended\n");
 		break;
-	case HCD_STATE_SUSPENDED:
-		dev_dbg (hcd->self.controller, "hcd already suspended\n");
+	case USB_STATE_SUSPENDED:
+		dev_dbg (hcd->controller, "hcd already suspended\n");
 		break;
 	default:
+		/* remote wakeup needs hub->suspend() cooperation */
+		// pci_enable_wake (dev, 3, 1);
+
+		pci_save_state (dev, hcd->pci_state);
+
+		/* driver may want to disable DMA etc */
+		hcd->state = USB_STATE_QUIESCING;
 		retval = hcd->driver->suspend (hcd, state);
 		if (retval)
-			dev_dbg (hcd->self.controller, 
-					"suspend fail, retval %d\n",
+			dev_dbg (hcd->controller, "suspend fail, retval %d\n",
 					retval);
-		else {
-			hcd->state = HCD_STATE_SUSPENDED;
-			pci_save_state (dev, hcd->pci_state);
-#ifdef	CONFIG_USB_SUSPEND
-			pci_enable_wake (dev, state, hcd->remote_wakeup);
-			pci_enable_wake (dev, 4, hcd->remote_wakeup);
-#endif
-			/* no DMA or IRQs except in D0 */
-			pci_disable_device (dev);
-			free_irq (hcd->irq, hcd);
-			
-			if (has_pci_pm)
-				retval = pci_set_power_state (dev, state);
-			dev->dev.power.power_state = state;
-			if (retval < 0) {
-				dev_dbg (&dev->dev,
-						"PCI suspend fail, %d\n",
-						retval);
-				(void) usb_hcd_pci_resume (dev);
-			}
-		}
+		else
+			hcd->state = USB_STATE_SUSPENDED;
 	}
+
+ 	pci_set_power_state (dev, state);
 	return retval;
 }
 EXPORT_SYMBOL (usb_hcd_pci_suspend);
@@ -339,42 +314,26 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 {
 	struct usb_hcd		*hcd;
 	int			retval;
-	int			has_pci_pm;
 
 	hcd = pci_get_drvdata(dev);
-	has_pci_pm = pci_find_capability(dev, PCI_CAP_ID_PM);
-	if (has_pci_pm)
-		dev_dbg(hcd->self.controller, "resume from state D%d\n",
-				dev->current_state);
+	dev_dbg (hcd->controller, "resume from state D%d\n",
+			dev->current_state);
 
-	if (hcd->state != HCD_STATE_SUSPENDED) {
-		dev_dbg (hcd->self.controller, 
-				"can't resume, not suspended!\n");
+	if (hcd->state != USB_STATE_SUSPENDED) {
+		dev_dbg (hcd->controller, "can't resume, not suspended!\n");
 		return -EL3HLT;
 	}
 	hcd->state = USB_STATE_RESUMING;
 
-	if (has_pci_pm)
-		pci_set_power_state (dev, 0);
-	dev->dev.power.power_state = 0;
-	retval = request_irq (dev->irq, usb_hcd_irq, SA_SHIRQ,
-				hcd->description, hcd);
-	if (retval < 0) {
-		dev_err (hcd->self.controller,
-			"can't restore IRQ after resume!\n");
-		return retval;
-	}
-	pci_set_master (dev);
+	pci_set_power_state (dev, 0);
 	pci_restore_state (dev, hcd->pci_state);
-#ifdef	CONFIG_USB_SUSPEND
-	pci_enable_wake (dev, dev->current_state, 0);
-	pci_enable_wake (dev, 4, 0);
-#endif
+
+	/* remote wakeup needs hub->suspend() cooperation */
+	// pci_enable_wake (dev, 3, 0);
 
 	retval = hcd->driver->resume (hcd);
 	if (!HCD_IS_RUNNING (hcd->state)) {
-		dev_dbg (hcd->self.controller, 
-				"resume fail, retval %d\n", retval);
+		dev_dbg (hcd->controller, "resume fail, retval %d\n", retval);
 		usb_hc_died (hcd);
 	}
 

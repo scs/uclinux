@@ -63,8 +63,7 @@
 #include <asm/irq.h>
 
 #include "ide-timing.h"
-
-#define DISPLAY_SIS_TIMINGS
+#include "sis5513.h"
 
 /* registers layout and init values are chipset family dependant */
 
@@ -672,7 +671,7 @@ static int sis5513_config_drive_xfer_rate (ide_drive_t *drive)
 
 	if (id && (id->capability & 1) && drive->autodma) {
 		/* Consult the list of known "bad" drives */
-		if (__ide_dma_bad_drive(drive))
+		if (hwif->ide_dma_bad_drive(drive))
 			goto fast_ata_pio;
 		if (id->field_valid & 4) {
 			if (id->dma_ultra & hwif->ultra_mask) {
@@ -689,7 +688,7 @@ try_dma_modes:
 				if (!config_chipset_for_dma(drive))
 					goto no_dma_set;
 			}
-		} else if (__ide_dma_good_drive(drive) &&
+		} else if (hwif->ide_dma_good_drive(drive) &&
 			   (id->eide_dma_time < 150)) {
 			/* Consult the list of known "good" drives */
 			if (!config_chipset_for_dma(drive))
@@ -882,7 +881,7 @@ static unsigned int __init init_chipset_sis5513 (struct pci_dev *dev, const char
 		if (!sis_proc) {
 			sis_proc = 1;
 			bmide_dev = dev;
-			ide_pci_create_host_proc("sis", sis_get_info);
+			ide_pci_register_host_proc(&sis_procs[0]);
 		}
 #endif
 	}
@@ -945,19 +944,16 @@ static void __init init_hwif_sis5513 (ide_hwif_t *hwif)
 	return;
 }
 
-static ide_pci_device_t sis5513_chipset __devinitdata = {
-	.name		= "SIS5513",
-	.init_chipset	= init_chipset_sis5513,
-	.init_hwif	= init_hwif_sis5513,
-	.channels	= 2,
-	.autodma	= NOAUTODMA,
-	.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
-	.bootable	= ON_BOARD,
-};
+extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
+
 
 static int __devinit sis5513_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_setup_pci_device(dev, &sis5513_chipset);
+	ide_pci_device_t *d = &sis5513_chipsets[id->driver_data];
+	if (dev->device != d->device)
+		BUG();
+	ide_setup_pci_device(dev, d);
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -965,7 +961,6 @@ static struct pci_device_id sis5513_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_5513, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
-MODULE_DEVICE_TABLE(pci, sis5513_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "SIS IDE",
@@ -978,7 +973,13 @@ static int sis5513_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void sis5513_ide_exit(void)
+{
+	ide_pci_unregister_driver(&driver);
+}
+
 module_init(sis5513_ide_init);
+module_exit(sis5513_ide_exit);
 
 MODULE_AUTHOR("Lionel Bouton, L C Chang, Andre Hedrick, Vojtech Pavlik");
 MODULE_DESCRIPTION("PCI driver module for SIS IDE");

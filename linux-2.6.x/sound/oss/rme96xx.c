@@ -661,13 +661,13 @@ inline int rme96xx_getispace(struct dmabuf * dma, unsigned int hwp)
 }
 
 
-inline int rme96xx_copyfromuser(struct dmabuf* dma,const char __user * buffer,int count,int hop)
+inline int rme96xx_copyfromuser(struct dmabuf* dma,const char* buffer,int count,int hop)
 {
 	int swptr = dma->writeptr;
 	switch (dma->format) {
 	case AFMT_S32_BLOCKED:
 	{
-	     char __user * buf = (char __user *)buffer;
+	     char* buf = (char*)buffer;
 	     int cnt = count/dma->outchannels;
 	     int i;
 	     for (i=0;i < dma->outchannels;i++) {
@@ -686,7 +686,7 @@ inline int rme96xx_copyfromuser(struct dmabuf* dma,const char __user * buffer,in
 	     int i,j;
 	     int cnt = count/dma->outchannels;
 	     for (i=0;i < dma->outchannels + dma->mono;i++) {
-		     short __user * sbuf = (short __user *)buffer + i*(!dma->mono);
+		     short* sbuf = (short*)buffer + i*(!dma->mono);
 		     short* hwbuf =(short*) &dma->s->playbuf[(dma->outoffset + i)*RME96xx_DMA_MAX_SAMPLES];	     
 		     hwbuf+=(swptr>>1);
 		     for (j=0;j<(cnt>>1);j++) {
@@ -710,13 +710,13 @@ inline int rme96xx_copyfromuser(struct dmabuf* dma,const char __user * buffer,in
 }
 
 /* The count argument is the number of bytes */
-inline int rme96xx_copytouser(struct dmabuf* dma,const char __user* buffer,int count,int hop)
+inline int rme96xx_copytouser(struct dmabuf* dma,const char* buffer,int count,int hop)
 {
 	int swptr = dma->readptr;
 	switch (dma->format) {
 	case AFMT_S32_BLOCKED:
 	{
-	     char __user * buf = (char __user *)buffer;
+	     char* buf = (char*)buffer;
 	     int cnt = count/dma->inchannels;
 	     int i;
 
@@ -736,7 +736,7 @@ inline int rme96xx_copytouser(struct dmabuf* dma,const char __user* buffer,int c
 	     int i,j;
 	     int cnt = count/dma->inchannels;
 	     for (i=0;i < dma->inchannels;i++) {
-		  short __user * sbuf = (short __user *)buffer + i;
+		  short* sbuf = (short*)buffer + i;
 		  short* hwbuf =(short*) &dma->s->recbuf[(dma->inoffset + i)*RME96xx_DMA_MAX_SAMPLES];	     
 		  hwbuf+=(swptr>>1);
 		  for (j=0;j<(cnt>>1);j++) {
@@ -872,7 +872,7 @@ int rme96xx_init(rme96xx_info* s)
 	int status;
 	unsigned short rev;
 
-	DBG(printk("%s\n", __FUNCTION__));
+	DBG(printk(__FUNCTION__"\n"));
 	numcards++;
 
 	s->magic = RME96xx_MAGIC; 
@@ -972,7 +972,7 @@ static int __devinit rme96xx_probe(struct pci_dev *pcidev, const struct pci_devi
 	int i;
 	rme96xx_info *s;
 
-	DBG(printk("%s\n", __FUNCTION__));
+	DBG(printk(__FUNCTION__"\n"));
 	
 	if (pcidev->irq == 0) 
 		return -1;
@@ -1121,6 +1121,7 @@ module_exit(cleanup_rme96xx);
 
 static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, unsigned long arg)
 {
+
 	struct dmabuf * dma = (struct dmabuf *)file->private_data; 
 	rme96xx_info *s = dma->s;
 	unsigned long flags;
@@ -1128,8 +1129,6 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
         count_info cinfo;
 	int count;
 	int val = 0;
-	void __user *argp = (void __user *)arg;
-	int __user *p = argp;
 
 	VALIDATE_STATE(s);
 
@@ -1137,7 +1136,7 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 
 	switch (cmd) {
 	case OSS_GETVERSION:
-		return put_user(SOUND_VERSION, p);
+		return put_user(SOUND_VERSION, (int *)arg);
 
 	case SNDCTL_DSP_SYNC:
 #if 0
@@ -1150,14 +1149,14 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 		return 0;
 
 	case SNDCTL_DSP_GETCAPS:
-		return put_user(DSP_CAP_DUPLEX | DSP_CAP_REALTIME | DSP_CAP_TRIGGER | DSP_CAP_MMAP, p);
+		return put_user(DSP_CAP_DUPLEX | DSP_CAP_REALTIME | DSP_CAP_TRIGGER | DSP_CAP_MMAP, (int *)arg);
 		
         case SNDCTL_DSP_RESET:
 //		rme96xx_clearbufs(dma);
 		return 0;
 
         case SNDCTL_DSP_SPEED:
-                if (get_user(val, p))
+                if (get_user(val, (int *)arg))
 			return -EFAULT;
 		if (val >= 0) {
 /* generally it's not a problem if we change the speed 
@@ -1196,10 +1195,10 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 			spin_unlock_irqrestore(&s->lock, flags);
 		}
 		DBG(printk("speed set to %d\n",val));
-		return put_user(val, p);
+		return put_user(val, (int *)arg);
 		
         case SNDCTL_DSP_STEREO: /* this plays a mono file on two channels */
-                if (get_user(val, p))
+                if (get_user(val, (int *)arg))
 			return -EFAULT;
 		
 		if (!val) {
@@ -1217,7 +1216,7 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 		return 0;
         case SNDCTL_DSP_CHANNELS:
 		/* remember to check for resonable offset/channel pairs here */
-                if (get_user(val, p))
+                if (get_user(val, (int *)arg))
 			return -EFAULT;
 
 		if (file->f_mode & FMODE_WRITE) { 			
@@ -1237,14 +1236,14 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 
 		dma->mono=0;
 
-		return put_user(val, p);
+		return put_user(val, (int *)arg);
 		
 	case SNDCTL_DSP_GETFMTS: /* Returns a mask */
-                return put_user(RME96xx_FMT, p);
+                return put_user(RME96xx_FMT, (int *)arg);
 		
 	case SNDCTL_DSP_SETFMT: /* Selects ONE fmt*/
 		DBG(printk("setting to format %x\n",val)); 
-		if (get_user(val, p))
+		if (get_user(val, (int *)arg))
 			return -EFAULT;
 		if (val != AFMT_QUERY) {
 			if (val & RME96xx_FMT)
@@ -1258,7 +1257,7 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 				break;
 			}
 		}
-		return put_user(dma->format, p);
+		return put_user(dma->format, (int *)arg);
 		
 	case SNDCTL_DSP_POST:
                 return 0;
@@ -1271,10 +1270,10 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 		if (file->f_mode & FMODE_WRITE && s->ctrl & CTRL_DAC2_EN) 
 			val |= PCM_ENABLE_OUTPUT;
 #endif
-		return put_user(val, p);
+		return put_user(val, (int *)arg);
 		
 	case SNDCTL_DSP_SETTRIGGER:
-		if (get_user(val, p))
+		if (get_user(val, (int *)arg))
 			return -EFAULT;
 #if 0
 		if (file->f_mode & FMODE_READ) {
@@ -1310,7 +1309,7 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
                 abinfo.fragstotal = 2;
                 abinfo.fragments = (count > s->fragsize); 
 
-		return copy_to_user(argp, &abinfo, sizeof(abinfo)) ? -EFAULT : 0;
+		return copy_to_user((void *)arg, &abinfo, sizeof(abinfo)) ? -EFAULT : 0;
 
 	case SNDCTL_DSP_GETISPACE:
 		if (!(file->f_mode & FMODE_READ))
@@ -1321,10 +1320,10 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 		count = rme96xx_getispace(dma,val);
 
 		abinfo.fragsize = (s->fragsize*dma->inchannels)>>dma->formatshift;
-                abinfo.bytes = (count*dma->inchannels)>>dma->formatshift;
+                abinfo.bytes = (count*dma->inchannels)>>dma->formatshift;;
                 abinfo.fragstotal = 2;
                 abinfo.fragments = count > s->fragsize; 
-		return copy_to_user(argp, &abinfo, sizeof(abinfo)) ? -EFAULT : 0;
+		return copy_to_user((void *)arg, &abinfo, sizeof(abinfo)) ? -EFAULT : 0;
 		
         case SNDCTL_DSP_NONBLOCK:
                 file->f_flags |= O_NONBLOCK;
@@ -1340,7 +1339,7 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 		if (count < 0)
 			count += s->fragsize<<1;
 
-		return put_user(count, p);
+		return put_user(count, (int *)arg);
 
 
 /* check out how to use mmaped mode (can only be blocked !!!) */
@@ -1349,7 +1348,7 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 			return -EINVAL;
 		val = rme96xx_gethwptr(dma->s,0);
 		spin_lock_irqsave(&s->lock,flags);
-                cinfo.bytes = s->fragsize<<1;
+                cinfo.bytes = s->fragsize<<1;;
 		count = val - dma->readptr;
 		if (count < 0)
 			count += s->fragsize<<1;
@@ -1360,7 +1359,7 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 			dma->readptr &= s->fragsize<<1;
 		spin_unlock_irqrestore(&s->lock,flags);
 
-                if (copy_to_user(argp, &cinfo, sizeof(cinfo)))
+                if (copy_to_user((void *)arg, &cinfo, sizeof(cinfo)))
 			return -EFAULT;
 		return 0;
 
@@ -1369,7 +1368,7 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 			return -EINVAL;
 		val = rme96xx_gethwptr(dma->s,0);
 		spin_lock_irqsave(&s->lock,flags);
-                cinfo.bytes = s->fragsize<<1;
+                cinfo.bytes = s->fragsize<<1;;
 		count = val - dma->writeptr;
 		if (count < 0)
 			count += s->fragsize<<1;
@@ -1379,14 +1378,14 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 		if (dma->mmapped)
 			dma->writeptr &= s->fragsize<<1;
 		spin_unlock_irqrestore(&s->lock,flags);
-                if (copy_to_user(argp, &cinfo, sizeof(cinfo)))
+                if (copy_to_user((void *)arg, &cinfo, sizeof(cinfo)))
 			return -EFAULT;
 		return 0;
         case SNDCTL_DSP_GETBLKSIZE:
-	     return put_user(s->fragsize, p);
+	     return put_user(s->fragsize, (int *)arg);
 
         case SNDCTL_DSP_SETFRAGMENT:
-                if (get_user(val, p))
+                if (get_user(val, (int *)arg))
 			return -EFAULT;
 		val&=0xffff;
 		val -= 7;
@@ -1400,7 +1399,7 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 		if ((file->f_mode & FMODE_READ && s->dma_adc.subdivision) ||
 		    (file->f_mode & FMODE_WRITE && s->dma_dac2.subdivision))
 			return -EINVAL;
-                if (get_user(val, p))
+                if (get_user(val, (int *)arg))
 			return -EFAULT;
 		if (val != 1 && val != 2 && val != 4)
 			return -EINVAL;
@@ -1414,10 +1413,10 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
         case SOUND_PCM_READ_RATE:
 		/* HP20020201 */
 		s->rate = rme96xx_get_sample_rate_status(s);
-		return put_user(s->rate, p);
+		return put_user(s->rate, (int *)arg);
 
         case SOUND_PCM_READ_CHANNELS:
-		return put_user(dma->outchannels, p);
+		return put_user(dma->outchannels, (int *)arg);
 
         case SOUND_PCM_READ_BITS:
 		switch (dma->format) {
@@ -1428,7 +1427,7 @@ static int rme96xx_ioctl(struct inode *in, struct file *file, unsigned int cmd, 
 				val = 16;
 				break;
 		}
-		return put_user(val, p);
+		return put_user(val, (int *)arg);
 
         case SOUND_PCM_WRITE_FILTER:
         case SNDCTL_DSP_SETSYNCRO:
@@ -1454,7 +1453,6 @@ static int rme96xx_open(struct inode *in, struct file *f)
 
 	DBG(printk("device num %d open\n",devnum));
 
-	nonseekable_open(in, f);
 	for (list = devs.next; ; list = list->next) {
 		if (list == &devs)
 			return -ENODEV;
@@ -1503,7 +1501,7 @@ static int rme96xx_release(struct inode *in, struct file *file)
 {
 	struct dmabuf * dma = (struct dmabuf*) file->private_data;
 	/* int hwp;  ... was unused   HP20020201 */
-	DBG(printk("%s\n", __FUNCTION__));
+	DBG(printk(__FUNCTION__"\n"));
 
 	COMM          ("draining")
 	if (dma->open_mode & FMODE_WRITE) {
@@ -1531,7 +1529,7 @@ static int rme96xx_release(struct inode *in, struct file *file)
 }
 
 
-static ssize_t rme96xx_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
+static ssize_t rme96xx_write(struct file *file, const char *buffer, size_t count, loff_t *ppos)
 {
 	struct dmabuf *dma = (struct dmabuf *)file->private_data;
 	ssize_t ret = 0;
@@ -1543,6 +1541,9 @@ static ssize_t rme96xx_write(struct file *file, const char __user *buffer, size_
 
 	if(dma == NULL || (dma->s) == NULL) 
 		return -ENXIO;
+
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
 
 	if (dma->mmapped || !dma->opened)
 		return -ENXIO;
@@ -1596,7 +1597,7 @@ static ssize_t rme96xx_write(struct file *file, const char __user *buffer, size_
 	return ret;
 }
 
-static ssize_t rme96xx_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
+static ssize_t rme96xx_read(struct file *file, char *buffer, size_t count, loff_t *ppos)
 { 
 	struct dmabuf *dma = (struct dmabuf *)file->private_data;
 	ssize_t ret = 0;
@@ -1608,6 +1609,9 @@ static ssize_t rme96xx_read(struct file *file, char __user *buffer, size_t count
 
 	if(dma == NULL || (dma->s) == NULL) 
 		return -ENXIO;
+
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
 
 	if (dma->mmapped || !dma->opened)
 		return -ENXIO;
@@ -1770,7 +1774,6 @@ static int rme96xx_mixer_open(struct inode *inode, struct file *file)
 
 	COMM  ("mixer open");
 
-	nonseekable_open(inode, file);
 	for (list = devs.next; ; list = list->next) {
 		if (list == &devs)
 			return -ENODEV;
@@ -1790,8 +1793,6 @@ static int rme96xx_mixer_ioctl(struct inode *inode, struct file *file, unsigned 
 	rme96xx_info *s = (rme96xx_info *)file->private_data;
 	u32 status;
 	int spdifrate;
-	void __user *argp = (void __user *)arg;
-	int __user *p = argp;
 
 	status = readl(s->iobase + RME96xx_status_register);
 	/* hack to convert rev 1.5 SPDIF rate to "crystalrate" format   HP 20020201 */
@@ -1801,7 +1802,7 @@ static int rme96xx_mixer_ioctl(struct inode *inode, struct file *file, unsigned 
 	VALIDATE_STATE(s);
 	if (cmd == SOUND_MIXER_PRIVATE1) {
 		rme_mixer mixer;
-		if (copy_from_user(&mixer,argp,sizeof(mixer)))
+		if (copy_from_user(&mixer,(void*)arg,sizeof(mixer)))
 			return -EFAULT;
 		
 		mixer.devnr &= RME96xx_MASK_DEVS;
@@ -1824,14 +1825,14 @@ static int rme96xx_mixer_ioctl(struct inode *inode, struct file *file, unsigned 
 		mixer.o_offset = s->dma[mixer.devnr].outoffset;
 		mixer.i_offset = s->dma[mixer.devnr].inoffset;
 
-		return copy_to_user(argp, &mixer, sizeof(mixer)) ? -EFAULT : 0;
+		return copy_to_user((void *)arg, &mixer, sizeof(mixer)) ? -EFAULT : 0;
 	}
 	if (cmd == SOUND_MIXER_PRIVATE2) {
-		return put_user(status, p);
+		return put_user(status, (int *)arg);
 	}
 	if (cmd == SOUND_MIXER_PRIVATE3) {
 		u32 control;
-		if (copy_from_user(&control,argp,sizeof(control)))
+		if (copy_from_user(&control,(void*)arg,sizeof(control)))
 			return -EFAULT;
 		if (file->f_mode & FMODE_WRITE) {
 			s->control_register &= ~RME96xx_mixer_allowed;
@@ -1839,7 +1840,7 @@ static int rme96xx_mixer_ioctl(struct inode *inode, struct file *file, unsigned 
 			writel(control,s->iobase + RME96xx_control_register);
 		}
 
-	     return put_user(s->control_register, p);
+	     return put_user(s->control_register, (int *)arg);
 	}
 	return -1;
 }

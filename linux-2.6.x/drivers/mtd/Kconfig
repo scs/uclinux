@@ -28,7 +28,7 @@ config MTD_DEBUG_VERBOSE
 	  Determines the verbosity level of the MTD debugging messages.
 
 config MTD_PARTITIONS
-	bool "MTD partitioning support"
+	tristate "MTD partitioning support"
 	depends on MTD
 	help
 	  If you have a device which needs to divide its flash chip(s) up
@@ -68,23 +68,9 @@ config MTD_REDBOOT_PARTS
 	  SA1100 map driver (CONFIG_MTD_SA1100) has an option for this, for 
 	  example.
 
-config MTD_REDBOOT_PARTS_UNALLOCATED
-	bool "  Include unallocated flash regions"
-	depends on MTD_REDBOOT_PARTS
-	help
-	  If you need to register each unallocated flash region as a MTD
-	  'partition', enable this option.
-
-config MTD_REDBOOT_PARTS_READONLY
-	bool "  Force read-only for RedBoot system images"
-	depends on MTD_REDBOOT_PARTS
-	help
-	  If you need to force read-only for 'RedBoot', 'RedBoot Config' and
-	  'FIS directory' images, enable this option.
-
 config MTD_CMDLINE_PARTS
-	bool "Command line partition table parsing"
-	depends on MTD_PARTITIONS = "y"
+	tristate "Command line partition table parsing"
+	depends on MTD_PARTITIONS
 	---help---
 	  Allow generic configuration of the MTD paritition tables via the kernel
 	  command line. Multiple flash resources are supported for hardware where

@@ -22,7 +22,6 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/delay.h>
@@ -52,7 +51,6 @@ static int handle_pm_event (struct pm_dev *dev, pm_request_t rqst, void *data);
 /* These belong in linux/pci.h. */
 #define PCI_DEVICE_ID_NEOMAGIC_NM256AV_AUDIO 0x8005
 #define PCI_DEVICE_ID_NEOMAGIC_NM256ZX_AUDIO 0x8006
-#define PCI_DEVICE_ID_NEOMAGIC_NM256XL_PLUS_AUDIO 0x8016
 
 /* List of cards.  */
 static struct nm256_info *nmcard_list;
@@ -452,6 +450,9 @@ nm256_get_new_block (struct nm256_info *card)
     }
 }
 
+/* Ultra cheez-whiz.  But I'm too lazy to grep headers. */
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
 /* 
  * Read the last-recorded block from the ring buffer, copy it into the
  * saved buffer pointer, and invoke DMAuf_inputintr() with the recording
@@ -479,7 +480,7 @@ nm256_read_block (struct nm256_info *card)
 	/* If we wrapped around, copy everything from the start of our
 	   recording buffer to the end of the buffer. */
 	if (currptr < card->curRecPos) {
-	    u32 amt = min (ringsize - card->curRecPos, amtToRead);
+	    u32 amt = MIN (ringsize - card->curRecPos, amtToRead);
 
 	    nm256_readBuffer8 (card, card->recBuf, 1,
 				 card->abuf2 + card->curRecPos,
@@ -492,7 +493,7 @@ nm256_read_block (struct nm256_info *card)
 	}
 
 	if ((card->curRecPos < currptr) && (amtToRead > 0)) {
-	    u32 amt = min (currptr - card->curRecPos, amtToRead);
+	    u32 amt = MIN (currptr - card->curRecPos, amtToRead);
 	    nm256_readBuffer8 (card, card->recBuf, 1,
 				 card->abuf2 + card->curRecPos, amt);
 	    card->curRecPos = ((card->curRecPos + amt) % ringsize);
@@ -502,8 +503,9 @@ nm256_read_block (struct nm256_info *card)
 	DMAbuf_inputintr (card->dev_for_record);
     }
 }
+#undef MIN
 
-/*
+/* 
  * Initialize the hardware. 
  */
 static void
@@ -929,7 +931,7 @@ nm256_resetAC97 (struct ac97_hwint *dev)
  * mixer ioctl to the AC97 driver.
  */
 static int
-nm256_default_mixer_ioctl (int dev, unsigned int cmd, void __user *arg)
+nm256_default_mixer_ioctl (int dev, unsigned int cmd, caddr_t arg)
 {
     struct nm256_info *card = nm256_find_card_for_mixer (dev);
     if (card != NULL)
@@ -1276,8 +1278,6 @@ nm256_probe(struct pci_dev *pcidev,const struct pci_device_id *pciid)
 	return nm256_install(pcidev, REV_NM256AV, "256AV");
     if (pcidev->device == PCI_DEVICE_ID_NEOMAGIC_NM256ZX_AUDIO)
 	return nm256_install(pcidev, REV_NM256ZX, "256ZX");
-    if (pcidev->device == PCI_DEVICE_ID_NEOMAGIC_NM256XL_PLUS_AUDIO)
-	return nm256_install(pcidev, REV_NM256ZX, "256XL+");
     return -1; /* should not come here ... */
 }
 
@@ -1418,7 +1418,7 @@ nm256_audio_close(int dev)
 
 /* Standard ioctl handler. */
 static int
-nm256_audio_ioctl(int dev, unsigned int cmd, void __user *arg)
+nm256_audio_ioctl(int dev, unsigned int cmd, caddr_t arg)
 {
     int ret;
     u32 oldinfo;
@@ -1442,7 +1442,7 @@ nm256_audio_ioctl(int dev, unsigned int cmd, void __user *arg)
     switch (cmd)
 	{
 	case SOUND_PCM_WRITE_RATE:
-	    if (get_user(ret, (int __user *) arg))
+	    if (get_user(ret, (int *) arg))
 		return -EFAULT;
 
 	    if (ret != 0) {
@@ -1461,7 +1461,7 @@ nm256_audio_ioctl(int dev, unsigned int cmd, void __user *arg)
 	    break;
 
 	case SNDCTL_DSP_STEREO:
-	    if (get_user(ret, (int __user *) arg))
+	    if (get_user(ret, (int *) arg))
 		return -EFAULT;
 
 	    card->sinfo[w].stereo = ret ? 1 : 0;
@@ -1472,7 +1472,7 @@ nm256_audio_ioctl(int dev, unsigned int cmd, void __user *arg)
 	    break;
 
 	case SOUND_PCM_WRITE_CHANNELS:
-	    if (get_user(ret, (int __user *) arg))
+	    if (get_user(ret, (int *) arg))
 		return -EFAULT;
 
 	    if (ret < 1 || ret > 3)
@@ -1490,7 +1490,7 @@ nm256_audio_ioctl(int dev, unsigned int cmd, void __user *arg)
 	    break;
 
 	case SNDCTL_DSP_SETFMT:
-	    if (get_user(ret, (int __user *) arg))
+	    if (get_user(ret, (int *) arg))
 		return -EFAULT;
 
 	    if (ret != 0) {
@@ -1511,7 +1511,7 @@ nm256_audio_ioctl(int dev, unsigned int cmd, void __user *arg)
 	default:
 	    return -EINVAL;
 	}
-    return put_user(ret, (int __user *) arg);
+    return put_user(ret, (int *) arg);
 }
 
 /*
@@ -1664,8 +1664,6 @@ static struct pci_device_id nm256_pci_tbl[] = {
 	{PCI_VENDOR_ID_NEOMAGIC, PCI_DEVICE_ID_NEOMAGIC_NM256AV_AUDIO,
 	PCI_ANY_ID, PCI_ANY_ID, 0, 0},
 	{PCI_VENDOR_ID_NEOMAGIC, PCI_DEVICE_ID_NEOMAGIC_NM256ZX_AUDIO,
-	PCI_ANY_ID, PCI_ANY_ID, 0, 0},
-	{PCI_VENDOR_ID_NEOMAGIC, PCI_DEVICE_ID_NEOMAGIC_NM256XL_PLUS_AUDIO,
 	PCI_ANY_ID, PCI_ANY_ID, 0, 0},
 	{0,}
 };

@@ -212,7 +212,7 @@ dump_tlb_all(void)
 
 void 
 switch_mm(struct mm_struct *prev, struct mm_struct *next,
-	  struct task_struct *tsk)
+	  struct task_struct *tsk, int cpu)
 {
 	/* make sure we have a context */
 

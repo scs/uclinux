@@ -48,7 +48,6 @@
 #include "drm_fops.h"
 #include "drm_init.h"
 #include "drm_ioctl.h"
-#include "drm_irq.h"
 #include "gamma_lists.h"        /* NOTE */
 #include "drm_lock.h"
 #include "gamma_lock.h"		/* NOTE */

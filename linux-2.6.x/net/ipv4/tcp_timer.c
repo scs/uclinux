@@ -68,13 +68,18 @@ void tcp_clear_xmit_timers(struct sock *sk)
 	struct tcp_opt *tp = tcp_sk(sk);
 
 	tp->pending = 0;
-	sk_stop_timer(sk, &tp->retransmit_timer);
+	if (timer_pending(&tp->retransmit_timer) &&
+	    del_timer(&tp->retransmit_timer))
+		__sock_put(sk);
 
 	tp->ack.pending = 0;
 	tp->ack.blocked = 0;
-	sk_stop_timer(sk, &tp->delack_timer);
+	if (timer_pending(&tp->delack_timer) &&
+	    del_timer(&tp->delack_timer))
+		__sock_put(sk);
 
-	sk_stop_timer(sk, &sk->sk_timer);
+	if (timer_pending(&sk->sk_timer) && del_timer(&sk->sk_timer))
+		__sock_put(sk);
 }
 
 static void tcp_write_err(struct sock *sk)
@@ -83,7 +88,7 @@ static void tcp_write_err(struct sock *sk)
 	sk->sk_error_report(sk);
 
 	tcp_done(sk);
-	NET_INC_STATS_BH(LINUX_MIB_TCPABORTONTIMEOUT);
+	NET_INC_STATS_BH(TCPAbortOnTimeout);
 }
 
 /* Do not allow orphaned sockets to eat all our resources.
@@ -126,7 +131,7 @@ static int tcp_out_of_resources(struct sock *sk, int do_reset)
 		if (do_reset)
 			tcp_send_active_reset(sk, GFP_ATOMIC);
 		tcp_done(sk);
-		NET_INC_STATS_BH(LINUX_MIB_TCPABORTONMEMORY);
+		NET_INC_STATS_BH(TCPAbortOnMemory);
 		return 1;
 	}
 	return 0;
@@ -212,18 +217,20 @@ static void tcp_delack_timer(unsigned long data)
 	if (sock_owned_by_user(sk)) {
 		/* Try again later. */
 		tp->ack.blocked = 1;
-		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKLOCKED);
-		sk_reset_timer(sk, &tp->delack_timer, jiffies + TCP_DELACK_MIN);
+		NET_INC_STATS_BH(DelayedACKLocked);
+		if (!mod_timer(&tp->delack_timer, jiffies + TCP_DELACK_MIN))
+			sock_hold(sk);
 		goto out_unlock;
 	}
 
-	sk_stream_mem_reclaim(sk);
+	tcp_mem_reclaim(sk);
 
 	if (sk->sk_state == TCP_CLOSE || !(tp->ack.pending & TCP_ACK_TIMER))
 		goto out;
 
 	if (time_after(tp->ack.timeout, jiffies)) {
-		sk_reset_timer(sk, &tp->delack_timer, tp->ack.timeout);
+		if (!mod_timer(&tp->delack_timer, tp->ack.timeout))
+			sock_hold(sk);
 		goto out;
 	}
 	tp->ack.pending &= ~TCP_ACK_TIMER;
@@ -231,8 +238,8 @@ static void tcp_delack_timer(unsigned long data)
 	if (skb_queue_len(&tp->ucopy.prequeue)) {
 		struct sk_buff *skb;
 
-		NET_ADD_STATS_BH(LINUX_MIB_TCPSCHEDULERFAILED, 
-				 skb_queue_len(&tp->ucopy.prequeue));
+		NET_ADD_STATS_BH(TCPSchedulerFailed,
+				  skb_queue_len(&tp->ucopy.prequeue));
 
 		while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
 			sk->sk_backlog_rcv(sk, skb);
@@ -252,13 +259,13 @@ static void tcp_delack_timer(unsigned long data)
 			tp->ack.ato = TCP_ATO_MIN;
 		}
 		tcp_send_ack(sk);
-		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKS);
+		NET_INC_STATS_BH(DelayedACKs);
 	}
 	TCP_CHECK_TIMER(sk);
 
 out:
 	if (tcp_memory_pressure)
-		sk_stream_mem_reclaim(sk);
+		tcp_mem_reclaim(sk);
 out_unlock:
 	bh_unlock_sock(sk);
 	sock_put(sk);
@@ -269,7 +276,7 @@ static void tcp_probe_timer(struct sock *sk)
 	struct tcp_opt *tp = tcp_sk(sk);
 	int max_probes;
 
-	if (tp->packets_out || !sk->sk_send_head) {
+	if (tp->packets_out || !tp->send_head) {
 		tp->probes_out = 0;
 		return;
 	}
@@ -353,19 +360,19 @@ static void tcp_retransmit_timer(struct sock *sk)
 		if (tp->ca_state == TCP_CA_Disorder || tp->ca_state == TCP_CA_Recovery) {
 			if (tp->sack_ok) {
 				if (tp->ca_state == TCP_CA_Recovery)
-					NET_INC_STATS_BH(LINUX_MIB_TCPSACKRECOVERYFAIL);
+					NET_INC_STATS_BH(TCPSackRecoveryFail);
 				else
-					NET_INC_STATS_BH(LINUX_MIB_TCPSACKFAILURES);
+					NET_INC_STATS_BH(TCPSackFailures);
 			} else {
 				if (tp->ca_state == TCP_CA_Recovery)
-					NET_INC_STATS_BH(LINUX_MIB_TCPRENORECOVERYFAIL);
+					NET_INC_STATS_BH(TCPRenoRecoveryFail);
 				else
-					NET_INC_STATS_BH(LINUX_MIB_TCPRENOFAILURES);
+					NET_INC_STATS_BH(TCPRenoFailures);
 			}
 		} else if (tp->ca_state == TCP_CA_Loss) {
-			NET_INC_STATS_BH(LINUX_MIB_TCPLOSSFAILURES);
+			NET_INC_STATS_BH(TCPLossFailures);
 		} else {
-			NET_INC_STATS_BH(LINUX_MIB_TCPTIMEOUTS);
+			NET_INC_STATS_BH(TCPTimeouts);
 		}
 	}
 
@@ -422,7 +429,8 @@ static void tcp_write_timer(unsigned long data)
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
 		/* Try again later */
-		sk_reset_timer(sk, &tp->retransmit_timer, jiffies + (HZ / 20));
+		if (!mod_timer(&tp->retransmit_timer, jiffies + (HZ/20)))
+			sock_hold(sk);
 		goto out_unlock;
 	}
 
@@ -430,7 +438,8 @@ static void tcp_write_timer(unsigned long data)
 		goto out;
 
 	if (time_after(tp->timeout, jiffies)) {
-		sk_reset_timer(sk, &tp->retransmit_timer, tp->timeout);
+		if (!mod_timer(&tp->retransmit_timer, tp->timeout))
+			sock_hold(sk);
 		goto out;
 	}
 
@@ -448,7 +457,7 @@ static void tcp_write_timer(unsigned long data)
 	TCP_CHECK_TIMER(sk);
 
 out:
-	sk_stream_mem_reclaim(sk);
+	tcp_mem_reclaim(sk);
 out_unlock:
 	bh_unlock_sock(sk);
 	sock_put(sk);
@@ -548,12 +557,14 @@ static void tcp_synack_timer(struct sock *sk)
 
 void tcp_delete_keepalive_timer (struct sock *sk)
 {
-	sk_stop_timer(sk, &sk->sk_timer);
+	if (timer_pending(&sk->sk_timer) && del_timer (&sk->sk_timer))
+		__sock_put(sk);
 }
 
 void tcp_reset_keepalive_timer (struct sock *sk, unsigned long len)
 {
-	sk_reset_timer(sk, &sk->sk_timer, jiffies + len);
+	if (!mod_timer(&sk->sk_timer, jiffies + len))
+		sock_hold(sk);
 }
 
 void tcp_set_keepalive(struct sock *sk, int val)
@@ -606,7 +617,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	elapsed = keepalive_time_when(tp);
 
 	/* It is alive without keepalive 8) */
-	if (tp->packets_out || sk->sk_send_head)
+	if (tp->packets_out || tp->send_head)
 		goto resched;
 
 	elapsed = tcp_time_stamp - tp->rcv_tstamp;
@@ -633,7 +644,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	}
 
 	TCP_CHECK_TIMER(sk);
-	sk_stream_mem_reclaim(sk);
+	tcp_mem_reclaim(sk);
 
 resched:
 	tcp_reset_keepalive_timer (sk, elapsed);

@@ -39,28 +39,25 @@ obj-$(CONFIG_N_HDLC)		+= n_hdlc.o
 obj-$(CONFIG_AMIGA_BUILTIN_SERIAL) += amiserial.o
 obj-$(CONFIG_SX)		+= sx.o generic_serial.o
 obj-$(CONFIG_RIO)		+= rio/ generic_serial.o
+obj-$(CONFIG_SH_SCI)		+= sh-sci.o generic_serial.o
 obj-$(CONFIG_HVC_CONSOLE)	+= hvc_console.o
 obj-$(CONFIG_RAW_DRIVER)	+= raw.o
+obj-$(CONFIG_SGI_L1_SERIAL)	+= sn_serial.o
 obj-$(CONFIG_VIOCONS) += viocons.o
-obj-$(CONFIG_VIOTAPE)		+= viotape.o
-obj-$(CONFIG_HVCS)		+= hvcs.o
 
 obj-$(CONFIG_PRINTER) += lp.o
 obj-$(CONFIG_TIPAR) += tipar.o
+obj-$(CONFIG_PC9800_OLDLP) += lp_old98.o
 
+obj-$(CONFIG_BUSMOUSE) += busmouse.o
 obj-$(CONFIG_DTLK) += dtlk.o
 obj-$(CONFIG_R3964) += n_r3964.o
 obj-$(CONFIG_APPLICOM) += applicom.o
 obj-$(CONFIG_SONYPI) += sonypi.o
 obj-$(CONFIG_RTC) += rtc.o
-obj-$(CONFIG_HPET) += hpet.o
 obj-$(CONFIG_GEN_RTC) += genrtc.o
 obj-$(CONFIG_EFI_RTC) += efirtc.o
-obj-$(CONFIG_SGI_DS1286) += ds1286.o
-obj-$(CONFIG_SGI_IP27_RTC) += ip27-rtc.o
-ifeq ($(CONFIG_GENERIC_NVRAM),y)
-  obj-$(CONFIG_NVRAM) += generic_nvram.o
-else
+ifeq ($(CONFIG_PPC),)
   obj-$(CONFIG_NVRAM) += nvram.o
 endif
 obj-$(CONFIG_TOSHIBA) += toshiba.o
@@ -69,11 +66,14 @@ obj-$(CONFIG_DS1620) += ds1620.o
 obj-$(CONFIG_HW_RANDOM) += hw_random.o
 obj-$(CONFIG_QIC02_TAPE) += tpqic02.o
 obj-$(CONFIG_FTAPE) += ftape/
-obj-$(CONFIG_COBALT_LCD) += lcd.o
+obj-$(CONFIG_H8) += h8.o
 obj-$(CONFIG_PPDEV) += ppdev.o
+obj-$(CONFIG_DZ) += dz.o
 obj-$(CONFIG_NWBUTTON) += nwbutton.o
 obj-$(CONFIG_NWFLASH) += nwflash.o
 obj-$(CONFIG_SCx200_GPIO) += scx200_gpio.o
+obj-$(CONFIG_LEDMAN) += ledman.o
+obj-$(CONFIG_RESETSWITCH) += resetswitch.o
 
 obj-$(CONFIG_WATCHDOG)	+= watchdog/
 obj-$(CONFIG_MWAVE) += mwave/
@@ -81,8 +81,8 @@ obj-$(CONFIG_AGP) += agp/
 obj-$(CONFIG_DRM) += drm/
 obj-$(CONFIG_PCMCIA) += pcmcia/
 obj-$(CONFIG_IPMI_HANDLER) += ipmi/
-obj-$(CONFIG_BLACKFIN_RTC) += blackfin_rtc.o
-obj-$(CONFIG_BLACKFIN_DPMC) += blackfin_dpmc.o
+obj-$(CONFIG_BLACKFIN_RTC) += blackfin_rtc.o 
+
 obj-$(CONFIG_HANGCHECK_TIMER) += hangcheck-timer.o
 
 # Files generated that shall be removed upon make clean

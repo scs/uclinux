@@ -252,7 +252,7 @@ static void adnp_set_vpp(struct map_info *not_used, int on)
 static struct map_info dnpc_map = {
 	.name = "ADNP Flash Bank",
 	.size = ADNP_WINDOW_SIZE,
-	.bankwidth = 1,
+	.buswidth = 1,
 	.set_vpp = adnp_set_vpp,
 	.phys = WINDOW_ADDR
 };

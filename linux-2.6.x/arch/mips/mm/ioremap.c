@@ -13,6 +13,7 @@
 #include <linux/vmalloc.h>
 #include <asm/cacheflush.h>
 #include <asm/io.h>
+#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
 static inline void remap_area_pte(pte_t * pte, unsigned long address,
@@ -152,7 +153,7 @@ void * __ioremap(phys_t phys_addr, phys_t size, unsigned long flags)
 	 */
 	offset = phys_addr & ~PAGE_MASK;
 	phys_addr &= PAGE_MASK;
-	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
+	size = PAGE_ALIGN(last_addr) - phys_addr;
 
 	/*
 	 * Ok, go for it..

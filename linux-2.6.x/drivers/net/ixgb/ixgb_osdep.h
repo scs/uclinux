@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2003 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -23,15 +23,14 @@
   Contact Information:
   Linux NICS <linux.nics@intel.com>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
 *******************************************************************************/
 
-/* glue for the OS independent part of ixgb
+/* glue for the OS independant part of ixgb 
  * includes register access macros
  */
 
-#ifndef _IXGB_OSDEP_H_
-#define _IXGB_OSDEP_H_
+#ifndef IXGB_OSDEP_H
+#define IXGB_OSDEP_H
 
 #include <linux/types.h>
 #include <linux/pci.h>
@@ -40,42 +39,35 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
-#ifndef msec_delay
+/* FIXME: eliminate me */
 #define msec_delay(x)	do { if(in_interrupt()) { \
-				/* Don't mdelay in interrupt context! */ \
-	                	BUG(); \
+	                	mdelay(x); \
 			} else { \
 				set_current_state(TASK_UNINTERRUPTIBLE); \
-				schedule_timeout((x * HZ)/1000 + 2); \
+				schedule_timeout((x * HZ)/1000); \
 			} } while(0)
-#endif
-
-#define PCI_COMMAND_REGISTER   PCI_COMMAND
-#define CMD_MEM_WRT_INVALIDATE PCI_COMMAND_INVALIDATE
 
 typedef enum {
-#undef FALSE
 	FALSE = 0,
-#undef TRUE
 	TRUE = 1
 } boolean_t;
 
-#undef ASSERT
-#define ASSERT(x)	if(!(x)) BUG()
 #define MSGOUT(S, A, B)	printk(KERN_DEBUG S "\n", A, B)
 
-#ifdef DBG
-#define DEBUGOUT(S)		printk(KERN_DEBUG S "\n")
-#define DEBUGOUT1(S, A...)	printk(KERN_DEBUG S "\n", A)
+#if DBG
+#define ASSERT(x)	if(!(x)) BUG()
+#define DEBUGOUT(S)		printk(KERN_ERR S "\n")
+#define DEBUGOUT1(S, A...)	printk(KERN_ERR S "\n", A)
 #else
+#define ASSERT(x)
 #define DEBUGOUT(S)
 #define DEBUGOUT1(S, A...)
 #endif
 
-#define DEBUGFUNC(F) DEBUGOUT(F)
 #define DEBUGOUT2 DEBUGOUT1
-#define DEBUGOUT3 DEBUGOUT2
-#define DEBUGOUT7 DEBUGOUT3
+#define DEBUGOUT3 DEBUGOUT1
+#define DEBUGOUT7 DEBUGOUT1
+#define DEBUGFUNC(F)        DEBUGOUT(F)
 
 #define IXGB_WRITE_REG(a, reg, value) ( \
     writel((value), ((a)->hw_addr + IXGB_##reg)))
@@ -89,8 +81,4 @@ typedef enum {
 #define IXGB_READ_REG_ARRAY(a, reg, offset) ( \
     readl((a)->hw_addr + IXGB_##reg + ((offset) << 2)))
 
-#define IXGB_WRITE_FLUSH(a) IXGB_READ_REG(a, STATUS)
-
-#define IXGB_MEMCPY memcpy
-
-#endif				/* _IXGB_OSDEP_H_ */
+#endif				/* IXGB_OSDEP_H */

@@ -369,7 +369,7 @@ static void set_adc_rate(struct au1000_state *s, unsigned rate)
 	adc_rate = rdcodec(s->codec, AC97_PCM_LR_ADC_RATE);
 
 #ifdef AU1000_VERBOSE_DEBUG
-	dbg("%s: set to %d Hz", __FUNCTION__, adc_rate);
+	dbg(__FUNCTION__ ": set to %d Hz", adc_rate);
 #endif
 
 	// some codec's don't allow unequal DAC and ADC rates, in which case
@@ -420,7 +420,7 @@ static void set_dac_rate(struct au1000_state *s, unsigned rate)
 	dac_rate = rdcodec(s->codec, AC97_PCM_FRONT_DAC_RATE);
 
 #ifdef AU1000_VERBOSE_DEBUG
-	dbg("%s: set to %d Hz", __FUNCTION__, dac_rate);
+	dbg(__FUNCTION__ ": set to %d Hz", dac_rate);
 #endif
 
 	// some codec's don't allow unequal DAC and ADC rates, in which case
@@ -886,7 +886,7 @@ static loff_t au1000_llseek(struct file *file, loff_t offset, int origin)
 static int au1000_open_mixdev(struct inode *inode, struct file *file)
 {
 	file->private_data = &au1000_state;
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 static int au1000_release_mixdev(struct inode *inode, struct file *file)
@@ -989,7 +989,7 @@ static int translate_from_user(struct dmabuf *db,
 	for (sample = 0; sample < num_samples; sample++) {
 		if (copy_from_user(usersample, userbuf,
 				   db->user_bytes_per_sample)) {
-			dbg("%s: fault", __FUNCTION__);
+			dbg(__FUNCTION__ ": fault");
 			return -EFAULT;
 		}
 
@@ -1053,7 +1053,7 @@ static int translate_to_user(struct dmabuf *db,
 
 		if (copy_to_user(userbuf, usersample,
 				 db->user_bytes_per_sample)) {
-			dbg("%s: fault", __FUNCTION__);
+			dbg(__FUNCTION__ ": fault");
 			return -EFAULT;
 		}
 
@@ -1120,6 +1120,8 @@ static ssize_t au1000_read(struct file *file, char *buffer,
 	unsigned long   flags;
 	int             cnt, usercnt, avail;
 
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
 	if (db->mapped)
 		return -ENXIO;
 	if (!access_ok(VERIFY_WRITE, buffer, count))
@@ -1202,6 +1204,8 @@ static ssize_t au1000_write(struct file *file, const char *buffer,
 	dbg("write: count=%d", count);
 #endif
 
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
 	if (db->mapped)
 		return -ENXIO;
 	if (!access_ok(VERIFY_READ, buffer, count))
@@ -1844,9 +1848,9 @@ static int  au1000_open(struct inode *inode, struct file *file)
 
 #ifdef AU1000_VERBOSE_DEBUG
 	if (file->f_flags & O_NONBLOCK)
-		dbg("%s: non-blocking", __FUNCTION__);
+		dbg(__FUNCTION__ ": non-blocking");
 	else
-		dbg("%s: blocking", __FUNCTION__);
+		dbg(__FUNCTION__ ": blocking");
 #endif
 	
 	file->private_data = s;
@@ -1903,7 +1907,7 @@ static int  au1000_open(struct inode *inode, struct file *file)
 	s->open_mode |= file->f_mode & (FMODE_READ | FMODE_WRITE);
 	up(&s->open_sem);
 	init_MUTEX(&s->sem);
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 static int au1000_release(struct inode *inode, struct file *file)

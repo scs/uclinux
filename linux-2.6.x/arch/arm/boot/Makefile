@@ -47,59 +47,64 @@ endif
 params_phys-$(CONFIG_ARCH_SA1100)	:= 0xc0000100
 initrd_phys-$(CONFIG_ARCH_SA1100)	:= 0xc0800000
    zreladdr-$(CONFIG_ARCH_PXA)		:= 0xa0008000
+   zreladdr-$(CONFIG_ARCH_ANAKIN)	:= 0x20008000
    zreladdr-$(CONFIG_ARCH_IOP3XX)	:= 0xa0008000
 params_phys-$(CONFIG_ARCH_IOP3XX)	:= 0xa0000100
-   zreladdr-$(CONFIG_ARCH_IXP4XX)	:= 0x00008000
-params-phys-$(CONFIG_ARCH_IXP4XX)	:= 0x00000100
-   zreladdr-$(CONFIG_ARCH_OMAP)		:= 0x10008000
-params_phys-$(CONFIG_ARCH_OMAP)		:= 0x10000100
-initrd_phys-$(CONFIG_ARCH_OMAP)		:= 0x10800000
-   zreladdr-$(CONFIG_ARCH_LH7A40X)	:= 0xc0008000
-params_phys-$(CONFIG_ARCH_LH7A40X)	:= 0xc0000100
-initrd_phys-$(CONFIG_ARCH_LH7A40X)	:= 0xc4000000
-   zreladdr-$(CONFIG_ARCH_S3C2410)	:= 0x30008000
-params_phys-$(CONFIG_ARCH_S3C2410)	:= 0x30000100
-   zreladdr-$(CONFIG_ARCH_VERSATILE_PB)	:= 0x00008000
-params_phys-$(CONFIG_ARCH_VERSATILE_PB)	:= 0x00000100
-initrd_phys-$(CONFIG_ARCH_VERSATILE_PB)	:= 0x00800000
+   zreladdr-$(CONFIG_ARCH_ADIFCC)	:= 0xc0008000
+params_phys-$(CONFIG_ARCH_ADIFCC)	:= 0xc0000100
+   zreladdr-$(CONFIG_ARCH_IXP425)	:= 0x00008000
+params-phys-$(CONFIG_ARCH_IXP425)	:= 0x00002000
 
 ZRELADDR    := $(zreladdr-y)
+ZTEXTADDR   := $(ztextaddr-y)
 PARAMS_PHYS := $(params_phys-y)
 INITRD_PHYS := $(initrd_phys-y)
+#
+# We now have a PIC decompressor implementation.  Decompressors running
+# from RAM should not define ZTEXTADDR.  Decompressors running directly
+# from ROM or Flash must define ZTEXTADDR (preferably via the config)
+# FIXME: Previous assignment to ztextaddr-y is lost here. See SHARK
+ifeq ($(CONFIG_ZBOOT_ROM),y)
+ZTEXTADDR	:= $(CONFIG_ZBOOT_ROM_TEXT)
+ZBSSADDR	:= $(CONFIG_ZBOOT_ROM_BSS)
+else
+ZTEXTADDR	:= 0
+ZBSSADDR	:= ALIGN(4)
+endif
 
-export ZRELADDR INITRD_PHYS PARAMS_PHYS
+export	ZTEXTADDR ZBSSADDR ZRELADDR INITRD_PHYS PARAMS_PHYS
 
-targets := Image zImage bootpImage uImage
+targets := Image zImage bootpImage
 
 $(obj)/Image: vmlinux FORCE
 	$(call if_changed,objcopy)
 	@echo '  Kernel: $@ is ready'
 
-$(obj)/compressed/vmlinux: $(obj)/Image FORCE
-	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
-
 $(obj)/zImage:	$(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
 	@echo '  Kernel: $@ is ready'
 
-quiet_cmd_uimage = UIMAGE  $@
+quite_cmd_uimage = UIMAGE $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A arm -O linux -T kernel \
 		   -C none -a $(ZRELADDR) -e $(ZRELADDR) \
 		   -n 'Linux-$(KERNELRELEASE)' -d $< $@
 
-$(obj)/uImage:	$(obj)/zImage FORCE
+targets += uImage
+$(obj)/uImage:	$(obj)/zImage
 	$(call if_changed,uimage)
 	@echo '  Image $@ is ready'
-
-$(obj)/bootp/bootp: $(obj)/zImage initrd FORCE
-	$(Q)$(MAKE) $(build)=$(obj)/bootp $@
-	@:
 
 $(obj)/bootpImage: $(obj)/bootp/bootp FORCE
 	$(call if_changed,objcopy)
 	@echo '  Kernel: $@ is ready'
 
-.PHONY: initrd FORCE
+$(obj)/compressed/vmlinux: vmlinux FORCE
+	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
+
+$(obj)/bootp/bootp: $(obj)/zImage initrd FORCE
+	$(Q)$(MAKE) $(build)=$(obj)/bootp $@
+
+.PHONY: initrd
 initrd:
 	@test "$(INITRD_PHYS)" != "" || \
 	(echo This machine does not support INITRD; exit -1)
@@ -107,11 +112,13 @@ initrd:
 	(echo You must specify INITRD; exit -1)
 
 install: $(obj)/Image
-	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \
+	$(CONFIG_SHELL) $(obj)/install.sh \
+	$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION) \
 	$(obj)/Image System.map "$(INSTALL_PATH)"
 
 zinstall: $(obj)/zImage
-	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \
+	$(CONFIG_SHELL) $(obj)/install.sh \
+	$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION) \
 	$(obj)/zImage System.map "$(INSTALL_PATH)"
 
 subdir-	    := bootp compressed

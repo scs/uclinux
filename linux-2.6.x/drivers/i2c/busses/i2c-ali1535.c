@@ -54,12 +54,15 @@
 /* Note: we assume there can only be one ALI1535, with one SMBus interface */
 
 #include <linux/config.h>
+#ifdef CONFIG_I2C_DEBUG_BUS
+#define DEBUG	1
+#endif
+
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/sched.h>
-#include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -277,7 +280,7 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 	/* We will always wait for a fraction of a second! */
 	timeout = 0;
 	do {
-		msleep(1);
+		i2c_delay(1);
 		temp = inb_p(SMBHSTSTS);
 	} while (((temp & ALI1535_STS_BUSY) && !(temp & ALI1535_STS_IDLE))
 		 && (timeout++ < MAX_TIMEOUT));
@@ -351,7 +354,7 @@ static s32 ali1535_access(struct i2c_adapter *adap, u16 addr,
 	for (timeout = 0;
 	     (timeout < MAX_TIMEOUT) && !(temp & ALI1535_STS_IDLE);
 	     timeout++) {
-		msleep(1);
+		i2c_delay(1);
 		temp = inb_p(SMBHSTSTS);
 	}
 	if (timeout >= MAX_TIMEOUT)
@@ -481,7 +484,6 @@ static struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter ali1535_adapter = {
 	.owner		= THIS_MODULE,
-	.class          = I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
 	.name		= "unset",
 };
@@ -515,7 +517,6 @@ static int __devinit ali1535_probe(struct pci_dev *dev, const struct pci_device_
 static void __devexit ali1535_remove(struct pci_dev *dev)
 {
 	i2c_del_adapter(&ali1535_adapter);
-	release_region(ali1535_smba, ALI1535_SMB_IOSIZE);
 }
 
 static struct pci_driver ali1535_driver = {
@@ -533,6 +534,7 @@ static int __init i2c_ali1535_init(void)
 static void __exit i2c_ali1535_exit(void)
 {
 	pci_unregister_driver(&ali1535_driver);
+	release_region(ali1535_smba, ALI1535_SMB_IOSIZE);
 }
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>, "

@@ -95,7 +95,7 @@ static void route_to_channel_from_one(snd_pcm_plugin_t *plugin,
 #undef CONV_LABELS
 	route_t *data = (route_t *)plugin->extra_data;
 	void *conv;
-	const snd_pcm_plugin_channel_t *src_channel = NULL;
+	const snd_pcm_plugin_channel_t *src_channel = 0;
 	unsigned int srcidx;
 	char *src, *dst;
 	int src_step, dst_step;
@@ -149,11 +149,11 @@ static void route_to_channel(snd_pcm_plugin_t *plugin,
 #endif
 	};
 	/* sum_type att shift */
-	static void *norm_labels[3 * 2 * 4] = { NULL,
+	static void *norm_labels[3 * 2 * 4] = { 0,
 					 &&norm_int32_8_noatt,
 					 &&norm_int32_16_noatt,
 					 &&norm_int32_24_noatt,
-					 NULL,
+					 0,
 					 &&norm_int32_8_att,
 					 &&norm_int32_16_att,
 					 &&norm_int32_24_att,
@@ -462,7 +462,7 @@ static int route_load_ttable(snd_pcm_plugin_t *plugin,
                         for(srcidx = 0; srcidx < nsrcs; srcidx++)
 				dptr->srcs[srcidx] = srcs[srcidx];
 		} else
-			dptr->srcs = NULL;
+			dptr->srcs = 0;
 		dptr++;
 	}
 	return 0;

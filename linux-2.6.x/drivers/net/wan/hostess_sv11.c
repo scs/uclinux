@@ -122,6 +122,7 @@ static int hostess_open(struct net_device *d)
 	 */
 
 	netif_start_queue(d);
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -153,6 +154,7 @@ static int hostess_close(struct net_device *d)
 			z8530_sync_txdma_close(d, &sv11->sync.chanA);
 			break;
 	}
+	MOD_DEC_USE_COUNT;
 	return 0;
 }
 
@@ -201,16 +203,6 @@ static int hostess_neigh_setup_dev(struct net_device *dev, struct neigh_parms *p
 	return 0;
 }
 
-static void sv11_setup(struct net_device *dev)
-{	
-	dev->open = hostess_open;
-	dev->stop = hostess_close;
-	dev->hard_start_xmit = hostess_queue_xmit;
-	dev->get_stats = hostess_get_stats;
-	dev->do_ioctl = hostess_ioctl;
-	dev->neigh_setup = hostess_neigh_setup_dev;
-}
-
 /*
  *	Description block for a Comtrol Hostess SV11 card
  */
@@ -237,11 +229,9 @@ static struct sv11_device *sv11_init(int iobase, int irq)
 	memset(sv, 0, sizeof(*sv));
 	sv->if_ptr=&sv->netdev;
 	
-	sv->netdev.dev = alloc_netdev(0, "hdlc%d", sv11_setup);
+	sv->netdev.dev=(struct net_device *)kmalloc(sizeof(struct net_device), GFP_KERNEL);
 	if(!sv->netdev.dev)
 		goto fail2;
-
-	SET_MODULE_OWNER(sv->netdev.dev);
 
 	dev=&sv->sync;
 	
@@ -336,14 +326,23 @@ static struct sv11_device *sv11_init(int iobase, int irq)
 		d->base_addr = iobase;
 		d->irq = irq;
 		d->priv = sv;
+		d->init = NULL;
+		
+		d->open = hostess_open;
+		d->stop = hostess_close;
+		d->hard_start_xmit = hostess_queue_xmit;
+		d->get_stats = hostess_get_stats;
+		d->set_multicast_list = NULL;
+		d->do_ioctl = hostess_ioctl;
+		d->neigh_setup = hostess_neigh_setup_dev;
+		d->set_mac_address = NULL;
 		
 		if(register_netdev(d))
 		{
 			printk(KERN_ERR "%s: unable to register device.\n",
 				d->name);
-			sppp_detach(d);
-			goto dmafail2;
-		}
+			goto fail;
+		}				
 
 		z8530_describe(dev, "I/O", iobase);
 		dev->active=1;
@@ -358,7 +357,7 @@ dmafail:
 fail:
 	free_irq(irq, dev);
 fail1:
-	free_netdev(sv->netdev.dev);
+	kfree(sv->netdev.dev);
 fail2:
 	kfree(sv);
 fail3:
@@ -369,8 +368,8 @@ fail3:
 static void sv11_shutdown(struct sv11_device *dev)
 {
 	sppp_detach(dev->netdev.dev);
-	unregister_netdev(dev->netdev.dev);
 	z8530_shutdown(&dev->sync);
+	unregister_netdev(dev->netdev.dev);
 	free_irq(dev->sync.irq, dev);
 	if(dma)
 	{
@@ -379,8 +378,6 @@ static void sv11_shutdown(struct sv11_device *dev)
 		free_dma(dev->sync.chanA.txdma);
 	}
 	release_region(dev->sync.chanA.ctrlio-1, 8);
-	free_netdev(dev->netdev.dev);
-	kfree(dev);
 }
 
 #ifdef MODULE

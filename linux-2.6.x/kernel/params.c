@@ -96,13 +96,6 @@ static char *next_arg(char *args, char **param, char **val)
 	else {
 		args[equals] = '\0';
 		*val = args + equals + 1;
-
-		/* Don't include quotes in value. */
-		if (**val == '"') {
-			(*val)++;
-			if (args[i-1] == '"')
-				args[i-1] = '\0';
-		}
 	}
 
 	if (args[i]) {
@@ -161,7 +154,7 @@ int parse_args(const char *name,
 									\
 		if (!val) return -EINVAL;				\
 		l = strtolfn(val, &endp, 0);				\
-		if (endp == val || ((type)l != l))			\
+		if (endp == val || *endp || ((type)l != l))		\
 			return -EINVAL;					\
 		*((type *)kp->arg) = l;					\
 		return 0;						\

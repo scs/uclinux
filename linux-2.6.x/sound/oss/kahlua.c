@@ -28,7 +28,6 @@
  */
 
 #include <linux/config.h>
-#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -219,7 +218,7 @@ static int __init kahlua_init_module(void)
 
 static void __devexit kahlua_cleanup_module(void)
 {
-	pci_unregister_driver(&kahlua_driver);
+	return pci_unregister_driver(&kahlua_driver);
 }
 
 

@@ -112,7 +112,7 @@ static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_
 		
 	/* At this point we have found a valid card. */
 		
-	dev = alloc_trdev(sizeof(struct net_local));
+	dev = alloc_trdev(0);
 	if (!dev)
 		return -ENOMEM;
 
@@ -154,7 +154,7 @@ static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_
 		printk(":%2.2x", dev->dev_addr[i]);
 	printk("\n");
 
-	tp = netdev_priv(dev);
+	tp = dev->priv;
 	tp->setnselout = abyss_setnselout_pins;
 	tp->sifreadb = abyss_sifreadb;
 	tp->sifreadw = abyss_sifreadw;
@@ -167,7 +167,6 @@ static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_
 	dev->stop = abyss_close;
 
 	pci_set_drvdata(pdev, dev);
-	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	ret = register_netdev(dev);
 	if (ret)
@@ -182,14 +181,14 @@ err_out_irq:
 err_out_region:
 	release_region(pci_ioaddr, ABYSS_IO_EXTENT);
 err_out_trdev:
-	free_netdev(dev);
+	kfree(dev);
 	return ret;
 }
 
 static unsigned short abyss_setnselout_pins(struct net_device *dev)
 {
 	unsigned short val = 0;
-	struct net_local *tp = netdev_priv(dev);
+	struct net_local *tp = (struct net_local *)dev->priv;
 	
 	if(tp->DataRate == SPEED_4)
 		val |= 0x01;  /* Set 4Mbps */
@@ -399,7 +398,7 @@ static void abyss_read_eeprom(struct net_device *dev)
 	unsigned short val;
 	int i;
 	
-	tp = netdev_priv(dev);
+	tp = (struct net_local *)dev->priv;
 	ioaddr = dev->base_addr;
 	
 	/* Must enable glue chip first */

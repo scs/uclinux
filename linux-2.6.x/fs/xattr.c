@@ -16,6 +16,40 @@
 #include <asm/uaccess.h>
 
 /*
+ * Extended attribute memory allocation wrappers, originally
+ * based on the Intermezzo PRESTO_ALLOC/PRESTO_FREE macros.
+ * Values larger than a page are uncommon - extended attributes
+ * are supposed to be small chunks of metadata, and it is quite
+ * unusual to have very many extended attributes, so lists tend
+ * to be quite short as well.  The 64K upper limit is derived
+ * from the extended attribute size limit used by XFS.
+ * Intentionally allow zero @size for value/list size requests.
+ */
+static void *
+xattr_alloc(size_t size, size_t limit)
+{
+	void *ptr;
+
+	if (size > limit)
+		return ERR_PTR(-E2BIG);
+
+	if (!size)	/* size request, no buffer is needed */
+		return NULL;
+
+	ptr = kmalloc((unsigned long) size, GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+	return ptr;
+}
+
+static void
+xattr_free(void *ptr, size_t size)
+{
+	if (size)	/* for a size request, no buffer was needed */
+		kfree(ptr);
+}
+
+/*
  * Extended attribute SET operations
  */
 static long
@@ -23,7 +57,7 @@ setxattr(struct dentry *d, char __user *name, void __user *value,
 	 size_t size, int flags)
 {
 	int error;
-	void *kvalue = NULL;
+	void *kvalue;
 	char kname[XATTR_NAME_MAX + 1];
 
 	if (flags & ~(XATTR_CREATE|XATTR_REPLACE))
@@ -35,16 +69,13 @@ setxattr(struct dentry *d, char __user *name, void __user *value,
 	if (error < 0)
 		return error;
 
-	if (size) {
-		if (size > XATTR_SIZE_MAX)
-			return -E2BIG;
-		kvalue = kmalloc(size, GFP_KERNEL);
-		if (!kvalue)
-			return -ENOMEM;
-		if (copy_from_user(kvalue, value, size)) {
-			kfree(kvalue);
-			return -EFAULT;
-		}
+	kvalue = xattr_alloc(size, XATTR_SIZE_MAX);
+	if (IS_ERR(kvalue))
+		return PTR_ERR(kvalue);
+
+	if (size > 0 && copy_from_user(kvalue, value, size)) {
+		xattr_free(kvalue, size);
+		return -EFAULT;
 	}
 
 	error = -EOPNOTSUPP;
@@ -59,8 +90,7 @@ setxattr(struct dentry *d, char __user *name, void __user *value,
 out:
 		up(&d->d_inode->i_sem);
 	}
-	if (kvalue)
-		kfree(kvalue);
+	xattr_free(kvalue, size);
 	return error;
 }
 
@@ -116,7 +146,7 @@ static ssize_t
 getxattr(struct dentry *d, char __user *name, void __user *value, size_t size)
 {
 	ssize_t error;
-	void *kvalue = NULL;
+	void *kvalue;
 	char kname[XATTR_NAME_MAX + 1];
 
 	error = strncpy_from_user(kname, name, sizeof(kname));
@@ -125,13 +155,9 @@ getxattr(struct dentry *d, char __user *name, void __user *value, size_t size)
 	if (error < 0)
 		return error;
 
-	if (size) {
-		if (size > XATTR_SIZE_MAX)
-			size = XATTR_SIZE_MAX;
-		kvalue = kmalloc(size, GFP_KERNEL);
-		if (!kvalue)
-			return -ENOMEM;
-	}
+	kvalue = xattr_alloc(size, XATTR_SIZE_MAX);
+	if (IS_ERR(kvalue))
+		return PTR_ERR(kvalue);
 
 	error = -EOPNOTSUPP;
 	if (d->d_inode->i_op && d->d_inode->i_op->getxattr) {
@@ -139,18 +165,13 @@ getxattr(struct dentry *d, char __user *name, void __user *value, size_t size)
 		if (error)
 			goto out;
 		error = d->d_inode->i_op->getxattr(d, kname, kvalue, size);
-		if (error > 0) {
-			if (size && copy_to_user(value, kvalue, error))
-				error = -EFAULT;
-		} else if (error == -ERANGE && size >= XATTR_SIZE_MAX) {
-			/* The file system tried to returned a value bigger
-			   than XATTR_SIZE_MAX bytes. Not possible. */
-			error = -E2BIG;
-		}
 	}
+
+	if (kvalue && error > 0)
+		if (copy_to_user(value, kvalue, error))
+			error = -EFAULT;
 out:
-	if (kvalue)
-		kfree(kvalue);
+	xattr_free(kvalue, size);
 	return error;
 }
 
@@ -205,15 +226,11 @@ static ssize_t
 listxattr(struct dentry *d, char __user *list, size_t size)
 {
 	ssize_t error;
-	char *klist = NULL;
+	char *klist;
 
-	if (size) {
-		if (size > XATTR_LIST_MAX)
-			size = XATTR_LIST_MAX;
-		klist = kmalloc(size, GFP_KERNEL);
-		if (!klist)
-			return -ENOMEM;
-	}
+	klist = (char *)xattr_alloc(size, XATTR_LIST_MAX);
+	if (IS_ERR(klist))
+		return PTR_ERR(klist);
 
 	error = -EOPNOTSUPP;
 	if (d->d_inode->i_op && d->d_inode->i_op->listxattr) {
@@ -221,18 +238,13 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 		if (error)
 			goto out;
 		error = d->d_inode->i_op->listxattr(d, klist, size);
-		if (error > 0) {
-			if (size && copy_to_user(list, klist, error))
-				error = -EFAULT;
-		} else if (error == -ERANGE && size >= XATTR_LIST_MAX) {
-			/* The file system tried to returned a list bigger
-			   than XATTR_LIST_MAX bytes. Not possible. */
-			error = -E2BIG;
-		}
 	}
+
+	if (klist && error > 0)
+		if (copy_to_user(list, klist, error))
+			error = -EFAULT;
 out:
-	if (klist)
-		kfree(klist);
+	xattr_free(klist, size);
 	return error;
 }
 

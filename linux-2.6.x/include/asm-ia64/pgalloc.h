@@ -37,20 +37,14 @@
 static inline pgd_t*
 pgd_alloc_one_fast (struct mm_struct *mm)
 {
-	unsigned long *ret = NULL;
+	unsigned long *ret = pgd_quicklist;
 
-	preempt_disable();
-
-	ret = pgd_quicklist;
 	if (likely(ret != NULL)) {
 		pgd_quicklist = (unsigned long *)(*ret);
 		ret[0] = 0;
 		--pgtable_cache_size;
 	} else
 		ret = NULL;
-
-	preempt_enable();
-
 	return (pgd_t *) ret;
 }
 
@@ -71,11 +65,9 @@ pgd_alloc (struct mm_struct *mm)
 static inline void
 pgd_free (pgd_t *pgd)
 {
-	preempt_disable();
 	*(unsigned long *)pgd = (unsigned long) pgd_quicklist;
 	pgd_quicklist = (unsigned long *) pgd;
 	++pgtable_cache_size;
-	preempt_enable();
 }
 
 static inline void
@@ -88,19 +80,13 @@ pgd_populate (struct mm_struct *mm, pgd_t *pgd_entry, pmd_t *pmd)
 static inline pmd_t*
 pmd_alloc_one_fast (struct mm_struct *mm, unsigned long addr)
 {
-	unsigned long *ret = NULL;
+	unsigned long *ret = (unsigned long *)pmd_quicklist;
 
-	preempt_disable();
-
-	ret = (unsigned long *)pmd_quicklist;
 	if (likely(ret != NULL)) {
 		pmd_quicklist = (unsigned long *)(*ret);
 		ret[0] = 0;
 		--pgtable_cache_size;
 	}
-
-	preempt_enable();
-
 	return (pmd_t *)ret;
 }
 
@@ -117,11 +103,9 @@ pmd_alloc_one (struct mm_struct *mm, unsigned long addr)
 static inline void
 pmd_free (pmd_t *pmd)
 {
-	preempt_disable();
 	*(unsigned long *)pmd = (unsigned long) pmd_quicklist;
 	pmd_quicklist = (unsigned long *) pmd;
 	++pgtable_cache_size;
-	preempt_enable();
 }
 
 #define __pmd_free_tlb(tlb, pmd)	pmd_free(pmd)

@@ -25,7 +25,6 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/dma-mapping.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -517,8 +516,6 @@ sa1111_configure_smc(struct sa1111 *sachip, int sdram, unsigned int drac,
 	 */
 	if (sachip->dev->dma_mask)
 		*sachip->dev->dma_mask &= sa1111_dma_mask[drac >> 2];
-
-	sachip->dev->coherent_dma_mask &= sa1111_dma_mask[drac >> 2];
 }
 
 #endif
@@ -548,11 +545,19 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 	snprintf(dev->dev.bus_id, sizeof(dev->dev.bus_id),
 		 "%4.4lx", info->offset);
 
+	/*
+	 * If the parent device has a DMA mask associated with it,
+	 * propagate it down to the children.
+	 */
+	if (sachip->dev->dma_mask) {
+		dev->dma_mask = *sachip->dev->dma_mask;
+		dev->dev.dma_mask = &dev->dma_mask;
+	}
+
 	dev->devid	 = info->devid;
 	dev->dev.parent  = sachip->dev;
 	dev->dev.bus     = &sa1111_bus_type;
 	dev->dev.release = sa1111_dev_release;
-	dev->dev.coherent_dma_mask = sachip->dev->coherent_dma_mask;
 	dev->res.start   = sachip->phys + info->offset;
 	dev->res.end     = dev->res.start + 511;
 	dev->res.name    = dev->dev.bus_id;
@@ -565,36 +570,15 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 	if (ret) {
 		printk("SA1111: failed to allocate resource for %s\n",
 			dev->res.name);
-		kfree(dev);
 		goto out;
 	}
-
 
 	ret = device_register(&dev->dev);
 	if (ret) {
 		release_resource(&dev->res);
+ out:
 		kfree(dev);
-		goto out;
 	}
-
-	/*
-	 * If the parent device has a DMA mask associated with it,
-	 * propagate it down to the children.
-	 */
-	if (sachip->dev->dma_mask) {
-		dev->dma_mask = *sachip->dev->dma_mask;
-		dev->dev.dma_mask = &dev->dma_mask;
-
-		if (dev->dma_mask != 0xffffffffUL) {
-			ret = dmabounce_register_dev(&dev->dev, 1024, 4096);
-			if (ret) {
-				printk("SA1111: Failed to register %s with dmabounce", dev->dev.bus_id);
-				device_unregister(&dev->dev);
-			}
-		}
-	}
-
-out:
 	return ret;
 }
 
@@ -610,7 +594,7 @@ out:
  *	%-EBUSY		physical address already marked in-use.
  *	%0		successful.
  */
-static int
+static int __init
 __sa1111_probe(struct device *me, struct resource *mem, int irq)
 {
 	struct sa1111 *sachip;
@@ -755,30 +739,61 @@ static void __sa1111_remove(struct sa1111 *sachip)
  *
  * This routine only identifies whether or not a given DMA address
  * is susceptible to the bug.
- *
- * This should only get called for sa1111_device types due to the
- * way we configure our device dma_masks.
  */
-int dma_needs_bounce(struct device *dev, dma_addr_t addr, size_t size)
+int sa1111_check_dma_bug(dma_addr_t addr)
 {
+	struct sa1111 *sachip = g_sa1111;
 	unsigned int physaddr = SA1111_DMA_ADDR((unsigned int)addr);
-	u32 dma_mask = *dev->dma_mask;
+	unsigned int smcr;
 
-	/*
-	 * Section 4.6 of the "Intel StrongARM SA-1111 Development Module
+	/* Section 4.6 of the "Intel StrongARM SA-1111 Development Module
 	 * User's Guide" mentions that jumpers R51 and R52 control the
 	 * target of SA-1111 DMA (either SDRAM bank 0 on Assabet, or
 	 * SDRAM bank 1 on Neponset). The default configuration selects
 	 * Assabet, so any address in bank 1 is necessarily invalid.
 	 */
-	if ((machine_is_assabet() || machine_is_pfs168()) &&
-		(addr >= 0xc8000000 || (addr + size) >= 0xc8000000))
-	  	return 1;
+	if ((machine_is_assabet() || machine_is_pfs168()) && addr >= 0xc8000000)
+	  	return -1;
 
-	/*
-	 * Check to see if either the start or end are illegal.
+	/* The bug only applies to buffers located more than one megabyte
+	 * above the start of the target bank:
 	 */
-	return ((addr & ~dma_mask)) || ((addr + size - 1) & ~dma_mask);
+	if (physaddr<(1<<20))
+		return 0;
+
+	smcr = sa1111_readl(sachip->base + SA1111_SMCR);
+	switch (FExtr(smcr, SMCR_DRAC)) {
+	case 01: /* 10 row + bank address bits, A<20> must not be set */
+	  	if (physaddr & (1<<20))
+		  	return -1;
+		break;
+	case 02: /* 11 row + bank address bits, A<23> must not be set */
+	  	if (physaddr & (1<<23))
+		  	return -1;
+		break;
+	case 03: /* 12 row + bank address bits, A<24> must not be set */
+	  	if (physaddr & (1<<24))
+		  	return -1;
+		break;
+	case 04: /* 13 row + bank address bits, A<25> must not be set */
+	  	if (physaddr & (1<<25))
+		  	return -1;
+		break;
+	case 05: /* 14 row + bank address bits, A<20> must not be set */
+	  	if (physaddr & (1<<20))
+		  	return -1;
+		break;
+	case 06: /* 15 row + bank address bits, A<20> must not be set */
+	  	if (physaddr & (1<<20))
+		  	return -1;
+		break;
+	default:
+	  	printk(KERN_ERR "%s(): invalid SMCR DRAC value 0%lo\n",
+		       __FUNCTION__, FExtr(smcr, SMCR_DRAC));
+		return -1;
+	}
+
+	return 0;
 }
 
 struct sa1111_save_data {
@@ -929,15 +944,16 @@ static int sa1111_resume(struct device *dev, u32 level)
 static int sa1111_probe(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct resource *mem;
-	int irq;
+	struct resource *mem = NULL, *irq = NULL;
+	int i;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem)
-		return -EINVAL;
-	irq = platform_get_irq(pdev, 0);
-
-	return __sa1111_probe(dev, mem, irq);
+	for (i = 0; i < pdev->num_resources; i++) {
+		if (pdev->resource[i].flags & IORESOURCE_MEM)
+			mem = &pdev->resource[i];
+		if (pdev->resource[i].flags & IORESOURCE_IRQ)
+			irq = &pdev->resource[i];
+	}
+	return __sa1111_probe(dev, mem, irq ? irq->start : NO_IRQ);
 }
 
 static int sa1111_remove(struct device *dev)
@@ -1084,62 +1100,6 @@ int sa1111_get_audio_rate(struct sa1111_dev *sadev)
 	return __sa1111_pll_clock(sachip) / (256 * div);
 }
 
-void sa1111_set_io_dir(struct sa1111_dev *sadev,
-		       unsigned int bits, unsigned int dir,
-		       unsigned int sleep_dir)
-{
-	struct sa1111 *sachip = sa1111_chip_driver(sadev);
-	unsigned long flags;
-	unsigned int val;
-	void *gpio = sachip->base + SA1111_GPIO;
-
-#define MODIFY_BITS(port, mask, dir)		\
-	if (mask) {				\
-		val = sa1111_readl(port);	\
-		val &= ~(mask);			\
-		val |= (dir) & (mask);		\
-		sa1111_writel(val, port);	\
-	}
-
-	spin_lock_irqsave(&sachip->lock, flags);
-	MODIFY_BITS(gpio + SA1111_GPIO_PADDR, bits & 15, dir);
-	MODIFY_BITS(gpio + SA1111_GPIO_PBDDR, (bits >> 8) & 255, dir >> 8);
-	MODIFY_BITS(gpio + SA1111_GPIO_PCDDR, (bits >> 16) & 255, dir >> 16);
-
-	MODIFY_BITS(gpio + SA1111_GPIO_PASDR, bits & 15, sleep_dir);
-	MODIFY_BITS(gpio + SA1111_GPIO_PBSDR, (bits >> 8) & 255, sleep_dir >> 8);
-	MODIFY_BITS(gpio + SA1111_GPIO_PCSDR, (bits >> 16) & 255, sleep_dir >> 16);
-	spin_unlock_irqrestore(&sachip->lock, flags);
-}
-
-void sa1111_set_io(struct sa1111_dev *sadev, unsigned int bits, unsigned int v)
-{
-	struct sa1111 *sachip = sa1111_chip_driver(sadev);
-	unsigned long flags;
-	unsigned int val;
-	void *gpio = sachip->base + SA1111_GPIO;
-
-	spin_lock_irqsave(&sachip->lock, flags);
-	MODIFY_BITS(gpio + SA1111_GPIO_PADWR, bits & 15, v);
-	MODIFY_BITS(gpio + SA1111_GPIO_PBDWR, (bits >> 8) & 255, v >> 8);
-	MODIFY_BITS(gpio + SA1111_GPIO_PCDWR, (bits >> 16) & 255, v >> 16);
-	spin_unlock_irqrestore(&sachip->lock, flags);
-}
-
-void sa1111_set_sleep_io(struct sa1111_dev *sadev, unsigned int bits, unsigned int v)
-{
-	struct sa1111 *sachip = sa1111_chip_driver(sadev);
-	unsigned long flags;
-	unsigned int val;
-	void *gpio = sachip->base + SA1111_GPIO;
-
-	spin_lock_irqsave(&sachip->lock, flags);
-	MODIFY_BITS(gpio + SA1111_GPIO_PASSR, bits & 15, v);
-	MODIFY_BITS(gpio + SA1111_GPIO_PBSSR, (bits >> 8) & 255, v >> 8);
-	MODIFY_BITS(gpio + SA1111_GPIO_PCSSR, (bits >> 16) & 255, v >> 16);
-	spin_unlock_irqrestore(&sachip->lock, flags);
-}
-
 /*
  * Individual device operations.
  */
@@ -1274,12 +1234,10 @@ module_exit(sa1111_exit);
 MODULE_DESCRIPTION("Intel Corporation SA1111 core driver");
 MODULE_LICENSE("GPL");
 
+EXPORT_SYMBOL(sa1111_check_dma_bug);
 EXPORT_SYMBOL(sa1111_select_audio_mode);
 EXPORT_SYMBOL(sa1111_set_audio_rate);
 EXPORT_SYMBOL(sa1111_get_audio_rate);
-EXPORT_SYMBOL(sa1111_set_io_dir);
-EXPORT_SYMBOL(sa1111_set_io);
-EXPORT_SYMBOL(sa1111_set_sleep_io);
 EXPORT_SYMBOL(sa1111_enable_device);
 EXPORT_SYMBOL(sa1111_disable_device);
 EXPORT_SYMBOL(sa1111_pll_clock);

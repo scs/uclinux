@@ -35,6 +35,7 @@
 #include <asm/bootinfo.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
 
 int prom_argc;
 char **prom_argv, **prom_envp;
@@ -46,14 +47,14 @@ const char *get_system_type(void)
 	return "Alchemy Pb1500";
 }
 
-void __init prom_init(void)
+int __init prom_init(int argc, char **argv, char **envp, int *prom_vec)
 {
 	unsigned char *memsize_str;
 	unsigned long memsize;
 
-	prom_argc = (int) fw_arg0;
-	prom_argv = (char **) fw_arg1;
-	prom_envp = (char **) fw_arg2;
+	prom_argc = argc;
+	prom_argv = argv;
+	prom_envp = envp;
 
 	mips_machgroup = MACH_GROUP_ALCHEMY;
 	mips_machtype = MACH_PB1500;
@@ -66,4 +67,5 @@ void __init prom_init(void)
 		memsize = simple_strtol(memsize_str, NULL, 0);
 	}
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
+	return 0;
 }

@@ -15,32 +15,27 @@
  * multiple PCI channels may have multiple PCI host controllers or a
  * single controller supporting multiple channels.
  */
-struct pci_controller {
-	struct pci_controller *next;
-	struct pci_bus *bus;
-
+struct pci_channel {
 	struct pci_ops *pci_ops;
-	struct resource *mem_resource;
-	unsigned long mem_offset;
 	struct resource *io_resource;
-	unsigned long io_offset;
-
-	/* For compatibility with current (as of July 2003) pciutils
-	   and XFree86. Eventually will be removed. */
-	unsigned int need_domain_info;
-
-	int iommu;
+	struct resource *mem_resource;
+	int first_devfn;
+	int last_devfn;
 };
 
 /*
- * Used by boards to register their PCI interfaces before the actual scanning.
+ * each board defines an array of pci_channels, that ends with all NULL entry
  */
-extern struct pci_controller * alloc_pci_controller(void);
-extern void register_pci_controller(struct pci_controller *hose);
+extern struct pci_channel mips_pci_channels[];
 
 /*
  * board supplied pci irq fixup routine
  */
-extern int pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin);
+extern void pcibios_fixup_irqs(void);
+
+/*
+ * board supplied pci fixup routines
+ */
+extern void pcibios_fixup_resources(struct pci_dev *dev);
 
 #endif  /* __ASM_PCI_CHANNEL_H */

@@ -105,7 +105,7 @@ static void dump_hci_status(struct usb_hcd *hcd, const char *label)
 }
 #endif
 
-static irqreturn_t usb_hcd_sa1111_hcim_irq (int irq, void *__hcd, struct pt_regs * r)
+static void usb_hcd_sa1111_hcim_irq (int irq, void *__hcd, struct pt_regs * r)
 {
 	struct usb_hcd *hcd = __hcd;
 //	unsigned long status = sa1111_readl(hcd->regs + SA1111_USB_STATUS);
@@ -121,12 +121,6 @@ static irqreturn_t usb_hcd_sa1111_hcim_irq (int irq, void *__hcd, struct pt_regs
 #endif
 
 	usb_hcd_irq(irq, hcd, r);
-
-	/*
-	 * SA1111 seems to re-assert its interrupt immediately
-	 * after processing an interrupt.  Always return IRQ_HANDLED.
-	 */
-	return IRQ_HANDLED;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -173,7 +167,9 @@ int usb_hcd_sa1111_probe (const struct hc_driver *driver,
 	hcd->description = driver->description;
 	hcd->irq = dev->irq[1];
 	hcd->regs = dev->mapbase;
+	hcd->pdev = SA1111_FAKE_PCIDEV;
 	hcd->self.controller = &dev->dev;
+	hcd->controller = hcd->self.controller;
 
 	retval = hcd_buffer_create (hcd);
 	if (retval != 0) {
@@ -237,6 +233,7 @@ int usb_hcd_sa1111_probe (const struct hc_driver *driver,
  */
 void usb_hcd_sa1111_remove (struct usb_hcd *hcd, struct sa1111_dev *dev)
 {
+	struct usb_device	*hub;
 	void *base;
 
 	info ("remove: %s, state %x", hcd->self.bus_name, hcd->state);
@@ -244,10 +241,11 @@ void usb_hcd_sa1111_remove (struct usb_hcd *hcd, struct sa1111_dev *dev)
 	if (in_interrupt ())
 		BUG ();
 
+	hub = hcd->self.root_hub;
 	hcd->state = USB_STATE_QUIESCING;
 
 	dbg ("%s: roothub graceful disconnect", hcd->self.bus_name);
-	usb_disconnect (&hcd->self.root_hub);
+	usb_disconnect (&hub);
 
 	hcd->driver->stop (hcd);
 	hcd->state = USB_STATE_HALT;
@@ -256,6 +254,8 @@ void usb_hcd_sa1111_remove (struct usb_hcd *hcd, struct sa1111_dev *dev)
 	hcd_buffer_destroy (hcd);
 
 	usb_deregister_bus (&hcd->self);
+	if (atomic_read (&hcd->self.refcnt) != 1)
+		err ("%s: %s, count != 1", __FUNCTION__, hcd->self.bus_name);
 
 	base = hcd->regs;
 	hcd->driver->hcd_free (hcd);
@@ -272,12 +272,14 @@ ohci_sa1111_start (struct usb_hcd *hcd)
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	int		ret;
 
-	ohci->hcca = dma_alloc_coherent (hcd->self.controller,
-			sizeof *ohci->hcca, &ohci->hcca_dma, 0);
-	if (!ohci->hcca)
-		return -ENOMEM;
-        
-	memset (ohci->hcca, 0, sizeof (struct ohci_hcca));
+	if (hcd->pdev) {
+		ohci->hcca = pci_alloc_consistent (hcd->pdev,
+				sizeof *ohci->hcca, &ohci->hcca_dma);
+		if (!ohci->hcca)
+			return -ENOMEM;
+	}
+
+        memset (ohci->hcca, 0, sizeof (struct ohci_hcca));
 	if ((ret = ohci_mem_init (ohci)) < 0) {
 		ohci_stop (hcd);
 		return ret;
@@ -346,10 +348,6 @@ static const struct hc_driver ohci_sa1111_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-#ifdef	CONFIG_USB_SUSPEND
-	.hub_suspend =		ohci_hub_suspend,
-	.hub_resume =		ohci_hub_resume,
-#endif
 };
 
 /*-------------------------------------------------------------------------*/

@@ -3,7 +3,7 @@
  *  linux/arch/sh/mm/init.c
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2002, 2004  Paul Mundt
+ *  Copyright (C) 2002  Paul Mundt
  *
  *  Based on linux/arch/i386/mm/init.c:
  *   Copyright (C) 1995  Linus Torvalds
@@ -66,7 +66,7 @@ void show_mem(void)
 
 	printk("Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+	printk("Free swap:       %6dkB\n",nr_swap_pages<<(PAGE_SHIFT-10));
 	i = max_mapnr;
 	while (i-- > 0) {
 		total++;
@@ -81,66 +81,6 @@ void show_mem(void)
 	printk("%d reserved pages\n",reserved);
 	printk("%d pages shared\n",shared);
 	printk("%d pages swap cached\n",cached);
-}
-
-static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
-{
-	pgd_t *pgd;
-	pmd_t *pmd;
-	pte_t *pte;
-
-	pgd = swapper_pg_dir + pgd_index(addr);
-	if (pgd_none(*pgd)) {
-		pgd_ERROR(*pgd);
-		return;
-	}
-
-	pmd = pmd_offset(pgd, addr);
-	if (pmd_none(*pmd)) {
-		pte = (pte_t *)get_zeroed_page(GFP_ATOMIC);
-		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE | _PAGE_USER));
-		if (pte != pte_offset_kernel(pmd, 0)) {
-			pmd_ERROR(*pmd);
-			return;
-		}
-	}
-
-	pte = pte_offset_kernel(pmd, addr);
-	if (!pte_none(*pte)) {
-		pte_ERROR(*pte);
-		return;
-	}
-
-	set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, prot));
-
-	__flush_tlb_page(get_asid(), addr);
-}
-
-/*
- * As a performance optimization, other platforms preserve the fixmap mapping
- * across a context switch, we don't presently do this, but this could be done
- * in a similar fashion as to the wired TLB interface that sh64 uses (by way
- * of the memorry mapped UTLB configuration) -- this unfortunately forces us to
- * give up a TLB entry for each mapping we want to preserve. While this may be
- * viable for a small number of fixmaps, it's not particularly useful for
- * everything and needs to be carefully evaluated. (ie, we may want this for
- * the vsyscall page).
- *
- * XXX: Perhaps add a _PAGE_WIRED flag or something similar that we can pass
- * in at __set_fixmap() time to determine the appropriate behavior to follow.
- *
- *					 -- PFM.
- */
-void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
-{
-	unsigned long address = __fix_to_virt(idx);
-
-	if (idx >= __end_of_fixed_addresses) {
-		BUG();
-		return;
-	}
-
-	set_pte_phys(address, phys, prot);
 }
 
 /* References to section boundaries */
@@ -234,7 +174,6 @@ void __init mem_init(void)
 	extern unsigned long empty_zero_page[1024];
 	int codesize, reservedpages, datasize, initsize;
 	int tmp;
-	extern unsigned long memory_start;
 
 #ifdef CONFIG_MMU
 	high_memory = (void *)__va(MAX_LOW_PFN * PAGE_SIZE);
@@ -244,7 +183,7 @@ void __init mem_init(void)
 	high_memory = (void *)(memory_end & PAGE_MASK);
 #endif
 
-	max_mapnr = num_physpages = MAP_NR(high_memory) - MAP_NR(memory_start);
+	max_mapnr = num_physpages = MAP_NR(high_memory);
 
 	/* clear the zero-page */
 	memset(empty_zero_page, 0, PAGE_SIZE);

@@ -108,7 +108,7 @@ static int mixcomwd_open(struct inode *inode, struct file *file)
 			mixcomwd_timer_alive=0;
 		}
 	}
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 static int mixcomwd_release(struct inode *inode, struct file *file)
@@ -134,8 +134,12 @@ static int mixcomwd_release(struct inode *inode, struct file *file)
 }
 
 
-static ssize_t mixcomwd_write(struct file *file, const char __user *data, size_t len, loff_t *ppos)
+static ssize_t mixcomwd_write(struct file *file, const char *data, size_t len, loff_t *ppos)
 {
+	if (ppos != &file->f_pos) {
+		return -ESPIPE;
+	}
+
 	if(len)
 	{
 		if (!nowayout) {
@@ -160,8 +164,6 @@ static ssize_t mixcomwd_write(struct file *file, const char __user *data, size_t
 static int mixcomwd_ioctl(struct inode *inode, struct file *file,
 	unsigned int cmd, unsigned long arg)
 {
-	void __user *argp = (void __user *)arg;
-	int __user *p = argp;
 	int status;
 	static struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
@@ -176,12 +178,13 @@ static int mixcomwd_ioctl(struct inode *inode, struct file *file,
 			if (!nowayout) {
 				status|=mixcomwd_timer_alive;
 			}
-			if (copy_to_user(p, &status, sizeof(int))) {
+			if (copy_to_user((int *)arg, &status, sizeof(int))) {
 				return -EFAULT;
 			}
 			break;
 		case WDIOC_GETSUPPORT:
-			if (copy_to_user(argp, &ident, sizeof(ident))) {
+			if (copy_to_user((struct watchdog_info *)arg, &ident,
+			    sizeof(ident))) {
 				return -EFAULT;
 			}
 			break;
@@ -299,7 +302,4 @@ static void __exit mixcomwd_exit(void)
 module_init(mixcomwd_init);
 module_exit(mixcomwd_exit);
 
-MODULE_AUTHOR("Gergely Madarasz <gorgo@itc.hu>");
-MODULE_DESCRIPTION("MixCom Watchdog driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

@@ -33,7 +33,6 @@
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
 #include <linux/serial_reg.h>
-#include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -45,7 +44,7 @@
 #include <net/irda/irda.h>
 #include <net/irda/irda_device.h>
 
-#include "ali-ircc.h"
+#include <net/irda/ali-ircc.h>
 
 #define CHIP_IO_EXTENT 8
 #define BROKEN_DONGLE_ID
@@ -104,7 +103,7 @@ static struct net_device_stats *ali_ircc_net_get_stats(struct net_device *dev);
 
 /* SIR function */
 static int  ali_ircc_sir_hard_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t ali_ircc_sir_interrupt(struct ali_ircc_cb *self);
+static void ali_ircc_sir_interrupt(int irq, struct ali_ircc_cb *self, struct pt_regs *regs);
 static void ali_ircc_sir_receive(struct ali_ircc_cb *self);
 static void ali_ircc_sir_write_wakeup(struct ali_ircc_cb *self);
 static int  ali_ircc_sir_write(int iobase, int fifo_size, __u8 *buf, int len);
@@ -113,7 +112,7 @@ static void ali_ircc_sir_change_speed(struct ali_ircc_cb *priv, __u32 speed);
 /* FIR function */
 static int  ali_ircc_fir_hard_xmit(struct sk_buff *skb, struct net_device *dev);
 static void ali_ircc_fir_change_speed(struct ali_ircc_cb *priv, __u32 speed);
-static irqreturn_t ali_ircc_fir_interrupt(struct ali_ircc_cb *self);
+static void ali_ircc_fir_interrupt(int irq, struct ali_ircc_cb *self, struct pt_regs *regs);
 static int  ali_ircc_dma_receive(struct ali_ircc_cb *self); 
 static int  ali_ircc_dma_receive_complete(struct ali_ircc_cb *self);
 static int  ali_ircc_dma_xmit_complete(struct ali_ircc_cb *self);
@@ -300,23 +299,23 @@ static int ali_ircc_open(int i, chipio_t *info)
 			
 	irda_qos_bits_to_value(&self->qos);
 	
+	self->flags = IFF_FIR|IFF_MIR|IFF_SIR|IFF_DMA|IFF_PIO; 	// benjamin 2000/11/8 05:27PM	
+
 	/* Max DMA buffer size needed = (data_size + 6) * (window_size) + 6; */
 	self->rx_buff.truesize = 14384; 
 	self->tx_buff.truesize = 14384;
 
 	/* Allocate memory if needed */
-	self->rx_buff.head =
-		dma_alloc_coherent(NULL, self->rx_buff.truesize,
-				   &self->rx_buff_dma, GFP_KERNEL);
+	self->rx_buff.head = (__u8 *) kmalloc(self->rx_buff.truesize,
+					      GFP_KERNEL |GFP_DMA); 
 	if (self->rx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out2;
 	}
 	memset(self->rx_buff.head, 0, self->rx_buff.truesize);
 	
-	self->tx_buff.head =
-		dma_alloc_coherent(NULL, self->tx_buff.truesize,
-				   &self->tx_buff_dma, GFP_KERNEL);
+	self->tx_buff.head = (__u8 *) kmalloc(self->tx_buff.truesize, 
+					      GFP_KERNEL|GFP_DMA); 
 	if (self->tx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out3;
@@ -365,11 +364,9 @@ static int ali_ircc_open(int i, chipio_t *info)
 	return 0;
 
  err_out4:
-	dma_free_coherent(NULL, self->tx_buff.truesize,
-			  self->tx_buff.head, self->tx_buff_dma);
+	kfree(self->tx_buff.head);
  err_out3:
-	dma_free_coherent(NULL, self->rx_buff.truesize,
-			  self->rx_buff.head, self->rx_buff_dma);
+	kfree(self->rx_buff.head);
  err_out2:
 	release_region(self->io.fir_base, self->io.fir_ext);
  err_out1:
@@ -403,12 +400,10 @@ static int __exit ali_ircc_close(struct ali_ircc_cb *self)
 	release_region(self->io.fir_base, self->io.fir_ext);
 
 	if (self->tx_buff.head)
-		dma_free_coherent(NULL, self->tx_buff.truesize,
-				  self->tx_buff.head, self->tx_buff_dma);
+		kfree(self->tx_buff.head);
 	
 	if (self->rx_buff.head)
-		dma_free_coherent(NULL, self->rx_buff.truesize,
-				  self->rx_buff.head, self->rx_buff_dma);
+		kfree(self->rx_buff.head);
 
 	dev_self[self->index] = NULL;
 	free_netdev(self->netdev);
@@ -640,7 +635,6 @@ static irqreturn_t ali_ircc_interrupt(int irq, void *dev_id,
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct ali_ircc_cb *self;
-	int ret;
 		
 	IRDA_DEBUG(2, "%s(), ---------------- Start ----------------\n", __FUNCTION__);
 		
@@ -655,22 +649,22 @@ static irqreturn_t ali_ircc_interrupt(int irq, void *dev_id,
 	
 	/* Dispatch interrupt handler for the current speed */
 	if (self->io.speed > 115200)
-		ret = ali_ircc_fir_interrupt(self);
+		ali_ircc_fir_interrupt(irq, self, regs);
 	else
-		ret = ali_ircc_sir_interrupt(self);
+		ali_ircc_sir_interrupt(irq, self, regs);	
 		
 	spin_unlock(&self->lock);
 	
 	IRDA_DEBUG(2, "%s(), ----------------- End ------------------\n", __FUNCTION__);
-	return ret;
+	return IRQ_HANDLED;
 }
 /*
- * Function ali_ircc_fir_interrupt(irq, struct ali_ircc_cb *self)
+ * Function ali_ircc_fir_interrupt(irq, struct ali_ircc_cb *self, regs)
  *
  *    Handle MIR/FIR interrupt
  *
  */
-static irqreturn_t ali_ircc_fir_interrupt(struct ali_ircc_cb *self)
+static void ali_ircc_fir_interrupt(int irq, struct ali_ircc_cb *self, struct pt_regs *regs)
 {
 	__u8 eir, OldMessageCount;
 	int iobase, tmp;
@@ -783,7 +777,6 @@ static irqreturn_t ali_ircc_fir_interrupt(struct ali_ircc_cb *self)
 	SetCOMInterrupts(self, TRUE);	
 		
 	IRDA_DEBUG(1, "%s(), ----------------- End ---------------\n", __FUNCTION__);
-	return IRQ_RETVAL(eir);
 }
 
 /*
@@ -792,7 +785,7 @@ static irqreturn_t ali_ircc_fir_interrupt(struct ali_ircc_cb *self)
  *    Handle SIR interrupt
  *
  */
-static irqreturn_t ali_ircc_sir_interrupt(struct ali_ircc_cb *self)
+static void ali_ircc_sir_interrupt(int irq, struct ali_ircc_cb *self, struct pt_regs *regs)
 {
 	int iobase;
 	int iir, lsr;
@@ -834,8 +827,6 @@ static irqreturn_t ali_ircc_sir_interrupt(struct ali_ircc_cb *self)
 	
 	
 	IRDA_DEBUG(2, "%s(), ----------------- End ------------------\n", __FUNCTION__);	
-
-	return IRQ_RETVAL(iir);
 }
 
 
@@ -1578,11 +1569,10 @@ static void ali_ircc_dma_xmit(struct ali_ircc_cb *self)
 	
 	self->io.direction = IO_XMIT;
 	
-	irda_setup_dma(self->io.dma, 
-		       ((u8 *)self->tx_fifo.queue[self->tx_fifo.ptr].start -
-			self->tx_buff.head) + self->tx_buff_dma,
-		       self->tx_fifo.queue[self->tx_fifo.ptr].len, 
-		       DMA_TX_MODE);
+	setup_dma(self->io.dma, 
+		  self->tx_fifo.queue[self->tx_fifo.ptr].start, 
+		  self->tx_fifo.queue[self->tx_fifo.ptr].len, 
+		  DMA_TX_MODE);
 		
 	/* Reset Tx FIFO */
 	switch_bank(iobase, BANK0);
@@ -1732,8 +1722,8 @@ static int ali_ircc_dma_receive(struct ali_ircc_cb *self)
 	self->st_fifo.len = self->st_fifo.pending_bytes = 0;
 	self->st_fifo.tail = self->st_fifo.head = 0;
 		
-	irda_setup_dma(self->io.dma, self->rx_buff_dma, self->rx_buff.truesize,
-		       DMA_RX_MODE);
+	setup_dma(self->io.dma, self->rx_buff.data, self->rx_buff.truesize, 
+		  DMA_RX_MODE);	
 	 
 	/* Set Receive Mode,Brick Wall */
 	//switch_bank(iobase, BANK0);

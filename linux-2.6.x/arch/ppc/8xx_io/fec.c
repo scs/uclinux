@@ -1748,7 +1748,7 @@ static int __init fec_enet_init(void)
 
 	err = register_netdev(dev);
 	if (err) {
-		free_netdev(dev);
+		kfree(dev);
 		return err;
 	}
 

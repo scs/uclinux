@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 
 #include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
 unsigned int cpu_last_asid = { 1 << ASID_BITS };

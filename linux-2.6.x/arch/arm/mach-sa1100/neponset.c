@@ -251,41 +251,14 @@ static struct platform_device sa1111_device = {
 	.id		= 0,
 	.dev		= {
 		.dma_mask = &sa1111_dmamask,
-		.coherent_dma_mask = 0xffffffff,
 	},
 	.num_resources	= ARRAY_SIZE(sa1111_resources),
 	.resource	= sa1111_resources,
 };
 
-static struct resource smc91x_resources[] = {
-	[0] = {
-		.start	= SA1100_CS3_PHYS,
-		.end	= SA1100_CS3_PHYS + 0x01ffffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_NEPONSET_SMC9196,
-		.end	= IRQ_NEPONSET_SMC9196,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start	= SA1100_CS3_PHYS + 0x02000000,
-		.end	= SA1100_CS3_PHYS + 0x03ffffff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device smc91x_device = {
-	.name		= "smc91x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(smc91x_resources),
-	.resource	= smc91x_resources,
-};
-
 static struct platform_device *devices[] __initdata = {
 	&neponset_device,
 	&sa1111_device,
-	&smc91x_device,
 };
 
 static int __init neponset_init(void)

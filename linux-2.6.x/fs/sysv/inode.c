@@ -57,16 +57,6 @@ clean:
 	unlock_kernel();
 }
 
-static int sysv_remount(struct super_block *sb, int *flags, char *data)
-{
-	struct sysv_sb_info *sbi = SYSV_SB(sb);
-	if (sbi->s_forced_ro)
-		*flags |= MS_RDONLY;
-	if (!(*flags & MS_RDONLY))
-		sb->s_dirt = 1;
-	return 0;
-}
-
 static void sysv_put_super(struct super_block *sb)
 {
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
@@ -142,9 +132,8 @@ static inline void write3byte(struct sysv_sb_info *sbi,
 }
 
 static struct inode_operations sysv_symlink_inode_operations = {
-	.readlink	= generic_readlink,
-	.follow_link	= page_follow_link_light,
-	.put_link	= page_put_link,
+	.readlink	= page_readlink,
+	.follow_link	= page_follow_link,
 	.getattr	= sysv_getattr,
 };
 
@@ -233,12 +222,12 @@ static struct buffer_head * sysv_update_inode(struct inode * inode)
 	if (!ino || ino > sbi->s_ninodes) {
 		printk("Bad inode number on dev %s: %d is out of range\n",
 		       inode->i_sb->s_id, ino);
-		return NULL;
+		return 0;
 	}
 	raw_inode = sysv_raw_inode(sb, ino, &bh);
 	if (!raw_inode) {
 		printk("unable to read i-node block\n");
-		return NULL;
+		return 0;
 	}
 
 	raw_inode->i_mode = cpu_to_fs16(sbi, inode->i_mode);
@@ -332,7 +321,6 @@ struct super_operations sysv_sops = {
 	.delete_inode	= sysv_delete_inode,
 	.put_super	= sysv_put_super,
 	.write_super	= sysv_write_super,
-	.remount_fs	= sysv_remount,
 	.statfs		= sysv_statfs,
 };
 

@@ -23,10 +23,11 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 
 #include <asm/byteorder.h>
 
+#include "scsi.h"
+#include "hosts.h"
 #include "qlogicpti.h"
 
 #include <asm/sbus.h>
@@ -38,15 +39,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_eh.h>
-#include <scsi/scsi_request.h>
-#include <scsi/scsi_tcq.h>
-#include <scsi/scsi_host.h>
-
-
+#include <linux/module.h>
 
 #define MAX_TARGETS	16
 #define MAX_LUNS	8	/* 32 for 1.31 F/W */
@@ -61,7 +54,7 @@ static int qptis_running = 0;
 
 #define PACKB(a, b)			(((a)<<4)|(b))
 
-static const u_char mbox_param[] = {
+const u_char mbox_param[] = {
 	PACKB(1, 1),	/* MBOX_NO_OP */
 	PACKB(5, 5),	/* MBOX_LOAD_RAM */
 	PACKB(2, 0),	/* MBOX_EXEC_FIRMWARE */
@@ -816,7 +809,7 @@ static int __init qpti_map_queues(struct qlogicpti *qpti)
 }
 
 /* Detect all PTI Qlogic ISP's in the machine. */
-static int __init qlogicpti_detect(struct scsi_host_template *tpnt)
+static int __init qlogicpti_detect(Scsi_Host_Template *tpnt)
 {
 	struct qlogicpti *qpti;
 	struct Scsi_Host *qpti_host;
@@ -885,7 +878,7 @@ static int __init qlogicpti_detect(struct scsi_host_template *tpnt)
 			qpti_get_bursts(qpti);
 			qpti_get_clock(qpti);
 
-			/* Clear out scsi_cmnd array. */
+			/* Clear out Scsi_Cmnd array. */
 			memset(qpti->cmd_slots, 0, sizeof(qpti->cmd_slots));
 
 			if (qpti_map_queues(qpti) < 0)
@@ -1004,7 +997,7 @@ static inline void marker_frob(struct Command_Entry *cmd)
 	marker->rsvd = 0;
 }
 
-static inline void cmd_frob(struct Command_Entry *cmd, struct scsi_cmnd *Cmnd,
+static inline void cmd_frob(struct Command_Entry *cmd, Scsi_Cmnd *Cmnd,
 			    struct qlogicpti *qpti)
 {
 	memset(cmd, 0, sizeof(struct Command_Entry));
@@ -1034,7 +1027,7 @@ static inline void cmd_frob(struct Command_Entry *cmd, struct scsi_cmnd *Cmnd,
 }
 
 /* Do it to it baby. */
-static inline int load_cmd(struct scsi_cmnd *Cmnd, struct Command_Entry *cmd,
+static inline int load_cmd(Scsi_Cmnd *Cmnd, struct Command_Entry *cmd,
 			   struct qlogicpti *qpti, u_int in_ptr, u_int out_ptr)
 {
 	struct dataseg *ds;
@@ -1045,7 +1038,7 @@ static inline int load_cmd(struct scsi_cmnd *Cmnd, struct Command_Entry *cmd,
 		int sg_count;
 
 		sg = (struct scatterlist *) Cmnd->buffer;
-		sg_count = sbus_map_sg(qpti->sdev, sg, Cmnd->use_sg, Cmnd->sc_data_direction);
+		sg_count = sbus_map_sg(qpti->sdev, sg, Cmnd->use_sg, scsi_to_sbus_dma_dir(Cmnd->sc_data_direction));
 
 		ds = cmd->dataseg;
 		cmd->segment_cnt = sg_count;
@@ -1088,7 +1081,7 @@ static inline int load_cmd(struct scsi_cmnd *Cmnd, struct Command_Entry *cmd,
 			sbus_map_single(qpti->sdev,
 					Cmnd->request_buffer,
 					Cmnd->request_bufflen,
-					Cmnd->sc_data_direction);
+					scsi_to_sbus_dma_dir(Cmnd->sc_data_direction));
 
 		cmd->dataseg[0].d_base = (u32) ((unsigned long)Cmnd->SCp.ptr);
 		cmd->dataseg[0].d_count = Cmnd->request_bufflen;
@@ -1122,11 +1115,11 @@ static inline void update_can_queue(struct Scsi_Host *host, u_int in_ptr, u_int 
 /*
  * Until we scan the entire bus with inquiries, go throught this fella...
  */
-static void ourdone(struct scsi_cmnd *Cmnd)
+static void ourdone(Scsi_Cmnd *Cmnd)
 {
 	struct qlogicpti *qpti = (struct qlogicpti *) Cmnd->device->host->hostdata;
 	int tgt = Cmnd->device->id;
-	void (*done) (struct scsi_cmnd *);
+	void (*done) (Scsi_Cmnd *);
 
 	/* This grot added by DaveM, blame him for ugliness.
 	 * The issue is that in the 2.3.x driver we use the
@@ -1134,7 +1127,7 @@ static void ourdone(struct scsi_cmnd *Cmnd)
 	 * completion linked list at interrupt service time,
 	 * so we have to store the done function pointer elsewhere.
 	 */
-	done = (void (*)(struct scsi_cmnd *))
+	done = (void (*)(Scsi_Cmnd *))
 		(((unsigned long) Cmnd->SCp.Message)
 #ifdef __sparc_v9__
 		 | ((unsigned long) Cmnd->SCp.Status << 32UL)
@@ -1171,10 +1164,10 @@ static void ourdone(struct scsi_cmnd *Cmnd)
 	done(Cmnd);
 }
 
-static int qlogicpti_queuecommand(struct scsi_cmnd *Cmnd, void (*done)(struct scsi_cmnd *));
+static int qlogicpti_queuecommand(Scsi_Cmnd *Cmnd, void (*done)(Scsi_Cmnd *));
 
-static int qlogicpti_queuecommand_slow(struct scsi_cmnd *Cmnd,
-				       void (*done)(struct scsi_cmnd *))
+static int qlogicpti_queuecommand_slow(Scsi_Cmnd *Cmnd,
+				       void (*done)(Scsi_Cmnd *))
 {
 	struct qlogicpti *qpti = (struct qlogicpti *) Cmnd->device->host->hostdata;
 
@@ -1245,7 +1238,7 @@ static int qlogicpti_queuecommand_slow(struct scsi_cmnd *Cmnd,
  *
  * "This code must fly." -davem
  */
-static int qlogicpti_queuecommand(struct scsi_cmnd *Cmnd, void (*done)(struct scsi_cmnd *))
+static int qlogicpti_queuecommand(Scsi_Cmnd *Cmnd, void (*done)(Scsi_Cmnd *))
 {
 	struct Scsi_Host *host = Cmnd->device->host;
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
@@ -1358,9 +1351,9 @@ static int qlogicpti_return_status(struct Status_Entry *sts, int id)
 	return (sts->scsi_status & STATUS_MASK) | (host_status << 16);
 }
 
-static struct scsi_cmnd *qlogicpti_intr_handler(struct qlogicpti *qpti)
+static Scsi_Cmnd *qlogicpti_intr_handler(struct qlogicpti *qpti)
 {
-	struct scsi_cmnd *Cmnd, *done_queue = NULL;
+	Scsi_Cmnd *Cmnd, *done_queue = NULL;
 	struct Status_Entry *sts;
 	u_int in_ptr, out_ptr;
 
@@ -1419,12 +1412,12 @@ static struct scsi_cmnd *qlogicpti_intr_handler(struct qlogicpti *qpti)
 			sbus_unmap_sg(qpti->sdev,
 				      (struct scatterlist *)Cmnd->buffer,
 				      Cmnd->use_sg,
-				      Cmnd->sc_data_direction);
+				      scsi_to_sbus_dma_dir(Cmnd->sc_data_direction));
 		} else {
 			sbus_unmap_single(qpti->sdev,
 					  (__u32)((unsigned long)Cmnd->SCp.ptr),
 					  Cmnd->request_bufflen,
-					  Cmnd->sc_data_direction);
+					  scsi_to_sbus_dma_dir(Cmnd->sc_data_direction));
 		}
 		qpti->cmd_count[Cmnd->device->id]--;
 		sbus_writew(out_ptr, qpti->qregs + MBOX5);
@@ -1440,16 +1433,16 @@ static irqreturn_t qpti_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct qlogicpti *qpti = dev_id;
 	unsigned long flags;
-	struct scsi_cmnd *dq;
+	Scsi_Cmnd *dq;
 
 	spin_lock_irqsave(qpti->qhost->host_lock, flags);
 	dq = qlogicpti_intr_handler(qpti);
 
 	if (dq != NULL) {
 		do {
-			struct scsi_cmnd *next;
+			Scsi_Cmnd *next;
 
-			next = (struct scsi_cmnd *) dq->host_scribble;
+			next = (Scsi_Cmnd *) dq->host_scribble;
 			dq->scsi_done(dq);
 			dq = next;
 		} while (dq != NULL);
@@ -1459,7 +1452,7 @@ static irqreturn_t qpti_intr(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static int qlogicpti_abort(struct scsi_cmnd *Cmnd)
+static int qlogicpti_abort(Scsi_Cmnd *Cmnd)
 {
 	u_short param[6];
 	struct Scsi_Host *host = Cmnd->device->host;
@@ -1496,7 +1489,7 @@ static int qlogicpti_abort(struct scsi_cmnd *Cmnd)
 	return return_status;
 }
 
-static int qlogicpti_reset(struct scsi_cmnd *Cmnd)
+static int qlogicpti_reset(Scsi_Cmnd *Cmnd)
 {
 	u_short param[6];
 	struct Scsi_Host *host = Cmnd->device->host;
@@ -1520,7 +1513,7 @@ static int qlogicpti_reset(struct scsi_cmnd *Cmnd)
 	return return_status;
 }
 
-static struct scsi_host_template driver_template = {
+static Scsi_Host_Template driver_template = {
 	.detect			= qlogicpti_detect,
 	.release		= qlogicpti_release,
 	.info			= qlogicpti_info,

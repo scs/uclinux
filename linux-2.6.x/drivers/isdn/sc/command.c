@@ -32,7 +32,7 @@ int setl3(int card, unsigned long arg);
 int acceptb(int card, unsigned long channel);
 
 extern int cinst;
-extern board *sc_adapter[];
+extern board *adapter[];
 
 extern int sc_ioctl(int, scs_ioctl *);
 extern int setup_buffers(int, int, unsigned int);
@@ -84,7 +84,7 @@ int get_card_from_id(int driver)
 	int i;
 
 	for(i = 0 ; i < cinst ; i++) {
-		if(sc_adapter[i]->driverId == driver)
+		if(adapter[i]->driverId == driver)
 			return i;
 	}
 	return -ENODEV;
@@ -105,7 +105,7 @@ int command(isdn_ctrl *cmd)
 	}
 
 	pr_debug("%s: Received %s command from Link Layer\n",
-		sc_adapter[card]->devicename, commands[cmd->command]);
+		adapter[card]->devicename, commands[cmd->command]);
 
 	/*
 	 * Dispatch the command
@@ -117,10 +117,10 @@ int command(isdn_ctrl *cmd)
 		scs_ioctl	ioc;
 
 		memcpy(&cmdptr, cmd->parm.num, sizeof(unsigned long));
-		if (copy_from_user(&ioc, (scs_ioctl __user *)cmdptr,
+		if (copy_from_user(&ioc, (scs_ioctl *)cmdptr,
 				   sizeof(scs_ioctl))) {
 			pr_debug("%s: Failed to verify user space 0x%x\n",
-				sc_adapter[card]->devicename, cmdptr);
+				adapter[card]->devicename, cmdptr);
 			return -EFAULT;
 		}
 		return sc_ioctl(card, &ioc);
@@ -163,8 +163,8 @@ int loopback(int card)
 		return -ENODEV;
 	}
 
-	pr_debug("%s: Sending loopback message\n",
-		sc_adapter[card]->devicename);
+	pr_debug("%s: Sending loopback message\n", adapter[card]->devicename);
+	
 
 	/*
 	 * Send the loopback message to confirm that memory transfer is
@@ -181,17 +181,17 @@ int loopback(int card)
 
 	if (!status) {
 		pr_debug("%s: Loopback message successfully sent\n",
-			sc_adapter[card]->devicename);
+			adapter[card]->devicename);
 		if(strcmp(rspmsg.msg_data.byte_array, testmsg)) {
 			pr_debug("%s: Loopback return != sent\n",
-				sc_adapter[card]->devicename);
+				adapter[card]->devicename);
 			return -EIO;
 		}
 		return 0;
 	}
 	else {
 		pr_debug("%s: Send loopback message failed\n",
-			sc_adapter[card]->devicename);
+			adapter[card]->devicename);
 		return -EIO;
 	}
 
@@ -215,8 +215,8 @@ int startproc(int card)
        	status = sendmessage(card, CMPID,cmReqType2,
 			  cmReqClass0,
 			  cmReqStartProc,
-			  0,0,NULL);
-	pr_debug("%s: Sent startProc\n", sc_adapter[card]->devicename);
+			  0,0,0);
+	pr_debug("%s: Sent startProc\n", adapter[card]->devicename);
 	
 	return status;
 }
@@ -253,7 +253,7 @@ int dial(int card, unsigned long channel, setup_parm setup)
 				(unsigned int *) Phone);
 
 	pr_debug("%s: Dialing %s on channel %d\n",
-		sc_adapter[card]->devicename, Phone, channel+1);
+		adapter[card]->devicename, Phone, channel+1);
 	
 	return status;
 }
@@ -275,7 +275,7 @@ int answer(int card, unsigned long channel)
 
 	indicate_status(card, ISDN_STAT_BCONN,channel,NULL);
 	pr_debug("%s: Answered incoming call on channel %s\n",
-		sc_adapter[card]->devicename, channel+1);
+		adapter[card]->devicename, channel+1);
 	return 0;
 }
 
@@ -298,7 +298,7 @@ int hangup(int card, unsigned long channel)
 						 0,
 						 NULL);
 	pr_debug("%s: Sent HANGUP message to channel %d\n",
-		sc_adapter[card]->devicename, channel+1);
+		adapter[card]->devicename, channel+1);
 	return status;
 }
 
@@ -316,16 +316,15 @@ int setl2(int card, unsigned long arg)
 	}
 	protocol = arg >> 8;
 	channel = arg & 0xff;
-	sc_adapter[card]->channel[channel].l2_proto = protocol;
+	adapter[card]->channel[channel].l2_proto = protocol;
 	pr_debug("%s: Level 2 protocol for channel %d set to %s from %d\n",
-		sc_adapter[card]->devicename, channel+1,
-		l2protos[sc_adapter[card]->channel[channel].l2_proto],protocol);
+		adapter[card]->devicename, channel+1,l2protos[adapter[card]->channel[channel].l2_proto],protocol);
 
 	/*
 	 * check that the adapter is also set to the correct protocol
 	 */
 	pr_debug("%s: Sending GetFrameFormat for channel %d\n",
-		sc_adapter[card]->devicename, channel+1);
+		adapter[card]->devicename, channel+1);
 	status = sendmessage(card, CEPID, ceReqTypeCall,
  				ceReqClass0,
  				ceReqCallGetFrameFormat,
@@ -349,9 +348,9 @@ int setl3(int card, unsigned long channel)
 		return -ENODEV;
 	}
 
-	sc_adapter[card]->channel[channel].l3_proto = protocol;
+	adapter[card]->channel[channel].l3_proto = protocol;
 	pr_debug("%s: Level 3 protocol for channel %d set to %s\n",
-		sc_adapter[card]->devicename, channel+1, l3protos[protocol]);
+		adapter[card]->devicename, channel+1, l3protos[protocol]);
 	return 0;
 }
 
@@ -369,7 +368,7 @@ int acceptb(int card, unsigned long channel)
 	}
 
 	pr_debug("%s: B-Channel connection accepted on channel %d\n",
-		sc_adapter[card]->devicename, channel+1);
+		adapter[card]->devicename, channel+1);
 	indicate_status(card, ISDN_STAT_BCONN, channel, NULL);
 	return 0;
 }
@@ -381,10 +380,10 @@ int clreaz(int card, unsigned long arg)
 		return -ENODEV;
 	}
 
-	strcpy(sc_adapter[card]->channel[arg].eazlist, "");
-	sc_adapter[card]->channel[arg].eazclear = 1;
+	strcpy(adapter[card]->channel[arg].eazlist, "");
+	adapter[card]->channel[arg].eazclear = 1;
 	pr_debug("%s: EAZ List cleared for channel %d\n",
-		sc_adapter[card]->devicename, arg+1);
+		adapter[card]->devicename, arg+1);
 	return 0;
 }
 
@@ -395,11 +394,11 @@ int seteaz(int card, unsigned long arg, char *num)
 		return -ENODEV;
 	}
 
-	strcpy(sc_adapter[card]->channel[arg].eazlist, num);
-	sc_adapter[card]->channel[arg].eazclear = 0;
+	strcpy(adapter[card]->channel[arg].eazlist, num);
+	adapter[card]->channel[arg].eazclear = 0;
 	pr_debug("%s: EAZ list for channel %d set to: %s\n",
-		sc_adapter[card]->devicename, arg+1,
-		sc_adapter[card]->channel[arg].eazlist);
+		adapter[card]->devicename, arg+1,
+		adapter[card]->channel[arg].eazlist);
 	return 0;
 }
 
@@ -414,28 +413,28 @@ int reset(int card)
 
 	indicate_status(card, ISDN_STAT_STOP, 0, NULL);
 
-	if(sc_adapter[card]->EngineUp) {
-		del_timer(&sc_adapter[card]->stat_timer);
+	if(adapter[card]->EngineUp) {
+		del_timer(&adapter[card]->stat_timer);	
 	}
 
-	sc_adapter[card]->EngineUp = 0;
+	adapter[card]->EngineUp = 0;
 
-	spin_lock_irqsave(&sc_adapter[card]->lock, flags);
-	init_timer(&sc_adapter[card]->reset_timer);
-	sc_adapter[card]->reset_timer.function = check_reset;
-	sc_adapter[card]->reset_timer.data = card;
-	sc_adapter[card]->reset_timer.expires = jiffies + CHECKRESET_TIME;
-	add_timer(&sc_adapter[card]->reset_timer);
-	spin_unlock_irqrestore(&sc_adapter[card]->lock, flags);
+	spin_lock_irqsave(&adapter[card]->lock, flags);
+	init_timer(&adapter[card]->reset_timer);
+	adapter[card]->reset_timer.function = check_reset;
+	adapter[card]->reset_timer.data = card;
+	adapter[card]->reset_timer.expires = jiffies + CHECKRESET_TIME;
+	add_timer(&adapter[card]->reset_timer);
+	spin_unlock_irqrestore(&adapter[card]->lock, flags);
 
-	outb(0x1,sc_adapter[card]->ioport[SFT_RESET]);
+	outb(0x1,adapter[card]->ioport[SFT_RESET]); 
 
-	pr_debug("%s: Adapter Reset\n", sc_adapter[card]->devicename);
+	pr_debug("%s: Adapter Reset\n", adapter[card]->devicename);
 	return 0;
 }
 
 void flushreadfifo (int card)
 {
-	while(inb(sc_adapter[card]->ioport[FIFO_STATUS]) & RF_HAS_DATA)
-		inb(sc_adapter[card]->ioport[FIFO_READ]);
+	while(inb(adapter[card]->ioport[FIFO_STATUS]) & RF_HAS_DATA)
+		inb(adapter[card]->ioport[FIFO_READ]);
 }

@@ -2,6 +2,8 @@
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
  *
+ * ########################################################################
+ *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -15,10 +17,14 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
+ * ########################################################################
+ *
  * Register definitions for Intel PIIX4 South Bridge Device.
+ *
  */
-#ifndef __ASM_MIPS_BOARDS_PIIX4_H
-#define __ASM_MIPS_BOARDS_PIIX4_H
+
+#ifndef PIIX4_H
+#define PIIX4_H
 
 /************************************************************************
  *  IO register offsets
@@ -77,4 +83,4 @@
 #define PIIX4_OCW3_IRR          0x2
 #define PIIX4_OCW3_ISR          0x3
 
-#endif /* __ASM_MIPS_BOARDS_PIIX4_H */
+#endif /* !(PIIX4_H) */

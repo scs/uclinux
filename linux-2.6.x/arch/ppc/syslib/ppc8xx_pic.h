@@ -3,7 +3,6 @@
 
 #include <linux/config.h>
 #include <linux/irq.h>
-#include <linux/interrupt.h>
 
 extern struct hw_interrupt_type ppc8xx_pic;
 

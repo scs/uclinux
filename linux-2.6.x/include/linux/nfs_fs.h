@@ -28,7 +28,6 @@
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_xdr.h>
-#include <linux/workqueue.h>
 
 /*
  * Enable debugging support for nfs client.
@@ -69,8 +68,6 @@
 #define FLUSH_SYNC		1	/* file being synced, or contention */
 #define FLUSH_WAIT		2	/* wait for completion */
 #define FLUSH_STABLE		4	/* commit to stable storage */
-#define FLUSH_LOWPRI		8	/* low priority background flush */
-#define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
 
 #ifdef __KERNEL__
 
@@ -101,7 +98,7 @@ struct nfs_inode {
 	/*
 	 * Various flags
 	 */
-	unsigned int		flags;
+	unsigned short		flags;
 
 	/*
 	 * read_cache_jiffies is when we started read-caching this inode,
@@ -120,22 +117,19 @@ struct nfs_inode {
 	 *
 	 *	mtime != read_cache_mtime
 	 */
-	unsigned long		readdir_timestamp;
 	unsigned long		read_cache_jiffies;
+	struct timespec		read_cache_ctime;
+	struct timespec		read_cache_mtime;
+	__u64			read_cache_isize;
 	unsigned long		attrtimeo;
 	unsigned long		attrtimeo_timestamp;
 	__u64			change_attr;		/* v4 only */
 
-	/* "Generation counter" for the attribute cache. This is
-	 * bumped whenever we update the metadata on the
-	 * server.
-	 */
-	unsigned long		cache_change_attribute;
 	/*
-	 * Counter indicating the number of outstanding requests that
-	 * will cause a file data update.
+	 * Timestamp that dates the change made to read_cache_mtime.
+	 * This is of use for dentry revalidation
 	 */
-	atomic_t		data_updates;
+	unsigned long		cache_mtime_jiffies;
 
 	struct nfs_access_cache	cache_access;
 
@@ -175,9 +169,8 @@ struct nfs_inode {
 #define NFS_INO_STALE		0x0001		/* possible stale inode */
 #define NFS_INO_ADVISE_RDPLUS   0x0002          /* advise readdirplus */
 #define NFS_INO_REVALIDATING	0x0004		/* revalidating attrs */
-#define NFS_INO_INVALID_ATTR	0x0008		/* cached attrs are invalid */
-#define NFS_INO_INVALID_DATA	0x0010		/* cached data is invalid */
-#define NFS_INO_INVALID_ATIME	0x0020		/* cached atime is invalid */
+#define NFS_INO_FLUSH		0x0008		/* inode is due for flushing */
+#define NFS_INO_FAKE_ROOT	0x0080		/* root inode placeholder */
 
 static inline struct nfs_inode *NFS_I(struct inode *inode)
 {
@@ -192,7 +185,15 @@ static inline struct nfs_inode *NFS_I(struct inode *inode)
 #define NFS_ADDR(inode)			(RPC_PEERADDR(NFS_CLIENT(inode)))
 #define NFS_COOKIEVERF(inode)		(NFS_I(inode)->cookieverf)
 #define NFS_READTIME(inode)		(NFS_I(inode)->read_cache_jiffies)
+#define NFS_MTIME_UPDATE(inode)		(NFS_I(inode)->cache_mtime_jiffies)
+#define NFS_CACHE_CTIME(inode)		(NFS_I(inode)->read_cache_ctime)
+#define NFS_CACHE_MTIME(inode)		(NFS_I(inode)->read_cache_mtime)
+#define NFS_CACHE_ISIZE(inode)		(NFS_I(inode)->read_cache_isize)
 #define NFS_CHANGE_ATTR(inode)		(NFS_I(inode)->change_attr)
+#define NFS_CACHEINV(inode) \
+do { \
+	NFS_READTIME(inode) = jiffies - NFS_MAXATTRTIMEO(inode) - 1; \
+} while (0)
 #define NFS_ATTRTIMEO(inode)		(NFS_I(inode)->attrtimeo)
 #define NFS_MINATTRTIMEO(inode) \
 	(S_ISDIR(inode->i_mode)? NFS_SERVER(inode)->acdirmin \
@@ -205,19 +206,9 @@ static inline struct nfs_inode *NFS_I(struct inode *inode)
 #define NFS_FLAGS(inode)		(NFS_I(inode)->flags)
 #define NFS_REVALIDATING(inode)		(NFS_FLAGS(inode) & NFS_INO_REVALIDATING)
 #define NFS_STALE(inode)		(NFS_FLAGS(inode) & NFS_INO_STALE)
+#define NFS_FAKE_ROOT(inode)		(NFS_FLAGS(inode) & NFS_INO_FAKE_ROOT)
 
 #define NFS_FILEID(inode)		(NFS_I(inode)->fileid)
-
-static inline int nfs_caches_unstable(struct inode *inode)
-{
-	return atomic_read(&NFS_I(inode)->data_updates) != 0;
-}
-
-static inline void NFS_CACHEINV(struct inode *inode)
-{
-	if (!nfs_caches_unstable(inode))
-		NFS_FLAGS(inode) |= NFS_INO_INVALID_ATTR;
-}
 
 static inline int nfs_server_capable(struct inode *inode, int cap)
 {
@@ -235,37 +226,13 @@ loff_t page_offset(struct page *page)
 	return ((loff_t)page->index) << PAGE_CACHE_SHIFT;
 }
 
-/**
- * nfs_save_change_attribute - Returns the inode attribute change cookie
- * @inode - pointer to inode
- * The "change attribute" is updated every time we finish an operation
- * that will result in a metadata change on the server.
- */
-static inline long nfs_save_change_attribute(struct inode *inode)
-{
-	return NFS_I(inode)->cache_change_attribute;
-}
-
-/**
- * nfs_verify_change_attribute - Detects NFS inode cache updates
- * @inode - pointer to inode
- * @chattr - previously saved change attribute
- * Return "false" if metadata has been updated (or is in the process of
- * being updated) since the change attribute was saved.
- */
-static inline int nfs_verify_change_attribute(struct inode *inode, unsigned long chattr)
-{
-	return !nfs_caches_unstable(inode)
-		&& chattr == NFS_I(inode)->cache_change_attribute;
-}
-
 /*
  * linux/fs/nfs/inode.c
  */
 extern void nfs_zap_caches(struct inode *);
 extern struct inode *nfs_fhget(struct super_block *, struct nfs_fh *,
 				struct nfs_fattr *);
-extern int nfs_refresh_inode(struct inode *, struct nfs_fattr *);
+extern int __nfs_refresh_inode(struct inode *, struct nfs_fattr *);
 extern int nfs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int nfs_permission(struct inode *, int, struct nameidata *);
 extern void nfs_set_mmcred(struct inode *, struct rpc_cred *);
@@ -273,14 +240,6 @@ extern int nfs_open(struct inode *, struct file *);
 extern int nfs_release(struct inode *, struct file *);
 extern int __nfs_revalidate_inode(struct nfs_server *, struct inode *);
 extern int nfs_setattr(struct dentry *, struct iattr *);
-extern void nfs_begin_attr_update(struct inode *);
-extern void nfs_end_attr_update(struct inode *);
-extern void nfs_begin_data_update(struct inode *);
-extern void nfs_end_data_update(struct inode *);
-extern void nfs_end_data_update_defer(struct inode *);
-
-/* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
-extern u32 root_nfs_parse_addr(char *name); /*__init*/
 
 /*
  * linux/fs/nfs/file.c
@@ -304,12 +263,8 @@ nfs_file_cred(struct file *file)
 /*
  * linux/fs/nfs/direct.c
  */
-extern ssize_t nfs_direct_IO(int, struct kiocb *, const struct iovec *, loff_t,
+extern int nfs_direct_IO(int, struct kiocb *, const struct iovec *, loff_t,
 			unsigned long);
-extern ssize_t nfs_file_direct_read(struct kiocb *iocb, char __user *buf,
-			size_t count, loff_t pos);
-extern ssize_t nfs_file_direct_write(struct kiocb *iocb, const char __user *buf,
-			size_t count, loff_t pos);
 
 /*
  * linux/fs/nfs/dir.c
@@ -342,8 +297,10 @@ extern int  nfs_writepages(struct address_space *, struct writeback_control *);
 extern int  nfs_flush_incompatible(struct file *file, struct page *page);
 extern int  nfs_updatepage(struct file *, struct page *, unsigned int, unsigned int);
 extern void nfs_writeback_done(struct rpc_task *task);
+extern void nfs_writedata_release(struct rpc_task *task);
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+extern void nfs_commit_release(struct rpc_task *task);
 extern void nfs_commit_done(struct rpc_task *);
 #endif
 
@@ -351,15 +308,16 @@ extern void nfs_commit_done(struct rpc_task *);
  * Try to write back everything synchronously (but check the
  * return value!)
  */
-extern int  nfs_sync_inode(struct inode *, unsigned long, unsigned int, int);
-extern int  nfs_flush_inode(struct inode *, unsigned long, unsigned int, int);
+extern int  nfs_sync_file(struct inode *, struct file *, unsigned long, unsigned int, int);
+extern int  nfs_flush_file(struct inode *, struct file *, unsigned long, unsigned int, int);
 extern int  nfs_flush_list(struct list_head *, int, int);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-extern int  nfs_commit_inode(struct inode *, unsigned long, unsigned int, int);
+extern int  nfs_commit_file(struct inode *, struct file *, unsigned long, unsigned int, int);
 extern int  nfs_commit_list(struct list_head *, int);
 #else
 static inline int
-nfs_commit_inode(struct inode *inode, unsigned long idx_start, unsigned int npages, int how)
+nfs_commit_file(struct inode *inode, struct file *file, unsigned long offset,
+		unsigned int len, int flags)
 {
 	return 0;
 }
@@ -374,23 +332,29 @@ nfs_have_writebacks(struct inode *inode)
 static inline int
 nfs_wb_all(struct inode *inode)
 {
-	int error = nfs_sync_inode(inode, 0, 0, FLUSH_WAIT);
+	int error = nfs_sync_file(inode, 0, 0, 0, FLUSH_WAIT);
 	return (error < 0) ? error : 0;
 }
 
 /*
  * Write back all requests on one page - we do this before reading it.
  */
-static inline int nfs_wb_page_priority(struct inode *inode, struct page* page, int how)
+static inline int
+nfs_wb_page(struct inode *inode, struct page* page)
 {
-	int error = nfs_sync_inode(inode, page->index, 1,
-			how | FLUSH_WAIT | FLUSH_STABLE);
+	int error = nfs_sync_file(inode, 0, page->index, 1,
+						FLUSH_WAIT | FLUSH_STABLE);
 	return (error < 0) ? error : 0;
 }
 
-static inline int nfs_wb_page(struct inode *inode, struct page* page)
+/*
+ * Write back all pending writes for one user.. 
+ */
+static inline int
+nfs_wb_file(struct inode *inode, struct file *file)
 {
-	return nfs_wb_page_priority(inode, page, 0);
+	int error = nfs_sync_file(inode, file, 0, 0, FLUSH_WAIT);
+	return (error < 0) ? error : 0;
 }
 
 /* Hack for future NFS swap support */
@@ -406,6 +370,7 @@ extern int  nfs_readpages(struct file *, struct address_space *,
 		struct list_head *, unsigned);
 extern int  nfs_pagein_list(struct list_head *, int);
 extern void nfs_readpage_result(struct rpc_task *);
+extern void nfs_readdata_release(struct rpc_task *);
 
 /*
  * linux/fs/mount_clnt.c
@@ -417,27 +382,20 @@ extern int  nfsroot_mount(struct sockaddr_in *, char *, struct nfs_fh *,
 /*
  * inline functions
  */
-
-static inline int nfs_attribute_timeout(struct inode *inode)
+static inline int
+nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-
-	return time_after(jiffies, nfsi->read_cache_jiffies+nfsi->attrtimeo);
-}
-
-/**
- * nfs_revalidate_inode - Revalidate the inode attributes
- * @server - pointer to nfs_server struct
- * @inode - pointer to inode struct
- *
- * Updates inode attribute information by retrieving the data from the server.
- */
-static inline int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
-{
-	if (!(NFS_FLAGS(inode) & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA))
-			&& !nfs_attribute_timeout(inode))
+	if (time_before(jiffies, NFS_READTIME(inode)+NFS_ATTRTIMEO(inode)))
 		return NFS_STALE(inode) ? -ESTALE : 0;
 	return __nfs_revalidate_inode(server, inode);
+}
+
+static inline int
+nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
+{
+	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
+		return 0;
+	return __nfs_refresh_inode(inode,fattr);
 }
 
 static inline loff_t
@@ -479,8 +437,6 @@ extern void * nfs_root_data(void);
 
 #ifdef CONFIG_NFS_V4
 
-struct idmap;
-
 /*
  * In a seqid-mutating op, this macro controls which error return
  * values trigger incrementation of the seqid.
@@ -508,7 +464,6 @@ struct idmap;
 enum nfs4_client_state {
 	NFS4CLNT_OK  = 0,
 	NFS4CLNT_NEW,
-	NFS4CLNT_SETUP_STATE,
 };
 
 /*
@@ -519,8 +474,7 @@ struct nfs4_client {
 	struct in_addr		cl_addr;	/* Server identifier */
 	u64			cl_clientid;	/* constant */
 	nfs4_verifier		cl_confirm;
-	unsigned long		cl_state;
-	long			cl_generation;
+	enum nfs4_client_state	cl_state;
 
 	u32			cl_lockowner_id;
 
@@ -535,27 +489,6 @@ struct nfs4_client {
 	int			cl_nunused;
 	spinlock_t		cl_lock;
 	atomic_t		cl_count;
-
-	struct rpc_clnt *	cl_rpcclient;
-	struct rpc_cred *	cl_cred;
-
-	struct list_head	cl_superblocks;	/* List of nfs_server structs */
-
-	unsigned long		cl_lease_time;
-	unsigned long		cl_last_renewal;
-	struct work_struct	cl_renewd;
-	struct work_struct	cl_recoverd;
-
-	wait_queue_head_t	cl_waitq;
-	struct rpc_wait_queue	cl_rpcwaitq;
-
-	/* idmapper */
-	struct idmap *		cl_idmap;
-
-	/* Our own IP address, as a null-terminated string.
-	 * This is used to generate the clientid, and the callback address.
-	 */
-	char			cl_ipaddr[16];
 };
 
 /*
@@ -575,7 +508,6 @@ struct nfs4_state_owner {
 	u32                  so_seqid;   /* protected by so_sema */
 	unsigned int         so_flags;   /* protected by so_sema */
 	atomic_t	     so_count;
-	long		     so_generation;
 
 	struct rpc_cred	     *so_cred;	 /* Associated cred */
 	struct list_head     so_states;
@@ -583,105 +515,73 @@ struct nfs4_state_owner {
 
 /*
  * struct nfs4_state maintains the client-side state for a given
- * (state_owner,inode) tuple (OPEN) or state_owner (LOCK).
+ * (state_owner,inode) tuple.
  *
- * OPEN:
  * In order to know when to OPEN_DOWNGRADE or CLOSE the state on the server,
  * we need to know how many files are open for reading or writing on a
  * given inode. This information too is stored here.
- *
- * LOCK: one nfs4_state (LOCK) to hold the lock stateid nfs4_state(OPEN)
  */
-
-struct nfs4_lock_state {
-	struct list_head	ls_locks;	/* Other lock stateids */
-	fl_owner_t		ls_owner;	/* POSIX lock owner */
-	struct nfs4_state *	ls_parent;	/* Parent nfs4_state */
-	u32			ls_seqid;
-	u32			ls_id;
-	nfs4_stateid		ls_stateid;
-	atomic_t		ls_count;
-};
-
-/* bits for nfs4_state->flags */
-enum {
-	LK_STATE_IN_USE,
-};
-
 struct nfs4_state {
 	struct list_head open_states;	/* List of states for the same state_owner */
 	struct list_head inode_states;	/* List of states for the same inode */
-	struct list_head lock_states;	/* List of subservient lock stateids */
 
 	struct nfs4_state_owner *owner;	/* Pointer to the open owner */
 	struct inode *inode;		/* Pointer to the inode */
-
-	unsigned long flags;		/* Do we hold any locks? */
-	struct semaphore lock_sema;	/* Serializes file locking operations */
-	rwlock_t state_lock;		/* Protects the lock_states list */
+	pid_t pid;			/* Thread that called OPEN */
 
 	nfs4_stateid stateid;
 
-	unsigned int nreaders;
-	unsigned int nwriters;
 	int state;			/* State on the server (R,W, or RW) */
 	atomic_t count;
 };
 
 
-extern struct dentry_operations nfs4_dentry_operations;
-extern struct inode_operations nfs4_dir_inode_operations;
-
 /* nfs4proc.c */
-extern int nfs4_proc_setclientid(struct nfs4_client *, u32, unsigned short);
-extern int nfs4_proc_setclientid_confirm(struct nfs4_client *);
-extern int nfs4_open_reclaim(struct nfs4_state_owner *, struct nfs4_state *);
-extern int nfs4_proc_async_renew(struct nfs4_client *);
-extern int nfs4_proc_renew(struct nfs4_client *);
+extern int nfs4_proc_renew(struct nfs_server *server);
 extern int nfs4_do_close(struct inode *, struct nfs4_state *);
-int nfs4_do_downgrade(struct inode *inode, struct nfs4_state *state, mode_t mode);
-extern int nfs4_wait_clnt_recover(struct rpc_clnt *, struct nfs4_client *);
-extern struct inode *nfs4_atomic_open(struct inode *, struct dentry *, struct nameidata *);
-extern int nfs4_open_revalidate(struct inode *, struct dentry *, int);
 
 /* nfs4renewd.c */
-extern void nfs4_schedule_state_renewal(struct nfs4_client *);
-extern void nfs4_renewd_prepare_shutdown(struct nfs_server *);
-extern void nfs4_kill_renewd(struct nfs4_client *);
+extern int nfs4_init_renewd(struct nfs_server *server);
 
 /* nfs4state.c */
-extern void init_nfsv4_state(struct nfs_server *);
-extern void destroy_nfsv4_state(struct nfs_server *);
 extern struct nfs4_client *nfs4_get_client(struct in_addr *);
 extern void nfs4_put_client(struct nfs4_client *clp);
-extern u32 nfs4_alloc_lockowner_id(struct nfs4_client *);
-
 extern struct nfs4_state_owner * nfs4_get_state_owner(struct nfs_server *, struct rpc_cred *);
 extern void nfs4_put_state_owner(struct nfs4_state_owner *);
 extern struct nfs4_state * nfs4_get_open_state(struct inode *, struct nfs4_state_owner *);
 extern void nfs4_put_open_state(struct nfs4_state *);
-extern void nfs4_close_state(struct nfs4_state *, mode_t);
-extern struct nfs4_state *nfs4_find_state(struct inode *, struct rpc_cred *, mode_t mode);
-extern void nfs4_increment_seqid(int status, struct nfs4_state_owner *sp);
-extern int nfs4_handle_error(struct nfs_server *, int);
-extern void nfs4_schedule_state_recovery(struct nfs4_client *);
-extern struct nfs4_lock_state *nfs4_find_lock_state(struct nfs4_state *state, fl_owner_t);
-extern struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, fl_owner_t);
-extern void nfs4_put_lock_state(struct nfs4_lock_state *state);
-extern void nfs4_increment_lock_seqid(int status, struct nfs4_lock_state *ls);
-extern void nfs4_notify_setlk(struct inode *, struct file_lock *, struct nfs4_lock_state *);
-extern void nfs4_notify_unlck(struct inode *, struct file_lock *, struct nfs4_lock_state *);
-extern void nfs4_copy_stateid(nfs4_stateid *, struct nfs4_state *, fl_owner_t);
+extern void nfs4_increment_seqid(u32 status, struct nfs4_state_owner *sp);
+
+
+
 
 
 
 struct nfs4_mount_data;
+static inline int
+create_nfsv4_state(struct nfs_server *server, struct nfs4_mount_data *data)
+{
+	server->nfs4_state = NULL;
+	return 0;
+}
+
+static inline void
+destroy_nfsv4_state(struct nfs_server *server)
+{
+	if (server->mnt_path) {
+		kfree(server->mnt_path);
+		server->mnt_path = NULL;
+	}
+	if (server->nfs4_state) {
+		nfs4_put_client(server->nfs4_state);
+		server->nfs4_state = NULL;
+	}
+}
 #else
-#define init_nfsv4_state(server)  do { } while (0)
+#define create_nfsv4_state(server, data)  0
 #define destroy_nfsv4_state(server)       do { } while (0)
 #define nfs4_put_state_owner(inode, owner) do { } while (0)
 #define nfs4_put_open_state(state) do { } while (0)
-#define nfs4_renewd_prepare_shutdown(server) do { } while (0)
 #endif
 
 #endif /* __KERNEL__ */
@@ -702,7 +602,7 @@ struct nfs4_mount_data;
 #ifdef __KERNEL__
 # undef ifdebug
 # ifdef NFS_DEBUG
-#  define ifdebug(fac)		if (unlikely(nfs_debug & NFSDBG_##fac))
+#  define ifdebug(fac)		if (nfs_debug & NFSDBG_##fac)
 # else
 #  define ifdebug(fac)		if (0)
 # endif

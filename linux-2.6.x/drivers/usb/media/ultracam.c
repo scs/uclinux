@@ -95,7 +95,7 @@ MODULE_PARM_DESC(hue_correction, "YUV colorspace regulation: 0-255 (default=128)
  * 02-Nov-2000 First (mostly dummy) version.
  * 06-Nov-2000 Rewrote to dump all data into frame.
  */
-static void ultracam_ProcessIsocData(struct uvd *uvd, struct usbvideo_frame *frame)
+void ultracam_ProcessIsocData(struct uvd *uvd, struct usbvideo_frame *frame)
 {
 	int n;
 
@@ -513,7 +513,7 @@ static int ultracam_probe(struct usb_interface *intf, const struct usb_device_id
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct uvd *uvd = NULL;
-	int ix, i, nas;
+	int i, nas;
 	int actInterface=-1, inactInterface=-1, maxPS=0;
 	unsigned char video_ep = 0;
 
@@ -540,12 +540,11 @@ static int ultracam_probe(struct usb_interface *intf, const struct usb_device_id
 		return -ENODEV;
 	}
 	/* Validate all alternate settings */
-	for (ix=0; ix < nas; ix++) {
+	for (i=0; i < nas; i++) {
 		const struct usb_host_interface *interface;
 		const struct usb_endpoint_descriptor *endpoint;
 
-		interface = &intf->altsetting[ix];
-		i = interface->desc.bAlternateSetting;
+		interface = &intf->altsetting[i];
 		if (interface->desc.bNumEndpoints != 1) {
 			err("Interface %d. has %u. endpoints!",
 			    interface->desc.bInterfaceNumber,

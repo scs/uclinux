@@ -8,7 +8,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/vmalloc.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -49,24 +48,21 @@ static int parse_redboot_partitions(struct mtd_info *master,
 	char *names;
 	char *nullname;
 	int namelen = 0;
-	int nulllen = 0;
-#ifdef CONFIG_MTD_REDBOOT_PARTS_UNALLOCATED
 	static char nullstring[] = "unallocated";
-#endif
 
-	buf = vmalloc(master->erasesize);
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 
 	if (!buf)
 		return -ENOMEM;
 
 	/* Read the start of the last erase block */
 	ret = master->read(master, master->size - master->erasesize,
-			   master->erasesize, &retlen, (void *)buf);
+			   PAGE_SIZE, &retlen, (void *)buf);
 
 	if (ret)
 		goto out;
 
-	if (retlen != master->erasesize) {
+	if (retlen != PAGE_SIZE) {
 		ret = -EIO;
 		goto out;
 	}
@@ -84,7 +80,7 @@ static int parse_redboot_partitions(struct mtd_info *master,
 		goto out;
 	}
 
-	for (i = 0; i < master->erasesize / sizeof(struct fis_image_desc); i++) {
+	for (i = 0; i < PAGE_SIZE / sizeof(struct fis_image_desc); i++) {
 		struct fis_list *new_fl, **prev;
 
 		if (buf[i].name[0] == 0xff)
@@ -116,69 +112,48 @@ static int parse_redboot_partitions(struct mtd_info *master,
 
 		nrparts++;
 	}
-#ifdef CONFIG_MTD_REDBOOT_PARTS_UNALLOCATED
-	if (fl->img->flash_base) {
+	if (fl->img->flash_base)
 		nrparts++;
-		nulllen = sizeof(nullstring);
-	}
 
 	for (tmp_fl = fl; tmp_fl->next; tmp_fl = tmp_fl->next) {
-		if (tmp_fl->img->flash_base + tmp_fl->img->size + master->erasesize <= tmp_fl->next->img->flash_base) {
+		if (tmp_fl->img->flash_base + tmp_fl->img->size + master->erasesize < tmp_fl->next->img->flash_base)
 			nrparts++;
-			nulllen = sizeof(nullstring);
-		}
 	}
-#endif
-	parts = kmalloc(sizeof(*parts)*nrparts + nulllen + namelen, GFP_KERNEL);
+	parts = kmalloc(sizeof(*parts)*nrparts + sizeof(nullstring) + namelen, GFP_KERNEL);
 
 	if (!parts) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	memset(parts, 0, sizeof(*parts)*nrparts + nulllen + namelen);
+	memset(parts, 0, sizeof(*parts)*nrparts + namelen);
 
+	/* FIXME: Include nullname only if it's used */
 	nullname = (char *)&parts[nrparts];
-#ifdef CONFIG_MTD_REDBOOT_PARTS_UNALLOCATED
-	if (nulllen > 0) {
-		strcpy(nullname, nullstring);
-	}
-#endif
-	names = nullname + nulllen;
+	sprintf(nullname, nullstring);
+	names = nullname + sizeof(nullstring);
 
 	i=0;
 
-#ifdef CONFIG_MTD_REDBOOT_PARTS_UNALLOCATED
 	if (fl->img->flash_base) {
 	       parts[0].name = nullname;
 	       parts[0].size = fl->img->flash_base;
 	       parts[0].offset = 0;
-		i++;
 	}
-#endif
 	for ( ; i<nrparts; i++) {
 		parts[i].size = fl->img->size;
 		parts[i].offset = fl->img->flash_base;
 		parts[i].name = names;
 
 		strcpy(names, fl->img->name);
-#ifdef CONFIG_MTD_REDBOOT_PARTS_READONLY
-		if (!memcmp(names, "RedBoot", 8) ||
-				!memcmp(names, "RedBoot config", 15) ||
-				!memcmp(names, "FIS directory", 14)) {
-			parts[i].mask_flags = MTD_WRITEABLE;
-		}
-#endif
 		names += strlen(names)+1;
 
-#ifdef CONFIG_MTD_REDBOOT_PARTS_UNALLOCATED
-		if(fl->next && fl->img->flash_base + fl->img->size + master->erasesize <= fl->next->img->flash_base) {
+		if(fl->next && fl->img->flash_base + fl->img->size + master->erasesize < fl->next->img->flash_base) {
 			i++;
 			parts[i].offset = parts[i-1].size + parts[i-1].offset;
 			parts[i].size = fl->next->img->flash_base - parts[i].offset;
 			parts[i].name = nullname;
 		}
-#endif
 		tmp_fl = fl;
 		fl = fl->next;
 		kfree(tmp_fl);
@@ -191,7 +166,7 @@ static int parse_redboot_partitions(struct mtd_info *master,
 		fl = fl->next;
 		kfree(old);
 	}
-	vfree(buf);
+	kfree(buf);
 	return ret;
 }
 

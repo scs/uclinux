@@ -21,7 +21,6 @@
 #include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
-#include <linux/syscalls.h>
 #include <linux/kdev_t.h>
 #include <linux/major.h>
 #include <linux/string.h>
@@ -47,7 +46,6 @@
 #include <asm/mmu_context.h>
 #include <asm/timer.h>
 #include <asm/sections.h>
-#include <asm/setup.h>
 
 #ifdef CONFIG_IP_PNP
 #include <net/ipconfig.h>
@@ -73,6 +71,7 @@ struct screen_info screen_info = {
 
 void (*prom_palette)(int);
 void (*prom_keyboard)(void);
+asmlinkage void sys_sync(void);	/* it's really int */
 
 static void
 prom_console_write(struct console *con, const char *s, unsigned n)
@@ -294,7 +293,7 @@ int prom_callback(long *args)
 		unsigned long tte;
 
 		tte = args[3];
-		prom_printf("%lx ", (tte & 0x07FC000000000000UL) >> 50);
+		prom_printf("%lx ", (tte & 0x07FC000000000000) >> 50);
 
 		args[2] = 2;
 		args[args[1] + 3] = 0;
@@ -452,7 +451,8 @@ extern unsigned short ram_flags;
 
 extern int root_mountflags;
 
-char reboot_command[COMMAND_LINE_SIZE];
+char saved_command_line[256];
+char reboot_command[256];
 
 static struct pt_regs fake_swapper_regs = { { 0, }, 0, 0, 0, 0 };
 
@@ -603,6 +603,11 @@ static int __init set_preferred_console(void)
 }
 console_initcall(set_preferred_console);
 
+asmlinkage int sys_ioperm(unsigned long from, unsigned long num, int on)
+{
+	return -EIO;
+}
+
 /* BUFFER is PAGE_SIZE bytes long. */
 
 extern char *sparc_cpu_type;
@@ -684,7 +689,7 @@ void sun_do_break(void)
 	if (!stop_a_enabled)
 		return;
 
-	prom_printf("\n");
+	printk("\n");
 	flush_user_windows();
 
 	prom_cmdline();

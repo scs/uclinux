@@ -134,7 +134,7 @@ asmlinkage long sys_setitimer(int which,
 	} else
 		memset((char *) &set_buffer, 0, sizeof(set_buffer));
 
-	error = do_setitimer(which, &set_buffer, ovalue ? &get_buffer : NULL);
+	error = do_setitimer(which, &set_buffer, ovalue ? &get_buffer : 0);
 	if (error || !ovalue)
 		return error;
 

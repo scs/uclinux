@@ -4,7 +4,6 @@
 #include <linux/config.h>
 #include <linux/cache.h>
 #include <linux/threads.h>
-#include <asm/irq.h>
 
 typedef struct {
 	unsigned int __softirq_pending;
@@ -78,14 +77,14 @@ typedef struct {
 #endif
 
 #ifndef CONFIG_SMP
-
-extern asmlinkage void __do_softirq(void);
-
+/*
+ * Some compilers get the use of "%?" wrong in the asm below.
+ */
 #define irq_exit()							\
 	do {								\
 		preempt_count() -= IRQ_EXIT_OFFSET;			\
-		if (!in_interrupt() && local_softirq_pending())		\
-			__do_softirq();					\
+		if (!in_interrupt() && softirq_pending(smp_processor_id())) \
+			__asm__("bl	__do_softirq": : : "lr", "cc");/* out of line */\
 		preempt_enable_no_resched();				\
 	} while (0)
 

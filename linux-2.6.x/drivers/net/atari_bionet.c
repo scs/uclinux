@@ -148,6 +148,8 @@ unsigned char *phys_nic_packet;
 
 /* Index to functions, as function prototypes.
  */
+extern int bionet_probe(struct net_device *dev);
+
 static int bionet_open(struct net_device *dev);
 static int bionet_send_packet(struct sk_buff *skb, struct net_device *dev);
 static void bionet_poll_rx(struct net_device *);
@@ -319,26 +321,15 @@ end:
 
 /* Check for a network adaptor of this type, and return '0' if one exists.
  */
-struct net_device * __init bionet_probe(int unit)
-{
-	struct net_device *dev;
+int __init 
+bionet_probe(struct net_device *dev){
 	unsigned char station_addr[6];
 	static unsigned version_printed;
 	static int no_more_found;	/* avoid "Probing for..." printed 4 times */
 	int i;
-	int err;
 
 	if (!MACH_IS_ATARI || no_more_found)
-		return ERR_PTR(-ENODEV);
-
-	dev = alloc_etherdev(sizeof(struct net_local));
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-	if (unit >= 0) {
-		sprintf(dev->name, "eth%d", unit);
-		netdev_boot_setup_check(dev);
-	}
-	SET_MODULE_OWNER(dev);
+		return -ENODEV;
 
 	printk("Probing for BioNet 100 Adapter...\n");
 
@@ -356,9 +347,10 @@ struct net_device * __init bionet_probe(int unit)
 	||  station_addr[2] != 'O' ) {
 		no_more_found = 1;
 		printk( "No BioNet 100 found.\n" );
-		free_netdev(dev);
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 	}
+
+	SET_MODULE_OWNER(dev);
 
 	if (bionet_debug > 0 && version_printed++ == 0)
 		printk(version);
@@ -377,6 +369,12 @@ struct net_device * __init bionet_probe(int unit)
 			nic_packet, phys_nic_packet );
 	}
 
+	if (dev->priv == NULL)
+		dev->priv = kmalloc(sizeof(struct net_local), GFP_KERNEL);
+	if (!dev->priv)
+		return -ENOMEM;
+	memset(dev->priv, 0, sizeof(struct net_local));
+
 	dev->open		= bionet_open;
 	dev->stop		= bionet_close;
 	dev->hard_start_xmit	= bionet_send_packet;
@@ -392,11 +390,8 @@ struct net_device * __init bionet_probe(int unit)
 #endif
 		dev->dev_addr[i]  = station_addr[i];
 	}
-	err = register_netdev(dev);
-	if (!err)
-		return dev;
-	free_netdev(dev);
-	return ERR_PTR(err);
+	ether_setup(dev);
+	return 0;
 }
 
 /* Open/initialize the board.  This is called (in the current kernel)
@@ -408,7 +403,7 @@ struct net_device * __init bionet_probe(int unit)
  */
 static int
 bionet_open(struct net_device *dev) {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 
 	if (bionet_debug > 0)
 		printk("bionet_open\n");
@@ -433,7 +428,7 @@ bionet_open(struct net_device *dev) {
 
 static int
 bionet_send_packet(struct sk_buff *skb, struct net_device *dev) {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	unsigned long flags;
 
 	/* Block a timer-based transmit from overlapping.  This could better be
@@ -499,7 +494,7 @@ bionet_send_packet(struct sk_buff *skb, struct net_device *dev) {
  */
 static void
 bionet_poll_rx(struct net_device *dev) {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	int boguscount = 10;
 	int pkt_len, status;
 	unsigned long flags;
@@ -601,7 +596,7 @@ bionet_poll_rx(struct net_device *dev) {
 static void
 bionet_tick(unsigned long data) {
 	struct net_device	 *dev = (struct net_device *)data;
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 
 	if( bionet_debug > 0 && (lp->open_time++ & 7) == 8 )
 		printk("bionet_tick: %ld\n", lp->open_time);
@@ -616,7 +611,7 @@ bionet_tick(unsigned long data) {
  */
 static int
 bionet_close(struct net_device *dev) {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 
 	if (bionet_debug > 0)
 		printk("bionet_close, open_time=%ld\n", lp->open_time);
@@ -638,27 +633,32 @@ bionet_close(struct net_device *dev) {
  */
 static struct net_device_stats *net_get_stats(struct net_device *dev) 
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	return &lp->stats;
 }
 
 
 #ifdef MODULE
 
-static struct net_device *bio_dev;
+static struct net_device bio_dev;
 
-int init_module(void)
-{
-	bio_dev = bionet_probe(-1);
-	if (IS_ERR(bio_dev))
-		return PTR_ERR(bio_dev);
+int
+init_module(void) {
+	int err;
+
+	bio_dev.init = bionet_probe;
+	if ((err = register_netdev(&bio_dev))) {
+		if (err == -EEXIST)  {
+			printk("BIONET: devices already present. Module not loaded.\n");
+		}
+		return err;
+	}
 	return 0;
 }
 
-void cleanup_module(void)
-{
-	unregister_netdev(bio_dev);
-	free_netdev(bio_dev);
+void
+cleanup_module(void) {
+	unregister_netdev(&bio_dev);
 }
 
 #endif /* MODULE */

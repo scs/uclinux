@@ -149,13 +149,9 @@ static int qnx4_remount(struct super_block *sb, int *flags, char *data)
 
 	qs = qnx4_sb(sb);
 	qs->Version = QNX4_VERSION;
-#ifndef CONFIG_QNX4FS_RW
-	*flags |= MS_RDONLY;
-#endif
 	if (*flags & MS_RDONLY) {
 		return 0;
 	}
-
 	mark_buffer_dirty(qs->sb_buf);
 
 	return 0;
@@ -232,8 +228,8 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 	int ix;
 	long offset, i_xblk;
 	unsigned long block = 0;
-	struct buffer_head *bh = NULL;
-	struct qnx4_xblk *xblk = NULL;
+	struct buffer_head *bh = 0;
+	struct qnx4_xblk *xblk = 0;
 	struct qnx4_inode_entry *qnx4_inode = qnx4_raw_inode(inode);
 	qnx4_nxtnt_t nxtnt = le16_to_cpu(qnx4_inode->di_num_xtnts);
 
@@ -269,7 +265,7 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 				i_xblk = le32_to_cpu(xblk->xblk_next_xblk);
 				ix = 0;
 				brelse( bh );
-				bh = NULL;
+				bh = 0;
 			}
 		}
 		if ( bh )

@@ -18,7 +18,6 @@
 #include <asm/dma.h>
 #include <asm/io.h>
 
-static unsigned int xfer_complete = 0;
 static int count = 0;
 
 static irqreturn_t pvr2_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
@@ -33,8 +32,6 @@ static irqreturn_t pvr2_dma_interrupt(int irq, void *dev_id, struct pt_regs *reg
 		pr_debug("Got a pvr2 dma interrupt for channel %d\n",
 			 irq - HW_EVENT_PVR2_DMA);
 
-	xfer_complete = 1;
-
 	return IRQ_HANDLED;
 }
 
@@ -48,17 +45,10 @@ static int pvr2_request_dma(struct dma_info *info)
 	return 0;
 }
 
-static int pvr2_get_dma_residue(struct dma_info *info)
-{
-	return xfer_complete == 0;
-}
-
 static int pvr2_xfer_dma(struct dma_info *info)
 {
 	if (info->sar || !info->dar)
 		return -EINVAL;
-
-	xfer_complete = 0;
 
 	ctrl_outl(info->dar, PVR2_DMA_ADDR);
 	ctrl_outl(info->count, PVR2_DMA_COUNT);
@@ -76,7 +66,6 @@ static struct irqaction pvr2_dma_irq = {
 static struct dma_ops pvr2_dma_ops = {
 	.name		= "PowerVR 2 DMA",
 	.request	= pvr2_request_dma,
-	.get_residue	= pvr2_get_dma_residue,
 	.xfer		= pvr2_xfer_dma,
 };
 

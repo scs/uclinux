@@ -102,7 +102,7 @@ static void pi_wake_up(void *p)
 
 #endif
 
-int pi_schedule_claimed(PIA * pi, void (*cont) (void))
+void pi_do_claimed(PIA * pi, void (*cont) (void))
 {
 #ifdef CONFIG_PARPORT
 	unsigned long flags;
@@ -111,19 +111,12 @@ int pi_schedule_claimed(PIA * pi, void (*cont) (void))
 	if (pi->pardev && parport_claim(pi->pardev)) {
 		pi->claim_cont = cont;
 		spin_unlock_irqrestore(&pi_spinlock, flags);
-		return 0;
+		return;
 	}
 	pi->claimed = 1;
 	spin_unlock_irqrestore(&pi_spinlock, flags);
 #endif
-	return 1;
-}
-EXPORT_SYMBOL(pi_schedule_claimed);
-
-void pi_do_claimed(PIA * pi, void (*cont) (void))
-{
-	if (pi_schedule_claimed(pi, cont))
-		cont();
+	cont();
 }
 
 EXPORT_SYMBOL(pi_do_claimed);
@@ -140,7 +133,7 @@ static void pi_claim(PIA * pi)
 #endif
 }
 
-void pi_unclaim(PIA * pi)
+static void pi_unclaim(PIA * pi)
 {
 	pi->claimed = 0;
 #ifdef CONFIG_PARPORT
@@ -148,8 +141,6 @@ void pi_unclaim(PIA * pi)
 		parport_release((struct pardevice *) (pi->pardev));
 #endif
 }
-
-EXPORT_SYMBOL(pi_unclaim);
 
 void pi_connect(PIA * pi)
 {
@@ -264,7 +255,7 @@ void pi_unregister(PIP * pr)
 		printk("paride: %s not registered\n", pr->name);
 		return;
 	}
-	protocols[pr->index] = NULL;
+	protocols[pr->index] = 0;
 }
 
 EXPORT_SYMBOL(pi_unregister);

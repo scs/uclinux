@@ -77,7 +77,7 @@ static struct cpufreq_frequency_table elanfreq_table[] = {
  *	and have the rest of the chip running with 33 MHz. 
  */
 
-static unsigned int elanfreq_get_cpu_frequency(unsigned int cpu)
+static unsigned int elanfreq_get_cpu_frequency(void)
 {
         u8 clockspeed_reg;    /* Clock Speed Register */
 	
@@ -121,7 +121,7 @@ static void elanfreq_set_cpu_state (unsigned int state) {
 
 	struct cpufreq_freqs    freqs;
 
-	freqs.old = elanfreq_get_cpu_frequency(0);
+	freqs.old = elanfreq_get_cpu_frequency();
 	freqs.new = elan_multiplier[state].clock;
 	freqs.cpu = 0; /* elanfreq.c is UP only driver */
 	
@@ -165,8 +165,7 @@ static void elanfreq_set_cpu_state (unsigned int state) {
 
 
 /**
- *	elanfreq_validatespeed: test if frequency range is valid
- *      @policy: the policy to validate
+ *	elanfreq_validatespeed: test if frequency range is valid 
  *
  *	This function checks if a given frequency range in kHz is valid 
  *      for the hardware supported by the driver. 
@@ -200,7 +199,6 @@ static int elanfreq_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpuinfo_x86 *c = cpu_data;
 	unsigned int i;
-	int result;
 
 	/* capability check */
 	if ((c->x86_vendor != X86_VENDOR_AMD) ||
@@ -209,7 +207,7 @@ static int elanfreq_cpu_init(struct cpufreq_policy *policy)
 
 	/* max freq */
 	if (!max_freq)
-		max_freq = elanfreq_get_cpu_frequency(0);
+		max_freq = elanfreq_get_cpu_frequency();
 
 	/* table init */
  	for (i=0; (elanfreq_table[i].frequency != CPUFREQ_TABLE_END); i++) {
@@ -220,22 +218,9 @@ static int elanfreq_cpu_init(struct cpufreq_policy *policy)
 	/* cpuinfo and default policy values */
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
-	policy->cur = elanfreq_get_cpu_frequency(0);
+	policy->cur = elanfreq_get_cpu_frequency();
 
-	result = cpufreq_frequency_table_cpuinfo(policy, elanfreq_table);
-	if (result)
-		return (result);
-
-        cpufreq_frequency_table_get_attr(elanfreq_table, policy->cpu);
-
-	return 0;
-}
-
-
-static int elanfreq_cpu_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
+	return cpufreq_frequency_table_cpuinfo(policy, &elanfreq_table[0]);;
 }
 
 
@@ -254,28 +239,18 @@ static int elanfreq_cpu_exit(struct cpufreq_policy *policy)
 static int __init elanfreq_setup(char *str)
 {
 	max_freq = simple_strtoul(str, &str, 0);
-	printk(KERN_WARNING "You're using the deprecated elanfreq command line option. Use elanfreq.max_freq instead, please!\n");
 	return 1;
 }
 __setup("elanfreq=", elanfreq_setup);
 #endif
 
 
-static struct freq_attr* elanfreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
-
 static struct cpufreq_driver elanfreq_driver = {
-	.get	 	= elanfreq_get_cpu_frequency,
 	.verify 	= elanfreq_verify,
 	.target 	= elanfreq_target,
 	.init		= elanfreq_cpu_init,
-	.exit		= elanfreq_cpu_exit,
 	.name		= "elanfreq",
 	.owner		= THIS_MODULE,
-	.attr		= elanfreq_attr,
 };
 
 
@@ -301,7 +276,7 @@ static void __exit elanfreq_exit(void)
 }
 
 
-module_param (max_freq, int, 0444);
+MODULE_PARM (max_freq, "i");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Robert Schwebel <r.schwebel@pengutronix.de>, Sven Geggus <sven@geggus.net>");

@@ -43,7 +43,7 @@
 
 #include <linux/blkdev.h>
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 #include "usb.h"
 
 extern void usb_stor_report_device_reset(struct us_data *us);

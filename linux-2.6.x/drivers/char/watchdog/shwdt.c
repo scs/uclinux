@@ -33,8 +33,6 @@
 #include <asm/uaccess.h>
 #include <asm/watchdog.h>
 
-#define PFX "shwdt: "
-
 /*
  * Default clock division ratio is 5.25 msecs. For an additional table of
  * values, consult the asm-sh/watchdog.h. Overload this at module load
@@ -64,6 +62,7 @@
  */
 static int clock_division_ratio = WTCSR_CKS_4096;
 
+#define msecs_to_jiffies(msecs)	(jiffies + (HZ * msecs + 9999) / 10000)
 #define next_ping_period(cks)	msecs_to_jiffies(cks - 4)
 
 static unsigned long shwdt_is_open;
@@ -71,9 +70,7 @@ static struct watchdog_info sh_wdt_info;
 static char shwdt_expect_close;
 static struct timer_list timer;
 static unsigned long next_heartbeat;
-
-#define WATCHDOG_HEARTBEAT 30			/* 30 sec default heartbeat */
-static int heartbeat = WATCHDOG_HEARTBEAT;	/* in seconds */
+static int heartbeat = 30;
 
 #ifdef CONFIG_WATCHDOG_NOWAYOUT
 static int nowayout = 1;
@@ -90,8 +87,8 @@ static void sh_wdt_start(void)
 {
 	__u8 csr;
 
-	next_heartbeat = jiffies + (heartbeat * HZ);
 	mod_timer(&timer, next_ping_period(clock_division_ratio));
+	next_heartbeat = jiffies + (heartbeat * HZ);
 
 	csr = sh_wdt_read_csr();
 	csr |= WTCSR_WT | clock_division_ratio;
@@ -145,30 +142,6 @@ static void sh_wdt_stop(void)
 }
 
 /**
- * 	sh_wdt_keepalive - Keep the Userspace Watchdog Alive
- *
- * 	The Userspace watchdog got a KeepAlive: schedule the next heartbeat.
- */
-static void sh_wdt_keepalive(void)
-{
-	next_heartbeat = jiffies + (heartbeat * HZ);
-}
-
-/**
- * 	sh_wdt_set_heartbeat - Set the Userspace Watchdog heartbeat
- *
- * 	Set the Userspace Watchdog heartbeat
- */
-static int sh_wdt_set_heartbeat(int t)
-{
-	if ((t < 1) || (t > 3600)) /* arbitrary upper limit */
-		return -EINVAL;
-
-	heartbeat = t;
-	return 0;
-}
-
-/**
  * 	sh_wdt_ping - Ping the Watchdog
  *
  *	@data: Unused
@@ -187,8 +160,6 @@ static void sh_wdt_ping(unsigned long data)
 		sh_wdt_write_cnt(0);
 
 		mod_timer(&timer, next_ping_period(clock_division_ratio));
-	} else {
-		printk(KERN_WARNING PFX "Heartbeat lost! Will not ping the watchdog\n");
 	}
 }
 
@@ -209,7 +180,7 @@ static int sh_wdt_open(struct inode *inode, struct file *file)
 
 	sh_wdt_start();
 
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 /**
@@ -222,11 +193,11 @@ static int sh_wdt_open(struct inode *inode, struct file *file)
  */
 static int sh_wdt_close(struct inode *inode, struct file *file)
 {
-	if (shwdt_expect_close == 42) {
+	if (!nowayout && shwdt_expect_close == 42) {
 		sh_wdt_stop();
 	} else {
-		printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
-		sh_wdt_keepalive();
+		printk(KERN_CRIT "shwdt: Unexpected close, not stopping watchdog!\n");
+		next_heartbeat = jiffies + (heartbeat * HZ);
 	}
 
 	clear_bit(0, &shwdt_is_open);
@@ -248,21 +219,23 @@ static int sh_wdt_close(struct inode *inode, struct file *file)
 static ssize_t sh_wdt_write(struct file *file, const char *buf,
 			    size_t count, loff_t *ppos)
 {
+	/* Can't seek (pwrite) on this device */
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
+
 	if (count) {
-		if (!nowayout) {
-			size_t i;
+		size_t i;
 
-			shwdt_expect_close = 0;
+		shwdt_expect_close = 0;
 
-			for (i = 0; i != count; i++) {
-				char c;
-				if (get_user(c, buf + i))
-					return -EFAULT;
-				if (c == 'V')
-					shwdt_expect_close = 42;
-			}
+		for (i = 0; i != count; i++) {
+			char c;
+			if (get_user(c, buf + i))
+				return -EFAULT;
+			if (c == 'V')
+				shwdt_expect_close = 42;
 		}
-		sh_wdt_keepalive();
+		next_heartbeat = jiffies + (heartbeat * HZ);
 	}
 
 	return count;
@@ -282,32 +255,38 @@ static ssize_t sh_wdt_write(struct file *file, const char *buf,
 static int sh_wdt_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
-	int new_heartbeat;
-	int options, retval = -EINVAL;
+	int new_timeout;
 
 	switch (cmd) {
 		case WDIOC_GETSUPPORT:
-			return copy_to_user((struct watchdog_info *)arg,
+			if (copy_to_user((struct watchdog_info *)arg,
 					  &sh_wdt_info,
-					  sizeof(sh_wdt_info)) ? -EFAULT : 0;
+					  sizeof(sh_wdt_info))) {
+				return -EFAULT;
+			}
+
+			break;
 		case WDIOC_GETSTATUS:
 		case WDIOC_GETBOOTSTATUS:
 			return put_user(0, (int *)arg);
 		case WDIOC_KEEPALIVE:
-			sh_wdt_keepalive();
-			return 0;
+			next_heartbeat = jiffies + (heartbeat * HZ);
+
+			break;
 		case WDIOC_SETTIMEOUT:
-			if (get_user(new_heartbeat, (int *)arg))
+			if (get_user(new_timeout, (int *)arg))
 				return -EFAULT;
-
-			if (sh_wdt_set_heartbeat(new_heartbeat))
+			if (new_timeout < 1 || new_timeout > 3600) /* arbitrary upper limit */
 				return -EINVAL;
-
-			sh_wdt_keepalive();
+			heartbeat = new_timeout;
+			next_heartbeat = jiffies + (heartbeat * HZ);
 			/* Fall */
 		case WDIOC_GETTIMEOUT:
 			return put_user(heartbeat, (int *)arg);
 		case WDIOC_SETOPTIONS:
+		{
+			int options, retval = -EINVAL;
+
 			if (get_user(options, (int *)arg))
 				return -EFAULT;
 
@@ -322,6 +301,7 @@ static int sh_wdt_ioctl(struct inode *inode, struct file *file,
 			}
 
 			return retval;
+		}
 		default:
 			return -ENOIOCTLCMD;
 	}
@@ -366,6 +346,7 @@ static struct watchdog_info sh_wdt_info = {
 
 static struct notifier_block sh_wdt_notifier = {
 	.notifier_call		= sh_wdt_notify_sys,
+	.priority		= 0,
 };
 
 static struct miscdevice sh_wdt_miscdev = {
@@ -382,41 +363,20 @@ static struct miscdevice sh_wdt_miscdev = {
  */
 static int __init sh_wdt_init(void)
 {
-	int rc;
-
-	if ((clock_division_ratio < 0x5) || (clock_division_ratio > 0x7)) {
-		clock_division_ratio = WTCSR_CKS_4096;
-		printk(KERN_INFO PFX "clock_division_ratio value must be 0x5<=x<=0x7, using %d\n",
-			clock_division_ratio);
+	if (misc_register(&sh_wdt_miscdev)) {
+		printk(KERN_ERR "shwdt: Can't register misc device\n");
+		return -EINVAL;
 	}
 
-	if (sh_wdt_set_heartbeat(heartbeat))
-	{
-		heartbeat = WATCHDOG_HEARTBEAT;
-		printk(KERN_INFO PFX "heartbeat value must be 1<=x<=3600, using %d\n",
-			heartbeat);
+	if (register_reboot_notifier(&sh_wdt_notifier)) {
+		printk(KERN_ERR "shwdt: Can't register reboot notifier\n");
+		misc_deregister(&sh_wdt_miscdev);
+		return -EINVAL;
 	}
 
 	init_timer(&timer);
 	timer.function = sh_wdt_ping;
 	timer.data = 0;
-
-	rc = register_reboot_notifier(&sh_wdt_notifier);
-	if (rc) {
-		printk(KERN_ERR PFX "Can't register reboot notifier (err=%d)\n", rc);
-		return rc;
-	}
-
-	rc = misc_register(&sh_wdt_miscdev);
-	if (rc) {
-		printk(KERN_ERR PFX "Can't register miscdev on minor=%d (err=%d)\n",
-			sh_wdt_miscdev.minor, rc);
-		unregister_reboot_notifier(&sh_wdt_notifier);
-		return rc;
-	}
-
-	printk(KERN_INFO PFX "initialized. heartbeat=%d sec (nowayout=%d)\n",
-		heartbeat, nowayout);
 
 	return 0;
 }
@@ -429,20 +389,16 @@ static int __init sh_wdt_init(void)
  */
 static void __exit sh_wdt_exit(void)
 {
-	misc_deregister(&sh_wdt_miscdev);
 	unregister_reboot_notifier(&sh_wdt_notifier);
+	misc_deregister(&sh_wdt_miscdev);
 }
 
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>");
 MODULE_DESCRIPTION("SuperH watchdog driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 module_param(clock_division_ratio, int, 0);
 MODULE_PARM_DESC(clock_division_ratio, "Clock division ratio. Valid ranges are from 0x5 (1.31ms) to 0x7 (5.25ms). Defaults to 0x7.");
-
-module_param(heartbeat, int, 0);
-MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (1<=heartbeat<=3600, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");

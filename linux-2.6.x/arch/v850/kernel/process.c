@@ -203,8 +203,10 @@ int sys_execve (char *name, char **argv, char **envp, struct pt_regs *regs)
 /*
  * These bracket the sleeping functions..
  */
-#define first_sched	((unsigned long)__sched_text_start)
-#define last_sched	((unsigned long)__sched_text_end)
+extern void scheduling_functions_start_here (void);
+extern void scheduling_functions_end_here (void);
+#define first_sched	((unsigned long) scheduling_functions_start_here)
+#define last_sched	((unsigned long) scheduling_functions_end_here)
 
 unsigned long get_wchan (struct task_struct *p)
 {
@@ -226,6 +228,7 @@ unsigned long get_wchan (struct task_struct *p)
 		    fp >= 8184+stack_page)
 			return 0;
 		pc = ((unsigned long *)fp)[1];
+		/* FIXME: This depends on the order of these functions. */
 		if (pc < first_sched || pc >= last_sched)
 			return pc;
 		fp = *(unsigned long *) fp;
@@ -233,4 +236,11 @@ unsigned long get_wchan (struct task_struct *p)
 #endif
 
 	return 0;
+}
+
+void show_trace_task (struct task_struct *t)
+{
+        /* blarg XXX */
+	printk ("show_trace_task: KSP = 0x%lx, USP = 0x%lx, UPC = 0x%lx\n",
+		t->thread.ksp, KSTK_ESP (t), KSTK_EIP (t));
 }

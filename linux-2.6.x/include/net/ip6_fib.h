@@ -57,8 +57,6 @@ struct rt6_info
 		struct rt6_info		*next;
 	} u;
 
-	struct inet6_dev		*rt6i_idev;
-
 #define rt6i_dev			u.dst.dev
 #define rt6i_nexthop			u.dst.neighbour
 #define rt6i_expires			u.dst.expires

@@ -17,7 +17,6 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/stat.h>
-#include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/file.h>
 #include <linux/utsname.h>
@@ -44,7 +43,7 @@ asmlinkage int sys_pipe(unsigned long r4, unsigned long r5,
 	return error;
 }
 
-#if defined(HAVE_ARCH_UNMAPPED_AREA)
+#if defined(CONFIG_CPU_SH4)
 /*
  * To avoid cache alias, we map the shard page with same color.
  */
@@ -53,9 +52,7 @@ asmlinkage int sys_pipe(unsigned long r4, unsigned long r5,
 unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	unsigned long len, unsigned long pgoff, unsigned long flags)
 {
-	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
-	unsigned long start_addr;
 
 	if (flags & MAP_FIXED) {
 		/* We do not accept a shared mapping if it would violate
@@ -68,44 +65,20 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 
 	if (len > TASK_SIZE)
 		return -ENOMEM;
+	if (!addr)
+		addr = TASK_UNMAPPED_BASE;
 
-	if (addr) {
-		if (flags & MAP_PRIVATE)
-			addr = PAGE_ALIGN(addr);
-		else
-			addr = COLOUR_ALIGN(addr);
-		vma = find_vma(mm, addr);
-		if (TASK_SIZE - len >= addr &&
-		    (!vma || addr + len <= vma->vm_start))
-			return addr;
-	}
 	if (flags & MAP_PRIVATE)
-		addr = PAGE_ALIGN(mm->free_area_cache);
+		addr = PAGE_ALIGN(addr);
 	else
-		addr = COLOUR_ALIGN(mm->free_area_cache);
-	start_addr = addr;
+		addr = COLOUR_ALIGN(addr);
 
-full_search:
-	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
+	for (vma = find_vma(current->mm, addr); ; vma = vma->vm_next) {
 		/* At this point:  (!vma || addr < vma->vm_end). */
-		if (TASK_SIZE - len < addr) {
-			/*
-			 * Start a new search - just in case we missed
-			 * some holes.
-			 */
-			if (start_addr != TASK_UNMAPPED_BASE) {
-				start_addr = addr = TASK_UNMAPPED_BASE;
-				goto full_search;
-			}
+		if (TASK_SIZE - len < addr)
 			return -ENOMEM;
-		}
-		if (!vma || addr + len <= vma->vm_start) {
-			/*
-			 * Remember the place where we stopped the search:
-			 */
-			mm->free_area_cache = addr + len;
+		if (!vma || addr + len <= vma->vm_start)
 			return addr;
-		}
 		addr = vma->vm_end;
 		if (!(flags & MAP_PRIVATE))
 			addr = COLOUR_ALIGN(addr);
@@ -227,7 +200,7 @@ asmlinkage int sys_ipc(uint call, int first, int second,
 			switch (version) {
 			default: {
 				ulong raddr;
-				ret = do_shmat (first, (char __user *) ptr,
+				ret = sys_shmat (first, (char __user *) ptr,
 						 second, &raddr);
 				if (ret)
 					return ret;
@@ -236,7 +209,7 @@ asmlinkage int sys_ipc(uint call, int first, int second,
 			case 1:	/* iBCS2 emulator entry point */
 				if (!segment_eq(get_fs(), get_ds()))
 					return -EINVAL;
-				return do_shmat (first, (char __user *) ptr,
+				return sys_shmat (first, (char __user *) ptr,
 						  second, (ulong *) third);
 			}
 		case SHMDT: 
@@ -267,12 +240,16 @@ asmlinkage int sys_uname(struct old_utsname * name)
 asmlinkage ssize_t sys_pread_wrapper(unsigned int fd, char * buf,
 			     size_t count, long dummy, loff_t pos)
 {
+	extern asmlinkage ssize_t sys_pread64(unsigned int fd, char * buf,
+					size_t count, loff_t pos);
 	return sys_pread64(fd, buf, count, pos);
 }
 
 asmlinkage ssize_t sys_pwrite_wrapper(unsigned int fd, const char * buf,
 			      size_t count, long dummy, loff_t pos)
 {
+	extern asmlinkage ssize_t sys_pwrite64(unsigned int fd, const char * buf,
+					size_t count, loff_t pos);
 	return sys_pwrite64(fd, buf, count, pos);
 }
 

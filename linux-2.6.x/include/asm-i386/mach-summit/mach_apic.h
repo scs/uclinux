@@ -19,13 +19,15 @@
 
 static inline cpumask_t target_cpus(void)
 {
-	return CPU_MASK_ALL;
+	cpumask_t tmp = CPU_MASK_ALL;
+	return tmp;
 } 
 #define TARGET_CPUS	(target_cpus())
 
 #define INT_DELIVERY_MODE (dest_Fixed)
 #define INT_DEST_MODE 1     /* logical delivery broadcast to all procs */
 
+#define APIC_BROADCAST_ID     (0xFF)
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
 {
 	return 0;
@@ -138,14 +140,14 @@ static inline void enable_apic_mode(void)
 {
 }
 
-static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
+static inline unsigned int cpu_mask_to_apicid(cpumask_const_t cpumask)
 {
 	int num_bits_set;
 	int cpus_found = 0;
 	int cpu;
 	int apicid;	
 
-	num_bits_set = cpus_weight(cpumask);
+	num_bits_set = cpus_weight_const(cpumask);
 	/* Return id to all */
 	if (num_bits_set == NR_CPUS)
 		return (int) 0xFF;
@@ -153,10 +155,10 @@ static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
 	 * The cpus in the mask must all be on the apic cluster.  If are not 
 	 * on the same apicid cluster return default value of TARGET_CPUS. 
 	 */
-	cpu = first_cpu(cpumask);
+	cpu = first_cpu_const(cpumask);
 	apicid = cpu_to_logical_apicid(cpu);
 	while (cpus_found < num_bits_set) {
-		if (cpu_isset(cpu, cpumask)) {
+		if (cpu_isset_const(cpu, cpumask)) {
 			int new_apicid = cpu_to_logical_apicid(cpu);
 			if (apicid_cluster(apicid) != 
 					apicid_cluster(new_apicid)){

@@ -329,9 +329,6 @@ struct xircom_private {
 	int saved_if_port;
 	struct pci_dev *pdev;
 	spinlock_t lock;
-#ifdef CONFIG_PM
-	u32 pci_state[16];
-#endif
 };
 
 static int mdio_read(struct net_device *dev, int phy_id, int location);
@@ -343,7 +340,6 @@ static void xircom_tx_timeout(struct net_device *dev);
 static void xircom_init_ring(struct net_device *dev);
 static int xircom_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int xircom_rx(struct net_device *dev);
-static void xircom_media_change(struct net_device *dev);
 static irqreturn_t xircom_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
 static int xircom_close(struct net_device *dev);
 static struct net_device_stats *xircom_get_stats(struct net_device *dev);
@@ -652,7 +648,8 @@ err_out_cleardev:
 	pci_set_drvdata(pdev, NULL);
 	pci_release_regions(pdev);
 err_out_free_netdev:
-	free_netdev(dev);
+	unregister_netdev(dev);
+	kfree(dev);
 	return -ENODEV;
 }
 
@@ -753,10 +750,9 @@ xircom_up(struct net_device *dev)
 	long ioaddr = dev->base_addr;
 	int i;
 
-	xircom_init_ring(dev);
 	/* Clear the tx ring */
 	for (i = 0; i < TX_RING_SIZE; i++) {
-		tp->tx_skbuff[i] = NULL;
+		tp->tx_skbuff[i] = 0;
 		tp->tx_ring[i].status = 0;
 	}
 
@@ -790,9 +786,6 @@ xircom_up(struct net_device *dev)
 	/* Tell the net layer we're ready */
 	netif_start_queue (dev);
 
-	/* Check current media state */
-	xircom_media_change(dev);
-
 	if (xircom_debug > 2) {
 		printk(KERN_DEBUG "%s: Done xircom_up(), CSR0 %8.8x, CSR5 %8.8x CSR6 %8.8x.\n",
 			   dev->name, inl(ioaddr + CSR0), inl(ioaddr + CSR5),
@@ -808,6 +801,8 @@ xircom_open(struct net_device *dev)
 
 	if (request_irq(dev->irq, &xircom_interrupt, SA_SHIRQ, dev->name, dev))
 		return -EAGAIN;
+
+	xircom_init_ring(dev);
 
 	xircom_up(dev);
 	tp->open = 1;
@@ -904,7 +899,7 @@ static void xircom_init_ring(struct net_device *dev)
 	/* The Tx buffer descriptor is filled in as needed, but we
 	   do need to clear the ownership bit. */
 	for (i = 0; i < TX_RING_SIZE; i++) {
-		tp->tx_skbuff[i] = NULL;
+		tp->tx_skbuff[i] = 0;
 		tp->tx_ring[i].status = 0;
 		tp->tx_ring[i].buffer2 = virt_to_bus(&tp->tx_ring[i+1]);
 #ifdef CARDBUS
@@ -1017,7 +1012,6 @@ static void xircom_media_change(struct net_device *dev)
 		       dev->name,
 		       tp->speed100 ? "100" : "10",
 		       tp->full_duplex ? "full" : "half");
-		netif_carrier_on(dev);
 		newcsr6 = csr6 & ~FullDuplexBit;
 		if (tp->full_duplex)
 			newcsr6 |= FullDuplexBit;
@@ -1025,7 +1019,6 @@ static void xircom_media_change(struct net_device *dev)
 			outl_CSR6(newcsr6, ioaddr + CSR6);
 	} else {
 		printk(KERN_DEBUG "%s: Link is down\n", dev->name);
-		netif_carrier_off(dev);
 	}
 }
 
@@ -1128,7 +1121,7 @@ static irqreturn_t xircom_interrupt(int irq, void *dev_instance, struct pt_regs 
 
 				/* Free the original skb. */
 				dev_kfree_skb_irq(tp->tx_skbuff[entry]);
-				tp->tx_skbuff[entry] = NULL;
+				tp->tx_skbuff[entry] = 0;
 			}
 
 #ifndef final_version
@@ -1338,7 +1331,7 @@ xircom_close(struct net_device *dev)
 	/* Free all the skbuffs in the Rx queue. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		struct sk_buff *skb = tp->rx_skbuff[i];
-		tp->rx_skbuff[i] = NULL;
+		tp->rx_skbuff[i] = 0;
 		tp->rx_ring[i].status = 0;		/* Not owned by Xircom chip. */
 		tp->rx_ring[i].length = 0;
 		tp->rx_ring[i].buffer1 = 0xBADF00D0; /* An invalid address. */
@@ -1349,7 +1342,7 @@ xircom_close(struct net_device *dev)
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		if (tp->tx_skbuff[i])
 			dev_kfree_skb(tp->tx_skbuff[i]);
-		tp->tx_skbuff[i] = NULL;
+		tp->tx_skbuff[i] = 0;
 	}
 
 	tp->open = 0;
@@ -1369,7 +1362,7 @@ static struct net_device_stats *xircom_get_stats(struct net_device *dev)
 }
 
 
-static int xircom_ethtool_ioctl(struct net_device *dev, void __user *useraddr)
+static int xircom_ethtool_ioctl(struct net_device *dev, void *useraddr)
 {
 	struct ethtool_cmd ecmd;
 	struct xircom_private *tp = dev->priv;
@@ -1471,13 +1464,13 @@ static int xircom_ethtool_ioctl(struct net_device *dev, void __user *useraddr)
 static int xircom_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct xircom_private *tp = dev->priv;
-	u16 *data = (u16 *)&rq->ifr_ifru;
+	u16 *data = (u16 *)&rq->ifr_data;
 	int phy = tp->phys[0] & 0x1f;
 	unsigned long flags;
 
 	switch(cmd) {
 	case SIOCETHTOOL:
-		return xircom_ethtool_ioctl(dev, rq->ifr_data);
+		return xircom_ethtool_ioctl(dev, (void *) rq->ifr_data);
 
 	/* Legacy mii-diag interface */
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
@@ -1629,7 +1622,7 @@ static void set_rx_mode(struct net_device *dev)
 
 		if (entry != 0) {
 			/* Avoid a chip errata by prefixing a dummy entry. */
-			tp->tx_skbuff[entry] = NULL;
+			tp->tx_skbuff[entry] = 0;
 			tp->tx_ring[entry].length =
 				(entry == TX_RING_SIZE - 1) ? Tx1RingWrap : 0;
 			tp->tx_ring[entry].buffer1 = 0;
@@ -1638,7 +1631,7 @@ static void set_rx_mode(struct net_device *dev)
 			entry = tp->cur_tx++ % TX_RING_SIZE;
 		}
 
-		tp->tx_skbuff[entry] = NULL;
+		tp->tx_skbuff[entry] = 0;
 		/* Put the setup frame on the Tx list. */
 		if (entry == TX_RING_SIZE - 1)
 			tx_flags |= Tx1RingWrap;		/* Wrap ring. */
@@ -1676,11 +1669,6 @@ static int xircom_suspend(struct pci_dev *pdev, u32 state)
 	printk(KERN_INFO "xircom_suspend(%s)\n", dev->name);
 	if (tp->open)
 		xircom_down(dev);
-
-	pci_save_state(pdev, tp->pci_state);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, 3);
-
 	return 0;
 }
 
@@ -1690,10 +1678,6 @@ static int xircom_resume(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct xircom_private *tp = dev->priv;
 	printk(KERN_INFO "xircom_resume(%s)\n", dev->name);
-
-	pci_set_power_state(pdev,0);
-	pci_enable_device(pdev);
-	pci_restore_state(pdev, tp->pci_state);
 
 	/* Bring the chip out of sleep mode.
 	   Caution: Snooze mode does not work with some boards! */

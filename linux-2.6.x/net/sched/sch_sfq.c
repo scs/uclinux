@@ -211,7 +211,7 @@ static inline void sfq_inc(struct sfq_sched_data *q, sfq_index x)
 
 static unsigned int sfq_drop(struct Qdisc *sch)
 {
-	struct sfq_sched_data *q = qdisc_priv(sch);
+	struct sfq_sched_data *q = (struct sfq_sched_data *)sch->data;
 	sfq_index d = q->max_depth;
 	struct sk_buff *skb;
 	unsigned int len;
@@ -253,7 +253,7 @@ static unsigned int sfq_drop(struct Qdisc *sch)
 static int
 sfq_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
-	struct sfq_sched_data *q = qdisc_priv(sch);
+	struct sfq_sched_data *q = (struct sfq_sched_data *)sch->data;
 	unsigned hash = sfq_hash(q, skb);
 	sfq_index x;
 
@@ -288,7 +288,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 static int
 sfq_requeue(struct sk_buff *skb, struct Qdisc* sch)
 {
-	struct sfq_sched_data *q = qdisc_priv(sch);
+	struct sfq_sched_data *q = (struct sfq_sched_data *)sch->data;
 	unsigned hash = sfq_hash(q, skb);
 	sfq_index x;
 
@@ -324,7 +324,7 @@ sfq_requeue(struct sk_buff *skb, struct Qdisc* sch)
 static struct sk_buff *
 sfq_dequeue(struct Qdisc* sch)
 {
-	struct sfq_sched_data *q = qdisc_priv(sch);
+	struct sfq_sched_data *q = (struct sfq_sched_data *)sch->data;
 	struct sk_buff *skb;
 	sfq_index a, old_a;
 
@@ -341,7 +341,6 @@ sfq_dequeue(struct Qdisc* sch)
 
 	/* Is the slot empty? */
 	if (q->qs[a].qlen == 0) {
-		q->ht[q->hash[a]] = SFQ_DEPTH;
 		a = q->next[a];
 		if (a == old_a) {
 			q->tail = SFQ_DEPTH;
@@ -369,7 +368,7 @@ sfq_reset(struct Qdisc* sch)
 static void sfq_perturbation(unsigned long arg)
 {
 	struct Qdisc *sch = (struct Qdisc*)arg;
-	struct sfq_sched_data *q = qdisc_priv(sch);
+	struct sfq_sched_data *q = (struct sfq_sched_data *)sch->data;
 
 	q->perturbation = net_random()&0x1F;
 	q->perturb_timer.expires = jiffies + q->perturb_period;
@@ -382,7 +381,7 @@ static void sfq_perturbation(unsigned long arg)
 
 static int sfq_change(struct Qdisc *sch, struct rtattr *opt)
 {
-	struct sfq_sched_data *q = qdisc_priv(sch);
+	struct sfq_sched_data *q = (struct sfq_sched_data *)sch->data;
 	struct tc_sfq_qopt *ctl = RTA_DATA(opt);
 
 	if (opt->rta_len < RTA_LENGTH(sizeof(*ctl)))
@@ -408,7 +407,7 @@ static int sfq_change(struct Qdisc *sch, struct rtattr *opt)
 
 static int sfq_init(struct Qdisc *sch, struct rtattr *opt)
 {
-	struct sfq_sched_data *q = qdisc_priv(sch);
+	struct sfq_sched_data *q = (struct sfq_sched_data *)sch->data;
 	int i;
 
 	init_timer(&q->perturb_timer);
@@ -440,13 +439,13 @@ static int sfq_init(struct Qdisc *sch, struct rtattr *opt)
 
 static void sfq_destroy(struct Qdisc *sch)
 {
-	struct sfq_sched_data *q = qdisc_priv(sch);
+	struct sfq_sched_data *q = (struct sfq_sched_data *)sch->data;
 	del_timer(&q->perturb_timer);
 }
 
 static int sfq_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
-	struct sfq_sched_data *q = qdisc_priv(sch);
+	struct sfq_sched_data *q = (struct sfq_sched_data *)sch->data;
 	unsigned char	 *b = skb->tail;
 	struct tc_sfq_qopt opt;
 
@@ -466,7 +465,7 @@ rtattr_failure:
 	return -1;
 }
 
-static struct Qdisc_ops sfq_qdisc_ops = {
+struct Qdisc_ops sfq_qdisc_ops = {
 	.next		=	NULL,
 	.cl_ops		=	NULL,
 	.id		=	"sfq",
@@ -483,14 +482,15 @@ static struct Qdisc_ops sfq_qdisc_ops = {
 	.owner		=	THIS_MODULE,
 };
 
-static int __init sfq_module_init(void)
+#ifdef MODULE
+int init_module(void)
 {
 	return register_qdisc(&sfq_qdisc_ops);
 }
-static void __exit sfq_module_exit(void) 
+
+void cleanup_module(void) 
 {
 	unregister_qdisc(&sfq_qdisc_ops);
 }
-module_init(sfq_module_init)
-module_exit(sfq_module_exit)
+#endif
 MODULE_LICENSE("GPL");

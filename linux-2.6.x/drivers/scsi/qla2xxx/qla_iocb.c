@@ -2,7 +2,7 @@
  *                  QLOGIC LINUX SOFTWARE
  *
  * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2004 QLogic Corporation
+ * Copyright (C) 2003 QLogic Corporation
  * (www.qlogic.com)
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -17,10 +17,8 @@
  *
  ******************************************************************************/
 
+#include "qla_os.h"
 #include "qla_def.h"
-
-#include <linux/blkdev.h>
-#include <linux/delay.h>
 
 static inline uint16_t qla2x00_get_cmd_direction(struct scsi_cmnd *cmd);
 static inline cont_entry_t *qla2x00_prep_cont_type0_iocb(scsi_qla_host_t *);
@@ -44,6 +42,28 @@ qla2x00_get_cmd_direction(struct scsi_cmnd *cmd)
 		cflags = CF_WRITE;
 	else if (cmd->sc_data_direction == DMA_FROM_DEVICE)
 		cflags = CF_READ;
+	else {
+		switch (cmd->data_cmnd[0]) {
+		case WRITE_6:
+		case WRITE_10:
+		case WRITE_12:
+		case WRITE_BUFFER:
+		case WRITE_LONG:
+		case WRITE_SAME:
+		case WRITE_VERIFY:
+		case WRITE_VERIFY_12:
+		case FORMAT_UNIT:
+		case SEND_VOLUME_TAG:
+		case MODE_SELECT:
+		case SEND_DIAGNOSTIC:
+		case MODE_SELECT_10:
+			cflags = CF_WRITE;
+			break;
+		default:
+			cflags = CF_READ;
+			break;
+		}
+	}
 	return (cflags);
 }
 
@@ -104,7 +124,7 @@ qla2x00_prep_cont_type0_iocb(scsi_qla_host_t *ha)
 
 	/* Adjust ring index. */
 	ha->req_ring_index++;
-	if (ha->req_ring_index == ha->request_q_length) {
+	if (ha->req_ring_index == REQUEST_ENTRY_CNT) {
 		ha->req_ring_index = 0;
 		ha->request_ring_ptr = ha->request_ring;
 	} else {
@@ -133,7 +153,7 @@ qla2x00_prep_cont_type1_iocb(scsi_qla_host_t *ha)
 
 	/* Adjust ring index. */
 	ha->req_ring_index++;
-	if (ha->req_ring_index == ha->request_q_length) {
+	if (ha->req_ring_index == REQUEST_ENTRY_CNT) {
 		ha->req_ring_index = 0;
 		ha->request_ring_ptr = ha->request_ring;
 	} else {
@@ -330,12 +350,11 @@ qla2x00_start_scsi(srb_t *sp)
 	uint32_t	*clr_ptr;
 	uint32_t        index;
 	uint32_t	handle;
+	uint16_t	cnt, tot_dsds, req_cnt;
 	cmd_entry_t	*cmd_pkt;
 	uint32_t        timeout;
 	struct scatterlist *sg;
-	uint16_t	cnt;
-	uint16_t	req_cnt;
-	uint16_t	tot_dsds;
+
 	device_reg_t	*reg;
 
 	/* Setup device pointers. */
@@ -353,8 +372,38 @@ qla2x00_start_scsi(srb_t *sp)
 		ha->marker_needed = 0;
 	}
 
+	/* Calculate number of segments and entries required */
+	tot_dsds = 0;
+	if (cmd->use_sg) {
+		sg = (struct scatterlist *) cmd->request_buffer;
+		tot_dsds = pci_map_sg(ha->pdev, sg, cmd->use_sg,
+		    cmd->sc_data_direction);
+	} else if (cmd->request_bufflen) {   /* Single segment transfer */
+		tot_dsds++;
+	}
+	req_cnt = (ha->calc_request_entries)(tot_dsds);
+
 	/* Acquire ring specific lock */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
+
+	if (ha->req_q_cnt < (req_cnt + 2)) {
+		/* Calculate number of free request entries */
+		cnt = RD_REG_WORD(ISP_REQ_Q_OUT(ha, reg));
+		if (ha->req_ring_index < cnt)
+			ha->req_q_cnt = cnt - ha->req_ring_index;
+		else
+			ha->req_q_cnt = REQUEST_ENTRY_CNT -
+			    (ha->req_ring_index - cnt);
+	}
+
+	/* If no room for request in request ring */
+	if (ha->req_q_cnt < (req_cnt + 2)) {
+		DEBUG5(printk("scsi(%ld): in-ptr=%x req_q_cnt=%x "
+		    "tot_dsds=%x.\n",
+		    ha->host_no, ha->req_ring_index, ha->req_q_cnt, tot_dsds));
+
+		goto queuing_error;
+	}
 
 	/* Check for room in outstanding command list. */
 	handle = ha->current_outstanding_cmd;
@@ -362,40 +411,19 @@ qla2x00_start_scsi(srb_t *sp)
 		handle++;
 		if (handle == MAX_OUTSTANDING_COMMANDS)
 			handle = 1;
-		if (ha->outstanding_cmds[handle] == 0)
+		if (ha->outstanding_cmds[handle] == 0) {
+			ha->current_outstanding_cmd = handle;
 			break;
+		}
 	}
-	if (index == MAX_OUTSTANDING_COMMANDS)
+	if (index == MAX_OUTSTANDING_COMMANDS) {
+		DEBUG5(printk("scsi(%ld): Unable to queue command -- NO ROOM "
+		    "IN OUTSTANDING ARRAY (req_q_cnt=%x).\n",
+		    ha->host_no, ha->req_q_cnt));
 		goto queuing_error;
-
-	/* Calculate the number of request entries needed. */
-	req_cnt = (ha->calc_request_entries)(cmd->request->nr_hw_segments);
-	if (ha->req_q_cnt < (req_cnt + 2)) {
-		cnt = RD_REG_WORD_RELAXED(ISP_REQ_Q_OUT(ha, reg));
-		if (ha->req_ring_index < cnt)
-			ha->req_q_cnt = cnt - ha->req_ring_index;
-		else
-			ha->req_q_cnt = ha->request_q_length -
-			    (ha->req_ring_index - cnt);
 	}
-	if (ha->req_q_cnt < (req_cnt + 2))
-		goto queuing_error;
-
-	/* Finally, we have enough space, now perform mappings. */
-	tot_dsds = 0;
-	if (cmd->use_sg) {
-		sg = (struct scatterlist *) cmd->request_buffer;
-		tot_dsds = pci_map_sg(ha->pdev, sg, cmd->use_sg,
-		    cmd->sc_data_direction);
-		if (tot_dsds == 0)
-			goto queuing_error;
-	} else if (cmd->request_bufflen) {
-	    tot_dsds++;
-	}
-	req_cnt = (ha->calc_request_entries)(tot_dsds);
 
 	/* Build command packet */
-	ha->current_outstanding_cmd = handle;
 	ha->outstanding_cmds[handle] = sp;
 	sp->ha = ha;
 	sp->cmd->host_scribble = (unsigned char *)(unsigned long)handle;
@@ -450,11 +478,10 @@ qla2x00_start_scsi(srb_t *sp)
 
 	/* Set total data segment count. */
 	cmd_pkt->entry_count = (uint8_t)req_cnt;
-	wmb();
 
 	/* Adjust ring index. */
 	ha->req_ring_index++;
-	if (ha->req_ring_index == ha->request_q_length) {
+	if (ha->req_ring_index == REQUEST_ENTRY_CNT) {
 		ha->req_ring_index = 0;
 		ha->request_ring_ptr = ha->request_ring;
 	} else
@@ -469,13 +496,16 @@ qla2x00_start_scsi(srb_t *sp)
 
 	/* Set chip new ring index. */
 	WRT_REG_WORD(ISP_REQ_Q_IN(ha, reg), ha->req_ring_index);
-	RD_REG_WORD_RELAXED(ISP_REQ_Q_IN(ha, reg));	/* PCI Posting. */
+	RD_REG_WORD(ISP_REQ_Q_IN(ha, reg));	/* PCI Posting. */
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return (QLA_SUCCESS);
 
 queuing_error:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	if (cmd->use_sg)
+		pci_unmap_sg(ha->pdev, sg, cmd->use_sg, cmd->sc_data_direction);
 
 	return (QLA_FUNCTION_FAILED);
 }
@@ -497,6 +527,8 @@ __qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
 {
 	mrk_entry_t	*pkt;
 
+	ENTER(__func__);
+
 	pkt = (mrk_entry_t *)qla2x00_req_pkt(ha);
 	if (pkt == NULL) {
 		DEBUG2_3(printk("%s(): **** FAILED ****\n", __func__));
@@ -511,10 +543,11 @@ __qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
 		pkt->lun = cpu_to_le16(lun);
 		SET_TARGET_ID(ha, pkt->target, loop_id);
 	}
-	wmb();
 
 	/* Issue command to ISP */
 	qla2x00_isp_cmd(ha);
+
+	LEAVE(__func__);
 
 	return (QLA_SUCCESS);
 }
@@ -551,6 +584,8 @@ qla2x00_req_pkt(scsi_qla_host_t *ha)
 	uint32_t	timer;
 	uint16_t	req_cnt = 1;
 
+	ENTER(__func__);
+
 	/* Wait 1 second for slot. */
 	for (timer = HZ; timer; timer--) {
 		if ((req_cnt + 2) >= ha->req_q_cnt) {
@@ -559,7 +594,7 @@ qla2x00_req_pkt(scsi_qla_host_t *ha)
 			if  (ha->req_ring_index < cnt)
 				ha->req_q_cnt = cnt - ha->req_ring_index;
 			else
-				ha->req_q_cnt = ha->request_q_length -
+				ha->req_q_cnt = REQUEST_ENTRY_CNT -
 				    (ha->req_ring_index - cnt);
 		}
 		/* If room for request in request ring. */
@@ -597,6 +632,8 @@ qla2x00_req_pkt(scsi_qla_host_t *ha)
 		DEBUG2_3(printk("%s(): **** FAILED ****\n", __func__));
 	}
 
+	LEAVE(__func__);
+
 	return (pkt);
 }
 
@@ -621,6 +658,8 @@ qla2x00_ms_req_pkt(scsi_qla_host_t *ha, srb_t  *sp)
 	uint8_t		found = 0;
 	uint16_t	req_cnt = 1;
 
+	ENTER(__func__);
+
 	/* Wait 1 second for slot. */
 	for (timer = HZ; timer; timer--) {
 		if ((req_cnt + 2) >= ha->req_q_cnt) {
@@ -629,7 +668,7 @@ qla2x00_ms_req_pkt(scsi_qla_host_t *ha, srb_t  *sp)
 			if (ha->req_ring_index < cnt) {
 				ha->req_q_cnt = cnt - ha->req_ring_index;
 			} else {
-				ha->req_q_cnt = ha->request_q_length -
+				ha->req_q_cnt = REQUEST_ENTRY_CNT -
 				    (ha->req_ring_index - cnt);
 			}
 		}
@@ -691,6 +730,8 @@ qla2x00_ms_req_pkt(scsi_qla_host_t *ha, srb_t  *sp)
 		DEBUG2_3(printk("%s(): **** FAILED ****\n", __func__));
 	}
 
+	LEAVE(__func__);
+
 	return (pkt);
 }
 
@@ -711,7 +752,7 @@ qla2x00_isp_cmd(scsi_qla_host_t *ha)
 
 	/* Adjust ring index. */
 	ha->req_ring_index++;
-	if (ha->req_ring_index == ha->request_q_length) {
+	if (ha->req_ring_index == REQUEST_ENTRY_CNT) {
 		ha->req_ring_index = 0;
 		ha->request_ring_ptr = ha->request_ring;
 	} else
@@ -719,5 +760,5 @@ qla2x00_isp_cmd(scsi_qla_host_t *ha)
 
 	/* Set chip new ring index. */
 	WRT_REG_WORD(ISP_REQ_Q_IN(ha, reg), ha->req_ring_index);
-	RD_REG_WORD_RELAXED(ISP_REQ_Q_IN(ha, reg));	/* PCI Posting. */
+	RD_REG_WORD(ISP_REQ_Q_IN(ha, reg));	/* PCI Posting. */
 }

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2003 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -27,33 +27,45 @@
 *******************************************************************************/
 
 #include "e1000.h"
-#include <linux/rtnetlink.h>
 
 /* Change Log
  *
- * 5.2.51   5/14/04
- *   o set default configuration to 'NAPI disabled'. NAPI enabled driver
- *     causes kernel panic when the interface is shutdown while data is being
- *     transferred.
- * 5.2.47   5/04/04
- *   o fixed ethtool -t implementation
- * 5.2.45   4/29/04
- *   o fixed ethtool -e implementation
- *   o Support for ethtool ops [Stephen Hemminger (shemminger@osdl.org)]
- * 5.2.42   4/26/04
- *   o Added support for the DPRINTK macro for enhanced error logging.  Some
- *     parts of the patch were supplied by Jon Mason.
- *   o Move the register_netdevice() donw in the probe routine due to a 
- *     loading/unloading test issue.
- *   o Added a long RX byte count the the extra ethtool data members for BER
- *     testing purposes.
- * 5.2.39	3/12/04
+ * 5.2.20	9/30/03
+ *   o Bug fix: SERDES devices might be connected to a back-plane
+ *     switch that doesn't support auto-neg, so add the capability
+ *     to force 1000/Full.
+ *   o Bug fix: Flow control settings for hi/lo watermark didn't
+ *     consider changes in the Rx FIFO size, which could occur with
+ *     Jumbo Frames or with the reduced FIFO in 82547.
+ *   o Better propagation of error codes. [Janice Girouard 
+ *     (janiceg@us.ibm.com)].
+ *   o Bug fix: hang under heavy Tx stress when running out of Tx
+ *     descriptors; wasn't clearing context descriptor when backing
+ *     out of send because of no-resource condition.
+ *
+ * 5.2.16	8/8/03
+ *   o Added support for new controllers: 82545GM, 82546GB, 82541/7_B1
+ *   o Bug fix: reset h/w before first EEPROM read because we don't know
+ *     who may have been messing with the device before we got there.
+ *     [Dave Johnson (ddj -a-t- cascv.brown.edu)]
+ *   o Bug fix: read the correct work from EEPROM to detect programmed
+ *     WoL settings.
+ *   o Bug fix: TSO would hang if space left in FIFO was being miscalculated
+ *     when mss dropped without a correspoding drop in the DMA buffer size.
+ *   o ASF for Fiber nics isn't supported.
+ *   o Bug fix: Workaround added for potential hang with 82544 running in
+ *     PCI-X if send buffer terminates within an evenly-aligned dword.
+ *   o Feature: Add support for ethtool flow control setting.
+ *   o Feature: Add support for ethtool TSO setting.
+ *   o Feature: Increase default Tx Descriptor count to 1024 for >= 82544.
+ *   
+ * 5.1.13	5/28/03
  */
 
 char e1000_driver_name[] = "e1000";
 char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
-char e1000_driver_version[] = "5.2.52-k4";
-char e1000_copyright[] = "Copyright (c) 1999-2004 Intel Corporation.";
+char e1000_driver_version[] = "5.2.20-k1";
+char e1000_copyright[] = "Copyright (c) 1999-2003 Intel Corporation.";
 
 /* e1000_pci_tbl - PCI Device ID Table
  *
@@ -77,6 +89,7 @@ static struct pci_device_id e1000_pci_tbl[] = {
 	{0x8086, 0x1011, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x8086, 0x1012, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x8086, 0x1013, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{0x8086, 0x1014, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x8086, 0x1015, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x8086, 0x1016, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x8086, 0x1017, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -100,17 +113,12 @@ static struct pci_device_id e1000_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, e1000_pci_tbl);
 
+/* Local Function Prototypes */
+
 int e1000_up(struct e1000_adapter *adapter);
 void e1000_down(struct e1000_adapter *adapter);
 void e1000_reset(struct e1000_adapter *adapter);
 int e1000_set_spd_dplx(struct e1000_adapter *adapter, uint16_t spddplx);
-int e1000_setup_tx_resources(struct e1000_adapter *adapter);
-int e1000_setup_rx_resources(struct e1000_adapter *adapter);
-void e1000_free_tx_resources(struct e1000_adapter *adapter);
-void e1000_free_rx_resources(struct e1000_adapter *adapter);
-void e1000_update_stats(struct e1000_adapter *adapter);
-
-/* Local Function Prototypes */
 
 static int e1000_init_module(void);
 static void e1000_exit_module(void);
@@ -119,11 +127,15 @@ static void __devexit e1000_remove(struct pci_dev *pdev);
 static int e1000_sw_init(struct e1000_adapter *adapter);
 static int e1000_open(struct net_device *netdev);
 static int e1000_close(struct net_device *netdev);
+static int e1000_setup_tx_resources(struct e1000_adapter *adapter);
+static int e1000_setup_rx_resources(struct e1000_adapter *adapter);
 static void e1000_configure_tx(struct e1000_adapter *adapter);
 static void e1000_configure_rx(struct e1000_adapter *adapter);
 static void e1000_setup_rctl(struct e1000_adapter *adapter);
 static void e1000_clean_tx_ring(struct e1000_adapter *adapter);
 static void e1000_clean_rx_ring(struct e1000_adapter *adapter);
+static void e1000_free_tx_resources(struct e1000_adapter *adapter);
+static void e1000_free_rx_resources(struct e1000_adapter *adapter);
 static void e1000_set_multi(struct net_device *netdev);
 static void e1000_update_phy_info(unsigned long data);
 static void e1000_watchdog(unsigned long data);
@@ -132,6 +144,7 @@ static int e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 static struct net_device_stats * e1000_get_stats(struct net_device *netdev);
 static int e1000_change_mtu(struct net_device *netdev, int new_mtu);
 static int e1000_set_mac(struct net_device *netdev, void *p);
+static void e1000_update_stats(struct e1000_adapter *adapter);
 static inline void e1000_irq_disable(struct e1000_adapter *adapter);
 static inline void e1000_irq_enable(struct e1000_adapter *adapter);
 static irqreturn_t e1000_intr(int irq, void *data, struct pt_regs *regs);
@@ -147,7 +160,6 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter);
 static int e1000_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd);
 static int e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr,
 			   int cmd);
-void set_ethtool_ops(struct net_device *netdev);
 static void e1000_enter_82542_rst(struct e1000_adapter *adapter);
 static void e1000_leave_82542_rst(struct e1000_adapter *adapter);
 static inline void e1000_rx_checksum(struct e1000_adapter *adapter,
@@ -170,11 +182,6 @@ static int e1000_suspend(struct pci_dev *pdev, uint32_t state);
 static int e1000_resume(struct pci_dev *pdev);
 #endif
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/* for netdump / net console */
-static void e1000_netpoll (struct net_device *dev);
-#endif
-
 struct notifier_block e1000_notifier_reboot = {
 	.notifier_call	= e1000_notify_reboot,
 	.next		= NULL,
@@ -184,7 +191,7 @@ struct notifier_block e1000_notifier_reboot = {
 /* Exported from other modules */
 
 extern void e1000_check_options(struct e1000_adapter *adapter);
-
+extern int e1000_ethtool_ioctl(struct net_device *netdev, struct ifreq *ifr);
 
 static struct pci_driver e1000_driver = {
 	.name     = e1000_driver_name,
@@ -201,10 +208,6 @@ static struct pci_driver e1000_driver = {
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) PRO/1000 Network Driver");
 MODULE_LICENSE("GPL");
-
-static int debug = 3;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 /**
  * e1000_init_module - Driver Registration Routine
@@ -265,7 +268,7 @@ e1000_up(struct e1000_adapter *adapter)
 	e1000_configure_rx(adapter);
 	e1000_alloc_rx_buffers(adapter);
 
-	if((err = request_irq(adapter->pdev->irq, &e1000_intr,
+	if((err = request_irq(netdev->irq, &e1000_intr,
 		              SA_SHIRQ | SA_SAMPLE_RANDOM,
 		              netdev->name, netdev)))
 		return err;
@@ -282,7 +285,7 @@ e1000_down(struct e1000_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 
 	e1000_irq_disable(adapter);
-	free_irq(adapter->pdev->irq, netdev);
+	free_irq(netdev->irq, netdev);
 	del_timer_sync(&adapter->tx_fifo_stall_timer);
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
@@ -299,7 +302,7 @@ e1000_down(struct e1000_adapter *adapter)
 void
 e1000_reset(struct e1000_adapter *adapter)
 {
-	uint32_t pba, manc;
+	uint32_t pba;
 	/* Repartition Pba for greater than 9k mtu
 	 * To take effect CTRL.RST is required.
 	 */
@@ -317,16 +320,14 @@ e1000_reset(struct e1000_adapter *adapter)
 		adapter->tx_fifo_head = 0;
 		adapter->tx_head_addr = pba << E1000_TX_HEAD_ADDR_SHIFT;
 		adapter->tx_fifo_size =
-			(E1000_PBA_40K - pba) << E1000_PBA_BYTES_SHIFT;
+			(E1000_PBA_40K - pba) << E1000_TX_FIFO_SIZE_SHIFT;
 		atomic_set(&adapter->tx_fifo_stall, 0);
 	}
 	E1000_WRITE_REG(&adapter->hw, PBA, pba);
 
 	/* flow control settings */
-	adapter->hw.fc_high_water =
-		(pba << E1000_PBA_BYTES_SHIFT) - E1000_FC_HIGH_DIFF;
-	adapter->hw.fc_low_water =
-		(pba << E1000_PBA_BYTES_SHIFT) - E1000_FC_LOW_DIFF;
+	adapter->hw.fc_high_water = pba - E1000_FC_HIGH_DIFF;
+	adapter->hw.fc_low_water = pba - E1000_FC_LOW_DIFF;
 	adapter->hw.fc_pause_time = E1000_FC_PAUSE_TIME;
 	adapter->hw.fc_send_xon = 1;
 	adapter->hw.fc = adapter->hw.original_fc;
@@ -335,18 +336,8 @@ e1000_reset(struct e1000_adapter *adapter)
 	if(adapter->hw.mac_type >= e1000_82544)
 		E1000_WRITE_REG(&adapter->hw, WUC, 0);
 	e1000_init_hw(&adapter->hw);
-
-	/* Enable h/w to recognize an 802.1Q VLAN Ethernet packet */
-	E1000_WRITE_REG(&adapter->hw, VET, ETHERNET_IEEE_VLAN_TYPE);
-
 	e1000_reset_adaptive(&adapter->hw);
 	e1000_phy_get_info(&adapter->hw, &adapter->phy_info);
-
-	if(adapter->en_mng_pt) {
-		manc = E1000_READ_REG(&adapter->hw, MANC);
-		manc |= (E1000_MANC_ARP_EN | E1000_MANC_EN_MNG2HOST);
-		E1000_WRITE_REG(&adapter->hw, MANC, manc);
-	}
 }
 
 /**
@@ -378,10 +369,10 @@ e1000_probe(struct pci_dev *pdev,
 	if((err = pci_enable_device(pdev)))
 		return err;
 
-	if(!(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK))) {
+	if(!(err = pci_set_dma_mask(pdev, PCI_DMA_64BIT))) {
 		pci_using_dac = 1;
 	} else {
-		if((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK))) {
+		if((err = pci_set_dma_mask(pdev, PCI_DMA_32BIT))) {
 			E1000_ERR("No usable DMA configuration, aborting\n");
 			return err;
 		}
@@ -407,12 +398,6 @@ e1000_probe(struct pci_dev *pdev,
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
-	adapter->msg_enable = (1 << debug) - 1;
-
-	rtnl_lock();
-	/* we need to set the name early since the DPRINTK macro needs it set */
-	if (dev_alloc_name(netdev, netdev->name) < 0) 
-		goto err_free_unlock;
 
 	mmio_start = pci_resource_start(pdev, BAR_0);
 	mmio_len = pci_resource_len(pdev, BAR_0);
@@ -440,7 +425,6 @@ e1000_probe(struct pci_dev *pdev,
 	netdev->set_mac_address = &e1000_set_mac;
 	netdev->change_mtu = &e1000_change_mtu;
 	netdev->do_ioctl = &e1000_ioctl;
-	set_ethtool_ops(netdev);
 	netdev->tx_timeout = &e1000_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
 #ifdef CONFIG_E1000_NAPI
@@ -450,10 +434,8 @@ e1000_probe(struct pci_dev *pdev,
 	netdev->vlan_rx_register = e1000_vlan_rx_register;
 	netdev->vlan_rx_add_vid = e1000_vlan_rx_add_vid;
 	netdev->vlan_rx_kill_vid = e1000_vlan_rx_kill_vid;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = e1000_netpoll;
-#endif
 
+	netdev->irq = pdev->irq;
 	netdev->mem_start = mmio_start;
 	netdev->mem_end = mmio_start + mmio_len;
 	netdev->base_addr = adapter->hw.io_base;
@@ -476,20 +458,13 @@ e1000_probe(struct pci_dev *pdev,
 	}
 
 #ifdef NETIF_F_TSO
-#ifdef BROKEN_ON_NON_IA_ARCHS
-	/* Disbaled for now until root-cause is found for
-	 * hangs reported against non-IA archs.  TSO can be
-	 * enabled using ethtool -K eth<x> tso on */
 	if((adapter->hw.mac_type >= e1000_82544) &&
 	   (adapter->hw.mac_type != e1000_82547))
 		netdev->features |= NETIF_F_TSO;
 #endif
-#endif
 
 	if(pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
-
-	adapter->en_mng_pt = e1000_enable_mng_pass_thru(&adapter->hw);
 
 	/* before reading the EEPROM, reset the controller to 
 	 * put the device in a known good starting state */
@@ -499,7 +474,7 @@ e1000_probe(struct pci_dev *pdev,
 	/* make sure the EEPROM is good */
 
 	if(e1000_validate_eeprom_checksum(&adapter->hw) < 0) {
-		DPRINTK(PROBE, ERR, "The EEPROM Checksum Is Not Valid\n");
+		printk(KERN_ERR "The EEPROM Checksum Is Not Valid\n");
 		err = -EIO;
 		goto err_eeprom;
 	}
@@ -533,12 +508,15 @@ e1000_probe(struct pci_dev *pdev,
 	INIT_WORK(&adapter->tx_timeout_task,
 		(void (*)(void *))e1000_tx_timeout_task, netdev);
 
+	register_netdev(netdev);
+
 	/* we're going to reset, so assume we have no link for now */
 
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
-	DPRINTK(PROBE, INFO, "Intel(R) PRO/1000 Network Connection\n");
+	printk(KERN_INFO "%s: Intel(R) PRO/1000 Network Connection\n",
+	       netdev->name);
 	e1000_check_options(adapter);
 
 	/* Initial Wake on LAN setting
@@ -572,21 +550,13 @@ e1000_probe(struct pci_dev *pdev,
 
 	e1000_reset(adapter);
 
-	/* since we are holding the rtnl lock already, call the no-lock version */
-	if((err = register_netdevice(netdev)))
-		goto err_register;
-
 	cards_found++;
-	rtnl_unlock();
 	return 0;
 
-err_register:
 err_sw_init:
 err_eeprom:
 	iounmap(adapter->hw.hw_addr);
 err_ioremap:
-err_free_unlock:
-	rtnl_unlock();
 	free_netdev(netdev);
 err_alloc_etherdev:
 	pci_release_regions(pdev);
@@ -664,7 +634,7 @@ e1000_sw_init(struct e1000_adapter *adapter)
 	/* identify the MAC */
 
 	if (e1000_set_mac_type(hw)) {
-		DPRINTK(PROBE, ERR, "Unknown MAC Type\n");
+		E1000_ERR("Unknown MAC Type\n");
 		return -EIO;
 	}
 
@@ -699,7 +669,6 @@ e1000_sw_init(struct e1000_adapter *adapter)
 
 	atomic_set(&adapter->irq_sem, 1);
 	spin_lock_init(&adapter->stats_lock);
-	spin_lock_init(&adapter->tx_lock);
 
 	return 0;
 }
@@ -780,7 +749,7 @@ e1000_close(struct net_device *netdev)
  * Return 0 on success, negative on failure
  **/
 
-int
+static int
 e1000_setup_tx_resources(struct e1000_adapter *adapter)
 {
 	struct e1000_desc_ring *txdr = &adapter->tx_ring;
@@ -897,7 +866,7 @@ e1000_configure_tx(struct e1000_adapter *adapter)
  * Returns 0 on success, negative on failure
  **/
 
-int
+static int
 e1000_setup_rx_resources(struct e1000_adapter *adapter)
 {
 	struct e1000_desc_ring *rxdr = &adapter->rx_ring;
@@ -1036,7 +1005,7 @@ e1000_configure_rx(struct e1000_adapter *adapter)
  * Free all transmit software resources
  **/
 
-void
+static void
 e1000_free_tx_resources(struct e1000_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
@@ -1104,7 +1073,7 @@ e1000_clean_tx_ring(struct e1000_adapter *adapter)
  * Free all receive software resources
  **/
 
-void
+static void
 e1000_free_rx_resources(struct e1000_adapter *adapter)
 {
 	struct e1000_desc_ring *rx_ring = &adapter->rx_ring;
@@ -1312,6 +1281,41 @@ e1000_set_multi(struct net_device *netdev)
 		e1000_leave_82542_rst(adapter);
 }
 
+static void
+e1000_tx_flush(struct e1000_adapter *adapter)
+{
+	uint32_t ctrl, tctl, txcw, icr;
+
+	e1000_irq_disable(adapter);
+
+	if(adapter->hw.mac_type < e1000_82543) {
+		/* Transmit Unit Reset */
+		tctl = E1000_READ_REG(&adapter->hw, TCTL);
+		E1000_WRITE_REG(&adapter->hw, TCTL, tctl | E1000_TCTL_RST);
+		E1000_WRITE_REG(&adapter->hw, TCTL, tctl);
+		e1000_clean_tx_ring(adapter);
+		e1000_configure_tx(adapter);
+	} else {
+		txcw = E1000_READ_REG(&adapter->hw, TXCW);
+		E1000_WRITE_REG(&adapter->hw, TXCW, txcw & ~E1000_TXCW_ANE);
+
+		ctrl = E1000_READ_REG(&adapter->hw, CTRL);
+		E1000_WRITE_REG(&adapter->hw, CTRL, ctrl | E1000_CTRL_SLU |
+				E1000_CTRL_ILOS);
+
+		mdelay(10);
+
+		e1000_clean_tx_irq(adapter);
+		E1000_WRITE_REG(&adapter->hw, CTRL, ctrl);
+		E1000_WRITE_REG(&adapter->hw, TXCW, txcw);
+
+		/* clear the link status change interrupts this caused */
+		icr = E1000_READ_REG(&adapter->hw, ICR);
+	}
+
+	e1000_irq_enable(adapter);
+}
+
 /* need to wait a few seconds after link up to get diagnostic information from the phy */
 
 static void
@@ -1375,24 +1379,18 @@ e1000_watchdog(unsigned long data)
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_desc_ring *txdr = &adapter->tx_ring;
 	unsigned int i;
-	uint32_t link;
 
 	e1000_check_for_link(&adapter->hw);
 
-	if((adapter->hw.media_type == e1000_media_type_internal_serdes) &&
-	   !(E1000_READ_REG(&adapter->hw, TXCW) & E1000_TXCW_ANE))
-		link = !adapter->hw.serdes_link_down;
-	else
-		link = E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_LU;
-
-	if(link) {
+	if(E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_LU) {
 		if(!netif_carrier_ok(netdev)) {
 			e1000_get_speed_and_duplex(&adapter->hw,
 			                           &adapter->link_speed,
 			                           &adapter->link_duplex);
 
-			DPRINTK(LINK, INFO, "NIC Link is Up %d Mbps %s\n",
-			       adapter->link_speed,
+			printk(KERN_INFO
+			       "e1000: %s NIC Link is Up %d Mbps %s\n",
+			       netdev->name, adapter->link_speed,
 			       adapter->link_duplex == FULL_DUPLEX ?
 			       "Full Duplex" : "Half Duplex");
 
@@ -1405,7 +1403,9 @@ e1000_watchdog(unsigned long data)
 		if(netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			DPRINTK(LINK, INFO, "NIC Link is Down\n");
+			printk(KERN_INFO
+			       "e1000: %s NIC Link is Down\n",
+			       netdev->name);
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
 			mod_timer(&adapter->phy_info_timer, jiffies + 2 * HZ);
@@ -1415,26 +1415,14 @@ e1000_watchdog(unsigned long data)
 	}
 
 	e1000_update_stats(adapter);
-
-	adapter->hw.tx_packet_delta = adapter->stats.tpt - adapter->tpt_old;
-	adapter->tpt_old = adapter->stats.tpt;
-	adapter->hw.collision_delta = adapter->stats.colc - adapter->colc_old;
-	adapter->colc_old = adapter->stats.colc;
-	
-	adapter->gorcl = adapter->stats.gorcl - adapter->gorcl_old;
-	adapter->gorcl_old = adapter->stats.gorcl;
-	adapter->gotcl = adapter->stats.gotcl - adapter->gotcl_old;
-	adapter->gotcl_old = adapter->stats.gotcl;
-
 	e1000_update_adaptive(&adapter->hw);
 
 	if(!netif_carrier_ok(netdev)) {
 		if(E1000_DESC_UNUSED(txdr) + 1 < txdr->count) {
-			/* We've lost link, so the controller stops DMA,
-			 * but we've got queued Tx work that's never going
-			 * to get done, so reset controller to flush Tx.
-			 * (Do the reset outside of interrupt context). */
-			schedule_work(&adapter->tx_timeout_task);
+			unsigned long flags;
+			spin_lock_irqsave(&netdev->xmit_lock, flags);
+			e1000_tx_flush(adapter);
+			spin_unlock_irqrestore(&netdev->xmit_lock, flags);
 		}
 	}
 
@@ -1557,16 +1545,32 @@ e1000_tx_csum(struct e1000_adapter *adapter, struct sk_buff *skb)
 
 static inline int
 e1000_tx_map(struct e1000_adapter *adapter, struct sk_buff *skb,
-	unsigned int first, unsigned int max_per_txd,
-	unsigned int nr_frags, unsigned int mss)
+	unsigned int first)
 {
 	struct e1000_desc_ring *tx_ring = &adapter->tx_ring;
+	struct e1000_tx_desc *tx_desc;
 	struct e1000_buffer *buffer_info;
-	unsigned int len = skb->len;
+	unsigned int len = skb->len, max_per_txd = E1000_MAX_DATA_PER_TXD;
 	unsigned int offset = 0, size, count = 0, i;
+#ifdef NETIF_F_TSO
+	unsigned int mss;
+#endif
+	unsigned int nr_frags;
 	unsigned int f;
-	len -= skb->data_len;
 
+#ifdef NETIF_F_TSO
+	mss = skb_shinfo(skb)->tso_size;
+	/* The controller does a simple calculation to 
+	 * make sure there is enough room in the FIFO before
+	 * initiating the DMA for each buffer.  The calc is:
+	 * 4 = ceil(buffer len/mss).  To make sure we don't
+	 * overrun the FIFO, adjust the max buffer len if mss
+	 * drops. */
+	if(mss)
+		max_per_txd = min(mss << 2, max_per_txd);
+#endif
+	nr_frags = skb_shinfo(skb)->nr_frags;
+	len -= skb->data_len;
 
 	i = tx_ring->next_to_use;
 
@@ -1639,10 +1643,50 @@ e1000_tx_map(struct e1000_adapter *adapter, struct sk_buff *skb,
 			if(++i == tx_ring->count) i = 0;
 		}
 	}
+
+	if(E1000_DESC_UNUSED(&adapter->tx_ring) < count + 2) {
+
+		/* There aren't enough descriptors available to queue up
+		 * this send (need: count + 1 context desc + 1 desc gap
+		 * to keep tail from touching head), so undo the mapping
+		 * and abort the send.  We could have done the check before
+		 * we mapped the skb, but because of all the workarounds
+		 * (above), it's too difficult to predict how many we're
+		 * going to need.*/
+		i = adapter->tx_ring.next_to_use;
+
+		if(i == first) {
+			/* Cleanup after e1000_tx_[csum|tso] scribbling
+			 * on descriptors. */
+			tx_desc = E1000_TX_DESC(*tx_ring, first);
+			tx_desc->buffer_addr = 0;
+			tx_desc->lower.data = 0;
+			tx_desc->upper.data = 0;
+		}
+
+		while(count--) {
+			buffer_info = &tx_ring->buffer_info[i];
+
+			if(buffer_info->dma) {
+				pci_unmap_page(adapter->pdev,
+					       buffer_info->dma,
+					       buffer_info->length,
+					       PCI_DMA_TODEVICE);
+				buffer_info->dma = 0;
+			}
+
+			if(++i == tx_ring->count) i = 0;
+		}
+
+		adapter->tx_ring.next_to_use = first;
+
+		return 0;
+	}
+
 	i = (i == 0) ? tx_ring->count - 1 : i - 1;
 	tx_ring->buffer_info[i].skb = skb;
 	tx_ring->buffer_info[first].next_to_watch = i;
-	
+
 	return count;
 }
 
@@ -1733,67 +1777,18 @@ no_fifo_stall_required:
 	return 0;
 }
 
-#define TXD_USE_COUNT(S, X) (((S) >> (X)) + 1 ) 
 static int
 e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev->priv;
-	unsigned int first, max_per_txd = E1000_MAX_DATA_PER_TXD;
-	unsigned int max_txd_pwr = E1000_MAX_TXD_PWR;
+	unsigned int first;
 	unsigned int tx_flags = 0;
-	unsigned long flags;
-	unsigned int len = skb->len;
-	int count = 0;
-	unsigned int mss = 0;
-	unsigned int nr_frags = 0;
-	unsigned int f;
-	nr_frags = skb_shinfo(skb)->nr_frags;
-	len -= skb->data_len;
+	int count;
+
 	if(skb->len <= 0) {
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
-
-#ifdef NETIF_F_TSO
-	mss = skb_shinfo(skb)->tso_size;
-	/* The controller does a simple calculation to 
-	 * make sure there is enough room in the FIFO before
-	 * initiating the DMA for each buffer.  The calc is:
-	 * 4 = ceil(buffer len/mss).  To make sure we don't
-	 * overrun the FIFO, adjust the max buffer len if mss
-	 * drops. */
-	if(mss) {
-		max_per_txd = min(mss << 2, max_per_txd);
-		max_txd_pwr = fls(max_per_txd) - 1;
-	}
-	if((mss) || (skb->ip_summed == CHECKSUM_HW))
-		count++;
-	count++;	/*for sentinel desc*/
-#else
-	if(skb->ip_summed == CHECKSUM_HW)
-		count++;
-#endif
-
-	count += TXD_USE_COUNT(len, max_txd_pwr);
-	if(adapter->pcix_82544)
-		count++;
-
-	nr_frags = skb_shinfo(skb)->nr_frags;
-	for(f = 0; f < nr_frags; f++)
-		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size,
-		                       max_txd_pwr);
-	if(adapter->pcix_82544)
-		count += nr_frags;
-	
-	spin_lock_irqsave(&adapter->tx_lock, flags);
-	/* need: count +  2 desc gap to keep tail from touching 
-	 * head, otherwise try next time */
-	if(E1000_DESC_UNUSED(&adapter->tx_ring) < count + 2 ) {
-		netif_stop_queue(netdev);
-		spin_unlock_irqrestore(&adapter->tx_lock, flags);
-		return 1;
-	}
-	spin_unlock_irqrestore(&adapter->tx_lock, flags);
 
 	if(adapter->hw.mac_type == e1000_82547) {
 		if(e1000_82547_fifo_workaround(adapter, skb)) {
@@ -1815,9 +1810,12 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	else if(e1000_tx_csum(adapter, skb))
 		tx_flags |= E1000_TX_FLAGS_CSUM;
 
-	e1000_tx_queue(adapter, 
-		e1000_tx_map(adapter, skb, first, max_per_txd, nr_frags, mss), 
-		tx_flags);
+	if((count = e1000_tx_map(adapter, skb, first)))
+		e1000_tx_queue(adapter, count, tx_flags);
+	else {
+		netif_stop_queue(netdev);
+		return 1;
+	}
 
 	netdev->trans_start = jiffies;
 
@@ -1862,7 +1860,6 @@ e1000_get_stats(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev->priv;
 
-	e1000_update_stats(adapter);
 	return &adapter->net_stats;
 }
 
@@ -1883,7 +1880,7 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 
 	if((max_frame < MINIMUM_ETHERNET_FRAME_SIZE) ||
 	   (max_frame > MAX_JUMBO_FRAME_SIZE)) {
-		DPRINTK(PROBE, ERR, "Invalid MTU setting\n");
+		E1000_ERR("Invalid MTU setting\n");
 		return -EINVAL;
 	}
 
@@ -1891,7 +1888,7 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		adapter->rx_buffer_len = E1000_RXBUFFER_2048;
 
 	} else if(adapter->hw.mac_type < e1000_82543) {
-		DPRINTK(PROBE, ERR, "Jumbo Frames not supported on 82542\n");
+		E1000_ERR("Jumbo Frames not supported on 82542\n");
 		return -EINVAL;
 
 	} else if(max_frame <= E1000_RXBUFFER_4096) {
@@ -1921,7 +1918,7 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
  * @adapter: board private structure
  **/
 
-void
+static void
 e1000_update_stats(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
@@ -1939,7 +1936,8 @@ e1000_update_stats(struct e1000_adapter *adapter)
 
 	adapter->stats.crcerrs += E1000_READ_REG(hw, CRCERRS);
 	adapter->stats.gprc += E1000_READ_REG(hw, GPRC);
-	adapter->stats.gorcl += E1000_READ_REG(hw, GORCL);
+	adapter->gorcl = E1000_READ_REG(hw, GORCL);
+	adapter->stats.gorcl += adapter->gorcl;
 	adapter->stats.gorch += E1000_READ_REG(hw, GORCH);
 	adapter->stats.bprc += E1000_READ_REG(hw, BPRC);
 	adapter->stats.mprc += E1000_READ_REG(hw, MPRC);
@@ -1950,6 +1948,8 @@ e1000_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.prc511 += E1000_READ_REG(hw, PRC511);
 	adapter->stats.prc1023 += E1000_READ_REG(hw, PRC1023);
 	adapter->stats.prc1522 += E1000_READ_REG(hw, PRC1522);
+
+	spin_unlock_irqrestore(&adapter->stats_lock, flags);
 
 	/* the rest of the counters are only modified here */
 
@@ -1968,7 +1968,8 @@ e1000_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.xofftxc += E1000_READ_REG(hw, XOFFTXC);
 	adapter->stats.fcruc += E1000_READ_REG(hw, FCRUC);
 	adapter->stats.gptc += E1000_READ_REG(hw, GPTC);
-	adapter->stats.gotcl += E1000_READ_REG(hw, GOTCL);
+	adapter->gotcl = E1000_READ_REG(hw, GOTCL);
+	adapter->stats.gotcl += adapter->gotcl;
 	adapter->stats.gotch += E1000_READ_REG(hw, GOTCH);
 	adapter->stats.rnbc += E1000_READ_REG(hw, RNBC);
 	adapter->stats.ruc += E1000_READ_REG(hw, RUC);
@@ -2050,8 +2051,6 @@ e1000_update_stats(struct e1000_adapter *adapter)
 		   !e1000_read_phy_reg(hw, M88E1000_RX_ERR_CNTR, &phy_tmp))
 			adapter->phy_stats.receive_errors += phy_tmp;
 	}
-
-	spin_unlock_irqrestore(&adapter->stats_lock, flags);
 }
 
 /**
@@ -2065,7 +2064,7 @@ e1000_irq_disable(struct e1000_adapter *adapter)
 	atomic_inc(&adapter->irq_sem);
 	E1000_WRITE_REG(&adapter->hw, IMC, ~0);
 	E1000_WRITE_FLUSH(&adapter->hw);
-	synchronize_irq(adapter->pdev->irq);
+	synchronize_irq(adapter->netdev->irq);
 }
 
 /**
@@ -2094,7 +2093,6 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 {
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev->priv;
-	struct e1000_hw *hw = &adapter->hw;
 	uint32_t icr = E1000_READ_REG(&adapter->hw, ICR);
 #ifndef CONFIG_E1000_NAPI
 	unsigned int i;
@@ -2104,7 +2102,7 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 		return IRQ_NONE;  /* Not our interrupt */
 
 	if(icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-		hw->get_link_status = 1;
+		adapter->hw.get_link_status = 1;
 		mod_timer(&adapter->watchdog_timer, jiffies);
 	}
 
@@ -2116,7 +2114,7 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 		*/
 
 		atomic_inc(&adapter->irq_sem);
-		E1000_WRITE_REG(hw, IMC, ~0);
+		E1000_WRITE_REG(&adapter->hw, IMC, ~0);
 		__netif_rx_schedule(netdev);
 	}
 #else
@@ -2148,10 +2146,9 @@ e1000_clean(struct net_device *netdev, int *budget)
 	*budget -= work_done;
 	netdev->quota -= work_done;
 	
-	if(work_done < work_to_do || !netif_running(netdev)) {
+	if(work_done < work_to_do) {
 		netif_rx_complete(netdev);
 		e1000_irq_enable(adapter);
-		return 0;
 	}
 
 	return (work_done >= work_to_do);
@@ -2173,7 +2170,6 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter)
 	struct e1000_buffer *buffer_info;
 	unsigned int i, eop;
 	boolean_t cleaned = FALSE;
-
 
 	i = tx_ring->next_to_clean;
 	eop = tx_ring->buffer_info[i].next_to_watch;
@@ -2216,12 +2212,8 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter)
 
 	tx_ring->next_to_clean = i;
 
-	spin_lock(&adapter->tx_lock);
-
 	if(cleaned && netif_queue_stopped(netdev) && netif_carrier_ok(netdev))
 		netif_wake_queue(netdev);
-
-	spin_unlock(&adapter->tx_lock);
 
 	return cleaned;
 }
@@ -2278,8 +2270,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter)
 
 			/* All receives must fit into a single buffer */
 
-			E1000_DBG("%s: Receive packet consumed multiple buffers\n",
-				netdev->name);
+			E1000_DBG("Receive packet consumed multiple buffers\n");
 
 			dev_kfree_skb_irq(skb);
 			rx_desc->status = 0;
@@ -2375,6 +2366,7 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter)
 	struct e1000_rx_desc *rx_desc;
 	struct e1000_buffer *buffer_info;
 	struct sk_buff *skb;
+	int reserve_len = 2;
 	unsigned int i;
 
 	i = rx_ring->next_to_use;
@@ -2383,7 +2375,7 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter)
 	while(!buffer_info->skb) {
 		rx_desc = E1000_RX_DESC(*rx_ring, i);
 
-		skb = dev_alloc_skb(adapter->rx_buffer_len + NET_IP_ALIGN);
+		skb = dev_alloc_skb(adapter->rx_buffer_len + reserve_len);
 
 		if(!skb) {
 			/* Better luck next round */
@@ -2394,7 +2386,7 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter)
 		 * this will result in a 16 byte aligned IP header after
 		 * the 14 byte MAC header is removed
 		 */
-		skb_reserve(skb, NET_IP_ALIGN);
+		skb_reserve(skb, reserve_len);
 
 		skb->dev = netdev;
 
@@ -2495,6 +2487,8 @@ e1000_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
 		return e1000_mii_ioctl(netdev, ifr, cmd);
+	case SIOCETHTOOL:
+		return e1000_ethtool_ioctl(netdev, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2511,7 +2505,7 @@ static int
 e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	struct e1000_adapter *adapter = netdev->priv;
-	struct mii_ioctl_data *data = if_mii(ifr);
+	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr->ifr_data;
 	int retval;
 	uint16_t mii_reg;
 	uint16_t spddplx;
@@ -2648,13 +2642,13 @@ e1000_write_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
 }
 
 uint32_t
-e1000_io_read(struct e1000_hw *hw, unsigned long port)
+e1000_io_read(struct e1000_hw *hw, uint32_t port)
 {
 	return inl(port);
 }
 
 void
-e1000_io_write(struct e1000_hw *hw, unsigned long port, uint32_t value)
+e1000_io_write(struct e1000_hw *hw, uint32_t port, uint32_t value)
 {
 	outl(value, port);
 }
@@ -2670,6 +2664,8 @@ e1000_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 
 	if(grp) {
 		/* enable VLAN tag insert/strip */
+
+		E1000_WRITE_REG(&adapter->hw, VET, ETHERNET_IEEE_VLAN_TYPE);
 
 		ctrl = E1000_READ_REG(&adapter->hw, CTRL);
 		ctrl |= E1000_CTRL_VME;
@@ -2901,22 +2897,6 @@ e1000_resume(struct pci_dev *pdev)
 	}
 
 	return 0;
-}
-#endif
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/*
- * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
- * the interrupt routine is executing.
- */
-
-static void e1000_netpoll (struct net_device *dev)
-{
-	struct e1000_adapter *adapter = dev->priv;
-	disable_irq(adapter->pdev->irq);
-	e1000_intr (adapter->pdev->irq, dev, NULL);
-	enable_irq(adapter->pdev->irq);
 }
 #endif
 

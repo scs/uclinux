@@ -1,11 +1,7 @@
 /*
  * IA-64 Huge TLB Page Support for Kernel.
  *
- * Copyright (C) 2002-2004 Rohit Seth <rohit.seth@intel.com>
- * Copyright (C) 2003-2004 Ken Chen <kenneth.w.chen@intel.com>
- *
- * Sep, 2003: add numa support
- * Feb, 2004: dynamic hugetlb page size via boot parameter
+ * Copyright (C) 2002, Rohit Seth <rohit.seth@intel.com>
  */
 
 #include <linux/config.h>
@@ -22,7 +18,69 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 
-unsigned int hpage_shift=HPAGE_SHIFT_DEFAULT;
+#define TASK_HPAGE_BASE (REGION_HPAGE << REGION_SHIFT)
+
+static long	htlbpagemem;
+int		htlbpage_max;
+static long	htlbzone_pages;
+
+static struct list_head hugepage_freelists[MAX_NUMNODES];
+static spinlock_t htlbpage_lock = SPIN_LOCK_UNLOCKED;
+
+static void enqueue_huge_page(struct page *page)
+{
+	list_add(&page->list,
+		&hugepage_freelists[page_zone(page)->zone_pgdat->node_id]);
+}
+
+static struct page *dequeue_huge_page(void)
+{
+	int nid = numa_node_id();
+	struct page *page = NULL;
+
+	if (list_empty(&hugepage_freelists[nid])) {
+		for (nid = 0; nid < MAX_NUMNODES; ++nid)
+			if (!list_empty(&hugepage_freelists[nid]))
+				break;
+	}
+	if (nid >= 0 && nid < MAX_NUMNODES &&
+	    !list_empty(&hugepage_freelists[nid])) {
+		page = list_entry(hugepage_freelists[nid].next, struct page, list);
+		list_del(&page->list);
+	}
+	return page;
+}
+
+static struct page *alloc_fresh_huge_page(void)
+{
+	static int nid = 0;
+	struct page *page;
+	page = alloc_pages_node(nid, GFP_HIGHUSER, HUGETLB_PAGE_ORDER);
+	nid = (nid + 1) % numnodes;
+	return page;
+}
+
+void free_huge_page(struct page *page);
+
+static struct page *alloc_hugetlb_page(void)
+{
+	int i;
+	struct page *page;
+
+	spin_lock(&htlbpage_lock);
+	page = dequeue_huge_page();
+	if (!page) {
+		spin_unlock(&htlbpage_lock);
+		return NULL;
+	}
+	htlbpagemem--;
+	spin_unlock(&htlbpage_lock);
+	set_page_count(page, 1);
+	page->lru.prev = (void *)free_huge_page;
+	for (i = 0; i < (HPAGE_SIZE/PAGE_SIZE); ++i)
+		clear_highpage(&page[i]);
+	return page;
+}
 
 static pte_t *
 huge_pte_alloc (struct mm_struct *mm, unsigned long addr)
@@ -48,12 +106,8 @@ huge_pte_offset (struct mm_struct *mm, unsigned long addr)
 	pte_t *pte = NULL;
 
 	pgd = pgd_offset(mm, taddr);
-	if (pgd_present(*pgd)) {
-		pmd = pmd_offset(pgd, taddr);
-		if (pmd_present(*pmd))
-			pte = pte_offset_map(pmd, taddr);
-	}
-
+	pmd = pmd_offset(pgd, taddr);
+	pte = pte_offset_map(pmd, taddr);
 	return pte;
 }
 
@@ -153,19 +207,27 @@ back1:
 	return i;
 }
 
-struct page *follow_huge_addr(struct mm_struct *mm, unsigned long addr, int write)
+struct vm_area_struct *hugepage_vma(struct mm_struct *mm, unsigned long addr)
+{
+	if (mm->used_hugetlb) {
+		if (REGION_NUMBER(addr) == REGION_HPAGE) {
+			struct vm_area_struct *vma = find_vma(mm, addr);
+			if (vma && is_vm_hugetlb_page(vma))
+				return vma;
+		}
+	}
+	return NULL;
+}
+
+struct page *follow_huge_addr(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, int write)
 {
 	struct page *page;
 	pte_t *ptep;
 
-	if (REGION_NUMBER(addr) != REGION_HPAGE)
-		return ERR_PTR(-EINVAL);
-
 	ptep = huge_pte_offset(mm, addr);
-	if (!ptep || pte_none(*ptep))
-		return NULL;
 	page = pte_page(*ptep);
 	page += ((addr & ~HPAGE_MASK) >> PAGE_SHIFT);
+	get_page(page);
 	return page;
 }
 int pmd_huge(pmd_t pmd)
@@ -176,6 +238,27 @@ struct page *
 follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int write)
 {
 	return NULL;
+}
+
+void free_huge_page(struct page *page)
+{
+	BUG_ON(page_count(page));
+	BUG_ON(page->mapping);
+
+	INIT_LIST_HEAD(&page->list);
+
+	spin_lock(&htlbpage_lock);
+	enqueue_huge_page(page);
+	htlbpagemem++;
+	spin_unlock(&htlbpage_lock);
+}
+
+void huge_page_release(struct page *page)
+{
+	if (!put_page_testzero(page))
+		return;
+
+	free_huge_page(page);
 }
 
 /*
@@ -246,11 +329,19 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start, unsig
 		if (pte_none(*pte))
 			continue;
 		page = pte_page(*pte);
-		put_page(page);
+		huge_page_release(page);
 		pte_clear(pte);
 	}
 	mm->rss -= (end - start) >> PAGE_SHIFT;
 	flush_tlb_range(vma, start, end);
+}
+
+void zap_hugepage_range(struct vm_area_struct *vma, unsigned long start, unsigned long length)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	spin_lock(&mm->page_table_lock);
+	unmap_hugepage_range(vma, start, start + length);
+	spin_unlock(&mm->page_table_lock);
 }
 
 int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
@@ -284,18 +375,17 @@ int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
 				ret = -ENOMEM;
 				goto out;
 			}
-			page = alloc_huge_page();
+			page = alloc_hugetlb_page();
 			if (!page) {
 				hugetlb_put_quota(mapping);
 				ret = -ENOMEM;
 				goto out;
 			}
 			ret = add_to_page_cache(page, mapping, idx, GFP_ATOMIC);
-			if (! ret) {
-				unlock_page(page);
-			} else {
+			unlock_page(page);
+			if (ret) {
 				hugetlb_put_quota(mapping);
-				page_cache_release(page);
+				free_huge_page(page);
 				goto out;
 			}
 		}
@@ -317,7 +407,7 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr, u
 		return -EINVAL;
 	/* This code assumes that REGION_HPAGE != 0. */
 	if ((REGION_NUMBER(addr) != REGION_HPAGE) || (addr & (HPAGE_SIZE - 1)))
-		addr = HPAGE_REGION_BASE;
+		addr = TASK_HPAGE_BASE;
 	else
 		addr = ALIGN(addr, HPAGE_SIZE);
 	for (vmm = find_vma(current->mm, addr); ; vmm = vmm->vm_next) {
@@ -329,32 +419,153 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr, u
 		addr = ALIGN(vmm->vm_end, HPAGE_SIZE);
 	}
 }
-
-static int __init hugetlb_setup_sz(char *str)
+void update_and_free_page(struct page *page)
 {
-	u64 tr_pages;
-	unsigned long long size;
+	int j;
+	struct page *map;
 
-	if (ia64_pal_vm_page_size(&tr_pages, NULL) != 0)
-		/*
-		 * shouldn't happen, but just in case.
-		 */
-		tr_pages = 0x15557000UL;
-
-	size = memparse(str, &str);
-	if (*str || (size & (size-1)) || !(tr_pages & size) ||
-		size <= PAGE_SIZE ||
-		size >= (1UL << PAGE_SHIFT << MAX_ORDER)) {
-		printk(KERN_WARNING "Invalid huge page size specified\n");
-		return 1;
+	map = page;
+	htlbzone_pages--;
+	for (j = 0; j < (HPAGE_SIZE / PAGE_SIZE); j++) {
+		map->flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
+				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
+				1 << PG_private | 1<< PG_writeback);
+		set_page_count(map, 0);
+		map++;
 	}
+	set_page_count(page, 1);
+	__free_pages(page, HUGETLB_PAGE_ORDER);
+}
 
-	hpage_shift = __ffs(size);
-	/*
-	 * boot cpu already executed ia64_mmu_init, and has HPAGE_SHIFT_DEFAULT
-	 * override here with new page shift.
-	 */
-	ia64_set_rr(HPAGE_REGION_BASE, hpage_shift << 2);
+int try_to_free_low(int count)
+{
+	struct list_head *p;
+	struct page *page, *map;
+
+	map = NULL;
+	spin_lock(&htlbpage_lock);
+	list_for_each(p, &hugepage_freelists[0]) {
+		if (map) {
+			list_del(&map->list);
+			update_and_free_page(map);
+			htlbpagemem--;
+			map = NULL;
+			if (++count == 0)
+				break;
+		}
+		page = list_entry(p, struct page, list);
+		if (!PageHighMem(page))
+			map = page;
+	}
+	if (map) {
+		list_del(&map->list);
+		update_and_free_page(map);
+		htlbpagemem--;
+		count++;
+	}
+	spin_unlock(&htlbpage_lock);
+	return count;
+}
+
+int set_hugetlb_mem_size(int count)
+{
+	int  lcount;
+	struct page *page ;
+
+	if (count < 0)
+		lcount = count;
+	else
+		lcount = count - htlbzone_pages;
+
+	if (lcount == 0)
+		return (int)htlbzone_pages;
+	if (lcount > 0) {	/* Increase the mem size. */
+		while (lcount--) {
+			page = alloc_fresh_huge_page();
+			if (page == NULL)
+				break;
+			spin_lock(&htlbpage_lock);
+			enqueue_huge_page(page);
+			htlbpagemem++;
+			htlbzone_pages++;
+			spin_unlock(&htlbpage_lock);
+		}
+		return (int) htlbzone_pages;
+	}
+	/* Shrink the memory size. */
+	lcount = try_to_free_low(lcount);
+	while (lcount++) {
+		page = alloc_hugetlb_page();
+		if (page == NULL)
+			break;
+		spin_lock(&htlbpage_lock);
+		update_and_free_page(page);
+		spin_unlock(&htlbpage_lock);
+	}
+	return (int) htlbzone_pages;
+}
+
+int hugetlb_sysctl_handler(ctl_table *table, int write, struct file *file, void *buffer, size_t *length)
+{
+	proc_dointvec(table, write, file, buffer, length);
+	htlbpage_max = set_hugetlb_mem_size(htlbpage_max);
+	return 0;
+}
+
+static int __init hugetlb_setup(char *s)
+{
+	if (sscanf(s, "%d", &htlbpage_max) <= 0)
+		htlbpage_max = 0;
 	return 1;
 }
-__setup("hugepagesz=", hugetlb_setup_sz);
+__setup("hugepages=", hugetlb_setup);
+
+static int __init hugetlb_init(void)
+{
+	int i;
+	struct page *page;
+
+	for (i = 0; i < MAX_NUMNODES; ++i)
+		INIT_LIST_HEAD(&hugepage_freelists[i]);
+
+	for (i = 0; i < htlbpage_max; ++i) {
+		page = alloc_fresh_huge_page();
+		if (!page)
+			break;
+		spin_lock(&htlbpage_lock);
+		enqueue_huge_page(page);
+		spin_unlock(&htlbpage_lock);
+	}
+	htlbpage_max = htlbpagemem = htlbzone_pages = i;
+	printk("Total HugeTLB memory allocated, %ld\n", htlbpagemem);
+	return 0;
+}
+module_init(hugetlb_init);
+
+int hugetlb_report_meminfo(char *buf)
+{
+	return sprintf(buf,
+			"HugePages_Total: %5lu\n"
+			"HugePages_Free:  %5lu\n"
+			"Hugepagesize:    %5lu kB\n",
+			htlbzone_pages,
+			htlbpagemem,
+			HPAGE_SIZE/1024);
+}
+
+int is_hugepage_mem_enough(size_t size)
+{
+	if (size > (htlbpagemem << HPAGE_SHIFT))
+		return 0;
+	return 1;
+}
+
+static struct page *hugetlb_nopage(struct vm_area_struct * area, unsigned long address, int *unused)
+{
+	BUG();
+	return NULL;
+}
+
+struct vm_operations_struct hugetlb_vm_ops = {
+	.nopage =	hugetlb_nopage,
+};

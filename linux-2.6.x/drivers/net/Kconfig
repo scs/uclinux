@@ -21,6 +21,10 @@ config NETDEVICES
 
 	  If unsure, say Y.
 
+if NETDEVICES
+	source "drivers/net/arcnet/Kconfig"
+endif
+
 config DUMMY
 	tristate "Dummy net driver support"
 	depends on NETDEVICES
@@ -151,10 +155,6 @@ config NET_SB1000
 
 	  If you don't have this card, of course say N.
 
-if NETDEVICES
-	source "drivers/net/arcnet/Kconfig"
-endif
-
 #
 #	Ethernet
 #
@@ -234,7 +234,7 @@ config BMAC
 
 config OAKNET
 	tristate "National DP83902AV (Oak ethernet) support"
-	depends on NET_ETHERNET && PPC && BROKEN
+	depends on NET_ETHERNET && PPC
 	select CRC32
 	help
 	  Say Y if your machine has this type of Ethernet network card.
@@ -471,31 +471,10 @@ config SGI_IOC3_ETH
 	bool "SGI IOC3 Ethernet"
 	depends on NET_ETHERNET && SGI_IP27
 	select CRC32
-	select MII
 	help
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
-
-config SGI_IOC3_ETH_HW_RX_CSUM
-	bool "Receive hardware checksums"
-	depends on SGI_IOC3_ETH && INET
-	default y
-	help
-	  The SGI IOC3 network adapter supports TCP and UDP checksums in
-	  hardware to offload processing of these checksums from the CPU.  At
-	  the moment only acceleration of IPv4 is supported.  This option
-	  enables offloading for checksums on receive.  If unsure, say Y.
-
-config SGI_IOC3_ETH_HW_TX_CSUM
-	bool "Transmit hardware checksums"
-	depends on SGI_IOC3_ETH && INET
-	default y
-	help
-	  The SGI IOC3 network adapter supports TCP and UDP checksums in
-	  hardware to offload processing of these checksums from the CPU.  At
-	  the moment only acceleration of IPv4 is supported.  This option
-	  enables offloading for checksums on transmit.  If unsure, say Y.
 
 config SGI_O2MACE_ETH
 	tristate "SGI O2 MACE Fast Ethernet support"
@@ -666,7 +645,7 @@ config 3C515
 
 config ELMC
 	tristate "3c523 \"EtherLink/MC\" support"
-	depends on NET_VENDOR_3COM && MCA_LEGACY
+	depends on NET_VENDOR_3COM && MCA
 	help
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
@@ -813,27 +792,9 @@ config ULTRA32
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called smc-ultra32.
 
-config SMC91X
-	tristate "SMC 91C9x/91C1xxx support"
-	select CRC32
-	select MII
-	depends on NET_ETHERNET && (ARM || REDWOOD_5 || REDWOOD_6)
-	help
-	  This is a driver for SMC's 91x series of Ethernet chipsets,
-	  including the SMC91C94 and the SMC91C111. Say Y if you want it
-	  compiled into the kernel, and read the file
-	  <file:Documentation/networking/smc9.txt>  and the Ethernet-HOWTO,
-	  available from  <http://www.linuxdoc.org/docs.html#howto>.
-
-	  This driver is also available as a module ( = code which can be
-	  inserted in and removed from the running kernel whenever you want).
-	  The module will be called smc91x.  If you want to compile it as a
-	  module, say M here and read <file:Documentation/modules.txt> as well
-	  as <file:Documentation/networking/net-modules.txt>.
-
 config SMC9194
 	tristate "SMC 9194 support"
-	depends on NET_VENDOR_SMC && (ISA || MAC && BROKEN)
+	depends on NET_VENDOR_SMC && (ISA || MAC && BROKEN || EMBEDDED)
 	select CRC32
 	---help---
 	  This is support for the SMC9xxx based Ethernet cards. Choose this
@@ -848,20 +809,20 @@ config SMC9194
 	  will be called smc9194.
 
 config SMSC91C111
-        tristate "SMSC 91C111 support"
-        depends on NET_VENDOR_SMC  
-        select CRC32
-        ---help---
-          This is support for the SMC9xxx based Ethernet cards. Choose this
-          option if you have a DELL laptop with the docking station, or
-          another SMSC91C111 based chipset.  Say Y if you want it compiled
-          into the kernel, and read the file
-          <file:Documentation/networking/smc9.txt> and the Ethernet-HOWTO,
-          available from <http://www.tldp.org/docs.html#howto>.
+	tristate "SMSC 91C111 support"
+	depends on NET_VENDOR_SMC && (ISA || MAC && BROKEN || EMBEDDED)
+	select CRC32
+	---help---
+	  This is support for the SMC9xxx based Ethernet cards. Choose this
+	  option if you have a DELL laptop with the docking station, or
+	  another SMSC91C111 based chipset.  Say Y if you want it compiled
+	  into the kernel, and read the file
+	  <file:Documentation/networking/smc9.txt> and the Ethernet-HOWTO,
+	  available from <http://www.tldp.org/docs.html#howto>.
 
-          To compile this driver as a module, choose M here and read
-          <file:Documentation/networking/net-modules.txt>. The module
-          will be called smsc91111.
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/networking/net-modules.txt>. The module
+	  will be called smsc91111.
 
 config NET_VENDOR_RACAL
 	bool "Racal-Interlan (Micom) NI cards"
@@ -917,7 +878,7 @@ source "drivers/net/tulip/Kconfig"
 
 config AT1700
 	tristate "AT1700/1720/RE1000Plus(C-Bus) support (EXPERIMENTAL)"
-	depends on NET_ETHERNET && (ISA || MCA_LEGACY) && EXPERIMENTAL
+	depends on NET_ETHERNET && (ISA || MCA) && EXPERIMENTAL
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
@@ -956,7 +917,7 @@ config HP100
 
 config NET_ISA
 	bool "Other ISA cards"
-	depends on NET_ETHERNET && ISA
+	depends on NET_ETHERNET && ISA && !X86_PC9800
 	---help---
 	  If your network (Ethernet) card hasn't been mentioned yet and its
 	  bus system (that's the way the cards talks to the other components
@@ -1139,6 +1100,56 @@ config SK_G16
 	  the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
+config NET_CBUS
+	bool "NEC PC-9800 C-bus cards"
+	depends on NET_ETHERNET && ISA && X86_PC9800
+	---help---
+	  If your network (Ethernet) card hasn't been mentioned yet and its
+	  bus system (that's the way the cards talks to the other components
+	  of your computer) is NEC PC-9800 C-Bus, say Y.
+
+config NE2K_CBUS
+	tristate "Most NE2000-based Ethernet support"
+	depends on NET_CBUS
+	select CRC32
+
+config NE2K_CBUS_EGY98
+	bool "Melco EGY-98 support"
+	depends on NE2K_CBUS
+
+config NE2K_CBUS_LGY98
+	bool "Melco LGY-98 support"
+	depends on NE2K_CBUS
+
+config NE2K_CBUS_ICM
+	bool "ICM IF-27xxET support"
+	depends on NE2K_CBUS
+
+config NE2K_CBUS_IOLA98
+	bool "I-O DATA LA-98 support"
+	depends on NE2K_CBUS
+
+config NE2K_CBUS_CNET98EL
+	bool "Contec C-NET(98)E/L support"
+	depends on NE2K_CBUS
+
+config NE2K_CBUS_CNET98EL_IO_BASE
+	hex "C-NET(98)E/L I/O base address (0xaaed or 0x55ed)"
+	depends on NE2K_CBUS_CNET98EL
+	default "0xaaed"
+
+config NE2K_CBUS_ATLA98
+	bool "Allied Telesis LA-98 Support"
+	depends on NE2K_CBUS
+
+config NE2K_CBUS_BDN
+	bool "ELECOM Laneed LD-BDN[123]A Support"
+	depends on NE2K_CBUS
+
+config NE2K_CBUS_NEC108
+	bool "NEC PC-9801-108 Support"
+	depends on NE2K_CBUS
+
 config SKMC
 	tristate "SKnet MCA support"
 	depends on NET_ETHERNET && MCA && BROKEN
@@ -1156,7 +1167,7 @@ config SKMC
 
 config NE2_MCA
 	tristate "NE/2 (ne2000 MCA version) support"
-	depends on NET_ETHERNET && MCA_LEGACY
+	depends on NET_ETHERNET && MCA
 	select CRC32
 	help
 	  If you have a network (Ethernet) card of this type, say Y and read
@@ -1169,7 +1180,7 @@ config NE2_MCA
 
 config IBMLANA
 	tristate "IBM LAN Adapter/A support"
-	depends on NET_ETHERNET && MCA && MCA_LEGACY
+	depends on NET_ETHERNET && MCA
 	---help---
 	  This is a Micro Channel Ethernet adapter.  You need to set
 	  CONFIG_MCA to use this driver.  It is both available as an in-kernel
@@ -1182,50 +1193,6 @@ config IBMLANA
 	  gives a better security against packet losses.  Usage of multiple
 	  boards with this driver should be possible, but has not been tested
 	  up to now due to lack of hardware.
-
-config IBMVETH
-	tristate "IBM LAN Virtual Ethernet support"
-	depends on NETDEVICES && NET_ETHERNET && PPC_PSERIES
-	---help---
-	  This driver supports virtual ethernet adapters on newer IBM iSeries
-	  and pSeries systems.
-
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>. The module will
-	  be called ibmveth.
-
-config IBM_EMAC
-       tristate "IBM PPC4xx EMAC driver support"
-       depends on 4xx
-       ---help---
-       This driver supports the IBM PPC4xx EMAC family of on-chip
-       Ethernet controllers.
-
-config IBM_EMAC_ERRMSG
-       bool "Verbose error messages"
-       depends on IBM_EMAC
-
-config IBM_EMAC_RXB
-       int "Number of receive buffers"
-       depends on IBM_EMAC
-       default "128" if IBM_EMAC4
-       default "64"
-
-config IBM_EMAC_TXB
-       int "Number of transmit buffers"
-       depends on IBM_EMAC
-       default "128" if IBM_EMAC4
-       default "8"
-
-config IBM_EMAC_FGAP
-       int "Frame gap"
-       depends on IBM_EMAC
-       default "8"
-
-config IBM_EMAC_SKBRES
-       int "Skb reserve amount"
-       depends on IBM_EMAC
-       default "0"
 
 config NET_PCI
 	bool "EISA, VLB, PCI and on board controllers"
@@ -1268,22 +1235,6 @@ config AMD8111_ETH
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called amd8111e.
-config AMD8111E_NAPI
-	bool "Enable NAPI support"
-	depends on AMD8111_ETH
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
-	  If in doubt, say N.
 
 config ADAPTEC_STARFIRE
 	tristate "Adaptec Starfire/DuraLAN support"
@@ -1310,11 +1261,6 @@ config ADAPTEC_STARFIRE_NAPI
 	  If your estimated Rx load is 10kpps or more, or if the card will be
 	  deployed on potentially unfriendly networks (e.g. in a firewall),
 	  then say Y here.
-
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
-	  If in doubt, say N.
 
 config AC3200
 	tristate "Ansel Communications EISA 3200 support (EXPERIMENTAL)"
@@ -1344,7 +1290,6 @@ config APRICOT
 config B44
 	tristate "Broadcom 4400 ethernet support (EXPERIMENTAL)"
 	depends on NET_PCI && PCI && EXPERIMENTAL
-	select MII
 	help
 	  If you have a network (Ethernet) controller of this type, say Y and
 	  read the Ethernet-HOWTO, available from
@@ -1369,7 +1314,7 @@ config FORCEDETH
 
 config CS89x0
 	tristate "CS89x0 support"
-	depends on NET_PCI && ISA
+	depends on (NET_PCI && ISA) || M68328 || M68EZ328 || M68VZ328
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the
@@ -1380,6 +1325,14 @@ config CS89x0
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>.  The module will be
 	  called cs89x.
+
+config CS89x0_SWAPPED
+	bool "Hardware swapped CS89x0"
+	depends on CS89x0 && !NET_PCI && !ISA
+	---help---
+	  Say Y if your CS89x0 data bus is swapped.
+	  This option is for single board computers using a CS89x0 chip. If you
+	  are using a regular Ethernet card, say N.
 
 config TC35815
 	tristate "TOSHIBA TC35815 Ethernet support"
@@ -1425,9 +1378,8 @@ config EEPRO100_PIO
 	  say N.
 
 config E100
-	tristate "Intel(R) PRO/100+ support"
+	tristate "EtherExpressPro/100 support (e100, Alternate Intel driver)"
 	depends on NET_PCI && PCI
-	select MII
 	---help---
 	  This driver supports Intel(R) PRO/100 family of adapters, which 
 	  includes:
@@ -1499,23 +1451,6 @@ config E100
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>.  The module
 	  will be called e100.
-
-config E100_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on E100
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
-	  If in doubt, say N.
 
 config LNE390
 	tristate "Mylex EISA LNE390A/B support (EXPERIMENTAL)"
@@ -1620,14 +1555,15 @@ config 8139TOO
 	---help---
 	  This is a driver for the Fast Ethernet PCI network cards based on
 	  the RTL8139 chips. If you have one of those, say Y and read
-	  the Ethernet-HOWTO <http://www.tldp.org/docs.html#howto>.
+	  <file:Documentation/networking/8139too.txt> as well as the
+	  Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8139too.  This is recommended.
 
 config 8139TOO_PIO
 	bool "Use PIO instead of MMIO"
-	default y
 	depends on 8139TOO
 	help
 	  This instructs the driver to use programmed I/O ports (PIO) instead
@@ -1740,34 +1676,25 @@ config VIA_RHINE
 	select CRC32
 	select MII
 	help
-	  If you have a VIA "Rhine" based network card (Rhine-I (VT86C100A),
-	  Rhine-II (VT6102), or Rhine-III (VT6105)), say Y here. Rhine-type
-	  Ethernet functions can also be found integrated on South Bridges
-	  (e.g. VT8235).
+	  If you have a VIA "rhine" based network card (Rhine-I (3043) or
+	  Rhine-2 (VT86c100A)), say Y here.
 
-	  To compile this driver as a module, choose M here. The module
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called via-rhine.
 
 config VIA_RHINE_MMIO
-	bool "Use MMIO instead of PIO"
-	depends on VIA_RHINE
+	bool "Use MMIO instead of PIO (EXPERIMENTAL)"
+	depends on VIA_RHINE && EXPERIMENTAL
 	help
 	  This instructs the driver to use PCI shared memory (MMIO) instead of
 	  programmed I/O ports (PIO). Enabling this gives an improvement in
 	  processing time in parts of the driver.
 
-	  If unsure, say Y.
+	  It is not known if this works reliably on all "rhine" based cards,
+	  but it has been tested successfully on some DFE-530TX adapters.
 
-config VIA_VELOCITY
-	tristate "VIA Velocity support"
-	depends on NET_PCI && PCI
-	select CRC32
-	select MII
-	help
-	  If you have a VIA "Velocity" based network card say Y here.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called via-rhine.
+	  If unsure, say N.
 
 config LAN_SAA9730
 	bool "Philips SAA9730 Ethernet support (EXPERIMENTAL)"
@@ -1794,8 +1721,7 @@ config NET_POCKET
 	  <file:Documentation/Changes>) and you can say N here.
 
 	  Laptop users should read the Linux Laptop home page at
-	  <http://www.linux-on-laptops.com/> or
-	  Tuxmobil - Linux on Mobile Computers at <http://www.tuxmobil.org/>.
+	  <http://www.linux-on-laptops.com/>.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -1856,7 +1782,7 @@ config SGISEEQ
 
 config DECLANCE
 	tristate "DEC LANCE ethernet controller support"
-	depends on NET_ETHERNET && MACH_DECSTATION
+	depends on NET_ETHERNET && DECSTATION
 	select CRC32
 	help
 	  This driver is for the series of Ethernet controllers produced by
@@ -1884,15 +1810,6 @@ config FEC
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on the Motorola ColdFire 5272 processor.
-
-config NE_H8300
-	tristate "NE2000 compatible support for H8/300"
-	depends on H8300 && NET_ETHERNET
-	help
-	  Say Y here if you want to use the NE2000 compatible
-	  controller on the Renesas H8/300 processor.
-
-source "drivers/net/fec_8xx/Kconfig"
 
 endmenu
 
@@ -1989,19 +1906,6 @@ config E1000
 config E1000_NAPI
 	bool "Use Rx Polling (NAPI)"
 	depends on E1000
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
-	  If in doubt, say N.
 
 config MYRI_SBUS
 	tristate "MyriCOM Gigabit Ethernet support"
@@ -2059,6 +1963,16 @@ config R8169
 	  To compile this driver as a module, choose M here: the module
 	  will be called r8169.  This is recommended.
 
+config SIS190
+	tristate "SiS190 gigabit ethernet support (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select CRC32
+	---help---
+	  Say Y here if you have a SiS 190 PCI Gigabit Ethernet adapter.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sis190.  This is recommended.
+
 config SK98LIN
 	tristate "Marvell Yukon Chipset / SysKonnect SK-98xx Support"
 	depends on PCI
@@ -2076,7 +1990,6 @@ config SK98LIN
 	    - Allied Telesyn AT-2970TX/2TX Gigabit Ethernet Adapter
 	    - Allied Telesyn AT-2971SX Gigabit Ethernet Adapter
 	    - Allied Telesyn AT-2971T Gigabit Ethernet Adapter
-	    - Belkin Gigabit Desktop Card 10/100/1000Base-T Adapter, Copper RJ-45
 	    - DGE-530T Gigabit Ethernet Adapter
 	    - EG1032 v2 Instant Gigabit Network Adapter
 	    - EG1064 v2 Instant Gigabit Network Adapter
@@ -2088,7 +2001,6 @@ config SK98LIN
 	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Foxconn)
 	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Gigabyte)
 	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Iwill)
-	    - Marvell 88E8050 Gigabit LOM Ethernet Adapter (Intel)
 	    - Marvell RDK-8001 Adapter
 	    - Marvell RDK-8002 Adapter
 	    - Marvell RDK-8003 Adapter
@@ -2100,7 +2012,6 @@ config SK98LIN
 	    - Marvell RDK-8010 Adapter
 	    - Marvell RDK-8011 Adapter
 	    - Marvell RDK-8012 Adapter
-	    - Marvell RDK-8052 Adapter
 	    - Marvell Yukon Gigabit Ethernet 10/100/1000Base-T Adapter (32 bit)
 	    - Marvell Yukon Gigabit Ethernet 10/100/1000Base-T Adapter (64 bit)
 	    - N-Way PCI-Bus Giga-Card 1000/100/10Mbps(L)
@@ -2135,8 +2046,8 @@ config SK98LIN
 	  
 	  If you want to compile this driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read Documentation/kbuild/modules.txt. The module will
-	  be called sk98lin. This is recommended.
+	  say M here and read Documentation/modules.txt. This is recommended.
+	  The module will be called sk98lin. This is recommended.
 
 config TIGON3
 	tristate "Broadcom Tigon3 support"
@@ -2187,60 +2098,11 @@ config IXGB
 config IXGB_NAPI
 	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"
 	depends on IXGB && EXPERIMENTAL
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
-	  If in doubt, say N.
-
-config S2IO
-	tristate "S2IO 10Gbe XFrame NIC"
-	depends on PCI
-	---help---
-	  This driver supports the 10Gbe XFrame NIC of S2IO. 
-	  For help regarding driver compilation, installation and 
-	  tuning please look into ~/drivers/net/s2io/README.txt.
-
-config S2IO_NAPI
-	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"
-	depends on S2IO && EXPERIMENTAL
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
-	  If in doubt, say N.
 
 endmenu
 
-source "drivers/net/tokenring/Kconfig"
 
-source "drivers/net/wireless/Kconfig"
-
-source "drivers/net/pcmcia/Kconfig"
-
-source "drivers/net/wan/Kconfig"
-
-source "drivers/atm/Kconfig"
-
-source "drivers/s390/net/Kconfig"
-
-config ISERIES_VETH
+config VETH
 	tristate "iSeries Virtual Ethernet driver support"
 	depends on NETDEVICES && PPC_ISERIES
 
@@ -2421,7 +2283,6 @@ config PPP_FILTER
 config PPP_ASYNC
 	tristate "PPP support for async serial ports"
 	depends on PPP
-	select CRC_CCITT
 	---help---
 	  Say Y (or M) here if you want to be able to use PPP over standard
 	  asynchronous serial ports, such as COM1 or COM2 on a PC.  If you use
@@ -2564,6 +2425,10 @@ config SLIP_MODE_SLIP6
 	  end of the link as well. It's good enough, for example, to run IP
 	  over the async ports of a Camtec JNT Pad. If unsure, say N.
 
+source "drivers/net/wireless/Kconfig"
+
+source "drivers/net/tokenring/Kconfig"
+
 config NET_FC
 	bool "Fibre Channel driver support"
 	depends on NETDEVICES && SCSI && PCI
@@ -2586,6 +2451,16 @@ config IPHASE5526
 	  To compile this driver as a module, choose M here: the module
 	  will be called iph5526.
 
+config RCPCI
+	tristate "Red Creek Hardware VPN (EXPERIMENTAL)"
+	depends on NETDEVICES && EXPERIMENTAL && PCI && !64BIT
+	help
+	  This is a driver for hardware which provides a Virtual Private
+	  Network (VPN). Say Y if you have it.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called rcpci.
+
 config SHAPER
 	tristate "Traffic Shaper (EXPERIMENTAL)"
 	depends on NETDEVICES && EXPERIMENTAL
@@ -2607,10 +2482,10 @@ config SHAPER
 	  To compile this driver as a module, choose M here: the module
 	  will be called shaper.  If unsure, say N.
 
-config NETCONSOLE
-	tristate "Network console logging support (EXPERIMENTAL)"
-	depends on NETDEVICES && EXPERIMENTAL
-	---help---
-	If you want to log kernel messages over the network, enable this.
-	See Documentation/networking/netconsole.txt for details.
+source "drivers/net/wan/Kconfig"
 
+source "drivers/net/pcmcia/Kconfig"
+
+source "drivers/atm/Kconfig"
+
+source "drivers/s390/net/Kconfig"

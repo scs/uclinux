@@ -53,15 +53,8 @@
 #include <asm/tlbflush.h>
 #include <asm/proto.h>
 
-/* Number of siblings per CPU package */
-int smp_num_siblings = 1;
-char phys_proc_id[NR_CPUS]; /* Package ID of each logical CPU */
-
 /* Bitmask of currently online CPUs */
 cpumask_t cpu_online_map;
-
-/* which logical CPU number maps to which CPU (physical APIC ID) */
-volatile char x86_cpu_to_apicid[NR_CPUS];
 
 static cpumask_t cpu_callin_map;
 cpumask_t cpu_callout_map;
@@ -72,8 +65,6 @@ struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
 
 /* Set when the idlers are all forked */
 int smp_threads_ready;
-
-cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
 
 /*
  * Trampoline 80x86 program as an array.
@@ -267,7 +258,7 @@ void __init smp_callin(void)
 	 */
 	phys_id = GET_APIC_ID(apic_read(APIC_ID));
 	cpuid = smp_processor_id();
-	if (cpu_isset(cpuid, cpu_callin_map)) {
+	if (cpu_test_and_set(cpuid, cpu_callin_map)) {
 		panic("smp_callin: phys CPU#%d, CPU#%d already present??\n",
 					phys_id, cpuid);
 	}
@@ -577,7 +568,6 @@ static void __init do_boot_cpu (int apicid)
 	if (IS_ERR(idle))
 		panic("failed fork for CPU %d", cpu);
 	wake_up_forked_process(idle);	
-	x86_cpu_to_apicid[cpu] = apicid;
 
 	/*
 	 * We remove it from the pidhash and the runqueue
@@ -655,11 +645,12 @@ static void __init do_boot_cpu (int apicid)
 		if (cpu_isset(cpu, cpu_callin_map)) {
 			/* number CPUs logically, starting from 1 (BSP is 0) */
 			Dprintk("OK.\n");
+			printk(KERN_INFO "CPU%d: ", cpu);
 			print_cpu_info(&cpu_data[cpu]);
 			Dprintk("CPU has booted.\n");
 		} else {
 			boot_error = 1;
-			if (*((volatile unsigned char *)phys_to_virt(SMP_TRAMPOLINE_BASE))
+			if (*((volatile unsigned char *)phys_to_virt(8192))
 					== 0xA5)
 				/* trampoline started but...? */
 				printk("Stuck ??\n");
@@ -676,6 +667,9 @@ static void __init do_boot_cpu (int apicid)
 		clear_bit(cpu, &cpu_initialized); /* was set by cpu_init() */
 		cpucount--;
 	}
+
+	/* mark "stuck" area as not stuck */
+	*((volatile unsigned *)phys_to_virt(8192)) = 0;
 }
 
 cycles_t cacheflush_time;
@@ -728,9 +722,7 @@ static void smp_tune_scheduling (void)
 
 static void __init smp_boot_cpus(unsigned int max_cpus)
 {
-	unsigned apicid, cpu, bit, kicked;
-
-	nmi_watchdog_default();
+	unsigned apicid, cpu;
 
 	/*
 	 * Setup boot CPU information
@@ -808,29 +800,24 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_id)
 		BUG();
 
-	x86_cpu_to_apicid[0] = boot_cpu_id;
-
 	/*
 	 * Now scan the CPU present map and fire up the other CPUs.
 	 */
 	Dprintk("CPU present map: %lx\n", physids_coerce(phys_cpu_present_map));
 
-	kicked = 1;
-	for (bit = 0; kicked < NR_CPUS && bit < MAX_APICS; bit++) {
-		apicid = cpu_present_to_apicid(bit);
+	for (apicid = 0; apicid < NR_CPUS; apicid++) {
 		/*
 		 * Don't even attempt to start the boot CPU!
 		 */
-		if (apicid == boot_cpu_id || (apicid == BAD_APICID))
+		if (apicid == boot_cpu_id)
 			continue;
 
-		if (!physid_isset(apicid, phys_cpu_present_map))
+		if (!cpu_isset(apicid, phys_cpu_present_map))
 			continue;
 		if ((max_cpus >= 0) && (max_cpus <= cpucount+1))
 			continue;
 
 		do_boot_cpu(apicid);
-		++kicked;
 	}
 
 	/*
@@ -868,41 +855,6 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 			bogosum/(500000/HZ),
 			(bogosum/(5000/HZ))%100);
 		Dprintk("Before bogocount - setting activated=1.\n");
-	}
-
-	/*
-	 * Construct cpu_sibling_map[], so that we can tell the
-	 * sibling CPU efficiently.
-	 */
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
-		cpus_clear(cpu_sibling_map[cpu]);
-
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-		int siblings = 0;
-		int i;
-		if (!cpu_isset(cpu, cpu_callout_map))
-			continue;
-
-		if (smp_num_siblings > 1) {
-			for (i = 0; i < NR_CPUS; i++) {
-				if (!cpu_isset(i, cpu_callout_map))
-					continue;
-				if (phys_proc_id[cpu] == phys_proc_id[i]) {
-					siblings++;
-					cpu_set(i, cpu_sibling_map[cpu]);
-				}
-			}
-		} else { 
-			siblings++;
-			cpu_set(cpu, cpu_sibling_map[cpu]);
-		}
-
-		if (siblings != smp_num_siblings) {
-			printk(KERN_WARNING 
-	       "WARNING: %d siblings found for CPU%d, should be %d\n", 
-			       siblings, cpu, smp_num_siblings);
-			smp_num_siblings = siblings;
-		}       
 	}
 
 	Dprintk("Boot done.\n");

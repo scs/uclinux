@@ -15,7 +15,8 @@
 #include <asm/sn/types.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/gda.h>
-#include <asm/sn/hub.h>
+#include <asm/mmzone.h>
+#include <asm/sn/klkernvars.h>
 #include <asm/sn/mapped_kernel.h>
 #include <asm/sn/sn_private.h>
 
@@ -33,8 +34,8 @@ void __init setup_replication_mask(int maxnodes)
 	cnodeid_t	cnode;
 
 	/* Set only the master cnode's bit.  The master cnode is always 0. */
-	cpus_clear(ktext_repmask);
-	cpu_set(0, ktext_repmask);
+	CPUMASK_CLRALL(ktext_repmask);
+	CPUMASK_SETB(ktext_repmask, 0);
 
 	numa_kernel_replication_ratio = 0;
 #ifdef CONFIG_REPLICATE_KTEXT
@@ -50,7 +51,7 @@ void __init setup_replication_mask(int maxnodes)
 		    !(cnode % numa_kernel_replication_ratio)) {
 
 			/* Advertise that we have a copy of the kernel */
-			cpu_set(cnode, ktext_repmask);
+			CPUMASK_SETB(ktext_repmask, cnode);
 		}
 	}
 
@@ -66,11 +67,12 @@ static __init void set_ktext_source(nasid_t client_nasid, nasid_t server_nasid)
 
 	client_cnode = NASID_TO_COMPACT_NODEID(client_nasid);
 
-	kvp = &(HUB_DATA(client_nasid)->kern_vars);
+	kvp = &(PLAT_NODE_DATA(client_cnode)->kern_vars);
 
 	KERN_VARS_ADDR(client_nasid) = (unsigned long)kvp;
 
 	kvp->kv_magic = KV_MAGIC;
+
 	kvp->kv_ro_nasid = server_nasid;
 	kvp->kv_rw_nasid = master_nasid;
 	kvp->kv_ro_baseaddr = NODE_CAC_BASE(server_nasid);
@@ -107,7 +109,7 @@ void __init replicate_kernel_text(int maxnodes)
 		client_nasid = COMPACT_TO_NASID_NODEID(cnode);
 
 		/* Check if this node should get a copy of the kernel */
-		if (cpu_isset(cnode, ktext_repmask)) {
+		if (CPUMASK_TSTB(ktext_repmask, cnode)) {
 			server_nasid = client_nasid;
 			copy_kernel(server_nasid);
 		}
@@ -132,7 +134,7 @@ pfn_t node_getfirstfree(cnodeid_t cnode)
 	loadbase = CKSSEG + 16777216;
 #endif
 	offset = PAGE_ALIGN((unsigned long)(&_end)) - loadbase;
-	if ((cnode == 0) || (cpu_isset(cnode, ktext_repmask)))
+	if ((cnode == 0) || (CPUMASK_TSTB(ktext_repmask, cnode)))
 		return (TO_NODE(nasid, offset) >> PAGE_SHIFT);
 	else
 		return (KDM_TO_PHYS(PAGE_ALIGN(SYMMON_STK_ADDR(nasid, 0))) >>

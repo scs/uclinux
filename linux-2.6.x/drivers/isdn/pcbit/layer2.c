@@ -121,17 +121,18 @@ pcbit_l2_write(struct pcbit_dev *dev, ulong msg, ushort refnum,
 
 	frame->next = NULL;
 
-	spin_lock_irqsave(&dev->lock, flags);
+	save_flags(flags);
+	cli();
 
 	if (dev->write_queue == NULL) {
 		dev->write_queue = frame;
-		spin_unlock_irqrestore(&dev->lock, flags);
+		restore_flags(flags);
 		pcbit_transmit(dev);
 	} else {
 		for (ptr = dev->write_queue; ptr->next; ptr = ptr->next);
 		ptr->next = frame;
 
-		spin_unlock_irqrestore(&dev->lock, flags);
+		restore_flags(flags);
 	}
 	return 0;
 }
@@ -173,14 +174,15 @@ pcbit_transmit(struct pcbit_dev *dev)
 
 	unacked = (dev->send_seq + (8 - dev->unack_seq)) & 0x07;
 
-	spin_lock_irqsave(&dev->lock, flags);
+	save_flags(flags);
+	cli();
 
 	if (dev->free > 16 && dev->write_queue && unacked < 7) {
 
 		if (!dev->w_busy)
 			dev->w_busy = 1;
 		else {
-			spin_unlock_irqrestore(&dev->lock, flags);
+			restore_flags(flags);
 			return;
 		}
 
@@ -188,7 +190,7 @@ pcbit_transmit(struct pcbit_dev *dev)
 		frame = dev->write_queue;
 		free = dev->free;
 
-		spin_unlock_irqrestore(&dev->lock, flags);
+		restore_flags(flags);
 
 		if (frame->copied == 0) {
 
@@ -269,7 +271,9 @@ pcbit_transmit(struct pcbit_dev *dev)
 		dev->free -= flen;
 		pcbit_tx_update(dev, flen);
 
-		spin_lock_irqsave(&dev->lock, flags);
+		save_flags(flags);
+		cli();
+
 
 		if (frame->skb == NULL || frame->copied == frame->skb->len) {
 
@@ -282,9 +286,9 @@ pcbit_transmit(struct pcbit_dev *dev)
 			kfree(frame);
 		}
 		dev->w_busy = 0;
-		spin_unlock_irqrestore(&dev->lock, flags);
+		restore_flags(flags);
 	} else {
-		spin_unlock_irqrestore(&dev->lock, flags);
+		restore_flags(flags);
 #ifdef DEBUG
 		printk(KERN_DEBUG "unacked %d free %d write_queue %s\n",
 		     unacked, dev->free, dev->write_queue ? "not empty" :
@@ -305,11 +309,12 @@ pcbit_deliver(void *data)
 	unsigned long flags, msg;
 	struct pcbit_dev *dev = (struct pcbit_dev *) data;
 
-	spin_lock_irqsave(&dev->lock, flags);
+	save_flags(flags);
+	cli();
 
 	while ((frame = dev->read_queue)) {
 		dev->read_queue = frame->next;
-		spin_unlock_irqrestore(&dev->lock, flags);
+		restore_flags(flags);
 
 		SET_MSG_CPU(msg, 0);
 		SET_MSG_PROC(msg, 0);
@@ -326,10 +331,11 @@ pcbit_deliver(void *data)
 
 		kfree(frame);
 
-		spin_lock_irqsave(&dev->lock, flags);
+		save_flags(flags);
+		cli();
 	}
 
-	spin_unlock_irqrestore(&dev->lock, flags);
+	restore_flags(flags);
 }
 
 /*
@@ -454,8 +460,11 @@ pcbit_receive(struct pcbit_dev *dev)
 	memcpy_frompcbit(dev, skb_put(frame->skb, tt), tt);
 
 	frame->copied += tt;
-	spin_lock_irqsave(&dev->lock, flags);
+
 	if (frame->copied == frame->hdr_len + frame->dt_len) {
+
+		save_flags(flags);
+		cli();
 
 		if (type1) {
 			dev->read_frame = NULL;
@@ -467,10 +476,14 @@ pcbit_receive(struct pcbit_dev *dev)
 		} else
 			dev->read_queue = frame;
 
+		restore_flags(flags);
+
 	} else {
+		save_flags(flags);
+		cli();
 		dev->read_frame = frame;
+		restore_flags(flags);
 	}
-	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
 /*

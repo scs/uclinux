@@ -240,7 +240,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	char path[64];
 	char *buf;
 
-	interface = iface->cur_altsetting;
+	interface = &iface->altsetting[iface->act_altsetting];
 
 	if (interface->desc.bNumEndpoints != 1)
 		return -ENODEV;

@@ -40,7 +40,6 @@
 	.mmap_sem	= __RWSEM_INITIALIZER(name.mmap_sem),	\
 	.page_table_lock =  SPIN_LOCK_UNLOCKED, 		\
 	.mmlist		= LIST_HEAD_INIT(name.mmlist),		\
-	.cpu_vm_mask	= CPU_MASK_ALL,				\
 	.default_kioctx = INIT_KIOCTX(name.default_kioctx, name),	\
 }
 
@@ -49,16 +48,13 @@
 	.shared_pending	= { 				\
 		.list = LIST_HEAD_INIT(sig.shared_pending.list),	\
 		.signal =  {{0}}}, \
-	.posix_timers	 = LIST_HEAD_INIT(sig.posix_timers),		\
 }
 
 #define INIT_SIGHAND(sighand) {	\
 	.count		= ATOMIC_INIT(1), 		\
-	.action		= { {{NULL,}}, },		\
+	.action		= { {{0,}}, }, 			\
 	.siglock	= SPIN_LOCK_UNLOCKED, 		\
 }
-
-extern struct group_info init_groups;
 
 /*
  *  INIT_TASK is used to set up the first task table, touch at
@@ -91,7 +87,6 @@ extern struct group_info init_groups;
 	.real_timer	= {						\
 		.function	= it_real_fn				\
 	},								\
-	.group_info	= &init_groups,					\
 	.cap_effective	= CAP_INIT_EFF_SET,				\
 	.cap_inheritable = CAP_INIT_INH_SET,				\
 	.cap_permitted	= CAP_FULL_SET,					\
@@ -108,6 +103,7 @@ extern struct group_info init_groups;
 		.list = LIST_HEAD_INIT(tsk.pending.list),		\
 		.signal = {{0}}},					\
 	.blocked	= {{0}},					\
+	.posix_timers	 = LIST_HEAD_INIT(tsk.posix_timers),		\
 	.alloc_lock	= SPIN_LOCK_UNLOCKED,				\
 	.proc_lock	= SPIN_LOCK_UNLOCKED,				\
 	.switch_lock	= SPIN_LOCK_UNLOCKED,				\

@@ -2,7 +2,6 @@
  * cmdline.c: read the command line passed to us by the PROM.
  *
  * Copyright (C) 1998 Harald Koerfgen
- * Copyright (C) 2002, 2004  Maciej W. Rozycki
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -13,6 +12,8 @@
 #include <asm/dec/prom.h>
 
 #undef PROM_DEBUG
+
+char arcs_cmdline[CL_SIZE];
 
 void __init prom_init_cmdline(s32 argc, s32 *argv, u32 magic)
 {
@@ -34,6 +35,6 @@ void __init prom_init_cmdline(s32 argc, s32 *argv, u32 magic)
 	}
 
 #ifdef PROM_DEBUG
-	printk("arcs_cmdline: %s\n", &(arcs_cmdline[0]));
+	prom_printf("arcs_cmdline: %s\n", &(arcs_cmdline[0]));
 #endif
 }

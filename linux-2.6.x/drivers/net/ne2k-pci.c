@@ -69,6 +69,8 @@ KERN_INFO "  http://www.scyld.com/network/ne2k-pci.html\n";
 #if defined(__powerpc__)
 #define inl_le(addr)  le32_to_cpu(inl(addr))
 #define inw_le(addr)  le16_to_cpu(inw(addr))
+#define insl insl_ns
+#define outsl outsl_ns
 #endif
 
 #define PFX DRV_NAME ": "
@@ -132,7 +134,7 @@ static struct {
 	{"Holtek HT80232", ONLY_16BIT_IO | HOLTEK_FDX},
 	{"Holtek HT80229", ONLY_32BIT_IO | HOLTEK_FDX | STOP_PG_0x60 },
 	{"Winbond W89C940(misprogrammed)", 0},
-	{NULL,}
+	{0,}
 };
 
 
@@ -357,9 +359,6 @@ static int __devinit ne2k_pci_init_one (struct pci_dev *pdev,
 	dev->open = &ne2k_pci_open;
 	dev->stop = &ne2k_pci_close;
 	dev->ethtool_ops = &ne2k_pci_ethtool_ops;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
 	NS8390_init(dev, 0);
 
 	i = register_netdev(dev);
@@ -533,12 +532,8 @@ static void ne2k_pci_block_input(struct net_device *dev, int count,
 		insl(NE_BASE + NE_DATAPORT, buf, count>>2);
 		if (count & 3) {
 			buf += count & ~3;
-			if (count & 2) {
-				u16 *b = (u16 *)buf;
-
-				*b++ = le16_to_cpu(inw(NE_BASE + NE_DATAPORT));
-				buf = (char *)b;
-			}
+			if (count & 2)
+				*((u16*)buf)++ = le16_to_cpu(inw(NE_BASE + NE_DATAPORT));
 			if (count & 1)
 				*buf = inb(NE_BASE + NE_DATAPORT);
 		}
@@ -598,12 +593,8 @@ static void ne2k_pci_block_output(struct net_device *dev, int count,
 		outsl(NE_BASE + NE_DATAPORT, buf, count>>2);
 		if (count & 3) {
 			buf += count & ~3;
-			if (count & 2) {
-				u16 *b = (u16 *)buf;
-
-				outw(cpu_to_le16(*b++), NE_BASE + NE_DATAPORT);
-				buf = (char *)b;
-			}
+			if (count & 2)
+				outw(cpu_to_le16(*((u16*)buf)++), NE_BASE + NE_DATAPORT);
 		}
 	}
 

@@ -16,7 +16,6 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/stat.h>
-#include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/utsname.h>
 #include <linux/smp.h>
@@ -79,6 +78,8 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	}
 }
 
+extern asmlinkage unsigned long sys_brk(unsigned long brk);
+
 asmlinkage unsigned long sparc_brk(unsigned long brk)
 {
 	if(ARCH_SUN4C_SUN4) {
@@ -136,8 +137,7 @@ asmlinkage int sys_ipc (uint call, int first, int second, int third, void __user
 			if (!ptr)
 				goto out;
 			err = -EFAULT;
-			if (get_user(fourth.__pad,
-				     (void __user * __user *)ptr))
+			if(get_user(fourth.__pad, (void __user **)ptr))
 				goto out;
 			err = sys_semctl (first, second, third, fourth);
 			goto out;
@@ -166,9 +166,7 @@ asmlinkage int sys_ipc (uint call, int first, int second, int third, void __user
 				goto out;
 				}
 			case 1: default:
-				err = sys_msgrcv (first,
-						  (struct msgbuf __user *) ptr,
-						  second, fifth, third);
+				err = sys_msgrcv (first, (struct msgbuf *) ptr, second, fifth, third);
 				goto out;
 			}
 		case MSGGET:
@@ -187,7 +185,7 @@ asmlinkage int sys_ipc (uint call, int first, int second, int third, void __user
 			switch (version) {
 			case 0: default: {
 				ulong raddr;
-				err = do_shmat (first, (char __user *) ptr, second, &raddr);
+				err = sys_shmat (first, (char __user *) ptr, second, &raddr);
 				if (err)
 					goto out;
 				err = -EFAULT;
@@ -197,8 +195,7 @@ asmlinkage int sys_ipc (uint call, int first, int second, int third, void __user
 				goto out;
 				}
 			case 1:	/* iBCS2 emulator entry point */
-				err = do_shmat (first, (char __user *) ptr,
-						second, (ulong *) third);
+				err = sys_shmat (first, (char __user *) ptr, second, (ulong __user *) third);
 				goto out;
 			}
 		case SHMDT: 
@@ -375,7 +372,7 @@ sparc_breakpoint (struct pt_regs *regs)
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code = TRAP_BRKPT;
-	info.si_addr = (void __user *)regs->pc;
+	info.si_addr = (void *)regs->pc;
 	info.si_trapno = 0;
 	force_sig_info(SIGTRAP, &info, current);
 
@@ -429,7 +426,7 @@ sparc_sigaction (int sig, const struct old_sigaction __user *act,
 	return ret;
 }
 
-asmlinkage long
+asmlinkage int
 sys_rt_sigaction(int sig,
 		 const struct sigaction __user *act,
 		 struct sigaction __user *oact,

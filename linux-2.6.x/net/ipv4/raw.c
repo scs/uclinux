@@ -319,7 +319,7 @@ error_fault:
 	err = -EFAULT;
 	kfree_skb(skb);
 error:
-	IP_INC_STATS(IPSTATS_MIB_OUTDISCARDS);
+	IP_INC_STATS(IpOutDiscards);
 	return err; 
 }
 
@@ -480,7 +480,7 @@ static void raw_close(struct sock *sk, long timeout)
 	 */
 	ip_ra_control(sk, 0, NULL);
 
-	sk_common_release(sk);
+	inet_sock_release(sk);
 }
 
 /* This gets rid of all the nasties in af_inet. -DaveM */
@@ -555,11 +555,9 @@ int raw_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	}
 	if (inet->cmsg_flags)
 		ip_cmsg_recv(msg, skb);
-	if (flags & MSG_TRUNC)
-		copied = skb->len;
 done:
 	skb_free_datagram(sk, skb);
-out:	return err ? err : copied;
+out:	return err ? : copied;
 }
 
 static int raw_init(struct sock *sk)
@@ -570,7 +568,7 @@ static int raw_init(struct sock *sk)
 	return 0;
 }
 
-static int raw_seticmpfilter(struct sock *sk, char __user *optval, int optlen)
+static int raw_seticmpfilter(struct sock *sk, char *optval, int optlen)
 {
 	if (optlen > sizeof(struct icmp_filter))
 		optlen = sizeof(struct icmp_filter);
@@ -579,7 +577,7 @@ static int raw_seticmpfilter(struct sock *sk, char __user *optval, int optlen)
 	return 0;
 }
 
-static int raw_geticmpfilter(struct sock *sk, char __user *optval, int __user *optlen)
+static int raw_geticmpfilter(struct sock *sk, char *optval, int *optlen)
 {
 	int len, ret = -EFAULT;
 
@@ -599,7 +597,7 @@ out:	return ret;
 }
 
 static int raw_setsockopt(struct sock *sk, int level, int optname, 
-			  char __user *optval, int optlen)
+			  char *optval, int optlen)
 {
 	if (level != SOL_RAW)
 		return ip_setsockopt(sk, level, optname, optval, optlen);
@@ -614,7 +612,7 @@ static int raw_setsockopt(struct sock *sk, int level, int optname,
 }
 
 static int raw_getsockopt(struct sock *sk, int level, int optname, 
-			  char __user *optval, int __user *optlen)
+			  char *optval, int *optlen)
 {
 	if (level != SOL_RAW)
 		return ip_getsockopt(sk, level, optname, optval, optlen);
@@ -633,7 +631,7 @@ static int raw_ioctl(struct sock *sk, int cmd, unsigned long arg)
 	switch (cmd) {
 		case SIOCOUTQ: {
 			int amount = atomic_read(&sk->sk_wmem_alloc);
-			return put_user(amount, (int __user *)arg);
+			return put_user(amount, (int *)arg);
 		}
 		case SIOCINQ: {
 			struct sk_buff *skb;
@@ -644,12 +642,12 @@ static int raw_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			if (skb != NULL)
 				amount = skb->len;
 			spin_unlock_irq(&sk->sk_receive_queue.lock);
-			return put_user(amount, (int __user *)arg);
+			return put_user(amount, (int *)arg);
 		}
 
 		default:
 #ifdef CONFIG_IP_MROUTE
-			return ipmr_ioctl(sk, cmd, (void __user *)arg);
+			return ipmr_ioctl(sk, cmd, arg);
 #else
 			return -ENOIOCTLCMD;
 #endif
@@ -659,7 +657,7 @@ static int raw_ioctl(struct sock *sk, int cmd, unsigned long arg)
 struct proto raw_prot = {
 	.name =		"RAW",
 	.close =	raw_close,
-	.connect =	ip4_datagram_connect,
+	.connect =	udp_connect,
 	.disconnect =	udp_disconnect,
 	.ioctl =	raw_ioctl,
 	.init =		raw_init,

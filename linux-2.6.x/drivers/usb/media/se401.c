@@ -369,7 +369,7 @@ static void se401_video_irq(struct urb *urb, struct pt_regs *regs)
 				se401->scratch_overflow=0;
 				se401->scratch_next++;
 				if (se401->scratch_next>=SE401_NUMSCRATCH)
-					se401->scratch_next=0;
+					se401->scratch_next=0;;
 				break;
 			}
 		}
@@ -1121,7 +1121,7 @@ static int se401_ioctl(struct inode *inode, struct file *file,
 	return video_usercopy(inode, file, cmd, arg, se401_do_ioctl);
 }
 
-static ssize_t se401_read(struct file *file, char __user *buf,
+static ssize_t se401_read(struct file *file, char *buf,
 		     size_t count, loff_t *ppos)
 {
 	int realcount=count, ret=0;
@@ -1295,7 +1295,7 @@ static int se401_init(struct usb_se401 *se401, int button)
 		    &se401->button, sizeof(se401->button),
 		    se401_button_irq,
 		    se401,
-		    8
+		    HZ/10
 		);
 		if (usb_submit_urb(se401->inturb, GFP_KERNEL)) {
 			info("int urb burned down");
@@ -1326,7 +1326,7 @@ static int se401_probe(struct usb_interface *intf,
         if (dev->descriptor.bNumConfigurations != 1)
                 return -ENODEV;
 
-        interface = &intf->cur_altsetting->desc;
+        interface = &intf->altsetting[0].desc;
 
         /* Is it an se401? */
         if (dev->descriptor.idVendor == 0x03e8 &&

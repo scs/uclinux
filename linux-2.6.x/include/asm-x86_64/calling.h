@@ -31,47 +31,41 @@
 #define ARGOFFSET R11
 #define SWFRAME ORIG_RAX
 
-	.macro SAVE_ARGS addskip=0,norcx=0,nor891011=0
+	.macro SAVE_ARGS addskip=0,norcx=0 	
 	subq  $9*8+\addskip,%rsp
 	CFI_ADJUST_CFA_OFFSET	9*8+\addskip
 	movq  %rdi,8*8(%rsp) 
-	CFI_REL_OFFSET	rdi,8*8
+	CFI_OFFSET	rdi,8*8-(9*8+\addskip)
 	movq  %rsi,7*8(%rsp) 
-	CFI_REL_OFFSET	rsi,7*8
+	CFI_OFFSET	rsi,7*8-(9*8+\addskip)
 	movq  %rdx,6*8(%rsp)
-	CFI_REL_OFFSET	rdx,6*8
+	CFI_OFFSET	rdx,6*8-(9*8+\addskip)
 	.if \norcx
 	.else
 	movq  %rcx,5*8(%rsp)
-	CFI_REL_OFFSET	rcx,5*8
+	CFI_OFFSET	rcx,5*8-(9*8+\addskip)
 	.endif
 	movq  %rax,4*8(%rsp) 
-	CFI_REL_OFFSET	rax,4*8
-	.if \nor891011
-	.else
+	CFI_OFFSET	rax,4*8-(9*8+\addskip)
 	movq  %r8,3*8(%rsp) 
-	CFI_REL_OFFSET	r8,3*8
+	CFI_OFFSET	r8,3*8-(9*8+\addskip)
 	movq  %r9,2*8(%rsp) 
-	CFI_REL_OFFSET	r9,2*8
+	CFI_OFFSET	r9,2*8-(9*8+\addskip)
 	movq  %r10,1*8(%rsp) 
-	CFI_REL_OFFSET	r10,1*8
+	CFI_OFFSET	r10,1*8-(9*8+\addskip)
 	movq  %r11,(%rsp) 
-	CFI_REL_OFFSET	r11,0*8
-	.endif
+	CFI_OFFSET	r11,-(9*8+\addskip)
 	.endm
 
 #define ARG_SKIP 9*8
-	.macro RESTORE_ARGS skiprax=0,addskip=0,skiprcx=0,skipr11=0,skipr8910=0,skiprdx=0
+	.macro RESTORE_ARGS skiprax=0,addskip=0,skiprcx=0,skipr11=0
 	.if \skipr11
 	.else
 	movq (%rsp),%r11
 	.endif
-	.if \skipr8910
-	.else
 	movq 1*8(%rsp),%r10
 	movq 2*8(%rsp),%r9
 	movq 3*8(%rsp),%r8
-	.endif
 	.if \skiprax
 	.else
 	movq 4*8(%rsp),%rax
@@ -80,10 +74,7 @@
 	.else
 	movq 5*8(%rsp),%rcx
 	.endif
-	.if \skiprdx
-	.else
 	movq 6*8(%rsp),%rdx
-	.endif
 	movq 7*8(%rsp),%rsi
 	movq 8*8(%rsp),%rdi
 	.if ARG_SKIP+\addskip > 0
@@ -109,17 +100,17 @@
 	subq $REST_SKIP,%rsp
 	CFI_ADJUST_CFA_OFFSET	REST_SKIP
 	movq %rbx,5*8(%rsp) 
-	CFI_REL_OFFSET	rbx,5*8
+	CFI_OFFSET	rbx,5*8-(REST_SKIP)
 	movq %rbp,4*8(%rsp) 
-	CFI_REL_OFFSET	rbp,4*8
+	CFI_OFFSET	rbp,4*8-(REST_SKIP)
 	movq %r12,3*8(%rsp) 
-	CFI_REL_OFFSET	r12,3*8
+	CFI_OFFSET	r12,3*8-(REST_SKIP)
 	movq %r13,2*8(%rsp) 
-	CFI_REL_OFFSET	r13,2*8
+	CFI_OFFSET	r13,2*8-(REST_SKIP)
 	movq %r14,1*8(%rsp) 
-	CFI_REL_OFFSET	r14,1*8
+	CFI_OFFSET	r14,1*8-(REST_SKIP)
 	movq %r15,(%rsp) 
-	CFI_REL_OFFSET	r15,0*8
+	CFI_OFFSET	r15,0*8-(REST_SKIP)
 	.endm		
 
 	.macro RESTORE_REST

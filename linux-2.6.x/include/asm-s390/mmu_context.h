@@ -24,19 +24,22 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
                              struct task_struct *tsk)
 {
+        unsigned long pgd;
+
         if (prev != next) {
 #ifndef __s390x__
-	        S390_lowcore.user_asce = (__pa(next->pgd)&PAGE_MASK) |
+	        pgd = (__pa(next->pgd)&PAGE_MASK) | 
                       (_SEGMENT_TABLE|USER_STD_MASK);
-                /* Load home space page table origin. */
-                asm volatile("lctl  13,13,%0"
-			     : : "m" (S390_lowcore.user_asce) );
+                /* Load page tables */
+                asm volatile("    lctl  7,7,%0\n"   /* secondary space */
+                             "    lctl  13,13,%0\n" /* home space */
+                             : : "m" (pgd) );
 #else /* __s390x__ */
-                S390_lowcore.user_asce = (__pa(next->pgd) & PAGE_MASK) |
-			(_REGION_TABLE|USER_STD_MASK);
-		/* Load home space page table origin. */
-		asm volatile("lctlg  13,13,%0"
-			     : : "m" (S390_lowcore.user_asce) );
+                pgd = (__pa(next->pgd)&PAGE_MASK) | (_REGION_TABLE|USER_STD_MASK);
+                /* Load page tables */
+                asm volatile("    lctlg 7,7,%0\n"   /* secondary space */
+                             "    lctlg 13,13,%0\n" /* home space */
+                             : : "m" (pgd) );
 #endif /* __s390x__ */
         }
 	cpu_set(smp_processor_id(), next->cpu_vm_mask);
@@ -48,7 +51,6 @@ extern inline void activate_mm(struct mm_struct *prev,
                                struct mm_struct *next)
 {
         switch_mm(prev, next, current);
-	set_fs(current->thread.mm_segment);
 }
 
 #endif

@@ -1,6 +1,6 @@
 /*
  *   ALSA sequencer FIFO
- *   Copyright (c) 1998 by Frank van de Pol <fvdpol@coil.demon.nl>
+ *   Copyright (c) 1998 by Frank van de Pol <fvdpol@home.nl>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -171,12 +171,10 @@ int snd_seq_fifo_cell_out(fifo_t *f, snd_seq_event_cell_t **cellp, int nonblock)
 {
 	snd_seq_event_cell_t *cell;
 	unsigned long flags;
-	wait_queue_t wait;
 
 	snd_assert(f != NULL, return -EINVAL);
 
 	*cellp = NULL;
-	init_waitqueue_entry(&wait, current);
 	spin_lock_irqsave(&f->lock, flags);
 	while ((cell = fifo_cell_out(f)) == NULL) {
 		if (nonblock) {
@@ -184,19 +182,17 @@ int snd_seq_fifo_cell_out(fifo_t *f, snd_seq_event_cell_t **cellp, int nonblock)
 			spin_unlock_irqrestore(&f->lock, flags);
 			return -EAGAIN;
 		}
-		set_current_state(TASK_INTERRUPTIBLE);
-		add_wait_queue(&f->input_sleep, &wait);
-		spin_unlock_irq(&f->lock);
-		schedule();
-		spin_lock_irq(&f->lock);
-		remove_wait_queue(&f->input_sleep, &wait);
+		spin_unlock(&f->lock);
+		interruptible_sleep_on(&f->input_sleep);
+		spin_lock(&f->lock);
+
 		if (signal_pending(current)) {
 			spin_unlock_irqrestore(&f->lock, flags);
 			return -ERESTARTSYS;
 		}
 	}
-	spin_unlock_irqrestore(&f->lock, flags);
 	*cellp = cell;
+	spin_unlock_irqrestore(&f->lock, flags);
 
 	return 0;
 }

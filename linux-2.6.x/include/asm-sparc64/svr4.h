@@ -87,7 +87,7 @@ enum svr4_stack_flags {
 
 /* signal stack execution place, unsupported */
 typedef struct svr4_stack_t {
-        u32  sp;
+        char *sp;
         int  size;
         int  flags;
 } svr4_stack_t;

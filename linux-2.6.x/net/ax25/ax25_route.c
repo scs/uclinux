@@ -122,7 +122,6 @@ static int ax25_rt_add(struct ax25_routes_struct *route)
 					ax25_rt->digipeat->calls[i]    = route->digi_addr[i];
 				}
 			}
-			write_unlock(&ax25_route_lock);
 			return 0;
 		}
 		ax25_rt = ax25_rt->next;
@@ -254,7 +253,7 @@ out:
 	return err;
 }
 
-int ax25_rt_ioctl(unsigned int cmd, void __user *arg)
+int ax25_rt_ioctl(unsigned int cmd, void *arg)
 {
 	struct ax25_route_opt_struct rt_option;
 	struct ax25_routes_struct route;
@@ -536,7 +535,7 @@ void __exit ax25_rt_free(void)
 {
 	ax25_route *s, *ax25_rt = ax25_route_list;
 
-	write_lock(&ax25_route_lock);
+	write_unlock(&ax25_route_lock);
 	while (ax25_rt != NULL) {
 		s       = ax25_rt;
 		ax25_rt = ax25_rt->next;

@@ -167,8 +167,7 @@ static int scan_header(partition_t *part)
 {
     erase_unit_header_t header;
     loff_t offset, max_offset;
-    size_t ret;
-    int err;
+    int ret;
     part->header.FormattedSize = 0;
     max_offset = (0x100000<part->mbd.mtd->size)?0x100000:part->mbd.mtd->size;
     /* Search first megabyte for a valid FTL header */
@@ -176,11 +175,11 @@ static int scan_header(partition_t *part)
 	 (offset + sizeof(header)) < max_offset;
 	 offset += part->mbd.mtd->erasesize ? : 0x2000) {
 
-	err = part->mbd.mtd->read(part->mbd.mtd, offset, sizeof(header), &ret, 
+	ret = part->mbd.mtd->read(part->mbd.mtd, offset, sizeof(header), &ret, 
 			      (unsigned char *)&header);
 	
-	if (err) 
-	    return err;
+	if (ret) 
+	    return ret;
 
 	if (strcmp(header.DataOrgTuple+3, "FTL100") == 0) break;
     }
@@ -959,7 +958,7 @@ static int ftl_write(partition_t *part, caddr_t buffer,
 	if (ret) {
 	    printk(KERN_NOTICE "ftl_cs: block write failed!\n");
 	    printk(KERN_NOTICE "ftl_cs:   log_addr = 0x%x, virt_addr"
-		   " = 0x%x, Offset = 0x%zx\n", log_addr, virt_addr,
+		   " = 0x%x, Offset = 0x%x\n", log_addr, virt_addr,
 		   offset);
 	    return -EIO;
 	}

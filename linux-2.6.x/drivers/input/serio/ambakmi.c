@@ -18,23 +18,22 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/err.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/hardware/amba.h>
 #include <asm/hardware/amba_kmi.h>
-#include <asm/hardware/clock.h>
 
 #define KMI_BASE	(kmi->base)
 
 struct amba_kmi_port {
 	struct serio		io;
-	struct clk		*clk;
+	struct amba_kmi_port	*next;
 	unsigned char		*base;
 	unsigned int		irq;
 	unsigned int		divisor;
 	unsigned int		open;
+	struct resource		*res;
 };
 
 static irqreturn_t amba_kmi_int(int irq, void *dev_id, struct pt_regs *regs)
@@ -69,38 +68,21 @@ static int amba_kmi_write(struct serio *io, unsigned char val)
 static int amba_kmi_open(struct serio *io)
 {
 	struct amba_kmi_port *kmi = io->driver;
-	unsigned int divisor;
 	int ret;
 
-	ret = clk_use(kmi->clk);
-	if (ret)
-		goto out;
-
-	ret = clk_enable(kmi->clk);
-	if (ret)
-		goto clk_unuse;
-
-	divisor = clk_get_rate(kmi->clk) / 8000000 - 1;
-	writeb(divisor, KMICLKDIV);
+	writeb(kmi->divisor, KMICLKDIV);
 	writeb(KMICR_EN, KMICR);
 
 	ret = request_irq(kmi->irq, amba_kmi_int, 0, "kmi-pl050", kmi);
 	if (ret) {
 		printk(KERN_ERR "kmi: failed to claim IRQ%d\n", kmi->irq);
 		writeb(0, KMICR);
-		goto clk_disable;
+		return ret;
 	}
 
 	writeb(KMICR_EN | KMICR_RXINTREN, KMICR);
 
 	return 0;
-
- clk_disable:
-	clk_disable(kmi->clk);
- clk_unuse:
-	clk_unuse(kmi->clk);
- out:
-	return ret;
 }
 
 static void amba_kmi_close(struct serio *io)
@@ -110,24 +92,15 @@ static void amba_kmi_close(struct serio *io)
 	writeb(0, KMICR);
 
 	free_irq(kmi->irq, kmi);
-	clk_disable(kmi->clk);
-	clk_unuse(kmi->clk);
 }
 
 static int amba_kmi_probe(struct amba_device *dev, void *id)
 {
 	struct amba_kmi_port *kmi;
-	int ret;
-
-	ret = amba_request_regions(dev, NULL);
-	if (ret)
-		return ret;
 
 	kmi = kmalloc(sizeof(struct amba_kmi_port), GFP_KERNEL);
-	if (!kmi) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!kmi)
+		return -ENOMEM;
 
 	memset(kmi, 0, sizeof(struct amba_kmi_port));
 
@@ -139,30 +112,26 @@ static int amba_kmi_probe(struct amba_device *dev, void *id)
 	kmi->io.phys	= dev->dev.bus_id;
 	kmi->io.driver	= kmi;
 
+	kmi->res	= request_mem_region(dev->res.start, KMI_SIZE, "kmi-pl050");
+	if (!kmi->res) {
+		kfree(kmi);
+		return -EBUSY;
+	}
+
 	kmi->base	= ioremap(dev->res.start, KMI_SIZE);
 	if (!kmi->base) {
-		ret = -ENOMEM;
-		goto out;
+		release_resource(kmi->res);
+		kfree(kmi);
+		return -ENOMEM;
 	}
 
-	kmi->clk = clk_get(&dev->dev, "KMIREFCLK");
-	if (IS_ERR(kmi->clk)) {
-		ret = PTR_ERR(kmi->clk);
-		goto unmap;
-	}
+	kmi->irq	= dev->irq;
+	kmi->divisor	= 24 / 8 - 1;
 
-	kmi->irq = dev->irq[0];
 	amba_set_drvdata(dev, kmi);
 
 	serio_register_port(&kmi->io);
 	return 0;
-
- unmap:
-	iounmap(kmi->base);
- out:
-	kfree(kmi);
-	amba_release_regions(dev);
-	return ret;
 }
 
 static int amba_kmi_remove(struct amba_device *dev)
@@ -172,10 +141,9 @@ static int amba_kmi_remove(struct amba_device *dev)
 	amba_set_drvdata(dev, NULL);
 
 	serio_unregister_port(&kmi->io);
-	clk_put(kmi->clk);
 	iounmap(kmi->base);
+	release_resource(kmi->res);
 	kfree(kmi);
-	amba_release_regions(dev);
 	return 0;
 }
 

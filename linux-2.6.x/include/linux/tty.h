@@ -28,13 +28,29 @@
 
 
 /*
+ * Note: don't mess with NR_PTYS until you understand the tty minor 
+ * number allocation game...
  * (Note: the *_driver.minor_start values 1, 64, 128, 192 are
  * hardcoded at present.)
  */
-#define NR_PTYS	CONFIG_LEGACY_PTY_COUNT   /* Number of legacy ptys */
-#define NR_UNIX98_PTY_DEFAULT	4096      /* Default maximum for Unix98 ptys */
-#define NR_UNIX98_PTY_MAX	(1 << MINORBITS) /* Absolute limit */
-#define NR_LDISCS		16
+#define NR_PTYS		256	/* ptys/major */
+#define NR_LDISCS	16
+
+/*
+ * Unix98 PTY's can be defined as any multiple of NR_PTYS up to
+ * UNIX98_PTY_MAJOR_COUNT; this section defines what we need from the
+ * config options
+ */
+#ifdef CONFIG_UNIX98_PTYS
+# define UNIX98_NR_MAJORS ((CONFIG_UNIX98_PTY_COUNT+NR_PTYS-1)/NR_PTYS)
+# if UNIX98_NR_MAJORS <= 0
+#  undef CONFIG_UNIX98_PTYS
+# elif UNIX98_NR_MAJORS > UNIX98_PTY_MAJOR_COUNT
+#  error  Too many Unix98 ptys defined
+#  undef  UNIX98_NR_MAJORS
+#  define UNIX98_NR_MAJORS UNIX98_PTY_MAJOR_COUNT
+# endif
+#endif
 
 /*
  * These are set up by the setup-routine at boot-time:
@@ -97,6 +113,7 @@ extern struct screen_info screen_info;
 
 #define VIDEO_TYPE_PICA_S3	0x30	/* ACER PICA-61 local S3 video	*/
 #define VIDEO_TYPE_MIPS_G364	0x31    /* MIPS Magnum 4000 G364 video  */
+#define VIDEO_TYPE_SNI_RM	0x32    /* SNI RM200 PCI video          */
 #define VIDEO_TYPE_SGI          0x33    /* Various SGI graphics hardware */
 
 #define VIDEO_TYPE_TGAC		0x40	/* DEC TGA */
@@ -183,7 +200,6 @@ struct tty_flip_buffer {
 #define I_IXANY(tty)	_I_FLAG((tty),IXANY)
 #define I_IXOFF(tty)	_I_FLAG((tty),IXOFF)
 #define I_IMAXBEL(tty)	_I_FLAG((tty),IMAXBEL)
-#define I_IUTF8(tty)	_I_FLAG((tty),IUTF8)
 
 #define O_OPOST(tty)	_O_FLAG((tty),OPOST)
 #define O_OLCUC(tty)	_O_FLAG((tty),OLCUC)
@@ -361,9 +377,6 @@ extern void disassociate_ctty(int priv);
 extern void tty_flip_buffer_push(struct tty_struct *tty);
 extern int tty_get_baud_rate(struct tty_struct *tty);
 extern int tty_termios_baud_rate(struct termios *termios);
-
-struct semaphore;
-extern struct semaphore tty_sem;
 
 /* n_tty.c */
 extern struct tty_ldisc tty_ldisc_N_TTY;

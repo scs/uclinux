@@ -36,37 +36,41 @@
 #ifdef __KERNEL__
 
 #include <linux/cache.h>
+#include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
 #include <linux/percpu.h>
 #include <linux/cpumask.h>
-#include <linux/seqlock.h>
 
 /**
  * struct rcu_head - callback structure for use with RCU
- * @next: next update requests in a list
+ * @list: list_head to queue the update requests
  * @func: actual update function to call after the grace period.
+ * @arg: argument to be passed to the actual update function.
  */
 struct rcu_head {
-	struct rcu_head *next;
-	void (*func)(struct rcu_head *head);
+	struct list_head list;
+	void (*func)(void *obj);
+	void *arg;
 };
 
-#define RCU_HEAD_INIT(head) { .next = NULL, .func = NULL }
+#define RCU_HEAD_INIT(head) \
+		{ .list = LIST_HEAD_INIT(head.list), .func = NULL, .arg = NULL }
 #define RCU_HEAD(head) struct rcu_head head = RCU_HEAD_INIT(head)
 #define INIT_RCU_HEAD(ptr) do { \
-       (ptr)->next = NULL; (ptr)->func = NULL; \
+       INIT_LIST_HEAD(&(ptr)->list); (ptr)->func = NULL; (ptr)->arg = NULL; \
 } while (0)
 
 
 
-/* Global control variables for rcupdate callback mechanism. */
+/* Control variables for rcupdate callback mechanism. */
 struct rcu_ctrlblk {
-	long	cur;		/* Current batch number.                      */
-	long	completed;	/* Number of the last completed batch         */
-	int	next_pending;	/* Is the next batch already waiting?         */
-	seqcount_t lock;	/* For atomic reads of cur and next_pending.  */
-} ____cacheline_maxaligned_in_smp;
+	spinlock_t	mutex;		/* Guard this struct                  */
+	long		curbatch;	/* Current batch number.	      */
+	long		maxbatch;	/* Max requested batch number.        */
+	cpumask_t	rcu_cpu_mask; 	/* CPUs that need to switch in order  */
+					/* for current batch to proceed.      */
+};
 
 /* Is batch a before batch b ? */
 static inline int rcu_batch_before(long a, long b)
@@ -86,51 +90,35 @@ static inline int rcu_batch_after(long a, long b)
  * curlist - current batch for which quiescent cycle started if any
  */
 struct rcu_data {
-	/* 1) quiescent state handling : */
-        long		quiescbatch;     /* Batch # for grace period */
 	long		qsctr;		 /* User-mode/idle loop etc. */
         long            last_qsctr;	 /* value of qsctr at beginning */
                                          /* of rcu grace period */
-	int		qs_pending;	 /* core waits for quiesc state */
-
-	/* 2) batch handling */
         long  	       	batch;           /* Batch # for current RCU batch */
-        struct rcu_head *nxtlist;
-	struct rcu_head **nxttail;
-        struct rcu_head *curlist;
+        struct list_head  nxtlist;
+        struct list_head  curlist;
 };
 
 DECLARE_PER_CPU(struct rcu_data, rcu_data);
 extern struct rcu_ctrlblk rcu_ctrlblk;
 
-#define RCU_quiescbatch(cpu)	(per_cpu(rcu_data, (cpu)).quiescbatch)
 #define RCU_qsctr(cpu) 		(per_cpu(rcu_data, (cpu)).qsctr)
 #define RCU_last_qsctr(cpu) 	(per_cpu(rcu_data, (cpu)).last_qsctr)
-#define RCU_qs_pending(cpu)	(per_cpu(rcu_data, (cpu)).qs_pending)
 #define RCU_batch(cpu) 		(per_cpu(rcu_data, (cpu)).batch)
 #define RCU_nxtlist(cpu) 	(per_cpu(rcu_data, (cpu)).nxtlist)
 #define RCU_curlist(cpu) 	(per_cpu(rcu_data, (cpu)).curlist)
-#define RCU_nxttail(cpu) 	(per_cpu(rcu_data, (cpu)).nxttail)
+
+#define RCU_QSCTR_INVALID	0
 
 static inline int rcu_pending(int cpu) 
 {
-	/* This cpu has pending rcu entries and the grace period
-	 * for them has completed.
-	 */
-	if (RCU_curlist(cpu) &&
-		  !rcu_batch_before(rcu_ctrlblk.completed,RCU_batch(cpu)))
+	if ((!list_empty(&RCU_curlist(cpu)) &&
+	     rcu_batch_before(RCU_batch(cpu), rcu_ctrlblk.curbatch)) ||
+	    (list_empty(&RCU_curlist(cpu)) &&
+			 !list_empty(&RCU_nxtlist(cpu))) ||
+	    cpu_isset(cpu, rcu_ctrlblk.rcu_cpu_mask))
 		return 1;
-
-	/* This cpu has no pending entries, but there are new entries */
-	if (!RCU_curlist(cpu) && RCU_nxtlist(cpu))
-		return 1;
-
-	/* The rcu core waits for a quiescent state from the cpu */
-	if (RCU_quiescbatch(cpu) != rcu_ctrlblk.cur || RCU_qs_pending(cpu))
-		return 1;
-
-	/* nothing to do */
-	return 0;
+	else
+		return 0;
 }
 
 #define rcu_read_lock()		preempt_disable()
@@ -138,11 +126,10 @@ static inline int rcu_pending(int cpu)
 
 extern void rcu_init(void);
 extern void rcu_check_callbacks(int cpu, int user);
-extern void rcu_restart_cpu(int cpu);
 
 /* Exported interfaces */
 extern void FASTCALL(call_rcu(struct rcu_head *head, 
-				void (*func)(struct rcu_head *head)));
+                          void (*func)(void *arg), void *arg));
 extern void synchronize_kernel(void);
 
 #endif /* __KERNEL__ */

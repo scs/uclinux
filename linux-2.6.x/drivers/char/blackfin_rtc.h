@@ -3,6 +3,14 @@
  * Copyright (C) 2004  LG Soft India 
  */
 
+/* RTC registers */
+#define RTC_STAT    0xFFC00300
+#define RTC_ICTL    0xFFC00304
+#define RTC_ISTAT   0xFFC00308
+#define RTC_SWCNT   0xFFC0030c
+#define RTC_ALARM   0xFFC00310
+#define RTC_PREN    0xFFC00314
+
 /* bit define */
 #define DAY_BITS_OFF     24
 #define HOUR_BITS_OFF    16

@@ -268,12 +268,13 @@ static struct i2c_driver driver = {
         .command	= tda9840_command,
 };
 
-static int __init tda9840_init_module(void)
+static int tda9840_init_module(void)
 {
-        return i2c_add_driver(&driver);
+        i2c_add_driver(&driver);
+        return 0;
 }
 
-static void __exit tda9840_cleanup_module(void)
+static void tda9840_cleanup_module(void)
 {
         i2c_del_driver(&driver);
 }
@@ -284,3 +285,4 @@ module_exit(tda9840_cleanup_module);
 MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
 MODULE_DESCRIPTION("tda9840 driver");
 MODULE_LICENSE("GPL");
+

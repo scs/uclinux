@@ -304,6 +304,13 @@ pciio_dmaaddr_drain(vertex_hdl_t dev, paddr_t addr, size_t size)
 	(dev, addr, size);
 }
 
+void
+pciio_dmalist_drain(vertex_hdl_t dev, alenlist_t list)
+{
+    DEV_FUNC(dev, dmalist_drain)
+	(dev, list);
+}
+
 /* =====================================================================
  *          INTERRUPT MANAGEMENT
  *
@@ -696,6 +703,30 @@ pciio_info_pops_get(pciio_info_t pciio_info)
     return (pciio_info->c_pops);
 }
 
+int
+pciio_businfo_multi_master_get(pciio_businfo_t businfo)
+{
+    return businfo->bi_multi_master;
+}
+
+pciio_asic_type_t
+pciio_businfo_asic_type_get(pciio_businfo_t businfo)
+{
+    return businfo->bi_asic_type;
+}
+
+pciio_bus_type_t
+pciio_businfo_bus_type_get(pciio_businfo_t businfo)
+{
+    return businfo->bi_bus_type;
+}
+
+pciio_bus_speed_t
+pciio_businfo_bus_speed_get(pciio_businfo_t businfo)
+{
+    return businfo->bi_bus_speed;
+}
+
 /* =====================================================================
  *          GENERIC PCI INITIALIZATION FUNCTIONS
  */
@@ -761,12 +792,9 @@ pciio_device_info_new(
 	pciio_info = kmalloc(sizeof (*(pciio_info)), GFP_KERNEL);
 	if ( pciio_info )
 		memset(pciio_info, 0, sizeof (*(pciio_info)));
-	else {
-		printk(KERN_WARNING "pciio_device_info_new(): Unable to "
- 			"allocate memory\n");
- 		return NULL;
-	}
     }
+    ASSERT(pciio_info != NULL);
+
     pciio_info->c_slot = slot;
     pciio_info->c_func = func;
     pciio_info->c_vendor = vendor_id;
@@ -822,7 +850,7 @@ pciio_device_info_unregister(vertex_hdl_t connectpt,
 			     pciio_info_t pciio_info)
 {
     char		name[32];
-    vertex_hdl_t	pconn = NULL;
+    vertex_hdl_t	pconn;
 
     if (!pciio_info)
 	return;
@@ -831,10 +859,16 @@ pciio_device_info_unregister(vertex_hdl_t connectpt,
 			    pciio_info->c_slot,
 			    pciio_info->c_func);
 
+    hwgraph_edge_remove(connectpt,name,&pconn);
     pciio_info_set(pconn,0);
+
+    /* Remove the link to our pci provider */
+    hwgraph_edge_remove(pconn, EDGE_LBL_MASTER, NULL);
+
 
     hwgraph_vertex_unref(pconn);
     hwgraph_vertex_destroy(pconn);
+    
 }
 
 /*ARGSUSED */
@@ -926,7 +960,7 @@ pciio_device_win_alloc(struct resource *root_resource,
 		win_alloc->wa_pages = size;
 	}
 
-	return new_res->start;
+	return new_res->start;;
 }
 
 /*
@@ -1001,4 +1035,13 @@ int
 pciio_info_type1_get(pciio_info_t pci_info)
 {
 	return (pci_info->c_type1);
+}
+
+pciio_businfo_t
+pciio_businfo_get(vertex_hdl_t conn)
+{
+	pciio_info_t		info;
+
+	info = pciio_info_get(conn);
+	return DEV_FUNC(conn, businfo_get)(conn);
 }

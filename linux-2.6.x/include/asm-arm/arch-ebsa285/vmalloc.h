@@ -24,3 +24,6 @@
 #else
 #define VMALLOC_END       (PAGE_OFFSET + 0x20000000)
 #endif
+
+#define MODULE_START	(PAGE_OFFSET - 16*1048576)
+#define MODULE_END	(PAGE_OFFSET)

@@ -10,9 +10,8 @@
 
 #ifndef _LOGIPS2PP_H
 #define _LOGIPS2PP_H
-
+struct psmouse;
 void ps2pp_process_packet(struct psmouse *psmouse);
 void ps2pp_set_800dpi(struct psmouse *psmouse);
-int ps2pp_init(struct psmouse *psmouse, int set_properties);
-
+int ps2pp_detect(struct psmouse *psmouse);
 #endif

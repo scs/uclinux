@@ -44,7 +44,6 @@ static struct platform_device sa1111_device = {
 	.id		= 0,
 	.dev		= {
 		.dma_mask = &sa1111_dmamask,
-		.coherent_dma_mask = 0xffffffff,
 	},
 	.num_resources	= ARRAY_SIZE(sa1111_resources),
 	.resource	= sa1111_resources,
@@ -101,5 +100,4 @@ MACHINE_START(JORNADA720, "HP Jornada 720")
 	BOOT_PARAMS(0xc0000100)
 	MAPIO(jornada720_map_io)
 	INITIRQ(sa1100_init_irq)
-	INITTIME(sa1100_init_time)
 MACHINE_END

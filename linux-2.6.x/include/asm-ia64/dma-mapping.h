@@ -2,11 +2,9 @@
 #define _ASM_IA64_DMA_MAPPING_H
 
 /*
- * Copyright (C) 2003-2004 Hewlett-Packard Co
+ * Copyright (C) 2003 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
-
-#include <asm/machvec.h>
 
 #define dma_alloc_coherent	platform_dma_alloc_coherent
 #define dma_alloc_noncoherent	platform_dma_alloc_coherent	/* coherent mem. is cheap */
@@ -16,11 +14,8 @@
 #define dma_map_sg		platform_dma_map_sg
 #define dma_unmap_single	platform_dma_unmap_single
 #define dma_unmap_sg		platform_dma_unmap_sg
-#define dma_sync_single_for_cpu	platform_dma_sync_single_for_cpu
-#define dma_sync_sg_for_cpu	platform_dma_sync_sg_for_cpu
-#define dma_sync_single_for_device platform_dma_sync_single_for_device
-#define dma_sync_sg_for_device	platform_dma_sync_sg_for_device
-#define dma_mapping_error	platform_dma_mapping_error
+#define dma_sync_single		platform_dma_sync_single
+#define dma_sync_sg		platform_dma_sync_sg
 
 #define dma_map_page(dev, pg, off, size, dir)				\
 	dma_map_single(dev, page_address(pg) + (off), (size), (dir))
@@ -32,10 +27,8 @@
  * See Documentation/DMA-API.txt for details.
  */
 
-#define dma_sync_single_range_for_cpu(dev, dma_handle, offset, size, dir)	\
-	dma_sync_single_for_cpu(dev, dma_handle, size, dir)
-#define dma_sync_single_range_for_device(dev, dma_handle, offset, size, dir)	\
-	dma_sync_single_for_device(dev, dma_handle, size, dir)
+#define dma_sync_single_range(dev, dma_handle, offset, size, dir)	\
+	dma_sync_single(dev, dma_handle, size, dir)
 
 #define dma_supported		platform_dma_supported
 

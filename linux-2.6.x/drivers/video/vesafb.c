@@ -47,12 +47,15 @@ static struct fb_fix_screeninfo vesafb_fix __initdata = {
 	.accel	= FB_ACCEL_NONE,
 };
 
+static struct fb_info fb_info;
+static u32 pseudo_palette[17];
+
 static int             inverse   = 0;
 static int             mtrr      = 1;
-static int	       vram __initdata = 0; /* Set amount of memory to be used */
+
 static int             pmi_setpal = 0;	/* pmi for palette changes ??? */
 static int             ypan       = 0;  /* 0..nothing, 1..ypan, 2..ywrap */
-static unsigned short  *pmi_base  = NULL;
+static unsigned short  *pmi_base  = 0;
 static void            (*pmi_start)(void);
 static void            (*pmi_pal)(void);
 
@@ -207,17 +210,14 @@ int __init vesafb_setup(char *options)
 			mtrr=1;
 		else if (! strcmp(this_opt, "nomtrr"))
 			mtrr=0;
-		else if (! strncmp(this_opt, "vram:", 5))
-			vram = simple_strtoul(this_opt+5, NULL, 0);
 	}
 	return 0;
 }
 
-static int __init vesafb_probe(struct device *device)
+int __init vesafb_init(void)
 {
-	struct platform_device *dev = to_platform_device(device);
-	struct fb_info *info;
-	int i, err;
+	int video_cmap_len;
+	int i;
 
 	if (screen_info.orig_video_isVGA != VIDEO_TYPE_VLFB)
 		return -ENXIO;
@@ -229,18 +229,7 @@ static int __init vesafb_probe(struct device *device)
 	vesafb_defined.xres = screen_info.lfb_width;
 	vesafb_defined.yres = screen_info.lfb_height;
 	vesafb_fix.line_length = screen_info.lfb_linelength;
-
-	/* Allocate enough memory for double buffering */
-	vesafb_fix.smem_len = screen_info.lfb_width * screen_info.lfb_height * vesafb_defined.bits_per_pixel >> 2;
-
-	/* check that we don't remap more memory than old cards have */
-	if (vesafb_fix.smem_len > (screen_info.lfb_size * 65536))
-		vesafb_fix.smem_len = screen_info.lfb_size * 65536;
-
-	/* Set video size according to vram boot option */
-	if (vram)
-		vesafb_fix.smem_len = vram * 1024 * 1024;
-
+	vesafb_fix.smem_len = screen_info.lfb_size * 65536;
 	vesafb_fix.visual   = (vesafb_defined.bits_per_pixel == 8) ?
 		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
 
@@ -262,25 +251,17 @@ static int __init vesafb_probe(struct device *device)
 		   spaces our resource handlers simply don't know about */
 	}
 
-	info = framebuffer_alloc(sizeof(u32) * 256, &dev->dev);
-	if (!info) {
+        fb_info.screen_base = ioremap(vesafb_fix.smem_start, vesafb_fix.smem_len);
+	if (!fb_info.screen_base) {
 		release_mem_region(vesafb_fix.smem_start, vesafb_fix.smem_len);
-		return -ENOMEM;
-	}
-	info->pseudo_palette = info->par;
-	info->par = NULL;
-
-        info->screen_base = ioremap(vesafb_fix.smem_start, vesafb_fix.smem_len);
-	if (!info->screen_base) {
 		printk(KERN_ERR
 		       "vesafb: abort, cannot ioremap video memory 0x%x @ 0x%lx\n",
 			vesafb_fix.smem_len, vesafb_fix.smem_start);
-		err = -EIO;
-		goto err;
+		return -EIO;
 	}
 
 	printk(KERN_INFO "vesafb: framebuffer at 0x%lx, mapped to 0x%p, size %dk\n",
-	       vesafb_fix.smem_start, info->screen_base, vesafb_fix.smem_len/1024);
+	       vesafb_fix.smem_start, fb_info.screen_base, vesafb_fix.smem_len/1024);
 	printk(KERN_INFO "vesafb: mode is %dx%dx%d, linelength=%d, pages=%d\n",
 	       vesafb_defined.xres, vesafb_defined.yres, vesafb_defined.bits_per_pixel, vesafb_fix.line_length, screen_info.pages);
 
@@ -350,10 +331,12 @@ static int __init vesafb_probe(struct device *device)
 		       screen_info.red_pos,
 		       screen_info.green_pos,
 		       screen_info.blue_pos);
+		video_cmap_len = 16;
 	} else {
 		vesafb_defined.red.length   = 6;
 		vesafb_defined.green.length = 6;
 		vesafb_defined.blue.length  = 6;
+		video_cmap_len = 256;
 	}
 
 	vesafb_fix.ypanstep  = ypan     ? 1 : 0;
@@ -375,52 +358,20 @@ static int __init vesafb_probe(struct device *device)
 		}
 	}
 	
-	info->fbops = &vesafb_ops;
-	info->var = vesafb_defined;
-	info->fix = vesafb_fix;
-	info->flags = FBINFO_FLAG_DEFAULT |
-		(ypan) ? FBINFO_HWACCEL_YPAN : 0;
+	fb_info.fbops = &vesafb_ops;
+	fb_info.var = vesafb_defined;
+	fb_info.fix = vesafb_fix;
+	fb_info.pseudo_palette = pseudo_palette;
+	fb_info.flags = FBINFO_FLAG_DEFAULT;
 
-	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
-		err = -ENXIO;
-		goto err;
-	}
-	if (register_framebuffer(info)<0) {
-		err = -EINVAL;
-		fb_dealloc_cmap(&info->cmap);
-		goto err;
-	}
+	fb_alloc_cmap(&fb_info.cmap, video_cmap_len, 0);
+
+	if (register_framebuffer(&fb_info)<0)
+		return -EINVAL;
+
 	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-	       info->node, info->fix.id);
+	       fb_info.node, fb_info.fix.id);
 	return 0;
-err:
-	framebuffer_release(info);
-	release_mem_region(vesafb_fix.smem_start, vesafb_fix.smem_len);
-	return err;
-}
-
-static struct device_driver vesafb_driver = {
-	.name	= "vesafb",
-	.bus	= &platform_bus_type,
-	.probe	= vesafb_probe,
-};
-
-static struct platform_device vesafb_device = {
-	.name	= "vesafb",
-};
-
-int __init vesafb_init(void)
-{
-	int ret;
-
-	ret = driver_register(&vesafb_driver);
-
-	if (!ret) {
-		ret = platform_device_register(&vesafb_device);
-		if (ret)
-			driver_unregister(&vesafb_driver);
-	}
-	return ret;
 }
 
 /*

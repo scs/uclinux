@@ -71,7 +71,7 @@ config IP_MULTIPLE_TABLES
 	  documentation at <http://www.compendium.com.ar/policy-routing.txt>
 	  and <ftp://post.tepkom.ru/pub/vol2/Linux/docs/advanced-routing.tex>.
 	  You will need supporting software from
-	  <ftp://ftp.tux.org/pub/net/ip-routing/>.
+	  <ftp://ftp.inr.ac.ru/ip-routing/>.
 
 	  If unsure, say N.
 
@@ -196,7 +196,8 @@ config NET_IPIP
 	  can be useful if you want to make your (or some other) machine
 	  appear on a different network than it physically is, or to use
 	  mobile-IP facilities (allowing laptops to seamlessly move between
-	  networks without changing their IP addresses).
+	  networks without changing their IP addresses; check out
+	  <http://anchor.cs.binghamton.edu/~mobileip/LJ/index.html>).
 
 	  Saying Y to this option will produce two modules ( = code which can
 	  be inserted in and removed from the running kernel whenever you
@@ -285,6 +286,25 @@ config ARPD
 	  you need to find a version of the daemon arpd on the net somewhere,
 	  and you should also say Y to "Kernel/User network link driver",
 	  below. If unsure, say N.
+
+config INET_ECN
+	bool "IP: TCP Explicit Congestion Notification support"
+	depends on INET
+	---help---
+	  Explicit Congestion Notification (ECN) allows routers to notify
+	  clients about network congestion, resulting in fewer dropped packets
+	  and increased network performance.  This option adds ECN support to
+	  the Linux kernel, as well as a sysctl (/proc/sys/net/ipv4/tcp_ecn)
+	  which allows ECN support to be disabled at runtime.
+
+	  Note that, on the Internet, there are many broken firewalls which
+	  refuse connections from ECN-enabled machines, and it may be a while
+	  before these firewalls are fixed.  Until then, to access a site
+	  behind such a firewall (some of which are major sites, at the time
+	  of this writing) you will have to disable this option, either by
+	  saying N now or by using the sysctl.
+
+	  If in doubt, say N.
 
 config SYN_COOKIES
 	bool "IP: TCP syncookie support (disabled per default)"

@@ -135,7 +135,7 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *epirq, *epout;
 	struct iforce *iforce;
 
-	interface = intf->cur_altsetting;
+	interface = &intf->altsetting[intf->act_altsetting];
 
 	epirq = &interface->endpoint[0].desc;
 	epout = &interface->endpoint[1].desc;

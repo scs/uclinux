@@ -25,7 +25,7 @@
 #define LONG_MSW(X) (((unsigned long)X) >> 32)
 
 typedef u32 phandle;
-typedef u32 ihandle;
+typedef void *ihandle;
 typedef u32 phandle32;
 typedef u32 ihandle32;
 
@@ -87,12 +87,11 @@ union pci_range {
 	} pci64;
 };
 
-struct of_tce_table {
+struct _of_tce_table {
 	phandle node;
 	unsigned long base;
 	unsigned long size;
 };
-extern struct of_tce_table of_tce_table[];
 
 struct reg_property {
 	unsigned long address;
@@ -107,12 +106,6 @@ struct reg_property32 {
 struct reg_property64 {
 	unsigned long address;
 	unsigned long size;
-};
-
-struct reg_property_pmac {
-	unsigned int address_hi;
-	unsigned int address_lo;
-	unsigned int size;
 };
 
 struct translation_property {
@@ -135,7 +128,7 @@ struct property {
  * indication of a real PCI node.  Other nodes leave these fields zeroed.
  */
 struct pci_controller;
-struct iommu_table;
+struct TceTable;
 struct device_node {
 	char	*name;
 	char	*type;
@@ -156,7 +149,7 @@ struct device_node {
 	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
 	int	eeh_config_addr;
 	struct  pci_controller *phb;	/* for pci devices */
-	struct	iommu_table *iommu_table;	/* for phb's or bridges */
+	struct	TceTable *tce_table;	/* for phb's or bridges */
 
 	struct	property *properties;
 	struct	device_node *parent;
@@ -214,7 +207,6 @@ struct prom_args {
 
 struct prom_t {
 	unsigned long entry;
-	ihandle root;
 	ihandle chosen;
 	int cpu;
 	ihandle stdout;
@@ -260,6 +252,7 @@ extern int of_remove_node(struct device_node *np);
 /* Other Prototypes */
 extern unsigned long prom_init(unsigned long, unsigned long, unsigned long,
 	unsigned long, unsigned long);
+extern void prom_print(const char *msg);
 extern void relocate_nodes(void);
 extern void finish_device_tree(void);
 extern int device_is_compatible(struct device_node *device, const char *);
@@ -269,7 +262,6 @@ extern unsigned char *get_property(struct device_node *node, const char *name,
 extern void print_properties(struct device_node *node);
 extern int prom_n_addr_cells(struct device_node* np);
 extern int prom_n_size_cells(struct device_node* np);
-extern int prom_n_intr_cells(struct device_node* np);
 extern void prom_get_irq_senses(unsigned char *senses, int off, int max);
 extern void prom_add_property(struct device_node* np, struct property* prop);
 

@@ -5,6 +5,7 @@
  *
  * (C) 2000-2003 Nicolas Pitre <nico@cam.org>
  * (C) 1999-2003 David Woodhouse <dwmw2@infradead.org>
+ * (C) 2002      David McCullough (Added MAGIC_ROM_PTR support)
  */
 
 #include <linux/config.h>
@@ -275,7 +276,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 	
 	/* OK, it's not open. Create cache info for it */
 	mtdblk = kmalloc(sizeof(struct mtdblk_dev), GFP_KERNEL);
-	if (!mtdblk)
+	if (!mtdblks)
 		return -ENOMEM;
 
 	memset(mtdblk, 0, sizeof(*mtdblk));
@@ -334,6 +335,29 @@ static int mtdblock_flush(struct mtd_blktrans_dev *dev)
 	return 0;
 }
 
+#ifdef MAGIC_ROM_PTR
+static int
+mtdblock_romptr(kdev_t dev, struct vm_area_struct * vma)
+{
+	struct mtd_info *mtd;
+	u_char *ptr;
+	size_t len;
+
+	mtd = __get_mtd_device(NULL, minor(dev));
+
+	if (!mtd->point)
+		return -ENOSYS; /* Can't do it, No function to point to correct addr */
+
+	if ((*mtd->point)(mtd, (vma->vm_pgoff << PAGE_SHIFT),
+	    (vma->vm_end - vma->vm_start), &len, &ptr) != 0)
+		return -ENOSYS;
+
+	vma->vm_start = (unsigned long) ptr;
+	vma->vm_end = vma->vm_start + len;
+	return 0;
+}
+#endif
+
 static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 {
 	struct mtd_blktrans_dev *dev = kmalloc(sizeof(*dev), GFP_KERNEL);
@@ -373,6 +397,9 @@ struct mtd_blktrans_ops mtdblock_tr = {
 	.add_mtd	= mtdblock_add_mtd,
 	.remove_dev	= mtdblock_remove_dev,
 	.owner		= THIS_MODULE,
+#ifdef MAGIC_ROM_PTR
+	.romptr		= mtdblock_romptr,
+#endif
 };
 
 int __init init_mtdblock(void)

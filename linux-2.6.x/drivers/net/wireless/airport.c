@@ -40,7 +40,7 @@
 #define AIRPORT_IO_LEN	(0x1000)	/* one page */
 
 struct airport {
-	struct macio_dev *mdev;
+	struct device_node *node;
 	void *vaddr;
 	int irq_requested;
 	int ndev_registered;
@@ -51,6 +51,7 @@ airport_suspend(struct macio_dev *mdev, u32 state)
 {
 	struct net_device *dev = dev_get_drvdata(&mdev->ofdev.dev);
 	struct orinoco_private *priv = dev->priv;
+	struct airport *card = priv->card;
 	unsigned long flags;
 	int err;
 
@@ -75,7 +76,7 @@ airport_suspend(struct macio_dev *mdev, u32 state)
 	orinoco_unlock(priv, &flags);
 
 	disable_irq(dev->irq);
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, card->node, 0, 0);
 
 	return 0;
 }
@@ -85,14 +86,14 @@ airport_resume(struct macio_dev *mdev)
 {
 	struct net_device *dev = dev_get_drvdata(&mdev->ofdev.dev);
 	struct orinoco_private *priv = dev->priv;
+	struct airport *card = priv->card;
 	unsigned long flags;
 	int err;
 
 	printk(KERN_DEBUG "%s: Airport waking up\n", dev->name);
 
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(mdev), 0, 1);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ/5);
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, card->node, 0, 1);
+	mdelay(200);
 
 	enable_irq(dev->irq);
 
@@ -139,15 +140,17 @@ airport_detach(struct macio_dev *mdev)
 
 	if (card->vaddr)
 		iounmap(card->vaddr);
-	card->vaddr = NULL;
+	card->vaddr = 0;
 
-	macio_release_resource(mdev, 0);
+	dev->base_addr = 0;
 
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(mdev), 0, 0);
-	set_current_state(TASK_UNINTERRUPTIBLE);
+	release_OF_resource(card->node, 0);
+
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, card->node, 0, 0);
+	current->state = TASK_UNINTERRUPTIBLE;
 	schedule_timeout(HZ);
 
-	macio_set_drvdata(mdev, NULL);
+	dev_set_drvdata(&mdev->ofdev.dev, NULL);
 	free_netdev(dev);
 
 	return 0;
@@ -170,11 +173,11 @@ static int airport_hard_reset(struct orinoco_private *priv)
 	 * off. */
 	disable_irq(dev->irq);
 
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(card->mdev), 0, 0);
-	set_current_state(TASK_UNINTERRUPTIBLE);
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, card->node, 0, 0);
+	current->state = TASK_UNINTERRUPTIBLE;
 	schedule_timeout(HZ);
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(card->mdev), 0, 1);
-	set_current_state(TASK_UNINTERRUPTIBLE);
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, card->node, 0, 1);
+	current->state = TASK_UNINTERRUPTIBLE;
 	schedule_timeout(HZ);
 
 	enable_irq(dev->irq);
@@ -191,9 +194,10 @@ airport_attach(struct macio_dev *mdev, const struct of_match *match)
 	struct net_device *dev;
 	struct airport *card;
 	unsigned long phys_addr;
+	struct device_node *of_node = mdev->ofdev.node;
 	hermes_t *hw;
 
-	if (macio_resource_count(mdev) < 1 || macio_irq_count(mdev) < 1) {
+	if (of_node->n_addrs < 1 || of_node->n_intrs < 1) {
 		printk(KERN_ERR "airport: wrong interrupt/addresses in OF tree\n");
 		return -ENODEV;
 	}
@@ -208,26 +212,27 @@ airport_attach(struct macio_dev *mdev, const struct of_match *match)
 	card = priv->card;
 
 	hw = &priv->hw;
-	card->mdev = mdev;
+	card->node = of_node;
 
-	if (macio_request_resource(mdev, 0, "airport")) {
+	if (! request_OF_resource(of_node, 0, " (airport)")) {
 		printk(KERN_ERR "airport: can't request IO resource !\n");
-		free_netdev(dev);
-		return -EBUSY;
+		kfree(dev);
+		return -ENODEV;
 	}
 
+	dev->name[0] = '\0';	/* register_netdev will give us an ethX name */
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
 
-	macio_set_drvdata(mdev, dev);
+	dev_set_drvdata(&mdev->ofdev.dev, dev);
 
 	/* Setup interrupts & base address */
-	dev->irq = macio_irq(mdev, 0);
-	phys_addr = macio_resource_start(mdev, 0);  /* Physical address */
+	dev->irq = of_node->intrs[0].line;
+	phys_addr = of_node->addrs[0].address;  /* Physical address */
 	printk(KERN_DEBUG "Airport at physical address %lx\n", phys_addr);
 	dev->base_addr = phys_addr;
 	card->vaddr = ioremap(phys_addr, AIRPORT_IO_LEN);
-	if (!card->vaddr) {
+	if (! card->vaddr) {
 		printk("airport: ioremap() failed\n");
 		goto failed;
 	}
@@ -236,8 +241,8 @@ airport_attach(struct macio_dev *mdev, const struct of_match *match)
 			HERMES_MEM, HERMES_16BIT_REGSPACING);
 		
 	/* Power up card */
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(mdev), 0, 1);
-	set_current_state(TASK_UNINTERRUPTIBLE);
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, card->node, 0, 1);
+	current->state = TASK_UNINTERRUPTIBLE;
 	schedule_timeout(HZ);
 
 	/* Reset it before we get the interrupt */

@@ -73,24 +73,16 @@ extern __inline__ int get_order(unsigned long size)
 	return order;
 }
 
-#ifdef USE_48_BIT_KSEG
-#define PAGE_OFFSET		0xffff800000000000UL
-#else
-#define PAGE_OFFSET		0xfffffc0000000000UL
-#endif
+#endif /* !__ASSEMBLY__ */
 
-#else
+/* to align the pointer to the (next) page boundary */
+#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
 #ifdef USE_48_BIT_KSEG
 #define PAGE_OFFSET		0xffff800000000000
 #else
 #define PAGE_OFFSET		0xfffffc0000000000
 #endif
-
-#endif /* !__ASSEMBLY__ */
-
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
 #define __pa(x)			((unsigned long) (x) - PAGE_OFFSET)
 #define __va(x)			((void *)((unsigned long) (x) + PAGE_OFFSET))

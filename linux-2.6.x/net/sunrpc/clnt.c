@@ -30,7 +30,6 @@
 #include <linux/utsname.h>
 
 #include <linux/sunrpc/clnt.h>
-#include <linux/workqueue.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
 
 #include <linux/nfs.h>
@@ -102,61 +101,41 @@ rpc_create_client(struct rpc_xprt *xprt, char *servname,
 {
 	struct rpc_version	*version;
 	struct rpc_clnt		*clnt = NULL;
-	int err;
-	int len;
 
 	dprintk("RPC: creating %s client for %s (xprt %p)\n",
 		program->name, servname, xprt);
 
-	err = -EINVAL;
 	if (!xprt)
-		goto out_err;
+		goto out;
 	if (vers >= program->nrvers || !(version = program->version[vers]))
-		goto out_err;
+		goto out;
 
-	err = -ENOMEM;
 	clnt = (struct rpc_clnt *) kmalloc(sizeof(*clnt), GFP_KERNEL);
 	if (!clnt)
-		goto out_err;
+		goto out_no_clnt;
 	memset(clnt, 0, sizeof(*clnt));
 	atomic_set(&clnt->cl_users, 0);
-	atomic_set(&clnt->cl_count, 1);
-	clnt->cl_parent = clnt;
-
-	clnt->cl_server = clnt->cl_inline_name;
-	len = strlen(servname) + 1;
-	if (len > sizeof(clnt->cl_inline_name)) {
-		char *buf = kmalloc(len, GFP_KERNEL);
-		if (buf != 0)
-			clnt->cl_server = buf;
-		else
-			len = sizeof(clnt->cl_inline_name);
-	}
-	strlcpy(clnt->cl_server, servname, len);
 
 	clnt->cl_xprt     = xprt;
 	clnt->cl_procinfo = version->procs;
 	clnt->cl_maxproc  = version->nrprocs;
+	clnt->cl_server   = servname;
 	clnt->cl_protname = program->name;
-	clnt->cl_pmap	  = &clnt->cl_pmap_default;
 	clnt->cl_port     = xprt->addr.sin_port;
 	clnt->cl_prog     = program->number;
 	clnt->cl_vers     = version->number;
 	clnt->cl_prot     = xprt->prot;
 	clnt->cl_stats    = program->stats;
-	rpc_init_wait_queue(&clnt->cl_pmap_default.pm_bindwait, "bindwait");
+	INIT_RPC_WAITQ(&clnt->cl_bindwait, "bindwait");
 
 	if (!clnt->cl_port)
 		clnt->cl_autobind = 1;
 
-	clnt->cl_rtt = &clnt->cl_rtt_default;
-	rpc_init_rtt(&clnt->cl_rtt_default, xprt->timeout.to_initval);
+	rpc_init_rtt(&clnt->cl_rtt, xprt->timeout.to_initval);
 
-	err = rpc_setup_pipedir(clnt, program->pipe_dir_name);
-	if (err < 0)
+	if (rpc_setup_pipedir(clnt, program->pipe_dir_name) < 0)
 		goto out_no_path;
 
-	err = -ENOMEM;
 	if (!rpcauth_create(flavor, clnt)) {
 		printk(KERN_INFO "RPC: Couldn't create auth handle (flavor %u)\n",
 				flavor);
@@ -168,41 +147,18 @@ rpc_create_client(struct rpc_xprt *xprt, char *servname,
 	if (clnt->cl_nodelen > UNX_MAXNODENAME)
 		clnt->cl_nodelen = UNX_MAXNODENAME;
 	memcpy(clnt->cl_nodename, system_utsname.nodename, clnt->cl_nodelen);
+out:
 	return clnt;
 
+out_no_clnt:
+	printk(KERN_INFO "RPC: out of memory in rpc_create_client\n");
+	goto out;
 out_no_auth:
 	rpc_rmdir(clnt->cl_pathname);
 out_no_path:
-	if (clnt->cl_server != clnt->cl_inline_name)
-		kfree(clnt->cl_server);
 	kfree(clnt);
-out_err:
-	return ERR_PTR(err);
-}
-
-/*
- * This function clones the RPC client structure. It allows us to share the
- * same transport while varying parameters such as the authentication
- * flavour.
- */
-struct rpc_clnt *
-rpc_clone_client(struct rpc_clnt *clnt)
-{
-	struct rpc_clnt *new;
-
-	new = (struct rpc_clnt *)kmalloc(sizeof(*new), GFP_KERNEL);
-	if (!new)
-		goto out_no_clnt;
-	memcpy(new, clnt, sizeof(*new));
-	atomic_set(&new->cl_count, 1);
-	atomic_set(&new->cl_users, 0);
-	atomic_inc(&new->cl_parent->cl_count);
-	if (new->cl_auth)
-		atomic_inc(&new->cl_auth->au_count);
-	return new;
-out_no_clnt:
-	printk(KERN_INFO "RPC: out of memory in %s\n", __FUNCTION__);
-	return ERR_PTR(-ENOMEM);
+	clnt = NULL;
+	goto out;
 }
 
 /*
@@ -244,19 +200,12 @@ rpc_shutdown_client(struct rpc_clnt *clnt)
 int
 rpc_destroy_client(struct rpc_clnt *clnt)
 {
-	if (!atomic_dec_and_test(&clnt->cl_count))
-		return 1;
-	BUG_ON(atomic_read(&clnt->cl_users) != 0);
-
 	dprintk("RPC: destroying %s client for %s\n",
 			clnt->cl_protname, clnt->cl_server);
+
 	if (clnt->cl_auth) {
 		rpcauth_destroy(clnt->cl_auth);
 		clnt->cl_auth = NULL;
-	}
-	if (clnt->cl_parent != clnt) {
-		rpc_destroy_client(clnt->cl_parent);
-		goto out_free;
 	}
 	if (clnt->cl_pathname[0])
 		rpc_rmdir(clnt->cl_pathname);
@@ -264,9 +213,6 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 		xprt_destroy(clnt->cl_xprt);
 		clnt->cl_xprt = NULL;
 	}
-	if (clnt->cl_server != clnt->cl_inline_name)
-		kfree(clnt->cl_server);
-out_free:
 	kfree(clnt);
 	return 0;
 }
@@ -605,13 +551,14 @@ call_encode(struct rpc_task *task)
 	sndbuf->tail[0].iov_len  = 0;
 	sndbuf->page_len	 = 0;
 	sndbuf->len		 = 0;
-	sndbuf->buflen		 = bufsiz;
 	rcvbuf->head[0].iov_base = (void *)((char *)task->tk_buffer + bufsiz);
 	rcvbuf->head[0].iov_len  = bufsiz;
 	rcvbuf->tail[0].iov_len  = 0;
 	rcvbuf->page_len	 = 0;
-	rcvbuf->len		 = 0;
-	rcvbuf->buflen		 = bufsiz;
+	rcvbuf->len		 = bufsiz;
+
+	/* Zero buffer so we have automatic zero-padding of opaque & string */
+	memset(task->tk_buffer, 0, bufsiz);
 
 	/* Encode header and provided arguments */
 	encode = task->tk_msg.rpc_proc->p_encode;
@@ -620,8 +567,7 @@ call_encode(struct rpc_task *task)
 		rpc_exit(task, -EIO);
 		return;
 	}
-	if (encode && (status = rpcauth_wrap_req(task, encode, req, p,
-						 task->tk_msg.rpc_argp)) < 0) {
+	if (encode && (status = encode(req, p, task->tk_msg.rpc_argp)) < 0) {
 		printk(KERN_WARNING "%s: can't encode arguments: %d\n",
 				clnt->cl_protname, -status);
 		rpc_exit(task, status);
@@ -788,14 +734,16 @@ static void
 call_timeout(struct rpc_task *task)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
+	struct rpc_timeout *to = &task->tk_rqstp->rq_timeout;
 
-	if (xprt_adjust_timeout(task->tk_rqstp) == 0) {
+	if (xprt_adjust_timeout(to)) {
 		dprintk("RPC: %4d call_timeout (minor)\n", task->tk_pid);
 		goto retry;
 	}
+	to->to_retries = clnt->cl_timeout.to_retries;
 
 	dprintk("RPC: %4d call_timeout (major)\n", task->tk_pid);
-	if (RPC_IS_SOFT(task)) {
+	if (clnt->cl_softrtry) {
 		if (clnt->cl_chatty)
 			printk(KERN_NOTICE "%s: server %s not responding, timed out\n",
 				clnt->cl_protname, clnt->cl_server);
@@ -838,7 +786,7 @@ call_decode(struct rpc_task *task)
 	}
 
 	if (task->tk_status < 12) {
-		if (!RPC_IS_SOFT(task)) {
+		if (!clnt->cl_softrtry) {
 			task->tk_action = call_bind;
 			clnt->cl_stats->rpcretrans++;
 			goto out_retry;
@@ -848,8 +796,6 @@ call_decode(struct rpc_task *task)
 		rpc_exit(task, -EIO);
 		return;
 	}
-
-	req->rq_rcv_buf.len = req->rq_private_buf.len;
 
 	/* Check that the softirq receive buffer is valid */
 	WARN_ON(memcmp(&req->rq_rcv_buf, &req->rq_private_buf,
@@ -880,13 +826,12 @@ call_decode(struct rpc_task *task)
 	task->tk_action = NULL;
 
 	if (decode)
-		task->tk_status = rpcauth_unwrap_resp(task, decode, req, p,
-						      task->tk_msg.rpc_resp);
+		task->tk_status = decode(req, p, task->tk_msg.rpc_resp);
 	dprintk("RPC: %4d call_decode result %d\n", task->tk_pid,
 					task->tk_status);
 	return;
 out_retry:
-	req->rq_received = req->rq_private_buf.len = 0;
+	req->rq_received = 0;
 	task->tk_status = 0;
 }
 
@@ -958,7 +903,7 @@ call_header(struct rpc_task *task)
 static u32 *
 call_verify(struct rpc_task *task)
 {
-	u32	*p = task->tk_rqstp->rq_rcv_buf.head[0].iov_base, n;
+	u32	*p = task->tk_rqstp->rq_rvec[0].iov_base, n;
 
 	p += 1;	/* skip XID */
 

@@ -58,9 +58,6 @@
 #include <linux/serio.h>
 #include <linux/init.h>
 
-MODULE_DESCRIPTION("Handykey Twiddler keyboard as a joystick driver");
-MODULE_LICENSE("GPL");
-
 /*
  * Constants.
  */
@@ -145,7 +142,7 @@ static void twidjoy_process_packet(struct twidjoy *twidjoy, struct pt_regs *regs
  * packet processing routine.
  */
 
-static irqreturn_t twidjoy_interrupt(struct serio *serio, unsigned char data, unsigned int flags, struct pt_regs *regs)
+static void twidjoy_interrupt(struct serio *serio, unsigned char data, unsigned int flags, struc pt_regs *regs)
 {
 	struct twidjoy *twidjoy = serio->private;
 
@@ -156,7 +153,7 @@ static irqreturn_t twidjoy_interrupt(struct serio *serio, unsigned char data, un
 	if ((data & 0x80) == 0)
 		twidjoy->idx = 0;	/* this byte starts a new packet */
 	else if (twidjoy->idx == 0)
-		return IRQ_HANDLED;	/* wrong MSB -- ignore this byte */
+		return;			/* wrong MSB -- ignore this byte */
 
 	if (twidjoy->idx < TWIDJOY_MAX_LENGTH)
 		twidjoy->data[twidjoy->idx++] = data;
@@ -166,7 +163,7 @@ static irqreturn_t twidjoy_interrupt(struct serio *serio, unsigned char data, un
 		twidjoy->idx = 0;
 	}
 
-	return IRQ_HANDLED;
+	return;
 }
 
 /*
@@ -211,7 +208,7 @@ static void twidjoy_connect(struct serio *serio, struct serio_dev *dev)
 	twidjoy->dev.id.product = 0x0001;
 	twidjoy->dev.id.version = 0x0100;
 
-	twidjoy->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	twidjoy->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);	
 
 	for (bp = twidjoy_buttons; bp->bitmask; bp++) {
 		for (i = 0; i < bp->bitmask; i++)
@@ -221,8 +218,8 @@ static void twidjoy_connect(struct serio *serio, struct serio_dev *dev)
 	twidjoy->dev.absbit[0] = BIT(ABS_X) | BIT(ABS_Y);
 
 	for (i = 0; i < 2; i++) {
-		twidjoy->dev.absmax[ABS_X+i] =  50;
-		twidjoy->dev.absmin[ABS_X+i] = -50;
+		twidjoy->dev.absmax[ABS_X+i] =  50;	
+		twidjoy->dev.absmin[ABS_X+i] = -50;	
 
 		/* TODO: arndt 20010708: Are these values appropriate? */
 		twidjoy->dev.absfuzz[ABS_X+i] = 4;

@@ -4,11 +4,14 @@
  * Code common to all Marvel based systems.
  */
 
+#include <linux/config.h>
+
 #define __EXTERN_INLINE inline
 #include <asm/io.h>
 #include <asm/core_marvel.h>
 #undef __EXTERN_INLINE
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
@@ -17,14 +20,17 @@
 #include <linux/mc146818rtc.h>
 #include <linux/rtc.h>
 #include <linux/module.h>
-#include <linux/bootmem.h>
 
 #include <asm/ptrace.h>
+#include <asm/system.h>
 #include <asm/smp.h>
+#include <asm/hwrpb.h>
 #include <asm/gct.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/rtc.h>
+
+#include <linux/bootmem.h>
 
 #include "proto.h"
 #include "pci_impl.h"
@@ -718,7 +724,7 @@ marvel_iounmap(unsigned long addr)
 	if (((long)addr >> 41) == -2)
 		return;	/* kseg map, nothing to do */
 	if (addr)
-		vfree((void *)(PAGE_MASK & addr)); 
+		return vfree((void *)(PAGE_MASK & addr)); 
 }
 
 #ifndef CONFIG_ALPHA_GENERIC

@@ -102,7 +102,7 @@ struct fp_data {
 	struct fp_ext temp[2];
 };
 
-#ifdef FPU_EMU_DEBUG
+#if FPU_EMU_DEBUG
 extern unsigned int fp_debugprint;
 
 #define dprint(bit, fmt, args...) ({			\

@@ -1,7 +1,7 @@
 /*
  * XFS filesystem operations.
  *
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -118,7 +118,7 @@ xfs_init(void)
 	xfs_ili_zone = kmem_zone_init(sizeof(xfs_inode_log_item_t), "xfs_ili");
 	xfs_chashlist_zone = kmem_zone_init(sizeof(xfs_chashlist_t),
 					    "xfs_chashlist");
-	xfs_acl_zone_init(xfs_acl_zone, "xfs_acl");
+	_ACL_ZONE_INIT(xfs_acl_zone, "xfs_acl");
 
 	/*
 	 * Allocate global trace buffers.
@@ -170,7 +170,6 @@ xfs_cleanup(void)
 	xfs_cleanup_procfs();
 	xfs_sysctl_unregister();
 	xfs_refcache_destroy();
-	xfs_acl_zone_destroy(xfs_acl_zone);
 
 #ifdef XFS_DIR2_TRACE
 	ktrace_free(xfs_dir2_trace_buf);
@@ -203,6 +202,7 @@ xfs_cleanup(void)
 	kmem_cache_destroy(xfs_ifork_zone);
 	kmem_cache_destroy(xfs_ili_zone);
 	kmem_cache_destroy(xfs_chashlist_zone);
+	_ACL_ZONE_DESTROY(xfs_acl_zone);
 }
 
 /*
@@ -213,9 +213,9 @@ xfs_cleanup(void)
  */
 STATIC int
 xfs_start_flags(
-	struct vfs		*vfs,
 	struct xfs_mount_args	*ap,
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	int			ronly)
 {
 	/* Values are in BBs */
 	if ((ap->flags & XFSMNT_NOALIGN) != XFSMNT_NOALIGN) {
@@ -229,10 +229,7 @@ xfs_start_flags(
 		mp->m_swidth = ap->swidth;
 	}
 
-	if (ap->logbufs != -1 &&
-#if defined(DEBUG) || defined(XLOG_NOLOG)
-	    ap->logbufs != 0 &&
-#endif
+	if (ap->logbufs != 0 && ap->logbufs != -1 &&
 	    (ap->logbufs < XLOG_MIN_ICLOGS ||
 	     ap->logbufs > XLOG_MAX_ICLOGS)) {
 		cmn_err(CE_WARN,
@@ -279,9 +276,6 @@ xfs_start_flags(
 	if (ap->flags & XFSMNT_NOALIGN)
 		mp->m_flags |= XFS_MOUNT_NOALIGN;
 
-	if (ap->flags & XFSMNT_SWALLOC)
-		mp->m_flags |= XFS_MOUNT_SWALLOC;
-
 	if (ap->flags & XFSMNT_OSYNCISOSYNC)
 		mp->m_flags |= XFS_MOUNT_OSYNCISOSYNC;
 
@@ -308,7 +302,7 @@ xfs_start_flags(
 	 * no recovery flag requires a read-only mount
 	 */
 	if (ap->flags & XFSMNT_NORECOVERY) {
-		if (!(vfs->vfs_flag & VFS_RDONLY)) {
+		if (!ronly) {
 			cmn_err(CE_WARN,
 	"XFS: tried to mount a FS read-write without recovery!");
 			return XFS_ERROR(EINVAL);
@@ -330,12 +324,10 @@ xfs_start_flags(
  */
 STATIC int
 xfs_finish_flags(
-	struct vfs		*vfs,
 	struct xfs_mount_args	*ap,
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	int			ronly)
 {
-	int			ronly = (vfs->vfs_flag & VFS_RDONLY);
-
 	/* Fail a mount where the logbuf is smaller then the log stripe */
 	if (XFS_SB_VERSION_HASLOGV2(&mp->m_sb)) {
 		if ((ap->logbufsize == -1) &&
@@ -425,6 +417,7 @@ xfs_mount(
 	struct bhv_desc		*p;
 	struct xfs_mount	*mp = XFS_BHVTOM(bhvp);
 	struct block_device	*ddev, *logdev, *rtdev;
+	int			ronly = (vfsp->vfs_flag & VFS_RDONLY);
 	int			flags = 0, error;
 
 	ddev = vfsp->vfs_super->s_bdev;
@@ -458,9 +451,9 @@ xfs_mount(
 	 * Setup xfs_mount function vectors from available behaviors
 	 */
 	p = vfs_bhv_lookup(vfsp, VFS_POSITION_DM);
-	mp->m_dm_ops = p ? *(xfs_dmops_t *) vfs_bhv_custom(p) : xfs_dmcore_stub;
+	mp->m_dm_ops = p ? *(xfs_dmops_t *) vfs_bhv_custom(p) : xfs_dmcore_xfs;
 	p = vfs_bhv_lookup(vfsp, VFS_POSITION_QM);
-	mp->m_qm_ops = p ? *(xfs_qmops_t *) vfs_bhv_custom(p) : xfs_qmcore_stub;
+	mp->m_qm_ops = p ? *(xfs_qmops_t *) vfs_bhv_custom(p) : xfs_qmcore_xfs;
 	p = vfs_bhv_lookup(vfsp, VFS_POSITION_IO);
 	mp->m_io_ops = p ? *(xfs_ioops_t *) vfs_bhv_custom(p) : xfs_iocore_xfs;
 
@@ -476,13 +469,13 @@ xfs_mount(
 	/*
 	 * Setup flags based on mount(2) options and then the superblock
 	 */
-	error = xfs_start_flags(vfsp, args, mp);
+	error = xfs_start_flags(args, mp, ronly);
 	if (error)
 		goto error;
 	error = xfs_readsb(mp);
 	if (error)
 		goto error;
-	error = xfs_finish_flags(vfsp, args, mp);
+	error = xfs_finish_flags(args, mp, ronly);
 	if (error) {
 		xfs_freesb(mp);
 		goto error;
@@ -539,7 +532,7 @@ xfs_unmount(
 	rvp = XFS_ITOV(rip);
 
 	if (vfsp->vfs_flag & VFS_DMI) {
-		error = XFS_SEND_PREUNMOUNT(mp, vfsp,
+		error = XFS_SEND_NAMESP(mp, DM_EVENT_PREUNMOUNT,
 				rvp, DM_RIGHT_NULL, rvp, DM_RIGHT_NULL,
 				NULL, NULL, 0, 0,
 				(mp->m_dmevmask & (1<<DM_EVENT_PREUNMOUNT))?
@@ -628,7 +621,7 @@ xfs_mntupdate(
 
 	if (*flags & MS_RDONLY) {
 		xfs_refcache_purge_mp(mp);
-		xfs_flush_buftarg(mp->m_ddev_targp, 0);
+		pagebuf_delwri_flush(mp->m_ddev_targp, 0, NULL);
 		xfs_finish_reclaim_all(mp, 0);
 
 		/* This loop must run at least twice.
@@ -640,11 +633,9 @@ xfs_mntupdate(
 		 */ 
 		do {
 			VFS_SYNC(vfsp, REMOUNT_READONLY_FLAGS, NULL, error);
-			pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
-			if (!pincount) {
-				delay(50);
-				count++;
-			}
+			pagebuf_delwri_flush(mp->m_ddev_targp, PBDF_WAIT,
+								&pincount);
+			if(0 == pincount) { delay(50); count++; }
 		} while (count < 2);
 
 		/* Ok now write out an unmount record */
@@ -801,9 +792,8 @@ xfs_statvfs(
 #if XFS_BIG_INUMS
 		if (!mp->m_inoadd)
 #endif
-			statp->f_files = min_t(typeof(statp->f_files),
-						statp->f_files,
-						mp->m_maxicount);
+			statp->f_files =
+			    min_t(sector_t, statp->f_files, mp->m_maxicount);
 	statp->f_ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
 	XFS_SB_UNLOCK(mp, s);
 
@@ -1493,10 +1483,8 @@ xfs_syncsub(
 			 */
 			if (XFS_BUF_ISPINNED(bp))
 				xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
-			if (flags & SYNC_WAIT)
-				XFS_BUF_UNASYNC(bp);
-			else
-				XFS_BUF_ASYNC(bp);
+			if (!(flags & SYNC_WAIT))
+				XFS_BUF_BFLAGS(bp) |= XFS_B_ASYNC;
 			error = xfs_bwrite(mp, bp);
 		}
 		if (error) {
@@ -1617,7 +1605,6 @@ xfs_vget(
 #define MNTOPT_WSYNC	"wsync"		/* safe-mode nfs compatible mount */
 #define MNTOPT_INO64	"ino64"		/* force inodes into 64-bit range */
 #define MNTOPT_NOALIGN	"noalign"	/* turn off stripe alignment */
-#define MNTOPT_SWALLOC	"swalloc"	/* turn on stripe width allocation */
 #define MNTOPT_SUNIT	"sunit"		/* data volume stripe unit */
 #define MNTOPT_SWIDTH	"swidth"	/* data volume stripe width */
 #define MNTOPT_NOUUID	"nouuid"	/* ignore filesystem UUID */
@@ -1725,8 +1712,6 @@ xfs_parseargs(
 #endif
 		} else if (!strcmp(this_char, MNTOPT_NOALIGN)) {
 			args->flags |= XFSMNT_NOALIGN;
-		} else if (!strcmp(this_char, MNTOPT_SWALLOC)) {
-			args->flags |= XFSMNT_SWALLOC;
 		} else if (!strcmp(this_char, MNTOPT_SUNIT)) {
 			if (!value || !*value) {
 				printk("XFS: %s option requires an argument\n",
@@ -1821,7 +1806,6 @@ xfs_showargs(
 		{ XFS_MOUNT_WSYNC,		"," MNTOPT_WSYNC },
 		{ XFS_MOUNT_INO64,		"," MNTOPT_INO64 },
 		{ XFS_MOUNT_NOALIGN,		"," MNTOPT_NOALIGN },
-		{ XFS_MOUNT_SWALLOC,		"," MNTOPT_SWALLOC },
 		{ XFS_MOUNT_NOUUID,		"," MNTOPT_NOUUID },
 		{ XFS_MOUNT_NORECOVERY,		"," MNTOPT_NORECOVERY },
 		{ XFS_MOUNT_OSYNCISOSYNC,	"," MNTOPT_OSYNCISOSYNC },
@@ -1868,20 +1852,6 @@ xfs_showargs(
 	return 0;
 }
 
-STATIC void
-xfs_freeze(
-	bhv_desc_t	*bdp)
-{
-	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
-
-	while (atomic_read(&mp->m_active_trans) > 0)
-		delay(100);
-
-	/* Push the superblock and write an unmount record */
-	xfs_log_unmount_write(mp);
-	xfs_unmountfs_writesb(mp);
-}
-
 
 vfsops_t xfs_vfsops = {
 	BHV_IDENTITY_INIT(VFS_BHV_XFS,VFS_POSITION_XFS),
@@ -1898,5 +1868,4 @@ vfsops_t xfs_vfsops = {
 	.vfs_quotactl		= (vfs_quotactl_t)fs_nosys,
 	.vfs_init_vnode		= xfs_initialize_vnode,
 	.vfs_force_shutdown	= xfs_do_force_shutdown,
-	.vfs_freeze		= xfs_freeze,
 };

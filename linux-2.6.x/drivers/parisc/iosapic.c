@@ -169,11 +169,10 @@
 
 #include <asm/byteorder.h>	/* get in-line asm for swab */
 #include <asm/pdc.h>
-#include <asm/pdcpat.h>
 #include <asm/page.h>
 #include <asm/segment.h>
 #include <asm/system.h>
-#include <asm/io.h>		/* read/write functions */
+#include <asm/io.h>		/* gsc_read/write functions */
 #ifdef CONFIG_SUPERIO
 #include <asm/superio.h>
 #endif
@@ -224,7 +223,19 @@ assert_failed (char *a, char *f, int l)
 #endif
 
 
-#define IOSAPIC_REG_SELECT              0x00
+#define READ_U8(addr)  gsc_readb(addr)
+#define READ_U16(addr) le16_to_cpu(gsc_readw((u16 *) (addr)))
+#define READ_U32(addr) le32_to_cpu(gsc_readl((u32 *) (addr)))
+#define READ_REG16(addr) gsc_readw((u16 *) (addr))
+#define READ_REG32(addr) gsc_readl((u32 *) (addr))
+#define WRITE_U8(value, addr) gsc_writeb(value, addr)
+#define WRITE_U16(value, addr) gsc_writew(cpu_to_le16(value), (u16 *) (addr))
+#define WRITE_U32(value, addr) gsc_writel(cpu_to_le32(value), (u32 *) (addr))
+#define WRITE_REG16(value, addr) gsc_writew(value, (u16 *) (addr))
+#define WRITE_REG32(value, addr) gsc_writel(value, (u32 *) (addr))
+
+
+#define IOSAPIC_REG_SELECT              0
 #define IOSAPIC_REG_WINDOW              0x10
 #define IOSAPIC_REG_EOI                 0x40
 
@@ -233,19 +244,8 @@ assert_failed (char *a, char *f, int l)
 #define IOSAPIC_IRDT_ENTRY(idx)		(0x10+(idx)*2)
 #define IOSAPIC_IRDT_ENTRY_HI(idx)	(0x11+(idx)*2)
 
-static inline unsigned int iosapic_read(unsigned long iosapic, unsigned int reg)
-{
-	writel(reg, iosapic + IOSAPIC_REG_SELECT);
-	return readl(iosapic + IOSAPIC_REG_WINDOW);
-}
-
-static inline void iosapic_write(unsigned long iosapic, unsigned int reg, u32 val)
-{
-	writel(reg, iosapic + IOSAPIC_REG_SELECT);
-	writel(val, iosapic + IOSAPIC_REG_WINDOW);
-}
-
 /*
+** FIXME: revisit which GFP flags we should really be using.
 **     GFP_KERNEL includes __GFP_WAIT flag and that may not
 **     be acceptable. Since this is boot time, we shouldn't have
 **     to wait ever and this code should (will?) never get called
@@ -260,13 +260,16 @@ static inline void iosapic_write(unsigned long iosapic, unsigned int reg, u32 va
 #define	IOSAPIC_UNLOCK(lck)	spin_unlock_irqrestore(lck, irqflags)
 
 
-#define IOSAPIC_VERSION_MASK	0x000000ff
-#define	IOSAPIC_VERSION(ver)	((int) (ver & IOSAPIC_VERSION_MASK))
+#define IOSAPIC_VERSION_MASK            0x000000ff
+#define IOSAPIC_VERSION_SHIFT           0x0
+#define	IOSAPIC_VERSION(ver)				\
+		(int) ((ver & IOSAPIC_VERSION_MASK) >> IOSAPIC_VERSION_SHIFT)
 
 #define IOSAPIC_MAX_ENTRY_MASK          0x00ff0000
+
 #define IOSAPIC_MAX_ENTRY_SHIFT         0x10
-#define	IOSAPIC_IRDT_MAX_ENTRY(ver)	\
-	(int) (((ver) & IOSAPIC_MAX_ENTRY_MASK) >> IOSAPIC_MAX_ENTRY_SHIFT)
+#define	IOSAPIC_IRDT_MAX_ENTRY(ver)			\
+		(int) ((ver&IOSAPIC_MAX_ENTRY_MASK) >> IOSAPIC_MAX_ENTRY_SHIFT)
 
 /* bits in the "low" I/O Sapic IRdT entry */
 #define IOSAPIC_IRDT_ENABLE       0x10000
@@ -277,6 +280,9 @@ static inline void iosapic_write(unsigned long iosapic, unsigned int reg, u32 va
 /* bits in the "high" I/O Sapic IRdT entry */
 #define IOSAPIC_IRDT_ID_EID_SHIFT              0x10
 
+
+
+#define	IOSAPIC_EOI(eoi_addr, eoi_data) gsc_writel(eoi_data, eoi_addr)
 
 static struct iosapic_info *iosapic_list;
 static spinlock_t iosapic_lock;
@@ -397,14 +403,14 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 	struct irt_entry *p = table;
 	int i;
 
-	printk(MODULE_NAME " Interrupt Routing Table (cell %ld)\n", cell_num);
-	printk(MODULE_NAME " start = 0x%p num_entries %ld entry_size %d\n",
+	printk(KERN_DEBUG MODULE_NAME " Interrupt Routing Table (cell %ld)\n", cell_num);
+	printk(KERN_DEBUG MODULE_NAME " start = 0x%p num_entries %ld entry_size %d\n",
 		table,
 		num_entries,
 		(int) sizeof(struct irt_entry));
 
 	for (i = 0 ; i < num_entries ; i++, p++) {
-		printk(MODULE_NAME " %02x %02x %02x %02x %02x %02x %02x %02x %08x%08x\n",
+		printk(KERN_DEBUG MODULE_NAME " %02x %02x %02x %02x %02x %02x %02x %02x %08x%08x\n",
 		p->entry_type, p->entry_length, p->interrupt_type,
 		p->polarity_trigger, p->src_bus_irq_devno, p->src_bus_id,
 		p->src_seg_id, p->dest_iosapic_intin,
@@ -602,26 +608,22 @@ iosapic_xlate_pin(struct iosapic_info *isi, struct pci_dev *pcidev)
 static irqreturn_t
 iosapic_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 {
-	struct vector_info *vi = (struct vector_info *) dev_id;
+	struct vector_info *vi = (struct vector_info *)dev_id;
 	extern void do_irq(struct irqaction *a, int i, struct pt_regs *p);
-	int irq_num = vi->iosapic->isi_region->data.irqbase + vi->irqline;
+	int irq_num = vi->vi_ios->isi_region->data.irqbase + vi->vi_irqline;
 
-	DBG("iosapic_interrupt(): irq %d line %d eoi 0x%p 0x%x\n",
-		irq, vi->irqline, vi->eoi_addr, vi->eoi_data);
+	DBG("iosapic_interrupt(): irq %d line %d eoi %p\n",
+		irq, vi->vi_irqline, vi->vi_eoi_addr);
 
-	/* Do NOT need to mask/unmask IRQ. processor is already masked. */
-
-	do_irq(&vi->iosapic->isi_region->action[vi->irqline], irq_num, regs);
+/* FIXME: Need to mask/unmask? processor IRQ is already masked... */
+	do_irq(&vi->vi_ios->isi_region->action[vi->vi_irqline], irq_num, regs);
 
 	/*
-	** PARISC only supports PCI devices below I/O SAPIC.
 	** PCI only supports level triggered in order to share IRQ lines.
-	** ergo I/O SAPIC must always issue EOI on parisc.
-	**
-	** i386/ia64 support ISA devices and have to deal with
-	** edge-triggered interrupts too.
+	** I/O SAPIC must always issue EOI.
 	*/
-	__raw_writel(vi->eoi_data, vi->eoi_addr);
+	IOSAPIC_EOI(vi->vi_eoi_addr, vi->vi_eoi_data);
+
 	return IRQ_HANDLED;
 }
 
@@ -634,6 +636,10 @@ iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 	struct vector_info *vi;
 	int isi_line;	/* line used by device */
 	int tmp;
+	int return_irq;
+#ifdef CONFIG_SUPERIO
+	int superio_irq = -1;
+#endif
 
 	if (NULL == isi) {
 		printk(KERN_WARNING MODULE_NAME ": hpa not registered for %s\n",
@@ -642,29 +648,30 @@ iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 	}
 
 #ifdef CONFIG_SUPERIO
-	/*
-	 * HACK ALERT! (non-compliant PCI device support)
-	 *
-	 * All SuckyIO interrupts are routed through the PIC's on function 1.
-	 * But SuckyIO OHCI USB controller gets an IRT entry anyway because
-	 * it advertises INT D for INT_PIN.  Use that IRT entry to get the
-	 * SuckyIO interrupt routing for PICs on function 1 (*BLEECCHH*).
-	 */
 	if (is_superio_device(pcidev)) {
-		/* We must call superio_fixup_irq() to register the pdev */
-		pcidev->irq = superio_fixup_irq(pcidev);
+		superio_irq = superio_fixup_irq(pcidev);
+		if (superio_irq == -1)
+		    return(-1);
 
-		/* Don't return if need to program the IOSAPIC's IRT... */
-		if (PCI_FUNC(pcidev->devfn) != SUPERIO_USB_FN)
-			return pcidev->irq;
+		if (PCI_FUNC(pcidev->devfn) != SUPERIO_USB_FN) {
+
+			/*
+			 * SuperIO USB controller has an irt entry.
+			 * Only let the USB controller hookup the rest
+			 * of the interrupt routing when it comes through.
+			 * Note that interrupts for all three functions
+			 * actually come through the PIC's on function 1!
+			 */
+
+			pcidev->irq = superio_irq;
+			return superio_irq;
+		}
 	}
 #endif /* CONFIG_SUPERIO */
 
 	/* lookup IRT entry for isi/slot/pin set */
 	irte = iosapic_xlate_pin(isi, pcidev);
 	if (NULL == irte) {
-		printk("iosapic: no IRTE for %s (IRQ not connected?)\n",
-				pci_name(pcidev));
 		return(-1);
 	}
 	DBG_IRT("iosapic_fixup_irq(): irte %p %x %x %x %x %x %x %x %x\n",
@@ -678,21 +685,15 @@ iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 		irte->dest_iosapic_intin,
 		(u32) irte->dest_iosapic_addr);
 	isi_line = irte->dest_iosapic_intin;
-	pcidev->irq = isi->isi_region->data.irqbase + isi_line;
 
 	/* get vector info for this input line */
 	ASSERT(NULL != isi->isi_vector);
 	vi = &(isi->isi_vector[isi_line]);
 	DBG_IRT("iosapic_fixup_irq:  line %d vi 0x%p\n", isi_line, vi);
-
-	/* If this IRQ line has already been setup, skip it */
-	if (vi->irte)
-		return pcidev->irq;
-
-	vi->irte = irte;
+	vi->vi_irte = irte;
 
 	/* Allocate processor IRQ */
-	vi->txn_irq = txn_alloc_irq();
+	vi->vi_txn_irq = txn_alloc_irq();
 
 /* XXX/FIXME The txn_alloc_irq() code and related code should be moved
 ** to enable_irq(). That way we only allocate processor IRQ bits
@@ -700,62 +701,83 @@ iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 ** Right now we assign an IRQ to every PCI device present regardless
 ** of whether it's used or not.
 */
-	if (vi->txn_irq < 0)
+	if (vi->vi_txn_irq < 0)
 		panic("I/O sapic: couldn't get TXN IRQ\n");
 
 	/* enable_irq() will use txn_* to program IRdT */
-	vi->txn_addr = txn_alloc_addr(vi->txn_irq);
-	vi->txn_data = txn_alloc_data(vi->txn_irq, 8);
-        ASSERT(vi->txn_data < 256);  /* matches 8 above */
+	vi->vi_txn_addr = txn_alloc_addr(vi->vi_txn_irq);
+	vi->vi_txn_data = txn_alloc_data(vi->vi_txn_irq, 8);
+        ASSERT(vi->vi_txn_data < 256);  /* matches 8 above */
 
-	tmp = request_irq(vi->txn_irq, iosapic_interrupt, 0,
-						vi->name, vi);
+	tmp = request_irq(vi->vi_txn_irq, iosapic_interrupt, 0,
+						vi->vi_name, vi);
 	ASSERT(tmp == 0);
 
-	vi->eoi_addr = (u32 *) (isi->isi_hpa + IOSAPIC_REG_EOI);
-	vi->eoi_data = cpu_to_le32(vi->txn_data);
+	vi->vi_eoi_addr = (u32 *) (isi->isi_hpa + IOSAPIC_REG_EOI);
+	vi->vi_eoi_data = cpu_to_le32(vi->vi_irqline);
+
 	ASSERT(NULL != isi->isi_region);
+	/* pcidev->irq still needs to be virtualized.  */
+
+	return_irq = isi->isi_region->data.irqbase + isi_line;
+
+#ifdef CONFIG_SUPERIO
+	if (superio_irq != -1) {
+		superio_inform_irq(return_irq);
+		return_irq = superio_irq;
+	}
+#endif
+	pcidev->irq = return_irq;
 
 	DBG_IRT("iosapic_fixup_irq() %d:%d %x %x line %d irq %d\n",
-		PCI_SLOT(pcidev->devfn), PCI_FUNC(pcidev->irq),
-		pcidev->vendor, pcidev->device, isi_line, pcidev->irq);
+		PCI_SLOT(pcidev->devfn),
+	PCI_FUNC(pcidev->devfn), pcidev->vendor, pcidev->device, isi_line, return_irq);
 
-	return pcidev->irq;
+	return return_irq;
 }
 
 
 static void
 iosapic_rd_irt_entry(struct vector_info *vi , u32 *dp0, u32 *dp1)
 {
-	struct iosapic_info *isp = vi->iosapic;
-	u8 idx = vi->irqline;
+	struct iosapic_info *isp = vi->vi_ios;
+	u8 idx = vi->vi_irqline;
 
-	*dp0 = iosapic_read(isp->isi_hpa, IOSAPIC_IRDT_ENTRY(idx));
-	*dp1 = iosapic_read(isp->isi_hpa, IOSAPIC_IRDT_ENTRY_HI(idx));
+	/* point the window register to the lower word */
+	WRITE_U32(IOSAPIC_IRDT_ENTRY(idx), isp->isi_hpa+IOSAPIC_REG_SELECT);
+	*dp0 = READ_U32(isp->isi_hpa+IOSAPIC_REG_WINDOW);
+
+	/* point the window register to the higher word */
+	WRITE_U32(IOSAPIC_IRDT_ENTRY_HI(idx), isp->isi_hpa+IOSAPIC_REG_SELECT);
+	*dp1 = READ_U32(isp->isi_hpa+IOSAPIC_REG_WINDOW);
 }
 
 
 static void
 iosapic_wr_irt_entry(struct vector_info *vi, u32 dp0, u32 dp1)
 {
-	struct iosapic_info *isp = vi->iosapic;
+	struct iosapic_info *isp = vi->vi_ios;
 
 	ASSERT(NULL != isp);
 	ASSERT(0 != isp->isi_hpa);
-	DBG_IRT("iosapic_wr_irt_entry(): irq %d hpa %p 0x%x 0x%x\n",
-		vi->irqline,
-		isp->isi_hpa,
+	DBG_IRT("iosapic_wr_irt_entry(): irq %d hpa %p WINDOW %p  0x%x 0x%x\n",
+		vi->vi_irqline,
+		isp->isi_hpa, isp->isi_hpa+IOSAPIC_REG_WINDOW,
 		dp0, dp1);
 
-	iosapic_write(isp->isi_hpa, IOSAPIC_IRDT_ENTRY(vi->irqline), dp0);
+	/* point the window register to the lower word */
+	WRITE_U32(IOSAPIC_IRDT_ENTRY(vi->vi_irqline), isp->isi_hpa+IOSAPIC_REG_SELECT);
+	WRITE_U32( dp0, isp->isi_hpa+IOSAPIC_REG_WINDOW);
 
 	/* Read the window register to flush the writes down to HW  */
-	dp0 = readl(isp->isi_hpa+IOSAPIC_REG_WINDOW);
+	dp0 = READ_U32(isp->isi_hpa+IOSAPIC_REG_WINDOW);
 
-	iosapic_write(isp->isi_hpa, IOSAPIC_IRDT_ENTRY_HI(vi->irqline), dp1);
+	/* point the window register to the higher word */
+	WRITE_U32(IOSAPIC_IRDT_ENTRY_HI(vi->vi_irqline), isp->isi_hpa+IOSAPIC_REG_SELECT);
+	WRITE_U32( dp1, isp->isi_hpa+IOSAPIC_REG_WINDOW);
 
 	/* Read the window register to flush the writes down to HW  */
-	dp1 = readl(isp->isi_hpa+IOSAPIC_REG_WINDOW);
+	dp1 = READ_U32(isp->isi_hpa+IOSAPIC_REG_WINDOW);
 }
 
 
@@ -768,8 +790,8 @@ static void
 iosapic_set_irt_data( struct vector_info *vi, u32 *dp0, u32 *dp1)
 {
 	u32 mode = 0;
-	struct irt_entry *p = vi->irte;
-	ASSERT(NULL != vi->irte);
+	struct irt_entry *p = vi->vi_irte;
+	ASSERT(NULL != vi->vi_irte);
 
 	if ((p->polarity_trigger & IRT_PO_MASK) == IRT_ACTIVE_LO)
 		mode |= IOSAPIC_IRDT_PO_LOW;
@@ -782,8 +804,8 @@ iosapic_set_irt_data( struct vector_info *vi, u32 *dp0, u32 *dp1)
 	** PA doesn't support EXTINT or LPRIO bits.
 	*/
 
-	ASSERT(vi->txn_data);
-	*dp0 = mode | (u32) vi->txn_data;
+	ASSERT(vi->vi_txn_data);
+	*dp0 = mode | (u32) vi->vi_txn_data;
 
 	/*
 	** Extracting id_eid isn't a real clean way of getting it.
@@ -792,9 +814,9 @@ iosapic_set_irt_data( struct vector_info *vi, u32 *dp0, u32 *dp1)
 	if (is_pdc_pat()) {
 		/*
 		** PAT PDC just hands it to us "right".
-		** txn_addr comes from cpu_data[x].txn_addr.
+		** vi_txn_addr comes from cpu_data[x].txn_addr.
 		*/
-		*dp1 = (u32) (vi->txn_addr);
+		*dp1 = (u32) (vi->vi_txn_addr);
 	} else {
 		/* 
 		** eg if base_addr == 0xfffa0000),
@@ -803,8 +825,8 @@ iosapic_set_irt_data( struct vector_info *vi, u32 *dp0, u32 *dp1)
 		** eid	0x0ff00000 -> 0x00ff0000
 		** id	0x000ff000 -> 0xff000000
 		*/
-		*dp1 = (((u32)vi->txn_addr & 0x0ff00000) >> 4) |
-			(((u32)vi->txn_addr & 0x000ff000) << 12);
+		*dp1 = (((u32)vi->vi_txn_addr & 0x0ff00000) >> 4) |
+			(((u32)vi->vi_txn_addr & 0x000ff000) << 12);
 	}
 	DBG_IRT("iosapic_set_irt_data(): 0x%x 0x%x\n", *dp0, *dp1);
 }
@@ -850,7 +872,7 @@ Need more info on how Linux supports shared IRQ lines on a PC.
 	IOSAPIC_UNLOCK(&iosapic_lock);
 
 	/* disable ISR for parent */
-	disable_irq(vi->txn_irq);
+	disable_irq(vi->vi_txn_irq);
 }
 
 
@@ -861,30 +883,34 @@ iosapic_enable_irq(void *dev, int irq)
 	u32 d0, d1;
 
 	ASSERT(NULL != vi);
-	ASSERT(NULL != vi->irte);
+	ASSERT(NULL != vi->vi_irte);
 
 	/* data is initialized by fixup_irq */
-	ASSERT(0 < vi->txn_irq);
-	ASSERT(0UL != vi->txn_data);
+	ASSERT(0 < vi->vi_txn_irq);
+	ASSERT(0UL != vi->vi_txn_data);
 
 	iosapic_set_irt_data(vi, &d0, &d1);
 	iosapic_wr_irt_entry(vi, d0, d1);
 
+
 #ifdef DEBUG_IOSAPIC_IRT
 {
-	u32 *t = (u32 *) ((ulong) vi->eoi_addr & ~0xffUL);
-	printk("iosapic_enable_irq(): regs %p", vi->eoi_addr);
-	for ( ; t < vi->eoi_addr; t++)
-		printk(" %x", readl(t));
+	u32 *t = (u32 *) ((ulong) vi->vi_eoi_addr & ~0xffUL);
+	printk("iosapic_enable_irq(): regs %p", vi->vi_eoi_addr);
+	while (t < vi->vi_eoi_addr) printk(" %x", READ_U32(t++));
 	printk("\n");
 }
 
 printk("iosapic_enable_irq(): sel ");
 {
-	struct iosapic_info *isp = vi->iosapic;
+	struct iosapic_info *isp = vi->vi_ios;
 
 	for (d0=0x10; d0<0x1e; d0++) {
-		d1 = iosapic_read(isp->isi_hpa, d0);
+		/* point the window register to the lower word */
+		WRITE_U32(d0, isp->isi_hpa+IOSAPIC_REG_SELECT);
+
+		/* read the word */
+		d1 = READ_U32(isp->isi_hpa+IOSAPIC_REG_WINDOW);
 		printk(" %x", d1);
 	}
 }
@@ -892,12 +918,13 @@ printk("\n");
 #endif
 
 	/*
-	** Issueing I/O SAPIC an EOI causes an interrupt IFF IRQ line is
-	** asserted.  IRQ generally should not be asserted when a driver
-	** enables their IRQ. It can lead to "interesting" race conditions
-	** in the driver initialization sequence.
+	** KLUGE: IRQ should not be asserted when Drivers enabling their IRQ.
+	**        PCI supports level triggered in order to share IRQ lines.
+	**
+	** Issueing I/O SAPIC an EOI causes an interrupt iff IRQ line is
+	** asserted.
 	*/
-	__raw_writel(vi->eoi_data, vi->eoi_addr);
+	IOSAPIC_EOI(vi->vi_eoi_addr, vi->vi_eoi_data);
 }
 
 
@@ -932,7 +959,11 @@ iosapic_rd_version(struct iosapic_info *isi)
 	ASSERT(isi);
 	ASSERT(isi->isi_hpa);
 
-	return iosapic_read(isi->isi_hpa, IOSAPIC_REG_VERSION);
+	/* point window to the version register */
+	WRITE_U32(IOSAPIC_REG_VERSION, isi->isi_hpa+IOSAPIC_REG_SELECT);
+
+	/* now read the version register */
+	return (READ_U32(isi->isi_hpa+IOSAPIC_REG_WINDOW));
 }
 
 
@@ -1003,9 +1034,9 @@ iosapic_register(unsigned long hpa)
 	** Initialize vector array
 	*/
 	for (cnt=0; cnt < isi->isi_num_vectors; cnt++, vip++) {
-		vip->irqline = (unsigned char) cnt;
-		vip->iosapic = isi;
-		sprintf(vip->name, "%s-L%d", isi->isi_name, cnt);
+		vip->vi_irqline = (unsigned char) cnt;
+		vip->vi_ios = isi;
+		sprintf(vip->vi_name, "%s-L%d", isi->isi_name, cnt);
 	}
 
 	isi->isi_region = alloc_irq_region(isi->isi_num_vectors,
@@ -1040,13 +1071,13 @@ iosapic_prt_vi(struct vector_info *vi)
 {
 	ASSERT(NULL != vi);
 
-	printk(KERN_DEBUG MODULE_NAME ": vector_info[%d] is at %p\n", vi->irqline, vi);
-	printk(KERN_DEBUG "\t\tstatus:	 %.4x\n", vi->status);
-	printk(KERN_DEBUG "\t\ttxn_irq:  %d\n",  vi->txn_irq);
-	printk(KERN_DEBUG "\t\ttxn_addr: %lx\n", vi->txn_addr);
-	printk(KERN_DEBUG "\t\ttxn_data: %lx\n", vi->txn_data);
-	printk(KERN_DEBUG "\t\teoi_addr: %p\n",  vi->eoi_addr);
-	printk(KERN_DEBUG "\t\teoi_data: %x\n",  vi->eoi_data);
+	printk(KERN_DEBUG MODULE_NAME ": vector_info[%d] is at %p\n", vi->vi_irqline, vi);
+	printk(KERN_DEBUG "\t\tvi_status:	 %.4x\n", vi->vi_status);
+	printk(KERN_DEBUG "\t\tvi_txn_irq:  %d\n",  vi->vi_txn_irq);
+	printk(KERN_DEBUG "\t\tvi_txn_addr: %lx\n", vi->vi_txn_addr);
+	printk(KERN_DEBUG "\t\tvi_txn_data: %lx\n", vi->vi_txn_data);
+	printk(KERN_DEBUG "\t\tvi_eoi_addr: %p\n",  vi->vi_eoi_addr);
+	printk(KERN_DEBUG "\t\tvi_eoi_data: %x\n",  vi->vi_eoi_data);
 }
 
 

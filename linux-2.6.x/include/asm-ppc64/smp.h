@@ -28,13 +28,15 @@
 
 #ifdef CONFIG_SMP
 
-extern void smp_send_debugger_break(int cpu);
+extern void smp_message_pass(int target, int msg, unsigned long data, int wait);
+extern void smp_send_tlb_invalidate(int);
+extern void smp_send_xmon_break(int cpu);
 struct pt_regs;
 extern void smp_message_recv(int, struct pt_regs *);
 
 
-#define smp_processor_id() (get_paca()->paca_index)
-#define hard_smp_processor_id() (get_paca()->hw_cpu_id)
+#define smp_processor_id() (get_paca()->xPacaIndex)
+#define hard_smp_processor_id() (get_paca()->xHwProcNum)
 
 /*
  * Retrieve the state of a CPU:
@@ -51,6 +53,8 @@ extern cpumask_t cpu_possible_map;
 extern cpumask_t cpu_available_map;
 
 #define cpu_present_at_boot(cpu) cpu_isset(cpu, cpu_present_at_boot)
+#define cpu_online(cpu)          cpu_isset(cpu, cpu_online_map) 
+#define cpu_possible(cpu)        cpu_isset(cpu, cpu_possible_map) 
 #define cpu_available(cpu)       cpu_isset(cpu, cpu_available_map) 
 
 /* Since OpenPIC has only 4 IPIs, we use slightly different message numbers.
@@ -59,27 +63,17 @@ extern cpumask_t cpu_available_map;
  * in /proc/interrupts will be wrong!!! --Troy */
 #define PPC_MSG_CALL_FUNCTION   0
 #define PPC_MSG_RESCHEDULE      1
-/* This is unused now */
-#if 0
 #define PPC_MSG_MIGRATE_TASK    2
-#endif
-#define PPC_MSG_DEBUGGER_BREAK  3
-
-extern cpumask_t irq_affinity[];
+#define PPC_MSG_XMON_BREAK      3
 
 void smp_init_iSeries(void);
 void smp_init_pSeries(void);
 
-extern int __cpu_disable(void);
-extern void __cpu_die(unsigned int cpu);
-extern void cpu_die(void) __attribute__((noreturn));
 #endif /* !(CONFIG_SMP) */
-
-#define get_hard_smp_processor_id(CPU) (paca[(CPU)].hw_cpu_id)
-#define set_hard_smp_processor_id(CPU, VAL) \
-	do { (paca[(CPU)].hw_proc_num = (VAL)); } while (0)
-
 #endif /* __ASSEMBLY__ */
+
+#define get_hard_smp_processor_id(CPU) (paca[(CPU)].xHwProcNum)
+#define set_hard_smp_processor_id(CPU, VAL) do { (paca[(CPU)].xHwProcNum = VAL); } while (0)
 
 #endif /* !(_PPC64_SMP_H) */
 #endif /* __KERNEL__ */

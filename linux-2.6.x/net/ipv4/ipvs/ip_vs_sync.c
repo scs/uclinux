@@ -18,9 +18,17 @@
  *					messages filtering.
  */
 
+#define __KERNEL_SYSCALLS__             /*  for waitpid */
+
+#include <linux/config.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/net.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
+#include <linux/unistd.h>
 #include <linux/completion.h>
 
 #include <linux/skbuff.h>
@@ -480,7 +488,7 @@ static struct socket * make_send_sock(void)
 	struct socket *sock;
 
 	/* First create a socket */
-	if (sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock) < 0) {
+	if (sock_create(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock) < 0) {
 		IP_VS_ERR("Error during creation of socket; terminating\n");
 		return NULL;
 	}
@@ -521,7 +529,7 @@ static struct socket * make_receive_sock(void)
 	struct socket *sock;
 
 	/* First create a socket */
-	if (sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock) < 0) {
+	if (sock_create(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock) < 0) {
 		IP_VS_ERR("Error during creation of socket; terminating\n");
 		return NULL;
 	}
@@ -555,15 +563,25 @@ static struct socket * make_receive_sock(void)
 static int
 ip_vs_send_async(struct socket *sock, const char *buffer, const size_t length)
 {
-	struct msghdr	msg = {.msg_flags = MSG_DONTWAIT|MSG_NOSIGNAL};
-	struct kvec	iov;
+	struct msghdr	msg;
+	mm_segment_t	oldfs;
+	struct iovec	iov;
 	int		len;
 
 	EnterFunction(7);
 	iov.iov_base     = (void *)buffer;
 	iov.iov_len      = length;
+	msg.msg_name     = 0;
+	msg.msg_namelen  = 0;
+	msg.msg_iov	 = &iov;
+	msg.msg_iovlen   = 1;
+	msg.msg_control  = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_flags    = MSG_DONTWAIT|MSG_NOSIGNAL;
 
-	len = kernel_sendmsg(sock, &msg, &iov, 1, (size_t)(length));
+	oldfs = get_fs(); set_fs(KERNEL_DS);
+	len = sock_sendmsg(sock, &msg, (size_t)(length));
+	set_fs(oldfs);
 
 	LeaveFunction(7);
 	return len;
@@ -573,17 +591,27 @@ ip_vs_send_async(struct socket *sock, const char *buffer, const size_t length)
 static int
 ip_vs_receive(struct socket *sock, char *buffer, const size_t buflen)
 {
-	struct msghdr		msg = {NULL,};
-	struct kvec		iov;
+	struct msghdr		msg;
+	struct iovec		iov;
 	int			len;
+	mm_segment_t		oldfs;
 
 	EnterFunction(7);
 
 	/* Receive a packet */
 	iov.iov_base     = buffer;
 	iov.iov_len      = (size_t)buflen;
+	msg.msg_name     = 0;
+	msg.msg_namelen  = 0;
+	msg.msg_iov	 = &iov;
+	msg.msg_iovlen   = 1;
+	msg.msg_control  = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_flags    = 0;
 
-	len = kernel_recvmsg(sock, &msg, &iov, 1, buflen, 0);
+	oldfs = get_fs(); set_fs(KERNEL_DS);
+	len = sock_recvmsg(sock, &msg, buflen, 0);
+	set_fs(oldfs);
 
 	if (len < 0)
 		return -1;
@@ -592,6 +620,8 @@ ip_vs_receive(struct socket *sock, char *buffer, const size_t buflen)
 	return len;
 }
 
+
+static int errno;
 
 static DECLARE_WAIT_QUEUE_HEAD(sync_wait);
 static pid_t sync_master_pid = 0;
@@ -739,10 +769,10 @@ static int sync_thread(void *startup)
 
 	if (ip_vs_sync_state & IP_VS_STATE_MASTER && !sync_master_pid) {
 		state = IP_VS_STATE_MASTER;
-		name = "ipvs_syncmaster";
+		name = "ipvs syncmaster";
 	} else if (ip_vs_sync_state & IP_VS_STATE_BACKUP && !sync_backup_pid) {
 		state = IP_VS_STATE_BACKUP;
-		name = "ipvs_syncbackup";
+		name = "ipvs syncbackup";
 	} else {
 		IP_VS_BUG();
 		ip_vs_use_count_dec();
@@ -800,19 +830,10 @@ static int sync_thread(void *startup)
 
 static int fork_sync_thread(void *startup)
 {
-	pid_t pid;
-
 	/* fork the sync thread here, then the parent process of the
 	   sync thread is the init process after this thread exits. */
-  repeat:
-	if ((pid = kernel_thread(sync_thread, startup, 0)) < 0) {
-		IP_VS_ERR("could not create sync_thread due to %d... "
-			  "retrying.\n", pid);
-		current->state = TASK_UNINTERRUPTIBLE;
-		schedule_timeout(HZ);
-		goto repeat;
-	}
-
+	if (kernel_thread(sync_thread, startup, 0) < 0)
+		IP_VS_BUG();
 	return 0;
 }
 
@@ -821,6 +842,7 @@ int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 {
 	DECLARE_COMPLETION(startup);
 	pid_t pid;
+	int waitpid_result;
 
 	if ((state == IP_VS_STATE_MASTER && sync_master_pid) ||
 	    (state == IP_VS_STATE_BACKUP && sync_backup_pid))
@@ -839,13 +861,12 @@ int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 		ip_vs_backup_syncid = syncid;
 	}
 
-  repeat:
-	if ((pid = kernel_thread(fork_sync_thread, &startup, 0)) < 0) {
-		IP_VS_ERR("could not create fork_sync_thread due to %d... "
-			  "retrying.\n", pid);
-		current->state = TASK_UNINTERRUPTIBLE;
-		schedule_timeout(HZ);
-		goto repeat;
+	if ((pid = kernel_thread(fork_sync_thread, &startup, 0)) < 0)
+		IP_VS_BUG();
+
+	if ((waitpid_result = waitpid(pid, NULL, __WCLONE)) != pid) {
+		IP_VS_ERR("%s: waitpid(%d,...) failed, errno %d\n",
+			  __FUNCTION__, pid, -waitpid_result);
 	}
 
 	wait_for_completion(&startup);

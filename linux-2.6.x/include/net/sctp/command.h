@@ -1,5 +1,5 @@
 /* SCTP kernel reference Implementation
- * (C) Copyright IBM Corp. 2001, 2004
+ * (C) Copyright IBM Corp. 2001, 2003
  * Copyright (C) 1999-2001 Cisco, Motorola
  *
  * This file is part of the SCTP kernel reference Implementation
@@ -29,7 +29,6 @@
  * La Monte H.P. Yarroll <piggy@acm.org>
  * Karl Knutson <karl@athena.chicago.il.us>
  * Ardelle Fan <ardelle.fan@intel.com>
- * Sridhar Samudrala <sri@us.ibm.com>
  *
  * Any bugs reported given to us we will try to fix... any fixes shared will
  * be incorporated into the next SCTP release.
@@ -91,12 +90,6 @@ typedef enum {
 	SCTP_CMD_RENEGE,         /* Renege data on an association. */
 	SCTP_CMD_SETUP_T4,	 /* ADDIP, setup T4 RTO timer parms. */
 	SCTP_CMD_PROCESS_OPERR,  /* Process an ERROR chunk. */
-	SCTP_CMD_REPORT_FWDTSN,	 /* Report new cumulative TSN Ack. */
-	SCTP_CMD_PROCESS_FWDTSN, /* Skips were reported, so process further. */
-	SCTP_CMD_CLEAR_INIT_TAG, /* Clears association peer's inittag. */
-	SCTP_CMD_DEL_NON_PRIMARY, /* Removes non-primary peer transports. */
-	SCTP_CMD_T3_RTX_TIMERS_STOP, /* Stops T3-rtx pending timers */
-	SCTP_CMD_FORCE_PRIM_RETRAN,  /* Forces retrans. over primary path. */
 	SCTP_CMD_LAST
 } sctp_verb_t;
 

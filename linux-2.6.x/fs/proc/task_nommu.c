@@ -98,25 +98,25 @@ int task_statm(struct mm_struct *mm, int *shared, int *text,
 	return size;
 }
 
-/*
- * Albert D. Cahalan suggested to fake entries for the traditional
- * sections here.  This might be worth investigating.
- */
 static int show_map(struct seq_file *m, void *v)
 {
 	return 0;
 }
+
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
 	return NULL;
 }
+
 static void m_stop(struct seq_file *m, void *v)
 {
 }
+
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	return NULL;
 }
+
 struct seq_operations proc_pid_maps_op = {
 	.start	= m_start,
 	.next	= m_next,

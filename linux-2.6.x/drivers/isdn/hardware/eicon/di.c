@@ -81,7 +81,7 @@ static void xdi_xlog_ind (byte Adapter,
 void pr_out(ADAPTER * a)
 {
   byte e_no;
-  ENTITY  * this = NULL;
+  ENTITY  * this = 0;
   BUFFERS  *X;
   word length;
   word i;
@@ -761,7 +761,7 @@ byte isdn_ind(ADAPTER * a,
   word clength;
   word offset;
   BUFFERS  *R;
-  byte* cma = NULL;
+  byte* cma = 0;
 #ifdef USE_EXTENDED_DEBUGS
   {
     DBG_TRC(("<A%d Id=0x%x Ind=0x%x", ((ISDN_ADAPTER *)a->io)->ANum, Id, Ind))
@@ -814,7 +814,7 @@ byte isdn_ind(ADAPTER * a,
                                                      Id,
                                                      cma,
                                                      sizeof(a->stream_buffer),
-                                                     &final, NULL, NULL);
+                                                     &final, 0, 0);
         }
         IoAdapter->RBuffer.length = MIN(MLength, 270);
         if (IoAdapter->RBuffer.length != MLength) {

@@ -38,7 +38,6 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/completion.h>
-#include <linux/time.h>
 #include <linux/interrupt.h>
 #include <asm/semaphore.h>
 
@@ -57,7 +56,7 @@ static irqreturn_t aac_rx_intr(int irq, void *dev_id, struct pt_regs *regs)
 	 *	This allows us to only service interrupts that have 
 	 *	been enabled.
 	 */
-	mask = ~(dev->OIMR);
+	mask = ~(rx_readb(dev, MUnit.OIMR));
 	/* Check to see if this is our interrupt.  If it isn't just return */
 	if (intstat & mask) 
 	{
@@ -68,8 +67,8 @@ static irqreturn_t aac_rx_intr(int irq, void *dev_id, struct pt_regs *regs)
 			rx_writel(dev, InboundDoorbellReg,DoorBellPrintfDone);
 		}
 		else if (bellbits & DoorBellAdapterNormCmdReady) {
-			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdReady);
 			aac_command_normal(&dev->queues->queue[HostNormCmdQueue]);
+			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdReady);
 		}
 		else if (bellbits & DoorBellAdapterNormRespReady) {
 			aac_response_normal(&dev->queues->queue[HostNormRespQueue]);
@@ -180,7 +179,7 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 	/*
 	 *	Disable doorbell interrupts
 	 */
-	rx_writeb(dev, MUnit.OIMR, dev->OIMR |= 0x04);
+	rx_writeb(dev, MUnit.OIMR, rx_readb(dev, MUnit.OIMR) | 0x04);
 	/*
 	 *	Force the completion of the mask register write before issuing
 	 *	the interrupt.
@@ -221,7 +220,7 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 		/*
 		 *	Restore interrupt mask even though we timed out
 		 */
-		rx_writeb(dev, MUnit.OIMR, dev->OIMR &= 0xfb);
+		rx_writeb(dev, MUnit.OIMR, rx_readl(dev, MUnit.OIMR) & 0xfb);
 		return -ETIMEDOUT;
 	}
 	/*
@@ -235,7 +234,7 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 	/*
 	 *	Restore interrupt mask
 	 */
-	rx_writeb(dev, MUnit.OIMR, dev->OIMR &= 0xfb);
+	rx_writeb(dev, MUnit.OIMR, rx_readl(dev, MUnit.OIMR) & 0xfb);
 	return 0;
 
 }
@@ -306,7 +305,7 @@ static void aac_rx_start_adapter(struct aac_dev *dev)
 	struct aac_init *init;
 
 	init = dev->init;
-	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
+	init->HostElapsedSeconds = cpu_to_le32(jiffies/HZ);
 	/*
 	 *	Tell the adapter we are back and up and running so it will scan
 	 *	its command queues and enable our interrupts
@@ -319,84 +318,30 @@ static void aac_rx_start_adapter(struct aac_dev *dev)
 	rx_writeb(dev, MUnit.OIMR, 0xff);
 	rx_writel(dev, MUnit.ODR, 0xffffffff);
 //	rx_writeb(dev, MUnit.OIMR, ~(u8)OUTBOUND_DOORBELL_INTERRUPT_MASK);
-	rx_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
+	rx_writeb(dev, MUnit.OIMR, 0xfb);
 
 	// We can only use a 32 bit address here
 	rx_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, (u32)(ulong)dev->init_pa, &status);
 }
 
 /**
- *	aac_rx_check_health
- *	@dev: device to check if healthy
- *
- *	Will attempt to determine if the specified adapter is alive and
- *	capable of handling requests, returning 0 if alive.
- */
-static int aac_rx_check_health(struct aac_dev *dev)
-{
-	long status = rx_readl(dev, IndexRegs.Mailbox[7]);
-
-	/*
-	 *	Check to see if the board failed any self tests.
-	 */
-	if (status & SELF_TEST_FAILED)
-		return -1;
-	/*
-	 *	Check to see if the board panic'd.
-	 */
-	if (status & KERNEL_PANIC) {
-		char * buffer = kmalloc(512, GFP_KERNEL);
-		struct POSTSTATUS {
-			u32 Post_Command;
-			u32 Post_Address;
-		} * post = kmalloc(sizeof(struct POSTSTATUS), GFP_KERNEL);
-		dma_addr_t paddr = pci_map_single(dev->pdev, post, sizeof(struct POSTSTATUS), 2);
-		dma_addr_t baddr = pci_map_single(dev->pdev, buffer, 512, 1);
-		u32 status = -1;
-		int ret = -2;
-		memset(buffer, 0, 512);
-		post->Post_Command = cpu_to_le32(COMMAND_POST_RESULTS);
-		post->Post_Address = cpu_to_le32(baddr);
-		rx_writel(dev, MUnit.IMRx[0], cpu_to_le32(paddr));
-		rx_sync_cmd(dev, COMMAND_POST_RESULTS, baddr, &status);
-		pci_unmap_single(dev->pdev, paddr, sizeof(struct POSTSTATUS), 2);
-		kfree(post);
-		if ((buffer[0] == '0') && (buffer[1] == 'x')) {
-			ret = (buffer[2] <= '9') ? (buffer[2] - '0') : (buffer[2] - 'A' + 10);
-			ret <<= 4;
-			ret += (buffer[3] <= '9') ? (buffer[3] - '0') : (buffer[3] - 'A' + 10);
-		}
-		pci_unmap_single(dev->pdev, baddr, 512, 1);
-		kfree(buffer);
-		return ret;
-	}
-	/*
-	 *	Wait for the adapter to be up and running.
-	 */
-	if (!(status & KERNEL_UP_AND_RUNNING))
-		return -3;
-	/*
-	 *	Everything is OK
-	 */
-	return 0;
-} /* aac_rx_check_health */
-
-/**
  *	aac_rx_init	-	initialize an i960 based AAC card
  *	@dev: device to configure
+ *	@devnum: adapter number
  *
  *	Allocate and set up resources for the i960 based AAC variants. The 
  *	device_interface in the commregion will be allocated and linked 
  *	to the comm region.
  */
 
-int aac_rx_init(struct aac_dev *dev)
+int aac_rx_init(struct aac_dev *dev, unsigned long num)
 {
 	unsigned long start;
 	unsigned long status;
 	int instance;
 	const char * name;
 
+	dev->devnum = num;
 	instance = dev->id;
 	name     = dev->name;
 
@@ -411,36 +356,28 @@ int aac_rx_init(struct aac_dev *dev)
 	/*
 	 *	Check to see if the board failed any self tests.
 	 */
-	if (rx_readl(dev, MUnit.OMRx[0]) & SELF_TEST_FAILED) {
+	if (rx_readl(dev, IndexRegs.Mailbox[7]) & SELF_TEST_FAILED) {
 		printk(KERN_ERR "%s%d: adapter self-test failed.\n", dev->name, instance);
-		goto error_iounmap;
+		return -1;
 	}
 	/*
 	 *	Check to see if the board panic'd while booting.
 	 */
-	if (rx_readl(dev, MUnit.OMRx[0]) & KERNEL_PANIC) {
-		printk(KERN_ERR "%s%d: adapter kernel panic.\n", dev->name, instance);
-		goto error_iounmap;
-	}
-	/*
-	 *	Check to see if the monitor panic'd while booting.
-	 */
-	if (rx_readl(dev, MUnit.OMRx[0]) & MONITOR_PANIC) {
-		printk(KERN_ERR "%s%d: adapter monitor panic.\n", dev->name, instance);
-		goto error_iounmap;
+	if (rx_readl(dev, IndexRegs.Mailbox[7]) & KERNEL_PANIC) {
+		printk(KERN_ERR "%s%d: adapter kernel panic'd.\n", dev->name, instance);
+		return -1;
 	}
 	start = jiffies;
 	/*
 	 *	Wait for the adapter to be up and running. Wait up to 3 minutes
 	 */
-	while ((!(rx_readl(dev, IndexRegs.Mailbox[7]) & KERNEL_UP_AND_RUNNING))
-		|| (!(rx_readl(dev, MUnit.OMRx[0]) & KERNEL_UP_AND_RUNNING)))
+	while (!(rx_readl(dev, IndexRegs.Mailbox[7]) & KERNEL_UP_AND_RUNNING)) 
 	{
 		if(time_after(jiffies, start+180*HZ))
 		{
 			status = rx_readl(dev, IndexRegs.Mailbox[7]) >> 16;
 			printk(KERN_ERR "%s%d: adapter kernel failed to start, init status = %ld.\n", dev->name, instance, status);
-			goto error_iounmap;
+			return -1;
 		}
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
@@ -448,7 +385,7 @@ int aac_rx_init(struct aac_dev *dev)
 	if (request_irq(dev->scsi_host_ptr->irq, aac_rx_intr, SA_SHIRQ|SA_INTERRUPT, "aacraid", (void *)dev)<0) 
 	{
 		printk(KERN_ERR "%s%d: Interrupt unavailable.\n", name, instance);
-		goto error_iounmap;
+		return -1;
 	}
 	/*
 	 *	Fill in the function dispatch table.
@@ -458,34 +395,17 @@ int aac_rx_init(struct aac_dev *dev)
 	dev->a_ops.adapter_disable_int = aac_rx_disable_interrupt;
 	dev->a_ops.adapter_notify = aac_rx_notify_adapter;
 	dev->a_ops.adapter_sync_cmd = rx_sync_cmd;
-	dev->a_ops.adapter_check_health = aac_rx_check_health;
 
 	if (aac_init_adapter(dev) == NULL)
-		goto error_irq;
+		return -1;
 	/*
 	 *	Start any kernel threads needed
 	 */
 	dev->thread_pid = kernel_thread((int (*)(void *))aac_command_thread, dev, 0);
-	if(dev->thread_pid < 0)
-	{
-		printk(KERN_ERR "aacraid: Unable to create rx thread.\n");
-		goto error_kfree;
-	}
 	/*
 	 *	Tell the adapter that all is configured, and it can start
 	 *	accepting requests
 	 */
 	aac_rx_start_adapter(dev);
 	return 0;
-
-error_kfree:
-	kfree(dev->queues);
-
-error_irq:
-	free_irq(dev->scsi_host_ptr->irq, (void *)dev);
-
-error_iounmap:
-	iounmap(dev->regs.rx);
-
-	return -1;
 }

@@ -28,7 +28,6 @@
 
 #include <linux/skbuff.h>
 #include <linux/string.h>
-#include <linux/module.h>
 #include <asm/byteorder.h>
 
 #include <net/irda/irda.h>
@@ -152,7 +151,6 @@ int async_wrap_skb(struct sk_buff *skb, __u8 *tx_buff, int buffsize)
 
 	return n;
 }
-EXPORT_SYMBOL(async_wrap_skb);
 
 /************************* FRAME UNWRAPPING *************************/
 /*
@@ -483,5 +481,4 @@ void async_unwrap_char(struct net_device *dev,
 		break;
 	}
 }
-EXPORT_SYMBOL(async_unwrap_char);
 

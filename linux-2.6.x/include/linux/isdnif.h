@@ -166,17 +166,8 @@ typedef struct
 #define ISDN_CMD_HANGUP   4       /* Hangup                                */
 #define ISDN_CMD_CLREAZ   5       /* Clear EAZ(s) of channel               */
 #define ISDN_CMD_SETEAZ   6       /* Set EAZ(s) of channel                 */
-#define ISDN_CMD_GETEAZ   7       /* Get EAZ(s) of channel                 */
-#define ISDN_CMD_SETSIL   8       /* Set Service-Indicator-List of channel */
-#define ISDN_CMD_GETSIL   9       /* Get Service-Indicator-List of channel */
 #define ISDN_CMD_SETL2   10       /* Set B-Chan. Layer2-Parameter          */
-#define ISDN_CMD_GETL2   11       /* Get B-Chan. Layer2-Parameter          */
 #define ISDN_CMD_SETL3   12       /* Set B-Chan. Layer3-Parameter          */
-#define ISDN_CMD_GETL3   13       /* Get B-Chan. Layer3-Parameter          */
-// #define ISDN_CMD_LOCK    14       /* Signal usage by upper levels          */
-// #define ISDN_CMD_UNLOCK  15       /* Release usage-lock                    */
-#define ISDN_CMD_SUSPEND 16       /* Suspend connection                    */
-#define ISDN_CMD_RESUME  17       /* Resume connection                     */
 #define ISDN_CMD_PROCEED 18       /* Proceed with call establishment       */
 #define ISDN_CMD_ALERT   19       /* Alert after Proceeding                */
 #define ISDN_CMD_REDIR   20       /* Redir a incoming call                 */
@@ -202,14 +193,12 @@ typedef struct
 #define ISDN_STAT_LOAD    265    /* Signal new lowlevel-driver is loaded  */
 #define ISDN_STAT_UNLOAD  266    /* Signal unload of lowlevel-driver      */
 #define ISDN_STAT_BSENT   267    /* Signal packet sent                    */
-#define ISDN_STAT_NODCH   268    /* Signal no D-Channel                   */
 #define ISDN_STAT_ADDCH   269    /* Add more Channels                     */
 #define ISDN_STAT_CAUSE   270    /* Cause-Message                         */
 #define ISDN_STAT_ICALLW  271    /* Incoming call without B-chan waiting  */
 #define ISDN_STAT_REDIR   272    /* Redir result                          */
 #define ISDN_STAT_PROT    273    /* protocol IO specific callback         */
 #define ISDN_STAT_DISPLAY 274    /* deliver a received display message    */
-#define ISDN_STAT_L1ERR   275    /* Signal Layer-1 Error                  */
 #define ISDN_STAT_FAXIND  276    /* FAX indications from HL-driver        */
 #define ISDN_STAT_AUDIO   277    /* DTMF, DSP indications                 */
 #define ISDN_STAT_DISCH   278    /* Disable/Enable channel usage          */
@@ -219,12 +208,6 @@ typedef struct
  */
 #define ISDN_AUDIO_SETDD	0	/* Set DTMF detection           */
 #define ISDN_AUDIO_DTMF		1	/* Rx/Tx DTMF                   */
-
-/*
- * Values for errcode field
- */
-#define ISDN_STAT_L1ERR_SEND 1
-#define ISDN_STAT_L1ERR_RECV 2
 
 /*
  * Values for feature-field of interface-struct.
@@ -275,7 +258,6 @@ typedef struct setup_parm {
 } setup_parm;
 
 
-#ifdef CONFIG_ISDN_TTY_FAX
 /* T.30 Fax G3 */
 
 #define FAXIDLEN 21
@@ -350,8 +332,6 @@ typedef struct T30_s {
 #define ISDN_FAX_PHASE_D   	4
 #define ISDN_FAX_PHASE_E   	5
 
-#endif /* TTY_FAX */
-
 #define ISDN_FAX_CLASS1_FAE	0
 #define ISDN_FAX_CLASS1_FTS	1
 #define ISDN_FAX_CLASS1_FRS	2
@@ -418,9 +398,7 @@ typedef struct {
 		char display[85];/* display message data		*/ 
 		isdn_cmd_stat isdn_io; /* ISDN IO-parameter/result	*/
 		aux_s aux;	/* for modem commands/indications	*/
-#ifdef CONFIG_ISDN_TTY_FAX
 		T30_s	*fax;	/* Pointer to ttys fax struct		*/
-#endif
 		ulong userdata;	/* User Data */
 	} parm;
 } isdn_ctrl;
@@ -502,18 +480,26 @@ typedef struct {
    * Parameters:
    *             u_char pointer data
    *             int    length of data
+   *             int    Flag: 0 = Call form Kernel-Space (use memcpy,
+   *                              no schedule allowed) 
+   *                          1 = Data is in User-Space (use memcpy_fromfs,
+   *                              may schedule)
    *             int    driverId
    *             int    local channel-number (0 ...)
    */
-  int (*writecmd)(const u_char __user *, int, int, int);
+  int (*writecmd)(const u_char*, int, int, int, int);
 
   /* Read raw Status replies
    *             u_char pointer data (volatile)
    *             int    length of buffer
+   *             int    Flag: 0 = Call form Kernel-Space (use memcpy,
+   *                              no schedule allowed) 
+   *                          1 = Data is in User-Space (use memcpy_fromfs,
+   *                              may schedule)
    *             int    driverId
    *             int    local channel-number (0 ...)
    */
-  int (*readstat)(u_char __user *, int, int, int);
+  int (*readstat)(u_char*, int, int, int, int);
 
   char id[20];
 } isdn_if;

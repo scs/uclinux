@@ -7,7 +7,7 @@
  * See arch/arm/kernel/sys-arm.c for ugly details..
  */
 struct ipc_kludge {
-	struct msgbuf __user *msgp;
+	struct msgbuf *msgp;
 	long msgtyp;
 };
 

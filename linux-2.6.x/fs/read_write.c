@@ -15,7 +15,6 @@
 #include <linux/module.h>
 
 #include <asm/uaccess.h>
-#include <asm/unistd.h>
 
 struct file_operations generic_ro_fops = {
 	.llseek		= generic_file_llseek,
@@ -76,12 +75,14 @@ loff_t remote_llseek(struct file *file, loff_t offset, int origin)
 	unlock_kernel();
 	return retval;
 }
+
 EXPORT_SYMBOL(remote_llseek);
 
 loff_t no_llseek(struct file *file, loff_t offset, int origin)
 {
 	return -ESPIPE;
 }
+
 EXPORT_SYMBOL(no_llseek);
 
 loff_t default_llseek(struct file *file, loff_t offset, int origin)
@@ -107,21 +108,18 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 	unlock_kernel();
 	return retval;
 }
+
 EXPORT_SYMBOL(default_llseek);
 
-loff_t vfs_llseek(struct file *file, loff_t offset, int origin)
+static inline loff_t llseek(struct file *file, loff_t offset, int origin)
 {
 	loff_t (*fn)(struct file *, loff_t, int);
 
-	fn = no_llseek;
-	if (file->f_mode & FMODE_LSEEK) {
-		fn = default_llseek;
-		if (file->f_op && file->f_op->llseek)
-			fn = file->f_op->llseek;
-	}
+	fn = default_llseek;
+	if (file->f_op && file->f_op->llseek)
+		fn = file->f_op->llseek;
 	return fn(file, offset, origin);
 }
-EXPORT_SYMBOL(vfs_llseek);
 
 asmlinkage off_t sys_lseek(unsigned int fd, off_t offset, unsigned int origin)
 {
@@ -136,7 +134,7 @@ asmlinkage off_t sys_lseek(unsigned int fd, off_t offset, unsigned int origin)
 
 	retval = -EINVAL;
 	if (origin <= 2) {
-		loff_t res = vfs_llseek(file, offset, origin);
+		loff_t res = llseek(file, offset, origin);
 		retval = res;
 		if (res != (loff_t)retval)
 			retval = -EOVERFLOW;	/* LFS: should only happen on 32 bit platforms */
@@ -145,9 +143,8 @@ asmlinkage off_t sys_lseek(unsigned int fd, off_t offset, unsigned int origin)
 bad:
 	return retval;
 }
-EXPORT_SYMBOL_GPL(sys_lseek);
 
-#ifdef __ARCH_WANT_SYS_LLSEEK
+#if !defined(__alpha__)
 asmlinkage long sys_llseek(unsigned int fd, unsigned long offset_high,
 			   unsigned long offset_low, loff_t __user * result,
 			   unsigned int origin)
@@ -166,7 +163,7 @@ asmlinkage long sys_llseek(unsigned int fd, unsigned long offset_high,
 	if (origin > 2)
 		goto out_putf;
 
-	offset = vfs_llseek(file, ((loff_t) offset_high << 32) | offset_low,
+	offset = llseek(file, ((loff_t) offset_high << 32) | offset_low,
 			origin);
 
 	retval = (int)offset;
@@ -270,16 +267,6 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 
 EXPORT_SYMBOL(vfs_write);
 
-static inline loff_t file_pos_read(struct file *file)
-{
-	return file->f_pos;
-}
-
-static inline void file_pos_write(struct file *file, loff_t pos)
-{
-	file->f_pos = pos;
-}
-
 asmlinkage ssize_t sys_read(unsigned int fd, char __user * buf, size_t count)
 {
 	struct file *file;
@@ -288,15 +275,12 @@ asmlinkage ssize_t sys_read(unsigned int fd, char __user * buf, size_t count)
 
 	file = fget_light(fd, &fput_needed);
 	if (file) {
-		loff_t pos = file_pos_read(file);
-		ret = vfs_read(file, buf, count, &pos);
-		file_pos_write(file, pos);
+		ret = vfs_read(file, buf, count, &file->f_pos);
 		fput_light(file, fput_needed);
 	}
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(sys_read);
 
 asmlinkage ssize_t sys_write(unsigned int fd, const char __user * buf, size_t count)
 {
@@ -306,9 +290,7 @@ asmlinkage ssize_t sys_write(unsigned int fd, const char __user * buf, size_t co
 
 	file = fget_light(fd, &fput_needed);
 	if (file) {
-		loff_t pos = file_pos_read(file);
-		ret = vfs_write(file, buf, count, &pos);
-		file_pos_write(file, pos);
+		ret = vfs_write(file, buf, count, &file->f_pos);
 		fput_light(file, fput_needed);
 	}
 
@@ -327,9 +309,7 @@ asmlinkage ssize_t sys_pread64(unsigned int fd, char __user *buf,
 
 	file = fget_light(fd, &fput_needed);
 	if (file) {
-		ret = -ESPIPE;
-		if (file->f_mode & FMODE_PREAD)
-			ret = vfs_read(file, buf, count, &pos);
+		ret = vfs_read(file, buf, count, &pos);
 		fput_light(file, fput_needed);
 	}
 
@@ -348,9 +328,7 @@ asmlinkage ssize_t sys_pwrite64(unsigned int fd, const char __user *buf,
 
 	file = fget_light(fd, &fput_needed);
 	if (file) {
-		ret = -ESPIPE;
-		if (file->f_mode & FMODE_PWRITE)  
-			ret = vfs_write(file, buf, count, &pos);
+		ret = vfs_write(file, buf, count, &pos);
 		fput_light(file, fput_needed);
 	}
 
@@ -432,13 +410,13 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	 */
 	tot_len = 0;
 	ret = -EINVAL;
-	for (seg = 0; seg < nr_segs; seg++) {
+	for (seg = 0 ; seg < nr_segs; seg++) {
+		ssize_t tmp = tot_len;
 		ssize_t len = (ssize_t)iov[seg].iov_len;
-
 		if (len < 0)	/* size_t not fitting an ssize_t .. */
 			goto out;
 		tot_len += len;
-		if ((ssize_t)tot_len < 0) /* maths overflow on the ssize_t */
+		if (tot_len < tmp) /* maths overflow on the ssize_t */
 			goto out;
 	}
 	if (tot_len == 0) {
@@ -534,9 +512,7 @@ sys_readv(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
 
 	file = fget_light(fd, &fput_needed);
 	if (file) {
-		loff_t pos = file_pos_read(file);
-		ret = vfs_readv(file, vec, vlen, &pos);
-		file_pos_write(file, pos);
+		ret = vfs_readv(file, vec, vlen, &file->f_pos);
 		fput_light(file, fput_needed);
 	}
 
@@ -552,9 +528,7 @@ sys_writev(unsigned long fd, const struct iovec __user *vec, unsigned long vlen)
 
 	file = fget_light(fd, &fput_needed);
 	if (file) {
-		loff_t pos = file_pos_read(file);
-		ret = vfs_writev(file, vec, vlen, &pos);
-		file_pos_write(file, pos);
+		ret = vfs_writev(file, vec, vlen, &file->f_pos);
 		fput_light(file, fput_needed);
 	}
 
@@ -585,12 +559,8 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 		goto fput_in;
 	if (!in_file->f_op || !in_file->f_op->sendfile)
 		goto fput_in;
-	retval = -ESPIPE;
 	if (!ppos)
 		ppos = &in_file->f_pos;
-	else
-		if (!(in_file->f_mode & FMODE_PREAD))
-			goto fput_in;
 	retval = locks_verify_area(FLOCK_VERIFY_READ, in_inode, in_file, *ppos, count);
 	if (retval)
 		goto fput_in;
@@ -663,7 +633,7 @@ asmlinkage ssize_t sys_sendfile(int out_fd, int in_fd, off_t __user *offset, siz
 		return ret;
 	}
 
-	return do_sendfile(out_fd, in_fd, NULL, count, 0);
+	return do_sendfile(out_fd, in_fd, NULL, count, MAX_NON_LFS);
 }
 
 asmlinkage ssize_t sys_sendfile64(int out_fd, int in_fd, loff_t __user *offset, size_t count)

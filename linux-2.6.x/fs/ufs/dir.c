@@ -56,14 +56,13 @@ ufs_readdir (struct file * filp, void * dirent, filldir_t filldir)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
 	int error = 0;
-	unsigned long offset, lblk;
+	unsigned long offset, lblk, blk;
 	int i, stored;
 	struct buffer_head * bh;
 	struct ufs_dir_entry * de;
 	struct super_block * sb;
 	int de_reclen;
 	unsigned flags;
-	u64     blk= 0L;
 
 	lock_kernel();
 
@@ -167,6 +166,7 @@ revalidate:
 		offset = 0;
 		brelse (bh);
 	}
+	update_atime(inode);
 	unlock_kernel();
 	return 0;
 }

@@ -797,7 +797,7 @@ snd_pcm_sframes_t snd_pcm_plug_write_transfer(snd_pcm_plug_t *plug, snd_pcm_plug
 					frames = plugin->src_frames(plugin, frames1);
 			}
 		} else
-			dst_channels = NULL;
+			dst_channels = 0;
 		pdprintf("write plugin: %s, %li\n", plugin->name, frames);
 		if ((frames = plugin->transfer(plugin, src_channels, dst_channels, frames)) < 0)
 			return frames;
@@ -818,7 +818,7 @@ snd_pcm_sframes_t snd_pcm_plug_read_transfer(snd_pcm_plug_t *plug, snd_pcm_plugi
 	if (frames < 0)
 		return frames;
 
-	src_channels = NULL;
+	src_channels = 0;
 	plugin = snd_pcm_plug_first(plug);
 	while (plugin && frames > 0) {
 		if ((next = plugin->next) != NULL) {
@@ -857,14 +857,11 @@ int snd_pcm_area_silence(const snd_pcm_channel_area_t *dst_area, size_t dst_offs
 	silence = snd_pcm_format_silence_64(format);
 	if (dst_area->step == (unsigned int) width) {
 		size_t dwords = samples * width / 64;
-		u_int64_t *dst64 = (u_int64_t *)dst;
-
 		samples -= dwords * 64 / width;
 		while (dwords-- > 0)
-			*dst64++ = silence;
+			*((u_int64_t*)dst)++ = silence;
 		if (samples == 0)
 			return 0;
-		dst = (char *)dst64;
 	}
 	dst_step = dst_area->step / 8;
 	switch (width) {

@@ -75,7 +75,7 @@ int mvme16x_parse_bootinfo(const struct bi_record *bi)
 		return 1;
 }
 
-void mvme16x_reset(void)
+void mvme16x_reset()
 {
 	printk ("\r\n\nCalled mvme16x_reset\r\n"
 			"\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r");

@@ -23,9 +23,8 @@ NESTED(ev96100IRQ, PT_SIZE, sp)
 	j	ret_from_irq
 
 1:	beqz	t0, 3f			# spurious interrupt
-
 	move	a0, t0
-	move	a1, sp
+	move	a1, sp			# delay slot
 	jal	ev96100_cpu_irq
 	j	ret_from_irq
 

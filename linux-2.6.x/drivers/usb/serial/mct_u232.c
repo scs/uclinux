@@ -76,8 +76,16 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
+
+#ifdef CONFIG_USB_SERIAL_DEBUG
+ 	static int debug = 1;
+#else
+ 	static int debug;
+#endif
+
 #include "usb-serial.h"
 #include "mct_u232.h"
+
 
 /*
  * Version Information
@@ -96,8 +104,6 @@
 #ifdef FIX_WRITE_RETURN_CODE_PROBLEM
 static int write_blocking; /* disabled by default */
 #endif
-
-static int debug;
 
 /*
  * Function prototypes
@@ -505,7 +511,7 @@ static int mct_u232_write (struct usb_serial_port *port, int from_user,
 
 	/* only do something if we have a bulk out endpoint */
 	if (!serial->num_bulk_out)
-		return(0);
+		return(0);;
 	
 	/* another write is still pending? */
 	if (port->write_urb->status == -EINPROGRESS) {
@@ -517,7 +523,7 @@ static int mct_u232_write (struct usb_serial_port *port, int from_user,
 	while (count > 0) {
 		size = (count > port->bulk_out_size) ? port->bulk_out_size : count;
 		
-		usb_serial_debug_data(debug, &port->dev, __FUNCTION__, size, buf);
+		usb_serial_debug_data (__FILE__, __FUNCTION__, size, buf);
 		
 		if (from_user) {
 			if (copy_from_user(port->write_urb->transfer_buffer, buf, size)) {
@@ -625,7 +631,7 @@ static void mct_u232_read_int_callback (struct urb *urb, struct pt_regs *regs)
 		return;
 	}
 	
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
+	usb_serial_debug_data (__FILE__, __FUNCTION__, urb->actual_length, data);
 
 	/*
 	 * Work-a-round: handle the 'usual' bulk-in pipe here
@@ -906,11 +912,11 @@ MODULE_DESCRIPTION( DRIVER_DESC );
 MODULE_LICENSE("GPL");
 
 #ifdef FIX_WRITE_RETURN_CODE_PROBLEM
-module_param(write_blocking, int, 0);
+MODULE_PARM(write_blocking, "i");
 MODULE_PARM_DESC(write_blocking, 
 		 "The write function will block to write out all data");
 #endif
 
-module_param(debug, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM(debug, "i");
 MODULE_PARM_DESC(debug, "Debug enabled or not");
 

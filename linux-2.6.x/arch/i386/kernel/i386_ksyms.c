@@ -29,8 +29,10 @@
 #include <asm/mmx.h>
 #include <asm/desc.h>
 #include <asm/pgtable.h>
+#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/nmi.h>
+#include <asm/edd.h>
 #include <asm/ist.h>
 
 extern void dump_thread(struct pt_regs *, struct user *);
@@ -86,6 +88,10 @@ EXPORT_SYMBOL(pm_power_off);
 EXPORT_SYMBOL(get_cmos_time);
 EXPORT_SYMBOL(cpu_khz);
 EXPORT_SYMBOL(apm_info);
+
+#ifdef CONFIG_DEBUG_IOVIRT
+EXPORT_SYMBOL(__io_virt_debug);
+#endif
 
 EXPORT_SYMBOL_NOVERS(__down_failed);
 EXPORT_SYMBOL_NOVERS(__down_failed_interruptible);
@@ -172,14 +178,20 @@ EXPORT_SYMBOL(rtc_lock);
 
 EXPORT_SYMBOL_GPL(set_nmi_callback);
 EXPORT_SYMBOL_GPL(unset_nmi_callback);
-
-#undef memcmp
-extern int memcmp(const void *,const void *,__kernel_size_t);
-EXPORT_SYMBOL_NOVERS(memcmp);
+ 
+#undef memcpy
+#undef memset
+extern void * memset(void *,int,__kernel_size_t);
+extern void * memcpy(void *,const void *,__kernel_size_t);
+EXPORT_SYMBOL_NOVERS(memcpy);
+EXPORT_SYMBOL_NOVERS(memset);
 
 #ifdef CONFIG_HAVE_DEC_LOCK
 EXPORT_SYMBOL(atomic_dec_and_lock);
 #endif
+
+extern int is_sony_vaio_laptop;
+EXPORT_SYMBOL(is_sony_vaio_laptop);
 
 EXPORT_SYMBOL(__PAGE_KERNEL);
 
@@ -189,6 +201,11 @@ EXPORT_SYMBOL(kunmap);
 EXPORT_SYMBOL(kmap_atomic);
 EXPORT_SYMBOL(kunmap_atomic);
 EXPORT_SYMBOL(kmap_atomic_to_page);
+#endif
+
+#ifdef CONFIG_EDD_MODULE
+EXPORT_SYMBOL(edd);
+EXPORT_SYMBOL(eddnr);
 #endif
 
 #if defined(CONFIG_X86_SPEEDSTEP_SMI) || defined(CONFIG_X86_SPEEDSTEP_SMI_MODULE)

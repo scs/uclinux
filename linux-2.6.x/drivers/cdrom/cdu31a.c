@@ -2595,10 +2595,11 @@ static int read_audio(struct cdrom_read_audio *ra)
 						retval = -EIO;
 						goto exit_read_audio;
 					}
-				} else if (copy_to_user(ra->buf +
+				} else if (copy_to_user((char *)(ra->buf +
 							       (CD_FRAMESIZE_RAW
-								* cframe),
-						        readahead_buffer,
+								* cframe)),
+							(char *)
+							       readahead_buffer,
 							CD_FRAMESIZE_RAW)) {
 					retval = -EFAULT;
 					goto exit_read_audio;
@@ -2611,7 +2612,8 @@ static int read_audio(struct cdrom_read_audio *ra)
 				retval = -EIO;
 				goto exit_read_audio;
 			}
-		} else if (copy_to_user(ra->buf + (CD_FRAMESIZE_RAW * cframe),
+		} else if (copy_to_user((char *)(ra->buf + (CD_FRAMESIZE_RAW *
+							    cframe)),
 					(char *)readahead_buffer,
 					CD_FRAMESIZE_RAW)) {
 			retval = -EFAULT;
@@ -2943,7 +2945,6 @@ static int scd_audio_ioctl(struct cdrom_device_info *cdi,
 static int scd_dev_ioctl(struct cdrom_device_info *cdi,
 			 unsigned int cmd, unsigned long arg)
 {
-	void __user *argp = (void __user *)arg;
 	int i;
 
 	switch (cmd) {
@@ -2958,7 +2959,7 @@ static int scd_dev_ioctl(struct cdrom_device_info *cdi,
 				return -EIO;
 			}
 
-			if (copy_from_user(&ra, argp, sizeof(ra)))
+			if (copy_from_user(&ra, (char *) arg, sizeof(ra)))
 				return -EFAULT;
 
 			if (ra.nframes == 0) {
@@ -3179,7 +3180,7 @@ static int scd_block_release(struct inode *inode, struct file *file)
 static int scd_block_ioctl(struct inode *inode, struct file *file,
 				unsigned cmd, unsigned long arg)
 {
-	return cdrom_ioctl(file, &scd_info, inode, cmd, arg);
+	return cdrom_ioctl(&scd_info, inode, cmd, arg);
 }
 
 static int scd_block_media_changed(struct gendisk *disk)
@@ -3202,15 +3203,12 @@ static struct gendisk *scd_gendisk;
 static char *load_mech[] __initdata =
     { "caddy", "tray", "pop-up", "unknown" };
 
-static int __init
+static void __init
 get_drive_configuration(unsigned short base_io,
 			unsigned char res_reg[], unsigned int *res_size)
 {
 	unsigned long retry_count;
 
-
-	if (!request_region(base_io, 4, "cdu31a"))
-		return 0;
 
 	/* Set the base address */
 	cdu31a_port = base_io;
@@ -3246,7 +3244,7 @@ get_drive_configuration(unsigned short base_io,
 		/* If attention is never seen probably not a CDU31a present */
 		if (!is_attention()) {
 			res_reg[0] = 0x20;
-			goto out_err;
+			return;
 		}
 #endif
 
@@ -3256,17 +3254,11 @@ get_drive_configuration(unsigned short base_io,
 		do_sony_cd_cmd(SONY_REQ_DRIVE_CONFIG_CMD,
 			       NULL,
 			       0, (unsigned char *) res_reg, res_size);
-		if (*res_size <= 2 || (res_reg[0] & 0xf0) != 0)
-			goto out_err;
-		return 1;
+		return;
 	}
 
 	/* Return an error */
 	res_reg[0] = 0x20;
-out_err:
-	release_region(cdu31a_port, 4);
-	cdu31a_port = 0;
-	return 0;
 }
 
 #ifndef MODULE
@@ -3315,7 +3307,9 @@ int __init cdu31a_init(void)
 	char msg[255];
 	char buf[40];
 	int i;
+	int drive_found;
 	int tmp_irq;
+
 
 	/*
 	 * According to Alex Freed (freed@europa.orion.adobe.com), this is
@@ -3329,32 +3323,51 @@ int __init cdu31a_init(void)
 		outb(0xe2, 0x9a01);
 	}
 
-	/* Setting the base I/O address to 0xffff will disable it. */
-	if (cdu31a_port == 0xffff)
-		goto errout3;
+	drive_found = 0;
 
-	if (cdu31a_port != 0) {
-		/* Need IRQ 0 because we can't sleep here. */
-		tmp_irq = cdu31a_irq;
+	/* Setting the base I/O address to 0xffff will disable it. */
+	if (cdu31a_port == 0xffff) {
+	} else if (cdu31a_port != 0) {
+		tmp_irq = cdu31a_irq;	/* Need IRQ 0 because we can't sleep here. */
 		cdu31a_irq = 0;
-		if (!get_drive_configuration(cdu31a_port,
-					    drive_config.exec_status,
-					    &res_size))
-			goto errout3;
+
+		get_drive_configuration(cdu31a_port,
+					drive_config.exec_status,
+					&res_size);
+		if ((res_size > 2)
+		    && ((drive_config.exec_status[0] & 0xf0) == 0x00)) {
+			drive_found = 1;
+		}
+
 		cdu31a_irq = tmp_irq;
 	} else {
 		cdu31a_irq = 0;
-		for (i = 0; cdu31a_addresses[i].base; i++) {
-			if (get_drive_configuration(cdu31a_addresses[i].base,
-						     drive_config.exec_status,
-						     &res_size)) {
+		i = 0;
+		while ((cdu31a_addresses[i].base != 0)
+		       && (!drive_found)) {
+			if (check_region(cdu31a_addresses[i].base, 4)) {
+				i++;
+				continue;
+			}
+			get_drive_configuration(cdu31a_addresses[i].base,
+						drive_config.exec_status,
+						&res_size);
+			if ((res_size > 2)
+			    && ((drive_config.exec_status[0] & 0xf0) ==
+				0x00)) {
+				drive_found = 1;
 				cdu31a_irq = cdu31a_addresses[i].int_num;
-				break;
+			} else {
+				i++;
 			}
 		}
-		if (!cdu31a_port)
-			goto errout3;
 	}
+
+	if (!drive_found)
+		goto errout3;
+
+	if (!request_region(cdu31a_port, 4, "cdu31a"))
+		goto errout3;
 
 	if (register_blkdev(MAJOR_NR, "cdu31a"))
 		goto errout2;

@@ -1754,7 +1754,7 @@ static int open_tx(struct atm_vcc *vcc)
                          (iadev->tx_buf_sz - sizeof(struct cpcs_trailer))){
            printk("IA:  SDU size over (%d) the configured SDU size %d\n",
 		  vcc->qos.txtp.max_sdu,iadev->tx_buf_sz);
-	   vcc->dev_data = NULL;
+	   INPH_IA_VCC(vcc) = NULL;  
            kfree(ia_vcc);
            return -EINVAL; 
         }
@@ -2667,11 +2667,11 @@ static void ia_close(struct atm_vcc *vcc)
            }                                 
            // Drain the packets
            rx_dle_intr(vcc->dev); 
-           iadev->rx_open[vcc->vci] = NULL;
+           iadev->rx_open[vcc->vci] = 0;
         }
 	kfree(INPH_IA_VCC(vcc));  
         ia_vcc = NULL;
-        vcc->dev_data = NULL;
+        INPH_IA_VCC(vcc) = NULL;  
         clear_bit(ATM_VF_ADDR,&vcc->flags);
         return;        
 }  
@@ -2684,7 +2684,7 @@ static int ia_open(struct atm_vcc *vcc)
 	if (!test_bit(ATM_VF_PARTIAL,&vcc->flags))  
 	{  
 		IF_EVENT(printk("ia: not partially allocated resources\n");)  
-		vcc->dev_data = NULL;
+		INPH_IA_VCC(vcc) = NULL;  
 	}  
 	iadev = INPH_IA_DEV(vcc->dev);  
 	if (vcc->vci != ATM_VPI_UNSPEC && vcc->vpi != ATM_VCI_UNSPEC)  
@@ -2700,7 +2700,7 @@ static int ia_open(struct atm_vcc *vcc)
 	/* Device dependent initialization */  
 	ia_vcc = kmalloc(sizeof(*ia_vcc), GFP_KERNEL);  
 	if (!ia_vcc) return -ENOMEM;  
-	vcc->dev_data = ia_vcc;
+	INPH_IA_VCC(vcc) = ia_vcc;  
   
 	if ((error = open_rx(vcc)))  
 	{  
@@ -2738,12 +2738,12 @@ static int ia_change_qos(struct atm_vcc *vcc, struct atm_qos *qos, int flags)
 	return 0;  
 }  
   
-static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)  
+static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void *arg)  
 {  
    IA_CMDBUF ia_cmds;
    IADEV *iadev;
    int i, board;
-   u16 __user *tmps;
+   u16 *tmps;
    IF_EVENT(printk(">ia_ioctl\n");)  
    if (cmd != IA_CMD) {
       if (!dev->phy->ioctl) return -EINVAL;
@@ -2766,7 +2766,7 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
              break;
           case MEMDUMP_SEGREG:
 	     if (!capable(CAP_NET_ADMIN)) return -EPERM;
-             tmps = (u16 __user *)ia_cmds.buf;
+             tmps = (u16 *)ia_cmds.buf;
              for(i=0; i<0x80; i+=2, tmps++)
                 if(put_user((u16)(readl(iadev->seg_reg+i) & 0xffff), tmps)) return -EFAULT;
              ia_cmds.status = 0;
@@ -2774,7 +2774,7 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
              break;
           case MEMDUMP_REASSREG:
 	     if (!capable(CAP_NET_ADMIN)) return -EPERM;
-             tmps = (u16 __user *)ia_cmds.buf;
+             tmps = (u16 *)ia_cmds.buf;
              for(i=0; i<0x80; i+=2, tmps++)
                 if(put_user((u16)(readl(iadev->reass_reg+i) & 0xffff), tmps)) return -EFAULT;
              ia_cmds.status = 0;
@@ -2874,14 +2874,14 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
 }  
   
 static int ia_getsockopt(struct atm_vcc *vcc, int level, int optname,   
-	void __user *optval, int optlen)  
+	void *optval, int optlen)  
 {  
 	IF_EVENT(printk(">ia_getsockopt\n");)  
 	return -EINVAL;  
 }  
   
 static int ia_setsockopt(struct atm_vcc *vcc, int level, int optname,   
-	void __user *optval, int optlen)  
+	void *optval, int optlen)  
 {  
 	IF_EVENT(printk(">ia_setsockopt\n");)  
 	return -EINVAL;  
@@ -3196,7 +3196,7 @@ static int __devinit ia_init_one(struct pci_dev *pdev,
 		ret = -ENOMEM;
 		goto err_out_disable_dev;
 	}
-	dev->dev_data = iadev;
+	INPH_IA_DEV(dev) = iadev; 
 	IF_INIT(printk(DEV_LABEL "registered at (itf :%d)\n", dev->number);)
 	IF_INIT(printk("dev_id = 0x%x iadev->LineRate = %d \n", (u32)dev,
 		iadev->LineRate);)

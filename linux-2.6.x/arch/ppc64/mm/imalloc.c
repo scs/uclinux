@@ -9,13 +9,13 @@
 
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/spinlock.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
-#include <asm/semaphore.h>
 
-static DECLARE_MUTEX(imlist_sem);
+rwlock_t imlist_lock = RW_LOCK_UNLOCKED;
 struct vm_struct * imlist = NULL;
 
 static int get_free_im_addr(unsigned long size, unsigned long *im_addr)
@@ -223,7 +223,7 @@ struct vm_struct * im_get_free_area(unsigned long size)
 	struct vm_struct *area;
 	unsigned long addr;
 	
-	down(&imlist_sem);
+	write_lock(&imlist_lock);
 	if (get_free_im_addr(size, &addr)) {
 		printk(KERN_ERR "%s() cannot obtain addr for size 0x%lx\n",
 				__FUNCTION__, size);
@@ -238,7 +238,7 @@ struct vm_struct * im_get_free_area(unsigned long size)
 			__FUNCTION__, addr, size);
 	}
 next_im_done:
-	up(&imlist_sem);
+	write_unlock(&imlist_lock);
 	return area;
 }
 
@@ -247,9 +247,9 @@ struct vm_struct * im_get_area(unsigned long v_addr, unsigned long size,
 {
 	struct vm_struct *area;
 
-	down(&imlist_sem);
+	write_lock(&imlist_lock);
 	area = __im_get_area(v_addr, size, criteria);
-	up(&imlist_sem);
+	write_unlock(&imlist_lock);
 	return area;
 }
 
@@ -264,17 +264,17 @@ unsigned long im_free(void * addr)
 		printk(KERN_ERR "Trying to %s bad address (%p)\n", __FUNCTION__,			addr);
 		return ret_size;
 	}
-	down(&imlist_sem);
+	write_lock(&imlist_lock);
 	for (p = &imlist ; (tmp = *p) ; p = &tmp->next) {
 		if (tmp->addr == addr) {
 			ret_size = tmp->size;
 			*p = tmp->next;
 			kfree(tmp);
-			up(&imlist_sem);
+			write_unlock(&imlist_lock);
 			return ret_size;
 		}
 	}
-	up(&imlist_sem);
+	write_unlock(&imlist_lock);
 	printk(KERN_ERR "Trying to %s nonexistent area (%p)\n", __FUNCTION__,
 			addr);
 	return ret_size;

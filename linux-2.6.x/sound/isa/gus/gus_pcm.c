@@ -334,11 +334,9 @@ static int snd_gf1_pcm_poke_block(snd_gus_card_t *gus, unsigned char *buf,
 					snd_gf1_poke(gus, pos++, *buf++ ^ invert);
 			}
 		}
-		if (count > 0 && !in_interrupt()) {
-			schedule_timeout(1);
-			if (signal_pending(current))
-				return -EAGAIN;
-		}
+		schedule_timeout(1);
+		if (signal_pending(current))
+			return -EAGAIN;
 	}
 	return 0;
 }
@@ -346,7 +344,7 @@ static int snd_gf1_pcm_poke_block(snd_gus_card_t *gus, unsigned char *buf,
 static int snd_gf1_pcm_playback_copy(snd_pcm_substream_t *substream,
 				     int voice,
 				     snd_pcm_uframes_t pos,
-				     void __user *src,
+				     void *src,
 				     snd_pcm_uframes_t count)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
@@ -815,15 +813,6 @@ static snd_kcontrol_new_t snd_gf1_pcm_volume_control =
 	.put = snd_gf1_pcm_volume_put
 };
 
-static snd_kcontrol_new_t snd_gf1_pcm_volume_control1 =
-{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "GPCM Playback Volume",
-	.info = snd_gf1_pcm_volume_info,
-	.get = snd_gf1_pcm_volume_get,
-	.put = snd_gf1_pcm_volume_put
-};
-
 static snd_pcm_ops_t snd_gf1_pcm_playback_ops = {
 	.open =		snd_gf1_pcm_playback_open,
 	.close =	snd_gf1_pcm_playback_close,
@@ -874,9 +863,7 @@ int snd_gf1_pcm_new(snd_gus_card_t * gus, int pcm_dev, int control_index, snd_pc
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_gf1_pcm_playback_ops);
 
 	for (substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; substream; substream = substream->next)
-		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
-					      64*1024, gus->gf1.dma1 > 3 ? 128*1024 : 64*1024);
+		snd_pcm_lib_preallocate_isa_pages(substream, 64*1024, gus->gf1.dma1 > 3 ? 128*1024 : 64*1024);
 	
 	pcm->info_flags = 0;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
@@ -884,9 +871,7 @@ int snd_gf1_pcm_new(snd_gus_card_t * gus, int pcm_dev, int control_index, snd_pc
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_gf1_pcm_capture_ops);
 		if (gus->gf1.dma2 == gus->gf1.dma1)
 			pcm->info_flags |= SNDRV_PCM_INFO_HALF_DUPLEX;
-		snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
-					      SNDRV_DMA_TYPE_DEV, snd_dma_isa_data(),
-					      64*1024, gus->gf1.dma2 > 3 ? 128*1024 : 64*1024);
+		snd_pcm_lib_preallocate_isa_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream, 64*1024, gus->gf1.dma2 > 3 ? 128*1024 : 64*1024);
 	}
 	strcpy(pcm->name, pcm->id);
 	if (gus->interwave) {
@@ -895,11 +880,7 @@ int snd_gf1_pcm_new(snd_gus_card_t * gus, int pcm_dev, int control_index, snd_pc
 	strcat(pcm->name, " (synth)");
 	gus->pcm = pcm;
 
-	if (gus->codec_flag)
-		kctl = snd_ctl_new1(&snd_gf1_pcm_volume_control1, gus);
-	else
-		kctl = snd_ctl_new1(&snd_gf1_pcm_volume_control, gus);
-	if ((err = snd_ctl_add(card, kctl)) < 0)
+	if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_gf1_pcm_volume_control, gus))) < 0)
 		return err;
 	kctl->id.index = control_index;
 

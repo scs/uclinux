@@ -46,12 +46,16 @@
 #include <linux/ioport.h>  // request_region() prototype
 #include <linux/completion.h>
 
+#ifdef __alpha__
+#define __KERNEL_SYSCALLS__
+#endif
+#include <asm/unistd.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>   // ioctl related
 #include <asm/irq.h>
 #include <linux/spinlock.h>
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 #include <scsi/scsi_ioctl.h>
 #include "cpqfcTSchip.h"
 #include "cpqfcTSstructs.h"
@@ -216,7 +220,7 @@ static void Cpqfc_initHBAdata(CPQFCHBA *cpqfcHBAdata, struct pci_dev *PciDev )
   cpqfcHBAdata->fcChip.InitializeTachyon = CpqTsInitializeTachLite;  
   cpqfcHBAdata->fcChip.LaserControl = CpqTsLaserControl;  
   cpqfcHBAdata->fcChip.ProcessIMQEntry = CpqTsProcessIMQEntry;
-  cpqfcHBAdata->fcChip.InitializeFrameManager = CpqTsInitializeFrameManager;
+  cpqfcHBAdata->fcChip.InitializeFrameManager = CpqTsInitializeFrameManager;;  
   cpqfcHBAdata->fcChip.ReadWriteWWN = CpqTsReadWriteWWN;
   cpqfcHBAdata->fcChip.ReadWriteNVRAM = CpqTsReadWriteNVRAM;
 
@@ -1266,7 +1270,7 @@ static void QueLinkDownCmnd( CPQFCHBA *cpqfcHBAdata, Scsi_Cmnd *Cmnd)
 
 
 
-// The file <scsi/scsi_host.h> says not to call scsi_done from
+// The file "hosts.h" says not to call scsi_done from
 // inside _queuecommand, so we'll do it from the heartbeat timer
 // (clarification: Turns out it's ok to call scsi_done from queuecommand 
 // for cases that don't go to the hardware like scsi cmds destined

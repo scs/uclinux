@@ -25,7 +25,6 @@ SECTIONS
 	__stext = .;
 	.text : {
 		*(.text)
-		SCHED_TEXT
 		*(.fixup)
 		*(.text.__*)
 	}

@@ -12,8 +12,14 @@
  *	2 of the License, or (at your option) any later version.
  *
  * $Log$
- * Revision 1.1.1.2  2004/09/07 09:24:07  lgsoft
- * Import of 2.6.8
+ * Revision 1.2  2004/09/07 22:33:04  lgsoft
+ * alpha-2.0
+ *
+ * Revision 1.1.1.1  2004/07/19 12:14:12  lgsoft
+ * Import of uClinux 2.6.2
+ *
+ * Revision 1.1.1.1  2004/07/18 13:21:38  nidhi
+ * Importing
  *
  * Revision 3.1  2001/06/15 12:41:10  regina
  * upping major version number

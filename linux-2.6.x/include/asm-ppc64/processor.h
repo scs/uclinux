@@ -216,11 +216,8 @@
 #define	  HID0_BHTE	(1<<2)		/* Branch History Table Enable */
 #define	  HID0_BTCD	(1<<1)		/* Branch target cache disable */
 #define	SPRN_MSRDORM	0x3F1	/* Hardware Implementation Register 1 */
-#define SPRN_HID1	0x3F1	/* Hardware Implementation Register 1 */
 #define	SPRN_IABR	0x3F2	/* Instruction Address Breakpoint Register */
 #define	SPRN_NIADORM	0x3F3	/* Hardware Implementation Register 2 */
-#define SPRN_HID4	0x3F4	/* 970 HID4 */
-#define SPRN_HID5	0x3F6	/* 970 HID5 */
 #define	SPRN_TSC 	0x3FD	/* Thread switch control */
 #define	SPRN_TST 	0x3FC	/* Thread switch timeout */
 #define	SPRN_IAC1	0x3F4	/* Instruction Address Compare 1 */
@@ -235,6 +232,8 @@
 #define	SPRN_IMMR	0x27E  	/* Internal Memory Map Register */
 #define	SPRN_L2CR	0x3F9	/* Level 2 Cache Control Regsiter */
 #define	SPRN_LR		0x008	/* Link Register */
+#define	SPRN_MMCR0	0x3B8	/* Monitor Mode Control Register 0 */
+#define	SPRN_MMCR1	0x3BC	/* Monitor Mode Control Register 1 */
 #define	SPRN_PBL1	0x3FC	/* Protection Bound Lower 1 */
 #define	SPRN_PBL2	0x3FE	/* Protection Bound Lower 2 */
 #define	SPRN_PBU1	0x3FD	/* Protection Bound Upper 1 */
@@ -242,7 +241,10 @@
 #define	SPRN_PID	0x3B1	/* Process ID */
 #define	SPRN_PIR	0x3FF	/* Processor Identification Register */
 #define	SPRN_PIT	0x3DB	/* Programmable Interval Timer */
-#define	SPRN_PURR	0x135	/* Processor Utilization of Resources Register */
+#define	SPRN_PMC1	0x3B9	/* Performance Counter Register 1 */
+#define	SPRN_PMC2	0x3BA	/* Performance Counter Register 2 */
+#define	SPRN_PMC3	0x3BD	/* Performance Counter Register 3 */
+#define	SPRN_PMC4	0x3BE	/* Performance Counter Register 4 */
 #define	SPRN_PVR	0x11F	/* Processor Version Register */
 #define	SPRN_RPA	0x3D6	/* Required Physical Address Register */
 #define	SPRN_SDA	0x3BF	/* Sampled Data Address Register */
@@ -261,7 +263,6 @@
 #define	SPRN_TBRU	0x10D	/* Time Base Read Upper Register (user, R/O) */
 #define	SPRN_TBWL	0x11C	/* Time Base Lower Register (super, W/O) */
 #define	SPRN_TBWU	0x11D	/* Time Base Write Upper Register (super, W/O) */
-#define SPRN_HIOR	0x137	/* 970 Hypervisor interrupt offset */
 #define	SPRN_TCR	0x3DA	/* Timer Control Register */
 #define	  TCR_WP(x)		(((x)&0x3)<<30)	/* WDT Period */
 #define	    WP_2_17		0		/* 2^17 clocks */
@@ -302,25 +303,16 @@
 #define	    WRS_SYSTEM		3		/* WDT forced system reset */
 #define	  TSR_PIS		0x08000000	/* PIT Interrupt Status */
 #define	  TSR_FIS		0x04000000	/* FIT Interrupt Status */
+#define	SPRN_UMMCR0	0x3A8	/* User Monitor Mode Control Register 0 */
+#define	SPRN_UMMCR1	0x3AC	/* User Monitor Mode Control Register 0 */
+#define	SPRN_UPMC1	0x3A9	/* User Performance Counter Register 1 */
+#define	SPRN_UPMC2	0x3AA	/* User Performance Counter Register 2 */
+#define	SPRN_UPMC3	0x3AD	/* User Performance Counter Register 3 */
+#define	SPRN_UPMC4	0x3AE	/* User Performance Counter Register 4 */
 #define	SPRN_USIA	0x3AB	/* User Sampled Instruction Address Register */
 #define	SPRN_XER	0x001	/* Fixed Point Exception Register */
 #define	SPRN_ZPR	0x3B0	/* Zone Protection Register */
 #define SPRN_VRSAVE     0x100   /* Vector save */
-
-/* Performance monitor SPRs */
-#define SPRN_SIAR	780
-#define SPRN_SDAR	781
-#define SPRN_MMCRA	786
-#define SPRN_PMC1	787
-#define SPRN_PMC2	788
-#define SPRN_PMC3	789
-#define SPRN_PMC4	790
-#define SPRN_PMC5	791
-#define SPRN_PMC6	792
-#define SPRN_PMC7	793
-#define SPRN_PMC8	794
-#define SPRN_MMCR0	795
-#define SPRN_MMCR1	798
 
 /* Short-hand versions for a number of the above SPRNs */
 
@@ -347,8 +339,7 @@
 #define	__LR	SPRN_LR
 #define	PVR	SPRN_PVR	/* Processor Version */
 #define	PIR	SPRN_PIR	/* Processor ID */
-#define	PURR	SPRN_PURR	/* Processor Utilization of Resource Register */
-//#define	RPA	SPRN_RPA	/* Required Physical Address Register */
+#define	RPA	SPRN_RPA	/* Required Physical Address Register */
 #define	SDR1	SPRN_SDR1      	/* MMU hash base register */
 #define	SPR0	SPRN_SPRG0	/* Supervisor Private Registers */
 #define	SPR1	SPRN_SPRG1
@@ -382,10 +373,7 @@
 #define	PV_ICESTAR	0x0036
 #define	PV_SSTAR	0x0037
 #define	PV_POWER4p	0x0038
-#define PV_970		0x0039
 #define	PV_POWER5	0x003A
-#define PV_POWER5p	0x003B
-#define PV_970FX	0x003C
 #define	PV_630        	0x0040
 #define	PV_630p	        0x0041
 
@@ -394,12 +382,7 @@
 #define PLATFORM_PSERIES_LPAR 0x0101
 #define PLATFORM_ISERIES_LPAR 0x0201
 #define PLATFORM_LPAR         0x0001
-#define PLATFORM_POWERMAC     0x0400
-
-/* Compatibility with drivers coming from PPC32 world */
-#define _machine	(systemcfg->platform)
-#define _MACH_Pmac	PLATFORM_POWERMAC
-
+	
 /*
  * List of interrupt controllers.
  */
@@ -474,16 +457,7 @@ GLUE(.,name):
 			asm volatile("mfasr %0" : "=r" (rval)); rval;})
 
 #ifndef __ASSEMBLY__
-
-static inline void set_tb(unsigned int upper, unsigned int lower)
-{
-	mttbl(0);
-	mttbu(upper);
-	mttbl(lower);
-}
-
-#define __get_SP()	({unsigned long sp; \
-			asm volatile("mr %0,1": "=r" (sp)); sp;})
+extern unsigned long *_get_SP(void);
 
 extern int have_of;
 
@@ -543,7 +517,8 @@ struct thread_struct {
 	double		fpr[32];	/* Complete floating point set */
 	unsigned long	fpscr;		/* Floating point status (plus pad) */
 	unsigned long	fpexc_mode;	/* Floating-point exception mode */
-	unsigned long	pad[3];		/* was saved_msr, saved_softe */
+	unsigned long	saved_msr;	/* Save MSR across signal handlers */
+	unsigned long	saved_softe;	/* Ditto for Soft Enable/Disable */
 #ifdef CONFIG_ALTIVEC
 	/* Complete AltiVec register set */
 	vector128	vr[32] __attribute((aligned(16)));
@@ -553,8 +528,6 @@ struct thread_struct {
 	int		used_vr;	/* set if process has used altivec */
 #endif /* CONFIG_ALTIVEC */
 };
-
-#define ARCH_MIN_TASKALIGN 16
 
 #define INIT_SP		(sizeof(init_stack) + (unsigned long) &init_stack)
 
@@ -626,17 +599,6 @@ static inline void prefetchw(const void *x)
 
 #define spin_lock_prefetch(x)	prefetchw(x)
 
-#ifdef CONFIG_SCHED_SMT
-#define ARCH_HAS_SCHED_DOMAIN
-#define ARCH_HAS_SCHED_WAKE_IDLE
-#endif
-
 #endif /* ASSEMBLY */
-
-/*
- * Number of entries in the SLB. If this ever changes we should handle
- * it with a use a cpu feature fixup.
- */
-#define SLB_NUM_ENTRIES 64
 
 #endif /* __ASM_PPC64_PROCESSOR_H */

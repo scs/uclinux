@@ -15,9 +15,6 @@
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/smp_lock.h>
-#include <linux/init.h>
-#include <linux/idr.h>
-#include <linux/namei.h>
 #include <asm/uaccess.h>
 #include <asm/bitops.h>
 
@@ -40,6 +37,10 @@ static struct file_operations proc_file_operations = {
 	.write		= proc_file_write,
 };
 
+#ifndef MIN
+#define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+
 /* buffer size is one page but our output routines use some slack for overruns */
 #define PROC_BLOCK_SIZE	(PAGE_SIZE - 1024)
 
@@ -60,7 +61,7 @@ proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 		return -ENOMEM;
 
 	while ((nbytes > 0) && !eof) {
-		count = min_t(ssize_t, PROC_BLOCK_SIZE, nbytes);
+		count = MIN(PROC_BLOCK_SIZE, nbytes);
 
 		start = NULL;
 		if (dp->get_info) {
@@ -231,21 +232,14 @@ out:
 static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = dentry->d_inode;
-	struct proc_dir_entry *de = PDE(inode);
-	int error;
+	int error = inode_setattr(inode, iattr);
+	if (!error) {
+		struct proc_dir_entry *de = PDE(inode);
+		de->uid = inode->i_uid;
+		de->gid = inode->i_gid;
+		de->mode = inode->i_mode;
+	}
 
-	error = inode_change_ok(inode, iattr);
-	if (error)
-		goto out;
-
-	error = inode_setattr(inode, iattr);
-	if (error)
-		goto out;
-	
-	de->uid = inode->i_uid;
-	de->gid = inode->i_gid;
-	de->mode = inode->i_mode;
-out:
 	return error;
 }
 
@@ -285,58 +279,41 @@ static int xlate_proc_name(const char *name,
 	return 0;
 }
 
-static DEFINE_IDR(proc_inum_idr);
-static spinlock_t proc_inum_lock = SPIN_LOCK_UNLOCKED; /* protects the above */
+static unsigned long proc_alloc_map[(PROC_NDYNAMIC + BITS_PER_LONG - 1) / BITS_PER_LONG];
 
-#define PROC_DYNAMIC_FIRST 0xF0000000UL
+spinlock_t proc_alloc_map_lock = SPIN_LOCK_UNLOCKED;
 
-/*
- * Return an inode number between PROC_DYNAMIC_FIRST and
- * 0xffffffff, or zero on failure.
- */
-static unsigned int get_inode_number(void)
+static int make_inode_number(void)
 {
-	int i, inum = 0;
-	int error;
-
-retry:
-	if (idr_pre_get(&proc_inum_idr, GFP_KERNEL) == 0)
-		return 0;
-
-	spin_lock(&proc_inum_lock);
-	error = idr_get_new(&proc_inum_idr, NULL, &i);
-	spin_unlock(&proc_inum_lock);
-	if (error == -EAGAIN)
-		goto retry;
-	else if (error)
-		return 0;
-
-	inum = (i & MAX_ID_MASK) + PROC_DYNAMIC_FIRST;
-
-	/* inum will never be more than 0xf0ffffff, so no check
-	 * for overflow.
-	 */
-
-	return inum;
+	int i;
+	spin_lock(&proc_alloc_map_lock);
+	i = find_first_zero_bit(proc_alloc_map, PROC_NDYNAMIC);
+	if (i < 0 || i >= PROC_NDYNAMIC) {
+		i = -1;
+		goto out;
+	}
+	set_bit(i, proc_alloc_map);
+	i += PROC_DYNAMIC_FIRST;
+out:
+	spin_unlock(&proc_alloc_map_lock);
+	return i;
 }
 
-static void release_inode_number(unsigned int inum)
+static int
+proc_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
-	int id = (inum - PROC_DYNAMIC_FIRST) | ~MAX_ID_MASK;
-
-	spin_lock(&proc_inum_lock);
-	idr_remove(&proc_inum_idr, id);
-	spin_unlock(&proc_inum_lock);
+	char *s = PDE(dentry->d_inode)->data;
+	return vfs_readlink(dentry, buffer, buflen, s);
 }
 
 static int proc_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	nd_set_link(nd, PDE(dentry->d_inode)->data);
-	return 0;
+	char *s = PDE(dentry->d_inode)->data;
+	return vfs_follow_link(nd, s);
 }
 
 static struct inode_operations proc_link_inode_operations = {
-	.readlink	= generic_readlink,
+	.readlink	= proc_readlink,
 	.follow_link	= proc_follow_link,
 };
 
@@ -373,8 +350,7 @@ struct dentry *proc_lookup(struct inode * dir, struct dentry *dentry, struct nam
 			if (de->namelen != dentry->d_name.len)
 				continue;
 			if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
-				unsigned int ino = de->low_ino;
-
+				int ino = de->low_ino;
 				error = -EINVAL;
 				inode = proc_get_inode(dir->i_sb, ino, de);
 				break;
@@ -480,10 +456,10 @@ static struct inode_operations proc_dir_inode_operations = {
 
 static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp)
 {
-	unsigned int i;
+	int	i;
 	
-	i = get_inode_number();
-	if (i == 0)
+	i = make_inode_number();
+	if (i < 0)
 		return -EAGAIN;
 	dp->low_ino = i;
 	dp->next = dir->subdir;
@@ -649,13 +625,11 @@ struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 
 void free_proc_entry(struct proc_dir_entry *de)
 {
-	unsigned int ino = de->low_ino;
+	int ino = de->low_ino;
 
-	if (ino < PROC_DYNAMIC_FIRST)
+	if (ino < PROC_DYNAMIC_FIRST ||
+	    ino >= PROC_DYNAMIC_FIRST+PROC_NDYNAMIC)
 		return;
-
-	release_inode_number(ino);
-
 	if (S_ISLNK(de->mode) && de->data)
 		kfree(de->data);
 	kfree(de);
@@ -683,9 +657,10 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 		de->next = NULL;
 		if (S_ISDIR(de->mode))
 			parent->nlink--;
+		clear_bit(de->low_ino - PROC_DYNAMIC_FIRST,
+			  proc_alloc_map);
 		proc_kill_inodes(de);
 		de->nlink = 0;
-		WARN_ON(de->subdir);
 		if (!atomic_read(&de->count))
 			free_proc_entry(de);
 		else {

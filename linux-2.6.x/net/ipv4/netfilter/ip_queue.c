@@ -2,11 +2,7 @@
  * This is a module which is used for queueing IPv4 packets and
  * communicating with userspace via netlink.
  *
- * (C) 2000-2002 James Morris <jmorris@intercode.com.au>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * (C) 2000-2002 James Morris, this code is GPL.
  *
  * 2000-03-27: Simplified code (thanks to Andi Kleen for clues).
  * 2000-05-20: Fixed notifier problems (following Miguel Freitas' report).

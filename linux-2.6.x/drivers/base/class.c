@@ -3,22 +3,23 @@
  *
  * Copyright (c) 2002-3 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs
- * Copyright (c) 2003-2004 Greg Kroah-Hartman
- * Copyright (c) 2003-2004 IBM Corp.
- *
+ * Copyright (c) 2003 Greg Kroah-Hartman
+ * Copyright (c) 2003 IBM Corp.
+ * 
  * This file is released under the GPLv2
  *
  */
 
-#include <linux/config.h>
+#undef DEBUG
+
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include "base.h"
 
-#define to_class_attr(_attr) container_of(_attr, struct class_attribute, attr)
-#define to_class(obj) container_of(obj, struct class, subsys.kset.kobj)
+#define to_class_attr(_attr) container_of(_attr,struct class_attribute,attr)
+#define to_class(obj) container_of(obj,struct class,subsys.kset.kobj)
 
 static ssize_t
 class_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
@@ -28,12 +29,12 @@ class_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 	ssize_t ret = 0;
 
 	if (class_attr->show)
-		ret = class_attr->show(dc, buf);
+		ret = class_attr->show(dc,buf);
 	return ret;
 }
 
 static ssize_t
-class_attr_store(struct kobject * kobj, struct attribute * attr,
+class_attr_store(struct kobject * kobj, struct attribute * attr, 
 		 const char * buf, size_t count)
 {
 	struct class_attribute * class_attr = to_class_attr(attr);
@@ -41,7 +42,7 @@ class_attr_store(struct kobject * kobj, struct attribute * attr,
 	ssize_t ret = 0;
 
 	if (class_attr->store)
-		ret = class_attr->store(dc, buf, count);
+		ret = class_attr->store(dc,buf,count);
 	return ret;
 }
 
@@ -69,14 +70,14 @@ static struct kobj_type ktype_class = {
 };
 
 /* Hotplug events for classes go to the class_obj subsys */
-static decl_subsys(class, &ktype_class, NULL);
+static decl_subsys(class,&ktype_class,NULL);
 
 
 int class_create_file(struct class * cls, const struct class_attribute * attr)
 {
 	int error;
 	if (cls) {
-		error = sysfs_create_file(&cls->subsys.kset.kobj, &attr->attr);
+		error = sysfs_create_file(&cls->subsys.kset.kobj,&attr->attr);
 	} else
 		error = -EINVAL;
 	return error;
@@ -85,13 +86,13 @@ int class_create_file(struct class * cls, const struct class_attribute * attr)
 void class_remove_file(struct class * cls, const struct class_attribute * attr)
 {
 	if (cls)
-		sysfs_remove_file(&cls->subsys.kset.kobj, &attr->attr);
+		sysfs_remove_file(&cls->subsys.kset.kobj,&attr->attr);
 }
 
 struct class * class_get(struct class * cls)
 {
 	if (cls)
-		return container_of(subsys_get(&cls->subsys), struct class, subsys);
+		return container_of(subsys_get(&cls->subsys),struct class,subsys);
 	return NULL;
 }
 
@@ -100,66 +101,24 @@ void class_put(struct class * cls)
 	subsys_put(&cls->subsys);
 }
 
-
-static int add_class_attrs(struct class * cls)
-{
-	int i;
-	int error = 0;
-
-	if (cls->class_attrs) {
-		for (i = 0; attr_name(cls->class_attrs[i]); i++) {
-			error = class_create_file(cls,&cls->class_attrs[i]);
-			if (error)
-				goto Err;
-		}
-	}
- Done:
-	return error;
- Err:
-	while (--i >= 0)
-		class_remove_file(cls,&cls->class_attrs[i]);
-	goto Done;
-}
-
-static void remove_class_attrs(struct class * cls)
-{
-	int i;
-
-	if (cls->class_attrs) {
-		for (i = 0; attr_name(cls->class_attrs[i]); i++)
-			class_remove_file(cls,&cls->class_attrs[i]);
-	}
-}
-
 int class_register(struct class * cls)
 {
-	int error;
-
-	pr_debug("device class '%s': registering\n", cls->name);
+	pr_debug("device class '%s': registering\n",cls->name);
 
 	INIT_LIST_HEAD(&cls->children);
 	INIT_LIST_HEAD(&cls->interfaces);
-	error = kobject_set_name(&cls->subsys.kset.kobj, cls->name);
-	if (error)
-		return error;
+	kobject_set_name(&cls->subsys.kset.kobj,cls->name);
+	subsys_set_kset(cls,class_subsys);
+	subsystem_register(&cls->subsys);
 
-	subsys_set_kset(cls, class_subsys);
-
-	error = subsystem_register(&cls->subsys);
-	if (!error) {
-		error = add_class_attrs(class_get(cls));
-		class_put(cls);
-	}
-	return error;
+	return 0;
 }
 
 void class_unregister(struct class * cls)
 {
-	pr_debug("device class '%s': unregistering\n", cls->name);
-	remove_class_attrs(cls);
+	pr_debug("device class '%s': unregistering\n",cls->name);
 	subsystem_unregister(&cls->subsys);
 }
-
 
 /* Class Device Stuff */
 
@@ -189,7 +148,8 @@ static int class_device_dev_link(struct class_device * class_dev)
 
 static void class_device_dev_unlink(struct class_device * class_dev)
 {
-	sysfs_remove_link(&class_dev->kobj, "device");
+	if (class_dev->dev)
+		sysfs_remove_link(&class_dev->kobj, "device");
 }
 
 static int class_device_driver_link(struct class_device * class_dev)
@@ -202,7 +162,8 @@ static int class_device_driver_link(struct class_device * class_dev)
 
 static void class_device_driver_unlink(struct class_device * class_dev)
 {
-	sysfs_remove_link(&class_dev->kobj, "driver");
+	if ((class_dev->dev) && (class_dev->dev->driver))
+		sysfs_remove_link(&class_dev->kobj, "driver");
 }
 
 
@@ -215,12 +176,12 @@ class_device_attr_show(struct kobject * kobj, struct attribute * attr,
 	ssize_t ret = 0;
 
 	if (class_dev_attr->show)
-		ret = class_dev_attr->show(cd, buf);
+		ret = class_dev_attr->show(cd,buf);
 	return ret;
 }
 
 static ssize_t
-class_device_attr_store(struct kobject * kobj, struct attribute * attr,
+class_device_attr_store(struct kobject * kobj, struct attribute * attr, 
 			const char * buf, size_t count)
 {
 	struct class_device_attribute * class_dev_attr = to_class_dev_attr(attr);
@@ -228,7 +189,7 @@ class_device_attr_store(struct kobject * kobj, struct attribute * attr,
 	ssize_t ret = 0;
 
 	if (class_dev_attr->store)
-		ret = class_dev_attr->store(cd, buf, count);
+		ret = class_dev_attr->store(cd,buf,count);
 	return ret;
 }
 
@@ -242,7 +203,7 @@ static void class_dev_release(struct kobject * kobj)
 	struct class_device *cd = to_class_dev(kobj);
 	struct class * cls = cd->class;
 
-	pr_debug("device class '%s': release.\n", cd->class_id);
+	pr_debug("device class '%s': release.\n",cd->class_id);
 
 	if (cls->release)
 		cls->release(cd);
@@ -306,40 +267,6 @@ static struct kset_hotplug_ops class_hotplug_ops = {
 
 static decl_subsys(class_obj, &ktype_class_device, &class_hotplug_ops);
 
-
-static int class_device_add_attrs(struct class_device * cd)
-{
-	int i;
-	int error = 0;
-	struct class * cls = cd->class;
-
-	if (cls->class_dev_attrs) {
-		for (i = 0; attr_name(cls->class_dev_attrs[i]); i++) {
-			error = class_device_create_file(cd,
-							 &cls->class_dev_attrs[i]);
-			if (error)
-				goto Err;
-		}
-	}
- Done:
-	return error;
- Err:
-	while (--i >= 0)
-		class_device_remove_file(cd,&cls->class_dev_attrs[i]);
-	goto Done;
-}
-
-static void class_device_remove_attrs(struct class_device * cd)
-{
-	int i;
-	struct class * cls = cd->class;
-
-	if (cls->class_dev_attrs) {
-		for (i = 0; attr_name(cls->class_dev_attrs[i]); i++)
-			class_device_remove_file(cd,&cls->class_dev_attrs[i]);
-	}
-}
-
 void class_device_initialize(struct class_device *class_dev)
 {
 	kobj_set_kset_s(class_dev, class_obj_subsys);
@@ -351,6 +278,7 @@ int class_device_add(struct class_device *class_dev)
 {
 	struct class * parent;
 	struct class_interface * class_intf;
+	struct list_head * entry;
 	int error;
 
 	class_dev = class_device_get(class_dev);
@@ -374,12 +302,14 @@ int class_device_add(struct class_device *class_dev)
 	if (parent) {
 		down_write(&parent->subsys.rwsem);
 		list_add_tail(&class_dev->node, &parent->children);
-		list_for_each_entry(class_intf, &parent->interfaces, node)
+		list_for_each(entry, &parent->interfaces) {
+			class_intf = container_of(entry, struct class_interface, node);
 			if (class_intf->add)
 				class_intf->add(class_dev);
+		}
 		up_write(&parent->subsys.rwsem);
 	}
-	class_device_add_attrs(class_dev);
+
 	class_device_dev_link(class_dev);
 	class_device_driver_link(class_dev);
 
@@ -400,20 +330,22 @@ void class_device_del(struct class_device *class_dev)
 {
 	struct class * parent = class_dev->class;
 	struct class_interface * class_intf;
+	struct list_head * entry;
 
 	if (parent) {
 		down_write(&parent->subsys.rwsem);
 		list_del_init(&class_dev->node);
-		list_for_each_entry(class_intf, &parent->interfaces, node)
+		list_for_each(entry, &parent->interfaces) {
+			class_intf = container_of(entry, struct class_interface, node);
 			if (class_intf->remove)
 				class_intf->remove(class_dev);
+		}
 		up_write(&parent->subsys.rwsem);
 	}
 
 	class_device_dev_unlink(class_dev);
 	class_device_driver_unlink(class_dev);
-	class_device_remove_attrs(class_dev);
-
+	
 	kobject_del(&class_dev->kobj);
 
 	if (parent)
@@ -430,8 +362,6 @@ void class_device_unregister(struct class_device *class_dev)
 
 int class_device_rename(struct class_device *class_dev, char *new_name)
 {
-	int error = 0;
-
 	class_dev = class_device_get(class_dev);
 	if (!class_dev)
 		return -EINVAL;
@@ -441,11 +371,11 @@ int class_device_rename(struct class_device *class_dev, char *new_name)
 
 	strlcpy(class_dev->class_id, new_name, KOBJ_NAME_LEN);
 
-	error = kobject_rename(&class_dev->kobj, new_name);
+	kobject_rename(&class_dev->kobj, new_name);
 
 	class_device_put(class_dev);
 
-	return error;
+	return 0;
 }
 
 struct class_device * class_device_get(struct class_device *class_dev)
@@ -465,6 +395,7 @@ int class_interface_register(struct class_interface *class_intf)
 {
 	struct class * parent;
 	struct class_device * class_dev;
+	struct list_head * entry;
 
 	if (!class_intf || !class_intf->class)
 		return -ENODEV;
@@ -477,8 +408,10 @@ int class_interface_register(struct class_interface *class_intf)
 	list_add_tail(&class_intf->node, &parent->interfaces);
 
 	if (class_intf->add) {
-		list_for_each_entry(class_dev, &parent->children, node)
+		list_for_each(entry, &parent->children) {
+			class_dev = container_of(entry, struct class_device, node);
 			class_intf->add(class_dev);
+		}
 	}
 	up_write(&parent->subsys.rwsem);
 
@@ -488,7 +421,7 @@ int class_interface_register(struct class_interface *class_intf)
 void class_interface_unregister(struct class_interface *class_intf)
 {
 	struct class * parent = class_intf->class;
-	struct class_device *class_dev;
+	struct list_head * entry;
 
 	if (!parent)
 		return;
@@ -497,8 +430,10 @@ void class_interface_unregister(struct class_interface *class_intf)
 	list_del_init(&class_intf->node);
 
 	if (class_intf->remove) {
-		list_for_each_entry(class_dev, &parent->children, node)
+		list_for_each(entry, &parent->children) {
+			struct class_device *class_dev = container_of(entry, struct class_device, node);
 			class_intf->remove(class_dev);
+		}
 	}
 	up_write(&parent->subsys.rwsem);
 

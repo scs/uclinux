@@ -45,8 +45,7 @@ flat_get_relocate_addr (unsigned long relval)
    RELVAL is the raw relocation-table entry from which RP is derived.
    For the v850, RP should always be half-word aligned.  */
 static inline unsigned long flat_get_addr_from_rp (unsigned long *rp,
-						   unsigned long relval,
-						   unsigned long flags)
+						   unsigned long relval)
 {
 	short *srp = (short *)rp;
 

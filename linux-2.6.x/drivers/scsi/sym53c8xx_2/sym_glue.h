@@ -66,10 +66,9 @@
 #  include <asm/irq.h>
 #endif
 
-#include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
+#include "../scsi.h"		/* XXX: DID_* */
 
 #ifndef bzero
 #define bzero(d, n)	memset((d), 0, (n))
@@ -78,9 +77,9 @@
 /*
  *  General driver includes.
  */
+#include "sym_misc.h"
 #include "sym_conf.h"
 #include "sym_defs.h"
-#include "sym_misc.h"
 
 /*
  * Configuration addendum for Linux.
@@ -112,26 +111,6 @@
  */
 #define sym_udelay(us)	udelay(us)
 #define sym_mdelay(ms)	mdelay(ms)
-
-/*
- *  A 'read barrier' flushes any data that have been prefetched 
- *  by the processor due to out of order execution. Such a barrier 
- *  must notably be inserted prior to looking at data that have 
- *  been DMAed, assuming that program does memory READs in proper 
- *  order and that the device ensured proper ordering of WRITEs.
- *
- *  A 'write barrier' prevents any previous WRITEs to pass further 
- *  WRITEs. Such barriers must be inserted each time another agent 
- *  relies on ordering of WRITEs.
- *
- *  Note that, due to posting of PCI memory writes, we also must 
- *  insert dummy PCI read transactions when some ordering involving 
- *  both directions over the PCI does matter. PCI transactions are 
- *  fully ordered in each direction.
- */
-
-#define MEMORY_READ_BARRIER()	rmb()
-#define MEMORY_WRITE_BARRIER()	wmb()
 
 /*
  *  Let the compiler know about driver data structure names.
@@ -342,12 +321,18 @@ typedef struct scsi_cmnd *cam_scsiio_p;/* SCSI I/O */
 #define	CAM_RESRC_UNAVAIL	DID_ERROR
 
 /*
- *  Remap data direction values.
+ *  Remap SCSI data direction values.
  */
-#define CAM_DIR_NONE		DMA_NONE
-#define CAM_DIR_IN		DMA_FROM_DEVICE
-#define CAM_DIR_OUT		DMA_TO_DEVICE
-#define CAM_DIR_UNKNOWN		DMA_BIDIRECTIONAL
+#ifndef	SCSI_DATA_UNKNOWN
+#define	SCSI_DATA_UNKNOWN	0
+#define	SCSI_DATA_WRITE		1
+#define	SCSI_DATA_READ		2
+#define	SCSI_DATA_NONE		3
+#endif
+#define CAM_DIR_NONE		SCSI_DATA_NONE
+#define CAM_DIR_IN		SCSI_DATA_READ
+#define CAM_DIR_OUT		SCSI_DATA_WRITE
+#define CAM_DIR_UNKNOWN		SCSI_DATA_UNKNOWN
 
 /*
  *  These ones are used as return code from 
@@ -428,8 +413,6 @@ struct sym_slot {
 	char	inst_name[16];
 };
 
-struct sym_nvram;
-
 struct sym_device {
 	struct pci_dev *pdev;
 	struct sym_slot  s;
@@ -437,7 +420,12 @@ struct sym_device {
 	struct sym_nvram *nvram;
 	u_short device_id;
 	u_char host_id;
+#ifdef	SYM_CONF_PQS_PDS_SUPPORT
+	u_char pqs_pds;
+#endif
 };
+
+typedef struct sym_device *sdev_p;
 
 /*
  *  The driver definitions (sym_hipd.h) must know about a 
@@ -481,7 +469,7 @@ void sym_mfree(void *m, int size, char *name);
 
 static __inline m_addr_t sym_m_get_dma_mem_cluster(m_pool_p mp, m_vtob_p vbp)
 {
-	void *vaddr = NULL;
+	void *vaddr = 0;
 	dma_addr_t baddr = 0;
 
 	vaddr = pci_alloc_consistent(mp->dev_dmat,SYM_MEM_CLUSTER_SIZE, &baddr);

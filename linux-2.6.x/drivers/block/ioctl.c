@@ -5,7 +5,7 @@
 #include <linux/buffer_head.h>
 #include <asm/uaccess.h>
 
-static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user *arg)
+static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg *arg)
 {
 	struct block_device *bdevp;
 	struct gendisk *disk;
@@ -109,27 +109,27 @@ static int blkdev_reread_part(struct block_device *bdev)
 
 static int put_ushort(unsigned long arg, unsigned short val)
 {
-	return put_user(val, (unsigned short __user *)arg);
+	return put_user(val, (unsigned short *)arg);
 }
 
 static int put_int(unsigned long arg, int val)
 {
-	return put_user(val, (int __user *)arg);
+	return put_user(val, (int *)arg);
 }
 
 static int put_long(unsigned long arg, long val)
 {
-	return put_user(val, (long __user *)arg);
+	return put_user(val, (long *)arg);
 }
 
 static int put_ulong(unsigned long arg, unsigned long val)
 {
-	return put_user(val, (unsigned long __user *)arg);
+	return put_user(val, (unsigned long *)arg);
 }
 
 static int put_u64(unsigned long arg, u64 val)
 {
-	return put_user(val, (u64 __user *)arg);
+	return put_user(val, (u64 *)arg);
 }
 
 int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
@@ -138,6 +138,7 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 	struct block_device *bdev = inode->i_bdev;
 	struct gendisk *disk = bdev->bd_disk;
 	struct backing_dev_info *bdi;
+	int holder;
 	int ret, n;
 
 	switch (cmd) {
@@ -172,15 +173,15 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 			return -EACCES;
 		if (!arg)
 			return -EINVAL;
-		if (get_user(n, (int __user *) arg))
+		if (get_user(n, (int *) arg))
 			return -EFAULT;
-		if (bd_claim(bdev, file) < 0)
+		if (bd_claim(bdev, &holder) < 0)
 			return -EBUSY;
 		ret = set_blocksize(bdev, n);
 		bd_release(bdev);
 		return ret;
 	case BLKPG:
-		return blkpg_ioctl(bdev, (struct blkpg_ioctl_arg __user *) arg);
+		return blkpg_ioctl(bdev, (struct blkpg_ioctl_arg *) arg);
 	case BLKRRPART:
 		return blkdev_reread_part(bdev);
 	case BLKGETSIZE:
@@ -203,13 +204,12 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 	case BLKROSET:
 		if (disk->fops->ioctl) {
 			ret = disk->fops->ioctl(inode, file, cmd, arg);
-			/* -EINVAL to handle old uncorrected drivers */
-			if (ret != -EINVAL && ret != -ENOTTY)
+			if (ret != -EINVAL)
 				return ret;
 		}
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
-		if (get_user(n, (int __user *)(arg)))
+		if (get_user(n, (int *)(arg)))
 			return -EFAULT;
 		set_device_ro(bdev, n);
 		return 0;

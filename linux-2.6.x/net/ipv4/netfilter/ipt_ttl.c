@@ -2,11 +2,9 @@
  *
  * ipt_ttl.c,v 1.5 2000/11/13 11:16:08 laforge Exp
  *
- * (C) 2000,2001 by Harald Welte <laforge@netfilter.org>
+ * (C) 2000,2001 by Harald Welte <laforge@gnumonks.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * This software is distributed under the terms  GNU GPL
  */
 
 #include <linux/module.h>
@@ -15,7 +13,7 @@
 #include <linux/netfilter_ipv4/ipt_ttl.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 
-MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
+MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
 MODULE_DESCRIPTION("IP tables TTL matching module");
 MODULE_LICENSE("GPL");
 

@@ -167,6 +167,7 @@ acpi_ps_push_scope (
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
 
+
 	scope->common.data_type        = ACPI_DESC_TYPE_STATE_PSCOPE;
 	scope->parse_scope.op          = op;
 	scope->parse_scope.arg_list    = remaining_args;
@@ -177,11 +178,13 @@ acpi_ps_push_scope (
 
 	acpi_ut_push_generic_state (&parser_state->scope, scope);
 
+
 	if (arg_count == ACPI_VAR_ARGS) {
 		/* multiple arguments */
 
 		scope->parse_scope.arg_end = parser_state->pkg_end;
 	}
+
 	else {
 		/* single argument */
 
@@ -238,6 +241,7 @@ acpi_ps_pop_scope (
 
 		acpi_ut_delete_generic_state (scope);
 	}
+
 	else {
 		/* empty parse stack, prepare to fetch next opcode */
 
@@ -245,6 +249,7 @@ acpi_ps_pop_scope (
 		*arg_list               = 0;
 		*arg_count              = 0;
 	}
+
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Popped Op %p Args %X\n", *op, *arg_count));
 	return_VOID;
@@ -270,13 +275,13 @@ acpi_ps_cleanup_scope (
 {
 	union acpi_generic_state        *scope;
 
-
 	ACPI_FUNCTION_TRACE_PTR ("ps_cleanup_scope", parser_state);
 
 
 	if (!parser_state) {
-		return_VOID;
+		return;
 	}
+
 
 	/* Delete anything on the scope stack */
 

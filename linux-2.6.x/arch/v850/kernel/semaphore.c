@@ -15,7 +15,6 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/init.h>
 
 #include <asm/semaphore.h>
 
@@ -57,7 +56,7 @@ void __up(struct semaphore *sem)
 
 static spinlock_t semaphore_lock = SPIN_LOCK_UNLOCKED;
 
-void __sched __down(struct semaphore * sem)
+void __down(struct semaphore * sem)
 {
 	struct task_struct *tsk = current;
 	DECLARE_WAITQUEUE(wait, tsk);
@@ -90,7 +89,7 @@ void __sched __down(struct semaphore * sem)
 	wake_up(&sem->wait);
 }
 
-int __sched __down_interruptible(struct semaphore * sem)
+int __down_interruptible(struct semaphore * sem)
 {
 	int retval = 0;
 	struct task_struct *tsk = current;

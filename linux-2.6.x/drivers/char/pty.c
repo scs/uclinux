@@ -25,21 +25,16 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/devfs_fs_kernel.h>
-#include <linux/sysctl.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/bitops.h>
 #include <linux/devpts_fs.h>
 
-#if defined(CONFIG_LEGACY_PTYS) || defined(CONFIG_UNIX98_PTYS)
-
-#ifdef CONFIG_LEGACY_PTYS
 static struct tty_driver *pty_driver, *pty_slave_driver;
-#endif
 
-/* These are global because they are accessed in tty_io.c */
 #ifdef CONFIG_UNIX98_PTYS
+/* These are global because they are accessed in tty_io.c */
 struct tty_driver *ptm_driver;
 struct tty_driver *pts_driver;
 #endif
@@ -144,14 +139,14 @@ static int pty_write(struct tty_struct * tty, int from_user,
 			buf   += n; 
 			c     += n;
 			count -= n;
-			to->ldisc.receive_buf(to, temp_buffer, NULL, n);
+			to->ldisc.receive_buf(to, temp_buffer, 0, n);
 		}
 		up(&tty->flip.pty_sem);
 	} else {
 		c = to->ldisc.receive_room(to);
 		if (c > count)
 			c = count;
-		to->ldisc.receive_buf(to, buf, NULL, c);
+		to->ldisc.receive_buf(to, buf, 0, c);
 	}
 	
 	return c;
@@ -211,7 +206,7 @@ static int pty_chars_in_buffer(struct tty_struct *tty)
  * one we got after it is open, with an ioctl.
  */
 #ifdef CONFIG_UNIX98_PTYS
-static int pty_get_device_number(struct tty_struct *tty, unsigned __user *value)
+static int pty_get_device_number(struct tty_struct *tty, unsigned int *value)
 {
 	unsigned int result = tty->index;
 	return put_user(result, value);
@@ -219,7 +214,7 @@ static int pty_get_device_number(struct tty_struct *tty, unsigned __user *value)
 #endif
 
 /* Set the lock flag on a pty */
-static int pty_set_lock(struct tty_struct *tty, int __user * arg)
+static int pty_set_lock(struct tty_struct *tty, int * arg)
 {
 	int val;
 	if (get_user(val,arg))
@@ -231,9 +226,8 @@ static int pty_set_lock(struct tty_struct *tty, int __user * arg)
 	return 0;
 }
 
-#ifdef CONFIG_LEGACY_PTYS
 static int pty_bsd_ioctl(struct tty_struct *tty, struct file *file,
-			 unsigned int cmd, unsigned long arg)
+			unsigned int cmd, unsigned long arg)
 {
 	if (!tty) {
 		printk("pty_ioctl called with NULL tty!\n");
@@ -241,11 +235,10 @@ static int pty_bsd_ioctl(struct tty_struct *tty, struct file *file,
 	}
 	switch(cmd) {
 	case TIOCSPTLCK: /* Set PT Lock (disallow slave open) */
-		return pty_set_lock(tty, (int __user *) arg);
+		return pty_set_lock(tty, (int *) arg);
 	}
 	return -ENOIOCTLCMD;
 }
-#endif
 
 #ifdef CONFIG_UNIX98_PTYS
 static int pty_unix98_ioctl(struct tty_struct *tty, struct file *file,
@@ -256,13 +249,11 @@ static int pty_unix98_ioctl(struct tty_struct *tty, struct file *file,
 		return -EIO;
 	}
 	switch(cmd) {
-	case TIOCSPTLCK: /* Set PT Lock (disallow slave open) */
-		return pty_set_lock(tty, (int __user *)arg);
 	case TIOCGPTN: /* Get PT Number */
-		return pty_get_device_number(tty, (unsigned int __user *)arg);
+		return pty_get_device_number(tty, (unsigned int *)arg);
 	}
 
-	return -ENOIOCTLCMD;
+	return pty_bsd_ioctl(tty,file,cmd,arg);
 }
 #endif
 
@@ -322,41 +313,8 @@ static struct tty_operations pty_ops = {
 	.set_termios = pty_set_termios,
 };
 
-/* sysctl support for setting limits on the number of Unix98 ptys allocated.
-   Otherwise one can eat up all kernel memory by opening /dev/ptmx repeatedly. */
-#ifdef CONFIG_UNIX98_PTYS
-int pty_limit = NR_UNIX98_PTY_DEFAULT;
-static int pty_limit_min = 0;
-static int pty_limit_max = NR_UNIX98_PTY_MAX;
-
-ctl_table pty_table[] = {
-	{
-		.ctl_name	= PTY_MAX,
-		.procname	= "max",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.data		= &pty_limit,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
-		.extra1		= &pty_limit_min,
-		.extra2		= &pty_limit_max,
-	}, {
-		.ctl_name	= PTY_NR,
-		.procname	= "nr",
-		.maxlen		= sizeof(int),
-		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
-	}, {
-		.ctl_name	= 0
-	}
-};
-#endif
-
-/* Initialization */
-
 static int __init pty_init(void)
 {
-#ifdef CONFIG_LEGACY_PTYS
 	/* Traditional BSD devices */
 
 	pty_driver = alloc_tty_driver(NR_PTYS);
@@ -405,15 +363,15 @@ static int __init pty_init(void)
 	if (tty_register_driver(pty_slave_driver))
 		panic("Couldn't register pty slave driver");
 
-#endif /* CONFIG_LEGACY_PTYS */
 
-#ifdef CONFIG_UNIX98_PTYS
 	/* Unix98 devices */
+#ifdef CONFIG_UNIX98_PTYS
 	devfs_mk_dir("pts");
-	ptm_driver = alloc_tty_driver(NR_UNIX98_PTY_MAX);
+	printk("pty: %d Unix98 ptys configured\n", UNIX98_NR_MAJORS*NR_PTYS);
+	ptm_driver = alloc_tty_driver(UNIX98_NR_MAJORS * NR_PTYS);
 	if (!ptm_driver)
 		panic("Couldn't allocate Unix98 ptm driver");
-	pts_driver = alloc_tty_driver(NR_UNIX98_PTY_MAX);
+	pts_driver = alloc_tty_driver(UNIX98_NR_MAJORS * NR_PTYS);
 	if (!pts_driver)
 		panic("Couldn't allocate Unix98 pts driver");
 
@@ -430,7 +388,7 @@ static int __init pty_init(void)
 	ptm_driver->init_termios.c_cflag = B38400 | CS8 | CREAD;
 	ptm_driver->init_termios.c_lflag = 0;
 	ptm_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_NO_DEVFS | TTY_DRIVER_DEVPTS_MEM;
+				TTY_DRIVER_NO_DEVFS;
 	ptm_driver->other = pts_driver;
 	tty_set_operations(ptm_driver, &pty_ops);
 	ptm_driver->ioctl = pty_unix98_ioctl;
@@ -444,8 +402,8 @@ static int __init pty_init(void)
 	pts_driver->subtype = PTY_TYPE_SLAVE;
 	pts_driver->init_termios = tty_std_termios;
 	pts_driver->init_termios.c_cflag = B38400 | CS8 | CREAD;
-	pts_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_NO_DEVFS | TTY_DRIVER_DEVPTS_MEM;
+	pts_driver->flags = TTY_DRIVER_RESET_TERMIOS |
+			TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
 	pts_driver->other = ptm_driver;
 	tty_set_operations(pts_driver, &pty_ops);
 	
@@ -453,12 +411,7 @@ static int __init pty_init(void)
 		panic("Couldn't register Unix98 ptm driver");
 	if (tty_register_driver(pts_driver))
 		panic("Couldn't register Unix98 pts driver");
-
-	pty_table[1].data = &ptm_driver->refcount;
-#endif /* CONFIG_UNIX98_PTYS */
-
+#endif
 	return 0;
 }
 module_init(pty_init);
-
-#endif /* CONFIG_LEGACY_PTYS || CONFIG_UNIX98_PTYS */

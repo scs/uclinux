@@ -8,10 +8,8 @@
 #ifndef _ASM_IA64_SN_SN2_SN_PRIVATE_H
 #define _ASM_IA64_SN_SN2_SN_PRIVATE_H
 
-#include <linux/wait.h>
 #include <asm/sn/nodepda.h>
 #include <asm/sn/io.h>
-#include <asm/sn/iograph.h>
 #include <asm/sn/xtalk/xwidget.h>
 #include <asm/sn/xtalk/xtalk_private.h>
 
@@ -22,7 +20,7 @@ extern void he_arcs_set_vectors(void);
 extern void mem_init(void);
 extern void cpu_unenable(cpuid_t);
 extern nasid_t get_lowest_nasid(void);
-extern unsigned long get_master_bridge_base(void);
+extern __psunsigned_t get_master_bridge_base(void);
 extern int check_nasid_equiv(nasid_t, nasid_t);
 extern char get_console_pcislot(void);
 
@@ -30,7 +28,7 @@ extern int is_master_baseio_nasid_widget(nasid_t test_nasid,
 					 xwidgetnum_t test_wid);
 
 /* memsupport.c */
-extern void poison_state_alter_range(unsigned long start, int len, int poison);
+extern void poison_state_alter_range(__psunsigned_t start, int len, int poison);
 extern int memory_present(paddr_t);
 extern int memory_read_accessible(paddr_t);
 extern int memory_write_accessible(paddr_t);
@@ -88,7 +86,7 @@ void install_klidbg_functions(void);
 
 /* klnuma.c */
 extern void replicate_kernel_text(int numnodes);
-extern unsigned long get_freemem_start(cnodeid_t cnode);
+extern __psunsigned_t get_freemem_start(cnodeid_t cnode);
 extern void setup_replication_mask(int maxnodes);
 
 /* init.c */
@@ -111,7 +109,7 @@ extern int check_ni_errors(void);
 /* Used for debugger to signal upper software a breakpoint has taken place */
 
 extern void *debugger_update;
-extern unsigned long debugger_stopped;
+extern __psunsigned_t debugger_stopped;
 
 /* 
  * piomap, created by shub_pio_alloc.
@@ -233,8 +231,11 @@ extern void sysctlr_keepalive(void);
  * address.
  */
 #define paddr_dimm(_pa)		((_pa & MD_BANK_MASK) >> MD_BANK_SHFT)
-#define paddr_cnode(_pa)	(nasid_to_cnodeid(NASID_GET(_pa)))
+#define paddr_cnode(_pa)	(NASID_TO_COMPACT_NODEID(NASID_GET(_pa)))
 extern void membank_pathname_get(paddr_t, char *);
+
+/* To redirect the output into the error buffer */
+#define errbuf_print(_s)	printf("#%s",_s)
 
 extern void crbx(nasid_t nasid, void (*pf) (char *, ...));
 void bootstrap(void);

@@ -11,7 +11,7 @@
 #include <asm/atomic.h>
 #include <linux/blkdev.h>
 #include "../../scsi/scsi.h"
-#include <scsi/scsi_host.h>
+#include "../../scsi/hosts.h"
 
 #include "hpusbscsi.h"
 
@@ -42,7 +42,7 @@ hpusbscsi_usb_probe(struct usb_interface *intf,
 		    const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
-	struct usb_host_interface *altsetting =	intf->cur_altsetting;
+	struct usb_host_interface *altsetting =	intf->altsetting;
 	struct hpusbscsi *new;
 	int error = -ENOMEM;
 	int i;

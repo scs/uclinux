@@ -214,11 +214,12 @@ int DRM(getsareactx)(struct inode *inode, struct file *filp,
 {
 	drm_file_t	*priv	= filp->private_data;
 	drm_device_t	*dev	= priv->dev;
-	drm_ctx_priv_map_t __user *argp = (void __user *)arg;
 	drm_ctx_priv_map_t request;
 	drm_map_t *map;
 
-	if (copy_from_user(&request, argp, sizeof(request)))
+	if (copy_from_user(&request,
+			   (drm_ctx_priv_map_t *)arg,
+			   sizeof(request)))
 		return -EFAULT;
 
 	down(&dev->struct_sem);
@@ -231,7 +232,7 @@ int DRM(getsareactx)(struct inode *inode, struct file *filp,
 	up(&dev->struct_sem);
 
 	request.handle = map->handle;
-	if (copy_to_user(argp, &request, sizeof(request)))
+	if (copy_to_user((drm_ctx_priv_map_t *)arg, &request, sizeof(request)))
 		return -EFAULT;
 	return 0;
 }
@@ -259,7 +260,7 @@ int DRM(setsareactx)(struct inode *inode, struct file *filp,
 	struct list_head *list;
 
 	if (copy_from_user(&request,
-			   (drm_ctx_priv_map_t __user *)arg,
+			   (drm_ctx_priv_map_t *)arg,
 			   sizeof(request)))
 		return -EFAULT;
 
@@ -362,11 +363,10 @@ int DRM(resctx)( struct inode *inode, struct file *filp,
 		 unsigned int cmd, unsigned long arg )
 {
 	drm_ctx_res_t res;
-	drm_ctx_t __user *argp = (void __user *)arg;
 	drm_ctx_t ctx;
 	int i;
 
-	if ( copy_from_user( &res, argp, sizeof(res) ) )
+	if ( copy_from_user( &res, (drm_ctx_res_t *)arg, sizeof(res) ) )
 		return -EFAULT;
 
 	if ( res.count >= DRM_RESERVED_CONTEXTS ) {
@@ -380,7 +380,7 @@ int DRM(resctx)( struct inode *inode, struct file *filp,
 	}
 	res.count = DRM_RESERVED_CONTEXTS;
 
-	if ( copy_to_user( argp, &res, sizeof(res) ) )
+	if ( copy_to_user( (drm_ctx_res_t *)arg, &res, sizeof(res) ) )
 		return -EFAULT;
 	return 0;
 }
@@ -401,11 +401,9 @@ int DRM(addctx)( struct inode *inode, struct file *filp,
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->dev;
-	drm_ctx_list_t * ctx_entry;
-	drm_ctx_t __user *argp = (void __user *)arg;
 	drm_ctx_t ctx;
 
-	if ( copy_from_user( &ctx, argp, sizeof(ctx) ) )
+	if ( copy_from_user( &ctx, (drm_ctx_t *)arg, sizeof(ctx) ) )
 		return -EFAULT;
 
 	ctx.handle = DRM(ctxbitmap_next)( dev );
@@ -423,22 +421,8 @@ int DRM(addctx)( struct inode *inode, struct file *filp,
 	if ( ctx.handle != DRM_KERNEL_CONTEXT )
 		DRIVER_CTX_CTOR(ctx.handle); /* XXX: also pass dev ? */
 #endif
-	ctx_entry = DRM(alloc)( sizeof(*ctx_entry), DRM_MEM_CTXLIST );
-	if ( !ctx_entry ) {
-		DRM_DEBUG("out of memory\n");
-		return -ENOMEM;
-	}
 
-	INIT_LIST_HEAD( &ctx_entry->head );
-	ctx_entry->handle = ctx.handle;
-	ctx_entry->tag = priv;
-
-	down( &dev->ctxlist_sem );
-	list_add( &ctx_entry->head, &dev->ctxlist->head );
-	++dev->ctx_count;
-	up( &dev->ctxlist_sem );
-
-	if ( copy_to_user( argp, &ctx, sizeof(ctx) ) )
+	if ( copy_to_user( (drm_ctx_t *)arg, &ctx, sizeof(ctx) ) )
 		return -EFAULT;
 	return 0;
 }
@@ -462,16 +446,15 @@ int DRM(modctx)( struct inode *inode, struct file *filp,
 int DRM(getctx)( struct inode *inode, struct file *filp,
 		 unsigned int cmd, unsigned long arg )
 {
-	drm_ctx_t __user *argp = (void __user *)arg;
 	drm_ctx_t ctx;
 
-	if ( copy_from_user( &ctx, argp, sizeof(ctx) ) )
+	if ( copy_from_user( &ctx, (drm_ctx_t*)arg, sizeof(ctx) ) )
 		return -EFAULT;
 
 	/* This is 0, because we don't handle any context flags */
 	ctx.flags = 0;
 
-	if ( copy_to_user( argp, &ctx, sizeof(ctx) ) )
+	if ( copy_to_user( (drm_ctx_t*)arg, &ctx, sizeof(ctx) ) )
 		return -EFAULT;
 	return 0;
 }
@@ -494,7 +477,7 @@ int DRM(switchctx)( struct inode *inode, struct file *filp,
 	drm_device_t *dev = priv->dev;
 	drm_ctx_t ctx;
 
-	if ( copy_from_user( &ctx, (drm_ctx_t __user *)arg, sizeof(ctx) ) )
+	if ( copy_from_user( &ctx, (drm_ctx_t *)arg, sizeof(ctx) ) )
 		return -EFAULT;
 
 	DRM_DEBUG( "%d\n", ctx.handle );
@@ -519,7 +502,7 @@ int DRM(newctx)( struct inode *inode, struct file *filp,
 	drm_device_t *dev = priv->dev;
 	drm_ctx_t ctx;
 
-	if ( copy_from_user( &ctx, (drm_ctx_t __user *)arg, sizeof(ctx) ) )
+	if ( copy_from_user( &ctx, (drm_ctx_t *)arg, sizeof(ctx) ) )
 		return -EFAULT;
 
 	DRM_DEBUG( "%d\n", ctx.handle );
@@ -546,7 +529,7 @@ int DRM(rmctx)( struct inode *inode, struct file *filp,
 	drm_device_t *dev = priv->dev;
 	drm_ctx_t ctx;
 
-	if ( copy_from_user( &ctx, (drm_ctx_t __user *)arg, sizeof(ctx) ) )
+	if ( copy_from_user( &ctx, (drm_ctx_t *)arg, sizeof(ctx) ) )
 		return -EFAULT;
 
 	DRM_DEBUG( "%d\n", ctx.handle );
@@ -559,20 +542,6 @@ int DRM(rmctx)( struct inode *inode, struct file *filp,
 #endif
 		DRM(ctxbitmap_free)( dev, ctx.handle );
 	}
-
-	down( &dev->ctxlist_sem );
-	if ( !list_empty( &dev->ctxlist->head ) ) {
-		drm_ctx_list_t *pos, *n;
-
-		list_for_each_entry_safe( pos, n, &dev->ctxlist->head, head ) {
-			if ( pos->handle == ctx.handle ) {
-				list_del( &pos->head );
-				DRM(free)( pos, sizeof(*pos), DRM_MEM_CTXLIST );
-				--dev->ctx_count;
-			}
-		}
-	}
-	up( &dev->ctxlist_sem );
 
 	return 0;
 }

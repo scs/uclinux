@@ -43,15 +43,6 @@ config X86_PC
 	help
 	  Choose this option if your computer is a standard PC or compatible.
 
-config X86_ELAN
-	bool "AMD Elan"
-	help
-	  Select this for an AMD Elan processor.
-
-	  Do not use this option for K6/Athlon/Opteron processors!
-
-	  If unsure, choose "PC-compatible" instead.
-
 config X86_VOYAGER
 	bool "Voyager (NCR)"
 	help
@@ -65,14 +56,12 @@ config X86_VOYAGER
 
 config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
-	select DISCONTIGMEM
-	select NUMA
 	help
 	  This option is used for getting Linux to run on a (IBM/Sequent) NUMA 
 	  multiquad box. This changes the way that processors are bootstrapped,
 	  and uses Clustered Logical APIC addressing mode instead of Flat Logical.
 	  You will need a new lynxer.elf file to flash your firmware with - send
-	  email to <Martin.Bligh@us.ibm.com>.
+	  email to Martin.Bligh@us.ibm.com
 
 config X86_SUMMIT
 	bool "Summit/EXA (IBM x440)"
@@ -104,10 +93,10 @@ config X86_VISWS
 	  and vice versa. See <file:Documentation/sgi-visws.txt> for details.
 
 config X86_GENERICARCH
-       bool "Generic architecture (Summit, bigsmp, ES7000, default)"
+       bool "Generic architecture (Summit, bigsmp, default)"
        depends on SMP
        help
-          This option compiles in the Summit, bigsmp, ES7000, default subarchitectures.
+          This option compiles in the Summit, bigsmp, default subarchitectures.
 	  It is intended for a generic binary kernel.
 
 config X86_ES7000
@@ -140,8 +129,6 @@ config ES7000_CLUSTERED_APIC
 	bool
 	default y
 	depends on SMP && X86_ES7000 && MPENTIUMIII
-
-if !X86_ELAN
 
 choice
 	prompt "Processor family"
@@ -235,20 +222,14 @@ config MPENTIUMIII
 	  extended prefetch instructions in addition to the Pentium II
 	  extensions.
 
-config MPENTIUMM
-	bool "Pentium M"
-	help
-	  Select this for Intel Pentium M (not Pentium-4 M)
-	  notebook chips.
-
 config MPENTIUM4
-	bool "Pentium-4/Celeron(P4-based)/Pentium-4 M/Xeon"
+	bool "Pentium-4/Celeron(P4-based)/Xeon"
 	help
-	  Select this for Intel Pentium 4 chips.  This includes the
-	  Pentium 4, P4-based Celeron and Xeon, and Pentium-4 M
-	  (not Pentium M) chips.  This option enables compile flags
-	  optimized for the chip, uses the correct cache shift, and
-	  applies any applicable Pentium III optimizations.
+	  Select this for Intel Pentium 4 chips.  This includes both
+	  the Pentium 4 and P4-based Celeron chips.  This option
+	  enables compile flags optimized for the chip, uses the
+	  correct cache shift, and applies any applicable Pentium III
+	  optimizations.
 
 config MK6
 	bool "K6/K6-II/K6-III"
@@ -270,6 +251,9 @@ config MK8
 	  Select this for an AMD Opteron or Athlon64 Hammer-family processor.  Enables
 	  use of some extended instructions, and passes appropriate optimization
 	  flags to GCC.
+
+config MELAN
+	bool "Elan"
 
 config MCRUSOE
 	bool "Crusoe"
@@ -324,15 +308,9 @@ endchoice
 config X86_GENERIC
        bool "Generic x86 support" 
        help
-	  Instead of just including optimizations for the selected
-	  x86 variant (e.g. PII, Crusoe or Athlon), include some more
-	  generic optimizations as well. This will make the kernel
-	  perform better on x86 CPUs other than that selected.
-
-	  This is really intended for distributors who need more
-	  generic optimizations.
-
-endif
+       	  Including some tuning for non selected x86 CPUs too.
+	  when it has moderate overhead. This is intended for generic 
+	  distributions kernels.
 
 #
 # Define implied options from the CPU selection here
@@ -350,9 +328,9 @@ config X86_XADD
 config X86_L1_CACHE_SHIFT
 	int
 	default "7" if MPENTIUM4 || X86_GENERIC
-	default "4" if X86_ELAN || M486 || M386
+	default "4" if MELAN || M486 || M386
 	default "5" if MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCRUSOE || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2
-	default "6" if MK7 || MK8 || MPENTIUMM
+	default "6" if MK7 || MK8
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -396,22 +374,22 @@ config X86_POPAD_OK
 
 config X86_ALIGNMENT_16
 	bool
-	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || X86_ELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2
+	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || MELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2
 	default y
 
 config X86_GOOD_APIC
 	bool
-	depends on MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || MK8
+	depends on MK7 || MPENTIUM4 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || MK8
 	default y
 
 config X86_INTEL_USERCOPY
 	bool
-	depends on MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M586MMX || X86_GENERIC || MK8 || MK7
+	depends on MPENTIUM4 || MPENTIUMIII || MPENTIUMII || M586MMX || X86_GENERIC || MK8 || MK7
 	default y
 
 config X86_USE_PPRO_CHECKSUM
 	bool
-	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2
+	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2
 	default y
 
 config X86_USE_3DNOW
@@ -436,8 +414,7 @@ config HPET_TIMER
 	  Choose N to continue using the legacy 8254 timer.
 
 config HPET_EMULATE_RTC
-	bool "Provide RTC interrupt"
-	depends on HPET_TIMER && RTC=y
+	def_bool HPET_TIMER && RTC=y
 
 config SMP
 	bool "Symmetric multi-processing support"
@@ -461,8 +438,8 @@ config SMP
 	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
 	  Management" code will be disabled if you say Y here.
 
-	  See also the <file:Documentation/smp.txt>,
-	  <file:Documentation/i386/IO-APIC.txt>,
+	  See also the <file:Documentation/smp.tex>,
+	  <file:Documentation/smp.txt>, <file:Documentation/i386/IO-APIC.txt>,
 	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
 	  <http://www.tldp.org/docs.html#howto>.
 
@@ -481,16 +458,6 @@ config NR_CPUS
 
 	  This is purely to save memory - each supported CPU adds
 	  approximately eight kilobytes to the kernel image.
-
-config SCHED_SMT
-	bool "SMT (Hyperthreading) scheduler support"
-	depends on SMP
-	default off
-	help
-	  SMT scheduler support improves the CPU scheduler's decision making
-	  when dealing with Intel Pentium 4 chips with HyperThreading at a
-	  cost of slightly increased overhead in some places. If unsure say
-	  N here.
 
 config PREEMPT
 	bool "Preemptible Kernel"
@@ -546,12 +513,11 @@ config X86_IO_APIC
 
 config X86_TSC
 	bool
-	depends on (MWINCHIP3D || MWINCHIP2 || MCRUSOE || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2) && !X86_NUMAQ
+	depends on (MWINCHIP3D || MWINCHIP2 || MCRUSOE || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2) && !X86_NUMAQ
 	default y
 
 config X86_MCE
 	bool "Machine Check Exception"
-	depends on !X86_VOYAGER
 	---help---
 	  Machine Check Exception support allows the processor to notify the
 	  kernel if it detects a problem (e.g. overheating, component failure).
@@ -567,7 +533,7 @@ config X86_MCE
 	  the 386 and 486, so nearly everyone can say Y here.
 
 config X86_MCE_NONFATAL
-	tristate "Check for non-fatal errors on AMD Athlon/Duron / Intel Pentium 4"
+	bool "Check for non-fatal errors on AMD Athlon/Duron / Intel Pentium 4"
 	depends on X86_MCE
 	help
 	  Enabling this feature starts a timer that triggers every 5 seconds which
@@ -616,7 +582,7 @@ config I8K
 
 	  For information on utilities to make use of this driver see the
 	  I8K Linux utilities web site at:
-	  <http://people.debian.org/~dz/i8k/>
+	  <http://www.debian.org/~dz/i8k/>
 
 	  Say Y if you intend to run this kernel on a Dell Inspiron 8000.
 	  Say N otherwise.
@@ -637,6 +603,8 @@ config MICROCODE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called microcode.
+	  If you use modprobe or kmod you may also want to add the line
+	  'alias char-major-10-184 microcode' to your /etc/modules.conf file.
 
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
@@ -655,7 +623,16 @@ config X86_CPUID
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
 
-source "drivers/firmware/Kconfig"
+config EDD
+	tristate "BIOS Enhanced Disk Drive calls determine boot disk (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  Say Y or M here if you want to enable BIOS Enhanced Disk Drive
+	  Services real mode BIOS calls to determine which disk
+	  BIOS tries boot from.  This information is then exported via driverfs.
+
+	  This option is experimental, but believed to be safe,
+	  and most disk controller BIOS vendors do not yet implement this feature.
 
 choice
 	prompt "High Memory Support"
@@ -723,8 +700,8 @@ config X86_PAE
 
 # Common NUMA Features
 config NUMA
-	bool "Numa Memory Allocation and Scheduler Support"
-	depends on SMP && HIGHMEM64G && (X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI))
+	bool "Numa Memory Allocation Support"
+	depends on SMP && HIGHMEM64G && (X86_PC || X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI && !ACPI_HT_ONLY))
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT)
 
@@ -732,8 +709,8 @@ config NUMA
 comment "NUMA (NUMA-Q) requires SMP, 64GB highmem support"
 	depends on X86_NUMAQ && (!HIGHMEM64G || !SMP)
 
-comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
-	depends on X86_SUMMIT && (!HIGHMEM64G || !ACPI)
+comment "NUMA (Summit) requires SMP, 64GB highmem support, full ACPI"
+	depends on X86_SUMMIT && (!HIGHMEM64G || !ACPI || ACPI_HT_ONLY)
 
 config DISCONTIGMEM
 	bool
@@ -827,18 +804,10 @@ config EFI
 	This option is only useful on systems that have EFI firmware
 	and will result in a kernel image that is ~8k larger.  In addition,
 	you must use the latest ELILO loader available at
-	<http://elilo.sourceforge.net> in order to take advantage of
-	kernel initialization using EFI information (neither GRUB nor LILO know
+	ftp.hpl.hp.com/pub/linux-ia64/ in order to take advantage of kernel
+	initialization using EFI information (neither GRUB nor LILO know
 	anything about EFI).  However, even with this option, the resultant
 	kernel should continue to boot on existing non-EFI platforms.
-
-config IRQBALANCE
- 	bool "Enable kernel irq balancing"
-	depends on SMP && X86_IO_APIC
-	default y
-	help
- 	  The default yes will allow the kernel to do irq load balancing.
-	  Saying no will keep the kernel from doing irq load balancing.
 
 config HAVE_DEC_LOCK
 	bool
@@ -851,19 +820,6 @@ config BOOT_IOREMAP
 	bool
 	depends on (((X86_SUMMIT || X86_GENERICARCH) && NUMA) || (X86 && EFI))
 	default y
-
-config REGPARM
-	bool "Use register arguments (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	default n
-	help
-	Compile the kernel with -mregparm=3. This uses an different ABI
-	and passes the first three arguments of a function call in registers.
-	This will probably break binary only modules.
-
-	This feature is only enabled for gcc-3.0 and later - earlier compilers
-	generate incorrect output with certain kernel constructs when
-	-mregparm=3 is used.
 
 endmenu
 
@@ -1064,6 +1020,9 @@ choice
 	prompt "PCI access mode"
 	depends on PCI && !X86_VISWS
 	default PCI_GOANY
+
+config PCI_GOBIOS
+	bool "BIOS"
 	---help---
 	  On PCI systems, the BIOS can be used to detect the PCI devices and
 	  determine their configuration. However, some old PCI motherboards
@@ -1071,19 +1030,12 @@ choice
 	  PCI-based systems don't have any BIOS at all. Linux can also try to
 	  detect the PCI hardware directly without using the BIOS.
 
-	  With this option, you can specify how Linux should detect the
-	  PCI devices. If you choose "BIOS", the BIOS will be used,
-	  if you choose "Direct", the BIOS won't be used, and if you
-	  choose "MMConfig", then PCI Express MMCONFIG will be used.
-	  If you choose "Any", the kernel will try MMCONFIG, then the
-	  direct access method and falls back to the BIOS if that doesn't
-	  work. If unsure, go with the default, which is "Any".
-
-config PCI_GOBIOS
-	bool "BIOS"
-
-config PCI_GOMMCONFIG
-	bool "MMConfig"
+	  With this option, you can specify how Linux should detect the PCI
+	  devices. If you choose "BIOS", the BIOS will be used, if you choose
+	  "Direct", the BIOS won't be used, and if you choose "Any", the
+	  kernel will try the direct access method and falls back to the BIOS
+	  if that doesn't work. If unsure, go with the default, which is
+	  "Any".
 
 config PCI_GODIRECT
 	bool "Direct"
@@ -1103,11 +1055,24 @@ config PCI_DIRECT
  	depends on PCI && ((PCI_GODIRECT || PCI_GOANY) || X86_VISWS)
 	default y
 
-config PCI_MMCONFIG
-	bool
-	depends on PCI && (PCI_GOMMCONFIG || PCI_GOANY)
-	select ACPI_BOOT
-	default y
+config PCI_USE_VECTOR
+	bool "Vector-based interrupt indexing"
+	depends on X86_LOCAL_APIC && X86_IO_APIC
+	default n
+	help
+	   This replaces the current existing IRQ-based index interrupt scheme
+	   with the vector-base index scheme. The advantages of vector base
+	   over IRQ base are listed below:
+	   1) Support MSI implementation.
+	   2) Support future IOxAPIC hotplug
+
+	   Note that this enables MSI, Message Signaled Interrupt, on all
+	   MSI capable device functions detected if users also install the
+	   MSI patch. Message Signal Interrupt enables an MSI-capable
+	   hardware device to send an inbound Memory Write on its PCI bus
+	   instead of asserting IRQ signal on device IRQ pin.
+
+	   If you don't know what to do here, say N.
 
 source "drivers/pci/Kconfig"
 
@@ -1166,6 +1131,24 @@ config SCx200
 	  This support is also available as a module.  If compiled as a
 	  module, it will be called scx200.
 
+config HOTPLUG
+	bool "Support for hot-pluggable devices"
+	---help---
+	  Say Y here if you want to plug devices into your computer while
+	  the system is running, and be able to use them quickly.  In many
+	  cases, the devices can likewise be unplugged at any time too.
+
+	  One well known example of this is PCMCIA- or PC-cards, credit-card
+	  size devices such as network cards, modems or hard drives which are
+	  plugged into slots found on all modern laptop computers.  Another
+	  example, used on modern desktops as well as laptops, is USB.
+
+	  Enable HOTPLUG and KMOD, and build a modular kernel.  Get agent
+	  software (at <http://linux-hotplug.sourceforge.net/>) and install it.
+	  Then your kernel will automatically call out to a user mode "policy
+	  agent" (/sbin/hotplug) to load modules and set up software needed
+	  to use devices as you hotplug them.
+
 source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
@@ -1194,31 +1177,9 @@ config DEBUG_KERNEL
 	  Say Y here if you are developing drivers or trying to debug and
 	  identify kernel problems.
 
-config EARLY_PRINTK
-	bool "Early printk" if EMBEDDED
-	default y
-	help
-	  Write kernel log output directly into the VGA buffer or to a serial
-	  port.
-
-	  This is useful for kernel debugging when your machine crashes very
-	  early before the console code is initialized. For normal operation
-	  it is not recommended because it looks ugly and doesn't cooperate
-	  with klogd/syslogd or the X server. You should normally N here,
-	  unless you want to debug such a crash.
-
 config DEBUG_STACKOVERFLOW
 	bool "Check for stack overflows"
 	depends on DEBUG_KERNEL
-
-config DEBUG_STACK_USAGE
-	bool "Stack utilization instrumentation"
-	depends on DEBUG_KERNEL
-	help
-	  Enables the display of the minimum amount of free stack which each
-	  task has ever had available in the sysrq-T and sysrq-P debug output.
-
-	  This option will slow down process creation somewhat.
 
 config DEBUG_SLAB
 	bool "Debug memory allocations"
@@ -1227,6 +1188,17 @@ config DEBUG_SLAB
 	  Say Y here to have the kernel do limited verification on memory
 	  allocation as well as poisoning memory on free to catch use of freed
 	  memory.
+
+config DEBUG_IOVIRT
+	bool "Memory mapped I/O debugging"
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here to get warned whenever an attempt is made to do I/O on
+	  obviously invalid addresses such as those generated when ioremap()
+	  calls are forgotten.  Memory mapped I/O will go through an extra
+	  check to catch access to unmapped ISA addresses, an access method
+	  that can still be used by old drivers that are being ported from
+	  2.0/2.2.
 
 config MAGIC_SYSRQ
 	bool "Magic SysRq key"
@@ -1289,15 +1261,6 @@ config FRAME_POINTER
 	  If you don't debug the kernel, you can say N, but we may not be able
 	  to solve problems without frame pointers.
 
-config 4KSTACKS
-	bool "Use 4Kb for kernel stacks instead of 8Kb"
-	help
-	  If you say Y here the kernel will use a 4Kb stacksize for the
-	  kernel stack attached to each process/thread. This facilitates
-	  running more threads on a system and also reduces the pressure
-	  on the VM subsystem for higher order allocations. This option
-	  will also use IRQ stacks to compensate for the reduced stackspace.
-
 config X86_FIND_SMP_CONFIG
 	bool
 	depends on X86_LOCAL_APIC || X86_VOYAGER
@@ -1333,7 +1296,7 @@ config X86_BIOS_REBOOT
 
 config X86_TRAMPOLINE
 	bool
-	depends on X86_SMP || (X86_VOYAGER && SMP)
+	depends on SMP || X86_VISWS
 	default y
 
 config PC

@@ -19,8 +19,6 @@
 
 #include <net/dst.h>
 
-const char dst_underflow_bug_msg[] = KERN_DEBUG "BUG: dst underflow %d: %p at %p\n";
-
 /* Locking strategy:
  * 1) Garbage collection state of dead destination cache
  *    entries is protected by dst_lock.
@@ -102,15 +100,15 @@ out:
 	spin_unlock(&dst_lock);
 }
 
-static int dst_discard_in(struct sk_buff *skb)
+static int dst_discard(struct sk_buff *skb)
 {
 	kfree_skb(skb);
 	return 0;
 }
 
-static int dst_discard_out(struct sk_buff **pskb)
+static int dst_blackhole(struct sk_buff *skb)
 {
-	kfree_skb(*pskb);
+	kfree_skb(skb);
 	return 0;
 }
 
@@ -130,8 +128,8 @@ void * dst_alloc(struct dst_ops * ops)
 	dst->ops = ops;
 	dst->lastuse = jiffies;
 	dst->path = dst;
-	dst->input = dst_discard_in;
-	dst->output = dst_discard_out;
+	dst->input = dst_discard;
+	dst->output = dst_blackhole;
 #if RT_CACHE_DEBUG >= 2 
 	atomic_inc(&dst_total);
 #endif
@@ -145,8 +143,8 @@ static void ___dst_free(struct dst_entry * dst)
 	   protocol module is unloaded.
 	 */
 	if (dst->dev == NULL || !(dst->dev->flags&IFF_UP)) {
-		dst->input = dst_discard_in;
-		dst->output = dst_discard_out;
+		dst->input = dst_discard;
+		dst->output = dst_blackhole;
 	}
 	dst->obsolete = 2;
 }
@@ -212,41 +210,6 @@ again:
 	return NULL;
 }
 
-/* Dirty hack. We did it in 2.2 (in __dst_free),
- * we have _very_ good reasons not to repeat
- * this mistake in 2.3, but we have no choice
- * now. _It_ _is_ _explicit_ _deliberate_
- * _race_ _condition_.
- *
- * Commented and originally written by Alexey.
- */
-static void dst_ifdown(struct dst_entry *dst, int unregister)
-{
-	struct net_device *dev = dst->dev;
-
-	if (!unregister) {
-		dst->input = dst_discard_in;
-		dst->output = dst_discard_out;
-	}
-
-	do {
-		if (unregister) {
-			dst->dev = &loopback_dev;
-			dev_hold(&loopback_dev);
-			dev_put(dev);
-			if (dst->neighbour && dst->neighbour->dev == dev) {
-				dst->neighbour->dev = &loopback_dev;
-				dev_put(dev);
-				dev_hold(&loopback_dev);
-			}
-		}
-
-		if (dst->ops->ifdown)
-			dst->ops->ifdown(dst, unregister);
-	} while ((dst = dst->child) && dst->flags & DST_NOHASH &&
-		 dst->dev == dev);
-}
-
 static int dst_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *dev = ptr;
@@ -257,8 +220,29 @@ static int dst_dev_event(struct notifier_block *this, unsigned long event, void 
 	case NETDEV_DOWN:
 		spin_lock_bh(&dst_lock);
 		for (dst = dst_garbage_list; dst; dst = dst->next) {
-			if (dst->dev == dev)
-				dst_ifdown(dst, event != NETDEV_DOWN);
+			if (dst->dev == dev) {
+				/* Dirty hack. We did it in 2.2 (in __dst_free),
+				   we have _very_ good reasons not to repeat
+				   this mistake in 2.3, but we have no choice
+				   now. _It_ _is_ _explicit_ _deliberate_
+				   _race_ _condition_.
+				 */
+				if (event!=NETDEV_DOWN &&
+				    dst->output == dst_blackhole) {
+					dst->dev = &loopback_dev;
+					dev_put(dev);
+					dev_hold(&loopback_dev);
+					dst->output = dst_discard;
+					if (dst->neighbour && dst->neighbour->dev == dev) {
+						dst->neighbour->dev = &loopback_dev;
+						dev_put(dev);
+						dev_hold(&loopback_dev);
+					}
+				} else {
+					dst->input = dst_discard;
+					dst->output = dst_blackhole;
+				}
+			}
 		}
 		spin_unlock_bh(&dst_lock);
 		break;
@@ -275,7 +259,6 @@ void __init dst_init(void)
 	register_netdevice_notifier(&dst_dev_notifier);
 }
 
-EXPORT_SYMBOL(dst_underflow_bug_msg);
 EXPORT_SYMBOL(__dst_free);
 EXPORT_SYMBOL(dst_alloc);
 EXPORT_SYMBOL(dst_destroy);

@@ -257,10 +257,10 @@ ext2_readdir (struct file * filp, void * dirent, filldir_t filldir)
 	unsigned chunk_mask = ~(ext2_chunk_size(inode)-1);
 	unsigned char *types = NULL;
 	int need_revalidate = (filp->f_version != inode->i_version);
-	int ret;
+	int ret = 0;
 
 	if (pos > inode->i_size - EXT2_DIR_REC_LEN(1))
-		goto success;
+		goto done;
 
 	if (EXT2_HAS_INCOMPAT_FEATURE(sb, EXT2_FEATURE_INCOMPAT_FILETYPE))
 		types = ext2_filetype_table;
@@ -300,19 +300,18 @@ ext2_readdir (struct file * filp, void * dirent, filldir_t filldir)
 						le32_to_cpu(de->inode), d_type);
 				if (over) {
 					ext2_put_page(page);
-					goto success;
+					goto done;
 				}
 			}
 		}
 		ext2_put_page(page);
 	}
 
-success:
-	ret = 0;
 done:
 	filp->f_pos = (n << PAGE_CACHE_SHIFT) | offset;
 	filp->f_version = inode->i_version;
-	return ret;
+	update_atime(inode);
+	return 0;
 }
 
 /*

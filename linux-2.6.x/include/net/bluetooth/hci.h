@@ -22,6 +22,10 @@
    SOFTWARE IS DISCLAIMED.
 */
 
+/*
+ *  $Id$
+ */
+
 #ifndef __HCI_H
 #define __HCI_H
 
@@ -31,30 +35,20 @@
 #define HCI_MAX_FRAME_SIZE	(HCI_MAX_ACL_SIZE + 4)
 
 /* HCI dev events */
-#define HCI_DEV_REG			1
-#define HCI_DEV_UNREG			2
-#define HCI_DEV_UP			3
-#define HCI_DEV_DOWN			4
-#define HCI_DEV_SUSPEND			5
-#define HCI_DEV_RESUME			6
-
-/* HCI notify events */
-#define HCI_NOTIFY_CONN_ADD		1
-#define HCI_NOTIFY_CONN_DEL		2
-#define HCI_NOTIFY_VOICE_SETTING	3
+#define HCI_DEV_REG	1
+#define HCI_DEV_UNREG   2
+#define HCI_DEV_UP	3
+#define HCI_DEV_DOWN	4
+#define HCI_DEV_SUSPEND 5
+#define HCI_DEV_RESUME  6
 
 /* HCI device types */
 #define HCI_VHCI	0
 #define HCI_USB		1
 #define HCI_PCCARD	2
-#define HCI_UART	3
-#define HCI_RS232	4
+#define HCI_UART 	3
+#define HCI_RS232 	4
 #define HCI_PCI		5
-
-/* HCI device quirks */
-enum {
-	HCI_QUIRK_RESET_ON_INIT
-};
 
 /* HCI device flags */
 enum {
@@ -96,24 +90,24 @@ enum {
 #define HCIINQUIRY	_IOR('H', 240, int)
 
 /* HCI timeouts */
-#define HCI_CONN_TIMEOUT	(HZ * 40)
-#define HCI_DISCONN_TIMEOUT	(HZ * 2)
+#define HCI_CONN_TIMEOUT 	(HZ * 40)
+#define HCI_DISCONN_TIMEOUT 	(HZ * 2)
 #define HCI_CONN_IDLE_TIMEOUT	(HZ * 60)
 
 /* HCI Packet types */
 #define HCI_COMMAND_PKT		0x01
-#define HCI_ACLDATA_PKT		0x02
-#define HCI_SCODATA_PKT		0x03
+#define HCI_ACLDATA_PKT 	0x02
+#define HCI_SCODATA_PKT 	0x03
 #define HCI_EVENT_PKT		0x04
 #define HCI_UNKNOWN_PKT		0xff
 
 /* HCI Packet types */
-#define HCI_DM1		0x0008
-#define HCI_DM3		0x0400
-#define HCI_DM5		0x4000
-#define HCI_DH1		0x0010
-#define HCI_DH3		0x0800
-#define HCI_DH5		0x8000
+#define HCI_DM1 	0x0008
+#define HCI_DM3 	0x0400
+#define HCI_DM5 	0x4000
+#define HCI_DH1 	0x0010
+#define HCI_DH3 	0x0800
+#define HCI_DH5 	0x8000
 
 #define HCI_HV1		0x0020
 #define HCI_HV2		0x0040
@@ -257,17 +251,6 @@ struct hci_rp_read_dev_class {
 #define OCF_WRITE_CLASS_OF_DEV	0x0024
 struct hci_cp_write_dev_class {
 	__u8     dev_class[3];
-} __attribute__ ((packed));
-
-#define OCF_READ_VOICE_SETTING	0x0025
-struct hci_rp_read_voice_setting {
-	__u8	status;
-	__u16	voice_setting;
-} __attribute__ ((packed));
-
-#define OCF_WRITE_VOICE_SETTING	0x0026
-struct hci_cp_write_voice_setting {
-	__u16	voice_setting;
 } __attribute__ ((packed));
 
 #define OCF_HOST_BUFFER_SIZE	0x0033
@@ -432,7 +415,7 @@ struct inquiry_info_with_rssi {
 	__u8     pscan_period_mode;
 	__u8     dev_class[3];
 	__u16    clock_offset;
-	__s8     rssi;
+	__u8     rssi;
 } __attribute__ ((packed));
 
 #define HCI_EV_CONN_COMPLETE 	0x03

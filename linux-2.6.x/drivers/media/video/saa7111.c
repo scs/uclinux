@@ -9,9 +9,6 @@
  * Changes by Ronald Bultje <rbultje@ronald.bitfreak.net>
  *    - moved over to linux>=2.4.x i2c protocol (1/1/2003)
  *
- * Changes by Michael Hunold <michael@mihu.de>
- *    - implemented DECODER_SET_GPIO, DECODER_INIT, DECODER_SET_VBI_BYPASS
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -115,7 +112,7 @@ saa7111_write_block (struct i2c_client *client,
 		u8 block_data[32];
 
 		msg.addr = client->addr;
-		msg.flags = 0;
+		msg.flags = client->flags;
 		while (len >= 2) {
 			msg.buf = (char *) block_data;
 			msg.len = 0;
@@ -145,13 +142,6 @@ saa7111_write_block (struct i2c_client *client,
 	return ret;
 }
 
-static int
-saa7111_init_decoder (struct i2c_client *client,
-	      struct video_decoder_init *init)
-{
-	return saa7111_write_block(client, init->data, init->len);
-}
-
 static inline int
 saa7111_read (struct i2c_client *client,
 	      u8                 reg)
@@ -161,7 +151,7 @@ saa7111_read (struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
-static const unsigned char saa7111_i2c_init[] = {
+static const unsigned char init[] = {
 	0x00, 0x00,		/* 00 - ID byte */
 	0x01, 0x00,		/* 01 - reserved */
 
@@ -211,18 +201,8 @@ saa7111_command (struct i2c_client *client,
 	switch (cmd) {
 
 	case 0:
-	case DECODER_INIT:
-	{
-		struct video_decoder_init *init = arg;
-		if (NULL != init)
-			return saa7111_init_decoder(client, init);
-		else {
-			struct video_decoder_init vdi;
-			vdi.data = saa7111_i2c_init;
-			vdi.len = sizeof(saa7111_i2c_init);
-			return saa7111_init_decoder(client, &vdi);
-		}
-	}
+		//saa7111_write_block(client, init, sizeof(init));
+		break;
 
 	case DECODER_DUMP:
 	{
@@ -293,32 +273,6 @@ saa7111_command (struct i2c_client *client,
 		*iarg = res;
 	}
 		break;
-
-	case DECODER_SET_GPIO:
-	{
-		int *iarg = arg;
-		if (0 != *iarg) {
-			saa7111_write(client, 0x11,
-				(decoder->reg[0x11] | 0x80));
-		} else {
-			saa7111_write(client, 0x11,
-				(decoder->reg[0x11] & 0x7f));
-		}
-		break;
-	}
-
-	case DECODER_SET_VBI_BYPASS:
-	{
-		int *iarg = arg;
-		if (0 != *iarg) {
-			saa7111_write(client, 0x13,
-				(decoder->reg[0x13] & 0xf0) | 0x0a);
-		} else {
-			saa7111_write(client, 0x13,
-				(decoder->reg[0x13] & 0xf0));
-		}
-		break;
-	}
 
 	case DECODER_SET_NORM:
 	{
@@ -511,7 +465,6 @@ saa7111_detect_client (struct i2c_adapter *adapter,
 	int i;
 	struct i2c_client *client;
 	struct saa7111 *decoder;
-	struct video_decoder_init vdi;
 
 	dprintk(1,
 		KERN_INFO
@@ -556,9 +509,7 @@ saa7111_detect_client (struct i2c_adapter *adapter,
 		return i;
 	}
 
-	vdi.data = saa7111_i2c_init;
-	vdi.len = sizeof(saa7111_i2c_init);
-	i = saa7111_init_decoder(client, &vdi);
+	i = saa7111_write_block(client, init, sizeof(init));
 	if (i < 0) {
 		dprintk(1, KERN_ERR "%s_attach error: init status %d\n",
 			I2C_NAME(client), i);

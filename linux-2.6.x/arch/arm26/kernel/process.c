@@ -257,7 +257,7 @@ struct thread_info *alloc_thread_info(struct task_struct *task)
 	if (!thread)
 		thread = ll_alloc_task_struct();
 
-#ifdef CONFIG_MAGIC_SYSRQ
+#ifdef CONFIG_SYSRQ
 	/*
 	 * The stack must be cleared if you want SYSRQ-T to
 	 * give sensible stack usage information
@@ -397,6 +397,14 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
         return __ret;
 }
 
+/*
+ * These bracket the sleeping functions..
+ */
+extern void scheduling_functions_start_here(void);
+extern void scheduling_functions_end_here(void);
+#define first_sched	((unsigned long) scheduling_functions_start_here)
+#define last_sched	((unsigned long) scheduling_functions_end_here)
+
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long fp, lr;
@@ -411,7 +419,7 @@ unsigned long get_wchan(struct task_struct *p)
 		if (fp < stack_page || fp > 4092+stack_page)
 			return 0;
 		lr = pc_pointer (((unsigned long *)fp)[-1]);
-		if (!in_sched_functions(lr))
+		if (lr < first_sched || lr > last_sched)
 			return lr;
 		fp = *(unsigned long *) (fp - 12);
 	} while (count ++ < 16);

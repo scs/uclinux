@@ -277,7 +277,7 @@ read_MII(int phy_addr, u32 reg)
 static void
 dump_tx_desc(int dbg_lvl, struct net_device *dev, int i)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	gt96100_td_t *td = &gp->tx_ring[i];
 
 	dbg(dbg_lvl, "Tx descriptor at 0x%08lx:\n", virt_to_phys(td));
@@ -292,7 +292,7 @@ dump_tx_desc(int dbg_lvl, struct net_device *dev, int i)
 static void
 dump_rx_desc(int dbg_lvl, struct net_device *dev, int i)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	gt96100_rd_t *rd = &gp->rx_ring[i];
 
 	dbg(dbg_lvl, "Rx descriptor at 0x%08lx:\n", virt_to_phys(rd));
@@ -332,7 +332,7 @@ write_MII(int phy_addr, u32 reg, u16 data)
 static void
 dump_tx_ring(struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	int i;
 
 	dbg(0, "%s: txno/txni/cnt=%d/%d/%d\n", __FUNCTION__,
@@ -345,7 +345,7 @@ dump_tx_ring(struct net_device *dev)
 static void
 dump_rx_ring(struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	int i;
 
 	dbg(0, "%s: rxno=%d\n", __FUNCTION__, gp->rx_next_out);
@@ -359,7 +359,7 @@ static void
 dump_MII(int dbg_lvl, struct net_device *dev)
 {
 	int i, val;
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
     
 	if (dbg_lvl <= GT96100_DEBUG) {
 		for (i=0; i<7; i++) {
@@ -419,7 +419,7 @@ dump_skb(int dbg_lvl, struct net_device *dev, struct sk_buff *skb)
 static int
 gt96100_add_hash_entry(struct net_device *dev, unsigned char* addr)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	//u16 hashResult, stmp;
 	//unsigned char ctmp, hash_ea[6];
 	u32 tblEntry1, tblEntry0, *tblEntryAddr;
@@ -544,7 +544,7 @@ update_stats(struct gt96100_private *gp)
 static void
 abort(struct net_device *dev, u32 abort_bits)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	int timedout = 100; // wait up to 100 msec for hard stop to complete
 
 	dbg(3, "%s\n", __FUNCTION__);
@@ -582,7 +582,7 @@ abort(struct net_device *dev, u32 abort_bits)
 static void
 hard_stop(struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 
 	dbg(3, "%s\n", __FUNCTION__);
 
@@ -598,7 +598,7 @@ hard_stop(struct net_device *dev)
 static void
 enable_ether_irq(struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	u32 intMask;
 	/*
 	 * route ethernet interrupt to GT_SERINT0 for port 0,
@@ -631,7 +631,7 @@ enable_ether_irq(struct net_device *dev)
 static void
 disable_ether_irq(struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	u32 intMask;
 	int intr_mask_reg = (gp->port_num == 0) ?
 		GT96100_SERINT0_MASK : GT96100_INT0_HIGH_MASK;
@@ -661,9 +661,9 @@ int gt96100_init_module(void)
 	pcibios_read_config_word(0, 0, PCI_VENDOR_ID, &vendor_id);
 	pcibios_read_config_word(0, 0, PCI_DEVICE_ID, &device_id);
     
-	if (vendor_id != PCI_VENDOR_ID_MARVELL ||
-	    (device_id != PCI_DEVICE_ID_MARVELL_GT96100 &&
-	     device_id != PCI_DEVICE_ID_MARVELL_GT96100A)) {
+	if (vendor_id != PCI_VENDOR_ID_GALILEO ||
+	    (device_id != PCI_DEVICE_ID_GALILEO_GT96100 &&
+	     device_id != PCI_DEVICE_ID_GALILEO_GT96100A)) {
 		printk(KERN_ERR __FILE__ ": GT96100 not found!\n");
 		return -ENODEV;
 	}
@@ -729,12 +729,10 @@ gt96100_probe1(int port_num)
 		return -EBUSY;
 	}
 
-	dev = alloc_etherdev(sizeof(struct gt96100_private));
-	if (!dev)
-		goto out;
+	dev = init_etherdev(0, sizeof(struct gt96100_private));
 	gtif->dev = dev;
 	
-	/* private struct aligned and zeroed by alloc_etherdev */
+	/* private struct aligned and zeroed by init_etherdev */
 	/* Fill in the 'dev' fields. */
 	dev->base_addr = gtif->iobase;
 	dev->irq = gtif->irq;
@@ -742,10 +740,10 @@ gt96100_probe1(int port_num)
 	if ((retval = parse_mac_addr(dev, gtif->mac_str))) {
 		err("%s: MAC address parse failed\n", __FUNCTION__);
 		retval = -EINVAL;
-		goto out1;
+		goto free_region;
 	}
 
-	gp = netdev_priv(dev);
+	gp = dev->priv;
 
 	memset(gp, 0, sizeof(*gp)); // clear it
 
@@ -770,7 +768,7 @@ gt96100_probe1(int port_num)
 				       &gp->rx_ring_dma);
 		if (gp->rx_ring == NULL) {
 			retval = -ENOMEM;
-			goto out1;
+			goto free_region;
 		}
 	
 		gp->tx_ring = (gt96100_td_t *)(gp->rx_ring + RX_RING_SIZE);
@@ -783,8 +781,11 @@ gt96100_probe1(int port_num)
 		gp->rx_buff = dmaalloc(PKT_BUF_SZ*RX_RING_SIZE,
 				       &gp->rx_buff_dma);
 		if (gp->rx_buff == NULL) {
+			dmafree(sizeof(gt96100_rd_t) * RX_RING_SIZE
+				+ sizeof(gt96100_td_t) * TX_RING_SIZE,
+				gp->rx_ring);
 			retval = -ENOMEM;
-			goto out2;
+			goto free_region;
 		}
 	}
     
@@ -796,8 +797,12 @@ gt96100_probe1(int port_num)
 		gp->hash_table = (char*)dmaalloc(RX_HASH_TABLE_SIZE,
 						 &gp->hash_table_dma);
 		if (gp->hash_table == NULL) {
+			dmafree(sizeof(gt96100_rd_t) * RX_RING_SIZE
+				+ sizeof(gt96100_td_t) * TX_RING_SIZE,
+				gp->rx_ring);
+			dmafree(PKT_BUF_SZ*RX_RING_SIZE, gp->rx_buff);
 			retval = -ENOMEM;
-			goto out3;
+			goto free_region;
 		}
 	}
     
@@ -814,23 +819,14 @@ gt96100_probe1(int port_num)
 	dev->tx_timeout = gt96100_tx_timeout;
 	dev->watchdog_timeo = GT96100ETH_TX_TIMEOUT;
 
-	retval = register_netdev(dev);
-	if (retval)
-		goto out4;
+	/* Fill in the fields of the device structure with ethernet values. */
+	ether_setup(dev);
 	return 0;
 
-out4:
-	dmafree(RX_HASH_TABLE_SIZE, gp->hash_table_dma);
-out3:
-	dmafree(PKT_BUF_SZ*RX_RING_SIZE, gp->rx_buff);
-out2:
-	dmafree(sizeof(gt96100_rd_t) * RX_RING_SIZE
-		+ sizeof(gt96100_td_t) * TX_RING_SIZE,
-		gp->rx_ring);
-out1:
-	free_netdev (dev);
-out:
+ free_region:
 	release_region(gtif->iobase, GT96100_ETH_IO_SIZE);
+	unregister_netdev(dev);
+	free_netdev (dev);
 	err("%s failed.  Returns %d\n", __FUNCTION__, retval);
 	return retval;
 }
@@ -839,7 +835,7 @@ out:
 static void
 reset_tx(struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	int i;
 
 	abort(dev, sdcmrAT);
@@ -877,7 +873,7 @@ reset_tx(struct net_device *dev)
 static void
 reset_rx(struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	int i;
 
 	abort(dev, sdcmrAR);
@@ -934,7 +930,7 @@ gt96100_check_tx_consistent(struct gt96100_private *gp)
 static int
 gt96100_init(struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	u32 tmp;
 	u16 mii_reg;
     
@@ -1070,18 +1066,22 @@ gt96100_open(struct net_device *dev)
 {
 	int retval;
     
+	MOD_INC_USE_COUNT;
+
 	dbg(2, "%s: dev=%p\n", __FUNCTION__, dev);
 
 	// Initialize and startup the GT-96100 ethernet port
 	if ((retval = gt96100_init(dev))) {
 		err("error in gt96100_init\n");
 		free_irq(dev->irq, dev);
+		MOD_DEC_USE_COUNT;
 		return retval;
 	}
 
 	if ((retval = request_irq(dev->irq, &gt96100_interrupt,
 				  SA_SHIRQ, dev->name, dev))) {
 		err("unable to get IRQ %d\n", dev->irq);
+		MOD_DEC_USE_COUNT;
 		return retval;
 	}
 	
@@ -1102,6 +1102,8 @@ gt96100_close(struct net_device *dev)
 	}
 
 	free_irq(dev->irq, dev);
+    
+	MOD_DEC_USE_COUNT;
 	return 0;
 }
 
@@ -1109,7 +1111,7 @@ gt96100_close(struct net_device *dev)
 static int
 gt96100_tx(struct sk_buff *skb, struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	unsigned long flags;
 	int nextIn;
 
@@ -1181,7 +1183,7 @@ gt96100_tx(struct sk_buff *skb, struct net_device *dev)
 static int
 gt96100_rx(struct net_device *dev, u32 status)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	struct sk_buff *skb;
 	int pkt_len, nextOut, cdp;
 	gt96100_rd_t *rd;
@@ -1206,7 +1208,7 @@ gt96100_rx(struct net_device *dev, u32 status)
 		    cmdstat, nextOut);
 
 		if (cmdstat & (u32)rxOwn) {
-			//err("%s: device owns descriptor!\n", __FUNCTION__);
+			//err(__FUNCTION__ ": device owns descriptor!\n");
 			// DMA is not finished updating descriptor???
 			// Leave and come back later to pick-up where
 			// we left off.
@@ -1290,7 +1292,7 @@ gt96100_rx(struct net_device *dev, u32 status)
 static void
 gt96100_tx_complete(struct net_device *dev, u32 status)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	int nextOut, cdp;
 	gt96100_td_t *td;
 	u32 cmdstat;
@@ -1379,7 +1381,7 @@ static irqreturn_t
 gt96100_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	u32 status;
     	int handled = 0;
 
@@ -1480,7 +1482,7 @@ gt96100_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static void
 gt96100_tx_timeout(struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	unsigned long flags;
     
 	spin_lock_irqsave(&gp->lock, flags);
@@ -1505,7 +1507,7 @@ gt96100_tx_timeout(struct net_device *dev)
 static void
 gt96100_set_rx_mode(struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	unsigned long flags;
 	//struct dev_mc_list *mcptr;
     
@@ -1549,7 +1551,7 @@ gt96100_set_rx_mode(struct net_device *dev)
 static struct net_device_stats *
 gt96100_get_stats(struct net_device *dev)
 {
-	struct gt96100_private *gp = netdev_priv(dev);
+	struct gt96100_private *gp = (struct gt96100_private *)dev->priv;
 	unsigned long flags;
 
 	dbg(3, "%s: dev=%p\n", __FUNCTION__, dev);
@@ -1571,14 +1573,9 @@ static void gt96100_cleanup_module(void)
 		if (gtif->dev != NULL) {
 			struct gt96100_private *gp =
 				(struct gt96100_private *)gtif->dev->priv;
-			unregister_netdev(gtif->dev);
-			dmafree(RX_HASH_TABLE_SIZE, gp->hash_table_dma);
-			dmafree(PKT_BUF_SZ*RX_RING_SIZE, gp->rx_buff);
-			dmafree(sizeof(gt96100_rd_t) * RX_RING_SIZE
-				+ sizeof(gt96100_td_t) * TX_RING_SIZE,
-				gp->rx_ring);
-			free_netdev(gtif->dev);
 			release_region(gtif->iobase, gp->io_size);
+			unregister_netdev(gtif->dev);
+			free_netdev (gtif->dev);
 		}
 	}
 }

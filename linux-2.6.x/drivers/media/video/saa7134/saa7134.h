@@ -19,7 +19,7 @@
  */
 
 #include <linux/version.h>
-#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,12)
+#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,9)
 
 #include <linux/pci.h>
 #include <linux/i2c.h>
@@ -73,6 +73,8 @@ enum saa7134_video_out {
 struct saa7134_tvnorm {
 	char          *name;
 	v4l2_std_id   id;
+	unsigned int  width;
+	unsigned int  height;
 
 	/* video decoder */
 	unsigned int  sync_control;
@@ -149,13 +151,6 @@ struct saa7134_format {
 #define SAA7134_BOARD_MANLI_MTV001     28
 #define SAA7134_BOARD_TG3000TV         29
 #define SAA7134_BOARD_ECS_TVP3XP       30
-#define SAA7134_BOARD_ECS_TVP3XP_4CB5  31
-#define SAA7134_BOARD_AVACSSMARTTV     32
-#define SAA7134_BOARD_AVERMEDIA_DVD_EZMAKER 33
-#define SAA7134_BOARD_NOVAC_PRIMETV7133 34
-#define SAA7134_BOARD_AVERMEDIA_305    35
-#define SAA7133_BOARD_UPMOST_PURPLE_TV 36
-#define SAA7134_BOARD_ITEMS_MTV005     37
 
 #define SAA7134_INPUT_MAX 8
 
@@ -217,10 +212,10 @@ struct saa7134_pgtable {
 
 /* tvaudio thread status */
 struct saa7134_thread {
-	pid_t                      pid;
-	struct completion          exit;
+	struct task_struct         *task;
 	wait_queue_head_t          wq;
-	unsigned int               shutdown;
+	struct semaphore           *notify;
+	unsigned int               exit;
 	unsigned int               scan1;
 	unsigned int               scan2;
 	unsigned int               mode;
@@ -303,8 +298,7 @@ struct saa7134_oss {
 	unsigned int               afmt;
 	unsigned int               rate;
 	unsigned int               channels;
-	unsigned int               recording_on;
-	unsigned int               dma_running;
+	unsigned int               recording;
 	unsigned int               blocks;
 	unsigned int               blksize;
 	unsigned int               bufsize;
@@ -325,9 +319,6 @@ struct saa7134_ir {
 	u32                        mask_keycode;
 	u32                        mask_keydown;
 	u32                        mask_keyup;
-        int                        polling;
-        u32                        last_gpio;
-        struct timer_list          timer;
 };
 
 /* global device status */
@@ -397,11 +388,6 @@ struct saa7134_dev {
 	int                        ctl_mirror;
 	int                        ctl_y_odd;
 	int                        ctl_y_even;
-
-	/* crop */
-	struct v4l2_rect           crop_bounds;
-	struct v4l2_rect           crop_defrect;
-	struct v4l2_rect           crop_current;
 
 	/* other global state info */
 	unsigned int               automute;

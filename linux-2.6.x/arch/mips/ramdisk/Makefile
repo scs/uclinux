@@ -2,19 +2,8 @@
 # Makefile for a ramdisk image
 #
 
-obj-y += ramdisk.o
-
-
 O_FORMAT = $(shell $(OBJDUMP) -i | head -n 2 | grep elf32)
-img := $(subst ",,$(CONFIG_EMBEDDED_RAMDISK_IMAGE))
-# add $(src) when $(img) is relative
-img := $(subst $(src)//,/,$(src)/$(img))
-
-quiet_cmd_ramdisk = LD      $@
-define cmd_ramdisk
-	$(LD) $(LDFLAGS) -T $(src)/ld.script -b binary --oformat $(O_FORMAT) -o $@ $(img)
-endef
-
-$(obj)/ramdisk.o: $(img) $(src)/ld.script
-	$(call cmd,ramdisk)
-
+img = $(CONFIG_EMBEDDED_RAMDISK_IMAGE)
+ramdisk.o: $(subst ",,$(img)) ld.script
+	echo "O_FORMAT:  " $(O_FORMAT)
+	$(LD) -T ld.script -b binary --oformat $(O_FORMAT) -o $@ $(img)

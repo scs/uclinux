@@ -12,6 +12,7 @@
 #include <asm/bootinfo.h>
 #include <asm/mipsregs.h>
 #include <asm/pgtable.h>
+#include <asm/pgalloc.h>
 
 #include <asm/baget/baget.h>
 

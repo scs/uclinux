@@ -129,11 +129,6 @@
 
 #include "lanstreamer.h"
 
-#if (BITS_PER_LONG == 64)
-#error broken on 64-bit: stores pointer to rx_ring->buffer in 32-bit int
-#endif
-
-
 /* I've got to put some intelligence into the version number so that Peter and I know
  * which version of the code somebody has got. 
  * Version Number = a.b.c.d  where a.b.c is the level of code and d is the latest author.
@@ -337,7 +332,6 @@ static int __devinit streamer_init_one(struct pci_dev *pdev,
 	dev->set_mac_address = &streamer_set_mac_address;
 	dev->irq = pdev->irq;
 	dev->base_addr=pio_start;
-	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	streamer_priv->streamer_card_name = (char *)pdev->resource[0].name;
 	streamer_priv->pci_dev = pdev;
@@ -446,7 +440,7 @@ static int streamer_reset(struct net_device *dev)
 	__u8 *streamer_mmio;
 	unsigned long t;
 	unsigned int uaa_addr;
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb = 0;
 	__u16 misr;
 
 	streamer_priv = (struct streamer_private *) dev->priv;

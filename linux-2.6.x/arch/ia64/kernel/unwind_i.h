@@ -133,7 +133,6 @@ enum unw_insn_opcode {
 	UNW_INSN_SETNAT_TYPE,		/* s[dst+1].nat.type = val */
 	UNW_INSN_LOAD,			/* s[dst] = *s[val] */
 	UNW_INSN_MOVE_SCRATCH,		/* s[dst] = scratch reg "val" */
-	UNW_INSN_MOVE_CONST,            /* s[dst] = constant reg "val" */
 };
 
 struct unw_insn {

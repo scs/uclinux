@@ -36,10 +36,14 @@
 #include <asm/cpu.h>
 #include <asm/tx4927/tx4927.h>
 
-void __init prom_init_cmdline(void)
+#ifndef COMMAND_LINE_SIZE
+#define COMMAND_LINE_SIZE CL_SIZE
+#endif
+
+char arcs_cmdline[COMMAND_LINE_SIZE] = "console=ttyS0,38400 ip=any root=nfs rw";
+
+void __init prom_init_cmdline(int argc, char **argv)
 {
-	int argc = (int) fw_arg0;
-	char **argv = (char **) fw_arg1;
 	int i;			/* Always ignore the "-c" at argv[0] */
 
 	/* ignore all built-in args if any f/w args given */
@@ -55,14 +59,14 @@ void __init prom_init_cmdline(void)
 	}
 }
 
-void __init prom_init(void)
+void __init prom_init(int argc, char **argv, char **envp, int *pvec)
 {
-	const char* toshiba_name_list[] = GROUP_TOSHIBA_NAMES;
 	extern int tx4927_get_mem_size(void);
-	extern char* toshiba_name;
 	int msize;
+        const char* toshiba_name_list[] = GROUP_TOSHIBA_NAMES;
+        extern char* toshiba_name;
 
-	prom_init_cmdline();
+	prom_init_cmdline(argc, argv);
 
 	mips_machgroup = MACH_GROUP_TOSHIBA;
 
@@ -77,9 +81,13 @@ void __init prom_init(void)
 	add_memory_region(0, msize << 20, BOOT_MEM_RAM);
 }
 
-unsigned long __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
-	return 0;
+}
+
+
+void __init prom_fixup_mem_map(unsigned long start, unsigned long end)
+{
 }
 
 const char *get_system_type(void)

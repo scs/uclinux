@@ -10,7 +10,7 @@
  *
  * To do:
  *
- * - /sys/bus/adb to list the devices and infos
+ * - /proc/adb to list the devices and infos
  * - more /dev/adb to allow userland to receive the
  *   flow of auto-polling datas from a given device.
  * - move bus probe to a kernel thread
@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/devfs_fs_kernel.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
@@ -35,15 +36,12 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
-#include <linux/device.h>
-#include <linux/devfs_fs_kernel.h>
-
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #ifdef CONFIG_PPC
 #include <asm/prom.h>
+#include <asm/hydra.h>
 #endif
-
 
 EXPORT_SYMBOL(adb_controller);
 EXPORT_SYMBOL(adb_client_list);
@@ -77,8 +75,6 @@ static struct adb_driver *adb_driver_list[] = {
 	NULL
 };
 
-static struct class_simple *adb_dev_class;
-
 struct adb_driver *adb_controller;
 struct notifier_block *adb_client_list = NULL;
 static int adb_got_sleep;
@@ -87,7 +83,6 @@ static pid_t adb_probe_task_pid;
 static DECLARE_MUTEX(adb_probe_mutex);
 static struct completion adb_probe_task_comp;
 static int sleepy_trackpad;
-static int autopoll_devs;
 int __adb_probe_sync;
 
 #ifdef CONFIG_PMAC_PBOOK
@@ -139,9 +134,10 @@ static void printADBreply(struct adb_request *req)
 static __inline__ void adb_wait_ms(unsigned int ms)
 {
 	if (current->pid && adb_probe_task_pid &&
-	  adb_probe_task_pid == current->pid)
-		msleep(ms);
-	else
+	  adb_probe_task_pid == current->pid) {
+		set_task_state(current, TASK_UNINTERRUPTIBLE);
+		schedule_timeout(1 + ms * HZ / 1000);
+	} else
 		mdelay(ms);
 }
 
@@ -293,7 +289,7 @@ int __init adb_init(void)
 	struct adb_driver *driver;
 	int i;
 
-#ifdef CONFIG_PPC32
+#ifdef CONFIG_PPC
 	if ( (_machine != _MACH_chrp) && (_machine != _MACH_Pmac) )
 		return 0;
 #endif
@@ -383,7 +379,7 @@ adb_notify_sleep(struct pmu_sleep_notifier *self, int when)
 static int
 do_adb_reset_bus(void)
 {
-	int ret, nret;
+	int ret, nret, devs;
 	
 	if (adb_controller == NULL)
 		return -ENXIO;
@@ -394,7 +390,7 @@ do_adb_reset_bus(void)
 	nret = notifier_call_chain(&adb_client_list, ADB_MSG_PRE_RESET, NULL);
 	if (nret & NOTIFY_STOP_MASK) {
 		if (adb_controller->autopoll)
-			adb_controller->autopoll(autopoll_devs);
+			adb_controller->autopoll(devs);
 		return -EBUSY;
 	}
 
@@ -420,9 +416,9 @@ do_adb_reset_bus(void)
 	}
 
 	if (!ret) {
-		autopoll_devs = adb_scan_bus();
+		devs = adb_scan_bus();
 		if (adb_controller->autopoll)
-			adb_controller->autopoll(autopoll_devs);
+			adb_controller->autopoll(devs);
 	}
 	up(&adb_handler_sem);
 
@@ -560,7 +556,7 @@ adb_unregister(int index)
 			write_lock_irq(&adb_handler_lock);
 		}
 		ret = 0;
-		adb_handler[index].handler = NULL;
+		adb_handler[index].handler = 0;
 	}
 	write_unlock_irq(&adb_handler_lock);
 	up(&adb_handler_sem);
@@ -886,7 +882,6 @@ out:
 }
 
 static struct file_operations adb_fops = {
-	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= adb_read,
 	.write		= adb_write,
@@ -897,16 +892,9 @@ static struct file_operations adb_fops = {
 static void
 adbdev_init(void)
 {
-	if (register_chrdev(ADB_MAJOR, "adb", &adb_fops)) {
+	if (register_chrdev(ADB_MAJOR, "adb", &adb_fops))
 		printk(KERN_ERR "adb: unable to get major %d\n", ADB_MAJOR);
-		return;
-	}
-
-	devfs_mk_cdev(MKDEV(ADB_MAJOR, 0), S_IFCHR | S_IRUSR | S_IWUSR, "adb");
-
-	adb_dev_class = class_simple_create(THIS_MODULE, "adb");
-	if (IS_ERR(adb_dev_class)) {
-		return;
-	}
-	class_simple_device_add(adb_dev_class, MKDEV(ADB_MAJOR, 0), NULL, "adb");
+	else
+		devfs_mk_cdev(MKDEV(ADB_MAJOR, 0),
+				S_IFCHR | S_IRUSR | S_IWUSR, "adb");
 }

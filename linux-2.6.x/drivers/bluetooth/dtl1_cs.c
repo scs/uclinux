@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
@@ -78,7 +77,7 @@ typedef struct dtl1_info_t {
 	dev_link_t link;
 	dev_node_t node;
 
-	struct hci_dev *hdev;
+	struct hci_dev hdev;
 
 	spinlock_t lock;		/* For serializing operations */
 
@@ -151,7 +150,7 @@ static int dtl1_write(unsigned int iobase, int fifo_size, __u8 *buf, int len)
 static void dtl1_write_wakeup(dtl1_info_t *info)
 {
 	if (!info) {
-		BT_ERR("Unknown device");
+		printk(KERN_WARNING "dtl1_cs: Call of write_wakeup for unknown device.\n");
 		return;
 	}
 
@@ -189,7 +188,7 @@ static void dtl1_write_wakeup(dtl1_info_t *info)
 			skb_queue_head(&(info->txq), skb);
 		}
 
-		info->hdev->stat.byte_tx += len;
+		info->hdev.stat.byte_tx += len;
 
 	} while (test_bit(XMIT_WAKEUP, &(info->tx_state)));
 
@@ -202,9 +201,9 @@ static void dtl1_control(dtl1_info_t *info, struct sk_buff *skb)
 	u8 flowmask = *(u8 *)skb->data;
 	int i;
 
-	printk(KERN_INFO "Bluetooth: Nokia control data =");
+	printk(KERN_INFO "dtl1_cs: Nokia control data = ");
 	for (i = 0; i < skb->len; i++) {
-		printk(" %02x", skb->data[i]);
+		printk("%02x ", skb->data[i]);
 	}
 	printk("\n");
 
@@ -227,19 +226,19 @@ static void dtl1_receive(dtl1_info_t *info)
 	int boguscount = 0;
 
 	if (!info) {
-		BT_ERR("Unknown device");
+		printk(KERN_WARNING "dtl1_cs: Call of receive for unknown device.\n");
 		return;
 	}
 
 	iobase = info->link.io.BasePort1;
 
 	do {
-		info->hdev->stat.byte_rx++;
+		info->hdev.stat.byte_rx++;
 
 		/* Allocate packet */
 		if (info->rx_skb == NULL)
 			if (!(info->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC))) {
-				BT_ERR("Can't allocate mem for new packet");
+				printk(KERN_WARNING "dtl1_cs: Can't allocate mem for new packet.\n");
 				info->rx_state = RECV_WAIT_NSH;
 				info->rx_count = NSHL;
 				return;
@@ -278,13 +277,13 @@ static void dtl1_receive(dtl1_info_t *info)
 				case 0x83:
 				case 0x84:
 					/* send frame to the HCI layer */
-					info->rx_skb->dev = (void *) info->hdev;
+					info->rx_skb->dev = (void *)&(info->hdev);
 					info->rx_skb->pkt_type &= 0x0f;
 					hci_recv_frame(info->rx_skb);
 					break;
 				default:
 					/* unknown packet */
-					BT_ERR("Unknown HCI packet with type 0x%02x received", info->rx_skb->pkt_type);
+					printk(KERN_WARNING "dtl1_cs: Unknown HCI packet with type 0x%02x received.\n", info->rx_skb->pkt_type);
 					kfree_skb(info->rx_skb);
 					break;
 				}
@@ -313,8 +312,8 @@ static irqreturn_t dtl1_interrupt(int irq, void *dev_inst, struct pt_regs *regs)
 	int boguscount = 0;
 	int iir, lsr;
 
-	if (!info || !info->hdev) {
-		BT_ERR("Call of irq %d for unknown device", irq);
+	if (!info) {
+		printk(KERN_WARNING "dtl1_cs: Call of irq %d for unknown device.\n", irq);
 		return IRQ_NONE;
 	}
 
@@ -330,7 +329,7 @@ static irqreturn_t dtl1_interrupt(int irq, void *dev_inst, struct pt_regs *regs)
 
 		switch (iir) {
 		case UART_IIR_RLSI:
-			BT_ERR("RLSI");
+			printk(KERN_NOTICE "dtl1_cs: RLSI\n");
 			break;
 		case UART_IIR_RDI:
 			/* Receive interrupt */
@@ -343,7 +342,7 @@ static irqreturn_t dtl1_interrupt(int irq, void *dev_inst, struct pt_regs *regs)
 			}
 			break;
 		default:
-			BT_ERR("Unhandled IIR=%#x", iir);
+			printk(KERN_NOTICE "dtl1_cs: Unhandled IIR=%#x\n", iir);
 			break;
 		}
 
@@ -411,7 +410,7 @@ static int dtl1_hci_send_frame(struct sk_buff *skb)
 	nsh_t nsh;
 
 	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device (hdev=NULL)");
+		printk(KERN_WARNING "dtl1_cs: Frame for unknown HCI device (hdev=NULL).");
 		return -ENODEV;
 	}
 
@@ -484,27 +483,6 @@ int dtl1_open(dtl1_info_t *info)
 
 	set_bit(XMIT_WAITING, &(info->tx_state));
 
-	/* Initialize HCI device */
-	hdev = hci_alloc_dev();
-	if (!hdev) {
-		BT_ERR("Can't allocate HCI device");
-		return -ENOMEM;
-	}
-
-	info->hdev = hdev;
-
-	hdev->type = HCI_PCCARD;
-	hdev->driver_data = info;
-
-	hdev->open     = dtl1_hci_open;
-	hdev->close    = dtl1_hci_close;
-	hdev->flush    = dtl1_hci_flush;
-	hdev->send     = dtl1_hci_send_frame;
-	hdev->destruct = dtl1_hci_destruct;
-	hdev->ioctl    = dtl1_hci_ioctl;
-
-	hdev->owner = THIS_MODULE;
-
 	spin_lock_irqsave(&(info->lock), flags);
 
 	/* Reset UART */
@@ -525,13 +503,28 @@ int dtl1_open(dtl1_info_t *info)
 	spin_unlock_irqrestore(&(info->lock), flags);
 
 	/* Timeout before it is safe to send the first HCI packet */
-	msleep(2000);
+	set_current_state(TASK_INTERRUPTIBLE);
+	schedule_timeout(HZ * 2);
 
-	/* Register HCI device */
+
+	/* Initialize and register HCI device */
+
+	hdev = &(info->hdev);
+
+	hdev->type = HCI_PCCARD;
+	hdev->driver_data = info;
+
+	hdev->open = dtl1_hci_open;
+	hdev->close = dtl1_hci_close;
+	hdev->flush = dtl1_hci_flush;
+	hdev->send = dtl1_hci_send_frame;
+	hdev->destruct = dtl1_hci_destruct;
+	hdev->ioctl = dtl1_hci_ioctl;
+
+	hdev->owner = THIS_MODULE;
+	
 	if (hci_register_dev(hdev) < 0) {
-		BT_ERR("Can't register HCI device");
-		info->hdev = NULL;
-		hci_free_dev(hdev);
+		printk(KERN_WARNING "dtl1_cs: Can't register HCI device %s.\n", hdev->name);
 		return -ENODEV;
 	}
 
@@ -543,10 +536,7 @@ int dtl1_close(dtl1_info_t *info)
 {
 	unsigned long flags;
 	unsigned int iobase = info->link.io.BasePort1;
-	struct hci_dev *hdev = info->hdev;
-
-	if (!hdev)
-		return -ENODEV;
+	struct hci_dev *hdev = &(info->hdev);
 
 	dtl1_hci_close(hdev);
 
@@ -561,9 +551,7 @@ int dtl1_close(dtl1_info_t *info)
 	spin_unlock_irqrestore(&(info->lock), flags);
 
 	if (hci_unregister_dev(hdev) < 0)
-		BT_ERR("Can't unregister HCI device %s", hdev->name);
-
-	hci_free_dev(hdev);
+		printk(KERN_WARNING "dtl1_cs: Can't unregister HCI device %s.\n", hdev->name);
 
 	return 0;
 }
@@ -753,7 +741,7 @@ void dtl1_config(dev_link_t *link)
 	if (dtl1_open(info) != 0)
 		goto failed;
 
-	strcpy(info->node.dev_name, info->hdev->name);
+	strcpy(info->node.dev_name, info->hdev.name);
 	link->dev = &info->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 

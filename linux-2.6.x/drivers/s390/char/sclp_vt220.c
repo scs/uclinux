@@ -32,10 +32,9 @@
 #define SCLP_VT220_MAJOR		TTY_MAJOR
 #define SCLP_VT220_MINOR		65
 #define SCLP_VT220_DRIVER_NAME		"sclp_vt220"
-#define SCLP_VT220_DEVICE_NAME		"ttysclp"
+#define SCLP_VT220_DEVICE_NAME		"sclp_vt"
 #define SCLP_VT220_CONSOLE_NAME		"ttyS"
 #define SCLP_VT220_CONSOLE_INDEX	1	/* console=ttyS1 */
-#define SCLP_VT220_BUF_SIZE		80
 
 /* Representation of a single write request */
 struct sclp_vt220_request {
@@ -337,11 +336,12 @@ sclp_vt220_chars_stored(struct sclp_vt220_request *request)
 
 /*
  * Add msg to buffer associated with request. Return the number of characters
- * added.
+ * added or -EFAULT on error.
  */
 static int
 sclp_vt220_add_msg(struct sclp_vt220_request *request,
-		   const unsigned char *msg, int count, int convertlf)
+		   const unsigned char *msg, int count, int from_user,
+		   int convertlf)
 {
 	struct sclp_vt220_sccb *sccb;
 	void *buffer;
@@ -363,7 +363,11 @@ sclp_vt220_add_msg(struct sclp_vt220_request *request,
 		     (from < count) && (to < sclp_vt220_space_left(request));
 		     from++) {
 			/* Retrieve character */
-			c = msg[from];
+			if (from_user) {
+				if (get_user(c, msg + from) != 0)
+					return -EFAULT;
+			} else
+				c = msg[from];
 			/* Perform conversion */
 			if (c == 0x0a) {
 				if (to + 1 < sclp_vt220_space_left(request)) {
@@ -379,7 +383,12 @@ sclp_vt220_add_msg(struct sclp_vt220_request *request,
 		sccb->evbuf.length += to;
 		return from;
 	} else {
-		memcpy(buffer, (const void *) msg, count);
+		if (from_user) {
+			if (copy_from_user(buffer, (void *) msg, count) != 0)
+				return -EFAULT;
+		}
+		else
+			memcpy(buffer, (const void *) msg, count);
 		sccb->header.length += count;
 		sccb->evbuf.length += count;
 		return count;
@@ -399,7 +408,7 @@ sclp_vt220_timeout(unsigned long data)
 
 /* 
  * Internal implementation of the write function. Write COUNT bytes of data
- * from memory at BUF
+ * from memory at BUF which may reside in user space (specified by FROM_USER)
  * to the SCLP interface. In case that the data does not fit into the current
  * write buffer, emit the current one and allocate a new one. If there are no
  * more empty buffers available, wait until one gets emptied. If DO_SCHEDULE
@@ -410,8 +419,8 @@ sclp_vt220_timeout(unsigned long data)
  * of bytes written.
  */
 static int
-__sclp_vt220_write(const unsigned char *buf, int count, int do_schedule,
-		   int convertlf)
+__sclp_vt220_write(int from_user, const unsigned char *buf, int count,
+		   int do_schedule, int convertlf)
 {
 	unsigned long flags;
 	void *page;
@@ -442,9 +451,10 @@ __sclp_vt220_write(const unsigned char *buf, int count, int do_schedule,
 		}
 		/* Try to write the string to the current request buffer */
 		written = sclp_vt220_add_msg(sclp_vt220_current_request,
-					     buf, count, convertlf);
-		overall_written += written;
-		if (written == count)
+				buf, count, from_user, convertlf);
+		if (written > 0)
+			overall_written += written;
+		if (written == -EFAULT || written == count)
 			break;
 		/*
 		 * Not all characters could be written to the current
@@ -479,30 +489,7 @@ static int
 sclp_vt220_write(struct tty_struct *tty, int from_user,
 		 const unsigned char *buf, int count)
 {
-	int length;
-	int ret;
-
-	if (!from_user)
-		return __sclp_vt220_write(buf, count, 1, 0);
-	/* Use intermediate buffer to prevent calling copy_from_user() while
-	 * holding a lock. */
-	ret = 0;
-	while (count > 0) {
-		length = count < SCLP_VT220_BUF_SIZE ?
-			 count : SCLP_VT220_BUF_SIZE;
-		length -= copy_from_user(tty->driver_data,
-				(const unsigned char __user *)buf, length);
-		if (length == 0) {
-			if (!ret)
-				return -EFAULT;
-			break;
-		}
-		length = __sclp_vt220_write(tty->driver_data, length, 1, 0);
-		buf += length;
-		count -= length;
-		ret += length;
-	}
-	return ret;
+	return __sclp_vt220_write(from_user, buf, count, 1, 0);
 }
 
 #define SCLP_VT220_SESSION_ENDED	0x01
@@ -554,13 +541,9 @@ sclp_vt220_receiver_fn(struct evbuf_header *evbuf)
 static int
 sclp_vt220_open(struct tty_struct *tty, struct file *filp)
 {
-	if (tty->count == 1) {
-		sclp_vt220_tty = tty;
-		tty->driver_data = kmalloc(SCLP_VT220_BUF_SIZE, GFP_KERNEL);
-		if (tty->driver_data == NULL)
-			return -ENOMEM;
-		tty->low_latency = 0;
-	}
+	sclp_vt220_tty = tty;
+	tty->driver_data = NULL;
+	tty->low_latency = 0;
 	return 0;
 }
 
@@ -570,11 +553,9 @@ sclp_vt220_open(struct tty_struct *tty, struct file *filp)
 static void
 sclp_vt220_close(struct tty_struct *tty, struct file *filp)
 {
-	if (tty->count == 1) {
-		sclp_vt220_tty = NULL;
-		kfree(tty->driver_data);
-		tty->driver_data = NULL;
-	}
+	if (tty->count > 1)
+		return;
+	sclp_vt220_tty = NULL;
 }
 
 /*
@@ -590,7 +571,7 @@ sclp_vt220_close(struct tty_struct *tty, struct file *filp)
 static void
 sclp_vt220_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	__sclp_vt220_write(&ch, 1, 0, 0);
+	__sclp_vt220_write(0, &ch, 1, 0, 0);
 }
 
 /*
@@ -784,7 +765,7 @@ module_init(sclp_vt220_tty_init);
 static void
 sclp_vt220_con_write(struct console *con, const char *buf, unsigned int count)
 {
-	__sclp_vt220_write((const unsigned char *) buf, count, 1, 1);
+	__sclp_vt220_write(0, (const unsigned char *) buf, count, 1, 1);
 }
 
 static struct tty_driver *

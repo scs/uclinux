@@ -1,7 +1,7 @@
 /* SCTP kernel reference Implementation
- * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
+ * Copyright (c) 2001-2003 International Business Machines, Corp.
  * Copyright (c) 2001 Intel Corp.
  * Copyright (c) 2001 Nokia, Inc.
  * Copyright (c) 2001 La Monte H.P. Yarroll
@@ -64,9 +64,6 @@ struct sctp_globals sctp_globals;
 struct proc_dir_entry	*proc_net_sctp;
 DEFINE_SNMP_STAT(struct sctp_mib, sctp_statistics);
 
-struct idr sctp_assocs_id;
-spinlock_t sctp_assocs_id_lock = SPIN_LOCK_UNLOCKED;
-
 /* This is the global socket data structure used for responding to
  * the Out-of-the-blue (OOTB) packets.  A control sock will be created
  * for this socket at the initialization time.
@@ -101,7 +98,7 @@ __init int sctp_proc_init(void)
 {
 	if (!proc_net_sctp) {
 		struct proc_dir_entry *ent;
-		ent = proc_mkdir("net/sctp", NULL);
+		ent = proc_mkdir("net/sctp", 0);
 		if (ent) {
 			ent->owner = THIS_MODULE;
 			proc_net_sctp = ent;
@@ -134,7 +131,7 @@ void sctp_proc_exit(void)
 
 	if (proc_net_sctp) {
 		proc_net_sctp = NULL;
-		remove_proc_entry("net/sctp", NULL);
+		remove_proc_entry("net/sctp", 0);
 	}
 }
 
@@ -448,10 +445,7 @@ struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	memset(&fl, 0x0, sizeof(struct flowi));
 	fl.fl4_dst  = daddr->v4.sin_addr.s_addr;
 	fl.proto = IPPROTO_SCTP;
-	if (asoc) {
-		fl.fl4_tos = RT_CONN_FLAGS(asoc->base.sk);
-		fl.oif = asoc->base.sk->sk_bound_dev_if;
-	}
+
 	if (saddr)
 		fl.fl4_src = saddr->v4.sin_addr.s_addr;
 
@@ -603,7 +597,7 @@ struct sock *sctp_v4_create_accept_sk(struct sock *sk,
 #endif
 
 	if (newsk->sk_prot->init(newsk)) {
-		sk_common_release(newsk);
+		inet_sock_release(newsk);
 		newsk = NULL;
 	}
 
@@ -653,8 +647,8 @@ int sctp_ctl_sock_init(void)
 	else
 		family = PF_INET;
 
-	err = sock_create_kern(family, SOCK_SEQPACKET, IPPROTO_SCTP,
-			       &sctp_ctl_socket);
+	err = sock_create(family, SOCK_SEQPACKET, IPPROTO_SCTP,
+			  &sctp_ctl_socket);
 	if (err < 0) {
 		printk(KERN_ERR
 		       "SCTP: Failed to create the SCTP control socket.\n");
@@ -724,7 +718,7 @@ static void sctp_inet_event_msgname(struct sctp_ulpevent *event, char *msgname,
 	if (msgname) {
 		struct sctp_association *asoc;
 
-		asoc = event->asoc;
+		asoc = event->sndrcvinfo.sinfo_assoc_id;
 		sctp_inet_msgname(msgname, addr_len);
 		sin = (struct sockaddr_in *)msgname;
 		sinfrom = &asoc->peer.primary_addr.v4;
@@ -808,7 +802,7 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 			  NIPQUAD(((struct rtable *)skb->dst)->rt_src),
 			  NIPQUAD(((struct rtable *)skb->dst)->rt_dst));
 
-	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
+	SCTP_INC_STATS(SctpOutSCTPPacks);
 	return ip_queue_xmit(skb, ipfragok);
 }
 
@@ -846,10 +840,10 @@ struct proto_ops inet_seqpacket_ops = {
 	.ioctl       = inet_ioctl,
 	.listen      = sctp_inet_listen,
 	.shutdown    = inet_shutdown,     /* Looks harmless.  */
-	.setsockopt  = sock_common_setsockopt,   /* IP_SOL IP_OPTION is a problem. */
-	.getsockopt  = sock_common_getsockopt,
+	.setsockopt  = inet_setsockopt,   /* IP_SOL IP_OPTION is a problem. */
+	.getsockopt  = inet_getsockopt,
 	.sendmsg     = inet_sendmsg,
-	.recvmsg     = sock_common_recvmsg,
+	.recvmsg     = inet_recvmsg,
 	.mmap        = sock_no_mmap,
 	.sendpage    = sock_no_sendpage,
 };
@@ -875,7 +869,7 @@ static struct inet_protosw sctp_stream_protosw = {
 };
 
 /* Register with IP layer.  */
-static struct net_protocol sctp_protocol = {
+static struct inet_protocol sctp_protocol = {
 	.handler     = sctp_rcv,
 	.err_handler = sctp_v4_err,
 	.no_policy   = 1,
@@ -1004,9 +998,7 @@ __init int sctp_init(void)
 		goto err_init_mibs;
 
 	/* Initialize proc fs directory.  */
-	status = sctp_proc_init();
-	if (status)
-		goto err_init_proc;
+	sctp_proc_init();
 
 	/* Initialize object count debugging.  */
 	sctp_dbg_objcnt_init();
@@ -1053,9 +1045,6 @@ __init int sctp_init(void)
 	/* Initialize default stream count setup information. */
 	sctp_max_instreams    		= SCTP_DEFAULT_INSTREAMS;
 	sctp_max_outstreams   		= SCTP_DEFAULT_OUTSTREAMS;
-
-	/* Initialize handle used for association ids. */
-	idr_init(&sctp_assocs_id);
 
 	/* Size and allocate the association hash table.
 	 * The methodology is similar to that of the tcp hash tables.
@@ -1129,9 +1118,6 @@ __init int sctp_init(void)
 	/* Disable ADDIP by default. */
 	sctp_addip_enable = 0;
 
-	/* Enable PR-SCTP by default. */
-	sctp_prsctp_enable = 1;
-
 	sctp_sysctl_register();
 
 	INIT_LIST_HEAD(&sctp_address_families);
@@ -1176,7 +1162,6 @@ err_ehash_alloc:
 			     sizeof(struct sctp_hashbucket)));
 err_ahash_alloc:
 	sctp_dbg_objcnt_exit();
-err_init_proc:
 	sctp_proc_exit();
 	cleanup_sctp_mibs();
 err_init_mibs:

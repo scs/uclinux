@@ -389,7 +389,7 @@ sys_call_table:
 	.quad sys_getcwd
 	.quad sys_capget
 	.quad sys_capset
-	.quad sys_sendfile64			/* 370 */
+	.quad sys_sendfile			/* 370 */
 	.quad sys_setresgid
 	.quad sys_getresgid
 	.quad sys_ni_syscall			/* sys_dipc */
@@ -444,19 +444,6 @@ sys_call_table:
 	.quad sys_clock_nanosleep
 	.quad sys_semtimedop
 	.quad sys_tgkill
-	.quad sys_stat64			/* 425 */
-	.quad sys_lstat64
-	.quad sys_fstat64
-	.quad sys_ni_syscall			/* sys_vserver */
-	.quad sys_ni_syscall			/* sys_mbind */
-	.quad sys_ni_syscall			/* sys_get_mempolicy */
-	.quad sys_ni_syscall			/* sys_set_mempolicy */
-	.quad sys_mq_open
-	.quad sys_mq_unlink
-	.quad sys_mq_timedsend
-	.quad sys_mq_timedreceive		/* 435 */
-	.quad sys_mq_notify
-	.quad sys_mq_getsetattr
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

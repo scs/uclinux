@@ -60,39 +60,82 @@
 #define UDIDETCR1	0x7B
 #define DTPR1		0x7C
 
+#if defined(DISPLAY_CMD64X_TIMINGS) && defined(CONFIG_PROC_FS)
+#include <linux/stat.h>
+#include <linux/proc_fs.h>
+
+static u8 cmd64x_proc;
+
+static char * print_cmd64x_get_info(char *, struct pci_dev *, int);
+static int cmd64x_get_info(char *, char **, off_t, int);
+
+static ide_pci_host_proc_t cmd64x_procs[] __initdata = {
+	{
+		.name		= "cmd64x",
+		.set		= 1,
+		.get_info	= cmd64x_get_info,
+		.parent		= NULL,
+	},
+};
+#endif  /* defined(DISPLAY_CMD64X_TIMINGS) && defined(CONFIG_PROC_FS) */
+
 static unsigned int init_chipset_cmd64x(struct pci_dev *, const char *);
 static void init_hwif_cmd64x(ide_hwif_t *);
 
 static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 	{	/* 0 */
+		.vendor		= PCI_VENDOR_ID_CMD,
+		.device		= PCI_DEVICE_ID_CMD_643,
 		.name		= "CMD643",
 		.init_chipset	= init_chipset_cmd64x,
+		.init_iops	= NULL,
 		.init_hwif	= init_hwif_cmd64x,
 		.channels	= 2,
 		.autodma	= AUTODMA,
+		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
 		.bootable	= ON_BOARD,
+		.extra		= 0,
 	},{	/* 1 */
+		.vendor		= PCI_VENDOR_ID_CMD,
+		.device		= PCI_DEVICE_ID_CMD_646,
 		.name		= "CMD646",
 		.init_chipset	= init_chipset_cmd64x,
+		.init_iops	= NULL,
 		.init_hwif	= init_hwif_cmd64x,
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x80,0x80}},
 		.bootable	= ON_BOARD,
+		.extra		= 0,
 	},{	/* 2 */
+		.vendor		= PCI_VENDOR_ID_CMD,
+		.device	= PCI_DEVICE_ID_CMD_648,
 		.name		= "CMD648",
 		.init_chipset	= init_chipset_cmd64x,
+		.init_iops	= NULL,
 		.init_hwif	= init_hwif_cmd64x,
 		.channels	= 2,
 		.autodma	= AUTODMA,
+		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
 		.bootable	= ON_BOARD,
+		.extra		= 0,
 	},{
+		.vendor		= PCI_VENDOR_ID_CMD,
+		.device		= PCI_DEVICE_ID_CMD_649,
 		.name		= "CMD649",
 		.init_chipset	= init_chipset_cmd64x,
+		.init_iops	= NULL,
 		.init_hwif	= init_hwif_cmd64x,
 		.channels	= 2,
 		.autodma	= AUTODMA,
+		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
 		.bootable	= ON_BOARD,
+		.extra		= 0,
+	},{
+		.vendor		= 0,
+		.device		= 0,
+		.channels	= 2,
+		.bootable	= EOL,
 	}
 };
 

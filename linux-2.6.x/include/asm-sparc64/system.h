@@ -175,7 +175,6 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 		current_thread_info()->kernel_cntd0 += (unsigned int)(__tmp);\
 		current_thread_info()->kernel_cntd1 += ((__tmp) >> 32);	\
 	}								\
-	flush_tlb_pending();						\
 	save_and_clear_fpu();						\
 	/* If you are tempted to conditionalize the following */	\
 	/* so that ASI is only written if it changes, think again. */	\
@@ -206,10 +205,8 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	"ldx	[%%g6 + %7], %%g4\n\t"					\
 	"wrpr	%%g0, 0x96, %%pstate\n\t"				\
 	"andcc	%%o7, %6, %%g0\n\t"					\
-	"beq,pt %%icc, 1f\n\t"						\
+	"bne,pn	%%icc, ret_from_syscall\n\t"				\
 	" mov	%%g5, %0\n\t"						\
-	"b,a ret_from_syscall\n\t"					\
-	"1:\n\t"							\
 	: "=&r" (last)							\
 	: "0" (next->thread_info),					\
 	  "i" (TI_WSTATE), "i" (TI_KSP), "i" (TI_FLAGS), "i" (TI_CWP),	\

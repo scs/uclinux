@@ -190,7 +190,7 @@ static int hpt34x_config_drive_xfer_rate (ide_drive_t *drive)
 
 	if (id && (id->capability & 1) && drive->autodma) {
 		/* Consult the list of known "bad" drives */
-		if (__ide_dma_bad_drive(drive))
+		if (hwif->ide_dma_bad_drive(drive))
 			goto fast_ata_pio;
 		if (id->field_valid & 4) {
 			if (id->dma_ultra & hwif->ultra_mask) {
@@ -207,7 +207,7 @@ try_dma_modes:
 				if (!config_chipset_for_dma(drive))
 					goto no_dma_set;
 			}
-		} else if (__ide_dma_good_drive(drive) &&
+		} else if (hwif->ide_dma_good_drive(drive) &&
 			   (id->eide_dma_time < 150)) {
 			/* Consult the list of known "good" drives */
 			if (!config_chipset_for_dma(drive))
@@ -235,7 +235,7 @@ no_dma_set:
  */
 #define	HPT34X_PCI_INIT_REG		0x80
 
-static unsigned int __devinit init_chipset_hpt34x(struct pci_dev *dev, const char *name)
+static unsigned int __init init_chipset_hpt34x (struct pci_dev *dev, const char *name)
 {
 	int i = 0;
 	unsigned long hpt34xIoBase = pci_resource_start(dev, 4);
@@ -282,14 +282,14 @@ static unsigned int __devinit init_chipset_hpt34x(struct pci_dev *dev, const cha
 
 	if (!hpt34x_proc) {
 		hpt34x_proc = 1;
-		ide_pci_create_host_proc("hpt34x", hpt34x_get_info);
+		ide_pci_register_host_proc(&hpt34x_procs[0]);
 	}
 #endif /* DISPLAY_HPT34X_TIMINGS && CONFIG_PROC_FS */
 
 	return dev->irq;
 }
 
-static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
+static void __init init_hwif_hpt34x (ide_hwif_t *hwif)
 {
 	u16 pcicmd = 0;
 
@@ -317,6 +317,8 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
+extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
+
 static int __devinit hpt34x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	ide_pci_device_t *d = &hpt34x_chipsets[id->driver_data];
@@ -329,6 +331,7 @@ static int __devinit hpt34x_init_one(struct pci_dev *dev, const struct pci_devic
 	d->bootable = (pcicmd & PCI_COMMAND_MEMORY) ? OFF_BOARD : NEVER_BOARD;
 
 	ide_setup_pci_device(dev, d);
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -336,7 +339,6 @@ static struct pci_device_id hpt34x_pci_tbl[] = {
 	{ PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT343, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
-MODULE_DEVICE_TABLE(pci, hpt34x_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "HPT34x IDE",
@@ -349,7 +351,13 @@ static int hpt34x_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void hpt34x_ide_exit(void)
+{
+	ide_pci_unregister_driver(&driver);
+}
+
 module_init(hpt34x_ide_init);
+module_exit(hpt34x_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for Highpoint 34x IDE");

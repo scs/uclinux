@@ -19,7 +19,7 @@ font-objs += $(font-objs-y)
 # Each configuration option enables a list of files.
 
 obj-$(CONFIG_DUMMY_CONSOLE)       += dummycon.o
-obj-$(CONFIG_SGI_NEWPORT_CONSOLE) += newport_con.o font.o
+obj-$(CONFIG_SGI_NEWPORT_CONSOLE) += newport_con.o
 obj-$(CONFIG_PROM_CONSOLE)        += promcon.o promcon_tbl.o
 obj-$(CONFIG_STI_CONSOLE)         += sticon.o sticore.o
 obj-$(CONFIG_VGA_CONSOLE)         += vgacon.o
@@ -28,11 +28,11 @@ obj-$(CONFIG_FRAMEBUFFER_CONSOLE) += fbcon.o font.o
 
 obj-$(CONFIG_FB_STI)              += sticore.o
 
-# Targets that kbuild needs to know about
+# Files generated that shall be removed upon make clean
 targets := promcon_tbl.c
 
 quiet_cmd_conmakehash = CNMKHSH $@
-      cmd_conmakehash = scripts/conmakehash $< | \
+      cmd_conmakehash = $(objtree)/scripts/conmakehash $< | \
 		sed -e '/\#include <[^>]*>/p' -e 's/types/init/' \
 		-e 's/dfont\(_uni.*\]\)/promfont\1 __initdata/' > $@
 

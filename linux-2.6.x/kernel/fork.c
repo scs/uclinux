@@ -21,21 +21,15 @@
 #include <linux/completion.h>
 #include <linux/namespace.h>
 #include <linux/personality.h>
-#include <linux/mempolicy.h>
-#include <linux/sem.h>
 #include <linux/file.h>
 #include <linux/binfmts.h>
 #include <linux/mman.h>
 #include <linux/fs.h>
-#include <linux/cpu.h>
 #include <linux/security.h>
-#include <linux/syscalls.h>
 #include <linux/jiffies.h>
 #include <linux/futex.h>
 #include <linux/ptrace.h>
 #include <linux/mount.h>
-#include <linux/audit.h>
-#include <linux/rmap.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -43,6 +37,9 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+
+extern int copy_semundo(unsigned long clone_flags, struct task_struct *tsk);
+extern void exit_sem(struct task_struct *tsk);
 
 /* The idle threads do not count..
  * Protected by write_lock_irq(&tasklist_lock)
@@ -63,7 +60,7 @@ int nr_processes(void)
 	int cpu;
 	int total = 0;
 
-	for_each_online_cpu(cpu)
+	for_each_cpu(cpu)
 		total += per_cpu(process_counts, cpu);
 
 	return total;
@@ -87,15 +84,12 @@ void __put_task_struct(struct task_struct *tsk)
 	WARN_ON(atomic_read(&tsk->usage));
 	WARN_ON(tsk == current);
 
-	if (unlikely(tsk->audit_context))
-		audit_free(tsk);
 	security_task_free(tsk);
 	free_uid(tsk->user);
-	put_group_info(tsk->group_info);
 	free_task(tsk);
 }
 
-void fastcall add_wait_queue(wait_queue_head_t *q, wait_queue_t * wait)
+void add_wait_queue(wait_queue_head_t *q, wait_queue_t * wait)
 {
 	unsigned long flags;
 
@@ -107,7 +101,7 @@ void fastcall add_wait_queue(wait_queue_head_t *q, wait_queue_t * wait)
 
 EXPORT_SYMBOL(add_wait_queue);
 
-void fastcall add_wait_queue_exclusive(wait_queue_head_t *q, wait_queue_t * wait)
+void add_wait_queue_exclusive(wait_queue_head_t *q, wait_queue_t * wait)
 {
 	unsigned long flags;
 
@@ -119,7 +113,7 @@ void fastcall add_wait_queue_exclusive(wait_queue_head_t *q, wait_queue_t * wait
 
 EXPORT_SYMBOL(add_wait_queue_exclusive);
 
-void fastcall remove_wait_queue(wait_queue_head_t *q, wait_queue_t * wait)
+void remove_wait_queue(wait_queue_head_t *q, wait_queue_t * wait)
 {
 	unsigned long flags;
 
@@ -143,7 +137,7 @@ EXPORT_SYMBOL(remove_wait_queue);
  * stops them from bleeding out - it would still allow subsequent
  * loads to move into the the critical region).
  */
-void fastcall prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
+void prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
 {
 	unsigned long flags;
 
@@ -157,7 +151,7 @@ void fastcall prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int stat
 
 EXPORT_SYMBOL(prepare_to_wait);
 
-void fastcall
+void
 prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state)
 {
 	unsigned long flags;
@@ -172,7 +166,7 @@ prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state)
 
 EXPORT_SYMBOL(prepare_to_wait_exclusive);
 
-void fastcall finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
+void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 {
 	unsigned long flags;
 
@@ -199,9 +193,9 @@ void fastcall finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 
 EXPORT_SYMBOL(finish_wait);
 
-int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
+int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync)
 {
-	int ret = default_wake_function(wait, mode, sync, key);
+	int ret = default_wake_function(wait, mode, sync);
 
 	if (ret)
 		list_del_init(&wait->task_list);
@@ -213,13 +207,13 @@ EXPORT_SYMBOL(autoremove_wake_function);
 void __init fork_init(unsigned long mempages)
 {
 #ifndef __HAVE_ARCH_TASK_STRUCT_ALLOCATOR
-#ifndef ARCH_MIN_TASKALIGN
-#define ARCH_MIN_TASKALIGN	L1_CACHE_BYTES
-#endif
 	/* create a slab on which task_structs can be allocated */
 	task_struct_cachep =
-		kmem_cache_create("task_struct", sizeof(struct task_struct),
-			ARCH_MIN_TASKALIGN, SLAB_PANIC, NULL, NULL);
+		kmem_cache_create("task_struct",
+				  sizeof(struct task_struct),0,
+				  SLAB_MUST_HWCACHE_ALIGN, NULL, NULL);
+	if (!task_struct_cachep)
+		panic("fork_init(): cannot create task_struct SLAB cache");
 #endif
 
 	/*
@@ -246,6 +240,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	prepare_to_copy(orig);
 
 	tsk = alloc_task_struct();
+
 	if (!tsk)
 		return NULL;
 
@@ -269,10 +264,8 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 {
 	struct vm_area_struct * mpnt, *tmp, **pprev;
-	struct rb_node **rb_link, *rb_parent;
 	int retval;
-	unsigned long charge;
-	struct mempolicy *pol;
+	unsigned long charge = 0;
 
 	down_write(&oldmm->mmap_sem);
 	flush_cache_mm(current->mm);
@@ -283,9 +276,6 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 	mm->map_count = 0;
 	mm->rss = 0;
 	cpus_clear(mm->cpu_vm_mask);
-	mm->mm_rb = RB_ROOT;
-	rb_link = &mm->mm_rb.rb_node;
-	rb_parent = NULL;
 	pprev = &mm->mmap;
 
 	/*
@@ -304,28 +294,21 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 
 		if(mpnt->vm_flags & VM_DONTCOPY)
 			continue;
-		charge = 0;
 		if (mpnt->vm_flags & VM_ACCOUNT) {
 			unsigned int len = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
 			if (security_vm_enough_memory(len))
 				goto fail_nomem;
-			charge = len;
+			charge += len;
 		}
 		tmp = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
 		if (!tmp)
 			goto fail_nomem;
 		*tmp = *mpnt;
-		pol = mpol_copy(vma_policy(mpnt));
-		retval = PTR_ERR(pol);
-		if (IS_ERR(pol))
-			goto fail_nomem_policy;
-		vma_set_policy(tmp, pol);
 		tmp->vm_flags &= ~VM_LOCKED;
 		tmp->vm_mm = mm;
 		tmp->vm_next = NULL;
-		anon_vma_link(tmp);
-		vma_prio_tree_init(tmp);
 		file = tmp->vm_file;
+		INIT_LIST_HEAD(&tmp->shared);
 		if (file) {
 			struct inode *inode = file->f_dentry->d_inode;
 			get_file(file);
@@ -333,26 +316,18 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 				atomic_dec(&inode->i_writecount);
       
 			/* insert tmp into the share list, just after mpnt */
-			spin_lock(&file->f_mapping->i_mmap_lock);
-			flush_dcache_mmap_lock(file->f_mapping);
-			vma_prio_tree_add(tmp, mpnt);
-			flush_dcache_mmap_unlock(file->f_mapping);
-			spin_unlock(&file->f_mapping->i_mmap_lock);
+			down(&file->f_mapping->i_shared_sem);
+			list_add_tail(&tmp->shared, &mpnt->shared);
+			up(&file->f_mapping->i_shared_sem);
 		}
 
 		/*
 		 * Link in the new vma and copy the page table entries:
-		 * link in first so that swapoff can see swap entries,
-		 * and try_to_unmap_one's find_vma find the new vma.
+		 * link in first so that swapoff can see swap entries.
 		 */
 		spin_lock(&mm->page_table_lock);
 		*pprev = tmp;
 		pprev = &tmp->vm_next;
-
-		__vma_link_rb(mm, tmp, rb_link, rb_parent);
-		rb_link = &tmp->vm_rb.rb_right;
-		rb_parent = &tmp->vm_rb;
-
 		mm->map_count++;
 		retval = copy_page_range(mm, current->mm, tmp);
 		spin_unlock(&mm->page_table_lock);
@@ -361,22 +336,21 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 			tmp->vm_ops->open(tmp);
 
 		if (retval)
-			goto out;
+			goto fail;
 	}
 	retval = 0;
+	build_mmap_rb(mm);
 
 out:
 	flush_tlb_mm(current->mm);
 	up_write(&oldmm->mmap_sem);
 	return retval;
-fail_nomem_policy:
-	kmem_cache_free(vm_area_cachep, tmp);
 fail_nomem:
 	retval = -ENOMEM;
+fail:
 	vm_unacct_memory(charge);
 	goto out;
 }
-
 static inline int mm_alloc_pgd(struct mm_struct * mm)
 {
 	mm->pgd = pgd_alloc(mm);
@@ -433,9 +407,9 @@ struct mm_struct * mm_alloc(void)
 	mm = allocate_mm();
 	if (mm) {
 		memset(mm, 0, sizeof(*mm));
-		mm = mm_init(mm);
+		return mm_init(mm);
 	}
-	return mm;
+	return NULL;
 }
 
 /*
@@ -443,7 +417,7 @@ struct mm_struct * mm_alloc(void)
  * is dropped: either by a lazy thread or by
  * mmput. Free the page directory and the mm.
  */
-void fastcall __mmdrop(struct mm_struct *mm)
+inline void __mmdrop(struct mm_struct *mm)
 {
 	BUG_ON(mm == &init_mm);
 	mm_free_pgd(mm);
@@ -517,7 +491,7 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 		 * not set up a proper pointer then tough luck.
 		 */
 		put_user(0, tidptr);
-		sys_futex(tidptr, FUTEX_WAKE, 1, NULL, NULL, 0);
+		sys_futex(tidptr, FUTEX_WAKE, 1, NULL, NULL);
 	}
 }
 
@@ -528,6 +502,7 @@ static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
 
 	tsk->min_flt = tsk->maj_flt = 0;
 	tsk->cmin_flt = tsk->cmaj_flt = 0;
+	tsk->nswap = tsk->cnswap = 0;
 	tsk->nvcsw = tsk->nivcsw = tsk->cnvcsw = tsk->cnivcsw = 0;
 
 	tsk->mm = NULL;
@@ -827,13 +802,6 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 	sig->group_stop_count = 0;
 	sig->curr_target = NULL;
 	init_sigpending(&sig->shared_pending);
-	INIT_LIST_HEAD(&sig->posix_timers);
-
-	sig->tty = current->signal->tty;
-	sig->pgrp = process_group(current);
-	sig->session = current->signal->session;
-	sig->leader = 0;	/* session leadership doesn't inherit */
-	sig->tty_old_pgrp = 0;
 
 	return 0;
 }
@@ -911,7 +879,6 @@ struct task_struct *copy_process(unsigned long clone_flags,
 
 	atomic_inc(&p->user->__count);
 	atomic_inc(&p->user->processes);
-	get_group_info(p->group_info);
 
 	/*
 	 * If multiple threads are within copy_process(), then this check
@@ -945,6 +912,7 @@ struct task_struct *copy_process(unsigned long clone_flags,
 
 	INIT_LIST_HEAD(&p->children);
 	INIT_LIST_HEAD(&p->sibling);
+	INIT_LIST_HEAD(&p->posix_timers);
 	init_waitqueue_head(&p->wait_chldexit);
 	p->vfork_done = NULL;
 	spin_lock_init(&p->alloc_lock);
@@ -958,29 +926,21 @@ struct task_struct *copy_process(unsigned long clone_flags,
 	init_timer(&p->real_timer);
 	p->real_timer.data = (unsigned long) p;
 
+	p->leader = 0;		/* session leadership doesn't inherit */
+	p->tty_old_pgrp = 0;
 	p->utime = p->stime = 0;
 	p->cutime = p->cstime = 0;
 	p->lock_depth = -1;		/* -1 = no lock */
 	p->start_time = get_jiffies_64();
 	p->security = NULL;
 	p->io_context = NULL;
-	p->audit_context = NULL;
-#ifdef CONFIG_NUMA
- 	p->mempolicy = mpol_copy(p->mempolicy);
- 	if (IS_ERR(p->mempolicy)) {
- 		retval = PTR_ERR(p->mempolicy);
- 		p->mempolicy = NULL;
- 		goto bad_fork_cleanup;
- 	}
-#endif
 
+	retval = -ENOMEM;
 	if ((retval = security_task_alloc(p)))
-		goto bad_fork_cleanup_policy;
-	if ((retval = audit_alloc(p)))
-		goto bad_fork_cleanup_security;
+		goto bad_fork_cleanup;
 	/* copy all the process information */
 	if ((retval = copy_semundo(clone_flags, p)))
-		goto bad_fork_cleanup_audit;
+		goto bad_fork_cleanup_security;
 	if ((retval = copy_files(clone_flags, p)))
 		goto bad_fork_cleanup_semundo;
 	if ((retval = copy_fs(clone_flags, p)))
@@ -1086,7 +1046,7 @@ struct task_struct *copy_process(unsigned long clone_flags,
 	if (thread_group_leader(p)) {
 		attach_pid(p, PIDTYPE_TGID, p->tgid);
 		attach_pid(p, PIDTYPE_PGID, process_group(p));
-		attach_pid(p, PIDTYPE_SID, p->signal->session);
+		attach_pid(p, PIDTYPE_SID, p->session);
 		if (p->pid)
 			__get_cpu_var(process_counts)++;
 	} else
@@ -1105,8 +1065,6 @@ bad_fork_cleanup_namespace:
 	exit_namespace(p);
 bad_fork_cleanup_mm:
 	exit_mm(p);
-	if (p->active_mm)
-		mmdrop(p->active_mm);
 bad_fork_cleanup_signal:
 	exit_signal(p);
 bad_fork_cleanup_sighand:
@@ -1117,14 +1075,8 @@ bad_fork_cleanup_files:
 	exit_files(p); /* blocking */
 bad_fork_cleanup_semundo:
 	exit_sem(p);
-bad_fork_cleanup_audit:
-	audit_free(p);
 bad_fork_cleanup_security:
 	security_task_free(p);
-bad_fork_cleanup_policy:
-#ifdef CONFIG_NUMA
-	mpol_free(p->mempolicy);
-#endif
 bad_fork_cleanup:
 	if (p->pid > 0)
 		free_pidmap(p->pid);
@@ -1133,7 +1085,6 @@ bad_fork_cleanup:
 bad_fork_cleanup_put_domain:
 	module_put(p->thread_info->exec_domain->module);
 bad_fork_cleanup_count:
-	put_group_info(p->group_info);
 	atomic_dec(&p->user->processes);
 	free_uid(p->user);
 bad_fork_free:
@@ -1203,31 +1154,10 @@ long do_fork(unsigned long clone_flags,
 			set_tsk_thread_flag(p, TIF_SIGPENDING);
 		}
 
-		if (!(clone_flags & CLONE_STOPPED)) {
-			/*
-			 * Do the wakeup last. On SMP we treat fork() and
-			 * CLONE_VM separately, because fork() has already
-			 * created cache footprint on this CPU (due to
-			 * copying the pagetables), hence migration would
-			 * probably be costy. Threads on the other hand
-			 * have less traction to the current CPU, and if
-			 * there's an imbalance then the scheduler can
-			 * migrate this fresh thread now, before it
-			 * accumulates a larger cache footprint:
-			 */
-			if (clone_flags & CLONE_VM)
-				wake_up_forked_thread(p);
-			else
-				wake_up_forked_process(p);
-		} else {
-			int cpu = get_cpu();
-
+		if (!(clone_flags & CLONE_STOPPED))
+			wake_up_forked_process(p);	/* do this last */
+		else
 			p->state = TASK_STOPPED;
-			if (cpu_is_offline(task_cpu(p)))
-				set_task_cpu(p, cpu);
-
-			put_cpu();
-		}
 		++total_forks;
 
 		if (unlikely (trace)) {
@@ -1271,20 +1201,37 @@ void __init proc_caches_init(void)
 {
 	sighand_cachep = kmem_cache_create("sighand_cache",
 			sizeof(struct sighand_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+			SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if (!sighand_cachep)
+		panic("Cannot create sighand SLAB cache");
+
 	signal_cachep = kmem_cache_create("signal_cache",
 			sizeof(struct signal_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+			SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if (!signal_cachep)
+		panic("Cannot create signal SLAB cache");
+
 	files_cachep = kmem_cache_create("files_cache", 
-			sizeof(struct files_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+			 sizeof(struct files_struct), 0, 
+			 SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if (!files_cachep) 
+		panic("Cannot create files SLAB cache");
+
 	fs_cachep = kmem_cache_create("fs_cache", 
-			sizeof(struct fs_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+			 sizeof(struct fs_struct), 0, 
+			 SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if (!fs_cachep) 
+		panic("Cannot create fs_struct SLAB cache");
+ 
 	vm_area_cachep = kmem_cache_create("vm_area_struct",
 			sizeof(struct vm_area_struct), 0,
-			SLAB_PANIC, NULL, NULL);
+			0, NULL, NULL);
+	if(!vm_area_cachep)
+		panic("vma_init: Cannot alloc vm_area_struct SLAB cache");
+
 	mm_cachep = kmem_cache_create("mm_struct",
 			sizeof(struct mm_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+			SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if(!mm_cachep)
+		panic("vma_init: Cannot alloc mm_struct SLAB cache");
 }

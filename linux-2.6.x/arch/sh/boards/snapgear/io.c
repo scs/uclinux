@@ -19,7 +19,7 @@
 #include <asm/addrspace.h>
 
 #include <asm/pci.h>
-#include "../../drivers/pci/pci-sh7751.h"
+#include <asm/pci-sh7751.h>
 
 #ifdef CONFIG_SH_SECUREEDGE5410
 unsigned short secureedge5410_ioport;

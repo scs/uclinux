@@ -1875,7 +1875,7 @@ static void eni_close(struct atm_vcc *vcc)
 	DPRINTK("eni_close: done waiting\n");
 	/* deallocate memory */
 	kfree(ENI_VCC(vcc));
-	vcc->dev_data = NULL;
+	ENI_VCC(vcc) = NULL;
 	clear_bit(ATM_VF_ADDR,&vcc->flags);
 	/*foo();*/
 }
@@ -1891,8 +1891,7 @@ static int eni_open(struct atm_vcc *vcc)
 
 	DPRINTK(">eni_open\n");
 	EVENT("eni_open\n",0,0);
-	if (!test_bit(ATM_VF_PARTIAL,&vcc->flags))
-		vcc->dev_data = NULL;
+	if (!test_bit(ATM_VF_PARTIAL,&vcc->flags)) ENI_VCC(vcc) = NULL;
 	eni_dev = ENI_DEV(vcc->dev);
 	if (vci != ATM_VPI_UNSPEC && vpi != ATM_VCI_UNSPEC)
 		set_bit(ATM_VF_ADDR,&vcc->flags);
@@ -1903,7 +1902,7 @@ static int eni_open(struct atm_vcc *vcc)
 	if (!test_bit(ATM_VF_PARTIAL,&vcc->flags)) {
 		eni_vcc = kmalloc(sizeof(struct eni_vcc),GFP_KERNEL);
 		if (!eni_vcc) return -ENOMEM;
-		vcc->dev_data = eni_vcc;
+		ENI_VCC(vcc) = eni_vcc;
 		eni_vcc->tx = NULL; /* for eni_close after open_rx */
 		if ((error = open_rx_first(vcc))) {
 			eni_close(vcc);
@@ -1968,7 +1967,7 @@ static int eni_change_qos(struct atm_vcc *vcc,struct atm_qos *qos,int flgs)
 }
 
 
-static int eni_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
+static int eni_ioctl(struct atm_dev *dev,unsigned int cmd,void *arg)
 {
 	struct eni_dev *eni_dev = ENI_DEV(dev);
 
@@ -1983,7 +1982,7 @@ static int eni_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 		struct eni_multipliers mult;
 
 		if (!capable(CAP_NET_ADMIN)) return -EPERM;
-		if (copy_from_user(&mult, arg,
+		if (copy_from_user(&mult,(void *) arg,
 		    sizeof(struct eni_multipliers)))
 			return -EFAULT;
 		if ((mult.tx && mult.tx <= 100) || (mult.rx &&mult.rx <= 100) ||
@@ -1996,7 +1995,7 @@ static int eni_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 	if (cmd == ATM_SETCIRANGE) {
 		struct atm_cirange ci;
 
-		if (copy_from_user(&ci, arg,sizeof(struct atm_cirange)))
+		if (copy_from_user(&ci,(void *) arg,sizeof(struct atm_cirange)))
 			return -EFAULT;
 		if ((ci.vpi_bits == 0 || ci.vpi_bits == ATM_CI_MAX) &&
 		    (ci.vci_bits == NR_VCI_LD || ci.vpi_bits == ATM_CI_MAX))
@@ -2009,14 +2008,14 @@ static int eni_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 
 
 static int eni_getsockopt(struct atm_vcc *vcc,int level,int optname,
-    void __user *optval,int optlen)
+    void *optval,int optlen)
 {
 	return -EINVAL;
 }
 
 
 static int eni_setsockopt(struct atm_vcc *vcc,int level,int optname,
-    void __user *optval,int optlen)
+    void *optval,int optlen)
 {
 	return -EINVAL;
 }
@@ -2231,7 +2230,7 @@ static int __devinit eni_init_one(struct pci_dev *pci_dev,
 	if (!dev) goto out2;
 	pci_set_drvdata(pci_dev, dev);
 	eni_dev->pci_dev = pci_dev;
-	dev->dev_data = eni_dev;
+	ENI_DEV(dev) = eni_dev;
 	eni_dev->asic = ent->driver_data;
 	error = eni_do_init(dev);
 	if (error) goto out3;

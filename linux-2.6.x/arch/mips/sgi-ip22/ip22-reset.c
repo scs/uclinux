@@ -6,8 +6,6 @@
  * Copyright (C) 1997, 1998, 2001, 2003 by Ralf Baechle
  */
 #include <linux/init.h>
-#include <linux/ds1286.h>
-#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -18,10 +16,10 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/reboot.h>
+#include <asm/ds1286.h>
 #include <asm/sgialib.h>
 #include <asm/sgi/ioc.h>
 #include <asm/sgi/hpc3.h>
-#include <asm/sgi/mc.h>
 #include <asm/sgi/ip22.h>
 
 /*
@@ -47,12 +45,12 @@ static void sgi_machine_restart(char *command) __attribute__((noreturn));
 static void sgi_machine_halt(void) __attribute__((noreturn));
 static void sgi_machine_power_off(void) __attribute__((noreturn));
 
+/* XXX How to pass the reboot command to the firmware??? */
 static void sgi_machine_restart(char *command)
 {
 	if (machine_state & MACHINE_SHUTTING_DOWN)
 		sgi_machine_power_off();
-	sgimc->cpuctrl0 |= SGIMC_CCTRL0_SYSINIT;
-	while (1);
+	ArcReboot();
 }
 
 static void sgi_machine_halt(void)
@@ -64,23 +62,23 @@ static void sgi_machine_halt(void)
 
 static void sgi_machine_power_off(void)
 {
-	unsigned int tmp;
+	unsigned char val;
 
 	local_irq_disable();
 
 	/* Disable watchdog */
-	tmp = hpc3c0->rtcregs[RTC_CMD] & 0xff;
-	hpc3c0->rtcregs[RTC_CMD] = tmp | RTC_WAM;
-	hpc3c0->rtcregs[RTC_WSEC] = 0;
-	hpc3c0->rtcregs[RTC_WHSEC] = 0;
+	val = CMOS_READ(RTC_CMD);
+	CMOS_WRITE(val | RTC_WAM, RTC_CMD);
+	CMOS_WRITE(0, RTC_WSEC);
+	CMOS_WRITE(0, RTC_WHSEC);
 
-	while (1) {
+	while(1) {
 		sgioc->panel = ~SGIOC_PANEL_POWERON;
 		/* Good bye cruel world ...  */
 
 		/* If we're still running, we probably got sent an alarm
 		   interrupt.  Read the flag to clear it.  */
-		tmp = hpc3c0->rtcregs[RTC_HOURS_ALARM];
+		val = CMOS_READ(RTC_HOURS_ALARM);
 	}
 }
 
@@ -114,7 +112,7 @@ static void debounce(unsigned long data)
 	}
 
 	if (machine_state & MACHINE_PANICED)
-		sgimc->cpuctrl0 |= SGIMC_CCTRL0_SYSINIT;
+		ArcReboot();
 
 	enable_irq(SGI_PANEL_IRQ);
 }
@@ -140,8 +138,6 @@ static inline void power_button(void)
 }
 
 void (*indy_volume_button)(int) = NULL;
-
-EXPORT_SYMBOL(indy_volume_button);
 
 static inline void volume_up_button(unsigned long data)
 {
@@ -186,10 +182,12 @@ static irqreturn_t panel_int(int irq, void *dev_id, struct pt_regs *regs)
 	}
 
 	/* Power button was pressed 
+	 *
 	 * ioc.ps page 22: "The Panel Register is called Power Control by Full
 	 * House. Only lowest 2 bits are used. Guiness uses upper four bits
 	 * for volume control". This is not true, all bits are pulled high
-	 * on fullhouse */
+	 * on fullhouse
+	 */
 	if (ip22_is_fullhouse() || !(buttons & SGIOC_PANEL_POWERINTR)) {
 		power_button();
 		return IRQ_HANDLED;

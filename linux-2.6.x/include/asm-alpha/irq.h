@@ -93,8 +93,5 @@ extern void enable_irq(unsigned int);
 struct pt_regs;
 extern void (*perf_irq)(unsigned long, struct pt_regs *);
 
-struct irqaction;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
-
 
 #endif /* _ALPHA_IRQ_H */

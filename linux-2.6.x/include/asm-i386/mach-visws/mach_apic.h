@@ -19,6 +19,7 @@
  #define TARGET_CPUS cpumask_of_cpu(0)
 #endif
 
+#define APIC_BROADCAST_ID      0x0F
 #define check_apicid_used(bitmap, apicid)	physid_isset(apicid, bitmap)
 #define check_apicid_present(bit)		physid_isset(bit, phys_cpu_present_map)
 
@@ -60,10 +61,7 @@ static inline int cpu_to_logical_apicid(int cpu)
 
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
-	if (mps_cpu < get_physical_broadcast())
-		return mps_cpu;
-	else
-		return BAD_APICID;
+	return mps_cpu;
 }
 
 static inline physid_mask_t apicid_to_cpu_present(int apicid)
@@ -86,9 +84,9 @@ static inline int check_phys_apicid_present(int boot_cpu_physical_apicid)
 	return physid_isset(boot_cpu_physical_apicid, phys_cpu_present_map);
 }
 
-static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
+static inline unsigned int cpu_mask_to_apicid(cpumask_const_t cpumask)
 {
-	return cpus_addr(cpumask)[0];
+	return cpus_coerce_const(cpumask);
 }
 
 static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)

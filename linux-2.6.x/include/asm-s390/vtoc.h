@@ -14,6 +14,7 @@
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/hdreg.h>
+#include <linux/version.h>
 #include <asm/dasd.h>
 #endif
 

@@ -504,19 +504,19 @@ icn_parse_status(u_char * status, int channel, icn_card * card)
 		case 3:
 			{
 				char *t = status + 6;
-				char *s = strchr(t, ',');
+				char *s = strpbrk(t, ",");
 
 				*s++ = '\0';
 				strlcpy(cmd.parm.setup.phone, t,
 					sizeof(cmd.parm.setup.phone));
-				s = strchr(t = s, ',');
+				s = strpbrk(t = s, ",");
 				*s++ = '\0';
 				if (!strlen(t))
 					cmd.parm.setup.si1 = 0;
 				else
 					cmd.parm.setup.si1 =
 					    simple_strtoul(t, NULL, 10);
-				s = strchr(t = s, ',');
+				s = strpbrk(t = s, ",");
 				*s++ = '\0';
 				if (!strlen(t))
 					cmd.parm.setup.si2 = 0;
@@ -798,7 +798,7 @@ int slsec = sec; \
 #endif
 
 static int
-icn_loadboot(u_char __user * buffer, icn_card * card)
+icn_loadboot(u_char * buffer, icn_card * card)
 {
 	int ret;
 	u_char *codebuf;
@@ -903,9 +903,9 @@ icn_loadboot(u_char __user * buffer, icn_card * card)
 }
 
 static int
-icn_loadproto(u_char __user * buffer, icn_card * card)
+icn_loadproto(u_char * buffer, icn_card * card)
 {
-	register u_char __user *p = buffer;
+	register u_char *p = buffer;
 	u_char codebuf[256];
 	uint left = ICN_CODE_STAGE2;
 	uint cnt;
@@ -916,7 +916,7 @@ icn_loadproto(u_char __user * buffer, icn_card * card)
 #ifdef BOOT_DEBUG
 	printk(KERN_DEBUG "icn_loadproto called\n");
 #endif
-	if ((ret = verify_area(VERIFY_READ, buffer, ICN_CODE_STAGE2)))
+	if ((ret = verify_area(VERIFY_READ, (void *) buffer, ICN_CODE_STAGE2)))
 		return ret;
 	timer = 0;
 	spin_lock_irqsave(&dev.devlock, flags);
@@ -1007,15 +1007,18 @@ icn_loadproto(u_char __user * buffer, icn_card * card)
 
 /* Read the Status-replies from the Interface */
 static int
-icn_readstatus(u_char __user *buf, int len, icn_card * card)
+icn_readstatus(u_char * buf, int len, int user, icn_card * card)
 {
 	int count;
-	u_char __user *p;
+	u_char *p;
 
 	for (p = buf, count = 0; count < len; p++, count++) {
 		if (card->msg_buf_read == card->msg_buf_write)
 			return count;
-		put_user(*card->msg_buf_read++, p);
+		if (user)
+			put_user(*card->msg_buf_read++, p);
+		else
+			*p = *card->msg_buf_read++;
 		if (card->msg_buf_read > card->msg_buf_end)
 			card->msg_buf_read = card->msg_buf;
 	}
@@ -1160,12 +1163,10 @@ icn_command(isdn_ctrl * c, icn_card * card)
 	char cbuf[60];
 	isdn_ctrl cmd;
 	icn_cdef cdef;
-	char __user *arg;
 
 	switch (c->command) {
 		case ISDN_CMD_IOCTL:
 			memcpy(&a, c->parm.num, sizeof(ulong));
-			arg = (char __user *)a;
 			switch (c->arg) {
 				case ICN_IOCTL_SETMMIO:
 					if (dev.memaddr != (a & 0x0ffc000)) {
@@ -1229,15 +1230,15 @@ icn_command(isdn_ctrl * c, icn_card * card)
 				case ICN_IOCTL_GETDOUBLE:
 					return (int) card->doubleS0;
 				case ICN_IOCTL_DEBUGVAR:
-					if (copy_to_user(arg,
-							 &card,
+					if (copy_to_user((char *)a,
+							 (char *)&card,
 							 sizeof(ulong)))
 						return -EFAULT;
 					a += sizeof(ulong);
 					{
 						ulong l = (ulong) & dev;
-						if (copy_to_user(arg,
-								 &l,
+						if (copy_to_user((char *)a,
+								 (char *)&l,
 								 sizeof(ulong)))
 							return -EFAULT;
 					}
@@ -1248,20 +1249,20 @@ icn_command(isdn_ctrl * c, icn_card * card)
 						dev.firstload = 0;
 					}
 					icn_stopcard(card);
-					return (icn_loadboot(arg, card));
+					return (icn_loadboot((u_char *) a, card));
 				case ICN_IOCTL_LOADPROTO:
 					icn_stopcard(card);
-					if ((i = (icn_loadproto(arg, card))))
+					if ((i = (icn_loadproto((u_char *) a, card))))
 						return i;
 					if (card->doubleS0)
-						i = icn_loadproto(arg + ICN_CODE_STAGE2, card->other);
+						i = icn_loadproto((u_char *) (a + ICN_CODE_STAGE2), card->other);
 					return i;
 					break;
 				case ICN_IOCTL_ADDCARD:
 					if (!dev.firstload)
 						return -EBUSY;
-					if (copy_from_user(&cdef,
-							   arg,
+					if (copy_from_user((char *)&cdef,
+							   (char *)a,
 							   sizeof(cdef)))
 						return -EFAULT;
 					return (icn_addcard(cdef.port, cdef.id1, cdef.id2));
@@ -1469,14 +1470,14 @@ if_command(isdn_ctrl * c)
 }
 
 static int
-if_writecmd(const u_char __user *buf, int len, int id, int channel)
+if_writecmd(const u_char * buf, int len, int user, int id, int channel)
 {
 	icn_card *card = icn_findcard(id);
 
 	if (card) {
 		if (!card->flags & ICN_FLAGS_RUNNING)
 			return -ENODEV;
-		return (icn_writecmd(buf, len, 1, card));
+		return (icn_writecmd(buf, len, user, card));
 	}
 	printk(KERN_ERR
 	       "icn: if_writecmd called with invalid driverId!\n");
@@ -1484,14 +1485,14 @@ if_writecmd(const u_char __user *buf, int len, int id, int channel)
 }
 
 static int
-if_readstatus(u_char __user *buf, int len, int id, int channel)
+if_readstatus(u_char * buf, int len, int user, int id, int channel)
 {
 	icn_card *card = icn_findcard(id);
 
 	if (card) {
 		if (!card->flags & ICN_FLAGS_RUNNING)
 			return -ENODEV;
-		return (icn_readstatus(buf, len, card));
+		return (icn_readstatus(buf, len, user, card));
 	}
 	printk(KERN_ERR
 	       "icn: if_readstatus called with invalid driverId!\n");

@@ -61,8 +61,6 @@ static struct sh7751_pci_address_map sh7751_pci_map = {
 		.base	= SH7751_CS2_BASE_ADDR,
 		.size	= SNAPGEAR_LSR1_SIZE,
 	},
-
-	.flags	= SH7751_PCIC_NO_RESET,
 };
 
 /*

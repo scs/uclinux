@@ -382,8 +382,11 @@ static struct p4_event_binding p4_events[NUM_EVENTS] = {
 static unsigned int get_stagger(void)
 {
 #ifdef CONFIG_SMP
-	int cpu = smp_processor_id();
-	return (cpu != first_cpu(cpu_sibling_map[cpu]));
+	int cpu;
+	if (smp_num_siblings > 1) {
+		cpu = smp_processor_id();
+		return (cpu_sibling_map[cpu] > cpu) ? 0 : 1;
+	}
 #endif	
 	return 0;
 }
@@ -464,7 +467,7 @@ static void pmc_setup_one_p4_counter(unsigned int ctr)
 	unsigned int escr = 0;
 	unsigned int high = 0;
 	unsigned int counter_bit;
-	struct p4_event_binding *ev = NULL;
+	struct p4_event_binding * ev = 0;
 	unsigned int stag;
 
 	stag = get_stagger();

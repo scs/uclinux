@@ -9,7 +9,6 @@
 #define __LINUX_MII_H__
 
 #include <linux/types.h>
-#include <linux/if.h>
 
 /* Generic MII registers. */
 
@@ -143,12 +142,6 @@ struct mii_ioctl_data {
 	u16		val_in;
 	u16		val_out;
 };
-
-
-static inline struct mii_ioctl_data *if_mii(struct ifreq *rq)
-{
-	return (struct mii_ioctl_data *) &rq->ifr_ifru;
-}
 
 
 /**

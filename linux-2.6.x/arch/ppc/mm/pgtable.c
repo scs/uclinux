@@ -42,15 +42,7 @@ int io_bat_index;
 #define HAVE_BATS	1
 #endif
 
-#if defined(CONFIG_FSL_BOOKE)
-#define HAVE_TLBCAM	1
-#endif
-
 extern char etext[], _stext[];
-
-#ifdef CONFIG_SMP
-extern void hash_page_sync(void);
-#endif
 
 #ifdef HAVE_BATS
 extern unsigned long v_mapped_by_bats(unsigned long va);
@@ -62,16 +54,6 @@ void setbat(int index, unsigned long virt, unsigned long phys,
 #define v_mapped_by_bats(x)	(0UL)
 #define p_mapped_by_bats(x)	(0UL)
 #endif /* HAVE_BATS */
-
-#ifdef HAVE_TLBCAM
-extern unsigned int tlbcam_index;
-extern unsigned int num_tlbcam_entries;
-extern unsigned long v_mapped_by_tlbcam(unsigned long va);
-extern unsigned long p_mapped_by_tlbcam(unsigned long pa);
-#else /* !HAVE_TLBCAM */
-#define v_mapped_by_tlbcam(x)	(0UL)
-#define p_mapped_by_tlbcam(x)	(0UL)
-#endif /* HAVE_TLBCAM */
 
 #ifdef CONFIG_44x
 /* 44x uses an 8kB pgdir because it has 8-byte Linux PTEs. */
@@ -85,13 +67,13 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	pgd_t *ret;
 
 	if ((ret = (pgd_t *)__get_free_pages(GFP_KERNEL, PGDIR_ORDER)) != NULL)
-		clear_pages(ret, PGDIR_ORDER);
+		clear_page(ret);
 	return ret;
 }
 
 void pgd_free(pgd_t *pgd)
 {
-	free_pages((unsigned long)pgd, PGDIR_ORDER);
+	free_page((unsigned long)pgd);
 }
 
 pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
@@ -100,14 +82,9 @@ pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 	extern int mem_init_done;
 	extern void *early_get_page(void);
 
-	if (mem_init_done) {
+	if (mem_init_done)
 		pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
-		if (pte) {
-			struct page *ptepage = virt_to_page(pte);
-			ptepage->mapping = (void *) mm;
-			ptepage->index = address & PMD_MASK;
-		}
-	} else
+	else
 		pte = (pte_t *)early_get_page();
 	if (pte)
 		clear_page(pte);
@@ -116,7 +93,7 @@ pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 
 struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
-	struct page *ptepage;
+	struct page *pte;
 
 #ifdef CONFIG_HIGHPTE
 	int flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_REPEAT;
@@ -124,31 +101,20 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	int flags = GFP_KERNEL | __GFP_REPEAT;
 #endif
 
-	ptepage = alloc_pages(flags, 0);
-	if (ptepage) {
-		ptepage->mapping = (void *) mm;
-		ptepage->index = address & PMD_MASK;
-		clear_highpage(ptepage);
-	}
-	return ptepage;
+	pte = alloc_pages(flags, 0);
+	if (pte)
+		clear_highpage(pte);
+	return pte;
 }
 
 void pte_free_kernel(pte_t *pte)
 {
-#ifdef CONFIG_SMP
-	hash_page_sync();
-#endif
-	virt_to_page(pte)->mapping = NULL;
 	free_page((unsigned long)pte);
 }
 
-void pte_free(struct page *ptepage)
+void pte_free(struct page *pte)
 {
-#ifdef CONFIG_SMP
-	hash_page_sync();
-#endif
-	ptepage->mapping = NULL;
-	__free_page(ptepage);
+	__free_page(pte);
 }
 
 #ifndef CONFIG_44x
@@ -167,7 +133,7 @@ ioremap64(unsigned long long addr, unsigned long size)
 void *
 ioremap(phys_addr_t addr, unsigned long size)
 {
-	phys_addr_t addr64 = fixup_bigphys_addr(addr, size);
+	phys_addr_t addr64 = fixup_bigphys_addr(addr, size);;
 
 	return ioremap64(addr64, size);
 }
@@ -222,9 +188,6 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 	 *  -- Cort
 	 */
 	if ((v = p_mapped_by_bats(p)) /*&& p_mapped_by_bats(p+size-1)*/ )
-		goto out;
-
-	if ((v = p_mapped_by_tlbcam(p)))
 		goto out;
 
 	if (mem_init_done) {
@@ -317,9 +280,6 @@ void __init mapin_ram(void)
 /* is x a power of 2? */
 #define is_power_of_2(x)	((x) != 0 && (((x) & ((x) - 1)) == 0))
 
-/* is x a power of 4? */
-#define is_power_of_4(x)	((x) != 0 && (((x) & (x-1)) == 0) && (ffs(x) & 1))
-
 /*
  * Set up a mapping for a block of I/O.
  * virt, phys, size must all be page-aligned.
@@ -344,18 +304,6 @@ void __init io_block_mapping(unsigned long virt, phys_addr_t phys,
 		return;
 	}
 #endif /* HAVE_BATS */
-
-#ifdef HAVE_TLBCAM
-	/*
-	 * Use a CAM for this if possible...
-	 */
-	if (tlbcam_index < num_tlbcam_entries && is_power_of_4(size)
-	    && (virt & (size - 1)) == 0 && (phys & (size - 1)) == 0) {
-		settlbcam(tlbcam_index, virt, phys, size, flags, 0);
-		++tlbcam_index;
-		return;
-	}
-#endif /* HAVE_TLBCAM */
 
 	/* No BATs available, put it in the page tables. */
 	for (i = 0; i < size; i += PAGE_SIZE)

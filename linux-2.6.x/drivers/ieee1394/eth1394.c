@@ -1,6 +1,6 @@
 /*
  * eth1394.c -- Ethernet driver for Linux IEEE-1394 Subsystem
- *
+ * 
  * Copyright (C) 2001-2003 Ben Collins <bcollins@debian.org>
  *               2000 Bonin Franck <boninf@free.fr>
  *               2003 Steve Kinneberg <kinnebergsteve@acmsystems.com>
@@ -29,6 +29,7 @@
  *
  * TODO:
  * RFC 2734 related:
+ * - Add Config ROM entry
  * - Add MCAP. Limited Multicast exists only to 224.0.0.1 and 224.0.0.2.
  *
  * Non-RFC 2734 related:
@@ -37,6 +38,7 @@
  * - Convert kmalloc/kfree for link fragments to use kmem_cache_* instead
  * - Stability improvements
  * - Performance enhancements
+ * - Change hardcoded 1394 bus address region to a dynamic memory space allocation
  * - Consider garbage collecting old partial datagrams after X amount of time
  */
 
@@ -67,7 +69,6 @@
 #include <asm/semaphore.h>
 #include <net/arp.h>
 
-#include "csr1212.h"
 #include "ieee1394_types.h"
 #include "ieee1394_core.h"
 #include "ieee1394_transactions.h"
@@ -76,7 +77,6 @@
 #include "iso.h"
 #include "nodemgr.h"
 #include "eth1394.h"
-#include "config_roms.h"
 
 #define ETH1394_PRINT_G(level, fmt, args...) \
 	printk(level "%s: " fmt, driver_name, ## args)
@@ -89,7 +89,7 @@
 #define TRACE() printk(KERN_ERR "%s:%s[%d] ---- TRACE\n", driver_name, __FUNCTION__, __LINE__)
 
 static char version[] __devinitdata =
-	"$Rev: 1224 $ Ben Collins <bcollins@debian.org>";
+	"$Rev: 1096 $ Ben Collins <bcollins@debian.org>";
 
 struct fragment_info {
 	struct list_head list;
@@ -107,33 +107,8 @@ struct partial_datagram {
 	struct list_head frag_info;
 };
 
-struct pdg_list {
-	struct list_head list;		/* partial datagram list per node	*/
-	unsigned int sz;		/* partial datagram list size per node	*/
-	spinlock_t lock;		/* partial datagram lock		*/
-};
-
-struct eth1394_host_info {
-	struct hpsb_host *host;
-	struct net_device *dev;
-};
-
-struct eth1394_node_ref {
-	struct unit_directory *ud;
-	struct list_head list;
-};
-
-struct eth1394_node_info {
-	u16 maxpayload;			/* Max payload			*/
-	u8 sspd;			/* Max speed			*/
-	u64 fifo;			/* FIFO address			*/
-	struct pdg_list pdg;		/* partial RX datagram lists	*/
-	int dgl;			/* Outgoing datagram label	*/
-};
-
 /* Our ieee1394 highlevel driver */
-#define ETH1394_DRIVER_NAME "ip1394"
-static const char driver_name[] = ETH1394_DRIVER_NAME;
+static const char driver_name[] = "eth1394";
 
 static kmem_cache_t *packet_task_cache;
 
@@ -191,7 +166,7 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev);
 static void ether1394_iso(struct hpsb_iso *iso);
 
 static int ether1394_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-static int ether1394_ethtool_ioctl(struct net_device *dev, void __user *useraddr);
+static int ether1394_ethtool_ioctl(struct net_device *dev, void *useraddr);
 
 static int ether1394_write(struct hpsb_host *host, int srcid, int destid,
 			   quadlet_t *data, u64 addr, size_t len, u16 flags);
@@ -213,36 +188,94 @@ static struct hpsb_highlevel eth1394_highlevel = {
 };
 
 
+static void eth1394_iso_shutdown(struct eth1394_priv *priv)
+{
+	priv->bc_state = ETHER1394_BC_CLOSED;
+
+	if (priv->iso != NULL) {
+		if (!in_interrupt())
+			hpsb_iso_shutdown(priv->iso);
+		priv->iso = NULL;
+	}
+}
+
+static int ether1394_init_bc(struct net_device *dev)
+{
+	struct eth1394_priv *priv = (struct eth1394_priv *)dev->priv;
+
+	/* First time sending?  Need a broadcast channel for ARP and for
+	 * listening on */
+	if (priv->bc_state == ETHER1394_BC_CHECK) {
+		quadlet_t bc;
+
+		/* Get the local copy of the broadcast channel and check its
+		 * validity (the IRM should validate it for us) */
+
+		bc = priv->host->csr.broadcast_channel;
+
+		if ((bc & 0xc0000000) != 0xc0000000) {
+			/* broadcast channel not validated yet */
+			ETH1394_PRINT(KERN_WARNING, dev->name,
+				      "Error BROADCAST_CHANNEL register valid "
+				      "bit not set, can't send IP traffic\n");
+
+			eth1394_iso_shutdown(priv);
+
+			return -EAGAIN;
+		}
+		if (priv->broadcast_channel != (bc & 0x3f)) {
+			/* This really shouldn't be possible, but just in case
+			 * the IEEE 1394 spec changes regarding broadcast
+			 * channels in the future. */
+
+			eth1394_iso_shutdown(priv);
+
+			if (in_interrupt())
+				return -EAGAIN;
+
+			priv->broadcast_channel = bc & 0x3f;
+			ETH1394_PRINT(KERN_INFO, dev->name,
+				      "Changing to broadcast channel %d...\n",
+				      priv->broadcast_channel);
+
+			priv->iso = hpsb_iso_recv_init(priv->host, 16 * 4096,
+						       16, priv->broadcast_channel,
+						       HPSB_ISO_DMA_PACKET_PER_BUFFER, 1, ether1394_iso);
+			if (priv->iso == NULL) {
+				ETH1394_PRINT(KERN_ERR, dev->name,
+					      "failed to change broadcast "
+					      "channel\n");
+				return -EAGAIN;
+			}
+		}
+		if (hpsb_iso_recv_start(priv->iso, -1, (1 << 3), -1) < 0) {
+			ETH1394_PRINT(KERN_ERR, dev->name,
+				      "Could not start data stream reception\n");
+
+			eth1394_iso_shutdown(priv);
+
+			return -EAGAIN;
+		}
+		priv->bc_state = ETHER1394_BC_OPENED;
+	}
+    
+	return 0;
+}
+
 /* This is called after an "ifup" */
 static int ether1394_open (struct net_device *dev)
 {
-	struct eth1394_priv *priv = dev->priv;
-	int ret = 0;
+	struct eth1394_priv *priv = (struct eth1394_priv *)dev->priv;
+	unsigned long flags;
+	int ret;
 
 	/* Something bad happened, don't even try */
-	if (priv->bc_state == ETHER1394_BC_ERROR) {
-		/* we'll try again */
-		priv->iso = hpsb_iso_recv_init(priv->host,
-					       ETHER1394_GASP_BUFFERS * 2 *
-					       (1 << (priv->host->csr.max_rec +
-						      1)),
-					       ETHER1394_GASP_BUFFERS,
-					       priv->broadcast_channel,
-					       HPSB_ISO_DMA_PACKET_PER_BUFFER,
-					       1, ether1394_iso);
-		if (priv->iso == NULL) {
-			ETH1394_PRINT(KERN_ERR, dev->name,
-				      "Could not allocate isochronous receive "
-				      "context for the broadcast channel\n");
-			priv->bc_state = ETHER1394_BC_ERROR;
-			ret = -EAGAIN;
-		} else {
-			if (hpsb_iso_recv_start(priv->iso, -1, (1 << 3), -1) < 0)
-				priv->bc_state = ETHER1394_BC_STOPPED;
-			else
-				priv->bc_state = ETHER1394_BC_RUNNING;
-		}
-	}
+	if (priv->bc_state == ETHER1394_BC_CLOSED)
+		return -EAGAIN;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	ret = ether1394_init_bc(dev);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (ret)
 		return ret;
@@ -278,249 +311,67 @@ static void ether1394_tx_timeout (struct net_device *dev)
 
 static int ether1394_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct eth1394_priv *priv = dev->priv;
+	struct eth1394_priv *priv = (struct eth1394_priv *)dev->priv;
+	int phy_id = NODEID_TO_NODE(priv->host->node_id);
 
-	if ((new_mtu < 68) ||
-	    (new_mtu > min(ETH1394_DATA_LEN,
-			   (int)((1 << (priv->host->csr.max_rec + 1)) -
-				 (sizeof(union eth1394_hdr) +
-				  ETHER1394_GASP_OVERHEAD)))))
+	if ((new_mtu < 68) || (new_mtu > min(ETH1394_DATA_LEN, (int)(priv->maxpayload[phy_id] -
+					     (sizeof(union eth1394_hdr) + ETHER1394_GASP_OVERHEAD)))))
 		return -EINVAL;
 	dev->mtu = new_mtu;
 	return 0;
 }
 
-static inline void purge_partial_datagram(struct list_head *old)
+static inline void ether1394_register_limits(int nodeid, u16 maxpayload,
+					     unsigned char sspd, u64 eui, u64 fifo,
+					     struct eth1394_priv *priv)
 {
-	struct partial_datagram *pd = list_entry(old, struct partial_datagram, list);
-	struct list_head *lh, *n;
-
-	list_for_each_safe(lh, n, &pd->frag_info) {
-		struct fragment_info *fi = list_entry(lh, struct fragment_info, list);
-		list_del(lh);
-		kfree(fi);
-	}
-	list_del(old);
-	kfree_skb(pd->skb);
-	kfree(pd);
-}
-
-/******************************************
- * 1394 bus activity functions
- ******************************************/
-
-static struct eth1394_node_ref *eth1394_find_node(struct list_head *inl,
-						  struct unit_directory *ud)
-{
-	struct eth1394_node_ref *node;
-
-	list_for_each_entry(node, inl, list)
-		if (node->ud == ud)
-			return node;
-
-	return NULL;
-}
-
-static struct eth1394_node_ref *eth1394_find_node_guid(struct list_head *inl,
-						       u64 guid)
-{
-	struct eth1394_node_ref *node;
-
-	list_for_each_entry(node, inl, list)
-		if (node->ud->ne->guid == guid)
-			return node;
-
-	return NULL;
-}
-
-static struct eth1394_node_ref *eth1394_find_node_nodeid(struct list_head *inl,
-							 nodeid_t nodeid)
-{
-	struct eth1394_node_ref *node;
-	list_for_each_entry(node, inl, list) {
-		if (node->ud->ne->nodeid == nodeid)
-			return node;
+	if (nodeid < 0 || nodeid >= ALL_NODES) {
+		ETH1394_PRINT_G (KERN_ERR, "Cannot register invalid nodeid %d\n", nodeid);
+		return;
 	}
 
-	return NULL;
+	priv->maxpayload[nodeid]	= maxpayload;
+	priv->sspd[nodeid]		= sspd;
+	priv->fifo[nodeid]		= fifo;
+	priv->eui[nodeid]		= eui;
+
+	priv->maxpayload[ALL_NODES] = min(priv->maxpayload[ALL_NODES], maxpayload);
+	priv->sspd[ALL_NODES] = min(priv->sspd[ALL_NODES], sspd);
+
+	return;
 }
-
-static int eth1394_probe(struct device *dev)
-{
-	struct unit_directory *ud;
-	struct eth1394_host_info *hi;
-	struct eth1394_priv *priv;
-	struct eth1394_node_ref *new_node;
-	struct eth1394_node_info *node_info;
-
-	ud = container_of(dev, struct unit_directory, device);
-
-	hi = hpsb_get_hostinfo(&eth1394_highlevel, ud->ne->host);
-	if (!hi)
-		return -ENOENT;
-
-	new_node = kmalloc(sizeof(struct eth1394_node_ref),
-			   in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-	if (!new_node)
-		return -ENOMEM;
-
-	node_info = kmalloc(sizeof(struct eth1394_node_info),
-			    in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-	if (!node_info) {
-		kfree(new_node);
-		return -ENOMEM;
-	}
-
-	spin_lock_init(&node_info->pdg.lock);
-	INIT_LIST_HEAD(&node_info->pdg.list);
-	node_info->pdg.sz = 0;
-	node_info->fifo = ETHER1394_INVALID_ADDR;
-
-	ud->device.driver_data = node_info;
-	new_node->ud = ud;
-
-	priv = (struct eth1394_priv *)hi->dev->priv;
-	list_add_tail(&new_node->list, &priv->ip_node_list);
-
-	return 0;
-}
-
-static int eth1394_remove(struct device *dev)
-{
-	struct unit_directory *ud;
-	struct eth1394_host_info *hi;
-	struct eth1394_priv *priv;
-	struct eth1394_node_ref *old_node;
-	struct eth1394_node_info *node_info;
-	struct list_head *lh, *n;
-	unsigned long flags;
-
-	ud = container_of(dev, struct unit_directory, device);
-	hi = hpsb_get_hostinfo(&eth1394_highlevel, ud->ne->host);
-	if (!hi)
-		return -ENOENT;
-
-	priv = (struct eth1394_priv *)hi->dev->priv;
-
-	old_node = eth1394_find_node(&priv->ip_node_list, ud);
-
-	if (old_node) {
-		list_del(&old_node->list);
-		kfree(old_node);
-
-		node_info = (struct eth1394_node_info*)ud->device.driver_data;
-
-		spin_lock_irqsave(&node_info->pdg.lock, flags);
-		/* The partial datagram list should be empty, but we'll just
-		 * make sure anyway... */
-		list_for_each_safe(lh, n, &node_info->pdg.list) {
-			purge_partial_datagram(lh);
-		}
-		spin_unlock_irqrestore(&node_info->pdg.lock, flags);
-
-		kfree(node_info);
-		ud->device.driver_data = NULL;
-	}
-	return 0;
-}
-
-static int eth1394_update(struct unit_directory *ud)
-{
-	struct eth1394_host_info *hi;
-	struct eth1394_priv *priv;
-	struct eth1394_node_ref *node;
-	struct eth1394_node_info *node_info;
-
-	hi = hpsb_get_hostinfo(&eth1394_highlevel, ud->ne->host);
-	if (!hi)
-		return -ENOENT;
-
-	priv = (struct eth1394_priv *)hi->dev->priv;
-
-	node = eth1394_find_node(&priv->ip_node_list, ud);
-
-	if (!node) {
-		node = kmalloc(sizeof(struct eth1394_node_ref),
-			       in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-		if (!node)
-			return -ENOMEM;
-
-		node_info = kmalloc(sizeof(struct eth1394_node_info),
-				    in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-		if (!node_info) {
-			kfree(node);
-			return -ENOMEM;
-                }
-
-		spin_lock_init(&node_info->pdg.lock);
-		INIT_LIST_HEAD(&node_info->pdg.list);
-		node_info->pdg.sz = 0;
-
-		ud->device.driver_data = node_info;
-		node->ud = ud;
-
-		priv = (struct eth1394_priv *)hi->dev->priv;
-		list_add_tail(&node->list, &priv->ip_node_list);
-	}
-
-	return 0;
-}
-
-
-static struct ieee1394_device_id eth1394_id_table[] = {
-	{
-		.match_flags = (IEEE1394_MATCH_SPECIFIER_ID |
-				IEEE1394_MATCH_VERSION),
-		.specifier_id =	ETHER1394_GASP_SPECIFIER_ID,
-		.version = ETHER1394_GASP_VERSION,
-	},
-	{}
-};
-
-MODULE_DEVICE_TABLE(ieee1394, eth1394_id_table);
-
-static struct hpsb_protocol_driver eth1394_proto_driver = {
-	.name		= "IPv4 over 1394 Driver",
-	.id_table	= eth1394_id_table,
-	.update		= eth1394_update,
-	.driver		= {
-		.name		= ETH1394_DRIVER_NAME,
-		.bus		= &ieee1394_bus_type,
-		.probe		= eth1394_probe,
-		.remove		= eth1394_remove,
-	},
-};
-
 
 static void ether1394_reset_priv (struct net_device *dev, int set_mtu)
 {
 	unsigned long flags;
 	int i;
-	struct eth1394_priv *priv = dev->priv;
+	struct eth1394_priv *priv = (struct eth1394_priv *)dev->priv;
 	struct hpsb_host *host = priv->host;
-	u64 guid = *((u64*)&(host->csr.rom->bus_info_data[3]));
-	u16 maxpayload = 1 << (host->csr.max_rec + 1);
-	int max_speed = IEEE1394_SPEED_MAX;
+	int phy_id = NODEID_TO_NODE(host->node_id);
+	u64 guid = *((u64*)&(host->csr.rom[3]));
+	u16 maxpayload = 1 << (((be32_to_cpu(host->csr.rom[2]) >> 12) & 0xf) + 1);
 
 	spin_lock_irqsave (&priv->lock, flags);
 
-	memset(priv->ud_list, 0, sizeof(struct node_entry*) * ALL_NODES);
-	priv->bc_maxpayload = 512;
+	/* Clear the speed/payload/offset tables */
+	memset (priv->maxpayload, 0, sizeof (priv->maxpayload));
+	memset (priv->sspd, 0, sizeof (priv->sspd));
+	memset (priv->fifo, 0, sizeof (priv->fifo));
 
-	/* Determine speed limit */
-	for (i = 0; i < host->node_count; i++)
-		if (max_speed > host->speed_map[NODEID_TO_NODE(host->node_id) *
-						64 + i])
-			max_speed = host->speed_map[NODEID_TO_NODE(host->node_id) *
-						    64 + i];
-	priv->bc_sspd = max_speed;
+	priv->sspd[ALL_NODES] = ETH1394_SPEED_DEF;
+	priv->maxpayload[ALL_NODES] = eth1394_speedto_maxpayload[priv->sspd[ALL_NODES]];
+
+	priv->bc_state = ETHER1394_BC_CHECK;
+
+	/* Register our limits now */
+	ether1394_register_limits(phy_id, maxpayload,
+				  host->speed_map[(phy_id << 6) + phy_id],
+				  guid, ETHER1394_REGION_ADDR, priv);
 
 	/* We'll use our maxpayload as the default mtu */
 	if (set_mtu) {
-		dev->mtu = min(ETH1394_DATA_LEN,
-			       (int)(maxpayload -
-				     (sizeof(union eth1394_hdr) +
-				      ETHER1394_GASP_OVERHEAD)));
+		dev->mtu = min(ETH1394_DATA_LEN, (int)(priv->maxpayload[phy_id] -
+			       (sizeof(union eth1394_hdr) + ETHER1394_GASP_OVERHEAD)));
 
 		/* Set our hardware address while we're at it */
 		*(u64*)dev->dev_addr = guid;
@@ -528,10 +379,24 @@ static void ether1394_reset_priv (struct net_device *dev, int set_mtu)
 	}
 
 	spin_unlock_irqrestore (&priv->lock, flags);
+
+	for (i = 0; i < ALL_NODES; i++) {
+		struct list_head *lh, *n;
+
+		spin_lock_irqsave(&priv->pdg[i].lock, flags);
+		if (!set_mtu) {
+			list_for_each_safe(lh, n, &priv->pdg[i].list) {
+				purge_partial_datagram(lh);
+			}
+		}
+		INIT_LIST_HEAD(&(priv->pdg[i].list));
+		priv->pdg[i].sz = 0;
+		spin_unlock_irqrestore(&priv->pdg[i].lock, flags);
+	}
 }
 
-/* This function is called right before register_netdev */
-static void ether1394_init_dev (struct net_device *dev)
+/* This function is called by register_netdev */
+static int ether1394_init_dev (struct net_device *dev)
 {
 	/* Our functions */
 	dev->open		= ether1394_open;
@@ -558,6 +423,8 @@ static void ether1394_init_dev (struct net_device *dev)
 	dev->type		= ARPHRD_IEEE1394;
 
 	ether1394_reset_priv (dev, 1);
+
+	return 0;
 }
 
 /*
@@ -567,23 +434,15 @@ static void ether1394_init_dev (struct net_device *dev)
  */
 static void ether1394_add_host (struct hpsb_host *host)
 {
-	struct eth1394_host_info *hi = NULL;
+	int i;
+	struct host_info *hi = NULL;
 	struct net_device *dev = NULL;
 	struct eth1394_priv *priv;
 	static int version_printed = 0;
-	u64 fifo_addr;
 
-	if (!(host->config_roms & HPSB_CONFIG_ROM_ENTRY_IP1394))
-		return;
-
-	fifo_addr = hpsb_allocate_and_register_addrspace(&eth1394_highlevel,
-							 host,
-							 &addr_ops,
-							 ETHER1394_REGION_ADDR_LEN,
-							 ETHER1394_REGION_ADDR_LEN,
-							 -1, -1);
-	if (fifo_addr == ~0ULL)
-		goto out;
+	hpsb_register_addrspace(&eth1394_highlevel, host, &addr_ops,
+				ETHER1394_REGION_ADDR,
+				ETHER1394_REGION_ADDR_END);
 
 	if (version_printed++ == 0)
 		ETH1394_PRINT_G (KERN_INFO, "%s\n", version);
@@ -602,13 +461,18 @@ static void ether1394_add_host (struct hpsb_host *host)
 
 	SET_MODULE_OWNER(dev);
 
-	priv = (struct eth1394_priv *)dev->priv;
+	dev->init = ether1394_init_dev;
 
-	INIT_LIST_HEAD(&priv->ip_node_list);
+	priv = (struct eth1394_priv *)dev->priv;
 
 	spin_lock_init(&priv->lock);
 	priv->host = host;
-	priv->local_fifo = fifo_addr;
+
+	for (i = 0; i < ALL_NODES; i++) {
+                spin_lock_init(&priv->pdg[i].lock);
+		INIT_LIST_HEAD(&priv->pdg[i].list);
+		priv->pdg[i].sz = 0;
+	}
 
 	hi = hpsb_create_hostinfo(&eth1394_highlevel, host, sizeof(*hi));
 
@@ -619,15 +483,13 @@ static void ether1394_add_host (struct hpsb_host *host)
 		goto out;
         }
 
-	ether1394_init_dev(dev);
-
 	if (register_netdev (dev)) {
 		ETH1394_PRINT (KERN_ERR, dev->name, "Error registering network driver\n");
 		goto out;
 	}
 
-	ETH1394_PRINT (KERN_ERR, dev->name, "IEEE-1394 IPv4 over 1394 Ethernet (fw-host%d)\n",
-		       host->id);
+	ETH1394_PRINT (KERN_ERR, dev->name, "IEEE-1394 IPv4 over 1394 Ethernet (%s)\n",
+		       host->driver->name);
 
 	hi->host = host;
 	hi->dev = dev;
@@ -636,29 +498,16 @@ static void ether1394_add_host (struct hpsb_host *host)
 	 * be checked when the eth device is opened. */
 	priv->broadcast_channel = host->csr.broadcast_channel & 0x3f;
 
-	priv->iso = hpsb_iso_recv_init(host, (ETHER1394_GASP_BUFFERS * 2 *
-					      (1 << (host->csr.max_rec + 1))),
-				       ETHER1394_GASP_BUFFERS,
-				       priv->broadcast_channel,
-				       HPSB_ISO_DMA_PACKET_PER_BUFFER,
-				       1, ether1394_iso);
+	priv->iso = hpsb_iso_recv_init(host, 16 * 4096, 16, priv->broadcast_channel,
+					HPSB_ISO_DMA_PACKET_PER_BUFFER, 1, ether1394_iso);
 	if (priv->iso == NULL) {
-		ETH1394_PRINT(KERN_ERR, dev->name,
-			      "Could not allocate isochronous receive context "
-			      "for the broadcast channel\n");
-		priv->bc_state = ETHER1394_BC_ERROR;
-	} else {
-		if (hpsb_iso_recv_start(priv->iso, -1, (1 << 3), -1) < 0)
-			priv->bc_state = ETHER1394_BC_STOPPED;
-		else
-			priv->bc_state = ETHER1394_BC_RUNNING;
+		priv->bc_state = ETHER1394_BC_CLOSED;
 	}
-
 	return;
 
 out:
 	if (dev != NULL)
-		free_netdev(dev);
+		kfree(dev);
 	if (hi)
 		hpsb_destroy_hostinfo(&eth1394_highlevel, host);
 
@@ -668,17 +517,12 @@ out:
 /* Remove a card from our list */
 static void ether1394_remove_host (struct hpsb_host *host)
 {
-	struct eth1394_host_info *hi;
+	struct host_info *hi = hpsb_get_hostinfo(&eth1394_highlevel, host);
 
-	hi = hpsb_get_hostinfo(&eth1394_highlevel, host);
 	if (hi != NULL) {
 		struct eth1394_priv *priv = (struct eth1394_priv *)hi->dev->priv;
 
-		hpsb_unregister_addrspace(&eth1394_highlevel, host,
-					  priv->local_fifo);
-
-		if (priv->iso != NULL)
-			hpsb_iso_shutdown(priv->iso);
+		eth1394_iso_shutdown(priv);
 
 		if (hi->dev) {
 			unregister_netdev (hi->dev);
@@ -692,42 +536,18 @@ static void ether1394_remove_host (struct hpsb_host *host)
 /* A reset has just arisen */
 static void ether1394_host_reset (struct hpsb_host *host)
 {
-	struct eth1394_host_info *hi;
-	struct eth1394_priv *priv;
+	struct host_info *hi = hpsb_get_hostinfo(&eth1394_highlevel, host);
 	struct net_device *dev;
-	struct list_head *lh, *n;
-	struct eth1394_node_ref *node;
-	struct eth1394_node_info *node_info;
-	unsigned long flags;
-
-	hi = hpsb_get_hostinfo(&eth1394_highlevel, host);
 
 	/* This can happen for hosts that we don't use */
 	if (hi == NULL)
 		return;
 
 	dev = hi->dev;
-	priv = (struct eth1394_priv *)dev->priv;
 
 	/* Reset our private host data, but not our mtu */
 	netif_stop_queue (dev);
 	ether1394_reset_priv (dev, 0);
-
-	list_for_each_entry(node, &priv->ip_node_list, list) {
-		node_info = (struct eth1394_node_info*)node->ud->device.driver_data;
-
-		spin_lock_irqsave(&node_info->pdg.lock, flags);
-
-		list_for_each_safe(lh, n, &node_info->pdg.list) {
-			purge_partial_datagram(lh);
-		}
-
-		INIT_LIST_HEAD(&(node_info->pdg.list));
-		node_info->pdg.sz = 0;
-
-		spin_unlock_irqrestore(&node_info->pdg.lock, flags);
-	}
-
 	netif_wake_queue (dev);
 }
 
@@ -748,16 +568,18 @@ static int ether1394_header(struct sk_buff *skb, struct net_device *dev,
 
 	eth->h_proto = htons(type);
 
-	if (dev->flags & (IFF_LOOPBACK|IFF_NOARP)) {
+	if (dev->flags & (IFF_LOOPBACK|IFF_NOARP)) 
+	{
 		memset(eth->h_dest, 0, dev->addr_len);
 		return(dev->hard_header_len);
 	}
 
-	if (daddr) {
+	if (daddr)
+	{
 		memcpy(eth->h_dest,daddr,dev->addr_len);
 		return dev->hard_header_len;
 	}
-
+	
 	return -dev->hard_header_len;
 
 }
@@ -775,16 +597,16 @@ static int ether1394_rebuild_header(struct sk_buff *skb)
 	struct eth1394hdr *eth = (struct eth1394hdr *)skb->data;
 	struct net_device *dev = skb->dev;
 
-	switch (eth->h_proto) {
-
+	switch (eth->h_proto)
+	{
 #ifdef CONFIG_INET
 	case __constant_htons(ETH_P_IP):
  		return arp_find((unsigned char*)&eth->h_dest, skb);
-#endif
+#endif	
 	default:
-		ETH1394_PRINT(KERN_DEBUG, dev->name,
-			      "unable to resolve type %04x addresses.\n",
-			      eth->h_proto);
+		printk(KERN_DEBUG
+		       "%s: unable to resolve type %X addresses.\n", 
+		       dev->name, (int)eth->h_proto);
 		break;
 	}
 
@@ -802,8 +624,7 @@ static int ether1394_header_parse(struct sk_buff *skb, unsigned char *haddr)
 static int ether1394_header_cache(struct neighbour *neigh, struct hh_cache *hh)
 {
 	unsigned short type = hh->hh_type;
-	struct eth1394hdr *eth = (struct eth1394hdr*)(((u8*)hh->hh_data) +
-						      (16 - ETH1394_HLEN));
+	struct eth1394hdr *eth = (struct eth1394hdr*)(((u8*)hh->hh_data) + 6);
 	struct net_device *dev = neigh->dev;
 
 	if (type == __constant_htons(ETH_P_802_3)) {
@@ -812,7 +633,7 @@ static int ether1394_header_cache(struct neighbour *neigh, struct hh_cache *hh)
 
 	eth->h_proto = type;
 	memcpy(eth->h_dest, neigh->ha, dev->addr_len);
-
+	
 	hh->hh_len = ETH1394_HLEN;
 	return 0;
 }
@@ -822,7 +643,7 @@ static void ether1394_header_cache_update(struct hh_cache *hh,
 					  struct net_device *dev,
 					  unsigned char * haddr)
 {
-	memcpy(((u8*)hh->hh_data) + (16 - ETH1394_HLEN), haddr, dev->addr_len);
+	memcpy(((u8*)hh->hh_data) + 6, haddr, dev->addr_len);
 }
 
 static int ether1394_mac_addr(struct net_device *dev, void *p)
@@ -831,7 +652,7 @@ static int ether1394_mac_addr(struct net_device *dev, void *p)
 		return -EBUSY;
 
 	/* Not going to allow setting the MAC address, we really need to use
-	 * the real one supplied by the hardware */
+	 * the real one suppliled by the hardware */
 	 return -EINVAL;
  }
 
@@ -882,7 +703,7 @@ static inline u16 ether1394_parse_encap(struct sk_buff *skb,
 					nodeid_t srcid, nodeid_t destid,
 					u16 ether_type)
 {
-	struct eth1394_priv *priv = dev->priv;
+	struct eth1394_priv *priv = (struct eth1394_priv *)dev->priv;
 	u64 dest_hw;
 	unsigned short ret = 0;
 
@@ -891,44 +712,31 @@ static inline u16 ether1394_parse_encap(struct sk_buff *skb,
 	if (destid == (LOCAL_BUS | ALL_NODES))
 		dest_hw = ~0ULL;  /* broadcast */
 	else
-		dest_hw = cpu_to_be64((((u64)priv->host->csr.guid_hi) << 32) |
-				      priv->host->csr.guid_lo);
+		dest_hw = priv->eui[NODEID_TO_NODE(destid)];
 
 	/* If this is an ARP packet, convert it. First, we want to make
 	 * use of some of the fields, since they tell us a little bit
 	 * about the sending machine.  */
 	if (ether_type == __constant_htons (ETH_P_ARP)) {
+		unsigned long flags;
 		struct eth1394_arp *arp1394 = (struct eth1394_arp*)skb->data;
 		struct arphdr *arp = (struct arphdr *)skb->data;
 		unsigned char *arp_ptr = (unsigned char *)(arp + 1);
 		u64 fifo_addr = (u64)ntohs(arp1394->fifo_hi) << 32 |
 			ntohl(arp1394->fifo_lo);
-		u8 max_rec = min(priv->host->csr.max_rec,
-				 (u8)(arp1394->max_rec));
-		int sspd = arp1394->sspd;
-		u16 maxpayload;
-		struct eth1394_node_ref *node;
-		struct eth1394_node_info *node_info;
+		u8 host_max_rec = (be32_to_cpu(priv->host->csr.rom[2]) >>
+				   12) & 0xf;
+		u8 max_rec = min(host_max_rec, (u8)(arp1394->max_rec));
+		u16 maxpayload = min(eth1394_speedto_maxpayload[arp1394->sspd],
+				     (u16)(1 << (max_rec + 1)));
 
-		/* Sanity check. MacOSX seems to be sending us 131 in this
-		 * field (atleast on my Panther G5). Not sure why. */
-		if (sspd > 5 || sspd < 0)
-			sspd = 0;
-
-		maxpayload = min(eth1394_speedto_maxpayload[sspd], (u16)(1 << (max_rec + 1)));
-
-		node = eth1394_find_node_guid(&priv->ip_node_list,
-					      be64_to_cpu(arp1394->s_uniq_id));
-		if (!node) {
-			return 0;
-		}
-
-		node_info = (struct eth1394_node_info*)node->ud->device.driver_data;
 
 		/* Update our speed/payload/fifo_offset table */
-		node_info->maxpayload =	maxpayload;
-		node_info->sspd =	sspd;
-		node_info->fifo =	fifo_addr;
+		spin_lock_irqsave (&priv->lock, flags);
+		ether1394_register_limits(NODEID_TO_NODE(srcid), maxpayload,
+					  arp1394->sspd, arp1394->s_uniq_id,
+					  fifo_addr, priv);
+		spin_unlock_irqrestore (&priv->lock, flags);
 
 		/* Now that we're done with the 1394 specific stuff, we'll
 		 * need to alter some of the data.  Believe it or not, all
@@ -937,8 +745,9 @@ static inline u16 ether1394_parse_encap(struct sk_buff *skb,
 		 * in and the hardware address length set to 8.
 		 *
 		 * IMPORTANT: The code below overwrites 1394 specific data
-		 * needed above so keep the munging of the data for the
-		 * higher level IP stack last. */
+		 * needed above data so keep the call to
+		 * ether1394_register_limits() before munging the data for the
+		 * higher level IP stack. */
 
 		arp->ar_hln = 8;
 		arp_ptr += arp->ar_hln;		/* skip over sender unique id */
@@ -947,9 +756,9 @@ static inline u16 ether1394_parse_encap(struct sk_buff *skb,
 
 		if (arp->ar_op == 1)
 			/* just set ARP req target unique ID to 0 */
-			*((u64*)arp_ptr) = 0;
+			memset(arp_ptr, 0, ETH1394_ALEN);
 		else
-			*((u64*)arp_ptr) = *((u64*)dev->dev_addr);
+			memcpy(arp_ptr, dev->dev_addr, ETH1394_ALEN);
 	}
 
 	/* Now add the ethernet header. */
@@ -962,9 +771,12 @@ static inline u16 ether1394_parse_encap(struct sk_buff *skb,
 
 static inline int fragment_overlap(struct list_head *frag_list, int offset, int len)
 {
+	struct list_head *lh;
 	struct fragment_info *fi;
 
-	list_for_each_entry(fi, frag_list, list) {
+	list_for_each(lh, frag_list) {
+		fi = list_entry(lh, struct fragment_info, list);
+
 		if ( ! ((offset > (fi->offset + fi->len - 1)) ||
 		       ((offset + len - 1) < fi->offset)))
 			return 1;
@@ -974,11 +786,13 @@ static inline int fragment_overlap(struct list_head *frag_list, int offset, int 
 
 static inline struct list_head *find_partial_datagram(struct list_head *pdgl, int dgl)
 {
+	struct list_head *lh;
 	struct partial_datagram *pd;
 
-	list_for_each_entry(pd, pdgl, list) {
+	list_for_each(lh, pdgl) {
+		pd = list_entry(lh, struct partial_datagram, list);
 		if (pd->dgl == dgl)
-			return &pd->list;
+			return lh;
 	}
 	return NULL;
 }
@@ -1025,7 +839,7 @@ static inline int new_fragment(struct list_head *frag_info, int offset, int len)
 	}
 
 	new = kmalloc(sizeof(struct fragment_info), GFP_ATOMIC);
-	if (!new)
+	if (!new) 
 		return -ENOMEM;
 
 	new->offset = offset;
@@ -1095,6 +909,21 @@ static inline int update_partial_datagram(struct list_head *pdgl, struct list_he
 	return 0;
 }
 
+static inline void purge_partial_datagram(struct list_head *old)
+{
+	struct partial_datagram *pd = list_entry(old, struct partial_datagram, list);
+	struct list_head *lh, *n;
+
+	list_for_each_safe(lh, n, &pd->frag_info) {
+		struct fragment_info *fi = list_entry(lh, struct fragment_info, list);
+		list_del(lh);
+		kfree(fi);
+	}
+	list_del(old);
+	kfree_skb(pd->skb);
+	kfree(pd);
+}
+
 static inline int is_datagram_complete(struct list_head *lh, int dg_size)
 {
 	struct partial_datagram *pd = list_entry(lh, struct partial_datagram, list);
@@ -1112,29 +941,12 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 {
 	struct sk_buff *skb;
 	unsigned long flags;
-	struct eth1394_priv *priv = (struct eth1394_priv *)dev->priv;
+	struct eth1394_priv *priv;
 	union eth1394_hdr *hdr = (union eth1394_hdr *)buf;
 	u16 ether_type = 0;  /* initialized to clear warning */
 	int hdr_len;
-	struct unit_directory *ud = priv->ud_list[NODEID_TO_NODE(srcid)];
-	struct eth1394_node_info *node_info;
 
-	if (!ud) {
-		struct eth1394_node_ref *node;
-		node = eth1394_find_node_nodeid(&priv->ip_node_list, srcid);
-		if (!node) {
-			HPSB_PRINT(KERN_ERR, "ether1394 rx: sender nodeid "
-				   "lookup failure: " NODE_BUS_FMT,
-				   NODE_BUS_ARGS(priv->host, srcid));
-			priv->stats.rx_dropped++;
-			return -1;
-		}
-		ud = node->ud;
-
-		priv->ud_list[NODEID_TO_NODE(srcid)] = ud;
-	}
-
-	node_info = (struct eth1394_node_info*)ud->device.driver_data;
+	priv = (struct eth1394_priv *)dev->priv;
 
 	/* First, did we receive a fragmented or unfragmented datagram? */
 	hdr->words.word1 = ntohs(hdr->words.word1);
@@ -1165,7 +977,8 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 		int dg_size;
 		int dgl;
 		int retval;
-		struct pdg_list *pdg = &(node_info->pdg);
+		int sid = NODEID_TO_NODE(srcid);
+                struct pdg_list *pdg = &(priv->pdg[sid]);
 
 		hdr->words.word3 = ntohs(hdr->words.word3);
 		/* The 4th header word is reserved so no need to do ntohs() */
@@ -1192,7 +1005,7 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 				purge_partial_datagram(pdgl->prev);
 				pdg->sz--;
 			}
-
+            
 			retval = new_partial_datagram(dev, pdgl, dgl, dg_size,
 						      buf + hdr_len, fg_off,
 						      fg_len);
@@ -1299,9 +1112,8 @@ bad_proto:
 static int ether1394_write(struct hpsb_host *host, int srcid, int destid,
 			   quadlet_t *data, u64 addr, size_t len, u16 flags)
 {
-	struct eth1394_host_info *hi;
+	struct host_info *hi = hpsb_get_hostinfo(&eth1394_highlevel, host);
 
-	hi = hpsb_get_hostinfo(&eth1394_highlevel, host);
 	if (hi == NULL) {
 		ETH1394_PRINT_G(KERN_ERR, "Could not find net device for host %s\n",
 				host->driver->name);
@@ -1318,7 +1130,7 @@ static void ether1394_iso(struct hpsb_iso *iso)
 {
 	quadlet_t *data;
 	char *buf;
-	struct eth1394_host_info *hi;
+	struct host_info *hi = hpsb_get_hostinfo(&eth1394_highlevel, iso->host);
 	struct net_device *dev;
 	struct eth1394_priv *priv;
 	unsigned int len;
@@ -1327,7 +1139,6 @@ static void ether1394_iso(struct hpsb_iso *iso)
 	int i;
 	int nready;
 
-	hi = hpsb_get_hostinfo(&eth1394_highlevel, iso->host);
 	if (hi == NULL) {
 		ETH1394_PRINT_G(KERN_ERR, "Could not find net device for host %s\n",
 				iso->host->driver->name);
@@ -1338,8 +1149,7 @@ static void ether1394_iso(struct hpsb_iso *iso)
 
 	nready = hpsb_iso_n_ready(iso);
 	for (i = 0; i < nready; i++) {
-		struct hpsb_iso_packet_info *info =
-			&iso->infos[(iso->first_packet + i) % iso->buf_packets];
+		struct hpsb_iso_packet_info *info = &iso->infos[iso->first_packet + i];
 		data = (quadlet_t*) (iso->data_buf.kvirt + info->offset);
 
 		/* skip over GASP header */
@@ -1374,7 +1184,7 @@ static void ether1394_iso(struct hpsb_iso *iso)
  * arphdr) is the same format as the ip1394 header, so they overlap.  The rest
  * needs to be munged a bit.  The remainder of the arphdr is formatted based
  * on hwaddr len and ipaddr len.  We know what they'll be, so it's easy to
- * judge.
+ * judge.  
  *
  * Now that the EUI is used for the hardware address all we need to do to make
  * this work for 1394 is to insert 2 quadlets that contain max_rec size,
@@ -1385,6 +1195,7 @@ static inline void ether1394_arp_to_1394arp(struct sk_buff *skb,
 					    struct net_device *dev)
 {
 	struct eth1394_priv *priv = (struct eth1394_priv *)(dev->priv);
+	u16 phy_id = NODEID_TO_NODE(priv->host->node_id);
 
 	struct arphdr *arp = (struct arphdr *)skb->data;
 	unsigned char *arp_ptr = (unsigned char *)(arp + 1);
@@ -1394,10 +1205,10 @@ static inline void ether1394_arp_to_1394arp(struct sk_buff *skb,
 	 * and set hw_addr_len, max_rec, sspd, fifo_hi and fifo_lo.  */
 	arp1394->hw_addr_len	= 16;
 	arp1394->sip		= *(u32*)(arp_ptr + ETH1394_ALEN);
-	arp1394->max_rec	= priv->host->csr.max_rec;
-	arp1394->sspd		= priv->host->csr.lnk_spd;
-	arp1394->fifo_hi	= htons (priv->local_fifo >> 32);
-	arp1394->fifo_lo	= htonl (priv->local_fifo & ~0x0);
+	arp1394->max_rec	= (be32_to_cpu(priv->host->csr.rom[2]) >> 12) & 0xf;
+	arp1394->sspd		= priv->sspd[phy_id];
+	arp1394->fifo_hi	= htons (priv->fifo[phy_id] >> 32);
+	arp1394->fifo_lo	= htonl (priv->fifo[phy_id] & ~0x0);
 
 	return;
 }
@@ -1452,7 +1263,7 @@ static inline unsigned int ether1394_encapsulate(struct sk_buff *skb,
 		hdr->common.lf = ETH1394_HDR_LF_IF;
 		hdr->sf.fg_off = 0;
 		break;
-
+		
 	default:
 		hdr->sf.fg_off += adj_max_payload;
 		bufhdr = (union eth1394_hdr *)skb_pull(skb, adj_max_payload);
@@ -1474,6 +1285,7 @@ static inline struct hpsb_packet *ether1394_alloc_common_packet(struct hpsb_host
 	p = hpsb_alloc_packet(0);
 	if (p) {
 		p->host = host;
+		p->data = NULL;
 		p->generation = get_hpsb_generation(host);
 		p->type = hpsb_async;
 	}
@@ -1499,12 +1311,12 @@ static inline int ether1394_prep_write_packet(struct hpsb_packet *p,
 		ETH1394_PRINT_G(KERN_ERR, "No more tlabels left while sending "
 				"to node " NODE_BUS_FMT "\n", NODE_BUS_ARGS(host, node));
 		return -1;
-	}
+	}		
 	p->header[0] = (p->node_id << 16) | (p->tlabel << 10)
 		| (1 << 8) | (TCODE_WRITEB << 4);
 
 	p->header[3] = tx_len << 16;
-	p->data_size = (tx_len + 3) & ~3;
+	p->data_size = tx_len + (tx_len % 4 ? 4 - (tx_len % 4) : 0);
 	p->data = (quadlet_t*)data;
 
 	return 0;
@@ -1523,21 +1335,22 @@ static inline void ether1394_prep_gasp_packet(struct hpsb_packet *p,
 	p->data_size = length;
 	p->data = ((quadlet_t*)skb->data) - 2;
 	p->data[0] = cpu_to_be32((priv->host->node_id << 16) |
-				 ETHER1394_GASP_SPECIFIER_ID_HI);
-	p->data[1] = __constant_cpu_to_be32((ETHER1394_GASP_SPECIFIER_ID_LO << 24) |
-					    ETHER1394_GASP_VERSION);
+				      ETHER1394_GASP_SPECIFIER_ID_HI);
+	p->data[1] = cpu_to_be32((ETHER1394_GASP_SPECIFIER_ID_LO << 24) |
+				      ETHER1394_GASP_VERSION);
 
 	/* Setting the node id to ALL_NODES (not LOCAL_BUS | ALL_NODES)
 	 * prevents hpsb_send_packet() from setting the speed to an arbitrary
 	 * value based on packet->node_id if packet->node_id is not set. */
 	p->node_id = ALL_NODES;
-	p->speed_code = priv->bc_sspd;
+	p->speed_code = priv->sspd[ALL_NODES];
 }
 
 static inline void ether1394_free_packet(struct hpsb_packet *packet)
 {
 	if (packet->tcode != TCODE_STREAM_DATA)
 		hpsb_free_tlabel(packet);
+	packet->data = NULL;
 	hpsb_free_packet(packet);
 }
 
@@ -1582,9 +1395,9 @@ static inline void ether1394_dg_complete(struct packet_task *ptask, int fail)
 {
 	struct sk_buff *skb = ptask->skb;
 	struct net_device *dev = skb->dev;
-	struct eth1394_priv *priv = dev->priv;
+	struct eth1394_priv *priv = (struct eth1394_priv *)dev->priv;
         unsigned long flags;
-
+		
 	/* Statistics */
 	spin_lock_irqsave(&priv->lock, flags);
 	if (fail) {
@@ -1615,7 +1428,8 @@ static void ether1394_complete_cb(void *__ptask)
 	ether1394_free_packet(packet);
 
 	ptask->outstanding_pkts--;
-	if (ptask->outstanding_pkts > 0 && !fail) {
+	if (ptask->outstanding_pkts > 0 && !fail)
+	{
 		int tx_len;
 
 		/* Add the encapsulation header to the fragment */
@@ -1635,7 +1449,7 @@ static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 {
 	int kmflags = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
 	struct eth1394hdr *eth;
-	struct eth1394_priv *priv = dev->priv;
+	struct eth1394_priv *priv = (struct eth1394_priv *)dev->priv;
 	int proto;
 	unsigned long flags;
 	nodeid_t dest_node;
@@ -1646,8 +1460,7 @@ static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 	u16 dg_size;
 	u16 dgl;
 	struct packet_task *ptask;
-	struct eth1394_node_ref *node;
-	struct eth1394_node_info *node_info = NULL;
+	struct node_entry *ne;
 
 	ptask = kmem_cache_alloc(packet_task_cache, kmflags);
 	if (ptask == NULL) {
@@ -1655,15 +1468,21 @@ static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 		goto fail;
 	}
 
-	/* XXX Ignore this for now. Noticed that when MacOSX is the IRM,
-	 * it does not set our validity bit. We need to compensate for
-	 * that somewhere else, but not in eth1394. */
-#if 0
-	if ((priv->host->csr.broadcast_channel & 0xc0000000) != 0xc0000000) {
+	spin_lock_irqsave (&priv->lock, flags);
+	if (priv->bc_state == ETHER1394_BC_CLOSED) {
+		ETH1394_PRINT(KERN_ERR, dev->name,
+			      "Cannot send packet, no broadcast channel available.\n");
 		ret = -EAGAIN;
+		spin_unlock_irqrestore (&priv->lock, flags);
 		goto fail;
 	}
-#endif
+
+	if ((ret = ether1394_init_bc(dev))) {
+		spin_unlock_irqrestore (&priv->lock, flags);
+		goto fail;
+	}
+
+	spin_unlock_irqrestore (&priv->lock, flags);
 
 	if ((skb = skb_share_check (skb, kmflags)) == NULL) {
 		ret = -ENOMEM;
@@ -1674,8 +1493,28 @@ static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 	eth = (struct eth1394hdr*)skb->data;
 	skb_pull(skb, ETH1394_HLEN);
 
+	ne = hpsb_guid_get_entry(be64_to_cpu(*(u64*)eth->h_dest));
+	if (!ne)
+		dest_node = LOCAL_BUS | ALL_NODES;
+	else
+		dest_node = ne->nodeid;
+
 	proto = eth->h_proto;
-	dg_size = skb->len;
+
+	/* If this is an ARP packet, convert it */
+	if (proto == __constant_htons (ETH_P_ARP))
+		ether1394_arp_to_1394arp (skb, dev);
+
+	max_payload = priv->maxpayload[NODEID_TO_NODE(dest_node)];
+
+	/* This check should be unnecessary, but we'll keep it for safety for
+	 * a while longer. */
+	if (max_payload < 512) {
+		ETH1394_PRINT(KERN_WARNING, dev->name,
+			      "max_payload too small: %d   (setting to 512)\n",
+			      max_payload);
+		max_payload = 512;
+	}
 
 	/* Set the transmission type for the packet.  ARP packets and IP
 	 * broadcast packets are sent via GASP. */
@@ -1684,38 +1523,18 @@ static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 	    (proto == __constant_htons(ETH_P_IP) &&
 	     IN_MULTICAST(__constant_ntohl(skb->nh.iph->daddr)))) {
 		tx_type = ETH1394_GASP;
-		dest_node = LOCAL_BUS | ALL_NODES;
-		max_payload = priv->bc_maxpayload - ETHER1394_GASP_OVERHEAD;
-		BUG_ON(max_payload < (512 - ETHER1394_GASP_OVERHEAD));
-		dgl = priv->bc_dgl;
-		if (max_payload < dg_size + hdr_type_len[ETH1394_HDR_LF_UF])
-			priv->bc_dgl++;
+                max_payload -= ETHER1394_GASP_OVERHEAD;
 	} else {
-		node = eth1394_find_node_guid(&priv->ip_node_list,
-					      be64_to_cpu(*(u64*)eth->h_dest));
-		if (!node) {
-			ret = -EAGAIN;
-			goto fail;
-		}
-		node_info = (struct eth1394_node_info*)node->ud->device.driver_data;
-		if (node_info->fifo == ETHER1394_INVALID_ADDR) {
-			ret = -EAGAIN;
-			goto fail;
-		}
-
-		dest_node = node->ud->ne->nodeid;
-		max_payload = node_info->maxpayload;
-		BUG_ON(max_payload < (512 - ETHER1394_GASP_OVERHEAD));
-
-		dgl = node_info->dgl;
-		if (max_payload < dg_size + hdr_type_len[ETH1394_HDR_LF_UF])
-			node_info->dgl++;
 		tx_type = ETH1394_WRREQ;
 	}
 
-	/* If this is an ARP packet, convert it */
-	if (proto == __constant_htons (ETH_P_ARP))
-		ether1394_arp_to_1394arp (skb, dev);
+	dg_size = skb->len;
+
+	spin_lock_irqsave (&priv->lock, flags);
+	dgl = priv->dgl[NODEID_TO_NODE(dest_node)];
+	if (max_payload < dg_size + hdr_type_len[ETH1394_HDR_LF_UF])
+		priv->dgl[NODEID_TO_NODE(dest_node)]++;
+	spin_unlock_irqrestore (&priv->lock, flags);
 
 	ptask->hdr.words.word1 = 0;
 	ptask->hdr.words.word2 = 0;
@@ -1728,8 +1547,17 @@ static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 	if (tx_type != ETH1394_GASP) {
 		u64 addr;
 
+		/* This test is just temporary until ConfigROM support has
+		 * been added to eth1394.  Until then, we need an ARP packet
+		 * after a bus reset from the current destination node so that
+		 * we can get FIFO information. */
+		if (priv->fifo[NODEID_TO_NODE(dest_node)] == 0ULL) {
+			ret = -EAGAIN;
+			goto fail;
+		}
+
 		spin_lock_irqsave(&priv->lock, flags);
-		addr = node_info->fifo;
+		addr = priv->fifo[NODEID_TO_NODE(dest_node)];
 		spin_unlock_irqrestore(&priv->lock, flags);
 
 		ptask->addr = addr;
@@ -1772,7 +1600,7 @@ static int ether1394_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd
 {
 	switch(cmd) {
 		case SIOCETHTOOL:
-			return ether1394_ethtool_ioctl(dev, ifr->ifr_data);
+			return ether1394_ethtool_ioctl(dev, (void *) ifr->ifr_data);
 
 		case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
 		case SIOCGMIIREG:		/* Read MII PHY register. */
@@ -1784,18 +1612,18 @@ static int ether1394_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd
 	return 0;
 }
 
-static int ether1394_ethtool_ioctl(struct net_device *dev, void __user *useraddr)
+static int ether1394_ethtool_ioctl(struct net_device *dev, void *useraddr)
 {
 	u32 ethcmd;
 
-	if (get_user(ethcmd, (u32 __user *)useraddr))
+	if (get_user(ethcmd, (u32 *)useraddr))
 		return -EFAULT;
 
 	switch (ethcmd) {
 		case ETHTOOL_GDRVINFO: {
 			struct ethtool_drvinfo info = { ETHTOOL_GDRVINFO };
 			strcpy (info.driver, driver_name);
-			strcpy (info.version, "$Rev: 1224 $");
+			strcpy (info.version, "$Rev: 1096 $");
 			/* FIXME XXX provide sane businfo */
 			strcpy (info.bus_info, "ieee1394");
 			if (copy_to_user (useraddr, &info, sizeof (info)))
@@ -1824,12 +1652,11 @@ static int __init ether1394_init_module (void)
 	/* Register ourselves as a highlevel driver */
 	hpsb_register_highlevel(&eth1394_highlevel);
 
-	return hpsb_register_protocol(&eth1394_proto_driver);
+	return 0;
 }
 
 static void __exit ether1394_exit_module (void)
 {
-	hpsb_unregister_protocol(&eth1394_proto_driver);
 	hpsb_unregister_highlevel(&eth1394_highlevel);
 	kmem_cache_destroy(packet_task_cache);
 }

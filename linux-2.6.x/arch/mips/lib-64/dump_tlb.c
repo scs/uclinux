@@ -200,10 +200,12 @@ void dump16(unsigned long *p)
 {
 	int i;
 
-	for (i = 0; i < 8; i++) {
-		printk("*%08lx == %08lx, ", (unsigned long)p, *p);
+	for(i = 0; i < 8; i++) {
+		printk("*%08lx == %08lx, ",
+		       (unsigned long)p, (unsigned long)*p);
 		p++;
-		printk("*%08lx == %08lx\n", (unsigned long)p, *p);
+		printk("*%08lx == %08lx\n",
+		       (unsigned long)p, (unsigned long)*p);
 		p++;
 	}
 }

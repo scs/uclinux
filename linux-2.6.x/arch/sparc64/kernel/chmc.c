@@ -243,9 +243,8 @@ int chmc_getunumber(int syndrome_code,
 static u64 read_mcreg(struct mctrl_info *mp, unsigned long offset)
 {
 	unsigned long ret;
-	int this_cpu = get_cpu();
 
-	if (mp->portid == this_cpu) {
+	if (mp->portid == smp_processor_id()) {
 		__asm__ __volatile__("ldxa	[%1] %2, %0"
 				     : "=r" (ret)
 				     : "r" (offset), "i" (ASI_MCU_CTRL_REG));
@@ -255,8 +254,6 @@ static u64 read_mcreg(struct mctrl_info *mp, unsigned long offset)
 				     : "r" (mp->regs + offset),
 				       "i" (ASI_PHYS_BYPASS_EC_E));
 	}
-	put_cpu();
-
 	return ret;
 }
 

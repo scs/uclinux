@@ -30,25 +30,25 @@
 #define NUM_FLASHBANKS 2
 #define BUSWIDTH     4
 
-/* can be { "cfi_probe", "jedec_probe", "map_rom", NULL } */
-#define PROBETYPES { "jedec_probe", NULL }
+/* can be { "cfi_probe", "jedec_probe", "map_rom", 0 }; */
+#define PROBETYPES { "jedec_probe", 0 }
 
 #define MSG_PREFIX "impA7:"   /* prefix for our printk()'s */
 #define MTDID      "impa7-%d"  /* for mtdparts= partitioning */
 
-static struct mtd_info *impa7_mtd[NUM_FLASHBANKS];
+static struct mtd_info *impa7_mtd[NUM_FLASHBANKS] = { 0 };
 
 
 static struct map_info impa7_map[NUM_FLASHBANKS] = {
 	{
 		.name = "impA7 NOR Flash Bank #0",
 		.size = WINDOW_SIZE0,
-		.bankwidth = BUSWIDTH,
+		.buswidth = BUSWIDTH,
 	},
 	{
 		.name = "impA7 NOR Flash Bank #1",
 		.size = WINDOW_SIZE1,
-		.bankwidth = BUSWIDTH,
+		.buswidth = BUSWIDTH,
 	},
 };
 

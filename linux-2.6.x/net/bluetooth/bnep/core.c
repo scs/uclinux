@@ -5,7 +5,7 @@
 	Clément Moreau <clement.moreau@inventel.fr>
 	David Libault  <david.libault@inventel.fr>
 
-   Copyright (C) 2002 Maxim Krasnyansky <maxk@qualcomm.com>
+   Copyright (C) 2002 Maxim Krasnyanskiy <maxk@qualcomm.com>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License version 2 as
@@ -28,6 +28,8 @@
 /*
  * $Id$
  */ 
+
+#define __KERNEL_SYSCALLS__
 
 #include <linux/config.h>
 #include <linux/module.h>
@@ -61,7 +63,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "1.2"
+#define VERSION "1.0"
 
 static LIST_HEAD(bnep_session_list);
 static DECLARE_RWSEM(bnep_session_sem);
@@ -99,9 +101,11 @@ static void __bnep_unlink_session(struct bnep_session *s)
 static int bnep_send(struct bnep_session *s, void *data, size_t len)
 {
 	struct socket *sock = s->sock;
-	struct kvec iv = { data, len };
+	struct iovec iv = { data, len };
 
-	return kernel_sendmsg(sock, &s->msg, &iv, 1, len);
+	s->msg.msg_iov    = &iv;
+	s->msg.msg_iovlen = 1;
+	return sock_sendmsg(sock, &s->msg, len);
 }
 
 static int bnep_send_rsp(struct bnep_session *s, u8 ctrl, u16 resp)
@@ -112,21 +116,6 @@ static int bnep_send_rsp(struct bnep_session *s, u8 ctrl, u16 resp)
 	rsp.resp = htons(resp);
 	return bnep_send(s, &rsp, sizeof(rsp));
 }
-
-#ifdef CONFIG_BT_BNEP_PROTO_FILTER
-static inline void bnep_set_default_proto_filter(struct bnep_session *s)
-{
-	/* (IPv4, ARP)  */
-	s->proto_filter[0].start = htons(0x0800);
-	s->proto_filter[0].end   = htons(0x0806);
-	/* (RARP, AppleTalk) */
-	s->proto_filter[1].start = htons(0x8035);
-	s->proto_filter[1].end   = htons(0x80F3);
-	/* (IPX, IPv6) */
-	s->proto_filter[2].start = htons(0x8137);
-	s->proto_filter[2].end   = htons(0x86DD);
-}
-#endif
 
 static int bnep_ctrl_set_netfilter(struct bnep_session *s, u16 *data, int len)
 {
@@ -156,12 +145,8 @@ static int bnep_ctrl_set_netfilter(struct bnep_session *s, u16 *data, int len)
 			BT_DBG("proto filter start %d end %d",
 				f[i].start, f[i].end);
 		}
-
 		if (i < BNEP_MAX_PROTO_FILTERS)
 			memset(f + i, 0, sizeof(*f));
-
-		if (n == 0)
-			bnep_set_default_proto_filter(s);
 
 		bnep_send_rsp(s, BNEP_FILTER_NET_TYPE_RSP, BNEP_SUCCESS);
 	} else {
@@ -406,7 +391,7 @@ static inline int bnep_tx_frame(struct bnep_session *s, struct sk_buff *skb)
 {
 	struct ethhdr *eh = (void *) skb->data;
 	struct socket *sock = s->sock;
-	struct kvec iv[3];
+	struct iovec iv[3];
 	int len = 0, il = 0;
 	u8 type = 0;
 
@@ -417,7 +402,7 @@ static inline int bnep_tx_frame(struct bnep_session *s, struct sk_buff *skb)
 		goto send;
 	}
 
-	iv[il++] = (struct kvec) { &type, 1 };
+	iv[il++] = (struct iovec) { &type, 1 };
 	len++;
 
 	if (!memcmp(eh->h_dest, s->eh.h_source, ETH_ALEN))
@@ -432,23 +417,25 @@ static inline int bnep_tx_frame(struct bnep_session *s, struct sk_buff *skb)
 	type = __bnep_tx_types[type];
 	switch (type) {
 	case BNEP_COMPRESSED_SRC_ONLY:
-		iv[il++] = (struct kvec) { eh->h_source, ETH_ALEN };
+		iv[il++] = (struct iovec) { eh->h_source, ETH_ALEN };
 		len += ETH_ALEN;
 		break;
 		
 	case BNEP_COMPRESSED_DST_ONLY:
-		iv[il++] = (struct kvec) { eh->h_dest, ETH_ALEN };
+		iv[il++] = (struct iovec) { eh->h_dest, ETH_ALEN };
 		len += ETH_ALEN;
 		break;
 	}
 
 send:
-	iv[il++] = (struct kvec) { skb->data, skb->len };
+	iv[il++] = (struct iovec) { skb->data, skb->len };
 	len += skb->len;
 	
 	/* FIXME: linearize skb */
 	{
-		len = kernel_sendmsg(sock, &s->msg, iv, il, len);
+		s->msg.msg_iov    = iv;
+		s->msg.msg_iovlen = il;
+		len = sock_sendmsg(sock, &s->msg, len);
 	}
 	kfree_skb(skb);
 
@@ -473,7 +460,9 @@ static int bnep_session(void *arg)
 
         daemonize("kbnepd %s", dev->name);
 	set_user_nice(current, -15);
-	current->flags |= PF_NOFREEZE;
+	current->flags |= PF_IOTHREAD;
+
+        set_fs(KERNEL_DS);
 
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(sk->sk_sleep, &wait);
@@ -512,7 +501,7 @@ static int bnep_session(void *arg)
 	__bnep_unlink_session(s);
 
 	up_write(&bnep_session_sem);
-	free_netdev(dev);
+	kfree(dev);
 	return 0;
 }
 
@@ -563,12 +552,21 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	/* Set default mc filter */
 	set_bit(bnep_mc_hash(dev->broadcast), (ulong *) &s->mc_filter);
 #endif
-
+	
 #ifdef CONFIG_BT_BNEP_PROTO_FILTER
 	/* Set default protocol filter */
-	bnep_set_default_proto_filter(s);
-#endif
 
+	/* (IPv4, ARP)  */
+	s->proto_filter[0].start = htons(0x0800);
+	s->proto_filter[0].end   = htons(0x0806);
+	/* (RARP, AppleTalk) */
+	s->proto_filter[1].start = htons(0x8035);
+	s->proto_filter[1].end   = htons(0x80F3);
+	/* (IPX, IPv6) */
+	s->proto_filter[2].start = htons(0x8137);
+	s->proto_filter[2].end   = htons(0x86DD);
+#endif
+	
 	err = register_netdev(dev);
 	if (err) {
 		goto failed;
@@ -590,7 +588,7 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 
 failed:
 	up_write(&bnep_session_sem);
-	free_netdev(dev);
+	kfree(dev);
 	return err;
 }
 
@@ -676,7 +674,7 @@ int bnep_get_conninfo(struct bnep_conninfo *ci)
 	return err;
 }
 
-static int __init bnep_init(void)
+static int  __init bnep_init_module(void)
 {	
 	char flt[50] = "";
 
@@ -698,16 +696,15 @@ static int __init bnep_init(void)
 	return 0;
 }
 
-static void __exit bnep_exit(void)
+static void __exit bnep_cleanup_module(void)
 {
 	bnep_sock_cleanup();
 }
 
-module_init(bnep_init);
-module_exit(bnep_exit);
+module_init(bnep_init_module);
+module_exit(bnep_cleanup_module);
 
-MODULE_AUTHOR("David Libault <david.libault@inventel.fr>, Maxim Krasnyansky <maxk@qualcomm.com>");
 MODULE_DESCRIPTION("Bluetooth BNEP ver " VERSION);
-MODULE_VERSION(VERSION);
+MODULE_AUTHOR("David Libault <david.libault@inventel.fr>, Maxim Krasnyanskiy <maxk@qualcomm.com>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("bt-proto-4");

@@ -5,8 +5,7 @@
  *
  * sysfs driver related routines
  *
- * (C) Copyright IBM Corp. 2003, 2004
- *
+ * Copyright (C) 2003 IBM Entwicklung GmbH, IBM Corporation
  * Authors:
  *      Martin Peschke <mpeschke@de.ibm.com>
  *	Heiko Carstens <heiko.carstens@de.ibm.com>
@@ -28,9 +27,12 @@
 
 #define ZFCP_SYSFS_DRIVER_C_REVISION "$Revision$"
 
+#include <asm/ccwdev.h>
 #include "zfcp_ext.h"
+#include "zfcp_def.h"
 
 #define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_CONFIG
+#define ZFCP_LOG_AREA_PREFIX            ZFCP_LOG_AREA_PREFIX_CONFIG
 
 /**
  * ZFCP_DEFINE_DRIVER_ATTR - define for all loglevels sysfs attributes
@@ -65,8 +67,7 @@ static ssize_t zfcp_sysfs_loglevel_##_name##_store(struct device_driver *drv, \
 static ssize_t zfcp_sysfs_loglevel_##_name##_show(struct device_driver *dev,  \
 						  char *buf)                  \
 {                                                                             \
-	return sprintf(buf,"%d\n",				              \
-		       ZFCP_GET_LOG_VALUE(ZFCP_LOG_AREA_##_define));          \
+	return sprintf(buf,"%d\n", ZFCP_LOG_VALUE(ZFCP_LOG_AREA_##_define));  \
 }                                                                             \
                                                                               \
 static DRIVER_ATTR(loglevel_##_name, S_IWUSR | S_IRUGO,                       \
@@ -82,14 +83,6 @@ ZFCP_DEFINE_DRIVER_ATTR(qdio, QDIO);
 ZFCP_DEFINE_DRIVER_ATTR(erp, ERP);
 ZFCP_DEFINE_DRIVER_ATTR(fc, FC);
 
-static ssize_t zfcp_sysfs_version_show(struct device_driver *dev,
-					      char *buf)
-{
-	return sprintf(buf, "%s\n", ZFCP_VERSION);
-}
-
-static DRIVER_ATTR(version, S_IRUGO, zfcp_sysfs_version_show, NULL);
-
 static struct attribute *zfcp_driver_attrs[] = {
 	&driver_attr_loglevel_other.attr,
 	&driver_attr_loglevel_scsi.attr,
@@ -99,7 +92,6 @@ static struct attribute *zfcp_driver_attrs[] = {
 	&driver_attr_loglevel_qdio.attr,
 	&driver_attr_loglevel_erp.attr,
 	&driver_attr_loglevel_fc.attr,
-	&driver_attr_version.attr,
 	NULL
 };
 
@@ -132,3 +124,4 @@ zfcp_sysfs_driver_remove_files(struct device_driver *drv)
 }
 
 #undef ZFCP_LOG_AREA
+#undef ZFCP_LOG_AREA_PREFIX

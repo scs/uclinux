@@ -62,7 +62,7 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
  * This is for invalidate_inode_pages().  That function can be called at
  * any time, and is not supposed to throw away dirty pages.  But pages can
  * be marked dirty at any time too.  So we re-check the dirtiness inside
- * ->tree_lock.  That provides exclusion against the __set_page_dirty
+ * ->page_lock.  That provides exclusion against the __set_page_dirty
  * functions.
  */
 static int
@@ -74,13 +74,13 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 	if (PagePrivate(page) && !try_to_release_page(page, 0))
 		return 0;
 
-	spin_lock_irq(&mapping->tree_lock);
+	spin_lock(&mapping->page_lock);
 	if (PageDirty(page)) {
-		spin_unlock_irq(&mapping->tree_lock);
+		spin_unlock(&mapping->page_lock);
 		return 0;
 	}
 	__remove_from_page_cache(page);
-	spin_unlock_irq(&mapping->tree_lock);
+	spin_unlock(&mapping->page_lock);
 	ClearPageUptodate(page);
 	page_cache_release(page);	/* pagecache ref */
 	return 1;
@@ -219,8 +219,6 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 			ret += invalidate_complete_page(mapping, page);
 unlock:
 			unlock_page(page);
-			if (next > end)
-				break;
 		}
 		pagevec_release(&pvec);
 		cond_resched();
@@ -243,10 +241,6 @@ EXPORT_SYMBOL(invalidate_inode_pages);
  * where the page is seen to be mapped into process pagetables.  In that case,
  * the page is marked clean but is left attached to its address_space.
  *
- * The page is also marked not uptodate so that a subsequent pagefault will
- * perform I/O to bringthe page's contents back into sync with its backing
- * store.
- *
  * FIXME: invalidate_inode_pages2() is probably trivially livelockable.
  */
 void invalidate_inode_pages2(struct address_space *mapping)
@@ -264,12 +258,10 @@ void invalidate_inode_pages2(struct address_space *mapping)
 			if (page->mapping == mapping) {	/* truncate race? */
 				wait_on_page_writeback(page);
 				next = page->index + 1;
-				if (page_mapped(page)) {
+				if (page_mapped(page))
 					clear_page_dirty(page);
-					ClearPageUptodate(page);
-				} else {
+				else
 					invalidate_complete_page(mapping, page);
-				}
 			}
 			unlock_page(page);
 		}

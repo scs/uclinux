@@ -21,7 +21,7 @@
 #include <asm/irq.h>
 
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 #include "../fc4/fcp_impl.h"
 #include "fcal.h"
 

@@ -126,7 +126,7 @@
 #include <asm/system.h>
 
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 
 #define IN2000_VERSION    "1.33-2.5"
 #define IN2000_DATE       "2002/11/03"
@@ -184,9 +184,11 @@
 static char *setup_args[] = { "", "", "", "", "", "", "", "", "" };
 
 /* filled in by 'insmod' */
-static char *setup_strings;
+static char *setup_strings = 0;
 
+#ifdef MODULE_PARM
 MODULE_PARM(setup_strings, "s");
+#endif
 
 static inline uchar read_3393(struct IN2000_hostdata *hostdata, uchar reg_num)
 {
@@ -468,7 +470,7 @@ static void in2000_execute(struct Scsi_Host *instance)
 	 */
 
 	cmd = (Scsi_Cmnd *) hostdata->input_Q;
-	prev = NULL;
+	prev = 0;
 	while (cmd) {
 		if (!(hostdata->busy[cmd->device->id] & (1 << cmd->device->lun)))
 			break;
@@ -1702,7 +1704,7 @@ static int in2000_abort(Scsi_Cmnd * cmd)
  */
 
 	tmp = (Scsi_Cmnd *) hostdata->input_Q;
-	prev = NULL;
+	prev = 0;
 	while (tmp) {
 		if (tmp == cmd) {
 			if (prev)
@@ -1923,7 +1925,7 @@ static int __init in2000_detect(Scsi_Host_Template * tpnt)
  */
 
 	if (!done_setup && setup_strings)
-		in2000_setup(setup_strings, NULL);
+		in2000_setup(setup_strings, 0);
 
 	detect_count = 0;
 	for (bios = 0; bios_tab[bios]; bios++) {
@@ -2286,7 +2288,7 @@ static int in2000_proc_info(struct Scsi_Host *instance, char *buf, char **start,
 		return 0;	/* return 0 to signal end-of-file */
 	}
 	if (off > 0x40000)	/* ALWAYS stop after 256k bytes have been read */
-		stop = 1;
+		stop = 1;;
 	if (hd->proc & PR_STOP)	/* stop every other time */
 		stop = 1;
 	return strlen(bp);

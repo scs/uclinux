@@ -41,7 +41,7 @@
 #include <asm/system.h>
 #include <asm/io.h>
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 
 #include "psi240i.h"
 #include "psi_chip.h"

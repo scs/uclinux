@@ -24,7 +24,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/ctype.h>
 #include <linux/namei.h>
-#include "compr.h"
 #include "nodelist.h"
 
 static void jffs2_put_super(struct super_block *);
@@ -130,7 +129,6 @@ static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
 		  mtd->index, mtd->name));
 
 	sb->s_op = &jffs2_super_operations;
-	sb->s_flags |= MS_NOATIME;
 
 	ret = jffs2_do_fill_super(sb, data, (flags&MS_VERBOSE)?1:0);
 
@@ -267,7 +265,7 @@ static void jffs2_put_super (struct super_block *sb)
 	jffs2_free_ino_caches(c);
 	jffs2_free_raw_node_refs(c);
 	kfree(c->blocks);
-	jffs2_flash_cleanup(c);
+	jffs2_nand_flash_cleanup(c);
 	kfree(c->inocache_list);
 	if (c->mtd->sync)
 		c->mtd->sync(c->mtd);
@@ -288,6 +286,7 @@ static struct file_system_type jffs2_fs_type = {
 	.name =		"jffs2",
 	.get_sb =	jffs2_get_sb,
 	.kill_sb =	jffs2_kill_sb,
+	.fs_flags =	FS_REQUIRES_DEV,
 };
 
 static int __init init_jffs2_fs(void)
@@ -295,7 +294,7 @@ static int __init init_jffs2_fs(void)
 	int ret;
 
 	printk(KERN_INFO "JFFS2 version 2.2."
-#ifdef CONFIG_JFFS2_FS_NAND
+#ifdef CONFIG_FS_JFFS2_NAND
 	       " (NAND)"
 #endif
 	       " (C) 2001-2003 Red Hat, Inc.\n");
@@ -308,15 +307,15 @@ static int __init init_jffs2_fs(void)
 		printk(KERN_ERR "JFFS2 error: Failed to initialise inode cache\n");
 		return -ENOMEM;
 	}
-	ret = jffs2_compressors_init();
+	ret = jffs2_zlib_init();
 	if (ret) {
-		printk(KERN_ERR "JFFS2 error: Failed to initialise compressors\n");
+		printk(KERN_ERR "JFFS2 error: Failed to initialise zlib workspaces\n");
 		goto out;
 	}
 	ret = jffs2_create_slab_caches();
 	if (ret) {
 		printk(KERN_ERR "JFFS2 error: Failed to initialise slab caches\n");
-		goto out_compressors;
+		goto out_zlib;
 	}
 	ret = register_filesystem(&jffs2_fs_type);
 	if (ret) {
@@ -327,8 +326,8 @@ static int __init init_jffs2_fs(void)
 
  out_slab:
 	jffs2_destroy_slab_caches();
- out_compressors:
-	jffs2_compressors_exit();
+ out_zlib:
+	jffs2_zlib_exit();
  out:
 	return ret;
 }
@@ -337,7 +336,7 @@ static void __exit exit_jffs2_fs(void)
 {
 	unregister_filesystem(&jffs2_fs_type);
 	jffs2_destroy_slab_caches();
-	jffs2_compressors_exit();
+	jffs2_zlib_exit();
 	kmem_cache_destroy(jffs2_inode_cachep);
 }
 

@@ -15,7 +15,8 @@
  *
  */
 
-#include <linux/kernel.h>
+#include <linux/config.h>
+#include <linux/compiler.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>                  /* for tcphdr */
 #include <net/ip.h>
@@ -158,7 +159,7 @@ tcp_snat_handler(struct sk_buff **pskb,
 						(*pskb)->len - tcphoff,
 						cp->protocol,
 						(*pskb)->csum);
-		IP_VS_DBG(11, "O-pkt: %s O-csum=%d (+%zd)\n",
+		IP_VS_DBG(11, "O-pkt: %s O-csum=%d (+%d)\n",
 			  pp->name, tcph->check,
 			  (char*)&(tcph->check) - (char*)tcph);
 	}

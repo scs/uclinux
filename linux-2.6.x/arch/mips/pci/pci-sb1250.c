@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001,2002,2003 Broadcom Corporation
+ * Copyright (C) 2001,2002 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,13 +37,10 @@
 #include <linux/mm.h>
 #include <linux/console.h>
 
-#include <asm/io.h>
-#include <asm/pci_channel.h>
-
 #include <asm/sibyte/sb1250_defs.h>
 #include <asm/sibyte/sb1250_regs.h>
 #include <asm/sibyte/sb1250_scd.h>
-#include <asm/sibyte/board.h>
+#include <asm/io.h>
 
 /*
  * Macros for calculating offsets into config space given a device
@@ -82,11 +79,6 @@ static inline u32 READCFG32(u32 addr)
 static inline void WRITECFG32(u32 addr, u32 data)
 {
 	*(u32 *) (cfg_space + (addr & ~3)) = data;
-}
-
-int pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
-{
-	return dev->irq;
 }
 
 /*
@@ -166,8 +158,6 @@ static int sb1250_pcibios_write(struct pci_bus *bus, unsigned int devfn,
 	else if (size == 2)
 		data = (data & ~(0xffff << ((where & 3) << 3))) |
 		    (val << ((where & 3) << 3));
-	else
-		data = val;
 
 	WRITECFG32(cfgaddr, data);
 
@@ -179,38 +169,11 @@ struct pci_ops sb1250_pci_ops = {
 	.write = sb1250_pcibios_write
 };
 
-static struct resource sb1250_mem_resource = {
-	.name	= "SB1250 PCI MEM",
-	.start	= 0x14000000UL,
-	.end	= 0x17ffffffUL,
-	.flags	= IORESOURCE_MEM,
-};
-                                                                                
-static struct resource sb1250_io_resource = {
-	.name	= "SB1250 IO MEM",
-	.start	= 0x14000000UL,
-	.end	= 0x17ffffffUL,
-	.flags	= IORESOURCE_IO,
-};
 
-struct pci_controller sb1250_controller = {
-	.pci_ops	= &sb1250_pci_ops,
-	.mem_resource	= &sb1250_mem_resource,
-	.io_resource	= &sb1250_io_resource
-};
-
-static int __init sb1250_pcibios_init(void)
+void __init pcibios_init(void)
 {
 	uint32_t cmdreg;
 	uint64_t reg;
-	extern int pci_probe_only;
-
-	/* CFE will assign PCI resources */
-	pci_probe_only = 1;
-
-	/* set resource limit to avoid errors */
-	ioport_resource.end = 0x0000ffff;	/* 32MB reserved by sb1250 */
-	iomem_resource.end = 0xffffffff;	/* no HT support yet */
 
 	cfg_space =
 	    ioremap(A_PHYS_LDTPCI_CFG_MATCH_BITS, 16 * 1024 * 1024);
@@ -218,7 +181,7 @@ static int __init sb1250_pcibios_init(void)
 	/*
 	 * See if the PCI bus has been configured by the firmware.
 	 */
-	reg = *((volatile uint64_t *) IOADDR(A_SCD_SYSTEM_CFG));
+	reg = *((volatile uint64_t *) KSEG1ADDR(A_SCD_SYSTEM_CFG));
 	if (!(reg & M_SYS_PCI_HOST)) {
 		sb1250_bus_status |= PCI_DEVICE_MODE;
 	} else {
@@ -230,7 +193,7 @@ static int __init sb1250_pcibios_init(void)
 			printk
 			    ("PCI: Skipping PCI probe.  Bus is not initialized.\n");
 			iounmap(cfg_space);
-			return 0;
+			return;
 		}
 		sb1250_bus_status |= PCI_BUS_ENABLED;
 	}
@@ -271,15 +234,48 @@ static int __init sb1250_pcibios_init(void)
 	}
 #endif
 
-	register_pci_controller(&sb1250_controller);
+	/* Probe for PCI hardware */
+
+	printk("PCI: Probing PCI hardware on host bus 0.\n");
+	pci_scan_bus(0, &sb1250_pci_ops, NULL);
 
 #ifdef CONFIG_VGA_CONSOLE
 	take_over_console(&vga_con, 0, MAX_NR_CONSOLES - 1, 1);
 #endif
+}
+
+int pcibios_enable_device(struct pci_dev *dev, int mask)
+{
+	/* Not needed, since we enable all devices at startup.  */
 	return 0;
 }
-arch_initcall(sb1250_pcibios_init);
+
+void pcibios_align_resource(void *data, struct resource *res,
+			    unsigned long size, unsigned long align)
+{
+}
+
+char *__init pcibios_setup(char *str)
+{
+	/* Nothing to do for now.  */
+
+	return str;
+}
 
 struct pci_fixup pcibios_fixups[] = {
 	{0}
 };
+
+/*
+ *  Called after each bus is probed, but before its children
+ *  are examined.
+ */
+void __devinit pcibios_fixup_bus(struct pci_bus *b)
+{
+	pci_read_bridge_bases(b);
+}
+
+unsigned int pcibios_assign_all_busses(void)
+{
+	return 1;
+}

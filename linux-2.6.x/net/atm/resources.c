@@ -180,7 +180,7 @@ static void subtract_aal_stats(struct k_atm_aal_stats *from,
 }
 
 
-static int fetch_stats(struct atm_dev *dev, struct atm_dev_stats __user *arg, int zero)
+static int fetch_stats(struct atm_dev *dev, struct atm_dev_stats *arg, int zero)
 {
 	struct atm_dev_stats tmp;
 	int error = 0;
@@ -199,20 +199,19 @@ static int fetch_stats(struct atm_dev *dev, struct atm_dev_stats __user *arg, in
 }
 
 
-int atm_dev_ioctl(unsigned int cmd, void __user *arg)
+int atm_dev_ioctl(unsigned int cmd, unsigned long arg)
 {
-	void __user *buf;
+	void *buf;
 	int error, len, number, size = 0;
 	struct atm_dev *dev;
 	struct list_head *p;
 	int *tmp_buf, *tmp_p;
-	struct atm_iobuf __user *iobuf = arg;
-	struct atmif_sioc __user *sioc = arg;
+
 	switch (cmd) {
 		case ATM_GETNAMES:
-			if (get_user(buf, &iobuf->buffer))
+			if (get_user(buf, &((struct atm_iobuf *) arg)->buffer))
 				return -EFAULT;
-			if (get_user(len, &iobuf->length))
+			if (get_user(len, &((struct atm_iobuf *) arg)->length))
 				return -EFAULT;
 			spin_lock(&atm_dev_lock);
 			list_for_each(p, &atm_devs)
@@ -233,7 +232,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 			}
 			spin_unlock(&atm_dev_lock);
 		        error = ((copy_to_user(buf, tmp_buf, size)) ||
-					put_user(size, &iobuf->length))
+					put_user(size, &((struct atm_iobuf *) arg)->length))
 						? -EFAULT : 0;
 			kfree(tmp_buf);
 			return error;
@@ -241,11 +240,11 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 			break;
 	}
 
-	if (get_user(buf, &sioc->arg))
+	if (get_user(buf, &((struct atmif_sioc *) arg)->arg))
 		return -EFAULT;
-	if (get_user(len, &sioc->length))
+	if (get_user(len, &((struct atmif_sioc *) arg)->length))
 		return -EFAULT;
-	if (get_user(number, &sioc->number))
+	if (get_user(number, &((struct atmif_sioc *) arg)->number))
 		return -EFAULT;
 
 	if (!(dev = atm_dev_lookup(number)))
@@ -352,13 +351,13 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 			size = error;
 			/* may return 0, but later on size == 0 means "don't
 			   write the length" */
-			error = put_user(size, &sioc->length)
+			error = put_user(size, &((struct atmif_sioc *) arg)->length)
 				? -EFAULT : 0;
 			goto done;
 		case ATM_SETLOOP:
-			if (__ATM_LM_XTRMT((int) (unsigned long) buf) &&
-			    __ATM_LM_XTLOC((int) (unsigned long) buf) >
-			    __ATM_LM_XTRMT((int) (unsigned long) buf)) {
+			if (__ATM_LM_XTRMT((int) (long) buf) &&
+			    __ATM_LM_XTLOC((int) (long) buf) >
+			    __ATM_LM_XTRMT((int) (long) buf)) {
 				error = -EINVAL;
 				goto done;
 			}
@@ -386,7 +385,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 	}
 	
 	if (size)
-		error = put_user(size, &sioc->length)
+		error = put_user(size, &((struct atmif_sioc *) arg)->length)
 			? -EFAULT : 0;
 	else
 		error = 0;

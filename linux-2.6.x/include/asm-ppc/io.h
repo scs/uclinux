@@ -30,8 +30,6 @@
 #include <asm/mpc8xx.h>
 #elif defined(CONFIG_8260)
 #include <asm/mpc8260.h>
-#elif defined(CONFIG_85xx)
-#include <asm/mpc85xx.h>
 #elif defined(CONFIG_APUS)
 #define _IO_BASE	0
 #define _ISA_MEM_BASE	0
@@ -60,9 +58,6 @@ extern unsigned long pci_dram_offset;
 #define writel(b,addr) out_le32((volatile u32 *)(addr),(b))
 #endif /* CONFIG_APUS */
 
-#define readb_relaxed(addr) readb(addr)
-#define readw_relaxed(addr) readw(addr)
-#define readl_relaxed(addr) readl(addr)
 
 #define __raw_readb(addr)	(*(volatile unsigned char *)(addr))
 #define __raw_readw(addr)	(*(volatile unsigned short *)(addr))
@@ -84,6 +79,7 @@ extern unsigned long pci_dram_offset;
 #define insl(port, buf, nl)	_insl_ns((u32 *)((port)+_IO_BASE), (buf), (nl))
 #define outsl(port, buf, nl)	_outsl_ns((u32 *)((port)+_IO_BASE), (buf), (nl))
 
+#ifdef CONFIG_PPC_PMAC
 /*
  * On powermacs, we will get a machine check exception if we
  * try to read data from a non-existent I/O port.  Because the
@@ -95,7 +91,7 @@ extern unsigned long pci_dram_offset;
  * all PPC implementations tested so far.  The twi and isync are
  * needed on the 601 (in fact twi; sync works too), the isync and
  * nop are needed on 604[e|r], and any of twi, sync or isync will
- * work on 603[e], 750, 74xx.
+ * work on 603[e], 750, 74x0.
  * The twi creates an explicit data dependency on the returned
  * value which seems to be needed to make the 601 wait for the
  * load to finish.
@@ -140,27 +136,28 @@ extern __inline__ void name(unsigned int val, unsigned int port) \
 		: : "r" (val), "r" (port + _IO_BASE));	\
 }
 
-__do_out_asm(outb, "stbx")
-#ifdef CONFIG_APUS
-__do_in_asm(inb, "lbzx")
-__do_in_asm(inw, "lhz%U1%X1")
-__do_in_asm(inl, "lwz%U1%X1")
-__do_out_asm(outl,"stw%U0%X0")
-__do_out_asm(outw, "sth%U0%X0")
-#elif defined (CONFIG_8260_PCI9)
-/* in asm cannot be defined if PCI9 workaround is used */
-#define inb(port)		in_8((u8 *)((port)+_IO_BASE))
-#define inw(port)		in_le16((u16 *)((port)+_IO_BASE))
-#define inl(port)		in_le32((u32 *)((port)+_IO_BASE))
-__do_out_asm(outw, "sthbrx")
-__do_out_asm(outl, "stwbrx")
-#else
 __do_in_asm(inb, "lbzx")
 __do_in_asm(inw, "lhbrx")
 __do_in_asm(inl, "lwbrx")
+__do_out_asm(outb, "stbx")
 __do_out_asm(outw, "sthbrx")
 __do_out_asm(outl, "stwbrx")
 
+#elif defined(CONFIG_APUS)
+#define inb(port)		in_8((u8 *)((port)+_IO_BASE))
+#define outb(val, port)		out_8((u8 *)((port)+_IO_BASE), (val))
+#define inw(port)		in_be16((u16 *)((port)+_IO_BASE))
+#define outw(val, port)		out_be16((u16 *)((port)+_IO_BASE), (val))
+#define inl(port)		in_be32((u32 *)((port)+_IO_BASE))
+#define outl(val, port)		out_be32((u32 *)((port)+_IO_BASE), (val))
+
+#else /* not APUS or PMAC */
+#define inb(port)		in_8((u8 *)((port)+_IO_BASE))
+#define outb(val, port)		out_8((u8 *)((port)+_IO_BASE), (val))
+#define inw(port)		in_le16((u16 *)((port)+_IO_BASE))
+#define outw(val, port)		out_le16((u16 *)((port)+_IO_BASE), (val))
+#define inl(port)		in_le32((u32 *)((port)+_IO_BASE))
+#define outl(val, port)		out_le32((u32 *)((port)+_IO_BASE), (val))
 #endif
 
 #define inb_p(port)		inb((port))
@@ -211,7 +208,7 @@ extern void *ioremap64(unsigned long long address, unsigned long size);
 #define ioremap_nocache(addr, size)	ioremap((addr), (size))
 extern void iounmap(void *addr);
 extern unsigned long iopa(unsigned long addr);
-extern unsigned long mm_ptov(unsigned long addr) __attribute_const__;
+extern unsigned long mm_ptov(unsigned long addr) __attribute__ ((const));
 extern void io_block_mapping(unsigned long virt, phys_addr_t phys,
 			     unsigned int size, int flags);
 
@@ -237,7 +234,7 @@ extern inline void * bus_to_virt(unsigned long address)
 {
 #ifndef CONFIG_APUS
         if (address == 0)
-		return NULL;
+		return 0;
         return (void *)(address - PCI_DRAM_OFFSET + KERNELBASE);
 #else
 	return (void*) mm_ptov (address);
@@ -291,19 +288,12 @@ extern inline void eieio(void)
 
 /*
  * 8, 16 and 32 bit, big and little endian I/O operations, with barrier.
- *
- * Read operations have additional twi & isync to make sure the read
- * is actually performed (i.e. the data has come back) before we start
- * executing any following instructions.
  */
 extern inline int in_8(volatile unsigned char *addr)
 {
 	int ret;
 
-	__asm__ __volatile__(
-		"lbz%U1%X1 %0,%1;\n"
-		"twi 0,%0,0;\n"
-		"isync" : "=r" (ret) : "m" (*addr));
+	__asm__ __volatile__("lbz%U1%X1 %0,%1; eieio" : "=r" (ret) : "m" (*addr));
 	return ret;
 }
 
@@ -316,9 +306,7 @@ extern inline int in_le16(volatile unsigned short *addr)
 {
 	int ret;
 
-	__asm__ __volatile__("lhbrx %0,0,%1;\n"
-			     "twi 0,%0,0;\n"
-			     "isync" : "=r" (ret) :
+	__asm__ __volatile__("lhbrx %0,0,%1; eieio" : "=r" (ret) :
 			      "r" (addr), "m" (*addr));
 	return ret;
 }
@@ -327,9 +315,7 @@ extern inline int in_be16(volatile unsigned short *addr)
 {
 	int ret;
 
-	__asm__ __volatile__("lhz%U1%X1 %0,%1;\n"
-			     "twi 0,%0,0;\n"
-			     "isync" : "=r" (ret) : "m" (*addr));
+	__asm__ __volatile__("lhz%U1%X1 %0,%1; eieio" : "=r" (ret) : "m" (*addr));
 	return ret;
 }
 
@@ -348,9 +334,7 @@ extern inline unsigned in_le32(volatile unsigned *addr)
 {
 	unsigned ret;
 
-	__asm__ __volatile__("lwbrx %0,0,%1;\n"
-			     "twi 0,%0,0;\n"
-			     "isync" : "=r" (ret) :
+	__asm__ __volatile__("lwbrx %0,0,%1; eieio" : "=r" (ret) :
 			     "r" (addr), "m" (*addr));
 	return ret;
 }
@@ -359,9 +343,7 @@ extern inline unsigned in_be32(volatile unsigned *addr)
 {
 	unsigned ret;
 
-	__asm__ __volatile__("lwz%U1%X1 %0,%1;\n"
-			     "twi 0,%0,0;\n"
-			     "isync" : "=r" (ret) : "m" (*addr));
+	__asm__ __volatile__("lwz%U1%X1 %0,%1; eieio" : "=r" (ret) : "m" (*addr));
 	return ret;
 }
 
@@ -399,10 +381,43 @@ static inline int isa_check_signature(unsigned long io_addr,
 	return 0;
 }
 
+#ifdef CONFIG_NOT_COHERENT_CACHE
+
+/*
+ * DMA-consistent mapping functions for PowerPCs that don't support
+ * cache snooping.  These allocate/free a region of uncached mapped
+ * memory space for use with DMA devices.  Alternatively, you could
+ * allocate the space "normally" and use the cache management functions
+ * to ensure it is consistent.
+ */
+extern void *consistent_alloc(int gfp, size_t size, dma_addr_t *handle);
+extern void consistent_free(void *vaddr);
+extern void consistent_sync(void *vaddr, size_t size, int rw);
+extern void consistent_sync_page(struct page *page, unsigned long offset,
+				 size_t size, int rw);
+
+#define dma_cache_inv(_start,_size) \
+	invalidate_dcache_range(_start, (_start + _size))
+#define dma_cache_wback(_start,_size) \
+	clean_dcache_range(_start, (_start + _size))
+#define dma_cache_wback_inv(_start,_size) \
+	flush_dcache_range(_start, (_start + _size))
+
+#else /* ! CONFIG_NOT_COHERENT_CACHE */
+
+/*
+ * Cache coherent cores.
+ */
+
+#define dma_cache_inv(_start,_size)		do { } while (0)
+#define dma_cache_wback(_start,_size)		do { } while (0)
+#define dma_cache_wback_inv(_start,_size)	do { } while (0)
+
+#define consistent_alloc(gfp, size, handle)	NULL
+#define consistent_free(addr, size)		do { } while (0)
+#define consistent_sync(addr, size, rw)		do { } while (0)
+#define consistent_sync_page(pg, off, sz, rw)	do { } while (0)
+
+#endif /* ! CONFIG_NOT_COHERENT_CACHE */
 #endif /* _PPC_IO_H */
-
-#ifdef CONFIG_8260_PCI9
-#include <asm/mpc8260_pci9.h>
-#endif
-
 #endif /* __KERNEL__ */

@@ -334,11 +334,10 @@ acpi_ns_install_node (
 	node->owner_id = owner_id;
 	node->type = (u8) type;
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-		"%4.4s (%s) [Node %p Owner %X] added to %4.4s (%s) [Node %p]\n",
-		acpi_ut_get_node_name (node), acpi_ut_get_type_name (node->type), node, owner_id,
+	ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%4.4s (%s) added to %4.4s (%s) %p at %p\n",
+		acpi_ut_get_node_name (node), acpi_ut_get_type_name (node->type),
 		acpi_ut_get_node_name (parent_node), acpi_ut_get_type_name (parent_node->type),
-		parent_node));
+		parent_node, node));
 
 	/*
 	 * Increment the reference count(s) of all parents up to
@@ -496,14 +495,14 @@ acpi_ns_delete_namespace_subtree (
 
 			/* Check if this node has any children */
 
-			if (acpi_ns_get_next_node (ACPI_TYPE_ANY, child_node, NULL)) {
+			if (acpi_ns_get_next_node (ACPI_TYPE_ANY, child_node, 0)) {
 				/*
 				 * There is at least one child of this node,
 				 * visit the node
 				 */
 				level++;
 				parent_node   = child_node;
-				child_node    = NULL;
+				child_node    = 0;
 			}
 		}
 		else {

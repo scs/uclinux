@@ -48,19 +48,6 @@
 	 ACPI_MODULE_NAME    ("hwsleep")
 
 
-#define METHOD_NAME__BFS        "\\_BFS"
-#define METHOD_NAME__GTS        "\\_GTS"
-#define METHOD_NAME__PTS        "\\_PTS"
-#define METHOD_NAME__SST        "\\_SI._SST"
-#define METHOD_NAME__WAK        "\\_WAK"
-
-#define ACPI_SST_INDICATOR_OFF  0
-#define ACPI_SST_WORKING        1
-#define ACPI_SST_WAKING         2
-#define ACPI_SST_SLEEPING       3
-#define ACPI_SST_SLEEP_CONTEXT  4
-
-
 /******************************************************************************
  *
  * FUNCTION:    acpi_set_firmware_waking_vector
@@ -184,41 +171,19 @@ acpi_enter_sleep_state_prep (
 
 	/* Run the _PTS and _GTS methods */
 
-	status = acpi_evaluate_object (NULL, METHOD_NAME__PTS, &arg_list, NULL);
+	status = acpi_evaluate_object (NULL, "\\_PTS", &arg_list, NULL);
 	if (ACPI_FAILURE (status) && status != AE_NOT_FOUND) {
 		return_ACPI_STATUS (status);
 	}
 
-	status = acpi_evaluate_object (NULL, METHOD_NAME__GTS, &arg_list, NULL);
+	status = acpi_evaluate_object (NULL, "\\_GTS", &arg_list, NULL);
 	if (ACPI_FAILURE (status) && status != AE_NOT_FOUND) {
 		return_ACPI_STATUS (status);
-	}
-
-	/* Setup the argument to _SST */
-
-	switch (sleep_state) {
-	case ACPI_STATE_S0:
-		arg.integer.value = ACPI_SST_WORKING;
-		break;
-
-	case ACPI_STATE_S1:
-	case ACPI_STATE_S2:
-	case ACPI_STATE_S3:
-		arg.integer.value = ACPI_SST_SLEEPING;
-		break;
-
-	case ACPI_STATE_S4:
-		arg.integer.value = ACPI_SST_SLEEP_CONTEXT;
-		break;
-
-	default:
-		arg.integer.value = ACPI_SST_INDICATOR_OFF; /* Default is indicator off */
-		break;
 	}
 
 	/* Set the system indicators to show the desired sleep state. */
 
-	status = acpi_evaluate_object (NULL, METHOD_NAME__SST, &arg_list, NULL);
+	status = acpi_evaluate_object (NULL, "\\_SI._SST", &arg_list, NULL);
 	if (ACPI_FAILURE (status) && status != AE_NOT_FOUND) {
 		 ACPI_REPORT_ERROR (("Method _SST failed, %s\n", acpi_format_exception (status)));
 	}
@@ -240,7 +205,7 @@ acpi_enter_sleep_state_prep (
  *
  ******************************************************************************/
 
-acpi_status asmlinkage
+acpi_status
 acpi_enter_sleep_state (
 	u8                              sleep_state)
 {
@@ -286,11 +251,7 @@ acpi_enter_sleep_state (
 		}
 	}
 
-	/*
-	 * 1) Disable all runtime GPEs
-	 * 2) Enable all wakeup GPEs
-	 */
-	status = acpi_hw_prepare_gpes_for_sleep ();
+	status = acpi_hw_disable_non_wakeup_gpes ();
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
 	}
@@ -398,7 +359,7 @@ acpi_enter_sleep_state (
  *
  ******************************************************************************/
 
-acpi_status asmlinkage
+acpi_status
 acpi_enter_sleep_state_s4bios (
 	void)
 {
@@ -419,11 +380,7 @@ acpi_enter_sleep_state_s4bios (
 		return_ACPI_STATUS (status);
 	}
 
-	/*
-	 * 1) Disable all runtime GPEs
-	 * 2) Enable all wakeup GPEs
-	 */
-	status = acpi_hw_prepare_gpes_for_sleep ();
+	status = acpi_hw_disable_non_wakeup_gpes ();
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
 	}
@@ -520,53 +477,32 @@ acpi_leave_sleep_state (
 
 	/* Ignore any errors from these methods */
 
-	arg.integer.value = ACPI_SST_WAKING;
-	status = acpi_evaluate_object (NULL, METHOD_NAME__SST, &arg_list, NULL);
+	arg.integer.value = 0;
+	status = acpi_evaluate_object (NULL, "\\_SI._SST", &arg_list, NULL);
 	if (ACPI_FAILURE (status) && status != AE_NOT_FOUND) {
 		ACPI_REPORT_ERROR (("Method _SST failed, %s\n", acpi_format_exception (status)));
 	}
 
 	arg.integer.value = sleep_state;
-	status = acpi_evaluate_object (NULL, METHOD_NAME__BFS, &arg_list, NULL);
+	status = acpi_evaluate_object (NULL, "\\_BFS", &arg_list, NULL);
 	if (ACPI_FAILURE (status) && status != AE_NOT_FOUND) {
 		ACPI_REPORT_ERROR (("Method _BFS failed, %s\n", acpi_format_exception (status)));
 	}
 
-	status = acpi_evaluate_object (NULL, METHOD_NAME__WAK, &arg_list, NULL);
+	status = acpi_evaluate_object (NULL, "\\_WAK", &arg_list, NULL);
 	if (ACPI_FAILURE (status) && status != AE_NOT_FOUND) {
 		ACPI_REPORT_ERROR (("Method _WAK failed, %s\n", acpi_format_exception (status)));
 	}
-	/* TBD: _WAK "sometimes" returns stuff - do we want to look at it? */
 
-	/*
-	 * Restore the GPEs:
-	 * 1) Disable all wakeup GPEs
-	 * 2) Enable all runtime GPEs
-	 */
-	status = acpi_hw_restore_gpes_on_wake ();
+	/* _WAK returns stuff - do we want to look at it? */
+
+	status = acpi_hw_enable_non_wakeup_gpes ();
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
 	}
-
-	/* Enable power button */
-
-	acpi_set_register(acpi_gbl_fixed_event_info[ACPI_EVENT_POWER_BUTTON].enable_register_id,
-			1, ACPI_MTX_DO_NOT_LOCK);
-	acpi_set_register(acpi_gbl_fixed_event_info[ACPI_EVENT_POWER_BUTTON].status_register_id,
-			1, ACPI_MTX_DO_NOT_LOCK);
 
 	/* Enable BM arbitration */
 
 	status = acpi_set_register (ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_LOCK);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
-	}
-
-	arg.integer.value = ACPI_SST_WORKING;
-	status = acpi_evaluate_object (NULL, METHOD_NAME__SST, &arg_list, NULL);
-	if (ACPI_FAILURE (status) && status != AE_NOT_FOUND) {
-		ACPI_REPORT_ERROR (("Method _SST failed, %s\n", acpi_format_exception (status)));
-	}
-
 	return_ACPI_STATUS (status);
 }

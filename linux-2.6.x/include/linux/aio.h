@@ -23,6 +23,8 @@ struct kioctx;
 
 #define KIOCB_SYNC_KEY		(~0U)
 
+#define KIOCB_PRIVATE_SIZE	(24 * sizeof(long))
+
 /* ki_flags bits */
 #define KIF_LOCKED		0
 #define KIF_KICKED		1
@@ -53,18 +55,15 @@ struct kiocb {
 	struct kioctx		*ki_ctx;	/* may be NULL for sync ops */
 	int			(*ki_cancel)(struct kiocb *, struct io_event *);
 	long			(*ki_retry)(struct kiocb *);
-	void			(*ki_dtor)(struct kiocb *);
 
 	struct list_head	ki_list;	/* the aio core uses this
 						 * for cancellation */
 
-	union {
-		void __user		*user;
-		struct task_struct	*tsk;
-	} ki_obj;
+	void			*ki_user_obj;	/* pointer to userland's iocb */
 	__u64			ki_user_data;	/* user's data for completion */
 	loff_t			ki_pos;
-	void			*private;
+
+	char			private[KIOCB_PRIVATE_SIZE];
 };
 
 #define is_sync_kiocb(iocb)	((iocb)->ki_key == KIOCB_SYNC_KEY)
@@ -77,8 +76,7 @@ struct kiocb {
 		(x)->ki_filp = (filp);			\
 		(x)->ki_ctx = &tsk->active_mm->default_kioctx;	\
 		(x)->ki_cancel = NULL;			\
-		(x)->ki_dtor = NULL;			\
-		(x)->ki_obj.tsk = tsk;			\
+		(x)->ki_user_obj = tsk;			\
 	} while (0)
 
 #define AIO_RING_MAGIC			0xa10a10a1
@@ -151,11 +149,11 @@ struct mm_struct;
 extern void FASTCALL(exit_aio(struct mm_struct *mm));
 extern struct kioctx *lookup_ioctx(unsigned long ctx_id);
 extern int FASTCALL(io_submit_one(struct kioctx *ctx,
-			struct iocb __user *user_iocb, struct iocb *iocb));
+			struct iocb *user_iocb, struct iocb *iocb));
 
 /* semi private, but used by the 32bit emulations: */
 struct kioctx *lookup_ioctx(unsigned long ctx_id);
-int FASTCALL(io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
+int FASTCALL(io_submit_one(struct kioctx *ctx, struct iocb *user_iocb,
 				  struct iocb *iocb));
 
 #define get_ioctx(kioctx)	do { if (unlikely(atomic_read(&(kioctx)->users) <= 0)) BUG(); atomic_inc(&(kioctx)->users); } while (0)
@@ -169,7 +167,6 @@ static inline struct kiocb *list_kiocb(struct list_head *h)
 }
 
 /* for sysctl: */
-extern atomic_t aio_nr;
-extern unsigned aio_max_nr;
+extern unsigned aio_max_nr, aio_max_size, aio_max_pinned;
 
 #endif /* __LINUX__AIO_H */

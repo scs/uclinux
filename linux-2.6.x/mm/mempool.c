@@ -89,6 +89,11 @@ mempool_t * mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
 }
 EXPORT_SYMBOL(mempool_create);
 
+/*
+ * mempool_resize is disabled for now, because it has no callers.  Feel free
+ * to turn it back on if needed.
+ */
+#if 0
 /**
  * mempool_resize - resize an existing memory pool
  * @pool:       pointer to the memory pool which was allocated via
@@ -158,6 +163,7 @@ out:
 	return 0;
 }
 EXPORT_SYMBOL(mempool_resize);
+#endif
 
 /**
  * mempool_destroy - deallocate a memory pool
@@ -203,7 +209,6 @@ repeat_alloc:
 	 * If the pool is less than 50% full and we can perform effective
 	 * page reclaim then try harder to allocate an element.
 	 */
-	mb();
 	if ((gfp_mask & __GFP_FS) && (gfp_mask != gfp_nowait) &&
 				(pool->curr_nr <= pool->min_nr/2)) {
 		element = pool->alloc(gfp_mask, pool->pool_data);
@@ -228,8 +233,9 @@ repeat_alloc:
 	if (!(gfp_mask & __GFP_WAIT))
 		return NULL;
 
+	blk_run_queues();
+
 	prepare_to_wait(&pool->wait, &wait, TASK_UNINTERRUPTIBLE);
-	mb();
 	if (!pool->curr_nr)
 		io_schedule();
 	finish_wait(&pool->wait, &wait);
@@ -250,7 +256,6 @@ void mempool_free(void *element, mempool_t *pool)
 {
 	unsigned long flags;
 
-	mb();
 	if (pool->curr_nr < pool->min_nr) {
 		spin_lock_irqsave(&pool->lock, flags);
 		if (pool->curr_nr < pool->min_nr) {

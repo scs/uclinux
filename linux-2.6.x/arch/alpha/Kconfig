@@ -188,7 +188,7 @@ config ALPHA_MIATA
 	help
 	  The Digital PersonalWorkStation (PWS 433a, 433au, 500a, 500au, 600a,
 	  or 600au).  There is an Installation HOWTO for this hardware at
-	  <http://eijk.homelinux.org/~stefan/miata.html>.
+	  <http://members.brabant.chello.nl/~s.vandereijk/miata.html>.
 
 config ALPHA_MIKASA
 	bool "Mikasa"
@@ -486,8 +486,19 @@ config SMP
 	  singleprocessor machines. On a singleprocessor machine, the kernel
 	  will run faster if you say N here.
 
-	  See also the <file:Documentation/smp.tex>, and the SMP-HOWTO
-	  available at <http://www.tldp.org/docs.html#howto>.
+	  Note that if you say Y here and choose architecture "586" or
+	  "Pentium" under "Processor family", the kernel will not work on 486
+	  architectures. Similarly, multiprocessor kernels for the "PPro"
+	  architecture may not work on all Pentium based boards.
+
+	  People using multiprocessor machines who say Y here should also say
+	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
+	  Management" code will be disabled if you say Y here.
+
+	  See also the <file:Documentation/smp.tex>,
+	  <file:Documentation/smp.txt>, <file:Documentation/i386/IO-APIC.txt>,
+	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
+	  <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
 
@@ -558,6 +569,24 @@ config VERBOSE_MCHECK_ON
 source "drivers/pci/Kconfig"
 source "drivers/eisa/Kconfig"
 
+config HOTPLUG
+	bool "Support for hot-pluggable devices"
+	---help---
+	  Say Y here if you want to plug devices into your computer while
+	  the system is running, and be able to use them quickly.  In many
+	  cases, the devices can likewise be unplugged at any time too.
+
+	  One well known example of this is PCMCIA- or PC-cards, credit-card
+	  size devices such as network cards, modems or hard drives which are
+	  plugged into slots found on all modern laptop computers.  Another
+	  example, used on modern desktops as well as laptops, is USB.
+
+	  Enable HOTPLUG and KMOD, and build a modular kernel.  Get agent
+	  software (at <http://linux-hotplug.sourceforge.net/>) and install it.
+	  Then your kernel will automatically call out to a user mode "policy
+	  agent" (/sbin/hotplug) to load modules and set up software needed
+	  to use devices as you hotplug them.
+
 source "drivers/pcmcia/Kconfig"
 
 config SRM_ENV
@@ -585,11 +614,50 @@ config SRM_ENV
 
 source "fs/Kconfig.binfmt"
 
+source "drivers/parport/Kconfig"
+
 endmenu
 
-source "drivers/Kconfig"
+source "drivers/base/Kconfig"
+
+source "drivers/mtd/Kconfig"
+
+source "drivers/pnp/Kconfig"
+
+source "drivers/block/Kconfig"
+
+source "drivers/md/Kconfig"
+
+source "drivers/ide/Kconfig"
+
+source "drivers/scsi/Kconfig"
+
+if PCI
+source "drivers/message/fusion/Kconfig"
+endif
+
+source "drivers/ieee1394/Kconfig"
+
+source "net/Kconfig"
+
+source "drivers/isdn/Kconfig"
+
+source "drivers/cdrom/Kconfig"
+
+source "drivers/input/Kconfig"
+
+source "drivers/char/Kconfig"
+
+#source drivers/misc/Config.in
+source "drivers/media/Kconfig"
 
 source "fs/Kconfig"
+
+source "drivers/video/Kconfig"
+
+source "sound/Kconfig"
+
+source "drivers/usb/Kconfig"
 
 source "arch/alpha/oprofile/Kconfig"
 
@@ -626,8 +694,8 @@ config DEBUG_KERNEL
 	  identify kernel problems.
 
 config MATHEMU
-	tristate "Kernel FP software completion" if DEBUG_KERNEL && !SMP
-	default y if !DEBUG_KERNEL || SMP
+	tristate "Kernel FP software completion" if DEBUG_KERNEL
+	default y if !DEBUG_KERNEL
 	help
 	  This option is required for IEEE compliant floating point arithmetic
 	  on the Alpha. The only time you would ever not say Y is to say M in

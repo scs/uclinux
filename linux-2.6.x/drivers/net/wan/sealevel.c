@@ -20,7 +20,6 @@
 #include <linux/if_arp.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <linux/init.h>
 #include <net/arp.h>
 
 #include <asm/io.h>
@@ -421,7 +420,6 @@ static void __exit slvl_shutdown(struct slvl_board *b)
 	/* DMA off on the card, drop DTR */
 	outb(0, b->iobase);
 	release_region(b->iobase, 8);
-	kfree(b);
 }
 
 

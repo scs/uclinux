@@ -66,10 +66,9 @@ irq_desc_t irq_desc[NR_IRQS] __cacheline_aligned = {
 		.lock = SPIN_LOCK_UNLOCKED
 	}
 };
-
-int __irq_offset_value;
-int ppc_spurious_interrupts;
-unsigned long lpevent_count;
+	
+int ppc_spurious_interrupts = 0;
+unsigned long lpEvent_count = 0;
 
 int
 setup_irq(unsigned int irq, struct irqaction * new)
@@ -77,7 +76,7 @@ setup_irq(unsigned int irq, struct irqaction * new)
 	int shared = 0;
 	unsigned long flags;
 	struct irqaction *old, **p;
-	irq_desc_t *desc = get_irq_desc(irq);
+	irq_desc_t *desc = irq_desc + irq;
 
 	/*
 	 * Some drivers like serial.c use request_irq() heavily,
@@ -121,8 +120,6 @@ setup_irq(unsigned int irq, struct irqaction * new)
 	if (!shared) {
 		desc->depth = 0;
 		desc->status &= ~(IRQ_DISABLED | IRQ_AUTODETECT | IRQ_WAITING | IRQ_INPROGRESS);
-		if (desc->handler && desc->handler->startup)
-			desc->handler->startup(irq);
 		unmask_irq(irq);
 	}
 	spin_unlock_irqrestore(&desc->lock,flags);
@@ -135,7 +132,7 @@ setup_irq(unsigned int irq, struct irqaction * new)
 
 inline void synchronize_irq(unsigned int irq)
 {
-	while (get_irq_desc(irq)->status & IRQ_INPROGRESS)
+	while (irq_desc[irq].status & IRQ_INPROGRESS)
 		cpu_relax();
 }
 
@@ -143,47 +140,17 @@ EXPORT_SYMBOL(synchronize_irq);
 
 #endif /* CONFIG_SMP */
 
-int request_irq(unsigned int irq,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
-	unsigned long irqflags, const char * devname, void *dev_id)
+/* XXX Make this into free_irq() - Anton */
+
+/* This could be promoted to a real free_irq() ... */
+static int
+do_free_irq(int irq, void* dev_id)
 {
-	struct irqaction *action;
-	int retval;
-
-	if (irq >= NR_IRQS)
-		return -EINVAL;
-	if (!handler)
-		return -EINVAL;
-
-	action = (struct irqaction *)
-		kmalloc(sizeof(struct irqaction), GFP_KERNEL);
-	if (!action) {
-		printk(KERN_ERR "kmalloc() failed for irq %d !\n", irq);
-		return -ENOMEM;
-	}
-
-	action->handler = handler;
-	action->flags = irqflags;
-	cpus_clear(action->mask);
-	action->name = devname;
-	action->dev_id = dev_id;
-	action->next = NULL;
-
-	retval = setup_irq(irq, action);
-	if (retval)
-		kfree(action);
-
-	return 0;
-}
-
-EXPORT_SYMBOL(request_irq);
-
-void free_irq(unsigned int irq, void *dev_id)
-{
-	irq_desc_t *desc = get_irq_desc(irq);
+	irq_desc_t *desc;
 	struct irqaction **p;
 	unsigned long flags;
 
+	desc = irq_desc + irq;
 	spin_lock_irqsave(&desc->lock,flags);
 	p = &desc->action;
 	for (;;) {
@@ -205,13 +172,54 @@ void free_irq(unsigned int irq, void *dev_id)
 			/* Wait to make sure it's not being used on another CPU */
 			synchronize_irq(irq);
 			kfree(action);
-			return;
+			return 0;
 		}
 		printk("Trying to free free IRQ%d\n",irq);
 		spin_unlock_irqrestore(&desc->lock,flags);
 		break;
 	}
-	return;
+	return -ENOENT;
+}
+
+int request_irq(unsigned int irq,
+	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	unsigned long irqflags, const char * devname, void *dev_id)
+{
+	struct irqaction *action;
+	int retval;
+
+	if (irq >= NR_IRQS)
+		return -EINVAL;
+	if (!handler)
+		/* We could implement really free_irq() instead of that... */
+		return do_free_irq(irq, dev_id);
+	
+	action = (struct irqaction *)
+		kmalloc(sizeof(struct irqaction), GFP_KERNEL);
+	if (!action) {
+		printk(KERN_ERR "kmalloc() failed for irq %d !\n", irq);
+		return -ENOMEM;
+	}
+	
+	action->handler = handler;
+	action->flags = irqflags;					
+	action->mask = 0;
+	action->name = devname;
+	action->dev_id = dev_id;
+	action->next = NULL;
+	
+	retval = setup_irq(irq, action);
+	if (retval)
+		kfree(action);
+		
+	return 0;
+}
+
+EXPORT_SYMBOL(request_irq);
+
+void free_irq(unsigned int irq, void *dev_id)
+{
+	request_irq(irq, NULL, 0, NULL, dev_id);
 }
 
 EXPORT_SYMBOL(free_irq);
@@ -236,7 +244,7 @@ EXPORT_SYMBOL(free_irq);
  
 inline void disable_irq_nosync(unsigned int irq)
 {
-	irq_desc_t *desc = get_irq_desc(irq);
+	irq_desc_t *desc = irq_desc + irq;
 	unsigned long flags;
 
 	spin_lock_irqsave(&desc->lock, flags);
@@ -265,7 +273,7 @@ EXPORT_SYMBOL(disable_irq_nosync);
  
 void disable_irq(unsigned int irq)
 {
-	irq_desc_t *desc = get_irq_desc(irq);
+	irq_desc_t *desc = irq_desc + irq;
 	disable_irq_nosync(irq);
 	if (desc->action)
 		synchronize_irq(irq);
@@ -285,7 +293,7 @@ EXPORT_SYMBOL(disable_irq);
  
 void enable_irq(unsigned int irq)
 {
-	irq_desc_t *desc = get_irq_desc(irq);
+	irq_desc_t *desc = irq_desc + irq;
 	unsigned long flags;
 
 	spin_lock_irqsave(&desc->lock, flags);
@@ -316,7 +324,6 @@ int show_interrupts(struct seq_file *p, void *v)
 {
 	int i = *(loff_t *) v, j;
 	struct irqaction * action;
-	irq_desc_t *desc;
 	unsigned long flags;
 
 	if (i == 0) {
@@ -329,37 +336,37 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
-		desc = get_irq_desc(i);
-		spin_lock_irqsave(&desc->lock, flags);
-		action = desc->action;
+		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		action = irq_desc[i].action;
 		if (!action || !action->handler)
 			goto skip;
-		seq_printf(p, "%3d: ", i);
+		seq_printf(p, "%3d: ", i);		
 #ifdef CONFIG_SMP
 		for (j = 0; j < NR_CPUS; j++) {
 			if (cpu_online(j))
 				seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 		}
-#else
+#else		
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #endif /* CONFIG_SMP */
-		if (desc->handler)
-			seq_printf(p, " %s ", desc->handler->typename );
+		if (irq_desc[i].handler)		
+			seq_printf(p, " %s ", irq_desc[i].handler->typename );
 		else
 			seq_printf(p, "  None      ");
-		seq_printf(p, "%s", (desc->status & IRQ_LEVEL) ? "Level " : "Edge  ");
+		seq_printf(p, "%s", (irq_desc[i].status & IRQ_LEVEL) ? "Level " : "Edge  ");
 		seq_printf(p, "    %s",action->name);
 		for (action=action->next; action; action = action->next)
 			seq_printf(p, ", %s", action->name);
 		seq_putc(p, '\n');
 skip:
-		spin_unlock_irqrestore(&desc->lock, flags);
+		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	} else if (i == NR_IRQS)
 		seq_printf(p, "BAD: %10u\n", ppc_spurious_interrupts);
 	return 0;
 }
 
-int handle_irq_event(int irq, struct pt_regs *regs, struct irqaction *action)
+static inline int handle_irq_event(int irq, struct pt_regs *regs,
+				   struct irqaction *action)
 {
 	int status = 0;
 	int retval = 0;
@@ -468,22 +475,9 @@ void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq)
 	int status;
 	struct irqaction *action;
 	int cpu = smp_processor_id();
-	irq_desc_t *desc = get_irq_desc(irq);
-	irqreturn_t action_ret;
-#ifdef CONFIG_IRQSTACKS
-	struct thread_info *curtp, *irqtp;
-#endif
+	irq_desc_t *desc = irq_desc + irq;
 
 	kstat_cpu(cpu).irqs[irq]++;
-
-	if (desc->status & IRQ_PER_CPU) {
-		/* no locking required for CPU-local interrupts: */
-		ack_irq(irq);
-		action_ret = handle_irq_event(irq, regs, desc->action);
-		desc->handler->end(irq);
-		return;
-	}
-
 	spin_lock(&desc->lock);
 	ack_irq(irq);	
 	/*
@@ -491,7 +485,8 @@ void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq)
 	   WAITING is used by probe to mark irqs that are being tested
 	   */
 	status = desc->status & ~(IRQ_REPLAY | IRQ_WAITING);
-	status |= IRQ_PENDING; /* we _want_ to handle it */
+	if (!(status & IRQ_PER_CPU))
+		status |= IRQ_PENDING; /* we _want_ to handle it */
 
 	/*
 	 * If the IRQ is disabled for whatever reason, we cannot
@@ -514,7 +509,8 @@ void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq)
 			goto out;
 		}
 		status &= ~IRQ_PENDING; /* we commit to handling */
-		status |= IRQ_INPROGRESS; /* we are handling it */
+		if (!(status & IRQ_PER_CPU))
+			status |= IRQ_INPROGRESS; /* we are handling it */
 	}
 	desc->status = status;
 
@@ -538,23 +534,10 @@ void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq)
 	 * SMP environment.
 	 */
 	for (;;) {
+		irqreturn_t action_ret;
+
 		spin_unlock(&desc->lock);
-
-#ifdef CONFIG_IRQSTACKS
-		/* Switch to the irq stack to handle this */
-		curtp = current_thread_info();
-		irqtp = hardirq_ctx[smp_processor_id()];
-		if (curtp != irqtp) {
-			irqtp->task = curtp->task;
-			irqtp->flags = 0;
-			action_ret = call_handle_irq_event(irq, regs, action, irqtp);
-			irqtp->task = NULL;
-			if (irqtp->flags)
-				set_bits(irqtp->flags, &curtp->flags);
-		} else
-#endif
-			action_ret = handle_irq_event(irq, regs, action);
-
+		action_ret = handle_irq_event(irq, regs, action);
 		spin_lock(&desc->lock);
 		if (!noirqdebug)
 			note_interrupt(irq, desc, action_ret);
@@ -568,90 +551,72 @@ out:
 	 * The ->end() handler has to deal with interrupts which got
 	 * disabled while the handler was running.
 	 */
-	if (desc->handler) {
-		if (desc->handler->end)
-			desc->handler->end(irq);
-		else if (desc->handler->enable)
-			desc->handler->enable(irq);
+	if (irq_desc[irq].handler) {
+		if (irq_desc[irq].handler->end)
+			irq_desc[irq].handler->end(irq);
+		else if (irq_desc[irq].handler->enable)
+			irq_desc[irq].handler->enable(irq);
 	}
 	spin_unlock(&desc->lock);
 }
 
 #ifdef CONFIG_PPC_ISERIES
-void do_IRQ(struct pt_regs *regs)
+int do_IRQ(struct pt_regs *regs)
 {
 	struct paca_struct *lpaca;
 	struct ItLpQueue *lpq;
 
 	irq_enter();
 
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
-	/* Debugging check for stack overflow: is there less than 4KB free? */
-	{
-		long sp;
-
-		sp = __get_SP() & (THREAD_SIZE-1);
-
-		if (unlikely(sp < (sizeof(struct thread_info) + 4096))) {
-			printk("do_IRQ: stack overflow: %ld\n",
-				sp - sizeof(struct thread_info));
-			dump_stack();
-		}
-	}
-#endif
-
 	lpaca = get_paca();
 #ifdef CONFIG_SMP
-	if (lpaca->lppaca.xIntDword.xFields.xIpiCnt) {
-		lpaca->lppaca.xIntDword.xFields.xIpiCnt = 0;
+	if (lpaca->xLpPaca.xIntDword.xFields.xIpiCnt) {
+		lpaca->xLpPaca.xIntDword.xFields.xIpiCnt = 0;
 		iSeries_smp_message_recv(regs);
 	}
 #endif /* CONFIG_SMP */
-	lpq = lpaca->lpqueue_ptr;
+	lpq = lpaca->lpQueuePtr;
 	if (lpq && ItLpQueue_isLpIntPending(lpq))
-		lpevent_count += ItLpQueue_process(lpq, regs);
+		lpEvent_count += ItLpQueue_process(lpq, regs);
 
 	irq_exit();
 
-	if (lpaca->lppaca.xIntDword.xFields.xDecrInt) {
-		lpaca->lppaca.xIntDword.xFields.xDecrInt = 0;
+	if (lpaca->xLpPaca.xIntDword.xFields.xDecrInt) {
+		lpaca->xLpPaca.xIntDword.xFields.xDecrInt = 0;
 		/* Signal a fake decrementer interrupt */
 		timer_interrupt(regs);
 	}
+
+	return 1; /* lets ret_from_int know we can do checks */
 }
 
 #else	/* CONFIG_PPC_ISERIES */
 
-void do_IRQ(struct pt_regs *regs)
+int do_IRQ(struct pt_regs *regs)
 {
-	int irq;
+	int irq, first = 1;
 
 	irq_enter();
 
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
-	/* Debugging check for stack overflow: is there less than 4KB free? */
-	{
-		long sp;
-
-		sp = __get_SP() & (THREAD_SIZE-1);
-
-		if (unlikely(sp < (sizeof(struct thread_info) + 4096))) {
-			printk("do_IRQ: stack overflow: %ld\n",
-				sp - sizeof(struct thread_info));
-			dump_stack();
-		}
-	}
-#endif
-
-	irq = ppc_md.get_irq(regs);
-
-	if (irq >= 0)
+	/*
+	 * Every arch is required to implement ppc_md.get_irq.
+	 * This function will either return an irq number or -1 to
+	 * indicate there are no more pending.  But the first time
+	 * through the loop this means there wasn't an IRQ pending.
+	 * The value -2 is for buggy hardware and means that this IRQ
+	 * has already been handled. -- Tom
+	 */
+	while ((irq = ppc_md.get_irq(regs)) >= 0) {
 		ppc_irq_dispatch_handler(regs, irq);
-	else
+		first = 0;
+	}
+	if (irq != -2 && first)
 		/* That's not SMP safe ... but who cares ? */
 		ppc_spurious_interrupts++;
 
 	irq_exit();
+
+	return 1; /* lets ret_from_int know we can do checks */
 }
 #endif	/* CONFIG_PPC_ISERIES */
 
@@ -682,16 +647,14 @@ void __init init_IRQ(void)
 		return;
 
 	once++;
-
+	
 	ppc_md.init_IRQ();
-	irq_ctx_init();
 }
 
 static struct proc_dir_entry * root_irq_dir;
 static struct proc_dir_entry * irq_dir [NR_IRQS];
 static struct proc_dir_entry * smp_affinity_entry [NR_IRQS];
 
-/* Protected by get_irq_desc(irq)->lock. */
 #ifdef CONFIG_IRQ_ALL_CPUS
 cpumask_t irq_affinity [NR_IRQS] = { [0 ... NR_IRQS-1] = CPU_MASK_ALL };
 #else  /* CONFIG_IRQ_ALL_CPUS */
@@ -701,41 +664,25 @@ cpumask_t irq_affinity [NR_IRQS] = { [0 ... NR_IRQS-1] = CPU_MASK_NONE };
 static int irq_affinity_read_proc (char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
-	int len = cpumask_scnprintf(page, count, irq_affinity[(long)data]);
+	int len = cpumask_snprintf(page, count, irq_affinity[(long)data]);
 	if (count - len < 2)
 		return -EINVAL;
 	len += sprintf(page + len, "\n");
 	return len;
 }
 
-static int irq_affinity_write_proc (struct file *file, const char __user *buffer,
+static int irq_affinity_write_proc (struct file *file, const char *buffer,
 					unsigned long count, void *data)
 {
-	unsigned int irq = (long)data;
-	irq_desc_t *desc = get_irq_desc(irq);
-	int ret;
+	int irq = (long)data, full_count = count, err;
 	cpumask_t new_value, tmp;
 
-	if (!desc->handler->set_affinity)
+	if (!irq_desc[irq].handler->set_affinity)
 		return -EIO;
 
-	ret = cpumask_parse(buffer, count, new_value);
-	if (ret != 0)
-		return ret;
-
-	/*
-	 * We check for CPU_MASK_ALL in xics to send irqs to all cpus.
-	 * In some cases CPU_MASK_ALL is smaller than the cpumask (eg
-	 * NR_CPUS == 32 and cpumask is a long), so we mask it here to
-	 * be consistent.
-	 */
-	cpus_and(new_value, new_value, CPU_MASK_ALL);
-
-	/*
-	 * Grab lock here so cpu_online_map can't change, and also
-	 * protect irq_affinity[].
-	 */
-	spin_lock(&desc->lock);
+	err = cpumask_parse(buffer, count, new_value);
+	if (err)
+		return err;
 
 	/*
 	 * Do not allow disabling IRQs completely - it's a too easy
@@ -743,24 +690,19 @@ static int irq_affinity_write_proc (struct file *file, const char __user *buffer
 	 * one online CPU still has to be targeted.
 	 */
 	cpus_and(tmp, new_value, cpu_online_map);
-	if (cpus_empty(tmp)) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (cpus_empty(tmp))
+		return -EINVAL;
 
 	irq_affinity[irq] = new_value;
-	desc->handler->set_affinity(irq, new_value);
-	ret = count;
+	irq_desc[irq].handler->set_affinity(irq, new_value);
 
-out:
-	spin_unlock(&desc->lock);
-	return ret;
+	return full_count;
 }
 
 static int prof_cpu_mask_read_proc (char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
-	int len = cpumask_scnprintf(page, count, *(cpumask_t *)data);
+	int len = cpumask_snprintf(page, count, *(cpumask_t *)data);
 	if (count - len < 2)
 		return -EINVAL;
 	len += sprintf(page + len, "\n");
@@ -784,10 +726,11 @@ static int prof_cpu_mask_write_proc (struct file *file, const char __user *buffe
 	{
 		unsigned i;
 		for (i=0; i<NR_CPUS; ++i) {
-			if ( paca[i].prof_buffer && cpu_isset(i, new_value) )
+			if ( paca[i].prof_buffer && (new_value & 1) )
 				paca[i].prof_enabled = 1;
 			else
 				paca[i].prof_enabled = 0;
+			new_value >>= 1;
 		}
 	}
 #endif
@@ -832,7 +775,7 @@ void init_irq_proc (void)
 	int i;
 
 	/* create /proc/irq */
-	root_irq_dir = proc_mkdir("irq", NULL);
+	root_irq_dir = proc_mkdir("irq", 0);
 
 	/* create /proc/irq/prof_cpu_mask */
 	entry = create_proc_entry("prof_cpu_mask", 0600, root_irq_dir);
@@ -848,8 +791,8 @@ void init_irq_proc (void)
 	/*
 	 * Create entries for all existing IRQs.
 	 */
-	for_each_irq(i) {
-		if (get_irq_desc(i)->handler == NULL)
+	for (i = 0; i < NR_IRQS; i++) {
+		if (irq_desc[i].handler == NULL)
 			continue;
 		register_irq_proc(i);
 	}
@@ -859,158 +802,3 @@ irqreturn_t no_action(int irq, void *dev, struct pt_regs *regs)
 {
 	return IRQ_NONE;
 }
-
-#ifndef CONFIG_PPC_ISERIES
-/*
- * Virtual IRQ mapping code, used on systems with XICS interrupt controllers.
- */
-
-#define UNDEFINED_IRQ 0xffffffff
-unsigned int virt_irq_to_real_map[NR_IRQS];
-
-/*
- * Don't use virtual irqs 0, 1, 2 for devices.
- * The pcnet32 driver considers interrupt numbers < 2 to be invalid,
- * and 2 is the XICS IPI interrupt.
- * We limit virtual irqs to 17 less than NR_IRQS so that when we
- * offset them by 16 (to reserve the first 16 for ISA interrupts)
- * we don't end up with an interrupt number >= NR_IRQS.
- */
-#define MIN_VIRT_IRQ	3
-#define MAX_VIRT_IRQ	(NR_IRQS - NUM_ISA_INTERRUPTS - 1)
-#define NR_VIRT_IRQS	(MAX_VIRT_IRQ - MIN_VIRT_IRQ + 1)
-
-void
-virt_irq_init(void)
-{
-	int i;
-	for (i = 0; i < NR_IRQS; i++)
-		virt_irq_to_real_map[i] = UNDEFINED_IRQ;
-}
-
-/* Create a mapping for a real_irq if it doesn't already exist.
- * Return the virtual irq as a convenience.
- */
-int virt_irq_create_mapping(unsigned int real_irq)
-{
-	unsigned int virq, first_virq;
-	static int warned;
-
-	if (naca->interrupt_controller == IC_OPEN_PIC)
-		return real_irq;	/* no mapping for openpic (for now) */
-
-	/* don't map interrupts < MIN_VIRT_IRQ */
-	if (real_irq < MIN_VIRT_IRQ) {
-		virt_irq_to_real_map[real_irq] = real_irq;
-		return real_irq;
-	}
-
-	/* map to a number between MIN_VIRT_IRQ and MAX_VIRT_IRQ */
-	virq = real_irq;
-	if (virq > MAX_VIRT_IRQ)
-		virq = (virq % NR_VIRT_IRQS) + MIN_VIRT_IRQ;
-
-	/* search for this number or a free slot */
-	first_virq = virq;
-	while (virt_irq_to_real_map[virq] != UNDEFINED_IRQ) {
-		if (virt_irq_to_real_map[virq] == real_irq)
-			return virq;
-		if (++virq > MAX_VIRT_IRQ)
-			virq = MIN_VIRT_IRQ;
-		if (virq == first_virq)
-			goto nospace;	/* oops, no free slots */
-	}
-
-	virt_irq_to_real_map[virq] = real_irq;
-	return virq;
-
- nospace:
-	if (!warned) {
-		printk(KERN_CRIT "Interrupt table is full\n");
-		printk(KERN_CRIT "Increase NR_IRQS (currently %d) "
-		       "in your kernel sources and rebuild.\n", NR_IRQS);
-		warned = 1;
-	}
-	return NO_IRQ;
-}
-
-/*
- * In most cases will get a hit on the very first slot checked in the
- * virt_irq_to_real_map.  Only when there are a large number of
- * IRQs will this be expensive.
- */
-unsigned int real_irq_to_virt_slowpath(unsigned int real_irq)
-{
-	unsigned int virq;
-	unsigned int first_virq;
-
-	virq = real_irq;
-
-	if (virq > MAX_VIRT_IRQ)
-		virq = (virq % NR_VIRT_IRQS) + MIN_VIRT_IRQ;
-
-	first_virq = virq;
-
-	do {
-		if (virt_irq_to_real_map[virq] == real_irq)
-			return virq;
-
-		virq++;
-
-		if (virq >= MAX_VIRT_IRQ)
-			virq = 0;
-
-	} while (first_virq != virq);
-
-	return NO_IRQ;
-
-}
-
-#endif /* CONFIG_PPC_ISERIES */
-
-#ifdef CONFIG_IRQSTACKS
-struct thread_info *softirq_ctx[NR_CPUS];
-struct thread_info *hardirq_ctx[NR_CPUS];
-
-void irq_ctx_init(void)
-{
-	struct thread_info *tp;
-	int i;
-
-	for (i = 0; i < NR_CPUS; i++) {
-		memset((void *)softirq_ctx[i], 0, THREAD_SIZE);
-		tp = softirq_ctx[i];
-		tp->cpu = i;
-		tp->preempt_count = SOFTIRQ_OFFSET;
-
-		memset((void *)hardirq_ctx[i], 0, THREAD_SIZE);
-		tp = hardirq_ctx[i];
-		tp->cpu = i;
-		tp->preempt_count = HARDIRQ_OFFSET;
-	}
-}
-
-void do_softirq(void)
-{
-	unsigned long flags;
-	struct thread_info *curtp, *irqtp;
-
-	if (in_interrupt())
-		return;
-
-	local_irq_save(flags);
-
-	if (local_softirq_pending()) {
-		curtp = current_thread_info();
-		irqtp = softirq_ctx[smp_processor_id()];
-		irqtp->task = curtp->task;
-		call_do_softirq(irqtp);
-		irqtp->task = NULL;
-	}
-
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL(do_softirq);
-
-#endif /* CONFIG_IRQSTACKS */
-

@@ -38,7 +38,7 @@ const char *cu3088_type[] = {
 	"ESCON channel",
 	"FICON channel",
 	"P390 LCS card",
-	"OSA LCS card",
+	"OSA2 card",
 	"unknown channel type",
 	"unsupported channel type",
 };

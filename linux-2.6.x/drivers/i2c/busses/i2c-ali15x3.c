@@ -61,13 +61,16 @@
 /* Note: we assume there can only be one ALI15X3, with one SMBus interface */
 
 #include <linux/config.h>
+#ifdef CONFIG_I2C_DEBUG_BUS
+#define DEBUG	1
+#endif
+
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>
-#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <asm/io.h>
@@ -297,7 +300,7 @@ static int ali15x3_transaction(struct i2c_adapter *adap)
 	/* We will always wait for a fraction of a second! */
 	timeout = 0;
 	do {
-		msleep(1);
+		i2c_delay(1);
 		temp = inb_p(SMBHSTSTS);
 	} while ((!(temp & (ALI15X3_STS_ERR | ALI15X3_STS_DONE)))
 		 && (timeout++ < MAX_TIMEOUT));
@@ -354,7 +357,7 @@ static s32 ali15x3_access(struct i2c_adapter * adap, u16 addr,
 	for (timeout = 0;
 	     (timeout < MAX_TIMEOUT) && !(temp & ALI15X3_STS_IDLE);
 	     timeout++) {
-		msleep(1);
+		i2c_delay(1);
 		temp = inb_p(SMBHSTSTS);
 	}
 	if (timeout >= MAX_TIMEOUT) {
@@ -471,7 +474,7 @@ static struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter ali15x3_adapter = {
 	.owner		= THIS_MODULE,
-	.class          = I2C_CLASS_HWMON,
+	.class          = I2C_ADAP_CLASS_SMBUS,
 	.algo		= &smbus_algorithm,
 	.name		= "unset",
 };

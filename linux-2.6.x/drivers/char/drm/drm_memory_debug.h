@@ -67,7 +67,6 @@ static drm_mem_stats_t	  DRM(mem_stats)[]   = {
 	[DRM_MEM_TOTALAGP]  = { "totalagp" },
 	[DRM_MEM_BOUNDAGP]  = { "boundagp" },
 	[DRM_MEM_CTXBITMAP] = { "ctxbitmap"},
-	[DRM_MEM_CTXLIST]   = { "ctxlist"  },
 	[DRM_MEM_STUB]      = { "stub"     },
 	{ NULL, 0, }		/* Last entry must be null */
 };
@@ -386,7 +385,7 @@ int DRM(free_agp)(DRM_AGP_MEM *handle, int pages)
 	if (!handle) {
 		DRM_MEM_ERROR(DRM_MEM_TOTALAGP,
 			      "Attempt to free NULL AGP handle\n");
-		return retval;
+		return retval;;
 	}
 
 	if (DRM(agp_free_memory)(handle)) {

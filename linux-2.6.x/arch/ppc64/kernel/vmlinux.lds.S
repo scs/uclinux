@@ -13,7 +13,6 @@ SECTIONS
   /* Read-only sections, merged into text segment: */
   .text : {
 	*(.text .text.*)
-	SCHED_TEXT
 	*(.fixup)
 	. = ALIGN(4096);
 	_etext = .;

@@ -91,15 +91,10 @@ extern int attr_generic_list(struct vnode *, void *, size_t, int, ssize_t *);
 #define ATTR_CREATE	0x0010	/* pure create: fail if attr already exists */
 #define ATTR_REPLACE	0x0020	/* pure set: fail if attr does not exist */
 #define ATTR_SYSTEM	0x0100	/* use attrs in system (pseudo) namespace */
-
-#define ATTR_KERNACCESS	0x0400	/* [kernel] iaccess, inode held io-locked */
 #define ATTR_KERNOTIME	0x1000	/* [kernel] don't update inode timestamps */
 #define ATTR_KERNOVAL	0x2000	/* [kernel] get attr size only, not value */
 #define ATTR_KERNAMELS	0x4000	/* [kernel] list attr names (simple list) */
-
-#define ATTR_KERNORMALS	0x0800	/* [kernel] normal attr list: user+secure */
-#define ATTR_KERNROOTLS	0x8000	/* [kernel] include root in the attr list */
-#define ATTR_KERNFULLS	(ATTR_KERNORMALS|ATTR_KERNROOTLS)
+#define ATTR_KERNFULLS	0x8000	/* [kernel] full attr list, ie. root+user */
 
 /*
  * The maximum size (into the kernel or returned from the kernel) of an
@@ -187,7 +182,6 @@ int xfs_attr_inactive(struct xfs_inode *dp);
 int xfs_attr_node_get(struct xfs_da_args *);
 int xfs_attr_leaf_get(struct xfs_da_args *);
 int xfs_attr_shortform_getvalue(struct xfs_da_args *);
-int xfs_attr_fetch(struct xfs_inode *, char *, int,
-			char *, int *, int, struct cred *);
+int xfs_attr_fetch(struct xfs_inode *, char *, char *, int);
 
 #endif	/* __XFS_ATTR_H__ */

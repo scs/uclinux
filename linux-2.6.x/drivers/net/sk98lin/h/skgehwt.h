@@ -22,6 +22,43 @@
  *
  ******************************************************************************/
 
+/******************************************************************************
+ *
+ * History:
+ *
+ *	$Log$
+ *	Revision 1.2  2004/09/07 22:32:04  lgsoft
+ *	alpha-2.0
+ *
+ *	Revision 1.1.1.1  2004/07/19 12:13:12  lgsoft
+ *	Import of uClinux 2.6.2
+ *	
+ *	Revision 1.1.1.1  2004/07/18 13:21:34  nidhi
+ *	Importing
+ *	
+ *	Revision 1.7  2003/09/16 12:55:08  rschmidt
+ *	Editorial changes
+ *	
+ *	Revision 1.6  2003/05/13 17:57:48  mkarl
+ *	Editorial changes.
+ *	
+ *	Revision 1.5  1999/11/22 13:54:24  cgoos
+ *	Changed license header to GPL.
+ *	
+ *	Revision 1.4  1998/08/19 09:50:58  gklug
+ *	fix: remove struct keyword from C-code (see CCC) add typedefs
+ *	
+ *	Revision 1.3  1998/08/14 07:09:29  gklug
+ *	fix: chg pAc -> pAC
+ *	
+ *	Revision 1.2  1998/08/07 12:54:21  gklug
+ *	fix: first compiled version
+ *	
+ *	Revision 1.1  1998/08/07 09:32:58  gklug
+ *	first version
+ *
+ ******************************************************************************/
+
 /*
  * SKGEHWT.H	contains all defines and types for the timer functions
  */

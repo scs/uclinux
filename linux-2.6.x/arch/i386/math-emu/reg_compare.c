@@ -324,14 +324,14 @@ static int compare_u_st_st(int nr)
 
 /*---------------------------------------------------------------------------*/
 
-void fcom_st(void)
+void fcom_st()
 {
   /* fcom st(i) */
   compare_st_st(FPU_rm);
 }
 
 
-void fcompst(void)
+void fcompst()
 {
   /* fcomp st(i) */
   if ( !compare_st_st(FPU_rm) )
@@ -339,7 +339,7 @@ void fcompst(void)
 }
 
 
-void fcompp(void)
+void fcompp()
 {
   /* fcompp */
   if (FPU_rm != 1)
@@ -352,7 +352,7 @@ void fcompp(void)
 }
 
 
-void fucom_(void)
+void fucom_()
 {
   /* fucom st(i) */
   compare_u_st_st(FPU_rm);
@@ -360,7 +360,7 @@ void fucom_(void)
 }
 
 
-void fucomp(void)
+void fucomp()
 {
   /* fucomp st(i) */
   if ( !compare_u_st_st(FPU_rm) )
@@ -368,7 +368,7 @@ void fucomp(void)
 }
 
 
-void fucompp(void)
+void fucompp()
 {
   /* fucompp */
   if (FPU_rm == 1)

@@ -189,7 +189,11 @@ static int proc_fd_link(struct inode *inode, struct dentry **dentry, struct vfsm
 	struct file *file;
 	int fd = proc_type(inode) - PROC_TID_FD_DIR;
 
-	files = get_files_struct(task);
+	task_lock(task);
+	files = task->files;
+	if (files)
+		atomic_inc(&files->count);
+	task_unlock(task);
 	if (files) {
 		spin_lock(&files->file_lock);
 		file = fcheck_files(files, fd);
@@ -421,15 +425,17 @@ static int proc_check_root(struct inode *inode)
 	mnt = vfsmnt;
 
 	while (vfsmnt != our_vfsmnt) {
-		if (vfsmnt == vfsmnt->mnt_parent)
+		if (vfsmnt == vfsmnt->mnt_parent) {
+			spin_unlock(&vfsmount_lock);
 			goto out;
+		}
 		de = vfsmnt->mnt_mountpoint;
 		vfsmnt = vfsmnt->mnt_parent;
 	}
+	spin_unlock(&vfsmount_lock);
 
 	if (!is_subdir(de, base))
 		goto out;
-	spin_unlock(&vfsmount_lock);
 
 exit:
 	dput(base);
@@ -438,7 +444,6 @@ exit:
 	mntput(mnt);
 	return res;
 out:
-	spin_unlock(&vfsmount_lock);
 	res = -EACCES;
 	goto exit;
 }
@@ -511,7 +516,7 @@ static struct file_operations proc_mounts_operations = {
 
 #define PROC_BLOCK_SIZE	(3*1024)		/* 4K page size but our output routines use some slack for overruns */
 
-static ssize_t proc_info_read(struct file * file, char __user * buf,
+static ssize_t proc_info_read(struct file * file, char * buf,
 			  size_t count, loff_t *ppos)
 {
 	struct inode * inode = file->f_dentry->d_inode;
@@ -557,7 +562,7 @@ static int mem_open(struct inode* inode, struct file* file)
 	return 0;
 }
 
-static ssize_t mem_read(struct file * file, char __user * buf,
+static ssize_t mem_read(struct file * file, char * buf,
 			size_t count, loff_t *ppos)
 {
 	struct task_struct *task = proc_task(file->f_dentry->d_inode);
@@ -710,7 +715,7 @@ out:
 }
 
 static int do_proc_readlink(struct dentry *dentry, struct vfsmount *mnt,
-			    char __user *buffer, int buflen)
+			    char *buffer, int buflen)
 {
 	struct inode * inode;
 	char *tmp = (char*)__get_free_page(GFP_KERNEL), *path;
@@ -735,7 +740,7 @@ static int do_proc_readlink(struct dentry *dentry, struct vfsmount *mnt,
 	return len;
 }
 
-static int proc_pid_readlink(struct dentry * dentry, char __user * buffer, int buflen)
+static int proc_pid_readlink(struct dentry * dentry, char * buffer, int buflen)
 {
 	int error = -EACCES;
 	struct inode *inode = dentry->d_inode;
@@ -802,7 +807,11 @@ static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 				goto out;
 			filp->f_pos++;
 		default:
-			files = get_files_struct(p);
+			task_lock(p);
+			files = p->files;
+			if (files)
+				atomic_inc(&files->count);
+			task_unlock(p);
 			if (!files)
 				goto out;
 			spin_lock(&files->file_lock);
@@ -1001,7 +1010,11 @@ static int tid_fd_revalidate(struct dentry *dentry, struct nameidata *nd)
 	int fd = proc_type(inode) - PROC_TID_FD_DIR;
 	struct files_struct *files;
 
-	files = get_files_struct(task);
+	task_lock(task);
+	files = task->files;
+	if (files)
+		atomic_inc(&files->count);
+	task_unlock(task);
 	if (files) {
 		spin_lock(&files->file_lock);
 		if (fcheck_files(files, fd)) {
@@ -1105,7 +1118,11 @@ static struct dentry *proc_lookupfd(struct inode * dir, struct dentry * dentry, 
 	if (!inode)
 		goto out;
 	ei = PROC_I(inode);
-	files = get_files_struct(task);
+	task_lock(task);
+	files = task->files;
+	if (files)
+		atomic_inc(&files->count);
+	task_unlock(task);
 	if (!files)
 		goto out_unlock;
 	inode->i_mode = S_IFLNK;
@@ -1162,7 +1179,7 @@ static struct inode_operations proc_task_inode_operations = {
 };
 
 #ifdef CONFIG_SECURITY
-static ssize_t proc_pid_attr_read(struct file * file, char __user * buf,
+static ssize_t proc_pid_attr_read(struct file * file, char * buf,
 				  size_t count, loff_t *ppos)
 {
 	struct inode * inode = file->f_dentry->d_inode;
@@ -1199,7 +1216,7 @@ static ssize_t proc_pid_attr_read(struct file * file, char __user * buf,
 	return count;
 }
 
-static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
+static ssize_t proc_pid_attr_write(struct file * file, const char * buf,
 				   size_t count, loff_t *ppos)
 { 
 	struct inode * inode = file->f_dentry->d_inode;
@@ -1463,8 +1480,7 @@ static struct inode_operations proc_tid_attr_inode_operations = {
 /*
  * /proc/self:
  */
-static int proc_self_readlink(struct dentry *dentry, char __user *buffer,
-			      int buflen)
+static int proc_self_readlink(struct dentry *dentry, char *buffer, int buflen)
 {
 	char tmp[30];
 	sprintf(tmp, "%d", current->tgid);
@@ -1607,7 +1623,6 @@ out:
 static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *nd)
 {
 	struct task_struct *task;
-	struct task_struct *leader = proc_task(dir);
 	struct inode *inode;
 	unsigned tid;
 
@@ -1622,14 +1637,14 @@ static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry
 	read_unlock(&tasklist_lock);
 	if (!task)
 		goto out;
-	if (leader->tgid != task->tgid)
-		goto out_drop_task;
 
 	inode = proc_pid_make_inode(dir->i_sb, task, PROC_TID_INO);
 
 
-	if (!inode)
-		goto out_drop_task;
+	if (!inode) {
+		put_task_struct(task);
+		goto out;
+	}
 	inode->i_mode = S_IFDIR|S_IRUGO|S_IXUGO;
 	inode->i_op = &proc_tid_base_inode_operations;
 	inode->i_fop = &proc_tid_base_operations;
@@ -1642,8 +1657,6 @@ static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry
 
 	put_task_struct(task);
 	return NULL;
-out_drop_task:
-	put_task_struct(task);
 out:
 	return ERR_PTR(-ENOENT);
 }
@@ -1747,10 +1760,8 @@ int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
 		int tgid = tgid_array[i];
 		ino_t ino = fake_ino(tgid,PROC_TGID_INO);
 		unsigned long j = PROC_NUMBUF;
-
-		do
-			buf[--j] = '0' + (tgid % 10);
-		while ((tgid /= 10) != 0);
+		
+		do buf[--j] = '0' + (tgid % 10); while (tgid/=10);
 
 		if (filldir(dirent, buf+j, PROC_NUMBUF-j, filp->f_pos, ino, DT_DIR) < 0) {
 			filp->f_version = tgid;
@@ -1802,7 +1813,7 @@ static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldi
 
 		do
 			buf[--j] = '0' + (tid % 10);
-		while ((tid /= 10) != 0);
+		while (tid /= 10);
 
 		if (filldir(dirent, buf+j, PROC_NUMBUF-j, pos, ino, DT_DIR) < 0)
 			break;

@@ -452,11 +452,11 @@ int snd_sb8_open(snd_pcm_substream_t *substream)
 		runtime->hw.rate_max = 44100;
 		runtime->hw.channels_max = 2;
 		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				    snd_sb8_hw_constraint_rate_channels, NULL,
+				    snd_sb8_hw_constraint_rate_channels, 0,
 				    SNDRV_PCM_HW_PARAM_CHANNELS,
 				    SNDRV_PCM_HW_PARAM_RATE, -1);
 		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-				     snd_sb8_hw_constraint_channels_rate, NULL,
+				     snd_sb8_hw_constraint_channels_rate, 0,
 				     SNDRV_PCM_HW_PARAM_RATE, -1);
 		break;
 	case SB_HW_201:
@@ -535,9 +535,7 @@ int snd_sb8dsp_pcm(sb_t *chip, int device, snd_pcm_t ** rpcm)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_sb8_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_sb8_capture_ops);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
-					      64*1024, 64*1024);
+	snd_pcm_lib_preallocate_isa_pages_for_all(pcm, 64*1024, 64*1024);
 
 	if (rpcm)
 		*rpcm = pcm;

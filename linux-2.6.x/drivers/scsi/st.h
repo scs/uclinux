@@ -50,8 +50,6 @@ typedef struct {
 	struct cdev *cdevs[2];  /* Auto-rewind and non-rewind devices */
 } ST_mode;
 
-/* Number of modes can be changed by changing ST_NBR_MODE_BITS. The maximum
-   number of modes is 16 (ST_NBR_MODE_BITS 4) */
 #define ST_NBR_MODE_BITS 2
 #define ST_NBR_MODES (1 << ST_NBR_MODE_BITS)
 #define ST_MODE_SHIFT (7 - ST_NBR_MODE_BITS)
@@ -100,6 +98,7 @@ typedef struct {
 	unsigned char c_algo;			/* compression algorithm */
 	unsigned char pos_unknown;			/* after reset position unknown */
 	int tape_type;
+	int timeout;		/* timeout for normal commands */
 	int long_timeout;	/* timeout for commands known to take long time */
 
 	unsigned long max_pfn;	/* the maximum page number reachable by the HBA */

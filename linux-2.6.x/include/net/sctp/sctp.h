@@ -1,5 +1,5 @@
 /* SCTP kernel reference Implementation
- * (C) Copyright IBM Corp. 2001, 2004
+ * (C) Copyright IBM Corp. 2001, 2003
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
  * Copyright (c) 2001-2003 Intel Corp.
@@ -78,7 +78,6 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
-#include <linux/idr.h>
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #include <net/ipv6.h>
@@ -115,6 +114,11 @@
 #ifndef SCTP_STATIC
 #define SCTP_STATIC static
 #endif
+
+#define MSECS_TO_JIFFIES(msec) \
+	(((msec / 1000) * HZ) + ((msec % 1000) * HZ) / 1000)
+#define JIFFIES_TO_MSECS(jiff) \
+	(((jiff / HZ) * 1000) + ((jiff % HZ) * 1000) / HZ)
 
 /*
  * Function declarations.
@@ -218,6 +222,24 @@ DECLARE_SNMP_STAT(struct sctp_mib, sctp_statistics);
 #define SCTP_INC_STATS_BH(field)   SNMP_INC_STATS_BH(sctp_statistics, field)
 #define SCTP_INC_STATS_USER(field) SNMP_INC_STATS_USER(sctp_statistics, field)
 #define SCTP_DEC_STATS(field)      SNMP_DEC_STATS(sctp_statistics, field)
+
+/* Determine if this is a valid kernel address.  */
+static inline int sctp_is_valid_kaddr(unsigned long addr)
+{
+	struct page *page;
+
+	/* Make sure the address is not in the user address space. */
+	if (addr < PAGE_OFFSET)
+		return 0;
+
+	page = virt_to_page(addr);
+
+	/* Is this page valid? */
+	if (!virt_addr_valid(addr) || PageReserved(page))
+		return 0;
+
+	return 1;
+}
 
 #endif /* !TEST_FRAME */
 
@@ -335,7 +357,7 @@ static inline void sctp_v6_exit(void) { return; }
 /* Map an association to an assoc_id. */
 static inline sctp_assoc_t sctp_assoc2id(const struct sctp_association *asoc)
 {
-	return (asoc?asoc->assoc_id:NULL);
+	return (sctp_assoc_t) asoc;
 }
 
 /* Look up the association by its id.  */
@@ -432,14 +454,11 @@ static inline __s32 sctp_jitter(__u32 rto)
 static inline int sctp_frag_point(const struct sctp_opt *sp, int pmtu)
 {
 	int frag = pmtu;
-
-	frag -= sp->pf->af->net_header_len;
-	frag -= sizeof(struct sctphdr) + sizeof(struct sctp_data_chunk);
+	frag -= SCTP_IP_OVERHEAD + sizeof(struct sctp_data_chunk);
+	frag -= sizeof(struct sctp_sack_chunk);
 
 	if (sp->user_frag)
 		frag = min_t(int, frag, sp->user_frag);
-
-	frag = min_t(int, frag, SCTP_MAX_CHUNK_LEN);
 
 	return frag;
 }
@@ -470,14 +489,6 @@ for (err = (sctp_errhdr_t *)((void *)chunk_hdr + \
      err = (sctp_errhdr_t *)((void *)err + \
 	    WORD_ROUND(ntohs(err->length))))
 
-#define sctp_walk_fwdtsn(pos, chunk)\
-_sctp_walk_fwdtsn((pos), (chunk), ntohs((chunk)->chunk_hdr->length) - sizeof(struct sctp_fwdtsn_chunk))
-
-#define _sctp_walk_fwdtsn(pos, chunk, end)\
-for (pos = chunk->subh.fwdtsn_hdr->skip;\
-     (void *)pos <= (void *)chunk->subh.fwdtsn_hdr->skip + end - sizeof(struct sctp_fwdtsn_skip);\
-     pos++)
-
 /* Round an int up to the next multiple of 4.  */
 #define WORD_ROUND(s) (((s)+3)&~3)
 
@@ -507,9 +518,6 @@ for (pos = chunk->subh.fwdtsn_hdr->skip;\
 extern struct proto sctp_prot;
 extern struct proc_dir_entry *proc_net_sctp;
 void sctp_put_port(struct sock *sk);
-
-extern struct idr sctp_assocs_id;
-extern spinlock_t sctp_assocs_id_lock;
 
 /* Static inline functions. */
 

@@ -25,8 +25,12 @@
  *
  */
 
+#include <linux/config.h>
 #include <linux/module.h>
+#include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/errno.h>
+#include <linux/compiler.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/icmp.h>
@@ -735,13 +739,6 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 	if (skb->nfcache & NFC_IPVS_PROPERTY)
 		return NF_ACCEPT;
 
-	if (skb->ip_summed == CHECKSUM_HW) {
-		if (skb_checksum_help(pskb, (out == NULL)))
-			return NF_DROP;
-		if (skb != *pskb)
-			skb = *pskb;
-	}
-
 	iph = skb->nh.iph;
 	if (unlikely(iph->protocol == IPPROTO_ICMP)) {
 		int related, verdict = ip_vs_out_icmp(pskb, &related);
@@ -979,13 +976,6 @@ ip_vs_in(unsigned int hooknum, struct sk_buff **pskb,
 			  skb->nh.iph->protocol,
 			  NIPQUAD(skb->nh.iph->daddr));
 		return NF_ACCEPT;
-	}
-
-	if (skb->ip_summed == CHECKSUM_HW) {
-		if (skb_checksum_help(pskb, (out == NULL)))
-			return NF_DROP;
-		if (skb != *pskb)
-			skb = *pskb;
 	}
 
 	iph = skb->nh.iph;

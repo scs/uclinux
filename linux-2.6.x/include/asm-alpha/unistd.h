@@ -360,21 +360,7 @@
 #define __NR_clock_nanosleep		422
 #define __NR_semtimedop			423
 #define __NR_tgkill			424
-#define __NR_stat64			425
-#define __NR_lstat64			426
-#define __NR_fstat64			427
-#define __NR_vserver			428
-#define __NR_mbind			429
-#define __NR_get_mempolicy		430
-#define __NR_set_mempolicy		431
-#define __NR_mq_open			432
-#define __NR_mq_unlink			433
-#define __NR_mq_timedsend		434
-#define __NR_mq_timedreceive		435
-#define __NR_mq_notify			436
-#define __NR_mq_getsetattr		437
-
-#define NR_SYSCALLS			438
+#define NR_SYSCALLS			425
 
 #if defined(__GNUC__)
 
@@ -558,33 +544,19 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5, type6 arg6)\
 
 #endif /* __LIBRARY__ && __GNUC__ */
 
-#ifdef __KERNEL__
-#define __ARCH_WANT_IPC_PARSE_VERSION
-#define __ARCH_WANT_OLD_READDIR
-#define __ARCH_WANT_STAT64
-#define __ARCH_WANT_SYS_GETHOSTNAME
-#define __ARCH_WANT_SYS_SOCKETCALL
-#define __ARCH_WANT_SYS_FADVISE64
-#define __ARCH_WANT_SYS_GETPGRP
-#define __ARCH_WANT_SYS_OLD_GETRLIMIT
-#define __ARCH_WANT_SYS_OLDUMOUNT
-#define __ARCH_WANT_SYS_SIGPENDING
-#endif
-
 #ifdef __KERNEL_SYSCALLS__
 
-#include <linux/compiler.h>
-#include <linux/types.h>
 #include <linux/string.h>
 #include <linux/signal.h>
-#include <linux/syscalls.h>
 #include <asm/ptrace.h>
 
+extern long sys_open(const char *, int, int);
 static inline long open(const char * name, int mode, int flags)
 {
 	return sys_open(name, mode, flags);
 }
 
+extern long sys_dup(int);
 static inline long dup(int fd)
 {
 	return sys_dup(fd);
@@ -592,26 +564,31 @@ static inline long dup(int fd)
 
 static inline long close(int fd)
 {
+	extern long sys_close(unsigned int);
 	return sys_close(fd);
 }
 
+extern off_t sys_lseek(int, off_t, int);
 static inline off_t lseek(int fd, off_t off, int whence)
 {
 	return sys_lseek(fd, off, whence);
 }
 
-static inline void _exit(int value)
+extern long sys_exit(int);
+static inline long _exit(int value)
 {
-	sys_exit(value);
+	return sys_exit(value);
 }
 
 #define exit(x) _exit(x)
 
+extern long sys_write(int, const char *, size_t);
 static inline long write(int fd, const char * buf, size_t nr)
 {
 	return sys_write(fd, buf, nr);
 }
 
+extern long sys_read(int, char *, size_t);
 static inline long read(int fd, char * buf, size_t nr)
 {
 	return sys_read(fd, buf, nr);
@@ -619,37 +596,31 @@ static inline long read(int fd, char * buf, size_t nr)
 
 extern long execve(char *, char **, char **);
 
+extern long sys_setsid(void);
 static inline long setsid(void)
 {
 	return sys_setsid();
 }
 
+struct rusage;
+extern asmlinkage long sys_wait4(pid_t, unsigned int *, int, struct rusage *);
 static inline pid_t waitpid(int pid, int * wait_stat, int flags)
 {
 	return sys_wait4(pid, wait_stat, flags, NULL);
 }
 
-asmlinkage int sys_execve(char *ufilename, char **argv, char **envp,
-			unsigned long a3, unsigned long a4, unsigned long a5,
-			struct pt_regs regs);
-asmlinkage long sys_rt_sigaction(int sig,
-				const struct sigaction __user *act,
-				struct sigaction __user *oact,
-				size_t sigsetsize,
-				void *restorer);
-
 #endif /* __KERNEL_SYSCALLS__ */
 
-/* "Conditional" syscalls.  What we want is
-
-	__attribute__((weak,alias("sys_ni_syscall")))
-
-   but that raises the problem of what type to give the symbol.  If we use
-   a prototype, it'll conflict with the definition given in this file and
-   others.  If we use __typeof, we discover that not all symbols actually
-   have declarations.  If we use no prototype, then we get warnings from
-   -Wstrict-prototypes.  Ho hum.  */
-
-#define cond_syscall(x)  asm(".weak\t" #x "\n" #x " = sys_ni_syscall");
+/*
+ * "Conditional" syscalls
+ *
+ * What we want is __attribute__((weak,alias("sys_ni_syscall"))),
+ * but it doesn't work on all toolchains, so we just do it by hand.
+ *
+ * Note that we do *not* provide a parameter list to avoid 
+ * conflicting with one of the syscall declarations in some
+ * of the relevant header files (including this one).
+ */
+#define cond_syscall(x) asmlinkage long x() __attribute__((weak,alias("sys_ni_syscall")));
 
 #endif /* _ALPHA_UNISTD_H */

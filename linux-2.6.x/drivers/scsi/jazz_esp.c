@@ -16,7 +16,7 @@
 #include <linux/stat.h>
 
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 #include "NCR53C9x.h"
 
 #include <asm/irq.h>
@@ -290,8 +290,6 @@ static Scsi_Host_Template driver_template = {
 	.proc_info		= &esp_proc_info,
 	.name			= "ESP 100/100a/200",
 	.detect			= jazz_esp_detect,
-	.slave_alloc		= esp_slave_alloc,
-	.slave_destroy		= esp_slave_destroy,
 	.release		= jazz_esp_release,
 	.info			= esp_info,
 	.queuecommand		= esp_queue,

@@ -11,7 +11,6 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/syscalls.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
@@ -156,7 +155,7 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 
 	case SHMAT: {
                 ulong raddr;
-                ret = do_shmat (first, (char __user *) ptr, second, &raddr);
+                ret = sys_shmat (first, (char __user *) ptr, second, &raddr);
                 if (ret)
                         return ret;
                 return put_user (raddr, (ulong __user *) third);

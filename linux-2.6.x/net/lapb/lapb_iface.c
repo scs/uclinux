@@ -81,14 +81,18 @@ static void __lapb_insert_cb(struct lapb_cb *lapb)
 	lapb_hold(lapb);
 }
 
-static struct lapb_cb *__lapb_devtostruct(struct net_device *dev)
+/*
+ *	Convert the integer token used by the device driver into a pointer
+ *	to a LAPB control structure.
+ */
+static struct lapb_cb *__lapb_tokentostruct(void *token)
 {
 	struct list_head *entry;
 	struct lapb_cb *lapb, *use = NULL;
 
 	list_for_each(entry, &lapb_list) {
 		lapb = list_entry(entry, struct lapb_cb, node);
-		if (lapb->dev == dev) {
+		if (lapb->token == token) {
 			use = lapb;
 			break;
 		}
@@ -100,12 +104,12 @@ static struct lapb_cb *__lapb_devtostruct(struct net_device *dev)
 	return use;
 }
 
-static struct lapb_cb *lapb_devtostruct(struct net_device *dev)
+static struct lapb_cb *lapb_tokentostruct(void *token)
 {
 	struct lapb_cb *rc;
 
 	read_lock_bh(&lapb_list_lock);
-	rc = __lapb_devtostruct(dev);
+	rc = __lapb_tokentostruct(token);
 	read_unlock_bh(&lapb_list_lock);
 
 	return rc;
@@ -140,14 +144,14 @@ out:
 	return lapb;
 }
 
-int lapb_register(struct net_device *dev, struct lapb_register_struct *callbacks)
+int lapb_register(void *token, struct lapb_register_struct *callbacks)
 {
 	struct lapb_cb *lapb;
 	int rc = LAPB_BADTOKEN;
 
 	write_lock_bh(&lapb_list_lock);
 
-	lapb = __lapb_devtostruct(dev);
+	lapb = __lapb_tokentostruct(token);
 	if (lapb) {
 		lapb_put(lapb);
 		goto out;
@@ -158,7 +162,7 @@ int lapb_register(struct net_device *dev, struct lapb_register_struct *callbacks
 	if (!lapb)
 		goto out;
 
-	lapb->dev       = dev;
+	lapb->token     = token;
 	lapb->callbacks = *callbacks;
 
 	__lapb_insert_cb(lapb);
@@ -171,13 +175,13 @@ out:
 	return rc;
 }
 
-int lapb_unregister(struct net_device *dev)
+int lapb_unregister(void *token)
 {
 	struct lapb_cb *lapb;
 	int rc = LAPB_BADTOKEN;
 
-	write_lock_bh(&lapb_list_lock);
-	lapb = __lapb_devtostruct(dev);
+	write_unlock_bh(&lapb_list_lock);
+	lapb = __lapb_tokentostruct(token);
 	if (!lapb)
 		goto out;
 
@@ -195,10 +199,10 @@ out:
 	return rc;
 }
 
-int lapb_getparms(struct net_device *dev, struct lapb_parms_struct *parms)
+int lapb_getparms(void *token, struct lapb_parms_struct *parms)
 {
 	int rc = LAPB_BADTOKEN;
-	struct lapb_cb *lapb = lapb_devtostruct(dev);
+	struct lapb_cb *lapb = lapb_tokentostruct(token);
 
 	if (!lapb)
 		goto out;
@@ -227,10 +231,10 @@ out:
 	return rc;
 }
 
-int lapb_setparms(struct net_device *dev, struct lapb_parms_struct *parms)
+int lapb_setparms(void *token, struct lapb_parms_struct *parms)
 {
 	int rc = LAPB_BADTOKEN;
-	struct lapb_cb *lapb = lapb_devtostruct(dev);
+	struct lapb_cb *lapb = lapb_tokentostruct(token);
 
 	if (!lapb)
 		goto out;
@@ -260,9 +264,9 @@ out:
 	return rc;
 }
 
-int lapb_connect_request(struct net_device *dev)
+int lapb_connect_request(void *token)
 {
-	struct lapb_cb *lapb = lapb_devtostruct(dev);
+	struct lapb_cb *lapb = lapb_tokentostruct(token);
 	int rc = LAPB_BADTOKEN;
 
 	if (!lapb)
@@ -279,7 +283,7 @@ int lapb_connect_request(struct net_device *dev)
 	lapb_establish_data_link(lapb);
 
 #if LAPB_DEBUG > 0
-	printk(KERN_DEBUG "lapb: (%p) S0 -> S1\n", lapb->dev);
+	printk(KERN_DEBUG "lapb: (%p) S0 -> S1\n", lapb->token);
 #endif
 	lapb->state = LAPB_STATE_1;
 
@@ -290,9 +294,9 @@ out:
 	return rc;
 }
 
-int lapb_disconnect_request(struct net_device *dev)
+int lapb_disconnect_request(void *token)
 {
-	struct lapb_cb *lapb = lapb_devtostruct(dev);
+	struct lapb_cb *lapb = lapb_tokentostruct(token);
 	int rc = LAPB_BADTOKEN;
 
 	if (!lapb)
@@ -305,10 +309,10 @@ int lapb_disconnect_request(struct net_device *dev)
 
 		case LAPB_STATE_1:
 #if LAPB_DEBUG > 1
-			printk(KERN_DEBUG "lapb: (%p) S1 TX DISC(1)\n", lapb->dev);
+			printk(KERN_DEBUG "lapb: (%p) S1 TX DISC(1)\n", lapb->token);
 #endif
 #if LAPB_DEBUG > 0
-			printk(KERN_DEBUG "lapb: (%p) S1 -> S0\n", lapb->dev);
+			printk(KERN_DEBUG "lapb: (%p) S1 -> S0\n", lapb->token);
 #endif
 			lapb_send_control(lapb, LAPB_DISC, LAPB_POLLON, LAPB_COMMAND);
 			lapb->state = LAPB_STATE_0;
@@ -329,10 +333,10 @@ int lapb_disconnect_request(struct net_device *dev)
 	lapb->state = LAPB_STATE_2;
 
 #if LAPB_DEBUG > 1
-	printk(KERN_DEBUG "lapb: (%p) S3 DISC(1)\n", lapb->dev);
+	printk(KERN_DEBUG "lapb: (%p) S3 DISC(1)\n", lapb->token);
 #endif
 #if LAPB_DEBUG > 0
-	printk(KERN_DEBUG "lapb: (%p) S3 -> S2\n", lapb->dev);
+	printk(KERN_DEBUG "lapb: (%p) S3 -> S2\n", lapb->token);
 #endif
 
 	rc = LAPB_OK;
@@ -342,9 +346,9 @@ out:
 	return rc;
 }
 
-int lapb_data_request(struct net_device *dev, struct sk_buff *skb)
+int lapb_data_request(void *token, struct sk_buff *skb)
 {
-	struct lapb_cb *lapb = lapb_devtostruct(dev);
+	struct lapb_cb *lapb = lapb_tokentostruct(token);
 	int rc = LAPB_BADTOKEN;
 
 	if (!lapb)
@@ -363,9 +367,9 @@ out:
 	return rc;
 }
 
-int lapb_data_received(struct net_device *dev, struct sk_buff *skb)
+int lapb_data_received(void *token, struct sk_buff *skb)
 {
-	struct lapb_cb *lapb = lapb_devtostruct(dev);
+	struct lapb_cb *lapb = lapb_tokentostruct(token);
 	int rc = LAPB_BADTOKEN;
 
 	if (lapb) {
@@ -380,31 +384,31 @@ int lapb_data_received(struct net_device *dev, struct sk_buff *skb)
 void lapb_connect_confirmation(struct lapb_cb *lapb, int reason)
 {
 	if (lapb->callbacks.connect_confirmation)
-		lapb->callbacks.connect_confirmation(lapb->dev, reason);
+		lapb->callbacks.connect_confirmation(lapb->token, reason);
 }
 
 void lapb_connect_indication(struct lapb_cb *lapb, int reason)
 {
 	if (lapb->callbacks.connect_indication)
-		lapb->callbacks.connect_indication(lapb->dev, reason);
+		lapb->callbacks.connect_indication(lapb->token, reason);
 }
 
 void lapb_disconnect_confirmation(struct lapb_cb *lapb, int reason)
 {
 	if (lapb->callbacks.disconnect_confirmation)
-		lapb->callbacks.disconnect_confirmation(lapb->dev, reason);
+		lapb->callbacks.disconnect_confirmation(lapb->token, reason);
 }
 
 void lapb_disconnect_indication(struct lapb_cb *lapb, int reason)
 {
 	if (lapb->callbacks.disconnect_indication)
-		lapb->callbacks.disconnect_indication(lapb->dev, reason);
+		lapb->callbacks.disconnect_indication(lapb->token, reason);
 }
 
 int lapb_data_indication(struct lapb_cb *lapb, struct sk_buff *skb)
 {
 	if (lapb->callbacks.data_indication)
-		return lapb->callbacks.data_indication(lapb->dev, skb);
+		return lapb->callbacks.data_indication(lapb->token, skb);
 
 	kfree_skb(skb);
 	return NET_RX_CN_HIGH; /* For now; must be != NET_RX_DROP */ 
@@ -415,7 +419,7 @@ int lapb_data_transmit(struct lapb_cb *lapb, struct sk_buff *skb)
 	int used = 0;
 
 	if (lapb->callbacks.data_transmit) {
-		lapb->callbacks.data_transmit(lapb->dev, skb);
+		lapb->callbacks.data_transmit(lapb->token, skb);
 		used = 1;
 	}
 

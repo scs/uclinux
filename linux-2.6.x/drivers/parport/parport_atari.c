@@ -185,7 +185,8 @@ static struct parport_operations parport_atari_ops = {
 };
 
 
-static int __init parport_atari_init(void)
+int __init
+parport_atari_init(void)
 {
 	struct parport *p;
 	unsigned long flags;
@@ -207,34 +208,43 @@ static int __init parport_atari_init(void)
 					  IRQ_MFP_BUSY, PARPORT_DMA_NONE,
 					  &parport_atari_ops);
 		if (!p)
-			return -ENODEV;
+			return 0;
 		if (request_irq(IRQ_MFP_BUSY, parport_atari_interrupt,
 				IRQ_TYPE_SLOW, p->name, p)) {
-			parport_put_port (p);
-			return -ENODEV;
+			parport_unregister_port (p);
+			return 0;
 		}
 
 		this_port = p;
 		printk(KERN_INFO "%s: Atari built-in port using irq\n", p->name);
+		parport_proc_register(p);
+
 		parport_announce_port (p);
 
-		return 0;
+		return 1;
 	}
-	return -ENODEV;
+	return 0;
 }
 
-static void __exit parport_atari_exit(void)
-{
-	parport_remove_port(this_port);
-	if (this_port->irq != PARPORT_IRQ_NONE)
-		free_irq(IRQ_MFP_BUSY, this_port);
-	parport_put_port(this_port);
-}
+#ifdef MODULE
 
 MODULE_AUTHOR("Andreas Schwab");
 MODULE_DESCRIPTION("Parport Driver for Atari builtin Port");
 MODULE_SUPPORTED_DEVICE("Atari builtin Parallel Port");
 MODULE_LICENSE("GPL");
 
-module_init(parport_atari_init)
-module_exit(parport_atari_exit)
+int
+init_module(void)
+{
+	return parport_atari_init() ? 0 : -ENODEV;
+}
+
+void
+cleanup_module(void)
+{
+	if (this_port->irq != PARPORT_IRQ_NONE)
+		free_irq(IRQ_MFP_BUSY, this_port);
+	parport_proc_unregister(this_port);
+	parport_unregister_port(this_port);
+}
+#endif

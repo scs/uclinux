@@ -12,7 +12,6 @@
  *  have a non-standard calling sequence on the Linux/arm
  *  platform.
  */
-#include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -21,7 +20,6 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/stat.h>
-#include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/fs.h>
 #include <linux/file.h>
@@ -38,7 +36,7 @@ extern unsigned long do_mremap(unsigned long addr, unsigned long old_len,
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
  */
-asmlinkage int sys_pipe(unsigned long __user *fildes)
+asmlinkage int sys_pipe(unsigned long * fildes)
 {
 	int fd[2];
 	int error;
@@ -95,13 +93,13 @@ struct mmap_arg_struct {
 	unsigned long offset;
 };
 
-asmlinkage int old_mmap(struct mmap_arg_struct __user *arg)
+asmlinkage int old_mmap(struct mmap_arg_struct *arg)
 {
 	int error = -EFAULT;
 	struct mmap_arg_struct a;
 
 	if (copy_from_user(&a, arg, sizeof(a)))
-		goto out;
+		goto out;;
 
 	error = -EINVAL;
 	if (a.offset & ~PAGE_MASK)
@@ -139,14 +137,15 @@ out:
  * Perform the select(nd, in, out, ex, tv) and mmap() system
  * calls.
  */
+extern asmlinkage int sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
 
 struct sel_arg_struct {
 	unsigned long n;
-	fd_set __user *inp, *outp, *exp;
-	struct timeval __user *tvp;
+	fd_set *inp, *outp, *exp;
+	struct timeval *tvp;
 };
 
-asmlinkage int old_select(struct sel_arg_struct __user *arg)
+asmlinkage int old_select(struct sel_arg_struct *arg)
 {
 	struct sel_arg_struct a;
 
@@ -161,8 +160,7 @@ asmlinkage int old_select(struct sel_arg_struct __user *arg)
  *
  * This is really horribly ugly.
  */
-asmlinkage int sys_ipc(uint call, int first, int second, int third,
-		       void __user *ptr, long fifth)
+asmlinkage int sys_ipc (uint call, int first, int second, int third, void *ptr, long fifth)
 {
 	int version, ret;
 
@@ -171,28 +169,28 @@ asmlinkage int sys_ipc(uint call, int first, int second, int third,
 
 	switch (call) {
 	case SEMOP:
-		return sys_semop(first, (struct sembuf __user *)ptr, second);
+		return sys_semop (first, (struct sembuf *)ptr, second);
 	case SEMGET:
 		return sys_semget (first, second, third);
 	case SEMCTL: {
 		union semun fourth;
 		if (!ptr)
 			return -EINVAL;
-		if (get_user(fourth.__pad, (void __user * __user *) ptr))
+		if (get_user(fourth.__pad, (void **) ptr))
 			return -EFAULT;
 		return sys_semctl (first, second, third, fourth);
 	}
 
 	case MSGSND:
-		return sys_msgsnd(first, (struct msgbuf __user *) ptr, 
-				  second, third);
+		return sys_msgsnd (first, (struct msgbuf *) ptr, 
+				   second, third);
 	case MSGRCV:
 		switch (version) {
 		case 0: {
 			struct ipc_kludge tmp;
 			if (!ptr)
 				return -EINVAL;
-			if (copy_from_user(&tmp,(struct ipc_kludge __user *)ptr,
+			if (copy_from_user(&tmp,(struct ipc_kludge *) ptr,
 					   sizeof (tmp)))
 				return -EFAULT;
 			return sys_msgrcv (first, tmp.msgp, second,
@@ -200,36 +198,36 @@ asmlinkage int sys_ipc(uint call, int first, int second, int third,
 		}
 		default:
 			return sys_msgrcv (first,
-					   (struct msgbuf __user *) ptr,
+					   (struct msgbuf *) ptr,
 					   second, fifth, third);
 		}
 	case MSGGET:
 		return sys_msgget ((key_t) first, second);
 	case MSGCTL:
-		return sys_msgctl(first, second, (struct msqid_ds __user *)ptr);
+		return sys_msgctl (first, second, (struct msqid_ds *) ptr);
 
 	case SHMAT:
 		switch (version) {
 		default: {
 			ulong raddr;
-			ret = do_shmat(first, (char __user *)ptr, second, &raddr);
+			ret = sys_shmat (first, (char *) ptr, second, &raddr);
 			if (ret)
 				return ret;
-			return put_user(raddr, (ulong __user *)third);
+			return put_user (raddr, (ulong *) third);
 		}
 		case 1:	/* iBCS2 emulator entry point */
 			if (!segment_eq(get_fs(), get_ds()))
 				return -EINVAL;
-			return do_shmat(first, (char __user *) ptr,
-					second, (ulong __user *) third);
+			return sys_shmat (first, (char *) ptr,
+					  second, (ulong *) third);
 		}
 	case SHMDT: 
-		return sys_shmdt ((char __user *)ptr);
+		return sys_shmdt ((char *)ptr);
 	case SHMGET:
 		return sys_shmget (first, second, third);
 	case SHMCTL:
 		return sys_shmctl (first, second,
-				   (struct shmid_ds __user *) ptr);
+				   (struct shmid_ds *) ptr);
 	default:
 		return -ENOSYS;
 	}
@@ -268,8 +266,7 @@ asmlinkage int sys_vfork(struct pt_regs *regs)
 /* sys_execve() executes a new program.
  * This is called indirectly via a small wrapper
  */
-asmlinkage int sys_execve(char __user *filenamei, char __user * __user *argv,
-			  char __user * __user *envp, struct pt_regs *regs)
+asmlinkage int sys_execve(char *filenamei, char **argv, char **envp, struct pt_regs *regs)
 {
 	int error;
 	char * filename;
@@ -283,43 +280,3 @@ asmlinkage int sys_execve(char __user *filenamei, char __user * __user *argv,
 out:
 	return error;
 }
-
-long execve(const char *filename, char **argv, char **envp)
-{
-	struct pt_regs regs;
-	int ret;
-
-	memset(&regs, 0, sizeof(struct pt_regs));
-	ret = do_execve((char *)filename, (char __user * __user *)argv,
-			(char __user * __user *)envp, &regs);
-	if (ret < 0)
-		goto out;
-
-	/*
-	 * Save argc to the register structure for userspace.
-	 */
-	regs.ARM_r0 = ret;
-
-	/*
-	 * We were successful.  We won't be returning to our caller, but
-	 * instead to user space by manipulating the kernel stack.
-	 */
-	asm(	"add	r0, %0, %1\n\t"
-		"mov	r1, %2\n\t"
-		"mov	r2, %3\n\t"
-		"bl	memmove\n\t"	/* copy regs to top of stack */
-		"mov	r8, #0\n\t"	/* not a syscall */
-		"mov	r9, %0\n\t"	/* thread structure */
-		"mov	sp, r0\n\t"	/* reposition stack pointer */
-		"b	ret_to_user"
-		:
-		: "r" (current_thread_info()),
-		  "Ir" (THREAD_SIZE - 8 - sizeof(regs)),
-		  "r" (&regs),
-		  "Ir" (sizeof(regs))
-		: "r0", "r1", "r2", "r3", "ip", "memory");
-
- out:
-	return ret;
-}
-EXPORT_SYMBOL(execve);

@@ -4,7 +4,7 @@
 /*
  * IA-64 Linux syscall numbers and inline-functions.
  *
- * Copyright (C) 1998-2004 Hewlett-Packard Co
+ * Copyright (C) 1998-2003 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
@@ -248,82 +248,55 @@
 #define __NR_clock_nanosleep		1256
 #define __NR_fstatfs64			1257
 #define __NR_statfs64			1258
-#define __NR_mbind			1259
-#define __NR_get_mempolicy		1260
-#define __NR_set_mempolicy		1261
-#define __NR_mq_open			1262
-#define __NR_mq_unlink			1263
-#define __NR_mq_timedsend		1264
-#define __NR_mq_timedreceive		1265
-#define __NR_mq_notify			1266
-#define __NR_mq_getsetattr		1267
-#define __NR_kexec_load			1268
-#define __NR_vserver			1269
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
-
 #define NR_syscalls			256 /* length of syscall table */
 
-#define __ARCH_WANT_SYS_RT_SIGACTION
-
-#ifdef CONFIG_IA32_SUPPORT
-# define __ARCH_WANT_SYS_FADVISE64
-# define __ARCH_WANT_SYS_GETPGRP
-# define __ARCH_WANT_SYS_LLSEEK
-# define __ARCH_WANT_SYS_NICE
-# define __ARCH_WANT_SYS_OLD_GETRLIMIT
-# define __ARCH_WANT_SYS_OLDUMOUNT
-# define __ARCH_WANT_SYS_SIGPENDING
-# define __ARCH_WANT_SYS_SIGPROCMASK
-#endif
-
 #if !defined(__ASSEMBLY__) && !defined(ASSEMBLER)
-
-#include <linux/types.h>
-#include <linux/linkage.h>
-#include <linux/compiler.h>
 
 extern long __ia64_syscall (long a0, long a1, long a2, long a3, long a4, long nr);
 
 #ifdef __KERNEL_SYSCALLS__
 
-#include <linux/compiler.h>
 #include <linux/string.h>
 #include <linux/signal.h>
 #include <asm/ptrace.h>
 #include <linux/stringify.h>
-#include <linux/syscalls.h>
 
 static inline long
 open (const char * name, int mode, int flags)
 {
+	extern long sys_open (const char *, int, int);
 	return sys_open(name, mode, flags);
 }
 
 static inline long
 dup (int fd)
 {
+	extern long sys_dup (int);
 	return sys_dup(fd);
 }
 
 static inline long
 close (int fd)
 {
+	extern long sys_close(unsigned int);
 	return sys_close(fd);
 }
 
 static inline off_t
 lseek (int fd, off_t off, int whence)
 {
+	extern off_t sys_lseek (int, off_t, int);
 	return sys_lseek(fd, off, whence);
 }
 
-static inline void
+static inline long
 _exit (int value)
 {
-	sys_exit(value);
+	extern long sys_exit (int);
+	return sys_exit(value);
 }
 
 #define exit(x) _exit(x)
@@ -331,12 +304,14 @@ _exit (int value)
 static inline long
 write (int fd, const char * buf, size_t nr)
 {
+	extern long sys_write (int, const char *, size_t);
 	return sys_write(fd, buf, nr);
 }
 
 static inline long
 read (int fd, char * buf, size_t nr)
 {
+	extern long sys_read (int, char *, size_t);
 	return sys_read(fd, buf, nr);
 }
 
@@ -344,12 +319,17 @@ read (int fd, char * buf, size_t nr)
 static inline long
 setsid (void)
 {
+	extern long sys_setsid (void);
 	return sys_setsid();
 }
+
+struct rusage;
 
 static inline pid_t
 waitpid (int pid, int * wait_stat, int flags)
 {
+	extern asmlinkage long sys_wait4 (pid_t, unsigned int *, int, struct rusage *);
+
 	return sys_wait4(pid, wait_stat, flags, NULL);
 }
 
@@ -359,28 +339,6 @@ extern pid_t clone (unsigned long flags, void *sp);
 
 #endif /* __KERNEL_SYSCALLS__ */
 
-asmlinkage unsigned long sys_mmap(
-				unsigned long addr, unsigned long len,
-				int prot, int flags,
-				int fd, long off);
-asmlinkage unsigned long sys_mmap2(
-				unsigned long addr, unsigned long len,
-				int prot, int flags,
-				int fd, long pgoff);
-struct pt_regs;
-struct sigaction;
-asmlinkage long sys_execve(char *filename, char **argv, char **envp,
-				struct pt_regs *regs);
-asmlinkage long sys_pipe(long arg0, long arg1, long arg2, long arg3,
-			long arg4, long arg5, long arg6, long arg7, long stack);
-asmlinkage long sys_ptrace(long request, pid_t pid,
-			unsigned long addr, unsigned long data,
-			long arg4, long arg5, long arg6, long arg7, long stack);
-asmlinkage long sys_rt_sigaction(int sig,
-				const struct sigaction __user *act,
-				struct sigaction __user *oact,
-				size_t sigsetsize);
-
 /*
  * "Conditional" syscalls
  *
@@ -389,7 +347,7 @@ asmlinkage long sys_rt_sigaction(int sig,
  * proper prototype, but we can't use __typeof__ either, because not all cond_syscall()
  * declarations have prototypes at the moment.
  */
-#define cond_syscall(x) asmlinkage long x (void) __attribute__((weak,alias("sys_ni_syscall")));
+#define cond_syscall(x) asmlinkage long x() __attribute__((weak,alias("sys_ni_syscall")));
 
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */

@@ -16,6 +16,7 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
+#define __KERNEL_SYSCALLS__
 #include <stdarg.h>
 
 #include <linux/errno.h>
@@ -24,6 +25,7 @@
 #include <linux/mm.h>
 #include <linux/elfcore.h>
 #include <linux/smp.h>
+#include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/module.h>
@@ -32,7 +34,6 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/ptrace.h>
-#include <linux/version.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -52,7 +53,7 @@ asmlinkage extern void ret_from_fork(void);
 
 unsigned long kernel_thread_flags = CLONE_VM | CLONE_UNTRACED;
 
-atomic_t hlt_counter = ATOMIC_INIT(0);
+int hlt_counter;
 
 /*
  * Powermanagement idle function, if any..
@@ -61,14 +62,14 @@ void (*pm_idle)(void);
 
 void disable_hlt(void)
 {
-	atomic_inc(&hlt_counter);
+	hlt_counter++;
 }
 
 EXPORT_SYMBOL(disable_hlt);
 
 void enable_hlt(void)
 {
-	atomic_dec(&hlt_counter);
+	hlt_counter--;
 }
 
 EXPORT_SYMBOL(enable_hlt);
@@ -79,7 +80,7 @@ EXPORT_SYMBOL(enable_hlt);
  */
 void default_idle(void)
 {
-	if (!atomic_read(&hlt_counter)) {
+	if (!hlt_counter) {
 		local_irq_disable();
 		if (!need_resched())
 			safe_halt();
@@ -139,52 +140,6 @@ void cpu_idle (void)
 	}
 }
 
-/*
- * This uses new MONITOR/MWAIT instructions on P4 processors with PNI,
- * which can obviate IPI to trigger checking of need_resched.
- * We execute MONITOR against need_resched and enter optimized wait state
- * through MWAIT. Whenever someone changes need_resched, we would be woken
- * up from MWAIT (without an IPI).
- */
-static void mwait_idle(void)
-{
-	local_irq_enable();
-
-	if (!need_resched()) {
-		set_thread_flag(TIF_POLLING_NRFLAG);
-		do {
-			__monitor((void *)&current_thread_info()->flags, 0, 0);
-			if (need_resched())
-				break;
-			__mwait(0, 0);
-		} while (!need_resched());
-		clear_thread_flag(TIF_POLLING_NRFLAG);
-	}
-}
-
-void __init select_idle_routine(const struct cpuinfo_x86 *c)
-{
-	static int printed;
-	if (cpu_has(c, X86_FEATURE_MWAIT)) {
-		/*
-		 * Skip, if setup has overridden idle.
-		 * Also, take care of system with asymmetric CPUs.
-		 * Use, mwait_idle only if all cpus support it.
-		 * If not, we fallback to default_idle()
-		 */
-		if (!pm_idle) {
-			if (!printed) {
-				printk("using mwait in idle threads.\n");
-				printed = 1;
-			}
-			pm_idle = mwait_idle;
-		}
-		return;
-	}
-	pm_idle = default_idle;
-	return;
-}
-
 static int __init idle_setup (char *str)
 {
 	if (!strncmp(str, "poll", 4)) {
@@ -206,8 +161,7 @@ void __show_regs(struct pt_regs * regs)
 
 	printk("\n");
 	print_modules();
-	printk("Pid: %d, comm: %.20s %s %s\n", 
-	       current->pid, current->comm, print_tainted(), UTS_RELEASE);
+	printk("Pid: %d, comm: %.20s %s\n", current->pid, current->comm, print_tainted());
 	printk("RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->rip);
 	printk_address(regs->rip); 
 	printk("\nRSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss, regs->rsp, regs->eflags);
@@ -256,11 +210,10 @@ void exit_thread(void)
 {
 	struct task_struct *me = current;
 	if (me->thread.io_bitmap_ptr) { 
-		struct tss_struct *tss = init_tss + get_cpu();
 		kfree(me->thread.io_bitmap_ptr); 
 		me->thread.io_bitmap_ptr = NULL;
-		tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
-		put_cpu();
+		(init_tss + smp_processor_id())->io_bitmap_base = 
+			INVALID_IO_BITMAP_OFFSET;
 	}
 }
 
@@ -521,8 +474,7 @@ struct task_struct *__switch_to(struct task_struct *prev_p, struct task_struct *
  * sys_execve() executes a new program.
  */
 asmlinkage 
-long sys_execve(char __user *name, char __user * __user *argv,
-		char __user * __user *envp, struct pt_regs regs)
+long sys_execve(char *name, char **argv,char **envp, struct pt_regs regs)
 {
 	long error;
 	char * filename;
@@ -551,7 +503,7 @@ asmlinkage long sys_fork(struct pt_regs regs)
 	return do_fork(SIGCHLD, regs.rsp, &regs, 0, NULL, NULL);
 }
 
-asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp, void __user *parent_tid, void __user *child_tid, struct pt_regs regs)
+asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp, void *parent_tid, void *child_tid, struct pt_regs regs)
 {
 	if (!newsp)
 		newsp = regs.rsp;
@@ -575,28 +527,36 @@ asmlinkage long sys_vfork(struct pt_regs regs)
 		    NULL, NULL);
 }
 
+/*
+ * These bracket the sleeping functions..
+ */
+extern void scheduling_functions_start_here(void);
+extern void scheduling_functions_end_here(void);
+#define first_sched	((unsigned long) scheduling_functions_start_here)
+#define last_sched	((unsigned long) scheduling_functions_end_here)
+
 unsigned long get_wchan(struct task_struct *p)
 {
-	unsigned long stack;
 	u64 fp,rip;
 	int count = 0;
 
 	if (!p || p == current || p->state==TASK_RUNNING)
 		return 0; 
-	stack = (unsigned long)p->thread_info; 
-	if (p->thread.rsp < stack || p->thread.rsp > stack+THREAD_SIZE)
+	if (p->thread.rsp < (u64)p || p->thread.rsp > (u64)p + THREAD_SIZE)
 		return 0;
 	fp = *(u64 *)(p->thread.rsp);
 	do { 
-		if (fp < (unsigned long)stack || fp > (unsigned long)stack+THREAD_SIZE)
+		if (fp < (unsigned long)p || fp > (unsigned long)p+THREAD_SIZE)
 			return 0; 
 		rip = *(u64 *)(fp+8); 
-		if (!in_sched_functions(rip))
+		if (rip < first_sched || rip >= last_sched)
 			return rip; 
 		fp = *(u64 *)fp; 
 	} while (count++ < 16); 
 	return 0;
 }
+#undef last_sched
+#undef first_sched
 
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 { 
@@ -665,7 +625,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 			rdmsrl(MSR_FS_BASE, base);
 		} else
 			base = task->thread.fs;
-		ret = put_user(base, (unsigned long __user *)addr); 
+		ret = put_user(base, (unsigned long *)addr); 
 		break; 
 	}
 	case ARCH_GET_GS: { 
@@ -676,7 +636,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 			rdmsrl(MSR_KERNEL_GS_BASE, base);
 		} else
 			base = task->thread.gs;
-		ret = put_user(base, (unsigned long __user *)addr); 
+		ret = put_user(base, (unsigned long *)addr); 
 		break;
 	}
 

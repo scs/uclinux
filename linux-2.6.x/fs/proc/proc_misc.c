@@ -47,6 +47,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
+#include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/div64.h>
 
@@ -66,6 +67,9 @@ extern int get_filesystem_list(char *);
 extern int get_exec_domain_list(char *);
 extern int get_dma_list(char *);
 extern int get_locks_status (char *, char **, off_t, int);
+#ifdef CONFIG_SGI_DS1286
+extern int get_ds1286_status(char *);
+#endif
 
 static int proc_calc_metrics(char *page, char **start, off_t off,
 				 int count, int *eof, int len)
@@ -356,13 +360,23 @@ int show_stat(struct seq_file *p, void *v)
 {
 	int i;
 	extern unsigned long total_forks;
-	unsigned long jif;
-	u64	sum = 0, user = 0, nice = 0, system = 0,
-		idle = 0, iowait = 0, irq = 0, softirq = 0;
+	u64 jif;
+	unsigned int sum = 0, user = 0, nice = 0, system = 0, idle = 0, iowait = 0, irq = 0, softirq = 0;
+	struct timeval now; 
+	unsigned long seq;
 
-	jif = - wall_to_monotonic.tv_sec;
-	if (wall_to_monotonic.tv_nsec)
-		--jif;
+	/* Atomically read jiffies and time of day */ 
+	do {
+		seq = read_seqbegin(&xtime_lock);
+
+		jif = get_jiffies_64();
+		do_gettimeofday(&now);
+	} while (read_seqretry(&xtime_lock, seq));
+
+	/* calc # of seconds since boot time */
+	jif -= INITIAL_JIFFIES;
+	jif = ((u64)now.tv_sec * HZ) + (now.tv_usec/(1000000/HZ)) - jif;
+	do_div(jif, HZ);
 
 	for_each_cpu(i) {
 		int j;
@@ -378,35 +392,26 @@ int show_stat(struct seq_file *p, void *v)
 			sum += kstat_cpu(i).irqs[j];
 	}
 
-	seq_printf(p, "cpu  %llu %llu %llu %llu %llu %llu %llu\n",
-		(unsigned long long)jiffies_64_to_clock_t(user),
-		(unsigned long long)jiffies_64_to_clock_t(nice),
-		(unsigned long long)jiffies_64_to_clock_t(system),
-		(unsigned long long)jiffies_64_to_clock_t(idle),
-		(unsigned long long)jiffies_64_to_clock_t(iowait),
-		(unsigned long long)jiffies_64_to_clock_t(irq),
-		(unsigned long long)jiffies_64_to_clock_t(softirq));
+	seq_printf(p, "cpu  %u %u %u %u %u %u %u\n",
+		jiffies_to_clock_t(user),
+		jiffies_to_clock_t(nice),
+		jiffies_to_clock_t(system),
+		jiffies_to_clock_t(idle),
+		jiffies_to_clock_t(iowait),
+		jiffies_to_clock_t(irq),
+		jiffies_to_clock_t(softirq));
 	for_each_online_cpu(i) {
-
-		/* Copy values here to work around gcc-2.95.3, gcc-2.96 */
-		user = kstat_cpu(i).cpustat.user;
-		nice = kstat_cpu(i).cpustat.nice;
-		system = kstat_cpu(i).cpustat.system;
-		idle = kstat_cpu(i).cpustat.idle;
-		iowait = kstat_cpu(i).cpustat.iowait;
-		irq = kstat_cpu(i).cpustat.irq;
-		softirq = kstat_cpu(i).cpustat.softirq;
-		seq_printf(p, "cpu%d %llu %llu %llu %llu %llu %llu %llu\n",
+		seq_printf(p, "cpu%d %u %u %u %u %u %u %u\n",
 			i,
-			(unsigned long long)jiffies_64_to_clock_t(user),
-			(unsigned long long)jiffies_64_to_clock_t(nice),
-			(unsigned long long)jiffies_64_to_clock_t(system),
-			(unsigned long long)jiffies_64_to_clock_t(idle),
-			(unsigned long long)jiffies_64_to_clock_t(iowait),
-			(unsigned long long)jiffies_64_to_clock_t(irq),
-			(unsigned long long)jiffies_64_to_clock_t(softirq));
+			jiffies_to_clock_t(kstat_cpu(i).cpustat.user),
+			jiffies_to_clock_t(kstat_cpu(i).cpustat.nice),
+			jiffies_to_clock_t(kstat_cpu(i).cpustat.system),
+			jiffies_to_clock_t(kstat_cpu(i).cpustat.idle),
+			jiffies_to_clock_t(kstat_cpu(i).cpustat.iowait),
+			jiffies_to_clock_t(kstat_cpu(i).cpustat.irq),
+			jiffies_to_clock_t(kstat_cpu(i).cpustat.softirq));
 	}
-	seq_printf(p, "intr %llu", (unsigned long long)sum);
+	seq_printf(p, "intr %u", sum);
 
 #if !defined(CONFIG_PPC64) && !defined(CONFIG_ALPHA)
 	for (i = 0; i < NR_IRQS; i++)
@@ -414,7 +419,7 @@ int show_stat(struct seq_file *p, void *v)
 #endif
 
 	seq_printf(p,
-		"\nctxt %llu\n"
+		"\nctxt %lu\n"
 		"btime %lu\n"
 		"processes %lu\n"
 		"procs_running %lu\n"
@@ -430,7 +435,7 @@ int show_stat(struct seq_file *p, void *v)
 
 static int stat_open(struct inode *inode, struct file *file)
 {
-	unsigned size = 4096 * (1 + num_possible_cpus() / 32);
+	unsigned size = 4096 * (1 + num_online_cpus() / 32);
 	char *buf;
 	struct seq_file *m;
 	int res;
@@ -518,11 +523,21 @@ static int filesystems_read_proc(char *page, char **start, off_t off,
 static int cmdline_read_proc(char *page, char **start, off_t off,
 				 int count, int *eof, void *data)
 {
+	extern char saved_command_line[];
 	int len;
 
 	len = sprintf(page, "%s\n", saved_command_line);
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
+
+#ifdef CONFIG_SGI_DS1286
+static int ds1286_read_proc(char *page, char **start, off_t off,
+				 int count, int *eof, void *data)
+{
+	int len = get_ds1286_status(page);
+	return proc_calc_metrics(page, start, off, count, eof, len);
+}
+#endif
 
 static int locks_read_proc(char *page, char **start, off_t off,
 				 int count, int *eof, void *data)
@@ -617,7 +632,7 @@ static ssize_t write_sysrq_trigger(struct file *file, const char __user *buf,
 
 		if (get_user(c, buf))
 			return -EFAULT;
-		__handle_sysrq(c, NULL, NULL);
+		handle_sysrq(c, NULL, NULL);
 	}
 	return count;
 }
@@ -657,6 +672,9 @@ void __init proc_misc_init(void)
 		{"devices",	devices_read_proc},
 		{"filesystems",	filesystems_read_proc},
 		{"cmdline",	cmdline_read_proc},
+#ifdef CONFIG_SGI_DS1286
+		{"rtc",		ds1286_read_proc},
+#endif
 		{"locks",	locks_read_proc},
 		{"execdomains",	execdomains_read_proc},
 		{NULL,}

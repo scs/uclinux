@@ -278,7 +278,7 @@ static void dump_dmastat(struct cardinfo *card, unsigned int dmastat)
  * Whenever IO on the active page completes, the Ready page is activated
  * and the ex-Active page is clean out and made Ready.
  * Otherwise the Ready page is only activated when it becomes full, or
- * when mm_unplug_device is called via the unplug_io_fn.
+ * when mm_unplug_device is called via blk_run_queues().
  *
  * If a request arrives while both pages a full, it is queued, and b_rdev is
  * overloaded to record whether it was a read or a write.
@@ -368,8 +368,9 @@ static inline void reset_page(struct mm_page *page)
 	page->biotail = & page->bio;
 }
 
-static void mm_unplug_device(request_queue_t *q)
+static void mm_unplug_device(void *data)
 {
+	request_queue_t *q = data;
 	struct cardinfo *card = q->queuedata;
 	unsigned long flags;
 
@@ -833,7 +834,7 @@ static int mm_ioctl(struct inode *i, struct file *f, unsigned int cmd, unsigned 
 		geo.start     = get_start_sect(i->i_bdev);
 		geo.cylinders = size / (geo.heads * geo.sectors);
 
-		if (copy_to_user((void __user *) arg, &geo, sizeof(geo)))
+		if (copy_to_user((void *) arg, &geo, sizeof(geo)))
 			return -EFAULT;
 		return 0;
 	}

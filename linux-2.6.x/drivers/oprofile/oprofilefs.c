@@ -45,25 +45,60 @@ static struct super_operations s_ops = {
 };
 
 
-ssize_t oprofilefs_str_to_user(char const * str, char __user * buf, size_t count, loff_t * offset)
+ssize_t oprofilefs_str_to_user(char const * str, char * buf, size_t count, loff_t * offset)
 {
-	return simple_read_from_buffer(buf, count, offset, str, strlen(str));
+	size_t len = strlen(str);
+
+	if (!count)
+		return 0;
+
+	if (*offset > len)
+		return 0;
+
+	if (count > len - *offset)
+		count = len - *offset;
+
+	if (copy_to_user(buf, str + *offset, count))
+		return -EFAULT;
+
+	*offset += count;
+
+	return count;
 }
 
 
 #define TMPBUFSIZE 50
 
-ssize_t oprofilefs_ulong_to_user(unsigned long val, char __user * buf, size_t count, loff_t * offset)
+ssize_t oprofilefs_ulong_to_user(unsigned long val, char * buf, size_t count, loff_t * offset)
 {
 	char tmpbuf[TMPBUFSIZE];
-	size_t maxlen = snprintf(tmpbuf, TMPBUFSIZE, "%lu\n", val);
+	size_t maxlen;
+
+	if (!count)
+		return 0;
+
+	spin_lock(&oprofilefs_lock);
+	maxlen = snprintf(tmpbuf, TMPBUFSIZE, "%lu\n", val);
+	spin_unlock(&oprofilefs_lock);
 	if (maxlen > TMPBUFSIZE)
 		maxlen = TMPBUFSIZE;
-	return simple_read_from_buffer(buf, count, offset, tmpbuf, maxlen);
+
+	if (*offset > maxlen)
+		return 0;
+
+	if (count > maxlen - *offset)
+		count = maxlen - *offset;
+
+	if (copy_to_user(buf, tmpbuf + *offset, count))
+		return -EFAULT;
+
+	*offset += count;
+
+	return count;
 }
 
 
-int oprofilefs_ulong_from_user(unsigned long * val, char const __user * buf, size_t count)
+int oprofilefs_ulong_from_user(unsigned long * val, char const * buf, size_t count)
 {
 	char tmpbuf[TMPBUFSIZE];
 
@@ -85,14 +120,14 @@ int oprofilefs_ulong_from_user(unsigned long * val, char const __user * buf, siz
 }
 
 
-static ssize_t ulong_read_file(struct file * file, char __user * buf, size_t count, loff_t * offset)
+static ssize_t ulong_read_file(struct file * file, char * buf, size_t count, loff_t * offset)
 {
 	unsigned long * val = file->private_data;
 	return oprofilefs_ulong_to_user(*val, buf, count, offset);
 }
 
 
-static ssize_t ulong_write_file(struct file * file, char const __user * buf, size_t count, loff_t * offset)
+static ssize_t ulong_write_file(struct file * file, char const * buf, size_t count, loff_t * offset)
 {
 	unsigned long * value = file->private_data;
 	int retval;
@@ -130,8 +165,7 @@ static struct file_operations ulong_ro_fops = {
 
 
 static struct dentry * __oprofilefs_create_file(struct super_block * sb,
-	struct dentry * root, char const * name, struct file_operations * fops,
-	int perm)
+	struct dentry * root, char const * name, struct file_operations * fops)
 {
 	struct dentry * dentry;
 	struct inode * inode;
@@ -141,11 +175,11 @@ static struct dentry * __oprofilefs_create_file(struct super_block * sb,
 	qname.hash = full_name_hash(qname.name, qname.len);
 	dentry = d_alloc(root, &qname);
 	if (!dentry)
-		return NULL;
-	inode = oprofilefs_get_inode(sb, S_IFREG | perm);
+		return 0;
+	inode = oprofilefs_get_inode(sb, S_IFREG | 0644);
 	if (!inode) {
 		dput(dentry);
-		return NULL;
+		return 0;
 	}
 	inode->i_fop = fops;
 	d_add(dentry, inode);
@@ -156,8 +190,7 @@ static struct dentry * __oprofilefs_create_file(struct super_block * sb,
 int oprofilefs_create_ulong(struct super_block * sb, struct dentry * root,
 	char const * name, unsigned long * val)
 {
-	struct dentry * d = __oprofilefs_create_file(sb, root, name,
-						     &ulong_fops, 0644);
+	struct dentry * d = __oprofilefs_create_file(sb, root, name, &ulong_fops);
 	if (!d)
 		return -EFAULT;
 
@@ -169,8 +202,7 @@ int oprofilefs_create_ulong(struct super_block * sb, struct dentry * root,
 int oprofilefs_create_ro_ulong(struct super_block * sb, struct dentry * root,
 	char const * name, unsigned long * val)
 {
-	struct dentry * d = __oprofilefs_create_file(sb, root, name,
-						     &ulong_ro_fops, 0444);
+	struct dentry * d = __oprofilefs_create_file(sb, root, name, &ulong_ro_fops);
 	if (!d)
 		return -EFAULT;
 
@@ -179,7 +211,7 @@ int oprofilefs_create_ro_ulong(struct super_block * sb, struct dentry * root,
 }
 
 
-static ssize_t atomic_read_file(struct file * file, char __user * buf, size_t count, loff_t * offset)
+static ssize_t atomic_read_file(struct file * file, char * buf, size_t count, loff_t * offset)
 {
 	atomic_t * val = file->private_data;
 	return oprofilefs_ulong_to_user(atomic_read(val), buf, count, offset);
@@ -195,8 +227,7 @@ static struct file_operations atomic_ro_fops = {
 int oprofilefs_create_ro_atomic(struct super_block * sb, struct dentry * root,
 	char const * name, atomic_t * val)
 {
-	struct dentry * d = __oprofilefs_create_file(sb, root, name,
-						     &atomic_ro_fops, 0444);
+	struct dentry * d = __oprofilefs_create_file(sb, root, name, &atomic_ro_fops);
 	if (!d)
 		return -EFAULT;
 
@@ -208,16 +239,7 @@ int oprofilefs_create_ro_atomic(struct super_block * sb, struct dentry * root,
 int oprofilefs_create_file(struct super_block * sb, struct dentry * root,
 	char const * name, struct file_operations * fops)
 {
-	if (!__oprofilefs_create_file(sb, root, name, fops, 0644))
-		return -EFAULT;
-	return 0;
-}
-
-
-int oprofilefs_create_file_perm(struct super_block * sb, struct dentry * root,
-	char const * name, struct file_operations * fops, int perm)
-{
-	if (!__oprofilefs_create_file(sb, root, name, fops, perm))
+	if (!__oprofilefs_create_file(sb, root, name, fops))
 		return -EFAULT;
 	return 0;
 }
@@ -234,11 +256,11 @@ struct dentry * oprofilefs_mkdir(struct super_block * sb,
 	qname.hash = full_name_hash(qname.name, qname.len);
 	dentry = d_alloc(root, &qname);
 	if (!dentry)
-		return NULL;
+		return 0;
 	inode = oprofilefs_get_inode(sb, S_IFDIR | 0755);
 	if (!inode) {
 		dput(dentry);
-		return NULL;
+		return 0;
 	}
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;

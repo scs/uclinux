@@ -9,20 +9,17 @@
  *		IPv6 support
  */
 
-#include <linux/string.h>
 #include <net/inet_ecn.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
-static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
+static inline void ipip6_ecn_decapsulate(struct ipv6hdr *iph,
+					 struct sk_buff *skb)
 {
-	struct ipv6hdr *outer_iph = skb->nh.ipv6h;
-	struct ipv6hdr *inner_iph = skb->h.ipv6h;
-
-	if (INET_ECN_is_ce(ip6_get_dsfield(outer_iph)) &&
-	    INET_ECN_is_not_ce(ip6_get_dsfield(inner_iph)))
-		IP6_ECN_set_ce(inner_iph);
+	if (INET_ECN_is_ce(ip6_get_dsfield(iph)) &&
+	    INET_ECN_is_not_ce(ip6_get_dsfield(skb->nh.ipv6h)))
+		IP6_ECN_set_ce(skb->nh.ipv6h);
 }
 
 int xfrm6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
@@ -34,11 +31,12 @@ int xfrm6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	struct xfrm_state *x;
 	int xfrm_nr = 0;
 	int decaps = 0;
-	int nexthdr;
-	unsigned int nhoff;
+	int nexthdr = 0;
+	u8 *prevhdr = NULL;
 
-	nhoff = *nhoffp;
-	nexthdr = skb->nh.raw[nhoff];
+	ip6_find_1stfragopt(skb, &prevhdr);
+	nexthdr = *prevhdr;
+	*nhoffp = prevhdr - skb->nh.raw;
 
 	if ((err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0)
 		goto drop;
@@ -66,8 +64,6 @@ int xfrm6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 		if (nexthdr <= 0)
 			goto drop_unlock;
 
-		skb->nh.raw[nhoff] = nexthdr;
-
 		if (x->props.replay_window)
 			xfrm_replay_advance(x, seq);
 
@@ -81,16 +77,10 @@ int xfrm6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 		if (x->props.mode) { /* XXX */
 			if (nexthdr != IPPROTO_IPV6)
 				goto drop;
-			if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
-				goto drop;
-			if (skb_cloned(skb) &&
-			    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
-				goto drop;
-			if (!(x->props.flags & XFRM_STATE_NOECN))
-				ipip6_ecn_decapsulate(skb);
-			skb->mac.raw = memmove(skb->data - skb->mac_len,
-					       skb->mac.raw, skb->mac_len);
 			skb->nh.raw = skb->data;
+			if (!(x->props.flags & XFRM_STATE_NOECN))
+				ipip6_ecn_decapsulate(iph, skb);
+			iph = skb->nh.ipv6h;
 			decaps = 1;
 			break;
 		}

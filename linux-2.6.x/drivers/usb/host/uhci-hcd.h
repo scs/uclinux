@@ -49,19 +49,12 @@
 #define   USBPORTSC_CSC		0x0002	/* Connect Status Change */
 #define   USBPORTSC_PE		0x0004	/* Port Enable */
 #define   USBPORTSC_PEC		0x0008	/* Port Enable Change */
-#define   USBPORTSC_DPLUS	0x0010	/* D+ high (line status) */
-#define   USBPORTSC_DMINUS	0x0020	/* D- high (line status) */
+#define   USBPORTSC_LS		0x0030	/* Line Status */
 #define   USBPORTSC_RD		0x0040	/* Resume Detect */
-#define   USBPORTSC_RES1	0x0080	/* reserved, always 1 */
 #define   USBPORTSC_LSDA	0x0100	/* Low Speed Device Attached */
 #define   USBPORTSC_PR		0x0200	/* Port Reset */
-/* OC and OCC from Intel 430TX and later (not UHCI 1.1d spec) */
 #define   USBPORTSC_OC		0x0400	/* Over Current condition */
-#define   USBPORTSC_OCC		0x0800	/* Over Current Change R/WC */
 #define   USBPORTSC_SUSP	0x1000	/* Suspend */
-#define   USBPORTSC_RES2	0x2000	/* reserved, write zeroes */
-#define   USBPORTSC_RES3	0x4000	/* reserved, write zeroes */
-#define   USBPORTSC_RES4	0x8000	/* reserved, write zeroes */
 
 /* Legacy support register */
 #define USBLEGSUP		0xc0
@@ -80,7 +73,7 @@
 #define CAN_SCHEDULE_FRAMES	1000	/* how far future frames can be scheduled */
 
 struct uhci_frame_list {
-	u32 frame[UHCI_NUMFRAMES];
+	__u32 frame[UHCI_NUMFRAMES];
 
 	void *frame_cpu[UHCI_NUMFRAMES];
 
@@ -105,8 +98,8 @@ struct urb_priv;
  */
 struct uhci_qh {
 	/* Hardware fields */
-	u32 link;			/* Next queue */
-	u32 element;			/* Queue element pointer */
+	__u32 link;			/* Next queue */
+	__u32 element;			/* Queue element pointer */
 
 	/* Software fields */
 	dma_addr_t dma_handle;
@@ -141,7 +134,7 @@ struct uhci_qh {
 				 TD_CTRL_BABBLE | TD_CTRL_CRCTIME | TD_CTRL_BITSTUFF)
 
 #define uhci_maxerr(err)		((err) << TD_CTRL_C_ERR_SHIFT)
-#define uhci_status_bits(ctrl_sts)	((ctrl_sts) & 0xF60000)
+#define uhci_status_bits(ctrl_sts)	((ctrl_sts) & 0xFE0000)
 #define uhci_actual_length(ctrl_sts)	(((ctrl_sts) + 1) & TD_CTRL_ACTLEN_MASK) /* 1-based */
 
 /*
@@ -185,10 +178,10 @@ struct uhci_qh {
  */
 struct uhci_td {
 	/* Hardware fields */
-	u32 link;
-	u32 status;
-	u32 token;
-	u32 buffer;
+	__u32 link;
+	__u32 status;
+	__u32 token;
+	__u32 buffer;
 
 	/* Software fields */
 	dma_addr_t dma_handle;
@@ -207,8 +200,8 @@ struct uhci_td {
  * The UHCI driver places Interrupt, Control and Bulk into QH's both
  * to group together TD's for one transfer, and also to faciliate queuing
  * of URB's. To make it easy to insert entries into the schedule, we have
- * a skeleton of QH's for each predefined Interrupt latency, low-speed
- * control, full-speed control and terminating QH (see explanation for
+ * a skeleton of QH's for each predefined Interrupt latency, low speed
+ * control, high speed control and terminating QH (see explanation for
  * the terminating QH below).
  *
  * When we want to add a new QH, we add it to the end of the list for the
@@ -223,9 +216,9 @@ struct uhci_td {
  * skel int32 QH
  * ...
  * skel int1 QH
- * skel low-speed control QH
+ * skel low speed control QH
  * dev 5 control QH
- * skel full-speed control QH
+ * skel high speed control QH
  * skel bulk QH
  * dev 1 bulk QH
  * dev 2 bulk QH
@@ -234,7 +227,7 @@ struct uhci_td {
  * The terminating QH is used for 2 reasons:
  * - To place a terminating TD which is used to workaround a PIIX bug
  *   (see Intel errata for explanation)
- * - To loop back to the full-speed control queue for full-speed bandwidth
+ * - To loop back to the high speed control queue for full speed bandwidth
  *   reclamation
  *
  * Isochronous transfers are stored before the start of the skeleton
@@ -254,7 +247,7 @@ struct uhci_td {
 #define skel_int2_qh		skelqh[6]
 #define skel_int1_qh		skelqh[7]
 #define skel_ls_control_qh	skelqh[8]
-#define skel_fs_control_qh	skelqh[9]
+#define skel_hs_control_qh	skelqh[9]
 #define skel_bulk_qh		skelqh[10]
 #define skel_term_qh		skelqh[11]
 
@@ -315,7 +308,6 @@ enum uhci_state {
 };
 
 #define hcd_to_uhci(hcd_ptr) container_of(hcd_ptr, struct uhci_hcd, hcd)
-#define uhci_dev(u)	((u)->hcd.self.controller)
 
 /*
  * This describes the full uhci information.
@@ -334,53 +326,53 @@ struct uhci_hcd {
 	/* Grabbed from PCI */
 	unsigned long io_addr;
 
-	struct dma_pool *qh_pool;
-	struct dma_pool *td_pool;
+	struct pci_pool *qh_pool;
+	struct pci_pool *td_pool;
 
 	struct usb_bus *bus;
 
 	struct uhci_td *term_td;	/* Terminating TD, see UHCI bug */
 	struct uhci_qh *skelqh[UHCI_NUM_SKELQH];	/* Skeleton QH's */
 
-	spinlock_t schedule_lock;
-	struct uhci_frame_list *fl;		/* P: uhci->schedule_lock */
-	int fsbr;				/* Full-speed bandwidth reclamation */
+	spinlock_t frame_list_lock;
+	struct uhci_frame_list *fl;		/* P: uhci->frame_list_lock */
+	int fsbr;				/* Full speed bandwidth reclamation */
 	unsigned long fsbrtimeout;		/* FSBR delay */
 
 	enum uhci_state state;			/* FIXME: needs a spinlock */
 	unsigned long state_end;		/* Time of next transition */
 	int resume_detect;			/* Need a Global Resume */
-	unsigned int saved_framenumber;		/* Save during PM suspend */
 
 	/* Main list of URB's currently controlled by this HC */
-	struct list_head urb_list;		/* P: uhci->schedule_lock */
+	spinlock_t urb_list_lock;
+	struct list_head urb_list;		/* P: uhci->urb_list_lock */
 
 	/* List of QH's that are done, but waiting to be unlinked (race) */
-	struct list_head qh_remove_list;	/* P: uhci->schedule_lock */
-	unsigned int qh_remove_age;		/* Age in frames */
+	spinlock_t qh_remove_list_lock;
+	struct list_head qh_remove_list;	/* P: uhci->qh_remove_list_lock */
 
 	/* List of TD's that are done, but waiting to be freed (race) */
-	struct list_head td_remove_list;	/* P: uhci->schedule_lock */
-	unsigned int td_remove_age;		/* Age in frames */
+	spinlock_t td_remove_list_lock;
+	struct list_head td_remove_list;	/* P: uhci->td_remove_list_lock */
 
 	/* List of asynchronously unlinked URB's */
-	struct list_head urb_remove_list;	/* P: uhci->schedule_lock */
-	unsigned int urb_remove_age;		/* Age in frames */
+	spinlock_t urb_remove_list_lock;
+	struct list_head urb_remove_list;	/* P: uhci->urb_remove_list_lock */
 
 	/* List of URB's awaiting completion callback */
-	struct list_head complete_list;		/* P: uhci->schedule_lock */
+	spinlock_t complete_list_lock;
+	struct list_head complete_list;		/* P: uhci->complete_list_lock */
 
 	int rh_numports;
 
 	struct timer_list stall_timer;
-
-	wait_queue_head_t waitqh;		/* endpoint_disable waiters */
 };
 
 struct urb_priv {
 	struct list_head urb_list;
 
 	struct urb *urb;
+	struct usb_device *dev;
 
 	struct uhci_qh *qh;		/* QH for this URB */
 	struct list_head td_list;	/* P: urb->lock */
@@ -392,24 +384,39 @@ struct urb_priv {
 					/*  a control transfer, retrigger */
 					/*  the status phase */
 
+	int status;			/* Final status */
+
 	unsigned long inserttime;	/* In jiffies */
 	unsigned long fsbrtime;		/* In jiffies */
 
 	struct list_head queue_list;	/* P: uhci->frame_list_lock */
+	struct list_head complete_list;	/* P: uhci->complete_list_lock */
 };
 
 /*
  * Locking in uhci.c
  *
- * Almost everything relating to the hardware schedule and processing
- * of URBs is protected by uhci->schedule_lock.  urb->status is protected
- * by urb->lock; that's the one exception.
+ * spinlocks are used extensively to protect the many lists and data
+ * structures we have. It's not that pretty, but it's necessary. We
+ * need to be done with all of the locks (except complete_list_lock) when
+ * we call urb->complete. I've tried to make it simple enough so I don't
+ * have to spend hours racking my brain trying to figure out if the
+ * locking is safe.
  *
- * To prevent deadlocks, never lock uhci->schedule_lock while holding
- * urb->lock.  The safe order of locking is:
+ * Here's the safe locking order to prevent deadlocks:
  *
- * #1 uhci->schedule_lock
+ * #1 uhci->urb_list_lock
  * #2 urb->lock
+ * #3 uhci->urb_remove_list_lock, uhci->frame_list_lock, 
+ *   uhci->qh_remove_list_lock
+ * #4 uhci->complete_list_lock
+ *
+ * If you're going to grab 2 or more locks at once, ALWAYS grab the lock
+ * at the lowest level FIRST and NEVER grab locks at the same level at the
+ * same time.
+ * 
+ * So, if you need uhci->urb_list_lock, grab it before you grab urb->lock
  */
 
 #endif
+

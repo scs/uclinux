@@ -64,25 +64,23 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop;
 
-	IP6_INC_STATS_BH(IPSTATS_MIB_INRECEIVES);
+	IP6_INC_STATS_BH(Ip6InReceives);
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
-		IP6_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
+		IP6_INC_STATS_BH(Ip6InDiscards);
 		goto out;
 	}
 
 	/* Store incoming device index. When the packet will
 	   be queued, we cannot refer to skb->dev anymore.
 	 */
-	IP6CB(skb)->iif = dev->ifindex;
+	((struct inet6_skb_parm *)skb->cb)->iif = dev->ifindex;
 
 	if (skb->len < sizeof(struct ipv6hdr))
 		goto err;
 
-	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr))) {
-		IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
+	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto drop;
-	}
 
 	hdr = skb->nh.ipv6h;
 
@@ -96,10 +94,8 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 		if (pkt_len + sizeof(struct ipv6hdr) > skb->len)
 			goto truncated;
 		if (pkt_len + sizeof(struct ipv6hdr) < skb->len) {
-			if (__pskb_trim(skb, pkt_len + sizeof(struct ipv6hdr))){
-				IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
+			if (__pskb_trim(skb, pkt_len + sizeof(struct ipv6hdr)))
 				goto drop;
-			}
 			hdr = skb->nh.ipv6h;
 			if (skb->ip_summed == CHECKSUM_HW)
 				skb->ip_summed = CHECKSUM_NONE;
@@ -109,7 +105,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	if (hdr->nexthdr == NEXTHDR_HOP) {
 		skb->h.raw = (u8*)(hdr+1);
 		if (ipv6_parse_hopopts(skb, offsetof(struct ipv6hdr, nexthdr)) < 0) {
-			IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
+			IP6_INC_STATS_BH(Ip6InHdrErrors);
 			return 0;
 		}
 		hdr = skb->nh.ipv6h;
@@ -117,9 +113,9 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 
 	return NF_HOOK(PF_INET6,NF_IP6_PRE_ROUTING, skb, dev, NULL, ip6_rcv_finish);
 truncated:
-	IP6_INC_STATS_BH(IPSTATS_MIB_INTRUNCATEDPKTS);
+	IP6_INC_STATS_BH(Ip6InTruncatedPkts);
 err:
-	IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
+	IP6_INC_STATS_BH(Ip6InHdrErrors);
 drop:
 	kfree_skb(skb);
 out:
@@ -172,19 +168,11 @@ resubmit:
 		
 		smp_read_barrier_depends();
 		if (ipprot->flags & INET6_PROTO_FINAL) {
-			struct ipv6hdr *hdr;	
-
 			if (!cksum_sub && skb->ip_summed == CHECKSUM_HW) {
 				skb->csum = csum_sub(skb->csum,
 						     csum_partial(skb->nh.raw, skb->h.raw-skb->nh.raw, 0));
 				cksum_sub++;
 			}
-			hdr = skb->nh.ipv6h;
-			if (ipv6_addr_is_multicast(&hdr->daddr) &&
-			    !ipv6_chk_mcast_addr(skb->dev, &hdr->daddr,
-			    &hdr->saddr) &&
-			    !ipv6_is_mld(skb, nexthdr))
-				goto discard;
 		}
 		if (!(ipprot->flags & INET6_PROTO_NOPOLICY) &&
 		    !xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) 
@@ -194,15 +182,15 @@ resubmit:
 		if (ret > 0)
 			goto resubmit;
 		else if (ret == 0)
-			IP6_INC_STATS_BH(IPSTATS_MIB_INDELIVERS);
+			IP6_INC_STATS_BH(Ip6InDelivers);
 	} else {
 		if (!raw_sk) {
 			if (xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-				IP6_INC_STATS_BH(IPSTATS_MIB_INUNKNOWNPROTOS);
+				IP6_INC_STATS_BH(Ip6InUnknownProtos);
 				icmpv6_param_prob(skb, ICMPV6_UNK_NEXTHDR, nhoff);
 			}
 		} else {
-			IP6_INC_STATS_BH(IPSTATS_MIB_INDELIVERS);
+			IP6_INC_STATS_BH(Ip6InDelivers);
 			kfree_skb(skb);
 		}
 	}
@@ -210,7 +198,6 @@ resubmit:
 	return 0;
 
 discard:
-	IP6_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
 	rcu_read_unlock();
 	kfree_skb(skb);
 	return 0;
@@ -224,14 +211,15 @@ int ip6_input(struct sk_buff *skb)
 
 int ip6_mc_input(struct sk_buff *skb)
 {
-	struct ipv6hdr *hdr;
-	int deliver;
+	struct ipv6hdr *hdr;	
+	int deliver = 0;
+	int discard = 1;
 
-	IP6_INC_STATS_BH(IPSTATS_MIB_INMCASTPKTS);
+	IP6_INC_STATS_BH(Ip6InMcastPkts);
 
 	hdr = skb->nh.ipv6h;
-	deliver = likely(!(skb->dev->flags & (IFF_PROMISC|IFF_ALLMULTI))) ||
-	    ipv6_chk_mcast_addr(skb->dev, &hdr->daddr, NULL);
+	if (ipv6_chk_mcast_addr(skb->dev, &hdr->daddr, &hdr->saddr))
+		deliver = 1;
 
 	/*
 	 *	IPv6 multicast router mode isnt currently supported.
@@ -250,21 +238,23 @@ int ip6_mc_input(struct sk_buff *skb)
 			
 			if (deliver) {
 				skb2 = skb_clone(skb, GFP_ATOMIC);
-				dst_output(skb2);
 			} else {
-				dst_output(skb);
-				return 0;
+				discard = 0;
+				skb2 = skb;
 			}
+
+			dst_output(skb2);
 		}
 	}
 #endif
 
-	if (likely(deliver)) {
+	if (deliver) {
+		discard = 0;
 		ip6_input(skb);
-		return 0;
 	}
-	/* discard */
-	kfree_skb(skb);
+
+	if (discard)
+		kfree_skb(skb);
 
 	return 0;
 }

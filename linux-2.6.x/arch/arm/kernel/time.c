@@ -27,14 +27,11 @@
 #include <linux/errno.h>
 #include <linux/profile.h>
 #include <linux/sysdev.h>
-#include <linux/timer.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
-
-#include <asm/mach/time.h>
 
 u64 jiffies_64 = INITIAL_JIFFIES;
 
@@ -52,11 +49,15 @@ EXPORT_SYMBOL(rtc_lock);
 /* change this if you have some constant time drift */
 #define USECS_PER_JIFFY	(1000000/HZ)
 
+static int dummy_set_rtc(void)
+{
+	return 0;
+}
 
 /*
  * hook for setting the RTC's idea of the current time.
  */
-int (*set_rtc)(void);
+int (*set_rtc)(void) = dummy_set_rtc;
 
 static unsigned long dummy_gettimeoffset(void)
 {
@@ -71,10 +72,8 @@ unsigned long (*gettimeoffset)(void) = dummy_gettimeoffset;
 
 /*
  * Scheduler clock - returns current time in nanosec units.
- * This is the default implementation.  Sub-architecture
- * implementations can override this.
  */
-unsigned long long __attribute__((weak)) sched_clock(void)
+unsigned long long sched_clock(void)
 {
 	return (unsigned long long)jiffies * (1000000000 / HZ);
 }
@@ -84,9 +83,6 @@ unsigned long long __attribute__((weak)) sched_clock(void)
  */
 static inline void do_profile(struct pt_regs *regs)
 {
-
-	profile_hook(regs);
-
 	if (!user_mode(regs) &&
 	    prof_buffer &&
 	    current->pid) {
@@ -118,7 +114,7 @@ static inline void do_set_rtc(void)
 		return;
 
 	if (next_rtc_update &&
-	    time_before((unsigned long)xtime.tv_sec, next_rtc_update))
+	    time_before(xtime.tv_sec, next_rtc_update))
 		return;
 
 	if (xtime.tv_nsec < 500000000 - ((unsigned) tick_nsec >> 1) &&
@@ -141,54 +137,6 @@ static void dummy_leds_event(led_event_t evt)
 }
 
 void (*leds_event)(led_event_t) = dummy_leds_event;
-
-struct leds_evt_name {
-	const char	name[8];
-	int		on;
-	int		off;
-};
-
-static const struct leds_evt_name evt_names[] = {
-	{ "amber", led_amber_on, led_amber_off },
-	{ "blue",  led_blue_on,  led_blue_off  },
-	{ "green", led_green_on, led_green_off },
-	{ "red",   led_red_on,   led_red_off   },
-};
-
-static ssize_t leds_store(struct sys_device *dev, const char *buf, size_t size)
-{
-	int ret = -EINVAL, len = strcspn(buf, " ");
-
-	if (len > 0 && buf[len] == '\0')
-		len--;
-
-	if (strncmp(buf, "claim", len) == 0) {
-		leds_event(led_claim);
-		ret = size;
-	} else if (strncmp(buf, "release", len) == 0) {
-		leds_event(led_release);
-		ret = size;
-	} else {
-		int i;
-
-		for (i = 0; i < ARRAY_SIZE(evt_names); i++) {
-			if (strlen(evt_names[i].name) != len ||
-			    strncmp(buf, evt_names[i].name, len) != 0)
-				continue;
-			if (strncmp(buf+len, " on", 3) == 0) {
-				leds_event(evt_names[i].on);
-				ret = size;
-			} else if (strncmp(buf+len, " off", 4) == 0) {
-				leds_event(evt_names[i].off);
-				ret = size;
-			}
-			break;
-		}
-	}
-	return ret;
-}
-
-static SYSDEV_ATTR(event, 0200, NULL, leds_store);
 
 static int leds_suspend(struct sys_device *dev, u32 state)
 {
@@ -225,9 +173,7 @@ static int __init leds_init(void)
 	int ret;
 	ret = sysdev_class_register(&leds_sysclass);
 	if (ret == 0)
-		ret = sysdev_register(&leds_device);
-	if (ret == 0)
-		ret = sysdev_create_file(&leds_device, &attr_event);
+		ret = sys_device_register(&leds_device);
 	return ret;
 }
 
@@ -237,7 +183,7 @@ EXPORT_SYMBOL(leds_event);
 #endif
 
 #ifdef CONFIG_LEDS_TIMER
-static inline void do_leds(void)
+static void do_leds(void)
 {
 	static unsigned int count = 50;
 
@@ -247,7 +193,7 @@ static inline void do_leds(void)
 	}
 }
 #else
-#define	do_leds()
+#define do_leds()
 #endif
 
 void do_gettimeofday(struct timeval *tv)
@@ -315,18 +261,12 @@ int do_settimeofday(struct timespec *tv)
 
 EXPORT_SYMBOL(do_settimeofday);
 
-void timer_tick(struct pt_regs *regs)
-{
-	do_profile(regs);
-	do_leds();
-	do_set_rtc();
-	do_timer(regs);
-}
+static struct irqaction timer_irq = {
+	.name	= "timer",
+	.flags	= SA_INTERRUPT,
+};
 
-void (*init_arch_time)(void);
-
-void __init time_init(void)
-{
-	init_arch_time();
-}
-
+/*
+ * Include architecture specific code
+ */
+#include <asm/arch/time.h>

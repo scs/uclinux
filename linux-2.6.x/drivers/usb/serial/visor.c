@@ -2,7 +2,7 @@
  * USB HandSpring Visor, Palm m50x, and Sony Clie driver
  * (supports all of the Palm OS USB devices)
  *
- *	Copyright (C) 1999 - 2004
+ *	Copyright (C) 1999 - 2003
  *	    Greg Kroah-Hartman (greg@kroah.com)
  *
  *	This program is free software; you can redistribute it and/or modify
@@ -151,10 +151,16 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
+
+#ifdef CONFIG_USB_SERIAL_DEBUG
+	static int debug = 1;
+#else
+	static int debug;
+#endif
+
 #include "usb-serial.h"
 #include "visor.h"
 
@@ -183,14 +189,12 @@ static void visor_read_bulk_callback	(struct urb *urb, struct pt_regs *regs);
 static void visor_read_int_callback	(struct urb *urb, struct pt_regs *regs);
 static int  clie_3_5_startup	(struct usb_serial *serial);
 static int  treo_attach		(struct usb_serial *serial);
-static int clie_5_attach (struct usb_serial *serial);
 static int palm_os_3_probe (struct usb_serial *serial, const struct usb_device_id *id);
 static int palm_os_4_probe (struct usb_serial *serial, const struct usb_device_id *id);
 
 /* Parameters that may be passed into the module. */
-static int debug;
-static __u16 vendor;
-static __u16 product;
+static int vendor = -1;
+static int product = -1;
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_VISOR_ID),
@@ -217,8 +221,6 @@ static struct usb_device_id id_table [] = {
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_TUNGSTEN_Z_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
-	{ USB_DEVICE(PALM_VENDOR_ID, PALM_ZIRE31_ID),
-		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_ZIRE_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_4_0_ID),
@@ -229,26 +231,15 @@ static struct usb_device_id id_table [] = {
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_NX60_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
+	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_UX50_ID),
+		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_NZ90V_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_TJ25_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(SAMSUNG_VENDOR_ID, SAMSUNG_SCH_I330_ID), 
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
-	{ USB_DEVICE(SAMSUNG_VENDOR_ID, SAMSUNG_SPH_I500_ID), 
-		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(GARMIN_VENDOR_ID, GARMIN_IQUE_3600_ID), 
-		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
-	{ USB_DEVICE(ACEECA_VENDOR_ID, ACEECA_MEZ1000_ID),
-		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
-	{ USB_DEVICE(KYOCERA_VENDOR_ID, KYOCERA_7135_ID),
-		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
-	{ },					/* optional parameter entry */
-	{ }					/* Terminating entry */
-};
-
-static struct usb_device_id clie_id_5_table [] = {
-	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_UX50_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ },					/* optional parameter entry */
 	{ }					/* Terminating entry */
@@ -272,7 +263,6 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_M130_ID) },
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_TUNGSTEN_T_ID) },
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_TUNGSTEN_Z_ID) },
-	{ USB_DEVICE(PALM_VENDOR_ID, PALM_ZIRE31_ID) },
 	{ USB_DEVICE(PALM_VENDOR_ID, PALM_ZIRE_ID) },
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_3_5_ID) },
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_4_0_ID) },
@@ -283,10 +273,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_UX50_ID) },
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_TJ25_ID) },
 	{ USB_DEVICE(SAMSUNG_VENDOR_ID, SAMSUNG_SCH_I330_ID) },
-	{ USB_DEVICE(SAMSUNG_VENDOR_ID, SAMSUNG_SPH_I500_ID) },
 	{ USB_DEVICE(GARMIN_VENDOR_ID, GARMIN_IQUE_3600_ID) },
-	{ USB_DEVICE(ACEECA_VENDOR_ID, ACEECA_MEZ1000_ID) },
-	{ USB_DEVICE(KYOCERA_VENDOR_ID, KYOCERA_7135_ID) },
 	{ },					/* optional parameter entry */
 	{ }					/* Terminating entry */
 };
@@ -316,34 +303,6 @@ static struct usb_serial_device_type handspring_device = {
 	.throttle =		visor_throttle,
 	.unthrottle =		visor_unthrottle,
 	.attach =		treo_attach,
-	.probe =		visor_probe,
-	.calc_num_ports =	visor_calc_num_ports,
-	.shutdown =		visor_shutdown,
-	.ioctl =		visor_ioctl,
-	.set_termios =		visor_set_termios,
-	.write =		visor_write,
-	.write_room =		visor_write_room,
-	.chars_in_buffer =	visor_chars_in_buffer,
-	.write_bulk_callback =	visor_write_bulk_callback,
-	.read_bulk_callback =	visor_read_bulk_callback,
-	.read_int_callback =	visor_read_int_callback,
-};
-
-/* All of the device info needed for the Clie UX50, TH55 Palm 5.0 devices */
-static struct usb_serial_device_type clie_5_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Sony Clie 5.0",
-	.short_name =		"clie_5",
-	.id_table =		clie_id_5_table,
-	.num_interrupt_in =	NUM_DONT_CARE,
-	.num_bulk_in =		2,
-	.num_bulk_out =		2,
-	.num_ports =		2,
-	.open =			visor_open,
-	.close =		visor_close,
-	.throttle =		visor_throttle,
-	.unthrottle =		visor_unthrottle,
-	.attach =		clie_5_attach,
 	.probe =		visor_probe,
 	.calc_num_ports =	visor_calc_num_ports,
 	.shutdown =		visor_shutdown,
@@ -394,6 +353,9 @@ static int visor_open (struct usb_serial_port *port, struct file *filp)
 	struct usb_serial *serial = port->serial;
 	int result = 0;
 
+	if (port_paranoia_check (port, __FUNCTION__))
+		return -ENODEV;
+	
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (!port->read_urb) {
@@ -441,10 +403,18 @@ exit:
 
 static void visor_close (struct usb_serial_port *port, struct file * filp)
 {
+	struct usb_serial *serial;
 	unsigned char *transfer_buffer;
 
+	if (port_paranoia_check (port, __FUNCTION__))
+		return;
+	
 	dbg("%s - port %d", __FUNCTION__, port->number);
 			 
+	serial = get_usb_serial (port, __FUNCTION__);
+	if (!serial)
+		return;
+	
 	/* shutdown our urbs */
 	usb_unlink_urb (port->read_urb);
 	if (port->interrupt_in_urb)
@@ -453,8 +423,8 @@ static void visor_close (struct usb_serial_port *port, struct file * filp)
 	/* Try to send shutdown message, if the device is gone, this will just fail. */
 	transfer_buffer =  kmalloc (0x12, GFP_KERNEL);
 	if (transfer_buffer) {
-		usb_control_msg (port->serial->dev,
-				 usb_rcvctrlpipe(port->serial->dev, 0),
+		usb_control_msg (serial->dev,
+				 usb_rcvctrlpipe(serial->dev, 0),
 				 VISOR_CLOSE_NOTIFICATION, 0xc2,
 				 0x0000, 0x0000, 
 				 transfer_buffer, 0x12, 300);
@@ -498,7 +468,7 @@ static int visor_write (struct usb_serial_port *port, int from_user, const unsig
 		memcpy (buffer, buf, count);
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, count, buffer);
+	usb_serial_debug_data (__FILE__, __FUNCTION__, count, buffer);
 
 	usb_fill_bulk_urb (urb, serial->dev,
 			   usb_sndbulkpipe (serial->dev,
@@ -512,7 +482,6 @@ static int visor_write (struct usb_serial_port *port, int from_user, const unsig
 		dev_err(&port->dev, "%s - usb_submit_urb(write bulk) failed with status = %d\n",
 			__FUNCTION__, status);
 		count = status;
-		kfree (buffer);
 	} else {
 		bytes_out += count;
 	}
@@ -559,6 +528,9 @@ static void visor_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree (urb->transfer_buffer);
 
+	if (port_paranoia_check (port, __FUNCTION__))
+		return;
+	
 	dbg("%s - port %d", __FUNCTION__, port->number);
 	
 	if (urb->status)
@@ -572,19 +544,28 @@ static void visor_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 static void visor_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial *serial = get_usb_serial (port, __FUNCTION__);
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int i;
 	int result;
 
+	if (port_paranoia_check (port, __FUNCTION__))
+		return;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
+
+	if (!serial) {
+		dbg("%s - bad serial pointer, exiting", __FUNCTION__);
+		return;
+	}
 
 	if (urb->status) {
 		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__, urb->status);
 		return;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
+	usb_serial_debug_data (__FILE__, __FUNCTION__, urb->actual_length, data);
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
@@ -601,9 +582,9 @@ static void visor_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 	bytes_in += urb->actual_length;
 
 	/* Continue trying to always read  */
-	usb_fill_bulk_urb (port->read_urb, port->serial->dev,
-			   usb_rcvbulkpipe(port->serial->dev,
-					   port->bulk_in_endpointAddress),
+	usb_fill_bulk_urb (port->read_urb, serial->dev,
+			   usb_rcvbulkpipe (serial->dev,
+					    port->bulk_in_endpointAddress),
 			   port->read_urb->transfer_buffer,
 			   port->read_urb->transfer_buffer_length,
 			   visor_read_bulk_callback, port);
@@ -615,7 +596,6 @@ static void visor_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 
 static void visor_read_int_callback (struct urb *urb, struct pt_regs *regs)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	int result;
 
 	switch (urb->status) {
@@ -642,8 +622,8 @@ static void visor_read_int_callback (struct urb *urb, struct pt_regs *regs)
 	 * Rumor has it this endpoint is used to notify when data
 	 * is ready to be read from the bulk ones.
 	 */
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__,
-			      urb->actual_length, urb->transfer_buffer);
+	usb_serial_debug_data (__FILE__, __FUNCTION__, urb->actual_length,
+			       urb->transfer_buffer);
 
 exit:
 	result = usb_submit_urb (urb, GFP_ATOMIC);
@@ -679,7 +659,7 @@ static int palm_os_3_probe (struct usb_serial *serial, const struct usb_device_i
 	char *string;
 	int retval = 0;
 	int i;
-	int num_ports = 0;
+	int num_ports;
 
 	dbg("%s", __FUNCTION__);
 
@@ -701,50 +681,41 @@ static int palm_os_3_probe (struct usb_serial *serial, const struct usb_device_i
 			__FUNCTION__, retval);
 		goto exit;
 	}
+		
+	connection_info = (struct visor_connection_info *)transfer_buffer;
 
-	if (retval == sizeof(*connection_info)) {
-	        connection_info = (struct visor_connection_info *)transfer_buffer;
-
-		le16_to_cpus(&connection_info->num_ports);
-		num_ports = connection_info->num_ports;
-
-		for (i = 0; i < num_ports; ++i) {
-			switch (connection_info->connections[i].port_function_id) {
-				case VISOR_FUNCTION_GENERIC:
-					string = "Generic";
-					break;
-				case VISOR_FUNCTION_DEBUGGER:
-					string = "Debugger";
-					break;
-				case VISOR_FUNCTION_HOTSYNC:
-					string = "HotSync";
-					break;
-				case VISOR_FUNCTION_CONSOLE:
-					string = "Console";
-					break;
-				case VISOR_FUNCTION_REMOTE_FILE_SYS:
-					string = "Remote File System";
-					break;
-				default:
-					string = "unknown";
-					break;
-			}
-			dev_info(dev, "%s: port %d, is for %s use\n",
-				serial->type->name,
-				connection_info->connections[i].port, string);
-		}
-	}
-	/*
-	* Handle devices that report invalid stuff here.
-	*/
-	if (num_ports == 0 || num_ports > 2) {
-		dev_warn (dev, "%s: No valid connect info available\n",
-			serial->type->name);
+	le16_to_cpus(&connection_info->num_ports);
+	num_ports = connection_info->num_ports;
+	/* handle devices that report invalid stuff here */
+	if (num_ports > 2)
 		num_ports = 2;
-	}
-  
 	dev_info(dev, "%s: Number of ports: %d\n", serial->type->name,
-		num_ports);
+		connection_info->num_ports);
+
+	for (i = 0; i < num_ports; ++i) {
+		switch (connection_info->connections[i].port_function_id) {
+			case VISOR_FUNCTION_GENERIC:
+				string = "Generic";
+				break;
+			case VISOR_FUNCTION_DEBUGGER:
+				string = "Debugger";
+				break;
+			case VISOR_FUNCTION_HOTSYNC:
+				string = "HotSync";
+				break;
+			case VISOR_FUNCTION_CONSOLE:
+				string = "Console";
+				break;
+			case VISOR_FUNCTION_REMOTE_FILE_SYS:
+				string = "Remote File System";
+				break;
+			default:
+				string = "unknown";
+				break;	
+		}
+		dev_info(dev, "%s: port %d, is for %s use\n", serial->type->name,
+			 connection_info->connections[i].port, string);
+	}
 
 	/*
 	 * save off our num_ports info so that we can use it in the
@@ -794,8 +765,7 @@ static int palm_os_4_probe (struct usb_serial *serial, const struct usb_device_i
 		dev_err(dev, "%s - error %d getting connection info\n",
 			__FUNCTION__, retval);
 	else
-		usb_serial_debug_data(debug, &serial->dev->dev, __FUNCTION__,
-				      retval, transfer_buffer);
+		usb_serial_debug_data (__FILE__, __FUNCTION__, 0x14, transfer_buffer);
 
 	kfree (transfer_buffer);
 	return 0;
@@ -877,60 +847,42 @@ static int clie_3_5_startup (struct usb_serial *serial)
  
 static int treo_attach (struct usb_serial *serial)
 {
-	struct usb_serial_port *swap_port;
+	struct usb_serial_port *port;
+	int i;
 
 	/* Only do this endpoint hack for the Handspring devices with
 	 * interrupt in endpoints, which for now are the Treo devices. */
-	if (!((serial->dev->descriptor.idVendor == HANDSPRING_VENDOR_ID) ||
-	      (serial->dev->descriptor.idVendor == KYOCERA_VENDOR_ID)) ||
+	if ((serial->dev->descriptor.idVendor != HANDSPRING_VENDOR_ID) ||
 	    (serial->num_interrupt_in == 0))
 		return 0;
 
 	dbg("%s", __FUNCTION__);
 
-	/*
-	* It appears that Treos and Kyoceras want to use the 
-	* 1st bulk in endpoint to communicate with the 2nd bulk out endpoint, 
-	* so let's swap the 1st and 2nd bulk in and interrupt endpoints.  
-	* Note that swapping the bulk out endpoints would break lots of 
-	* apps that want to communicate on the second port.
-	*/
-#define COPY_PORT(dest, src)						\
-	dest->read_urb = src->read_urb;					\
-	dest->bulk_in_endpointAddress = src->bulk_in_endpointAddress;	\
-	dest->bulk_in_buffer = src->bulk_in_buffer;			\
-	dest->interrupt_in_urb = src->interrupt_in_urb;			\
-	dest->interrupt_in_endpointAddress = src->interrupt_in_endpointAddress;	\
-	dest->interrupt_in_buffer = src->interrupt_in_buffer;
+	/* Ok, this is pretty ugly, but these devices want to use the
+	 * interrupt endpoint as paired up with a bulk endpoint for a
+	 * "virtual serial port".  So let's force the endpoints to be
+	 * where we want them to be. */
+	for (i = serial->num_bulk_in; i < serial->num_ports; ++i) {
+		port = serial->port[i];
+		port->read_urb = serial->port[0]->read_urb;
+		port->bulk_in_endpointAddress = serial->port[0]->bulk_in_endpointAddress;
+		port->bulk_in_buffer = serial->port[0]->bulk_in_buffer;
+	}
 
-	swap_port = kmalloc(sizeof(*swap_port), GFP_KERNEL);
-	if (!swap_port)
-		return -ENOMEM;
-	COPY_PORT(swap_port, serial->port[0]);
-	COPY_PORT(serial->port[0], serial->port[1]);
-	COPY_PORT(serial->port[1], swap_port);
-	kfree(swap_port);
+	for (i = serial->num_bulk_out; i < serial->num_ports; ++i) {
+		port = serial->port[i];
+		port->write_urb = serial->port[0]->write_urb;
+		port->bulk_out_size = serial->port[0]->bulk_out_size;
+		port->bulk_out_endpointAddress = serial->port[0]->bulk_out_endpointAddress;
+		port->bulk_out_buffer = serial->port[0]->bulk_out_buffer;
+	}
 
-	return 0;
-}
-
-static int clie_5_attach (struct usb_serial *serial)
-{
-	dbg("%s", __FUNCTION__);
-
-	/* TH55 registers 2 ports. 
-	   Communication in from the UX50/TH55 uses bulk_in_endpointAddress from port 0 
-	   Communication out to the UX50/TH55 uses bulk_out_endpointAddress from port 1 
-	   
-	   Lets do a quick and dirty mapping
-	 */
-	
-	/* some sanity check */
-	if (serial->num_ports < 2)
-		return -1;
-		
-	/* port 0 now uses the modified endpoint Address */
-	serial->port[0]->bulk_out_endpointAddress = serial->port[1]->bulk_out_endpointAddress;
+	for (i = serial->num_interrupt_in; i < serial->num_ports; ++i) {
+		port = serial->port[i];
+		port->interrupt_in_urb = serial->port[0]->interrupt_in_urb;
+		port->interrupt_in_endpointAddress = serial->port[0]->interrupt_in_endpointAddress;
+		port->interrupt_in_buffer = serial->port[0]->interrupt_in_buffer;
+	}
 
 	return 0;
 }
@@ -1050,9 +1002,6 @@ static int __init visor_init (void)
 	retval = usb_serial_register(&clie_3_5_device);
 	if (retval)
 		goto failed_clie_3_5_register;
-	retval = usb_serial_register(&clie_5_device);
-	if (retval)
-		goto failed_clie_5_register;
 	retval = usb_register(&visor_driver);
 	if (retval) 
 		goto failed_usb_register;
@@ -1060,8 +1009,6 @@ static int __init visor_init (void)
 
 	return 0;
 failed_usb_register:
-	usb_serial_deregister(&clie_5_device);
-failed_clie_5_register:
 	usb_serial_deregister(&clie_3_5_device);
 failed_clie_3_5_register:
 	usb_serial_deregister(&handspring_device);
@@ -1075,7 +1022,6 @@ static void __exit visor_exit (void)
 	usb_deregister (&visor_driver);
 	usb_serial_deregister (&handspring_device);
 	usb_serial_deregister (&clie_3_5_device);
-	usb_serial_deregister (&clie_5_device);
 }
 
 
@@ -1086,10 +1032,10 @@ MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );
 MODULE_LICENSE("GPL");
 
-module_param(debug, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM(debug, "i");
 MODULE_PARM_DESC(debug, "Debug enabled or not");
 
-module_param(vendor, ushort, 0);
+MODULE_PARM(vendor, "i");
 MODULE_PARM_DESC(vendor, "User specified vendor ID");
-module_param(product, ushort, 0);
+MODULE_PARM(product, "i");
 MODULE_PARM_DESC(product, "User specified product ID");

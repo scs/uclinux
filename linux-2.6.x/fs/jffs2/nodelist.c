@@ -58,7 +58,7 @@ void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new
 /* Put a new tmp_dnode_info into the list, keeping the list in 
    order of increasing version
 */
-static void jffs2_add_tn_to_list(struct jffs2_tmp_dnode_info *tn, struct jffs2_tmp_dnode_info **list)
+void jffs2_add_tn_to_list(struct jffs2_tmp_dnode_info *tn, struct jffs2_tmp_dnode_info **list)
 {
 	struct jffs2_tmp_dnode_info **prev = list;
 	
@@ -133,9 +133,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, ino_t ino, struct jffs2_inode
 		cond_resched();
 
 		/* FIXME: point() */
-		err = jffs2_flash_read(c, (ref_offset(ref)), 
-				       min_t(uint32_t, ref_totlen(c, NULL, ref), sizeof(node)),
-				       &retlen, (void *)&node);
+		err = jffs2_flash_read(c, (ref_offset(ref)), min_t(uint32_t, ref->totlen, sizeof(node)), &retlen, (void *)&node);
 		if (err) {
 			printk(KERN_WARNING "error %d reading node at 0x%08x in get_inode_nodes()\n", err, ref_offset(ref));
 			goto free_out;
@@ -143,7 +141,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, ino_t ino, struct jffs2_inode
 			
 
 			/* Check we've managed to read at least the common node header */
-		if (retlen < min_t(uint32_t, ref_totlen(c, NULL, ref), sizeof(node.u))) {
+		if (retlen < min_t(uint32_t, ref->totlen, sizeof(node.u))) {
 			printk(KERN_WARNING "short read in get_inode_nodes()\n");
 			err = -EIO;
 			goto free_out;
@@ -248,7 +246,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, ino_t ino, struct jffs2_inode
 
 			/* If we've never checked the CRCs on this node, check them now. */
 			if (ref_flags(ref) == REF_UNCHECKED) {
-				uint32_t crc, len;
+				uint32_t crc;
 				struct jffs2_eraseblock *jeb;
 
 				crc = crc32(0, &node, sizeof(node.i)-8);
@@ -323,12 +321,10 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, ino_t ino, struct jffs2_inode
 				/* Mark the node as having been checked and fix the accounting accordingly */
 				spin_lock(&c->erase_completion_lock);
 				jeb = &c->blocks[ref->flash_offset / c->sector_size];
-				len = ref_totlen(c, jeb, ref);
-
-				jeb->used_size += len;
-				jeb->unchecked_size -= len;
-				c->used_size += len;
-				c->unchecked_size -= len;
+				jeb->used_size += ref->totlen;
+				jeb->unchecked_size -= ref->totlen;
+				c->used_size += ref->totlen;
+				c->unchecked_size -= ref->totlen;
 
 				/* If node covers at least a whole page, or if it starts at the 
 				   beginning of a page and runs to the end of the file, or if 
@@ -381,7 +377,6 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, ino_t ino, struct jffs2_inode
 		default:
 			if (ref_flags(ref) == REF_UNCHECKED) {
 				struct jffs2_eraseblock *jeb;
-				uint32_t len;
 
 				printk(KERN_ERR "Eep. Unknown node type %04x at %08x was marked REF_UNCHECKED\n",
 				       je16_to_cpu(node.u.nodetype), ref_offset(ref));
@@ -389,12 +384,10 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, ino_t ino, struct jffs2_inode
 				/* Mark the node as having been checked and fix the accounting accordingly */
 				spin_lock(&c->erase_completion_lock);
 				jeb = &c->blocks[ref->flash_offset / c->sector_size];
-				len = ref_totlen(c, jeb, ref);
-
-				jeb->used_size += len;
-				jeb->unchecked_size -= len;
-				c->used_size += len;
-				c->unchecked_size -= len;
+				jeb->used_size += ref->totlen;
+				jeb->unchecked_size -= ref->totlen;
+				c->used_size += ref->totlen;
+				c->unchecked_size -= ref->totlen;
 
 				mark_ref_normal(ref);
 				spin_unlock(&c->erase_completion_lock);
@@ -638,8 +631,6 @@ void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 
 		jffs2_free_node_frag(frag);
 		frag = parent;
-
-		cond_resched();
 	}
 }
 

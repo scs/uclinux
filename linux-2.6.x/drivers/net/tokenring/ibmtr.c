@@ -127,7 +127,6 @@ in the event that chatty debug messages are desired - jjs 12/30/98 */
 
 #include <linux/ioport.h>
 #include <linux/netdevice.h>
-#include <linux/ip.h>
 #include <linux/trdevice.h>
 #include <linux/ibmtr.h>
 
@@ -137,6 +136,8 @@ in the event that chatty debug messages are desired - jjs 12/30/98 */
 
 #define DPRINTK(format, args...) printk("%s: " format, dev->name , ## args)
 #define DPRINTD(format, args...) DummyCall("%s: " format, dev->name , ## args)
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 
 /* version and credits */
 #ifndef PCMCIA
@@ -186,7 +187,7 @@ char __devinit *adapter_def(char type)
 #define TRC_INITV 0x02		/*  verbose init trace points     */
 unsigned char ibmtr_debug_trace = 0;
 
-static int 	ibmtr_probe(struct net_device *dev);
+int 		ibmtr_probe(struct net_device *dev);
 static int	ibmtr_probe1(struct net_device *dev, int ioaddr);
 static unsigned char get_sram_size(struct tok_info *adapt_info);
 static int 	trdev_init(struct net_device *dev);
@@ -312,39 +313,6 @@ static void __devinit find_turbo_adapters(int *iolist) {
 	}
 }
 
-static void ibmtr_cleanup_card(struct net_device *dev)
-{
-	if (dev->base_addr) {
-		outb(0,dev->base_addr+ADAPTRESET);
-		
-		schedule_timeout(TR_RST_TIME); /* wait 50ms */
-
-		outb(0,dev->base_addr+ADAPTRESETREL);
-	}
-
-#ifndef PCMCIA
-	free_irq(dev->irq, dev);
-	release_region(dev->base_addr, IBMTR_IO_EXTENT);
-
-	{ 
-		struct tok_info *ti = (struct tok_info *) dev->priv;
-		iounmap((u32 *)ti->mmio);
-		iounmap((u32 *)ti->sram_virt);
-	}
-#endif		
-}
-
-int ibmtr_probe_card(struct net_device *dev)
-{
-	int err = ibmtr_probe(dev);
-	if (!err) {
-		err = register_netdev(dev);
-		if (err)
-			ibmtr_cleanup_card(dev);
-	}
-	return err;
-}
-
 /****************************************************************************
  *	ibmtr_probe():  Routine specified in the network device structure
  *	to probe for an IBM Token Ring Adapter.  Routine outline:
@@ -357,7 +325,7 @@ int ibmtr_probe_card(struct net_device *dev)
  *	which references it.
  ****************************************************************************/
 
-static int ibmtr_probe(struct net_device *dev)
+int __devinit ibmtr_probe(struct net_device *dev)
 {
 	int i;
 	int base_addr = dev->base_addr;
@@ -383,7 +351,7 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 {
 
 	unsigned char segment, intr=0, irq=0, i, j, cardpresent=NOTOK, temp=0;
-	void * t_mmio = NULL;
+	void * t_mmio = 0;
 	struct tok_info *ti = dev->priv;
 	void *cd_chanid;
 	unsigned char *tchanid, ctemp;
@@ -729,47 +697,47 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 	*/
 	if (!ti->page_mask) {
 		ti->avail_shared_ram=
-				min(ti->mapped_ram_size,ti->avail_shared_ram);
+				MIN(ti->mapped_ram_size,ti->avail_shared_ram);
 	}
 
 	switch (ti->avail_shared_ram) {
 	case 16:		/* 8KB shared RAM */
-		ti->dhb_size4mb = min(ti->dhb_size4mb, (unsigned short)2048);
+		ti->dhb_size4mb = MIN(ti->dhb_size4mb, 2048);
 		ti->rbuf_len4 = 1032;
 		ti->rbuf_cnt4=2;
-		ti->dhb_size16mb = min(ti->dhb_size16mb, (unsigned short)2048);
+		ti->dhb_size16mb = MIN(ti->dhb_size16mb, 2048);
 		ti->rbuf_len16 = 1032;
 		ti->rbuf_cnt16=2;
 		break;
 	case 32:		/* 16KB shared RAM */
-		ti->dhb_size4mb = min(ti->dhb_size4mb, (unsigned short)4464);
+		ti->dhb_size4mb = MIN(ti->dhb_size4mb, 4464);
 		ti->rbuf_len4 = 1032;
 		ti->rbuf_cnt4=4;
-		ti->dhb_size16mb = min(ti->dhb_size16mb, (unsigned short)4096);
+		ti->dhb_size16mb = MIN(ti->dhb_size16mb, 4096);
 		ti->rbuf_len16 = 1032;	/*1024 usable */
 		ti->rbuf_cnt16=4;
 		break;
 	case 64:		/* 32KB shared RAM */
-		ti->dhb_size4mb = min(ti->dhb_size4mb, (unsigned short)4464);
+		ti->dhb_size4mb = MIN(ti->dhb_size4mb, 4464);
 		ti->rbuf_len4 = 1032;
 		ti->rbuf_cnt4=6;
-		ti->dhb_size16mb = min(ti->dhb_size16mb, (unsigned short)10240);
+		ti->dhb_size16mb = MIN(ti->dhb_size16mb, 10240);
 		ti->rbuf_len16 = 1032;
 		ti->rbuf_cnt16=6;
 		break;
 	case 127:		/* 63.5KB shared RAM */
-		ti->dhb_size4mb = min(ti->dhb_size4mb, (unsigned short)4464);
+		ti->dhb_size4mb = MIN(ti->dhb_size4mb, 4464);
 		ti->rbuf_len4 = 1032;
 		ti->rbuf_cnt4=6;
-		ti->dhb_size16mb = min(ti->dhb_size16mb, (unsigned short)16384);
+		ti->dhb_size16mb = MIN(ti->dhb_size16mb, 16384);
 		ti->rbuf_len16 = 1032;
 		ti->rbuf_cnt16=16;
 		break;
 	case 128:		/* 64KB   shared RAM */
-		ti->dhb_size4mb = min(ti->dhb_size4mb, (unsigned short)4464);
+		ti->dhb_size4mb = MIN(ti->dhb_size4mb, 4464);
 		ti->rbuf_len4 = 1032;
 		ti->rbuf_cnt4=6;
-		ti->dhb_size16mb = min(ti->dhb_size16mb, (unsigned short)17960);
+		ti->dhb_size16mb = MIN(ti->dhb_size16mb, 17960);
 		ti->rbuf_len16 = 1032;
 		ti->rbuf_cnt16=16;
 		break;
@@ -1957,24 +1925,23 @@ static int __init ibmtr_init(void)
 	find_turbo_adapters(io);
 
 	for (i = 0; io[i] && (i < IBMTR_MAX_ADAPTERS); i++) {
-		struct net_device *dev;
 		irq[i] = 0;
 		mem[i] = 0;
-		dev = alloc_trdev(sizeof(struct tok_info));
-		if (dev == NULL) { 
+		dev_ibmtr[i] = alloc_trdev(sizeof(struct tok_info));
+		if (dev_ibmtr[i] == NULL) { 
 			if (i == 0)
 				return -ENOMEM;
 			break;
 		}
-		dev->base_addr = io[i];
-		dev->irq = irq[i];
-		dev->mem_start = mem[i];
-
-		if (ibmtr_probe_card(dev)) {
-			free_netdev(dev);
+		dev_ibmtr[i]->base_addr = io[i];
+		dev_ibmtr[i]->irq = irq[i];
+		dev_ibmtr[i]->mem_start = mem[i];
+		dev_ibmtr[i]->init = &ibmtr_probe;
+		if (register_netdev(dev_ibmtr[i]) != 0) {
+			kfree(dev_ibmtr[i]);
+			dev_ibmtr[i] = NULL;
 			continue;
 		}
-		dev_ibmtr[i] = dev;
 		count++;
 	}
 	if (count) return 0;
@@ -1990,9 +1957,27 @@ static void __exit ibmtr_cleanup(void)
 	for (i = 0; i < IBMTR_MAX_ADAPTERS; i++){
 		if (!dev_ibmtr[i])
 			continue;
+		if (dev_ibmtr[i]->base_addr) {
+			outb(0,dev_ibmtr[i]->base_addr+ADAPTRESET);
+			
+			schedule_timeout(TR_RST_TIME); /* wait 50ms */
+
+                        outb(0,dev_ibmtr[i]->base_addr+ADAPTRESETREL);
+                }
+
 		unregister_netdev(dev_ibmtr[i]);
-		ibmtr_cleanup_card(dev_ibmtr[i]);
+		free_irq(dev_ibmtr[i]->irq, dev_ibmtr[i]);
+		release_region(dev_ibmtr[i]->base_addr, IBMTR_IO_EXTENT);
+#ifndef PCMCIA
+		{ 
+			struct tok_info *ti = (struct tok_info *)
+				dev_ibmtr[i]->priv;
+			iounmap((u32 *)ti->mmio);
+			iounmap((u32 *)ti->sram_virt);
+		}
+#endif		
 		free_netdev(dev_ibmtr[i]);
+		dev_ibmtr[i] = NULL;
 	}
 }
 module_exit(ibmtr_cleanup);

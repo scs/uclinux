@@ -49,14 +49,14 @@ static struct mtd_partition *parsed_parts;
 struct map_info ocelot_flash_map = {
 	.name = "Ocelot boot flash",
 	.size = FLASH_WINDOW_SIZE,
-	.bankwidth = FLASH_BUSWIDTH,
+	.buswidth = FLASH_BUSWIDTH,
 	.phys = FLASH_WINDOW_ADDR,
 };
 
 struct map_info ocelot_nvram_map = {
 	.name = "Ocelot NVRAM",
 	.size = NVRAM_WINDOW_SIZE,
-	.bankwidth = NVRAM_BUSWIDTH,
+	.buswidth = NVRAM_BUSWIDTH,
 	.phys = NVRAM_WINDOW_ADDR,
 };
 

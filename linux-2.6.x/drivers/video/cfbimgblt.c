@@ -136,7 +136,8 @@ static inline void color_imageblit(const struct fb_image *image,
 		dst1 += p->fix.line_length;
 		if (pitch_index) {
 			dst2 += p->fix.line_length;
-			dst1 = (u8 *)((long)dst2 & ~(sizeof(u32) - 1));
+			dst1 = (char *) dst2;
+			(unsigned long) dst1 &= ~(sizeof(u32) - 1);
 
 			start_index += pitch_index;
 			start_index &= 32 - 1;
@@ -201,7 +202,9 @@ static inline void slow_imageblit(const struct fb_image *image, struct fb_info *
 		src += spitch;	
 		if (pitch_index) {
 			dst2 += pitch;
-			dst1 = (u8 *)((long)dst2 & ~(sizeof(u32) - 1));
+			dst1 = (char *) dst2;
+			(unsigned long) dst1 &= ~(sizeof(u32) - 1);
+
 			start_index += pitch_index;
 			start_index &= 32 - 1;
 		}
@@ -274,9 +277,6 @@ void cfb_imageblit(struct fb_info *p, const struct fb_image *image)
 	u32 dx = image->dx, dy = image->dy;
 	int x2, y2, vxres, vyres;
 	u8 *dst1;
-
-	if (p->state != FBINFO_STATE_RUNNING)
-		return;
 
 	vxres = p->var.xres_virtual;
 	vyres = p->var.yres_virtual;

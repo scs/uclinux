@@ -70,15 +70,23 @@ static struct cpufreq_frequency_table speedstep_freqs[] = {
  *
  *   Tries to change the SpeedStep state. 
  */
-static void speedstep_set_state (unsigned int state)
+static void speedstep_set_state (unsigned int state, unsigned int notify)
 {
 	u32			pmbase;
 	u8			pm2_blk;
 	u8			value;
 	unsigned long		flags;
+	struct cpufreq_freqs	freqs;
 
 	if (!speedstep_chipset_dev || (state > 0x1))
 		return;
+
+	freqs.old = speedstep_get_processor_frequency(speedstep_processor);
+	freqs.new = speedstep_freqs[state].frequency;
+	freqs.cpu = 0; /* speedstep.c is UP only driver */
+	
+	if (notify)
+		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
 	/* get PMBASE */
 	pci_read_config_dword(speedstep_chipset_dev, 0x40, &pmbase);
@@ -134,6 +142,9 @@ static void speedstep_set_state (unsigned int state)
 		printk (KERN_ERR "cpufreq: change failed - I/O error\n");
 	}
 
+	if (notify)
+		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+
 	return;
 }
 
@@ -167,7 +178,7 @@ static int speedstep_activate (void)
 /**
  * speedstep_detect_chipset - detect the Southbridge which contains SpeedStep logic
  *
- *   Detects ICH2-M, ICH3-M and ICH4-M so far. The pci_dev points to 
+ *   Detects PIIX4, ICH2-M and ICH3-M so far. The pci_dev points to 
  * the LPC bridge / PM module which contains all power-management 
  * functions. Returns the SPEEDSTEP_CHIPSET_-number for the detected
  * chipset, or zero on failure.
@@ -228,10 +239,8 @@ static unsigned int speedstep_detect_chipset (void)
 
 
 /**
- * speedstep_target - set a new CPUFreq policy
+ * speedstep_setpolicy - set a new CPUFreq policy
  * @policy: new policy
- * @target_freq: the target frequency
- * @relation: how that frequency relates to achieved frequency (CPUFREQ_RELATION_L or CPUFREQ_RELATION_H)
  *
  * Sets a new CPUFreq policy.
  */
@@ -240,47 +249,11 @@ static int speedstep_target (struct cpufreq_policy *policy,
 			     unsigned int relation)
 {
 	unsigned int	newstate = 0;
-	struct cpufreq_freqs freqs;
-	cpumask_t cpus_allowed, affected_cpu_map;
-	int i;
 
 	if (cpufreq_frequency_table_target(policy, &speedstep_freqs[0], target_freq, relation, &newstate))
 		return -EINVAL;
 
-	/* no transition necessary */
-	if (freqs.old == freqs.new)
-		return 0;
-
-	freqs.old = speedstep_get_processor_frequency(speedstep_processor);
-	freqs.new = speedstep_freqs[newstate].frequency;
-	freqs.cpu = policy->cpu;
-
-	cpus_allowed = current->cpus_allowed;
-
-	/* only run on CPU to be set, or on its sibling */
-#ifdef CONFIG_SMP
-	affected_cpu_map = cpu_sibling_map[policy->cpu];
-#else
-	affected_cpu_map = cpumask_of_cpu(policy->cpu);
-#endif
-
-	for_each_cpu_mask(i, affected_cpu_map) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	}
-
-	/* switch to physical CPU where state is to be changed */
-	set_cpus_allowed(current, affected_cpu_map);
-
-	speedstep_set_state(newstate);
-
-	/* allow to be run on all CPUs */
-	set_cpus_allowed(current, cpus_allowed);
-
-	for_each_cpu_mask(i, affected_cpu_map) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	}
+	speedstep_set_state(newstate, 1);
 
 	return 0;
 }
@@ -288,7 +261,7 @@ static int speedstep_target (struct cpufreq_policy *policy,
 
 /**
  * speedstep_verify - verifies a new CPUFreq policy
- * @policy: new policy
+ * @freq: new policy
  *
  * Limit must be within speedstep_low_freq and speedstep_high_freq, with
  * at least one border included.
@@ -303,35 +276,21 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 {
 	int		result = 0;
 	unsigned int	speed;
-	cpumask_t       cpus_allowed,affected_cpu_map;
-
 
 	/* capability check */
-	if (policy->cpu != 0) /* FIXME: better support for SMT in cpufreq core. Up until then, it's better to register only one CPU */
+	if (policy->cpu != 0)
 		return -ENODEV;
-
-	/* only run on CPU to be set, or on its sibling */
-	cpus_allowed = current->cpus_allowed;
-#ifdef CONFIG_SMP
-	affected_cpu_map = cpu_sibling_map[policy->cpu];
-#else
-	affected_cpu_map = cpumask_of_cpu(policy->cpu);
-#endif
-	set_cpus_allowed(current, affected_cpu_map);
 
 	/* detect low and high frequency */
 	result = speedstep_get_freqs(speedstep_processor,
 				     &speedstep_freqs[SPEEDSTEP_LOW].frequency,
 				     &speedstep_freqs[SPEEDSTEP_HIGH].frequency,
 				     &speedstep_set_state);
-	if (result) {
-		set_cpus_allowed(current, cpus_allowed);
+	if (result)
 		return result;
-	}
 
 	/* get current speed setting */
 	speed = speedstep_get_processor_frequency(speedstep_processor);
-	set_cpus_allowed(current, cpus_allowed);
 	if (!speed)
 		return -EIO;
 
@@ -344,31 +303,8 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	policy->cur = speed;
 
-	result = cpufreq_frequency_table_cpuinfo(policy, speedstep_freqs);
-	if (result)
-		return (result);
-
-        cpufreq_frequency_table_get_attr(speedstep_freqs, policy->cpu);
-
-	return 0;
+	return cpufreq_frequency_table_cpuinfo(policy, &speedstep_freqs[0]);
 }
-
-
-static int speedstep_cpu_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
-static unsigned int speedstep_get(unsigned int cpu)
-{
-	return speedstep_get_processor_frequency(speedstep_processor);
-}
-
-static struct freq_attr* speedstep_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
 
 
 static struct cpufreq_driver speedstep_driver = {
@@ -376,10 +312,7 @@ static struct cpufreq_driver speedstep_driver = {
 	.verify 	= speedstep_verify,
 	.target 	= speedstep_target,
 	.init		= speedstep_cpu_init,
-	.exit		= speedstep_cpu_exit,
-	.get		= speedstep_get,
 	.owner		= THIS_MODULE,
-	.attr		= speedstep_attr,
 };
 
 

@@ -854,34 +854,6 @@ xfs_xlate_dinode_core(
 	INT_XLATE(buf_core->di_gen, mem_core->di_gen, dir, arch);
 }
 
-uint
-xfs_dic2xflags(
-	xfs_dinode_core_t	*dic,
-	xfs_arch_t		arch)
-{
-	__uint16_t		di_flags;
-	uint			flags = 0;
-
-	di_flags = INT_GET(dic->di_flags, arch);
-	if (di_flags & XFS_DIFLAG_REALTIME)
-		flags |= XFS_XFLAG_REALTIME;
-	if (di_flags & XFS_DIFLAG_PREALLOC)
-		flags |= XFS_XFLAG_PREALLOC;
-	if (di_flags & XFS_DIFLAG_IMMUTABLE)
-		flags |= XFS_XFLAG_IMMUTABLE;
-	if (di_flags & XFS_DIFLAG_APPEND)
-		flags |= XFS_XFLAG_APPEND;
-	if (di_flags & XFS_DIFLAG_SYNC)
-		flags |= XFS_XFLAG_SYNC;
-	if (di_flags & XFS_DIFLAG_NOATIME)
-		flags |= XFS_XFLAG_NOATIME;
-	if (di_flags & XFS_DIFLAG_NODUMP)
-		flags |= XFS_XFLAG_NODUMP;
-	if (XFS_CFORK_Q_ARCH(dic, arch))
-		flags |= XFS_XFLAG_HASATTR;
-	return flags;
-}
-
 /*
  * Given a mount structure and an inode number, return a pointer
  * to a newly allocated in-core inode coresponding to the given
@@ -1140,7 +1112,8 @@ xfs_ialloc(
 	 * Call the space management code to pick
 	 * the on-disk inode to be allocated.
 	 */
-	error = xfs_dialloc(tp, pip->i_ino, mode, okalloc,
+	ASSERT(pip != NULL);
+	error = xfs_dialloc(tp, pip ? pip->i_ino : 0, mode, okalloc,
 			    ialloc_context, call_again, &ino);
 	if (error != 0) {
 		return error;
@@ -3695,6 +3668,12 @@ xfs_iaccess(
 	mode_t		orgmode = mode;
 	struct inode	*inode = LINVFS_GET_IP(XFS_ITOV(ip));
 
+	/*
+	 * Verify that the MAC policy allows the requested access.
+	 */
+	if ((error = _MAC_XFS_IACCESS(ip, mode, cr)))
+		return XFS_ERROR(error);
+
 	if (mode & S_IWUSR) {
 		umode_t		imode = inode->i_mode;
 
@@ -3728,13 +3707,13 @@ xfs_iaccess(
 	 * Read/write DACs are always overridable.
 	 * Executable DACs are overridable if at least one exec bit is set.
 	 */
-	if (!(orgmode & S_IXUSR) ||
-	    (inode->i_mode & S_IXUGO) || S_ISDIR(inode->i_mode))
+	if ((orgmode & (S_IRUSR|S_IWUSR)) || (inode->i_mode & S_IXUGO))
 		if (capable_cred(cr, CAP_DAC_OVERRIDE))
 			return 0;
 
 	if ((orgmode == S_IRUSR) ||
-	    (S_ISDIR(inode->i_mode) && (!(orgmode & S_IWUSR)))) {
+	    (((ip->i_d.di_mode & S_IFMT) == S_IFDIR) &&
+	     (!(orgmode & ~(S_IWUSR|S_IXUSR))))) {
 		if (capable_cred(cr, CAP_DAC_READ_SEARCH))
 			return 0;
 #ifdef	NOISE
@@ -3743,6 +3722,32 @@ xfs_iaccess(
 		return XFS_ERROR(EACCES);
 	}
 	return XFS_ERROR(EACCES);
+}
+
+/*
+ * Return whether or not it is OK to swap to the given file in the
+ * given range.  Return 0 for OK and otherwise return the error.
+ *
+ * It is only OK to swap to a file if it has no holes, and all
+ * extents have been initialized.
+ *
+ * We use the vnode behavior chain prevent and allow primitives
+ * to ensure that the vnode chain stays coherent while we do this.
+ * This allows us to walk the chain down to the bottom where XFS
+ * lives without worrying about it changing out from under us.
+ */
+int
+xfs_swappable(
+	bhv_desc_t	*bdp)
+{
+	xfs_inode_t	*ip;
+
+	ip = XFS_BHVTOI(bdp);
+	/*
+	 * Verify that the file does not have any
+	 * holes or unwritten exents.
+	 */
+	return xfs_bmap_check_swappable(ip);
 }
 
 /*

@@ -19,8 +19,7 @@ config MTD_PHYSMAP
 	  command set driver code to communicate with flash chips which
 	  are mapped physically into the CPU's memory. You will need to
 	  configure the physical address and size of the flash chips on
-	  your particular board as well as the bus width, either statically
-	  with config options or at run-time.
+	  your particular board as well as the bus width.
 
 config MTD_PHYSMAP_START
 	hex "Physical start address of flash mapping"
@@ -31,8 +30,6 @@ config MTD_PHYSMAP_START
 	  are mapped on your particular target board. Refer to the
 	  memory map which should hopefully be in the documentation for
 	  your board.
-	  Ignore this option if you use run-time physmap configuration
-	  (i.e., run-time calling physmap_configure()).
 
 config MTD_PHYSMAP_LEN
 	hex "Physical length of flash mapping"
@@ -45,11 +42,9 @@ config MTD_PHYSMAP_LEN
 	  than the total amount of flash present. Refer to the memory
 	  map which should hopefully be in the documentation for your
 	  board.
-	  Ignore this option if you use run-time physmap configuration
-	  (i.e., run-time calling physmap_configure()).
 
-config MTD_PHYSMAP_BANKWIDTH
-	int "Bank width in octets"
+config MTD_PHYSMAP_BUSWIDTH
+	int "Bus width in octets"
 	depends on MTD_PHYSMAP
 	default "2"
 	help
@@ -57,8 +52,6 @@ config MTD_PHYSMAP_BANKWIDTH
 	  in octets. For example, if you have a data bus width of 32
 	  bits, you would set the bus width octect value to 4. This is
 	  used internally by the CFI drivers.
-	  Ignore this option if you use run-time physmap configuration
-	  (i.e., run-time calling physmap_configure()).
 
 config MTD_SUN_UFLASH
 	tristate "Sun Microsystems userflash support"
@@ -107,7 +100,7 @@ config MTD_SBC_GXX
 	  By default the flash is split into 3 partitions which are accessed
 	  as separate MTD devices. This board utilizes Intel StrataFlash.
 	  More info at
-	  <http://www.arcomcontrols.com/products/icp/pc104/processors/SBC_GX1.htm>.
+	  <http://www.arcomcontrols.com/products/icp/pc104/processors/>.
 
 config MTD_ELAN_104NC
 	tristate "CFI Flash device mapped on Arcom ELAN-104NC"
@@ -117,7 +110,7 @@ config MTD_ELAN_104NC
 	  System's ELAN-104NC development board. By default the flash
 	  is split into 3 partitions which are accessed as separate MTD
 	  devices. This board utilizes Intel StrataFlash. More info at
-	  <http://www.arcomcontrols.com/products/icp/pc104/processors/ELAN104NC.htm>.
+	  <http://www.arcomcontrols.com/products/icp/pc104/processors/>.
 
 config MTD_LUBBOCK
 	tristate "CFI Flash device mapped on Intel Lubbock XScale eval board"
@@ -133,7 +126,7 @@ config MTD_OCTAGON
 	  This provides a 'mapping' driver which supports the way in which
 	  the flash chips are connected in the Octagon-5066 Single Board
 	  Computer. More information on the board is available at
-	  <http://www.octagonsystems.com/CPUpages/5066.html>.
+	  <http://www.octagonsystems.com/Products/5066/5066.html>.
 
 config MTD_VMAX
 	tristate "JEDEC Flash device mapped on Tempustech VMAX SBC301"
@@ -142,7 +135,7 @@ config MTD_VMAX
 	  This provides a 'mapping' driver which supports the way in which
 	  the flash chips are connected in the Tempustech VMAX SBC301 Single
 	  Board Computer. More information on the board is available at
-	  <http://www.tempustech.com/>.
+	  <http://www.tempustech.com/tt301.htm>.
 
 config MTD_SCx200_DOCFLASH
 	tristate "Flash device mapped with DOCCS on NatSemi SCx200"
@@ -164,11 +157,11 @@ config MTD_AMD76XROM
 
 	  BE VERY CAREFUL.
 
-config MTD_ICHXROM
-	tristate "BIOS flash chip on Intel Controller Hub 2/3/4/5"
+config MTD_ICH2ROM
+	tristate "BIOS flash chip on Intel Hub Controller 2"
 	depends on X86 && MTD_JEDECPROBE && MTD_COMPLEX_MAPPINGS
 	help
-	  Support for treating the BIOS flash chip on ICHX motherboards
+	  Support for treating the BIOS flash chip on ICH2 motherboards
 	  as an MTD device - with this you can reprogram your BIOS.
 
 	  BE VERY CAREFUL.
@@ -190,7 +183,7 @@ config MTD_TSUNAMI
 
 config MTD_LASAT
 	tristate "Flash chips on LASAT board"
-	depends on LASAT
+	depends on LASAT && MTD_CFI
 	help
 	  Support for the flash chips on the Lasat 100 and 200 boards.
 
@@ -199,6 +192,18 @@ config MTD_NETtel
 	depends on X86 && MTD_PARTITIONS && MTD_JEDECPROBE
 	help
 	  Support for flash chips on NETtel/SecureEdge/SnapGear boards.
+
+config MTD_SNAPGEODE
+	tristate "CFI flash device on SnapGear/GEODE boards"
+	depends on X86 && MTD_PARTITIONS
+	help
+	  Support for flash chips on SnapGear GEODE based boards.
+
+config MTD_SE4000
+	tristate '  CFI Flash device mapped on SnapGear SE4000 board'
+	depends on ARCH_SE4000 && MTD_CFI && MTD_PARTITIONS
+	help
+	  Support for flash chips on the SnapGear SE4000 platform.
 
 config MTD_PB1XXX
 	tristate "Flash devices on Alchemy PB1xxx boards"
@@ -223,59 +228,13 @@ config MTD_PB1XXX_USER
 	  You can say 'Y' to both this and 'MTD_PB1XXX_BOOT' above, to use
 	  both banks.
 
-config MTD_PB1550
-	tristate "Flash devices on Alchemy PB1550 board"
-	depends on MIPS && MIPS_PB1550
-	help
-	  Flash memory access on Alchemy Pb1550 board
-
-config MTD_PB1550_BOOT
-	bool "PB1550 boot flash device"
-	depends on MTD_PB1550
-	help
-	  Use the first of the two 64MiB flash banks on Pb1550 board.
-	  You can say 'Y' to both this and 'MTD_PB1550_USER' below, to use
-	  both banks.
-
-config MTD_PB1550_USER
-	bool "PB1550 user flash device"
-	depends on MTD_PB1550
-	default y if MTD_PB1550_BOOT = n
-	help
-	  Use the second of the two 64MiB flash banks on Pb1550 board.
-	  You can say 'Y' to both this and 'MTD_PB1550_BOOT' above, to use
-	  both banks.
-
-config MTD_DB1550
-	tristate "Flash devices on Alchemy DB1550 board"
-	depends on MIPS && MIPS_DB1550
-	help
-	  Flash memory access on Alchemy Db1550 board
-
-config MTD_DB1550_BOOT
-	bool "DB1550 boot flash device"
-	depends on MTD_DB1550
-	help
-	  Use the first of the two 64MiB flash banks on Db1550 board.
-	  You can say 'Y' to both this and 'MTD_DB1550_USER' below, to use
-	  both banks.
-
-config MTD_DB1550_USER
-	bool "DB1550 user flash device"
-	depends on MTD_DB1550
-	default y if MTD_DB1550_BOOT = n
-	help
-	  Use the second of the two 64MiB flash banks on Db1550 board.
-	  You can say 'Y' to both this and 'MTD_DB1550_BOOT' above, to use
-	  both banks.
-
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
 	depends on X86 && MTD_CONCAT && MTD_PARTITIONS && MTD_CFI_INTELEXT
 	help
 	  MTD map driver for SSV DIL/Net PC Boards "DNP" and "ADNP".
-	  For details, see <http://www.ssv-embedded.de/ssv/pc104/p169.htm>
- 	  and <http://www.ssv-embedded.de/ssv/pc104/p170.htm>
+	  For details, see http://www.ssv-embedded.de/ssv/pc104/p169.htm
+ 	  and http://www.ssv-embedded.de/ssv/pc104/p170.htm
 
 config MTD_DILNETPC_BOOTSIZE
 	hex "Size of DIL/Net PC flash boot partition"
@@ -293,13 +252,6 @@ config MTD_L440GX
 	  as an MTD device - with this you can reprogram your BIOS.
 
 	  BE VERY CAREFUL.
-
-config MTD_SBC8240
-	tristate "Flash device on SBC8240"
-	depends on PPC32 && MTD_JEDECPROBE && 6xx && 8260
-	help
-          Flash access on the SBC8240 board from Wind River.  See
-          <http://www.windriver.com/products/sbc8240/>
 
 config MTD_TQM8XXL
 	tristate "CFI Flash device mapped on TQM8XXL"
@@ -319,7 +271,7 @@ config MTD_RPXLITE
 	  a strange sparse mapping. This 'mapping' driver supports that
 	  arrangement, allowing the CFI probe and command set driver code
 	  to communicate with the chips on the RPXLite board. More at
-	  <http://www.embeddedplanet.com/>.
+	  <http://www.embeddedplanet.com/rpx_lite_specification_sheet.htm>.
 
 config MTD_MBX860
 	tristate "System flash on MBX860 board"
@@ -331,7 +283,7 @@ config MTD_MBX860
 
 config MTD_DBOX2
 	tristate "CFI Flash device mapped on D-Box2"
-	depends on PPC32 && 8xx && DBOX2 && MTD_CFI_INTELSTD && MTD_CFI_INTELEXT && MTD_CFI_AMDSTD
+	depends on PPC32 && 8xx && MTD_CFI_INTELSTD && MTD_CFI_INTELEXT && MTD_CFI_AMDSTD
 	help
 	  This enables access routines for the flash chips on the Nokia/Sagem
 	  D-Box 2 board. If you have one of these boards and would like to use
@@ -460,7 +412,7 @@ config MTD_DC21285
 	help
 	  This provides a driver for the flash accessed using Intel's
 	  21285 bridge used with Intel's StrongARM processors. More info at
-	  <http://www.intel.com/design/bridge/docs/21285_documentation.htm>.
+	  <http://developer.intel.com/design/bridge/quicklist/dsc-21285.htm>.
 
 config MTD_IQ80310
 	tristate "CFI Flash device mapped on the XScale IQ80310 board"
@@ -470,13 +422,13 @@ config MTD_IQ80310
 	  IQ80310 evaluation board. If you have one of these boards and would 
 	  like to use the flash chips on it, say 'Y'.
 
-config MTD_IXP4XX
+config MTD_IXP425
 	tristate "CFI Flash device mapped on Intel IXP4xx based systems"
-	depends on ARM && MTD_CFI && MTD_COMPLEX_MAPPINGS && ARCH_IXP4XX
+	depends on ARM && MTD_CFI && MTD_COMPLEX_MAPPINGS && ARCH_IXP425
 	help
-	  This eables MTD access to flash devices on platforms based 
-	  on Intel's IXP4xx family of network processors such as the
-	  IXDP425 and Coyote. If you have an IXP4xx based board and
+	  This eables MTD access to flash devices on platforms bassed 
+	  on Intel's IXP4xx familly of network processors such as the
+	  IXDP425 and Coyote. If you have an IXP425 based board and
 	  would like to use the flash chips on it, say 'Y'.
 
 config MTD_EPXA10DB
@@ -523,25 +475,11 @@ config MTD_CEIVA
 	  PhotoMax Digital Picture Frame.
 	  If you have such a device, say 'Y'.
 
-config MTD_NOR_TOTO
-	tristate "NOR Flash device on TOTO board"
-	depends on ARM && ARCH_OMAP && OMAP_TOTO
-	help
-	  This enables access to the NOR flash on the Texas Instruments
-	  TOTO board.
-
 config MTD_H720X
 	tristate "Hynix evaluation board mappings"
 	depends on ARM && MTD_CFI && ( ARCH_H7201 || ARCH_H7202 )
 	help
 	  This enables access to the flash chips on the Hynix evaluation boards.
-	  If you have such a board, say 'Y'.
-
-config MTD_MPC1211
-	tristate "CFI Flash device mapped on Interface MPC-1211"
-	depends on SUPERH && SH_MPC1211 && MTD_CFI
-	help
-	  This enables access to the flash chips on the Interface MPC-1211(CTP/PCI/MPC-SH02).
 	  If you have such a board, say 'Y'.
 
 # This needs CFI or JEDEC, depending on the cards found.
@@ -569,28 +507,36 @@ config MTD_UCLINUX
 	help
 	  Map driver to support image based filesystems for uClinux.
 
-config MTD_WRSBC8260
-	tristate "Map driver for WindRiver PowerQUICC II MPC82xx board"
-	depends on (SBC82xx || SBC8560)
-	select MTD_PARTITIONS
-	select MTD_MAP_BANK_WIDTH_4
-	select MTD_MAP_BANK_WIDTH_1
-	select MTD_CFI_I1
-	select MTD_CFI_I4
+config MTD_SNAPGEARuC
+	tristate "SnapGear uClinux RAM/ROM filesystem support"
+	depends on MTD_PARTITIONS
 	help
-	  Map driver for WindRiver PowerQUICC II MPC82xx board. Drives
-	  all three flash regions on CS0, CS1 and CS6 if they are configured
-	  correctly by the boot loader.
+	  Map driver for Flash and RAM in the SnapGear devices.
 
-config MTD_DMV182
-        tristate "Map driver for Dy-4 SVME/DMV-182 board."
-        depends on DMV182
-        select MTD_PARTITIONS
-	select MTD_MAP_BANK_WIDTH_32
-	select MTD_CFI_I8
-	select MTD_CFI_AMDSTD
-        help
-          Map driver for Dy-4 SVME/DMV-182 board.
+choice
+	prompt "Flash Size"
+	depends on MTD_SNAPGEARuC
+	default AUTO
+
+config FLASHAUTO
+	bool "AUTO"
+config FLASH128KB
+	bool "128KB"
+config FLASH1MB
+	bool "1MB"
+config FLASH2MB
+	bool "2MB"
+config FLASH4MB
+	bool "4MB"
+config FLASH6MB
+	bool "6MB"
+config FLASH8MB
+	bool "8MB"
+config FLASH16MB
+	bool "16MB"
+
+endchoice
+
 
 endmenu
 

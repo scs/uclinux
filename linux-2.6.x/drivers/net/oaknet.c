@@ -94,8 +94,8 @@ static int __init oaknet_init(void)
 {
 	register int i;
 	int reg0, regd;
-	int ret = -ENOMEM;
-	struct net_device *dev;
+	int ret;
+	struct net_device tmp, *dev = NULL;
 #if 0
 	unsigned long ioaddr = OAKNET_IO_BASE; 
 #else
@@ -105,14 +105,17 @@ static int __init oaknet_init(void)
 
 	if (!ioaddr)
 		return -ENOMEM;
+	/*
+	 * This MUST happen here because of the nic_* macros
+	 * which have an implicit dependency on dev->base_addr.
+	 */
 
-	dev = alloc_ei_netdev();
-	if (!dev)
-		goto out_unmap;
+	tmp.base_addr = ioaddr;
+	dev = &tmp;
 
 	ret = -EBUSY;
 	if (!request_region(OAKNET_IO_BASE, OAKNET_IO_SIZE, name))
-		goto out_dev;
+		goto out_unmap;
 
 	/* Quick register check to see if the device is really there. */
 
@@ -141,7 +144,17 @@ static int __init oaknet_init(void)
 		goto out_region;
 	}
 
+	/*
+	 * We're not using the old-style probing API, so we have to allocate
+	 * our own device structure.
+	 */
+
+	dev = init_etherdev(NULL, 0);
+	ret = -ENOMEM;
+	if (!dev)
+		goto out_region;
 	SET_MODULE_OWNER(dev);
+	oaknet_devs = dev;
 
 	/*
 	 * This controller is on an embedded board, so the base address
@@ -150,6 +163,14 @@ static int __init oaknet_init(void)
 
 	dev->base_addr = ioaddr;
 	dev->irq = OAKNET_INT;
+
+	/* Allocate 8390-specific device-private area and fields. */
+
+	ret = -ENOMEM;
+	if (ethdev_init(dev)) {
+		printk(" unable to get memory for dev->priv.\n");
+		goto out_dev;
+	}
 
 	/*
 	 * Disable all chip interrupts for now and ACK all pending
@@ -164,8 +185,8 @@ static int __init oaknet_init(void)
 	ret = -EAGAIN;
 	if (request_irq(dev->irq, ei_interrupt, 0, name, dev)) {
 		printk("%s: unable to request interrupt %d.\n",
-		       name, dev->irq);
-		goto out_region;
+		       dev->name, dev->irq);
+		goto out_priv;
 	}
 
 	/* Tell the world about what and where we've found. */
@@ -192,24 +213,17 @@ static int __init oaknet_init(void)
 
 	dev->open = oaknet_open;
 	dev->stop = oaknet_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
 
 	NS8390_init(dev, FALSE);
-	ret = register_netdev(dev);
-	if (ret)
-		goto out_irq;
-	
-	oaknet_devs = dev;
-	return 0;
 
-out_irq;
-	free_irq(dev->irq, dev);
+	return (0);
+out_priv:
+	kfree(dev->priv);
+out_dev:
+	unregister_netdev(dev);
+	kfree(dev);
 out_region:
 	release_region(OAKNET_IO_BASE, OAKNET_IO_SIZE);
-out_dev:
-	free_netdev(dev);
 out_unmap:
 	iounmap(ioaddr);
 	return ret;
@@ -648,18 +662,38 @@ oaknet_dma_error(struct net_device *dev, const char *name)
 }
 
 /*
+ * Oak Ethernet module load interface.
+ */
+static int __init oaknet_init_module (void)
+{
+	if (oaknet_devs != NULL)
+		return (-EBUSY);
+
+	return (oaknet_init());
+}
+
+/*
  * Oak Ethernet module unload interface.
  */
 static void __exit oaknet_cleanup_module (void)
 {
+	if (oaknet_devs == NULL)
+		return;
+
+	if (oaknet_devs->priv != NULL) {
+		int ioaddr = oaknet_devs->base_addr;
+		void *priv = oaknet_devs->priv;
+		free_irq(oaknet_devs->irq, oaknet_devs);
+		release_region(ioaddr, OAKNET_IO_SIZE);
+		iounmap(ioaddr);
+		unregister_netdev(oaknet_dev);
+		free_netdev(priv);
+	}
+
 	/* Convert to loop once driver supports multiple devices. */
-	unregister_netdev(oaknet_dev);
-	free_irq(oaknet_devs->irq, oaknet_devs);
-	release_region(oaknet_devs->base_addr, OAKNET_IO_SIZE);
-	iounmap(ioaddr);
-	free_netdev(oaknet_devs);
+	kfree(oaknet_devs);
 }
 
-module_init(oaknet_init);
+module_init(oaknet_init_module);
 module_exit(oaknet_cleanup_module);
 MODULE_LICENSE("GPL");

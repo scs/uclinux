@@ -237,9 +237,9 @@ struct cdrom_read
 struct cdrom_read_audio
 {
 	union cdrom_addr addr; /* frame address */
-	__u8 addr_format;      /* CDROM_LBA or CDROM_MSF */
+	__u8 addr_format;    /* CDROM_LBA or CDROM_MSF */
 	int nframes;           /* number of 2352-byte-frames to read at once */
-	__u8 __user *buf;      /* frame buffer (size: nframes*2352 bytes) */
+	__u8 *buf;           /* frame buffer (size: nframes*2352 bytes) */
 };
 
 /* This struct is used with the CDROMMULTISESSION ioctl */
@@ -280,15 +280,16 @@ struct cdrom_blk
 struct cdrom_generic_command
 {
 	unsigned char 		cmd[CDROM_PACKET_SIZE];
-	unsigned char		__user *buffer;
+	unsigned char 		*buffer;
 	unsigned int 		buflen;
 	int			stat;
-	struct request_sense	__user *sense;
+	struct request_sense	*sense;
 	unsigned char		data_direction;
 	int			quiet;
 	int			timeout;
-	void			__user *reserved[1];	/* unused, actually */
+	void			*reserved[1];
 };
+
 
 /*
  * A CD-ROM physical sector size is 2048, 2052, 2056, 2324, 2332, 2336, 
@@ -495,7 +496,6 @@ struct cdrom_generic_command
 #define GPCMD_GET_MEDIA_STATUS		    0xda
 
 /* Mode page codes for mode sense/set */
-#define GPMODE_VENDOR_PAGE		0x00
 #define GPMODE_R_W_ERROR_PAGE		0x01
 #define GPMODE_WRITE_PARMS_PAGE		0x05
 #define GPMODE_AUDIO_CTL_PAGE		0x0e
@@ -721,9 +721,7 @@ struct request_sense {
 /*
  * feature profile
  */
-#define CDF_RWRT	0x0020	/* "Random Writable" */
-#define CDF_HWDM	0x0024	/* "Hardware Defect Management" */
-#define CDF_MRW 	0x0028
+#define CDF_MRW		0x28
 
 /*
  * media status bits
@@ -770,34 +768,6 @@ struct mrw_feature_desc {
 	__u8 reserved3;
 	__u8 reserved4;
 	__u8 reserved5;
-};
-
-/* cf. mmc4r02g.pdf 5.3.10 Random Writable Feature (0020h) pg 197 of 635 */
-struct rwrt_feature_desc {
-	__u16 feature_code;
-#if defined(__BIG_ENDIAN_BITFIELD)
-	__u8 reserved1		: 2;
-	__u8 feature_version	: 4;
-	__u8 persistent		: 1;
-	__u8 curr		: 1;
-#elif defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 curr		: 1;
-	__u8 persistent		: 1;
-	__u8 feature_version	: 4;
-	__u8 reserved1		: 2;
-#endif
-	__u8 add_len;
-	__u32 last_lba;
-	__u32 block_size;
-	__u16 blocking;
-#if defined(__BIG_ENDIAN_BITFIELD)
-	__u8 reserved2		: 7;
-	__u8 page_present	: 1;
-#elif defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 page_present	: 1;
-	__u8 reserved2		: 7;
-#endif
-	__u8 reserved3;
 };
 
 typedef struct {
@@ -906,31 +876,10 @@ struct mode_page_header {
 #include <linux/fs.h>		/* not really needed, later.. */
 #include <linux/device.h>
 
-struct packet_command
-{
-	unsigned char 		cmd[CDROM_PACKET_SIZE];
-	unsigned char 		*buffer;
-	unsigned int 		buflen;
-	int			stat;
-	struct request_sense	*sense;
-	unsigned char		data_direction;
-	int			quiet;
-	int			timeout;
-	void			*reserved[1];
-};
-
-/*
- * _OLD will use PIO transfer on atapi devices, _BPC_* will use DMA
- */
-#define CDDA_OLD		0	/* old style */
-#define CDDA_BPC_SINGLE		1	/* single frame block pc */
-#define CDDA_BPC_FULL		2	/* multi frame block pc */
-
 /* Uniform cdrom data structures for cdrom.c */
 struct cdrom_device_info {
 	struct cdrom_device_ops  *ops;  /* link to device_ops */
 	struct cdrom_device_info *next; /* next device_info for this major */
-	struct gendisk *disk;		/* matching block layer disk */
 	void *handle;		        /* driver-dependent data */
 /* specifications */
 	int mask;                       /* mask of capability: disables them */
@@ -944,8 +893,6 @@ struct cdrom_device_info {
 /* per-device flags */
         __u8 sanyo_slot		: 2;	/* Sanyo 3 CD changer support */
         __u8 reserved		: 6;	/* not used yet */
-	int cdda_method;		/* see flags */
-	__u8 last_sense;
 	int for_data;
 	int (*exit)(struct cdrom_device_info *);
 	int mrw_mode_page;
@@ -977,15 +924,15 @@ struct cdrom_device_ops {
 	int n_minors;           /* number of active minor devices */
 	/* handle uniform packets for scsi type devices (scsi,atapi) */
 	int (*generic_packet) (struct cdrom_device_info *,
-			       struct packet_command *);
+			       struct cdrom_generic_command *);
 };
 
 /* the general block_device operations structure: */
 extern int cdrom_open(struct cdrom_device_info *cdi, struct inode *ip,
 			struct file *fp);
 extern int cdrom_release(struct cdrom_device_info *cdi, struct file *fp);
-extern int cdrom_ioctl(struct file *file, struct cdrom_device_info *cdi,
-		struct inode *ip, unsigned int cmd, unsigned long arg);
+extern int cdrom_ioctl(struct cdrom_device_info *cdi, struct inode *ip,
+		unsigned int cmd, unsigned long arg);
 extern int cdrom_media_changed(struct cdrom_device_info *);
 
 extern int register_cdrom(struct cdrom_device_info *cdi);
@@ -1002,11 +949,11 @@ typedef struct {
 extern int cdrom_get_last_written(struct cdrom_device_info *cdi, long *last_written);
 extern int cdrom_number_of_slots(struct cdrom_device_info *cdi);
 extern int cdrom_mode_select(struct cdrom_device_info *cdi,
-			     struct packet_command *cgc);
+			     struct cdrom_generic_command *cgc);
 extern int cdrom_mode_sense(struct cdrom_device_info *cdi,
-			    struct packet_command *cgc,
+			    struct cdrom_generic_command *cgc,
 			    int page_code, int page_control);
-extern void init_cdrom_command(struct packet_command *cgc,
+extern void init_cdrom_command(struct cdrom_generic_command *cgc,
 			       void *buffer, int len, int type);
 
 /* The SCSI spec says there could be 256 slots. */
@@ -1182,7 +1129,6 @@ struct media_event_desc {
 
 extern int cdrom_get_media_event(struct cdrom_device_info *cdi, struct media_event_desc *med);
 extern int cdrom_is_mrw(struct cdrom_device_info *cdi, int *write);
-extern int cdrom_is_random_writable(struct cdrom_device_info *cdi, int *write);
 
 #endif  /* End of kernel only stuff */ 
 

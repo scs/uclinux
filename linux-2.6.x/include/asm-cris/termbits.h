@@ -53,7 +53,6 @@ struct termios {
 #define IXANY	0004000
 #define IXOFF	0010000
 #define IMAXBEL	0020000
-#define IUTF8	0040000
 
 /* c_oflag bits */
 #define OPOST	0000001
@@ -154,7 +153,7 @@ struct termios {
 #define  B6250000  0010007
 /* etrax 200 supports this as well */
 #define  B12500000 0010010
-#define CIBAUD	  002003600000	/* input baud rate (used in v32) */
+#define CIBAUD	  002003600000	/* input baud rate */
 /* The values for CIBAUD bits are the same as the values for CBAUD and CBAUDEX
  * shifted left IBSHIFT bits.
  */

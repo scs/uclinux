@@ -299,9 +299,6 @@ static void dmfe_set_filter_mode(struct DEVICE *);
 static struct ethtool_ops netdev_ethtool_ops;
 static u16 read_srom_word(long ,int);
 static irqreturn_t dmfe_interrupt(int , void *, struct pt_regs *);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void poll_dmfe (struct net_device *dev);
-#endif
 static void dmfe_descriptor_init(struct dmfe_board_info *, unsigned long);
 static void allocate_rx_buffer(struct dmfe_board_info *);
 static void update_cr6(u32, unsigned long);
@@ -395,7 +392,7 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	}
 
 	/* Init system & device */
-	db = netdev_priv(dev);
+	db = dev->priv;
 
 	/* Allocate Tx/Rx descriptor memory */
 	db->desc_pool_ptr = pci_alloc_consistent(pdev, sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20, &db->desc_pool_dma_ptr);
@@ -420,9 +417,6 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	dev->stop = &dmfe_stop;
 	dev->get_stats = &dmfe_get_stats;
 	dev->set_multicast_list = &dmfe_set_filter_mode;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = &poll_dmfe;
-#endif
 	dev->ethtool_ops = &netdev_ethtool_ops;
 	spin_lock_init(&db->lock);
 
@@ -463,7 +457,7 @@ err_out_disable:
 	pci_disable_device(pdev);
 err_out_free:
 	pci_set_drvdata(pdev, NULL);
-	free_netdev(dev);
+	kfree(dev);
 
 	return err;
 }
@@ -472,7 +466,7 @@ err_out_free:
 static void __devexit dmfe_remove_one (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = dev->priv;
 
 	DMFE_DBUG(0, "dmfe_remove_one()", 0);
 
@@ -500,7 +494,7 @@ static void __devexit dmfe_remove_one (struct pci_dev *pdev)
 static int dmfe_open(struct DEVICE *dev)
 {
 	int ret;
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = dev->priv;
 
 	DMFE_DBUG(0, "dmfe_open", 0);
 
@@ -558,7 +552,7 @@ static int dmfe_open(struct DEVICE *dev)
 
 static void dmfe_init_dm910x(struct DEVICE *dev)
 {
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = dev->priv;
 	unsigned long ioaddr = db->ioaddr;
 
 	DMFE_DBUG(0, "dmfe_init_dm910x()", 0);
@@ -624,7 +618,7 @@ static void dmfe_init_dm910x(struct DEVICE *dev)
 
 static int dmfe_start_xmit(struct sk_buff *skb, struct DEVICE *dev)
 {
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = dev->priv;
 	struct tx_desc *txptr;
 	unsigned long flags;
 
@@ -693,7 +687,7 @@ static int dmfe_start_xmit(struct sk_buff *skb, struct DEVICE *dev)
 
 static int dmfe_stop(struct DEVICE *dev)
 {
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = dev->priv;
 	unsigned long ioaddr = dev->base_addr;
 
 	DMFE_DBUG(0, "dmfe_stop", 0);
@@ -736,7 +730,7 @@ static int dmfe_stop(struct DEVICE *dev)
 static irqreturn_t dmfe_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct DEVICE *dev = dev_id;
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = (struct dmfe_board_info *) dev->priv;
 	unsigned long ioaddr = dev->base_addr;
 	unsigned long flags;
 
@@ -796,23 +790,6 @@ static irqreturn_t dmfe_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/*
- * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
- * the interrupt routine is executing.
- */
-
-static void poll_dmfe (struct net_device *dev)
-{
-	/* disable_irq here is not very nice, but with the lockless
-	   interrupt handler we have no other choice. */
-	disable_irq(dev->irq);
-	dmfe_interrupt (dev->irq, dev, NULL);
-	enable_irq(dev->irq);
-}
-#endif
 
 /*
  *	Free TX resource after TX complete
@@ -980,7 +957,7 @@ static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
 
 static struct net_device_stats * dmfe_get_stats(struct DEVICE *dev)
 {
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = (struct dmfe_board_info *)dev->priv;
 
 	DMFE_DBUG(0, "dmfe_get_stats", 0);
 	return &db->stats;
@@ -993,7 +970,7 @@ static struct net_device_stats * dmfe_get_stats(struct DEVICE *dev)
 
 static void dmfe_set_filter_mode(struct DEVICE * dev)
 {
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = dev->priv;
 	unsigned long flags;
 
 	DMFE_DBUG(0, "dmfe_set_filter_mode()", 0);
@@ -1026,7 +1003,7 @@ static void dmfe_set_filter_mode(struct DEVICE * dev)
 static void netdev_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	struct dmfe_board_info *np = netdev_priv(dev);
+	struct dmfe_board_info *np = dev->priv;
 
 	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, DRV_VERSION);
@@ -1051,7 +1028,7 @@ static void dmfe_timer(unsigned long data)
 	u32 tmp_cr8;
 	unsigned char tmp_cr12;
 	struct DEVICE *dev = (struct DEVICE *) data;
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = (struct dmfe_board_info *) dev->priv;
  	unsigned long flags;
 
 	DMFE_DBUG(0, "dmfe_timer()", 0);
@@ -1183,7 +1160,7 @@ static void dmfe_timer(unsigned long data)
 
 static void dmfe_dynamic_reset(struct DEVICE *dev)
 {
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = dev->priv;
 
 	DMFE_DBUG(0, "dmfe_dynamic_reset()", 0);
 
@@ -1381,7 +1358,7 @@ static void dm9132_id_table(struct DEVICE *dev, int mc_cnt)
 
 static void send_filter_frame(struct DEVICE *dev, int mc_cnt)
 {
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = dev->priv;
 	struct dev_mc_list *mcptr;
 	struct tx_desc *txptr;
 	u16 * addrptr;
@@ -1971,6 +1948,7 @@ static struct pci_device_id dmfe_pci_tbl[] = {
 	{ 0x1282, 0x9102, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PCI_DM9102_ID },
 	{ 0x1282, 0x9100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PCI_DM9100_ID },
 	{ 0x1282, 0x9009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PCI_DM9009_ID },
+	{ 0x10B9, 0x5261, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PCI_DM9102_ID },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, dmfe_pci_tbl);

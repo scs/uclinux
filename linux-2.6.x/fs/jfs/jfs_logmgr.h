@@ -1,6 +1,6 @@
 /*
- *   Copyright (C) International Business Machines Corp., 2000-2004
- *   Portions Copyright (C) Christoph Hellwig, 2001-2002
+ *   Copyright (c) International Business Machines Corp., 2000-2003
+ *   Portions Copyright (c) Christoph Hellwig, 2001-2002
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -367,10 +367,11 @@ struct lvd {
  */
 struct jfs_log {
 
-	struct list_head sb_list;/*  This is used to sync metadata
-				 *    before writing syncpt.
+	struct super_block *sb;	/* 4: This is used to sync metadata
+				 *    before writing syncpt.  Will
+				 *    need to be a list if we share
+				 *    the log between fs's
 				 */
-	struct list_head journal_list; /* Global list */
 	struct block_device *bdev; /* 4: log lv pointer */
 	s32 serial;		/* 4: log mount serial number */
 
@@ -398,7 +399,10 @@ struct jfs_log {
 
 	/* commit */
 	uint cflag;		/* 4: */
-	struct list_head	cqueue; /* FIFO commit queue */
+	struct {		/* 8: FIFO commit queue header */
+		struct tblock *head;
+		struct tblock *tail;
+	} cqueue;
 	struct tblock *flush_tblk; /* tblk we're waiting on for flush */
 	int gcrtc;		/* 4: GC_READY transaction count */
 	struct tblock *gclrt;	/* 4: latest GC_READY transaction */
@@ -415,6 +419,8 @@ struct jfs_log {
 	char uuid[16];		/* 16: 128-bit uuid of log device */
 
 	int no_integrity;	/* 3: flag to disable journaling to disk */
+	int ni_page;		/* 4: backup of page for nointegrity option */
+	int ni_eor;		/* 4: backup of eor for nointegrity option */
 };
 
 /*
@@ -500,8 +506,9 @@ struct logsyncblk {
 		diff += (log)->logsize;\
 }
 
-extern int lmLogOpen(struct super_block *sb);
-extern int lmLogClose(struct super_block *sb);
+extern int lmLogOpen(struct super_block *sb, struct jfs_log ** log);
+extern int lmLogClose(struct super_block *sb, struct jfs_log * log);
+extern int lmLogSync(struct jfs_log * log, int nosyncwait);
 extern int lmLogShutdown(struct jfs_log * log);
 extern int lmLogInit(struct jfs_log * log);
 extern int lmLogFormat(struct jfs_log *log, s64 logAddress, int logSize);

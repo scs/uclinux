@@ -1,8 +1,8 @@
 /*
  * arch/v850/kernel/setup.c -- Arch-dependent initialization functions
  *
- *  Copyright (C) 2001,02,03  NEC Electronics Corporation
- *  Copyright (C) 2001,02,03  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2001,02  NEC Corporation
+ *  Copyright (C) 2001,02  Miles Bader <miles@gnu.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -13,17 +13,14 @@
 
 #include <linux/mm.h>
 #include <linux/bootmem.h>
-#include <linux/swap.h>		/* we don't have swap, but for nr_free_pages */
 #include <linux/irq.h>
 #include <linux/reboot.h>
 #include <linux/personality.h>
 #include <linux/major.h>
 #include <linux/root_dev.h>
 #include <linux/mtd/mtd.h>
-#include <linux/init.h>
 
 #include <asm/irq.h>
-#include <asm/setup.h>
 
 #include "mach.h"
 
@@ -42,7 +39,8 @@ extern char _root_fs_image_start __attribute__ ((__weak__));
 extern char _root_fs_image_end __attribute__ ((__weak__));
 
 
-char command_line[COMMAND_LINE_SIZE];
+char command_line[512];
+char saved_command_line[512];
 
 /* Memory not used by the kernel.  */
 static unsigned long total_ram_pages;
@@ -64,8 +62,8 @@ void __init setup_arch (char **cmdline)
 {
 	/* Keep a copy of command line */
 	*cmdline = command_line;
-	memcpy (saved_command_line, command_line, COMMAND_LINE_SIZE);
-	saved_command_line[COMMAND_LINE_SIZE - 1] = '\0';
+	memcpy (saved_command_line, command_line, sizeof saved_command_line);
+	saved_command_line[sizeof saved_command_line - 1] = '\0';
 
 	console_verbose ();
 

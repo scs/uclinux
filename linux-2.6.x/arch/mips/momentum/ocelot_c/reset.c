@@ -10,11 +10,7 @@
  *
  * Copyright (C) 2002 Momentum Computer Inc.
  * Author: Matthew Dharm <mdharm@momenco.com>
- *
- * Louis Hamilton, Red Hat, Inc.
- * hamilton@redhat.com  [MIPS64 modifications]
  */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm/io.h>
@@ -27,12 +23,7 @@
 void momenco_ocelot_restart(char *command)
 {
 	/* base address of timekeeper portion of part */
-	void *nvram = (void *)
-#ifdef CONFIG_MIPS64
-		0xfffffffffc807000;
-#else
-		0xfc807000;
-#endif
+	void *nvram = (void*) 0xfc807000;
 
  	/* Ask the NVRAM/RTC/watchdog chip to assert reset in 1/16 second */
 	writeb(0x84, nvram + 0xff7);

@@ -31,6 +31,7 @@
 #include <linux/config.h>
 
 #include <asm/addrspace.h>
+#include <asm/processor.h>
 #include <asm/asm.h>
 #include <asm/mipsregs.h>
 #include <asm/regdef.h>
@@ -52,7 +53,8 @@
 	.set	push
 	.set	noreorder
 	.set	noat
-	.set	mips64
+	#.set	mips64
+	.set	mips4
 	.align	5
 	NESTED(sb1250_irq_handler, PT_SIZE, sp)
 	SAVE_ALL
@@ -123,7 +125,7 @@
 	 * check the 1250 interrupt registers to figure out what to do
 	 * Need to detect which CPU we're on, now that smp_affinity is supported.
 	 */
-	PTR_LA	v0, KSEG1 + A_IMR_CPU0_BASE
+	la	v0, KSEG1 + A_IMR_CPU0_BASE
 #ifdef CONFIG_SMP
 	lw	t1, TI_CPU($28)
 	sll	t1, IMR_REGISTER_SPACING_SHIFT
@@ -134,7 +136,8 @@
 	beqz	s0, 4f		/* No interrupts.  Return */
 	 move	a1, sp
 
-3:	dclz	s1, s0		/* Find the next interrupt */
+3:	#dclz	s1, s0		/* Find the next interrupt */
+	.word   0x72118824	# dclz s1, s0
 	dsubu	a0, zero, s1
 	daddiu	a0, a0, 63
 	jal	 do_IRQ

@@ -215,14 +215,13 @@ pas_mixer_reset(void)
 	set_mode(0x04 | 0x01);
 }
 
-static int pas_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
+static int pas_mixer_ioctl(int dev, unsigned int cmd, caddr_t arg)
 {
 	int level,v ;
-	int __user *p = (int __user *)arg;
 
 	DEB(printk("pas2_mixer.c: int pas_mixer_ioctl(unsigned int cmd = %X, unsigned int arg = %X)\n", cmd, arg));
 	if (cmd == SOUND_MIXER_PRIVATE1) { /* Set loudness bit */
-		if (get_user(level, p))
+		if (get_user(level, (int *)arg))
 			return -EFAULT;
 		if (level == -1)  /* Return current settings */
 			level = (mode_control & 0x04);
@@ -233,10 +232,10 @@ static int pas_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
 			set_mode(mode_control);
 		}
 		level = !!level;
-		return put_user(level, p);
+		return put_user(level, (int *)arg);
 	}
 	if (cmd == SOUND_MIXER_PRIVATE2) { /* Set enhance bit */
-		if (get_user(level, p))
+		if (get_user(level, (int *)arg))
 			return -EFAULT;
 		if (level == -1) { /* Return current settings */
 			if (!(mode_control & 0x03))
@@ -256,10 +255,10 @@ static int pas_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
 				i = (i + 1) * 20;
 			level = i;
 		}
-		return put_user(level, p);
+		return put_user(level, (int *)arg);
 	}
 	if (cmd == SOUND_MIXER_PRIVATE3) { /* Set mute bit */
-		if (get_user(level, p))
+		if (get_user(level, (int *)arg))
 			return -EFAULT;
 		if (level == -1)	/* Return current settings */
 			level = !(pas_read(0x0B8A) & 0x20);
@@ -271,10 +270,10 @@ static int pas_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
 
 			level = !(pas_read(0x0B8A) & 0x20);
 		}
-		return put_user(level, p);
+		return put_user(level, (int *)arg);
 	}
 	if (((cmd >> 8) & 0xff) == 'M') {
-		if (get_user(v, p))
+		if (get_user(v, (int *)arg))
 			return -EFAULT;
 		if (_SIOC_DIR(cmd) & _SIOC_WRITE) {
 			v = pas_mixer_set(cmd & 0xff, v);
@@ -305,7 +304,7 @@ static int pas_mixer_ioctl(int dev, unsigned int cmd, void __user *arg)
 				break;
 			}
 		}
-		return put_user(v, p);
+		return put_user(v, (int *)arg);
 	}
 	return -EINVAL;
 }

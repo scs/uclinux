@@ -219,6 +219,7 @@ int irlan_insert_array_param(struct sk_buff *skb, char *name, __u8 *value,
 			     __u16 value_len);
 
 int irlan_extract_param(__u8 *buf, char *name, char *value, __u16 *len);
+void print_ret_code(__u8 code);
 
 #endif
 

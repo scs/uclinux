@@ -50,7 +50,7 @@ struct kparam_array
    not there, read bits mean it's readable, write bits mean it's
    writable. */
 #define __module_param_call(prefix, name, set, get, arg, perm)		\
-	static char __param_str_##name[] = prefix #name;		\
+	static char __param_str_##name[] __initdata = prefix #name;	\
 	static struct kernel_param const __param_##name			\
 	__attribute_used__						\
     __attribute__ ((unused,__section__ ("__param"),aligned(sizeof(void *)))) \
@@ -71,7 +71,7 @@ struct kparam_array
 
 /* Actually copy string: maxlen param is usually sizeof(string). */
 #define module_param_string(name, string, len, perm)			\
-	static struct kparam_string __param_string_##name		\
+	static struct kparam_string __param_string_##name __initdata	\
 		= { len, string };					\
 	module_param_call(name, param_set_copystring, param_get_charp,	\
 		   &__param_string_##name, perm)
@@ -126,15 +126,12 @@ extern int param_get_invbool(char *buffer, struct kernel_param *kp);
 #define param_check_invbool(name, p) __param_check(name, p, int)
 
 /* Comma-separated array: num is set to number they actually specified. */
-#define module_param_array_named(name, array, type, num, perm)		\
+#define module_param_array(name, type, num, perm)			\
 	static struct kparam_array __param_arr_##name			\
-	= { ARRAY_SIZE(array), &num, param_set_##type, param_get_##type,\
-	    sizeof(array[0]), array };					\
+	= { ARRAY_SIZE(name), &num, param_set_##type, param_get_##type,	\
+	    sizeof(name[0]), name };					\
 	module_param_call(name, param_array_set, param_array_get, 	\
 			  &__param_arr_##name, perm)
-
-#define module_param_array(name, type, num, perm)		\
-	module_param_array_named(name, name, type, num, perm)
 
 extern int param_array_set(const char *val, struct kernel_param *kp);
 extern int param_array_get(char *buffer, struct kernel_param *kp);
@@ -147,4 +144,4 @@ int param_array(const char *name,
 		void *elem, int elemsize,
 		int (*set)(const char *, struct kernel_param *kp),
 		int *num);
-#endif /* _LINUX_MODULE_PARAMS_H */
+#endif /* _LINUX_MODULE_PARAM_TYPES_H */

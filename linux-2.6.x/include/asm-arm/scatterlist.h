@@ -1,7 +1,6 @@
 #ifndef _ASMARM_SCATTERLIST_H
 #define _ASMARM_SCATTERLIST_H
 
-#include <asm/memory.h>
 #include <asm/types.h>
 
 struct scatterlist {
@@ -21,5 +20,7 @@ struct scatterlist {
  */
 #define sg_dma_address(sg)      ((sg)->dma_address)
 #define sg_dma_len(sg)          ((sg)->length)
+
+#define ISA_DMA_THRESHOLD (0xffffffff)
 
 #endif /* _ASMARM_SCATTERLIST_H */

@@ -13,16 +13,15 @@
  * A lot of the I2O message side code from this is taken from the 
  * Red Creek RCPCI45 adapter driver by Red Creek Communications 
  * 
- * Fixes/additions:
- *	Philipp Rumpf
- *	Juha Sievänen <Juha.Sievanen@cs.Helsinki.FI>
- *	Auvo Häkkinen <Auvo.Hakkinen@cs.Helsinki.FI>
- *	Deepak Saxena <deepak@plexity.net>
- *	Boji T Kannanthanam <boji.t.kannanthanam@intel.com>
- *	Alan Cox <alan@redhat.com>:
- *		Ported to Linux 2.5.
- *	Markus Lidel <Markus.Lidel@shadowconnect.com>:
- *		Minor fixes for 2.6.
+ * Fixes by: 
+ *		Philipp Rumpf 
+ *		Juha Sievänen <Juha.Sievanen@cs.Helsinki.FI> 
+ *		Auvo Häkkinen <Auvo.Hakkinen@cs.Helsinki.FI> 
+ *		Deepak Saxena <deepak@plexity.net> 
+ *		Boji T Kannanthanam <boji.t.kannanthanam@intel.com>
+ *
+ * Ported to Linux 2.5 by
+ *		Alan Cox	<alan@redhat.com>
  * 
  */
 
@@ -213,135 +212,6 @@ static struct notifier_block i2o_reboot_notifier =
 
 static int verbose;
 
-#if BITS_PER_LONG == 64
-/**
- *      i2o_context_list_add -	append an ptr to the context list and return a
- *				matching context id.
- *	@ptr: pointer to add to the context list
- *	@c: controller to which the context list belong
- *	returns context id, which could be used in the transaction context
- *	field.
- *
- *	Because the context field in I2O is only 32-bit large, on 64-bit the
- *	pointer is to large to fit in the context field. The i2o_context_list
- *	functiones map pointers to context fields.
- */
-u32 i2o_context_list_add(void *ptr, struct i2o_controller *c) {
-	u32 context = 1;
-	struct i2o_context_list_element **entry = &c->context_list;
-	struct i2o_context_list_element *element;
-	unsigned long flags;
-
-	spin_lock_irqsave(&c->context_list_lock, flags);
-	while(*entry && ((*entry)->flags & I2O_CONTEXT_LIST_USED)) {
-		if((*entry)->context >= context)
-			context = (*entry)->context + 1;
-		entry = &((*entry)->next);
-	}
-
-	if(!*entry) {
-		if(unlikely(!context)) {
-			spin_unlock_irqrestore(&c->context_list_lock, flags);
-			printk(KERN_EMERG "i2o_core: context list overflow\n");
-			return 0;
-		}
-
-		element = kmalloc(sizeof(struct i2o_context_list_element), GFP_KERNEL);
-		if(!element) {
-			printk(KERN_EMERG "i2o_core: could not allocate memory for context list element\n");
-			return 0;
-		}
-		element->context = context;
-		element->next = NULL;
-		*entry = element;
-	} else
-		element = *entry;
-
-	element->ptr = ptr;
-	element->flags = I2O_CONTEXT_LIST_USED;
-
-	spin_unlock_irqrestore(&c->context_list_lock, flags);
-	dprintk(KERN_DEBUG "i2o_core: add context to list %p -> %d\n", ptr, context);
-	return context;
-}
-
-/**
- *      i2o_context_list_remove - remove a ptr from the context list and return
- *				  the matching context id.
- *	@ptr: pointer to be removed from the context list
- *	@c: controller to which the context list belong
- *	returns context id, which could be used in the transaction context
- *	field.
- */
-u32 i2o_context_list_remove(void *ptr, struct i2o_controller *c) {
-	struct i2o_context_list_element **entry = &c->context_list;
-	struct i2o_context_list_element *element;
-	u32 context;
-	unsigned long flags;
-
-	spin_lock_irqsave(&c->context_list_lock, flags);
-	while(*entry && ((*entry)->ptr != ptr))
-		entry = &((*entry)->next);
-
-	if(unlikely(!*entry)) {
-		spin_unlock_irqrestore(&c->context_list_lock, flags);
-		printk(KERN_WARNING "i2o_core: could not remove nonexistent ptr %p\n", ptr);
-		return 0;
-	}
-
-	element = *entry;
-
-	context = element->context;
-	element->ptr = NULL;
-	element->flags |= I2O_CONTEXT_LIST_DELETED;
-
-	spin_unlock_irqrestore(&c->context_list_lock, flags);
-	dprintk(KERN_DEBUG "i2o_core: markt as deleted in context list %p -> %d\n", ptr, context);
-	return context;
-}
-
-/**
- *      i2o_context_list_get -	get a ptr from the context list and remove it
- *				from the list.
- *	@context: context id to which the pointer belong
- *	@c: controller to which the context list belong
- *	returns pointer to the matching context id
- */
-void *i2o_context_list_get(u32 context, struct i2o_controller *c) {
-	struct i2o_context_list_element **entry = &c->context_list;
-	struct i2o_context_list_element *element;
-	void *ptr;
-	int count = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&c->context_list_lock, flags);
-	while(*entry && ((*entry)->context != context)) {
-		entry = &((*entry)->next);
-		count ++;
-	}
-
-	if(unlikely(!*entry)) {
-		spin_unlock_irqrestore(&c->context_list_lock, flags);
-		printk(KERN_WARNING "i2o_core: context id %d not found\n", context);
-		return NULL;
-	}
-
-	element = *entry;
-	ptr = element->ptr;
-	if(count >= I2O_CONTEXT_LIST_MIN_LENGTH) {
-		*entry = (*entry)->next;
-		kfree(element);
-	} else {
-		element->ptr = NULL;
-		element->flags &= !I2O_CONTEXT_LIST_USED;
-	}
-
-	spin_unlock_irqrestore(&c->context_list_lock, flags);
-	dprintk(KERN_DEBUG "i2o_core: get ptr from context list %d -> %p\n", context, ptr);
-	return ptr;
-}
-#endif
-
 /*
  * I2O Core reply handler
  */
@@ -354,7 +224,7 @@ static void i2o_core_reply(struct i2o_handler *h, struct i2o_controller *c,
 
 	if (msg[0] & MSG_FAIL) // Fail bit is set
 	{
-		u32 *preserved_msg = (u32*)(c->msg_virt + msg[7]);
+		u32 *preserved_msg = (u32*)(c->mem_offset + msg[7]);
 
 		i2o_report_status(KERN_INFO, "i2o_core", msg);
 		i2o_dump_message(preserved_msg);
@@ -632,7 +502,6 @@ int i2o_install_controller(struct i2o_controller *c)
 			c->unit = i;
 			c->page_frame = NULL;
 			c->hrt = NULL;
-			c->hrt_len = 0;
 			c->lct = NULL;
 			c->status_block = NULL;
 			sprintf(c->name, "i2o/iop%d", i);
@@ -695,7 +564,7 @@ int i2o_delete_controller(struct i2o_controller *c)
 	 * If this is shutdown time, the thread's already been killed
 	 */
 	if(c->lct_running) {
-		stat = kill_proc(c->lct_pid, SIGKILL, 1);
+		stat = kill_proc(c->lct_pid, SIGTERM, 1);
 		if(!stat) {
 			int count = 10 * 100;
 			while(c->lct_running && --count) {
@@ -831,14 +700,12 @@ static int i2o_issue_claim(u32 cmd, struct i2o_controller *c, int tid, u32 type)
  
 int i2o_claim_device(struct i2o_device *d, struct i2o_handler *h)
 {
-	int ret = 0;
-
 	down(&i2o_configuration_lock);
 	if (d->owner) {
 		printk(KERN_INFO "Device claim called, but dev already owned by %s!",
 		       h->name);
-		ret = -EBUSY;
-		goto out;
+		up(&i2o_configuration_lock);
+		return -EBUSY;
 	}
 	d->owner=h;
 
@@ -846,11 +713,10 @@ int i2o_claim_device(struct i2o_device *d, struct i2o_handler *h)
 			   I2O_CLAIM_PRIMARY))
 	{
 		d->owner = NULL;
-		ret = -EBUSY;
+		return -EBUSY;
 	}
-out:
 	up(&i2o_configuration_lock);
-	return ret;
+	return 0;
 }
 
 /**
@@ -1311,7 +1177,7 @@ void i2o_run_queue(struct i2o_controller *c)
 		 *	the processor 
 	 	 */
 
-		pci_dma_sync_single_for_cpu(c->pdev, c->page_frame_map, MSG_FRAME_SIZE, PCI_DMA_FROMDEVICE);
+		pci_dma_sync_single(c->pdev, c->page_frame_map, MSG_FRAME_SIZE, PCI_DMA_FROMDEVICE);
 	
 		/*
 		 *	Despatch it
@@ -1797,7 +1663,7 @@ static int i2o_reset_controller(struct i2o_controller *c)
 	m=i2o_wait_message(c, "AdapterReset");
 	if(m==0xFFFFFFFF)	
 		return -ETIMEDOUT;
-	msg=(u32 *)(c->msg_virt+m);
+	msg=(u32 *)(c->mem_offset+m);
 	
 	status = pci_alloc_consistent(c->pdev, 4, &status_phys);
 	if(status == NULL) {
@@ -1926,7 +1792,7 @@ int i2o_status_get(struct i2o_controller *c)
 	m=i2o_wait_message(c, "StatusGet");
 	if(m==0xFFFFFFFF)
 		return -ETIMEDOUT;	
-	msg=(u32 *)(c->msg_virt+m);
+	msg=(u32 *)(c->mem_offset+m);
 
 	msg[0]=NINE_WORD_MSG_SIZE|SGL_OFFSET_0;
 	msg[1]=I2O_CMD_STATUS_GET<<24|HOST_TID<<12|ADAPTER_TID;
@@ -1995,36 +1861,31 @@ int i2o_hrt_get(struct i2o_controller *c)
 {
 	u32 msg[6];
 	int ret, size = sizeof(i2o_hrt);
-	int loops = 3;	/* we only try 3 times to get the HRT, this should be
-			   more then enough. Worst case should be 2 times.*/
 
 	/* First read just the header to figure out the real size */
 
 	do  {
-		/* first we allocate the memory for the HRT */
 		if (c->hrt == NULL) {
 			c->hrt=pci_alloc_consistent(c->pdev, size, &c->hrt_phys);
 			if (c->hrt == NULL) {
 				printk(KERN_CRIT "%s: Hrt Get failed; Out of memory.\n", c->name);
 				return -ENOMEM;
 			}
-			c->hrt_len = size;
 		}
 
 		msg[0]= SIX_WORD_MSG_SIZE| SGL_OFFSET_4;
 		msg[1]= I2O_CMD_HRT_GET<<24 | HOST_TID<<12 | ADAPTER_TID;
 		msg[3]= 0;
-		msg[4]= (0xD0000000 | c->hrt_len);	/* Simple transaction */
+		msg[4]= (0xD0000000 | size);	/* Simple transaction */
 		msg[5]= c->hrt_phys;		/* Dump it here */
 
-		ret = i2o_post_wait_mem(c, msg, sizeof(msg), 20, c->hrt, NULL, c->hrt_phys, 0, c->hrt_len, 0);
+		ret = i2o_post_wait_mem(c, msg, sizeof(msg), 20, c->hrt, NULL, c->hrt_phys, 0, size, 0);
 		
 		if(ret == -ETIMEDOUT)
 		{
 			/* The HRT block we used is in limbo somewhere. When the iop wakes up
 			   we will recover it */
 			c->hrt = NULL;
-			c->hrt_len = 0;
 			return ret;
 		}
 		
@@ -2035,20 +1896,13 @@ int i2o_hrt_get(struct i2o_controller *c)
 			return ret;
 		}
 
-		if (c->hrt->num_entries * c->hrt->entry_len << 2 > c->hrt_len) {
-			size = c->hrt->num_entries * c->hrt->entry_len << 2;
-			pci_free_consistent(c->pdev, c->hrt_len, c->hrt, c->hrt_phys);
-			c->hrt_len = 0;
+		if (c->hrt->num_entries * c->hrt->entry_len << 2 > size) {
+			int new_size = c->hrt->num_entries * c->hrt->entry_len << 2;
+			pci_free_consistent(c->pdev, size, c->hrt, c->hrt_phys);
+			size = new_size;
 			c->hrt = NULL;
 		}
-		loops --;
-	} while (c->hrt == NULL && loops > 0);
-
-	if(c->hrt == NULL)
-	{
-		printk(KERN_ERR "%s: Unable to get HRT after three tries, giving up\n", c->name);
-		return -1;
-	}
+	} while (c->hrt == NULL);
 
 	i2o_parse_hrt(c); // just for debugging
 
@@ -2347,7 +2201,7 @@ int i2o_init_outbound_q(struct i2o_controller *c)
 	m=i2o_wait_message(c, "OutboundInit");
 	if(m==0xFFFFFFFF)
 		return -ETIMEDOUT;
-	msg=(u32 *)(c->msg_virt+m);
+	msg=(u32 *)(c->mem_offset+m);
 
 	status = pci_alloc_consistent(c->pdev, 4, &status_phys);
 	if (status==NULL) {
@@ -2621,7 +2475,7 @@ static int i2o_build_sys_table(void)
 		sys_tbl->iops[count].last_changed = sys_tbl_ind - 1; // ??
 		sys_tbl->iops[count].iop_capabilities = 
 				iop->status_block->iop_capabilities;
-		sys_tbl->iops[count].inbound_low = (u32)iop->post_port;
+		sys_tbl->iops[count].inbound_low = iop->post_port;
 		sys_tbl->iops[count].inbound_high = 0;	// FIXME: 64-bit support
 
 		count++;
@@ -2669,7 +2523,7 @@ int i2o_post_this(struct i2o_controller *c, u32 *data, int len)
 		       c->name);
 		return -ETIMEDOUT;
 	}
-	msg = (u32 *)(c->msg_virt + m);
+	msg = (u32 *)(c->mem_offset + m);
  	memcpy_toio(msg, data, len);
 	i2o_post_message(c,m);
 	return 0;
@@ -3595,9 +3449,7 @@ static void i2o_pci_dispose(struct i2o_controller *c)
 	I2O_IRQ_WRITE32(c,0xFFFFFFFF);
 	if(c->irq > 0)
 		free_irq(c->irq, c);
-	iounmap(c->base_virt);
-	if(c->raptor)
-		iounmap(c->msg_virt);
+	iounmap(((u8 *)c->post_port)-0x40);
 
 #ifdef CONFIG_MTRR
 	if(c->mtrr_reg0 > 0)
@@ -3638,12 +3490,9 @@ int __init i2o_pci_install(struct pci_dev *dev)
 {
 	struct i2o_controller *c=kmalloc(sizeof(struct i2o_controller),
 						GFP_KERNEL);
-	void *bar0_virt;
-	void *bar1_virt;
-	unsigned long bar0_phys = 0;
-	unsigned long bar1_phys = 0;
-	unsigned long bar0_size = 0;
-	unsigned long bar1_size = 0;
+	unsigned long mem;
+	u32 memptr = 0;
+	u32 size;
 	
 	int i;
 
@@ -3654,16 +3503,47 @@ int __init i2o_pci_install(struct pci_dev *dev)
 	}
 	memset(c, 0, sizeof(*c));
 
+	for(i=0; i<6; i++)
+	{
+		/* Skip I/O spaces */
+		if(!(pci_resource_flags(dev, i) & IORESOURCE_IO))
+		{
+			memptr = pci_resource_start(dev, i);
+			break;
+		}
+	}
+	
+	if(i==6)
+	{
+		printk(KERN_ERR "i2o: I2O controller has no memory regions defined.\n");
+		kfree(c);
+		return -EINVAL;
+	}
+	
+	size = dev->resource[i].end-dev->resource[i].start+1;	
+	/* Map the I2O controller */
+	
+	printk(KERN_INFO "i2o: PCI I2O controller at 0x%08X size=%d\n", memptr, size);
+	mem = (unsigned long)ioremap(memptr, size);
+	if(mem==0)
+	{
+		printk(KERN_ERR "i2o: Unable to map controller.\n");
+		kfree(c);
+		return -EINVAL;
+	}
+
 	c->irq = -1;
 	c->dpt = 0;
-	c->raptor = 0;
 	c->short_req = 0;
 	c->pdev = dev;
 
-#if BITS_PER_LONG == 64
-	c->context_list_lock = SPIN_LOCK_UNLOCKED;
-#endif
+	c->irq_mask = mem+0x34;
+	c->post_port = mem+0x40;
+	c->reply_port = mem+0x44;
 
+	c->mem_phys = memptr;
+	c->mem_offset = mem;
+	
 	/*
 	 *	Cards that fall apart if you hit them with large I/O
 	 *	loads...
@@ -3674,7 +3554,6 @@ int __init i2o_pci_install(struct pci_dev *dev)
 		c->short_req = 1;
 		printk(KERN_INFO "I2O: Symbios FC920 workarounds activated.\n");
 	}
-
 	if(dev->subsystem_vendor == PCI_VENDOR_ID_PROMISE)
 	{
 		c->promise = 1;
@@ -3686,85 +3565,15 @@ int __init i2o_pci_install(struct pci_dev *dev)
 	 *	them
 	 */
 	 
-	if(dev->vendor == PCI_VENDOR_ID_DPT) {
+	if(dev->vendor == PCI_VENDOR_ID_DPT)
 		c->dpt=1;
-		if(dev->device == 0xA511)
-			c->raptor=1;
-	}
-
-	for(i=0; i<6; i++)
-	{
-		/* Skip I/O spaces */
-		if(!(pci_resource_flags(dev, i) & IORESOURCE_IO))
-		{
-			if(!bar0_phys)
-			{
-				bar0_phys = pci_resource_start(dev, i);
-				bar0_size = pci_resource_len(dev, i);
-				if(!c->raptor)
-					break;
-			}
-			else
-			{
-				bar1_phys = pci_resource_start(dev, i);
-				bar1_size = pci_resource_len(dev, i);
-				break;
-			}
-		}
-	}
-
-	if(i==6)
-	{
-		printk(KERN_ERR "i2o: I2O controller has no memory regions defined.\n");
-		kfree(c);
-		return -EINVAL;
-	}
-
-
-	/* Map the I2O controller */
-	if(!c->raptor)
-		printk(KERN_INFO "i2o: PCI I2O controller at %08lX size=%ld\n", bar0_phys, bar0_size);
-	else
-		printk(KERN_INFO "i2o: PCI I2O controller\n    BAR0 at 0x%08lX size=%ld\n    BAR1 at 0x%08lX size=%ld\n", bar0_phys, bar0_size, bar1_phys, bar1_size);
-
-	bar0_virt = ioremap(bar0_phys, bar0_size);
-	if(bar0_virt==0)
-	{
-		printk(KERN_ERR "i2o: Unable to map controller.\n");
-		kfree(c);
-		return -EINVAL;
-	}
-
-	if(c->raptor)
-	{
-		bar1_virt = ioremap(bar1_phys, bar1_size);
-		if(bar1_virt==0)
-		{
-			printk(KERN_ERR "i2o: Unable to map controller.\n");
-			kfree(c);
-			iounmap(bar0_virt);
-			return -EINVAL;
-		}
-	} else {
-		bar1_virt = bar0_virt;
-		bar1_phys = bar0_phys;
-		bar1_size = bar0_size;
-	}
-
-	c->irq_mask = bar0_virt+0x34;
-	c->post_port = bar0_virt+0x40;
-	c->reply_port = bar0_virt+0x44;
-
-	c->base_phys = bar0_phys;
-	c->base_virt = bar0_virt;
-	c->msg_phys = bar1_phys;
-	c->msg_virt = bar1_virt;
 	
 	/* 
 	 * Enable Write Combining MTRR for IOP's memory region
 	 */
 #ifdef CONFIG_MTRR
-	c->mtrr_reg0 = mtrr_add(c->base_phys, bar0_size, MTRR_TYPE_WRCOMB, 1);
+	c->mtrr_reg0 =
+		mtrr_add(c->mem_phys, size, MTRR_TYPE_WRCOMB, 1);
 	/*
 	 * If it is an INTEL i960 I/O processor then set the first 64K to
 	 * Uncacheable since the region contains the Messaging unit which
@@ -3774,16 +3583,14 @@ int __init i2o_pci_install(struct pci_dev *dev)
 	if(dev->vendor == PCI_VENDOR_ID_INTEL || dev->vendor == PCI_VENDOR_ID_DPT)
 	{
 		printk(KERN_INFO "I2O: MTRR workaround for Intel i960 processor\n"); 
-		c->mtrr_reg1 =	mtrr_add(c->base_phys, 65536, MTRR_TYPE_UNCACHABLE, 1);
+		c->mtrr_reg1 =	mtrr_add(c->mem_phys, 65536, MTRR_TYPE_UNCACHABLE, 1);
 		if(c->mtrr_reg1< 0)
 		{
 			printk(KERN_INFO "i2o_pci: Error in setting MTRR_TYPE_UNCACHABLE\n");
-			mtrr_del(c->mtrr_reg0, c->msg_phys, bar1_size);
+			mtrr_del(c->mtrr_reg0, c->mem_phys, size);
 			c->mtrr_reg0 = -1;
 		}
 	}
-	if(c->raptor)
-		c->mtrr_reg1 = mtrr_add(c->msg_phys, bar1_size, MTRR_TYPE_WRCOMB, 1);
 
 #endif
 
@@ -3795,9 +3602,7 @@ int __init i2o_pci_install(struct pci_dev *dev)
 	{
 		printk(KERN_ERR "i2o: Unable to install controller.\n");
 		kfree(c);
-		iounmap(bar0_virt);
-		if(c->raptor)
-			iounmap(bar1_virt);
+		iounmap((void *)mem);
 		return i;
 	}
 
@@ -3812,9 +3617,7 @@ int __init i2o_pci_install(struct pci_dev *dev)
 				c->name, dev->irq);
 			c->irq = -1;
 			i2o_delete_controller(c);
-			iounmap(bar0_virt);
-			if(c->raptor)
-				iounmap(bar1_virt);
+			iounmap((void *)mem);
 			return -EBUSY;
 		}
 	}
@@ -3824,6 +3627,8 @@ int __init i2o_pci_install(struct pci_dev *dev)
 	c->enabled = 1;
 	return 0;	
 }
+
+static int dpt;
 
 /**
  *	i2o_pci_scan	-	Scan the pci bus for controllers
@@ -3847,12 +3652,17 @@ int __init i2o_pci_scan(void)
 
 	while ((dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL)
 	{
-		if((dev->class>>8)!=PCI_CLASS_INTELLIGENT_I2O &&
-		   (dev->vendor!=PCI_VENDOR_ID_DPT || dev->device!=0xA511))
+		if((dev->class>>8)!=PCI_CLASS_INTELLIGENT_I2O)
 			continue;
-
-		if((dev->class>>8)==PCI_CLASS_INTELLIGENT_I2O &&
-		   (dev->class&0xFF)>1)
+		if(dev->vendor == PCI_VENDOR_ID_DPT && !dpt)
+		{
+			if(dev->device == 0xA501 || dev->device == 0xA511)
+			{
+				printk(KERN_INFO "i2o: Skipping Adaptec/DPT I2O raid with preferred native driver.\n");
+				continue;
+			}
+		}
+		if((dev->class&0xFF)>1)
 		{
 			printk(KERN_INFO "i2o: I2O Controller found but does not support I2O 1.5 (skipping).\n");
 			continue;
@@ -3925,19 +3735,22 @@ static void i2o_core_exit(void)
 	 */
 	if(evt_running) {
 		printk("Terminating i2o threads...");
-		stat = kill_proc(evt_pid, SIGKILL, 1);
+		stat = kill_proc(evt_pid, SIGTERM, 1);
 		if(!stat) {
-			printk("waiting...\n");
+			printk("waiting...");
 			wait_for_completion(&evt_dead);
 		}
 		printk("done.\n");
 	}
 	i2o_remove_handler(&i2o_core_handler);
+	unregister_reboot_notifier(&i2o_reboot_notifier);
 }
 
 module_init(i2o_core_init);
 module_exit(i2o_core_exit);
 
+MODULE_PARM(dpt, "i");
+MODULE_PARM_DESC(dpt, "Set this if you want to drive DPT cards normally handled by dpt_i2o");
 MODULE_PARM(verbose, "i");
 MODULE_PARM_DESC(verbose, "Verbose diagnostics");
 
@@ -3973,6 +3786,3 @@ EXPORT_SYMBOL(i2o_event_ack);
 EXPORT_SYMBOL(i2o_report_status);
 EXPORT_SYMBOL(i2o_dump_message);
 EXPORT_SYMBOL(i2o_get_class_name);
-EXPORT_SYMBOL(i2o_context_list_add);
-EXPORT_SYMBOL(i2o_context_list_get);
-EXPORT_SYMBOL(i2o_context_list_remove);

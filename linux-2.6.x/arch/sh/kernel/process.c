@@ -25,11 +25,6 @@
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/elf.h>
-#if defined(CONFIG_SH_HS7751RVOIP)
-#include <asm/hs7751rvoip/hs7751rvoip.h>
-#elif defined(CONFIG_SH_RTS7751R2D)
-#include <asm/rts7751r2d/rts7751r2d.h>
-#endif
 
 static int hlt_counter=0;
 
@@ -55,14 +50,8 @@ void default_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
-		if (hlt_counter) {
-			while (1)
-				if (need_resched())
-					break;
-		} else {
-			while (!need_resched())
-				cpu_sleep();
-		}
+		while (!need_resched())
+			cpu_relax();
 
 		schedule();
 	}
@@ -84,30 +73,14 @@ EXPORT_SYMBOL(machine_restart);
 
 void machine_halt(void)
 {
-#if defined(CONFIG_SH_HS7751RVOIP)
-	unsigned short value;
-
-	value = ctrl_inw(PA_OUTPORTR);
-	ctrl_outw((value & 0xffdf), PA_OUTPORTR);
-#elif defined(CONFIG_SH_RTS7751R2D)
-	ctrl_outw(0x0001, PA_POWOFF);
-#endif
 	while (1)
-		cpu_sleep();
+		cpu_relax();
 }
 
 EXPORT_SYMBOL(machine_halt);
 
 void machine_power_off(void)
 {
-#if defined(CONFIG_SH_HS7751RVOIP)
-	unsigned short value;
-
-	value = ctrl_inw(PA_OUTPORTR);
-	ctrl_outw((value & 0xffdf), PA_OUTPORTR);
-#elif defined(CONFIG_SH_RTS7751R2D)
-	ctrl_outw(0x0001, PA_POWOFF);
-#endif
 }
 
 EXPORT_SYMBOL(machine_power_off);
@@ -201,13 +174,9 @@ void flush_thread(void)
 {
 #if defined(CONFIG_CPU_SH4)
 	struct task_struct *tsk = current;
-	struct pt_regs *regs = (struct pt_regs *)
-				((unsigned long)tsk->thread_info
-				 + THREAD_SIZE - sizeof(struct pt_regs)
-				 - sizeof(unsigned long));
 
 	/* Forget lazy FPU state */
-	clear_fpu(tsk, regs);
+	clear_fpu(tsk);
 	tsk->used_math = 0;
 #endif
 }
@@ -227,7 +196,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 
 	fpvalid = tsk->used_math;
 	if (fpvalid) {
-		unlazy_fpu(tsk, regs);
+		unlazy_fpu(tsk);
 		memcpy(fpu, &tsk->thread.fpu.hard, sizeof(*fpu));
 	}
 #endif
@@ -243,8 +212,7 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 	struct pt_regs ptregs;
 	
 	ptregs = *(struct pt_regs *)
-		((unsigned long)tsk->thread_info + THREAD_SIZE
-		 - sizeof(struct pt_regs)
+		((unsigned long)tsk->thread_info+THREAD_SIZE - sizeof(ptregs)
 #ifdef CONFIG_SH_DSP
 		 - sizeof(struct pt_dspregs)
 #endif
@@ -262,11 +230,7 @@ dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *fpu)
 #if defined(CONFIG_CPU_SH4)
 	fpvalid = tsk->used_math;
 	if (fpvalid) {
-		struct pt_regs *regs = (struct pt_regs *)
-					((unsigned long)tsk->thread_info
-					 + THREAD_SIZE - sizeof(struct pt_regs)
-					 - sizeof(unsigned long));
-		unlazy_fpu(tsk, regs);
+		unlazy_fpu(tsk);
 		memcpy(fpu, &tsk->thread.fpu.hard, sizeof(*fpu));
 	}
 #endif
@@ -281,13 +245,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		struct task_struct *p, struct pt_regs *regs)
 {
 	struct pt_regs *childregs;
-#if defined(CONFIG_CPU_SH4)
-	struct task_struct *tsk = current;
-
-	unlazy_fpu(tsk, regs);
-	p->thread.fpu = tsk->thread.fpu;
-	p->used_math = tsk->used_math;
-#endif
 
 	childregs = ((struct pt_regs *)
 		(THREAD_SIZE + (unsigned long) p->thread_info)
@@ -300,12 +257,13 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	if (user_mode(regs)) {
 		childregs->regs[15] = usp;
 	} else {
-		childregs->regs[15] = (unsigned long)p->thread_info + THREAD_SIZE;
+		childregs->regs[15] = (unsigned long)p->thread_info+THREAD_SIZE;
 	}
         if (clone_flags & CLONE_SETTLS) {
 		childregs->gbr = childregs->regs[0];
 	}
 	childregs->regs[0] = 0; /* Set return value for child */
+	childregs->sr |= SR_FD; /* Invalidate FPU flag */
 	p->set_child_tid = p->clear_child_tid = NULL;
 
 	p->thread.sp = (unsigned long) childregs;
@@ -313,6 +271,16 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 
 	p->thread.ubc_pc = 0;
 
+#if defined(CONFIG_CPU_SH4)
+	{
+		struct task_struct *tsk = current;
+
+		unlazy_fpu(tsk);
+		p->thread.fpu = tsk->thread.fpu;
+		p->used_math = tsk->used_math;
+		clear_ti_thread_flag(p->thread_info, TIF_USEDFPU);
+	}
+#endif
 	return 0;
 }
 
@@ -364,39 +332,8 @@ ubc_set_tracing(int asid, unsigned long pc)
 struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *next)
 {
 #if defined(CONFIG_CPU_SH4)
-	struct pt_regs *regs = (struct pt_regs *)
-				((unsigned long)prev->thread_info
-				 + THREAD_SIZE - sizeof(struct pt_regs)
-				 - sizeof(unsigned long));
-	unlazy_fpu(prev, regs);
+	unlazy_fpu(prev);
 #endif
-
-#ifdef CONFIG_PREEMPT
-	{
-		unsigned long flags;
-		struct pt_regs *regs;
-
-		local_irq_save(flags);
-		regs = (struct pt_regs *)
-			((unsigned long)prev->thread_info
-			 + THREAD_SIZE - sizeof(struct pt_regs)
-#ifdef CONFIG_SH_DSP
-			 - sizeof(struct pt_dspregs)
-#endif
-			 - sizeof(unsigned long));
-		if (user_mode(regs) && regs->regs[15] >= 0xc0000000) {
-			int offset = (int)regs->regs[15];
-
-			/* Reset stack pointer: clear critical region mark */
-			regs->regs[15] = regs->regs[1];
-			if (regs->pc < regs->regs[0])
-				/* Go to rewind point */
-				regs->pc = regs->regs[0] + offset;
-		}
-		local_irq_restore(flags);
-	}
-#endif
-
 	/*
 	 * Restore the kernel mode register
 	 *   	k7 (r7_bank1)
@@ -488,6 +425,14 @@ out:
 	return error;
 }
 
+/*
+ * These bracket the sleeping functions..
+ */
+extern void scheduling_functions_start_here(void);
+extern void scheduling_functions_end_here(void);
+#define first_sched	((unsigned long) scheduling_functions_start_here)
+#define last_sched	((unsigned long) scheduling_functions_end_here)
+
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long schedule_frame;
@@ -500,7 +445,7 @@ unsigned long get_wchan(struct task_struct *p)
 	 * The same comment as on the Alpha applies here, too ...
 	 */
 	pc = thread_saved_pc(p);
-	if (in_sched_functions(pc)) {
+	if (pc >= (unsigned long) interruptible_sleep_on && pc < (unsigned long) add_timer) {
 		schedule_frame = ((unsigned long *)(long)p->thread.sp)[1];
 		return (unsigned long)((unsigned long *)schedule_frame)[1];
 	}

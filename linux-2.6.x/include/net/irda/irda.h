@@ -61,7 +61,7 @@ typedef __u32 magic_t;
 
 #ifdef CONFIG_IRDA_DEBUG
 
-extern unsigned int irda_debug;
+extern __u32 irda_debug;
 
 /* use 0 for production, 1 for verification, >2 for debug */
 #define IRDA_DEBUG_LEVEL 0
@@ -82,6 +82,8 @@ if(!(expr)) do { \
 #define WARNING(args...) printk(KERN_WARNING args)
 #define MESSAGE(args...) printk(KERN_INFO args)
 #define ERROR(args...)   printk(KERN_ERR args)
+
+#define MSECS_TO_JIFFIES(ms) (((ms)*HZ+999)/1000)
 
 /*
  *  Magic numbers used by Linux-IrDA. Random numbers which must be unique to 

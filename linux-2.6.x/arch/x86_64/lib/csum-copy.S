@@ -59,6 +59,15 @@ csum_partial_copy_generic:
 	cmpl	 $3*64,%edx
 	jle	 .Lignore
 
+	ignore
+	prefetch (%rdi)
+	ignore
+	prefetch 1*64(%rdi)
+	ignore
+	prefetchw (%rsi)
+	ignore
+	prefetchw 1*64(%rsi)
+
 .Lignore:		
 	subq  $7*8,%rsp
 	movq  %rbx,2*8(%rsp)
@@ -106,7 +115,7 @@ csum_partial_copy_generic:
 	movq  56(%rdi),%r13
 		
 	ignore 2f
-	prefetcht0 5*64(%rdi)
+	prefetch 5*64(%rdi)
 2:							
 	adcq  %rbx,%rax
 	adcq  %r8,%rax
@@ -137,6 +146,8 @@ csum_partial_copy_generic:
 	dest
 	movq %r13,56(%rsi)
 	
+	ignore 3f
+	prefetchw 5*64(%rsi)
 3:
 	
 	leaq 64(%rdi),%rdi
@@ -220,14 +231,10 @@ csum_partial_copy_generic:
 	/* Exception handlers. Very simple, zeroing is done in the wrappers */
 .Lbad_source:
 	movq (%rsp),%rax
-	testq %rax,%rax
-	jz   .Lende
 	movl $-EFAULT,(%rax)
 	jmp  .Lende
 	
 .Lbad_dest:
 	movq 8(%rsp),%rax
-	testq %rax,%rax
-	jz   .Lende	
 	movl $-EFAULT,(%rax)
 	jmp .Lende

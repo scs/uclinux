@@ -45,7 +45,6 @@ struct irda_entry {
 };
 
 struct proc_dir_entry *proc_irda;
-EXPORT_SYMBOL(proc_irda);
  
 static struct irda_entry irda_dirs[] = {
 	{"discovery",	&discovery_seq_fops},

@@ -85,47 +85,22 @@ _GLOBAL(local_irq_restore)
 	cmpw	0,r3,r5
 	beqlr
 	/* are we enabling interrupts? */
-	cmpdi	0,r3,0
+	cmpi	0,r3,0
 	stb	r3,PACAPROCENABLED(r13)
 	beqlr
 	/* Check pending interrupts */
 	/*   A decrementer, IPI or PMC interrupt may have occurred
 	 *   while we were in the hypervisor (which enables) */
-	ld	r4,PACALPPACA+LPPACAANYINT(r13)
-	cmpdi	r4,0
+	CHECKANYINT(r4,r5)
 	beqlr
 
-	/*
+	/* 
 	 * Handle pending interrupts in interrupt context
 	 */
 	li	r0,0x5555
 	sc
 	blr
 #endif /* CONFIG_PPC_ISERIES */
-
-#ifdef CONFIG_IRQSTACKS
-_GLOBAL(call_do_softirq)
-	mflr	r0
-	std	r0,16(r1)
-	stdu	r1,THREAD_SIZE-112(r3)
-	mr	r1,r3
-	bl	.__do_softirq
-	ld	r1,0(r1)
-	ld	r0,16(r1)
-	mtlr	r0
-	blr
-
-_GLOBAL(call_handle_irq_event)
-	mflr	r0
-	std	r0,16(r1)
-	stdu	r1,THREAD_SIZE-112(r6)
-	mr	r1,r6
-	bl	.handle_irq_event
-	ld	r1,0(r1)
-	ld	r0,16(r1)
-	mtlr	r0
-	blr
-#endif /* CONFIG_IRQSTACKS */
 
 /*
  * Flush instruction cache.
@@ -157,7 +132,7 @@ _GLOBAL(flush_instruction_cache)
  *   flush all bytes from start through stop-1 inclusive
  */
 
-_GLOBAL(__flush_icache_range)
+_GLOBAL(flush_icache_range)
 
 /*
  * Flush the data cache to memory 
@@ -235,48 +210,6 @@ _GLOBAL(flush_dcache_range)
 	blr
 
 /*
- * Like above, but works on non-mapped physical addresses.
- * Use only for non-LPAR setups ! It also assumes real mode
- * is cacheable. Used for flushing out the DART before using
- * it as uncacheable memory 
- *
- * flush_dcache_phys_range(unsigned long start, unsigned long stop)
- *
- *    flush all bytes from start to stop-1 inclusive
- */
-_GLOBAL(flush_dcache_phys_range)
-	LOADADDR(r10,naca)		/* Get Naca address */
-	ld	r10,0(r10)
-	LOADADDR(r11,systemcfg)		/* Get systemcfg address */
-	ld	r11,0(r11)
-	lwz	r7,DCACHEL1LINESIZE(r11)	/* Get dcache line size */
-	addi	r5,r7,-1
-	andc	r6,r3,r5		/* round low to line bdy */
-	subf	r8,r6,r4		/* compute length */
-	add	r8,r8,r5		/* ensure we get enough */
-	lwz	r9,DCACHEL1LOGLINESIZE(r10)	/* Get log-2 of dcache line size */
-	srw.	r8,r8,r9		/* compute line count */
-	beqlr				/* nothing to do? */
-	mfmsr	r5			/* Disable MMU Data Relocation */
-	ori	r0,r5,MSR_DR
-	xori	r0,r0,MSR_DR
-	sync
-	mtmsr	r0
-	sync
-	isync
-	mtctr	r8
-0:	dcbst	0,r6
-	add	r6,r6,r7
-	bdnz	0b
-	sync
-	isync
-	mtmsr	r5			/* Re-enable MMU Data Relocation */
-	sync
-	isync
-	blr
-
-
-/*
  * Flush a particular page from the data cache to RAM.
  * Note: this is necessary because the instruction cache does *not*
  * snoop from the data cache.
@@ -341,8 +274,6 @@ _GLOBAL(_insb)
 	eieio
 	stbu	r5,1(r4)
 	bdnz	00b
-	twi	0,r5,0
-	isync
 	blr
 
 _GLOBAL(_outsb)
@@ -352,8 +283,8 @@ _GLOBAL(_outsb)
 	blelr-
 00:	lbzu	r5,1(r4)
 	stb	r5,0(r3)
+	eieio
 	bdnz	00b
-	sync
 	blr	
 
 _GLOBAL(_insw)
@@ -365,8 +296,6 @@ _GLOBAL(_insw)
 	eieio
 	sthu	r5,2(r4)
 	bdnz	00b
-	twi	0,r5,0
-	isync
 	blr
 
 _GLOBAL(_outsw)
@@ -375,9 +304,9 @@ _GLOBAL(_outsw)
 	subi	r4,r4,2
 	blelr-
 00:	lhzu	r5,2(r4)
+	eieio
 	sthbrx	r5,0,r3	
 	bdnz	00b
-	sync
 	blr	
 
 _GLOBAL(_insl)
@@ -389,8 +318,6 @@ _GLOBAL(_insl)
 	eieio
 	stwu	r5,4(r4)
 	bdnz	00b
-	twi	0,r5,0
-	isync
 	blr
 
 _GLOBAL(_outsl)
@@ -400,8 +327,8 @@ _GLOBAL(_outsl)
 	blelr-
 00:	lwzu	r5,4(r4)
 	stwbrx	r5,0,r3
+	eieio
 	bdnz	00b
-	sync
 	blr	
 
 /* _GLOBAL(ide_insw) now in drivers/ide/ide-iops.c */
@@ -414,8 +341,6 @@ _GLOBAL(_insw_ns)
 	eieio
 	sthu	r5,2(r4)
 	bdnz	00b
-	twi	0,r5,0
-	isync
 	blr
 
 /* _GLOBAL(ide_outsw) now in drivers/ide/ide-iops.c */
@@ -426,8 +351,8 @@ _GLOBAL(_outsw_ns)
 	blelr-
 00:	lhzu	r5,2(r4)
 	sth	r5,0(r3)
+	eieio
 	bdnz	00b
-	sync
 	blr	
 
 _GLOBAL(_insl_ns)
@@ -439,8 +364,6 @@ _GLOBAL(_insl_ns)
 	eieio
 	stwu	r5,4(r4)
 	bdnz	00b
-	twi	0,r5,0
-	isync
 	blr
 
 _GLOBAL(_outsl_ns)
@@ -450,8 +373,8 @@ _GLOBAL(_outsl_ns)
 	blelr-
 00:	lwzu	r5,4(r4)
 	stw	r5,0(r3)
+	eieio
 	bdnz	00b
-	sync
 	blr	
 
 _GLOBAL(abs)
@@ -460,6 +383,10 @@ _GLOBAL(abs)
 	neg	r3,r3
 10:	blr
 
+_GLOBAL(_get_SP)
+	mr	r3,r1		/* Close enough */
+	blr
+	
 _GLOBAL(_get_PVR)
 	mfspr	r3,PVR
 	blr
@@ -600,6 +527,35 @@ _GLOBAL(kernel_thread)
 	ld	r30,-16(r1)
 	blr
 
+	.section	".toc","aw"
+.SYSCALL_ERRNO:
+	.tc errno[TC],errno
+
+	.section	".text"
+	.align 3
+	
+#define SYSCALL(name) \
+_GLOBAL(name) \
+	li	r0,__NR_##name; \
+	sc; \
+	bnslr; \
+	ld	r4,.SYSCALL_ERRNO@toc(2); \
+	std	r3,0(r4); \
+	li	r3,-1; \
+	blr
+
+#define __NR__exit __NR_exit
+
+SYSCALL(setsid)
+SYSCALL(open)
+SYSCALL(read)
+SYSCALL(write)
+SYSCALL(lseek)
+SYSCALL(close)
+SYSCALL(dup)
+SYSCALL(execve)
+SYSCALL(waitpid)
+
 #ifdef CONFIG_PPC_ISERIES	/* hack hack hack */
 #define ppc_rtas	sys_ni_syscall
 #endif
@@ -609,7 +565,7 @@ _GLOBAL(kernel_thread)
 _GLOBAL(sys_call_table32)
 	.llong .sys_restart_syscall	/* 0 */
 	.llong .sys_exit
-	.llong .ppc_fork
+	.llong .sys_fork
 	.llong .sys_read
 	.llong .sys_write
 	.llong .sys32_open		/* 5 */
@@ -628,7 +584,7 @@ _GLOBAL(sys_call_table32)
 	.llong .sys_ni_syscall		/* old stat syscall */
 	.llong .ppc32_lseek
 	.llong .sys_getpid              /* 20 */
-	.llong .compat_sys_mount
+	.llong .sys32_mount
 	.llong .sys_oldumount
 	.llong .sys_setuid
 	.llong .sys_getuid
@@ -659,7 +615,7 @@ _GLOBAL(sys_call_table32)
 	.llong .sys_geteuid
 	.llong .sys_getegid		/* 50 */
 	.llong .sys_acct
-	.llong .sys_umount
+	.llong .sys32_umount
 	.llong .sys_ni_syscall		/* old lock syscall */
 	.llong .compat_sys_ioctl
 	.llong .compat_sys_fcntl		/* 55 */
@@ -679,7 +635,7 @@ _GLOBAL(sys_call_table32)
 	.llong .sys32_ssetmask
 	.llong .sys_setreuid	        /* 70 */
 	.llong .sys_setregid
-	.llong .ppc32_sigsuspend
+	.llong .sys32_sigsuspend
 	.llong .compat_sys_sigpending
 	.llong .sys32_sethostname
 	.llong .compat_sys_setrlimit	        /* 75 */
@@ -727,7 +683,7 @@ _GLOBAL(sys_call_table32)
 	.llong .sys32_ipc
 	.llong .sys_fsync
 	.llong .ppc32_sigreturn
-	.llong .ppc_clone		/* 120 */
+	.llong .sys_clone		/* 120 */
 	.llong .sys32_setdomainname
 	.llong .ppc64_newuname
 	.llong .sys_ni_syscall		/* old modify_ldt syscall */
@@ -752,8 +708,8 @@ _GLOBAL(sys_call_table32)
 	.llong .ppc32_select
 	.llong .sys_flock
 	.llong .sys_msync
-	.llong .compat_sys_readv	/* 145 */
-	.llong .compat_sys_writev
+	.llong .sys32_readv		/* 145 */
+	.llong .sys32_writev
 	.llong .sys32_getsid
 	.llong .sys_fdatasync
 	.llong .sys32_sysctl
@@ -775,7 +731,7 @@ _GLOBAL(sys_call_table32)
 	.llong .sys_getresuid	        /* 165 */
 	.llong .sys_ni_syscall		/* old query_module syscall */
 	.llong .sys_poll
-	.llong .compat_sys_nfsservctl
+	.llong .sys32_nfsservctl
 	.llong .sys_setresgid
 	.llong .sys_getresgid	        /* 170 */
 	.llong .sys32_prctl
@@ -785,7 +741,7 @@ _GLOBAL(sys_call_table32)
 	.llong .sys32_rt_sigpending     /* 175 */
 	.llong .sys32_rt_sigtimedwait
 	.llong .sys32_rt_sigqueueinfo
-	.llong .ppc32_rt_sigsuspend
+	.llong .sys32_rt_sigsuspend
 	.llong .sys32_pread64
 	.llong .sys32_pwrite64	        /* 180 */
 	.llong .sys_chown
@@ -796,7 +752,7 @@ _GLOBAL(sys_call_table32)
 	.llong .sys32_sendfile
 	.llong .sys_ni_syscall		/* reserved for streams1 */
 	.llong .sys_ni_syscall		/* reserved for streams2 */
-	.llong .ppc_vfork
+	.llong .sys_vfork
 	.llong .compat_sys_getrlimit	        /* 190 */
 	.llong .sys32_readahead
 	.llong .sys32_mmap2
@@ -807,7 +763,7 @@ _GLOBAL(sys_call_table32)
 	.llong .sys_fstat64
 	.llong .sys32_pciconfig_read
 	.llong .sys32_pciconfig_write
-	.llong .sys32_pciconfig_iobase	/* 200 - pciconfig_iobase */
+	.llong .sys_ni_syscall		/* 200 - old pciconfig_iobase */
 	.llong .sys_ni_syscall		/* reserved for MacOnLinux */
 	.llong .sys_getdents64
 	.llong .sys_pivot_root
@@ -863,25 +819,12 @@ _GLOBAL(sys_call_table32)
 	.llong .compat_fstatfs64
 	.llong .ppc32_fadvise64_64	/* 32bit only fadvise64_64 */
 	.llong .ppc_rtas		/* 255 */
-	.llong .sys_ni_syscall		/* 256 reserved for sys_debug_setcontext */
-	.llong .sys_ni_syscall		/* 257 reserved for vserver */
-	.llong .sys_ni_syscall		/* 258 reserved for new sys_remap_file_pages */
-	.llong .sys_ni_syscall		/* 259 reserved for new sys_mbind */
-	.llong .sys_ni_syscall		/* 260 reserved for new sys_get_mempolicy */
-	.llong .sys_ni_syscall		/* 261 reserved for new sys_set_mempolicy */
-	.llong .compat_sys_mq_open
-	.llong .sys_mq_unlink
-	.llong .compat_sys_mq_timedsend
-	.llong .compat_sys_mq_timedreceive /* 265 */
-	.llong .compat_sys_mq_notify
-	.llong .compat_sys_mq_getsetattr
-	.llong .sys_ni_syscall		/* 268 reserved for sys_kexec_load */
 
 	.balign 8
 _GLOBAL(sys_call_table)
 	.llong .sys_restart_syscall	/* 0 */
 	.llong .sys_exit
-	.llong .ppc_fork
+	.llong .sys_fork
 	.llong .sys_read
 	.llong .sys_write
 	.llong .sys_open		/* 5 */
@@ -999,7 +942,7 @@ _GLOBAL(sys_call_table)
 	.llong .sys_ipc
 	.llong .sys_fsync
 	.llong .sys_ni_syscall
-	.llong .ppc_clone		/* 120 */
+	.llong .sys_clone		/* 120 */
 	.llong .sys_setdomainname
 	.llong .ppc64_newuname
 	.llong .sys_ni_syscall		/* old modify_ldt syscall */
@@ -1057,7 +1000,7 @@ _GLOBAL(sys_call_table)
 	.llong .sys_rt_sigpending	/* 175 */
 	.llong .sys_rt_sigtimedwait
 	.llong .sys_rt_sigqueueinfo
-	.llong .ppc64_rt_sigsuspend
+	.llong .sys_rt_sigsuspend
 	.llong .sys_pread64
 	.llong .sys_pwrite64	        /* 180 */
 	.llong .sys_chown
@@ -1065,10 +1008,10 @@ _GLOBAL(sys_call_table)
 	.llong .sys_capget
 	.llong .sys_capset
 	.llong .sys_sigaltstack	        /* 185 */
-	.llong .sys_sendfile64
+	.llong .sys_sendfile
 	.llong .sys_ni_syscall		/* reserved for streams1 */
 	.llong .sys_ni_syscall		/* reserved for streams2 */
-	.llong .ppc_vfork
+	.llong .sys_vfork
 	.llong .sys_getrlimit	        /* 190 */
 	.llong .sys_readahead
 	.llong .sys_ni_syscall		/* 32bit only mmap2 */
@@ -1079,7 +1022,7 @@ _GLOBAL(sys_call_table)
 	.llong .sys_ni_syscall		/* 32bit only fstat64 */
 	.llong .sys_ni_syscall		/* 32bit only pciconfig_read */
 	.llong .sys_ni_syscall		/* 32bit only pciconfig_write */
-	.llong .sys_ni_syscall		/* 32bit only pciconfig_iobase */
+	.llong .sys_ni_syscall		/* 200 - old pciconfig_iobase */
 	.llong .sys_ni_syscall		/* reserved for MacOnLinux */
 	.llong .sys_getdents64
 	.llong .sys_pivot_root
@@ -1135,16 +1078,3 @@ _GLOBAL(sys_call_table)
 	.llong .sys_fstatfs64
 	.llong .sys_ni_syscall		/* 32bit only fadvise64_64 */
 	.llong .ppc_rtas		/* 255 */
-	.llong .sys_ni_syscall		/* 256 reserved for sys_debug_setcontext */
-	.llong .sys_ni_syscall		/* 257 reserved for vserver */
-	.llong .sys_ni_syscall		/* 258 reserved for new sys_remap_file_pages */
-	.llong .sys_ni_syscall		/* 259 reserved for new sys_mbind */
-	.llong .sys_ni_syscall		/* 260 reserved for new sys_get_mempolicy */
-	.llong .sys_ni_syscall		/* 261 reserved for new sys_set_mempolicy */
-	.llong .sys_mq_open
-	.llong .sys_mq_unlink
-	.llong .sys_mq_timedsend
-	.llong .sys_mq_timedreceive	/* 265 */
-	.llong .sys_mq_notify
-	.llong .sys_mq_getsetattr
-	.llong .sys_ni_syscall		/* 268 reserved for sys_kexec_load */

@@ -460,15 +460,9 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 				i < INT_GET(sf->hdr.count, ARCH_CONVERT); i++) {
 			attrnames_t	*namesp;
 
-			if (((context->flags & ATTR_SECURE) != 0) !=
-			    ((sfe->flags & XFS_ATTR_SECURE) != 0) &&
-			    !(context->flags & ATTR_KERNORMALS)) {
-				sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
-				continue;
-			}
 			if (((context->flags & ATTR_ROOT) != 0) !=
 			    ((sfe->flags & XFS_ATTR_ROOT) != 0) &&
-			    !(context->flags & ATTR_KERNROOTLS)) {
+			    !(context->flags & ATTR_KERNFULLS)) {
 				sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
 				continue;
 			}
@@ -517,15 +511,9 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 			kmem_free(sbuf, sbsize);
 			return XFS_ERROR(EFSCORRUPTED);
 		}
-		if (((context->flags & ATTR_SECURE) != 0) !=
-		    ((sfe->flags & XFS_ATTR_SECURE) != 0) &&
-		    !(context->flags & ATTR_KERNORMALS)) {
-			sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
-			continue;
-		}
 		if (((context->flags & ATTR_ROOT) != 0) !=
 		    ((sfe->flags & XFS_ATTR_ROOT) != 0) &&
-		    !(context->flags & ATTR_KERNROOTLS)) {
+		    !(context->flags & ATTR_KERNFULLS)) {
 			sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
 			continue;
 		}
@@ -575,8 +563,8 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	for ( ; i < nsbuf; i++, sbp++) {
 		attrnames_t	*namesp;
 
-		namesp = (sbp->flags & XFS_ATTR_SECURE) ? &attr_secure :
-			((sbp->flags & XFS_ATTR_ROOT) ? &attr_trusted :
+		namesp = (sfe->flags & XFS_ATTR_SECURE) ? &attr_secure :
+			((sfe->flags & XFS_ATTR_ROOT) ? &attr_trusted :
 			  &attr_user);
 
 		if (cursor->hashval != INT_GET(sbp->hash, ARCH_CONVERT)) {
@@ -587,7 +575,8 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 			ASSERT(context->flags & ATTR_KERNAMELS);
 			context->count += namesp->attr_namelen +
 						sbp->namelen + 1;
-		} else {
+		}
+		else {
 			if (xfs_attr_put_listent(context, namesp,
 					sbp->name, sbp->namelen,
 					INT_GET(sbp->valuelen, ARCH_CONVERT)))
@@ -2320,13 +2309,9 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 
 		if (entry->flags & XFS_ATTR_INCOMPLETE)
 			continue;		/* skip incomplete entries */
-		if (((context->flags & ATTR_SECURE) != 0) !=
-		    ((entry->flags & XFS_ATTR_SECURE) != 0) &&
-		    !(context->flags & ATTR_KERNORMALS))
-			continue;		/* skip non-matching entries */
 		if (((context->flags & ATTR_ROOT) != 0) !=
 		    ((entry->flags & XFS_ATTR_ROOT) != 0) &&
-		    !(context->flags & ATTR_KERNROOTLS))
+		    !(context->flags & ATTR_KERNFULLS))
 			continue;		/* skip non-matching entries */
 
 		namesp = (entry->flags & XFS_ATTR_SECURE) ? &attr_secure :

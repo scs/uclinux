@@ -8,16 +8,12 @@
 
 #define __ARCH_SI_PREAMBLE_SIZE	(4 * sizeof(int))
 #define __ARCH_SI_TRAPNO
-#define __ARCH_SI_BAND_T int
 
 #include <asm-generic/siginfo.h>
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/compat.h>
-
-#ifdef CONFIG_COMPAT
 
 typedef union sigval32 {
 	int sival_int;
@@ -40,10 +36,8 @@ typedef struct siginfo32 {
 
 		/* POSIX.1b timers */
 		struct {
-			timer_t _tid;			/* timer id */
-			int _overrun;			/* overrun count */
-			sigval_t32 _sigval;		/* same as below */
-			int _sys_private;		/* not to be passed to user */
+			unsigned int _timer1;
+			unsigned int _timer2;
 		} _timer;
 
 		/* POSIX.1b signals */
@@ -75,7 +69,6 @@ typedef struct siginfo32 {
 		} _sigpoll;
 	} _sifields;
 } siginfo_t32;
-#endif /* CONFIG_COMPAT */
 
 #endif /* __KERNEL__ */
 
@@ -88,8 +81,6 @@ typedef struct siginfo32 {
 #define NSIGEMT		1
 
 #ifdef __KERNEL__
-
-#ifdef CONFIG_COMPAT
 
 typedef struct sigevent32 {
 	sigval_t32 sigev_value;
@@ -105,9 +96,7 @@ typedef struct sigevent32 {
 	} _sigev_un;
 } sigevent_t32;
 
-extern int copy_siginfo_to_user32(siginfo_t32 __user *to, siginfo_t *from);
-
-#endif /* CONFIG_COMPAT */
+extern int copy_siginfo_to_user32(siginfo_t32 *to, siginfo_t *from);
 
 #endif /* __KERNEL__ */
 

@@ -10,7 +10,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h> 
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/pci.h>
@@ -29,12 +28,6 @@
 #define dprintk(msg...) printk(msg)
 #else
 #define dprintk(msg...) do { } while(0)
-#endif
-
-#ifdef CONFIG_X86_SPEEDSTEP_RELAXED_CAP_CHECK
-static int relaxed_check = 0;
-#else
-#define relaxed_check 0
 #endif
 
 /*********************************************************************
@@ -127,7 +120,7 @@ static unsigned int pentiumM_get_frequency(void)
 	msr_tmp = (msr_lo >> 22) & 0x1f;
 	dprintk(KERN_DEBUG "speedstep-lib: bits 22-26 are 0x%x\n", msr_tmp);
 
-	return (msr_tmp * 100 * 1000);
+	return (msr_tmp * 100 * 10000);
 }
 
 
@@ -214,54 +207,17 @@ unsigned int speedstep_detect_processor (void)
 		if (c->x86_model != 2)
 			return 0;
 
+		if ((c->x86_mask != 4) && /* B-stepping [M-P4-M] */
+			(c->x86_mask != 7) && /* C-stepping [M-P4-M] */
+			(c->x86_mask != 9))   /* D-stepping [M-P4-M or M-P4/533] */
+			return 0;
+
 		ebx = cpuid_ebx(0x00000001);
 		ebx &= 0x000000FF;
+		if ((ebx != 0x0e) && (ebx != 0x0f))
+			return 0;
 
-		dprintk(KERN_INFO "ebx value is %x, x86_mask is %x\n", ebx, c->x86_mask);
-
-		switch (c->x86_mask) {
-		case 4: 
-			/*
-			 * B-stepping [M-P4-M] 
-			 * sample has ebx = 0x0f, production has 0x0e.
-			 */
-			if ((ebx == 0x0e) || (ebx == 0x0f))
-				return SPEEDSTEP_PROCESSOR_P4M;
-			break;
-		case 7: 
-			/*
-			 * C-stepping [M-P4-M]
-			 * needs to have ebx=0x0e, else it's a celeron:
-			 * cf. 25130917.pdf / page 7, footnote 5 even
-			 * though 25072120.pdf / page 7 doesn't say
-			 * samples are only of B-stepping...
-			 */
-			if (ebx == 0x0e)
-				return SPEEDSTEP_PROCESSOR_P4M;
-			break;
-		case 9:
-			/*
-			 * D-stepping [M-P4-M or M-P4/533]
-			 *
-			 * this is totally strange: CPUID 0x0F29 is
-			 * used by M-P4-M, M-P4/533 and(!) Celeron CPUs.
-			 * The latter need to be sorted out as they don't
-			 * support speedstep.
-			 * Celerons with CPUID 0x0F29 may have either
-			 * ebx=0x8 or 0xf -- 25130917.pdf doesn't say anything
-			 * specific.
-			 * M-P4-Ms may have either ebx=0xe or 0xf [see above]
-			 * M-P4/533 have either ebx=0xe or 0xf. [25317607.pdf]
-			 * also, M-P4M HTs have ebx=0x8, too
-			 * For now, they are distinguished by the model_id string
-			 */
-		        if ((ebx == 0x0e) || (strstr(c->x86_model_id,"Mobile Intel(R) Pentium(R) 4") != NULL)) 
-				return SPEEDSTEP_PROCESSOR_P4M;
-			break;
-		default:
-			break;
-		}
-		return 0;
+		return SPEEDSTEP_PROCESSOR_P4M;
 	}
 
 	switch (c->x86_model) {
@@ -271,7 +227,6 @@ unsigned int speedstep_detect_processor (void)
 		ebx = cpuid_ebx(0x00000001);
 
 		ebx &= 0x000000FF;
-
 		if (ebx != 0x06)
 			return 0;
 
@@ -299,7 +254,7 @@ unsigned int speedstep_detect_processor (void)
 		 */
 		rdmsr(MSR_IA32_PLATFORM_ID, msr_lo, msr_hi);
 		dprintk(KERN_DEBUG "cpufreq: Coppermine: MSR_IA32_PLATFORM ID is 0x%x, 0x%x\n", msr_lo, msr_hi);
-		if ((msr_hi & (1<<18)) && (relaxed_check ? 1 : (msr_hi & (3<<24)))) {
+		if ((msr_hi & (1<<18)) && (msr_hi & (3<<24))) {
 			if (c->x86_mask == 0x01)
 				return SPEEDSTEP_PROCESSOR_PIII_C_EARLY;
 			else
@@ -320,7 +275,9 @@ EXPORT_SYMBOL_GPL(speedstep_detect_processor);
 unsigned int speedstep_get_freqs(unsigned int processor,
 				  unsigned int *low_speed,
 				  unsigned int *high_speed,
-				  void (*set_state) (unsigned int state))
+				  void (*set_state) (unsigned int state,
+						     unsigned int notify)
+				 )
 {
 	unsigned int prev_speed;
 	unsigned int ret = 0;
@@ -337,7 +294,7 @@ unsigned int speedstep_get_freqs(unsigned int processor,
 	local_irq_save(flags);
 
 	/* switch to low state */
-	set_state(SPEEDSTEP_LOW);
+	set_state(SPEEDSTEP_LOW, 0);
 	*low_speed = speedstep_get_processor_frequency(processor);
 	if (!*low_speed) {
 		ret = -EIO;
@@ -345,7 +302,7 @@ unsigned int speedstep_get_freqs(unsigned int processor,
 	}
 
 	/* switch to high state */
-	set_state(SPEEDSTEP_HIGH);
+	set_state(SPEEDSTEP_HIGH, 0);
 	*high_speed = speedstep_get_processor_frequency(processor);
 	if (!*high_speed) {
 		ret = -EIO;
@@ -359,18 +316,13 @@ unsigned int speedstep_get_freqs(unsigned int processor,
 
 	/* switch to previous state, if necessary */
 	if (*high_speed != prev_speed)
-		set_state(SPEEDSTEP_LOW);
+		set_state(SPEEDSTEP_LOW, 0);
 
  out:
 	local_irq_restore(flags);
 	return (ret);
 }
 EXPORT_SYMBOL_GPL(speedstep_get_freqs);
-
-#ifdef CONFIG_X86_SPEEDSTEP_RELAXED_CAP_CHECK
-module_param(relaxed_check, int, 0444);
-MODULE_PARM_DESC(relaxed_check, "Don't do all checks for speedstep capability.");
-#endif
 
 MODULE_AUTHOR ("Dominik Brodowski <linux@brodo.de>");
 MODULE_DESCRIPTION ("Library for Intel SpeedStep 1 or 2 cpufreq drivers.");

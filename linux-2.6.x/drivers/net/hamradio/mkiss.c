@@ -24,7 +24,6 @@
  *                              called twice, causing a deadlock.
  *	Jeroen (PE1RXQ)		Removed old MKISS_MAGIC stuff and calls to
  *				MOD_*_USE_COUNT
- *				Remove cli() and fix rtnl lock usage.
  */
 
 #include <linux/config.h>
@@ -168,17 +167,17 @@ static inline struct ax_disp *ax_alloc(void)
 	/* If no channels are available, allocate one */
 	if (axp == NULL && (ax25_ctrls[i] = kmalloc(sizeof(ax25_ctrl_t), GFP_KERNEL)) != NULL) {
 		axp = ax25_ctrls[i];
-	}
-	memset(axp, 0, sizeof(ax25_ctrl_t));
+		memset(axp, 0, sizeof(ax25_ctrl_t));
 
-	/* Initialize channel control data */
-	set_bit(AXF_INUSE, &axp->ctrl.flags);
-	sprintf(axp->dev.name, "ax%d", i++);
-	axp->ctrl.tty      = NULL;
-	axp->dev.base_addr = i;
-	axp->dev.priv      = (void *)&axp->ctrl;
-	axp->dev.next      = NULL;
-	axp->dev.init      = ax25_init;
+		/* Initialize channel control data */
+		set_bit(AXF_INUSE, &axp->ctrl.flags);
+		sprintf(axp->dev.name, "ax%d", i++);
+		axp->ctrl.tty      = NULL;
+		axp->dev.base_addr = i;
+		axp->dev.priv      = (void *)&axp->ctrl;
+		axp->dev.next      = NULL;
+		axp->dev.init      = ax25_init;
+	}
 
 	if (axp != NULL) {
 		/*
@@ -221,6 +220,7 @@ static void ax_changedmtu(struct ax_disp *ax)
 	struct net_device *dev = ax->dev;
 	unsigned char *xbuff, *rbuff, *oxbuff, *orbuff;
 	int len;
+	unsigned long flags;
 
 	len = dev->mtu * 2;
 
@@ -246,7 +246,8 @@ static void ax_changedmtu(struct ax_disp *ax)
 		return;
 	}
 
-	spin_lock_bh(&ax->buflock);
+	save_flags(flags);
+	cli();
 
 	oxbuff    = ax->xbuff;
 	ax->xbuff = xbuff;
@@ -277,7 +278,7 @@ static void ax_changedmtu(struct ax_disp *ax)
 	ax->mtu      = dev->mtu + 73;
 	ax->buffsize = len;
 
-	spin_unlock_bh(&ax->buflock);
+	restore_flags(flags);
 
 	if (oxbuff != NULL)
 		kfree(oxbuff);
@@ -305,7 +306,6 @@ static void ax_bump(struct ax_disp *ax)
 	struct sk_buff *skb;
 	int count;
 
-	spin_lock_bh(&ax->buflock);
 	if (ax->rbuff[0] > 0x0f) {
 		if (ax->rbuff[0] & 0x20) {
 		        ax->crcmode = CRC_MODE_FLEX;
@@ -322,7 +322,6 @@ static void ax_bump(struct ax_disp *ax)
                         *ax->rbuff &= ~0x20;
 		}
  	}
-	spin_unlock_bh(&ax->buflock);
 
 	count = ax->rcount;
 
@@ -333,9 +332,7 @@ static void ax_bump(struct ax_disp *ax)
 	}
 
 	skb->dev      = ax->dev;
-	spin_lock_bh(&ax->buflock);
 	memcpy(skb_put(skb,count), ax->rbuff, count);
-	spin_unlock_bh(&ax->buflock);
 	skb->mac.raw  = skb->data;
 	skb->protocol = htons(ETH_P_AX25);
 	netif_rx(skb);
@@ -363,7 +360,6 @@ static void ax_encaps(struct ax_disp *ax, unsigned char *icp, int len)
 
 	p = icp;
 
-	spin_lock_bh(&ax->buflock);
         switch (ax->crcmode) {
 	         unsigned short crc;
 
@@ -377,7 +373,6 @@ static void ax_encaps(struct ax_disp *ax, unsigned char *icp, int len)
 	         count = kiss_esc(p, (unsigned char *)ax->xbuff, len);
 		 break;
 	}
-	
 	ax->tty->flags |= (1 << TTY_DO_WRITE_WAKEUP);
 	actual = ax->tty->driver->write(ax->tty, 0, ax->xbuff, count);
 	ax->tx_packets++;
@@ -385,8 +380,6 @@ static void ax_encaps(struct ax_disp *ax, unsigned char *icp, int len)
 	ax->dev->trans_start = jiffies;
 	ax->xleft = count - actual;
 	ax->xhead = ax->xbuff + actual;
-
-	spin_unlock_bh(&ax->buflock);
 }
 
 /*
@@ -518,8 +511,6 @@ static int ax_open(struct net_device *dev)
 
 	ax->flags   &= (1 << AXF_INUSE);      /* Clear ESCAPE & ERROR flags */
 
-	ax->buflock = SPIN_LOCK_UNLOCKED;
-
 	netif_start_queue(dev);
 	return 0;
 
@@ -626,7 +617,7 @@ static void ax25_close(struct tty_struct *tty)
 
 	unregister_netdev(ax->dev);
 
-	tty->disc_data = NULL;
+	tty->disc_data = 0;
 	ax->tty        = NULL;
 
 	ax_free(ax);
@@ -759,22 +750,19 @@ static void kiss_unesc(struct ax_disp *ax, unsigned char s)
 			break;
 	}
 
-	spin_lock_bh(&ax->buflock);
 	if (!test_bit(AXF_ERROR, &ax->flags)) {
 		if (ax->rcount < ax->buffsize) {
 			ax->rbuff[ax->rcount++] = s;
-			spin_unlock_bh(&ax->buflock);
 			return;
 		}
 
 		ax->rx_over_errors++;
 		set_bit(AXF_ERROR, &ax->flags);
 	}
-	spin_unlock_bh(&ax->buflock);
 }
 
 
-static int ax_set_mac_address(struct net_device *dev, void __user *addr)
+static int ax_set_mac_address(struct net_device *dev, void *addr)
 {
 	if (copy_from_user(dev->dev_addr, addr, AX25_ADDR_LEN))
 		return -EFAULT;
@@ -792,7 +780,7 @@ static int ax_set_dev_mac_address(struct net_device *dev, void *addr)
 
 
 /* Perform I/O control on an active ax25 channel. */
-static int ax25_disp_ioctl(struct tty_struct *tty, void *file, int cmd, void __user *arg)
+static int ax25_disp_ioctl(struct tty_struct *tty, void *file, int cmd, void *arg)
 {
 	struct ax_disp *ax = (struct ax_disp *) tty->disc_data;
 	unsigned int tmp;
@@ -808,10 +796,10 @@ static int ax25_disp_ioctl(struct tty_struct *tty, void *file, int cmd, void __u
 			return 0;
 
 		case SIOCGIFENCAP:
-			return put_user(4, (int __user *)arg);
+			return put_user(4, (int *)arg);
 
 		case SIOCSIFENCAP:
-			if (get_user(tmp, (int __user *)arg))
+			if (get_user(tmp, (int *)arg))
 				return -EFAULT;
 			ax->mode = tmp;
 			ax->dev->addr_len        = AX25_ADDR_LEN;	  /* sizeof an AX.25 addr */

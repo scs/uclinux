@@ -282,7 +282,7 @@ struct pm_dev *pm_find(pm_dev_t type, struct pm_dev *from)
 			return dev;
 		entry = entry->next;
 	}
-	return NULL;
+	return 0;
 }
 
 EXPORT_SYMBOL(pm_register);

@@ -65,6 +65,7 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 		xfrm_put_type(x->type);
 	}
 	kfree(x);
+	wake_up(&km_waitq);
 }
 
 static void xfrm_state_gc_task(void *data)
@@ -81,7 +82,6 @@ static void xfrm_state_gc_task(void *data)
 		x = list_entry(entry, struct xfrm_state, bydst);
 		xfrm_state_gc_destroy(x);
 	}
-	wake_up(&km_waitq);
 }
 
 static inline unsigned long make_jiffies(long secs)
@@ -221,9 +221,13 @@ static void __xfrm_state_delete(struct xfrm_state *x)
 		if (atomic_read(&x->refcnt) > 2)
 			xfrm_flush_bundles();
 
-		/* All xfrm_state objects are created by xfrm_state_alloc.
-		 * The xfrm_state_alloc call gives a reference, and that
-		 * is what we are dropping here.
+		/* All xfrm_state objects are created by one of two possible
+		 * paths:
+		 *
+		 * 2) xfrm_state_lookup --> xfrm_state_insert
+		 *
+		 * The xfrm_state_lookup or xfrm_state_alloc call gives a
+		 * reference, and that is what we are dropping here.
 		 */
 		atomic_dec(&x->refcnt);
 	}
@@ -231,6 +235,7 @@ static void __xfrm_state_delete(struct xfrm_state *x)
 
 void xfrm_state_delete(struct xfrm_state *x)
 {
+	xfrm_state_delete_tunnel(x);
 	spin_lock_bh(&x->lock);
 	__xfrm_state_delete(x);
 	spin_unlock_bh(&x->lock);
@@ -326,8 +331,14 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		}
 	}
 
-	x = best;
-	if (!x && !error && !acquire_in_progress &&
+	if (best) {
+		xfrm_state_hold(best);
+		spin_unlock_bh(&xfrm_state_lock);
+		return best;
+	}
+
+	x = NULL;
+	if (!error && !acquire_in_progress &&
 	    ((x = xfrm_state_alloc()) != NULL)) {
 		/* Initialize temporary selector matching only
 		 * to current session. */
@@ -344,8 +355,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			}
 			x->lft.hard_add_expires_seconds = XFRM_ACQ_EXPIRES;
 			xfrm_state_hold(x);
-			x->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
-			add_timer(&x->timer);
+			mod_timer(&x->timer, XFRM_ACQ_EXPIRES*HZ);
 		} else {
 			x->km.state = XFRM_STATE_DEAD;
 			xfrm_state_put(x);
@@ -353,12 +363,10 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			error = 1;
 		}
 	}
-	if (x)
-		xfrm_state_hold(x);
-	else
+	spin_unlock_bh(&xfrm_state_lock);
+	if (!x)
 		*err = acquire_in_progress ? -EAGAIN :
 			(error ? -ESRCH : -ENOMEM);
-	spin_unlock_bh(&xfrm_state_lock);
 	return x;
 }
 
@@ -400,16 +408,22 @@ int xfrm_state_add(struct xfrm_state *x)
 	spin_lock_bh(&xfrm_state_lock);
 
 	x1 = afinfo->state_lookup(&x->id.daddr, x->id.spi, x->id.proto);
-	if (x1) {
+	if (!x1) {
+		x1 = afinfo->find_acq(
+			x->props.mode, x->props.reqid, x->id.proto,
+			&x->id.daddr, &x->props.saddr, 0);
+		if (x1 && x1->id.spi != x->id.spi && x1->id.spi) {
+			xfrm_state_put(x1);
+			x1 = NULL;
+		}
+	}
+
+	if (x1 && x1->id.spi) {
 		xfrm_state_put(x1);
 		x1 = NULL;
 		err = -EEXIST;
 		goto out;
 	}
-
-	x1 = afinfo->find_acq(
-		x->props.mode, x->props.reqid, x->id.proto,
-		&x->id.daddr, &x->props.saddr, 0);
 
 	__xfrm_state_insert(x);
 	err = 0;
@@ -475,15 +489,14 @@ out:
 			memcpy(x1->encap, x->encap, sizeof(*x1->encap));
 		memcpy(&x1->lft, &x->lft, sizeof(x1->lft));
 		x1->km.dying = 0;
-
-		if (!mod_timer(&x1->timer, jiffies + HZ))
-			xfrm_state_hold(x1);
-		if (x1->curlft.use_time)
-			xfrm_state_check_expire(x1);
-
 		err = 0;
 	}
 	spin_unlock_bh(&x1->lock);
+
+	if (!mod_timer(&x1->timer, jiffies + HZ))
+		xfrm_state_hold(x1);
+	if (x1->curlft.use_time)
+		xfrm_state_check_expire(x1);
 
 	xfrm_state_put(x1);
 
@@ -523,16 +536,6 @@ int xfrm_state_check_space(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* Check tail too... */
 	return 0;
-}
-
-int xfrm_state_check(struct xfrm_state *x, struct sk_buff *skb)
-{
-	int err = xfrm_state_check_expire(x);
-	if (err < 0)
-		goto err;
-	err = xfrm_state_check_space(x, skb);
-err:
-	return err;
 }
 
 struct xfrm_state *
@@ -624,12 +627,11 @@ xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi)
 		for (h=0; h<maxspi-minspi+1; h++) {
 			spi = minspi + net_random()%(maxspi-minspi+1);
 			x0 = xfrm_state_lookup(&x->id.daddr, htonl(spi), x->id.proto, x->props.family);
-			if (x0 == NULL) {
-				x->id.spi = htonl(spi);
+			if (x0 == NULL)
 				break;
-			}
 			xfrm_state_put(x0);
 		}
+		x->id.spi = htonl(spi);
 	}
 	if (x->id.spi) {
 		spin_lock_bh(&xfrm_state_lock);
@@ -799,7 +801,7 @@ void km_policy_expired(struct xfrm_policy *pol, int dir, int hard)
 		wake_up(&km_waitq);
 }
 
-int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen)
+int xfrm_user_policy(struct sock *sk, int optname, u8 *optval, int optlen)
 {
 	int err;
 	u8 *data;

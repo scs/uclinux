@@ -8,6 +8,8 @@
  * Copyright (C) 1996 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
+#include <asm/cprefix.h>
+
 #define LO_MAGIC 0x01010101
 #define HI_MAGIC 0x80808080
 
@@ -45,10 +47,10 @@
 	 mov	3, %o0
 
 	.align 4
-	.global __strlen_user, __strnlen_user
-__strlen_user:
+	.global C_LABEL(__strlen_user), C_LABEL(__strnlen_user)
+C_LABEL(__strlen_user):
 	sethi	%hi(32768), %o1
-__strnlen_user:
+C_LABEL(__strnlen_user):
 	mov	%o1, %g1
 	mov	%o0, %o1
 	andcc	%o0, 3, %g0

@@ -195,6 +195,7 @@ typedef union {
 
 /*      some useful macro's
  */
+#define ABS(a)          ((a) < 0 ? -(a) : (a))
 #define NR_ITEMS(x)     (int)(sizeof(x)/ sizeof(*x))
 
 #endif  /* __KERNEL__ */

@@ -45,8 +45,6 @@ static const char *version =
 
 #include "8390.h"
 
-#define DRV_NAME "ne3210"
-
 static int ne3210_open(struct net_device *dev);
 static int ne3210_close(struct net_device *dev);
 
@@ -113,13 +111,19 @@ static int __init ne3210_eisa_probe (struct device *device)
 	device->driver_data = dev;
 	ioaddr = edev->base_addr;
 
-	if (!request_region(ioaddr, NE3210_IO_EXTENT, DRV_NAME)) {
+	if (ethdev_init (dev)) {
+		printk ("ne3210.c: unable to allocate memory for dev->priv!\n");
+		retval = -ENOMEM;
+		goto out;
+	}
+
+	if (!request_region(ioaddr, NE3210_IO_EXTENT, dev->name)) {
 		retval = -EBUSY;
 		goto out;
 	}
 
 	if (!request_region(ioaddr + NE3210_CFG1,
-			    NE3210_CFG_EXTENT, DRV_NAME)) {
+			    NE3210_CFG_EXTENT, dev->name)) {
 		retval = -EBUSY;
 		goto out1;
 	}
@@ -142,7 +146,7 @@ static int __init ne3210_eisa_probe (struct device *device)
 	dev->irq = irq_map[(inb(ioaddr + NE3210_CFG2) >> 3) & 0x07];
 	printk(".\nne3210.c: using IRQ %d, ", dev->irq);
 
-	retval = request_irq(dev->irq, ei_interrupt, 0, DRV_NAME, dev);
+	retval = request_irq(dev->irq, ei_interrupt, 0, dev->name, dev);
 	if (retval) {
 		printk (" unable to get IRQ %d.\n", dev->irq);
 		goto out2;
@@ -165,7 +169,7 @@ static int __init ne3210_eisa_probe (struct device *device)
 		}
 	}
 	
-	if (!request_mem_region (phys_mem, NE3210_STOP_PG*0x100, DRV_NAME)) {
+	if (!request_mem_region (phys_mem, NE3210_STOP_PG*0x100, dev->name)) {
 		printk ("ne3210.c: Unable to request shared memory at physical address %#lx\n",
 			phys_mem);
 		goto out3;
@@ -207,9 +211,6 @@ static int __init ne3210_eisa_probe (struct device *device)
 
 	dev->open = &ne3210_open;
 	dev->stop = &ne3210_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
 	dev->if_port = ifmap_val[port_index];
 
 	if ((retval = register_netdev (dev)))
@@ -355,6 +356,24 @@ static struct eisa_driver ne3210_eisa_driver = {
 		.remove = __devexit_p (ne3210_eisa_remove),
 	},
 };
+
+#ifdef MODULE
+#if 0
+#define MAX_NE3210_CARDS	4	/* Max number of NE3210 cards per module */
+static struct net_device dev_ne3210[MAX_NE3210_CARDS];
+static int io[MAX_NE3210_CARDS];
+static int irq[MAX_NE3210_CARDS];
+static int mem[MAX_NE3210_CARDS];
+
+MODULE_PARM(io, "1-" __MODULE_STRING(MAX_NE3210_CARDS) "i");
+MODULE_PARM(irq, "1-" __MODULE_STRING(MAX_NE3210_CARDS) "i");
+MODULE_PARM(mem, "1-" __MODULE_STRING(MAX_NE3210_CARDS) "i");
+MODULE_PARM_DESC(io, "I/O base address(es)");
+MODULE_PARM_DESC(irq, "IRQ number(s)");
+MODULE_PARM_DESC(mem, "memory base address(es)");
+#endif
+#endif /* MODULE */
+
 
 MODULE_DESCRIPTION("NE3210 EISA Ethernet driver");
 MODULE_LICENSE("GPL");

@@ -60,8 +60,11 @@ xfs_reserve_blocks(
 	xfs_fsop_resblks_t	*outval);
 
 int
-xfs_fs_goingdown(
-	xfs_mount_t		*mp,
-	__uint32_t		inflags);
+xfs_fs_freeze(
+	xfs_mount_t		*mp);
+
+int
+xfs_fs_thaw(
+	xfs_mount_t		*mp);
 
 #endif	/* __XFS_FSOPS_H__ */

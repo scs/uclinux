@@ -65,20 +65,15 @@ extern unsigned long vm_stack_flags, vm_stack_flags32;
 extern unsigned long vm_data_default_flags, vm_data_default_flags32;
 extern unsigned long vm_force_exec32;
 
-#define __START_KERNEL		0xffffffff80100000UL
-#define __START_KERNEL_map	0xffffffff80000000UL
-#define __PAGE_OFFSET           0x0000010000000000UL	/* 1 << 40 */
-
-#else
-#define __START_KERNEL		0xffffffff80100000
-#define __START_KERNEL_map	0xffffffff80000000
-#define __PAGE_OFFSET           0x0000010000000000	/* 1 << 40 */
 #endif /* !__ASSEMBLY__ */
 
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
 /* See Documentation/x86_64/mm.txt for a description of the memory map. */
+#define __START_KERNEL		0xffffffff80100000
+#define __START_KERNEL_map	0xffffffff80000000
+#define __PAGE_OFFSET           0x0000010000000000	/* 1 << 40 */
 #define __PHYSICAL_MASK_SHIFT	40
 #define __PHYSICAL_MASK		((1UL << __PHYSICAL_MASK_SHIFT) - 1)
 #define __VIRTUAL_MASK_SHIFT	48
@@ -142,13 +137,6 @@ extern __inline__ int get_order(unsigned long size)
 #define VM_STACK_DEFAULT_FLAGS \
 	(test_thread_flag(TIF_IA32) ? vm_stack_flags32 : vm_stack_flags) 
 	
-#define CONFIG_ARCH_GATE_AREA 1	
-
-#ifndef __ASSEMBLY__
-struct task_struct;
-struct vm_area_struct *get_gate_vma(struct task_struct *tsk);
-int in_gate_area(struct task_struct *task, unsigned long addr);
-#endif
 
 #endif /* __KERNEL__ */
 

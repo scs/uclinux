@@ -3,9 +3,7 @@
 #
 
 dm-mod-objs	:= dm.o dm-table.o dm-target.o dm-linear.o dm-stripe.o \
-		   dm-ioctl.o dm-io.o kcopyd.o
-dm-snapshot-objs := dm-snap.o dm-exception-store.o
-dm-mirror-objs	:= dm-log.o dm-raid1.o
+		   dm-ioctl.o
 raid6-objs	:= raid6main.o raid6algos.o raid6recov.o raid6tables.o \
 		   raid6int1.o raid6int2.o raid6int4.o \
 		   raid6int8.o raid6int16.o raid6int32.o \
@@ -25,48 +23,27 @@ obj-$(CONFIG_MD_RAID6)		+= raid6.o xor.o
 obj-$(CONFIG_MD_MULTIPATH)	+= multipath.o
 obj-$(CONFIG_BLK_DEV_MD)	+= md.o
 obj-$(CONFIG_BLK_DEV_DM)	+= dm-mod.o
-obj-$(CONFIG_DM_CRYPT)		+= dm-crypt.o
-obj-$(CONFIG_DM_SNAPSHOT)	+= dm-snapshot.o
-obj-$(CONFIG_DM_MIRROR)		+= dm-mirror.o
-obj-$(CONFIG_DM_ZERO)		+= dm-zero.o
 
-quiet_cmd_unroll = UNROLL  $@
-      cmd_unroll = $(PERL) $(srctree)/$(src)/unroll.pl $(UNROLL) \
-                   < $< > $@ || ( rm -f $@ && exit 1 )
+# Files generated that shall be removed upon make clean
+clean-files := raid6int*.c raid6tables.c mktables
 
-targets += raid6int1.c
-$(obj)/raid6int1.c:   UNROLL := 1
-$(obj)/raid6int1.c:   $(src)/raid6int.uc $(src)/unroll.pl FORCE
-	$(call if_changed,unroll)
+$(obj)/raid6int1.c:   $(src)/raid6int.uc $(src)/unroll.pl
+	$(PERL) $(src)/unroll.pl 1 < $< > $@ || ( rm -f $@ && exit 1 )
 
-targets += raid6int2.c
-$(obj)/raid6int2.c:   UNROLL := 2
-$(obj)/raid6int2.c:   $(src)/raid6int.uc $(src)/unroll.pl FORCE
-	$(call if_changed,unroll)
+$(obj)/raid6int2.c:   $(src)/raid6int.uc $(src)/unroll.pl
+	$(PERL) $(src)/unroll.pl 2 < $< > $@ || ( rm -f $@ && exit 1 )
 
-targets += raid6int4.c
-$(obj)/raid6int4.c:   UNROLL := 4
-$(obj)/raid6int4.c:   $(src)/raid6int.uc $(src)/unroll.pl FORCE
-	$(call if_changed,unroll)
+$(obj)/raid6int4.c:   $(src)/raid6int.uc $(src)/unroll.pl
+	$(PERL) $(src)/unroll.pl 4 < $< > $@ || ( rm -f $@ && exit 1 )
 
-targets += raid6int8.c
-$(obj)/raid6int8.c:   UNROLL := 8
-$(obj)/raid6int8.c:   $(src)/raid6int.uc $(src)/unroll.pl FORCE
-	$(call if_changed,unroll)
+$(obj)/raid6int8.c:   $(src)/raid6int.uc $(src)/unroll.pl
+	$(PERL) $(src)/unroll.pl 8 < $< > $@ || ( rm -f $@ && exit 1 )
 
-targets += raid6int16.c
-$(obj)/raid6int16.c:  UNROLL := 16
-$(obj)/raid6int16.c:  $(src)/raid6int.uc $(src)/unroll.pl FORCE
-	$(call if_changed,unroll)
+$(obj)/raid6int16.c:  $(src)/raid6int.uc $(src)/unroll.pl
+	$(PERL) $(src)/unroll.pl 16 < $< > $@ || ( rm -f $@ && exit 1 )
 
-targets += raid6int32.c
-$(obj)/raid6int32.c:  UNROLL := 32
-$(obj)/raid6int32.c:  $(src)/raid6int.uc $(src)/unroll.pl FORCE
-	$(call if_changed,unroll)
+$(obj)/raid6int32.c:  $(src)/raid6int.uc $(src)/unroll.pl
+	$(PERL) $(src)/unroll.pl 32 < $< > $@ || ( rm -f $@ && exit 1 )
 
-quiet_cmd_mktable = TABLE   $@
-      cmd_mktable = $(obj)/mktables > $@ || ( rm -f $@ && exit 1 )
-
-targets += raid6tables.c
-$(obj)/raid6tables.c: $(obj)/mktables FORCE
-	$(call if_changed,mktable)
+$(obj)/raid6tables.c: $(obj)/mktables
+	$(obj)/mktables > $@ || ( rm -f $@ && exit 1 )

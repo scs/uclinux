@@ -33,23 +33,8 @@
 
 unsigned int nmi_watchdog = NMI_NONE;
 static unsigned int nmi_hz = HZ;
-static unsigned int nmi_perfctr_msr;	/* the MSR to reset in NMI handler */
-static unsigned int nmi_p4_cccr_val;
+unsigned int nmi_perfctr_msr;	/* the MSR to reset in NMI handler */
 extern void show_registers(struct pt_regs *regs);
-
-/*
- * lapic_nmi_owner tracks the ownership of the lapic NMI hardware:
- * - it may be reserved by some other driver, or not
- * - when not reserved by some other driver, it may be used for
- *   the NMI watchdog, or not
- *
- * This is maintained separately from nmi_active because the NMI
- * watchdog may also be driven from the I/O APIC timer.
- */
-static spinlock_t lapic_nmi_owner_lock = SPIN_LOCK_UNLOCKED;
-static unsigned int lapic_nmi_owner;
-#define LAPIC_NMI_WATCHDOG	(1<<0)
-#define LAPIC_NMI_RESERVED	(1<<1)
 
 /* nmi_active:
  * +1: the lapic NMI watchdog is active, but can be disabled
@@ -57,7 +42,7 @@ static unsigned int lapic_nmi_owner;
  *     be enabled
  * -1: the lapic NMI watchdog is disabled, but can be enabled
  */
-int nmi_active;
+static int nmi_active;
 
 #define K7_EVNTSEL_ENABLE	(1 << 22)
 #define K7_EVNTSEL_INT		(1 << 20)
@@ -81,8 +66,7 @@ int nmi_active;
 #define P4_ESCR_EVENT_SELECT(N)	((N)<<25)
 #define P4_ESCR_OS		(1<<3)
 #define P4_ESCR_USR		(1<<2)
-#define P4_CCCR_OVF_PMI0	(1<<26)
-#define P4_CCCR_OVF_PMI1	(1<<27)
+#define P4_CCCR_OVF_PMI		(1<<26)
 #define P4_CCCR_THRESHOLD(N)	((N)<<20)
 #define P4_CCCR_COMPLEMENT	(1<<19)
 #define P4_CCCR_COMPARE		(1<<18)
@@ -95,7 +79,7 @@ int nmi_active;
 #define MSR_P4_IQ_COUNTER0	0x30C
 #define P4_NMI_CRU_ESCR0	(P4_ESCR_EVENT_SELECT(0x3F)|P4_ESCR_OS|P4_ESCR_USR)
 #define P4_NMI_IQ_CCCR0	\
-	(P4_CCCR_OVF_PMI0|P4_CCCR_THRESHOLD(15)|P4_CCCR_COMPLEMENT|	\
+	(P4_CCCR_OVF_PMI|P4_CCCR_THRESHOLD(15)|P4_CCCR_COMPLEMENT|	\
 	 P4_CCCR_COMPARE|P4_CCCR_REQUIRED|P4_CCCR_ESCR_SELECT(4)|P4_CCCR_ENABLE)
 
 int __init check_nmi_watchdog (void)
@@ -118,7 +102,6 @@ int __init check_nmi_watchdog (void)
 		if (nmi_count(cpu) - prev_nmi_count[cpu] <= 5) {
 			printk("CPU#%d: NMI appears to be stuck!\n", cpu);
 			nmi_active = 0;
-			lapic_nmi_owner &= ~LAPIC_NMI_WATCHDOG;
 			return -1;
 		}
 	}
@@ -168,7 +151,7 @@ static int __init setup_nmi_watchdog(char *str)
 
 __setup("nmi_watchdog=", setup_nmi_watchdog);
 
-static void disable_lapic_nmi_watchdog(void)
+void disable_lapic_nmi_watchdog(void)
 {
 	if (nmi_active <= 0)
 		return;
@@ -199,39 +182,12 @@ static void disable_lapic_nmi_watchdog(void)
 	nmi_watchdog = 0;
 }
 
-static void enable_lapic_nmi_watchdog(void)
+void enable_lapic_nmi_watchdog(void)
 {
 	if (nmi_active < 0) {
 		nmi_watchdog = NMI_LOCAL_APIC;
 		setup_apic_nmi_watchdog();
 	}
-}
-
-int reserve_lapic_nmi(void)
-{
-	unsigned int old_owner;
-
-	spin_lock(&lapic_nmi_owner_lock);
-	old_owner = lapic_nmi_owner;
-	lapic_nmi_owner |= LAPIC_NMI_RESERVED;
-	spin_unlock(&lapic_nmi_owner_lock);
-	if (old_owner & LAPIC_NMI_RESERVED)
-		return -EBUSY;
-	if (old_owner & LAPIC_NMI_WATCHDOG)
-		disable_lapic_nmi_watchdog();
-	return 0;
-}
-
-void release_lapic_nmi(void)
-{
-	unsigned int new_owner;
-
-	spin_lock(&lapic_nmi_owner_lock);
-	new_owner = lapic_nmi_owner & ~LAPIC_NMI_RESERVED;
-	lapic_nmi_owner = new_owner;
-	spin_unlock(&lapic_nmi_owner_lock);
-	if (new_owner & LAPIC_NMI_WATCHDOG)
-		enable_lapic_nmi_watchdog();
 }
 
 void disable_timer_nmi_watchdog(void)
@@ -287,12 +243,12 @@ static int __init init_lapic_nmi_sysfs(void)
 {
 	int error;
 
-	if (nmi_active == 0 || nmi_watchdog != NMI_LOCAL_APIC)
+	if (nmi_active == 0)
 		return 0;
 
 	error = sysdev_class_register(&nmi_sysclass);
 	if (!error)
-		error = sysdev_register(&device_lapic_nmi);
+		error = sys_device_register(&device_lapic_nmi);
 	return error;
 }
 /* must come after the local APIC's device_initcall() */
@@ -366,11 +322,6 @@ static int setup_p4_watchdog(void)
 		return 0;
 
 	nmi_perfctr_msr = MSR_P4_IQ_COUNTER0;
-	nmi_p4_cccr_val = P4_NMI_IQ_CCCR0;
-#ifdef CONFIG_SMP
-	if (smp_num_siblings == 2)
-		nmi_p4_cccr_val |= P4_CCCR_OVF_PMI1;
-#endif
 
 	if (!(misc_enable & MSR_P4_MISC_ENABLE_PEBS_UNAVAIL))
 		clear_msr_range(0x3F1, 2);
@@ -388,7 +339,7 @@ static int setup_p4_watchdog(void)
 	Dprintk("setting P4_IQ_COUNTER0 to 0x%08lx\n", -(cpu_khz/nmi_hz*1000));
 	wrmsr(MSR_P4_IQ_COUNTER0, -(cpu_khz/nmi_hz*1000), -1);
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
-	wrmsr(MSR_P4_IQ_CCCR0, nmi_p4_cccr_val, 0);
+	wrmsr(MSR_P4_IQ_CCCR0, P4_NMI_IQ_CCCR0, 0);
 	return 1;
 }
 
@@ -422,7 +373,6 @@ void setup_apic_nmi_watchdog (void)
 	default:
 		return;
 	}
-	lapic_nmi_owner = LAPIC_NMI_WATCHDOG;
 	nmi_active = 1;
 }
 
@@ -505,22 +455,15 @@ void nmi_watchdog_tick (struct pt_regs * regs)
 			 * - LVTPC is masked on interrupt and must be
 			 *   unmasked by the LVTPC handler.
 			 */
-			wrmsr(MSR_P4_IQ_CCCR0, nmi_p4_cccr_val, 0);
-			apic_write(APIC_LVTPC, APIC_DM_NMI);
-		}
-		else if (nmi_perfctr_msr == MSR_P6_PERFCTR0) {
-			/* Only P6 based Pentium M need to re-unmask
-			 * the apic vector but it doesn't hurt
-			 * other P6 variant */
+			wrmsr(MSR_P4_IQ_CCCR0, P4_NMI_IQ_CCCR0, 0);
 			apic_write(APIC_LVTPC, APIC_DM_NMI);
 		}
 		wrmsr(nmi_perfctr_msr, -(cpu_khz/nmi_hz*1000), -1);
 	}
 }
 
-EXPORT_SYMBOL(nmi_active);
 EXPORT_SYMBOL(nmi_watchdog);
-EXPORT_SYMBOL(reserve_lapic_nmi);
-EXPORT_SYMBOL(release_lapic_nmi);
+EXPORT_SYMBOL(disable_lapic_nmi_watchdog);
+EXPORT_SYMBOL(enable_lapic_nmi_watchdog);
 EXPORT_SYMBOL(disable_timer_nmi_watchdog);
 EXPORT_SYMBOL(enable_timer_nmi_watchdog);

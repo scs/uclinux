@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2003 LSI Logic Corporation.
+ *  Copyright (c) 2000-2002 LSI Logic Corporation.
  *
  *
- *           Name:  mpi_fc.h
+ *           Name:  MPI_FC.H
  *          Title:  MPI Fibre Channel messages and structures
  *  Creation Date:  June 12, 2000
  *
- *    mpi_fc.h Version:  01.05.xx
+ *    MPI_FC.H Version:  01.02.03
  *
  *  Version History
  *  ---------------
@@ -45,7 +45,7 @@
 
 /*****************************************************************************
 *
-*        F C    D i r e c t    A c c e s s     M e s s a g e s
+*        F C    T a r g e t    M o d e    M e s s a g e s
 *
 *****************************************************************************/
 
@@ -334,7 +334,6 @@ typedef struct _MSG_FC_PRIMITIVE_SEND_REQUEST
   FcPrimitiveSendRequest_t, MPI_POINTER pFcPrimitiveSendRequest_t;
 
 #define MPI_FC_PRIM_SEND_FLAGS_PORT_MASK       (0x01)
-#define MPI_FC_PRIM_SEND_FLAGS_ML_RESET_LINK   (0x02)
 #define MPI_FC_PRIM_SEND_FLAGS_RESET_LINK      (0x04)
 #define MPI_FC_PRIM_SEND_FLAGS_STOP_SEND       (0x08)
 #define MPI_FC_PRIM_SEND_FLAGS_SEND_ONCE       (0x10)

@@ -23,6 +23,7 @@
 #include <asm/page.h>
 
 #include <asm/mach/map.h>
+#include <asm/mach-types.h>
 
 #ifdef CONFIG_IOP310_MU
 #include "message.h"

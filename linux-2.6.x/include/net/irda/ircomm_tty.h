@@ -80,7 +80,7 @@ struct ircomm_tty_cb {
 	LOCAL_FLOW flow;          /* IrTTP flow status */
 
 	int line;
-	unsigned long flags;
+	volatile unsigned long flags;
 
 	__u8 dlsap_sel;
 	__u8 slsap_sel;

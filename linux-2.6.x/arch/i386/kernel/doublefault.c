@@ -6,7 +6,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
-#include <asm/processor.h>
 #include <asm/desc.h>
 
 #define DOUBLEFAULT_STACKSIZE (1024)
@@ -54,7 +53,7 @@ struct tss_struct doublefault_tss __cacheline_aligned = {
 	.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,
 
 	.eip		= (unsigned long) doublefault_fn,
-	.eflags		= X86_EFLAGS_SF | 0x2,	/* 0x2 bit is always set */
+	.eflags		= 0x00000082,
 	.esp		= STACK_START,
 	.es		= __USER_DS,
 	.cs		= __KERNEL_CS,

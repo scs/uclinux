@@ -320,7 +320,7 @@ static int pci_slot_ar[MAX_S514_CARDS];
  * Context:	process
  */
 
-static int __init sdladrv_init(void)
+int sdladrv_init(void)
 {
 	int i=0;
 
@@ -340,16 +340,18 @@ static int __init sdladrv_init(void)
 	return 0;
 }
 
+#ifdef MODULE
 /*============================================================================
  * Module 'remove' entry point.
  * o release all remaining system resources
  */
-static void __exit sdladrv_cleanup(void)
+static void sdladrv_cleanup(void)
 {
 }
 
 module_init(sdladrv_init);
 module_exit(sdladrv_cleanup);
+#endif
 
 /******* Kernel APIs ********************************************************/
 

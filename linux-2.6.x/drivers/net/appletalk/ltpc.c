@@ -62,8 +62,14 @@
 /***
  *
  * $Log$
- * Revision 1.1.1.2  2004/09/07 09:24:49  lgsoft
- * Import of 2.6.8
+ * Revision 1.2  2004/09/07 22:29:44  lgsoft
+ * alpha-2.0
+ *
+ * Revision 1.1.1.1  2004/07/19 12:11:10  lgsoft
+ * Import of uClinux 2.6.2
+ *
+ * Revision 1.1.1.1  2004/07/18 13:21:28  nidhi
+ * Importing
  *
  * Revision 1.1.2.1  2000/03/01 05:35:07  jgarzik
  * at and tr cleanup
@@ -504,7 +510,7 @@ static void idle(struct net_device *dev)
 	/* FIXME This is initialized to shut the warning up, but I need to
 	 * think this through again.
 	 */
-	struct xmitQel *q = NULL;
+	struct xmitQel *q=0;
 	int oops;
 	int i;
 	int base = dev->base_addr;
@@ -1206,7 +1212,7 @@ struct net_device * __init ltpc_probe(void)
 	if (err)
 		goto out4;
 
-	return NULL;
+	return 0;
 out4:
 	del_timer_sync(&ltpc_timer);
 	if (dev->irq)
@@ -1216,7 +1222,7 @@ out3:
 out2:
 	release_region(io, 8);
 out1:
-	free_netdev(dev);
+	kfree(dev);
 out:
 	return ERR_PTR(err);
 }

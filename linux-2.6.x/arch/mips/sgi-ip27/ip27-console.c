@@ -9,23 +9,16 @@
 #include <linux/console.h>
 #include <linux/kdev_t.h>
 #include <linux/major.h>
-#include <linux/termios.h>
-#include <linux/sched.h>
-#include <linux/tty.h>
-
+#include <linux/serial.h>
 #include <asm/page.h>
-#include <asm/semaphore.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/sn0/hub.h>
 #include <asm/sn/klconfig.h>
 #include <asm/sn/ioc3.h>
 #include <asm/sn/sn_private.h>
 
-#include <linux/serial.h>
-#include <linux/serial_core.h>
-
-#define IOC3_CLK	(22000000 / 3)
-#define IOC3_FLAGS	(0)
+#define IOC3_BAUD (22000000 / (3*16))
+#define IOC3_COM_FLAGS (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST)
 
 static inline struct ioc3_uartregs *console_uart(void)
 {
@@ -51,23 +44,19 @@ char __init prom_getchar(void)
 
 static void inline ioc3_console_probe(void)
 {
-	struct uart_port up;
+	struct serial_struct req;
 
-	/*
-	 * Register to interrupt zero because we share the interrupt with
-	 * the serial driver which we don't properly support yet.
-	 */
-	memset(&up, 0, sizeof(up));
-	up.membase	= (unsigned char *) console_uart();
-	up.irq		= 0;
-	up.uartclk	= IOC3_CLK;
-	up.regshift	= 0;
-	up.iotype	= UPIO_MEM;
-	up.flags	= IOC3_FLAGS;
-	up.line		= 0;
+	/* Register to interrupt zero because we share the interrupt with
+	   the serial driver which we don't properly support yet.  */
+	memset(&req, 0, sizeof(req));
+	req.irq             = 0;
+	req.flags           = IOC3_COM_FLAGS;
+	req.io_type         = SERIAL_IO_MEM;
+	req.iomem_reg_shift = 0;
+	req.baud_base       = IOC3_BAUD;
 
-	if (early_serial_setup(&up))
-		printk(KERN_ERR "Early serial init of port 0 failed\n");
+	req.iomem_base      = (unsigned char *) console_uart();
+	register_serial(&req);
 }
 
 __init void ip27_setup_console(void)

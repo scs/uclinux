@@ -58,9 +58,6 @@
  * HP/UX hfs filesystem support added by
  * Martin K. Petersen <mkp@mkp.net>, August 1999
  *
- * UFS2 (of FreeBSD 5.x) support added by
- * Niraj Kumar <niraj17@iitbombay.org>, Jan 2004
- *
  */
 
 
@@ -93,8 +90,6 @@
 #undef UFS_SUPER_DEBUG
 #undef UFS_SUPER_DEBUG_MORE
 
-
-#undef UFS_SUPER_DEBUG_MORE
 #ifdef UFS_SUPER_DEBUG
 #define UFSD(x) printk("(%s, %d), %s: ", __FILE__, __LINE__, __FUNCTION__); printk x;
 #else
@@ -147,30 +142,6 @@ void ufs_print_super_stuff(struct super_block *sb,
 	printk("\n");
 }
 
-/*
- * Print contents of ufs2 ufs_super_block, useful for debugging
- */
-void ufs2_print_super_stuff(
-     struct super_block *sb,
-      struct ufs_super_block *usb)
-{
-	printk("ufs_print_super_stuff\n");
-	printk("size of usb:     %u\n", sizeof(struct ufs_super_block));
-	printk("  magic:         0x%x\n", fs32_to_cpu(sb, usb->fs_magic));
-	printk("  fs_size:   %u\n",fs64_to_cpu(sb, usb->fs_u11.fs_u2.fs_size));
-	printk("  fs_dsize:  %u\n",fs64_to_cpu(sb, usb->fs_u11.fs_u2.fs_dsize));
-	printk("  bsize:         %u\n", fs32_to_cpu(usb, usb->fs_bsize));
-	printk("  fsize:         %u\n", fs32_to_cpu(usb, usb->fs_fsize));
-	printk("  fs_volname:  %s\n", usb->fs_u11.fs_u2.fs_volname);
-	printk("  fs_fsmnt:  %s\n", usb->fs_u11.fs_u2.fs_fsmnt);
-	printk("  fs_sblockloc: %u\n",fs64_to_cpu(sb,
-			usb->fs_u11.fs_u2.fs_sblockloc));
-	printk("  cs_ndir(No of dirs):  %u\n",fs64_to_cpu(sb,
-			usb->fs_u11.fs_u2.fs_cstotal.cs_ndir));
-	printk("  cs_nbfree(No of free blocks):  %u\n",fs64_to_cpu(sb,
-			usb->fs_u11.fs_u2.fs_cstotal.cs_nbfree));
-	printk("\n");
-}
 
 /*
  * Print contents of ufs_cylinder_group, useful for debugging
@@ -282,7 +253,7 @@ void ufs_warning (struct super_block * sb, const char * function,
 
 enum {
 	Opt_type_old, Opt_type_sunx86, Opt_type_sun, Opt_type_44bsd,
-	Opt_type_ufs2, Opt_type_hp, Opt_type_nextstepcd, Opt_type_nextstep,
+	Opt_type_hp, Opt_type_nextstepcd, Opt_type_nextstep,
 	Opt_type_openstep, Opt_onerror_panic, Opt_onerror_lock,
 	Opt_onerror_umount, Opt_onerror_repair, Opt_err
 };
@@ -292,8 +263,6 @@ static match_table_t tokens = {
 	{Opt_type_sunx86, "ufstype=sunx86"},
 	{Opt_type_sun, "ufstype=sun"},
 	{Opt_type_44bsd, "ufstype=44bsd"},
-	{Opt_type_ufs2, "ufstype=ufs2"},
-	{Opt_type_ufs2, "ufstype=5xbsd"},
 	{Opt_type_hp, "ufstype=hp"},
 	{Opt_type_nextstepcd, "ufstype=nextstep-cd"},
 	{Opt_type_nextstep, "ufstype=nextstep"},
@@ -337,10 +306,6 @@ static int ufs_parse_options (char * options, unsigned * mount_options)
 		case Opt_type_44bsd:
 			ufs_clear_opt (*mount_options, UFSTYPE);
 			ufs_set_opt (*mount_options, UFSTYPE_44BSD);
-			break;
-		case Opt_type_ufs2:
-			ufs_clear_opt(*mount_options, UFSTYPE);
-			ufs_set_opt(*mount_options, UFSTYPE_UFS2);
 			break;
 		case Opt_type_hp:
 			ufs_clear_opt (*mount_options, UFSTYPE);
@@ -391,20 +356,13 @@ static int ufs_parse_options (char * options, unsigned * mount_options)
 int ufs_read_cylinder_structures (struct super_block * sb) {
 	struct ufs_sb_info * sbi = UFS_SB(sb);
 	struct ufs_sb_private_info * uspi;
-	struct ufs_super_block *usb;
 	struct ufs_buffer_head * ubh;
 	unsigned char * base, * space;
 	unsigned size, blks, i;
-	unsigned flags = 0;
 	
 	UFSD(("ENTER\n"))
 	
 	uspi = sbi->s_uspi;
-
-	usb  = (struct ufs_super_block *)
-		((struct ufs_buffer_head *)uspi)->bh[0]->b_data;
-
-        flags = UFS_SB(sb)->s_flags;
 	
 	/*
 	 * Read cs structures from (usually) first data block
@@ -419,22 +377,11 @@ int ufs_read_cylinder_structures (struct super_block * sb) {
 		size = uspi->s_bsize;
 		if (i + uspi->s_fpb > blks)
 			size = (blks - i) * uspi->s_fsize;
-
-		if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
-			ubh = ubh_bread(sb,
-				fs64_to_cpu(sb, usb->fs_u11.fs_u2.fs_csaddr) + i, size);
-			if (!ubh)
-				goto failed;
-			ubh_ubhcpymem (space, ubh, size);
-			sbi->s_csp[ufs_fragstoblks(i)]=(struct ufs_csum *)space;
-		}
-		else {
-			ubh = ubh_bread(sb, uspi->s_csaddr + i, size);
-			if (!ubh)
-				goto failed;
-			ubh_ubhcpymem(space, ubh, size);
-			sbi->s_csp[ufs_fragstoblks(i)]=(struct ufs_csum *)space;
-		}
+		ubh = ubh_bread(sb, uspi->s_csaddr + i, size);
+		if (!ubh)
+			goto failed;
+		ubh_ubhcpymem (space, ubh, size);
+		sbi->s_csp[ufs_fragstoblks(i)] = (struct ufs_csum *)space;
 		space += size;
 		ubh_brelse (ubh);
 		ubh = NULL;
@@ -533,7 +480,6 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	struct ufs_super_block_first * usb1;
 	struct ufs_super_block_second * usb2;
 	struct ufs_super_block_third * usb3;
-	struct ufs_super_block *usb;
 	struct ufs_buffer_head * ubh;	
 	struct inode *inode;
 	unsigned block_size, super_block_size;
@@ -571,12 +517,11 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed;
 	}
 	if (!(sbi->s_mount_opt & UFS_MOUNT_UFSTYPE)) {
-		if (!silent)
-			printk("You didn't specify the type of your ufs filesystem\n\n"
-			"mount -t ufs -o ufstype="
-			"sun|sunx86|44bsd|ufs2|5xbsd|old|hp|nextstep|netxstep-cd|openstep ...\n\n"
-			">>>WARNING<<< Wrong ufstype may corrupt your filesystem, "
-			"default is ufstype=old\n");
+		printk("You didn't specify the type of your ufs filesystem\n\n"
+		"mount -t ufs -o ufstype="
+		"sun|sunx86|44bsd|old|hp|nextstep|netxstep-cd|openstep ...\n\n"
+		">>>WARNING<<< Wrong ufstype may corrupt your filesystem, "
+		"default is ufstype=old\n");
 		ufs_set_opt (sbi->s_mount_opt, UFSTYPE_OLD);
 	}
 
@@ -598,19 +543,6 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_sbsize = super_block_size = 1536;
 		uspi->s_sbbase = 0;
 		flags |= UFS_DE_44BSD | UFS_UID_44BSD | UFS_ST_44BSD | UFS_CG_44BSD;
-		break;
-	case UFS_MOUNT_UFSTYPE_UFS2:
-		UFSD(("ufstype=ufs2\n"))
-		uspi->s_fsize = block_size = 512;
-		uspi->s_fmask = ~(512 - 1);
-		uspi->s_fshift = 9;
-		uspi->s_sbsize = super_block_size = 1536;
-		uspi->s_sbbase =  0;
-		flags |= UFS_TYPE_UFS2 | UFS_DE_44BSD | UFS_UID_44BSD | UFS_ST_44BSD | UFS_CG_44BSD;
-		if (!(sb->s_flags & MS_RDONLY)) {
-			printk(KERN_INFO "ufstype=ufs2 is supported read-only\n");
-			sb->s_flags |= MS_RDONLY;
- 		}
 		break;
 		
 	case UFS_MOUNT_UFSTYPE_SUN:
@@ -644,8 +576,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_sbbase = 0;
 		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_OLD | UFS_CG_OLD;
 		if (!(sb->s_flags & MS_RDONLY)) {
-			if (!silent)
-				printk(KERN_INFO "ufstype=old is supported read-only\n");
+			printk(KERN_INFO "ufstype=old is supported read-only\n"); 
 			sb->s_flags |= MS_RDONLY;
 		}
 		break;
@@ -659,8 +590,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_sbbase = 0;
 		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_OLD | UFS_CG_OLD;
 		if (!(sb->s_flags & MS_RDONLY)) {
-			if (!silent)
-				printk(KERN_INFO "ufstype=nextstep is supported read-only\n");
+			printk(KERN_INFO "ufstype=nextstep is supported read-only\n");
 			sb->s_flags |= MS_RDONLY;
 		}
 		break;
@@ -674,8 +604,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_sbbase = 0;
 		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_OLD | UFS_CG_OLD;
 		if (!(sb->s_flags & MS_RDONLY)) {
-			if (!silent)
-				printk(KERN_INFO "ufstype=nextstep-cd is supported read-only\n");
+			printk(KERN_INFO "ufstype=nextstep-cd is supported read-only\n");
 			sb->s_flags |= MS_RDONLY;
 		}
 		break;
@@ -689,8 +618,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_sbbase = 0;
 		flags |= UFS_DE_44BSD | UFS_UID_44BSD | UFS_ST_44BSD | UFS_CG_44BSD;
 		if (!(sb->s_flags & MS_RDONLY)) {
-			if (!silent)
-				printk(KERN_INFO "ufstype=openstep is supported read-only\n");
+			printk(KERN_INFO "ufstype=openstep is supported read-only\n");
 			sb->s_flags |= MS_RDONLY;
 		}
 		break;
@@ -704,14 +632,12 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_sbbase = 0;
 		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_OLD | UFS_CG_OLD;
 		if (!(sb->s_flags & MS_RDONLY)) {
-			if (!silent)
-				printk(KERN_INFO "ufstype=hp is supported read-only\n");
+			printk(KERN_INFO "ufstype=hp is supported read-only\n");
 			sb->s_flags |= MS_RDONLY;
  		}
  		break;
 	default:
-		if (!silent)
-			printk("unknown ufstype\n");
+		printk("unknown ufstype\n");
 		goto failed;
 	}
 	
@@ -724,37 +650,27 @@ again:
 	/*
 	 * read ufs super block from device
 	 */
-	if ( (flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
-		ubh = ubh_bread_uspi(uspi, sb, uspi->s_sbbase + SBLOCK_UFS2/block_size, super_block_size);
-	}
-	else {
-		ubh = ubh_bread_uspi(uspi, sb, uspi->s_sbbase + UFS_SBLOCK/block_size, super_block_size);
-	}
+	ubh = ubh_bread_uspi (uspi, sb, uspi->s_sbbase + UFS_SBLOCK/block_size, super_block_size);
 	if (!ubh) 
-            goto failed;
-
+		goto failed;
 	
 	usb1 = ubh_get_usb_first(USPI_UBH);
 	usb2 = ubh_get_usb_second(USPI_UBH);
 	usb3 = ubh_get_usb_third(USPI_UBH);
-	usb  = (struct ufs_super_block *)
-		((struct ufs_buffer_head *)uspi)->bh[0]->b_data ;
 
 	/*
 	 * Check ufs magic number
 	 */
-	switch ((uspi->fs_magic = __constant_le32_to_cpu(usb3->fs_magic))) {
+	switch (__constant_le32_to_cpu(usb3->fs_magic)) {
 		case UFS_MAGIC:
-		case UFS2_MAGIC:
 		case UFS_MAGIC_LFN:
 	        case UFS_MAGIC_FEA:
 	        case UFS_MAGIC_4GB:
 			sbi->s_bytesex = BYTESEX_LE;
 			goto magic_found;
 	}
-	switch ((uspi->fs_magic = __constant_be32_to_cpu(usb3->fs_magic))) {
+	switch (__constant_be32_to_cpu(usb3->fs_magic)) {
 		case UFS_MAGIC:
-		case UFS2_MAGIC:
 		case UFS_MAGIC_LFN:
 	        case UFS_MAGIC_FEA:
 	        case UFS_MAGIC_4GB:
@@ -771,8 +687,7 @@ again:
 		uspi->s_sbbase += 8;
 		goto again;
 	}
-	if (!silent)
-		printk("ufs_read_super: bad magic number\n");
+	printk("ufs_read_super: bad magic number\n");
 	goto failed;
 
 magic_found:
@@ -825,10 +740,7 @@ magic_found:
 	}
 
 #ifdef UFS_SUPER_DEBUG_MORE
-        if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2)
-		ufs2_print_super_stuff(sb,usb);
-        else
-		ufs_print_super_stuff(sb, usb1, usb2, usb3);
+	ufs_print_super_stuff(sb, usb1, usb2, usb3);
 #endif
 
 	/*
@@ -882,16 +794,8 @@ magic_found:
 	uspi->s_dblkno = fs32_to_cpu(sb, usb1->fs_dblkno);
 	uspi->s_cgoffset = fs32_to_cpu(sb, usb1->fs_cgoffset);
 	uspi->s_cgmask = fs32_to_cpu(sb, usb1->fs_cgmask);
-
-	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
-		uspi->s_u2_size  = fs64_to_cpu(sb, usb->fs_u11.fs_u2.fs_size);
-		uspi->s_u2_dsize = fs64_to_cpu(sb, usb->fs_u11.fs_u2.fs_dsize);
-	}
-	else {
-		uspi->s_size  =  fs32_to_cpu(sb, usb1->fs_size);
-		uspi->s_dsize =  fs32_to_cpu(sb, usb1->fs_dsize);
-	}
-
+	uspi->s_size = fs32_to_cpu(sb, usb1->fs_size);
+	uspi->s_dsize = fs32_to_cpu(sb, usb1->fs_dsize);
 	uspi->s_ncg = fs32_to_cpu(sb, usb1->fs_ncg);
 	/* s_bsize already set */
 	/* s_fsize already set */
@@ -901,8 +805,6 @@ magic_found:
 	uspi->s_fmask = fs32_to_cpu(sb, usb1->fs_fmask);
 	uspi->s_bshift = fs32_to_cpu(sb, usb1->fs_bshift);
 	uspi->s_fshift = fs32_to_cpu(sb, usb1->fs_fshift);
-	UFSD(("uspi->s_bshift = %d,uspi->s_fshift = %d", uspi->s_bshift,
-		uspi->s_fshift));
 	uspi->s_fpbshift = fs32_to_cpu(sb, usb1->fs_fragshift);
 	uspi->s_fsbtodb = fs32_to_cpu(sb, usb1->fs_fsbtodb);
 	/* s_sbsize already set */
@@ -935,12 +837,7 @@ magic_found:
 	 * Compute another frequently used values
 	 */
 	uspi->s_fpbmask = uspi->s_fpb - 1;
-	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
-		uspi->s_apbshift = uspi->s_bshift - 3;
-	}
-	else {
-		uspi->s_apbshift = uspi->s_bshift - 2;
-	}
+	uspi->s_apbshift = uspi->s_bshift - 2;
 	uspi->s_2apbshift = uspi->s_apbshift * 2;
 	uspi->s_3apbshift = uspi->s_apbshift * 3;
 	uspi->s_apb = 1 << uspi->s_apbshift;
@@ -1116,36 +1013,21 @@ int ufs_statfs (struct super_block * sb, struct kstatfs * buf)
 {
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
-	struct ufs_super_block * usb;
-	unsigned  flags = 0;
 
 	lock_kernel();
 
 	uspi = UFS_SB(sb)->s_uspi;
 	usb1 = ubh_get_usb_first (USPI_UBH);
-	usb  = (struct ufs_super_block *)
-		((struct ufs_buffer_head *)uspi)->bh[0]->b_data ;
 	
-	flags = UFS_SB(sb)->s_flags;
-	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
-		buf->f_type = UFS2_MAGIC;
-		buf->f_blocks = usb->fs_u11.fs_u2.fs_dsize;
-		buf->f_bfree = ufs_blkstofrags(fs64_to_cpu(sb, usb->fs_u11.fs_u2.fs_cstotal.cs_nbfree)) +
-			fs64_to_cpu(sb, usb->fs_u11.fs_u2.fs_cstotal.cs_nffree);
-		buf->f_ffree = fs64_to_cpu(sb,
-        		usb->fs_u11.fs_u2.fs_cstotal.cs_nifree);
-	}
-	else {
-		buf->f_type = UFS_MAGIC;
-		buf->f_blocks = uspi->s_dsize;
-		buf->f_bfree = ufs_blkstofrags(fs32_to_cpu(sb, usb1->fs_cstotal.cs_nbfree)) +
-			fs32_to_cpu(sb, usb1->fs_cstotal.cs_nffree);
-		buf->f_ffree = fs32_to_cpu(sb, usb1->fs_cstotal.cs_nifree);
-	}
+	buf->f_type = UFS_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
+	buf->f_blocks = uspi->s_dsize;
+	buf->f_bfree = ufs_blkstofrags(fs32_to_cpu(sb, usb1->fs_cstotal.cs_nbfree)) +
+		fs32_to_cpu(sb, usb1->fs_cstotal.cs_nffree);
 	buf->f_bavail = (buf->f_bfree > (((long)buf->f_blocks / 100) * uspi->s_minfree))
 		? (buf->f_bfree - (((long)buf->f_blocks / 100) * uspi->s_minfree)) : 0;
 	buf->f_files = uspi->s_ncg * uspi->s_ipg;
+	buf->f_ffree = fs32_to_cpu(sb, usb1->fs_cstotal.cs_nifree);
 	buf->f_namelen = UFS_MAXNAMLEN;
 
 	unlock_kernel();

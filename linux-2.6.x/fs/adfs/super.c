@@ -192,7 +192,6 @@ static int parse_options(struct super_block *sb, char *options)
 
 static int adfs_remount(struct super_block *sb, int *flags, char *data)
 {
-	*flags |= MS_NODIRATIME;
 	return parse_options(sb, data);
 }
 
@@ -334,9 +333,6 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct object_info root_obj;
 	unsigned char *b_data;
 	struct adfs_sb_info *asb;
-	struct inode *root;
-
-	sb->s_flags |= MS_NODIRATIME;
 
 	asb = kmalloc(sizeof(*asb), GFP_KERNEL);
 	if (!asb)
@@ -447,11 +443,10 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		asb->s_namelen = ADFS_F_NAME_LEN;
 	}
 
-	root = adfs_iget(sb, &root_obj);
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_alloc_root(adfs_iget(sb, &root_obj));
 	if (!sb->s_root) {
 		int i;
-		iput(root);
+
 		for (i = 0; i < asb->s_map_size; i++)
 			brelse(asb->s_map[i].dm_bh);
 		kfree(asb->s_map);

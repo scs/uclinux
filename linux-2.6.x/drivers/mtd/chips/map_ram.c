@@ -104,17 +104,13 @@ static int mapram_erase (struct mtd_info *mtd, struct erase_info *instr)
 	/* Yeah, it's inefficient. Who cares? It's faster than a _real_
 	   flash erase. */
 	struct map_info *map = (struct map_info *)mtd->priv;
-	map_word allff;
 	unsigned long i;
 
-	allff = map_word_ff(map);
+	for (i=0; i<instr->len; i++)
+		map_write8(map, 0xFF, instr->addr + i);
 
-	for (i=0; i<instr->len; i += map_bankwidth(map))
-		map_write(map, allff, instr->addr + i);
-
-	instr->state = MTD_ERASE_DONE;
-
-	mtd_erase_callback(instr);
+	if (instr->callback)
+		instr->callback(instr);
 
 	return 0;
 }

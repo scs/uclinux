@@ -21,7 +21,8 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
-int __init detect_cpu_and_cache_system(void)
+static int __init
+detect_cpu_and_cache_system(void)
 {
 	unsigned long addr0, addr1, data0, data1, data2, data3;
 
@@ -65,14 +66,14 @@ int __init detect_cpu_and_cache_system(void)
 	 * 2K(direct) 7702 is not supported (yet)
 	 */
 	if (data0 == data1 && data2 == data3) {	/* Shadow */
-		cpu_data->dcache.way_incr	= (1 << 11);
+		cpu_data->dcache.way_shift	= 11;
 		cpu_data->dcache.entry_mask	= 0x7f0;
 		cpu_data->dcache.sets		= 128;
 		cpu_data->type = CPU_SH7708;
 
-		cpu_data->flags |= CPU_HAS_MMU_PAGE_ASSOC;
+		set_bit(CPU_HAS_MMU_PAGE_ASSOC, &(cpu_data->flags));
 	} else {				/* 7709A or 7729  */
-		cpu_data->dcache.way_incr	= (1 << 12);
+		cpu_data->dcache.way_shift	= 12;
 		cpu_data->dcache.entry_mask	= 0xff0;
 		cpu_data->dcache.sets		= 256;
 		cpu_data->type = CPU_SH7729;
@@ -108,12 +109,13 @@ void __flush_wback_region(void *start, int size)
 		& ~(L1_CACHE_BYTES-1);
 
 	for (v = begin; v < end; v+=L1_CACHE_BYTES) {
-		unsigned long addrstart = CACHE_OC_ADDRESS_ARRAY;
 		for (j = 0; j < cpu_data->dcache.ways; j++) {
 			unsigned long data, addr, p;
 
 			p = __pa(v);
-			addr = addrstart | (v & cpu_data->dcache.entry_mask);
+			addr = CACHE_OC_ADDRESS_ARRAY |
+				(j << cpu_data->dcache.way_shift)|
+				(v & cpu_data->dcache.entry_mask);
 			local_irq_save(flags);
 			data = ctrl_inl(addr);
 			
@@ -125,7 +127,6 @@ void __flush_wback_region(void *start, int size)
 				break;
 			}
 			local_irq_restore(flags);
-			addrstart += cpu_data->dcache.way_incr;
 		}
 	}
 }

@@ -212,7 +212,7 @@ MODULE_PARM_DESC(bbuf, "ThunderLAN use big buffer (0-1)");
 /* Define this to enable Link beat monitoring */
 #undef MONITOR
 
-/* Turn on debugging. See Documentation/networking/tlan.txt for details */
+/* Turn on debugging. See linux/Documentation/networking/tlan.txt for details */
 static  int		debug;
 
 static	int		bbuf;
@@ -225,7 +225,7 @@ static  int tlan_have_eisa;
 
 const char *media[] = {
 	"10BaseT-HD ", "10BaseT-FD ","100baseTx-HD ", 
-	"100baseTx-FD", "100baseT4", NULL
+	"100baseTx-FD", "100baseT4", 0
 };
 
 int media_map[] = { 0x0020, 0x0040, 0x0080, 0x0100, 0x0200,};
@@ -446,9 +446,7 @@ static void __devexit tlan_remove_one( struct pci_dev *pdev)
 		pci_free_consistent(priv->pciDev, priv->dmaSize, priv->dmaStorage, priv->dmaStorageDMA );
 	}
 
-#ifdef CONFIG_PCI
 	pci_release_regions(pdev);
-#endif
 	
 	free_netdev( dev );
 		
@@ -675,10 +673,8 @@ err_out_uninit:
 err_out_free_dev:
 	free_netdev(dev);
 err_out_regions:
-#ifdef CONFIG_PCI
 	if (pdev)
 		pci_release_regions(pdev);
-#endif
 err_out:
 	if (pdev)
 		pci_disable_device(pdev);
@@ -818,14 +814,6 @@ static void  __init TLan_EisaProbe (void)
 
 } /* TLan_EisaProbe */
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void TLan_Poll(struct net_device *dev)
-{
-	disable_irq(dev->irq);
-	TLan_HandleInterrupt(dev->irq, dev, NULL);
-	enable_irq(dev->irq);
-}
-#endif
 
 	
 
@@ -905,9 +893,6 @@ static int TLan_Init( struct net_device *dev )
 	dev->get_stats = &TLan_GetStats;
 	dev->set_multicast_list = &TLan_SetMulticastList;
 	dev->do_ioctl = &TLan_ioctl;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = &TLan_Poll;
-#endif
 	dev->tx_timeout = &TLan_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
@@ -984,7 +969,7 @@ static int TLan_Open( struct net_device *dev )
 static int TLan_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	TLanPrivateInfo *priv = dev->priv;
-	struct mii_ioctl_data *data = if_mii(rq);
+	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&rq->ifr_data;
 	u32 phy   = priv->phy[priv->phyNum];
 	
 	if (!priv->phyOnline)

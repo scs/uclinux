@@ -26,25 +26,6 @@ config PCMCIA
 	  To compile this driver as modules, choose M here: the
 	  modules will be called pcmcia_core and ds.
 
-config PCMCIA_DEBUG
-	bool "Enable PCMCIA debugging"
-	depends on PCMCIA != n
-	help
-	  Say Y here to enable PCMCIA subsystem debugging.  You
-	  will need to choose the debugging level either via the
-	  kernel command line, or module options depending whether
-	  you build the PCMCIA as modules.
-
-	  The kernel command line options are:
-	    pcmcia_core.pc_debug=N
-	    ds.pc_debug=N
-	    sa11xx_core.pc_debug=N
-
-	  The module option is called pc_debug=N
-
-	  In all the above examples, N is the debugging verbosity
-	  level.
-
 config YENTA
 	tristate "CardBus yenta-compatible bridge support"
 	depends on PCMCIA && PCI
@@ -68,13 +49,6 @@ config CARDBUS
 	bool
 	depends on YENTA
 	default y if YENTA
-
-config PD6729
-	tristate "Cirrus PD6729 compatible bridge support"
-	depends on PCMCIA && PCI
-	help
-	  This provides support for the Cirrus PD6729 PCI-to-PCMCIA bridge
-	  device, found in some older laptops and PCMCIA card readers.
 
 config I82092
 	tristate "i82092 compatible bridge support"
@@ -126,13 +100,6 @@ config PCMCIA_SA1111
 	  StrongARM(R)/Xscale(R) embedded machines.
 
 	  This driver is also available as a module called sa1111_cs.
-
-config PCMCIA_PXA2XX
-	tristate "PXA2xx support"
-	depends on ARM && ARCH_PXA && PCMCIA
-	help
-	  Say Y here to include support for the PXA2xx PCMCIA controller
-
 
 config PCMCIA_PROBE
 	bool

@@ -32,7 +32,6 @@ static struct file *do_open(char *name, int flags)
 	nd.dentry = dget(nd.mnt->mnt_root);
 	nd.last_type = LAST_ROOT;
 	nd.flags = 0;
-	nd.depth = 0;
 
 	error = path_walk(name, &nd);
 	if (error)

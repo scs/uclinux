@@ -13,7 +13,7 @@
  * There's basically three types of memory:
  *	- data used only by the HCD ... kmalloc is fine
  *	- async and periodic schedules, shared by HC and HCD ... these
- *	  need to use dma_pool or dma_alloc_coherent
+ *	  need to use pci_pool or pci_alloc_consistent
  *	- driver buffers, read/written by HC ... the hcd glue or the
  *	  device driver provides us with dma addresses
  *
@@ -31,13 +31,9 @@ static struct usb_hcd *ohci_hcd_alloc (void)
 	if (ohci != 0) {
 		memset (ohci, 0, sizeof (struct ohci_hcd));
 		ohci->hcd.product_desc = "OHCI Host Controller";
-		ohci->next_statechange = jiffies;
-		spin_lock_init (&ohci->lock);
-		INIT_LIST_HEAD (&ohci->pending);
-		INIT_WORK (&ohci->rh_resume, ohci_rh_resume, &ohci->hcd);
 		return &ohci->hcd;
 	}
-	return NULL;
+	return 0;
 }
 
 static void ohci_hcd_free (struct usb_hcd *hcd)
@@ -49,18 +45,18 @@ static void ohci_hcd_free (struct usb_hcd *hcd)
 
 static int ohci_mem_init (struct ohci_hcd *ohci)
 {
-	ohci->td_cache = dma_pool_create ("ohci_td", ohci->hcd.self.controller,
+	ohci->td_cache = pci_pool_create ("ohci_td", ohci->hcd.pdev,
 		sizeof (struct td),
 		32 /* byte alignment */,
 		0 /* no page-crossing issues */);
 	if (!ohci->td_cache)
 		return -ENOMEM;
-	ohci->ed_cache = dma_pool_create ("ohci_ed", ohci->hcd.self.controller,
+	ohci->ed_cache = pci_pool_create ("ohci_ed", ohci->hcd.pdev,
 		sizeof (struct ed),
 		16 /* byte alignment */,
 		0 /* no page-crossing issues */);
 	if (!ohci->ed_cache) {
-		dma_pool_destroy (ohci->td_cache);
+		pci_pool_destroy (ohci->td_cache);
 		return -ENOMEM;
 	}
 	return 0;
@@ -69,12 +65,12 @@ static int ohci_mem_init (struct ohci_hcd *ohci)
 static void ohci_mem_cleanup (struct ohci_hcd *ohci)
 {
 	if (ohci->td_cache) {
-		dma_pool_destroy (ohci->td_cache);
-		ohci->td_cache = NULL;
+		pci_pool_destroy (ohci->td_cache);
+		ohci->td_cache = 0;
 	}
 	if (ohci->ed_cache) {
-		dma_pool_destroy (ohci->ed_cache);
-		ohci->ed_cache = NULL;
+		pci_pool_destroy (ohci->ed_cache);
+		ohci->ed_cache = 0;
 	}
 }
 
@@ -100,7 +96,7 @@ td_alloc (struct ohci_hcd *hc, int mem_flags)
 	dma_addr_t	dma;
 	struct td	*td;
 
-	td = dma_pool_alloc (hc->td_cache, mem_flags, &dma);
+	td = pci_pool_alloc (hc->td_cache, mem_flags, &dma);
 	if (td) {
 		/* in case hc fetches it, make it look dead */
 		memset (td, 0, sizeof *td);
@@ -122,7 +118,7 @@ td_free (struct ohci_hcd *hc, struct td *td)
 		*prev = td->td_hash;
 	else if ((td->hwINFO & TD_DONE) != 0)
 		ohci_dbg (hc, "no hash for td %p\n", td);
-	dma_pool_free (hc->td_cache, td, td->td_dma);
+	pci_pool_free (hc->td_cache, td, td->td_dma);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -134,7 +130,7 @@ ed_alloc (struct ohci_hcd *hc, int mem_flags)
 	dma_addr_t	dma;
 	struct ed	*ed;
 
-	ed = dma_pool_alloc (hc->ed_cache, mem_flags, &dma);
+	ed = pci_pool_alloc (hc->ed_cache, mem_flags, &dma);
 	if (ed) {
 		memset (ed, 0, sizeof (*ed));
 		INIT_LIST_HEAD (&ed->td_list);
@@ -146,6 +142,6 @@ ed_alloc (struct ohci_hcd *hc, int mem_flags)
 static void
 ed_free (struct ohci_hcd *hc, struct ed *ed)
 {
-	dma_pool_free (hc->ed_cache, ed, ed->dma);
+	pci_pool_free (hc->ed_cache, ed, ed->dma);
 }
 

@@ -92,8 +92,11 @@ static void assabet_lcd_power(int on)
 		ASSABET_BCR_clear(ASSABET_BCR_LCD_ON);
 }
 
-static void __init assabet_init(void)
+static int __init assabet_init(void)
 {
+	if (!machine_is_assabet())
+		return -EINVAL;
+
 	/*
 	 * Ensure that the power supply is in "high power" mode.
 	 */
@@ -136,7 +139,12 @@ static void __init assabet_init(void)
 			"hasn't been configured in the kernel\n" );
 #endif
 	}
+
+	return 0;
 }
+
+arch_initcall(assabet_init);
+
 
 /*
  * On Assabet, we must probe for the Neponset board _before_
@@ -324,6 +332,4 @@ MACHINE_START(ASSABET, "Intel-Assabet")
 	FIXUP(fixup_assabet)
 	MAPIO(assabet_map_io)
 	INITIRQ(sa1100_init_irq)
-	INITTIME(sa1100_init_time)
-	INIT_MACHINE(assabet_init)
 MACHINE_END

@@ -23,6 +23,7 @@
 
 int dir_notify_enable = 1;
 
+static rwlock_t dn_lock = RW_LOCK_UNLOCKED;
 static kmem_cache_t *dn_cache;
 
 static void redo_inode_mask(struct inode *inode)
@@ -45,7 +46,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 	inode = filp->f_dentry->d_inode;
 	if (!S_ISDIR(inode->i_mode))
 		return;
-	spin_lock(&inode->i_lock);
+	write_lock(&dn_lock);
 	prev = &inode->i_dnotify;
 	while ((dn = *prev) != NULL) {
 		if ((dn->dn_owner == id) && (dn->dn_filp == filp)) {
@@ -56,7 +57,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 		}
 		prev = &dn->dn_next;
 	}
-	spin_unlock(&inode->i_lock);
+	write_unlock(&dn_lock);
 }
 
 int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
@@ -80,7 +81,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	dn = kmem_cache_alloc(dn_cache, SLAB_KERNEL);
 	if (dn == NULL)
 		return -ENOMEM;
-	spin_lock(&inode->i_lock);
+	write_lock(&dn_lock);
 	prev = &inode->i_dnotify;
 	while ((odn = *prev) != NULL) {
 		if ((odn->dn_owner == id) && (odn->dn_filp == filp)) {
@@ -103,16 +104,12 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	inode->i_dnotify_mask |= arg & ~DN_MULTISHOT;
 	dn->dn_next = inode->i_dnotify;
 	inode->i_dnotify = dn;
-	spin_unlock(&inode->i_lock);
-
-	if (filp->f_op && filp->f_op->dir_notify)
-		return filp->f_op->dir_notify(filp, arg);
-	return 0;
-
-out_free:
-	spin_unlock(&inode->i_lock);
-	kmem_cache_free(dn_cache, dn);
+out:
+	write_unlock(&dn_lock);
 	return error;
+out_free:
+	kmem_cache_free(dn_cache, dn);
+	goto out;
 }
 
 void __inode_dir_notify(struct inode *inode, unsigned long event)
@@ -122,7 +119,7 @@ void __inode_dir_notify(struct inode *inode, unsigned long event)
 	struct fown_struct *	fown;
 	int			changed = 0;
 
-	spin_lock(&inode->i_lock);
+	write_lock(&dn_lock);
 	prev = &inode->i_dnotify;
 	while ((dn = *prev) != NULL) {
 		if ((dn->dn_mask & event) == 0) {
@@ -141,7 +138,7 @@ void __inode_dir_notify(struct inode *inode, unsigned long event)
 	}
 	if (changed)
 		redo_inode_mask(inode);
-	spin_unlock(&inode->i_lock);
+	write_unlock(&dn_lock);
 }
 
 EXPORT_SYMBOL(__inode_dir_notify);
@@ -156,9 +153,6 @@ EXPORT_SYMBOL(__inode_dir_notify);
 void dnotify_parent(struct dentry *dentry, unsigned long event)
 {
 	struct dentry *parent;
-
-	if (!dir_notify_enable)
-		return;
 
 	spin_lock(&dentry->d_lock);
 	parent = dentry->d_parent;
@@ -176,7 +170,9 @@ EXPORT_SYMBOL_GPL(dnotify_parent);
 static int __init dnotify_init(void)
 {
 	dn_cache = kmem_cache_create("dnotify_cache",
-		sizeof(struct dnotify_struct), 0, SLAB_PANIC, NULL, NULL);
+		sizeof(struct dnotify_struct), 0, 0, NULL, NULL);
+	if (!dn_cache)
+		panic("cannot create dnotify slab cache");
 	return 0;
 }
 

@@ -10,7 +10,7 @@
  * of the GNU General Public License, incorporated herein by reference.
  *
  * For changes and modifications please read
- * Documentation/isdn/HiSax.cert
+ * ../../../Documentation/isdn/HiSax.cert
  *
  * Thanks to    Jan den Ouden
  *              Fritz Elfert
@@ -126,7 +126,7 @@ static char *strL1Event[] =
 };
 
 void
-debugl1(struct IsdnCardState *cs, char *fmt, ...)
+debugl1(struct IsdnCardState *cs, const char *fmt, ...)
 {
 	va_list args;
 	char tmp[8];
@@ -159,9 +159,9 @@ L1activated(struct IsdnCardState *cs)
 	st = cs->stlist;
 	while (st) {
 		if (test_and_clear_bit(FLG_L1_ACTIVATING, &st->l1.Flags))
-			st->l1.l1l2(st, PH_ACTIVATE | CONFIRM, NULL);
+			L1L2(st, PH_ACTIVATE | CONFIRM, NULL);
 		else
-			st->l1.l1l2(st, PH_ACTIVATE | INDICATION, NULL);
+			L1L2(st, PH_ACTIVATE | INDICATION, NULL);
 		st = st->next;
 	}
 }
@@ -174,8 +174,8 @@ L1deactivated(struct IsdnCardState *cs)
 	st = cs->stlist;
 	while (st) {
 		if (test_bit(FLG_L1_DBUSY, &cs->HW_Flags))
-			st->l1.l1l2(st, PH_PAUSE | CONFIRM, NULL);
-		st->l1.l1l2(st, PH_DEACTIVATE | INDICATION, NULL);
+			L1L2(st, PH_PAUSE | CONFIRM, NULL);
+		L1L2(st, PH_DEACTIVATE | INDICATION, NULL);
 		st = st->next;
 	}
 	test_and_clear_bit(FLG_L1_DBUSY, &cs->HW_Flags);
@@ -190,13 +190,12 @@ DChannel_proc_xmt(struct IsdnCardState *cs)
 		return;
 
 	stptr = cs->stlist;
-	while (stptr != NULL) {
+	while (stptr != NULL)
 		if (test_and_clear_bit(FLG_L1_PULL_REQ, &stptr->l1.Flags)) {
-			stptr->l1.l1l2(stptr, PH_PULL | CONFIRM, NULL);
+			L1L2(stptr, PH_PULL | CONFIRM, NULL);
 			break;
 		} else
 			stptr = stptr->next;
-	}
 }
 
 void
@@ -235,7 +234,7 @@ DChannel_proc_rcv(struct IsdnCardState *cs)
 			if (sapi == CTRL_SAPI) { /* sapi 0 */
 				while (stptr != NULL) {
 					if ((nskb = skb_clone(skb, GFP_ATOMIC)))
-						stptr->l1.l1l2(stptr, PH_DATA | INDICATION, nskb);
+						L1L2(stptr, PH_DATA | INDICATION, nskb);
 					else
 						printk(KERN_WARNING "HiSax: isdn broadcast buffer shortage\n");
 					stptr = stptr->next;
@@ -254,7 +253,7 @@ DChannel_proc_rcv(struct IsdnCardState *cs)
 			found = 0;
 			while (stptr != NULL)
 				if (tei == stptr->l2.tei) {
-					stptr->l1.l1l2(stptr, PH_DATA | INDICATION, skb);
+					L1L2(stptr, PH_DATA | INDICATION, skb);
 					found = !0;
 					break;
 				} else
@@ -277,10 +276,10 @@ BChannel_proc_xmt(struct BCState *bcs)
 	}
 
 	if (test_and_clear_bit(FLG_L1_PULL_REQ, &st->l1.Flags))
-		st->l1.l1l2(st, PH_PULL | CONFIRM, NULL);
+		L1L2(st, PH_PULL | CONFIRM, NULL);
 	if (!test_bit(BC_FLG_ACTIV, &bcs->Flag)) {
 		if (!test_bit(BC_FLG_BUSY, &bcs->Flag) && (!skb_queue_len(&bcs->squeue))) {
-			st->l2.l2l1(st, PH_DEACTIVATE | CONFIRM, NULL);
+			L2L1(st, PH_DEACTIVATE | CONFIRM, NULL);
 		}
 	}
 }
@@ -295,35 +294,31 @@ BChannel_proc_rcv(struct BCState *bcs)
 		FsmEvent(&bcs->st->l1.l1m, EV_TIMER_ACT, NULL);
 	}
 	while ((skb = skb_dequeue(&bcs->rqueue))) {
-		bcs->st->l1.l1l2(bcs->st, PH_DATA | INDICATION, skb);
+		L1L2(bcs->st, PH_DATA | INDICATION, skb);
 	}
 }
 
 static void
-BChannel_proc_ack(struct BCState *bcs)
+BChannel_proc_cmpl(struct BCState *bcs)
 {
-	u_long	flags;
-	int	ack;
+	struct sk_buff *skb;
 
-	spin_lock_irqsave(&bcs->aclock, flags);
-	ack = bcs->ackcnt;
-	bcs->ackcnt = 0;
-	spin_unlock_irqrestore(&bcs->aclock, flags);
-	if (ack)
-		lli_writewakeup(bcs->st, ack);
+	while ((skb = skb_dequeue(&bcs->cmpl_queue))) {
+		L1L2(bcs->st, PH_DATA | CONFIRM, skb);
+	}
 }
 
 void
-BChannel_bh(struct BCState *bcs)
+BChannel_bh(void *data)
 {
-	if (!bcs)
-		return;
+	struct BCState *bcs = data;
+
 	if (test_and_clear_bit(B_RCVBUFREADY, &bcs->event))
 		BChannel_proc_rcv(bcs);
 	if (test_and_clear_bit(B_XMTBUFREADY, &bcs->event))
 		BChannel_proc_xmt(bcs);
-	if (test_and_clear_bit(B_ACKPENDING, &bcs->event))
-		BChannel_proc_ack(bcs);
+	if (test_and_clear_bit(B_CMPLREADY, &bcs->event))
+		BChannel_proc_cmpl(bcs);
 }
 
 void
@@ -355,23 +350,21 @@ HiSax_rmlist(struct IsdnCardState *cs,
 }
 
 void
-init_bcstate(struct IsdnCardState *cs, int bc)
+init_bcstate(struct IsdnCardState *cs,
+	     int bc)
 {
 	struct BCState *bcs = cs->bcs + bc;
 
 	bcs->cs = cs;
 	bcs->channel = bc;
-	INIT_WORK(&bcs->tqueue, (void *)(void *) BChannel_bh, bcs);
-	spin_lock_init(&bcs->aclock);
-	bcs->BC_SetStack = NULL;
-	bcs->BC_Close = NULL;
+	INIT_WORK(&bcs->work, BChannel_bh, bcs);
 	bcs->Flag = 0;
 }
 
 #ifdef L2FRAME_DEBUG		/* psa */
 
 char *
-l2cmd(u_char cmd)
+l2cmd(u8 cmd)
 {
 	switch (cmd & ~0x10) {
 		case 1:
@@ -405,7 +398,7 @@ l2cmd(u_char cmd)
 static char tmpdeb[32];
 
 char *
-l2frames(u_char * ptr)
+l2frames(u8 * ptr)
 {
 	switch (ptr[2] & ~0x10) {
 		case 1:
@@ -437,7 +430,7 @@ l2frames(u_char * ptr)
 void
 Logl2Frame(struct IsdnCardState *cs, struct sk_buff *skb, char *buf, int dir)
 {
-	u_char *ptr;
+	u8 *ptr;
 
 	ptr = skb->data;
 
@@ -731,7 +724,7 @@ l1b_timer_act(struct FsmInst *fi, int event, void *arg)
 	struct PStack *st = fi->userdata;
 
 	FsmChangeState(fi, ST_L1_ACTIV);
-	st->l1.l1l2(st, PH_ACTIVATE | CONFIRM, NULL);
+	L1L2(st, PH_ACTIVATE | CONFIRM, NULL);
 }
 
 static void
@@ -740,7 +733,7 @@ l1b_timer_deact(struct FsmInst *fi, int event, void *arg)
 	struct PStack *st = fi->userdata;
 
 	FsmChangeState(fi, ST_L1_NULL);
-	st->l2.l2l1(st, PH_DEACTIVATE | CONFIRM, NULL);
+	L2L1(st, PH_DEACTIVATE | CONFIRM, NULL);
 }
 
 static struct FsmNode L1BFnList[] __initdata =
@@ -815,7 +808,7 @@ dch_l2l1(struct PStack *st, int pr, void *arg)
 				debugl1(cs, "PH_ACTIVATE_REQ %s",
 					st->l1.l1m.fsm->strState[st->l1.l1m.state]);
 			if (test_bit(FLG_L1_ACTIVATED, &st->l1.Flags))
-				st->l1.l1l2(st, PH_ACTIVATE | CONFIRM, NULL);
+				L1L2(st, PH_ACTIVATE | CONFIRM, NULL);
 			else {
 				test_and_set_bit(FLG_L1_ACTIVATING, &st->l1.Flags);
 				FsmEvent(&st->l1.l1m, EV_PH_ACTIVATE, arg);
@@ -911,9 +904,19 @@ setstack_HiSax(struct PStack *st, struct IsdnCardState *cs)
 	setstack_tei(st);
 	setstack_manager(st);
 	st->l1.stlistp = &(cs->stlist);
-	st->l2.l2l1  = dch_l2l1;
-	if (cs->setstack_d)
-		cs->setstack_d(st, cs);
+	st->l1.l2l1  = dch_l2l1;
+	if (cs->dc_l1_ops->open)
+		cs->dc_l1_ops->open(st, cs);
+}
+
+void
+dc_l1_init(struct IsdnCardState *cs, struct dc_l1_ops *ops)
+{
+	cs->dc_l1_ops = ops;
+	INIT_WORK(&cs->work, ops->bh_func, cs);
+	init_timer(&cs->dbusytimer);
+	cs->dbusytimer.function = (void *)(unsigned long) ops->dbusy_func;
+	cs->dbusytimer.data = (unsigned long) cs;
 }
 
 void

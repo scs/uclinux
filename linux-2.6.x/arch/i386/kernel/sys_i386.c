@@ -15,7 +15,6 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/stat.h>
-#include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/file.h>
 #include <linux/utsname.h>
@@ -107,6 +106,8 @@ out:
 }
 
 
+extern asmlinkage int sys_select(int, fd_set __user *, fd_set __user *, fd_set __user *, struct timeval __user *);
+
 struct sel_arg_struct {
 	unsigned long n;
 	fd_set __user *inp, *outp, *exp;
@@ -149,7 +150,7 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 		union semun fourth;
 		if (!ptr)
 			return -EINVAL;
-		if (get_user(fourth.__pad, (void __user * __user *) ptr))
+		if (get_user(fourth.__pad, (void * __user *) ptr))
 			return -EFAULT;
 		return sys_semctl (first, second, third, fourth);
 	}
@@ -185,7 +186,7 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 		switch (version) {
 		default: {
 			ulong raddr;
-			ret = do_shmat (first, (char __user *) ptr, second, &raddr);
+			ret = sys_shmat (first, (char __user *) ptr, second, &raddr);
 			if (ret)
 				return ret;
 			return put_user (raddr, (ulong __user *) third);
@@ -194,7 +195,7 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 			if (!segment_eq(get_fs(), get_ds()))
 				return -EINVAL;
 			/* The "(ulong *) third" is valid _only_ because of the kernel segment thing */
-			return do_shmat (first, (char __user *) ptr, second, (ulong *) third);
+			return sys_shmat (first, (char __user *) ptr, second, (ulong *) third);
 		}
 	case SHMDT: 
 		return sys_shmdt ((char __user *)ptr);

@@ -29,18 +29,21 @@
 */
 
 #include <linux/config.h>
+#ifdef CONFIG_I2C_DEBUG_BUS
+#define DEBUG	1
+#endif
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/config.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
-#include <linux/delay.h>
 #include <linux/stddef.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/apm_bios.h>
-#include <linux/dmi.h>
 #include <asm/io.h>
 
 
@@ -115,13 +118,18 @@ static int piix4_transaction(void);
 static unsigned short piix4_smba = 0;
 static struct i2c_adapter piix4_adapter;
 
-static struct dmi_system_id __devinitdata piix4_dmi_table[] = {
-	{
-		.ident = "IBM",
-		.matches = { DMI_MATCH(DMI_SYS_VENDOR, "IBM"), },
-	},
-	{ },
-};
+/*
+ * Get DMI information.
+ */
+static int __devinit ibm_dmi_probe(void)
+{
+#ifdef CONFIG_X86
+	extern int is_unsafe_smbus;
+	return is_unsafe_smbus;
+#else
+	return 0;
+#endif
+}
 
 static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 				const struct pci_device_id *id)
@@ -134,9 +142,7 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 
 	dev_info(&PIIX4_dev->dev, "Found %s device\n", pci_name(PIIX4_dev));
 
-	/* Don't access SMBus on IBM systems which get corrupted eeproms */
-	if (dmi_check_system(piix4_dmi_table) &&
-			PIIX4_dev->vendor == PCI_VENDOR_ID_INTEL) {
+	if(ibm_dmi_probe()) {
 		dev_err(&PIIX4_dev->dev, "IBM Laptop detected; this module "
 			"may corrupt your serial eeprom! Refusing to load "
 			"module!\n");
@@ -259,7 +265,7 @@ static int piix4_transaction(void)
 
 	/* We will always wait for a fraction of a second! (See PIIX4 docs errata) */
 	do {
-		msleep(1);
+		i2c_delay(1);
 		temp = inb_p(SMBHSTSTS);
 	} while ((temp & 0x01) && (timeout++ < MAX_TIMEOUT));
 
@@ -408,7 +414,7 @@ static struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter piix4_adapter = {
 	.owner		= THIS_MODULE,
-	.class		= I2C_CLASS_HWMON,
+	.class		= I2C_ADAP_CLASS_SMBUS,
 	.algo		= &smbus_algorithm,
 	.name		= "unset",
 };

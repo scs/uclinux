@@ -1383,6 +1383,8 @@ static int planb_open(struct video_device *dev, int mode)
 	pb->user++;
 
 	DEBUG("PlanB: device opened\n");
+
+	MOD_INC_USE_COUNT;
 	return 0;   
 }
 
@@ -1405,6 +1407,8 @@ static void planb_close(struct video_device *dev)
 	planb_unlock(pb);
 
 	DEBUG("PlanB: device closed\n");
+
+	MOD_DEC_USE_COUNT;  
 }
 
 static long planb_read(struct video_device *v, char *buf, unsigned long count,

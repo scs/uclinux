@@ -1131,7 +1131,7 @@ static void rc_close(struct tty_struct * tty, struct file * filp)
 		tty->ldisc.flush_buffer(tty);
 	tty->closing = 0;
 	port->event = 0;
-	port->tty = NULL;
+	port->tty = 0;
 	if (port->blocked_open) {
 		if (port->close_delay) {
 			current->state = TASK_INTERRUPTIBLE;
@@ -1306,16 +1306,12 @@ static void rc_flush_buffer(struct tty_struct *tty)
 		(tty->ldisc.write_wakeup)(tty);
 }
 
-static int rc_tiocmget(struct tty_struct *tty, struct file *file)
+static int rc_get_modem_info(struct riscom_port * port, unsigned int *value)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
 	struct riscom_board * bp;
 	unsigned char status;
 	unsigned int result;
 	unsigned long flags;
-
-	if (rc_paranoia_check(port, tty->name, __FUNCTION__))
-		return -ENODEV;
 
 	bp = port_Board(port);
 	save_flags(flags); cli();
@@ -1328,32 +1324,41 @@ static int rc_tiocmget(struct tty_struct *tty, struct file *file)
 		| ((status & MSVR_CD)  ? TIOCM_CAR : 0)
 		| ((status & MSVR_DSR) ? TIOCM_DSR : 0)
 		| ((status & MSVR_CTS) ? TIOCM_CTS : 0);
-	return result;
+	return put_user(result, value);
 }
 
-static int rc_tiocmset(struct tty_struct *tty, struct file *file,
-		       unsigned int set, unsigned int clear)
+static int rc_set_modem_info(struct riscom_port * port, unsigned int cmd,
+			     unsigned int *value)
 {
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	unsigned int arg;
 	unsigned long flags;
-	struct riscom_board *bp;
+	struct riscom_board *bp = port_Board(port);
 
-	if (rc_paranoia_check(port, tty->name, __FUNCTION__))
-		return -ENODEV;
-
-	bp = port_Board(port);
-
+	if (get_user(arg, value))
+		return -EFAULT;
+	switch (cmd) {
+	 case TIOCMBIS: 
+		if (arg & TIOCM_RTS) 
+			port->MSVR |= MSVR_RTS;
+		if (arg & TIOCM_DTR)
+			bp->DTR &= ~(1u << port_No(port));
+		break;
+	case TIOCMBIC:
+		if (arg & TIOCM_RTS)
+			port->MSVR &= ~MSVR_RTS;
+		if (arg & TIOCM_DTR)
+			bp->DTR |= (1u << port_No(port));
+		break;
+	case TIOCMSET:
+		port->MSVR = (arg & TIOCM_RTS) ? (port->MSVR | MSVR_RTS) : 
+					         (port->MSVR & ~MSVR_RTS);
+		bp->DTR = arg & TIOCM_DTR ? (bp->DTR &= ~(1u << port_No(port))) :
+					    (bp->DTR |=  (1u << port_No(port)));
+		break;
+	 default:
+		return -EINVAL;
+	}
 	save_flags(flags); cli();
-	if (set & TIOCM_RTS)
-		port->MSVR |= MSVR_RTS;
-	if (set & TIOCM_DTR)
-		bp->DTR &= ~(1u << port_No(port));
-
-	if (clear & TIOCM_RTS)
-		port->MSVR &= ~MSVR_RTS;
-	if (clear & TIOCM_DTR)
-		bp->DTR |= (1u << port_No(port));
-
 	rc_out(bp, CD180_CAR, port_No(port));
 	rc_out(bp, CD180_MSVR, port->MSVR);
 	rc_out(bp, RC_DTR, bp->DTR);
@@ -1380,7 +1385,7 @@ static inline void rc_send_break(struct riscom_port * port, unsigned long length
 }
 
 static inline int rc_set_serial_info(struct riscom_port * port,
-				     struct serial_struct __user * newinfo)
+				     struct serial_struct * newinfo)
 {
 	struct serial_struct tmp;
 	struct riscom_board *bp = port_Board(port);
@@ -1427,7 +1432,7 @@ static inline int rc_set_serial_info(struct riscom_port * port,
 }
 
 static inline int rc_get_serial_info(struct riscom_port * port,
-				     struct serial_struct __user *retinfo)
+				     struct serial_struct * retinfo)
 {
 	struct serial_struct tmp;
 	struct riscom_board *bp = port_Board(port);
@@ -1450,7 +1455,6 @@ static int rc_ioctl(struct tty_struct * tty, struct file * filp,
 		    
 {
 	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
-	void __user *argp = (void __user *)arg;
 	int retval;
 				
 	if (rc_paranoia_check(port, tty->name, "rc_ioctl"))
@@ -1473,18 +1477,24 @@ static int rc_ioctl(struct tty_struct * tty, struct file * filp,
 		rc_send_break(port, arg ? arg*(HZ/10) : HZ/4);
 		break;
 	 case TIOCGSOFTCAR:
-		return put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned __user *)argp);
+		return put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned int *) arg);
 	 case TIOCSSOFTCAR:
-		if (get_user(arg,(unsigned __user *) argp))
+		if (get_user(arg,(unsigned int *) arg))
 			return -EFAULT;
 		tty->termios->c_cflag =
 			((tty->termios->c_cflag & ~CLOCAL) |
 			(arg ? CLOCAL : 0));
 		break;
+	 case TIOCMGET:
+		return rc_get_modem_info(port, (unsigned int *) arg);
+	 case TIOCMBIS:
+	 case TIOCMBIC:
+	 case TIOCMSET:
+		return rc_set_modem_info(port, cmd, (unsigned int *) arg);
 	 case TIOCGSERIAL:	
-		return rc_get_serial_info(port, argp);
+		return rc_get_serial_info(port, (struct serial_struct *) arg);
 	 case TIOCSSERIAL:	
-		return rc_set_serial_info(port, argp);
+		return rc_set_serial_info(port, (struct serial_struct *) arg);
 	 default:
 		return -ENOIOCTLCMD;
 	}
@@ -1608,7 +1618,7 @@ static void rc_hangup(struct tty_struct * tty)
 	port->event = 0;
 	port->count = 0;
 	port->flags &= ~ASYNC_NORMAL_ACTIVE;
-	port->tty = NULL;
+	port->tty = 0;
 	wake_up_interruptible(&port->open_wait);
 }
 
@@ -1667,8 +1677,6 @@ static struct tty_operations riscom_ops = {
 	.stop = rc_stop,
 	.start = rc_start,
 	.hangup = rc_hangup,
-	.tiocmget = rc_tiocmget,
-	.tiocmset = rc_tiocmset,
 };
 
 static inline int rc_init_drivers(void)
@@ -1688,7 +1696,6 @@ static inline int rc_init_drivers(void)
 	memset(IRQ_to_board, 0, sizeof(IRQ_to_board));
 	riscom_driver->owner = THIS_MODULE;
 	riscom_driver->name = "ttyL";
-	riscom_driver->devfs_name = "tts/L";
 	riscom_driver->major = RISCOM8_NORMAL_MAJOR;
 	riscom_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	riscom_driver->subtype = SERIAL_TYPE_NORMAL;

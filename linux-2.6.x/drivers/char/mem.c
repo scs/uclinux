@@ -11,6 +11,8 @@
 #include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
+#include <linux/tpqic02.h>
+#include <linux/ftape.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mman.h>
@@ -26,6 +28,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
+#include <asm/pgalloc.h>
 
 #ifdef CONFIG_IA64
 # include <linux/efi.h>
@@ -61,32 +64,11 @@ static inline int uncached_access(struct file *file, unsigned long addr)
 		  test_bit(X86_FEATURE_CYRIX_ARR, boot_cpu_data.x86_capability) ||
 		  test_bit(X86_FEATURE_CENTAUR_MCR, boot_cpu_data.x86_capability) )
 	  && addr >= __pa(high_memory);
-#elif defined(__x86_64__)
-	/* 
-	 * This is broken because it can generate memory type aliases,
-	 * which can cause cache corruptions
-	 * But it is only available for root and we have to be bug-to-bug
-	 * compatible with i386.
-	 */
-	if (file->f_flags & O_SYNC)
-		return 1;
-	/* same behaviour as i386. PAT always set to cached and MTRRs control the
-	   caching behaviour. 
-	   Hopefully a full PAT implementation will fix that soon. */	   
-	return 0;
 #elif defined(CONFIG_IA64)
 	/*
 	 * On ia64, we ignore O_SYNC because we cannot tolerate memory attribute aliases.
 	 */
 	return !(efi_mem_attributes(addr) & EFI_MEMORY_WB);
-#elif defined(CONFIG_PPC64)
-	/* On PPC64, we always do non-cacheable access to the IO hole and
-	 * cacheable elsewhere. Cache paradox can checkstop the CPU and
-	 * the high_memory heuristic below is wrong on machines with memory
-	 * above the IO hole... Ah, and of course, XFree86 doesn't pass
-	 * O_SYNC when mapping us to tap IO space. Surprised ?
-	 */
-	return !page_is_ram(addr);
 #else
 	/*
 	 * Accessing memory above the top the kernel knows about or through a file pointer
@@ -114,11 +96,10 @@ static inline int valid_phys_addr_range(unsigned long addr, size_t *count)
 }
 #endif
 
-static ssize_t do_write_mem(void *p, unsigned long realp,
-			    const char __user * buf, size_t count, loff_t *ppos)
+static ssize_t do_write_mem(struct file * file, void *p, unsigned long realp,
+			    const char * buf, size_t count, loff_t *ppos)
 {
 	ssize_t written;
-	unsigned long copied;
 
 	written = 0;
 #if defined(__sparc__) || (defined(__mc68000__) && defined(CONFIG_MMU))
@@ -133,14 +114,8 @@ static ssize_t do_write_mem(void *p, unsigned long realp,
 		written+=sz;
 	}
 #endif
-	copied = copy_from_user(p, buf, count);
-	if (copied) {
-		ssize_t ret = written + (count - copied);
-
-		if (ret)
-			return ret;
+	if (copy_from_user(p, buf, count))
 		return -EFAULT;
-	}
 	written += count;
 	*ppos += written;
 	return written;
@@ -151,7 +126,7 @@ static ssize_t do_write_mem(void *p, unsigned long realp,
  * This funcion reads the *physical* memory. The f_pos points directly to the 
  * memory location. 
  */
-static ssize_t read_mem(struct file * file, char __user * buf,
+static ssize_t read_mem(struct file * file, char * buf,
 			size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
@@ -183,14 +158,14 @@ static ssize_t read_mem(struct file * file, char __user * buf,
 	return read;
 }
 
-static ssize_t write_mem(struct file * file, const char __user * buf, 
+static ssize_t write_mem(struct file * file, const char * buf, 
 			 size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
 
 	if (!valid_phys_addr_range(p, &count))
 		return -EFAULT;
-	return do_write_mem(__va(p), p, buf, count, ppos);
+	return do_write_mem(file, __va(p), p, buf, count, ppos);
 }
 
 static int mmap_mem(struct file * file, struct vm_area_struct * vma)
@@ -225,7 +200,7 @@ extern long vwrite(char *buf, char *addr, unsigned long count);
 /*
  * This function reads the *virtual* memory as seen by the kernel.
  */
-static ssize_t read_kmem(struct file *file, char __user *buf, 
+static ssize_t read_kmem(struct file *file, char *buf, 
 			 size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
@@ -288,25 +263,21 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 /*
  * This function writes to the *virtual* memory as seen by the kernel.
  */
-static ssize_t write_kmem(struct file * file, const char __user * buf, 
+static ssize_t write_kmem(struct file * file, const char * buf, 
 			  size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
 	ssize_t wrote = 0;
 	ssize_t virtr = 0;
-	ssize_t written;
 	char * kbuf; /* k-addr because vwrite() takes vmlist_lock rwlock */
 
 	if (p < (unsigned long) high_memory) {
-
 		wrote = count;
 		if (count > (unsigned long) high_memory - p)
 			wrote = (unsigned long) high_memory - p;
 
-		written = do_write_mem((void*)p, p, buf, wrote, ppos);
-		if (written != wrote)
-			return written;
-		wrote = written;
+		wrote = do_write_mem(file, (void*)p, p, buf, wrote, ppos);
+
 		p += wrote;
 		buf += wrote;
 		count -= wrote;
@@ -315,21 +286,15 @@ static ssize_t write_kmem(struct file * file, const char __user * buf,
 	if (count > 0) {
 		kbuf = (char *)__get_free_page(GFP_KERNEL);
 		if (!kbuf)
-			return wrote ? wrote : -ENOMEM;
+			return -ENOMEM;
 		while (count > 0) {
 			int len = count;
 
 			if (len > PAGE_SIZE)
 				len = PAGE_SIZE;
-			if (len) {
-				written = copy_from_user(kbuf, buf, len);
-				if (written) {
-					ssize_t ret;
-
-					free_page((unsigned long)kbuf);
-					ret = wrote + virtr + (len - written);
-					return ret ? ret : -EFAULT;
-				}
+			if (len && copy_from_user(kbuf, buf, len)) {
+				free_page((unsigned long)kbuf);
+				return -EFAULT;
 			}
 			len = vwrite(kbuf, (char *)p, len);
 			count -= len;
@@ -345,11 +310,11 @@ static ssize_t write_kmem(struct file * file, const char __user * buf,
 }
 
 #if defined(CONFIG_ISA) || !defined(__mc68000__)
-static ssize_t read_port(struct file * file, char __user * buf,
+static ssize_t read_port(struct file * file, char * buf,
 			 size_t count, loff_t *ppos)
 {
 	unsigned long i = *ppos;
-	char __user *tmp = buf;
+	char *tmp = buf;
 
 	if (verify_area(VERIFY_WRITE,buf,count))
 		return -EFAULT; 
@@ -363,11 +328,11 @@ static ssize_t read_port(struct file * file, char __user * buf,
 	return tmp-buf;
 }
 
-static ssize_t write_port(struct file * file, const char __user * buf,
+static ssize_t write_port(struct file * file, const char * buf,
 			  size_t count, loff_t *ppos)
 {
 	unsigned long i = *ppos;
-	const char __user * tmp = buf;
+	const char * tmp = buf;
 
 	if (verify_area(VERIFY_READ,buf,count))
 		return -EFAULT;
@@ -384,13 +349,13 @@ static ssize_t write_port(struct file * file, const char __user * buf,
 }
 #endif
 
-static ssize_t read_null(struct file * file, char __user * buf,
+static ssize_t read_null(struct file * file, char * buf,
 			 size_t count, loff_t *ppos)
 {
 	return 0;
 }
 
-static ssize_t write_null(struct file * file, const char __user * buf,
+static ssize_t write_null(struct file * file, const char * buf,
 			  size_t count, loff_t *ppos)
 {
 	return count;
@@ -400,7 +365,7 @@ static ssize_t write_null(struct file * file, const char __user * buf,
 /*
  * For fun, we are using the MMU for this.
  */
-static inline size_t read_zero_pagealigned(char __user * buf, size_t size)
+static inline size_t read_zero_pagealigned(char * buf, size_t size)
 {
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
@@ -422,7 +387,7 @@ static inline size_t read_zero_pagealigned(char __user * buf, size_t size)
 		if (count > size)
 			count = size;
 
-		zap_page_range(vma, addr, count, NULL);
+		zap_page_range(vma, addr, count);
         	zeromap_page_range(vma, addr, count, PAGE_COPY);
 
 		size -= count;
@@ -450,7 +415,7 @@ out_up:
 	return size;
 }
 
-static ssize_t read_zero(struct file * file, char __user * buf, 
+static ssize_t read_zero(struct file * file, char * buf, 
 			 size_t count, loff_t *ppos)
 {
 	unsigned long left, unwritten, written = 0;
@@ -522,7 +487,7 @@ static int mmap_zero(struct file * file, struct vm_area_struct * vma)
 }
 #endif /* CONFIG_MMU */
 
-static ssize_t write_full(struct file * file, const char __user * buf,
+static ssize_t write_full(struct file * file, const char * buf,
 			  size_t count, loff_t *ppos)
 {
 	return -ENOSPC;
@@ -627,7 +592,7 @@ static struct file_operations full_fops = {
 	.write		= write_full,
 };
 
-static ssize_t kmsg_write(struct file * file, const char __user * buf,
+static ssize_t kmsg_write(struct file * file, const char * buf,
 			  size_t count, loff_t *ppos)
 {
 	char *tmp;

@@ -43,7 +43,6 @@
 #include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
@@ -78,7 +77,7 @@ static int nowayout = 1;
 static int nowayout = 0;
 #endif
 
-module_param(nowayout, int, 0);
+MODULE_PARM(nowayout,"i");
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 
 /*
@@ -95,11 +94,41 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CON
 #define WDT_TIMER_CFG		0xf3
 
 
-module_param(io, int, 0);
+#ifndef MODULE
+
+/**
+ * eurwdt_setup:
+ * @str: command line string
+ *
+ * Setup options. The board isn't really probe-able so we have to
+ * get the user to tell us the configuration. Sane people build it
+ * modular but the others come here.
+ */
+
+static int __init eurwdt_setup(char *str)
+{
+	int ints[4];
+
+str = get_options (str, ARRAY_SIZE(ints), ints);
+
+	if (ints[0] > 0) {
+		io = ints[1];
+		if (ints[0] > 1)
+			irq = ints[2];
+	}
+
+	return 1;
+}
+
+__setup("eurwdt=", eurwdt_setup);
+
+#endif /* !MODULE */
+
+MODULE_PARM(io, "i");
 MODULE_PARM_DESC(io, "Eurotech WDT io port (default=0x3f0)");
-module_param(irq, int, 0);
+MODULE_PARM(irq, "i");
 MODULE_PARM_DESC(irq, "Eurotech WDT irq (default=10)");
-module_param(ev, charp, 0);
+MODULE_PARM(ev, "s");
 MODULE_PARM_DESC(ev, "Eurotech WDT event type (default is `int')");
 
 
@@ -196,9 +225,13 @@ static void eurwdt_ping(void)
  * write of data will do, as we we don't define content meaning.
  */
 
-static ssize_t eurwdt_write(struct file *file, const char __user *buf,
-size_t count, loff_t *ppos)
+static ssize_t eurwdt_write(struct file *file, const char *buf, size_t count,
+loff_t *ppos)
 {
+	/*  Can't seek (pwrite) on this device  */
+	if (ppos != &file->f_pos)
+	return -ESPIPE;
+
 	if (count) 	{
 		if (!nowayout) {
 			size_t i;
@@ -233,8 +266,6 @@ size_t count, loff_t *ppos)
 static int eurwdt_ioctl(struct inode *inode, struct file *file,
 	unsigned int cmd, unsigned long arg)
 {
-	void __user *argp = (void __user *)arg;
-	int __user *p = argp;
 	static struct watchdog_info ident = {
 		.options	  = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
 		.firmware_version = 1,
@@ -249,18 +280,19 @@ static int eurwdt_ioctl(struct inode *inode, struct file *file,
 		return -ENOIOCTLCMD;
 
 	case WDIOC_GETSUPPORT:
-		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
+		return copy_to_user((struct watchdog_info *)arg, &ident,
+			sizeof(ident)) ? -EFAULT : 0;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-		return put_user(0, p);
+		return put_user(0, (int *) arg);
 
 	case WDIOC_KEEPALIVE:
 		eurwdt_ping();
 		return 0;
 
 	case WDIOC_SETTIMEOUT:
-		if (copy_from_user(&time, p, sizeof(int)))
+		if (copy_from_user(&time, (int *) arg, sizeof(int)))
 			return -EFAULT;
 
 		/* Sanity check */
@@ -272,10 +304,10 @@ static int eurwdt_ioctl(struct inode *inode, struct file *file,
 		/* Fall */
 
 	case WDIOC_GETTIMEOUT:
-		return put_user(eurwdt_timeout, p);
+		return put_user(eurwdt_timeout, (int *)arg);
 
 	case WDIOC_SETOPTIONS:
-		if (get_user(options, p))
+		if (get_user(options, (int *)arg))
 			return -EFAULT;
 		if (options & WDIOS_DISABLECARD) {
 			eurwdt_disable_timer();
@@ -306,7 +338,7 @@ static int eurwdt_open(struct inode *inode, struct file *file)
 	eurwdt_timeout = WDT_TIMEOUT;	/* initial timeout */
 	/* Activate the WDT */
 	eurwdt_activate_timer();
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 /**
@@ -471,4 +503,3 @@ module_exit(eurwdt_exit);
 MODULE_AUTHOR("Rodolfo Giometti");
 MODULE_DESCRIPTION("Driver for Eurotech CPU-1220/1410 on board watchdog");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

@@ -149,34 +149,34 @@ ether1_writebuffer (struct net_device *dev, void *data, unsigned int start, unsi
 		length -= thislen;
 
 		__asm__ __volatile__(
-	"subs	%3, %3, #2\n\
-	bmi	2f\n\
-1:	ldr	%0, [%1], #2\n\
-	mov	%0, %0, lsl #16\n\
-	orr	%0, %0, %0, lsr #16\n\
-	str	%0, [%2], #4\n\
-	subs	%3, %3, #2\n\
-	bmi	2f\n\
-	ldr	%0, [%1], #2\n\
-	mov	%0, %0, lsl #16\n\
-	orr	%0, %0, %0, lsr #16\n\
-	str	%0, [%2], #4\n\
-	subs	%3, %3, #2\n\
-	bmi	2f\n\
-	ldr	%0, [%1], #2\n\
-	mov	%0, %0, lsl #16\n\
-	orr	%0, %0, %0, lsr #16\n\
-	str	%0, [%2], #4\n\
-	subs	%3, %3, #2\n\
-	bmi	2f\n\
-	ldr	%0, [%1], #2\n\
-	mov	%0, %0, lsl #16\n\
-	orr	%0, %0, %0, lsr #16\n\
-	str	%0, [%2], #4\n\
-	subs	%3, %3, #2\n\
-	bpl	1b\n\
-2:	adds	%3, %3, #1\n\
-	ldreqb	%0, [%1]\n\
+	"subs	%3, %3, #2
+	bmi	2f
+1:	ldr	%0, [%1], #2
+	mov	%0, %0, lsl #16
+	orr	%0, %0, %0, lsr #16
+	str	%0, [%2], #4
+	subs	%3, %3, #2
+	bmi	2f
+	ldr	%0, [%1], #2
+	mov	%0, %0, lsl #16
+	orr	%0, %0, %0, lsr #16
+	str	%0, [%2], #4
+	subs	%3, %3, #2
+	bmi	2f
+	ldr	%0, [%1], #2
+	mov	%0, %0, lsl #16
+	orr	%0, %0, %0, lsr #16
+	str	%0, [%2], #4
+	subs	%3, %3, #2
+	bmi	2f
+	ldr	%0, [%1], #2
+	mov	%0, %0, lsl #16
+	orr	%0, %0, %0, lsr #16
+	str	%0, [%2], #4
+	subs	%3, %3, #2
+	bpl	1b
+2:	adds	%3, %3, #1
+	ldreqb	%0, [%1]
 	streqb	%0, [%2]"
 		: "=&r" (used), "=&r" (data)
 		: "r"  (addr), "r" (thislen), "1" (data));
@@ -211,34 +211,34 @@ ether1_readbuffer (struct net_device *dev, void *data, unsigned int start, unsig
 		length -= thislen;
 
 		__asm__ __volatile__(
-	"subs	%3, %3, #2\n\
-	bmi	2f\n\
-1:	ldr	%0, [%2], #4\n\
-	strb	%0, [%1], #1\n\
-	mov	%0, %0, lsr #8\n\
-	strb	%0, [%1], #1\n\
-	subs	%3, %3, #2\n\
-	bmi	2f\n\
-	ldr	%0, [%2], #4\n\
-	strb	%0, [%1], #1\n\
-	mov	%0, %0, lsr #8\n\
-	strb	%0, [%1], #1\n\
-	subs	%3, %3, #2\n\
-	bmi	2f\n\
-	ldr	%0, [%2], #4\n\
-	strb	%0, [%1], #1\n\
-	mov	%0, %0, lsr #8\n\
-	strb	%0, [%1], #1\n\
-	subs	%3, %3, #2\n\
-	bmi	2f\n\
-	ldr	%0, [%2], #4\n\
-	strb	%0, [%1], #1\n\
-	mov	%0, %0, lsr #8\n\
-	strb	%0, [%1], #1\n\
-	subs	%3, %3, #2\n\
-	bpl	1b\n\
-2:	adds	%3, %3, #1\n\
-	ldreqb	%0, [%2]\n\
+	"subs	%3, %3, #2
+	bmi	2f
+1:	ldr	%0, [%2], #4
+	strb	%0, [%1], #1
+	mov	%0, %0, lsr #8
+	strb	%0, [%1], #1
+	subs	%3, %3, #2
+	bmi	2f
+	ldr	%0, [%2], #4
+	strb	%0, [%1], #1
+	mov	%0, %0, lsr #8
+	strb	%0, [%1], #1
+	subs	%3, %3, #2
+	bmi	2f
+	ldr	%0, [%2], #4
+	strb	%0, [%1], #1
+	mov	%0, %0, lsr #8
+	strb	%0, [%1], #1
+	subs	%3, %3, #2
+	bmi	2f
+	ldr	%0, [%2], #4
+	strb	%0, [%1], #1
+	mov	%0, %0, lsr #8
+	strb	%0, [%1], #1
+	subs	%3, %3, #2
+	bpl	1b
+2:	adds	%3, %3, #1
+	ldreqb	%0, [%2]
 	streqb	%0, [%1]"
 		: "=&r" (used), "=&r" (data)
 		: "r"  (addr), "r" (thislen), "1" (data));
@@ -447,7 +447,7 @@ static rbd_t  init_rbd	= {
 static int
 ether1_init_for_open (struct net_device *dev)
 {
-	struct ether1_priv *priv = netdev_priv(dev);
+	struct ether1_priv *priv = (struct ether1_priv *)dev->priv;
 	int i, status, addr, next, next2;
 	int failures = 0;
 	unsigned long timeout;
@@ -616,7 +616,7 @@ ether1_init_for_open (struct net_device *dev)
 static int
 ether1_txalloc (struct net_device *dev, int size)
 {
-	struct ether1_priv *priv = netdev_priv(dev);
+	struct ether1_priv *priv = (struct ether1_priv *)dev->priv;
 	int start, tail;
 
 	size = (size + 1) & ~1;
@@ -642,7 +642,7 @@ ether1_txalloc (struct net_device *dev, int size)
 static int
 ether1_open (struct net_device *dev)
 {
-	struct ether1_priv *priv = netdev_priv(dev);
+	struct ether1_priv *priv = (struct ether1_priv *)dev->priv;
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		printk(KERN_WARNING "%s: invalid ethernet MAC address\n",
@@ -668,7 +668,7 @@ ether1_open (struct net_device *dev)
 static void
 ether1_timeout(struct net_device *dev)
 {
-	struct ether1_priv *priv = netdev_priv(dev);
+	struct ether1_priv *priv = (struct ether1_priv *)dev->priv;
 
 	printk(KERN_WARNING "%s: transmit timeout, network cable problem?\n",
 		dev->name);
@@ -686,7 +686,7 @@ ether1_timeout(struct net_device *dev)
 static int
 ether1_sendpacket (struct sk_buff *skb, struct net_device *dev)
 {
-	struct ether1_priv *priv = netdev_priv(dev);
+	struct ether1_priv *priv = (struct ether1_priv *)dev->priv;
 	int tmp, tst, nopaddr, txaddr, tbdaddr, dataddr;
 	unsigned long flags;
 	tx_t tx;
@@ -762,7 +762,7 @@ ether1_sendpacket (struct sk_buff *skb, struct net_device *dev)
 static void
 ether1_xmit_done (struct net_device *dev)
 {
-	struct ether1_priv *priv = netdev_priv(dev);
+	struct ether1_priv *priv = (struct ether1_priv *)dev->priv;
 	nop_t nop;
 	int caddr, tst;
 
@@ -863,7 +863,7 @@ again:
 static void
 ether1_recv_done (struct net_device *dev)
 {
-	struct ether1_priv *priv = netdev_priv(dev);
+	struct ether1_priv *priv = (struct ether1_priv *)dev->priv;
 	int status;
 	int nexttail, rbdaddr;
 	rbd_t rbd;
@@ -919,7 +919,7 @@ static irqreturn_t
 ether1_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	struct ether1_priv *priv = netdev_priv(dev);
+	struct ether1_priv *priv = (struct ether1_priv *)dev->priv;
 	int status;
 
 	status = ether1_inw (dev, SCB_ADDR, scb_t, scb_status, NORMALIRQS);
@@ -978,7 +978,7 @@ ether1_close (struct net_device *dev)
 static struct net_device_stats *
 ether1_getstats (struct net_device *dev)
 {
-	struct ether1_priv *priv = netdev_priv(dev);
+	struct ether1_priv *priv = (struct ether1_priv *)dev->priv;
 	return &priv->stats;
 }
 
@@ -1030,7 +1030,7 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 	request_region(dev->base_addr, 16, dev->name);
 	request_region(dev->base_addr + 0x800, 4096, dev->name);
 
-	priv = netdev_priv(dev);
+	priv = (struct ether1_priv *)dev->priv;
 	if ((priv->bus_type = ether1_reset(dev)) == 0) {
 		ret = -ENODEV;
 		goto release;
@@ -1068,7 +1068,7 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 release:
 	release_region(dev->base_addr, 16);
 	release_region(dev->base_addr + 0x800, 4096);
-	free_netdev(dev);
+	kfree(dev);
 out:
 	return ret;
 }

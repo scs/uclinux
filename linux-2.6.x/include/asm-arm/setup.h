@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  *
  *  Structure passed to kernel to tell it about the
- *  hardware it's running on.  See Documentation/arm/Setup
+ *  hardware it's running on.  See linux/Documentation/arm/Setup
  *  for more info.
  */
 #ifndef __ASMARM_SETUP_H
@@ -171,7 +171,7 @@ struct tagtable {
 	int (*parse)(const struct tag *);
 };
 
-#define __tag __attribute_used__ __attribute__((__section__(".taglist")))
+#define __tag __attribute__((unused, __section__(".taglist")))
 #define __tagtable(tag, fn) \
 static struct tagtable __tagtable_##fn __tag = { tag, fn }
 
@@ -188,14 +188,11 @@ static struct tagtable __tagtable_##fn __tag = { tag, fn }
 /*
  * Memory map description
  */
-#ifdef CONFIG_ARCH_LH7A40X
-# define NR_BANKS 16
-#else
-# define NR_BANKS 8
-#endif
+#define NR_BANKS 8
 
 struct meminfo {
 	int nr_banks;
+	unsigned long end;
 	struct {
 		unsigned long start;
 		unsigned long size;
@@ -213,8 +210,9 @@ struct early_params {
 	void (*fn)(char **p);
 };
 
-#define __early_param(name,fn)					\
-static struct early_params __early_##fn __attribute_used__	\
-__attribute__((__section__("__early_param"))) = { name, fn }
+#define __early_param(name,fn)				\
+static struct early_params __early_##fn			\
+__attribute__((section("__early_param"), unused)) =	\
+	{ name, fn }
 
 #endif

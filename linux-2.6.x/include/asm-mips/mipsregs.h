@@ -15,7 +15,6 @@
 
 #include <linux/config.h>
 #include <linux/linkage.h>
-#include <asm/hazards.h>
 
 /*
  * The following macros are especially useful for __asm__
@@ -184,20 +183,6 @@
 #define PM_256M		0x1fffe000
 
 #endif
-
-/*
- * Default page size for a given kernel configuration
- */
-#ifdef CONFIG_PAGE_SIZE_4KB
-#define PM_DEFAULT_MASK	PM_4K
-#elif defined(CONFIG_PAGE_SIZE_16KB)
-#define PM_DEFAULT_MASK	PM_16K
-#elif defined(CONFIG_PAGE_SIZE_64KB)
-#define PM_DEFAULT_MASK	PM_64K
-#else
-#error Bad page size configuration!
-#endif
-
 
 /*
  * Values used for computation of new tlb entries
@@ -593,13 +578,13 @@ do {									\
 	if (sel == 0)							\
 		__asm__ __volatile__(					\
 			"mtc0\t%z0, " #register "\n\t"			\
-			: : "Jr" ((unsigned int)value));		\
+			: : "Jr" (value));				\
 	else								\
 		__asm__ __volatile__(					\
 			".set\tmips32\n\t"				\
 			"mtc0\t%z0, " #register ", " #sel "\n\t"	\
 			".set\tmips0"					\
-			: : "Jr" ((unsigned int)value));		\
+			: : "Jr" (value));				\
 } while (0)
 
 #define __write_64bit_c0_register(register, sel, value)			\
@@ -629,24 +614,6 @@ do {									\
 		__write_32bit_c0_register(reg, sel, val);		\
 	else								\
 		__write_64bit_c0_register(reg, sel, val);		\
-} while (0)
-
-/*
- * On RM7000/RM9000 these are uses to access cop0 set 1 registers
- */
-#define __read_32bit_c0_ctrl_register(source)				\
-({ int __res;								\
-	__asm__ __volatile__(						\
-		"cfc0\t%0, " #source "\n\t"				\
-		: "=r" (__res));					\
-	__res;								\
-})
-
-#define __write_32bit_c0_ctrl_register(register, value)			\
-do {									\
-	__asm__ __volatile__(						\
-		"ctc0\t%z0, " #register "\n\t"				\
-		: : "Jr" ((unsigned int)value));			\
 } while (0)
 
 /*
@@ -809,29 +776,11 @@ do {									\
 #define read_c0_xcontext()	__read_ulong_c0_register($20, 0)
 #define write_c0_xcontext(val)	__write_ulong_c0_register($20, 0, val)
 
-#define read_c0_intcontrol()	__read_32bit_c0_ctrl_register($20)
-#define write_c0_intcontrol(val) __write_32bit_c0_ctrl_register($20, val)
+#define read_c0_intcontrol()	__read_32bit_c0_register($20, 1)
+#define write_c0_intcontrol(val) __write_32bit_c0_register($20, 1, val)
 
 #define read_c0_framemask()	__read_32bit_c0_register($21, 0)
 #define write_c0_framemask(val)	__write_32bit_c0_register($21, 0, val)
-
-#define read_c0_diag()		__read_32bit_c0_register($22, 0)
-#define write_c0_diag(val)	__write_32bit_c0_register($22, 0, val)
-
-#define read_c0_diag1()		__read_32bit_c0_register($22, 1)
-#define write_c0_diag1(val)	__write_32bit_c0_register($22, 1, val)
-
-#define read_c0_diag2()		__read_32bit_c0_register($22, 2)
-#define write_c0_diag2(val)	__write_32bit_c0_register($22, 2, val)
-
-#define read_c0_diag3()		__read_32bit_c0_register($22, 3)
-#define write_c0_diag3(val)	__write_32bit_c0_register($22, 3, val)
-
-#define read_c0_diag4()		__read_32bit_c0_register($22, 4)
-#define write_c0_diag4(val)	__write_32bit_c0_register($22, 4, val)
-
-#define read_c0_diag5()		__read_32bit_c0_register($22, 5)
-#define write_c0_diag5(val)	__write_32bit_c0_register($22, 5, val)
 
 #define read_c0_debug()		__read_32bit_c0_register($23, 0)
 #define write_c0_debug(val)	__write_32bit_c0_register($23, 0, val)
@@ -872,11 +821,7 @@ do {									\
         : "=r" (__res));                                        \
         __res;})
 
-/*
- * TLB operations.
- *
- * It is responsibility of the caller to take care of any TLB hazards.
- */
+/* TLB operations. */
 static inline void tlb_probe(void)
 {
 	__asm__ __volatile__(
@@ -912,7 +857,7 @@ static inline void tlb_write_random(void)
 /*
  * Manipulate bits in a c0 register.
  */
-#define __BUILD_SET_C0(name)					\
+#define __BUILD_SET_C0(name,register)				\
 static inline unsigned int					\
 set_c0_##name(unsigned int set)					\
 {								\
@@ -950,10 +895,9 @@ change_c0_##name(unsigned int change, unsigned int new)		\
 	return res;						\
 }
 
-__BUILD_SET_C0(status)
-__BUILD_SET_C0(cause)
-__BUILD_SET_C0(config)
-__BUILD_SET_C0(intcontrol)
+__BUILD_SET_C0(status,CP0_STATUS)
+__BUILD_SET_C0(cause,CP0_CAUSE)
+__BUILD_SET_C0(config,CP0_CONFIG)
 
 #endif /* !__ASSEMBLY__ */
 

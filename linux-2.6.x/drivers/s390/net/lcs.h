@@ -13,28 +13,11 @@
 		debug_text_event(lcs_dbf_##name, level, text); \
 	} while (0)
 
-#define LCS_DBF_HEX(level,name,addr,len) \
-do { \
-	debug_event(lcs_dbf_##name,level,(void*)(addr),len); \
-} while (0)
-
-#define LCS_DBF_TEXT_(level,name,text...) \
-do {                                       \
-	sprintf(debug_buffer, text);  \
-		debug_text_event(lcs_dbf_##name,level, debug_buffer);\
-} while (0)
-
 /**
  * some more definitions for debug or output stuff
  */
 #define PRINTK_HEADER		" lcs: "
 
-/**
- *	sysfs related stuff
- */
-#define CARD_FROM_DEV(cdev) \
-	(struct lcs_card *) \
-	((struct ccwgroup_device *)cdev->dev.driver_data)->dev.driver_data;
 /**
  * CCW commands used in this driver
  */
@@ -140,7 +123,6 @@ enum lcs_channel_states {
 	CH_STATE_STOPPED,
 	CH_STATE_RUNNING,
 	CH_STATE_SUSPENDED,
-	CH_STATE_CLEARED,
 };
 
 /**
@@ -149,7 +131,6 @@ enum lcs_channel_states {
 enum lcs_dev_states {
 	DEV_STATE_DOWN,
 	DEV_STATE_UP,
-	DEV_STATE_RECOVER,
 };
 
 /**
@@ -221,8 +202,8 @@ struct lcs_cmd {
 				struct lcs_ip_mac_pair
 				ip_mac_pair[32];
 				__u32	  response_data;
-			} lcs_ipass_ctlmsg __attribute ((packed));
-		} lcs_qipassist __attribute__ ((packed));
+			} lcs_ipass_ctlmsg;
+		} lcs_qipassist;
 #endif /*CONFIG_IP_MULTICAST */
 	} cmd __attribute__ ((packed));
 }  __attribute__ ((packed));
@@ -273,7 +254,6 @@ struct lcs_channel {
  */
 struct lcs_card {
 	spinlock_t lock;
-	spinlock_t ipm_lock;
 	enum lcs_dev_states state;
 	struct net_device *dev;
 	struct net_device_stats stats;

@@ -26,7 +26,6 @@
 #include <linux/list.h> 
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/ide.h>
 #include <linux/pci.h>
 
@@ -37,7 +36,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppcdebug.h>
 #include <asm/naca.h>
-#include <asm/iommu.h>
+#include <asm/pci_dma.h>
 
 #include <asm/iSeries/HvCallPci.h>
 #include <asm/iSeries/HvCallSm.h>
@@ -54,7 +53,7 @@ extern int panic_timeout;
 
 extern unsigned long iSeries_Base_Io_Memory;    
 
-extern struct iommu_table *tceTables[256];
+extern struct TceTable *tceTables[256];
 
 extern void iSeries_MmIoTest(void);
 
@@ -102,6 +101,47 @@ static void pci_Log_Error(char *Error_Text, int Bus, int SubBus,
 	printk(KERN_ERR "PCI: %s Failed: 0x%02X.%02X.%02X Rc: 0x%04X",
 	       Error_Text, Bus, SubBus, AgentId, HvRc);
 }
+
+#if 0
+/*
+ * Dump the iSeries Temp Device Node 
+ * <4>buswalk [swapper : - DeviceNode: 0xC000000000634300
+ * <4>00. Device Node   = 0xC000000000634300
+ * <4>    - PciDev      = 0x0000000000000000
+ * <4>    - tDevice     = 0x  17:01.00  0x1022 00
+ * <4>  4. Device Node = 0xC000000000634480
+ * <4>     - PciDev    = 0x0000000000000000
+ * <4>     - Device    = 0x  18:38.16 Irq:0xA7 Vendor:0x1014  Flags:0x00
+ * <4>     - Devfn     = 0xB0: 22.18
+ */
+void dumpDevice_Node(struct iSeries_Device_Node *DevNode)
+{
+	udbg_printf("Device Node      = 0x%p\n", DevNode);
+	udbg_printf("     - PciDev    = 0x%p\n", DevNode->PciDev);
+	udbg_printf("     - Device    = 0x%4X:%02X.%02X (0x%02X)\n",
+			ISERIES_BUS(DevNode), ISERIES_SUBBUS(DevNode),
+			DevNode->AgentId, DevNode->DevFn);
+	udbg_printf("     - LSlot     = 0x%02X\n", DevNode->LogicalSlot);
+	udbg_printf("     - TceTable  = 0x%p\n  ", DevNode->DevTceTable);
+	udbg_printf("     - DSA       = 0x%04X\n", ISERIES_DSA(DevNode) >> 32);
+	udbg_printf("                 = Irq:0x%02X Vendor:0x%04X  Flags:0x%02X\n",
+			DevNode->Irq, DevNode->Vendor, DevNode->Flags);
+	udbg_printf("     - Location  = %s\n", DevNode->CardLocation);
+}
+
+/*
+ * Walk down the device node chain 
+ */
+static void list_device_nodes(void)
+{
+	struct list_head *Device_Node_Ptr = iSeries_Global_Device_List.next;
+
+	while (Device_Node_Ptr != &iSeries_Global_Device_List) {
+		dumpDevice_Node((struct iSeries_Device_Node*)Device_Node_Ptr);
+		Device_Node_Ptr = Device_Node_Ptr->next;
+	}
+}
+#endif
 
 /*
  * build_device_node(u16 Bus, int SubBus, u8 DevFn)
@@ -201,9 +241,9 @@ void iSeries_pcibios_init(void)
 }
 
 /*
- * iSeries_pci_final_fixup(void)  
+ * pcibios_final_fixup(void)  
  */
-void __init iSeries_pci_final_fixup(void)
+void __init pcibios_final_fixup(void)
 {
 	struct pci_dev *pdev = NULL;
 	struct iSeries_Device_Node *node;
@@ -233,11 +273,10 @@ void __init iSeries_pci_final_fixup(void)
 			iSeries_Device_Information(pdev, Buffer,
 					sizeof(Buffer));
 			printk("%d. %s\n", DeviceCount, Buffer);
-			iommu_devnode_init(node);
+			create_pci_bus_tce_table((unsigned long)node);
 		} else
 			printk("PCI: Device Tree not found for 0x%016lX\n",
 					(unsigned long)pdev);
-		pdev->irq = node->Irq;
 	}
 	iSeries_IoMmTable_Status();
 	iSeries_activate_IRQs();
@@ -277,7 +316,7 @@ static void iSeries_Scan_PHBs_Slots(struct pci_controller *Phb)
 	 */
 	for (IdSel = 1; IdSel < MaxAgents; ++IdSel) {
     		HvRc = HvCallPci_getDeviceInfo(bus, SubBus, IdSel,
-				ISERIES_HV_ADDR(DevInfo),
+				REALADDR(DevInfo),
 				sizeof(struct HvCallPci_DeviceInfo));
 		if (HvRc == 0) {
 			if (DevInfo->deviceType == HvCallPci_NodeDevice)
@@ -318,7 +357,7 @@ static void iSeries_Scan_EADs_Bridge(HvBusNumber bus, HvSubBusNumber SubBus,
 					"PCI:Connect EADs: 0x%02X.%02X.%02X\n",
 					bus, SubBus, AgentId);
 	    		HvRc = HvCallPci_getBusUnitInfo(bus, SubBus, AgentId,
-					ISERIES_HV_ADDR(BridgeInfo),
+					REALADDR(BridgeInfo),
 					sizeof(struct HvCallPci_BridgeInfo));
 	 		if (HvRc == 0) {
 				printk("bridge info: type %x subbus %x maxAgents %x maxsubbus %x logslot %x\n",
@@ -367,6 +406,7 @@ static int iSeries_Scan_Bridge_Slot(HvBusNumber Bus,
 
 	/* iSeries_allocate_IRQ.: 0x18.00.12(0xA3) */
   	Irq = iSeries_allocate_IRQ(Bus, 0, EADsIdSel);
+	iSeries_assign_IRQ(Irq, Bus, 0, EADsIdSel);
 	PPCDBG(PPCDBG_BUSWALK,
 		"PCI:- allocate and assign IRQ 0x%02X.%02X.%02X = 0x%02X\n",
 		Bus, 0, EADsIdSel, Irq);
@@ -384,6 +424,8 @@ static int iSeries_Scan_Bridge_Slot(HvBusNumber Bus,
 					      Bus, SubBus, AgentId, HvRc);
 				continue;
 			}
+			printk("connected bus unit at bus %d subbus 0x%x agentid 0x%x (idsel=%d func=%d)\n",
+			       Bus, SubBus, AgentId, IdSel, Function);
 
 			HvRc = HvCallPci_configLoad16(Bus, SubBus, AgentId,
 						      PCI_VENDOR_ID, &VendorId);
@@ -396,8 +438,8 @@ static int iSeries_Scan_Bridge_Slot(HvBusNumber Bus,
 
 			/* FoundDevice: 0x18.28.10 = 0x12AE */
 			PPCDBG(PPCDBG_BUSWALK,
-			       "PCI:- FoundDevice: 0x%02X.%02X.%02X = 0x%04X, irq %d\n",
-			       Bus, SubBus, AgentId, VendorId, Irq);
+			       "PCI:- FoundDevice: 0x%02X.%02X.%02X = 0x%04X\n",
+			       Bus, SubBus, AgentId, VendorId);
 			HvRc = HvCallPci_configStore8(Bus, SubBus, AgentId,
 						      PCI_INTERRUPT_LINE, Irq);  
 			if (HvRc != 0)
@@ -432,7 +474,6 @@ void *iSeries_memset_io(void *dest, char c, size_t Count)
 	}
 	return dest;
 }
-EXPORT_SYMBOL(iSeries_memset_io);
 
 void *iSeries_memcpy_toio(void *dest, void *source, size_t count)
 {
@@ -446,7 +487,6 @@ void *iSeries_memcpy_toio(void *dest, void *source, size_t count)
 	}
 	return dest;
 }
-EXPORT_SYMBOL(iSeries_memcpy_toio);
 
 void *iSeries_memcpy_fromio(void *dest, void *source, size_t count)
 {
@@ -460,7 +500,6 @@ void *iSeries_memcpy_fromio(void *dest, void *source, size_t count)
 	}
 	return dest;
 }
-EXPORT_SYMBOL(iSeries_memcpy_fromio);
 
 /*
  * Look down the chain to find the matching Device Device
@@ -671,7 +710,6 @@ u8 iSeries_Read_Byte(void *IoAddress)
 
 	return (u8)ret.value;
 }
-EXPORT_SYMBOL(iSeries_Read_Byte);
 
 u16 iSeries_Read_Word(void *IoAddress)
 {
@@ -701,7 +739,6 @@ u16 iSeries_Read_Word(void *IoAddress)
 
 	return swab16((u16)ret.value);
 }
-EXPORT_SYMBOL(iSeries_Read_Word);
 
 u32 iSeries_Read_Long(void *IoAddress)
 {
@@ -731,7 +768,6 @@ u32 iSeries_Read_Long(void *IoAddress)
 
 	return swab32((u32)ret.value);
 }
-EXPORT_SYMBOL(iSeries_Read_Long);
 
 /*
  * Write MM I/O Instructions for the iSeries
@@ -765,7 +801,6 @@ void iSeries_Write_Byte(u8 data, void *IoAddress)
 		rc = HvCall4(HvCallPciBarStore8, dsa, BarOffset, data, 0);
 	} while (CheckReturnCode("WWB", DevNode, rc) != 0);
 }
-EXPORT_SYMBOL(iSeries_Write_Byte);
 
 void iSeries_Write_Word(u16 data, void *IoAddress)
 {
@@ -792,7 +827,6 @@ void iSeries_Write_Word(u16 data, void *IoAddress)
 		rc = HvCall4(HvCallPciBarStore16, dsa, BarOffset, swab16(data), 0);
 	} while (CheckReturnCode("WWW", DevNode, rc) != 0);
 }
-EXPORT_SYMBOL(iSeries_Write_Word);
 
 void iSeries_Write_Long(u32 data, void *IoAddress)
 {
@@ -819,7 +853,6 @@ void iSeries_Write_Long(u32 data, void *IoAddress)
 		rc = HvCall4(HvCallPciBarStore32, dsa, BarOffset, swab32(data), 0);
 	} while (CheckReturnCode("WWL", DevNode, rc) != 0);
 }
-EXPORT_SYMBOL(iSeries_Write_Long);
 
 void pcibios_name_device(struct pci_dev *dev)
 {

@@ -5,7 +5,11 @@
  * Tobias Sargeant <tobias.sargeant@bigpond.com>
  * Based upon tas3001c.c by Christopher C. Chimelis <chris@debian.org>:
  *
- * Input support by Renzo Davoli <renzo@cs.unibo.it>
+ *   TODO:
+ *   -----
+ *   * Enable control over input line 2 (is this connected?)
+ *   * Implement sleep support (at least mute everything and
+ *   * set gains to minimum during sleep)
  *
  */
 
@@ -289,8 +293,7 @@ tas3004_write_register(	struct tas3004_data_t *self,
 {
 	if (reg_num==TAS3004_REG_MCR ||
 	    reg_num==TAS3004_REG_BASS ||
-	    reg_num==TAS3004_REG_TREBLE ||
-	    reg_num==TAS3004_REG_ANALOG_CTRL) {
+	    reg_num==TAS3004_REG_TREBLE) {
 		return tas_write_byte_register(&self->super,
 					       (uint)reg_num,
 					       *data,
@@ -310,8 +313,7 @@ tas3004_sync_register(	struct tas3004_data_t *self,
 {
 	if (reg_num==TAS3004_REG_MCR ||
 	    reg_num==TAS3004_REG_BASS ||
-	    reg_num==TAS3004_REG_TREBLE ||
-	    reg_num==TAS3004_REG_ANALOG_CTRL) {
+	    reg_num==TAS3004_REG_TREBLE) {
 		return tas_sync_byte_register(&self->super,
 					      (uint)reg_num,
 					      register_width(reg_num));
@@ -352,9 +354,7 @@ tas3004_supported_mixers(struct tas3004_data_t *self)
 		SOUND_MASK_ALTPCM |
 		SOUND_MASK_IMIX |
 		SOUND_MASK_TREBLE |
-		SOUND_MASK_BASS |
-		SOUND_MASK_MIC |
-		SOUND_MASK_LINE;
+		SOUND_MASK_BASS;
 }
 
 static int
@@ -447,28 +447,6 @@ tas3004_set_mixer_level(struct tas3004_data_t *self, int mixer, uint level)
 		shadow[TAS3004_REG_BASS][0]=temp&0xff;
 		rc = tas3004_sync_register(self,TAS3004_REG_BASS);
 		break;
-	case SOUND_MIXER_MIC:
-		if ((level&0xff)>0) {
-			software_input_volume = SW_INPUT_VOLUME_SCALE * (level&0xff);
-			if (self->super.mixer[mixer] == 0) {
-				self->super.mixer[SOUND_MIXER_LINE] = 0;
-				shadow[TAS3004_REG_ANALOG_CTRL][0]=0xc2;
-				rc = tas3004_sync_register(self,TAS3004_REG_ANALOG_CTRL);
-			} else rc=0;
-		} else {
-			self->super.mixer[SOUND_MIXER_LINE] = SW_INPUT_VOLUME_DEFAULT;
-			software_input_volume = SW_INPUT_VOLUME_SCALE *
-				(self->super.mixer[SOUND_MIXER_LINE]&0xff);
-			shadow[TAS3004_REG_ANALOG_CTRL][0]=0x00;
-			rc = tas3004_sync_register(self,TAS3004_REG_ANALOG_CTRL);
-		}
-		break;
-	case SOUND_MIXER_LINE:
-		if (self->super.mixer[SOUND_MIXER_MIC] == 0) {
-			software_input_volume = SW_INPUT_VOLUME_SCALE * (level&0xff);
-			rc=0;
-		}
-		break;
 	default:
 		rc = -1;
 		break;
@@ -518,7 +496,6 @@ tas3004_leave_sleep(struct tas3004_data_t *self)
 	(void)tas3004_sync_register(self,TAS3004_REG_RIGHT_MIXER);
 	(void)tas3004_sync_register(self,TAS3004_REG_TREBLE);
 	(void)tas3004_sync_register(self,TAS3004_REG_BASS);
-	(void)tas3004_sync_register(self,TAS3004_REG_ANALOG_CTRL);
 
 	return 0;
 }
@@ -635,11 +612,10 @@ tas3004_eq_rw(	struct tas3004_data_t *self,
 		u_int cmd,
 		u_long arg)
 {
-	void __user *argp = (void __user *)arg;
 	int rc;
 	struct tas_biquad_ctrl_t biquad;
 
-	if (copy_from_user((void *)&biquad, argp, sizeof(struct tas_biquad_ctrl_t))) {
+	if (copy_from_user((void *)&biquad, (const void *)arg, sizeof(struct tas_biquad_ctrl_t))) {
 		return -EFAULT;
 	}
 
@@ -652,7 +628,7 @@ tas3004_eq_rw(	struct tas3004_data_t *self,
 		rc=tas3004_read_biquad(self, biquad.channel, biquad.filter, &biquad.data);
 		if (rc != 0) return rc;
 
-		if (copy_to_user(argp, &biquad, sizeof(struct tas_biquad_ctrl_t))) {
+		if (copy_to_user((void *)arg, (const void *)&biquad, sizeof(struct tas_biquad_ctrl_t))) {
 			return -EFAULT;
 		}
 
@@ -671,21 +647,27 @@ tas3004_eq_list_rw(	struct tas3004_data_t *self,
 	int i,j;
 	char sync_required[TAS3004_BIQUAD_CHANNEL_COUNT][TAS3004_BIQUAD_FILTER_COUNT];
 	struct tas_biquad_ctrl_t biquad;
-	struct tas_biquad_ctrl_list_t __user *argp = (void __user *)arg;
 
 	memset(sync_required,0,sizeof(sync_required));
 
-	if (copy_from_user(&filter_count, &argp->filter_count, sizeof(int)))
+	if (copy_from_user((void *)&filter_count,
+			   (const void *)arg + offsetof(struct tas_biquad_ctrl_list_t,filter_count),
+			   sizeof(int))) {
 		return -EFAULT;
+	}
 
-	if (copy_from_user(&flags, &argp->flags, sizeof(int)))
+	if (copy_from_user((void *)&flags,
+			   (const void *)arg + offsetof(struct tas_biquad_ctrl_list_t,flags),
+			   sizeof(int))) {
 		return -EFAULT;
+	}
 
 	if (cmd & SIOC_IN) {
 	}
 
 	for (i=0; i < filter_count; i++) {
-		if (copy_from_user(&biquad, &argp->biquads[i],
+		if (copy_from_user((void *)&biquad,
+				   (const void *)arg + offsetof(struct tas_biquad_ctrl_list_t, biquads[i]),
 				   sizeof(struct tas_biquad_ctrl_t))) {
 			return -EFAULT;
 		}
@@ -700,7 +682,8 @@ tas3004_eq_list_rw(	struct tas3004_data_t *self,
 			rc=tas3004_read_biquad(self, biquad.channel, biquad.filter, &biquad.data);
 			if (rc != 0) return rc;
 
-			if (copy_to_user(&argp->biquads[i], &biquad,
+			if (copy_to_user((void *)arg + offsetof(struct tas_biquad_ctrl_list_t, biquads[i]),
+					 (const void *)&biquad,
 					 sizeof(struct tas_biquad_ctrl_t))) {
 				return -EFAULT;
 			}
@@ -834,10 +817,12 @@ tas3004_drce_rw(	struct tas3004_data_t *self,
 {
 	int rc;
 	struct tas_drce_ctrl_t drce_ctrl;
-	void __user *argp = (void __user *)arg;
 
-	if (copy_from_user(&drce_ctrl, argp, sizeof(struct tas_drce_ctrl_t)))
+	if (copy_from_user((void *)&drce_ctrl,
+			   (const void *)arg,
+			   sizeof(struct tas_drce_ctrl_t))) {
 		return -EFAULT;
+	}
 
 #ifdef DEBUG_DRCE
 	printk("DRCE: input [ FLAGS:%x ENABLE:%x ABOVE:%x/%x BELOW:%x/%x THRESH:%x ENERGY:%x ATTACK:%x DECAY:%x\n",
@@ -872,7 +857,8 @@ tas3004_drce_rw(	struct tas3004_data_t *self,
 		if (drce_ctrl.flags & TAS_DRCE_DECAY)
 			drce_ctrl.data.decay = self->drce_state.decay;
 
-		if (copy_to_user(argp, &drce_ctrl,
+		if (copy_to_user((void *)arg,
+				 (const void *)&drce_ctrl,
 				 sizeof(struct tas_drce_ctrl_t))) {
 			return -EFAULT;
 		}
@@ -943,7 +929,6 @@ tas3004_device_ioctl(	struct tas3004_data_t *self,
 			u_int cmd,
 			u_long arg)
 {
-	uint __user *argp = (void __user *)arg;
 	switch (cmd) {
 	case TAS_READ_EQ:
 	case TAS_WRITE_EQ:
@@ -954,11 +939,11 @@ tas3004_device_ioctl(	struct tas3004_data_t *self,
 		return tas3004_eq_list_rw(self, cmd, arg);
 
 	case TAS_READ_EQ_FILTER_COUNT:
-		put_user(TAS3004_BIQUAD_FILTER_COUNT, argp);
+		put_user(TAS3004_BIQUAD_FILTER_COUNT, (uint *)(arg));
 		return 0;
 
 	case TAS_READ_EQ_CHANNEL_COUNT:
-		put_user(TAS3004_BIQUAD_CHANNEL_COUNT, argp);
+		put_user(TAS3004_BIQUAD_CHANNEL_COUNT, (uint *)(arg));
 		return 0;
 
 	case TAS_READ_DRCE:
@@ -973,7 +958,7 @@ tas3004_device_ioctl(	struct tas3004_data_t *self,
 			 TAS_DRCE_ENERGY         |
 			 TAS_DRCE_ATTACK         |
 			 TAS_DRCE_DECAY,
-			 argp);
+			 (uint *)(arg));
 		return 0;
 
 	case TAS_READ_DRCE_MIN:
@@ -981,7 +966,8 @@ tas3004_device_ioctl(	struct tas3004_data_t *self,
 		struct tas_drce_ctrl_t drce_ctrl;
 		const struct tas_drce_t *drce_copy;
 
-		if (copy_from_user(&drce_ctrl, argp,
+		if (copy_from_user((void *)&drce_ctrl,
+				   (const void *)arg,
 				   sizeof(struct tas_drce_ctrl_t))) {
 			return -EFAULT;
 		}
@@ -1011,7 +997,8 @@ tas3004_device_ioctl(	struct tas3004_data_t *self,
 			drce_ctrl.data.decay=drce_copy->decay;
 		}
 
-		if (copy_to_user(argp, &drce_ctrl,
+		if (copy_to_user((void *)arg,
+				 (const void *)&drce_ctrl,
 				 sizeof(struct tas_drce_ctrl_t))) {
 			return -EFAULT;
 		}
@@ -1063,8 +1050,6 @@ tas3004_init_mixer(struct tas3004_data_t *self)
 	tas3004_set_mixer_level(self, SOUND_MIXER_BASS, BASS_DEFAULT);
 	tas3004_set_mixer_level(self, SOUND_MIXER_TREBLE, TREBLE_DEFAULT);
 
-	tas3004_set_mixer_level(self, SOUND_MIXER_LINE,SW_INPUT_VOLUME_DEFAULT);
-
 	return 0;
 }
 
@@ -1078,8 +1063,6 @@ tas3004_uninit_mixer(struct tas3004_data_t *self)
 
 	tas3004_set_mixer_level(self, SOUND_MIXER_BASS, 0);
 	tas3004_set_mixer_level(self, SOUND_MIXER_TREBLE, 0);
-
-	tas3004_set_mixer_level(self, SOUND_MIXER_LINE, 0);
 
 	return 0;
 }

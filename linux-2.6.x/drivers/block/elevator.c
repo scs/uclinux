@@ -150,13 +150,6 @@ void elv_merge_requests(request_queue_t *q, struct request *rq,
 void elv_requeue_request(request_queue_t *q, struct request *rq)
 {
 	/*
-	 * it already went through dequeue, we need to decrement the
-	 * in_flight count again
-	 */
-	if (blk_account_rq(rq))
-		q->in_flight--;
-
-	/*
 	 * if iosched has an explicit requeue hook, then use that. otherwise
 	 * just put the request at the front of the queue
 	 */
@@ -169,26 +162,11 @@ void elv_requeue_request(request_queue_t *q, struct request *rq)
 void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 		       int plug)
 {
-	/*
-	 * barriers implicitly indicate back insertion
-	 */
-	if (rq->flags & (REQ_SOFTBARRIER | REQ_HARDBARRIER) &&
-	    where == ELEVATOR_INSERT_SORT)
-		where = ELEVATOR_INSERT_BACK;
-
 	if (plug)
 		blk_plug_device(q);
 
 	rq->q = q;
 	q->elevator.elevator_add_req_fn(q, rq, where);
-
-	if (blk_queue_plugged(q)) {
-		int nrq = q->rq.count[READ] + q->rq.count[WRITE] - q->in_flight;
-
-		if (nrq == q->unplug_thresh)
-			__generic_unplug_device(q);
-	}
-
 }
 
 void elv_add_request(request_queue_t *q, struct request *rq, int where,
@@ -211,7 +189,7 @@ struct request *elv_next_request(request_queue_t *q)
 	struct request *rq;
 	int ret;
 
-	while ((rq = __elv_next_request(q)) != NULL) {
+	while ((rq = __elv_next_request(q))) {
 		/*
 		 * just mark as started even if we don't start it, a request
 		 * that has been delayed should not be passed by new incoming
@@ -232,14 +210,10 @@ struct request *elv_next_request(request_queue_t *q)
 			rq = NULL;
 			break;
 		} else if (ret == BLKPREP_KILL) {
-			int nr_bytes = rq->hard_nr_sectors << 9;
-
-			if (!nr_bytes)
-				nr_bytes = rq->data_len;
-
 			blkdev_dequeue_request(rq);
 			rq->flags |= REQ_QUIET;
-			end_that_request_chunk(rq, 0, nr_bytes);
+			while (end_that_request_first(rq, 0, rq->nr_sectors))
+				;
 			end_that_request_last(rq);
 		} else {
 			printk("%s: bad return=%d\n", __FUNCTION__, ret);
@@ -253,16 +227,6 @@ struct request *elv_next_request(request_queue_t *q)
 void elv_remove_request(request_queue_t *q, struct request *rq)
 {
 	elevator_t *e = &q->elevator;
-
-	/*
-	 * the time frame between a request being removed from the lists
-	 * and to it is freed is accounted as io that is in progress at
-	 * the driver side. note that we only account requests that the
-	 * driver has seen (REQ_STARTED set), to avoid false accounting
-	 * for request-request merges
-	 */
-	if (blk_account_rq(rq))
-		q->in_flight++;
 
 	/*
 	 * the main clearing point for q->last_merge is on retrieval of
@@ -352,12 +316,6 @@ int elv_may_queue(request_queue_t *q, int rw)
 void elv_completed_request(request_queue_t *q, struct request *rq)
 {
 	elevator_t *e = &q->elevator;
-
-	/*
-	 * request is released from the driver, io must be done
-	 */
-	if (blk_account_rq(rq))
-		q->in_flight--;
 
 	if (e->elevator_completed_req_fn)
 		e->elevator_completed_req_fn(q, rq);

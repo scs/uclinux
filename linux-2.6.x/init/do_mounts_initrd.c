@@ -1,5 +1,4 @@
-#define __KERNEL_SYSCALLS__
-#include <linux/unistd.h>
+
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/minix_fs.h>
@@ -10,7 +9,12 @@
 
 #include "do_mounts.h"
 
-unsigned long initrd_start, initrd_end;
+#if defined(CONFIG_EZKIT) || defined(CONFIG_BLKFIN_STAMP)
+/* Workaround,under construction - BFin*/
+extern char ramdisk_begin,ramdisk_end;
+unsigned long initrd_start=&ramdisk_begin, initrd_end=&ramdisk_end;	
+#endif
+
 int initrd_below_start_ok;
 unsigned int real_root_dev;	/* do_proc_dointvec cannot handle kdev_t */
 static int __initdata old_fd, root_fd;
@@ -29,12 +33,12 @@ static int __init do_linuxrc(void * shell)
 	static char *argv[] = { "linuxrc", NULL, };
 	extern char * envp_init[];
 
-	sys_close(old_fd);sys_close(root_fd);
-	sys_close(0);sys_close(1);sys_close(2);
-	sys_setsid();
-	(void) sys_open("/dev/console",O_RDWR,0);
-	(void) sys_dup(0);
-	(void) sys_dup(0);
+	close(old_fd);close(root_fd);
+	close(0);close(1);close(2);
+	setsid();
+	(void) open("/dev/console",O_RDWR,0);
+	(void) dup(0);
+	(void) dup(0);
 	return execve(shell, argv, envp_init);
 }
 
@@ -48,8 +52,8 @@ static void __init handle_initrd(void)
 	/* mount initrd on rootfs' /root */
 	mount_block_root("/dev/root.old", root_mountflags & ~MS_RDONLY);
 	sys_mkdir("/old", 0700);
-	root_fd = sys_open("/", 0, 0);
-	old_fd = sys_open("/old", 0, 0);
+	root_fd = open("/", 0, 0);
+	old_fd = open("/old", 0, 0);
 	/* move initrd over / and chdir/chroot in initrd root */
 	sys_chdir("/root");
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
@@ -58,7 +62,7 @@ static void __init handle_initrd(void)
 
 	pid = kernel_thread(do_linuxrc, "/linuxrc", SIGCHLD);
 	if (pid > 0) {
-		while (pid != sys_wait4(-1, &i, 0, NULL))
+		while (pid != waitpid(-1, &i, 0))
 			yield();
 	}
 
@@ -68,8 +72,8 @@ static void __init handle_initrd(void)
 	/* switch root and cwd back to / of rootfs */
 	sys_fchdir(root_fd);
 	sys_chroot(".");
-	sys_close(old_fd);
-	sys_close(root_fd);
+	close(old_fd);
+	close(root_fd);
 	umount_devfs("/old/dev");
 
 	if (new_decode_dev(real_root_dev) == Root_RAM0) {
@@ -85,7 +89,7 @@ static void __init handle_initrd(void)
 	if (!error)
 		printk("okay\n");
 	else {
-		int fd = sys_open("/dev/root.old", O_RDWR, 0);
+		int fd = open("/dev/root.old", O_RDWR, 0);
 		printk("failed\n");
 		printk(KERN_NOTICE "Unmounting old root\n");
 		sys_umount("/old", MNT_DETACH);
@@ -94,7 +98,7 @@ static void __init handle_initrd(void)
 			error = fd;
 		} else {
 			error = sys_ioctl(fd, BLKFLSBUF, 0);
-			sys_close(fd);
+			close(fd);
 		}
 		printk(!error ? "okay\n" : "failed\n");
 	}

@@ -1280,7 +1280,6 @@ int diFree(struct inode *ip)
 	 * to be freed by the transaction;  
 	 */
 	tid = txBegin(ipimap->i_sb, COMMIT_FORCE);
-	down(&JFS_IP(ipimap)->commit_sem);
 
 	/* acquire tlock of the iag page of the freed ixad 
 	 * to force the page NOHOMEOK (even though no data is
@@ -1313,7 +1312,6 @@ int diFree(struct inode *ip)
 	rc = txCommit(tid, 1, &iplist[0], COMMIT_FORCE);
 
 	txEnd(tid);
-	up(&JFS_IP(ipimap)->commit_sem);
 
 	/* unlock the AG inode map information */
 	AG_UNLOCK(imap, agno);
@@ -1548,7 +1546,6 @@ int diAlloc(struct inode *pip, boolean_t dir, struct inode *ip)
 						 0);
 				if (rem >= INOSPEREXT) {
 					IREAD_UNLOCK(ipimap);
-					release_metapage(mp);
 					AG_UNLOCK(imap, agno);
 					jfs_error(ip->i_sb,
 						  "diAlloc: can't find free bit "
@@ -1843,7 +1840,6 @@ static int diAllocIno(struct inomap * imap, int agno, struct inode *ip)
 	 */
 	if (!iagp->nfreeinos) {
 		IREAD_UNLOCK(imap->im_ipimap);
-		release_metapage(mp);
 		jfs_error(ip->i_sb,
 			  "diAllocIno: nfreeinos = 0, but iag on freelist");
 		return -EIO;
@@ -1855,7 +1851,6 @@ static int diAllocIno(struct inomap * imap, int agno, struct inode *ip)
 	for (sword = 0;; sword++) {
 		if (sword >= SMAPSZ) {
 			IREAD_UNLOCK(imap->im_ipimap);
-			release_metapage(mp);
 			jfs_error(ip->i_sb,
 				  "diAllocIno: free inode not found in summary map");
 			return -EIO;
@@ -1871,7 +1866,6 @@ static int diAllocIno(struct inomap * imap, int agno, struct inode *ip)
 	rem = diFindFree(le32_to_cpu(iagp->inosmap[sword]), 0);
 	if (rem >= EXTSPERSUM) {
 		IREAD_UNLOCK(imap->im_ipimap);
-		release_metapage(mp);
 		jfs_error(ip->i_sb, "diAllocIno: no free extent found");
 		return -EIO;
 	}
@@ -1882,7 +1876,6 @@ static int diAllocIno(struct inomap * imap, int agno, struct inode *ip)
 	rem = diFindFree(le32_to_cpu(iagp->wmap[extno]), 0);
 	if (rem >= INOSPEREXT) {
 		IREAD_UNLOCK(imap->im_ipimap);
-		release_metapage(mp);
 		jfs_error(ip->i_sb, "diAllocIno: free inode not found");
 		return -EIO;
 	}
@@ -2062,8 +2055,8 @@ static int diAllocExt(struct inomap * imap, int agno, struct inode *ip)
 static int diAllocBit(struct inomap * imap, struct iag * iagp, int ino)
 {
 	int extno, bitno, agno, sword, rc;
-	struct metapage *amp = NULL, *bmp = NULL;
-	struct iag *aiagp = NULL, *biagp = NULL;
+	struct metapage *amp, *bmp;
+	struct iag *aiagp = 0, *biagp = 0;
 	u32 mask;
 
 	/* check if this is the last free inode within the iag.
@@ -2072,6 +2065,8 @@ static int diAllocBit(struct inomap * imap, struct iag * iagp, int ino)
 	 * it on the list.
 	 */
 	if (iagp->nfreeinos == cpu_to_le32(1)) {
+		amp = bmp = NULL;
+
 		if ((int) le32_to_cpu(iagp->inofreefwd) >= 0) {
 			if ((rc =
 			     diIAGRead(imap, le32_to_cpu(iagp->inofreefwd),
@@ -2209,7 +2204,7 @@ static int diAllocBit(struct inomap * imap, struct iag * iagp, int ino)
 static int diNewExt(struct inomap * imap, struct iag * iagp, int extno)
 {
 	int agno, iagno, fwd, back, freei = 0, sword, rc;
-	struct iag *aiagp = NULL, *biagp = NULL, *ciagp = NULL;
+	struct iag *aiagp = 0, *biagp = 0, *ciagp = 0;
 	struct metapage *amp, *bmp, *cmp, *dmp;
 	struct inode *ipimap;
 	s64 blkno, hint;
@@ -2624,13 +2619,10 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 		 */
 #endif				/*  _STILL_TO_PORT */
 		tid = txBegin(sb, COMMIT_FORCE);
-		down(&JFS_IP(ipimap)->commit_sem);
 
 		/* update the inode map addressing structure to point to it */
 		if ((rc =
 		     xtInsert(tid, ipimap, 0, blkno, xlen, &xaddr, 0))) {
-			txEnd(tid);
-			up(&JFS_IP(ipimap)->commit_sem);
 			/* Free the blocks allocated for the iag since it was
 			 * not successfully added to the inode map
 			 */
@@ -2655,7 +2647,6 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 		rc = txCommit(tid, 1, &iplist[0], COMMIT_FORCE);
 
 		txEnd(tid);
-		up(&JFS_IP(ipimap)->commit_sem);
 
 		duplicateIXtree(sb, blkno, xlen, &xaddr);
 
@@ -2850,14 +2841,12 @@ diUpdatePMap(struct inode *ipimap,
 		 * and should be free in persistent map;
 		 */
 		if (!(le32_to_cpu(iagp->wmap[extno]) & mask)) {
-			release_metapage(mp);
 			jfs_error(ipimap->i_sb,
 				  "diUpdatePMap: the inode is not allocated in "
 				  "the working map");
 			return -EIO;
 		}
 		if ((le32_to_cpu(iagp->pmap[extno]) & mask) != 0) {
-			release_metapage(mp);
 			jfs_error(ipimap->i_sb,
 				  "diUpdatePMap: the inode is not free in the "
 				  "persistent map");
@@ -2916,7 +2905,7 @@ int diExtendFS(struct inode *ipimap, struct inode *ipbmap)
 {
 	int rc, rcx = 0;
 	struct inomap *imap = JFS_IP(ipimap)->i_imap;
-	struct iag *iagp = NULL, *hiagp = NULL;
+	struct iag *iagp = 0, *hiagp = 0;
 	struct bmap *mp = JFS_SBI(ipbmap->i_sb)->bmap;
 	struct metapage *bp, *hbp;
 	int i, n, head;

@@ -36,7 +36,6 @@
 #include <linux/kbd_kern.h>
 #include <linux/console.h>
 #include <linux/smp_lock.h>
-#include <linux/device.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
@@ -70,11 +69,11 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 {
 	int size;
 
-	down(&con_buf_sem);
+	lock_kernel();
 	size = vcs_size(file->f_dentry->d_inode);
 	switch (orig) {
 		default:
-			up(&con_buf_sem);
+			unlock_kernel();
 			return -EINVAL;
 		case 2:
 			offset += size;
@@ -85,29 +84,34 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 			break;
 	}
 	if (offset < 0 || offset > size) {
-		up(&con_buf_sem);
+		unlock_kernel();
 		return -EINVAL;
 	}
 	file->f_pos = offset;
-	up(&con_buf_sem);
+	unlock_kernel();
 	return file->f_pos;
 }
 
+/* We share this temporary buffer with the console write code
+ * so that we can easily avoid touching user space while holding the
+ * console spinlock.
+ */
+extern char con_buf[PAGE_SIZE];
+#define CON_BUF_SIZE	PAGE_SIZE
+extern struct semaphore con_buf_sem;
 
 static ssize_t
-vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+vcs_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	unsigned int currcons = iminor(inode);
-	long pos;
+	long pos = *ppos;
 	long viewed, attr, read;
 	int col, maxcol;
 	unsigned short *org = NULL;
 	ssize_t ret;
 
 	down(&con_buf_sem);
-
-	pos = *ppos;
 
 	/* Select the proper current console and verify
 	 * sanity of the situation under the console lock.
@@ -266,11 +270,11 @@ unlock_out:
 }
 
 static ssize_t
-vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+vcs_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	unsigned int currcons = iminor(inode);
-	long pos;
+	long pos = *ppos;
 	long viewed, attr, size, written;
 	char *con_buf0;
 	int col, maxcol;
@@ -278,8 +282,6 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	size_t ret;
 
 	down(&con_buf_sem);
-
-	pos = *ppos;
 
 	/* Select the proper current console and verify
 	 * sanity of the situation under the console lock.
@@ -467,8 +469,6 @@ static struct file_operations vcs_fops = {
 	.open		= vcs_open,
 };
 
-static struct class_simple *vc_class;
-
 void vcs_make_devfs(struct tty_struct *tty)
 {
 	devfs_mk_cdev(MKDEV(VCS_MAJOR, tty->index + 1),
@@ -477,26 +477,19 @@ void vcs_make_devfs(struct tty_struct *tty)
 	devfs_mk_cdev(MKDEV(VCS_MAJOR, tty->index + 129),
 			S_IFCHR|S_IRUSR|S_IWUSR,
 			"vcc/a%u", tty->index + 1);
-	class_simple_device_add(vc_class, MKDEV(VCS_MAJOR, tty->index + 1), NULL, "vcs%u", tty->index + 1);
-	class_simple_device_add(vc_class, MKDEV(VCS_MAJOR, tty->index + 129), NULL, "vcsa%u", tty->index + 1);
 }
 void vcs_remove_devfs(struct tty_struct *tty)
 {
 	devfs_remove("vcc/%u", tty->index + 1);
 	devfs_remove("vcc/a%u", tty->index + 1);
-	class_simple_device_remove(MKDEV(VCS_MAJOR, tty->index + 1));
-	class_simple_device_remove(MKDEV(VCS_MAJOR, tty->index + 129));
 }
 
 int __init vcs_init(void)
 {
 	if (register_chrdev(VCS_MAJOR, "vcs", &vcs_fops))
 		panic("unable to get major %d for vcs device", VCS_MAJOR);
-	vc_class = class_simple_create(THIS_MODULE, "vc");
 
 	devfs_mk_cdev(MKDEV(VCS_MAJOR, 0), S_IFCHR|S_IRUSR|S_IWUSR, "vcc/0");
 	devfs_mk_cdev(MKDEV(VCS_MAJOR, 128), S_IFCHR|S_IRUSR|S_IWUSR, "vcc/a0");
-	class_simple_device_add(vc_class, MKDEV(VCS_MAJOR, 0), NULL, "vcs");
-	class_simple_device_add(vc_class, MKDEV(VCS_MAJOR, 128), NULL, "vcsa");
 	return 0;
 }

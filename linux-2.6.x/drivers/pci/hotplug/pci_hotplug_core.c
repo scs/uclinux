@@ -29,7 +29,6 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/list.h>
@@ -46,7 +45,11 @@
 #include "pci_hotplug.h"
 
 
-#define MY_NAME	"pci_hotplug"
+#if !defined(CONFIG_HOTPLUG_PCI_MODULE)
+	#define MY_NAME	"pci_hotplug"
+#else
+	#define MY_NAME	THIS_MODULE->name
+#endif
 
 #define dbg(fmt, arg...) do { if (debug) printk(KERN_DEBUG "%s: %s: " fmt , MY_NAME , __FUNCTION__ , ## arg); } while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format , MY_NAME , ## arg)
@@ -101,7 +104,8 @@ static struct kobj_type hotplug_slot_ktype = {
 	.release = &hotplug_slot_release,
 };
 
-decl_subsys_name(pci_hotplug_slots, slots, &hotplug_slot_ktype, NULL);
+decl_subsys(pci_hotplug_slots, &hotplug_slot_ktype, NULL);
+
 
 /* these strings match up with the values in pci_bus_speed */
 static char *pci_bus_speed_strings[] = {
@@ -125,7 +129,6 @@ static char *pci_bus_speed_strings[] = {
 	"66 MHz PCIX 533",	/* 0x11 */
 	"100 MHz PCIX 533",	/* 0x12 */
 	"133 MHz PCIX 533",	/* 0x13 */
-	"25 GBps PCI-E",	/* 0x14 */
 };
 
 #ifdef CONFIG_HOTPLUG_PCI_CPCI
@@ -277,7 +280,7 @@ exit:
 }
 
 static struct hotplug_slot_attribute hotplug_slot_attr_latch = {
-	.attr = {.name = "latch", .mode = S_IFREG | S_IRUGO},
+	.attr = {.name = "latch", .mode = S_IFREG | S_IRUGO | S_IWUSR},
 	.show = latch_read_file,
 };
 
@@ -296,7 +299,7 @@ exit:
 }
 
 static struct hotplug_slot_attribute hotplug_slot_attr_presence = {
-	.attr = {.name = "adapter", .mode = S_IFREG | S_IRUGO},
+	.attr = {.name = "adapter", .mode = S_IFREG | S_IRUGO | S_IWUSR},
 	.show = presence_read_file,
 };
 
@@ -346,7 +349,7 @@ exit:
 }
 
 static struct hotplug_slot_attribute hotplug_slot_attr_max_bus_speed = {
-	.attr = {.name = "max_bus_speed", .mode = S_IFREG | S_IRUGO},
+	.attr = {.name = "max_bus_speed", .mode = S_IFREG | S_IRUGO | S_IWUSR},
 	.show = max_bus_speed_read_file,
 };
 
@@ -372,7 +375,7 @@ exit:
 }
 
 static struct hotplug_slot_attribute hotplug_slot_attr_cur_bus_speed = {
-	.attr = {.name = "cur_bus_speed", .mode = S_IFREG | S_IRUGO},
+	.attr = {.name = "cur_bus_speed", .mode = S_IFREG | S_IRUGO | S_IWUSR},
 	.show = cur_bus_speed_read_file,
 };
 
@@ -701,7 +704,7 @@ module_exit(pci_hotplug_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-module_param(debug, bool, 644);
+MODULE_PARM(debug, "i");
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
 
 EXPORT_SYMBOL_GPL(pci_hotplug_slots_subsys);

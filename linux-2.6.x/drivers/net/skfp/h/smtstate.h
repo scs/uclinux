@@ -12,9 +12,6 @@
  *
  ******************************************************************************/
 
-#ifndef _SKFP_H_SMTSTATE_H_
-#define _SKFP_H_SMTSTATE_H_
-
 /*
  *	SMT state definitions
  */
@@ -101,6 +98,3 @@ struct pcm_state {
 struct smt_state {
 	struct pcm_state pcm_state[NUMPHYS] ;	/* port A & port B */
 } ;
-
-#endif
-

@@ -34,7 +34,7 @@ static void delay_none(unsigned long loops)
 		:"0" (loops));
 }
 
-/* none timer_opts struct */
+/* tsc timer_opts struct */
 struct timer_opts timer_none = {
 	.name = 	"none",
 	.init =		init_none, 

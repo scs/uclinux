@@ -43,7 +43,6 @@
 #include <linux/sched.h>
 
 #include <linux/sunrpc/clnt.h>
-#include <linux/workqueue.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
 
 #include <linux/nfs_fs_sb.h>
@@ -52,16 +51,14 @@
 #include <linux/nfs_idmap.h>
 
 #define IDMAP_HASH_SZ          128
+#define IDMAP_HASH_TYPE_NAME   0x01
+#define IDMAP_HASH_TYPE_ID     0x02
+#define IDMAP_HASH_TYPE_INSERT 0x04
 
 struct idmap_hashent {
-	__u32 ih_id;
-	int ih_namelen;
-	char ih_name[IDMAP_NAMESZ];
-};
-
-struct idmap_hashtable {
-	__u8 h_type;
-	struct idmap_hashent h_entries[IDMAP_HASH_SZ];
+	uid_t     ih_id;
+	char      ih_name[IDMAP_NAMESZ];
+	u_int32_t ih_namelen;
 };
 
 struct idmap {
@@ -69,19 +66,23 @@ struct idmap {
 	struct dentry        *idmap_dentry;
 	wait_queue_head_t     idmap_wq;
 	struct idmap_msg      idmap_im;
-	struct semaphore      idmap_lock;    /* Serializes upcalls */
-	struct semaphore      idmap_im_lock; /* Protects the hashtable */
-	struct idmap_hashtable idmap_user_hash;
-	struct idmap_hashtable idmap_group_hash;
+	struct nfs_server    *idmap_server;
+	struct semaphore      idmap_lock;
+	struct semaphore      idmap_im_lock;
+	struct semaphore      idmap_hash_lock;
+	struct idmap_hashent  idmap_id_hash[IDMAP_HASH_SZ];
+	struct idmap_hashent  idmap_name_hash[IDMAP_HASH_SZ];
 };
 
-static ssize_t   idmap_pipe_upcall(struct file *, struct rpc_pipe_msg *,
-		     char __user *, size_t);
-static ssize_t   idmap_pipe_downcall(struct file *, const char __user *,
-		     size_t);
+static ssize_t   idmap_pipe_upcall(struct file *, struct rpc_pipe_msg *, char *,
+                     size_t);
+static ssize_t   idmap_pipe_downcall(struct file *, const char *, size_t);
 void             idmap_pipe_destroy_msg(struct rpc_pipe_msg *);
 
-static unsigned int fnvhash32(const void *, size_t);
+static int       validate_ascii(char *, u_int32_t);
+
+static u_int32_t fnvhash32(void *, u_int32_t);
+static int       idmap_cache_lookup(struct idmap *, int, char *, u_int32_t *, uid_t *);
 
 static struct rpc_pipe_ops idmap_upcall_ops = {
         .upcall         = idmap_pipe_upcall,
@@ -89,153 +90,95 @@ static struct rpc_pipe_ops idmap_upcall_ops = {
         .destroy_msg    = idmap_pipe_destroy_msg,
 };
 
-void
-nfs_idmap_new(struct nfs4_client *clp)
+void *
+nfs_idmap_new(struct nfs_server *server)
 {
 	struct idmap *idmap;
 
-	if (clp->cl_idmap != NULL)
-		return;
         if ((idmap = kmalloc(sizeof(*idmap), GFP_KERNEL)) == NULL)
-                return;
+                return (NULL);
 
 	memset(idmap, 0, sizeof(*idmap));
 
+	idmap->idmap_server = server;
+
 	snprintf(idmap->idmap_path, sizeof(idmap->idmap_path),
-	    "%s/idmap", clp->cl_rpcclient->cl_pathname);
+	    "%s/idmap", idmap->idmap_server->client->cl_pathname);
 
         idmap->idmap_dentry = rpc_mkpipe(idmap->idmap_path,
-	    idmap, &idmap_upcall_ops, 0);
-        if (IS_ERR(idmap->idmap_dentry)) {
-		kfree(idmap);
-		return;
-	}
+	    idmap->idmap_server, &idmap_upcall_ops, 0);
+        if (IS_ERR(idmap->idmap_dentry))
+		goto err_free;
 
         init_MUTEX(&idmap->idmap_lock);
         init_MUTEX(&idmap->idmap_im_lock);
+        init_MUTEX(&idmap->idmap_hash_lock);
 	init_waitqueue_head(&idmap->idmap_wq);
-	idmap->idmap_user_hash.h_type = IDMAP_TYPE_USER;
-	idmap->idmap_group_hash.h_type = IDMAP_TYPE_GROUP;
 
-	clp->cl_idmap = idmap;
+	return (idmap);
+
+ err_free:
+	kfree(idmap);
+	return (NULL);
 }
 
 void
-nfs_idmap_delete(struct nfs4_client *clp)
+nfs_idmap_delete(struct nfs_server *server)
 {
-	struct idmap *idmap = clp->cl_idmap;
+	struct idmap *idmap = server->idmap;
 
 	if (!idmap)
 		return;
 	rpc_unlink(idmap->idmap_path);
-	clp->cl_idmap = NULL;
+	server->idmap = NULL;
 	kfree(idmap);
-}
-
-/*
- * Helper routines for manipulating the hashtable
- */
-static inline struct idmap_hashent *
-idmap_name_hash(struct idmap_hashtable* h, const char *name, size_t len)
-{
-	return &h->h_entries[fnvhash32(name, len) % IDMAP_HASH_SZ];
-}
-
-static struct idmap_hashent *
-idmap_lookup_name(struct idmap_hashtable *h, const char *name, size_t len)
-{
-	struct idmap_hashent *he = idmap_name_hash(h, name, len);
-
-	if (he->ih_namelen != len || memcmp(he->ih_name, name, len) != 0)
-		return NULL;
-	return he;
-}
-
-static inline struct idmap_hashent *
-idmap_id_hash(struct idmap_hashtable* h, __u32 id)
-{
-	return &h->h_entries[fnvhash32(&id, sizeof(id)) % IDMAP_HASH_SZ];
-}
-
-static struct idmap_hashent *
-idmap_lookup_id(struct idmap_hashtable *h, __u32 id)
-{
-	struct idmap_hashent *he = idmap_id_hash(h, id);
-	if (he->ih_id != id || he->ih_namelen == 0)
-		return NULL;
-	return he;
-}
-
-/*
- * Routines for allocating new entries in the hashtable.
- * For now, we just have 1 entry per bucket, so it's all
- * pretty trivial.
- */
-static inline struct idmap_hashent *
-idmap_alloc_name(struct idmap_hashtable *h, char *name, unsigned len)
-{
-	return idmap_name_hash(h, name, len);
-}
-
-static inline struct idmap_hashent *
-idmap_alloc_id(struct idmap_hashtable *h, __u32 id)
-{
-	return idmap_id_hash(h, id);
-}
-
-static void
-idmap_update_entry(struct idmap_hashent *he, const char *name,
-		size_t namelen, __u32 id)
-{
-	he->ih_id = id;
-	memcpy(he->ih_name, name, namelen);
-	he->ih_name[namelen] = '\0';
-	he->ih_namelen = namelen;
 }
 
 /*
  * Name -> ID
  */
-static int
-nfs_idmap_id(struct idmap *idmap, struct idmap_hashtable *h,
-		const char *name, size_t namelen, __u32 *id)
+int
+nfs_idmap_id(struct nfs_server *server, u_int8_t type, char *name, 
+    u_int namelen, uid_t *id)
 {
 	struct rpc_pipe_msg msg;
+	struct idmap *idmap = server->idmap;
 	struct idmap_msg *im;
-	struct idmap_hashent *he;
 	DECLARE_WAITQUEUE(wq, current);
-	int ret = -EIO;
+	int ret = -1, hashtype = IDMAP_HASH_TYPE_NAME, xnamelen = namelen;
+
+	if (idmap == NULL)
+		return (-1);
 
 	im = &idmap->idmap_im;
 
-	/*
-	 * String sanity checks
-	 * Note that the userland daemon expects NUL terminated strings
-	 */
-	for (;;) {
-		if (namelen == 0)
-			return -EINVAL;
-		if (name[namelen-1] != '\0')
-			break;
-		namelen--;
-	}
-	if (namelen >= IDMAP_NAMESZ)
-		return -EINVAL;
+	if (namelen > IDMAP_NAMESZ || namelen == 0)
+		return (-1);
 
 	down(&idmap->idmap_lock);
 	down(&idmap->idmap_im_lock);
 
-	he = idmap_lookup_name(h, name, namelen);
-	if (he != NULL) {
-		*id = he->ih_id;
+	if (name[xnamelen - 1] == '\0')
+		xnamelen--;
+
+	if (idmap_cache_lookup(idmap, hashtype, name, &xnamelen, id) == 0) {
 		ret = 0;
 		goto out;
 	}
 
 	memset(im, 0, sizeof(*im));
 	memcpy(im->im_name, name, namelen);
+	/* Make sure the string is NULL terminated */
+	if (namelen != xnamelen) {
+		/* We cannot fit a NULL character */
+		if (namelen == IDMAP_NAMESZ) {
+			ret = -1;
+			goto out;
+		}
+		im->im_name[namelen] = '\0';
+	} 
 
-	im->im_type = h->h_type;
+	im->im_type = type;
 	im->im_conv = IDMAP_CONV_NAMETOID;
 
 	memset(&msg, 0, sizeof(msg));
@@ -255,9 +198,16 @@ nfs_idmap_id(struct idmap *idmap, struct idmap_hashtable *h,
 	remove_wait_queue(&idmap->idmap_wq, &wq);
 	down(&idmap->idmap_im_lock);
 
+	/*
+	 * XXX Race condition here, with testing for status.  Go ahead
+	 * and and do the cace lookup anyway.
+	 */
 	if (im->im_status & IDMAP_STATUS_SUCCESS) {
-		*id = im->im_id;
 		ret = 0;
+		*id = im->im_id;
+
+		hashtype |= IDMAP_HASH_TYPE_INSERT;
+		ret = idmap_cache_lookup(idmap, hashtype, name, &xnamelen, id);
 	}
 
  out:
@@ -270,31 +220,35 @@ nfs_idmap_id(struct idmap *idmap, struct idmap_hashtable *h,
 /*
  * ID -> Name
  */
-static int
-nfs_idmap_name(struct idmap *idmap, struct idmap_hashtable *h,
-		__u32 id, char *name)
+int
+nfs_idmap_name(struct nfs_server *server, u_int8_t type, uid_t id,
+    char *name, u_int *namelen)
 {
 	struct rpc_pipe_msg msg;
+	struct idmap *idmap = server->idmap;
 	struct idmap_msg *im;
-	struct idmap_hashent *he;
 	DECLARE_WAITQUEUE(wq, current);
-	int ret = -EIO;
-	unsigned int len;
+	int ret = -1, hashtype = IDMAP_HASH_TYPE_ID;
+	u_int len;
+
+	if (idmap == NULL)
+		return (-1);
 
 	im = &idmap->idmap_im;
+
+	if (*namelen < IDMAP_NAMESZ || *namelen == 0)
+		return (-1);
 
 	down(&idmap->idmap_lock);
 	down(&idmap->idmap_im_lock);
 
-	he = idmap_lookup_id(h, id);
-	if (he != 0) {
-		memcpy(name, he->ih_name, he->ih_namelen);
-		ret = he->ih_namelen;
+	if (idmap_cache_lookup(idmap, hashtype, name, namelen, &id) == 0) {
+		ret = 0;
 		goto out;
 	}
 
 	memset(im, 0, sizeof(*im));
-	im->im_type = h->h_type;
+	im->im_type = type;
 	im->im_conv = IDMAP_CONV_IDTONAME;
 	im->im_id = id;
 
@@ -309,6 +263,9 @@ nfs_idmap_name(struct idmap *idmap, struct idmap_hashtable *h,
 		goto out;
 	}
 
+	/*
+	 * XXX add timeouts here
+	 */
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	up(&idmap->idmap_im_lock);
 	schedule();
@@ -317,23 +274,26 @@ nfs_idmap_name(struct idmap *idmap, struct idmap_hashtable *h,
 	down(&idmap->idmap_im_lock);
 
 	if (im->im_status & IDMAP_STATUS_SUCCESS) {
-		if ((len = strnlen(im->im_name, IDMAP_NAMESZ)) == 0)
+		if ((len = validate_ascii(im->im_name, IDMAP_NAMESZ)) == -1)
 			goto out;
+		ret = 0;
 		memcpy(name, im->im_name, len);
-		ret = len;
+		*namelen = len;
+
+		hashtype |= IDMAP_HASH_TYPE_INSERT;
+		ret = idmap_cache_lookup(idmap, hashtype, name, namelen, &id);
 	}
 
  out:
 	memset(im, 0, sizeof(*im));
 	up(&idmap->idmap_im_lock);
 	up(&idmap->idmap_lock);
-	return ret;
+	return (ret);
 }
 
-/* RPC pipefs upcall/downcall routines */
 static ssize_t
 idmap_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
-    char __user *dst, size_t buflen)
+    char *dst, size_t buflen)
 {
         char *data = (char *)msg->data + msg->copied;
         ssize_t mlen = msg->len - msg->copied;
@@ -354,15 +314,13 @@ idmap_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
 }
 
 static ssize_t
-idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
+idmap_pipe_downcall(struct file *filp, const char *src, size_t mlen)
 {
         struct rpc_inode *rpci = RPC_I(filp->f_dentry->d_inode);
-	struct idmap *idmap = (struct idmap *)rpci->private;
+	struct nfs_server *server = rpci->private;
+	struct idmap *idmap = server->idmap;
 	struct idmap_msg im_in, *im = &idmap->idmap_im;
-	struct idmap_hashtable *h;
-	struct idmap_hashent *he = NULL;
-	int namelen_in;
-	int ret;
+	int match = 0, hashtype, badmsg = 0, namelen_in, namelen;
 
         if (mlen != sizeof(im_in))
                 return (-ENOSPC);
@@ -372,66 +330,39 @@ idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 
 	down(&idmap->idmap_im_lock);
 
-	ret = mlen;
-	im->im_status = im_in.im_status;
-	/* If we got an error, terminate now, and wake up pending upcalls */
-	if (!(im_in.im_status & IDMAP_STATUS_SUCCESS)) {
-		wake_up(&idmap->idmap_wq);
-		goto out;
-	}
+	namelen_in = validate_ascii(im_in.im_name, IDMAP_NAMESZ);
+	namelen = validate_ascii(im->im_name, IDMAP_NAMESZ);
 
-	/* Sanity checking of strings */
-	ret = -EINVAL;
-	namelen_in = strnlen(im_in.im_name, IDMAP_NAMESZ);
-	if (namelen_in == 0 || namelen_in == IDMAP_NAMESZ)
-		goto out;
-
-	switch (im_in.im_type) {
-		case IDMAP_TYPE_USER:
-			h = &idmap->idmap_user_hash;
-			break;
-		case IDMAP_TYPE_GROUP:
-			h = &idmap->idmap_group_hash;
-			break;
-		default:
-			goto out;
-	}
+	badmsg = !(im_in.im_status & IDMAP_STATUS_SUCCESS) || namelen_in <= 0;
 
 	switch (im_in.im_conv) {
 	case IDMAP_CONV_IDTONAME:
-		/* Did we match the current upcall? */
-		if (im->im_conv == IDMAP_CONV_IDTONAME
-				&& im->im_type == im_in.im_type
-				&& im->im_id == im_in.im_id) {
-			/* Yes: copy string, including the terminating '\0'  */
-			memcpy(im->im_name, im_in.im_name, namelen_in);
-			im->im_name[namelen_in] = '\0';
-			wake_up(&idmap->idmap_wq);
-		}
-		he = idmap_alloc_id(h, im_in.im_id);
+		match = im->im_id == im_in.im_id;
 		break;
 	case IDMAP_CONV_NAMETOID:
-		/* Did we match the current upcall? */
-		if (im->im_conv == IDMAP_CONV_NAMETOID
-				&& im->im_type == im_in.im_type
-				&& strnlen(im->im_name, IDMAP_NAMESZ) == namelen_in
-				&& memcmp(im->im_name, im_in.im_name, namelen_in) == 0) {
-			im->im_id = im_in.im_id;
-			wake_up(&idmap->idmap_wq);
-		}
-		he = idmap_alloc_name(h, im_in.im_name, namelen_in);
+		match = namelen == namelen_in &&
+		    memcmp(im->im_name, im_in.im_name, namelen) == 0;
 		break;
 	default:
-		goto out;
+		badmsg = 1;
+		break;
 	}
 
-	/* If the entry is valid, also copy it to the cache */
-	if (he != NULL)
-		idmap_update_entry(he, im_in.im_name, namelen_in, im_in.im_id);
-	ret = mlen;
-out:
+	match = match && im->im_type == im_in.im_type;
+
+	if (match) {
+		memcpy(im, &im_in, sizeof(*im));
+		wake_up(&idmap->idmap_wq);
+	} else if (!badmsg) {
+		hashtype = im_in.im_conv == IDMAP_CONV_IDTONAME ?
+		    IDMAP_HASH_TYPE_ID : IDMAP_HASH_TYPE_NAME;
+		hashtype |= IDMAP_HASH_TYPE_INSERT;
+		idmap_cache_lookup(idmap, hashtype, im_in.im_name, &namelen_in,
+		    &im_in.im_id);
+	}
+
 	up(&idmap->idmap_im_lock);
-	return ret;
+	return (mlen);
 }
 
 void
@@ -448,51 +379,108 @@ idmap_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	up(&idmap->idmap_im_lock);
 }
 
+static int
+validate_ascii(char *string, u_int32_t len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if (string[i] == '\0')
+			break;
+
+		if (string[i] & 0x80)
+			return (-1);
+	}
+
+	if (string[i] != '\0')
+		return (-1);
+
+	return (i);
+}
+
 /* 
  * Fowler/Noll/Vo hash
  *    http://www.isthe.com/chongo/tech/comp/fnv/
  */
 
-#define FNV_P_32 ((unsigned int)0x01000193) /* 16777619 */
-#define FNV_1_32 ((unsigned int)0x811c9dc5) /* 2166136261 */
+#define FNV_P_32 ((u_int32_t)0x01000193) /* 16777619 */
+#define FNV_1_32 ((u_int32_t)0x811c9dc5) /* 2166136261 */
 
-static unsigned int fnvhash32(const void *buf, size_t buflen)
+static u_int32_t
+fnvhash32(void *buf, u_int32_t buflen)
 {
-	const unsigned char *p, *end = (const unsigned char *)buf + buflen;
-	unsigned int hash = FNV_1_32;
+	u_char *p, *end = (u_char *)buf + buflen;
+	u_int32_t hash = FNV_1_32;
 
 	for (p = buf; p < end; p++) {
 		hash *= FNV_P_32;
-		hash ^= (unsigned int)*p;
+		hash ^= (u_int32_t)*p;
 	}
 
 	return (hash);
 }
 
-int nfs_map_name_to_uid(struct nfs4_client *clp, const char *name, size_t namelen, __u32 *uid)
+/*
+ * ->ih_namelen == 0 indicates negative entry
+ */
+static int
+idmap_cache_lookup(struct idmap *idmap, int type, char *name, u_int32_t *namelen,
+    uid_t *id)
 {
-	struct idmap *idmap = clp->cl_idmap;
+	u_int32_t hash;
+	struct idmap_hashent *he = NULL;
+	int insert = type & IDMAP_HASH_TYPE_INSERT;
+	int ret = -1;
 
-	return nfs_idmap_id(idmap, &idmap->idmap_user_hash, name, namelen, uid);
+	/*
+	 * XXX technically, this is not needed, since we will always
+	 * hold idmap_im_lock when altering the hash tables.  but
+	 * semantically that just hurts.
+	 *
+	 * XXX cache negative responses
+	 */
+	down(&idmap->idmap_hash_lock);
+
+	if (*namelen > IDMAP_NAMESZ || *namelen == 0)
+		goto out;
+
+	if (type & IDMAP_HASH_TYPE_NAME) {
+		hash = fnvhash32(name, *namelen) % IDMAP_HASH_SZ;
+		he = &idmap->idmap_name_hash[hash];
+
+		/*
+		 * Testing he->ih_namelen == *namelen implicitly tests
+		 * namelen != 0, and thus a non-negative entry.
+		 */
+		if (!insert && he->ih_namelen == *namelen && 
+		    memcmp(he->ih_name, name, *namelen) == 0) {
+			*id = he->ih_id;
+			ret = 0;
+			goto out;
+		}
+	}
+
+	if (type & IDMAP_HASH_TYPE_ID) {
+		hash = fnvhash32(id, sizeof(*id)) % IDMAP_HASH_SZ;
+		he = &idmap->idmap_id_hash[hash];
+
+		if (!insert && *id == he->ih_id && he->ih_namelen != 0 && 
+		    *namelen >= he->ih_namelen) {
+			memcpy(name, he->ih_name, he->ih_namelen);
+			*namelen = he->ih_namelen;
+			ret = 0;
+			goto out;
+		}
+	}
+
+	if (insert && he != NULL) {
+		he->ih_id = *id;
+		memcpy(he->ih_name, name, *namelen);
+		he->ih_namelen = *namelen;
+		ret = 0;
+	}
+
+ out:
+	up(&idmap->idmap_hash_lock);
+	return (ret);
 }
-
-int nfs_map_group_to_gid(struct nfs4_client *clp, const char *name, size_t namelen, __u32 *uid)
-{
-	struct idmap *idmap = clp->cl_idmap;
-
-	return nfs_idmap_id(idmap, &idmap->idmap_group_hash, name, namelen, uid);
-}
-
-int nfs_map_uid_to_name(struct nfs4_client *clp, __u32 uid, char *buf)
-{
-	struct idmap *idmap = clp->cl_idmap;
-
-	return nfs_idmap_name(idmap, &idmap->idmap_user_hash, uid, buf);
-}
-int nfs_map_gid_to_group(struct nfs4_client *clp, __u32 uid, char *buf)
-{
-	struct idmap *idmap = clp->cl_idmap;
-
-	return nfs_idmap_name(idmap, &idmap->idmap_group_hash, uid, buf);
-}
-

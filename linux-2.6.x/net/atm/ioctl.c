@@ -49,7 +49,6 @@ int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	struct atm_vcc *vcc;
 	int error;
 	struct list_head * pos;
-	void __user *argp = (void __user *)arg;
 
 	vcc = ATM_SD(sock);
 	switch (cmd) {
@@ -61,7 +60,7 @@ int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			}
 			error = put_user(vcc->sk->sk_sndbuf -
 					 atomic_read(&vcc->sk->sk_wmem_alloc),
-					 (int __user *) argp) ? -EFAULT : 0;
+					 (int *) arg) ? -EFAULT : 0;
 			goto done;
 		case SIOCINQ:
 			{
@@ -73,11 +72,16 @@ int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 				}
 				skb = skb_peek(&vcc->sk->sk_receive_queue);
 				error = put_user(skb ? skb->len : 0,
-					 	 (int __user *)argp) ? -EFAULT : 0;
+					 	 (int *) arg) ? -EFAULT : 0;
 				goto done;
 			}
 		case SIOCGSTAMP: /* borrowed from IP */
-			error = sock_get_timestamp(vcc->sk, argp);
+			if (!vcc->sk->sk_stamp.tv_sec) {
+				error = -ENOENT;
+				goto done;
+			}
+			error = copy_to_user((void *)arg, &vcc->sk->sk_stamp,
+					     sizeof(struct timeval)) ? -EFAULT : 0;
 			goto done;
 		case ATM_SETSC:
 			printk(KERN_WARNING "ATM_SETSC is obsolete\n");
@@ -131,7 +135,7 @@ int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	if (error != -ENOIOCTLCMD)
 		goto done;
 
-	error = atm_dev_ioctl(cmd, argp);
+	error = atm_dev_ioctl(cmd, arg);
 
 done:
 	return error;

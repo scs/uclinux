@@ -24,7 +24,7 @@
 #include "jfs_xattr.h"
 #include "jfs_acl.h"
 
-static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
+struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 {
 	struct posix_acl *acl;
 	char *ea_name;
@@ -74,7 +74,7 @@ static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-static int jfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
+int jfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 {
 	char *ea_name;
 	struct jfs_inode_info *ji = JFS_IP(inode);
@@ -191,8 +191,7 @@ check_capabilities:
 	 * Read/write DACs are always overridable.
 	 * Executable DACs are overridable if at least one exec bit is set.
 	 */
-	if (!(mask & MAY_EXEC) ||
-	    (inode->i_mode & S_IXUGO) || S_ISDIR(inode->i_mode))
+	if ((mask & (MAY_READ|MAY_WRITE)) || (inode->i_mode & S_IXUGO))
 		if (capable(CAP_DAC_OVERRIDE))
 			return 0;
 
@@ -247,7 +246,7 @@ cleanup:
 	return rc;
 }
 
-static int jfs_acl_chmod(struct inode *inode)
+int jfs_acl_chmod(struct inode *inode)
 {
 	struct posix_acl *acl, *clone;
 	int rc;
@@ -281,9 +280,9 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (rc)
 		return rc;
 
-	rc = inode_setattr(inode, iattr);
+	inode_setattr(inode, iattr);
 
-	if (!rc && (iattr->ia_valid & ATTR_MODE))
+	if (iattr->ia_valid & ATTR_MODE)
 		rc = jfs_acl_chmod(inode);
 
 	return rc;

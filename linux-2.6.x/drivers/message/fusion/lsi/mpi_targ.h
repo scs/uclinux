@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2003 LSI Logic Corporation.
+ *  Copyright (c) 2000-2002 LSI Logic Corporation.
  *
  *
- *           Name:  mpi_targ.h
+ *           Name:  MPI_TARG.H
  *          Title:  MPI Target mode messages and structures
  *  Creation Date:  June 22, 2000
  *
- *    mpi_targ.h Version:  01.05.xx
+ *    MPI_TARG.H Version:  01.02.07
  *
  *  Version History
  *  ---------------
@@ -41,8 +41,6 @@
  *                      Added AliasIndex field to MPI_TARGET_FCP_CMD_BUFFER.
  *  09-16-02  01.02.07  Added flags for confirmed completion.
  *                      Added PRIORITY_REASON_TARGET_BUSY.
- *  11-15-02  01.02.08  Added AliasID field to MPI_TARGET_SCSI_SPI_CMD_BUFFER.
- *  04-01-03  01.02.09  Added OptionalOxid field to MPI_TARGET_FCP_CMD_BUFFER.
  *  --------------------------------------------------------------------------
  */
 
@@ -173,7 +171,7 @@ typedef struct _MPI_TARGET_FCP_CMD_BUFFER
     U32     FcpDl;                                      /* 1Ch */
     U8      AliasIndex;                                 /* 20h */
     U8      Reserved1;                                  /* 21h */
-    U16     OptionalOxid;                               /* 22h */
+    U16     Reserved2;                                  /* 22h */
 } MPI_TARGET_FCP_CMD_BUFFER, MPI_POINTER PTR_MPI_TARGET_FCP_CMD_BUFFER,
   MpiTargetFcpCmdBuffer, MPI_POINTER pMpiTargetFcpCmdBuffer;
 
@@ -192,10 +190,6 @@ typedef struct _MPI_TARGET_SCSI_SPI_CMD_BUFFER
     U8      TaskManagementFlags;                        /* 12h */
     U8      AdditionalCDBLength;                        /* 13h */
     U8      CDB[16];                                    /* 14h */
-    /* Alias ID */
-    U8      AliasID;                                    /* 24h */
-    U8      Reserved1;                                  /* 25h */
-    U16     Reserved2;                                  /* 26h */
 } MPI_TARGET_SCSI_SPI_CMD_BUFFER,
   MPI_POINTER PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER,
   MpiTargetScsiSpiCmdBuffer, MPI_POINTER pMpiTargetScsiSpiCmdBuffer;

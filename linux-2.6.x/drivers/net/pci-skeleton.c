@@ -481,7 +481,6 @@ struct netdrv_private {
 	unsigned int mediasense:1;	/* Media sensing in progress. */
 	spinlock_t lock;
 	chip_t chipset;
-	u32 pci_state[16];	/* Data saved during suspend */
 };
 
 MODULE_AUTHOR ("Jeff Garzik <jgarzik@pobox.com>");
@@ -489,10 +488,12 @@ MODULE_DESCRIPTION ("Skeleton for a PCI Fast Ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_PARM (multicast_filter_limit, "i");
 MODULE_PARM (max_interrupt_work, "i");
+MODULE_PARM (debug, "i");
 MODULE_PARM (media, "1-" __MODULE_STRING(8) "i");
 MODULE_PARM_DESC (multicast_filter_limit, "pci-skeleton maximum number of filtered multicast addresses");
 MODULE_PARM_DESC (max_interrupt_work, "pci-skeleton maximum events handled per interrupt");
 MODULE_PARM_DESC (media, "pci-skeleton: Bits 0-3: media type, bit 17: full duplex");
+MODULE_PARM_DESC (debug, "(unused)");
 
 static int read_eeprom (void *ioaddr, int location, int addr_len);
 static int netdrv_open (struct net_device *dev);
@@ -587,6 +588,7 @@ static int __devinit netdrv_init_board (struct pci_dev *pdev,
 	void *ioaddr = NULL;
 	struct net_device *dev;
 	struct netdrv_private *tp;
+	u8 tmp8;
 	int rc, i;
 	u32 pio_start, pio_end, pio_flags, pio_len;
 	unsigned long mmio_start, mmio_end, mmio_flags, mmio_len;
@@ -728,7 +730,7 @@ err_out_free_res:
 #endif
 	pci_release_regions (pdev);
 err_out:
-	free_netdev (dev);
+	kfree (dev);
 	DPRINTK ("EXIT, returning %d\n", rc);
 	return rc;
 }
@@ -742,6 +744,7 @@ static int __devinit netdrv_init_one (struct pci_dev *pdev,
 	int i, addr_len, option;
 	void *ioaddr = NULL;
 	static int board_idx = -1;
+	u8 tmp;
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -865,7 +868,7 @@ static void __devexit netdrv_remove_one (struct pci_dev *pdev)
 
 	pci_set_drvdata (pdev, NULL);
 
-	pci_disable_device (pdev);
+	pci_power_off (pdev, -1);
 
 	DPRINTK ("EXIT\n");
 }
@@ -1133,6 +1136,7 @@ static void netdrv_hw_start (struct net_device *dev)
 	struct netdrv_private *tp = dev->priv;
 	void *ioaddr = tp->mmio_addr;
 	u32 i;
+	u8 tmp;
 
 	DPRINTK ("ENTER\n");
 
@@ -1774,7 +1778,7 @@ static int netdrv_close (struct net_device *dev)
 static int netdrv_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct netdrv_private *tp = dev->priv;
-	struct mii_ioctl_data *data = if_mii(rq);
+	struct mii_ioctl_data *data = (struct mii_ioctl_data *) & rq->ifr_data;
 	unsigned long flags;
 	int rc = 0;
 
@@ -1871,11 +1875,9 @@ static void netdrv_set_rx_mode (struct net_device *dev)
 		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptMyPhys;
 		mc_filter[1] = mc_filter[0] = 0;
 		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
-		     i++, mclist = mclist->next) {
-			int bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
-
-			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
-		}
+		     i++, mclist = mclist->next)
+			set_bit (ether_crc (ETH_ALEN, mclist->dmi_addr) >> 26,
+				 mc_filter);
 	}
 
 	/* if called from irq handler, lock already acquired */
@@ -1906,7 +1908,7 @@ static int netdrv_suspend (struct pci_dev *pdev, u32 state)
 	unsigned long flags;
 
 	if (!netif_running(dev))
-		return 0;
+		return;
 	netif_device_detach (dev);
 
 	spin_lock_irqsave (&tp->lock, flags);
@@ -1921,8 +1923,7 @@ static int netdrv_suspend (struct pci_dev *pdev, u32 state)
 
 	spin_unlock_irqrestore (&tp->lock, flags);
 
-	pci_save_state (pdev, tp->pci_state);
-	pci_set_power_state (pdev, 3);
+	pci_power_off (pdev, -1);
 
 	return 0;
 }
@@ -1931,12 +1932,10 @@ static int netdrv_suspend (struct pci_dev *pdev, u32 state)
 static int netdrv_resume (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata (pdev);
-	struct netdrv_private *tp = dev->priv;
 
 	if (!netif_running(dev))
-		return 0;
-	pci_set_power_state (pdev, 0);
-	pci_restore_state (pdev, tp->pci_state);
+		return;
+	pci_power_on (pdev);
 	netif_device_attach (dev);
 	netdrv_hw_start (dev);
 

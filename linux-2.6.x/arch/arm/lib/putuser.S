@@ -28,7 +28,6 @@
  */
 #include <asm/constants.h>
 #include <asm/thread_info.h>
-#include <asm/errno.h>
 
 	.global	__put_user_1
 __put_user_1:
@@ -88,7 +87,7 @@ __put_user_8:
 	/* fall through */
 
 __put_user_bad:
-	mov	r0, #-EFAULT
+	mov	r0, #-14
 	mov	pc, lr
 
 .section __ex_table, "a"

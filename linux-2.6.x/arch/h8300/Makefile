@@ -62,7 +62,12 @@ archmrproper:
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-prepare: include/asm-$(ARCH)/asm-offsets.h
+prepare: include/asm-$(ARCH)/machine-depend.h include/asm-$(ARCH)/asm-offsets.h
+
+include/asm-$(ARCH)/machine-depend.h: include/asm-$(ARCH)/$(BOARD)/machine-depend.h
+	$(Q)ln -sf $(BOARD)/machine-depend.h \
+                   include/asm-$(ARCH)/machine-depend.h
+	@echo '  Create include/asm-$(ARCH)/machine-depend.h'
 
 include/asm-$(ARCH)/asm-offsets.h: arch/$(ARCH)/kernel/asm-offsets.s \
 				   include/asm include/linux/version.h
@@ -76,4 +81,4 @@ define archhelp
   echo  'vmlinux.srec - Create srec binary'
 endef
 
-CLEAN_FILES += include/asm-$(ARCH)/asm-offsets.h
+CLEAN_FILES += include/asm-$(ARCH)/asm-offsets.h include/asm-$(ARCH)/machine-depend.h

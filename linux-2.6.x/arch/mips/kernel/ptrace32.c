@@ -14,6 +14,7 @@
  * At this time Linux/MIPS64 only supports syscall tracing, even for 32-bit
  * binaries.
  */
+#include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

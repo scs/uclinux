@@ -26,6 +26,8 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
+#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
@@ -199,12 +201,12 @@ get_std_req_name(int req)
 static void
 dump_setup(struct usb_ctrlrequest* s)
 {
-	dbg("%s: requesttype=%d", __FUNCTION__, s->requesttype);
-	dbg("%s: request=%d %s", __FUNCTION__, s->request,
+	dbg(__FUNCTION__ ": requesttype=%d", s->requesttype);
+	dbg(__FUNCTION__ ": request=%d %s", s->request,
 	    get_std_req_name(s->request));
-	dbg("%s: value=0x%04x", __FUNCTION__, s->wValue);
-	dbg("%s: index=%d", __FUNCTION__, s->index);
-	dbg("%s: length=%d", __FUNCTION__, s->length);
+	dbg(__FUNCTION__ ": value=0x%04x", s->wValue);
+	dbg(__FUNCTION__ ": index=%d", s->index);
+	dbg(__FUNCTION__ ": length=%d", s->length);
 }
 #endif
 
@@ -436,10 +438,10 @@ kickstart_send_packet(endpoint_t * ep)
 	u32 cs;
 	usbdev_pkt_t *pkt = ep->inlist.head;
 
-	vdbg("%s: ep%d, pkt=%p", __FUNCTION__, ep->address, pkt);
+	vdbg(__FUNCTION__ ": ep%d, pkt=%p", ep->address, pkt);
 
 	if (!pkt) {
-		err("%s: head=NULL! list->count=%d", __FUNCTION__,
+		err(__FUNCTION__ ": head=NULL! list->count=%d",
 		    ep->inlist.count);
 		return;
 	}
@@ -484,7 +486,7 @@ send_packet_complete(endpoint_t * ep)
 			(au_readl(ep->reg->ctrl_stat) & USBDEV_CS_NAK) ?
 			PKT_STATUS_NAK : PKT_STATUS_ACK;
 
-		vdbg("%s: ep%d, %s pkt=%p, list count=%d", __FUNCTION__,
+		vdbg(__FUNCTION__ ": ep%d, %s pkt=%p, list count=%d",
 		     ep->address, (pkt->status & PKT_STATUS_NAK) ?
 		     "NAK" : "ACK", pkt, ep->inlist.count);
 	}
@@ -529,7 +531,7 @@ send_packet(struct usb_dev* dev, usbdev_pkt_t *pkt, int async)
 
 	link_tail(ep, list, pkt);
 
-	vdbg("%s: ep%d, pkt=%p, size=%d, list count=%d", __FUNCTION__,
+	vdbg(__FUNCTION__ ": ep%d, pkt=%p, size=%d, list count=%d",
 	     ep->address, pkt, pkt->size, list->count);
 
 	if (list->count == 1) {
@@ -555,7 +557,7 @@ kickstart_receive_packet(endpoint_t * ep)
 
 	// get and link a new packet for next reception
 	if (!(pkt = add_packet(ep, &ep->outlist, ep->max_pkt_size))) {
-		err("%s: could not alloc new packet", __FUNCTION__);
+		err(__FUNCTION__ ": could not alloc new packet");
 		return;
 	}
 
@@ -615,7 +617,7 @@ receive_packet_complete(endpoint_t * ep)
 	if (ep->address == 0 && (cs & USBDEV_CS_SU))
 		pkt->status |= PKT_STATUS_SU;
 
-	vdbg("%s: ep%d, %s pkt=%p, size=%d", __FUNCTION__,
+	vdbg(__FUNCTION__ ": ep%d, %s pkt=%p, size=%d",
 	     ep->address, (pkt->status & PKT_STATUS_NAK) ?
 	     "NAK" : "ACK", pkt, pkt->size);
 
@@ -719,7 +721,7 @@ do_set_address(struct usb_dev* dev, struct usb_ctrlrequest* setup)
 	int new_state = dev->state;
 	int new_addr = le16_to_cpu(setup->wValue);
 
-	dbg("%s: our address=%d", __FUNCTION__, new_addr);
+	dbg(__FUNCTION__ ": our address=%d", new_addr);
 
 	if (new_addr > 127) {
 			// usb spec doesn't tell us what to do, so just go to
@@ -918,18 +920,18 @@ do_setup (struct usb_dev* dev, struct usb_ctrlrequest* setup)
 {
 	req_method_t m;
 
-	dbg("%s: req %d %s", __FUNCTION__, setup->bRequestType,
+	dbg(__FUNCTION__ ": req %d %s", setup->bRequestType,
 	    get_std_req_name(setup->bRequestType));
 
 	if ((setup->bRequestType & USB_TYPE_MASK) != USB_TYPE_STANDARD ||
 	    (setup->bRequestType & USB_RECIP_MASK) != USB_RECIP_DEVICE) {
-		err("%s: invalid requesttype 0x%02x", __FUNCTION__,
+		err(__FUNCTION__ ": invalid requesttype 0x%02x",
 		    setup->bRequestType);
 		return;
 		}
 
 	if ((setup->bRequestType & 0x80) == USB_DIR_OUT && setup->wLength)
-		dbg("%s: OUT phase! length=%d", __FUNCTION__, setup->wLength);
+		dbg(__FUNCTION__ ": OUT phase! length=%d", setup->wLength);
 
 	if (setup->bRequestType < sizeof(req_method)/sizeof(req_method_t))
 		m = req_method[setup->bRequestType];
@@ -980,7 +982,7 @@ process_ep0_receive (struct usb_dev* dev)
 #endif
 			do_setup(dev, (struct usb_ctrlrequest*)pkt->payload);
 		} else
-			err("%s: wrong size SETUP received", __FUNCTION__);
+			err(__FUNCTION__ ": wrong size SETUP received");
 		break;
 	case DATA_STAGE:
 		/*

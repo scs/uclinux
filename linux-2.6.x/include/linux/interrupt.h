@@ -7,7 +7,6 @@
 #include <linux/linkage.h>
 #include <linux/bitops.h>
 #include <linux/preempt.h>
-#include <linux/cpumask.h>
 #include <asm/atomic.h>
 #include <asm/hardirq.h>
 #include <asm/ptrace.h>
@@ -36,7 +35,7 @@ typedef int irqreturn_t;
 struct irqaction {
 	irqreturn_t (*handler)(int, void *, struct pt_regs *);
 	unsigned long flags;
-	cpumask_t mask;
+	unsigned long mask;
 	const char *name;
 	void *dev_id;
 	struct irqaction *next;
@@ -212,7 +211,6 @@ static inline void tasklet_hi_enable(struct tasklet_struct *t)
 }
 
 extern void tasklet_kill(struct tasklet_struct *t);
-extern void tasklet_kill_immediate(struct tasklet_struct *t, unsigned int cpu);
 extern void tasklet_init(struct tasklet_struct *t,
 			 void (*func)(unsigned long), unsigned long data);
 

@@ -1,11 +1,8 @@
 /* iptables module for setting the IPv4 DSCP field, Version 1.8
  *
- * (C) 2002 by Harald Welte <laforge@netfilter.org>
+ * (C) 2002 by Harald Welte <laforge@gnumonks.org>
  * based on ipt_FTOS.c (C) 2000 by Matthew G. Marsh <mgm@paktronix.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as 
- * published by the Free Software Foundation.
+ * This software is distributed under GNU GPL v2, 1991
  * 
  * See RFC2474 for a description of the DSCP field within the IP Header.
  *
@@ -94,7 +91,10 @@ static struct ipt_target ipt_dscp_reg = {
 
 static int __init init(void)
 {
-	return ipt_register_target(&ipt_dscp_reg);
+	if (ipt_register_target(&ipt_dscp_reg))
+		return -EINVAL;
+
+	return 0;
 }
 
 static void __exit fini(void)

@@ -35,7 +35,6 @@
 	.endm
 	
 
-	.section .sched.text
 #ifdef CONFIG_RWSEM_XCHGADD_ALGORITHM
 	thunk rwsem_down_read_failed_thunk,rwsem_down_read_failed
 	thunk rwsem_down_write_failed_thunk,rwsem_down_write_failed
@@ -66,7 +65,7 @@ restore_norax:
 
 #ifdef CONFIG_SMP
 /* Support for read/write spinlocks. */
-	.text
+	
 /* rax:	pointer to rwlock_t */	
 ENTRY(__write_lock_failed)
 	lock

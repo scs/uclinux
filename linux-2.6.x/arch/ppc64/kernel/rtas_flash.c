@@ -15,12 +15,12 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/proc_fs.h>
+#include <asm/proc_fs.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/rtas.h>
 
-#define MODULE_VERS "1.0"
+#define MODULE_VERSION "1.0"
 #define MODULE_NAME "rtas_flash"
 
 #define FIRMWARE_FLASH_NAME "firmware_flash"   
@@ -106,10 +106,10 @@ struct rtas_validate_flash_t
 };
 
 static spinlock_t flash_file_open_lock = SPIN_LOCK_UNLOCKED;
-static struct proc_dir_entry *firmware_flash_pde;
-static struct proc_dir_entry *firmware_update_pde;
-static struct proc_dir_entry *validate_pde;
-static struct proc_dir_entry *manage_pde;
+static struct proc_dir_entry *firmware_flash_pde = NULL;
+static struct proc_dir_entry *firmware_update_pde = NULL;
+static struct proc_dir_entry *validate_pde = NULL;
+static struct proc_dir_entry *manage_pde = NULL;
 
 /* Do simple sanity checks on the flash image. */
 static int flash_list_valid(struct flash_block_list *flist)
@@ -344,8 +344,8 @@ static void manage_flash(struct rtas_manage_flash_t *args_buf)
 	s32 rc;
 
 	while (1) {
-		rc = rtas_call(rtas_token("ibm,manage-flash-image"), 1, 
-			       1, NULL, args_buf->op);
+		rc = (s32) rtas_call(rtas_token("ibm,manage-flash-image"), 1, 
+				1, NULL, (long) args_buf->op);
 		if (rc == RTAS_RC_BUSY)
 			udelay(1);
 		else if (rtas_is_extended_busy(rc)) {
@@ -429,15 +429,15 @@ static void validate_flash(struct rtas_validate_flash_t *args_buf)
 {
 	int token = rtas_token("ibm,validate-flash-image");
 	unsigned int wait_time;
-	int update_results;
+	long update_results;
 	s32 rc;	
 
 	rc = 0;
 	while(1) {
 		spin_lock(&rtas_data_buf_lock);
 		memcpy(rtas_data_buf, args_buf->buf, VALIDATE_BUF_SIZE);
-		rc = rtas_call(token, 2, 2, &update_results, 
-			       (u32) __pa(rtas_data_buf), args_buf->buf_size);
+		rc = (s32) rtas_call(token, 2, 2, &update_results, 
+				     __pa(rtas_data_buf), args_buf->buf_size);
 		memcpy(args_buf->buf, rtas_data_buf, VALIDATE_BUF_SIZE);
 		spin_unlock(&rtas_data_buf_lock);
 			
@@ -451,7 +451,7 @@ static void validate_flash(struct rtas_validate_flash_t *args_buf)
 	}
 
 	args_buf->status = rc;
-	args_buf->update_results = update_results;
+	args_buf->update_results = (u32) update_results;
 }
 
 static int get_validate_flash_msg(struct rtas_validate_flash_t *args_buf, 
@@ -501,7 +501,7 @@ static ssize_t validate_flash_read(struct file *file, char *buf,
 }
 
 static ssize_t validate_flash_write(struct file *file, const char *buf,
-				    size_t count, loff_t *off)
+				size_t count, loff_t *off)
 {
 	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
 	struct rtas_validate_flash_t *args_buf;
@@ -567,18 +567,18 @@ static int validate_flash_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static void remove_flash_pde(struct proc_dir_entry *dp)
+static inline void remove_flash_pde(struct proc_dir_entry *dp)
 {
 	if (dp) {
 		if (dp->data != NULL)
 			kfree(dp->data);
-		remove_proc_entry(dp->name, NULL);
+		remove_proc_entry(dp->name, proc_ppc64.rtas);
 	}
 }
 
-static int initialize_flash_pde_data(const char *rtas_call_name,
-				     size_t buf_size,
-				     struct proc_dir_entry *dp)
+static inline int initialize_flash_pde_data(const char *rtas_call_name, 
+		                            size_t buf_size,
+					    struct proc_dir_entry *dp)
 {
 	int *status;
 	int token;
@@ -591,8 +591,7 @@ static int initialize_flash_pde_data(const char *rtas_call_name,
 
 	memset(dp->data, 0, buf_size);
 
-	/*
-	 * This code assumes that the status int is the first member of the
+	/* This code assumes that the status int is the first member of the
 	 * struct 
 	 */
 	status = (int *) dp->data;
@@ -605,12 +604,12 @@ static int initialize_flash_pde_data(const char *rtas_call_name,
 	return 0;
 }
 
-static struct proc_dir_entry *create_flash_pde(const char *filename,
-					       struct file_operations *fops)
+static inline struct proc_dir_entry * create_flash_pde(const char *filename, 
+					struct file_operations *fops)
 {
 	struct proc_dir_entry *ent = NULL;
 
-	ent = create_proc_entry(filename, S_IRUSR | S_IWUSR, NULL);
+	ent = create_proc_entry(filename, S_IRUSR | S_IWUSR, proc_ppc64.rtas);
 	if (ent != NULL) {
 		ent->nlink = 1;
 		ent->proc_fops = fops;
@@ -645,79 +644,50 @@ int __init rtas_flash_init(void)
 {
 	int rc;
 
-	if (rtas_token("ibm,update-flash-64-and-reboot") ==
-		       RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_ERR "rtas_flash: no firmware flash support\n");
-		return 1;
+	if (!proc_ppc64.rtas) {
+		printk(KERN_WARNING "rtas proc dir does not already exist");
+		return -ENOENT;
 	}
 
-	firmware_flash_pde = create_flash_pde("ppc64/rtas/"
-					      FIRMWARE_FLASH_NAME,
+	firmware_flash_pde = create_flash_pde(FIRMWARE_FLASH_NAME, 
 					      &rtas_flash_operations);
-	if (firmware_flash_pde == NULL) {
-		rc = -ENOMEM;
-		goto cleanup;
-	}
-
 	rc = initialize_flash_pde_data("ibm,update-flash-64-and-reboot",
 			 	       sizeof(struct rtas_update_flash_t), 
 				       firmware_flash_pde);
 	if (rc != 0)
-		goto cleanup;
-
-	firmware_update_pde = create_flash_pde("ppc64/rtas/"
-					       FIRMWARE_UPDATE_NAME,
+		return rc;
+	
+	firmware_update_pde = create_flash_pde(FIRMWARE_UPDATE_NAME, 
 					       &rtas_flash_operations);
-	if (firmware_update_pde == NULL) {
-		rc = -ENOMEM;
-		goto cleanup;
-	}
-
 	rc = initialize_flash_pde_data("ibm,update-flash-64-and-reboot",
 			 	       sizeof(struct rtas_update_flash_t), 
 				       firmware_update_pde);
 	if (rc != 0)
-		goto cleanup;
-
-	validate_pde = create_flash_pde("ppc64/rtas/" VALIDATE_FLASH_NAME,
+		return rc;
+	
+	validate_pde = create_flash_pde(VALIDATE_FLASH_NAME, 
 			      		&validate_flash_operations);
-	if (validate_pde == NULL) {
-		rc = -ENOMEM;
-		goto cleanup;
-	}
-
 	rc = initialize_flash_pde_data("ibm,validate-flash-image",
 		                       sizeof(struct rtas_validate_flash_t), 
 				       validate_pde);
 	if (rc != 0)
-		goto cleanup;
-
-	manage_pde = create_flash_pde("ppc64/rtas/" MANAGE_FLASH_NAME,
+		return rc;
+	
+	manage_pde = create_flash_pde(MANAGE_FLASH_NAME, 
 				      &manage_flash_operations);
-	if (manage_pde == NULL) {
-		rc = -ENOMEM;
-		goto cleanup;
-	}
-
 	rc = initialize_flash_pde_data("ibm,manage-flash-image",
 			               sizeof(struct rtas_manage_flash_t),
 				       manage_pde);
 	if (rc != 0)
-		goto cleanup;
-
+		return rc;
+	
 	return 0;
-
-cleanup:
-	remove_flash_pde(firmware_flash_pde);
-	remove_flash_pde(firmware_update_pde);
-	remove_flash_pde(validate_pde);
-	remove_flash_pde(manage_pde);
-
-	return rc;
 }
 
 void __exit rtas_flash_cleanup(void)
 {
+	if (!proc_ppc64.rtas)
+		return;
 	remove_flash_pde(firmware_flash_pde);
 	remove_flash_pde(firmware_update_pde);
 	remove_flash_pde(validate_pde);

@@ -2,7 +2,7 @@
  *                  QLOGIC LINUX SOFTWARE
  *
  * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2004 QLogic Corporation
+ * Copyright (C) 2003 QLogic Corporation
  * (www.qlogic.com)
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -16,6 +16,8 @@
  * General Public License for more details.
  *
  */
+#include "qla_os.h"
+
 #include "qla_def.h"
 
 /**
@@ -281,8 +283,6 @@ qla2x00_iodesc_timeout(unsigned long data)
 
 	qla2x00_free_iodesc(iodesc);
 
-	qla_printk(KERN_WARNING, iodesc->ha,
-	    "IO descriptor timeout. Scheduling ISP abort.\n");
 	set_bit(ISP_ABORT_NEEDED, &iodesc->ha->dpc_flags);
 }
 
@@ -292,17 +292,15 @@ qla2x00_iodesc_timeout(unsigned long data)
  *
  * NOTE:
  * The firmware shall timeout an outstanding mailbox IOCB in 2 * R_A_TOV (in
- * tenths of a second) after it hits the wire.  But, if there are any request
- * resource contraints (i.e. during heavy I/O), exchanges can be held off for
- * at most R_A_TOV.  Therefore, the driver will wait 4 * R_A_TOV before
- * scheduling a recovery (big hammer).
+ * tenths of a second).  The driver will wait 2.5 * R_A_TOV before scheduling
+ * a recovery (big hammer).
  */
 static inline void
 qla2x00_add_iodesc_timer(struct io_descriptor *iodesc)
 {
 	unsigned long timeout;
 
-	timeout = (iodesc->ha->r_a_tov * 4) / 10;
+	timeout = ((iodesc->ha->r_a_tov * 2) + (iodesc->ha->r_a_tov / 2)) / 10;
 	init_timer(&iodesc->timer);
 	iodesc->timer.data = (unsigned long) iodesc;
 	iodesc->timer.expires = jiffies + (timeout * HZ);
@@ -385,7 +383,7 @@ qla2x00_get_mbx_iocb_entry(scsi_qla_host_t *ha, uint32_t handle)
 		if  (ha->req_ring_index < cnt)
 			ha->req_q_cnt = cnt - ha->req_ring_index;
 		else
-			ha->req_q_cnt = ha->request_q_length -
+			ha->req_q_cnt = REQUEST_ENTRY_CNT -
 			    (ha->req_ring_index - cnt);
 	}
 	if (ha->req_q_cnt >= 3) {
@@ -436,7 +434,6 @@ qla2x00_send_abort_iocb(scsi_qla_host_t *ha, struct io_descriptor *iodesc,
 	    cpu_to_le16(iodesc->remote_fcport->loop_id);
 	mbxentry->mb2 = LSW(handle_to_abort);
 	mbxentry->mb3 = MSW(handle_to_abort);
-	wmb();
 
 	qla2x00_add_iodesc_timer(iodesc);
 
@@ -513,7 +510,6 @@ qla2x00_send_adisc_iocb(scsi_qla_host_t *ha, struct io_descriptor *iodesc,
 	mbxentry->mb6 = cpu_to_le16(MSW(MSD(ha->iodesc_pd_dma)));
 	mbxentry->mb7 = cpu_to_le16(LSW(MSD(ha->iodesc_pd_dma)));
 	mbxentry->mb10 = __constant_cpu_to_le16(BIT_0);
-	wmb();
 
 	qla2x00_add_iodesc_timer(iodesc);
 
@@ -625,7 +621,6 @@ qla2x00_send_logout_iocb(scsi_qla_host_t *ha, struct io_descriptor *iodesc,
 	mbxentry->mb0 = __constant_cpu_to_le16(MBC_LOGOUT_FABRIC_PORT);
 	mbxentry->mb1 = mbxentry->loop_id.extended =
 	    cpu_to_le16(iodesc->remote_fcport->loop_id);
-	wmb();
 
 	qla2x00_add_iodesc_timer(iodesc);
 
@@ -703,7 +698,6 @@ qla2x00_send_login_iocb(scsi_qla_host_t *ha, struct io_descriptor *iodesc,
 	mbxentry->mb2 = cpu_to_le16(d_id->b.domain);
 	mbxentry->mb3 = cpu_to_le16(d_id->b.area << 8 | d_id->b.al_pa);
 	mbxentry->mb10 = __constant_cpu_to_le16(BIT_0);
-	wmb();
 
 	qla2x00_add_iodesc_timer(iodesc);
 

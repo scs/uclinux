@@ -452,14 +452,14 @@ MODULE_PARM_DESC(aic79xx,
 "	seltime:<int>		Selection Timeout:\n"
 "				(0/256ms,1/128ms,2/64ms,3/32ms)\n"
 "\n"
-"	Sample /etc/modprobe.conf line:\n"
+"	Sample /etc/modules.conf line:\n"
 "		Enable verbose logging\n"
 "		Set tag depth on Controller 2/Target 2 to 10 tags\n"
 "		Shorten the selection timeout to 128ms\n"
 "\n"
 "	options aic79xx 'aic79xx=verbose.tag_info:{{}.{}.{..10}}.seltime:1'\n"
 "\n"
-"	Sample /etc/modprobe.conf line:\n"
+"	Sample /etc/modules.conf line:\n"
 "		Change Read Streaming for Controller's 2 and 3\n"
 "\n"
 "	options aic79xx 'aic79xx=rd_strm:{..0xFFF0.0xC0F0}'");
@@ -2591,7 +2591,6 @@ ahd_linux_dv_thread(void *data)
 	sprintf(current->comm, "ahd_dv_%d", ahd->unit);
 #else
 	daemonize("ahd_dv_%d", ahd->unit);
-	current->flags |= PF_FREEZE;
 #endif
 	unlock_kernel();
 

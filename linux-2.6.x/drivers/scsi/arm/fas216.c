@@ -52,7 +52,7 @@
 #include <asm/ecard.h>
 
 #include "../scsi.h"
-#include <scsi/scsi_host.h>
+#include "../hosts.h"
 #include "fas216.h"
 #include "scsi.h"
 

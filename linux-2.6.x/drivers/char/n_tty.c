@@ -40,6 +40,7 @@
 #include <linux/tty.h>
 #include <linux/timer.h>
 #include <linux/ctype.h>
+#include <linux/kd.h>
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -62,12 +63,17 @@
 
 static inline unsigned char *alloc_buf(void)
 {
+	unsigned char *p;
 	int prio = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
 
-	if (PAGE_SIZE != N_TTY_BUF_SIZE)
-		return kmalloc(N_TTY_BUF_SIZE, prio);
-	else
-		return (unsigned char *)__get_free_page(prio);
+	if (PAGE_SIZE != N_TTY_BUF_SIZE) {
+		p = kmalloc(N_TTY_BUF_SIZE, prio);
+		if (p)
+			memset(p, 0, N_TTY_BUF_SIZE);
+	} else
+		p = (unsigned char *)get_zeroed_page(prio);
+
+	return p;
 }
 
 static inline void free_buf(unsigned char *buf)
@@ -166,16 +172,6 @@ ssize_t n_tty_chars_in_buffer(struct tty_struct *tty)
 	return n;
 }
 
-static inline int is_utf8_continuation(unsigned char c)
-{
-	return (c & 0xc0) == 0x80;
-}
-
-static inline int is_continuation(unsigned char c, struct tty_struct *tty)
-{
-	return I_IUTF8(tty) && is_utf8_continuation(c);
-}
-
 /*
  * Perform OPOST processing.  Returns -1 when the output device is
  * full and the character must be retried.
@@ -230,7 +226,7 @@ static int opost(unsigned char c, struct tty_struct *tty)
 		default:
 			if (O_OLCUC(tty))
 				c = toupper(c);
-			if (!iscntrl(c) && !is_continuation(c, tty))
+			if (!iscntrl(c))
 				tty->column++;
 			break;
 		}
@@ -244,7 +240,7 @@ static int opost(unsigned char c, struct tty_struct *tty)
  * things.
  */
 static ssize_t opost_block(struct tty_struct * tty,
-		       const unsigned char __user * inbuf, unsigned int nr)
+		       const unsigned char * inbuf, unsigned int nr)
 {
 	char	buf[80];
 	int	space;
@@ -334,7 +330,7 @@ static inline void finish_erasing(struct tty_struct *tty)
 static void eraser(unsigned char c, struct tty_struct *tty)
 {
 	enum { ERASE, WERASE, KILL } kill_type;
-	int head, seen_alnums, cnt;
+	int head, seen_alnums;
 	unsigned long flags;
 
 	if (tty->read_head == tty->canon_head) {
@@ -372,18 +368,8 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 
 	seen_alnums = 0;
 	while (tty->read_head != tty->canon_head) {
-		head = tty->read_head;
-
-		/* erase a single possibly multibyte character */
-		do {
-			head = (head - 1) & (N_TTY_BUF_SIZE-1);
-			c = tty->read_buf[head];
-		} while (is_continuation(c, tty) && head != tty->canon_head);
-
-		/* do not partially erase */
-		if (is_continuation(c, tty))
-			break;
-
+		head = (tty->read_head - 1) & (N_TTY_BUF_SIZE-1);
+		c = tty->read_buf[head];
 		if (kill_type == WERASE) {
 			/* Equivalent to BSD's ALTWERASE. */
 			if (isalnum(c) || c == '_')
@@ -391,10 +377,9 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 			else if (seen_alnums)
 				break;
 		}
-		cnt = (tty->read_head - head) & (N_TTY_BUF_SIZE-1);
 		spin_lock_irqsave(&tty->read_lock, flags);
 		tty->read_head = head;
-		tty->read_cnt -= cnt;
+		tty->read_cnt--;
 		spin_unlock_irqrestore(&tty->read_lock, flags);
 		if (L_ECHO(tty)) {
 			if (L_ECHOPRT(tty)) {
@@ -403,12 +388,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 					tty->column++;
 					tty->erasing = 1;
 				}
-				/* if cnt > 1, output a multi-byte character */
 				echo_char(c, tty);
-				while (--cnt > 0) {
-					head = (head+1) & (N_TTY_BUF_SIZE-1);
-					put_char(tty->read_buf[head], tty);
-				}
 			} else if (kill_type == ERASE && !L_ECHOE(tty)) {
 				echo_char(ERASE_CHAR(tty), tty);
 			} else if (c == '\t') {
@@ -423,7 +403,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 					else if (iscntrl(c)) {
 						if (L_ECHOCTL(tty))
 							col += 2;
-					} else if (!is_continuation(c, tty))
+					} else
 						col++;
 					tail = (tail+1) & (N_TTY_BUF_SIZE-1);
 				}
@@ -898,7 +878,7 @@ static void n_tty_close(struct tty_struct *tty)
 	n_tty_flush_buffer(tty);
 	if (tty->read_buf) {
 		free_buf(tty->read_buf);
-		tty->read_buf = NULL;
+		tty->read_buf = 0;
 	}
 }
 
@@ -915,7 +895,7 @@ static int n_tty_open(struct tty_struct *tty)
 	memset(tty->read_buf, 0, N_TTY_BUF_SIZE);
 	reset_buffer_flags(tty);
 	tty->column = 0;
-	n_tty_set_termios(tty, NULL);
+	n_tty_set_termios(tty, 0);
 	tty->minimum_to_wake = 1;
 	tty->closing = 0;
 	return 0;
@@ -941,7 +921,7 @@ static inline int input_available_p(struct tty_struct *tty, int amt)
  * the buffer to head pointer.
  */
 static inline int copy_from_read_buf(struct tty_struct *tty,
-				      unsigned char __user **b,
+				      unsigned char **b,
 				      size_t *nr)
 
 {
@@ -971,9 +951,9 @@ static inline int copy_from_read_buf(struct tty_struct *tty,
 extern ssize_t redirected_tty_write(struct file *,const char *,size_t,loff_t *);
 
 static ssize_t read_chan(struct tty_struct *tty, struct file *file,
-			 unsigned char __user *buf, size_t nr)
+			 unsigned char *buf, size_t nr)
 {
-	unsigned char __user *b = buf;
+	unsigned char *b = buf;
 	DECLARE_WAITQUEUE(wait, current);
 	int c;
 	int minimum, time;
@@ -994,8 +974,7 @@ do_it_again:
 	/* NOTE: not yet done after every sleep pending a thorough
 	   check of the logic of this change. -- jlc */
 	/* don't stop on /dev/console */
-	if (file->f_op->write != redirected_tty_write &&
-	    current->signal->tty == tty) {
+	if (file->f_op->write != redirected_tty_write && current->tty == tty) {
 		if (tty->pgrp <= 0)
 			printk("read_chan: tty->pgrp <= 0!\n");
 		else if (process_group(current) != tty->pgrp) {
@@ -1086,7 +1065,7 @@ do_it_again:
 			set_bit(TTY_DONT_FLIP, &tty->flags);
 			continue;
 		}
-		__set_current_state(TASK_RUNNING);
+		current->state = TASK_RUNNING;
 
 		/* Deal with packet mode. */
 		if (tty->packet && b == buf) {
@@ -1165,7 +1144,7 @@ do_it_again:
 	if (!waitqueue_active(&tty->read_wait))
 		tty->minimum_to_wake = minimum;
 
-	__set_current_state(TASK_RUNNING);
+	current->state = TASK_RUNNING;
 	size = b - buf;
 	if (size) {
 		retval = size;
@@ -1178,9 +1157,9 @@ do_it_again:
 }
 
 static ssize_t write_chan(struct tty_struct * tty, struct file * file,
-			  const unsigned char __user * buf, size_t nr)
+			  const unsigned char * buf, size_t nr)
 {
-	const unsigned char __user *b = buf;
+	const unsigned char *b = buf;
 	DECLARE_WAITQUEUE(wait, current);
 	int c;
 	ssize_t retval = 0;
@@ -1241,7 +1220,7 @@ static ssize_t write_chan(struct tty_struct * tty, struct file * file,
 		schedule();
 	}
 break_out:
-	__set_current_state(TASK_RUNNING);
+	current->state = TASK_RUNNING;
 	remove_wait_queue(&tty->write_wait, &wait);
 	return (b - buf) ? b - buf : retval;
 }

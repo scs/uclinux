@@ -122,10 +122,9 @@ struct CHIPSTATE {
 	__u16 left,right,treble,bass,mode;
 	int prevmode;
 	int norm;
-
 	/* thread */
-	pid_t                tpid;
-	struct completion    texit;
+	struct task_struct  *thread;
+	struct semaphore    *notify;
 	wait_queue_head_t    wq;
 	struct timer_list    wt;
 	int                  done;
@@ -270,24 +269,23 @@ static void chip_thread_wake(unsigned long data)
 
 static int chip_thread(void *data)
 {
-	DECLARE_WAITQUEUE(wait, current);
         struct CHIPSTATE *chip = data;
 	struct CHIPDESC  *desc = chiplist + chip->type;
 	
+	lock_kernel();
 	daemonize("%s",i2c_clientname(&chip->c));
-	allow_signal(SIGTERM);
+	chip->thread = current;
+	unlock_kernel();
+
 	dprintk("%s: thread started\n", i2c_clientname(&chip->c));
+	if(chip->notify != NULL)
+		up(chip->notify);
 
 	for (;;) {
-		add_wait_queue(&chip->wq, &wait);
-		if (!chip->done) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
-		}
-		remove_wait_queue(&chip->wq, &wait);
+		interruptible_sleep_on(&chip->wq);
+		dprintk("%s: thread wakeup\n", i2c_clientname(&chip->c));
 		if (chip->done || signal_pending(current))
 			break;
-		dprintk("%s: thread wakeup\n", i2c_clientname(&chip->c));
 
 		/* don't do anything for radio or if mode != auto */
 		if (chip->norm == VIDEO_MODE_RADIO || chip->mode != 0)
@@ -300,8 +298,11 @@ static int chip_thread(void *data)
 		mod_timer(&chip->wt, jiffies+2*HZ);
 	}
 
+	chip->thread = NULL;
 	dprintk("%s: thread exiting\n", i2c_clientname(&chip->c));
-        complete_and_exit(&chip->texit, 0);
+	if(chip->notify != NULL)
+		up(chip->notify);
+
 	return 0;
 }
 
@@ -1419,6 +1420,7 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct CHIPSTATE *chip;
 	struct CHIPDESC  *desc;
+	int rc;
 
 	chip = kmalloc(sizeof(*chip),GFP_KERNEL);
 	if (!chip)
@@ -1478,18 +1480,21 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 		chip_write(chip,desc->treblereg,desc->treblefunc(chip->treble));
 	}
 
-	chip->tpid = -1;
 	if (desc->checkmode) {
 		/* start async thread */
+		DECLARE_MUTEX_LOCKED(sem);
+		chip->notify = &sem;
 		init_timer(&chip->wt);
 		chip->wt.function = chip_thread_wake;
 		chip->wt.data     = (unsigned long)chip;
 		init_waitqueue_head(&chip->wq);
-		init_completion(&chip->texit);
-		chip->tpid = kernel_thread(chip_thread,(void *)chip,0);
-		if (chip->tpid < 0)
+		rc = kernel_thread(chip_thread,(void *)chip,0);
+		if (rc < 0)
 			printk(KERN_WARNING "%s: kernel_thread() failed\n",
 			       i2c_clientname(&chip->c));
+		else
+			down(&sem);
+		chip->notify = NULL;
 		wake_up_interruptible(&chip->wq);
 	}
 	return 0;
@@ -1497,8 +1502,8 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 
 static int chip_probe(struct i2c_adapter *adap)
 {
-#ifdef I2C_CLASS_TV_ANALOG
-	if (adap->class & I2C_CLASS_TV_ANALOG)
+#ifdef I2C_ADAP_CLASS_TV_ANALOG
+	if (adap->class & I2C_ADAP_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, chip_attach);
 #else
 	switch (adap->id) {
@@ -1515,12 +1520,15 @@ static int chip_detach(struct i2c_client *client)
 {
 	struct CHIPSTATE *chip = i2c_get_clientdata(client);
 
-	del_timer_sync(&chip->wt);
-	if (chip->tpid >= 0) {
+	del_timer(&chip->wt);
+	if (NULL != chip->thread) {
 		/* shutdown async thread */
+		DECLARE_MUTEX_LOCKED(sem);
+		chip->notify = &sem;
 		chip->done = 1;
 		wake_up_interruptible(&chip->wq);
-		wait_for_completion(&chip->texit);
+		down(&sem);
+		chip->notify = NULL;
 	}
 	
 	i2c_detach_client(&chip->c);

@@ -12,8 +12,6 @@
 /* 
  * Fri Jul 13 2001 Crutcher Dunnavant <crutcher+kernel@datastacks.com>
  * - changed to provide snprintf and vsnprintf functions
- * So Feb  1 16:51:32 CET 2004 Juergen Quade <quade@hsnr.de>
- * - scnprintf and vscnprintf
  */
 
 #include <stdarg.h>
@@ -40,14 +38,11 @@ unsigned long simple_strtoul(const char *cp,char **endp,unsigned int base)
 		if (*cp == '0') {
 			base = 8;
 			cp++;
-			if ((toupper(*cp) == 'X') && isxdigit(cp[1])) {
+			if ((*cp == 'x') && isxdigit(cp[1])) {
 				cp++;
 				base = 16;
 			}
 		}
-	} else if (base == 16) {
-		if (cp[0] == '0' && toupper(cp[1]) == 'X')
-			cp += 2;
 	}
 	while (isxdigit(*cp) &&
 	       (value = isdigit(*cp) ? *cp-'0' : toupper(*cp)-'A'+10) < base) {
@@ -91,14 +86,11 @@ unsigned long long simple_strtoull(const char *cp,char **endp,unsigned int base)
 		if (*cp == '0') {
 			base = 8;
 			cp++;
-			if ((toupper(*cp) == 'X') && isxdigit(cp[1])) {
+			if ((*cp == 'x') && isxdigit(cp[1])) {
 				cp++;
 				base = 16;
 			}
 		}
-	} else if (base == 16) {
-		if (cp[0] == '0' && toupper(cp[1]) == 'X')
-			cp += 2;
 	}
 	while (isxdigit(*cp) && (value = isdigit(*cp) ? *cp-'0' : (islower(*cp)
 	    ? toupper(*cp) : *cp)-'A'+10) < base) {
@@ -154,7 +146,7 @@ static char * number(char * buf, char * end, unsigned long long num, int base, i
 	if (type & LEFT)
 		type &= ~ZEROPAD;
 	if (base < 2 || base > 36)
-		return NULL;
+		return 0;
 	c = (type & ZEROPAD) ? '0' : ' ';
 	sign = 0;
 	if (type & SIGN) {
@@ -236,22 +228,14 @@ static char * number(char * buf, char * end, unsigned long long num, int base, i
 }
 
 /**
- * vsnprintf - Format a string and place it in a buffer
- * @buf: The buffer to place the result into
- * @size: The size of the buffer, including the trailing null space
- * @fmt: The format string to use
- * @args: Arguments for the format string
- *
- * The return value is the number of characters which would
- * be generated for the given input, excluding the trailing
- * '\0', as per ISO C99. If you want to have the exact
- * number of characters written into @buf as return value
- * (not including the trailing '\0'), use vscnprintf. If the
- * return is greater than or equal to @size, the resulting
- * string is truncated.
- *
- * Call this function if you are already dealing with a va_list.
- * You probably want snprintf instead.
+* vsnprintf - Format a string and place it in a buffer
+* @buf: The buffer to place the result into
+* @size: The size of the buffer, including the trailing null space
+* @fmt: The format string to use
+* @args: Arguments for the format string
+*
+* Call this function if you are already dealing with a va_list.
+* You probably want snprintf instead.
  */
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
@@ -493,40 +477,11 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 EXPORT_SYMBOL(vsnprintf);
 
 /**
- * vscnprintf - Format a string and place it in a buffer
- * @buf: The buffer to place the result into
- * @size: The size of the buffer, including the trailing null space
- * @fmt: The format string to use
- * @args: Arguments for the format string
- *
- * The return value is the number of characters which have been written into
- * the @buf not including the trailing '\0'. If @size is <= 0 the function
- * returns 0.
- *
- * Call this function if you are already dealing with a va_list.
- * You probably want scnprintf instead.
- */
-int vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
-{
-	int i;
-
-	i=vsnprintf(buf,size,fmt,args);
-	return (i >= size) ? (size - 1) : i;
-}
-
-EXPORT_SYMBOL(vscnprintf);
-
-/**
  * snprintf - Format a string and place it in a buffer
  * @buf: The buffer to place the result into
  * @size: The size of the buffer, including the trailing null space
  * @fmt: The format string to use
  * @...: Arguments for the format string
- *
- * The return value is the number of characters which would be
- * generated for the given input, excluding the trailing null,
- * as per ISO C99.  If the return is greater than or equal to
- * @size, the resulting string is truncated.
  */
 int snprintf(char * buf, size_t size, const char *fmt, ...)
 {
@@ -542,38 +497,10 @@ int snprintf(char * buf, size_t size, const char *fmt, ...)
 EXPORT_SYMBOL(snprintf);
 
 /**
- * scnprintf - Format a string and place it in a buffer
- * @buf: The buffer to place the result into
- * @size: The size of the buffer, including the trailing null space
- * @fmt: The format string to use
- * @...: Arguments for the format string
- *
- * The return value is the number of characters written into @buf not including
- * the trailing '\0'. If @size is <= 0 the function returns 0. If the return is
- * greater than or equal to @size, the resulting string is truncated.
- */
-
-int scnprintf(char * buf, size_t size, const char *fmt, ...)
-{
-	va_list args;
-	int i;
-
-	va_start(args, fmt);
-	i = vsnprintf(buf, size, fmt, args);
-	va_end(args);
-	return (i >= size) ? (size - 1) : i;
-}
-EXPORT_SYMBOL(scnprintf);
-
-/**
  * vsprintf - Format a string and place it in a buffer
  * @buf: The buffer to place the result into
  * @fmt: The format string to use
  * @args: Arguments for the format string
- *
- * The function returns the number of characters written
- * into @buf. Use vsnprintf or vscnprintf in order to avoid
- * buffer overflows.
  *
  * Call this function if you are already dealing with a va_list.
  * You probably want sprintf instead.
@@ -590,10 +517,6 @@ EXPORT_SYMBOL(vsprintf);
  * @buf: The buffer to place the result into
  * @fmt: The format string to use
  * @...: Arguments for the format string
- *
- * The function returns the number of characters written
- * into @buf. Use snprintf or scnprintf in order to avoid
- * buffer overflows.
  */
 int sprintf(char * buf, const char *fmt, ...)
 {
@@ -668,16 +591,8 @@ int vsscanf(const char * buf, const char * fmt, va_list args)
 		qualifier = -1;
 		if (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' ||
 		    *fmt == 'Z' || *fmt == 'z') {
-			qualifier = *fmt++;
-			if (unlikely(qualifier == *fmt)) {
-				if (qualifier == 'h') {
-					qualifier = 'H';
-					fmt++;
-				} else if (qualifier == 'l') {
-					qualifier = 'L';
-					fmt++;
-				}
-			}
+			qualifier = *fmt;
+			fmt++;
 		}
 		base = 10;
 		is_sign = 0;
@@ -693,7 +608,7 @@ int vsscanf(const char * buf, const char * fmt, va_list args)
 				field_width = 1;
 			do {
 				*s++ = *str++;
-			} while (--field_width > 0 && *str);
+			} while(field_width-- > 0 && *str);
 			num++;
 		}
 		continue;
@@ -762,15 +677,6 @@ int vsscanf(const char * buf, const char * fmt, va_list args)
 				break;
 
 		switch(qualifier) {
-		case 'H':	/* that's 'hh' in format */
-			if (is_sign) {
-				signed char *s = (signed char *) va_arg(args,signed char *);
-				*s = (signed char) simple_strtol(str,&next,base);
-			} else {
-				unsigned char *s = (unsigned char *) va_arg(args, unsigned char *);
-				*s = (unsigned char) simple_strtoul(str, &next, base);
-			}
-			break;
 		case 'h':
 			if (is_sign) {
 				short *s = (short *) va_arg(args,short *);

@@ -55,10 +55,10 @@ __ccw_device_sense_pgid_start(struct ccw_device *cdev)
 			/* ret is 0, -EBUSY, -EACCES or -ENODEV */
 			if (ret != -EACCES)
 				return ret;
-			CIO_MSG_EVENT(2, "SNID - Device %04x on Subchannel "
-				      "%04x, lpm %02X, became 'not "
+			CIO_MSG_EVENT(2, "SNID - Device %s on Subchannel "
+				      "%s, lpm %02X, became 'not "
 				      "operational'\n",
-				      cdev->private->devno, sch->irq,
+				      cdev->dev.bus_id, sch->dev.bus_id,
 				      cdev->private->imask);
 
 		}
@@ -105,10 +105,10 @@ __ccw_device_check_sense_pgid(struct ccw_device *cdev)
 		return -EOPNOTSUPP;
 	}
 	if (irb->esw.esw0.erw.cons) {
-		CIO_MSG_EVENT(2, "SNID - device %04x, unit check, "
+		CIO_MSG_EVENT(2, "SNID - device %s, unit check, "
 			      "lpum %02X, cnt %02d, sns : "
 			      "%02X%02X%02X%02X %02X%02X%02X%02X ...\n",
-			      cdev->private->devno,
+			      cdev->dev.bus_id,
 			      irb->esw.esw0.sublog.lpum,
 			      irb->esw.esw0.erw.scnt,
 			      irb->ecw[0], irb->ecw[1],
@@ -118,15 +118,15 @@ __ccw_device_check_sense_pgid(struct ccw_device *cdev)
 		return -EAGAIN;
 	}
 	if (irb->scsw.cc == 3) {
-		CIO_MSG_EVENT(2, "SNID - Device %04x on Subchannel "
-			      "%04x, lpm %02X, became 'not operational'\n",
-			      cdev->private->devno, sch->irq, sch->orb.lpm);
+		CIO_MSG_EVENT(2, "SNID - Device %s on Subchannel "
+			      "%s, lpm %02X, became 'not operational'\n",
+			      cdev->dev.bus_id, sch->dev.bus_id, sch->orb.lpm);
 		return -EACCES;
 	}
 	if (cdev->private->pgid.inf.ps.state2 == SNID_STATE2_RESVD_ELSE) {
-		CIO_MSG_EVENT(2, "SNID - Device %04x on Subchannel %04x "
+		CIO_MSG_EVENT(2, "SNID - Device %s on Subchannel %s "
 			      "is reserved by someone else\n",
-			      cdev->private->devno, sch->irq);
+			      cdev->dev.bus_id, sch->dev.bus_id);
 		return -EUSERS;
 	}
 	return 0;
@@ -143,14 +143,15 @@ ccw_device_sense_pgid_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	int ret;
 
 	irb = (struct irb *) __LC_IRB;
-	/* Retry sense pgid for cc=1. */
+	/*
+	 * Unsolicited interrupts may pertain to an earlier status pending or
+	 * busy condition on the subchannel. Retry sense pgid.
+	 */
 	if (irb->scsw.stctl ==
 	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
-		if (irb->scsw.cc == 1) {
-			ret = __ccw_device_sense_pgid_start(cdev);
-			if (ret && ret != -EBUSY)
-				ccw_device_sense_pgid_done(cdev, ret);
-		}
+		ret = __ccw_device_sense_pgid_start(cdev);
+		if (ret && ret != -EBUSY)
+			ccw_device_sense_pgid_done(cdev, ret);
 		return;
 	}
 	if (ccw_device_accumulate_and_sense(cdev, irb) != 0)
@@ -226,15 +227,15 @@ __ccw_device_do_pgid(struct ccw_device *cdev, __u8 func)
 		ret = cio_start (sch, cdev->private->iccws,
 				 cdev->private->imask);
 		/* ret is 0, -EBUSY, -EACCES or -ENODEV */
-		if ((ret != -EACCES) && (ret != -ENODEV))
+		if (ret != -EACCES)
 			return ret;
 	}
 	/* PGID command failed on this path. Switch it off. */
 	sch->lpm &= ~cdev->private->imask;
 	sch->vpm &= ~cdev->private->imask;
-	CIO_MSG_EVENT(2, "SPID - Device %04x on Subchannel "
-		      "%04x, lpm %02X, became 'not operational'\n",
-		      cdev->private->devno, sch->irq, cdev->private->imask);
+	CIO_MSG_EVENT(2, "SPID - Device %s on Subchannel "
+		      "%s, lpm %02X, became 'not operational'\n",
+		      cdev->dev.bus_id, sch->dev.bus_id, cdev->private->imask);
 	return ret;
 }
 
@@ -256,9 +257,9 @@ __ccw_device_check_pgid(struct ccw_device *cdev)
 		if (irb->ecw[0] & SNS0_CMD_REJECT)
 			return -EOPNOTSUPP;
 		/* Hmm, whatever happened, try again. */
-		CIO_MSG_EVENT(2, "SPID - device %04x, unit check, cnt %02d, "
+		CIO_MSG_EVENT(2, "SPID - device %s, unit check, cnt %02d, "
 			      "sns : %02X%02X%02X%02X %02X%02X%02X%02X ...\n",
-			      cdev->private->devno, irb->esw.esw0.erw.scnt,
+			      cdev->dev.bus_id, irb->esw.esw0.erw.scnt,
 			      irb->ecw[0], irb->ecw[1],
 			      irb->ecw[2], irb->ecw[3],
 			      irb->ecw[4], irb->ecw[5],
@@ -266,9 +267,9 @@ __ccw_device_check_pgid(struct ccw_device *cdev)
 		return -EAGAIN;
 	}
 	if (irb->scsw.cc == 3) {
-		CIO_MSG_EVENT(2, "SPID - Device %04x on Subchannel "
-			      "%04x, lpm %02X, became 'not operational'\n",
-			      cdev->private->devno, sch->irq,
+		CIO_MSG_EVENT(2, "SPID - Device %s on Subchannel "
+			      "%s, lpm %02X, became 'not operational'\n",
+			      cdev->dev.bus_id, sch->dev.bus_id,
 			      cdev->private->imask);
 		return -EACCES;
 	}
@@ -309,11 +310,13 @@ ccw_device_verify_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	struct irb *irb;
 
 	irb = (struct irb *) __LC_IRB;
-	/* Retry set pgid for cc=1. */
+	/*
+	 * Unsolicited interrupts may pertain to an earlier status pending or
+	 * busy condition on the subchannel. Restart path verification.
+	 */
 	if (irb->scsw.stctl ==
 	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
-		if (irb->scsw.cc == 1)
-			__ccw_device_verify_start(cdev);
+		__ccw_device_verify_start(cdev);
 		return;
 	}
 	if (ccw_device_accumulate_and_sense(cdev, irb) != 0)
@@ -335,10 +338,6 @@ ccw_device_verify_irq(struct ccw_device *cdev, enum dev_event dev_event)
 		 * One of those strange devices which claim to be able
 		 * to do multipathing but not for Set Path Group ID.
 		 */
-		if (cdev->private->flags.pgid_single) {
-			ccw_device_verify_done(cdev, -EOPNOTSUPP);
-			break;
-		}
 		cdev->private->flags.pgid_single = 1;
 		/* fall through. */
 	case -EAGAIN:		/* Try again. */
@@ -394,13 +393,10 @@ ccw_device_disband_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	int ret;
 
 	irb = (struct irb *) __LC_IRB;
-	/* Retry set pgid for cc=1. */
+	/* Ignore unsolicited interrupts. */
 	if (irb->scsw.stctl ==
-	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
-		if (irb->scsw.cc == 1)
-			__ccw_device_disband_start(cdev);
+	    		(SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS))
 		return;
-	}
 	if (ccw_device_accumulate_and_sense(cdev, irb) != 0)
 		return;
 	sch = to_subchannel(cdev->dev.parent);

@@ -369,6 +369,7 @@ static unsigned int eth32i_irqmap[] __initdata = { 3, 5, 7, 9, 10, 11, 12, 15, 0
 #define NUM_OF_EISA_IRQS   8
 
 static unsigned int eth16i_tx_buf_map[] = { 2048, 2048, 4096, 8192 };
+static unsigned int boot = 1;
 
 /* Use 0 for production, 1 for verification, >2 for debug */
 #ifndef ETH16I_DEBUG
@@ -394,6 +395,8 @@ struct eth16i_local {
 
 /* Function prototypes */
 
+extern int     eth16i_probe(struct net_device *dev);
+
 static int     eth16i_probe1(struct net_device *dev, int ioaddr);
 static int     eth16i_check_signature(int ioaddr);
 static int     eth16i_probe_port(int ioaddr);
@@ -415,7 +418,7 @@ static void    eth16i_timeout(struct net_device *dev);
 static void    eth16i_skip_packet(struct net_device *dev);
 static void    eth16i_multicast(struct net_device *dev); 
 static void    eth16i_select_regbank(unsigned char regbank, int ioaddr);
-static void    eth16i_initialize(struct net_device *dev, int boot);
+static void    eth16i_initialize(struct net_device *dev);
 
 #if 0
 static int     eth16i_set_irq(struct net_device *dev);
@@ -429,7 +432,7 @@ static struct net_device_stats *eth16i_get_stats(struct net_device *dev);
 
 static char cardname[] __initdata = "ICL EtherTeam 16i/32";
 
-static int __init do_eth16i_probe(struct net_device *dev)
+int __init eth16i_probe(struct net_device *dev)
 {
 	int i;
 	int ioaddr;
@@ -458,42 +461,16 @@ static int __init do_eth16i_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-#ifndef MODULE
-struct net_device * __init eth16i_probe(int unit)
-{
-	struct net_device *dev = alloc_etherdev(sizeof(struct eth16i_local));
-	int err;
-
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	sprintf(dev->name, "eth%d", unit);
-	netdev_boot_setup_check(dev);
-
-	err = do_eth16i_probe(dev);
-	if (err)
-		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
-	return dev;
-out1:
-	free_irq(dev->irq, dev);
-	release_region(dev->base_addr, ETH16I_IO_EXTENT);
-out:
-	free_netdev(dev);
-	return ERR_PTR(err);
-}
-#endif
-
 static int __init eth16i_probe1(struct net_device *dev, int ioaddr)
 {
-	struct eth16i_local *lp = netdev_priv(dev);
+	struct eth16i_local *lp;
 	static unsigned version_printed;
 	int retval;
 
+	boot = 1;  /* To inform initilization that we are in boot probe */
+
 	/* Let's grab the region */
-	if (!request_region(ioaddr, ETH16I_IO_EXTENT, cardname))
+	if (!request_region(ioaddr, ETH16I_IO_EXTENT, dev->name))
 		return -EBUSY;
 
 	/*
@@ -540,9 +517,9 @@ static int __init eth16i_probe1(struct net_device *dev, int ioaddr)
 
 	/* Try to obtain interrupt vector */
 
-	if ((retval = request_irq(dev->irq, (void *)&eth16i_interrupt, 0, cardname, dev))) {
-		printk(KERN_WARNING "%s at %#3x, but is unusable due to conflicting IRQ %d.\n", 
-		       cardname, ioaddr, dev->irq);
+	if ((retval = request_irq(dev->irq, (void *)&eth16i_interrupt, 0, dev->name, dev))) {
+		printk(KERN_WARNING "%s: %s at %#3x, but is unusable due conflicting IRQ %d.\n", 
+		       dev->name, cardname, ioaddr, dev->irq);
 		goto out;
 	}
 
@@ -554,13 +531,22 @@ static int __init eth16i_probe1(struct net_device *dev, int ioaddr)
 	eth16i_select_regbank(TRANSCEIVER_MODE_RB, ioaddr);
 	outb(0x38, ioaddr + TRANSCEIVER_MODE_REG); 
 
-	eth16i_initialize(dev, 1); /* Initialize rest of the chip's registers */
+	eth16i_initialize(dev);   /* Initialize rest of the chip's registers */
 
 	/* Now let's same some energy by shutting down the chip ;) */
 	BITCLR(ioaddr + CONFIG_REG_1, POWERUP);
 
 	/* Initialize the device structure */
-	memset(lp, 0, sizeof(struct eth16i_local));
+	if(dev->priv == NULL) {
+		dev->priv = kmalloc(sizeof(struct eth16i_local), GFP_KERNEL);
+		if(dev->priv == NULL) {
+			free_irq(dev->irq, dev);
+			retval = -ENOMEM;
+			goto out;
+		}
+	}
+
+	memset(dev->priv, 0, sizeof(struct eth16i_local));
 	dev->open               = eth16i_open;
 	dev->stop               = eth16i_close;
 	dev->hard_start_xmit    = eth16i_tx;
@@ -568,7 +554,15 @@ static int __init eth16i_probe1(struct net_device *dev, int ioaddr)
 	dev->set_multicast_list = eth16i_multicast;
 	dev->tx_timeout 	= eth16i_timeout;
 	dev->watchdog_timeo	= TX_TIMEOUT;
+
+	lp = (struct eth16i_local *)dev->priv;
 	spin_lock_init(&lp->lock);
+
+	/* Fill in the fields of the device structure with ethernet values. */
+	ether_setup(dev);
+
+	boot = 0;
+
 	return 0;
 out:
 	release_region(ioaddr, ETH16I_IO_EXTENT);
@@ -576,7 +570,7 @@ out:
 }
 
 
-static void eth16i_initialize(struct net_device *dev, int boot)
+static void eth16i_initialize(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 	int i, node_w = 0;
@@ -952,14 +946,14 @@ static void eth16i_eeprom_cmd(int ioaddr, unsigned char command)
 
 static int eth16i_open(struct net_device *dev)
 {
-	struct eth16i_local *lp = netdev_priv(dev);
+	struct eth16i_local *lp = (struct eth16i_local *)dev->priv;
 	int ioaddr = dev->base_addr;
 	
 	/* Powerup the chip */
 	outb(0xc0 | POWERUP, ioaddr + CONFIG_REG_1);
 
 	/* Initialize the chip */
-	eth16i_initialize(dev, 0);  
+	eth16i_initialize(dev);  
 
 	/* Set the transmit buffer size */
 	lp->tx_buf_size = eth16i_tx_buf_map[ETH16I_TX_BUF_SIZE & 0x03];
@@ -988,7 +982,7 @@ static int eth16i_open(struct net_device *dev)
 
 static int eth16i_close(struct net_device *dev)
 {
-	struct eth16i_local *lp = netdev_priv(dev);
+	struct eth16i_local *lp = (struct eth16i_local *)dev->priv;
 	int ioaddr = dev->base_addr;
 
 	eth16i_reset(dev);
@@ -1014,7 +1008,7 @@ static int eth16i_close(struct net_device *dev)
 
 static void eth16i_timeout(struct net_device *dev)
 {
-	struct eth16i_local *lp = netdev_priv(dev);
+	struct eth16i_local *lp = (struct eth16i_local *)dev->priv;
 	int ioaddr = dev->base_addr;
 	/* 
 	   If we get here, some higher level has decided that 
@@ -1055,7 +1049,7 @@ static void eth16i_timeout(struct net_device *dev)
 
 static int eth16i_tx(struct sk_buff *skb, struct net_device *dev)
 {
-	struct eth16i_local *lp = netdev_priv(dev);
+	struct eth16i_local *lp = (struct eth16i_local *)dev->priv;
 	int ioaddr = dev->base_addr;
 	int status = 0;
 	ushort length = skb->len;
@@ -1132,7 +1126,7 @@ static int eth16i_tx(struct sk_buff *skb, struct net_device *dev)
 
 static void eth16i_rx(struct net_device *dev)
 {
-	struct eth16i_local *lp = netdev_priv(dev);
+	struct eth16i_local *lp = (struct eth16i_local *)dev->priv;
 	int ioaddr = dev->base_addr;
 	int boguscount = MAX_RX_LOOP;
 
@@ -1234,7 +1228,7 @@ static irqreturn_t eth16i_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	int handled = 0;
 
 	ioaddr = dev->base_addr;
-	lp = netdev_priv(dev);
+	lp = (struct eth16i_local *)dev->priv;
 
 	/* Turn off all interrupts from adapter */
 	outw(ETH16I_INTR_OFF, ioaddr + TX_INTR_REG);
@@ -1342,7 +1336,7 @@ static void eth16i_skip_packet(struct net_device *dev)
 
 static void eth16i_reset(struct net_device *dev)
 {
-	struct eth16i_local *lp = netdev_priv(dev);
+	struct eth16i_local *lp = (struct eth16i_local *)dev->priv;
 	int ioaddr = dev->base_addr;
 
 	if(eth16i_debug > 1) 
@@ -1374,7 +1368,7 @@ static void eth16i_multicast(struct net_device *dev)
 
 static struct net_device_stats *eth16i_get_stats(struct net_device *dev)
 {
-	struct eth16i_local *lp = netdev_priv(dev);
+	struct eth16i_local *lp = (struct eth16i_local *)dev->priv;
 	return &lp->stats;
 }
 
@@ -1407,7 +1401,7 @@ static ushort eth16i_parse_mediatype(const char* s)
 
 #define MAX_ETH16I_CARDS 4  /* Max number of Eth16i cards per module */
 
-static struct net_device *dev_eth16i[MAX_ETH16I_CARDS];
+static struct net_device dev_eth16i[MAX_ETH16I_CARDS];
 static int io[MAX_ETH16I_CARDS];
 #if 0
 static int irq[MAX_ETH16I_CARDS];
@@ -1437,14 +1431,14 @@ MODULE_PARM_DESC(debug, "eth16i debug level (0-6)");
 int init_module(void)
 {
 	int this_dev, found = 0;
-	struct net_device *dev;
 
-	for (this_dev = 0; this_dev < MAX_ETH16I_CARDS; this_dev++) {
-		dev = alloc_etherdev(sizeof(struct eth16i_local));
-		if (!dev)
-			break;
-
+	for(this_dev = 0; this_dev < MAX_ETH16I_CARDS; this_dev++)
+	{
+		struct net_device *dev = &dev_eth16i[this_dev];
+	
+		dev->irq = 0; /* irq[this_dev]; */
 		dev->base_addr = io[this_dev];
+		dev->init = eth16i_probe;
 
 	        if(debug != -1)
 			eth16i_debug = debug;
@@ -1454,43 +1448,44 @@ int init_module(void)
 
 		dev->if_port = eth16i_parse_mediatype(mediatype[this_dev]);
 
-		if(io[this_dev] == 0) {
-			if(this_dev != 0) /* Only autoprobe 1st one */
-				break;
+		if(io[this_dev] == 0)
+		{
+			if(this_dev != 0) break; /* Only autoprobe 1st one */
 
 			printk(KERN_NOTICE "eth16i.c: Presently autoprobing (not recommended) for a single card.\n");
 		}
 
-		if (do_eth16i_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_eth16i[found++] = dev;
-				continue;
-			}
-			free_irq(dev->irq, dev);
-			release_region(dev->base_addr, ETH16I_IO_EXTENT);
+		if(register_netdev(dev) != 0)
+		{
+			printk(KERN_WARNING "eth16i.c No Eth16i card found (i/o = 0x%x).\n",
+			       io[this_dev]);
+	    
+			if(found != 0) return 0;
+			return -ENXIO;
 		}
-		printk(KERN_WARNING "eth16i.c No Eth16i card found (i/o = 0x%x).\n",
-		       io[this_dev]);
-		free_netdev(dev);
-		break;
+
+		found++;
 	}
-	if (found)
-		return 0;
-	return -ENXIO;
+	return 0;
 }
 	
 void cleanup_module(void)
 {
 	int this_dev;
 
-	for(this_dev = 0; this_dev < MAX_ETH16I_CARDS; this_dev++) {
-		struct net_device *dev = dev_eth16i[this_dev];
+	for(this_dev = 0; this_dev < MAX_ETH16I_CARDS; this_dev++)
+	{
+		struct net_device* dev = &dev_eth16i[this_dev];
 		
-		if(dev->priv) {
+		if(dev->priv != NULL)
+		{
 			unregister_netdev(dev);
+			kfree(dev->priv);
+			dev->priv = NULL;
+			
 			free_irq(dev->irq, dev);
 			release_region(dev->base_addr, ETH16I_IO_EXTENT);
-			free_netdev(dev);
+			
 		}
 	}
 }

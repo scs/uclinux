@@ -24,9 +24,9 @@
 #include <linux/hdlc.h>
 
 
-static int ppp_open(struct net_device *dev)
+static int ppp_open(hdlc_device *hdlc)
 {
-	hdlc_device *hdlc = dev_to_hdlc(dev);
+	struct net_device *dev = hdlc_to_dev(hdlc);
 	void *old_ioctl;
 	int result;
 
@@ -52,9 +52,9 @@ static int ppp_open(struct net_device *dev)
 
 
 
-static void ppp_close(struct net_device *dev)
+static void ppp_close(hdlc_device *hdlc)
 {
-	hdlc_device *hdlc = dev_to_hdlc(dev);
+	struct net_device *dev = hdlc_to_dev(hdlc);
 
 	sppp_close(dev);
 	sppp_detach(dev);
@@ -74,9 +74,9 @@ static unsigned short ppp_type_trans(struct sk_buff *skb,
 
 
 
-int hdlc_ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
+int hdlc_ppp_ioctl(hdlc_device *hdlc, struct ifreq *ifr)
 {
-	hdlc_device *hdlc = dev_to_hdlc(dev);
+	struct net_device *dev = hdlc_to_dev(hdlc);
 	int result;
 
 	switch (ifr->ifr_settings.type) {
@@ -93,7 +93,7 @@ int hdlc_ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 		/* no settable parameters */
 
-		result=hdlc->attach(dev, ENCODING_NRZ,PARITY_CRC16_PR1_CCITT);
+		result=hdlc->attach(hdlc, ENCODING_NRZ,PARITY_CRC16_PR1_CCITT);
 		if (result)
 			return result;
 

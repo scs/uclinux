@@ -73,7 +73,6 @@ EXPORT_SYMBOL(journal_ack_err);
 EXPORT_SYMBOL(journal_clear_err);
 EXPORT_SYMBOL(log_wait_commit);
 EXPORT_SYMBOL(journal_start_commit);
-EXPORT_SYMBOL(journal_force_commit_nested);
 EXPORT_SYMBOL(journal_wipe);
 EXPORT_SYMBOL(journal_blocks_per_page);
 EXPORT_SYMBOL(journal_invalidatepage);
@@ -173,7 +172,7 @@ loop:
 		 */
 		jbd_debug(1, "Now suspending kjournald\n");
 		spin_unlock(&journal->j_state_lock);
-		refrigerator(PF_FREEZE);
+		refrigerator(PF_IOTHREAD);
 		spin_lock(&journal->j_state_lock);
 	} else {
 		/*
@@ -322,6 +321,7 @@ repeat:
 	}
 
 	mapped_data = kmap_atomic(new_page, KM_USER0);
+
 	/*
 	 * Check for escaping
 	 */
@@ -330,7 +330,6 @@ repeat:
 		need_copy_out = 1;
 		do_escape = 1;
 	}
-	kunmap_atomic(mapped_data, KM_USER0);
 
 	/*
 	 * Do we need to do a data copy?
@@ -338,6 +337,7 @@ repeat:
 	if (need_copy_out && !done_copy_out) {
 		char *tmp;
 
+		kunmap_atomic(mapped_data, KM_USER0);
 		jbd_unlock_bh_state(bh_in);
 		tmp = jbd_rep_kmalloc(bh_in->b_size, GFP_NOFS);
 		jbd_lock_bh_state(bh_in);
@@ -349,8 +349,10 @@ repeat:
 		jh_in->b_frozen_data = tmp;
 		mapped_data = kmap_atomic(new_page, KM_USER0);
 		memcpy(tmp, mapped_data + new_offset, jh2bh(jh_in)->b_size);
-		kunmap_atomic(mapped_data, KM_USER0);
 
+		/* If we get to this path, we'll always need the new
+		   address kmapped so that we can clear the escaped
+		   magic number below. */
 		new_page = virt_to_page(tmp);
 		new_offset = offset_in_page(tmp);
 		done_copy_out = 1;
@@ -360,11 +362,9 @@ repeat:
 	 * Did we need to do an escaping?  Now we've done all the
 	 * copying, we can finally do so.
 	 */
-	if (do_escape) {
-		mapped_data = kmap_atomic(new_page, KM_USER0);
+	if (do_escape)
 		*((unsigned int *)(mapped_data + new_offset)) = 0;
-		kunmap_atomic(mapped_data, KM_USER0);
-	}
+	kunmap_atomic(mapped_data, KM_USER0);
 
 	/* keep subsequent assertions sane */
 	new_bh->b_state = 0;
@@ -463,39 +463,6 @@ int log_start_commit(journal_t *journal, tid_t tid)
 	ret = __log_start_commit(journal, tid);
 	spin_unlock(&journal->j_state_lock);
 	return ret;
-}
-
-/*
- * Force and wait upon a commit if the calling process is not within
- * transaction.  This is used for forcing out undo-protected data which contains
- * bitmaps, when the fs is running out of space.
- *
- * We can only force the running transaction if we don't have an active handle;
- * otherwise, we will deadlock.
- *
- * Returns true if a transaction was started.
- */
-int journal_force_commit_nested(journal_t *journal)
-{
-	transaction_t *transaction = NULL;
-	tid_t tid;
-
-	spin_lock(&journal->j_state_lock);
-	if (journal->j_running_transaction && !current->journal_info) {
-		transaction = journal->j_running_transaction;
-		__log_start_commit(journal, transaction->t_tid);
-	} else if (journal->j_committing_transaction)
-		transaction = journal->j_committing_transaction;
-
-	if (!transaction) {
-		spin_unlock(&journal->j_state_lock);
-		return 0;	/* Nothing to retry */
-	}
-
-	tid = transaction->t_tid;
-	spin_unlock(&journal->j_state_lock);
-	log_wait_commit(journal, tid);
-	return 1;
 }
 
 /*
@@ -619,13 +586,9 @@ int journal_bmap(journal_t *journal, unsigned long blocknr,
  * We play buffer_head aliasing tricks to write data/metadata blocks to
  * the journal without copying their contents, but for journal
  * descriptor blocks we do need to generate bona fide buffers.
- *
- * After the caller of journal_get_descriptor_buffer() has finished modifying
- * the buffer's contents they really should run flush_dcache_page(bh->b_page).
- * But we don't bother doing that, so there will be coherency problems with
- * mmaps of blockdevs which hold live JBD-controlled filesystems.
  */
-struct journal_head *journal_get_descriptor_buffer(journal_t *journal)
+
+struct journal_head * journal_get_descriptor_buffer(journal_t *journal)
 {
 	struct buffer_head *bh;
 	unsigned long blocknr;
@@ -637,10 +600,7 @@ struct journal_head *journal_get_descriptor_buffer(journal_t *journal)
 		return NULL;
 
 	bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
-	lock_buffer(bh);
-	memset(bh->b_data, 0, journal->j_blocksize);
-	set_buffer_uptodate(bh);
-	unlock_buffer(bh);
+	bh->b_state |= (1 << BH_Dirty);
 	BUFFER_TRACE(bh, "return this buffer");
 	return journal_add_journal_head(bh);
 }
@@ -676,7 +636,7 @@ static journal_t * journal_init_common (void)
 	spin_lock_init(&journal->j_list_lock);
 	spin_lock_init(&journal->j_state_lock);
 
-	journal->j_commit_interval = (HZ * JBD_DEFAULT_MAX_COMMIT_AGE);
+	journal->j_commit_interval = (HZ * 5);
 
 	/* The journal is marked for error until we succeed with recovery! */
 	journal->j_flags = JFS_ABORT;
@@ -1617,7 +1577,7 @@ static void journal_destroy_journal_head_cache(void)
 {
 	J_ASSERT(journal_head_cache != NULL);
 	kmem_cache_destroy(journal_head_cache);
-	journal_head_cache = NULL;
+	journal_head_cache = 0;
 }
 
 /*

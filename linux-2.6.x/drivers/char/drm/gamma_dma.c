@@ -116,7 +116,7 @@ static inline int gamma_dma_is_ready(drm_device_t *dev)
 	return (!GAMMA_READ(GAMMA_DMACOUNT));
 }
 
-irqreturn_t gamma_irq_handler( DRM_IRQ_ARGS )
+irqreturn_t gamma_dma_service( DRM_IRQ_ARGS )
 {
 	drm_device_t	 *dev = (drm_device_t *)arg;
 	drm_device_dma_t *dma = dev->dma;
@@ -262,7 +262,7 @@ static void gamma_dma_timer_bh(unsigned long dev)
 	gamma_dma_schedule((drm_device_t *)dev, 0);
 }
 
-void gamma_irq_immediate_bh(void *dev)
+void gamma_dma_immediate_bh(void *dev)
 {
 	gamma_dma_schedule(dev, 0);
 }
@@ -346,9 +346,6 @@ static int gamma_dma_priority(struct file *filp,
 	drm_buf_t	  *buf;
 	drm_buf_t	  *last_buf = NULL;
 	drm_device_dma_t  *dma	    = dev->dma;
-	int		  *send_indices = NULL;
-	int		  *send_sizes = NULL;
-
 	DECLARE_WAITQUEUE(entry, current);
 
 				/* Turn off interrupt handling */
@@ -368,31 +365,11 @@ static int gamma_dma_priority(struct file *filp,
 		++must_free;
 	}
 
-	send_indices = DRM(alloc)(d->send_count * sizeof(*send_indices),
-				  DRM_MEM_DRIVER);
-	if (send_indices == NULL)
-		return -ENOMEM;
-	if (copy_from_user(send_indices, d->send_indices, 
-			   d->send_count * sizeof(*send_indices))) {
-		retcode = -EFAULT;
-                goto cleanup;
-	}
-	
-	send_sizes = DRM(alloc)(d->send_count * sizeof(*send_sizes),
-				DRM_MEM_DRIVER);
-	if (send_sizes == NULL)
-		return -ENOMEM;
-	if (copy_from_user(send_sizes, d->send_sizes, 
-			   d->send_count * sizeof(*send_sizes))) {
-		retcode = -EFAULT;
-                goto cleanup;
-	}
-
 	for (i = 0; i < d->send_count; i++) {
-		idx = send_indices[i];
+		idx = d->send_indices[i];
 		if (idx < 0 || idx >= dma->buf_count) {
 			DRM_ERROR("Index %d (of %d max)\n",
-				  send_indices[i], dma->buf_count - 1);
+				  d->send_indices[i], dma->buf_count - 1);
 			continue;
 		}
 		buf = dma->buflist[ idx ];
@@ -414,7 +391,7 @@ static int gamma_dma_priority(struct file *filp,
 				   process closes the /dev/drm? handle, so
 				   it can't also be doing DMA. */
 		buf->list	  = DRM_LIST_PRIO;
-		buf->used	  = send_sizes[i];
+		buf->used	  = d->send_sizes[i];
 		buf->context	  = d->context;
 		buf->while_locked = d->flags & _DRM_DMA_WHILE_LOCKED;
 		address		  = (unsigned long)buf->address;
@@ -425,14 +402,14 @@ static int gamma_dma_priority(struct file *filp,
 		if (buf->pending) {
 			DRM_ERROR("Sending pending buffer:"
 				  " buffer %d, offset %d\n",
-				  send_indices[i], i);
+				  d->send_indices[i], i);
 			retcode = -EINVAL;
 			goto cleanup;
 		}
 		if (buf->waiting) {
 			DRM_ERROR("Sending waiting buffer:"
 				  " buffer %d, offset %d\n",
-				  send_indices[i], i);
+				  d->send_indices[i], i);
 			retcode = -EINVAL;
 			goto cleanup;
 		}
@@ -481,12 +458,6 @@ cleanup:
 		gamma_dma_ready(dev);
 		gamma_free_buffer(dev, last_buf);
 	}
-	if (send_indices)
-		DRM(free)(send_indices, d->send_count * sizeof(*send_indices), 
-			  DRM_MEM_DRIVER);
-	if (send_sizes)
-		DRM(free)(send_sizes, d->send_count * sizeof(*send_sizes), 
-			  DRM_MEM_DRIVER);
 
 	if (must_free && !dev->context_flag) {
 		if (gamma_lock_free(dev, &dev->lock.hw_lock->lock,
@@ -505,13 +476,9 @@ static int gamma_dma_send_buffers(struct file *filp,
 	drm_buf_t	  *last_buf = NULL;
 	int		  retcode   = 0;
 	drm_device_dma_t  *dma	    = dev->dma;
-	int               send_index;
-
-	if (get_user(send_index, &d->send_indices[d->send_count-1]))
-		return -EFAULT;
 
 	if (d->flags & _DRM_DMA_BLOCK) {
-		last_buf = dma->buflist[send_index];
+		last_buf = dma->buflist[d->send_indices[d->send_count-1]];
 		add_wait_queue(&last_buf->dma_wait, &entry);
 	}
 
@@ -565,10 +532,9 @@ int gamma_dma(struct inode *inode, struct file *filp, unsigned int cmd,
 	drm_device_t	  *dev	    = priv->dev;
 	drm_device_dma_t  *dma	    = dev->dma;
 	int		  retcode   = 0;
-	drm_dma_t	  __user *argp = (void __user *)arg;
 	drm_dma_t	  d;
 
-	if (copy_from_user(&d, argp, sizeof(d)))
+	if (copy_from_user(&d, (drm_dma_t *)arg, sizeof(d)))
 		return -EFAULT;
 
 	if (d.send_count < 0 || d.send_count > dma->buf_count) {
@@ -598,7 +564,7 @@ int gamma_dma(struct inode *inode, struct file *filp, unsigned int cmd,
 
 	DRM_DEBUG("%d returning, granted = %d\n",
 		  current->pid, d.granted_count);
-	if (copy_to_user(argp, &d, sizeof(d)))
+	if (copy_to_user((drm_dma_t *)arg, &d, sizeof(d)))
 		return -EFAULT;
 
 	return retcode;
@@ -690,12 +656,12 @@ int gamma_do_cleanup_dma( drm_device_t *dev )
 {
 	DRM_DEBUG( "%s\n", __FUNCTION__ );
 
-#if __HAVE_IRQ
+#if _HAVE_DMA_IRQ
 	/* Make sure interrupts are disabled here because the uninstall ioctl
 	 * may not have been called from userspace and after dev_private
 	 * is freed, it's too late.
 	 */
-	if ( dev->irq_enabled ) DRM(irq_uninstall)(dev);
+	if ( dev->irq ) DRM(irq_uninstall)(dev);
 #endif
 
 	if ( dev->dev_private ) {
@@ -721,7 +687,7 @@ int gamma_dma_init( struct inode *inode, struct file *filp,
 
 	LOCK_TEST_WITH_RETURN( dev, filp );
 
-	if ( copy_from_user( &init, (drm_gamma_init_t __user *)arg, sizeof(init) ) )
+	if ( copy_from_user( &init, (drm_gamma_init_t *)arg, sizeof(init) ) )
 		return -EFAULT;
 
 	switch ( init.func ) {
@@ -790,7 +756,7 @@ int gamma_dma_copy( struct inode *inode, struct file *filp,
 	drm_device_t *dev = priv->dev;
 	drm_gamma_copy_t copy;
 
-	if ( copy_from_user( &copy, (drm_gamma_copy_t __user *)arg, sizeof(copy) ) )
+	if ( copy_from_user( &copy, (drm_gamma_copy_t *)arg, sizeof(copy) ) )
 		return -EFAULT;
 
 	return gamma_do_copy_dma( dev, &copy );
@@ -805,11 +771,12 @@ int gamma_getsareactx(struct inode *inode, struct file *filp,
 {
 	drm_file_t	*priv	= filp->private_data;
 	drm_device_t	*dev	= priv->dev;
-	drm_ctx_priv_map_t __user *argp = (void __user *)arg;
 	drm_ctx_priv_map_t request;
 	drm_map_t *map;
 
-	if (copy_from_user(&request, argp, sizeof(request)))
+	if (copy_from_user(&request,
+			   (drm_ctx_priv_map_t *)arg,
+			   sizeof(request)))
 		return -EFAULT;
 
 	down(&dev->struct_sem);
@@ -822,7 +789,7 @@ int gamma_getsareactx(struct inode *inode, struct file *filp,
 	up(&dev->struct_sem);
 
 	request.handle = map->handle;
-	if (copy_to_user(argp, &request, sizeof(request)))
+	if (copy_to_user((drm_ctx_priv_map_t *)arg, &request, sizeof(request)))
 		return -EFAULT;
 	return 0;
 }
@@ -838,7 +805,7 @@ int gamma_setsareactx(struct inode *inode, struct file *filp,
 	struct list_head *list;
 
 	if (copy_from_user(&request,
-			   (drm_ctx_priv_map_t __user *)arg,
+			   (drm_ctx_priv_map_t *)arg,
 			   sizeof(request)))
 		return -EFAULT;
 

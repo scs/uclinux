@@ -1,6 +1,6 @@
 /*
  * linux/drivers/usb/gadget/pxa2xx_udc.c
- * Intel PXA2xx and IXP4xx on-chip full speed USB device controllers
+ * Intel PXA2xx on-chip full speed USB device controllers
  *
  * Copyright (C) 2002 Intrinsyc, Inc. (Frank Becker)
  * Copyright (C) 2003 Robert Schwebel, Pengutronix
@@ -51,7 +51,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <asm/mach-types.h>
 #include <asm/unaligned.h>
 #include <asm/hardware.h>
 
@@ -60,26 +59,27 @@
 
 #include <asm/arch/udc.h>
 
+#include "pxa2xx_udc.h"
+
 
 /*
  * This driver handles the USB Device Controller (UDC) in Intel's PXA 2xx
  * series processors.  The UDC for the IXP 4xx series is very similar.
- * There are fifteen endpoints, in addition to ep0.
  *
  * Such controller drivers work with a gadget driver.  The gadget driver
  * returns descriptors, implements configuration and data protocols used
  * by the host to interact with this device, and allocates endpoints to
  * the different protocol interfaces.  The controller driver virtualizes
  * usb hardware so that the gadget drivers will be more portable.
- * 
+ *
  * This UDC hardware wants to implement a bit too much USB protocol, so
  * it constrains the sorts of USB configuration change events that work.
  * The errata for these chips are misleading; some "fixed" bugs from
  * pxa250 a0/a1 b0/b1/b2 sure act like they're still there.
  */
 
-#define	DRIVER_VERSION	"14-Dec-2003"
-#define	DRIVER_DESC	"PXA 2xx USB Device Controller driver"
+#define	DRIVER_VERSION	"7-Nov-2003"
+#define DRIVER_DESC	"PXA 2xx USB Device Controller driver"
 
 
 static const char driver_name [] = "pxa2xx_udc";
@@ -94,19 +94,6 @@ static const char ep0name [] = "ep0";
 #ifdef CONFIG_PROC_FS
 #define	UDC_PROC_FILE
 #endif
-
-#ifdef CONFIG_ARCH_IXP4XX
-#undef USE_DMA
-
-/* cpu-specific register addresses are compiled in to this code */
-#ifdef CONFIG_ARCH_PXA
-#error "Can't configure both IXP and PXA"
-#endif
-
-#endif
-
-#include "pxa2xx_udc.h"
-
 
 #ifdef CONFIG_EMBEDDED
 /* few strings, and little code to use them */
@@ -228,8 +215,7 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 	if (!_ep || !desc || ep->desc || _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| ep->bEndpointAddress != desc->bEndpointAddress
-			|| ep->fifo_size < le16_to_cpu
-						(desc->wMaxPacketSize)) {
+			|| ep->ep.maxpacket < desc->wMaxPacketSize) {
 		DMSG("%s, bad ep or descriptor\n", __FUNCTION__);
 		return -EINVAL;
 	}
@@ -244,8 +230,7 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 
 	/* hardware _could_ do smaller, but driver doesn't */
 	if ((desc->bmAttributes == USB_ENDPOINT_XFER_BULK
-				&& le16_to_cpu (desc->wMaxPacketSize)
-						!= BULK_FIFO_SIZE)
+				&& desc->wMaxPacketSize != BULK_FIFO_SIZE)
 			|| !desc->wMaxPacketSize) {
 		DMSG("%s, bad %s maxpacket\n", __FUNCTION__, _ep->name);
 		return -ERANGE;
@@ -261,7 +246,6 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 	ep->dma = -1;
 	ep->stopped = 0;
 	ep->pio_irqs = ep->dma_irqs = 0;
-	ep->ep.maxpacket = le16_to_cpu (desc->wMaxPacketSize);
 
 	/* flush fifo (mostly for OUT buffers) */
 	pxa2xx_ep_fifo_flush (_ep);
@@ -270,18 +254,18 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 
 #ifdef	USE_DMA
 	/* for (some) bulk and ISO endpoints, try to get a DMA channel and
-	 * bind it to the endpoint.  otherwise use PIO. 
+	 * bind it to the endpoint.  otherwise use PIO.
 	 */
 	switch (ep->bmAttributes) {
 	case USB_ENDPOINT_XFER_ISOC:
-		if (le16_to_cpu(desc->wMaxPacketSize) % 32)
+		if (desc->wMaxPacketSize % 32)
 			break;
 		// fall through
 	case USB_ENDPOINT_XFER_BULK:
 		if (!use_dma || !ep->reg_drcmr)
 			break;
 		ep->dma = pxa_request_dma ((char *)_ep->name,
- 				(le16_to_cpu (desc->wMaxPacketSize) > 64)
+				(desc->wMaxPacketSize > 64)
 					? DMA_PRIO_MEDIUM /* some iso */
 					: DMA_PRIO_LOW,
 				dma_nodesc_handler, ep);
@@ -453,7 +437,7 @@ write_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
 {
 	unsigned		max;
 
-	max = le16_to_cpu(ep->desc->wMaxPacketSize);
+	max = ep->desc->wMaxPacketSize;
 	do {
 		unsigned	count;
 		int		is_last, is_short;
@@ -470,7 +454,13 @@ write_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
 			else
 				is_last = 1;
 			/* interrupt/iso maxpacket may not fill the fifo */
-			is_short = unlikely (max < ep->fifo_size);
+			is_short = unlikely (max < ep->ep.maxpacket);
+
+			/* FIXME ep.maxpacket should be the current size,
+			 * modified (for periodic endpoints) when the
+			 * ep is enabled.  do that, re-init as needed,
+			 * and change maxpacket refs accordingly.
+			 */
 		}
 
 		DBG(DBG_VERY_NOISY, "wrote %s %d bytes%s%s %d left %p\n",
@@ -608,7 +598,7 @@ read_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
 			req->req.actual += min (count, bufferspace);
 		} else /* zlp */
 			count = 0;
-		is_short = (count < ep->ep.maxpacket);
+		is_short = (count < ep->desc->wMaxPacketSize);
 		DBG(DBG_VERY_NOISY, "read %s %02x, %d bytes%s req %p %d/%d\n",
 			ep->ep.name, udccs, count,
 			is_short ? "/S" : "",
@@ -907,14 +897,13 @@ pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, int gfp_flags)
 	 * we can report per-packet status.  that also helps with dma.
 	 */
 	if (unlikely (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC
-			&& req->req.length > le16_to_cpu
-						(ep->desc->wMaxPacketSize)))
+			&& req->req.length > ep->desc->wMaxPacketSize))
 		return -EMSGSIZE;
 
 #ifdef	USE_DMA
 	// FIXME caller may already have done the dma mapping
 	if (ep->dma >= 0) {
-		_req->dma = dma_map_single(dev->dev,
+		_req->dma = dma_map_single(&dev->dev.dev,
 			_req->buf, _req->length,
 			((ep->bEndpointAddress & USB_DIR_IN) != 0)
 				? DMA_TO_DEVICE
@@ -1028,21 +1017,11 @@ static int pxa2xx_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	unsigned long		flags;
 
 	ep = container_of(_ep, struct pxa2xx_ep, ep);
-	if (!_ep || ep->ep.name == ep0name)
+	req = container_of(_req, struct pxa2xx_request, req);
+	if (!_ep || !_req || ep->ep.name == ep0name)
 		return -EINVAL;
 
 	local_irq_save(flags);
-
-	/* make sure it's actually queued on this endpoint */
-	list_for_each_entry (req, &ep->queue, queue) {
-		if (&req->req == _req)
-			break;
-	}
-	if (&req->req != _req) {
-		local_irq_restore(flags);
-		return -EINVAL;
-	}
-
 #ifdef	USE_DMA
 	if (ep->dma >= 0 && ep->queue.next == &req->queue && !ep->stopped) {
 		cancel_dma(ep);
@@ -1055,10 +1034,13 @@ static int pxa2xx_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		}
 	} else
 #endif
+	if (!list_empty(&req->queue))
 		done(ep, req, -ECONNRESET);
-
+	else
+		req = 0;
 	local_irq_restore(flags);
-	return 0;
+
+	return req ? 0 : -EOPNOTSUPP;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1233,7 +1215,7 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 	local_irq_save(flags);
 
 	/* basic device status */
-	t = scnprintf(next, size, DRIVER_DESC "\n"
+	t = snprintf(next, size, DRIVER_DESC "\n"
 		"%s version: %s\nGadget driver: %s\nHost %s\n\n",
 		driver_name, DRIVER_VERSION SIZE_STR DMASTR,
 		dev->driver ? dev->driver->driver.name : "(none)",
@@ -1242,14 +1224,14 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 	next += t;
 
 	/* registers for device and ep0 */
-	t = scnprintf(next, size,
+	t = snprintf(next, size,
 		"uicr %02X.%02X, usir %02X.%02x, ufnr %02X.%02X\n",
 		UICR1, UICR0, USIR1, USIR0, UFNRH, UFNRL);
 	size -= t;
 	next += t;
 
 	tmp = UDCCR;
-	t = scnprintf(next, size,
+	t = snprintf(next, size,
 		"udccr %02X =%s%s%s%s%s%s%s%s\n", tmp,
 		(tmp & UDCCR_REM) ? " rem" : "",
 		(tmp & UDCCR_RSTIR) ? " rstir" : "",
@@ -1263,7 +1245,7 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 	next += t;
 
 	tmp = UDCCS0;
-	t = scnprintf(next, size,
+	t = snprintf(next, size,
 		"udccs0 %02X =%s%s%s%s%s%s%s%s\n", tmp,
 		(tmp & UDCCS0_SA) ? " sa" : "",
 		(tmp & UDCCS0_RNE) ? " rne" : "",
@@ -1278,7 +1260,7 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 
 	if (dev->has_cfr) {
 		tmp = UDCCFR;
-		t = scnprintf(next, size,
+		t = snprintf(next, size,
 			"udccfr %02X =%s%s\n", tmp,
 			(tmp & UDCCFR_AREN) ? " aren" : "",
 			(tmp & UDCCFR_ACM) ? " acm" : "");
@@ -1289,7 +1271,7 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 	if (!is_usb_connected() || !dev->driver)
 		goto done;
 
-	t = scnprintf(next, size, "ep0 IN %lu/%lu, OUT %lu/%lu\nirqs %lu\n\n",
+	t = snprintf(next, size, "ep0 IN %lu/%lu, OUT %lu/%lu\nirqs %lu\n\n",
 		dev->stats.write.bytes, dev->stats.write.ops,
 		dev->stats.read.bytes, dev->stats.read.ops,
 		dev->stats.irqs);
@@ -1309,7 +1291,7 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 			if (!d)
 				continue;
 			tmp = *dev->ep [i].reg_udccs;
-			t = scnprintf(next, size,
+			t = snprintf(next, size,
 				"%s max %d %s udccs %02x irqs %lu/%lu\n",
 				ep->ep.name, le16_to_cpu (d->wMaxPacketSize),
 				(ep->dma >= 0) ? "dma" : "pio", tmp,
@@ -1317,7 +1299,7 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 			/* TODO translate all five groups of udccs bits! */
 
 		} else /* ep0 should only have one transfer queued */
-			t = scnprintf(next, size, "ep0 max 16 pio irqs %lu\n",
+			t = snprintf(next, size, "ep0 max 16 pio irqs %lu\n",
 				ep->pio_irqs);
 		if (t <= 0 || t > size)
 			goto done;
@@ -1325,7 +1307,7 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 		next += t;
 
 		if (list_empty(&ep->queue)) {
-			t = scnprintf(next, size, "\t(nothing queued)\n");
+			t = snprintf(next, size, "\t(nothing queued)\n");
 			if (t <= 0 || t > size)
 				goto done;
 			size -= t;
@@ -1335,7 +1317,7 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 		list_for_each_entry(req, &ep->queue, queue) {
 #ifdef	USE_DMA
 			if (ep->dma >= 0 && req->queue.prev == &ep->queue)
-				t = scnprintf(next, size,
+				t = snprintf(next, size,
 					"\treq %p len %d/%d "
 					"buf %p (dma%d dcmd %08x)\n",
 					&req->req, req->req.actual,
@@ -1345,7 +1327,7 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 					);
 			else
 #endif
-				t = scnprintf(next, size,
+				t = snprintf(next, size,
 					"\treq %p len %d/%d buf %p\n",
 					&req->req, req->req.actual,
 					req->req.length, req->req.buf);
@@ -1383,7 +1365,7 @@ show_function (struct device *_dev, char *buf)
 			|| !dev->driver->function
 			|| strlen (dev->driver->function) > PAGE_SIZE)
 		return 0;
-	return scnprintf (buf, PAGE_SIZE, "%s\n", dev->driver->function);
+	return snprintf (buf, PAGE_SIZE, "%s\n", dev->driver->function);
 }
 static DEVICE_ATTR (function, S_IRUGO, show_function, NULL);
 
@@ -1404,10 +1386,8 @@ static void udc_disable(struct pxa2xx_udc *dev)
 
 	udc_clear_mask_UDCCR(UDCCR_UDE);
 
-#ifdef	CONFIG_ARCH_PXA
         /* Disable clock for USB device */
-	pxa_set_cken(CKEN11_USB, 0);
-#endif
+        CKEN &= ~CKEN11_USB;
 
 	ep0_idle (dev);
 	dev->gadget.speed = USB_SPEED_UNKNOWN;
@@ -1450,10 +1430,8 @@ static void udc_enable (struct pxa2xx_udc *dev)
 {
 	udc_clear_mask_UDCCR(UDCCR_UDE);
 
-#ifdef	CONFIG_ARCH_PXA
         /* Enable clock for USB device */
-	pxa_set_cken(CKEN11_USB, 1);
-#endif
+        CKEN |= CKEN11_USB;
 
 	/* try to clear these bits before we enable the udc */
 	udc_ack_int_UDCCR(UDCCR_SUSIR|/*UDCCR_RSTIR|*/UDCCR_RESIR);
@@ -1612,10 +1590,9 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	local_irq_disable();
 	udc_disable(dev);
 	stop_activity(dev, driver);
-	local_irq_enable();
-
 	driver->unbind(&dev->gadget);
 	dev->driver = 0;
+	local_irq_enable();
 
 	device_del (&dev->gadget.dev);
 	device_remove_file(dev->dev, &dev_attr_function);
@@ -1799,6 +1776,7 @@ config_change:
 					 * else use AREN (later) not SA|OPR
 					 * USIR0_IR0 acts edge sensitive
 					 */
+					dev->req_pending = 0;
 				}
 				break;
 			/* ... and here, even more ... */
@@ -1875,7 +1853,6 @@ stall:
 			/* pxa210/250 erratum 131 for B0/B1 says RNE lies.
 			 * still observed on a pxa255 a0.
 			 */
-			DBG(DBG_VERBOSE, "e131\n");
 			nuke(ep, -EPROTO);
 
 			/* read SETUP data, but don't trust it too much */
@@ -2066,7 +2043,7 @@ pxa2xx_udc_irq(int irq, void *_dev, struct pt_regs *r)
 				stop_activity (dev, dev->driver);
 
 			} else {
-				INFO("USB reset\n");
+				dev_info(&dev->gadget.dev, "USB reset\n");
 				dev->gadget.speed = USB_SPEED_FULL;
 				LED_CONNECTED_ON;
 				memset(&dev->stats, 0, sizeof dev->stats);
@@ -2156,12 +2133,11 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 1,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
 		.reg_udccs	= &UDCCS1,
 		.reg_uddr	= &UDDR1,
-		drcmr (25)
+		.reg_drcmr	= &DRCMR25,
 	},
 	.ep[2] = {
 		.ep = {
@@ -2170,13 +2146,12 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = 2,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
 		.reg_udccs	= &UDCCS2,
 		.reg_ubcr	= &UBCR2,
 		.reg_uddr	= &UDDR2,
-		drcmr (26)
+		.reg_drcmr	= &DRCMR26,
 	},
 #ifndef CONFIG_USB_PXA2XX_SMALL
 	.ep[3] = {
@@ -2186,12 +2161,11 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 3,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
 		.reg_udccs	= &UDCCS3,
 		.reg_uddr	= &UDDR3,
-		drcmr (27)
+		.reg_drcmr	= &DRCMR27,
 	},
 	.ep[4] = {
 		.ep = {
@@ -2200,13 +2174,12 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = 4,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
 		.reg_udccs	= &UDCCS4,
 		.reg_ubcr	= &UBCR4,
 		.reg_uddr	= &UDDR4,
-		drcmr (28)
+		.reg_drcmr	= &DRCMR28,
 	},
 	.ep[5] = {
 		.ep = {
@@ -2215,7 +2188,6 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= INT_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= INT_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 5,
 		.bmAttributes	= USB_ENDPOINT_XFER_INT,
 		.reg_udccs	= &UDCCS5,
@@ -2230,12 +2202,11 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 6,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
 		.reg_udccs	= &UDCCS6,
 		.reg_uddr	= &UDDR6,
-		drcmr (30)
+		.reg_drcmr	= &DRCMR30,
 	},
 	.ep[7] = {
 		.ep = {
@@ -2244,13 +2215,12 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = 7,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
 		.reg_udccs	= &UDCCS7,
 		.reg_ubcr	= &UBCR7,
 		.reg_uddr	= &UDDR7,
-		drcmr (31)
+		.reg_drcmr	= &DRCMR31,
 	},
 	.ep[8] = {
 		.ep = {
@@ -2259,12 +2229,11 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 8,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
 		.reg_udccs	= &UDCCS8,
 		.reg_uddr	= &UDDR8,
-		drcmr (32)
+		.reg_drcmr	= &DRCMR32,
 	},
 	.ep[9] = {
 		.ep = {
@@ -2273,13 +2242,12 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = 9,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
 		.reg_udccs	= &UDCCS9,
 		.reg_ubcr	= &UBCR9,
 		.reg_uddr	= &UDDR9,
-		drcmr (33)
+		.reg_drcmr	= &DRCMR33,
 	},
 	.ep[10] = {
 		.ep = {
@@ -2288,7 +2256,6 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= INT_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= INT_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 10,
 		.bmAttributes	= USB_ENDPOINT_XFER_INT,
 		.reg_udccs	= &UDCCS10,
@@ -2303,12 +2270,11 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 11,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
 		.reg_udccs	= &UDCCS11,
 		.reg_uddr	= &UDDR11,
-		drcmr (35)
+		.reg_drcmr	= &DRCMR35,
 	},
 	.ep[12] = {
 		.ep = {
@@ -2317,13 +2283,12 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = 12,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
 		.reg_udccs	= &UDCCS12,
 		.reg_ubcr	= &UBCR12,
 		.reg_uddr	= &UDDR12,
-		drcmr (36)
+		.reg_drcmr	= &DRCMR36,
 	},
 	.ep[13] = {
 		.ep = {
@@ -2332,12 +2297,11 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 13,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
 		.reg_udccs	= &UDCCS13,
 		.reg_uddr	= &UDDR13,
-		drcmr (37)
+		.reg_drcmr	= &DRCMR37,
 	},
 	.ep[14] = {
 		.ep = {
@@ -2346,13 +2310,12 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = 14,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
 		.reg_udccs	= &UDCCS14,
 		.reg_ubcr	= &UBCR14,
 		.reg_uddr	= &UDDR14,
-		drcmr (38)
+		.reg_drcmr	= &DRCMR38,
 	},
 	.ep[15] = {
 		.ep = {
@@ -2361,7 +2324,6 @@ static struct pxa2xx_udc memory = {
 			.maxpacket	= INT_FIFO_SIZE,
 		},
 		.dev		= &memory,
-		.fifo_size	= INT_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 15,
 		.bmAttributes	= USB_ENDPOINT_XFER_INT,
 		.reg_udccs	= &UDCCS15,
@@ -2371,14 +2333,7 @@ static struct pxa2xx_udc memory = {
 };
 
 #define CP15R0_VENDOR_MASK	0xffffe000
-
-#if	defined(CONFIG_ARCH_PXA)
 #define CP15R0_XSCALE_VALUE	0x69052000	/* intel/arm/xscale */
-
-#elif	defined(CONFIG_ARCH_IXP4XX)
-#define CP15R0_XSCALE_VALUE	0x69054000	/* intel/arm/ixp4xx */
-
-#endif
 
 #define CP15R0_PROD_MASK	0x000003f0
 #define PXA25x			0x00000100	/* and PXA26x */
@@ -2400,7 +2355,6 @@ static struct pxa2xx_udc memory = {
 #define PXA210_B2		0x00000124
 #define PXA210_B1		0x00000123
 #define PXA210_B0		0x00000122
-#define IXP425_A0		0x000001c1
 
 /*
  * 	probe - binds to the platform device
@@ -2420,7 +2374,6 @@ static int __init pxa2xx_udc_probe(struct device *_dev)
 
 	/* trigger chiprev-specific logic */
 	switch (chiprev & CP15R0_PRODREV_MASK) {
-#if	defined(CONFIG_ARCH_PXA)
 	case PXA255_A0:
 		dev->has_cfr = 1;
 		break;
@@ -2435,11 +2388,6 @@ static int __init pxa2xx_udc_probe(struct device *_dev)
 		/* fall through */
 	case PXA250_C0: case PXA210_C0:
 		break;
-#elif	defined(CONFIG_ARCH_IXP4XX)
-	case IXP425_A0:
-		out_dma = 0;
-		break;
-#endif
 	default:
 		out_dma = 0;
 		printk(KERN_ERR "%s: unrecognized processor: %08x\n",
@@ -2495,7 +2443,6 @@ static int __init pxa2xx_udc_probe(struct device *_dev)
 	}
 	dev->got_irq = 1;
 
-#ifdef CONFIG_ARCH_LUBBOCK
 	if (machine_is_lubbock()) {
 		disable_irq(LUBBOCK_USB_DISC_IRQ);
 		retval = request_irq(LUBBOCK_USB_DISC_IRQ,
@@ -2510,7 +2457,7 @@ static int __init pxa2xx_udc_probe(struct device *_dev)
 		}
 		dev->got_disc = 1;
 	}
-#endif
+
 	create_proc_files();
 
 	return 0;
@@ -2539,7 +2486,7 @@ static int __exit pxa2xx_udc_remove(struct device *_dev)
 /*-------------------------------------------------------------------------*/
 
 static struct device_driver udc_driver = {
-	.name		= "pxa2xx-udc",
+	.name		= (char *) driver_name,
 	.bus		= &platform_bus_type,
 	.probe		= pxa2xx_udc_probe,
 	.remove		= __exit_p(pxa2xx_udc_remove),

@@ -22,7 +22,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/config.h>
 #include <asm/io.h>
-#include <asm/ibm44x.h>
+#include <asm/ibm440.h>
 #include <platforms/ebony.h>
 
 static struct mtd_info *flash;
@@ -30,13 +30,13 @@ static struct mtd_info *flash;
 static struct map_info ebony_small_map = {
 	.name =		"Ebony small flash",
 	.size =		EBONY_SMALL_FLASH_SIZE,
-	.bankwidth =	1,
+	.buswidth =	1,
 };
 
 static struct map_info ebony_large_map = {
 	.name =		"Ebony large flash",
 	.size =		EBONY_LARGE_FLASH_SIZE,
-	.bankwidth =	1,
+	.buswidth =	1,
 };
 
 static struct mtd_partition ebony_small_partitions[] = {
@@ -71,7 +71,7 @@ int __init init_ebony(void)
 		return -ENOMEM;
 
 	fpga0_reg = readb(fpga0_adr);
-	iounmap(fpga0_adr);
+	iounmap64(fpga0_adr);
 
 	if (EBONY_BOOT_SMALL_FLASH(fpga0_reg) &&
 			!EBONY_FLASH_SEL(fpga0_reg))

@@ -26,7 +26,6 @@
 #include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/cpu.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -43,7 +42,6 @@
 
 extern long cede_processor(void);
 extern long poll_pending(void);
-extern void power4_idle(void);
 
 int (*idle_loop)(void);
 
@@ -76,7 +74,7 @@ static void yield_shared_processor(void)
 	 * The decrementer stops during the yield.  Force a fake decrementer
 	 * here and let the timer_interrupt code sort out the actual time.
 	 */
-	get_paca()->lppaca.xIntDword.xFields.xDecrInt = 1;
+	get_paca()->xLpPaca.xIntDword.xFields.xDecrInt = 1;
 	process_iSeries_events();
 }
 
@@ -98,8 +96,8 @@ int iSeries_idle(void)
 	lpaca = get_paca();
 
 	for (;;) {
-		if (lpaca->lppaca.xSharedProc) {
-			if (ItLpQueue_isLpIntPending(lpaca->lpqueue_ptr))
+		if (lpaca->xLpPaca.xSharedProc) {
+			if (ItLpQueue_isLpIntPending(lpaca->lpQueuePtr))
 				process_iSeries_events();
 			if (!need_resched())
 				yield_shared_processor();
@@ -111,7 +109,7 @@ int iSeries_idle(void)
 
 				while (!need_resched()) {
 					HMT_medium();
-					if (ItLpQueue_isLpIntPending(lpaca->lpqueue_ptr))
+					if (ItLpQueue_isLpIntPending(lpaca->lpQueuePtr))
 						process_iSeries_events();
 					HMT_low();
 				}
@@ -151,45 +149,38 @@ int default_idle(void)
 		}
 
 		schedule();
-		if (cpu_is_offline(smp_processor_id()) &&
-				system_state == SYSTEM_RUNNING)
-			cpu_die();
 	}
 
 	return 0;
 }
 
 #ifdef CONFIG_PPC_PSERIES
-
-DECLARE_PER_CPU(unsigned long, smt_snooze_delay);
-
 int dedicated_idle(void)
 {
 	long oldval;
 	struct paca_struct *lpaca = get_paca(), *ppaca;
 	unsigned long start_snooze;
-	unsigned long *smt_snooze_delay = &__get_cpu_var(smt_snooze_delay);
 
-	ppaca = &paca[smp_processor_id() ^ 1];
+	ppaca = &paca[(lpaca->xPacaIndex) ^ 1];
 
 	while (1) {
 		/* Indicate to the HV that we are idle.  Now would be
 		 * a good time to find other work to dispatch. */
-		lpaca->lppaca.xIdle = 1;
+		lpaca->xLpPaca.xIdle = 1;
 
 		oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
 		if (!oldval) {
 			set_thread_flag(TIF_POLLING_NRFLAG);
-			start_snooze = __get_tb() +
-				*smt_snooze_delay * tb_ticks_per_usec;
+			start_snooze = __get_tb();
 			while (!need_resched()) {
 				/* need_resched could be 1 or 0 at this 
 				 * point.  If it is 0, set it to 0, so
 				 * an IPI/Prod is sent.  If it is 1, keep
 				 * it that way & schedule work.
 				 */
-				if (*smt_snooze_delay == 0 ||
-				    __get_tb() < start_snooze) {
+				if (__get_tb() < 
+				    (start_snooze + 
+				     naca->smt_snooze_delay*tb_ticks_per_usec)) {  
 					HMT_low(); /* Low thread priority */
 					continue;
 				}
@@ -201,7 +192,7 @@ int dedicated_idle(void)
 				 * ST mode.
 				 */
 				if((naca->smt_state == SMT_DYNAMIC) &&
-				   (!(ppaca->lppaca.xIdle))) {
+				   (!(ppaca->xLpPaca.xIdle))) {
 					/* Indicate we are no longer polling for
 					 * work, and then clear need_resched.  If
 					 * need_resched was 1, set it back to 1
@@ -216,6 +207,7 @@ int dedicated_idle(void)
 
 					/* DRENG: Go HMT_medium here ? */
 					local_irq_disable(); 
+					lpaca->yielded = 1;
 
 					/* SMT dynamic mode.  Cede will result 
 					 * in this thread going dormant, if the
@@ -226,6 +218,8 @@ int dedicated_idle(void)
 					 * enables external interrupts.
 					 */
 					cede_processor();
+
+					lpaca->yielded = 0;
 				} else {
 					/* Give the HV an opportunity at the
 					 * processor, since we are not doing
@@ -239,11 +233,8 @@ int dedicated_idle(void)
 		}
 
 		HMT_medium();
-		lpaca->lppaca.xIdle = 0;
+		lpaca->xLpPaca.xIdle = 0;
 		schedule();
-		if (cpu_is_offline(smp_processor_id()) &&
-				system_state == SYSTEM_RUNNING)
-			cpu_die();
 	}
 	return 0;
 }
@@ -253,16 +244,13 @@ int shared_idle(void)
 	struct paca_struct *lpaca = get_paca();
 
 	while (1) {
-		if (cpu_is_offline(smp_processor_id()) &&
-				system_state == SYSTEM_RUNNING)
-			cpu_die();
-
 		/* Indicate to the HV that we are idle.  Now would be
 		 * a good time to find other work to dispatch. */
-		lpaca->lppaca.xIdle = 1;
+		lpaca->xLpPaca.xIdle = 1;
 
 		if (!need_resched()) {
 			local_irq_disable(); 
+			lpaca->yielded = 1;
 			
 			/* 
 			 * Yield the processor to the hypervisor.  We return if
@@ -272,10 +260,12 @@ int shared_idle(void)
 			 * are enabled.
 			 */
 			cede_processor();
+			
+			lpaca->yielded = 0;
 		}
 
 		HMT_medium();
-		lpaca->lppaca.xIdle = 0;
+		lpaca->xLpPaca.xIdle = 0;
 		schedule();
 	}
 
@@ -289,17 +279,6 @@ int cpu_idle(void)
 	return 0; 
 }
 
-int native_idle(void)
-{
-	while(1) {
-		if (!need_resched())
-			power4_idle();
-		if (need_resched())
-			schedule();
-	}
-	return 0;
-}
-
 int idle_setup(void)
 {
 #ifdef CONFIG_PPC_ISERIES
@@ -307,7 +286,7 @@ int idle_setup(void)
 #else
 	if (systemcfg->platform & PLATFORM_PSERIES) {
 		if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR) {
-			if (get_paca()->lppaca.xSharedProc) {
+			if(get_paca()->xLpPaca.xSharedProc) {
 				printk("idle = shared_idle\n");
 				idle_loop = shared_idle;
 			} else {
@@ -318,9 +297,6 @@ int idle_setup(void)
 			printk("idle = default_idle\n");
 			idle_loop = default_idle;
 		}
-	} else if (systemcfg->platform == PLATFORM_POWERMAC) {
-		printk("idle = native_idle\n");
-		idle_loop = native_idle;
 	} else {
 		printk("idle_setup: unknown platform, use default_idle\n");
 		idle_loop = default_idle;

@@ -38,7 +38,6 @@
 
 #include <linux/zftape.h>
 #include <linux/init.h>
-#include <linux/device.h>
 
 #include "../zftape/zftape-init.h"
 #include "../zftape/zftape-read.h"
@@ -88,9 +87,9 @@ static int zft_close(struct inode *ino, struct file *filep);
 static int  zft_ioctl(struct inode *ino, struct file *filep,
 		      unsigned int command, unsigned long arg);
 static int  zft_mmap(struct file *filep, struct vm_area_struct *vma);
-static ssize_t zft_read (struct file *fp, char __user *buff,
+static ssize_t zft_read (struct file *fp, char *buff,
 			 size_t req_len, loff_t *ppos);
-static ssize_t zft_write(struct file *fp, const char __user *buff,
+static ssize_t zft_write(struct file *fp, const char *buff,
 			 size_t req_len, loff_t *ppos);
 
 static struct file_operations zft_cdev =
@@ -104,8 +103,6 @@ static struct file_operations zft_cdev =
 	.release	= zft_close,
 };
 
-static struct class_simple *zft_class;
-
 /*      Open floppy tape device
  */
 static int zft_open(struct inode *ino, struct file *filep)
@@ -113,7 +110,6 @@ static int zft_open(struct inode *ino, struct file *filep)
 	int result;
 	TRACE_FUN(ft_t_flow);
 
-	nonseekable_open(ino, filep);
 	TRACE(ft_t_flow, "called for minor %d", iminor(ino));
 	if ( test_and_set_bit(0,&busy_flag) ) {
 		TRACE_ABORT(-EBUSY, ft_t_warn, "failed: already busy");
@@ -178,7 +174,7 @@ static int zft_ioctl(struct inode *ino, struct file *filep,
 	old_sigmask = current->blocked; /* save mask */
 	sigfillset(&current->blocked);
 	/* This will work as long as sizeof(void *) == sizeof(long) */
-	result = _zft_ioctl(command, (void __user *) arg);
+	result = _zft_ioctl(command, (void *) arg);
 	current->blocked = old_sigmask; /* restore mask */
 	TRACE_EXIT result;
 }
@@ -212,7 +208,7 @@ static int  zft_mmap(struct file *filep, struct vm_area_struct *vma)
 
 /*      Read from floppy tape device
  */
-static ssize_t zft_read(struct file *fp, char __user *buff,
+static ssize_t zft_read(struct file *fp, char *buff,
 			size_t req_len, loff_t *ppos)
 {
 	int result = -EIO;
@@ -235,7 +231,7 @@ static ssize_t zft_read(struct file *fp, char __user *buff,
 
 /*      Write to tape device
  */
-static ssize_t zft_write(struct file *fp, const char __user *buff,
+static ssize_t zft_write(struct file *fp, const char *buff,
 			 size_t req_len, loff_t *ppos)
 {
 	int result = -EIO;
@@ -345,29 +341,22 @@ KERN_INFO
 	      "installing zftape VFS interface for ftape driver ...");
 	TRACE_CATCH(register_chrdev(QIC117_TAPE_MAJOR, "zft", &zft_cdev),);
 
-	zft_class = class_simple_create(THIS_MODULE, "zft");
 	for (i = 0; i < 4; i++) {
-		class_simple_device_add(zft_class, MKDEV(QIC117_TAPE_MAJOR, i), NULL, "qft%i", i);
 		devfs_mk_cdev(MKDEV(QIC117_TAPE_MAJOR, i),
 				S_IFCHR | S_IRUSR | S_IWUSR,
 				"qft%i", i);
-		class_simple_device_add(zft_class, MKDEV(QIC117_TAPE_MAJOR, i + 4), NULL, "nqft%i", i);
 		devfs_mk_cdev(MKDEV(QIC117_TAPE_MAJOR, i + 4),
 				S_IFCHR | S_IRUSR | S_IWUSR,
 				"nqft%i", i);
-		class_simple_device_add(zft_class, MKDEV(QIC117_TAPE_MAJOR, i + 16), NULL, "zqft%i", i);
 		devfs_mk_cdev(MKDEV(QIC117_TAPE_MAJOR, i + 16),
 				S_IFCHR | S_IRUSR | S_IWUSR,
 				"zqft%i", i);
-		class_simple_device_add(zft_class, MKDEV(QIC117_TAPE_MAJOR, i + 20), NULL, "nzqft%i", i);
 		devfs_mk_cdev(MKDEV(QIC117_TAPE_MAJOR, i + 20),
 				S_IFCHR | S_IRUSR | S_IWUSR,
 				"nzqft%i", i);
-		class_simple_device_add(zft_class, MKDEV(QIC117_TAPE_MAJOR, i + 32), NULL, "rawqft%i", i);
 		devfs_mk_cdev(MKDEV(QIC117_TAPE_MAJOR, i + 32),
 				S_IFCHR | S_IRUSR | S_IWUSR,
 				"rawqft%i", i);
-		class_simple_device_add(zft_class, MKDEV(QIC117_TAPE_MAJOR, i + 36), NULL, "nrawrawqft%i", i);
 		devfs_mk_cdev(MKDEV(QIC117_TAPE_MAJOR, i + 36),
 				S_IFCHR | S_IRUSR | S_IWUSR,
 				"nrawqft%i", i);
@@ -397,19 +386,12 @@ static void zft_exit(void)
 	}
         for (i = 0; i < 4; i++) {
 		devfs_remove("qft%i", i);
-		class_simple_device_remove(MKDEV(QIC117_TAPE_MAJOR, i));
 		devfs_remove("nqft%i", i);
-		class_simple_device_remove(MKDEV(QIC117_TAPE_MAJOR, i + 4));
 		devfs_remove("zqft%i", i);
-		class_simple_device_remove(MKDEV(QIC117_TAPE_MAJOR, i + 16));
 		devfs_remove("nzqft%i", i);
-		class_simple_device_remove(MKDEV(QIC117_TAPE_MAJOR, i + 20));
 		devfs_remove("rawqft%i", i);
-		class_simple_device_remove(MKDEV(QIC117_TAPE_MAJOR, i + 32));
 		devfs_remove("nrawqft%i", i);
-		class_simple_device_remove(MKDEV(QIC117_TAPE_MAJOR, i + 36));
 	}
-	class_simple_destroy(zft_class);
 	zft_uninit_mem(); /* release remaining memory, if any */
         printk(KERN_INFO "zftape successfully unloaded.\n");
 	TRACE_EXIT;

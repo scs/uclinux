@@ -6,6 +6,7 @@
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
  */
 
+#include <asm/cprefix.h>
 #include <asm/ptrace.h>
 #include <asm/asm_offsets.h>
 #include <asm/errno.h>
@@ -30,7 +31,7 @@
 	jmp	%l2; \
 	rett	%l2 + 4;
 
-#define LABEL(func)  func##_low
+#define LABEL(func)  CONCAT(func, _low)
 
 	.globl	LABEL(sunosnop)
 LABEL(sunosnop):

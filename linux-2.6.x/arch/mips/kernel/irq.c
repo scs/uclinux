@@ -288,10 +288,8 @@ void inline disable_irq_nosync(unsigned int irq)
 
 void disable_irq(unsigned int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
 	disable_irq_nosync(irq);
-	if (desc->action)
-		synchronize_irq(irq);
+	synchronize_irq(irq);
 }
 
 /**
@@ -312,7 +310,7 @@ void enable_irq(unsigned int irq)
 	spin_lock_irqsave(&desc->lock, flags);
 	switch (desc->depth) {
 	case 1: {
-		unsigned int status = desc->status & ~(IRQ_DISABLED | IRQ_INPROGRESS);
+		unsigned int status = desc->status & ~IRQ_DISABLED;
 		desc->status = status;
 		if ((status & (IRQ_PENDING | IRQ_REPLAY)) == IRQ_PENDING) {
 			desc->status = status | IRQ_REPLAY;
@@ -487,7 +485,7 @@ int request_irq(unsigned int irq,
 
 	action->handler = handler;
 	action->flags = irqflags;
-	cpus_clear(action->mask);
+	action->mask = 0;
 	action->name = devname;
 	action->next = NULL;
 	action->dev_id = dev_id;
@@ -708,7 +706,7 @@ unsigned int probe_irq_mask(unsigned long val)
  *	appears to have triggered the interrupt. If no interrupt was
  *	found then zero is returned. If more than one interrupt is
  *	found then minus the first candidate is returned to indicate
- *	there is doubt.
+ *	their is doubt.
  *
  *	The interrupt probe logic state is returned to its previous
  *	value.
@@ -837,7 +835,7 @@ static cpumask_t irq_affinity [NR_IRQS] = { [0 ... NR_IRQS-1] = ~0UL };
 static int irq_affinity_read_proc (char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
-	int len = cpumask_scnprintf(page, count, irq_affinity[(long)data]);
+	int len = cpumask_snprintf(page, count, irq_affinity[(long)data]);
 	if (count - len < 2)
 		return -EINVAL;
 	len += sprintf(page + len, "\n");
@@ -860,7 +858,7 @@ static int irq_affinity_write_proc (struct file *file, const char *buffer,
 	 * way to make the system unusable accidentally :-) At least
 	 * one online CPU still has to be targeted.
 	 */
-	cpus_and(tmp, new_value, cpu_online_map);
+	cpus_and(tmp, tmp, cpu_online_map);
 	if (cpus_empty(tmp))
 		return -EINVAL;
 
@@ -875,7 +873,7 @@ static int irq_affinity_write_proc (struct file *file, const char *buffer,
 static int prof_cpu_mask_read_proc (char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
-	int len = cpumask_scnprintf(page, count, *(cpumask_t *)data);
+	int len = cpumask_snprintf(page, count, *(cpumask_t *)data);
 	if (count - len < 2)
 		return -EINVAL;
 	len += sprintf(page + len, "\n");

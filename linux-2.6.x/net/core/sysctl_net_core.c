@@ -130,6 +130,16 @@ ctl_table core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
+#ifdef CONFIG_NET_FASTROUTE
+	{
+		.ctl_name	= NET_CORE_FASTROUTE,
+		.procname	= "netdev_fastroute",
+		.data		= &netdev_fastroute,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+#endif
 	{
 		.ctl_name	= NET_CORE_MSG_COST,
 		.procname	= "message_cost",
@@ -145,7 +155,8 @@ ctl_table core_table[] = {
 		.data		= &net_msg_burst,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_dointvec_jiffies,
+		.strategy	= &sysctl_jiffies,
 	},
 	{
 		.ctl_name	= NET_CORE_OPTMEM_MAX,

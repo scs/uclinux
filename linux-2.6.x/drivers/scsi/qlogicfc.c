@@ -31,8 +31,14 @@
  * $Revision$
  *
  * $Log$
- * Revision 1.1.1.2  2004/09/07 09:30:36  lgsoft
- * Import of 2.6.8
+ * Revision 1.2  2004/09/07 22:37:22  lgsoft
+ * alpha-2.0
+ *
+ * Revision 1.1.1.1  2004/07/19 12:18:29  lgsoft
+ * Import of uClinux 2.6.2
+ *
+ * Revision 1.1.1.1  2004/07/18 13:21:57  nidhi
+ * Importing
  *
  * Revision 0.5  1995/09/22  02:23:15  root
  * do auto request sense
@@ -67,7 +73,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include "scsi.h"
-#include <scsi/scsi_host.h>
+#include "hosts.h"
 
 #define pci64_dma_hi32(a) ((u32) (0xffffffff & (((u64)(a))>>32)))
 #define pci64_dma_lo32(a) ((u32) (0xffffffff & (((u64)(a)))))
@@ -103,7 +109,6 @@
 
 #define DEFAULT_LOOP_COUNT	1000000000
 
-#define ISP_TIMEOUT (2*HZ)
 /* End Configuration section ************************************************ */
 
 #include <linux/module.h>
@@ -415,7 +420,7 @@ static unsigned short risc_code_addr01 = 0x1000 ;
    if that mbox should be copied as input.  For example 0x2 would mean
    only copy mbox1. */
 
-static const u_char mbox_param[] =
+const u_char mbox_param[] =
 {
 	0x01,			/* MBOX_NO_OP */
 	0x1f,			/* MBOX_LOAD_RAM */
@@ -1309,7 +1314,7 @@ int isp2x00_queuecommand(Scsi_Cmnd * Cmnd, void (*done) (Scsi_Cmnd *))
 		cmd->control_flags = cpu_to_le16(CFLAG_READ);
 
 	if (Cmnd->device->tagged_supported) {
-		if ((jiffies - hostdata->tag_ages[Cmnd->device->id]) > (2 * ISP_TIMEOUT)) {
+		if ((jiffies - hostdata->tag_ages[Cmnd->device->id]) > (2 * SCSI_TIMEOUT)) {
 			cmd->control_flags |= cpu_to_le16(CFLAG_ORDERED_TAG);
 			hostdata->tag_ages[Cmnd->device->id] = jiffies;
 		} else
@@ -1782,7 +1787,7 @@ int isp2x00_reset(Scsi_Cmnd * Cmnd, unsigned int reset_flags)
 
 	LEAVE("isp2x00_reset");
 
-	return return_status;
+	return return_status;;
 }
 
 

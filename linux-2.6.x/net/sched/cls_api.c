@@ -11,7 +11,6 @@
  * Changes:
  *
  * Eduardo J. Blanco <ejbs@netlabs.com.uy> :990222: kmod support
- *
  */
 
 #include <asm/uaccess.h>
@@ -36,12 +35,6 @@
 #include <linux/kmod.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
-
-#if 0 /* control */
-#define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
-#else
-#define DPRINTK(format,args...)
-#endif
 
 /* The list of all installed classifier types */
 
@@ -139,7 +132,7 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	struct tcf_proto_ops *tp_ops;
 	struct Qdisc_class_ops *cops;
 	unsigned long cl = 0;
-	unsigned long fh, fh_s;
+	unsigned long fh;
 	int err;
 
 	if (prio == 0) {
@@ -236,24 +229,24 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 			kfree(tp);
 			goto errout;
 		}
-
-		qdisc_lock_tree(dev);
+		write_lock(&qdisc_tree_lock);
+		spin_lock_bh(&dev->queue_lock);
 		tp->next = *back;
 		*back = tp;
-		qdisc_unlock_tree(dev);
-
+		spin_unlock_bh(&dev->queue_lock);
+		write_unlock(&qdisc_tree_lock);
 	} else if (tca[TCA_KIND-1] && rtattr_strcmp(tca[TCA_KIND-1], tp->ops->kind))
 		goto errout;
 
-	fh_s = fh = tp->ops->get(tp, t->tcm_handle);
+	fh = tp->ops->get(tp, t->tcm_handle);
 
 	if (fh == 0) {
 		if (n->nlmsg_type == RTM_DELTFILTER && t->tcm_handle == 0) {
-			qdisc_lock_tree(dev);
+			write_lock(&qdisc_tree_lock);
+			spin_lock_bh(&dev->queue_lock);
 			*back = tp->next;
-			qdisc_unlock_tree(dev);
-
-			tfilter_notify(skb, n, tp, fh_s, RTM_DELTFILTER);
+			spin_unlock_bh(&dev->queue_lock);
+			write_unlock(&qdisc_tree_lock);
 			tcf_destroy(tp);
 			err = 0;
 			goto errout;
@@ -271,8 +264,6 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 			break;
 		case RTM_DELTFILTER:
 			err = tp->ops->delete(tp, fh);
-			if (err == 0)
-				tfilter_notify(skb, n, tp, fh_s, RTM_DELTFILTER);
 			goto errout;
 		case RTM_GETTFILTER:
 			err = tfilter_notify(skb, n, tp, fh, RTM_NEWTFILTER);
@@ -293,19 +284,6 @@ errout:
 	return err;
 }
 
-unsigned long tcf_set_class(struct tcf_proto *tp, unsigned long *clp, 
-			    unsigned long cl)
-{
-	unsigned long old_cl;
-
-	tcf_tree_lock(tp);
-	old_cl = __cls_set_class(clp, cl);
-	tcf_tree_unlock(tp);
-
-	return old_cl;
-}
-
-
 static int
 tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp, unsigned long fh,
 	      u32 pid, u32 seq, unsigned flags, int event)
@@ -320,14 +298,11 @@ tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp, unsigned long fh,
 	tcm->tcm_family = AF_UNSPEC;
 	tcm->tcm_ifindex = tp->q->dev->ifindex;
 	tcm->tcm_parent = tp->classid;
+	tcm->tcm_handle = 0;
 	tcm->tcm_info = TC_H_MAKE(tp->prio, tp->protocol);
 	RTA_PUT(skb, TCA_KIND, IFNAMSIZ, tp->ops->kind);
-	tcm->tcm_handle = fh;
-	if (RTM_DELTFILTER != event) {
-		tcm->tcm_handle = 0;
-		if (tp->ops->dump && tp->ops->dump(tp, fh, skb, tcm) < 0)
-			goto rtattr_failure;
-	}
+	if (tp->ops->dump && tp->ops->dump(tp, fh, skb, tcm) < 0)
+		goto rtattr_failure;
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
 
@@ -387,7 +362,7 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	if ((dev = dev_get_by_index(tcm->tcm_ifindex)) == NULL)
 		return skb->len;
 
-	read_lock_bh(&qdisc_tree_lock);
+	read_lock(&qdisc_tree_lock);
 	if (!tcm->tcm_parent)
 		q = dev->qdisc_sleeping;
 	else
@@ -444,13 +419,13 @@ errout:
 	if (cl)
 		cops->put(q, cl);
 out:
-	read_unlock_bh(&qdisc_tree_lock);
+	read_unlock(&qdisc_tree_lock);
 	dev_put(dev);
 	return skb->len;
 }
 
 
-static int __init tc_filter_init(void)
+int __init tc_filter_init(void)
 {
 	struct rtnetlink_link *link_p = rtnetlink_links[PF_UNSPEC];
 
@@ -464,11 +439,31 @@ static int __init tc_filter_init(void)
 		link_p[RTM_GETTFILTER-RTM_BASE].doit = tc_ctl_tfilter;
 		link_p[RTM_GETTFILTER-RTM_BASE].dumpit = tc_dump_tfilter;
 	}
+#define INIT_TC_FILTER(name) { \
+          extern struct tcf_proto_ops cls_##name##_ops; \
+          register_tcf_proto_ops(&cls_##name##_ops); \
+	}
+
+#ifdef CONFIG_NET_CLS_U32
+	INIT_TC_FILTER(u32);
+#endif
+#ifdef CONFIG_NET_CLS_ROUTE4
+	INIT_TC_FILTER(route4);
+#endif
+#ifdef CONFIG_NET_CLS_FW
+	INIT_TC_FILTER(fw);
+#endif
+#ifdef CONFIG_NET_CLS_RSVP
+	INIT_TC_FILTER(rsvp);
+#endif
+#ifdef CONFIG_NET_CLS_TCINDEX
+	INIT_TC_FILTER(tcindex);
+#endif
+#ifdef CONFIG_NET_CLS_RSVP6
+	INIT_TC_FILTER(rsvp6);
+#endif
 	return 0;
 }
 
-subsys_initcall(tc_filter_init);
-
 EXPORT_SYMBOL(register_tcf_proto_ops);
 EXPORT_SYMBOL(unregister_tcf_proto_ops);
-EXPORT_SYMBOL(tcf_set_class);

@@ -37,7 +37,7 @@ static int populate_dir(struct kobject * kobj)
 	int i;
 	
 	if (t && t->default_attrs) {
-		for (i = 0; (attr = t->default_attrs[i]) != NULL; i++) {
+		for (i = 0; (attr = t->default_attrs[i]); i++) {
 			if ((error = sysfs_create_file(kobj,attr)))
 				break;
 		}
@@ -145,7 +145,7 @@ static void kset_hotplug(const char *action, struct kset *kset,
 
 	argv [0] = hotplug_path;
 	argv [1] = name;
-	argv [2] = NULL;
+	argv [2] = 0;
 
 	/* minimal command environment */
 	envp [i++] = "HOME=/";
@@ -185,8 +185,8 @@ static void kset_hotplug(const char *action, struct kset *kset,
 		}
 	}
 
-	pr_debug ("%s: %s %s %s %s %s %s %s\n", __FUNCTION__, argv[0], argv[1],
-		  envp[0], envp[1], envp[2], envp[3], envp[4]);
+	pr_debug ("%s: %s %s %s %s %s %s\n", __FUNCTION__, argv[0], argv[1],
+		  envp[0], envp[1], envp[2], envp[3]);
 	retval = call_usermodehelper (argv[0], argv, envp, 0);
 	if (retval)
 		pr_debug ("%s - call_usermodehelper returned %d\n",
@@ -243,8 +243,7 @@ void kobject_init(struct kobject * kobj)
  *	This is separated out, so we can use it in both 
  *	kobject_del() and kobject_add() on error.
  */
-
-#if defined(CONFIG_BFIN)/* We are very Sorry there are some assembler issues here ! BFin */
+#if defined(CONFIG_EZKIT) || defined(CONFIG_BLKFIN_STAMP)		/* We are very Sorry there are some assembler issues here ! BFin */
 static void unlink1(struct kobject * kobj)
 #else
 static void unlink(struct kobject * kobj)
@@ -291,7 +290,7 @@ int kobject_add(struct kobject * kobj)
 
 	error = create_dir(kobj);
 	if (error) {
-#if defined(CONFIG_BFIN)
+#if defined(CONFIG_EZKIT) || defined(CONFIG_BLKFIN_STAMP)
 		unlink1(kobj);
 #else
 		unlink(kobj);
@@ -357,16 +356,16 @@ int kobject_set_name(struct kobject * kobj, const char * fmt, ...)
 		/* 
 		 * Need more space? Allocate it and try again 
 		 */
-		limit = need + 1;
-		name = kmalloc(limit,GFP_KERNEL);
+		name = kmalloc(need,GFP_KERNEL);
 		if (!name) {
 			error = -ENOMEM;
 			goto Done;
 		}
+		limit = need;
 		need = vsnprintf(name,limit,fmt,args);
 
 		/* Still? Give up. */
-		if (need >= limit) {
+		if (need > limit) {
 			kfree(name);
 			error = -EFAULT;
 			goto Done;
@@ -393,17 +392,13 @@ EXPORT_SYMBOL(kobject_set_name);
  *	@new_name: object's new name
  */
 
-int kobject_rename(struct kobject * kobj, char *new_name)
+void kobject_rename(struct kobject * kobj, char *new_name)
 {
-	int error = 0;
-
 	kobj = kobject_get(kobj);
 	if (!kobj)
-		return -EINVAL;
-	error = sysfs_rename_dir(kobj, new_name);
+		return;
+	sysfs_rename_dir(kobj, new_name);
 	kobject_put(kobj);
-
-	return error;
 }
 
 /**
@@ -415,7 +410,7 @@ void kobject_del(struct kobject * kobj)
 {
 	kobject_hotplug("remove", kobj);
 	sysfs_remove_dir(kobj);
-#if defined(CONFIG_BFIN)
+#if defined(CONFIG_EZKIT) || defined(CONFIG_BLKFIN_STAMP)
 	unlink1(kobj);
 #else
 	unlink(kobj);
@@ -441,11 +436,14 @@ void kobject_unregister(struct kobject * kobj)
 
 struct kobject * kobject_get(struct kobject * kobj)
 {
+	struct kobject * ret = kobj;
+
 	if (kobj) {
 		WARN_ON(!atomic_read(&kobj->refcount));
 		atomic_inc(&kobj->refcount);
-	}
-	return kobj;
+	} else
+		ret = NULL;
+	return ret;
 }
 
 /**
@@ -549,8 +547,7 @@ void kset_unregister(struct kset * k)
  *	@name:	object's name.
  *
  *	Lock kset via @kset->subsys, and iterate over @kset->list,
- *	looking for a matching kobject. If matching object is found
- *	take a reference and return the object.
+ *	looking for a matching kobject. Return object if found.
  */
 
 struct kobject * kset_find_obj(struct kset * kset, const char * name)
@@ -561,8 +558,8 @@ struct kobject * kset_find_obj(struct kset * kset, const char * name)
 	down_read(&kset->subsys->rwsem);
 	list_for_each(entry,&kset->list) {
 		struct kobject * k = to_kobj(entry);
-		if (kobject_name(k) && !strcmp(kobject_name(k),name)) {
-			ret = kobject_get(k);
+		if (kobject_name(k) && (!strcmp(kobject_name(k),name))) {
+			ret = k;
 			break;
 		}
 	}
@@ -644,9 +641,6 @@ EXPORT_SYMBOL(kobject_register);
 EXPORT_SYMBOL(kobject_unregister);
 EXPORT_SYMBOL(kobject_get);
 EXPORT_SYMBOL(kobject_put);
-EXPORT_SYMBOL(kobject_add);
-EXPORT_SYMBOL(kobject_del);
-EXPORT_SYMBOL(kobject_rename);
 EXPORT_SYMBOL(kobject_hotplug);
 
 EXPORT_SYMBOL(kset_register);

@@ -275,4 +275,7 @@ typedef struct {
 
 #endif				/* _IBM_LANA_DRIVER_ */
 
+extern int ibmlana_probe(struct net_device *);
+
+
 #endif	/* _IBM_LANA_INCLUDE_ */

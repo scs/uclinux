@@ -46,8 +46,8 @@
 #define DRM_IOC_WRITE		_IOC_WRITE
 #define DRM_IOC_READWRITE	_IOC_READ|_IOC_WRITE
 #define DRM_IOC(dir, group, nr, size) _IOC(dir, group, nr, size)
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
-#if defined(__FreeBSD__) && defined(IN_MODULE)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) && defined(XFree86Server)
 /* Prevent name collision when including sys/ioccom.h */
 #undef ioctl
 #include <sys/ioccom.h>
@@ -130,18 +130,6 @@ typedef struct drm_tex_region {
 	unsigned int	age;
 } drm_tex_region_t;
 
-/**
- * Hardware lock.
- *
- * The lock structure is a simple cache-line aligned integer.  To avoid
- * processor bus contention on a multiprocessor system, there should not be any
- * other data stored in the same cache line.
- */
-typedef struct drm_hw_lock {
-	__volatile__ unsigned int lock;		/**< lock variable */
-	char			  padding[60];	/**< Pad to cache line */
-} drm_hw_lock_t;
-
 
 /**
  * DRM_IOCTL_VERSION ioctl argument type.
@@ -153,11 +141,11 @@ typedef struct drm_version {
 	int    version_minor;	  /**< Minor version */
 	int    version_patchlevel;/**< Patch level */
 	size_t name_len;	  /**< Length of name buffer */
-	char   __user *name;	  /**< Name of driver */
+	char   *name;		  /**< Name of driver */
 	size_t date_len;	  /**< Length of date buffer */
-	char   __user *date;	  /**< User-space buffer to hold date */
+	char   *date;		  /**< User-space buffer to hold date */
 	size_t desc_len;	  /**< Length of desc buffer */
-	char   __user *desc;	  /**< User-space buffer to hold desc */
+	char   *desc;		  /**< User-space buffer to hold desc */
 } drm_version_t;
 
 
@@ -168,13 +156,13 @@ typedef struct drm_version {
  */
 typedef struct drm_unique {
 	size_t unique_len;	  /**< Length of unique */
-	char   __user *unique;	  /**< Unique name for driver instantiation */
+	char   *unique;		  /**< Unique name for driver instantiation */
 } drm_unique_t;
 
 
 typedef struct drm_list {
 	int		 count;	  /**< Length of user-space structures */
-	drm_version_t	 __user *version;
+	drm_version_t	 *version;
 } drm_list_t;
 
 
@@ -380,7 +368,7 @@ typedef struct drm_buf_desc {
  */
 typedef struct drm_buf_info {
 	int	       count;	/**< Entries in list */
-	drm_buf_desc_t __user *list;
+	drm_buf_desc_t *list;
 } drm_buf_info_t;
 
 
@@ -389,7 +377,7 @@ typedef struct drm_buf_info {
  */
 typedef struct drm_buf_free {
 	int	       count;
-	int	       __user *list;
+	int	       *list;
 } drm_buf_free_t;
 
 
@@ -402,7 +390,7 @@ typedef struct drm_buf_pub {
 	int		  idx;	       /**< Index into the master buffer list */
 	int		  total;       /**< Buffer size */
 	int		  used;	       /**< Amount of buffer in use (for DMA) */
-	void	  __user *address;     /**< Address of buffer */
+	void		  *address;    /**< Address of buffer */
 } drm_buf_pub_t;
 
 
@@ -411,8 +399,8 @@ typedef struct drm_buf_pub {
  */
 typedef struct drm_buf_map {
 	int	      count;	/**< Length of the buffer list */
-	void	      __user *virtual;	/**< Mmap'd area in user-virtual */
-	drm_buf_pub_t __user *list;	/**< Buffer information */
+	void	      *virtual;	/**< Mmap'd area in user-virtual */
+	drm_buf_pub_t *list;	/**< Buffer information */
 } drm_buf_map_t;
 
 
@@ -426,13 +414,13 @@ typedef struct drm_buf_map {
 typedef struct drm_dma {
 	int		context;	  /**< Context handle */
 	int		send_count;	  /**< Number of buffers to send */
-	int	__user *send_indices;	  /**< List of handles to buffers */
-	int	__user *send_sizes;	  /**< Lengths of data to send */
+	int		*send_indices;	  /**< List of handles to buffers */
+	int		*send_sizes;	  /**< Lengths of data to send */
 	drm_dma_flags_t flags;		  /**< Flags */
 	int		request_count;	  /**< Number of buffers requested */
 	int		request_size;	  /**< Desired size for buffers */
-	int	__user *request_indices;  /**< Buffer information */
-	int	__user *request_sizes;
+	int		*request_indices; /**< Buffer information */
+	int		*request_sizes;
 	int		granted_count;	  /**< Number of buffers granted */
 } drm_dma_t;
 
@@ -459,7 +447,7 @@ typedef struct drm_ctx {
  */
 typedef struct drm_ctx_res {
 	int		count;
-	drm_ctx_t	__user *contexts;
+	drm_ctx_t	*contexts;
 } drm_ctx_res_t;
 
 
@@ -592,16 +580,6 @@ typedef struct drm_scatter_gather {
 	unsigned long handle;	/**< Used for mapping / unmapping */
 } drm_scatter_gather_t;
 
-/**
- * DRM_IOCTL_SET_VERSION ioctl argument type.
- */
-typedef struct drm_set_version {
-	int drm_di_major;
-	int drm_di_minor;
-	int drm_dd_major;
-	int drm_dd_minor;
-} drm_set_version_t;
-
 
 #define DRM_IOCTL_BASE			'd'
 #define DRM_IO(nr)			_IO(DRM_IOCTL_BASE,nr)
@@ -616,7 +594,6 @@ typedef struct drm_set_version {
 #define DRM_IOCTL_GET_MAP               DRM_IOWR(0x04, drm_map_t)
 #define DRM_IOCTL_GET_CLIENT            DRM_IOWR(0x05, drm_client_t)
 #define DRM_IOCTL_GET_STATS             DRM_IOR( 0x06, drm_stats_t)
-#define DRM_IOCTL_SET_VERSION		DRM_IOWR(0x07, drm_set_version_t)
 
 #define DRM_IOCTL_SET_UNIQUE		DRM_IOW( 0x10, drm_unique_t)
 #define DRM_IOCTL_AUTH_MAGIC		DRM_IOW( 0x11, drm_auth_t)

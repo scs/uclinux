@@ -50,13 +50,10 @@
  * Fix refcount off by one if first packet fails, potential null deref, 
  * memleak 030710- KJP
  *
- * Fixed unaligned access on IA-64 Grant Grundler <grundler@parisc-linux.org>
- *
  * See Documentation/networking/pktgen.txt for how to use this.
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -91,7 +88,7 @@
 #define cycles()	((u32)get_cycles())
 
 
-#define VERSION "pktgen version 1.32"
+#define VERSION "pktgen version 1.31"
 static char version[] __initdata = 
   "pktgen.c: v1.3: Packet Generator for packet performance testing.\n";
 
@@ -196,8 +193,7 @@ struct pktgen_info {
 struct pktgen_hdr {
 	__u32 pgh_magic;
 	__u32 seq_num;
-	__u32 tv_sec;
-	__u32 tv_usec;
+	struct timeval timestamp;
 };
 
 static int cpu_speed;
@@ -567,14 +563,11 @@ static struct sk_buff *fill_packet(struct net_device *odev, struct pktgen_info* 
 
 	/* Stamp the time, and sequence number, convert them to network byte order */
 	if (pgh) {
-		struct timeval timestamp;
-
 		pgh->pgh_magic = htonl(PKTGEN_MAGIC);
-		pgh->seq_num   = htonl(info->seq_num);
-		
-		do_gettimeofday(&timestamp);
-		pgh->tv_sec    = htonl(timestamp.tv_sec);
-		pgh->tv_usec   = htonl(timestamp.tv_usec);
+		do_gettimeofday(&(pgh->timestamp));
+		pgh->timestamp.tv_usec = htonl(pgh->timestamp.tv_usec);
+		pgh->timestamp.tv_sec = htonl(pgh->timestamp.tv_sec);
+		pgh->seq_num = htonl(info->seq_num);
 	}
 	
 	return skb;
@@ -871,7 +864,7 @@ static int proc_read(char *buf , char **start, off_t offset,
 	return p - buf;
 }
 
-static int count_trail_chars(const char __user *user_buffer, unsigned int maxlen)
+static int count_trail_chars(const char *user_buffer, unsigned int maxlen)
 {
 	int i;
 
@@ -896,7 +889,7 @@ done:
 	return i;
 }
 
-static unsigned long num_arg(const char __user *user_buffer, unsigned long maxlen,
+static unsigned long num_arg(const char *user_buffer, unsigned long maxlen,
 			     unsigned long *num)
 {
 	int i = 0;
@@ -917,7 +910,7 @@ static unsigned long num_arg(const char __user *user_buffer, unsigned long maxle
 	return i;
 }
 
-static int strn_len(const char __user *user_buffer, unsigned int maxlen)
+static int strn_len(const char *user_buffer, unsigned int maxlen)
 {
 	int i = 0;
 
@@ -941,7 +934,7 @@ done_str:
 	return i;
 }
 
-static int proc_write(struct file *file, const char __user *user_buffer,
+static int proc_write(struct file *file, const char *user_buffer,
 			 unsigned long count, void *data)
 {
 	int i = 0, max, len;
@@ -1356,7 +1349,7 @@ static int __init init(void)
 		pginfos[i].udp_dst_max = 9;
 		
 		sprintf(pginfos[i].fname, "net/%s/pg%i", PG_PROC_DIR, i);
-		pginfos[i].proc_ent = create_proc_entry(pginfos[i].fname, 0600, NULL);
+		pginfos[i].proc_ent = create_proc_entry(pginfos[i].fname, 0600, 0);
 		if (!pginfos[i].proc_ent) {
 			printk("pktgen: Error: cannot create net/%s/pg procfs entry.\n", PG_PROC_DIR);
 			goto cleanup_mem;
@@ -1367,7 +1360,7 @@ static int __init init(void)
 		pginfos[i].proc_ent->owner = THIS_MODULE;
 
 		sprintf(pginfos[i].busy_fname, "net/%s/pg_busy%i",  PG_PROC_DIR, i);
-		pginfos[i].busy_proc_ent = create_proc_entry(pginfos[i].busy_fname, 0, NULL);
+		pginfos[i].busy_proc_ent = create_proc_entry(pginfos[i].busy_fname, 0, 0);
 		if (!pginfos[i].busy_proc_ent) {
 			printk("pktgen: Error: cannot create net/%s/pg_busy procfs entry.\n", PG_PROC_DIR);
 			goto cleanup_mem;
@@ -1410,7 +1403,7 @@ module_exit(cleanup);
 MODULE_AUTHOR("Robert Olsson <robert.olsson@its.uu.se");
 MODULE_DESCRIPTION("Packet Generator tool");
 MODULE_LICENSE("GPL");
-module_param(count_d, int, 0);
-module_param(ipg_d, int, 0);
-module_param(cpu_speed, int, 0);
-module_param(clone_skb_d, int, 0);
+MODULE_PARM(count_d, "i");
+MODULE_PARM(ipg_d, "i");
+MODULE_PARM(cpu_speed, "i");
+MODULE_PARM(clone_skb_d, "i");

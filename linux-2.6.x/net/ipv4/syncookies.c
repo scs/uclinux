@@ -59,7 +59,7 @@ __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 		;
 	*mssp = msstab[mssind] + 1;
 
-	NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESSENT);
+	NET_INC_STATS_BH(SyncookiesSent);
 
 	return secure_tcp_syn_cookie(skb->nh.iph->saddr, skb->nh.iph->daddr,
 				     skb->h.th->source, skb->h.th->dest,
@@ -127,11 +127,11 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 
   	if (time_after(jiffies, tp->last_synq_overflow + TCP_TIMEOUT_INIT) ||
 	    (mss = cookie_check(skb, cookie)) == 0) {
-	 	NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESFAILED);
+	 	NET_INC_STATS_BH(SyncookiesFailed);
 		goto out;
 	}
 
-	NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESRECV);
+	NET_INC_STATS_BH(SyncookiesRecv);
 
 	req = tcp_openreq_alloc();
 	ret = NULL;

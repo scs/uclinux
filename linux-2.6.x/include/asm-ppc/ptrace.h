@@ -49,10 +49,7 @@ struct pt_regs {
 #define instruction_pointer(regs) ((regs)->nip)
 #define user_mode(regs) (((regs)->msr & MSR_PR) != 0)
 
-#define force_successful_syscall_return()   \
-	do { \
-		current_thread_info()->local_flags |= _TIFL_FORCE_NOERROR; \
-	} while(0)
+#define force_successful_syscall_return()   set_thread_flag(TIF_FORCE_NOERROR)
 
 /*
  * We use the least-significant bit of the trap field to indicate
@@ -130,10 +127,5 @@ do {									      \
 /* Get/set all the altivec registers vr0..vr31, vscr, vrsave, in one go */
 #define PTRACE_GETVRREGS	18
 #define PTRACE_SETVRREGS	19
-
-/* Get/set all the upper 32-bits of the SPE registers, accumulator, and
- * spefscr, in one go */
-#define PTRACE_GETEVRREGS	20
-#define PTRACE_SETEVRREGS	21
 
 #endif

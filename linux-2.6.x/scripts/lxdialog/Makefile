@@ -16,13 +16,15 @@ endif
 endif
 
 host-progs	:= lxdialog
-always		:= ncurses $(host-progs)
+always		:= $(host-progs)
 
 lxdialog-objs := checklist.o menubox.o textbox.o yesno.o inputbox.o \
 		 util.o lxdialog.o msgbox.o
 
-.PHONY: $(obj)/ncurses
-$(obj)/ncurses:
+first_rule: ncurses
+
+.PHONY: ncurses
+ncurses:
 	@echo "main() {}" > lxtemp.c
 	@if $(HOSTCC) lxtemp.c  $(HOST_LOADLIBES); then \
 		rm -f lxtemp.c a.out; \
@@ -31,7 +33,7 @@ $(obj)/ncurses:
 		echo -e "\007" ;\
 		echo ">> Unable to find the Ncurses libraries." ;\
 		echo ">>" ;\
-		echo ">> You must install ncurses-devel in order" ;\
+		echo ">> You must have Ncurses installed in order" ;\
 		echo ">> to use 'make menuconfig'" ;\
 		echo ;\
 		exit 1 ;\

@@ -8,14 +8,11 @@
  *
  * Copyright (C) 2000-2001, 2003 Hewlett-Packard Co
  *	Stephane Eranian <eranian@hpl.hp.com>
- * Copyright (C) 2004 Intel Corporation
- *  Ashok Raj <ashok.raj@intel.com>
  *
  * 05/26/2000	S.Eranian	initial release
  * 08/21/2000	S.Eranian	updated to July 2000 PAL specs
  * 02/05/2001   S.Eranian	fixed module support
  * 10/23/2001	S.Eranian	updated pal_perf_mon_info bug fixes
- * 03/24/2004	Ashok Raj	updated to work with CPU Hotplug
  */
 #include <linux/config.h>
 #include <linux/types.h>
@@ -25,9 +22,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/efi.h>
-#include <linux/notifier.h>
-#include <linux/cpu.h>
-#include <linux/cpumask.h>
 
 #include <asm/pal.h>
 #include <asm/sal.h>
@@ -515,10 +509,10 @@ static const char *bus_features[]={
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	NULL, NULL, NULL, NULL,
-	"Enable Cache Line Repl. Shared",
 	"Enable Cache Line Repl. Exclusive",
+	"Enable Cache Line Repl. Shared",
 	"Disable Transaction Queuing",
-	"Disable Response Error Checking",
+	"Disable Reponse Error Checking",
 	"Disable Bus Error Checking",
 	"Disable Bus Requester Internal Error Signalling",
 	"Disable Bus Requester Error Signalling",
@@ -774,12 +768,13 @@ static palinfo_entry_t palinfo_entries[]={
  * does not do recursion of deletion
  *
  * Notes:
- *	- +1 accounts for the cpuN directory entry in /proc/pal
+ *	- first +1 accounts for the cpuN entry
+ *	- second +1 account for toplevel palinfo
+ *
  */
-#define NR_PALINFO_PROC_ENTRIES	(NR_CPUS*(NR_PALINFO_ENTRIES+1))
+#define NR_PALINFO_PROC_ENTRIES	(NR_CPUS*(NR_PALINFO_ENTRIES+1)+1)
 
 static struct proc_dir_entry *palinfo_proc_entries[NR_PALINFO_PROC_ENTRIES];
-static struct proc_dir_entry *palinfo_dir;
 
 /*
  * This data structure is used to pass which cpu,function is being requested
@@ -893,107 +888,47 @@ palinfo_read_entry(char *page, char **start, off_t off, int count, int *eof, voi
 	return len;
 }
 
-static void
-create_palinfo_proc_entries(unsigned int cpu)
+static int __init
+palinfo_init(void)
 {
 #	define CPUSTR	"cpu%d"
 
 	pal_func_cpu_u_t f;
-	struct proc_dir_entry **pdir;
-	struct proc_dir_entry *cpu_dir;
-	int j;
+	struct proc_dir_entry **pdir = palinfo_proc_entries;
+	struct proc_dir_entry *palinfo_dir, *cpu_dir;
+	int i, j;
 	char cpustr[sizeof(CPUSTR)];
 
+	printk(KERN_INFO "PAL Information Facility v%s\n", PALINFO_VERSION);
+
+	palinfo_dir = proc_mkdir("pal", NULL);
 
 	/*
 	 * we keep track of created entries in a depth-first order for
 	 * cleanup purposes. Each entry is stored into palinfo_proc_entries
 	 */
-	sprintf(cpustr,CPUSTR, cpu);
+	for (i=0; i < NR_CPUS; i++) {
 
-	cpu_dir = proc_mkdir(cpustr, palinfo_dir);
+		if (!cpu_online(i)) continue;
 
-	f.req_cpu = cpu;
+		sprintf(cpustr,CPUSTR, i);
 
-	/*
-	 * Compute the location to store per cpu entries
-	 * We dont store the top level entry in this list, but
-	 * remove it finally after removing all cpu entries.
-	 */
-	pdir = &palinfo_proc_entries[cpu*(NR_PALINFO_ENTRIES+1)];
-	*pdir++ = cpu_dir;
-	for (j=0; j < NR_PALINFO_ENTRIES; j++) {
-		f.func_id = j;
-		*pdir = create_proc_read_entry(
-				palinfo_entries[j].name, 0, cpu_dir,
-				palinfo_read_entry, (void *)f.value);
-		if (*pdir)
-			(*pdir)->owner = THIS_MODULE;
-		pdir++;
-	}
-}
+		cpu_dir = proc_mkdir(cpustr, palinfo_dir);
 
-static void
-remove_palinfo_proc_entries(unsigned int hcpu)
-{
-	int j;
-	struct proc_dir_entry *cpu_dir, **pdir;
+		f.req_cpu = i;
 
-	pdir = &palinfo_proc_entries[hcpu*(NR_PALINFO_ENTRIES+1)];
-	cpu_dir = *pdir;
-	*pdir++=NULL;
-	for (j=0; j < (NR_PALINFO_ENTRIES); j++) {
-		if ((*pdir)) {
-			remove_proc_entry ((*pdir)->name, cpu_dir);
-			*pdir ++= NULL;
+		for (j=0; j < NR_PALINFO_ENTRIES; j++) {
+			f.func_id = j;
+			*pdir = create_proc_read_entry(
+					palinfo_entries[j].name, 0, cpu_dir,
+					palinfo_read_entry, (void *)f.value);
+			if (*pdir)
+				(*pdir)->owner = THIS_MODULE;
+			pdir++;
 		}
+		*pdir++ = cpu_dir;
 	}
-
-	if (cpu_dir) {
-		remove_proc_entry(cpu_dir->name, palinfo_dir);
-	}
-}
-
-static int __devinit palinfo_cpu_callback(struct notifier_block *nfb,
-								unsigned long action,
-								void *hcpu)
-{
-	unsigned int hotcpu = (unsigned long)hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-		create_palinfo_proc_entries(hotcpu);
-		break;
-#ifdef CONFIG_HOTPLUG_CPU
-	case CPU_DEAD:
-		remove_palinfo_proc_entries(hotcpu);
-		break;
-#endif
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block palinfo_cpu_notifier =
-{
-	.notifier_call = palinfo_cpu_callback,
-	.priority = 0,
-};
-
-static int __init
-palinfo_init(void)
-{
-	int i = 0;
-
-	printk(KERN_INFO "PAL Information Facility v%s\n", PALINFO_VERSION);
-	palinfo_dir = proc_mkdir("pal", NULL);
-
-	/* Create palinfo dirs in /proc for all online cpus */
-	for_each_online_cpu(i) {
-		create_palinfo_proc_entries(i);
-	}
-
-	/* Register for future delivery via notify registration */
-	register_cpu_notifier(&palinfo_cpu_notifier);
+	*pdir = palinfo_dir;
 
 	return 0;
 }
@@ -1004,19 +939,10 @@ palinfo_exit(void)
 	int i = 0;
 
 	/* remove all nodes: depth first pass. Could optimize this  */
-	for_each_online_cpu(i) {
-		remove_palinfo_proc_entries(i);
+	for (i=0; i< NR_PALINFO_PROC_ENTRIES ; i++) {
+		if (palinfo_proc_entries[i])
+			remove_proc_entry (palinfo_proc_entries[i]->name, NULL);
 	}
-
-	/*
-	 * Remove the top level entry finally
-	 */
-	remove_proc_entry(palinfo_dir->name, NULL);
-
-	/*
-	 * Unregister from cpu notifier callbacks
-	 */
-	unregister_cpu_notifier(&palinfo_cpu_notifier);
 }
 
 module_init(palinfo_init);

@@ -1,7 +1,7 @@
 /*
  * TTUSB DEC Driver
  *
- * Copyright (C) 2003-2004 Alex Woods <linux-dvb@giblets.org>
+ * Copyright (C) 2003 Alex Woods <linux-dvb@giblets.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,19 +20,16 @@
  */
 
 #include <asm/semaphore.h>
+#include <linux/crc32.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/usb.h>
+#include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
-#if defined(CONFIG_CRC32) || defined(CONFIG_CRC32_MODULE)
-#include <linux/crc32.h>
-#else
-#warning "CRC checking of firmware not available"
-#endif
 #include <linux/init.h>
 
 #include "dmxdev.h"
@@ -102,7 +99,6 @@ struct ttusb_dec {
 
 	u16			pid[DMX_PES_OTHER];
 	int			hi_band;
-	int			voltage;
 
 	/* USB bits */
 	struct usb_device	*udev;
@@ -208,16 +204,12 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 				  int *result_length, u8 cmd_result[])
 {
 	int result, actual_len, i;
-	u8 *b;
+	u8 b[COMMAND_PACKET_SIZE + 4];
+	u8 c[COMMAND_PACKET_SIZE + 4];
 
 	dprintk("%s\n", __FUNCTION__);
-	
-	b = kmalloc(COMMAND_PACKET_SIZE + 4, GFP_KERNEL);
-	if (!b)
-		return -ENOMEM;
 
 	if ((result = down_interruptible(&dec->usb_sem))) {
-		kfree(b);
 		printk("%s: Failed to down usb semaphore.\n", __FUNCTION__);
 		return result;
 	}
@@ -238,41 +230,38 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 	}
 
 	result = usb_bulk_msg(dec->udev, dec->command_pipe, b,
-			      COMMAND_PACKET_SIZE + 4, &actual_len, HZ);
+			      sizeof(b), &actual_len, HZ);
 
 	if (result) {
 		printk("%s: command bulk message failed: error %d\n",
 		       __FUNCTION__, result);
 		up(&dec->usb_sem);
-		kfree(b);
 		return result;
 	}
 
-	result = usb_bulk_msg(dec->udev, dec->result_pipe, b,
-			      COMMAND_PACKET_SIZE + 4, &actual_len, HZ);
+	result = usb_bulk_msg(dec->udev, dec->result_pipe, c,
+			      sizeof(c), &actual_len, HZ);
 
 	if (result) {
 		printk("%s: result bulk message failed: error %d\n",
 		       __FUNCTION__, result);
 		up(&dec->usb_sem);
-		kfree(b);
 		return result;
 	} else {
 		if (debug) {
 			printk("%s: result: ", __FUNCTION__);
 			for (i = 0; i < actual_len; i++)
-				printk("0x%02X ", b[i]);
+				printk("0x%02X ", c[i]);
 			printk("\n");
 		}
 
 		if (result_length)
-			*result_length = b[3];
-		if (cmd_result && b[3] > 0)
-			memcpy(cmd_result, &b[4], b[3]);
+			*result_length = c[3];
+		if (cmd_result && c[3] > 0)
+			memcpy(cmd_result, &c[4], c[3]);
 
 		up(&dec->usb_sem);
 
-		kfree(b);
 		return 0;
 	}
 }
@@ -314,7 +303,7 @@ static int ttusb_dec_audio_pes2ts_cb(void *priv, unsigned char *data)
 {
 	struct ttusb_dec *dec = (struct ttusb_dec *)priv;
 
-	dec->audio_filter->feed->cb.ts(data, 188, NULL, 0,
+	dec->audio_filter->feed->cb.ts(data, 188, 0, 0,
 				       &dec->audio_filter->feed->feed.ts,
 				       DMX_OK);
 
@@ -325,7 +314,7 @@ static int ttusb_dec_video_pes2ts_cb(void *priv, unsigned char *data)
 {
 	struct ttusb_dec *dec = (struct ttusb_dec *)priv;
 
-	dec->video_filter->feed->cb.ts(data, 188, NULL, 0,
+	dec->video_filter->feed->cb.ts(data, 188, 0, 0,
 				       &dec->video_filter->feed->feed.ts,
 				       DMX_OK);
 
@@ -378,7 +367,7 @@ static void ttusb_dec_process_pva(struct ttusb_dec *dec, u8 *pva, int length)
 			u16 v_pes_payload_length;
 
 		if (output_pva) {
-			dec->video_filter->feed->cb.ts(pva, length, NULL, 0,
+			dec->video_filter->feed->cb.ts(pva, length, 0, 0,
 				&dec->video_filter->feed->feed.ts, DMX_OK);
 			return;
 		}
@@ -439,7 +428,7 @@ static void ttusb_dec_process_pva(struct ttusb_dec *dec, u8 *pva, int length)
 
 	case 0x02:		/* MainAudioStream */
 		if (output_pva) {
-			dec->audio_filter->feed->cb.ts(pva, length, NULL, 0,
+			dec->audio_filter->feed->cb.ts(pva, length, 0, 0,
 				&dec->audio_filter->feed->feed.ts, DMX_OK);
 			return;
 		}
@@ -1165,10 +1154,9 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 	u16 firmware_csum = 0;
 	u16 firmware_csum_ns;
 	u32 firmware_size_nl;
-#if defined(CONFIG_CRC32) || defined(CONFIG_CRC32_MODULE)
 	u32 crc32_csum, crc32_check, tmp;
-#endif
 	const struct firmware *fw_entry = NULL;
+
 	dprintk("%s\n", __FUNCTION__);
 
 	if (request_firmware(&fw_entry, dec->firmware_name, &dec->udev->dev)) {
@@ -1189,7 +1177,6 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 	/* a 32 bit checksum over the first 56 bytes of the DSP Code is stored
 	   at offset 56 of file, so use it to check if the firmware file is
 	   valid. */
-#if defined(CONFIG_CRC32) || defined(CONFIG_CRC32_MODULE)
 	crc32_csum = crc32(~0L, firmware, 56) ^ ~0L;
 	memcpy(&tmp, &firmware[56], 4);
 	crc32_check = htonl(tmp);
@@ -1199,7 +1186,6 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 			__FUNCTION__, crc32_csum, crc32_check);
 		return -1;
 	}
-#endif
 	memcpy(idstring, &firmware[36], 20);
 	idstring[20] = '\0';
 	printk(KERN_INFO "ttusb_dec: found DSP code \"%s\".\n", idstring);
@@ -1284,7 +1270,6 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 			   give the box */
 			switch (model) {
 			case 0x00070008:
-			case 0x0007000c:
 				ttusb_dec_set_model(dec, TTUSB_DEC3000S);
 				break;
 			case 0x00070009:
@@ -1318,7 +1303,7 @@ static int ttusb_dec_init_dvb(struct ttusb_dec *dec)
 	dprintk("%s\n", __FUNCTION__);
 
 	if ((result = dvb_register_adapter(&dec->adapter,
-					   dec->model_name, THIS_MODULE)) < 0) {
+					   dec->model_name)) < 0) {
 		printk("%s: dvb_register_adapter failed: error %d\n",
 		       __FUNCTION__, result);
 
@@ -1516,6 +1501,10 @@ static int ttusb_dec_2000t_frontend_ioctl(struct dvb_frontend *fe, unsigned int 
 		dprintk("%s: FE_INIT\n", __FUNCTION__);
 		break;
 
+	case FE_RESET:
+		dprintk("%s: FE_RESET\n", __FUNCTION__);
+		break;
+
 	default:
 		dprintk("%s: unknown IOCTL (0x%X)\n", __FUNCTION__, cmd);
 		return -EINVAL;
@@ -1585,13 +1574,13 @@ static int ttusb_dec_3000s_frontend_ioctl(struct dvb_frontend *fe,
 			   0x00, 0x00, 0x00, 0x00,
 			   0x00, 0x00, 0x00, 0x00,
 			   0x00, 0x00, 0x00, 0x00,
-			   0x00, 0x00, 0x00, 0x00,
+			   0x00, 0x00, 0x00, 0x0d,
 			   0x00, 0x00, 0x00, 0x00,
 			   0x00, 0x00, 0x00, 0x00 };
 			u32 freq;
 			u32 sym_rate;
 			u32 band;
-		u32 lnb_voltage;
+
 
 			dprintk("%s: FE_SET_FRONTEND\n", __FUNCTION__);
 
@@ -1607,8 +1596,6 @@ static int ttusb_dec_3000s_frontend_ioctl(struct dvb_frontend *fe,
 			memcpy(&b[12], &sym_rate, sizeof(u32));
 			band = htonl(dec->hi_band ? LOF_HI : LOF_LO);
 			memcpy(&b[24], &band, sizeof(u32));
-		lnb_voltage = htonl(dec->voltage);
-		memcpy(&b[28], &lnb_voltage, sizeof(u32));
 
 			ttusb_dec_send_command(dec, 0x71, sizeof(b), b, NULL, NULL);
 
@@ -1628,6 +1615,10 @@ static int ttusb_dec_3000s_frontend_ioctl(struct dvb_frontend *fe,
 		dprintk("%s: FE_INIT\n", __FUNCTION__);
 		break;
 
+	case FE_RESET:
+		dprintk("%s: FE_RESET\n", __FUNCTION__);
+		break;
+
 	case FE_DISEQC_SEND_MASTER_CMD:
 		dprintk("%s: FE_DISEQC_SEND_MASTER_CMD\n", __FUNCTION__);
 		break;
@@ -1645,17 +1636,6 @@ static int ttusb_dec_3000s_frontend_ioctl(struct dvb_frontend *fe,
 
 	case FE_SET_VOLTAGE:
 		dprintk("%s: FE_SET_VOLTAGE\n", __FUNCTION__);
-		switch ((fe_sec_voltage_t) arg) {
-		case SEC_VOLTAGE_13:
-			dec->voltage = 13;
-			break;
-		case SEC_VOLTAGE_18:
-			dec->voltage = 18;
-			break;
-		default:
-			return -EINVAL;
-			break;
-		}
 		break;
 
 	default:

@@ -55,7 +55,7 @@
 
 #include <asm/uaccess.h>
 
-DEFINE_SNMP_STAT(struct ipstats_mib, ipv6_statistics);
+DEFINE_SNMP_STAT(struct ipv6_mib, ipv6_statistics);
 
 static struct packet_type ipv6_packet_type = {
 	.type = __constant_htons(ETH_P_IPV6), 
@@ -113,11 +113,11 @@ extern int ip6_mc_source(int add, int omode, struct sock *sk,
 	struct group_source_req *pgsr);
 extern int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf);
 extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
-	struct group_filter __user *optval, int __user *optlen);
+	struct group_filter *optval, int *optlen);
 
 
-int ipv6_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int optlen)
+int ipv6_setsockopt(struct sock *sk, int level, int optname, char *optval, 
+		    int optlen)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	int val, valbool;
@@ -131,7 +131,7 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 	if (optval == NULL)
 		val=0;
-	else if (get_user(val, (int __user *) optval))
+	else if (get_user(val, (int *) optval))
 		return -EFAULT;
 
 	valbool = (val!=0);
@@ -227,6 +227,11 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_HOPOPTS:
 		np->rxopt.bits.hopopts = valbool;
+		retv = 0;
+		break;
+
+	case IPV6_AUTHHDR:
+		np->rxopt.bits.authhdr = valbool;
 		retv = 0;
 		break;
 
@@ -436,16 +441,10 @@ done:
 	}
 	case MCAST_MSFILTER:
 	{
-		extern int sysctl_optmem_max;
-		extern int sysctl_mld_max_msf;
 		struct group_filter *gsf;
 
 		if (optlen < GROUP_FILTER_SIZE(0))
 			goto e_inval;
-		if (optlen > sysctl_optmem_max) {
-			retv = -ENOBUFS;
-			break;
-		}
 		gsf = (struct group_filter *)kmalloc(optlen,GFP_KERNEL);
 		if (gsf == 0) {
 			retv = -ENOBUFS;
@@ -454,18 +453,6 @@ done:
 		retv = -EFAULT;
 		if (copy_from_user(gsf, optval, optlen)) {
 			kfree(gsf);
-			break;
-		}
-		/* numsrc >= (4G-140)/128 overflow in 32 bits */
-		if (gsf->gf_numsrc >= 0x1ffffffU ||
-		    gsf->gf_numsrc > sysctl_mld_max_msf) {
-			kfree(gsf);
-			retv = -ENOBUFS;
-			break;
-		}
-		if (GROUP_FILTER_SIZE(gsf->gf_numsrc) > optlen) {
-			kfree(gsf);
-			retv = -EINVAL;
 			break;
 		}
 		retv = ip6_mc_msfilter(sk, gsf);
@@ -524,8 +511,8 @@ e_inval:
 	return -EINVAL;
 }
 
-int ipv6_getsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int __user *optlen)
+int ipv6_getsockopt(struct sock *sk, int level, int optname, char *optval, 
+		    int *optlen)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	int len;
@@ -557,7 +544,7 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 			return -EFAULT;
 		lock_sock(sk);
 		err = ip6_mc_msfget(sk, &gsf,
-			(struct group_filter __user *)optval, optlen);
+			(struct group_filter *)optval, optlen);
 		release_sock(sk);
 		return err;
 	}
@@ -636,6 +623,10 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 		val = np->rxopt.bits.hopopts;
 		break;
 
+	case IPV6_AUTHHDR:
+		val = np->rxopt.bits.authhdr;
+		break;
+
 	case IPV6_DSTOPTS:
 		val = np->rxopt.bits.dstopts;
 		break;
@@ -693,12 +684,24 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 	return 0;
 }
 
+#if defined(MODULE) && defined(CONFIG_SYSCTL)
+
+/*
+ *	sysctl registration functions defined in sysctl_net_ipv6.c
+ */
+
+extern void ipv6_sysctl_register(void);
+extern void ipv6_sysctl_unregister(void);
+#endif
+
 void __init ipv6_packet_init(void)
 {
 	dev_add_pack(&ipv6_packet_type);
 }
 
-void __exit ipv6_packet_cleanup(void)
+#ifdef MODULE
+void ipv6_packet_cleanup(void)
 {
 	dev_remove_pack(&ipv6_packet_type);
 }
+#endif

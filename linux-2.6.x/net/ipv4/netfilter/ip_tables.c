@@ -2,11 +2,7 @@
  * Packet matching code.
  *
  * Copyright (C) 1999 Paul `Rusty' Russell & Michael J. Neuling
- * Copyright (C) 2000-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2009-2002 Netfilter core team <coreteam@netfilter.org>
  *
  * 19 Jan 2002 Harald Welte <laforge@gnumonks.org>
  * 	- increase module usage count as soon as we have rules inside
@@ -60,6 +56,9 @@ do {								\
 #define IP_NF_ASSERT(x)
 #endif
 #define SMP_ALIGN(x) (((x) + SMP_CACHE_BYTES-1) & ~(SMP_CACHE_BYTES-1))
+
+/* Mutex protects lists (only traversed in user context). */
+static DECLARE_MUTEX(ipt_mutex);
 
 /* Must have mutex */
 #define ASSERT_READ_LOCK(x) IP_NF_ASSERT(down_trylock(&ipt_mutex) != 0)
@@ -415,7 +414,7 @@ find_inlist_lock_noload(struct list_head *head,
 {
 	void *ret;
 
-#if 0 
+#if 0
 	duprintf("find_inlist: searching for `%s' in %s.\n",
 		 name, head == &ipt_target ? "ipt_target"
 		 : head == &ipt_match ? "ipt_match"
@@ -458,7 +457,7 @@ find_inlist_lock(struct list_head *head,
 #endif
 
 static inline struct ipt_table *
-ipt_find_table_lock(const char *name, int *error, struct semaphore *mutex)
+find_table_lock(const char *name, int *error, struct semaphore *mutex)
 {
 	return find_inlist_lock(&ipt_tables, name, "iptable_", error, mutex);
 }
@@ -469,8 +468,8 @@ find_match_lock(const char *name, int *error, struct semaphore *mutex)
 	return find_inlist_lock(&ipt_match, name, "ipt_", error, mutex);
 }
 
-struct ipt_target *
-ipt_find_target_lock(const char *name, int *error, struct semaphore *mutex)
+static inline struct ipt_target *
+find_target_lock(const char *name, int *error, struct semaphore *mutex)
 {
 	return find_inlist_lock(&ipt_target, name, "ipt_", error, mutex);
 }
@@ -685,7 +684,7 @@ check_entry(struct ipt_entry *e, const char *name, unsigned int size,
 		goto cleanup_matches;
 
 	t = ipt_get_target(e);
-	target = ipt_find_target_lock(t->u.user.name, &ret, &ipt_mutex);
+	target = find_target_lock(t->u.user.name, &ret, &ipt_mutex);
 	if (!target) {
 		duprintf("check_entry: `%s' not found\n", t->u.user.name);
 		goto cleanup_matches;
@@ -939,7 +938,7 @@ get_counters(const struct ipt_table_info *t,
 static int
 copy_entries_to_user(unsigned int total_size,
 		     struct ipt_table *table,
-		     void __user *userptr)
+		     void *userptr)
 {
 	unsigned int off, num, countersize;
 	struct ipt_entry *e;
@@ -1017,12 +1016,12 @@ copy_entries_to_user(unsigned int total_size,
 
 static int
 get_entries(const struct ipt_get_entries *entries,
-	    struct ipt_get_entries __user *uptr)
+	    struct ipt_get_entries *uptr)
 {
 	int ret;
 	struct ipt_table *t;
 
-	t = ipt_find_table_lock(entries->name, &ret, &ipt_mutex);
+	t = find_table_lock(entries->name, &ret, &ipt_mutex);
 	if (t) {
 		duprintf("t->private->number = %u\n",
 			 t->private->number);
@@ -1044,7 +1043,7 @@ get_entries(const struct ipt_get_entries *entries,
 }
 
 static int
-do_replace(void __user *user, unsigned int len)
+do_replace(void *user, unsigned int len)
 {
 	int ret;
 	struct ipt_replace tmp;
@@ -1089,7 +1088,7 @@ do_replace(void __user *user, unsigned int len)
 
 	duprintf("ip_tables: Translated table\n");
 
-	t = ipt_find_table_lock(tmp.name, &ret, &ipt_mutex);
+	t = find_table_lock(tmp.name, &ret, &ipt_mutex);
 	if (!t)
 		goto free_newinfo_counters_untrans;
 
@@ -1170,7 +1169,7 @@ add_counter_to_entry(struct ipt_entry *e,
 }
 
 static int
-do_add_counters(void __user *user, unsigned int len)
+do_add_counters(void *user, unsigned int len)
 {
 	unsigned int i;
 	struct ipt_counters_info tmp, *paddc;
@@ -1192,7 +1191,7 @@ do_add_counters(void __user *user, unsigned int len)
 		goto free;
 	}
 
-	t = ipt_find_table_lock(tmp.name, &ret, &ipt_mutex);
+	t = find_table_lock(tmp.name, &ret, &ipt_mutex);
 	if (!t)
 		goto free;
 
@@ -1218,7 +1217,7 @@ do_add_counters(void __user *user, unsigned int len)
 }
 
 static int
-do_ipt_set_ctl(struct sock *sk,	int cmd, void __user *user, unsigned int len)
+do_ipt_set_ctl(struct sock *sk,	int cmd, void *user, unsigned int len)
 {
 	int ret;
 
@@ -1243,7 +1242,7 @@ do_ipt_set_ctl(struct sock *sk,	int cmd, void __user *user, unsigned int len)
 }
 
 static int
-do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
+do_ipt_get_ctl(struct sock *sk, int cmd, void *user, int *len)
 {
 	int ret;
 
@@ -1267,7 +1266,7 @@ do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 			break;
 		}
 		name[IPT_TABLE_MAXNAMELEN-1] = '\0';
-		t = ipt_find_table_lock(name, &ret, &ipt_mutex);
+		t = find_table_lock(name, &ret, &ipt_mutex);
 		if (t) {
 			struct ipt_getinfo info;
 
@@ -1458,7 +1457,7 @@ tcp_find_option(u_int8_t option,
 		int *hotdrop)
 {
 	/* tcp.doff is only 4 bits, ie. max 15 * 4 bytes */
-	u_int8_t opt[60 - sizeof(struct tcphdr)];
+	char opt[60 - sizeof(struct tcphdr)];
 	unsigned int i;
 
 	duprintf("tcp_match: finding option\n");
@@ -1526,16 +1525,11 @@ tcp_match(const struct sk_buff *skb,
 		      == tcpinfo->flg_cmp,
 		      IPT_TCP_INV_FLAGS))
 		return 0;
-	if (tcpinfo->option) {
-		if (tcph.doff * 4 < sizeof(tcph)) {
-			*hotdrop = 1;
-			return 0;
-		}
-		if (!tcp_find_option(tcpinfo->option, skb, tcph.doff*4 - sizeof(tcph),
-				     tcpinfo->invflags & IPT_TCP_INV_OPTION,
-				     hotdrop))
-			return 0;
-	}
+	if (tcpinfo->option &&
+	    !tcp_find_option(tcpinfo->option, skb, tcph.doff*4 - sizeof(tcph),
+			     tcpinfo->invflags & IPT_TCP_INV_OPTION,
+			     hotdrop))
+		return 0;
 	return 1;
 }
 
@@ -1731,15 +1725,6 @@ static inline int print_name(const char *i,
 	return 0;
 }
 
-static inline int print_target(const struct ipt_target *t,
-                               off_t start_offset, char *buffer, int length,
-                               off_t *pos, unsigned int *count)
-{
-	if (t == &ipt_standard_target || t == &ipt_error_target)
-		return 0;
-	return print_name((char *)t, start_offset, buffer, length, pos, count);
-}
-
 static int ipt_get_tables(char *buffer, char **start, off_t offset, int length)
 {
 	off_t pos = 0;
@@ -1766,7 +1751,7 @@ static int ipt_get_targets(char *buffer, char **start, off_t offset, int length)
 	if (down_interruptible(&ipt_mutex) != 0)
 		return 0;
 
-	LIST_FIND(&ipt_target, print_target, struct ipt_target *,
+	LIST_FIND(&ipt_target, print_name, void *,
 		  offset, buffer, length, &pos, &count);
 	
 	up(&ipt_mutex);
@@ -1861,7 +1846,6 @@ EXPORT_SYMBOL(ipt_unregister_match);
 EXPORT_SYMBOL(ipt_do_table);
 EXPORT_SYMBOL(ipt_register_target);
 EXPORT_SYMBOL(ipt_unregister_target);
-EXPORT_SYMBOL(ipt_find_target_lock);
 
 module_init(init);
 module_exit(fini);

@@ -4,6 +4,7 @@
  */
 
 #include <linux/config.h>
+#include <asm/cprefix.h>
 #include <asm/ptrace.h>
 #include <asm/psr.h>
 
@@ -28,7 +29,7 @@ ___set_bit:
 	wr	%g5, 0x0, %psr
 	nop; nop; nop
 #ifdef CONFIG_SMP
-	set	bitops_spinlock, %g5
+	set	C_LABEL(bitops_spinlock), %g5
 2:	ldstub	[%g5], %g7		! Spin on the byte lock for SMP.
 	orcc	%g7, 0x0, %g0		! Did we get it?
 	bne	2b			! Nope...
@@ -38,7 +39,7 @@ ___set_bit:
 	and	%g7, %g2, %g2
 #ifdef CONFIG_SMP
 	st	%g5, [%g1]
-	set	bitops_spinlock, %g5
+	set	C_LABEL(bitops_spinlock), %g5
 	stb	%g0, [%g5]
 #else
 	st	%g5, [%g1]
@@ -57,7 +58,7 @@ ___clear_bit:
 	wr	%g5, 0x0, %psr
 	nop; nop; nop
 #ifdef CONFIG_SMP
-	set	bitops_spinlock, %g5
+	set	C_LABEL(bitops_spinlock), %g5
 2:	ldstub	[%g5], %g7		! Spin on the byte lock for SMP.
 	orcc	%g7, 0x0, %g0		! Did we get it?
 	bne	2b			! Nope...
@@ -67,7 +68,7 @@ ___clear_bit:
 	and	%g7, %g2, %g2
 #ifdef CONFIG_SMP
 	st	%g5, [%g1]
-	set	bitops_spinlock, %g5
+	set	C_LABEL(bitops_spinlock), %g5
 	stb	%g0, [%g5]
 #else
 	st	%g5, [%g1]
@@ -86,7 +87,7 @@ ___change_bit:
 	wr	%g5, 0x0, %psr
 	nop; nop; nop
 #ifdef CONFIG_SMP
-	set	bitops_spinlock, %g5
+	set	C_LABEL(bitops_spinlock), %g5
 2:	ldstub	[%g5], %g7		! Spin on the byte lock for SMP.
 	orcc	%g7, 0x0, %g0		! Did we get it?
 	bne	2b			! Nope...
@@ -96,7 +97,7 @@ ___change_bit:
 	and	%g7, %g2, %g2
 #ifdef CONFIG_SMP
 	st	%g5, [%g1]
-	set	bitops_spinlock, %g5
+	set	C_LABEL(bitops_spinlock), %g5
 	stb	%g0, [%g5]
 #else
 	st	%g5, [%g1]

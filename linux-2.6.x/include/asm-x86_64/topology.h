@@ -6,25 +6,24 @@
 #ifdef CONFIG_DISCONTIGMEM
 
 #include <asm/mpspec.h>
-#include <asm/bitops.h>
 
 /* Map the K8 CPU local memory controllers to a simple 1:1 CPU:NODE topology */
 
-extern cpumask_t cpu_online_map;
+extern int fake_node;
+/* This is actually a cpumask_t, but doesn't matter because we don't have
+   >BITS_PER_LONG CPUs */
+extern unsigned long cpu_online_map;
 
-extern unsigned char cpu_to_node[];
-extern cpumask_t     node_to_cpumask[];
-
-#define cpu_to_node(cpu)		(cpu_to_node[cpu])
+#define cpu_to_node(cpu)		(fake_node ? 0 : (cpu))
+#define memblk_to_node(memblk) 	(fake_node ? 0 : (memblk))
 #define parent_node(node)		(node)
-#define node_to_first_cpu(node) 	(__ffs(node_to_cpumask[node]))
-#define node_to_cpumask(node)		(node_to_cpumask[node])
+#define node_to_first_cpu(node) 	(fake_node ? 0 : (node))
+#define node_to_cpumask(node)	(fake_node ? cpu_online_map : (1UL << (node)))
+#define node_to_memblk(node)		(node)
 
-static inline cpumask_t pcibus_to_cpumask(int bus)
+static inline unsigned long pcibus_to_cpumask(int bus)
 {
-	cpumask_t res;
-	cpus_and(res,  pci_bus_to_cpumask[bus], cpu_online_map);
-	return res;
+	return mp_bus_to_cpumask[bus] & cpu_online_map; 
 }
 
 #define NODE_BALANCE_RATE 30	/* CHECKME */ 

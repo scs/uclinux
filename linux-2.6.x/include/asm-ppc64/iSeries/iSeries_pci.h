@@ -31,7 +31,6 @@
 /************************************************************************/
 
 #include <asm/iSeries/HvCallPci.h>
-#include <asm/abs_addr.h>
 
 struct pci_dev;				/* For Forward Reference        */
 struct iSeries_Device_Node;
@@ -72,7 +71,7 @@ struct iSeries_Device_Node;
 /* Converts Virtual Address to Real Address for Hypervisor calls        */
 /************************************************************************/
 
-#define ISERIES_HV_ADDR(virtaddr)  (0x8000000000000000 | virt_to_abs(virtaddr))
+#define REALADDR(virtaddr)  (0x8000000000000000 | (virt_to_absolute((u64)virtaddr) ))
 
 /************************************************************************/
 /* iSeries Device Information                                           */
@@ -93,7 +92,7 @@ struct iSeries_Device_Node {
 	int             Flags;          /* Possible flags(disable/bist)*/
 	u16             Vendor;         /* Vendor ID                   */
 	u8              LogicalSlot;    /* Hv Slot Index for Tces      */
-	struct iommu_table* iommu_table;/* Device TCE Table            */ 
+	struct TceTable* DevTceTable;   /* Device TCE Table            */ 
 	u8              PhbId;          /* Phb Card is on.             */
 	u16             Board;          /* Board Number                */
 	u8              FrameId;	/* iSeries spcn Frame Id       */

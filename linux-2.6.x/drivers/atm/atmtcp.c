@@ -152,7 +152,7 @@ static void atmtcp_v_close(struct atm_vcc *vcc)
 }
 
 
-static int atmtcp_v_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
+static int atmtcp_v_ioctl(struct atm_dev *dev,unsigned int cmd,void *arg)
 {
 	struct atm_cirange ci;
 	struct atm_vcc *vcc;
@@ -161,7 +161,7 @@ static int atmtcp_v_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 	int i;
 
 	if (cmd != ATM_SETCIRANGE) return -ENOIOCTLCMD;
-	if (copy_from_user(&ci, arg,sizeof(ci))) return -EFAULT;
+	if (copy_from_user(&ci,(void *) arg,sizeof(ci))) return -EFAULT;
 	if (ci.vpi_bits == ATM_CI_MAX) ci.vpi_bits = MAX_VPI_BITS;
 	if (ci.vci_bits == ATM_CI_MAX) ci.vci_bits = MAX_VCI_BITS;
 	if (ci.vpi_bits > MAX_VPI_BITS || ci.vpi_bits < 0 ||
@@ -255,7 +255,7 @@ static void atmtcp_c_close(struct atm_vcc *vcc)
 	dev_data = PRIV(atmtcp_dev);
 	dev_data->vcc = NULL;
 	if (dev_data->persist) return;
-	atmtcp_dev->dev_data = NULL;
+	PRIV(atmtcp_dev) = NULL;
 	kfree(dev_data);
 	shutdown_atm_dev(atmtcp_dev);
 	vcc->dev_data = NULL;
@@ -380,7 +380,7 @@ static int atmtcp_create(int itf,int persist,struct atm_dev **result)
 	}
 	dev->ci_range.vpi_bits = MAX_VPI_BITS;
 	dev->ci_range.vci_bits = MAX_VCI_BITS;
-	dev->dev_data = dev_data;
+	PRIV(dev) = dev_data;
 	PRIV(dev)->vcc = NULL;
 	PRIV(dev)->persist = persist;
 	if (result) *result = dev;

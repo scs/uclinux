@@ -99,7 +99,6 @@
 #include <linux/slab.h>
 #include <linux/major.h>
 #include <linux/wait.h>
-#include <linux/device.h>
 
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -187,9 +186,6 @@ static void ip2_unthrottle(PTTY);
 static void ip2_stop(PTTY);
 static void ip2_start(PTTY);
 static void ip2_hangup(PTTY);
-static int  ip2_tiocmget(struct tty_struct *tty, struct file *file);
-static int  ip2_tiocmset(struct tty_struct *tty, struct file *file,
-			 unsigned int set, unsigned int clear);
 
 static void set_irq(int, int);
 static void ip2_interrupt_bh(i2eBordStrPtr pB);
@@ -203,16 +199,16 @@ static void ip2_wait_until_sent(PTTY,int);
 
 static void set_params (i2ChanStrPtr, struct termios *);
 static int set_modem_info(i2ChanStrPtr, unsigned int, unsigned int *);
-static int get_serial_info(i2ChanStrPtr, struct serial_struct __user *);
-static int set_serial_info(i2ChanStrPtr, struct serial_struct __user *);
+static int get_serial_info(i2ChanStrPtr, struct serial_struct *);
+static int set_serial_info(i2ChanStrPtr, struct serial_struct *);
 
-static ssize_t ip2_ipl_read(struct file *, char __user *, size_t, loff_t *);
-static ssize_t ip2_ipl_write(struct file *, const char __user *, size_t, loff_t *);
+static ssize_t ip2_ipl_read(struct file *, char *, size_t, loff_t *);
+static ssize_t ip2_ipl_write(struct file *, const char *, size_t, loff_t *);
 static int ip2_ipl_ioctl(struct inode *, struct file *, UINT, ULONG);
 static int ip2_ipl_open(struct inode *, struct file *);
 
-static int DumpTraceBuffer(char __user *, int);
-static int DumpFifoBuffer( char __user *, int);
+static int DumpTraceBuffer(char *, int);
+static int DumpFifoBuffer( char *, int);
 
 static void ip2_init_board(int);
 static unsigned short find_eisa_board(int);
@@ -301,9 +297,6 @@ static int Eisa_slot;
 static int iindx;
 static char rirqs[IP2_MAX_BOARDS];
 static int Valid_Irqs[] = { 3, 4, 5, 7, 10, 11, 12, 15, 0};
-
-/* for sysfs class support */
-static struct class_simple *ip2_class;
 
 // Some functions to keep track of what irq's we have
 
@@ -415,9 +408,7 @@ cleanup_module(void)
 			iiResetDelay( i2BoardPtrTable[i] );
 			/* free io addresses and Tibet */
 			release_region( ip2config.addr[i], 8 );
-			class_simple_device_remove(MKDEV(IP2_IPL_MAJOR, 4 * i)); 
 			devfs_remove("ip2/ipl%d", i);
-			class_simple_device_remove(MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
 			devfs_remove("ip2/stat%d", i);
 		}
 		/* Disable and remove interrupt handler. */
@@ -426,7 +417,6 @@ cleanup_module(void)
 			clear_requested_irq( ip2config.irq[i]);
 		}
 	}
-	class_simple_destroy(ip2_class);
 	devfs_remove("ip2");
 	if ( ( err = tty_unregister_driver ( ip2_tty_driver ) ) ) {
 		printk(KERN_ERR "IP2: failed to unregister tty driver (%d)\n", err);
@@ -476,8 +466,6 @@ static struct tty_operations ip2_ops = {
 	.start           = ip2_start,
 	.hangup          = ip2_hangup,
 	.read_proc       = ip2_read_proc,
-	.tiocmget	 = ip2_tiocmget,
-	.tiocmset	 = ip2_tiocmset,
 };
 
 /******************************************************************************/
@@ -501,7 +489,7 @@ int
 ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize) 
 {
 	int i, j, box;
-	int err = 0;
+	int err;
 	int status = 0;
 	static int loaded;
 	i2eBordStrPtr pB = NULL;
@@ -690,14 +678,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 	/* Register the IPL driver. */
 	if ( ( err = register_chrdev ( IP2_IPL_MAJOR, pcIpl, &ip2_ipl ) ) ) {
 		printk(KERN_ERR "IP2: failed to register IPL device (%d)\n", err );
-	} else {
-		/* create the sysfs class */
-		ip2_class = class_simple_create(THIS_MODULE, "ip2");
-		if (IS_ERR(ip2_class)) {
-			err = PTR_ERR(ip2_class);
-			goto out_chrdev;	
-		}
-	}
+	} else
 	/* Register the read_procmem thing */
 	if (!create_proc_info_entry("ip2mem",0,&proc_root,ip2_read_procmem)) {
 		printk(KERN_ERR "IP2: failed to register read_procmem\n");
@@ -714,27 +695,13 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 			}
 
 			if ( NULL != ( pB = i2BoardPtrTable[i] ) ) {
-				class_simple_device_add(ip2_class, MKDEV(IP2_IPL_MAJOR, 
-						4 * i), NULL, "ipl%d", i);
-				err = devfs_mk_cdev(MKDEV(IP2_IPL_MAJOR, 4 * i),
+				devfs_mk_cdev(MKDEV(IP2_IPL_MAJOR, 4 * i),
 						S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR,
 						"ip2/ipl%d", i);
-				if (err) {
-					class_simple_device_remove(MKDEV(IP2_IPL_MAJOR, 
-						4 * i));
-					goto out_class;
-				}
 
-				class_simple_device_add(ip2_class, MKDEV(IP2_IPL_MAJOR, 
-						4 * i + 1), NULL, "stat%d", i);
-				err = devfs_mk_cdev(MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
+				devfs_mk_cdev(MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
 						S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR,
 						"ip2/stat%d", i);
-				if (err) {
-					class_simple_device_remove(MKDEV(IP2_IPL_MAJOR, 
-						4 * i + 1));
-					goto out_class;
-				}
 
 			    for ( box = 0; box < ABS_MAX_BOXES; ++box )
 			    {
@@ -787,14 +754,8 @@ retry:
 		}
 	}
 	ip2trace (ITRC_NO_PORT, ITRC_INIT, ITRC_RETURN, 0 );
-	goto out;
 
-out_class:
-	class_simple_destroy(ip2_class);
-out_chrdev:
-	unregister_chrdev(IP2_IPL_MAJOR, "ip2");
-out:
-	return err;
+	return 0;
 }
 
 EXPORT_SYMBOL(ip2_loadmain);
@@ -1121,7 +1082,7 @@ set_irq( int boardnum, int boardIrq )
 /******************************************************************************/
 
 static inline void
-service_all_boards(void)
+service_all_boards()
 {
 	int i;
 	i2eBordStrPtr  pB;
@@ -1990,80 +1951,6 @@ ip2_stop ( PTTY tty )
 /* Device Ioctl Section                                                       */
 /******************************************************************************/
 
-static int ip2_tiocmget(struct tty_struct *tty, struct file *file)
-{
-	i2ChanStrPtr pCh = DevTable[tty->index];
-	wait_queue_t wait;
-
-	if (pCh == NULL)
-		return -ENODEV;
-
-/*
-	FIXME - the following code is causing a NULL pointer dereference in
-	2.3.51 in an interrupt handler.  It's suppose to prompt the board
-	to return the DSS signal status immediately.  Why doesn't it do
-	the same thing in 2.2.14?
-*/
-
-/*	This thing is still busted in the 1.2.12 driver on 2.4.x
-	and even hoses the serial console so the oops can be trapped.
-		/\/\|=mhw=|\/\/			*/
-
-#ifdef	ENABLE_DSSNOW
-	i2QueueCommands(PTYPE_BYPASS, pCh, 100, 1, CMD_DSS_NOW);
-
-	init_waitqueue_entry(&wait, current);
-	add_wait_queue(&pCh->dss_now_wait, &wait);
-	set_current_state( TASK_INTERRUPTIBLE );
-
-	serviceOutgoingFifo( pCh->pMyBord );
-
-	schedule();
-
-	set_current_state( TASK_RUNNING );
-	remove_wait_queue(&pCh->dss_now_wait, &wait);
-
-	if (signal_pending(current)) {
-		return -EINTR;
-	}
-#endif
-	return  ((pCh->dataSetOut & I2_RTS) ? TIOCM_RTS : 0)
-	      | ((pCh->dataSetOut & I2_DTR) ? TIOCM_DTR : 0)
-	      | ((pCh->dataSetIn  & I2_DCD) ? TIOCM_CAR : 0)
-	      | ((pCh->dataSetIn  & I2_RI)  ? TIOCM_RNG : 0)
-	      | ((pCh->dataSetIn  & I2_DSR) ? TIOCM_DSR : 0)
-	      | ((pCh->dataSetIn  & I2_CTS) ? TIOCM_CTS : 0);
-}
-
-static int ip2_tiocmset(struct tty_struct *tty, struct file *file,
-			unsigned int set, unsigned int clear)
-{
-	i2ChanStrPtr pCh = DevTable[tty->index];
-
-	if (pCh == NULL)
-		return -ENODEV;
-
-	if (set & TIOCM_RTS) {
-		i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_RTSUP);
-		pCh->dataSetOut |= I2_RTS;
-	}
-	if (set & TIOCM_DTR) {
-		i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_DTRUP);
-		pCh->dataSetOut |= I2_DTR;
-	}
-
-	if (clear & TIOCM_RTS) {
-		i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_RTSDN);
-		pCh->dataSetOut &= ~I2_RTS;
-	}
-	if (clear & TIOCM_DTR) {
-		i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_DTRDN);
-		pCh->dataSetOut &= ~I2_DTR;
-	}
-	serviceOutgoingFifo( pCh->pMyBord );
-	return 0;
-}
-
 /******************************************************************************/
 /* Function:   ip2_ioctl()                                                    */
 /* Parameters: Pointer to tty structure                                       */
@@ -2082,10 +1969,9 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 	wait_queue_t wait;
 	i2ChanStrPtr pCh = DevTable[tty->index];
 	struct async_icount cprev, cnow;	/* kernel counter temps */
-	struct serial_icounter_struct __user *p_cuser;
+	struct serial_icounter_struct *p_cuser;	/* user space */
 	int rc = 0;
 	unsigned long flags;
-	void __user *argp = (void __user *)arg;
 
 	if ( pCh == NULL ) {
 		return -ENODEV;
@@ -2102,7 +1988,7 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 
 		ip2trace (CHANN, ITRC_IOCTL, 2, 1, rc );
 
-		rc = get_serial_info(pCh, argp);
+		rc = get_serial_info(pCh, (struct serial_struct *) arg);
 		if (rc)
 			return rc;
 		break;
@@ -2111,7 +1997,7 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 
 		ip2trace (CHANN, ITRC_IOCTL, 3, 1, rc );
 
-		rc = set_serial_info(pCh, argp);
+		rc = set_serial_info(pCh, (struct serial_struct *) arg);
 		if (rc)
 			return rc;
 		break;
@@ -2175,7 +2061,7 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 
 		ip2trace (CHANN, ITRC_IOCTL, 6, 1, rc );
 
-			rc = put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned long __user *)argp);
+			rc = put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned long *) arg);
 		if (rc)	
 			return rc;
 	break;
@@ -2184,12 +2070,63 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 
 		ip2trace (CHANN, ITRC_IOCTL, 7, 1, rc );
 
-		rc = get_user(arg,(unsigned long __user *) argp);
+		rc = get_user(arg,(unsigned long *) arg);
 		if (rc) 
 			return rc;
 		tty->termios->c_cflag = ((tty->termios->c_cflag & ~CLOCAL)
 					 | (arg ? CLOCAL : 0));
 		
+		break;
+
+	case TIOCMGET:
+
+		ip2trace (CHANN, ITRC_IOCTL, 8, 1, rc );
+
+/*
+	FIXME - the following code is causing a NULL pointer dereference in
+	2.3.51 in an interrupt handler.  It's suppose to prompt the board
+	to return the DSS signal status immediately.  Why doesn't it do
+	the same thing in 2.2.14?
+*/
+
+/*	This thing is still busted in the 1.2.12 driver on 2.4.x
+	and even hoses the serial console so the oops can be trapped.
+		/\/\|=mhw=|\/\/			*/
+
+#ifdef	ENABLE_DSSNOW
+		i2QueueCommands(PTYPE_BYPASS, pCh, 100, 1, CMD_DSS_NOW);
+
+		init_waitqueue_entry(&wait, current);
+		add_wait_queue(&pCh->dss_now_wait, &wait);
+		set_current_state( TASK_INTERRUPTIBLE );
+
+		serviceOutgoingFifo( pCh->pMyBord );
+
+		schedule();
+
+		set_current_state( TASK_RUNNING );
+		remove_wait_queue(&pCh->dss_now_wait, &wait);
+
+		if (signal_pending(current)) {
+			return -EINTR;
+		}
+#endif
+		rc = put_user(
+				    ((pCh->dataSetOut & I2_RTS) ? TIOCM_RTS : 0)
+				  | ((pCh->dataSetOut & I2_DTR) ? TIOCM_DTR : 0)
+				  | ((pCh->dataSetIn  & I2_DCD) ? TIOCM_CAR : 0)
+				  | ((pCh->dataSetIn  & I2_RI)  ? TIOCM_RNG : 0)
+				  | ((pCh->dataSetIn  & I2_DSR) ? TIOCM_DSR : 0)
+				  | ((pCh->dataSetIn  & I2_CTS) ? TIOCM_CTS : 0),
+				(unsigned int *) arg);
+		break;
+
+	case TIOCMBIS:
+	case TIOCMBIC:
+	case TIOCMSET:
+		ip2trace (CHANN, ITRC_IOCTL, 9, 0 );
+
+		rc = set_modem_info(pCh, cmd, (unsigned int *) arg);
 		break;
 
 	/*
@@ -2263,7 +2200,7 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 		save_flags(flags);cli();
 		cnow = pCh->icount;
 		restore_flags(flags);
-		p_cuser = argp;
+		p_cuser = (struct serial_icounter_struct *) arg;
 		rc = put_user(cnow.cts, &p_cuser->cts);
 		rc = put_user(cnow.dsr, &p_cuser->dsr);
 		rc = put_user(cnow.rng, &p_cuser->rng);
@@ -2302,6 +2239,70 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 }
 
 /******************************************************************************/
+/* Function:   set_modem_info()                                               */
+/* Parameters: Pointer to channel structure                                   */
+/*             Specific ioctl command                                         */
+/*             Pointer to source for new settings                             */
+/* Returns:    Nothing                                                        */
+/*                                                                            */
+/* Description:                                                               */
+/* This returns the current settings of the dataset signal inputs to the user */
+/* program.                                                                   */
+/******************************************************************************/
+static int
+set_modem_info(i2ChanStrPtr pCh, unsigned cmd, unsigned int *value)
+{
+	int rc;
+	unsigned int arg;
+
+	rc = get_user(arg,value);
+	if (rc)
+		return rc;
+	switch(cmd) {
+	case TIOCMBIS:
+		if (arg & TIOCM_RTS) {
+			i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_RTSUP);
+			pCh->dataSetOut |= I2_RTS;
+		}
+		if (arg & TIOCM_DTR) {
+			i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_DTRUP);
+			pCh->dataSetOut |= I2_DTR;
+		}
+		break;
+	case TIOCMBIC:
+		if (arg & TIOCM_RTS) {
+			i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_RTSDN);
+			pCh->dataSetOut &= ~I2_RTS;
+		}
+		if (arg & TIOCM_DTR) {
+			i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_DTRDN);
+			pCh->dataSetOut &= ~I2_DTR;
+		}
+		break;
+	case TIOCMSET:
+		if ( (arg & TIOCM_RTS) && !(pCh->dataSetOut & I2_RTS) ) {
+			i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_RTSUP);
+			pCh->dataSetOut |= I2_RTS;
+		} else if ( !(arg & TIOCM_RTS) && (pCh->dataSetOut & I2_RTS) ) {
+			i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_RTSDN);
+			pCh->dataSetOut &= ~I2_RTS;
+		}
+		if ( (arg & TIOCM_DTR) && !(pCh->dataSetOut & I2_DTR) ) {
+			i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_DTRUP);
+			pCh->dataSetOut |= I2_DTR;
+		} else if ( !(arg & TIOCM_DTR) && (pCh->dataSetOut & I2_DTR) ) {
+			i2QueueCommands(PTYPE_INLINE, pCh, 100, 1, CMD_DTRDN);
+			pCh->dataSetOut &= ~I2_DTR;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+	serviceOutgoingFifo( pCh->pMyBord );
+	return 0;
+}
+
+/******************************************************************************/
 /* Function:   GetSerialInfo()                                                */
 /* Parameters: Pointer to channel structure                                   */
 /*             Pointer to old termios structure                               */
@@ -2312,9 +2313,14 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 /* standard Linux serial structure.                                           */
 /******************************************************************************/
 static int
-get_serial_info ( i2ChanStrPtr pCh, struct serial_struct __user *retinfo )
+get_serial_info ( i2ChanStrPtr pCh, struct serial_struct *retinfo )
 {
 	struct serial_struct tmp;
+	int rc;
+
+	if ( !retinfo ) {
+		return -EFAULT;
+	}
 
 	memset ( &tmp, 0, sizeof(tmp) );
 	tmp.type = pCh->pMyBord->channelBtypes.bid_value[(pCh->port_index & (IP2_PORTS_PER_BOARD-1))/16];
@@ -2331,7 +2337,8 @@ get_serial_info ( i2ChanStrPtr pCh, struct serial_struct __user *retinfo )
 	tmp.close_delay = pCh->ClosingDelay;
 	tmp.closing_wait = pCh->ClosingWaitTime;
 	tmp.custom_divisor = pCh->BaudDivisor;
-   	return copy_to_user(retinfo,&tmp,sizeof(*retinfo));
+   	rc = copy_to_user(retinfo,&tmp,sizeof(*retinfo));
+   return rc;
 }
 
 /******************************************************************************/
@@ -2346,13 +2353,18 @@ get_serial_info ( i2ChanStrPtr pCh, struct serial_struct __user *retinfo )
 /* change the IRQ, address or type of the port the ioctl fails.               */
 /******************************************************************************/
 static int
-set_serial_info( i2ChanStrPtr pCh, struct serial_struct __user *new_info )
+set_serial_info( i2ChanStrPtr pCh, struct serial_struct *new_info )
 {
 	struct serial_struct ns;
 	int   old_flags, old_baud_divisor;
 
-	if (copy_from_user(&ns, new_info, sizeof (ns)))
+	if ( !new_info ) {
 		return -EFAULT;
+	}
+
+	if (copy_from_user(&ns, new_info, sizeof (ns))) {
+		return -EFAULT;
+	}
 
 	/*
 	 * We don't allow setserial to change IRQ, board address, type or baud
@@ -2717,7 +2729,7 @@ service_it:
 
 static 
 ssize_t
-ip2_ipl_read(struct file *pFile, char __user *pData, size_t count, loff_t *off )
+ip2_ipl_read(struct file *pFile, char *pData, size_t count, loff_t *off )
 {
 	unsigned int minor = iminor(pFile->f_dentry->d_inode);
 	int rc = 0;
@@ -2750,7 +2762,7 @@ ip2_ipl_read(struct file *pFile, char __user *pData, size_t count, loff_t *off )
 }
 
 static int
-DumpFifoBuffer ( char __user *pData, int count )
+DumpFifoBuffer ( char *pData, int count )
 {
 #ifdef DEBUG_FIFO
 	int rc;
@@ -2764,13 +2776,13 @@ DumpFifoBuffer ( char __user *pData, int count )
 }
 
 static int
-DumpTraceBuffer ( char __user *pData, int count )
+DumpTraceBuffer ( char *pData, int count )
 {
 #ifdef IP2DEBUG_TRACE
 	int rc;
 	int dumpcount;
 	int chunk;
-	int *pIndex = (int __user *)pData;
+	int *pIndex = (int*)pData;
 
 	if ( count < (sizeof(int) * 6) ) {
 		return -EIO;
@@ -2826,7 +2838,7 @@ DumpTraceBuffer ( char __user *pData, int count )
 /*                                                                            */
 /******************************************************************************/
 static ssize_t
-ip2_ipl_write(struct file *pFile, const char __user *pData, size_t count, loff_t *off)
+ip2_ipl_write(struct file *pFile, const char *pData, size_t count, loff_t *off)
 {
 #ifdef IP2DEBUG_IPL
 	printk (KERN_DEBUG "IP2IPL: write %p, %d bytes\n", pData, count );
@@ -2851,8 +2863,7 @@ ip2_ipl_ioctl ( struct inode *pInode, struct file *pFile, UINT cmd, ULONG arg )
 {
 	unsigned int iplminor = iminor(pInode);
 	int rc = 0;
-	void __user *argp = (void __user *)arg;
-	ULONG __user *pIndex = argp;
+	ULONG *pIndex = (ULONG*)arg;
 	i2eBordStrPtr pB = i2BoardPtrTable[iplminor / 4];
 	i2ChanStrPtr pCh;
 
@@ -2877,9 +2888,9 @@ ip2_ipl_ioctl ( struct inode *pInode, struct file *pFile, UINT cmd, ULONG arg )
 
 		case 65:	/* Board  - ip2stat */
 			if ( pB ) {
-				rc = copy_to_user(argp, pB, sizeof(i2eBordStr));
+				rc = copy_to_user((char*)arg, (char*)pB, sizeof(i2eBordStr) );
 				rc = put_user(INB(pB->i2eStatus),
-					(ULONG __user *)(arg + (ULONG)(&pB->i2eStatus) - (ULONG)pB ) );
+					(ULONG*)(arg + (ULONG)(&pB->i2eStatus) - (ULONG)pB ) );
 			} else {
 				rc = -ENODEV;
 			}
@@ -2890,7 +2901,7 @@ ip2_ipl_ioctl ( struct inode *pInode, struct file *pFile, UINT cmd, ULONG arg )
 				pCh = DevTable[cmd];
 				if ( pCh )
 				{
-					rc = copy_to_user(argp, pCh, sizeof(i2ChanStr));
+					rc = copy_to_user((char*)arg, (char*)pCh, sizeof(i2ChanStr) );
 				} else {
 					rc = -ENODEV;
 				}
@@ -2953,7 +2964,7 @@ ip2_ipl_ioctl ( struct inode *pInode, struct file *pFile, UINT cmd, ULONG arg )
 			rc = put_user(ip2_throttle, pIndex++ );
 			rc = put_user(ip2_unthrottle, pIndex++ );
 			rc = put_user(ip2_ioctl, pIndex++ );
-			rc = put_user(0, pIndex++ );
+			rc = put_user(set_modem_info, pIndex++ );
 			rc = put_user(get_serial_info, pIndex++ );
 			rc = put_user(set_serial_info, pIndex++ );
 			rc = put_user(ip2_set_termios, pIndex++ );

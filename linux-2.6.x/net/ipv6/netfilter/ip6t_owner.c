@@ -1,13 +1,8 @@
 /* Kernel module to match various things tied to sockets associated with
-   locally generated outgoing packets. */
+   locally generated outgoing packets.
 
-/* (C) 2000-2001 Marc Boucher <marc@mbsi.ca>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+   Copyright (C) 2000,2001 Marc Boucher
  */
-
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/file.h>
@@ -61,7 +56,7 @@ match_sid(const struct sk_buff *skb, pid_t sid)
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
 		struct files_struct *files;
-		if (p->signal->session != sid)
+		if (p->session != sid)
 			continue;
 
 		task_lock(p);
@@ -143,14 +138,7 @@ checkentry(const char *tablename,
 
 	if (matchsize != IP6T_ALIGN(sizeof(struct ip6t_owner_info)))
 		return 0;
-#ifdef CONFIG_SMP
-	/* files->file_lock can not be used in a BH */
-	if (((struct ip6t_owner_info *)matchinfo)->match
-	    & (IP6T_OWNER_PID|IP6T_OWNER_SID)) {
-		printk("ip6t_owner: pid and sid matching is broken on SMP.\n");
-		return 0;
-	}
-#endif
+
 	return 1;
 }
 

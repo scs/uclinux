@@ -152,8 +152,7 @@ static int vxp_load_xilinx_binary(vx_core_t *_chip, const snd_hwdep_dsp_image_t 
 	unsigned int i;
 	int c;
 	int regCSUER, regRUER;
-	unsigned char __user *image;
-	unsigned char data;
+	unsigned char *image, data;
 
 	/* Switch to programmation mode */
 	chip->regDIALOG |= VXP_DLG_XILINX_REPROG_MASK;

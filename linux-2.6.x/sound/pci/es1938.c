@@ -53,12 +53,12 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/gameport.h>
-#include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
 #include <sound/opl3.h>
 #include <sound/mpu401.h>
+#define SNDRV_GET_ID
 #include <sound/initval.h>
 
 #include <asm/io.h>
@@ -84,15 +84,14 @@ MODULE_DEVICES("{{ESS,ES1938},"
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int boot_devs;
 
-module_param_array(index, int, boot_devs, 0444);
+MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(index, "Index value for ESS Solo-1 soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-module_param_array(id, charp, boot_devs, 0444);
+MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
 MODULE_PARM_DESC(id, "ID string for ESS Solo-1 soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-module_param_array(enable, bool, boot_devs, 0444);
+MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(enable, "Enable ESS Solo-1 soundcard.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
 
@@ -822,7 +821,7 @@ static snd_pcm_uframes_t snd_es1938_playback_pointer(snd_pcm_substream_t *substr
 static int snd_es1938_capture_copy(snd_pcm_substream_t *substream,
 				   int channel,
 				   snd_pcm_uframes_t pos,
-				   void __user *dst,
+				   void *dst,
 				   snd_pcm_uframes_t count)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
@@ -836,7 +835,7 @@ static int snd_es1938_capture_copy(snd_pcm_substream_t *substream,
 	} else {
 		if (copy_to_user(dst, runtime->dma_area + pos + 1, count - 1))
 			return -EFAULT;
-		if (put_user(runtime->dma_area[0], ((unsigned char __user *)dst) + count - 1))
+		if (put_user(runtime->dma_area[0], ((unsigned char *)dst) + count - 1))
 			return -EFAULT;
 	}
 	return 0;
@@ -947,14 +946,17 @@ static int snd_es1938_playback_open(snd_pcm_substream_t * substream)
 static int snd_es1938_capture_close(snd_pcm_substream_t * substream)
 {
 	es1938_t *chip = snd_pcm_substream_chip(substream);
+	snd_pcm_runtime_t *runtime = substream->runtime;
 
 	chip->capture_substream = NULL;
+	snd_free_pci_pages(chip->pci, runtime->dma_bytes, runtime->dma_area, runtime->dma_addr);
 	return 0;
 }
 
 static int snd_es1938_playback_close(snd_pcm_substream_t * substream)
 {
 	es1938_t *chip = snd_pcm_substream_chip(substream);
+	snd_pcm_runtime_t *runtime = substream->runtime;
 
 	switch (substream->number) {
 	case 0:
@@ -967,6 +969,7 @@ static int snd_es1938_playback_close(snd_pcm_substream_t * substream)
 		snd_BUG();
 		return -EINVAL;
 	}
+	snd_free_pci_pages(chip->pci, runtime->dma_bytes, runtime->dma_area, runtime->dma_addr);
 	return 0;
 }
 
@@ -1015,8 +1018,7 @@ static int __devinit snd_es1938_new_pcm(es1938_t *chip, int device, snd_pcm_t **
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "ESS Solo-1");
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci), 64*1024, 64*1024);
+	snd_pcm_lib_preallocate_pci_pages_for_all(chip->pci, pcm, 64*1024, 64*1024);
 
 	if (rpcm)
 		*rpcm = pcm;
@@ -1396,11 +1398,11 @@ static int __devinit snd_es1938_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
         /* check, if we can restrict PCI DMA transfers to 24 bits */
-	if (pci_set_dma_mask(pci, 0x00ffffff) < 0 ||
-	    pci_set_consistent_dma_mask(pci, 0x00ffffff) < 0) {
+        if (!pci_dma_supported(pci, 0x00ffffff)) {
                 snd_printk("architecture does not support 24bit PCI busmaster DMA\n");
                 return -ENXIO;
         }
+	pci_set_dma_mask(pci, 0x00ffffff);
 
 	chip = snd_magic_kcalloc(es1938_t, 0, GFP_KERNEL);
 	if (chip == NULL)
@@ -1480,8 +1482,6 @@ static int __devinit snd_es1938_create(snd_card_t * card,
 		snd_es1938_free(chip);
 		return err;
 	}
-
-	snd_card_set_dev(card, &pci->dev);
 
 	*rchip = chip;
 	return 0;
@@ -1633,14 +1633,6 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
-
-	strcpy(card->driver, "ES1938");
-	strcpy(card->shortname, "ESS ES1938 (Solo-1)");
-	sprintf(card->longname, "%s rev %i, irq %i",
-		card->shortname,
-		chip->revision,
-		chip->irq);
-
 	if ((err = snd_es1938_new_pcm(chip, 0, &pcm)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -1676,6 +1668,13 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 	gameport_register_port(&chip->gameport);
 #endif
 
+	strcpy(card->driver, "ES1938");
+	strcpy(card->shortname, "ESS ES1938 (Solo-1)");
+	sprintf(card->longname, "%s rev %i, irq %i",
+		card->shortname,
+		chip->revision,
+		chip->irq);
+
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -1701,7 +1700,15 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_es1938_init(void)
 {
-	return pci_module_init(&driver);
+	int err;
+
+	if ((err = pci_module_init(&driver)) < 0) {
+#ifdef MODULE
+		printk(KERN_ERR "ESS Solo-1 soundcard not found or device busy\n");
+#endif
+		return err;
+	}
+	return 0;
 }
 
 static void __exit alsa_card_es1938_exit(void)
@@ -1711,3 +1718,24 @@ static void __exit alsa_card_es1938_exit(void)
 
 module_init(alsa_card_es1938_init)
 module_exit(alsa_card_es1938_exit)
+
+#ifndef MODULE
+
+/* format is: snd-es1938=enable,index,id */
+
+static int __init alsa_card_es1938_setup(char *str)
+{
+	static unsigned __initdata nr_dev = 0;
+
+	if (nr_dev >= SNDRV_CARDS)
+		return 0;
+	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
+	       get_option(&str,&index[nr_dev]) == 2 &&
+	       get_id(&str,&id[nr_dev]) == 2);
+	nr_dev++;
+	return 1;
+}
+
+__setup("snd-es1938=", alsa_card_es1938_setup);
+
+#endif /* ifndef MODULE */

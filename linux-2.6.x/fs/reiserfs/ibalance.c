@@ -633,6 +633,7 @@ static void balance_internal_when_delete (struct tree_balance * tb,
 		/* use check_internal if new root is an internal node */
 		check_internal (new_root);
 	    /*&&&&&&&&&&&&&&&&&&&&&&*/
+	    tb->tb_sb->s_dirt = 1;
 
 	    /* do what is needed for buffer thrown from tree */
 	    reiserfs_invalidate_buffer(tb, tbSh);
@@ -922,7 +923,7 @@ int balance_internal (struct tree_balance * tb,			/* tree_balance structure 		*/
 
 
 	if ( tb->blknum[h] != 1 )
-	    reiserfs_panic(NULL, "balance_internal: One new node required for creating the new root");
+	    reiserfs_panic(0, "balance_internal: One new node required for creating the new root");
 	/* S[h] = empty buffer from the list FEB. */
 	tbSh = get_FEB (tb);
         blkh = B_BLK_HEAD(tbSh);
@@ -950,6 +951,7 @@ int balance_internal (struct tree_balance * tb,			/* tree_balance structure 		*/
         PUT_SB_ROOT_BLOCK( tb->tb_sb, tbSh->b_blocknr );
         PUT_SB_TREE_HEIGHT( tb->tb_sb, SB_TREE_HEIGHT(tb->tb_sb) + 1 );
 	do_balance_mark_sb_dirty (tb, REISERFS_SB(tb->tb_sb)->s_sbh, 1);
+	tb->tb_sb->s_dirt = 1;
     }
 	
     if ( tb->blknum[h] == 2 ) {
@@ -964,7 +966,7 @@ int balance_internal (struct tree_balance * tb,			/* tree_balance structure 		*/
 
 	dest_bi.tb = tb;
 	dest_bi.bi_bh = S_new;
-	dest_bi.bi_parent = NULL;
+	dest_bi.bi_parent = 0;
 	dest_bi.bi_position = 0;
 	src_bi.tb = tb;
 	src_bi.bi_bh = tbSh;

@@ -55,7 +55,7 @@ static loff_t snd_hwdep_llseek(struct file * file, loff_t offset, int orig)
 	return -ENXIO;
 }
 
-static ssize_t snd_hwdep_read(struct file * file, char __user *buf, size_t count, loff_t *offset)
+static ssize_t snd_hwdep_read(struct file * file, char *buf, size_t count, loff_t *offset)
 {
 	snd_hwdep_t *hw = snd_magic_cast(snd_hwdep_t, file->private_data, return -ENXIO);
 	if (hw->ops.read)
@@ -63,7 +63,7 @@ static ssize_t snd_hwdep_read(struct file * file, char __user *buf, size_t count
 	return -ENXIO;	
 }
 
-static ssize_t snd_hwdep_write(struct file * file, const char __user *buf, size_t count, loff_t *offset)
+static ssize_t snd_hwdep_write(struct file * file, const char *buf, size_t count, loff_t *offset)
 {
 	snd_hwdep_t *hw = snd_magic_cast(snd_hwdep_t, file->private_data, return -ENXIO);
 	if (hw->ops.write)
@@ -179,7 +179,7 @@ static unsigned int snd_hwdep_poll(struct file * file, poll_table * wait)
 	return 0;
 }
 
-static int snd_hwdep_info(snd_hwdep_t *hw, snd_hwdep_info_t __user *_info)
+static int snd_hwdep_info(snd_hwdep_t *hw, snd_hwdep_info_t *_info)
 {
 	snd_hwdep_info_t info;
 	
@@ -193,7 +193,7 @@ static int snd_hwdep_info(snd_hwdep_t *hw, snd_hwdep_info_t __user *_info)
 	return 0;
 }
 
-static int snd_hwdep_dsp_status(snd_hwdep_t *hw, snd_hwdep_dsp_status_t __user *_info)
+static int snd_hwdep_dsp_status(snd_hwdep_t *hw, snd_hwdep_dsp_status_t *_info)
 {
 	snd_hwdep_dsp_status_t info;
 	int err;
@@ -209,12 +209,12 @@ static int snd_hwdep_dsp_status(snd_hwdep_t *hw, snd_hwdep_dsp_status_t __user *
 	return 0;
 }
 
-static int snd_hwdep_dsp_load(snd_hwdep_t *hw, snd_hwdep_dsp_image_t __user *_info)
+static int snd_hwdep_dsp_load(snd_hwdep_t *hw, snd_hwdep_dsp_image_t *_info)
 {
 	snd_hwdep_dsp_image_t info;
 	int err;
 	
-	if (! hw->ops.dsp_load)
+	if (! hw->ops.dsp_load || ! hw->ops.dsp_status)
 		return -ENXIO;
 	memset(&info, 0, sizeof(info));
 	if (copy_from_user(&info, _info, sizeof(info)))
@@ -235,16 +235,15 @@ static int snd_hwdep_ioctl(struct inode *inode, struct file * file,
 			   unsigned int cmd, unsigned long arg)
 {
 	snd_hwdep_t *hw = snd_magic_cast(snd_hwdep_t, file->private_data, return -ENXIO);
-	void __user *argp = (void __user *)arg;
 	switch (cmd) {
 	case SNDRV_HWDEP_IOCTL_PVERSION:
-		return put_user(SNDRV_HWDEP_VERSION, (int __user *)argp);
+		return put_user(SNDRV_HWDEP_VERSION, (int *)arg);
 	case SNDRV_HWDEP_IOCTL_INFO:
-		return snd_hwdep_info(hw, argp);
+		return snd_hwdep_info(hw, (snd_hwdep_info_t *)arg);
 	case SNDRV_HWDEP_IOCTL_DSP_STATUS:
-		return snd_hwdep_dsp_status(hw, argp);
+		return snd_hwdep_dsp_status(hw, (snd_hwdep_dsp_status_t *)arg);
 	case SNDRV_HWDEP_IOCTL_DSP_LOAD:
-		return snd_hwdep_dsp_load(hw, argp);
+		return snd_hwdep_dsp_load(hw, (snd_hwdep_dsp_image_t *)arg);
 	}
 	if (hw->ops.ioctl)
 		return hw->ops.ioctl(hw, file, cmd, arg);
@@ -270,7 +269,7 @@ static int snd_hwdep_control_ioctl(snd_card_t * card, snd_ctl_file_t * control,
 		{
 			int device;
 
-			if (get_user(device, (int __user *)arg))
+			if (get_user(device, (int *)arg))
 				return -EFAULT;
 			device = device < 0 ? 0 : device + 1;
 			while (device < SNDRV_MINOR_HWDEPS) {
@@ -280,13 +279,13 @@ static int snd_hwdep_control_ioctl(snd_card_t * card, snd_ctl_file_t * control,
 			}
 			if (device >= SNDRV_MINOR_HWDEPS)
 				device = -1;
-			if (put_user(device, (int __user *)arg))
+			if (put_user(device, (int *)arg))
 				return -EFAULT;
 			return 0;
 		}
 	case SNDRV_CTL_IOCTL_HWDEP_INFO:
 		{
-			snd_hwdep_info_t __user *info = (snd_hwdep_info_t __user *)arg;
+			snd_hwdep_info_t *info = (snd_hwdep_info_t *)arg;
 			int device;
 			snd_hwdep_t *hwdep;
 
@@ -488,6 +487,7 @@ static int __init alsa_hwdep_init(void)
 
 	memset(snd_hwdep_devices, 0, sizeof(snd_hwdep_devices));
 	if ((entry = snd_info_create_module_entry(THIS_MODULE, "hwdep", NULL)) != NULL) {
+		entry->content = SNDRV_INFO_CONTENT_TEXT;
 		entry->c.text.read_size = 512;
 		entry->c.text.read = snd_hwdep_proc_read;
 		if (snd_info_register(entry) < 0) {

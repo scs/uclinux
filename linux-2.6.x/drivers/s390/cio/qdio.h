@@ -3,11 +3,13 @@
 
 #define VERSION_CIO_QDIO_H "$Revision$"
 
-#ifdef CONFIG_QDIO_DEBUG
+//#define QDIO_DBF_LIKE_HELL
+
+#ifdef QDIO_DBF_LIKE_HELL
 #define QDIO_VERBOSE_LEVEL 9
-#else /* CONFIG_QDIO_DEBUG */
+#else /* QDIO_DBF_LIKE_HELL */
 #define QDIO_VERBOSE_LEVEL 5
-#endif /* CONFIG_QDIO_DEBUG */
+#endif /* QDIO_DBF_LIKE_HELL */
 
 #define QDIO_USE_PROCESSING_STATE
 
@@ -31,8 +33,7 @@
 
 #define TIQDIO_THININT_ISC 3
 #define TIQDIO_DELAY_TARGET 0
-#define QDIO_BUSY_BIT_PATIENCE 100 /* in microsecs */
-#define QDIO_BUSY_BIT_GIVE_UP 10000000 /* 10 seconds */
+#define QDIO_BUSY_BIT_PATIENCE 2000 /* in microsecs */
 #define IQDIO_GLOBAL_LAPS 2 /* GLOBAL_LAPS are not used as we */
 #define IQDIO_GLOBAL_LAPS_INT 1 /* don't global summary */
 #define IQDIO_LOCAL_LAPS 4
@@ -101,75 +102,75 @@ enum qdio_irq_states {
 #define QDIO_DBF_HEX0(ex,name,addr,len) QDIO_DBF_HEX(ex,name,0,addr,len)
 #define QDIO_DBF_HEX1(ex,name,addr,len) QDIO_DBF_HEX(ex,name,1,addr,len)
 #define QDIO_DBF_HEX2(ex,name,addr,len) QDIO_DBF_HEX(ex,name,2,addr,len)
-#ifdef CONFIG_QDIO_DEBUG
+#ifdef QDIO_DBF_LIKE_HELL
 #define QDIO_DBF_HEX3(ex,name,addr,len) QDIO_DBF_HEX(ex,name,3,addr,len)
 #define QDIO_DBF_HEX4(ex,name,addr,len) QDIO_DBF_HEX(ex,name,4,addr,len)
 #define QDIO_DBF_HEX5(ex,name,addr,len) QDIO_DBF_HEX(ex,name,5,addr,len)
 #define QDIO_DBF_HEX6(ex,name,addr,len) QDIO_DBF_HEX(ex,name,6,addr,len)
-#else /* CONFIG_QDIO_DEBUG */
+#else /* QDIO_DBF_LIKE_HELL */
 #define QDIO_DBF_HEX3(ex,name,addr,len) do {} while (0)
 #define QDIO_DBF_HEX4(ex,name,addr,len) do {} while (0)
 #define QDIO_DBF_HEX5(ex,name,addr,len) do {} while (0)
 #define QDIO_DBF_HEX6(ex,name,addr,len) do {} while (0)
-#endif /* CONFIG_QDIO_DEBUG */
+#endif /* QDIO_DBF_LIKE_HELL */
 
 #define QDIO_DBF_TEXT0(ex,name,text) QDIO_DBF_TEXT(ex,name,0,text)
 #define QDIO_DBF_TEXT1(ex,name,text) QDIO_DBF_TEXT(ex,name,1,text)
 #define QDIO_DBF_TEXT2(ex,name,text) QDIO_DBF_TEXT(ex,name,2,text)
-#ifdef CONFIG_QDIO_DEBUG
+#ifdef QDIO_DBF_LIKE_HELL
 #define QDIO_DBF_TEXT3(ex,name,text) QDIO_DBF_TEXT(ex,name,3,text)
 #define QDIO_DBF_TEXT4(ex,name,text) QDIO_DBF_TEXT(ex,name,4,text)
 #define QDIO_DBF_TEXT5(ex,name,text) QDIO_DBF_TEXT(ex,name,5,text)
 #define QDIO_DBF_TEXT6(ex,name,text) QDIO_DBF_TEXT(ex,name,6,text)
-#else /* CONFIG_QDIO_DEBUG */
+#else /* QDIO_DBF_LIKE_HELL */
 #define QDIO_DBF_TEXT3(ex,name,text) do {} while (0)
 #define QDIO_DBF_TEXT4(ex,name,text) do {} while (0)
 #define QDIO_DBF_TEXT5(ex,name,text) do {} while (0)
 #define QDIO_DBF_TEXT6(ex,name,text) do {} while (0)
-#endif /* CONFIG_QDIO_DEBUG */
+#endif /* QDIO_DBF_LIKE_HELL */
 
 #define QDIO_DBF_SETUP_NAME "qdio_setup"
 #define QDIO_DBF_SETUP_LEN 8
 #define QDIO_DBF_SETUP_INDEX 2
 #define QDIO_DBF_SETUP_NR_AREAS 1
-#ifdef CONFIG_QDIO_DEBUG
+#ifdef QDIO_DBF_LIKE_HELL
 #define QDIO_DBF_SETUP_LEVEL 6
-#else /* CONFIG_QDIO_DEBUG */
+#else /* QDIO_DBF_LIKE_HELL */
 #define QDIO_DBF_SETUP_LEVEL 2
-#endif /* CONFIG_QDIO_DEBUG */
+#endif /* QDIO_DBF_LIKE_HELL */
 
 #define QDIO_DBF_SBAL_NAME "qdio_labs" /* sbal */
 #define QDIO_DBF_SBAL_LEN 256
 #define QDIO_DBF_SBAL_INDEX 2
 #define QDIO_DBF_SBAL_NR_AREAS 2
-#ifdef CONFIG_QDIO_DEBUG
+#ifdef QDIO_DBF_LIKE_HELL
 #define QDIO_DBF_SBAL_LEVEL 6
-#else /* CONFIG_QDIO_DEBUG */
+#else /* QDIO_DBF_LIKE_HELL */
 #define QDIO_DBF_SBAL_LEVEL 2
-#endif /* CONFIG_QDIO_DEBUG */
+#endif /* QDIO_DBF_LIKE_HELL */
 
 #define QDIO_DBF_TRACE_NAME "qdio_trace"
 #define QDIO_DBF_TRACE_LEN 8
 #define QDIO_DBF_TRACE_NR_AREAS 2
-#ifdef CONFIG_QDIO_DEBUG
+#ifdef QDIO_DBF_LIKE_HELL
 #define QDIO_DBF_TRACE_INDEX 4
 #define QDIO_DBF_TRACE_LEVEL 4 /* -------- could be even more verbose here */
-#else /* CONFIG_QDIO_DEBUG */
+#else /* QDIO_DBF_LIKE_HELL */
 #define QDIO_DBF_TRACE_INDEX 2
 #define QDIO_DBF_TRACE_LEVEL 2
-#endif /* CONFIG_QDIO_DEBUG */
+#endif /* QDIO_DBF_LIKE_HELL */
 
 #define QDIO_DBF_SENSE_NAME "qdio_sense"
 #define QDIO_DBF_SENSE_LEN 64
 #define QDIO_DBF_SENSE_INDEX 1
 #define QDIO_DBF_SENSE_NR_AREAS 1
-#ifdef CONFIG_QDIO_DEBUG
+#ifdef QDIO_DBF_LIKE_HELL
 #define QDIO_DBF_SENSE_LEVEL 6
-#else /* CONFIG_QDIO_DEBUG */
+#else /* QDIO_DBF_LIKE_HELL */
 #define QDIO_DBF_SENSE_LEVEL 2
-#endif /* CONFIG_QDIO_DEBUG */
+#endif /* QDIO_DBF_LIKE_HELL */
 
-#ifdef CONFIG_QDIO_DEBUG
+#ifdef QDIO_DBF_LIKE_HELL
 #define QDIO_TRACE_QTYPE QDIO_ZFCP_QFMT
 
 #define QDIO_DBF_SLSB_OUT_NAME "qdio_slsb_out"
@@ -183,7 +184,7 @@ enum qdio_irq_states {
 #define QDIO_DBF_SLSB_IN_INDEX 8
 #define QDIO_DBF_SLSB_IN_NR_AREAS 1
 #define QDIO_DBF_SLSB_IN_LEVEL 6
-#endif /* CONFIG_QDIO_DEBUG */
+#endif /* QDIO_DBF_LIKE_HELL */
 
 #define QDIO_PRINTK_HEADER QDIO_NAME ": "
 
@@ -492,7 +493,7 @@ struct qdio_perf_stats {
 #define QDIO_GET_ADDR(x) ((__u32)(long)x)
 #endif /* CONFIG_ARCH_S390X */
 
-#ifdef CONFIG_QDIO_DEBUG
+#ifdef QDIO_DBF_LIKE_HELL 
 #define set_slsb(x,y) \
   if(q->queue_type==QDIO_TRACE_QTYPE) { \
         if(q->is_input_q) { \
@@ -509,14 +510,12 @@ struct qdio_perf_stats {
             QDIO_DBF_HEX2(0,slsb_out,&q->slsb,QDIO_MAX_BUFFERS_PER_Q); \
         } \
   }
-#else /* CONFIG_QDIO_DEBUG */
+#else /* QDIO_DBF_LIKE_HELL */
 #define set_slsb(x,y) qdio_set_slsb(x,y)
-#endif /* CONFIG_QDIO_DEBUG */
+#endif /* QDIO_DBF_LIKE_HELL */
 
 struct qdio_q {
 	volatile struct slsb slsb;
-
-	char unused[QDIO_MAX_BUFFERS_PER_Q];
 
 	__u32 * volatile dev_st_chg_ind;
 
@@ -600,9 +599,7 @@ struct qdio_q {
 		int last_transfer_index; */
 
 		__u64 last_transfer_time;
-		__u64 busy_start;
 	} timing;
-	atomic_t busy_siga_counter;
         unsigned int queue_type;
 
 	/* leave this member at the end. won't be cleared in qdio_fill_qs */

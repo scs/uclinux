@@ -4,23 +4,28 @@
  * Code common to all TITAN core logic chips.
  */
 
-#define __EXTERN_INLINE inline
-#include <asm/io.h>
-#include <asm/core_titan.h>
-#undef __EXTERN_INLINE
-
+#include <linux/config.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/vmalloc.h>
-#include <linux/bootmem.h>
 
+#include <asm/hwrpb.h>
 #include <asm/ptrace.h>
+#include <asm/system.h>
 #include <asm/smp.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
+
+#define __EXTERN_INLINE inline
+#include <asm/io.h>
+#include <asm/core_titan.h>
+#undef __EXTERN_INLINE
+
+#include <linux/bootmem.h>
 
 #include "proto.h"
 #include "pci_impl.h"
@@ -258,9 +263,9 @@ titan_init_one_pachip_port(titan_pachip_port *port, int index)
 	hose->sparse_mem_base = 0;
 	hose->sparse_io_base = 0;
 	hose->dense_mem_base
-	  = (TITAN_MEM(index) & 0xffffffffffUL) | 0x80000000000UL;
+	  = (TITAN_MEM(index) & 0xffffffffff) | 0x80000000000;
 	hose->dense_io_base
-	  = (TITAN_IO(index) & 0xffffffffffUL) | 0x80000000000UL;
+	  = (TITAN_IO(index) & 0xffffffffff) | 0x80000000000;
 
 	hose->config_space_base = TITAN_CONF(index);
 	hose->index = index;

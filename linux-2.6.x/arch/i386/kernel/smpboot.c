@@ -33,13 +33,11 @@
  *		Dave Jones	:	Report invalid combinations of Athlon CPUs.
 *		Rusty Russell	:	Hacked into shape for new "hotplug" boot process. */
 
-#include <linux/module.h>
 #include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 
 #include <linux/mm.h>
-#include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/smp_lock.h>
 #include <linux/irq.h>
@@ -47,6 +45,7 @@
 
 #include <linux/delay.h>
 #include <linux/mc146818rtc.h>
+#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
 #include <asm/arch_hooks.h>
@@ -82,7 +81,6 @@ int smp_threads_ready;
 extern unsigned char trampoline_data [];
 extern unsigned char trampoline_end  [];
 static unsigned char *trampoline_base;
-static int trampoline_exec;
 
 /*
  * Currently trivial. Write the real->protected mode
@@ -109,10 +107,6 @@ void __init smp_alloc_memory(void)
 	 */
 	if (__pa(trampoline_base) >= 0x9F000)
 		BUG();
-	/*
-	 * Make the SMP trampoline executable:
-	 */
-	trampoline_exec = set_kernel_exec((unsigned long)trampoline_base, 1);
 }
 
 /*
@@ -509,7 +503,6 @@ cpumask_t node_2_cpu_mask[MAX_NUMNODES] =
 				{ [0 ... MAX_NUMNODES-1] = CPU_MASK_NONE };
 /* which node each logical CPU is on */
 int cpu_2_node[NR_CPUS] = { [0 ... NR_CPUS-1] = 0 };
-EXPORT_SYMBOL(cpu_2_node);
 
 /* set up a mapping between cpu and node. */
 static inline void map_cpu_to_node(int cpu, int node)
@@ -527,7 +520,7 @@ static inline void unmap_cpu_to_node(int cpu)
 	printk("Unmapping cpu %d from all nodes\n", cpu);
 	for (node = 0; node < MAX_NUMNODES; node ++)
 		cpu_clear(cpu, node_2_cpu_mask[node]);
-	cpu_2_node[cpu] = 0;
+	cpu_2_node[cpu] = -1;
 }
 #else /* !CONFIG_NUMA */
 
@@ -820,8 +813,6 @@ static int __init do_boot_cpu(int apicid)
 	/* Stack for startup_32 can be just as for start_secondary onwards */
 	stack_start.esp = (void *) idle->thread.esp;
 
-	irq_ctx_init(cpu);
-
 	/*
 	 * This grunge runs the startup process for
 	 * the targeted processor.
@@ -941,7 +932,7 @@ static int boot_cpu_logical_apicid;
 /* Where the IO area was mapped on multiquad, always 0 otherwise */
 void *xquad_portio;
 
-cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
+int cpu_sibling_map[NR_CPUS] __cacheline_aligned;
 
 static void __init smp_boot_cpus(unsigned int max_cpus)
 {
@@ -955,13 +946,10 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	printk("CPU%d: ", 0);
 	print_cpu_info(&cpu_data[0]);
 
-	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
 	boot_cpu_logical_apicid = logical_smp_processor_id();
 
 	current_thread_info()->cpu = 0;
 	smp_tune_scheduling();
-	cpus_clear(cpu_sibling_map[0]);
-	cpu_set(0, cpu_sibling_map[0]);
 
 	/*
 	 * If we couldn't find an SMP configuration at boot time,
@@ -1018,6 +1006,8 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	setup_local_APIC();
 	map_cpu_to_logical_apicid();
 
+	if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_physical_apicid)
+		BUG();
 
 	setup_portio_remap();
 
@@ -1088,38 +1078,33 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	Dprintk("Boot done.\n");
 
 	/*
-	 * construct cpu_sibling_map[], so that we can tell sibling CPUs
-	 * efficiently.
+	 * If Hyper-Threading is avaialble, construct cpu_sibling_map[], so
+	 * that we can tell the sibling CPU efficiently.
 	 */
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
-		cpus_clear(cpu_sibling_map[cpu]);
+	if (cpu_has_ht && smp_num_siblings > 1) {
+		for (cpu = 0; cpu < NR_CPUS; cpu++)
+			cpu_sibling_map[cpu] = NO_PROC_ID;
+		
+		for (cpu = 0; cpu < NR_CPUS; cpu++) {
+			int 	i;
+			if (!cpu_isset(cpu, cpu_callout_map))
+				continue;
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-		int siblings = 0;
-		int i;
-		if (!cpu_isset(cpu, cpu_callout_map))
-			continue;
-
-		if (smp_num_siblings > 1) {
 			for (i = 0; i < NR_CPUS; i++) {
-				if (!cpu_isset(i, cpu_callout_map))
+				if (i == cpu || !cpu_isset(i, cpu_callout_map))
 					continue;
 				if (phys_proc_id[cpu] == phys_proc_id[i]) {
-					siblings++;
-					cpu_set(i, cpu_sibling_map[cpu]);
+					cpu_sibling_map[cpu] = i;
+					printk("cpu_sibling_map[%d] = %d\n", cpu, cpu_sibling_map[cpu]);
+					break;
 				}
 			}
-		} else {
-			siblings++;
-			cpu_set(cpu, cpu_sibling_map[cpu]);
+			if (cpu_sibling_map[cpu] == NO_PROC_ID) {
+				smp_num_siblings = 1;
+				printk(KERN_WARNING "WARNING: No sibling found for CPU %d.\n", cpu);
+			}
 		}
-
-		if (siblings != smp_num_siblings)
-			printk(KERN_WARNING "WARNING: %d siblings found for CPU%d, should be %d\n", siblings, cpu, smp_num_siblings);
 	}
-
-	if (nmi_watchdog == NMI_LOCAL_APIC)
-		check_nmi_watchdog();
 
 	smpboot_setup_io_apic();
 
@@ -1131,213 +1116,6 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	if (cpu_has_tsc && cpucount && cpu_khz)
 		synchronize_tsc_bp();
 }
-
-#ifdef CONFIG_SCHED_SMT
-#ifdef CONFIG_NUMA
-static struct sched_group sched_group_cpus[NR_CPUS];
-static struct sched_group sched_group_phys[NR_CPUS];
-static struct sched_group sched_group_nodes[MAX_NUMNODES];
-static DEFINE_PER_CPU(struct sched_domain, cpu_domains);
-static DEFINE_PER_CPU(struct sched_domain, phys_domains);
-static DEFINE_PER_CPU(struct sched_domain, node_domains);
-__init void arch_init_sched_domains(void)
-{
-	int i;
-	struct sched_group *first = NULL, *last = NULL;
-
-	/* Set up domains */
-	for_each_cpu(i) {
-		struct sched_domain *cpu_domain = &per_cpu(cpu_domains, i);
-		struct sched_domain *phys_domain = &per_cpu(phys_domains, i);
-		struct sched_domain *node_domain = &per_cpu(node_domains, i);
-		int node = cpu_to_node(i);
-		cpumask_t nodemask = node_to_cpumask(node);
-
-		*cpu_domain = SD_SIBLING_INIT;
-		cpu_domain->span = cpu_sibling_map[i];
-		cpu_domain->parent = phys_domain;
-		cpu_domain->groups = &sched_group_cpus[i];
-
-		*phys_domain = SD_CPU_INIT;
-		phys_domain->span = nodemask;
-		phys_domain->parent = node_domain;
-		phys_domain->groups = &sched_group_phys[first_cpu(cpu_domain->span)];
-
-		*node_domain = SD_NODE_INIT;
-		node_domain->span = cpu_possible_map;
-		node_domain->groups = &sched_group_nodes[cpu_to_node(i)];
-	}
-
-	/* Set up CPU (sibling) groups */
-	for_each_cpu(i) {
-		struct sched_domain *cpu_domain = &per_cpu(cpu_domains, i);
-		int j;
-		first = last = NULL;
-
-		if (i != first_cpu(cpu_domain->span))
-			continue;
-
-		for_each_cpu_mask(j, cpu_domain->span) {
-			struct sched_group *cpu = &sched_group_cpus[j];
-
-			cpu->cpumask = CPU_MASK_NONE;
-			cpu_set(j, cpu->cpumask);
-			cpu->cpu_power = SCHED_LOAD_SCALE;
-
-			if (!first)
-				first = cpu;
-			if (last)
-				last->next = cpu;
-			last = cpu;
-		}
-		last->next = first;
-	}
-
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		int j;
-		cpumask_t nodemask;
-		struct sched_group *node = &sched_group_nodes[i];
-		cpumask_t node_cpumask = node_to_cpumask(i);
-
-		cpus_and(nodemask, node_cpumask, cpu_possible_map);
-
-		if (cpus_empty(nodemask))
-			continue;
-
-		first = last = NULL;
-		/* Set up physical groups */
-		for_each_cpu_mask(j, nodemask) {
-			struct sched_domain *cpu_domain = &per_cpu(cpu_domains, j);
-			struct sched_group *cpu = &sched_group_phys[j];
-
-			if (j != first_cpu(cpu_domain->span))
-				continue;
-
-			cpu->cpumask = cpu_domain->span;
-			/*
-			 * Make each extra sibling increase power by 10% of
-			 * the basic CPU. This is very arbitrary.
-			 */
-			cpu->cpu_power = SCHED_LOAD_SCALE + SCHED_LOAD_SCALE*(cpus_weight(cpu->cpumask)-1) / 10;
-			node->cpu_power += cpu->cpu_power;
-
-			if (!first)
-				first = cpu;
-			if (last)
-				last->next = cpu;
-			last = cpu;
-		}
-		last->next = first;
-	}
-
-	/* Set up nodes */
-	first = last = NULL;
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		struct sched_group *cpu = &sched_group_nodes[i];
-		cpumask_t nodemask;
-		cpumask_t node_cpumask = node_to_cpumask(i);
-
-		cpus_and(nodemask, node_cpumask, cpu_possible_map);
-
-		if (cpus_empty(nodemask))
-			continue;
-
-		cpu->cpumask = nodemask;
-		/* ->cpu_power already setup */
-
-		if (!first)
-			first = cpu;
-		if (last)
-			last->next = cpu;
-		last = cpu;
-	}
-	last->next = first;
-
-	mb();
-	for_each_cpu(i) {
-		struct sched_domain *cpu_domain = &per_cpu(cpu_domains, i);
-		cpu_attach_domain(cpu_domain, i);
-	}
-}
-#else /* !CONFIG_NUMA */
-static struct sched_group sched_group_cpus[NR_CPUS];
-static struct sched_group sched_group_phys[NR_CPUS];
-static DEFINE_PER_CPU(struct sched_domain, cpu_domains);
-static DEFINE_PER_CPU(struct sched_domain, phys_domains);
-__init void arch_init_sched_domains(void)
-{
-	int i;
-	struct sched_group *first = NULL, *last = NULL;
-
-	/* Set up domains */
-	for_each_cpu(i) {
-		struct sched_domain *cpu_domain = &per_cpu(cpu_domains, i);
-		struct sched_domain *phys_domain = &per_cpu(phys_domains, i);
-
-		*cpu_domain = SD_SIBLING_INIT;
-		cpu_domain->span = cpu_sibling_map[i];
-		cpu_domain->parent = phys_domain;
-		cpu_domain->groups = &sched_group_cpus[i];
-
-		*phys_domain = SD_CPU_INIT;
-		phys_domain->span = cpu_possible_map;
-		phys_domain->groups = &sched_group_phys[first_cpu(cpu_domain->span)];
-	}
-
-	/* Set up CPU (sibling) groups */
-	for_each_cpu(i) {
-		struct sched_domain *cpu_domain = &per_cpu(cpu_domains, i);
-		int j;
-		first = last = NULL;
-
-		if (i != first_cpu(cpu_domain->span))
-			continue;
-
-		for_each_cpu_mask(j, cpu_domain->span) {
-			struct sched_group *cpu = &sched_group_cpus[j];
-
-			cpus_clear(cpu->cpumask);
-			cpu_set(j, cpu->cpumask);
-			cpu->cpu_power = SCHED_LOAD_SCALE;
-
-			if (!first)
-				first = cpu;
-			if (last)
-				last->next = cpu;
-			last = cpu;
-		}
-		last->next = first;
-	}
-
-	first = last = NULL;
-	/* Set up physical groups */
-	for_each_cpu(i) {
-		struct sched_domain *cpu_domain = &per_cpu(cpu_domains, i);
-		struct sched_group *cpu = &sched_group_phys[i];
-
-		if (i != first_cpu(cpu_domain->span))
-			continue;
-
-		cpu->cpumask = cpu_domain->span;
-		/* See SMT+NUMA setup for comment */
-		cpu->cpu_power = SCHED_LOAD_SCALE + SCHED_LOAD_SCALE*(cpus_weight(cpu->cpumask)-1) / 10;
-
-		if (!first)
-			first = cpu;
-		if (last)
-			last->next = cpu;
-		last = cpu;
-	}
-	last->next = first;
-
-	mb();
-	for_each_cpu(i) {
-		struct sched_domain *cpu_domain = &per_cpu(cpu_domains, i);
-		cpu_attach_domain(cpu_domain, i);
-	}
-}
-#endif /* CONFIG_NUMA */
-#endif /* CONFIG_SCHED_SMT */
 
 /* These are wrappers to interface to the new boot process.  Someone
    who understands all this stuff should rewrite it properly. --RR 15/Jul/02 */
@@ -1377,13 +1155,10 @@ int __devinit __cpu_up(unsigned int cpu)
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 #ifdef CONFIG_X86_IO_APIC
-	setup_ioapic_dest();
+	cpumask_t targets = CPU_MASK_ALL;
+	setup_ioapic_dest(targets);
 #endif
 	zap_low_mappings();
-	/*
-	 * Disable executability of the SMP trampoline:
-	 */
-	set_kernel_exec((unsigned long)trampoline_base, trampoline_exec);
 }
 
 void __init smp_intr_init(void)

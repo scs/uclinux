@@ -7,8 +7,6 @@
  *                                          Deep Blue Solutions Ltd.
  *  Copyright 2001 Altera Corporation
  *
- *  Update for 2.6.4 by Dirk Behme <dirk.behme@de.bosch.com>
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -34,6 +32,7 @@
 #include <linux/serial.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
+#include <linux/pld/pld_hotswap.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -252,7 +251,7 @@ static void uart00_modem_status(struct uart_port *port)
 	wake_up_interruptible(&port->info->delta_msr_wait);
 }
 
-static irqreturn_t uart00_int(int irq, void *dev_id, struct pt_regs *regs)
+static void uart00_int(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct uart_port *port = dev_id;
 	unsigned int status, pass_counter = 0;
@@ -270,8 +269,6 @@ static irqreturn_t uart00_int(int irq, void *dev_id, struct pt_regs *regs)
 
 		status = UART_GET_INT_STATUS(port);
 	} while (status);
-
-	return IRQ_HANDLED;
 }
 
 static unsigned int uart00_tx_empty(struct uart_port *port)
@@ -616,7 +613,7 @@ uart00_console_get_options(struct uart_port *port, int *baud,
 static int __init uart00_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
-	int baud = 115200;
+	int baud = 38400;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
@@ -642,7 +639,7 @@ static struct console uart00_console = {
 	.setup		= uart00_console_setup,
 	.flags		= CON_PRINTBUFFER,
 	.index		= 0,
-	.data		= &uart00_reg,
+	.data		= &uart00_reg;
 };
 
 static int __init uart00_console_init(void)
@@ -672,10 +669,9 @@ struct dev_port_entry{
 	struct uart_port *port;
 };
 
-#ifdef CONFIG_PLD_HOTSWAP
-
 static struct dev_port_entry dev_port_map[UART_NR];
 
+#ifdef CONFIG_PLD_HOTSWAP
 /*
  * Keep a mapping of dev_info addresses -> port lines to use when
  * removing ports dev==NULL indicates unused entry

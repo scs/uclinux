@@ -41,10 +41,12 @@
 
 /* These are for everybody (although not all archs will actually
    discard it in modules) */
-#define __init		__attribute__ ((__section__ (".init.text")))
+
+#define __init		__attribute__ ((__section__ (".init.text"))) 
 #define __initdata	__attribute__ ((__section__ (".init.data")))
 #define __exitdata	__attribute__ ((__section__(".exit.data")))
 #define __exit_call	__attribute_used__ __attribute__ ((__section__ (".exitcall.exit")))
+
 
 #ifdef MODULE
 #define __exit		__attribute__ ((__section__(".exit.text")))
@@ -66,9 +68,6 @@ typedef void (*exitcall_t)(void);
 
 extern initcall_t __con_initcall_start, __con_initcall_end;
 extern initcall_t __security_initcall_start, __security_initcall_end;
-
-/* Defined in init/main.c */
-extern char saved_command_line[];
 #endif
   
 #ifndef MODULE
@@ -110,39 +109,16 @@ extern char saved_command_line[];
 struct obs_kernel_param {
 	const char *str;
 	int (*setup_func)(char *);
-	int early;
 };
 
-/*
- * Only for really core code.  See moduleparam.h for the normal way.
- *
- * Force the alignment so the compiler doesn't space elements of the
- * obs_kernel_param "array" too far apart in .init.setup.
- */
-#define __setup_param(str, unique_id, fn, early)			\
-	static char __setup_str_##unique_id[] __initdata = str;	\
-	static struct obs_kernel_param __setup_##unique_id	\
-		__attribute_used__				\
-		__attribute__((__section__(".init.setup")))	\
-		__attribute__((aligned((sizeof(long)))))	\
-		= { __setup_str_##unique_id, fn, early }
-
-#define __setup_null_param(str, unique_id)			\
-	__setup_param(str, unique_id, NULL, 0)
-
+/* OBSOLETE: see moduleparam.h for the right way.*/ 
 #define __setup(str, fn)					\
-	__setup_param(str, fn, fn, 0)
+	static char __setup_str_##fn[] __initdata = str;	\
+	static struct obs_kernel_param __setup_##fn		\
+		 __attribute_used__				\
+		 __attribute__((__section__(".init.setup")))	\
+		= { __setup_str_##fn, fn }
 
-#define __obsolete_setup(str)					\
-	__setup_null_param(str, __LINE__)
-
-/* NOTE: fn is as per module_param, not __setup!  Emits warning if fn
- * returns non-zero. */
-#define early_param(str, fn)					\
-	__setup_param(str, fn, fn, 1)
-
-/* Relies on saved_command_line being set */
-void __init parse_early_param(void);
 #endif /* __ASSEMBLY__ */
 
 /**
@@ -198,10 +174,7 @@ void __init parse_early_param(void);
 	{ return exitfn; }					\
 	void cleanup_module(void) __attribute__((alias(#exitfn)));
 
-#define __setup_param(str, unique_id, fn)	/* nothing */
-#define __setup_null_param(str, unique_id) 	/* nothing */
-#define __setup(str, func) 			/* nothing */
-#define __obsolete_setup(str) 			/* nothing */
+#define __setup(str,func) /* nothing */
 #endif
 
 /* Data marked not to be saved by software_suspend() */

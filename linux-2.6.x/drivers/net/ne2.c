@@ -82,8 +82,6 @@ static const char *version = "ne2.c:v0.91 Nov 16 1998 Wim Dumon <wimpie@kotnet.o
 
 #include "8390.h"
 
-#define DRV_NAME "ne2"
-
 /* Some defines that people can play with if so inclined. */
 
 /* Do we perform extra sanity checks on stuff ? */
@@ -244,7 +242,7 @@ static unsigned int __init dlink_get_eeprom(unsigned int eeaddr, unsigned int ad
  * Note that at boot, this probe only picks up one card at a time.
  */
 
-static int __init do_ne2_probe(struct net_device *dev)
+int __init ne2_probe(struct net_device *dev)
 {
 	static int current_mca_slot = -1;
 	int i;
@@ -264,54 +262,16 @@ static int __init do_ne2_probe(struct net_device *dev)
 			mca_find_unused_adapter(ne2_adapters[i].id, 0);
 
 		if((current_mca_slot != MCA_NOTFOUND) && !adapter_found) {
-			int res;
 			mca_set_adapter_name(current_mca_slot, 
 					ne2_adapters[i].name);
 			mca_mark_as_used(current_mca_slot);
 			
-			res = ne2_probe1(dev, current_mca_slot);
-			if (res)
-				mca_mark_as_unused(current_mca_slot);
-			return res;
+			return ne2_probe1(dev, current_mca_slot);
 		}
 	}
 	return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	mca_mark_as_unused(ei_status.priv);
-	mca_set_adapter_procfn( ei_status.priv, NULL, NULL);
-	free_irq(dev->irq, dev);
-	release_region(dev->base_addr, NE_IO_EXTENT);
-}
-
-#ifndef MODULE
-struct net_device * __init ne2_probe(int unit)
-{
-	struct net_device *dev = alloc_ei_netdev();
-	int err;
-
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	sprintf(dev->name, "eth%d", unit);
-	netdev_boot_setup_check(dev);
-
-	err = do_ne2_probe(dev);
-	if (err)
-		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
-	return dev;
-out1:
-	cleanup_card(dev);
-out:
-	free_netdev(dev);
-	return ERR_PTR(err);
-}
-#endif
 
 static int ne2_procinfo(char *buf, int slot, struct net_device *dev)
 {
@@ -372,7 +332,7 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 		irq = irqs[(POS & 0x60)>>5];
 	}
 
-	if (!request_region(base_addr, NE_IO_EXTENT, DRV_NAME))
+	if (!request_region(base_addr, NE_IO_EXTENT, dev->name))
 		return -EBUSY;
 
 #ifdef DEBUG
@@ -474,7 +434,7 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 
 	/* Snarf the interrupt now.  There's no point in waiting since we cannot
 	   share and the board will usually be enabled. */
-	retval = request_irq(dev->irq, ei_interrupt, 0, DRV_NAME, dev);
+	retval = request_irq(dev->irq, ei_interrupt, 0, dev->name, dev);
 	if (retval) {
 		printk (" unable to get IRQ %d (irqval=%d).\n", 
 				dev->irq, retval);
@@ -482,6 +442,14 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 	}
 
 	dev->base_addr = base_addr;
+
+	/* Allocate dev->priv and fill in 8390 specific dev fields. */
+	if (ethdev_init(dev)) {
+		printk (" unable to get memory for dev->priv.\n");
+		free_irq(dev->irq, dev);
+		retval = -ENOMEM;
+		goto out;
+	}
 
 	for(i = 0; i < ETHER_ADDR_LEN; i++) {
 		printk(" %2.2x", SA_prom[i]);
@@ -513,9 +481,6 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 	
 	dev->open = &ne_open;
 	dev->stop = &ne_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
 	NS8390_init(dev, 0);
 	return 0;
 out:
@@ -770,47 +735,42 @@ retry:
 
 #ifdef MODULE
 #define MAX_NE_CARDS	4	/* Max number of NE cards per module */
-static struct net_device *dev_ne[MAX_NE_CARDS];
+static struct net_device dev_ne[MAX_NE_CARDS];
 static int io[MAX_NE_CARDS];
 static int irq[MAX_NE_CARDS];
 static int bad[MAX_NE_CARDS];	/* 0xbad = bad sig or no reset ack */
 MODULE_LICENSE("GPL");
 
+#ifdef MODULE_PARM
 MODULE_PARM(io, "1-" __MODULE_STRING(MAX_NE_CARDS) "i");
 MODULE_PARM(irq, "1-" __MODULE_STRING(MAX_NE_CARDS) "i");
 MODULE_PARM(bad, "1-" __MODULE_STRING(MAX_NE_CARDS) "i");
 MODULE_PARM_DESC(io, "(ignored)");
 MODULE_PARM_DESC(irq, "(ignored)");
 MODULE_PARM_DESC(bad, "(ignored)");
+#endif
 
 /* Module code fixed by David Weinehall */
 
 int init_module(void)
 {
-	struct net_device *dev;
 	int this_dev, found = 0;
 
 	for (this_dev = 0; this_dev < MAX_NE_CARDS; this_dev++) {
-		dev = alloc_ei_netdev();
-		if (!dev)
-			break;
+		struct net_device *dev = &dev_ne[this_dev];
 		dev->irq = irq[this_dev];
 		dev->mem_end = bad[this_dev];
 		dev->base_addr = io[this_dev];
-		if (do_ne2_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_ne[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+		dev->init = ne2_probe;
+		if (register_netdev(dev) != 0) {
+			if (found != 0) return 0;   /* Got at least one. */
+
+			printk(KERN_WARNING "ne2.c: No NE/2 card found.\n");
+			return -ENXIO;
 		}
-		free_netdev(dev);
-		break;
+		found++;
 	}
-	if (found)
-		return 0;
-	printk(KERN_WARNING "ne2.c: No NE/2 card found\n");
-	return -ENXIO;
+	return 0;
 }
 
 void cleanup_module(void)
@@ -818,11 +778,14 @@ void cleanup_module(void)
 	int this_dev;
 
 	for (this_dev = 0; this_dev < MAX_NE_CARDS; this_dev++) {
-		struct net_device *dev = dev_ne[this_dev];
-		if (dev) {
+		struct net_device *dev = &dev_ne[this_dev];
+		if (dev->priv != NULL) {
+			mca_mark_as_unused(ei_status.priv);
+			mca_set_adapter_procfn( ei_status.priv, NULL, NULL);
+			kfree(dev->priv);
+			free_irq(dev->irq, dev);
+			release_region(dev->base_addr, NE_IO_EXTENT);
 			unregister_netdev(dev);
-			cleanup_card(dev);
-			free_netdev(dev);
 		}
 	}
 }

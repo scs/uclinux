@@ -123,6 +123,7 @@ struct net_local {
 
 /* Index to functions, as function prototypes. */
 
+extern int mac89x0_probe(struct net_device *dev);
 #if 0
 extern void reset_chip(struct net_device *dev);
 #endif
@@ -169,9 +170,8 @@ writereg(struct net_device *dev, int portno, int value)
 
 /* Probe for the CS8900 card in slot E.  We won't bother looking
    anywhere else until we have a really good reason to do so. */
-struct net_device * __init mac89x0_probe(int unit)
+int __init mac89x0_probe(struct net_device *dev)
 {
-	struct net_device *dev;
 	static int once_is_enough;
 	struct net_local *lp;
 	static unsigned version_printed;
@@ -179,28 +179,18 @@ struct net_device * __init mac89x0_probe(int unit)
 	unsigned rev_type = 0;
 	unsigned long ioaddr;
 	unsigned short sig;
-	int err = -ENODEV;
-
-	dev = alloc_etherdev(sizeof(struct net_local));
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	if (unit >= 0) {
-		sprintf(dev->name, "eth%d", unit);
-		netdev_boot_setup_check(dev);
-	}
 
 	SET_MODULE_OWNER(dev);
 
 	if (once_is_enough)
-		goto out;
+		return -ENODEV;
 	once_is_enough = 1;
 
 	/* We might have to parameterize this later */
 	slot = 0xE;
 	/* Get out now if there's a real NuBus card in slot E */
 	if (nubus_find_slot(slot, NULL) != NULL)
-		goto out;
+		return -ENODEV;	
 
 	/* The pseudo-ISA bits always live at offset 0x300 (gee,
            wonder why...) */
@@ -216,16 +206,22 @@ struct net_device * __init mac89x0_probe(int unit)
 		local_irq_restore(flags);
 
 		if (!card_present)
-			goto out;
+			return -ENODEV;
 	}
 
 	nubus_writew(0, ioaddr + ADD_PORT);
 	sig = nubus_readw(ioaddr + DATA_PORT);
 	if (sig != swab16(CHIP_EISA_ID_SIG))
-		goto out;
+		return -ENODEV;
 
 	/* Initialize the net_device structure. */
-	lp = netdev_priv(dev);
+	if (dev->priv == NULL) {
+		dev->priv = kmalloc(sizeof(struct net_local), GFP_KERNEL);
+		if (!dev->priv)
+			return -ENOMEM;
+                memset(dev->priv, 0, sizeof(struct net_local));
+        }
+	lp = (struct net_local *)dev->priv;
 
 	/* Fill in the 'dev' fields. */
 	dev->base_addr = ioaddr;
@@ -262,7 +258,9 @@ struct net_device * __init mac89x0_probe(int unit)
 	/* Try to read the MAC address */
 	if ((readreg(dev, PP_SelfST) & (EEPROM_PRESENT | EEPROM_OK)) == 0) {
 		printk("\nmac89x0: No EEPROM, giving up now.\n");
-		goto out1;
+		kfree(dev->priv);
+		dev->priv = NULL;
+		return -ENODEV;
         } else {
                 for (i = 0; i < ETH_ALEN; i += 2) {
 			/* Big-endian (why??!) */
@@ -279,7 +277,6 @@ struct net_device * __init mac89x0_probe(int unit)
 	for (i = 0; i < ETH_ALEN; i++)
 		printk("%2.2x%s", dev->dev_addr[i],
 		       ((i < ETH_ALEN-1) ? ":" : ""));
-	printk("\n");
 
 	dev->open		= net_open;
 	dev->stop		= net_close;
@@ -288,15 +285,11 @@ struct net_device * __init mac89x0_probe(int unit)
 	dev->set_multicast_list = &set_multicast_list;
 	dev->set_mac_address = &set_mac_address;
 
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
+	/* Fill in the fields of the net_device structure with ethernet values. */
+	ether_setup(dev);
+
+	printk("\n");
 	return 0;
-out1:
-	nubus_writew(0, dev->base_addr + ADD_PORT);
-out:
-	free_netdev(dev);
-	return ERR_PTR(err);
 }
 
 #if 0
@@ -328,7 +321,7 @@ void __init reset_chip(struct net_device *dev)
 static int
 net_open(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	int i;
 
 	/* Disable the interrupt for now */
@@ -392,7 +385,7 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	if (test_and_set_bit(0, (void*)&dev->tbusy) != 0)
 		printk("%s: Transmitter access conflict.\n", dev->name);
 	else {
-		struct net_local *lp = netdev_priv(dev);
+		struct net_local *lp = (struct net_local *)dev->priv;
 		unsigned long flags;
 
 		if (net_debug > 3)
@@ -446,7 +439,7 @@ static irqreturn_t net_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	dev->interrupt = 1;
 
 	ioaddr = dev->base_addr;
-	lp = netdev_priv(dev);
+	lp = (struct net_local *)dev->priv;
 
 	/* we MUST read all the events out of the ISQ, otherwise we'll never
            get interrupted again.  As a consequence, we can't have any limit
@@ -505,7 +498,7 @@ static irqreturn_t net_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 static void
 net_rx(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	struct sk_buff *skb;
 	int status, length;
 
@@ -571,7 +564,7 @@ net_close(struct net_device *dev)
 static struct net_device_stats *
 net_get_stats(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -585,7 +578,7 @@ net_get_stats(struct net_device *dev)
 
 static void set_multicast_list(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
+	struct net_local *lp = (struct net_local *)dev->priv;
 
 	if(dev->flags&IFF_PROMISC)
 	{
@@ -626,7 +619,7 @@ static int set_mac_address(struct net_device *dev, void *addr)
 
 #ifdef MODULE
 
-static struct net_device *dev_cs89x0;
+static struct net_device dev_cs89x0;
 static int debug;
 
 MODULE_PARM(debug, "i");
@@ -637,20 +630,36 @@ int
 init_module(void)
 {
 	net_debug = debug;
-        dev_cs89x0 = mac89x0_probe(-1);
-	if (IS_ERR(dev_cs89x0)) {
+        dev_cs89x0.init = mac89x0_probe;
+        dev_cs89x0.priv = kmalloc(sizeof(struct net_local), GFP_KERNEL);
+	if (!dev_cs89x0.priv)
+		return -ENOMEM;
+	memset(dev_cs89x0.priv, 0, sizeof(struct net_local));
+
+        if (register_netdev(&dev_cs89x0) != 0) {
                 printk(KERN_WARNING "mac89x0.c: No card found\n");
-		return PTR_ERR(dev_cs89x0);
-	}
+		kfree(dev_cs89x0.priv);
+                return -ENXIO;
+        }
 	return 0;
 }
 
 void
 cleanup_module(void)
 {
-	unregister_netdev(dev_cs89x0);
-	nubus_writew(0, dev_cs89x0->base_addr + ADD_PORT);
-	free_netdev(dev_cs89x0);
+
+#endif
+#ifdef MODULE
+	nubus_writew(0, dev_cs89x0.base_addr + ADD_PORT);
+#endif
+#ifdef MODULE
+
+        if (dev_cs89x0.priv != NULL) {
+                /* Free up the private structure, or leak memory :-)  */
+                unregister_netdev(&dev_cs89x0);
+                kfree(dev_cs89x0.priv);
+                dev_cs89x0.priv = NULL;	/* gets re-allocated by cs89x0_probe1 */
+        }
 }
 #endif /* MODULE */
 

@@ -241,7 +241,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 
 #ifdef CONFIG_X86_CMPXCHG
 #define __HAVE_ARCH_CMPXCHG 1
-#endif
 
 static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 				      unsigned long new, int size)
@@ -274,6 +273,10 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
 					(unsigned long)(n),sizeof(*(ptr))))
     
+#else
+/* Compiling for a 386 proper.	Is it worth implementing via cli/sti?  */
+#endif
+
 #ifdef __KERNEL__
 struct alt_instr { 
 	__u8 *instr; 		/* original instruction */
@@ -465,6 +468,13 @@ struct alt_instr {
 void disable_hlt(void);
 void enable_hlt(void);
 
+extern unsigned long dmi_broken;
+extern int is_sony_vaio_laptop;
 extern int es7000_plat;
+
+#define BROKEN_ACPI_Sx		0x0001
+#define BROKEN_INIT_AFTER_S1	0x0002
+#define BROKEN_PNP_BIOS		0x0004
+#define BROKEN_CPUFREQ		0x0008
 
 #endif

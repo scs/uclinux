@@ -33,11 +33,8 @@ pcibr_hints_get(vertex_hdl_t xconn_vhdl, int alloc)
     if (alloc && (rv != GRAPH_SUCCESS)) {
 
 	hint = kmalloc(sizeof (*(hint)), GFP_KERNEL);
-	if ( !hint ) {
-		printk(KERN_WARNING "pcibr_hints_get(): unable to allocate "
-			"memory\n");
+	if ( !hint )
 		goto abnormal_exit;
-	}
 	memset(hint, 0, sizeof (*(hint)));
 
 	hint->rrb_alloc_funct = NULL;
@@ -60,7 +57,7 @@ pcibr_hints_get(vertex_hdl_t xconn_vhdl, int alloc)
 
 abnormal_exit:
     kfree(hint);
-    return NULL;
+    return(NULL);
 
 }
 

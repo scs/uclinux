@@ -241,7 +241,7 @@ pci_device_probe_static(struct pci_driver *drv, struct pci_dev *pci_dev)
 		error = drv->probe(pci_dev, id);
 	if (error >= 0) {
 		pci_dev->driver = drv;
-		error = 0;
+		return 0;
 	}
 	return error;
 }
@@ -299,30 +299,10 @@ static int pci_device_suspend(struct device * dev, u32 state)
 {
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	struct pci_driver * drv = pci_dev->driver;
-	int i = 0;
 
 	if (drv && drv->suspend)
-		i = drv->suspend(pci_dev,state);
-		
-	pci_save_state(pci_dev, pci_dev->saved_config_space);
-	return i;
-}
-
-
-/* 
- * Default resume method for devices that have no driver provided resume,
- * or not even a driver at all.
- */
-static void pci_default_resume(struct pci_dev *pci_dev)
-{
-	/* restore the PCI config space */
-	pci_restore_state(pci_dev, pci_dev->saved_config_space);
-	/* if the device was enabled before suspend, reenable */
-	if (pci_dev->is_enabled)
-		pci_enable_device(pci_dev);
-	/* if the device was busmaster before the suspend, make it busmaster again */
-	if (pci_dev->is_busmaster)
-		pci_set_master(pci_dev);
+		return drv->suspend(pci_dev,state);
+	return 0;
 }
 
 static int pci_device_resume(struct device * dev)
@@ -332,8 +312,6 @@ static int pci_device_resume(struct device * dev)
 
 	if (drv && drv->resume)
 		drv->resume(pci_dev);
-	else
-		pci_default_resume(pci_dev);
 	return 0;
 }
 
@@ -539,7 +517,6 @@ struct bus_type pci_bus_type = {
 	.hotplug	= pci_hotplug,
 	.suspend	= pci_device_suspend,
 	.resume		= pci_device_resume,
-	.dev_attrs	= pci_dev_attrs,
 };
 
 static int __init pci_driver_init(void)

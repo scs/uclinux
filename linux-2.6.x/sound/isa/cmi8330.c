@@ -47,10 +47,10 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/pnp.h>
-#include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/ad1848.h>
 #include <sound/sb.h>
+#define SNDRV_GET_ID
 #include <sound/initval.h>
 
 /*
@@ -79,43 +79,42 @@ static int sbdma16[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;
 static long wssport[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
 static int wssirq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;
 static int wssdma[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;
-static int boot_devs;
 
-module_param_array(index, int, boot_devs, 0444);
+MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(index, "Index value for CMI8330 soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-module_param_array(id, charp, boot_devs, 0444);
+MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
 MODULE_PARM_DESC(id, "ID string  for CMI8330 soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-module_param_array(enable, bool, boot_devs, 0444);
+MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(enable, "Enable CMI8330 soundcard.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
 #ifdef CONFIG_PNP
-module_param_array(isapnp, bool, boot_devs, 0444);
+MODULE_PARM(isapnp, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(isapnp, "PnP detection for specified soundcard.");
 MODULE_PARM_SYNTAX(isapnp, SNDRV_ISAPNP_DESC);
 #endif
 
-module_param_array(sbport, long, boot_devs, 0444);
+MODULE_PARM(sbport, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(sbport, "Port # for CMI8330 SB driver.");
 MODULE_PARM_SYNTAX(sbport, SNDRV_ENABLED ",allows:{{0x220,0x280,0x20}},prefers:{0x220},base:16,dialog:list");
-module_param_array(sbirq, int, boot_devs, 0444);
+MODULE_PARM(sbirq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(sbirq, "IRQ # for CMI8330 SB driver.");
 MODULE_PARM_SYNTAX(sbirq, SNDRV_ENABLED ",allows:{{5},{7},{9},{10},{11},{12}},prefers:{5},dialog:list");
-module_param_array(sbdma8, int, boot_devs, 0444);
+MODULE_PARM(sbdma8, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(sbdma8, "DMA8 for CMI8330 SB driver.");
 MODULE_PARM_SYNTAX(sbdma8, SNDRV_DMA8_DESC ",prefers:{1}");
-module_param_array(sbdma16, int, boot_devs, 0444);
+MODULE_PARM(sbdma16, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(sbdma16, "DMA16 for CMI8330 SB driver.");
 MODULE_PARM_SYNTAX(sbdma16, SNDRV_ENABLED ",allows:{{5},{7}},prefers:{5},dialog:list");
 
-module_param_array(wssport, long, boot_devs, 0444);
+MODULE_PARM(wssport, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
 MODULE_PARM_DESC(wssport, "Port # for CMI8330 WSS driver.");
 MODULE_PARM_SYNTAX(wssport, SNDRV_ENABLED ",allows:{{0x530},{0xe80,0xf40,0xc0}},prefers:{0x530},base:16,dialog:list");
-module_param_array(wssirq, int, boot_devs, 0444);
+MODULE_PARM(wssirq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(wssirq, "IRQ # for CMI8330 WSS driver.");
 MODULE_PARM_SYNTAX(wssirq, SNDRV_ENABLED ",allows:{{5},{7},{9},{10},{11},{12}},prefers:{11},dialog:list");
-module_param_array(wssdma, int, boot_devs, 0444);
+MODULE_PARM(wssdma, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
 MODULE_PARM_DESC(wssdma, "DMA for CMI8330 WSS driver.");
 MODULE_PARM_SYNTAX(wssdma, SNDRV_DMA8_DESC ",prefers:{0}");
 
@@ -439,9 +438,7 @@ static int __devinit snd_cmi8330_pcm(snd_card_t *card, struct snd_cmi8330 *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &chip->streams[SNDRV_PCM_STREAM_PLAYBACK].ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &chip->streams[SNDRV_PCM_STREAM_CAPTURE].ops);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
-					      64*1024, 128*1024);
+	snd_pcm_lib_preallocate_isa_pages_for_all(pcm, 64*1024, 128*1024);
 	chip->pcm = pcm;
 
 	return 0;
@@ -484,13 +481,10 @@ static int __devinit snd_cmi8330_probe(int dev,
 	acard->card = card;
 
 #ifdef CONFIG_PNP
-	if (isapnp[dev]) {
-		if ((err = snd_cmi8330_pnp(dev, acard, pcard, pid)) < 0) {
-			snd_printk("PnP detection failed\n");
-			snd_card_free(card);
-			return err;
-		}
-		snd_card_set_dev(card, &pcard->card->dev);
+	if (isapnp[dev] && (err = snd_cmi8330_pnp(dev, acard, pcard, pid)) < 0) {
+		snd_printk("PnP detection failed\n");
+		snd_card_free(card);
+		return err;
 	}
 #endif
 
@@ -644,3 +638,41 @@ static void __exit alsa_card_cmi8330_exit(void)
 
 module_init(alsa_card_cmi8330_init)
 module_exit(alsa_card_cmi8330_exit)
+
+#ifndef MODULE
+
+/* format is: snd-cmi8330=enable,index,id,isapnp,
+			  sbport,sbirq,
+			  sbdma8,sbdma16,
+			  wssport,wssirq,
+			  wssdma */
+
+static int __init alsa_card_cmi8330_setup(char *str)
+{
+	static unsigned __initdata nr_dev = 0;
+	int __attribute__ ((__unused__)) pnp = INT_MAX;
+
+	if (nr_dev >= SNDRV_CARDS)
+		return 0;
+	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
+	       get_option(&str,&index[nr_dev]) == 2 &&
+	       get_id(&str,&id[nr_dev]) == 2 &&
+	       get_option(&str,&pnp) == 2 &&
+	       get_option(&str,(int *)&sbport[nr_dev]) == 2 &&
+	       get_option(&str,&sbirq[nr_dev]) == 2 &&
+	       get_option(&str,&sbdma8[nr_dev]) == 2 &&
+	       get_option(&str,&sbdma16[nr_dev]) == 2 &&
+	       get_option(&str,(int *)&wssport[nr_dev]) == 2 &&
+	       get_option(&str,&wssirq[nr_dev]) == 2 &&
+	       get_option(&str,&wssdma[nr_dev]) == 2);
+#ifdef CONFIG_PNP
+	if (pnp != INT_MAX)
+		isapnp[nr_dev] = pnp;
+#endif
+	nr_dev++;
+	return 1;
+}
+
+__setup("snd-cmi8330=", alsa_card_cmi8330_setup);
+
+#endif /* ifndef MODULE */

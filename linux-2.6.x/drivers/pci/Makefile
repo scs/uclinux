@@ -2,7 +2,7 @@
 # Makefile for the PCI bus specific drivers.
 #
 
-obj-y		+= access.o bus.o probe.o remove.o pci.o quirks.o \
+obj-y		+= access.o bus.o probe.o remove.o pci.o pool.o quirks.o \
 			names.o pci-driver.o search.o pci-sysfs.o
 obj-$(CONFIG_PROC_FS) += proc.o
 
@@ -24,9 +24,10 @@ obj-$(CONFIG_PARISC) += setup-bus.o
 obj-$(CONFIG_SUPERH) += setup-bus.o setup-irq.o
 obj-$(CONFIG_PPC32) += setup-irq.o
 obj-$(CONFIG_PPC64) += setup-bus.o
-obj-$(CONFIG_MIPS) += setup-bus.o setup-irq.o
+obj-$(CONFIG_SGI_IP27) += setup-irq.o
+obj-$(CONFIG_SGI_IP32) += setup-irq.o
 obj-$(CONFIG_X86_VISWS) += setup-irq.o
-obj-$(CONFIG_PCI_MSI) += msi.o
+obj-$(CONFIG_PCI_USE_VECTOR) += msi.o
 
 # Cardbus & CompactPCI use setup-bus
 obj-$(CONFIG_HOTPLUG) += setup-bus.o

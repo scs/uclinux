@@ -21,11 +21,11 @@
 
 #include "emu8000_local.h"
 #include <asm/uaccess.h>
-#include <linux/moduleparam.h>
 
-static int emu8000_reset_addr = 0;
-module_param(emu8000_reset_addr, int, 0444);
+MODULE_PARM(emu8000_reset_addr, "i");
 MODULE_PARM_DESC(emu8000_reset_addr, "reset write address at each time (makes slowdown)");
+
+int emu8000_reset_addr = 0;
 
 
 /*
@@ -82,19 +82,19 @@ snd_emu8000_close_dma(emu8000_t *emu)
  * 8bit samples etc.
  */
 static unsigned short
-read_word(const void __user *buf, int offset, int mode)
+read_word(const void *buf, int offset, int mode)
 {
 	unsigned short c;
 	if (mode & SNDRV_SFNT_SAMPLE_8BITS) {
 		unsigned char cc;
-		get_user(cc, (unsigned char __user *)buf + offset);
+		get_user(cc, (unsigned char*)buf + offset);
 		c = cc << 8; /* convert 8bit -> 16bit */
 	} else {
 #ifdef SNDRV_LITTLE_ENDIAN
-		get_user(c, (unsigned short __user *)buf + offset);
+		get_user(c, (unsigned short*)buf + offset);
 #else
 		unsigned short cc;
-		get_user(cc, (unsigned short __user *)buf + offset);
+		get_user(cc, (unsigned short*)buf + offset);
 		c = swab16(cc);
 #endif
 	}
@@ -146,7 +146,7 @@ write_word(emu8000_t *emu, int *offset, unsigned short data)
  */
 int
 snd_emu8000_sample_new(snd_emux_t *rec, snd_sf_sample_t *sp,
-		       snd_util_memhdr_t *hdr, const void __user *data, long count)
+		       snd_util_memhdr_t *hdr, const void *data, long count)
 {
 	int  i;
 	int  rc;

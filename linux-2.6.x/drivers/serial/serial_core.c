@@ -175,6 +175,8 @@ static int uart_startup(struct uart_state *state, int init_hw)
 		uart_circ_clear(&info->xmit);
 	}
 
+	port->mctrl = 0;
+
 	retval = port->ops->startup(port);
 	if (retval == 0) {
 		if (init_hw) {
@@ -460,7 +462,7 @@ __uart_put_char(struct uart_port *port, struct circ_buf *circ, unsigned char c)
 
 static inline int
 __uart_user_write(struct uart_port *port, struct circ_buf *circ,
-		  const unsigned char __user *buf, int count)
+		  const unsigned char *buf, int count)
 {
 	unsigned long flags;
 	int c, ret = 0;
@@ -546,11 +548,9 @@ uart_write(struct tty_struct *tty, int from_user, const unsigned char * buf,
 		return 0;
 
 	if (from_user)
-		ret = __uart_user_write(state->port, &state->info->xmit,
-				(const unsigned char __user *)buf, count);
+		ret = __uart_user_write(state->port, &state->info->xmit, buf, count);
 	else
-		ret = __uart_kern_write(state->port, &state->info->xmit,
-					buf, count);
+		ret = __uart_kern_write(state->port, &state->info->xmit, buf, count);
 
 	uart_start(tty);
 	return ret;
@@ -636,8 +636,7 @@ static void uart_unthrottle(struct tty_struct *tty)
 		uart_set_mctrl(port, TIOCM_RTS);
 }
 
-static int uart_get_info(struct uart_state *state,
-			 struct serial_struct __user *retinfo)
+static int uart_get_info(struct uart_state *state, struct serial_struct *retinfo)
 {
 	struct uart_port *port = state->port;
 	struct serial_struct tmp;
@@ -665,8 +664,8 @@ static int uart_get_info(struct uart_state *state,
 	return 0;
 }
 
-static int uart_set_info(struct uart_state *state,
-			 struct serial_struct __user *newinfo)
+static int
+uart_set_info(struct uart_state *state, struct serial_struct *newinfo)
 {
 	struct serial_struct new_serial;
 	struct uart_port *port = state->port;
@@ -859,8 +858,7 @@ static int uart_set_info(struct uart_state *state,
  * uart_get_lsr_info - get line status register info.
  * Note: uart_ioctl protects us against hangups.
  */
-static int uart_get_lsr_info(struct uart_state *state,
-			     unsigned int __user *value)
+static int uart_get_lsr_info(struct uart_state *state, unsigned int *value)
 {
 	struct uart_port *port = state->port;
 	unsigned int result;
@@ -1039,8 +1037,8 @@ uart_wait_modem_status(struct uart_state *state, unsigned long arg)
  * NB: both 1->0 and 0->1 transitions are counted except for
  *     RI where only 0->1 is counted.
  */
-static int uart_get_count(struct uart_state *state,
-			  struct serial_icounter_struct __user *icnt)
+static int
+uart_get_count(struct uart_state *state, struct serial_icounter_struct *icnt)
 {
 	struct serial_icounter_struct icount;
 	struct uart_icount cnow;
@@ -1073,7 +1071,6 @@ uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
 	   unsigned long arg)
 {
 	struct uart_state *state = tty->driver_data;
-	void __user *uarg = (void __user *)arg;
 	int ret = -ENOIOCTLCMD;
 
 	BUG_ON(!kernel_locked());
@@ -1083,11 +1080,11 @@ uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
 	 */
 	switch (cmd) {
 	case TIOCGSERIAL:
-		ret = uart_get_info(state, uarg);
+		ret = uart_get_info(state, (struct serial_struct *)arg);
 		break;
 
 	case TIOCSSERIAL:
-		ret = uart_set_info(state, uarg);
+		ret = uart_set_info(state, (struct serial_struct *)arg);
 		break;
 
 	case TIOCSERCONFIG:
@@ -1117,7 +1114,7 @@ uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
 		break;
 
 	case TIOCGICOUNT:
-		ret = uart_get_count(state, uarg);
+		ret = uart_get_count(state, (struct serial_icounter_struct *)arg);
 		break;
 	}
 
@@ -1137,7 +1134,7 @@ uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
 	 */
 	switch (cmd) {
 	case TIOCSERGETLSR: /* Get line status register */
-		ret = uart_get_lsr_info(state, uarg);
+		ret = uart_get_lsr_info(state, (unsigned int *)arg);
 		break;
 
 	default: {
@@ -1669,12 +1666,9 @@ static int uart_line_info(char *buf, struct uart_driver *drv, int i)
 	if (!port)
 		return 0;
 
-	ret = sprintf(buf, "%d: uart:%s %s%08lX irq:%d",
+	ret = sprintf(buf, "%d: uart:%s port:%08X irq:%d",
 			port->line, uart_type(port),
-			port->iotype == UPIO_MEM ? "mmio:0x" : "port:",
-			port->iotype == UPIO_MEM ? port->mapbase :
-						(unsigned long) port->iobase,
-			port->irq);
+			port->iobase, port->irq);
 
 	if (port->type == PORT_UNKNOWN) {
 		strcat(buf, "\n");
@@ -1877,6 +1871,9 @@ uart_set_options(struct uart_port *port, struct console *co,
 	if (flow == 'r')
 		termios.c_cflag |= CRTSCTS;
 
+	if (!port->ops)
+		return 0;	/* "console=" on ia64 */
+
 	port->ops->set_termios(port, &termios, NULL);
 	co->cflag = termios.c_cflag;
 
@@ -1923,7 +1920,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 	 * Disable the console device before suspending.
 	 */
 	if (uart_console(port))
-		console_stop(port->cons);
+		port->cons->flags &= ~CON_ENABLED;
 
 	uart_change_pm(state, 3);
 
@@ -1945,7 +1942,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 	 */
 	if (uart_console(port)) {
 		uart_change_speed(state, NULL);
-		console_start(port->cons);
+		port->cons->flags |= CON_ENABLED;
 	}
 
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
@@ -2232,7 +2229,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 	 * Register the port whether it's detected or not.  This allows
 	 * setserial to be used to alter this ports parameters.
 	 */
-	tty_register_device(drv->tty_driver, port->line, port->dev);
+	tty_register_device(drv->tty_driver, port->line, NULL);
 
  out:
 	up(&port_sem);

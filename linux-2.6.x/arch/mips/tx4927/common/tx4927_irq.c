@@ -23,7 +23,6 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
@@ -172,7 +171,7 @@ static struct hw_interrupt_type tx4927_irq_pic_type = {
 	.set_affinity	= NULL
 };
 
-#define TX4927_PIC_ACTION(s) { no_action, 0, CPU_MASK_NONE, s, NULL, NULL }
+#define TX4927_PIC_ACTION(s) { no_action, 0, 0, s, NULL, NULL }
 static struct irqaction tx4927_irq_pic_action =
 TX4927_PIC_ACTION(TX4927_PIC_NAME);
 

@@ -397,18 +397,37 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 	u8 ultra_66		= ((id->dma_ultra & 0x0010) ||
 				   (id->dma_ultra & 0x0008)) ? 1 : 0;
 
-	if (dev->device != PCI_DEVICE_ID_PROMISE_20246)
-		cable = pdc202xx_old_cable_detect(hwif);
-	else
-		ultra_66 = 0;
+	switch(dev->device) {
+		case PCI_DEVICE_ID_PROMISE_20267:
+		case PCI_DEVICE_ID_PROMISE_20265:
+		case PCI_DEVICE_ID_PROMISE_20263:
+		case PCI_DEVICE_ID_PROMISE_20262:
+			cable = pdc202xx_old_cable_detect(hwif);
+#if PDC202_DEBUG_CABLE
+			printk(KERN_DEBUG "%s: %s-pin cable, %s-pin cable, %d\n",
+				hwif->name, hwif->udma_four ? "80" : "40",
+				cable ? "40" : "80", cable);
+#endif /* PDC202_DEBUG_CABLE */
+			break;
+		case PCI_DEVICE_ID_PROMISE_20246:
+			ultra_66 = 0;
+			break;
+		default:
+			BUG();
+	}
 
-	if (ultra_66 && cable) {
+	if ((ultra_66) && (cable)) {
+#ifdef DEBUG
+		printk(KERN_DEBUG "ULTRA 66/100/133: %s channel of Ultra 66/100/133 "
+			"requires an 80-pin cable for Ultra66 operation.\n",
+			hwif->channel ? "Secondary" : "Primary");
+		printk(KERN_DEBUG "         Switching to Ultra33 mode.\n");
+#endif /* DEBUG */
 		printk(KERN_WARNING "Warning: %s channel requires an 80-pin cable for operation.\n", hwif->channel ? "Secondary":"Primary");
 		printk(KERN_WARNING "%s reduced to Ultra33 mode.\n", drive->name);
 	}
 
-	if (dev->device != PCI_DEVICE_ID_PROMISE_20246)
-		pdc_old_disable_66MHz_clock(drive->hwif);
+	pdc_old_disable_66MHz_clock(drive->hwif);
 
 	drive_pci = 0x60 + (drive->dn << 2);
 	pci_read_config_dword(dev, drive_pci, &drive_conf);
@@ -463,7 +482,7 @@ static int pdc202xx_config_drive_xfer_rate (ide_drive_t *drive)
 
 	if (id && (id->capability & 1) && drive->autodma) {
 		/* Consult the list of known "bad" drives */
-		if (__ide_dma_bad_drive(drive))
+		if (hwif->ide_dma_bad_drive(drive))
 			goto fast_ata_pio;
 		if (id->field_valid & 4) {
 			if (id->dma_ultra & hwif->ultra_mask) {
@@ -480,7 +499,7 @@ try_dma_modes:
 				if (!config_chipset_for_dma(drive))
 					goto no_dma_set;
 			}
-		} else if (__ide_dma_good_drive(drive) &&
+		} else if (hwif->ide_dma_good_drive(drive) &&
 			    (id->eide_dma_time < 150)) {
 				goto no_dma_set;
 			/* Consult the list of known "good" drives */
@@ -618,6 +637,7 @@ void pdc202xx_reset (ide_drive_t *drive)
 	 */
 	if (hwif->present) {
 		u16 hunit = 0;
+		hwif->initializing = 1;
 		for (hunit = 0; hunit < MAX_DRIVES; ++hunit) {
 			ide_drive_t *hdrive = &hwif->drives[hunit];
 			if (hdrive->present) {
@@ -627,9 +647,11 @@ void pdc202xx_reset (ide_drive_t *drive)
 					hwif->tuneproc(hdrive, 5);
 			}
 		}
+		hwif->initializing = 0;
 	}
 	if (mate->present) {
 		u16 munit = 0;
+		mate->initializing = 1;
 		for (munit = 0; munit < MAX_DRIVES; ++munit) {
 			ide_drive_t *mdrive = &mate->drives[munit];
 			if (mdrive->present) {
@@ -639,6 +661,7 @@ void pdc202xx_reset (ide_drive_t *drive)
 					mate->tuneproc(mdrive, 5);
 			}
 		}
+		mate->initializing = 0;
 	}
 #else
 	hwif->tuneproc(drive, 5);
@@ -670,7 +693,7 @@ static int pdc202xx_tristate (ide_drive_t * drive, int state)
 	return 0;
 }
 
-static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev, const char *name)
+static unsigned int __init init_chipset_pdc202xx (struct pci_dev *dev, const char *name)
 {
 	if (dev->resource[PCI_ROM_RESOURCE].start) {
 		pci_write_config_dword(dev, PCI_ROM_ADDRESS,
@@ -684,7 +707,7 @@ static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev, const c
 
 	if (!pdc202xx_proc) {
 		pdc202xx_proc = 1;
-		ide_pci_create_host_proc("pdc202xx", pdc202xx_get_info);
+		ide_pci_register_host_proc(&pdc202xx_procs[0]);
 	}
 #endif /* DISPLAY_PDC202XX_TIMINGS && CONFIG_PROC_FS */
 
@@ -715,14 +738,8 @@ static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev, const c
 	return dev->irq;
 }
 
-static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
+static void __init init_hwif_pdc202xx (ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = hwif->pci_dev;
-
-	/* PDC20265 has problems with large LBA48 requests */
-	if (dev->device == PCI_DEVICE_ID_PROMISE_20265)
-		hwif->rqsize = 256;
-
 	hwif->autodma = 0;
 	hwif->tuneproc  = &config_chipset_for_pio;
 	hwif->quirkproc = &pdc202xx_quirkproc;
@@ -761,7 +778,7 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 #endif /* PDC202_DEBUG_CABLE */	
 }
 
-static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
+static void __init init_dma_pdc202xx (ide_hwif_t *hwif, unsigned long dmabase)
 {
 	u8 udma_speed_flag = 0, primary_mode = 0, secondary_mode = 0;
 
@@ -813,7 +830,10 @@ static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
 	ide_setup_dma(hwif, dmabase, 8);
 }
 
-static void __devinit init_setup_pdc202ata4(struct pci_dev *dev, ide_pci_device_t *d)
+extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
+extern void ide_setup_pci_devices(struct pci_dev *, struct pci_dev *, ide_pci_device_t *);
+
+static void __init init_setup_pdc202ata4 (struct pci_dev *dev, ide_pci_device_t *d)
 {
 	if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE) {
 		u8 irq = 0, irq2 = 0;
@@ -843,7 +863,7 @@ static void __devinit init_setup_pdc202ata4(struct pci_dev *dev, ide_pci_device_
 	ide_setup_pci_device(dev, d);
 }
 
-static void __devinit init_setup_pdc20265(struct pci_dev *dev, ide_pci_device_t *d)
+static void __init init_setup_pdc20265 (struct pci_dev *dev, ide_pci_device_t *d)
 {
 	if ((dev->bus->self) &&
 	    (dev->bus->self->vendor == PCI_VENDOR_ID_INTEL) &&
@@ -872,7 +892,7 @@ static void __devinit init_setup_pdc20265(struct pci_dev *dev, ide_pci_device_t 
 	ide_setup_pci_device(dev, d);
 }
 
-static void __devinit init_setup_pdc202xx(struct pci_dev *dev, ide_pci_device_t *d)
+static void __init init_setup_pdc202xx (struct pci_dev *dev, ide_pci_device_t *d)
 {
 	ide_setup_pci_device(dev, d);
 }
@@ -890,7 +910,10 @@ static int __devinit pdc202xx_init_one(struct pci_dev *dev, const struct pci_dev
 {
 	ide_pci_device_t *d = &pdc202xx_chipsets[id->driver_data];
 
+	if (dev->device != d->device)
+		BUG();
 	d->init_setup(dev, d);
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -902,7 +925,6 @@ static struct pci_device_id pdc202xx_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20267, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4},
 	{ 0, },
 };
-MODULE_DEVICE_TABLE(pci, pdc202xx_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "Promise Old IDE",
@@ -915,7 +937,13 @@ static int pdc202xx_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void pdc202xx_ide_exit(void)
+{
+	ide_pci_unregister_driver(&driver);
+}
+
 module_init(pdc202xx_ide_init);
+module_exit(pdc202xx_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick, Frank Tiernan");
 MODULE_DESCRIPTION("PCI driver module for older Promise IDE");

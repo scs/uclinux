@@ -140,7 +140,7 @@ static void change_termios(struct tty_struct * tty, struct termios * new_termios
 		(*tty->ldisc.set_termios)(tty, &old_termios);
 }
 
-static int set_termios(struct tty_struct * tty, void __user *arg, int opt)
+static int set_termios(struct tty_struct * tty, unsigned long arg, int opt)
 {
 	struct termios tmp_termios;
 	int retval = tty_check_change(tty);
@@ -151,11 +151,11 @@ static int set_termios(struct tty_struct * tty, void __user *arg, int opt)
 	if (opt & TERMIOS_TERMIO) {
 		memcpy(&tmp_termios, tty->termios, sizeof(struct termios));
 		if (user_termio_to_kernel_termios(&tmp_termios,
-						(struct termio __user *)arg))
+						  (struct termio *) arg))
 			return -EFAULT;
 	} else {
 		if (user_termios_to_kernel_termios(&tmp_termios,
-						(struct termios __user *)arg))
+						   (struct termios *) arg))
 			return -EFAULT;
 	}
 
@@ -172,7 +172,7 @@ static int set_termios(struct tty_struct * tty, void __user *arg, int opt)
 	return 0;
 }
 
-static int get_termio(struct tty_struct * tty, struct termio __user * termio)
+static int get_termio(struct tty_struct * tty, struct termio * termio)
 {
 	if (kernel_termios_to_user_termio(termio, tty->termios))
 		return -EFAULT;
@@ -222,7 +222,7 @@ static int get_sgflags(struct tty_struct * tty)
 	return flags;
 }
 
-static int get_sgttyb(struct tty_struct * tty, struct sgttyb __user * sgttyb)
+static int get_sgttyb(struct tty_struct * tty, struct sgttyb * sgttyb)
 {
 	struct sgttyb tmp;
 
@@ -260,7 +260,7 @@ static void set_sgflags(struct termios * termios, int flags)
 	}
 }
 
-static int set_sgttyb(struct tty_struct * tty, struct sgttyb __user * sgttyb)
+static int set_sgttyb(struct tty_struct * tty, struct sgttyb * sgttyb)
 {
 	int retval;
 	struct sgttyb tmp;
@@ -281,7 +281,7 @@ static int set_sgttyb(struct tty_struct * tty, struct sgttyb __user * sgttyb)
 #endif
 
 #ifdef TIOCGETC
-static int get_tchars(struct tty_struct * tty, struct tchars __user * tchars)
+static int get_tchars(struct tty_struct * tty, struct tchars * tchars)
 {
 	struct tchars tmp;
 
@@ -294,7 +294,7 @@ static int get_tchars(struct tty_struct * tty, struct tchars __user * tchars)
 	return copy_to_user(tchars, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
 
-static int set_tchars(struct tty_struct * tty, struct tchars __user * tchars)
+static int set_tchars(struct tty_struct * tty, struct tchars * tchars)
 {
 	struct tchars tmp;
 
@@ -311,7 +311,7 @@ static int set_tchars(struct tty_struct * tty, struct tchars __user * tchars)
 #endif
 
 #ifdef TIOCGLTC
-static int get_ltchars(struct tty_struct * tty, struct ltchars __user * ltchars)
+static int get_ltchars(struct tty_struct * tty, struct ltchars * ltchars)
 {
 	struct ltchars tmp;
 
@@ -324,7 +324,7 @@ static int get_ltchars(struct tty_struct * tty, struct ltchars __user * ltchars)
 	return copy_to_user(ltchars, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
 
-static int set_ltchars(struct tty_struct * tty, struct ltchars __user * ltchars)
+static int set_ltchars(struct tty_struct * tty, struct ltchars * ltchars)
 {
 	struct ltchars tmp;
 
@@ -363,7 +363,6 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 		       unsigned int cmd, unsigned long arg)
 {
 	struct tty_struct * real_tty;
-	void __user *p = (void __user *)arg;
 	int retval;
 
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
@@ -375,41 +374,41 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 	switch (cmd) {
 #ifdef TIOCGETP
 		case TIOCGETP:
-			return get_sgttyb(real_tty, (struct sgttyb __user *) arg);
+			return get_sgttyb(real_tty, (struct sgttyb *) arg);
 		case TIOCSETP:
 		case TIOCSETN:
-			return set_sgttyb(real_tty, (struct sgttyb __user *) arg);
+			return set_sgttyb(real_tty, (struct sgttyb *) arg);
 #endif
 #ifdef TIOCGETC
 		case TIOCGETC:
-			return get_tchars(real_tty, p);
+			return get_tchars(real_tty, (struct tchars *) arg);
 		case TIOCSETC:
-			return set_tchars(real_tty, p);
+			return set_tchars(real_tty, (struct tchars *) arg);
 #endif
 #ifdef TIOCGLTC
 		case TIOCGLTC:
-			return get_ltchars(real_tty, p);
+			return get_ltchars(real_tty, (struct ltchars *) arg);
 		case TIOCSLTC:
-			return set_ltchars(real_tty, p);
+			return set_ltchars(real_tty, (struct ltchars *) arg);
 #endif
 		case TCGETS:
-			if (kernel_termios_to_user_termios((struct termios __user *)arg, real_tty->termios))
+			if (kernel_termios_to_user_termios((struct termios *)arg, real_tty->termios))
 				return -EFAULT;
 			return 0;
 		case TCSETSF:
-			return set_termios(real_tty, p,  TERMIOS_FLUSH | TERMIOS_WAIT);
+			return set_termios(real_tty, arg,  TERMIOS_FLUSH | TERMIOS_WAIT);
 		case TCSETSW:
-			return set_termios(real_tty, p, TERMIOS_WAIT);
+			return set_termios(real_tty, arg, TERMIOS_WAIT);
 		case TCSETS:
-			return set_termios(real_tty, p, 0);
+			return set_termios(real_tty, arg, 0);
 		case TCGETA:
-			return get_termio(real_tty, p);
+			return get_termio(real_tty,(struct termio *) arg);
 		case TCSETAF:
-			return set_termios(real_tty, p, TERMIOS_FLUSH | TERMIOS_WAIT | TERMIOS_TERMIO);
+			return set_termios(real_tty, arg, TERMIOS_FLUSH | TERMIOS_WAIT | TERMIOS_TERMIO);
 		case TCSETAW:
-			return set_termios(real_tty, p, TERMIOS_WAIT | TERMIOS_TERMIO);
+			return set_termios(real_tty, arg, TERMIOS_WAIT | TERMIOS_TERMIO);
 		case TCSETA:
-			return set_termios(real_tty, p, TERMIOS_TERMIO);
+			return set_termios(real_tty, arg, TERMIOS_TERMIO);
 		case TCXONC:
 			retval = tty_check_change(tty);
 			if (retval)
@@ -463,21 +462,21 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 		case TIOCOUTQ:
 			return put_user(tty->driver->chars_in_buffer ?
 					tty->driver->chars_in_buffer(tty) : 0,
-					(int __user *) arg);
+					(int *) arg);
 		case TIOCINQ:
 			retval = tty->read_cnt;
 			if (L_ICANON(tty))
 				retval = inq_canon(tty);
-			return put_user(retval, (unsigned int __user *) arg);
+			return put_user(retval, (unsigned int *) arg);
 		case TIOCGLCKTRMIOS:
-			if (kernel_termios_to_user_termios((struct termios __user *)arg, real_tty->termios_locked))
+			if (kernel_termios_to_user_termios((struct termios *)arg, real_tty->termios_locked))
 				return -EFAULT;
 			return 0;
 
 		case TIOCSLCKTRMIOS:
 			if (!capable(CAP_SYS_ADMIN))
 				return -EPERM;
-			if (user_termios_to_kernel_termios(real_tty->termios_locked, (struct termios __user *) arg))
+			if (user_termios_to_kernel_termios(real_tty->termios_locked, (struct termios *) arg))
 				return -EFAULT;
 			return 0;
 
@@ -488,7 +487,7 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 			if (tty->driver->type != TTY_DRIVER_TYPE_PTY ||
 			    tty->driver->subtype != PTY_TYPE_MASTER)
 				return -ENOTTY;
-			if (get_user(pktmode, (int __user *) arg))
+			if (get_user(pktmode, (int *) arg))
 				return -EFAULT;
 			if (pktmode) {
 				if (!tty->packet) {
@@ -500,9 +499,9 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 			return 0;
 		}
 		case TIOCGSOFTCAR:
-			return put_user(C_CLOCAL(tty) ? 1 : 0, (int __user *)arg);
+			return put_user(C_CLOCAL(tty) ? 1 : 0, (int *) arg);
 		case TIOCSSOFTCAR:
-			if (get_user(arg, (unsigned int __user *) arg))
+			if (get_user(arg, (unsigned int *) arg))
 				return -EFAULT;
 			tty->termios->c_cflag =
 				((tty->termios->c_cflag & ~CLOCAL) |

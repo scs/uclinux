@@ -189,11 +189,11 @@ static int _snd_ioctl32_xferi(unsigned int fd, unsigned int cmd, unsigned long a
 	mm_segment_t oldseg;
 	int err;
 
-	if (copy_from_user(&data32, (void __user *)arg, sizeof(data32)))
+	if (copy_from_user(&data32, (void*)arg, sizeof(data32)))
 		return -EFAULT;
 	memset(&data, 0, sizeof(data));
 	data.result = data32.result;
-	data.buf = compat_ptr(data32.buf);
+	data.buf = A(data32.buf);
 	data.frames = data32.frames;
 	oldseg = get_fs();
 	set_fs(KERNEL_DS);
@@ -203,7 +203,7 @@ static int _snd_ioctl32_xferi(unsigned int fd, unsigned int cmd, unsigned long a
 		return err;
 	/* copy the result */
 	data32.result = data.result;
-	if (copy_to_user((void __user *)arg, &data32, sizeof(data32)))
+	if (copy_to_user((void*)arg, &data32, sizeof(data32)))
 		return -EFAULT;
 	return 0;
 }
@@ -226,11 +226,10 @@ static int _snd_ioctl32_xfern(unsigned int fd, unsigned int cmd, unsigned long a
 {
 	snd_pcm_file_t *pcm_file;
 	snd_pcm_substream_t *substream;
-	struct sndrv_xfern32 data32;
-	struct sndrv_xfern32 __user *srcptr = (void __user *)arg;
-	void __user **bufs = NULL;
+	struct sndrv_xfern32 data32, *srcptr = (struct sndrv_xfern32*)arg;
+	void **bufs = NULL;
 	int err = 0, ch, i;
-	u32 __user *bufptr;
+	u32 *bufptr;
 	mm_segment_t oldseg;
 
 	/* FIXME: need to check whether fop->ioctl is sane */
@@ -257,7 +256,7 @@ static int _snd_ioctl32_xfern(unsigned int fd, unsigned int cmd, unsigned long a
 	if (get_user(data32.frames, &srcptr->frames))
 		return -EFAULT;
 	__get_user(data32.bufs, &srcptr->bufs);
-	bufptr = compat_ptr(data32.bufs);
+	bufptr = (u32*)TO_PTR(data32.bufs);
 	bufs = kmalloc(sizeof(void *) * 128, GFP_KERNEL);
 	if (bufs == NULL)
 		return -ENOMEM;
@@ -265,7 +264,7 @@ static int _snd_ioctl32_xfern(unsigned int fd, unsigned int cmd, unsigned long a
 		u32 ptr;
 		if (get_user(ptr, bufptr))
 			return -EFAULT;
-		bufs[ch] = compat_ptr(ptr);
+		bufs[ch] = (void*)TO_PTR(ptr);
 		bufptr++;
 	}
 	oldseg = get_fs();
@@ -356,7 +355,7 @@ static int _snd_ioctl32_pcm_hw_params_old(unsigned int fd, unsigned int cmd, uns
 		err = -ENOMEM;
 		goto __end;
 	}
-	if (copy_from_user(data32, (void __user *)arg, sizeof(*data32))) {
+	if (copy_from_user(data32, (void*)arg, sizeof(*data32))) {
 		err = -EFAULT;
 		goto __end;
 	}
@@ -369,7 +368,7 @@ static int _snd_ioctl32_pcm_hw_params_old(unsigned int fd, unsigned int cmd, uns
 		goto __end;
 	snd_pcm_hw_convert_to_old_params(data32, data);
 	err = 0;
-	if (copy_to_user((void __user *)arg, data32, sizeof(*data32)))
+	if (copy_to_user((void*)arg, data32, sizeof(*data32)))
 		err = -EFAULT;
       __end:
       	if (data)

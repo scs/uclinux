@@ -39,7 +39,6 @@ rpc_init_rtt(struct rpc_rtt *rt, unsigned long timeo)
 	for (i = 0; i < 5; i++) {
 		rt->srtt[i] = init;
 		rt->sdrtt[i] = RPC_RTO_INIT;
-		rt->ntimeouts[i] = 0;
 	}
 }
 

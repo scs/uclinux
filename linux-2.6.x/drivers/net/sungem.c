@@ -33,7 +33,6 @@
 #include <linux/crc32.h>
 #include <linux/random.h>
 #include <linux/workqueue.h>
-#include <linux/if_vlan.h>
 
 #include <asm/system.h>
 #include <asm/bitops.h>
@@ -103,8 +102,6 @@ static struct pci_device_id gem_pci_tbl[] = {
 	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_UNI_N_GMACP,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_UNI_N_GMAC2,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_K2_GMAC,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{0, }
 };
@@ -655,7 +652,6 @@ static __inline__ void gem_post_rxds(struct gem *gp, int limit)
 	cluster_start = curr = (gp->rx_new & ~(4 - 1));
 	count = 0;
 	kick = -1;
-	wmb();
 	while (curr != limit) {
 		curr = NEXT_RX(curr);
 		if (++count == 4) {
@@ -672,16 +668,13 @@ static __inline__ void gem_post_rxds(struct gem *gp, int limit)
 			count = 0;
 		}
 	}
-	if (kick >= 0) {
-		mb();
+	if (kick >= 0)
 		writel(kick, gp->regs + RXDMA_KICK);
-	}
 }
 
 static void gem_rx(struct gem *gp)
 {
 	int entry, drops;
-	u32 done;
 
 	if (netif_msg_intr(gp))
 		printk(KERN_DEBUG "%s: rx interrupt, done: %d, rx_new: %d\n",
@@ -689,7 +682,6 @@ static void gem_rx(struct gem *gp)
 
 	entry = gp->rx_new;
 	drops = 0;
-	done = readl(gp->regs + RXDMA_DONE);
 	for (;;) {
 		struct gem_rxd *rxd = &gp->init_block->rxd[entry];
 		struct sk_buff *skb;
@@ -699,19 +691,6 @@ static void gem_rx(struct gem *gp)
 
 		if ((status & RXDCTRL_OWN) != 0)
 			break;
-
-		/* When writing back RX descriptor, GEM writes status
-		 * then buffer address, possibly in seperate transactions.
-		 * If we don't wait for the chip to write both, we could
-		 * post a new buffer to this descriptor then have GEM spam
-		 * on the buffer address.  We sync on the RX completion
-		 * register to prevent this from happening.
-		 */
-		if (entry == done) {
-			done = readl(gp->regs + RXDMA_DONE);
-			if (entry == done)
-				break;
-		}
 
 		skb = gp->rx_skbs[entry];
 
@@ -743,7 +722,7 @@ static void gem_rx(struct gem *gp)
 				       PCI_DMA_FROMDEVICE);
 			gp->rx_skbs[entry] = new_skb;
 			new_skb->dev = gp->dev;
-			skb_put(new_skb, (gp->rx_buf_sz + RX_OFFSET));
+			skb_put(new_skb, (ETH_FRAME_LEN + RX_OFFSET));
 			rxd->buffer = cpu_to_le64(pci_map_page(gp->pdev,
 							       virt_to_page(new_skb->data),
 							       offset_in_page(new_skb->data),
@@ -764,9 +743,8 @@ static void gem_rx(struct gem *gp)
 			copy_skb->dev = gp->dev;
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
-			pci_dma_sync_single_for_cpu(gp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
+			pci_dma_sync_single(gp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
 			memcpy(copy_skb->data, skb->data, len);
-			pci_dma_sync_single_for_device(gp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
 
 			/* We'll reuse the original ring buffer. */
 			skb = copy_skb;
@@ -799,10 +777,6 @@ static irqreturn_t gem_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	struct net_device *dev = dev_id;
 	struct gem *gp = dev->priv;
 	u32 gem_status = readl(gp->regs + GREG_STAT);
-
-	/* Swallow interrupts when shutting the chip down */
-	if (gp->hw_running == 0)
-		goto out;
 
 	spin_lock(&gp->lock);
 
@@ -904,7 +878,6 @@ static int gem_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (gem_intme(entry))
 			ctrl |= TXDCTRL_INTME;
 		txd->buffer = cpu_to_le64(mapping);
-		wmb();
 		txd->control_word = cpu_to_le64(ctrl);
 		entry = NEXT_TX(entry);
 	} else {
@@ -944,7 +917,6 @@ static int gem_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			
 			txd = &gp->init_block->txd[entry];
 			txd->buffer = cpu_to_le64(mapping);
-			wmb();
 			txd->control_word = cpu_to_le64(this_ctrl | len);
 
 			if (gem_intme(entry))
@@ -954,7 +926,6 @@ static int gem_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 		txd = &gp->init_block->txd[first_entry];
 		txd->buffer = cpu_to_le64(first_mapping);
-		wmb();
 		txd->control_word =
 			cpu_to_le64(ctrl | TXDCTRL_SOF | intme | first_len);
 	}
@@ -966,7 +937,6 @@ static int gem_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (netif_msg_tx_queued(gp))
 		printk(KERN_DEBUG "%s: tx queued, slot %d, skblen %d\n",
 		       dev->name, entry, skb->len);
-	mb();
 	writel(gp->tx_new, gp->regs + TXDMA_KICK);
 	spin_unlock_irq(&gp->lock);
 
@@ -1270,12 +1240,6 @@ static int gem_mdio_link_not_up(struct gem *gp)
 		gp->lstate = link_force_ok;
 		return 0;
 	case link_aneg:
-		/* We try forced modes after a failed aneg only on PHYs that don't
-		 * have "magic_aneg" bit set, which means they internally do the
-		 * while forced-mode thingy. On these, we just restart aneg
-		 */
-		if (gp->phy_mii.def->magic_aneg)
-			return 1;
 		if (netif_msg_link(gp))
 			printk(KERN_INFO "%s: switching to forced 100bt\n",
 				gp->dev->name);
@@ -1442,7 +1406,6 @@ static void gem_clean_rings(struct gem *gp)
 			gp->rx_skbs[i] = NULL;
 		}
 		rxd->status_word = 0;
-		wmb();
 		rxd->buffer = 0;
 	}
 
@@ -1483,9 +1446,6 @@ static void gem_init_rings(struct gem *gp)
 
 	gem_clean_rings(gp);
 
-	gp->rx_buf_sz = max(dev->mtu + ETH_HLEN + VLAN_HLEN,
-			    (unsigned)VLAN_ETH_FRAME_LEN);
-
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		struct sk_buff *skb;
 		struct gem_rxd *rxd = &gb->rxd[i];
@@ -1499,14 +1459,13 @@ static void gem_init_rings(struct gem *gp)
 
 		gp->rx_skbs[i] = skb;
 		skb->dev = dev;
-		skb_put(skb, (gp->rx_buf_sz + RX_OFFSET));
+		skb_put(skb, (ETH_FRAME_LEN + RX_OFFSET));
 		dma_addr = pci_map_page(gp->pdev,
 					virt_to_page(skb->data),
 					offset_in_page(skb->data),
 					RX_BUF_ALLOC_SIZE(gp),
 					PCI_DMA_FROMDEVICE);
 		rxd->buffer = cpu_to_le64(dma_addr);
-		wmb();
 		rxd->status_word = cpu_to_le64(RXDCTRL_FRESH(gp));
 		skb_reserve(skb, RX_OFFSET);
 	}
@@ -1515,10 +1474,8 @@ static void gem_init_rings(struct gem *gp)
 		struct gem_txd *txd = &gb->txd[i];
 
 		txd->control_word = 0;
-		wmb();
 		txd->buffer = 0;
 	}
-	wmb();
 }
 
 /* Must be invoked under gp->lock. */
@@ -1540,26 +1497,18 @@ static void gem_init_phy(struct gem *gp)
 		 * to schedule instead
 		 */
 		pmac_call_feature(PMAC_FTR_GMAC_PHY_RESET, gp->of_node, 0, 0);
+		mdelay(10);
 		for (j = 0; j < 3; j++) {
 			/* Some PHYs used by apple have problem getting back to us,
-			 * we _know_ it's actually at addr 0 or 1, that's a hack, but
+			 * we _know_ it's actually at addr 0, that's a hack, but
 			 * it helps to do that reset now. I suspect some motherboards
 			 * don't wire the PHY reset line properly, thus the PHY doesn't
 			 * come back with the above pmac_call_feature.
 			 */
 			gp->mii_phy_addr = 0;
 			phy_write(gp, MII_BMCR, BMCR_RESET);
-			gp->mii_phy_addr = 1;
-			phy_write(gp, MII_BMCR, BMCR_RESET);
 			/* We should probably break some locks here and schedule... */
 			mdelay(10);
-			
-			/* On K2, we only probe the internal PHY at address 1, other
-			 * addresses tend to return garbage.
-			 */
-			if (gp->pdev->device == PCI_DEVICE_ID_APPLE_K2_GMAC)
-				break;
-
 			for (i = 0; i < 32; i++) {
 				gp->mii_phy_addr = i;
 				if (phy_read(gp, MII_BMCR) != 0xffff)
@@ -1754,7 +1703,7 @@ static void gem_init_mac(struct gem *gp)
 	writel(0x40, gp->regs + MAC_MINFSZ);
 
 	/* Ethernet payload + header + FCS + optional VLAN tag. */
-	writel(0x20000000 | (gp->rx_buf_sz + 4), gp->regs + MAC_MAXFSZ);
+	writel(0x20000000 | (gp->dev->mtu + ETH_HLEN + 4 + 4), gp->regs + MAC_MAXFSZ);
 
 	writel(0x07, gp->regs + MAC_PASIZE);
 	writel(0x04, gp->regs + MAC_JAMSIZE);
@@ -1821,8 +1770,6 @@ static void gem_init_mac(struct gem *gp)
 /* Must be invoked under gp->lock. */
 static void gem_init_pause_thresholds(struct gem *gp)
 {
-       	u32 cfg;
-
 	/* Calculate pause thresholds.  Setting the OFF threshold to the
 	 * full RX fifo size effectively disables PAUSE generation which
 	 * is what we do for 10/100 only GEMs which have FIFOs too small
@@ -1831,7 +1778,7 @@ static void gem_init_pause_thresholds(struct gem *gp)
 	if (gp->rx_fifo_sz <= (2 * 1024)) {
 		gp->rx_pause_off = gp->rx_pause_on = gp->rx_fifo_sz;
 	} else {
-		int max_frame = (gp->rx_buf_sz + 4 + 64) & ~63;
+		int max_frame = (gp->dev->mtu + ETH_HLEN + 4 + 4 + 64) & ~63;
 		int off = (gp->rx_fifo_sz - (max_frame * 2));
 		int on = off - max_frame;
 
@@ -1839,28 +1786,17 @@ static void gem_init_pause_thresholds(struct gem *gp)
 		gp->rx_pause_on = on;
 	}
 
+	{
+		u32 cfg;
 
-	/* Configure the chip "burst" DMA mode & enable some
-	 * HW bug fixes on Apple version
-	 */
-       	cfg  = 0;
-       	if (gp->pdev->vendor == PCI_VENDOR_ID_APPLE)
-		cfg |= GREG_CFG_RONPAULBIT | GREG_CFG_ENBUG2FIX;
+		cfg  = 0;
 #if !defined(CONFIG_SPARC64) && !defined(CONFIG_ALPHA)
-       	cfg |= GREG_CFG_IBURST;
+		cfg |= GREG_CFG_IBURST;
 #endif
-       	cfg |= ((31 << 1) & GREG_CFG_TXDMALIM);
-       	cfg |= ((31 << 6) & GREG_CFG_RXDMALIM);
-       	writel(cfg, gp->regs + GREG_CFG);
-
-	/* If Infinite Burst didn't stick, then use different
-	 * thresholds (and Apple bug fixes don't exist)
-	 */
-	if (!(readl(gp->regs + GREG_CFG) & GREG_CFG_IBURST)) {
-		cfg = ((2 << 1) & GREG_CFG_TXDMALIM);
-		cfg |= ((8 << 6) & GREG_CFG_RXDMALIM);
+		cfg |= ((31 << 1) & GREG_CFG_TXDMALIM);
+		cfg |= ((31 << 6) & GREG_CFG_RXDMALIM);
 		writel(cfg, gp->regs + GREG_CFG);
-	}	
+	}
 }
 
 static int gem_check_invariants(struct gem *gp)
@@ -1992,12 +1928,21 @@ static void gem_init_hw(struct gem *gp, int restart_link)
  */
 static void gem_apple_powerup(struct gem *gp)
 {
+	u16 cmd;
 	u32 mif_cfg;
 
-	mb();
 	pmac_call_feature(PMAC_FTR_GMAC_ENABLE, gp->of_node, 0, 1);
 
-	udelay(3);
+	current->state = TASK_UNINTERRUPTIBLE;
+	schedule_timeout((21 * HZ) / 1000);
+
+	pci_read_config_word(gp->pdev, PCI_COMMAND, &cmd);
+	cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE;
+    	pci_write_config_word(gp->pdev, PCI_COMMAND, cmd);
+    	pci_write_config_byte(gp->pdev, PCI_LATENCY_TIMER, 6);
+    	pci_write_config_byte(gp->pdev, PCI_CACHE_LINE_SIZE, 8);
+
+	mdelay(1);
 	
 	mif_cfg = readl(gp->regs + MIF_CFG);
 	mif_cfg &= ~(MIF_CFG_PSELECT|MIF_CFG_POLL|MIF_CFG_BBMODE|MIF_CFG_MDI1);
@@ -2005,6 +1950,8 @@ static void gem_apple_powerup(struct gem *gp)
 	writel(mif_cfg, gp->regs + MIF_CFG);
 	writel(PCS_DMODE_MGM, gp->regs + PCS_DMODE);
 	writel(MAC_XIFCFG_OE, gp->regs + MAC_XIFCFG);
+
+	mdelay(1);
 }
 
 /* Turn off the chip's clock */
@@ -2015,16 +1962,10 @@ static void gem_apple_powerdown(struct gem *gp)
 
 #endif /* CONFIG_PPC_PMAC */
 
-/* Must be invoked with no lock held. */
+/* Must be invoked under gp->lock. */
 static void gem_stop_phy(struct gem *gp)
 {
 	u32 mifcfg;
-	unsigned long flags;
-
-	/* Let the chip settle down a bit, it seems that helps
-	 * for sleep mode on some models
-	 */
-	msleep(10);
 
 	/* Make sure we aren't polling PHY status change. We
 	 * don't currently use that feature though
@@ -2035,27 +1976,17 @@ static void gem_stop_phy(struct gem *gp)
 
 	if (gp->wake_on_lan) {
 		/* Setup wake-on-lan */
-	} else {
+	} else
 		writel(0, gp->regs + MAC_RXCFG);
-		(void)readl(gp->regs + MAC_RXCFG);
-		/* Machine sleep will die in strange ways if we
-		 * dont wait a bit here, looks like the chip takes
-		 * some time to really shut down
-		 */
-		msleep(10);
-	}
-
 	writel(0, gp->regs + MAC_TXCFG);
 	writel(0, gp->regs + MAC_XIFCFG);
 	writel(0, gp->regs + TXDMA_CFG);
 	writel(0, gp->regs + RXDMA_CFG);
 
 	if (!gp->wake_on_lan) {
-		spin_lock_irqsave(&gp->lock, flags);
 		gem_stop(gp);
 		writel(MAC_TXRST_CMD, gp->regs + MAC_TXRST);
 		writel(MAC_RXRST_CMD, gp->regs + MAC_RXRST);
-		spin_unlock_irqrestore(&gp->lock, flags);
 	}
 
 	if (found_mii_phy(gp) && gp->phy_mii.def->ops->suspend)
@@ -2077,33 +2008,31 @@ static void gem_stop_phy(struct gem *gp)
 /* Shut down the chip, must be called with pm_sem held.  */
 static void gem_shutdown(struct gem *gp)
 {
-	/* Make us not-running to avoid timers respawning
-	 * and swallow irqs 
-	 */
+	/* Make us not-running to avoid timers respawning */
 	gp->hw_running = 0;
-	wmb();
 
 	/* Stop the link timer */
 	del_timer_sync(&gp->link_timer);
 
 	/* Stop the reset task */
 	while (gp->reset_task_pending)
-		yield();
+		schedule();
 	
 	/* Actually stop the chip */
+	spin_lock_irq(&gp->lock);
 	if (gp->pdev->vendor == PCI_VENDOR_ID_APPLE) {
 		gem_stop_phy(gp);
+
+		spin_unlock_irq(&gp->lock);
 
 #ifdef CONFIG_PPC_PMAC
 		/* Power down the chip */
 		gem_apple_powerdown(gp);
 #endif /* CONFIG_PPC_PMAC */
-	} else{
-		unsigned long flags;
-
-		spin_lock_irqsave(&gp->lock, flags);
+	} else {
 		gem_stop(gp);
-		spin_unlock_irqrestore(&gp->lock, flags);	
+
+		spin_unlock_irq(&gp->lock);
 	}
 }
 
@@ -2512,7 +2441,7 @@ static struct ethtool_ops gem_ethtool_ops = {
 static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct gem *gp = dev->priv;
-	struct mii_ioctl_data *data = if_mii(ifr);
+	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr->ifr_data;
 	int rc = -EOPNOTSUPP;
 	
 	/* Hold the PM semaphore while doing ioctl's or we may collide
@@ -2719,7 +2648,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 
 	gp = dev->priv;
 
-	err = pci_request_regions(pdev, DRV_NAME);
+	err = pci_request_regions(pdev, dev->name);
 	if (err) {
 		printk(KERN_ERR PFX "Cannot obtain PCI resources, "
 		       "aborting.\n");
@@ -2763,7 +2692,6 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	 * not have properly shut down the PHY.
 	 */
 #ifdef CONFIG_PPC_PMAC
-	gp->of_node = pci_device_to_OF_node(pdev);
 	if (pdev->vendor == PCI_VENDOR_ID_APPLE)
 		gem_apple_powerup(gp);
 #endif
@@ -2797,6 +2725,9 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
+#ifdef CONFIG_PPC_PMAC
+	gp->of_node = pci_device_to_OF_node(pdev);
+#endif	
 	if (gem_get_device_address(gp))
 		goto err_out_free_consistent;
 

@@ -44,7 +44,7 @@ extern int cap_capget (struct task_struct *target, kernel_cap_t *effective, kern
 extern int cap_capset_check (struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
 extern void cap_capset_set (struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
 extern int cap_bprm_set_security (struct linux_binprm *bprm);
-extern void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe);
+extern void cap_bprm_compute_creds (struct linux_binprm *bprm);
 extern int cap_bprm_secureexec(struct linux_binprm *bprm);
 extern int cap_inode_setxattr(struct dentry *dentry, char *name, void *value, size_t size, int flags);
 extern int cap_inode_removexattr(struct dentry *dentry, char *name);
@@ -53,7 +53,7 @@ extern void cap_task_reparent_to_init (struct task_struct *p);
 extern int cap_syslog (int type);
 extern int cap_vm_enough_memory (long pages);
 
-static inline int cap_netlink_send (struct sock *sk, struct sk_buff *skb)
+static inline int cap_netlink_send (struct sk_buff *skb)
 {
 	NETLINK_CB (skb).eff_cap = current->cap_effective;
 	return 0;
@@ -86,11 +86,6 @@ struct nfsctl_arg;
 struct sched_param;
 struct swap_info_struct;
 
-/* bprm_apply_creds unsafe reasons */
-#define LSM_UNSAFE_SHARE	1
-#define LSM_UNSAFE_PTRACE	2
-#define LSM_UNSAFE_PTRACE_CAP	4
-
 #ifdef CONFIG_SECURITY
 
 /**
@@ -107,7 +102,7 @@ struct swap_info_struct;
  * @bprm_free_security:
  *	@bprm contains the linux_binprm structure to be modified.
  *	Deallocate and clear the @bprm->security field.
- * @bprm_apply_creds:
+ * @bprm_compute_creds:
  *	Compute and set the security attributes of a process being transformed
  *	by an execve operation based on the old attributes (current->security)
  *	and the information saved in @bprm->security by the set_security hook.
@@ -117,12 +112,10 @@ struct swap_info_struct;
  *	also perform other state changes on the process (e.g.  closing open
  *	file descriptors to which access is no longer granted if the attributes
  *	were changed). 
- *	bprm_apply_creds is called under task_lock.  @unsafe indicates various
- *	reasons why it may be unsafe to change security state.
  *	@bprm contains the linux_binprm structure.
  * @bprm_set_security:
  *	Save security information in the bprm->security field, typically based
- *	on information about the bprm->file, for later use by the apply_creds
+ *	on information about the bprm->file, for later use by the compute_creds
  *	hook.  This hook may also optionally check permissions (e.g. for
  *	transitions between security domains).
  *	This hook may be called multiple times during a single execve, e.g. for
@@ -178,16 +171,6 @@ struct swap_info_struct;
  *	@flags contains the mount flags.
  *	@data contains the filesystem-specific data.
  *	Return 0 if permission is granted.
- * @sb_copy_data:
- *	Allow mount option data to be copied prior to parsing by the filesystem,
- *	so that the security module can extract security-specific mount
- *	options cleanly (a filesystem may modify the data e.g. with strsep()).
- *	This also allows the original mount data to be stripped of security-
- *	specific options to avoid having to make filesystems aware of them.
- *	@type the type of filesystem being mounted.
- *	@orig the original mount data copied from userspace.
- *	@copy copied data which will be passed to the security module.
- *	Returns 0 if the copy was successful.
  * @sb_check_sb:
  *	Check permission before the device with superblock @mnt->sb is mounted
  *	on the mount point named by @nd.
@@ -571,8 +554,9 @@ struct swap_info_struct;
  *	Return 0 if permission is granted.
  * @task_setgroups:
  *	Check permission before setting the supplementary group set of the
- *	current process.
- *	@group_info contains the new group information.
+ *	current process to @grouplist.
+ *	@gidsetsize contains the number of elements in @grouplist.
+ *	@grouplist contains the array of gids.
  *	Return 0 if permission is granted.
  * @task_setnice:
  *	Check permission before setting the nice value of @p to @nice.
@@ -639,12 +623,9 @@ struct swap_info_struct;
  *	Save security information for a netlink message so that permission
  *	checking can be performed when the message is processed.  The security
  *	information can be saved using the eff_cap field of the
- *      netlink_skb_parms structure.  Also may be used to provide fine
- *	grained control over message transmission.
- *	@sk associated sock of task sending the message.,
+ *      netlink_skb_parms structure.
  *	@skb contains the sk_buff structure for the netlink message.
- *	Return 0 if the information was successfully saved and message
- *	is allowed to be transmitted.
+ *	Return 0 if the information was successfully saved.
  * @netlink_recv:
  *	Check permission before processing the received netlink message in
  *	@skb.
@@ -683,7 +664,6 @@ struct swap_info_struct;
  *	@family contains the requested protocol family.
  *	@type contains the requested communications type.
  *	@protocol contains the requested protocol.
- *	@kern set to 1 if a kernel socket.
  *	Return 0 if permission is granted.
  * @socket_post_create:
  *	This hook allows a module to update or allocate a per-socket security
@@ -698,7 +678,6 @@ struct swap_info_struct;
  *	@family contains the requested protocol family.
  *	@type contains the requested communications type.
  *	@protocol contains the requested protocol.
- *	@kern set to 1 if a kernel socket.
  * @socket_bind:
  *	Check permission before socket protocol layer bind operation is
  *	performed and the socket @sock is bound to the address specified in the
@@ -936,7 +915,7 @@ struct swap_info_struct;
  *	Check permission before allowing the @parent process to trace the
  *	@child process.
  *	Security modules may also want to perform a process tracing check
- *	during an execve in the set_security or apply_creds hooks of
+ *	during an execve in the set_security or compute_creds hooks of
  *	binprm_security_ops if the process is being traced and its security
  *	attributes would be changed by the execve.
  *	@parent contains the task_struct structure for parent process.
@@ -1038,16 +1017,14 @@ struct security_operations {
 
 	int (*bprm_alloc_security) (struct linux_binprm * bprm);
 	void (*bprm_free_security) (struct linux_binprm * bprm);
-	void (*bprm_apply_creds) (struct linux_binprm * bprm, int unsafe);
+	void (*bprm_compute_creds) (struct linux_binprm * bprm);
 	int (*bprm_set_security) (struct linux_binprm * bprm);
 	int (*bprm_check_security) (struct linux_binprm * bprm);
 	int (*bprm_secureexec) (struct linux_binprm * bprm);
 
 	int (*sb_alloc_security) (struct super_block * sb);
 	void (*sb_free_security) (struct super_block * sb);
-	int (*sb_copy_data)(struct file_system_type *type,
-			    void *orig, void *copy);
-	int (*sb_kern_mount) (struct super_block *sb, void *data);
+	int (*sb_kern_mount) (struct super_block *sb);
 	int (*sb_statfs) (struct super_block * sb);
 	int (*sb_mount) (char *dev_name, struct nameidata * nd,
 			 char *type, unsigned long flags, void *data);
@@ -1139,7 +1116,7 @@ struct security_operations {
 	int (*task_setpgid) (struct task_struct * p, pid_t pgid);
 	int (*task_getpgid) (struct task_struct * p);
 	int (*task_getsid) (struct task_struct * p);
-	int (*task_setgroups) (struct group_info *group_info);
+	int (*task_setgroups) (int gidsetsize, gid_t * grouplist);
 	int (*task_setnice) (struct task_struct * p, int nice);
 	int (*task_setrlimit) (unsigned int resource, struct rlimit * new_rlim);
 	int (*task_setscheduler) (struct task_struct * p, int policy,
@@ -1175,7 +1152,7 @@ struct security_operations {
 	int (*shm_associate) (struct shmid_kernel * shp, int shmflg);
 	int (*shm_shmctl) (struct shmid_kernel * shp, int cmd);
 	int (*shm_shmat) (struct shmid_kernel * shp, 
-			  char __user *shmaddr, int shmflg);
+			  char *shmaddr, int shmflg);
 
 	int (*sem_alloc_security) (struct sem_array * sma);
 	void (*sem_free_security) (struct sem_array * sma);
@@ -1184,7 +1161,7 @@ struct security_operations {
 	int (*sem_semop) (struct sem_array * sma, 
 			  struct sembuf * sops, unsigned nsops, int alter);
 
-	int (*netlink_send) (struct sock * sk, struct sk_buff * skb);
+	int (*netlink_send) (struct sk_buff * skb);
 	int (*netlink_recv) (struct sk_buff * skb);
 
 	/* allow module stacking */
@@ -1203,9 +1180,9 @@ struct security_operations {
 				    struct socket * other, struct sock * newsk);
 	int (*unix_may_send) (struct socket * sock, struct socket * other);
 
-	int (*socket_create) (int family, int type, int protocol, int kern);
+	int (*socket_create) (int family, int type, int protocol);
 	void (*socket_post_create) (struct socket * sock, int family,
-				    int type, int protocol, int kern);
+				    int type, int protocol);
 	int (*socket_bind) (struct socket * sock,
 			    struct sockaddr * address, int addrlen);
 	int (*socket_connect) (struct socket * sock,
@@ -1302,9 +1279,9 @@ static inline void security_bprm_free (struct linux_binprm *bprm)
 {
 	security_ops->bprm_free_security (bprm);
 }
-static inline void security_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
+static inline void security_bprm_compute_creds (struct linux_binprm *bprm)
 {
-	security_ops->bprm_apply_creds (bprm, unsafe);
+	security_ops->bprm_compute_creds (bprm);
 }
 static inline int security_bprm_set (struct linux_binprm *bprm)
 {
@@ -1331,15 +1308,9 @@ static inline void security_sb_free (struct super_block *sb)
 	security_ops->sb_free_security (sb);
 }
 
-static inline int security_sb_copy_data (struct file_system_type *type,
-					 void *orig, void *copy)
+static inline int security_sb_kern_mount (struct super_block *sb)
 {
-	return security_ops->sb_copy_data (type, orig, copy);
-}
-
-static inline int security_sb_kern_mount (struct super_block *sb, void *data)
-{
-	return security_ops->sb_kern_mount (sb, data);
+	return security_ops->sb_kern_mount (sb);
 }
 
 static inline int security_sb_statfs (struct super_block *sb)
@@ -1699,9 +1670,9 @@ static inline int security_task_getsid (struct task_struct *p)
 	return security_ops->task_getsid (p);
 }
 
-static inline int security_task_setgroups (struct group_info *group_info)
+static inline int security_task_setgroups (int gidsetsize, gid_t *grouplist)
 {
-	return security_ops->task_setgroups (group_info);
+	return security_ops->task_setgroups (gidsetsize, grouplist);
 }
 
 static inline int security_task_setnice (struct task_struct *p, int nice)
@@ -1876,9 +1847,9 @@ static inline int security_setprocattr(struct task_struct *p, char *name, void *
 	return security_ops->setprocattr(p, name, value, size);
 }
 
-static inline int security_netlink_send(struct sock *sk, struct sk_buff * skb)
+static inline int security_netlink_send(struct sk_buff * skb)
 {
-	return security_ops->netlink_send(sk, skb);
+	return security_ops->netlink_send(skb);
 }
 
 static inline int security_netlink_recv(struct sk_buff * skb)
@@ -1974,9 +1945,9 @@ static inline int security_bprm_alloc (struct linux_binprm *bprm)
 static inline void security_bprm_free (struct linux_binprm *bprm)
 { }
 
-static inline void security_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
+static inline void security_bprm_compute_creds (struct linux_binprm *bprm)
 { 
-	cap_bprm_apply_creds (bprm, unsafe);
+	cap_bprm_compute_creds (bprm);
 }
 
 static inline int security_bprm_set (struct linux_binprm *bprm)
@@ -2002,13 +1973,7 @@ static inline int security_sb_alloc (struct super_block *sb)
 static inline void security_sb_free (struct super_block *sb)
 { }
 
-static inline int security_sb_copy_data (struct file_system_type *type,
-					 void *orig, void *copy)
-{
-	return 0;
-}
-
-static inline int security_sb_kern_mount (struct super_block *sb, void *data)
+static inline int security_sb_kern_mount (struct super_block *sb)
 {
 	return 0;
 }
@@ -2334,7 +2299,7 @@ static inline int security_task_getsid (struct task_struct *p)
 	return 0;
 }
 
-static inline int security_task_setgroups (struct group_info *group_info)
+static inline int security_task_setgroups (int gidsetsize, gid_t *grouplist)
 {
 	return 0;
 }
@@ -2504,9 +2469,9 @@ static inline int security_setprocattr(struct task_struct *p, char *name, void *
  * (rather than hooking into the capability module) to reduce overhead
  * in the networking code.
  */
-static inline int security_netlink_send (struct sock *sk, struct sk_buff *skb)
+static inline int security_netlink_send (struct sk_buff *skb)
 {
-	return cap_netlink_send (sk, skb);
+	return cap_netlink_send (skb);
 }
 
 static inline int security_netlink_recv (struct sk_buff *skb)
@@ -2531,19 +2496,17 @@ static inline int security_unix_may_send(struct socket * sock,
 	return security_ops->unix_may_send(sock, other);
 }
 
-static inline int security_socket_create (int family, int type,
-					  int protocol, int kern)
+static inline int security_socket_create (int family, int type, int protocol)
 {
-	return security_ops->socket_create(family, type, protocol, kern);
+	return security_ops->socket_create(family, type, protocol);
 }
 
 static inline void security_socket_post_create(struct socket * sock, 
 					       int family,
 					       int type, 
-					       int protocol, int kern)
+					       int protocol)
 {
-	security_ops->socket_post_create(sock, family, type,
-					 protocol, kern);
+	security_ops->socket_post_create(sock, family, type, protocol);
 }
 
 static inline int security_socket_bind(struct socket * sock, 
@@ -2652,8 +2615,7 @@ static inline int security_unix_may_send(struct socket * sock,
 	return 0;
 }
 
-static inline int security_socket_create (int family, int type,
-					  int protocol, int kern)
+static inline int security_socket_create (int family, int type, int protocol)
 {
 	return 0;
 }
@@ -2661,7 +2623,7 @@ static inline int security_socket_create (int family, int type,
 static inline void security_socket_post_create(struct socket * sock, 
 					       int family,
 					       int type, 
-					       int protocol, int kern)
+					       int protocol)
 {
 }
 

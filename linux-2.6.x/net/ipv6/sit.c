@@ -187,7 +187,7 @@ static struct ip_tunnel * ipip6_tunnel_locate(struct ip_tunnel_parm *parms, int 
 	nt->parms = *parms;
 
 	if (register_netdevice(dev) < 0) {
-		free_netdev(dev);
+		kfree(dev);
 		goto failed;
 	}
 
@@ -388,7 +388,13 @@ static int ipip6_rcv(struct sk_buff *skb)
 		skb->dev = tunnel->dev;
 		dst_release(skb->dst);
 		skb->dst = NULL;
-		nf_reset(skb);
+#ifdef CONFIG_NETFILTER
+		nf_conntrack_put(skb->nfct);
+		skb->nfct = NULL;
+#ifdef CONFIG_NETFILTER_DEBUG
+		skb->nf_debug = 0;
+#endif
+#endif
 		ipip6_ecn_decapsulate(iph, skb);
 		netif_rx(skb);
 		read_unlock(&ipip6_lock);
@@ -574,7 +580,13 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if ((iph->ttl = tiph->ttl) == 0)
 		iph->ttl	=	iph6->hop_limit;
 
-	nf_reset(skb);
+#ifdef CONFIG_NETFILTER
+	nf_conntrack_put(skb->nfct);
+	skb->nfct = NULL;
+#ifdef CONFIG_NETFILTER_DEBUG
+	skb->nf_debug = 0;
+#endif
+#endif
 
 	IPTUNNEL_XMIT();
 	tunnel->recursion--;
@@ -788,16 +800,18 @@ int __init ipip6_fb_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
-static struct net_protocol sit_protocol = {
+static struct inet_protocol sit_protocol = {
 	.handler	=	ipip6_rcv,
 	.err_handler	=	ipip6_err,
 };
 
-void __exit sit_cleanup(void)
+#ifdef MODULE
+void sit_cleanup(void)
 {
 	inet_del_protocol(&sit_protocol, IPPROTO_IPV6);
 	unregister_netdev(ipip6_fb_tunnel_dev);
 }
+#endif
 
 int __init sit_init(void)
 {
@@ -826,6 +840,6 @@ int __init sit_init(void)
 	return err;
  fail:
 	inet_del_protocol(&sit_protocol, IPPROTO_IPV6);
-	free_netdev(ipip6_fb_tunnel_dev);
+	kfree(ipip6_fb_tunnel_dev);
 	goto out;
 }

@@ -42,8 +42,7 @@
 #if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
 static int snd_pmac_register_sleep_notifier(pmac_t *chip);
 static int snd_pmac_unregister_sleep_notifier(pmac_t *chip);
-static int snd_pmac_suspend(snd_card_t *card, unsigned int state);
-static int snd_pmac_resume(snd_card_t *card, unsigned int state);
+static int snd_pmac_set_power_state(snd_card_t *card, unsigned int power_state);
 #endif
 
 
@@ -665,9 +664,7 @@ int __init snd_pmac_pcm_new(pmac_t *chip)
 	chip->capture.cur_freqs = chip->freqs_ok;
 
 	/* preallocate 64k buffer */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS, 
-					      snd_dma_continuous_data(GFP_KERNEL),
-					      64 * 1024, 64 * 1024);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, 64 * 1024, 64 * 1024, GFP_KERNEL);
 
 	return 0;
 }
@@ -688,7 +685,7 @@ static void snd_pmac_dbdma_reset(pmac_t *chip)
 static irqreturn_t
 snd_pmac_tx_intr(int irq, void *devid, struct pt_regs *regs)
 {
-	pmac_t *chip = snd_magic_cast(pmac_t, devid, return IRQ_NONE);
+	pmac_t *chip = snd_magic_cast(pmac_t, devid, return);
 	snd_pmac_pcm_update(chip, &chip->playback);
 	return IRQ_HANDLED;
 }
@@ -697,7 +694,7 @@ snd_pmac_tx_intr(int irq, void *devid, struct pt_regs *regs)
 static irqreturn_t
 snd_pmac_rx_intr(int irq, void *devid, struct pt_regs *regs)
 {
-	pmac_t *chip = snd_magic_cast(pmac_t, devid, return IRQ_NONE);
+	pmac_t *chip = snd_magic_cast(pmac_t, devid, return);
 	snd_pmac_pcm_update(chip, &chip->capture);
 	return IRQ_HANDLED;
 }
@@ -706,7 +703,7 @@ snd_pmac_rx_intr(int irq, void *devid, struct pt_regs *regs)
 static irqreturn_t
 snd_pmac_ctrl_intr(int irq, void *devid, struct pt_regs *regs)
 {
-	pmac_t *chip = snd_magic_cast(pmac_t, devid, return IRQ_NONE);
+	pmac_t *chip = snd_magic_cast(pmac_t, devid, return);
 	int ctrl = in_le32(&chip->awacs->control);
 
 	/*printk("pmac: control interrupt.. 0x%x\n", ctrl);*/
@@ -896,7 +893,7 @@ static int __init snd_pmac_detect(pmac_t *chip)
 		sound = sound->next;
 	if (! sound)
 		return -ENODEV;
-	prop = (unsigned int *) get_property(sound, "sub-frame", NULL);
+	prop = (unsigned int *) get_property(sound, "sub-frame", 0);
 	if (prop && *prop < 16)
 		chip->subframe = *prop;
 	/* This should be verified on older screamers */
@@ -931,14 +928,7 @@ static int __init snd_pmac_detect(pmac_t *chip)
 		chip->freq_table = tumbler_freqs;
 		chip->control_mask = MASK_IEPC | 0x11; /* disable IEE */
 	}
-	if (device_is_compatible(sound, "AOAKeylargo")) {
-		/* Seems to support the stock AWACS frequencies, but has
-		   a snapper mixer */
-		chip->model = PMAC_SNAPPER;
-		// chip->can_byte_swap = 0; /* FIXME: check this */
-		chip->control_mask = MASK_IEPC | 0x11; /* disable IEE */
-	}
-	prop = (unsigned int *)get_property(sound, "device-id", NULL);
+	prop = (unsigned int *)get_property(sound, "device-id", 0);
 	if (prop)
 		chip->device_id = *prop;
 	chip->has_iic = (find_devices("perch") != NULL);
@@ -1178,8 +1168,9 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
 
 #if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
 	/* add sleep notifier */
-	if (! snd_pmac_register_sleep_notifier(chip))
-		snd_card_set_pm_callback(chip->card, snd_pmac_suspend, snd_pmac_resume, chip);
+	snd_pmac_register_sleep_notifier(chip);
+	card->set_power_state = snd_pmac_set_power_state;
+	card->power_state_private_data = chip;
 #endif
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0)
@@ -1204,10 +1195,13 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
  * Save state when going to sleep, restore it afterwards.
  */
 
-static int snd_pmac_suspend(snd_card_t *card, unsigned int state)
+static void snd_pmac_suspend(pmac_t *chip)
 {
-	pmac_t *chip = snd_magic_cast(pmac_t, card->pm_private_data, return -EINVAL);
 	unsigned long flags;
+	snd_card_t *card = chip->card;
+
+	if (card->power_state == SNDRV_CTL_POWER_D3hot)
+		return;
 
 	if (chip->suspend)
 		chip->suspend(chip);
@@ -1223,12 +1217,14 @@ static int snd_pmac_suspend(snd_card_t *card, unsigned int state)
 		disable_irq(chip->rx_irq);
 	snd_pmac_sound_feature(chip, 0);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	return 0;
 }
 
-static int snd_pmac_resume(snd_card_t *card, unsigned int state)
+static void snd_pmac_resume(pmac_t *chip)
 {
-	pmac_t *chip = snd_magic_cast(pmac_t, card->pm_private_data, return -EINVAL);
+	snd_card_t *card = chip->card;
+
+	if (card->power_state == SNDRV_CTL_POWER_D0)
+		return;
 
 	snd_pmac_sound_feature(chip, 1);
 	if (chip->resume)
@@ -1250,7 +1246,6 @@ static int snd_pmac_resume(snd_card_t *card, unsigned int state)
 		enable_irq(chip->rx_irq);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
-	return 0;
 }
 
 /* the chip is stored statically by snd_pmac_register_sleep_notifier
@@ -1267,10 +1262,10 @@ static int snd_pmac_sleep_notify(struct pmu_sleep_notifier *self, int when)
 
 	switch (when) {
 	case PBOOK_SLEEP_NOW:
-		snd_pmac_suspend(chip->card, 0);
+		snd_pmac_suspend(chip);
 		break;
 	case PBOOK_WAKE:
-		snd_pmac_resume(chip->card, 0);
+		snd_pmac_resume(chip);
 		break;
 	}
 	return PBOOK_SLEEP_OK;
@@ -1283,18 +1278,45 @@ static struct pmu_sleep_notifier snd_pmac_sleep_notifier = {
 static int __init snd_pmac_register_sleep_notifier(pmac_t *chip)
 {
 	/* should be protected here.. */
-	snd_assert(! sleeping_pmac, return -EBUSY);
+	if (sleeping_pmac) {
+		snd_printd("sleep notifier already reigistered\n");
+		return -EBUSY;
+	}
 	sleeping_pmac = chip;
 	pmu_register_sleep_notifier(&snd_pmac_sleep_notifier);
+	chip->sleep_registered = 1;
 	return 0;
 }
 						    
 static int snd_pmac_unregister_sleep_notifier(pmac_t *chip)
 {
+	if (! chip->sleep_registered)
+		return 0;
 	/* should be protected here.. */
-	snd_assert(sleeping_pmac == chip, return -ENODEV);
+	if (sleeping_pmac != chip)
+		return -ENODEV;
 	pmu_unregister_sleep_notifier(&snd_pmac_sleep_notifier);
 	sleeping_pmac = NULL;
+	return 0;
+}
+
+/* callback */
+static int snd_pmac_set_power_state(snd_card_t *card, unsigned int power_state)
+{
+	pmac_t *chip = snd_magic_cast(pmac_t, card->power_state_private_data, return -ENXIO);
+	switch (power_state) {
+	case SNDRV_CTL_POWER_D0:
+	case SNDRV_CTL_POWER_D1:
+	case SNDRV_CTL_POWER_D2:
+		snd_pmac_resume(chip);
+		break;
+	case SNDRV_CTL_POWER_D3hot:
+	case SNDRV_CTL_POWER_D3cold:
+		snd_pmac_suspend(chip);
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 

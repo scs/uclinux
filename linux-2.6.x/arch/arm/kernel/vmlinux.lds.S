@@ -73,7 +73,6 @@ SECTIONS
 	.text : {			/* Real text segment		*/
 		_text = .;		/* Text and read-only data	*/
 			*(.text)
-			SCHED_TEXT
 			*(.fixup)
 			*(.gnu.warning)
 			*(.rodata)
@@ -102,12 +101,6 @@ SECTIONS
 		 * to an 8192 byte boundary.
 		 */
 		*(.init.task)
-
-		. = ALIGN(4096);
-		__nosave_begin = .;
-		*(.data.nosave)
-		. = ALIGN(4096);
-		__nosave_end = .;
 
 		/*
 		 * then the cacheline aligned data

@@ -88,7 +88,7 @@ void proc_device_tree_add_node(struct device_node *np, struct proc_dir_entry *de
 	child = NULL;
 	while ((child = of_get_next_child(np, child))) {
 		p = strrchr(child->full_name, '/');
-		if (!p)
+		if (p == 0)
 			p = child->full_name;
 		else
 			++p;
@@ -140,7 +140,7 @@ void proc_device_tree_add_node(struct device_node *np, struct proc_dir_entry *de
 		lastp = &al->next;
 	}
 	of_node_put(child);
-	*lastp = NULL;
+	*lastp = 0;
 	de->subdir = list;
 }
 
@@ -152,7 +152,7 @@ void proc_device_tree_init(void)
 	struct device_node *root;
 	if ( !have_of )
 		return;
-	proc_device_tree = proc_mkdir("device-tree", NULL);
+	proc_device_tree = proc_mkdir("device-tree", 0);
 	if (proc_device_tree == 0)
 		return;
 	root = of_find_node_by_path("/");

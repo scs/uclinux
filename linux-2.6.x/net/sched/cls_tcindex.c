@@ -190,7 +190,7 @@ found:
 	if (cl)
 		tp->q->ops->cl_ops->unbind_tcf(tp->q,cl);
 #ifdef CONFIG_NET_CLS_POLICE
-	tcf_police_release(r->police, TCA_ACT_UNBIND);
+	tcf_police_release(r->police);
 #endif
 	if (f)
 		kfree(f);
@@ -333,7 +333,7 @@ static int tcindex_change(struct tcf_proto *tp,unsigned long base,u32 handle,
 		tcf_tree_lock(tp);
 		police = xchg(&r->police,police);
 		tcf_tree_unlock(tp);
-		tcf_police_release(police,TCA_ACT_UNBIND);
+		tcf_police_release(police);
 	}
 #endif
 	if (r != &new_filter_result)
@@ -476,7 +476,7 @@ rtattr_failure:
 	return -1;
 }
 
-static struct tcf_proto_ops cls_tcindex_ops = {
+struct tcf_proto_ops cls_tcindex_ops = {
 	.next		=	NULL,
 	.kind		=	"tcindex",
 	.classify	=	tcindex_classify,
@@ -491,16 +491,16 @@ static struct tcf_proto_ops cls_tcindex_ops = {
 	.owner		=	THIS_MODULE,
 };
 
-static int __init init_tcindex(void)
+
+#ifdef MODULE
+int init_module(void)
 {
 	return register_tcf_proto_ops(&cls_tcindex_ops);
 }
 
-static void __exit exit_tcindex(void) 
+void cleanup_module(void) 
 {
 	unregister_tcf_proto_ops(&cls_tcindex_ops);
 }
-
-module_init(init_tcindex)
-module_exit(exit_tcindex)
+#endif
 MODULE_LICENSE("GPL");

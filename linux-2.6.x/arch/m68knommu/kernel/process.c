@@ -113,7 +113,7 @@ void show_regs(struct pt_regs * regs)
  */
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 {
-	int retval;
+	long retval;
 	long clone_arg = flags | CLONE_VM;
 	mm_segment_t fs;
 
@@ -131,8 +131,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 			"jsr	%4@\n\t"
 			"movel	%2, %%d0\n\t"
 			"trap	#0\n"
-			"1:\n\t"
-			"movel	%%d0, %0\n"
+			"1:"
 		: "=d" (retval)
 		: "i" (__NR_clone),
 		  "i" (__NR_exit),
@@ -404,6 +403,14 @@ out:
 	return error;
 }
 
+/*
+ * These bracket the sleeping functions..
+ */
+extern void scheduling_functions_start_here(void);
+extern void scheduling_functions_end_here(void);
+#define first_sched	((unsigned long) scheduling_functions_start_here)
+#define last_sched	((unsigned long) scheduling_functions_end_here)
+
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long fp, pc;
@@ -415,11 +422,12 @@ unsigned long get_wchan(struct task_struct *p)
 	stack_page = (unsigned long)p;
 	fp = ((struct switch_stack *)p->thread.ksp)->a6;
 	do {
-		if (fp < stack_page+sizeof(struct thread_info) ||
+		if (fp < stack_page+sizeof(struct task_struct) ||
 		    fp >= 8184+stack_page)
 			return 0;
 		pc = ((unsigned long *)fp)[1];
-		if (!in_sched_functions(pc))
+		/* FIXME: This depends on the order of these functions. */
+		if (pc < first_sched || pc >= last_sched)
 			return pc;
 		fp = *(unsigned long *) fp;
 	} while (count++ < 16);
@@ -431,10 +439,13 @@ unsigned long get_wchan(struct task_struct *p)
  */
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
+	extern void scheduling_functions_start_here(void);
+	extern void scheduling_functions_end_here(void);
 	struct switch_stack *sw = (struct switch_stack *)tsk->thread.ksp;
 
 	/* Check whether the thread is blocked in resume() */
-	if (in_sched_functions(sw->retpc))
+	if (sw->retpc > (unsigned long)scheduling_functions_start_here &&
+	    sw->retpc < (unsigned long)scheduling_functions_end_here)
 		return ((unsigned long *)sw->a6)[1];
 	else
 		return sw->retpc;

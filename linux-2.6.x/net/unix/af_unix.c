@@ -82,6 +82,8 @@
  *		  with BSD names.
  */
 
+#undef unix	/* KBUILD_MODNAME */
+
 #include <linux/module.h>
 #include <linux/config.h>
 #include <linux/kernel.h>
@@ -375,7 +377,7 @@ static int unix_release_sock (struct sock *sk, int embrion)
 	skpair=unix_peer(sk);
 
 	if (skpair!=NULL) {
-		if (sk->sk_type == SOCK_STREAM || sk->sk_type == SOCK_SEQPACKET) {
+		if (sk->sk_type == SOCK_STREAM) {
 			unix_state_wlock(skpair);
 			/* No more writes */
 			skpair->sk_shutdown = SHUTDOWN_MASK;
@@ -433,8 +435,8 @@ static int unix_listen(struct socket *sock, int backlog)
 	struct unix_sock *u = unix_sk(sk);
 
 	err = -EOPNOTSUPP;
-	if (sock->type!=SOCK_STREAM && sock->type!=SOCK_SEQPACKET)
-		goto out;			/* Only stream/seqpacket sockets accept */
+	if (sock->type!=SOCK_STREAM)
+		goto out;			/* Only stream sockets accept */
 	err = -EINVAL;
 	if (!u->addr)
 		goto out;			/* No listens on an unbound socket */
@@ -457,89 +459,8 @@ out:
 	return err;
 }
 
-static int unix_release(struct socket *);
-static int unix_bind(struct socket *, struct sockaddr *, int);
-static int unix_stream_connect(struct socket *, struct sockaddr *,
-			       int addr_len, int flags);
-static int unix_socketpair(struct socket *, struct socket *);
-static int unix_accept(struct socket *, struct socket *, int);
-static int unix_getname(struct socket *, struct sockaddr *, int *, int);
-static unsigned int unix_poll(struct file *, struct socket *, poll_table *);
-static int unix_ioctl(struct socket *, unsigned int, unsigned long);
-static int unix_shutdown(struct socket *, int);
-static int unix_stream_sendmsg(struct kiocb *, struct socket *,
-			       struct msghdr *, size_t);
-static int unix_stream_recvmsg(struct kiocb *, struct socket *,
-			       struct msghdr *, size_t, int);
-static int unix_dgram_sendmsg(struct kiocb *, struct socket *,
-			      struct msghdr *, size_t);
-static int unix_dgram_recvmsg(struct kiocb *, struct socket *,
-			      struct msghdr *, size_t, int);
-static int unix_dgram_connect(struct socket *, struct sockaddr *,
-			      int, int);
-
-static struct proto_ops unix_stream_ops = {
-	.family =	PF_UNIX,
-	.owner =	THIS_MODULE,
-	.release =	unix_release,
-	.bind =		unix_bind,
-	.connect =	unix_stream_connect,
-	.socketpair =	unix_socketpair,
-	.accept =	unix_accept,
-	.getname =	unix_getname,
-	.poll =		unix_poll,
-	.ioctl =	unix_ioctl,
-	.listen =	unix_listen,
-	.shutdown =	unix_shutdown,
-	.setsockopt =	sock_no_setsockopt,
-	.getsockopt =	sock_no_getsockopt,
-	.sendmsg =	unix_stream_sendmsg,
-	.recvmsg =	unix_stream_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
-};
-
-static struct proto_ops unix_dgram_ops = {
-	.family =	PF_UNIX,
-	.owner =	THIS_MODULE,
-	.release =	unix_release,
-	.bind =		unix_bind,
-	.connect =	unix_dgram_connect,
-	.socketpair =	unix_socketpair,
-	.accept =	sock_no_accept,
-	.getname =	unix_getname,
-	.poll =		datagram_poll,
-	.ioctl =	unix_ioctl,
-	.listen =	sock_no_listen,
-	.shutdown =	unix_shutdown,
-	.setsockopt =	sock_no_setsockopt,
-	.getsockopt =	sock_no_getsockopt,
-	.sendmsg =	unix_dgram_sendmsg,
-	.recvmsg =	unix_dgram_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
-};
-
-static struct proto_ops unix_seqpacket_ops = {
-	.family =	PF_UNIX,
-	.owner =	THIS_MODULE,
-	.release =	unix_release,
-	.bind =		unix_bind,
-	.connect =	unix_stream_connect,
-	.socketpair =	unix_socketpair,
-	.accept =	unix_accept,
-	.getname =	unix_getname,
-	.poll =		datagram_poll,
-	.ioctl =	unix_ioctl,
-	.listen =	unix_listen,
-	.shutdown =	unix_shutdown,
-	.setsockopt =	sock_no_setsockopt,
-	.getsockopt =	sock_no_getsockopt,
-	.sendmsg =	unix_dgram_sendmsg,
-	.recvmsg =	unix_dgram_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
-};
+extern struct proto_ops unix_stream_ops;
+extern struct proto_ops unix_dgram_ops;
 
 static struct sock * unix_create1(struct socket *sock)
 {
@@ -593,9 +514,6 @@ static int unix_create(struct socket *sock, int protocol)
 		sock->type=SOCK_DGRAM;
 	case SOCK_DGRAM:
 		sock->ops = &unix_dgram_ops;
-		break;
-	case SOCK_SEQPACKET:
-		sock->ops = &unix_seqpacket_ops;
 		break;
 	default:
 		return -ESOCKTNOSUPPORT;
@@ -689,7 +607,7 @@ static struct sock *unix_find_other(struct sockaddr_un *sunname, int len,
 			goto put_fail;
 
 		if (u->sk_type == type)
-			touch_atime(nd.mnt, nd.dentry);
+			update_atime(nd.dentry->d_inode);
 
 		path_release(&nd);
 
@@ -705,7 +623,7 @@ static struct sock *unix_find_other(struct sockaddr_un *sunname, int len,
 			struct dentry *dentry;
 			dentry = unix_sk(u)->dentry;
 			if (dentry)
-				touch_atime(unix_sk(u)->mnt, dentry);
+				update_atime(dentry->d_inode);
 		} else
 			goto fail;
 	}
@@ -1064,7 +982,7 @@ restart:
 	sock_hold(sk);
 	unix_peer(newsk)	= sk;
 	newsk->sk_state		= TCP_ESTABLISHED;
-	newsk->sk_type		= sk->sk_type;
+	newsk->sk_type		= SOCK_STREAM;
 	newsk->sk_peercred.pid	= current->tgid;
 	newsk->sk_peercred.uid	= current->euid;
 	newsk->sk_peercred.gid	= current->egid;
@@ -1148,7 +1066,7 @@ static int unix_accept(struct socket *sock, struct socket *newsock, int flags)
 	int err;
 
 	err = -EOPNOTSUPP;
-	if (sock->type!=SOCK_STREAM && sock->type!=SOCK_SEQPACKET)
+	if (sock->type!=SOCK_STREAM)
 		goto out;
 
 	err = -EINVAL;
@@ -1793,9 +1711,7 @@ static int unix_shutdown(struct socket *sock, int mode)
 		unix_state_wunlock(sk);
 		sk->sk_state_change(sk);
 
-		if (other &&
-			(sk->sk_type == SOCK_STREAM || sk->sk_type == SOCK_SEQPACKET)) {
-
+		if (other && sk->sk_type == SOCK_STREAM) {
 			int peer_mode = 0;
 
 			if (mode&RCV_SHUTDOWN)
@@ -1829,7 +1745,7 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	{
 		case SIOCOUTQ:
 			amount = atomic_read(&sk->sk_wmem_alloc);
-			err = put_user(amount, (int __user *)arg);
+			err = put_user(amount, (int *)arg);
 			break;
 		case SIOCINQ:
 		{
@@ -1844,12 +1760,12 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			if (skb)
 				amount=skb->len;
 			spin_unlock(&sk->sk_receive_queue.lock);
-			err = put_user(amount, (int __user *)arg);
+			err = put_user(amount, (int *)arg);
 			break;
 		}
 
 		default:
-			err = dev_ioctl(cmd, (void __user *)arg);
+			err = dev_ioctl(cmd, (void *)arg);
 			break;
 	}
 	return err;
@@ -1875,7 +1791,7 @@ static unsigned int unix_poll(struct file * file, struct socket *sock, poll_tabl
 		mask |= POLLIN | POLLRDNORM;
 
 	/* Connection-based need to check for termination and startup */
-	if ((sk->sk_type == SOCK_STREAM || sk->sk_type == SOCK_SEQPACKET) && sk->sk_state == TCP_CLOSE)
+	if (sk->sk_type == SOCK_STREAM && sk->sk_state == TCP_CLOSE)
 		mask |= POLLHUP;
 
 	/*
@@ -1947,19 +1863,14 @@ static int unix_seq_show(struct seq_file *seq, void *v)
 			sock_i_ino(s));
 
 		if (u->addr) {
-			int i, len;
+			int i;
 			seq_putc(seq, ' ');
-
-			i = 0;
-			len = u->addr->len - sizeof(short);
-			if (!UNIX_ABSTRACT(s))
-				len--;
-			else {
-				seq_putc(seq, '@');
-				i++;
-			}
-			for ( ; i < len; i++)
+			
+			for (i = 0; i < u->addr->len-sizeof(short); i++)
 				seq_putc(seq, u->addr->name->sun_path[i]);
+
+			if (UNIX_ABSTRACT(s))
+				seq_putc(seq, '@');
 		}
 		unix_state_runlock(s);
 		seq_putc(seq, '\n');
@@ -1968,7 +1879,7 @@ static int unix_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations unix_seq_ops = {
+struct seq_operations unix_seq_ops = {
 	.start  = unix_seq_start,
 	.next   = unix_seq_next,
 	.stop   = unix_seq_stop,
@@ -2009,7 +1920,49 @@ static struct file_operations unix_seq_fops = {
 
 #endif
 
-static struct net_proto_family unix_family_ops = {
+struct proto_ops unix_stream_ops = {
+	.family =	PF_UNIX,
+	.owner =	THIS_MODULE,
+	.release =	unix_release,
+	.bind =		unix_bind,
+	.connect =	unix_stream_connect,
+	.socketpair =	unix_socketpair,
+	.accept =	unix_accept,
+	.getname =	unix_getname,
+	.poll =		unix_poll,
+	.ioctl =	unix_ioctl,
+	.listen =	unix_listen,
+	.shutdown =	unix_shutdown,
+	.setsockopt =	sock_no_setsockopt,
+	.getsockopt =	sock_no_getsockopt,
+	.sendmsg =	unix_stream_sendmsg,
+	.recvmsg =	unix_stream_recvmsg,
+	.mmap =		sock_no_mmap,
+	.sendpage =	sock_no_sendpage,
+};
+
+struct proto_ops unix_dgram_ops = {
+	.family =	PF_UNIX,
+	.owner =	THIS_MODULE,
+	.release =	unix_release,
+	.bind =		unix_bind,
+	.connect =	unix_dgram_connect,
+	.socketpair =	unix_socketpair,
+	.accept =	sock_no_accept,
+	.getname =	unix_getname,
+	.poll =		datagram_poll,
+	.ioctl =	unix_ioctl,
+	.listen =	sock_no_listen,
+	.shutdown =	unix_shutdown,
+	.setsockopt =	sock_no_setsockopt,
+	.getsockopt =	sock_no_getsockopt,
+	.sendmsg =	unix_dgram_sendmsg,
+	.recvmsg =	unix_dgram_recvmsg,
+	.mmap =		sock_no_mmap,
+	.sendpage =	sock_no_sendpage,
+};
+
+struct net_proto_family unix_family_ops = {
 	.family = PF_UNIX,
 	.create = unix_create,
 	.owner	= THIS_MODULE,
@@ -2034,7 +1987,7 @@ static int __init af_unix_init(void)
         /* allocate our sock slab cache */
         unix_sk_cachep = kmem_cache_create("unix_sock",
 					   sizeof(struct unix_sock), 0,
-					   SLAB_HWCACHE_ALIGN, NULL, NULL);
+					   SLAB_HWCACHE_ALIGN, 0, 0);
         if (!unix_sk_cachep)
                 printk(KERN_CRIT
                         "af_unix_init: Cannot create unix_sock SLAB cache!\n");

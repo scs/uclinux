@@ -85,10 +85,16 @@ static const int multicast_filter_limit = 32;
 #define PKT_BUF_SZ		1536
 
 #define DRV_MODULE_NAME		"typhoon"
-#define DRV_MODULE_VERSION 	"1.5.3"
-#define DRV_MODULE_RELDATE	"03/12/15"
+#define DRV_MODULE_VERSION 	"1.5.2"
+#define DRV_MODULE_RELDATE	"03/11/25"
 #define PFX			DRV_MODULE_NAME ": "
 #define ERR_PFX			KERN_ERR PFX
+
+#if !defined(__OPTIMIZE__)  ||  !defined(__KERNEL__)
+#warning  You must compile this file with the correct options!
+#warning  See the last lines of the source file.
+#error  You must compile this driver with "-O".
+#endif
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -151,7 +157,6 @@ enum typhoon_cards {
 	TYPHOON_TX = 0, TYPHOON_TX95, TYPHOON_TX97, TYPHOON_SVR,
 	TYPHOON_SVR95, TYPHOON_SVR97, TYPHOON_TXM, TYPHOON_BSVR,
 	TYPHOON_FX95, TYPHOON_FX97, TYPHOON_FX95SVR, TYPHOON_FX97SVR,
-	TYPHOON_FXM,
 };
 
 /* directly indexed by enum typhoon_cards, above */
@@ -180,8 +185,6 @@ static struct typhoon_card_info typhoon_card_info[] __devinitdata = {
 	 	TYPHOON_CRYPTO_DES | TYPHOON_FIBER},
 	{ "3Com Typhoon (3CR990-FX-97 Server)",
 	 	TYPHOON_CRYPTO_DES | TYPHOON_CRYPTO_3DES | TYPHOON_FIBER},
-	{ "3Com Typhoon2 (3C990B-FX-97)",
-		TYPHOON_CRYPTO_VARIABLE | TYPHOON_FIBER},
 };
 
 /* Notes on the new subsystem numbering scheme:
@@ -199,8 +202,6 @@ static struct pci_device_id typhoon_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, TYPHOON_TX97 },
 	{ PCI_VENDOR_ID_3COM, PCI_DEVICE_ID_3COM_3CR990B,
 	  PCI_ANY_ID, 0x1000, 0, 0, TYPHOON_TXM },
-	{ PCI_VENDOR_ID_3COM, PCI_DEVICE_ID_3COM_3CR990B,
-	  PCI_ANY_ID, 0x1102, 0, 0, TYPHOON_FXM },
 	{ PCI_VENDOR_ID_3COM, PCI_DEVICE_ID_3COM_3CR990B,
 	  PCI_ANY_ID, 0x2000, 0, 0, TYPHOON_BSVR },
 	{ PCI_VENDOR_ID_3COM, PCI_DEVICE_ID_3COM_3CR990_FX,
@@ -1156,7 +1157,7 @@ typhoon_ethtool_sset(struct typhoon *tp, struct ethtool_cmd *cmd)
 }
 
 static inline int
-typhoon_ethtool_ioctl(struct net_device *dev, void __user *useraddr)
+typhoon_ethtool_ioctl(struct net_device *dev, void *useraddr)
 {
 	struct typhoon *tp = (struct typhoon *) dev->priv;
 	u32 ethcmd;
@@ -1231,7 +1232,7 @@ typhoon_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	switch (cmd) {
 	case SIOCETHTOOL:
-		return typhoon_ethtool_ioctl(dev, ifr->ifr_data);
+		return typhoon_ethtool_ioctl(dev, (void *) ifr->ifr_data);
 	default:
 		break;
 	}
@@ -1312,7 +1313,7 @@ typhoon_init_interface(struct typhoon *tp)
 	tp->rxHiRing.ringBase = (u8 *) tp->shared->rxHi;
 	tp->rxBuffRing.ringBase = (u8 *) tp->shared->rxBuff;
 	tp->cmdRing.ringBase = (u8 *) tp->shared->cmd;
-	tp->respRing.ringBase = (u8 *) tp->shared->resp;
+	tp->respRing.ringBase = (u8 *) tp->shared->resp;;
 
 	tp->txLoRing.writeRegister = TYPHOON_REG_TX_LO_READY;
 	tp->txHiRing.writeRegister = TYPHOON_REG_TX_HI_READY;
@@ -1362,7 +1363,6 @@ typhoon_download_firmware(struct typhoon *tp)
 	u32 section_len;
 	u32 len;
 	u32 load_addr;
-	u32 hmac;
 	int i;
 	int err;
 
@@ -1406,16 +1406,6 @@ typhoon_download_firmware(struct typhoon *tp)
 
 	writel(TYPHOON_INTR_BOOTCMD, ioaddr + TYPHOON_REG_INTR_STATUS);
 	writel(load_addr, ioaddr + TYPHOON_REG_DOWNLOAD_BOOT_ADDR);
-	hmac = le32_to_cpu(fHdr->hmacDigest[0]);
-	writel(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_0);
-	hmac = le32_to_cpu(fHdr->hmacDigest[1]);
-	writel(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_1);
-	hmac = le32_to_cpu(fHdr->hmacDigest[2]);
-	writel(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_2);
-	hmac = le32_to_cpu(fHdr->hmacDigest[3]);
-	writel(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_3);
-	hmac = le32_to_cpu(fHdr->hmacDigest[4]);
-	writel(hmac, ioaddr + TYPHOON_REG_DOWNLOAD_HMAC_4);
 	typhoon_post_pci_writes(ioaddr);
 	writel(TYPHOON_BOOTCMD_RUNTIME_IMAGE, ioaddr + TYPHOON_REG_COMMAND);
 
@@ -1695,13 +1685,9 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile u32 * ready,
 		   (new_skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 			new_skb->dev = tp->dev;
 			skb_reserve(new_skb, 2);
-			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr,
-						    PKT_BUF_SZ,
-						    PCI_DMA_FROMDEVICE);
+			pci_dma_sync_single(tp->pdev, dma_addr, PKT_BUF_SZ,
+					    PCI_DMA_FROMDEVICE);
 			eth_copy_and_sum(new_skb, skb->tail, pkt_len, 0);
-			pci_dma_sync_single_for_device(tp->pdev, dma_addr,
-						       PKT_BUF_SZ,
-						       PCI_DMA_FROMDEVICE);
 			skb_put(new_skb, pkt_len);
 			typhoon_recycle_rx_skb(tp, idx);
 		} else {

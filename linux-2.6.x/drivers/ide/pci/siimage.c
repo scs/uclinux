@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/siimage.c		Version 1.07	Nov 30, 2003
+ * linux/drivers/ide/pci/siimage.c		Version 1.06	June 11, 2003
  *
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2003		Red Hat <alan@redhat.com>
@@ -32,8 +32,16 @@
 
 #include <asm/io.h>
 
-#undef SIIMAGE_VIRTUAL_DMAPIO
-#undef SIIMAGE_LARGE_DMA
+#include "siimage.h"
+
+#if defined(DISPLAY_SIIMAGE_TIMINGS) && defined(CONFIG_PROC_FS)
+#include <linux/proc_fs.h>
+
+static u8 siimage_proc = 0;
+#define SIIMAGE_MAX_DEVS		16
+static struct pci_dev *siimage_devs[SIIMAGE_MAX_DEVS];
+static int n_siimage_devs;
+#endif /* defined(DISPLAY_SIIMAGE_TIMINGS) && defined(CONFIG_PROC_FS) */
 
 /**
  *	pdev_is_sata		-	check if device is SATA
@@ -112,6 +120,67 @@ static inline unsigned long siimage_seldev(ide_drive_t *drive, int r)
 	base |= drive->select.b.unit << drive->select.b.unit;
 	return base;
 }
+
+#if defined(DISPLAY_SIIMAGE_TIMINGS) && defined(CONFIG_PROC_FS)
+/**
+ *	print_siimage_get_info	-	print minimal proc information
+ *	@buf: buffer to write into (kernel space)
+ *	@dev: PCI device we are describing
+ *	@index: Controller number
+ *
+ *	Print the basic information for the state of the CMD680/SI3112
+ *	channel. We don't actually dump a lot of information out for
+ *	this controller although we could expand it if we needed.
+ */
+ 
+static char *print_siimage_get_info (char *buf, struct pci_dev *dev, int index)
+{
+	char *p		= buf;
+	u8 mmio		= (pci_get_drvdata(dev) != NULL) ? 1 : 0;
+	unsigned long bmdma = pci_resource_start(dev, 4);
+	
+	if(mmio)
+		bmdma = pci_resource_start(dev, 5);
+
+	p += sprintf(p, "\nController: %d\n", index);
+	p += sprintf(p, "SiI%x Chipset.\n", dev->device);
+	if (mmio)
+		p += sprintf(p, "MMIO Base 0x%lx\n", bmdma);
+	p += sprintf(p, "%s-DMA Base 0x%lx\n", (mmio)?"MMIO":"BM", bmdma);
+	p += sprintf(p, "%s-DMA Base 0x%lx\n", (mmio)?"MMIO":"BM", bmdma+8);
+	return (char *)p;
+}
+
+/**
+ *	siimage_get_info	-	proc callback
+ *	@buffer: kernel buffer to complete
+ *	@addr: written with base of data to return
+ *	offset: seek offset
+ *	count: bytes to fill in 
+ *
+ *	Called when the user reads data from the virtual file for this
+ *	controller from /proc
+ */
+ 
+static int siimage_get_info (char *buffer, char **addr, off_t offset, int count)
+{
+	char *p = buffer;
+	int len;
+	u16 i;
+
+	p += sprintf(p, "\n");
+	for (i = 0; i < n_siimage_devs; i++) {
+		struct pci_dev *dev	= siimage_devs[i];
+		p = print_siimage_get_info(p, dev, i);
+	}
+	/* p - buffer must be less than 4k! */
+	len = (p - buffer) - offset;
+	*addr = buffer + offset;
+	
+	return len > count ? count : len;
+}
+
+#endif	/* defined(DISPLAY_SIIMAGE_TIMINGS) && defined(CONFIG_PROC_FS) */
 
 /**
  *	siimage_ratemask	-	Compute available modes
@@ -421,7 +490,7 @@ static int siimage_config_drive_for_dma (ide_drive_t *drive)
 
 	if ((id->capability & 1) != 0 && drive->autodma) {
 		/* Consult the list of known "bad" drives */
-		if (__ide_dma_bad_drive(drive))
+		if (hwif->ide_dma_bad_drive(drive))
 			goto fast_ata_pio;
 
 		if ((id->field_valid & 4) && siimage_ratemask(drive)) {
@@ -439,7 +508,7 @@ try_dma_modes:
 				if (!config_chipset_for_dma(drive))
 					goto no_dma_set;
 			}
-		} else if (__ide_dma_good_drive(drive) &&
+		} else if (hwif->ide_dma_good_drive(drive) &&
 			   (id->eide_dma_time < 150)) {
 			/* Consult the list of known "good" drives */
 			if (!config_chipset_for_dma(drive))
@@ -476,7 +545,6 @@ static int siimage_io_ide_dma_test_irq (ide_drive_t *drive)
 	return 0;
 }
 
-#if 0
 /**
  *	siimage_mmio_ide_dma_count	-	DMA bytes done
  *	@drive
@@ -504,7 +572,6 @@ static int siimage_mmio_ide_dma_count (ide_drive_t *drive)
 #endif /* SIIMAGE_VIRTUAL_DMAPIO */
 	return __ide_dma_count(drive);
 }
-#endif
 
 /**
  *	siimage_mmio_ide_dma_test_irq	-	check we caused an IRQ
@@ -710,6 +777,15 @@ static void proc_reports_siimage (struct pci_dev *dev, u8 clocking, const char *
 			case 0x00: printk("== 100\n"); break;
 		}
 	}
+
+#if defined(DISPLAY_SIIMAGE_TIMINGS) && defined(CONFIG_PROC_FS)
+	siimage_devs[n_siimage_devs++] = dev;
+
+	if (!siimage_proc) {
+		siimage_proc = 1;
+		ide_pci_register_host_proc(&siimage_procs[0]);
+	}
+#endif /* DISPLAY_SIIMAGE_TIMINGS && CONFIG_PROC_FS */
 }
 
 /**
@@ -814,7 +890,7 @@ static unsigned int setup_mmio_siimage (struct pci_dev *dev, const char *name)
  *	to 133MHz clocking if the system isn't already set up to do it.
  */
 
-static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev, const char *name)
+static unsigned int __init init_chipset_siimage (struct pci_dev *dev, const char *name)
 {
 	u32 class_rev	= 0;
 	u8 tmpbyte	= 0;
@@ -879,8 +955,8 @@ static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev, const ch
  *	The hardware supports buffered taskfiles and also some rather nice
  *	extended PRD tables. Unfortunately right now we don't.
  */
-
-static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
+ 
+static void __init init_mmio_iops_siimage (ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= hwif->pci_dev;
 	void *addr		= pci_get_drvdata(dev);
@@ -968,27 +1044,6 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 	hwif->mmio			= 2;
 }
 
-static int is_dev_seagate_sata(ide_drive_t *drive)
-{
-	const char *s = &drive->id->model[0];
-	unsigned len;
-
-	if (!drive->present)
-		return 0;
-
-	len = strnlen(s, sizeof(drive->id->model));
-
-	if ((len > 4) && (!memcmp(s, "ST", 2))) {
-		if ((!memcmp(s + len - 2, "AS", 2)) ||
-		    (!memcmp(s + len - 3, "ASL", 3))) {
-			printk(KERN_INFO "%s: applying pessimistic Seagate "
-					 "errata fix\n", drive->name);
-			return 1;
-		}
-	}
-	return 0;
-}
-
 /**
  *	init_iops_siimage	-	set up iops
  *	@hwif: interface to set up
@@ -998,8 +1053,8 @@ static int is_dev_seagate_sata(ide_drive_t *drive)
  *	look in we get for setting up the hwif so that we
  *	can get the iops right before using them.
  */
-
-static void __devinit init_iops_siimage(ide_hwif_t *hwif)
+ 
+static void __init init_iops_siimage (ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= hwif->pci_dev;
 	u32 class_rev		= 0;
@@ -1007,10 +1062,10 @@ static void __devinit init_iops_siimage(ide_hwif_t *hwif)
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xff;
 	
-	hwif->hwif_data = NULL;
+	hwif->hwif_data = 0;
 
 	hwif->rqsize = 128;
-	if (is_sata(hwif) && is_dev_seagate_sata(&hwif->drives[0]))
+	if (is_sata(hwif))
 		hwif->rqsize = 15;
 
 	if (pci_get_drvdata(dev) == NULL)
@@ -1025,8 +1080,8 @@ static void __devinit init_iops_siimage(ide_hwif_t *hwif)
  *	Check for the presence of an ATA66 capable cable on the
  *	interface.
  */
-
-static unsigned int __devinit ata66_siimage(ide_hwif_t *hwif)
+ 
+static unsigned int __init ata66_siimage (ide_hwif_t *hwif)
 {
 	unsigned long addr = siimage_selreg(hwif, 0);
 	if (pci_get_drvdata(hwif->pci_dev) == NULL) {
@@ -1046,8 +1101,8 @@ static unsigned int __devinit ata66_siimage(ide_hwif_t *hwif)
  *	requires several custom handlers so we override the default
  *	ide DMA handlers appropriately
  */
-
-static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
+ 
+static void __init init_hwif_siimage (ide_hwif_t *hwif)
 {
 	hwif->autodma = 0;
 	
@@ -1078,6 +1133,7 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 		hwif->udma_four = ata66_siimage(hwif);
 
 	if (hwif->mmio) {
+		hwif->ide_dma_count = &siimage_mmio_ide_dma_count;
 		hwif->ide_dma_test_irq = &siimage_mmio_ide_dma_test_irq;
 		hwif->ide_dma_verbose = &siimage_mmio_ide_dma_verbose;
 	} else {
@@ -1094,22 +1150,8 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
-#define DECLARE_SII_DEV(name_str)			\
-	{						\
-		.name		= name_str,		\
-		.init_chipset	= init_chipset_siimage,	\
-		.init_iops	= init_iops_siimage,	\
-		.init_hwif	= init_hwif_siimage,	\
-		.channels	= 2,			\
-		.autodma	= AUTODMA,		\
-		.bootable	= ON_BOARD,		\
-	}
+extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
 
-static ide_pci_device_t siimage_chipsets[] __devinitdata = {
-	/* 0 */ DECLARE_SII_DEV("SiI680"),
-	/* 1 */ DECLARE_SII_DEV("SiI3112 Serial ATA"),
-	/* 2 */ DECLARE_SII_DEV("Adaptec AAR-1210SA")
-};
 
 /**
  *	siimage_init_one	-	pci layer discovery entry
@@ -1122,19 +1164,20 @@ static ide_pci_device_t siimage_chipsets[] __devinitdata = {
  
 static int __devinit siimage_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_setup_pci_device(dev, &siimage_chipsets[id->driver_data]);
+	ide_pci_device_t *d = &siimage_chipsets[id->driver_data];
+	if (dev->device != d->device)
+		BUG();
+	ide_setup_pci_device(dev, d);
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 
 static struct pci_device_id siimage_pci_tbl[] = {
 	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_680,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-#ifdef CONFIG_BLK_DEV_IDE_SATA
 	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_3112, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
 	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_1210SA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
-#endif
 	{ 0, },
 };
-MODULE_DEVICE_TABLE(pci, siimage_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "SiI IDE",
@@ -1147,7 +1190,13 @@ static int siimage_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void siimage_ide_exit(void)
+{
+	ide_pci_unregister_driver(&driver);
+}
+
 module_init(siimage_ide_init);
+module_exit(siimage_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick, Alan Cox");
 MODULE_DESCRIPTION("PCI driver module for SiI IDE");

@@ -9,22 +9,26 @@
  * Code common to all IRONGATE core logic chips.
  */
 
-#define __EXTERN_INLINE inline
-#include <asm/io.h>
-#include <asm/core_irongate.h>
-#undef __EXTERN_INLINE
-
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/initrd.h>
-#include <linux/bootmem.h>
 
 #include <asm/ptrace.h>
+#include <asm/system.h>
 #include <asm/pci.h>
+#include <asm/hwrpb.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+
+#define __EXTERN_INLINE inline
+#include <asm/io.h>
+#include <asm/core_irongate.h>
+#undef __EXTERN_INLINE
+
+#include <linux/bootmem.h>
 
 #include "proto.h"
 #include "pci_impl.h"
@@ -287,9 +291,9 @@ irongate_init_arch(void)
 	hose->sparse_mem_base = 0;
 	hose->sparse_io_base = 0;
 	hose->dense_mem_base
-	  = (IRONGATE_MEM & 0xffffffffffUL) | 0x80000000000UL;
+	  = (IRONGATE_MEM & 0xffffffffff) | 0x80000000000;
 	hose->dense_io_base
-	  = (IRONGATE_IO & 0xffffffffffUL) | 0x80000000000UL;
+	  = (IRONGATE_IO & 0xffffffffff) | 0x80000000000;
 
 	hose->sg_isa = hose->sg_pci = NULL;
 	__direct_map_base = 0;

@@ -7,7 +7,7 @@
  * See arch/sparc/kernel/sys_sparc.c for ugly details..
  */
 struct ipc_kludge {
-	struct msgbuf __user *msgp;
+	struct msgbuf *msgp;
 	long msgtyp;
 };
 

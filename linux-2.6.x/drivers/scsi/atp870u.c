@@ -1,8 +1,9 @@
-/*
+/* $Id$
+ *  linux/kernel/atp870u.c
+ *
  *  Copyright (C) 1997	Wu Ching Chen
  *  2.1.x update (C) 1998  Krzysztof G. Baranowski
  *  2.5.x update (C) 2002  Red Hat <alan@redhat.com>
- *  2.6.x update (C) 2004  Red Hat <alan@redhat.com>
  *
  * Marcelo Tosatti <marcelo@conectiva.com.br> : SMP fixes
  *
@@ -27,19 +28,20 @@
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/blkdev.h>
+#include <linux/stat.h>
+
 #include <asm/system.h>
 #include <asm/io.h>
 
-#include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_host.h>
-
+#include "scsi.h"
+#include "hosts.h"
 #include "atp870u.h"
 
-static struct scsi_host_template atp870u_template;
-static void send_s870(struct Scsi_Host *host);
+/*
+ *   static const char RCSid[] = "$Header$";
+ */
 
+static unsigned short int sync_idu;
 
 static irqreturn_t atp870u_intr_handle(int irq, void *dev_id,
 					struct pt_regs *regs)
@@ -48,7 +50,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id,
 	unsigned short int tmpcip, id;
 	unsigned char i, j, target_id, lun;
 	unsigned char *prd;
-	struct scsi_cmnd *workrequ;
+	Scsi_Cmnd *workrequ;
 	unsigned int workportu, tmport;
 	unsigned long adrcntu, k;
 	int errstus;
@@ -124,11 +126,9 @@ stop_dma:
 			/*
 			 *      Issue more commands
 			 */
-			spin_lock_irqsave(dev->host->host_lock, flags);
 			if (((dev->quhdu != dev->quendu) || (dev->last_cmd != 0xff)) && (dev->in_snd == 0)) {
 				send_s870(host);
 			}
-			spin_unlock_irqrestore(dev->host->host_lock, flags);
 			/*
 			 *      Done
 			 */
@@ -345,18 +345,10 @@ go_42:
 			 *      Complete the command
 			 */
 			 
-			if (workrequ->use_sg) {
-				pci_unmap_sg(dev->pdev,
-					(struct scatterlist *)workrequ->buffer,
-					workrequ->use_sg,
-					workrequ->sc_data_direction);
-			} else if (workrequ->request_bufflen &&
-					workrequ->sc_data_direction != DMA_NONE) {
-				pci_unmap_single(dev->pdev,
-					workrequ->SCp.dma_handle,
-					workrequ->request_bufflen,
-					workrequ->sc_data_direction);
-			}
+			if(workrequ->use_sg)
+				pci_unmap_sg(dev->pdev, (struct scatterlist *)workrequ->buffer, workrequ->use_sg, scsi_to_pci_dma_dir(workrequ->sc_data_direction));
+			else if(workrequ->request_bufflen && workrequ->sc_data_direction != SCSI_DATA_NONE)
+				pci_unmap_single(dev->pdev, workrequ->SCp.dma_handle, workrequ->request_bufflen, scsi_to_pci_dma_dir(workrequ->sc_data_direction));
 			spin_lock_irqsave(dev->host->host_lock, flags);
 			(*workrequ->scsi_done) (workrequ);
 
@@ -379,11 +371,9 @@ go_42:
 			/*
 			 *      If there is stuff to send and nothing going then send it
 			 */
-			spin_lock_irqsave(dev->host->host_lock, flags);
 			if (((dev->last_cmd != 0xff) || (dev->quhdu != dev->quendu)) && (dev->in_snd == 0)) {
 				send_s870(host);
 			}
-			spin_unlock_irqrestore(dev->host->host_lock, flags);
 			dev->in_int = 0;
 			goto out;
 		}
@@ -453,17 +443,9 @@ out:
 	return IRQ_HANDLED;
 }
 
-/**
- *	atp870u_queuecommand	-	Queue SCSI command
- *	@req_p: request block
- *	@done: completion function
- *
- *	Queue a command to the ATP queue. Called with the host lock held.
- */
- 
-static int atp870u_queuecommand(struct scsi_cmnd *req_p,
-		void (*done) (struct scsi_cmnd *))
+static int atp870u_queuecommand(Scsi_Cmnd * req_p, void (*done) (Scsi_Cmnd *))
 {
+	unsigned long flags;
 	unsigned short int m;
 	unsigned int tmport;
 	struct Scsi_Host *host;
@@ -502,6 +484,7 @@ static int atp870u_queuecommand(struct scsi_cmnd *req_p,
 	 *      Count new command
 	 */
 
+	spin_lock_irqsave(host->host_lock, flags);
 	dev->quendu++;
 	if (dev->quendu >= qcnt) {
 		dev->quendu = 0;
@@ -515,31 +498,24 @@ static int atp870u_queuecommand(struct scsi_cmnd *req_p,
 		}
 		dev->quendu--;
 		req_p->result = 0x00020000;
+		spin_unlock_irqrestore(host->host_lock, flags);
 		done(req_p);
 		return 0;
 	}
 	dev->querequ[dev->quendu] = req_p;
 	tmport = dev->ioport + 0x1c;
+	spin_unlock_irqrestore(host->host_lock, flags);
 	if ((inb(tmport) == 0) && (dev->in_int == 0) && (dev->in_snd == 0)) {
 		send_s870(host);
 	}
 	return 0;
 }
 
-/**
- *	send_s870	-	send a command to the controller
- *	@host: host
- *
- *	On entry there is work queued to be done. We move some of that work to the
- *	controller itself. 
- *
- *	Caller holds the host lock.
- */
- 
 static void send_s870(struct Scsi_Host *host)
 {
 	unsigned int tmport;
-	struct scsi_cmnd *workrequ;
+	Scsi_Cmnd *workrequ;
+	unsigned long flags;
 	unsigned int i;
 	unsigned char j, target_id;
 	unsigned char *prd;
@@ -551,7 +527,10 @@ static void send_s870(struct Scsi_Host *host)
 	struct atp_unit *dev = (struct atp_unit *)&host->hostdata;
 	int sg_count;
 
+	spin_lock_irqsave(host->host_lock, flags);
+	
 	if (dev->in_snd != 0) {
+		spin_unlock_irqrestore(host->host_lock, flags);
 		return;
 	}
 	dev->in_snd = 1;
@@ -564,11 +543,13 @@ static void send_s870(struct Scsi_Host *host)
 		dev->last_cmd = 0xff;
 		if (dev->quhdu == dev->quendu) {
 			dev->in_snd = 0;
+			spin_unlock_irqrestore(dev->host->host_lock, flags);
 			return;
 		}
 	}
 	if ((dev->last_cmd != 0xff) && (dev->working != 0)) {
 		dev->in_snd = 0;
+		spin_unlock_irqrestore(dev->host->host_lock, flags);
 		return;
 	}
 	dev->working++;
@@ -586,6 +567,7 @@ static void send_s870(struct Scsi_Host *host)
 	dev->quhdu = j;
 	dev->working--;
 	dev->in_snd = 0;
+	spin_unlock_irqrestore(host->host_lock, flags);
 	return;
 cmd_subp:
 	workportu = dev->ioport;
@@ -600,6 +582,7 @@ cmd_subp:
 abortsnd:
 	dev->last_cmd |= 0x40;
 	dev->in_snd = 0;
+	spin_unlock_irqrestore(dev->host->host_lock, flags);
 	return;
 oktosend:
 	memcpy(&dev->ata_cdbu[0], &workrequ->cmnd[0], workrequ->cmd_len);
@@ -654,8 +637,7 @@ oktosend:
 	if (workrequ->use_sg) {
 		l = 0;
 		sgpnt = (struct scatterlist *) workrequ->request_buffer;
-		sg_count = pci_map_sg(dev->pdev, sgpnt, workrequ->use_sg,
-				workrequ->sc_data_direction);
+		sg_count = pci_map_sg(dev->pdev, sgpnt, workrequ->use_sg, scsi_to_pci_dma_dir(workrequ->sc_data_direction));
 		for (i = 0; i < workrequ->use_sg; i++) {
 			if (sgpnt[i].length == 0 || workrequ->use_sg > ATP870U_SCATTER) {
 				panic("Foooooooood fight!");
@@ -663,10 +645,7 @@ oktosend:
 			l += sgpnt[i].length;
 		}
 	} else if(workrequ->request_bufflen && workrequ->sc_data_direction != PCI_DMA_NONE) {
-		workrequ->SCp.dma_handle = pci_map_single(dev->pdev,
-				workrequ->request_buffer,
-				workrequ->request_bufflen,
-				workrequ->sc_data_direction);
+		workrequ->SCp.dma_handle = pci_map_single(dev->pdev, workrequ->request_buffer, workrequ->request_bufflen, scsi_to_pci_dma_dir(workrequ->sc_data_direction));
 		l = workrequ->request_bufflen;
 	}
 	else l = 0;
@@ -688,7 +667,7 @@ oktosend:
 	/*
 	 *      Check transfer direction
 	 */
-	if (workrequ->sc_data_direction == DMA_TO_DEVICE) {
+	if (workrequ->sc_data_direction == SCSI_DATA_WRITE) {
 		outb((unsigned char) (j | 0x20), tmport++);
 	} else {
 		outb(j, tmport++);
@@ -705,6 +684,7 @@ oktosend:
 			dev->last_cmd |= 0x40;
 		}
 		dev->in_snd = 0;
+		spin_unlock_irqrestore(host->host_lock, flags);
 		return;
 	}
 	tmpcip = dev->pciport;
@@ -723,19 +703,19 @@ oktosend:
 			bttl = sg_dma_address(&sgpnt[j]);
 			l = sg_dma_len(&sgpnt[j]);
 			while (l > 0x10000) {
-				(((u16 *) (prd))[i + 3]) = 0x0000;
-				(((u16 *) (prd))[i + 2]) = 0x0000;
-				(((u32 *) (prd))[i >> 1]) = cpu_to_le32(bttl);
+				(u16) (((u16 *) (prd))[i + 3]) = 0x0000;
+				(u16) (((u16 *) (prd))[i + 2]) = 0x0000;
+				(u32) (((u32 *) (prd))[i >> 1]) = cpu_to_le32(bttl);
 				l -= 0x10000;
 				bttl += 0x10000;
 				i += 0x04;
 			}
-			(((u32 *) (prd))[i >> 1]) = cpu_to_le32(bttl);
-			(((u16 *) (prd))[i + 2]) = cpu_to_le16(l);
-			(((u16 *) (prd))[i + 3]) = 0;
+			(u32) (((u32 *) (prd))[i >> 1]) = cpu_to_le32(bttl);
+			(u16) (((u16 *) (prd))[i + 2]) = cpu_to_le16(l);
+			(u16) (((u16 *) (prd))[i + 3]) = 0;
 			i += 0x04;
 		}
-		(((u16 *) (prd))[i - 1]) = cpu_to_le16(0x8000);
+		(u16) (((u16 *) (prd))[i - 1]) = cpu_to_le16(0x8000);
 	} else {
 		/*
 		 *      For a linear request write a chain of blocks
@@ -744,16 +724,16 @@ oktosend:
 		l = workrequ->request_bufflen;
 		i = 0;
 		while (l > 0x10000) {
-			(((u16 *) (prd))[i + 3]) = 0x0000;
-			(((u16 *) (prd))[i + 2]) = 0x0000;
-			(((u32 *) (prd))[i >> 1]) = cpu_to_le32(bttl);
+			(u16) (((u16 *) (prd))[i + 3]) = 0x0000;
+			(u16) (((u16 *) (prd))[i + 2]) = 0x0000;
+			(u32) (((u32 *) (prd))[i >> 1]) = cpu_to_le32(bttl);
 			l -= 0x10000;
 			bttl += 0x10000;
 			i += 0x04;
 		}
-		(((u16 *) (prd))[i + 3]) = cpu_to_le16(0x8000);
-		(((u16 *) (prd))[i + 2]) = cpu_to_le16(l);
-		(((u32 *) (prd))[i >> 1]) = cpu_to_le32(bttl);
+		(u16) (((u16 *) (prd))[i + 3]) = cpu_to_le16(0x8000);
+		(u16) (((u16 *) (prd))[i + 2]) = cpu_to_le16(l);
+		(u32) (((u32 *) (prd))[i >> 1]) = cpu_to_le32(bttl);
 	}
 	tmpcip = tmpcip + 4;
 	dev->id[target_id].prdaddru = dev->id[target_id].prd_phys;
@@ -780,7 +760,7 @@ oktosend:
 	}
 	tmport = workportu + 0x1c;
 
-	if (workrequ->sc_data_direction == DMA_TO_DEVICE) {
+	if (workrequ->sc_data_direction == SCSI_DATA_WRITE) {
 		dev->id[target_id].dirctu = 0x20;
 		if (inb(tmport) == 0) {
 			tmport = workportu + 0x18;
@@ -790,6 +770,7 @@ oktosend:
 			dev->last_cmd |= 0x40;
 		}
 		dev->in_snd = 0;
+		spin_unlock_irqrestore(host->host_lock, flags);
 		return;
 	}
 	if (inb(tmport) == 0) {
@@ -800,6 +781,9 @@ oktosend:
 		dev->last_cmd |= 0x40;
 	}
 	dev->in_snd = 0;
+	spin_unlock_irqrestore(host->host_lock, flags);
+	return;
+
 }
 
 static unsigned char fun_scam(struct atp_unit *dev, unsigned short int *val)
@@ -1099,6 +1083,7 @@ void is870(struct Scsi_Host *host, unsigned int wkport)
 	static unsigned char wide[6] = { 0x80, 1, 2, 3, 1, 0 };
 	struct atp_unit *dev = (struct atp_unit *)&host->hostdata;
 
+	sync_idu = 0;
 	tmport = wkport + 0x3a;
 	outb((unsigned char) (inb(tmport) | 0x10), tmport);
 
@@ -1592,6 +1577,7 @@ static void is880(struct Scsi_Host *host, unsigned int wkport)
 	static unsigned char u3[9] = { 0x80, 1, 6, 4, 0x09, 00, 0x0e, 0x01, 0x02 };
 	struct atp_unit *dev = (struct atp_unit *)&host->hostdata;
 
+	sync_idu = 0;
 	lvdmode = inb(wkport + 0x3f) & 0x40;
 
 	for (i = 0; i < 16; i++) {
@@ -2270,7 +2256,7 @@ static int atp870u_init_tables(struct Scsi_Host *host)
 		dev->sp[k] = 0x04;
 	}
 	return 0;
-}
+}			
 
 /* return non-zero on detection */
 static int atp870u_probe(struct pci_dev *dev, const struct pci_device_id *ent)
@@ -2563,10 +2549,10 @@ unregister:
    it is available to be used again.  Until this gets worked out, we will
    leave it commented out.  */
 
-static int atp870u_abort(struct scsi_cmnd * SCpnt)
+int atp870u_abort(Scsi_Cmnd * SCpnt)
 {
 	unsigned char j, k;
-	struct scsi_cmnd *workrequ;
+	Scsi_Cmnd *workrequ;
 	unsigned int tmport;
 	struct atp_unit *dev = (struct atp_unit *)&SCpnt->device->host->hostdata;
 
@@ -2602,7 +2588,7 @@ static int atp870u_abort(struct scsi_cmnd * SCpnt)
 	return SUCCESS;
 }
 
-static const char *atp870u_info(struct Scsi_Host *notused)
+const char *atp870u_info(struct Scsi_Host *notused)
 {
 	static char buffer[128];
 
@@ -2611,9 +2597,13 @@ static const char *atp870u_info(struct Scsi_Host *notused)
 	return buffer;
 }
 
+int atp870u_set_info(char *buffer, int length, struct Scsi_Host *HBAptr)
+{
+	return -ENOSYS;		/* Currently this is a no-op */
+}
+
 #define BLS buffer + len + size
-static int atp870u_proc_info(struct Scsi_Host *HBAptr, char *buffer,
-		char **start, off_t offset, int length, int inout)
+int atp870u_proc_info(struct Scsi_Host *HBAptr, char *buffer, char **start, off_t offset, int length, int inout)
 {
 	static u8 buff[512];
 	int size = 0;
@@ -2621,8 +2611,9 @@ static int atp870u_proc_info(struct Scsi_Host *HBAptr, char *buffer,
 	off_t begin = 0;
 	off_t pos = 0;
 
-	if (inout)
-		return -ENOSYS;
+	if (inout == TRUE) {	/* Has data been written to the file? */
+		return (atp870u_set_info(buffer, length, HBAptr));
+	}
 	if (offset == 0) {
 		memset(buff, 0, sizeof(buff));
 	}
@@ -2682,7 +2673,7 @@ static void atp870u_remove(struct pci_dev *pdev)
 
 MODULE_LICENSE("GPL");
 
-static struct scsi_host_template atp870u_template = {
+static Scsi_Host_Template atp870u_template = {
 	.module			= THIS_MODULE,
 	.name			= "atp870u",
 	.proc_name		= "atp870u",
@@ -2721,7 +2712,8 @@ static struct pci_driver atp870u_driver = {
 
 static int __init atp870u_init(void)
 {
-	return pci_module_init(&atp870u_driver);
+	pci_register_driver(&atp870u_driver);
+	return 0;
 }
 
 static void __exit atp870u_exit(void)

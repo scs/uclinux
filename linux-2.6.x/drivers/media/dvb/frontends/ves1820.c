@@ -48,31 +48,23 @@ static int verbose;
  */
 
 #define SET_PWM(data,pwm) do { 		\
-	long d = (long)data;		\
-	d &= ~0xff; 			\
-	d |= pwm; 			\
-	data = (void *)d;		\
+	(long) data &= ~0xff; 		\
+	(long) data |= pwm; 		\
 } while (0)
 
 #define SET_REG0(data,reg0) do {	\
-	long d = (long)data;		\
-	d &= ~(0xff << 8); 		\
-	d |= reg0 << 8; 		\
-	data = (void *)d;		\
+	(long) data &= ~(0xff << 8); 	\
+	(long) data |= reg0 << 8; 	\
 } while (0)
 
 #define SET_TUNER(data,type) do {	\
-	long d = (long)data;		\
-	d &= ~(0xff << 16); 		\
-	d |= type << 16;		\
-	data = (void *)d;		\
+	(long) data &= ~(0xff << 16); 	\
+	(long) data |= type << 16;	\
 } while (0)
 
 #define SET_DEMOD_ADDR(data,type) do {	\
-	long d = (long)data;		\
-	d &= ~(0xff << 24); 		\
-	d |= type << 24;		\
-	data = (void *)d;		\
+	(long) data &= ~(0xff << 24); 	\
+	(long) data |= type << 24;	\
 } while (0)
 
 #define GET_PWM(data) ((u8) ((long) data & 0xff))
@@ -111,7 +103,8 @@ static struct dvb_frontend_info ves1820_info = {
 #endif
 	.caps = FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 |
 		FE_CAN_QAM_128 | FE_CAN_QAM_256 | 
-		FE_CAN_FEC_AUTO | FE_CAN_INVERSION_AUTO,
+		FE_CAN_FEC_AUTO | FE_CAN_INVERSION_AUTO |
+		FE_CAN_CLEAN_SETUP | FE_CAN_RECOVER
 };
 
 
@@ -119,7 +112,7 @@ static struct dvb_frontend_info ves1820_info = {
 static u8 ves1820_inittab [] =
 {
 	0x69, 0x6A, 0x9B, 0x12, 0x12, 0x46, 0x26, 0x1A,
-	0x43, 0x6A, 0xAA, 0xAA, 0x1E, 0x85, 0x43, 0x20,
+	0x43, 0x6A, 0xAA, 0xAA, 0x1E, 0x85, 0x43, 0x28,
 	0xE0, 0x00, 0xA1, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
 	0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -379,7 +372,7 @@ static int ves1820_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
                 sync = ves1820_readreg (fe, 0x11);
 
-		if (sync & 1)
+		if (sync & 2)
 			*status |= FE_HAS_SIGNAL;
 
 		if (sync & 2)
@@ -439,14 +432,13 @@ static int ves1820_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		s8 afc = 0;
                 
                 sync = ves1820_readreg (fe, 0x11);
-			afc = ves1820_readreg(fe, 0x19);
-		if (verbose) {
+		if (sync & 2)
 			/* AFC only valid when carrier has been recovered */
-			printk(sync & 2 ? "DVB: VES1820(%d): AFC (%d) %dHz\n" :
-					  "DVB: VES1820(%d): [AFC (%d) %dHz]\n",
+			afc = ves1820_readreg(fe, 0x19);
+		if (verbose)
+			printk ("DVB: VES1820(%d): AFC (%d) %dHz\n",
 					fe->i2c->adapter->num, afc,
-			       -((s32)p->u.qam.symbol_rate * afc) >> 10);
-		}
+				-((s32)(p->u.qam.symbol_rate >> 3) * afc >> 7));
 
 		p->inversion = HAS_INVERSION(reg0) ? INVERSION_ON : INVERSION_OFF;
 		p->u.qam.modulation = ((reg0 >> 2) & 7) + QAM_16;
@@ -454,8 +446,9 @@ static int ves1820_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		p->u.qam.fec_inner = FEC_NONE;
 
 		p->frequency = ((p->frequency + 31250) / 62500) * 62500;
-		if (sync & 2)
-			p->frequency -= ((s32)p->u.qam.symbol_rate * afc) >> 10;
+		/* To prevent overflow, shift symbol rate first a
+		   couple of bits. */
+		p->frequency -= (s32)(p->u.qam.symbol_rate >> 3) * afc >> 7;
 		break;
 	}
 	case FE_SLEEP:

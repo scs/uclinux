@@ -1,11 +1,12 @@
+#define __KERNEL_SYSCALLS__
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
+#include <linux/unistd.h>
 #include <linux/delay.h>
 #include <linux/string.h>
-#include <linux/syscalls.h>
 
 static __initdata char *message;
 static void __init error(char *x)
@@ -14,7 +15,7 @@ static void __init error(char *x)
 		message = x;
 }
 
-static void __init *malloc(size_t size)
+static void __init *malloc(int size)
 {
 	return kmalloc(size, GFP_KERNEL);
 }
@@ -23,6 +24,17 @@ static void __init free(void *where)
 {
 	kfree(where);
 }
+
+asmlinkage long sys_mkdir(char *name, int mode);
+asmlinkage long sys_mknod(char *name, int mode, unsigned dev);
+asmlinkage long sys_symlink(char *old, char *new);
+asmlinkage long sys_link(char *old, char *new);
+asmlinkage long sys_write(int fd, const char *buf, size_t size);
+asmlinkage long sys_chown(char *name, uid_t uid, gid_t gid);
+asmlinkage long sys_lchown(char *name, uid_t uid, gid_t gid);
+asmlinkage long sys_fchown(int fd, uid_t uid, gid_t gid);
+asmlinkage long sys_chmod(char *name, mode_t mode);
+asmlinkage long sys_fchmod(int fd, mode_t mode);
 
 /* link hash */
 
@@ -169,7 +181,7 @@ static int __init do_collect(void)
 	memcpy(collect, victim, n);
 	eat(n);
 	collect += n;
-	if ((remains -= n) != 0)
+	if (remains -= n)
 		return 1;
 	state = next_state;
 	return 0;
@@ -207,7 +219,7 @@ static int __init do_header(void)
 
 static int __init do_skip(void)
 {
-	if (this_header + count < next_header) {
+	if (this_header + count <= next_header) {
 		eat(count);
 		return 1;
 	} else {
@@ -240,6 +252,7 @@ static __initdata int wfd;
 
 static int __init do_name(void)
 {
+
 	state = SkipIt;
 	next_state = Start;
 	if (strcmp(collected, "TRAILER!!!") == 0) {
@@ -412,6 +425,7 @@ static void __init flush_window(void)
 char * __init unpack_to_rootfs(char *buf, unsigned len, int check_only)
 {
 	int written;
+
 	dry_run = check_only;
 	header_buf = malloc(110);
 	symlink_buf = malloc(PATH_MAX + N_ALIGN(PATH_MAX) + 1);

@@ -60,7 +60,7 @@
 struct map_info flagadm_map = {
 		.name =		"FlagaDM flash device",
 		.size =		FLASH_SIZE,
-		.bankwidth =	2,
+		.buswidth =	2,
 };
 
 struct mtd_partition flagadm_parts[] = {

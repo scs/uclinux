@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -165,27 +165,6 @@ typedef enum {
 
 #define DM_FLAGS_NDELAY		0x001	/* return EAGAIN after dm_pending() */
 #define DM_FLAGS_UNWANTED	0x002	/* event not in fsys dm_eventset_t */
-#define DM_FLAGS_ISEM		0x004	/* thread holds i_sem */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,21)
-/* i_alloc_sem was added in 2.4.22-pre1 */
-#define DM_FLAGS_IALLOCSEM_RD	0x010	/* thread holds i_alloc_sem rd */
-#define DM_FLAGS_IALLOCSEM_WR	0x020	/* thread holds i_alloc_sem wr */
-#endif
-#endif
-
-/*
- *	Based on IO_ISDIRECT, decide which i_ flag is set.
- */
-#ifdef DM_FLAGS_IALLOCSEM_RD
-#define DM_SEM_FLAG_RD(ioflags) (((ioflags) & IO_ISDIRECT) ? \
-			      DM_FLAGS_IALLOCSEM_RD : DM_FLAGS_ISEM)
-#define DM_SEM_FLAG_WR	(DM_FLAGS_IALLOCSEM_WR | DM_FLAGS_ISEM)
-#else
-#define DM_SEM_FLAG_RD(ioflags) (((ioflags) & IO_ISDIRECT) ? \
-			      0 : DM_FLAGS_ISEM)
-#define DM_SEM_FLAG_WR	(DM_FLAGS_ISEM)
-#endif
 
 /*
  *	Macros to turn caller specified delay/block flags into
@@ -199,14 +178,7 @@ typedef enum {
 
 extern struct bhv_vfsops xfs_dmops;
 
-#ifdef CONFIG_XFS_DMAPI
-void xfs_dm_init(struct file_system_type *);
-void xfs_dm_exit(struct file_system_type *);
-#define XFS_DM_INIT(fstype)	xfs_dm_init(fstype)
-#define XFS_DM_EXIT(fstype)	xfs_dm_exit(fstype)
-#else
-#define XFS_DM_INIT(fstype)
-#define XFS_DM_EXIT(fstype)
-#endif
+extern int dmapi_init(void);
+extern void dmapi_uninit(void);
 
 #endif  /* __XFS_DMAPI_H__ */

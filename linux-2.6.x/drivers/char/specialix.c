@@ -72,7 +72,7 @@
 /*
  * There is a bunch of documentation about the card, jumpers, config
  * settings, restrictions, cables, device names and numbers in
- * Documentation/specialix.txt
+ * ../../Documentation/specialix.txt 
  */
 
 #include <linux/config.h>
@@ -92,7 +92,6 @@
 #include <linux/delay.h>
 #include <linux/version.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <asm/uaccess.h>
 
 #include "specialix_io8.h"
@@ -1472,7 +1471,7 @@ static void sx_close(struct tty_struct * tty, struct file * filp)
 		tty->ldisc.flush_buffer(tty);
 	tty->closing = 0;
 	port->event = 0;
-	port->tty = NULL;
+	port->tty = 0;
 	if (port->blocked_open) {
 		if (port->close_delay) {
 			current->state = TASK_INTERRUPTIBLE;
@@ -1653,16 +1652,12 @@ static void sx_flush_buffer(struct tty_struct *tty)
 }
 
 
-static int sx_tiocmget(struct tty_struct *tty, struct file *file)
+static int sx_get_modem_info(struct specialix_port * port, unsigned int *value)
 {
-	struct specialix_port *port = (struct specialix_port *)tty->driver_data;
 	struct specialix_board * bp;
 	unsigned char status;
 	unsigned int result;
 	unsigned long flags;
-
-	if (sx_paranoia_check(port, tty->name, __FUNCTION__))
-		return -ENODEV;
 
 	bp = port_Board(port);
 	save_flags(flags); cli();
@@ -1687,49 +1682,71 @@ static int sx_tiocmget(struct tty_struct *tty, struct file *file)
 		          |/* ((status & MSVR_DSR) ? */ TIOCM_DSR /* : 0) */
 		          |   ((status & MSVR_CTS) ? TIOCM_CTS : 0);
 	}
-
-	return result;
+	put_user(result,(unsigned int *) value);
+	return 0;
 }
 
 
-static int sx_tiocmset(struct tty_struct *tty, struct file *file,
-		       unsigned int set, unsigned int clear)
+static int sx_set_modem_info(struct specialix_port * port, unsigned int cmd,
+                             unsigned int *value)
 {
-	struct specialix_port *port = (struct specialix_port *)tty->driver_data;
+	int error;
+	unsigned int arg;
 	unsigned long flags;
-	struct specialix_board *bp;
+	struct specialix_board *bp = port_Board(port);
 
-	if (sx_paranoia_check(port, tty->name, __FUNCTION__))
-		return -ENODEV;
+	error = verify_area(VERIFY_READ, value, sizeof(int));
+	if (error) 
+		return error;
 
-	bp = port_Board(port);
+	get_user(arg, (unsigned long *) value);
+	switch (cmd) {
+	case TIOCMBIS: 
+	   /*	if (arg & TIOCM_RTS) 
+			port->MSVR |= MSVR_RTS; */
+	   /*   if (arg & TIOCM_DTR)
+			port->MSVR |= MSVR_DTR; */
 
+		if (SX_CRTSCTS(port->tty)) {
+			if (arg & TIOCM_RTS)
+				port->MSVR |= MSVR_DTR; 
+		} else {
+			if (arg & TIOCM_DTR)
+				port->MSVR |= MSVR_DTR; 
+		}	     
+		break;
+	case TIOCMBIC:
+	  /*	if (arg & TIOCM_RTS)
+			port->MSVR &= ~MSVR_RTS; */
+	  /*    if (arg & TIOCM_DTR)
+			port->MSVR &= ~MSVR_DTR; */
+		if (SX_CRTSCTS(port->tty)) {
+			if (arg & TIOCM_RTS)
+				port->MSVR &= ~MSVR_DTR;
+		} else {
+			if (arg & TIOCM_DTR)
+				port->MSVR &= ~MSVR_DTR;
+		}
+		break;
+	case TIOCMSET:
+	  /* port->MSVR = (arg & TIOCM_RTS) ? (port->MSVR | MSVR_RTS) : 
+						 (port->MSVR & ~MSVR_RTS); */
+	  /* port->MSVR = (arg & TIOCM_DTR) ? (port->MSVR | MSVR_DTR) : 
+						 (port->MSVR & ~MSVR_DTR); */
+		if (SX_CRTSCTS(port->tty)) {
+	  		port->MSVR = (arg & TIOCM_RTS) ? 
+			                         (port->MSVR |  MSVR_DTR) : 
+			                         (port->MSVR & ~MSVR_DTR);
+		} else {
+			port->MSVR = (arg & TIOCM_DTR) ?
+			                         (port->MSVR |  MSVR_DTR):
+			                         (port->MSVR & ~MSVR_DTR);
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
 	save_flags(flags); cli();
-   /*	if (set & TIOCM_RTS)
-		port->MSVR |= MSVR_RTS; */
-   /*   if (set & TIOCM_DTR)
-		port->MSVR |= MSVR_DTR; */
-
-	if (SX_CRTSCTS(port->tty)) {
-		if (set & TIOCM_RTS)
-			port->MSVR |= MSVR_DTR;
-	} else {
-		if (set & TIOCM_DTR)
-			port->MSVR |= MSVR_DTR;
-	}
-
-  /*	if (clear & TIOCM_RTS)
-		port->MSVR &= ~MSVR_RTS; */
-  /*    if (clear & TIOCM_DTR)
-		port->MSVR &= ~MSVR_DTR; */
-	if (SX_CRTSCTS(port->tty)) {
-		if (clear & TIOCM_RTS)
-			port->MSVR &= ~MSVR_DTR;
-	} else {
-		if (clear & TIOCM_DTR)
-			port->MSVR &= ~MSVR_DTR;
-	}
-
 	sx_out(bp, CD186x_CAR, port_No(port));
 	sx_out(bp, CD186x_MSVR, port->MSVR);
 	restore_flags(flags);
@@ -1757,13 +1774,18 @@ static inline void sx_send_break(struct specialix_port * port, unsigned long len
 
 
 static inline int sx_set_serial_info(struct specialix_port * port,
-                                     struct serial_struct __user * newinfo)
+                                     struct serial_struct * newinfo)
 {
 	struct serial_struct tmp;
 	struct specialix_board *bp = port_Board(port);
 	int change_speed;
 	unsigned long flags;
+	int error;
 	
+	error = verify_area(VERIFY_READ, (void *) newinfo, sizeof(tmp));
+	if (error)
+		return error;
+
 	if (copy_from_user(&tmp, newinfo, sizeof(tmp)))
 		return -EFAULT;
 	
@@ -1808,11 +1830,16 @@ static inline int sx_set_serial_info(struct specialix_port * port,
 
 
 static inline int sx_get_serial_info(struct specialix_port * port,
-				     struct serial_struct __user *retinfo)
+				     struct serial_struct * retinfo)
 {
 	struct serial_struct tmp;
 	struct specialix_board *bp = port_Board(port);
+	int error;
 	
+	error = verify_area(VERIFY_WRITE, (void *) retinfo, sizeof(tmp));
+	if (error)
+		return error;
+
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.type = PORT_CIRRUS;
 	tmp.line = port - sx_port;
@@ -1834,8 +1861,8 @@ static int sx_ioctl(struct tty_struct * tty, struct file * filp,
                     unsigned int cmd, unsigned long arg)
 {
 	struct specialix_port *port = (struct specialix_port *)tty->driver_data;
+	int error;
 	int retval;
-	void __user *argp = (void __user *)arg;
 				
 	if (sx_paranoia_check(port, tty->name, "sx_ioctl"))
 		return -ENODEV;
@@ -1857,20 +1884,32 @@ static int sx_ioctl(struct tty_struct * tty, struct file * filp,
 		sx_send_break(port, arg ? arg*(HZ/10) : HZ/4);
 		return 0;
 	 case TIOCGSOFTCAR:
-		if (put_user(C_CLOCAL(tty)?1:0, (unsigned long __user *)argp))
-			return -EFAULT;
+		error = verify_area(VERIFY_WRITE, (void *) arg, sizeof(long));
+		if (error)
+			return error;
+		put_user(C_CLOCAL(tty) ? 1 : 0,
+		         (unsigned long *) arg);
 		return 0;
 	 case TIOCSSOFTCAR:
-		if (get_user(arg, (unsigned long __user *) argp))
-			return -EFAULT;
+		get_user(arg, (unsigned long *) arg);
 		tty->termios->c_cflag =
 			((tty->termios->c_cflag & ~CLOCAL) |
 			(arg ? CLOCAL : 0));
 		return 0;
+	 case TIOCMGET:
+		error = verify_area(VERIFY_WRITE, (void *) arg,
+		                    sizeof(unsigned int));
+		if (error)
+			return error;
+		return sx_get_modem_info(port, (unsigned int *) arg);
+	 case TIOCMBIS:
+	 case TIOCMBIC:
+	 case TIOCMSET:
+		return sx_set_modem_info(port, cmd, (unsigned int *) arg);
 	 case TIOCGSERIAL:	
-		return sx_get_serial_info(port, argp);
+		return sx_get_serial_info(port, (struct serial_struct *) arg);
 	 case TIOCSSERIAL:	
-		return sx_set_serial_info(port, argp);
+		return sx_set_serial_info(port, (struct serial_struct *) arg);
 	 default:
 		return -ENOIOCTLCMD;
 	}
@@ -2015,7 +2054,7 @@ static void sx_hangup(struct tty_struct * tty)
 	port->event = 0;
 	port->count = 0;
 	port->flags &= ~ASYNC_NORMAL_ACTIVE;
-	port->tty = NULL;
+	port->tty = 0;
 	wake_up_interruptible(&port->open_wait);
 }
 
@@ -2076,8 +2115,6 @@ static struct tty_operations sx_ops = {
 	.stop = sx_stop,
 	.start = sx_start,
 	.hangup = sx_hangup,
-	.tiocmget = sx_tiocmget,
-	.tiocmset = sx_tiocmset,
 };
 
 static int sx_init_drivers(void)

@@ -123,7 +123,7 @@ static inline void ip6_tnl_dst_store(struct ip6_tnl *t, struct dst_entry *dst)
  *   else %NULL
  **/
 
-static struct ip6_tnl *
+struct ip6_tnl *
 ip6ip6_tnl_lookup(struct in6_addr *remote, struct in6_addr *local)
 {
 	unsigned h0 = HASH(remote);
@@ -245,7 +245,7 @@ ip6_tnl_create(struct ip6_tnl_parm *p, struct ip6_tnl **pt)
 	t->parms = *p;
 
 	if ((err = register_netdevice(dev)) < 0) {
-		free_netdev(dev);
+		kfree(dev);
 		return err;
 	}
 	dev_hold(dev);
@@ -387,9 +387,8 @@ parse_tlv_tnl_enc_lim(struct sk_buff *skb, __u8 * raw)
  *   to the specifications in RFC 2473.
  **/
 
-static void 
-ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-	   int type, int code, int offset, __u32 info)
+void ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+		   int type, int code, int offset, __u32 info)
 {
 	struct ipv6hdr *ipv6h = (struct ipv6hdr *) skb->data;
 	struct ip6_tnl *t;
@@ -400,7 +399,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	__u16 len;
 
 	/* If the packet doesn't contain the original IPv6 header we are 
-	   in trouble since we might need the source address for further 
+	   in trouble since we might need the source address for furter 
 	   processing of the error. */
 
 	read_lock(&ip6ip6_lock);
@@ -497,8 +496,7 @@ out:
  * Return: 0
  **/
 
-static int 
-ip6ip6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+int ip6ip6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 {
 	struct sk_buff *skb = *pskb;
 	struct ipv6hdr *ipv6h;
@@ -512,11 +510,6 @@ ip6ip6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	read_lock(&ip6ip6_lock);
 
 	if ((t = ip6ip6_tnl_lookup(&ipv6h->saddr, &ipv6h->daddr)) != NULL) {
-		if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-			kfree_skb(skb);
-			return 0;
-		}
-
 		if (!(t->parms.flags & IP6_TNL_F_CAP_RCV)) {
 			t->stat.rx_dropped++;
 			read_unlock(&ip6ip6_lock);
@@ -540,7 +533,8 @@ ip6ip6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	read_unlock(&ip6ip6_lock);
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0, skb->dev);
 discard:
-	return 1;
+	kfree_skb(skb);
+	return 0;
 }
 
 static inline struct ipv6_txoptions *create_tel(__u8 encap_limit)
@@ -604,8 +598,7 @@ ip6ip6_tnl_addr_conflict(struct ip6_tnl *t, struct ipv6hdr *hdr)
  *   0
  **/
 
-static int 
-ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
+int ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip6_tnl *t = (struct ip6_tnl *) dev->priv;
 	struct net_device_stats *stats = &t->stat;
@@ -722,7 +715,13 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	ipv6h->nexthdr = proto;
 	ipv6_addr_copy(&ipv6h->saddr, &fl.fl6_src);
 	ipv6_addr_copy(&ipv6h->daddr, &fl.fl6_dst);
-	nf_reset(skb);
+#ifdef CONFIG_NETFILTER
+	nf_conntrack_put(skb->nfct);
+	skb->nfct = NULL;
+#ifdef CONFIG_NETFILTER_DEBUG
+	skb->nf_debug = 0;
+#endif
+#endif
 	pkt_len = skb->len;
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, 
 		      skb->dst->dev, dst_output);
@@ -1080,8 +1079,7 @@ ip6ip6_tnl_dev_init(struct net_device *dev)
  * Return: 0
  **/
 
-static int 
-ip6ip6_fb_tnl_dev_init(struct net_device *dev)
+int ip6ip6_fb_tnl_dev_init(struct net_device *dev)
 {
 	struct ip6_tnl *t = dev->priv;
 	ip6ip6_tnl_dev_init_gen(dev);
@@ -1090,9 +1088,10 @@ ip6ip6_fb_tnl_dev_init(struct net_device *dev)
 	return 0;
 }
 
-static struct xfrm6_tunnel ip6ip6_handler = {
+static struct inet6_protocol ip6ip6_protocol = {
 	.handler = ip6ip6_rcv,
 	.err_handler = ip6ip6_err,
+	.flags = INET6_PROTO_FINAL
 };
 
 /**
@@ -1101,13 +1100,13 @@ static struct xfrm6_tunnel ip6ip6_handler = {
  * Return: 0 on success
  **/
 
-static int __init ip6_tunnel_init(void)
+int __init ip6_tunnel_init(void)
 {
 	int  err;
 
-	if (xfrm6_tunnel_register(&ip6ip6_handler) < 0) {
-		printk(KERN_ERR "ip6ip6 init: can't register tunnel\n");
-		return -EAGAIN;
+	if ((err = inet6_add_protocol(&ip6ip6_protocol, IPPROTO_IPV6)) < 0) {
+		printk(KERN_ERR "Failed to register IPv6 protocol\n");
+		return err;
 	}
 	ip6ip6_fb_tnl_dev = alloc_netdev(sizeof(struct ip6_tnl), "ip6tnl0",
 					 ip6ip6_tnl_dev_setup);
@@ -1119,12 +1118,12 @@ static int __init ip6_tunnel_init(void)
 	ip6ip6_fb_tnl_dev->init = ip6ip6_fb_tnl_dev_init;
 
 	if ((err = register_netdev(ip6ip6_fb_tnl_dev))) {
-		free_netdev(ip6ip6_fb_tnl_dev);
+		kfree(ip6ip6_fb_tnl_dev);
 		goto fail;
 	}
 	return 0;
 fail:
-	xfrm6_tunnel_deregister(&ip6ip6_handler);
+	inet6_del_protocol(&ip6ip6_protocol, IPPROTO_IPV6);
 	return err;
 }
 
@@ -1132,13 +1131,13 @@ fail:
  * ip6_tunnel_cleanup - free resources and unregister protocol
  **/
 
-static void __exit ip6_tunnel_cleanup(void)
+void ip6_tunnel_cleanup(void)
 {
-	if (xfrm6_tunnel_deregister(&ip6ip6_handler) < 0)
-		printk(KERN_INFO "ip6ip6 close: can't deregister tunnel\n");
-
 	unregister_netdev(ip6ip6_fb_tnl_dev);
+	inet6_del_protocol(&ip6ip6_protocol, IPPROTO_IPV6);
 }
 
+#ifdef MODULE
 module_init(ip6_tunnel_init);
 module_exit(ip6_tunnel_cleanup);
+#endif

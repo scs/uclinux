@@ -1282,18 +1282,11 @@ static int get_lsr_info(struct async_struct * info, unsigned int *value)
 }
 #endif
 
-static int rs_360_tiocmget(struct tty_struct *tty, struct file *file)
+static int get_modem_info(ser_info_t *info, unsigned int *value)
 {
-	ser_info_t *info = (ser_info_t *)tty->driver_data;
 	unsigned int result = 0;
 #ifdef modem_control
 	unsigned char control, status;
-
-	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
-		return -ENODEV;
-
-	if (tty->flags & (1 << TTY_IO_ERROR))
-		return -EIO;
 
 	control = info->MCR;
 	local_irq_disable();
@@ -1310,42 +1303,63 @@ static int rs_360_tiocmget(struct tty_struct *tty, struct file *file)
 		| ((status  & UART_MSR_DSR) ? TIOCM_DSR : 0)
 		| ((status  & UART_MSR_CTS) ? TIOCM_CTS : 0);
 #endif
-	return result;
+	/* return put_user(result,value); */
+	put_user(result,value);
+	return (0);
 }
 
-static int rs_360_tiocmset(struct tty_struct *tty, struct file *file,
-			   unsigned int set, unsigned int clear)
+static int set_modem_info(ser_info_t *info, unsigned int cmd,
+			  unsigned int *value)
 {
+	int error;
+ 	unsigned int arg; 
+
+	error = get_user(arg,value);
+	if (error)
+		return error;
 #ifdef modem_control
-	ser_info_t *info = (ser_info_t *)tty->driver_data;
- 	unsigned int arg;
-
-	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
-		return -ENODEV;
-
-	if (tty->flags & (1 << TTY_IO_ERROR))
-		return -EIO;
-
- 	if (set & TIOCM_RTS)
- 		info->mcr |= UART_MCR_RTS;
- 	if (set & TIOCM_DTR)
- 		info->mcr |= UART_MCR_DTR;
-	if (clear & TIOCM_RTS)
-		info->MCR &= ~UART_MCR_RTS;
-	if (clear & TIOCM_DTR)
-		info->MCR &= ~UART_MCR_DTR;
-
+	switch (cmd) {
+	case TIOCMBIS: 
+		if (arg & TIOCM_RTS)
+			info->MCR |= UART_MCR_RTS;
+		if (arg & TIOCM_DTR)
+			info->MCR |= UART_MCR_DTR;
 #ifdef TIOCM_OUT1
-	if (set & TIOCM_OUT1)
-		info->MCR |= UART_MCR_OUT1;
-	if (set & TIOCM_OUT2)
-		info->MCR |= UART_MCR_OUT2;
-	if (clear & TIOCM_OUT1)
-		info->MCR &= ~UART_MCR_OUT1;
-	if (clear & TIOCM_OUT2)
-		info->MCR &= ~UART_MCR_OUT2;
+		if (arg & TIOCM_OUT1)
+			info->MCR |= UART_MCR_OUT1;
+		if (arg & TIOCM_OUT2)
+			info->MCR |= UART_MCR_OUT2;
 #endif
-
+		break;
+	case TIOCMBIC:
+		if (arg & TIOCM_RTS)
+			info->MCR &= ~UART_MCR_RTS;
+		if (arg & TIOCM_DTR)
+			info->MCR &= ~UART_MCR_DTR;
+#ifdef TIOCM_OUT1
+		if (arg & TIOCM_OUT1)
+			info->MCR &= ~UART_MCR_OUT1;
+		if (arg & TIOCM_OUT2)
+			info->MCR &= ~UART_MCR_OUT2;
+#endif
+		break;
+	case TIOCMSET:
+		info->MCR = ((info->MCR & ~(UART_MCR_RTS |
+#ifdef TIOCM_OUT1
+					    UART_MCR_OUT1 |
+					    UART_MCR_OUT2 |
+#endif
+					    UART_MCR_DTR))
+			     | ((arg & TIOCM_RTS) ? UART_MCR_RTS : 0)
+#ifdef TIOCM_OUT1
+			     | ((arg & TIOCM_OUT1) ? UART_MCR_OUT1 : 0)
+			     | ((arg & TIOCM_OUT2) ? UART_MCR_OUT2 : 0)
+#endif
+			     | ((arg & TIOCM_DTR) ? UART_MCR_DTR : 0));
+		break;
+	default:
+		return -EINVAL;
+	}
 	local_irq_disable();
 	serial_out(info, UART_MCR, info->MCR);
 	local_irq_enable();
@@ -1492,6 +1506,12 @@ static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 				((tty->termios->c_cflag & ~CLOCAL) |
 				 (arg ? CLOCAL : 0));
 			return 0;
+		case TIOCMGET:
+			return get_modem_info(info, (unsigned int *) arg);
+		case TIOCMBIS:
+		case TIOCMBIC:
+		case TIOCMSET:
+			return set_modem_info(info, cmd, (unsigned int *) arg);
 #ifdef maybe
 		case TIOCSERGETLSR: /* Get line status register */
 			return get_lsr_info(info, (unsigned int *) arg);
@@ -1650,6 +1670,7 @@ static void rs_360_close(struct tty_struct *tty, struct file * filp)
 	
 	if (tty_hung_up_p(filp)) {
 		DBG_CNT("before DEC-hung");
+		MOD_DEC_USE_COUNT;
 		local_irq_restore(flags);
 		return;
 	}
@@ -1676,6 +1697,7 @@ static void rs_360_close(struct tty_struct *tty, struct file * filp)
 	}
 	if (state->count) {
 		DBG_CNT("before DEC-2");
+		MOD_DEC_USE_COUNT;
 		local_irq_restore(flags);
 		return;
 	}
@@ -1730,6 +1752,7 @@ static void rs_360_close(struct tty_struct *tty, struct file * filp)
 	}
 	info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
 	wake_up_interruptible(&info->close_wait);
+	MOD_DEC_USE_COUNT;
 	local_irq_restore(flags);
 }
 
@@ -1990,12 +2013,14 @@ static int rs_360_open(struct tty_struct *tty, struct file * filp)
 	if (retval)
 		return retval;
 
+	MOD_INC_USE_COUNT;
 	retval = block_til_ready(tty, filp, info);
 	if (retval) {
 #ifdef SERIAL_DEBUG_OPEN
 		printk("rs_open returning after block_til_ready with %d\n",
 		       retval);
 #endif
+		MOD_DEC_USE_COUNT;
 		return retval;
 	}
 
@@ -2471,7 +2496,6 @@ long console_360_init(long kmem_start, long kmem_end)
 static	int	baud_idx;
 
 static struct tty_operations rs_360_ops = {
-	.owner = THIS_MODULE,
 	.open = rs_360_open,
 	.close = rs_360_close,
 	.write = rs_360_write,
@@ -2489,8 +2513,6 @@ static struct tty_operations rs_360_ops = {
 	.hangup = rs_360_hangup,
 	/* .wait_until_sent = rs_360_wait_until_sent, */
 	/* .read_proc = rs_360_read_proc, */
-	.tiocmget = rs_360_tiocmget,
-	.tiocmset = rs_360_tiocmset,
 };
 
 /* int __init rs_360_init(void) */

@@ -878,7 +878,7 @@ static int it8172_open_mixdev(struct inode *inode, struct file *file)
 			break;
 	}
 	file->private_data = s;
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 static int it8172_release_mixdev(struct inode *inode, struct file *file)
@@ -1093,6 +1093,8 @@ static ssize_t it8172_read(struct file *file, char *buffer,
 	unsigned long flags;
 	int cnt, remainder, avail;
 
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
 	if (db->mapped)
 		return -ENXIO;
 	if (!access_ok(VERIFY_WRITE, buffer, count))
@@ -1174,6 +1176,8 @@ static ssize_t it8172_write(struct file *file, const char *buffer,
 	unsigned long flags;
 	int cnt, remainder, avail;
 
+	if (ppos != &file->f_pos)
+		return -ESPIPE;
 	if (db->mapped)
 		return -ENXIO;
 	if (!access_ok(VERIFY_READ, buffer, count))
@@ -1775,9 +1779,9 @@ static int it8172_open(struct inode *inode, struct file *file)
     
 #ifdef IT8172_VERBOSE_DEBUG
 	if (file->f_flags & O_NONBLOCK)
-		dbg("%s: non-blocking", __FUNCTION__);
+		dbg(__FUNCTION__ ": non-blocking");
 	else
-		dbg("%s: blocking", __FUNCTION__);
+		dbg(__FUNCTION__ ": blocking");
 #endif
 	
 	for (list = devs.next; ; list = list->next) {
@@ -1839,7 +1843,7 @@ static int it8172_open(struct inode *inode, struct file *file)
 
 	s->open_mode |= (file->f_mode & (FMODE_READ | FMODE_WRITE));
 	up(&s->open_sem);
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 static int it8172_release(struct inode *inode, struct file *file)

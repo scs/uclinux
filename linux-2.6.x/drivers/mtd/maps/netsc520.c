@@ -84,7 +84,7 @@ static struct mtd_partition partition_info[]={
 static struct map_info netsc520_map = {
 	.name = "netsc520 Flash Bank",
 	.size = WINDOW_SIZE,
-	.bankwidth = 4,
+	.buswidth = 4,
 	.phys = WINDOW_ADDR,
 };
 

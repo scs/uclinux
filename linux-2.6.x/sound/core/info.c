@@ -99,7 +99,7 @@ int snd_iprintf(snd_info_buffer_t * buffer, char *fmt,...)
 	if (buffer->stop || buffer->error)
 		return 0;
 	va_start(args, fmt);
-	res = vscnprintf(sbuffer, sizeof(sbuffer), fmt, args);
+	res = vsnprintf(sbuffer, sizeof(sbuffer), fmt, args);
 	va_end(args);
 	if (buffer->size + res >= buffer->len) {
 		buffer->stop = 1;
@@ -174,87 +174,75 @@ out:
 	return ret;
 }
 
-static ssize_t snd_info_entry_read(struct file *file, char __user *buffer,
+static ssize_t snd_info_entry_read(struct file *file, char *buffer,
 				   size_t count, loff_t * offset)
 {
 	snd_info_private_data_t *data;
 	struct snd_info_entry *entry;
 	snd_info_buffer_t *buf;
 	size_t size = 0;
-	loff_t pos;
 
 	data = snd_magic_cast(snd_info_private_data_t, file->private_data, return -ENXIO);
 	snd_assert(data != NULL, return -ENXIO);
-	pos = *offset;
-	if (pos < 0 || (long) pos != pos || (ssize_t) count < 0)
-		return -EIO;
-	if ((unsigned long) pos + (unsigned long) count < (unsigned long) pos)
-		return -EIO;
 	entry = data->entry;
 	switch (entry->content) {
 	case SNDRV_INFO_CONTENT_TEXT:
 		buf = data->rbuffer;
 		if (buf == NULL)
 			return -EIO;
-		if (pos >= buf->size)
+		if (file->f_pos >= (long)buf->size)
 			return 0;
-		size = buf->size - pos;
+		size = buf->size - file->f_pos;
 		size = min(count, size);
-		if (copy_to_user(buffer, buf->buffer + pos, size))
+		if (copy_to_user(buffer, buf->buffer + file->f_pos, size))
 			return -EFAULT;
+		file->f_pos += size;
 		break;
 	case SNDRV_INFO_CONTENT_DATA:
 		if (entry->c.ops->read)
-			size = entry->c.ops->read(entry,
+			return entry->c.ops->read(entry,
 						  data->file_private_data,
-						  file, buffer, count, pos);
+						  file, buffer, count);
 		break;
 	}
-	if ((ssize_t) size > 0)
-		*offset = pos + size;
 	return size;
 }
 
-static ssize_t snd_info_entry_write(struct file *file, const char __user *buffer,
+static ssize_t snd_info_entry_write(struct file *file, const char *buffer,
 				    size_t count, loff_t * offset)
 {
 	snd_info_private_data_t *data;
 	struct snd_info_entry *entry;
 	snd_info_buffer_t *buf;
 	size_t size = 0;
-	loff_t pos;
 
 	data = snd_magic_cast(snd_info_private_data_t, file->private_data, return -ENXIO);
 	snd_assert(data != NULL, return -ENXIO);
 	entry = data->entry;
-	pos = *offset;
-	if (pos < 0 || (long) pos != pos || (ssize_t) count < 0)
-		return -EIO;
-	if ((unsigned long) pos + (unsigned long) count < (unsigned long) pos)
-		return -EIO;
 	switch (entry->content) {
 	case SNDRV_INFO_CONTENT_TEXT:
 		buf = data->wbuffer;
 		if (buf == NULL)
 			return -EIO;
-		if (pos >= buf->len)
+		if (file->f_pos < 0)
+			return -EINVAL;
+		if (file->f_pos >= (long)buf->len)
 			return -ENOMEM;
-		size = buf->len - pos;
+		size = buf->len - file->f_pos;
 		size = min(count, size);
-		if (copy_from_user(buf->buffer + pos, buffer, size))
+		if (copy_from_user(buf->buffer + file->f_pos, buffer, size))
 			return -EFAULT;
-		if ((long)buf->size < pos + size)
-			buf->size = pos + size;
+		if ((long)buf->size < file->f_pos + size)
+			buf->size = file->f_pos + size;
+		file->f_pos += size;
 		break;
 	case SNDRV_INFO_CONTENT_DATA:
 		if (entry->c.ops->write)
-			size = entry->c.ops->write(entry,
+			return entry->c.ops->write(entry,
 						   data->file_private_data,
-						   file, buffer, count, pos);
+						   file, buffer, count);
 		break;
 	}
-	if ((ssize_t) size > 0)
-		*offset = pos + size;
 	return size;
 }
 

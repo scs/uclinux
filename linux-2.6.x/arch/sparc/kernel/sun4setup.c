@@ -69,7 +69,6 @@ void __init sun4setup(void)
 			sun4_esp_physaddr=SUN4_400_ESP_PHYSADDR;
 			break;
 		default:
-			;
 	}
 }
 

@@ -12,12 +12,10 @@ struct scsi_mode_data;
 
 
 /*
- * sdev state: If you alter this, you also need to alter scsi_sysfs.c
- * (for the ascii descriptions) and the state model enforcer:
- * scsi_lib:scsi_device_set_state().
+ * sdev state
  */
 enum scsi_device_state {
-	SDEV_CREATED = 1,	/* device created but not added to sysfs
+	SDEV_CREATED,		/* device created but not added to sysfs
 				 * Only internal commands allowed (for inq) */
 	SDEV_RUNNING,		/* device properly configured
 				 * All commands allowed */
@@ -25,11 +23,6 @@ enum scsi_device_state {
 				 * Only error handler commands allowed */
 	SDEV_DEL,		/* device deleted 
 				 * no commands allowed */
-	SDEV_QUIESCE,		/* Device quiescent.  No block commands
-				 * will be accepted, only specials (which
-				 * originate in the mid-layer) */
-	SDEV_OFFLINE,		/* Device offlined (by error handling or
-				 * user request */
 };
 
 struct scsi_device {
@@ -63,7 +56,6 @@ struct scsi_device {
 	char devfs_name[256];	/* devfs junk */
 	char type;
 	char scsi_level;
-	char inq_periph_qual;	/* PQ from INQUIRY data */	
 	unsigned char inquiry_len;	/* valid bytes in 'inquiry' */
 	unsigned char * inquiry;	/* INQUIRY response data */
 	char * vendor;		/* [back_compat] point into 'inquiry' ... */
@@ -72,10 +64,8 @@ struct scsi_device {
 	unsigned char current_tag;	/* current tag */
 	struct scsi_target      *sdev_target;   /* used only for single_lun */
 
-	unsigned int	sdev_bflags; /* black/white flags as also found in
-				 * scsi_devinfo.[hc]. For now used only to
-				 * pass settings from slave_alloc to scsi
-				 * core. */
+	unsigned online:1;
+
 	unsigned writeable:1;
 	unsigned removable:1;
 	unsigned changed:1;	/* Data invalid due to media change */
@@ -103,31 +93,22 @@ struct scsi_device {
 	unsigned use_10_for_ms:1; /* first try 10-byte mode sense/select */
 	unsigned skip_ms_page_8:1;	/* do not use MODE SENSE page 0x08 */
 	unsigned skip_ms_page_3f:1;	/* do not use MODE SENSE page 0x3f */
-	unsigned use_192_bytes_for_3f:1; /* ask for 192 bytes from page 0x3f */
 	unsigned no_start_on_add:1;	/* do not issue start on add */
-	unsigned allow_restart:1; /* issue START_UNIT in error handler */
 
 	unsigned int device_blocked;	/* Device returned QUEUE_FULL. */
 
 	unsigned int max_device_blocked; /* what device_blocked counts down from  */
 #define SCSI_DEFAULT_DEVICE_BLOCKED	3
 
-	int timeout;
-
 	struct device		sdev_gendev;
 	struct class_device	sdev_classdev;
 
-	struct class_device	transport_classdev;
-
 	enum scsi_device_state sdev_state;
-	unsigned long		transport_data[0];
-} __attribute__((aligned(sizeof(unsigned long))));
+};
 #define	to_scsi_device(d)	\
 	container_of(d, struct scsi_device, sdev_gendev)
 #define	class_to_sdev(d)	\
 	container_of(d, struct scsi_device, sdev_classdev)
-#define transport_class_to_sdev(class_dev) \
-	container_of(class_dev, struct scsi_device, transport_classdev)
 
 extern struct scsi_device *scsi_add_device(struct Scsi_Host *,
 		uint, uint, uint);
@@ -183,13 +164,4 @@ extern int scsi_set_medium_removal(struct scsi_device *, char);
 extern int scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 			   unsigned char *buffer, int len, int timeout,
 			   int retries, struct scsi_mode_data *data);
-extern int scsi_device_set_state(struct scsi_device *sdev,
-				 enum scsi_device_state state);
-extern int scsi_device_quiesce(struct scsi_device *sdev);
-extern void scsi_device_resume(struct scsi_device *sdev);
-extern const char *scsi_device_state_name(enum scsi_device_state);
-static int inline scsi_device_online(struct scsi_device *sdev)
-{
-	return sdev->sdev_state != SDEV_OFFLINE;
-}
 #endif /* _SCSI_SCSI_DEVICE_H */

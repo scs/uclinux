@@ -86,15 +86,15 @@ int		nfsd_create_v3(struct svc_rqst *, struct svc_fh *,
 				struct svc_fh *res, int createmode,
 				u32 *verifier, int *truncp);
 int		nfsd_commit(struct svc_rqst *, struct svc_fh *,
-				loff_t, unsigned long);
+				off_t, unsigned long);
 #endif /* CONFIG_NFSD_V3 */
 int		nfsd_open(struct svc_rqst *, struct svc_fh *, int,
 				int, struct file *);
 void		nfsd_close(struct file *);
 int		nfsd_read(struct svc_rqst *, struct svc_fh *,
-				loff_t, struct kvec *,int, unsigned long *);
+				loff_t, struct iovec *,int, unsigned long *);
 int		nfsd_write(struct svc_rqst *, struct svc_fh *,
-				loff_t, struct kvec *,int, unsigned long, int *);
+				loff_t, struct iovec *,int, unsigned long, int *);
 int		nfsd_readlink(struct svc_rqst *, struct svc_fh *,
 				char *, int *);
 int		nfsd_symlink(struct svc_rqst *, struct svc_fh *,
@@ -126,13 +126,9 @@ int		nfsd_permission(struct svc_export *, struct dentry *, int);
 #ifdef CONFIG_NFSD_V4
 void nfs4_state_init(void);
 void nfs4_state_shutdown(void);
-time_t nfs4_lease_time(void);
-void nfs4_reset_lease(time_t leasetime);
 #else
 void static inline nfs4_state_init(void){}
 void static inline nfs4_state_shutdown(void){}
-time_t static inline nfs4_lease_time(void){return 0;}
-void static inline nfs4_reset_lease(time_t leasetime){}
 #endif
 
 /*
@@ -194,16 +190,9 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_bad_seqid	__constant_htonl(NFSERR_BAD_SEQID)
 #define	nfserr_symlink		__constant_htonl(NFSERR_SYMLINK)
 #define	nfserr_not_same		__constant_htonl(NFSERR_NOT_SAME)
-#define	nfserr_restorefh	__constant_htonl(NFSERR_RESTOREFH)
-#define	nfserr_attrnotsupp	__constant_htonl(NFSERR_ATTRNOTSUPP)
+#define	nfserr_readdir_nospc	__constant_htonl(NFSERR_READDIR_NOSPC)
 #define	nfserr_bad_xdr		__constant_htonl(NFSERR_BAD_XDR)
 #define	nfserr_openmode		__constant_htonl(NFSERR_OPENMODE)
-#define	nfserr_locks_held	__constant_htonl(NFSERR_LOCKS_HELD)
-#define	nfserr_op_illegal	__constant_htonl(NFSERR_OP_ILLEGAL)
-#define	nfserr_grace		__constant_htonl(NFSERR_GRACE)
-#define	nfserr_no_grace		__constant_htonl(NFSERR_NO_GRACE)
-#define	nfserr_reclaim_bad	__constant_htonl(NFSERR_RECLAIM_BAD)
-#define	nfserr_badname		__constant_htonl(NFSERR_BADNAME)
 
 /* error codes for internal use */
 /* if a request fails due to kmalloc failure, it gets dropped.
@@ -253,7 +242,7 @@ static inline int is_fsid(struct svc_fh *fh, struct knfsd_fh *reffh)
 #define	COMPOUND_SLACK_SPACE		140    /* OP_GETFH */
 #define COMPOUND_ERR_SLACK_SPACE	12     /* OP_SETATTR */
 
-#define NFSD_LEASE_TIME                 (nfs4_lease_time())
+#define NFSD_LEASE_TIME			60  /* seconds */
 #define NFSD_LAUNDROMAT_MINTIMEOUT      10   /* seconds */
 
 /*
@@ -285,8 +274,8 @@ static inline int is_fsid(struct svc_fh *fh, struct knfsd_fh *reffh)
  | FATTR4_WORD1_OWNER	        | FATTR4_WORD1_OWNER_GROUP  | FATTR4_WORD1_RAWDEV           \
  | FATTR4_WORD1_SPACE_AVAIL     | FATTR4_WORD1_SPACE_FREE   | FATTR4_WORD1_SPACE_TOTAL      \
  | FATTR4_WORD1_SPACE_USED      | FATTR4_WORD1_TIME_ACCESS  | FATTR4_WORD1_TIME_ACCESS_SET  \
- | FATTR4_WORD1_TIME_DELTA   | FATTR4_WORD1_TIME_METADATA    \
- | FATTR4_WORD1_TIME_MODIFY     | FATTR4_WORD1_TIME_MODIFY_SET | FATTR4_WORD1_MOUNTED_ON_FILEID)
+ | FATTR4_WORD1_TIME_CREATE     | FATTR4_WORD1_TIME_DELTA   | FATTR4_WORD1_TIME_METADATA    \
+ | FATTR4_WORD1_TIME_MODIFY     | FATTR4_WORD1_TIME_MODIFY_SET)
 
 /* These will return ERR_INVAL if specified in GETATTR or READDIR. */
 #define NFSD_WRITEONLY_ATTRS_WORD1							    \

@@ -88,15 +88,10 @@ ia64_acpi_release_global_lock (unsigned int *lock)
 #define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq)				\
 	((Acq) = ia64_acpi_release_global_lock((unsigned int *) GLptr))
 
-#define acpi_disabled 0	/* ACPI always enabled on IA64 */
-#define acpi_pci_disabled 0 /* ACPI PCI always enabled on IA64 */
-#define acpi_strict 1	/* no ACPI spec workarounds on IA64 */
-static inline void disable_acpi(void) { }
-
 const char *acpi_get_sysname (void);
 int acpi_request_vector (u32 int_type);
 int acpi_register_irq (u32 gsi, u32 polarity, u32 trigger);
-int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
+int acpi_irq_to_vector (u32 irq);
 
 #ifdef CONFIG_ACPI_NUMA
 /* Proximity bitmap length; _PXM is at most 255 (8 bit)*/

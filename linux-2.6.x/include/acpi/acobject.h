@@ -180,11 +180,7 @@ struct acpi_object_event
 };
 
 
-#define ACPI_INFINITE_CONCURRENCY   0xFF
-
-typedef
-acpi_status (*ACPI_INTERNAL_METHOD) (
-	struct acpi_walk_state          *walk_state);
+#define INFINITE_CONCURRENCY        0xFF
 
 struct acpi_object_method
 {
@@ -194,7 +190,6 @@ struct acpi_object_method
 	u32                                     aml_length;
 	void                                    *semaphore;
 	u8                                      *aml_start;
-	ACPI_INTERNAL_METHOD            implementation;
 	u8                                      concurrency;
 	u8                                      thread_count;
 	acpi_owner_id                           owning_id;

@@ -1,15 +1,13 @@
 config MIPS
 	bool
 	default y
-	# Horrible source of confusion.  Die, die, die ...
-	select EMBEDDED
 
 config MIPS64
 	bool "64-bit kernel"
 	help
 	  Select this option if you want to build a 64-bit kernel.  You should
 	  only select this option if you have hardware that actually has a
-	  64-bit processor and if your application will actually benefit from
+	  32-bit processor and if your application will actually benefit from
 	  64-bit processing, otherwise say N.  You must say Y for kernels for
 	  SGI IP27 (Origin 200 and 2000).  If in doubt say N.
 
@@ -27,44 +25,14 @@ source "init/Kconfig"
 
 menu "Machine selection"
 
-config MACH_JAZZ
-	bool "Support for the Jazz family of machines"
-	select ISA
-	help
-	 This a family of machines based on the MIPS R4030 chipset which was
-	 used by several vendors to build RISC/os and Windows NT workstations.
-	 Members include the Acer PICA, MIPS Magnum 4000, MIPS Millenium and
-	 Olivetti M700-10 workstations.
-
 config ACER_PICA_61
 	bool "Support for Acer PICA 1 chipset (EXPERIMENTAL)"
-	depends on MACH_JAZZ && EXPERIMENTAL
-	select DMA_NONCOHERENT
+	depends on EXPERIMENTAL
 	help
 	  This is a machine with a R4400 133/150 MHz CPU. To compile a Linux
 	  kernel that runs on these, say Y here. For details about Linux on
 	  the MIPS architecture, check out the Linux/MIPS FAQ on the WWW at
-	  <http://www.linux-mips.org/>.
-
-config MIPS_MAGNUM_4000
-	bool "Support for MIPS Magnum 4000"
-	depends on MACH_JAZZ
-	select DMA_NONCOHERENT
-	help
-	  This is a machine with a R4000 100 MHz CPU. To compile a Linux
-	  kernel that runs on these, say Y here. For details about Linux on
-	  the MIPS architecture, check out the Linux/MIPS FAQ on the WWW at
-	  <http://www.linux-mips.org/>.
-
-config OLIVETTI_M700
-	bool "Support for Olivetti M700-10"
-	depends on MACH_JAZZ
-	select DMA_NONCOHERENT
-	help
-	  This is a machine with a R4000 100 MHz CPU. To compile a Linux
-	  kernel that runs on these, say Y here. For details about Linux on
-	  the MIPS architecture, check out the Linux/MIPS FAQ on the WWW at
-	  <http://www.linux-mips.org/>.
+	  <http://oss.sgi.com/mips/>.
 
 config BAGET_MIPS
 	bool "Support for BAGET MIPS series (EXPERIMENTAL)"
@@ -72,96 +40,21 @@ config BAGET_MIPS
 	help
 	  This enables support for the Baget, a Russian embedded system.  For
 	  more details about the Baget see the Linux/MIPS FAQ on
-	  <http://www.linux-mips.org/>.
-
-config MACH_VR41XX
-	bool "Support for NEC VR41XX-based machines"
+	  <http://oss.sgi.com/mips/>.
 
 config CASIO_E55
 	bool "Support for CASIO CASSIOPEIA E-10/15/55/65"
-	depends on MACH_VR41XX
-	select DMA_NONCOHERENT
-	select IRQ_CPU
-	select ISA
-
-config IBM_WORKPAD
-	bool "Support for IBM WorkPad z50"
-	depends on MACH_VR41XX
-	select DMA_NONCOHERENT
-	select IRQ_CPU
-	select ISA
-
-config TANBAC_TB0226
-	bool "Support for TANBAC TB0226 (Mbase)"
-	depends on MACH_VR41XX
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	help
-	  The TANBAC TB0226 (Mbase) is a MIPS-based platform manufactured by TANBAC.
-	  Please refer to <http://www.tanbac.co.jp/> about Mbase.
-
-config TANBAC_TB0229
-	bool "Support for TANBAC TB0229 (VR4131DIMM)"
-	depends on MACH_VR41XX
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	help
-	  The TANBAC TB0229 (VR4131DIMM) is a MIPS-based platform manufactured by TANBAC.
-	  Please refer to <http://www.tanbac.co.jp/> about VR4131DIMM.
-
-config VICTOR_MPC30X
-	bool "Support for Victor MP-C303/304"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	depends on MACH_VR41XX
-
-config ZAO_CAPCELLA
-	bool "Support for ZAO Networks Capcella"
-	depends on MACH_VR41XX
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-
-config PCI_VR41XX
-	bool "Add PCI control unit support of NEC VR4100 series"
-	depends on MACH_VR41XX && PCI
-
-config VRC4171
-	tristate "Add NEC VRC4171 companion chip support"
-	depends on MACH_VR41XX && ISA
-	---help---
-	  The NEC VRC4171/4171A is a companion chip for NEC VR4111/VR4121.
-
-config VRC4173
-	tristate "Add NEC VRC4173 companion chip support"
-	depends on MACH_VR41XX && PCI_VR41XX
-	---help---
-	  The NEC VRC4173 is a companion chip for NEC VR4122/VR4131.
-
-config TOSHIBA_JMR3927
-	bool "Support for Toshiba JMR-TX3927 board"
-	depends on MIPS32
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 
 config MIPS_COBALT
 	bool "Support for Cobalt Server (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
 
-config MACH_DECSTATION
+config DECSTATION
 	bool "Support for DECstations"
-	select DMA_NONCOHERENT
-	select IRQ_CPU
 	depends on MIPS32 || EXPERIMENTAL
 	---help---
 	  This enables support for DEC's MIPS based workstations.  For details
-	  see the Linux/MIPS FAQ on <http://www.linux-mips.org/> and the
+	  see the Linux/MIPS FAQ on <http://oss.sgi.com/mips/> and the
 	  DECstation porting pages on <http://decstation.unix-ag.org/>.
 
 	  If you have one of the following DECstation Models you definitely
@@ -177,49 +70,63 @@ config MACH_DECSTATION
 config MIPS_EV64120
 	bool "Support for Galileo EV64120 Evaluation board (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 	help
 	  This is an evaluation board based on the Galileo GT-64120
 	  single-chip system controller that contains a MIPS R5000 compatible
 	  core running at 75/100MHz.  Their website is located at
-	  <http://www.marvell.com/>.  Say Y here if you wish to build a
+	  <http://www.galileot.com/>.  Say Y here if you wish to build a
 	  kernel for this platform.
 
 config EVB_PCI1
 	bool "Enable Second PCI (PCI1)"
 	depends on MIPS_EV64120
 
+if MOMENCO_OCELOT_G || MOMENCO_OCELOT
+
+config SYSCLK_100
+	bool
+	default y
+
+endif
+if MIPS_EV64120
+
+choice
+	prompt "Galileo Chip Clock"
+	default SYSCLK_83
+
+config SYSCLK_75
+	bool "75"
+
+config SYSCLK_83
+	bool "83.3"
+
+config SYSCLK_100
+	bool "100" if MIPS_EV64120
+
+endchoice
+
+endif
+
 config MIPS_EV96100
 	bool "Support for Galileo EV96100 Evaluation board (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select MIPS_GT96100
-	select RM7000_CPU_SCACHE
 	help
-	  This is an evaluation board based on the Galileo GT-96100 LAN/WAN
+	  This is an evaluation board based on the Galielo GT-96100 LAN/WAN
 	  communications controllers containing a MIPS R5000 compatible core
-	  running at 83MHz. Their website is <http://www.marvell.com/>. Say Y
+	  running at 83MHz. Their website is <http://www.galileot.com/>. Say Y
 	  here if you wish to build a kernel for this platform.
 
 config MIPS_IVR
 	bool "Support for Globespan IVR board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 	help
 	  This is an evaluation board built by Globespan to showcase thir
 	  iVR (Internet Video Recorder) design. It utilizes a QED RM5231
 	  R5000 MIPS core. More information can be found out their website
-	  located at <http://www.globespan.net/>. Say Y here if you wish to
-	  build a kernel for this platform.
+	  located at <http://www.globespan.net/products/product4.html>P. Say Y
+	  here if you wish to build a kernel for this platform.
 
 config LASAT
 	bool "Support for LASAT Networks platforms"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select R5000_CPU_SCACHE
 
 config PICVUE
 	tristate "PICVUE LCD display driver"
@@ -239,15 +146,12 @@ config LASAT_SYSCTL
 
 config HP_LASERJET
 	bool "Support for Hewlett Packard LaserJet board"
-	depends on BROKEN
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
+
+config IBM_WORKPAD
+	bool "Support for IBM WorkPad z50"
 
 config MIPS_ITE8172
 	bool "Support for ITE 8172G board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 	help
 	  Ths is an evaluation board made by ITE <http://www.ite.com.tw/>
 	  with ATX form factor that utilizes a MIPS R5000 to work with its
@@ -262,21 +166,24 @@ config IT8172_REVC
 	  Say Y here to support the older, Revision C version of the Integrated
 	  Technology Express, Inc. ITE8172 SBC.  Vendor page at
 	  <http://www.ite.com.tw/ia/brief_it8172bsp.htm>; picture of the
-	  board at <http://www.mvista.com/partners/semiconductor/ite.html>.
+	  board at <http://www.mvista.com/allies/semiconductor/ite.html>.
 
 config MIPS_ATLAS
 	bool "Support for MIPS Atlas board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 	help
 	  This enables support for the QED R5231-based MIPS Atlas evaluation
 	  board.
 
+config MIPS_MAGNUM_4000
+	bool "Support for MIPS Magnum 4000"
+	help
+	  This is a machine with a R4000 100 MHz CPU. To compile a Linux
+	  kernel that runs on these, say Y here. For details about Linux on
+	  the MIPS architecture, check out the Linux/MIPS FAQ on the WWW at
+	  <http://oss.sgi.com/mips/>.
+
 config MIPS_MALTA
 	bool "Support for MIPS Malta board"
-	select HAVE_STD_PC_SERIAL_PORT
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 	help
 	  This enables support for the VR5000-based MIPS Malta evaluation
 	  board.
@@ -284,98 +191,34 @@ config MIPS_MALTA
 config MIPS_SEAD
 	bool "Support for MIPS SEAD board (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	select IRQ_CPU
-	select DMA_NONCOHERENT
 
 config MOMENCO_OCELOT
 	bool "Support for Momentum Ocelot board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	select RM7000_CPU_SCACHE
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
 
 config MOMENCO_OCELOT_G
 	bool "Support for Momentum Ocelot-G board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	select PCI_MARVELL
-	select RM7000_CPU_SCACHE
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
 
 config MOMENCO_OCELOT_C
 	bool "Support for Momentum Ocelot-C board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_MV64340
-	select PCI_MARVELL
-	select RM7000_CPU_SCACHE
 	help
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
 
-config MOMENCO_JAGUAR_ATX
-	bool "Support for Momentum Jaguar board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	select IRQ_MV64340
-	select LIMITED_DMA
-	select PCI_MARVELL
-	select RM7000_CPU_SCACHE
-	help
-	  The Jaguar ATX is a MIPS-based Single Board Computer (SBC) made by
-	  Momentum Computer <http://www.momenco.com/>.
-
-config JAGUAR_DMALOW
-	bool "Low DMA Mode"
-	depends on MOMENCO_JAGUAR_ATX
-	help
-	  Select to Y if jump JP5 is set on your board, N otherwise.  Normally
-	  the jumper is set, so if you feel unsafe, just say Y.
-
-config PMC_YOSEMITE
-	bool "Support for PMC-Sierra Yosemite eval board"
-	select DMA_COHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	help
-	  Yosemite is an evaluation board for the RM9000x2 processor
-	  manufactured by PMC-Sierra
-
-config HYPERTRANSPORT
-	bool "Hypertransport Support for PMC-Sierra Yosemite"
-	depends on PMC_YOSEMITE
-
 config DDB5074
 	bool "Support for NEC DDB Vrc-5074 (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	select DMA_NONCOHERENT
-	select HAVE_STD_PC_SERIAL_PORT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select ISA
 	help
 	  This enables support for the VR5000-based NEC DDB Vrc-5074
 	  evaluation board.
 
 config DDB5476
 	bool "Support for NEC DDB Vrc-5476"
-	select DMA_NONCOHERENT
-	select HAVE_STD_PC_SERIAL_PORT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select ISA
 	help
 	  This enables support for the R5432-based NEC DDB Vrc-5476
 	  evaluation board.
@@ -386,9 +229,6 @@ config DDB5476
 
 config DDB5477
 	bool "Support for NEC DDB Vrc-5477"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
 	help
 	  This enables support for the R5432-based NEC DDB Vrc-5477,
 	  or Rockhopper/SolutionGear boards with R5432/R5500 CPUs.
@@ -403,14 +243,20 @@ config DDB5477_BUS_FREQUENCY
 	
 config NEC_OSPREY
 	bool "Support for NEC Osprey board"
-	select DMA_NONCOHERENT
-	select IRQ_CPU
+
+config NEC_EAGLE
+	bool "Support for NEC Eagle/Hawk board"
+
+config OLIVETTI_M700
+	bool "Support for Olivetti M700-10"
+	help
+	  This is a machine with a R4000 100 MHz CPU. To compile a Linux
+	  kernel that runs on these, say Y here. For details about Linux on
+	  the MIPS architecture, check out the Linux/MIPS FAQ on the WWW at
+	  <http://oss.sgi.com/mips/>.
 
 config SGI_IP22
 	bool "Support for SGI IP22 (Indy/Indigo2)"
-	select DMA_NONCOHERENT
-	select IP22_CPU_SCACHE
-	select IRQ_CPU
 	help
 	  This are the SGI Indy, Challenge S and Indigo2, as well as certain
 	  OEM variants like the Tandem CMN B006S. To compile a Linux kernel
@@ -419,8 +265,6 @@ config SGI_IP22
 config SGI_IP27
 	bool "Support for SGI IP27 (Origin200/2000)"
 	depends on MIPS64
-	select DMA_IP27
-	select HW_HAS_PCI
 	help
 	  This are the SGI Origin 200, Origin 2000 and Onyx 2 Graphics
 	  workstations.  To compile a Linux kernel that runs on these, say Y
@@ -442,8 +286,8 @@ config SGI_SN0_N_MODE
 	  running in M-Mode, so you should say N here.
 
 config DISCONTIGMEM
-	bool
-	default y if SGI_IP27
+	bool "Discontiguous Memory Support"
+	depends on SGI_IP27
 	help
 	  Say Y to upport efficient handling of discontiguous physical memory,
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
@@ -484,10 +328,6 @@ config REPLICATE_EXHANDLERS
 config SGI_IP32
 	bool "Support for SGI IP32 (O2) (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select R5000_CPU_SCACHE
-	select RM7000_CPU_SCACHE
 	help
 	  If you want this kernel to run on SGI O2 workstation, say Y here.
 
@@ -508,13 +348,11 @@ config SOC_AU1100
         bool "SOC_AU1100"
 config SOC_AU1500
         bool "SOC_AU1500"
-config SOC_AU1550
-        bool "SOC_AU1550"
 
 endchoice
 
 choice  
-        prompt "AMD/Alchemy Au1x00 board support"
+        prompt "AMD/Alchemy Pb1x and Db1x board support"
         depends on SOC_AU1X00
 	help
 	  These are evaluation boards built by AMD/Alchemy to
@@ -527,243 +365,54 @@ choice
 config MIPS_PB1000
 	bool "PB1000 board"
 	depends on SOC_AU1000
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 
 config MIPS_PB1100
 	bool "PB1100 board"
 	depends on SOC_AU1100
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 
 config MIPS_PB1500
 	bool "PB1500 board"
 	depends on SOC_AU1500
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-
-config MIPS_PB1550
-	bool "PB1550 board"
-	depends on SOC_AU1550
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 
 config MIPS_DB1000
 	bool "DB1000 board"
 	depends on SOC_AU1000
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
 
 config MIPS_DB1100
 	bool "DB1100 board"
 	depends on SOC_AU1100
-	select DMA_NONCOHERENT
 
 config MIPS_DB1500
 	bool "DB1500 board"
 	depends on SOC_AU1500
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-
-config MIPS_DB1550
-	bool "DB1550 board"
-	depends on SOC_AU1550
-	select HW_HAS_PCI
-
-config MIPS_BOSPORUS
-	bool "Bosporus board"
-	depends on SOC_AU1500
-	select DMA_NONCOHERENT
-
-config MIPS_MIRAGE
-	bool "Mirage board"
-	depends on SOC_AU1500
-	select DMA_NONCOHERENT
-
-config MIPS_XXS1500
-	bool "MyCable XXS1500 board"
-	depends on SOC_AU1500
-	select DMA_NONCOHERENT
-
-config MIPS_MTX1
-	bool "4G Systems MTX-1 board"
-	depends on SOC_AU1500
-	select DMA_NONCOHERENT
 
 endchoice
 
 config SIBYTE_SB1xxx_SOC
 	bool "Support for Broadcom BCM1xxx SOCs (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	select DMA_COHERENT
-
-choice
-	prompt "BCM1xxx SOC-based board"
-	depends on SIBYTE_SB1xxx_SOC
-	default SIBYTE_SWARM
-	help
-	  Enable support for boards based on the SiByte line of SOCs
-	  from Broadcom.  There are configurations for the known
-	  evaluation boards, or you can choose "Other" and add your
-	  own board support code.
-
-config SIBYTE_SWARM
-	bool "BCM91250A-SWARM"
-	select SIBYTE_SB1250
-
-config SIBYTE_SENTOSA
-	bool "BCM91250E-Sentosa"
-	select SIBYTE_SB1250
-
-config SIBYTE_RHONE
-	bool "BCM91125E-Rhone"
-	select SIBYTE_BCM1125H
-
-config SIBYTE_CARMEL
-	bool "BCM91120x-Carmel"
-	select SIBYTE_BCM1120
-
-config SIBYTE_PTSWARM
-	bool "BCM91250PT-PTSWARM"
-	select SIBYTE_SB1250
-
-config SIBYTE_LITTLESUR
-	bool "BCM91250C2-LittleSur"
-	select SIBYTE_SB1250
-
-config SIBYTE_CRHINE
-	bool "BCM91120C-CRhine"
-	select SIBYTE_BCM1120
-
-config SIBYTE_CRHONE
-	bool "BCM91125C-CRhone"
-	select SIBYTE_BCM1125
-
-config SIBYTE_UNKNOWN
-	bool "Other"
-
-endchoice
-
-config SIBYTE_BOARD
-	bool
-	depends on SIBYTE_SB1xxx_SOC && !SIBYTE_UNKNOWN
-	default y
 
 choice
 	prompt "BCM1xxx SOC Type"
-	depends on SIBYTE_UNKNOWN
-	default SIBYTE_UNK_BCM1250
-	help
-	  Since you haven't chosen a known evaluation board from
-	  Broadcom, you must explicitly pick the SOC this kernel is
-	  targetted for.
-
-config SIBYTE_UNK_BCM1250
-	bool "BCM1250"
-	select SIBYTE_SB1250
-
-config SIBYTE_UNK_BCM1120
-	bool "BCM1120"
-	select SIBYTE_BCM1120
-
-config SIBYTE_UNK_BCM1125
-	bool "BCM1125"
-	select SIBYTE_BCM1125
-
-config SIBYTE_UNK_BCM1125H
-	bool "BCM1125H"
-	select SIBYTE_BCM1125H
-
-endchoice
+	depends on SIBYTE_SB1xxx_SOC
+	default SIBYTE_SB1250
 
 config SIBYTE_SB1250
-	bool
-	select HW_HAS_PCI
-
-config SIBYTE_BCM1120
-	bool
-	select SIBYTE_BCM112X
-
-config SIBYTE_BCM1125
-	bool
-	select HW_HAS_PCI
-	select SIBYTE_BCM112X
-
-config SIBYTE_BCM1125H
-	bool
-	select HW_HAS_PCI
-	select SIBYTE_BCM112X
-
-config SIBYTE_BCM112X
-	bool
-
-choice
-	prompt "SiByte SOC Stepping"
-	depends on SIBYTE_SB1xxx_SOC
-
-config CPU_SB1_PASS_1
-	bool "1250 Pass1"
-	depends on SIBYTE_SB1250
-
-config CPU_SB1_PASS_2_1250
-	bool "1250 An"
-	depends on SIBYTE_SB1250
-	select CPU_SB1_PASS_2
-	help
-	  Also called BCM1250 Pass 2
-
-config CPU_SB1_PASS_2_2
-	bool "1250 Bn"
-	depends on SIBYTE_SB1250
-	help
-	  Also called BCM1250 Pass 2.2
-
-config CPU_SB1_PASS_4
-	bool "1250 Cn"
-	depends on SIBYTE_SB1250
-	help
-	  Also called BCM1250 Pass 3
-
-config CPU_SB1_PASS_2_112x
-	bool "112x Hybrid"
-	depends on SIBYTE_BCM112X
-	select CPU_SB1_PASS_2
-
-config CPU_SB1_PASS_3
-	bool "112x An"
-	depends on SIBYTE_BCM112X
+	bool "BCM1250"
 
 endchoice
-
-config CPU_SB1_PASS_2
-	bool
-
-config SIBYTE_HAS_LDT
-	bool
-	depends on PCI && (SIBYTE_SB1250 || SIBYTE_BCM1125H)
-	default y
 
 config SIMULATION
 	bool "Running under simulation"
 	depends on SIBYTE_SB1xxx_SOC
-	help
-	  Build a kernel suitable for running under the GDB simulator.
-	  Primarily adjusts the kernel's notion of time.
 
 config SIBYTE_CFE
 	bool "Booting from CFE"
 	depends on SIBYTE_SB1xxx_SOC
-	help
-	  Make use of the CFE API for enumerating available memory,
-	  controlling secondary CPUs, and possibly console output.
 
 config SIBYTE_CFE_CONSOLE
 	bool "Use firmware console"
 	depends on SIBYTE_CFE
-	help
-	  Use the CFE API's console write routines during boot.  Other console
-	  options (VT console, sb1250 duart console, etc.) should not be
-	  configured.
 
 config SIBYTE_STANDALONE
 	bool
@@ -772,25 +421,12 @@ config SIBYTE_STANDALONE
 
 config SIBYTE_STANDALONE_RAM_SIZE
 	int "Memory size (in megabytes)"
-	depends on SIBYTE_STANDALONE
+	depends on SIBYTE_SB1xxx_SOC && !SIBYTE_CFE
 	default "32"
 
 config SIBYTE_BUS_WATCHER
-	bool "Support for Bus Watcher statistics"
+        bool "Support for Bus Watcher statistics"
 	depends on SIBYTE_SB1xxx_SOC
-	help
-	  Handle and keep statistics on the bus error interrupts (COR_ECC,
-	  BAD_ECC, IO_BUS).
-
-config SIBYTE_BW_TRACE
-	bool "Capture bus trace before bus error"
-	depends on SIBYTE_BUS_WATCHER
-	help
-	  Run a continuous bus trace, dumping the raw data as soon as
-	  a ZBbus error is detected.  Cannot work if ZBbus profiling
-	  is turned on, and also will interfere with JTAG-based trace
-	  buffer activity.  Raw buffer data is dumped to console, and
-	  must be processed off-line.
 
 config SIBYTE_SB1250_PROF
 	bool "Support for SB1/SOC profiling - SB1/SCD perf counters"
@@ -800,24 +436,48 @@ config SIBYTE_TBPROF
 	bool "Support for ZBbus profiling"
 	depends on SIBYTE_SB1xxx_SOC
 
+config SIBYTE_SWARM
+	bool "Support for SWARM board"
+	depends on SIBYTE_SB1250
+
+config SIBYTE_BOARD
+	bool
+	depends on SIBYTE_SWARM
+	default y
+
 config SNI_RM200_PCI
 	bool "Support for SNI RM200 PCI"
-	select DMA_NONCOHERENT
-	select HAVE_STD_PC_SERIAL_PORT
-	select HW_HAS_PCI
-	select ISA
 	help
 	  The SNI RM200 PCI was a MIPS-based platform manufactured by Siemens
 	  Nixdorf Informationssysteme (SNI), parent company of Pyramid
 	  Technology and now in turn merged with Fujitsu.  Say Y here to
 	  support this machine type.
 
+config TANBAC_TB0226
+	bool "Support for TANBAC TB0226 (Mbase)"
+	help
+	  The TANBAC TB0226 (Mbase) is a MIPS-based platform manufactured by TANBAC.
+	  Please refer to <http://www.tanbac.co.jp/> about Mbase.
+
+config TANBAC_TB0229
+	bool "Support for TANBAC TB0229 (VR4131DIMM)"
+	help
+	  The TANBAC TB0229 (VR4131DIMM) is a MIPS-based platform manufactured by TANBAC.
+	  Please refer to <http://www.tanbac.co.jp/> about VR4131DIMM.
+
+config TOSHIBA_JMR3927
+	bool "Support for Toshiba JMR-TX3927 board"
+	depends on MIPS32
+
 config TOSHIBA_RBTX4927
 	bool "Support for Toshiba TBTX49[23]7 board"
 	depends on MIPS32
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select ISA
+
+config VICTOR_MPC30X
+	bool "Support for Victor MP-C303/304"
+
+config ZAO_CAPCELLA
+	bool "Support for ZAO Networks Capcella"
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -825,10 +485,6 @@ config RWSEM_GENERIC_SPINLOCK
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
-
-config HAVE_DEC_LOCK
-	bool
-	default y
 
 #
 # Select some configuration options automatically based on user selections.
@@ -838,52 +494,35 @@ config ARC
 	depends on SNI_RM200_PCI || SGI_IP32 || SGI_IP27 || SGI_IP22 || MIPS_MAGNUM_4000 || OLIVETTI_M700 || ACER_PICA_61
 	default y
 
-config	DMA_COHERENT
-	bool
-
-config	DMA_IP27
-	bool
-
-config	DMA_NONCOHERENT
-	bool
-
-config EARLY_PRINTK
-	bool
-	depends on MACH_DECSTATION
-	default y
-
 config GENERIC_ISA_DMA
 	bool
-	depends on SNI_RM200_PCI || MIPS_MAGNUM_4000 || OLIVETTI_M700 || ACER_PICA_61 || MIPS_MALTA
+	depends on SNI_RM200_PCI || MIPS_MAGNUM_4000 || OLIVETTI_M700 || ACER_PICA_61
+	default y
+
+config CONFIG_GT64120
+	bool
+	depends on MIPS_EV64120 || MOMENCO_OCELOT
 	default y
 
 config I8259
 	bool
-	depends on SNI_RM200_PCI || DDB5477 || DDB5476 || DDB5074 || MACH_JAZZ || MIPS_MALTA || MIPS_COBALT
+	depends on SNI_RM200_PCI || DDB5477 || DDB5476 || DDB5074 || MIPS_MALTA || MIPS_MAGNUM_4000 || OLIVETTI_M700 || MIPS_COBALT || ACER_PICA_61
 	default y
 
-config LIMITED_DMA
+config MIPS_JAZZ
 	bool
-	select HIGHMEM
-
-config MIPS_BONITO64
-	bool
-	depends on MIPS_ATLAS || MIPS_MALTA
+	depends on MIPS_MAGNUM_4000 || OLIVETTI_M700 || ACER_PICA_61
 	default y
 
-config MIPS_MSC
+config NONCOHERENT_IO
 	bool
-	depends on MIPS_ATLAS || MIPS_MALTA
-	default y
-
-config MIPS_NILE4
-	bool
-	depends on LASAT
-	default y
+	depends on ZAO_CAPCELLA || VICTOR_MPC30X || TOSHIBA_JMR3927 || TOSHIBA_RBTX4927 || SNI_RM200_PCI || SGI_IP32 || SGI_IP22 || NEC_EAGLE || NEC_OSPREY || DDB5477 || DDB5476 || DDB5074 || MOMENCO_OCELOT || MOMENCO_OCELOT_C || MOMENCO_OCELOT_G || MIPS_SEAD || MIPS_MALTA || MIPS_MAGNUM_4000 || OLIVETTI_M700 || MIPS_ATLAS || LASAT || MIPS_ITE8172 || IBM_WORKPAD || HP_LASERJET || MIPS_IVR || MIPS_EV96100 || MIPS_EV64120 || DECSTATION || MIPS_COBALT || MIPS_PB1500 || MIPS_PB1100 || MIPS_PB1000 || CASIO_E55 || ACER_PICA_61 || TANBAC_TB0226 || TANBAC_TB0229
+	default y if ZAO_CAPCELLA || VICTOR_MPC30X || TOSHIBA_JMR3927 || TOSHIBA_RBTX4927 || SNI_RM200_PCI || SGI_IP32 || SGI_IP22 || NEC_EAGLE || NEC_OSPREY || DDB5477 || DDB5476 || DDB5074 || MOMENCO_OCELOT_G || MOMENCO_OCELOT || MIPS_SEAD || MIPS_MALTA || MIPS_MAGNUM_4000 || OLIVETTI_M700 || MIPS_ATLAS || LASAT || MIPS_ITE8172 || IBM_WORKPAD || HP_LASERJET || MIPS_IVR || MIPS_EV96100 || MIPS_EV64120 || DECSTATION || MIPS_COBALT || MIPS_PB1500 || MIPS_PB1100 || MIPS_PB1000 || CASIO_E55 || ACER_PICA_61 || TANBAC_TB0226 || TANBAC_TB0229
+	default n if (SIBYTE_SB1250 || SGI_IP27)
 
 config CPU_LITTLE_ENDIAN
 	bool "Generate little endian code"
-	default y if ACER_PICA_61 || CASIO_E55 || DDB5074 || DDB5476 || DDB5477 || MACH_DECSTATION || HP_LASERJET || IBM_WORKPAD || LASAT || MIPS_COBALT || MIPS_ITE8172 || MIPS_IVR || SOC_AU1X00 || NEC_OSPREY || OLIVETTI_M700 || SNI_RM200_PCI || VICTOR_MPC30X || ZAO_CAPCELLA
+	default y if ACER_PICA_61 || CASIO_E55 || DDB5074 || DDB5476 || DDB5477 || DECSTATION || HP_LASERJET || IBM_WORKPAD || LASAT || MIPS_COBALT || MIPS_ITE8172 || MIPS_IVR || MIPS_PB1000 || MIPS_PB1100 || MIPS_PB1500 || NEC_OSPREY || NEC_EAGLE || OLIVETTI_M700 || SNI_RM200_PCI || VICTOR_MPC30X || ZAO_CAPCELLA
 	default n if BAGET_MIPS || MIPS_EV64120 || MIPS_EV96100 || MOMENCO_OCELOT || MOMENCO_OCELOT_G || SGI_IP22 || SGI_IP27 || SGI_IP32 || TOSHIBA_JMR3927
 	help
 	  Some MIPS machines can be configured for either little or big endian
@@ -892,12 +531,27 @@ config CPU_LITTLE_ENDIAN
 
 config IRQ_CPU
 	bool
+	depends on ZAO_CAPCELLA || VICTOR_MPC30X || SGI_IP22 || NEC_EAGLE || NEC_OSPREY || DDB5477 || DDB5476 || DDB5074 || IBM_WORKPAD || HP_LASERJET || DECSTATION || CASIO_E55 || TANBAC_TB0226 || TANBAC_TB0229
+	default y
 
-config IRQ_CPU_RM7K
+config VR41XX_TIME_C
 	bool
+	depends on ZAO_CAPCELLA || VICTOR_MPC30X || NEC_EAGLE || IBM_WORKPAD || CASIO_E55 || TANBAC_TB0226 || TANBAC_TB0229
+	default y
 
-config IRQ_MV64340
+config DUMMY_KEYB
 	bool
+	depends on ZAO_CAPCELLA || VICTOR_MPC30X || SIBYTE_SB1250 || NEC_EAGLE || NEC_OSPREY || DDB5477 || IBM_WORKPAD || CASIO_E55 || TANBAC_TB0226 || TANBAC_TB0229
+	default y
+
+config VR41XX_COMMON
+	bool
+	depends on NEC_EAGLE || ZAO_CAPCELLA || VICTOR_MPC30X || IBM_WORKPAD || CASIO_E55 || TANBAC_TB0226 || TANBAC_TB0229
+	default y
+
+config VRC4173
+	tristate "NEC VRC4173 Support"
+	depends on NEC_EAGLE || VICTOR_MPC30X
 
 config DDB5XXX_COMMON
 	bool
@@ -909,60 +563,45 @@ config MIPS_BOARDS_GEN
 	depends on MIPS_ATLAS || MIPS_MALTA || MIPS_SEAD
 	default y
 
-config MIPS_GT64111
+config ITE_BOARD_GEN
+	bool
+	depends on MIPS_IVR || MIPS_ITE8172
+	default y
+
+config NEW_PCI
+	bool
+	depends on ZAO_CAPCELLA || VICTOR_MPC30X || TOSHIBA_JMR3927 || TOSHIBA_RBTX4927 || NEC_EAGLE || DDB5477 || DDB5476 || DDB5074 || MIPS_ITE8172 || HP_LASERJET || MIPS_IVR || MIPS_EV96100 || MIPS_PB1500 || MIPS_PB1100 || MIPS_PB1000 || TANBAC_TB0226 || TANBAC_TB0229
+	default y
+
+config SWAP_IO_SPACE
+	bool "Support for paging of anonymous memory"
+	depends on TOSHIBA_JMR3927 || TOSHIBA_RBTX4927 || SIBYTE_SB1250 || SGI_IP22 || MOMENCO_OCELOT_C || MOMENCO_OCELOT_G || MOMENCO_OCELOT || MIPS_MALTA || MIPS_ATLAS || MIPS_EV96100 || MIPS_PB1100 || MIPS_PB1000
+	default y
+	help
+	  This option allows you to choose whether you want to have support
+	  for socalled swap devices or swap files in your kernel that are
+	  used to provide more virtual memory than the actual RAM present
+	  in your computer.  If unusre say Y.
+
+config SIBYTE_HAS_LDT
+	bool
+	depends on SIBYTE_SB1xxx_SOC && PCI
+	default y
+
+config AU1000_USB_DEVICE
+	bool
+	depends on MIPS_PB1500 || MIPS_PB1100 || MIPS_PB1000
+	default n
+
+config COBALT_LCD
 	bool
 	depends on MIPS_COBALT
 	default y
 
 config MIPS_GT64120
 	bool
-	depends on MIPS_EV64120 || MIPS_EV96100 || LASAT || MIPS_ATLAS || MIPS_MALTA || MOMENCO_OCELOT
+	depends on MIPS_EV64120
 	default y
-
-config MIPS_TX3927
-	bool
-	depends on TOSHIBA_JMR3927
-	default y
-
-config PCI_MARVELL
-	bool
-
-config ITE_BOARD_GEN
-	bool
-	depends on MIPS_IVR || MIPS_ITE8172
-	default y
-
-config SWAP_IO_SPACE
-	bool
-	depends on TOSHIBA_JMR3927 || TOSHIBA_RBTX4927 || SIBYTE_SB1xxx_SOC || SGI_IP22 || MOMENCO_OCELOT_C || MOMENCO_OCELOT_G || MOMENCO_OCELOT || MOMENCO_JAGUAR_ATX || MIPS_MALTA || MIPS_ATLAS || MIPS_EV96100 || MIPS_PB1100 || MIPS_PB1000
-	default y
-
-#
-# Unfortunately not all GT64120 systems run the chip at the same clock.
-# As the user for the clock rate and try to minimize the available options.
-#
-choice
-	prompt "Galileo Chip Clock"
-	#default SYSCLK_83 if MIPS_EV64120
-	depends on MIPS_EV64120 || MOMENCO_OCELOT || MOMENCO_OCELOT_G
-	default SYSCLK_83 if MIPS_EV64120
-	default SYSCLK_100 if MOMENCO_OCELOT || MOMENCO_OCELOT_G
-
-config SYSCLK_75
-	bool "75" if MIPS_EV64120
-
-config SYSCLK_83
-	bool "83.3" if MIPS_EV64120
-
-config SYSCLK_100
-	bool "100" if MIPS_EV64120 || MOMENCO_OCELOT || MOMENCO_OCELOT_G
-
-endchoice
-
-config AU1000_USB_DEVICE
-	bool
-	depends on MIPS_PB1500 || MIPS_PB1100 || MIPS_PB1000
-	default n
 
 config MIPS_GT96100
 	bool
@@ -984,18 +623,18 @@ config IT8712
 
 config BOOT_ELF32
 	bool
-	depends on MACH_DECSTATION || MIPS_ATLAS || MIPS_MALTA || MOMENCO_JAGUAR_ATX || SIBYTE_SB1xxx_SOC || SGI_IP32 || SGI_IP22 || SNI_RM200_PCI
+	depends on DECSTATION || MIPS_ATLAS || MIPS_MALTA || SIBYTE_SB1250 || SGI_IP32 || SGI_IP22 || SNI_RM200_PCI
 	default y
 
-config MIPS_L1_CACHE_SHIFT
+config L1_CACHE_SHIFT
 	int
-	default "4" if MACH_DECSTATION
+	default "4" if DECSTATION
+	default "5" if SGI_IP32 || SGI_IP22 || MIPS_SEAD || MIPS_MALTA || MIPS_ATLAS
 	default "7" if SGI_IP27
-	default "5"
 
 config ARC32
 	bool
-	depends on MACH_JAZZ || SNI_RM200_PCI || SGI_IP22 || SGI_IP32
+	depends on SNI_RM200_PCI || SGI_IP32 || SGI_IP22 || MIPS_MAGNUM_4000 || OLIVETTI_M700
 	default y
 
 config FB
@@ -1021,8 +660,9 @@ config FB
 
 	  You need an utility program called fbset to make full use of frame
 	  buffer devices. Please read <file:Documentation/fb/framebuffer.txt>
-	  and the Framebuffer-HOWTO at <http://www.tldp.org/docs.html#howto>
-	  for more information.
+	  and the Framebuffer-HOWTO at
+	  <http://www.tahallah.demon.co.uk/programming/prog.html> for more
+	  information.
 
 	  Say Y here and to the driver for your graphics board below if you
 	  are compiling a kernel for a non-x86 architecture.
@@ -1040,6 +680,8 @@ config FB_G364
 
 config HAVE_STD_PC_SERIAL_PORT
 	bool
+	depends on DDB5476 || DDB5074 || MIPS_MALTA
+	default y
 
 config VR4181
 	bool
@@ -1052,12 +694,17 @@ config ARC_CONSOLE
 
 config ARC_MEMORY
 	bool
-	depends on MACH_JAZZ || SNI_RM200_PCI || SGI_IP32
+	depends on SNI_RM200_PCI || SGI_IP32
 	default y
 
 config ARC_PROMLIB
 	bool
-	depends on MACH_JAZZ || SNI_RM200_PCI || SGI_IP22 || SGI_IP32
+	depends on SNI_RM200_PCI || SGI_IP32 || SGI_IP22
+	default y
+
+config BOARD_SCACHE
+	bool
+	depends on MIPS_EV96100 || MOMENCO_OCELOT || SGI_IP22
 	default y
 
 config ARC64
@@ -1176,72 +823,20 @@ config CPU_R10000
 config CPU_RM7000
 	bool "RM7000"
 
-config CPU_RM9000
-	bool "RM9000"
-
 config CPU_SB1
 	bool "SB1"
 
 endchoice
 
-choice
-	prompt "Kernel page size"
-	default PAGE_SIZE_4KB
-
-config PAGE_SIZE_4KB
-	bool "4kB"
-	help
-	 This option select the standard 4kB Linux page size.  On some
-	 R3000-family processors this is the only available page size.  Using
-	 4kB page size will minimize memory consumption and is therefore
-	 recommended for low memory systems. 
-
-config PAGE_SIZE_8KB
-	bool "8kB"
-	depends on EXPERIMENTAL && CPU_R8000
-	help
-	  Using 8kB page size will result in higher performance kernel at
-	  the price of higher memory consumption.  This option is available
-	  only on the R8000 processor.  Not that at the time of this writing
-	  this option is still high experimental; there are also issues with
-	  compatibility of user applications.
-
-config PAGE_SIZE_16KB
-	bool "16kB"
-	depends on EXPERIMENTAL && !CPU_R3000 && !CPU_TX39XX
-	help
-	  Using 16kB page size will result in higher performance kernel at
-	  the price of higher memory consumption.  This option is available on
-	  all non-R3000 family processor.  Not that at the time of this
-	  writing this option is still high experimental; there are also
-	  issues with compatibility of user applications.
-
-config PAGE_SIZE_64KB
-	bool "64kB"
-	depends on EXPERIMENTAL && !CPU_R3000 && !CPU_TX39XX
-	help
-	  Using 64kB page size will result in higher performance kernel at
-	  the price of higher memory consumption.  This option is available on
-	  all non-R3000 family processor.  Not that at the time of this
-	  writing this option is still high experimental; there are also
-	  issues with compatibility of user applications.
-
-endchoice
+config R5000_CPU_SCACHE
+	bool
+	depends on CPU_NEVADA || CPU_R5000
+	default y if SGI_IP22 || SGI_IP32 || LASAT
 
 config BOARD_SCACHE
 	bool
-
-config IP22_CPU_SCACHE
-	bool
-	select BOARD_SCACHE
-
-config R5000_CPU_SCACHE
-	bool
-	select BOARD_SCACHE
-
-config RM7000_CPU_SCACHE
-	bool
-	select BOARD_SCACHE
+	depends on CPU_NEVADA || CPU_R4X00 || CPU_R5000
+	default y if SGI_IP22 || (SGI_IP32 && CPU_R5000) || R5000_CPU_SCACHE
 
 config SIBYTE_DMA_PAGEOPS
 	bool "Use DMA to clear/copy pages"
@@ -1253,11 +848,27 @@ config SIBYTE_DMA_PAGEOPS
 
 config CPU_HAS_PREFETCH
 	bool "Enable prefetches" if CPU_SB1 && !CPU_SB1_PASS_2
-	default y if CPU_MIPS32 || CPU_MIPS64 || CPU_RM7000 || CPU_RM9000 || CPU_R10000
+	default y if CPU_RM7000 || CPU_MIPS64 || CPU_MIPS32
 
 config VTAG_ICACHE
 	bool "Support for Virtual Tagged I-cache" if CPU_MIPS64 || CPU_MIPS32
 	default y if CPU_SB1
+
+choice
+	prompt "SB1 Pass"
+	depends on CPU_SB1
+	default CPU_SB1_PASS_1
+
+config CPU_SB1_PASS_1
+	bool "Pass1"
+
+config CPU_SB1_PASS_2
+	bool "Pass2"
+
+config CPU_SB1_PASS_2_2
+	bool "Pass2.2"
+
+endchoice
 
 config SB1_PASS_1_WORKAROUNDS
 	bool
@@ -1269,14 +880,23 @@ config SB1_PASS_2_WORKAROUNDS
 	depends on CPU_SB1 && (CPU_SB1_PASS_2_2 || CPU_SB1_PASS_2)
 	default y
 
-config SB1_PASS_2_1_WORKAROUNDS
-	bool
-	depends on CPU_SB1 && CPU_SB1_PASS_2
-	default y
+# Avoid prefetches on Pass 2 (before 2.2)
+# XXXKW for now, let 2.2 use same WORKAROUNDS flag as pre-2.2
+config SB1_CACHE_ERROR
+	bool "Support for SB1 Cache Error handler"
+	depends on CPU_SB1
+
+config SB1_CERR_IGNORE_RECOVERABLE
+	bool "Ignore recoverable cache errors"
+	depends on SB1_CACHE_ERROR
+
+config SB1_CERR_SPIN
+	bool "Spin instead of running handler"
+	depends on SB1_CACHE_ERROR
 
 config 64BIT_PHYS_ADDR
 	bool "Support for 64-bit physical address space"
-	depends on (CPU_R4X00 || CPU_R5000 || CPU_RM7000 || CPU_RM9000 || CPU_R10000 || CPU_SB1 || CPU_MIPS32 || CPU_MIPS64) && MIPS32
+	depends on (CPU_R4X00 || CPU_R5000 || CPU_RM7000 || CPU_R10000 || CPU_SB1 || CPU_MIPS32 || CPU_MIPS64) && MIPS32
 
 config CPU_ADVANCED
 	bool "Override CPU Options"
@@ -1307,7 +927,7 @@ config CPU_HAS_LLDSCD
 
 config CPU_HAS_WB
 	bool "Writeback Buffer available" if CPU_ADVANCED
-	default y if !CPU_ADVANCED && CPU_R3000 && MACH_DECSTATION
+	default y if !CPU_ADVANCED && (CPU_R3000 || CPU_VR41XX || CPU_TX39XX) && DECSTATION
 	help
 	  Say N here for slightly better performance.  You must say Y here for
 	  machines which require flushing of write buffers in software.  Saying
@@ -1334,11 +954,11 @@ config CPU_HAS_SYNC
 #
 config HIGHMEM
 	bool "High Memory Support"
-	depends on MIPS32 && (CPU_R3000 || CPU_SB1 || CPU_R7000 || CPU_RM9000 || CPU_R10000) && !(BAGET_MIPS || MACH_DECSTATION || MOMENCO_JAGUAR_ATX)
+	depends on MIPS32 && (CPU_R3000 || CPU_SB1 || CPU_R7000 || CPU_R10000) && !(BAGET_MIPS || DECSTATION)
 
 config SMP
 	bool "Multi-Processing support"
-	depends on CPU_RM9000 || (SIBYTE_SB1250 && !SIBYTE_STANDALONE) || SGI_IP27
+	depends on SIBYTE_SB1xxx_SOC && SIBYTE_SB1250 && !SIBYTE_STANDALONE || SGI_IP27
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -1353,22 +973,21 @@ config SMP
 	  People using multiprocessor machines who say Y here should also say
 	  Y to "Enhanced Real Time Clock Support", below.
 
-	  See also the <file:Documentation/smp.txt> and the SMP-HOWTO
-	  available at <http://www.tldp.org/docs.html#howto>.
+	  See also the <file:Documentation/smp.tex>,
+	  <file:Documentation/smp.txt> and the SMP-HOWTO available at
+	  <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-64)"
-	range 2 64
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
 	depends on SMP
-	default "64" if SGI_IP27
-	default "2"
+	default "32"
 	help
 	  This allows you to specify the maximum number of CPUs which this
-	  kernel will support.  The maximum supported value is 32 for 32-bit
-	  kernel and 64 for 64-bit kernels; the minimum value which makes
-	  sense is 2.
+	  kernel will support.  The maximum supported value is 32 and the
+	  minimum value which makes sense is 2.
 
 	  This is purely to save memory - each supported CPU adds
 	  approximately eight kilobytes to the kernel image.
@@ -1381,15 +1000,6 @@ config PREEMPT
 	  be preempted even if it is in kernel mode executing a system call.
 	  This allows applications to run more reliably even when the system is
 	  under load.
-
-config DEBUG_SPINLOCK
-	bool "Spinlock debugging"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here and build SMP to catch missing spinlock initialization
-	  and certain other kinds of spinlock errors commonly made.  This is
-	  best used in conjunction with the NMI watchdog so that spinlock
-	  deadlocks are also debuggable.
 
 config DEBUG_SPINLOCK_SLEEP
 	bool "Sleep-inside-spinlock checking"
@@ -1419,12 +1029,9 @@ endmenu
 
 menu "Bus options (PCI, PCMCIA, EISA, ISA, TC)"
 
-config HW_HAS_PCI
-	bool
-
 config PCI
 	bool "Support for PCI controller"
-	depends on HW_HAS_PCI
+	depends on MIPS_DB1000 || DDB5074 || DDB5476 || DDB5477 || HP_LASERJET || LASAT || MIPS_IVR || MIPS_ATLAS || MIPS_COBALT || MIPS_EV64120 || MIPS_EV96100 || MIPS_ITE8172 || MIPS_MALTA || MOMENCO_OCELOT || MOMENCO_OCELOT_C || MOMENCO_OCELOT_G || MIPS_PB1000 || MIPS_PB1100 || MIPS_PB1500 || NEC_EAGLE || SGI_IP27 || SGI_IP32 || SIBYTE_SB1250 || SNI_RM200_PCI || TANBAC_TB0226 || TANBAC_TB0229 || TOSHIBA_JMR3927 || TOSHIBA_RBTX4927 || VICTOR_MPC30X || ZAO_CAPCELLA
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -1438,18 +1045,27 @@ config PCI
 
 source "drivers/pci/Kconfig"
 
-#
-# ISA support is now enabled via select.  Too many systems still have the one
-# or other ISA chip on the board that users don't know about so don't expect
-# users to choose the right thing ...
-#
 config ISA
+	bool "ISA bus support"
+	depends on ACER_PICA_61 || SGI_IP22 || MIPS_MAGNUM_4000 || OLIVETTI_M700 || SNI_RM200_PCI
+	default y if TOSHIBA_RBTX4927 || DDB5476 || DDB5074 || IBM_WORKPAD || CASIO_E55
+	help
+	  Find out whether you have ISA slots on your motherboard.  ISA is the
+	  name of a bus system, i.e. the way the CPU talks to the other stuff
+	  inside your box.  Other bus systems are PCI, EISA, or VESA.  ISA is
+	  an older system, now being displaced by PCI; newer boards don't
+	  support it.  If you have ISA, say Y, otherwise N.
+
+#
+# The SCSI bits are needed to get the SCSI code to link ...
+#
+config GENERIC_ISA_DMA
 	bool
+	default y if ACER_PICA_61 || MIPS_MAGNUM_4000 || OLIVETTI_M700 || SNI_RM200_PCI || SCSI
 
 config EISA
 	bool "EISA support"
-	depends on SGI_IP22 || SNI_RM200_PCI
-	select ISA
+	depends on ISA && (SGI_IP22 || SNI_RM200_PCI)
 	---help---
 	  The Extended Industry Standard Architecture (EISA) bus was
 	  developed as an open alternative to the IBM MicroChannel bus.
@@ -1467,7 +1083,7 @@ source "drivers/eisa/Kconfig"
 
 config TC
 	bool "TURBOchannel support"
-	depends on MACH_DECSTATION
+	depends on DECSTATION
 	help
 	  TurboChannel is a DEC (now Compaq (now HP)) bus for Alpha and MIPS
 	  processors.  Documentation on writing device drivers for TurboChannel
@@ -1487,6 +1103,24 @@ config MCA
 
 config SBUS
 	bool
+
+config HOTPLUG
+	bool "Support for hot-pluggable devices"
+	---help---
+	  Say Y here if you want to plug devices into your computer while
+	  the system is running, and be able to use them quickly.  In many
+	  cases, the devices can likewise be unplugged at any time too.
+
+	  One well known example of this is PCMCIA- or PC-cards, credit-card
+	  size devices such as network cards, modems or hard drives which are
+	  plugged into slots found on all modern laptop computers.  Another
+	  example, used on modern desktops as well as laptops, is USB.
+
+	  Enable HOTPLUG and KMOD, and build a modular kernel.  Get agent
+	  software (at <http://linux-hotplug.sourceforge.net/>) and install it.
+	  Then your kernel will automatically call out to a user mode "policy
+	  agent" (/sbin/hotplug) to load modules and set up software needed
+	  to use devices as you hotplug them.
 
 source "drivers/pcmcia/Kconfig"
 
@@ -1546,9 +1180,20 @@ config BINFMT_ELF32
 
 config PM
 	bool "Power Management support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && MACH_AU1X00
+	depends on EXPERIMENTAL && SOC_AU1X00
 
 endmenu
+
+source "drivers/mtd/Kconfig"
+
+source "drivers/parport/Kconfig"
+
+source "drivers/pnp/Kconfig"
+
+source "drivers/base/Kconfig"
+
+source "drivers/block/Kconfig"
+
 
 menu "MIPS initrd options"
 	depends on BLK_DEV_INITRD
@@ -1568,9 +1213,78 @@ config EMBEDDED_RAMDISK_IMAGE
 
 endmenu
 
-source "drivers/Kconfig"
+source "drivers/ide/Kconfig"
+
+source "drivers/scsi/Kconfig"
+
+source "drivers/cdrom/Kconfig"
+
+source "drivers/md/Kconfig"
+
+source "drivers/message/fusion/Kconfig"
+
+source "drivers/ieee1394/Kconfig"
+
+source "drivers/message/i2o/Kconfig"
+
+source "net/Kconfig"
+
+source "drivers/isdn/Kconfig"
+
+source "drivers/telephony/Kconfig"
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source "drivers/input/Kconfig"
+
+source "drivers/char/Kconfig"
+
+#source drivers/misc/Config.in
+
+source "drivers/media/Kconfig"
 
 source "fs/Kconfig"
+
+source "drivers/video/Kconfig"
+
+
+menu "Sound"
+
+config SOUND
+	tristate "Sound card support"
+	---help---
+	  If you have a sound card in your computer, i.e. if it can say more
+	  than an occasional beep, say Y.  Be sure to have all the information
+	  about your sound card and its configuration down (I/O port,
+	  interrupt and DMA channel), because you will be asked for it.
+
+	  You want to read the Sound-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>. General information about
+	  the modular sound system is contained in the files
+	  <file:Documentation/sound/oss/Introduction>.  The file
+	  <file:Documentation/sound/oss/README.OSS> contains some slightly
+	  outdated but still useful information as well.
+
+	  If you have a PnP sound card and you want to configure it at boot
+	  time using the ISA PnP tools (read
+	  <http://www.roestock.demon.co.uk/isapnptools/>), then you need to
+	  compile the sound card support as a module and load that module
+	  after the PnP configuration is finished. To do this, choose M here
+	  and read <file:Documentation/sound/oss/README.modules>; the module
+	  will be called soundcore.
+
+	  I'm told that even without a sound card, you can make your computer
+	  say more than an occasional beep, by programming the PC speaker.
+	  Kernel patches and supporting utilities to do that are in the pcsp
+	  package, available at <ftp://ftp.infradead.org/pub/pcsp/>.
+
+source "sound/Kconfig"
+
+endmenu
+
+source "drivers/usb/Kconfig"
+
 
 menu "Kernel hacking"
 
@@ -1580,40 +1294,12 @@ config CROSSCOMPILE
 	  Say Y here if you are compiling the kernel on a different
 	  architecture than the one it is intended to run on.
 
-config CMDLINE
-	string "Default kernel command string"
-	default ""
-	help
-          On some platforms, there is currently no way for the boot loader to
-          pass arguments to the kernel. For these platforms, you can supply
-          some command-line options at build time by entering them here.  In
-          other cases you can specify kernel args so that you don't have
-	  to set them up in board prom initialization routines.
-
 config DEBUG_KERNEL
 	bool "Kernel debugging"
-
-config DEBUG_STACK_USAGE
-	bool "Enable stack utilization instrumentation"
-	depends on DEBUG_KERNEL
-	help
-	  Enables the display of the minimum amount of free stack which each
-	  task has ever had available in the sysrq-T and sysrq-P debug output.
-
-	  This option will slow down process creation somewhat.
-
-config DEBUG_SLAB
-	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to have the kernel do limited verification on memory
-	  allocation as well as poisoning memory on free to catch use of freed
-	  memory.
 
 config KGDB
 	bool "Remote GDB kernel debugging"
 	depends on DEBUG_KERNEL
-	select DEBUG_INFO
 	help
 	  If you say Y here, it will be possible to remotely debug the MIPS
 	  kernel using gdb. This enlarges your kernel image disk size by
@@ -1628,23 +1314,6 @@ config GDB_CONSOLE
 	  If you are using GDB for remote debugging over a serial port and
 	  would like kernel messages to be formatted into GDB $O packets so
 	  that GDB prints them as program output, say 'Y'.
-
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL
-	help
-	  If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  Say Y here only if you plan to use gdb to debug the kernel.
-	  If you don't debug the kernel, you can say N.
-
-config SB1XXX_CORELIS
-	bool "Corelis Debugger"
-	depends on SIBYTE_SB1xxx_SOC
-	select DEBUG_INFO
-	help
-	  Select compile flags that produce code that can be processed by the
-	  Corelis mksym utility and UDB Emulator.
 
 config RUNTIME_DEBUG
 	bool "Enable run-time debugging"

@@ -36,11 +36,10 @@ nsm_mon_unmon(struct nlm_host *host, u32 proc, struct nsm_res *res)
 	int		status;
 	struct nsm_args	args;
 
+	status = -EACCES;
 	clnt = nsm_create();
-	if (IS_ERR(clnt)) {
-		status = PTR_ERR(clnt);
+	if (!clnt)
 		goto out;
-	}
 
 	args.addr = host->h_addr.sin_addr.s_addr;
 	args.proto= (host->h_proto<<1) | host->h_server;
@@ -105,7 +104,7 @@ static struct rpc_clnt *
 nsm_create(void)
 {
 	struct rpc_xprt		*xprt;
-	struct rpc_clnt		*clnt;
+	struct rpc_clnt		*clnt = NULL;
 	struct sockaddr_in	sin;
 
 	sin.sin_family = AF_INET;
@@ -113,23 +112,24 @@ nsm_create(void)
 	sin.sin_port = 0;
 
 	xprt = xprt_create_proto(IPPROTO_UDP, &sin, NULL);
-	if (IS_ERR(xprt))
-		return (struct rpc_clnt *)xprt;
+	if (!xprt)
+		goto out;
 
 	clnt = rpc_create_client(xprt, "localhost",
 				&nsm_program, SM_VERSION,
 				RPC_AUTH_NULL);
-	if (IS_ERR(clnt))
+	if (!clnt)
 		goto out_destroy;
 	clnt->cl_softrtry = 1;
 	clnt->cl_chatty   = 1;
 	clnt->cl_oneshot  = 1;
 	xprt->resvport = 1;	/* NSM requires a reserved port */
+out:
 	return clnt;
 
 out_destroy:
 	xprt_destroy(xprt);
-	return clnt;
+	goto out;
 }
 
 /*

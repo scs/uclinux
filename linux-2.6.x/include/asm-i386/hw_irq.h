@@ -26,8 +26,7 @@
  */
 
 extern u8 irq_vector[NR_IRQ_VECTORS];
-#define IO_APIC_VECTOR(irq)	(irq_vector[irq])
-#define AUTO_ASSIGN		-1
+#define IO_APIC_VECTOR(irq)	((int)irq_vector[irq])
 
 extern void (*interrupt[NR_IRQS])(void);
 
@@ -59,7 +58,7 @@ void disable_IO_APIC(void);
 void print_IO_APIC(void);
 int IO_APIC_get_PCI_irq_vector(int bus, int slot, int fn);
 void send_IPI(int dest, int vector);
-void setup_ioapic_dest(void);
+void setup_ioapic_dest(cpumask_t mask);
 
 extern unsigned long io_apic_irqs;
 

@@ -83,7 +83,6 @@ config HW_CONSOLE
 
 config SMP
 	bool "Symmetric multi-processing support (does not work on sun4/sun4c)"
-	depends on BROKEN
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -104,8 +103,8 @@ config SMP
 	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
 	  Management" code will be disabled if you say Y here.
 
-	  See also the <file:Documentation/smp.txt>,
-	  <file:Documentation/i386/IO-APIC.txt>,
+	  See also the <file:Documentation/smp.tex>,
+	  <file:Documentation/smp.txt>, <file:Documentation/i386/IO-APIC.txt>,
 	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
 	  <http://www.tldp.org/docs.html#howto>.
 
@@ -222,7 +221,6 @@ config SUN_PM
 
 config SUN4
 	bool "Support for SUN4 machines (disables SUN4[CDM] support)"
-	depends on !SMP
 	help
 	  Say Y here if, and only if, your machine is a sun4. Note that
 	  a kernel compiled with this option will run only on sun4.
@@ -378,36 +376,28 @@ source "sound/Kconfig"
 
 source "drivers/usb/Kconfig"
 
-source "drivers/char/watchdog/Kconfig"
+menu "Watchdog"
+
+config SOFT_WATCHDOG
+	tristate "Software watchdog"
+	help
+	  A software monitoring watchdog. This will fail to reboot your system
+	  from some situations that the hardware watchdog will recover
+	  from. Equally it's a lot cheaper to install.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called softdog.
+
+endmenu
+
 
 menu "Kernel hacking"
 
-config DEBUG_KERNEL
-	bool "Kernel debugging"
-	help
-	  Say Y here if you are developing drivers or trying to debug and
-	  identify kernel problems.
-
-config DEBUG_STACK_USAGE
-	bool "Enable stack utilization instrumentation"
-	depends on DEBUG_KERNEL
-	help
-	  Enables the display of the minimum amount of free stack which each
-	  task has ever had available in the sysrq-T and sysrq-P debug output.
-
-	  This option will slow down process creation somewhat.
-
 config DEBUG_SLAB
 	bool "Debug memory allocations"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to have the kernel do limited verification on memory
-	  allocation as well as poisoning memory on free to catch use of freed
-	  memory.
 
 config MAGIC_SYSRQ
 	bool "Magic SysRq key"
-	depends on DEBUG_KERNEL
 	help
 	  If you say Y here, you will have some control over the system even
 	  if the system crashes for example during kernel debugging (e.g., you
@@ -421,30 +411,22 @@ config MAGIC_SYSRQ
 
 config DEBUG_SPINLOCK
 	bool "Spinlock debugging"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here and build SMP to catch missing spinlock initialization
-	  and certain other kinds of spinlock errors commonly made.  This is
-	  best used in conjunction with the NMI watchdog so that spinlock
-	  deadlocks are also debuggable.
 
 config DEBUG_HIGHMEM
 	bool "Highmem debugging"
 	depends on DEBUG_KERNEL && HIGHMEM
 	help
-	  This options enables additional error checking for high memory
-	  systems.  Disable for production systems.
+	  This options enables addition error checking for high memory systems.
+	  Disable for production systems.
 
 config DEBUG_SPINLOCK_SLEEP
 	bool "Sleep-inside-spinlock checking"
-	depends on DEBUG_KERNEL
 	help
 	  If you say Y here, various routines which may sleep will become very
 	  noisy if they are called with a spinlock held.	
 
 config DEBUG_BUGVERBOSE
 	bool "Verbose BUG() reporting (adds 70K)"
-	depends on DEBUG_KERNEL
 	help
 	  Say Y here to make BUG() panics output the file name and line number
 	  of the BUG call as well as the EIP and oops trace.  This aids

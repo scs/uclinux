@@ -27,11 +27,9 @@
 #include <linux/tty.h>
 #include <linux/serial_reg.h>
 #include <linux/interrupt.h>
-#include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <linux/devfs_fs_kernel.h>
 #include "ctctty.h"
-#include "ctcdbug.h"
 
 #define CTC_TTY_MAJOR       43
 #define CTC_TTY_MAX_DEVICES 64
@@ -105,7 +103,6 @@ ctc_tty_try_read(ctc_tty_info * info, struct sk_buff *skb)
 	int len;
 	struct tty_struct *tty;
 
-	DBF_TEXT(trace, 5, __FUNCTION__);
 	if ((tty = info->tty)) {
 		if (info->mcr & UART_MCR_RTS) {
 			c = TTY_FLIPBUF_SIZE - tty->flip.count;
@@ -135,7 +132,6 @@ ctc_tty_readmodem(ctc_tty_info *info)
 	int ret = 1;
 	struct tty_struct *tty;
 
-	DBF_TEXT(trace, 5, __FUNCTION__);
 	if ((tty = info->tty)) {
 		if (info->mcr & UART_MCR_RTS) {
 			int c = TTY_FLIPBUF_SIZE - tty->flip.count;
@@ -169,7 +165,6 @@ ctc_tty_setcarrier(struct net_device *netdev, int on)
 {
 	int i;
 
-	DBF_TEXT(trace, 4, __FUNCTION__);
 	if ((!driver) || ctc_tty_shuttingdown)
 		return;
 	for (i = 0; i < CTC_TTY_MAX_DEVICES; i++)
@@ -190,7 +185,6 @@ ctc_tty_netif_rx(struct sk_buff *skb)
 	int i;
 	ctc_tty_info *info = NULL;
 
-	DBF_TEXT(trace, 5, __FUNCTION__);
 	if (!skb)
 		return;
 	if ((!skb->dev) || (!driver) || ctc_tty_shuttingdown) {
@@ -255,7 +249,6 @@ ctc_tty_tint(ctc_tty_info * info)
 	int wake = 1;
 	int rc;
 
-	DBF_TEXT(trace, 4, __FUNCTION__);
 	if (!info->netdev) {
 		if (skb)
 			kfree_skb(skb);
@@ -348,7 +341,6 @@ ctc_tty_inject(ctc_tty_info *info, char c)
 	int skb_res;
 	struct sk_buff *skb;
 	
-	DBF_TEXT(trace, 4, __FUNCTION__);
 	if (ctc_tty_shuttingdown)
 		return;
 	skb_res = info->netdev->hard_header_len + sizeof(info->mcr) +
@@ -369,7 +361,6 @@ ctc_tty_inject(ctc_tty_info *info, char c)
 static void
 ctc_tty_transmit_status(ctc_tty_info *info)
 {
-	DBF_TEXT(trace, 5, __FUNCTION__);
 	if (ctc_tty_shuttingdown)
 		return;
 	info->flags |= CTC_ASYNC_TX_LINESTAT;
@@ -383,7 +374,6 @@ ctc_tty_change_speed(ctc_tty_info * info)
 	unsigned int quot;
 	int i;
 
-	DBF_TEXT(trace, 3, __FUNCTION__);
 	if (!info->tty || !info->tty->termios)
 		return;
 	cflag = info->tty->termios->c_cflag;
@@ -422,7 +412,6 @@ ctc_tty_change_speed(ctc_tty_info * info)
 static int
 ctc_tty_startup(ctc_tty_info * info)
 {
-	DBF_TEXT(trace, 3, __FUNCTION__);
 	if (info->flags & CTC_ASYNC_INITIALIZED)
 		return 0;
 #ifdef CTC_DEBUG_MODEM_OPEN
@@ -465,7 +454,6 @@ ctc_tty_stopdev(unsigned long data)
 static void
 ctc_tty_shutdown(ctc_tty_info * info)
 {
-	DBF_TEXT(trace, 3, __FUNCTION__);
 	if (!(info->flags & CTC_ASYNC_INITIALIZED))
 		return;
 #ifdef CTC_DEBUG_MODEM_OPEN
@@ -498,17 +486,14 @@ ctc_tty_write(struct tty_struct *tty, int from_user, const u_char * buf, int cou
 	int total = 0;
 	ctc_tty_info *info = (ctc_tty_info *) tty->driver_data;
 
-	DBF_TEXT(trace, 5, __FUNCTION__);
 	if (ctc_tty_shuttingdown)
-		goto ex;
+		return 0;
 	if (ctc_tty_paranoia_check(info, tty->name, "ctc_tty_write"))
-		goto ex;
+		return 0;
 	if (!tty)
-		goto ex;
-	if (!info->netdev) {
-		total = -ENODEV;
-		goto ex;
-	}
+		return 0;
+	if (!info->netdev)
+		return -ENODEV;
 	if (from_user)
 		down(&info->write_sem);
 	while (1) {
@@ -530,8 +515,7 @@ ctc_tty_write(struct tty_struct *tty, int from_user, const u_char * buf, int cou
 		}
 		skb_reserve(skb, skb_res);
 		if (from_user)
-			copy_from_user(skb_put(skb, c),
-					(const u_char __user *)buf, c);
+			copy_from_user(skb_put(skb, c), buf, c);
 		else
 			memcpy(skb_put(skb, c), buf, c);
 		skb_queue_tail(&info->tx_queue, skb);
@@ -545,8 +529,6 @@ ctc_tty_write(struct tty_struct *tty, int from_user, const u_char * buf, int cou
 	}
 	if (from_user)
 		up(&info->write_sem);
-ex:
-	DBF_TEXT(trace, 6, __FUNCTION__);
 	return total;
 }
 
@@ -576,14 +558,13 @@ ctc_tty_flush_buffer(struct tty_struct *tty)
 	ctc_tty_info *info;
 	unsigned long flags;
 
-	DBF_TEXT(trace, 4, __FUNCTION__);
 	if (!tty)
-		goto ex;
+		return;
 	spin_lock_irqsave(&ctc_tty_lock, flags);
 	info = (ctc_tty_info *) tty->driver_data;
 	if (ctc_tty_paranoia_check(info, tty->name, "ctc_tty_flush_buffer")) {
 		spin_unlock_irqrestore(&ctc_tty_lock, flags);
-		goto ex;
+		return;
 	}
 	skb_queue_purge(&info->tx_queue);
 	info->lsr |= UART_LSR_TEMT;
@@ -592,9 +573,6 @@ ctc_tty_flush_buffer(struct tty_struct *tty)
 	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
 	    tty->ldisc.write_wakeup)
 		(tty->ldisc.write_wakeup) (tty);
-ex:
-	DBF_TEXT_(trace, 2, "ex: %s ", __FUNCTION__);
-	return;
 }
 
 static void
@@ -602,7 +580,6 @@ ctc_tty_flush_chars(struct tty_struct *tty)
 {
 	ctc_tty_info *info = (ctc_tty_info *) tty->driver_data;
 
-	DBF_TEXT(trace, 4, __FUNCTION__);
 	if (ctc_tty_shuttingdown)
 		return;
 	if (ctc_tty_paranoia_check(info, tty->name, "ctc_tty_flush_chars"))
@@ -625,7 +602,6 @@ ctc_tty_throttle(struct tty_struct *tty)
 {
 	ctc_tty_info *info = (ctc_tty_info *) tty->driver_data;
 
-	DBF_TEXT(trace, 4, __FUNCTION__);
 	if (ctc_tty_paranoia_check(info, tty->name, "ctc_tty_throttle"))
 		return;
 	info->mcr &= ~UART_MCR_RTS;
@@ -639,7 +615,6 @@ ctc_tty_unthrottle(struct tty_struct *tty)
 {
 	ctc_tty_info *info = (ctc_tty_info *) tty->driver_data;
 
-	DBF_TEXT(trace, 4, __FUNCTION__);
 	if (ctc_tty_paranoia_check(info, tty->name, "ctc_tty_unthrottle"))
 		return;
 	info->mcr |= UART_MCR_RTS;
@@ -665,35 +640,28 @@ ctc_tty_unthrottle(struct tty_struct *tty)
  *          allows RS485 driver to be written in user space.
  */
 static int
-ctc_tty_get_lsr_info(ctc_tty_info * info, uint __user *value)
+ctc_tty_get_lsr_info(ctc_tty_info * info, uint * value)
 {
 	u_char status;
 	uint result;
 	ulong flags;
 
-	DBF_TEXT(trace, 4, __FUNCTION__);
 	spin_lock_irqsave(&ctc_tty_lock, flags);
 	status = info->lsr;
 	spin_unlock_irqrestore(&ctc_tty_lock, flags);
 	result = ((status & UART_LSR_TEMT) ? TIOCSER_TEMT : 0);
-	put_user(result, value);
+	put_user(result, (uint *) value);
 	return 0;
 }
 
 
-static int ctc_tty_tiocmget(struct tty_struct *tty, struct file *file)
+static int
+ctc_tty_get_ctc_tty_info(ctc_tty_info * info, uint * value)
 {
-	ctc_tty_info *info = (ctc_tty_info *) tty->driver_data;
 	u_char control,
 	 status;
 	uint result;
 	ulong flags;
-
-	DBF_TEXT(trace, 4, __FUNCTION__);
-	if (ctc_tty_paranoia_check(info, tty->name, "ctc_tty_ioctl"))
-		return -ENODEV;
-	if (tty->flags & (1 << TTY_IO_ERROR))
-		return -EIO;
 
 	control = info->mcr;
 	spin_lock_irqsave(&ctc_tty_lock, flags);
@@ -705,32 +673,51 @@ static int ctc_tty_tiocmget(struct tty_struct *tty, struct file *file)
 	    | ((status & UART_MSR_RI) ? TIOCM_RNG : 0)
 	    | ((status & UART_MSR_DSR) ? TIOCM_DSR : 0)
 	    | ((status & UART_MSR_CTS) ? TIOCM_CTS : 0);
-	return result;
+	put_user(result, (uint *) value);
+	return 0;
 }
 
 static int
-ctc_tty_tiocmset(struct tty_struct *tty, struct file *file,
-		 unsigned int set, unsigned int clear)
+ctc_tty_set_ctc_tty_info(ctc_tty_info * info, uint cmd, uint * value)
 {
-	ctc_tty_info *info = (ctc_tty_info *) tty->driver_data;
+	uint arg;
+	int old_mcr = info->mcr & (UART_MCR_RTS | UART_MCR_DTR);
 
-	DBF_TEXT(trace, 4, __FUNCTION__);
-	if (ctc_tty_paranoia_check(info, tty->name, "ctc_tty_ioctl"))
-		return -ENODEV;
-	if (tty->flags & (1 << TTY_IO_ERROR))
-		return -EIO;
-
-	if (set & TIOCM_RTS)
-		info->mcr |= UART_MCR_RTS;
-	if (set & TIOCM_DTR)
-		info->mcr |= UART_MCR_DTR;
-
-	if (clear & TIOCM_RTS)
-		info->mcr &= ~UART_MCR_RTS;
-	if (clear & TIOCM_DTR)
-		info->mcr &= ~UART_MCR_DTR;
-
-	if ((set | clear) & (TIOCM_RTS|TIOCM_DTR))
+	get_user(arg, (uint *) value);
+	switch (cmd) {
+		case TIOCMBIS:
+#ifdef CTC_DEBUG_MODEM_IOCTL
+			printk(KERN_DEBUG "%s%d ioctl TIOCMBIS\n", CTC_TTY_NAME,
+			       info->line);
+#endif
+			if (arg & TIOCM_RTS)
+				info->mcr |= UART_MCR_RTS;
+			if (arg & TIOCM_DTR)
+				info->mcr |= UART_MCR_DTR;
+			break;
+		case TIOCMBIC:
+#ifdef CTC_DEBUG_MODEM_IOCTL
+			printk(KERN_DEBUG "%s%d ioctl TIOCMBIC\n", CTC_TTY_NAME,
+			       info->line);
+#endif
+			if (arg & TIOCM_RTS)
+				info->mcr &= ~UART_MCR_RTS;
+			if (arg & TIOCM_DTR)
+				info->mcr &= ~UART_MCR_DTR;
+			break;
+		case TIOCMSET:
+#ifdef CTC_DEBUG_MODEM_IOCTL
+			printk(KERN_DEBUG "%s%d ioctl TIOCMSET\n", CTC_TTY_NAME,
+			       info->line);
+#endif
+			info->mcr = ((info->mcr & ~(UART_MCR_RTS | UART_MCR_DTR))
+				 | ((arg & TIOCM_RTS) ? UART_MCR_RTS : 0)
+			       | ((arg & TIOCM_DTR) ? UART_MCR_DTR : 0));
+			break;
+		default:
+			return -EINVAL;
+	}
+	if ((info->mcr  & (UART_MCR_RTS | UART_MCR_DTR)) != old_mcr)
 		ctc_tty_transmit_status(info);
 	return 0;
 }
@@ -743,7 +730,6 @@ ctc_tty_ioctl(struct tty_struct *tty, struct file *file,
 	int error;
 	int retval;
 
-	DBF_TEXT(trace, 4, __FUNCTION__);
 	if (ctc_tty_paranoia_check(info, tty->name, "ctc_tty_ioctl"))
 		return -ENODEV;
 	if (tty->flags & (1 << TTY_IO_ERROR))
@@ -772,30 +758,46 @@ ctc_tty_ioctl(struct tty_struct *tty, struct file *file,
 			printk(KERN_DEBUG "%s%d ioctl TIOCGSOFTCAR\n", CTC_TTY_NAME,
 			       info->line);
 #endif
-			error = put_user(C_CLOCAL(tty) ? 1 : 0, (ulong __user *) arg);
+			error = put_user(C_CLOCAL(tty) ? 1 : 0, (ulong *) arg);
 			return error;
 		case TIOCSSOFTCAR:
 #ifdef CTC_DEBUG_MODEM_IOCTL
 			printk(KERN_DEBUG "%s%d ioctl TIOCSSOFTCAR\n", CTC_TTY_NAME,
 			       info->line);
 #endif
-			error = get_user(arg, (ulong __user *) arg);
+			error = get_user(arg, (ulong *) arg);
 			if (error)
 				return error;
 			tty->termios->c_cflag =
 			    ((tty->termios->c_cflag & ~CLOCAL) |
 			     (arg ? CLOCAL : 0));
 			return 0;
+		case TIOCMGET:
+#ifdef CTC_DEBUG_MODEM_IOCTL
+			printk(KERN_DEBUG "%s%d ioctl TIOCMGET\n", CTC_TTY_NAME,
+			       info->line);
+#endif
+			error = verify_area(VERIFY_WRITE, (void *) arg, sizeof(uint));
+			if (error)
+				return error;
+			return ctc_tty_get_ctc_tty_info(info, (uint *) arg);
+		case TIOCMBIS:
+		case TIOCMBIC:
+		case TIOCMSET:
+			error = verify_area(VERIFY_READ, (void *) arg, sizeof(uint));
+			if (error)
+				return error;
+			return ctc_tty_set_ctc_tty_info(info, cmd, (uint *) arg);
 		case TIOCSERGETLSR:	/* Get line status register */
 #ifdef CTC_DEBUG_MODEM_IOCTL
 			printk(KERN_DEBUG "%s%d ioctl TIOCSERGETLSR\n", CTC_TTY_NAME,
 			       info->line);
 #endif
-			error = verify_area(VERIFY_WRITE, (void __user *) arg, sizeof(uint));
+			error = verify_area(VERIFY_WRITE, (void *) arg, sizeof(uint));
 			if (error)
 				return error;
 			else
-				return ctc_tty_get_lsr_info(info, (uint __user *) arg);
+				return ctc_tty_get_lsr_info(info, (uint *) arg);
 		default:
 #ifdef CTC_DEBUG_MODEM_IOCTL
 			printk(KERN_DEBUG "UNKNOWN ioctl 0x%08x on %s%d\n", cmd,
@@ -812,7 +814,6 @@ ctc_tty_set_termios(struct tty_struct *tty, struct termios *old_termios)
 	ctc_tty_info *info = (ctc_tty_info *) tty->driver_data;
 	unsigned int cflag = tty->termios->c_cflag;
 
-	DBF_TEXT(trace, 4, __FUNCTION__);
 	ctc_tty_change_speed(info);
 
 	/* Handle transition to B0 */
@@ -850,7 +851,6 @@ ctc_tty_block_til_ready(struct tty_struct *tty, struct file *filp, ctc_tty_info 
 	unsigned long flags;
 	int retval;
 
-	DBF_TEXT(trace, 4, __FUNCTION__);
 	/*
 	 * If the device is in the middle of being closed, then block
 	 * until it's done, and then try again.
@@ -955,7 +955,6 @@ ctc_tty_open(struct tty_struct *tty, struct file *filp)
 	int retval,
 	 line;
 
-	DBF_TEXT(trace, 3, __FUNCTION__);
 	line = tty->index;
 	if (line < 0 || line > CTC_TTY_MAX_DEVICES)
 		return -ENODEV;
@@ -1002,7 +1001,7 @@ ctc_tty_close(struct tty_struct *tty, struct file *filp)
 	ctc_tty_info *info = (ctc_tty_info *) tty->driver_data;
 	ulong flags;
 	ulong timeout;
-	DBF_TEXT(trace, 3, __FUNCTION__);
+
 	if (!info || ctc_tty_paranoia_check(info, tty->name, "ctc_tty_close"))
 		return;
 	spin_lock_irqsave(&ctc_tty_lock, flags);
@@ -1054,18 +1053,17 @@ ctc_tty_close(struct tty_struct *tty, struct file *filp)
 		 */
 		timeout = jiffies + HZ;
 		while (!(info->lsr & UART_LSR_TEMT)) {
+			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_irqrestore(&ctc_tty_lock, flags);
-			msleep(500);
+			schedule_timeout(HZ/2);
 			spin_lock_irqsave(&ctc_tty_lock, flags);
 			if (time_after(jiffies,timeout))
 				break;
 		}
 	}
 	ctc_tty_shutdown(info);
-	if (tty->driver->flush_buffer) {
-		skb_queue_purge(&info->tx_queue);
-		info->lsr |= UART_LSR_TEMT;
-	}
+	if (tty->driver->flush_buffer)
+		tty->driver->flush_buffer(tty);
 	if (tty->ldisc.flush_buffer)
 		tty->ldisc.flush_buffer(tty);
 	info->tty = 0;
@@ -1091,7 +1089,7 @@ ctc_tty_hangup(struct tty_struct *tty)
 {
 	ctc_tty_info *info = (ctc_tty_info *)tty->driver_data;
 	unsigned long saveflags;
-	DBF_TEXT(trace, 3, __FUNCTION__);
+
 	if (ctc_tty_paranoia_check(info, tty->name, "ctc_tty_hangup"))
 		return;
 	ctc_tty_shutdown(info);
@@ -1115,7 +1113,6 @@ ctc_tty_task(unsigned long arg)
 	unsigned long saveflags;
 	int again;
 
-	DBF_TEXT(trace, 3, __FUNCTION__);
 	spin_lock_irqsave(&ctc_tty_lock, saveflags);
 	if ((!ctc_tty_shuttingdown) && info) {
 		again = ctc_tty_tint(info);
@@ -1142,8 +1139,6 @@ static struct tty_operations ctc_ops = {
 	.unthrottle = ctc_tty_unthrottle,
 	.set_termios = ctc_tty_set_termios,
 	.hangup = ctc_tty_hangup,
-	.tiocmget = ctc_tty_tiocmget,
-	.tiocmset = ctc_tty_tiocmset,
 };
 
 int
@@ -1153,7 +1148,6 @@ ctc_tty_init(void)
 	ctc_tty_info *info;
 	struct tty_driver *device;
 
-	DBF_TEXT(trace, 2, __FUNCTION__);
 	driver = kmalloc(sizeof(ctc_tty_driver), GFP_KERNEL);
 	if (driver == NULL) {
 		printk(KERN_WARNING "Out of memory in ctc_tty_modem_init\n");
@@ -1213,28 +1207,12 @@ ctc_tty_register_netdev(struct net_device *dev) {
 	char *err;
 	char *p;
 
-	DBF_TEXT(trace, 2, __FUNCTION__);
 	if ((!dev) || (!dev->name)) {
 		printk(KERN_WARNING
 		       "ctc_tty_register_netdev called "
 		       "with NULL dev or NULL dev-name\n");
 		return -1;
 	}
-
-	/*
-	 *	If the name is a format string the caller wants us to
-	 *	do a name allocation : format string must end with %d
-	 */
-	if (strchr(dev->name, '%'))
-	{
-		int err = dev_alloc_name(dev, dev->name);	// dev->name is changed by this
-		if (err < 0) {
-			printk(KERN_DEBUG "dev_alloc returned error %d\n", err);
-			return err;
-		}
-
-	}
-
 	for (p = dev->name; p && ((*p < '0') || (*p > '9')); p++);
 	ttynum = simple_strtoul(p, &err, 0);
 	if ((ttynum < 0) || (ttynum >= CTC_TTY_MAX_DEVICES) ||
@@ -1261,7 +1239,6 @@ ctc_tty_unregister_netdev(struct net_device *dev) {
 	unsigned long saveflags;
 	ctc_tty_info *info = NULL;
 
-	DBF_TEXT(trace, 2, __FUNCTION__);
 	spin_lock_irqsave(&ctc_tty_lock, saveflags);
 	for (i = 0; i < CTC_TTY_MAX_DEVICES; i++)
 		if (driver->info[i].netdev == dev) {
@@ -1280,12 +1257,11 @@ void
 ctc_tty_cleanup(void) {
 	unsigned long saveflags;
 	
-	DBF_TEXT(trace, 2, __FUNCTION__);
 	spin_lock_irqsave(&ctc_tty_lock, saveflags);
 	ctc_tty_shuttingdown = 1;
-	spin_unlock_irqrestore(&ctc_tty_lock, saveflags);
 	tty_unregister_driver(driver->ctc_tty_device);
-	put_tty_driver(driver->ctc_tty_device);
 	kfree(driver);
+	put_tty_driver(driver->ctc_tty_device);
 	driver = NULL;
+	spin_unlock_irqrestore(&ctc_tty_lock, saveflags);
 }

@@ -230,7 +230,7 @@ int snd_pcm_format_width(snd_pcm_format_t format)
 		return 64;
 	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE:
 	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME_BE:
-		return 32;
+		return 24;
 	case SNDRV_PCM_FORMAT_MU_LAW:
 	case SNDRV_PCM_FORMAT_A_LAW:
 		return 8;
@@ -553,9 +553,8 @@ int snd_pcm_format_set_silence(snd_pcm_format_t format, void *data, unsigned int
 		if (! silence)
 			memset(data, 0, samples * 2);
 		else {
-			u_int16_t *data16 = data;
 			while (samples-- > 0)
-				*data16++ = silence;
+				*((u_int16_t *)data)++ = silence;
 		}
 		break;
 	}
@@ -565,15 +564,14 @@ int snd_pcm_format_set_silence(snd_pcm_format_t format, void *data, unsigned int
 			memset(data, 0, samples * 3);
 		else {
 			while (samples-- > 0) {
-				u_int8_t *data8 = data;
 #ifdef SNDRV_LITTLE_ENDIAN
-				*data8++ = silence >> 0;
-				*data8++ = silence >> 8;
-				*data8++ = silence >> 16;
+				*((u_int8_t *)data)++ = silence >> 0;
+				*((u_int8_t *)data)++ = silence >> 8;
+				*((u_int8_t *)data)++ = silence >> 16;
 #else
-				*data8++ = silence >> 16;
-				*data8++ = silence >> 8;
-				*data8++ = silence >> 0;
+				*((u_int8_t *)data)++ = silence >> 16;
+				*((u_int8_t *)data)++ = silence >> 8;
+				*((u_int8_t *)data)++ = silence >> 0;
 #endif
 			}
 		}
@@ -584,9 +582,8 @@ int snd_pcm_format_set_silence(snd_pcm_format_t format, void *data, unsigned int
 		if (! silence)
 			memset(data, 0, samples * 4);
 		else {
-			u_int32_t *data32 = data;
 			while (samples-- > 0)
-				*data32++ = silence;
+				*((u_int32_t *)data)++ = silence;
 		}
 		break;
 	}
@@ -595,9 +592,8 @@ int snd_pcm_format_set_silence(snd_pcm_format_t format, void *data, unsigned int
 		if (! silence)
 			memset(data, 0, samples * 8);
 		else {
-			u_int64_t *data64 = data;
 			while (samples-- > 0)
-				*data64++ = silence;
+				*((u_int64_t *)data)++ = silence;
 		}
 		break;
 	}
@@ -653,36 +649,4 @@ snd_pcm_format_t snd_pcm_build_linear_format(int width, int unsignd, int big_end
 		return SND_PCM_FORMAT_UNKNOWN;
 	}
 	return snd_int_to_enum(((int(*)[2][2])linear_formats)[width][!!unsignd][!!big_endian]);
-}
-
-/**
- * snd_pcm_limit_hw_rates - determine rate_min/rate_max fields
- * @runtime: the runtime instance
- *
- * Determines the rate_min and rate_max fields from the rates bits of
- * the given runtime->hw.
- *
- * Returns zero if successful.
- */
-int snd_pcm_limit_hw_rates(snd_pcm_runtime_t *runtime)
-{
-	static unsigned rates[] = {
-		/* ATTENTION: these values depend on the definition in pcm.h! */
-		5512, 8000, 11025, 16000, 22050, 32000, 44100, 48000,
-		64000, 88200, 96000, 176400, 192000
-	};
-	int i;
-	for (i = 0; i < (int)ARRAY_SIZE(rates); i++) {
-		if (runtime->hw.rates & (1 << i)) {
-			runtime->hw.rate_min = rates[i];
-			break;
-		}
-	}
-	for (i = (int)ARRAY_SIZE(rates) - 1; i >= 0; i--) {
-		if (runtime->hw.rates & (1 << i)) {
-			runtime->hw.rate_max = rates[i];
-			break;
-		}
-	}
-	return 0;
 }

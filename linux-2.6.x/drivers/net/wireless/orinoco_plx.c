@@ -125,6 +125,7 @@ not have time for a while..
 #include <linux/wireless.h>
 #include <linux/list.h>
 #include <linux/pci.h>
+#include <linux/wireless.h>
 #include <linux/fcntl.h>
 
 #include <pcmcia/cisreg.h>
@@ -232,7 +233,6 @@ static int orinoco_plx_init_one(struct pci_dev *pdev,
 	priv = dev->priv;
 	dev->base_addr = pccard_ioaddr;
 	SET_MODULE_OWNER(dev);
-	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	printk(KERN_DEBUG
 	       "Detected Orinoco/Prism2 PLX device at %s irq:%d, io addr:0x%lx\n",
@@ -263,7 +263,7 @@ static int orinoco_plx_init_one(struct pci_dev *pdev,
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		
-		free_netdev(dev);
+		kfree(dev);
 	}
 
 	if (pccard_ioaddr)
@@ -324,6 +324,8 @@ static struct pci_driver orinoco_plx_driver = {
 	.id_table	= orinoco_plx_pci_id_table,
 	.probe		= orinoco_plx_init_one,
 	.remove		= __devexit_p(orinoco_plx_remove_one),
+	.suspend	= 0,
+	.resume		= 0,
 };
 
 static char version[] __initdata = "orinoco_plx.c 0.13e (Daniel Barlow <dan@telent.net>, David Gibson <hermes@gibson.dropbear.id.au>)";
@@ -339,7 +341,7 @@ static int __init orinoco_plx_init(void)
 	return pci_module_init(&orinoco_plx_driver);
 }
 
-void __exit orinoco_plx_exit(void)
+extern void __exit orinoco_plx_exit(void)
 {
 	pci_unregister_driver(&orinoco_plx_driver);
 	current->state = TASK_UNINTERRUPTIBLE;

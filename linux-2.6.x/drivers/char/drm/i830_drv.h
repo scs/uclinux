@@ -36,7 +36,7 @@ typedef struct drm_i830_buf_priv {
    	u32 *in_use;
    	int my_use_idx;
 	int currently_mapped;
-	void __user *virtual;
+	void *virtual;
 	void *kernel_virtual;
 } drm_i830_buf_priv_t;
 

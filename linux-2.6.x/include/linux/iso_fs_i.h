@@ -13,13 +13,10 @@ enum isofs_file_format {
  * iso fs inode data in memory
  */
 struct iso_inode_info {
-	unsigned long i_iget5_block;
-	unsigned long i_iget5_offset;
 	unsigned int i_first_extent;
 	unsigned char i_file_format;
 	unsigned char i_format_parm[3];
-	unsigned long i_next_section_block;
-	unsigned long i_next_section_offset;
+	unsigned long i_next_section_ino;
 	off_t i_section_size;
 	struct inode vfs_inode;
 };

@@ -6,8 +6,10 @@ typedef int greg_t;
 typedef greg_t gregset_t[NGREG];
 
 typedef struct fpregset {
-	int f_fpcntl[3];
-	int f_fpregs[8*3];
+	int f_pcr;
+	int f_psr;
+	int f_fpiaddr;
+	int f_fpregs[8][3];
 } fpregset_t;
 
 struct mcontext {

@@ -29,15 +29,12 @@
  *	In general the firmware wants to help. Where its help isn't performance
  *	useful we just ignore the aid. Its not worth the code in truth.
  *
- * Fixes/additions:
- *	Steve Ralston:
- *		Scatter gather now works
- *	Markus Lidel <Markus.Lidel@shadowconnect.com>:
- *		Minor fixes for 2.6.
+ *	Fixes:
+ *		Steve Ralston	:	Scatter gather now works
  *
- * To Do:
- *	64bit cleanups
- *	Fix the resource management problems.
+ *	To Do
+ *		64bit cleanups
+ *		Fix the resource management problems.
  */
 
 
@@ -59,22 +56,17 @@
 #include <asm/atomic.h>
 #include <linux/blkdev.h>
 #include <linux/i2o.h>
+#include "../../scsi/scsi.h"
+#include "../../scsi/hosts.h"
 
-#include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_host.h>
+#if BITS_PER_LONG == 64
+#error FIXME: driver does not support 64-bit platforms
+#endif
 
 
 #define VERSION_STRING        "Version 0.1.2"
 
-//#define DRIVERDEBUG
-
-#ifdef DRIVERDEBUG
-#define dprintk(s, args...) printk(s, ## args)
-#else
-#define dprintk(s, args...)
-#endif
+#define dprintk(x)
 
 #define I2O_SCSI_CAN_QUEUE	4
 #define MAXHOSTS		32
@@ -188,7 +180,7 @@ static void flush_pending(void)
 
 static void i2o_scsi_reply(struct i2o_handler *h, struct i2o_controller *c, struct i2o_message *msg)
 {
-	struct scsi_cmnd *current_command;
+	Scsi_Cmnd *current_command;
 	spinlock_t *lock;
 	u32 *m = (u32 *)msg;
 	u8 as,ds,st;
@@ -232,10 +224,7 @@ static void i2o_scsi_reply(struct i2o_handler *h, struct i2o_controller *c, stru
 		{
 			spin_unlock_irqrestore(&retry_lock, flags);
 			/* Create a scsi error for this */
-			current_command = (struct scsi_cmnd *)i2o_context_list_get(m[3], c);
-			if(!current_command)
-				return;
-
+			current_command = (Scsi_Cmnd *)m[3];
 			lock = current_command->device->host->host_lock;
 			printk("Aborted %ld\n", current_command->serial_number);
 
@@ -263,39 +252,42 @@ static void i2o_scsi_reply(struct i2o_handler *h, struct i2o_controller *c, stru
 	as=(u8)le32_to_cpu(m[4]>>8);
 	st=(u8)le32_to_cpu(m[4]>>24);
 	
-	dprintk(KERN_INFO "i2o got a scsi reply %08X: ", m[0]);
-	dprintk(KERN_INFO "m[2]=%08X: ", m[2]);
-	dprintk(KERN_INFO "m[4]=%08X\n", m[4]);
+	dprintk(("i2o got a scsi reply %08X: ", m[0]));
+	dprintk(("m[2]=%08X: ", m[2]));
+	dprintk(("m[4]=%08X\n", m[4]));
  
 	if(m[2]&0x80000000)
 	{
 		if(m[2]&0x40000000)
 		{
-			dprintk(KERN_INFO "Event.\n");
+			dprintk(("Event.\n"));
 			lun_done=1;
 			return;
 		}
 		printk(KERN_INFO "i2o_scsi: bus reset completed.\n");
 		return;
 	}
+	/*
+ 	 *	FIXME: 64bit breakage
+	 */
 
-	current_command = (struct scsi_cmnd *)i2o_context_list_get(m[3], c);
+	current_command = (Scsi_Cmnd *)m[3];
 	
 	/*
 	 *	Is this a control request coming back - eg an abort ?
 	 */
 	 
-	atomic_dec(&queue_depth);
-
 	if(current_command==NULL)
 	{
 		if(st)
-			dprintk(KERN_WARNING "SCSI abort: %08X", m[4]);
-		dprintk(KERN_INFO "SCSI abort completed.\n");
+			dprintk(("SCSI abort: %08X", m[4]));
+		dprintk(("SCSI abort completed.\n"));
 		return;
 	}
 	
-	dprintk(KERN_INFO "Completed %ld\n", current_command->serial_number);
+	dprintk(("Completed %ld\n", current_command->serial_number));
+	
+	atomic_dec(&queue_depth);
 	
 	if(st == 0x06)
 	{
@@ -316,7 +308,7 @@ static void i2o_scsi_reply(struct i2o_handler *h, struct i2o_controller *c, stru
 	{
 		/* An error has occurred */
 
-		dprintk(KERN_WARNING "SCSI error %08X", m[4]);
+		dprintk((KERN_DEBUG "SCSI error %08X", m[4]));
 			
 		if (as == 0x0E) 
 			/* SCSI Reset */
@@ -332,17 +324,10 @@ static void i2o_scsi_reply(struct i2o_handler *h, struct i2o_controller *c, stru
 		 */		
 		current_command->result = DID_OK << 16 | ds;
 
-	if (current_command->use_sg) {
-		pci_unmap_sg(c->pdev,
-			(struct scatterlist *)current_command->buffer,
-			current_command->use_sg,
-			current_command->sc_data_direction);
-	} else if (current_command->request_bufflen) {
-		pci_unmap_single(c->pdev,
-			(dma_addr_t)((long)current_command->SCp.ptr),
-			current_command->request_bufflen,
-			current_command->sc_data_direction);
-	}
+	if (current_command->use_sg)
+		pci_unmap_sg(c->pdev, (struct scatterlist *)current_command->buffer, current_command->use_sg, scsi_to_pci_dma_dir(current_command->sc_data_direction));
+	else if (current_command->request_bufflen)
+		pci_unmap_single(c->pdev, (dma_addr_t)((long)current_command->SCp.ptr), current_command->request_bufflen, scsi_to_pci_dma_dir(current_command->sc_data_direction));
 
 	lock = current_command->device->host->host_lock;
 	spin_lock_irqsave(lock, flags);
@@ -383,7 +368,7 @@ static int i2o_find_lun(struct i2o_controller *c, struct i2o_device *d, int *tar
 
 	*lun=reply[1];
 
-	dprintk(KERN_INFO "SCSI (%d,%d)\n", *target, *lun);
+	dprintk(("SCSI (%d,%d)\n", *target, *lun));
 	return 0;
 }
 
@@ -416,8 +401,8 @@ static void i2o_scsi_init(struct i2o_controller *c, struct i2o_device *d, struct
 			
 	for(unit=c->devices;unit!=NULL;unit=unit->next)
 	{
-		dprintk(KERN_INFO "Class %03X, parent %d, want %d.\n",
-			unit->lct_data.class_id, unit->lct_data.parent_tid, d->lct_data.tid);
+		dprintk(("Class %03X, parent %d, want %d.\n",
+			unit->lct_data.class_id, unit->lct_data.parent_tid, d->lct_data.tid));
 			
 		/* Only look at scsi and fc devices */
 		if (    (unit->lct_data.class_id != I2O_CLASS_SCSI_PERIPHERAL)
@@ -426,19 +411,19 @@ static void i2o_scsi_init(struct i2o_controller *c, struct i2o_device *d, struct
 			continue;
 
 		/* On our bus ? */
-		dprintk(KERN_INFO "Found a disk (%d).\n", unit->lct_data.tid);
+		dprintk(("Found a disk (%d).\n", unit->lct_data.tid));
 		if ((unit->lct_data.parent_tid == d->lct_data.tid)
 		     || (unit->lct_data.parent_tid == d->lct_data.parent_tid)
 		   )
 		{
 			u16 limit;
-			dprintk(KERN_INFO "Its ours.\n");
+			dprintk(("Its ours.\n"));
 			if(i2o_find_lun(c, unit, &target, &lun)==-1)
 			{
 				printk(KERN_ERR "i2o_scsi: Unable to get lun for tid %d.\n", unit->lct_data.tid);
 				continue;
 			}
-			dprintk(KERN_INFO "Found disk %d %d.\n", target, lun);
+			dprintk(("Found disk %d %d.\n", target, lun));
 			h->task[target][lun]=unit->lct_data.tid;
 			h->tagclock[target][lun]=jiffies;
 
@@ -454,8 +439,8 @@ static void i2o_scsi_init(struct i2o_controller *c, struct i2o_device *d, struct
 			
 			shpnt->sg_tablesize = limit;
 
-			dprintk(KERN_INFO "i2o_scsi: set scatter-gather to %d.\n",
-				shpnt->sg_tablesize);
+			dprintk(("i2o_scsi: set scatter-gather to %d.\n", 
+				shpnt->sg_tablesize));
 		}
 	}		
 }
@@ -470,7 +455,7 @@ static void i2o_scsi_init(struct i2o_controller *c, struct i2o_device *d, struct
  *	scsi controller and then let the enumeration fake up the rest
  */
  
-static int i2o_scsi_detect(struct scsi_host_template * tpnt)
+static int i2o_scsi_detect(Scsi_Host_Template * tpnt)
 {
 	struct Scsi_Host *shpnt = NULL;
 	int i;
@@ -573,9 +558,6 @@ static int i2o_scsi_release(struct Scsi_Host *host)
 		del_timer(&retry_timer);
 		i2o_remove_handler(&i2o_scsi_handler);
 	}
-
-	scsi_unregister(host);
-
 	return 0;
 }
 
@@ -601,13 +583,12 @@ static const char *i2o_scsi_info(struct Scsi_Host *SChost)
  *	Locks: takes the controller lock on error path only
  */
  
-static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
-				 void (*done) (struct scsi_cmnd *))
+static int i2o_scsi_queuecommand(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 {
 	int i;
 	int tid;
 	struct i2o_controller *c;
-	struct scsi_cmnd *current_command;
+	Scsi_Cmnd *current_command;
 	struct Scsi_Host *host;
 	struct i2o_scsi_host *hostdata;
 	u32 *msg, *mptr;
@@ -643,7 +624,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	
 	tid = hostdata->task[SCpnt->device->id][SCpnt->device->lun];
 	
-	dprintk(KERN_INFO "qcmd: Tid = %d\n", tid);
+	dprintk(("qcmd: Tid = %d\n", tid));
 	
 	current_command = SCpnt;		/* set current command                */
 	current_command->scsi_done = done;	/* set ptr to done function           */
@@ -654,11 +635,13 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	if(tid == -1)
 	{
 		SCpnt->result = DID_NO_CONNECT << 16;
+		spin_lock_irqsave(host->host_lock, flags);
 		done(SCpnt);
+		spin_unlock_irqrestore(host->host_lock, flags);
 		return 0;
 	}
 	
-	dprintk(KERN_INFO "Real scsi messages.\n");
+	dprintk(("Real scsi messages.\n"));
 
 	/*
 	 *	Obtain an I2O message. If there are none free then 
@@ -669,7 +652,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	if(m==0xFFFFFFFF)
 		return 1;
 
-	msg = (u32 *)(c->msg_virt + m);
+	msg = (u32 *)(c->mem_offset + m);
 	
 	/*
 	 *	Put together a scsi execscb message
@@ -678,14 +661,19 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	len = SCpnt->request_bufflen;
 	direction = 0x00000000;			// SGL IN  (osm<--iop)
 	
-	if (SCpnt->sc_data_direction == DMA_NONE) {
+	if(SCpnt->sc_data_direction == SCSI_DATA_NONE)
 		scsidir = 0x00000000;			// DATA NO XFER
-	} else if (SCpnt->sc_data_direction == DMA_TO_DEVICE) {
-		direction = 0x04000000;	// SGL OUT  (osm-->iop)
-		scsidir = 0x80000000;	// DATA OUT (iop-->dev)
-	} else if(SCpnt->sc_data_direction == DMA_FROM_DEVICE) {
-		scsidir = 0x40000000;	// DATA IN  (iop<--dev)
-	} else {
+	else if(SCpnt->sc_data_direction == SCSI_DATA_WRITE)
+	{
+		direction=0x04000000;	// SGL OUT  (osm-->iop)
+		scsidir  =0x80000000;	// DATA OUT (iop-->dev)
+	}
+	else if(SCpnt->sc_data_direction == SCSI_DATA_READ)
+	{
+		scsidir  =0x40000000;	// DATA IN  (iop<--dev)
+	}
+	else
+	{
 		/* Unknown - kill the command */
 		SCpnt->result = DID_NO_CONNECT << 16;
 		
@@ -699,7 +687,8 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	
 	i2o_raw_writel(I2O_CMD_SCSI_EXEC<<24|HOST_TID<<12|tid, &msg[1]);
 	i2o_raw_writel(scsi_context, &msg[2]);	/* So the I2O layer passes to us */
-	i2o_raw_writel(i2o_context_list_add(SCpnt, c), &msg[3]);	/* We want the SCSI control block back */
+	/* Sorry 64bit folks. FIXME */
+	i2o_raw_writel((u32)SCpnt, &msg[3]);	/* We want the SCSI control block back */
 
 	/* LSI_920_PCI_QUIRK
 	 *
@@ -773,7 +762,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 		len = 0;
 
 		sg_count = pci_map_sg(c->pdev, sg, SCpnt->use_sg,
-				SCpnt->sc_data_direction);
+				      scsi_to_pci_dma_dir(SCpnt->sc_data_direction));
 
 		/* FIXME: handle fail */
 		if(!sg_count)
@@ -832,8 +821,8 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	}
 	else
 	{
-		dprintk(KERN_INFO "non sg for %p, %d\n", SCpnt->request_buffer,
-				SCpnt->request_bufflen);
+		dprintk(("non sg for %p, %d\n", SCpnt->request_buffer,
+				SCpnt->request_bufflen));
 		i2o_raw_writel(len = SCpnt->request_bufflen, lenptr);
 		if(len == 0)
 		{
@@ -845,7 +834,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 			dma_addr = pci_map_single(c->pdev,
 					       SCpnt->request_buffer,
 					       SCpnt->request_bufflen,
-					       SCpnt->sc_data_direction);
+					       scsi_to_pci_dma_dir(SCpnt->sc_data_direction));
 			if(dma_addr == 0)
 				BUG();	/* How to handle ?? */
 			SCpnt->SCp.ptr = (char *)(unsigned long) dma_addr;
@@ -872,7 +861,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	}
 	
 	mb();
-	dprintk(KERN_INFO "Issued %ld\n", current_command->serial_number);
+	dprintk(("Issued %ld\n", current_command->serial_number));
 	
 	return 0;
 }
@@ -882,20 +871,21 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
  *	@SCpnt: command to abort
  *
  *	Ask the I2O controller to abort a command. This is an asynchrnous
- *	process and our callback handler will see the command complete
+ *	process and oru callback handler will see the command complete
  *	with an aborted message if it succeeds. 
  *
  *	Locks: no locks are held or needed
  */
  
-static int i2o_scsi_abort(struct scsi_cmnd * SCpnt)
+int i2o_scsi_abort(Scsi_Cmnd * SCpnt)
 {
 	struct i2o_controller *c;
 	struct Scsi_Host *host;
 	struct i2o_scsi_host *hostdata;
-	u32 msg[5];
+	unsigned long msg;
+	u32 m;
 	int tid;
-	int status = FAILED;
+	unsigned long timeout;
 	
 	printk(KERN_WARNING "i2o_scsi: Aborting command block.\n");
 	
@@ -905,22 +895,37 @@ static int i2o_scsi_abort(struct scsi_cmnd * SCpnt)
 	if(tid==-1)
 	{
 		printk(KERN_ERR "i2o_scsi: Impossible command to abort!\n");
-		return status;
+		return FAILED;
 	}
 	c = hostdata->controller;
 
 	spin_unlock_irq(host->host_lock);
 		
-	msg[0] = FIVE_WORD_MSG_SIZE;
-	msg[1] = I2O_CMD_SCSI_ABORT<<24|HOST_TID<<12|tid;
-	msg[2] = scsi_context;
-	msg[3] = 0;
-	msg[4] = i2o_context_list_remove(SCpnt, c);
-	if(i2o_post_wait(c, msg, sizeof(msg), 240))
-		status = SUCCESS;
-
+	timeout = jiffies+2*HZ;
+	do
+	{
+		m = le32_to_cpu(I2O_POST_READ32(c));
+		if(m != 0xFFFFFFFF)
+			break;
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(1);
+		mb();
+	}
+	while(time_before(jiffies, timeout));
+	
+	msg = c->mem_offset + m;
+	
+	i2o_raw_writel(FIVE_WORD_MSG_SIZE, msg);
+	i2o_raw_writel(I2O_CMD_SCSI_ABORT<<24|HOST_TID<<12|tid, msg+4);
+	i2o_raw_writel(scsi_context, msg+8);
+	i2o_raw_writel(0, msg+12);	/* Not needed for an abort */
+	i2o_raw_writel((u32)SCpnt, msg+16);	
+	wmb();
+	i2o_post_message(c,m);
+	wmb();
+	
 	spin_lock_irq(host->host_lock);
-	return status;
+	return SUCCESS;
 }
 
 /**
@@ -934,14 +939,14 @@ static int i2o_scsi_abort(struct scsi_cmnd * SCpnt)
  *	Locks: called with no lock held, requires no locks.
  */
  
-static int i2o_scsi_bus_reset(struct scsi_cmnd * SCpnt)
+static int i2o_scsi_bus_reset(Scsi_Cmnd * SCpnt)
 {
 	int tid;
 	struct i2o_controller *c;
 	struct Scsi_Host *host;
 	struct i2o_scsi_host *hostdata;
 	u32 m;
-	void *msg;
+	unsigned long msg;
 	unsigned long timeout;
 
 	
@@ -979,7 +984,7 @@ static int i2o_scsi_bus_reset(struct scsi_cmnd * SCpnt)
 	while(time_before(jiffies, timeout));
 	
 	
-	msg = c->msg_virt + m;
+	msg = c->mem_offset + m;
 	i2o_raw_writel(FOUR_WORD_MSG_SIZE|SGL_OFFSET_0, msg);
 	i2o_raw_writel(I2O_CMD_SCSI_BUSRESET<<24|HOST_TID<<12|tid, msg+4);
 	i2o_raw_writel(scsi_context|0x80000000, msg+8);
@@ -994,6 +999,32 @@ static int i2o_scsi_bus_reset(struct scsi_cmnd * SCpnt)
 
 	/* Should we wait for the reset to complete ? */	
 	return SUCCESS;
+}
+
+/**
+ *	i2o_scsi_host_reset	-	host reset callback
+ *	@SCpnt: command causing the reset
+ *
+ *	An I2O controller can be many things at once. While we can
+ *	reset a controller the potential mess from doing so is vast, and
+ *	it's better to simply hold on and pray
+ */
+ 
+static int i2o_scsi_host_reset(Scsi_Cmnd * SCpnt)
+{
+	return FAILED;
+}
+
+/**
+ *	i2o_scsi_device_reset	-	device reset callback
+ *	@SCpnt: command causing the reset
+ *
+ *	I2O does not (AFAIK) support doing a device reset
+ */
+ 
+static int i2o_scsi_device_reset(Scsi_Cmnd * SCpnt)
+{
+	return FAILED;
 }
 
 /**
@@ -1027,7 +1058,7 @@ MODULE_AUTHOR("Red Hat Software");
 MODULE_LICENSE("GPL");
 
 
-static struct scsi_host_template driver_template = {
+static Scsi_Host_Template driver_template = {
 	.proc_name		= "i2o_scsi",
 	.name			= "I2O SCSI Layer",
 	.detect			= i2o_scsi_detect,
@@ -1036,6 +1067,8 @@ static struct scsi_host_template driver_template = {
 	.queuecommand		= i2o_scsi_queuecommand,
 	.eh_abort_handler	= i2o_scsi_abort,
 	.eh_bus_reset_handler	= i2o_scsi_bus_reset,
+	.eh_device_reset_handler= i2o_scsi_device_reset,
+	.eh_host_reset_handler	= i2o_scsi_host_reset,
 	.bios_param		= i2o_scsi_bios_param,
 	.can_queue		= I2O_SCSI_CAN_QUEUE,
 	.this_id		= 15,

@@ -48,8 +48,6 @@
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
 
-static void retry_erase_list(erase_busy_t *list, u_int cause);
-
 /*======================================================================
 
     This function handles submitting an MTD request, and retrying
@@ -110,18 +108,18 @@ static int do_mtd_request(memory_handle_t handle, mtd_request_t *req,
 
 ======================================================================*/
 
-static void insert_queue(struct pcmcia_socket *s, erase_busy_t *head, erase_busy_t *entry)
+static void insert_queue(erase_busy_t *head, erase_busy_t *entry)
 {
-    cs_dbg(s, 2, "adding 0x%p to queue 0x%p\n", entry, head);
+    DEBUG(2, "cs: adding 0x%p to queue 0x%p\n", entry, head);
     entry->next = head;
     entry->prev = head->prev;
     head->prev->next = entry;
     head->prev = entry;
 }
 
-static void remove_queue(struct pcmcia_socket *s, erase_busy_t *entry)
+static void remove_queue(erase_busy_t *entry)
 {
-    cs_dbg(s, 2, "unqueueing 0x%p\n", entry);
+    DEBUG(2, "cs: unqueueing 0x%p\n", entry);
     entry->next->prev = entry->prev;
     entry->prev->next = entry->next;
 }
@@ -134,35 +132,34 @@ static void retry_erase(erase_busy_t *busy, u_int cause)
     struct pcmcia_socket *s;
     int ret;
 
-    mtd = erase->Handle->mtd;
-    s = SOCKET(mtd);
-
-    cs_dbg(s, 2, "trying erase request 0x%p...\n", busy);
+    DEBUG(2, "cs: trying erase request 0x%p...\n", busy);
     if (busy->next)
-	remove_queue(s, busy);
+	remove_queue(busy);
     req.Function = MTD_REQ_ERASE | cause;
     req.TransferLength = erase->Size;
     req.DestCardOffset = erase->Offset + erase->Handle->info.CardOffset;
     req.MediaID = erase->Handle->MediaID;
+    mtd = erase->Handle->mtd;
+    s = SOCKET(mtd);
     mtd->event_callback_args.mtdrequest = &req;
     ret = EVENT(mtd, CS_EVENT_MTD_REQUEST, CS_EVENT_PRI_LOW);
     if (ret == CS_BUSY) {
-	cs_dbg(s, 2, "  Status = %d, requeueing.\n", req.Status);
+	DEBUG(2, "  Status = %d, requeueing.\n", req.Status);
 	switch (req.Status) {
 	case MTD_WAITREQ:
 	case MTD_WAITPOWER:
-	    insert_queue(s, &mtd->erase_busy, busy);
+	    insert_queue(&mtd->erase_busy, busy);
 	    break;
 	case MTD_WAITTIMER:
 	case MTD_WAITRDY:
 	    if (req.Status == MTD_WAITRDY)
-		insert_queue(s, &s->erase_busy, busy);
+		insert_queue(&s->erase_busy, busy);
 	    mod_timer(&busy->timeout, jiffies + req.Timeout*HZ/1000);
 	    break;
 	}
     } else {
 	/* update erase queue status */
-	cs_dbg(s, 2, "  Ret = %d\n", ret);
+	DEBUG(2, "  Ret = %d\n", ret);
 	switch (ret) {
 	case CS_SUCCESS:
 	    erase->State = ERASE_PASSED; break;
@@ -186,11 +183,11 @@ static void retry_erase(erase_busy_t *busy, u_int cause)
     }
 } /* retry_erase */
 
-static void retry_erase_list(erase_busy_t *list, u_int cause)
+void retry_erase_list(erase_busy_t *list, u_int cause)
 {
     erase_busy_t tmp = *list;
 
-    cs_dbg(SOCKET(list->client), 2, "rescanning erase queue list 0x%p\n", list);
+    DEBUG(2, "cs: rescanning erase queue list 0x%p\n", list);
     if (list->next == list)
 	return;
     /* First, truncate the original list */
@@ -207,9 +204,8 @@ static void retry_erase_list(erase_busy_t *list, u_int cause)
 
 static void handle_erase_timeout(u_long arg)
 {
-    erase_busy_t *busy = (erase_busy_t *)arg;
-    cs_dbg(SOCKET(busy->client), 0, "erase timeout for entry 0x%lx\n", arg);
-    retry_erase(busy, MTD_REQ_TIMEOUT);
+    DEBUG(0, "cs: erase timeout for entry 0x%lx\n", arg);
+    retry_erase((erase_busy_t *)arg, MTD_REQ_TIMEOUT);
 }
 
 static void setup_erase_request(client_handle_t handle, eraseq_entry_t *erase)
@@ -302,7 +298,7 @@ int MTDHelperEntry(int func, void *a1, void *a2)
     {
 	window_handle_t w;
         int ret = pcmcia_request_window(a1, a2, &w);
-        a1 = w;
+        (window_handle_t *)a1 = w;
 	return  ret;
     }
         break;
@@ -337,8 +333,8 @@ static void setup_regions(client_handle_t handle, int attr,
     cistpl_device_geo_t geo;
     memory_handle_t r;
 
-    cs_dbg(SOCKET(handle), 1, "setup_regions(0x%p, %d, 0x%p)\n",
-	   handle, attr, list);
+    DEBUG(1, "cs: setup_regions(0x%p, %d, 0x%p)\n",
+	  handle, attr, list);
 
     code = (attr) ? CISTPL_DEVICE_A : CISTPL_DEVICE;
     if (read_tuple(handle, code, &device) != CS_SUCCESS)
@@ -346,13 +342,17 @@ static void setup_regions(client_handle_t handle, int attr,
     code = (attr) ? CISTPL_JEDEC_A : CISTPL_JEDEC_C;
     has_jedec = (read_tuple(handle, code, &jedec) == CS_SUCCESS);
     if (has_jedec && (device.ndev != jedec.nid)) {
-	cs_dbg(SOCKET(handle), 0, "Device info does not match JEDEC info.\n");
+#ifdef PCMCIA_DEBUG
+	printk(KERN_DEBUG "cs: Device info does not match JEDEC info.\n");
+#endif
 	has_jedec = 0;
     }
     code = (attr) ? CISTPL_DEVICE_GEO_A : CISTPL_DEVICE_GEO;
     has_geo = (read_tuple(handle, code, &geo) == CS_SUCCESS);
     if (has_geo && (device.ndev != geo.ngeo)) {
-	cs_dbg(SOCKET(handle), 0, "Device info does not match geometry tuple.\n");
+#ifdef PCMCIA_DEBUG
+	printk(KERN_DEBUG "cs: Device info does not match geometry tuple.\n");
+#endif
 	has_geo = 0;
     }
     
@@ -458,7 +458,7 @@ int pcmcia_register_mtd(client_handle_t handle, mtd_reg_t *reg)
 	list = s->a_region;
     else
 	list = s->c_region;
-    cs_dbg(s, 1, "register_mtd(0x%p, '%s', 0x%x)\n",
+    DEBUG(1, "cs: register_mtd(0x%p, '%s', 0x%x)\n",
 	  handle, handle->dev_info, reg->Offset);
     while (list) {
 	if (list->info.CardOffset == reg->Offset) break;
@@ -548,8 +548,8 @@ int pcmcia_open_memory(client_handle_t *handle, open_mem_t *open, memory_handle_
     }
     if (region && region->mtd) {
 	*mh = region;
-	cs_dbg(s, 1, "open_memory(0x%p, 0x%x) = 0x%p\n",
-	       handle, open->Offset, region);
+	DEBUG(1, "cs: open_memory(0x%p, 0x%x) = 0x%p\n",
+	      handle, open->Offset, region);
 	return CS_SUCCESS;
     } else
 	return CS_BAD_OFFSET;
@@ -565,7 +565,7 @@ int pcmcia_open_memory(client_handle_t *handle, open_mem_t *open, memory_handle_
 
 int pcmcia_close_memory(memory_handle_t handle)
 {
-    cs_dbg(SOCKET(handle->mtd), 1, "cs: close_memory(0x%p)\n", handle);
+    DEBUG(1, "cs: close_memory(0x%p)\n", handle);
     if (CHECK_REGION(handle))
 	return CS_BAD_HANDLE;
     return CS_SUCCESS;

@@ -10,8 +10,6 @@
 #define LKC_DIRECT_LINK
 #include "lkc.h"
 
-#define DEBUG_EXPR	0
-
 struct expr *expr_alloc_symbol(struct symbol *sym)
 {
 	struct expr *e = malloc(sizeof(*e));
@@ -222,12 +220,10 @@ int expr_eq(struct expr *e1, struct expr *e2)
 		/* panic */;
 	}
 
-	if (DEBUG_EXPR) {
-		expr_fprint(e1, stdout);
-		printf(" = ");
-		expr_fprint(e2, stdout);
-		printf(" ?\n");
-	}
+	print_expr(0, e1, 0);
+	printf(" = ");
+	print_expr(0, e2, 0);
+	printf(" ?\n");
 
 	return 0;
 }
@@ -401,13 +397,11 @@ struct expr *expr_join_or(struct expr *e1, struct expr *e2)
 			return expr_alloc_symbol(&symbol_yes);
 	}
 
-	if (DEBUG_EXPR) {
-		printf("optimize (");
-		expr_fprint(e1, stdout);
-		printf(") || (");
-		expr_fprint(e2, stdout);
-		printf(")?\n");
-	}
+	printf("optimize ");
+	print_expr(0, e1, 0);
+	printf(" || ");
+	print_expr(0, e2, 0);
+	printf(" ?\n");
 	return NULL;
 }
 
@@ -450,11 +444,6 @@ struct expr *expr_join_and(struct expr *e1, struct expr *e2)
 		// (a) && (a!='n') -> (a)
 		return expr_alloc_symbol(sym1);
 
-	if ((e1->type == E_SYMBOL && e2->type == E_UNEQUAL && e2->right.sym == &symbol_mod) ||
-	    (e2->type == E_SYMBOL && e1->type == E_UNEQUAL && e1->right.sym == &symbol_mod))
-		// (a) && (a!='m') -> (a='y')
-		return expr_alloc_comp(E_EQUAL, sym1, &symbol_yes);
-
 	if (sym1->type == S_TRISTATE) {
 		if (e1->type == E_EQUAL && e2->type == E_UNEQUAL) {
 			// (a='b') && (a!='c') -> 'b'='c' ? 'n' : a='b'
@@ -494,14 +483,11 @@ struct expr *expr_join_and(struct expr *e1, struct expr *e2)
 		    (e2->type == E_SYMBOL && e1->type == E_UNEQUAL && e1->right.sym == &symbol_yes))
 			return NULL;
 	}
-
-	if (DEBUG_EXPR) {
-		printf("optimize (");
-		expr_fprint(e1, stdout);
-		printf(") && (");
-		expr_fprint(e2, stdout);
-		printf(")?\n");
-	}
+	printf("optimize ");
+	print_expr(0, e1, 0);
+	printf(" && ");
+	print_expr(0, e2, 0);
+	printf(" ?\n");
 	return NULL;
 }
 
@@ -1087,3 +1073,11 @@ void expr_fprint(struct expr *e, FILE *out)
 {
 	expr_print(e, expr_print_file_helper, out, E_NONE);
 }
+
+void print_expr(int mask, struct expr *e, int prevtoken)
+{
+	if (!(cdebug & mask))
+		return;
+	expr_fprint(e, stdout);
+}
+

@@ -51,7 +51,7 @@ sx164_init_irq(void)
 	if (alpha_using_srm)
 		init_srm_irqs(40, 0x3f0000);
 	else
-		init_pyxis_irqs(0xff00003f0000UL);
+		init_pyxis_irqs(0xff00003f0000);
 
 	setup_irq(16+6, &timer_cascade_irqaction);
 }

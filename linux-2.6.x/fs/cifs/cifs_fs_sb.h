@@ -18,9 +18,6 @@
 #ifndef _CIFS_FS_SB_H
 #define _CIFS_FS_SB_H
 
-#define CIFS_MOUNT_NO_PERM	1 /* do not do client vfs_perm check */
-#define CIFS_MOUNT_SET_UID      2 /* set current->euid in create etc. */
-
 struct cifs_sb_info {
 	struct cifsTconInfo *tcon;	/* primary mount */
 	struct list_head nested_tcon_q;
@@ -31,6 +28,5 @@ struct cifs_sb_info {
 	gid_t	mnt_gid;
 	mode_t	mnt_file_mode;
 	mode_t	mnt_dir_mode;
-	int     mnt_cifs_flags;
 };
 #endif				/* _CIFS_FS_SB_H */
