@@ -309,7 +309,7 @@ and their positions in the SIC_ISR register -Nidhi */
 
 void search_IAR(unsigned int sic_iarx)	
 {
-	unsigned int irqval,val;
+	unsigned int irqval = 0,val = 0;
 	int i;
 
 	if (sic_iarx==0)	{
