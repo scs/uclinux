@@ -2341,7 +2341,7 @@ irqreturn_t mem_stream0_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_
 	} /* End of Irq_status register Check */
 	else if (dma_ch[CH_MEM_STREAM0_DEST].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
-	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 	dma_ch[i].regs->irq_status |= DMA_ERR; 
 	 return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -2499,7 +2499,7 @@ irqreturn_t mem_stream1_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
-	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 	dma_ch[i].regs->irq_status |= DMA_ERR; 
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -2598,7 +2598,7 @@ irqreturn_t ppi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
-	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 	dma_ch[i].regs->irq_status |= DMA_ERR; 
 	 return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -2697,7 +2697,7 @@ irqreturn_t sport0_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_re
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
-	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 	dma_ch[i].regs->irq_status |= DMA_ERR; 
 	 return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -2796,7 +2796,7 @@ irqreturn_t sport0_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_re
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
-	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 	dma_ch[i].regs->irq_status |= DMA_ERR; 
 	 return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -2894,7 +2894,7 @@ irqreturn_t sport1_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_re
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
-	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 	dma_ch[i].regs->irq_status |= DMA_ERR; 
 	 return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -2992,7 +2992,7 @@ irqreturn_t sport1_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_re
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
-	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 	dma_ch[i].regs->irq_status |= DMA_ERR; 
 	 return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -3091,7 +3091,7 @@ irqreturn_t spi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
-	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 	dma_ch[i].regs->irq_status |= DMA_ERR; 
 	 return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -3190,7 +3190,7 @@ irqreturn_t uart_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
-	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 	dma_ch[i].regs->irq_status |= DMA_ERR; 
 	 return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -3288,7 +3288,7 @@ irqreturn_t uart_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
-	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 	dma_ch[i].regs->irq_status |= DMA_ERR; 
 	 return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
