@@ -120,7 +120,7 @@ typedef enum _DMA_CHANNEL_STATUS{
 
 #define FLOW_STOP 		0
 #define FLOW_AUTO 		1
-#define FLOW_ARRAY 		5
+#define FLOW_ARRAY 		4
 #define FLOW_SMALL 		6
 #define FLOW_LARGE 		7
 #define EINVAL_FLOWTYPE 	-1
