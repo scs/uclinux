@@ -90,10 +90,6 @@ void __init trap_init (void)
 	bfin_trap_init();
 }
 
-void die_if_kernel(char *,struct pt_regs *,int);
-asmlinkage int do_page_fault(struct pt_regs *regs, unsigned long address,
-                             unsigned long error_code);
-
 asmlinkage void trap_c(struct pt_regs *fp);
 
 int kstack_depth_to_print = 48;
@@ -103,6 +99,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	int sig = 0;
 	siginfo_t info;
 
+	printk("exc %x\n",fp->seqstat);
  	/* trap_c() will be called for exceptions. During exceptions
  	   processing, the pc value should be set with retx value.  
  	   With this change we can cleanup some code in signal.c- TODO */
@@ -124,11 +121,12 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	    case VEC_UNDEF_I:
 		info.si_code = ILL_ILLOPC;
 		sig = SIGILL;
+		DPRINTK(EXC_0x21);
 		break;
 	    case VEC_OVFLOW:
 		info.si_code = TRAP_TRACEFLOW;
 		sig = SIGTRAP;
-		DPRINTK(EXC_0x21);
+		DPRINTK(EXC_0x11);
 		break;
 	    case VEC_ILGAL_I:
 		info.si_code = ILL_ILLPARAOP;
@@ -178,12 +176,12 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGILL;
                 break;
 	    case VEC_CPLB_I_M:
-		DPRINTK3(EXC_0x2C);
-		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
+		DPRINTK(EXC_0x2C);
+		DPRINTK("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
 	    case VEC_CPLB_M:
 		info.si_code = IlL_CPLB_MISS;
 		DPRINTK3(EXC_0x26);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
+		DPRINTK("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
 		/*Call the handler to replace the CPLB*/
 		_cplb_hdr();
 		goto nsig;
@@ -214,32 +212,6 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	}
 nsig:	
 	return;
-}
-
-void die_if_kernel (char *str, struct pt_regs *fp, int nr)
-{
-	if (!(fp->ipend))
-		return;
-
-	console_verbose();
-	printk(KERN_EMERG "%s: %08x\n",str,nr);
-	printk(KERN_EMERG "PC: [<%08lu>]    SEQSTAT: %04lu\n",
-	       fp->pc, fp->seqstat);
-	printk(KERN_EMERG "r0: %08lx    r1: %08lx    r2: %08lx    r3: %08lx\n",
-	       fp->r0, fp->r1, fp->r2, fp->r3);
-	printk(KERN_EMERG "r4: %08lx    r5: %08lx    r6: %08lx    r7: %08lx\n",
-	       fp->r4, fp->r5, fp->r6, fp->r7);
-	printk(KERN_EMERG "p0: %08lx    p1: %08lx    p2: %08lx    p3: %08lx\n",
-	       fp->p0, fp->p1, fp->p2, fp->p3);
-	printk(KERN_EMERG "p4: %08lx    p5: %08lx    fp: %08lx\n",
-	       fp->p4, fp->p5, fp->fp);
-	printk(KERN_EMERG "aow: %08lx    a0.x: %08lx    a1w: %08lx    a1.x: %08lx\n",
-	       fp->a0w, fp->a0x, fp->a1w, fp->a1x);
-
-	printk(KERN_EMERG "Process %s (pid: %d, stackpage=%08lx)\n",
-		current->comm, current->pid, PAGE_SIZE+(unsigned long)current);
-	show_stack(NULL, (unsigned long *)fp);
-	do_exit(SIGSEGV);
 }
 
 /* Typical exception handling routines	*/
