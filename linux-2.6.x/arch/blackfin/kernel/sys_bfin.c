@@ -2,28 +2,20 @@
  * linux/arch/bfinnommu/kernel/sys_bfin.c
  *
  * This file contains various random system calls that
- * have a non-standard calling sequence on the Linux/m68k
+ * have a non-standard calling sequence on the Linux/bfin
  * platform.
  */
 
-#include <linux/errno.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
-#include <linux/stat.h>
 #include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/file.h>
-#include <linux/utsname.h>
 
-#include <asm/setup.h>
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>
-#include <asm/traps.h>
 #include <asm/ipc.h>
 
 /*
@@ -78,7 +70,7 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 
 /*
  * Perform the select(nd, in, out, ex, tv) and mmap() system
- * calls. Linux/m68k cloned Linux/i386, which didn't use to be able to
+ * calls. Linux/bfin cloned Linux/i386, which didn't use to be able to
  * handle more than 4 system call parameters, so these system calls
  * used a memory block for parameter passing..
  */
@@ -134,7 +126,6 @@ asmlinkage int old_select(struct sel_arg_struct *arg)
 asmlinkage int sys_ipc (uint call, int first, int second,
 			int third, void *ptr, long fifth)
 {
-/*	int version, ret;*/
 	int version;
 
 	version = call >> 16; /* hack for backward compatibility */
@@ -203,5 +194,3 @@ asmlinkage int sys_getpagesize(void)
 {
 	return PAGE_SIZE;
 }
-
-
