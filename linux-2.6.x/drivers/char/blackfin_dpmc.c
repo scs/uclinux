@@ -25,6 +25,10 @@ unsigned long SDRAM_tRAS1;
 unsigned long SDRAM_tRCD1;
 unsigned long SDRAM_tWR1;
 
+#if 0
+static unsigned long F_Changed_Freq_Act = 0;
+#endif
+
 unsigned long get_sdrrcval(unsigned long sc)
 {
 	unsigned long SCLK = sc;
@@ -202,7 +206,7 @@ unsigned long change_sclk(unsigned long clock)
 		printk("Wrong system clock selection \n");
 #endif
 
-	*pEBIU_SDRRC = get_sdrrcval((get_sclk()*MHZ));
+	*pEBIU_SDRRC = get_sdrrcval(get_sclk());
 	asm("ssync;");
 
 	/* Get SDRAM out of self refresh mode */
@@ -225,76 +229,107 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 	switch (cmd) {
 		case IOCTL_FULL_ON_MODE:
 			fullon_mode();
+#if 0
+			if(F_Changed_Freq_Act) {
+				change_core_clock(get_vco()/MHZ);
+                                if((get_vco()/(DEF_SSEL * MHZ)) < (MIN_SCLK/MHZ))
+                                        sclk_mhz = change_sclk(MIN_SCLK/MHZ);
+                                else
+                                        sclk_mhz = change_sclk((get_vco()/(DEF_SSEL * MHZ)));
+				F_Changed_Freq_Act = 0;
+			}
 			change_baud(CONSOLE_BAUD_RATE);
+#endif
+			change_baud(CONSOLE_BAUD_RATE);
+			*pSIC_IWR = IWR_ENABLE_ALL;
+			asm("ssync;");
+
 		break;
 
 		case IOCTL_ACTIVE_MODE:
 			active_mode();
 			change_baud(CONSOLE_BAUD_RATE);
+			*pSIC_IWR = IWR_ENABLE_ALL;
+			asm("ssync;");
+
 		break;
 		case IOCTL_SLEEP_MODE:
 			sleep_mode();
+			*pSIC_IWR = IWR_ENABLE_ALL;
+			asm("ssync;");
 		break;				
 
 		case IOCTL_DEEP_SLEEP_MODE:
 			deep_sleep();
 			/* Needed since it comes back to active mode */
 			change_baud(CONSOLE_BAUD_RATE);
+			*pSIC_IWR = IWR_ENABLE_ALL;
+			asm("ssync;");
 		break;
 		
 		case IOCTL_HIBERNATE_MODE:
 			hibernate_mode();
+			*pSIC_IWR = IWR_ENABLE_ALL;
+			asm("ssync;");
 		break;
 
 		case IOCTL_CHANGE_FREQUENCY:
-			if(!(get_pll_status() & 0x2))	return -1;
 			copy_from_user(&vco_mhz,(unsigned long *)arg,sizeof(unsigned long));
 			vco_mhz_bk = vco_mhz;
-			if((vco_mhz > MAX_VCO) || (vco_mhz < MIN_VCO))	return -1;
-
+			if((vco_mhz > MAX_VCO) || (vco_mhz < MIN_VCO))	return -1;			
+			if(get_pll_status() & 0x1)			return -1;
+#if 0
+			if(get_pll_status() & 0x1) {
+				F_Changed_Freq_Act = 1;
+				vco_mhz = change_frequency(vco_mhz_bk/MHZ);
+	    			copy_to_user((unsigned long *)arg, &vco_mhz, sizeof(unsigned long));
+				break;
+			}
+#endif
 			/* This is done to avoid drastic change of frequency since it affects SSEL.
 			 * At 135MHz keeping SSEL as 5 or 1 does not matter 
 			 */
 			if(vco_mhz > INTER_FREQ) {
-				vco_mhz = change_frequency(INTER_FREQ);
+				vco_mhz = change_frequency(INTER_FREQ/MHZ);
 				change_core_clock(vco_mhz/MHZ);
-				if((vco_mhz/(DEF_SSEL * MHZ)) < MIN_SCLK) {
+				if((vco_mhz/(DEF_SSEL * MHZ)) < (MIN_SCLK/MHZ)) {
 #if DPMC_DEBUG
 					printk("System clock being changed to minimum \n");
 #endif
-					sclk_mhz = change_sclk((MIN_SCLK));
+					sclk_mhz = change_sclk((MIN_SCLK/MHZ));
 				}
 				else
 					sclk_mhz = change_sclk((vco_mhz/(DEF_SSEL * MHZ)));
 				change_baud(CONSOLE_BAUD_RATE);
 
-				vco_mhz = change_frequency(vco_mhz_bk);
+				vco_mhz = change_frequency(vco_mhz_bk/MHZ);
 				change_core_clock(vco_mhz/MHZ);
-				if((vco_mhz/(DEF_SSEL * MHZ)) < MIN_SCLK) {
+				if((vco_mhz/(DEF_SSEL * MHZ)) < (MIN_SCLK/MHZ)) {
 #if DPMC_DEBUG
 					printk("System clock being changed to minimum \n");
 #endif
-					sclk_mhz = change_sclk((MIN_SCLK));
+					sclk_mhz = change_sclk((MIN_SCLK/MHZ));
 				}
 				else
 					sclk_mhz = change_sclk((vco_mhz/(DEF_SSEL * MHZ)));
 				change_baud(CONSOLE_BAUD_RATE);
 			}
 			else {
-				vco_mhz = change_frequency(vco_mhz_bk);
+				vco_mhz = change_frequency(vco_mhz_bk/MHZ);
 				change_core_clock(vco_mhz/MHZ);
-				if((vco_mhz/(DEF_SSEL * MHZ)) < MIN_SCLK) {
+				if((vco_mhz/(DEF_SSEL * MHZ)) < (MIN_SCLK/MHZ)) {
 #if DPMC_DEBUG
 					printk("System clock being changed to minimum \n");
 #endif
-					sclk_mhz = change_sclk(MIN_SCLK);
+					sclk_mhz = change_sclk(MIN_SCLK/MHZ);
 					
 				}
 				else
-					sclk_mhz = change_sclk((vco_mhz/5000000));
+					sclk_mhz = change_sclk((vco_mhz/(DEF_SSEL * MHZ)));
 				change_baud(CONSOLE_BAUD_RATE);
 			}
-			vco_mhz = vco_mhz/MHZ;
+			*pSIC_IWR = IWR_ENABLE_ALL;
+			asm("ssync;");
 	    		copy_to_user((unsigned long *)arg, &vco_mhz, sizeof(unsigned long));
 		break;
 		case IOCTL_CHANGE_VOLTAGE:
@@ -309,26 +344,28 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
     			copy_to_user((unsigned long *)arg, &mvolt, sizeof(unsigned long));
 		break;
 		case IOCTL_SET_CCLK:
+			if(get_pll_status() & 0x1)	return -1;
 			copy_from_user(&cclk_mhz,(unsigned long *)arg,sizeof(unsigned long));
-			if((get_vco()/MHZ) < cclk_mhz)	return -1;
+			if(get_vco() < cclk_mhz)	return -1;
 			if(cclk_mhz <= get_sclk()) {
 #if DPMC_DEBUG
 				printk("Sorry, core clock has to be greater than system clock\n");
-				printk("Current System Clock is %u MHz\n",get_sclk());
+				printk("Current System Clock is %u MHz\n",get_sclk()/1000000);
 #endif
 				return -1;
 			}
-			cclk_mhz = change_core_clock(cclk_mhz);
+			cclk_mhz = change_core_clock(cclk_mhz/MHZ);
 	    		copy_to_user((unsigned long *)arg, &cclk_mhz, sizeof(unsigned long));
 		break;
 
 		case IOCTL_SET_SCLK:
+			if(get_pll_status() & 0x1)	return -1;
 			copy_from_user(&sclk_mhz,(unsigned long *)arg,sizeof(unsigned long));
-			if((get_vco()/MHZ) < sclk_mhz)	return -1;
+			if(get_vco() < sclk_mhz)	return -1;
 			if(sclk_mhz >= get_cclk())		return -1;
 			if(sclk_mhz > MAX_SCLK)			return -1;
 			if(sclk_mhz < MIN_SCLK)			return -1;
-			sclk_mhz = change_sclk(sclk_mhz);
+			sclk_mhz = change_sclk(sclk_mhz/MHZ);
 			change_baud(CONSOLE_BAUD_RATE);
 	    		copy_to_user((unsigned long *)arg, &sclk_mhz, sizeof(unsigned long));
 		break;
@@ -349,7 +386,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 		break;
 		
 		case IOCTL_GET_VCO:
-			vco_mhz = get_vco()/MHZ;
+			vco_mhz = get_vco();
     			copy_to_user((unsigned long *)arg, &vco_mhz, sizeof(unsigned long));
 		break;
 		
@@ -381,14 +418,15 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 
 void change_baud(int baud)      {
         int uartdll,sclk;
+
+	asm("[--sp] = r6;"
+	"cli r6;");	
+
 	/* If in active mode sclk and cclk run at CCLKIN*/
-	if(get_pll_status() & 0x1)	{
-		sclk = CONFIG_CLKIN;
-	}
-	else	{
-       		sclk = get_sclk();
-	}
-        uartdll = (sclk*MHZ)/(16*baud);
+	if(get_pll_status() & 0x1)	sclk = CONFIG_CLKIN_HZ;
+	else				sclk = get_sclk();
+	
+        uartdll = sclk/(16*baud);
         *pUART_LCR = DLAB;
         asm("ssync;");
         *pUART_DLL = (uartdll & 0xFF);
@@ -397,6 +435,9 @@ void change_baud(int baud)      {
         asm("ssync;");
         *pUART_LCR = WLS(8);
         asm("ssync;");
+
+	asm("sti r6;"
+	"r6 = [sp++];");	
 }
 
 /*********************************************************************************/
@@ -436,7 +477,7 @@ unsigned long change_core_clock(unsigned long clock)	{
 
 /* Returns VCO in Hz */
 int get_vco(void)	{
-	return((CONFIG_CLKIN * MHZ) * ((*(volatile unsigned short *)PLL_CTL >> 9)& 0x3F));
+	return((CONFIG_CLKIN_HZ) * ((*(volatile unsigned short *)PLL_CTL >> 9)& 0x3F));
 }
 
 /* Sets the PLL_DIV register CSEL or SSEL bits depending on flag */
@@ -475,7 +516,7 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 #if 0
 	unsigned long sdrrcval,modeval;
 #endif
-	unsigned long vco_hz = vco_mhz * MHZ;
+	unsigned long vco_hz = vco_mhz * MHZ,vl;
 	int msel;
 
 	msel = calc_msel(vco_hz);
@@ -492,6 +533,11 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 	*pEBIU_SDGCTL = (*pEBIU_SDGCTL | SRFS);
 	asm("ssync;");
 	
+	vl = *pPLL_CTL;
+	asm("ssync");
+	vl &= 0x81FF;
+	msel |= vl;
+
 	*pPLL_CTL = msel;
 	asm("ssync;");
 
@@ -504,7 +550,7 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 
 	while(!(*pPLL_STAT & PLL_LOCKED));
 
-	*pEBIU_SDRRC = get_sdrrcval((get_sclk()*MHZ));
+	*pEBIU_SDRRC = get_sdrrcval((get_sclk()));
 	asm("ssync;");
 
 	*pEBIU_SDGCTL = *pEBIU_SDGCTL & ~SRFS;
@@ -534,10 +580,12 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 }
 
 int calc_msel(int vco_hz)	{
-	return(vco_hz/(CONFIG_CLKIN * MHZ));
+	return(vco_hz/(CONFIG_CLKIN_HZ));
 }
 
 void fullon_mode(void)	{
+
+	unsigned long vl,ctlval;
 
 	*pSIC_IWR = IWR_ENABLE(0);
 	asm("ssync;");
@@ -548,8 +596,12 @@ void fullon_mode(void)	{
 	asm("ssync;");
 	*pEBIU_SDGCTL = *pEBIU_SDGCTL | SRFS;
 	asm("ssync;");
-	
-	*pPLL_CTL &= (~BYPASS | ~PDWN | ~STOPCK_OFF | ~PLL_OFF);
+
+/* Together if done, some issues with code generation,so split this way*/
+	*pPLL_CTL &= (unsigned short)~(BYPASS);
+	*pPLL_CTL &= (unsigned short)~(PDWN);
+	*pPLL_CTL &= (unsigned short)~(STOPCK_OFF);
+	*pPLL_CTL &= (unsigned short)~(PLL_OFF);
 	asm("ssync;");
 
 	asm("[--SP] = R6;"
@@ -561,7 +613,7 @@ void fullon_mode(void)	{
 
 	while((*pPLL_STAT & PLL_LOCKED) != PLL_LOCKED);
 
-	*pEBIU_SDRRC = get_sdrrcval((get_sclk()*MHZ));
+	*pEBIU_SDRRC = get_sdrrcval(get_sclk());
 	asm("ssync;");
 
 	*pEBIU_SDGCTL = *pEBIU_SDGCTL & ~SRFS;
@@ -580,7 +632,7 @@ void active_mode(void)	{
 	*pEBIU_SDGCTL = *pEBIU_SDGCTL | SRFS;
 	asm("ssync;");
 	
-	*pPLL_CTL |= BYPASS;
+	*pPLL_CTL = *pPLL_CTL | BYPASS;
 	asm("ssync;");
 
 	asm("[--SP] = R6;"
@@ -592,7 +644,7 @@ void active_mode(void)	{
 
 	while((*pPLL_STAT & PLL_LOCKED) != PLL_LOCKED);
 
-	*pEBIU_SDRRC = get_sdrrcval((get_sclk()*MHZ));
+	*pEBIU_SDRRC = get_sdrrcval(get_sclk());
 	asm("ssync;");
 
 	*pEBIU_SDGCTL = *pEBIU_SDGCTL & ~SRFS;
@@ -739,4 +791,8 @@ static ssize_t dpmc_read(struct file *file, char *buf,
 	return -1;
 }
 
+unsigned long mult(unsigned long x)
+{
+	return (x*1000000);
+}
 
