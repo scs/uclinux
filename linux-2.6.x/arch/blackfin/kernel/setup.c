@@ -67,7 +67,6 @@ void bf53x_cache_init(void)
 
 extern char _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
 extern int _ramstart, _ramend;
-extern int ramdisk_begin,ramdisk_end;
 
 void setup_arch(char **cmdline_p)
 {
@@ -112,7 +111,7 @@ void setup_arch(char **cmdline_p)
 	printk("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack = 0x%06x-0x%06x\n",
 		(int)&_stext,(int)&_etext,(int)&_sdata,(int)&_edata,
 		(int)&_sbss,(int)&_ebss,
-		(int)&ramdisk_begin,(int)&ramdisk_end,
+		(int)&_ebss,(int)memory_start,
 		(int)&init_thread_union,(int)(&init_thread_union) + 0x2000);
 
 	init_task.mm->start_code = (unsigned long) &_stext;

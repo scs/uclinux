@@ -274,7 +274,7 @@ MAKEFLAGS += --include-dir=$(srctree)
 
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
-CC		= $(CROSS_COMPILE)gcc
+CC		= ccache $(CROSS_COMPILE)gcc
 CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
@@ -511,10 +511,6 @@ libs-y		:= $(libs-y1) $(libs-y2)
 head-y += $(HEAD)
 vmlinux-objs := $(head-y) $(init-y) $(core-y) $(libs-y) $(drivers-y) $(net-y)
 
-rootfs.o: rootfs.img
-	$(CROSS_COMPILE)gcc -c empty.S -o empty.o 
-	$(OBJCOPY) --add-section=.ramdisk=$< empty.o $@
-
 quiet_cmd_vmlinux__ = LD      $@
 define cmd_vmlinux__
 	$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) $(head-y) $(init-y) \
@@ -523,7 +519,6 @@ define cmd_vmlinux__
 	$(libs-y) \
 	$(drivers-y) \
 	$(net-y) \
-	rootfs.o \
 	--end-group \
 	$(filter .tmp_kallsyms%,$^) \
 	-o $@
@@ -610,7 +605,7 @@ define rule_vmlinux
 	$(rule_verify_kallsyms)
 endef
 
-vmlinux: $(vmlinux-objs) rootfs.o $(kallsyms.o) arch/$(ARCH)/kernel/vmlinux.lds.s FORCE
+vmlinux: $(vmlinux-objs) $(kallsyms.o) arch/$(ARCH)/kernel/vmlinux.lds.s FORCE
 	$(call if_changed_rule,vmlinux)
 
 #	The actual objects are generated when descending, 

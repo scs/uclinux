@@ -13,6 +13,9 @@
 .global _rambase
 .global _ramstart
 .global _ramend
+.extern _ebss
+
+#define FILE_HEAD_START	0x00000404
 
 .text
 
@@ -172,9 +175,20 @@ _clear_bss:
 
 	p1.l = _ramstart;
 	p1.h = _ramstart;
+	p3.l = _ebss;
+	p3.h = _ebss;
+	r0 = p3;
+	r1.l = lo(FILE_HEAD_START);
+	r1.h = hi(FILE_HEAD_START);
+	r0 = r0 + r1;
+	p2 = r0;
+	r1 = [p2];
+	r0 = 1000;
+	r1 *= r0;
 	r0.l = _end;
 	r0.h = _end;
-	[p1] = r0;
+	r1 = r0 + r1;
+	[p1] = r1;
 
 	r0.l = lo(RAM_END);
 	r0.h = hi(RAM_END);

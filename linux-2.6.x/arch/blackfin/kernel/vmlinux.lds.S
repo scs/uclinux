@@ -137,9 +137,6 @@ SECTIONS
 		. = ALIGN(0x2000) ;
 		*(.data.init_task)
 		*(.data)
-		ramdisk_begin = .;
-		*(.ramdisk)
-		ramdisk_end = .;
 		_edata = . ;
 	} > ram
 
@@ -158,6 +155,11 @@ SECTIONS
 		 _ebss = . ;	  
 		 _end = . ;	  
     	} > ram
+
+	.bss_end : {
+ 		. = ALIGN(4) ;
+ 		_bss_end = . ;
+ 	} > ram
 
 #ifdef CONFIG_FULLDEBUG
   /* Stabs debugging sections.  */

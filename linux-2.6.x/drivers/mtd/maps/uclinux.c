@@ -75,33 +75,25 @@ int __init uclinux_mtd_init(void)
 	struct mtd_info *mtd;
 	struct map_info *mapp;
 	extern char _ebss;
-	unsigned long addr = (unsigned long) &_ebss;
+	unsigned long addr = (unsigned long)&_ebss;
 
 #ifdef CONFIG_PILOT
 	extern char _etext, _sdata, __init_end;
 	addr = (unsigned long) (&_etext + (&__init_end - &_sdata));
 #endif
 
-#ifdef CONFIG_BFIN
-	extern char ramdisk_begin,ramdisk_end;
-	addr = (unsigned long) &ramdisk_begin;
-#endif
 	mapp = &uclinux_ram_map;
 	mapp->phys = addr;
-	mapp->size = PAGE_ALIGN(*((unsigned long *)(addr + 8)));
-
-#ifdef CONFIG_BFIN
-#ifdef CONFIG_ROMFS_FS		
 	mapp->size = PAGE_ALIGN(ntohl(*((unsigned long *)(addr + 8))));
+
+#if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
+	mapp->size = PAGE_ALIGN(*((unsigned long *)(addr + 0x404)));
+	mapp->size = (mapp->size * 1000);
 #endif
-	mapp->map_priv_2 = addr;
-#ifndef CONFIG_ROMFS_FS
-	mapp->size = (&ramdisk_end - &ramdisk_begin); 
-#endif
-#endif
+
 	mapp->bankwidth = 4;
 	printk("uclinux[mtd]: RAM probe address=0x%x size=0x%x\n",
-	       	(int) mapp->map_priv_2, (int) mapp->size);
+	       	(int) mapp->phys, (int) mapp->size);
 
 	mapp->virt = (unsigned long)
 		ioremap_nocache(mapp->phys, mapp->size);
@@ -142,7 +134,7 @@ void __exit uclinux_mtd_cleanup(void)
 		map_destroy(uclinux_ram_mtdinfo);
 		uclinux_ram_mtdinfo = NULL;
 	}
-	if (uclinux_ram_map.map_priv_1) {
+	if (uclinux_ram_map.virt) {
 		iounmap((void *) uclinux_ram_map.virt);
 		uclinux_ram_map.virt = 0;
 	}
