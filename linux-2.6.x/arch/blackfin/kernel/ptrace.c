@@ -326,11 +326,15 @@ printk("PTRACE_PEEKDATA\n");
                          }
                          else if(addr == (sizeof(struct pt_regs) + 4))
                          {
-                             tmp = child->mm->start_data;
+                             // should really just be start_data but the .gdb file has data starting
+			     // at an offset and gdb refuses to reduce the start value
+                             tmp = child->mm->start_data - (child->mm->end_code - child->mm->start_code);
                          }
                          else if(addr == (sizeof(struct pt_regs) + 8))
                          {
-                             tmp = MAX_SHARED_LIBS * 4;
+                             // should really just be end_data but the .gdb file has data starting
+			     // at an offset and gdb refuses to reduce the start value
+                             tmp = child->mm->end_data - (child->mm->end_code - child->mm->start_code);
                          }
                          else
                          {
