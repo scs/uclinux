@@ -1,30 +1,34 @@
-/*****************************************************************************
-**																			**
-**	 Project Name: 	Video_Output											**	
-**																			**
-******************************************************************************
+/********************************************************************************************
+ *									    		    *
+ * 	Project Name- Video For Linux 2 For Blackfin 533 supoorted Platfors 		    *
+ *									    		    *
+ ********************************************************************************************
 
-(C) Copyright 2003 - Analog Devices, Inc.  All rights reserved.
+(C) Copyright 2005 -	Rrap Software Private Limited 
+ 
+File Name:		bfin_v4l2_device_config.S
 
-File Name:		config_dma.asm
+Date Modified:		4th March 3005	
 
-Date Modified:	4/4/03		CL		Rev 1.0
+Purpose:		Contains hardware specific Assembly functions. Description of each func
+			is given at respective places.
 
-Software:       VisualDSP++3.1
-
-Hardware:		ADSP-BF533 EZ-KIT Board
-
-Special Connections:  None
-
-Purpose:		This config_dma.asm file sets up DMA0 (PPI DMA) for transmit,
-				2D, autobuffer transfers from SDRAM memory to the PPI port.
-				
-******************************************************************************/
-
-
+			This program is free software; you can redistribute it and/or modify
+			it under the terms of the GNU General Public License as published by
+			the Free Software Foundation; either version 2 of the License, or
+			(at your option) any later version.
+			
+			 This program is distributed in the hope that it will be useful,
+			 but WITHOUT ANY WARRANTY; without even the implied warranty of
+			 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+			 GNU General Public License for more details.
+			
+			 You should have received a copy of the GNU General Public License
+			 along with this program; if not, write to the Free Software
+			 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *********************************************************************************************/ 
 #include <asm/board/defBF533.h>
 
-#define INTR_PERIOD 400
 #define NUM_OF_VOUT_FRAMES 2
 #define REAL_DATA 1
 #define UPDATE 1
@@ -46,7 +50,6 @@ Purpose:		This config_dma.asm file sets up DMA0 (PPI DMA) for transmit,
 #define portA_data_dir 0x06     // offset
 #define portB_data_dir 0x07     // offset
 
-
 .global _config_dma;
 .global dma_set_next_buf;
 
@@ -61,6 +64,17 @@ _dma_descriptor:
 .global _dma_descriptor;
 .type _dma_descriptor, STT_OBJECT ;
 .section .text;
+
+/***********************************************************************
+ * 	_config_dma -
+ *
+ *	Function:	To set PPI as per driver's requirement.
+ *	
+ *	Parameters:	This function uses value stored in R0 as Buffer 
+ *			address. So the if a c function wants to call
+ *			it, it should pass buffer address as the only
+ *			parameter.
+ ***********************************************************************/
 _config_dma:
 .align 4
 	[--sp] = p0;	
@@ -111,7 +125,6 @@ _config_dma:
 	P0.H = hi(DMA0_Y_MODIFY);	
 	W[P0] = R0.L;
 	
-	
 	p0 = [sp++];
 		
 	RTS;
@@ -137,13 +150,20 @@ dma_set_next_buf :
 
 dma_set_next_buf.END:
 
-
-/*Routine for Configuring PPI*/
+/************************************************************************
+ * 	_config_ppi -
+ *
+ * Function:		Configures PPI in required way.
+ *
+ * Parameters:		No Parameter
+ *
+ * Special Note: 	Before using this Function user should ensure that 
+ *			no one else is using PPI.
+ ***********************************************************************/  
 
 .global _config_ppi;
 .type _config_ppi, STT_FUNC ;
 _config_ppi:
-
 
         /* PPI Control Register:  Output direction, 656 mode.   */
 
@@ -155,11 +175,13 @@ _config_ppi:
         RTS;
 
 _config_ppi.END:
-/**********From here things specific to video starts**************/
 
-         /******Routine for Configuring IC AD7171******/
-
-
+/**************************************************************************
+ * _Flash_Setup_ADV_Reset  -
+ *
+ * Function:	It sets up ADV7171 chip in the desired mode.
+ *
+ *************************************************************************/
 _Flash_Setup_ADV_Reset:
 
         //Initialize flash A csio regs (port A and B).
@@ -178,8 +200,6 @@ _Flash_Setup_ADV_Reset:
         W[P1] = R0;                      //Set direction to output.
         ssync;
 
-
-
         //De-assert reset from ADP7171 device (flashA portA bit 2)
 
         P1.H = hi(flashA_csio);
@@ -188,26 +208,12 @@ _Flash_Setup_ADV_Reset:
         bitset(R0,RST_7171);     // de-assert reset of the encoder device
         B[P1] = R0;
 
-
-
         RTS;
 
 Flash_Setup_ADV_Reset.END:
 
 /******COLOR PATTERNS AND OTHER DATA BUFFERS*******/
-/*.section .video_buffer,"aw",@progbits;
-rgb_buffer:
-.space 0x200000 ;	//we dont need this much of space actually, but to keep rgb and ycrcb buffers apart i am putting extra space
-.global rgb_buffer ;
-.type rgb_buffer, STT_OBJECT ;
-rgb_buffer.end:
-.align 4 ;
-ycrcb_buffer:
-.space 1512000 ;
-.global ycrcb_buffer;
-.type ycrcb_buffer, STT_OBJECT ;
-ycrcb_buffer.end:
-*/
+
 .section .data
 .global _rgb_buffer;
 .type _rgb_buffer, STT_OBJECT ;
@@ -217,15 +223,12 @@ _rgb_buffer:
 _cycrcbbuffer:
 .byte4 0;
 
-
-
 // bit mappin.extern _Ntsc;g of line type for PAL, 1 Vblank line 0 active line
 // 0,   32,  64,  96
 // 128, 160, 192, 224
 // 256, 288, 320, 352
 // 384, 416, 448, 480
 // 512, 544, 576, 608
-
 
  PalLineMap:
 
@@ -290,7 +293,6 @@ _cycrcbbuffer:
 RGBLineCache:
 .space 1440 ;
 
-
 YCrCbLine:
 .space 1440;
 
@@ -312,7 +314,6 @@ _SystemCodeMap:
 .byte4 0xFF0000EC;
 .byte4 0xFF0000F1;
 .byte4 0;
-
 
 .global _NtscLineMap ;
  _NtscLineMap:
@@ -346,23 +347,28 @@ _ColorBarTable:
 .byte4   0x00ff00ff;  
 .byte4   0xffff00ff;
 
-
 .section .text.l1, "ax", @progbits;
 .align 4;
 
-// Parameters : R0 : destination buffer - YCrCb data buffer
-//              R1 : source buffer      - RGB   data buffer
-//              When calling from "C", first parameter is YCrCb buffer pointer
-//                                     second parameter is RGB buffer pointer
+/*****************************************************************************
+ *
+ * _NtscVideoOutFrameBuffInit  -
+ *
+ * Function:		Set up blaking info in the output buffer. Sets a Vertical 
+ *			Color Bar pattern also. Needed to called only once.
+ * Parameters : 	R0 : destination buffer - YCrCb data buffer
+ *             		R1 : source buffer      - RGB   data buffer
+ *             		When calling from "C", first parameter is pointer to Destination 
+ *			buffer, secon parameter is pointer to source buffer.
+ *
+ *****************************************************************************/
 _NtscVideoOutFrameBuffInit:
 
         [--sp] = rets;
         [--sp] = (r7:3, p5:0);
         [--sp] = astat;
 
-
-        P0 = R0;
-
+        P0 = R0;	//Destination address
 
         // load base of system code map in P5
         P5.h = _SystemCodeMap;
@@ -403,7 +409,6 @@ ntscoutputlinestart_init:
         r1 = r1 + r2; //next line
         p0 = r1;
 
-
 ntscoutputlineend_init:
         r0 += 2;                //increment line number
 ntscoutputfieldend_init:
@@ -432,7 +437,6 @@ NtscOutputLine_init:
         [--sp] = lc1;
         [--sp] = lb1;
         [--sp] = lt1;
-
 
 // determine if this is a VBlank line
         R1 = R0>>5;             // get offset (divide line number by 32)
@@ -469,9 +473,7 @@ NtscOutputLine_init:
 // **************** OUTPUT EAV ******************
 
         R1 = [P3 + 4];          // load EAV code , see down for storage
-#if 0
-        [P0++] = R1;            // store EAV in FIFO
-#else
+
         r2 = r1 >> 24;
         b[p0++] = r2;
         r2 = r1 >> 16;
@@ -479,19 +481,13 @@ NtscOutputLine_init:
         r2 = r1 >> 8;
         b[p0++] = r2;
         b[p0++] = r1;
-#endif
+
 // ***************** OUTPUT HORIZONTAL BLANKING ***************
 // store blank data information
         R1.h = 0x8010;
         R1.l = 0x8010;
 
 //number of sample to output 134/2
-#if 0
-        P2 = 67;
-        LSETUP(ntscoutputblank1, ntscoutputblank1) LC0 = P2;
-ntscoutputblank1:
-        [P0++] = R1;
-#else
         P2 = 67;
         LSETUP(ntscoutputblank1_s, ntscoutputblank1_e) LC0 = P2;
 ntscoutputblank1_s:
@@ -502,15 +498,12 @@ ntscoutputblank1_s:
         r2 = r1 >> 8;
         b[p0++] = r2;
 ntscoutputblank1_e:     b[p0++] = r1;
-#endif
 
 // **************** OUTPUT SAV ******************
         R2 = [P3 + 8];      // load video output flag
         R1 = [P3];          // load SAV code, see down for storage
         CC = BITTST(R2, 0); // test bit 0 to know if we have to output some video
-#if 0
-        [P0++] = R1;        // output SAV in FIFO
-#else
+
         r2 = r1 >> 24;
         b[p0++] = r2;
         r2 = r1 >> 16;
@@ -518,7 +511,7 @@ ntscoutputblank1_e:     b[p0++] = r1;
         r2 = r1 >> 8;
         b[p0++] = r2;
         b[p0++] = r1;
-#endif
+
         IF CC JUMP NtscOutputColorBarLine_init;
 
 // ***************** OUTPUT EMPTY HORIZONTAL DATA ***************
@@ -527,12 +520,7 @@ ntscoutputblank1_e:     b[p0++] = r1;
         R1.l = 0x8010;
 
 //number of sample to output 720/2
-#if 0
-        P2 = 360;
-        LSETUP(ntscoutputblank2, ntscoutputblank2) LC0 = P2;
-ntscoutputblank2:
-        [P0++] = R1;
-#else
+
         P2 = 360;
         LSETUP(ntscoutputblank2_s, ntscoutputblank2_e) LC0 = P2;
 ntscoutputblank2_s:
@@ -543,7 +531,6 @@ ntscoutputblank2_s:
         r2 = r1 >> 8;
         b[p0++] = r2;
 ntscoutputblank2_e:     b[p0++] = r1;
-#endif
 
 //      r1  = [sp++];
         lt1 = [sp++];
@@ -611,9 +598,7 @@ NOP;
         rets = [sp++];
         rts;
 
-
 _NtscVideoOutFrameBuffInit.END:
-
 
 .section .text.l1, "ax", @progbits;
 
@@ -715,7 +700,13 @@ memcpy_dma_wait :
 //              transfers the result to the final destination using MemDMA
 
 
-
+/***********************************************************************
+ *
+ * _rgb2crcb   -
+ *
+ * Function:	To convert RGB data into YCRCB format.
+ *
+ ***********************************************************************/
 .align 2
 _rgb2crcb:
 	LINK 0;
@@ -784,125 +775,6 @@ _rgb2crcb:
 
 	UNLINK;
 	rts;
-#if 0
-_rgb2crcb:
-
-// ".\rgb2ycrcb.c" line 4 col 1
-		link  28;
-
-._P1L2147483649:
-		[FP+ 8] = R0;
-		[FP+ 12] = R1;
-		[FP+ 16] = R2;
-.LN1:
-// ".\rgb2ycrcb.c" line 21 col 9
-		R0 = R0.B (Z);
-		[FP+ -24] = R0;
-.LN2:
-// ".\rgb2ycrcb.c" line 22 col 9
-		R1 = R1.B (Z);
-		[FP+ -20] = R1;
-.LN3:
-// ".\rgb2ycrcb.c" line 23 col 9
-		R2 = R2.B (Z);
-		[FP+ -16] = R2;
-.LN4:
-// ".\rgb2ycrcb.c" line 25 col 9
-		R6 =  263 (X);
-		R7 = R0.H*R6.L, R6 = R0.L*R6.L(FU);
-		R7 <<=  16;
-		R6 = R7 + R6;
-		R3 =  4080 (X);
-		R7 = R3 + R6;
-		R6=R1 <<  7;
-		R6 = (R6 + R1) << 2;
-		R5 = R7 + R6;
-		R6 =  100 (X);
-		R7 = R2.H*R6.L, R6 = R2.L*R6.L(FU);
-		R7 <<=  16;
-		R6 = R7 + R6;
-		R7 = R5 + R6;
-		[FP+ -12] = R7;
-.LN5:
-// ".\rgb2ycrcb.c" line 26 col 9
-		R4 =  152 (X);
-		R5 = R0.H*R4.L, R4 = R0.L*R4.L(FU);
-		R5 <<=  16;
-		R4 = R5 + R4;
-		R6 =   0;
-		BITSET( R6, 17);
-		R5 = R6 - R4;
-		R6 =  298 (X);
-		R7 = R1.H*R6.L, R6 = R1.L*R6.L(FU);
-		R7 <<=  16;
-		R6 = R7 + R6;
-		R7 = R5 - R6;
-		R4 =  450 (X);
-		R5 = R2.H*R4.L, R4 = R2.L*R4.L(FU);
-		R5 <<=  16;
-		R4 = R5 + R4;
-		R6 = R7 + R4;
-		[FP+ -8] = R6;
-.LN6:
-// ".\rgb2ycrcb.c" line 27 col 9
-		R4 =  450 (X);
-		R5 = R0.H*R4.L, R4 = R0.L*R4.L(FU);
-		R5 <<=  16;
-		R4 = R5 + R4;
-		R7 =   0;
-		BITSET( R7, 17);
-		R5 = R7 + R4;
-		R6 =  377 (X);
-		R7 = R1.H*R6.L, R6 = R1.L*R6.L(FU);
-		R7 <<=  16;
-		R6 = R7 + R6;
-		R7 = R5 - R6;
-		R4 =  73 (X);
-		R5 = R2.H*R4.L, R4 = R2.L*R4.L(FU);
-		R5 <<=  16;
-		R4 = R5 + R4;
-		R6 = R7 - R4;
-		[FP+ -4] = R6;
-.LN7:
-// ".\rgb2ycrcb.c" line 29 col 9
-		R5=[FP+ -12];
-		R5 >>>=  10;
-		R7 = R5 ;
-		R7 = R7.B (Z);
-		R5 <<=  16;
-		R5.L =  4104;
-		R4=[FP+ -28];
-		R4 = DEPOSIT(R4,R5);
-		[FP+ -28] = R4;
-		R7 <<=  16;
-		R7.L =  8;
-		R4 = DEPOSIT(R4,R7);
-		[FP+ -28] = R4;
-.LN8:
-// ".\rgb2ycrcb.c" line 30 col 9
-		R6 >>>=  10;
-		R6 <<=  16;
-		R6.L =  2056;
-		R4 = DEPOSIT(R4,R6);
-		[FP+ -28] = R4;
-.LN9:
-// ".\rgb2ycrcb.c" line 31 col 9
-		R7=[FP+ -8];
-		R7 >>>=  10;
-		R7 <<=  16;
-		R7.L =  6152;
-		R0 = DEPOSIT(R4,R7);
-		[FP+ -28] = R0;
-.LN10:
-// ".\rgb2ycrcb.c" line 32 col 9
-		JUMP ._P1L2147483647;
-.LN11:
-
-._P1L2147483647:
-		unlink;
-
-		rts;
-#endif
 _rgb2crcb.end:
 .global _rgb2crcb;
 .type _rgb2crcb, STT_FUNC;

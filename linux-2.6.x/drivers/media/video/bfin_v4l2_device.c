@@ -1,25 +1,41 @@
-/*
- * linux/drivers/video/bfin_ad7171.c -- Analog Devices Blackfin + AD7171 video out chip
- * 
- * Based on vga16fb.cCopyright 1999 Ben Pfaff <pfaffben@debian.org> and Petr Vandrovec <VANDROVE@vc.cvut.cz>
- * Copyright 2004 Ashutosh Kumar Singh (ashutosh.singh@rrap-software.com)
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License.  See the file COPYING in the main directory of this
- * archive for more details.  
- */
+/********************************************************************************************
+ *									    		    *
+ * 	Project Name- Video For Linux 2 For Blackfin 533 supoorted Platfors 		    *
+ *									    		    *
+ ********************************************************************************************
 
-#include <linux/module.h>
+(C) Copyright 2005 -	Rrap Software Private Limited 
+ 
+File Name:		bfin_v4l2_device.c
+
+Date Modified:		4th March 3005	
+
+Purpose:		To perform hardware specfic operations.
+			
+Author:			Ashutosh K Singh <ashutosh.singh@rrap-software.com>
+
+Based on 	 	Zoran zr36057/zr36067 PCI controller driver, for the
+ 	 		Pinnacle/Miro DC10/DC10+/DC30/DC30+, Iomega Buz, Linux
+			Media Labs LML33/LML33R10.  by Serguei Miridonov <mirsev@cicese.mx>
+
+			This program is free software; you can redistribute it and/or modify
+			it under the terms of the GNU General Public License as published by
+			the Free Software Foundation; either version 2 of the License, or
+			(at your option) any later version.
+			
+			 This program is distributed in the hope that it will be useful,
+			 but WITHOUT ANY WARRANTY; without even the implied warranty of
+			 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+			 GNU General Public License for more details.
+			
+			 You should have received a copy of the GNU General Public License
+			 along with this program; if not, write to the Free Software
+			 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *********************************************************************************************/ 
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/fb.h>
-#include <linux/ioport.h>
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
@@ -33,20 +49,10 @@
 #define MAX_NO_OF_FRAMES	20
 #define FRAME_SIZE		188640
 
-struct timer_list buffer_swapping_timer ;
 extern char *ycrcb_buffer_out ; 	//definition and mem allocation
 					//in driver file.
 extern char *pre_ycrcb_buffer_out ;
-
-short int temp_ycrcb_frame_no = 0;	//It's current value
-					//shall represent frame
-					//(in the group of frames)
-					//currently being transmitted
-char *temp_pre_ycrcb_buffer_out;//if dont understand why 
-				//is this needed, look for
-				//above declaration and
-				//corresponding comment :-)
-short int bfin_v4l2_timer_status =0;
+static int id;
 
 irqreturn_t __attribute((section(".text.l1")))
 ppi_handler(int irq,
@@ -57,73 +63,9 @@ ppi_handler(int irq,
   return IRQ_HANDLED;
 }
 
-
-
-static void timerfunction(unsigned long ptr);
-static void timer_setup(void);
-
-static void __attribute((section(".text.l1")))
-timerfunction(unsigned long ptr)
-{
-	if(temp_ycrcb_frame_no >= MAX_NO_OF_FRAMES) 
-		bfin_v4l2_timer_status = 0;
-	else {
-		_NtscVideoOutBuffUpdate(ycrcb_buffer_out, pre_ycrcb_buffer_out);
-		timer_setup();
-		bfin_v4l2_timer_status = 1 ;
-        	add_timer(&buffer_swapping_timer) ;
-		pre_ycrcb_buffer_out += temp_ycrcb_frame_no++ ;
-	}
-}
-
-
-void
-timer_setup(void)
-{
-
-        /*** Initialize the timer structure***/
-
-        init_timer(&buffer_swapping_timer) ;
-        buffer_swapping_timer.function = timerfunction ;
-        buffer_swapping_timer.expires = jiffies + HZ*1 ;
-
-        /***Initialisation ends***/
-
-}
-
-static int id;
-
 void
 init_device_bfin_v4l2()
 {
-
-/*****************************************************************
- *
- *
- *
- * Very first of all lets try to aquire DMA channels.
- * We will need PPI dma that will output data to AD7171
- * chip.
- * Then we will need a pair of MEM DMA channels to
- * transfer data from YCRCB buffer to output buffer
- * which contain blanking information as well.
- *
- *
- *
- ****************************************************************/
-
-
-/* We need to request
- * kernel for PPI DMA channel
- */
-#if 0 
-	if( request_dma(CH_PPI, "BFIN_V4L2_DRIVER", NULL) ){
-		printk( KERN_ERR, "Unable to allocate ppi dma %d\n", CH_PPI);
-		return -ENODEV;
-	}
-#endif
-
-
 /* Request for getting PPI
  * interrupt vector location
  * to use our own PPI interrupt 
@@ -134,41 +76,7 @@ init_device_bfin_v4l2()
 		freedma(CH_PPI);
                 return -ENODEV;
         }
-
-
-#if 0
-/* If we have got PPI DMA channel
- * lets try for MEM DMA channel.
- */
-if(! request_dma(CH_MEM_STREAM0_DEST, "BFIN_V4L2_DRIVER", NULL) {
-                 printk( KERN_ERR, "Unable to allocate mem dma %d\n", CH_MEM_STREAM0_DEST);
-		freedma(CH_PPI);
-		disable_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
-                return -ENODEV;
-        }
-
-        if(request_dma(CH_MEM_STREAM0_SRC, "BFIN_V4L2_DRIVER", NULL) {
-                 printk( KERN_ERR, "Unable to allocate mem dma %d\n", CH_MEM_STREAM0_SRC);
-		freedma(CH_PPI);
-		disable_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
-		freedma(CH_MEM_STREAM0_DEST);
-                return -ENODEV;
-        }
-
-
-/*******************************************************************
- *
- *
- * If we have reached upto here, we have got dma channels
- * lets configure them. 
- *
- *
- ******************************************************************/
-#endif
-
-
 	_NtscVideoOutFrameBuffInit(ycrcb_buffer_out, pre_ycrcb_buffer_out);
-	
 	_Flash_Setup_ADV_Reset() ;
 	_config_ppi() ;
 	_config_dma(ycrcb_buffer_out) ;
@@ -184,15 +92,7 @@ device_bfin_close()
 	//disable DMA
 	*pPPI_CONTROL &= 0;
 	*pDMA0_CONFIG &= 0;
-#if 0
-	freedma(CH_PPI);
-#endif
 	//Release the interrupt.
 	free_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &id);
 	printk(" bfin_ad7171 Realeased\n") ;
-}
-void
-bfin_v4l2_update_video()
-{
-	_NtscVideoOutBuffUpdate(ycrcb_buffer_out, pre_ycrcb_buffer_out);
 }

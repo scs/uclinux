@@ -10,11 +10,19 @@
 #include <time.h>
 
 int colorarray[] = {
+#if 0
 	   0x80108010,
 	   0x5A51F051,
 	   0x36912291,
 	   0xA6AA10AA,
 	   0x80EB80EB
+#else
+	0x10801080,
+	0x51F0515A,
+	0x91229136,
+	0xAA10AAA6,
+	0xEB80EB80
+#endif
 		} ;
 
 int screen_fd ;
