@@ -40,6 +40,69 @@ extern u_long get_cclk(void);
 #define TSCALE_COUNT ((get_cclk()/1000000) >> TSCALE_SHIFT)
 #define CLOCKS_PER_JIFFY ((1000*1000/HZ) << TSCALE_SHIFT)
 
+void __init init_leds(void)
+{
+	unsigned int tmp = 0;
+
+	/* config PF2/3/4 as output. */
+	tmp = *pFIO_DIR;
+	asm("ssync;");
+	*pFIO_DIR = tmp | 0x1C;
+	asm("ssync;");
+
+	/*	First set led be off */
+	tmp = *pFIO_FLAG_D;
+	asm("ssync;");
+	*pFIO_FLAG_D = tmp | 0x1C;	/* light off */
+	asm("ssync;");
+}
+
+#define	LED_ON	0
+#define	LED_OFF	1
+/*
+ *	We are using a different LED from the one used to indicate timer interrupt.
+ */
+void leds_switch(int flag)
+{
+	unsigned short tmp = 0;
+
+	tmp = *pFIO_FLAG_D;
+	asm("ssync;");
+
+	if( flag== LED_ON )
+		tmp &=~0x8;	/* light on */
+	else
+		tmp |=0x8;	/* light off */
+
+	*pFIO_FLAG_D = tmp;
+	asm("ssync;");
+
+}	
+EXPORT_SYMBOL(leds_switch);
+
+static void do_leds(void)
+{
+	static unsigned int count = 50;
+	static int	flag = 0;
+	unsigned short tmp = 0;
+
+	if( --count==0 ) {
+		count = 50;
+		flag = ~flag;
+	}
+	tmp = *pFIO_FLAG_D;
+	asm("ssync;");
+
+	if( flag )
+		tmp &=~0x10;	/* light on */
+	else
+		tmp |=0x10;	/* light off */
+
+	*pFIO_FLAG_D = tmp;
+	asm("ssync;");
+
+}
+
 void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
 {
 	/* power up the timer, but don't enable it just yet */
@@ -77,9 +140,15 @@ static inline int set_rtc_mmss(unsigned long nowtime)
     return 0;
 }
 
-static inline void do_profile (unsigned long pc)
+static inline void do_profile (struct pt_regs * regs)
 {
-	if (prof_buffer && current->pid) {
+	unsigned long pc;
+     
+	pc = regs->pc;
+	     
+	profile_hook(regs);     
+     
+        if (prof_buffer && current->pid) {
 		extern int _stext;
 		pc -= (unsigned long) &_stext;
 		pc >>= prof_shift;
@@ -107,9 +176,10 @@ static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 	write_seqlock(&xtime_lock); 
 
 	do_timer(regs);
+	do_leds();
 	
 	if (!user_mode(regs))
-		do_profile(regs->pc);
+		do_profile(regs);
 	/*
 	 * If we have an externally synchronized Linux clock, then update
 	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be

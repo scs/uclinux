@@ -19,19 +19,23 @@
 #include <asm/blackfin.h>
 #include <asm/uaccess.h>
 
-asmlinkage void ret_from_fork(void);
+#define	LED_ON	0
+#define	LED_OFF	1
 
+asmlinkage void ret_from_fork(void);
+void leds_switch(int flag);
 /*
  * The idle loop on BFIN 
  */
 static void default_idle(void)
 {
 	while(1) {
-		  while (!need_resched())
+		leds_switch(LED_OFF);
+		while (!need_resched())
 			__asm__("idle;\n\t" : : : "cc"); 
+		leds_switch(LED_ON);
 		schedule();
 	}
-
 }
 
 void (*bfin_idle)(void) = default_idle;

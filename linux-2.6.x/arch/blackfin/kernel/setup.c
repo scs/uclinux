@@ -29,6 +29,7 @@ unsigned long memory_end;
 char command_line[COMMAND_LINE_SIZE];
 u_long vco = 0; 
 
+void init_leds(void);
 void bf53x_cache_init(void);
 u_long get_cclk(void) ;
 u_long get_sclk(void);
@@ -87,6 +88,7 @@ void setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) &_edata;
 	init_mm.brk = (unsigned long) 0;	
 	
+	init_leds();
 	id = get_dsp_rev_id();
 
 	printk(KERN_INFO "Blackfin support (C) 2004 Analog Devices, Inc.\n");
