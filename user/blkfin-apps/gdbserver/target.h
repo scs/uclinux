@@ -133,6 +133,7 @@ struct target_ops
      Read LEN bytes at OFFSET into a buffer at MYADDR.  */
 
   int (*read_auxv) (CORE_ADDR offset, char *myaddr, unsigned int len);
+  void (*read_offset) (char *own_buf);
 };
 
 extern struct target_ops *the_target;
