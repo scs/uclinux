@@ -1,0 +1,132 @@
+From kernel/suspend.c:
+
+ * BIG FAT WARNING *********************************************************
+ *
+ * If you have unsupported (*) devices using DMA...
+ *				...say goodbye to your data.
+ *
+ * If you touch anything on disk between suspend and resume...
+ *				...kiss your data goodbye.
+ *
+ * If your disk driver does not support suspend... (IDE does)
+ *				...you'd better find out how to get along
+ *				   without your data.
+ *
+ * (*) pm interface support is needed to make it safe.
+
+You need to append resume=/dev/your_swap_partition to kernel command
+line. Then you suspend by echo 4 > /proc/acpi/sleep.
+
+Pavel's unreliable guide to swsusp mess
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are currently two versions of swap suspend in the kernel, the old
+"Pavel's" version in kernel/power/swsusp.c and the new "Patrick's"
+version in kernel/power/pmdisk.c. They provide the same functionality;
+the old version looks ugly but was tested, while the new version looks
+nicer but did not receive so much testing. echo 4 > /proc/acpi/sleep
+calls the old version, echo disk > /sys/power/state calls the new one.
+
+[In the future, when the new version is stable enough, two things can
+happen:
+
+* the new version is moved into swsusp.c, and swsusp is renamed to swap
+  suspend (Pavel prefers this)
+
+* pmdisk is kept as is and swsusp.c is removed from the kernel]
+
+
+
+Article about goals and implementation of Software Suspend for Linux
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Author: G‚ábor Kuti
+Last revised: 2003-10-20 by Pavel Machek
+
+Idea and goals to achieve
+
+Nowadays it is common in several laptops that they have a suspend button. It
+saves the state of the machine to a filesystem or to a partition and switches
+to standby mode. Later resuming the machine the saved state is loaded back to
+ram and the machine can continue its work. It has two real benefits. First we
+save ourselves the time machine goes down and later boots up, energy costs
+real high when running from batteries. The other gain is that we don't have to
+interrupt our programs so processes that are calculating something for a long
+time shouldn't need to be written interruptible.
+
+Using the code
+
+You have two ways to use this code. The first one is is with a patched
+SysVinit (my patch is against 2.76 and available at my home page). You
+might call 'swsusp' or 'shutdown -z <time>'. Next way is to echo 4 >
+/proc/acpi/sleep.
+
+Either way it saves the state of the machine into active swaps and then
+reboots.  You must explicitly specify the swap partition to resume from with
+``resume='' kernel option. If signature is found it loads and restores saved
+state. If the option ``noresume'' is specified as a boot parameter, it skips
+the resuming.
+
+In the meantime while the system is suspended you should not touch any of the
+hardware!
+
+About the code
+
+Things to implement
+- SMP support. I've done an SMP support but since I don't have access to a kind
+  of this one I cannot test it. Please SMP people test it.  .. Tested it,
+  doesn't work. Had no time to figure out why. There is some mess with
+  interrupts AFAIK..
+- We should only make a copy of data related to kernel segment, since any
+  process data won't be changed.
+- Should make more sanity checks. Or are these enough?
+
+Not so important ideas for implementing
+
+- If a real time process is running then don't suspend the machine.
+- Support for adding/removing hardware while suspended?
+- We should not free pages at the beginning so aggressively, most of them
+  go there anyway..
+
+Drivers that need support
+- pc_keyb -- perhaps we can wait for vojtech's input patches
+- do IDE cdroms need some kind of support?
+- IDE CD-RW -- how to deal with that?
+
+Sleep states summary (thanx, Ducrot)
+====================================
+
+In a really perfect world:
+echo 1 > /proc/acpi/sleep       # for standby
+echo 2 > /proc/acpi/sleep       # for suspend to ram
+echo 3 > /proc/acpi/sleep       # for suspend to ram, but with more power conservative
+echo 4 > /proc/acpi/sleep       # for suspend to disk
+echo 5 > /proc/acpi/sleep       # for shutdown unfriendly the system
+
+and perhaps
+echo 4b > /proc/acpi/sleep      # for suspend to disk via s4bios
+
+
+FAQ:
+
+Q: well, suspending a server is IMHO a really stupid thing,
+but... (Diego Zuccato):
+
+A: You bought new UPS for your server. How do you install it without
+bringing machine down? Suspend to disk, rearrange power cables,
+resume.
+
+You have your server on UPS. Power died, and UPS is indicating 30
+seconds to failure. What do you do? Suspend to disk.
+
+Ethernet card in your server died. You want to replace it. Your
+server is not hotplug capable. What do you do? Suspend to disk,
+replace ethernet card, resume. If you are fast your users will not
+even see broken connections.
+
+Any other idea you might have tell me!
+
+Contacting the author
+If you have any question or any patch that solves the above or detected
+problems please contact me at seasons@falcon.sch.bme.hu. I might delay
+answering, sorry about that.
+

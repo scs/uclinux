@@ -1,0 +1,28 @@
+
+menu "Intel IXP425 Implementations"
+
+config ARCH_SUPPORTS_BIG_ENDIAN
+	bool
+	default y
+
+config ARCH_IXDP425
+	bool "Support for Intel IXDP425 (Richfield) Development Platform"
+	depends on ARCH_IXP425
+
+config ARCH_PRPMC1100
+	bool "Support for Motorola PrPMC 1100 Platform"
+	depends on ARCH_IXP425
+
+config ARCH_IXCDP1100
+	bool "Support for Intel IXCDP1100 Development Platform"
+	depends on ARCH_IXP425
+
+config ARCH_ADI_COYOTE
+	bool "Support for ADI Engineering IXP425 based Coyote Development Platform"
+	depends on ARCH_IXP425
+
+config ARCH_SE4000
+	bool "Support for SnapGear SE4000 VPN Router"
+	depends on ARCH_IXP425
+
+endmenu

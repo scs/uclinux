@@ -1,0 +1,412 @@
+# 
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+config 64BIT
+	def_bool y
+
+config MMU
+	bool
+	default y
+
+config UID16
+	bool
+
+config RWSEM_GENERIC_SPINLOCK
+	bool
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+	default y
+
+config GENERIC_ISA_DMA
+	bool
+	default y
+
+config HAVE_DEC_LOCK
+	bool
+	default y
+
+config EARLY_PRINTK
+	bool
+	default y
+
+config COMPAT
+	bool
+	default y
+
+config FRAME_POINTER
+	bool
+	default y
+
+# We optimistically allocate largepages from the VM, so make the limit
+# large enough (16MB). This badly named config option is actually
+# max order + 1
+config FORCE_MAX_ZONEORDER
+	int
+	default "13"
+
+source "init/Kconfig"
+
+
+menu "Platform support"
+
+choice
+	prompt "Platform Type"
+	default PPC_PSERIES
+
+config PPC_ISERIES
+	bool "iSeries"
+
+config PPC_PSERIES
+	bool "pSeries"
+
+endchoice
+
+config PPC
+	bool
+	default y
+
+config PPC64
+	bool
+	default y
+
+# VMX is pSeries only for now until somebody writes the iSeries
+# exception vectors for it
+config ALTIVEC
+	bool "Support for VMX (Altivec) vector unit"
+	depends on PPC_PSERIES
+	default y
+
+config POWER4_ONLY
+	bool "Optimize for POWER4"
+	default n
+	---help---
+	  Cause the compiler to optimize for POWER4 processors. The resulting
+	  binary will not work on POWER3 or RS64 processors when compiled with
+	  binutils 2.15 or later.
+
+config SMP
+	bool "Symmetric multi-processing support"
+	---help---
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, say N. If you have a system with more
+	  than one CPU, say Y.
+
+	  If you say N here, the kernel will run on single and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on single-processor machines.
+	  On a single-processor machine, the kernel will run faster if you say
+	  N here.
+
+	  If you don't know what to do here, say Y.
+
+config IRQ_ALL_CPUS
+	bool "Distribute interrupts on all CPUs by default"
+	depends on SMP && PPC_PSERIES
+	help
+	  This option gives the kernel permission to distribute IRQs across
+	  multiple CPUs.  Saying N here will route all IRQs to the first
+	  CPU.
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-128)"
+	range 2 128
+	depends on SMP
+	default "32"
+
+config HMT
+	bool "Hardware multithreading"
+	depends on SMP && PPC_PSERIES
+
+config DISCONTIGMEM
+	bool "Discontiguous Memory Support"
+	depends on SMP && PPC_PSERIES
+
+config NUMA
+	bool "NUMA support"
+	depends on DISCONTIGMEM
+
+config PREEMPT
+	bool
+	help
+	  This option reduces the latency of the kernel when reacting to
+	  real-time or interactive events by allowing a low priority process to
+	  be preempted even if it is in kernel mode executing a system call.
+	  Unfortunately the kernel code has some race conditions if both
+	  CONFIG_SMP and CONFIG_PREEMPT are enabled, so this option is
+	  currently disabled if you are building an SMP kernel.
+
+	  Say Y here if you are building a kernel for a desktop, embedded
+	  or real-time system.  Say N if you are unsure.
+
+config MSCHUNKS
+	bool
+	depends on PPC_ISERIES
+	default y
+
+
+config PPC_RTAS
+	bool "Proc interface to RTAS"
+	depends on !PPC_ISERIES
+
+config RTAS_FLASH
+	tristate "Firmware flash interface"
+	depends on PPC_RTAS
+
+config SCANLOG
+	tristate "Scanlog dump interface"
+	depends on PPC_RTAS
+
+config LPARCFG
+	bool "LPAR Configuration Data"
+	help
+	Provide system capacity information via human readable 
+	<key word>=<value> pairs through a /proc/ppc64/lparcfg interface.
+
+endmenu
+
+
+menu "General setup"
+
+config ISA
+	bool
+	help
+	  Find out whether you have ISA slots on your motherboard.  ISA is the
+	  name of a bus system, i.e. the way the CPU talks to the other stuff
+	  inside your box.  If you have an Apple machine, say N here; if you
+	  have an IBM RS/6000 or pSeries machine or a PReP machine, say Y.  If
+	  you have an embedded board, consult your board documentation.
+
+config SBUS
+	bool
+
+config MCA
+	bool
+
+config EISA
+	bool
+
+config PCI
+	bool
+	default y
+	help
+	  Find out whether your system includes a PCI bus. PCI is the name of
+	  a bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box.  If you say Y here, the kernel will include drivers and
+	  infrastructure code to support PCI bus devices.
+
+config PCI_DOMAINS
+	bool
+	default PCI
+
+source "fs/Kconfig.binfmt"
+
+source "drivers/pci/Kconfig"
+
+config HOTPLUG
+	bool "Support for hot-pluggable devices"
+	---help---
+	  Say Y here if you want to plug devices into your computer while
+	  the system is running, and be able to use them quickly.  In many
+	  cases, the devices can likewise be unplugged at any time too.
+
+	  One well known example of this is PCMCIA- or PC-cards, credit-card
+	  size devices such as network cards, modems or hard drives which are
+	  plugged into slots found on all modern laptop computers.  Another
+	  example, used on modern desktops as well as laptops, is USB.
+
+	  Enable HOTPLUG and KMOD, and build a modular kernel.  Get agent
+	  software (at <http://linux-hotplug.sourceforge.net/>) and install it.
+	  Then your kernel will automatically call out to a user mode "policy
+	  agent" (/sbin/hotplug) to load modules and set up software needed
+	  to use devices as you hotplug them.
+
+source "drivers/pcmcia/Kconfig"
+
+source "drivers/pci/hotplug/Kconfig"
+
+config PROC_DEVICETREE
+	bool "Support for Open Firmware device tree in /proc"
+	depends on !PPC_ISERIES
+	help
+	  This option adds a device-tree directory under /proc which contains
+	  an image of the device tree that the kernel copies from Open
+	  Firmware. If unsure, say Y here.
+
+config CMDLINE_BOOL
+	bool "Default bootloader kernel arguments"
+	depends on !PPC_ISERIES
+
+config CMDLINE
+	string "Initial kernel command string"
+	depends on CMDLINE_BOOL
+	default "console=ttyS0,9600 console=tty0 root=/dev/sda2"
+	help
+	  On some platforms, there is currently no way for the boot loader to
+	  pass arguments to the kernel. For these platforms, you can supply
+	  some command-line options at build time by entering them here.  In
+	  most cases you will need to specify the root device here.
+
+endmenu
+
+source "drivers/base/Kconfig"
+
+source "drivers/mtd/Kconfig"
+
+source "drivers/parport/Kconfig"
+
+source "drivers/pnp/Kconfig"
+
+source "drivers/block/Kconfig"
+
+source "drivers/ide/Kconfig"
+
+source "drivers/scsi/Kconfig"
+
+source "drivers/md/Kconfig"
+
+source "drivers/message/fusion/Kconfig"
+
+source "drivers/ieee1394/Kconfig"
+
+source "drivers/message/i2o/Kconfig"
+
+source "net/Kconfig"
+
+source "drivers/isdn/Kconfig"
+
+source "drivers/telephony/Kconfig"
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source "drivers/input/Kconfig"
+
+source "drivers/char/Kconfig"
+
+source "drivers/i2c/Kconfig"
+
+source "drivers/media/Kconfig"
+
+source "fs/Kconfig"
+
+source "drivers/video/Kconfig"
+
+source "sound/Kconfig"
+
+source "drivers/usb/Kconfig"
+
+
+menu "iSeries device drivers"
+	depends on PPC_ISERIES
+
+config VIOCONS
+	tristate "iSeries Virtual Console Support"
+
+config VIODASD
+	tristate "iSeries Virtual I/O disk support"
+	help
+	  If you are running on an iSeries system and you want to use
+ 	  virtual disks created and managed by OS/400, say Y.
+
+config VIODASD_IDE
+	bool "iSeries Virtual disk IDE emulation"
+	depends on VIODASD
+	help
+	  This causes the iSeries virtual disks to look like IDE disks.
+	  If you have programs or utilities that only support certain
+	  kinds of disks, this option will cause iSeries virtual disks
+	  to pretend to be IDE disks, which may satisfy the program.
+
+config VIOCD
+	tristate "iSeries Virtual I/O CD support"
+	help
+	  If you are running Linux on an IBM iSeries system and you want to
+	  read a CD drive owned by OS/400, say Y here.
+
+config VIOCD_AZTECH
+	bool "iSeries Virtual CD Aztech emulation"
+	depends on VIOCD
+
+config VIOTAPE
+	tristate "iSeries Virtual Tape Support"
+	help
+	  If you are running Linux on an iSeries system and you want Linux
+	  to read and/or write a tape drive owned by OS/400, say Y here.
+
+config VETH
+	tristate "iSeries Virtual Ethernet driver support"
+
+endmenu
+
+config VIOPATH
+	bool
+	depends on VIOCONS || VIODASD || VIOCD || VIOTAPE || VETH
+	default y
+
+source "arch/ppc64/oprofile/Kconfig"
+
+menu "Kernel hacking"
+
+config DEBUG_KERNEL
+	bool "Kernel debugging"
+	help
+	  Say Y here if you are developing drivers or trying to debug and
+	  identify kernel problems.
+
+config DEBUG_SLAB
+	bool "Debug memory allocations"
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here to have the kernel do limited verification on memory
+	  allocation as well as poisoning memory on free to catch use of freed
+	  memory.
+
+config MAGIC_SYSRQ
+	bool "Magic SysRq key"
+	depends on DEBUG_KERNEL
+	help
+	  If you say Y here, you will have some control over the system even
+	  if the system crashes for example during kernel debugging (e.g., you
+	  will be able to flush the buffer cache to disk, reboot the system
+	  immediately or dump some status information). This is accomplished
+	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
+	  also works on a serial console (on PC hardware at least), if you
+	  send a BREAK and then within 5 seconds a command keypress. The
+	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
+	  unless you really know what this hack does.
+
+config XMON
+	bool "Include xmon kernel debugger"
+	depends on DEBUG_KERNEL
+	help
+	  Include in-kernel hooks for the xmon kernel monitor/debugger.
+	  Unless you are intending to debug the kernel, say N here.
+
+config XMON_DEFAULT
+	bool "Enable xmon by default"
+	depends on XMON
+
+config PPCDBG
+	bool "Include PPCDBG realtime debugging"
+	depends on DEBUG_KERNEL
+
+config DEBUG_INFO
+	bool "Compile the kernel with debug info"
+	depends on DEBUG_KERNEL
+	help
+          If you say Y here the resulting kernel image will include
+	  debugging info resulting in a larger kernel image.
+	  Say Y here only if you plan to use gdb to debug the kernel.
+	  If you don't debug the kernel, you can say N.
+	  
+endmenu
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"
+
