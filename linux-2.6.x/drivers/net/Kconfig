@@ -808,21 +808,21 @@ config SMC9194
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called smc9194.
 
-config SMC91C111
-	tristate "SMC 91C111 support"
+config SMSC91C111
+	tristate "SMSC 91C111 support"
 	depends on NET_VENDOR_SMC && (ISA || MAC && BROKEN || EMBEDDED)
 	select CRC32
 	---help---
 	  This is support for the SMC9xxx based Ethernet cards. Choose this
 	  option if you have a DELL laptop with the docking station, or
-	  another SMC91C111 based chipset.  Say Y if you want it compiled
+	  another SMSC91C111 based chipset.  Say Y if you want it compiled
 	  into the kernel, and read the file
 	  <file:Documentation/networking/smc9.txt> and the Ethernet-HOWTO,
 	  available from <http://www.tldp.org/docs.html#howto>.
 
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>. The module
-	  will be called smc91111.
+	  will be called smsc91111.
 
 config NET_VENDOR_RACAL
 	bool "Racal-Interlan (Micom) NI cards"
