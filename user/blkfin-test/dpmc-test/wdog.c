@@ -1,0 +1,55 @@
+/*
+ * RTC driver test code
+ */
+
+#include <time.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <linux/ioctl.h>
+#include <errno.h>
+#include "dpmc.h"
+#include <linux/rtc.h>
+#include "blackfin_rtc.h"
+
+int main()
+{
+	int fd;
+	int ret;
+
+	printf("##########################DPMC Test Programs##################################\n");
+
+/*******************************Open the dpmc device ***********************************/
+	fd = open("/dev/dpmc", O_RDONLY,0);
+	if (fd == -1) {
+		printf("/dev/dpmc open error %d\n",errno);
+		exit(1);
+	}
+	else printf("open success fd = %d \n",fd);
+
+	printf("IOCTL to disable the WDOG timer \n");
+	ret = ioctl(fd, IOCTL_DISABLE_WDOG_TIMER, NULL);
+	if(ret == 0)
+		printf("WDOG disabled \n");
+
+	printf("IOCTL to program the WDOG timer \n");
+	ret = ioctl(fd, IOCTL_PROGRAM_WDOG_TIMER, 0x10000);
+	if(ret == 0)
+		printf("WDOG programming success \n");
+
+	printf("IOCTL to unmask the WDOG timer \n");
+	ret = ioctl(fd, IOCTL_UNMASK_WDOG_WAKEUP_EVENT, NULL);
+	if(ret == 0)
+		printf("WDOG event unmask success\n");
+
+	printf("IOCTL to clear the WDOG wakeup event \n");
+	ret = ioctl(fd, IOCTL_CLEAR_WDOG_WAKEUP_EVENT, NULL);
+	if(ret == 0)
+		printf("WDOG timer wakeup event cleared \n");
+
+	close(fd);
+
+	return 0;
+}
