@@ -53,6 +53,36 @@ extern int read_iloc(void);
 #define	CPU "UNKOWN"
 #endif
 
+//
+#ifdef CONFIG_BF533
+#define L1_CODE_START           0xFFA00000
+#ifdef CONFIG_BLKFIN_CACHE
+#define L1_CODE_LENGTH          (0x10000 - 0x4000)
+#else
+#define L1_CODE_LENGTH          0x10000
+#endif
+#ifdef CONFIG_BLKFIN_DCACHE
+#define L1_DATA_LENGTH          (0x8000 - 0x4000)
+#else
+#define L1_DATA_LENGTH          (0x8000 - 0x4000)
+#endif
+#endif
+
+#ifdef CONFIG_BF532
+#define L1_CODE_START   0xFFA08000
+#ifdef CONFIG_BLKFIN_CACHE
+#define L1_CODE_LENGTH          (0xC000 - 0x4000)
+#else
+#define L1_CODE_LENGTH          0xC000
+#endif
+#endif
+
+#ifdef CONFIG_BF531
+#define L1_CODE_START   0xFFA08000
+#define L1_CODE_LENGTH          0x4000
+#endif
+//
+
 void bf53x_cache_init(void)
 {
 #ifdef CONFIG_BLKFIN_CACHE
@@ -65,12 +95,48 @@ void bf53x_cache_init(void)
 #endif
 }
 
+static volatile int mem_dma_status = 0;
+irqreturn_t bfin_memdma_int_handler(int irq, void *dev_id, struct pt_regs *regs);
+
+int DmaMemCpy(char *dest_addr , char *source_addr, int size);
+
 extern char _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
 extern int _ramstart, _ramend;
+int id;
+extern char _stext_l1, _etext_l1, _sdata_l1, _edata_l1, _sbss_l1, _ebss_l1;
+
+void bf53x_relocate_l1_mem(void)
+{
+  extern char _l1_lma_start;
+  unsigned long l1_length;
+
+  l1_length = &_etext_l1 - &_stext_l1;
+  if(l1_length > L1_CODE_LENGTH)
+    l1_length = L1_CODE_LENGTH;
+  /* cannot complain as printk is not available as yet.
+     But we can continue booting and complain later!
+  */
+
+  /* Copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
+  DmaMemCpy(&_stext_l1, &_l1_lma_start, l1_length);
+
+  l1_length = &_ebss_l1 - &_sdata_l1;
+  if(l1_length > L1_DATA_LENGTH)
+    l1_length = L1_DATA_LENGTH;
+
+  /* Copy _sdata_l1 to _ebss_l1 to L1 instruction SRAM */
+  DmaMemCpy(&_sdata_l1, &_l1_lma_start + (&_etext_l1 - &_stext_l1),
+		l1_length);
+
+  //disable DMA
+  *pDMA0_CONFIG = 0;
+
+}
 
 void setup_arch(char **cmdline_p)
 {
 	int bootmap_size, id;
+	unsigned long l1_length;
 
 #if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)  
 	/* we need to initialize the Flashrom device here since we might
@@ -155,6 +221,15 @@ void setup_arch(char **cmdline_p)
 	 * get kmalloc into gear
 	 */
 	paging_init();
+
+	/* check the size of the l1 area */
+  	l1_length = &_etext_l1 - &_stext_l1;
+  	if(l1_length > L1_CODE_LENGTH)
+		panic("L1 memory overflow\n");
+
+  	l1_length = &_ebss_l1 - &_sdata_l1;
+  	if(l1_length > L1_DATA_LENGTH)
+		panic("L1 memory overflow\n");
 
 	bf53x_cache_init();
 }
@@ -348,4 +423,54 @@ void panic_bfin(int cplb_panic)
 		case CPLB_NO_ADDR_MATCH:
 			panic("No CPLB Address Match \n");
 	}
+}
+
+/* MemDma interrupt handler*/
+irqreturn_t bfin_memdma_int_handler(int irq,
+            void *dev_id,
+            struct pt_regs *regs)
+{
+        mem_dma_status = 1 ;
+        *pMDMA_D0_IRQ_STATUS = 0x1;
+        return IRQ_HANDLED;
+}
+
+
+/*copy from SRAM to L1RAM, DMAHandler routine*/
+int DmaMemCpy(char *dest_addr , char *source_addr, int size)
+{
+
+	 /* Setup destination start address */
+        *pMDMA_D0_START_ADDR = dest_addr;
+
+        /* Setup destination xcount */
+        *pMDMA_D0_X_COUNT = size ;
+
+        /* Setup destination xmodify */
+        *pMDMA_D0_X_MODIFY = 1;
+
+	/* Setup Source start address */
+        *pMDMA_S0_START_ADDR = source_addr;
+
+        /* Setup Source xcount */
+        *pMDMA_S0_X_COUNT = size ;
+
+        /* Setup Source xmodify */
+        *pMDMA_S0_X_MODIFY = 1;
+
+
+	/* Set word size to 8, set to read, enable interrupt for wakeup 
+	 Enable source DMA */
+
+        *pMDMA_S0_CONFIG = (DMAEN) ;
+        asm("ssync;");
+	mem_dma_status = 0;
+        *pMDMA_D0_CONFIG = ( WNR | DI_EN | DMAEN) ;
+
+	/* interrupt handler has not been initialized.
+	   Assume only memdma interrupt will take us
+	   out of idle
+	*/
+	asm("idle;");
+        return 0;
 }
