@@ -1,11 +1,30 @@
-config ADI_1836_AUDIO
-	bool "1836 Audio support for BF533"
+#
+# $Id$
+#
+
+config SND_BLACKFIN_ADI1836
+	bool "1836 Audio support for BF53x"
+	depends on BFIN
+	select SND_PCM
 	help
-	  If you have an 1836 connected to a SPI and SPORT0
-	  select this driver for a OSS sound driver
+	  Select this if you have an 1836 connected to the SPI and SPORTx ports
 
 	  If unsure, say N.
 
-config SOUND_AD1981B
-	bool "1836 Audio support for BF533"
+#config SND_BLACKFIN_ADI1981B
+#	bool "1981b Audio support for BF53x"
+#	depends on BFIN
+#	select SND_PCM
+#	help
+#	  Select this if you have an 1981b connected to the SPORTx port
+#
+#	  If unsure, say N.
+
+config SND_BLACKFIN_SPORT
+	int "Blackfin Audio SPORT port"
+	default 0
 	help
+	  Enter the Blackfin SPORT port to which your sound chip is connected
+	  acceptable values are 0 or 1
+
+

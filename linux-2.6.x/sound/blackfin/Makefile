@@ -1,8 +1,12 @@
 #
-# Makefile for the SuperH DMA specific kernel interface routines under Linux.
+# Makefile for the blackfin 53x sport/spi connected ad1836 and ad1981b
 #
 
-obj-$(CONFIG_SOUND_AD1981B)	+= ac97_sport.o ad1981b.o
-obj-$(CONFIG_ADI_1836_AUDIO)	+= adi_1836.o
-CFLAGS_adi_1836.o		+= -DLINUX -Iinclude/asm/board -D__ADSPLPBLACKFIN__ -O0
+snd-adi1836-objs  := adi1836.o  bf53x_sport.o bf53x_spi.o b4copy.o flush.o
+snd-adi1981b-objs := adi1981b.o bf53x_sport.o 
+
+obj-$(CONFIG_SND_BLACKFIN_ADI1836)	+= snd-adi1836.o
+obj-$(CONFIG_SND_BLACKFIN_ADI1981B)	+= snd-adi1981b.o
+
+# CFLAGS_adi_1836.o	+= -DLINUX -Iinclude/asm/board -D__ADSPLPBLACKFIN__ -O0
 
