@@ -13,7 +13,7 @@
 
 #include "blackfin_rtc.h"
 
-void main()
+int main()
 {
 	int rtc_fd, fd1;
 	unsigned long data;
@@ -208,4 +208,6 @@ void main()
 		rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
 #endif
 	close(rtc_fd);
+
+	return 0;
 }

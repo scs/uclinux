@@ -8,7 +8,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <linux/rtc.h>
 #include <linux/ioctl.h>
 
 #include "dpmc.h"
@@ -16,8 +15,10 @@
 void main()
 {
 	int fd;
-	unsigned long data;
-   	int ret, i;
+	unsigned long data,vco;
+   	unsigned long ret,ret1,ret2,ret3,i,sclk1;
+	char sclk[5],cclk[5];
+	int choice;
 
 	printf("====== DPMC Test ======\n");
 	printf("0. open and release\n");
@@ -29,183 +30,94 @@ void main()
 
 	else printf("open success fd = %d \n",fd);
 
-	printf("1. ioctl CHANGE FREQ \r\n");
 
-	ret = ioctl(fd, IOCTL_CHANGE_FREQUENCY,420);
+	printf("IOCTL to SET the vco \n");
+	printf("Please select the VCO \r\n");
+	scanf("%d",&vco);	
+	ret = ioctl(fd, IOCTL_CHANGE_FREQUENCY,&vco);
 	if (ret == -1) {
 		printf("dpmc ioctl error\r\n");
 	}
+	printf("VCO is set to %u MHz \n",vco);
 
+	
+	printf("IOCTL to GET the vco \n");
+	ret = ioctl(fd, IOCTL_GET_VCO, &ret1);
+	printf("vco set is %u MHz\n",ret1);
+
+	printf("IOCTL to SET the CCLK \n");
+	printf("Please select any of these choices for cclk \n");
+	printf("1. %u \t 2. %u \t 3. %u \t 4. %u \n",ret1,ret1/2,ret1/4,ret1/8);
+	scanf("%d",&choice);
+	if(choice == 1)	ret2 = ret1;
+	else if(choice == 2)	ret2 = ret1/2;
+	else if(choice == 3)	ret2 = ret1/4;
+	else if(choice == 4)	ret2 = ret1/8;
+	ret = ioctl(fd, IOCTL_SET_CCLK, &ret2);
+	printf("cclk was set to %u MHz \n",ret2);
+	
+	for(i=0;i<1000;i++);
+
+	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO ACTIVE \n");
+	printf("Entering Active Mode \n");
+	ret = ioctl(fd, IOCTL_ACTIVE_MODE, NULL);
+	printf("Active mode set %d \n",ret);
+
+
+	for(i=0;i<1000;i++);	
+	
+	printf("IOCTL to CHANGE OPERATING MODE FROM ACTIVE TO FULLON MODE\n");
+	printf("Entering Full On Mode \n");
+	ret = ioctl(fd, IOCTL_FULL_ON_MODE, NULL);
+	printf("Full on mode set %d \n",ret);
+
+	for(i=0;i<10000000;i++);
 #if 0
 
-	for( i = 1; i <6; i++){
-	/* This read will block */
-		ret = read(rtc_fd, &data, sizeof(unsigned long));
-		if (ret == -1) {
-			printf("rtc read error\r\n");
-		}
-		printf("RTC read %d\r\n", i);
-	}
+	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO SLEEP MODE\n");
+	printf("Entering Sleep Mode \n");
+	ret = ioctl(fd, IOCTL_SLEEP_MODE, NULL);
+	printf("Out of Sleep mode set %d \n",ret);
 
-	printf("3. ioctl RTC_UIE_OFF\r\n");
-
-	ret = ioctl(rtc_fd, RTC_UIE_OFF, 0);
-	if (ret == -1) {
-		printf("rtc ioctl RTC_UIE_OFF error\r\n");
-	}
-	printf("4. Get RTC Time\r\n");
-	ret = ioctl(rtc_fd, RTC_RD_TIME, &rtc_tm);
-	if (ret == -1) {
-		printf("rtc ioctl RTC_RD_TIME error\r\n");
-	}
-	
-	printf("Current RTC date/time is %d-%d-%d, %02d:%02d:%02d.\r\n",
-		rtc_tm.tm_mday, rtc_tm.tm_mon + 1, rtc_tm.tm_year,
-		rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
-
-	/* Set the RTC time/date */
-	rtc_tm.tm_mday = 31;
-	rtc_tm.tm_mon = 4;/* for example Sep. 8 */
-	rtc_tm.tm_year = 104;
-	rtc_tm.tm_hour = 2;
-	rtc_tm.tm_min = 30;
-	rtc_tm.tm_sec = 0;
-	
-	printf("5. Set RTC Time\r\n");
-	ret = ioctl(rtc_fd, RTC_SET_TIME, &rtc_tm);
-	if (ret == -1) {
-		printf("rtc ioctl RTC_SET_TIME error\r\n");
-	}
-	
-	printf("Set Current RTC date/time to %d-%d-%d, %02d:%02d:%02d.\r\n",
-		rtc_tm.tm_mday, rtc_tm.tm_mon + 1, rtc_tm.tm_year,
-		rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
-	
-	printf("Get RTC time\r\n");
-	ret = ioctl(rtc_fd, RTC_RD_TIME, &rtc_tm);
-	if (ret == -1) {
-		printf("rtc ioctl RTC_RD_TIME error\r\n");
-	}
-	
-	printf("Current RTC date/time is %d-%d-%d, %02d:%02d:%02d.\r\n",
-		rtc_tm.tm_mday, rtc_tm.tm_mon + 1, rtc_tm.tm_year,
-		rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
-
-	rtc_tm.tm_sec += 50;
-	if (rtc_tm.tm_sec >= 60) {
-		rtc_tm.tm_sec %= 60;
-		rtc_tm.tm_min++;
-	}
-	if  (rtc_tm.tm_min == 60) {
-		rtc_tm.tm_min = 0;
-		rtc_tm.tm_hour++;
-	}
-	if  (rtc_tm.tm_hour == 24)
-		rtc_tm.tm_hour = 0;
-	
-	printf("6. Set alarm Time\r\n");
-	ret = ioctl(rtc_fd, RTC_ALM_SET, &rtc_tm);
-	if (ret == -1) {
-		printf("rtc ioctl RTC_ALM_SET error\r\n");
-	}
-	
-	/* Read the current alarm settings */
-	printf("7. Get alarm Time\r\n");
-	ret = ioctl(rtc_fd, RTC_ALM_READ, &rtc_tm);
-	if (ret == -1) {
-		printf("rtc ioctl RTC_ALM_READ error\r\n");
-	}
-	
-	printf("Alarm time now set to %02d:%02d:%02d.\r\n",
-		rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
+	printf("IOCTL to CHANGE OPERATING MODE FROM SLEEP TO FULLON MODE\n");
+	printf("Entering Full On Mode \n");
+	ret = ioctl(fd, IOCTL_FULL_ON_MODE, NULL);
+	printf("Full on mode set %d \n",ret);
 
 	
-	/* Enable alarm interrupts */
-	ret = ioctl(rtc_fd, RTC_AIE_ON, 0);
-	if (ret == -1) {
-		printf("rtc ioctl RTC_ALE_ON error\r\n");
-	}
+	for(i=0;i<10000000;i++);	
+
+	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO SLEEP MODE\n");
+	printf("Entering Full On Mode \n");
+	ret = ioctl(fd, IOCTL_DEEP_SLEEP_MODE, NULL);
+	printf("Out of Deep Sleep mode set %d \n",ret);
 	
-	printf("Waiting 50 seconds for alarm...\r\n");
-	/* This blocks until the alarm ring causes an interrupt */
-	ret = read(rtc_fd, &data, sizeof(unsigned long));
-	if (ret == -1) {
-		printf("rtc read errot\r\n");
-	}
-	printf(" Okay. Alarm rang.\r\n");
+	for(i=0;i<10000000;i++);
+
+	printf("IOCTL to CHANGE OPERATING MODE FROM SLEEP TO FULLON MODE\n");
+	printf("Entering Full On Mode \n");
+	ret = ioctl(fd, IOCTL_FULL_ON_MODE, NULL);
+	printf("Full on mode set %d \n",ret);
 	
-	ret = ioctl(rtc_fd, RTC_RD_TIME, &rtc_tm);
-	if (ret == -1) {
-		printf("rtc ioctl RTC_RD_TIME error\r\n");
-	}
-	
-	printf("Current RTC date/time is %d-%d-%d, %02d:%02d:%02d.\r\n",
-		rtc_tm.tm_mday, rtc_tm.tm_mon + 1, rtc_tm.tm_year,
-		rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
+	for(i=0;i<10000000;i++);
 
-	/* Disable alarm interrupts */
-	printf("8. ioctl RTC_AIE_OFF\r\n");
-	ret = ioctl(rtc_fd, RTC_AIE_OFF, 0);
-	if (ret == -1) {
-		printf("ioctl RTC_ALE_OFF error\r\n");
-	}
+	printf("Please enter the value of sclk \n");
+	scanf("%s",sclk);
+	sclk1 = atoi(sclk);
+	ret3 = ioctl(fd, IOCTL_SET_SCLK, &sclk1);
+	printf("sclk was set to %u MHz \n",sclk1);
 
-	printf("9. ioctl RTC_SWCNT_ON\r\n");
-	ret = ioctl(rtc_fd, RTC_SWCNT_ON, 0);
-	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_ON error\r\n");
-	}
-	ret = ioctl(rtc_fd, RTC_RD_TIME, &rtc_tm);
-	if (ret == -1) {
-		printf("rtc ioctl RTC_RD_TIME error\r\n");
-	}
-	printf("Current RTC date/time is %d-%d-%d, %02d:%02d:%02d.\r\n",
-		rtc_tm.tm_mday, rtc_tm.tm_mon + 1, rtc_tm.tm_year,
-		rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
+	printf("IOCTL to get the sclk \n");
+	ret = ioctl(fd, IOCTL_GET_SYSTEMCLOCK, NULL);
+	printf("sclk got is %d MHz\n",ret);
 
-	printf("10. ioctl RTC_SWCNT_SET\r\n");
-	ret = ioctl(rtc_fd, RTC_SWCNT_SET, 1);
-	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_SET error\r\n");
-	}
-	ret = read(rtc_fd, &data, sizeof(unsigned long));
-	if (ret == -1) {
-		printf("rtc read errot\r\n");
-	}
-	ret = ioctl(rtc_fd, RTC_RD_TIME, &rtc_tm);
-	if (ret == -1) {
-		printf("rtc ioctl RTC_RD_TIME error\r\n");
-	}
-	printf("Current RTC date/time is %d-%d-%d, %02d:%02d:%02d.\r\n",
-		rtc_tm.tm_mday, rtc_tm.tm_mon + 1, rtc_tm.tm_year,
-		rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
+	printf("IOCTL to get the cclk \n");
+	ret = ioctl(fd, IOCTL_GET_CORECLOCK, NULL);
+	printf("cclk got is %d MHz\n",ret);
 
-	printf("11. ioctl RTC_SWCNT_OFF\r\n");
-	ret = ioctl(rtc_fd, RTC_SWCNT_OFF, 0);
-	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_OFF error\r\n");
-	}
-
-	printf("12. ioctl RTC_EPOCH_READ\r\n");
-	ret = ioctl(rtc_fd, RTC_EPOCH_READ, &data);
-	if (ret == -1) {
-		printf("ioctl RTC_EPOCH_READ error\r\n");
-	}
-	printf("Current epoch is %ld\r\n",data);
-
-	printf("13. ioctl RTC_EPOCH_SET\r\n");
-	ret = ioctl(rtc_fd, RTC_EPOCH_SET, 2310);
-	if (ret == -1) {
-		printf("ioctl RTC_EPOCH_SET error\r\n");
-	}
-	ret = ioctl(rtc_fd, RTC_RD_TIME, &rtc_tm);
-	if (ret == -1) {
-		printf("rtc ioctl RTC_RD_TIME error\r\n");
-	}
-	printf("Current RTC date/time is %d-%d-%d, %02d:%02d:%02d.\r\n",
-		rtc_tm.tm_mday, rtc_tm.tm_mon + 1, rtc_tm.tm_year,
-		rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
-
+	printf("IOCTL to get the PLL status \n");
+	ret = ioctl(fd, IOCTL_GET_PLLSTATUS, NULL);
+	printf("pll status got is %d MHz\n",ret);
 #endif
 	close(fd);
 }

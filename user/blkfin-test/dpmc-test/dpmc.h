@@ -17,6 +17,7 @@
 #define IOCTL_GET_PLLSTATUS	_IOW('s', 0xA9, unsigned long)
 #define IOCTL_GET_CORECLOCK	_IOW('s', 0xAA, unsigned long)
 #define IOCTL_GET_SYSTEMCLOCK	_IOW('s', 0xAB, unsigned long)
+#define IOCTL_GET_VCO		_IOW('s', 0xAC, unsigned long)
 
 #define DPMC_MINOR		254
 

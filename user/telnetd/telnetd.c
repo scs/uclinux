@@ -366,15 +366,12 @@ main(int argc, char *argv[])
 #ifndef REALLY_SMALL_TELNETD
 	openlog("telnetd", LOG_PID | LOG_ODELAY, LOG_DAEMON);
 #endif
-/*BFin*/
-#if 0
 	fromlen = sizeof (from);
 	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0) {
 		fprintf(stderr, "%s: ", progname);
 		perror("getpeername");
 //		_exit(1);
 	}
-#endif
 	if (keepalive &&
 	    setsockopt(0, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof (on)) < 0) {
 		/*syslog(LOG_WARNING, "setsockopt (SO_KEEPALIVE): %m");*/
