@@ -411,7 +411,6 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 	unsigned long text_len;
 	unsigned long start_code;
 	int id;
-	int new_id;
 
 	r.value = rl;
 #ifdef CONFIG_BINFMT_SHARED_FLAT
@@ -569,7 +568,7 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
                    The value we have is absolute relative to the library.
 		*/
 
-		new_id = (offset >> 24) & 0x03;	/* Find ID for this reloc */
+		int new_id = (offset >> 24) & 0x03;	/* Find ID for this reloc */
 
 		// new_id = 0 indicates local relocation.
 		if (new_id !=0 && new_id != curid) {
@@ -620,11 +619,15 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 	printk("\n");
 #endif
 	return i;
+
+#ifdef CONFIG_BINFMT_SHARED_FLAT
 failed:
 	printk(", killing %s!\n", current->comm);
 	send_sig(SIGSEGV, current, 0);
 
 	return RELOC_FAILED;
+#endif
+
 }
 
 #endif
