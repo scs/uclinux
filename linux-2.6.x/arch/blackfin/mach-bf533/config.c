@@ -125,6 +125,13 @@ int BSP_set_clock_mmss (unsigned long nowtime)
 
 void BSP_reset (void)
 {
+	__asm__ __volatile__
+	("cli r3;"
+        "JUMP (%0);"
+	:
+	: "a" (L1_ISRAM)
+	);
+
 }
 
 void BSP_init(void)
