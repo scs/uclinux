@@ -1,4 +1,3 @@
-
 #ifndef __ASM_BFIN_PROCESSOR_H
 #define __ASM_BFIN_PROCESSOR_H
 
@@ -32,23 +31,6 @@ extern inline void wrusp(unsigned long usp) {
 
 #define TASK_UNMAPPED_BASE	0	
 
-/*
- * Bus types
- */
-#define EISA_bus 0
-#define MCA_bus 0
-
-/*  There is no pc register avaliable for BFIN, so we are going to get
-    it indirectly   */
-#if 0
-inline unsigned long obtain_pc_indirectly (void)
-{
-	unsigned long pc;
-	__asm__ __volatile__ ("%0 = rets;\n" : "=d" (pc));
-	return (pc - 4);	/* call pcrel24 is 4 bytes long  */
-}
-#endif
-
 struct thread_struct {
 	unsigned long  ksp;		/* kernel stack pointer */
 	unsigned long  usp;		/* user stack pointer */
@@ -56,8 +38,6 @@ struct thread_struct {
 	unsigned long  esp0;		/* points to SR of stack frame pt_regs*/
 	unsigned long  pc;		/* instruction pointer */
 };
-
-#define INIT_MMAP { &init_mm, 0, 0x40000000, NULL, __pgprot(_PAGE_PRESENT|_PAGE_ACCESSED), VM_READ | VM_WRITE | VM_EXEC, 1, NULL, NULL }
 
 #define INIT_THREAD  { \
 	sizeof(init_stack) + (unsigned long) init_stack, 0, \
@@ -74,8 +54,6 @@ struct thread_struct {
 do {                                             \
 	set_fs(USER_DS); /* reads from user space */ \
 	(_regs)->pc = (_pc);                         \
-	if (current->mm)                             \
-		(_regs)->r5 = current->mm->start_data;   \
 	wrusp(_usp);                                 \
 	/* Adde by HuTao, May 26, 2003 3:39PM */\
 	if ((_regs)->ipend & 0x8000) /* check whether system in supper mode - StChen */\
@@ -94,10 +72,6 @@ static inline void release_thread(struct task_struct *dead_task)
 #define prepare_to_copy(tsk)	do { } while (0)
 
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
-
-#define copy_segments(tsk, mm)		do { } while (0)
-#define release_segments(mm)		do { } while (0)
-#define forget_segments()		do { } while (0)
 
 /*
  * Free current thread data structures etc..
