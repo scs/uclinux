@@ -18,7 +18,7 @@ The web browser displays the output as an HTML page.
 In order to successfully build and run the Application following                                
 kernel and user space adjustments needs to be done.                                             
                                                                                                 
-In your uClinux-dist folder enter:                                                              
+1) In your uClinux-dist folder enter:                                                              
                                                                                                 
 #make menuconfig                                                                                
                                                                                                 
@@ -122,5 +122,20 @@ the 'Networked Software Defined Storage Oscilloscope' application under 'Blackfi
                        [ ] gdbserver                                                            
                        [*] Networked Software Defined Storage Oscilloscope                      
                                                                                                 
-Save and exit                                                                                   
+Save and exit
+
+2) Recompile kernel and user space
+
+3) Starting the Application:
+
+From the shell:
+
+    1.)	Configure Ethernet       : #ifconfig eth0 192.168.0.1
+    2.)	Starting the Application : #ndso &
+
+4) Accessing the Web User Interface:
+
+Open a web browser (Mozilla Firefox, IE)
+Enter in the URL window: http://192.168.0.1 
+                                                                                   
                                                                                                 
