@@ -81,7 +81,12 @@ void (*mach_process_int) (int irq, struct pt_regs *fp) = NULL;
 
 /* machine dependent timer functions */
 unsigned long (*mach_gettimeoffset) (void) = NULL;
-void (*mach_gettod) (int*, int*, int*, int*, int*, int*) = NULL;
+
+void (*mach_gettod) (time_t *t) = NULL;
+
+void (*mach_settod)(time_t time_in_seconds) = NULL;
+void (*mach_init)(void) = NULL;
+
 int (*mach_hwclk) (int, struct hwclk_time*) = NULL;
 int (*mach_set_clock_mmss) (unsigned long) = NULL;
 void (*mach_mksound)( unsigned int count, unsigned int ticks ) = NULL;
@@ -396,13 +401,26 @@ struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo,
 };
 
-void arch_gettod(int *year, int *mon, int *day, int *hour,
-		 int *min, int *sec)
+void arch_gettod(time_t *secs_since_1970)
 {
+	if (secs_since_1970 == NULL )
+		return;
+
 	if (mach_gettod)   /* depend on arch, should provide mach_gettod */
-		mach_gettod(year, mon, day, hour, min, sec);
+		mach_gettod(secs_since_1970);
 	else
-		*year = *mon = *day = *hour = *min = *sec = 0;
+		*secs_since_1970 = 0;
+}
+void arch_settod(time_t t)
+{
+        if (mach_settod)
+                mach_settod(t);
+}
+
+void arch_init(void)
+{
+	if (mach_init)
+		mach_init();	
 }
 
 /*blackfin panic*/
