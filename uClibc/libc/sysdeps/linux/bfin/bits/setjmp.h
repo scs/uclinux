@@ -26,45 +26,20 @@
 /* Jump buffer contains r7-r4, p5-p3, fp, sp and pc.  Other registers are not saved.  */
 typedef struct
 {
-	unsigned long p0;
-	unsigned long p1;
-	unsigned long p2;
-	unsigned long p3;
-	unsigned long p4;
-	unsigned long p5;
+	unsigned long __pregs[6];
 	unsigned long fp;
 	unsigned long sp;
-	unsigned long r0;
-	unsigned long r1;
-	unsigned long r2;
-	unsigned long r3;
-	unsigned long r4;
-	unsigned long r5;
-	unsigned long r6;
-	unsigned long r7;
+	unsigned long __rregs[8];
 	unsigned long astat;
-	unsigned long lc0;
-	unsigned long lc1;
+	unsigned long __lcregs[2];
 	unsigned long a0w;
 	unsigned long a0x;
 	unsigned long a1w;
 	unsigned long a1x;
-	unsigned long i0;
-	unsigned long i1;
-	unsigned long i2;
-	unsigned long i3;
-	unsigned long m0;
-	unsigned long m1;
-	unsigned long m2;
-	unsigned long m3;
-	unsigned long l0;
-	unsigned long l1;
-	unsigned long l2;
-	unsigned long l3;
-	unsigned long b0;
-	unsigned long b1;
-	unsigned long b2;
-	unsigned long b3;
+	unsigned long __iregs[4];
+	unsigned long __mregs[4];
+	unsigned long __lregs[4];
+	unsigned long __bregs[4];
 	unsigned long pc;
 }__jmp_buf[1];
 
@@ -75,4 +50,4 @@ typedef struct
 /* Test if longjmp to JMPBUF would unwind the frame
    containing a local variable at ADDRESS.  */
 #define _JMPBUF_UNWINDS(jmpbuf, address) \
-  ((void *) (address) < (void *) (jmpbuf[__JMP_BUF_SP]))
+  ((void *) (address) < (void *) (jmpbuf)->__pregs[6])
