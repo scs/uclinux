@@ -30,7 +30,7 @@
 
 OUTPUT_FORMAT("elf32-bfin")
 ENTRY(_start) 
-jiffies = jiffies_64 ;
+jiffies = jiffies_64;
 MEMORY 
 	{
 	ram		: ORIGIN = RAM_START,       LENGTH = RAM_LENGTH			
@@ -89,18 +89,6 @@ SECTIONS
 	  	_etext = . ;
 	} > ram
    
-	.data :	{
-		 _sdata = . ;
-		. = ALIGN(0x2000) ;
-		*(.data.init_task)
-		*(.data)
-		ramdisk_begin = .;
-		*(.ramdisk)
-		ramdisk_end = .;
-		_edata = . ;
-
-	} > ram
-
 	.init : {
 		. = ALIGN(4096);
 		__init_begin = .;
@@ -136,6 +124,18 @@ SECTIONS
 		__initramfs_end = .;
 		. = ALIGN(4);
 		__init_end = .;
+	} > ram
+
+	.data :	{
+		 _sdata = . ;
+		. = ALIGN(0x2000) ;
+		*(.data.init_task)
+		*(.data)
+		ramdisk_begin = .;
+		*(.ramdisk)
+		ramdisk_end = .;
+		_edata = . ;
+
 	} > ram
 
 	/DISCARD/ : {			/* Exit code and data*/
