@@ -57,9 +57,7 @@ ENTRY(invalidate_entire_icache)
 
 	P0.L = (IMEM_CONTROL & 0xFFFF);
 	P0.H = (IMEM_CONTROL >> 16);
-	CSYNC;
 	R7 = [P0];
-	SSYNC;
 	
 	/* Clear the IMC bit , All valid bits in the instruction
 	 * cache are set to the invalid state
@@ -125,9 +123,7 @@ ENTRY(invalidate_entire_dcache)
 
 	P0.L = (DMEM_CONTROL & 0xFFFF);
 	P0.H = (DMEM_CONTROL >> 16);
-	CSYNC;
 	R7 = [P0];
-	SSYNC;
 	
 	/* Clear the DMC[1:0] bits, All valid bits in the data
 	 * cache are set to the invalid state
@@ -205,7 +201,6 @@ ENTRY(_dcache_invalidate)
 	P5=R2;	/* number of lines in each way*/
 	R2=32;	/* line index increment*/
 
-
 	R4=2;	/* initial value for DTEST_COMMAND for way 0*/
 
 	/* write to tag for sub-bank 0, way 0, line 0
@@ -227,7 +222,6 @@ lbl2c:	R1 = R1+|+R2 || [I0]=R1;
 lbl3c:	R5=R5+R3;
 
 	/* Restore the original value of DMEM_CONTROL*/
-	CSYNC;
 	CLI R5;
 	.align 2;
 	[P0] = R6;

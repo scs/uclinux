@@ -40,12 +40,10 @@ read_iaddr:
 	CC = R0 == R1;
 	IF CC JUMP idone;
 	[I0++] = R0;
-	SSYNC;
 
 read_idata:
 	R2 = [I2++];
 	[I1++] = R2;
-	SSYNC;
 	R3 = R3 + R1;
 	CC = R3 == R1;
 	IF !CC JUMP read_iaddr;
@@ -84,12 +82,10 @@ read_daddr:
 	cc = R0 == R1;
 	IF CC JUMP ddone;
 	[I0++] = R0;
-	SSYNC;
 
 read_ddata:
 	R2 = [I2++];
 	[I1++] = R2;
-	SSYNC;
 	R3 = R3 + R1;
 	CC = R3 == R1;
 	IF !CC JUMP read_daddr;
