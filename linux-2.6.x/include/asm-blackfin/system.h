@@ -36,8 +36,8 @@ asmlinkage void resume(void);
 		       : "=d" (_last)					\
 		       : "d" (prev),					\
 			 "d" (next)					\
-		       : "CC", "R0", "R1", "R2", "R3", "R4", "R5", "P0", "P1");	\
-  (last) = _last; 								\
+		       : "CC", "R0", "R1", "P0", "P1");			\
+  (last) = _last; 							\
 }
 
 /*
@@ -60,23 +60,10 @@ if (irq_flags == 0) printk("Whoops\n");	\
 		:"=d" (_tmp_dummy):);		\
 }
 
-#define __save_flags(x) {		\
-	__asm__ __volatile__ (		\
-		"cli %0;"		\
-		"sti %0;"		\
-		:"=d"(x):);		\
-}
-
 #define __save_and_cli(x) {		\
 	__asm__ __volatile__ (          \
 		"cli %0;"		\
 		:"=d"(x):);         \
-}
-
-#define __restore_flags(x) {		\
-	__asm__ __volatile__ (		\
-		"sti %0;"		\
-		::"d"(x):);		\
 }
 
 #define local_save_flags(x) asm volatile ("cli %0;"     \
@@ -86,7 +73,7 @@ if (irq_flags == 0) printk("Whoops\n");	\
 				           ::"d"(x))
 
 /* For spinlocks etc */
-#define local_irq_save(x) do { local_save_flags(x); local_irq_disable(); } while (0)
+#define local_irq_save(x) __save_and_cli(x)
 
 #define	irqs_disabled()			\
 ({					\
