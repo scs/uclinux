@@ -60,7 +60,6 @@ static DMA_register* 	base_addr[MAX_BLACKFIN_DMA_CHANNEL] =
 	(DMA_register *) MDMA_S1_NEXT_DESC_PTR,
 };
 
-int bfin_freedma(unsigned int channel, void *data);
 
 
 /*------------------------------------------------------------------------------
@@ -372,10 +371,8 @@ unsigned short get_dma_curr_ycount(unsigned int channel)
 
 EXPORT_SYMBOL(request_dma);
 EXPORT_SYMBOL(set_dma_callback);
-EXPORT_SYMBOL(bfin_setupdma);
 EXPORT_SYMBOL(enable_dma);
 EXPORT_SYMBOL(disable_dma);
-EXPORT_SYMBOL(bfin_freedma);
 EXPORT_SYMBOL(dma_channel_active);
 
 EXPORT_SYMBOL(get_dma_curr_irqstat);
