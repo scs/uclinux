@@ -1,0 +1,77 @@
+'\" t
+.\" @(#)mkrescue.8 1.0 20011031 jrc
+.\" This page is part of the LILO package, which is released by
+.\" the author(s) under a BSD license.  See the file COPYING
+.\" in the LILO source directory for the License and Disclaimer.
+.\"
+.\" Original version, John Coffman 011031
+.\"
+.TH MKRESCUE 8 "31 Oct 2001"
+.SH NAME
+mkrescue \- make rescue floppy
+.SH SYNOPSIS
+.LP
+.B "/sbin/mkrescue"
+\- make a bootable rescue floppy using the existing kernel and any initial
+ramdisk.
+.SH DESCRIPTION
+.LP
+.B mkrescue
+assumes that the present running system was successfully booted using the
+.B lilo
+boot loader, and that the specification for the kernel and any initial
+ramdisk are in \fB/etc/lilo.conf\fP. This command will make a bootable
+1.44M rescue floppy which uses the
+current kernel, any initial ramdisk, and the "current" root directory.
+.SH OPTIONS
+.LP
+.TP
+.BI "--device <device>"
+Make the floppy on a device other than /dev/fd0.  The floppy disk will
+always be made to boot on BIOS device code 0x00 (A: drive), without
+regard to the drive on which it is created.
+.TP
+.BI "--fast"
+Use a faster method of creating the boot floppy.  This involves first
+creating a 1.44M file mounted using a loopback device, then copying
+the file to the disk.  Currently, loopback device 'loop4' must be free for
+this option to be used.
+.TP
+.BI "--fs [ ext2 | msdos | minix ]"
+Specify the type of filesystem to create on the drive.
+.B ext2
+is the default, but "msdos" and "minix" allow slightly more disk sectors
+for really big kernels.
+.TP
+.BI "--help"
+Print a short usage synopsis, including a list of command options.
+.TP
+.BI "--initrd <filepath>" "  and  " "--kernel <filepath>"
+These options, which must be used together, allow specification of an
+arbitrary kernel file and initial ramdisk file to be used on the created
+boot floppy.  Be sure you know what you are doing before you use these
+options.
+.TP
+.BI "--nocompact"
+For faster kernel loading from a floppy, LILO map compaction is normally
+enabled. This option will disable map compaction by omitting the
+lilo "-c" switch.
+.TP
+.BI "--noformat"
+Suppresses creation of a new filesystem on the boot floppy. This option may
+be used
+.B only
+when you know that the floppy you will be writing upon is formatted with the
+same filesystem as specified by "--fs XXX" (default is ext2).
+.TP
+.BI "--root <device>"
+Specify the root filesystem for the kernel on the boot floppy. The currently
+mounted root is the default, if this option is not specified.
+.TP
+.BI "--version"
+Print the version number of 'mkrescue', then terminate.
+.TE
+.SH "SEE ALSO"
+lilo(8), lilo.conf(5), mkfs(8), dd(1), mount(8), mkinitrd(8).
+.SH "AUTHOR"
+John Coffman <johninsd@san.rr.com> (1.0)

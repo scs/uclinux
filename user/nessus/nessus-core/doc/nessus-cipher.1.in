@@ -1,0 +1,308 @@
+.\" -*- nroff -*-
+.\"
+.\" Nessus
+.\" Copyright (C) 1998 Renaud Deraison
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.TH NESSUS 1 "Dec 1999" "The Nessus Project" "Users Manuals"
+.SH NAME
+nessus \- The client part of the Nessus Security Scanner
+.SH SYNOPSIS
+.nf
+.BI "nessus [" -n ]
+.sp
+.BI "nessus [" -q "] " Server\ Port\ Login\ Targetsfile\ Resultsfile
+.sp
+.BI "nessus [" -C "] [" -L "] [" "-K <keyname>" "] [" "-k <keylen>" ]
+.sp
+.BI "nessus [" "-X <key-file>" ]
+.sp
+.BI "nessus [" -v "] [" -h ]
+.sp
+.BI "nessus [" -c "<file>" ]
+.sp
+.BI "nessus [" -T "<type>" ]
+.sp
+or, using long options
+.sp
+.BI "nessus [" --no-pixmaps ]
+.sp
+.BI "nessus [" --batch-mode "] " Server\ Port\ Login\ Trgfile\ Resultsfile
+.sp
+.BI "nessus [" --change-pass-phrase "] [" --list-keys "] \(rs"
+.BI "       [" --delete-key=<keyname> "] [" --set-key-length=<keylen> ]
+.sp
+.BI "nessus [" --export-pubkey=<key-file>"]"
+.sp
+.sp
+.BI "nessus [" --config-file=<file> "]
+.BI "nessus [" --output-type=<type> "]
+.BI "nessus [" --version "] [" --help ]
+.fi
+
+.SH DESCRIPTION
+.LP
+The 
+.B Nessus Security Scanner
+is a security auditing tool made up of two parts: a server, and a client.
+The server,
+.BR nessusd (8)
+is in charge of the attacks, whereas the client
+.B nessus
+provides an interface to the user.  It comes in two flavours, with and
+without GUI (grephical user interface) support.
+.LP
+As an X11 client,
+.B Nessus 
+is based on the Gimp ToolKit (GTK) and needs no arguments upon
+start up.
+.LP
+As a command line version,
+.B Nessus 
+always needs the following arguments placed after the options:
+
+.sp
+.I Server
+.br
+.in +5
+is the address, or the host name of the 
+.B Nessusd
+server host to connect to,
+.in -5
+.sp
+.I Port
+.br
+.in +5
+is the port, the nessus server lisens on for connect requests,
+.in -5
+.sp
+.I Login
+.br
+.in +5
+is the user login name that is to be used for connecting to the 
+.B Nessusd
+server,
+.in -5
+.sp
+.I Trgfile
+.br
+.in +5
+is the name of a file containing the lists of targets host adresses,
+or names that are to be checked or scanned,
+.in -5
+.sp
+.I Resultsfile
+.br
+.in +5
+is the name of a file where the 
+.B Nessus
+client will stored the scan results at the end of the test.
+.in -5
+.LP
+In that sense,
+.B Nessus
+will always adopt a command line behaviour if there are any
+command line arguments which are not detectes ad options, i.e. they do
+not begin with a dash '\fB-\fP'.
+
+.SH OPTIONS
+.TP
+.B -v, --version
+shows version number and quits
+.TP
+.B -h, --help
+lists the available options
+.TP
+.B -n, --no-pixmaps
+no pixmaps. Handy if you are running nessus on a remote computer as
+it reduces bandwidth.
+.TP
+.BI -k\  <key-len> ,\ --set-key-length =<key-len>
+Enforce a minimum key length different from the default 1024.
+.TP
+.BI -T\  <type>, \ --output-type =<type>
+Save the data as <type>, where <type> can be 'html', 'html_graph', 'text', 'tex' 
+or 'nsr'
+.TP
+.TP
+.B -q, --batch-mode 
+force quiet, or batch mode.  Setting this option, the nessus client
+always expects the options for the batch mode, following.
+.TP
+.BI -r\  <report-file> ,\ --open-report= <report-file>
+Using the gui, 
+.B Nessus
+visualizes a report file from a previous session.   Repeating this
+option, more files are displayed.
+
+.SH KEY MANAGEMENT OPTIONS
+.LP
+The key management options can be used while another instance of
+.B nessus
+is already running. Modifications on the key data base
+will be honoured by the running instance. If
+.B nessus
+was invoked with a key manangement option, it will not start
+up as deamon. 
+.TP
+.B -C, --change-pass-phrase
+Let 
+.B nessus
+secure the private key by a personal pass phrase.  Using this feature,
+a pass phrase is read from the command line (see \fBgetpass\fP(1) for
+details upon the input device) which is consequently used to encrypt
+that key.  Upon restart,
+.B nessus
+will not come up until you have entered the correct pass phrase.
+Once, the
+pass phrase is lost you can only delete the private key (usually in
+$HOME/.nessus.keys.)
+.sp
+In order to remove the pass phrase from a key, you need to give
+an empty pass phrase.
+.TP
+.B -L, --list-keys
+List the entries in the user key data base.
+.TP
+.BI \-K\  <delete-key>, --delete-key= <delete-key>
+Delete a key from user the data base.
+.TP
+.BI -X\  <key-file> ,\ --export-pubkey =<key-file>
+Export the public user key into the argument file \fI<key-file>\fP.
+If the key tag exists, already in the file and the key is the same
+as the current one, nothing is done.  If the key tag is found with
+a different key, an error is printed. Otherwise the key is appended
+to the file.
+.sp
+If the argument \fI<key-file>\fP is a dash \fB-\fP, the current key is
+printed to stdout.
+
+.SH X11 USER INTERFACE
+.LP
+The  nessus client interface is divided in several panels:
+.TP
+.IB The " nessusd host " section
+In this section, you must enter the nessusd host to connect to, as well as the
+port. You must also enter your 
+.B nessusd 
+user name and your password (not the one of the system). Once you are done, you
+must click on the 'login now!' button, which will establish the connection
+the the nessusd host.
+.br
+Once the connection is established, 
+.B nessusd
+sends to the client the list of attacks it will perform, as well as the
+default preferences to use.
+.TP
+.IB The " target selection " section
+In this section, you are required to enter the primary target. A
+primary target may be a single host (like prof.fr.nessus.org), an IP
+(192.168.1.1), a subnet (192.168.1.1/24, or prof.fr.nessus.org), or a
+list of hosts, separated by commas (like : 192.168.1.1,
+192.168.2.1/24, prof.fr.nessus.org, joyeux.fr.nessus.org).
+.sp
+You can restrict the maximum number of hosts to test using the	
+.I Max Hosts
+entry. This is an
+.I extra security
+ which will garantee you that you will not test other by accident
+(for instance, if you only plan to test prof.fr.nessus.org and
+www.fr.nessus.org, you can safely set this entry to 
+.IR 2 ).
+.sp
+This panel also allows you to enable the
+.I Perform a DNS zone transfer
+option. This option is dangerous and should be enabled with caution. 
+For instance, if you want to test www.nessus.org, then if this option
+is set, nessusd will attempt to get the list of the hosts in the
+.I nessus.org
+domain.
+.sp
+The latter option may be dangerous. For instance, if you enable it and
+you ask to test 192.168.1.1/24, then nessusd will do a reverse lookup on
+.I every
+IP, and will attempt a DNS zone transfer on every domain. That is, if 
+192.168.1.1 is www.foo.bar, and 192.168.1.10 is mail.bar.foo, then
+a DNS zone transfer will be made on the domains
+.IR foo.bar and bar.foo . 
+.TP
+.B The Plugins section
+Once you have successfully logged into the remote nessusd server,
+this section is filed with the list of the attacks that the server will
+perform. This panel is divided in two parts : the plugins families, and
+the plugins themselves. If you click on the name of a plugin, then
+a dialog will appear, showing you which will be the error message
+sent by the plugin if the attack is successful.
+.SH "ENVIRONMENT VARIABLES"
+.TP
+.B NESSUSUSER
+If this environemt variable is set, the name specified by this
+variable is considered as login name and used for tagging/identifying
+the personal key.
+.TP
+.B NESSUSHOME
+If the environemt variable is set, this path is used instead of the
+path defined	by the \fBHOME\fP variable.  This path is referred to
+as \fB~/\fP, below.
+.TP
+.B userprofile
+Ignored on non-Windows machines, this variable takes precedence
+over HOME, which has the same meaning in the given context.
+.TP
+.B HOME
+The path to the user's home directory which will hold the client
+configuration cache \fI.nessusrc\fP and the key data base
+\&\fI.nessus.keys\fP (see below.)  The path is referred to as \fB~/\fP,
+below.
+.SH "FILES"
+.TP
+.B ~/.nessusrc 
+is the client configuration cache, which contains the options about,
+which nessusd server to connect to by default, which plugins to
+activate, and so on.  The file is created automatically within the
+first 
+.BR nessus ( 1 )
+session.
+.TP
+.B ~/.nessus.keys 
+contains the client private key, as well as the nessusd servers public
+keys.  This file is created automatically when starting
+.BR nessus ( 1 ).
+.SH SEE ALSO
+.TP
+.BR nessus "(1), " getpass (1)
+.SH MORE INFORMATION ABOUT THE NESSUS PROJECT
+.LP
+The canonical places where you will find more information 
+about the Nessus project are : 
+.LP
+.in +3
+http://www.nessus.org (Official site)
+.br
+http://cvs.nessus.org (Developers site)
+.in -3
+.SH AUTHORS
+.LP
+The Nessus Project was started and is being maintained by Renaud Deraison
+<deraison@cvs.nessus.org>. The nessus server is mainly Copyright (C) 1998-1999
+Renaud Deraison, as well as the attack modules.
+.LP
+Jordan Hrycaj <jordan@mjh.teddy-net.com> is the author of the optional cipher
+layer between the server and the client. The cipher library (libpeks)
+is (C) 1998-1999 Jordan Hrycaj
+.LP
+And several other people have been kind enough to send patches and bug
+reports.  Thanks to them.

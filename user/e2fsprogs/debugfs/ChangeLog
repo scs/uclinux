@@ -1,0 +1,533 @@
+2001-09-20  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.25
+
+2001-09-02  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.24a
+
+2001-08-30  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.24
+
+2001-08-27  Theodore Tso  <tytso@valinux.com>
+
+	* debugfs.c (main): Remove EXT2FS_VERSION from the version
+		display, since it only confuses people.
+
+2001-08-15  Theodore Tso  <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.23
+
+2001-08-12  Theodore Tso  <tytso@valinux.com>
+
+	* logdump.c (do_logdump, dump_journal): Add support for dumping
+		external journals.
+
+2001-06-23  Theodore Tso  <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.22
+
+2001-06-15  Theodore Tso  <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.21
+
+2001-06-13  Theodore Tso  <tytso@valinux.com>
+
+	* setsuper.c: Add s_lastcheck field to the fields which can be
+		modified using set_super_value.  (Suggested by Andreas
+		Dilger)
+
+2001-06-03  Theodore Tso  <tytso@valinux.com>
+
+	* debugfs.c (copy_file): Fixed signed vs unsigned bug which causes
+		read errors to not be noticed.
+
+2001-06-01  Theodore Tso  <tytso@valinux.com>
+
+	* Makefile.in: Move include/asm/types.h.in to 
+		lib/ext2fs/ext2_types.h.in.
+
+	* debugfs.c, debugfs.h, logdump.c: Fix various gcc -Wall nitpicks.
+
+	* logdump.c (read_journal_block): Replace pread with lseek/read
+		combination.
+
+2001-05-25  Theodore Tso  <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.20
+
+2001-05-14  Theodore Tso  <tytso@valinux.com>
+
+	* debugfs.h: Change location of ext2_fs.h to be ext2fs/ext2_fs.h
+
+2001-05-12  Theodore Tso  <tytso@valinux.com>
+
+	* debugfs.c (print_features): Use fputs instead of printf to
+		output using the passed-in FILE *.
+
+2001-05-09  Theodore Tso  <tytso@valinux.com>
+
+	* debugfs.c (do_write, do_mknod): Set the file type information
+		when creating the inode.
+
+2001-05-03  Theodore Tso  <tytso@valinux.com>
+
+	* debugfs.c (do_open_filesys, main): Add -i option which will
+		allow debugfs to examine ext2 image files.
+
+2001-03-29  Theodore Tso  <tytso@valinux.com>
+
+	* debugfs.c (dump_blocks, dump_inode, internal_dump_inode): Add
+		internal_dump_inode() interface for the logdump command.
+
+	* logdump.c: Imported code from Stephen Tweedie to dump the ext3
+		journal.
+
+2001-03-18  Theodore Tso  <tytso@valinux.com>
+
+	* debugfs.c (do_write, do_mknod): Remove extra (useless) call to
+		ext2fs_write_inode.
+
+2001-01-12  Theodore Ts'o  <tytso@valinux.com>
+
+	* setsuper.c: Cleaned up some random whitespace problems.
+
+	* debugfs.h,  debugfs.c  (do_show_super_stats): Use  full words
+		instead of pluralism hack  to make I18N conversion easier.
+		Clean up gcc -Wall complaints.
+
+2001-01-11    <tytso@snap.thunk.org>
+
+	* debugfs.c, debugfs.h, dump.c, icheck.c, ls.c, lsdel.c, ncheck.c,
+		setsuper.c, util.c: Change ino_t to ext2_ino_t.  Fix a few
+		minor gcc-wall complaints while we're at it.
+
+2001-01-01    <tytso@snap.thunk.org>
+
+	* debugfs.c Replace use of struct ext2fs_sb with struct
+		ext2_super_block.
+
+2000-12-30    <tytso@snap.thunk.org>
+
+	* dump.c (fix_perms): Fix bug for systems which don't have fchown;
+		was incorrectly using chmod instead of chown.
+
+	* setsuper.c (find_field): Strip the s_prefix if given for ssv
+		fields.  Remove hard-coded s_ from inode_size
+		field.  (Suggested by Andreas Dilger)
+
+	* debugfs.c (do_modify_inode): Add the ability to set the inode
+		generation number.  (Suggested by Andreas Dilger)
+
+2000-08-23    <tytso@valinux.com>
+
+	* util.c (string_to_inode): Use strtoul instead of atoi, so that
+		hex inode numbers will be accepted.
+
+2000-08-19    <tytso@valinux.com>
+
+	* util.c (open_pager): Set SIGPIPE to be ignored, so that quitting
+		out of the pager doesn't blow away debugfs.
+
+2000-08-14    <tytso@valinux.com>
+
+	* debugfs.c (do_show_super_stats): Use list_super2() instead of
+		using explicit printf statements.  (We get a more complete
+		printout this way.)
+
+	* util.c (open_pager): If the PAGER environment variable is not
+		set, default to using "more".
+
+	* setsuper.c: New function which implements the set_super_value
+		command.  Allows the user to set arbitrary superblock
+		fields.
+
+	* debugfs.c (dump_inode): Cap the length when printing a fast
+		symbolic link to inode.i_size.
+		(list_blocks_proc): Print block ranges (4510-4533) to make
+		the stat output easier to read.
+
+2000-06-27  Andreas Dilger <adilger@turbolabs.com>
+
+	* debugfs.c (list_blocks_proc): show relative inode block numbers
+		and/or indirect block status
+
+2000-07-13    <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.19
+
+2000-07-05  Theodore Ts'o  <tytso@valinux.com>
+
+	* debugfs.c (dump_inode): Make the generation field be printed as
+		an unsigned integer.
+
+2000-07-04    <tytso@snap.thunk.org>
+
+	* Makefile.in: Use _SS_DIR_OVERRIDE to make sure we get the
+		mk_cmds support files from the source tree.
+
+2000-06-09    <tytso@snap.thunk.org>
+
+	* lsdel.c (do_lsdel): Handle bad bad blocks in inode table.
+
+2000-05-27  Theodore Ts'o  <tytso@valinux.com>
+
+	* debugfs.c (do_testb, do_testi): Call check_fs_bitmaps to avoid
+		coredumping if the bitmaps aren't loaded.
+
+	* util.c (check_fs_bitmaps): New function which checks whether or
+		not the bitmaps are loaded.
+
+2000-05-23  Aaron Crane  <aaronc@pobox.com>
+
+	* debugfs.8.in: Documented new behaviour.
+
+	* ls.c (ls_l_file): Fix Y2K bug -- was printing 22-May-100 for
+	 	recent files.  Switched to 4-digit years.
+
+	* dump.c, debug_cmds.ct (do_rdump): Add new debugfs command
+	 	"rdump", which recursively dumps a directory and its
+		contents.
+		(fix_perms): New function.  Break permission-fixing
+		code out of dump_file() so it can be called by rdump
+		code as well.
+		(dump_file): Call fix_perms().
+
+	* debugfs.c, debug_cmds.ct (do_lcd): Add new debugfs command
+	 	"lcd", which changes the cwd on the native filesystem.
+
+	* debugfs.c (open_filesystem): Extra args for superblock,
+		blocksize, and catastrophic mode.  Changed callers.
+		(do_open_filesys, main): Accept new -b, -s, -c options
+		for open_filesystem.
+
+2000-02-02  Theodore Ts'o  <tytso@valinux.com>
+
+	* debugfs.c (dump_inode): Remove #ifdef for i_version
+		vs. i_generation since we know it will always be
+		i_generation now.
+
+2000-01-18  Theodore Ts'o  <tytso@valinux.com>
+
+	* debugfs.c (main): Use return instead of exit at the end of main
+		to avoid some compiler warnings.
+
+	* Makefile.in: Since LIBUUID can sometimes include
+		"-lsocket" we need a separate DEPLIBUUID that can be used
+		in Makefile's dependency rules.
+
+1999-11-19    <tytso@valinux.com>
+
+	* Makefile.in (distclean): Remove TAGS and Makefile.in.old from
+		the source directory.
+
+1999-11-10    <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.18
+
+1999-11-08    <tytso@valinux.com>
+
+	* icheck.c (do_icheck): 
+	* ncheck.c (do_ncheck): If ext2fs_open_inode_scan() returns 
+		EXT2_ET_BAD_BLOCK_IN_INODE_TABLE loop to skip over the bad
+		blocks in the inode table.
+
+1999-10-26    <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.17
+
+1999-10-26    <tytso@valinux.com>
+
+	* debugfs.h: Add declaration for do_features()
+
+	* debugfs.c: Add #incldue of e2p.h to fix gcc warnings.
+
+1999-10-25    <tytso@valinux.com>
+
+	* debugfs.c (do_dirty_filesys): Make the "dirty" command clear the
+		valid bit on the superblock.  (And with a -clean option to
+		set the valid bit.)  Originally it was used just to set
+		the "needs to be written" bit in the in-core version of
+		the fs structure.
+
+1999-10-22    <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.16
+
+1999-09-07    <tytso@rsts-11.mit.edu>
+
+	* debugfs.c, debug_cmds.ct: Add new debugfs command "feature"
+		which allows the user to set or clear filesystme features.
+		Add the -f (force) option to the open command.  Add the 
+		-h (superblock header only) option to the stats command.
+
+1999-07-30    <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (dump_inode): Fix debugfs message so it is the same
+		for when compiled under either Linux 2.2 or 2.3.  This
+		allows for the f_swapfs regression test suite to work
+		regardless of which OS e2fsprogs was compiled on.
+
+1999-07-18  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs 1.15
+
+1999-06-23    <tytso@valinux.com>
+
+	* debugfs.c (dump_inode): Add compatibility for Linux 2.3 kernels
+		that use i_generation instead of i_version.  Patch
+		supplied by Jon Bright <sircus@sircus.demon.co.uk>.
+
+1999-02-09  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* icheck.c (do_icheck): Check to make sure the inode has valid
+		blocks before iterating over that inode's blocks.
+
+1999-01-09  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs 1.14
+
+1998-12-15  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs 1.13
+
+1998-12-03  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Makefile.in: Updated dependencies.
+
+1998-07-31  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (do_stat, do_clri): Fix bug where debugfs wasn't
+		displaying the error message if ext2fs_read_inode() failed.
+		(do_rm): Fix similar problem for call to ext2fs_namei().
+	
+1998-07-09  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs 1.12
+
+1998-06-27  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c: Add a -V option which displays the current version.
+
+1998-03-31  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Makefile.in: Change to use new installation directory variables
+		convention.  Fix installdirs and uninstall rules to reflect
+		the fact that debugfs has been installed in the root
+		filesystem.  Fix uninstall rules to take $(DESTDIR) into
+		account.
+
+1998-03-29  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.h: Add declaration for do_dirty_filsys() to prevent
+		-Wall warnings.
+
+	* debugfs.c (copy_file): 
+	* dump.c (dump_file): Fix -Wall warning caused by
+		signed/unsigned mismatch. 
+
+1998-03-23  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c, ls.c, lsdel.c: Add support for large files.  (The
+		high 32 bits share space with the i_dir_acl field.)
+
+Sun Mar  8 22:53:04 1998  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* ls.c (list_dir_proc): Mask off high 8 bits from
+ 		dirent->name_len.
+
+Mon Dec  1 13:21:09 1997  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Makefile.in: Install debugfs in /sbin, instead of /usr/sbin.
+
+Sat Oct 25 18:35:30 1997  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (copy_file), dump.c (dump_file): Change to use the new
+		fileio primitives in libext2.
+
+Fri Oct 24 23:47:43 1997  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (main, do_open_filesys): 
+	* dump.c (do_dump): Make the variable which getopt returns into be
+		an int, so that it won't lose on platforms where char is
+		unsigned. 
+
+Tue Oct 14 21:50:24 1997  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (main): When printing a usage message, have main
+		return 1 (instead of not specifying a return value, bad!)
+
+Mon Sep 15 22:03:36 1997  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (main): Fix declaration of main so that it returns an int.
+
+Tue Jun 17 01:33:20 1997  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs 1.11
+
+Thu May  8 23:05:40 1997  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.8.in: Fix minor typos and grammer oops found by Bill
+ 		Hawes (whawes@star.net).
+
+Thu Apr 24 12:16:42 1997  Theodre Ts'o  <tytso@localhost.mit.edu>
+
+	* Release of E2fsprogs version 1.10
+
+Thu Apr 17 12:23:38 1997  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs version 1.09
+
+Fri Apr 11 18:56:26 1997  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs version 1.08
+
+Thu Apr 10 14:36:05 1997  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* ls.c: New file which implements the ls command.  Added the -l
+		option. 
+
+Wed Mar 12 13:32:05 1997  Theodore Y. Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs version 1.07
+
+Wed Jan  1 23:53:26 1997  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* lsdel.c (do_lsdel): Use time_to_string() instead of ctime().
+
+Tue Oct  8 02:02:03 1996  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs version 1.06
+
+Thu Sep 12 15:23:07 1996  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs version 1.05
+
+Mon Sep  9 23:05:11 1996  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (unlink_file_by_name): If unlinking a file with a
+		directory path, correctly replace the slash with a NULL.
+		(do_show_debugfs_params): Don't try to print the open mode
+		if there's no filesystem opened (since that will cause a
+		core dump).
+		(main): Fix usage string; the -w and device elements are
+		independently optional.
+
+Tu Sep  3 15:09:39 1996  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (main): Added -f option to debugfs, which takes a
+		command file of debugfs commands and executes them.
+
+Sat Aug 31 01:18:43 1996  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.8.in: Heavily edited and improved manual page.
+
+	* dump.c (dump_file): Improve the write function for writing out
+		the file, so that it is limited to the actual size of the
+		file, instead of outputing the nulls following the EOF.
+		Make sure dump_file does the right thing for files with holes.
+		(do_dump): Add support for the -p option to the dump
+		command, which attempts to preserve the owner and
+		permissions field.
+
+Fri Aug 30 14:56:59 1996  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (main): Add -R option to debugfs, which allows it to
+		take a single debugfs command on the command line.
+
+Fri Aug  9 09:03:31 1996  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (do_open_filesys): Set optind to 0 to reset getopt(),
+ 		to be complete correct.
+		(do_show_super_stats): Print OS type, volume label, last
+ 		mounted directory, and UUID.
+		(dump_inode): Print the fragment information in a
+ 		filesystem independent way.
+		(do_modify_inode): Modify the fragement information in a
+ 		filesystem independent way.
+
+Thu May 16 11:12:30 1996  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs version 1.04
+
+Wed May 3 20:41:26 1996  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (dump_inode): Correctly print the translator on the	hurd.
+	       (do_modify_inode): Modify the translator block on the hurd.
+
+Wed Mar 27 00:33:40 1996    <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs version 1.03
+
+Wed Jan 31 11:06:08 1996    <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs version 1.02
+
+Fri Dec  1 22:42:31 1995    <tytso@rsts-11.mit.edu>
+
+	* Makefile.in (LIBS): Rearrange the order of the libraries to be
+		linked, so that -lext2fs is before -lcom_err.
+
+Thu Oct 26 12:05:06 1995    <tytso@rsts-11.mit.edu>
+
+	* Makefile.in (install): Strip programs when they are installed.
+
+Fri Aug 18 15:09:08 1995  Theodore Y. Ts'o  <tytso@dcl>
+
+	* debugfs.c (do_find_free_block): Fix typo in code which checked
+		to see if the usage message should be printed.
+
+Thu Aug 17 22:55:58 1995    <tytso@rsts-11.mit.edu>
+
+	* debugfs.c (do_open_filesys): Change to always set optreset to 1,
+		to make BSD getopt()'s happy.  Also set optind to 1, which
+		should make more getopt()'s happy.
+
+Fri Aug 11 08:45:01 1995  Theodore Y. Ts'o  <tytso@lurch.mit.edu>
+
+	* debugfs.c (do_find_free_block, do_find_free_inode): Fix bug in
+		the usage handling where "ffi ?" or "ffb ?" would
+		dereference a NULL pointer.
+
+Fri Aug 11 14:21:07 1995  Remy Card  <card@bbj>
+
+	* debugfs.8: Updated date and version number.
+
+Thu Aug 10 14:28:50 1995  Remy Card  <card@bbj>
+
+	* debugfs.8: Fixed a spelling error in Ted's name :-)
+
+Mon Jun 12 19:08:25 1995  Theodore Y. Ts'o  (tytso@dcl)
+
+	* debugfs.c, ncheck.c, icheck.c, lsdel.c, dump.c: Include
+		<errno.h> (if it exists)
+
+	* debugfs.c, dump.c, icheck.c, lsdel.c, ncheck.c: Don't include
+		<getopt.h> if it doesn't exist.
+
+Sun Jun 11 15:21:07 1995  Theodore Y. Ts'o  <tytso@lurch.mit.edu>
+
+	* ncheck.c (do_ncheck): Use LINUX_S_ISDIR instead of S_ISDIR
+
+	* debugfs.c: Implement the mknod and write commands (from Linus).
+
+		Change names of modify_char, modify_short, and modify_long
+		to be modify_u8, modify_u16, and modify_u32, respectively.
+
+Thu Jun  8 12:29:15 1995  Miles Bader  <miles@churchy.gnu.ai.mit.edu>
+
+	* debugfs.c (dump_inode): Only print out inode frag fields if
+	HAVE_EXT2_FRAGS is defined (by configure).  Don't print out the
+	reserved field at all for  now.
+
+	* Makefile.in: Rewritten to conform to GNU coding standards and
+	support separate compilation directories.
+
+Thu Nov 24 17:46:23 1994  Theodore Y. Ts'o  (tytso@rt-11)
+
+	* dump.c: Added two new commands, "dump" and "cat", which allow
+		the user to dump the contents of an inode to a file or to
+		stdout, respectively.
+
+

@@ -1,0 +1,724 @@
+'\" t
+.\" @(#)lilo.conf.5 1.0 950728 aeb
+.\" This page is based on the lilo docs, which carry the following
+.\" COPYING condition:
+.\"
+.\" LILO program code, documentation and auxiliary programs are
+.\" Copyright 1992-1998 Werner Almesberger.
+.\" Extensions to LILO, documentation and auxiliary programs are
+.\" Copyright 1999-2001 John Coffman.
+.\" All rights reserved by the respective copyright holders.
+.\" 
+.\" Redistribution and use in source and binary forms of parts of or the
+.\" whole original or derived work are permitted provided that the
+.\" original work is properly attributed to the author. The name of the
+.\" author may not be used to endorse or promote products derived from
+.\" this software without specific prior written permission. This work
+.\" is provided "as is" and without any express or implied warranties.
+.\"
+.TH LILO.CONF 5 "31 Oct 2001"
+.SH NAME
+lilo.conf \- configuration file for lilo
+.SH DESCRIPTION
+.LP
+This file, by default
+.IR /etc/lilo.conf ,
+is read by the boot loader installer 'lilo' (see lilo(8)).
+.LP
+It might look as follows:
+.IP
+.nf
+# lilo.conf
+#
+#  global options:
+boot=/dev/hda
+prompt
+timeout=150
+lba32
+compact
+vga=normal
+root=/dev/hda1
+read-only
+menu-title=" John's Computer "
+#
+#  bootable kernel images:
+image=/boot/zImage-1.5.99
+     label=try
+image=/boot/zImage-1.0.9
+     label=1.0.9
+image=/tamu/vmlinuz
+     label=tamu
+     root=/dev/hdb2
+     vga=ask
+#
+#  other operating systems:
+other=/dev/hda3
+     label=dos
+other=/dev/hdb5
+     label=os2
+     loader=/boot/os2_d.b
+     table=E:
+.fi
+.LP
+This configuration file specifies that lilo uses the Master
+Boot Record on /dev/hda. (For a discussion of the various ways
+to use lilo, and the interaction with other operating systems,
+see user.tex from the lilo documentation.)
+.LP
+When booting, the boot loader will issue its 
+.I "boot:"
+prompt and wait for you to enter the label of the kernel (and any options)
+which you wish to boot. At any time you may hit [Tab] to see
+a list of kernel/other labels.
+Alternately, if the \fBboot-menu.b\fP boot loader is installed,
+a menu of boot options will be presented for your selection.
+The title of this menu is overridden with the menu
+title specification in this configuration file.
+If you enter nothing,
+then the default kernel image, the first mentioned, (/boot/zImage-1.5.99)
+will be booted after a timeout of 15 seconds (150 deciseconds).
+There can be up to 16 images mentioned in lilo.conf.
+.LP
+As can be seen above, a configuration file starts with a number
+of global options (the top 9 lines in the example),
+followed by descriptions of the options for the various images.
+An option in an image description will override a global option.
+.LP
+Comment lines may appear anywhere, and begin with the "#" character.
+
+.SH "GLOBAL OPTIONS"
+There are many possible keywords. The description below is
+almost literally from user.tex (just slightly abbreviated).
+.TP
+.BI "backup=" <backup-file>
+Copy the original boot sector to
+.I backup-file
+(which may also be a device, e.g.
+.IR /dev/null )
+instead of
+.IR /boot/boot.NNNN .
+.TP
+.BI "bitmap=" <bitmap-file>
+Specifies use of a 640x480x16 bitmap file as the background on which a boot
+menu is displayed.  May not be used if 'message=' is specified.  Requires
+that 'install=' specify a boot-loader which is capable of displaying the
+bitmap; i.e., 
+.IR boot-bmp.b "."
+.TP
+.BI "bmp-colors=" <fg>,<bg>,<sh>,<hfg>,<hbg>,<hsh>
+Specifies the decimal values of the colors to be used for the menu display
+on a 'bitmap=' background.  The list consists of 6 entries, 3 for normal
+text followed by 3 for highlighted text.  The order of each triple is:
+foreground color, background color, shadow color.  If background color is
+not specified, "transparent" is assumed.  If shadow color is not specified,
+then "none" is assumed.  The list entries are separated by commas, with no
+spaces.
+.TP
+.BI "bmp-table=" <x>,<y>,<ncol>,<nrow>,<xsep>
+Specifies the location and layout of the menu table.  <x>,<y> specify the
+starting x- and y-position of the upper left corner of the table in
+character coordinates: x in [1..80], y in [1..25]. <ncol> is the number of
+columns in the menu (1..3); and <nrow> is the number of rows in each column.
+If more than one column is specified, then <xsep> is the number of character
+columns between the leftmost characters in each column: (18..40). If pixel
+addressing is used, instead of character addressing, then any of <x>, <y>,
+or <xsep> may be specified with a 'p' suffix on the decimal value.
+.TP
+.BI "bmp-timer=" <x>,<y>,<fg>,<bg>,<sh>
+Optional specification of the 'timeout=' countdown timer.  <x>,<y>
+specifies the character (or pixel) coordinate of the location of the timer,
+as for 'bmp-table=' above;
+and the color triple specifes the character color attributes, as for
+'bmp-colors=' above, with the exception that the background
+.I must
+be specified.
+.TP
+.BI "boot=" <boot-device>
+Sets the name of the device (e.g. a hard disk partition) that contains
+the boot sector. If this keyword is omitted, the boot sector is read
+from (and possibly written to) the device that is currently mounted as root.
+A raid installation is initiated by specifying a RAID1 device as the boot
+device; e.g., "boot=/dev/md0".  Note that LILO version 22.0 and later
+operate diffenently from earlier versions with respect to the actual
+location of the boot records.
+.TP
+.BI "change-rules"
+Defines boot-time changes to partition type numbers (`hiding').
+.IP
+.nf
+change-rules
+   reset
+   type=DOS12
+      normal=1
+      hidden=0x11
+   type=DOS16_small
+      normal=4
+      hidden=0x14
+   type=DOS16_big
+      normal=0x06
+      hidden=0x16
+.fi
+.IP
+The above excerpt from a configuration file specifies that all default
+.I change-rules
+are removed ("reset"), and the change-rules for three partition types
+are specified.  Without the \fIreset\fP, the three types specified would
+have been added to the existing default change-rules.  Normally, the default
+rules are sufficient.  The strings which define the partition types
+are used in a
+.I change
+section (see below), with the suffixes "_normal" or "_hidden" appended.
+See section "Partition type change rules" of user.tex for more details.
+.TP
+.BI "compact"
+Tries to merge read requests for adjacent sectors into a single 
+read request. This drastically reduces load time and keeps the map 
+smaller. Using `compact' is especially recommended when booting from a 
+floppy disk. 
+.TP
+.BI "default=" <name>
+Uses the specified image as the default boot image. If `default' is omitted,
+the image appearing first in the configuration file is used.
+.TP
+.BI "delay=" <tsecs>
+Specifies the number of tenths of a second the boot loader should 
+wait before automatically booting a locked command line,
+a command line pre-stored by
+"lilo -R", or the default `image=' or `other='.
+When `delay' is non-zero, the boot loader will wait for an interrupt for the 
+specified interval. If an interrupt is received, or
+is already waiting, the \fBboot:\fP
+prompt will be be issued, and no automatic boot will take place. The setting
+of CAPS LOCK or SCROLL LOCK, or any of the
+keys ALT, CTRL, or SHIFT, when held down, are taken as interrupts.
+
+This action is modified by specifying `prompt' (see below).
+.TP
+.BI "disk=" <device-name>
+Defines non-standard parameters for the specified disk.
+See section "Disk geometry" of user.tex for details.
+Especially useful is the `bios=' parameter.
+The BIOS numbers your disks 0x80, 0x81, etc. and it is impossible
+to decide which Linux disk corresponds to which BIOS disk
+(since this depends on the BIOS setup, and on the type of BIOS),
+so if you have an unusual setup you need to state the correspondence
+between Linux disks and BIOS disks.
+For example,
+.sp
+.nf
+       disk=/dev/sda
+            bios=0x80
+       disk=/dev/hda
+            bios=0x81
+.fi
+.sp
+would say that your SCSI disk is the first BIOS disk,
+and your (primary master) IDE disk is the second BIOS disk.
+.TP
+.BI "disktab=" <disktab-file>
+Specifies the name of the disk parameter table.
+The map installer looks for
+.I /etc/disktab
+if `disktab' is omitted. The use of disktabs is discouraged.
+.TP
+.BI "fix-table"
+This allows lilo to adjust 3D addresses in partition tables. Each 
+partition entry contains a 3D (sector/head/cylinder) and a linear 
+address of the first and the last sector of the partition. If a 
+partition is not track-aligned and if certain other operating systems 
+(e.g. PC/MS-DOS or OS/2) are using the same disk, they may change the 
+3D address. lilo can store its boot sector only on partitions where 
+both address types correspond. lilo re-adjusts incorrect 3D start 
+addresses if `fix-table' is set.
+
+WARNING: This does not guarantee that other operating systems may 
+not attempt to reset the address later. It is also possible that this 
+change has other, unexpected side-effects. The correct fix is to 
+re-partition the drive with a program that does align partitions to 
+tracks. Also, with some disks (e.g. some large EIDE disks with address 
+translation enabled), under some circumstances, it may even be 
+unavoidable to have conflicting partition table entries.
+.TP
+.BI "force-backup=" <backup-file>
+Like `backup', but overwrite an old backup copy if it exists.
+.TP
+.BI "geometric"
+Force disk addressing which is compatible with older versions of LILO. 
+Geometric addressing uses sector/head/cylinder addresses, and is limited to
+disk cylinders up to 1023.  If inaccessible cylinders are referenced,
+diagnostics will be issued at boot-install time, rather than boot-time. 
+With a newer BIOS, use of 'lba32' is recommended.
+.TP
+.BI "ignore-table"
+tells lilo to ignore corrupt partition tables. 
+.TP
+.BI "install=" <boot-loader>
+Install the specified file as the new boot loader. Starting with
+version 21.5, two boot loaders are available:
+.I boot-text.b
+and \fIboot-menu.b\fP, with
+.I boot.b
+a symbolic link to the latter. Both boot loaders allow the entry
+of kernel command line options in exactly the same fashion. Both also have full
+serial line support (see \fBserial=\fP below), although no menu
+capabilities are available
+on the serial terminal. The former is
+available for strict compatibility with previous versions of LILO.
+If `install' is omitted,
+.I /boot/boot.b
+is used as the default.
+.TP
+.BI "lba32"
+Generate 32-bit Logical Block Addresses instead of sector/head/cylinder 
+addresses. If the BIOS supports packet addressing, then packet calls will be
+used to access the disk. This allows booting from any partition on disks
+with more than 1024 cylinders.
+If the BIOS does not support packet addressing, then 'lba32' addresses are
+translated to sector/head/cylinder ('geometric'), just as for 'linear'.
+All floppy disk
+references are retained in C:H:S form.  Use of 'lba32' is recommended on
+all post-1998 systems.  Beginning with LILO version 22, 'lba32' is the
+default disk addressing scheme.
+.TP
+.BI "linear"
+Generate 24-bit linear sector addresses instead of sector/head/cylinder 
+(geometric) addresses. Linear addresses are translated at run time to
+geometric addresses, and are limited to cylinders <= 1023. When using
+`linear' with large disks,
+.I /sbin/lilo
+may generate references to inaccessible disk cylinders. 'lba32' avoids
+many of these pitfalls with its use of packet addressing, but requires a
+recent BIOS.
+.TP
+.BI "lock"
+Enables automatic recording of boot command lines as the defaults 
+for the following boots. This way, lilo "locks" on a choice until it is 
+manually overridden.
+.TP
+.BI "mandatory"
+The per-image password option `mandatory' (see below) applies to all images.
+.TP
+.BI "map=" <map-file>
+Specifies the location of the map file. If `map' is omitted, the file
+.I /boot/map
+is used. 
+.TP
+.BI "menu-title=" <title-string>
+Specifies the title line (up to 37 characters) for the boot menu. This
+title replaces the default "LILO Boot Menu" title string. If
+.I boot-menu.b
+is not installed as the boot loader (see
+.I "install="
+option), then this line has no effect.
+.TP
+.BI "menu-scheme=" <color-scheme>
+The default color scheme of the boot menu may be overridden on VGA displays
+using this option. (The color scheme of MDA displays is fixed.)
+The general
+.I color-scheme
+string is of the form:
+.sp
+.nf
+     <text>:<highlight>:<border>:<title>
+.fi
+.sp
+where each entry is two characters which specify a
+foreground color and a background color. Only the first entry is
+required. The default highlight is the reverse of the text color; and the
+default border and title colors are the text color.
+Colors are specified using the characters \fBkbgcrmyw\fP, for blac\fBK\fP,
+\fBB\fPlue, \fBG\fPreen, \fBC\fPyan, \fBR\fPed,
+\fBM\fPagenta, \fBY\fPellow, and \fBW\fPhite: upper case for
+intense (fg only), lower case for dim.
+Legal color-scheme strings would be
+.sp
+.nf
+    menu-scheme=Wm     intense white on magenta
+    menu-scheme=wr:bw:wr:Yr    the LILO default
+    menu-scheme=Yk:kw    bright yellow on black
+.fi
+.sp
+If
+.I "boot-menu.b"
+is not installed as the boot loader, then this line has no effect.
+.TP
+.BI "message=" <message-file>
+specifies a file containing a message that is displayed before
+the boot prompt. No message is displayed while waiting 
+for a shifting key after printing "LILO ". In the message, the FF
+character ([Ctrl L]) clears the local screen. This is undesirable when
+the \fIboot-menu.b\fP boot loader is installed. 
+The size of the message 
+file is limited to 65535 bytes. The map file has to be rebuilt if the 
+message file is changed or moved.  'message=' and 'bitmap=' are mutually
+exclusive.
+.TP
+.BI "nowarn"
+Disables warnings about possible future dangers.
+.TP
+.BI "optional"
+The per-image option `optional' (see below) applies to all images.
+.TP
+.BI "password=" <password>
+The per-image option `password=...' (see below) applies to all images. This
+option may prevent unattended booting, if the default image is `password='
+protected at the default level `mandatory', which is a level higher than
+`restricted'.
+.TP
+.BI "prompt"
+Automatic booting (see `delay' above) will not take place unless a locked or
+pre-stored ("lilo -R") command line is present. Instead, the boot
+loader will issue the 
+.I boot:
+prompt and wait for user input before proceeding (see
+.I timeout
+below).
+Unattended default image reboots are impossible if `prompt' is set
+and `timeout' is not, or the default image is password protected at a higher
+level than `restricted'.
+.TP
+.BI "raid-extra-boot=" <option>
+This option only has meaning for RAID1 installations.
+The <option> may be specified as \fInone\fP, \fIauto\fP, \fImbr-only\fP,
+or a comma-separated list of devices; e.g., "/dev/hda,/dev/hdc6".  Starting
+with LILO version 22.0, the boot record is normally written to the first
+sector of the RAID1 device.  On PARALLEL raid sets, no other boot records
+are needed.  The
+default action is \fIauto\fP, meaning, automatically generate auxilary boot
+records as needed on SKEWED raid sets.  \fInone\fP means
+suppress generation of all auxiliary boot records. 
+\fImbr-only\fP suppresses generation of boot records on the raid device,
+and forces compatibility with versions of LILO earlier than version 22.0
+by writing boot records to all Master Boot Records (MBRs) of all disks in
+the raid set.
+Use of an explicit list of devices, forces writing of auxiliary boot records
+only on those devices enumerated, in addition to the boot record on the RAID1
+device. Since the version 22 RAID1 codes will never automatically write a boot
+record on the MBR of device 0x80, if such a boot record is desired, this is
+the way to have it written.
+.TP
+.BI "restricted"
+The per-image password option `restricted' (see below) applies to all images.
+.TP
+.BI "serial=" <parameters>
+enables control from a serial line. The specified serial port is
+initialized and the boot loader is accepting input from it and from 
+the PC's keyboard. Sending a break on the serial line corresponds to 
+pressing a shift key on the console in order to get the boot loader's
+attention. 
+All boot images should be password-protected if the serial access is 
+less secure than access to the console, e.g. if the line is connected 
+to a modem. The parameter string has the following syntax:
+.sp
+.nf
+    <port>[,<bps>[<parity>[<bits>]]]
+.fi
+.sp
+<port>:  the number of the serial port, zero-based. 0 corresponds to
+COM1 alias /dev/ttyS0, etc. All four ports can be used (if present).
+.sp
+<bps>:  the baud rate of the serial port. The following baud rates are 
+supported: 110, 150, 300, 600, 1200, 2400(default), 4800, 9600, plus the 
+extended rates 19200, 38400, and 57600(56000).  115200 is allowed, but may
+not work with all COMx port hardware.
+.sp
+<parity>:  the parity used on the serial line. The boot loader ignores input 
+parity and strips the 8th bit. The following (upper or lower case) 
+characters are used to describe the parity:  "n" for no parity, "e" 
+for even parity and "o" for odd parity.
+.sp
+<bits>:  the number of bits in a character. Only 7 and 8 bits are 
+supported. Default is 8 if parity is "none", 7 if parity is "even" 
+or "odd". 
+.sp
+If `serial' is set, the value of `delay' is automatically raised to 20.
+.sp
+Example: "serial=0,2400n8" initializes COM1 with the default parameters.
+.TP
+.BI "single-key"
+This option specifies that boot images or 'other's are to be selected and
+launched with a single keystroke.  Selection is based upon the first
+character of each name, which must be unique.  This option should not be
+used with the menu or bitmap user interface ("install=").
+.TP
+.BI "timeout=" <tsecs>
+sets a timeout (in tenths of a second) for keyboard input at the 
+.I boot:
+prompt.  "timeout" only has meaning if "prompt" is mentioned.
+If no key is pressed for the specified time, the default image is 
+automatically booted. The default timeout is infinite.
+.TP
+.BI "verbose=" <number>
+Turns on lots of progress reporting. Higher numbers give more verbose
+output. If  \-v  is additionally specified on the lilo command line,
+the level is increased accordingly. The maximum verbosity level is 5.
+
+.LP
+Additionally, the kernel configuration parameters
+.BR append ", " ramdisk ", " read-only ", " read-write ", " root
+and
+.B vga
+can be set in the global options section. They are used as defaults
+if they aren't specified in the configuration sections of the
+respective kernel images.
+
+.SH "PER-IMAGE SECTION"
+A per-image section starts with either a line
+.sp
+.nf
+    \fBimage=\fP\fI<pathname>\fP
+.fi
+.sp
+to indicate a file or device containing the boot image of a Linux
+kernel, or a line
+.sp
+.nf
+    \fBother=\fP\fI<device>\fP
+.fi
+.sp
+to indicate an arbitrary system to boot.
+.LP
+
+In the former case, if an \fBimage\fP line specifies booting
+from a device, then one has to indicate the range of sectors to be mapped
+using
+.sp
+.nf
+    \fBrange=\fP\fI<start>-<end>\fP
+    \fBrange=\fP\fI<start>+<nsec>\fP
+    \fBrange=\fP\fI<sector>\fP
+.fi
+.LP
+In the third case, 'nsec=1' is assumed.
+
+.SH "KERNEL OPTIONS (image=)"
+If the booted image is a Linux kernel, then one may pass
+command line parameters to this kernel.
+.TP
+.BI "append=" <string>
+Appends the options specified to the parameter line passed to the kernel.
+This is typically used to specify parameters of hardware that can't be
+entirely auto-detected or for which probing may be dangerous. Example:
+.sp
+.nf
+     append="hd=576,64,32"
+.fi
+.sp
+.TP
+.BI "initrd=" <name>
+Specifies the initial ramdisk image to be loaded with the kernel.  The
+image will contain modules needed at boot time, such as network and scsi
+drivers. See man pages for \fImkinitrd(8)\fP.
+.TP
+.BI "literal=" <string>
+Like `append', but removes all other options (e.g. setting of the root
+device). Because vital options can be removed unintentionally with `literal',
+this option cannot be set in the global options section.
+.TP
+.BI "ramdisk=" <size>
+This specifies the size (e.g., "4096k") of the optional RAM disk. A value of 
+zero indicates that no RAM disk should be created. If this variable is 
+omitted, the RAM disk size configured into the boot image is used.
+.TP
+.BI "read-only"
+This specifies that the root file system should be mounted read-only.
+It may be specified as a global option.
+Typically, the system startup procedure re-mounts the root 
+file system read-write later (e.g. after fsck'ing it).
+.TP
+.BI "read-write"
+This specifies that the root file system should be mounted read-write.
+It may be specified as a global option.
+.TP
+.BI "root=" <root-device>
+This specifies the device that should be mounted as root. 
+It may be specified as a global option.
+If the special name
+.B current
+is used, the root device is set to the device on which the root file
+system is currently mounted. If the root has been changed with  -r ,
+the respective device is used. If the variable `root' is omitted,
+the root device setting contained in the kernel image is used.
+(And that is set at compile time using the ROOT_DEV variable in
+the kernel Makefile, and can later be changed with the rdev(8) program.)
+.TP
+.BI "vga=" <mode>
+This specifies the VGA text mode that should be selected when 
+booting.
+It may be specified as a global option.
+The following values are recognized (case is ignored): 
+.sp
+.BR normal :
+select normal 80x25 text mode. 
+.sp
+.BR extended " (or " ext ):
+select 80x50 text mode.
+.sp
+.BR ask :
+stop and ask for user input (at boot time).
+.sp
+<number>: use the corresponding text mode. A list of available modes 
+can be obtained by booting with
+.I vga=ask
+and pressing [Enter]. 
+.sp
+If this variable is omitted, the VGA mode setting contained in the 
+kernel image is used. (And that is set at compile time using the
+SVGA_MODE variable in the kernel Makefile, and can later be changed with
+the rdev(8) program.)
+
+.SH "ALTERNATE SYSTEM (other=)"
+.LP
+Used to load systems other than Linux. The `other = <device>' specifies
+the boot sector of an alternate system contained on a device or disk
+partition; e.g., DOS on, say, `/dev/hda2', or a floppy on `/dev/fd0'.
+In the case of booting another system there are these options:
+.TP
+.BI "loader=" <chain-loader>
+This specifies the chain loader that should be used.  It may also be
+specified as a global option.
+By default
+.I /boot/chain.b
+is used.  This chain loader passes partition and drive information in the
+boot sector it loads only to DOS on FAT12 or FAT16, Windows on FAT16 or
+FAT32, or OS/2 on FAT16 or HPFS.
+The alternate chain loader,
+.I /boot/os2_d.b
+passes partition and drive information unconditionally, and uses a format
+suitalble for OS/2 and DOS (see 
+.I table=<letter>
+below).
+.TP
+.BI "table=" <device>
+This specifies the device that contains the partition table. 
+The boot loader will pass default partition information to the booted
+operating system if this variable is omitted. (Some operating systems
+have other means to determine from which partition they have been booted.
+E.g., MS-DOS usually stores the geometry of the boot disk or partition
+in its boot sector.)
+Note that /sbin/lilo must be re-run if a partition table mapped referenced
+with `table' is modified.
+.TP
+.BI "table=" <drive-letter>
+This is a special case for the
+.I os2_d.b
+chain loader.  It specifies the DOS drive letter for the partition
+that will be booted.  This is
+.I mandatory
+when booting OS/2 installed on
+an extended partition.  The drive letter may be specified with or without a
+trailing colon.
+.TP
+.BI "change"
+This keyword starts a section which describes how primary partition IDs are
+changed, and how primary partitions are activated and deactivated.  If
+.B change
+is omitted, change rules are generated as though the 
+.I "automatic"
+keyword were specified.  The keyword
+.B change
+alone, without any rules following, will suppress automatic change-rules.
+For example,
+.IP
+.nf
+   other=/dev/hda2
+      label=dos
+      table=/dev/hda
+      change
+        automatic
+        partition=/dev/hda1
+           set=DOS12_hidden
+           deactivate
+        partition=/dev/hda2
+           set=DOS16_big_normal
+           activate
+.fi
+.IP
+specifies that when primary partition /dev/hda2 is booted, automatic
+change-rules will be in effect; plus, partition 1, a DOS12 partition, will
+be set hidden, and deactivated.  In addition, partition 2, will be set
+normal, and activated.  Activation sets the boot-flag in the partition
+table.  The 
+.I automatic
+keyword may confict with default change rules, so the
+.I set=
+lines above may be redundant.
+.TP
+.BI "map-drive=" <num>
+Maps BIOS calls for the specified drive to the device code specified on the
+next line as \fBto=\fP<num>.  This mapping is useful for booting operating
+systems, such as DOS, from the second hard drive.  The following, swaps the
+C: and D: drives,
+.sp
+.nf
+   map-drive=0x80
+      to=0x81
+   map-drive=0x81
+      to=0x80
+.fi
+.TP
+.BI "unsafe"
+Do not access the boot sector at map creation time. This disables 
+some sanity checks, including a partition table check. If the boot 
+sector is on a fixed-format floppy disk device, using UNSAFE avoids the 
+need to put a readable disk into the drive when running the map 
+installer. `unsafe' and `table' are mutually incompatible. 
+
+.SH "COMMON OPTIONS (image= & other=)"
+.LP
+In both the
+.BR image= " and " other=
+cases, the following options apply.
+.TP
+.BI "label=" <name>
+The boot loader uses the main file name (without its path)
+of each image specification to identify that image.
+A different name can be used by setting the variable `label'.
+.TP
+.BI "alias=" <name>
+A second name for the same entry can be used by specifying an alias.
+.TP
+.BI "lock"
+(See above.)
+.TP
+.BI "optional"
+Omit the image if it is not available at map creation time.
+It may be specified as a global option.
+This is useful to specify test kernels that are not always present.
+.TP
+.BI "password=" <password>
+Protect the `image=' or `other=' with a password (or passphrase).
+It may be specified as a global option.
+The interpretation of the `password=' setting is modified by the words
+`mandatory', `restricted', and `bypass' (see below).
+.br
+The password may be specified in the config-file (less secure) or entered
+at the time the boot loader is installed. To request interactive entry of
+the password, it should be specified: \fBpassword=""\fP.
+Passwords entered interactively are not required to be entered again if the
+boot installer is re-run. They are cached, in hashed form, in a companion
+file to the config-file, default name: \fB/etc/lilo.conf.crc\fP. If the 
+config-file is updated, a warning message
+will be issued telling you to re-run \fIlilo -p\fP to force re-creation of the
+password cache file.
+.TP
+.BI "mandatory"
+A password is required to boot this image. This is the default. May be used
+on a single `image=' or `other=' to override a different global setting.
+.TP
+.BI "restricted"
+A password is only required to boot the image if kernel parameters
+are specified on the command line (e.g. 'single').  May be used
+on a single `image=' or `other=' to override a different global setting.
+.TP
+.BI "bypass"
+No password is required to boot this image. Used to indicate that the global
+password does not apply to this `image=' or `other='.
+.LP
+
+.SH "SEE ALSO"
+lilo(8), mkinitrd(8), mkrescue(8), rdev(8).
+.br
+.sp
+The lilo distribution comes with very extensive documentation
+of which the above is an extract.  (lilo 22.1)

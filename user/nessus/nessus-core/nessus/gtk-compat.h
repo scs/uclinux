@@ -1,0 +1,6 @@
+
+
+#define GTK_ENABLE_BROKEN 1
+#if GTK_VERSION >= 20
+#define GTK_WINDOW_DIALOG GTK_WINDOW_POPUP
+#endif

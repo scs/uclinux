@@ -1,0 +1,98 @@
+Changelog for hydra
+-------------------
+
+v2.2 (OCTOBER 2002)		PUBLIC RELEASE
+* fixed a bug in the -P passwordfile handling ... uhhh ... thanks to all
+  the many people who reported that bug!
+* added check if a password in -P passwordfile was already done via the
+  -e n|s switch
+
+v2.1 (APRIL 2002)		PUBLIC RELEASE
+* added ldap cracking mode (thanks to myself, eh ;-)
+* added -e option to try null passwords ("-e n") and passwords equal to the
+  login ("-e s"). When specifying -e, -p/-P is optional (and vice versa)
+* when a login is found, hydra will now go on with the next login
+
+v2.0 (APRIL 2002)		PRIVATE RELEASE
+! with v1.1.14 of Nessus, Hydra is a Nessus plugin!
+* incorporated code to make hydra a nessus plugin (thanks to deraison@cvs.nessus.org !)
+* added smb/samba/CIFS cracking mode (thanks to deraison@cvs.nessus.org !)
+* added cisco-enable cracking mode (thanks to J.Marx@secunet.de !)
+* minor enhancements and fixes
+
+v1.7 (MARCH 2002)		PRIVATE RELEASE
+* configure change to better detect OpenSSL
+* ported to Solaris
+
+v1.6 (FEBRUARY 2002)		PUBLIC RELEASE
+* added socks5 support (thanks to bigbud@weed.tc !)
+
+v1.5 (DECEMBER 2001)		PRIVATE RELEASE
+* added -S option for SSL support (for all TCP based protocols)
+* added -f option to stop attacking once a valid login/pw has been discovered
+* made modules more hydra-mod compliant
+* configure stuff thrown out - was not really used and too complicated,
+  wrote my own, lets hope it works everywhere ;-)
+
+v1.4 (DECEMBER 2001)		PUBLIC RELEASE
+* added REXEC cracking module
+* added NNTP cracking module
+* added VNC cracking module (plus the 3DES library, which is needed) - some
+  of the code ripped from FX/Phenolite :-) thanks a lot
+* added PCNFS cracking module
+* added ICQ cracking module (thanks to ocsic <pisco@private.as>!!)
+* for the pcnfs cracking module, I had to add the hydra_connect_udp function
+* added several compactibility stuff to work with all the M$ crap
+
+v1.3 (September 2001)		PUBLIC RELEASE
+* uh W2K telnetd sends null bytes in negotiation mode. workaround implemented.
+* Rewrote the finish functions which would sometimes hang. Shutdowns are faster
+  now as well.
+* Fixed the line count (it was always one to much)
+* Put more information in the outpufile (-o)
+* Removed some configure crap.
+
+v1.2 (August 2001)		PRIVATE RELEASE
+* Fixed a BIG bug which resulted in accounts being checked serveral times. ugh
+* Fixed the bug which showed the wrong password for a telnet hack. Works for
+  me. please test.
+* Added http basic authentication cracking. Works for me. please test.
+* Fixed the ftp cracker module for occasions where a long welcome message was
+  displayed for ftp.
+* Removed some compiler warnings.
+
+v1.1 (May 2001)			PUBLIC RELEASE
+* Added wait+reconnect functionality to hydra-mod
+* Additional wait+reconnect for cisco module
+* Added small waittimes to all attack modules to prevent too fast reconnects
+* Added cisco Username/Password support to the telnet module
+* Fixed a deadlock in the modules, plus an additional one in the telnet module
+
+v1.0 (April 2001)		PUBLIC RELEASE
+* Verified that all service modules really work, no fix necessary ;-)
+  ... so let's make it public
+* Changed the LICENCE
+
+v0.6 (April 2001)		PRIVATE RELEASE
+* Added hydra-cisco.c for the cisco 3 times "Password:" type
+* Added hydra-imap.c for the imap service
+* Fixed a bug in hydra-mod.c: empty logins resulted in an empty
+  hydra_get_next_password() :-(, additionally the blocking/recv works better
+  now. (no, not better - perfect ;-)
+* Fixed a bug in hydra-telnet.c: too many false alarms for success due some
+  mis-thinking on my side and I also implemented a more flexible checking
+* Fixed hydra-ftp.c to allow more weird reactions
+* Fixed all ;-) memory leaks
+
+v0.5 (December 2000)		PUBLIC RELEASE
+* NOTE WE HAVE GOT A NEW WWW ADDRESS -> www.thehackerschoice.com
+* added telnet protocol
+* exchanged snprintf with sprintf(%.250s) to let it compile on more platforms
+  but still have buffer overflow protection.
+* fixed a bug in Makefile.in (introduced by Plasmo ,-)
+
+v0.4 (August 2000)		PUBLIC RELEASE
+* Plasmoid added a ./configure script. thanks!
+
+v0.3 (August 2000)
+* first release

@@ -1,0 +1,80 @@
+edit.c:static int GetSysCharHeight (HWND hwnd) 
+edit.c:static int GetSysCharWidth (HWND hwnd) 
+edit.c:	return (2*GetSysCharWidth(hwnd));
+edit.c:        if ((endPos - newStartPos) * GetSysCharWidth (pCtrl) < nOutWidth)//+
+edit.c:                nTextWidth += GetSysCharWidth (pCtrl);//+
+edit.c:            nTextWidth += GetSysCharWidth (pCtrl);//+
+edit.c:        if ((nTextWidth + (GetSysCharWidth(hwnd) >> 1)) >= x)//+
+edit.c:                nTextWidth += GetSysCharWidth (hwnd);//+
+edit.c:            nTextWidth += GetSysCharWidth (hwnd);//+
+edit.c:            CreateCaret (hWnd, NULL, 1 /*+ GetSysCharWidth(hWnd)*/,
+edit.c:            SetCaretPos (pSLEditData->caretOff * GetSysCharWidth (hWnd) 
+edit.c://                    SetCaretPos (pSLEditData->caretOff * GetSysCharWidth (hWnd) 
+edit.c://                   SetCaretPos (pSLEditData->caretOff * GetSysCharWidth (hWnd)
+edit.c:                    SetCaretPos (pSLEditData->caretOff * GetSysCharWidth (hWnd) 
+edit.c:                    if (pSLEditData->caretOff * GetSysCharWidth (hWnd) 
+edit.c:                    SetCaretPos (pSLEditData->caretOff * GetSysCharWidth (hWnd) 
+edit.c:			    + pSLEditData->caretOff * GetSysCharWidth (hWnd);
+edit.c:			    + pSLEditData->caretOff * GetSysCharWidth (hWnd);
+edit.c:                    SetCaretPos (pSLEditData->caretOff * GetSysCharWidth (hWnd) 
+edit.c:            if (pSLEditData->caretOff * GetSysCharWidth (hWnd) 
+edit.c:                                        * GetSysCharWidth (hWnd);
+edit.c:            SetCaretPos (pSLEditData->caretOff * GetSysCharWidth (hWnd) 
+edit.c:                SetCaretPos (pSLEditData->caretOff * GetSysCharWidth (hWnd) 
+listbox.c://- pData->itemHeight = GetSysCharHeight ();
+listbox.c://jmt: should be SYSTEM_FIXED_FONT because of minigui's GetSysCharXXX()
+medit.c:extern int GetSysCharHeight (HWND hwnd); 
+medit.c:extern int GetSysCharWidth (HWND hwnd); 
+medit.c:        if ((endPos - newStartPos) * GetSysCharWidth (hWnd) < nOutWidth)
+medit.c:                nTextWidth += GetSysCharWidth (hWnd);
+medit.c:            nTextWidth += GetSysCharWidth (hWnd);
+medit.c:        if ((nTextWidth + (GetSysCharWidth(hwnd) >> 1)) >= x)
+medit.c:                nTextWidth += GetSysCharWidth (hwnd);
+medit.c:            nTextWidth += GetSysCharWidth (hwnd);
+medit.c:	    nline = x / GetSysCharHeight(hwnd);
+medit.c:	    pMLEditData->MaxlinesDisp   = (clientRect.bottom-clientRect.top)/GetSysCharHeight(hWnd);
+medit.c:            CreateCaret (hWnd, NULL, 1, /*GetSysCharWidth(hWnd)+1,*/
+medit.c:            SetCaretPos (pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:				pMLEditData->leftMargin - pMLEditData->dispPos * GetSysCharWidth(hWnd) ,
+medit.c:				GetSysCharHeight(hWnd)*(pLineData->lineNO - pMLEditData->StartlineDisp) 
+medit.c:                    SetCaretPos (pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:                        (pMLEditData->editLine - pMLEditData->StartlineDisp) * GetSysCharHeight(hWnd)
+medit.c:                        (pMLEditData->editLine-pMLEditData->StartlineDisp) * GetSysCharHeight(hWnd)
+medit.c:                    SetCaretPos (pMLEditData->caretPos * GetSysCharWidth (hWnd)
+medit.c:						(pMLEditData->editLine-pMLEditData->StartlineDisp) * GetSysCharHeight(hWnd)
+medit.c:                    SetCaretPos (pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:						(pMLEditData->editLine - pMLEditData->StartlineDisp) * GetSysCharHeight(hWnd)
+medit.c:            	        if (pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:                    SetCaretPos (pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:                        (pMLEditData->editLine - pMLEditData->StartlineDisp) * GetSysCharHeight (hWnd) 
+medit.c:                   				pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:                      				pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:                          			+ pMLEditData->leftMargin+GetSysCharWidth(hWnd)/2);
+medit.c:                    SetCaretPos (pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:					    (pMLEditData->editLine - pMLEditData->StartlineDisp) * GetSysCharHeight(hWnd)
+medit.c:                   				pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:                       				pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:                           			+ pMLEditData->leftMargin+GetSysCharWidth(hWnd)/2);
+medit.c:                    SetCaretPos (pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:					    (pMLEditData->editLine - pMLEditData->StartlineDisp) * GetSysCharHeight(hWnd)
+medit.c:                    SetCaretPos (pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:					    (pMLEditData->editLine - pMLEditData->StartlineDisp) * GetSysCharHeight(hWnd)
+medit.c:            if (pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:            SetCaretPos (pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:					    (pMLEditData->editLine - pMLEditData->StartlineDisp) * GetSysCharHeight(hWnd)
+medit.c:   	        		newOff = edtGetOffset (hWnd,pMLEditData,temp, LOWORD(lParam)+GetSysCharWidth(hWnd)/2);
+medit.c:   	        	    SetCaretPos (pMLEditData->caretPos * GetSysCharWidth (hWnd) 
+medit.c:					(pMLEditData->editLine - pMLEditData->StartlineDisp) * GetSysCharHeight(hWnd)
+progbar.c:GetSysCharWidth(HDC hdc)
+progbar.c:GetSysCharHeight(HDC hdc)
+progbar.c:	int maxw = GetSysCharWidth (hdc) << 2;
+progbar.c:	int charh = GetSysCharHeight (hdc);
+progbar.c:        TextOut (hdc, x + ((w - GetSysCharWidth (hdc) * strlen (szText) )>>1), 
+progbar.c:                      y + ((h - GetSysCharHeight(hdc) )>>1), 
+static.c:static int GetSysCharHeight (HWND hwnd) 
+static.c://jmt: should be SYSTEM_FIXED_FONT because of minigui's GetSysCharXXX()
+static.c:static int GetSysCharWidth (HWND hwnd) 
+static.c://jmt: should be SYSTEM_FIXED_FONT because of minigui's GetSysCharXXX()
+static.c:			    rcClient.top + (GetSysCharHeight(hwnd) >> 1),
+static.c:			rcClient.top+(GetSysCharHeight(hwnd) >> 1),
+static.c:                        TextOut (hdc, GetSysCharWidth (hwnd), 2, spCaption, -1);

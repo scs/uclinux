@@ -1,0 +1,22 @@
+27 May 2000 - Alex Holden <alex@linuxhacker.org>
+	* Fixed lots of things to make it build under 0.88pre8.
+	* Fixed a couple of bugs.
+	* Created nwidgets.h which includes all of the headers required for
+	  nwidget programs at once.
+	* Added n_main() utility function.
+
+1999/10/5  - Vidar Hokstad
+      I've intergrated Greg's changes to 0.1, and split the (unfinished)
+      textfield widget into it's it's own file. I've also started to add a
+      simple listview widget, and started moving rendering into a separate
+      class.
+ 
+      * Improved the rendering of the text field a lot. *HOWEVER* it will
+        probably look really bad on 0.5pre3 due to lack of text clipping.
+
+      * Text field now uses MODE_XOR for the cursor.
+
+      * Fixed some of the calculations regarding cursor positioning etc.
+        for the textfield.
+	
+      * Started adding a simple 3D look.

@@ -1,0 +1,86 @@
+2001-09-20  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.25
+
+2001-09-02  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.24a
+
+2001-08-30  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.24
+
+2001-08-30  Theodore Tso  <tytso@valinux.com>
+
+	* libext2fs.texinfo: Remove texinfo warnings by adding white space
+		after the function name and before the open parenthesis.
+
+2001-08-15  Theodore Tso  <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.23
+
+2001-06-27  Theodore Tso  <tytso@valinux.com>
+
+	* Makefile.in: Don't predefine RM; it's defined by MCONFIG
+
+2001-06-23  Theodore Tso  <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.22
+
+2001-06-15  Theodore Tso  <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.21
+
+2001-05-25  Theodore Tso  <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.20
+
+2001-05-20  Theodore Tso  <tytso@valinux.com>
+
+	* libext2fs.texinfo: Added @dircategory line so that Debian
+		programs know which section to list the .info file.
+
+2001-01-11    <tytso@snap.thunk.org>
+
+	* libext2fs.texinfo: Change ino_t to ext2_ino_t
+
+2000-07-13    <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.19
+
+1999-11-10    <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.18
+
+1999-10-26    <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.17
+
+1999-10-22    <tytso@valinux.com>
+
+	* Release of E2fsprogs 1.16
+
+1999-07-18  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs 1.15
+
+1999-01-09  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs 1.14
+
+1998-12-15  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs 1.13
+
+1998-07-09  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Release of E2fsprogs 1.12
+
+1998-07-04  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* libext2fs.texinfo: Update definition of ext2fs_block_iterate2.
+
+1998-03-30  Theodore Ts'o  <tytso@rsts-11.mit.edu>
+
+	* Makefile.in (install-doc-libs): Remove libext2fs.info*, not just
+		libext2fs.info*.gz.  Add an uninstall-doc-libs target.

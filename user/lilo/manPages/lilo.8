@@ -1,0 +1,331 @@
+'\" t
+.\" @(#)lilo.8 1.0 950728 aeb
+.\" This page is based on the lilo docs, which carry the following
+.\" COPYING condition:
+.\"
+.\" LILO program code, documentation and auxiliary programs are
+.\" Copyright 1992-1998 Werner Almesberger.
+.\" Extensions to LILO, documentation and auxiliary programs are
+.\" Copyright 1999-2001 John Coffman.
+.\" All rights reserved by the respective copyright holders.
+.\" 
+.\" Redistribution and use in source and binary forms of parts of or the
+.\" whole original or derived work are permitted provided that the
+.\" original work is properly attributed to the author. The name of the
+.\" author may not be used to endorse or promote products derived from
+.\" this software without specific prior written permission. This work
+.\" is provided "as is" and without any express or implied warranties.
+.\"
+.\" Original version, Andries Brouwer (aeb@cwi.nl), 950728
+.\" Added t directive, as Daniel Quinlan asked, 950824
+.\" Added L switch, John Coffman, 991118
+.\" Added T switch, John Coffman, 001001
+.\" Added p switch, John Coffman, 010402
+.\" Added x switch, John Coffman, 010409
+.\" Added A switch, John Coffman, 010417
+.\" Added M switch, John Coffman, 010417
+.\" Added g switch, John Coffman, 010526
+.\" Added z switch, John Coffman, 010829
+.\"
+.TH LILO 8 "31 Oct 2001"
+.SH NAME
+lilo \- install boot loader
+.SH SYNOPSIS
+Main function:
+.LP
+.B " /sbin/lilo"
+\- install boot loader
+.LP
+Auxiliary uses:
+.LP
+.B " /sbin/lilo -q"
+\- query map
+.br
+.B " /sbin/lilo -R"
+\- set default command line for next reboot
+.br
+.B " /sbin/lilo -I"
+\- inquire path name of current kernel
+.br
+.B " /sbin/lilo -A"
+\- activate a partition / show active partition
+.br
+.B " /sbin/lilo -M [-z]"
+\- write a Master Boot Record on a device
+\- or clear the device serial number
+.br
+.B " /sbin/lilo -T"
+\- tell more about specified topic
+.br
+.B " /sbin/lilo {-u|-U}"
+\- uninstall lilo
+.SH DESCRIPTION
+.LP
+.B lilo
+installs a boot loader that will be activated next time you boot.
+It has lots of options.
+.LP
+.TP
+.BI "\-\^A " "master-device [ N ]"
+Inquire of active partition on device
+.IR master-device ;
+e.g., "/dev/hda".  With a number in the range 1 to 4, activate the specified
+partition on the master device.
+.TP
+.BI "\-\^b " bootdev
+Specify the boot device; i.e., where the boot loader will be installed.
+"-b /dev/hda" specifies the Master Boot Record; "-b /dev/sdb5" specifies
+the first extended partition on the second SCSI disk.
+.TP
+.B "\-\^c"
+Enable map compaction. This will merge read requests from adjacent
+sectors. Speeds up the booting (especially from floppy).
+.TP
+.BI "\-\^C " config-file
+.B lilo
+reads its instructions about what files to map from the specified
+configuration file.  This option overrides the use of the default config
+file,
+.IR "/etc/lilo.conf" .
+.TP
+.BI "\-\^d " delay
+Specifies the delay time in tenths of a second (20 = 2 sec) before
+automatically booting the first image.  Gives you time to interrupt the
+automatic boot process with Shift, Alt, Ctrl, ScrollLock, or CapsLock.  If
+interrupted, the `boot:' prompt is displayed.  This switch is overriden by
+the appearance of
+.I prompt
+in the config-file.
+.TP
+.BI "\-\^D " label
+Use the kernel with the given label, instead of the first one
+in the list, as the default kernel to boot.
+.TP
+.BI "\-\^f " disk-tab
+Specify disk geometry parameter file. (The default is
+.IR /etc/disktab .)
+.TP
+.BI "\-\^g"
+Generate sector/head/cylinder (geometric) disk addresses.  Limited to
+cylinders up to 1023.  Forces compatibility with older versions of LILO.
+.TP
+.BI "\-\^i " boot-loader
+Specify a file to be used as the new boot loader. (The default is
+.IR /boot/boot.b .)
+.TP
+.BI "\-\^I " "label" "\[i|r\]"
+The label of the running kernel can be found in the environment
+variable BOOT_IMAGE after startup, or in the pseudo-file `/proc/cmdline'.
+This command will print path name of the corresponding kernel file, or of
+any initial ramdisk file ("i" or "r" option).
+.TP
+.BI "\-\^l"
+Generate 24-bit linear sector addresses instead of sector/head/cylinder
+addresses.
+.TP
+.BI "\-\^L"
+Generate 32-bit Logical Block Addresses instead of C:H:S addresses, allowing
+access to all partitions on disks with more than 1024 cylinders.
+.TP
+.BI "\-\^m " map-file
+Use specified map file instead of the default.
+.TP
+.BI "\-\^M " "master-device [ mbr-file ]"
+Install a Master Boot Record on the device specified as
+.IR master-device .
+The new MBR is copied by default from "/boot/mbr.b", unless a specific
+file is named as the second argument.  The primary partition table on
+.I master-device
+is undistrubed.  If no device serial number is present, then generate one
+and write it to the MBR.
+.TP
+.BI "\-\^p"
+Require interactive entry of all passwords specified as
+.B """""" 
+in the configuration file.
+.TP
+.BI "\-\^P " "{fix|ignore}"
+Fix (or ignore) `corrupt' partition tables, i.e., partition tables
+with linear and sector/head/cylinder addresses that do not correspond.
+.TP
+.B \-\^q
+List the currently mapped files.
+.B lilo
+maintains a file, by default
+.IR "/boot/map" ,
+containing the name and location of the kernel(s) to boot.
+This option will list the names therein.  Use with \fB-v\fP for
+more detailed information about the installed boot loader.
+.TP
+.BI "\-\^r " root-directory
+Before doing anything else, do a \fIchroot\fP to the indicated
+directory. The new root directory must contain a
+.I /dev
+directory, and may need a
+.I /boot
+directory. It may also need an
+.IR /etc/lilo.conf " file."
+
+Used by the
+.I mkbootdisk
+shell script for creating a bootable floppy.
+.TP
+.BI "\-\^R " "command line"
+This option sets the default command for the boot loader the next
+time it executes. The boot loader will then erase this line: this
+is a once-only command. It is typically used in reboot scripts,
+just before calling `shutdown -r'.  Used without any arguments, it will
+cancel a \fIlock\fP-ed or \fIfallback\fP command line.
+.TP
+.BI "\-\^s " save-file
+When
+.B lilo
+overwrites the boot sector, it preserves the old contents in
+a file, by default
+.I /boot/boot.NNNN
+where NNNN depends on the device. This option specifies an
+alternate save file for the boot sector. (Or, together with the
+\fB-u\fP option, specifies from where to restore the boot sector.)
+.TP
+.BI "\-\^S " save-file
+Normally,
+.B lilo
+will not overwrite an existing save file. This options says
+that overwriting is allowed.
+.TP
+.BI "\-\^t "
+Test only. Do not really write a new boot sector or map file.
+Use together with \fB-v\fP to find out what
+.B lilo
+is about to do.
+.TP
+.BI "\-\^T " option
+Print out system information, some of it extracted from the system
+bios.  This is more convenient than booting the LILO diagnostic
+floppy on problem systems.
+.I option
+may be any one of the following:
+.IP
+.nf
+   help  - print a list of available diagnostics
+   ChRul - list the partition types subject to
+           Change-Rules
+   EBDA  - list Extended BIOS Data Area information
+   geom=<drive> list drive geometry for bios drive;
+           e.g., geom=0x80
+   geom  - list drive geometry for all drives
+   table=<drive> list the primary partition table;
+           e.g., table=/dev/sda
+   video - list graphic modes available to boot
+           loader
+.fi
+.TP
+.BI "\-\^u " [device-name]
+Uninstall \fIlilo\fP by copying the saved boot sector back.
+The '-s' and '-C' switches may be used with this option.
+The \fIdevice-name\fP is optional.  A time-stamp is checked.
+.TP
+.BI "\-\^U " [device-name]
+Idem, but do not check the time-stamp.
+.TP
+.B "\-\^v"
+Increase verbosity. Giving one to five \fB-v\fP options
+will make lilo more verbose, or use, \fB-v\fP \fIn\fP (n=1..5) to
+set verbosity level '\fIn\fP'.
+.TP
+.B "\-\^V"
+Print version number.
+.TP
+.B "\-\^w"
+Suppress warning messages.
+.TP
+.BI "\-\^x " option
+For RAID installations only.  The option may be any of the keywords
+.IR none ,
+.IR auto ,
+.IR mbr-only ,
+or a comma separated list of additional boot devices (no spaces allowed in
+the list).
+.TP
+.B "\-\^z"
+When used with the -M switch, clears the device serial number.  Usually used
+in the following sequence to generate a new device serial number:
+.nf
+     lilo -z -M /dev/hda
+     lilo -M /dev/hda
+.fi
+.br
+.LP
+The above command line options correspond to the key words
+in the config file indicated below.
+.IP
+.TS
+l l.
+-b bootdev	boot=bootdev
+-c	compact
+-d dsec	delay=dsec
+-D label	default=label
+-i boot-loader	install=boot-loader
+-f file	disktab=file
+-g	geometric
+-l	linear
+-L	lba32
+-m mapfile	map=mapfile
+-P fix	fix-table
+-P ignore	ignore-table
+-s file	backup=file
+-S file	force-backup=file
+-v [N]	verbose=level
+-w	nowarn
+-x option	raid-extra-boot=option
+.TE
+.SH "BOOT OPTIONS"
+The options described here may be specified at on the command line when a
+kernel image is booted.  These options are processed by LILO, and are
+removed from the command line passed to the kernel, unless otherwise noted.
+.LP
+.TP
+.BI lock
+Locks the command line, as though 'lock' had been specified in 'lilo.conf.'
+.TP
+.BI "mem=###[,K,M]"
+Specifies the maximum memory in the system in bytes, kilobytes, or megabytes.
+This option is not removed from the command line, and is always passed to
+the kernel.
+.TP
+.BI nobd
+Suppresses collection of BIOS data.  This option is reserved for use with
+non-IBM-compliant BIOS's which hang up with an "s" at the end of the line:
+.nf
+     Loading.........s
+.fi
+.TP
+.BI "vga=[ASK,EXT,EXTENDED,NORMAL]"
+Allows overriding the default video mode upon kernel startup.
+.br
+.SH INCOMPATIBILITIES
+.B lilo
+is known to have problems with the
+.I reiserfs
+introduced with the 2.2.x kernels, unless the file system is
+mounted with the 'notail' option.  This incompatibilty has been
+resolved with reiserfs 3.6.18 and lilo 21.6.
+.sp
+Beginning with version 22.0, RAID installations write the boot record to
+the RAID partition. Conditional writing of MBRs may occur to aid in making
+the RAID set bootable in a recovery situation, but all default actions may
+be overridden. Action similar to previous versions is
+achieved using the `-x mbr-only' switch.
+.SH BUGS
+Configuration file options `backup' and `force-backup' are not yet correctly
+implemented for RAID installations. Use of the default boot record backup
+mechanism seems to work okay, and should be used.
+.SH "SEE ALSO"
+fdisk(8), lilo.conf(5), mkrescue(8), mkinitrd(8).
+.sp
+The lilo distribution comes with very extensive documentation.
+(lilo 22.1)
+.SH "AUTHORS"
+Werner Almesberger <almesber@lrc.epfl.ch> (to ver.21)
+.br
+John Coffman <johninsd@san.rr.com> (21.2 & later)

@@ -1,0 +1,169 @@
+##############################################################################
+# Microwindows Architecture rules Makefile
+# Copyright (c) 2000 Martin Jolicoeur, Greg Haerr
+#
+# This makefile should be placed at the top of a project hierarchy
+#
+# NOTE: The TOP environment variable should be set to that top directory
+##############################################################################
+
+# Platform dependent flags & definitions
+
+ifeq ($(ARCH), FREEBSD-X86)
+COMPILER = gcc
+CXX_COMPILER = g++
+TOOLSPREFIX =
+DEFINES += -DLINUX=1 -DUNIX=1
+CFLAGS += -Wall $(OPTFLAGS)
+LDFLAGS +=
+endif
+
+
+ifeq ($(ARCH), LINUX-NATIVE)
+COMPILER = gcc
+CXX_COMPILER = g++
+TOOLSPREFIX =
+DEFINES += -DLINUX=1 -DUNIX=1
+CFLAGS += -Wall $(OPTFLAGS)
+LDFLAGS +=
+# include the following line for static libraries
+#LDFLAGS += -static
+endif
+
+ifeq ($(ARCH), LINUX-ARM)
+COMPILER = gcc
+CXX_COMPILER = g++
+TOOLSPREFIX = $(ARMTOOLSPREFIX)
+DEFINES += -DLINUX=1 -DUNIX=1
+CFLAGS += -Wall $(OPTFLAGS) -mstructure-size-boundary=8
+LDFLAGS +=
+endif
+
+ifeq ($(ARCH), LINUX-MIPS)
+COMPILER = gcc
+CXX_COMPILER = g++
+TOOLSPREFIX = $(MIPSTOOLSPREFIX)
+DEFINES += -DLINUX=1 -DUNIX=1
+CFLAGS += -msoft-float -s -Wall $(OPTFLAGS)
+LDFLAGS +=
+endif
+
+ifeq ($(ARCH), LINUX-POWERPC)
+COMPILER = gcc
+CXX_COMPILER = g++
+TOOLSPREFIX = $(POWERPCTOOLSPREFIX)
+DEFINES += -DLINUX=1 -DUNIX=1
+CFLAGS += -msoft-float -s -Wall $(OPTFLAGS)
+LDFLAGS +=
+endif
+
+ifeq ($(ARCH), LINUX-SH)
+COMPILER = gcc
+CXX_COMPILER = g++
+TOOLSPREFIX =$(SHTOOLSPREFIX)
+DEFINES += -DLINUX=1 -DUNIX=1
+CFLAGS += -m1 -m3 -Wall $(OPTFLAGS)
+LDFLAGS +=
+endif
+
+ifeq ($(ARCH), SOLARIS)
+# may require using cc if gcc not installed:
+COMPILER = gcc
+HOSTCC = gcc
+CXX_COMPILER = g++
+TOOLSPREFIX =
+DEFINES += -DUNIX=1 -DBIGENDIAN=1
+CFLAGS += $(OPTFLAGS)
+LDFLAGS += -lsocket -lnsl -lrt
+endif
+
+ifeq ($(ARCH), ELKS)
+COMPILER = bcc
+HOSTCC = gcc
+CXX_COMPILER =
+TOOLSPREFIX =
+INCLUDEDIRS += -I/usr/bcc/include -I/home/greg/net/elks/include
+DEFINES += -DELKS=1 -DUNIX=1 -Dconst= -Dvolatile=
+CFLAGS += -0 -ansi -O
+LDFLAGS +=
+endif
+
+ifeq ($(ARCH), DJGPP)
+COMPILER = gcc
+CXX_COMPILER = g++
+TOOLSPREFIX =
+DEFINES += -DDOS_DJGPP=1 -D_NAIVE_DOS_REGS=1 -DMSDOS=1
+CFLAGS += -Wall $(OPTFLAGS)
+LDFLAGS += -lgrx20
+endif
+
+ifeq ($(ARCH), RTEMS)
+COMPILER = gcc
+CXX_COMPILER = g++
+TOOLSPREFIX = $(RTEMSTOOLSPREFIX)
+INCLUDEDIRS += -I$(RTEMS_BUILD)/$(RTEMS_BSP)/lib/include \
+-I$(RTEMS_BUILD)/$(RTEMS_BSP)/lib/include/networking \
+-I$(RTEMS_BUILD)/$(RTEMS_BSP)/lib/include/sys
+DEFINES += -DUNIX=1
+CFLAGS += -O4 -Wall -Wno-unused -fasm -g \
+-B$(RTEMS_BUILD)/$(RTEMS_BSP)/lib/ -specs bsp_specs -qrtems
+endif
+
+# I think the ARCH is m68knommu. So the "ifeq ($(ARCH), uClinux)"
+# may not work. I do rather check if people are compiling for our board:
+ifeq ($(CONFIG_COBRA5272), y) # Compiling for COBRA5272?
+COMPILER = gcc -I$(ROOTDIR)/user/microwin/src/include
+HOSTCC = gcc -I$(ROOTDIR)/user/microwin/src/include
+HOSTCFLAGS :=
+CXX_COMPILER = g++
+TOOLSPREFIX =
+# INCLUDEDIRS += -I/usr/bcc/include -I/home/greg/net/elks/include
+CFLAGS += -DUNIX=1 -Dwchar_t=char -DCONFIG_COBRA5272=1
+# CFLAGS += -0 -ansi -O
+# LDFLAGS += --verbose
+FLTFLAGS += -s 64000
+SYS_LIBS =
+LDLIBS += -lgcc -lc -lgcc
+else # Not compiling for COBRA5272 (same code as before):
+ifeq ($(ARCH), uClinux)
+COMPILER = gcc -I$(ROOTDIR)/user/microwin/src/include
+HOSTCC = gcc -I$(ROOTDIR)/user/microwin/src/include
+HOSTCFLAGS :=
+CXX_COMPILER = g++
+TOOLSPREFIX =
+# INCLUDEDIRS += -I/usr/bcc/include -I/home/greg/net/elks/include
+CFLAGS += -DUNIX=1 -Dwchar_t=char
+# CFLAGS += -0 -ansi -O
+# LDFLAGS += --verbose
+FLTFLAGS += -s 64000
+SYS_LIBS =
+LDLIBS += -lgcc -lc -lgcc
+endif # end for "ifeq ($(ARCH), uClinux)".
+endif # end for "ifeq ($(CONFIG_COBRA5272), y)"
+
+
+ifeq ($(ARCH), CLEOPATRA)
+COMPILER = gcc -m5200 -DCONFIG_COLDFIRE -I$(ROOTDIR)/user/microwin/src/include
+HOSTCC = gcc -I$(ROOTDIR)/user/microwin/src/include
+HOSTCFLAGS :=
+CXX_COMPILER = g++
+TOOLSPREFIX = $(CROSS)
+CFLAGS += -DUNIX=1 -Dwchar_t=char
+FLTFLAGS += -s 64000
+SYS_LIBS =
+#LDLIBS += -lgcc -lc -lgcc
+
+DEFINES += -DCLEOPATRA=1
+CFLAGS += -DCLEOPATRA=1
+ifeq ($(CONFIG_M5307), y)
+CFLAGS +=  -I$(ROOTDIR)/vendors/Feith/Cleopatra_src/lib
+LDFLAGS +=  -L$(ROOTDIR)/vendors/Feith/Cleopatra_src/lib
+else
+CFLAGS += -DCLEOVERSION=1
+CFLAGS +=  -I$(ROOTDIR)/vendors/Feith/Cleopatra2_src/lib
+LDFLAGS +=  -L$(ROOTDIR)/vendors/Feith/Cleopatra2_src/lib
+endif
+
+endif
+
+

@@ -1,0 +1,78 @@
+include ../../nessus.tmpl
+
+PLUGNAME=hydra
+
+all : $(PLUGNAME).nes 
+
+O_OBJS = d3des.o hydra4nessus.o hydra-cisco.o \
+	hydra-ftp.o hydra-http.o hydra-icq.o \
+	hydra-imap.o hydra-mod.o hydra-nntp.o \
+	hydra-pcnfs.o hydra-pop3.o hydra-rexec.o hydra-smb.o \
+	hydra-socks5.o hydra-telnet.o hydra-vnc.o hydra.o \
+	hydra-cisco-enable.o hydra-ldap.o
+
+
+d3des.o : d3des.c 
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c d3des.c
+	
+hydra4nessus.o : hydra4nessus.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra4nessus.c
+	
+hydra.o : hydra.c
+	$(LIBTOOL) $(CC) $(DEFS) -DNESSUS_PLUGIN $(include) -c hydra.c	
+  	
+hydra-cisco.o : hydra-cisco.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-cisco.c
+	
+hydra-ftp.o : hydra-ftp.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-ftp.c
+	
+hydra-http.o : hydra-http.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-http.c	
+			
+hydra-icq.o : hydra-icq.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-icq.c
+	
+hydra-imap.o : hydra-imap.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-imap.c
+	
+hydra-mod.o : hydra-mod.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-mod.c
+	
+hydra-nntp.o : hydra-nntp.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-nntp.c			
+				
+hydra-pcnfs.o : hydra-pcnfs.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-pcnfs.c
+	
+hydra-pop3.o : hydra-pop3.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-pop3.c	
+					
+hydra-rexec.o : hydra-rexec.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-rexec.c	
+	
+hydra-smb.o : hydra-smb.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-smb.c
+	
+hydra-socks5.o : hydra-socks5.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-socks5.c	
+	
+hydra-telnet.o : hydra-telnet.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-telnet.c	
+	
+hydra-vnc.o : hydra-vnc.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-vnc.c	
+	
+hydra-cisco-enable.o : hydra-cisco-enable.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-cisco-enable.c
+	
+hydra-ldap.o : hydra-ldap.c
+	$(CC) -bundle -undefined error $(DEFS) $(include) -c hydra-ldap.c
+		
+all : $(PLUGNAME).nes
+$(PLUGNAME).nes : $(O_OBJS)
+	$(CC) -bundle -undefined error -o $(PLUGNAME).nes $(O_OBJS) $(LIBS)
+	cp hydra.nes $(rootdir)/bin
+clean :
+	@rm -fr *.o *.nes *.la .libs
+

@@ -1,0 +1,151 @@
+hostapd - user space IEEE 802.11 AP and IEEE 802.1X Authenticator
+          for Host AP driver for Intersil Prism2/2.5/3
+=================================================================
+
+Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation. See COPYING for more
+details.
+
+
+Introduction
+============
+
+hostapd is an optional user space component for Host AP driver. It
+adds more features to the basic IEEE 802.11 management included in the
+kernel driver: using external RADIUS authentication server for MAC
+address based access control, IEEE 802.1X Authenticator and dynamic
+WEP keying, RADIUS accounting.
+
+
+IEEE 802.1X
+===========
+
+IEEE Std 802.1X-2001 is a standard for port-based network access
+control. In case of IEEE 802.11 networks, a "virtual port" is used
+between each associated station and the AP. IEEE 802.11 specifies
+minimal authentication mechanism for stations, whereas IEEE 802.1X
+introduces a extensible mechanism for authenticating and authorizing
+users.
+
+IEEE 802.1X uses elements called Supplicant, Authenticator, Port
+Access Entity, and Authentication Server. Supplicant is a component in
+a station and it performs the authentication with the Authentication
+Server. An access point includes Authenticator that relies the packets
+between Supplicant and Authentication Server. In addition, it has a
+Port Access Entity (PAE) with Authenticator functionality for
+controlling the virtual port authorization, i.e., whether to accept
+packets from or to the station.
+
+IEEE 802.1X uses Extensible Authentication Protocol (EAP). The frames
+between Supplicant and Authenticator are sent using EAP over LAN
+(EAPOL) and Authenticator relays these frames to the Authenticatation
+Server (and similarily, relayes the messages from Authentication
+Server to the Supplicant). Authention Server can be colocated with the
+Authenticator, in which case there is no need for additional protocol
+for EAP frame transmission. However, more common configuration is to
+use an external Authentication Server and encapsulate EAP frame in the
+frames used by that server. RADIUS is suitable for this, but IEEE
+802.1X would allow also other mechanisms.
+
+Host AP driver includes a PAE functionality in the kernel driver. It
+is a relatively simple mechanism for denying normal frames going to
+are coming from an unauthorized port. PAE allows IEEE 802.1X related
+frames to be passed between the Supplicant and the Authenticator even
+on an unauthorized port.
+
+User space daemon, hostapd, includes Authenticator functionality. It
+receives 802.1X (EAPOL) frames from the Supplicant using the wlan#ap
+device that is also used with IEEE 802.11 management frames. The
+frames to the Supplicant are sent using the same device.
+
+hostapd includes a minimal colocated Authentication Server for testing
+purposes. It only requests the identity of the Supplicant and
+authorizes any host that is able to send valid EAP Response
+frame. This can be used for quick testing since it does not require an
+external Authentication Server, but it should not be used for any real
+authentication purposes since no keys are required and anyone can
+authenticate.
+
+The normal configuration of the Authenticator would use an external
+Authentication Server. hostapd supports RADIUS encapsulation of EAP
+packets, so the Authention Server should be a RADIUS server, like
+FreeRADIUS (http://www.freeradius.org/). The Authenticator in hostapd
+relays the frames between the Supplicant and the Authentication
+Server. It also controls the PAE functionality in the kernel driver by
+authorizing and unauthorizing virtual ports, i.e., station-AP
+connection, based on the IEEE 802.1X state.
+
+When a station would like to use the services of an access point, it
+will first perform IEEE 802.11 authentication. This is normally done
+with open systems authentication, so there is it provides no
+security. After this, IEEE 802.11 association is performed. If IEEE
+802.1X is configured to be used, the virtual port for the station is
+set in Unauthorized state and only IEEE 802.1X frames are accepted at
+this point. The Authenticator will then ask the Supplicant to
+authenticate with the Authentication Server. After this is completed
+successfully, the virtual port is set to Authorized state and frames
+from and to the station are accepted.
+
+Host AP configuration for IEEE 802.1X
+-------------------------------------
+
+The user space daemon has its own configuration file that can be used to
+define AP options. Distribution package contains an example
+configuration file (hostapd/hostapd.conf) that can be used as a basis
+for configuration. It includes examples of all supported configuration
+options and short description of each option. hostapd should be started
+with full path to the configuration file as the command line argument,
+e.g., './hostapd /etc/hostapd.conf'.
+
+hostapd includes a minimal co-located IEEE 802.1X server which can be
+used to test IEEE 802.1X authentication. However, it should not be
+used in normal use since it does not provide any security. This can be
+configured by setting ieee8021x and minimal_eap options in the
+configuration file.
+
+An external Authentication Server (RADIUS) is configured with
+auth_server_{addr,port,shared_secret} options. In addition,
+ieee8021x and own_ip_addr must be set for this mode. With such
+configuration, the co-located Authentication Server is not used and EAP
+frames will be relayed using EAPOL between the Supplicant and the
+Authenticator and RADIUS encapsulation between the Authenticator and
+the Authentication Server. Other than this, the functionality is similar
+to the case with the co-located Authentication Server.
+
+Authentication Server and Supplicant
+------------------------------------
+
+Any RADIUS server supporting EAP should be usable as an IEEE 802.1X
+Authentication Server with hostapd Authenticator. FreeRADIUS
+(http://www.freeradius.org/) has been successfully tested with hostapd
+Authenticator and both Xsupplicant (http://www.open1x.org) and Windows
+XP Supplicants. EAP/TLS was used with Xsupplicant and
+EAP/MD5-Challenge with Windows XP.
+
+http://www.missl.cs.umd.edu/wireless/eaptls/ has useful information
+about using EAP/TLS with FreeRADIUS and Xsupplicant (just replace
+Cisco access point with Host AP driver, hostapd daemon, and a Prism2
+card ;-). http://www.freeradius.org/doc/EAP-MD5.html has information
+about using EAP/MD5 with FreeRADIUS, including instructions for WinXP
+configuration. http://www.denobula.com/EAPTLS.pdf has a HOWTO on
+EAP/TLS use with WinXP Supplicant.
+
+Automatic WEP key configuration
+-------------------------------
+
+EAP/TLS generates a session key that can be used to send WEP keys from
+an AP to authenticated stations. The Authenticator in hostapd can be
+configured to automatically select a random default/broadcast key
+(shared by all authenticated stations) with wep_key_len_broadcast
+option (5 for 40-bit WEP or 13 for 104-bit WEP). In addition,
+wep_key_len_unicast option can be used to configure individual unicast
+keys for stations. This requires support for individual keys in the
+station driver.
+
+WEP keys can be automatically updated by configuring rekeying. This
+will improve security of the network since same WEP key will only be
+used for a limited period of time. wep_rekey_period option sets the
+interval for rekeying in seconds.

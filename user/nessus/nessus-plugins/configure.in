@@ -1,0 +1,209 @@
+dnl
+dnl autoconf script for Nessus-plugins
+dnl
+
+
+AC_INIT(.root-dir)
+AC_REVISION($Revision$)dnl
+
+
+dnl Set up the main lines of the config script
+AC_PREFIX_DEFAULT("/usr/local")
+
+
+test "x$prefix" != "xNONE" || prefix=/usr/local
+
+AC_LANG_C
+AC_PROG_CC
+#AC_CONFIG_HEADER()
+
+AC_LIBTOOL_WIN32_DLL
+AM_PROG_LIBTOOL
+AC_PROG_MAKE_SET
+AC_PROG_INSTALL
+
+PWDD=`pwd`
+
+dnl
+dnl Do not use the system install script.
+dnl
+dnl INSTALL="`pwd`/install-sh -c"
+INSTALL_DIR="$INSTALL -d"
+
+dnl extending the search path for AC_PATH_PROG when searching for config scripts
+XPATH="$DESTDIR$prefix/bin:$PATH"
+
+
+
+
+AC_ARG_ENABLE(install,[  --enable-install=user	  for debugging, install as non-root user],
+	installuser=$enable_install)
+: ${installuser:=root}
+
+
+case `uname` in
+CYGWIN*)
+  installuser=`whoami`
+  ;;
+esac
+
+
+dnl containing funny things, like openpty, forkpty
+dnl this library is deprecated because of portability
+AC_CHECK_LIB(util, openpty, LIBUTIL="-lutil")
+
+AC_PATH_PROG(NESSUSCONFIG, nessus-config,,$XPATH)
+
+test "x$NESSUSCONFIG" = x && AC_ERROR(""
+""
+"*** nessus-libraries is not installed ! You need to install it before you"
+"compile nessus-core."
+"Get it at ftp://ftp.nessus.org/pub/nessus/")
+
+
+CFLAGS="$CFLAGS `$NESSUSCONFIG --cflags`"
+LIBS="$LIBS `$NESSUSCONFIG --libs`"
+
+
+test "x$NESSUSCONFIG" = x && AC_ERROR(""
+""
+"*** nessus-libraries is not installed ! You need to install it before you"
+"compile nessus-core."
+"Get it at ftp://ftp.nessus.org/pub/nessus/")
+
+test "x$prefix" = xNONE && prefix=/usr/local
+AC_PATH_PROG(CP, cp)
+AC_PATH_PROG(MV, mv)
+AC_PATH_PROG(RM, rm)
+AC_PATH_PROG(MAKE, gmake)
+test "$MAKE" || {
+	AC_PATH_PROG(MAKE, make)
+	}
+
+INSTALL_DIR="$INSTALL -d"
+
+AC_PATH_PROG(ECHO, echo)
+AC_PATH_PROG(TEST, test)
+AC_PATH_PROG(MKDIR, mkdir)
+AC_PATH_PROG(CAT, cat)
+AC_PATH_PROG(GZIP, gzip)
+
+# Figure out what to use to fetch plugin updates
+AC_PATH_PROG(LYNX, lynx)
+AC_PATH_PROG(WGET, wget)
+AC_PATH_PROG(CURL, curl)
+AC_PATH_PROG(LINKS, links)
+
+AC_ARG_WITH(fetchcmd, [  --with-fetchcmd=[wget|lynx|<cmd>]
+			  Use this command for fetching updates.  This command
+
+			  must take a url as it's only argument and send the
+			  retrieved file to STDIN.  If you want to use lynx
+			  or wget then no arguments need be specified.
+			  [Default: wget]])
+
+FETCHCMD="no"
+
+
+if test -n "$with_fetchcmd" -a "$with_fetchcmd" != no ; then
+    if test "$with_fetchcmd" = "yes" ; then
+	AC_MSG_WARN([Must supply an argument when using --with-fetchcmd])
+    else
+	FETCHCMD="$with_fetchcmd"
+	# This should be verified that it works
+    fi
+fi
+
+
+dnl reorder these to get a different set of preferences.
+if test "$FETCHCMD" = "no" -o "$FETCHCMD" = "lynx" ; then
+    if test -n "$LYNX" -a -x "$LYNX" ; then
+	FETCHCMD="$LYNX"
+	FETCHARGS="-source"
+    fi
+fi
+
+
+
+
+if test "$FETCHCMD" = "no" -o "$FETCHCMD" = "wget" ; then
+    if test -n "$WGET" -a -x "$WGET" ; then
+	FETCHCMD="$WGET"
+	FETCHARGS="-q -O -"
+    fi
+fi
+
+
+if test "$FETCHCMD" = "no" -o "$FETCHCMD" = "links" ; then
+    if test -n "$LINKS" -a -x "$LINKS" ; then
+	FETCHCMD="$LINKS"
+	FETCHARGS="-source"
+    fi
+fi
+
+if test "$FETCHCMD" = "no" -o "$FETCHCMD" = "curl" ; then
+    if test -n "$CURL" -a -x "$CURL" ; then
+	FETCHCMD="$CURL"
+	FETCHARGS="-s -o -"
+    fi
+fi
+
+
+dnl Add another possible fetch command here
+
+dnl Be informative
+AC_MSG_CHECKING(for fetch command)
+if test -n "$FETCHCMD" -a "$FETCHCMD" = "no"
+then
+    FETCHCMD=""
+    AC_MSG_RESULT(no)
+else
+    AC_MSG_RESULT($FETCHCMD)
+fi
+
+dnl Make sure everything is complete for the updater
+if test "$FETCHCMD" = "no" -o -z "$GZIP"
+then
+    AC_WARN(Could not find gzip or a fetch utility such as wget. I will not install nessus-update-plugins)
+else
+    INSTALL_UPDATER=install-updater
+fi
+
+
+if [ test -n "$FETCHCMD" -a  -n "$GZIP" ];
+then
+ INSTALL_UPDATER=install-updater
+else
+ AC_WARN([lynx, wget and/or gzip could not be found. I will not install nessus-update-plugins])
+fi
+ 
+AC_CHECK_LIB(net, libnet_init, CFLAGS="$CFLAGS -DHAVE_LIBNET_1_1")
+
+AC_SUBST(INSTALL_DIR)
+AC_SUBST(INSTALL)
+AC_SUBST(INSTALL_UPDATER)
+AC_SUBST(CP)
+AC_SUBST(MV)
+AC_SUBST(RM)
+AC_SUBST(MAKE)
+AC_SUBST(ECHO)
+AC_SUBST(TEST)
+AC_SUBST(MKDIR)
+AC_SUBST(CAT)
+AC_SUBST(LYNX)
+AC_SUBST(WGET)
+AC_SUBST(FETCHCMD)
+AC_SUBST(FETCHARGS)
+AC_SUBST(GZIP)
+AC_SUBST(PWDD)
+AC_SUBST(LIBUTIL)
+AC_SUBST(installuser)
+
+
+
+AC_OUTPUT(pf/nessus-build
+nessus-update-plugins
+nessus.tmpl)
+
+exit 0
+

@@ -1,0 +1,11 @@
+ChangeLog for Host AP utils
+
+2003-11-02 - v0.1.2
+	* fixed prism2_srec not to allow combination of volatile and
+	  non-volatile firmware images (they will corrupt the card flash)
+
+
+Note:
+
+Older changes up to and including v0.1.0 are included in the ChangeLog
+of the Host AP driver.

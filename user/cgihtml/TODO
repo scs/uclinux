@@ -1,0 +1,15 @@
+TODO for cgihtml
+$Id$
+==========================
+
+o Rewrite the API for clarity and portability.
+
+o Add better Windows support.
+
+o Add Macintosh support.
+
+o Transparent FastCGI support.
+
+o Add interactive debugger for environment variables.
+
+o Fix any bugs that got away.

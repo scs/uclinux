@@ -1,0 +1,35 @@
+NanoWidgets v0.2
+
+(C) 1999 by Screen Media AS
+Written by Vidar Hokstad <vidarh@screenmedia.no> <vidar@hokstad.com>
+
+CREDITS
+
+Contains code from The Nano Toolkit (unreleased),
+(C) 1999 by Alexander Peuchert.
+
+Other contributors:
+   Greg Haerr
+
+LICENSE
+
+This code is licensed under the Mozilla Public License
+
+(note: I haven't gotten around to asking Alexander if the MPL is okay with
+him yet. There isn't much of his original code left at this stage, though,
+but I've mailed him to check)
+
+MISC INFO
+
+Thanks to Greg Haerr, it now works somewhat reliably with the MicrowWindows
+0.84 release of Nano-X. Most should still also work with 0.5pre3, but I've
+not tested that.
+
+Did I mention there's no warranties? Well, there isn't. This code
+is highly experimental, and needs a lot of work. Oh, and don't complain
+to me about how it looks. I've started to add hooks for attaching
+rendering objects to the widgets, to make the whole system themable,
+and the current look is like it is only for debugging purposes.
+
+For now, please send patches to me by e-mail. We'll get it into
+CVS later.

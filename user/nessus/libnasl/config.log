@@ -1,0 +1,14 @@
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+configure:763: checking for gcc
+configure:876: checking whether the C compiler (sh-linux-gcc -m4 -ml -O2 -g -fomit-frame-pointer -DCONFIG_SNAPGEAR -DCONFIG_RAM64MB -Dlinux -D__linux__ -Dunix -DEMBED -nostdinc -I/home/gerg/new-wave.dist/lib/libc/include -I/home/gerg/new-wave.dist/lib/libm -I/home/gerg/new-wave.dist/lib/libcrypt_old -I/home/gerg/new-wave.dist -Wall  -fno-builtin -m4 -ml -I/home/gerg/new-wave.dist/linux-2.4.x/include -idirafter /usr/local/lib/gcc-lib/sh-linux/3.0.4/./include -nostdlib -I/home/gerg/new-wave.dist/lib/libssl/include -I/home/gerg/new-wave.dist/lib/libpcap -nostartfiles /home/gerg/new-wave.dist/lib/libc/lib/crt0.o -L/home/gerg/new-wave.dist/lib/libc/. -L/home/gerg/new-wave.dist/lib/libc/lib -L/home/gerg/new-wave.dist/lib/libm -L/home/gerg/new-wave.dist/lib/libnet -L/home/gerg/new-wave.dist/lib/libdes -L/home/gerg/new-wave.dist/lib/libaes -L/home/gerg/new-wave.dist/lib/libpcap -L/home/gerg/new-wave.dist/lib/libssl -L/home/gerg/new-wave.dist/lib/zlib -L/home/gerg/new-wave.dist/lib/libcrypt_old -L/home/gerg/new-wave.dist/lib/libldap/libraries/libldap/.libs -L/home/gerg/new-wave.dist/lib/libldap/libraries/liblber/.libs -L/home/gerg/new-wave.dist/prop/libsnapgear++ -L/home/gerg/new-wave.dist/prop/libsnapgear) works
+configure:892: sh-linux-gcc -m4 -ml -o conftest -O2 -g -fomit-frame-pointer -DCONFIG_SNAPGEAR -DCONFIG_RAM64MB -Dlinux -D__linux__ -Dunix -DEMBED -nostdinc -I/home/gerg/new-wave.dist/lib/libc/include -I/home/gerg/new-wave.dist/lib/libm -I/home/gerg/new-wave.dist/lib/libcrypt_old -I/home/gerg/new-wave.dist -Wall  -fno-builtin -m4 -ml -I/home/gerg/new-wave.dist/linux-2.4.x/include -idirafter /usr/local/lib/gcc-lib/sh-linux/3.0.4/./include -nostdlib -I/home/gerg/new-wave.dist/lib/libssl/include -I/home/gerg/new-wave.dist/lib/libpcap  -nostartfiles /home/gerg/new-wave.dist/lib/libc/lib/crt0.o -L/home/gerg/new-wave.dist/lib/libc/. -L/home/gerg/new-wave.dist/lib/libc/lib -L/home/gerg/new-wave.dist/lib/libm -L/home/gerg/new-wave.dist/lib/libnet -L/home/gerg/new-wave.dist/lib/libdes -L/home/gerg/new-wave.dist/lib/libaes -L/home/gerg/new-wave.dist/lib/libpcap -L/home/gerg/new-wave.dist/lib/libssl -L/home/gerg/new-wave.dist/lib/zlib -L/home/gerg/new-wave.dist/lib/libcrypt_old -L/home/gerg/new-wave.dist/lib/libldap/libraries/libldap/.libs -L/home/gerg/new-wave.dist/lib/libldap/libraries/liblber/.libs -L/home/gerg/new-wave.dist/prop/libsnapgear++ -L/home/gerg/new-wave.dist/prop/libsnapgear conftest.c  1>&5
+sh-linux-gcc: /home/gerg/new-wave.dist/lib/libc/lib/crt0.o: No such file or directory
+configure:889: warning: return type defaults to `int'
+configure: failed program was:
+
+#line 887 "configure"
+#include "confdefs.h"
+
+main(){return(0);}

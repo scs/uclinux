@@ -1,0 +1,575 @@
+.\" -*- nroff -*-
+.\"
+.\" Nessus
+.\" Copyright (C) 1998,1999,2000 Renaud Deraison
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.TH NESSUSD 8 "Dec 1999" "The Nessus Project" "User Manuals"
+.SH NAME
+.nf
+nessusd \- The server part of the Nessus Security Scanner
+.sp
+.SH SYNOPSIS
+.BI "nessusd [" -D "] [" "-c  CFG-FILE" "] [" "-a BIND" "] [" "-p PORT" ]
+.sp
+.BI "nessusd [" -v "] [" -h "] [" -d "] [" -s "] [" -g "]"
+.sp
+.BI "nessusd [" -C "] [" -L "] [" "-K KEY" "] [" "-U USER" "] [" "-P USER" [,[ PWD ]]]
+.sp
+.BI "nessusd [" "-X <key-file>" ]
+.sp
+.in -5
+or, using long options
+.in +5
+.sp
+.BI "nessusd [" --background "] [" --config-file=CFG-FILE ] \(rs
+.br
+.BI "        [" --listen=BIND "] [" --port=PORT ]
+.sp
+.BI "nessusd [" --version "] [" --help "] ["  --dump-cfg ] \(rs
+.br
+.BI "        [" --cfg-specs "] [" --gen-config ]          
+.sp
+.BI "nessusd [" --change-pass-phrase "] [" --list-keys ] \(rs
+.br
+.BI "        [" --delete-key=KEY "] \(rs
+.br
+.BI "        [" --list-user-pwd=USER "] [" --make-user=USER [,[ PWD ]]]
+.sp
+.BI "nessus [" --export-pubkey=<key-file>"]"
+.fi
+.SH DESCRIPTION
+.LP
+The 
+.B Nessus Security Scanner
+is a security auditing made up of two parts : a server, and a client.
+The server,
+.BR nessusd
+is in charge of the attacks, while the client 
+.BR nessus (1)
+interfaces with the user.
+.LP
+Basically, the
+.B nessus
+suite is made of two parts, a client and a server. While the server
+is described here, see the man page \fBnessus\fP(1) for a description
+of the client. Optionally, the dialogue between server and client will
+be encrypted by a
+.B cipher\ layer
+if you configured your
+.B nessus-libraries
+package (which is part of the 
+.B nessus
+suite) as
+.LP
+.in +5
+\&./configure --enable-cipher ...
+.in -5
+.LP
+You are strongly encouraged to use the 
+.B nessus
+suite 
+.I with the cipher layer version, only.
+.LP
+The attacks performed by
+.B nessusd 
+are coded as external modules (or plugins if you want) written in
+different languages.
+.LP
+Because
+.B nessusd
+is a security scanner, it is dangerous to let everyone use it.
+This man page describes how to configure
+.BR nessusd
+properly, so that it can not freely be used for evil purposes.
+
+.SH QUICK TAKE OFF
+When the superuser
+.B root
+starts the
+.B nessusd
+server for the first time, 
+.B nessusd
+will do all setup automatically assuming
+some defaults. If compiled with the cipher layer, you need to
+assign a one time password for the first user as
+.LP
+.in +5
+.BI nessusd\ --make-user= username , passwd
+.in -5
+.sp
+or, equivalently using short options
+.sp
+.in +5
+.BI nessusd\ -P\  username , passwd
+.in -5
+.LP 
+where there must be no space on either side of the 
+.I username
+and
+.I passwd
+separating comma. You can dispatch that command, above  while another
+.B nessusd
+is already running (but wait until the pivate key is initially
+generated.) To verify, that the entry has been stored, you 
+may do a key data base lookup as
+.LP
+.in +5
+.BI nessusd\ --list-keys
+.in -5
+.sp
+or, equivalently using short options
+.sp
+.in +5
+.BI nessusd\ -L
+.in -5
+.LP 
+Now, let some 
+.B nessus
+application login (see 
+.BR nessus (1))
+as user
+.I username
+and with password
+.I passwd.
+Doing another key data base lookup you will see that the user
+password has been replaced by a public (El Gamal) user key.
+
+.SH OPTIONS
+.TP
+.BI -D \fR,\fP \ --background
+Make the server run in background (daemon mode.)
+.TP 
+.BI \-c\  <config-file> \fR,\fP\ --config-file= <config-file>
+Use the alternate configuration file instead of 
+.IR @NESSUSD_CONFDIR@/nessusd.conf
+.TP 
+.BI \-a\   <address> \fR,\fP\ --listen= <address>
+Tell the server to only listen to the IP address
+.I <address>
+for possible connections.  This address is not a machine name. For
+instance, 
+.I nessusd -a 192.168.1.1
+will make nessusd only listen to requests going to 
+.I 192.168.1.1
+This option is useful if you are running nessusd on a gateway and if
+you don't want people on the outside to connect to your nessusd.
+.TP
+.BI \-p\  <port> \fR,\fP\ --port= <port>
+Tell the server to listen to the TCP port number \fI<port>\fP rather
+than listening to PCP port 1241 (default)
+.TP
+.BI -v \fR,\fP \ --version
+Writes the version number and exits
+.TP
+.BI -h \fR,\fP \ --help
+Show a summary of the commands
+.TP
+.BI -d \fR,\fP \ --dump-cfg
+Make the server dumps its compilation options
+.TP
+.BI -s \fR,\fP \ --cfg-specs
+Print the current configuration specifiaction to stdout and exits, then.
+Setting the envirenment variable
+.B NESSUSUSER
+to sone name before running the
+.B nessusd
+server with, this option, paths are expanded as are seen after a
+successful login.
+.TP
+.BI -g \fR,\fP \ --gen-config
+The 
+.B nessusd
+server generates all the configuration files, needed and exits. The
+automatic generation if the environmwent will be performed when
+starting the server for the first time, or something is missing.
+This option here only prvides a handy tool for installation scripts
+making sure everything is provided for starting the services.
+
+.SH KEY MANAGEMENT OPTIONS
+The key management options can be used while another instance of
+.B nessusd
+is already running. Modifications on the user key data base
+will be honoured by the running instance. If
+.B nessusd
+was invoked with a key manangement option, it will not start
+up as deamon.  These options are available only if 
+.B nessusd
+is invoked as superuser
+.BR root .
+.TP
+.BI -C \fR,\fP \ --change-pass-phrase
+Let 
+.B nessusd
+secure the private key by a personal pass phrase.  Using this feature,
+a pass phrase is read from the command line (see \fBgetpass\fP(1) for
+details upon the input device) which is consequently used to encrypt
+that key.  Upon restart,
+.B nessusd
+will not come up until you have entered the correct pass phrase.
+Once, the
+pass phrase is lost you can only delete the private key (usually in
+@NESSUSD_DATADIR@/nessusd.private-keys.)
+.sp
+In order to remove the pass phrase from a key, you need to give
+an empty pass phrase.
+.PP
+The user and host key data base entries can be addressed by host, or
+network specifications, or user names. A host, or network
+specification can be
+.sp
+.in +5
+a simple host name, or an IP address
+.sp
+a network written as network-address/netmask, where the
+network-address can be a network name or an IP address and the
+netmask may look like an IP address or a number indicating the
+leading bits, set (eg. 127.0.0.0/8 is the same as
+127.0.0.0/255.0.0.0)
+.sp
+a list host or network names concatenated by plus letters '+'
+like.127.0.0.0/8+cvs.nessus.org.
+.in -5
+.PP
+A user key looks similar to an email address. It can be
+.sp
+.in +5
+a simple name
+.sp
+a name followed by a commercial at '@' and a host, or a network
+specification like
+.br
+jordan@127.0.0.0/8+cvs.nessus.org.
+.in -5
+.PP
+Using the general form of a network specification which is a list
+of networks, a user key or password can be made valid for a particuar
+collection client netwoks, all at once.
+.TP
+.BI -L  \fR,\fP \ --list-keys
+List the entries in the user key data base.
+.TP
+.BI \-K\  <key> \fR,\fP\ --delete-key= <key>
+Delete the user key from user the data base. The <\fIkey>\fP
+argument can be a host, or user entry that matches the network
+specs associated with this key  or the whole key literally
+as listed with the \fB-L\fP, or  \fB--list-keys\fP option.
+.sp
+For instance \fIjordan@127.0.0.0/8+cvs.nessus.org\fP does not match
+a data base entry \fIjordan@127.0.0.0/8+212.198.14.17\fP even if
+cvs.nessus.org were resolved as 212.198.14.17. On the other
+hand, \fIjordan@localhost\fP matches the data base entry
+\fIjordan@127.0.0.0/8+cvs.nessus.org\fP,
+.TP
+.BI -X\  <key-file> ,\ --export-pubkey =<key-file>
+Export the public server key into the argument file \fI<key-file>\fP.
+If the key tag exists, already in the file and the key is the same
+as the current one, nothing is done.  If the key tag is found with
+a different key, an error is printed. Otherwise the key is appended
+to the file.
+.sp
+If the argument \fI<key-file>\fP is a dash \fB-\fP, the current key is
+printed to stdout.
+.TP
+.BI \-U\  <user-name> \fR,\fP\ --list-user-pwd= <user-name>
+Print the plain text information of the user specification as
+stored in the date base. This is the number of login failures,
+the username and password, and the network access sepecification (if
+available.)
+.sp
+The matching rules for the <user-name> argument are similar to the
+ones decribed with the \fN-K\fP, or \fB--delete-keys\fP option,
+above.
+.TP
+.BI \-P\  <user-pwd-mod> \fR,\fP\ --make-user= <user-pwd-mod>
+Add, delete or modify a user name with an assigned  password as
+described, below.  User passwords are used only for the initial
+communication between server and client.  Instead of manually
+putting the client key in a data base, a temporary password is 
+used to initiate the connection.  Server and client must have 
+agreed upon using the same initial password.
+.sp
+Once, a client has logged in successfully, it will send a public
+key to to the server. At subsequent connection set up, client and
+server will use a challenge/response scheme for authentication.
+There will be no login password, anymore.
+.sp
+By default, there can be at most 5 login failures before a user
+password is destroyed, automagically.
+.sp
+A \fIusername\fP is always part of the \fI<user-pwd-mod>\fP argument.
+Note that in the case that user exists already in the data base, the
+matching rules for the \fIusername\fP against the data base are
+similar to the ones decribed with the \fB-K\fP, or \fB--delete-keys\fP
+option, above.
+.sp
+.BI \-P\  username , passwd  \fR,\fP\ --make-user= username , passwd
+.br
+.in +5
+Add or replace the password
+.I passwd
+for the user \fIusername\fP.
+.sp
+It may happen, that a a general network specs is replaced
+by a more restricted one when setting a new password due to the
+matching rules for the \fIusername\fP.
+.sp
+.in -5
+.BI \-P\  username , \fR,\fP \ --make-user= username ,
+.br
+.in +5
+Delete the password entry for the user \fIusername\fP.
+Note that the option argument ends with a comma.
+.sp
+.in -5
+.BI \-P\  username \fR,\fP\ --make-user= username
+.br
+.in +5
+This option is somewhat similar to the \fB-U\fP, or
+\fB--list-user-pwd\fP option described, above. It lets 
+.B nessusd
+print some plain text information of the password data base
+separated by spaces as
+.sp
+.in +3
+<login-failures> <username> <password>
+.in -3
+.sp
+The option argument does \fInot\fP end with a comma, here.
+.in -5
+
+.SH THE CONFIGURATION FILE 
+The default nessusd configuration file is
+.I @NESSUSD_CONFDIR@/nessusd.conf.
+It is made of lines looking like
+.LP
+.in +3
+.IB <keyword> \ =\  <value>
+.in -3
+.LP
+or of comment lines that start with a hash
+.B #
+character. There follows a description of the keywords:
+.TP
+.B plugins_folder
+Contains the location of the plugins folder. This is usually
+@NESSUSD_PLUGINS@, but you may change this.
+.TP
+.B logfile
+path to the logfile. You can enter 
+.I syslog
+if you want the nessusd messages to be logged via
+.BR syslogd( 8 )
+You may also enter
+.I stderr
+if you want the nessusd logs to be written on stdout.
+.I Because nessusd is a sensitive program, you should keep your logs. So
+.I entering syslog is usually not a good idea and should be done only
+.I for debugging purposes
+.TP
+.B max_threads
+is maximum number of hosts to test at the same time which should be
+given to the client (which can override it). This value must be computed
+given your bandwidth, the number of hosts you want to test, and so on.
+The more threads you activate, the more likely you will loose packets
+during the test, and the more likely you will miss vulnerabilities.
+On the other hand, the more threads you put, the faster your test will
+go. I personnally tested 50 threads on a PII 450, with 128Mb of RAM, and
+the test was smooth and quick against a /24 network.
+.TP
+.B users
+path to the user database
+.TP
+.B rules
+path to the rules database
+.TP
+.B language
+Is the language you want nessusd to use when it sends its reports to
+the client. The currently available languages are "english" and
+"francais" (french).
+
+.TP
+.B checks_read_timeout
+Number of seconds that the security checks will wait for when doing a recv(). 
+You should increase this value if you are running nessusd across a slow network link (testing a host via a dialup connection for instance)
+
+.TP
+.B peks_username
+This is the name of the
+.B nessusd
+server used to identify themself in the private key data base.
+.TP
+.B peks_keylen
+The minimum key length for public keys.
+.TP
+.B peks_keyfile
+The path of the private key data base.
+.TP
+.B peks_usrkeys
+The path of the publuc user key and password data base.
+.TP
+.B peks_pwdfail
+The maximal number of login failured befor a temporary password
+is destroyed.
+.LP
+.RT
+The other options in this file can usually be redefined by the client.
+
+.SH THE USERS DATABASE
+The user database contains the list of the users that are allowed to use
+nessusd.
+Why making a list of users, instead of allowing only one ? Well, with the rules
+file which will be defined later in this document, you can set up a central
+nessusd server in your company, and add users who will have the right to test
+only a part of your network. For instance, you may want the R&D folks to test
+their part of the network, while you will test the rest. You can even 
+configure nessusd so that everyone can test it to test only one's computer.
+
+The user database has a very simple format which is :
+
+.I user:password
+.I [rules]
+
+Where :
+.IP user
+is the login name you want to add. This can be whatever you want.
+There must be a special entry : the user whose name is '*'. It is
+used for your public-key authentificated users.
+
+.IP password
+is the password associated with this user.
+.I The password is in plain text
+so check that the users database is in mode 0600.  If you want the user to
+log in via its public key, set this to nothing.
+.IP rules
+The rules that apply to this specific user.
+A typical nessusd.users file would be :
+.LP
+.in +3
+.br
+# User foo, with password bar
+.br
+foo:bar
+.br
+deny 192.168.1.1/32
+.br
+accept 192.168.0.0/16
+.br
+default deny
+.br
+.br
+#
+.br
+# User oof authentificates using his public key :
+.br
+#
+.br
+oof:
+.br
+deny 192.168.1.1/24
+.br
+accept 192.168.0.0/16
+.br
+default deny
+.br
+
+.SH THE RULE SET FORMAT
+
+A rule has always the same format which is :
+.br
+	keyword IP/mask
+
+
+.I Keyword 
+is one of
+.I deny
+,
+.I accept
+or
+.I default
+
+In addition to this, the IP adress may be preceded by
+an exclamation mark (!) which means : 'not'
+There are three sources of rules :
+
+.IP \(bu
+the rules database, which applies to every users
+.IP \(bu
+the users database rules, which applies to one user
+.IP \(bu
+the users rules, defined by the user in the client
+
+You must know that there is a priority in the rules : the user
+can not extend its privileges, but can only lower them.
+(that it, it can only restrict the set of hosts he is allowed
+to test).
+
+.SH THE RULES DATABASE
+
+The rules database contains the system-wide rules, which applies
+for every user. Its syntax has been defined in the previous section.
+Example :
+.br
+.br
+	accept 127.0.0.0/8
+.br	
+	deny 192.168.1.1/32
+.br
+	deny !192.168.0.0/16
+.br
+	default deny
+.br
+
+This allows the user to test localhost, and all the hosts on 
+192.168.0.0/16, except 192.168.1.1/32.
+.br
+The rules accept the special keyword
+.Iclient_ip
+which is replaced, at connection time, by the IP of the user who logs
+in. If you want everyone to test his own box only, then you can do :
+.br
+	accept client_ip/32
+.br
+	default deny
+.br
+
+
+	
+
+.SH SEE ALSO
+.BR nessus "(1), " nessus-adduser "(8), " getpass "(1), " nmap (1)
+.SH MORE INFORMATION ABOUT THE NESSUS PROJECT
+.LP
+The canonical places where you will find more information 
+about the Nessus project are : 
+.LP
+.in +3
+http://www.nessus.org (Official site)
+.br
+http://cvs.nessus.org (Developers site)
+.in -3
+.SH AUTHORS
+.LP
+The Nessus Project was started and is being maintained by Renaud Deraison
+<deraison@cvs.nessus.org>. The nessus server is mainly Copyright (C) 1998-1999
+Renaud Deraison, as well as most of the attack modules.
+.LP
+Jordan Hrycaj <jordan@mjh.teddy-net.com> is the author of the cipher
+layer between the server and the client. The cipher library (libpeks)
+is (C) 1998-1999 Jordan Hrycaj
+.LP
+And several other people have been kind enough to send patch and bug reports.
+Thanks to them.

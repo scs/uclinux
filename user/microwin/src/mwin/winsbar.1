@@ -1,0 +1,1773 @@
+/*
+ * Copyright (c) 2000 Greg Haerr <greg@censoft.com>
+ * Portions Copyright (c) 1999, 2000, Wei Yongming.
+ *
+ * Microwindows win32 NonClient Scrollbars
+ */
+#define MWINCLUDECOLORS//jmt: for color macros
+#include "windows.h"
+#include "wintern.h"
+#include "wintools.h"
+#include <stdlib.h>
+#include <string.h>
+
+/* scrollbar status/positions*/
+#define SBS_UNKNOWN		0x0000
+#define SBS_LEFTARROW		0x0001
+#define SBS_RIGHTARROW		0x0002
+#define SBS_LEFTSPACE		0x0004
+#define SBS_RIGHTSPACE		0x0008
+#define SBS_HORZTHUMB		0x0010
+#define SBS_UPARROW		0x0020
+#define SBS_DOWNARROW		0x0040
+#define SBS_UPSPACE		0x0080
+#define SBS_DOWNSPACE		0x0100
+#define SBS_VERTTHUMB		0x0200
+#define SBS_MASK		0x03ff
+#define SBS_DISABLED		0x4000
+#define SBS_HIDE		0x8000
+
+#define HSCROLLBARVISIBLE(hwnd)	((hwnd)->style & WS_HSCROLL)
+#define VSCROLLBARVISIBLE(hwnd)	((hwnd)->style & WS_VSCROLL)
+
+//#
+
+#define SBPOS_LEFTARROW     0x81
+#define SBPOS_RIGHTARROW    0x82
+#define SBPOS_LEFTSPACE     0x83
+#define SBPOS_RIGHTSPACE    0x84
+#define SBPOS_UPARROW       0x85
+#define SBPOS_DOWNARROW     0x86
+#define SBPOS_UPSPACE       0x87
+#define SBPOS_DOWNSPACE     0x88
+#define SBPOS_THUMB         0x89
+#define SBPOS_UNKNOWN       0x80
+#define SBPOS_MASK          0x80
+
+#define WS_THINFRAME        	0x00100000L
+
+#define MWM_MINWIDTH            0
+#define MWM_MINHEIGHT           1
+#define MWM_BORDER              2
+#define MWM_THICKFRAME          3
+#define MWM_CAPTIONY            4
+#define MWM_ICONX               5
+#define MWM_ICONY               6
+#define MWM_CAPTIONOFFY         7
+#define MWM_MENUBARY            8
+#define MWM_MENUBAROFFX         9
+#define MWM_MENUBAROFFY         10
+#define MWM_MENUITEMY           11 
+#define MWM_INTERMENUITEMX      12
+#define MWM_INTERMENUITEMY      13
+#define MWM_MENUITEMOFFX        14
+#define MWM_MENUTOPMARGIN       15
+#define MWM_MENUBOTTOMMARGIN    16
+#define MWM_MENULEFTMARGIN      17
+#define MWM_MENURIGHTMARGIN     18
+#define MWM_MENUITEMMINX        19
+#define MWM_MENUSEPARATORY      20
+#define MWM_MENUSEPARATORX      21
+#define MWM_SB_HEIGHT           22
+#define MWM_SB_WIDTH            23
+#define MWM_SB_INTERX           24
+#define MWM_THINFRAME           25
+#define MWM_CXVSCROLL           26
+#define MWM_CYVSCROLL           27
+#define MWM_CXHSCROLL           28
+#define MWM_CYHSCROLL           29
+//-#define MWM_MINBARLEN           30//(index->const)8
+//-#define MWM_DEFBARLEN           31//(index->const)18
+#define MWM_ITEM_NUMBER         32
+#define GetMainWinMetrics(iItem)    (WinMainMetrics[iItem])
+int WinMainMetrics[MWM_ITEM_NUMBER];
+void InitMainWinMetrics()
+{
+    WinMainMetrics[MWM_MINWIDTH] = 50;
+    WinMainMetrics[MWM_MINHEIGHT] = 50;
+    WinMainMetrics[MWM_BORDER] = 2;
+    WinMainMetrics[MWM_THICKFRAME] = 2;
+    WinMainMetrics[MWM_THINFRAME] = 1;
+    WinMainMetrics[MWM_CAPTIONY] = 12/*GetCharHeight()*/ + 4;
+    WinMainMetrics[MWM_ICONX] = 16;
+    WinMainMetrics[MWM_ICONY] = 16;
+    WinMainMetrics[MWM_MENUBARY] = 12/*GetCharHeight()*/;
+    WinMainMetrics[MWM_MENUBAROFFX] = 8;
+    WinMainMetrics[MWM_MENUBAROFFY] = 5;
+    WinMainMetrics[MWM_MENUITEMY] = 12/*GetCharHeight()*/;
+    WinMainMetrics[MWM_INTERMENUITEMX] = 12/*GetCCharWidth()*/;
+    WinMainMetrics[MWM_INTERMENUITEMY] = 2;
+    WinMainMetrics[MWM_MENUITEMOFFX] = 18;
+    WinMainMetrics[MWM_MENUTOPMARGIN] = 4;
+    WinMainMetrics[MWM_MENUBOTTOMMARGIN] = 4;
+    WinMainMetrics[MWM_MENULEFTMARGIN] = 4;
+    WinMainMetrics[MWM_MENURIGHTMARGIN] = 4;
+    WinMainMetrics[MWM_MENUITEMMINX] = 64;
+    WinMainMetrics[MWM_MENUSEPARATORY] = 4;
+    WinMainMetrics[MWM_MENUSEPARATORX] = 4;
+    WinMainMetrics[MWM_SB_WIDTH] = 16;
+    WinMainMetrics[MWM_SB_HEIGHT] = 14;
+    WinMainMetrics[MWM_SB_INTERX] = 2;
+    WinMainMetrics[MWM_CXVSCROLL] = 18;
+    WinMainMetrics[MWM_CYVSCROLL] = 18;
+    WinMainMetrics[MWM_CXHSCROLL] = 18;
+    WinMainMetrics[MWM_CYHSCROLL] = 18;
+    //-WinMainMetrics[MWM_MINBARLEN] = 8;
+    //-WinMainMetrics[MWM_DEFBARLEN] = 18;
+}
+
+
+/* 
+ * Adjust client area smaller if scrollbars visible.
+ * Also, compute the NC hittest regions for the scrollbars.
+ */
+void
+MwAdjustNCScrollbars(HWND hwnd)
+{
+	BOOL	vertbar = VSCROLLBARVISIBLE(hwnd);
+        BOOL	horzbar = HSCROLLBARVISIBLE(hwnd);
+
+	if (vertbar) {
+		hwnd->clirect.right -= mwSYSMETRICS_CXVSCROLL;
+		if (horzbar)
+			hwnd->clirect.bottom -= mwSYSMETRICS_CYHSCROLL;
+		hwnd->vscroll.rc.left = hwnd->clirect.right;
+		hwnd->vscroll.rc.right = hwnd->clirect.right +
+			mwSYSMETRICS_CXVSCROLL;
+		hwnd->vscroll.rc.top = hwnd->clirect.top;
+		hwnd->vscroll.rc.bottom = hwnd->clirect.bottom;
+	} else
+		SetRectEmpty(&hwnd->vscroll.rc);
+	if (horzbar) {
+		if (!vertbar)
+			hwnd->clirect.bottom -= mwSYSMETRICS_CYHSCROLL;
+		hwnd->hscroll.rc.top = hwnd->clirect.bottom;
+		hwnd->hscroll.rc.bottom = hwnd->clirect.bottom +
+			mwSYSMETRICS_CYHSCROLL;
+		hwnd->hscroll.rc.left = hwnd->clirect.left;
+		hwnd->hscroll.rc.right = hwnd->clirect.right;
+	} else
+		SetRectEmpty(&hwnd->hscroll.rc);
+}
+
+void
+MwPaintNCScrollbars(HWND hwnd, HDC hdc)
+{
+	BOOL	vertbar = VSCROLLBARVISIBLE(hwnd);
+        BOOL	horzbar = HSCROLLBARVISIBLE(hwnd);
+	BOOL	fGotDC = FALSE;
+	RECT	rc;
+
+	if (!hdc && (horzbar || vertbar)) {
+		hdc = GetWindowDC(hwnd);
+		fGotDC = TRUE;
+	}
+
+	if (horzbar && vertbar) {
+		rc.left = hwnd->clirect.right;
+		rc.top = hwnd->clirect.bottom;
+		rc.right = rc.left + mwSYSMETRICS_CXVSCROLL;
+		rc.bottom = rc.top + mwSYSMETRICS_CYHSCROLL;
+		FillRect(hdc, &rc, (HBRUSH)(COLOR_BTNFACE+1));
+	}
+	if (vertbar) {
+		rc = hwnd->vscroll.rc;
+		/* bkgnd*/
+		FillRect(hdc, &rc, (HBRUSH)(COLOR_BTNFACE+1));
+		/* up*/
+		Draw3dUpDownState(hdc, rc.left, rc.top,
+			mwSYSMETRICS_CXVSCROLL, mwSYSMETRICS_CYHSCROLL,
+			hwnd->vscroll.status & SBS_UPARROW);
+		/* down*/
+		Draw3dUpDownState(hdc, rc.left,rc.bottom-mwSYSMETRICS_CYHSCROLL,
+			mwSYSMETRICS_CXVSCROLL, mwSYSMETRICS_CYHSCROLL,
+			hwnd->vscroll.status & SBS_DOWNARROW);
+	}
+	if (horzbar) {
+		rc = hwnd->hscroll.rc;
+		/* bkgnd*/
+		FillRect(hdc, &rc, (HBRUSH)(COLOR_BTNFACE+1));
+		/* left*/
+		Draw3dUpDownState(hdc, rc.left, rc.top,
+			mwSYSMETRICS_CXVSCROLL, mwSYSMETRICS_CYHSCROLL,
+			hwnd->hscroll.status & SBS_LEFTARROW);
+		/* right*/
+		Draw3dUpDownState(hdc, rc.right-mwSYSMETRICS_CXVSCROLL, rc.top,
+			mwSYSMETRICS_CXVSCROLL, mwSYSMETRICS_CYHSCROLL,
+			hwnd->hscroll.status & SBS_RIGHTARROW);
+	}
+
+	if (fGotDC)
+		ReleaseDC(hwnd, hdc);
+}
+
+/* handle a non-client message for a scrollbar*/
+void
+MwHandleNCMessageScrollbar(HWND hwnd, WPARAM hitcode, LPARAM lParam, BOOL fDown)
+{
+	int	pos = SBS_UNKNOWN;
+	BOOL	vertbar = VSCROLLBARVISIBLE(hwnd);
+        BOOL	horzbar = HSCROLLBARVISIBLE(hwnd);
+	int *	pStat;
+	POINT	pt;
+	RECT	rc;
+
+    static int downPos = SBS_UNKNOWN;
+    static int movePos = SBS_UNKNOWN;
+    static int sbCode;
+
+	POINTSTOPOINT(pt, lParam);
+	for (;;) {	/* use for() to allow break statement*/
+		if (hitcode == HTVSCROLL && vertbar) {
+			pStat = &hwnd->vscroll.status;
+			rc = hwnd->vscroll.rc;
+			rc.bottom = rc.top + mwSYSMETRICS_CYVSCROLL;
+			if (PtInRect(&rc, pt)) {
+				pos = SBS_UPARROW;
+				break;
+			}
+			rc.bottom = hwnd->vscroll.rc.bottom;
+			rc.top = rc.bottom - mwSYSMETRICS_CYVSCROLL;
+			if (PtInRect(&rc, pt)) {
+				pos = SBS_DOWNARROW;
+				break;
+			}
+			pos = SBS_VERTTHUMB;
+		} else if (hitcode == HTHSCROLL && horzbar) {
+			pStat = &hwnd->hscroll.status;
+			rc = hwnd->hscroll.rc;
+			rc.right = rc.left + mwSYSMETRICS_CXHSCROLL;
+			if (PtInRect(&rc, pt)) {
+				pos = SBS_LEFTARROW;
+				break;
+			}
+			rc.right = hwnd->hscroll.rc.right;
+			rc.left = rc.right - mwSYSMETRICS_CXHSCROLL;
+			if (PtInRect(&rc, pt)) {
+				pos = SBS_RIGHTARROW;
+				break;
+			}
+			pos = SBS_HORZTHUMB;
+		} else
+			return;
+		break;
+	}
+
+	if (pos == SBS_UNKNOWN)
+		return;
+
+	*pStat &= ~SBS_MASK;		/* remove stray mouse states*/
+	if (fDown)
+		*pStat |= pos;
+	else *pStat &= ~pos;
+	MwPaintNCScrollbars(hwnd, NULL);
+#if 1
+        downPos = pos;
+        movePos = pos;
+        if (pos == SBS_UPARROW) {
+                //?sbDownButton (hwnd, pos);
+                if (hwnd->vscroll.curPos != hwnd->vscroll.minPos)
+			sbCode = SB_LINEUP;
+        }
+        else if (pos == SBS_DOWNARROW) {
+                //?sbDownButton (hwnd, pos);
+                if (hwnd->vscroll.curPos != hwnd->vscroll.maxPos)
+			sbCode = SB_LINEDOWN;
+        }
+        else if (pos == SBS_UPSPACE) {
+                if (hwnd->vscroll.curPos != hwnd->vscroll.minPos)
+			sbCode = SB_PAGEUP;
+        }
+        else if (pos == SBS_DOWNSPACE) {
+                if (hwnd->vscroll.curPos != hwnd->vscroll.maxPos)
+			sbCode = SB_PAGEDOWN;
+        }
+	if (!fDown)
+		SendMessage (hwnd, WM_VSCROLL, sbCode, 0);
+#endif
+}
+
+#if 1//0000
+static int
+wndGetBorder(HWND hwnd)
+{
+	if (hwnd->style & WS_BORDER)  {
+		if ((hwnd->style & WS_CAPTION) == WS_CAPTION)
+			return mwSYSMETRICS_CXFRAME;
+		return mwSYSMETRICS_CXBORDER;
+	}
+	return 0;
+}
+
+static BOOL
+wndGetVScrollBarRect (HWND hwnd, RECT* rcVBar)
+{
+    if (hwnd->style & WS_VSCROLL) {
+        rcVBar->left = hwnd->winrect.right - mwSYSMETRICS_CXVSCROLL
+                        - wndGetBorder (hwnd);
+        rcVBar->right = hwnd->winrect.right/*right*/ - wndGetBorder (hwnd);
+        rcVBar->top  = hwnd->clirect.top;
+        rcVBar->bottom = hwnd->winrect.bottom - wndGetBorder (hwnd);
+
+        if (hwnd->style & WS_HSCROLL && !(hwnd->hscroll.status & SBS_HIDE))
+            rcVBar->bottom -= mwSYSMETRICS_CYHSCROLL;
+        
+        return TRUE;
+    }
+    
+    return FALSE;
+}
+
+static BOOL
+wndGetHScrollBarRect (HWND hwnd, RECT* rcHBar)
+{
+    if (hwnd->style & WS_HSCROLL) {
+        rcHBar->top = hwnd->winrect.bottom - mwSYSMETRICS_CYHSCROLL
+                        - wndGetBorder (hwnd);
+        rcHBar->bottom = hwnd->winrect.bottom/*bottom*/ - wndGetBorder (hwnd);
+        rcHBar->left  = hwnd->clirect.left;
+        rcHBar->right = hwnd->winrect.right - wndGetBorder (hwnd);
+
+        if (hwnd->style & WS_VSCROLL && !(hwnd->vscroll.status & SBS_HIDE))
+            rcHBar->right -= mwSYSMETRICS_CXVSCROLL;
+
+        return TRUE;
+    }
+    
+    return FALSE;
+}
+
+static BOOL
+PtInRect2(const RECT *lprc, int x, int y)
+{
+	POINT	p;
+
+	p.x = x;
+	p.y = y;
+	return PtInRect(lprc, p);
+}
+
+#if 0000
+static int
+wndGetHScrollBarPos (HWND hwnd, int x, int y)
+{
+    RECT rcBar;
+    RECT rcArea;
+
+    if (hwnd->hscroll.status & SBS_DISABLED)
+        return SBS_UNKNOWN;
+
+    wndGetHScrollBarRect (hwnd, &rcBar);
+
+    if (!PtInRect2 (&rcBar, x, y))
+        return SBS_UNKNOWN;
+
+    rcArea.top  = rcBar.top;
+    rcArea.bottom = rcBar.bottom;
+
+    // Left arrow area
+    rcArea.left = rcBar.left;
+    rcArea.right = rcArea.left + mwSYSMETRICS_CXHSCROLL;
+
+    if (PtInRect2 (&rcArea, x, y))
+        return SBS_LEFTARROW;
+
+    // Right arrow area
+    rcArea.left = rcBar.right - mwSYSMETRICS_CXHSCROLL;
+    rcArea.right = rcBar.right;
+
+    if (PtInRect2 (&rcArea, x, y))
+        return SBS_RIGHTARROW;
+
+
+    if (x < (rcBar.left + hwnd->hscroll.barStart + mwSYSMETRICS_CXHSCROLL))
+        return SBS_LEFTSPACE;
+
+    if (x > (rcBar.left + hwnd->hscroll.barStart + hwnd->hscroll.barLen
+            + mwSYSMETRICS_CXHSCROLL))
+        return SBS_RIGHTSPACE;
+
+    return SBS_UNKNOWN;
+}
+
+static int
+wndGetVScrollBarPos (HWND hwnd, int x, int y)
+{
+    RECT rcBar;
+    RECT rcArea;
+
+    if (hwnd->vscroll.status & SBS_DISABLED)
+        return SBS_UNKNOWN;
+
+    wndGetVScrollBarRect (hwnd, &rcBar);
+
+    if (!PtInRect2 (&rcBar, x, y))
+        return SBS_UNKNOWN;
+
+    rcArea.left  = rcBar.left;
+    rcArea.right = rcBar.right;
+
+    // Left arrow area
+    rcArea.top = rcBar.top;
+    rcArea.bottom = rcArea.top + mwSYSMETRICS_CYVSCROLL;
+
+    if (PtInRect2 (&rcArea, x, y))
+        return SBS_UPARROW;
+
+    // Right arrow area
+    rcArea.top = rcBar.bottom - mwSYSMETRICS_CYVSCROLL;
+    rcArea.bottom = rcBar.bottom;
+
+    if (PtInRect2 (&rcArea, x, y))
+        return SBS_DOWNARROW;
+
+
+    if (y < (rcBar.top + hwnd->vscroll.barStart + mwSYSMETRICS_CYVSCROLL))
+        return SBS_UPSPACE;
+
+    if (y > (rcBar.top + hwnd->vscroll.barStart + hwnd->vscroll.barLen
+            + mwSYSMETRICS_CYVSCROLL))
+        return SBS_DOWNSPACE;
+
+    return SBS_UNKNOWN;
+}
+#endif
+
+static BOOL
+sbGetSBarArrowPos (HWND hwnd, int location, int* x, int* y, int* w, int* h)
+{
+    RECT rcBar;
+
+    if (location < SBS_UPARROW) 
+        wndGetHScrollBarRect (hwnd, &rcBar);
+    else
+        wndGetVScrollBarRect (hwnd, &rcBar);
+
+    *w = mwSYSMETRICS_CXHSCROLL;
+    *h = mwSYSMETRICS_CYHSCROLL;
+    switch (location) {
+        case SBS_LEFTARROW:
+            *x = rcBar.left;
+            *y = rcBar.top;
+        break;
+        
+        case SBS_RIGHTARROW:
+            *x = rcBar.right - mwSYSMETRICS_CXHSCROLL;
+            *y = rcBar.top;
+        break;
+
+        case SBS_UPARROW:
+            *x = rcBar.left;
+            *y = rcBar.top;
+        break;
+
+        case SBS_DOWNARROW:
+            *x = rcBar.left;
+            *y = rcBar.bottom - mwSYSMETRICS_CYVSCROLL;
+        break;
+
+        default:
+        return FALSE;
+    }
+
+    *x -= hwnd->winrect.left/*left*/;
+    *y -= hwnd->winrect.top/*top*/;
+
+    return TRUE;
+}
+
+static BOOL sbGetButtonPos (HWND/*PMAINWIN*/ pWin, int location, 
+                            int* x, int* y, int* w, int* h)//!!
+{
+    RECT rc;
+    int iBorder = 0;
+    int iCaption = 0;
+    //-int iIconX = 0;
+    int iIconY = 0;
+
+    if (pWin->style/*dwStyle*/ & WS_BORDER) 
+        iBorder = GetMainWinMetrics(MWM_BORDER);
+    else if (pWin->style/*dwStyle*/ & WS_THICKFRAME)
+        iBorder = GetMainWinMetrics(MWM_THICKFRAME);
+    else if (pWin->style/*dwStyle*/ & WS_THINFRAME)
+        iBorder = GetMainWinMetrics(MWM_THINFRAME);
+
+    // scroll bar position
+    if (location & SBPOS_MASK)
+        return sbGetSBarArrowPos (pWin, location, x, y, w, h);
+
+    if (!(pWin->style/*dwStyle*/ & WS_CAPTION))
+         return FALSE;
+#if 0//fix: no ->hIcon
+    if (pWin->hIcon)
+    {
+        iIconX = GetMainWinMetrics(MWM_ICONX);
+        iIconY = GetMainWinMetrics(MWM_ICONY);
+    }
+#endif
+    iCaption = GetMainWinMetrics(MWM_CAPTIONY);
+
+    rc.left = iBorder;
+    rc.top = iBorder;
+    rc.right = pWin->winrect.right/*right*/ - pWin->winrect.left/*left*/ - iBorder;
+    rc.bottom = iBorder + iCaption;
+                    
+    // close button
+    *x = rc.right - GetMainWinMetrics (MWM_SB_WIDTH);
+    *y = GetMainWinMetrics (MWM_SB_HEIGHT);
+    *w = GetMainWinMetrics (MWM_SB_WIDTH);
+    if (*y < iCaption) {
+        *y = iBorder + ((iCaption - *y)>>1);
+        *h = GetMainWinMetrics (MWM_SB_HEIGHT);
+    }
+    else {
+        *y = iBorder;
+        *h = iIconY;
+    }
+
+    if (location == HTCLOSE)//
+        return TRUE;
+
+    *x -= GetMainWinMetrics (MWM_SB_WIDTH);
+    *x -= GetMainWinMetrics (MWM_SB_INTERX)<<1;
+    if (pWin->style/*dwStyle*/ & WS_MAXIMIZEBOX) {
+        // restore/maximize button
+        if (location == HTMAXBUTTON)//
+            return TRUE;
+
+        *x -= GetMainWinMetrics (MWM_SB_WIDTH);
+        *x -= GetMainWinMetrics (MWM_SB_INTERX);
+    }
+
+    if (pWin->style/*dwStyle*/ & WS_MINIMIZEBOX) {
+        // minimize button.
+        if (location == HTMINBUTTON)//
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+static BOOL
+sbDownButton (HWND pWin, int downCode)
+{
+    HDC hdc;
+    int x, y, w, h;
+
+    
+    if (!sbGetButtonPos (pWin, downCode, &x, &y, &w, &h))
+        return FALSE;
+
+    w += x - 1;
+    h += y - 1;
+    hdc = GetDC ((HWND)pWin);
+    //Draw3DDownFrame(hdc, x, y, w, h);
+    Draw3dUpDownState(hdc, x, y, w, h, TRUE);
+    ReleaseDC (hdc->hwnd,hdc);
+
+    return TRUE;
+}
+
+static BOOL sbUpButton (HWND pWin, int downCode)
+{
+    HDC hdc;
+    int x, y, w, h;
+    //-PBITMAP bmp = NULL;
+    
+    if (!sbGetButtonPos (pWin, downCode, &x, &y, &w, &h))
+        return FALSE;
+
+    hdc = GetDC ((HWND)pWin);
+    switch (downCode) {
+        case HTMAXBUTTON:
+            //bmp = GetSystemBitmap (SYSBMP_MAXIMIZE);
+            break;
+        case HTMINBUTTON:
+            //bmp = GetSystemBitmap (SYSBMP_MINIMIZE);
+            break;
+        case HTCLOSE://HT_CLOSEBUTTON:
+            //bmp = GetSystemBitmap (SYSBMP_CLOSE);
+            break;
+
+        case SBS_UPARROW:
+            //bmp = GetSystemBitmap (SYSBMP_ARROWUP);
+            break;
+        case SBS_DOWNARROW:
+            //bmp = GetSystemBitmap (SYSBMP_ARROWDOWN);
+            break;
+        case SBS_LEFTARROW:
+            //bmp = GetSystemBitmap (SYSBMP_ARROWLEFT);
+            break;
+        case SBS_RIGHTARROW:
+            //bmp = GetSystemBitmap (SYSBMP_ARROWRIGHT);
+            break;
+    }
+#if 0//!!: fix: use draw instead of bitmap
+    if (bmp)
+        FillBoxWithBitmap (hdc, x, y, w, h, bmp);
+#endif
+    ReleaseDC (hdc->hwnd,hdc);//
+
+    return TRUE;
+}
+
+#if 0000
+static BOOL
+wndHandleHScrollBar (HWND hwnd, int message, int x, int y)
+{
+    int curPos;
+    RECT rcBar;
+    static int downPos = SBS_UNKNOWN;
+    static int movePos = SBS_UNKNOWN;
+    static int sbCode;
+
+    wndGetHScrollBarRect (hwnd, &rcBar);
+    rcBar.left -= hwnd->winrect.left;
+    rcBar.top  -= hwnd->winrect.top;
+    rcBar.right -= hwnd->winrect.left;
+    rcBar.bottom -= hwnd->winrect.top;
+    
+    rcBar.left += mwSYSMETRICS_CXHSCROLL;
+    rcBar.right -= mwSYSMETRICS_CXHSCROLL;
+
+    curPos = wndGetHScrollBarPos (hwnd, x, y);
+    
+    if (curPos == SBS_UNKNOWN && downPos == SBS_UNKNOWN)
+        return FALSE;
+    
+    switch( message )
+    {
+        case WM_NCLBUTTONDOWN:
+            downPos = curPos;
+            movePos = curPos;
+            if (curPos == SBS_LEFTARROW) {
+                sbDownButton (hwnd, curPos);
+                if (hwnd->hscroll.curPos == hwnd->hscroll.minPos)
+                    break;
+
+                sbCode = SB_LINELEFT;
+            }
+            else if (curPos == SBS_RIGHTARROW) {
+                sbDownButton (hwnd, curPos);
+                if (hwnd->hscroll.curPos == hwnd->hscroll.maxPos)
+                    break;
+                
+                sbCode = SB_LINERIGHT;
+            }
+            else if (curPos == SBS_LEFTSPACE) {
+                if (hwnd->hscroll.curPos == hwnd->hscroll.minPos)
+                    break;
+
+                sbCode = SB_PAGELEFT;
+            }
+            else if (curPos == SBS_RIGHTSPACE) {
+                if (hwnd->hscroll.curPos == hwnd->hscroll.maxPos)
+                    break;
+                
+                sbCode = SB_PAGERIGHT;
+            }
+        break;
+
+        case WM_NCLBUTTONUP:
+            if (curPos == downPos) {
+                sbUpButton (hwnd, curPos);
+                SendMessage/*SendNotifyMessage*/ (hwnd, WM_HSCROLL, sbCode, 0);
+            }
+
+            downPos = SBS_UNKNOWN;
+            movePos = SBS_UNKNOWN;
+        break;
+    
+        case WM_NCMOUSEMOVE:
+            if (movePos == downPos && curPos != downPos)
+                sbUpButton (hwnd, downPos);
+            else if (movePos != downPos && curPos == downPos)
+                sbDownButton (hwnd, downPos);
+            movePos = curPos;
+        break;
+    }
+
+    return TRUE;
+}
+
+
+
+static BOOL
+wndHandleVScrollBar (HWND hwnd, int message, int x, int y)
+{
+    static int downPos = SBS_UNKNOWN;
+    static int movePos = SBS_UNKNOWN;
+    static int sbCode;
+    int curPos;
+    RECT rcBar;
+
+    wndGetVScrollBarRect (hwnd, &rcBar);
+    rcBar.left -= hwnd->winrect.left/*left*/;
+    rcBar.top  -= hwnd->winrect.top/*top*/;
+    rcBar.right -= hwnd->winrect.left/*left*/;
+    rcBar.bottom -= hwnd->winrect.top/*top*/;
+
+    rcBar.top += GetMainWinMetrics(mwSYSMETRICS_CYVSCROLL);//?
+    rcBar.bottom -= GetMainWinMetrics(mwSYSMETRICS_CYVSCROLL);//?
+
+    curPos = wndGetVScrollBarPos (hwnd, x, y);
+
+    if (curPos == SBS_UNKNOWN && downPos == SBS_UNKNOWN)
+        return FALSE;
+    
+    switch( message )
+    {
+        case WM_NCLBUTTONDOWN:
+            downPos = curPos;
+            movePos = curPos;
+            if (curPos == SBS_UPARROW) {
+                sbDownButton (hwnd, curPos);
+                if (hwnd->vscroll.curPos == hwnd->vscroll.minPos)
+                    break;
+
+                sbCode = SB_LINEUP;
+            }
+            else if (curPos == SBS_DOWNARROW) {
+                sbDownButton (hwnd, curPos);
+                if (hwnd->vscroll.curPos == hwnd->vscroll.maxPos)
+                    break;
+
+                sbCode = SB_LINEDOWN;
+            }
+            else if (curPos == SBS_UPSPACE) {
+                if (hwnd->vscroll.curPos == hwnd->vscroll.minPos)
+                    break;
+
+                sbCode = SB_PAGEUP;
+            }
+            else if (curPos == SBS_DOWNSPACE) {
+                if (hwnd->vscroll.curPos == hwnd->vscroll.maxPos)
+                    break;
+
+                sbCode = SB_PAGEDOWN;
+            }
+        break;
+
+        case WM_NCLBUTTONUP:
+            if (curPos == downPos) {
+                sbUpButton (hwnd, curPos);
+                SendMessage/*SendNotifyMessage*/ (hwnd, WM_VSCROLL, sbCode, 0);
+            }
+
+            downPos = SBS_UNKNOWN;
+            movePos = SBS_UNKNOWN;
+        break;
+    
+        case WM_NCMOUSEMOVE:
+            if (movePos == downPos && curPos != downPos)
+                sbUpButton (hwnd, downPos);
+            else if (movePos != downPos && curPos == downPos)
+                sbDownButton (hwnd, downPos);
+            movePos = curPos;
+        break;
+    }
+
+    return TRUE;
+}
+
+// this function is CONTROL safe.
+static int DefaultNCMouseMsgHandler(HWND hwnd, int message, 
+                           int location, int x, int y)
+{
+    static HWND downWin  = NULL;
+    static int downCode = HTNOWHERE;//HT_UNKNOWN;
+    static int moveCode = HTNOWHERE;//HT_UNKNOWN;
+    //-static int oldx, oldy;
+    //-static RECT rcWindow;
+
+    HWND pWin = hwnd;//+
+
+    //-int barItem;
+#if 0//fix: no menu
+//?    if (message == WM_NCMOUSEMOVE)
+//?        wndTrackMenuBarOnMouseMove(pWin, message, location, x, y);
+#endif
+    if ((pWin->style & WS_HSCROLL) 
+            && wndHandleHScrollBar (pWin, message, x, y))
+        return 0;
+    
+    if ((pWin->style & WS_VSCROLL)
+            && wndHandleVScrollBar (pWin, message, x, y))
+        return 0;
+
+    switch( message )
+    {
+        case WM_NCLBUTTONDOWN:
+#if 0//fix: no menu
+//?            if (location == HTMENU/*HT_MENUBAR*/)//? 
+//?	    {
+//?                barItem = MenuBarHitTest ((HWND)pWin, x, y);
+//?                if (barItem >= 0)
+//?                    TrackMenuBar ((HWND)pWin, barItem);
+//?
+//?                return 0;
+//?            }
+//?            else 
+#endif
+
+            downCode = location;
+            moveCode = location;
+            downWin  = pWin;
+            sbDownButton (pWin, downCode);
+            break;
+
+        case WM_NCMOUSEMOVE:
+            if (downCode != HTNOWHERE/*HT_UNKNOWN*/) { 
+                if (moveCode == downCode && location != downCode) {
+                    sbUpButton (pWin, downCode);
+                    moveCode = location;
+                }
+                else if (moveCode != downCode && location == downCode) {
+                    sbDownButton (pWin, downCode);
+                    moveCode = location;
+                }
+            }
+            break;
+
+        case WM_NCLBUTTONUP:
+            if (location == downCode) {
+                sbUpButton (pWin, downCode);
+                switch (location) {
+                    case HTCLOSE://HT_CLOSEBUTTON:
+                        SendMessage/*SendNotifyMessage*/ ((HWND)pWin, WM_CLOSE, 0, 0);
+                    break;
+
+#if 0//fix: no HT_ICON,HTICON
+//?                 case HT_ICON:
+//?                     if (pWin->hSysMenu)
+//?                         TrackPopupMenu (pWin->hSysMenu, 
+//?                             TPM_SYSCMD, x, y, (HWND)pWin);
+//?                 break;
+#endif
+                }
+            }
+            downCode = HTNOWHERE;//HT_UNKNOWN;
+            moveCode = HTNOWHERE;//HT_UNKNOWN;
+            downWin  = NULL;
+            break;
+            
+        case WM_NCRBUTTONDOWN:
+            break;
+
+        case WM_NCRBUTTONUP:
+#if 0//fix: no menu
+//?            if (location == HTCAPTION && pWin->hSysMenu)
+//?                TrackPopupMenu (pWin->hSysMenu, TPM_SYSCMD, x, y, (HWND)pWin);
+//?            break;
+#endif            
+        case WM_NCLBUTTONDBLCLK:
+#if 0//fix: no HT_ICON,HTICON
+//-            if (location == HT_ICON)
+//-                SendNotifyMessage ((HWND)pWin, WM_CLOSE, 0, 0);
+#endif
+//-            else if (location == HTCAPTION)
+//-                SendNotifyMessage ((HWND)pWin, WM_MAXIMIZE, 0, 0);
+            break;
+
+        case WM_NCRBUTTONDBLCLK:
+            break;
+    }
+
+    return 0;
+}
+#endif
+
+static void
+wndScrollBarPos (HWND hwnd, BOOL bIsHBar, RECT* rcBar)
+{
+    UINT moveRange;
+    PMWSCROLLBARINFO pSBar;
+
+    if (bIsHBar)
+        pSBar = &hwnd->hscroll;
+    else
+        pSBar = &hwnd->vscroll;
+
+    if (pSBar->minPos == pSBar->maxPos) {
+        pSBar->status |= SBS_HIDE;
+        return;
+    }
+
+    if (bIsHBar)
+        moveRange = (rcBar->right - rcBar->left) - (mwSYSMETRICS_CXHSCROLL<<1);
+    else
+        moveRange = (rcBar->bottom - rcBar->top) - (mwSYSMETRICS_CYVSCROLL<<1);
+
+#define MWM_DEFBARLEN	18//
+#define MWM_MINBARLEN	8//
+
+    if (pSBar->pageStep == 0) {
+        pSBar->barLen = MWM_DEFBARLEN;
+
+        if (pSBar->barLen > moveRange)
+            pSBar->barLen = MWM_MINBARLEN;
+    }
+    else {
+        pSBar->barLen = moveRange * pSBar->pageStep /
+	      (pSBar->maxPos - pSBar->minPos + 1);
+        if (pSBar->barLen < MWM_MINBARLEN)
+            pSBar->barLen = MWM_MINBARLEN;
+    }
+
+    pSBar->barStart = moveRange * (pSBar->curPos - pSBar->minPos) /
+       (pSBar->maxPos - pSBar->minPos + 1);
+
+    if (pSBar->barStart + pSBar->barLen > moveRange)
+        pSBar->barStart = moveRange - pSBar->barLen;
+    if (pSBar->barStart < 0)
+        pSBar->barStart = 0;
+}
+
+#if 0000
+static void OnChangeSize(HWND pWin, PRECT pDestRect, PRECT pResultRect)
+{
+    int iBorder = 0;
+    int iCaptionY = 0;
+    //-int iIconX = 0;
+    //-int iIconY = 0;
+    int iMenuY = 0;
+
+    if (pWin->style & WS_BORDER) 
+        iBorder = GetMainWinMetrics(MWM_BORDER);
+    else if (pWin->style & WS_THICKFRAME)
+        iBorder = GetMainWinMetrics(MWM_THICKFRAME);
+    else if (pWin->style & WS_THINFRAME)
+        iBorder = GetMainWinMetrics (MWM_THINFRAME);
+
+    if( pWin->style & WS_CAPTION )
+    {
+        iCaptionY = GetMainWinMetrics(MWM_CAPTIONY);
+#if 0//fix: no ->hIcon
+        if (pWin->hIcon) {
+            iIconX = GetMainWinMetrics(MWM_ICONX);
+            iIconY = GetMainWinMetrics(MWM_ICONY);
+        }
+#endif
+    }
+#if 0//fix: no menu
+//?    if (pWin->hMenu) {
+//?        iMenuY = GetMainWinMetrics (MWM_MENUBARY);
+//?        iMenuY += GetMainWinMetrics (MWM_MENUBAROFFY)<<1;
+//?    }
+#endif
+    if (pDestRect) {
+        int minWidth = 0, minHeight = 0;
+
+        memcpy(&pWin->winrect.left/*left*/, pDestRect, sizeof(RECT));
+
+        minHeight = iMenuY + (iCaptionY<<1);
+        if (pWin->style & WS_VSCROLL) {
+            minWidth += GetMainWinMetrics (MWM_CXVSCROLL);
+            minHeight += (GetMainWinMetrics (MWM_CYVSCROLL)<<1) +
+                         (GetMainWinMetrics (MWM_MINBARLEN)<<1);
+        }
+        
+        if (1)//type_mainwin
+            minWidth += GetMainWinMetrics (MWM_MINWIDTH);
+
+        if (pWin->style & WS_HSCROLL) {
+            minHeight += GetMainWinMetrics (MWM_CYHSCROLL);
+            minWidth += (GetMainWinMetrics (MWM_CXHSCROLL)<<1) +
+                        (GetMainWinMetrics (MWM_MINBARLEN)<<1);
+        }
+
+        if(minHeight > (pWin->winrect.bottom/*bottom*/ - pWin->winrect.top/*top*/))
+            pWin->winrect.bottom/*bottom*/ = pWin->winrect.top/*top*/ + minHeight;
+
+        if(pWin->winrect.right/*right*/ < (pWin->winrect.left/*left*/ + minWidth))
+            pWin->winrect.right/*right*/ = pWin->winrect.left/*left*/ + minWidth;
+
+        if( pResultRect )
+             memcpy(pResultRect, &pWin->winrect.left/*left*/, sizeof(RECT));
+    }
+
+    memcpy(&pWin->clirect.left/*cl*/, &pWin->winrect.left/*left*/, sizeof(RECT));
+
+    pWin->clirect.left/*cl*/ += iBorder;
+    pWin->clirect.top/*ct*/ += iBorder;
+    pWin->clirect.right/*cr*/ -= iBorder;
+    pWin->clirect.bottom/*cb*/ -= iBorder;
+    pWin->clirect.top/*ct*/ += iCaptionY;
+    pWin->clirect.top/*ct*/ += iMenuY;
+    
+    if (pWin->style & WS_HSCROLL && !(pWin->hscroll.status & SBS_HIDE)) {
+    
+        RECT rcBar;
+        wndGetHScrollBarRect (pWin, &rcBar);
+        wndScrollBarPos (pWin, TRUE, &rcBar);
+
+        pWin->clirect.bottom/*cb*/ -= GetMainWinMetrics (MWM_CYHSCROLL);
+    }
+        
+    if (pWin->style & WS_VSCROLL && !(pWin->vscroll.status & SBS_HIDE)) {
+    
+        RECT rcBar;
+        wndGetVScrollBarRect (pWin, &rcBar);
+        wndScrollBarPos (pWin, FALSE, &rcBar);
+
+        pWin->clirect.right/*cr*/ -= GetMainWinMetrics (MWM_CXVSCROLL);
+    }
+}
+#endif
+
+int ClientWidthToWindowWidth (DWORD dwStyle, int cw)
+{
+    int iBorder = 0;
+    int iScroll = 0;
+
+    if (dwStyle & WS_BORDER) 
+        iBorder = GetMainWinMetrics(MWM_BORDER);
+    else if (dwStyle & WS_THICKFRAME)
+        iBorder = GetMainWinMetrics(MWM_THICKFRAME);
+    else if (dwStyle & WS_THINFRAME)
+        iBorder = GetMainWinMetrics (MWM_THINFRAME);
+
+    if (dwStyle & WS_VSCROLL)
+        iScroll = GetMainWinMetrics (MWM_CXVSCROLL);
+        
+    return cw + (iBorder<<1) + iScroll;
+}
+
+int ClientHeightToWindowHeight (DWORD dwStyle, int ch, BOOL hasMenu)
+{
+    int iBorder  = 0;
+    int iCaption = 0;
+    int iScroll  = 0;
+    int iMenu    = 0;
+
+    if (dwStyle & WS_BORDER) 
+        iBorder = GetMainWinMetrics(MWM_BORDER);
+    else if (dwStyle & WS_THICKFRAME)
+        iBorder = GetMainWinMetrics(MWM_THICKFRAME);
+    else if (dwStyle & WS_THINFRAME)
+        iBorder = GetMainWinMetrics (MWM_THINFRAME);
+
+    if (dwStyle & WS_HSCROLL)
+        iScroll = GetMainWinMetrics (MWM_CYHSCROLL);
+        
+    if (dwStyle & WS_CAPTION)
+        iCaption = GetMainWinMetrics(MWM_CAPTIONY);
+#if 0//fix: no menu
+//?    if (hasMenu) {
+//?        iMenu = GetMainWinMetrics (MWM_MENUBARY);
+//?        iMenu += GetMainWinMetrics (MWM_MENUBAROFFY)<<1;
+//?    }
+#endif
+    return ch + (iBorder<<1) + iCaption + iScroll + iMenu;
+}
+
+#if 0000
+// this function is CONTROL safe.
+static int HittestOnNClient (HWND pWin, int x, int y)
+{
+    RECT rcCaption, /*rcIcon,*/ rcButton/*, rcMenuBar*/;
+    int iBorder = 0;
+    int iCaption = 0;
+    //-int iIconX = 0;
+    //-int iIconY = 0;
+
+    if (pWin->style/*dwStyle*/ & WS_BORDER) 
+        iBorder = GetMainWinMetrics(MWM_BORDER);
+    else if (pWin->style/*dwStyle*/ & WS_THICKFRAME)
+        iBorder = GetMainWinMetrics(MWM_THICKFRAME);
+    else if (pWin->style/*dwStyle*/ & WS_THINFRAME)
+        iBorder = GetMainWinMetrics (MWM_THINFRAME);
+
+    if (pWin->style/*dwStyle*/ & WS_HSCROLL && !(pWin->hscroll.status & SBS_HIDE)) {
+    
+        RECT rcBar;
+        wndGetHScrollBarRect (pWin, &rcBar);
+
+        if (PtInRect2 (&rcBar, x, y))
+            return HTHSCROLL;
+    }
+        
+    if (pWin->style/*dwStyle*/ & WS_VSCROLL && !(pWin->vscroll.status & SBS_HIDE)) {
+    
+        RECT rcBar;
+        wndGetVScrollBarRect (pWin, &rcBar);
+
+        if (PtInRect2 (&rcBar, x, y))
+            return HTVSCROLL;
+    }
+    
+    if (!(pWin->style/*dwStyle*/ & WS_CAPTION))
+         return HTBORDER;
+
+    iCaption = GetMainWinMetrics(MWM_CAPTIONY);
+#if 0//fix: no ->hIcon
+    if (pWin->hIcon)
+    {
+        iIconX = GetMainWinMetrics(MWM_ICONX);
+        iIconY = GetMainWinMetrics(MWM_ICONY);
+    }
+#endif
+    // Caption rect;
+    rcCaption.left = pWin->winrect.left/*left*/ + iBorder;
+    rcCaption.top = pWin->winrect.top/*top*/ + iBorder;
+    rcCaption.right = pWin->winrect.right/*right*/ - iBorder;
+    rcCaption.bottom = rcCaption.top + iCaption;
+
+#if 0//fix: no HT_ICON,HTICON                    
+    if (pWin->hIcon)
+    { 
+        rcIcon.left = rcCaption.left;
+        rcIcon.top = rcCaption.top;
+        rcIcon.right = rcIcon.left + iIconX;
+        rcIcon.bottom = rcIcon.top + iIconY;
+
+        if (PtInRect2 (&rcIcon, x, y))
+            return HT_ICON;
+    }
+#endif
+
+    rcButton.left = rcCaption.right - GetMainWinMetrics (MWM_SB_WIDTH);
+    rcButton.top = rcCaption.top;
+    rcButton.right = rcCaption.right;
+    rcButton.bottom = rcCaption.top + GetMainWinMetrics (MWM_SB_HEIGHT);
+    if (PtInRect2 (&rcButton, x, y))
+        return HTCLOSE;
+
+    rcButton.left -= GetMainWinMetrics (MWM_SB_WIDTH);
+    rcButton.left -= GetMainWinMetrics (MWM_SB_INTERX)<<1;
+    if (pWin->style/*dwStyle*/ & WS_MAXIMIZEBOX) {
+        rcButton.right = rcButton.left + GetMainWinMetrics (MWM_SB_WIDTH);
+        if (PtInRect2 (&rcButton, x, y))
+            return HTMAXBUTTON;
+
+        rcButton.left -= GetMainWinMetrics (MWM_SB_WIDTH);
+        rcButton.left -= GetMainWinMetrics (MWM_SB_INTERX);
+    }
+
+    if (pWin->style/*dwStyle*/ & WS_MINIMIZEBOX) {
+        rcButton.right = rcButton.left + GetMainWinMetrics (MWM_SB_WIDTH);
+        if (PtInRect2 (&rcButton, x, y))
+            return HTMINBUTTON;
+    }
+
+    if (PtInRect2 (&rcCaption, x, y))
+        return HTCAPTION;
+#if 0//fix: no menu
+//?    if (pWin->hMenu) {
+//?        rcMenuBar.left = rcCaption.left;
+//?        rcMenuBar.top = rcCaption.bottom + 1;
+//?        rcMenuBar.right = rcCaption.right;
+//?        rcMenuBar.bottom = rcMenuBar.top + GetMainWinMetrics (MWM_MENUBARY);
+//?        rcMenuBar.bottom += GetMainWinMetrics (MWM_MENUBAROFFY)<<1;
+//?                
+//?        if (PtInRect2 (&rcMenuBar, x, y))
+//?            return HTMENU;//HT_MENUBAR;
+//?    }
+#endif
+    return HTNOWHERE;//HT_UNKNOWN;
+}
+
+static void wndDrawNCArea(const HWND pWin, HDC hdc)
+{
+    HGDIOBJ oldpen;
+    // Draw window frame
+    if (pWin->style/*dwStyle*/ & WS_BORDER)
+    {
+        if (pWin->style/*dwStyle*/ & WS_CHILD)
+            Draw3DDownFrame(hdc, 
+                   0, 0, 
+                   pWin->winrect.right/*right*/ - pWin->winrect.left/*left*/ - 1, 
+                   pWin->winrect.bottom/*bottom*/ - pWin->winrect.top/*top*/ - 1);
+        else
+            Draw3DUpFrame(hdc, 
+                   0, 0, 
+                   pWin->winrect.right/*right*/ - pWin->winrect.left/*left*/, 
+                   pWin->winrect.bottom/*bottom*/ - pWin->winrect.top/*top*/);
+    }
+    else if ((pWin->style/*dwStyle*/ & WS_THICKFRAME) ||
+            (pWin->style/*dwStyle*/ & WS_THINFRAME))
+    {
+       //-SetPenColor(hdc, BLACK/*COLOR_black*/);
+       oldpen=SelectObject(hdc,GetStockObject(BLACK_PEN));
+       Rectangle(hdc, 0, 0, 
+                      pWin->winrect.right/*right*/ - pWin->winrect.left/*left*/ - 1, 
+                      pWin->winrect.bottom/*bottom*/ - pWin->winrect.top/*top*/ - 1);
+       SelectObject(hdc,oldpen);
+    }
+
+}
+
+static void
+wndDrawScrollBar (HWND hwnd, HDC hdc)
+{
+    int iBorder = 0, start = 0;
+    RECT rcHBar, rcVBar;
+    //PBITMAP bmp;
+    RECT rc;
+    
+    if (hwnd->style/*dwStyle*/ & WS_BORDER) 
+        iBorder = GetMainWinMetrics (MWM_BORDER);
+    else if (hwnd->style/*dwStyle*/ & WS_THICKFRAME)
+        iBorder = GetMainWinMetrics (MWM_THICKFRAME);
+    else if (hwnd->style/*dwStyle*/ & WS_THINFRAME)
+        iBorder = GetMainWinMetrics (MWM_THINFRAME);
+   
+    wndGetVScrollBarRect (hwnd, &rcVBar);
+    rcVBar.left -= hwnd->winrect.left/*left*/;
+    rcVBar.top  -= hwnd->winrect.top/*top*/;
+    rcVBar.right -= hwnd->winrect.left/*left*/;
+    rcVBar.bottom -= hwnd->winrect.top/*top*/;
+    wndGetHScrollBarRect (hwnd, &rcHBar);
+    rcHBar.left -= hwnd->winrect.left/*left*/;
+    rcHBar.top  -= hwnd->winrect.top/*top*/;
+    rcHBar.right -= hwnd->winrect.left/*left*/;
+    rcHBar.bottom -= hwnd->winrect.top/*top*/;
+
+    //?SetBrushColor (hdc, LTGRAY/*COLOR_lightgray*/);
+    if (hwnd->style/*dwStyle*/ & WS_HSCROLL && !(hwnd->hscroll.status & SBS_HIDE)) 
+    {
+#if 0
+        FillBox (hdc, rcHBar.left, rcHBar.top,
+                  rcHBar.right - rcHBar.left + mwSYSMETRICS_CXVSCROLL,
+                  rcHBar.bottom - rcHBar.top);
+#else
+        rc.left=rcHBar.left; rc.top=rcHBar.top;
+        rc.right=rcHBar.right - rcHBar.left + mwSYSMETRICS_CXVSCROLL;
+        rc.bottom=rcHBar.bottom - rcHBar.top;
+	FillRect(hdc,&rc,GetStockObject(LTGRAY_BRUSH));
+#endif
+        // draw left and right buttons.
+        //if (hwnd->hscroll.status & SBS_DISABLED)
+            //bmp = NULL;//GetSystemBitmap (SYSBMP_ARROWLEFTD);
+        //else
+            //bmp = NULL;//GetSystemBitmap (SYSBMP_ARROWLEFT);
+#if 0//!!: fix: use draw instead of bitmap        
+        FillBoxWithBitmap (hdc, rcHBar.left, rcHBar.top, 
+		mwSYSMETRICS_CXHSCROLL, mwSYSMETRICS_CYHSCROLL, bmp);
+#endif
+        //if (hwnd->hscroll.status & SBS_DISABLED)
+            //bmp = NULL;//GetSystemBitmap (SYSBMP_ARROWRIGHTD);
+        //else
+            //bmp = NULL;//GetSystemBitmap (SYSBMP_ARROWRIGHT);
+#if 0//!!: fix: use draw instead of bitmap        
+        FillBoxWithBitmap (hdc, rcHBar.right - mwSYSMETRICS_CXHSCROLL,
+		rcHBar.top, mwSYSMETRICS_CXHSCROLL, mwSYSMETRICS_CYHSCROLL,
+		bmp);
+#endif
+        // draw moving bar.
+        start = rcHBar.left + mwSYSMETRICS_CXHSCROLL + hwnd->hscroll.barStart;
+
+        if (start + hwnd->hscroll.barLen > rcHBar.right)
+            start = rcHBar.right - hwnd->hscroll.barLen;
+
+        Draw3DUpFrame (hdc, start, rcHBar.top, start + hwnd->hscroll.barLen,
+	    rcHBar.bottom);
+    }
+
+    if (hwnd->style/*dwStyle*/ & WS_VSCROLL && !(hwnd->vscroll.status & SBS_HIDE)) 
+    {
+#if 0        
+        FillBox (hdc, rcVBar.left, rcVBar.top,
+                  rcVBar.right - rcVBar.left, rcVBar.bottom - rcVBar.top);
+#else
+        rc.left=rcVBar.left; rc.top=rcVBar.top;
+        rc.right=rcVBar.right - rcVBar.left;
+        rc.bottom=rcVBar.bottom - rcVBar.top;
+	FillRect(hdc,&rc,GetStockObject(LTGRAY_BRUSH));
+#endif
+        // draw top and bottom buttons.
+        //if (hwnd->vscroll.status & SBS_DISABLED)
+            //bmp = NULL;//GetSystemBitmap (SYSBMP_ARROWUPD);
+        //else
+            //bmp = NULL;//GetSystemBitmap (SYSBMP_ARROWUP);
+#if 0//!!: fix: use draw instead of bitmap        
+        FillBoxWithBitmap (hdc, rcVBar.left, rcVBar.top, 
+		mwSYSMETRICS_CXVSCROLL, mwSYSMETRICS_CYVSCROLL, bmp);
+#endif
+        //if (hwnd->vscroll.status & SBS_DISABLED)
+            //bmp = NULL;//GetSystemBitmap (SYSBMP_ARROWDOWND);
+        //else
+            //bmp = NULL;//GetSystemBitmap (SYSBMP_ARROWDOWN);
+#if 0//!!: fix: use draw instead of bitmap        
+        FillBoxWithBitmap (hdc, rcVBar.left,
+		rcVBar.bottom - mwSYSMETRICS_CYVSCROLL,
+		mwSYSMETRICS_CXVSCROLL, mwSYSMETRICS_CYVSCROLL, bmp);
+#endif
+        // draw moving bar
+        start = rcVBar.top + mwSYSMETRICS_CYVSCROLL + hwnd->vscroll.barStart;
+                    
+        if (start + hwnd->vscroll.barLen > rcVBar.bottom)
+            start = rcVBar.bottom - hwnd->vscroll.barLen;
+
+        Draw3DUpFrame (hdc, rcVBar.left, start, rcVBar.right,
+	    start + hwnd->vscroll.barLen);
+
+    }
+}
+#endif
+
+static PMWSCROLLBARINFO wndGetScrollBar (HWND pWin, int iSBar)
+{
+    if (iSBar == SB_HORZ) {
+        if (pWin->style/*dwStyle*/ & WS_HSCROLL)
+            return &pWin->hscroll;
+    }
+    else if (iSBar == SB_VERT) {
+        if (pWin->style/*dwStyle*/ & WS_VSCROLL)
+            return &pWin->vscroll;
+    }
+
+    return NULL;
+}
+
+BOOL  EnableScrollBar (HWND hWnd, int iSBar, BOOL bEnable)//!!
+{
+    PMWSCROLLBARINFO pSBar;
+    HWND pWin;
+    BOOL bPrevState;
+    RECT rcBar;
+    
+    pWin = (HWND)hWnd;
+    
+    if ( !(pSBar = wndGetScrollBar (pWin, iSBar)) )
+        return FALSE;
+
+    bPrevState = !(pSBar->status & SBS_DISABLED);
+
+    if (bEnable && !bPrevState)
+        pSBar->status &= ~SBS_DISABLED;
+    else if (!bEnable && bPrevState)
+        pSBar->status |= SBS_DISABLED;
+    else
+        return FALSE;
+
+    if (iSBar == SB_VERT)
+        wndGetVScrollBarRect (pWin, &rcBar);
+    else
+        wndGetHScrollBarRect (pWin, &rcBar);
+        
+    rcBar.left -= pWin->winrect.left/*left*/;
+    rcBar.top  -= pWin->winrect.top/*top*/;
+    rcBar.right -= pWin->winrect.left/*left*/;
+    rcBar.bottom -= pWin->winrect.top/*top*/;
+
+    SendMessage/*SendAsyncMessage*/ (hWnd, WM_NCPAINT, 0, (LPARAM)(&rcBar));
+
+    return TRUE;
+}
+
+BOOL  GetScrollPos (HWND hWnd, int iSBar, int* pPos)
+{
+    PMWSCROLLBARINFO pSBar;
+    HWND pWin;
+    
+    pWin = (HWND)hWnd;
+    
+    if ( !(pSBar = wndGetScrollBar (pWin, iSBar)) )
+        return FALSE;
+
+    *pPos = pSBar->curPos;
+    return TRUE;
+}
+
+BOOL  GetScrollRange (HWND hWnd, int iSBar, int* pMinPos, int* pMaxPos)
+{
+    PMWSCROLLBARINFO pSBar;
+    HWND pWin;
+    
+    pWin = (HWND)hWnd;
+    
+    if ( !(pSBar = wndGetScrollBar (pWin, iSBar)) )
+        return FALSE;
+
+    *pMinPos = pSBar->minPos;
+    *pMaxPos = pSBar->maxPos;
+    return TRUE;
+}
+
+BOOL  SetScrollPos (HWND hWnd, int iSBar, int iNewPos)//!!
+{
+    PMWSCROLLBARINFO pSBar;
+    HWND pWin;
+    RECT rcBar;
+    
+    pWin = (HWND)hWnd;
+    
+    if ( !(pSBar = wndGetScrollBar (pWin, iSBar)) )
+        return FALSE;
+
+    if (iNewPos < pSBar->minPos)
+        pSBar->curPos = pSBar->minPos;
+    else
+        pSBar->curPos = iNewPos;
+
+    {
+        int max = pSBar->maxPos;
+        max -= ((pSBar->pageStep - 1) > 0)?(pSBar->pageStep - 1):0;
+
+        if (pSBar->curPos > max)
+            pSBar->curPos = max;
+    }
+    
+    if (iSBar == SB_VERT)
+        wndGetVScrollBarRect (pWin, &rcBar);
+    else
+        wndGetHScrollBarRect (pWin, &rcBar);
+
+    rcBar.left -= pWin->winrect.left/*left*/;
+    rcBar.top  -= pWin->winrect.top/*top*/;
+    rcBar.right -= pWin->winrect.left/*left*/;
+    rcBar.bottom -= pWin->winrect.top/*top*/;
+
+    wndScrollBarPos (pWin, iSBar == SB_HORZ, &rcBar);
+
+    if (iSBar == SB_VERT) {
+        rcBar.top += GetMainWinMetrics (MWM_CYVSCROLL);
+        rcBar.bottom -= GetMainWinMetrics (MWM_CYVSCROLL);
+    }
+    else {
+        rcBar.left += GetMainWinMetrics (MWM_CXHSCROLL);
+        rcBar.right -= GetMainWinMetrics (MWM_CXHSCROLL);
+    }
+
+    SendMessage/*SendAsyncMessage*/ (hWnd, WM_NCPAINT, 0, (LPARAM)(&rcBar));
+
+    return TRUE;
+}
+
+BOOL  SetScrollRange (HWND hWnd, int iSBar, int iMinPos, int iMaxPos)
+{
+    PMWSCROLLBARINFO pSBar;
+    HWND pWin;
+    RECT rcBar;
+    
+    pWin = (HWND)hWnd;
+    
+    if ( !(pSBar = wndGetScrollBar (pWin, iSBar)) )
+        return FALSE;
+
+    pSBar->minPos = (iMinPos < iMaxPos)?iMinPos:iMaxPos;
+    pSBar->maxPos = (iMinPos > iMaxPos)?iMinPos:iMaxPos;
+    
+    // validate parameters.
+    if (pSBar->curPos < pSBar->minPos)
+        pSBar->curPos = pSBar->minPos;
+
+    if (pSBar->pageStep <= 0)
+        pSBar->pageStep = 0;
+    else if (pSBar->pageStep > (pSBar->maxPos - pSBar->minPos + 1))
+        pSBar->pageStep = pSBar->maxPos - pSBar->minPos + 1;
+    
+    {
+        int max = pSBar->maxPos;
+        max -= ((pSBar->pageStep - 1) > 0)?(pSBar->pageStep - 1):0;
+
+        if (pSBar->curPos > max)
+            pSBar->curPos = max;
+    }
+
+    if (iSBar == SB_VERT)
+        wndGetVScrollBarRect (pWin, &rcBar);
+    else
+        wndGetHScrollBarRect (pWin, &rcBar);
+
+    rcBar.left -= pWin->winrect.left/*left*/;
+    rcBar.top  -= pWin->winrect.top/*top*/;
+    rcBar.right -= pWin->winrect.left/*left*/;
+    rcBar.bottom -= pWin->winrect.top/*top*/;
+
+    wndScrollBarPos (pWin, iSBar == SB_HORZ, &rcBar);
+
+    if (iSBar == SB_VERT) {
+        rcBar.top += GetMainWinMetrics (MWM_CYVSCROLL);
+        rcBar.bottom -= GetMainWinMetrics (MWM_CYVSCROLL);
+    }
+    else {
+        rcBar.left += GetMainWinMetrics (MWM_CXHSCROLL);
+        rcBar.right -= GetMainWinMetrics (MWM_CXHSCROLL);
+    }
+
+    SendMessage/*SendAsyncMessage*/ (hWnd, WM_NCPAINT, 0, (LPARAM)(&rcBar));
+
+    return TRUE;
+}
+
+BOOL  SetScrollInfo (HWND hWnd, int iSBar, 
+                LPCSCROLLINFO lpsi, BOOL fRedraw)//!!
+{
+    PMWSCROLLBARINFO pSBar;
+    HWND pWin;
+    RECT rcBar;
+    
+    pWin = (HWND)hWnd;
+    
+    if ( !(pSBar = wndGetScrollBar (pWin, iSBar)) )
+        return FALSE;
+        
+    if( lpsi->fMask & SIF_RANGE )
+    {
+        pSBar->minPos = (lpsi->nMin < lpsi->nMax)?lpsi->nMin:lpsi->nMax;
+        pSBar->maxPos = (lpsi->nMin < lpsi->nMax)?lpsi->nMax:lpsi->nMin;
+    }
+    
+    if( lpsi->fMask & SIF_POS )
+        pSBar->curPos = lpsi->nPos;
+    
+    if( lpsi->fMask & SIF_PAGE )
+        pSBar->pageStep = lpsi->nPage;
+
+    // validate parameters.
+    if (pSBar->curPos < pSBar->minPos)
+        pSBar->curPos = pSBar->minPos;
+
+    if (pSBar->pageStep <= 0)
+        pSBar->pageStep = 0;
+    else if (pSBar->pageStep > (pSBar->maxPos - pSBar->minPos + 1))
+        pSBar->pageStep = pSBar->maxPos - pSBar->minPos + 1;
+    
+    {
+        int max = pSBar->maxPos;
+        max -= ((pSBar->pageStep - 1) > 0)?(pSBar->pageStep - 1):0;
+
+        if (pSBar->curPos > max)
+            pSBar->curPos = max;
+    }
+
+    if(fRedraw)
+    {
+        if (iSBar == SB_VERT)
+            wndGetVScrollBarRect (pWin, &rcBar);
+        else
+            wndGetHScrollBarRect (pWin, &rcBar);
+        
+        rcBar.left -= pWin->winrect.left/*left*/;
+        rcBar.top  -= pWin->winrect.top/*top*/;
+        rcBar.right -= pWin->winrect.left/*left*/;
+        rcBar.bottom -= pWin->winrect.top/*top*/;
+    
+        wndScrollBarPos (pWin, iSBar == SB_HORZ, &rcBar);
+
+        if (iSBar == SB_VERT) {
+            rcBar.top += GetMainWinMetrics (MWM_CYVSCROLL);
+            rcBar.bottom -= GetMainWinMetrics (MWM_CYVSCROLL);
+        }
+        else {
+            rcBar.left += GetMainWinMetrics (MWM_CXHSCROLL);
+            rcBar.right -= GetMainWinMetrics (MWM_CXHSCROLL);
+        }
+
+        SendMessage/*SendAsyncMessage*/ (hWnd, WM_NCPAINT, 0, (LPARAM)(&rcBar));
+    }
+    
+    return TRUE;
+}
+
+BOOL  GetScrollInfo(HWND hWnd, int iSBar, LPSCROLLINFO lpsi)
+{
+    PMWSCROLLBARINFO pSBar;
+    HWND pWin;
+    
+    pWin = (HWND)hWnd;
+    
+    if ( !(pSBar = wndGetScrollBar (pWin, iSBar)) )
+        return FALSE;
+        
+    if( lpsi->fMask & SIF_RANGE )
+    {
+        lpsi->nMin = pSBar->minPos;
+        lpsi->nMax = pSBar->maxPos;
+    }
+    
+    if( lpsi->fMask & SIF_POS )
+    {
+        lpsi->nPos = pSBar->curPos;
+    }
+    
+    if( lpsi->fMask & SIF_PAGE )
+        lpsi->nPage = pSBar->pageStep;
+    
+    return TRUE;
+}
+
+BOOL  ShowScrollBar (HWND hWnd, int iSBar, BOOL bShow)
+{
+    PMWSCROLLBARINFO pSBar;
+    HWND pWin;
+    BOOL bPrevState;
+    RECT rcBar;
+    
+    pWin = (HWND)hWnd;
+    
+    if ( !(pSBar = wndGetScrollBar (pWin, iSBar)) )
+        return FALSE;
+
+    bPrevState = !(pSBar->status & SBS_HIDE);
+
+    if (bShow && !bPrevState)
+        pSBar->status &= ~SBS_HIDE;
+    else if (!bShow && bPrevState)
+        pSBar->status |= SBS_HIDE;
+    else
+        return FALSE;
+#if 0//fix: no WM_CHANGESIZE
+    SendMessage/*SendAsyncMessage*/ (hWnd, WM_CHANGESIZE, 0, 0);
+#endif
+    if (iSBar == SB_VERT)
+        wndGetVScrollBarRect (pWin, &rcBar);
+    else
+        wndGetHScrollBarRect (pWin, &rcBar);
+
+    {
+        RECT rcWin, rcClient;
+        
+        memcpy (&rcWin, &pWin->winrect.left/*left*/, sizeof (RECT));
+        
+        rcClient.left = 0;
+        rcClient.top  = 0;
+        rcClient.right = pWin->clirect.right/*cr*/ - pWin->clirect.left/*cl*/;
+        rcClient.bottom = pWin->clirect.bottom/*cb*/ - pWin->clirect.top/*ct*/;
+#if 0//fix: no WM_SIZECHANGED
+        SendMessage/*SendAsyncMessage*/ (hWnd, WM_SIZECHANGED, 
+            (WPARAM)&rcWin, (LPARAM)&rcClient);
+#endif
+    }
+    
+    if (bShow) {
+        SendMessage/*SendAsyncMessage*/ (hWnd, WM_NCPAINT, 0, 0);
+    }
+    else {
+        rcBar.left -= pWin->clirect.left/*cl*/;
+        rcBar.top  -= pWin->clirect.top/*ct*/;
+        rcBar.right -= pWin->clirect.left/*cl*/;
+        rcBar.bottom -= pWin->clirect.top/*ct*/;
+        SendMessage/*SendAsyncMessage*/ (hWnd, WM_NCPAINT, 0, 0);
+        InvalidateRect (hWnd, &rcBar, TRUE);
+    }
+
+    return TRUE;
+}
+
+//HWND  CreateWindow (const char* spClassName, const char* spCaption,
+//                  DWORD dwStyle, int id, 
+//                  int x, int y, int w, int h,
+//                  HWND hParentWnd, DWORD dwAddData)
+//{
+//    HWND pParentWin;
+//    PCTRLCLASSINFO cci;
+//    HWND pNewCtrl;
+//
+//    if (!(pParentWin = MainWindow (hParentWnd))) return HWND_INVALID;
+//
+//    cci = (PCTRLCLASSINFO)SendMessage (HWND_DESKTOP, 
+//                WM_GETCTRLCLASSINFO, 0, (LPARAM)spClassName);
+//                
+//    if (!cci) return HWND_INVALID;
+//
+//    pNewCtrl = malloc (sizeof (CONTROL));
+//
+//    if (!pNewCtrl) return HWND_INVALID;
+//
+//    pNewCtrl->DataType = TYPE_HWND;
+//    pNewCtrl->WinType  = TYPE_CONTROL;
+//
+//    pNewCtrl->left     = x;
+//    pNewCtrl->top      = y;
+//    pNewCtrl->right    = x + w;
+//    pNewCtrl->bottom   = y + h;
+//
+//    memcpy (&pNewCtrl->cl, &pNewCtrl->left, sizeof (RECT));
+//
+//    if (spCaption) {
+//        int len = strlen (spCaption);
+//        
+//        pNewCtrl->spCaption    = FixStrAlloc (len);
+//        if (len > 0)
+//            strcpy (pNewCtrl->spCaption, spCaption);
+//    }
+//    else
+//        pNewCtrl->spCaption = "";
+//        
+//    pNewCtrl->dwStyle  = dwStyle;
+//    pNewCtrl->id       = id;
+//
+//    pNewCtrl->pCaretInfo = NULL;
+//    
+//    pNewCtrl->dwAddData = dwAddData;
+//
+//    // Scroll bar//
+//    if (pNewCtrl->dwStyle && WS_VSCROLL) {//
+//        pNewCtrl->vscroll.minPos = 0;//
+//        pNewCtrl->vscroll.maxPos = 100;//
+//        pNewCtrl->vscroll.curPos = 0;//
+//        pNewCtrl->vscroll.pageStep = 0;//
+//        pNewCtrl->vscroll.barStart = 0;//
+//        pNewCtrl->vscroll.barLen = 10;//
+//        pNewCtrl->vscroll.status = SBS_NORMAL;//
+//    }//
+//    else//
+//        pNewCtrl->vscroll.status = SBS_HIDE | SBS_DISABLED;//
+////
+//    if (pNewCtrl->dwStyle && WS_HSCROLL) {//
+//        pNewCtrl->hscroll.minPos = 0;//
+//        pNewCtrl->hscroll.maxPos = 100;//
+//        pNewCtrl->hscroll.curPos = 0;//
+//        pNewCtrl->hscroll.pageStep = 0;//
+//        pNewCtrl->hscroll.barStart = 0;//
+//        pNewCtrl->hscroll.barLen = 10;//
+//        pNewCtrl->hscroll.status = SBS_NORMAL;//
+//    }//
+//    else//
+//        pNewCtrl->hscroll.status = SBS_HIDE | SBS_DISABLED;//
+//
+//    pNewCtrl->children = NULL;              // always be NULL.
+//    pNewCtrl->active   = NULL;              // always be NULL.
+//
+//    pNewCtrl->pMainWin = pParentWin;
+//    pNewCtrl->next     = NULL;
+//
+//    pNewCtrl->pcci     = cci;
+//
+//    if (SendMessage ((HWND)pNewCtrl, WM_NCCREATE, 0, (LPARAM)pNewCtrl)) {
+//        free (pNewCtrl);
+//        return HWND_INVALID;
+//    }
+//#if 0//fix: no WM_CHANGESIZE
+//    SendMessage ((HWND)pNewCtrl, WM_CHANGESIZE, 
+//                    (WPARAM)(&pNewCtrl->left), 0);
+//#endif
+//    if (SendMessage ((HWND)pNewCtrl, WM_CREATE, 
+//        (WPARAM)hParentWnd, (LPARAM)dwAddData)) {
+//        
+//        free (pNewCtrl);
+//        return HWND_INVALID;
+//    }
+//
+//    {
+//        RECT rcWin, rcClient;
+//        
+//        memcpy (&rcWin, &pNewCtrl->left, sizeof (RECT));
+//        
+//        rcClient.left = 0;
+//        rcClient.top  = 0;
+//        rcClient.right = pNewCtrl->cr - pNewCtrl->cl;
+//        rcClient.bottom = pNewCtrl->cb - pNewCtrl->ct;
+//#if 0//fix: no WM_SIZECHANGED
+//        SendMessage/*SendAsyncMessage*/ ((HWND)pNewCtrl, WM_SIZECHANGED, 
+//            (WPARAM)&rcWin, (LPARAM)&rcClient);
+//#endif
+//    }
+//
+//    if (cci->dwStyle & CS_OWNDC)
+//        pNewCtrl->privCDC = CreatePrivateClientDC ((HWND)pNewCtrl);
+//    else
+//        pNewCtrl->privCDC = 0;
+//        
+//    SendMessage (HWND_DESKTOP, 
+//        WM_NEWCTRLINSTANCE, (WPARAM)hParentWnd, (LPARAM)pNewCtrl);
+//        
+//    // reset static variables
+//    DefaultMouseMsgHandler(HWND_DESKTOP, WM_WINDOWCHANGED, 0, 0, 0);
+//
+//    return (HWND)pNewCtrl;
+//}
+#endif

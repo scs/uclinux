@@ -1,0 +1,32 @@
+include ../../nessus.tmpl
+
+PLUGNAME=nmap_osfingerprint
+OBJS = main.o \
+	nmap.o \
+	targets.o \
+	tcpip.o \
+	nmap_error.o \
+	utils.o \
+	osscan.o \
+	output.o \
+	timing.o \
+	portlist.o 
+
+
+NMAP_STUFF=-DNMAP_VERSION=\"3.00\" -DLOCALSTATEDIR=\"$(localstatedir)\"
+
+
+
+all : $(PLUGNAME).nes 
+
+.c.o:
+	$(CC) -bundle -undefined error $(DEFS) $(NMAP_STUFF) $(include) -c $<
+	
+	
+$(PLUGNAME).nes : $(OBJS)
+	$(CC) -bundle -undefined error -o $(PLUGNAME).nes $(OBJS) $(LIBS)
+	cp $(PLUGNAME).nes $(rootdir)/bin/
+clean :
+	@rm -fr *.lo *.nes *.la .libs
+	@rm -fr *.o
+
