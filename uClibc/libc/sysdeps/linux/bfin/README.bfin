@@ -1,13 +1,7 @@
 
 README for uC-libc on the blackfin architecture
 
-For now (2004/1/25) support for the blackfin should be considered "alpha"
-quality at best.  It mostly works OK for some of the stuff I'm working
-on, but you can't fully compile other things (like the user
-applications for uClinux).  Needs lots more testing.
-
-Only developed/tested with bfin-elf-gcc 3.3.3, from
-Metrowerks.
+developed/tested with bfin-elf-gcc 3.4.1, from
 
 Configuration:
 
@@ -17,15 +11,13 @@ Configuration:
 	CROSS = bfin-elf-
 	CC = $(CROSS)gcc
 	STRIPTOOL = $(CROSS)strip
-	KERNEL_SOURCE= your linux 2.6.2 kernel source tree	
+	KERNEL_SOURCE= your linux 2.6.8 kernel source tree	
 	HAS_MMU = false
 	HAS_FLOATS = false
 	MALLOC = malloc-simple
-	INSTALL_DIR = /opt/uClinux/blackfin/lib
-
-	The regular malloc library is broken. Use simple-malloc.
 
 Problems:
-
+	The regular malloc library is broken. Use simple-malloc.
 
 TODO:
+	libpthread
