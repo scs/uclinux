@@ -124,19 +124,11 @@ static struct bf533_serial bf533_soft =
 #endif
 
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
-unsigned int tx_xcount=0;
+static unsigned int tx_xcount=0;
 
 #define RX_XCOUNT  TTY_FLIPBUF_SIZE
 #define RX_YCOUNT  (PAGE_SIZE / RX_XCOUNT)
 
-/*
- * The value of SERIAL_XMIT_SIZE is set to 479 to walkarround system hang
- * if the Instruction cache is enabled.
- */
-#ifdef CONFIG_BLKFIN_CACHE
-#undef SERIAL_XMIT_SIZE
-#define SERIAL_XMIT_SIZE	479
-#endif
 #endif
 
 static int rs_write(struct tty_struct * tty, int from_user,
@@ -685,10 +677,26 @@ static void dma_start_recv(struct bf533_serial * info)
                 printk("bf533_serial: DMA started while already running!\n");
         }
 }
+
+/*
+ * The value of tx_interval is set to 3 to walk around system hang
+ * when the Instruction cache is enabled and the transmit buffer is 
+ * larger than 200 bytes.
+ */
+static int tx_interval = 1;
                                                                                 
 static void uart_dma_timer(struct bf533_serial * info)
 {
-	dma_transmit_chars(info);
+	if(!(--tx_interval)) {
+		if(tx_xcount==0) {
+			dma_transmit_chars(info);
+			if(tx_xcount>200)
+				tx_interval = 3;
+		}
+		if(!tx_interval)
+			tx_interval=1;
+	}
+
 	dma_receive_chars(info, 1);
 
         info->dma_timer.expires = jiffies + TIME_INTERVAL;
