@@ -415,7 +415,9 @@ printk("before wake_up_process\n");
 
 		case PTRACE_SINGLESTEP: {  /* set the trap flag. */
 			long tmp;
+#ifdef DEBUG
 printk("single step\n");
+#endif
 			ret = -EIO;
 			if ((unsigned long) data > _NSIG)
 				goto out_tsk;
