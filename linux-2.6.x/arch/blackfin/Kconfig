@@ -469,6 +469,8 @@ source "sound/Kconfig"
 
 source "drivers/usb/Kconfig"
 
+source "arch/bfinnommu/oprofile/Kconfig"
+
 menu "Kernel hacking"
 
 config FULLDEBUG
