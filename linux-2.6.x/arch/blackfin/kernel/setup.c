@@ -56,6 +56,11 @@ static void dummy_waitbut(void)
 {
 }
 
+/*Tool chain ISSUES - BFin*/
+void __you_cannot_kmalloc_that_much(void)
+{
+}
+
 void (*mach_sched_init) (int (*handler)(int, void *, struct pt_regs *)) = NULL;
 void (*mach_tick)( void ) = NULL;
 
