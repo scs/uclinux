@@ -72,7 +72,8 @@
 
 	[--sp] = r0;	/* Skip reserved */
 	[--sp] = RETS;
-	[--sp] = RETI;
+	r0 = RETI;
+	[--sp] = r0;
 	[--sp] = RETX;
 	[--sp] = RETN;
 	[--sp] = RETE;
@@ -130,7 +131,7 @@
 	[--sp] = RETE;
 	[--sp] = SEQSTAT;
 	[--sp] = r0;	/* Skip IPEND as well. */
-	[--sp] = RETI;  /*orig_pc*/
+	[--sp] = r0;  /*orig_pc*/
 .endm
 	 
 .macro restore_context_no_interrupts
@@ -184,7 +185,6 @@
 
 	( R7 : 0, P5 : 0) = [ SP ++ ];
 	sp += 4;	/* Skip orig_r0 */
-	
 	SYSCFG = [sp++];
 .endm
 
