@@ -463,7 +463,7 @@ int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	   	   	}
 		}
 	}	
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static void do_softint(void *private_)
@@ -1399,17 +1399,14 @@ static int __init rs_bf533_init(void)
 
 	local_irq_restore(flags);
 
-	if (request_irq(IRQ_UART_RX, rs_interrupt, IRQ_FLG_STD, "BF533_UART_RX", NULL))
+	if (request_irq(IRQ_UART_RX, rs_interrupt, SA_INTERRUPT, "BF533_UART_RX", NULL))
 		panic("Unable to attach BlackFin UART interrupt\n");
 
-	if (request_irq(IRQ_UART_TX, rs_interrupt, IRQ_FLG_STD, "BF533_UART_TX", NULL))
+	if (request_irq(IRQ_UART_TX, rs_interrupt, SA_INTERRUPT, "BF533_UART_TX", NULL))
 		panic("Unable to attach BlackFin UART interrupt\n");
 	
 	printk("Enabling Serial UART Interrupts\n");
 	
-	enable_irq(IRQ_UART_RX);
-	enable_irq(IRQ_UART_TX);
-
 	return 0;
 }
 module_init(rs_bf533_init);
