@@ -127,12 +127,15 @@ static struct bf533_serial bf533_soft =
 #endif
 
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
+
 #undef CONFIG_DISABLE_RXDMA
-#ifdef CONFIG_BF531
-#ifdef CONFIG_BF532
+
 #ifdef CONFIG_BLKFIN_DCACHE
+#ifdef CONFIG_BF531
 #define CONFIG_DISABLE_RXDMA
 #endif
+#ifdef CONFIG_BF532
+#define CONFIG_DISABLE_RXDMA
 #endif
 #endif
 
