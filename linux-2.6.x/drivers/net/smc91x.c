@@ -541,7 +541,7 @@ static inline void  smc_rcv(struct net_device *dev)
 		dev->name, packet_number, status,
 		packet_len, packet_len);
 
-	if (unlikely(status & RS_ERRORS)) {
+	if (unlikely(status & RS_ERRORS || !packet_len)) {
 		lp->stats.rx_errors++;
 		if (status & RS_ALGNERR)
 			lp->stats.rx_frame_errors++;

@@ -1958,7 +1958,7 @@ static void smc_rcv(struct net_device *dev)
 
 	PRINTK2("RCV: STATUS %4x LENGTH %4x\n", status, packet_length );
 
-	if ( !(status & RS_ERRORS ) ){
+	if ( !(status & RS_ERRORS ) && packet_length){
 		/* do stuff to make a new packet */
 		struct sk_buff  * skb;
 		byte		* data;
