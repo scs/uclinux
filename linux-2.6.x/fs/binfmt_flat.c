@@ -1014,7 +1014,6 @@ DBG_FLT("rev= %d\n", rev);
 	}
 #endif	
 	flush_icache_range(start_code, end_code);
-	flush_dcache_range(start_code, end_code);
 
 	/* zero the BSS,  BRK and stack areas */
 	memset((void*)(datapos + data_len), 0, bss_len + 

@@ -26,6 +26,9 @@ extern void flush_data_cache(void);
 
 static inline void flush_icache_range(unsigned start, unsigned end)
 {
+#if defined( CONFIG_BLKFIN_DCACHE ) && defined( CONFIG_BLKFIN_WB )
+	blackfin_dcache_flush_range((start), (end));
+#endif
 #if defined( CONFIG_BLKFIN_CACHE )
 	blackfin_icache_flush_range((start), (end));
 #endif
@@ -36,12 +39,15 @@ static inline void flush_icache_range(unsigned start, unsigned end)
 
 #if defined( CONFIG_BLKFIN_DCACHE )
 	#define invalidate_dcache_range(start,end)	blackfin_dcache_invalidate_range((start), (end))
-	#define flush_dcache_range(start,end)		blackfin_dcache_flush_range((start), (end))
-	#define flush_dcache_page(page)			blackfin_dflush_page(page_address(page))
 #else
 	#define invalidate_dcache_range(start,end)	do { } while (0)
-	#define flush_dcache_range(start,end)		do { } while (0)
-	#define flush_dcache_page(page)			do { } while (0)
+#endif
+#if defined( CONFIG_BLKFIN_DCACHE ) && defined( CONFIG_BLKFIN_WB )
+#	define flush_dcache_range(start,end)		blackfin_dcache_flush_range((start), (end))
+#	define flush_dcache_page(page)			blackfin_dflush_page(page_address(page))
+#else
+#	define flush_dcache_range(start,end)		do { } while (0)
+#	define flush_dcache_page(page)			do { } while (0)
 #endif
 
 static inline void flush_cache_all(void)

@@ -295,7 +295,6 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
 	struct pt_regs *regs = (struct pt_regs *)__unused;
 	unsigned long usp = rdusp();
 	struct rt_sigframe *frame = (struct rt_sigframe *)(usp);
-
 	sigset_t set;
 	int r0;
 
@@ -398,12 +397,7 @@ static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
 
 static inline void push_cache (unsigned long vaddr, unsigned int len)
 {
-#if defined (CONFIG_BLKFIN_DCACHE)
-	flush_dcache_range(vaddr, vaddr + len);
-#endif
-#if defined (CONFIG_BLKFIN_CACHE)
-	blackfin_icache_flush_range(vaddr, vaddr + len);
-#endif
+	flush_icache_range(vaddr, vaddr + len);
 }
 
 static inline void *
