@@ -38,10 +38,15 @@ extern void blackfin_dcache_invalidate_range(unsigned int start, unsigned int en
 			flush_cache_all();	\
 	} while (0)
 
-#define flush_icache_range(start,end)do {\
-blackfin_dcache_invalidate_range((start), (end));\
-blackfin_icache_flush_range((start), (end)); } while (0)
-
+static inline void flush_icache_range(unsigned start, unsigned end)
+{
+#if defined( CONFIG_BLKFIN_DCACHE ) && defined( CONFIG_BLKFIN_WB )
+blackfin_dcache_flush_range((start), (end));
+#endif
+#if defined( CONFIG_BLKFIN_CACHE )
+blackfin_icache_flush_range((start), (end));
+#endif
+}
 #define flush_icache_page(vma,pg)		do { } while (0)
 #define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
 #define flush_cache_vmap(start, end)		flush_cache_all()
@@ -52,19 +57,14 @@ blackfin_icache_flush_range((start), (end)); } while (0)
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	memcpy(dst, src, len)
 
-extern void blackfin_dflush_page(struct page *);
+extern void blackfin_dflush_page(void *addr);
 
 #define invalidate_dcache_range(start,end)\
 blackfin_dcache_invalidate_range((start), (end))
 #define flush_dcache_range(start,end)\
 blackfin_dcache_flush_range((start), (end))
 
-#define flush_dcache_page(page) 	blackfin_dflush_page(page)	
-
-static inline void flush_page_to_ram(struct page *page)
-{
-	blackfin_dflush_page(page);	
-}
+#define flush_dcache_page(page) blackfin_dflush_page(page_address(page))
 
 extern void  flush_instruction_cache(void);
 extern void  flush_data_cache(void);
@@ -82,7 +82,7 @@ extern inline void __flush_cache_all(void)
 	/* Flush all the pending writes in the instruction
 	 * cache associated with a particular ICPLB, Working !! 
   	 */
-#ifdef CONFIG_BLFKFIN_DCACHE 
+#ifdef CONFIG_BLKFIN_DCACHE 
 	/*FIXME
 	flush_data_cache();
 	*/

@@ -218,15 +218,12 @@ ENTRY(invalidate_entire_dcache)
  * end:		End address
  */ 						
 ENTRY(blackfin_icache_flush_range)
-	[--SP] = ( P5:0 );
 	P0 = R0 ;
 	P1 = R1 ;
-	1:
-	CSYNC;
+1:
 	IFLUSH [P0++];
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
-	( P5:0 ) = [SP++];
 	RTS;
 
 /* Throw away all D-cached data in specified region without any obligation to write
@@ -238,42 +235,27 @@ ENTRY(blackfin_icache_flush_range)
  */
 
 ENTRY(blackfin_dcache_invalidate_range)
-	
-	[--SP] = ( P5:0 );
 	P0 = R0;
 	P1 = R1;
-	1:
-	CSYNC;
+1:
 	FLUSHINV[P0++];
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
-	( P5:0 ) = [SP++];
 	RTS;
 	
 ENTRY(blackfin_dcache_flush_range)
-	
-	[--SP] = ( P5:0 );
 	P0 = R0;
 	P1 = R1;
-	
-	1:FLUSH[P0++];
+1:
+	FLUSH[P0++];
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
-	
-	( P5:0 ) = [SP++];
+	SSYNC;
 	RTS;
 
 ENTRY(blackfin_dflush_page)
-	
-	[--SP] = ( R7:0, P5:0 );
-	P0 = R0;
-	P1 = 32;
-	P1 = P1 << 2;		/*Assuming 4K Page*/
-	
-	P1 += -1;
-	FLUSHINV [P0++];
-	LSETUP (fl1, fl2) LC0 = P1;
-fl1:
-fl2:	FLUSHINV [P0++];	
-	( R7:0, P5:0 ) = [SP++];
+	P1 = 128;		/*128*32(cacheline) = 4K Page*/
+	LSETUP (fl1, fl1) LC0 = P1;
+fl1:	FLUSH [P0++];
+	SSYNC;
 	RTS;
