@@ -24,7 +24,8 @@
 #include <linux/sys.h>
 #include <linux/config.h>
 #include <linux/linkage.h>
-#include <asm/unistd.h>		
+#include <asm/blackfin.h>
+#include <asm/unistd.h>	
 #include <asm/setup.h>
 #include <asm/errno.h>
 #include <asm/setup.h>
@@ -369,11 +370,15 @@ ENTRY(ret_from_exception)
 
 ENTRY(return_from_int)
 	/* check whether current process is in user or kernel mode */
-	r0 = reti;		
-	r1.h = _end;
-	r1.l = _end;
-	cc = r0 < r1;
-	if cc jump ret_to_int;
+        p2.l = lo(IPEND);
+        p2.h = hi(IPEND);
+        r0 = [p2];              /* Read current IPEND */
+        csync;
+        r1 = 1;
+        r1 = r0 - r1;
+        r2 = r0 & r1;
+        cc = r2 == 0 ;          /* if usermode set */
+        if !cc jump ret_to_int;
 
 	/* 
 	 * Current process in user mode 
