@@ -1,6 +1,5 @@
-
 /*
- * Copyright (C) 2004  LG Soft India 
+ * Copyright (C) 2004  LG Soft India
  */
 
 /* bit define */
@@ -17,10 +16,7 @@
 #define NUM_SECS_IN_HOUR (3600)
 #define NUM_SECS_IN_MIN (60)
 
-
-
 /*RTC Interrupt Control Register Bit Define*/
-
 #define STPW_INT_EN     0x0001
 #define ALM_INT_EN      0x0002
 #define SEC_INT_EN      0x0004
@@ -43,11 +39,7 @@
 
 /* PreScaler Enable Register bit define */
 #define PRESCALE_EN     0x0001
-
 #define RTC_SWCNT_OFF   _IO('p', 0xF0)
 #define RTC_SWCNT_ON    _IO('p', 0xF1)
-#define RTC_SWCNT_SET   _IOW('p', 0xF2, unsigned long) 
+#define RTC_SWCNT_SET   _IOW('p', 0xF2, unsigned long)
 #define RTC_SWCNT_RD    _IOR('p', 0xF3, unsigned long) 
-
-
-
