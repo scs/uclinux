@@ -28,7 +28,7 @@
 typedef int greg_t;
 
 /* Number of general registers.  */
-#define NGREG	20
+#define NGREG	21
 
 /* Container for all general registers.  */
 typedef greg_t gregset_t[NGREG];
@@ -64,17 +64,19 @@ enum
 #define P4	P4
   P5 = 13,
 #define P5	P5
-  A0W = 14,
+  USP = 14,
+#define USP	USP
+  A0W = 15,
 #define A0W	A0W
-  A1W = 15,
+  A1W = 16,
 #define A1W	A1W
-  A0X = 16,
+  A0X = 17,
 #define A0X	A0X
-  A1X = 17,
+  A1X = 18,
 #define A1X	A1X
-  ASTAT = 18,
+  ASTAT = 19,
 #define ASTAT	ASTAT
-  RETS = 19
+  RETS = 20
 #define RETS	RETS
 };
 
