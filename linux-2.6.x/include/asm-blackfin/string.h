@@ -22,8 +22,8 @@ static inline char * strcpy(char * dest,const char *src)
 	"B [%0++] = %2;\n\t"
 	"CC = %2;\n\t"
         "if cc jump 1b (bp);\n"
-	: "=a" (dest), "=a" (src), "=d" (temp)
-        : "0" (dest), "1" (src), "2" (temp) : "memory");
+	: "+&a" (dest), "+&a" (src), "=&d" (temp)
+        : : "memory", "CC");
   return xdest;
 }
 
@@ -45,10 +45,8 @@ static inline char * strncpy(char *dest, const char *src, size_t n)
 	"CC = %2 == 0;\n\t"
         "if ! cc jump 1b (bp);\n"
         "2:\n"
-        : "=a" (dest), "=a" (src), "=da" (n), "=d" (temp)
-        : "0" (dest), "1" (src), "2" (n), "3" (temp)
-        : "memory");
-
+	: "+&a" (dest), "+&a" (src), "+&da" (n), "=&d" (temp)
+        : : "memory", "CC");
   return xdest;
 }
 
@@ -67,8 +65,8 @@ static inline int strcmp(const char * cs,const char * ct)
         "jump.s 3f;\n"		/* strings are equal */
         "2:\t%2 = %2 - %3;\n"  /* *cs - *ct */
         "3:\n"
-        : "=a" (cs), "=a" (ct), "=d" (__res1), "=d" (__res2)
-        : "0" (cs), "1" (ct));
+	: "+&a" (cs), "+&a" (ct), "=&d" (__res1), "=&d" (__res2)
+        : : "CC");
 
   return __res1;
 }
@@ -94,9 +92,8 @@ static inline int strncmp(const char * cs,const char * ct,size_t count)
         "jump.s    4f;\n"
         "3:\t%3 = %3 - %4;\n"          /* *cs - *ct */
         "4:"
-        : "=a" (cs), "=a" (ct), "=da" (count), "=d" (__res1), "=d" (__res2)
-        : "0" (cs), "1" (ct), "2" (count));
-
+	: "+&a" (cs), "+&a" (ct), "+&da" (count), "=&d" (__res1), "=&d" (__res2)
+        : : "CC");
   return __res1;
 }
 
