@@ -46,6 +46,9 @@
 
 int irq_flags = 0;
 
+/* The number of spurious interrupts */
+volatile unsigned int num_spurious;
+
 struct ivgx	{
 	int irqno;	/*irq number for request_irq, available in bf533_irq.h*/
 	int isrflag;	/*corresponding bit in the SIC_ISR register*/
