@@ -424,7 +424,7 @@ static void dma_transmit_chars(struct bf533_serial *info)
 	 *Only use dma to transfer data when count > 1.
 	 */
 	if(tx_xcount>1) {
-		flush_dcache_range((int)(info->xmit_buf+info->xmit_tail), (int)(info->xmit_buf+info->xmit_tail+tx_xcount-1));
+		flush_dcache_range((int)(info->xmit_buf+info->xmit_tail), (int)(info->xmit_buf+info->xmit_tail+tx_xcount));
 		set_dma_config(CH_UART_TX, set_bfin_dma_config(DIR_READ, FLOW_STOP, INTR_ON_BUF, DIMENSION_LINEAR, DATA_SIZE_8));
 		set_dma_start_addr(CH_UART_TX, (unsigned long)(info->xmit_buf+info->xmit_tail));
 		set_dma_x_count(CH_UART_TX, tx_xcount);
