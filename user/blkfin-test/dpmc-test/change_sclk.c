@@ -39,7 +39,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("sclk was set to %u MHz \n",sclk1);
+	printf("sclk was set to %u Hz \n",sclk1);
 
 /********************Get the sclk ************************************************/
 	printf("IOCTL to get the sclk \n");
@@ -48,7 +48,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("sclk got is %u MHz\n",sclk1);
+	printf("sclk got is %u Hz\n",sclk1);
 
 	close(fd);
 

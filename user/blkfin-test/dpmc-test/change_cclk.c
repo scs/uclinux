@@ -37,7 +37,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("vco set is %u MHz\n",ret1);
+	printf("vco set is %u Hz\n",ret1);
 
 /******************************Change the CCLK*******************************************/
 	printf("Please select any of these choices for cclk \n");
@@ -52,7 +52,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("cclk was set to %u MHz \n",ret2);
+	printf("cclk was set to %u Hz \n",ret2);
 
 /********************Get the cclk ************************************************/
 	printf("IOCTL to get the cclk \n");
@@ -61,7 +61,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("cclk got is %u MHz\n",cclk1);
+	printf("cclk got is %u Hz\n",cclk1);
 
 	close(fd);
 

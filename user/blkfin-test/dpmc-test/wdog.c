@@ -18,7 +18,7 @@ int main()
 {
 	int fd;
 	int ret;
-	unsigned long pdtim = 0x10000;
+	unsigned long pdtim = 0x200;
 
 	printf("##########################DPMC Test Programs##################################\n");
 

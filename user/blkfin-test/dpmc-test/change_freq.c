@@ -39,7 +39,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("VCO is set to %u MHz \n",vco);
+	printf("VCO is set to %u Hz \n",vco);
 	printf("IOCTL to Change the VCO DONE!!!!! \n");
 
 /******************************Get the VCO at which the processor is running ***********/
@@ -49,7 +49,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("vco set is %u MHz\n",ret1);
+	printf("vco set is %u Hz\n",ret1);
 
 	close(fd);
 
