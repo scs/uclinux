@@ -54,6 +54,8 @@ struct thread_struct {
 do {                                             \
 	set_fs(USER_DS); /* reads from user space */ \
 	(_regs)->pc = (_pc);                         \
+        if (current->mm)                             \
+                (_regs)->p5 = current->mm->start_data;   \
 	wrusp(_usp);                                 \
 	/* Adde by HuTao, May 26, 2003 3:39PM */\
 	if ((_regs)->ipend & 0x8000) /* check whether system in supper mode - StChen */\

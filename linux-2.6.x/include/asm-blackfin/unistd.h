@@ -361,11 +361,11 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
   "r4 = [sp++];\n\t"                                                    \
   	: "=da" (__res)							\
   	: "i"  (__NR_##name),						\
-	  "a"  ((long)(arg1)),						\
-	  "a"  ((long)(arg2)),						\
-	  "a"  ((long)(arg3)),						\
-	  "a"  ((long)(arg4)),						\
-	  "a"  ((long)(arg5))						\
+	  "rm"  ((long)(arg1)),						\
+	  "rm"  ((long)(arg2)),						\
+	  "rm"  ((long)(arg3)),						\
+	  "rm"  ((long)(arg4)),						\
+	  "rm"  ((long)(arg5))						\
 	: "CC","R0","R1","R2","R3","R4","P0");				\
   if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
     errno = -__res;							\

@@ -29,7 +29,7 @@
 #include <asm/processor.h>
 #include <asm/asm-offsets.h>
 
-#define MAX_SHARED_LIBS 1
+#define MAX_SHARED_LIBS 3
 #define TEXT_OFFSET 0
 /*
  * does not yet catch signals sent when the child dies.

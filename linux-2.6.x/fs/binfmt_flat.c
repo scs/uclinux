@@ -62,6 +62,9 @@ struct lib_info {
 	struct {
 		unsigned long start_code;		/* Start of text segment */
 		unsigned long start_data;		/* Start of data segment */
+#ifdef CONFIG_BFIN
+		unsigned long end_data;			/* Start of bss */
+#endif
 		unsigned long start_brk;		/* End of data segment */
 		unsigned long text_len;			/* Length of text segment */
 		unsigned long entry;			/* Start address for this module */
@@ -372,7 +375,7 @@ failed:
 /****************************************************************************/
 #ifdef CONFIG_BFIN
 
-int calc_v5_reloc(int i, unsigned long *rlp)
+int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int internalp)
 {
 	/*
 	 * This was flat_reloc_t, but since it changes based on version, and this
@@ -384,10 +387,61 @@ int calc_v5_reloc(int i, unsigned long *rlp)
 	unsigned long *ptr;
 	unsigned short *usptr;
 	unsigned long offset=0;
+	unsigned long start_brk;
+	unsigned long start_data;
+	unsigned long end_data;
+	unsigned long text_len;
+	unsigned long start_code;
+	int id;
 
 	r.value = rl;
+#ifdef CONFIG_BINFMT_SHARED_FLAT
+	if (r.reloc.offset == 0)
+		id = curid;	/* Relocs of 0 are always self referring */
+	else {
+		id = (r.reloc.offset >> 24) & 0x03;	/* Find ID for this reloc */
+		r.reloc.offset &= 0x00ffffff;	/* Trim ID off here */
+	}
+	if (id >= MAX_SHARED_LIBS) {
+		printk("BINFMT_FLAT: reference 0x%x to shared library %d",
+				(unsigned) r.reloc.offset, id);
+		goto failed;
+	}
+	if (curid != id) {
+		if (internalp) {
+			printk("BINFMT_FLAT: reloc address 0x%x not in same module "
+					"(%d != %d)", (unsigned) r.reloc.offset, curid, id);
+			goto failed;
+		} else if ( ! p->lib_list[id].loaded &&
+				load_flat_shared_library(id, p) > (unsigned long) -4096) {
+			printk("BINFMT_FLAT: failed to load library %d", id);
+			goto failed;
+		}
+		/* Check versioning information (i.e. time stamps) */
+		if (p->lib_list[id].build_date && p->lib_list[curid].build_date &&
+				p->lib_list[curid].build_date < p->lib_list[id].build_date) {
+			printk("BINFMT_FLAT: library %d is younger than %d", id, curid);
+			goto failed;
+		}
+	}
+#else
+	id = 0;
+#endif
 
-	ptr = (unsigned long *) (current->mm->start_code + r.reloc.offset);
+	start_brk = p->lib_list[id].start_brk;
+	start_data = p->lib_list[id].start_data;
+	end_data = p->lib_list[id].end_data;
+	start_code = p->lib_list[id].start_code;
+	text_len = p->lib_list[id].text_len;
+
+        ptr = (unsigned long *) (r.reloc.offset);
+
+        if (r.reloc.offset < text_len)                     /* In text segment */
+                ptr = (unsigned long *)(r.reloc.offset + start_code);
+        else                                    /* In data segment */
+                ptr = (unsigned long *)(r.reloc.offset - text_len + start_data);
+
+
 #ifdef DEBUG_BFIN_RELOC
 	printk("reloc %d reloc.offset=%x", i, r.reloc.offset);
 	printk(" type = %x sp = %d", r.reloc.type, r.reloc.sp);
@@ -402,13 +456,13 @@ int calc_v5_reloc(int i, unsigned long *rlp)
 
 		switch (r.reloc.type) {
 		  case FLAT_RELOC_TYPE_TEXT:
-			  offset = current->mm->start_code;
+			  offset = start_code;
 			  break;
 		  case FLAT_RELOC_TYPE_DATA:
-			  offset = current->mm->start_data;
+			  offset = start_data;
 			  break;
 		  case FLAT_RELOC_TYPE_BSS:
-			  offset = current->mm->end_data;
+			  offset = end_data;
 			  break;
 		  default:
 			  printk("BINFMT_FLAT: Unknown relocation type=%x\n",
@@ -446,13 +500,13 @@ int calc_v5_reloc(int i, unsigned long *rlp)
 
 		switch (r.reloc.type) {
 		  case FLAT_RELOC_TYPE_TEXT:
-			  offset = current->mm->start_code;
+			  offset = start_code;
 			  break;
 		  case FLAT_RELOC_TYPE_DATA:
-			  offset = current->mm->start_data;
+			  offset = start_data;
 			  break;
 		  case FLAT_RELOC_TYPE_BSS:
-			  offset = current->mm->end_data;
+			  offset = end_data;
 			  break;
 		  default:
 			  printk("BINFMT_FLAT: Unknown relocation type=%x\n",
@@ -493,13 +547,13 @@ int calc_v5_reloc(int i, unsigned long *rlp)
 
 		switch (r.reloc.type) {
 			case FLAT_RELOC_TYPE_TEXT:
-				offset += current->mm->start_code;
+				offset += start_code;
 				break;
 			case FLAT_RELOC_TYPE_DATA:
-				offset += current->mm->start_data;
+				offset += start_data;
 				break;
 			case FLAT_RELOC_TYPE_BSS:
-				offset += current->mm->end_data;
+				offset += end_data;
 				break;
 			default:
 				printk
@@ -524,6 +578,11 @@ int calc_v5_reloc(int i, unsigned long *rlp)
 	printk("\n");
 #endif
 	return i;
+failed:
+	printk(", killing %s!\n", current->comm);
+	send_sig(SIGSEGV, current, 0);
+
+	return RELOC_FAILED;
 }
 
 #endif
@@ -824,6 +883,9 @@ static int load_flat_file(struct linux_binprm * bprm,
 	/* Store the current module values into the global library structure */
 	libinfo->lib_list[id].start_code = start_code;
 	libinfo->lib_list[id].start_data = datapos;
+#ifdef CONFIG_BFIN
+	libinfo->lib_list[id].end_data = datapos + data_len;
+#endif
 	libinfo->lib_list[id].start_brk = datapos + data_len + bss_len;
 	libinfo->lib_list[id].text_len = text_len;
 	libinfo->lib_list[id].loaded = 1;
@@ -872,7 +934,7 @@ DBG_FLT("rev= %d\n", rev);
 	current->mm->start_data, current->mm->end_data);
 #endif
 				 for(i = 0; i < relocs;)
-					 i = calc_v5_reloc(i, reloc);
+					 i = calc_v5_reloc(i, reloc, libinfo, id, 1);
 #else
 	if (rev > OLD_FLAT_VERSION) {
 		for (i=0; i < relocs; i++) {

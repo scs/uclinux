@@ -35,6 +35,10 @@ STRIP     = $(STRIPTOOL)
 
 UCLINUX_BUILD_SET = 0		# have we set a special config below
 
+  ifeq ($(CONFIG_BINFMT_SHARED_FLAT),y)
+	BUILD_SHARED = 1
+  endif
+
 ############################################################################
 #
 # General purpose lib building rules,  uClibc.config uses these when
@@ -50,14 +54,17 @@ ifdef UCLINUX_BUILD_LIB
   endif
 	CFLAGS  += -fno-builtin 
 	CFLAGS  += -DEMBED
+  ifdef BUILD_SHARED
+	CFLAGS  += -fpic -mid-shared-library 
+  endif
 
 	# don't want all the CFLAGS for uClibc/Config
 	ARCH_CFLAGS = $(CPUFLAGS) $(CFLAGS)
 	CFLAGS  += -I$(ROOTDIR)/lib/$(LIBCDIR)/include
 	CFLAGS  += -Dlinux -D__linux__ -D__uClinux__ -Dunix
 
+	CXXFLAGS = $(CFLAGS) $(INCCXX) -fno-exceptions
 	# the following is needed for uClinux-2.4
-
 	UCLINUX_BUILD_SET=1
 endif
 
@@ -80,7 +87,11 @@ ifdef UCLINUX_BUILD_USER
 	SLIBCRYPT   = -lcrypt
 	SLIBPTHREAD  = -lpthread
 
-	LIBC        = $(SLIBC)
+  ifdef BUILD_SHARED
+	LIBC          = -Wl,-R,$(ROOTDIR)/lib/$(LIBCDIR)/libc.gdb $(SLIBC)
+  else
+	LIBC          = $(SLIBC)
+  endif
 	LIBM        = $(SLIBM)
 	LIBNET      = $(SLIBNET)
 	LIBDES      = $(SLIBDES)
@@ -129,12 +140,23 @@ ifdef UCLINUX_BUILD_USER
 	CFLAGS  += $(INCDIST) $(INCLIBC)
 	CFLAGS  += -fno-builtin -nostartfiles
 
+  ifdef BUILD_SHARED
+	CFLAGS  += -fpic -mid-shared-library -mshared-library-id=0
+  endif
+
 	CXXFLAGS = $(CFLAGS) $(INCCXX) -fname-mangling-version-0
 
 	LDFLAGS  = -nostartfiles -Wl,-elf2flt $(ROOTDIR)/lib/$(LIBCDIR)/lib/crt0.o
 	LDLIBS   = $(LDPATH)
+
 	CXXLIBS  = $(LIBSTDCPP) $(LIBIBERTY) $(LIBC) $(LIBGCC)
-	
+  ifdef BUILD_SHARED
+	LDFLAGS += -Wl,-shared-lib-id,0
+  	LDFLAGS += $(LDPATH)
+	LDLIBS         = $(LIBC)
+	LDLIBS_static  = $(SLIBC)
+  endif	
+
 	FLTFLAGS :=
 	export FLTFLAGS
 
