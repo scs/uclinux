@@ -141,7 +141,7 @@ GDBSERVER_LIBS = $(LDLIBS$(LDLIBS_$@)) -lthread_db
 .c.o:
 	${CC} -c ${INTERNAL_CFLAGS} $<
 
-all: gdbserver gdbreplay
+all: gdbserver
 
 # Traditionally "install" depends on "all".  But it may be useful
 # not to; for example, if the user has made some trivial change to a 
