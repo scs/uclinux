@@ -1,3 +1,4 @@
+
 #define M_ERROR 20 	// It doesnt matter what value we asign as long as it is greater than 1. This is done to avoid "divide by 0" situation.
 char *device = "/dev/fb0";
 
@@ -40,9 +41,7 @@ void dev_init_func(){
 
 void draw_pixel(int x, int y, int color)
 {
-        int mask = 1 << (7-(x % 8));
-        //unsigned int * loc = screen_ptr + ((y - 1) * screen_width *(bits_per_pixel/8)) + (x * (bits_per_pixel/8));
-        unsigned int * loc = screen_ptr + ((y - 1) * 360 *(bits_per_pixel/8)) + (x * (bits_per_pixel/8));
+        unsigned int * loc = (unsigned int *)(screen_ptr + ((y - 1) * 360 *(bits_per_pixel/8)) + (x * (bits_per_pixel/8)));
         if ((x<0) || (x>=screen_width) || (y<0) || (y>=screen_height))
                 return;
         *loc = color;
@@ -52,7 +51,7 @@ void draw_pixel(int x, int y, int color)
 
 void draw_line(float x1,float y1,float x2,float y2,int color)
 {
-	float m,c,x=x1,y=y1,dy,dx;
+	float m = 0,c = 0,x=x1,y=y1,dy,dx;
 	x = x1;
 	y = y1;
 	if (x1 != x2) {
@@ -96,10 +95,10 @@ void draw_line(float x1,float y1,float x2,float y2,int color)
 
 //*******************Routine to draw filled quadrilateral*********************
 
-draw_filled_quadrilateral(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, int color)
+void draw_filled_quadrilateral(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, int color)
 {
 	float X1=x1, Y1=y1, X2=x2, Y2=y2, X3=x3, Y3=y3, X4=x4, Y4=y4, AB, AC, AD;
-	float m1, m2, c1, c2, dX1 = 5.0, dX4 = 5.0, dY1 = 5.0, dY4 = 5.0;
+	float m1 = 0, m2 = 0, c1 = 0, c2 = 0, dX1 = 5.0, dX4 = 5.0, dY1 = 5.0, dY4 = 5.0;
 	int i;
 
 
