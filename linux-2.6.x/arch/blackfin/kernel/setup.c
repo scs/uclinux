@@ -189,11 +189,10 @@ void setup_arch(char **cmdline_p)
 	printk("Blackfin support by LG Soft India (www.lgsoftindia.com) \n");
 
 #ifdef DEBUG
-	printk("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack= 0x%06x-0x%06x\n",
+	printk("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n",
 		(int)&_stext,(int)&_etext,(int)&_sdata,(int)&_edata,
 		(int)&_sbss,(int)&_ebss,
-		(int)&ramdisk_begin,(int)&ramdisk_end,(int)memory_end,
-		(int)_ramend);
+		(int)&ramdisk_begin,(int)&ramdisk_end);
 #endif
 
 	init_task.mm->start_code = (unsigned long) &_stext;
