@@ -34,6 +34,16 @@ _stext:
 	L2 = r0;
 	L3 = r0;
 	
+	B0 = r0;
+	B1 = r0;
+	B2 = r0;
+	B3 = r0;
+
+	I0 = r0;
+	I1 = r0;
+	I2 = r0;
+	I3 = r0;
+
 	R0 = SYSCFG;		/* Enable the Cycle counter */
 	BITSET(R0,1);
 	SYSCFG = R0;
