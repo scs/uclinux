@@ -24,19 +24,14 @@ extern void __guard_setup(void);
  * Prototypes.
  */
 extern int  main(int argc, char **argv, char **envp);
-/*extern void weak_function _stdio_init(void);
+extern void weak_function _stdio_init(void);
 extern int *weak_const_function __errno_location(void);
-extern int *weak_const_function __h_errno_location(void);*/
-extern void _stdio_init(void);
-extern int*  __errno_location(void);
-extern int*  __h_errno_location(void);
+extern int *weak_const_function __h_errno_location(void);
 #ifdef __UCLIBC_HAS_LOCALE__
-/*extern void weak_function _locale_init(void);*/
-extern void  _locale_init(void);
+extern void weak_function _locale_init(void);
 #endif
 #ifdef __UCLIBC_HAS_THREADS__
-/*extern void weak_function __pthread_initialize_minimal(void);*/
-extern void  __pthread_initialize_minimal(void);
+extern void weak_function __pthread_initialize_minimal(void);
 #endif
 
 
