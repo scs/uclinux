@@ -600,11 +600,12 @@ void  call_isr(int irq, struct pt_regs * fp)
 	    int_irq_list[irq].handler(irq,int_irq_list[irq].dev_id, fp);
 	    kstat_cpu(0).irqs[irq]++;
 	}
+/*	else
+		printk("unregistered interrupt %d\n",irq);*/
 }
 
 void bfin_do_irq(int vec, struct pt_regs *fp)
 {
-
     	if (vec <= IRQ_CORETMR)
 	{	
 		 call_isr(vec, fp);
