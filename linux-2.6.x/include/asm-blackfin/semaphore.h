@@ -51,17 +51,17 @@ struct semaphore {
 #define DECLARE_MUTEX(name) __DECLARE_SEMAPHORE_GENERIC(name,1)
 #define DECLARE_MUTEX_LOCKED(name) __DECLARE_SEMAPHORE_GENERIC(name,0)
 
-static inline void sema_init (struct semaphore *sem, int val)
+extern inline void sema_init (struct semaphore *sem, int val)
 {
 	*sem = (struct semaphore)__SEMAPHORE_INITIALIZER(*sem, val);
 }
 
-static inline void init_MUTEX (struct semaphore *sem)
+extern inline void init_MUTEX (struct semaphore *sem)
 {
 	sema_init(sem, 1);
 }
 
-static inline void init_MUTEX_LOCKED (struct semaphore *sem)
+extern inline void init_MUTEX_LOCKED (struct semaphore *sem)
 {
 	sema_init(sem, 0);
 }
@@ -85,30 +85,30 @@ extern spinlock_t semaphore_wake_lock;
  * "down_failed" is a special asm handler that calls the C
  * routine that actually waits. See arch/m68k/lib/semaphore.S
  */
-static inline void down(struct semaphore * sem)
+extern inline void down(struct semaphore * sem)
 {
 #if WAITQUEUE_DEBUG
 	CHECK_MAGIC(sem->__magic);
 #endif
- 
+	might_sleep();
         if (atomic_dec_return(&sem->count) < 0)
                 __down(sem);  
 }
 
-static inline int down_interruptible(struct semaphore * sem)
+extern inline int down_interruptible(struct semaphore * sem)
 {
 	int ret = 0;
 
 #if WAITQUEUE_DEBUG
 	CHECK_MAGIC(sem->__magic);
 #endif
- 
+	might_sleep();
         if (atomic_dec_return(&sem->count) < 0)
                 ret = __down_interruptible(sem); 
 	return(ret);
 }
 
-static inline int down_trylock(struct semaphore * sem)
+extern inline int down_trylock(struct semaphore * sem)
 {
 	int ret = 0;
 #if WAITQUEUE_DEBUG
@@ -126,7 +126,7 @@ static inline int down_trylock(struct semaphore * sem)
  * The default case (no contention) will result in NO
  * jumps for both down() and up().
  */
-static inline void up(struct semaphore * sem)
+extern inline void up(struct semaphore * sem)
 {
 #if WAITQUEUE_DEBUG
 	CHECK_MAGIC(sem->__magic);
