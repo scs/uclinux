@@ -184,13 +184,13 @@ ENTRY(system_call)
 	cc = r5 == r6;
 	if cc jump l_next;
 
-	r6 = __NR_pread64;		/*FIX for pread64 call*/
+	r6 = __NR_pread;		/*FIX for pread64 call*/
 	cc = r5 == r6;
-	if cc jump l_next_4;
+	if cc jump l_next;
 	
-	r6 = __NR_pwrite64;		/*FIX for pwrite64 call*/
+	r6 = __NR_pwrite;		/*FIX for pwrite64 call*/
 	cc = r5 == r6;
-	if cc jump l_next_4;
+	if cc jump l_next;
 
 	r6 = __NR_llseek;		/*FIX for llseek call*/
 	cc = r5 == r6;
