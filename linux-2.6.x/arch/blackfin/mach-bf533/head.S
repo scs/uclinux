@@ -24,9 +24,24 @@ _start:
 start:
 _stext:
 	/* Set the SYSCFG register */	
-	r0 = 0x34;
+	R0 = 0x36; 		/*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
 	SYSCFG = r0;
-	r0 = 0;
+	R0 = 0;
+	R1 = R0;
+	R2 = R0;
+	R3 = R0;
+	R4 = R0;
+	R5 = R0;
+	R6 = R0;
+	R7 = R0;
+
+	P0 = R0;
+	P1 = R0;
+	P2 = R0;
+	P3 = R0;
+	P4 = R0;
+	P5 = R0;
+
 	LC0 = r0;
 	LC1 = r0;
 	L0 = r0;
@@ -44,9 +59,10 @@ _stext:
 	I2 = r0;
 	I3 = r0;
 
-	R0 = SYSCFG;		/* Enable the Cycle counter */
-	BITSET(R0,1);
-	SYSCFG = R0;
+	M0 = r0;
+	M1 = r0;
+	M2 = r0;
+	M3 = r0;
 
 	/* Set the port preferences of DAG0 and DAG1 to be
 	 different. this gives better performance when
