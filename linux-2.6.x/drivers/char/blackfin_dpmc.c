@@ -1,12 +1,3 @@
-/*
- * Driver code for blackfin Dynamic Power management Controller.	
- *	 
- * Copyright (C) 2004 LG Soft India. 
- * 
- * This file is subject to the terms and conditions of the GNU General Public
- * License. 
- *
- */
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -20,160 +11,324 @@
 #include <linux/spinlock.h>
 #include <linux/rtc.h>
 
-#include <asm/board/bf533.h>
+#include <asm/board/cdefBF532.h>
+#include <asm/board/defBF532.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
-
 #include <asm/dpmc.h>
-#include <asm/board/cdefBF533.h>
+#include "blackfin_dpmc.h"
 #include <asm/delay.h>
 
-#define DPMC_VERSION "0.1"
+#define MAX_VCO		600
+#define MIN_VCO		50
 
-/*static unsigned long dpmc_status = 0;*/
+#define MAX_SCLK	132
+#define MIN_SCLK	27
 
-/*static void set_rtc_irq(unsigned char);*/
-static loff_t dpmc_llseek(struct file *file, loff_t offset, int origin);
-static ssize_t dpmc_read(struct file *file, char *buf,
-            size_t count, loff_t *ppos);
-static int dpmc_ioctl(struct inode *inode, struct file *file,
-             unsigned int cmd, unsigned long arg);
-static int dpmc_read_proc(char *page, char **start, off_t off,
-                         int count, int *eof, void *data);
-unsigned char Set_RTC_Alarm(unsigned int Days, unsigned int Hours, unsigned int Minutes, 
-             unsigned int Seconds);
+/* file currently works on ezkit. not completely tested */
 
-#define DPMC_IS_OPEN         0x01    /* means /dev/dpmc is in use */
+unsigned long SDRAM_tRP1;
+unsigned long SDRAM_tRAS1;
+unsigned long SDRAM_tRCD1;
+unsigned long SDRAM_tWR1;
 
-/*
- *  Now all the various file operations that we export.
- */
-
-static loff_t dpmc_llseek(struct file *file, loff_t offset, int origin)
+unsigned long get_sdrrcval(unsigned long sc)
 {
-    return -ESPIPE;
+	unsigned long SCLK = sc;
+	unsigned long SDRAM_tRP;
+	unsigned long SDRAM_tRAS;
+	unsigned long SDRAM_tRCD;
+	unsigned long SDRAM_tWR;
+	unsigned long sdrrcval;
+
+	unsigned long sdval1 = 119402985;
+	unsigned long sdval2 = 104477612; 
+	unsigned long sdval3 = 89552239;
+	unsigned long sdval4 = 74626866;
+	unsigned long sdval5 = 66666667;
+	unsigned long sdval6 = 59701493;
+	unsigned long sdval7 = 44776119;
+	unsigned long sdval8 = 29850746;
+
+	if(SCLK > sdval1) {
+		SDRAM_tRP  = 2;
+		SDRAM_tRAS = 7;
+		SDRAM_tRCD = 2;
+		SDRAM_tWR  = 2;
+
+		SDRAM_tRP1  = TRP_2;
+		SDRAM_tRAS1 = TRAS_7;
+		SDRAM_tRCD1 = TRCD_2;
+		SDRAM_tWR1  = TWR_2;
+	}
+	else if(( SCLK > sdval2 ) && ( SCLK <= sdval1)) {
+	SDRAM_tRP  = 2;
+	SDRAM_tRAS = 6;
+	SDRAM_tRCD = 2;
+	SDRAM_tWR  = 2;
+
+	SDRAM_tRP1  = TRP_2;
+	SDRAM_tRAS1 = TRAS_6;
+	SDRAM_tRCD1 = TRCD_2;
+	SDRAM_tWR1  = TWR_2;
+
+	}
+	else if (( SCLK > sdval3 ) && ( SCLK <= sdval2 )) {
+	SDRAM_tRP  = 2;
+	SDRAM_tRAS = 5;
+	SDRAM_tRCD = 2;
+	SDRAM_tWR  = 2;
+
+	SDRAM_tRP1  = TRP_2;
+	SDRAM_tRAS1 = TRAS_5;
+	SDRAM_tRCD1 = TRCD_2;
+	SDRAM_tWR1  = TWR_2;	
+	}
+	else if (( SCLK > sdval4 ) && ( SCLK <=  sdval3 )) {
+	SDRAM_tRP  = 2;
+	SDRAM_tRAS = 4;
+	SDRAM_tRCD = 2;
+	SDRAM_tWR  = 2;
+
+	SDRAM_tRP1  = TRP_2;
+	SDRAM_tRAS1 = TRAS_4;
+	SDRAM_tRCD1 = TRCD_2;
+	SDRAM_tWR1  = TWR_2;
+
+	}
+	else if (( SCLK > sdval5 ) && ( SCLK <= sdval4 )) {
+	SDRAM_tRP  = 2;
+	SDRAM_tRAS = 3;
+	SDRAM_tRCD = 2;
+	SDRAM_tWR  = 2;
+
+	SDRAM_tRP1  = TRP_2;
+	SDRAM_tRAS1 = TRAS_3;
+	SDRAM_tRCD1 = TRCD_2;
+	SDRAM_tWR1  = TWR_2;
+
+
+	}
+	else if (( SCLK >  sdval6 ) && ( SCLK <= sdval5 )) {
+	SDRAM_tRP  = 1;
+	SDRAM_tRAS = 4;
+	SDRAM_tRCD = 1;
+	SDRAM_tWR  = 2;
+
+	SDRAM_tRP1  = TRP_1;
+	SDRAM_tRAS1 = TRAS_4;
+	SDRAM_tRCD1 = TRCD_1;
+	SDRAM_tWR1  = TWR_2;
+
+	}
+	else if (( SCLK >  sdval7 ) && ( SCLK <=  sdval6 )) {
+	SDRAM_tRP  = 1;
+	SDRAM_tRAS = 3;
+	SDRAM_tRCD = 1;
+	SDRAM_tWR  = 2;
+
+	SDRAM_tRP1  = TRP_1;
+	SDRAM_tRAS1 = TRAS_3;
+	SDRAM_tRCD1 = TRCD_1;
+	SDRAM_tWR1  = TWR_2;
+
+	}
+	else if (( SCLK >  sdval8 ) && ( SCLK <= sdval7 )) {
+	SDRAM_tRP  = 1;
+	SDRAM_tRAS = 2;
+	SDRAM_tRCD = 1;
+	SDRAM_tWR  = 2;
+
+	SDRAM_tRP1  = TRP_1;
+	SDRAM_tRAS1 = TRAS_2;
+	SDRAM_tRCD1 = TRCD_1;
+	SDRAM_tWR1  = TWR_2;
+
+	}
+	else if ( SCLK <=  sdval8 ) {
+	SDRAM_tRP  = 1;
+	SDRAM_tRAS = 1;
+	SDRAM_tRCD = 1;
+	SDRAM_tWR  = 2;
+
+	SDRAM_tRP1  = TRP_1;
+	SDRAM_tRAS1 = TRAS_1;
+	SDRAM_tRCD1 = TRCD_1;
+	SDRAM_tWR1  = TWR_2;
+
+	}
+
+	SCLK = SCLK/1000000;
+	sdrrcval = (((SCLK * 1000 * SDRAM_Tref)/SDRAM_NRA) - (SDRAM_tRAS + SDRAM_tRP));
+
+	return sdrrcval;
 }
 
-static ssize_t dpmc_read(struct file *file, char *buf,
-            size_t count, loff_t *ppos)
+int get_closest_ssel(int a,int b,int c,unsigned long vco,unsigned long clock)
 {
-	return -1;
+	int t1,t2,t3;
+
+	t1 = abs(clock - (vco/a));
+	t2 = abs(clock - (vco/b));
+	t3 = abs(clock - (vco/c));
+	
+	if((t1 < t2) && (t1 < t3))
+		return a;
+	else if((t2 < t1) && (t2 < t3))
+		return b;
+	else	return c;
 }
 
-static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-             unsigned long arg)
+unsigned long change_sclk(unsigned long clock)
 {
-	unsigned long cclk_mhz=0,sclk_mhz=0,vco_mhz=0,pll_stat=0;
-	double mvolt;
+	int tempssel,ssel,ret;
+	unsigned long vco;
+
+	clock = clock * 1000000;
+	vco = get_vco();
+	ssel = vco/clock;
+	
+	ssel = get_closest_ssel(ssel,ssel-1,ssel+1,vco,clock);
+	if(ssel == 0)	ssel = 1;
+
+	if(ssel > 15) {
+		printk("Selecting ssel = 15 \n");
+		ssel = 15;
+	}
+	
+	asm("ssync;");
+	*pEBIU_SDGCTL = *pEBIU_SDGCTL | 0x01000000;
+	asm("ssync;");
+
+	ret = set_pll_div(ssel,FLAG_SSEL);
+
+#if DPMC_DEBUG
+	if(ret < 0)
+		printk("Wrong system clock selection \n");
+#endif
+
+	*pEBIU_SDRRC = get_sdrrcval((get_sclk()*1000000));
+	asm("ssync;");
+
+	*pEBIU_SDGCTL = *pEBIU_SDGCTL & 0xFEFFFFFF;
+	asm("ssync;");
+
+	*pEBIU_SDGCTL = (*pEBIU_SDGCTL | SCTLE | CL_2  | SDRAM_tRAS1  | SDRAM_tRP1  | SDRAM_tRCD1  | SDRAM_tWR1);
+	asm("ssync;");
+	
+	return(get_sclk());
+}
+
+static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+{
+	unsigned long cclk_mhz=0,sclk_mhz=0,vco_mhz=0,pll_stat=0,vco_mhz_bk;
+	unsigned long mvolt;
+	struct bf533_serial *in;
 
 	switch (cmd) {
-
 		case IOCTL_FULL_ON_MODE:
-			/*printk("In ioclt acive mode \n");*/
-			asm("[--sp] = r5;");
-			asm("cli r5;");
-			transit_to_newmode(FULLON_MODE);
+			fullon_mode();
 			change_baud(57600);
-			/*printk("Done !!!!!\n");*/
-			asm("sti r5;");
-			asm("r5 = [sp++];");
-		break;				
+		break;
 
 		case IOCTL_ACTIVE_MODE:
-			/*printk("In ioclt acive mode \n");*/
-			asm("[--sp] = r5;");
-			asm("cli r5;");
-			transit_to_newmode(ACTIVE_PLLENABLED);
+			active_mode();
 			change_baud(57600);
-			/*printk("Done !!!!!\n");*/
-			asm("sti r5;");
-			asm("r5 = [sp++];");
 		break;
 		case IOCTL_SLEEP_MODE:
-			/*printk("In ioclt acive mode \n");*/
-			asm("[--sp] = r5;");
-			asm("cli r5;");
-			transit_to_newmode(SLEEP_MODE);
-			change_baud(57600);
-			/*printk("Done !!!!!\n");*/
-			asm("sti r5;");
-			asm("r5 = [sp++];");
+			sleep_mode();
 		break;				
 
 		case IOCTL_DEEP_SLEEP_MODE:
-			/*printk("In ioclt acive mode \n");*/
-			asm("[--sp] = r5;");
-			asm("cli r5;");
-			transit_to_newmode(DEEP_SLEEP_MODE);
-			change_baud(57600);
-			/*printk("Done !!!!!\n");*/
-			asm("sti r5;");
-			asm("r5 = [sp++];");
-		break;				
-
+			deep_sleep();
+		break;
+		
 		case IOCTL_HIBERNATE_MODE:
-			transit_to_newmode(HIBERNATE_MODE);
-		break;				
+			hibernate_mode();
+		break;
 
 		case IOCTL_CHANGE_FREQUENCY:
+			if(!(get_pll_status() & 0x2))	return -1;
 			copy_from_user(&vco_mhz,(unsigned long *)arg,sizeof(unsigned long));
-			/*printk("arg received is %u\n",arg);
-			printk("vco_mhz received is %u\n",vco_mhz);*/
-			asm("[--sp] = r5;");
-			asm("cli r5;");
-			/*printk("vco_mhz passing to %u\n",vco_mhz);*/
-			vco_mhz = change_frequency(vco_mhz);
-			change_core_clock(vco_mhz/1000000);
-			/* change_system_clock(vco_mhz/5); */
-			change_baud(57600);
+			vco_mhz_bk = vco_mhz;
+			if((vco_mhz > MAX_VCO) || (vco_mhz < MIN_VCO))	return -1;
+			if(vco_mhz > 135) {
+				vco_mhz = change_frequency(135);
+				change_core_clock(vco_mhz/1000000);
+				if((vco_mhz/5000000) < MIN_SCLK) {
+#if DPMC_DEBUG
+					printk("System clock being changed to minimum \n");
+#endif
+					sclk_mhz = change_sclk((MIN_SCLK));
+				}
+				else
+					sclk_mhz = change_sclk((vco_mhz/5000000));
+				change_baud(57600);
+
+				vco_mhz = change_frequency(vco_mhz_bk);
+				change_core_clock(vco_mhz/1000000);
+				if((vco_mhz/5000000) < MIN_SCLK) {
+#if DPMC_DEBUG
+					printk("System clock being changed to minimum \n");
+#endif
+					sclk_mhz = change_sclk((MIN_SCLK));
+				}
+				else
+					sclk_mhz = change_sclk((vco_mhz/5000000));
+				change_baud(57600);
+			}
+			else {
+				vco_mhz = change_frequency(vco_mhz_bk);
+				change_core_clock(vco_mhz/1000000);
+				if((vco_mhz/5000000) < MIN_SCLK) {
+#if DPMC_DEBUG
+					printk("System clock being changed to minimum \n");
+#endif
+					sclk_mhz = change_sclk((MIN_SCLK));
+				}
+				else
+					sclk_mhz = change_sclk((vco_mhz/5000000));
+				change_baud(57600);
+			}
+			vco_mhz = vco_mhz/1000000;
 	    		copy_to_user((unsigned long *)arg, &vco_mhz, sizeof(unsigned long));
-			/*printk("Done !!!!!\n");*/
-			asm("sti r5;");
-			asm("r5 = [sp++];");
 		break;
 
 		case IOCTL_CHANGE_VOLTAGE:
-			copy_from_user(&mvolt,(double *)arg,sizeof(double));
-			change_voltage(mvolt);
-    			copy_to_user((double *)arg, &vco_mhz, sizeof(double));
+			copy_from_user(&mvolt,(unsigned long *)arg,sizeof(unsigned long));
+			if((mvolt >= 850) && (mvolt <= 1300) && ((mvolt%50) == 0))
+				mvolt = change_voltage(mvolt);
+			else {
+				printk("Selected voltage not valid \n");
+				return -1;
+			}
+    			copy_to_user((unsigned long *)arg, &mvolt, sizeof(unsigned long));
 		break;
-
 		case IOCTL_SET_CCLK:
 			copy_from_user(&cclk_mhz,(unsigned long *)arg,sizeof(unsigned long));
 			if((get_vco()/1000000) < cclk_mhz)	return -1;
-			if(cclk_mhz < get_sclk())	{
+			if(cclk_mhz < get_sclk()) {
+#if DPMC_DEBUG
 				printk("Sorry, core clock has to be greater than system clock\n");
-				printk("system clock is %d MHz\n",(int)get_sclk());
+				printk("Current System Clock is %u MHz\n",get_sclk());
+#endif
 				return -1;
 			}
-			asm("[--sp] = r5;");
-			asm("cli r5;");
-			/*printk("cclk_mhz passing to %u\n",cclk_mhz);*/
 			cclk_mhz = change_core_clock(cclk_mhz);
-			printk("cclk_mhz = %u MHz \n",(unsigned int)cclk_mhz);
-			change_baud(57600);
 	    		copy_to_user((unsigned long *)arg, &cclk_mhz, sizeof(unsigned long));
-			/*printk("Done !!!!!\n");*/
-			asm("sti r5;");
-			asm("r5 = [sp++];");
-		break;	
+		break;
 
 		case IOCTL_SET_SCLK:
 			copy_from_user(&sclk_mhz,(unsigned long *)arg,sizeof(unsigned long));
 			if((get_vco()/1000000) < sclk_mhz)	return -1;
-			if(sclk_mhz > get_cclk())	return -1;
-			asm("[--sp] = r5;");
-			asm("cli r5;");
-			/*printk("sclk_mhz passing to %u\n",sclk_mhz);*/
-			sclk_mhz = change_system_clock(sclk_mhz);
-			printk("sclk_mhz = %u MHz \n",(unsigned int)sclk_mhz);
+			if(sclk_mhz > get_cclk())		return -1;
+			if(sclk_mhz > MAX_SCLK)			return -1;
+			if(sclk_mhz < MIN_SCLK)			return -1;
+			sclk_mhz = change_sclk(sclk_mhz);
 			change_baud(57600);
 	    		copy_to_user((unsigned long *)arg, &sclk_mhz, sizeof(unsigned long));
-			/*printk("Done !!!!!\n");*/
-			asm("sti r5;");
-			asm("r5 = [sp++];");
-		break;		
+		break;
 
 		case IOCTL_GET_PLLSTATUS:
 			pll_stat = get_pll_status();
@@ -192,9 +347,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		
 		case IOCTL_GET_VCO:
 			vco_mhz = get_vco()/1000000;
-			printk("vco_mhz = %u\n",(unsigned int)vco_mhz);
     			copy_to_user((unsigned long *)arg, &vco_mhz, sizeof(unsigned long));
-			/*printk("arg = %u\n",arg);*/
 		break;
 
 	}
@@ -203,7 +356,6 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 void change_baud(int baud)      {
         int uartdll,sclk;
-
 	if(get_pll_status() & 0x1)	{
 		sclk = CONFIG_CLKIN;
 	}
@@ -212,22 +364,215 @@ void change_baud(int baud)      {
 	}
         uartdll = (sclk*1000000)/(16*baud);
         *pUART_LCR = 0x80;
+        asm("ssync;");
         *pUART_DLL = uartdll & 0xFF;
+        asm("ssync;");
         *pUART_DLH = uartdll >> 8;
+        asm("ssync;");
         *pUART_LCR = 0x03;
         asm("ssync;");
 }
 
-/*
-void change_baud(int baud)	{
+/*********************************************************************************/
 
-	UART_LCR(0) = 0x80;
-	UART_DLL(0) = 0x80;
-	UART_DLH(0) = 0x0;
-	UART_LCR(0) = 0x03;	
-	asm("ssync;");
+unsigned long get_pll_status(void)	{
+	return(*pPLL_STAT);
 }
+
+unsigned long change_core_clock(unsigned long clock)	{
+	int tempcsel,csel,ret;
+	unsigned long vco;
+
+	clock = clock * 1000000;
+	vco = get_vco();
+	tempcsel = vco/clock;
+
+	if(tempcsel == 1)	csel = 0;
+	else if(tempcsel == 2)	csel = 1;
+	else if(tempcsel == 4)	csel = 2;
+	else if(tempcsel == 8)	csel = 3;
+	else {
+#if DPMC_DEBUG
+		printk("Wrong core clock selection \n");
+		printk("Selecting clock to be same as VCO \n");
+#endif
+		csel = 0;
+	}
+	ret = set_pll_div(csel,FLAG_CSEL);
+#if DPMC_DEBUG
+		if(ret < 0)
+			printk("Wrong core clock selection \n");
+#endif
+	return(get_cclk());
+}
+
+int get_vco(void)	{
+	return((CONFIG_CLKIN * 1000000) * ((*(volatile unsigned short *)PLL_CTL >> 9)& 0x3F));
+}
+
+int set_pll_div(unsigned short sel,unsigned char flag)
+{
+	if(flag == FLAG_CSEL)	{
+		if(sel <= 3)	{
+			*pPLL_DIV = ((*pPLL_DIV & 0xCF) | (sel << 4));
+			asm("ssync;");
+			return 0;
+		}
+		else	{
+#if DPMC_DEBUG
+			printk("CCLK value selected not valid \n");
+#endif
+			return -1;	
+		}
+	}
+	else if(flag == FLAG_SSEL)	{
+		if(sel < 16)	{
+			*pPLL_DIV = (*pPLL_DIV & 0xF0) | sel;
+			asm("ssync;");
+			return 0;
+		}
+		else	{
+#if DPMC_DEBUG
+			printk(" SCLK value selected not valid \n");
+#endif
+			return -1;
+		}
+	}
+	return -1;	
+}
+
+unsigned long change_frequency(unsigned long vco_mhz)	{
+	unsigned long sdrrcval,modeval;
+	unsigned long vco_hz = vco_mhz * 1000000;
+	int msel;
+	int i;
+
+	msel = calc_msel(vco_hz);
+	msel = (msel << 9);
+
+	*pSIC_IWR = (*pSIC_IWR | 0x1);
+	asm("ssync;");
+
+#if 0
+	*pWDOG_CTL = 0xAD6;
+	asm("ssync;");
+
+	*pWDOG_CNT = 0x100000;
+	asm("ssync;");
+
+	*pWDOG_STAT = 0x0;
+	asm("ssync;");
+
+	*pWDOG_CTL = 0xAA4;
+	asm("ssync;");
+#endif
+
+	*pPLL_LOCKCNT = 0x300;
+	asm("ssync;");
+	
+	asm("ssync;");
+	*pEBIU_SDGCTL = *pEBIU_SDGCTL | 0x01000000;
+	asm("ssync;");
+	
+	*pPLL_CTL = msel;
+	asm("ssync;");
+
+	asm("[--SP] = R6;"
+	"CLI R6;"
+	"SSYNC;"
+	"IDLE;"
+	"STI R6;"
+	"R6 = [SP++];");
+
+	while(!(*pPLL_STAT & 0x20));
+
+	*pEBIU_SDRRC = get_sdrrcval((get_sclk()*1000000));
+	asm("ssync;");
+
+	*pEBIU_SDGCTL = *pEBIU_SDGCTL & 0xFEFFFFFF;
+	asm("ssync;");
+
+#if 0
+	*pEBIU_SDGCTL =	(SCTLE | CL_2 | SDRAM_tRAS1 | SDRAM_tRP1 | SDRAM_tRCD1 | SDRAM_tWR1);
+	asm("ssync;");
+
+	if(*pEBIU_SDSTAT & SDRS) {
+
+		*pEBIU_SDRRC = get_sdrrcval((get_sclk()*1000000));
+		asm("ssync;");
+
+		*pEBIU_SDBCTL = 0x13;
+		asm("ssync;");
+
+		modeval = (SCTLE | CL_2 | SDRAM_tRAS1 | SDRAM_tRP1 | SDRAM_tRCD1 | SDRAM_tWR1 | PSS);
+		*pEBIU_SDGCTL = modeval;
+		asm("ssync;");
+	}
+#endif
+#if 0
+	*pWDOG_CTL = 0x8006;
+	asm("ssync;");
+#endif
+	return(get_vco());
+}
+
+int calc_msel(int vco_hz)	{
+	return(vco_hz/(CONFIG_CLKIN * 1000000));
+}
+
+/********************************CHANGE OF VOLTAGE*******************************************/
+#if 1
+
+/* 0011 .70 volts	returns .70 * 100
+0100 .75 volts
+0101 .80 volts
+0110 .85 volts
+0111 .90 volts
+1000 .95 volts
+1001 1.00 volts
+1010 1.05 volts
+1011 1.10 volts
+1100 1.15 volts
+1101 1.20 volts
 */
+
+unsigned long calc_volt()	{
+	int base = 850;
+	int val = ((*pVR_CTL >> 4) & 0xF);
+
+	if(val == 6)	return base;
+
+	printk("returning %u \n",(((val - 6) * 50) + base));
+	return (((val - 6) * 50) + base);
+}
+
+unsigned long change_voltage(unsigned long volt)	{
+
+	unsigned long vlt,val;
+	vlt = calc_vlev(volt);
+	val = (*pVR_CTL & 0xFF0F);
+	val = (val | (vlt << 4));
+	*pVR_CTL = val;
+	asm("ssync;");
+	asm("[--SP] = R6;"
+	"CLI R6;"
+	"SSYNC;"
+	"IDLE;"
+	"STI R6;"
+	"R6 = [SP++];");
+	while(!(get_pll_status() & 0x80));
+	return(calc_volt());
+}
+
+int calc_vlev(int vlt)	{
+
+	int base = 6;
+
+	if(vlt == 850)	return base;
+	return(((vlt - 850)/50) + base);
+}
+
+#endif
 
 /*
  *  We enforce only one user at a time here with the open/close.
@@ -239,13 +584,7 @@ void change_baud(int baud)	{
 static int dpmc_open(struct inode *inode, struct file *file)
 {
 	printk("DPMC Device Opening");
-/*	if(dpmc_status & DPMC_IS_OPEN)
-        	goto busy;
-	dpmc_status |= DPMC_IS_OPEN;
-*/
 	return 0;
-/*busy:
-	return -EBUSY;*/
 }
 
 static int dpmc_release(struct inode *inode, struct file *file)
@@ -253,6 +592,7 @@ static int dpmc_release(struct inode *inode, struct file *file)
 
     return 0;
 }
+
 /*
  *  The various file operations we support.
  */
@@ -275,10 +615,13 @@ static struct miscdevice dpmc_dev=
 
 int __init dpmc_init(void)
 {
+    printk("blackfin_dpmc_init\n");
+
     misc_register(&dpmc_dev);
     create_proc_read_entry ("driver/dpmc", 0, 0, dpmc_read_proc, NULL);
 
-    printk(KERNEL_INFO "Dynamic Power Management Controller Version %d\n",DPMC_VERSION);
+    printk("Dynamic Power Management Controller: major=%d, minor = %d\n",MISC_MAJOR, DPMC_MINOR);
+    printk(KERN_INFO "DPMC Driver v" DPMC_VERSION "\n");
     return 0;
 }
 
@@ -293,384 +636,28 @@ module_exit(dpmc_exit);
 
 /*
  *  Info exported via "/proc/driver/dpmc".
- 
+ */
 
 static int dpmc_proc_output (char *buf)
 {
 	return 0;
 }
-*/
+
 static int dpmc_read_proc(char *page, char **start, off_t off,
                          int count, int *eof, void *data)
 {
 	return -1;
 
 }
-
-
-/*********************************************************************************/
-
-#define FLAG_CSEL	0x0
-#define FLAG_SSEL	0x1
-
-unsigned long get_pll_status(void)	{
-	return(*pPLL_STAT);
-}
-
-unsigned long change_core_clock(unsigned long clock)	{
-	int tempcsel,csel;
-	unsigned long vco;
-
-	printk("In change core clock clock = %d\n",(int)clock);
-	clock = clock * 1000000;
-	vco = get_vco();
-	tempcsel = vco/clock;
-	if(tempcsel == 1)	csel = 0;
-	else if(tempcsel == 2)	csel = 1;
-	else if(tempcsel == 4)	csel = 2;
-	else if(tempcsel == 8)	csel = 3;
-	else	{
-		printk("Wrong core clock selection \n");
-		printk("Selecting clock to be same as VCO \n");
-		csel = 0;
-	}
-	printk("csel = %d\n",csel);
-	if(set_pll_div(csel,FLAG_CSEL) < 0)
-		printk("Wrong core clock selection \n");
-	return(get_cclk());
-}
-
-unsigned long change_system_clock(unsigned long clock)	{
-	int ssel;
-	unsigned long vco;
-	
-	printk("In change system clock = %d\n",(int)clock);
-	clock = clock * 1000000;
-	vco = get_vco();
-	ssel = vco/clock;
-	printk("ssel = %d\n",ssel);
-	if(set_pll_div(ssel,FLAG_SSEL) < 0)
-		printk("Wrong system clock selection \n");
-	return(get_sclk());
-}
-
-int get_vco(void)	{
-	return((CONFIG_CLKIN * 1000000) * ((*pPLL_CTL >> 9)& 0x3F));
-}
-
-int set_pll_div(unsigned short sel,unsigned char flag)
+static loff_t dpmc_llseek(struct file *file, loff_t offset, int origin)
 {
-
-	if(flag == FLAG_CSEL)	{
-		if(sel <= 3)	{
-			asm("csync;");
-			*pPLL_DIV = ((*pPLL_DIV & 0xCF) | (sel << 4));
-			asm("csync;");
-			return 0;
-		}
-		else	{
-			printk(" CCLK value selected not valid \n");
-			return -1;	
-		}
-	}
-	else if(flag == FLAG_SSEL)	{
-		if(sel < 16)	{
-			*pPLL_DIV = (*pPLL_DIV & 0xF0) | sel;
-			asm("ssync;");
-			return 0;
-		}
-		else	{
-			printk(" SCLK value selected not valid \n");
-			return -1;
-		}
-	}
-	return -1;	
+    return -ESPIPE;
 }
 
-unsigned long change_frequency(unsigned long vco_mhz)	{
-	unsigned long vco_hz = vco_mhz * 1000000;
-	int msel;
-	
-	printk("vco_hz = %u\n",(unsigned int)vco_hz);
-#if 0
-	unmask_wdog_wakeup_evt();
-	program_wdog_timer();
-	pll_bypass_on();
-	pll_seq_trans();
-	clear_wdog_wakeup_evt();
-	msel = calc_msel(vco_hz);	
-	set_pll_ctl(msel); 	/* we are assuming DF is always 0 */	
-	pll_bypass_off();
-	program_wdog_timer();	/*Reloading wdog counter, currently FIXME */
-	pll_seq_trans();	
-	clear_wdog_wakeup_evt();	/* FIXME, disabling the wdog timer??? */
-#endif
-
-	msel = calc_msel(vco_hz);
-	printk("msel = %d \t vco_hz = %u\n",(int)msel,(unsigned int)vco_hz);
-	*pPLL_CTL = (msel << 9);
-	transition();
-		
-	return(get_vco());
-}
-	
-int calc_msel(int vco_hz)	{
-	printk("CONFIG_CLKIN = %d\n",CONFIG_CLKIN);
-	return(vco_hz/(CONFIG_CLKIN * 1000000));
-}
-
-void transition(void)
+static ssize_t dpmc_read(struct file *file, char *buf,
+            size_t count, loff_t *ppos)
 {
-	int i;
-	for(i=0;i<10000;i++);
-	for(i=0;i<10000;i++);
-	for(i=0;i<10000;i++);
-}
-		
-double change_voltage(double volt)	{
-#if 0
-	volatile unsigned long pll_stat,vlt;
-	vlt = vlt * 100000;	/* just to avoid floating point */
-	vlt = calc_vlev(vlt);
-	set_vr_ctl(vlt);
-	pll_stat = get_pll_status();
-	while(!(pll_stat >> 7));
-	return(calc_volt()/100000);
-#endif
-	return 0;
+	return -1;
 }
 
-int calc_vlev(int vlt)	{
 
-	int base = 3;
-
-	if(vlt == 70)	return base;
-	return(((vlt - 70)/5) + base);
-}
-
-/* 0011 .70 volts	returns .70 * 100
-0100 .75 volts
-0101 .80 volts
-0110 .85 volts
-0111 .90 volts
-1000 .95 volts
-1001 1.00 volts
-1010 1.05 volts
-1011 1.10 volts
-1100 1.15 volts
-1101 1.20 volts
-*/
-
-int calc_volt()	{
-	int base = 70;			
-	int val = ((*pVR_CTL >> 4) & 0xF);
-
-	if(val == 3)	return base;
-	return (((val - 3) * 5) + base);
-}
-
-extern void transit_sleep_mode(void);
-
-int transit_to_newmode (int newmode)	{
-
-	int current_mode=0;
-
-	int stat = get_pll_status();
-	if(stat & 0x10)		current_mode = SLEEP_MODE;
-	else if(stat & 0x08)	current_mode = DEEP_SLEEP_MODE;
-	else if(stat & 0x04)	current_mode = ACTIVE_PLLDISABLED;
-	else if(stat & 0x02)	current_mode = FULLON_MODE;
-	else if(stat & 0x01)	current_mode = ACTIVE_PLLENABLED;
-
-	printk("stat = %d\n",stat);
-	printk("current mode = %d\n",current_mode);
-
-	if(current_mode == newmode)	{
-		printk("Operating mode change not required \n");
-		return 0;
-	}
-	
-	/* unmask_wdog_wakeup_evt();
-	program_wdog_timer(); */
-	
-	switch(current_mode)	{
-		case FULLON_MODE:
-			switch(newmode)	{
-				case ACTIVE_PLLENABLED:
-					asm("[--SP] = ( R7:4, P5:5);"
-                                        "p0.h = 0xffc0;"
-                                        "p0.l = 0x0000;"
-                                        "r7 = w[p0](z);"
-					"bitset(r7,8);"
-					"w[p0] = r7;"
-					"ssync;"
-					
-					"cli r7;"
-					"idle;"
-					"ssync;"
-					"sti r7;"
-					"( R7:4, P5:5) = [SP++];");
-				break;
-				case SLEEP_MODE:
-					/*asm("[--SP] = ( R7:4, P5:5);"
-					"cli r7;"
-					"p0.h = 0xffc0;"
-                                        "p0.l = 0x0000;"
-                                        "r7 = w[p0](z);"
-					"bitset(r7,6);"
-					"bitclr(r7,5);"
-					"bitset(r7,3);"
-					"w[p0] = r7;"
-					"ssync;"
-					"sti r7;"					
-					"cli r7;"
-					"idle;"
-					"ssync;"
-					"sti r7;"
-					"( R7:4, P5:5) = [SP++];");*/
-					/*transit_sleep_mode();
-					Set_RTC_Alarm(0,0,2,10);	
-					printk("value of pll = 0x%x\n",get_pll_status());*/
-				break;
-				case DEEP_SLEEP_MODE:
-					/*Set_RTC_Alarm(0,0,2,10);	
-					asm("[--SP] = ( R7:4, P5:5);"
-					"p0.h = 0xffc0;"
-                                        "p0.l = 0x0000;"
-                                        "r7 = w[p0](z);"
-					"bitset(r7,8);"
-					"bitset(r7,5);"
-					"bitset(r7,3);"
-					"bitset(r7,1);"
-					"bitclr(r7,7);"
-					"bitclr(r7,6);"
-					"w[p0] = r7;"
-					"ssync;"
-					
-					"cli r7;"
-					"idle;"
-					"ssync;"
-					"sti r7;"
-					"( R7:4, P5:5) = [SP++];");*/
-				break;
-			}
-		break;
-		case ACTIVE_PLLENABLED:
-			switch(newmode)	{
-				case SLEEP_MODE:
-					/*
-					set_clr_stopck(OFF);
-					set_clr_pdwn(ON);
-					*/
-				break;				
-				case DEEP_SLEEP_MODE:
-					/*set_clr_pdwn(OFF);*/					
-				break;				
-				case FULLON_MODE:
-					asm("[--SP] = ( R7:4, P5:5);"
-					"p0.h = 0xffc0;"
-					"p0.l = 0x0000;"
-					"r7 = w[p0](z);"
-					"bitclr(r7,8);"
-					"w[p0] = r7;"	
-
-					"cli r7;"
-					"idle;"
-					"ssync;"
-					"sti r7;"
-					"( R7:4, P5:5) = [SP++];");
-
-					/*pll_bypass_off();
-					set_clr_plloff(ON);
-					set_clr_stopck(OFF);
-					set_clr_pdwn(OFF);					
-					transition();*/
-				break;					
-			}
-		break;
-		case SLEEP_MODE:
-			switch(newmode)	{
-				case FULLON_MODE:
-					asm("[--SP] = ( R7:4, P5:5);"
-					"p0.h = 0xffc0;"
-					"p0.l = 0x0000;"
-					"r7 = w[p0](z);"
-					"bitclr(r7,3);"
-					"w[p0] = r7;"	
-
-					"cli r7;"
-					"idle;"
-					"ssync;"
-					"sti r7;"
-					"( R7:4, P5:5) = [SP++];");
-
-					//SIC_IWR |= 0x1; //Set the PLLWAKEUP in SIC_IWR
-					//pll_bypass_off();
-				break;					
-				case ACTIVE_PLLENABLED:
-					*pSIC_IWR |= 0x1;
-					pll_bypass_on();
-				break;
-			}
-		break;
-		case DEEP_SLEEP_MODE:
-		/* Program the RTC to get an interrupt */
-        		/*set_rtc_irq(STPW_INT_EN);							
-			*(volatile unsigned long *)RTC_SWCNT = 255;
-			*/
-			break;
-
-		case HIBERNATE_MODE:
-			break;
-				
-	}
-	/* pll_seq_trans();
-	clear_wdog_wakeup_evt(); */
-	return 0;
-}
-
-#if 0	
-static void set_rtc_irq(unsigned char bit)
-{
-	unsigned char val;
-
-	val = *(volatile unsigned short *)RTC_ICTL;
-	val |= bit;
-	*(volatile unsigned short *)RTC_ICTL = val;
-	
-	while(!(*(volatile unsigned short *)RTC_ISTAT) & 0x8000) {
-		/*Delay issues -- BFin*/
-		asm("ssync;")
-	        /*schedule();*/
-    	}
-    	*(volatile unsigned short *)RTC_ISTAT = 0x8000;	
-}
-#endif
-
-unsigned char Set_RTC_Alarm(unsigned int Days, unsigned int Hours, unsigned int Minutes, 
-             unsigned int Seconds)
-{
-#if 0
-	int i;
-	if ((Days < 32767) && (Hours < 24) && (Minutes < 60) && (Seconds < 60))
-	{
-		unsigned int Alarm = 0;
-		*(volatile unsigned short *)RTCISTAT_ADDR = 0x3FFF;
-		asm("ssync;");
-		for(i=0;i<10000;i++);
-		Alarm |= ((Days &= 0xBFFF) <<  17);
-		Alarm |= ((Hours &= 0x1F) <<  12);
-		Alarm |= ((Minutes &= 0x3F) << 6);
-		Alarm |= (Seconds &= 0x3F);
-		RTCALARM = Alarm;
-		asm("ssync;");
-		while (!(0x4000 & *(volatile unsigned short *)RTCISTAT_ADDR))
-		{
-		}
-		return 0;
-	}
-	else
-		return 1;	
-#endif
-	return 0;
-}

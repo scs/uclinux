@@ -9,42 +9,63 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <linux/ioctl.h>
-
+#include <errno.h>
 #include "dpmc.h"
 
 void main()
 {
 	int fd;
 	unsigned long data,vco;
-   	unsigned long ret,ret1,ret2,ret3,i,sclk1;
+   	unsigned long ret,ret1,ret2,ret3,i,sclk1,pllstat,cclk1,volt;
 	char sclk[5],cclk[5];
 	int choice;
 
-	printf("====== DPMC Test ======\n");
-	printf("0. open and release\n");
+	printf("##########################DPMC Test Programs##################################\n");
+
+/*******************************Open the dpmc device ***********************************/
 	fd = open("/dev/dpmc", O_RDONLY,0);
 	if (fd == -1) {
-		printf("/dev/dpmc open error\n");
-		exit(1);		
+		printf("/dev/dpmc open error %d\n",errno);
+		exit(1);
 	}
 
 	else printf("open success fd = %d \n",fd);
 
-
-	printf("IOCTL to SET the vco \n");
+/******************************Change the VCO frequency *********************************/
+	printf("1. IOCTL to Change the VCO \n");
 	printf("Please select the VCO \r\n");
-	scanf("%d",&vco);	
+	scanf("%u",&vco);
 	ret = ioctl(fd, IOCTL_CHANGE_FREQUENCY,&vco);
+	for(i=0;i<10000;i++);
 	if (ret == -1) {
 		printf("dpmc ioctl error\r\n");
+		return -1;
 	}
 	printf("VCO is set to %u MHz \n",vco);
+	printf("IOCTL to Change the VCO DONE!!!!! \n");
 
-	
+
+/******************************Get the VCO at which the processor is running ***********/
 	printf("IOCTL to GET the vco \n");
 	ret = ioctl(fd, IOCTL_GET_VCO, &ret1);
+	if (ret == -1) {
+		printf("dpmc ioctl error\r\n");
+		return -1;
+	}
 	printf("vco set is %u MHz\n",ret1);
 
+/******************************Change the SCLK*******************************************/
+	printf("Please enter the value of sclk \n");
+	scanf("%s",sclk);
+	sclk1 = atoi(sclk);
+	ret = ioctl(fd, IOCTL_SET_SCLK, &sclk1);
+	if (ret == -1) {
+		printf("dpmc ioctl error\r\n");
+		return -1;
+	}
+	printf("sclk was set to %u MHz \n",sclk1);
+
+/******************************Change the CCLK*******************************************/
 	printf("IOCTL to SET the CCLK \n");
 	printf("Please select any of these choices for cclk \n");
 	printf("1. %u \t 2. %u \t 3. %u \t 4. %u \n",ret1,ret1/2,ret1/4,ret1/8);
@@ -54,70 +75,112 @@ void main()
 	else if(choice == 3)	ret2 = ret1/4;
 	else if(choice == 4)	ret2 = ret1/8;
 	ret = ioctl(fd, IOCTL_SET_CCLK, &ret2);
+	if (ret == -1) {
+		printf("dpmc ioctl error\r\n");
+		return -1;
+	}
 	printf("cclk was set to %u MHz \n",ret2);
-	
-	for(i=0;i<1000;i++);
 
+/********************Get the sclk ************************************************/
+	printf("IOCTL to get the sclk \n");
+	ret = ioctl(fd, IOCTL_GET_SYSTEMCLOCK, &sclk1);
+	if (ret == -1) {
+		printf("dpmc ioctl error\r\n");
+		return -1;
+	}
+	printf("sclk got is %u MHz\n",sclk1);
+
+/********************Get the cclk ************************************************/
+	printf("IOCTL to get the cclk \n");
+	ret = ioctl(fd, IOCTL_GET_CORECLOCK, &cclk1);
+	if (ret == -1) {
+		printf("dpmc ioctl error\r\n");
+		return -1;
+	}
+	printf("cclk got is %u MHz\n",cclk1);
+
+/********************************Fullon to Active Mode ********************************/	
 	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO ACTIVE \n");
 	printf("Entering Active Mode \n");
 	ret = ioctl(fd, IOCTL_ACTIVE_MODE, NULL);
 	printf("Active mode set %d \n",ret);
 
+/********************************Get the PLL Status***********************************/
+	printf("IOCTL to get the PLL status \n");
+	ret = ioctl(fd, IOCTL_GET_PLLSTATUS, &pllstat);
+	printf("pll status got is 0x%x\n",pllstat);
 
-	for(i=0;i<1000;i++);	
-	
+/********************************Active Mode to Fullon Mode********************************/
 	printf("IOCTL to CHANGE OPERATING MODE FROM ACTIVE TO FULLON MODE\n");
 	printf("Entering Full On Mode \n");
 	ret = ioctl(fd, IOCTL_FULL_ON_MODE, NULL);
 	printf("Full on mode set %d \n",ret);
 
-	for(i=0;i<10000000;i++);
-#if 0
+/********************************Get the PLL Status***********************************/
+	printf("IOCTL to get the PLL status \n");
+	ret = ioctl(fd, IOCTL_GET_PLLSTATUS, &pllstat);
+	printf("pll status got is 0x%x\n",pllstat);
 
+/********************************Fullon to Sleep Mode ********************************/
 	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO SLEEP MODE\n");
 	printf("Entering Sleep Mode \n");
 	ret = ioctl(fd, IOCTL_SLEEP_MODE, NULL);
 	printf("Out of Sleep mode set %d \n",ret);
 
-	printf("IOCTL to CHANGE OPERATING MODE FROM SLEEP TO FULLON MODE\n");
-	printf("Entering Full On Mode \n");
-	ret = ioctl(fd, IOCTL_FULL_ON_MODE, NULL);
-	printf("Full on mode set %d \n",ret);
-
-	
-	for(i=0;i<10000000;i++);	
-
-	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO SLEEP MODE\n");
-	printf("Entering Full On Mode \n");
-	ret = ioctl(fd, IOCTL_DEEP_SLEEP_MODE, NULL);
-	printf("Out of Deep Sleep mode set %d \n",ret);
-	
-	for(i=0;i<10000000;i++);
-
-	printf("IOCTL to CHANGE OPERATING MODE FROM SLEEP TO FULLON MODE\n");
-	printf("Entering Full On Mode \n");
-	ret = ioctl(fd, IOCTL_FULL_ON_MODE, NULL);
-	printf("Full on mode set %d \n",ret);
-	
-	for(i=0;i<10000000;i++);
-
-	printf("Please enter the value of sclk \n");
-	scanf("%s",sclk);
-	sclk1 = atoi(sclk);
-	ret3 = ioctl(fd, IOCTL_SET_SCLK, &sclk1);
-	printf("sclk was set to %u MHz \n",sclk1);
-
-	printf("IOCTL to get the sclk \n");
-	ret = ioctl(fd, IOCTL_GET_SYSTEMCLOCK, NULL);
-	printf("sclk got is %d MHz\n",ret);
-
-	printf("IOCTL to get the cclk \n");
-	ret = ioctl(fd, IOCTL_GET_CORECLOCK, NULL);
-	printf("cclk got is %d MHz\n",ret);
-
+/********************************Get the PLL Status***********************************/
 	printf("IOCTL to get the PLL status \n");
-	ret = ioctl(fd, IOCTL_GET_PLLSTATUS, NULL);
-	printf("pll status got is %d MHz\n",ret);
+	ret = ioctl(fd, IOCTL_GET_PLLSTATUS, &pllstat);
+	printf("pll status got is 0x%x\n",pllstat);	
+
+/**********************Active Mode to Sleep Mode and back to Fullon Mode**************/
+	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO ACTIVE \n");
+	printf("Entering Active Mode \n");
+	ret = ioctl(fd, IOCTL_ACTIVE_MODE, NULL);
+	printf("Active mode set %d \n",ret);
+	
+/********************************Get the PLL Status***********************************/
+	printf("IOCTL to get the PLL status \n");
+	ret = ioctl(fd, IOCTL_GET_PLLSTATUS, &pllstat);
+	printf("pll status got is 0x%x\n",pllstat);	
+
+	printf("IOCTL to CHANGE OPERATING MODE FROM ACTIVE TO SLEEP MODE\n");
+	printf("Entering Sleep Mode \n");
+	ret = ioctl(fd, IOCTL_SLEEP_MODE, NULL);
+	printf("Out of Sleep mode Back to active mode %d \n",ret);
+
+	printf("IOCTL to CHANGE OPERATING MODE FROM ACTIVE TO FULLON MODE\n");
+	printf("Entering Full On Mode \n");
+	ret = ioctl(fd, IOCTL_FULL_ON_MODE, NULL);
+	printf("Full on mode set %d \n",ret);
+
+/********************Change the Voltage *********************************************/
+	printf("IOCTL to CHANGE THE VOLTAGE \n");
+	printf("Please select the voltage \r\n");
+	scanf("%u",&volt);
+	ret = ioctl(fd, IOCTL_CHANGE_VOLTAGE,&volt);
+	if (ret == -1) {
+		printf("dpmc ioctl error\r\n");
+		return -1;
+	}
+	printf("Voltage is set to %u MHz \n",volt);
+	printf("IOCTL to Change the VOLTAGE DONE!!!!! \n");
+
+/********************Fullon Mode to Hibernate Mode *******************************/
+#if 0
+	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON MODE TO HIBERNATE MODE\n");
+	printf("Entering Hibernate Mode \n");
+	ret = ioctl(fd, IOCTL_HIBERNATE_MODE, NULL);
+	printf("Full on mode set %d \n",ret);
+
+/********************Fullon Mode to DeepSleep Mode *******************************/	
+	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO Deep SLEEP MODE\n");
+	printf("Entering deep Sleep Mode \n");
+	ret = ioctl(fd, IOCTL_DEEP_SLEEP_MODE, NULL);
+	printf("Out of deep Sleep mode set %d \n",ret);
+
 #endif
+
+/********************Change Voltage ********************************************/
+
 	close(fd);
 }

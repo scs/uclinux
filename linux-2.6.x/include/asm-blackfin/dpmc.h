@@ -35,9 +35,9 @@
 
 
 int transit_to_newmode (int newmode);
-int calc_volt(void);
+unsigned long calc_volt(void);
 int calc_vlev(int vlt);
-double change_voltage(double volt);
+unsigned long change_voltage(unsigned long volt);
 int calc_msel(int vco_hz);
 unsigned long change_frequency(unsigned long vco_mhz);
 int set_pll_div(unsigned short sel,unsigned char flag);
