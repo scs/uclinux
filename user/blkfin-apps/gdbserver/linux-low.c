@@ -1481,7 +1481,7 @@ linux_get_offset(char *own_buf){
   buffer[2] = ptrace (PTRACE_PEEKUSER, inferior_pid, (PTRACE_ARG3_TYPE) (PT_EXTRA2), 0);
 
   /* Copy appropriate bytes out of the buffer.  */
-  // sprintf(own_buf, "Text=%x;Data=%x;Bss=%x;", buffer[0], buffer[1], buffer[2]);
+  sprintf(own_buf, "Text=%x;Data=%x;Bss=%x;", buffer[0], buffer[1], buffer[2]);
 }
 
 
