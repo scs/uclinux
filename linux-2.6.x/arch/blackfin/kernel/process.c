@@ -60,16 +60,6 @@ void machine_restart(char * __unused)
 	asm("ssync;");
 	*pWDOG_CTL = 0xAF0;
 	asm("ssync;");
-	 /*   "p0.h = hi(WDOG_CNT);"
-	    "p0.l = lo(WDOG_CNT);"
-	    "r0 = 0x10 (z);"
-	    "[p0] = r0;"
-	    "ssync;"
-	    "p0.h = hi(WDOG_CTL);"
-	    "p0.l = lo(WDOG_CTL);"
-	    "r0 = 0xaf0 (z);"
-	    "w[p0] = r0;"
-	    "ssync;");*/
 }
 
 void machine_halt(void)
