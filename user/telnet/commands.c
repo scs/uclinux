@@ -55,7 +55,8 @@ static char sccsid[] = "@(#)commands.c	8.2 (Berkeley) 12/15/93";
 #include <netdb.h>
 #include <ctype.h>
 #include <pwd.h>
-#include <varargs.h>
+/*#include <varargs.h> BFin*/
+#include <stdarg.h>
 #include <errno.h>
 #ifdef __linux__
 #include <unistd.h>
@@ -83,7 +84,8 @@ static char sccsid[] = "@(#)commands.c	8.2 (Berkeley) 12/15/93";
 
 #ifndef       MAXHOSTNAMELEN
 #define       MAXHOSTNAMELEN 64
-#endif        MAXHOSTNAMELEN
+/*#endif        MAXHOSTNAMELEN  BFin*/
+#endif
 
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 int tos = -1;
@@ -98,7 +100,8 @@ extern int isprefix();
 extern char **genget();
 extern int Ambiguous();
 
-static call();
+/*static call(); BFin */
+static int call(int (*routine)(int argc, char *argv[]), ...);
 
 typedef struct {
 	char	*name;		/* command name */
@@ -2418,18 +2421,21 @@ static Command cmdtab2[] = {
  */
 
     /*VARARGS1*/
-    static
+/*    static
 call(va_alist)
-    va_dcl
+    va_dcl  BFin*/
+static int
+call(int (*routine)(int argc, char *argv[]), ...)
 {
     va_list ap;
-    typedef int (*intrtn_t)();
-    intrtn_t routine;
+ /*   typedef int (*intrtn_t)();
+    intrtn_t routine;  BFin*/
     char *args[100];
     int argno = 0;
 
-    va_start(ap);
-    routine = (va_arg(ap, intrtn_t));
+/*    va_start(ap);
+    routine = (va_arg(ap, intrtn_t));  BFin*/
+    va_start(ap,routine);
     while ((args[argno++] = va_arg(ap, char *)) != 0) {
 	;
     }

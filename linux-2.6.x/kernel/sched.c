@@ -1613,28 +1613,12 @@ need_resched:
 	preempt_disable();
 	prev = current;
 	rq = this_rq();
-//	printk("rq=%x\n",rq);
-
-	/*printk("nr_running=%x, nr_switches=%x, expired_timestamp=%x,
-		      nr_uninterruptible=%x, timestamp_last_tick=%x",rq->nr_running, rq->nr_switches, rq->expired_timestamp,
-		      rq->nr_uninterruptible, rq->timestamp_last_tick) ;
-	printk("curr = %x idle = %x\n",rq->curr,rq->idle);
-	printk("prev_mm =  %x\n",rq->prev_mm);
-	printk("active =  %x\n",rq->active);
-	printk("expired =  %x\n",rq->expired);
-	printk("arrays =  %x\n",rq->arrays);
-	*/
-//	printk("prev = %x\t current = %x\n",prev,current);
 	release_kernel_lock(prev);
 	now = sched_clock();
-//	printk("now = %x\t %ld",now,now);
-//	printk("prev->timestamp = %x\t ",prev->timestamp);
 	if (likely(now - prev->timestamp < NS_MAX_SLEEP_AVG))
 		run_time = now - prev->timestamp;
 	else
 		run_time = NS_MAX_SLEEP_AVG;
-	
-//	printk("run_time = %u\t %x\t %ld\n",run_time,run_time,run_time);
 	
 	/*
 	 * Tasks with interactive credits get charged less run_time
@@ -1644,7 +1628,6 @@ need_resched:
 	if (HIGH_CREDIT(prev))
 		run_time /= (CURRENT_BONUS(prev) ? : 1);
 
-//	printk("run_time = %u\t %x\t %ld\n",run_time,run_time,run_time);
 	spin_lock_irq(&rq->lock);
 
 	/*
@@ -1673,7 +1656,6 @@ need_resched:
 	}
 
 	array = rq->active;
-//	printk("array=%x\n",array);
 	if (unlikely(!array->nr_active)) {
 		/*
 		 * Switch the active and expired arrays.
@@ -1686,13 +1668,9 @@ need_resched:
 	}
 
 	idx = sched_find_first_bit(array->bitmap);
-//	printk("idx=%x\n",idx);
 	queue = array->queue + idx;
-	//printk("queue=%x array->queue=%x queue->next=%x\n",queue,array->queue,queue->next);
 	next = list_entry(queue->next, task_t, run_list);
-//	printk("queue->next=%x\n",queue->next);
 
-//	printk("next address = %x\n",next);
 
 	if (next->activated > 0) {
 		unsigned long long delta = now - next->timestamp;
@@ -1702,7 +1680,6 @@ need_resched:
 
 
 		array = next->array;
-//	printk("next->array  = %x\n",array);
 		dequeue_task(next, array);
 		recalc_task_prio(next, next->timestamp + delta);
 		enqueue_task(next, array);

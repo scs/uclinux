@@ -49,7 +49,7 @@
 #include <asm-frionommu/irq.h>
 #include "blackfin_rtc.h"
 
-//#define RTC_DEBUG
+/*#define RTC_DEBUG*/
 
 #ifndef RTC_IRQ
 #define RTC_IRQ         IRQ_RTC
@@ -61,7 +61,8 @@ unsigned int ADSP_RTC_READ(unsigned int r)
     /* 32-bit transaction is not allowed - BFin*/
     if((r == RTC_ISTAT ) || (r == RTC_ICTL))	{
 	/*Delay issues -- BFin*/
-	printk("");
+	/*printk("");*/
+	asm("ssync;");
     	return  *(volatile unsigned short *)r;
     }
     else	
@@ -82,7 +83,8 @@ void wait_for_complete(void)
 {   
     while(!(ADSP_RTC_READ(RTC_ISTAT) & 0x8000)) {
 	/*Delay issues -- BFin*/
-	printk("");
+	asm("ssync;");
+	/*printk("");*/
       /*schedule();*/
     }
     ADSP_RTC_WRITE(0x8000, RTC_ISTAT);
@@ -705,7 +707,7 @@ int __init blackfin_rtc_init(void)
 #endif
 
     ADSP_RTC_WRITE(PRESCALE_EN, RTC_PREN);
-//  ADSP_RTC_WRITE(0, RTC_STAT);
+/*  ADSP_RTC_WRITE(0, RTC_STAT);*/
     ADSP_RTC_WRITE(0, RTC_ALARM);
     wait_for_complete();
     
@@ -748,9 +750,9 @@ void __exit blackfin_rtc_exit (void)
 #endif
 }
 
-/*module_init(blackfin_rtc_init);
+module_init(blackfin_rtc_init);
 module_exit(blackfin_rtc_exit);
-EXPORT_NO_SYMBOLS;*/
+/*EXPORT_NO_SYMBOLS;*/
 
 #if RTC_IRQ
 /*

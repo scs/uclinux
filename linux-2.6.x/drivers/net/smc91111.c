@@ -59,11 +59,11 @@
  .	03/16/01  Daris A Nevil  Modified smc9194.c for use with LAN91C111
  ----------------------------------------------------------------------------*/
 
-// Use power-down feature of the chip
+/* Use power-down feature of the chip*/
 #define POWER_DOWN	1
 
 static const char version[] =
-		"SMSC LAN91C111 Driver (v2.9), (BF535-EZKIT-EZLAN changes) 02/05/2004 - by Mansoor Ahamed Basheer (mansoor@isofttech.com)\n";
+		"SMSC LAN91C111 Driver (v2.9), (BF533) 02/05/2004\n";
 
 #include <linux/module.h>
 #include <linux/version.h>
@@ -136,11 +136,12 @@ inline void SMC_insw(unsigned int addr, void *buf, int len)
 }
 
 
-// mansoor@isofttech.com => some problem with the toolchain.
-// If smc_readw is inline then smc_probe fails.
-// The upper byte of bank select register is not 0x33. 
+/* some problem with the toolchain.
+ * If smc_readw is inline then smc_probe fails.
+ * The upper byte of bank select register is not 0x33. 
+ */
 unsigned short smc_readw(unsigned int addr)
-// inline unsigned short smc_readw(unsigned int addr)
+/* inline unsigned short smc_readw(unsigned int addr)*/
 {
 	unsigned short d = (*((volatile unsigned short *)((addr)))); 
 	return d;
@@ -202,7 +203,6 @@ inline void smc_writel(unsigned int b,unsigned int addr)
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-//#include <linux/kcomp.h>
 
 #ifdef CONFIG_SYSCTL
 #include <linux/proc_fs.h>
@@ -267,7 +267,7 @@ static unsigned int smc_portlist[] __initdata =
  .    3 for packet info
  .    4 for complete packet dumps
 */
-#define SMC_DEBUG 0 // Must be defined in makefile
+#define SMC_DEBUG 0 /* Must be defined in makefile*/
 
 #if (SMC_DEBUG > 2 )
 #define PRINTK3(args...) printk(args)
@@ -297,75 +297,77 @@ static unsigned int smc_portlist[] __initdata =
  -------------------------------------------------------------------------*/
 #define CARDNAME "LAN91C111"
 
-// Memory sizing constant
+/* Memory sizing constant*/
 #define LAN91C111_MEMORY_MULTIPLIER	(1024*2)
 
 /* store this information for the driver.. */
 struct smc_local {
 
- 	// these are things that the kernel wants me to keep, so users
-	// can find out semi-useless statistics of how well the card is
-	// performing
+ 	/* these are things that the kernel wants me to keep, so users
+	 can find out semi-useless statistics of how well the card is
+	 performing*/
 	struct net_device_stats stats;
 
-	// If I have to wait until memory is available to send
-	// a packet, I will store the skbuff here, until I get the
-	// desired memory.  Then, I'll send it out and free it.
+	/* If I have to wait until memory is available to send
+	 a packet, I will store the skbuff here, until I get the
+	 desired memory.  Then, I'll send it out and free it.
+	*/
 	struct sk_buff * saved_skb;
 
- 	// This keeps track of how many packets that I have
- 	// sent out.  When an TX_EMPTY interrupt comes, I know
-	// that all of these have been sent.
+ 	/* This keeps track of how many packets that I have
+ 	 sent out.  When an TX_EMPTY interrupt comes, I know
+	 that all of these have been sent.
+	*/
 	int	packets_waiting;
 
-	// Set to true during the auto-negotiation sequence
+	/* Set to true during the auto-negotiation sequence*/
 	int	autoneg_active;
 
-	// Address of our PHY port
+	/* Address of our PHY port */
 	word	phyaddr;
 
-	// Type of PHY
+	/* Type of PHY*/
 	word	phytype;
 
-	// Last contents of PHY Register 18
+	/* Last contents of PHY Register 18*/
 	word	lastPhy18;
 
-	// Contains the current active transmission mode
+	/* Contains the current active transmission mode*/
 	word	tcr_cur_mode;
 
-	// Contains the current active receive mode
+	/* Contains the current active receive mode */
 	word	rcr_cur_mode;
 
-	// Contains the current active receive/phy mode
+	/* Contains the current active receive/phy mode*/
 	word	rpc_cur_mode;
 
 	/* => Pramod, Odd Byte issue */
-	// Contains the Current ChipID
+	/* Contains the Current ChipID*/
 	unsigned short ChipID;
 
-	//Contains the Current ChipRevision
+	/*Contains the Current ChipRevision */
 	unsigned short ChipRev;
 	/* <= Pramod, Odd Byte issue */
 
 
 #ifdef CONFIG_SYSCTL
 
-	// Root directory /proc/sys/dev
-	// Second entry must be null to terminate the table
+	/* Root directory /proc/sys/dev
+	 Second entry must be null to terminate the table*/
 	ctl_table root_table[2];
 
-	// Directory for this device /proc/sys/dev/ethX
-	// Again the second entry must be zero to terminate
+	/* Directory for this device /proc/sys/dev/ethX
+	 Again the second entry must be zero to terminate*/
 	ctl_table eth_table[2];
 
-	// This is the parameters (file) table
+	/* This is the parameters (file) table */
 	ctl_table param_table[CTL_SMC_LAST_ENTRY];
 
-	// Saves the sysctl header returned by register_sysctl_table()
-	// we send this to unregister_sysctl_table()
+	/* Saves the sysctl header returned by register_sysctl_table()
+	 we send this to unregister_sysctl_table()*/
 	struct ctl_table_header *sysctl_header;
 
-	// Parameter variables (files) go here
+	/* Parameter variables (files) go here*/
 	char ctl_info[1024];
 	int ctl_swfdup;
 	int ctl_ephloop;
@@ -422,10 +424,10 @@ struct smc_local {
 	int ctl_phy_cfg2;
 	int ctl_phy_int;
 	int ctl_phy_mask;
-#endif // SMC_DEBUG
+#endif 
 
 
-#endif // CONFIG_SYSCTL
+#endif 
 
 };
 
@@ -585,14 +587,11 @@ static void smc_sysctl_unregister(struct net_device *);
 
 
 #if defined(CONFIG_FRIO)
-void frio_EBIU_AM_setup()
+void frio_EBIU_AM_setup(void)
 {
-		unsigned int stmp = 0;
+	unsigned int stmp = 0;
 	
 	PRINTK2("EBIU Asynchronous memory setup.\n");
-
-
-
 
 	stmp = FIO_DIR;
         asm("ssync;");
@@ -600,17 +599,22 @@ void frio_EBIU_AM_setup()
 	FIO_FLAG_S = 0x0001;
 	asm("ssync;");
 
-        EBIU_AMGCTL = 0xF;        // AMGCTL
+        EBIU_AMGCTL = 0xF;		/*AMGCTL*/
         asm("ssync;");
-               
-        EBIU_AMBCTL0 = 0x7BB07BB0;   // AMBCTL0
-        asm("ssync;");
-
-        EBIU_AMBCTL1 = 0x22547BB0;   // AMBCTL1
+#ifdef CONFIG_EZKIT               
+        EBIU_AMBCTL0 = 0x7BB07BB0;	/* AMBCTL0*/
         asm("ssync;");
 
+        EBIU_AMBCTL1 = 0x22547BB0;	/* AMBCTL1*/
+        asm("ssync;");
+#endif
+#ifdef CONFIG_BLKFIN_STAMP
+        EBIU_AMBCTL0 = 0xBBC3BBC3;	/* AMBCTL0*/
+        asm("ssync;");
 
-
+        EBIU_AMBCTL1 = 0x99B39983;	/* AMBCTL1*/
+        asm("ssync;");
+#endif
 }
 
 void frio_SMC_interrupt_setup(int irq)
@@ -1201,7 +1205,7 @@ int __init smc_init(struct net_device *dev)
 	SET_MODULE_OWNER (dev);
 
 #if defined(CONFIG_FRIO)
-	// setup asynchronous memory control registers
+	/* setup asynchronous memory control registers*/
 	frio_EBIU_AM_setup();
 #endif
 
@@ -1417,15 +1421,13 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 		goto err_out;
 	}
 
-
-
-
 	/* well, we've already written once, so hopefully another time won't
  	   hurt.  This time, I need to switch the bank register to bank 1,
 	   so I can access the base address register */
+
 	SMC_SELECT_BANK(1);
 	base_address_register = smc_readw( ioaddr + BASE_REG );
-    printk("BAR: %x \n",smc_readw( ioaddr + BASE_REG ));
+	printk("BAR: %x \n",smc_readw( ioaddr + BASE_REG ));
 #if defined(CONFIG_M5249C3) || defined(CONFIG_GILBARCONAP) || defined(CONFIG_FRIO)
 	if ((ioaddr & 0xfff) != (base_address_register >> 3 & 0x3E0))
 #else
@@ -1751,13 +1753,13 @@ static int smc_open(struct net_device *dev)
 	MOD_INC_USE_COUNT;
 #endif
 
-	// Setup the default Register Modes
+	/* Setup the default Register Modes*/
 	lp->tcr_cur_mode = TCR_DEFAULT;
 	lp->rcr_cur_mode = RCR_DEFAULT;
 	lp->rpc_cur_mode = RPC_DEFAULT;
 
 #ifdef CONFIG_SYSCTL
-	// Set default parameters (files)
+	/* Set default parameters (files)*/
 	lp->ctl_swfdup = 0;
 	lp->ctl_ephloop = 0;
 	lp->ctl_miiop = 0;
@@ -3825,8 +3827,8 @@ static int smc_detect_phy(struct net_device* dev)
 {
 	struct smc_local *lp = (struct smc_local *)dev->priv;
 	unsigned int ioaddr = dev->base_addr;
-	word phy_id1;
-	word phy_id2;
+	word phy_id1 = 0;
+	word phy_id2 = 0;
 	int phyaddr;
 	int found = 0;
 

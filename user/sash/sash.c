@@ -300,7 +300,7 @@ main(argc, argv, env)
 		{
 		readfile(NULL); //no arguments!
 		} //end if arguments supplied
-	//exit(exit_code);
+	exit(exit_code);
 }
 
 

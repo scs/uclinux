@@ -1,9 +1,7 @@
+ReleaseNote-alpha1.txt for uClinux_dist-2.6.2-BF533-alpha1.tar.bz2
+------------------------------------------------------------------
 
-Linux Blackfin 2.6.2 Installation and Users Guide
--------------------------------------------------
-
-
-This distribution uClinux-dist-20040408 has
+This distribution uClinux_dist-2.6.2-BF533-alpha1.tar.bz2 has
 
 -       2.6.2 kernel
 -       uClibc 0.9.26
@@ -14,24 +12,26 @@ and startup of uClinux Blackfin 2.6.2 development environment.
 
 1.  Visual DSP++ installation
 -----------------------------
+If you have already installed u-boot boot loader, then you can skip the sections related to VDSP.
+
+You can download u-boot for BF533 from http://blackfin.uclinux.org/projects/uboot533/
 
 Visual DSP++ and an ICE are required to download the uClinux kernel to the development system.  
 The following steps will guide you through the installation procedure. 
 
-2.1 Install Visual DSP++
+1.1 Install Visual DSP++
 
-2.2 Configure the ICE and create a new platform for the development board.
-     (Supports both STAMP and EZKIT board)
+1.2 Configure the ICE and create a new platform for the development board.
 
-2.3 Connect the JTAG cable to the development board header and apply power to the board.
+1.3 Connect the JTAG cable to the development board header and apply power to the board.
 
-2.4 Launch VDSP++
+1.4 Launch VDSP++
 
         START->Programs->Visual DSP->VDSP++ IDE
 
         Now that you are in VDSP++ you can build and launch the kernel.
 
-2.5 VDSP Setup
+1.5 VDSP Setup
 
         Make the following selections under Target Options:
          - Core Reset unchecked
@@ -44,23 +44,24 @@ The following steps will guide you through the installation procedure.
          - Unselect everything in this window.
 
 
-3.  Install Blackfin uClinux 2.6.2
+2.  Install Blackfin uClinux 2.6.2
 -----------------------------------
 
-The Blackfin uClinux tool chains are available in http://www.blackfin.uclinux.org. 
-Download and install the tool chains. The 2.6.2 kernel can be installed anywhere 
-in your working directory.
+The Blackfin uClinux tool chains are available in http://blackfin.uclinux.org/projects/gcc3/
+Download and install the tool chains.
 
-3.1 Please follow the Instructions to install the toolchain.
-
-3.2 Blackfin 2.6.2 System Installation.
+3. Blackfin 2.6.2 System Installation.
+-------------------------------------
 
         In any desired directory Check out the distribution from 
 		http://cvs.blackfin.uclinux.org/cgi-bin/cvsweb.cgi/?cvsroot=uclinux533
+	
+	# cvs -z9 -d:ext:developername@cvs.blackfin.uclinux.org:/cvsroot/uclinux533 co uClinux-dist
 
-        # cvs checkout uClinux-dist 
+	(alternatively you can download the distribution from the File section 
+		of http://blackfin.uclinux.org/frs/?group_id=17)
 
-3.3 Blackfin Executable Compilation
+3.1 Blackfin Executable Compilation
 
         # cd uClinux-dist
         # make clean
@@ -71,29 +72,22 @@ in your working directory.
 
         #define CONFIG_EZKIT 1
         #define CONFIG_CLKIN 27
-        #define CONFIG_BF53x_SCLK_54_MHZ 1
+        #define CONFIG_BF53x_SCLK_118_MHZ 1
 	  
-	  For STAMP board please do the configurations as below.
+	For STAMP board please do the configurations as below.
 
         #define CONFIG_BLKFIN_STAMP 1
         #define CONFIG_CLKIN 11
-	#define CONFIG_BF53x_SCLK_99_MHZ 1
+	#define CONFIG_BF53x_SCLK_132_MHZ 1
 
-        Note    - The above configuarions will be put appropriately in	the next release.
-                - The Core clock for STAMP and EZKIT has been fixed to	550 MHz 594 MHz respectively.
-                  The values will be configurable in the next release.
+3.2 Blackfin Executable Location
 
-
-
-3.4 Blackfin Executable Location
-
-	Once compilation of the linux 2.6.2 kernel is over find the executable in the 
-	uClinux-dist/linux-2.6.x/ directory. It's called linux.dxe. This is the file you can download to 
-	the JTAG emulator device for execution.
+	Once compilation of the linux 2.6.2 kernel is over find the executable linux.dxe in
+	uClinux-dist/linux-2.6.x. This is the file you can download to the target board.
 
 
 4.  BF533 Development Board Setup
----------------------------
+--------------------------------
 
 4.1 BF533 Board Memory Register Setup
 
@@ -114,24 +108,26 @@ in your working directory.
 
 5.1 Serial connections.
 
-	Connect a serial cable to UART (1-1) of the development board (EZKIT). For STAMP Male-Female 1-1 is enough. 
-	Connect the other end to the host computer serial port.  Using minicom or some other serial Communications 
-	utility configure the serial port with the following parameters.
+	Connect the EZ-KIT to the PC using a 1:1 EIA-232 serial cable.
+	For STAMP Male-Female 1-1 serial cable is required. 
+	
+	Using minicom or some other serial Communications utility configure the serial port 
+	with the following parameters.
 
-        Baud Rate = 57600
+        Baud Rate = Baud you have selected in kernel menuconfig
         Number of bits = 8
         Parity = None
         Stop bits = 1
 
-6.3 Kernel Loading.
+5.2. Kernel Loading.
 
-	Load the linux.dxe file created in step 3.4.  You will need to copy the kernel file to a known location in 
+	Load the linux.dxe file created in step 3.2.  You will need to copy the kernel file to a known location in 
 	the Windows machine.  (SAMBA mounting a hard drive from the Linux host machine is a convenient method of 
 	accomplishing this step.)
 
-6.4 Starting Address and Execution.
+5.3 Starting Address and Execution.
 
-	Set the Program Counter to 0x0. Press F5 to run the linux.dxe kernel. You should see something similar 
+	Set the Program Counter to 0x1000. Press F5 to run the linux.dxe kernel. You should see something similar 
 	to the following Linux kernel boot messages on the terminal.
 
 ---------------------------------------------------------------------------------
@@ -154,7 +150,7 @@ On node 0 totalpages: 4096
 Instruction Cache enabled
 Building zonelist for node : 0
 Kernel command line: root=/dev/mtdblock0 rw
-Configuring the Blackfin Priority Driven Interrupts
+Configuring Blackfin Priority Driven Interrupts
 PID hash table entries: 16 (order 4: 128 bytes)
 Physical pages: 1000
 Memory available: 13384k/15768k RAM, 0k/0k ROM (154k kernel code, 545k data)
@@ -203,7 +199,7 @@ Welcome to:
 
 For further information see:
 http://www.uclinux.org/
-http://www.analog.com/
+http://blackfin.uclinux.org
 
 Execution Finished, Exiting
 
@@ -211,28 +207,45 @@ Sash command shell (version 1.1.1)
 />
 
 
+#####################################################################################
 
-
-6.5	Extended Features	
+6.5	Supported  Features	
+	
+-	Netwok features
+		ping,telnet,ftp,ftpd,traceroute,ifconfig.
+-	File system Support
+		- EXt3,EXt2,JFFS2(EZKIT only),CRAMFS,ROMFS and NFS
+	Please refer linux-2.6.x/Documentation/blackfin/Filesystems for more information
+-	Cache Management. Please refer linux-2.6.x/Documentation/blackfin/cachefeature.txt for
+	the fetures supported.
 -	Priority driven Interrupt Management
--	RTC driver
+-	RTC driver and demo application.
+-	SRAM support.
+-	Page Table is residing in scratchpad data SRAM
+-	Support for Allocating large blocks ( > 1 MB) of memory.
+-	Configurable BAUD RATE.
+-	Tiny Login Support (adduser,passwd,su,sulogin,login)
+-	Most of the Busybox applications.
+-	uClibc (Libc and Libcrypt) support
+ 
+
 6.6     Known Issues.
 
-        - Network features are not tested (ping,telnet,ftp)
+	- Compiler optimization issues. Some files/directories needs to built with different optimization levels.
+		- user applications and uClibc library needs to built with -O0 option for the predictable behaviour.
+		- kernel has to be built with -O1
+        - telnetd crashes the system.
         - Enabling Data cache has some issues.
-        - uClibc needs to be tested thoroughly.
-        - Limited command support.
+	- Assigning priority Number 7/13 to any devices may crash the system. 
+	- cat /proc/kallsyms will crashes the system. REASON - The compiler is not recognising the weak symbols.
+	
 
 6.7     TODO
 
-        - More command set.
-        - Network features.
-        - Cache Management.
+        - telnetd 
+        - PDT Implementation.
         - Dynamic Power management.
         - DMA driver.
-        - NFS, JFFS, EXT3 Support.
-        - Usage of L1 Memory.
-        - Menuconfig options for different clocks.
-
-
-
+        - Usage of L1 SRAM.
+	- libm, libpthread.
+	- boa webserver, udhcp server testing.

@@ -75,6 +75,16 @@ static void bf533_write16(struct map_info *map, __u16 d, unsigned long ofs)
 		"ssync; \n\t"
 		: 
 		: "d" (d), "d" (ofs));
+#if 0
+		long addr;
+	
+        	addr = 0x20000000 + ofs;
+        	asm("ssync;");
+        	*(unsigned volatile short *) addr = d;
+        	asm("ssync;");
+        	printk("");     /* FIXME */
+#endif
+
 }
 
 static void bf533_copy_to(struct map_info *map, unsigned long to, const void *from, ssize_t len)
@@ -117,7 +127,8 @@ static struct mtd_partition bf533_partitions[] = {
 		mask_flags: MTD_CAP_ROM
 	},{
 		name: "kernel image",
-		size: MTDPART_SIZ_FULL,
+		/*size: MTDPART_SIZ_FULL,*/
+		size: 0x80000,
 		offset: MTDPART_OFS_APPEND
 	}
 };

@@ -1,5 +1,11 @@
 00-INDEX
-	- this file
+	- This file
+
+cache-lock.txt
+	- HOWTO for blackfin cache locking.
+
+cachefeatures.txt
+	- Supported cache features
 
 Filesystems
 	- Required for mounting the root file systems.

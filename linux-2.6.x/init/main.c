@@ -460,9 +460,9 @@ asmlinkage void __init start_kernel(void)
 	proc_root_init();
 #endif
 
-#ifdef CONFIG_BLACKFIN_RTC
-	blackfin_rtc_init();
-#endif
+//#ifdef CONFIG_BLACKFIN_RTC
+//	blackfin_rtc_init();
+//#endif
 	check_bugs();
 	printk("POSIX conformance testing by UNIFIX\n");
 

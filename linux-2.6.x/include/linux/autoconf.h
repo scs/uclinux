@@ -58,12 +58,14 @@
 #define CONFIG_BLKFIN_STAMP 1
 #define CONFIG_RAMKERNEL 1
 #undef CONFIG_ROMKERNEL
+#undef CONFIG_LARGE_ALLOCS
 
 /*
  * Cache Support
  */
 #define CONFIG_BLKFIN_CACHE 1
-#define CONFIG_BLKFIN_DCACHE 1
+#undef CONFIG_BLKFIN_DCACHE
+#undef CONFIG_BLKFIN_CACHE_LOCK
 
 /*
  * Crystal Frequency
@@ -71,13 +73,22 @@
 #define CONFIG_CLKIN 11
 
 /*
+ * Baud Rate
+ */
+#undef CONFIG_BAUD_9600
+#undef CONFIG_BAUD_19200
+#undef CONFIG_BAUD_38400
+#define CONFIG_BAUD_57600 1
+#undef CONFIG_BAUD_115200
+
+/*
  * System Clock
  */
-#undef CONFIG_BF53x_SCLK_54_MHZ
-#define CONFIG_BF53x_SCLK_99_MHZ 1
+#undef CONFIG_BF53x_SCLK_118_MHZ
+#undef CONFIG_BF53x_SCLK_99_MHZ
 #undef CONFIG_BF53x_SCLK_126_MHZ
 #undef CONFIG_BF53x_SCLK_129_MHZ
-#undef CONFIG_BF53x_SCLK_132_MHZ
+#define CONFIG_BF53x_SCLK_132_MHZ 1
 
 /*
  * Interrupt Priority Assignment
@@ -204,6 +215,7 @@
  */
 #undef CONFIG_BLK_DEV_FD
 #undef CONFIG_BLK_DEV_LOOP
+#undef CONFIG_BLK_DEV_NBD
 #undef CONFIG_BLK_DEV_RAM
 #undef CONFIG_BLK_DEV_INITRD
 
@@ -238,7 +250,100 @@
 /*
  * Networking support
  */
-#undef CONFIG_NET
+#define CONFIG_NET 1
+
+/*
+ * Networking options
+ */
+#define CONFIG_PACKET 1
+#undef CONFIG_PACKET_MMAP
+#define CONFIG_NETLINK_DEV 1
+#undef CONFIG_UNIX
+#undef CONFIG_NET_KEY
+#define CONFIG_INET 1
+#undef CONFIG_IP_MULTICAST
+#undef CONFIG_IP_ADVANCED_ROUTER
+#undef CONFIG_IP_PNP
+#undef CONFIG_NET_IPIP
+#undef CONFIG_NET_IPGRE
+#undef CONFIG_ARPD
+#undef CONFIG_INET_ECN
+#undef CONFIG_SYN_COOKIES
+#undef CONFIG_INET_AH
+#undef CONFIG_INET_ESP
+#undef CONFIG_INET_IPCOMP
+#undef CONFIG_IPV6
+#undef CONFIG_DECNET
+#undef CONFIG_BRIDGE
+#undef CONFIG_NETFILTER
+
+/*
+ * SCTP Configuration (EXPERIMENTAL)
+ */
+#define CONFIG_IPV6_SCTP__ 1
+#undef CONFIG_IP_SCTP
+#undef CONFIG_ATM
+#undef CONFIG_VLAN_8021Q
+#undef CONFIG_LLC2
+#undef CONFIG_IPX
+#undef CONFIG_ATALK
+#undef CONFIG_X25
+#undef CONFIG_LAPB
+#undef CONFIG_NET_DIVERT
+#undef CONFIG_ECONET
+#undef CONFIG_WAN_ROUTER
+#undef CONFIG_NET_FASTROUTE
+#undef CONFIG_NET_HW_FLOWCONTROL
+
+/*
+ * QoS and/or fair queueing
+ */
+#undef CONFIG_NET_SCHED
+
+/*
+ * Network testing
+ */
+#undef CONFIG_NET_PKTGEN
+#define CONFIG_NETDEVICES 1
+#undef CONFIG_DUMMY
+#undef CONFIG_BONDING
+#undef CONFIG_EQUALIZER
+#undef CONFIG_TUN
+#undef CONFIG_ETHERTAP
+
+/*
+ * Ethernet (10 or 100Mbit)
+ */
+#define CONFIG_NET_ETHERNET 1
+#undef CONFIG_MII
+#define CONFIG_NET_VENDOR_SMC 1
+#undef CONFIG_SMC9194
+#define CONFIG_SMC91C111 1
+
+/*
+ * Ethernet (1000 Mbit)
+ */
+
+/*
+ * Ethernet (10000 Mbit)
+ */
+#undef CONFIG_PPP
+#undef CONFIG_SLIP
+
+/*
+ * Wireless LAN (non-hamradio)
+ */
+#undef CONFIG_NET_RADIO
+
+/*
+ * Token Ring devices
+ */
+#undef CONFIG_SHAPER
+
+/*
+ * Wan interfaces
+ */
+#undef CONFIG_WAN
 
 /*
  * Amateur Radio support
@@ -246,8 +351,19 @@
 #undef CONFIG_HAMRADIO
 
 /*
+ * IrDA (infrared) support
+ */
+#undef CONFIG_IRDA
+
+/*
+ * Bluetooth support
+ */
+#undef CONFIG_BT
+
+/*
  * ISDN subsystem
  */
+#undef CONFIG_ISDN_BOOL
 
 /*
  * Telephony Support
@@ -334,6 +450,7 @@
 /*
  * Digital Video Broadcasting Devices
  */
+#undef CONFIG_DVB
 
 /*
  * File systems
@@ -394,6 +511,19 @@
 #undef CONFIG_UFS_FS
 
 /*
+ * Network File Systems
+ */
+#undef CONFIG_NFS_FS
+#undef CONFIG_NFSD
+#undef CONFIG_EXPORTFS
+#undef CONFIG_SMB_FS
+#undef CONFIG_CIFS
+#undef CONFIG_NCP_FS
+#undef CONFIG_CODA_FS
+#undef CONFIG_INTERMEZZO_FS
+#undef CONFIG_AFS_FS
+
+/*
  * Partition Types
  */
 #undef CONFIG_PARTITION_ADVANCED
@@ -427,8 +557,7 @@
  * Kernel hacking
  */
 #undef CONFIG_FULLDEBUG
-#define CONFIG_DEBUG_KERNEL 1
-#define CONFIG_DEBUG_SLAB 1
+#undef CONFIG_DEBUG_KERNEL
 #undef CONFIG_FRAME_POINTER
 #undef CONFIG_MAGIC_SYSRQ
 #define CONFIG_BOOTPARAM 1
