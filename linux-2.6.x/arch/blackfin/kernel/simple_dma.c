@@ -31,6 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
+#include <asm/irqchip.h>
 
 #include <asm/dma.h>
 
@@ -188,7 +189,7 @@ int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 	  int     ret_val;
 	  ret_irq =bf533_channel2irq(channel);
 	  
-	  set_irq_flag(ret_irq,IRQF_NOAUTOEN);  /* avoid irq enable unbalance */
+	  set_irq_flags(ret_irq,IRQF_NOAUTOEN);  /* avoid irq enable unbalance */
           ret_val = request_irq(ret_irq,(void *)callback,SA_INTERRUPT,dma_ch[channel].device_id,data);
           if( ret_val ) {
                printk("Request irq in DMA engine failed.\n");
@@ -341,7 +342,7 @@ void set_dma_sg(unsigned int channel, dmasg_t *sg, int nr_sg)
 
      dma_ch[channel].regs->cfg |= ((nr_sg & 0x0F) << 8);
      
-     dma_ch[channel].regs->next_desc_pt = (unsigned int)sg;
+     dma_ch[channel].regs->next_desc_ptr = (unsigned int)sg;
 
      SSYNC();
   
@@ -393,7 +394,7 @@ EXPORT_SYMBOL(set_dma_callback);
 EXPORT_SYMBOL(enable_dma);
 EXPORT_SYMBOL(disable_dma);
 EXPORT_SYMBOL(dma_channel_active);
-EXPORT_SYMBOl(free_dma);
+EXPORT_SYMBOL(free_dma);
 
 EXPORT_SYMBOL(get_dma_curr_irqstat);
 EXPORT_SYMBOL(clear_dma_irqstat);
