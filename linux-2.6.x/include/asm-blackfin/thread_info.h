@@ -40,6 +40,7 @@ struct thread_info {
 	.exec_domain	= &default_exec_domain,	\
 	.flags		= 0,			\
 	.cpu		= 0,			\
+	.preempt_count  = 1,                    \
 	.restart_block	= {			\
 		.fn = do_no_restart_syscall,	\
 	},					\
@@ -84,6 +85,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TI_EXECDOMAIN	4
 #define TI_FLAGS	8
 #define TI_CPU		12
+#define TI_PREEMPT	16
 
 #define	PREEMPT_ACTIVE	0x4000000
 
