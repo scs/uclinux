@@ -2427,6 +2427,7 @@ void dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 			} /* End of the Else loop - for Not Auto Buffer */
 		/* We have to Clear the Interrupt Here */
 		/* dma_ch[i].regs->irq_status &= ~DMA_DONE; */
+		 dma_ch[i].regs->irq_status |= 0x0001; 
 		} /* End of Irq_status register Check */
 	} /* End of the For Loop */
 }
