@@ -448,7 +448,7 @@ all: vmlinux
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 CFLAGS		+= -Os
 else
-CFLAGS		+= -O1
+CFLAGS		+= -O2
 endif
 
 ifndef CONFIG_FRAME_POINTER
