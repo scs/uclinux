@@ -1,0 +1,11 @@
+# drivers/sound/Config.in
+#
+# 18 Apr 1998, Michael Elizabeth Chastain, <mailto:mec@shout.net>
+# More hacking for modularisation.
+#
+# Prompt user for primary drivers.
+config SOUND_ADI1836
+	bool "ADI 1836 connected to Blackfin 533 via SPORT0/SPI"
+	depends on SOUND
+	---help---
+
