@@ -32,7 +32,6 @@
 .globl sys_sigsuspend
 .globl sys_rt_sigsuspend
 
-
 ENTRY(reschedule)
 	r7 = sp;   
 	r4.l = 0xe000;
@@ -53,8 +52,8 @@ ENTRY(ret_from_fork)
 	call schedule_tail; 
 	SP += 12;
 	r0 = [sp + PT_IPEND];
-	cc = bittst(r0, 15);
-	if cc jump in_kernel;
+	cc = r0 == 0;
+	if !cc jump in_kernel;
 	RESTORE_ALL_SYS
 	rti; 
 in_kernel:
@@ -65,10 +64,7 @@ in_kernel:
 	jump (p0);
 
 ENTRY(sys_fork)
-/*	call	bfin_fork;  */
-	link 0x0;
 	r0 = -EINVAL;
-	unlink 0x0;
 	rts;
 
 ENTRY(sys_vfork)
