@@ -1,0 +1,4 @@
+$ $Id$
+$ sh.dir.c
+$set 12 
+1 %s: Essaie de démarrer à partir de "%s"\n

@@ -1,0 +1,12 @@
+## SAMPLE ONLY
+## CHANGE TO SUIT YOUR SYSTEM
+
+## turn pppd syslog debugging on
+#debug
+
+## change 'servername' to whatever you specify as your server name in chap-secrets
+name servername
+
+auth
+require-chap
+proxyarp

@@ -1,0 +1,3 @@
+boa::respawn:/bin/boa
+dns::respawn:/bin/dnsmasq -d -l /etc/config/dhcpd.leases
+dhsd::respawn:/bin/dhcpd eth0

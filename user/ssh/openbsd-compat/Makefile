@@ -1,0 +1,24 @@
+
+CFLAGS += -I. -I.. 
+
+OPENBSD=base64.o bindresvport.o daemon.o dirname.o getcwd.o getgrouplist.o getopt.o glob.o inet_aton.o inet_ntoa.o inet_ntop.o mktemp.o readpassphrase.o realpath.o rresvport.o setenv.o setproctitle.o sigact.o strlcat.o strlcpy.o strmode.o strsep.o
+
+COMPAT=bsd-arc4random.o bsd-cray.o bsd-cygwin_util.o bsd-misc.o bsd-nextstep.o bsd-snprintf.o bsd-waitpid.o xmmap.o xcrypt.o vis.o
+
+PORTS=port-irix.o port-aix.o
+
+all: libopenbsd-compat.a
+
+$(COMPAT): ../config.h
+$(OPENBSD): ../config.h
+$(PORTS): ../config.h
+
+libopenbsd-compat.a:  $(COMPAT) $(OPENBSD) $(PORTS)
+	$(AR) rv $@ $(COMPAT) $(OPENBSD) $(PORTS)
+	$(RANLIB) $@
+
+clean:
+	rm -f *.o *.a core 
+
+distclean: clean
+	rm -f Makefile *~

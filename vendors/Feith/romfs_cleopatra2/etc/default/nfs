@@ -1,0 +1,1 @@
+/bin/mount -n -t nfs 192.168.0.32:/home/uClinux-coldfire-v1.0.7/cleopatra /mnt

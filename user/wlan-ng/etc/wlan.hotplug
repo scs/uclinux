@@ -1,0 +1,100 @@
+#!/bin/sh
+#############
+# wlan.hotplug
+#
+#  Called by the hotplug system after the module is installed.
+
+if [ ! -f /etc/wlan/shared ] ; then
+    echo "/etc/wlan/shared not present"
+    exit 1
+fi
+
+. /etc/wlan/shared
+
+# $TYPE == usb:  ACTION PRODUCT INTERFACE TYPE DEVFS $DEVICE REMOVER
+# $TYPE == pci:  ACTION PCI_CLASS PCI_ID $PCI_SLOT_NAME PCI_SUBSYS_ID
+
+# find the most recently-added wlan device.
+pushd /proc/net/p80211
+
+MATCH="no"
+
+for DEV in * ; do
+    bus=`grep bus "$DEV/wlandev" | cut -c14-`
+    if [ $TYPE = usb ] ; then
+	maybe=`echo $DEVICE | cut -c15- | tr / :`
+	# /proc/bus/usb/XXX/YYY --> XXX:YYY
+	if [ "$maybe" = "$bus" ] ; then
+	    MATCH="$DEV"
+	    break
+	fi
+    elif [ $TYPE = pci ] ; then
+	if [ "$PCI_SLOT_NAME" = "$bus" ] ; then
+	    MATCH="$DEV"
+	    break
+	fi
+    else
+	echo "Unknown bus type $TYPE"
+	exit 1
+    fi
+done
+
+popd
+
+if [ $MATCH = no ] ; then
+    echo "no match for device"
+    exit 1;
+fi
+
+DEVICE="$MATCH"
+
+#=======ENABLE========================================
+# Do we want to init the card at all?
+eval 'WLAN_ENABLE=$ENABLE_'$DEVICE
+
+if [ ! is_true $WLAN_ENABLE ] ; then
+    return 0
+fi
+
+if is_true $WLAN_DOWNLOAD ; then
+    wlan_download $DEVICE
+fi
+
+wlan_enable $DEVICE
+
+#=======MAC STARTUP=========================================
+wlan_supports_scan $DEVICE
+if [ $? = 0 ] ; then
+    wlan_scan $DEVICE 
+    if [ $? = 0 ] ; then
+	wlan_source_config_for_ssid "$ssid:$bssid"
+
+	wlan_user_mibs $DEVICE
+	wlan_wep $DEVICE
+	
+	grep 'autojoin' /proc/net/p80211/$DEVICE/wlandev > /dev/null
+	if [ $? = 0 ]; then
+	    wlan_infra $DEVICE
+	else
+	    wlan_dot11_join $DEVICE
+	fi
+    else
+	echo "network not found.  maybe start IBSS?"
+	return 0
+    fi
+else
+    wlan_source_config $DEVICE
+
+    wlan_user_mibs $DEVICE
+    wlan_wep $DEVICE
+    
+    if is_true $IS_ADHOC ; then	
+	wlan_adhoc $DEVICE
+    else
+	wlan_infra $DEVICE
+    fi
+fi
+
+if [ -x /sbin/ifup ] ; then
+    /sbin/ifup $DEVICE
+fi

@@ -1,0 +1,48 @@
+#
+# pppd makefile for Ultrix
+# $Id$
+#
+
+BINDIR = /usr/local/etc
+MANDIR = /usr/local/man
+
+PPPDSRCS = main.c magic.c fsm.c lcp.c ipcp.c upap.c chap.c md5.c ccp.c \
+	auth.c options.c sys-bsd.c sys-str.c sys-ultrix.c sys-linux.c
+HEADERS = callout.h pathnames.h patchlevel.h chap.h md5.h
+MANPAGES = pppd.8
+
+PPPDOBJS = main.o magic.o fsm.o lcp.o ipcp.o upap.o chap.o md5.o ccp.o \
+	auth.o options.o sys-ultrix.o
+
+# CC = gcc
+DEBUG_FLAGS =
+COMPILE_FLAGS = -DNO_DRAND48 -DGIDSET_TYPE=int
+COPTS = -O
+LIBS =
+
+CFLAGS = -I.. $(COPTS) $(DEBUG_FLAGS) $(COMPILE_FLAGS)
+
+SOURCE= RELNOTES Makefile \
+	$(PPPDSRCS) $(HEADERS) $(MANPAGES)
+
+all: pppd
+
+install: pppd
+	install -c -m 4555 -o root -g daemon pppd $(BINDIR)/pppd
+	install -c -m 555 -o root pppd.8 $(MANDIR)/man8
+
+pppd: $(PPPDOBJS)
+	$(CC) $(CFLAGS) -o pppd $(PPPDOBJS) $(LIBS)
+
+pppd.tar: $(SOURCE)
+	tar -cvf pppd.tar $(SOURCE)
+
+pppd.tar.Z: pppd.tar
+	compress pppd.tar
+
+clean:
+	rm -f $(PPPDOBJS) pppd *~ #* core
+
+depend:
+	cpp -M $(CFLAGS) $(PPPDSRCS) >.depend
+#	makedepend $(CFLAGS) $(PPPDSRCS)

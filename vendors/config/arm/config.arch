@@ -1,0 +1,231 @@
+.EXPORT_ALL_VARIABLES:
+############################################################################
+
+#
+#  A generic ARM config.arch that can be included by other platforms
+#  to reduce the number of places that need to be edited when something
+#  common changes. If you include this file you should provide:
+#
+#  CPUCFLAGS           - cpu specific flags to pass to the compiler
+#  CPULDFLAGS          - cpu specific flags to pass to the linker
+#  VENDOR_CFLAGS       - vendor specific flags to pass to the compiler
+#
+#  Greg Ungerer <gerg@snapgear.com>
+#
+
+############################################################################
+
+#
+# Default console setting
+#
+
+ifndef CONSOLE_BAUD_RATE
+CONSOLE_BAUD_RATE = 115200
+endif
+
+ifndef EXTRA_MODULE_DIRS
+ifeq ($(ROOTDIR)/modules,$(wildcard $(ROOTDIR)/modules))
+EXTRA_MODULE_DIRS = $(ROOTDIR)/modules
+endif
+endif
+
+############################################################################
+
+#
+# The makefiles need to know how to do things in different contexts
+# To save some pain we put it all here.
+#
+# First settings we always want for all builds.
+#
+
+MACHINE       = arm
+ARCH          = arm
+CROSS_COMPILE = arm-linux-
+CROSS         = $(CROSS_COMPILE)
+
+CC        = $(CROSS_COMPILE)gcc $(CPUCFLAGS)
+AS        = $(CROSS_COMPILE)as $(CPUCFLAGS)
+CXX       = $(CROSS_COMPILE)g++ $(CPUCFLAGS)
+AR        = $(CROSS_COMPILE)ar
+LD        = $(CROSS_COMPILE)ld $(CPULDFLAGS)
+OBJCOPY   = $(CROSS_COMPILE)objcopy
+RANLIB    = $(CROSS_COMPILE)ranlib
+STRIPTOOL = $(CROSS_COMPILE)strip
+STRIP     = $(STRIPTOOL)
+
+LIBGCC = $(shell $(CC) $(CPUCFLAGS) -print-libgcc-file-name 2>&1)
+GCC_DIR = $(shell echo $(LIBGCC) | sed -e 's/be\///' | sed -e 's/libgcc.a//')
+LIBGCC_DIR = $(shell echo $(LIBGCC) | sed -e 's/libgcc.a//')
+GXX_DIR = $(shell $(CC) -print-file-name=libstdc++.a 2>&1 | sed -e 's/libstdc++.a//')
+
+############################################################################
+
+#
+# General purpose lib building rules, uClibc.config uses these when
+# possible.
+#
+
+ifdef UCLINUX_BUILD_LIB
+
+  ifeq ($(findstring glibc,$(LIBCDIR)),glibc)
+	GLIBC_TARGET_OPTS = arm-linux --enable-shared
+  endif
+
+  ifdef CONFIG_LIB_DEBUG
+	CFLAGS  := -g
+	LDFLAGS :=
+  else
+	CFLAGS  := -O2
+	LDFLAGS := -Wl,-S
+  endif
+	CFLAGS  += $(VENDOR_CFLAGS)
+	CFLAGS  += -fno-builtin
+	CFLAGS  += -DEMBED
+
+	# don't want all the CFLAGS for uClibc/Config
+	ARCH_CFLAGS := $(CFLAGS)
+	ARCH_CFLAGS += -I$(ROOTDIR)
+
+	CFLAGS  += -nostdinc
+	CFLAGS  += -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include -I$(ROOTDIR)
+	CFLAGS  += -Dlinux -D__linux__ -Dunix
+
+	# the following is needed for uClinux-2.4
+	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include
+	
+	CFLAGS  += -idirafter $(GCC_DIR)/include
+
+	LDLIBS   = -nodefaultlibs
+
+endif
+
+############################################################################
+
+#
+# Settings for building user apps
+#
+
+ifdef UCLINUX_BUILD_USER
+
+	SLIBC          = -lc
+	SLIBM          = -lm
+	SLIBNET        = -lnet
+	SLIBDES        = -ldes
+	SLIBAES        = -laes
+	SLIBPCAP       = -lpcap
+	SLIBSSL        = -lssl
+	SLIBCRYPTO     = -lcrypto
+	SLIBATM        = -latm
+	SLIBSNAPGEARPP = -lsnapgear++
+	SLIBSNAPGEAR   = -lsnapgear -llocale -lcrypt
+	SLIBCONFIGDD   = -lconfigdd
+	SLIBZ          = -lz
+	SLIBPNG        = -lpng
+	SLIBJPEG       = -ljpeg
+
+	LIBC           = $(SLIBC)
+	LIBM           = $(SLIBM)
+	LIBNET         = $(SLIBNET)
+	LIBDES         = $(SLIBDES)
+	LIBAES         = $(SLIBAES)
+	LIBPCAP        = $(SLIBPCAP)
+	LIBSSL         = $(SLIBSSL)
+	LIBCRYPTO      = $(SLIBCRYPTO)
+	LIBATM         = $(SLIBATM)
+	LIBSNAPGEARPP  = $(SLIBSNAPGEARPP)
+	LIBSNAPGEAR    = $(SLIBSNAPGEAR)
+	LIBCONFIGDD    = $(SLIBCONFIGDD)
+	LIBZ           = $(SLIBZ)
+	LIBPNG         = $(SLIBPNG)
+	LIBJPEG        = $(SLIBJPEG)
+	LIBCRYPT       = -lcrypt_old
+	LIBIBERTY      ?= -liberty
+	LIBIO          = -lio
+	LIBIOSTREAM    = -liostream
+	LIBSTDCPP      = -lstdc++
+  ifeq ($(findstring glibc,$(LIBCDIR)),glibc)
+	LIBRESOLV      = -lresolv
+  endif
+
+	LDPATH  = \
+		-L$(LIBGCC_DIR) \
+		-L$(ROOTDIR)/lib/$(LIBCDIR)/lib \
+		-L$(ROOTDIR)/lib/libnet \
+		-L$(ROOTDIR)/lib/libdes \
+		-L$(ROOTDIR)/lib/libaes \
+		-L$(ROOTDIR)/lib/libpcap \
+		-L$(ROOTDIR)/lib/libssl \
+		-L$(ROOTDIR)/lib/libcrypt_old \
+		-L$(ROOTDIR)/lib/zlib \
+		-L$(ROOTDIR)/lib/libpng \
+		-L$(ROOTDIR)/lib/libjpeg \
+		-L$(ROOTDIR)/prop/libsnapgear++ \
+		-L$(ROOTDIR)/prop/libsnapgear
+
+	INCGCC  = -I$(GCC_DIR)/include
+	INCLIBC = -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include
+	INCNET  = -I$(ROOTDIR)/lib/libnet
+	INCDES  = -I$(ROOTDIR)/freeswan/libdes
+	INCAES  = -I$(ROOTDIR)/freeswan/libcrypto/libaes
+	INCGMP  = -I$(ROOTDIR)/lib/libgmp
+	INCPCAP = -I$(ROOTDIR)/lib/libpcap
+	INCSSL  = -I$(ROOTDIR)/lib/libssl/include
+	INCZ    = -I$(ROOTDIR)/lib/zlib
+	INCCRYPT= -I$(ROOTDIR)/lib/libcrypt_old
+	INCVEND = -I$(ROOTDIR)/vendors/include
+	INCPNG  = -I$(ROOTDIR)/lib/libpng
+	INCJPEG = -I$(ROOTDIR)/lib/libjpeg
+	INCSG	= -I$(ROOTDIR)/prop/libsnapgear/include
+	INCSGPP	= -I$(ROOTDIR)/prop/libsnapgear++/include
+
+  ifdef CONFIG_USER_DEBUG
+	CFLAGS  := -O1 -g
+	LDFLAGS :=
+  else
+	CFLAGS  := -O2
+	LDFLAGS := -g
+  endif
+	CFLAGS  += $(VENDOR_CFLAGS)
+	CFLAGS  += -Dlinux -D__linux__ -Dunix -DEMBED
+	CFLAGS  += -nostdinc $(INCLIBC) $(INCCRYPT)
+	CFLAGS  += -I$(ROOTDIR)
+	CFLAGS  += -idirafter $(GCC_DIR)/include
+	#
+	# The following is needed for 2.4 kernels.
+	#
+	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include
+
+	CXXFLAGS= $(CFLAGS) $(INCCXX)
+
+  ifeq ($(findstring glibc,$(LIBCDIR)),glibc)
+	CRTI    = -nostartfiles $(ROOTDIR)/lib/$(LIBCDIR)/lib/crt1.o \
+			$(ROOTDIR)/lib/$(LIBCDIR)/lib/crti.o \
+			$(LIBGCC_DIR)/crtbegin.o
+	SH_CRTI = -nostartfiles $(ROOTDIR)/lib/$(LIBCDIR)/lib/crti.o \
+			$(LIBGCC_DIR)/crtbeginS.o
+	CRTN    = $(ROOTDIR)/lib/$(LIBCDIR)/lib/ld-linux.so.2 \
+			$(LIBGCC_DIR)/crtend.o \
+			$(ROOTDIR)/lib/$(LIBCDIR)/lib/crtn.o \
+			$(LIBGCC_DIR)/libgcc.a
+	SH_CRTN = $(LIBGCC_DIR)/crtendS.o $(ROOTDIR)/lib/$(LIBCDIR)/lib/crtn.o
+  else
+  	# This means we are using uClibc
+	CRTI    = -nostartfiles $(ROOTDIR)/lib/$(LIBCDIR)/lib/crt0.o
+        # Use static linking
+	CRTN    = $(LIBGCC_DIR)/libgcc.a
+  endif
+
+	SH_LDFLAGS := $(LDFLAGS) $(SH_CRTI) $(LDPATH)
+	SH_LDLIBS  := -nodefaultlibs $(LIBC) $(SH_CRTN)
+	LDFLAGS    += $(CRTI) $(LDPATH)
+	LDLIBS     = -nodefaultlibs $(LIBC) $(CRTN)
+	CXXLIBS    = -L$(GXX_DIR) $(LIBSTDCPP) $(LIBIBERTY) $(LIBC)
+	FLTFLAGS   :=
+	export FLTFLAGS
+
+	# for anyone still using it
+	CONVERT     = /bin/true
+
+endif
+
+############################################################################

@@ -1,0 +1,44 @@
+This patch is for the 1.2.13 kernel's version of the module.h file. Use this
+patch if you get an error that "mod_use_count_" is undefined in the ppp.o
+file.
+
+As with other kernel patches, use the patch program to apply it.
+
+diff -c v1.2.13/include/linux/module.h.ORIG linux/include/linux/module.h
+*** v1.2.13/include/linux/module.h.ORIG	Mon Jan 23 18:38:30 1995
+--- linux/include/linux/module.h	Thu Dec  7 08:29:26 1995
+***************
+*** 90,102 ****
+   * define the count variable, and usage macros.
+   */
+  
+- extern int mod_use_count_;
+  #if defined(CONFIG_MODVERSIONS) && defined(MODULE) && !defined(__GENKSYMS__)
+  int Using_Versions; /* gcc will handle this global (used as a flag) correctly */
+  #endif
+  
+  #define MOD_INC_USE_COUNT      mod_use_count_++
+  #define MOD_DEC_USE_COUNT      mod_use_count_--
+  #define MOD_IN_USE	       (mod_use_count_ != 0)
+  
+  #endif
+--- 90,108 ----
+   * define the count variable, and usage macros.
+   */
+  
+  #if defined(CONFIG_MODVERSIONS) && defined(MODULE) && !defined(__GENKSYMS__)
+  int Using_Versions; /* gcc will handle this global (used as a flag) correctly */
+  #endif
+  
++ #ifndef MODULE
++ #define MOD_INC_USE_COUNT      do {} while (0)
++ #define MOD_DEC_USE_COUNT      do {} while (0)
++ #define MOD_IN_USE           (1)
++ #else
++ extern int mod_use_count_;
+  #define MOD_INC_USE_COUNT      mod_use_count_++
+  #define MOD_DEC_USE_COUNT      mod_use_count_--
+  #define MOD_IN_USE	       (mod_use_count_ != 0)
++ #endif
+  
+  #endif

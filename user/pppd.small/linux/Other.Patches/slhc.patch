@@ -1,0 +1,17 @@
+This patch was extracted from the 1.3.45 kernel patch list. It will correct
+a problem with the VJ header compression module should you experience messages
+of the effect that a free block is not on the free list. That message usually
+indicates that the kernel's free list of blocks has been corrupted.
+
+diff -u --recursive --new-file v1.3.45/linux/drivers/net/slhc.c linux/drivers/net/slhc.c
+--- v1.3.45/linux/drivers/net/slhc.c	Thu Nov  9 11:23:50 1995
++++ linux/drivers/net/slhc.c	Mon Dec 11 08:40:14 1995
+@@ -131,7 +131,7 @@
+ 			kfree((unsigned char *)comp);
+ 			return NULL;
+ 		}
+-		memset(comp->tstate, 0, rslots * sizeof(struct cstate));
++		memset(comp->tstate, 0, tslots * sizeof(struct cstate));
+ 		comp->tslot_limit = tslots - 1;
+ 	}
+ 

@@ -1,0 +1,298 @@
+.EXPORT_ALL_VARIABLES:
+############################################################################
+#
+#  A Generic i386 config.arch that can be included by other platforms
+#  to reduce the number of places that need to be edited when something
+#  common changes.  If you include this file you may provide:
+#
+#  VENDOR_CFLAGS       - vendor specific flags to pass to the compiler
+#  DISABLE_SHARED_LIBS - set this to 1 to disable shared libraries
+#  LOPT                - library optimisation flags
+#  UOPT                - user optimisation flags
+#
+#  David McCullough <davidm@snapgear.com>
+#
+############################################################################
+#
+# Possible provided Vendor specific settings
+#
+
+ifndef CONSOLE_BAUD_RATE
+CONSOLE_BAUD_RATE = 9600
+endif
+
+ifndef LINUXTARGET
+LINUXTARGET = bzImage
+endif
+
+ifndef VENDOR_CFLAGS
+VENDOR_CFLAGS = -DCONFIG_SECUREEDGE -DCONFIG_NETtel -DCONFIG_X86
+endif
+
+ifndef VERSIONPKG
+VERSIONPKG = 2.0.1b
+endif
+
+ifndef BOOTFLAGS
+BOOTFLAGS = -DCONFIG_AMD_BOOT=1
+endif
+
+ifndef VERSIONSTR
+VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
+endif
+
+ifndef RELFILES
+  RELFILES = boot/x86/sc520-bios.bin,.sgb images/bzImage images/flash.bin,.sgu
+endif
+
+ifndef NFIMAGE
+  NFIMAGE=flash.bin
+endif
+
+ifndef EXTRA_MODULE_DIRS
+ifeq ($(ROOTDIR)/modules,$(wildcard $(ROOTDIR)/modules))
+EXTRA_MODULE_DIRS = $(ROOTDIR)/modules
+endif
+endif
+
+ifndef VENDOR_TOPDIRS
+ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
+VENDOR_TOPDIRS = boot
+endif
+endif
+
+############################################################################
+
+#
+# The makefiles need to know how to do things in different contexts
+# To save some pain we put it all here
+#
+# First settings we always want for all build
+#
+
+# ARCH = kernel,  TARGET_ARCH = uClibc
+
+MACHINE       = i386
+ARCH          = i386
+CROSS_COMPILE ?= i386-linux-
+CROSS         = $(CROSS_COMPILE)
+
+CC        = $(CROSS_COMPILE)gcc
+AS        = $(CROSS_COMPILE)as
+AS86      = as86
+CXX       = $(CROSS_COMPILE)g++
+AR        = $(CROSS_COMPILE)ar
+LD        = $(CROSS_COMPILE)ld
+LD86      = ld86
+OBJCOPY   = $(CROSS_COMPILE)objcopy
+RANLIB    = $(CROSS_COMPILE)ranlib
+STRIPTOOL = $(CROSS_COMPILE)strip
+STRIP     = $(STRIPTOOL)
+
+GCC_DIR = $(shell $(CC) -print-libgcc-file-name 2>&1 | sed -e 's/libgcc.a//')
+GXX_DIR = $(shell $(CC) -print-file-name=libstdc++.a 2>&1 | sed -e 's/libstdc++.a//')
+
+UCLINUX_BUILD_SET = 0			# have we set a special config below
+
+############################################################################
+
+#
+# General purpose lib building rules,  uClibc.config uses these when
+# possible
+#
+
+ifdef UCLINUX_BUILD_LIB
+
+  ifeq ($(findstring glibc,$(LIBCDIR)),glibc)
+	GLIBC_TARGET_OPTS = --host=i386-redhat-linux
+  endif
+
+  ifdef CONFIG_LIB_DEBUG
+	CFLAGS  :=  $(if $(LOPT),$(LOPT),-O1) -g
+	LDFLAGS :=
+  else
+	CFLAGS  :=  $(if $(LOPT),$(LOPT),-O2) -fomit-frame-pointer
+	LDFLAGS := -Wl,-S
+  endif
+	CFLAGS  += $(VENDOR_CFLAGS)
+	CFLAGS  += -fno-builtin
+	CFLAGS  += -DEMBED
+	CFLAGS  += -shared
+
+	# don't want all the CFLAGS for uClibc/Config
+	ARCH_CFLAGS := $(CFLAGS)
+	ARCH_CFLAGS += -I$(ROOTDIR)
+
+	CFLAGS  += -nostdinc
+	CFLAGS  += -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include -I$(ROOTDIR)
+	CFLAGS  += -Dlinux -D__linux__ -Dunix
+
+	# the following is needed for uClinux-2.4
+	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include
+	
+	CFLAGS  += -idirafter $(GCC_DIR)/include
+
+	LDLIBS   = -nodefaultlibs
+	LDFLAGS  = -L$(GCC_DIR) -L$(ROOTDIR)/lib/$(LIBCDIR)/lib
+
+	UCLINUX_BUILD_SET=1
+endif
+
+############################################################################
+
+#
+# Settings for building user apps
+#
+
+ifdef UCLINUX_BUILD_USER
+
+	SLIBC        = -lc
+	SLIBM        = -lm
+	SLIBNET      = -lnet
+	SLIBDES      = -ldes
+	SLIBAES      = -laes
+	SLIBPCAP     = -lpcap
+	SLIBSSL      = -lssl
+	SLIBCRYPTO   = -lcrypto
+	SLIBATM      = -latm
+	SLIBSNAPGEARPP = -lsnapgear++
+	SLIBSNAPGEAR = -lsnapgear -llocale
+	SLIBCONFIGDD = -lconfigdd
+	SLIBZ        = -lz
+	SLIBPNG      = -lpng
+	SLIBJPEG     = -ljpeg
+
+	LIBC        = $(SLIBC)
+	LIBM        = $(SLIBM)
+	LIBNET      = $(SLIBNET)
+	LIBDES      = $(SLIBDES)
+	LIBAES      = $(SLIBAES)
+	LIBPCAP     = $(SLIBPCAP)
+	LIBSSL      = $(SLIBSSL)
+	LIBCRYPTO   = $(SLIBCRYPTO)
+	LIBATM      = $(SLIBATM)
+	LIBSNAPGEARPP = $(SLIBSNAPGEARPP)
+	LIBSNAPGEAR = $(SLIBSNAPGEAR)
+	LIBCONFIGDD = $(SLIBCONFIGDD)
+	LIBZ        = $(SLIBZ)
+	LIBPNG      = $(SLIBPNG)
+	LIBJPEG     = $(SLIBJPEG)
+	LIBCRYPT    = -lcrypt
+	LIBGCC      = -lgcc
+	LIBIBERTY   ?= -liberty
+	LIBIO       = -lio
+	LIBIOSTREAM = -liostream
+	LIBSTDCPP   = -lstdc++
+  ifeq ($(findstring glibc,$(LIBCDIR)),glibc)
+	LIBRESOLV   = -lresolv
+  endif
+
+	LDPATH  = \
+		-L$(GCC_DIR) \
+		-L$(ROOTDIR)/lib/$(LIBCDIR)/lib \
+		-L$(ROOTDIR)/lib/libnet \
+		-L$(ROOTDIR)/lib/libdes \
+		-L$(ROOTDIR)/lib/libaes \
+		-L$(ROOTDIR)/lib/libpcap \
+		-L$(ROOTDIR)/lib/libssl \
+		-L$(ROOTDIR)/lib/zlib \
+		-L$(ROOTDIR)/lib/libcrypt_old \
+		-L$(ROOTDIR)/lib/libatm/src/lib/.libs \
+		-L$(ROOTDIR)/lib/libldap/libraries/libldap/.libs \
+		-L$(ROOTDIR)/lib/libldap/libraries/liblber/.libs \
+		-L$(ROOTDIR)/prop/libsnapgear++ \
+		-L$(ROOTDIR)/prop/libsnapgear \
+		-L$(ROOTDIR)/lib/libpng \
+		-L$(ROOTDIR)/lib/libjpeg
+
+
+	INCGCC  = -I$(GCC_DIR)/include
+	INCLIBC = -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include
+	INCNET  = -I$(ROOTDIR)/lib/libnet
+	INCDES  = -I$(ROOTDIR)/freeswan/libdes
+	INCAES  = -I$(ROOTDIR)/freeswan/libcrypto/libaes
+	INCGMP  = -I$(ROOTDIR)/lib/libgmp
+	INCPCAP = -I$(ROOTDIR)/lib/libpcap
+	INCSSL  = -I$(ROOTDIR)/lib/libssl/include
+	INCZ    = -I$(ROOTDIR)/lib/zlib
+	INCATM  = -I$(ROOTDIR)/lib/libatm/src/include
+	INCVEND = -I$(ROOTDIR)/vendors/include
+	INCSG	= -I$(ROOTDIR)/prop/libsnapgear/include
+	INCSGPP	= -I$(ROOTDIR)/prop/libsnapgear++/include
+	INCPNG  = -I$(ROOTDIR)/lib/libpng
+	INCJPEG = -I$(ROOTDIR)/lib/libjpeg
+	INCCRYPTOLD = -I$(ROOTDIR)/lib/libcrypt_old
+	INCLDAP = -I$(ROOTDIR)/lib/libldap/include
+
+  ifdef CONFIG_USER_DEBUG
+	CFLAGS  :=  $(if $(UOPT),$(UOPT),-O1) -g
+	LDFLAGS :=
+  else
+	CFLAGS  :=  $(if $(UOPT),$(UOPT),-O2) -fomit-frame-pointer -g
+	LDFLAGS := -g
+  endif
+	CFLAGS  += -fno-builtin
+	CFLAGS  += $(VENDOR_CFLAGS)
+	CFLAGS  += -Dlinux -D__linux__ -Dunix -DEMBED
+	CFLAGS  += -nostdinc $(INCLIBC)
+	CFLAGS  += -idirafter $(GCC_DIR)/include
+	CFLAGS  += $(INCLIBC)
+	CFLAGS  += -I$(ROOTDIR)
+	#
+	# the following is needed for 2.4
+	#
+	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include
+
+	CXXFLAGS = $(CFLAGS) $(INCCXX)
+
+	LD_TYPE_STATIC  = -Wl,-Bstatic
+	LD_TYPE_DYNAMIC = -Wl,-Bdynamic
+
+  ifdef DISABLE_SHARED_LIBS
+	LD_TYPE_DEFAULT = $(LD_TYPE_STATIC)
+  else
+	LD_TYPE_DEFAULT = $(LD_TYPE_DYNAMIC)
+  endif
+
+  ifeq ($(findstring glibc,$(LIBCDIR)),glibc)
+	CRTI     = -nostartfiles $(ROOTDIR)/lib/$(LIBCDIR)/lib/crt1.o \
+			$(ROOTDIR)/lib/$(LIBCDIR)/lib/crti.o \
+			$(GCC_DIR)/crtbegin.o
+	SH_CRTI  = -nostartfiles $(ROOTDIR)/lib/$(LIBCDIR)/lib/crti.o \
+			$(GCC_DIR)/crtbeginS.o
+	CRTN     = $(ROOTDIR)/lib/$(LIBCDIR)/lib/ld-linux.so.2 \
+			$(GCC_DIR)/crtend.o \
+			$(ROOTDIR)/lib/$(LIBCDIR)/lib/crtn.o \
+			$(GCC_DIR)/libgcc.a
+	SH_CRTN  = $(GCC_DIR)/crtendS.o $(ROOTDIR)/lib/$(LIBCDIR)/lib/crtn.o
+  else
+  	# This means we are using uClibc
+	CRTI     = -nostartfiles $(ROOTDIR)/lib/$(LIBCDIR)/lib/crt1.o \
+			$(ROOTDIR)/lib/$(LIBCDIR)/lib/crti.o
+	CRTN     = $(ROOTDIR)/lib/$(LIBCDIR)/lib/crtn.o
+  endif
+	SH_LDFLAGS := $(LDFLAGS) $(SH_CRTI) $(LDPATH)
+	SH_LDLIBS  := -nodefaultlibs $(LIBC) $(LIBGCC) $(SH_CRTN)
+	LDFLAGS += $(CRTI) $(LDPATH) $(LD_TYPE_DEFAULT)
+	LDLIBS   = -nodefaultlibs $(LIBC) $(LIBGCC) $(CRTN)
+	CXXLIBS  =  -L$(GXX_DIR) $(LIBSTDCPP) $(LD_TYPE_DEFAULT) $(LIBC) $(LIBGCC)
+	
+	FLTFLAGS :=
+	export FLTFLAGS
+
+	# for anyone still using it
+	CONVERT = /bin/true
+
+	UCLINUX_BUILD_SET=1
+endif
+
+############################################################################
+
+#
+# fall through,  do other config options perhaps
+#
+
+ifeq ($(UCLINUX_BUILD_SET),1)
+endif
+
+############################################################################

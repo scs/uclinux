@@ -1,0 +1,222 @@
+.EXPORT_ALL_VARIABLES:
+############################################################################
+#
+#  A Generic ARM config.arch that can be included by other platforms
+#  to reduce the number of places that need to be edited when something
+#  common changes.  If you include this file you should provide:
+#
+#  CPUFLAGS            - cpu specific flags to pass to the compiler
+#  VENDOR_CFLAGS       - vendor specific flags to pass to the compiler
+#  DISABLE_XIP         - set this to 1 to disable XIP code
+#  DISABLE_MOVE_RODATA - set this to 1 to disable moving rodata to text
+#  LOPT                - library optimisation flags
+#  UOPT                - user optimisation flags
+#
+#  David McCullough <davidm@snapgear.com>
+#
+############################################################################
+#
+# Generic settings
+#
+
+ifndef CONSOLE_BAUD_RATE
+CONSOLE_BAUD_RATE = 9600
+endif
+
+ifeq ($(ROOTDIR)/modules,$(wildcard $(ROOTDIR)/modules))
+EXTRA_MODULE_DIRS = $(ROOTDIR)/modules
+endif
+
+############################################################################
+#
+# The makefiles need to know how to do things in different contexts
+# To save some pain we put it all here
+#
+# First settings we always want for all build
+#
+# ARCH is for the kernel
+# TARGET_ARCH is for uClibc
+
+MACHINE       = arm
+ARCH          = armnommu
+CROSS_COMPILE = arm-elf-
+CROSS         = $(CROSS_COMPILE)
+
+CC        = $(CROSS_COMPILE)gcc $(CPUFLAGS)
+AS        = $(CROSS_COMPILE)as $(CPUFLAGS)
+CXX       = $(CROSS_COMPILE)g++ $(CPUFLAGS)
+AR        = $(CROSS_COMPILE)ar
+LD        = $(CROSS_COMPILE)ld
+OBJCOPY   = $(CROSS_COMPILE)objcopy
+RANLIB    = $(CROSS_COMPILE)ranlib
+ELF2FLT   = elf2flt
+STRIPTOOL = $(CROSS_COMPILE)strip
+STRIP     = $(STRIPTOOL)
+
+UCLINUX_BUILD_SET = 0					# have we set a special config below
+
+############################################################################
+#
+# General purpose lib building rules,  uClibc.config uses these when
+# possible
+#
+
+ifdef UCLINUX_BUILD_LIB
+
+  ifdef CONFIG_LIB_DEBUG
+	CFLAGS  :=  $(if $(LOPT),$(LOPT),-O1) -g
+  else
+	CFLAGS  :=  $(if $(LOPT),$(LOPT),-O2) -g -fomit-frame-pointer
+  endif
+
+	CFLAGS  += $(CPUFLAGS)
+	CFLAGS  += $(VENDOR_CFLAGS)
+	CFLAGS  += -fno-builtin
+	CFLAGS  += -DEMBED
+
+  ifndef DISABLE_XIP
+	CFLAGS  += -D__PIC__ -fpic -msingle-pic-base
+  endif
+
+	# don't want all the CFLAGS for uClibc/Config
+	ARCH_CFLAGS = $(CFLAGS)
+	CFLAGS  += -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include -I$(ROOTDIR)
+	CFLAGS  += -Dlinux -D__linux__ -D__uClinux__ -Dunix
+
+	# the following is needed for uClinux-2.4
+	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include
+
+	LDFLAGS  = $(CFLAGS) -Wl,-elf2flt
+
+  ifndef DISABLE_MOVE_RODATA
+  	LDFLAGS += -Wl,-move-rodata
+  endif
+
+	UCLINUX_BUILD_SET=1
+endif
+
+############################################################################
+#
+# Settings for building user apps
+#
+
+ifdef UCLINUX_BUILD_USER
+
+	SLIBC        = -lc
+	SLIBM        = -lm
+	SLIBNET      = -lnet
+	SLIBDES      = -ldes
+	SLIBAES      = -laes
+	SLIBPCAP     = -lpcap
+	SLIBSSL      = -lssl
+	SLIBCRYPTO   = -lcrypto
+  ifeq ($(LIBCDIR),libc)
+	SLIBCRYPT    = -lcrypt_old
+  else
+	SLIBCRYPT    = -lcrypt
+  endif
+	SLIBPTHREAD  = -lpthread
+
+	LIBC        = $(SLIBC)
+	LIBM        = $(SLIBM)
+	LIBNET      = $(SLIBNET)
+	LIBDES      = $(SLIBDES)
+	LIBAES      = $(SLIBAES)
+	LIBPCAP     = $(SLIBPCAP)
+	LIBSSL      = $(SLIBSSL)
+	LIBCRYPTO   = $(SLIBCRYPTO)
+	LIBPTHREAD  = $(SLIBPTHREAD)
+	LIBCRYPT    = $(SLIBCRYPT)
+	LIBGCC      = -lgcc
+	LIBIBERTY   = -liberty
+	LIBIO       = -lio
+	LIBIOSTREAM = -liostream
+	LIBSTDCPP   = -lstdc++
+
+	LDPATH = \
+			-L$(ROOTDIR)/lib/$(LIBCDIR)/. \
+			-L$(ROOTDIR)/lib/$(LIBCDIR)/lib \
+			-L$(ROOTDIR)/lib/libm \
+			-L$(ROOTDIR)/lib/libnet \
+			-L$(ROOTDIR)/lib/libdes \
+			-L$(ROOTDIR)/lib/libaes \
+			-L$(ROOTDIR)/lib/libpcap \
+			-L$(ROOTDIR)/lib/libcrypt_old \
+			-L$(ROOTDIR)/lib/libssl \
+			-L$(ROOTDIR)/lib/zlib
+
+	INCLIBC = -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include
+	INCLIBM = -I$(ROOTDIR)/lib/libm
+	INCNET  = -I$(ROOTDIR)/lib/libnet
+	INCDES  = -I$(ROOTDIR)/freeswan/libdes
+	INCAES  = -I$(ROOTDIR)/freeswan/libcrypto/libaes
+	INCGMP  = -I$(ROOTDIR)/lib/libgmp
+	INCPCAP = -I$(ROOTDIR)/lib/libpcap
+	INCSSL  = -I$(ROOTDIR)/lib/libssl/include
+	INCZ    = -I$(ROOTDIR)/lib/zlib
+	INCVEND = -I$(ROOTDIR)/vendors/include
+	INCCRYPTOLD = -I$(ROOTDIR)/lib/libcrypt_old
+
+  ifdef CONFIG_USER_DEBUG
+	CFLAGS  :=  $(if $(UOPT),$(UOPT),-O1) -g
+  else
+	CFLAGS  :=  $(if $(UOPT),$(UOPT),-O2) -g -fomit-frame-pointer
+  endif
+
+	CFLAGS  += $(CPUFLAGS)
+	CFLAGS  += $(VENDOR_CFLAGS)
+	CFLAGS  += -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
+	CFLAGS  += $(INCLIBC) $(INCLIBM) $(INCCRYPTOLD)
+	CFLAGS  += -I$(ROOTDIR)
+	CFLAGS  += -fno-builtin
+	CFLAGS  += -nostartfiles
+
+  ifndef DISABLE_XIP
+	CFLAGS  += -D__PIC__ -fpic -msingle-pic-base
+  endif
+
+	#
+	# the following is needed for 2.4
+	#
+	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include
+
+	CXXFLAGS = $(CFLAGS) $(INCCXX)
+
+  ifeq ($(LIBCDIR),libc)
+	LDFLAGS  = $(CFLAGS) -Wl,-elf2flt $(ROOTDIR)/lib/libc/crt0.o
+  else
+	LDFLAGS  = $(CFLAGS) -Wl,-elf2flt $(ROOTDIR)/lib/$(LIBCDIR)/lib/crt0.o \
+					$(ROOTDIR)/lib/$(LIBCDIR)/lib/crti.o \
+					$(ROOTDIR)/lib/$(LIBCDIR)/lib/crtn.o
+  endif
+
+  ifndef DISABLE_MOVE_RODATA
+  	LDFLAGS += -Wl,-move-rodata
+  endif
+	LDFLAGS += $(LDPATH)
+
+	LDLIBS         = $(LIBC)
+	LDLIBS_static  = $(SLIBC)
+	CXXLIBS        = $(LIBSTDCPP) $(LIBIOSTREAM) $(LIBIO) $(LIBIBERTY) \
+					 $(LIBC) $(LIBGCC)
+	
+  ifndef FLTFLAGS
+	FLTFLAGS :=
+  endif
+	export FLTFLAGS
+
+	# for anyone still using it
+	CONVERT = /bin/true
+
+	UCLINUX_BUILD_SET=1
+endif
+
+############################################################################
+#
+# fall through,  do other config options perhaps
+#
+
+ifeq ($(UCLINUX_BUILD_SET),1)
+endif
+
+############################################################################

@@ -1,0 +1,9 @@
+#	$Id$
+
+PROG=	chat
+SRCS=	chat.c
+MAN8=	chat.8
+MAN=	chat.cat8
+BINDIR=	/usr/sbin
+
+.include <bsd.prog.mk>

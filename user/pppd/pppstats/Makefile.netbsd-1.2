@@ -1,0 +1,10 @@
+#	$Id$
+
+PROG=	pppstats
+SRCS=	pppstats.c
+CFLAGS+=-I../include -D_BITYPES
+MAN8=	pppstats.8
+MAN=	pppstats.cat8
+BINDIR=	/usr/sbin
+
+.include <bsd.prog.mk>

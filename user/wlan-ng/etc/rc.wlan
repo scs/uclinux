@@ -1,0 +1,126 @@
+#!/bin/sh
+
+# rc.wlan 
+#
+# chkconfig: 2345 9 91 
+# description: Activates/Configures/Disables the devices
+
+if [ ! -f /etc/wlan/shared ] ; then
+    echo "/etc/wlan/shared not present"
+    exit 0
+fi
+
+. /etc/wlan/shared
+
+if [ -f /etc/init.d/functions ] ; then
+	. /etc/init.d/functions
+fi
+
+usage()
+{
+    echo "Usage: $0 {start|stop|status|restart|reload|force-reload}"
+}
+
+
+if [ $# -lt 1 ] ; then usage ; exit 1 ; fi
+action=$1
+
+case "$action" in
+
+start)
+	echo -n "Starting WLAN Devices:"
+	if ! /sbin/modprobe p80211; then
+		echo "Failed to load p80211.o."
+		exit 1
+	fi
+	
+	# NOTE: We don't explicitly insmod the card driver here.  The
+	#  best thing to do is to specify an alias in /etc/modules.conf.
+	#  Then, the first time we call wlanctl with the named device,
+	#  the kernel module autoload stuff will take over.
+
+	for DEVICE in $WLAN_DEVICES; do
+	    #=======ENABLE========================================
+	    # Do we want to init the card at all?
+	    eval 'WLAN_ENABLE=$ENABLE_'$DEVICE
+
+	    if ! is_true $WLAN_ENABLE ; then
+		continue
+	    fi
+
+	    if is_true $WLAN_DOWNLOAD; then
+		wlan_download $DEVICE
+	    fi
+	    
+	    wlan_enable $DEVICE
+
+	    #=======MAC STARTUP=========================================
+	    wlan_supports_scan $DEVICE
+	    if [ $? = 0 ] ; then
+		wlan_scan $DEVICE 
+		if [ $? = 0 ] ; then
+		    wlan_source_config_for_ssid "$ssid:$bssid"
+
+		    wlan_user_mibs $DEVICE
+		    wlan_wep $DEVICE
+
+		    grep 'autojoin' /proc/net/p80211/$DEVICE/wlandev > /dev/null
+		    if [ $? = 0 ]; then
+			wlan_infra $DEVICE
+		    else
+			wlan_dot11_join $DEVICE
+		    fi
+		else
+		    echo "network not found.  maybe start IBSS?"
+		fi
+	    else
+		wlan_source_config $DEVICE
+
+		wlan_user_mibs $DEVICE
+		wlan_wep $DEVICE
+		
+		if is_true $IS_ADHOC ; then	
+		    wlan_adhoc $DEVICE
+		else
+		    wlan_infra $DEVICE
+		fi
+	    fi
+	done
+
+	if [ -f /etc/init.d/functions ] ; then
+		echo_success
+	else
+		echo
+	fi
+
+	;;
+
+stop)
+	echo -n "Shutting Down WLAN Devices:"
+	# Do a reset on each device to make sure none of them are still
+	#  trying to generate interrupts.
+	for DEVICE in $WLAN_DEVICES; do
+		wlan_disable $DEVICE
+	done
+
+	# If you want to manage modules by hand, put your rmmod's here.
+	# Otherwise we'll rely on autoclean.
+
+	;;
+
+status)
+	echo -n "Hmmm, some kind of status would be nice."
+	;;
+
+restart|reload|force-reload)
+	$0 stop
+	$0 start
+	EXITCODE=$?
+	;;
+
+    *)
+	usage
+	;;
+
+esac
+

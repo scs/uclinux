@@ -1,0 +1,7 @@
+$ $Id$
+$ sh.func.c
+$set 15
+1 %s: %s: Kann Begrenzung nicht %s%s\n
+2 löschen
+3 setzen
+4 \040(hard limit)

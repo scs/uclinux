@@ -1,0 +1,77 @@
+#
+# pppd makefile for Linux
+# $Id$
+#
+
+PPPDSRCS = main.c magic.c fsm.c lcp.c ipcp.c upap.c chap.c md5.c ccp.c \
+	   ipxcp.c auth.c options.c sys-linux.c
+HEADERS =  callout.h pathnames.h patchlevel.h chap.h md5.h \
+	   ipxcp.h
+MANPAGES = pppd.8
+PPPDOBJS = main.o magic.o fsm.o lcp.o ipcp.o upap.o chap.o md5.o ccp.o \
+	   auth.o options.o sys-linux.o
+
+all: pppd
+
+#
+# include dependancies if present and backup if as a header file
+ifeq (.depend,$(wildcard .depend))
+include .depend
+HEADERS := $(HEADERS) .depend
+endif
+
+# CC = gcc
+# DEBUG_FLAGS = -DDEBUGALL
+COMPILE_FLAGS = -D_linux_=1 -DHAVE_PATHS_H
+COPTS = -O2 # -g
+VER = 2.2.0
+LIBS = -lbsd
+
+CFLAGS= $(COPTS) $(DEBUG_FLAGS) $(COMPILE_FLAGS)
+SOURCE= RELNOTES Makefile.linux $(PPPDSRCS) $(HEADERS) $(MANPAGES)
+
+ifdef USE_MS_DNS
+CFLAGS   += -DUSE_MS_DNS=1
+endif
+
+ifdef IPX_CHANGE
+CFLAGS   += -DIPX_CHANGE=1
+PPPDOBJS += ipxcp.o
+endif
+
+ifdef HAS_SHADOW
+CFLAGS   += -DHAS_SHADOW
+LIBS     += -lshadow
+endif
+
+install: pppd
+	mkdir -p $(BINDIR) $(MANDIR)
+	install -s -c -m 4555 -o root pppd $(BINDIR)/pppd
+	install -c -m 555 -o root pppd.8 $(MANDIR)/man8
+
+pppd: $(PPPDOBJS)
+	$(CC) $(CFLAGS) -o pppd $(PPPDOBJS) $(LIBS) # -Wl,-M >pppd.map
+
+pppd.tar: $(SOURCE)
+	tar -cvf pppd.tar $(SOURCE)
+
+pppd.tar.gz: pppd.tar
+	gzip pppd.tar
+
+clean:
+	rm -f $(PPPDOBJS) pppd *~ #* core
+
+depend:
+	$(CPP) -M $(CFLAGS) $(PPPDSRCS) >.depend
+#
+# These disable warnings because some people complain about the
+# warnings which do not cause harm.
+#
+main.o: main.c
+	$(CC) -w $(CFLAGS) -o main.o -c main.c
+
+auth.o: auth.c
+	$(CC) -w $(CFLAGS) -o auth.o -c auth.c
+
+options.o: options.c
+	$(CC) -w $(CFLAGS) -o options.o -c options.c

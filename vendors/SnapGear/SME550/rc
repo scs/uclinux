@@ -1,0 +1,21 @@
+echo "/etc/rc processing ..."
+hostname SME550 
+echo "Making Filesystems ..."
+# /dev/ram0 is the root filesystem for recovery images
+/bin/expand /etc/ramfs.img /dev/ram1
+/bin/expand /etc/ramfs.img /dev/ram2
+echo "Mounting Filesystems ..."
+mount -t proc proc /proc
+mount -t ext2 /dev/ram1 /var
+mount -t ext2 /dev/ram2 /etc/config
+mkdir /var/tmp
+mkdir /var/log
+mkdir /var/run
+mkdir /var/lock
+mkdir /var/empty
+echo "Processing Config Filesystem ..."
+/bin/flatfsd -r
+cp /etc/config/resolv.user /etc/config/resolv.conf
+echo "Setting system clock ..."
+hwclock --hctosys --utc
+echo "/etc/rc complete."

@@ -1,0 +1,2 @@
+/bin/smbmount //server/hd /mnt -n -c test -I192.168.0.1 -UCleopatra
+

@@ -1,0 +1,968 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Free Software Foundation, Inc.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"POT-Creation-Date: 2000-11-23 11:23+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: ENCODING\n"
+
+#. Login to the server:
+#. First: Establish the control connection.
+#: src/ftp.c:147 src/http.c:348
+#, c-format
+msgid "Connecting to %s:%hu... "
+msgstr ""
+
+#: src/ftp.c:169 src/ftp.c:411 src/http.c:365
+#, c-format
+msgid "Connection to %s:%hu refused.\n"
+msgstr ""
+
+#. Second: Login with proper USER/PASS sequence.
+#: src/ftp.c:190 src/http.c:376
+msgid "connected!\n"
+msgstr ""
+
+#: src/ftp.c:191
+#, c-format
+msgid "Logging in as %s ... "
+msgstr ""
+
+#: src/ftp.c:200 src/ftp.c:253 src/ftp.c:301 src/ftp.c:353 src/ftp.c:447
+#: src/ftp.c:520 src/ftp.c:568 src/ftp.c:616
+msgid "Error in server response, closing control connection.\n"
+msgstr ""
+
+#: src/ftp.c:208
+msgid "Error in server greeting.\n"
+msgstr ""
+
+#: src/ftp.c:216 src/ftp.c:262 src/ftp.c:310 src/ftp.c:362 src/ftp.c:457
+#: src/ftp.c:530 src/ftp.c:578 src/ftp.c:626
+msgid "Write failed, closing control connection.\n"
+msgstr ""
+
+#: src/ftp.c:223
+msgid "The server refuses login.\n"
+msgstr ""
+
+#: src/ftp.c:230
+msgid "Login incorrect.\n"
+msgstr ""
+
+#: src/ftp.c:237
+msgid "Logged in!\n"
+msgstr ""
+
+#: src/ftp.c:270
+#, c-format
+msgid "Unknown type `%c', closing control connection.\n"
+msgstr ""
+
+#: src/ftp.c:283
+msgid "done.  "
+msgstr ""
+
+#: src/ftp.c:289
+msgid "==> CWD not needed.\n"
+msgstr ""
+
+#: src/ftp.c:317
+#, c-format
+msgid ""
+"No such directory `%s'.\n"
+"\n"
+msgstr ""
+
+#: src/ftp.c:331 src/ftp.c:599 src/ftp.c:647 src/url.c:1678
+msgid "done.\n"
+msgstr ""
+
+#. do not CWD
+#: src/ftp.c:335
+msgid "==> CWD not required.\n"
+msgstr ""
+
+#: src/ftp.c:369
+msgid "Cannot initiate PASV transfer.\n"
+msgstr ""
+
+#: src/ftp.c:373
+msgid "Cannot parse PASV response.\n"
+msgstr ""
+
+#: src/ftp.c:387
+#, c-format
+msgid "Will try connecting to %s:%hu.\n"
+msgstr ""
+
+#: src/ftp.c:432 src/ftp.c:504 src/ftp.c:548
+msgid "done.    "
+msgstr ""
+
+#: src/ftp.c:474
+#, c-format
+msgid "Bind error (%s).\n"
+msgstr ""
+
+#: src/ftp.c:490
+msgid "Invalid PORT.\n"
+msgstr ""
+
+#: src/ftp.c:537
+msgid ""
+"\n"
+"REST failed, starting from scratch.\n"
+msgstr ""
+
+#: src/ftp.c:586
+#, c-format
+msgid ""
+"No such file `%s'.\n"
+"\n"
+msgstr ""
+
+#: src/ftp.c:634
+#, c-format
+msgid ""
+"No such file or directory `%s'.\n"
+"\n"
+msgstr ""
+
+#: src/ftp.c:710 src/ftp.c:717
+#, c-format
+msgid "Length: %s"
+msgstr ""
+
+#: src/ftp.c:712 src/ftp.c:719
+#, c-format
+msgid " [%s to go]"
+msgstr ""
+
+#: src/ftp.c:721
+msgid " (unauthoritative)\n"
+msgstr ""
+
+#: src/ftp.c:747
+#, c-format
+msgid "%s: %s, closing control connection.\n"
+msgstr ""
+
+#: src/ftp.c:755
+#, c-format
+msgid "%s (%s) - Data connection: %s; "
+msgstr ""
+
+#: src/ftp.c:772
+msgid "Control connection closed.\n"
+msgstr ""
+
+#: src/ftp.c:790
+msgid "Data transfer aborted.\n"
+msgstr ""
+
+#: src/ftp.c:856
+#, c-format
+msgid "File `%s' already there, not retrieving.\n"
+msgstr ""
+
+#: src/ftp.c:933 src/http.c:1032
+#, c-format, ycp-format
+msgid "(try:%2d)"
+msgstr ""
+
+#: src/ftp.c:997 src/http.c:1252
+#, c-format
+msgid ""
+"%s (%s) - `%s' saved [%ld]\n"
+"\n"
+msgstr ""
+
+#: src/ftp.c:1039 src/main.c:749 src/recur.c:468 src/retr.c:560
+#, c-format
+msgid "Removing %s.\n"
+msgstr ""
+
+#: src/ftp.c:1080
+#, c-format
+msgid "Using `%s' as listing tmp file.\n"
+msgstr ""
+
+#: src/ftp.c:1092
+#, c-format
+msgid "Removed `%s'.\n"
+msgstr ""
+
+#: src/ftp.c:1128
+#, c-format
+msgid "Recursion depth %d exceeded max. depth %d.\n"
+msgstr ""
+
+#: src/ftp.c:1180 src/http.c:1179
+#, c-format
+msgid ""
+"Server file no newer than local file `%s' -- not retrieving.\n"
+"\n"
+msgstr ""
+
+#: src/ftp.c:1186 src/http.c:1187
+#, c-format
+msgid "The sizes do not match (local %ld) -- retrieving.\n"
+msgstr ""
+
+#: src/ftp.c:1203
+msgid "Invalid name of the symlink, skipping.\n"
+msgstr ""
+
+#: src/ftp.c:1220
+#, c-format
+msgid ""
+"Already have correct symlink %s -> %s\n"
+"\n"
+msgstr ""
+
+#: src/ftp.c:1228
+#, c-format
+msgid "Creating symlink %s -> %s\n"
+msgstr ""
+
+#: src/ftp.c:1239
+#, c-format
+msgid "Symlinks not supported, skipping symlink `%s'.\n"
+msgstr ""
+
+#: src/ftp.c:1251
+#, c-format
+msgid "Skipping directory `%s'.\n"
+msgstr ""
+
+#: src/ftp.c:1260
+#, c-format
+msgid "%s: unknown/unsupported file type.\n"
+msgstr ""
+
+#: src/ftp.c:1277
+#, c-format
+msgid "%s: corrupt time-stamp.\n"
+msgstr ""
+
+#: src/ftp.c:1298
+#, c-format
+msgid "Will not retrieve dirs since depth is %d (max %d).\n"
+msgstr ""
+
+#: src/ftp.c:1337
+#, c-format
+msgid "Not descending to `%s' as it is excluded/not-included.\n"
+msgstr ""
+
+#: src/ftp.c:1382
+#, c-format
+msgid "Rejecting `%s'.\n"
+msgstr ""
+
+#. No luck.
+#. #### This message SUCKS.  We should see what was the
+#. reason that nothing was retrieved.
+#: src/ftp.c:1429
+#, c-format
+msgid "No matches on pattern `%s'.\n"
+msgstr ""
+
+#: src/ftp.c:1489
+#, c-format
+msgid "Wrote HTML-ized index to `%s' [%ld].\n"
+msgstr ""
+
+#: src/ftp.c:1494
+#, c-format
+msgid "Wrote HTML-ized index to `%s'.\n"
+msgstr ""
+
+#: src/getopt.c:454
+#, c-format
+msgid "%s: option `%s' is ambiguous\n"
+msgstr ""
+
+#: src/getopt.c:478
+#, c-format
+msgid "%s: option `--%s' doesn't allow an argument\n"
+msgstr ""
+
+#: src/getopt.c:483
+#, c-format
+msgid "%s: option `%c%s' doesn't allow an argument\n"
+msgstr ""
+
+#: src/getopt.c:498
+#, c-format
+msgid "%s: option `%s' requires an argument\n"
+msgstr ""
+
+#. --option
+#: src/getopt.c:528
+#, c-format
+msgid "%s: unrecognized option `--%s'\n"
+msgstr ""
+
+#. +option or -option
+#: src/getopt.c:532
+#, c-format
+msgid "%s: unrecognized option `%c%s'\n"
+msgstr ""
+
+#. 1003.2 specifies the format of this message.
+#: src/getopt.c:563
+#, c-format
+msgid "%s: illegal option -- %c\n"
+msgstr ""
+
+#. 1003.2 specifies the format of this message.
+#: src/getopt.c:602
+#, c-format
+msgid "%s: option requires an argument -- %c\n"
+msgstr ""
+
+#: src/host.c:438
+#, c-format
+msgid "%s: Cannot determine user-id.\n"
+msgstr ""
+
+#: src/host.c:450
+#, c-format
+msgid "%s: Warning: uname failed: %s\n"
+msgstr ""
+
+#: src/host.c:462
+#, c-format
+msgid "%s: Warning: gethostname failed\n"
+msgstr ""
+
+#: src/host.c:490
+#, c-format
+msgid "%s: Warning: cannot determine local IP address.\n"
+msgstr ""
+
+#: src/host.c:504
+#, c-format
+msgid "%s: Warning: cannot reverse-lookup local IP address.\n"
+msgstr ""
+
+#. This gets ticked pretty often.  Karl Berry reports
+#. that there can be valid reasons for the local host
+#. name not to be an FQDN, so I've decided to remove the
+#. annoying warning.
+#: src/host.c:517
+#, c-format
+msgid "%s: Warning: reverse-lookup of local address did not yield FQDN!\n"
+msgstr ""
+
+#: src/host.c:545
+msgid "Host not found"
+msgstr ""
+
+#: src/host.c:547
+msgid "Unknown error"
+msgstr ""
+
+#: src/html.c:615 src/html.c:617
+#, c-format
+msgid "Index of /%s on %s:%d"
+msgstr ""
+
+#: src/html.c:639
+msgid "time unknown       "
+msgstr ""
+
+#: src/html.c:643
+msgid "File        "
+msgstr ""
+
+#: src/html.c:646
+msgid "Directory   "
+msgstr ""
+
+#: src/html.c:649
+msgid "Link        "
+msgstr ""
+
+#: src/html.c:652
+msgid "Not sure    "
+msgstr ""
+
+#: src/html.c:670
+#, c-format
+msgid " (%s bytes)"
+msgstr ""
+
+#: src/http.c:508
+msgid "Failed writing HTTP request.\n"
+msgstr ""
+
+#: src/http.c:512
+#, c-format
+msgid "%s request sent, awaiting response... "
+msgstr ""
+
+#: src/http.c:551
+msgid "End of file while parsing headers.\n"
+msgstr ""
+
+#: src/http.c:562
+#, c-format
+msgid "Read error (%s) in headers.\n"
+msgstr ""
+
+#: src/http.c:602
+msgid "No data received"
+msgstr ""
+
+#: src/http.c:604
+msgid "Malformed status line"
+msgstr ""
+
+#: src/http.c:609
+msgid "(no description)"
+msgstr ""
+
+#. If we have tried it already, then there is not point
+#. retrying it.
+#: src/http.c:693
+msgid "Authorization failed.\n"
+msgstr ""
+
+#: src/http.c:700
+msgid "Unknown authentication scheme.\n"
+msgstr ""
+
+#: src/http.c:783
+#, c-format
+msgid "Location: %s%s\n"
+msgstr ""
+
+#: src/http.c:784 src/http.c:809
+msgid "unspecified"
+msgstr ""
+
+#: src/http.c:785
+msgid " [following]"
+msgstr ""
+
+#. No need to print this output if the body won't be
+#. downloaded at all, or if the original server response is
+#. printed.
+#: src/http.c:799
+msgid "Length: "
+msgstr ""
+
+#: src/http.c:804
+#, c-format
+msgid " (%s to go)"
+msgstr ""
+
+#: src/http.c:809
+msgid "ignored"
+msgstr ""
+
+#: src/http.c:912
+msgid "Warning: wildcards not supported in HTTP.\n"
+msgstr ""
+
+#. If opt.noclobber is turned on and file already exists, do not
+#. retrieve the file
+#: src/http.c:933
+#, c-format
+msgid "File `%s' already there, will not retrieve.\n"
+msgstr ""
+
+#: src/http.c:1099
+#, c-format
+msgid "Cannot write to `%s' (%s).\n"
+msgstr ""
+
+#: src/http.c:1110
+#, c-format
+msgid "ERROR: Redirection (%d) without location.\n"
+msgstr ""
+
+#: src/http.c:1135
+#, c-format
+msgid "%s ERROR %d: %s.\n"
+msgstr ""
+
+#: src/http.c:1148
+msgid "Last-modified header missing -- time-stamps turned off.\n"
+msgstr ""
+
+#: src/http.c:1156
+msgid "Last-modified header invalid -- time-stamp ignored.\n"
+msgstr ""
+
+#: src/http.c:1191
+msgid "Remote file is newer, retrieving.\n"
+msgstr ""
+
+#: src/http.c:1226
+#, c-format
+msgid ""
+"%s (%s) - `%s' saved [%ld/%ld]\n"
+"\n"
+msgstr ""
+
+#: src/http.c:1274
+#, c-format
+msgid "%s (%s) - Connection closed at byte %ld. "
+msgstr ""
+
+#: src/http.c:1282
+#, c-format
+msgid ""
+"%s (%s) - `%s' saved [%ld/%ld])\n"
+"\n"
+msgstr ""
+
+#: src/http.c:1302
+#, c-format
+msgid "%s (%s) - Connection closed at byte %ld/%ld. "
+msgstr ""
+
+#: src/http.c:1313
+#, c-format
+msgid "%s (%s) - Read error at byte %ld (%s)."
+msgstr ""
+
+#: src/http.c:1321
+#, c-format
+msgid "%s (%s) - Read error at byte %ld/%ld (%s). "
+msgstr ""
+
+#: src/init.c:329 src/netrc.c:260
+#, c-format
+msgid "%s: Cannot read %s (%s).\n"
+msgstr ""
+
+#: src/init.c:347 src/init.c:353
+#, c-format
+msgid "%s: Error in %s at line %d.\n"
+msgstr ""
+
+#: src/init.c:384
+#, c-format
+msgid "%s: Warning: Both system and user wgetrc point to `%s'.\n"
+msgstr ""
+
+#: src/init.c:476
+#, c-format
+msgid "%s: BUG: unknown command `%s', value `%s'.\n"
+msgstr ""
+
+#: src/init.c:498
+#, c-format
+msgid "%s: Out of memory.\n"
+msgstr ""
+
+#: src/init.c:504
+#, c-format
+msgid "%s: %s: Cannot convert `%s' to an IP address.\n"
+msgstr ""
+
+#: src/init.c:532
+#, c-format
+msgid "%s: %s: Please specify on or off.\n"
+msgstr ""
+
+#: src/init.c:576
+#, c-format
+msgid "%s: %s: Please specify always, on, off, or never.\n"
+msgstr ""
+
+#: src/init.c:595 src/init.c:852 src/init.c:874 src/init.c:938
+#, c-format
+msgid "%s: %s: Invalid specification `%s'.\n"
+msgstr ""
+
+#: src/init.c:708 src/init.c:730 src/init.c:752 src/init.c:778
+#, c-format
+msgid "%s: Invalid specification `%s'\n"
+msgstr ""
+
+#: src/main.c:105
+#, c-format
+msgid "Usage: %s [OPTION]... [URL]...\n"
+msgstr ""
+
+#: src/main.c:113
+#, c-format
+msgid "GNU Wget %s, a non-interactive network retriever.\n"
+msgstr ""
+
+#. Had to split this in parts, so the #@@#%# Ultrix compiler and cpp
+#. don't bitch.  Also, it makes translation much easier.
+#: src/main.c:118
+msgid ""
+"\n"
+"Mandatory arguments to long options are mandatory for short options too.\n"
+"\n"
+msgstr ""
+
+#: src/main.c:121
+msgid ""
+"Startup:\n"
+"  -V,  --version           display the version of Wget and exit.\n"
+"  -h,  --help              print this help.\n"
+"  -b,  --background        go to background after startup.\n"
+"  -e,  --execute=COMMAND   execute a `.wgetrc'-style command.\n"
+"\n"
+msgstr ""
+
+#: src/main.c:127
+msgid ""
+"Logging and input file:\n"
+"  -o,  --output-file=FILE     log messages to FILE.\n"
+"  -a,  --append-output=FILE   append messages to FILE.\n"
+"  -d,  --debug                print debug output.\n"
+"  -q,  --quiet                quiet (no output).\n"
+"  -v,  --verbose              be verbose (this is the default).\n"
+"  -nv, --non-verbose          turn off verboseness, without being quiet.\n"
+"  -i,  --input-file=FILE      download URLs found in FILE.\n"
+"  -F,  --force-html           treat input file as HTML.\n"
+"  -B,  --base=URL             prepends URL to relative links in -F -i file.\n"
+"\n"
+msgstr ""
+
+#: src/main.c:138
+msgid ""
+"Download:\n"
+"       --bind-address=ADDRESS   bind to ADDRESS (hostname or IP) on local "
+"host.\n"
+"  -t,  --tries=NUMBER           set number of retries to NUMBER (0 "
+"unlimits).\n"
+"  -O   --output-document=FILE   write documents to FILE.\n"
+"  -nc, --no-clobber             don't clobber existing files or use .# "
+"suffixes.\n"
+"  -c,  --continue               restart getting an existing file.\n"
+"       --dot-style=STYLE        set retrieval display style.\n"
+"  -N,  --timestamping           don't retrieve files if older than local.\n"
+"  -S,  --server-response        print server response.\n"
+"       --spider                 don't download anything.\n"
+"  -T,  --timeout=SECONDS        set the read timeout to SECONDS.\n"
+"  -w,  --wait=SECONDS           wait SECONDS between retrievals.\n"
+"       --waitretry=SECONDS\twait 1...SECONDS between retries of a "
+"retrieval.\n"
+"  -Y,  --proxy=on/off           turn proxy on or off.\n"
+"  -Q,  --quota=NUMBER           set retrieval quota to NUMBER.\n"
+"\n"
+msgstr ""
+
+#: src/main.c:154
+msgid ""
+"Directories:\n"
+"  -nd  --no-directories            don't create directories.\n"
+"  -x,  --force-directories         force creation of directories.\n"
+"  -nH, --no-host-directories       don't create host directories.\n"
+"  -P,  --directory-prefix=PREFIX   save files to PREFIX/...\n"
+"       --cut-dirs=NUMBER           ignore NUMBER remote directory "
+"components.\n"
+"\n"
+msgstr ""
+
+#: src/main.c:161
+msgid ""
+"HTTP options:\n"
+"       --http-user=USER      set http user to USER.\n"
+"       --http-passwd=PASS    set http password to PASS.\n"
+"  -C,  --cache=on/off        (dis)allow server-cached data (normally "
+"allowed).\n"
+"  -E,  --html-extension      save all text/html documents with .html "
+"extension.\n"
+"       --ignore-length       ignore `Content-Length' header field.\n"
+"       --header=STRING       insert STRING among the headers.\n"
+"       --proxy-user=USER     set USER as proxy username.\n"
+"       --proxy-passwd=PASS   set PASS as proxy password.\n"
+"       --referer=URL         include `Referer: URL' header in HTTP request.\n"
+"  -s,  --save-headers        save the HTTP headers to file.\n"
+"  -U,  --user-agent=AGENT    identify as AGENT instead of Wget/VERSION.\n"
+"\n"
+msgstr ""
+
+#: src/main.c:174
+msgid ""
+"FTP options:\n"
+"       --retr-symlinks   when recursing, retrieve linked-to files (not "
+"dirs).\n"
+"  -g,  --glob=on/off     turn file name globbing on or off.\n"
+"       --passive-ftp     use the \"passive\" transfer mode.\n"
+"\n"
+msgstr ""
+
+#: src/main.c:179
+msgid ""
+"Recursive retrieval:\n"
+"  -r,  --recursive             recursive web-suck -- use with care!.\n"
+"  -l,  --level=NUMBER          maximum recursion depth (inf or 0 for "
+"infinite).\n"
+"       --delete-after          delete files locally after downloading them.\n"
+"  -k,  --convert-links         convert non-relative links to relative.\n"
+"  -K,  --backup-converted      before converting file X, back up as X.orig.\n"
+"  -m,  --mirror                shortcut option equivalent to -r -N -l inf "
+"-nr.\n"
+"  -nr, --dont-remove-listing   don't remove `.listing' files.\n"
+"  -p,  --page-requisites       get all images, etc. needed to display HTML "
+"page.\n"
+"\n"
+msgstr ""
+
+#: src/main.c:189
+msgid ""
+"Recursive accept/reject:\n"
+"  -A,  --accept=LIST                comma-separated list of accepted "
+"extensions.\n"
+"  -R,  --reject=LIST                comma-separated list of rejected "
+"extensions.\n"
+"  -D,  --domains=LIST               comma-separated list of accepted "
+"domains.\n"
+"       --exclude-domains=LIST       comma-separated list of rejected "
+"domains.\n"
+"       --follow-ftp                 follow FTP links from HTML documents.\n"
+"       --follow-tags=LIST           comma-separated list of followed HTML "
+"tags.\n"
+"  -G,  --ignore-tags=LIST           comma-separated list of ignored HTML "
+"tags.\n"
+"  -H,  --span-hosts                 go to foreign hosts when recursive.\n"
+"  -L,  --relative                   follow relative links only.\n"
+"  -I,  --include-directories=LIST   list of allowed directories.\n"
+"  -X,  --exclude-directories=LIST   list of excluded directories.\n"
+"  -nh, --no-host-lookup             don't DNS-lookup hosts.\n"
+"  -np, --no-parent                  don't ascend to the parent directory.\n"
+"\n"
+msgstr ""
+
+#: src/main.c:204
+msgid "Mail bug reports and suggestions to <bug-wget@gnu.org>.\n"
+msgstr ""
+
+#: src/main.c:383
+#, c-format
+msgid "%s: debug support not compiled in.\n"
+msgstr ""
+
+#: src/main.c:435
+msgid ""
+"Copyright (C) 1995, 1996, 1997, 1998, 2000 Free Software Foundation, Inc.\n"
+"This program is distributed in the hope that it will be useful,\n"
+"but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+"MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+"GNU General Public License for more details.\n"
+msgstr ""
+
+#: src/main.c:441
+msgid ""
+"\n"
+"Originally written by Hrvoje Niksic <hniksic@arsdigita.com>.\n"
+msgstr ""
+
+#: src/main.c:515
+#, c-format
+msgid "%s: %s: invalid command\n"
+msgstr ""
+
+#: src/main.c:568
+#, c-format
+msgid "%s: illegal option -- `-n%c'\n"
+msgstr ""
+
+#. #### Something nicer should be printed here -- similar to the
+#. pre-1.5 `--help' page.
+#: src/main.c:571 src/main.c:613 src/main.c:671
+#, c-format
+msgid "Try `%s --help' for more options.\n"
+msgstr ""
+
+#: src/main.c:651
+msgid "Can't be verbose and quiet at the same time.\n"
+msgstr ""
+
+#: src/main.c:657
+msgid "Can't timestamp and not clobber old files at the same time.\n"
+msgstr ""
+
+#. No URL specified.
+#: src/main.c:666
+#, c-format
+msgid "%s: missing URL\n"
+msgstr ""
+
+#: src/main.c:764
+#, c-format
+msgid "No URLs found in %s.\n"
+msgstr ""
+
+#: src/main.c:773
+#, c-format
+msgid ""
+"\n"
+"FINISHED --%s--\n"
+"Downloaded: %s bytes in %d files\n"
+msgstr ""
+
+#: src/main.c:781
+#, c-format
+msgid "Download quota (%s bytes) EXCEEDED!\n"
+msgstr ""
+
+#. Please note that the double `%' in `%%s' is intentional, because
+#. redirect_output passes tmp through printf.
+#: src/main.c:808
+msgid "%s received, redirecting output to `%%s'.\n"
+msgstr ""
+
+#: src/mswindows.c:118
+#, c-format
+msgid ""
+"\n"
+"CTRL+Break received, redirecting output to `%s'.\n"
+"Execution continued in background.\n"
+"You may stop Wget by pressing CTRL+ALT+DELETE.\n"
+msgstr ""
+
+#. parent, no error
+#: src/mswindows.c:135 src/utils.c:269
+msgid "Continuing in background.\n"
+msgstr ""
+
+#: src/mswindows.c:137 src/utils.c:271
+#, c-format
+msgid "Output will be written to `%s'.\n"
+msgstr ""
+
+#: src/mswindows.c:227
+#, c-format
+msgid "Starting WinHelp %s\n"
+msgstr ""
+
+#: src/mswindows.c:254 src/mswindows.c:262
+#, c-format
+msgid "%s: Couldn't find usable socket driver.\n"
+msgstr ""
+
+#: src/netrc.c:359
+#, c-format
+msgid "%s: %s:%d: warning: \"%s\" token appears before any machine name\n"
+msgstr ""
+
+#: src/netrc.c:390
+#, c-format
+msgid "%s: %s:%d: unknown token \"%s\"\n"
+msgstr ""
+
+#: src/netrc.c:454
+#, c-format
+msgid "Usage: %s NETRC [HOSTNAME]\n"
+msgstr ""
+
+#: src/netrc.c:464
+#, c-format
+msgid "%s: cannot stat %s: %s\n"
+msgstr ""
+
+#: src/recur.c:469
+#, c-format
+msgid "Removing %s since it should be rejected.\n"
+msgstr ""
+
+#: src/recur.c:630
+msgid "Loading robots.txt; please ignore errors.\n"
+msgstr ""
+
+#: src/retr.c:197
+#, c-format
+msgid ""
+"\n"
+"          [ skipping %dK ]"
+msgstr ""
+
+#: src/retr.c:380
+msgid "Could not find proxy host.\n"
+msgstr ""
+
+#: src/retr.c:393
+#, c-format
+msgid "Proxy %s: Must be HTTP.\n"
+msgstr ""
+
+#: src/retr.c:472
+#, c-format
+msgid "%s: Redirection to itself.\n"
+msgstr ""
+
+#: src/retr.c:486
+#, c-format
+msgid "%s: Redirection cycle detected.\n"
+msgstr ""
+
+#: src/retr.c:581
+msgid ""
+"Giving up.\n"
+"\n"
+msgstr ""
+
+#: src/retr.c:581
+msgid ""
+"Retrying.\n"
+"\n"
+msgstr ""
+
+#: src/url.c:983
+#, c-format
+msgid "Error (%s): Link %s without a base provided.\n"
+msgstr ""
+
+#: src/url.c:999
+#, c-format
+msgid "Error (%s): Base %s relative, without referer URL.\n"
+msgstr ""
+
+#: src/url.c:1540
+#, c-format
+msgid "Converting %s... "
+msgstr ""
+
+#: src/url.c:1545 src/url.c:1632
+#, c-format
+msgid "Cannot convert links in %s: %s\n"
+msgstr ""
+
+#: src/url.c:1608
+#, c-format
+msgid "Cannot back up %s as %s: %s\n"
+msgstr ""
+
+#: src/utils.c:72
+#, c-format
+msgid "%s: %s: Not enough memory.\n"
+msgstr ""
+
+#: src/utils.c:204
+msgid "Unknown/unsupported protocol"
+msgstr ""
+
+#: src/utils.c:207
+msgid "Invalid port specification"
+msgstr ""
+
+#: src/utils.c:210
+msgid "Invalid host name"
+msgstr ""
+
+#: src/utils.c:431
+#, c-format
+msgid "Failed to unlink symlink `%s': %s\n"
+msgstr ""

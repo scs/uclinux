@@ -1,0 +1,296 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd"> 
+
+<HTML>
+<HEAD>
+<TITLE>TinyLogin</TITLE>
+</HEAD>
+
+<style type="text/css">
+ body {
+  background-color: #DEE2DE;
+  color: #000000;
+ }
+ :link { color: #660000 }
+ :visited { color: #660000 }
+ :active { color: #660000 }
+ div.c3 {text-align: center}
+ td.c2 {font-family: arial, helvetica, sans-serif; font-size: 80%}
+ td.c1 {font-family: lucida, helvetica; font-size: 248%}
+</style>
+
+<basefont face="lucida, helvetica, arial" size="3">
+
+
+
+<TABLE WIDTH=95% CELLSPACING=1 CELLPADDING=10 BORDER=0>
+<TR><TD ALIGN=left>
+<a href="/"><IMG SRC="images/tinylogin.png" alt="TinyLogin" border="0" width="304" height="71" ></a><BR>
+</TD></TR>
+</TABLE>
+
+<CENTER>
+
+<!-- Begin Introduction section -->
+
+
+<TABLE WIDTH=95% CELLSPACING=1 CELLPADDING=4 BORDER=1>
+<TR><TD BGCOLOR="#ccccc0" ALIGN=center>
+    <A NAME="intro"> <BIG><B>
+    The worlds smallest login/passwd/getty/etc
+    </font>
+    </A></B></BIG>
+</TD></TR>
+<TR><TD BGCOLOR="#eeeee0">
+
+TinyLogin is a suite of tiny Unix utilities for handling logging into,
+being authenticated by, changing one's password for, and otherwise
+maintaining users and groups on an embedded system. It also provides
+shadow password support to enhance system security. TinyLogin is, as the
+name implies, very small, and makes an excellent complement to 
+<a href="http://www.busybox.net/">BusyBox</a>
+on an embedded system (though it can of course be used without).
+
+<p>
+TinyLogin is maintained by 
+<a href="http://codepoet.org/andersen/erik/erik.html">
+Erik Andersen</a>, and licensed under the 
+<a href="http://www.gnu.org/copyleft/gpl.html">GNU GENERAL PUBLIC LICENSE</a>.
+
+
+<!-- Begin Download section -->
+
+<TR><TD BGCOLOR="#ccccc0" ALIGN=center>
+    <A NAME="download"><BIG><B>
+    Download
+    </A></B></BIG>
+</TD></TR>
+<TR><TD BGCOLOR="#eeeee0">
+<ul>
+
+    <li> Source for the latest release can always be downloaded from 
+	<a href="downloads/">http://tinylogin.busybox.net/downloads/</a>.
+
+	<li> A new snapshot of the source is made daily and is available as a GNU
+	gzipped tarball <a href= "downloads/snapshots/tinylogin-snapshot.tar.bz2">right here</a>.</li>
+
+    <li> TinyLogin now has its own publically browsable
+	<a href="/cgi-bin/cvsweb/tinylogin/">CVS tree</a>,  
+	anonymous
+	<a href="http://www.busybox.net/cvs_anon.html">CVS access</a>, and
+	for those that are actively contributing there is even 
+	<a href="http://www.busybox.net/cvs_write.html">CVS write access</a>.
+
+    <li> You might also want to check out <a href="http://www.busybox.net/">BusyBox</a>, 
+		which nicely complements TinyLogin.
+
+</ul>
+
+
+<!-- Begin Latest News section -->
+
+<TR><TD BGCOLOR="#ccccc0" ALIGN=center>
+    <A NAME="news">
+    <BIG><B>
+    Latest News</A> 
+    </B></BIG>
+    </A>
+</TD></TR>
+<TR><TD BGCOLOR="#eeeee0">
+
+<ul>
+    
+    <p>
+    <li> <b>3 January 2003 -- TinyLogin 1.4 released</b>
+    <br>
+	    This release fixes several small bugs, most notably, a missing
+	    /etc/securetty file is no longer considered an error by login (and
+	    there was much rejoicing).  As usual, source can be grabbed 
+	    <a href="downloads/tinylogin-1.4.tar.bz2">here</a>.
+
+    <p>
+    <li> <b>18 September 2002 -- TinyLogin 1.2 released</b>
+    <br>
+	    This release fixes several bugs, including some buffer 
+	    overflows in the internal password and group handling code,
+	    (only affects people setting USE_SYSTEM_PWD_GRP=false).
+	    As usual, source can be grabbed 
+	    <a href="downloads/tinylogin-1.2.tar.bz2">here</a>.
+
+    <p>
+    <li> <b>26 April 2002 -- TinyLogin 1.02 released</b>
+    <br>
+	    This release changes the login applet so it will invoke a 
+	    login shell (not just a normal shell), fixes 'make clean' so
+	    it doesn't leave things behind, and actually includes the 
+	    updwtmp() change this time.  Other that that, there are
+	    no significant changes.  As usual, source can be grabbed 
+	    <a href="downloads/tinylogin-1.02.tar.bz2">here</a>.
+
+    <p>
+    <li> <b>9 April 2002 -- TinyLogin 1.01 released</b>
+    <br>
+	    This release syncs with current versions of uClibc,
+	    avoiding a compile problem.  Other that that, there are
+	    no significant changes.  As usual, source can be grabbed 
+	    <a href="downloads/tinylogin-1.01.tar.bz2">here</a>.
+
+    <p>
+    <li> <b>5 February 2002 -- TinyLogin 1.00 released</b>
+    <br>
+	    This release provides a number of usability fixes and code
+	    cleanup.  There have been no major recent changes -- this
+	    is simply a collection of all the little fixes that have 
+	    collected since the last release.  Anyone using TinyLogin
+	    0.80 should probably upgrade if possible.  The Changelog is 
+	    <a href="downloads/Changelog">here</a>
+	    and the source can be grabbed 
+	    <a href="downloads/tinylogin-1.00.tar.bz2">here</a>.
+
+    <p> <li> <b>26 December 2000 -- TinyLogin 0.80 released</b>
+    <br>
+	    This release contains some important security fixes, drops
+	    permissions as soon as possible, by default bypasses GNU libc NSS
+	    (so resultant systems don't even need /lib/libnss* anymore), adds
+	    vlock, adds a 'tinylogin --install' command, uses relative symlinks
+	    on 'make install', compiles with glibc, libc5 and uClibc, and is generally 
+	    cleaner and tighter code.  The changelog can be found 
+	    <a href="downloads/Changelog">here</a> and source
+	    can be grabbed 
+	    <a href="downloads/tinylogin-0.80.tar.gz">here</a>.
+
+    <p> <li> <b>21 June 2000 -- TinyLogin 0.78 released</b>
+    <br>
+	    This release contains some important security fixes, so anyone 
+	    currently using tinylogin is strongly encouraged to upgrade.
+
+    <p> <li> <b>10 January 2000 -- TinyLogin 0.76 released</b>
+    <br>
+
+	     This is the first public release of tinylogin.  It provides
+		tinylogin, adduser, addgroup, deluser, delgroup, login, sulogin,
+		passwd, and getty.  Binary size with everything compiled in is 37k.
+		The changelog can be found <a href="downloads/Changelog">here</a>.
+
+    <p> <li> <b>10 January 2000 -- TinyLogin Website</b>
+    <br>
+	     TinyLogin now has a web site. Eventually I'll be adding documentation,
+		howto information, and information of the latest release.
+
+</ul>
+
+
+<!-- Begin Docs section -->
+
+<TR><TD BGCOLOR="#ccccc0" ALIGN=center>
+    <A NAME="docs"><BIG><B>
+    Documentation
+    </A></B></BIG>
+</TD></TR>
+<TR><TD BGCOLOR="#eeeee0">
+Current documentation for TinyLogin includes: 
+<ul>
+    <li> 
+    <a href="TinyLogin.html">TinyLogin.html</a><br>This is a list of the all the
+    available commands in TinyLogin with some basic usage information.  In
+    upcoming releases, I will include complete usage information and examples
+    of how to use each app.  If you find any errors (factual, grammatical,
+    whatever) please let me know.
+
+    <li>
+    <a href="http://bugs.busybox.net/db/pa/ltinylogin.html">TinyLogin bugs</a>
+
+    <li>
+    <a href="lists/tinylogin/">TinyLogin mailing
+    list</a>
+
+    <li> More documentation will follow.
+</ul>
+
+
+
+<!-- Begin Links section -->
+
+<TR><TD BGCOLOR="#ccccc0" ALIGN=center>
+    <A NAME="links">
+    <BIG><B>
+    Important Links</A> 
+    </B></BIG>
+    </A>
+</TD></TR>
+<TR><TD BGCOLOR="#eeeee0">
+
+<ul> 
+    <li>  <A HREF="http://freshmeat.net/projects/tinylogin/?highlight=tinylogin">
+    Freshmeat AppIndex record for TinyLogin</A>
+
+    <li><a href="http://www.busybox.net/">BusyBox</a>
+    combines tiny versions of many common UNIX utilities into a single small 
+    executable. It provides minimalist replacements for most of the utilities 
+    you usually find on a standard Linux system.
+
+    <p>
+    <li><a href="http://uclibc.org/uClibc.html">uClibc</a>
+	is a C library for embedded systems.  You can actually statically link
+	a "Hello World" application under x86 that only takes 4k (as opposed to
+	200k under GNU libc).  It can do dynamic linking too and works nicely with
+	BusyBox to create very small embedded systems.
+
+    <p>
+
+</ul>
+
+
+
+
+<!-- End of Table -->
+
+</TD></TR>
+</TABLE>
+</P>
+
+
+
+<!-- Footer -->
+<HR>
+<TABLE WIDTH="100%">
+    <TR>
+	<TD>
+	    <font size="-1" face="arial, helvetica, sans-serif">
+	    Mail all comments, insults, suggestions and bribes to 
+	    <a href="mailto:andersen@codepoet.org">Erik Andersen</a><BR>
+	    </font>
+	</TD>
+
+	<TD>
+	    <a href="http://www.vim.org"><img border=0 width=88 height=32
+	    src="images/anim.written.in.vi.gif" 
+	    alt="This site created with the vi editor"></a>
+	</TD>
+
+	<TD>
+	    <a href="http://www.gimp.org/"><img border=0 width=88 height=38
+	    src="images/gfx_by_gimp.gif" alt="Graphics by GIMP"></a>
+	</TD>
+
+	<TD>
+	    <a href="http://www.linuxtoday.com"><img width=90 height=36
+	    src="images/ltbutton2.jpg" alt="Linux Today"></a>
+	</TD>
+
+	<TD>
+	    <p><a href="http://slashdot.org"><img width=90 height=36
+	    src="images/sdsmall.gif" alt="Slashdot"></a>
+	</TD>
+
+	<TD>
+	    <a href="http://freshmeat.net"><img width=90 height=36
+	    src="images/fm.mini.jpg" alt="Freshmeat"></a>
+	</TD>
+
+    </TR>
+</TABLE>
+
+
+</BODY>
+</HTML>
+

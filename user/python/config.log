@@ -1,0 +1,6 @@
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+configure:625: checking MACHDEP
+configure:685: checking for --without-gcc
+configure:741: checking for --with-cxx=<compiler>

@@ -1,0 +1,54 @@
+# Generated automatically from Makefile.in by configure.
+# NOTE: Makefile.in is converted into Makefile by the configure script
+# in the parent directory.  Once configure has run, you can recreate
+# the Makefile by running just config.status.
+
+# === Variables set by config.status ===
+
+VERSION=	2.0
+
+srcdir=		.
+
+CC=		gcc
+RANLIB=		ranlib
+AR=		ar
+
+DEFS=		-DHAVE_CONFIG_H
+LIBS=		-lpthread -ldl  -lutil
+
+
+# === Fixed definitions ===
+
+TOP=		..
+PGENDIR=	$(TOP)/Parser
+PGEN=		$(PGENDIR)/pgen
+DESTH=		$(srcdir)/$(TOP)/Include/graminit.h
+DESTC=		$(srcdir)/$(TOP)/Python/graminit.c
+
+all:		install
+
+# This target is used by the master Makefile to add the objects to the library
+add2lib:
+
+install:	$(DESTH) $(DESTC)
+
+depend:
+
+$(DESTH):	graminit.h
+		cp graminit.h $(DESTH)
+
+$(DESTC):	graminit.c
+		cp graminit.c $(DESTC)
+
+graminit.c graminit.h: $(PGEN) Grammar
+		$(PGEN) $(srcdir)/Grammar
+
+$(PGEN):
+		cd $(PGENDIR); $(MAKE) pgen
+
+clean:
+		-rm -f *.o core *~ [@,#]* *.old *.orig *.rej
+		-rm -f graminit.[ch]
+
+clobber:	clean
+		-rm -f tags TAGS
