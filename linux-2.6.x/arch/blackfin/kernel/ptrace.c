@@ -64,7 +64,6 @@ static inline long get_reg(struct task_struct *task, int regno)
 	    ( KTHREAD_SIZE - sizeof(struct pt_regs)));
 	switch(regno){
 		case PT_PC :
-	//	case 140 :
 		               return regs->pc -  task->mm->start_code - TEXT_OFFSET;
 		case PT_R0 : return regs->r0;
 		case PT_ORIG_R0 : return regs->orig_r0;
@@ -116,9 +115,8 @@ static inline long get_reg(struct task_struct *task, int regno)
 		case PT_I1 : return regs->i1;
 		case PT_I2 : return regs->i2;
 		case PT_I3 : return regs->i3;
-		case PT_USP : return regs->usp;
-		case PT_FP : return regs->fp;
-		//case PT_VECTOR : return regs->pc;
+		case PT_USP : return regs->usp -  task->mm->start_code  -TEXT_OFFSET;
+		case PT_FP : return regs->fp  -  task->mm->start_code - TEXT_OFFSET;
 	}
 	/* slight mystery ... never seems to come here but kernel misbehaves without this code! */
 
@@ -153,7 +151,6 @@ static inline int put_reg(struct task_struct *task, int regno,
     		( KTHREAD_SIZE - sizeof(struct pt_regs)));
 	switch(regno){
 		case PT_PC : break;
-		//case 140 :
                		regs->pc = data +  task->mm->start_code + TEXT_OFFSET; break;
 		case PT_R0 : regs->r0 = data; break;
 		case PT_ORIG_R0 : regs->orig_r0 = data; break;
@@ -205,9 +202,8 @@ static inline int put_reg(struct task_struct *task, int regno,
 		case PT_I1 : regs->i1 = data; break;
 		case PT_I2 : regs->i2 = data; break;
 		case PT_I3 : regs->i3 = data; break;
-		case PT_USP : regs->usp = data; break;
-		case PT_FP : regs->fp = data; break;
-		//case PT_VECTOR : regs->pc = data; break;
+		case PT_USP : regs->usp =  task->mm->start_code + TEXT_OFFSET + data; break;
+		case PT_FP : regs->fp = task->mm->start_code + TEXT_OFFSET + data; break;
 	}
 return 0;
 }
