@@ -24,13 +24,10 @@ ENTRY(reschedule)
 	r7 = sp;   
 	r4.l = 0xe000;
 	r4.h = 0xffff;
-	
 	r7 = r7 & r4;  /*thread_info*/
 	p2 = r7; 
 	p2 = [p2];
 	[p2 + (TASK_THREAD + THREAD_ESP0)] = sp;
-
-	[--sp] = rets;
 	jump schedule; 
 
 ENTRY(ret_from_fork)
