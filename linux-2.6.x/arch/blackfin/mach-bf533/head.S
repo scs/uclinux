@@ -76,19 +76,42 @@ _stext:
 	[P0] = R0;
 	CSYNC;
 
-#ifdef CONFIG_BLKFIN_STAMP 
-
-	cli r2;
-	p0.h = (PLL_CTL >> 16);
-	p0.l = (PLL_CTL & 0xFFFF);
-	/*r0 = CCLK_550;*/	/* 550 MHz CCLK and 110 MHz SCLK*/
-	r0 = 0x4800 ;
-	w[p0] = r0;
-	idle;
-	sti r2;
+	p0.h = (UART_LCR >> 16);
+	p0.l = (UART_LCR & 0xFFFF);
+	r0 = 0x0(Z);	
+	w[p0] = r0.L;	/* To enable DLL writes */
 	ssync;
 
-/********************/
+	p0.h = (UART_DLL >> 16);
+	p0.l = (UART_DLL & 0xFFFF);
+	r0 = 0x0(Z);
+	w[p0] = r0.L;
+	ssync;
+
+	p0.h = (UART_DLH >> 16);
+	p0.l = (UART_DLH & 0xFFFF);
+	r0 = 0x00(Z);
+	w[p0] = r0.L;
+	ssync;
+	
+	p0.h = (UART_GCTL>>16);
+	p0.l = (UART_GCTL & 0xFFFF);
+	r0 = 0x0(Z);
+	w[p0] = r0.L;	/* To enable UART clock */
+	ssync;
+
+	p0.h = (PLL_CTL >> 16);
+	p0.l = (PLL_CTL & 0xFFFF);
+#ifdef CONFIG_BLKFIN_STAMP 
+	r0 = 0x4800 ;
+#elif defined CONFIG_EZKIT
+	r0 = CCLK_594; /* 27 * 22 = 594MHZ core clock, sclk = 118.8MHz */
+#endif
+	w[p0] = r0.l;
+	cli r2;
+	ssync;
+	idle;
+	sti r2;
 
 	p0.h = (PLL_DIV >> 16);
 	p0.l = (PLL_DIV & 0xFFFF);
@@ -96,66 +119,13 @@ _stext:
 	w[p0] = r0;
 	ssync;
 
-/**********************/
-
-	p1.l = DELAY_STMP;
-	p1.h = 0x0;
-	lsetup ( del_start,del_start ) lc0 = p1;
-
-del_start:
-	nop;
-del_end:
-	p0.h = (UART_GCTL>>16);
-	p0.l = (UART_GCTL & 0xFFFF);
-	r0 = UCEN;
-	w[p0] = r0;	/* To enable UART clock */
-	ssync;
-
-	p0.h = (UART_LCR >> 16);
-	p0.l = (UART_LCR & 0xFFFF);
-	r0 = DLAB;	
-	w[p0] = r0;	/* To enable DLL writes */
-	ssync;
-
-	p0.h = (UART_DLL >> 16);
-	p0.l = (UART_DLL & 0xFFFF);
-	r0 = 0x6b;	/* sys clock with 99MHz */
-	w[p0] = r0;
-	ssync;
-
-	p0.h = (UART_DLH >> 16);
-	p0.l = (UART_DLH & 0xFFFF);
-	r0 = 0x00;
-	w[p0] = r0;
-	ssync;
-
-	p0.h = (UART_LCR >> 16);
-	p0.l = (UART_LCR & 0xFFFF);	/* To enable writes to THR */
-	r0 = WLS(8);	
-	w[p0] = r0;
-	ssync;
-#endif
-		
-#ifdef CONFIG_EZKIT
-	cli r2;
-	p0.h = (PLL_CTL >> 16); 
-	p0.l = (PLL_CTL & 0xFFFF);
-	r0 = CCLK_594; /* 27 * 22 = 594MHZ core clock, sclk = 118.8MHz */
-	w[p0] = r0;
-	idle;
-	sti r2;
-	ssync;
-
-	p1.l = DELAY_EZ;
-	p1.h = 0x0;
-	lsetup ( del_start,del_start ) lc0 = p1;
-
-del_start:
-	nop;
-del_end:
-
-
-#endif
+check_again:
+	p0.h = hi(PLL_STAT);
+	p0.l = lo(PLL_STAT);
+	R0 = W[P0](Z);
+	CC = BITTST(R0,5);
+	if ! CC jump check_again;
+	
 	/* Code for initializing Async memory banks */
 
         p2.h = (EBIU_AMBCTL1 >> 16);
@@ -329,7 +299,7 @@ _clear_bss:
 	/*
 	 *  load the current thread pointer and stack
 	 */
-	r1.l = init_thread_union;	
+	r1.l = init_thread_union;
 	r1.h = init_thread_union;
 
 /* Use kernel stack instead of an l1 stack. l1 stack might overflow.
@@ -378,3 +348,4 @@ _ramstart:
 .long   0
 _ramend:
 .long   0
+
