@@ -43,11 +43,6 @@ unsigned long memory_end;
 char command_line[COMMAND_LINE_SIZE];
 u_long vco = 0; 
 
-/*Tool chain ISSUES - BFin*/
-void __you_cannot_kmalloc_that_much(void)
-{
-}
-
 void bf53x_cache_init(void);
 u_long get_cclk(void) ;
 u_long get_sclk(void);
@@ -117,7 +112,7 @@ void setup_arch(char **cmdline_p)
 	strncpy(&command_line[0], CONFIG_BOOTPARAM_STRING, sizeof(command_line));
 	command_line[sizeof(command_line)-1] = 0;
 #else
-	memset(command_line, 0, size);
+	memset(command_line, 0, sizeof(command_line));
 #endif
 
 	printk(KERN_INFO "uClinux/" CPU "\n");
