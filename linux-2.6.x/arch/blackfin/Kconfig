@@ -56,12 +56,31 @@ config BLACKFIN
 
 comment "Platform"
 
-config EZKIT
+choice 
+	prompt	"Platform"
+	default BF533 
+
+config EZKIT 
 	bool "EZKITLITE board support"
 	depends on BF533
 	help
-	  Support for EZKITLITE Board.
+	 EZKITLITE board Support.
 
+config MEM_MT48LC16M16A2TG_75
+	bool
+	depends on EZKIT
+	default y
+
+config  BLKFIN_STAMP
+	bool "STAMP board support"
+	depends on BF533
+	help
+	 STAMP board Support.
+
+config MEM_MT48LC64M4A2FB_7E
+	bool
+	depends on BLKFIN_STAMP
+	default y
 
 config HAWK 
 	bool "Hawk Board support"
@@ -75,10 +94,7 @@ config EAGLE
 	help
 	  Support for Eagle Board.
 
-config BLKFIN_STAMP
-	bool 'Enable STAMP support' 
-	help
-	  Support for STAMP Board	
+endchoice
 
 choice
 	prompt	"Kernel executes from" 
@@ -89,7 +105,6 @@ config	RAMKERNEL
 	bool "RAM"
 	help
 	  The kernel will be resident in RAM when running.
-
 
 config	ROMKERNEL 
 	bool "ROM"
@@ -132,9 +147,54 @@ endchoice
 
 comment 'Crystal Frequency'
 
-config CLKIN
-	int "Crystal" 	
-	default 27 if EZKIT
+config CLKIN_HZ
+	int "Crystal"
+	default "11059200" if BLKFIN_STAMP
+	default "27000000" if EZKIT
+
+comment 'VCO Multiplier'
+
+config VCO_MULT
+	int "VCO Multiplier" 	
+	default "22" if EZKIT
+	default "36" if BLKFIN_STAMP
+
+comment 'Core Clock Divider'
+
+config CCLK_DIV
+	int "Core Clock Divider"
+	default 1 if EZKIT
+	default 1 if BLKFIN_STAMP
+
+comment 'System Clock Divider'
+
+config SCLK_DIV
+	int "System Clock Divider"
+	default 5 if EZKIT
+	default 5 if BLKFIN_STAMP
+
+comment 'Half clockin'
+
+config CLKIN_HALF
+	bool "Half ClockIn"
+
+comment 'Bypass PLL'
+
+config PLL_BYPASS
+	bool "Bypass PLL"
+
+comment 'SDRAM Memory Size'
+
+config MEM_SIZE
+	int "SDRAM Memory Size"
+	default 32 if EZKIT
+	default 128 if BLKFIN_STAMP
+
+comment 'Memory Address Width'
+
+config MEM_ADD_WIDTH
+	int "SDRAM Memory Address Width"
+	default 9 if EZKIT
 	default 11 if BLKFIN_STAMP
 
 comment 'Baud Rate'
@@ -153,26 +213,6 @@ config BAUD_57600
 config BAUD_115200
 	bool "115200"
 endchoice
-
-comment 'System Clock'
-
-choice
-	prompt "Clock"
-	default BF53x_SCLK_54_MHZ 	  	
-
-config BF53x_SCLK_118_MHZ
-	bool "118MHz Clock"		 
-config BF53x_SCLK_99_MHZ
-	bool "99MHz Clock"		 
-config BF53x_SCLK_126_MHZ
-	bool "126MHz Clock"		 
-config BF53x_SCLK_129_MHZ
-	bool "129MHz Clock"		 
-config BF53x_SCLK_132_MHZ
-	bool "132MHz Clock"		 
-
-endchoice
-
 
 comment	'Interrupt Priority Assignment'
 menu	'Priority' 		
