@@ -2,7 +2,18 @@
  *
  * cdefBF532.h
  *
- * (c) Copyright 2001-2004 Analog Devices, Inc.  All rights reserved.
+ * This file is subject to the terms and conditions of the GNU Public 
+ * License. See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ * Non-GPL License also available as part of VisualDSP++
+ * http://www.analog.com/processors/resources/crosscore/visualDspDevSoftware.html
+ *
+ * (c) Copyright 2001-2004 Analog Devices, Inc. All rights reserved
+ *
+ * Revision 1.9 - Wed Mar 24 12:21:16 2004 UTC
+ * This file under source code control, please send bugs or changes to:
+ * dsptools.support@analog.com
  *
  ************************************************************************/
 
@@ -12,13 +23,13 @@
 #if !defined(__ADSPLPBLACKFIN__)
 #warning cdefBF532.h should only be included for 532 compatible chips.
 #endif
-/*include all Core registers and bit definitions*/
+// include all Core registers and bit definitions
 #include <defBF532.h>
 
-/*include core specific register pointer definitions*/
+// include core specific register pointer definitions
 #include <cdef_LPBlackfin.h>
 
-/*Clock and System Control (0xFFC0 0400-0xFFC0 07FF)*/
+// Clock and System Control (0xFFC0 0400-0xFFC0 07FF)
 #define pPLL_CTL ((volatile unsigned short *)PLL_CTL)
 #define pPLL_STAT ((volatile unsigned short *)PLL_STAT)
 #define pPLL_LOCKCNT ((volatile unsigned short *)PLL_LOCKCNT)
@@ -27,7 +38,7 @@
 #define pPLL_DIV ((volatile unsigned short *)PLL_DIV)
 #define pVR_CTL ((volatile unsigned short *)VR_CTL)
 
-/*System Interrupt Controller (0xFFC0 0C00-0xFFC0 0FFF)*/
+// System Interrupt Controller (0xFFC0 0C00-0xFFC0 0FFF)
 #define pSIC_IAR0 ((volatile unsigned long *)SIC_IAR0)
 #define pSIC_IAR1 ((volatile unsigned long *)SIC_IAR1)
 #define pSIC_IAR2 ((volatile unsigned long *)SIC_IAR2)
@@ -36,12 +47,12 @@
 #define pSIC_ISR ((volatile unsigned long *)SIC_ISR)
 #define pSIC_IWR ((volatile unsigned long *)SIC_IWR)
 
-/*Watchdog Timer (0xFFC0 1000-0xFFC0 13FF)*/
+// Watchdog Timer (0xFFC0 1000-0xFFC0 13FF)
 #define pWDOG_CTL ((volatile unsigned short *)WDOG_CTL)
 #define pWDOG_CNT ((volatile unsigned long *)WDOG_CNT)
 #define pWDOG_STAT ((volatile unsigned long *)WDOG_STAT)
 
-/*Real Time Clock (0xFFC0 1400-0xFFC0 17FF)*/
+// Real Time Clock (0xFFC0 1400-0xFFC0 17FF)
 #define pRTC_STAT ((volatile unsigned long *)RTC_STAT)
 #define pRTC_ICTL ((volatile unsigned short *)RTC_ICTL)
 #define pRTC_ISTAT ((volatile unsigned short *)RTC_ISTAT)
@@ -50,7 +61,7 @@
 #define pRTC_FAST ((volatile unsigned short *)RTC_FAST)
 #define pRTC_PREN ((volatile unsigned short *)RTC_PREN)
 
-/*General Purpose IO (0xFFC0 2400-0xFFC0 27FF)*/
+// General Purpose IO (0xFFC0 2400-0xFFC0 27FF)
 #define pFIO_DIR ((volatile unsigned short *)FIO_DIR)
 #define pFIO_FLAG_C ((volatile unsigned short *)FIO_FLAG_C)
 #define pFIO_FLAG_S ((volatile unsigned short *)FIO_FLAG_S)
@@ -69,13 +80,13 @@
 #define pFIO_MASKB_D ((volatile unsigned short *)FIO_MASKB_D)
 #define pFIO_MASKB_T ((volatile unsigned short *)FIO_MASKB_T)
 
-/*DMA Traffic controls*/
+// DMA Traffic controls
 #define pDMA_TCPER ((volatile unsigned short *)DMA_TCPER)
 #define pDMA_TCCNT ((volatile unsigned short *)DMA_TCCNT)
 #define pDMA_TC_PER ((volatile unsigned short *)DMA_TC_PER)
 #define pDMA_TC_CNT ((volatile unsigned short *)DMA_TC_CNT)
 
-/*DMA Controller*/
+// DMA Controller
 #define pDMA0_CONFIG ((volatile unsigned short *)DMA0_CONFIG)
 #define pDMA0_NEXT_DESC_PTR ((volatile void **)DMA0_NEXT_DESC_PTR)
 #define pDMA0_START_ADDR ((volatile void **)DMA0_START_ADDR)
@@ -244,12 +255,12 @@
 #define pMDMA_S0_IRQ_STATUS ((volatile unsigned short *)MDMA_S0_IRQ_STATUS)
 #define pMDMA_S0_PERIPHERAL_MAP ((volatile unsigned short *)MDMA_S0_PERIPHERAL_MAP)
 
-/*Aysnchronous Memory Controller - External Bus Interface Unit (0xFFC0 3C00-0xFFC0 3FFF)*/
+// Aysnchronous Memory Controller - External Bus Interface Unit (0xFFC0 3C00-0xFFC0 3FFF)
 #define pEBIU_AMGCTL ((volatile unsigned short *)EBIU_AMGCTL)
 #define pEBIU_AMBCTL0 ((volatile unsigned long *)EBIU_AMBCTL0)
 #define pEBIU_AMBCTL1 ((volatile unsigned long *)EBIU_AMBCTL1)
 
-/*System Bus Interface Unit (0xFFC0 4800-0xFFC0 4FFF)*/
+// System Bus Interface Unit (0xFFC0 4800-0xFFC0 4FFF)
 /*
 #define L1SBAR                 0xFFC04840  // L1 SRAM Base Address Register
 #define L1CSR                  0xFFC04844  // L1 SRAM Control Initialization Register
@@ -260,13 +271,13 @@
 #define pDB_CCOMP ((volatile unsigned long *)DB_CCOMP)
 */
 
-/*SDRAM Controller External Bus Interface Unit (0xFFC0 4C00-0xFFC0 4FFF)*/
+// SDRAM Controller External Bus Interface Unit (0xFFC0 4C00-0xFFC0 4FFF)
 #define pEBIU_SDGCTL ((volatile unsigned long *)EBIU_SDGCTL)
 #define pEBIU_SDRRC ((volatile unsigned short *)EBIU_SDRRC)
 #define pEBIU_SDSTAT ((volatile unsigned short *)EBIU_SDSTAT)
 #define pEBIU_SDBCTL ((volatile unsigned short *)EBIU_SDBCTL)
 
-/*UART Controller*/
+// UART Controller
 #define pUART_THR ((volatile unsigned short *)UART_THR)
 #define pUART_RBR ((volatile unsigned short *)UART_RBR)
 #define pUART_DLL ((volatile unsigned short *)UART_DLL)
@@ -282,7 +293,7 @@
 #define pUART_SCR ((volatile unsigned short *)UART_SCR)
 #define pUART_GCTL ((volatile unsigned short *)UART_GCTL)
 
-/*SPI Controller*/
+// SPI Controller
 #define pSPI_CTL ((volatile unsigned short *)SPI_CTL)
 #define pSPI_FLG ((volatile unsigned short *)SPI_FLG)
 #define pSPI_STAT ((volatile unsigned short *)SPI_STAT)
@@ -291,7 +302,7 @@
 #define pSPI_BAUD ((volatile unsigned short *)SPI_BAUD)
 #define pSPI_SHADOW ((volatile unsigned short *)SPI_SHADOW)
 
-/*TIMER 0, 1, 2 Registers*/
+// TIMER 0, 1, 2 Registers
 #define pTIMER0_CONFIG ((volatile unsigned short *)TIMER0_CONFIG)
 #define pTIMER0_COUNTER ((volatile unsigned long *)TIMER0_COUNTER)
 #define pTIMER0_PERIOD ((volatile unsigned long *)TIMER0_PERIOD)
@@ -311,7 +322,7 @@
 #define pTIMER_DISABLE ((volatile unsigned short *)TIMER_DISABLE)
 #define pTIMER_STATUS ((volatile unsigned short *)TIMER_STATUS)
 
-/*SPORT0 Controller*/
+//// SPORT0 Controller
 #define pSPORT0_TCR1 ((volatile unsigned short *)SPORT0_TCR1)
 #define pSPORT0_TCR2 ((volatile unsigned short *)SPORT0_TCR2)
 #define pSPORT0_TCLKDIV ((volatile unsigned short *)SPORT0_TCLKDIV)
@@ -339,7 +350,7 @@
 #define pSPORT0_MRCS2 ((volatile unsigned long *)SPORT0_MRCS2)
 #define pSPORT0_MRCS3 ((volatile unsigned long *)SPORT0_MRCS3)
 
-/*SPORT1 Controller*/
+//// SPORT1 Controller
 #define pSPORT1_TCR1 ((volatile unsigned short *)SPORT1_TCR1)
 #define pSPORT1_TCR2 ((volatile unsigned short *)SPORT1_TCR2)
 #define pSPORT1_TCLKDIV ((volatile unsigned short *)SPORT1_TCLKDIV)
@@ -367,7 +378,7 @@
 #define pSPORT1_MRCS2 ((volatile unsigned long *)SPORT1_MRCS2)
 #define pSPORT1_MRCS3 ((volatile unsigned long *)SPORT1_MRCS3)
 
-/*Parallel Peripheral Interface (PPI)*/
+//// Parallel Peripheral Interface (PPI)
 #define pPPI_CONTROL ((volatile unsigned short *)PPI_CONTROL)
 #define pPPI_STATUS ((volatile unsigned short *)PPI_STATUS)
 #define pPPI_DELAY ((volatile unsigned short *)PPI_DELAY)

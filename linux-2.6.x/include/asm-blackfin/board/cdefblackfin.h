@@ -1,6 +1,6 @@
 /************************************************************************
  *
- * cdef_LPBlackfin.h
+ * cdefblackfin.h
  *
  * This file is subject to the terms and conditions of the GNU Public 
  * License. See the file "COPYING" in the main directory of this archive
@@ -11,19 +11,19 @@
  *
  * (c) Copyright 2001-2004 Analog Devices, Inc. All rights reserved
  *
- * Revision 1.5 - Thu Oct 30 12:57:53 2003 UTC
+ * Revision 1.6 - Fri Jun 11 17:39:12 2004 UTC 
  * This file under source code control, please send bugs or changes to:
  * dsptools.support@analog.com
  *
  ************************************************************************/
 
-#ifndef _CDEF_LPBLACKFIN_H
-#define _CDEF_LPBLACKFIN_H
+#ifndef _CDEF_BLACKFIN_H
+#define _CDEF_BLACKFIN_H
 
-#if !defined(__ADSPLPBLACKFIN__)
-#warning cdef_LPBlackfin.h should only be included for 532 compatible chips.
+#if defined(__ADSPLPBLACKFIN__)
+#warning cdefblackfin.h should only be included for 535 compatible chips.
 #endif
-#include <def_LPBlackfin.h>
+#include <defblackfin.h>
 
 // Cache & SRAM Memory
 #define pSRAM_BASE_ADDRESS ((volatile void **)SRAM_BASE_ADDRESS)
@@ -134,9 +134,9 @@
 #define pEVT13 ((volatile void **)EVT13)
 #define pEVT14 ((volatile void **)EVT14)
 #define pEVT15 ((volatile void **)EVT15)
-#define pIMASK ((volatile unsigned long *)IMASK)
-#define pIPEND ((volatile unsigned long *)IPEND)
-#define pILAT ((volatile unsigned long *)ILAT)
+#define pIMASK ((volatile unsigned short *)IMASK)
+#define pIPEND ((volatile unsigned short *)IPEND)
+#define pILAT ((volatile unsigned short *)ILAT)
 
 // Core Timer Registers
 #define pTCNTL ((volatile unsigned long *)TCNTL)
@@ -181,8 +181,4 @@
 #define pPFCNTR0 ((volatile unsigned long *)PFCNTR0)
 #define pPFCNTR1 ((volatile unsigned long *)PFCNTR1)
 
-/*
-#define IPRIO                  0xFFE02110  // Core Interrupt Priority Register
-*/
-
-#endif /* _CDEF_LPBLACKFIN_H */
+#endif /* _CDEF_BLACKFIN_H */
