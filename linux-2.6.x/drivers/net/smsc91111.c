@@ -683,6 +683,7 @@ static void smc_reset( struct net_device* dev )
 	   but this is a place where future chipsets _COULD_ break.  Be wary
  	   of issuing another MMU command right after this */
 	while (readw( ioaddr + MMU_CMD_REG ) & MC_BUSY );
+	printk("");
 	/* Disable all interrupts */
 #if defined(CONFIG_SMC16BITONLY)
 	smc_writew( 0, ioaddr + INT_REG );
