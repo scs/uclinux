@@ -14,6 +14,7 @@
 .global _ramstart
 .global _ramend
 .extern _ebss
+.extern bf53x_relocate_l1_mem
 
 #define FILE_HEAD_START	0x00000404
 
@@ -91,6 +92,7 @@ ENTRY(_stext)
 	ssync;
 
 	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
+	call bf53x_relocate_l1_mem;
 	call start_dma_code;
 
 	/* Code for initializing Async memory banks */
