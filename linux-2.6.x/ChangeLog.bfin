@@ -1,0 +1,75 @@
+2004-10-12 LG Soft
+
+Problems (before adding the support)
+1) Date command does not display the correct date/time. Used to show junk values when invoked.
+2) Setting the date was not possible.
+ 
+The reason for all these problems was that the RTC support was not available in the kernel.
+ 
+What has been done ?
+ 
+1) BF533 RTC support has been added to kernel (arch/bfinnommu/kernel/bf533_rtc.c, include/asm/bff533_rtc.h). These contain routines to get/set the calendar time from/to BF533 RTC. The RTC maintains the time even if the board is switched off or reset or in deep sleep mode.
+ 
+2) The reference was taken from the earlier U-Boot RTC implementation. This implementation, however, had 2 problems (now rectified)
+        - Global variables were used for year and month (since there was no year/month counters in RTC). This information was lost after every re-boot, reset.
+        - Automatic updation of month and year was not possible (since this information was not stored in the RTC).
+ 
+3) The current RTC implmentations solves the above 2 problems as follows:
+        - The RTC is now configured to stores the calendar time in the following format: (refer RTC_STAT register)
+                DAY -> No. of days since 1970
+                HRS -> No. of hrs (0 - 23)
+                MINS -> No. of mins (0 - 59)
+                SECS -> No. of secs (0 -59)
+        - The year and month information is derived from the above calendar time using the mktime() and to_tm() algorithms. 
+
+	
+    1. Added bf533_rtc.c to arch/bfinnommu/kernel/
+    2. Added bf533_rtc.h to include/asm/
+    3. Modified arch/bfinnommu/kernel/MAKEFILE to build bf533_rtc.o
+    4. Modifications in arch/bfinnommu/kernel/time.c
+        - Modified time_init() routine to retrieve the time as the no. of secs since Jan 1970 rather than as (year, month, day...). 
+        - calls arch_gettod(time_t *t) instead of arch_gettod(year, month....);
+        - calls arch_init() to initialize the RTC.
+        - Modified do_settimeofday() to set the time in RTC using arch_settod().
+ 
+    5. Modifications in arch/bfinnommu/kernel/setup.c
+        - changed void (*mach_gettod)(int *yr, int *mon...) = NULL 
+                            to 
+          void (*mach_gettod)(time_t * ) = NULL
+        - Added void (*mach_settod)(time_t ) = NULL
+        - Added void (*mach_init)( ) = NULL
+        - Modified the prototype of 
+            void arch_gettod(int *yr, int * mon ....) to 
+            void arch_gettod(time_t *t)
+ 
+        - Modified arch_gettod() to call mach_gettod(time_t *) instead of (*mach_gettod)(int *yr, int *mon...) 
+        - Added the arch_settod(time_t t) implementation.
+        - Added the arch_init() implementation.
+ 
+    6.Modifications in arch/bfinnommu/mach-bf533/config.c
+        - Included <asm/bf533_rtc.h>
+        - Added implementation of BSP_settod()
+        - Changed the implementation of BSP_gettod()
+        - in config_bsp(), set the mach_settod to BSP_settod(), mach_init to BSP_init
+        - Added implementation of BSP_init() => This invokes rtc_init().
+ 
+    7.Modifications in include/asm/macdep.h
+        - Added the prototypes for mach_gettod(), mach_settod(), mach_init()
+
+
+Limitations:
+1. The BF 533 RTC DAY field in the RTC_STAT register can count only upto 32768 days (89 yrs, 260 days). This means that the current implementation will work well only upto year 2059. After 2059, the date displayed will be 1970.
+ 
+Problems observed after testing:
+1) When we set the date using the U-Boot and then read the same from the kernel using the date command, a difference of 1 HR is observed. This could be coz:
+        - Time zone settings in the kernel
+        - Difference in the mktime(), to_tm() algorithms used by boot loader and kernel.
+ 
+2) In boot loader (reported by Sajeev when he tested with a board having battery support) teh following observation was made:
+        - Set the date and then power off the board for 10 mins
+        - Power on the board.
+        - Issue the date command to check the time.
+A difference of 1 mins is observed against a standard clock.
+ 
+3) In the kernel, we cannot still SET the date using the date command. After analysis, it was found that it was not a problem in the RTC. The mktime() API in ucLIBC is returning error from /sash/date.c. This has to be further analyzed.
+
