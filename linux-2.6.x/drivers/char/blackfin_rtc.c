@@ -144,7 +144,6 @@ check:
 	st = *pRTC_ISTAT;
     	if((st & 0x8000) == 0)
 		goto check;
-
     //*(volatile unsigned short *)RTC_ISTAT = 0x807F;
     *(volatile unsigned short *)RTC_ISTAT |= 0x8000;
 
@@ -666,12 +665,11 @@ int __init blackfin_rtc_init(void)
 #endif
     *pRTC_PREN = PRESCALE_EN;
     asm("ssync;");
-    wait_for_complete();
     *pRTC_ISTAT = 0x807F;
     asm("ssync;");
+    wait_for_complete();
     *pRTC_ICTL = 0x0;
     asm("ssync;");
-    wait_for_complete();
     *pRTC_ALARM = 0;
     asm("ssync;");
     wait_for_complete();
