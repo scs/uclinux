@@ -74,7 +74,7 @@ _stext:
 
 	p1.l = DELAY_STMP;
 	p1.h = 0x0;
-	lsetup ( del_start,del_end ) lc0 = p1;
+	lsetup ( del_start,del_start ) lc0 = p1;
 
 del_start:
 	nop;
@@ -122,7 +122,7 @@ del_end:
 
 	p1.l = DELAY_EZ;
 	p1.h = 0x0;
-	lsetup ( del_start,del_end ) lc0 = p1;
+	lsetup ( del_start,del_start ) lc0 = p1;
 
 del_start:
 	nop;
@@ -201,10 +201,10 @@ _real_start:
 	p2.l = _ebss;
 	p2.h = _ebss;
 	r0 = 0;
-	lsetup (_clear_bss, _clear_bss_end ) lc0 = p2 - p1;
+	p2 -= p1; 
+	lsetup (_clear_bss, _clear_bss ) lc0 = p2;
 _clear_bss:
 	B[p1++] = r0;
-_clear_bss_end:
 
 	p1.l = _rambase;
 	p1.h = _rambase;
