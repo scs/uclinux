@@ -14,19 +14,18 @@
 .global _ramstart
 .global _ramend
 .global _stext
-.global __bss_start
-.global start
 .global _start
 
 .text 
 
 _start:
-start:
 _stext:
 	/* Set the SYSCFG register */	
 	R0 = 0x36; 		/*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
 	SYSCFG = r0;
 	R0 = 0;
+
+/*Clear Out All the data and pointer  Registers*/	
 	R1 = R0;
 	R2 = R0;
 	R3 = R0;
@@ -48,7 +47,8 @@ _stext:
 	L1 = r0;
 	L2 = r0;
 	L3 = r0;
-	
+
+/*Clear Out All the DAG Registers*/	
 	B0 = r0;
 	B1 = r0;
 	B2 = r0;
@@ -354,16 +354,12 @@ reset_start:
         r0 = 0x0007;
         w[p0] = r0;
         ssync;
-	nop;
 
-        p0.h = SWRST >> 16;
-        p0.l = SWRST & 0xFFFF;
 	r0 = w[p0];
 	csync;
         r0 = 0x0000;
         w[p0] = r0;
         ssync;
-	nop;
         /* Core reset - forces reboot */
         RAISE 1 ;
 reset_end: nop;
