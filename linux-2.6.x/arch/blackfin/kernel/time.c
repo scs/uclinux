@@ -9,7 +9,7 @@
  *
  */
 
-#include <linux/config.h> /* CONFIG_HEARTBEAT */
+#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -18,8 +18,8 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/profile.h> 
-#include <linux/timex.h>
 #include <linux/time.h> 
+#include <linux/timex.h>
 
 #include <asm/machdep.h>
 #include <asm/io.h>
@@ -61,15 +61,14 @@ static inline void do_profile (unsigned long pc)
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static int timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
+static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 {
 	/* last time the cmos clock got updated */
 	static long last_rtc_update=0;
-
 	write_seqlock(&xtime_lock); 
 
 	do_timer(regs);
-
+	
 	/*
 	 * If we have an externally synchronized Linux clock, then update
 	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
@@ -86,7 +85,7 @@ static int timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 	    last_rtc_update = xtime.tv_sec - 600; /* do it again in 60 s */
 	}
 	write_sequnlock(&xtime_lock);
-	return(1);	
+	return IRQ_HANDLED;	
 }
 
 void time_init(void)
@@ -95,7 +94,10 @@ void time_init(void)
 
 	extern void arch_gettod(int *year, int *mon, int *day, int *hour,
 				int *min, int *sec);
-
+	
+	year = 2010;
+	mon = day = 3;
+	hour = min = sec = 0;
 	arch_gettod (&year, &mon, &day, &hour, &min, &sec);
 
 	if ((year += 1900) < 1970)
@@ -112,8 +114,7 @@ void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
 	unsigned long lost, seq;
-	/*unsigned long usec, sec;*/
-	long int usec, sec;
+	unsigned long usec, sec;
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
@@ -177,3 +178,4 @@ unsigned long long sched_clock(void)
 	return (unsigned long long)jiffies * (1000000000 / HZ);
 }
 
+EXPORT_SYMBOL(do_settimeofday);
