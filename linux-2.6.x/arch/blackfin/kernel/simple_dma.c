@@ -294,6 +294,47 @@ static int bf533_channel2irq( unsigned int channel)
 	return ret_irq;
 }
 
+
+/*------------------------------------------------------------------------------
+ *	Get the DMA status of a specific DMA channel from the system.
+ *-----------------------------------------------------------------------------*/
+int bfin_get_dma_status(unsigned int channel)
+{
+	return dma_ch[channel].regs->irq_status;
+}
+
+/*------------------------------------------------------------------------------
+ *	Clear the DMA_DONE bit in DMA status. Stop the DMA completion interrupt.
+ *-----------------------------------------------------------------------------*/
+void bfin_clear_dma_done(unsigned int channel)
+{
+	dma_ch[channel].regs->irq_status |= 1;
+}
+
+/*------------------------------------------------------------------------------
+ *	Clear the DMA_ERR bit in DMA status. Stop the DMA error interrupt.
+ *-----------------------------------------------------------------------------*/
+void bfin_clear_dma_err(unsigned int channel)
+{
+	dma_ch[channel].regs->irq_status |= 2;
+}
+
+/*------------------------------------------------------------------------------
+ *	Get current DMA xcount of a specific DMA channel from the system.
+ *-----------------------------------------------------------------------------*/
+int bfin_get_curxcount(unsigned int channel)
+{
+	return dma_ch[channel].regs->curr_x_count;
+}
+
+/*------------------------------------------------------------------------------
+ *	Get current DMA ycount of a specific DMA channel from the system.
+ *-----------------------------------------------------------------------------*/
+int bfin_get_curycount(unsigned int channel)
+{
+	return dma_ch[channel].regs->curr_y_count;
+}
+
 /*------------------------------------------------------------------------------
  *	Request the specific DMA channel from the system.
  *-----------------------------------------------------------------------------*/
@@ -432,6 +473,8 @@ int bfin_setupdma(unsigned int channel, void *buf, unsigned int len, struct dma_
 #endif	
 	dma->x_count    = cfg.xcount;
 	dma->x_modify   = cfg.xmodify;
+	dma->curr_x_count = 0;
+	dma->curr_y_count = 0;
 
 	if( cfg.dma_2d ) {
 		dma->y_count    = cfg.ycount;
@@ -1351,3 +1394,9 @@ EXPORT_SYMBOL(bfin_startdma);
 EXPORT_SYMBOL(bfin_stopdma);
 EXPORT_SYMBOL(bfin_ack_dma_int);
 EXPORT_SYMBOL(bfin_freedma);
+
+EXPORT_SYMBOL(bfin_get_dma_status);
+EXPORT_SYMBOL(bfin_clear_dma_done);
+EXPORT_SYMBOL(bfin_clear_dma_err);
+EXPORT_SYMBOL(bfin_get_curxcount);
+EXPORT_SYMBOL(bfin_get_curycount);
