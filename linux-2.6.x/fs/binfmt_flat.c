@@ -374,6 +374,24 @@ failed:
 
 /****************************************************************************/
 #ifdef CONFIG_BFIN
+#ifdef CONFIG_BINFMT_SHARED_FLAT
+static int
+load_library(int curid, int id, struct lib_info *p, flat_v5_reloc_t *r)
+{
+	if ( ! p->lib_list[id].loaded &&
+		   load_flat_shared_library(id, p) > (unsigned long) -4096) {
+		printk("BINFMT_FLAT: failed to load library %d", id);
+		return 0;
+	}
+	/* Check versioning information (i.e. time stamps) */
+	if (p->lib_list[id].build_date && p->lib_list[curid].build_date &&
+			p->lib_list[curid].build_date < p->lib_list[id].build_date) {
+		printk("BINFMT_FLAT: library %d is younger than %d", id, curid);
+		return 0;
+	}
+	return 1;
+}
+#endif
 
 int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int internalp)
 {
@@ -393,6 +411,7 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 	unsigned long text_len;
 	unsigned long start_code;
 	int id;
+	int new_id;
 
 	r.value = rl;
 #ifdef CONFIG_BINFMT_SHARED_FLAT
@@ -545,7 +564,29 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 #endif
 		offset = *ptr;
 
-		switch (r.reloc.type) {
+#ifdef CONFIG_BINFMT_SHARED_FLAT
+		/* relocation of R_byte4_data in another library.
+                   The value we have is absolute relative to the library.
+		*/
+
+		new_id = (offset >> 24) & 0x03;	/* Find ID for this reloc */
+
+		// new_id = 0 indicates local relocation.
+		if(new_id !=0 && new_id != curid){
+			/* this symbol is in a different library */
+			/* verify if it is loaded */
+			if(!load_library(curid, new_id, p, &r))
+				goto failed;
+			offset = offset & 0x00ffffff;
+			if(offset < p->lib_list[new_id].text_len)
+				offset +=  p->lib_list[new_id].start_code;
+			else
+				offset = offset - p->lib_list[new_id].text_len + p->lib_list[new_id].start_data;
+		}
+		else
+#endif
+		{
+			switch (r.reloc.type) {
 			case FLAT_RELOC_TYPE_TEXT:
 				offset += start_code;
 				break;
@@ -557,9 +598,10 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 				break;
 			default:
 				printk
-			    ("BINFMT_FLAT: offset= %x,Unknown relocation type=%x\n",
-			     r.reloc.offset, r.reloc.type);
-			break;
+			    		("BINFMT_FLAT: offset= %x,Unknown relocation type=%x\n",
+			     		r.reloc.offset, r.reloc.type);
+				break;
+			}
 		}
 
 		*ptr = offset;
