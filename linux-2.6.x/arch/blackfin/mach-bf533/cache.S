@@ -63,8 +63,11 @@ ENTRY(invalidate_entire_icache)
 	 * cache are set to the invalid state
 	 */
 	BITCLR(R7,2);
+	CLI R6;
+	.align 8;
 	[P0] = R7;
 	SSYNC;
+	STI R6;
 
 	/* Configures the instruction cache agian */
 	R6 = (IMC | ENICPLB);
@@ -133,12 +136,15 @@ ENTRY(invalidate_entire_dcache)
 	 */		
 	BITCLR(R7,2);
 	BITCLR(R7,3);
+	CLI R6;
+	.align 8;
 	[P0] = R7;
 	SSYNC;
+	STI R6;
 
 	/* Configures the data cache again */
 
-	R6 = (ACACHE_BCACHE | ENDCPLB);
+	R6 = (ACACHE_BCACHE | ENDCPLB | PORT_PREF0);
 	R7 = R7 | R6;
 	
 	CLI R6;
@@ -167,7 +173,7 @@ ENTRY(_dcache_invalidate)
 	 */
 	
 	R6 = [P0];
-	R0 = (ACACHE_BCACHE | ENDCPLB);
+	R0 = (ACACHE_BCACHE | ENDCPLB | PORT_PREF0);
 
 	/* Enable both as cache although we are going to invalidate only 1.
 	 * This is because if only 1 bank is configured as cache it must be
