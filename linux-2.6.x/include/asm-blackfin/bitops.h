@@ -5,45 +5,10 @@
  * Copyright 1992, Linus Torvalds.
  */
 
-#include <linux/config.h>
-#include <linux/compiler.h>	
-#include <asm/byteorder.h>	/* swab32     */
 #include <asm/system.h>		/* save_flags */
-
 
 #ifdef __KERNEL__
 
-/*
- *	Generic ffs().
- */
-static inline int ffs(int x)
-{
-	int r = 1;
-
-	if (!x)
-		return 0;
-	if (!(x & 0xffff)) {
-		x >>= 16;
-		r += 16;
-	}
-	if (!(x & 0xff)) {
-		x >>= 8;
-		r += 8;
-	}
-	if (!(x & 0xf)) {
-		x >>= 4;
-		r += 4;
-	}
-	if (!(x & 3)) {
-		x >>= 2;
-		r += 2;
-	}
-	if (!(x & 1)) {
-		x >>= 1;
-		r += 1;
-	}
-	return r;
-}
 /*
  *	Generic __ffs().
  */
@@ -75,29 +40,6 @@ static inline int __ffs(int x)
 	}
 	return r;
 }
-
-static inline int find_first_bit(const unsigned long *vaddr, unsigned size)
-{
-	const unsigned long *p = vaddr;
-	int res = 32;
-	unsigned long num;
-
-	if (!size)
-		return 0;
-
-	size = (size + 31) >> 5;
-	while (!(num = *p++)) {
-		if (!--size)
-			goto out;
-	}
-/*
-	__asm__ __volatile__ ("bfffo %1{#0,#0},%0"
-			      : "=d" (res) : "d" (num & -num));*/
-	res ^= 31;
-out:
-	return ((long)p - (long)vaddr - 4) * 8 + res;
-}
-
 
 /*
  * Every architecture must define this function. It's the fastest
@@ -136,7 +78,6 @@ static __inline__ unsigned long ffz(unsigned long word)
 	}
 	return result;
 }
-
 
 static __inline__ void set_bit(int nr, volatile unsigned long * addr)
 {
@@ -279,7 +220,6 @@ static __inline__ int test_and_change_bit(int nr, volatile unsigned long * addr)
 	retval = (mask & *a) != 0;
 	*a ^= mask;
 	local_irq_restore(flags);
-
 	return retval;
 }
 
@@ -320,6 +260,8 @@ static __inline__ int __test_bit(int nr, const volatile unsigned long * addr)
 
 #define find_first_zero_bit(addr, size) \
         find_next_zero_bit((addr), (size), 0)
+#define find_first_bit(addr, size) \
+	find_next_bit((addr), (size), 0)
 
 static __inline__ int find_next_zero_bit (void * addr, int size, int offset)
 {
@@ -350,9 +292,10 @@ static __inline__ int find_next_zero_bit (void * addr, int size, int offset)
 	if (!size)
 		return result;
 	tmp = *p;
-
 found_first:
 	tmp |= ~0UL >> size;
+	if (tmp == ~0UL)        /* Are any bits zero? */
+		return result + size; /* Nope. */
 found_middle:
 	return result + ffz(tmp);
 }
@@ -382,7 +325,7 @@ static __inline__ unsigned long find_next_bit(const unsigned long *addr,
 		result += 32;
 	}
 	while (size >= 32) {
-		if ((tmp = *p++) != 0)
+		if ((tmp = *(p++)))
 			goto found_middle;
 		result += 32;
 		size -= 32;
@@ -406,6 +349,7 @@ found_middle:
  */
 
 #define ffs(x) generic_ffs(x)
+#define fls(x) generic_fls(x)
 
 /*
  * hweightN: returns the hamming weight (i.e. the number
@@ -416,35 +360,6 @@ found_middle:
 #define hweight16(x) generic_hweight16(x)
 #define hweight8(x) generic_hweight8(x)
 
-static __inline__ int ext2_set_bit(int nr, volatile void * addr)
-{
-	int		mask, retval;
-	unsigned long	flags;
-	volatile unsigned char	*ADDR = (unsigned char *) addr;
-
-	ADDR += nr >> 3;
-	mask = 1 << (nr & 0x07);
-	local_irq_save(flags);
-	retval = (mask & *ADDR) != 0;
-	*ADDR |= mask;
-	local_irq_restore(flags);
-	return retval;
-}
-
-static __inline__ int ext2_clear_bit(int nr, volatile void * addr)
-{
-	int		mask, retval;
-	unsigned long	flags;
-	volatile unsigned char	*ADDR = (unsigned char *) addr;
-
-	ADDR += nr >> 3;
-	mask = 1 << (nr & 0x07);
-	local_irq_save(flags); 
-	retval = (mask & *ADDR) != 0;
-	*ADDR &= ~mask;
-	local_irq_restore(flags);
-	return retval;
-}
 #define ext2_set_bit_atomic(lock, nr, addr)		\
 	({						\
 		int ret;				\
@@ -463,56 +378,11 @@ static __inline__ int ext2_clear_bit(int nr, volatile void * addr)
 		ret;					\
 	})
 
-static __inline__ int ext2_test_bit(int nr, const volatile void * addr)
-{
-	int   mask;
-	const volatile unsigned char	*ADDR = (const unsigned char *) addr;
-
-	ADDR += nr >> 3;
-	mask = 1 << (nr & 0x07);
-	return ((mask & *ADDR) != 0);
-}
-
-#define ext2_find_first_zero_bit(addr, size) \
-        ext2_find_next_zero_bit((addr), (size), 0)
-
-static __inline__ unsigned long ext2_find_next_zero_bit(void *addr, unsigned long size, unsigned long offset)
-{
-	unsigned long *p = ((unsigned long *) addr) + (offset >> 5);
-	unsigned long result = offset & ~31UL;
-	unsigned long tmp;
-
-	if (offset >= size)
-		return size;
-	size -= result;
-	offset &= 31UL;
-	if(offset) {
-		tmp = *(p++);
-		tmp |= __swab32(~0UL >> (32-offset));
-		if(size < 32)
-			goto found_first;
-		if(~tmp)
-			goto found_middle;
-		size -= 32;
-		result += 32;
-	}
-	while(size & ~31UL) {
-		if(~(tmp = *(p++)))
-			goto found_middle;
-		result += 32;
-		size -= 32;
-	}
-	if(!size)
-		return result;
-	tmp = *p;
-
-found_first:
-/*	tmp |= ~0UL >> size;*/
-	return result + ffz(__swab32(tmp) | (~0UL << size));
-found_middle:
-/*	return result + ffz(tmp); */
-	return result + ffz(__swab32(tmp));
-}
+#define ext2_set_bit			test_and_set_bit
+#define ext2_clear_bit			test_and_clear_bit
+#define ext2_test_bit			test_bit
+#define ext2_find_first_zero_bit	find_first_zero_bit
+#define ext2_find_next_zero_bit		find_next_zero_bit
 
 /* Bitmap functions for the minix filesystem.  */
 #define minix_test_and_set_bit(nr,addr) test_and_set_bit(nr,addr)
@@ -521,11 +391,6 @@ found_middle:
 #define minix_test_bit(nr,addr) test_bit(nr,addr)
 #define minix_find_first_zero_bit(addr,size) find_first_zero_bit(addr,size)
 
-#define hweight32(x) generic_hweight32(x)
-#define hweight16(x) generic_hweight16(x)
-#define hweight8(x) generic_hweight8(x)
-
 #endif /* __KERNEL__ */
 
-#define fls(x) generic_fls(x)
 #endif /* _BFINNOMMU_BITOPS_H */
