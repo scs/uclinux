@@ -9,9 +9,7 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
 #include <linux/mm.h>
-#include <asm/segment.h>
 
 #define VERIFY_READ	0
 #define VERIFY_WRITE	1
@@ -20,7 +18,9 @@
 
 static inline int _access_ok(unsigned long addr, unsigned long size)
 {
-	return(addr < 0x10f00000);
+	extern unsigned long memory_start, memory_end;
+	return ((addr >= memory_start) && (addr+size < memory_end));
+
 } 
 
 static inline int verify_area(int type, const void * addr, unsigned long size)
@@ -60,13 +60,13 @@ extern unsigned long search_exception_table(unsigned long);
     typeof(*(ptr)) __pu_val = (x);			\
     switch (sizeof (*(ptr))) {				\
     case 1:						\
-	__put_user_asm(__pu_err, __pu_val, ptr, B);	\
+	__put_user_asm(__pu_val, ptr, B);		\
 	break;						\
     case 2:						\
-	__put_user_asm(__pu_err, __pu_val, ptr, W);	\
+	__put_user_asm(__pu_val, ptr, W);		\
 	break;						\
     case 4:						\
-	__put_user_asm(__pu_err, __pu_val, ptr,  );	\
+	__put_user_asm(__pu_val, ptr,  );		\
 	break;						\
     default:						\
 	__pu_err = __put_user_bad();			\
@@ -92,41 +92,41 @@ static inline int bad_user_access_length(void)
 
 #define __ptr(x) ((unsigned long *)(x))
 
-#define __put_user_asm(err,x,ptr,bhw)			\
+#define __put_user_asm(x,ptr,bhw)			\
 	__asm__ (#bhw"[%1] = %0;\n\t"			\
 		: /* no outputs */			\
 		:"d" (x),"a" (__ptr(ptr)) : "memory")
 
-#define get_user(x, ptr)					\
-({								\
-    int __gu_err = 0;						\
-    typeof(*(ptr)) __gu_val = 0;				\
-    switch (sizeof(*(ptr))) {					\
-    case 1:							\
-	__get_user_asm(__gu_err, __gu_val, ptr, B, "=d",(Z));	\
-	break;							\
-    case 2:							\
-	__get_user_asm(__gu_err, __gu_val, ptr, W, "=r",(Z));	\
-	break;							\
-    case 4:							\
-	__get_user_asm(__gu_err, __gu_val, ptr,  , "=r",);	\
-	break;							\
-    default:							\
-	__gu_val = 0;						\
-	__gu_err = __get_user_bad();				\
-	break;							\
-    }								\
-    (x) = __gu_val;						\
-    __gu_err;							\
+#define get_user(x, ptr)				\
+({							\
+    int __gu_err = 0;					\
+    typeof(*(ptr)) __gu_val = 0;			\
+    switch (sizeof(*(ptr))) {				\
+    case 1:						\
+	__get_user_asm(__gu_val, ptr, B,(Z));		\
+	break;						\
+    case 2:						\
+	__get_user_asm(__gu_val, ptr, W,(Z));		\
+	break;						\
+    case 4:						\
+	__get_user_asm(__gu_val, ptr,  , );		\
+	break;						\
+    default:						\
+	__gu_val = 0;					\
+	__gu_err = __get_user_bad();			\
+	break;						\
+    }							\
+    (x) = __gu_val;					\
+    __gu_err;						\
 })
 
 #define __get_user(x, ptr) get_user(x, ptr)
 
 #define __get_user_bad() (bad_user_access_length(), (-EFAULT))
 
-#define __get_user_asm(err,x,ptr,bhw,reg,option)		\
-	__asm__ ("%0 =" #bhw "[%1]"#option";\n\t"			\
-		 : "=d" (x)							\
+#define __get_user_asm(x,ptr,bhw,option)		\
+	__asm__ ("%0 =" #bhw "[%1]"#option";\n\t"	\
+		 : "=d" (x)				\
 		 : "a" (__ptr(ptr)))
 
 #define copy_from_user(to, from, n)		(memcpy(to, from, n), 0)
