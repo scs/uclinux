@@ -219,6 +219,7 @@
 #define __NR_setfsuid32		215
 #define __NR_setfsgid32		216
 
+#define __NR_lookup_dcookie     253
 #define __NR_syscall		256
 #define NR_syscalls		__NR_syscall	
 
