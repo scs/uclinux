@@ -1,0 +1,10 @@
+Instruction for Installing The Video Driver and Running Sample Application devtest on EZKIT
+
+1.	Make sure that uClibc is installed, Data cache disabled, and instruction cache enabled.
+2.	Make SDRAM length 12 in menuconfig.
+3.	In the menuconfig select support for frame buffer devices and blackfin AD7171 video encoder on uClinux under the graphics option.
+4.	Apply the patch (patch po <patch_name).
+5.	Do make.
+6.	Load the linux image on the board.
+7.	When kernel prompt appears run devtest application by typing devtest on the command prompt.
+8.	

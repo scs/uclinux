@@ -12,6 +12,8 @@ int right_mar;
 int up_mar;
 int low_mar;
 
+//****************Routine to open frame buffer device and initialise associated perpherals accordingly**************
+//****************actual implementation in driver, here we are calling those driver func only.***************
 
 void dev_init_func(){
 	screen_fd = open(device, O_RDWR);
@@ -32,6 +34,10 @@ void dev_init_func(){
                 perror("Unable to mmap frame buffer\n"); 
         }
 }
+
+
+//***************Routine to draw a particular pixel with given color*********************
+
 void draw_pixel(int x, int y, int color)
 {
         int mask = 1 << (7-(x % 8));
@@ -41,6 +47,9 @@ void draw_pixel(int x, int y, int color)
                 return;
         *loc = color;
 }
+
+//*****************Routine to draw line between two given coordinates with given color***********************
+
 void draw_line(float x1,float y1,float x2,float y2,int color)
 {
 	float m,c,x=x1,y=y1,dy,dx;
@@ -83,18 +92,97 @@ void draw_line(float x1,float y1,float x2,float y2,int color)
 				continue;
 		}
 }
-void fillscreen(int color)
+
+
+//*******************Routine to draw filled quadrilateral*********************
+
+draw_filled_quadrilateral(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, int color)
 {
+	float X1=x1, Y1=y1, X2=x2, Y2=y2, X3=x3, Y3=y3, X4=x4, Y4=y4, AB, AC, AD;
+	float m1, m2, c1, c2, dX1 = 5.0, dX4 = 5.0, dY1 = 5.0, dY4 = 5.0;
 	int i;
-	int *screen_base_add;
-	(char *)screen_base_add = screen_ptr;
-	for(i=0; i<188640; i++)
-        	*(screen_base_add+ i) = color;
-}
-void time_delay_func(int delay){
-	int current_time_sec;			//time in second
-	current_time_sec = clock() / HZ;
-	for(;;)
-		if(current_time_sec -(clock()/ HZ) == delay)                  // Condition is equivalent to 2 secs.
-			break;
+
+
+	AB = (x1 -x2) * (x1 -x2) + (y1 - y2) * (y1 - y2);
+        AC = (x1 -x3) * (x1 -x3) + (y1 - y3) * (y1 - y3);
+        AD = (x1 -x4) * (x1 -x4) + (y1 - y4) * (y1 - y4);
+
+	if(AB > AC || AB > AD) {
+		X2 =x3;
+		Y2 =y3;
+		X3 =x2;
+		Y3 =y2;
+	}
+	if(AD >	AC || AD > AB) {
+		X3 = x4;
+		Y3 = y4;
+		X4 = x3;
+		Y4 = y3;
+	}
+
+
+
+	if (X1 != X2) {
+		m1 = (Y2 -Y1) / (X2-X1); 
+		c1 = Y1 -(m1 * X1);
+	}
+	else
+		m1 = M_ERROR;
+	if (X3 != X4) {
+		m2 = (Y3 -Y4) / (X3-X4); 
+		c2 = Y3 -(m2 * X3);
+	}
+	else
+		m2 = M_ERROR;
+
+	for(i = 0;(dX1 >=1 || dX4 >=1 || dY1 >=1 || dY4 >=1) && (i <636);i++){
+		draw_line(X1, Y1, X4, Y4, color);
+		if((m1 *m1)>=1)
+		{
+			if(dY1 >=1){
+				if(X1 != X2) 
+					X1=(Y1-c1)/m1;
+				if(Y2>Y1)
+					Y1++;
+				else
+					Y1--;		
+				dY1=Y1-Y2;
+			}
+		}
+		else 
+		{
+			if(dX1 >=1){
+				Y1 = (m1 * X1) + c1;
+				if(X2>X1)
+					X1++;
+				else
+					X1--;		
+				dX1 = X1 -X2;
+			}
+		}
+
+		if((m2 *m2)>=1)
+		{
+			if(dY4 >=1){
+				if(X4 != X3) 
+				X4=(Y4-c2)/m2;
+				if(Y4>Y3)
+					Y4++;
+				else
+					Y4--;		
+				dY4=Y3-Y4;
+			}
+		}
+		else
+		{
+			if(dX4 >=1){
+				Y4 = (m2 * X4) + c2;
+				if(X3>X4)
+					X4++;
+				else
+					X4--;		
+				dX4 = X4 -X3;
+			}
+		}
+	}
 }
