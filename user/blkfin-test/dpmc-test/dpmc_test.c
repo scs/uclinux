@@ -11,13 +11,15 @@
 #include <linux/ioctl.h>
 #include <errno.h>
 #include "dpmc.h"
+#include <linux/rtc.h>
+#include "blackfin_rtc.h"
 
-void main()
+int main()
 {
-	int fd;
-	unsigned long data,vco;
-   	unsigned long ret,ret1,ret2,ret3,i,sclk1,pllstat,cclk1,volt;
-	char sclk[5],cclk[5];
+	int fd,rtc_fd,ret;
+	unsigned long vco;
+   	unsigned long ret1,ret2,sclk1,pllstat,cclk1,volt;
+	char sclk[5];
 	int choice;
 
 	printf("##########################DPMC Test Programs##################################\n");
@@ -28,15 +30,22 @@ void main()
 		printf("/dev/dpmc open error %d\n",errno);
 		exit(1);
 	}
-
 	else printf("open success fd = %d \n",fd);
+
+	rtc_fd = open("/dev/rtc", O_RDONLY,0);
+	if (rtc_fd == -1) {
+		printf("/dev/rtc open error %d\n",errno);
+		exit(1);
+		
+	}
+	else printf("open success fd = %d \n",rtc_fd);
+
 
 /******************************Change the VCO frequency *********************************/
 	printf("1. IOCTL to Change the VCO \n");
 	printf("Please select the VCO \r\n");
 	scanf("%u",&vco);
 	ret = ioctl(fd, IOCTL_CHANGE_FREQUENCY,&vco);
-	for(i=0;i<10000;i++);
 	if (ret == -1) {
 		printf("dpmc ioctl error\r\n");
 		return -1;
@@ -121,11 +130,26 @@ void main()
 	ret = ioctl(fd, IOCTL_GET_PLLSTATUS, &pllstat);
 	printf("pll status got is 0x%x\n",pllstat);
 
+	ret = ioctl(rtc_fd, RTC_SWCNT_ON, 0);
+	if (ret == -1) {
+		printf("ioctl RTC_SWCNT_ON error\r\n");
+	}
+	
+	ret = ioctl(rtc_fd, RTC_SWCNT_SET, 50);
+	if (ret == -1) {
+		printf("ioctl RTC_SWCNT_SET error\r\n");
+	}
+
 /********************************Fullon to Sleep Mode ********************************/
 	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO SLEEP MODE\n");
 	printf("Entering Sleep Mode \n");
 	ret = ioctl(fd, IOCTL_SLEEP_MODE, NULL);
 	printf("Out of Sleep mode set %d \n",ret);
+
+	ret = ioctl(rtc_fd, RTC_SWCNT_OFF, 0);
+	if (ret == -1) {
+		printf("ioctl RTC_SWCNT_ON error\r\n");
+	}
 
 /********************************Get the PLL Status***********************************/
 	printf("IOCTL to get the PLL status \n");
@@ -143,10 +167,25 @@ void main()
 	ret = ioctl(fd, IOCTL_GET_PLLSTATUS, &pllstat);
 	printf("pll status got is 0x%x\n",pllstat);	
 
+	ret = ioctl(rtc_fd, RTC_SWCNT_ON, 0);
+	if (ret == -1) {
+		printf("ioctl RTC_SWCNT_ON error\r\n");
+	}
+	
+	ret = ioctl(rtc_fd, RTC_SWCNT_SET, 50);
+	if (ret == -1) {
+		printf("ioctl RTC_SWCNT_SET error\r\n");
+	}
+
 	printf("IOCTL to CHANGE OPERATING MODE FROM ACTIVE TO SLEEP MODE\n");
 	printf("Entering Sleep Mode \n");
 	ret = ioctl(fd, IOCTL_SLEEP_MODE, NULL);
 	printf("Out of Sleep mode Back to active mode %d \n",ret);
+
+	ret = ioctl(rtc_fd, RTC_SWCNT_OFF, 0);
+	if (ret == -1) {
+		printf("ioctl RTC_SWCNT_ON error\r\n");
+	}
 
 	printf("IOCTL to CHANGE OPERATING MODE FROM ACTIVE TO FULLON MODE\n");
 	printf("Entering Full On Mode \n");
@@ -180,7 +219,8 @@ void main()
 
 #endif
 
-/********************Change Voltage ********************************************/
-
+	close(rtc_fd);
 	close(fd);
+
+	return 0;
 }
