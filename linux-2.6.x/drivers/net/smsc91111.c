@@ -63,7 +63,7 @@
 #define POWER_DOWN	1
 
 static const char version[] =
-		"SMSC LAN91C111 Driver (v2.9), (BF533) 02/05/2004\n";
+		"SMSC LAN91C111 Driver (v2.9), (BF533) 15/11/2004\n";
 
 #include <linux/module.h>
 #include <linux/version.h>
@@ -2033,8 +2033,7 @@ static void smc_rcv(struct net_device *dev)
 		if ( status & RS_BADCRC)	lp->stats.rx_crc_errors++;
 	}
 
-	while ( readw( ioaddr + MMU_CMD_REG ) & MC_BUSY )
-		udelay(1); // Wait until not busy
+	while ( readw( ioaddr + MMU_CMD_REG ) & MC_BUSY );
 done:
 	/*  error or good, tell the card to get rid of this packet */
 	smc_writew( MC_RELEASE, ioaddr + MMU_CMD_REG );
