@@ -84,7 +84,7 @@ do_trace:
 	call syscall_trace; 
 	SP += 12;
 	sp += 4;
-	r5 = [sp+PT_R5];
+	r5 = [sp+PT_P0];
 	r0 = -ENOSYS;
 	r7 = NR_syscalls;
 	cc = r5 < r7;
@@ -126,7 +126,9 @@ ENTRY(system_call)
 
 	/* Check the System Call */
 	r7 = __NR_syscall; 
-	cc = r5 < r7;		/* r5 = number of system call */
+	/*System call number is passed in P0 */
+	r5 = p0;
+	cc = r5 < r7;
 	if ! cc jump badsys;
 
 	/* Execute the appropriate system call */

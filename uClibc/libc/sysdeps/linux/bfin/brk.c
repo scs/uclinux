@@ -11,15 +11,12 @@ int brk (void *addr)
     void *newbrk;
 
 	__asm__ __volatile__(
-		"[--SP] = R5;\n\t"
-		"R5 = %2;\n\t"
+		"P0 = %2;\n\t"
 		"R0 = %1;\n\t"
 		"excpt 0;\n\t"
 		"%0 = R0;\n\t"
-		"R5 = [SP++];\n\t"
 		: "=r"(newbrk)
-		: "r"(addr), "i" (__NR_brk)
-		);
+		: "r"(addr), "i" (__NR_brk): "P0" );
 
     ___brk_addr = newbrk;
 

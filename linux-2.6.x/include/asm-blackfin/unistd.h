@@ -236,14 +236,12 @@ do {									\
 type name(void) {							\
   long __res;								\
   __asm__ __volatile__ (						\
-  "[--sp] = r5;\n\t"							\
-  "r5 = %1;\n\t"							\
+  "p0 = %1;\n\t"							\
   "excpt 0;\n\t" 							\
   "%0=r0;\n\t"								\
-  "r5 = [sp++];\n\t"							\
   : "=da" (__res) 							\
   : "i" (__NR_##name)							\
-  : "CC", "R5");							\
+  : "CC", "P0");							\
   if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
     errno = -__res;							\
     __res = -1;								\
@@ -255,16 +253,14 @@ type name(void) {							\
 type name(type1 arg1) {							\
   long __res;								\
   __asm__ __volatile__ (						\
-  "[--sp] = r5;\n\t"							\
   "r0=%2;\n\t"								\
-  "r5=%1;\n\t"								\
+  "p0=%1;\n\t"								\
   "excpt 0;\n\t" 							\
   "%0=r0;\n\t"								\
-  "r5 = [sp++];\n\t"							\
         : "=da" (__res)							\
         : "i" (__NR_##name),						\
 	  "a" ((long)(arg1))						\
-	: "CC", "R0", "R5");						\
+	: "CC", "R0", "P0");						\
   if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
     errno = -__res;							\
     __res = -1;								\
@@ -276,18 +272,16 @@ type name(type1 arg1) {							\
 type name(type1 arg1,type2 arg2) {					\
   long __res;								\
   __asm__ __volatile__ (						\
-  "[--sp] = r5;\n\t"							\
   "r1=%3;\n\t"								\
   "r0=%2;\n\t"								\
-  "r5=%1;\n\t"								\
+  "p0=%1;\n\t"								\
   "excpt 0;\n\t" 							\
   "%0=r0;\n\t"								\
-  "r5 = [sp++];\n\t"							\
         : "=da" (__res)							\
         : "i" (__NR_##name),						\
 	  "a" ((long)(arg1)),						\
 	  "a" ((long)(arg2))						\
-	: "CC", "R0","R1", "R5");					\
+	: "CC", "R0","R1", "P0");					\
   if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
     errno = -__res;							\
     __res = -1;								\
@@ -300,20 +294,18 @@ type name(type1 arg1,type2 arg2) {					\
 type name(type1 arg1,type2 arg2,type3 arg3) {				\
   long __res;								\
   __asm__ __volatile__ (						\
-  "[--sp] = r5;\n\t"							\
   "r2=%4;\n\t"								\
   "r1=%3;\n\t"								\
   "r0=%2;\n\t"								\
-  "r5=%1;\n\t"								\
+  "p0=%1;\n\t"								\
   "excpt 0;\n\t" 							\
   "%0=r0;\n\t"								\
-  "r5 = [sp++];\n\t"							\
         : "=da" (__res)							\
         : "i"   (__NR_##name),						\
 	  "a"   ((long)(arg1)),						\
 	  "a"   ((long)(arg2)),						\
 	  "a"   ((long)(arg3))						\
-        : "CC", "R0","R1","R2", "R5");					\
+        : "CC", "R0","R1","R2", "P0");					\
   if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
     errno = -__res;							\
     __res = -1;								\
@@ -326,24 +318,22 @@ type name(type1 arg1,type2 arg2,type3 arg3) {				\
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
   long __res;								\
   __asm__ __volatile__ (						\
-  "[--sp] = r5;\n\t"							\
   "[--sp] = r3;\n\t"							\
   "r3=%5;\n\t"								\
   "r2=%4;\n\t"								\
   "r1=%3;\n\t"								\
   "r0=%2;\n\t"								\
-  "r5=%1;\n\t"								\
+  "p0=%1;\n\t"								\
   "excpt 0;\n\t" 							\
   "%0=r0;\n\t"								\
   "r3 = [sp++];\n\t"							\
-  "r5 = [sp++];\n\t"							\
   	: "=da" (__res)							\
   	: "i"  (__NR_##name),						\
 	  "a"  ((long)(arg1)),						\
 	  "a"  ((long)(arg2)),						\
 	  "a"  ((long)(arg3)),						\
 	  "a"  ((long)(arg4))						\
-  	: "CC", "R0","R1","R2","R3", "R5");				\
+  	: "CC", "R0","R1","R2","R3", "P0");				\
   if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
     errno = -__res;							\
     __res = -1;								\
@@ -356,7 +346,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
   long __res;								\
   __asm__ __volatile__ (						\
-  "[--sp] = r5;\n\t"						        \
   "[--sp] = r4;\n\t"                                                    \
   "[--sp] = r3;\n\t"                                                    \
   "r4=%6;\n\t"								\
@@ -364,12 +353,11 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
   "r2=%4;\n\t"								\
   "r1=%3;\n\t"								\
   "r0=%2;\n\t"								\
-  "r5=%1;\n\t"								\
+  "P0=%1;\n\t"								\
   "excpt 0;\n\t" 							\
   "%0=r0;\n\t"								\
   "r3 = [sp++];\n\t" 							\
   "r4 = [sp++];\n\t"                                                    \
-  "r5 = [sp++];\n\t"                                                    \
   	: "=da" (__res)							\
   	: "i"  (__NR_##name),						\
 	  "a"  ((long)(arg1)),						\
@@ -377,7 +365,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
 	  "a"  ((long)(arg3)),						\
 	  "a"  ((long)(arg4)),						\
 	  "a"  ((long)(arg5))						\
-	: "CC","R0","R1","R2","R3","R4","R5");				\
+	: "CC","R0","R1","R2","R3","R4","P0");				\
   if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
     errno = -__res;							\
     __res = -1;								\

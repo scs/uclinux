@@ -16,17 +16,17 @@ clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg)
      long rval;
       __asm__ __volatile__ ("r1 = %2;"
 		    "r0 = %3;"
-		    "r5 = 0x78;"
+		    "P0 = __NR_clone;"
 		    "excpt 0;"			/*Call sys_clone*/
 		    "%0  = r0;"
 		    "r0 = %4;"
 		    "sp += -16;"
 		    "call (%1);"		/*Execute function fn(arg)*/
 		    "sp += 16;"
-		    "r5 = __NR_exit;"
+		    "P0 = __NR_exit;"
 		    "excpt 0;"			/*Call sys_exit*/
 		    : "=d" (rval)
 		    : "a" (fn), "a" (child_stack), "a" (flags), "a" (arg)
-		    : "CC", "R0", "R1", "R5");
+		    : "CC", "R0", "R1", "P0");
   return rval;
 }

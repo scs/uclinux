@@ -124,7 +124,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	__asm__ __volatile__ (
 			"r1 = sp; \n\t"
 			"r0 = %6; \n\t"
-			"r5 = %2; \n\t"
+			"p0 = %2; \n\t"
 			"excpt 0; \n\t"
 			"%1 = sp; \n\t"
 			"cc = %1 == r1; \n\t"
@@ -133,7 +133,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 			"SP += -12; \n\t"
 			"call (%5); \n\t"
 			"SP += 12; \n\t"
-			"r5 = %3; \n\t"
+			"p0 = %3; \n\t"
 			"excpt 0; \n"
 			"1:\n\t"
 			"%0 = R0;\n"
@@ -143,7 +143,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 		  "a" (arg),
 		  "a" (fn),
 		  "a" (clone_arg)
-		: "CC", "R0", "R1", "R2", "R5");
+		: "CC", "R0", "R1", "R2", "P0");
 
 	set_fs(fs);	
 	return retval;
