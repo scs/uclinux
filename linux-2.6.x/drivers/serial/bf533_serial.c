@@ -347,7 +347,7 @@ static void dma_receive_chars(struct bf533_serial *info, int in_timer)
 	      info->recv_head = curpos;
       else
 	      info->recv_head = PAGE_SIZE;
-      
+    
       /*
        * Check for a valid value of recv_head
        */
@@ -383,6 +383,11 @@ static void dma_receive_chars(struct bf533_serial *info, int in_timer)
               info->recv_head = 0;
       if (info->recv_tail >= PAGE_SIZE)
               info->recv_tail = 0;
+
+	/*
+	 * Do flip the tty buffer immediate without delay
+	 */
+	tty->low_latency = 1;
 
       tty_flip_buffer_push(tty);
 unlock_and_exit:
@@ -793,7 +798,10 @@ static int startup(struct bf533_serial * info)
 #ifndef CONFIG_DISABLE_RXDMA
         info->dma_recv_timer.data = (unsigned long)info;
         info->dma_recv_timer.function = (void *)uart_dma_recv_timer;
-        info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
+	/*
+	 * The recv timer should start some ticks later than the xmit timer.
+	 */
+        info->dma_recv_timer.expires = jiffies + 2 + TIME_INTERVAL;
         add_timer(&info->dma_recv_timer);
 #endif
 #endif
