@@ -21,17 +21,13 @@
  */
 
 #include <linux/module.h>
-#include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
 #include <asm/io.h>
-#include <asm/setup.h>
-
 #include <asm/errno.h>	/*ENXIO etc*/
 #include <asm/blackfin.h>
 /********************************************************************
@@ -43,7 +39,7 @@
 
 #define INTERNAL_IRQS (32)
 
-int irq_flags = 0;
+volatile unsigned long irq_flags = 0;
 
 /* The number of spurious interrupts */
 volatile unsigned int num_spurious;
@@ -58,10 +54,6 @@ struct ivg_slice {
 	struct ivgx *istop;  
 } ivg7_13[16];
 
-/*********************
- * Prototypes
- ********************/
-asmlinkage void irq_panic( int reason, struct pt_regs * reg);
 extern void dump(struct pt_regs * regs);
 
 /* BASE LEVEL interrupt handler routines */
