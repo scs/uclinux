@@ -10,6 +10,7 @@ struct sigcontext {
 	unsigned long  sc_p1;
 	unsigned short sc_seqstat;
 	unsigned long  sc_pc;
+	unsigned long  sc_retx;
 };
 
 #endif
