@@ -87,6 +87,7 @@ static const char version[] =
 
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/dma.h>
 
 #include "smc91x.h"
 
@@ -116,6 +117,15 @@ module_param(irq, int, 0400);
 MODULE_PARM_DESC(irq, "IRQ number");
 
 #endif  /* CONFIG_ISA */
+
+#if defined(CONFIG_BFIN)
+#include <asm/irq.h>
+#include <asm/board/cdefBF533.h>
+#include <asm/delay.h>
+#define LAN_FIO_PATTERN     0x80
+static unsigned int smc_portlist[] = { 0x20300300,0x20300300, 0 };
+static unsigned int smc_irqlist[]  = { 27, 26, 0 };
+#endif
 
 #ifndef SMC_NOWAIT
 # define SMC_NOWAIT		0
@@ -295,6 +305,86 @@ static void PRINT_PKT(u_char *buf, int length)
 	}								\
 } while (0)
 
+#if defined(CONFIG_BFIN)
+static void bfin_EBIU_AM_setup(void)
+{
+	unsigned int stmp = 0;
+    printk("EBIU Asynchronous memory setup.\n");
+
+	stmp = *pFIO_DIR;
+	asm("ssync;");
+	*pFIO_DIR = stmp | 1;
+	asm("ssync;");
+	*pFIO_FLAG_S = 0x0001;
+	asm("ssync;");
+
+	*pEBIU_AMGCTL = AMGCTLVAL;      /*AMGCTL*/
+	asm("ssync;");
+#ifdef CONFIG_EZKIT
+	*pEBIU_AMBCTL0 = AMBCTL0VAL;    /* AMBCTL0*/
+	asm("ssync;");
+	*pEBIU_AMBCTL1 = AMBCTL1VAL;    /* AMBCTL1*/
+	asm("ssync;");
+#endif
+#ifdef CONFIG_BLKFIN_STAMP
+	*pEBIU_AMBCTL0 = AMBCTL0VAL;    /* AMBCTL0*/
+	asm("ssync;");
+	*pEBIU_AMBCTL1 = AMBCTL1VAL;    /* AMBCTL1*/
+	asm("ssync;");
+#endif
+}
+
+static void bfin_SMC_interrupt_setup(int irq)
+{
+	unsigned int stmp = 0;
+	printk("EZ-LAN interrupt setup.\n");
+
+	/* Direction setup*/
+	stmp = *pFIO_DIR;
+	asm("ssync;");
+	*pFIO_DIR = stmp & (~LAN_FIO_PATTERN);
+	asm("ssync;");
+
+	/* Clear pending IRQ for PF7*/
+	*pFIO_MASKB_C = LAN_FIO_PATTERN;
+	asm("ssync;");
+
+	/* Enable Flag PF7 for IRQ_B */
+	*pFIO_MASKB_S = LAN_FIO_PATTERN;
+	asm("ssync;");
+
+	/* Set Polarity for IRQs (8:HIGH)*/
+	stmp = *pFIO_POLAR;
+	asm("ssync;");
+	*pFIO_POLAR = stmp & (~LAN_FIO_PATTERN);
+	asm("ssync;");
+
+	/* Set Edge Sensitivity PF8, PF9 */
+	stmp = *pFIO_EDGE;
+	asm("ssync;");
+	*pFIO_EDGE = stmp & (~LAN_FIO_PATTERN);
+	asm("ssync;");
+
+	/* Clear Both Edge Sensitivity for IRQ_A and IRQ */
+	stmp = *pFIO_BOTH;
+	asm("ssync;");
+	*pFIO_BOTH = stmp & ~(LAN_FIO_PATTERN);
+	asm("ssync;");
+
+	/* finally clear flag pin value */
+	stmp = *pFIO_FLAG_C;
+	asm("ssync;");
+	*pFIO_FLAG_C = stmp & LAN_FIO_PATTERN;
+	asm("ssync;");
+	stmp = *pFIO_INEN;
+	asm("ssync;");
+	*pFIO_INEN = stmp | LAN_FIO_PATTERN;
+	asm("ssync;");
+
+	/* enable irq b */
+	enable_irq(irq);
+}
+#endif
 
 /*
  * this does a soft reset on the device
@@ -1796,6 +1886,23 @@ static int __init smc_probe(struct net_device *dev, unsigned long ioaddr)
 
 	/* Get the MAC address */
 	SMC_SELECT_BANK(1);
+#if defined(CONFIG_BFIN)
+	/* Program MAC address if not set... */
+	SMC_SELECT_BANK( 1 );
+	for (i = 0; (i < 6); i += 2) {
+		unsigned short address;
+		address = readw( ioaddr + ADDR0_REG + i ) ;
+		if ((address != 0x0000) && (address != 0xffff))
+			break;
+	}
+	if (i >= 6) {
+	/* Set a default MAC address */
+		smc_writew(0xCF00, ioaddr + ADDR0_REG);
+		smc_writew(0x4952, ioaddr + ADDR0_REG + 2);
+		smc_writew(0x01C3, ioaddr + ADDR0_REG + 4);
+	}
+#endif
+
 	SMC_GET_MAC_ADDR(dev->dev_addr);
 
 	/* now, reset the chip, and put it into a known state */
@@ -1834,6 +1941,9 @@ static int __init smc_probe(struct net_device *dev, unsigned long ioaddr)
 		retval = -ENODEV;
 		goto err_out;
 	}
+#if defined(CONFIG_BFIN)
+	bfin_SMC_interrupt_setup(dev->irq);
+#endif
 	dev->irq = irq_canonicalize(dev->irq);
 
 	/* Fill in the fields of the device structure with ethernet values. */
@@ -1877,8 +1987,9 @@ static int __init smc_probe(struct net_device *dev, unsigned long ioaddr)
       	retval = request_irq(dev->irq, &smc_interrupt, 0, dev->name, dev);
       	if (retval)
       		goto err_out;
-
+#ifndef CONFIG_BFIN
 	set_irq_type(dev->irq, IRQT_RISING);
+#endif
 #ifdef SMC_USE_PXA_DMA
 	{
 		int dma = pxa_request_dma(dev->name, DMA_PRIO_LOW,
@@ -1887,7 +1998,6 @@ static int __init smc_probe(struct net_device *dev, unsigned long ioaddr)
 			dev->dma = dma;
 	}
 #endif
-
 	retval = register_netdev(dev);
 	if (retval == 0) {
 		/* now, print out the card info, in a short format.. */
@@ -2003,7 +2113,8 @@ static int smc_drv_probe(struct device *dev)
 	struct net_device *ndev;
 	struct resource *res, *ext = NULL;
 	unsigned int *addr;
-	int ret;
+	static int index = 0;
+	int ret=0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -2026,6 +2137,10 @@ static int smc_drv_probe(struct device *dev)
 		goto release_1;
 	}
 	SET_MODULE_OWNER(ndev);
+#if defined(CONFIG_BFIN)
+	/* setup asynchronous memory control registers*/
+	bfin_EBIU_AM_setup();
+#endif
 	SET_NETDEV_DEV(ndev, dev);
 
 	ndev->dma = (unsigned char)-1;
@@ -2054,7 +2169,17 @@ static int smc_drv_probe(struct device *dev)
 	}
 
 	dev_set_drvdata(dev, ndev);
+#if defined(CONFIG_BFIN)
+	/* check every ethernet address */
+	while (smc_portlist[index]) {
+		ndev->irq = smc_irqlist[index];
+		ret = smc_probe( ndev,smc_portlist[index++] );
+		if( ret == 0)
+			break;
+	}
+#else
 	ret = smc_probe(ndev, (unsigned long)addr);
+#endif
 	if (ret != 0) {
 		dev_set_drvdata(dev, NULL);
 		iounmap(addr);
@@ -2159,7 +2284,6 @@ static int __init smc_init(void)
 			"%s: You shouldn't use auto-probing with insmod!\n",
 			CARDNAME);
 #endif
-
 	return driver_register(&smc_driver);
 }
 
