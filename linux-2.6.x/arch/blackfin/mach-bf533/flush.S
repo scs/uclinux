@@ -7,30 +7,19 @@
  * Blackfin BF533/2.6 support : LG Soft India
  */
 
-
 #include <linux/linkage.h>
 #include <asm/cplb.h>
 #include <asm/blackfin.h>
 
 .text
 
-.globl flush_data_cache
-.type flush_data_cache, STT_FUNC;
- 
-.globl dcplb_flush 
-.type dcplb_flush, STT_FUNC;
-
-.globl icplb_flush 
-.type icplb_flush, STT_FUNC;
-
-/* This is an external function being called by the user 
+/* This is an external function being called by the user
  * application through __flush_cache_all. Currently this function
  * serves the purpose of flushing all the pending writes in
  * in the instruction cache.
  */
 
 ENTRY(flush_instruction_cache)
-
 	[--SP] = ( R7:6, P5:4 );
 	LINK 12;
 	SP += -12;
@@ -54,16 +43,13 @@ iskip:	R6 += -1;
 
 /* This is an internal function to flush all pending
  * writes in the cache associated with a particular ICPLB.
- * 
+ *
  * R0 -  page's start address
  * R1 -  CPLB's data field.
  */
 
 .align 2
 ENTRY(icplb_flush)
-	
-	/*Lets do this - I am not sure .Nidhi*/
-
 	[--SP] = ( R7:0, P5:0 );
 	[--SP] = LC0;
 	[--SP] = LT0;
@@ -85,9 +71,9 @@ ENTRY(icplb_flush)
 
 	/* We're only interested in the page's size, so extract
 	 * this from the CPLB (bits 17:16), and scale to give an
-	 * offset into the page_size and page_prefix tables.	
+	 * offset into the page_size and page_prefix tables.
 	 */
-		
+
 	R1 <<= 14;
 	R1 >>= 30;
 	R1 <<= 2;
@@ -97,6 +83,7 @@ ENTRY(icplb_flush)
 	 */
 
 	R3 = ((12<<8)|2);		/* Extraction pattern */
+	nop;				/*Anamoly 05000209*/
 	R4 = EXTRACT(R0, R3.L) (Z);	/* Extract bits*/
 	R3.H = R4.L << 0 ;		/* Save in extraction pattern for later deposit.*/
 
@@ -123,7 +110,6 @@ ENTRY(icplb_flush)
 	R5 = 0;			/* Set counter*/
 	P0 = P1 + P0;
 	R4 = [P0];		/* This is the address prefix*/
-
 
 	/* We're reading (bit 1==0) the tag (bit 2==0), and we
 	 * don't care about which double-word, since we're only
@@ -160,7 +146,6 @@ ifs0:	R6 = R5 << 5;		/* Combine set*/
 	R7 <<= 10;
 	P3 = R7;
 	IFLUSH [P3];		/* And flush the entry*/
-	CSYNC;
 ifskip:
 ife0:	R5 += 1;		/* Advance to next Set*/
 ife1:	NOP;
@@ -179,7 +164,6 @@ ifinished:
 	RTS;
 
 iflush_whole_page:
-
 	/* It's a 1K or 4K page, so quicker to just flush the
 	 * entire page.
 	 */
@@ -194,9 +178,7 @@ iflush_whole_page:
 	LSETUP (isall, ieall) LC0 = P1;
 isall:	CSYNC;
 ieall:	IFLUSH [P0++];
-	CSYNC;
 	JUMP ifinished;
-
 
 /* This is an external function being called by the user 
  * application through __flush_cache_all. Currently this function
@@ -205,7 +187,6 @@ ieall:	IFLUSH [P0++];
  */
 
 ENTRY(flush_data_cache)
-
 	[--SP] = ( R7:6, P5:4 );
 	LINK 12;
 	SP += -12;
@@ -232,7 +213,6 @@ skip:	R6 += -1;
 	( R7:6, P5:4 ) = [SP++];
 	RTS;
 
-
 /* This is an internal function to flush all pending
  * writes in the cache associated with a particular DCPLB.
  * 
@@ -242,8 +222,6 @@ skip:	R6 += -1;
 
 .align 2
 ENTRY(dcplb_flush)
-	
-	/*Lets do this - I am not sure .Nidhi*/
 	[--SP] = ( R7:0, P5:0 );
 	[--SP] = LC0;
 	[--SP] = LT0;
@@ -296,7 +274,6 @@ ENTRY(dcplb_flush)
 	R2 = CC;		/* else we use Bank A.*/
 	R2 <<= 23;		/* The Bank selection's at posn 23.*/
 
-
 bank_chosen:
 
 	/* We can also determine the sub-bank used, because this is
@@ -304,6 +281,7 @@ bank_chosen:
 	 */
 
 	R3 = ((12<<8)|2);		/* Extraction pattern */
+	nop;				/*Anamoly 05000209*/
 	R4 = EXTRACT(R0, R3.L) (Z);	/* Extract bits*/
 	R3.H = R4.L << 0 ;		/* Save in extraction pattern for later deposit.*/
 
@@ -362,14 +340,13 @@ fs0:	R6 = R5 << 5;		/* Combine set*/
 	IF !CC JUMP fskip;	/* Skip it if it doesn't match.*/
 
 	/* Tag address matches against page, so this is an entry
-	 * we must flush. 
+	 * we must flush.
 	 */
 
 	R7 >>= 10;		/* Mask off the non-address bits*/
 	R7 <<= 10;
 	P3 = R7;
 	FLUSHINV [P3];		/* And flush the entry*/
-	CSYNC;
 fskip:
 fe0:	R5 += 1;		/* Advance to next Set*/
 fe1:	BITSET(R2, 26);		/* Go to next Way.*/
@@ -387,7 +364,6 @@ dfinished:
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
-
 dflush_whole_page:
 
 	/* It's a 1K or 4K page, so quicker to just flush the
@@ -404,10 +380,7 @@ dflush_whole_page:
 	LSETUP (sall, eall) LC0 = P1;
 sall:	CSYNC;
 eall:	FLUSHINV [P0++];
-	CSYNC;
 	JUMP dfinished;
-.dcplb_flush.end:
-
 
 .align 4;
 page_prefix_table:
@@ -415,4 +388,4 @@ page_prefix_table:
 .byte4	0xFFFFF000;	/* 4K */
 .byte4	0xFFF00000;	/* 1M */
 .byte4	0xFFC00000;	/* 4M */
-.page_prefix_table.end:	
+.page_prefix_table.end:

@@ -323,7 +323,7 @@ dcplb_miss_compare:
 	R5 = [P4];
 	BITCLR(R5,1);
 	CLI R0;
-	.align 2;
+	.align 8;
 	[P4] = R5;
 	SSYNC;
 	STI R0;
@@ -354,6 +354,7 @@ sdsearch2:
 	P3.L = page_size_table; /* retrive end address */
 	P3.H = page_size_table; /* retrive end address */
 	R3 = 0x2;		/* 0th - position, 2 bits -length */
+	nop;			/*Anamoly 05000209*/
 	R7 = EXTRACT(R1,R3.l);
 	R7 = R7 << 2;		/* Page size index offset */
 	P5 = R7;
