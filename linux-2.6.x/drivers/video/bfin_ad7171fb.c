@@ -243,7 +243,7 @@ timer_setup(void)
 
         init_timer(&buffer_swapping_timer) ;
         buffer_swapping_timer.function = timerfunction ;
-        buffer_swapping_timer.expires = jiffies + HZ*2 ;
+        buffer_swapping_timer.expires = jiffies + HZ*1 ;
 
         /***Initialisation ends***/
 
