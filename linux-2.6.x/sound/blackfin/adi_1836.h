@@ -4,8 +4,7 @@
 //--------------------------------------------------------------------------//
 // Header files																//
 //--------------------------------------------------------------------------//
-#ifdef __linux__
-#define __ADSPLPBLACKFIN__
+#ifdef LINUX
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/string.h>
@@ -29,8 +28,8 @@
 #else
 #include "linuxcompat.h"
 #endif
-#include <asm/board/cdefBF533.h>
-#include <asm/board/sysreg.h>
+#include <cdefBF533.h>
+#include <sysreg.h>
 
 // When a /dev/dsp is opened, a adi_sport_1836_instance is
 // created. Each /dev/dsp instance can be mapped to one or
@@ -257,7 +256,7 @@ extern volatile int iTxBuffer1[];
 // Prototypes																//
 //--------------------------------------------------------------------------//
 // in file Initialisation.c
-#ifndef __linux__
+#ifndef LINUX
 void Init_EBIU(void);
 #endif
 
@@ -268,13 +267,13 @@ void Init_DMA(void);
 int Init_Sport_Interrupts(void);
 void Enable_DMA_Sport(void);
 
-#ifdef __linux__
+#ifdef LINUX
 #else
 // in file ISRs.c
 EX_INTERRUPT_HANDLER(Sport0_RX_ISR);
 #endif
 
-#define BUF_SIZE 512 
+#define BUF_SIZE 768 
 
 
 #endif /* 1836_DRIVER_H */

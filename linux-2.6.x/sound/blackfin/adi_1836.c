@@ -1,6 +1,6 @@
 /* The device driver file */
 #include "adi_1836.h"
-#ifdef __linux__
+#ifdef LINUX
 static irqreturn_t Sport0_RX_ISR(int irq, void *dev_id, struct pt_regs * regs);
 #else
 EX_INTERRUPT_HANDLER(Sport0_RX_ISR);
@@ -10,7 +10,7 @@ static void adi_spt_free_dac_pcm_channel(struct adi_sport_1836_card *card, int c
 static void adi_spt_free_adc_pcm_channel(struct adi_sport_1836_card *card, int channel);
 
 /***** Initialization *****/
-#ifndef __linux__
+#ifndef LINUX
 //--------------------------------------------------------------------------//
 // Function:	Init_EBIU													//
 //																			//
@@ -188,9 +188,9 @@ void Init_DMA(void)
 int Init_Sport_Interrupts(void)
 {
 	// Set Sport0 RX (DMA1) interrupt priority to 2 = IVG9 
-	*pSIC_IAR0 = 0xffffffff;
-	*pSIC_IAR1 = 0xffffff2f;
-	*pSIC_IAR2 = 0xffffffff;
+	//*pSIC_IAR0 = 0xffffffff;
+	//*pSIC_IAR1 = 0xffffff2f;
+	//*pSIC_IAR2 = 0xffffffff;
 
 	// assign ISRs to interrupt vectors
 	// Sport0 RX ISR -> IVG 9
@@ -201,7 +201,7 @@ int Init_Sport_Interrupts(void)
   	enable_irq(IRQ_SPORT0);
 
 	// enable Sport0 RX interrupt
-	*pSIC_IMASK = 0x00000200;
+	*pSIC_IMASK |= 0x00000200;
 	ssync();
 
 	return 0;
@@ -284,7 +284,7 @@ inline void sport_isr_tx(void)
 
 }
 
-#ifdef __linux__
+#ifdef LINUX
 static irqreturn_t Sport0_RX_ISR(int irq, void *dev_id, struct pt_regs * regs)
 #else
 EX_INTERRUPT_HANDLER(Sport0_RX_ISR)
@@ -379,7 +379,7 @@ adi_spt_alloc_dac_pcm_channel(struct adi_sport_1836_card *card, int channel)
   	card->dac_channel[channel].slot = channel + 1;
   else
   	card->dac_channel[channel].slot = channel; // TODO : left / right check
-#ifndef __linux__
+#ifndef LINUX
   card->dac_channel[channel].wait = 1;
 #endif
   return &card->dac_channel[channel];
@@ -417,7 +417,7 @@ adi_spt_alloc_adc_pcm_channel(struct adi_sport_1836_card *card, int channel)
   	card->adc_channel[channel].slot = channel + 2;
   else
     card->adc_channel[channel].slot = channel;
-#ifndef __linux__
+#ifndef LINUX
   card->adc_channel[channel].wait = 0; // initiallly wait for the first buffer to be written to
 #endif
   return &card->adc_channel[channel];
@@ -430,7 +430,7 @@ adi_spt_alloc_adc_pcm_channel(struct adi_sport_1836_card *card, int channel)
    If not enough space, wait
  */
 
-#ifdef __linux__   
+#ifdef LINUX   
 static 
 #endif
 ssize_t 
@@ -468,7 +468,7 @@ adi_sport_1836_write(struct file *file,
         /* wait for the buffer to be free */
         interruptible_sleep_on(&channel->wait);
       }
-#ifndef __linux__
+#ifndef LINUX
       if(!check_semaphore(&channel->wait)){
         return ret; // waiting ...
       }
@@ -501,7 +501,7 @@ adi_sport_1836_write(struct file *file,
   return ret;
 }
 
-#ifdef __linux__
+#ifdef LINUX
 static 
 #endif
 ssize_t 
@@ -551,7 +551,7 @@ printk("sleeping on %d %d\n", count, channel->wait);
 #endif
         interruptible_sleep_on(&channel->wait);
       }
-#ifndef __linux__
+#ifndef LINUX
       if(!check_semaphore(&channel->wait)){
         return ret; // waiting ...
       }
@@ -589,7 +589,7 @@ printk("sleeping on %d %d\n", count, channel->wait);
 }
 
 /////////////////////////////////////////////////////////////
-#ifdef __linux__
+#ifdef LINUX
 static 
 #endif
 int
@@ -703,7 +703,7 @@ adi_sport_1836_release(struct inode *inode, struct file *file)
 }
 
 /////////////////////////////////////////////////////////////
-#ifdef __linux__
+#ifdef LINUX
 static 
 #endif
 int 
@@ -736,6 +736,8 @@ adi_sport_1836_ioctl(struct inode *inode,
         //stop_dac(channel); // TODO : maybe check mode before call
 		//stop_adc(channel);
 // TODO : First time enable the dma
+printk("Initializing Sport Interrupts\n");
+Init_Sport_Interrupts();
 Enable_DMA_Sport0();
 		synchronize_irq();
 
@@ -880,13 +882,13 @@ Enable_DMA_Sport0();
 	return -EINVAL;
 }
 
-#ifdef __linux__
+#ifdef LINUX
 static void 
 sport_1836_init(void )
 {
 printk("Init_Flash();\n");
 	Init_Flash();
-#ifndef __linux__
+#ifndef LINUX
 sport_audio_1836_init();	
 #endif
 printk("Init1836();\n");
@@ -895,17 +897,18 @@ printk("init_Sport0\n");
 	Init_Sport0();
 printk("Init_DMA();\n");
 	Init_DMA();
+#if 0
 printk("Init_Sport_Interrupts();\n");
 	Init_Sport_Interrupts();
-#if 0
 printk("Enable_DMA_Sport0();\n");
 	Enable_DMA_Sport0();
 #endif
+	return;
 }
 #endif
 
 
-#ifdef __linux__
+#ifdef LINUX
 static /*const*/ struct file_operations adi_spt_audio_fops = {
 	owner:		THIS_MODULE,
 	llseek:		adi_sport_1836_llseek,
@@ -918,13 +921,13 @@ static /*const*/ struct file_operations adi_spt_audio_fops = {
 };
 
 #endif
-#ifdef __linux__ 
+#ifdef LINUX 
 static 
 #endif
 int __init sport_audio_1836_init(void)
 {
 
-#ifdef __linux__
+#ifdef LINUX
   if ((devs = kmalloc(sizeof(struct adi_sport_1836_card), GFP_KERNEL)) == NULL) {
     printk(KERN_ERR "sport_audio_1836_init: out of memory\n");
     return -ENOMEM;
@@ -952,7 +955,7 @@ devs = 0x4000;
   devs->free_adc_pcm_channel = adi_spt_free_adc_pcm_channel;
   devs->alloc_instance       = adi_sport_1836_instance_alloc;
 
-#ifdef __linux__
+#ifdef LINUX
   /* register /dev/dsp */
   if ((devs->dev_audio = register_sound_dsp(&adi_spt_audio_fops, -1)) < 0) {
     printk(KERN_ERR "adi_spt_audio: couldn't register DSP device!\n");
@@ -1157,7 +1160,7 @@ adi_sport_muteall(int what)
 	return what;
 }
 
-#ifdef __linux__
+#ifdef LINUX
 MODULE_AUTHOR("Analog Devices");
 MODULE_DESCRIPTION("Blackfin SPORT 1836 audio support");
 #define BLACKFIN_SPORT_MODULE_NAME "blackfin_sport_audio"
@@ -1167,7 +1170,7 @@ static void __init adi_spt_configure_clocking (void)
 {
 }
 static unsigned int clocking;
-#ifdef __linux__
+#ifdef LINUX
 static
 #endif
 int __init adi_sport_1836_init_module (void)
@@ -1195,7 +1198,7 @@ static void __exit adi_sport_1836_remove(void )
 
 
 
-#ifdef __linux__
+#ifdef LINUX
 module_init(adi_sport_1836_init_module);
 module_exit(adi_sport_1836_remove);
 #endif

@@ -1,11 +1,7 @@
-# drivers/sound/Config.in
-#
-# 18 Apr 1998, Michael Elizabeth Chastain, <mailto:mec@shout.net>
-# More hacking for modularisation.
-#
-# Prompt user for primary drivers.
-config SOUND_ADI1836
-	bool "ADI 1836 connected to Blackfin 533 via SPORT0/SPI"
-	depends on SOUND
-	---help---
+config ADI_1836_AUDIO
+	bool "1836 Audio support for BF533"
+	help
+	  If you have an 1836 connected to a SPI and SPORT0
+	  select this driver for a OSS sound driver
 
+	  If unsure, say N.
