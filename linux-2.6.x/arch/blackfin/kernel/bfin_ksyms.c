@@ -1,11 +1,12 @@
 #include <linux/module.h>
+#include <asm/irq.h>
+#include <asm/checksum.h>
 
 extern void dump_thread(struct pt_regs *, struct user *);
 
 /* platform dependent support */
 
 EXPORT_SYMBOL(__ioremap);
-EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strrchr);
