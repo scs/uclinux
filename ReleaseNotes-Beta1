@@ -1,6 +1,9 @@
 Release Notes for uClinux_dist-2.6.8-BF533-beta1
 -------------------------------------------------
-This linux version is known to work with only gcc-3.4.1 and binutils-2.15.
+This linux version is known to work with only latest gcc-3.4.1 and binutils-2.15 checked out from the CVS on 30th september 2004.
+
+This Kernel is known to NOT BOOT with latest bootloader in CVS, when Data Cache is turned on.
+
 To Get a Working Kernel with gcc-3.3.3 and binutils-2.14 checkout the kernel from cvs using the command
 $ cvs -z9 -d:ext:anonymous@cvs.blackfin.uclinux.org:/cvsroot/uclinux533 co uClinux-dist -rkernel-gcc-333
 
