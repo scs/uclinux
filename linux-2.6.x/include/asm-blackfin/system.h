@@ -44,7 +44,7 @@ asmlinkage void resume(void);
  * Interrupt configuring macros.
  */
 
-extern int irq_flags;
+extern volatile unsigned long irq_flags;
 			
 #define local_irq_enable() {		\
 	__asm__ __volatile__ (		\
