@@ -31,6 +31,8 @@
 #include <asm/cacheflush.h>
 #endif
 
+#include <asm/dpmc.h> /* get_sclk() */
+
 #include "bf533_serial.h"
 
 #undef SERIAL_DEBUG_OPEN
@@ -140,6 +142,8 @@ static int rs_write(struct tty_struct * tty, int from_user,
 
 static int baud_table[] = {
 	 9600, 19200, 38400, 57600, 115200};
+static int unix_baud_table[] = {
+	B9600, B19200, B38400, B57600, B115200};
 
 #define BAUD_TABLE_SIZE (sizeof(baud_table)/sizeof(baud_table[0]))
 
@@ -166,11 +170,12 @@ static void bf533_set_baud( void );
 
 void calc_baud(void)
 {
-        unsigned char i;
+	unsigned int sclk = get_sclk();
+        int i;
 
         for(i = 0; i < BAUD_TABLE_SIZE; i++) {
-                hw_baud_table[i].dl_high = ((CONFIG_SCLK_HZ/(baud_table[i]*16)) >> 8)& 0xFF;
-                hw_baud_table[i].dl_low = (CONFIG_SCLK_HZ/(baud_table[i]*16)) & 0xFF;
+                hw_baud_table[i].dl_high = ((sclk/(baud_table[i]*16)) >> 8)& 0xFF;
+                hw_baud_table[i].dl_low = (sclk/(baud_table[i]*16)) & 0xFF;
         }
 }
 
@@ -344,7 +349,6 @@ static void dma_receive_chars(struct bf533_serial *info, int in_timer)
               wake_up(&keypress_wait);
 #endif
       if (!tty) {
-              printk("no tty\n");
               goto unlock_and_exit;
       }
 
@@ -488,7 +492,6 @@ void receive_chars(struct bf533_serial *info, struct pt_regs *regs)
 		}
 
 		if(!tty){
-			printk("no tty\n");
 			goto clear_and_exit;
 		}
 		/*
@@ -842,24 +845,27 @@ static void shutdown(struct bf533_serial * info)
  */
 static void bf533_change_speed(struct bf533_serial *info)
 {
-	unsigned short uart_dll = 0x00ff, uart_dlh = 0xff;
-	unsigned cflag, flags = 0, cval = 0;
+	unsigned short uart_dll, uart_dlh;
+	unsigned cflag, flags, cval;
 
 	int	i;
 	FUNC_ENTER();
 
 	if (!info->tty || !info->tty->termios)
 		return;
+
+	calc_baud();
+
 	cflag = info->tty->termios->c_cflag;
 
         /* byte size and parity */
         switch (cflag & CSIZE)
         {
-                case CS5:       cval = 0x00; break;
-                case CS6:       cval = 0x01; break;
-                case CS7:       cval = 0x02; break;
-                case CS8:       cval = 0x03; break;
-                default:        cval = 0x00; break;
+                case CS5:       cval = WLS(5); break;
+                case CS6:       cval = WLS(6); break;
+                case CS7:       cval = WLS(7); break;
+                case CS8:       /* 8-bit should be default */
+		default:	cval = WLS(8); break;
         }
                                                                                 
         if (cflag & CSTOPB)
@@ -871,26 +877,41 @@ static void bf533_change_speed(struct bf533_serial *info)
         if (cflag & CRTSCTS)
                 printk(KERN_DEBUG "%s: CRTSCTS not supported. Ignoring.\n", __FUNCTION__);
                                                                                 
-	i = cflag & CBAUD;
-        if (i & CBAUDEX) {
-                i = (i & ~CBAUDEX) + B38400;
-        }
-
+	for (i = 0; i < BAUD_TABLE_SIZE; i++) {
+	    if (unix_baud_table[i] == (cflag & CBAUD))
+		break;
+	}
+	
+	if (i == BAUD_TABLE_SIZE) {
+	    printk(KERN_DEBUG "%s: baud rate not supported: 0%o\n", __FUNCTION__, cflag & CBAUD);
+	    i = 3;
+	} 
+	
 	info->baud = baud_table[i];
 
 	uart_dll = hw_baud_table[i].dl_low;
 	uart_dlh = hw_baud_table[i].dl_high;
 
-        local_irq_save(flags);
-        *pUART_LCR = cval | DLAB;
+	printk("bf533_change_speed: baud = %d, cval = 0x%04x\n", baud_table[i], cval);
+
+	local_irq_save(flags);
+	ACCESS_LATCH /*Set to access divisor latch*/
+	*pUART_DLL = hw_baud_table[i].dl_low;
 	SYNC_ALL;
-        *pUART_DLL = uart_dll;
+	*pUART_DLH = hw_baud_table[i].dl_high;
 	SYNC_ALL;
-        *pUART_DLH = uart_dlh;
+
+	*pUART_LCR = cval;
 	SYNC_ALL;
-        *pUART_LCR = cval;
+
+	/* Change access to IER & data port */
+	ACCESS_PORT_IER 
+        *pUART_IER |= ELSI;
 	SYNC_ALL;
-	
+	/* Enable the UART */
+	*pUART_GCTL |= UCEN;
+	SYNC_ALL;
+
 	local_irq_restore(flags);
 	return;
 }
@@ -1658,7 +1679,7 @@ static int __init rs_bf533_init(void)
 	init_waitqueue_head(&info->close_wait);
 
 	info->line = 0;
-	info->is_cons = 1; /* Means shortcuts work */
+	info->is_cons = 0; /* Means shortcuts work */
 	info->irq = IRQ_UART_RX;
         info->xmit_desc = NULL;
 	
@@ -1755,16 +1776,12 @@ int bf533_console_setup(struct console *cp, char *arg)
 			break;
 	if (i < BAUD_TABLE_SIZE) {
 		bf533_console_baud = n;
-		bf533_console_cbaud = 0;
-		if (i > 15) {
-			bf533_console_cbaud |= CBAUDEX;
-			i -= 15;
-		}
-		bf533_console_cbaud |= i;
+		bf533_console_cbaud = unix_baud_table[i];
 	}
 
+	bf533_soft.is_cons = 1;
 	bf533_set_baud(); /* make sure baud rate changes */
-	return(0);
+	return 0;
 }
 
 static struct tty_driver * bf533_console_device(struct console *c, int *index)
