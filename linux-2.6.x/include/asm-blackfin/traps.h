@@ -13,11 +13,6 @@
 #ifndef _BFIN_TRAPS_H
 #define _BFIN_TRAPS_H
 
-#ifndef __ASSEMBLY__
-typedef void (*e_vector)(void);
-extern e_vector vectors[];
-#endif
-
 #define VEC_SYS		(0)
 #define VEC_EXCPT01	(1)
 #define VEC_EXCPT02	(2)
