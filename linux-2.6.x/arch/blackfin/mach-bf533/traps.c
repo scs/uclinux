@@ -17,17 +17,6 @@
 #include <asm/page.h>
 #include <asm/machdep.h>
 
-/* table for system interrupt handlers */
-static irq_handler_t irq_list[SYS_IRQS];
-
-static const char *default_names[SYS_IRQS] = {
-	"spurious int", "int1 handler", "int2 handler", "int3 handler",
-	"int4 handler", "int5 handler", "int6 handler", "int7 handler"
-};
-
-/* The number of spurious interrupts */
-volatile unsigned int num_spurious;
-
 /*
  * void init_IRQ(void)
  *
