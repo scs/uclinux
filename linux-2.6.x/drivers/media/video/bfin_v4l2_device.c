@@ -91,7 +91,7 @@ timer_setup(void)
 
 }
 
-
+static int id;
 
 void
 init_device_bfin_v4l2()
@@ -116,11 +116,12 @@ init_device_bfin_v4l2()
 /* We need to request
  * kernel for PPI DMA channel
  */
- 
+#if 0 
 	if( request_dma(CH_PPI, "BFIN_V4L2_DRIVER", NULL) ){
 		printk( KERN_ERR, "Unable to allocate ppi dma %d\n", CH_PPI);
 		return -ENODEV;
 	}
+#endif
 
 
 /* Request for getting PPI
@@ -128,7 +129,7 @@ init_device_bfin_v4l2()
  * to use our own PPI interrupt 
  * handler
  */
-        if( request_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &ppi_handler, SA_SHIRQ, "PPI Data", NULL ) ){
+        if( request_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &ppi_handler, SA_SHIRQ, "PPI Data", &id ) ){
                 printk( KERN_ERR "Unable to allocate ppi IRQ %d\n", CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
 		freedma(CH_PPI);
                 return -ENODEV;
@@ -171,12 +172,10 @@ if(! request_dma(CH_MEM_STREAM0_DEST, "BFIN_V4L2_DRIVER", NULL) {
 	_Flash_Setup_ADV_Reset() ;
 	_config_ppi() ;
 	_config_dma(ycrcb_buffer_out) ;
-//	timer_setup() ;
 	enable_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
         // enable the dma
         *pDMA0_CONFIG |= 1;
         *pPPI_CONTROL |= 1;
-//	add_timer(&buffer_swapping_timer) ;
 }
 
 void
@@ -185,21 +184,15 @@ device_bfin_close()
 	//disable DMA
 	*pPPI_CONTROL &= 0;
 	*pDMA0_CONFIG &= 0;
+#if 0
 	freedma(CH_PPI);
+#endif
 	//Release the interrupt.
-//	disable_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
-//	free_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, "PPI Data"); 	
-//	del_timer_sync(&buffer_swapping_timer) ;
-	printk(" bfin_ad7171_fb Realeased\n") ;
+	free_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &id);
+	printk(" bfin_ad7171 Realeased\n") ;
 }
 void
 bfin_v4l2_update_video()
 {
-	int i =0;
-	temp_ycrcb_frame_no = 0 ; //start again		
-//	for(i = 0; i< MAX_NO_OF_FRAMES; i++) {
-	for(i = 0; i< 1; i++) {
-		_NtscVideoOutBuffUpdate(ycrcb_buffer_out, pre_ycrcb_buffer_out);
-//		pre_ycrcb_buffer_out += temp_ycrcb_frame_no++ ;
-	}
+	_NtscVideoOutBuffUpdate(ycrcb_buffer_out, pre_ycrcb_buffer_out);
 }
