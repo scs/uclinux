@@ -219,7 +219,7 @@ unsigned long change_sclk(unsigned long clock)
 
 static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	unsigned long cclk_mhz=0,sclk_mhz=0,vco_mhz=0,pll_stat=0,vco_mhz_bk,mvolt,wdog_tm;
+	unsigned long cclk_mhz=0,sclk_mhz=0,vco_mhz=0,pll_stat=0,vco_mhz_bk,mvolt,wdog_tm=0;
 	/* struct bf533_serial *in; */
 
 	switch (cmd) {
@@ -249,6 +249,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 			copy_from_user(&vco_mhz,(unsigned long *)arg,sizeof(unsigned long));
 			vco_mhz_bk = vco_mhz;
 			if((vco_mhz > MAX_VCO) || (vco_mhz < MIN_VCO))	return -1;
+
 			/* This is done to avoid drastic change of frequency since it affects SSEL.
 			 * At 135MHz keeping SSEL as 5 or 1 does not matter 
 			 */
@@ -476,6 +477,12 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 	*pSIC_IWR = (*pSIC_IWR | IWR_ENABLE(0));
 	asm("ssync;");
 
+	*pSIC_IMASK = (*pSIC_IMASK | SIC_MASK(0));
+	asm("ssync;");
+
+	*pIMASK |= 0x80;
+	asm("csync;");
+
 #if 0
 	*pWDOG_CTL = 0xAD6;
 	asm("ssync;");
@@ -619,101 +626,6 @@ void active_mode(void)	{
 	asm("ssync;");
 }
 
-void enable_wakes() {
-	
-	*pSIC_IWR |= IWR_ENABLE(7);
-	asm("ssync;");	
-
-	*pSIC_IMASK |= SIC_MASK(7);
-	asm("ssync;");
-
-	*pIMASK |= EVT_IVG8_P;
-	asm("csync;");
-}
-
-
-void clear_rtc_istat(void) {
-	*pRTC_ISTAT = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM);
-	asm("ssync;");
-
-	/* Just set it, so that we wait for complete */
-	*pRTC_ICTL |= PREN;
-	asm("ssync;");
-
-	while(!(*pRTC_ISTAT & WCOM));
-}
-
-void sleep_mode(void) {
-	enable_wakes();
-	clear_rtc_istat();
-
-	*pPLL_LOCKCNT = 0x300;
-	asm("ssync;");
-
-	*pPLL_CTL |= STOPCK_OFF;
-		
-	asm("[--SP] = R6;"
-	"CLI R6;"
-	"SSYNC;"
-	"IDLE;"
-	"STI R6;"
-	"R6 = [SP++];");
-
-	while((*pPLL_STAT & PLL_LOCKED) != PLL_LOCKED);
-
-	*pPLL_CTL &= ~STOPCK_OFF;
-	asm("IDLE;");
-}
-
-void deep_sleep(void) {
-	enable_wakes();
-	clear_rtc_istat();
-
-	*pPLL_LOCKCNT = 0x300;
-	asm("ssync;");
-
-	*pPLL_CTL |= PDWN;
-		
-	asm("[--SP] = R6;"
-	"CLI R6;"
-	"SSYNC;"
-	"IDLE;"
-	"STI R6;"
-	"R6 = [SP++];");
-
-/* actually may not reach here SDRAM contents gets destroyed */
-	while((*pPLL_STAT & PLL_LOCKED) != PLL_LOCKED);
-
-	*pPLL_CTL &= ~PDWN;
-	asm("IDLE;");
-}
-
-void hibernate_mode(void) {
-	enable_wakes();
-	clear_rtc_istat();
-
-	*pPLL_LOCKCNT = 0x300;
-	asm("ssync;");
-
-	*pVR_CTL |= WAKE;
-	*pVR_CTL &= ~FREQ_3;
-	asm("ssync;");
-		
-	asm("[--SP] = R6;"
-	"CLI R6;"
-	"SSYNC;"
-	"IDLE;"
-	"STI R6;"
-	"R6 = [SP++];");
-
-/* actually may not reach here SDRAM contents gets destroyed */
-	while((*pPLL_STAT & PLL_LOCKED) != PLL_LOCKED);
-
-	*pVR_CTL &= ~WAKE;
-	*pVR_CTL |= FREQ_3;
-	asm("IDLE;");
-}
-
 /********************************CHANGE OF VOLTAGE*******************************************/
 #if 1
 
@@ -836,11 +748,6 @@ module_exit(dpmc_exit);
 /*
  *  Info exported via "/proc/driver/dpmc".
  */
-
-static int dpmc_proc_output (char *buf)
-{
-	return 0;
-}
 
 static int dpmc_read_proc(char *page, char **start, off_t off,
                          int count, int *eof, void *data)
