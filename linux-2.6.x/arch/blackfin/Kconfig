@@ -134,11 +134,11 @@ config LARGE_ALLOCS
 	  contiguous chunks. If unsure, say N. 
 
 config IRQCHIP_DEMUX_GPIO
-       bool "Enable GPIO IRQ Demultiplexing"
-       depends on IRQCHIP
-       default n
-       help
-         Demultiplex GPIO interrupt, enabling IRQ_PF0 through IRQ_PF15
+	bool "Enable GPIO IRQ Demultiplexing"
+	depends on IRQCHIP
+	default n
+	help
+	  Demultiplex GPIO interrupt, enabling IRQ_PF0 through IRQ_PF15
 
 comment 'DMA Support'
 choice
@@ -150,12 +150,6 @@ config NO_DMA
 	bool 'Disable DMA Support' 
 	help
 	  Disable DMA driver
-
-config BLKFIN_DMA
-	bool 'Enable DMA Support' 
-	depends on (BF533 || BF532 || BF531) 
-	help
-	  Fully-fledged DMA driver
 	
 config BLKFIN_SIMPLE_DMA
 	bool 'Enable Simple DMA Support' 
@@ -200,7 +194,7 @@ comment 'VCO Multiplier'
 config VCO_MULT
 	int "VCO Multiplier" 	
 	default "22" if EZKIT
-	default "36" if BLKFIN_STAMP
+	default "45" if BLKFIN_STAMP
 
 comment 'Core Clock Divider'
 
@@ -214,7 +208,7 @@ comment 'System Clock Divider'
 config SCLK_DIV
 	int "System Clock Divider"
 	default 5 if EZKIT
-	default 5 if BLKFIN_STAMP
+	default 4 if BLKFIN_STAMP
 
 comment 'Half clockin'
 
@@ -405,11 +399,10 @@ config	WDTIMER
 	default 13
 
 	help
-	------------------------- GENERAL HELP -------------------------
-
-	Enter the priority numbers between 7-13 ONLY. Others are Reserved. 		
- 	This applies to all the above.It is not recommended to assign the 
-	highest priority no 7 to UART or any other device.
+	  ------------------------- GENERAL HELP -------------------------
+	  Enter the priority numbers between 7-13 ONLY. Others are Reserved. 		
+ 	  This applies to all the above.It is not recommended to assign the 
+	  highest priority no 7 to UART or any other device.
 
 endmenu
 
