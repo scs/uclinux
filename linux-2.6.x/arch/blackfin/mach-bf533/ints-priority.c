@@ -114,6 +114,8 @@ asmlinkage void irq_panic( int reason, struct pt_regs * regs)
 			break;
 		}
 	}
+
+	regs->ipend = *pIPEND;
 	dump(regs);
 	if (0 == (info.si_signo = sig) || 
 	    0 == user_mode(regs)) /* in kernelspace */
