@@ -68,11 +68,10 @@ struct rt_sigframe
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  *
- * ??? input entry: r3 of pt_regs
  */
 asmlinkage int do_sigsuspend(struct pt_regs *regs)
 {
-	old_sigset_t mask = regs->r0;	/* old_sigset_t: unsigned long */
+	old_sigset_t mask = regs->r0;
 	sigset_t saveset;
 
 	mask &= _BLOCKABLE;
@@ -175,7 +174,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, int *pr0)
 	/* get previous context */
 	if (copy_from_user(&context, usc, sizeof(context)))
 		goto badframe;
-	
+	if (context.sc_pc == 0)
+		goto badframe;
 	/* restore passed registers */
 	regs->r0 = context.sc_r0;
 	regs->r1 = context.sc_r1;
