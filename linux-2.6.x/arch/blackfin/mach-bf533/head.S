@@ -203,7 +203,7 @@ _real_start:
 	r0 = 0;
 	lsetup (_clear_bss, _clear_bss_end ) lc0 = p2 - p1;
 _clear_bss:
-	[p1++] = r0;
+	B[p1++] = r0;
 _clear_bss_end:
 
 	p1.l = _rambase;
@@ -237,6 +237,7 @@ _clear_bss_end:
 	r1 = r1 + r2;
 	sp = r1; 
 	usp = sp;
+	fp = sp;
 	call	start_kernel;
 _exit:
 	jump.s	_exit;
