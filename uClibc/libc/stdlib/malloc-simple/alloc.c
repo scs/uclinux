@@ -100,8 +100,7 @@ void *realloc(void *ptr, size_t size)
 #endif
 
 #ifdef L_free
-extern int /* weak_function */ __libc_free_aligned(void *ptr);
-//extern int  __libc_free_aligned(void *ptr);
+extern int weak_function __libc_free_aligned(void *ptr);
 void free(void *ptr)
 {
     if (ptr == NULL)
