@@ -55,6 +55,7 @@
  *                                  smc_phy_configure
  *                                - clean up (and fix stack overrun) in PHY
  *                                  MII read/write functions
+ *   22/03/05  Bas Vermeulen      Clean up the BlackFin specific code.
  */
 static const char version[] =
 	"smc91x.c: v1.0, mar 07 2003 by Nicolas Pitre <nico@cam.org>\n";
@@ -304,6 +305,15 @@ static void PRINT_PKT(u_char *buf, int length)
 		}							\
 	}								\
 } while (0)
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void smc_poll_controller(struct net_device* dev)
+{
+	disable_irq(dev->irq);
+	smc_interrupt(dev->irq, dev, NULL);
+	enable_irq(dev->irq);
+}
+#endif /* CONFIG_NET_POLL_CONTROLLER */
 
 #if defined(CONFIG_BFIN)
 static void bfin_EBIU_AM_setup(void)
@@ -1885,19 +1895,16 @@ static int __init smc_probe(struct net_device *dev, unsigned long ioaddr)
 	/* Get the MAC address */
 	SMC_SELECT_BANK(1);
 #if defined(CONFIG_BFIN)
-	/* Program MAC address if not set... */
-	SMC_SELECT_BANK( 1 );
-	for (i = 0; (i < 6); i += 2) {
-		unsigned short address;
-		address = readw( ioaddr + ADDR0_REG + i ) ;
-		if ((address != 0x0000) && (address != 0xffff))
+	SMC_GET_MAC_ADDR(dev->dev_addr);
+	for (i = 0; i < 6; i++)
+		if ((dev->dev_addr[i] != 0x00) && (dev->dev_addr[i] != 0xff))
 			break;
-	}
-	if (i >= 6) {
-	/* Set a default MAC address */
-		smc_writew(0xCF00, ioaddr + ADDR0_REG);
-		smc_writew(0x4952, ioaddr + ADDR0_REG + 2);
-		smc_writew(0x01C3, ioaddr + ADDR0_REG + 4);
+	if (i >= 6)
+	{
+		dev->dev_addr[0] = 0x00; dev->dev_addr[1] = 0xcf;
+		dev->dev_addr[2] = 0x52; dev->dev_addr[3] = 0x49;
+		dev->dev_addr[4] = 0xc3; dev->dev_addr[4] = 0x01;
+		SMC_SET_MAC_ADDR(dev->dev_addr);
 	}
 #endif
 
@@ -1955,6 +1962,9 @@ static int __init smc_probe(struct net_device *dev, unsigned long ioaddr)
 	dev->get_stats = smc_query_statistics;
 	dev->set_multicast_list = smc_set_multicast_list;
 	dev->ethtool_ops = &smc_ethtool_ops;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = smc_poll_controller;
+#endif /* CONFIG_NET_POLL_CONTROLLER */
 
 	spin_lock_init(&lp->lock);
 	lp->mii.phy_id_mask = 0x1f;

@@ -60,43 +60,18 @@
 #define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
 
 #elif defined(CONFIG_BFIN)
-#define SMC_CAN_USE_8BIT    0
-#define SMC_CAN_USE_16BIT   1
-#define SMC_CAN_USE_32BIT   0
-#define SMC_IO_SHIFT        0
+#define SMC_CAN_USE_8BIT	0
+#define SMC_CAN_USE_16BIT	1
+#define SMC_CAN_USE_32BIT	0
+#define SMC_IO_SHIFT		0
 #define SMC_NOWAIT      	1
 #define SMC_USE_BFIN_DMA	0
 
-inline void SMC_OUTSW(unsigned int addr, void *buf, int len)
-{
-    volatile unsigned short *ap = (volatile unsigned short *) addr;
-    unsigned short *bp = (unsigned short *) buf;
-    while (len--){
-        *ap = (*bp++);}
-}
 
-inline void SMC_INSW(unsigned int addr, void *buf, int len)
-{
-    volatile unsigned short *ap = (volatile unsigned short *) addr;
-    unsigned short *bp = (unsigned short *) buf;
-    while (len--){
-        *bp++ = (*ap);}
-}
-
-inline void SMC_WRITEW(unsigned short b,unsigned int addr)
-{
-    (*((volatile unsigned short *)((addr))) = b) ;
-}
-
-#define SMC_inw(a, r)       readw((a) + (r))
-#define SMC_outw(v, a, r)   writew(v, (a) + (r))
-#define	smc_writew(b,a)			SMC_WRITEW(b,a)
-/*
- * FIXME: 	include/asm-bfinnommu/io.h use memcpy to do insw/outsw
- * 			which is not correct.
- */
-#define SMC_outsw(a, r, p, l)   SMC_OUTSW((a) + (r), p, l)
-#define SMC_insw(a, r, p, l)    SMC_INSW((a) + (r), p, l)
+#define SMC_inw(a, r)       	readw((a) + (r))
+#define SMC_outw(v, a, r)   	writew(v, (a) + (r))
+#define SMC_outsw(a, r, p, l)	outsw((a) + (r), p, l)
+#define SMC_insw(a, r, p, l) 	insw ((a) + (r), p, l)
 
 #elif defined(CONFIG_REDWOOD_5) || defined(CONFIG_REDWOOD_6)
 
@@ -309,42 +284,6 @@ smc_pxa_dma_irq(int dma, void *dummy, struct pt_regs *regs)
 	DCSR(dma) = 0;
 }
 #endif  /* SMC_USE_PXA_DMA */
-
-#if SMC_USE_BFIN_DMA
-
-#ifdef SMC_insw
-#undef SMC_insw
-#define SMC_insw(a, r, p, l) SMC_INSW_DMA(a, r, p, l)
-#endif
-
-/*
- * Use the DMA engine on BF533 for RX packets. This is always happening in irq 
- * context so no need to worry about races.  TX is different and probably not 
- * worth it for that reason, and not as critical as RX which can overrun memory 
- * and lose packets.
- */
-#include <linux/pci.h>
-#include <asm/dma.h>
-
-#define	ETH_RX_DMA_CHANNEL	CH_MEM_STREAM1_SRC
-#define SMC_INSW_DMA(a,r,p,l)	smc_bfin_dma_insw(a, r, dev->dma, p, l)
-
-extern bfin_mem_dma(char *, char *, int, dma_interrupt_t, dma_interrupt_t);
-
-static inline void
-smc_bfin_dma_insw(u_long ioaddr, int reg, int dma, void *buf, int len)
-{
-	/*	
-	 *	Follow segment code works fine... 
-	 *	Blackfin's DMA controller does not permit DMA source address untouched.
-	 */	
-    volatile unsigned short *ap = (volatile unsigned short *) (ioaddr+reg);
-    unsigned short *bp = (unsigned short *) buf;
-    while (len--){
-        *bp++ = (*ap);
-	}
-}
-#endif
 
 /* Because of bank switching, the LAN91x uses only 16 I/O ports */
 #ifndef SMC_IO_SHIFT

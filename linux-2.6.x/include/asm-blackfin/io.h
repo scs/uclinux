@@ -48,19 +48,20 @@
 #define outw_p(x,addr) outw(x,addr)
 #define outl_p(x,addr) outl(x,addr)
 
-#define insb(port, addr, count) memcpy((void*)addr, (void*)port, count)
-#define insw(port, addr, count) memcpy((void*)addr, (void*)port, (2*count))
-#define insl(port, addr, count) memcpy((void*)addr, (void*)port, (4*count))
-
-#define outsb(port, addr, count) memcpy((void*)port, (void*)addr, count)
-#define outsw(port, addr, count) memcpy((void*)port, (void*)addr, (2*count))
-#define outsl(port, addr, count) memcpy((void*)port, (void*)addr, (4*count))
 #define IO_SPACE_LIMIT 0xffffffff
 
 /* Values for nocacheflag and cmode */
 #define IOMAP_NOCACHE_SER		1
 
 #ifndef __ASSEMBLY__	
+
+extern void outsb(unsigned long port, const void* addr, unsigned long count);
+extern void outsw(unsigned long port, const void* addr, unsigned long count);
+extern void outsl(unsigned long port, const void* addr, unsigned long count);
+
+extern void insb(unsigned long port, void* addr, unsigned long count);
+extern void insw(unsigned long port, void* addr, unsigned long count);
+extern void insl(unsigned long port, void* addr, unsigned long count);
 
 extern void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag);
 extern void iounmap(void *addr);
