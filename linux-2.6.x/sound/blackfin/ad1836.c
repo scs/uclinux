@@ -402,7 +402,7 @@ static void snd_ad1836_proc_registers_read( snd_info_entry_t * entry, snd_info_b
     snd_iprintf(buffer, "%s 0x%04x %d dBFS\n", reg_names[i], 
 		chip->chip_registers[i], ADC_PEAK_VALUE(chip->chip_registers[i]) );
 
-  for( i=ADC_CTRL_1; i<=ADC_CTRL_2;++i)
+  for( i=ADC_CTRL_1; i<=ADC_CTRL_3;++i)
     snd_iprintf(buffer, "%s 0x%04x\n", reg_names[i], chip->chip_registers[i] );
 
   return;
