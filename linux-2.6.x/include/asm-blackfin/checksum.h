@@ -1,7 +1,6 @@
 #ifndef _BFIN_CHECKSUM_H
 #define _BFIN_CHECKSUM_H
 
-#include <linux/in6.h>
 /*
  * MODIFIED FOR BFIN April 30, 2001 akbar.hussain@lineo.com
  *
@@ -99,37 +98,5 @@ csum_tcpudp_magic(unsigned long saddr, unsigned long daddr, unsigned short len,
  */
 
 extern unsigned short ip_compute_csum(const unsigned char * buff, int len);
-
-#define _HAVE_ARCH_IPV6_CSUM
-static __inline__ unsigned short int
-csum_ipv6_magic(struct in6_addr *saddr, struct in6_addr *daddr,
-		__u32 len, unsigned short proto, unsigned int sum) 
-{
-	register unsigned long tmp;
-	__asm__("R3 = [%2]; %0 = %0 + R3;\n\t"	/*"addl %2@,%0\n\t"*/
-		"%1 = [%2+4];\n\t"		/* "movel %2@(4),%1\n\t"*/
-		"%0 = %0 + %1; R3 = CC; %0 = %0 + R3;\n\t"	/*"addxl %1,%0\n\t"*/
-		"%1 = [%2+8];\n\t"		/* "movel %2@(8),%1\n\t" */
-		"%0 = %0 + %1; R3 = CC; %0 = %0 + R3;\n\t"	/*"addxl %1,%0\n\t"*/
-		"%1 = [%2+12];\n\t"		/* "movel %2@(12),%1\n\t" */
-		"%0 = %0 + %1; R3 = CC; %0 = %0 + R3;\n\t"	/*"addxl %1,%0\n\t" */
-		"%1 = [%3];\n\t"		/* "movel %3@,%1\n\t" */
-		"%0 = %0 + %1; R3 = CC; %0 = %0 + R3;\n\t"	/*"addxl %1,%0\n\t" */
-		"%1 = [%3+4];\n\t"		/* "movel %3@(4),%1\n\t"*/
-		"%0 = %0 + %1; R3 = CC; %0 = %0 + R3;\n\t"	/*"addxl %1,%0\n\t" */
-		"%1 = [%3+8];\n\t"		/* "movel %3@(8),%1\n\t"*/
-		"%0 = %0 + %1; R3 = CC; %0 = %0 + R3;\n\t"	/*"addxl %1,%0\n\t" */
-		"%1 = [%3+12];\n\t"		/* "movel %3@(12),%1\n\t" */
-		"%0 = %0 + %1; R3 = CC; %0 = %0 + R3;\n\t"	/*"addxl %1,%0\n\t" */
-		"%0 = %0 + %4; R3 = CC; %0 = %0 + R3;\n\t"	/*"addxl %4,%0\n\t" */
-		"%1 = 0;\n\t"			/* "clrl %1\n\t" */
-		"%0 = %0 + %1; R3 = CC; %0 = %0 + R3;\n\t"	/*"addxl %1,%0"  */
-		: "=&d" (sum), "=&d" (tmp)
-		: "a" (saddr), "a" (daddr), "d" (len + proto),
-		  "0" (sum)
-		: "R3");
-
-	return csum_fold(sum);
-}
 
 #endif /* _BFIN_CHECKSUM_H */
