@@ -196,7 +196,7 @@ ENTRY(blackfin_dflush_page)
 	P1 = 1 << (PAGE_SHIFT - L1_CACHE_SHIFT);
 	P0 = R0;
 	LSETUP (fl1, fl2) LC0 = P1;
-fl1:	FLUSH [P0++];
-fl2:	CSYNC;	
+fl1:	CSYNC;
+fl2:	FLUSH [P0++];	
 	SSYNC;
 	RTS;
