@@ -28,7 +28,7 @@
 #include <asm/asm-offsets.h>
 
 #define MAX_SHARED_LIBS 1
-#define TEXT_OFFSET 4
+#define TEXT_OFFSET 0	/* elf2flt linker script has taken care of this */
 /*
  * does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
@@ -65,7 +65,6 @@ static inline long get_reg(struct task_struct *task, int regno)
 	switch(regno){
 		case PT_ORIG_PC : return regs->orig_pc -  task->mm->start_code - TEXT_OFFSET;
 		case PT_PC :
-//printk("start_code is %x\n", task->mm->start_code);
 		               return regs->pc -  task->mm->start_code - TEXT_OFFSET;
 		case PT_R0 : return regs->r0;
 		case PT_ORIG_R0 : return regs->orig_r0;
@@ -284,10 +283,15 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
                         if(addr < child->mm->start_code)
                         {
-			   add += TEXT_OFFSET; 		// we know flat puts 4 0's at top
+			   int text_length = (child->mm->start_data - MAX_SHARED_LIBS * 4) -
+				(child->mm->start_code + TEXT_OFFSET);
+			   add += TEXT_OFFSET;
+			   if(addr >= text_length){
+				add += MAX_SHARED_LIBS * 4;
+			    }
                             extra = child->mm->start_code;
                          }
-                        if( addr > child->mm->start_stack)
+                        if( (addr + add + extra) > child->mm->start_stack)
                          {
                            printk("Ptrace Error: Invalid memory(0x%x) had been asked to access start_code=%x start_stack=%x\n", (int)addr, (int)(child->mm->start_code), (int)(child->mm->start_stack));
                            goto out_tsk;
@@ -295,6 +299,9 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
  
 			copied = access_process_vm(child,  extra + addr + add,
 						   &tmp, sizeof(tmp), 0);
+#ifdef DEBUG
+printk("PEEKTEXT at addr %x\tadd %x\textra %x\t%d\n", addr, add, extra, tmp);
+#endif
 			ret = -EIO;
 			if (copied != sizeof(tmp))
 				goto out_tsk; 
@@ -337,20 +344,39 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			add = MAX_SHARED_LIBS * 4;	// space between text and data
 			// fall through
 		case PTRACE_POKETEXT: /* write the word at location addr. */
-			add += TEXT_OFFSET; 		// we know flat puts 4 0's at top
-			ret = 0;
+		{
 			/* added start_code to addr, actually need to add text or data
 			   depending on addr being < or > textlen.
 			   Dont forget the MAX_SHARED_LIBS
 			*/
+			int extra = 0;
+
+                        if(addr < child->mm->start_code)
+                        {
+			   int text_length = (child->mm->start_data - MAX_SHARED_LIBS * 4) -
+				(child->mm->start_code + TEXT_OFFSET);
+			   add += TEXT_OFFSET;
+			   if(addr >= text_length){
+				add += MAX_SHARED_LIBS * 4;
+			    }
+                            extra = child->mm->start_code;
+                         }
+                        if( (addr + add + extra) > child->mm->start_stack)
+                         {
+                           printk("Ptrace Error: Invalid memory(0x%x) had been asked to access start_code=%x start_stack=%x\n", (int)addr, (int)(child->mm->start_code), (int)(child->mm->start_stack));
+                           goto out_tsk;
+                         }
+ 
+			ret = 0;
 #ifdef DEBUG
 printk("POKETEXT at addr %x + add %d %d bytes %x\n", addr,  add, sizeof(data), data);
 #endif
-			if (access_process_vm(child, child->mm->start_code + addr + add, 
+			if(access_process_vm(child,  extra + addr + add,
 				&data, sizeof(data), 1) == sizeof(data))
 				goto out_tsk;
 			ret = -EIO;
 			goto out_tsk; 
+		}
 
 		case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 			ret = -EIO;
