@@ -7,12 +7,14 @@
 #ifndef _BLKFin_H_
 #define _BLKFin_H_
 
-
 #include <linux/config.h>	
 
+#define OFFSET_( x ) ((x) & 0x0000FFFF) /* define macro for offset */
+#define L1_ISRAM         0xFFA00000
+#define L1_ISRAM_END     0xFFA10000
+#define DATA_BANKA_SRAM		0xFF800000
 
 /*some misc defines*/
-
 #define IMASK_IVG15		0x8000
 #define IMASK_IVG14		0x4000
 #define IMASK_IVG13		0x2000
@@ -113,7 +115,7 @@
 #define AMBCTL0VAL	0xBBC3BBC3
 #define AMBCTL1VAL	0x99B39983
 #define AMGCTLVAL	0xFF
-#define RAM_END		0x1000000	
+#define RAM_END		0x4000000
 #endif
 
 #endif  /* _BLKFin_H_  */
