@@ -34,6 +34,7 @@ long syscall(long sysnum, long a, long b, long c, long d, long e)
 		"r3 = %6;"
 		"r4 = %5;"
 		"excpt 0;"
+		"%0 = r0;"
 	    : "=r"(_r0)
 	    : "r"(sysnum), "r"(a), "r"(b),
 	      "r"(c), "r"(d), "r"(e)
@@ -43,5 +44,6 @@ long syscall(long sysnum, long a, long b, long c, long d, long e)
 	(*__errno_location())=(-_r0);
 	_r0=(unsigned long) -1;
     }
+	printf("syscall: r0=%d\n",_r0);
     return (long) _r0;
 }
