@@ -1,7 +1,6 @@
 #ifndef _BFIN_CHECKSUM_H
 #define _BFIN_CHECKSUM_H
 
-#include <linux/in6.h>
 /*
  * MODIFIED FOR BFIN April 30, 2001 akbar.hussain@lineo.com
  *
@@ -66,20 +65,24 @@ static inline unsigned int
 csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr, unsigned short len,
 		  unsigned short proto, unsigned int sum)
 {
-	sum += daddr & 0xffff;
-	sum += daddr >> 16;
-	sum += saddr & 0xffff;
-	sum += saddr >> 16;
-	sum += proto << 8;
-	sum += ntohs(len);
-#if 0
+
 	__asm__ ("%0 = %0 + %1;\n\t"
+		 "CC = AC;\n\t"
+		 "if !CC jump 4;\n\t"
+		 "%0 = %0 + %4;\n\t"
 		 "%0 = %0 + %2;\n\t"
-		 "%0 = %0 + %3;\n\t"
-		 : "=d" (sum)
-		 : "d" (daddr), "d" (saddr), "d" ((ntohs(len)<<16)+proto*256), "0"(sum));
-#endif
-	return sum;
+		 "CC = AC;\n\t"
+                 "if !CC jump 4;\n\t"
+                 "%0 = %0 + %4;\n\t"
+ 		 "%0 = %0 + %3;\n\t"
+		 "CC = AC;\n\t"
+                 "if !CC jump 4;\n\t"
+                 "%0 = %0 + %4;\n\t"
+                 "NOP;\n\t"
+ 		 : "=d" (sum)
+		 : "d" (daddr), "d" (saddr), "d" ((ntohs(len)<<16)+proto*256), "d" (1), "0"(sum));
+
+	return (sum);
 }
 
 static inline unsigned short int
