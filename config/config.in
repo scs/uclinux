@@ -1114,3 +1114,11 @@ bool    'Still to write'                CONFIG_YET
 
 endmenu
 
+#############################################################################
+
+mainmenu_option next_comment
+comment 'Blackfin app programs'
+
+bool    'gdbserver'  	    	        CONFIG_USER_BLACKFIN_GDB
+
+endmenu
