@@ -228,17 +228,57 @@ config PLL_BYPASS
 
 comment 'SDRAM Memory Size'
 
+if EZKIT
+   config DEFAULT_MEM_SIZE
+	int "SDRAM Memory Default Size"
+	default 32
+
+   config MIN_MEM_SIZE
+	int "SDRAM Memory Min Size"
+	default 1
+
+   config MAX_MEM_SIZE
+	int "SDRAM Memory Max Size"
+	default 32
+
+   config FIXED_MEM_ADD_WIDTH
+	int "SDRAM Memory Address Default Width"
+	default 9
+	range 9 9
+endif
+
+if BLKFIN_STAMP
+   config DEFAULT_MEM_SIZE
+	int "SDRAM Memory Default Size"
+	default 128
+
+   config MIN_MEM_SIZE
+	int "SDRAM Memory Min Size"
+	default 1
+
+   config MAX_MEM_SIZE
+	int "SDRAM Memory Max Size"
+	default 128
+
+   config FIXED_MEM_ADD_WIDTH
+	int "SDRAM Memory Address Width"
+	default 11
+	range 11 11
+endif
+
 config MEM_SIZE
 	int "SDRAM Memory Size"
-	default 32 if EZKIT
-	default 128 if BLKFIN_STAMP
+	default DEFAULT_MEM_SIZE if DEFAULT_MEM_SIZE
+	range MIN_MEM_SIZE MAX_MEM_SIZE if MIN_MEM_SIZE && MAX_MEM_SIZE
+	range 1 128
 
 comment 'Memory Address Width'
 
 config MEM_ADD_WIDTH
 	int "SDRAM Memory Address Width"
-	default 9 if EZKIT
-	default 11 if BLKFIN_STAMP
+	default FIXED_MEM_ADD_WIDTH if FIXED_MEM_ADD_WIDTH
+	range FIXED_MEM_ADD_WIDTH FIXED_MEM_ADD_WIDTH if FIXED_MEM_ADD_WIDTH
+	range 8 11
 
 comment'Asynchonous Memory Configuration'
 
