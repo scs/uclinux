@@ -124,6 +124,9 @@
  *	 - r4, r5, r6, r7, p3, p4, p5
  */
 .macro save_context_with_interrupts
+	
+	[--sp] = SYSCFG;
+
 	[--sp] = R0;	/*orig_r0*/
 	[--sp] = ( R7:0, P5:0 );
 	[--sp] = fp;
@@ -169,11 +172,13 @@
 	[--sp] = RETN;
 	[--sp] = RETE;
 	[--sp] = SEQSTAT;
-	[--sp] = SYSCFG;
+	/*[--sp] = SYSCFG;*/
 	[--sp] = r0;	/* Skip IPEND as well. */
 .endm
 
 .macro save_context_no_interrupts
+	
+	[--sp] = SYSCFG;
 	[--sp] = R0;	/* orig_r0 */
 	[--sp] = ( R7:0, P5:0 );
 	[--sp] = fp;
@@ -220,14 +225,14 @@
 	[--sp] = RETN;
 	[--sp] = RETE;
 	[--sp] = SEQSTAT;
-	[--sp] = SYSCFG;
+	/*[--sp] = SYSCFG;*/
 	[--sp] = r0;	/* Skip IPEND as well. */
 
 .endm
 	 
 .macro restore_context_no_interrupts
 	sp += 4;	/* Skip IPEND */
-	SYSCFG = [sp++];
+	/*SYSCFG = [sp++];*/
 	SEQSTAT = [sp++];
 	RETE = [sp++];
 	RETN = [sp++];
@@ -278,11 +283,13 @@
 
 	( R7 : 0, P5 : 0) = [ SP ++ ];
 	sp += 4;	/* Skip orig_r0 */
+	
+	SYSCFG = [sp++];
 .endm
 
 .macro restore_context_with_interrupts
 	sp += 4;	/* Skip IPEND */
-	SYSCFG = [sp++];
+	/*SYSCFG = [sp++];*/
 	SEQSTAT = [sp++];
 	RETE = [sp++];
 	RETN = [sp++];
@@ -332,6 +339,7 @@
 
 	( R7 : 0, P5 : 0) = [ SP ++ ];
 	sp += 4;	/* Skip orig_r0 */
+	SYSCFG = [sp++];
 .endm
 /*
  * regs a3-a6 and d6-d7 are preserved by C code
