@@ -189,7 +189,7 @@ static struct mtd_partition bf533_partitions[] = {
 		mask_flags: MTD_CAP_ROM
 	},{
 		name: "File system image",
-		size: 0x200000,
+		size: 0x100000,
 		offset: 0x100000
 	}
 };
