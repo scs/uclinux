@@ -58,8 +58,6 @@ extern void icache_init(void);
 extern void dcache_init(void);
 extern int read_iloc(void);
 	
-#define DEBUG 1
-
 #ifdef CONFIG_BF533
 #define CPU "BF533"
 #endif
@@ -126,13 +124,13 @@ void setup_arch(char **cmdline_p)
 
 	printk("Blackfin uClinux support by LG Soft India (www.lgsoftindia.com) \n");
 	printk("Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",get_cclk()/1000000,get_sclk()/1000000);
+	printk("Board Memory: %dMB\n",CONFIG_MEM_SIZE);
 
-#ifdef DEBUG
-	printk("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n",
+	printk("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack = 0x%06x-0x%06x\n",
 		(int)&_stext,(int)&_etext,(int)&_sdata,(int)&_edata,
 		(int)&_sbss,(int)&_ebss,
-		(int)&ramdisk_begin,(int)&ramdisk_end);
-#endif
+		(int)&ramdisk_begin,(int)&ramdisk_end,
+		(int)&init_thread_union,(int)(&init_thread_union) + 0x2000);
 
 	init_task.mm->start_code = (unsigned long) &_stext;
 	init_task.mm->end_code = (unsigned long) &_etext;
@@ -144,10 +142,8 @@ void setup_arch(char **cmdline_p)
 	memcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
 	saved_command_line[COMMAND_LINE_SIZE-1] = 0;
 
-#ifdef DEBUG
 	if (strlen(*cmdline_p)) 
 		printk("Command line: '%s'\n", *cmdline_p);
-#endif
 	
 #ifdef CONFIG_CONSOLE
 #ifdef CONFIG_FRAMEBUFFER
@@ -263,6 +259,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #else
 	seq_printf(m, "BOARD:\t\tADSP-BF533 EZ-KIT LITE\n");
 #endif
+	seq_printf(m, "BOARD Memory:\t%d MB\n",CONFIG_MEM_SIZE);
         if((*(volatile unsigned long *)IMEM_CONTROL) & (ENICPLB | IMC))
 		seq_printf(m, "I-CACHE:\tON\n");
 	else
@@ -355,7 +352,6 @@ struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo,
 };
 
-/*blackfin panic*/
 void panic_bfin(int cplb_panic)
 {
 	switch(cplb_panic)
