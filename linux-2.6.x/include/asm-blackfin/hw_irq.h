@@ -12,20 +12,15 @@
  This is included from <linux/irq.h>.
 	Include by assembler files which don't need the 'C' stuff
  */
-#include <linux/config.h>
 
-#ifdef CONFIG_EZKIT 		
-  #include <asm/board/bf533_irq.h>
+#ifndef _BFIN_HWIRQ_H_
+#define _BFIN_HWIRQ_H_
+
+#ifdef CONFIG_BF533
+#include <asm/board/bf533_irq.h>
 #endif
-#ifdef  CONFIG_BLKFIN_STAMP
-  #include <asm/board/bf533_irq.h>
+#ifdef CONFIG_BF535
+#include <asm/board/bf535_irq.h>
 #endif
-#ifdef CONFIG_PUB
-  #include <asm/board/bf535_irq.h>
-#endif
-#ifdef CONFIG_HAWK
-  #include <asm/board/bf535_irq.h>
-#endif
-#ifdef CONFIG_EAGLE
-  #include <asm/board/bf535_irq.h>
+
 #endif
