@@ -176,7 +176,7 @@ static void __init program_IAR()
 }	/*End of program_IAR*/
 
 /* Search SIC_IAR and fill tables with the irqvalues 
-and their positions in the SIC_ISR register -Nidhi */
+and their positions in the SIC_ISR register */
 
 static void __init search_IAR()	
 {
@@ -206,7 +206,6 @@ static void __init search_IAR()
 
 int __init  bfin_init_IRQ(void)
 {
-
 	int i;	
 	unsigned long ilat = 0;
 	/*  Disable all the peripheral intrs  - page 4-29 HW Ref manual */
@@ -348,14 +347,7 @@ void bfin_enable_irq(unsigned int irq)
 		return;
 	}
 
-	if (irq == IRQ_SPORT0)
-		irq_val = 0x600;
-	else if (irq == IRQ_SPORT1)
-		irq_val = 0x1800;
-	else if (irq == IRQ_UART)
-		irq_val = 0xC000;
-	else
-		irq_val = (1<<(irq - (IRQ_CORETMR+1)));		
+	irq_val = (1<<(irq - (IRQ_CORETMR+1)));
 
    	*pSIC_IMASK |= irq_val;
 	asm("ssync;");
@@ -367,6 +359,7 @@ void bfin_disable_irq(unsigned int irq)
 {
 	unsigned long irq_val;
 
+	local_irq_disable();
 	if (irq >= INTERNAL_IRQS) {
 		printk("%s: Unknown IRQ %d\n", __FUNCTION__, irq);
 		return;
@@ -379,7 +372,6 @@ void bfin_disable_irq(unsigned int irq)
 		local_irq_enable();
 		return;
 	}
-
 	/*
  	 * If it is the interrupt for peripheral,
 	 * we only disable it in SIC_IMASK register.
@@ -388,23 +380,12 @@ void bfin_disable_irq(unsigned int irq)
  	 * enabled in bfin_init_IRQ()
 	 *
 	 */
-
-	if (irq == IRQ_SPORT0)
-		irq_val = 0x600;
-	else if (irq == IRQ_SPORT1)
-		irq_val = 0x1800;
-	else if (irq == IRQ_UART)
-		irq_val = 0xC000;
-	else
-		irq_val = (1<<(irq - (IRQ_CORETMR + 1)));
-
-	local_irq_disable();
+	irq_val = (1<<(irq - (IRQ_CORETMR + 1)));
 
    	*pSIC_IMASK &= ~(irq_val); 
 	asm("ssync;");
 	
 	local_irq_enable();
-
 }
 
 void bfin_do_irq(int vec, struct pt_regs *fp)
