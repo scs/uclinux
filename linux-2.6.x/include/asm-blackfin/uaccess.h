@@ -16,14 +16,12 @@
 #define VERIFY_READ	0
 #define VERIFY_WRITE	1
 
-
 #define access_ok(type,addr,size)	_access_ok((unsigned long)(addr),(size))
-
-/* We let the MMU do all checking */
 
 static inline int _access_ok(unsigned long addr, unsigned long size)
 {
-	return(addr < 0x10f00000);  /* need final decision - Tony */
+	extern unsigned long memory_start, memory_end;
+	return ((addr >= memory_start) && (addr+size < memory_end));
 } 
 
 static inline int verify_area(int type, const void * addr, unsigned long size)
@@ -52,7 +50,6 @@ struct exception_table_entry
 /* Returns 0 if exception not found and fixup otherwise.  */
 extern unsigned long search_exception_table(unsigned long);
 
-
 /*
  * These are the main single-value transfer routines.  They automatically
  * use the right size if we just have the right pointer type.
@@ -78,16 +75,12 @@ extern unsigned long search_exception_table(unsigned long);
     }							\
     __pu_err;						\
 })
-/*    [pregs] = dregs  ==> 32bits
-     H[pregs] = dregs  ==> 16bits
-     B[pregs] = dregs  ==> 8 bits
-*/
 
 #define __put_user(x, ptr) put_user(x, ptr)
 static inline int bad_user_access_length(void)
 {
-                panic("bad_user_access_length");
-               	  return -1;
+	panic("bad_user_access_length");
+	return -1;
 }
 
 #define __put_user_bad() (bad_user_access_length(), (-EFAULT))
@@ -127,10 +120,6 @@ static inline int bad_user_access_length(void)
     (x) = __gu_val;						\
     __gu_err;							\
 })
-/*   dregs =  [pregs]   ==> 32bits
-             H[pregs]   ==> 16bits
-             B[pregs]   ==> 8 bits
-*/
 
 #define __get_user(x, ptr) get_user(x, ptr)
 
@@ -162,7 +151,7 @@ strncpy_from_user(char *dst, const char *src, long count)
 	strncpy(dst, src, count);
 	for (tmp = dst; *tmp && count > 0; tmp++, count--)
 		;
-	return(tmp - dst); /* DAVIDM should we count a NUL ?  check getname */
+	return(tmp - dst);
 }
 
 /*
@@ -172,7 +161,7 @@ strncpy_from_user(char *dst, const char *src, long count)
  */
 static inline long strnlen_user(const char *src, long n)
 {
-	return(strlen(src) + 1); /* DAVIDM make safer */
+	return(strlen(src) + 1);
 }
 
 #define strlen_user(str) strnlen_user(str, 32767)
@@ -185,7 +174,7 @@ static inline unsigned long
 clear_user(void *to, unsigned long n)
 {
 	memset(to, 0, n);
-    return(0);
+	return(0);
 }
 
 #endif /* _BFINNOMMU_UACCESS_H */
