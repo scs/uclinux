@@ -25,7 +25,6 @@
 
 struct pt_regs {
 	long ipend;
-	long syscfg;
 	long seqstat;
 	long rete;
 	long retn;
@@ -77,6 +76,7 @@ struct pt_regs {
 	long r1;
 	long r0;
 	long orig_r0;
+	long syscfg;
 };
 
 
