@@ -88,6 +88,19 @@ bfin_breakpoint_at (CORE_ADDR where)
   return 0;
 }
 
+/* We only place breakpoints in empty marker functions, and thread locking
+   is outside of the function.  So rather than importing software single-step,
+   we can just run until exit.  */
+static CORE_ADDR
+bfin_reinsert_addr ()
+{
+  unsigned long pc;
+
+  collect_register_by_name ("rets", &pc);
+
+  return pc;
+}
+
 struct linux_target_ops the_low_target = {
   bfin_num_regs,
   bfin_regmap,
@@ -97,7 +110,7 @@ struct linux_target_ops the_low_target = {
   bfin_set_pc, /*0*/
   bfin_breakpoint, /*0,*/
   bfin_breakpoint_len, /*0,*/
-  0,
+  bfin_reinsert_addr,
   0,
   bfin_breakpoint_at, /*0,*/
 };

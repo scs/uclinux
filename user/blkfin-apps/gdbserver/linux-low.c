@@ -380,9 +380,9 @@ linux_wait_for_process (struct process_info **childp, int *wstatp)
 
   while (1)
     {
-	// bfin ... WNOHANG hangs 12.01.04
-      //ret = waitpid (to_wait_for, wstatp, WNOHANG);
-      ret = waitpid (to_wait_for, wstatp, 0);
+      // bfin ... WNOHANG hangs 12.01.04
+      ret = waitpid (to_wait_for, wstatp, WNOHANG);
+      // ret = waitpid (to_wait_for, wstatp, 0);
 
       if (ret == -1)
 	{
@@ -392,7 +392,7 @@ linux_wait_for_process (struct process_info **childp, int *wstatp)
       else if (ret > 0)
 	break;
 
-      //ret = waitpid (to_wait_for, wstatp, WNOHANG | __WCLONE);
+      ret = waitpid (to_wait_for, wstatp, WNOHANG | __WCLONE);
 
       if (ret == -1)
 	{
@@ -401,7 +401,8 @@ linux_wait_for_process (struct process_info **childp, int *wstatp)
 	}
       else if (ret > 0)
 	break;
-      usleep (1000);
+
+      // usleep (1000);
     }
 
   if (debug_threads
