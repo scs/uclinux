@@ -18,14 +18,13 @@
 /* ++roman: The assignments to temp. vars avoid that gcc sometimes generates
  * two accesses to memory, which may be undesireable for some devices.
  */
-#define readb(addr) ({ unsigned char __v = (*(volatile unsigned char *) (addr));asm("ssync;"); __v; })
-#define readw(addr) ({ unsigned short __v = (*(volatile unsigned short *) (addr)); asm("ssync;");__v; })
-#define readl(addr) ({ unsigned int __v = (*(volatile unsigned int *) (addr));asm("ssync;"); __v; })
+#define readb(addr) ({ unsigned __v; asm volatile ("csync; %0 = b [%1] (z); " \
+  : "=d"(__v): "a"(addr)); (unsigned char)__v; })
+#define readw(addr) ({ unsigned __v; asm volatile ("csync; %0 = w [%1] (z); " \
+  : "=d"(__v): "a"(addr)); (unsigned short)__v; })
+#define readl(addr) ({ unsigned __v; asm volatile ("csync; %0 = [%1]; " \
+  : "=d"(__v): "a"(addr)); __v; })
 
-/*#define writeb(b,addr) {((*(volatile unsigned char *) (addr)) = (b)); asm("ssync;");}
-#define writew(b,addr) {((*(volatile unsigned short *) (addr)) = (b)); asm("ssync;");}
-#define writel(b,addr) {((*(volatile unsigned int *) (addr)) = (b)); asm("ssync;");}
-*/
 #define writeb(b,addr) (void)((*(volatile unsigned char *) (addr)) = (b))
 #define writew(b,addr) (void)((*(volatile unsigned short *) (addr)) = (b))
 #define writel(b,addr) (void)((*(volatile unsigned int *) (addr)) = (b))
