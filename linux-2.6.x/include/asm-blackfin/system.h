@@ -1,12 +1,8 @@
 #ifndef _BFINNOMMU_SYSTEM_H
 #define _BFINNOMMU_SYSTEM_H
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/board/bf533.h>	
-#include <asm/segment.h>
-#include <asm/entry.h>
-
 #include <linux/compiler.h>	
 
 #define prepare_to_switch()	do { } while(0)
@@ -49,7 +45,6 @@ asmlinkage void resume(void);
  */
 
 extern int irq_flags;
-
 			
 #define local_irq_enable() {		\
 	__asm__ __volatile__ (		\
@@ -57,7 +52,6 @@ extern int irq_flags;
 		::"d"(irq_flags));	\
 if (irq_flags == 0) printk("Whoops\n");	\
 }
-
 
 #define local_irq_disable() {		\
 	int _tmp_dummy;			\
@@ -101,7 +95,6 @@ if (irq_flags == 0) printk("Whoops\n");	\
 	(flags  == 0x1f);	\
 })
 
-
 /*
  * Force strict CPU ordering.
  */
@@ -112,7 +105,6 @@ if (irq_flags == 0) printk("Whoops\n");	\
 #define set_rmb(var, value)    do { xchg(&var, value); } while (0)
 #define set_mb(var, value)     set_rmb(var, value)
 #define set_wmb(var, value)    do { var = value; wmb(); } while (0)
-
 
 #define read_barrier_depends() 		do { } while(0)
 
@@ -165,8 +157,53 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
   return tmp;
 }
 
-/* Depend on whether Blackfin has hard reset function */
-/* YES it does, but it is tricky to implement*/
-#define HARD_RESET_NOW() ({})
+/*
+ * Atomic compare and exchange.  Compare OLD with MEM, if identical,
+ * store NEW in MEM.  Return the initial value in MEM.  Success is
+ * indicated by comparing RETURN with OLD.
+ */
+static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
+                                      unsigned long new, int size)
+{
+  unsigned long tmp=0;
+  unsigned long flags = 0;
 
+  local_irq_save(flags);
+
+  switch (size) {
+  case 1:
+    __asm__ __volatile__
+    ("%0 = b[%3] (z);\n\t"
+     "CC = b[%1] == %0;\n\t"
+     "IF !CC JUMP 1f;\n\t"
+     "%3 = b[%2] (z);\n\t"
+     "1:\n\t"
+    : "=&d" (tmp) : "d" (old), "d" (new), "m" (*__xg(ptr)) : "memory");
+    break;
+  case 2:
+    __asm__ __volatile__
+    ("%0 = w[%3] (z);\n\t"
+     "CC = w[%1] == %0;\n\t"
+     "IF !CC JUMP 1f;\n\t"
+     "%3 = w[%2] (z);\n\t"
+     "1:\n\t"
+    : "=&d" (tmp) : "d" (old), "d" (new), "m" (*__xg(ptr)) : "memory");
+    break;
+  case 4:
+    __asm__ __volatile__
+    ("%0 = %3;\n\t"
+     "CC = %1 == %0;\n\t"
+     "IF !CC JUMP 1f;\n\t"
+     "%3 = %2;\n\t"
+     "1:\n\t"
+    : "=&d" (tmp) : "d" (old), "d" (new), "m" (*__xg(ptr)) : "memory");
+    break;
+  }
+  local_irq_restore(flags);
+  return tmp;
+}
+
+#define cmpxchg(ptr,o,n)\
+        ((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
+                                        (unsigned long)(n),sizeof(*(ptr))))
 #endif /* _BFINNOMMU_SYSTEM_H */
