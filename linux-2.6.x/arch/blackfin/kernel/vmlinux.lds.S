@@ -94,6 +94,8 @@ SECTIONS
 
 		  *($code)
         	  *(.rodata)
+        	  *(.rodata1)
+        	  *(.rodata.*)
 	          *(.fixup)	
 		
 
