@@ -183,6 +183,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, void *fp, int *
 	regs->p1 = context.sc_p1;
 	regs->seqstat = context.sc_seqstat;
 	regs->pc = context.sc_pc;
+	regs->retx  = context.sc_retx;
+	regs->pc = context.sc_retx;
 	regs->orig_r0 = -1;		/* disable syscall checks */
 	wrusp(context.sc_usp);
 
@@ -312,6 +314,11 @@ static void setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 	sc->sc_p1 = regs->p1;
 	sc->sc_seqstat = regs->seqstat;
 	sc->sc_pc = regs->pc;
+	if (regs->seqstat)
+		sc->sc_retx = regs->retx;
+	else
+		sc->sc_retx = regs->pc;
+
 }
 
 static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
@@ -409,6 +416,10 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 	wrusp ((unsigned long) frame);
 	regs->pc = (unsigned long) ka->sa.sa_handler;
 	regs->rets = (unsigned long) (frame->retcode);
+	regs->r0 = frame->sig;
+
+	if (regs->seqstat)
+		regs->retx = (unsigned long)ka->sa.sa_handler;
 
 adjust_stack:
 
@@ -483,6 +494,13 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up registers for signal handler */
 	wrusp ((unsigned long) frame);
 	regs->pc = (unsigned long) ka->sa.sa_handler;
+
+	regs->r0 = frame->sig;
+	regs->r1 = (unsigned long)(&frame->info);
+	regs->r2 = (unsigned long)(&frame->uc);
+
+	if (regs->seqstat)
+		regs->retx = (unsigned long)ka->sa.sa_handler;
 
 adjust_stack:
 
