@@ -1,0 +1,22 @@
+uClinux-2.6.2 (Version 1.0.0)
+-----------------------------
+Dated:	19/07/2004
+
+
+This release contains the following features:
+
+1. Priority driven interrupt management
+2. SRAM support, RTC support
+3. Cache Management (Routines not tested)
+4. File system support - CRAMFS, ROMFS, EXT2
+
+Next release will contain:
+---------------------------
+
+1. Dynamic Power Management support
+2. EXT3 file system support
+3. Cache management
+4. DMA support
+5. Network utilities
+6. Tested Busybox and Tinylogin multi-call binary. 
+

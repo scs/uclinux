@@ -1,0 +1,18 @@
+#
+# RCSID $Id$
+#
+tcpdump -i eth1 -N -s 800 ether host 00:60:08:3E:C5:1A and 00:00:C0:83:A8:27 -a -vv
+
+#
+# $Log$
+# Revision 1.1  2004/07/19 09:23:45  lgsoft
+# Initial revision
+#
+# Revision 1.1.1.1  2004/07/18 13:23:45  nidhi
+# Importing
+#
+# Revision 1.2  1999/04/06 04:54:31  rgb
+# Fix/Add RCSID Id: and Log: bits to make PHMDs happy.  This includes
+# patch shell fixes.
+#
+#

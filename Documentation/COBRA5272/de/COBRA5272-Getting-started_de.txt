@@ -1,0 +1,66 @@
+Datei:      COBRA5272-Getting-started_de.txt
+Ort:        uClinux-dist/Documentation/COBRA5272/de/
+Autor:      Heiko Degenhardt (linux@sentec-elektronik.de)
+Inhalt:     Grundlegende Schritte zur Arbeit mit dem Board.
+Version:    v01.01
+Datum:      Mit Apr  3 12:07:06 CEST 2002
+Lizenz:     Dieses Dokument steht unter der GNU GPL
+            (siehe uClinux-dist/COPYING)
+______________________________________________________________________
+
+CHANGES
+020403   v01.01 Korrektur Link auf "LIESMICH", Typos
+         (hede)
+020322   v01.00 Erstellung
+         (hede)
+______________________________________________________________________
+
+INSTALLATION TOOLCHAIN
+
+Fuer die Installation der Toolchain sei auf das Dokument
+uClinux-dist/Documentation/LIESMICH verwiesen.
+Um ein erstes, funktionsfaehiges Image zu bekommen, sollte man im
+ersten Konfigurationsmenue ("uClinux v1.3.3 Configuration") unter
+"Target Platform Selection" folgende Punkte einstellen:
+
+   --- Choose a Vendor/Product combination.
+   (senTec/COBRA5272) Vendor/Product
+   (linux-2.4.x) Kernel Version
+   (uC-libc) Libc Version
+   [ ] Default all settings (lose changes)
+   [ ] Customize Kernel Settings (NEW)
+   [ ] Customize Vendor/User Settings (NEW)
+   [ ] Update Default Vendor Settings  
+   
+Danach dann 2x "Exit", "Yes" zum Speichern der neuen Config,
+dann "make dep;make". Danach sollte sich eine Datei 
+images/image.bin finden. Diese wird standardmaessig auch
+nach /tftpboot kopiert. Kommt dabei ein Fehler, muessen
+die Rechte auf /tftpboot ueberprueft werden. Ist sie dort,
+kann sie aus dBUG mit "dn" vom Server heruntergeladen werden.
+Wenn dies scheitert, sind die Einstellungen des TFTP-Servers
+sowie die Einstellungen fuer die IP-Adressen, die Netzmaske,
+den Dateinamen und den Dateityp im dBUG zu ueberpruefen
+("show" zum Ansehen, "set" zum Setzen).
+Ist der Download komplett, kann das Image durch Eingabe
+von "go 20000" in dBUG gestartet werden.
+
+HINWEIS: Der Kernel versucht, ein Verzeichnis /home/uClinux
+ueber NFS einzubinden. Dies koennte z. B. das Arbeitsverzeichnis
+fuer die Software-Entwicklung sein. Wenn der mount nicht
+funktioniert, ueberpruefen Sie bitte
+a) ob das Verzeichnis (oder ein gleichnamiger Link) existiert
+b) Sie die Rechte zum mounten dieses Verzeichnisses haben
+c) Das Setup fuer die IP korrekt ist. Stimmt diese nicht, koennen
+   Sie romfs/etc/rc anpassen und "make romfs" aufrufen, oder
+   vendors/senTec/romfs/etc/rc aendern und "make" aufrufen.
+
+FEEDBACK
+
+Wenn Sie Fehler in diesem Dokument finden, oder Fragen bzw.
+Verbesserungsvorschlaege haben, dann senden Sie bitte eine EMail
+an linux@sentec-elektronik.de.
+
+______________________________________________________________________
+(c) 2002, senTec Elektronik GmbH, Heiko Degenhardt
+

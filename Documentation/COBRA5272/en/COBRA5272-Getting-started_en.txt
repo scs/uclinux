@@ -1,0 +1,65 @@
+File:       COBRA5272-Getting-started_en.txt
+Location:   uClinux-dist/Documentation/COBRA5272/en/
+Author:     Heiko Degenhardt (linux@sentec-elektronik.de)
+Contents:   Basic steps to get started with the board.
+Version:    v01.00
+Date:       Fri Mar 22 15:34:04 CET 2002
+License:    This document is under the GNU GPL
+            (see uClinux-dist/COPYING)
+______________________________________________________________________
+
+CHANGES
+020322   v01.00 Creation
+         (hede)
+______________________________________________________________________
+
+STARTING
+
+To get started with the development of uClinux, please read the
+document uClinux-dist/README. It contains everything you need to set
+up your tool chain, to configure the kernel and so on.
+
+To get a first functional image one should have the following setup
+in the main config menu ("uClinux v1.3.3 Configuration") under
+"Target Platform Selection":
+
+   --- Choose a Vendor/Product combination.
+   (senTec/COBRA5272) Vendor/Product
+   (linux-2.4.x) Kernel Version
+   (uC-libc) Libc Version
+   [ ] Default all settings (lose changes)
+   [ ] Customize Kernel Settings (NEW)
+   [ ] Customize Vendor/User Settings (NEW)
+   [ ] Update Default Vendor Settings 
+
+After that 2 times "Exit", "Yes" to save the new config,
+and finally "make dep;make". You should find a file called
+images/image.bin then. The built tool also attempts to
+copy image.bin into the /tftpboot directory. If you see
+an error in that step, please verify the existance and
+the permissions of that directory. If it is there, you can
+type "dn" in dBUG, and it will try to download that image.
+If you get an error, look if the setup of your TFTP server
+is correct, and that the config of IP addresses, netmask,
+filename and filetype in dBUG are correct ("show" to check,
+"set" to correct).
+
+HINT: This kernel tries to mount a directory /home/uClinux
+via NFS, that you could be your working directory for software
+development. If that doesn't work, please check that
+a) the directory (or a link by the same name) exists
+b) you have permissions to mount it
+c) the setup for the IP is correkt. If they are not, please
+   correct the settings either in romfs/etc/rc and "make romfs"
+   then, or in vendors/senTec/romfs/etc/rc and do a "make" again.
+   (The setup of the IPs in dBUG seem to work already, because
+   you wouldn't have a chance to download the image).
+                        
+FEEDBACK
+
+If you find errors, or have some tips or questions concerning this
+document, please send an email to linux@sentec-elektronik.de.
+
+______________________________________________________________________
+(c) 2002, senTec Elektronik GmbH, Heiko Degenhardt
+
