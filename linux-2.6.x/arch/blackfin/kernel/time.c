@@ -60,7 +60,7 @@ void __init init_leds(void)
 	asm("ssync;");
 }
 #else 
-inline __init init_leds(void) {}
+inline void  __init init_leds(void) {}
 #endif
 
 /*
