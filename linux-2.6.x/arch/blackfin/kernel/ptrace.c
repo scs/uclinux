@@ -20,7 +20,7 @@
 #include <linux/user.h>
 #include <linux/config.h>
 
-#define DEBUG
+//#define DEBUG
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
