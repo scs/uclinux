@@ -26,6 +26,7 @@
 */
 
 #include <asm/dma.h>
+int interruptCount;
 
 /**************************************************************************
  * Global Variables 
@@ -89,6 +90,7 @@ int __init blackfin_dma_init(void)
 		dma_ch[i].regs = base_addr[i];
 		init_MUTEX(&(dma_ch[i].dmalock));
 	}
+	interruptCount = 0;
 	
 	return 0;
 }
@@ -161,7 +163,12 @@ static DMA_RESULT InitializeChannel (unsigned int channel_number,
 *		DMA_SUCCESS will be returned for success ?
 *-----------------------------------------------------------------------------*/
 DMA_RESULT request_dma(unsigned int channel,const char* device_id,
-			dma_callback_t callback)
+		      dma_callback_t callback)
+{
+	return new_request_dma(channel, device_id, callback, DMA_INTERRUPT_TYPE);
+}
+DMA_RESULT new_request_dma(unsigned int channel,const char* device_id,
+		      dma_callback_t callback, DMA_TYPE dma_type)
 {
 
 	int		ret_irq = 0;
@@ -195,7 +202,6 @@ DMA_RESULT request_dma(unsigned int channel,const char* device_id,
 	up(&(dma_ch[channel].dmalock));
 
 	dma_ch[channel].device_id = device_id;
- 	dma_ch[channel].callback = callback;
  	dma_ch[channel].descr_base = BASE_VALUE;
 	dma_ch[channel].LoopbackFlag = 0;
 
@@ -211,9 +217,13 @@ DMA_RESULT request_dma(unsigned int channel,const char* device_id,
 
 	DMA_DBG("InitializeChannel : Done  \n");
 
-	switch (channel){
+	if (dma_type == DMA_INTERRUPT_TYPE)
+	{
+		dma_ch[channel].dma_type = DMA_INTERRUPT_TYPE;
+ 		dma_ch[channel].callback = callback;
+		switch (channel){
 		case CH_PPI:
-			ret_irq = request_irq(IRQ_PPI, (void *)dma_interrupt,
+			ret_irq = request_irq(IRQ_PPI, (void *)ppi_dma_interrupt,
 					SA_INTERRUPT, "ppi-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
@@ -221,14 +231,14 @@ DMA_RESULT request_dma(unsigned int channel,const char* device_id,
 			enable_irq (IRQ_PPI);
 			break;
 		case CH_SPORT0_RX:
-			ret_irq = request_irq(IRQ_SPORT0_RX, (void *)dma_interrupt,
+			ret_irq = request_irq(IRQ_SPORT0_RX, (void *)sport0_rx_dma_interrupt,
 					SA_INTERRUPT, "sport0_rx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
 			enable_irq (IRQ_SPORT0_RX);
 			break;
 		case CH_SPORT0_TX:
-			ret_irq = request_irq(IRQ_SPORT0_TX, (void *)dma_interrupt,
+			ret_irq = request_irq(IRQ_SPORT0_TX, (void *)sport0_tx_dma_interrupt,
 					SA_INTERRUPT, "sport0_tx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
@@ -236,35 +246,35 @@ DMA_RESULT request_dma(unsigned int channel,const char* device_id,
 			break;
 
 		case CH_SPORT1_RX:
-			ret_irq = request_irq(IRQ_SPORT1_RX, (void *)dma_interrupt,
+			ret_irq = request_irq(IRQ_SPORT1_RX, (void *)sport1_rx_dma_interrupt,
 					SA_INTERRUPT, "sport1_rx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
 			enable_irq (IRQ_SPORT1_RX);
 			break;
 		case CH_SPORT1_TX:
-			ret_irq = request_irq(IRQ_SPORT1_TX, (void *)dma_interrupt,
+			ret_irq = request_irq(IRQ_SPORT1_TX, (void *)sport1_tx_dma_interrupt,
 					SA_INTERRUPT, "sport1_tx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
 			enable_irq (IRQ_SPORT1_TX);
 			break;
 		case CH_SPI:
-			ret_irq = request_irq(IRQ_SPI, (void *)dma_interrupt,
+			ret_irq = request_irq(IRQ_SPI, (void *)spi_dma_interrupt,
 					SA_INTERRUPT, "spi-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
 			enable_irq (IRQ_SPI);
 			break;
 		case CH_UART_RX:
-			ret_irq	= request_irq(IRQ_UART_RX, (void *)dma_interrupt,
+			ret_irq	= request_irq(IRQ_UART_RX, (void *)uart_rx_dma_interrupt,
 					SA_INTERRUPT, "uart_rx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
 			enable_irq (IRQ_UART_RX);
 			break;
 		case CH_UART_TX:
-			ret_irq	= request_irq(IRQ_UART_TX, (void *)dma_interrupt,
+			ret_irq	= request_irq(IRQ_UART_TX, (void *)uart_tx_dma_interrupt,
 					SA_INTERRUPT, "uart_tx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
@@ -272,7 +282,7 @@ DMA_RESULT request_dma(unsigned int channel,const char* device_id,
 			break;
 		case CH_MEM_STREAM0_SRC:
 		case CH_MEM_STREAM0_DEST:
-			ret_irq = request_irq(IRQ_MEM_DMA0,(void *)dma_interrupt,
+			ret_irq = request_irq(IRQ_MEM_DMA0,(void *)mem_stream0_dma_interrupt,
 					SA_INTERRUPT, "MemStream0-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
@@ -280,7 +290,7 @@ DMA_RESULT request_dma(unsigned int channel,const char* device_id,
 			break;
 		case CH_MEM_STREAM1_SRC:
 		case CH_MEM_STREAM1_DEST:
-			ret_irq = request_irq(IRQ_MEM_DMA1,(void *)dma_interrupt,
+			ret_irq = request_irq(IRQ_MEM_DMA1,(void *)mem_stream1_dma_interrupt,
 					SA_INTERRUPT, "MemStream1-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
@@ -288,26 +298,12 @@ DMA_RESULT request_dma(unsigned int channel,const char* device_id,
 			break;
 		default:
 			break;
+		}
 	}
+	else
+		dma_ch[channel].dma_type = DMA_POLLING_TYPE;
+		
 	DMA_DBG("IRQ related : Done  \n");
-
-/* If the user calls the request_dma() , at the end of descriptor setup
-   then this will cause problem
-   To avoid this problem , we can have restriction, to call the request_dma()
-   before using the any other DMA API's, that uses/modifies the channel info.
-   - To Be Discussed and Finalized
-*/
-#if 0
-	dma_ch[channel].last_descriptor = BASE_VALUE;
-	dma_ch[channel].first_descriptor = BASE_VALUE;
-	dma_ch[channel].wait_last_descriptor = BASE_VALUE;
-	dma_ch[channel].wait_first_descriptor = BASE_VALUE;
-	dma_ch[channel].next_descriptor = BASE_VALUE;
-
-#endif
-
-	/* DMA_ERR Interrupt Handler request process has to be done - TODO */
-
 	DMA_DBG("request_dma() : END  \n");
 
 	return DMA_SUCCESS;
@@ -338,27 +334,27 @@ DMA_RESULT freedma(unsigned int channel)
 	if (dma_ch[channel].dma_channel_status == DMA_CHANNEL_FREE)
 		return DMA_FAIL;
 		
-	/* Check for the DMA Error - TODO  */
-
 	/* Halt the DMA */
 	disable_dma(channel);
 	clear_dma_buffer(channel);
 	disable_dma_buffer_clear(channel);
 
-	/* DMA Error Handler processing - TODO  */
 
 	/* Make sure the DMA channel will be stopped before free it */
+	if (dma_ch[channel].dma_type == DMA_INTERRUPT_TYPE){
 	switch (channel){
 		case CH_PPI:
 			disable_irq (IRQ_PPI);
 			break;
 		case CH_SPORT0_RX:
 			disable_irq (IRQ_SPORT0_RX);
+			break;
 		case CH_SPORT0_TX:
 			disable_irq (IRQ_SPORT0_TX);
 			break;
 		case CH_SPORT1_RX:
 			disable_irq (IRQ_SPORT1_RX);
+			break;
 		case CH_SPORT1_TX:
 			disable_irq (IRQ_SPORT1_TX);
 			break;
@@ -367,6 +363,7 @@ DMA_RESULT freedma(unsigned int channel)
 			break;
 		case CH_UART_RX:
 			disable_irq (IRQ_UART_RX);
+			break;
 		case CH_UART_TX:
 			disable_irq (IRQ_UART_TX);
 			break;
@@ -381,6 +378,7 @@ DMA_RESULT freedma(unsigned int channel)
 		default:
 			break;
 	}
+}
 	
 	/* Clear the DMA Variable in the Channel*/
 	dma_ch[channel].last_descriptor = BASE_VALUE;
@@ -466,7 +464,6 @@ DMA_RESULT enable_dma(unsigned int channel)
 	DMA_DBG("enable_dma() : END \n");
 
 	return DMA_SUCCESS;
-
 }
 
 /*------------------------------------------------------------------------------
@@ -1386,7 +1383,6 @@ DMA_RESULT enable_dma_err_intr(unsigned int channel)
 	if (dma_ch[channel].dma_channel_status != DMA_CHANNEL_REQUESTED)
 		return DMA_FAIL;
 
-
 	/* enable Error Interrupt  */
 	dma_ch[channel].regs->irq_status |= DMAERR;
 	SSYNC();
@@ -1460,7 +1456,6 @@ DMA_RESULT disable_dma_data_row_intr(unsigned int channel)
 
 	if (dma_ch[channel].dma_channel_status != DMA_CHANNEL_REQUESTED)
 		return DMA_FAIL;
-
 
 	dma_ch[channel].regs->cfg &= ~DI_SEL;
 	SSYNC();
@@ -1551,7 +1546,6 @@ DMA_RESULT disable_dma_err_intr(unsigned int channel)
 *-----------------------------------------------------------------------------*/
 DMA_RESULT disable_dma_intr(unsigned int channel, unsigned char intr)
 {
-	
 	DMA_DBG("disable_dma_intr () : BEGIN \n");
 
 	disable_dma_data_row_intr(channel);
@@ -1578,7 +1572,6 @@ DMA_RESULT disable_dma_intr(unsigned int channel, unsigned char intr)
 *-----------------------------------------------------------------------------*/
 DMA_RESULT get_dma_irq_stat(unsigned int channel, unsigned short *irq_stat)
 {
-
 	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
 	assert(irq_stat != NULL);
 
@@ -1622,14 +1615,6 @@ int clr_dma_irq_stat(unsigned int channel)
 *
 *******************************************************/
 
-/* NOTE: The descriptor must be aligned to 16-bit boundary */
-#if 0
-static dmasg_t DescSrc __attribute__ ((aligned (2)));
-static dmasg_t DescDest __attribute__ ((aligned (2)));
-static dmasg_t DescDummy __attribute__ ((aligned (2)));
-#endif
-
-
 #ifdef CONFIG_BLKFIN_DCACHE
 #define SPECIAL_DESC
 #endif
@@ -1639,11 +1624,6 @@ static dmasg_t DescDummy __attribute__ ((aligned (2)));
 extern unsigned long l1sram_alloc(unsigned long size);
 extern void bf53x_cache_init(void);
 
-#if 0
-static dmasg_t * pDescSrc = NULL;
-static dmasg_t * pDescDest = NULL;
-static dmasg_t * pDescDummy = NULL;
-#endif
 #endif /* SPECIAL_DESC */
 
 /*------------------------------------------------------------------------------
@@ -1719,12 +1699,6 @@ void dma_setup_desc(unsigned long desc,
 	            unsigned short y_modify)
 {
 	DMA_DBG("dma_setup_desc () : BEGIN \n");
-
-	/* Set the next addr  */
-	/*
-	((dmasglarge_t *) desc)->next_desc_ptr_lsb = (unsigned short) ((next) & LOW_WORD);
-	((dmasglarge_t *) desc)->next_desc_ptr_msb = (unsigned short) (((next) >> 16) & LOW_WORD);
-	*/
 
 	/* Set the start  addr  */
 	((dmasglarge_t *) desc)->start_addr = start_addr;
@@ -2098,29 +2072,21 @@ DMA_RESULT add_descriptor(	void *pNewdescriptor,
 		if (flowtype == DMA_LARGE){
 			((dmasglarge_t *)pNewdescriptor)->next_desc_addr =
 				(unsigned long)pNewdescriptor;
-			(dmasglarge_t *)(channel->first_descriptor) =
-				(dmasglarge_t *)pNewdescriptor;
 		} else{
 			((dmasgsmall_t *)pNewdescriptor)->next_desc_addr_lo =
 				(unsigned short)((unsigned long)pNewdescriptor & LOW_WORD);
-			
-			(dmasgsmall_t *)(channel->first_descriptor) =
-				(dmasgsmall_t *)pNewdescriptor;
-
 			channel->descr_base =
 				(unsigned short)((unsigned long)pNewdescriptor & HIGH_WORD);
 		}
+		channel->first_descriptor = pNewdescriptor;
 	 }
 
 	if (flowtype == DMA_LARGE){
-		(dmasglarge_t *)(channel->last_descriptor) =
-					(dmasglarge_t *)pNewdescriptor;
-		((dmasgsmall_t *)pNewdescriptor)->cfg &= 0x0fff;
+		((dmasglarge_t *)pNewdescriptor)->cfg &= 0x0fff;
 	} else {
-		(dmasgsmall_t *)(channel->last_descriptor) =
-					(dmasgsmall_t *)pNewdescriptor;
 		((dmasgsmall_t *)pNewdescriptor)->cfg &= 0x0fff;
 	}
+	channel->last_descriptor = pNewdescriptor;
 
 	DMA_DBG (" add_descriptor(): END \n");
 	return DMA_SUCCESS;
@@ -2154,13 +2120,7 @@ DMA_RESULT add_to_wait_descriptor(	void *pNewdescriptor,
 
 	DMA_DBG (" add_to_wait_descriptor : BEGIN \n");
 
-	if (flowtype == FLOW_SMALL){
-		(dmasgsmall_t *)last_descriptor =
-			(dmasgsmall_t *)(channel->wait_last_descriptor);
-	} else{
-		(dmasglarge_t *)last_descriptor =
-			(dmasglarge_t *)(channel->wait_last_descriptor);
-	}
+	last_descriptor = channel->wait_last_descriptor;
 
 	if (flowtype == DMA_SMALL){
 		unsigned short base =
@@ -2190,23 +2150,14 @@ DMA_RESULT add_to_wait_descriptor(	void *pNewdescriptor,
 		if (flowtype == DMA_LARGE){
 			((dmasglarge_t *)pNewdescriptor)->next_desc_addr =
 				(unsigned long)pNewdescriptor;
-			(dmasglarge_t *)(channel->wait_first_descriptor) =
-				(dmasglarge_t *)pNewdescriptor;
 		} else{
 			((dmasgsmall_t *)pNewdescriptor)->next_desc_addr_lo =
 				(unsigned short)((unsigned long)pNewdescriptor & LOW_WORD);
-
-			(dmasgsmall_t *)(channel->wait_first_descriptor) =
-			(dmasgsmall_t *)pNewdescriptor;
 		}
+		channel->wait_first_descriptor = pNewdescriptor;
 	}
 
-	if (flowtype == DMA_LARGE)
-		(dmasglarge_t *)(channel->wait_last_descriptor) =
-					(dmasglarge_t *)pNewdescriptor;
-	else
-		(dmasgsmall_t *)(channel->wait_last_descriptor) =
-					(dmasgsmall_t *)pNewdescriptor;
+	channel->wait_last_descriptor = pNewdescriptor;
 
 	DMA_DBG (" add_to_wait_descriptor : END \n");
 	return DMA_SUCCESS;
@@ -2235,7 +2186,6 @@ DMA_RESULT add_to_wait_descriptor(	void *pNewdescriptor,
 /* Current Implementation of callback function is for testing purpose  */
 void testcallback (DMA_EVENT event,  void *startAddress)
 {
-	
 
 	DMA_DBG ("Callback Function is called \n");
 
@@ -2246,14 +2196,8 @@ void testcallback (DMA_EVENT event,  void *startAddress)
 		case DMA_ERROR_INTERRUPT:
 			DMA_DBG ("DMA Error Interrupt  \n");
 			break;
-		case DMA_DESCRIPTOR_PROCESSED:
-			DMA_DBG ("DMA Descriptor Event  \n");
-			break;
-		case DMA_INNER_LOOP_PROCESSED:
-			DMA_DBG ("DMA Inner Loop processed Event  \n");
-			break;
-		case DMA_OUTER_LOOP_PROCESSED:
-			DMA_DBG ("DMA Outer Loop processed Event  \n");
+		case DMA_DONE_INTERRUPT:
+			DMA_DBG ("DMA Done Event  \n");
 			break;
 		case DMA_UNKNOWN_EVENT:
 		default:
@@ -2281,177 +2225,134 @@ void testcallback (DMA_EVENT event,  void *startAddress)
 * Return: 
 *		None
 *-------------------------------------------------------------------------------*/
-void dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+void mem_stream0_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
-	int 		i=0;
-	DMA_EVENT	event;
+	int 		i=CH_MEM_STREAM0_DEST;
 	DMA_channel 	*channel;
 	
 	assert(pt_regs != NULL);
+	channel = &dma_ch[i];
+	/* Check for the IRQ_STATUS is DMA_DONE or not */
+	if (dma_ch[i].regs->irq_status & DMA_DONE) {
+		if (dma_ch[i].callback)
+			(dma_ch[i].callback)(DMA_DONE_INTERRUPT, NULL);
 
-	for (i=0; i<MAX_BLACKFIN_DMA_CHANNEL; i++) {
-		channel = &dma_ch[i];
-		/* check the DMA Channels that caused the interrupt */
-		/* Check for the IRQ_STATUS is DMA_DONE or not */
-		if (dma_ch[i].regs->irq_status & DMA_DONE) {
-			if (dma_ch[i].flowmode == DMA_AUTO) {
-				/* This has to be crosschecked once again */
-				/* disable_dma(i); */
-				DMA_DBG ("Auto Mode Interrupt is processing \n");
+		if (dma_ch[i].flowmode == DMA_AUTO) {
+			DMA_DBG ("Auto Mode Interrupt is processing \n");
+		} else {
 
-				/* to be verified Again -TODO */
-				if (((dma_ch[i].regs->cfg ) & DI_SEL) &&
-					((dma_ch[i].regs->curr_y_count != 1))) {
-					event = DMA_INNER_LOOP_PROCESSED;
-				}else {
-					event = DMA_OUTER_LOOP_PROCESSED;
-				}
-				if (dma_ch[i].callback)
-					(dma_ch[i].callback)(event, NULL);
+		/* Proposed Implementation  with DI_EN on any of the
+		   descriptor in the list in addition to the last
+		   descriptor in the list.
+			- Send the intimation to the Callback function
+			- Get the next descriptor in the list
+			- If the descriptor is the last descriptor in
+			  the list, then
+  				- If the Loop back method was set, then
+				   start DMA once again.
+					( Using the next_desc_ptr and
+					  next descriptor config.This 
+					  is to be automatic )
+				- If there is a waiting descriptor list
+					start the DMA using the waiting
+					descriptor as active descriptor
+					list.
+			- If the descriptor is not last descriptor, then
+				load the values to restart the DMA
+				( Not required always, if the values will
+				  be stored automatically)
+		*/
 
-				/* This has to be crosschecked once again*/
-				/* enable_dma(i); */
-			} else {
+		/* 	With current execution of interrupts -
+			i.e interrupts coming at the end of the
+			descriptor list the following implementation
+			was done. 
+		*/
 
-			/* Proposed Implementation  with DI_EN on any of the
-			   descriptor in the list in addition to the last
-			   descriptor in the list.
-				- Send the intimation to the Callback function
-				- Get the next descriptor in the list
-				- If the descriptor is the last descriptor in
-				  the list, then
-  					- If the Loop back method was set, then
-					   start DMA once again.
-						( Using the next_desc_ptr and
-						  next descriptor config )
-						(Is it not automatic ???
-						 Check once again )
-					- If there is a waiting descriptor list
-						start the DMA using the waiting
-						descriptor as active descriptor
-						list.
-				- If the descriptor is not last descriptor, then
-					load the values to restart the DMA
-					( Not required always, if the values will
-					  be stored automatically)
-			*/
+			DMA_DBG ("Not In the AutoBuffer Mode  \n");
 
-			/* 1) 	We are not getting the interrupts at the end of
-				each descriptor (in 1-D DMA ) eventhough the
-				DI_EN is set at each descriptor,
-				- 2D DMA (to be checked) or
-			      	- use the interrupt that was generated
-				in this case at the end of the descriptor list
+			if (dma_ch[i].regs->next_desc_ptr ==
+			    	(unsigned long)(channel->first_descriptor)){
+				/*All the descriptors are processed */
 
-			   2) 	Here we are not taking care of Loopback method ,
-				due to a problem while executing the Loop back
-				Mode.
-				This has to be taken care or to be informed to
-				ADI
-			*/
+				/* execute the waiting descriptor list */
+			    	if ((unsigned long)channel->wait_first_descriptor) {
+					disable_dma(i);
+					DMA_DBG ("Wait descriptor \n ");
+					channel->first_descriptor =
+						channel->wait_first_descriptor;
+					channel->last_descriptor =
+				    		channel->wait_last_descriptor;
+					channel->regs->next_desc_ptr =
+				    		(unsigned long)(channel->first_descriptor);
 
-			/* 	With current execution of interrupts -
-				i.e interrupts coming at the end of the
-				descriptor list the following implementation
-				was done. This will be finalized after the
-				review or confirmation from ADI. - TODO
-			*/
+				/* If we have a single waiting
+				   descriptor then it is like stop mode
+				   - Because with Loop back mode we have
+				     a problem
+				   - Once the loopback problem is
+                                            solved this code can be removed*/
+				/* ************************************/
+					if (channel->last_descriptor ==
+				    		channel->wait_first_descriptor){
 
+						if (dma_ch[i].flowmode == DMA_SMALL) {
+				    			channel->regs->start_addr =
+								((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
+					    			(channel->descr_base << 16)) ;
 
-				DMA_DBG ("Not In the AutoBuffer Mode  \n");
-				disable_dma(i);
-				
-				if (((dma_ch[i].regs->cfg ) & DI_SEL) &&
-					((dma_ch[i].regs->curr_y_count != 1))) {
-					DMA_DBG("Inner Loop Processing \n ");
-					event = DMA_INNER_LOOP_PROCESSED;
-				}else {
-					DMA_DBG("Outer Loop Processing \n");
-					event = DMA_OUTER_LOOP_PROCESSED;
-				}
+							channel->regs->x_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
 
-				if (dma_ch[i].callback)
-				    	(dma_ch[i].callback)(DMA_DESCRIPTOR_PROCESSED, NULL);
+							channel->regs->x_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
 
-				if (dma_ch[i].regs->next_desc_ptr ==
-				    	(unsigned long)(channel->first_descriptor)){
-					/*All the descriptors are processed */
+							channel->regs->y_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
 
-					/* execute the waiting descriptor list */
-				    	if ((unsigned long)channel->wait_first_descriptor) {
-						DMA_DBG ("Wait descriptor \n ");
-						channel->first_descriptor =
-							channel->wait_first_descriptor;
-						channel->last_descriptor =
-					    		channel->wait_last_descriptor;
-						channel->regs->next_desc_ptr =
-					    		(unsigned long)(channel->first_descriptor);
+							channel->regs->y_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
+				     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
 
-					/* If we have a single waiting
-					   descriptor then it is like stop mode
-					   - Because with Loop back mode we have
-					     a problem
-					   - Once the loopback problem is
-                                             solved this code can be removed*/
-					/* ************************************/
-						if (channel->last_descriptor ==
-					    		channel->wait_first_descriptor){
+				     			channel->regs->start_addr =
+					    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
 
-							if (dma_ch[i].flowmode == DMA_SMALL) {
-					    			channel->regs->start_addr =
-									((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
-						    			(channel->descr_base << 16)) ;
+							channel->regs->x_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
 
-								channel->regs->x_count =
-						    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
+							channel->regs->x_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
 
-								channel->regs->x_modify =
-						    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
+							channel->regs->y_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
 
-								channel->regs->y_count =
-						    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
-
-								channel->regs->y_modify =
-						    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
-					     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
-
-					     			channel->regs->start_addr =
-						    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
-
-								channel->regs->x_count =
-						    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
-
-								channel->regs->x_modify =
-						    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
-
-								channel->regs->y_count =
-						    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
-
-								channel->regs->y_modify =
-						    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
-							}
+							channel->regs->y_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
 						}
-						/************************************/
-
-			   	 		if (dma_ch[i].flowmode == DMA_LARGE)
-				    			channel->regs->cfg =
-					    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
-					    		else if (dma_ch[i].flowmode == DMA_SMALL)
-								channel->regs->cfg =
-						    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
-
-				     			SSYNC();
-						
-						channel->wait_first_descriptor = NULL;
-						channel->wait_last_descriptor = NULL;
 					}
+					/************************************/
+
+		   	 		if (dma_ch[i].flowmode == DMA_LARGE)
+			    			channel->regs->cfg =
+				    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
+				    		else if (dma_ch[i].flowmode == DMA_SMALL)
+							channel->regs->cfg =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
+
+			     			SSYNC();
+					
+					channel->wait_first_descriptor = NULL;
+					channel->wait_last_descriptor = NULL;
 				}
-			} /* End of the Else loop - for Not Auto Buffer */
-		/* We have to Clear the Interrupt Here */
-		/* dma_ch[i].regs->irq_status &= ~DMA_DONE; */
-		 dma_ch[i].regs->irq_status |= 0x0001; 
-		} /* End of Irq_status register Check */
-	} /* End of the For Loop */
+			}
+		} /* End of the Else loop - for Not Auto Buffer */
+	/* We have to Clear the Interrupt Here */
+	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	} /* End of Irq_status register Check */
+	else if (dma_ch[CH_MEM_STREAM0_DEST].regs->irq_status & DMA_ERR) {
+		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
+	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	}
 }
 
 /*------------------------------------------------------------------------------
@@ -2511,5 +2412,865 @@ DMA_RESULT add_descriptor_descr(void *newdescriptor,
 		prevdescr->next_desc_addr =  (unsigned long)newdescr;
 	} else{
 		newdescr->next_desc_addr = (unsigned long)newdescr;
+	}
+}
+void mem_stream1_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+{
+	int 		i=CH_MEM_STREAM1_DEST;
+	DMA_channel 	*channel;
+	
+	assert(pt_regs != NULL);
+	channel = &dma_ch[i];
+	/* Check for the IRQ_STATUS is DMA_DONE or not */
+	if (dma_ch[i].regs->irq_status & DMA_DONE) {
+		if (dma_ch[i].callback)
+			(dma_ch[i].callback)(DMA_DONE_INTERRUPT, NULL);
+
+		if (dma_ch[i].flowmode == DMA_AUTO) {
+			DMA_DBG ("Auto Mode Interrupt is processing \n");
+		} else {
+
+			DMA_DBG ("Not In the AutoBuffer Mode  \n");
+
+			if (dma_ch[i].regs->next_desc_ptr ==
+			    	(unsigned long)(channel->first_descriptor)){
+				/*All the descriptors are processed */
+
+				/* execute the waiting descriptor list */
+			    	if ((unsigned long)channel->wait_first_descriptor) {
+					disable_dma(i);
+					DMA_DBG ("Wait descriptor \n ");
+					channel->first_descriptor =
+						channel->wait_first_descriptor;
+					channel->last_descriptor =
+				    		channel->wait_last_descriptor;
+					channel->regs->next_desc_ptr =
+				    		(unsigned long)(channel->first_descriptor);
+
+				/* ************************************/
+					if (channel->last_descriptor ==
+				    		channel->wait_first_descriptor){
+
+						if (dma_ch[i].flowmode == DMA_SMALL) {
+				    			channel->regs->start_addr =
+								((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
+					    			(channel->descr_base << 16)) ;
+
+							channel->regs->x_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
+				     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
+
+				     			channel->regs->start_addr =
+					    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
+
+							channel->regs->x_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
+						}
+					}
+					/************************************/
+
+		   	 		if (dma_ch[i].flowmode == DMA_LARGE)
+			    			channel->regs->cfg =
+				    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
+				    		else if (dma_ch[i].flowmode == DMA_SMALL)
+							channel->regs->cfg =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
+
+			     			SSYNC();
+					
+					channel->wait_first_descriptor = NULL;
+					channel->wait_last_descriptor = NULL;
+				}
+			}
+		} /* End of the Else loop - for Not Auto Buffer */
+	/* We have to Clear the Interrupt Here */
+	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	} /* End of Irq_status register Check */
+	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
+		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
+	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	}
+}
+
+void ppi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+{
+	int 		i=CH_PPI;
+	DMA_channel 	*channel;
+	
+	assert(pt_regs != NULL);
+	channel = &dma_ch[i];
+	/* Check for the IRQ_STATUS is DMA_DONE or not */
+	if (dma_ch[i].regs->irq_status & DMA_DONE) {
+		if (dma_ch[i].callback)
+			(dma_ch[i].callback)(DMA_DONE_INTERRUPT, NULL);
+
+		if (dma_ch[i].flowmode == DMA_AUTO) {
+			DMA_DBG ("Auto Mode Interrupt is processing \n");
+		} else {
+
+			DMA_DBG ("Not In the AutoBuffer Mode  \n");
+
+			if (dma_ch[i].regs->next_desc_ptr ==
+			    	(unsigned long)(channel->first_descriptor)){
+				/*All the descriptors are processed */
+
+				/* execute the waiting descriptor list */
+			    	if ((unsigned long)channel->wait_first_descriptor) {
+					disable_dma(i);
+					DMA_DBG ("Wait descriptor \n ");
+					channel->first_descriptor =
+						channel->wait_first_descriptor;
+					channel->last_descriptor =
+				    		channel->wait_last_descriptor;
+					channel->regs->next_desc_ptr =
+				    		(unsigned long)(channel->first_descriptor);
+
+				/* ************************************/
+					if (channel->last_descriptor ==
+				    		channel->wait_first_descriptor){
+
+						if (dma_ch[i].flowmode == DMA_SMALL) {
+				    			channel->regs->start_addr =
+								((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
+					    			(channel->descr_base << 16)) ;
+
+							channel->regs->x_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
+				     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
+
+				     			channel->regs->start_addr =
+					    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
+
+							channel->regs->x_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
+						}
+					}
+					/************************************/
+
+		   	 		if (dma_ch[i].flowmode == DMA_LARGE)
+			    			channel->regs->cfg =
+				    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
+				    		else if (dma_ch[i].flowmode == DMA_SMALL)
+							channel->regs->cfg =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
+
+			     			SSYNC();
+					
+					channel->wait_first_descriptor = NULL;
+					channel->wait_last_descriptor = NULL;
+				}
+			}
+		} /* End of the Else loop - for Not Auto Buffer */
+	/* We have to Clear the Interrupt Here */
+	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	} /* End of Irq_status register Check */
+	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
+		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
+	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	}
+}
+
+void sport0_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+{
+	int 		i=CH_SPORT0_TX;
+	DMA_channel 	*channel;
+	
+	assert(pt_regs != NULL);
+	channel = &dma_ch[i];
+	/* Check for the IRQ_STATUS is DMA_DONE or not */
+	if (dma_ch[i].regs->irq_status & DMA_DONE) {
+		if (dma_ch[i].callback)
+			(dma_ch[i].callback)(DMA_DONE_INTERRUPT, NULL);
+
+		if (dma_ch[i].flowmode == DMA_AUTO) {
+			DMA_DBG ("Auto Mode Interrupt is processing \n");
+		} else {
+
+			DMA_DBG ("Not In the AutoBuffer Mode  \n");
+
+			if (dma_ch[i].regs->next_desc_ptr ==
+			    	(unsigned long)(channel->first_descriptor)){
+				/*All the descriptors are processed */
+
+				/* execute the waiting descriptor list */
+			    	if ((unsigned long)channel->wait_first_descriptor) {
+					disable_dma(i);
+					DMA_DBG ("Wait descriptor \n ");
+					channel->first_descriptor =
+						channel->wait_first_descriptor;
+					channel->last_descriptor =
+				    		channel->wait_last_descriptor;
+					channel->regs->next_desc_ptr =
+				    		(unsigned long)(channel->first_descriptor);
+
+				/* ************************************/
+					if (channel->last_descriptor ==
+				    		channel->wait_first_descriptor){
+
+						if (dma_ch[i].flowmode == DMA_SMALL) {
+				    			channel->regs->start_addr =
+								((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
+					    			(channel->descr_base << 16)) ;
+
+							channel->regs->x_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
+				     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
+
+				     			channel->regs->start_addr =
+					    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
+
+							channel->regs->x_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
+						}
+					}
+					/************************************/
+
+		   	 		if (dma_ch[i].flowmode == DMA_LARGE)
+			    			channel->regs->cfg =
+				    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
+				    		else if (dma_ch[i].flowmode == DMA_SMALL)
+							channel->regs->cfg =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
+
+			     			SSYNC();
+					
+					channel->wait_first_descriptor = NULL;
+					channel->wait_last_descriptor = NULL;
+				}
+			}
+		} /* End of the Else loop - for Not Auto Buffer */
+	/* We have to Clear the Interrupt Here */
+	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	} /* End of Irq_status register Check */
+	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
+		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
+	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	}
+}
+
+void sport0_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+{
+	int 		i=CH_SPORT0_RX;
+	DMA_channel 	*channel;
+	
+	assert(pt_regs != NULL);
+	channel = &dma_ch[i];
+	/* Check for the IRQ_STATUS is DMA_DONE or not */
+	if (dma_ch[i].regs->irq_status & DMA_DONE) {
+		if (dma_ch[i].callback)
+			(dma_ch[i].callback)(DMA_DONE_INTERRUPT, NULL);
+
+		if (dma_ch[i].flowmode == DMA_AUTO) {
+			DMA_DBG ("Auto Mode Interrupt is processing \n");
+		} else {
+
+			DMA_DBG ("Not In the AutoBuffer Mode  \n");
+
+			if (dma_ch[i].regs->next_desc_ptr ==
+			    	(unsigned long)(channel->first_descriptor)){
+				/*All the descriptors are processed */
+
+				/* execute the waiting descriptor list */
+			    	if ((unsigned long)channel->wait_first_descriptor) {
+					disable_dma(i);
+					DMA_DBG ("Wait descriptor \n ");
+					channel->first_descriptor =
+						channel->wait_first_descriptor;
+					channel->last_descriptor =
+				    		channel->wait_last_descriptor;
+					channel->regs->next_desc_ptr =
+				    		(unsigned long)(channel->first_descriptor);
+
+				/* ************************************/
+					if (channel->last_descriptor ==
+				    		channel->wait_first_descriptor){
+
+						if (dma_ch[i].flowmode == DMA_SMALL) {
+				    			channel->regs->start_addr =
+								((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
+					    			(channel->descr_base << 16)) ;
+
+							channel->regs->x_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
+				     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
+
+				     			channel->regs->start_addr =
+					    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
+
+							channel->regs->x_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
+						}
+					}
+					/************************************/
+
+		   	 		if (dma_ch[i].flowmode == DMA_LARGE)
+			    			channel->regs->cfg =
+				    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
+				    		else if (dma_ch[i].flowmode == DMA_SMALL)
+							channel->regs->cfg =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
+
+			     			SSYNC();
+					
+					channel->wait_first_descriptor = NULL;
+					channel->wait_last_descriptor = NULL;
+				}
+			}
+		} /* End of the Else loop - for Not Auto Buffer */
+	/* We have to Clear the Interrupt Here */
+	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	} /* End of Irq_status register Check */
+	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
+		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
+	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	}
+}
+
+void sport1_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+{
+	int 		i=CH_SPORT1_TX;
+	DMA_channel 	*channel;
+	
+	assert(pt_regs != NULL);
+	channel = &dma_ch[i];
+	/* Check for the IRQ_STATUS is DMA_DONE or not */
+	if (dma_ch[i].regs->irq_status & DMA_DONE) {
+		if (dma_ch[i].callback)
+			(dma_ch[i].callback)(DMA_DONE_INTERRUPT, NULL);
+
+		if (dma_ch[i].flowmode == DMA_AUTO) {
+			DMA_DBG ("Auto Mode Interrupt is processing \n");
+		} else {
+
+			DMA_DBG ("Not In the AutoBuffer Mode  \n");
+
+			if (dma_ch[i].regs->next_desc_ptr ==
+			    	(unsigned long)(channel->first_descriptor)){
+				/*All the descriptors are processed */
+
+				/* execute the waiting descriptor list */
+			    	if ((unsigned long)channel->wait_first_descriptor) {
+					disable_dma(i);
+					DMA_DBG ("Wait descriptor \n ");
+					channel->first_descriptor =
+						channel->wait_first_descriptor;
+					channel->last_descriptor =
+				    		channel->wait_last_descriptor;
+					channel->regs->next_desc_ptr =
+				    		(unsigned long)(channel->first_descriptor);
+
+					if (channel->last_descriptor ==
+				    		channel->wait_first_descriptor){
+
+						if (dma_ch[i].flowmode == DMA_SMALL) {
+				    			channel->regs->start_addr =
+								((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
+					    			(channel->descr_base << 16)) ;
+
+							channel->regs->x_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
+				     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
+
+				     			channel->regs->start_addr =
+					    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
+
+							channel->regs->x_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
+						}
+					}
+					/************************************/
+
+		   	 		if (dma_ch[i].flowmode == DMA_LARGE)
+			    			channel->regs->cfg =
+				    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
+				    		else if (dma_ch[i].flowmode == DMA_SMALL)
+							channel->regs->cfg =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
+
+			     			SSYNC();
+					
+					channel->wait_first_descriptor = NULL;
+					channel->wait_last_descriptor = NULL;
+				}
+			}
+		} /* End of the Else loop - for Not Auto Buffer */
+	/* We have to Clear the Interrupt Here */
+	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	} /* End of Irq_status register Check */
+	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
+		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
+	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	}
+}
+
+void sport1_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+{
+	int 		i=CH_SPORT1_RX;
+	DMA_channel 	*channel;
+	
+	assert(pt_regs != NULL);
+	channel = &dma_ch[i];
+	/* Check for the IRQ_STATUS is DMA_DONE or not */
+	if (dma_ch[i].regs->irq_status & DMA_DONE) {
+		if (dma_ch[i].callback)
+			(dma_ch[i].callback)(DMA_DONE_INTERRUPT, NULL);
+
+		if (dma_ch[i].flowmode == DMA_AUTO) {
+			DMA_DBG ("Auto Mode Interrupt is processing \n");
+		} else {
+			DMA_DBG ("Not In the AutoBuffer Mode  \n");
+
+			if (dma_ch[i].regs->next_desc_ptr ==
+			    	(unsigned long)(channel->first_descriptor)){
+				/*All the descriptors are processed */
+
+				/* execute the waiting descriptor list */
+			    	if ((unsigned long)channel->wait_first_descriptor) {
+					disable_dma(i);
+					DMA_DBG ("Wait descriptor \n ");
+					channel->first_descriptor =
+						channel->wait_first_descriptor;
+					channel->last_descriptor =
+				    		channel->wait_last_descriptor;
+					channel->regs->next_desc_ptr =
+				    		(unsigned long)(channel->first_descriptor);
+
+				/* ************************************/
+					if (channel->last_descriptor ==
+				    		channel->wait_first_descriptor){
+
+						if (dma_ch[i].flowmode == DMA_SMALL) {
+				    			channel->regs->start_addr =
+								((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
+					    			(channel->descr_base << 16)) ;
+
+							channel->regs->x_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
+				     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
+
+				     			channel->regs->start_addr =
+					    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
+
+							channel->regs->x_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
+						}
+					}
+					/************************************/
+
+		   	 		if (dma_ch[i].flowmode == DMA_LARGE)
+			    			channel->regs->cfg =
+				    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
+				    		else if (dma_ch[i].flowmode == DMA_SMALL)
+							channel->regs->cfg =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
+
+			     			SSYNC();
+					
+					channel->wait_first_descriptor = NULL;
+					channel->wait_last_descriptor = NULL;
+				}
+			}
+		} /* End of the Else loop - for Not Auto Buffer */
+	/* We have to Clear the Interrupt Here */
+	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	} /* End of Irq_status register Check */
+	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
+		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
+	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	}
+}
+
+void spi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+{
+	int 		i=CH_SPI;
+	DMA_channel 	*channel;
+	
+	assert(pt_regs != NULL);
+	channel = &dma_ch[i];
+	/* Check for the IRQ_STATUS is DMA_DONE or not */
+	if (dma_ch[i].regs->irq_status & DMA_DONE) {
+		if (dma_ch[i].callback)
+			(dma_ch[i].callback)(DMA_DONE_INTERRUPT, NULL);
+
+		if (dma_ch[i].flowmode == DMA_AUTO) {
+			DMA_DBG ("Auto Mode Interrupt is processing \n");
+		} else {
+
+			DMA_DBG ("Not In the AutoBuffer Mode  \n");
+
+			if (dma_ch[i].regs->next_desc_ptr ==
+			    	(unsigned long)(channel->first_descriptor)){
+				/*All the descriptors are processed */
+
+				/* execute the waiting descriptor list */
+			    	if ((unsigned long)channel->wait_first_descriptor) {
+					disable_dma(i);
+					DMA_DBG ("Wait descriptor \n ");
+					channel->first_descriptor =
+						channel->wait_first_descriptor;
+					channel->last_descriptor =
+				    		channel->wait_last_descriptor;
+					channel->regs->next_desc_ptr =
+				    		(unsigned long)(channel->first_descriptor);
+
+				/* ************************************/
+					if (channel->last_descriptor ==
+				    		channel->wait_first_descriptor){
+
+						if (dma_ch[i].flowmode == DMA_SMALL) {
+				    			channel->regs->start_addr =
+								((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
+					    			(channel->descr_base << 16)) ;
+
+							channel->regs->x_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
+				     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
+
+				     			channel->regs->start_addr =
+					    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
+
+							channel->regs->x_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
+						}
+					}
+					/************************************/
+
+		   	 		if (dma_ch[i].flowmode == DMA_LARGE)
+			    			channel->regs->cfg =
+				    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
+				    		else if (dma_ch[i].flowmode == DMA_SMALL)
+							channel->regs->cfg =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
+
+			     			SSYNC();
+					
+					channel->wait_first_descriptor = NULL;
+					channel->wait_last_descriptor = NULL;
+				}
+			}
+		} /* End of the Else loop - for Not Auto Buffer */
+	/* We have to Clear the Interrupt Here */
+	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	} /* End of Irq_status register Check */
+	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
+		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
+	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	}
+}
+
+void uart_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+{
+	int 		i=CH_UART_RX;
+	DMA_channel 	*channel;
+	
+	assert(pt_regs != NULL);
+	channel = &dma_ch[i];
+	/* Check for the IRQ_STATUS is DMA_DONE or not */
+	if (dma_ch[i].regs->irq_status & DMA_DONE) {
+		if (dma_ch[i].callback)
+			(dma_ch[i].callback)(DMA_DONE_INTERRUPT, NULL);
+
+		if (dma_ch[i].flowmode == DMA_AUTO) {
+			DMA_DBG ("Auto Mode Interrupt is processing \n");
+		} else {
+
+			DMA_DBG ("Not In the AutoBuffer Mode  \n");
+
+			if (dma_ch[i].regs->next_desc_ptr ==
+			    	(unsigned long)(channel->first_descriptor)){
+				/*All the descriptors are processed */
+
+				/* execute the waiting descriptor list */
+			    	if ((unsigned long)channel->wait_first_descriptor) {
+					disable_dma(i);
+					DMA_DBG ("Wait descriptor \n ");
+					channel->first_descriptor =
+						channel->wait_first_descriptor;
+					channel->last_descriptor =
+				    		channel->wait_last_descriptor;
+					channel->regs->next_desc_ptr =
+				    		(unsigned long)(channel->first_descriptor);
+
+				/* ************************************/
+					if (channel->last_descriptor ==
+				    		channel->wait_first_descriptor){
+
+						if (dma_ch[i].flowmode == DMA_SMALL) {
+				    			channel->regs->start_addr =
+								((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
+					    			(channel->descr_base << 16)) ;
+
+							channel->regs->x_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
+				     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
+
+				     			channel->regs->start_addr =
+					    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
+
+							channel->regs->x_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
+						}
+					}
+					/************************************/
+
+		   	 		if (dma_ch[i].flowmode == DMA_LARGE)
+			    			channel->regs->cfg =
+				    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
+				    		else if (dma_ch[i].flowmode == DMA_SMALL)
+							channel->regs->cfg =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
+
+			     			SSYNC();
+					
+					channel->wait_first_descriptor = NULL;
+					channel->wait_last_descriptor = NULL;
+				}
+			}
+		} /* End of the Else loop - for Not Auto Buffer */
+	/* We have to Clear the Interrupt Here */
+	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	} /* End of Irq_status register Check */
+	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
+		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
+	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	}
+}
+
+void uart_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+{
+	int 		i=CH_UART_TX;
+	DMA_channel 	*channel;
+	
+	assert(pt_regs != NULL);
+	channel = &dma_ch[i];
+	/* Check for the IRQ_STATUS is DMA_DONE or not */
+	if (dma_ch[i].regs->irq_status & DMA_DONE) {
+		if (dma_ch[i].callback)
+			(dma_ch[i].callback)(DMA_DONE_INTERRUPT, NULL);
+
+		if (dma_ch[i].flowmode == DMA_AUTO) {
+			DMA_DBG ("Auto Mode Interrupt is processing \n");
+		} else {
+			DMA_DBG ("Not In the AutoBuffer Mode  \n");
+
+			if (dma_ch[i].regs->next_desc_ptr ==
+			    	(unsigned long)(channel->first_descriptor)){
+				/*All the descriptors are processed */
+
+				/* execute the waiting descriptor list */
+			    	if ((unsigned long)channel->wait_first_descriptor) {
+					disable_dma(i);
+					DMA_DBG ("Wait descriptor \n ");
+					channel->first_descriptor =
+						channel->wait_first_descriptor;
+					channel->last_descriptor =
+				    		channel->wait_last_descriptor;
+					channel->regs->next_desc_ptr =
+				    		(unsigned long)(channel->first_descriptor);
+
+				/* ************************************/
+					if (channel->last_descriptor ==
+				    		channel->wait_first_descriptor){
+
+						if (dma_ch[i].flowmode == DMA_SMALL) {
+				    			channel->regs->start_addr =
+								((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
+					    			(channel->descr_base << 16)) ;
+
+							channel->regs->x_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
+				     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
+
+				     			channel->regs->start_addr =
+					    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
+
+							channel->regs->x_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
+
+							channel->regs->x_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
+
+							channel->regs->y_count =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
+
+							channel->regs->y_modify =
+					    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
+						}
+					}
+					/************************************/
+
+		   	 		if (dma_ch[i].flowmode == DMA_LARGE)
+			    			channel->regs->cfg =
+				    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
+				    		else if (dma_ch[i].flowmode == DMA_SMALL)
+							channel->regs->cfg =
+					    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
+
+			     			SSYNC();
+					
+					channel->wait_first_descriptor = NULL;
+					channel->wait_last_descriptor = NULL;
+				}
+			}
+		} /* End of the Else loop - for Not Auto Buffer */
+	/* We have to Clear the Interrupt Here */
+	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	} /* End of Irq_status register Check */
+	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
+		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
+	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
 	}
 }
