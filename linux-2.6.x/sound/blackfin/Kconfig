@@ -2,7 +2,7 @@
 # $Id$
 #
 menu "ALSA Blackfin devices"
-#	depends on SND!=n && BFIN
+	depends on SND!=n && BFIN
 
 config SND_BLACKFIN_ADI1836
 	bool "1836 Audio support for BF53x"
