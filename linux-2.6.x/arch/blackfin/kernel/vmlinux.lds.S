@@ -198,6 +198,8 @@ SECTIONS
   .debug_typenames 0 : { *(.debug_typenames) }
   .debug_varnames  0 : { *(.debug_varnames) }
   /DISCARD/ : { *(.note.GNU-stack) }
+#else
+  /DISCARD/ : { *(.comment) }
 #endif
 	.text_l1 : {
 		. = ALIGN(4) ;
