@@ -36,11 +36,6 @@
 
 .text
 
-.globl system_call
-.globl trap 
-.globl resume
-.globl sys_call_table
-
 ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	SAVE_ALL_SYS
 	
@@ -73,7 +68,7 @@ badsys:
 	[sp + PT_R0] = r7;	/* return value from system call */
 	rti;	
 
-do_trace:
+ENTRY(do_trace)
 	r7 = -ENOSYS;
 	[sp + PT_R0] = r7;	/* needed for strace */
 	sp += -4;		/* why minus then plus again ??? Tony */
@@ -224,7 +219,7 @@ exit_syscall:
 	r4 = [sp++];
 	cc = BITTST(r7, _TIF_NEED_RESCHED);
 	if !cc jump syscall_sigpending; 
-	call reschedule;
+	jump reschedule;
 
 syscall_sigpending:
 	cc = BITTST(r7, TIF_SIGPENDING);
@@ -249,7 +244,7 @@ kernel_to_user_mode:
 	reti = r0;
 	rti;
 
-resume:
+ENTRY(resume)
 	/*
 	 * Beware - when entering resume, prev (the current task) is
 	 * in r0, next (the new task) is in r1.
@@ -326,7 +321,7 @@ l_next_4:
 	SP += 16;
 	jump l_before;
 
-ret_from_exception:
+ENTRY(ret_from_exception)
 	p2.l = 0x2108;
 	p2.h = 0xffe0;
 	r0 = [p2];
@@ -359,7 +354,7 @@ ret_from_exception:
 	cc = BITTST(r7, _TIF_NEED_RESCHED);
 	if !cc jump 3f; 
 	[--sp] = rets;
-	call reschedule;
+	jump reschedule;
 	rets = [sp++];
 	jump ret_from_exception;
 3:
@@ -376,7 +371,7 @@ ret_from_exception:
 
 .data
 ALIGN
-sys_call_table:	
+ENTRY(sys_call_table)	
 	.long sys_ni_syscall	/* 0  -  old "setup()" system call*/
 	.long sys_exit
 	.long sys_fork
@@ -633,7 +628,7 @@ sys_call_table:
 	.long sys_lookup_dcookie
 
 	/* no recognization now by bfin-gcc */
-/*	.rept NR_syscalls-(.-SYMBOL_NAME(sys_call_table))/4	*/
+/*	.rept NR_syscalls-(.-SYMBOL_NAME(sys_call_table))/4  */
 	.rept 3
 	.long (sys_ni_syscall)
 	.endr
