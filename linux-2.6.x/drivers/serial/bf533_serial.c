@@ -125,107 +125,11 @@ static int rs_write(struct tty_struct * tty, int from_user,
 static int baud_table[] = {
 	0, 114, 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 0 };
 
-#if defined(CONFIG_BLKFIN_STAMP) 
-struct { unsigned short dl_high, dl_low;
-        } hw_baud_table[] = {
-        {0xff, 0xff}, /* approximately 0 */
-        {0xff, 0xff}, /* 114 */
-        {0x61, 0xa8}, /* 300 */
-        {0x18, 0x6a}, /* 1200 */
-        {0xc, 0x35},  /* 2400 */
-        {0x3, 0x5C},  /* 4800 */
-        {0x2, 0x03},  /* 9600 */
-        {0x1, 0x01},  /* 19200 */
-        {0x0, 0x80},  /* 38400 */
-     	{0x0, 0x55},  /* 57600 */		
-     	{0x0, 0x34},  /* 57600 */		
-        {0x0, 0x2A},  /* 115200 */
-                      /* rate = SCLK / (16 * DL) - SCLK = 120MHz
-                         DL = (dl_high:dl_low) */
-};
-#elif defined(CONFIG_BF53x_SCLK_118_MHZ)
-struct { unsigned short dl_high, dl_low;
-        } hw_baud_table[] = {
-        {0xff, 0xff}, /* approximately 0 */
-        {0xff, 0xff}, /* 114 */
-        {0x61, 0xa8}, /* 300 */
-        {0x18, 0x01}, /* 1200 */
-        {0xc, 0x00},  /* 2400 */
-        {0x6, 0x00},  /* 4800 */
-        {0x3, 0x00},  /* 9600 */
-        {0x1, 0x80},  /* 19200 */
-        {0x0, 0xc0},  /* 38400 */
-        {0x0, 0x80},  /* 57600 */
-        {0x0, 0x40},  /* 115200 */
-                      /* rate = SCLK / (16 * DL) - SCLK = 120MHz
-                         DL = (dl_high:dl_low) */
-};
-#elif defined(CONFIG_BF53x_SCLK_126_MHZ)
-struct { unsigned short dl_high, dl_low; }
-        hw_baud_table[] = {
-        {0xff, 0xff}, /* approximately 0 */
-        {0xff, 0xff}, /* 114 */
-        {0x66, 0x8a}, /* 300 */
-        {0x19, 0xa2}, /* 1200 */
-        {0x0c, 0xd1}, /* 2400 */
-        {0x06, 0x68}, /* 4800 */
-        {0x03, 0x34}, /* 9600 */
-        {0x01, 0x9a}, /* 19200 */
-        {0x00, 0xcd}, /* 38400 */
-        {0x00, 0x89}, /* 57600 */
-        {0x00, 0x44}, /* 115200 */
-                      /* rate = SCLK / (16 * DL) - SCLK = 126 MHz
-                       * DL = (dl_high:dl_low) */
-};
-#elif defined(CONFIG_BF53x_SCLK_129_MHZ)
-struct { unsigned short dl_high, dl_low; }
-        hw_baud_table[] = {
-        {0xff, 0xff}, /* approximately 0 */
-        {0xff, 0xff}, /* 114 */
-        {0x68, 0xff}, /* 300 */
-        {0x1a, 0x40}, /* 1200 */
-        {0x0d, 0x20}, /* 2400 */
-        {0x06, 0x90}, /* 4800 */
-        {0x03, 0x48}, /* 9600 */
-        {0x01, 0xa4}, /* 19200 */
-        {0x00, 0xd2}, /* 38400 */
-        {0x00, 0x8c}, /* 57600 */
-        {0x00, 0x46}, /* 115200 */
-                      /* rate = SCLK / (16 * DL) - SCLK = 129.024 MHz
-                       * DL = (dl_high:dl_low) */
-};
-#elif defined(CONFIG_BF53x_SCLK_99_MHZ)
-struct { unsigned short dl_high, dl_low; }
-        hw_baud_table[] = {
-        {0xff, 0xff}, /* 0 */
-        {0xd5, 0x28}, /* 114 */
-        {0x50, 0xff}, /* 300 */
-        {0x14, 0x3f}, /* 1200 */
-        {0x0a, 0x1f}, /* 2400 */
-        {0x05, 0x0f}, /* 4800 */
-        {0x02, 0x87}, /* 9600 */
-        {0x01, 0x43}, /* 19200 */
-        {0x00, 0xa1}, /* 38400 */
-        {0x00, 0x6b}, /* 57600 */
-        {0x00, 0x35}, /* 115200 */
+struct {
+        unsigned char dl_high;
+        unsigned char dl_low;
+} hw_baud_table[5];
 
-};
-#elif defined(CONFIG_BF53x_SCLK_132_MHZ)
-struct { unsigned short dl_high, dl_low; }
-        hw_baud_table[] = {
-        { 0xff, 0xff}, /*     ~0 */
-        { 0xff, 0xff}, /*    114 */
-        { 0x6c, 0x00}, /*    300 */
-        { 0x1b, 0x00}, /*   1200 */
-        { 0x0d, 0x80}, /*   2400 */
-        { 0x06, 0xc0}, /*   4800 */
-        { 0x03, 0x60}, /*   9600 */
-        { 0x01, 0xb0}, /*  19200 */
-        { 0x00, 0xd8}, /*  38400 */
-        { 0x00, 0x90}, /*  57600 */
-        { 0x00, 0x48}, /* 115200 */
-};
-#endif
 #define BAUD_TABLE_SIZE (sizeof(baud_table)/sizeof(baud_table[0]))
 
 /*
@@ -243,6 +147,16 @@ DECLARE_MUTEX(tmp_buf_sem);
 /* Forward declarations.... */
 static void bf533_change_speed(struct bf533_serial *info);
 static void bf533_set_baud( void );
+
+void calc_baud(void)
+{
+        unsigned char i;
+
+        for(i = 0; i < sizeof(baud_table)/sizeof(int); i++) {
+                hw_baud_table[i].dl_high = ((CONFIG_SCLK_HZ/(baud_table[i]*16)) >> 8)& 0xFF;
+                hw_baud_table[i].dl_low = (CONFIG_SCLK_HZ/(baud_table[i]*16)) & 0xFF;
+        }
+}
 
 static inline int serial_paranoia_check(struct bf533_serial *info,char *name, const char *routine)
 {
@@ -1485,10 +1399,10 @@ static int __init rs_bf533_init(void)
 
 	local_irq_restore(flags);
 
-	if (request_irq(IRQ_UART_RX, rs_interrupt, IRQ_FLG_STD, "BF533_UART", NULL))
+	if (request_irq(IRQ_UART_RX, rs_interrupt, IRQ_FLG_STD, "BF533_UART_RX", NULL))
 		panic("Unable to attach BlackFin UART interrupt\n");
 
-	if (request_irq(IRQ_UART_TX, rs_interrupt, IRQ_FLG_STD, "BF533_UART", NULL))
+	if (request_irq(IRQ_UART_TX, rs_interrupt, IRQ_FLG_STD, "BF533_UART_TX", NULL))
 		panic("Unable to attach BlackFin UART interrupt\n");
 	
 	printk("Enabling Serial UART Interrupts\n");
@@ -1510,6 +1424,7 @@ static void bf533_set_baud( void )
 	*pUART_IER &= ~ETBEI;
 	SYNC_ALL;
 
+	calc_baud();
 again:
 	for (i = 0; i < sizeof(baud_table) / sizeof(baud_table[0]); i++)
 		if (baud_table[i] == bf533_console_baud)
