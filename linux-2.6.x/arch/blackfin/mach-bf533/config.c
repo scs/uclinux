@@ -141,6 +141,8 @@ void config_BSP(char *command, int len)
 #if defined(CONFIG_BOOTPARAM)
 	strncpy(command, CONFIG_BOOTPARAM_STRING, len);
 	command[len-1] = 0;
+#else
+	memset(commandp, 0, size);
 #endif
 	mach_sched_init      = BSP_sched_init;
 	mach_tick            = BSP_tick;
