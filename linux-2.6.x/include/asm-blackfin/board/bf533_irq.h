@@ -62,6 +62,7 @@ Core        Emulation               **
             Software Interrupt 2    --
                  (lowest priority)  IVG15       32 *
  */
+#define SYS_IRQS 32
 /* The ABSTRACT IRQ definitions */
 /** the first seven of the following are fixed, the rest you change if you need to **/
 #define	IRQ_EMU			0	/*Emulation*/
