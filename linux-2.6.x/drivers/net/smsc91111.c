@@ -87,7 +87,12 @@ static const char version[] =
 #include <asm/board/cdefBF533.h>
 #include <asm/delay.h>
 #define CONFIG_SMC16BITONLY     1
+#if defined(CONFIG_BLKFIN_STAMP)
 #define LAN_FIO_PATTERN		0x80
+#endif
+#if defined(CONFIG_CSP_STAMP) || defined(CONFIG_ZAP_TEST)
+#define LAN_FIO_PATTERN		(1 << 4)
+#endif
 #endif
 
 #if defined(CONFIG_M5249C3) || defined(CONFIG_GILBARCONAP)
@@ -179,8 +184,18 @@ static unsigned int smc_portlist[] = { 0xe0000300, 0 };
 static unsigned int smc_irqlist[]  = { 166, 0 };
 
 #elif defined(CONFIG_BFIN)
-static unsigned int smc_portlist[] = { 0x20300300,0x20300300, 0 };
-static unsigned int smc_irqlist[]  = { 27, 26, 0 };
+static unsigned int smc_portlist[] = { 0x20300300,0x20300300,0x20300300,0x20300300, 0 };
+static unsigned int smc_irqlist[]  = { 
+#ifndef CONFIG_IRQCHIP_DEMUX_GPIO
+  IRQ_PROG_INTB,
+#else
+#ifdef CONFIG_DSP_STAMP
+ IRQ_PF7, 
+#else
+ IRQ_PF4,
+#endif
+#endif
+  27, 26, 0 };
 
 #elif defined(CONFIG_GILBARCONAP)
 static unsigned int smc_portlist[] = { 0x30600300, 0 };
@@ -209,7 +224,7 @@ static unsigned int smc_portlist[] __initdata =
  .    3 for packet info
  .    4 for complete packet dumps
 */
-#define SMC_DEBUG 0 /* Must be defined in makefile*/
+#define SMC_DEBUG 1 /* Must be defined in makefile*/
 
 #if (SMC_DEBUG > 2 )
 #define PRINTK3(args...) printk(args)
@@ -537,14 +552,7 @@ void bfin_EBIU_AM_setup(void)
 
         *pEBIU_AMGCTL = AMGCTLVAL;		/*AMGCTL*/
         asm("ssync;");
-#ifdef CONFIG_EZKIT               
-        *pEBIU_AMBCTL0 = AMBCTL0VAL;	/* AMBCTL0*/
-        asm("ssync;");
-
-        *pEBIU_AMBCTL1 = AMBCTL1VAL;	/* AMBCTL1*/
-        asm("ssync;");
-#endif
-#ifdef CONFIG_BLKFIN_STAMP
+#if defined(AMBCTL0VAL)
         *pEBIU_AMBCTL0 = AMBCTL0VAL;	/* AMBCTL0*/
         asm("ssync;");
 
@@ -557,8 +565,9 @@ void bfin_SMC_interrupt_setup(int irq)
 {
 	unsigned int stmp = 0;
 
-	PRINTK2("EZ-LAN interrupt setup.\n");
+	PRINTK2("EZ-LAN interrupt setup. irq=%d\n", irq);
 
+#ifndef CONFIG_IRQCHIP_DEMUX_GPIO
 	/* Direction setup*/
 	stmp = *pFIO_DIR;
         asm("ssync;");
@@ -597,14 +606,17 @@ void bfin_SMC_interrupt_setup(int irq)
 	*pFIO_FLAG_C = stmp & LAN_FIO_PATTERN;    	
         asm("ssync;");
 
-
 	stmp = *pFIO_INEN;    	
         asm("ssync;");
 	*pFIO_INEN = stmp | LAN_FIO_PATTERN;    	
         asm("ssync;");
 
-	/* enable irq b */
-	enable_irq(irq);
+#else
+	set_irq_type(irq, IRQT_HIGH);
+#endif
+
+	printk("%s: irq=%d fio_edge=%#04x fio_both=%#04x polar=%#04x maskb=%#04x flag=%#04x\n",
+	       __FUNCTION__, irq, *pFIO_EDGE, *pFIO_BOTH, *pFIO_POLAR, *pFIO_MASKB_D, *pFIO_FLAG_D);
 } 
 #endif
 
@@ -683,7 +695,7 @@ static void smc_reset( struct net_device* dev )
 	   but this is a place where future chipsets _COULD_ break.  Be wary
  	   of issuing another MMU command right after this */
 	while (readw( ioaddr + MMU_CMD_REG ) & MC_BUSY );
-	printk("");
+
 	/* Disable all interrupts */
 #if defined(CONFIG_SMC16BITONLY)
 	smc_writew( 0, ioaddr + INT_REG );
@@ -1115,35 +1127,36 @@ int __init smc_init(struct net_device *dev)
 #endif
 
 #if defined(CONFIG_COLDFIRE) || defined(CONFIG_BFIN)
-{
-	static int index = 0;
+	{
+		static int index = 0;
 
-	/* check every ethernet address */
-	while (smc_portlist[index]) {
-		dev->irq = smc_irqlist[index];
-		if ( smc_probe(dev,smc_portlist[index++]) == 0 )
-			return 0;
+		/* check every ethernet address */
+		while (smc_portlist[index]) {
+			dev->irq = smc_irqlist[index];
+			if ( smc_probe(dev,smc_portlist[index++]) == 0 )
+				return 0;
+		}
 	}
-}
 #else
-{
-	int i;
-	int base_addr = dev ? dev->base_addr : 0;
+	{
+		int i;
+		int base_addr = dev ? dev->base_addr : 0;
 
-	/*  try a specific location */
-	if (base_addr > 0x1ff)
-		return smc_probe(dev, base_addr);
-	else if ( 0 != base_addr ) 
-		return -ENXIO;
+		/*  try a specific location */
+		if (base_addr > 0x1ff)
+			return smc_probe(dev, base_addr);
+		else if ( 0 != base_addr ) 
+			return -ENXIO;
 		
-	/* check every ethernet address */
-	for (i = 0; smc_portlist[i]; i++) {
-		if ( smc_probe(dev,smc_portlist[i]) ==0)
-			return 0;
+		/* check every ethernet address */
+		for (i = 0; smc_portlist[i]; i++) {
+			if ( smc_probe(dev,smc_portlist[i]) ==0)
+				return 0;
+		}
 	}
-}
 #endif
 	/* couldn't find anything */
+	PRINTK2(CARDNAME": smc_init enodev\n");
 	return -ENODEV;
 }
 
@@ -1286,7 +1299,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	struct smc_local *lp;
 	/*<= Pramod */
 
-	PRINTK2(CARDNAME":smc_probe\n");
+	PRINTK2(CARDNAME":smc_probe ioaddr=%x irq=%d\n", ioaddr, dev->irq);
 
 #if !defined(CONFIG_M5249C3) && !defined(CONFIG_GILBARCONAP)
 	/* Grab the region so that no one else tries to probe our ioports. */
@@ -1328,17 +1341,17 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 #if defined(CONFIG_M5249C3) || defined(CONFIG_GILBARCONAP) || defined(CONFIG_BFIN)
 	if ((ioaddr & 0xfff) != (base_address_register >> 3 & 0x3E0))
 #else
-	if ( ioaddr != ( base_address_register >> 3 & 0x3E0 ) )
+		if ( ioaddr != ( base_address_register >> 3 & 0x3E0 ) )
 #endif
-	{
-		printk(CARDNAME": IOADDR %x doesn't match configuration (%x)."
-			"Probably not a SMC chip\n",
-			ioaddr, base_address_register >> 3 & 0x3E0 );
-		/* well, the base address register didn't match.  Must not have
-		   been a SMC chip after all. */
-		retval = -ENODEV;
-		goto err_out;
-	}
+		{
+			printk(CARDNAME": IOADDR %x doesn't match configuration (%x)."
+			       "Probably not a SMC chip\n",
+			       ioaddr, base_address_register >> 3 & 0x3E0 );
+			/* well, the base address register didn't match.  Must not have
+			   been a SMC chip after all. */
+			retval = -ENODEV;
+			goto err_out;
+		}
 
 	/*  check if the revision register is something that I recognize.
 	    These might need to be added to later, as future revisions
@@ -1349,8 +1362,8 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	{
 		/* I don't recognize this chip, so... */
 		printk(CARDNAME": IO %x: Unrecognized revision register:"
-			" %x, Contact author. \n",
-			ioaddr, revision_register );
+		       " %x, Contact author. \n",
+		       ioaddr, revision_register );
 		retval =  -ENODEV;
 		goto err_out;
 	}
@@ -1382,29 +1395,29 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	}
 #endif
 #if defined(CONFIG_GILBARCONAP)
-{
-	unsigned char *ep;
+	{
+		unsigned char *ep;
 
-	/* Pull MAC address from FLASH */
-	ep = (unsigned char *) 0xf0006006;
-	if ((ep[0] == 0xff) && (ep[1] == 0xff) && (ep[2] == 0xff) &&
-	    (ep[3] == 0xff) && (ep[4] == 0xff) && (ep[5] == 0xff))
-		ep = (unsigned char *) &smc_defethaddr[0];
-	else if ((ep[0] == 0) && (ep[1] == 0) && (ep[2] == 0) &&
-	    (ep[3] == 0) && (ep[4] == 0) && (ep[5] == 0))
-		ep = (unsigned char *) &smc_defethaddr[0];
+		/* Pull MAC address from FLASH */
+		ep = (unsigned char *) 0xf0006006;
+		if ((ep[0] == 0xff) && (ep[1] == 0xff) && (ep[2] == 0xff) &&
+		    (ep[3] == 0xff) && (ep[4] == 0xff) && (ep[5] == 0xff))
+			ep = (unsigned char *) &smc_defethaddr[0];
+		else if ((ep[0] == 0) && (ep[1] == 0) && (ep[2] == 0) &&
+			 (ep[3] == 0) && (ep[4] == 0) && (ep[5] == 0))
+			ep = (unsigned char *) &smc_defethaddr[0];
 
-	SMC_SELECT_BANK( 1 );
-	for (i = 0; i < 6; i += 2) {
-		word address;
-		address = (((word) ep[i+1]) << 8) | ep[i];
-		smc_writew(address, ioaddr + ADDR0_REG + i);
+		SMC_SELECT_BANK( 1 );
+		for (i = 0; i < 6; i += 2) {
+			word address;
+			address = (((word) ep[i+1]) << 8) | ep[i];
+			smc_writew(address, ioaddr + ADDR0_REG + i);
+		}
 	}
-}
 #endif
 
 	/*
- 	 . Get the MAC address ( bank 1, regs 4 - 9 )
+	  . Get the MAC address ( bank 1, regs 4 - 9 )
 	*/
 	SMC_SELECT_BANK( 1 );
 	for ( i = 0; i < 6; i += 2 )
@@ -1424,9 +1437,9 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	memory *= LAN91C111_MEMORY_MULTIPLIER;
 
 	/*
-	 Now, I want to find out more about the chip.  This is sort of
- 	 redundant, but it's cleaner to have it in both, rather than having
- 	 one VERY long probe procedure.
+	  Now, I want to find out more about the chip.  This is sort of
+	  redundant, but it's cleaner to have it in both, rather than having
+	  one VERY long probe procedure.
 	*/
 	SMC_SELECT_BANK(3);
 	revision_register  = readw( ioaddr + REV_REG );
@@ -1442,20 +1455,20 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	smc_reset( dev );
 
 	/*
-	 . If dev->irq is 0, then the device has to be banged on to see
-	 . what the IRQ is.
- 	 .
-	 . This banging doesn't always detect the IRQ, for unknown reasons.
-	 . a workaround is to reset the chip and try again.
-	 .
-	 . Interestingly, the DOS packet driver *SETS* the IRQ on the card to
-	 . be what is requested on the command line.   I don't do that, mostly
-	 . because the card that I have uses a non-standard method of accessing
-	 . the IRQs, and because this _should_ work in most configurations.
-	 .
-	 . Specifying an IRQ is done with the assumption that the user knows
-	 . what (s)he is doing.  No checking is done!!!!
- 	 .
+	  . If dev->irq is 0, then the device has to be banged on to see
+	  . what the IRQ is.
+	  .
+	  . This banging doesn't always detect the IRQ, for unknown reasons.
+	  . a workaround is to reset the chip and try again.
+	  .
+	  . Interestingly, the DOS packet driver *SETS* the IRQ on the card to
+	  . be what is requested on the command line.   I don't do that, mostly
+	  . because the card that I have uses a non-standard method of accessing
+	  . the IRQs, and because this _should_ work in most configurations.
+	  .
+	  . Specifying an IRQ is done with the assumption that the user knows
+	  . what (s)he is doing.  No checking is done!!!!
+	  .
 	*/
 	if ( dev->irq < 2 ) {
 		int	trials;
@@ -1471,7 +1484,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	}
 	if (dev->irq == 0 ) {
 		printk(CARDNAME":%s: Couldn't autodetect your IRQ. Use irq=xx.\n",
-			dev->name);
+		       dev->name);
 		retval =  -ENODEV;
 		goto err_out;
 	}
@@ -1487,11 +1500,11 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	/* now, print out the card info, in a short format.. */
 
 	printk("%s: %s(rev:%d) at %#3x IRQ:%d MEMSIZE:%db NOWAIT:%d ",
-		dev->name,
-		version_string, revision_register & 0xF, ioaddr, dev->irq,
-		memory, dev->dma);
+	       dev->name,
+	       version_string, revision_register & 0xF, ioaddr, dev->irq,
+	       memory, dev->dma);
 	/*
-	 . Print the Ethernet address
+	  . Print the Ethernet address
 	*/
 	printk("ADDR: ");
 	for (i = 0; i < 5; i++)
@@ -1513,14 +1526,18 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	/* Fill in the fields of the device structure with ethernet values. */
 	ether_setup(dev);
 
+#if defined(CONFIG_BFIN)
+	bfin_SMC_interrupt_setup(dev->irq);
+#endif
+
 	/* Grab the IRQ */
-	retval = request_irq(dev->irq, &smc_interrupt, 0, dev->name, dev);
+	retval = request_irq(dev->irq, &smc_interrupt, SA_INTERRUPT|SA_SHIRQ, dev->name, dev);
 	if (retval) {
-	  printk(CARDNAME":%s: unable to get IRQ %d (irqval=%d).\n",
-		dev->name, dev->irq, retval);
-		  kfree (dev->priv);
-		  dev->priv = NULL;
-		  goto err_out;
+		printk(CARDNAME":%s: unable to get IRQ %d (irqval=%d).\n",
+		       dev->name, dev->irq, retval);
+		kfree (dev->priv);
+		dev->priv = NULL;
+		goto err_out;
       	}
 
 #if defined(CONFIG_M5249C3)
@@ -1532,18 +1549,15 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 		0x04000000;
 #endif
 #if defined(CONFIG_GILBARCONAP)
-{
-	/* Enable INT4 function on multi-purpose pin PD5 */
-	*((volatile unsigned long *) (MCF_MBAR+MCFSIM_PDCNT)) |= 0x00000c00;
+	{
+		/* Enable INT4 function on multi-purpose pin PD5 */
+		*((volatile unsigned long *) (MCF_MBAR+MCFSIM_PDCNT)) |= 0x00000c00;
 
-	/* Enable interrupts on external INT4  */
-	*((volatile unsigned long *) (MCF_MBAR+MCFSIM_ICR1)) |= 0x000d0000;
-}
+		/* Enable interrupts on external INT4  */
+		*((volatile unsigned long *) (MCF_MBAR+MCFSIM_ICR1)) |= 0x000d0000;
+	}
 #endif
 
-#if defined(CONFIG_BFIN)
-	bfin_SMC_interrupt_setup(dev->irq);
-#endif
 	dev->open	        = smc_open;
 	dev->stop	        = smc_close;
 	dev->hard_start_xmit   	= smc_wait_to_send_packet;
@@ -1562,7 +1576,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 
 	return 0;
 
-err_out:
+ err_out:
 	release_region (ioaddr, SMC_IO_EXTENT);
 	return retval;
 }
@@ -1739,17 +1753,8 @@ static irqreturn_t smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
 	if (dev == NULL) {
 		printk(KERN_WARNING "%s: irq %d for unknown device.\n",
 			dev->name, irq);
-		return 1; 
+		return IRQ_NONE; 
 	}
-
-	/* will Linux let this happen ??  If not, this costs some speed
-	if ( dev->interrupt ) {
-		printk(KERN_WARNING "%s: interrupt inside interrupt.\n",
-			dev->name);
-		return;
-	}
-
-	dev->interrupt = 1; */
 
 #if defined(CONFIG_M5249C3)
 	/* Clear interrupts for GPIO6 */
@@ -1903,9 +1908,8 @@ static irqreturn_t smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
 
 	SMC_SELECT_BANK( saved_bank );
 
-	//dev->interrupt = 0;
 	PRINTK3("%s: Interrupt done\n", dev->name);
-	return 0;
+	return IRQ_HANDLED;
 }
 
 /*-------------------------------------------------------------
@@ -3935,10 +3939,13 @@ static void smc_phy_configure(struct net_device* dev)
 	timeout = 20; // Wait up to 10 seconds
 	while (timeout--)
 		{
-		status = smc_read_phy_register(ioaddr, phyaddr, PHY_STAT_REG);
+			PRINTK2("reading PHY_STAT reg\n");
+			status = smc_read_phy_register(ioaddr, phyaddr, PHY_STAT_REG);
+			PRINTK2("    PHY_STAT status=%#04x\n", status);
 		if (status & PHY_STAT_ANEG_ACK)
 			{
-			// auto-negotiate complete
+				// auto-negotiate complete
+				PRINTK2("auto-negotiate complete\n");
 			break;
 			}
 
@@ -3974,6 +3981,7 @@ static void smc_phy_configure(struct net_device* dev)
 		failed = 1;
 		}
 
+	PRINTK2("after auto-negotiate\n");
 	// Fail if we detected an auto-negotiate remote fault
 	if (status & PHY_STAT_REM_FLT)
 		{
