@@ -7,7 +7,7 @@
 #define _BFINNOMMU_UCONTEXT_H
 
 typedef int greg_t;
-#define NGREG 20
+#define NGREG 21
 /* including: r0-7, p0-5, a0/1w, a0/1x, astat, rets */
 
 typedef greg_t gregset_t[NGREG];
