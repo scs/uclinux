@@ -28,7 +28,7 @@
 typedef int greg_t;
 
 /* Number of general registers.  */
-#define NGREG	21
+#define NGREG	47
 
 /* Container for all general registers.  */
 typedef greg_t gregset_t[NGREG];
@@ -76,8 +76,60 @@ enum
 #define A1X	A1X
   ASTAT = 19,
 #define ASTAT	ASTAT
-  RETS = 20
+  RETS = 20,
 #define RETS	RETS
+  PC= 21,
+#define PC	PC
+  RETX = 22,
+#define RETX	RETX
+  FP = 23,
+#define FP	FP
+  I0 = 24,
+#define I0	I0
+  I1 = 25,
+#define I1	I1
+  I2 = 26,
+#define I2	I2
+  I3 = 27,
+#define I3	I3
+  M0 = 28,
+#define M0	M0
+  M1 = 29,
+#define M1	M1
+  M2 = 30,
+#define M2	M2
+  M3 = 31,
+#define M3	M3
+  L0 = 32,
+#define L0	L0
+  L1 = 33,
+#define L1	L1
+  L2 = 34,
+#define L2	L2
+  L3 = 35,
+#define L3	L3
+  B_0 = 36,
+#define B_0	B_0
+  B1 = 37,
+#define B1	B1
+  B2 = 38,
+#define B2	B2
+  B3 = 39,
+#define B3	B3
+  LC0 = 40,
+#define LC0	LC0
+  LC1 = 41,
+#define LC1	LC1
+  LT0 = 42,
+#define LT0	LT0
+  LT1 = 43,
+#define LT1	LT1
+  LB0 = 44,
+#define LB0	LB0
+  LB1 = 45,
+#define LB1	LB1
+  SEQSTAT = 46
+#define	SEQSTAT	SEQSTAT
 };
 
 /* Context to describe whole processor state.  */
