@@ -369,6 +369,55 @@ ENTRY(ret_from_exception)
 4:
 	rts;
 
+
+ENTRY(return_from_int)
+	/* check whether current process is in user or kernel mode */
+	r0 = reti;		
+	r1.h = _end;
+	r1.l = _end;
+	cc = r0 < r1;
+	if cc jump ret_to_int;
+
+	/* 
+	 * Current process in user mode 
+	 * Check to see scheduding is need for
+	 * any user processes
+	 */
+        r7 = sp;
+        r4.l = 0xe000;
+        r4.h = 0xffff;
+        r7 = r7 & r4;           /*thread_info->flags*/
+        p5 = r7;
+        r7 = [p5 + TI_FLAGS];
+        [--sp] = r4;
+        r4 = _TIF_WORK_MASK;
+        r7 =  r7 & r4;
+        r4 = [sp++];
+        cc = BITTST(r7, TIF_NEED_RESCHED);
+        if !cc jump skip_schedule;
+        [--sp] = rets;
+        call schedule;
+        rets = [sp++];
+
+skip_schedule:
+	/* check if any signals are pending */
+        r7 = [p5 + TI_FLAGS];
+        cc = BITTST(r7, TIF_SIGPENDING);
+        if !cc jump ret_to_int;
+
+	/* process pending signals */
+        r0 = 0;
+        r1 = sp;
+
+        [--sp] = rets;
+        SP += -12;
+        call do_signal;
+        SP += 12;
+        rets = [sp++];
+
+ret_to_int:
+	rts;
+
 .data
 ALIGN
 ENTRY(sys_call_table)	
