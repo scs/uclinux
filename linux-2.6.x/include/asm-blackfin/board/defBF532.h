@@ -28,8 +28,8 @@
 #define HI(con32) (((con32) >> 16) & 0xFFFF)
 #define hi(con32) (((con32) >> 16) & 0xFFFF)
 
-
-
+#define COREMMR_BASE           0xFFE00000     // Core MMRs
+#define SYSMMR_BASE            0xFFC00000     // System MMRs
 /**********************************************************************************
  *	System MMR Register Map
  ***********************************************************************************/
@@ -1137,5 +1137,19 @@
 #define SDRS			0x00000008 // SDRAM is in reset state
 #define SDEASE		      0x00000010 // SDRAM EAB sticky error status - W1C
 #define BGSTAT			0x00000020 // Bus granted
+
+/*VR_CTL Masks*/
+#define WAKE                    0x100
+#define VLEV_6                  0x60
+#define VLEV_7                  0x70
+#define VLEV_8                  0x80
+#define VLEV_9                  0x90
+#define VLEV_10                 0xA0
+#define VLEV_11                 0xB0
+#define VLEV_12                 0xC0
+#define VLEV_13                 0xD0
+#define VLEV_14                 0xE0
+#define VLEV_15                 0xF0
+#define FREQ_3                  0x03
 
 #endif /* _DEF_BF532_H */
