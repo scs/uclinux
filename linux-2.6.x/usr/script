@@ -1,0 +1,10 @@
+# 	Workaround for .incbin - BFin
+
+#!/bin/sh
+#nisa-elf-ld -m nisa  --format binary --oformat elf32-little-nisa -r \
+#-T initramfs_data.scr initramfs_data.cpio.gz -o initramfs_data.o
+#nisa-elf-ld -m nisa  -r -o built-in.o initramfs_data.o
+
+bfin-elf-ld -m bfin  --format binary --oformat elf32-bfin -r \
+-T initramfs_data.scr initramfs_data.cpio.gz -o initramfs_data.o
+bfin-elf-ld -m bfin  -r -o built-in.o initramfs_data.o
