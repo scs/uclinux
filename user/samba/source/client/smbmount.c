@@ -482,28 +482,28 @@ static void usage(void)
 	printf("Version %s\n\n",VERSION);
 
 	printf(
-"Options:
-      username=<arg>                  SMB username
-      password=<arg>                  SMB password
-      netbiosname=<arg>               source NetBIOS name
-      uid=<arg>                       mount uid or username
-      gid=<arg>                       mount gid or groupname
-      port=<arg>                      remote SMB port number
-      fmask=<arg>                     file umask
-      dmask=<arg>                     directory umask
-      debug=<arg>                     debug level
-      ip=<arg>                        destination host or IP address
-      workgroup=<arg>                 workgroup on destination
-      sockopt=<arg>                   TCP socket options
-      scope=<arg>                     NetBIOS scope
-      guest                           don't prompt for a password
-      ro                              mount read-only
-      rw                              mount read-write
+"Options:"
+"      username=<arg>                  SMB username"
+"      password=<arg>                  SMB password"
+"      netbiosname=<arg>               source NetBIOS name"
+"      uid=<arg>                       mount uid or username"
+"      gid=<arg>                       mount gid or groupname"
+"      port=<arg>                      remote SMB port number"
+"      fmask=<arg>                     file umask"
+"      dmask=<arg>                     directory umask"
+"      debug=<arg>                     debug level"
+"      ip=<arg>                        destination host or IP address"
+"      workgroup=<arg>                 workgroup on destination"
+"      sockopt=<arg>                   TCP socket options"
+"      scope=<arg>                     NetBIOS scope"
+"      guest                           don't prompt for a password"
+"      ro                              mount read-only"
+"      rw                              mount read-write"
 
-This command is designed to be run from within /bin/mount by giving
-the option '-t smbfs'. For example:
-  mount -t smbfs -o username=tridge,password=foobar //fjall/test /data/test
-");
+"This command is designed to be run from within /bin/mount by giving"
+"the option '-t smbfs'. For example:"
+"  mount -t smbfs -o username=tridge,password=foobar //fjall/test /data/test"
+);
 }
 
 
