@@ -7,17 +7,16 @@
 /* This function sets up the data and instruction cache. The 
  * tables like icplb table, dcplb table and Page Descriptor table
  * are defined in cplbtab.h. You can configure those tables for
- * your suitable requirements - Nidhi 
+ * your suitable requirements
  */
 
-#include <asm/cplb.h>
-#include <asm/blackfin.h>
 #include <linux/linkage.h>
-#include <asm/entry.h>
+#include <asm/blackfin.h>
 #include <asm/cplbtab.h>
 
 .text
 
+#if defined (CONFIG_BLKFIN_CACHE)
 ENTRY(icache_init)
 
 	/* Initialize Instruction CPLBS */
@@ -41,10 +40,12 @@ read_iaddr:
 	CC = R0 == R1;
 	IF CC JUMP idone;
 	[I0++] = R0;
+	SSYNC;
 
 read_idata:
 	R2 = [I2++];
 	[I1++] = R2;
+	SSYNC;
 	R3 = R3 + R1;
 	CC = R3 == R1;
 	IF !CC JUMP read_iaddr;
@@ -56,10 +57,11 @@ idone:
 	P0.h = (IMEM_CONTROL >> 16);
 	R0 = (IMC | ENICPLB | ENIM);
 	[P0] = R0;
-	CSYNC;
-
+	SSYNC;
 	RTS;
+#endif
 
+#if defined (CONFIG_BLKFIN_DCACHE)
 ENTRY(dcache_init)
 	
 	/* Initialize Data CPLBS */
@@ -82,10 +84,12 @@ read_daddr:
 	cc = R0 == R1;
 	IF CC JUMP ddone;
 	[I0++] = R0;
+	SSYNC;
 
 read_ddata:
 	R2 = [I2++];
 	[I1++] = R2;
+	SSYNC;
 	R3 = R3 + R1;
 	CC = R3 == R1;
 	IF !CC JUMP read_daddr;
@@ -99,5 +103,6 @@ ddone:
 	R0 = (ACACHE_BSRAM | ENDCPLB | ENDM);
 #endif
 	[P0] = R0;
-	CSYNC;
-	RTS;	
+	SSYNC;
+	RTS;
+#endif
