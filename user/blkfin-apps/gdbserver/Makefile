@@ -20,6 +20,7 @@
 
 prefix = /usr/local
 exec_prefix = ${prefix}
+
 host_alias = bfin-elf
 target_alias = bfin-elf
 program_transform_name = s,x,x,
@@ -93,7 +94,7 @@ WARN_CFLAGS = -Wall
 
 # CFLAGS is specifically reserved for setting from the command line
 # when running make.  I.E.  "make CFLAGS=-Wmissing-prototypes".
-CFLAGS += -g -O2
+CFLAGS += -g -O2 -DHAVE_ELF_FPREGSET_T -DHAVE_LWPID_T -DHAVE_PSADDR_T -DHAVE_PRGREGSET_T -DHAVE_PRFPREGSET_T
 
 # INTERNAL_CFLAGS is the aggregate of all other *CFLAGS macros.
 INTERNAL_CFLAGS =  $(WARN_CFLAGS) ${CFLAGS} ${GLOBAL_CFLAGS} \
@@ -102,7 +103,7 @@ INTERNAL_CFLAGS =  $(WARN_CFLAGS) ${CFLAGS} ${GLOBAL_CFLAGS} \
 # LDFLAGS is specifically reserved for setting from the command line
 # when running make.
 # LDFLAGS = -Wl,-elf2flt
-INTERNAL_LDFLAGS = $(LDFLAGS) 
+INTERNAL_LDFLAGS = $(LDFLAGS) -rdynamic
 
 # Perhaps should come from parent Makefile
 VERSION = gdbserver-4.12.3
@@ -124,7 +125,7 @@ SFILES=	$(srcdir)/gdbreplay.c $(srcdir)/inferiors.c \
 	$(srcdir)/linux-ppc-low.c $(srcdir)/linux-s390-low.c \
 	$(srcdir)/linux-sh-low.c $(srcdir)/linux-x86-64-low.c
 
-DEPFILES = reg-bfin.o linux-low.o linux-bfin-low.o 
+DEPFILES = reg-bfin.o linux-low.o linux-bfin-low.o thread-db.o proc-service.o
 
 SOURCES = $(SFILES)
 TAGFILES = $(SOURCES) ${HFILES} ${ALLPARAM} ${POSSLIBS} 
@@ -133,14 +134,14 @@ OBS = inferiors.o regcache.o remote-utils.o server.o signals.o target.o \
 	utils.o \
 	mem-break.o \
 	$(DEPFILES)
-GDBSERVER_LIBS = $(LDLIBS$(LDLIBS_$@))
+GDBSERVER_LIBS = $(LDLIBS$(LDLIBS_$@)) -lthread_db
 
 # Prevent Sun make from putting in the machine type.  Setting
 # TARGET_ARCH to nothing works for SunOS 3, 4.0, but not for 4.1.
 .c.o:
 	${CC} -c ${INTERNAL_CFLAGS} $<
 
-all: gdbserver 
+all: gdbserver gdbreplay
 
 # Traditionally "install" depends on "all".  But it may be useful
 # not to; for example, if the user has made some trivial change to a 
@@ -202,7 +203,7 @@ clean:
 	rm -f reg-bfin.c
 
 maintainer-clean realclean distclean: clean
-	rm -f nm.h tm.h xm.h config.status config.h stamp-h config.log
+	rm -f nm.h tm.h xm.h config.status config.h stamp-h config.log config.cache
 	rm -f Makefile
 
 STAGESTUFF=${OBS} ${TSOBS} ${NTSOBS} ${ADD_FILES} init.c init.o version.c gdb
@@ -258,7 +259,7 @@ i387-fp.o: i387-fp.c $(server_h)
 linux_low_h = $(srcdir)/linux-low.h
 
 linux-low.o: linux-low.c $(linux_low_h) $(server_h)
-	$(CC) -c $(CPPFLAGS) $(INTERNAL_CFLAGS) $< 
+	$(CC) -c $(CPPFLAGS) $(INTERNAL_CFLAGS) $< -DUSE_THREAD_DB
 
 linux-arm-low.o: linux-arm-low.c $(linux_low_h) $(server_h)
 linux-i386-low.o: linux-i386-low.c $(linux_low_h) $(server_h)
