@@ -74,8 +74,6 @@ ENTRY(memcpy)
 .byte_start:	R1 = B[P1++] (X);
 .byte_end:	B[P0++] = R1;
 
-._P1L11:
-._P1L4:
 ._P1L2147483647:
 		RTS;
 
@@ -93,9 +91,3 @@ ENTRY(memcpy)
 .over_start:	R1 = B[P1--] (X);
 .over_end:	B[P0--] = R1;
 		RTS;
-
-ENTRY(bzero)
-	R2 = R1;
-	R1 = 0x0;
-	CALL memset;
-	RTS;
