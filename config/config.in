@@ -517,6 +517,7 @@ bool 'ledcon'			CONFIG_USER_LEDCON_LEDCON
 bool 'lilo'			CONFIG_USER_LILO_LILO
 bool 'lissa'			CONFIG_USER_LISSA_LISSA
 bool 'devtest'			CONFIG_USER_BLKFIN_APPS_DEVFBAPP_DEVTEST
+bool 'devout'			CONFIG_USER_BLKFIN_APPS_DEVVOUT_DEVOUT
 bool 'mcf5272 cbi client'       CONFIG_USER_USBCBI_USBCBI
 bool 'mcf5272 iso client'       CONFIG_USER_USBISO_USBISO
 bool 'mathstests'		CONFIG_USER_MATH_TEST

@@ -1,6 +1,7 @@
 dir_y =
 dir_$(CONFIG_USER_BLACKFIN_GDB)             		+= gdbserver
 dir_$(CONFIG_USER_BLKFIN_APPS_DEVFBAPP_DEVTEST)         += devfbapp 
+dir_$(CONFIG_USER_BLKFIN_APPS_DEVVOUT_DEVOUT)		+= devvoutapp
 all:
 	for i in $(dir_y) ; do  make -C $$i || exit $? ; done
 
