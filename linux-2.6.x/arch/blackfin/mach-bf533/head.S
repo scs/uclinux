@@ -23,7 +23,7 @@ ENTRY(_start)
 ENTRY(_stext)
 	/* Set the SYSCFG register */
 	R0 = 0x36;
-	SEQSTAT = R0; 		/*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
+	SYSCFG = R0; 		/*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
 	R0 = 0;
 
 /*Clear Out All the data and pointer  Registers*/
