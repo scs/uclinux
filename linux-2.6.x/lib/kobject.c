@@ -244,11 +244,7 @@ void kobject_init(struct kobject * kobj)
  *	kobject_del() and kobject_add() on error.
  */
 
-#if defined(CONFIG_BFIN)/* We are very Sorry there are some assembler issues here ! BFin */
-static void unlink1(struct kobject * kobj)
-#else
 static void unlink(struct kobject * kobj)
-#endif
 {
 	if (kobj->kset) {
 		down_write(&kobj->kset->subsys->rwsem);
@@ -291,11 +287,7 @@ int kobject_add(struct kobject * kobj)
 
 	error = create_dir(kobj);
 	if (error) {
-#if defined(CONFIG_BFIN)
-		unlink1(kobj);
-#else
 		unlink(kobj);
-#endif
 		if (parent)
 			kobject_put(parent);
 	} else {
@@ -415,11 +407,7 @@ void kobject_del(struct kobject * kobj)
 {
 	kobject_hotplug("remove", kobj);
 	sysfs_remove_dir(kobj);
-#if defined(CONFIG_BFIN)
-	unlink1(kobj);
-#else
 	unlink(kobj);
-#endif
 }
 
 /**
