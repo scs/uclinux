@@ -106,7 +106,7 @@ struct tty_driver *bf533_serial_driver;
 #define _INLINE_ inline
 
 static struct bf533_serial bf533_soft =
-{	0, 	0, 	IRQ_UART, 	0 }; /* ttyS0 */
+{	0, 	0, 	IRQ_UART_RX, 	0 }; /* ttyS0 */
 
 
 #define NR_PORTS (sizeof(bf533_soft) / sizeof(struct bf533_serial))
@@ -138,6 +138,7 @@ struct { unsigned short dl_high, dl_low;
         {0x1, 0x01},  /* 19200 */
         {0x0, 0x80},  /* 38400 */
      	{0x0, 0x55},  /* 57600 */		
+     	{0x0, 0x34},  /* 57600 */		
         {0x0, 0x2A},  /* 115200 */
                       /* rate = SCLK / (16 * DL) - SCLK = 120MHz
                          DL = (dl_high:dl_low) */
@@ -1476,7 +1477,7 @@ static int __init rs_bf533_init(void)
 
 	info->line = 0;
 	info->is_cons = 1; /* Means shortcuts work */
-	info->irq = IRQ_UART;
+	info->irq = IRQ_UART_RX;
 	
 	printk("%s0 at irq = %d", \
 		bf533_serial_driver->name, info->irq);
@@ -1484,16 +1485,16 @@ static int __init rs_bf533_init(void)
 
 	local_irq_restore(flags);
 
-	if (request_irq(IRQ_UART, rs_interrupt, IRQ_FLG_STD, "BF533_UART", NULL))
-		panic("Unable to attach BlackFin UART interrupt\n");
-	
-	if (request_irq(22, rs_interrupt, IRQ_FLG_STD, "BF533_UART", NULL))
+	if (request_irq(IRQ_UART_RX, rs_interrupt, IRQ_FLG_STD, "BF533_UART", NULL))
 		panic("Unable to attach BlackFin UART interrupt\n");
 
+	if (request_irq(IRQ_UART_TX, rs_interrupt, IRQ_FLG_STD, "BF533_UART", NULL))
+		panic("Unable to attach BlackFin UART interrupt\n");
+	
 	printk("Enabling Serial UART Interrupts\n");
 	
-	enable_irq(IRQ_UART);
-	enable_irq(22);
+	enable_irq(IRQ_UART_RX);
+	enable_irq(IRQ_UART_TX);
 
 	return 0;
 }
