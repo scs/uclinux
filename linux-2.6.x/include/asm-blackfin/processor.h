@@ -76,7 +76,6 @@ do {                                             \
 	(_regs)->pc = (_pc);                         \
 	if (current->mm)                             \
 		(_regs)->r5 = current->mm->start_data;   \
-	(_regs)->seqstat &= ~0x0c00;                      \
 	wrusp(_usp);                                 \
 	/* Adde by HuTao, May 26, 2003 3:39PM */\
 	if ((_regs)->ipend & 0x8000) /* check whether system in supper mode - StChen */\
