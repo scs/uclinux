@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 # modified for uClinux. 
 #
-CFLAGS_semaphore.o = -O0
+#CFLAGS_semaphore.o = -O0
 extra-y += ../mach-bf533/head.o init_task.o vmlinux.lds.s
 
 # Object file lists.
