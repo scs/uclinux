@@ -892,8 +892,6 @@ static void bf533_change_speed(struct bf533_serial *info)
 	uart_dll = hw_baud_table[i].dl_low;
 	uart_dlh = hw_baud_table[i].dl_high;
 
-	printk("bf533_change_speed: baud = %d, cval = 0x%04x\n", baud_table[i], cval);
-
 	local_irq_save(flags);
 	ACCESS_LATCH /*Set to access divisor latch*/
 	*pUART_DLL = hw_baud_table[i].dl_low;
@@ -913,6 +911,7 @@ static void bf533_change_speed(struct bf533_serial *info)
 	SYNC_ALL;
 
 	local_irq_restore(flags);
+	printk("bf533_change_speed: baud = %d, cval = 0x%x\n", baud_table[i], cval);
 	return;
 }
 
