@@ -36,6 +36,37 @@
 #include <asm/siginfo.h>
 #include <asm/blackfin.h>
 
+/*
+.
+. EXCEPTION TRAPS DEBUGGING LEVELS
+.
+0 for normal operation without any error messages
+1 for serious error messages 
+2 for errors but handled somwehre else 
+>2 for various levels of hopefully increasingly useless information
+.
+ .*/
+#define TRAPS_DEBUG 1 /* Must be defined here or in in Makefile */
+
+
+#if (TRAPS_DEBUG > 2 )
+#define DPRINTK3(args...) printk(args)
+#else
+#define DPRINTK3(args...)
+#endif
+
+#if TRAPS_DEBUG > 1
+#define DPRINTK2(args...) printk(args)
+#else
+#define DPRINTK2(args...)
+#endif
+
+#ifdef TRAPS_DEBUG
+#define DPRINTK(args...) printk(args)
+#else
+#define DPRINTK(args...)
+#endif
+
 /* assembler routines */
 asmlinkage void system_call(void);
 asmlinkage void trap(void);
@@ -90,6 +121,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	    case VEC_STEP:
 		info.si_code = TRAP_STEP;
 		sig = SIGTRAP;
+		DPRINTK3(EXC_0x10);
 		break;
 	    case VEC_EXCPT01 : /* gdb breakpoint */
 		info.si_code = TRAP_ILLTRAP;
@@ -100,53 +132,68 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	    case VEC_UNDEF_I:
 		info.si_code = ILL_ILLOPC;
 		sig = SIGILL;
+		DPRINTK3(EXC_0x21);
 		break;
 	    case VEC_OVFLOW:
 		info.si_code = TRAP_TRACEFLOW;
 		sig = SIGTRAP;
+		DPRINTK(EXC_0x11);
 		break;
 	    case VEC_ILGAL_I:
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
+		DPRINTK(EXC_0x22);
 		break;
 	    case VEC_ILL_RES:
 		info.si_code = ILL_PRVOPC;
 		sig = SIGILL;
+		DPRINTK(EXC_0x2E);
                 break;
 	    case VEC_MISALI_D:
+		DPRINTK(EXC_0x24);
+	    	break;
 	    case VEC_MISALI_I:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
+		DPRINTK(EXC_0x2A);
 		break;
 	    case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
 		sig = SIGILL;
+		DPRINTK(EXC_0x25);
 		break;
 	    case VEC_WATCH:
 		info.si_code = TRAP_WATCHPT;
 		sig = SIGTRAP;
+		DPRINTK3(EXC_0x28);
 		break;
-	    case VEC_ISTRU_VL:
+	    case VEC_ISTRU_VL:                   /* ADSP-BF535 only (MH)*/
 		info.si_code = BUS_OPFETCH;
 		sig = SIGBUS;
                 break;
 	    case VEC_CPLB_I_VL:
+		DPRINTK2(EXC_0x2B);
 	    case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
+		DPRINTK3(EXC_0x23);
 		_cplb_hdr();
 		goto nsig;
 		sig = SIGILL;
                 break;
 	    case VEC_CPLB_I_M:
+		DPRINTK3(EXC_0x2C);
 	    case VEC_CPLB_M:
 		info.si_code = IlL_CPLB_MISS;
 		/*Call the handler to replace the CPLB*/
+		DPRINTK3(EXC_0x26);
 		_cplb_hdr();
 		goto nsig;
 	    case VEC_CPLB_I_MHIT:
+		DPRINTK3(EXC_0x26);
 	    case VEC_CPLB_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
 		sig = SIGILL;
+		DPRINTK3(EXC_0x27);
                 break;
 	    default:
 		info.si_code = TRAP_ILLTRAP;
