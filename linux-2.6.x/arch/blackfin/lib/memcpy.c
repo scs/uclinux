@@ -11,3 +11,8 @@ void * memcpy(void * to, const void * from, size_t n)
     *c_to++ = *c_from++;
   return((void *) to);
 }
+
+void bzero(void *s, size_t n)
+{
+	memset(s, 0, n);
+}
