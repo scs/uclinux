@@ -281,6 +281,21 @@ config BAUD_115200
 	bool "115200"
 endchoice
 
+comment'STAMP Board features '
+menu	'LED Board Status Indication'
+
+config STAMP_BOARD_ALIVE_LED
+	bool 'Enable Board Alive LED3'
+	depends on BLKFIN_STAMP
+	default n
+
+config STAMP_BOARD_IDLE_LED
+	bool 'Enable System Load/Idle LED2'
+	depends on BLKFIN_STAMP
+	default n
+
+endmenu 
+
 comment	'Interrupt Priority Assignment'
 menu	'Priority' 		
 

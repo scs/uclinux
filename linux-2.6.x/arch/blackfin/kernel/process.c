@@ -22,8 +22,9 @@
 #define	LED_ON	0
 #define	LED_OFF	1
 
-asmlinkage void ret_from_fork(void);
 void leds_switch(int flag);
+asmlinkage void ret_from_fork(void);
+
 /*
  * The idle loop on BFIN 
  */
