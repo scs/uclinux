@@ -114,6 +114,8 @@ Build Procedure
 	Save and exit from the menuconfig
 	
 	e.# make
+	f.# cd $(WORK_DIR)/uClinux-dist/linux-2.6.x
+	g.# make
 
 5.	Find the compiled blackfin executable linux.dxe in the following location
 
