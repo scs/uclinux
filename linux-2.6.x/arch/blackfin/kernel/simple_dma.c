@@ -189,6 +189,8 @@ int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 	  int     ret_val;
 	  ret_irq =bf533_channel2irq(channel);
 	  
+	  dma_ch[channel].data = data;
+	  
 	  ret_val = request_irq(ret_irq,(void *)callback,SA_INTERRUPT,dma_ch[channel].device_id,data);
           if( ret_val ) {
                printk("Request irq in DMA engine failed.\n");
@@ -211,7 +213,7 @@ void free_dma(unsigned int channel)
      disable_dma(channel);
      clear_dma_buffer(channel);
      ret_irq =bf533_channel2irq(channel);
-     free_irq(ret_irq,dma_ch[channel].device_id);
+     free_irq(ret_irq,dma_ch[channel].data);
           
      /* Clear the DMA Variable in the Channel*/
      down(&(dma_ch[channel].dmalock));
