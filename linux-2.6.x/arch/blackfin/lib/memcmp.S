@@ -36,7 +36,6 @@ memcmp:  I1 = P3;
 		
 	      LSETUP (quad_loop_s , quad_loop_e) LC0=P1;
 quad_loop_s:	 
-	         /* MNOP || R0 = [P0++] || R1 = [I0++];	*/ /*Nisa doenot support this parallel Instruction- BFin*/
 		 NOP;
 		 R0 = [P0++];
 		 R1 = [I0++];

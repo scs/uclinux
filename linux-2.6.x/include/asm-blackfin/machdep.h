@@ -5,10 +5,6 @@
 #include <linux/interrupt.h>	
 
 /** Machine dependent initial routines:
- *
- *  Based on include/asm-m68knommu/machdep.h
- *  For bfin, just now we only have nisa, so they'd point to the default nisa
- *
  */
  
 struct pt_regs;

@@ -183,7 +183,7 @@ LDADD_LIBFLOAT=
 ifeq ($(strip $(UCLIBC_HAS_SOFT_FLOAT)),y)
 # Add -msoft-float to the CPU_FLAGS since ldso and libdl ignore CFLAGS.
 # If -msoft-float isn't supported, we want an error anyway.
-    CPU_CFLAGS += -msoft-float
+ #   CPU_CFLAGS += -msoft-float
 ifeq ($(strip $(TARGET_ARCH)),arm)
     LDADD_LIBFLOAT=-lfloat
 endif

@@ -50,7 +50,7 @@ enum {
 
 #define EXITCODE  *(char volatile *)0xFF7EEEEE
 
-static void __init nisa_trap_init (void)
+static void __init bfin_trap_init (void)
 {
     asm("p0.l = 0x2000; p0.h = 0xffe0;"
 	"p1.h = trap;" 
@@ -66,7 +66,7 @@ static void __init nisa_trap_init (void)
 /* Initiate the event table handler */
 void __init trap_init (void)
 {
-	nisa_trap_init();
+	bfin_trap_init();
 }
 
 void die_if_kernel(char *,struct pt_regs *,int);
