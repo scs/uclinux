@@ -33,6 +33,8 @@ MACHINE  := $(machine-y)
   
 export	MACHINE PROCESSOR GZFLAGS CFLAGS_BOOT
 
+CLEAN_FILES := include/asm-$(ARCH)/asm-offsets.h \
+	       arch/$(ARCH)/kernel/asm-offsets.s
 # Does the machine has its own head.S ?
 
 head-y	:= arch/bfinnommu/mach-bf533/head.o 
@@ -49,6 +51,8 @@ core-y		+= arch/bfinnommu/mach-bf533/
 libs-y		+= arch/bfinnommu/lib/
 
 prepare: include/asm-$(ARCH)/asm-offsets.h
+
+archclean:
 
 include/asm-$(ARCH)/asm-offsets.h: arch/$(ARCH)/kernel/asm-offsets.s \
 				   include/asm include/linux/version.h \
