@@ -23,7 +23,6 @@
 
 .text
 
-.globl trap
 .globl reschedule
 .globl sys_fork
 .globl sys_clone
