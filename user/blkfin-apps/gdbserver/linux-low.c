@@ -37,6 +37,8 @@
 #include <errno.h>
 #include <sys/syscall.h>
 
+#define BFIN_BUG
+
 /* ``all_threads'' is keyed by the LWP ID - it should be the thread ID instead,
    however.  This requires changing the ID in place when we go from !using_threads
    to using_threads, immediately.
@@ -45,6 +47,7 @@
    the same as the LWP ID.  */
 
 struct inferior_list all_processes;
+static struct thread_resume *resume_ptr;
 
 /* FIXME this is a bit of a hack, and could be removed.  */
 int stopping_threads;
@@ -729,6 +732,23 @@ retry:
     }
 
   *status = 'T';
+
+#ifdef BFIN_BUG
+
+  /* bfin bug... waitpid again! */
+  /* gdbserver stops execution of child each time a signal is delivered.
+     But in case of bfin, the signal is getting delivered twice. Hence,
+     the second time the signal is delivered, we have a work around which
+     asks the gdb to resume and not deliver the signal. We donot want to
+     do this for signal 5 since it is SIGTRAP */
+
+  if((WIFSTOPPED(w)) && (WSTOPSIG(w) != 5)) {
+      myresume(0, WSTOPSIG(w));
+      w = linux_wait_for_event (child);
+  }
+
+#endif
+
   return ((unsigned char) WSTOPSIG (w));
 }
 
@@ -924,8 +944,6 @@ linux_resume_one_process (struct inferior_list_entry *entry,
   if (errno)
     perror_with_name ("ptrace");
 }
-
-static struct thread_resume *resume_ptr;
 
 /* This function is called once per thread.  We look up the thread
    in RESUME_PTR, and mark the thread with a pointer to the appropriate
