@@ -1,5 +1,8 @@
 Release Notes for uClinux_dist-2.6.8-BF533-beta1
 -------------------------------------------------
+This linux version is known to work with only gcc-3.4.1 and binutils-2.15.
+To Get a Working Kernel with gcc-3.3.3 and binutils-2.14 checkout the kernel from cvs using the command
+$ cvs -z9 -d:ext:anonymous@cvs.blackfin.uclinux.org:/cvsroot/uclinux533 co uClinux-dist -rkernel-gcc-333
 
 Find below sections in this Release Notes,
 
@@ -16,12 +19,12 @@ Reporting Bugs
 Version
 -------
 uClinux_dist-2.6.8-BF533-beta1
-Date: 9 Sept 2004
+Date: 24 Sept 2004
 
 Development Environments
 ------------------------
 
-Tool Chain: 3.3.x Blackfin Toolchain
+Tool Chain: 3.4.x Blackfin Toolchain
 Host platform: Red hat Linux 9.0
 Target board: STAMP Board/ EZKIT board
 	
@@ -55,14 +58,13 @@ Improvements
 7.	SRAM support.
 8.	Support for allocating large blocks (> 1 MB) of memory.
 9.	Configurable BAUD RATE support.
-10.	Tiny Login Support (adduser, passwd, su, sulogin, login).
-11.	Busybox applications.
-12.	uClibc (Libc, Libcrypt and libm) support
-13.	boa web server support.	
-14.	DMA driver support.
-15.	Dynamic Power Management Driver (Not tested completly)
-16.	VDSP header files usage.
-17. 	Kernel build with ZERO warnings ( except few toolchain warnings )	
+10.	Busybox applications.
+11.	uClibc (Libc, Libcrypt and libm) support
+12.	boa web server support.	
+13.	DMA driver support.
+14.	Dynamic Power Management Driver (Not tested completly)
+15.	VDSP header files usage.
+16. 	Kernel build with ZERO warnings ( except few toolchain warnings )	
 
 
 Known Issues
@@ -70,14 +72,11 @@ Known Issues
 
 1.	Some files/directories needs to build with different optimization levels.
 
-	a.User applications and uClibc library needs to built with -O0 option for the predictable behavior.
-	b.Kernel has to be built with -O1
-	c.ftpd will work if we compile the user directory with -O2. 
+	User applications need to built with -O0 option for the predictable behavior.
 
 2.	Enabling Data cnd Instruction cache at a time has some issues in EZKIT.
 3.	Assigning priority Number 7 or 13 to any devices may crash the system. 
-4.	cat /proc/kallsyms will crashes the system. REASON - The compiler is not recognizing the weak symbols.
-5.	telnetd crashes the system.
+5.	ftpd does not work.
 6.	Kernel sometimes fails while probing EZLAN card in EZKIT board.
 7.	udchp server crashes the system.
 8.	DMA driver not tested with cache.	
@@ -158,7 +157,7 @@ Loading Kernel To Target Board
 
 7.	Following Linux kernel boot messages (or similar) should appear on the host terminal.
 
-Linux version 2.6.8.1 (nidhi@localhost.localdomain) (gcc version 3.3.3) #463 Sat Sep 4 11:52:04 IST 2004
+Linux version 2.6.8.1 (nidhi@localhost.localdomain) (gcc version 3.4.1) #463 Sat Sep 24 11:52:04 IST 2004
 BF533 Blackfin support (C) 2004 Analog Devices, Inc.
 uClinux/Blackfin
 Blackfin BF533 support by LG Soft India (www.lgsoftindia.com)
