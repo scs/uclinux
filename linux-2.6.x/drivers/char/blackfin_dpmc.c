@@ -238,6 +238,8 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 
 		case IOCTL_DEEP_SLEEP_MODE:
 			deep_sleep();
+			/* Needed since it comes back to active mode */
+			change_baud(CONSOLE_BAUD_RATE);
 		break;
 		
 		case IOCTL_HIBERNATE_MODE:
@@ -353,6 +355,8 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 		
 		case IOCTL_DISABLE_WDOG_TIMER:
 			disable_wdog_timer();
+			if(*pWDOG_CTL == WDOG_DISABLE)	return 0;
+			else 				return -1;
 		break;
 		
 		case IOCTL_UNMASK_WDOG_WAKEUP_EVENT:
@@ -362,10 +366,14 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 		case IOCTL_PROGRAM_WDOG_TIMER:
 			copy_from_user(&wdog_tm,(unsigned long *)arg,sizeof(unsigned long));
 			program_wdog_timer(wdog_tm);
+			if(*pWDOG_CNT == wdog_tm)	return 0;
+			else 				return -1;
 		break;
 
 		case IOCTL_CLEAR_WDOG_WAKEUP_EVENT:
 			clear_wdog_wakeup_evt();
+			if(*pWDOG_CTL & 0x8000)	return -1;
+			else 			return 0;
 		break;				
 	}
 	return 0;	
@@ -474,28 +482,8 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 	msel = (msel << 9);
 
 /* Enable the PLL Wakeup bit in SIC IWR */
-	*pSIC_IWR = (*pSIC_IWR | IWR_ENABLE(0));
+	*pSIC_IWR = IWR_ENABLE(0);
 	asm("ssync;");
-
-	*pSIC_IMASK = (*pSIC_IMASK | SIC_MASK(0));
-	asm("ssync;");
-
-	*pIMASK |= 0x80;
-	asm("csync;");
-
-#if 0
-	*pWDOG_CTL = 0xAD6;
-	asm("ssync;");
-
-	*pWDOG_CNT = 0x100000;
-	asm("ssync;");
-
-	*pWDOG_STAT = 0x0;
-	asm("ssync;");
-
-	*pWDOG_CTL = 0xAA4;
-	asm("ssync;");
-#endif
 
 	*pPLL_LOCKCNT = 0x300;
 	asm("ssync;");
@@ -542,11 +530,6 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 		asm("ssync;");
 	}
 #endif
-
-#if 0
-	*pWDOG_CTL = 0x8006;
-	asm("ssync;");
-#endif
 	return(get_vco());
 }
 
@@ -556,10 +539,7 @@ int calc_msel(int vco_hz)	{
 
 void fullon_mode(void)	{
 
-	*pSIC_IMASK = (*pSIC_IMASK | SIC_MASK(0));
-	asm("ssync;");
-
-	*pSIC_IWR = (*pSIC_IWR | IWR_ENABLE(0));
+	*pSIC_IWR = IWR_ENABLE(0);
 	asm("ssync;");
 
 	*pPLL_LOCKCNT = 0x300;
@@ -569,7 +549,6 @@ void fullon_mode(void)	{
 	*pEBIU_SDGCTL = *pEBIU_SDGCTL | SRFS;
 	asm("ssync;");
 	
-	//*pPLL_CTL &= 0xFED7;
 	*pPLL_CTL &= (~BYPASS | ~PDWN | ~STOPCK_OFF | ~PLL_OFF);
 	asm("ssync;");
 
@@ -591,13 +570,7 @@ void fullon_mode(void)	{
 
 void active_mode(void)	{
 
-	*pSIC_IMASK |= SIC_MASK(0);
-	asm("ssync;");
-
-	*pIMASK |= 0x80;
-	asm("csync;");
-
-	*pSIC_IWR |= IWR_ENABLE(0);
+	*pSIC_IWR = IWR_ENABLE(0);
 	asm("ssync;");
 
 	*pPLL_LOCKCNT = 0x300;
@@ -694,7 +667,7 @@ int calc_vlev(int vlt)	{
 /* We use dpmc_lock to protect against concurrent opens.*/
 static int dpmc_open(struct inode *inode, struct file *file)
 {
-	printk("DPMC Device Opening");
+	//printk("DPMC Device Opening");
 	return 0;
 }
 
