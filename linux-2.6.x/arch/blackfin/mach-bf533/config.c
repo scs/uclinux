@@ -26,6 +26,8 @@
 #include <asm/machdep.h>
 #include <asm/blackfin.h>
 
+#include <asm/bf533_rtc.h>
+
 /*
  * By setting TSCALE such that TCOUNT counts a binary fraction
  * of microseconds, we can read TCOUNT directly and then with
@@ -83,10 +85,19 @@ unsigned long BSP_gettimeoffset (void)
 	return (CLOCKS_PER_JIFFY - *pTCOUNT) >> TSCALE_SHIFT;
 }
 
-void BSP_gettod (int *yearp, int *monp, int *dayp,
-		   int *hourp, int *minp, int *secp)
+void BSP_settod(time_t secs_since_1970)
 {
-	yearp = monp = dayp = hourp = minp = secp = 0;
+        rtc_set(secs_since_1970);
+}
+
+void BSP_gettod (time_t *secs_since_1970)
+{
+	if ( secs_since_1970 == NULL )
+	{
+		return;
+	}
+	
+	rtc_get(secs_since_1970);
 }
 
 int BSP_hwclk(int op, struct hwclk_time *t)
@@ -116,6 +127,12 @@ void BSP_reset (void)
 {
 }
 
+void BSP_init(void)
+{
+	/* Initialize the BF533 RTC */
+	rtc_init();	
+}
+
 void config_BSP(char *command, int len)
 {
   
@@ -129,6 +146,10 @@ void config_BSP(char *command, int len)
 	mach_tick            = BSP_tick;
 	mach_gettimeoffset   = BSP_gettimeoffset;
 	mach_gettod          = BSP_gettod;
+	
+	mach_settod = BSP_settod;
+	mach_init   = BSP_init;
+	
 	mach_hwclk           = NULL;
 	mach_set_clock_mmss  = NULL;
 	mach_reset           = BSP_reset;
