@@ -18,17 +18,8 @@
 #include <asm/signal.h>
 #include <asm/semaphore.h>
 
-#define LINUX_WORKAROUND
-
-#ifndef LINUX_WORKAROUND
-#undef BLACKFIN_DMA_DEBUG
-#else
 #include <linux/kernel.h>
-extern void prom_printf(char * fmt, ...);
 
-#endif
-
-//#define BFIN_DMA_DEBUG
 #undef BFIN_DMA_DEBUG
 #undef BFIN_DMA_NDEBUG
 
@@ -49,57 +40,17 @@ do { printk("Blackfin DMA driver: "fmt, ##args);} while (0)
 	}
 #endif
 
-#define ESUCCESS 1
 #define SSYNC() asm("ssync;")
 
 /*****************************************************************************
 *        Generic DMA  Declarations
 *
 ****************************************************************************/
-
-#define BASE_VALUE 	0x0000
-#define LOW_WORD 	0x0000FFFF
-#define HIGH_WORD 	0xFFFF0000
-
-typedef enum _DMA_RESULT{
-	DMA_SUCCESS		=  0,		/* Generic Success */
-	DMA_FAIL		= -1,		/* Generic Failure */
-	DMA_BAD_DEVICE 		= -2,		/* Bad Device Information */
-	DMA_BAD_HANDLE		= -3,		/* Bad Channel Handle */
-	DMA_BAD_DESCRIPTOR	= -4,		/* Bad Descriptor */
-	DMA_BAD_MODE		= -5,		/* Bad channel mode */
-	DMA_NO_SUCH_CHANNEL	= -6,		/* No channel with the given 
-						   controller number and channel
-						   number */
-	DMA_CHANNEL_IN_USE	= -7,		/* Channel is already in use */
-	DMA_ALREADY_RUNNING	= -8,		/* DMA  is already in running */
-	DMA_NO_BUFFER		= -9,		/* Channel has no Buffer */
-
-} DMA_RESULT;
-
-typedef enum _DMA_EVENT{
-	DMA_UNKNOWN_EVENT,			/* Unknown Event */
-	DMA_DESCRIPTOR_PROCESSED,		/* Descriptor is processed */
-	DMA_INNER_LOOP_PROCESSED,		/* Inner loop of the circular
-						   buffer is processed */
-	DMA_OUTER_LOOP_PROCESSED,		/* Outer loop of the circular
-						   buffer is processed */
-	DMA_ERROR_INTERRUPT,			/* DMA Error interrupt is
-						   occured*/
-	DMA_DONE_INTERRUPT,         /* DMA Error interrupt is occured */
-
-}DMA_EVENT;
-
 typedef enum _DMA_CHANNEL_STATUS{
 	DMA_CHANNEL_FREE,
 	DMA_CHANNEL_REQUESTED,
 	DMA_CHANNEL_ENABLED,
 } DMA_CHANNEL_STATUS;
-
-typedef enum _DMA_TYPE{
-	DMA_POLLING_TYPE,
-	DMA_INTERRUPT_TYPE,
-} DMA_TYPE;
 
 
 /*****************************************************************************
@@ -122,6 +73,10 @@ typedef enum _DMA_TYPE{
 #define CH_MEM_STREAM1_DEST	10	// TX
 #define CH_MEM_STREAM1_SRC 	11 	// RX
 
+
+/*-------------------------
+ * config reg bits value 
+ *-------------------------*/
 #define DATA_SIZE_8 		0
 #define DATA_SIZE_16 		1
 #define DATA_SIZE_32 		2
@@ -131,166 +86,20 @@ typedef enum _DMA_TYPE{
 #define FLOW_ARRAY 		4
 #define FLOW_SMALL 		6
 #define FLOW_LARGE 		7
-#define EINVAL_FLOWTYPE 	-1
 
-#define DMASTOP			0x0
-#define DMAAUTO			0x1000
-#define DMAARRAY		0x4000
-#define DMASMALL		0x6000
-#define DMALARGE		0x7000
 
-#define DMAERR			0x02
+#define DIMENSION_LINEAR    0
+#define DIMENSION_2D           1
 
-typedef enum _DMA_DEVICE_TYPE{		/* DMA Compatible Devices in BF533 */
-	DMA_DEVICE_PPI,
-	DMA_DEVICE_SPORT_RX,
-	DMA_DEVICE_SPORT_TX,
-	DMA_DEVICE_SPI,
-	DMA_DEVICE_UART_RX,
-	DMA_DEVICE_UART_TX,
-	DMA_DEVICE_MDMA_SOURCE,
-	DMA_DEVICE_MDMA_DESTINATION,
-} DMA_DEVICE_TYPE;
+#define DIR_READ     0
+#define DIR_WRITE    1
 
-#if 0
-typedef enum _DMA_DONE {
-	DONE_NOT_DONE,
-	DONE_DONE
-}DMA_DONE;
-#pragma pack(2)
-typedef struct _DMA_IRQ_STATUS
-{
-	unsigned short b_DMA_DONE:1;
-	unsigned short b_DMA_ERR:1;
-	unsigned short b_DFETCH:1;
-	unsigned short b_DMA_RUN:1;
-}DMA_IRQ_STATUS_REG;
-#pragma pack()
+#define INTR_DISABLE   0   //00b
+#define INTR_ON_BUF    2   //10b
+#define INTR_ON_ROW   3   //11b
 
-#endif
-
-typedef enum _DMA_FLOW {
-	DMA_STOP	=0,
-	DMA_AUTO	=1,
-	DMA_ARRAY	=4,
-	DMA_SMALL	=6,
-	DMA_LARGE	=7,
-} DMA_FLOW;
-
-typedef enum _DMA_NDSIZE {
-	NDSIZE_STOP	=0,
-	NDSIZE_ARRAY	=7,
-	NDSIZE_SMALL	=8,
-	NDSIZE_LARGE	=9
-} DMA_NDSIZE;
-
-typedef enum _DMA_DI_EN {
-	DI_EN_DISABLE,
-	DI_EN_ENABLE
-} DMA_DI_EN;
-
-typedef enum _DMA_DI_SEL {
-	DI_SEL_OUTER_LOOP,
-	DI_SEL_INNER_LOOP
-} DMA_DI_SEL;
-
-typedef enum _DMA_RESTART {
-	RESTART_RETAIN,
-	RESTART_DISCARD
-} DMA_RESTART;
-
-typedef enum _DMA_DMA2D {
-	DMA2D_LINEAR,
-	DMA2D_2D
-} DMA_DMA2D;
-
-typedef enum _DMA_WDSIZE {
-	WDSIZE_8BIT,
-	WDSIZE_16BIT,
-	WDSIZE_32BIT
-} DMA_WDSIZE;
-
-typedef enum _DMA_WNR {
-	WNR_READ,
-	WNR_WRITE
-} DMA_WNR;
-
-typedef enum _DMA_EN {
-	DMA_DISABLE,
-	DMA_ENABLE
-} DMA_EN;
 
 #pragma pack(2)
-typedef struct _DMA_CONFIG
-{
-	unsigned short b_DMA_EN:1;	//Bit 0 : DMA Enable
-	unsigned short b_WNR:1;		//Bit 1 : DMA Direction
-	unsigned short b_WDSIZE:2;	//Bit 2 & 3 : DMA Tranfer Word size
-	unsigned short b_DMA2D:1;	//Bit 4 : DMA Mode 2D or 1D
-	unsigned short b_RESTART:1;	//Bit 5 : Retain the FIFO
-	unsigned short b_DI_SEL:1;	//Bit 6 : Data Interrupt Timing Select
-	unsigned short b_DI_EN:1;	//Bit 7 : Data Interrupt Enable
-	unsigned short b_NDSIZE:4;	//Bit 8 to 11 : Flex descriptor Size
-	unsigned short b_FLOW:3;	//Bit 12 to 14 : FLOW
-	
-} DMA_CONFIG_REG;
-#pragma pack()
-
-typedef enum _DMA_PMAP {
-	PMAP_PPI	= 0,	/* Controller 0 */
-	PMAP_SPORT0_RX	= 1,	/* Controller 0 */
-	PMAP_SPORT0_TX	= 2,	/* Controller 0 */
-	PMAP_SPORT1_RX	= 3,	/* Controller 0 */
-	PMAP_SPORT1_TX	= 4,	/* Controller 0 */
-	PMAP_SPI	= 5,	/* Controller 0 */
-	PMAP_UART_RX	= 6,	/* Controller 0 */
-	PMAP_UART_TX	= 7	/* Controller 0 */
-}DMA_PMAP;
-
-typedef struct _DMA_MAPPING{				/* peripheral mapping */
-	DMA_DEVICE_TYPE	DeviceType;		/* DMA_DEVICE_TYPE Value */
-	unsigned int	DeviceNumber;		/* device number */
-	unsigned int	ControllerNumber; 	/* controller number */
-	DMA_PMAP	PeripheralMap;		/* Value of PMAP in the 
-						peripheral map register */
-} DMA_MAPPING;
-
-typedef enum _DMA_CTYPE {
-	PERIPHERAL,
-	MEMORY
-} DMA_CTYPE;
-
-#pragma pack(2)
-typedef struct _DMA_PERIPHERAL_MAP
-{
-	unsigned short		:6;	/* 0:5 bits are reserved */
-	unsigned short	b_CTYPE	:1;	/* 6	Channel type */
-	unsigned short		:5;	/* 7:11 bits are Reserved */
-	unsigned short	b_PMAP	:4;	/* 12:15 bits represents the
-					Peripheral ID */
-}DMA_PERIPHERAL_MAP_REG;
-#pragma pack()
-
-typedef struct _dmasgarray_t{
-	unsigned long start_addr;
-	unsigned short cfg;
-	unsigned short x_count;
-	unsigned short x_modify;
-	unsigned short y_count;
-	unsigned short y_modify;
-} dmasgarray_t;
-
-typedef struct _dmasgsmall_t{
-	unsigned short next_desc_addr_lo;
-	unsigned short start_addr_lo;
-	unsigned short start_addr_hi;
-	unsigned short cfg;
-	unsigned short x_count;
-	unsigned short x_modify;
-	unsigned short y_count;
-	unsigned short y_modify;
-} dmasgsmall_t;
-
 typedef struct _dmasglarge_t{
 	unsigned long next_desc_addr;
 	unsigned long start_addr;
@@ -299,7 +108,8 @@ typedef struct _dmasglarge_t{
 	unsigned short x_modify;
 	unsigned short y_count;
 	unsigned short y_modify;
-} dmasglarge_t;
+} dmasg_t;
+#pragma pack()
 
 typedef struct {
 	unsigned long  next_desc_ptr; /* DMA Next Descriptor Pointer register */
@@ -346,67 +156,54 @@ typedef struct {
 
 }DMA_register;
 
-typedef void (*dma_callback_t)(DMA_EVENT event , void *data);
-typedef void (*dma_interrupt_t) (int irq, void *dev_id,struct pt_regs *pt_regs);
+typedef irqreturn_t (*dma_interrupt_t)(int irq, void *dev_id, struct pt_regs *pt_regs);
+
 
 typedef struct {
 	struct semaphore 	dmalock;
+	char                   *device_id;
 	int 				dma_channel_status;
 	DMA_register 		*regs;
- 	void* 				*last_descriptor;
- 	void* 				*first_descriptor;
- 	void*				*wait_last_descriptor;
- 	void* 				*wait_first_descriptor;
- 	void* 				*next_descriptor;
-	unsigned short 		descr_base;	/* Descriptor Base used for
-						Small flow mode */
-	unsigned short 		flowmode;	/* Flow mode of the channel */
+	dmasg_t                 *sg;     /* large mode descriptor */
 	unsigned int		ControllerNumber;/* controller number */
-	DMA_PERIPHERAL_MAP_REG 	*PeripheralMap;	/* Peripheral Map  */
-	dma_interrupt_t		callback;
-	void *data;
+	dma_interrupt_t		irq_callback;
+	void 			*data;
 	unsigned int		DmaEnableFlag;
 	unsigned int		LoopbackFlag;
-	unsigned short      dma_type;
 }DMA_CHANNEL;
-
-struct dma_config_t {
-    union {
-        unsigned short config_u;
-        struct {
-			unsigned int	dma_flag:1;
-			unsigned int	dir:1;
-			unsigned int	size:2;
-			unsigned int 	dma_mode:1;
-			unsigned int	dma_buf_clr:1;
-			unsigned int    reserved:10;
-        } config_bit;
-    } config;
-#if 0	
-	unsigned short config;
-#endif	
-	unsigned int    dma_2d;
-	unsigned int    int_en;
-	unsigned short	xcount;
-	unsigned short	xmodify;
-	unsigned short	ycount;
-	unsigned short	ymodify;
-};	
 
 /*******************************************************************************
 *	DMA API's 
 *******************************************************************************/
-int bfin_freedma(unsigned int, void *);
-int bfin_stopdma(unsigned int);
-int bfin_startdma(unsigned int);
-int bfin_setupdma(unsigned int,void *, unsigned int, struct dma_config_t );
-int enable_dma_intr(unsigned int);
-int bfin_request_dma(char *,unsigned int,dma_interrupt_t, void *);
-int bfin_ack_dma_int(unsigned int, int);
+//functions to set register mode
+void set_dma_start_addr (unsigned int channel, unsigned long addr);
+void set_dma_x_count	(unsigned int channel, unsigned short x_count);
+void set_dma_x_modify	(unsigned int channel, unsigned short x_modify);
+void set_dma_y_count	(unsigned int channel, unsigned short y_count);
+void set_dma_y_modify	(unsigned int channel, unsigned short y_modify);
+void set_dma_config(unsigned int channel,  unsigned short config);
+unsigned short set_bfin_dma_config(char direction, char flow_mode,
+                    char intr_mode, char dma_mode, char width);
 
-int bfin_get_dma_status(unsigned int);
-void bfin_clear_dma_done(unsigned int);
-void bfin_clear_dma_err(unsigned int);
-int bfin_get_curxcount(unsigned int);
-int bfin_get_curycount(unsigned int);
+
+// get curr status for polling
+unsigned short get_dma_curr_irqstat(unsigned int channel);
+unsigned short get_dma_curr_xcount(unsigned int channel);
+unsigned short get_dma_curr_ycount(unsigned int channel);
+
+//set large DMA mode descriptor
+void set_dma_sg(unsigned int channel, dmasg_t * sg, int nr_sg);
+
+//check if current channel is in use
+int dma_channel_active(unsigned int channel);  
+
+//common functions must be called in any mode
+void free_dma (unsigned int channel);    //free resources
+int dma_channel_active(unsigned int channel);  //check if a channel is in use
+void disable_dma (unsigned int channel); //disable
+void enable_dma(unsigned int channel);   //enable
+int  request_dma(unsigned int channel, char *device_id);
+int  set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data);
+void  clear_dma_irqstat(unsigned int channel);
+
 #endif
