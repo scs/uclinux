@@ -1,5 +1,5 @@
 /*
- * libc/sysdeps/linux/blackfin/clone.c -- `clone' syscall for linux/blackfin
+ * libc/sysdeps/linux/bfin/clone.c -- `clone' syscall for linux/blackfin
  *
  *
  * This file is subject to the terms and conditions of the GNU Lesser
@@ -13,20 +13,28 @@
 int
 clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg)
 {
-     long rval;
-      __asm__ __volatile__ ("r1 = %2;"
-		    "r0 = %3;"
-		    "P0 = __NR_clone;"
-		    "excpt 0;"			/*Call sys_clone*/
-		    "%0  = r0;"
-		    "r0 = %4;"
-		    "sp += -16;"
-		    "call (%1);"		/*Execute function fn(arg)*/
-		    "sp += 16;"
-		    "P0 = __NR_exit;"
-		    "excpt 0;"			/*Call sys_exit*/
-		    : "=d" (rval)
-		    : "a" (fn), "a" (child_stack), "a" (flags), "a" (arg)
-		    : "CC", "R0", "R1", "P0");
-  return rval;
+	long rval = -1, arg0;
+	
+	if (fn && child_stack) {
+
+	__asm__ __volatile__ ("r1 = %1;"
+			"r0 = %2;"
+			"P0 = 0x78;"
+			"excpt 0;"	 /*Call sys_clone*/
+			"%0  = r0;"
+			: "=d" (rval)
+			: "a" (child_stack), "a" (flags)
+			: "CC", "R0", "R1", "P0");
+			
+		if (rval == 0) {
+		/* In child thread, call FN and exit.  */
+		arg0 = (*fn) (arg);
+		__asm__ __volatile__ (
+			"P0 = 0x1;" 	 /* should be need to pass arg0 to exit sys call*/
+			"excpt 0;"	 /*Call sys_exit*/
+			: : : "P0");
+		}
+	}
+	return rval;
 }
+
