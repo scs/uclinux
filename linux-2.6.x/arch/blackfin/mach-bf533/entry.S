@@ -73,33 +73,6 @@ badsys:
 	[sp + PT_R0] = r7;	/* return value from system call */
 	rti;	
 
-ENTRY(do_trace)
-	r7 = -ENOSYS;
-	[sp + PT_R0] = r7;	/* needed for strace */
-	sp += -4;		/* why minus then plus again ??? Tony */
-	SP += -12;
-	call syscall_trace; 
-	SP += 12;
-	sp += 4;
-	r5 = [sp+PT_P0];
-	r0 = -ENOSYS;
-	r7 = NR_syscalls;
-	cc = r5 < r7;
-	if ! cc jump 1f;
-	p4 = r1;
-	p5.l = sys_call_table;
-	p5.h = sys_call_table;
-	p5 = p5 + (p4 << 2);
-	r0 = [sp + PT_R0];	/* confirm the system call args */
-	r1 = [sp + PT_R1];
-	r2 = [sp + PT_R2];
-	call (p5);
-1:
-	[sp + PT_R0] = r0;	/* save the return value */
-	sp += -4;		/* dummy return address  */
-	SP += -12;
-	jump.l syscall_trace;   /* void syscall_trace(void) */ 
-
 ENTRY(system_call)
 	/* Store IPEND */
         p2.l = lo(IPEND);
@@ -200,10 +173,16 @@ ENTRY(system_call)
 	SP += 12;
 l_before:
 	[sp + PT_R0] = r0;
-	/* Check whether we need to drop to user mode */
-	r0 = [sp + PT_IPEND];
-	CC = r0 == 0;
-	if !CC jump exit_syscall;
+	/* check whether current process is in user or kernel mode */
+        p2.l = lo(IPEND);
+        p2.h = hi(IPEND);
+        csync;
+        r0 = [p2];              /* Read current IPEND */
+        r1 = 1;
+        r1 = r0 - r1;
+        r2 = r0 & r1;
+        cc = r2 == 0 ;          /* if usermode set */
+        if cc jump exit_syscall;
 	call kernel_to_user_mode;
 exit_syscall:
 	/* Only allow interrupts when we are really the last one on
@@ -220,7 +199,7 @@ exit_syscall:
 	r4 = _TIF_WORK_MASK;
 	r7 =  r7 & r4;
 	r4 = [sp++];
-	cc = BITTST(r7, _TIF_NEED_RESCHED);
+	cc = BITTST(r7, TIF_NEED_RESCHED);
 	if !cc jump syscall_sigpending; 
 	call reschedule;
 
@@ -242,8 +221,7 @@ syscall_really_exit:
 
 /* Force kernel return from interrupt 15 to user mode -- Steven Chen*/
 kernel_to_user_mode:
-	[--sp] = rets;
-	r0 = [sp++];
+	r0 = rets;
 	reti = r0;
 	rti;
 
@@ -255,12 +233,7 @@ ENTRY(resume)
 	p0 = r0;
 	p1 = r1;
 	[--sp] = rets;
-	[--sp] = (r7:6, p5:3);
 	[--sp] = fp;
-
-	/* save seqstat */
-	r7 = seqstat;
-	[p0+(TASK_THREAD+THREAD_SR)] = r7;
 
 	/* save usp */
 	p2 = usp;
@@ -281,10 +254,6 @@ ENTRY(resume)
 	p0 = [p1+(TASK_THREAD+THREAD_USP)];
 	usp = p0;
 
-	/* restore status register */
-	r7 = [p1+(TASK_THREAD+THREAD_SR)];
-	seqstat = r7;
-
 	/* restore pc */
 	p0 = [p1+(TASK_THREAD+THREAD_PC)];
 	jump (p0); 
@@ -297,10 +266,6 @@ ENTRY(resume)
 
 new_old_task:	
 	fp = [sp++];
-	/* You may get assembler errors if you modify following instruction.
-	 * Had to do lots of experiments to get it right. The assembler simply
-	 * doesn't accept a correct syntax - amit */
-	( R7:6, p5 : 3) = [sp++];
 	rets = [sp++];
 
 	/*
@@ -338,7 +303,6 @@ ENTRY(ret_from_exception)
 	cc = bittst(r0, 3);	/* check if return from exception */
 	if cc jump 1f;
 	/* reduce the nested interrupt IVG14 --> IVG 15, */
-	[--sp] = rets;
 	call kernel_to_user_mode; 
 	rets = [sp++];
 
@@ -693,7 +657,6 @@ ENTRY(sys_call_table)
 	.long sys_exit_group
 	.long sys_lookup_dcookie
 
-	/* no recognization now by bfin-gcc */
 	.rept 3
 	.long (sys_ni_syscall)
 	.endr
