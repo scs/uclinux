@@ -97,7 +97,7 @@ ENTRY(system_call)
 	p2 = r7; 
 	p2 = [p2];
 
-	[p2+(TASK_THREAD+THREAD_ESP0)] = sp;
+	[p2+(TASK_THREAD+THREAD_KSP)] = sp;
 
 	/* Check the System Call */
 	r7 = __NR_syscall; 
@@ -200,10 +200,8 @@ exit_syscall:
 	r7 = r7 & r4;		/*thread_info->flags*/
 	p5 = r7;
 	r7 = [p5 + TI_FLAGS];
-	[--sp] = r4;
 	r4 = _TIF_WORK_MASK;
 	r7 =  r7 & r4;
-	r4 = [sp++];
 	cc = BITTST(r7, TIF_NEED_RESCHED);
 	if !cc jump syscall_sigpending; 
 	call reschedule;
@@ -224,7 +222,7 @@ syscall_really_exit:
 	rets = r0;
 	rts;
 
-/* Force kernel return from interrupt 15 to user mode -- Steven Chen*/
+/* Force kernel return from interrupt 15 to user mode*/
 kernel_to_user_mode:
 	r0 = rets;
 	reti = r0;
@@ -261,15 +259,13 @@ ENTRY(resume)
 
 	/* restore pc */
 	p0 = [p1+(TASK_THREAD+THREAD_PC)];
-	jump (p0); 
+	jump (p0);
 
 	/*
-	 * While we don't rely on compiler magic, nothing prevents us from
-	 * simple jumps.
-	 * Following code actually lands up in a new (old) task. .. akale
+	 * Following code actually lands up in a new (old) task.
 	 */
 
-new_old_task:	
+new_old_task:
 	fp = [sp++];
 	rets = [sp++];
 
@@ -318,11 +314,9 @@ ENTRY(ret_from_exception)
 	r7 = r7 & r4;		/*thread_info->flags*/
 	p5 = r7;
 	r7 = [p5 + TI_FLAGS];
-	[--sp] = r4;
 	r4 = _TIF_WORK_MASK;
 	r7 =  r7 & r4;
-	r4 = [sp++];
-	cc = BITTST(r7, _TIF_NEED_RESCHED);
+	cc = BITTST(r7, TIF_NEED_RESCHED);
 	if !cc jump 3f; 
 	call reschedule;
 3:
@@ -375,10 +369,8 @@ ENTRY(return_from_int)
         r7 = r7 & r4;           /*thread_info->flags*/
         p5 = r7;
         r7 = [p5 + TI_FLAGS];
-        [--sp] = r4;
         r4 = _TIF_WORK_MASK;
         r7 =  r7 & r4;
-        r4 = [sp++];
         cc = BITTST(r7, TIF_NEED_RESCHED);
         if !cc jump skip_schedule;
 	[--sp] = rets;
