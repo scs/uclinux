@@ -449,7 +449,7 @@ clear_and_return:
  *       source, look into bit 10-13 of SIC_ISR(peripheral interrupt status reg.
  *       Finally, to see what can be done about request_irq(......)
  */
-int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 {
 	struct bf533_serial *info; // = &bf533_soft[CONFIG_SERIAL_CONSOLE_PORT];
 	unsigned short iir; /* Interrupt Identification Register */
@@ -458,8 +458,7 @@ int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	unsigned int sic_status = 0;
 	asm("csync;");
 	sic_status = *pSIC_ISR;
-	if (sic_status & 0xC000)
-	{ 
+	if (sic_status & 0xC040) {
 		/* test bit 10-11 and 12-13 */
 		info = &bf533_soft;
 		asm("csync;");
@@ -514,9 +513,11 @@ int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 		   	case 	STATUS(0):			/*UART_IIR_MSR:*/
 				break;
 	   	   	}
+			return IRQ_HANDLED;
 		}
-	}	
-	return 0;
+		return IRQ_NONE;
+	}
+	return IRQ_NONE;
 }
 
 static void do_softint(void *private_)
@@ -580,7 +581,8 @@ void dma_start_recv(struct bf533_serial * info)
 		SYNC_ALL;
 		*pDMA6_CURR_X_COUNT = TTY_FLIPBUF_SIZE;
 		SYNC_ALL;
-                *pDMA6_CONFIG = DMA_DI_ENABLE | DMA_WDSIZE_8 | DMA_WNR | DMA_ENABLE;
+                *pDMA6_CONFIG = DI_EN | WDSIZE_8 | WNR | DMAEN;
+
 		SYNC_ALL;
         } else {
                 printk("bf533_serial: DMA started while already running!\n");
@@ -1499,20 +1501,18 @@ static int __init rs_bf533_init(void)
 
 	local_irq_restore(flags);
 
-	if (request_irq(IRQ_UART_RX, rs_interrupt, IRQ_FLG_STD, "BF533_UART_RX", NULL))
+	if (request_irq(IRQ_UART_RX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_RX",bf533_serial_driver))
 		panic("Unable to attach BlackFin UART RX interrupt\n");
 
-	if (request_irq(IRQ_UART_TX, rs_interrupt, IRQ_FLG_STD, "BF533_UART_TX", NULL))
+	if (request_irq(IRQ_UART_TX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_TX",bf533_serial_driver))
 		panic("Unable to attach BlackFin UART TX interrupt\n");
 #ifdef CONFIG_BLKFIN_DMA
         if (new_request_dma(CH_UART_RX, "BF533_UART", NULL, 0))
                 panic("Unable to attach BlackFin UART RX DMA channel\n");
         if (new_request_dma(CH_UART_TX, "BF533_UART", NULL, 0))
                 panic("Unable to attach BlackFin UART TX DMA channel\n");
-	printk("Enabling Serial UART Interrupts\n");
 #endif
-	
-	
+	printk("Enabling Serial UART Interrupts\n");
 	enable_irq(IRQ_UART_RX);
 	enable_irq(IRQ_UART_TX);
 
@@ -1563,7 +1563,6 @@ again:
 	bf533_console_initted = 1;
 	return;
 }
-
 
 int bf533_console_setup(struct console *cp, char *arg)
 {
