@@ -91,6 +91,10 @@ int main(void)
 	DEFINE(PT_SEQSTAT, offsetof(struct pt_regs, seqstat));
 	DEFINE(PT_SYSCFG, offsetof(struct pt_regs, syscfg));
 	DEFINE(PT_IPEND, offsetof(struct pt_regs, ipend));
+      	DEFINE(PT_EXTRA1, sizeof(struct pt_regs));     /* Needed by gdb */
+        DEFINE(PT_EXTRA2, 4 + sizeof(struct pt_regs)); /* Needed by gdb */
+        DEFINE(PT_EXTRA3, 8 + sizeof(struct pt_regs)); /* Needed by gdb */
+
 	/* signal defines */
 	DEFINE(SIGSEGV, SIGSEGV);
 	DEFINE(SIGTRAP, SIGTRAP);
