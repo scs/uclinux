@@ -108,44 +108,6 @@ Core        Emulation               **
 #define IVG14			14
 #define IVG15			15
 
-#define SYS_IRQS		33	/*Number of interrupt levels that the kernel sees.*/
-
-
-/****************************************
- *  DEFAULT PRIORITIES
- */
-
-#define CONFIG_DEF_UART_ERROR 		7
-#define CONFIG_DEF_SPORT0_ERROR		7
-#define CONFIG_DEF_SPI_ERROR		7
-#define CONFIG_DEF_SPORT1_ERROR		7
-#define CONFIG_DEF_PPI_ERROR		7
-#define CONFIG_DEF_DMA_ERROR		7
-#define CONFIG_DEF_PLLWAKE_ERROR	7
-
-#define CONFIG_DEF_RTC_ERROR		8
-#define CONFIG_DEF_DMA0_PPI		8
-
-#define CONFIG_DEF_DMA1_SPORT0RX	9
-#define CONFIG_DEF_DMA2_SPORT0TX	9
-#define CONFIG_DEF_DMA3_SPORT1RX	9
-#define CONFIG_DEF_DMA4_SPORT1TX	9
-
-#define CONFIG_DEF_DMA5_SPI		10
-#define CONFIG_DEF_DMA6_UARTRX		10
-
-#define CONFIG_DEF_DMA7_UARTTX		10
-#define CONFIG_DEF_TIMER0		11
-#define CONFIG_DEF_TIMER1		11
-#define CONFIG_DEF_TIMER2		11
-
-#define CONFIG_DEF_PFA			12
-#define CONFIG_DEF_PFB			12
-
-#define CONFIG_DEF_MEMDMA0		13
-#define CONFIG_DEF_MEMDMA1		13
-#define CONFIG_DEF_WDTIMER		13
-
 /* IAR0 BIT FIELDS*/
 #define RTC_ERROR_POS			28
 #define UART_ERROR_POS			24
