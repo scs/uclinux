@@ -133,6 +133,24 @@
 #define AMGCTLVAL	(V_AMBEN | V_AMCKEN | V_CDPRIO)
 
 /********************************PLL Settings **************************************/
+#if (CONFIG_VCO_MULT < 0)
+		#error "VCO Multiplier is less than 0. Please select a different value"
+#endif
+
+#if (CONFIG_VCO_MULT == 0)
+		#error "VCO Multiplier should be greater than 0. Please select a different value"
+#endif
+
+#ifdef CONFIG_BLKFIN_STAMP
+#if(CONFIG_VCO_MULT > 56)
+		#error "VCO Multiplier is more than 56 for STAMP. Please select a different value"
+#endif
+#endif
+#ifdef CONFIG_EZKIT
+#if(CONFIG_VCO_MULT > 22)
+		#error "VCO Multiplier is more than 22 for EZKIT. Please select a different value"
+#endif
+#endif
 
 #if(CONFIG_CLKIN_HALF == 0)
 	#define CONFIG_VCO_HZ	(CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)
@@ -146,14 +164,6 @@
 #else
 	#define CONFIG_CCLK_HZ	CONFIG_CLKIN_HZ
 	#define CONFIG_SCLK_HZ	CONFIG_CLKIN_HZ
-#endif
-
-#if (CONFIG_VCO_MULT < 0)
-		#error "VCO Multiplier is either less than 0 or more than 63. Please select a different value"
-#endif
-
-#if(CONFIG_VCO_MULT > 63)
-		#error "VCO Multiplier is either less than 0 or more than 63. Please select a different value"
 #endif
 
 #if (CONFIG_SCLK_DIV < 1)
@@ -180,20 +190,16 @@
 	#define MAX_VC	650000000
 #endif
 
-#if (CONFIG_VCO_HZ < 55000000)
-		#error "VCO selected is either less than minimum value of more than maximum value. Please change the VCO multipler"
-#endif
-
 #if(CONFIG_VCO_HZ > MAX_VC)
-		#error "VCO selected is either less than minimum value of more than maximum value. Please change the VCO multipler"
+		#error "VCO selected is more than maximum value. Please change the VCO multipler"
 #endif	
 
-#if (CONFIG_SCLK_HZ > 132000000)
-		#error "Sclk value selected is either less than minimum or more than maximum.Please select a proper value for SCLK multiplier"
+#if (CONFIG_SCLK_HZ > 133000000)
+		#error "Sclk value selected is more than maximum.Please select a proper value for SCLK multiplier"
 #endif
 	
 #if (CONFIG_SCLK_HZ < 27000000)
-		#error "Sclk value selected is either less than minimum or more than maximum.Please select a proper value for SCLK multiplier"
+		#error "Sclk value selected is less than minimum.Please select a proper value for SCLK multiplier"
 #endif
 
 #if (CONFIG_SCLK_HZ >= CONFIG_CCLK_HZ)
