@@ -11,6 +11,7 @@ struct sigcontext {
 	unsigned short sc_seqstat;
 	unsigned long  sc_pc;
 	unsigned long  sc_retx;
+	unsigned long  sc_rets;
 };
 
 #endif
