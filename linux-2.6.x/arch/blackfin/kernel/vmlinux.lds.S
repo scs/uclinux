@@ -145,7 +145,6 @@ SECTIONS
 		*(.ramdisk)
 		ramdisk_end = .;
 		_edata = . ;
-
 	} > ram
 
 	/DISCARD/ : {			/* Exit code and data*/
@@ -200,11 +199,6 @@ SECTIONS
   .debug_varnames  0 : { *(.debug_varnames) }
   /DISCARD/ : { *(.note.GNU-stack) }
 #endif
-	. = RAM_LENGTH ; 
-	.eram : {
-		__ramend = .  ;
-		_ramend = .  ;
-     	} > ram 	
 	.text_l1 : {
 		. = ALIGN(4) ;
 		 _stext_l1 = . ;
