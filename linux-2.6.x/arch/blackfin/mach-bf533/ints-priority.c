@@ -284,14 +284,9 @@ int bfin_request_irq(unsigned int irq, int (*handler)(int, void *, struct pt_reg
 	}
 
 	if (!(int_irq_list[irq].flags & IRQ_FLG_STD)) {
-		if (int_irq_list[irq].flags & IRQ_FLG_LOCK)	{
-		printk(KERN_ERR "%s: IRQ %d from %s is not replaceable\n",
+		if (int_irq_list[irq].flags & IRQ_FLG_LOCK){
+			printk(KERN_ERR "%s: IRQ %d from %s is not replaceable\n",
 			       __FUNCTION__, irq, int_irq_list[irq].devname);
-			return -EBUSY;
-	}
-		if (flags & IRQ_FLG_REPLACE) {
-			printk(KERN_ERR "%s: %s can't replace IRQ %d from %s\n",
-			       __FUNCTION__, devname, irq, int_irq_list[irq].devname);
 			return -EBUSY;
 		}
 	}
@@ -333,7 +328,6 @@ void bfin_enable_irq(unsigned int irq)
 {
 	unsigned long irq_val;
 
-	local_irq_disable();
 	if (irq >= INTERNAL_IRQS) {
 		printk("%s: Unknown IRQ %d\n", __FUNCTION__, irq);
 		return;
@@ -343,15 +337,13 @@ void bfin_enable_irq(unsigned int irq)
 	{
 		/* enable the interrupt */
 		irq_flags |= 1<<irq;
-		local_irq_enable();
 		return;
 	}
 
+	local_irq_disable();
 	irq_val = (1<<(irq - (IRQ_CORETMR+1)));
-
    	*pSIC_IMASK |= irq_val;
 	asm("ssync;");
-
 	local_irq_enable();
 }
 
@@ -359,7 +351,6 @@ void bfin_disable_irq(unsigned int irq)
 {
 	unsigned long irq_val;
 
-	local_irq_disable();
 	if (irq >= INTERNAL_IRQS) {
 		printk("%s: Unknown IRQ %d\n", __FUNCTION__, irq);
 		return;
@@ -367,9 +358,7 @@ void bfin_disable_irq(unsigned int irq)
 
 	if (irq < IRQ_CORETMR)
 	{
-		local_irq_disable();
 		irq_flags &= ~(1<<irq);
-		local_irq_enable();
 		return;
 	}
 	/*
@@ -380,11 +369,10 @@ void bfin_disable_irq(unsigned int irq)
  	 * enabled in bfin_init_IRQ()
 	 *
 	 */
+	local_irq_disable();
 	irq_val = (1<<(irq - (IRQ_CORETMR + 1)));
-
    	*pSIC_IMASK &= ~(irq_val); 
 	asm("ssync;");
-	
 	local_irq_enable();
 }
 
@@ -396,7 +384,7 @@ void bfin_do_irq(int vec, struct pt_regs *fp)
           struct ivgx *ivg_stop = ivg7_13[vec].istop;
 	  unsigned long sic_status;	
 
-	  asm("ssync;");	
+	  asm("csync;");	
  	  sic_status = *pSIC_IMASK & *pSIC_ISR;
 
 	  for(;; ivg++) {
