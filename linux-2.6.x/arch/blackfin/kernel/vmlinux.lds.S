@@ -29,7 +29,7 @@
 	
 
 OUTPUT_FORMAT("elf32-bfin")
-ENTRY(start) 
+ENTRY(_start) 
 jiffies = jiffies_64 ;
 MEMORY 
 	{
@@ -45,10 +45,7 @@ SECTIONS
 	. = 0x1000 ;
 
 	.text  : {
-		 _text = .;                     /*Text and read-only data */
 		 _stext = .;                     
-		text_start = . ;
-		 __text_start = . ;
 		*(.text)
 		SCHED_TEXT
 		*(.text.lock)
@@ -57,12 +54,60 @@ SECTIONS
 		*(__ex_table)
 		 __stop___ex_table = .;
 
-		 __init_begin = .;
+		  *($code)
+        	  *(.rodata)
+        	  *(.rodata.*)
+		  *(__vermagic)		/* Kernel version magic */
+        	  *(.rodata1)
+	          *(.fixup)	
+
+		/* Kernel symbol table: Normal symbols */
+		. = ALIGN(4);
+		__start___ksymtab = .;
+		*(__ksymtab)
+		__stop___ksymtab = .;
+
+		/* Kernel symbol table: GPL-only symbols */
+		__start___ksymtab_gpl = .;
+		*(__ksymtab_gpl)
+		__stop___ksymtab_gpl = .;
+
+		/* Kernel symbol table: Normal symbols */
+		__start___kcrctab = .;
+		*(__kcrctab)
+		__stop___kcrctab = .;
+
+		/* Kernel symbol table: GPL-only symbols */
+		__start___kcrctab_gpl = .;
+		*(__kcrctab_gpl)
+		__stop___kcrctab_gpl = .;
+
+		/* Kernel symbol table: strings */
+		*(__ksymtab_strings)
+
+		 . = ALIGN(4) ;
+	  	_etext = . ;
+	} > ram
+   
+	.data :	{
+		 _sdata = . ;
+		. = ALIGN(0x2000) ;
+		*(.data.init_task)
+		*(.data)
+		ramdisk_begin = .;
+		*(.ramdisk)
+		ramdisk_end = .;
+		_edata = . ;
+
+	} > ram
+
+	.init : {
+		. = ALIGN(4096);
+		__init_begin = .;
 		_sinittext = .;
-              	*(.init.text)		
-		. = ALIGN(4);	
+		*(.init.text)
 		_einittext = .;
-		*(.init.data)  
+		*(.init.data)
 		. = ALIGN(16);
 		__setup_start = .;
 		*(.init.setup)
@@ -87,63 +132,10 @@ SECTIONS
 		__security_initcall_end = .;
 		. = ALIGN(4);
 		__initramfs_start = .;
-		   *(.init.ramfs)
+		*(.init.ramfs)
 		__initramfs_end = .;
-		. = ALIGN(4096);
+		. = ALIGN(4);
 		__init_end = .;
-
-		  *($code)
-        	  *(.rodata)
-        	  *(.rodata1)
-        	  *(.rodata.*)
-	          *(.fixup)	
-		
-
-		/* Kernel symbol table: Normal symbols */
-		__start___ksymtab = .;
-		*(__ksymtab)
-		__stop___ksymtab = .;
-
-		/* Kernel symbol table: GPL-only symbols */
-		__start___ksymtab_gpl = .;
-		*(__ksymtab_gpl)
-		__stop___ksymtab_gpl = .;
-
-		/* Kernel symbol table: Normal symbols */
-		__start___kcrctab = .;
-		*(__kcrctab)
-		__stop___kcrctab = .;
-
-		/* Kernel symbol table: GPL-only symbols */
-		__start___kcrctab_gpl = .;
-		*(__kcrctab_gpl)
-		__stop___kcrctab_gpl = .;
-
-		/* Kernel symbol table: strings */
-		*(__ksymtab_strings)
-
-		 . = ALIGN(4) ;
-
-	  	_etext = . ;
-		  etext = . ;
-	} > ram
-   
-	.data :	{
-
-		. = ALIGN(4);	
-		 _sdata = . ;
-		 __data_start = . ;
-		. = ALIGN(0x2000) ;
-		*(.data.init_task)
-		. = ALIGN(0x2000) ;	
-		*(.data)
-		. = ALIGN(16);
-		ramdisk_begin = .;
-		*(.ramdisk)
-		ramdisk_end = .;
-		. = ALIGN(16);	
-		_edata = . ;
-		edata = . ;
 	} > ram
 
 	/DISCARD/ : {			/* Exit code and data*/
@@ -153,17 +145,13 @@ SECTIONS
 	} > ram
 
 	.bss : {
-
-		. = ALIGN(16) ;
+		. = ALIGN(4) ;
 		 _sbss = . ;
-		 __bss_start = . ;
-		 __data_end = . ;
 		*(.bss)
 		*(COMMON)
-		. = ALIGN(16) ;
-		end = . ;
+		. = ALIGN(4) ;
 		 _ebss = . ;	  
-		 _end = . ;
+		 _end = . ;	  
     	} > ram
 
    . = RAM_LENGTH ;
@@ -171,11 +159,4 @@ SECTIONS
 		__ramend = .  ;
 		_ramend = .  ;
      	} > ram 	
-	
-	. = L1_SCRATCH_START;		/*Usage of L1 scratchpad for PAGE TABLE*/	
-
-	.scrpad : {
-		*(.scratch);
-	} > l1_scratch 
-
 }
