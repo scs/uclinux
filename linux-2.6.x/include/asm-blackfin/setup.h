@@ -46,6 +46,7 @@ extern unsigned long bfin_machtype;
      *  Note: we don't need now:
      *
      */
+#ifdef __KERNEL__
 
 #ifndef __ASSEMBLY__
 extern unsigned long bfin_cputype;
@@ -70,4 +71,5 @@ struct mem_info {
 };
 #endif /* __ASSEMBLY__ */
 
+#endif /*__KERNEL__*/
 #endif /* _BFIN_SETUP_H */

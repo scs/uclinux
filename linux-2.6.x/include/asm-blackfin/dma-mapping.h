@@ -1,5 +1,5 @@
-#ifndef _ARMNOMMU_DMA_MAPPING_H
-#define _ARMNOMMU_DMA_MAPPING_H
+#ifndef _BFINNOMMU_DMA_MAPPING_H
+#define _BFINNOMMU_DMA_MAPPING_H
 
 #include <linux/config.h>
 
@@ -9,4 +9,4 @@
 #include <asm-generic/dma-mapping-broken.h>
 #endif
 
-#endif /* _ARMNOMMU_DMA_MAPPING_H */
+#endif /* _BFINNOMMU_DMA_MAPPING_H */
