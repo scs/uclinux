@@ -35,7 +35,6 @@ extern void prom_printf(char * fmt, ...);
 #define DMA_DBG(fmt, args...) 					\
 do { printk("Blackfin DMA driver: "fmt, ##args);} while (0)
 #else
-// #define DMA_DBG(fmt, args...) do { printk(fmt, ##args);} while (0)
 #define DMA_DBG(fmt, args...)
 #endif
 

@@ -160,7 +160,7 @@ void mem_init(void)
 	/* DAVIDM look at setup memory map generically with reserved area */
 	int datapages = 0;
 	unsigned long tmp;
-	extern int _etext, _stext, _sdata, _ebss, __init_begin, __init_end;
+	extern char _etext, _stext, _sdata, _ebss, __init_begin, __init_end;
 	extern int _ramend, _rambase; 
 	unsigned long len = _ramend - _rambase; 
 	unsigned long start_mem = memory_start; /* DAVIDM - these must start at end of kernel */
