@@ -80,6 +80,12 @@
 	[--sp] = SEQSTAT;
 	[--sp] = r0;	/* Skip IPEND as well. */
 	[--sp] = RETI;  /*orig_pc*/
+	/* Clear all L registers.  */
+	r0 = 0 (x);
+	l0 = r0;
+	l1 = r0;
+	l2 = r0;
+	l3 = r0;
 .endm
 
 .macro save_context_no_interrupts
@@ -132,6 +138,12 @@
 	[--sp] = SEQSTAT;
 	[--sp] = r0;	/* Skip IPEND as well. */
 	[--sp] = r0;  /*orig_pc*/
+	/* Clear all L registers.  */
+	r0 = 0 (x);
+	l0 = r0;
+	l1 = r0;
+	l2 = r0;
+	l3 = r0;
 .endm
 	 
 .macro restore_context_no_interrupts
