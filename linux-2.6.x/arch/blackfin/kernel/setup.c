@@ -1,4 +1,3 @@
-
 /*
  *  linux/arch/bfinnommu/kernel/setup.c
  *
@@ -27,13 +26,8 @@
 #include <asm/irq.h>
 #include <asm/machdep.h>
 #include <linux/root_dev.h>
-#ifdef CONFIG_BLK_DEV_INITRD
-#include <linux/blkdev.h>
-#include <asm/pgtable.h>
-#endif
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
-
 
 #ifdef CONFIG_CONSOLE
 extern struct consw *conswitchp;
@@ -46,9 +40,7 @@ unsigned long rom_length;
 unsigned long memory_start;
 unsigned long memory_end;
 
-
 char command_line[COMMAND_LINE_SIZE];
-
 u_long vco = 0; 
 
 /* setup some dummy routines */
@@ -79,15 +71,11 @@ void (*mach_enable_irq) (unsigned int) = NULL;
 void (*mach_disable_irq) (unsigned int) = NULL;
 int (*mach_get_irq_list) (struct seq_file *, void *) = NULL;
 void (*mach_process_int) (int irq, struct pt_regs *fp) = NULL;
-
 /* machine dependent timer functions */
 unsigned long (*mach_gettimeoffset) (void) = NULL;
-
 void (*mach_gettod) (time_t *t) = NULL;
-
 void (*mach_settod)(time_t time_in_seconds) = NULL;
 void (*mach_init)(void) = NULL;
-
 int (*mach_hwclk) (int, struct hwclk_time*) = NULL;
 int (*mach_set_clock_mmss) (unsigned long) = NULL;
 void (*mach_mksound)( unsigned int count, unsigned int ticks ) = NULL;
@@ -105,7 +93,6 @@ u_long get_sclk(void);
 extern void icache_init(void);
 extern void dcache_init(void);
 extern int read_iloc(void);
-void panic_pv(void);
 	
 #define DEBUG 1
 #ifdef CONFIG_BFIN
@@ -115,47 +102,15 @@ void panic_pv(void);
 	#define	CPU "UNKOWN"
 #endif
 
-
-#ifdef CONFIG_BLKFIN_CACHE
-void bf53x_icache_init(void)
-{
-        /* Instruction Caching initialize
-         * this seems to work 
-	 */
-	icache_init();
-	printk("Instruction Cache enabled\n");
-	return;
-}
-#else
-void bf53x_icache_init(void)
-{
-	return;
-}
-#endif
-#ifdef CONFIG_BLKFIN_DCACHE
-void bf53x_dcache_init(void)
-{
-        /* Data Caching initialize
-         * this seems to work
-	 */
-	dcache_init();
-	printk("Data cache Enabled\n");
-	return;
-}
-#else
-void bf53x_dcache_init(void)
-{
-	return;
-}
-#endif	/*DCACHE*/
-
 void bf53x_cache_init(void)
 {
 #ifdef CONFIG_BLKFIN_CACHE
-	bf53x_icache_init();
+	icache_init();
+	printk("Instruction Cache enabled\n");
 #endif
 #ifdef CONFIG_BLKFIN_DCACHE
-	bf53x_dcache_init();
+	dcache_init();
+	printk("Data cache Enabled\n");
 #endif
 }
 
