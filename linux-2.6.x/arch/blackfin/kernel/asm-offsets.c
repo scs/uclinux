@@ -8,18 +8,10 @@
  * #defines from the assembly-language output.
  */
 
-#include <linux/stddef.h>
 #include <linux/sched.h>
-#include <linux/kernel_stat.h>
-#include <linux/ptrace.h>
-#include <asm/bootinfo.h>
-#include <asm/irq.h>
-#include <asm/hardirq.h>
 
 #define DEFINE(sym, val) \
         asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
 
 int main(void)
 {
@@ -33,12 +25,6 @@ int main(void)
 	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
 	DEFINE(TASK_ACTIVE_MM, offsetof(struct task_struct, active_mm));
 	DEFINE(TASK_SIGPENDING, offsetof(struct task_struct, pending));
-
-	/* offsets into the kernel_stat struct */
-	DEFINE(STAT_IRQ, offsetof(struct kernel_stat, irqs));
-
-	/* offsets into the irq_cpustat_t struct */
-	DEFINE(CPUSTAT_SOFTIRQ_PENDING, offsetof(irq_cpustat_t, __softirq_pending));
 
 	/* offsets into the thread struct */
 	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));
@@ -104,24 +90,7 @@ int main(void)
 	DEFINE(PT_RETE, offsetof(struct pt_regs, rete));
 	DEFINE(PT_SEQSTAT, offsetof(struct pt_regs, seqstat));
 	DEFINE(PT_SYSCFG, offsetof(struct pt_regs, syscfg));
-
-
 	DEFINE(PT_IPEND, offsetof(struct pt_regs, ipend));
-        DEFINE(PT_EXTRA1, sizeof(struct pt_regs));
-        DEFINE(PT_EXTRA2, 4 + sizeof(struct pt_regs));
-        DEFINE(PT_EXTRA3, 8 + sizeof(struct pt_regs));
-
-	/* bitfields are a bit difficult */
-	DEFINE(PT_VECTOR, offsetof(struct pt_regs, pc) + 4);
-
-	/* offsets into the irq_handler struct */
-	DEFINE(IRQ_HANDLER, offsetof(struct irq_node, handler));
-	DEFINE(IRQ_DEVID, offsetof(struct irq_node, dev_id));
-	DEFINE(IRQ_NEXT, offsetof(struct irq_node, next));
-
-	/* offsets into the kernel_stat struct */
-	DEFINE(STAT_IRQ, offsetof(struct kernel_stat, irqs));
-
 	/* signal defines */
 	DEFINE(SIGSEGV, SIGSEGV);
 	DEFINE(SIGTRAP, SIGTRAP);
