@@ -8,31 +8,34 @@
 #define CONFIG_RWSEM_GENERIC_SPINLOCK 1
 #undef CONFIG_RWSEM_XCHGADD_ALGORITHM
 #define CONFIG_BFIN 1
-#define CONFIG_NISA 1
 
 /*
  * Code maturity level options
  */
 #define CONFIG_EXPERIMENTAL 1
 #define CONFIG_CLEAN_COMPILE 1
-#undef CONFIG_STANDALONE
 #define CONFIG_BROKEN_ON_SMP 1
 
 /*
  * General setup
  */
-#undef CONFIG_SYSVIPC
-#undef CONFIG_BSD_PROCESS_ACCT
+#undef CONFIG_POSIX_MQUEUE
+#define CONFIG_BSD_PROCESS_ACCT 1
+#undef CONFIG_BSD_PROCESS_ACCT_V3
 #undef CONFIG_SYSCTL
+#undef CONFIG_AUDIT
 #define CONFIG_LOG_BUF_SHIFT 14
+#undef CONFIG_HOTPLUG
 #undef CONFIG_IKCONFIG
 #define CONFIG_EMBEDDED 1
 #define CONFIG_KALLSYMS 1
+#undef CONFIG_KALLSYMS_EXTRA_PASS
 #define CONFIG_FUTEX 1
 #define CONFIG_EPOLL 1
 #define CONFIG_IOSCHED_NOOP 1
 #define CONFIG_IOSCHED_AS 1
 #define CONFIG_IOSCHED_DEADLINE 1
+#define CONFIG_IOSCHED_CFQ 1
 #undef CONFIG_CC_OPTIMIZE_FOR_SIZE
 
 /*
@@ -61,11 +64,18 @@
 #undef CONFIG_LARGE_ALLOCS
 
 /*
+ * DMA Support
+ */
+#define CONFIG_BLKFIN_DMA 1
+
+/*
  * Cache Support
  */
 #define CONFIG_BLKFIN_CACHE 1
-#define CONFIG_BLKFIN_DCACHE 1
+#undef CONFIG_BLKFIN_DCACHE
 #undef CONFIG_BLKFIN_CACHE_LOCK
+#undef CONFIG_BLKFIN_WB
+#define CONFIG_BLKFIN_WT 1
 
 /*
  * Crystal Frequency
@@ -126,7 +136,6 @@
  * Bus options (PCI, PCMCIA, EISA, MCA, ISA)
  */
 #undef CONFIG_PCI
-#undef CONFIG_HOTPLUG
 
 /*
  * Executable File Formats
@@ -144,6 +153,8 @@
 /*
  * Generic Driver Options
  */
+#define CONFIG_STANDALONE 1
+#define CONFIG_PREVENT_FIRMWARE_BUILD 1
 
 /*
  * Memory Technology Devices (MTD)
@@ -170,10 +181,19 @@
  */
 #undef CONFIG_MTD_CFI
 #undef CONFIG_MTD_JEDECPROBE
+#define CONFIG_MTD_MAP_BANK_WIDTH_1 1
+#define CONFIG_MTD_MAP_BANK_WIDTH_2 1
+#define CONFIG_MTD_MAP_BANK_WIDTH_4 1
+#undef CONFIG_MTD_MAP_BANK_WIDTH_8
+#undef CONFIG_MTD_MAP_BANK_WIDTH_16
+#undef CONFIG_MTD_MAP_BANK_WIDTH_32
+#define CONFIG_MTD_CFI_I1 1
+#define CONFIG_MTD_CFI_I2 1
+#undef CONFIG_MTD_CFI_I4
+#undef CONFIG_MTD_CFI_I8
 #define CONFIG_MTD_RAM 1
-#undef CONFIG_MTD_ROM
+#define CONFIG_MTD_ROM 1
 #undef CONFIG_MTD_ABSENT
-#undef CONFIG_MTD_OBSOLETE_CHIPS
 
 /*
  * Mapping drivers for chip access
@@ -181,12 +201,12 @@
 #undef CONFIG_MTD_COMPLEX_MAPPINGS
 #undef CONFIG_MTD_BF533
 #define CONFIG_MTD_UCLINUX 1
-#undef CONFIG_MTD_SNAPGEARuC
 
 /*
  * Self-contained MTD device drivers
  */
 #undef CONFIG_MTD_SLRAM
+#undef CONFIG_MTD_PHRAM
 #undef CONFIG_MTD_MTDRAM
 #undef CONFIG_MTD_BLKMTD
 
@@ -218,7 +238,6 @@
 #undef CONFIG_BLK_DEV_LOOP
 #undef CONFIG_BLK_DEV_NBD
 #undef CONFIG_BLK_DEV_RAM
-#undef CONFIG_BLK_DEV_INITRD
 
 /*
  * ATA/ATAPI/MFM/RLL support
@@ -240,9 +259,8 @@
  */
 
 /*
- * IEEE 1394 (FireWire) support (EXPERIMENTAL)
+ * IEEE 1394 (FireWire) support
  */
-#undef CONFIG_IEEE1394
 
 /*
  * I2O device support
@@ -262,29 +280,28 @@
 #define CONFIG_UNIX 1
 #undef CONFIG_NET_KEY
 #define CONFIG_INET 1
-#undef CONFIG_IP_MULTICAST
+#define CONFIG_IP_MULTICAST 1
 #undef CONFIG_IP_ADVANCED_ROUTER
 #undef CONFIG_IP_PNP
 #undef CONFIG_NET_IPIP
 #undef CONFIG_NET_IPGRE
+#undef CONFIG_IP_MROUTE
 #undef CONFIG_ARPD
-#undef CONFIG_INET_ECN
 #undef CONFIG_SYN_COOKIES
 #undef CONFIG_INET_AH
 #undef CONFIG_INET_ESP
 #undef CONFIG_INET_IPCOMP
 #undef CONFIG_IPV6
-#undef CONFIG_DECNET
-#undef CONFIG_BRIDGE
 #undef CONFIG_NETFILTER
 
 /*
  * SCTP Configuration (EXPERIMENTAL)
  */
-#define CONFIG_IPV6_SCTP__ 1
 #undef CONFIG_IP_SCTP
 #undef CONFIG_ATM
+#undef CONFIG_BRIDGE
 #undef CONFIG_VLAN_8021Q
+#undef CONFIG_DECNET
 #undef CONFIG_LLC2
 #undef CONFIG_IPX
 #undef CONFIG_ATALK
@@ -293,18 +310,23 @@
 #undef CONFIG_NET_DIVERT
 #undef CONFIG_ECONET
 #undef CONFIG_WAN_ROUTER
-#undef CONFIG_NET_FASTROUTE
 #undef CONFIG_NET_HW_FLOWCONTROL
 
 /*
  * QoS and/or fair queueing
  */
 #undef CONFIG_NET_SCHED
+#undef CONFIG_NET_CLS_ROUTE
 
 /*
  * Network testing
  */
 #undef CONFIG_NET_PKTGEN
+#undef CONFIG_NETPOLL
+#undef CONFIG_NET_POLL_CONTROLLER
+#undef CONFIG_HAMRADIO
+#undef CONFIG_IRDA
+#undef CONFIG_BT
 #define CONFIG_NETDEVICES 1
 #undef CONFIG_DUMMY
 #undef CONFIG_BONDING
@@ -318,8 +340,7 @@
 #define CONFIG_NET_ETHERNET 1
 #undef CONFIG_MII
 #define CONFIG_NET_VENDOR_SMC 1
-#undef CONFIG_SMC9194
-#define CONFIG_SMC91C111 1
+#define CONFIG_SMSC91C111 1
 
 /*
  * Ethernet (1000 Mbit)
@@ -328,8 +349,10 @@
 /*
  * Ethernet (10000 Mbit)
  */
-#undef CONFIG_PPP
-#undef CONFIG_SLIP
+
+/*
+ * Token Ring devices
+ */
 
 /*
  * Wireless LAN (non-hamradio)
@@ -337,34 +360,18 @@
 #undef CONFIG_NET_RADIO
 
 /*
- * Token Ring devices
- */
-#undef CONFIG_SHAPER
-
-/*
  * Wan interfaces
  */
 #undef CONFIG_WAN
-
-/*
- * Amateur Radio support
- */
-#undef CONFIG_HAMRADIO
-
-/*
- * IrDA (infrared) support
- */
-#undef CONFIG_IRDA
-
-/*
- * Bluetooth support
- */
-#undef CONFIG_BT
+#undef CONFIG_PPP
+#undef CONFIG_SLIP
+#undef CONFIG_SHAPER
+#undef CONFIG_NETCONSOLE
 
 /*
  * ISDN subsystem
  */
-#undef CONFIG_ISDN_BOOL
+#undef CONFIG_ISDN
 
 /*
  * Telephony Support
@@ -374,11 +381,19 @@
 /*
  * Input device support
  */
-#undef CONFIG_INPUT
+#define CONFIG_INPUT 1
 
 /*
  * Userland interfaces
  */
+#define CONFIG_INPUT_MOUSEDEV 1
+#undef CONFIG_INPUT_MOUSEDEV_PSAUX
+#define CONFIG_INPUT_MOUSEDEV_SCREEN_X 1024
+#define CONFIG_INPUT_MOUSEDEV_SCREEN_Y 768
+#undef CONFIG_INPUT_JOYDEV
+#undef CONFIG_INPUT_TSDEV
+#undef CONFIG_INPUT_EVDEV
+#undef CONFIG_INPUT_EVBUG
 
 /*
  * Input I/O drivers
@@ -391,14 +406,17 @@
 /*
  * Input Device Drivers
  */
+#undef CONFIG_INPUT_KEYBOARD
+#undef CONFIG_INPUT_MOUSE
+#undef CONFIG_INPUT_JOYSTICK
+#undef CONFIG_INPUT_TOUCHSCREEN
+#undef CONFIG_INPUT_MISC
 
 /*
  * Character devices
  */
 #undef CONFIG_VT
 #undef CONFIG_SERIAL_NONSTANDARD
-#undef CONFIG_LEDMAN
-#undef CONFIG_RESETSWITCH
 
 /*
  * Serial drivers
@@ -410,12 +428,7 @@
  */
 #define CONFIG_SERIAL_BLACKFIN 1
 #define CONFIG_UNIX98_PTYS 1
-#define CONFIG_UNIX98_PTY_COUNT 256
-
-/*
- * Mice
- */
-#undef CONFIG_BUSMOUSE
+#undef CONFIG_LEGACY_PTYS
 #undef CONFIG_QIC02_TAPE
 
 /*
@@ -427,18 +440,16 @@
  * Watchdog Cards
  */
 #undef CONFIG_WATCHDOG
-#undef CONFIG_NVRAM
 #undef CONFIG_RTC
 #undef CONFIG_GEN_RTC
 #define CONFIG_BLACKFIN_RTC 1
+#undef CONFIG_BLACKFIN_DPMC
 #undef CONFIG_DTLK
 #undef CONFIG_R3964
-#undef CONFIG_APPLICOM
 
 /*
  * Ftape, the floppy tape device driver
  */
-#undef CONFIG_FTAPE
 #undef CONFIG_AGP
 #undef CONFIG_DRM
 #undef CONFIG_RAW_DRIVER
@@ -457,9 +468,12 @@
  * File systems
  */
 #define CONFIG_EXT2_FS 1
-#undef CONFIG_EXT2_FS_XATTR
+#define CONFIG_EXT2_FS_XATTR 1
+#undef CONFIG_EXT2_FS_POSIX_ACL
+#undef CONFIG_EXT2_FS_SECURITY
 #undef CONFIG_EXT3_FS
 #undef CONFIG_JBD
+#define CONFIG_FS_MBCACHE 1
 #undef CONFIG_REISERFS_FS
 #undef CONFIG_JFS_FS
 #undef CONFIG_XFS_FS
@@ -478,7 +492,8 @@
 /*
  * DOS/FAT/NT Filesystems
  */
-#undef CONFIG_FAT_FS
+#undef CONFIG_MSDOS_FS
+#undef CONFIG_VFAT_FS
 #undef CONFIG_NTFS_FS
 
 /*
@@ -486,10 +501,11 @@
  */
 #define CONFIG_PROC_FS 1
 #define CONFIG_PROC_KCORE 1
+#define CONFIG_SYSFS 1
 #undef CONFIG_DEVFS_FS
-#define CONFIG_DEVPTS_FS 1
-#undef CONFIG_DEVPTS_FS_XATTR
-#undef CONFIG_TMPFS
+#define CONFIG_DEVPTS_FS_XATTR 1
+#undef CONFIG_DEVPTS_FS_SECURITY
+#define CONFIG_TMPFS 1
 #undef CONFIG_HUGETLB_PAGE
 #define CONFIG_RAMFS 1
 
@@ -499,6 +515,7 @@
 #undef CONFIG_ADFS_FS
 #undef CONFIG_AFFS_FS
 #undef CONFIG_HFS_FS
+#undef CONFIG_HFSPLUS_FS
 #undef CONFIG_BEFS_FS
 #undef CONFIG_BFS_FS
 #undef CONFIG_EFS_FS
@@ -521,7 +538,6 @@
 #undef CONFIG_CIFS
 #undef CONFIG_NCP_FS
 #undef CONFIG_CODA_FS
-#undef CONFIG_INTERMEZZO_FS
 #undef CONFIG_AFS_FS
 
 /*
@@ -578,4 +594,6 @@
 /*
  * Library routines
  */
+#undef CONFIG_CRC_CCITT
 #define CONFIG_CRC32 1
+#undef CONFIG_LIBCRC32C

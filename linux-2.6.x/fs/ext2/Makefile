@@ -1,6 +1,7 @@
 #
 # Makefile for the linux ext2-filesystem routines.
 #
+
 CFLAGS = -O0
 obj-$(CONFIG_EXT2_FS) += ext2.o
 
