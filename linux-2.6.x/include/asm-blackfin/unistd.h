@@ -356,7 +356,9 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
   long __res;								\
   __asm__ __volatile__ (						\
-  "[--sp] = ( r7:3 );\n\t"						\
+  "[--sp] = r5;\n\t"						        \
+  "[--sp] = r4;\n\t"                                                    \
+  "[--sp] = r3;\n\t"                                                    \
   "r4=%6;\n\t"								\
   "r3=%5;\n\t"								\
   "r2=%4;\n\t"								\
@@ -365,7 +367,9 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
   "r5=%1;\n\t"								\
   "excpt 0;\n\t" 							\
   "%0=r0;\n\t"								\
-  "( r7:3 ) = [sp++];\n\t"						\
+  "r3 = [sp++];\n\t" 							\
+  "r4 = [sp++];\n\t"                                                    \
+  "r5 = [sp++];\n\t"                                                    \
   	: "=da" (__res)							\
   	: "i"  (__NR_##name),						\
 	  "a"  ((long)(arg1)),						\
