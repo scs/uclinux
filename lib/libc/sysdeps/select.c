@@ -13,6 +13,5 @@ int select(int nd, fd_set *in, fd_set *out, fd_set*ex, struct timeval *tv) {
 	args[2] = (unsigned long)out;
 	args[3] = (unsigned long)ex;
 	args[4] = (unsigned long)tv;
-	write(1,"hello",6);
 	return _select(args);
 }
