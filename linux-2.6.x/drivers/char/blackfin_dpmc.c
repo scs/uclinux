@@ -284,7 +284,8 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 #if DPMC_DEBUG
 					printk("System clock being changed to minimum \n");
 #endif
-					sclk_mhz = change_sclk((MIN_SCLK));
+					sclk_mhz = change_sclk(MIN_SCLK);
+					
 				}
 				else
 					sclk_mhz = change_sclk((vco_mhz/5000000));
@@ -585,6 +586,9 @@ void active_mode(void)	{
 
 	*pSIC_IMASK |= SIC_MASK(0);
 	asm("ssync;");
+
+	*pIMASK |= 0x80;
+	asm("csync;");
 
 	*pSIC_IWR |= IWR_ENABLE(0);
 	asm("ssync;");
