@@ -25,8 +25,8 @@ extern void __guard_setup(void);
  */
 extern int  main(int argc, char **argv, char **envp);
 extern void weak_function _stdio_init(void);
-extern int *weak_const_function __errno_location(void);
-extern int *weak_const_function __h_errno_location(void);
+extern int * weak_const_function __errno_location(void);
+extern int * weak_const_function __h_errno_location(void);
 #ifdef __UCLIBC_HAS_LOCALE__
 extern void weak_function _locale_init(void);
 #endif
