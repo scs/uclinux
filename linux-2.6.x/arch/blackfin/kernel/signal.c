@@ -627,51 +627,6 @@ asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		if (!signr)
 			break;
 
-		if ((current->ptrace & PT_PTRACED) && signr != SIGKILL) {
-			current->exit_code = signr;
-			current->state = TASK_STOPPED;
-
-			/* Did we come from a system call? */
-			if (regs->orig_r0 >= 0) {
-				/* Restart the system call the same way as
-				   if the process were not traced.  */
-				struct k_sigaction *ka =
-					&current->sighand->action[signr-1];
-				int has_handler =
-					(ka->sa.sa_handler != SIG_IGN &&
-					 ka->sa.sa_handler != SIG_DFL);
-				handle_restart(regs, ka, has_handler);
-			}
-			notify_parent(current, SIGCHLD);
-			schedule();
-
-			/* We're back.  Did the debugger cancel the sig?  */
-			if (!(signr = current->exit_code)) {
-			discard_frame:
-			    continue;
-			}
-			current->exit_code = 0;
-
-			/* The debugger continued.  Ignore SIGSTOP.  */
-			if (signr == SIGSTOP)
-				goto discard_frame;
-
-			/* Update the siginfo structure.  Is this good?  */
-			if (signr != info.si_signo) {
-				info.si_signo = signr;
-				info.si_errno = 0;
-				info.si_code = SI_USER;
-				info.si_pid = current->parent->pid;
-				info.si_uid = current->parent->uid;
-			}
-
-			/* If the (new) signal is now blocked, requeue it.  */
-			if (sigismember(&current->blocked, signr)) {
-				send_sig_info(signr, &info, current);
-				continue;
-			}
-		}
-
 		ka = &current->sighand->action[signr-1];
 		if (ka->sa.sa_handler == SIG_IGN) {
 			if (signr != SIGCHLD)
