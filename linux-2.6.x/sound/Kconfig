@@ -80,6 +80,8 @@ config SOUND_PRIME
 
 source "sound/oss/Kconfig"
 
+source "sound/blackfin/Kconfig"
+
 endmenu
 
 endif
