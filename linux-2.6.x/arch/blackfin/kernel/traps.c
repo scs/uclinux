@@ -147,7 +147,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	    case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
 		DPRINTK3(EXC_0x23);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR)
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
 		_cplb_hdr();
 		goto nsig;
 		sig = SIGILL;
