@@ -80,7 +80,6 @@ static void search_IAR(void);
  *********/
 asmlinkage void irq_panic( int reason, struct pt_regs * regs)
 {
-	extern char _etext;
 	int sig = 0;
 	siginfo_t info;
 
@@ -117,7 +116,7 @@ asmlinkage void irq_panic( int reason, struct pt_regs * regs)
 	}
 	dump(regs);
 	if (0 == (info.si_signo = sig) || 
-	    regs->orig_pc < (unsigned)&_etext) /* in kernelspace */
+	    0 == user_mode(regs)) /* in kernelspace */
 	    panic("Unhandled IRQ or exceptions!\n");
 	else { /* in userspace */
 	    info.si_errno = 0;
