@@ -463,7 +463,7 @@ enum {
 #define SMC_ENABLE_INT(x) {\
 		unsigned short mask;\
 		SMC_SELECT_BANK(2);\
-		mask = smc_readb( ioaddr + IM_REG );\
+		mask = readb( ioaddr + IM_REG );\
 		mask |= (x);\
 		smc_writew( mask << 8, ioaddr + INT_REG ); \
 }
@@ -472,7 +472,7 @@ enum {
 #define SMC_DISABLE_INT(x) {\
 		unsigned short mask;\
 		SMC_SELECT_BANK(2);\
-		mask = smc_readb( ioaddr + IM_REG );\
+		mask = readb( ioaddr + IM_REG );\
 		mask &= ~(x);\
 		smc_writew( mask << 8, ioaddr + IM_REG ); \
 }
@@ -483,7 +483,7 @@ enum {
 #define SMC_ENABLE_INT(x) {\
 		unsigned char mask;\
 		SMC_SELECT_BANK(2);\
-		mask = smc_readb( ioaddr + IM_REG );\
+		mask = readb( ioaddr + IM_REG );\
 				mask |= (x);\
 		smc_writeb( mask, ioaddr + IM_REG ); \
 }
@@ -493,7 +493,7 @@ enum {
 #define SMC_DISABLE_INT(x) {\
 		unsigned char mask;\
 		SMC_SELECT_BANK(2);\
-		mask = smc_readb( ioaddr + IM_REG );\
+		mask = readb( ioaddr + IM_REG );\
 		mask &= ~(x);\
 		smc_writeb( mask, ioaddr + IM_REG ); \
 }
