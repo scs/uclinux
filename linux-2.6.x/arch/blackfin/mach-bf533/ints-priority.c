@@ -93,9 +93,35 @@ asmlinkage void bfin_irq_panic( int reason, struct pt_regs * regs)
 {
 	
   	printk("\n\nException: IRQ 0x%x entered\n", reason);
-	printk(" code=[0x%08x],  ", (unsigned int)regs->seqstat & 0x3f);
+	printk(" code=[0x%08x],  ", (unsigned int)regs->seqstat);
 	printk(" stack frame=0x%04x,  ",(unsigned int)(unsigned long) regs);
 	printk(" bad PC=0x%04x\n", (unsigned int)regs->pc);
+
+	if(reason == 0x5) {
+
+ 	printk("\n----------- HARDWARE ERROR -----------\n\n");
+		
+	/* There is only need to check for Hardware Errors, since other EXCEPTIONS are handled in TRAPS.c (MH)  */
+
+		switch(((unsigned int)regs->seqstat) >> 14)	  {
+		
+				case (0x2):			//System MMR Error
+					printk(HWC_x2);
+					break;
+				case (0x3):			//External Memory Addressing Error
+					printk(HWC_x3);
+					break;
+				case (0x12):			//Performance Monitor Overflow
+					printk(HWC_x12);
+					break;
+				case (0x18):			//RAISE 5 instruction
+					printk(HWC_x18);
+					break;
+				default:			//Reserved
+					printk(HWC_default);
+					break;
+			}
+	}
 	dump(regs);
 	panic("Unhandled IRQ or exceptions!\n");
 }
