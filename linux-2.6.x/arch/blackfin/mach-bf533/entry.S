@@ -9,6 +9,17 @@
  * for more details.
  *
  * Blackfin BF533/2.6 fixes : LG Soft India	
+ *
+ * 25-Dec-2004 - LG Soft India
+ * 	1. Fix in return_from_int, to make sure any pending 
+ *	system call in ILAT for this process to get 
+ *	executed, otherwise in case context switch happens, 
+ *	system call of first process (i.e in ILAT) will be 
+ *	carried forward to the switched process.
+ *	2. Removed Constant references for the following
+ *		a.  IPEND
+ *		b.  EXCAUSE mask
+ *		c.  PAGE Mask
  */
 
 /*
@@ -40,15 +51,15 @@
 ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	SAVE_ALL_SYS
 	
-        p2.l = 0x2108;
-        p2.h = 0xffe0;
+        p2.l = lo(IPEND);
+        p2.h = hi(IPEND);
         r0 = [p2];              /* Read current IPEND */
 	csync;
         [sp + PT_IPEND] = r0;   /* Store IPEND */
 
 	r1 = [sp + PT_SEQSTAT];	/* reason code is in bit 5:0 */
-	r0.l = 0x3f;
-	r0.h = 0x0;
+	r0.l = lo(SEQSTAT_EXCAUSE);
+	r0.h = hi(SEQSTAT_EXCAUSE);
 	r1 = r1 & r0;
 	CC = r1 == 0;
 	if ! cc jump 1f;
@@ -98,8 +109,8 @@ ENTRY(do_trace)
 
 ENTRY(system_call)
 	/* Store IPEND */
-	p2.l = 0x2108;
-	p2.h = 0xffe0;
+        p2.l = lo(IPEND);
+        p2.h = hi(IPEND);
 	r0 = [p2];
 	csync;
 	[sp + PT_IPEND] = r0;
@@ -109,8 +120,8 @@ ENTRY(system_call)
 	[sp + PT_RESERVED] = r0;
 	/* Set the stack for the current process */
 	r7 = sp;  
-	r6.l = 0xe000;
-	r6.h = 0xffff;
+	r6.l = lo(ALIGN_PAGE_MASK);
+	r6.h = hi(ALIGN_PAGE_MASK);
 	r7 = r7 & r6;  		/*thread_info*/
 	p2 = r7; 
 	p2 = [p2];
@@ -209,8 +220,8 @@ exit_syscall:
 	r0 = 0x0;
 	[sp + PT_IPEND] = r0;
 	r7 = sp;
-	r4.l = 0xe000;
-	r4.h = 0xffff;
+	r4.l = lo(ALIGN_PAGE_MASK);
+	r4.h = hi(ALIGN_PAGE_MASK);
 	r7 = r7 & r4;		/*thread_info->flags*/
 	p5 = r7;
 	r7 = [p5 + TI_FLAGS];
@@ -323,8 +334,9 @@ l_next_4:
 	jump l_before;
 
 ENTRY(ret_from_exception)
-	p2.l = 0x2108;
-	p2.h = 0xffe0;
+        p2.l = lo(IPEND);
+        p2.h = hi(IPEND);
+
 	r0 = [p2];
 	csync;
 	[sp + PT_IPEND] = r0;
@@ -343,8 +355,8 @@ ENTRY(ret_from_exception)
 
 1:	/* Set the stack for the current process */
 	r7 = sp;
-	r4.l = 0xe000;
-	r4.h = 0xffff;
+	r4.l = lo(ALIGN_PAGE_MASK);
+	r4.h = hi(ALIGN_PAGE_MASK);
 	r7 = r7 & r4;		/*thread_info->flags*/
 	p5 = r7;
 	r7 = [p5 + TI_FLAGS];
@@ -380,14 +392,29 @@ ENTRY(return_from_int)
         cc = r2 == 0 ;          /* if usermode set */
         if !cc jump ret_to_int;
 
+	/* Make sure any pending system call in ILAT
+         * for this process to get executed, otherwise
+	 * in case context switch happens, system call of
+	 * first process (i.e in ILAT) will be carried 
+	 * forward to the switched process
+	 */
+
+        p2.l = lo(ILAT);
+        p2.h = hi(ILAT);
+        r0 = [p2];
+	r1 = (EVT_IVG14);
+        r0 = r0 & r1;
+        cc = r0 == 0;
+        if !cc jump ret_to_int;
+
 	/* 
 	 * Current process in user mode 
 	 * Check to see scheduding is need for
 	 * any user processes
 	 */
         r7 = sp;
-        r4.l = 0xe000;
-        r4.h = 0xffff;
+        r4.l = lo(ALIGN_PAGE_MASK);
+        r4.h = hi(ALIGN_PAGE_MASK);
         r7 = r7 & r4;           /*thread_info->flags*/
         p5 = r7;
         r7 = [p5 + TI_FLAGS];
