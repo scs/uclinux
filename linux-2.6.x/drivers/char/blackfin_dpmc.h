@@ -17,20 +17,14 @@ void disable_wdog_timer(void);
 
 
 #define SDRAM_Tref  	64       /* Refresh period in milliseconds   */
-#ifdef CONFIG_EZKIT
-	#define SDRAM_NRA   	4096     /* Number of row addresses in SDRAM */
-#endif
-#ifdef CONFIG_BLKFIN_STAMP
-	#define SDRAM_NRA   	4096     /* Number of row addresses in SDRAM, should it be 8192? */
-#endif
+#define SDRAM_NRA   	8192     /* Number of row addresses in SDRAM */
 #define SDRAM_CL	2
 
 #define FLAG_CSEL	0x0
 #define FLAG_SSEL	0x1
 
 #define MAX_VCO		600
-#define MIN_VCO		50
-
+#define MIN_VCO		55	/* VCO minimum should get set to 50 only */
 #define MAX_SCLK	132
 
 #ifdef CONFIG_EZKIT
@@ -41,15 +35,15 @@ void disable_wdog_timer(void);
 #endif
 
 #define INTER_FREQ	MIN_SCLK*5
+
 #define MAX_SSEL	15
 #define DEF_SSEL	5
-
 #define MIN_VOLT	850
 #define MAX_VOLT	1300
 
 /* ON some boards voltage regulated bit does not get set, ideally it should be 0xA0 but for now, retain 0x20 */
 #define PLL_LOCKED	0x20
-#define VOLTAGE_REGULATED	0x0080
+#define VOLTAGE_REGULATED 0x0080
 
 #define MHZ		1000000
 
