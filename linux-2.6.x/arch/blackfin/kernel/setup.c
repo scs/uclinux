@@ -115,7 +115,7 @@ void bf53x_cache_init(void)
 }
 
 extern char _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
-extern int _ramstart, _ramend;
+extern int _ramstart, _ramend,_rambase;
 extern int ramdisk_begin,ramdisk_end;
 
 void setup_arch(char **cmdline_p)
@@ -131,7 +131,7 @@ void setup_arch(char **cmdline_p)
 
 	memory_start = PAGE_ALIGN(_ramstart);
 	memory_end = _ramend; /* by now the stack is part of the init task */
-
+	printk("rambase=%x armstart=%x ramend=%x\n",_rambase,_ramstart,_ramend);
 	init_mm.start_code = (unsigned long) &_stext;
 	init_mm.end_code = (unsigned long) &_etext;
 	init_mm.end_data = (unsigned long) &_edata;
@@ -250,13 +250,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "CPU:\t\t%s\n"
 		   "MMU:\t\t%s\n"
 		   "FPU:\t\t%s\n"
-		   "Core Clock:\t%lu.%1lu MHz\n"
-		   "System Clock:\t%lu.%1lu MHz\n"
+		   "Core Clock:\t%lu MHz\n"
+		   "System Clock:\t%lu MHz\n"
 		   "BogoMips:\t%lu.%02lu\n"
 		   "Calibration:\t%lu loops\n",
 		   cpu, mmu, fpu,
-		   cclk,(cclk)%10,
-		   sclk,(sclk)%10,
+		   cclk, sclk,
 		   (loops_per_jiffy*HZ)/500000,((loops_per_jiffy*HZ)/5000)%100,
 		   (loops_per_jiffy*HZ));
 #if defined CONFIG_BLKFIN_STAMP	
