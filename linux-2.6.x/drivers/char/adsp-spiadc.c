@@ -108,6 +108,7 @@ typedef struct Spi_Device_t
     unsigned int     actcount;
     unsigned short   *buffer;
     unsigned short   done;
+    unsigned short 	 dma_config;
     int timeout;
     struct fasync_struct *fasyc;
     wait_queue_head_t* rx_avail;
@@ -121,7 +122,6 @@ typedef struct Spi_Device_t
 static DECLARE_WAIT_QUEUE_HEAD(spirxq0);
 
 static spi_device_t spiinfo;
-static struct dma_config_t dmacfg;
 static int set_spi_reg(unsigned int addr, unsigned short sdata);
 static int get_spi_reg(unsigned int addr, unsigned short *pdata);
 static u_long spi_get_sclk(void);
@@ -303,7 +303,7 @@ static irqreturn_t spiadc_irq(int irq, void *dev_id, struct pt_regs *regs)
     DPRINTK("spiadc_irq: \n");
 
 /* Acknowledge DMA Interrupt*/
-bfin_ack_dma_int(CH_SPI, DMA_DONE);
+clear_dma_irqstat(CH_SPI);
 
 pdev->triggerpos=0;
 
@@ -384,7 +384,8 @@ if(pdev->mode) {
 
 
 	// disable spi
-	set_spi_reg(SPI_CTL, 0x0);
+	get_spi_reg(SPI_CTL,&regdata);
+	set_spi_reg(SPI_CTL, regdata & ~BIT_CTL_ENABLE);
 
 
 
@@ -408,13 +409,13 @@ if(pdev->mode) {
 
 restartDMA:
 
-	// configure spi port
-	// SPI DMA write, 16-bit data, MSB first, SPI Master
-
-	set_spi_reg(SPI_CTL, BIT_CTL_TIMOD_DMA_RX | BIT_CTL_WORDSIZE | BIT_CTL_MASTER);	
+	// disable spi
+	get_spi_reg(SPI_CTL,&regdata);
+	set_spi_reg(SPI_CTL, regdata & ~BIT_CTL_ENABLE);
 
 	/* start the DMA for desired channel */
-	bfin_startdma(CH_SPI);
+
+	enable_dma(CH_SPI);
 
 	// enable spi
 	get_spi_reg(SPI_CTL,&regdata);
@@ -546,14 +547,8 @@ static int spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned 
             else
             {
                 pdev->master = CFG_SPI_MASTER;
-                /* Change Tx mode: Writing Tx Buff causes sending. */
-
                 /* Master Mode */
-                regdata |= BIT_CTL_MASTER;
-                /* Disable Interrupt */
-                //disable_irq(pdev->irqnum);
-                /* Enable SPI */
-                set_spi_reg(SPI_CTL, regdata | BIT_CTL_ENABLE);
+                set_spi_reg(SPI_CTL, regdata | BIT_CTL_MASTER);
             }
             break;
         }
@@ -622,7 +617,7 @@ static int spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned 
                 /* 16 bits each word, that is, 2 bytes data sent each time. */
                 pdev->length = CFG_SPI_WORDSIZE16;
                 set_spi_reg(SPI_CTL, regdata | BIT_CTL_WORDSIZE);
-                *pDMA5_CONFIG = (*pDMA5_CONFIG | WDSIZE_16);
+				pdev->dma_config |= WDSIZE_16;
                 
             }
             else
@@ -630,6 +625,7 @@ static int spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned 
                 /* 8 bits each word, that is, 1 byte data sent each time. */
                 pdev->length = CFG_SPI_WORDSIZE8;
                 set_spi_reg(SPI_CTL, regdata & ~BIT_CTL_WORDSIZE);
+            	pdev->dma_config &= ~WDSIZE_16;
             }
             break;
         }
@@ -758,7 +754,15 @@ static int spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned 
 		case CMD_SPI_SET_WRITECONTINUOUS:
         {
 			DPRINTK("spi_ioctl: CMD_SPI_SET_WRITECONTINUOUS \n");
-			pdev->cont = (unsigned char)arg;
+		    pdev->cont = (unsigned char)arg;
+			    if(arg)
+	            {
+					pdev->dma_config |=  (FLOW_AUTO << 12);	
+	            }
+	            else
+	            {
+					pdev->dma_config &=  ~(FLOW_AUTO << 12);
+	            }
             break;
         } 
        default:
@@ -843,28 +847,26 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
 		pdev->done=0;
 
 	/* Allocate some memory */
-	pdev->buffer = kmalloc((count+SKFS*2)*4,GFP_KERNEL);
+	pdev->buffer = kmalloc((count+SKFS*2)*4,GFP_KERNEL); // TODO: change GFP_KERNEL to GFP_DMA as soon as it is available
 
-    /* Invalidate allocated are in Data Cache */ 
 
-    blackfin_dcache_invalidate_range((unsigned long)pdev->buffer,((unsigned long) pdev->buffer)+(count+SKFS*2)*4);
+    /* Invalidate allocated memory in Data Cache */ 
+	// TODO: remove this line as soon GFP_DMA memory allocation is in place 
+    blackfin_dcache_invalidate_range((unsigned long)pdev->buffer,((unsigned long) pdev->buffer)+(count+SKFS*2)*4); 
 
-	// configure spi port
-    // SPI DMA read, 16-bit data, MSB first, SPI Master
-    set_spi_reg(SPI_CTL, BIT_CTL_TIMOD_DMA_RX | BIT_CTL_WORDSIZE | BIT_CTL_MASTER);	
+	// configure spi port for DMA TIMOD RX
 
-	// Set up DMA
-		dmacfg.config.config_u  = (DI_EN | WNR | WDSIZE_16);
-		dmacfg.xcount   = (count+SKFS)*2;
-	    dmacfg.xmodify  = 2;
-		dmacfg.dma_2d 	= 0;
-		dmacfg.int_en 	= 1;
+	get_spi_reg(SPI_CTL,&regdata);
+    set_spi_reg(SPI_CTL, regdata | BIT_CTL_TIMOD_DMA_RX);	
 
-	bfin_setupdma(CH_SPI, pdev->buffer, (unsigned long) NULL, dmacfg);
-	
-	/* start the DMA for desired channel */
-	bfin_startdma(CH_SPI);
-	
+	    pdev->dma_config |= ( WNR | RESTART | DI_EN );
+	    set_dma_config(CH_SPI, pdev->dma_config);
+		set_dma_start_addr(CH_SPI, (unsigned long) pdev->buffer);
+		set_dma_x_count(CH_SPI, (count+SKFS)*2);
+		set_dma_x_modify(CH_SPI, 2);
+    	asm("ssync;");
+		enable_dma(CH_SPI);
+
 	// enable spi
 	get_spi_reg(SPI_CTL,&regdata);
 	set_spi_reg(SPI_CTL,regdata | BIT_CTL_ENABLE);
@@ -953,28 +955,23 @@ static ssize_t spi_write (struct file *filp, const char *buf, size_t count, loff
     pdev->timeout = TIMEOUT;
 	pdev->done=0;
 		
-	// configure spi port
-    	// SPI DMA write, 16-bit data, MSB first, SPI Master
-         set_spi_reg(SPI_CTL, BIT_CTL_TIMOD_DMA_TX | BIT_CTL_WORDSIZE | BIT_CTL_MASTER);	
-
+	// configure spi port for DMA TIMOD 
+		get_spi_reg(SPI_CTL,&regdata);
+        set_spi_reg(SPI_CTL, regdata | BIT_CTL_TIMOD_DMA_TX );	
 	
-	// Set up DMA
-		dmacfg.config.config_u  = (DI_EN | WDSIZE_16);
-		dmacfg.xcount   = count;
-	    dmacfg.xmodify  = 2;
-		dmacfg.dma_2d 	= 0;
-		dmacfg.int_en 	= 1;
-
-	bfin_setupdma(CH_SPI, &buf, (unsigned long) NULL, dmacfg);
-	
-	/* start the DMA for desired channel */
-	bfin_startdma(CH_SPI);
+	    pdev->dma_config |= ( RESTART );
+	    set_dma_config(CH_SPI, pdev->dma_config);
+		set_dma_start_addr(CH_SPI, (unsigned long) pdev->buffer);
+		set_dma_x_count(CH_SPI, count);
+		set_dma_x_modify(CH_SPI, 2);
+    	asm("ssync;");
+		enable_dma(CH_SPI);
 	
 	// enable spi
 	get_spi_reg(SPI_CTL,&regdata);
 	set_spi_reg(SPI_CTL,regdata | BIT_CTL_ENABLE);
 
-/* TODO add wait queue */  	
+	/* TODO add wait queue */  	
 
 
     DPRINTK("spi_write: return \n");
@@ -1012,7 +1009,6 @@ return count;
 static int spi_open (struct inode *inode, struct file *filp)
 {
     char intname[20];
-    int ret;
     int minor = MINOR (inode->i_rdev);
 
     DPRINTK("spi_open: \n");
@@ -1040,19 +1036,20 @@ static int spi_open (struct inode *inode, struct file *filp)
 	    strcpy(intname, SPI_INTNAME);
 	    spiinfo.irqnum = SPI_IRQ_NUM;
 	        
-	
 	    filp->private_data = &spiinfo;
 	    	
 	    spiadc_reg_reset(filp->private_data);
 	    
 	/* Request DMA5 channel, and pass the interrupt handler */
-	ret = bfin_request_dma("SPIDMA",CH_SPI,(void*) spiadc_irq, filp->private_data);
 
-	if( ret < 0 ) {
-		printk("Request DMA for SPI failed.\n");
+	if(request_dma(CH_SPI, "BF533_SPI_DMA") < 0)
+		{
+		panic("Unable to attach BlackFin SPI DMA channel\n");
 		return -EFAULT;
-	}
-
+		}	
+	else
+	     set_dma_callback(CH_SPI, (void*) spiadc_irq,filp->private_data);
+	
 
     /* Incremetn the usage count */
     MOD_INC_USE_COUNT;
@@ -1094,7 +1091,7 @@ static int spi_release (struct inode *inode, struct file *filp)
     
 
     /* After finish DMA, release it. */
-	bfin_freedma(CH_SPI, filp->private_data );
+	free_dma(CH_SPI);
     
     spiadc_reg_reset(pdev);
     pdev->opened = 0; 
