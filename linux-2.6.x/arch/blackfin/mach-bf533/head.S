@@ -349,16 +349,21 @@ reset_start:
         /* Soft Reset */
         p0.h = SWRST >> 16;
         p0.l = SWRST & 0xFFFF;
+	r0 = w[p0];
+	csync;
         r0 = 0x0007;
         w[p0] = r0;
         ssync;
+	nop;
 
         p0.h = SWRST >> 16;
         p0.l = SWRST & 0xFFFF;
+	r0 = w[p0];
+	csync;
         r0 = 0x0000;
         w[p0] = r0;
         ssync;
-
+	nop;
         /* Core reset - forces reboot */
         RAISE 1 ;
 reset_end: nop;
