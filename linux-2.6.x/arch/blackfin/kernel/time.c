@@ -90,19 +90,17 @@ static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 
 void time_init(void)
 {
-	unsigned int year, mon, day, hour, min, sec;
+	time_t secs_since_1970 = 0;
+        extern void arch_gettod(time_t *);
+	extern void arch_init(void);
 
-	extern void arch_gettod(int *year, int *mon, int *day, int *hour,
-				int *min, int *sec);
-	
-	year = 2010;
-	mon = day = 3;
-	hour = min = sec = 0;
-	arch_gettod (&year, &mon, &day, &hour, &min, &sec);
+	/* Initialize the RTC sub-system*/
+        arch_init();
+	/* Retrieve calendar time (secs since Jan 1970) */
+	arch_gettod(&secs_since_1970);
 
-	if ((year += 1900) < 1970)
-		year += 100;
-	xtime.tv_sec = mktime(year, mon, day, hour, min, sec);
+	/* Initialize xtime. From now on, xtime is updated with timer interrupts */
+        xtime.tv_sec = secs_since_1970;
 	xtime.tv_nsec = 0;
 	
 	wall_to_monotonic.tv_sec = -xtime.tv_sec; 
@@ -139,6 +137,8 @@ EXPORT_SYMBOL(do_gettimeofday);
 
 int do_settimeofday(struct timespec *tv)
 {
+	extern void arch_settod(time_t t);
+
 	time_t wtm_sec, sec = tv->tv_sec;
 	long wtm_nsec, nsec = tv->tv_nsec;
 
@@ -166,6 +166,9 @@ int do_settimeofday(struct timespec *tv)
 	time_status |= STA_UNSYNC;
 	time_maxerror = NTP_PHASE_LIMIT;
 	time_esterror = NTP_PHASE_LIMIT;
+
+	arch_settod(sec);
+	
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 	return 0;
