@@ -101,8 +101,8 @@
 #define RAM_END (CONFIG_MEM_SIZE * 1024 * 1024)
 
 /********************************* EBIU Settings ************************************/
-#define AMBCTL0VAL	(CONFIG_BANK_1 << 16) | CONFIG_BANK_0
-#define AMBCTL1VAL	(CONFIG_BANK_3 << 16) | CONFIG_BANK_2
+#define AMBCTL0VAL	((CONFIG_BANK_1 << 16) | CONFIG_BANK_0)
+#define AMBCTL1VAL	((CONFIG_BANK_3 << 16) | CONFIG_BANK_2)
 
 #if (CONFIG_C_AMBEN_ALL)
 #define V_AMBEN AMBEN_ALL
@@ -184,11 +184,7 @@
 	#endif
 #endif
 
-#ifdef CONFIG_EZKIT
-	#define MAX_VC	600000000
-#elif defined CONFIG_BLKFIN_STAMP
-	#define MAX_VC	650000000
-#endif
+#define MAX_VC	650000000
 
 #if(CONFIG_VCO_HZ > MAX_VC)
 		#error "VCO selected is more than maximum value. Please change the VCO multipler"
