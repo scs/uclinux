@@ -11,12 +11,10 @@
  * Linux/bfin support by LG Soft India.
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/errno.h>
 #include <asm/asm-offsets.h>
-#include <asm/entry.h>
 
 .text
 
@@ -28,7 +26,7 @@ ENTRY(reschedule)
 	p2 = r7; 
 	p2 = [p2];
 	[p2 + (TASK_THREAD + THREAD_ESP0)] = sp;
-	jump schedule; 
+	call schedule; 
 
 ENTRY(ret_from_fork)
 	SP += -12;
