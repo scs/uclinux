@@ -422,8 +422,8 @@ void bfin_do_irq(int vec, struct pt_regs *fp)
 	    int_irq_list[vec].handler(vec,int_irq_list[vec].dev_id, fp);
 	    kstat_cpu(0).irqs[vec]++;
 	}
-/*	else
-		printk("unregistered interrupt irq=%d\n",vec);*/
+	else
+		printk("unregistered interrupt irq=%d\n",vec);
 }
 
 int bfin_get_irq_list(struct seq_file* p, void* v)
