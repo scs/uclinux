@@ -27,17 +27,14 @@
 #include <asm/irq.h>
 #include <linux/timer.h>
 
-char *rgb_buffer = 0;
-char *ycrcb_buffer = 0;
 #define BFIN_FB_PHYS rgb_buffer
 #define BFIN_FB_PHYS_LEN 756000
 #define BFIN_FB_YCRCB_LEN 1512000
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ IRQ_PPI
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ_ERR IRQ_DMA_ERROR
+char *rgb_buffer = 0 ;
+char *ycrcb_buffer = 0 ;
 
-
-//extern char *rgb_buffer; // should be allocated elsewhere or in the init function here
-/* forward declarations */
 static void vga16fb_pan_var(struct fb_info *info, 
 			    struct fb_var_screeninfo *var);
 static void vga16fb_update_fix(struct fb_info *info);
@@ -75,19 +72,16 @@ static struct bfin_ad7171_fb_par {
 static struct fb_var_screeninfo bfin_ad7171_fb_defined = {
 	.xres		= 360,
 	.yres		= 524,
-	.xres_virtual	= 320,
+	.xres_virtual	= 360,
 	.yres_virtual	= 524,
 	.bits_per_pixel	= 32,	
 	.activate	= FB_ACTIVATE_TEST,
 	.height		= -1,
 	.width		= -1,
-	//.pixclock	= 39721,
-	//.left_margin	= 48,
-	//.right_margin	= 16,
-	//.upper_margin	= 39,
-	//.lower_margin	= 8,
-	//.hsync_len 	= 96,
-	//.vsync_len	= 2,
+	.left_margin	= 16,
+	.right_margin	= 22,
+	.upper_margin	= 25,
+	.lower_margin	= 64,
 	.vmode		= FB_VMODE_INTERLACED,
 };
 
@@ -130,59 +124,23 @@ ppi_handler(int irq,
 
 
 void 
-  rgbsetup(char *rgb)			//This function sets up colour patter in ycrcb buffer
+  rgbsetup(int *rgb)			//This function sets up colour patter in ycrcb buffer
 { 
-	int j, i=0 ,r0=0,r1=255;
+	int i=0 , j, black =0, yellow = 0x00ff00ff, red = 0x000000ff, blue = 0xff00ff00, green = 0x00ff0000, offset = 37800;
 
-	
-	
-        
-       
-
-	for (j=0; j<37800; j++)
-	{
-		rgb[i++] = r0;
-		rgb[i++] = r0;
-		rgb[i++] = r0;
-		rgb[i++] = r0;
-
-		         
+	for(i=0; i<188640; i++)
+		rgb[i] = 0xffffffff;
+	for(j=1; j<=105;){
+		for(i=0; i<360; i++)
+		{
+			rgb[offset * 0 + i + j * 360] = yellow;			// j = line no., i = pixel no. in that particular line
+			rgb[offset * 1 + i + j * 360] = black;			
+			rgb[offset * 2 + i + j * 360] = red;
+			rgb[offset * 3 + i + j * 360] = blue;
+			rgb[offset * 4 + i + j * 360] = green;
+		}
+		j += 1;
  	}                 
-
-	for (j=0; j<37800; j++)
-	{
-		rgb[i++] = r1;
-		rgb[i++] = r0;
-		rgb[i++] = r1;
-		rgb[i++] = r0;
-        }   
-       for (j=0; j<37800; j++)
-        
-       {                                                                                       
-
-                 rgb[i++] = r1;
-                 rgb[i++] = r0;
-                 rgb[i++] = r0;
-                 rgb[i++] = r0;
-       }
-      for (j=0; j<37800; j++)
-      {
-                 rgb[i++] = r0;
-                 rgb[i++] = r1;
-                 rgb[i++] = r0;
-                 rgb[i++] = r1;
-
-       }
-
-       for (j=0; j<37800; j++)
-
-      {
-                  rgb[i++] = r0;
-                  rgb[i++] = r0;
-                  rgb[i++] = r1;
-                  rgb[i++] = r0;
-      }
-
 }                                                                               
 static int 
 bfin_mmap(struct fb_info *info, struct file *file, struct vm_area_struct * vma)
@@ -217,7 +175,7 @@ int __init bfin_ad7171_fb_init(void)
 printk("bfin_ad7171_fb: initializing:\n");
 	ycrcb_buffer = (char *)kmalloc(BFIN_FB_YCRCB_LEN, GFP_KERNEL);
 	rgb_buffer = (char *)kmalloc(BFIN_FB_PHYS_LEN , GFP_KERNEL);
-printk("allocated %x\n", rgb_buffer);
+
 	bfin_ad7171_fb.screen_base = (void *)rgb_buffer;
 	bfin_ad7171_fb_fix.smem_start = (void *)rgb_buffer;
 	if (!bfin_ad7171_fb.screen_base) {
@@ -270,8 +228,8 @@ printk("allocated %x\n", rgb_buffer);
 static void __attribute((section(".text.l1")))
 timerfunction(unsigned long ptr)
 {
-//	_NtscVideoOutBuffUpdate(ycrcb_buffer, rgb_buffer);
-	_NtscVideoOutFrameBuffInit(ycrcb_buffer, rgb_buffer);
+//	_NtscVideoOutFrameBuffInit(ycrcb_buffer, rgb_buffer);
+	_NtscVideoOutBuffUpdate(ycrcb_buffer, rgb_buffer);
 	timer_setup();
         add_timer(&buffer_swapping_timer) ;
 }
