@@ -1687,8 +1687,6 @@ static int __init rs_bf533_init(void)
 #endif	
 	
 	printk("Enabling Serial UART Interrupts\n");
-	enable_irq(IRQ_UART_RX);
-	enable_irq(IRQ_UART_TX);
 
 	return 0;
 }
