@@ -112,10 +112,7 @@
 #define __NR_lstat		107
 #define __NR_fstat		108
 #define __NR_olduname		109
-#define __NR_iopl		/* 110 */ not supported
 #define __NR_vhangup		111
-#define __NR_idle		/* 112 */ Obsolete
-#define __NR_vm86		/* 113 */ not supported
 #define __NR_wait4		114
 #define __NR_swapoff		115
 #define __NR_sysinfo		116
@@ -189,8 +186,8 @@
 #define __NR_capset		185
 #define __NR_sigaltstack	186
 #define __NR_sendfile		187
-#define __NR_getpmsg		188	/* some people actually want streams */
-#define __NR_putpmsg		189	/* some people actually want streams */
+#define __NR_getpmsg		188
+#define __NR_putpmsg		189
 #define __NR_vfork		190
 #define __NR_getrlimit		191
 #define __NR_mmap2		192
@@ -218,16 +215,48 @@
 #define __NR_setgid32		214
 #define __NR_setfsuid32		215
 #define __NR_setfsgid32		216
-
+#define __NR_pivot_root		217
+#define __NR_mincore		218
+#define __NR_madvise		219
+#define __NR_getdents64		220
+#define __NR_fcntl64		221
+#define __NR_gettid		224
+#define __NR_readahead		225
+#define __NR_setxattr		226
+#define __NR_lsetxattr		227
+#define __NR_fsetxattr		228
+#define __NR_getxattr		229
+#define __NR_lgetxattr		230
+#define __NR_fgetxattr		231
+#define __NR_listxattr		232
+#define __NR_llistxattr		233
+#define __NR_flistxattr		234
+#define __NR_removexattr	235
+#define __NR_lremovexattr	236
+#define __NR_fremovexattr	237
+#define __NR_tkill		238
+#define __NR_sendfile64		239
+#define __NR_futex		240
+#define __NR_sched_setaffinity	241
+#define __NR_sched_getaffinity	242
+#define __NR_set_thread_area	243
+#define __NR_get_thread_area	244
+#define __NR_io_setup		245
+#define __NR_io_destroy		246
+#define __NR_io_getevents	247
+#define __NR_io_submit		248
+#define __NR_io_cancel		249
+#define __NR_fadvise64		250
+#define __NR_exit_group		252
 #define __NR_lookup_dcookie     253
+
 #define __NR_syscall		256
 #define NR_syscalls		__NR_syscall	
 
 #define __syscall_return(type, res)					\
 do {									\
 	if ((unsigned long)(res) >= (unsigned long)(-125)) 		\
-		int __err = -(res); \
-	{	errno = __err;						\
+	{	errno = -(res);						\
 		res = -1;						\
 	}								\
 	return (type) (res);						\
@@ -243,11 +272,7 @@ type name(void) {							\
   : "=da" (__res) 							\
   : "i" (__NR_##name)							\
   : "CC", "P0");							\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
-    errno = -__res;							\
-    __res = -1;								\
-  }									\
-  return (type)__res;							\
+__syscall_return(type,__res);						\
 }
 
 #define _syscall1(type,name,type1,arg1)					\
@@ -262,11 +287,7 @@ type name(type1 arg1) {							\
         : "i" (__NR_##name),						\
 	  "a" ((long)(arg1))						\
 	: "CC", "R0", "P0");						\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
-    errno = -__res;							\
-    __res = -1;								\
-  }									\
-  return (type)__res;							\
+__syscall_return(type,__res);						\
 }
 
 #define _syscall2(type,name,type1,arg1,type2,arg2)			\
@@ -283,11 +304,7 @@ type name(type1 arg1,type2 arg2) {					\
 	  "a" ((long)(arg1)),						\
 	  "a" ((long)(arg2))						\
 	: "CC", "R0","R1", "P0");					\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
-    errno = -__res;							\
-    __res = -1;								\
-  }									\
-  return (type)__res;							\
+__syscall_return(type,__res);						\
 }
 
 
@@ -307,13 +324,8 @@ type name(type1 arg1,type2 arg2,type3 arg3) {				\
 	  "a"   ((long)(arg2)),						\
 	  "a"   ((long)(arg3))						\
         : "CC", "R0","R1","R2", "P0");					\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
-    errno = -__res;							\
-    __res = -1;								\
-  }									\
-  return (type)__res;							\
+__syscall_return(type,__res);						\
 }
-
 
 #define _syscall4(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4)\
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
@@ -335,13 +347,8 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
 	  "a"  ((long)(arg3)),						\
 	  "a"  ((long)(arg4))						\
   	: "CC", "R0","R1","R2","R3", "P0");				\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
-    errno = -__res;							\
-    __res = -1;								\
-  }									\
-  return (type)__res;							\
+__syscall_return(type,__res);						\
 }
-  
 
 #define _syscall5(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,type5,arg5)	\
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
@@ -367,11 +374,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
 	  "rm"  ((long)(arg4)),						\
 	  "rm"  ((long)(arg5))						\
 	: "CC","R0","R1","R2","R3","R4","P0");				\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {		\
-    errno = -__res;							\
-    __res = -1;								\
-  }									\
-  return (type)__res;							\
+__syscall_return(type,__res);						\
 }
 
 #ifdef __KERNEL__
@@ -401,9 +404,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
 
 #ifdef __KERNEL_SYSCALLS__
 
-#include <linux/compiler.h>
 #include <linux/interrupt.h>
-#include <linux/types.h>
 
 #define __NR__exit __NR_exit
 
@@ -425,6 +426,7 @@ static inline pid_t wait(int * wait_stat)
 {
 	return waitpid(-1,wait_stat,0); 
 }
+
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
 			unsigned long fd, unsigned long pgoff);
@@ -441,7 +443,6 @@ asmlinkage long sys_rt_sigaction(int sig,
 				const struct sigaction __user *act,
 				struct sigaction __user *oact,
 				size_t sigsetsize);
-
 
 #endif	/* __KERNEL_SYSCALLS__ */
 /*
