@@ -96,7 +96,7 @@ do_trace:
 	r0 = [sp + PT_R0];	/* confirm the system call args */
 	r1 = [sp + PT_R1];
 	r2 = [sp + PT_R2];
-	jump (p5);
+	call (p5);
 1:
 	[sp + PT_R0] = r0;	/* save the return value */
 	sp += -4;		/* dummy return address  */
@@ -209,6 +209,9 @@ l_before:
 	CC = r0 == 0;
 	if !CC jump exit_syscall;
 	call kernel_to_user_mode;
+	r0.l = 0x02;
+	r0.h = 0x00;
+	[sp + PT_IPEND] = r0;
 exit_syscall:
 	/* Only allow interrupts when we are really the last one on
 	 * the kernel stack, otherwise stack overflow can occur during
@@ -223,33 +226,25 @@ exit_syscall:
 	[--sp] = r4;
 	r4 = _TIF_WORK_MASK;
 	r7 =  r7 & r4;
-	r4 = [sp++]
-	cc = BITTST(r7, TIF_NEED_RESCHED);
-	if cc jump syscall_sigpending; 
+	r4 = [sp++];
+	cc = BITTST(r7, _TIF_NEED_RESCHED);
+	if !cc jump syscall_sigpending; 
 	call reschedule;
 
 syscall_sigpending:
-	[--sp] = p3;
-	p3 = [p5];
-	r7 = [p3 + TASK_SIGPENDING];
-	p3 = [sp++];		
-	cc = r7 == 0;
-	if cc jump syscall_really_exit;
-	call Lsignal_return;
-
-syscall_really_exit:
-	r0 = [sp + PT_RESERVED];
-	rets = r0;
-	rts;
+	cc = BITTST(r7, TIF_SIGPENDING);
+	if !cc jump syscall_really_exit;
 
 Lsignal_return:
 	r0 = 0;
 	r1 = sp;
-	[--sp] = rets;
 	SP += -12;
 	call do_signal; 
 	SP += 12;
-	rets = [sp++];
+
+syscall_really_exit:
+	r0 = [sp + PT_RESERVED];
+	rets = r0;
 	rts;
 
 /* Force kernel return from interrupt 15 to user mode -- Steven Chen*/
@@ -372,9 +367,8 @@ ret_from_exception:
 	[--sp] = r4;
 	r4 = _TIF_WORK_MASK;
 	r7 =  r7 & r4;
-	r4 = [sp++]
-	cc = BITTST(r7, TIF_NEED_RESCHED);
-	cc = r7 == 0;
+	r4 = [sp++];
+	cc = BITTST(r7, _TIF_NEED_RESCHED);
 	if !cc jump 3f; 
 	[--sp] = rets;
 	call reschedule;
@@ -382,12 +376,9 @@ ret_from_exception:
 	jump ret_from_exception;
 
 3:
-	[--sp] = p3;
-	p3 = [p5];
-	r7 = [p3 + TASK_SIGPENDING];
-	p3 = [sp++];		
-	cc = r7 == 0;
-	if cc jump 4f;
+	r7 = [p5 + TI_FLAGS];
+	cc = BITTST(r7, TIF_SIGPENDING);
+	if !cc jump 4f;
 
 	r0 = rets;
 	[sp + PT_RESERVED] = r0;
