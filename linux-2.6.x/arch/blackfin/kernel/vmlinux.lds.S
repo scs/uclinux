@@ -20,7 +20,7 @@
    reset code. When applying the appropriate patch, change this back
    to 0xFFA00000
 */
-#define L1_CODE_START		0xFFA00022
+#define L1_CODE_START		0xFFA00024
 #define L1_CODE_LENGTH		0x10000
 #define L1_SCRATCH_START	0xFFB00000
 #define L1_SCRATCH_LENGTH	0x1000
