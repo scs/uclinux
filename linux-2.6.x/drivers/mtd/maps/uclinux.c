@@ -96,7 +96,7 @@ int __init uclinux_mtd_init(void)
 #endif
 	mapp->map_priv_2 = addr;
 #ifndef CONFIG_ROMFS_FS
-	mapp->size = (&ramdisk_begin - &ramdisk_end); 
+	mapp->size = (&ramdisk_end - &ramdisk_begin); 
 #endif
 #endif
 	mapp->bankwidth = 4;
