@@ -5,9 +5,6 @@
 # Rewritten to use lists instead of if-statements.
 # 
 
-CFLAGS_block_dev.o = -O0
-CFLAGS_dcache.o = -O1
-
 obj-y :=	open.o read_write.o file_table.o buffer.o \
 		bio.o super.o block_dev.o char_dev.o stat.o exec.o pipe.o \
 		namei.o fcntl.o ioctl.o readdir.o select.o fifo.o locks.o \
