@@ -1,0 +1,157 @@
+.EXPORT_ALL_VARIABLES:
+############################################################################
+#
+# Vendor specific settings
+#
+
+#CONSOLE_BAUD_RATE = 57600
+
+############################################################################
+#
+# The makefiles need to know how to do things in different contexts
+# To save some pain we put it all here
+#
+# First settings we always want for all build
+#
+
+# ARCH = kernel,  TARGET_ARCH = uClibc
+
+MACHINE       = bfin
+ARCH          = bfinnommu
+ENDIAN        = little 
+CROSS_COMPILE = bfin-elf-
+CROSS         = $(CROSS_COMPILE)
+
+CC        = $(CROSS_COMPILE)gcc
+AS        = $(CROSS_COMPILE)as
+CXX       = $(CROSS_COMPILE)g++
+AR        = $(CROSS_COMPILE)ar
+LD        = $(CROSS_COMPILE)ld
+OBJCOPY   = $(CROSS_COMPILE)objcopy
+RANLIB    = $(CROSS_COMPILE)ranlib
+ELF2FLT   = $(CROSS_COMPILE)elf2flt
+STRIPTOOL = $(CROSS_COMPILE)strip
+STRIP     = $(STRIPTOOL)
+
+UCLINUX_BUILD_SET = 0		# have we set a special config below
+
+############################################################################
+#
+# General purpose lib building rules,  uClibc.config uses these when
+# possible
+#
+
+ifdef UCLINUX_BUILD_LIB
+
+  ifdef CONFIG_LIB_DEBUG
+	CFLAGS  :=  -O0 -g
+  else
+	CFLAGS  :=  -O0
+  endif
+	CFLAGS  += -fno-builtin 
+	CFLAGS  += -DEMBED
+
+	# don't want all the CFLAGS for uClibc/Config
+	ARCH_CFLAGS = $(CPUFLAGS) $(CFLAGS)
+	CFLAGS  += -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include -I$(ROOTDIR)
+	CFLAGS  += -Dlinux -D__linux__ -D__uClinux__ -Dunix
+
+	# the following is needed for uClinux-2.4
+	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include
+
+	UCLINUX_BUILD_SET=1
+endif
+
+############################################################################
+#
+# Settings for building user apps
+#
+
+ifdef UCLINUX_BUILD_USER
+
+	GCC_DIR = $(shell $(CC) -v 2>&1|grep specs|sed -e 's/.* \(.*\)specs/\1\./')
+	GCC_LIB = /home-new/toolchain2june/output/lib/gcc-lib/bfin-elf/3.3.3
+
+	SLIBC        = -lc
+	SLIBM        = -lm
+	SLIBNET      = -lnet
+	SLIBDES      = -ldes
+	SLIBAES      = -laes
+	SLIBPCAP     = -lpcap
+	SLIBSSL      = -lssl
+	SLIBCRYPT   = -lcrypt
+	SLIBPTHREAD  = -lpthread
+
+	LIBC        = $(SLIBC)
+	LIBM        = $(SLIBM)
+	LIBNET      = $(SLIBNET)
+	LIBDES      = $(SLIBDES)
+	LIBPCAP     = $(SLIBPCAP)
+	LIBSSL      = $(SLIBSSL)
+	LIBPTHREAD  = $(SLIBPTHREAD)
+	LIBCRYPT    = $(SLIBCRYPT)
+	LIBGCC      = -lgcc
+	LIBIBERTY   = -liberty
+	LIBIO       = -lio
+	LIBIOSTREAM = -liostream
+	LIBSTDCPP   = -lstdc++
+
+	LDPATH = \
+			-L$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/. \
+			-L$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/lib \
+			-L$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/libm \
+			-L$(ROOTDIR)/lib/libnet \
+			-L$(ROOTDIR)/lib/libdes \
+			-L$(ROOTDIR)/lib/libaes \
+			-L$(ROOTDIR)/lib/libpcap \
+			-L$(ROOTDIR)/lib/zlib \
+			-L$(ROOTDIR)/lib/libssl \
+			-L$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/libc \
+			-L$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/libcrypt
+
+	INCLIBC = -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include
+	INCLIBM = -I$(ROOTDIR)/lib/libm
+	INCNET  = -I$(ROOTDIR)/lib/libnet
+	INCDES  = -I$(ROOTDIR)/freeswan/libdes
+	INCAES  = -I$(ROOTDIR)/freeswan/libcrypto/libaes
+	INCGMP  = -I$(ROOTDIR)/lib/libgmp
+	INCPCAP = -I$(ROOTDIR)/lib/libpcap
+	INCSSL  = -I$(ROOTDIR)/lib/libssl/include
+	INCZ    = -I$(ROOTDIR)/lib/zlib
+	INCCRYPT= -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/libcrypt
+
+  ifdef CONFIG_USER_DEBUG
+	CFLAGS  :=  -O0 -g
+  else
+	CFLAGS  := -O0
+  endif
+	CFLAGS  += -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
+	CFLAGS  += $(INCLIBC) $(INCNET)
+	CFLAGS  += -fno-builtin -nostartfiles
+	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include -I$(ROOTDIR)
+
+	CXXFLAGS = $(CFLAGS) $(INCCXX) -fname-mangling-version-0
+
+	LDFLAGS  = -fno-builtin -nostartfiles -Wl,-elf2flt $(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/lib/crt0.o
+	LDLIBS   = $(LDPATH) $(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/lib/libc.a
+	#LDLIBS   = $(LDPATH)
+	CXXLIBS  = $(LIBSTDCPP) $(LIBIBERTY) $(LIBC) $(LIBGCC)
+	
+	FLTFLAGS :=
+	export FLTFLAGS
+
+	# for anyone still using it
+	CONVERT = /bin/true
+
+	UCLINUX_BUILD_SET=1
+endif
+
+############################################################################
+#
+# fall through,  do other config options perhaps
+#
+
+ifeq ($(UCLINUX_BUILD_SET),1)
+endif
+
+############################################################################
