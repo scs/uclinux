@@ -70,7 +70,6 @@ endif
 ifdef UCLINUX_BUILD_USER
 
 	GCC_DIR = $(shell $(CC) -v 2>&1|grep specs|sed -e 's/.* \(.*\)specs/\1\./')
-	#GCC_LIB = /home-new/toolchain2june/output/lib/gcc-lib/bfin-elf/3.3.3
 
 	SLIBC        = -lc
 	SLIBM        = -lm
@@ -125,7 +124,7 @@ ifdef UCLINUX_BUILD_USER
   else
 	CFLAGS  := -O2
   endif
-	CFLAGS  += -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
+	CFLAGS  += -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
 	CFLAGS  += $(INCLIBC) $(INCNET)
 	CFLAGS  += -fno-builtin -nostartfiles
 	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include -I$(ROOTDIR)
@@ -152,6 +151,7 @@ endif
 #
 
 ifeq ($(UCLINUX_BUILD_SET),1)
+	 EXTRA_CFLAGS := -Dlinux $(CPUFLAGS)
 endif
 
 ############################################################################
