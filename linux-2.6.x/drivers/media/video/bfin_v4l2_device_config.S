@@ -8,7 +8,7 @@
  
 File Name:		bfin_v4l2_device_config.S
 
-Date Modified:		4th March 3005	
+Date Modified:		4th March 2005	
 
 Purpose:		Contains hardware specific Assembly functions. Description of each func
 			is given at respective places.
@@ -131,6 +131,40 @@ _config_dma:
 	
 config_dma.END:
 
+/********************************************************************
+ *
+ * _change_descriptor_start_address -
+ *
+ * Function:	To change start address field of descriptor in small
+ *		descriptor model.
+ *
+ * Scope:	Global.
+ *
+ * Parameter	If called from C program pass start address as only
+ *		parameter. If calling from Assembly program, set value
+ *		of R0 as start address.
+ *
+ *********************************************************************/
+
+_change_descriptor_start_address:
+	[--sp] = P0 ;
+	[--sp] = P1 ;
+	
+	P0.L = _dma_descriptor;
+	P0.H = _dma_descriptor;
+	//start address in R0
+	P1 = 2 ;
+	P0 = P0 + P1 ;
+	w[P0]= R0.L
+	P0 = P0 + P1 ;
+	w[P0]= R0.H
+	
+	[sp++] = P1 ;
+	[sp++] = P0 ;
+	rts ;
+.global _change_descriptor_start_address ;
+.type _change_descriptor_start_address, STT_FUNC ;
+
 .type dma_set_next_buf, STT_FUNC ;
 dma_set_next_buf :
 
@@ -213,7 +247,6 @@ _Flash_Setup_ADV_Reset:
 Flash_Setup_ADV_Reset.END:
 
 /******COLOR PATTERNS AND OTHER DATA BUFFERS*******/
-
 .section .data
 .global _rgb_buffer;
 .type _rgb_buffer, STT_OBJECT ;

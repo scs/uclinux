@@ -8,13 +8,13 @@
  
 File Name:		bfin_v4l2_device.c
 
-Date Modified:		4th March 3005	
+Date Modified:		4th March 2005	
 
 Purpose:		To perform hardware specfic operations.
 			
 Author:			Ashutosh K Singh <ashutosh.singh@rrap-software.com>
 
-Based on 	 	Zoran zr36057/zr36067 PCI controller driver, for the
+Based on: 	 	Zoran zr36057/zr36067 PCI controller driver, for the
  	 		Pinnacle/Miro DC10/DC10+/DC30/DC30+, Iomega Buz, Linux
 			Media Labs LML33/LML33R10.  by Serguei Miridonov <mirsev@cicese.mx>
 
@@ -43,29 +43,126 @@ Based on 	 	Zoran zr36057/zr36067 PCI controller driver, for the
 #include <asm/irq.h>
 #include <linux/timer.h>
 #include <asm/bf533_dma.h>
+#include <asm/board/cdefBF533.h>
 
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ IRQ_PPI
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ_ERR IRQ_DMA_ERROR
-#define MAX_NO_OF_FRAMES	20
-#define FRAME_SIZE		188640
+#define V4L2_YCRCB_FRAME_SIZE (1512000 * 4) 
 
 extern char *ycrcb_buffer_out ; 	//definition and mem allocation
 					//in driver file.
 extern char *pre_ycrcb_buffer_out ;
-static int id;
+char *ycrcb_buffer_out_1 ;
+char *ycrcb_buffer_out_2 ;
+#define YCRCB_BUFFER_1 0x5a00400
+#define YCRCB_BUFFER_2 0x7800000
+int id;
+
+/* Memory DMA status.
+ * Needed as on the basis of these
+ * values write() function call
+ * will progress.
+ */
+int mem_dma1_status = 0, mem_dma0_status = 0 ;
+
+/* As PPI will ping-pong between two buffers
+ * it very important to synchronize PPI and 
+ * and MEM DMA. It should be made sure that
+ * MEM DMA and PPI DMA both are not accessing
+ * the same buffer. For this we will use 
+ * flags and macros defined below.
+ */
+#define YCRCB_BUFFER_BUSY 1
+#define WAIT_TILL_NEXT_PPI_INTR 2
+#define YCRCB_BUFFER_FREE_FOR_MDMA_WRITE 3
+#define BUFFER_BEING_WRITTEN 4
+#define BUFFER_WRITTEN 5
+extern wait_queue_head_t bfin_v4l2_write_wait ;
+
+//int ycrcb_buffer_1_status = YCRCB_BUFFER_BUSY, ycrcb_buffer_2_status = YCRCB_BUFFER_FREE_FOR_MDMA_WRITE ;
+int ycrcb_buffer_1_status, ycrcb_buffer_2_status ;
+int which_buff =0;
 
 irqreturn_t __attribute((section(".text.l1")))
 ppi_handler(int irq,
             void *dev_id,
             struct pt_regs *regs)
 {
-  *pDMA0_IRQ_STATUS |= 1;
-  return IRQ_HANDLED;
+//if this handler acts slowly we will
+//need to put status variables in L1
+	if(ycrcb_buffer_1_status == WAIT_TILL_NEXT_PPI_INTR) {
+		ycrcb_buffer_1_status = YCRCB_BUFFER_FREE_FOR_MDMA_WRITE ;
+		//wake-up sleep in write function to check for favourable conditions.
+	}
+	if(ycrcb_buffer_2_status == WAIT_TILL_NEXT_PPI_INTR) {
+		ycrcb_buffer_2_status = YCRCB_BUFFER_FREE_FOR_MDMA_WRITE ;
+		//wake-up sleep in write function to check for favourable conditions.
+	}
+
+	wake_up(&bfin_v4l2_write_wait) ;
+	*pDMA0_IRQ_STATUS |= 1;
+	return IRQ_HANDLED;
+}
+
+irqreturn_t __attribute((section(".text.l1")))
+bfin_v4l2_memdma0_interrupt_handler(int irq,
+            void *dev_id,
+            struct pt_regs *regs)
+{
+	mem_dma0_status = 0 ;
+	*pMDMA_D0_IRQ_STATUS = 0x1;
+	return IRQ_HANDLED;
+}
+
+irqreturn_t __attribute((section(".text.l1")))
+bfin_v4l2_memdma1_interrupt_handler(int irq,
+            void *dev_id,
+            struct pt_regs *regs)
+{
+	*pMDMA_D1_IRQ_STATUS = 0x1;
+	mem_dma1_status = 0 ;
+	if(ycrcb_buffer_1_status == BUFFER_BEING_WRITTEN) {
+		ycrcb_buffer_1_status = BUFFER_WRITTEN ;
+		_change_descriptor_start_address( ycrcb_buffer_out_1) ;
+		ycrcb_buffer_2_status = WAIT_TILL_NEXT_PPI_INTR ;
+	}
+	else {
+		ycrcb_buffer_2_status = BUFFER_WRITTEN ;
+		_change_descriptor_start_address( ycrcb_buffer_out_2) ;
+		ycrcb_buffer_1_status = WAIT_TILL_NEXT_PPI_INTR ;
+	}
+
+	//wake-up sleep in write function to check for favourable conditions.
+	wake_up(&bfin_v4l2_write_wait) ;
+/* Since MEM DMA 1 has lower priority as compared with MEM DMA 0,
+ * it is for sure that MEM DMA1 will not complete before MEM DMA0
+ */
+
+	return IRQ_HANDLED;
 }
 
 void
 init_device_bfin_v4l2()
 {
+
+/* Very first of all lets aquire MEM DMA channels.
+ * As the offset between even field and odd field
+ * addresses is larger than Y_MODIFY can handle,
+ * single 2D DMA is of no help. So we will use both
+ * of the MEM DMA channels, each dedicated to even
+ * and odd fields respectively.
+ */
+        if( request_irq(IRQ_MEM_DMA0, &bfin_v4l2_memdma0_interrupt_handler, SA_SHIRQ, "PPI Data", &id) ){
+                printk( KERN_ERR "Unable to allocate mem dma IRQ %d\n", IRQ_MEM_DMA0);
+                return -ENODEV;
+        }
+
+        if( request_irq(IRQ_MEM_DMA1, &bfin_v4l2_memdma1_interrupt_handler, SA_SHIRQ, "PPI Data", &id) ){
+                printk( KERN_ERR "Unable to allocate mem dma IRQ %d\n", IRQ_MEM_DMA1);
+                return -ENODEV;
+        }
+
+
 /* Request for getting PPI
  * interrupt vector location
  * to use our own PPI interrupt 
@@ -76,10 +173,21 @@ init_device_bfin_v4l2()
 		freedma(CH_PPI);
                 return -ENODEV;
         }
-	_NtscVideoOutFrameBuffInit(ycrcb_buffer_out, pre_ycrcb_buffer_out);
+#if CONFIG_MEM_SIZE <= 64
+	ycrcb_buffer_out_1 = YCRCB_BUFFER_1 ;  
+	ycrcb_buffer_out_2 = YCRCB_BUFFER_2 ;  
+#else
+	ycrcb_buffer_out_1  = (char *)kmalloc(V4L2_YCRCB_FRAME_SIZE, GFP_KERNEL) ;
+	ycrcb_buffer_out_2  = (char *)kmalloc(V4L2_YCRCB_FRAME_SIZE, GFP_KERNEL) ;
+	printk("\n\n\n**FOR BETTER RESULTS SET MEMORY SIZE AS 64 or less**\n\n\n") ;
+#endif
+	ycrcb_buffer_1_status = YCRCB_BUFFER_BUSY ;
+	ycrcb_buffer_2_status = YCRCB_BUFFER_FREE_FOR_MDMA_WRITE ;
+	_NtscVideoOutFrameBuffInit(ycrcb_buffer_out_1, pre_ycrcb_buffer_out);
+	_NtscVideoOutFrameBuffInit(ycrcb_buffer_out_2, pre_ycrcb_buffer_out);
 	_Flash_Setup_ADV_Reset() ;
 	_config_ppi() ;
-	_config_dma(ycrcb_buffer_out) ;
+	_config_dma(ycrcb_buffer_out_1) ;
 	enable_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
         // enable the dma
         *pDMA0_CONFIG |= 1;
@@ -94,5 +202,79 @@ device_bfin_close()
 	*pDMA0_CONFIG &= 0;
 	//Release the interrupt.
 	free_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &id);
+	free_irq(IRQ_MEM_DMA0, &id);
+	free_irq(IRQ_MEM_DMA1, &id);
 	printk(" bfin_ad7171 Realeased\n") ;
+}
+
+void __attribute((section(".text.l1")))
+bfin_v4l2_memdma_setup(char *ycrcb_buffer_update, char *ycrcb_buffer_raw)
+{
+
+	ycrcb_buffer_update += 0x079BC ;//initial offset 
+//	*pMDMA_D0_IRQ_STATUS = DMA_DONE | DMA_ERR;
+	/* Copy sram functions from sdram to sram */
+	/* Setup destination start address */
+	*pMDMA_D0_START_ADDR = ycrcb_buffer_update;
+	/* Setup destination xcount */
+	*pMDMA_D0_X_COUNT = 360 ;
+	/* Setup destination xmodify */
+	*pMDMA_D0_X_MODIFY = 4;
+	/* Setup destination ycount */
+	*pMDMA_D0_Y_COUNT = 262 ;
+	/* Setup destination ymodify */
+	*pMDMA_D0_Y_MODIFY = 280;
+
+	/* Setup Source start address */
+	*pMDMA_S0_START_ADDR = ycrcb_buffer_raw;
+	/* Setup Source xcount */
+	*pMDMA_S0_X_COUNT = 360 ;
+	/* Setup Source xmodify */
+	*pMDMA_S0_X_MODIFY = 4;
+	/* Setup Source ycount */
+	*pMDMA_S0_Y_COUNT = 262 ;
+	/* Setup Source ymodify */
+	*pMDMA_S0_Y_MODIFY = 1444 ;
+
+
+
+
+	ycrcb_buffer_update += 0x06DC38 ;//Even Odd Field Offset
+	ycrcb_buffer_raw += 1440;
+//	*pMDMA_D1_IRQ_STATUS = DMA_DONE | DMA_ERR;
+	/* Copy sram functions from sdram to sram */
+	/* Setup destination start address */
+	*pMDMA_D1_START_ADDR = ycrcb_buffer_update;
+	/* Setup destination xcount */
+	*pMDMA_D1_X_COUNT = 360 ;
+	/* Setup destination xmodify */
+	*pMDMA_D1_X_MODIFY = 4;
+	/* Setup destination ycount */
+	*pMDMA_D1_Y_COUNT = 262 ;
+	/* Setup destination ymodify */
+	*pMDMA_D1_Y_MODIFY = 280;
+
+	/* Setup Source start address */
+	*pMDMA_S1_START_ADDR = ycrcb_buffer_raw;
+	/* Setup Source xcount */
+	*pMDMA_S1_X_COUNT = 360 ;
+	/* Setup Source xmodify */
+	*pMDMA_S1_X_MODIFY = 4;
+	/* Setup Source ycount */
+	*pMDMA_S1_Y_COUNT = 262 ;
+	/* Setup Source ymodify */
+	*pMDMA_S1_Y_MODIFY = 1444 ;
+
+
+
+
+
+
+	/* Set word size to 32, set to read, enable interrupt for wakeup */
+	/* Enable source DMA */
+	*pMDMA_S0_CONFIG = (DMA2D | WDSIZE_32 | DMAEN) ;
+	*pMDMA_S1_CONFIG = (DMA2D | WDSIZE_32 | DMAEN) ;
+	asm("ssync;");
+	*pMDMA_D0_CONFIG = ( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) ; 
+	*pMDMA_D1_CONFIG = ( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) ; 
 }

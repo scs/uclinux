@@ -10,24 +10,16 @@
 #include <time.h>
 
 int colorarray[] = {
-#if 0
-	   0x80108010,
-	   0x5A51F051,
-	   0x36912291,
-	   0xA6AA10AA,
-	   0x80EB80EB
-#else
 	0x10801080,
 	0x51F0515A,
 	0x91229136,
 	0xAA10AAA6,
 	0xEB80EB80
-#endif
 		} ;
 
 int screen_fd ;
 char *device = "/dev/vout0";
-#define MAX_BUFFERS 50 /* the ultimate upper limit */
+#define MAX_BUFFERS 23 /* the ultimate upper limit */
 struct v4l2_standard user_vid_std ;
 struct v4l2_format user_fmt;
 char *user_buffer[MAX_BUFFERS];
@@ -52,7 +44,8 @@ usage(char *program)
 
 int main(int argc, char *argv[])
 {
-	int i, j, k, current_time1, current_time2;
+	int i, j, k; 
+	float current_time1, current_time2;
 	int nMaxBuffers = MAX_BUFFERS;
 	int bDelay = 0;
 	int nLoopCount = 100;
@@ -121,6 +114,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, ".");
 	}
 	k = i;
+	nMaxBuffers = i ;
 	if(bVerbose && (k < 8)){
 		fprintf(stderr, "\nTo get the best in the demo, increase memory\n");
 	}
@@ -137,9 +131,12 @@ int main(int argc, char *argv[])
 		
 	fprintf(stderr, "\t****End Of Demo****\n");
 	current_time2 = clock()/CLOCKS_PER_SEC;
-	fprintf(stderr, "number of frames per second = %d \n", ((nLoopCount*k)/(current_time2 - current_time1)));
-	
+	fprintf(stderr, "number of frames per second = %f \n", ((nLoopCount*k)/(current_time2 - current_time1)));
 	sleep(2);
+	//release buffers.
+	for(i = 0; i<23 ; i++) 
+		if(user_buffer[i]) 
+			free(user_buffer[i]) ;
 	return 0;
 
 }

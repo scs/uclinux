@@ -8,7 +8,7 @@
  
 File Name:		bfin_v4l2_buffer_copy.S
 
-Date Modified:		4th March 3005	
+Date Modified:		4th March 2005	
 
 Purpose:		"Video For Linux 2 API" Implementation for Blackfin
 			-533 Boards with Video Encoder ADV7171.
@@ -53,9 +53,45 @@ Based on 	 	Zoran zr36057/zr36067 PCI controller driver, for the
 #include <asm/byteorder.h>
 #include "bfin_v4l2_driver.h"
 
+//Func to initialize encoder. Defined in bfin_v4l2_device.c file. 
 extern int init_device_bfin_v4l2();
+//Func to reset encoder. Defined in bfin_v4l2_device.c file. 
 extern int device_bfin_close();
 
+//MEM DMA status values, Set by write(), 
+//Reset by Respective interrupt handlers.
+extern int mem_dma1_status , mem_dma0_status ;
+
+/* Buffers defined in bfin_v4l2_device_config.S file as
+ * they need to be in different memory banks to avoid memory 
+ * contention between MEM DMA that is writing buffer and
+ * PPI DMA that is reading. In C language apparently there
+ * is no way by which we can ensure that. So I have modified
+ * vmlinux.lds.S file to have 2 more sections specific to
+ * video and they are in different memory banks.
+ */
+extern char *ycrcb_buffer_out_1 ;
+extern char *ycrcb_buffer_out_2 ;
+
+/* As PPI will ping-pong between two buffers
+ * it very important to synchronize PPI and 
+ * and MEM DMA. It should be made sure that
+ * MEM DMA and PPI DMA both are not accessing
+ * the same buffer. For this we will use 
+ * flags and macros defined below.
+ */
+#define YCRCB_BUFFER_BUSY 1
+#define WAIT_TILL_NEXT_PPI_INTR 2
+#define YCRCB_BUFFER_FREE_FOR_MDMA_WRITE 3
+#define BUFFER_BEING_WRITTEN 4
+#define BUFFER_WRITTEN 5 
+
+extern int ycrcb_buffer_1_status, ycrcb_buffer_2_status ;
+
+//Declaration of event to synchronise MEM and PPI DMAs.
+DECLARE_WAIT_QUEUE_HEAD(bfin_v4l2_write_wait) ;
+
+//Macros to be used as v4l2 flags for this driver.
 #define	BFIN_VID_TYPE  ( VID_TYPE_CAPTURE | VID_TYPE_OVERLAY )
 #define	V4L2_BFIN_NAME "V4L2_BFIN_VIDEO_DRIVER"	
 #define BFIN_V4L2_VID_FLAGS V4L2_CAP_VIDEO_OUTPUT
@@ -64,10 +100,10 @@ extern int device_bfin_close();
 					//support for captuter will
 					//get activated.
 
-#define FRAME_SIZE_WITHOUT_BLANKING	754560
+#define FRAME_SIZE_WITHOUT_BLANKING	754560	//= 360 * 524 *4
 					//large enough to hold NO_OF_FRAMES_PER_BUFFER frames
 					//of ycrcb data
-#define V4L2_YCRCB_FRAME_SIZE 1512000	//size of one ycrcb frame
+#define V4L2_YCRCB_FRAME_SIZE (1512000 * 4)	//size of one ycrcb frame
 					//with blanking info(EAV,SAV)
 
 char *ycrcb_buffer_out = NULL ;	//This is the pointer to
@@ -135,7 +171,7 @@ bfin_v4l2_open (struct inode *inode,
 		}
 		init_device_bfin_v4l2();
 	}
-printk("dev/video: opened\n");
+//printk("dev/video: opened\n");
 	return 0;
 
 open_unlock_and_return:
@@ -161,7 +197,7 @@ bfin_v4l2_close (struct inode *inode,
 		device_bfin_close();	//Reset the video
 					//hardware, PPI 	
 					//and DMA as well
-		kfree(ycrcb_buffer_out) ;  //free the buffer
+//		kfree(ycrcb_buffer_out) ;  //free the buffer
 					   //from which output
 					   //to PPI taking
 					   //place		
@@ -206,8 +242,33 @@ bfin_v4l2_write (struct file *file,
 
 	struct bfin_v4l2_fh *fh ;
 	fh = file->private_data;
+/* check if previous write(i.e. mem dma) has completed or not, and 
+ * if any of buffer has status as YCRCB_BUFFER_FREE_FOR_MDMA_WRITE.
+ * If any of these conditions fail then wait. 
+ */
+
+	for(;;) {
+		if((mem_dma0_status !=0) 
+ 		  | (mem_dma1_status !=0) 
+		    | (ycrcb_buffer_1_status != YCRCB_BUFFER_FREE_FOR_MDMA_WRITE & ycrcb_buffer_2_status != YCRCB_BUFFER_FREE_FOR_MDMA_WRITE)
+		) {
+//			interruptible_sleep_on(&bfin_v4l2_write_wait) ;
+		}
+		else
+			break ;
+	}
+	if(ycrcb_buffer_1_status == YCRCB_BUFFER_FREE_FOR_MDMA_WRITE) {
+		ycrcb_buffer_out = ycrcb_buffer_out_1 ;
+		ycrcb_buffer_1_status= BUFFER_BEING_WRITTEN ; 
+	}
+	if(ycrcb_buffer_2_status == YCRCB_BUFFER_FREE_FOR_MDMA_WRITE) {
+		ycrcb_buffer_out = ycrcb_buffer_out_2 ;
+		ycrcb_buffer_2_status= BUFFER_BEING_WRITTEN ; 
+	}
+	mem_dma0_status  = 1 ;
+	mem_dma1_status  = 1 ;
 	pre_ycrcb_buffer_out = (int *)data ;	
-	_bfin_v4l2_copy_buffer(ycrcb_buffer_out, pre_ycrcb_buffer_out);
+	bfin_v4l2_memdma_setup(ycrcb_buffer_out, pre_ycrcb_buffer_out);
 	return 0;
 }
 
@@ -504,7 +565,7 @@ static struct video_device bfin_v4l2_template = {
  *
  * Function:		To register the driver at the boot time.
  *
- * Parameter:		bfn->
+ * Parameter:		bfn ->
  *			  Which device to register.
  *
  *******************************************************************/
@@ -554,6 +615,5 @@ unload_bfin_v4l2_module()
 	bfin_v4l2_unregister_device(&bfin_v4l2[i]);
 }
 		
-
 module_init(init_bfin_v4l2);
 module_exit(unload_bfin_v4l2_module);
