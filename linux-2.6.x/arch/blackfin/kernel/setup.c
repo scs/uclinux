@@ -153,7 +153,7 @@ void bf53x_cache_init(void)
 #endif
 }
 
-extern int _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
+extern char _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
 extern int _ramstart, _ramend;
 extern int ramdisk_begin,ramdisk_end;
 
@@ -180,13 +180,7 @@ void setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "uClinux/" CPU "\n");
 
-#ifdef CONFIG_BFIN
-#  if defined(CONFIG_EZKIT) || defined(CONFIG_BLKFIN_STAMP)
-	printk("Blackfin BF533 support by LG Soft India (www.lgsoftindia.com)\n");
-#  else
 	printk("Blackfin support by LG Soft India (www.lgsoftindia.com) \n");
-#  endif
-#endif
 
 #ifdef DEBUG
 	printk("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack= 0x%06x-0x%06x\n",
@@ -228,7 +222,6 @@ void setup_arch(char **cmdline_p)
 			memory_start >> PAGE_SHIFT, 	/* map goes here */
 			PAGE_OFFSET >> PAGE_SHIFT,
 			memory_end >> PAGE_SHIFT);
-
 	/*
 	 * free the usable memory,  we have to make sure we do not free
 	 * the bootmem bitmap so we then reserve it after freeing it :-)
@@ -284,7 +277,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #ifdef CONFIG_BLKFIN_CACHE_LOCK
 	int lock;
 #endif
-	u_long clockfreq;
 
 	u_long cclk=0,sclk=0;
 
@@ -292,13 +284,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	mmu = "none";
 	fpu = "none";
 
-#ifdef CONFIG_BFIN
-	clockfreq = (loops_per_jiffy*HZ)*3;
 	cclk = get_cclk();
 	sclk = get_sclk();
-#else
-	clockfreq = (loops_per_jiffy*HZ)*16;
-#endif
 
 	seq_printf(m, "CPU:\t\t%s\n"
 		   "MMU:\t\t%s\n"
