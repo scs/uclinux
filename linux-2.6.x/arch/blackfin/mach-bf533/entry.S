@@ -353,10 +353,7 @@ ENTRY(ret_from_exception)
 	r4 = [sp++];
 	cc = BITTST(r7, _TIF_NEED_RESCHED);
 	if !cc jump 3f; 
-	[--sp] = rets;
 	jump reschedule;
-	rets = [sp++];
-	jump ret_from_exception;
 3:
 	r7 = [p5 + TI_FLAGS];
 	cc = BITTST(r7, TIF_SIGPENDING);
@@ -395,9 +392,9 @@ ENTRY(return_from_int)
         r4 = [sp++];
         cc = BITTST(r7, TIF_NEED_RESCHED);
         if !cc jump skip_schedule;
-        [--sp] = rets;
+	[--sp] = rets;
         call schedule;
-        rets = [sp++];
+	rets = [sp++];
 
 skip_schedule:
 	/* check if any signals are pending */
@@ -677,7 +674,6 @@ ENTRY(sys_call_table)
 	.long sys_lookup_dcookie
 
 	/* no recognization now by bfin-gcc */
-/*	.rept NR_syscalls-(.-SYMBOL_NAME(sys_call_table))/4  */
 	.rept 3
 	.long (sys_ni_syscall)
 	.endr
