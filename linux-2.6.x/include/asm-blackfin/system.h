@@ -44,14 +44,6 @@ asmlinkage void resume(void);
   (last) = _last; 								\
 }
 
-/* Force kerenl switch to user mode -- Steven Chen */
-#define switch_to_user_mode() { \
-	__asm__ __volatile__(	\
-			"call kernel_to_user_mode;\n\t"	\
-			::	\
-		       : "CC", "R0", "R1", "R2", "R3", "R4", "R5", "P0", "P1");	\
-}
-
 /*
  * Interrupt configuring macros.
  */
@@ -90,7 +82,7 @@ if (irq_flags == 0) printk("Whoops\n");	\
 #define __restore_flags(x) {		\
 	__asm__ __volatile__ (		\
 		"sti %0;"		\
-		::"d"(x):"R3");		\
+		::"d"(x):);		\
 }
 
 #define local_save_flags(x) asm volatile ("cli %0;"     \
@@ -152,14 +144,14 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
   switch (size) {
   case 1:
     __asm__ __volatile__
-    ("%0 = %2;\n\t"
-     "%2 = %1;\n\t"
+    ("%0 = b[%2] (z);\n\t"
+     "%2 = b[%1] (z);\n\t"
     : "=&d" (tmp) : "d" (x), "m" (*__xg(ptr)) : "memory");
     break;
   case 2:
     __asm__ __volatile__
-    ("%0 = %2;\n\t"
-     "%2 = %1;\n\t"
+    ("%0 = w[%2] (z);\n\t"
+     "%2 = w[%1] (z);\n\t"
     : "=&d" (tmp) : "d" (x), "m" (*__xg(ptr)) : "memory");
     break;
   case 4:
@@ -174,7 +166,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 }
 
 /* Depend on whether Blackfin has hard reset function */
-/* YES it does, but it is tricky to implement - FIXME later ...MaTed--- */
+/* YES it does, but it is tricky to implement*/
 #define HARD_RESET_NOW() ({})
 
 #endif /* _BFINNOMMU_SYSTEM_H */
