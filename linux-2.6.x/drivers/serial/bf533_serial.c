@@ -26,7 +26,7 @@
 #include <asm/board/cdefBF533.h>
 #include <asm/board/bf533_irq.h>
 #include <asm/irq.h>
-#ifdef CONFIG_BLKFIN_DMA
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
 #include <asm/dma.h>
 #endif
 
@@ -102,6 +102,7 @@ extern wait_queue_head_t keypress_wait;
 #endif
 
 extern unsigned long l1_data_A_sram_alloc(unsigned long size);
+extern int l1_data_A_sram_free(unsigned long addr);
 /*
  *	Driver data structures.
  */
@@ -120,6 +121,22 @@ static struct bf533_serial bf533_soft =
 
 #ifndef MIN
 #define MIN(a,b)	((a) < (b) ? (a) : (b))
+#endif
+
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+unsigned int tx_xcount=0;
+
+#define RX_XCOUNT  TTY_FLIPBUF_SIZE
+#define RX_YCOUNT  (PAGE_SIZE / RX_XCOUNT)
+
+/*
+ * The value of SERIAL_XMIT_SIZE is set to 479 to walkarround system hang
+ * if the Instruction cache is enabled.
+ */
+#ifdef CONFIG_BLKFIN_CACHE
+#undef SERIAL_XMIT_SIZE
+#define SERIAL_XMIT_SIZE	479
+#endif
 #endif
 
 static int rs_write(struct tty_struct * tty, int from_user,
@@ -151,8 +168,6 @@ static unsigned char tmp_buf[SERIAL_XMIT_SIZE]; /* This is cheating */
 DECLARE_MUTEX(tmp_buf_sem);
 
 /* Forward declarations.... */
-static void dma_start_recv(struct bf533_serial * info);
-static void dma_recv_timer(struct bf533_serial * info);
 static void bf533_change_speed(struct bf533_serial *info);
 static void bf533_set_baud( void );
 
@@ -253,13 +268,16 @@ static void local_put_char(char ch)
 static void rs_start(struct tty_struct *tty)
 {
 	struct bf533_serial *info = (struct bf533_serial *)tty->driver_data;
+#ifndef CONFIG_BLKFIN_SIMPLE_DMA
 	unsigned long flags = 0;
+#endif
 	
         FUNC_ENTER();
 
 	if (serial_paranoia_check(info, tty->name, "rs_start"))
 		return;
 	
+#ifndef CONFIG_BLKFIN_SIMPLE_DMA
 	local_irq_save(flags);
 	ACCESS_PORT_IER	/* Change access to IER & data port */
 	if (info->xmit_cnt && info->xmit_buf && !(*pUART_IER & ETBEI))
@@ -269,6 +287,7 @@ static void rs_start(struct tty_struct *tty)
 	}
 	 
 	local_irq_restore(flags);
+#endif
 }
 
 /* Drop into either the boot monitor or kgdb upon receiving a break
@@ -292,28 +311,40 @@ static inline void status_handle(struct bf533_serial *info, unsigned short statu
 	return;
 }
 
-#ifdef CONFIG_BLKFIN_DMA
-static void dma_receive_chars(struct bf533_serial *info)
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+static void dma_receive_chars(struct bf533_serial *info, int in_timer)
 {
       struct tty_struct *tty = info->tty;
       unsigned char flag = 0;
-      int i, len = 0;
+      int len = 0;
+      int curpos, ttylen=0;
 
       spin_lock_bh(info->recv_lock);
 
-      info->recv_head = TTY_FLIPBUF_SIZE - *pDMA6_CURR_X_COUNT;
+	/*
+	 * Current DMA receiving buffer is one PAGE, which is devied into 8 buffer lines.
+	 * Autobuffered 2D DMA operation is applied to receive chars from the UART.
+	 * This function is called each time one buffer line is full or the timer is over.
+	 */
+      if((curpos = get_dma_curr_xcount(CH_UART_RX)) == 0 && in_timer)
+              goto unlock_and_exit;
+      curpos = TTY_FLIPBUF_SIZE - curpos + (RX_YCOUNT - get_dma_curr_ycount(CH_UART_RX))*TTY_FLIPBUF_SIZE;
 
+      if(curpos == info->recv_tail)
+              goto unlock_and_exit;
+      else if(curpos > info->recv_tail)
+	      info->recv_head = curpos;
+      else
+	      info->recv_head = PAGE_SIZE;
+      
       /*
        * Check for a valid value of recv_head
        */
-      if ((info->recv_head < 0) || (info->recv_head >= TTY_FLIPBUF_SIZE))
+      if ((info->recv_head < 0) || (info->recv_head > PAGE_SIZE))
       {
               info->recv_head = 0;
               goto unlock_and_exit;
       }
-
-      if (info->recv_tail == info->recv_head)
-              goto unlock_and_exit;
 
 #if defined(CONFIG_CONSOLE)
       if (info->is_cons && (info->recv_tail != info->recv_head))
@@ -325,18 +356,100 @@ static void dma_receive_chars(struct bf533_serial *info)
       }
 
       len = info->recv_head - info->recv_tail;
-      if (len < 0) len += TTY_FLIPBUF_SIZE;
-
-      for (i = 0; i < len; i++)
+      
+/*      for (i = 0; i < len; i++)
       {
               tty_insert_flip_char(tty, info->recv_buf[info->recv_tail++],flag);
-              if (info->recv_tail >= TTY_FLIPBUF_SIZE)
-                      info->recv_tail = 0;
       }
+*/
+	ttylen = TTY_FLIPBUF_SIZE - tty->flip.count;
+	if(ttylen>0) {
+		if(len > ttylen)
+			len = ttylen;
+		memset(tty->flip.flag_buf_ptr, flag, len);
+		memcpy(tty->flip.char_buf_ptr, info->recv_buf + info->recv_tail, len);
+		tty->flip.flag_buf_ptr += len;
+		tty->flip.char_buf_ptr += len;
+		tty->flip.count += len;
+		info->recv_tail += len;
+	}
+
+      if (info->recv_head >= PAGE_SIZE)
+              info->recv_head = 0;
+      if (info->recv_tail >= PAGE_SIZE)
+              info->recv_tail = 0;
 
       tty_flip_buffer_push(tty);
 unlock_and_exit:
       spin_unlock_bh(info->recv_lock);
+}
+
+static void dma_transmit_chars(struct bf533_serial *info)
+{
+	/* tx_xcount > 0 means the dma is working now. */
+	if (tx_xcount) {
+		return;
+	}
+
+	spin_lock_bh(info->xmit_lock);
+
+	/* tx_xcount is rechecked here to make sure the dma won't be started again
+	 * if it is working now.
+	 */
+	if (tx_xcount) {
+		goto clear_and_return;
+	}
+
+	if (info->x_char) { /* Send next char */
+		local_put_char(info->x_char);
+		info->x_char = 0;
+	}
+
+	if((info->xmit_cnt <= 0) || info->tty->stopped) { /* TX ints off */
+		goto clear_and_return;
+	}
+
+	/* Send char */
+	tx_xcount = info->xmit_cnt;
+	if(tx_xcount > SERIAL_XMIT_SIZE - info->xmit_tail)
+		tx_xcount = SERIAL_XMIT_SIZE - info->xmit_tail; 
+		
+	/* Only use dma to transfer data when count > 1.
+	 * Add 4 to the count before start dma, this is a walkarround to a dma hardware bug.
+	 */
+	if(tx_xcount>3) {
+		local_put_char(info->xmit_buf[info->xmit_tail++]);
+		local_put_char(info->xmit_buf[info->xmit_tail++]);
+		info->xmit_cnt-=2;
+		tx_xcount-=2;
+
+		set_dma_config(CH_UART_TX, set_bfin_dma_config(DIR_READ, FLOW_STOP, INTR_ON_BUF, DIMENSION_LINEAR, DATA_SIZE_8));
+		set_dma_start_addr(CH_UART_TX, (unsigned long)(info->xmit_buf+info->xmit_tail));
+		set_dma_x_count(CH_UART_TX, tx_xcount);
+				
+		enable_dma(CH_UART_TX);
+		ACCESS_PORT_IER
+		*pUART_IER |= ETBEI;
+		SYNC_ALL;
+	}
+	else {
+		while(tx_xcount>0) {
+			local_put_char(info->xmit_buf[info->xmit_tail++]);
+			info->xmit_tail %= SERIAL_XMIT_SIZE;
+			info->xmit_cnt--;
+			tx_xcount--;
+		}
+		tx_xcount = 0;
+
+		if (info->xmit_cnt < WAKEUP_CHARS)
+		{
+			info->event |= 1 << RS_EVENT_WRITE_WAKEUP;
+			schedule_work(&info->tqueue);
+		}
+	}
+
+clear_and_return:
+	spin_unlock_bh(info->recv_lock);
 }
 #endif
 
@@ -475,32 +588,14 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
                               	lsr = *pUART_LSR;
 				break;
 		   	case STATUS(2):			/*UART_IIR_RBR:*/
+	   			/* Change access to IER & data port */
+				ACCESS_PORT_IER 
 				asm("csync;");
-#ifdef CONFIG_BLKFIN_DMA
-                               if (*pDMA6_CONFIG & DMAEN)
-                               {
-				       asm("csync;");
-                                       if (*pDMA6_IRQ_STATUS & DMA_DONE)
-                                       {
-					       info->event |= 1 << RS_EVENT_READ;
-					       schedule_work(&info->tqueue);
-                                               dma_start_recv(info);
-                                               *pDMA6_IRQ_STATUS |= DMA_DONE;
-					       SYNC_ALL;
-                                       }
-                               } else {
-#endif
-		   			/* Change access to IER & data port */
-					ACCESS_PORT_IER 
+				if (*pUART_LSR & DR){
 					asm("csync;");
-					if (*pUART_LSR & DR){
-						asm("csync;");
-				   		rx = *pUART_RBR;
-				   		receive_chars(info, regs);
-					}
-#ifdef CONFIG_BLKFIN_DMA
+			   		rx = *pUART_RBR;
+			   		receive_chars(info, regs);
 				}
-#endif
 				break;
 		   	case STATUS_P1:				/*UART_IIR_THR:*/
 		   		/* Change access to IER & data port */
@@ -535,10 +630,13 @@ static void do_softint(void *private_)
 			(tty->ldisc.write_wakeup)(tty);
 		wake_up_interruptible(&tty->write_wait);
 	}
-#ifdef CONFIG_BLKFIN_DMA
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+        if (test_and_clear_bit(RS_EVENT_WRITE, &info->event)) {
+		dma_transmit_chars(info);
+      }
         if (test_and_clear_bit(RS_EVENT_READ, &info->event)) {
-                dma_receive_chars(info);
-        }
+                dma_receive_chars(info, 0);
+      }
 #endif
 }
 
@@ -565,47 +663,39 @@ static void do_serial_hangup(void *private_)
 	tty_hangup(tty);
 }
 
-#ifdef CONFIG_BLKFIN_DMA
-void dma_start_recv(struct bf533_serial * info)
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+
+#define TIME_INTERVAL	5
+
+static void dma_start_recv(struct bf533_serial * info)
 {
        FUNC_ENTER();
 
-       asm("csync;");
-       if (((*pDMA6_IRQ_STATUS & DMA_RUN) == 0) ||(*pDMA6_IRQ_STATUS & DMA_DONE))
+	if (((get_dma_curr_irqstat(CH_UART_RX) & DMA_RUN) ==0) || get_dma_curr_irqstat(CH_UART_RX) & DMA_DONE)
        {
-                *pDMA6_START_ADDR = info->recv_buf;
-		SYNC_ALL;
-                *pDMA6_X_COUNT = TTY_FLIPBUF_SIZE;
-		SYNC_ALL;
-                *pDMA6_X_MODIFY = sizeof(unsigned char);
-		SYNC_ALL;
-		*pDMA6_CURR_X_COUNT = TTY_FLIPBUF_SIZE;
-		SYNC_ALL;
-                *pDMA6_CONFIG = DI_EN | WDSIZE_8 | WNR | DMAEN;
-
-		SYNC_ALL;
+		set_dma_config(CH_UART_RX, set_bfin_dma_config(DIR_WRITE, FLOW_AUTO, INTR_ON_ROW, DIMENSION_2D, DATA_SIZE_8));
+		set_dma_x_count(CH_UART_RX, RX_XCOUNT); 
+		set_dma_x_modify(CH_UART_RX, 1);
+		set_dma_y_count(CH_UART_RX, RX_YCOUNT); 
+		set_dma_y_modify(CH_UART_RX, 1);
+		set_dma_start_addr(CH_UART_RX, (unsigned long)info->recv_buf);
+				
+		enable_dma(CH_UART_RX);
         } else {
                 printk("bf533_serial: DMA started while already running!\n");
         }
 }
                                                                                 
-static void dma_recv_timer(struct bf533_serial * info)
+static void uart_dma_timer(struct bf533_serial * info)
 {
-	asm("csync;");
-        if ((*pDMA6_IRQ_STATUS & DMA_DONE) == 0)
-        {
-                dma_receive_chars(info);
-        }
-        info->recv_timer.expires = jiffies + 3;
-        add_timer(&info->recv_timer);
+	dma_transmit_chars(info);
+	dma_receive_chars(info, 1);
+
+        info->dma_timer.expires = jiffies + TIME_INTERVAL;
+        add_timer(&info->dma_timer);
 }
                                                                                 
-static void dma_stop_recv(struct bf533_serial *info)
-{
-        FUNC_ENTER();
-        *pDMA6_CONFIG = 0;
-	SYNC_ALL;
-}
+
 #endif
 
 static int startup(struct bf533_serial * info)
@@ -613,7 +703,7 @@ static int startup(struct bf533_serial * info)
 	unsigned long flags = 0;
 	
 	FUNC_ENTER();
-	init_timer(&info->recv_timer);
+	init_timer(&info->dma_timer);
 
 	*pUART_GCTL |= UCEN;
 	SYNC_ALL;
@@ -621,7 +711,11 @@ static int startup(struct bf533_serial * info)
 	/*
 	 * Finally, enable sequencing and interrupts
 	 */
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+	*pUART_IER = ERBFI | ELSI | 0x8;
+#else
 	*pUART_IER = ERBFI | ETBEI | ELSI | 0x8;
+#endif
 	SYNC_ALL;
 
 	if (info->flags & S_INITIALIZED)
@@ -658,18 +752,24 @@ static int startup(struct bf533_serial * info)
 		clear_bit(TTY_IO_ERROR, &info->tty->flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
 
-#ifdef CONFIG_BLKFIN_DMA
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+
+	set_dma_x_modify(CH_UART_TX, 1);
+	info->xmit_lock = SPIN_LOCK_UNLOCKED;
         /*
          * Start the receive DMA
          */
         info->recv_cnt = info->recv_head = info->recv_tail = 0;
         info->recv_lock = SPIN_LOCK_UNLOCKED;
         dma_start_recv(info);
-                         
-        info->recv_timer.data = (unsigned long)info;
-        info->recv_timer.function = (void *)dma_recv_timer;
-        info->recv_timer.expires = jiffies + 3;
-        add_timer(&info->recv_timer);
+
+	/*
+	 * The timer should only start after the receive DMA engine is working.
+	 */                         
+        info->dma_timer.data = (unsigned long)info;
+        info->dma_timer.function = (void *)uart_dma_timer;
+        info->dma_timer.expires = jiffies + TIME_INTERVAL;
+        add_timer(&info->dma_timer);
 #endif
 
 	/*
@@ -707,8 +807,9 @@ static void shutdown(struct bf533_serial * info)
 	*pUART_GCTL &= ~UCEN;
 	SYNC_ALL;
 
-#ifdef CONFIG_BLKFIN_DMA
-        dma_stop_recv(info);
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+	disable_dma(CH_UART_RX);
+	disable_dma(CH_UART_TX);
 #endif
 	
         if (!info->tty || (info->tty->termios->c_cflag & HUPCL))
@@ -720,7 +821,7 @@ static void shutdown(struct bf533_serial * info)
 	}
 
         if (info->recv_buf) {
-                free_page((unsigned long) info->recv_buf);
+                l1_data_A_sram_free((unsigned long) info->recv_buf);
                 info->recv_buf = 0;
         }
 	
@@ -807,14 +908,23 @@ static void rs_set_ldisc(struct tty_struct *tty)
 static void rs_flush_chars(struct tty_struct *tty)
 {
 	struct bf533_serial *info = (struct bf533_serial *)tty->driver_data;
+#ifndef CONFIG_BLKFIN_SIMPLE_DMA
 	unsigned long flags = 0;
+#endif
 
 	if (serial_paranoia_check(info, tty->name, "rs_flush_chars"))
 		return;
-		if (info->xmit_cnt <= 0 || tty->stopped || tty->hw_stopped || 
-	   	   !info->xmit_buf)
+	
+	if (info->xmit_cnt <= 0 || tty->stopped || tty->hw_stopped || 
+		!info->xmit_buf)
 			return;
 
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+	if(tx_xcount>0) {
+		info->event |= 1 << RS_EVENT_WRITE;
+		schedule_work(&info->tqueue);
+	}
+#else
 		local_irq_save(flags);
 
 		ACCESS_PORT_IER /* Change access to IER & data port */
@@ -828,6 +938,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 		}
 
 		local_irq_restore(flags);
+#endif
 }
 
 static int rs_write(struct tty_struct * tty, int from_user,
@@ -850,6 +961,7 @@ static int rs_write(struct tty_struct * tty, int from_user,
 			break;
 
 		local_irq_save(flags);
+
 		if (from_user) {
 			down(&tmp_buf_sem);
 			copy_from_user(tmp_buf, buf, c);
@@ -859,7 +971,7 @@ static int rs_write(struct tty_struct * tty, int from_user,
 			up(&tmp_buf_sem);
 		} else
 			memcpy(info->xmit_buf + info->xmit_head, buf, c);
-		info->xmit_head = (info->xmit_head + c) & (SERIAL_XMIT_SIZE-1);
+		info->xmit_head = (info->xmit_head + c) % SERIAL_XMIT_SIZE;
 		info->xmit_cnt += c;
 		local_irq_restore(flags);
 		buf += c;
@@ -868,6 +980,12 @@ static int rs_write(struct tty_struct * tty, int from_user,
 	}
 
 	if (info->xmit_cnt && !tty->stopped && !tty->hw_stopped) {
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+		if (tx_xcount > 0 && info->xmit_head == 0) {
+			info->event |= 1 << RS_EVENT_WRITE;
+			schedule_work(&info->tqueue);
+		}
+#else
 		/* Enable transmitter */
 		local_irq_save(flags);
 		ACCESS_PORT_IER /* Change access to IER & data port */
@@ -883,7 +1001,9 @@ static int rs_write(struct tty_struct * tty, int from_user,
 		}
 
 		local_irq_restore(flags);
+#endif
 	}
+
 	return total;
 }
 
@@ -1409,6 +1529,49 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 	return 0;
 }
 
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+irqreturn_t uart_rxdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
+{
+	struct bf533_serial *info;
+
+	clear_dma_irqstat(CH_UART_RX);
+	info = &bf533_soft;
+	info->event |= 1 << RS_EVENT_READ;
+	schedule_work(&info->tqueue);
+	return IRQ_HANDLED;
+}
+
+irqreturn_t uart_txdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
+{
+	struct bf533_serial *info;
+
+	if((*pUART_LSR & THRE) && tx_xcount>0) {
+		ACCESS_PORT_IER
+		*pUART_IER &= ~ETBEI;
+		SYNC_ALL;
+		clear_dma_irqstat(CH_UART_TX);
+		
+		info = &bf533_soft;
+		info->xmit_tail += tx_xcount;
+		info->xmit_tail %= SERIAL_XMIT_SIZE;
+		info->xmit_cnt -= tx_xcount;
+		tx_xcount = 0;
+		
+		if(info->xmit_cnt > 0) {
+			info->event |= 1 << RS_EVENT_WRITE;
+			schedule_work(&info->tqueue);
+		}
+
+		if (info->xmit_cnt < WAKEUP_CHARS)
+		{
+			info->event |= 1 << RS_EVENT_WRITE_WAKEUP;
+			schedule_work(&info->tqueue);
+		}
+	}
+	return IRQ_HANDLED;
+}
+#endif
+
 /* Finally, routines used to initialize the serial driver. */
 
 static void show_serial_version(void)
@@ -1501,17 +1664,25 @@ static int __init rs_bf533_init(void)
 
 	local_irq_restore(flags);
 
+#ifndef CONFIG_BLKFIN_SIMPLE_DMA
 	if (request_irq(IRQ_UART_RX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_RX",bf533_serial_driver))
 		panic("Unable to attach BlackFin UART RX interrupt\n");
 
 	if (request_irq(IRQ_UART_TX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_TX",bf533_serial_driver))
 		panic("Unable to attach BlackFin UART TX interrupt\n");
-#ifdef CONFIG_BLKFIN_DMA
-        if (new_request_dma(CH_UART_RX, "BF533_UART", NULL, 0))
-                panic("Unable to attach BlackFin UART RX DMA channel\n");
-        if (new_request_dma(CH_UART_TX, "BF533_UART", NULL, 0))
-                panic("Unable to attach BlackFin UART TX DMA channel\n");
-#endif
+#else
+	if(request_dma(CH_UART_RX, "BF533_UART_RX")<0)
+		panic("Unable to attach BlackFin UART RX DMA channel\n");
+	else
+	     set_dma_callback(CH_UART_RX, uart_rxdma_done,NULL);
+	
+	if(request_dma(CH_UART_TX, "BF533_UART_TX")<0)
+		panic("Unable to attach BlackFin UART TX DMA channel\n");
+	else 
+	     set_dma_callback(CH_UART_TX,uart_txdma_done,NULL);
+	
+#endif	
+	
 	printk("Enabling Serial UART Interrupts\n");
 	enable_irq(IRQ_UART_RX);
 	enable_irq(IRQ_UART_TX);
@@ -1554,7 +1725,11 @@ again:
 
 	/* Change access to IER & data port */
 	ACCESS_PORT_IER 
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+        *pUART_IER |= ELSI;
+#else
         *pUART_IER |=(ETBEI | ELSI);
+#endif
 	SYNC_ALL;
 	/* Enable the UART */
 	*pUART_GCTL |= UCEN;
@@ -1564,13 +1739,12 @@ again:
 	return;
 }
 
+
 int bf533_console_setup(struct console *cp, char *arg)
 {
 	int	i, n = CONSOLE_BAUD_RATE;
 
 	FUNC_ENTER();
-	if (!cp)
-		return(-1);
 
 	if (arg)
 		n = simple_strtoul(arg,NULL,0);
@@ -1595,7 +1769,8 @@ int bf533_console_setup(struct console *cp, char *arg)
 static struct tty_driver * bf533_console_device(struct console *c, int *index)
 {
 	FUNC_ENTER();
-	*index = c->index;
+	if(c)
+		*index = c->index;
 	return bf533_serial_driver;
 }
 
@@ -1604,6 +1779,7 @@ void bf533_console_write (struct console *co, const char *str,
 {
     if (!bf533_console_initted)
 	bf533_set_baud();
+
     while (count--)	{ 
         if (*str == '\n')	/* if a LF, also do CR... */
            local_put_char( '\r');
