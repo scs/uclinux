@@ -63,7 +63,7 @@ static inline long get_reg(struct task_struct *task, int regno)
 
 	struct pt_regs *regs = 
 	(struct pt_regs *)((unsigned long) task->thread_info + 
-	    ( KTHREAD_SIZE - sizeof(struct pt_regs)));
+	    ( THREAD_SIZE - sizeof(struct pt_regs)));
 	switch(regno){
 		case PT_ORIG_PC : return regs->orig_pc -  task->mm->start_code - TEXT_OFFSET;
 		case PT_PC :
@@ -151,7 +151,7 @@ static inline int put_reg(struct task_struct *task, int regno,
 {
 	struct pt_regs *regs = 
 		(struct pt_regs *)((unsigned long) task->thread_info + 
-    		( KTHREAD_SIZE - sizeof(struct pt_regs)));
+    		( THREAD_SIZE - sizeof(struct pt_regs)));
 	switch(regno){
 		case PT_ORIG_PC : regs->orig_pc = data +  task->mm->start_code + TEXT_OFFSET; break;
 		case PT_PC : regs->pc = data +  task->mm->start_code + TEXT_OFFSET; break;
