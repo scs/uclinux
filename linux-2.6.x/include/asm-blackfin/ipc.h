@@ -1,12 +1,10 @@
-/* Changes origined from m68k version.     Lineo  Inc.   May 2001  */
-
 #ifndef __BFIN_IPC_H__
 #define __BFIN_IPC_H__
 
 /* 
- * These are used to wrap system calls on m68k.
+ * These are used to wrap system calls on bfin.
  *
- * See arch/m68k/kernel/sys_m68k.c for ugly details..
+ * See arch/bfinnommu/kernel/sys_bfin.c for ugly details..
  */
 struct ipc_kludge {
 	struct msgbuf *msgp;
