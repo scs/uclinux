@@ -1,5 +1,5 @@
 /*
- *  linux/arch/bfinnommu/mm/init.c
+ *  arch/bfinnommu/mm/init.c
  *
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
  *                      Kenneth Albanowski <kjahds@kjahds.com>,
@@ -7,7 +7,6 @@
  *
  *  Based on:
  *
- *  linux/arch/m68k/mm/init.c
  *  linux/arch/m68knommu/mm/init.c
  *
  *  Copyright (C) 1995  Hamish Macdonald
@@ -154,11 +153,11 @@ void paging_init(void)
 
 void mem_init(void)
 {
-	int codek = 0, datak = 0, initk = 0;
+	unsigned int codek = 0, datak = 0;
 	unsigned long tmp;
-	extern char _etext, _stext, _sdata, _ebss, __init_begin, __init_end;
+	extern char _etext, _stext, _sdata, _ebss;
 	extern unsigned int _ramend, _rambase; 
-	unsigned long len = _ramend - _rambase; 
+	unsigned int len = _ramend - _rambase; 
 	unsigned long start_mem = memory_start;
 	unsigned long end_mem   = memory_end;
 
@@ -174,10 +173,9 @@ void mem_init(void)
 
 	codek = (&_etext - &_stext) >> 10;
 	datak = (&_ebss - &_sdata) >> 10;
-	initk = (&__init_begin - &__init_end) >> 10;
 
 	tmp = nr_free_pages() << PAGE_SHIFT;
-	printk("Memory available: %luk/%luk RAM, %luk/%luk ROM (%dk kernel code, %dk data)\n",
+	printk("Memory available: %luk/%uk RAM, %luk/%luk ROM (%uk kernel code, %uk data)\n",
 	       tmp >> 10,
 	       len >> 10,
 	       (rom_length > 0) ? ((rom_length >> 10) - codek) : 0,
