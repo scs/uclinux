@@ -50,20 +50,28 @@ int main(int argc, char *argb[])
 	bytewidth  = user_fmt.fmt.pix.width *4 ;
 	bytesizeimage = user_fmt.fmt.pix.sizeimage *4;
 
+	fprintf(stderr, "setting up buffers, Please wait\n");
 	for(i=0; i<50; i++) {
 		user_buffer[i] = malloc((bytewidth * byteheight) +10);
+		if(user_buffer[i] == NULL) {
+			fprintf(stderr, "memory allocation for buffer %d failed, application will exit now\n", i);
+			return 0;
+		}
 		draw_color_bars(user_buffer[i]) ;
 		if(i%4 == 0)
 			linenum -=1;
+		fprintf(stderr, ".");
 	}
+	fprintf(stderr,"\nbuffers are set, starting demo \n");
 	current_time1 = clock()/CLOCKS_PER_SEC;
 	for(j=0; j< 20; j++)
 		for(i = 0; i<50; i++)
 			write(screen_fd, user_buffer[i], bytesizeimage);
+	fprintf(stderr, "\t****End Of Demo****\n");
 	current_time2 = clock()/CLOCKS_PER_SEC;
 	fprintf(stderr, "number of frames per second = %d \n", (1000/(current_time2 - current_time1)));
 	
-	sleep(3);
+	sleep(2);
 	return 0;
 
 }
