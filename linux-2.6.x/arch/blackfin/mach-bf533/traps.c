@@ -7,15 +7,11 @@
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
  */
-
-#define DEF_INTERRUPT_FLAGS 1
-
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/errno.h>
 #include <linux/irq.h>
-
 #include <asm/system.h>
 #include <asm/traps.h>
 #include <asm/page.h>
@@ -31,9 +27,6 @@ static const char *default_names[SYS_IRQS] = {
 
 /* The number of spurious interrupts */
 volatile unsigned int num_spurious;
-
-#define NUM_IRQ_NODES 16
-static irq_node_t nodes[NUM_IRQ_NODES];
 
 /*
  * void init_IRQ(void)
@@ -51,72 +44,15 @@ void init_IRQ(void)
 	mach_init_IRQ ();
 }
 
-irq_node_t *new_irq_node(void)
-{
-	irq_node_t *node;
-	short i;
-
-	for (node = nodes, i = NUM_IRQ_NODES-1; i >= 0; node++, i--)
-		if (!node->handler)
-			return node;
-
-	printk ("new_irq_node: out of nodes\n");
-	return NULL;
-}
-
-
 int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_regs *),unsigned long flags,const char *devname,void *dev_id)
 {
-	if (irq)
-		return mach_request_irq(irq, handler, flags, devname, dev_id);
-
-	if (irq < IRQ_EMU || irq > IRQ_SW_INT2) {
-		printk("%s: Incorrect IRQ %d from %s\n", __FUNCTION__, irq, devname);
-		return -ENXIO;
-	}
-
-	if (!(irq_list[irq].flags & IRQ_FLG_STD)) {
-		if (irq_list[irq].flags & IRQ_FLG_LOCK) {
-			printk("%s: IRQ %d from %s is not replaceable\n",
-			       __FUNCTION__, irq, irq_list[irq].devname);
-			return -EBUSY;
-		}
-		if (flags & IRQ_FLG_REPLACE) {
-			printk("%s: %s can't replace IRQ %d from %s\n",
-			       __FUNCTION__, devname, irq, irq_list[irq].devname);
-			return -EBUSY;
-		}
-	}
-	irq_list[irq].handler = handler;
-	irq_list[irq].flags   = flags;
-	irq_list[irq].dev_id  = dev_id;
-	irq_list[irq].devname = devname;
-	return 0;
+	return mach_request_irq(irq, handler, flags, devname, dev_id);
 }
 
 void free_irq(unsigned int irq, void *dev_id)
 {
-	if (irq) {
-		mach_free_irq(irq, dev_id);
-		return;
-	}
-
-	if (irq < IRQ_EMU || irq > IRQ_SW_INT2) {
-		printk("%s: Incorrect IRQ %d\n", __FUNCTION__, irq);
-		return;
-	}
-
-	if (irq_list[irq].dev_id != dev_id)
-		printk("%s: Removing probably wrong IRQ %d from %s\n",
-		       __FUNCTION__, irq, irq_list[irq].devname);
-
-	if (mach_default_handler)
-		irq_list[irq].handler = (*mach_default_handler)[irq];
-	else
-		irq_list[irq].handler = NULL;
-	irq_list[irq].flags   = IRQ_FLG_STD;
-	irq_list[irq].dev_id  = NULL;
-	irq_list[irq].devname = default_names[irq];
+	mach_free_irq(irq, dev_id);
+	return;
 }
 
 unsigned long probe_irq_on (void)
@@ -131,11 +67,11 @@ int probe_irq_off (unsigned long irqs)
 
 asmlinkage void process_int(unsigned long vec, struct pt_regs *fp)
 {
-                if (mach_process_int)
-                        mach_process_int(vec, fp);
-                else
-                        panic("Can't process interrupt vector %ld\n", vec);
-                return;
+	if (mach_process_int)
+		mach_process_int(vec, fp);
+	else
+		panic("Can't process interrupt vector %ld\n", vec);
+	return;
 }
 
 /*
