@@ -50,10 +50,12 @@ read_idata:
 	
 idone:
 	/* Enable Instruction Cache */
-
 	P0.l = (IMEM_CONTROL & 0xFFFF);
 	P0.h = (IMEM_CONTROL >> 16);
-	R0 = (IMC | ENICPLB | ENIM);
+	CSYNC;
+	R1 = [P0];
+	R0 = (IMC | ENICPLB);
+	R0 = R0 | R1;
 	[P0] = R0;
 	SSYNC;
 	RTS;
@@ -92,12 +94,15 @@ read_ddata:
 ddone:
 	P0.L = (DMEM_CONTROL & 0xFFFF);
 	P0.H = (DMEM_CONTROL >> 16);
+	CSYNC;
+	R1 = [P0];
 
 #if defined(CONFIG_BF533) || defined(CONFIG_BF532)
-	R0 = (ACACHE_BCACHE | ENDCPLB | ENDM);
+	R0 = (ACACHE_BCACHE | ENDCPLB | PORT_PREF0);
 #else
-	R0 = (ACACHE_BSRAM | ENDCPLB | ENDM);
+	R0 = (ACACHE_BSRAM | ENDCPLB);
 #endif
+	R0 = R0 | R1;
 	[P0] = R0;
 	SSYNC;
 	RTS;
