@@ -24,31 +24,31 @@ int main(int argc, char *argb[])
 			*(screen_ptr+i) = 0xff;
 		for(i = 0;i<100;i++)
 			draw_line(130+i, 212, 130+i, 312, BLUE);
-		sleep(2);
+		sleep(1);
 		for(i = 0;i<100;i++)
 			draw_line(130+i, 212, 130+i, 312, WHITE);
 
 		for(i = 0;i<100;i++)
-			draw_line(left_mar +i, up_mar, left_mar +i, up_mar +100, RED);
-		sleep(2);
+			draw_line(left_mar +i, 0, left_mar + i, up_mar +100, RED);
+		sleep(1);
 		for(i = 0;i<100;i++)
 			draw_line(left_mar +i, up_mar, left_mar +i, up_mar +100, WHITE);
 
 		for(i = 0;i<100;i++)
 			draw_line(left_mar +i, screen_height - low_mar -100, left_mar +i, screen_height - low_mar, GREEN);
-		sleep(2);        
+		sleep(1);        
 		for(i = 0;i<100;i++)
 			draw_line(left_mar +i, screen_height - low_mar -100, left_mar +i, screen_height - low_mar, WHITE);
 	
 		for(i = 0;i<100;i++)
-			draw_line(screen_width - right_mar -100 +i, up_mar, screen_width -right_mar -100 +i, up_mar +100, YELLOW);
-		sleep(2);
+			draw_line(screen_width - right_mar -100 +i, 0, screen_width -right_mar -100 +i, up_mar +100, YELLOW);
+		sleep(1);
 		for(i = 0;i<100;i++)
 			draw_line(screen_width - right_mar -100 +i, up_mar, screen_width -right_mar -100 +i, up_mar +100, WHITE);
 
 		for(i = 0;i<100;i++)
 			draw_line(screen_width -right_mar  -100 +i, screen_height -low_mar -100, screen_width -right_mar  -100 +i, screen_height -low_mar, BLACK);
-		sleep(2);
+		sleep(1);
 		for(i = 0;i<100;i++)
 			draw_line(screen_width -right_mar  -100 +i, screen_height -low_mar -100, screen_width -right_mar  -100 +i, screen_height -low_mar, WHITE);
 	}	
