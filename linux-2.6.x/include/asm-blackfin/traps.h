@@ -46,16 +46,7 @@
 #define VEC_CPLB_I_MHIT	(45)
 #define VEC_ILL_RES	(46)	/* including unvalid supervisor mode insn */
 
-#define VECOFF(vec) ((vec)<<2)
-
 #ifndef __ASSEMBLY__
-
-/* Status register bits */
-#define PS_T  (0x8000)
-#define PS_S  (0x0c00)	/*  Supervisor mode = 0b01 	*/
-#define PS_D  (0x0c00)	/*  Debug mode = 0b1x		*/
-#define PS_M  (0x1000)
-#define PS_C  (0x0001)
 
 #define HWC_x2 "System MMR Error \nAn error can occured due to an invalid access to an System MMR location\nPossible reason: a 32-bit register is accessed with a 16-bit instruction,\nor a 16-bit register is accessed with a 32-bit instruction.\n"
 #define HWC_x3 "External Memory Addressing Error\n"
