@@ -1,0 +1,390 @@
+Version 0.94
+------------
+Fix to list processing in reopen_files. Fix reconnection when server hung
+but tcpip session still alive.  Set proper timeout on socket read.
+
+Version 0.93
+------------
+Add missing mount options including iocharset.  SMP fixes in write and open. 
+Fix errors in reconnecting after TCP session failure.  Fix module unloading
+of default nls codepage
+
+Version 0.92
+------------
+Active smb transactions should never go negative (fix double FreeXid). Fix
+list processing in file routines. Check return code on kmalloc in open.
+Fix spinlock usage for SMP.
+
+Version 0.91
+------------
+Fix oops in reopen_files when invalid dentry. drop dentry on server rename 
+and on revalidate errors. Fix cases where pid is now tgid.  Fix return code
+on create hard link when server does not support them. 
+
+Version 0.90
+------------
+Fix scheduling while atomic error in getting inode info on newly created file. 
+Fix truncate of existing files opened with O_CREAT but not O_TRUNC set.
+
+Version 0.89
+------------
+Fix oops on write to dead tcp session. Remove error log write for case when file open
+O_CREAT but not O_EXCL
+
+Version 0.88
+------------
+Fix non-POSIX behavior on rename of open file and delete of open file by taking 
+advantage of trans2 SetFileInfo rename facility if available on target server.
+Retry on ENOSPC and EAGAIN socket errors.
+
+Version 0.87
+------------
+Fix oops on big endian readdir.  Set blksize to be even power of two (2**blkbits) to fix
+allocation size miscalculation. After oplock token lost do not read through
+cache. 
+
+Version 0.86
+------------
+Fix oops on empty file readahead.  Fix for file size handling for locally cached files.
+
+Version 0.85
+------------
+Fix oops in mkdir when server fails to return inode info. Fix oops in reopen_files
+during auto reconnection to server after server recovered from failure.
+
+Version 0.84
+------------
+Finish support for Linux 2.5 open/create changes, which removes the
+redundant NTCreate/QPathInfo/close that was sent during file create.
+Enable oplock by default. Enable packet signing by default (needed to 
+access many recent Windows servers)
+
+Version 0.83
+------------
+Fix oops when mounting to long server names caused by inverted parms to kmalloc.
+Fix MultiuserMount (/proc/fs/cifs configuration setting) so that when enabled
+we will choose a cifs user session (smb uid) that better matches the local
+uid if a) the mount uid does not match the current uid and b) we have another
+session to the same server (ip address) for a different mount which
+matches the current local uid.
+
+Version 0.82
+------------
+Add support for mknod of block or character devices.  Fix oplock
+code (distributed caching) to properly send response to oplock
+break from server.
+
+Version 0.81
+------------
+Finish up CIFS packet digital signing for the default
+NTLM security case. This should help Windows 2003
+network interoperability since it is common for
+packet signing to be required now. Fix statfs (stat -f)
+which recently started returning errors due to 
+invalid value (-1 instead of 0) being set in the
+struct kstatfs f_ffiles field.
+
+Version 0.80
+-----------
+Fix oops on stopping oplock thread when removing cifs when
+built as module.
+
+Version 0.79
+------------
+Fix mount options for ro (readonly), uid, gid and file and directory mode. 
+
+Version 0.78
+------------
+Fix errors displayed on failed mounts to be more understandable.
+Fixed various incorrect or misleading smb to posix error code mappings.
+
+Version 0.77
+------------
+Fix display of NTFS DFS junctions to display as symlinks.
+They are the network equivalent.  Fix oops in 
+cifs_partialpagewrite caused by missing spinlock protection
+of openfile linked list.  Allow writebehind caching errors to 
+be returned to the application at file close.
+
+Version 0.76
+------------
+Clean up options displayed in /proc/mounts by show_options to
+be more consistent with other filesystems.
+
+Version 0.75
+------------
+Fix delete of readonly file to Windows servers.  Reflect
+presence or absence of read only dos attribute in mode
+bits for servers that do not support CIFS Unix extensions.
+Fix shortened results on readdir of large directories to
+servers supporting CIFS Unix extensions (caused by
+incorrect resume key).
+
+Version 0.74
+------------
+Fix truncate bug (set file size) that could cause hangs e.g. running fsx
+
+Version 0.73
+------------
+unload nls if mount fails.
+
+Version 0.72
+------------
+Add resume key support to search (readdir) code to workaround
+Windows bug.  Add /proc/fs/cifs/LookupCacheEnable which
+allows disabling caching of attribute information for
+lookups.
+
+Version 0.71
+------------
+Add more oplock handling (distributed caching code).  Remove
+dead code.  Remove excessive stack space utilization from
+symlink routines.
+
+Version 0.70
+------------
+Fix oops in get dfs referral (triggered when null path sent in to
+mount).  Add support for overriding rsize at mount time.
+
+Version 0.69
+------------
+Fix buffer overrun in readdir which caused intermittent kernel oopses.
+Fix writepage code to release kmap on write data.  Allow "-ip=" new 
+mount option to be passed in on parameter distinct from the first part
+(server name portion of) the UNC name.  Allow override of the
+tcp port of the target server via new mount option "-port="  
+
+Version 0.68
+------------
+Fix search handle leak on rewind.  Fix setuid and gid so that they are 
+reflected in the local inode immediately.  Cleanup of whitespace
+to make 2.4 and 2.5 versions more consistent.
+
+
+Version 0.67
+------------
+Fix signal sending so that captive thread (cifsd) exits on umount 
+(which was causing the warning in kmem_cache_free of the request buffers
+at rmmod time).  This had broken as a sideeffect of the recent global
+kernel change to daemonize.  Fix memory leak in readdir code which
+showed up in "ls -R" (and applications that did search rewinding).
+
+Version 0.66
+------------
+Reconnect tids and fids after session reconnection (still do not
+reconnect byte range locks though).  Fix problem caching
+lookup information for directory inodes, improving performance,
+especially in deep directory trees.  Fix various build warnings.
+
+Version 0.65
+------------
+Finish fixes to commit write for caching/readahead consistency.  fsx 
+now works to Samba servers.  Fix oops caused when readahead
+was interrupted by a signal.
+
+Version 0.64
+------------
+Fix data corruption (in partial page after truncate) that caused fsx to
+fail to Windows servers.  Cleaned up some extraneous error logging in
+common error paths.  Add generic sendfile support.
+
+Version 0.63
+------------
+Fix memory leak in AllocMidQEntry.
+Finish reconnection logic, so connection with server can be dropped
+(or server rebooted) and the cifs client will reconnect.  
+
+Version 0.62
+------------
+Fix temporary socket leak when bad userid or password specified 
+(or other SMBSessSetup failure).  Increase maximum buffer size to slightly
+over 16K to allow negotiation of up to Samba and Windows server default read 
+sizes.  Add support for readpages
+
+Version 0.61
+------------
+Fix oops when username not passed in on mount.  Extensive fixes and improvements
+to error logging (strip redundant newlines, change debug macros to ensure newline
+passed in and to be more consistent).  Fix writepage wrong file handle problem,
+a readonly file handle could be incorrectly used to attempt to write out
+file updates through the page cache to multiply open files.  This could cause
+the iozone benchmark to fail on the fwrite test. Fix bug mounting two different
+shares to the same Windows server when using different usernames
+(doing this to Samba servers worked but Windows was rejecting it) - now it is
+possible to use different userids when connecting to the same server from a
+Linux client. Fix oops when treeDisconnect called during unmount on
+previously freed socket.
+
+Version 0.60
+------------
+Fix oops in readpages caused by not setting address space operations in inode in 
+rare code path. 
+
+Version 0.59
+------------
+Includes support for deleting of open files and renaming over existing files (per POSIX
+requirement).  Add readlink support for Windows junction points (directory symlinks).
+
+Version 0.58
+------------
+Changed read and write to go through pagecache. Added additional address space operations.
+Memory mapped operations now working.
+
+Version 0.57
+------------
+Added writepage code for additional memory mapping support.  Fixed leak in xids causing
+the simultaneous operations counter (/proc/fs/cifs/SimultaneousOps) to increase on 
+every stat call.  Additional formatting cleanup. 
+
+Version 0.56
+------------
+Fix bigendian bug in order of time conversion. Merge 2.5 to 2.4 version.  Formatting cleanup.   
+
+Version 0.55
+------------
+Fixes from Zwane Mwaikambo for adding missing return code checking in a few places.
+Also included a modified version of his fix to protect global list manipulation of
+the smb session and tree connection and mid related global variables.
+
+Version 0.54
+------------
+Fix problem with captive thread hanging around at unmount time.  Adjust to 2.5.42-pre
+changes to superblock layout.   Remove wasteful allocation of smb buffers (now the send 
+buffer is reused for responses).  Add more oplock handling. Additional minor cleanup.
+
+Version 0.53
+------------
+More stylistic updates to better match kernel style.  Add additional statistics
+for filesystem which can be viewed via /proc/fs/cifs.  Add more pieces of NTLMv2
+and CIFS Packet Signing enablement.
+
+Version 0.52
+------------
+Replace call to sleep_on with safer wait_on_event.
+Make stylistic changes to better match kernel style recommendations.
+Remove most typedef usage (except for the PDUs themselves).
+
+Version 0.51
+------------
+Update mount so the -unc mount option is no longer required (the ip address can be specified
+in a UNC style device name.   Implementation of readpage/writepage started.
+
+Version 0.50
+------------
+Fix intermittent problem with incorrect smb header checking on badly 
+fragmented tcp responses
+
+Version 0.49
+------------
+Fixes to setting of allocation size and file size.
+
+Version 0.48
+------------
+Various 2.5.38 fixes.  Now works on 2.5.38
+
+Version 0.47
+------------
+Prepare for 2.5 kernel merge.  Remove ifdefs.
+
+Version 0.46
+------------
+Socket buffer management fixes.  Fix dual free.
+
+Version 0.45
+------------
+Various big endian fixes for hardlinks and symlinks and also for dfs.
+
+Version 0.44
+------------
+Various big endian fixes for servers with Unix extensions such as Samba
+
+Version 0.43
+------------
+Various FindNext fixes for incorrect filenames on large directory searches on big endian
+clients.  basic posix file i/o tests now work on big endian machines, not just le
+
+Version 0.42
+------------
+SessionSetup and NegotiateProtocol now work from Big Endian machines.
+Various Big Endian fixes found during testing on the Linux on 390.  Various fixes for compatibility with older
+versions of 2.4 kernel (now builds and works again on kernels at least as early as 2.4.7).
+
+Version 0.41
+------------
+Various minor fixes for Connectathon Posix "basic" file i/o test suite.  Directory caching fixed so hardlinked
+files now return the correct rumber of links on fstat as they are repeatedly linked and unlinked.
+
+Version 0.40
+------------
+Implemented "Raw" (i.e. not encapsulated in SPNEGO) NTLMSSP (i.e. the Security Provider Interface used to negotiate
+session advanced session authentication).  Raw NTLMSSP is preferred by Windows 2000 Professional and Windows XP.
+Began implementing support for SPNEGO encapsulation of NTLMSSP based session authentication blobs
+(which is the mechanism preferred by Windows 2000 server in the absence of Kerberos).
+
+Version 0.38
+------------
+Introduced optional mount helper utility mount.cifs and made coreq changes to cifs vfs to enable
+it. Fixed a few bugs in the DFS code (e.g. bcc two bytes too short and incorrect uid in PDU).
+
+Version 0.37
+------------
+Rewrote much of connection and mount/unmount logic to handle bugs with
+multiple uses to same share, multiple users to same server etc.
+
+Version 0.36
+------------
+Fixed major problem with dentry corruption (missing call to dput)
+
+Version 0.35
+------------
+Rewrite of readdir code to fix bug. Various fixes for bigendian machines.
+Begin adding oplock support.  Multiusermount and oplockEnabled flags added to /proc/fs/cifs
+although corresponding function not fully implemented in the vfs yet
+
+Version 0.34
+------------
+Fixed dentry caching bug, misc. cleanup 
+
+Version 0.33
+------------
+Fixed 2.5 support to handle build and configure changes as well as misc. 2.5 changes.  Now can build
+on current 2.5 beta version (2.5.24) of the Linux kernel as well as on 2.4 Linux kernels.
+Support for STATUS codes (newer 32 bit NT error codes) added.  DFS support begun to be added.
+
+Version 0.32
+------------
+Unix extensions (symlink, readlink, hardlink, chmod and some chgrp and chown) implemented
+and tested against Samba 2.2.5
+
+
+Version 0.31
+------------
+1) Fixed lockrange to be correct (it was one byte too short)
+
+2) Fixed GETLK (i.e. the fcntl call to test a range of bytes in a file to see if locked) to correctly 
+show range as locked when there is a conflict with an existing lock.
+
+3) default file perms are now 2767 (indicating support for mandatory locks) instead of 777 for directories
+in most cases.  Eventually will offer optional ability to query server for the correct perms.
+
+3) Fixed eventual trap when mounting twice to different shares on the same server when the first succeeded 
+but the second one was invalid and failed (the second one was incorrectly disconnecting the tcp and smb
+session) 
+
+4) Fixed error logging of valid mount options
+
+5) Removed logging of password field.
+
+6) Moved negotiate, treeDisconnect and uloggoffX (only tConx and SessSetup remain in connect.c) to cifssmb.c
+and cleaned them up and made them more consistent with other cifs functions. 
+
+7) Server support for Unix extensions is now fully detected and FindFirst is implemented both ways 
+(with or without Unix exentions) but FindNext and QueryPathInfo with the Unix extensions are not completed,
+nor is the symlink support using the Unix extensions
+
+8) Started adding the readlink and follow_link code 
+
+Version 0.3 
+-----------
+Initial drop
+

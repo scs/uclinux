@@ -1,0 +1,82 @@
+version 0.8.1 July 4th, 2003
+
+A Partial List of Known Problems and Missing Features
+=====================================================
+
+Contributions are welcome.  There are plenty of opportunities
+for visible, important contributions to this module.  Here
+is a partial list of the known problems and missing features:
+
+a) Support for SecurityDescriptors for chmod/chgrp/chown so
+these can be supported for Windows servers
+
+b) Better pam/winbind integration
+
+c) multi-user mounts - multiplexed sessionsetups over single vc
+(ie tcp session) - prettying up needed
+
+d) Kerberos/SPNEGO session setup support - (started)
+
+e) NTLMv2 authentication (mostly implemented)
+
+f) MD5-HMAC signing SMB PDUs when SPNEGO style SessionSetup 
+used (Kerberos or NTLMSSP). Signing alreadyimplemented for NTLM
+	and raw NTLMSSP already. This is important when enabling
+	extended security and mounting to Windows 2003 Servers
+
+f) Directory entry caching relies on a 1 second timer, rather than 
+using FindNotify or equivalent.  - (started)
+
+g) There may be a few additional changes that could be done to take advantage
+of recent 2.5 kernel improvements in byte-range locking
+
+h) quota support
+
+i) support for the Linux 2.5 kernel new feature get_xattr and set_xattr
+which will allow us to expose dos attributes as well as real
+ACLs
+
+j) finish off the mount helper, mount.cifs - (started)
+
+k) finish writepages support (multi-page write behind for improved
+performance) and syncpage
+
+l) hook lower into the sockets api (as NFS/SunRPC does) to avoid the
+extra copy in/out of the socket buffers in some cases.
+
+m) finish support for IPv6
+
+o) Better optimize open (and pathbased setfilesize) to reduce the
+oplock breaks coming from windows srv.  Piggyback identical file
+opens on top of each other by incrementing reference count rather
+than resending (helps reduce server resource utilization and avoid
+spurious oplock breaks).
+
+p) Improve performance of readpages by sending more than one read
+at a time when 8 pages or more are requested.
+
+
+KNOWN BUGS (updated July 4th, 2003)
+====================================
+1) existing symbolic links (Windows reparse points) are recognized but
+can not be created remotely. They are implemented for Samba and those that
+support the CIFS Unix extensions but Samba has a bug currently handling
+symlink text beginning with slash
+2) delete of file with read-only attribute set will fail (may be ok)
+3) mount helper syntax not quite matching man page
+4) follow_link and readdir code does not follow dfs junctions
+but recognizes them
+5) create of new files to FAT partitions on Windows servers can
+succeed but still return access denied (appears to be Windows 
+not client problem).  NTFS partitions do not have this problem.
+
+Misc testing to do
+=================
+1) check out max path names and max path name components against various server
+types.
+
+2) Run dbench. Modify file portion of ltp so it can run against a mounted network
+share and run it against cifs vfs.
+
+3) Additional performance testing and optimization using iozone and similar tools.
+
