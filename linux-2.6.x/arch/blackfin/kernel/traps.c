@@ -115,8 +115,8 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	switch (fp->seqstat & 0x3f) {
 	    case VEC_STEP:
 		info.si_code = TRAP_STEP;
+		fp->pc = fp->retx;      /* gdb wants the value of the pc                         */
 		sig = SIGTRAP;
-		DPRINTK(EXC_0x21);
 		break;
 	    case VEC_EXCPT01 : /* gdb breakpoint */
 		info.si_code = TRAP_ILLTRAP;
