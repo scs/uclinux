@@ -1,22 +1,37 @@
-/* Copyright (C) 2003 Analog Devices, Inc. All Rights Reserved. 
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License. 
- *
- * Blackfin BF533/2.6 support : LG Soft India	
- *
- * libgcc1 routines for Blackfin 533
- * Copyright (C) 2004-2005 LG Soft India. 
- */
+/*Copyright(c) 2000-2003 Analog Devices Inc. 
+  All rights reserved
+******************************************************************************
+  Module Name    : Runtime Support
+  Label name     : __divsi3
 
+  Description    : 16 / 32 bit signed division .
 
-	.text
-	.globl	__divsi3
-__divsi3:
-     
-	/* Attempt to use divide primitive first; these will handle
-        most cases, and they're quick - avoids stalls incurred by
-        testing for identities. */
+                   Special cases :
+                        1)  If(numerator == 0) 
+                               return 0
+                        2)  If(denominator ==0) 
+                               return positive max = 0x7fffffff
+                        3)  If(numerator == denominator) 
+                               return 1
+                        4)  If(denominator ==1) 
+                               return numerator
+                        5)  If(denominator == -1) 
+                               return -numerator
+
+  Operand        : R0 - Numerator   (i)
+                   R1 - Denominator (i)
+                   R0 - Quotient    (o)
+
+  Registers Used : R2-R7,P0-P2
+******************************************************************************/
+
+.global   __divsi3;
+
+.align 8;
+__divsi3 :
+        /* Attempt to use divide primitives first; these will handle
+           most cases, and they're quick - avoids stalls incurred by
+           testing for identities. */
 
         R2.H = 0x8000;
         R2 >>>= 16;                     /* R2 now 0xFFFF8000 */
@@ -24,10 +39,7 @@ __divsi3:
         R2 = R3 & R2;                   /* divisor have bits in */
         CC = R2;                        /* top half or low half's sign */
         IF CC JUMP IDENTS;             /* bit, skip builtins. */
-
-     /* Can use the builtins. */
-
-        AQ = CC;                        /* Clear AQ (CC==0) */
+        DIVS(R0, R1);
         DIVQ(R0, R1);
         DIVQ(R0, R1);
         DIVQ(R0, R1);
@@ -44,98 +56,81 @@ __divsi3:
         DIVQ(R0, R1);
         DIVQ(R0, R1);
         DIVQ(R0, R1);
-        DIVQ(R0, R1);
-        R0 = R0.L (Z);
+        R0 = R0.L (X);
         RTS;
+
+        /* Can't use the primitives. Test common identities. 
+         * If the identity is true, return the value in R2. 
+         */
 
 IDENTS:
-       /* Test for common identities. Value to be returned is
-          placed in R2. */
         CC = R0 == 0;                   /* NR==0 => 0 */
-        IF CC JUMP RETURN_R0;
-        R2 = -1 (X);                    /* DR==0 => 0xFFFFFFFF */
+        IF CC JUMP ZERO_RETURN;
+
+        R2.L = -1;                      /* DR==0 => 0x7FFFFFFF */
+        R2.H = 0x7FFF;
         CC = R1 == 0;
-        IF CC JUMP RETURN_IDENT;
-        R2 = -R2;                       /* R2 now 1 */
-        CC = R0 == R1;                  /* NR==DR => 1 */
-        IF CC JUMP RETURN_IDENT;
-        R2 = R0;
-        CC = R1 == 1;                   /* DR==1 => NR */
-        IF CC JUMP RETURN_IDENT;
-        R2 = 0 (Z);
-        CC = R0 < R1 (IU);
-        IF CC JUMP RETURN_IDENT;        /* NR < DR => 0 */
+        IF CC JUMP IDENT_RETURN;
 
-       /* Idents don't match. Go for the full operation. */
+        R2 = 1 (Z);                     /* NR==DR => 1 */
+        CC = R0 == R1;
+        IF CC JUMP IDENT_RETURN;
 
+        R2 = R0;                        /* DR==1 => NR */
+        CC = R1 == 1;
+        IF CC JUMP IDENT_RETURN;
+
+        R2 = -R0;                       /* DR==-1 => -NR */
+        CC = R1 == -1;
+        IF CC JUMP IDENT_RETURN;
+
+        /* Identities haven't helped either.
+         * Perform the full division process.  
+         */
+
+        P0 = R0;                        /* Copy R0,R1 */
+        P1 = R1;
+        R0 = ABS R0;                    /* Absolute of R0,R1 */
+	CC = V;
         [--SP] = (R7:4);                /* Push registers R4-R7 */
-        [--SP] = P3;                    /* Push P3 */
-        P1 = R0;
-        P2 = R1;
-                                        /* If either R0 or R1 have sign set, */
-                                        /* divide them by two, and note it's */
-                                        /* been done. */
-        R6 = 2;                         /* assume we'll shift two */
-        R7 = 1;
-        R3 = 0;
-        R5 = R1 >> 1;
-        R4 = R0 >> 1;
-        CC = R1 < 0;
-        IF !CC R6 = R7;                 /* R1 doesn't, so at most 1 shifted */
-        IF !CC R5 = R1;                 /* and use original value. */
-        CC = R0 < 0;
-        IF CC R3 = R6;                  /* Number of values divided */
-        IF CC R0 = R4;                  /* Shifted R0 */
-        R1 = R5;                        /* Possibly-shifted R1 */
-        P0 = R3;                        /* 0, 1 (NR/=2) or 2 (NR/=2, DR/=2) */
+        R7 = CC;
 
-        R2 = R0;                        /* Copy dividend  */
-        R3 = 0;                         /* Clear partial remainder */
-        P3 = 32;                        /* Set loop counter */
-        R4 = 0;                         /* Initialise quotient bit */ 
+        R1 = ABS R1;
+        R3 = 0 ;                        /* Clear msw partial remainder */ 
+        R2 = R0<< 1;                    /* R2 lsw of dividend  */ 
+        R4 = R0^R1;                     /* Get sign */
+        R5 = R4 >> 31;                  /* Shift sign to LSB */
 
-        LSETUP( ULST,ULEND ) LC0 = P3;  /* Set loop counter */
-ULST:   R6 = R2 >> 31;                  /* R6 = sign bit of R2, for carry */
-//      R2 = R2 << 1 ;                   /* Shift 64 bit dividend up by 1 bit */
-//      R3 = R3 << 1 ;
-	R2 <<= 0x1 ;                   /* Shift 64 bit dividend up by 1 bit */
-        R3 <<= 0x1 ;
-        R3 = R3 | R6;                   /* Include any carry */
+        R2 = R2|R5;                     /* Shift quotient bit */ 
+        P2 = 31;                        /* Set loop counter   */
+        R4 = R3^R1;                     /* Get new quotient bit */  
+
+        LSETUP ( LST,LEND )  LC0 = P2;     /* Setup loop */
+LST:    R5 = R2 >> 31;                  /* record copy of carry from R2 */
+        R2 = R2 << 1;                   /* Shift 64 bit dividend up by 1 bit */
+        R3 = R3 << 1;
+        R3 = R3|R5;                     /* and add carry */
         CC = R4 < 0;                    /* Check quotient(AQ) */
-        R5 = -R1;                       /* If AQ==0, we'll sub divisor */
-        IF CC R5 = R1;                  /* and if AQ==1, we'll add it. */
-        R3= R3 + R5;                    /* Add/sub divsor to partial remainder */ 
+        R5 = -R1;                       /* we might be subtracting divisor (AQ==0) */
+        IF CC R5 = R1;                  /* or we might be adding divisor  (AQ==1)*/
+        R3 = R3 + R5;                   /* do add or subtract, as indicated by AQ */
         R4 = R3^R1;                     /* Generate next quotient bit */
-        BITCLR(R2,0);                   /* Assume AQ==1, so "shift in" 0 */
-        R5 = R4 >> 31;                  /* Get AQ */
-        BITTGL(R5, 0);                  /* Invert it, to get what we'll shift */
-ULEND:  R2 = R2 + R5;                   /* and "shift" it in. */
+        R5 = R4 >> 31;
+        BITCLR(R2,0);                   /* Assume AQ==1, shift in zero */
+        BITTGL(R5,0);                   /* tweak AQ to be what we want to shift in */
+LEND:   R2 = R2 + R5;                   /* and then set shifted-in value to tweaked AQ. */
 
-        CC = P0 == 0;                   /* Check how many inputs we shifted */
-        IF CC JUMP NO_MULT;             /* if none... */
-//      R6 = R2 << 1;
-	R2 <<= 0x1;
-	R6 = R2;
-/* till here */
-        CC = P0 == 1;
-        IF CC R2 = R6;                  /* if 1, Q = Q*2 */
-        IF !CC R1 = P2;                 /* if 2, restore stored divisor */
-
-        R3 = R2;                        /* Copy of R2 */ 
-        R3 *= R1;                       /* Q * divisor */
-        R4 = P1;                        /* Get stored dividend(R0)  */
-        R5 = R4 - R3;                   /* Z = (dividend - Q * divisor) */  
-        CC = R1<= R5 (IU);              /* Check if divisor <= Z? */ 
-        R6 = CC;                        /* if yes, R6 = 1 */
-        R2 = R2 + R6;                   /* if yes, add one to quotient(Q) */  
-NO_MULT:
-        P3 = [SP++];                    /* Pop register P3 */
-        ( R7:4) = [SP++];                /* Pop registers R4-R7 */
-        R0 = R2;                        /* Store quotient */
+        R2 = R2 + R7;
+        R0 = P0;
+        R1 = P1;
+        R3 = R0^R1;
+        CC = R3<0;                      /* Check sign of R0 and R1 */
+        (R7:4)= [SP++];                 /* Pop registers R4-R7 */
+        R0 = -R2;                       /* If negative, return -R2 */
+        IF !CC R0 = R2;                 /* If positive, return R2 */
         RTS;
 
-RETURN_IDENT:
-        R0 = R2;
-RETURN_R0:
-        RTS;
-
+IDENT_RETURN:
+        R0 = R2;                        /* Return an identity value */
+ZERO_RETURN:
+        RTS;                            /* ...including zero */
