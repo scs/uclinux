@@ -9,22 +9,11 @@
  *
  */
 
-#include <linux/config.h>
-#include <linux/errno.h>
 #include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/kernel.h>
-#include <linux/param.h>
-#include <linux/string.h>
-#include <linux/mm.h>
 #include <linux/profile.h> 
-#include <linux/time.h> 
-#include <linux/timex.h>
 
 #include <asm/blackfin.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/bf533_rtc.h>
 
 #define	TICK_SIZE (tick_nsec / 1000)	
@@ -50,7 +39,6 @@ extern u_long get_cclk(void);
 #define TSCALE_SHIFT 2	/* 0.25 microseconds */
 #define TSCALE_COUNT ((get_cclk()/1000000) >> TSCALE_SHIFT)
 #define CLOCKS_PER_JIFFY ((1000*1000/HZ) << TSCALE_SHIFT)
-
 
 void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
 {
