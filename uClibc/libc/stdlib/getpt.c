@@ -82,8 +82,6 @@ getpt (void)
 	  close (fd);
 #if !defined __UNIX98PTY_ONLY__
 	  have_no_dev_ptmx = 1;
-#else
-	  return -1;
 #endif
 #endif
 	}

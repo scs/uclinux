@@ -543,7 +543,7 @@ unsigned long __XL_NPP(_stdlib_strto_l)(register const Wchar * __restrict str,
 
 #if defined(L__stdlib_strto_ll) || defined(L__stdlib_strto_ll_l)
 
-#if defined(ULLONG_MAX) // && (LLONG_MAX > LONG_MAX)
+#if defined(ULLONG_MAX)  && (LLONG_MAX > LONG_MAX)
 
 #if defined(L__stdlib_wcsto_ll) || defined(L__stdlib_wcsto_ll_l)
 #define _stdlib_strto_ll _stdlib_wcsto_ll
