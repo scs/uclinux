@@ -19,15 +19,10 @@
 #include <asm/cplbtab.h>
 
 .text
-
 .global icache_init
-.type icache_init, STT_FUNC
-
 .global dcache_init
-.type dcache_init, STT_FUNC
 
 ENTRY(icache_init)
-	
 	/* Initialize Instruction CPLBS */
 	
 	I0.L = (ICPLB_ADDR0 & 0xFFFF);
@@ -62,7 +57,7 @@ idone:
 
 	P0.l = (IMEM_CONTROL & 0xFFFF);
 	P0.h = (IMEM_CONTROL >> 16);
-	R0 = (IMC | ENICPLB);
+	R0 = (IMC | ENICPLB | ENIM);
 	[P0] = R0;
 	CSYNC;
 
@@ -101,7 +96,7 @@ ddone:
 	P0.L = (DMEM_CONTROL & 0xFFFF);
 	P0.H = (DMEM_CONTROL >> 16);
 
-	R0 = (DMC_ENABLE | ENDCPLB);
+	R0 = (DMC_ENABLE | ENDCPLB | ENDM);
 	[P0] = R0;
 	CSYNC;
 	RTS;	
