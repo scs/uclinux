@@ -3,4 +3,4 @@
 
 #include <asm-generic/cpumask.h>
 
-#endif /* _ASM_M68KNOMMU_CPUMASK_H */
+#endif /* _ASM_BFINNOMMU_CPUMASK_H */
