@@ -24,7 +24,7 @@ _start:
 start:
 _stext:
 	/* Set the SYSCFG register */	
-	r0 = 0x30;
+	r0 = 0x34;
 	SYSCFG = r0;
 	r0 = 0;
 	LC0 = r0;
