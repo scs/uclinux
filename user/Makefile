@@ -165,6 +165,7 @@ dir_$(CONFIG_USER_MP3PLAY_MP3PLAY)          += mp3play
 dir_$(CONFIG_USER_MSNTP_MSNTP)              += msntp
 dir_$(CONFIG_USER_MUSICBOX_MUSICBOX)        += musicbox
 dir_$(CONFIG_USER_MYSQL)                    += mysql
+dir_$(CONFIG_USER_NDSO)                     += ndso 
 dir_$(CONFIG_USER_NESSUS_NASL)              += nessus
 dir_$(CONFIG_USER_NETFLASH_NETFLASH)        += netflash
 dir_$(CONFIG_USER_NET_TOOLS_ARP)            += net-tools

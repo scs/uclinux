@@ -1,0 +1,1026 @@
+/*****************************************************************************
+*
+* Copyright (C) 2004, Analog Devices. All Rights Reserved
+*
+* FILE ndso.c
+* PROGRAMMER(S): Michael Hennerich (Analog Devices Inc.)
+*
+*
+* DATE OF CREATION: Sept. 10th 2004
+*
+* SYNOPSIS:
+*
+*
+* CAUTION:     you may need to change ioctl's in order to support other ADCs.
+******************************************************************************
+* MODIFICATION HISTORY:
+* Sept 10, 2004   adsp-spiadc.c Created.
+******************************************************************************
+* 
+* This program is free software; you can distribute it and/or modify it
+* under the terms of the GNU General Public License (Version 2) as
+* published by the Free Software Foundation.
+*
+* This program is distributed in the hope it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+* for more details.
+*
+* You should have received a copy of the GNU General Public License along
+* with this program; if not, write to the Free Software Foundation, Inc.,
+* 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
+*
+*****************************************************************************/
+
+#include <string.h>
+#include <stdlib.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/poll.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+
+#ifdef TM_IN_SYS_TIME
+#include <sys/time.h>
+#else
+#include <time.h>
+#endif
+
+#include "adsp-spiadc.h"
+#include "cgivars.h"
+#include "htmllib.h"
+#include "ndso.h"
+#include "dac.h"
+
+static s_info *sinfo;
+
+int
+main ()
+{
+  char **postvars = NULL;	/* POST request data repository */
+  char **getvars = NULL;	/* GET request data repository */
+  int form_method;		/* POST = 1, GET = 0 */
+
+  s_info *info = &sinfo;
+
+  form_method = getRequestMethod ();
+
+
+  if (form_method == POST)
+    {
+      getvars = getGETvars ();
+      postvars = getPOSTvars ();
+    }
+  else if (form_method == GET)
+    {
+      getvars = getGETvars ();
+    }
+
+
+  ParseRequest (form_method, getvars, postvars, info);
+
+  CheckRequest (form_method, getvars, postvars, info);
+
+  switch (info->run)
+    {
+
+    case ACQUIRE:
+      AllocateMemory (form_method, getvars, postvars, info);
+      Sample (form_method, getvars, postvars, info);
+      MakeFileInit (form_method, getvars, postvars, info);
+      if (info->sdisplay.tdom)
+	{
+
+	  MakeFileSamples (form_method, getvars, postvars, info);
+
+	}
+      else
+	{
+
+	  MakeFileFrequencySamples (form_method, getvars, postvars, info);
+
+	}
+      system ("/bin/gnuplot /home/httpd/cgi-bin/gnu.plt");
+      DoHTML (form_method, getvars, postvars, info);
+      free (info->samples);
+      break;
+
+    case REPLOT:
+      MakeFileInit (form_method, getvars, postvars, info);
+      system ("/bin/gnuplot /home/httpd/cgi-bin/gnu.plt");
+      DoHTML (form_method, getvars, postvars, info);
+      break;
+
+    case MULTIMETER:
+      info->stime_s.samples = 20;
+      AllocateMemory (form_method, getvars, postvars, info);
+      Sample (form_method, getvars, postvars, info);
+      DoHTML (form_method, getvars, postvars, info);
+      free (info->samples);
+      break;
+
+    case SHOWSAMPLES:
+      AllocateMemory (form_method, getvars, postvars, info);
+      Sample (form_method, getvars, postvars, info);
+      DoHTML (form_method, getvars, postvars, info);
+      free (info->samples);
+      break;
+
+    default:
+
+      break;
+    }
+
+  exit (0);
+}
+
+
+int
+Sample (int form_method, char **getvars, char **postvars, s_info * info)
+{
+
+  int errval, baud, sclk, i;
+
+
+//        info->fd0 = open("/dev/spi",O_RDONLY);
+  info->fd0 = open ("/dev/spi", O_RDWR);
+
+  if (info->fd0 < 0)
+    {
+      NDSO_Error (SPIOPEN, form_method, getvars, postvars, info);
+    }
+
+  ioctl (info->fd0, CMD_SPI_GET_SYSTEMCLOCK, &sclk);
+
+  /* Calculate required Baud Rate */
+  baud = (unsigned short) (sclk / (34 * info->stime_s.sps));
+  ioctl (info->fd0, CMD_SPI_SET_BAUDRATE, baud);	// Set baud rate SCK = HCLK/(2*SPIBAUD)                
+  /* Calculate real Baud Rate */
+  info->stime_s.sps = sclk / ((2 * 16 + 2) * baud);
+
+  for (i = 0; hw_device_table[info->sinput.type][i].cmd; i++)
+    ioctl (info->fd0, hw_device_table[info->sinput.type][i].cmd,
+	   hw_device_table[info->sinput.type][i].arg);
+
+
+  ioctl (info->fd0, CMD_SPI_SET_TRIGGER_MODE, info->strigger.mode);
+  ioctl (info->fd0, CMD_SPI_SET_TRIGGER_SENSE, info->strigger.sense);
+  ioctl (info->fd0, CMD_SPI_SET_TRIGGER_EDGE, info->strigger.edge);
+
+  if (info->sinput.mode)
+    ioctl (info->fd0, CMD_SPI_SET_TRIGGER_LEVEL, info->strigger.level);
+  else
+    ioctl (info->fd0, CMD_SPI_SET_TRIGGER_LEVEL,
+	   info->strigger.level + AC_MODE_DC_OFFSET);
+
+  errval = read (info->fd0, info->samples, info->stime_s.samples);
+
+  close (info->fd0);
+
+  if (errval < 0)
+    NDSO_Error (TRIGCOND, form_method, getvars, postvars, info);
+
+  return 0;
+}
+
+int
+DoHTML (int form_method, char **getvars, char **postvars, s_info * info)
+{
+
+
+  switch (info->run)
+    {
+    case ACQUIRE:
+      htmlHeader ("NDSO Demo Web Page");
+      htmlBody ();
+      printf ("\n<img border=\"0\" src=\"img.png?id=%s\" align=\"left\">\n",
+	      itostr (getrand (6), 6, 1, 1));
+
+      if ((info->smeasurements.min || info->smeasurements.max
+	   || info->smeasurements.mean) && info->sdisplay.tdom)
+	{
+
+	  DoMeasurements (info);
+
+	  if (info->smeasurements.min)
+	    printf
+	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Min&nbsp;: %04d mV  </font></p>\n",
+	       info->smeasurements.valuemin);
+	  if (info->smeasurements.max)
+	    printf
+	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Max&nbsp;: %04d mV  </font></p>\n",
+	       info->smeasurements.valuemax);
+	  if (info->smeasurements.mean)
+	    printf
+	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Mean: %04d mV  </font></p>\n",
+	       info->smeasurements.valuemean);
+	  printf
+	    ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> ______________</font></p>\n");
+
+	}
+      break;
+    case REPLOT:
+      htmlHeader ("NDSO Demo Web Page");
+      htmlBody ();
+      printf ("\n<img border=\"0\" src=\"img.png?id=%s\" align=\"left\">\n",
+	      itostr (getrand (6), 6, 1, 1));
+      break;
+    case MULTIMETER:
+      DoDM_HTML_Page (form_method, getvars, postvars, info);
+//                  printf(INLINE_FRAME);
+//              for (i=0; i<400 ; i++) {
+//                Sample(form_method, getvars, postvars, info);                 
+//                  DoDM_HTML_Page(form_method, getvars, postvars, info); //fixme
+//              sleep(1);
+//                  }
+      break;
+    case SHOWSAMPLES:
+      htmlHeader ("NDSO Demo Web Page");
+      htmlBody ();
+      PrintSamples (info);
+
+      break;
+    default:
+
+      break;
+    }
+  htmlFooter ();
+  cleanUp (form_method, getvars, postvars);
+
+  fflush (stdout);
+
+  return 0;
+}
+
+int
+PrintSamples (s_info * info)
+{
+
+  unsigned short number = 0, found = 0, i;
+  unsigned short *samples = info->samples;
+
+  printf
+    ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\">&nbsp;&nbsp;C/C++ Array&nbsp Declaration;  </font></p>\n");
+  printf
+    ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> unsigned&nbsp;short&nbsp;samples[%d]&nbsp;=&nbsp;\n{<p style=\"margin-top: 0; margin-bottom: 0\">",
+     info->stime_s.samples);
+
+  for (i = 0; i < info->stime_s.samples - 1;)
+    {
+      found = number / 50;
+
+      number += printf ("%d,", samples[i++]);
+      if ((number / 50) > found)
+	printf ("<p style=\"margin-top: 0; margin-bottom: 0\">\n");
+
+    }
+
+  printf ("%d}</font></p>\n", samples[i]);
+  printf
+    ("<p></p>\n<p></p>\n<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\">&nbsp;&nbsp;MATLAB Array&nbsp Declaration;  </font></p>\n");
+  printf
+    ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\">samples&nbsp;=&nbsp;\n[<p style=\"margin-top: 0; margin-bottom: 0\">",
+     info->stime_s.samples);
+
+  found = 0;
+  number = 0;
+
+  for (i = 0; i < info->stime_s.samples - 1;)
+    {
+      found = number / 40;
+
+      number += printf ("%d&nbsp;", samples[i++]) - 6;
+      if ((number / 40) > found)
+	printf ("<p style=\"margin-top: 0; margin-bottom: 0\">\n");
+
+    }
+  printf ("%d]</font></p>\n", samples[i]);
+
+  return 0;
+}
+
+int
+NDSO_Error (int errnum, int form_method, char **getvars, char **postvars,
+	    s_info * info)
+{
+
+  htmlHeader ("NDSO Demo Web Page");
+  htmlBody ();
+
+  switch (errnum)
+    {
+
+    case SPIOPEN:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      SPIOPEN);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">Can't open /dev/spi.\n</font></p>");
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">- Try again later -\n</font></p>");
+      free (info->samples);
+      break;
+    case FILE_OPEN:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      FILE_OPEN);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">Can't open FILE.\n</font></p>");
+      free (info->samples);
+      break;
+    case MEMORY:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      MEMORY);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">Memory allocation error.\n</font></p>");
+      free (info->samples);
+      break;
+    case TRIGCOND:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      TRIGCOND);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">No Trigger Condition Found.\n</font></p>");
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">- Time Out -\n</font></p>");
+      free (info->samples);
+      break;
+    case TRIGGER_LEVEL:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      TRIGGER_LEVEL);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">Trigger Level outside specified range: [%d] < Level < [%d] \n</font></p>",
+	 MINTRIGGERLEVEL, MAXTRIGGERLEVEL);
+      break;
+    case SAMPLE_RATE:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      SAMPLE_RATE);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">Sample Rate outside specified range: [%d] < Rate < [%d] \n</font></p>",
+	 MINSAMPLERATE,
+	 hw_device_table[info->sinput.type][MAX_SAMPLERATE].arg);
+      break;
+    case SAMPLE_DEPTH:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      SAMPLE_DEPTH);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">Sample Depth outside specified range: [%d] < Depth < [%d] \n</font></p>",
+	 MINNUMSAMPLES, MAXNUMSAMPLES);
+      break;
+    case SIZE_RATIO:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      SIZE_RATIO);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">Size Ratio contains invalid characters\n</font></p>");
+      break;
+    case RANGE:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      RANGE);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">Plot Range contains invlaid characters.\n</font></p>");
+      break;
+    default:
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">ERROR[UNDEF]:\n</font></p>");
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">undefined ERROR: \n</font></p>");
+      break;
+    }
+
+  htmlFooter ();
+  cleanUp (form_method, getvars, postvars);
+  fflush (stdout);
+
+  exit (1);
+};
+
+
+int
+AllocateMemory (int form_method, char **getvars, char **postvars,
+		s_info * info)
+{
+
+  info->samples = malloc (info->stime_s.samples * 2);
+
+  if (info->samples == NULL)
+    {
+      NDSO_Error (MEMORY, form_method, getvars, postvars, info);
+    }
+
+  return 0;
+
+}
+
+int
+ParseRequest (int form_method, char **getvars, char **postvars, s_info * info)
+{
+
+  int i;
+
+  /*Preset checkbox settings */
+  info->sdisplay.set_grid = 0;
+  info->sdisplay.axis = 0;
+  info->smeasurements.min = 0;
+  info->smeasurements.max = 0;
+  info->smeasurements.mean = 0;
+  info->sdisplay.fftexludezero = 0;
+  info->sdisplay.fftscaled = 0;
+
+
+
+  if (form_method == POST)
+    {
+
+
+      /* Parse Request */
+      for (i = 0; postvars[i]; i += 2)
+	{
+
+	  if (strncmp (postvars[i], "D3", 2) == 0)
+	    {
+	      info->strigger.mode = str2num (postvars[i + 1]);
+	    }
+	  else if (strncmp (postvars[i], "D1", 2) == 0)
+	    {
+	      info->strigger.sense = str2num (postvars[i + 1]);
+	    }
+	  else if (strncmp (postvars[i], "R1", 2) == 0)
+	    {
+	      info->strigger.edge = str2num (postvars[i + 1]);
+	    }
+	  else if (strncmp (postvars[i], "T1", 2) == 0)
+	    {
+	      info->strigger.level = str2num (postvars[i + 1]);
+	    }
+	  else if (strncmp (postvars[i], "D5", 2) == 0)
+	    {
+	      info->svertical.vdiv = i + 1;
+	    }
+	  else if (strncmp (postvars[i], "T2", 2) == 0)
+	    {
+	      info->stime_s.sps = str2num (postvars[i + 1]);
+	    }
+	  else if (strncmp (postvars[i], "T3", 2) == 0)
+	    {
+	      info->stime_s.samples = str2num (postvars[i + 1]);
+	    }
+	  else if (strncmp (postvars[i], "D8", 2) == 0)
+	    {
+	      info->stime_s.fsamples = str2num (postvars[i + 1]);
+	    }
+	  else if (strncmp (postvars[i], "set_grid", 8) == 0)
+	    {
+	      info->sdisplay.set_grid = 1;
+	    }
+	  else if (strncmp (postvars[i], "axis", 4) == 0)
+	    {
+	      info->sdisplay.axis = 1;
+	    }
+	  else if (strncmp (postvars[i], "linestyle", 9) == 0)
+	    {
+	      info->sdisplay.style = i + 1;
+	    }
+	  else if (strncmp (postvars[i], "color", 5) == 0)
+	    {
+	      info->sdisplay.color = i + 1;
+	    }
+	  else if (strncmp (postvars[i], "xrangeS", 7) == 0)
+	    {
+	      info->sdisplay.xrange = i + 1;
+	    }
+	  else if (strncmp (postvars[i], "xrangeE", 7) == 0)
+	    {
+	      info->sdisplay.xrange1 = i + 1;
+	    }
+	  else if (strncmp (postvars[i], "logscale", 8) == 0)
+	    {
+	      info->sdisplay.logscale = i + 1;
+	    }
+	  else if (strncmp (postvars[i], "size_ratio", 10) == 0)
+	    {
+	      info->sdisplay.size_ratio = i + 1;
+	    }
+	  else if (strncmp (postvars[i], "smooth", 6) == 0)
+	    {
+	      info->sdisplay.smooth = i + 1;
+	    }
+	  else if (strncmp (postvars[i], "C7", 2) == 0)
+	    {
+	      info->sdisplay.fftexludezero = 1;
+	    }
+	  else if (strncmp (postvars[i], "C8", 2) == 0)
+	    {
+	      info->sdisplay.fftscaled = 1;
+	    }
+	  else if (strncmp (postvars[i], "R3", 2) == 0)
+	    {
+	      info->sdisplay.tdom = str2num (postvars[i + 1]);
+	    }
+	  else if (strncmp (postvars[i], "C4", 2) == 0)
+	    {
+	      info->smeasurements.min = 1;
+	    }
+	  else if (strncmp (postvars[i], "C5", 2) == 0)
+	    {
+	      info->smeasurements.max = 1;
+	    }
+	  else if (strncmp (postvars[i], "C6", 2) == 0)
+	    {
+	      info->smeasurements.mean = 1;
+	    }
+	  else if (strncmp (postvars[i], "R2", 2) == 0)
+	    {
+	      info->sinput.mode = str2num (postvars[i + 1]);
+	    }
+	  else if (strncmp (postvars[i], "D9", 2) == 0)
+	    {
+	      info->sinput.type = str2num (postvars[i + 1]);
+	    }
+	  else if (strncmp (postvars[i], "B1", 2) == 0)
+	    {
+	      info->run = ACQUIRE;
+	    }
+	  else if (strncmp (postvars[i], "B5", 2) == 0)
+	    {
+	      info->run = REPLOT;
+	    }
+	  else if (strncmp (postvars[i], "B4", 2) == 0)
+	    {
+	      info->run = SHOWSAMPLES;
+	    }
+	  else if (strncmp (postvars[i], "B3", 2) == 0)
+	    {
+	      info->run = MULTIMETER;
+	    };
+
+
+	}
+
+    }
+
+  if (!info->sdisplay.tdom)
+    info->stime_s.samples = 1 << info->stime_s.fsamples;
+  return 0;
+};
+
+
+
+
+int
+CheckRequest (int form_method, char **getvars, char **postvars, s_info * info)
+{
+
+  if (info->strigger.level > MAXTRIGGERLEVEL
+      || info->strigger.level < MINTRIGGERLEVEL)
+    NDSO_Error (TRIGGER_LEVEL, form_method, getvars, postvars, info);
+
+  if (info->stime_s.sps >
+      (hw_device_table[info->sinput.type][MAX_SAMPLERATE].arg)
+      || (info->stime_s.sps <= MINSAMPLERATE))
+    NDSO_Error (SAMPLE_RATE, form_method, getvars, postvars, info);
+
+  if (info->stime_s.samples > MAXNUMSAMPLES
+      || info->stime_s.samples <= MINNUMSAMPLES)
+    NDSO_Error (SAMPLE_DEPTH, form_method, getvars, postvars, info);
+
+  if (str2num (postvars[info->sdisplay.size_ratio]) < 0)
+    NDSO_Error (SIZE_RATIO, form_method, getvars, postvars, info);
+
+  if (str2num (postvars[info->sdisplay.xrange]) < 0)
+    NDSO_Error (RANGE, form_method, getvars, postvars, info);
+
+  if (str2num (postvars[info->sdisplay.xrange1]) < 0)
+    NDSO_Error (RANGE, form_method, getvars, postvars, info);
+
+  return 0;
+}
+
+int
+MakeFileSamples (int form_method, char **getvars, char **postvars,
+		 s_info * info)
+{
+
+  int i, res, ref;
+  float time, value, modi;
+  unsigned short *samples = info->samples;
+
+  /* calculate modifier */
+
+  time = 0;
+  modi = 1000 / (float) info->stime_s.sps;
+  res = hw_device_table[info->sinput.type][DAC_RESOLUTION].arg;
+  ref = hw_device_table[info->sinput.type][REF_VOLTAGE].arg;
+  /* open file for write */
+
+  info->pFile_samples = fopen (FILENAME_T_OUT, "w");
+
+  if (info->pFile_samples == NULL)
+    {
+      NDSO_Error (FILE_OPEN, form_method, getvars, postvars, info);
+    }
+
+  /* print header information */
+
+  fprintf (info->pFile_samples,
+	   "# File Samples generated by NDSO t : U(t)\n");
+  fprintf (info->pFile_samples, "# res = %d ref = %d \n", res, ref);
+
+  /* print samples */
+
+  for (i = 0; i < info->stime_s.samples; i++)
+    {
+
+      if (info->sinput.mode)
+	value = (float) samples[i] * ref / (1000 * res);
+      else
+	value = (float) (samples[i] - (res / 2)) * ref / (1000 * res);
+
+      fprintf (info->pFile_samples, "%f %f\n", time, value);
+      time += modi;
+    }
+
+  /* close file */
+
+  fclose (info->pFile_samples);
+
+  return 0;
+
+}
+
+int
+MakeFileFrequencySamples (int form_method, char **getvars, char **postvars,
+			  s_info * info)
+{
+
+  int i;
+  short *real = info->samples;
+  short *imag;
+  /* calculate modifier */
+
+
+  /* Alocate memory for the imaginary part */
+
+  imag = malloc (info->stime_s.samples * 2);
+
+  if (imag == NULL)
+    {
+      NDSO_Error (MEMORY, form_method, getvars, postvars, info);
+    }
+
+
+  /* Zero out imag and scale real */
+
+  for (i = 0; i < info->stime_s.samples; i++)
+    {
+      //real[i]=iscale(real[i],1,1);
+      imag[i] = 0;
+    }
+
+  /* Calculate FFT */
+
+
+  fix_fft (real, imag, info->stime_s.fsamples, 0);
+
+
+  /* open file for write */
+
+  info->pFile_fsamples = fopen (FILENAME_F_OUT, "w");
+
+  if (info->pFile_fsamples == NULL)
+    {
+      NDSO_Error (FILE_OPEN, form_method, getvars, postvars, info);
+    }
+
+  /* print header information */
+
+  fprintf (info->pFile_fsamples,
+	   "# File Samples generated by NDSO FFT Order %d Sample#x : Re[x] : Im[x]\n",
+	   info->stime_s.fsamples, info->stime_s.samples);
+
+  /* print samples */
+
+  for (i = info->sdisplay.fftexludezero;
+       i < (info->stime_s.samples / (1 + info->sdisplay.fftscaled)); i++)
+    {
+
+      fprintf (info->pFile_fsamples, "%d %d %d\n", i, real[i], imag[i]);
+    }
+
+  /* close file */
+
+  free (imag);
+  fclose (info->pFile_fsamples);
+
+  return 0;
+
+}
+
+int
+MakeFileInit (int form_method, char **getvars, char **postvars, s_info * info)
+{
+
+  /* open file for write */
+
+  info->pFile_init = fopen (FILENAME_GNUPLT, "w");
+
+  if (info->pFile_init == NULL)
+    {
+      NDSO_Error (FILE_OPEN, form_method, getvars, postvars, info);
+    }
+
+  /* print header information */
+
+  fprintf (info->pFile_init, "#GNUPLOT File generated by NDSO\n");
+  fprintf (info->pFile_init, "set term png\nset output \"img.png\"\n");
+
+  /* print commands */
+
+  if (info->sdisplay.set_grid)
+    fprintf (info->pFile_init, "set grid\n");
+
+  if (info->sdisplay.axis)
+    fprintf (info->pFile_init, "set xzeroaxis lt 2 lw 4\n");
+
+  if (info->sdisplay.logscale)
+    fprintf (info->pFile_init, "set %s\n", postvars[info->sdisplay.logscale]);
+
+  if (info->sdisplay.style)
+    fprintf (info->pFile_init, "set data style %s\n",
+	     postvars[info->sdisplay.style]);
+
+  if (info->sdisplay.size_ratio)
+    fprintf (info->pFile_init, "set size %s\n",
+	     postvars[info->sdisplay.size_ratio]);
+
+  fprintf (info->pFile_init, "set xrange [%s:%s]\n",
+	   postvars[info->sdisplay.xrange], postvars[info->sdisplay.xrange1]);
+
+  if (info->sdisplay.tdom)
+    {
+
+      if (postvars[info->svertical.vdiv][0] != 'X')
+	fprintf (info->pFile_init, "set ytics %s\n",
+		 postvars[info->svertical.vdiv]);
+
+      fprintf (info->pFile_init,
+	       "set xlabel \"%d Samples @ %d Samples/s                t/ms->\"\n",
+	       info->stime_s.samples, info->stime_s.sps);
+      fprintf (info->pFile_init, "set ylabel \"Volt\" \n");
+
+      if (str2num (postvars[info->sdisplay.smooth]))
+	{
+
+	  fprintf (info->pFile_init,
+		   "plot  \"/home/httpd/cgi-bin/t_samples.txt\" smooth %s notitle \nexit\n",
+		   postvars[info->sdisplay.smooth]);
+	}
+      else
+	{
+	  fprintf (info->pFile_init,
+		   "plot  \"/home/httpd/cgi-bin/t_samples.txt\" notitle %s  \nexit\n",
+		   postvars[info->sdisplay.color]);
+	}
+    }
+  else
+    {
+
+      fprintf (info->pFile_init, "set ylabel \"Magnitude\" \n");
+
+      if (info->sdisplay.fftscaled)
+	{
+	  fprintf (info->pFile_init,
+		   "set xlabel \"%d point FFT @ %d Samples/s               f/Hz->\"\n",
+		   info->stime_s.samples, info->stime_s.sps);
+	  fprintf (info->pFile_init,
+		   "plot  \"/home/httpd/cgi-bin/f_samples.txt\" using ($1*%d/%d):(sqrt($2*$2+$3*$3)) notitle %s  \nexit\n",
+		   info->stime_s.sps, info->stime_s.samples,
+		   postvars[info->sdisplay.color]);
+	}
+      else
+	{
+	  fprintf (info->pFile_init,
+		   "set xlabel \"%d point FFT @ %d Samples/s               f->\"\n",
+		   info->stime_s.samples, info->stime_s.sps);
+	  fprintf (info->pFile_init,
+		   "plot  \"/home/httpd/cgi-bin/f_samples.txt\" using 1:(sqrt($2*$2+$3*$3)) notitle %s  \nexit\n",
+		   postvars[info->sdisplay.color]);
+	}
+    }
+
+  /* close file */
+
+  fclose (info->pFile_init);
+
+  return 0;
+};
+
+
+int
+DoDM_HTML_Page (int form_method, char **getvars, char **postvars,
+		s_info * info)
+{
+
+
+  FILE *pFile;
+  char bar[44];
+  unsigned char Cntr;
+  unsigned short *samples = info->samples;
+
+  if (samples[2] > 4096)
+    samples[10] = 4096;
+
+  bar[0] = '<';
+  for (Cntr = 1; Cntr < (samples[10] / 100); Cntr++)
+    bar[Cntr] = '|';
+  for (; Cntr < 42; Cntr++)
+    bar[Cntr] = '_';
+  bar[42] = '>';
+  bar[43] = '\0';
+
+  pFile = fopen (FILENAME_VALUE, "w");
+  if (pFile == NULL)
+    {
+      NDSO_Error (FILE_OPEN, form_method, getvars, postvars, info);
+    }
+
+
+//         fprintf (pFile,VALUE_FRAME,samples[2]);
+//         fprintf (pFile,"<p><font face=\"Courier New\" size=\"1\"> %s</font></p>\n  </body>\n</html>\n",bar);
+
+  printf (VALUE_FRAME, samples[10]);
+  printf
+    ("<p><font face=\"Courier New\" size=\"1\"> %s</font></p>\n  </body>\n</html>\n",
+     bar);
+
+  fclose (pFile);
+
+  return 0;
+};
+
+
+int
+DoMeasurements (s_info * info)
+{
+
+  int i, min, max, mean;
+  unsigned short val, count;
+  unsigned short *samples = info->samples;
+
+  if (info->smeasurements.min || info->smeasurements.max
+      || info->smeasurements.mean)
+    {
+
+      /* Calculate measurements */
+
+      min = samples[0];
+      max = samples[0];
+      mean = 0;
+      count = info->stime_s.samples;
+
+      for (i = 0; i < info->stime_s.samples; i++)
+	{
+	  val = samples[i];
+	  if (val > 4095)
+	    {
+	      i++;
+	      count--;
+	      val = samples[i];
+	    };
+	  if (val < min)
+	    min = val;
+	  if (val > max)
+	    max = val;
+	  mean += val;
+
+	};
+
+      info->smeasurements.valuemin = min;
+      info->smeasurements.valuemax = max;
+      info->smeasurements.valuemean = mean / count;
+    }
+
+  return 0;
+};
+
+char *
+itostr (u_int iNumber, u_char cDigits, u_char cMode, u_char cDec_mode)
+{
+  static char cBuffer[31];
+  char c, cMod;
+  u_int iDivisor = 10;
+
+  if (cDigits > 30)
+    {
+      cBuffer[0] = '\0';
+    }
+  else
+    {
+      if (iNumber)
+	{
+	  switch (cMode)
+	    {
+	    case OUT_BIN:
+	      iDivisor = 2;
+	      break;
+
+	    case OUT_DEC:
+	      iDivisor = 10;
+	      break;
+
+	    case OUT_HEX:
+	      iDivisor = 16;
+	      break;
+	    }
+
+	  for (c = cDigits; c > 0; c--)
+	    {
+	      cMod = iNumber % iDivisor;
+	      if (cMode == OUT_HEX)
+		{
+		  if (cMod > 9)
+		    cBuffer[c - 1] = cMod + 55;
+		  else
+		    cBuffer[c - 1] = cMod + 48;
+		}
+	      else
+		{
+		  if (cMode == OUT_DEC)
+		    {
+		      if ((!iNumber) && (cDec_mode))
+			cBuffer[c - 1] = ' ';
+		      else
+			cBuffer[c - 1] = cMod + 48;
+		    }
+		  else
+		    cBuffer[c - 1] = cMod + 48;
+		}
+	      iNumber /= iDivisor;
+	    }
+
+	  cBuffer[cDigits] = '\0';
+	}
+      else
+	{
+	  if ((cMode == OUT_DEC) && (cDec_mode))
+	    {
+	      for (c = 0; c < cDigits; c++)
+		cBuffer[(unsigned char) c] = ' ';
+	      cBuffer[cDigits - 1] = '0';
+	      cBuffer[cDigits] = '\0';
+	    }
+	  else
+	    {
+	      for (c = 0; c < cDigits; c++)
+		cBuffer[(unsigned char) c] = '0';
+	      cBuffer[(unsigned char) c] = '\0';
+	    }
+	}
+    }
+
+  return (cBuffer);
+};
+
+
+int
+getrand (int max)
+{
+
+  int j;
+  struct timeval tv;
+
+  if (gettimeofday (&tv, NULL) != 0)
+    {
+      printf ("Error getting time\n");
+    }
+
+  srand (tv.tv_sec);
+  j = 1 + (int) ((float) max * rand () / (23457 + 1.0));
+
+  return j;
+};
+
+/* str2num */
+int
+str2num (char *str)
+{
+  int num = 0;
+  int i = 0, ilen;
+
+  if (str == NULL)
+    return -1;
+  ilen = strlen (str);
+
+  if (str[0] == '*' && str[1] == 0)
+    return 1;
+
+  for (i = 0; i < ilen; i++)
+    {
+      if (str[i] == '.')
+	i++;			// ignore dot
+
+      if (str[i] > 57 || str[i] < 48)
+	return -1;
+      num = num * 10 + (str[i] - 48);
+    }
+  return (num);
+};

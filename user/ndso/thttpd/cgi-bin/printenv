@@ -1,0 +1,38 @@
+#!/bin/sh
+
+date=`date -u '+%a, %d %b %Y %H:%M:%S %Z'`
+
+cat << EOF
+Content-type: text/html
+Expires: $date
+
+<HTML><HEAD><TITLE>CGI printenv</TITLE></HEAD>
+<BODY BGCOLOR="#99cc99">
+<H3>CGI printenv</H3>
+<PRE>
+
+EOF
+
+echo 'Date:'
+date
+echo
+echo 'Id:'
+id
+echo
+echo 'Env:'
+printenv
+echo
+if [ "$CONTENT_LENGTH" != "" ] ; then
+    if [ "$CONTENT_LENGTH" -ne 0 ] ; then
+	echo 'Input:'
+	echo
+	dd bs=1 count=$CONTENT_LENGTH
+	echo
+    fi
+fi
+
+cat << 'EOF'
+</PRE>
+</BODY>
+</HTML>
+EOF
