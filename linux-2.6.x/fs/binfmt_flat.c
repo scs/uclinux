@@ -42,9 +42,6 @@
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 #include <asm/cacheflush.h>
-#ifdef CONFIG_BFIN
-#include <asm/pgalloc.h>
-#endif
 
 /****************************************************************************/
 
@@ -386,9 +383,7 @@ int calc_v5_reloc(int i, unsigned long *rlp)
 	unsigned long rl = ntohl (*(rlp + i));
 	unsigned long *ptr;
 	unsigned short *usptr;
-#ifdef CONFIG_BFIN
 	unsigned long offset=0;
-#endif
 
 	r.value = rl;
 
@@ -398,7 +393,6 @@ int calc_v5_reloc(int i, unsigned long *rlp)
 	printk(" type = %x sp = %d", r.reloc.type, r.reloc.sp);
 #endif
 
-#if defined(CONFIG_BFIN)
 	switch (r.reloc.sp) {
 	case FLAT_BFIN_RELOC_SP_TYPE_16_BIT:
 		usptr = (unsigned short *) ptr;
@@ -530,9 +524,6 @@ int calc_v5_reloc(int i, unsigned long *rlp)
 	printk("\n");
 #endif
 	return i;
-#else
-#warning "This architecture doesn't have support for version 5 bFLT binaries."
-#endif
 }
 
 #endif
@@ -586,7 +577,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 	struct flat_hdr * hdr;
 	unsigned long textpos = 0, datapos = 0, result;
 	unsigned long realdatastart = 0;
-	unsigned long entry,text_len, data_len, bss_len, stack_len, flags;
+	unsigned long text_len, data_len, bss_len, stack_len, flags;
 	unsigned long memp = 0; /* for finding the brk area */
 	unsigned long extra, rlim;
 	unsigned long *reloc = 0, *rp;
@@ -597,9 +588,6 @@ static int load_flat_file(struct linux_binprm * bprm,
 
 	hdr = ((struct flat_hdr *) bprm->buf);		/* exec-header */
 	inode = bprm->file->f_dentry->d_inode;
-#ifdef CONFIG_BFIN
-        entry     = ntohl(hdr->entry);
-#endif
 
 	text_len  = ntohl(hdr->data_start);
 	data_len  = ntohl(hdr->data_end) - ntohl(hdr->data_start);
@@ -878,59 +866,14 @@ static int load_flat_file(struct linux_binprm * bprm,
 	 * __start to address 4 so that is okay).
 	 */
 #ifdef CONFIG_BFIN
-
 DBG_FLT("rev= %d\n", rev);
-	switch(rev)
-	{
-		case 5 : {
 #ifdef DEBUG_BFIN_RELOC
 	printk("start_code=%x start_data=%x end_data=%x\n",current->mm->start_code,
 	current->mm->start_data, current->mm->end_data);
 #endif
 				 for(i = 0; i < relocs;)
-				 {
 					 i = calc_v5_reloc(i, reloc);
-				 }
-			 }
-			 break;
-		case 4 :
-		case 3 :{
-				for(i = 0; i < relocs; i++)
-				{
-					unsigned long addr, reloc_tmp = ntohl(reloc[i]);
-					addr = flat_get_relocate_addr(reloc_tmp);
-					rp = (unsigned long*)calc_reloc(addr,libinfo, id, 1);
-					if((unsigned long*)RELOC_FAILED == rp)
-						return -ENOEXEC;
-					addr = flat_get_addr_from_rp(rp, reloc_tmp,flags);
-					if(addr != 0)
-					{
-					 	if ((flags & FLAT_FLAG_GOTPIC) == 0)
-                                             		addr = ntohl(addr);
-	                                 	addr = calc_reloc(addr, libinfo, id, 0);
-                                         	if (addr == RELOC_FAILED)
-                                             		return -ENOEXEC;
-                                         	/* Write back the relocated pointer.  */
-		                         	flat_put_addr_at_rp(rp, addr, reloc_tmp);
-					}
-				}
-			}
-			break;
-		case 2:
-		case 1:{
-			       for(i = 0; i < relocs; i++)
-			       {
-				       old_reloc(ntohl(reloc[i]));
-			       }
-		       }
-		       break;
-		default :
-		       printk("Invalid binary version number.\n");
-	}
-#endif
-
-#if 0
-
+#else
 	if (rev > OLD_FLAT_VERSION) {
 		for (i=0; i < relocs; i++) {
 			unsigned long addr, relval;
