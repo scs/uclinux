@@ -24,7 +24,11 @@
 
 #include <asm/uaccess.h>
 #include <asm/board/cdefBF533.h>
+#include <asm/board/bf533_irq.h>
+#include <asm/irq.h>
+#ifdef CONFIG_BLKFIN_DMA
 #include <asm/dma.h>
+#endif
 
 #include "bf533_serial.h"
 
@@ -288,6 +292,7 @@ static inline void status_handle(struct bf533_serial *info, unsigned short statu
 	return;
 }
 
+#ifdef CONFIG_BLKFIN_DMA
 static void dma_receive_chars(struct bf533_serial *info)
 {
       struct tty_struct *tty = info->tty;
@@ -333,6 +338,7 @@ static void dma_receive_chars(struct bf533_serial *info)
 unlock_and_exit:
       spin_unlock_bh(info->recv_lock);
 }
+#endif
 
 void receive_chars(struct bf533_serial *info, struct pt_regs *regs)
 {
@@ -471,6 +477,7 @@ int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				break;
 		   	case STATUS(2):			/*UART_IIR_RBR:*/
 				asm("csync;");
+#ifdef CONFIG_BLKFIN_DMA
                                if (*pDMA6_CONFIG & DMAEN)
                                {
 				       asm("csync;");
@@ -483,6 +490,7 @@ int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 					       SYNC_ALL;
                                        }
                                } else {
+#endif
 		   			/* Change access to IER & data port */
 					ACCESS_PORT_IER 
 					asm("csync;");
@@ -491,7 +499,9 @@ int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				   		rx = *pUART_RBR;
 				   		receive_chars(info, regs);
 					}
+#ifdef CONFIG_BLKFIN_DMA
 				}
+#endif
 				break;
 		   	case STATUS_P1:				/*UART_IIR_THR:*/
 		   		/* Change access to IER & data port */
@@ -524,9 +534,11 @@ static void do_softint(void *private_)
 			(tty->ldisc.write_wakeup)(tty);
 		wake_up_interruptible(&tty->write_wait);
 	}
+#ifdef CONFIG_BLKFIN_DMA
         if (test_and_clear_bit(RS_EVENT_READ, &info->event)) {
                 dma_receive_chars(info);
         }
+#endif
 }
 
 /*
@@ -552,6 +564,7 @@ static void do_serial_hangup(void *private_)
 	tty_hangup(tty);
 }
 
+#ifdef CONFIG_BLKFIN_DMA
 void dma_start_recv(struct bf533_serial * info)
 {
        FUNC_ENTER();
@@ -591,6 +604,7 @@ static void dma_stop_recv(struct bf533_serial *info)
         *pDMA6_CONFIG = 0;
 	SYNC_ALL;
 }
+#endif
 
 static int startup(struct bf533_serial * info)
 {
@@ -642,6 +656,7 @@ static int startup(struct bf533_serial * info)
 		clear_bit(TTY_IO_ERROR, &info->tty->flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
 
+#ifdef CONFIG_BLKFIN_DMA
         /*
          * Start the receive DMA
          */
@@ -653,6 +668,7 @@ static int startup(struct bf533_serial * info)
         info->recv_timer.function = (void *)dma_recv_timer;
         info->recv_timer.expires = jiffies + 3;
         add_timer(&info->recv_timer);
+#endif
 
 	/*
 	 * and set the speed of the serial port
@@ -689,7 +705,9 @@ static void shutdown(struct bf533_serial * info)
 	*pUART_GCTL &= ~UCEN;
 	SYNC_ALL;
 
+#ifdef CONFIG_BLKFIN_DMA
         dma_stop_recv(info);
+#endif
 	
         if (!info->tty || (info->tty->termios->c_cflag & HUPCL))
                 bf533_rtsdtr(info, 0);
@@ -1486,11 +1504,13 @@ static int __init rs_bf533_init(void)
 
 	if (request_irq(IRQ_UART_TX, rs_interrupt, IRQ_FLG_STD, "BF533_UART_TX", NULL))
 		panic("Unable to attach BlackFin UART TX interrupt\n");
+#ifdef CONFIG_BLKFIN_DMA
         if (new_request_dma(CH_UART_RX, "BF533_UART", NULL, 0))
                 panic("Unable to attach BlackFin UART RX DMA channel\n");
         if (new_request_dma(CH_UART_TX, "BF533_UART", NULL, 0))
                 panic("Unable to attach BlackFin UART TX DMA channel\n");
 	printk("Enabling Serial UART Interrupts\n");
+#endif
 	
 	
 	enable_irq(IRQ_UART_RX);
