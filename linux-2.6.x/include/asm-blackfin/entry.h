@@ -92,6 +92,7 @@
 	[--sp] = SEQSTAT;
 	/*[--sp] = SYSCFG;*/
 	[--sp] = r0;	/* Skip IPEND as well. */
+	[--sp] = RETI;  /*orig_pc*/
 .endm
 
 .macro save_context_no_interrupts
@@ -146,10 +147,11 @@
 	[--sp] = SEQSTAT;
 	/*[--sp] = SYSCFG;*/
 	[--sp] = r0;	/* Skip IPEND as well. */
-
+	[--sp] = RETI;  /*orig_pc*/
 .endm
 	 
 .macro restore_context_no_interrupts
+	sp += 4;	/* Skip orig_pc */
 	sp += 4;	/* Skip IPEND */
 	/*SYSCFG = [sp++];*/
 	SEQSTAT = [sp++];
@@ -208,6 +210,7 @@
 .endm
 
 .macro restore_context_with_interrupts
+	sp += 4;	/* Skip orig_pc */
 	sp += 4;	/* Skip IPEND */
 	/*SYSCFG = [sp++];*/
 	SEQSTAT = [sp++];
