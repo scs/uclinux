@@ -109,7 +109,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
  	/* trap_c() will be called for exceptions. During exceptions
  	   processing, the pc value should be set with retx value.  
  	   With this change we can cleanup some code in signal.c- TODO */
- 	fp->orig_pc = fp->retx;      
+ 	fp->pc = fp->retx;      
 
 	/* send the appropriate signal to the user program */
 	switch (fp->seqstat & 0x3f) {

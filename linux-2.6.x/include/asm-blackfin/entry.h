@@ -28,81 +28,12 @@
 #define	PF_DTRACE_OFF	1
 #define	PF_DTRACE_BIT	5
 
-# define SAVE_ALL_INT		save_context_with_interrupts
 # define SAVE_ALL_SYS		save_context_no_interrupts
 # define SAVE_CONTEXT		save_context_with_interrupts
 
 # define RESTORE_ALL_SYS	restore_context_no_interrupts
-# define RESTORE_ALL		restore_context_no_interrupts
-# define RESTORE_ALL_INT	restore_context_with_interrupts
 # define RESTORE_CONTEXT	restore_context_with_interrupts
 
-/*
- * Don't use the following registers in interrupt handlers:
- *   I0-3, M0-3, L0-3, B0-3, LC0-1, LT0-1, LB0-1
- */
-.macro save_interrupt_context
-	[--sp] = RETI;
-        [--sp] = R0;    /* orig_r0*/
-        [--sp] = ( R7:0, P5:0 );
-        [--sp] = fp;
-        [--sp] = usp;
-
-        SP += -32;
-        SP += -32;      /* Skip I0-3, M0-3, L0-3, B0-3 */
-
-        [--sp] = a0.x;
-        [--sp] = a0.w;
-        [--sp] = a1.x;
-        [--sp] = a1.w;
-
-        SP += -24;      /* Skip LC0-1, LT0-1, LB0-1 */
-
-        [--sp] = ASTAT;
-
-        [--sp] = r0;    /* Skip reserved */
-        [--sp] = RETS;
-        [--sp] = RETI;
-
-        SP += -12;      /* Skip RETX, RETN, RETE */
-
-        [--sp] = SEQSTAT;
-        [--sp] = SYSCFG;
-        [--sp] = r0;    /* Skip IPEND as well. */
-.endm
-
-.macro restore_interrupt_context
-        sp += 4;        /* Skip IPEND*/
-        SYSCFG = [sp++];
-        SEQSTAT = [sp++];
-
-        sp += 12;       /* Skip RETX, RETN, RETE*/
-        RETI = [sp++];
-        RETS = [sp++];
-
-        sp += 4;        /* Skip Reserved */
-
-        ASTAT = [sp++];
-
-        sp += 24;       /* Skip LC0-1, LT0-1, LB0-1*/
-
-        a1.w = [sp++];
-        a1.x = [sp++];
-        a0.w = [sp++];
-        a0.x = [sp++];
-
-        sp += 32;
-        sp += 32;       /* Skip I0-3, M0-3, L0-3, B0-3  */
-
-        /* Don't mess with USP unless we have to. Things break if we do. */
-        /* usp = [sp++]; */
-        sp += 4;
-        fp = [sp++];
-
-        ( R7 : 0, P5 : 0) = [ SP ++ ];
-        sp += 4;        /* Skip orig_r0 */
-	sp += 4; /* Skip orig_pc*/
-.endm
 
 /*
  * Code to save processor context.
@@ -111,7 +42,7 @@
  */
 .macro save_context_with_interrupts
 	
-	[--sp] = RETI;	/*orig_pc*/
+//	[--sp] = RETI;	/*orig_pc*/
 	[--sp] = SYSCFG;
 
 	[--sp] = R0;	/*orig_r0*/
@@ -165,7 +96,7 @@
 
 .macro save_context_no_interrupts
 	
-	[--sp] = RETI;	/* orig_pc */
+//	[--sp] = RETI;	/* orig_pc */
 	[--sp] = SYSCFG;
 	[--sp] = R0;	/* orig_r0 */
 	[--sp] = ( R7:0, P5:0 );
@@ -273,7 +204,7 @@
 	sp += 4;	/* Skip orig_r0 */
 	
 	SYSCFG = [sp++];
-	sp += 4;	/* Skip orig_pc */
+	//sp += 4;	/* Skip orig_pc */
 .endm
 
 .macro restore_context_with_interrupts
@@ -329,7 +260,7 @@
 	( R7 : 0, P5 : 0) = [ SP ++ ];
 	sp += 4;	/* Skip orig_r0 */
 	SYSCFG = [sp++];
-	sp += 4;	/* Skip orig_pc */
+	///sp += 4;	/* Skip orig_pc */
 .endm
 
 #define STR(X) STR1(X)

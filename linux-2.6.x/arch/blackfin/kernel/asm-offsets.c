@@ -50,7 +50,7 @@ int main(void)
 
 	/* offsets into the pt_regs */
 	DEFINE(PT_ORIG_R0, offsetof(struct pt_regs, orig_r0));
-	DEFINE(PT_ORIG_PC, offsetof(struct pt_regs, orig_pc));
+//	DEFINE(PT_ORIG_PC, offsetof(struct pt_regs, orig_pc));
 	DEFINE(PT_R0, offsetof(struct pt_regs, r0));
 	DEFINE(PT_R1, offsetof(struct pt_regs, r1));
 	DEFINE(PT_R2, offsetof(struct pt_regs, r2));
