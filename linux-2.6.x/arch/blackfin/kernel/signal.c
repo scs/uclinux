@@ -72,7 +72,7 @@ struct rt_sigframe
  */
 asmlinkage int do_sigsuspend(struct pt_regs *regs)
 {
-	old_sigset_t mask = regs->r3;	/* old_sigset_t: unsigned long */
+	old_sigset_t mask = regs->r0;	/* old_sigset_t: unsigned long */
 	sigset_t saveset;
 
 	mask &= _BLOCKABLE;
@@ -87,16 +87,15 @@ asmlinkage int do_sigsuspend(struct pt_regs *regs)
 		current->state = TASK_INTERRUPTIBLE;
 		schedule();
 		if (do_signal(&saveset, regs))
-			return -EINTR;
+			return regs->r0;
 	}
 }
 
 asmlinkage int
 do_rt_sigsuspend(struct pt_regs *regs)
 {
-	sigset_t *unewset = (sigset_t *)regs->r1;
-	size_t sigsetsize = (size_t)regs->r2;
-	/* ??? need change for the exact regs  */
+	sigset_t *unewset = (sigset_t *)regs->r0;
+	size_t sigsetsize = (size_t)regs->r1;
 	sigset_t saveset, newset;
 
 	/* XXX: Don't preclude handling different sized sigset_t's.  */
@@ -118,7 +117,7 @@ do_rt_sigsuspend(struct pt_regs *regs)
 		current->state = TASK_INTERRUPTIBLE;
 		schedule();
 		if (do_signal(&saveset, regs))
-			return -EINTR;
+			return regs->r0;
 	}
 }
 
@@ -168,7 +167,7 @@ sys_sigaltstack(const stack_t *uss, stack_t *uoss)
  * That makes the cache flush below easier.
  */
 static inline int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, void *fp, int *pd0)
+restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, int *pr0)
 {
 	struct sigcontext context;
 	int err = 0;
@@ -178,6 +177,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, void *fp, int *
 		goto badframe;
 	
 	/* restore passed registers */
+	regs->r0 = context.sc_r0;
 	regs->r1 = context.sc_r1;
 	regs->p0 = context.sc_p0;
 	regs->p1 = context.sc_p1;
@@ -188,7 +188,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, void *fp, int *
 	regs->orig_r0 = -1;		/* disable syscall checks */
 	wrusp(context.sc_usp);
 
-	*pd0 = context.sc_r0;
+	*pr0 = context.sc_r0;
 	return err;
 
 badframe:
@@ -196,7 +196,7 @@ badframe:
 }
 
 static inline int
-rt_restore_ucontext(struct pt_regs *regs, struct ucontext *uc, int *pd0)
+rt_restore_ucontext(struct pt_regs *regs, struct ucontext *uc, int *pr0)
 {
 	int temp;
 	greg_t *gregs = uc->uc_mcontext.gregs;
@@ -234,7 +234,7 @@ rt_restore_ucontext(struct pt_regs *regs, struct ucontext *uc, int *pd0)
 	if (do_sigaltstack(&uc->uc_stack, NULL, usp) == -EFAULT)
 		goto badframe;
 
-	*pd0 = regs->r0;
+	*pr0 = regs->r0;
 	return err;
 
 badframe:
@@ -243,19 +243,19 @@ badframe:
 
 asmlinkage int do_sigreturn(unsigned long __unused)
 {
-	__label__ badframe;
-
 	struct pt_regs *regs = (struct pt_regs *) __unused;
 	unsigned long usp = rdusp();
-	struct sigframe *frame = (struct sigframe *)(usp);// - 4);
-	/* how is transfered ???   Tony */ 
-
+	struct sigframe *frame = (struct sigframe *)(usp);
 	sigset_t set;
 	int r0;
 
 	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
-	if (__get_user(set.sig[0], &frame->sc.sc_mask))
+ 	if (__get_user(set.sig[0], &frame->sc.sc_mask) ||
+ 	    (_NSIG_WORDS > 1 &&
+ 	     __copy_from_user(&set.sig[1], &frame->extramask,
+ 			      sizeof(frame->extramask))))
+
 		goto badframe;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -264,7 +264,7 @@ asmlinkage int do_sigreturn(unsigned long __unused)
 	recalc_sigpending(); 
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(regs, &frame->sc, frame + 1, &r0))
+	if (restore_sigcontext(regs, &frame->sc, &r0))
 		goto badframe;
 	return r0;
 
@@ -275,13 +275,12 @@ badframe:
 
 asmlinkage int do_rt_sigreturn(unsigned long __unused)
 {
-	struct pt_regs *regs = (struct pt_regs *) &__unused;
+	struct pt_regs *regs = (struct pt_regs *)__unused;
 	unsigned long usp = rdusp();
-	struct rt_sigframe *frame = (struct rt_sigframe *)(usp - 4);
-	/* how is transfered ???   Tony	*/
+	struct rt_sigframe *frame = (struct rt_sigframe *)(usp);
 
 	sigset_t set;
-	int d0;
+	int r0;
 
 	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -294,9 +293,9 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
 	recalc_sigpending(); 
 	spin_unlock_irq(&current->sighand->siglock);
 	
-	if (rt_restore_ucontext(regs, &frame->uc, &d0))
+	if (rt_restore_ucontext(regs, &frame->uc, &r0))
 		goto badframe;
-	return d0;
+	return r0;
 
 badframe:
 	force_sig(SIGSEGV, current);
@@ -420,30 +419,13 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 	if (regs->seqstat)
 		regs->retx = (unsigned long)ka->sa.sa_handler;
 
-adjust_stack:
-
-#if NEEDED
-	/* Prepare to skip over the extra stuff in the exception frame.  */
-	if (regs->stkadj) {
-		struct pt_regs *tregs =
-			(struct pt_regs *)((ulong)regs + regs->stkadj);
-#if DEBUG
-		printk("Performing stackadjust=%04x\n", regs->stkadj);
-#endif
-		/* This must be copied with decreasing addresses to
-                   handle overlaps.  */
-		tregs->pc = regs->pc;
-		tregs->seqstat = regs->seqstat;
-	}
-#endif
-
 	return;
 
 give_sigsegv:
 	if (sig == SIGSEGV)
 		ka->sa.sa_handler = SIG_DFL;
 	force_sig(SIGSEGV, current);
-	goto adjust_stack;
+	return;
 }
 
 static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
@@ -480,10 +462,12 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Set up to return from userspace.  */
 	err |= __put_user(frame->retcode, &frame->pretcode);
-	/* moveq #,d0; notb d0; trap #0 */
-	err |= __put_user(0x70004600 + ((__NR_rt_sigreturn ^ 0xff) << 16),
-			  (long *)(frame->retcode + 0));
-	err |= __put_user(0x4e40, (short *)(frame->retcode + 4));
+ 	err |= __put_user(0x88, &(frame->retcode[0]));
+ 	err |= __put_user(0xe1, &(frame->retcode[1]));
+ 	err |= __put_user(0xad, &(frame->retcode[2]));
+ 	err |= __put_user(0x00, &(frame->retcode[3]));
+ 	err |= __put_user(0xa0, &(frame->retcode[4]));
+ 	err |= __put_user(0x00, &(frame->retcode[5]));
 
 	if (err)
 		goto give_sigsegv;
@@ -501,30 +485,13 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (regs->seqstat)
 		regs->retx = (unsigned long)ka->sa.sa_handler;
 
-adjust_stack:
-
-#if NEEDED
-	/* Prepare to skip over the extra stuff in the exception frame.  */
-	if (regs->stkadj) {
-		struct pt_regs *tregs =
-			(struct pt_regs *)((ulong)regs + regs->stkadj);
-#if DEBUG
-		printk("Performing stackadjust=%04x\n", regs->stkadj);
-#endif
-		/* This must be copied with decreasing addresses to
-                   handle overlaps.  */
-		tregs->pc = regs->pc;
-		tregs->seqstat = regs->seqstat;
-	}
-#endif /* NEEDED */
-
 	return;
 
 give_sigsegv:
 	if (sig == SIGSEGV)
 		ka->sa.sa_handler = SIG_DFL;
 	force_sig(SIGSEGV, current);
-	goto adjust_stack;
+	return;
 }
 
 static inline void
@@ -572,7 +539,6 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (ka->sa.sa_flags & SA_ONESHOT)
 		ka->sa.sa_handler = SIG_DFL;
 
-	//sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
 	if (!(ka->sa.sa_flags & SA_NODEFER)){
 		spin_lock_irq(&current->sighand->siglock);
 		sigaddset(&current->blocked,sig);
@@ -612,7 +578,6 @@ asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		if ((current->ptrace & PT_PTRACED) && signr != SIGKILL) {
 			current->exit_code = signr;
 			current->state = TASK_STOPPED;
-			/*regs->seqstat &= ~PS_T;*/ /* Tony FIXME */
 
 			/* Did we come from a system call? */
 			if (regs->orig_r0 >= 0) {
@@ -715,21 +680,5 @@ asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		/* Restart the system call - no handlers present */
 		handle_restart(regs, NULL, 0);
 
-	/* If we are about to discard some frame stuff we must copy
-	   over the remaining frame. */
-
-#if NEEDED
-	if (regs->stkadj) {
-		struct pt_regs *tregs =
-		  (struct pt_regs *) ((ulong) regs + regs->stkadj);
-
-		/* This must be copied with decreasing addresses to
-		   handle overlaps.  */
-		tregs->pc = regs->pc;
-		tregs->seqstat = regs->seqstat;
-	}
-#endif
-
 	return 0;
 }
-
