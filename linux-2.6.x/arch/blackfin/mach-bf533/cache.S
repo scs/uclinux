@@ -1,9 +1,9 @@
-/* Copyright (C) 2003 Analog Devices, Inc. All Rights Reserved. 
+/* Copyright (C) 2003 Analog Devices, Inc. All Rights Reserved.
  *
  * This file is subject to the terms and conditions of the GNU General Public
- * License. 
+ * License.
  *
- * Blackfin BF533/2.6 support : LG Soft India	
+ * Blackfin BF533/2.6 support : LG Soft India
  */
 
 /* This function can be called to invalidate instruction and data caches
@@ -48,12 +48,12 @@ no_dcache_b:
 	R7 = [SP++];
 	RTS;
 
-/* Invalidate the Entire Instruction cache by 
+/* Invalidate the Entire Instruction cache by
  * disabling IMC bit
  */
 ENTRY(_icache_invalidate)
 ENTRY(invalidate_entire_icache)
-	[--SP] = ( R7:4); 
+	[--SP] = ( R7:5);
 
 	P0.L = (IMEM_CONTROL & 0xFFFF);
 	P0.H = (IMEM_CONTROL >> 16);
@@ -61,19 +61,22 @@ ENTRY(invalidate_entire_icache)
 	
 	/* Clear the IMC bit , All valid bits in the instruction
 	 * cache are set to the invalid state
-	 */		
+	 */
 	BITCLR(R7,2);
 	[P0] = R7;
 	SSYNC;
 
 	/* Configures the instruction cache agian */
-	R6 = (IMC | ENICPLB | ENIM);
+	R6 = (IMC | ENICPLB);
 	R7 = R7 | R6;
 
+	CLI R6;
+	.align 8;
 	[P0] = R7;
 	SSYNC;
+	STI R6;
 	
-	( R7:4) = [SP++];
+	( R7:5) = [SP++];
 	RTS;
 
 /*
@@ -83,7 +86,7 @@ ENTRY(invalidate_entire_icache)
  * 
  * start:	Start address
  * end:		End address
- */ 						
+ */
 ENTRY(blackfin_icache_flush_range)
 	R2 = -L1_CACHE_BYTES;
 	R2 = R0 & R2;
@@ -96,10 +99,10 @@ ENTRY(blackfin_icache_flush_range)
 	RTS;
 
 /* Throw away all D-cached data in specified region without any obligation to write
- * them back. However, we must clean the D-cached entries around the boundaries 
- * of the start and/or end address is not cache aligned. 
+ * them back. However, we must clean the D-cached entries around the boundaries
+ * of the start and/or end address is not cache aligned.
  *  
- *  Start: start address, 
+ *  Start: start address,
  *  end  : end address.
  */
 
@@ -115,11 +118,11 @@ ENTRY(blackfin_dcache_invalidate_range)
 	SSYNC;
 	RTS;
 
-/* Invalidate the Entire Data cache by 
+/* Invalidate the Entire Data cache by
  * clearing DMC[1:0] bits
  */
 ENTRY(invalidate_entire_dcache)
-	[--SP] = ( R7:6); 
+	[--SP] = ( R7:6);
 
 	P0.L = (DMEM_CONTROL & 0xFFFF);
 	P0.H = (DMEM_CONTROL >> 16);
@@ -135,11 +138,14 @@ ENTRY(invalidate_entire_dcache)
 
 	/* Configures the data cache again */
 
-	R6 = (ACACHE_BCACHE | ENDCPLB | ENDM);
+	R6 = (ACACHE_BCACHE | ENDCPLB);
 	R7 = R7 | R6;
-
+	
+	CLI R6;
+	.align 8;
 	[P0] = R7;
 	SSYNC;
+	STI R6;
 	
 	( R7:6) = [SP++];
 	RTS;
@@ -161,7 +167,7 @@ ENTRY(_dcache_invalidate)
 	 */
 	
 	R6 = [P0];
-	R0 = (ACACHE_BCACHE | ENDCPLB | ENDM);
+	R0 = (ACACHE_BCACHE | ENDCPLB);
 
 	/* Enable both as cache although we are going to invalidate only 1.
 	 * This is because if only 1 bank is configured as cache it must be
@@ -173,7 +179,7 @@ ENTRY(_dcache_invalidate)
 	
 	SSYNC;
 	CLI R5;		/* work around anomaly #32/#52 on BF531/2/3*/
-	.align 2;	/* when writing to DMEM_CONTROL.*/
+	.align 8;	/* when writing to DMEM_CONTROL.*/
 	[P0]=R0;
 	SSYNC;
 	STI R5;
@@ -189,8 +195,8 @@ ENTRY(_dcache_invalidate)
 
 	/*  D-CACHE:
 	 *    2 superbanks,
-	 *    each superbank has 4 sub-banks, 
-	 *    each sub-bank has 2 ways, 
+	 *    each superbank has 4 sub-banks,
+	 *    each sub-bank has 2 ways,
 	 *    each way has 64 lines,
 	 */
 	
@@ -211,7 +217,7 @@ ENTRY(_dcache_invalidate)
 	R5.H=0x400;	/* Initial value for DTEST_COMMAND for way 1*/
 	R5.L=2;		/* write to tag for sub-bank 0, way 1, line 0*/
 	R4=R4|R7;	/* include superbank specifier*/
-	R5=R5|R7; 
+	R5=R5|R7;
 	LSETUP(lbl0c,lbl3c) LC1=P2;	/* 4 sub-banks*/
 lbl0c:	R0=R4;
 	R1=R5;
@@ -223,7 +229,7 @@ lbl3c:	R5=R5+R3;
 
 	/* Restore the original value of DMEM_CONTROL*/
 	CLI R5;
-	.align 2;
+	.align 8;
 	[P0] = R6;
 	SSYNC;
 	STI R5;

@@ -56,8 +56,13 @@ idone:
 	R1 = [P0];
 	R0 = (IMC | ENICPLB);
 	R0 = R0 | R1;
+	
+	/*Anamoly 05000125 */
+	CLI R2;
+	.align 8;
 	[P0] = R0;
 	SSYNC;
+	STI R2;
 	RTS;
 #endif
 
@@ -103,7 +108,11 @@ ddone:
 	R0 = (ACACHE_BSRAM | ENDCPLB);
 #endif
 	R0 = R0 | R1;
+	/*Anamoly 05000125 */
+	CLI R2;
+	.align 8;
 	[P0] = R0;
 	SSYNC;
+	STI R2;
 	RTS;
 #endif
