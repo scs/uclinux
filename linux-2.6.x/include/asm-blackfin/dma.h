@@ -16,12 +16,16 @@
 
 #include <linux/config.h>
 #include <linux/mm.h>  
+#include <asm/board/defBF533.h>
 
 #define MAX_DMA_ADDRESS PAGE_OFFSET
 
-#if defined (CONFIG_EZKIT) || defined (CONFIG_BLKFIN_STAMP)
-#include <asm/board/defBF533.h>
+#if defined (CONFIG_BLKFIN_DMA) 
 #include <asm/bf533_dma.h>
+#endif
+
+#if defined (CONFIG_BLKFIN_SIMPLE_DMA)
+#include <asm/simple_bf533_dma.h>
 #endif
 
 #endif /* _BFINNOMMU_DMA_H */

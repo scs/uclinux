@@ -133,11 +133,31 @@ config LARGE_ALLOCS
 	  contiguous chunks. If unsure, say N. 
 
 comment 'DMA Support'
+choice
+	prompt	"Select DMA driver"
+	---help---
+	  Choose DMA driver implemntation
+
+config NO_DMA
+	bool 'Disable DMA Support' 
+	default y
+	help
+	  Disable DMA driver
 
 config BLKFIN_DMA
-	bool 'Enable DMA Support'
-	depends on BF533 || BF532 || BF531
+	bool 'Enable DMA Support' 
+	depends on (BF533 || BF532 || BF531) 
 	default n
+	help
+	  Fully-fledged DMA driver
+	
+config BLKFIN_SIMPLE_DMA
+	bool 'Enable Simple DMA Support' 
+	depends on (BF533 || BF532 || BF531) 
+	default n
+	help
+	  Simple DMA driver
+endchoice
 
 comment 'Cache Support'
 config	BLKFIN_CACHE 
