@@ -596,7 +596,10 @@ void bfin_disable_irq(unsigned int irq)
 void  call_isr(int irq, struct pt_regs * fp)
 {
 	if(int_irq_list[irq].handler)
+	{
 	    int_irq_list[irq].handler(irq,int_irq_list[irq].dev_id, fp);
+	    kstat_cpu(0).irqs[irq]++;
+	}
 }
 
 void bfin_do_irq(int vec, struct pt_regs *fp)
