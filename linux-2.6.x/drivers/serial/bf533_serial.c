@@ -367,7 +367,7 @@ static void dma_receive_chars(struct bf533_serial *info, int in_timer)
       }
 
       len = info->recv_head - info->recv_tail;
-      
+
 	ttylen = TTY_FLIPBUF_SIZE - tty->flip.count;
 	if(ttylen>0) {
 		if(len > ttylen)
@@ -384,11 +384,6 @@ static void dma_receive_chars(struct bf533_serial *info, int in_timer)
               info->recv_head = 0;
       if (info->recv_tail >= PAGE_SIZE)
               info->recv_tail = 0;
-
-	/*
-	 * Do flip the tty buffer immediate without delay
-	 */
-	tty->low_latency = 1;
 
       tty_flip_buffer_push(tty);
 unlock_and_exit:
@@ -799,10 +794,7 @@ static int startup(struct bf533_serial * info)
 #ifndef CONFIG_DISABLE_RXDMA
         info->dma_recv_timer.data = (unsigned long)info;
         info->dma_recv_timer.function = (void *)uart_dma_recv_timer;
-	/*
-	 * The recv timer should start some ticks later than the xmit timer.
-	 */
-        info->dma_recv_timer.expires = jiffies + 10 + TIME_INTERVAL;
+        info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
         add_timer(&info->dma_recv_timer);
 #endif
 #endif
@@ -978,7 +970,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 			return;
 
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
-	if(tx_xcount>0) {
+	if(info->xmit_cnt > 0) {
 	        mod_timer(&info->dma_xmit_timer, jiffies);
 	}
 #else
@@ -1038,7 +1030,7 @@ static int rs_write(struct tty_struct * tty, int from_user,
 
 	if (info->xmit_cnt && !tty->stopped && !tty->hw_stopped) {
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
-		if (tx_xcount > 0 && info->xmit_head == 0) {
+		if (info->xmit_cnt > 0 && info->xmit_head == 0) {
 		        mod_timer(&info->dma_xmit_timer, jiffies);
 		}
 #else
