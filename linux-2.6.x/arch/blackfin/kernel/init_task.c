@@ -3,14 +3,8 @@
  */
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/init.h>
 #include <linux/init_task.h>
-#include <linux/fs.h>
 #include <linux/mqueue.h>
-
-#include <asm/uaccess.h>
-#include <asm/pgtable.h>
 
 static struct fs_struct init_fs = INIT_FS;
 static struct files_struct init_files = INIT_FILES;

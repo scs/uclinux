@@ -16,29 +16,16 @@
  * signal handlers!
  */
 
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/syscalls.h>
-#include <linux/errno.h>
-#include <linux/wait.h>
 #include <linux/ptrace.h>
-#include <linux/unistd.h>
-#include <linux/stddef.h>
-#include <linux/highuid.h>
-
 #include <linux/tty.h>
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 
-#include <asm/setup.h>
 #include <asm/uaccess.h>
-#include <asm/pgtable.h>
-#include <asm/traps.h>
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
-#include <asm/asm-offsets.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 

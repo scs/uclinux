@@ -15,33 +15,11 @@
  *
  */
 
-#include <linux/config.h>
-#include <linux/signal.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/types.h>
-#include <linux/ptrace.h>
-#include <linux/mman.h>
-#include <linux/mm.h>
 #include <linux/swap.h>
-#include <linux/init.h>
-#include <linux/highmem.h>
-#include <linux/pagemap.h>
 #include <linux/bootmem.h>
-#include <linux/slab.h>
-
-#include <asm/setup.h>
-#include <asm/segment.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
-#include <asm/system.h>
-#include <asm/io.h> 
 
 #undef DEBUG
 
-extern void die_if_kernel(char *,struct pt_regs *,long);
 extern void free_initmem(void);
 extern void l1mem_init(void);	
 
@@ -63,8 +41,6 @@ static unsigned long empty_bad_page_table;
 static unsigned long empty_bad_page;
 
 unsigned long empty_zero_page;
-
-extern unsigned long rom_length;
 
 void show_mem(void)
 {
@@ -91,7 +67,6 @@ void show_mem(void)
     	printk(KERN_INFO "%d reserved pages\n",reserved);
     	printk(KERN_INFO "%d pages shared\n",shared);
     	printk(KERN_INFO "%d pages swap cached\n",cached);
-	
 }
 
 extern unsigned long memory_start;
@@ -175,11 +150,9 @@ void mem_init(void)
 	initk = (&__init_end - &__init_begin) >> 10;
 
 	tmp = nr_free_pages() << PAGE_SHIFT;
-	printk("Memory available: %luk/%uk RAM, %luk/%luk ROM (%uk init code, %uk kernel code, %uk data)\n",
+	printk("Memory available: %luk/%uk RAM, (%uk init code, %uk kernel code, %uk data)\n",
 	       tmp >> 10,
 	       len >> 10,
-	       (rom_length > 0) ? ((rom_length >> 10) - codek) : 0,
-	       rom_length >> 10,
 	       initk,
 	       codek,
 	       datak

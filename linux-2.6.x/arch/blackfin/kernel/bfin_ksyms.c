@@ -1,6 +1,4 @@
 #include <linux/module.h>
-#include <asm/irq.h>
-#include <asm/checksum.h>
 
 extern void dump_thread(struct pt_regs *, struct user *);
 
@@ -36,6 +34,7 @@ EXPORT_SYMBOL_NOVERS(memset);
 EXPORT_SYMBOL_NOVERS(memcmp);
 EXPORT_SYMBOL_NOVERS(memscan);
 EXPORT_SYMBOL_NOVERS(memmove);
+EXPORT_SYMBOL_NOVERS(memchr);
 
 EXPORT_SYMBOL(get_wchan);
 
@@ -53,7 +52,7 @@ extern void __muldi3(void);
 extern void __udivsi3(void);
 extern void __umodsi3(void);
 
-        /* gcc lib functions */
+/* gcc lib functions */
 EXPORT_SYMBOL_NOVERS(__ashldi3);
 EXPORT_SYMBOL_NOVERS(__ashrdi3);
 EXPORT_SYMBOL_NOVERS(__divsi3);

@@ -15,24 +15,8 @@
  *
  */
 
-#include <linux/config.h>
-#include <linux/sched.h>
-#include <linux/signal.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/types.h>
-#include <linux/a.out.h>
-#include <linux/user.h>
-#include <linux/string.h>
-#include <linux/linkage.h>
-#include <linux/init.h>
-
-#include <asm/setup.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/traps.h>
-#include <asm/pgtable.h>
-#include <asm/siginfo.h>
 #include <asm/blackfin.h>
 
 /*
@@ -261,7 +245,6 @@ void dump_stack(void)
 
 void dump(struct pt_regs *fp)		
 {
-	
 	printk("\nCURRENT PROCESS:\n\n");
 	printk("COMM=%s PID=%d\n", current->comm, current->pid);
 	if (current->mm) {

@@ -8,26 +8,13 @@
  *  Copyright (C) 2004	     LG Soft India
  */
 
-#include <linux/config.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/fs.h>
-#include <linux/fb.h>
 #include <linux/console.h>
-#include <linux/genhd.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/major.h>
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
-#include <asm/setup.h>
-#include <asm/irq.h>
-#include <linux/root_dev.h>
+
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
-#include <asm/bf533_rtc.h>
 
 #ifdef CONFIG_CONSOLE
 extern struct consw *conswitchp;
@@ -36,7 +23,6 @@ extern struct consw fb_con;
 #endif
 #endif
   
-unsigned long rom_length;
 unsigned long memory_start;
 unsigned long memory_end;
 
@@ -352,13 +338,13 @@ void panic_bfin(int cplb_panic)
 	switch(cplb_panic)
 	{
 	
-	case CPLB_NO_UNLOCKED:
-		panic("All CPLBs are locked\n");
-		break;
-	case CPLB_PROT_VIOL:
-		panic("Data Access CPLB Protection Voilation \n");
-		break;
-	case CPLB_NO_ADDR_MATCH:
-		panic("No CPLB Address Match \n");
+		case CPLB_NO_UNLOCKED:
+			panic("All CPLBs are locked\n");
+			break;
+		case CPLB_PROT_VIOL:
+			panic("Data Access CPLB Protection Voilation \n");
+			break;
+		case CPLB_NO_ADDR_MATCH:
+			panic("No CPLB Address Match \n");
 	}
 }

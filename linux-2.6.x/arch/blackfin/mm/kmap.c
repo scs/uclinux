@@ -6,21 +6,6 @@
  *  Copyright (C) 2000 Lineo, <davidm@lineo.com>
  */
 
-#include <linux/config.h>
-#include <linux/mm.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-
-#include <asm/setup.h>
-#include <asm/segment.h>
-#include <asm/page.h>
-#include <asm/pgalloc.h>
-#include <asm/io.h>
-#include <asm/system.h>
-
 #undef DEBUG
 
 /*

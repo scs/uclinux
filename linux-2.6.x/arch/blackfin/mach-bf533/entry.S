@@ -32,18 +32,11 @@
  */
 
 
-#include <linux/sys.h>
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/blackfin.h>
 #include <asm/unistd.h>	
-#include <asm/setup.h>
 #include <asm/errno.h>
-#include <asm/setup.h>
-#include <asm/traps.h>
-#include <asm/entry.h>
 #include <asm/thread_info.h>  /* TIF_NEED_RESCHED */
-#include <asm/ptrace.h>  
 #include <asm/asm-offsets.h>
 
 .text
@@ -53,8 +46,8 @@ ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	
         p2.l = lo(IPEND);
         p2.h = hi(IPEND);
-        r0 = [p2];              /* Read current IPEND */
 	csync;
+        r0 = [p2];              /* Read current IPEND */
         [sp + PT_IPEND] = r0;   /* Store IPEND */
 
 	r1 = [sp + PT_SEQSTAT];	/* reason code is in bit 5:0 */
@@ -111,8 +104,8 @@ ENTRY(system_call)
 	/* Store IPEND */
         p2.l = lo(IPEND);
         p2.h = hi(IPEND);
-	r0 = [p2];
 	csync;
+	r0 = [p2];
 	[sp + PT_IPEND] = r0;
 
 	/* Store RETS for now */
@@ -217,8 +210,6 @@ exit_syscall:
 	 * the kernel stack, otherwise stack overflow can occur during
          * heavy interrupt load
 	 */
-	r0 = 0x0;
-	[sp + PT_IPEND] = r0;
 	r7 = sp;
 	r4.l = lo(ALIGN_PAGE_MASK);
 	r4.h = hi(ALIGN_PAGE_MASK);
@@ -231,7 +222,7 @@ exit_syscall:
 	r4 = [sp++];
 	cc = BITTST(r7, _TIF_NEED_RESCHED);
 	if !cc jump syscall_sigpending; 
-	jump reschedule;
+	call reschedule;
 
 syscall_sigpending:
 	cc = BITTST(r7, TIF_SIGPENDING);
@@ -337,21 +328,19 @@ ENTRY(ret_from_exception)
         p2.l = lo(IPEND);
         p2.h = hi(IPEND);
 
-	r0 = [p2];
 	csync;
+	r0 = [p2];
 	[sp + PT_IPEND] = r0;
 
-	r0 = [sp + PT_IPEND];
 	CC = bittst(r0, 15);	/* check if returning to kernel*/
 	if cc jump 4f;   /* if so, skip resched, signals*/   
+
 	cc = bittst(r0, 3);	/* check if return from exception */
 	if cc jump 1f;
 	/* reduce the nested interrupt IVG14 --> IVG 15, */
 	[--sp] = rets;
 	call kernel_to_user_mode; 
 	rets = [sp++];
-	r0 = 0x0;	/* flag for return to user mode */
-	[sp + PT_IPEND] = r0;
 
 1:	/* Set the stack for the current process */
 	r7 = sp;
@@ -366,7 +355,7 @@ ENTRY(ret_from_exception)
 	r4 = [sp++];
 	cc = BITTST(r7, _TIF_NEED_RESCHED);
 	if !cc jump 3f; 
-	jump reschedule;
+	call reschedule;
 3:
 	r7 = [p5 + TI_FLAGS];
 	cc = BITTST(r7, TIF_SIGPENDING);
@@ -379,13 +368,12 @@ ENTRY(ret_from_exception)
 4:
 	rts;
 
-
 ENTRY(return_from_int)
 	/* check whether current process is in user or kernel mode */
         p2.l = lo(IPEND);
         p2.h = hi(IPEND);
-        r0 = [p2];              /* Read current IPEND */
         csync;
+        r0 = [p2];              /* Read current IPEND */
         r1 = 1;
         r1 = r0 - r1;
         r2 = r0 & r1;

@@ -21,14 +21,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
-#include <asm/system.h>
-#include <asm/irq.h>
 #include <asm/traps.h>
-#include <asm/io.h>
-#include <asm/errno.h>	/*ENXIO etc*/
 #include <asm/blackfin.h>
 /********************************************************************
  * NOTES:

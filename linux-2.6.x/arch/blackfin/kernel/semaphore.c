@@ -9,12 +9,7 @@
 
 #include <linux/sched.h>
 #include <asm/semaphore-helper.h>
-#include <linux/err.h>
-#include <linux/init.h>
 
-#ifndef CONFIG_RMW_INSNS
-spinlock_t semaphore_wake_lock;
-#endif
 /*
  * Semaphores are implemented using a two-way counter:
  * The "count" variable is decremented for each process
@@ -70,7 +65,6 @@ void __up(struct semaphore *sem)
  */
 
 #define DOWN_HEAD(task_state)						\
-									\
 									\
 	current->state = (task_state);					\
 	add_wait_queue(&sem->wait, &wait);				\
@@ -133,4 +127,3 @@ int __down_trylock(struct semaphore * sem)
 {
 	return waking_non_zero_trylock(sem);
 }
-
