@@ -710,12 +710,14 @@ static void uart_dma_xmit_timer(struct bf533_serial * info)
         add_timer(&info->dma_xmit_timer);
 }
                                                                                 
+#ifndef CONFIG_DISABLE_RXDMA
 static void uart_dma_recv_timer(struct bf533_serial * info)
 {
 	dma_receive_chars(info, 1);
         info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
         add_timer(&info->dma_recv_timer);
 }
+#endif
 #endif
 
 static int startup(struct bf533_serial * info)
@@ -727,16 +729,6 @@ static int startup(struct bf533_serial * info)
 	init_timer(&info->dma_recv_timer);
 
 	*pUART_GCTL |= UCEN;
-	SYNC_ALL;
-
-	/*
-	 * Finally, enable sequencing and interrupts
-	 */
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
-	*pUART_IER = ERBFI | ELSI | 0x8;
-#else
-	*pUART_IER = ERBFI | ETBEI | ELSI | 0x8;
-#endif
 	SYNC_ALL;
 
 	if (info->flags & S_INITIALIZED)
@@ -773,6 +765,12 @@ static int startup(struct bf533_serial * info)
 		clear_bit(TTY_IO_ERROR, &info->tty->flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
 
+	/*
+	 * and set the speed of the serial port
+	 */
+
+	bf533_change_speed(info);
+
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
 
 	set_dma_x_modify(CH_UART_TX, 1);
@@ -801,10 +799,14 @@ static int startup(struct bf533_serial * info)
 #endif
 
 	/*
-	 * and set the speed of the serial port
+	 * Finally, enable sequencing and interrupts
 	 */
-
-	bf533_change_speed(info);
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+	*pUART_IER = ERBFI | ELSI | 0x8;
+#else
+	*pUART_IER = ERBFI | ETBEI | ELSI | 0x8;
+#endif
+	SYNC_ALL;
 
 	info->flags |= S_INITIALIZED;
 	local_irq_restore(flags);
