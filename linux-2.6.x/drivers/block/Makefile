@@ -12,7 +12,7 @@
 # NOTE that ll_rw_blk.c must come early in linkage order - it starts the
 # kblockd threads
 #
-
+CFLAGS_ll_rw_blk.o = -O0
 obj-y	:= elevator.o ll_rw_blk.o ioctl.o genhd.o scsi_ioctl.o
 
 obj-$(CONFIG_IOSCHED_NOOP)	+= noop-iosched.o
