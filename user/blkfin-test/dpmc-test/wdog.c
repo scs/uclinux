@@ -18,7 +18,7 @@ int main()
 {
 	int fd;
 	int ret;
-	unsigned long pdtim=0x10000;
+	unsigned long pdtim = 0x10000;
 
 	printf("##########################DPMC Test Programs##################################\n");
 
@@ -51,6 +51,8 @@ int main()
 	ret = ioctl(fd, IOCTL_CLEAR_WDOG_WAKEUP_EVENT, NULL);
 	if(ret == 0)
 		printf("WDOG timer wakeup event cleared \n");
+	else
+		printf("WDOG timer wakeup event clear error \n");
 
 	close(fd);
 

@@ -19,9 +19,9 @@ int main()
 	int fd,ret;
    	unsigned long sclk1;
 	char sclk[5];
-
-	printf("##########################DPMC Test Programs##################################\n");
-
+	
+	printf("IOCTL to change sclk \n");
+	
 /*******************************Open the dpmc device ***********************************/
 	fd = open("/dev/dpmc", O_RDONLY,0);
 	if (fd == -1) {

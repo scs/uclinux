@@ -20,7 +20,7 @@ int main()
 	int ret;
    	unsigned long pllstat;
 
-	printf("##########################DPMC Test Programs##################################\n");
+	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO ACTIVE \n");
 
 /*******************************Open the dpmc device ***********************************/
 	fd = open("/dev/dpmc", O_RDONLY,0);
@@ -31,7 +31,6 @@ int main()
 	else printf("open success fd = %d \n",fd);
 
 /********************************Fullon to Active Mode ********************************/	
-	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO ACTIVE \n");
 	printf("Entering Active Mode \n");
 	ret = ioctl(fd, IOCTL_ACTIVE_MODE, NULL);
 	printf("Active mode set %d \n",ret);

@@ -40,7 +40,6 @@ int main()
 	}
 	else printf("open success fd = %d \n",rtc_fd);
 
-
 /******************************Change the VCO frequency *********************************/
 	printf("1. IOCTL to Change the VCO \n");
 	printf("Please select the VCO \r\n");

@@ -19,8 +19,7 @@ int main()
 	int fd,rtc_fd,ret;
    	unsigned long pllstat;
 
-	printf("##########################DPMC Test Programs##################################\n");
-
+	printf("Entering hibernate Mode \n");
 /*******************************Open the dpmc device ***********************************/
 	fd = open("/dev/dpmc", O_RDONLY,0);
 	if (fd == -1) {
@@ -52,10 +51,8 @@ int main()
 		printf("ioctl RTC_SWCNT_SET error\r\n");
 	}
 
-	printf("IOCTL to CHANGE OPERATING MODE TO HIBERNATE MODE\n");
-	printf("Entering Sleep Mode \n");
 	ret = ioctl(fd, IOCTL_HIBERNATE_MODE, NULL);
-	printf("Out of Sleep mode set %d \n",ret);
+	printf("Out of hibernate mode %d \n",ret);
 
 	ret = ioctl(rtc_fd, RTC_SWCNT_OFF, 0);
 	if (ret == -1) {

@@ -20,7 +20,7 @@ int main()
    	unsigned long ret1,ret2,cclk1;
 	int choice;
 
-	printf("##########################DPMC Test Programs##################################\n");
+	printf("IOCTL to SET the CCLK \n");
 
 /*******************************Open the dpmc device ***********************************/
 	fd = open("/dev/dpmc", O_RDONLY,0);
@@ -40,7 +40,6 @@ int main()
 	printf("vco set is %u MHz\n",ret1);
 
 /******************************Change the CCLK*******************************************/
-	printf("IOCTL to SET the CCLK \n");
 	printf("Please select any of these choices for cclk \n");
 	printf("1. %u \t 2. %u \t 3. %u \t 4. %u \n",ret1,ret1/2,ret1/4,ret1/8);
 	scanf("%d",&choice);

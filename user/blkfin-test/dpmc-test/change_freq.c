@@ -21,7 +21,7 @@ int main()
 	unsigned long vco;
    	unsigned long ret1;
 
-	printf("##########################DPMC Test Programs##################################\n");
+	printf("IOCTL to Change the VCO \n");
 
 /*******************************Open the dpmc device ***********************************/
 	fd = open("/dev/dpmc", O_RDONLY,0);
@@ -32,7 +32,6 @@ int main()
 	else printf("open success fd = %d \n",fd);
 
 /******************************Change the VCO frequency *********************************/
-	printf("1. IOCTL to Change the VCO \n");
 	printf("Please select the VCO \r\n");
 	scanf("%u",&vco);
 	ret = ioctl(fd, IOCTL_CHANGE_FREQUENCY,&vco);

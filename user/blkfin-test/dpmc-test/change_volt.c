@@ -19,7 +19,7 @@ int main()
 	int fd,ret;
    	unsigned long volt;
 
-	printf("##########################DPMC Test Programs##################################\n");
+	printf("IOCTL to change voltage \n");
 
 /*******************************Open the dpmc device ***********************************/
 	fd = open("/dev/dpmc", O_RDONLY,0);
@@ -30,7 +30,6 @@ int main()
 	else printf("open success fd = %d \n",fd);
 
 /********************Change the Voltage *********************************************/
-	printf("IOCTL to CHANGE THE VOLTAGE \n");
 	printf("Please select the voltage \r\n");
 	scanf("%u",&volt);
 	ret = ioctl(fd, IOCTL_CHANGE_VOLTAGE,&volt);
