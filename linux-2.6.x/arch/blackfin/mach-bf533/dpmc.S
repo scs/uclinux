@@ -72,30 +72,37 @@ SKIP_WRITE_TO_STAT:
 
 .global clear_wdog_wakeup_evt
 clear_wdog_wakeup_evt:
-	[--SP] = R7;
-	[--SP] = P0;
-	
+	[--SP] = ( R7:0, P5:0 );
+
 	P0.h = (WDOG_CTL >> 16);
 	P0.l = (WDOG_CTL & 0xFFFF);
+	R7 = 0x0AD6(Z);
+	W[P0] = R7.L;
+	SSYNC;
+
 	R7 = W[P0](Z);
 	BITSET(R7,15);
 	W[P0] = R7.L;
-	SSYNC;		/* But this sticky bit does not clear.... */
-	P0 = [SP++];
-	R7 = [SP++];
+	SSYNC;
+
+	R7 = W[P0](Z);
+	BITSET(R7,1);
+	BITSET(R7,2);
+	W[P0] = R7.L;
+	SSYNC;
+
+	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
 .global disable_wdog_timer
 disable_wdog_timer:
-	[--SP] = R7;
-	[--SP] = P0;
-	R7 = 0xAD6;
+	[--SP] = ( R7:0, P5:0 );
 	P0.h = (WDOG_CTL >> 16);
 	P0.l = (WDOG_CTL & 0xFFFF);
+	R7 = 0xAD6(Z);
 	W[P0] = R7.L;
 	SSYNC;
-	P0 = [SP++];
-	R7 = [SP++];
+	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
 .global sleep_mode
