@@ -52,8 +52,8 @@ ENTRY(ret_from_fork)
 	call schedule_tail; 
 	SP += 12;
 	r0 = [sp + PT_IPEND];
-	cc = r0 == 0;
-	if !cc jump in_kernel;
+	cc = bittst(r0,15);
+	if cc jump in_kernel;
 	RESTORE_ALL_SYS
 	rti; 
 in_kernel:
