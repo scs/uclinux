@@ -11,11 +11,7 @@
 #ifndef _CPLB_H
 #define _CPLB_H
 
-#if defined(__ADSPBF535__) || defined(__AD6532__)
-# include <defblackfin.h>
-#else
 # include <asm/board/bf533.h> 
-#endif
 
 #define CPLB_ENABLE_ICACHE_P	0
 #define CPLB_ENABLE_DCACHE_P	1
