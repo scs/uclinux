@@ -89,22 +89,22 @@ void machine_power_off(void)
 
 void show_regs(struct pt_regs * regs)
 {
-	printk("\n");
-	printk("PC: %08lu  Status: %04lu  SysStatus: %04lu  RETS: %08lu\n",
+	printk(KERN_NOTICE "\n");
+	printk(KERN_NOTICE "PC: %08lu  Status: %04lu  SysStatus: %04lu  RETS: %08lu\n",
 	       regs->pc, regs->astat, regs->seqstat, regs->rets);
-	printk("A0.x: %08lx  A0.w: %08lx  A1.x: %08lx  A1.w: %08lx\n",
+	printk(KERN_NOTICE "A0.x: %08lx  A0.w: %08lx  A1.x: %08lx  A1.w: %08lx\n",
 	       regs->a0x, regs->a0w, regs->a1x, regs->a1w);
-	printk("P0: %08lx  P1: %08lx  P2: %08lx  P3: %08lx\n",
+	printk(KERN_NOTICE "P0: %08lx  P1: %08lx  P2: %08lx  P3: %08lx\n",
 	       regs->p0, regs->p1, regs->p2, regs->p3);
-	printk("P4: %08lx  P5: %08lx\n",
+	printk(KERN_NOTICE "P4: %08lx  P5: %08lx\n",
 	       regs->p4, regs->p5);
-	printk("R0: %08lx  R1: %08lx  R2: %08lx  R3: %08lx\n",
+	printk(KERN_NOTICE "R0: %08lx  R1: %08lx  R2: %08lx  R3: %08lx\n",
 	       regs->r0, regs->r1, regs->r2, regs->r3);
-	printk("R4: %08lx  R5: %08lx  R6: %08lx  R7: %08lx\n",
+	printk(KERN_NOTICE "R4: %08lx  R5: %08lx  R6: %08lx  R7: %08lx\n",
 	       regs->r4, regs->r5, regs->r6, regs->r7);
 
 	/* PS_S should be 0x0c00, to expect the 0b00 value in SEQSTAT's bit 11:10 */
-	if (!(regs->seqstat & PS_S))
+	if (!(regs->ipend))
 		printk("USP: %08lx\n", rdusp());
 }
 
@@ -151,17 +151,10 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 
 void flush_thread(void)
 {
-/*	set_fs(USER_DS);			
-	current->thread.fs = __USER_DS;
-*/
 }
 
 asmlinkage int bfin_vfork(struct pt_regs *regs)
 {
-	unsigned long newsp;
-	newsp = regs->r1;  
-	if (!newsp)
-	   newsp = rdusp();
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, rdusp(), regs, 0, NULL, NULL );
 }
 
