@@ -153,9 +153,9 @@ void paging_init(void)
 
 void mem_init(void)
 {
-	unsigned int codek = 0, datak = 0;
+	unsigned int codek = 0, datak = 0, initk = 0;
 	unsigned long tmp;
-	extern char _etext, _stext, _sdata, _ebss;
+	extern char _etext, _stext, _sdata, _ebss, __init_begin, __init_end;
 	extern unsigned int _ramend, _rambase; 
 	unsigned int len = _ramend - _rambase; 
 	unsigned long start_mem = memory_start;
@@ -173,13 +173,15 @@ void mem_init(void)
 
 	codek = (&_etext - &_stext) >> 10;
 	datak = (&_ebss - &_sdata) >> 10;
+	initk = (&__init_end - &__init_begin) >> 10;
 
 	tmp = nr_free_pages() << PAGE_SHIFT;
-	printk("Memory available: %luk/%uk RAM, %luk/%luk ROM (%uk kernel code, %uk data)\n",
+	printk("Memory available: %luk/%uk RAM, %luk/%luk ROM (%uk init code, %uk kernel code, %uk data)\n",
 	       tmp >> 10,
 	       len >> 10,
 	       (rom_length > 0) ? ((rom_length >> 10) - codek) : 0,
 	       rom_length >> 10,
+	       initk,
 	       codek,
 	       datak
 	       );
