@@ -64,10 +64,7 @@ ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	SP += -12;
 	call trap_c;
 	SP += 12; 
-
-
 	call ret_from_exception;
-	
 	RESTORE_ALL_SYS
 	rtx;
 
@@ -203,7 +200,6 @@ ENTRY(system_call)
 	SP += 12;
 l_before:
 	[sp + PT_R0] = r0;
-	
 	/* Check whether we need to drop to user mode */
 	r0 = [sp + PT_IPEND];
 	CC = r0 == 0;
@@ -258,10 +254,8 @@ resume:
 	 * Beware - when entering resume, prev (the current task) is
 	 * in r0, next (the new task) is in r1.
 	 */
-
 	p0 = r0;
 	p1 = r1;
-
 	[--sp] = rets;
 	[--sp] = (r7:6, p5:3);
 	[--sp] = fp;
@@ -305,19 +299,16 @@ resume:
 
 new_old_task:	
 	fp = [sp++];
-
 	/* You may get assembler errors if you modify following instruction.
 	 * Had to do lots of experiments to get it right. The assembler simply
 	 * doesn't accept a correct syntax - amit */
 	( R7:6, p5 : 3) = [sp++];
-
 	rets = [sp++];
 
 	/*
 	 * When we come out of resume, r0 carries "old" task, becuase we are
 	 * in "new" task.
 	 */
-
 	rts;
 
 l_next:
@@ -342,7 +333,6 @@ ret_from_exception:
 	csync;
 	[sp + PT_IPEND] = r0;
 
-
 	r0 = [sp + PT_IPEND];
 	CC = bittst(r0, 15);	/* check if returning to kernel*/
 	if cc jump 4f;   /* if so, skip resched, signals*/   
@@ -352,8 +342,7 @@ ret_from_exception:
 	[--sp] = rets;
 	call kernel_to_user_mode; 
 	rets = [sp++];
-	r0.l = 0x2;
-	r0.h = 0x0;	/* flag for return to user mode */
+	r0 = 0x0;	/* flag for return to user mode */
 	[sp + PT_IPEND] = r0;
 
 1:	/* Set the stack for the current process */
@@ -373,17 +362,13 @@ ret_from_exception:
 	call reschedule;
 	rets = [sp++];
 	jump ret_from_exception;
-
 3:
 	r7 = [p5 + TI_FLAGS];
 	cc = BITTST(r7, TIF_SIGPENDING);
 	if !cc jump 4f;
-
 	r0 = rets;
 	[sp + PT_RESERVED] = r0;
-
 	call Lsignal_return;
-
 	r7 = [sp+PT_RESERVED];
 	rets = r7;
 4:
