@@ -88,14 +88,6 @@ static const char version[] =
 #include <asm/delay.h>
 #define CONFIG_SMC16BITONLY     1
 #define LAN_FIO_PATTERN		0x80
-
-inline void mdelay2(int milliseconds)
-{
-    int i;
-
-    for(i=0; i<milliseconds; i++)
-        udelay(1000);
-} 
 #endif
 
 #if defined(CONFIG_M5249C3) || defined(CONFIG_GILBARCONAP)
@@ -117,7 +109,6 @@ inline void SMC_insw(unsigned int addr, void *buf, int len)
 {
 	volatile unsigned short *ap = (volatile unsigned short *) addr;
 	unsigned short *bp = (unsigned short *) buf;
-
 	while (len--){
 		*bp++ = (*ap);}
 }
@@ -673,9 +664,6 @@ static void smc_reset( struct net_device* dev )
 #endif
 
 	SMC_SELECT_BANK( 0 );
-
-	/* this should pause enough for the chip to be happy */
-	mdelay2(10);
 
 	/* Disable transmit and receive functionality */
 	smc_writew( RCR_CLEAR, ioaddr + RCR_REG );
@@ -1237,14 +1225,6 @@ int __init smc_findirq( unsigned int ioaddr )
 	   as autoirq_report will return a 0 anyway, which is what I
 	   want in this case.   Plus, the clean up is needed in both
 	   cases.  */
-
-	/* DELAY HERE!
-	   On a fast machine, the status might change before the interrupt
-	   is given to the processor.  This means that the interrupt was
-	   never detected, and autoirq_report fails to report anything.
-	   This should fix autoirq_* problems.
-	*/
-	mdelay2(10);
 
 	/* and disable all interrupts again */
 #if defined(CONFIG_SMC16BITONLY)
@@ -3429,7 +3409,7 @@ static void smc_sysctl_unregister(struct net_device *dev)
 #endif /* endif CONFIG_SYSCTL */
 
 
-//---PHY CONTROL AND CONFIGURATION-----------------------------------------
+/*---PHY CONTROL AND CONFIGURATION-----------------------------------------*/
 
 #if (SMC_DEBUG > 2 )
 
@@ -3529,55 +3509,48 @@ static word smc_read_phy_register(unsigned int ioaddr, byte phyaddr, byte phyreg
 		mask >>= 1;
 		}
 
-	// Tristate and turnaround (2 bit times)
+	/* Tristate and turnaround (2 bit times)*/
 	bits[clk_idx++] = 0;
-	//bits[clk_idx++] = 0;
 
-	// Input starts at this bit time
+	/* Input starts at this bit time*/
 	input_idx = clk_idx;
 
-	// Will input 16 bits
+	/* Will input 16 bits*/
 	for (i = 0; i < 16; ++i)
 		bits[clk_idx++] = 0;
 
-	// Final clock bit
+	/* Final clock bit*/
 	bits[clk_idx++] = 0;
 
-	// Save the current bank
+	/* Save the current bank*/
 	oldBank = readw( ioaddr+BANK_SELECT );
 
-	// Select bank 3
+	/* Select bank 3*/
 	SMC_SELECT_BANK( 3 );
 
-	// Get the current MII register value
+	/* Get the current MII register value*/
 	mii_reg = readw( ioaddr+MII_REG );
 
-	// Turn off all MII Interface bits
+	/* Turn off all MII Interface bits*/
 	mii_reg &= ~(MII_MDOE|MII_MCLK|MII_MDI|MII_MDO);
 
-	// Clock all 64 cycles
+	/* Clock all 64 cycles*/
 	for (i = 0; i < sizeof bits; ++i)
 		{
-		// Clock Low - output data
+		/* Clock Low - output data*/
 		smc_writew( mii_reg | bits[i], ioaddr+MII_REG );
-		udelay(50);
-
-
-		// Clock Hi - input data
+		/* Clock Hi - input data*/
 		smc_writew( mii_reg | bits[i] | MII_MCLK, ioaddr+MII_REG );
-		udelay(50);
 		bits[i] |= readw( ioaddr+MII_REG ) & MII_MDI;
 		}
 
-	// Return to idle state
-	// Set clock to low, data to low, and output tristated
+	/* Return to idle state*/
+	/* Set clock to low, data to low, and output tristated*/
 	smc_writew( mii_reg, ioaddr+MII_REG );
-	udelay(50);
-
-	// Restore original bank select
+	/* Restore original bank select*/
 	SMC_SELECT_BANK( oldBank );
 
-	// Recover input data
+	/* Recover input data*/
 	phydata = 0;
 	for (i = 0; i < 16; ++i)
 		{
@@ -3685,19 +3658,15 @@ static void smc_write_phy_register(unsigned int ioaddr,
 		{
 		// Clock Low - output data
 		smc_writew( mii_reg | bits[i], ioaddr+MII_REG );
-		udelay(50);
-
 
 		// Clock Hi - input data
 		smc_writew( mii_reg | bits[i] | MII_MCLK, ioaddr+MII_REG );
-		udelay(50);
 		bits[i] |= readw( ioaddr+MII_REG ) & MII_MDI;
 		}
 
 	// Return to idle state
 	// Set clock to low, data to low, and output tristated
 	smc_writew( mii_reg, ioaddr+MII_REG );
-	udelay(50);
 
 	// Restore original bank select
 	SMC_SELECT_BANK( oldBank );
