@@ -16,11 +16,7 @@
 #define L1_DATA_A_LENGTH	0x4000
 #define L1_DATA_B_START		0xFF900000
 #define L1_DATA_B_LENGTH	0x4000
-/* NOTE : L1_CODE_START changed to 0xFFA00022 as kernel is writing
-   reset code. When applying the appropriate patch, change this back
-   to 0xFFA00000
-*/
-#define L1_CODE_START		0xFFA00024
+#define L1_CODE_START		0xFFA00000
 #define L1_CODE_LENGTH		0x10000
 #define L1_SCRATCH_START	0xFFB00000
 #define L1_SCRATCH_LENGTH	0x1000
