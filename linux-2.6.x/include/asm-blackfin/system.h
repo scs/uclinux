@@ -35,9 +35,7 @@ asmlinkage void resume(void);
   __asm__ __volatile__(							\
   			"r0 = %1;\n\t"					\
 			"r1 = %2;\n\t"					\
-			"SP += -12;\n\t"					\
 			"call resume;\n\t" 				\
-			"SP += 12;\n\t"				\
 			"%0 = r0;\n\t"					\
 		       : "=d" (_last)					\
 		       : "d" (prev),					\

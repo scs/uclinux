@@ -114,6 +114,7 @@ evt_timer:
 evt_evt7:
 	 SAVE_CONTEXT
 	 r0 = 7;
+	 r1 = sp;
 	 SP += -12;	
 	 call	process_int; 
 	 SP += 12;	
@@ -124,6 +125,7 @@ evt_evt7:
 evt_evt8:
 	 SAVE_CONTEXT
 	 r0 = 8;
+	 r1 = sp;
 	 SP += -12;	
 	 call	process_int; 
 	 SP += 12;	
@@ -134,6 +136,7 @@ evt_evt8:
 evt_evt9:
 	 SAVE_CONTEXT
 	 r0 = 9;
+	 r1 = sp;
 	 SP += -12;	
 	 call	process_int; 
 	 SP += 12;	
@@ -144,6 +147,7 @@ evt_evt9:
 evt_evt10:
 	 SAVE_CONTEXT
 	 r0 = 10;
+	 r1 = sp;
 	 SP += -12;	
 	 call	process_int; 
 	 SP += 12;	
@@ -154,6 +158,7 @@ evt_evt10:
 evt_evt11:
 	 SAVE_CONTEXT
 	 r0 = 11;
+	 r1 = sp;
 	 SP += -12;	
 	 call	process_int; 
 	 SP += 12;	
@@ -164,6 +169,7 @@ evt_evt11:
 evt_evt12:
 	 SAVE_CONTEXT
 	 r0 = 12;
+	 r1 = sp;
 	 SP += -12;	
 	 call	process_int; 
 	 SP += 12;	
@@ -174,6 +180,7 @@ evt_evt12:
 evt_evt13:
 	 SAVE_CONTEXT
 	 r0 = 13;
+	 r1 = sp;
 	 SP += -12;	
 	 call	process_int;  
 	 SP += 12;	

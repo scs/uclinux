@@ -799,7 +799,7 @@ static void smc_enable( struct net_device *dev )
 */
 static void smc_shutdown( unsigned int ioaddr )
 {
-	PRINTK2("CARDNAME:smc_shutdown\n");
+	PRINTK2(CARDNAME":smc_shutdown\n");
 
 	/* no more interrupts for me */
 	SMC_SELECT_BANK( 2 );
@@ -853,7 +853,7 @@ static void smc_setmulticast( unsigned int ioaddr, int count, struct dev_mc_list
 	/* table for flipping the order of 3 bits */
 	unsigned char invert3[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 
-	PRINTK2("CARDNAME:smc_setmulticast\n");
+	PRINTK2(CARDNAME":smc_setmulticast\n");
 
 	/* start with a table of all zeros: reject all */
 	memset( multicast_table, 0, sizeof( multicast_table ) );
@@ -1201,7 +1201,7 @@ static void smc_hardware_send_packet( struct net_device * dev )
 */
 int __init smc_init(struct net_device *dev)
 {
-	PRINTK2("CARDNAME:smc_init\n");
+	PRINTK2(CARDNAME":smc_init\n");
 
 	SET_MODULE_OWNER (dev);
 
@@ -1258,7 +1258,7 @@ int __init smc_init(struct net_device *dev)
 */
 void smc_destructor(struct net_device *dev)
 {
-	PRINTK2("CARDNAME:smc_destructor\n");
+	PRINTK2(CARDNAME":smc_destructor\n");
 }
 
 
@@ -1275,7 +1275,7 @@ int __init smc_findirq( unsigned int ioaddr )
 	int	timeout = 20;
 	unsigned long cookie;
 
-	PRINTK2("CARDNAME:smc_findirq\n");
+	PRINTK2(CARDNAME":smc_findirq\n");
 
 	/* I have to do a STI() here, because this is called from
 	   a routine that does an CLI during this process, making it
@@ -1391,7 +1391,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	struct smc_local *lp;
 	/*<= Pramod */
 
-	PRINTK2("CARDNAME:smc_probe\n");
+	PRINTK2(CARDNAME":smc_probe\n");
 
 #if !defined(CONFIG_M5249C3) && !defined(CONFIG_GILBARCONAP)
 	/* Grab the region so that no one else tries to probe our ioports. */
@@ -1407,7 +1407,8 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	if ( (bank & 0xFF00) != 0x3300 ) 
 	{
 		printk(KERN_DEBUG "SMSC91111:Device not found : %x\n", bank);
-		return -ENODEV;
+		retval = -ENODEV;
+		goto err_out;
 	}
 
 
@@ -1435,7 +1436,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	if ( ioaddr != ( base_address_register >> 3 & 0x3E0 ) )
 #endif
 	{
-		printk("CARDNAME: IOADDR %x doesn't match configuration (%x)."
+		printk(CARDNAME": IOADDR %x doesn't match configuration (%x)."
 			"Probably not a SMC chip\n",
 			ioaddr, base_address_register >> 3 & 0x3E0 );
 		/* well, the base address register didn't match.  Must not have
@@ -1452,7 +1453,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	if ( !chip_ids[ ( revision_register  >> 4 ) & 0xF  ] )
 	{
 		/* I don't recognize this chip, so... */
-		printk("CARDNAME: IO %x: Unrecognized revision register:"
+		printk(CARDNAME": IO %x: Unrecognized revision register:"
 			" %x, Contact author. \n",
 			ioaddr, revision_register );
 		retval =  -ENODEV;
@@ -1561,21 +1562,6 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	 . what (s)he is doing.  No checking is done!!!!
  	 .
 	*/
-//#if defined(CONFIG_BFIN)
-//	
-//	if(request_irq(spiinfo[idev].irqnum, spi_irq, SA_INTERRUPT, 
-//                   intname, filp->private_data) < 0)
-//    {
-//        printk("SPI: Can't register IRQ.\n");
-//        return -EFAULT;
-//    }
-//	 
-//	 
-//	 
-//	 /* Open interrupt which maybe closed */
-//        enable_irq(pdev->irqnum);
-//
-//#endif	
 	if ( dev->irq < 2 ) {
 		int	trials;
 
@@ -1595,13 +1581,14 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 		goto err_out;
 	}
 
+#if defined(CONFIG_X86)
 	if (dev->irq == 2) {
 		/* Fixup for users that don't know that IRQ 2 is really IRQ 9,
 		 * or don't know which one to set.
 		 */
 		dev->irq = 9;
 	}
-
+#endif
 	/* now, print out the card info, in a short format.. */
 
 	printk("%s: %s(rev:%d) at %#3x IRQ:%d MEMSIZE:%db NOWAIT:%d ",
@@ -1656,7 +1643,6 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 
 	/* Enable interrupts on external INT4  */
 	*((volatile unsigned long *) (MCF_MBAR+MCFSIM_ICR1)) |= 0x000d0000;
-	/**((volatile unsigned long *) (MCF_MBAR+MCFSIM_PITR)) |= 0x10000000;*/
 }
 #endif
 
@@ -2386,7 +2372,7 @@ int init_module(void)
 {
 	int result;
 
-	PRINTK2("CARDNAME:init_module\n");
+	PRINTK2(CARDNAME":init_module\n");
 	if (io == 0)
 		printk(KERN_WARNING
 		CARDNAME": You shouldn't use auto-probing with insmod!\n" );
