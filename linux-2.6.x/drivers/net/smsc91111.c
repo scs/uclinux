@@ -96,9 +96,7 @@ inline void mdelay2(int milliseconds)
     for(i=0; i<milliseconds; i++)
         udelay(1000);
 } 
-
 #endif
-
 
 #if defined(CONFIG_M5249C3) || defined(CONFIG_GILBARCONAP)
 #define CONFIG_SMC16BITONLY     1
@@ -124,31 +122,6 @@ inline void SMC_insw(unsigned int addr, void *buf, int len)
 		*bp++ = (*ap);}
 }
 
-/* some problem with the toolchain.
- * If smc_readw is inline then smc_probe fails.
- * The upper byte of bank select register is not 0x33. 
- */
-unsigned short smc_readw(unsigned int addr)
-/*inline unsigned short smc_readw(unsigned int addr)*/
-{
-	unsigned short d = (*((volatile unsigned short *)((addr)))); 
-	return d;
-}
-
-inline unsigned char smc_readb(unsigned int addr)
-{
-	unsigned char d= (((addr)&1) ? smc_readw((addr)&~1)>>8 : readw(addr)&0xFF) ;
-	return d;
-}
-
-inline unsigned int smc_readl(unsigned int addr)
-{
-	unsigned int rval;
-
-	rval = (*(volatile unsigned long*)(addr));
-	return rval;
-}
-
 inline void smc_writew(unsigned short b,unsigned int addr) 
 {
 	(*((volatile unsigned short *)((addr))) = b) ;
@@ -157,7 +130,7 @@ inline void smc_writew(unsigned short b,unsigned int addr)
 inline void smc_writeb(unsigned char b,unsigned int addr) 
 {
 	unsigned short __d = (unsigned char)(b);  
-        unsigned short __w = smc_readw((addr)&~1);  
+        unsigned short __w = readw((addr)&~1);  
         __w &= ((addr)&1) ? 0x00FF : 0xFF00;  
         __w |= ((addr)&1) ? __d<<8 : __d;  
         smc_writew(__w,(addr)&~1);  
@@ -227,7 +200,6 @@ static unsigned int smc_portlist[] __initdata =
    { 0x200, 0x220, 0x240, 0x260, 0x280, 0x2A0, 0x2C0, 0x2E0,
 	 0x300, 0x320, 0x340, 0x360, 0x380, 0x3A0, 0x3C0, 0x3E0, 0};
 #endif
-
 
 /*
  . Wait time for memory to be free.  This probably shouldn't be
@@ -643,9 +615,7 @@ void bfin_SMC_interrupt_setup(int irq)
 	/* enable irq b */
 	enable_irq(irq);
 } 
-
 #endif
-
 
 /*
  . Function: smc_reset( struct device* dev )
@@ -691,14 +661,14 @@ static void smc_reset( struct net_device* dev )
 	/* be no recovery except for a hard reset or power cycle */
 
 	if (dev->dma)
-		smc_writew( smc_readw( ioaddr + CONFIG_REG ) | CONFIG_NO_WAIT,
+		smc_writew( readw( ioaddr + CONFIG_REG ) | CONFIG_NO_WAIT,
 			ioaddr + CONFIG_REG );
 
 #ifdef POWER_DOWN
 	/* Release from possible power-down state */
 	/* Configuration register is not affected by Soft Reset */
 	SMC_SELECT_BANK( 1 );
-	smc_writew( smc_readw( ioaddr + CONFIG_REG ) | CONFIG_EPH_POWER_EN,
+	smc_writew( readw( ioaddr + CONFIG_REG ) | CONFIG_EPH_POWER_EN,
 		ioaddr + CONFIG_REG  );
 #endif
 
@@ -715,7 +685,7 @@ static void smc_reset( struct net_device* dev )
 	   release successfully transmitted packets, to make the best
 	   use out of our limited memory */
 	SMC_SELECT_BANK( 1 );
-	smc_writew( smc_readw( ioaddr + CTL_REG ) | CTL_AUTO_RELEASE , ioaddr + CTL_REG );
+	smc_writew( readw( ioaddr + CTL_REG ) | CTL_AUTO_RELEASE , ioaddr + CTL_REG );
 
 	/* Reset the MMU */
 	SMC_SELECT_BANK( 2 );
@@ -801,7 +771,7 @@ static void smc_shutdown( unsigned int ioaddr )
 #ifdef POWER_DOWN
 	/* finally, shut the chip down */
 	SMC_SELECT_BANK( 1 );
-	smc_writew( smc_readw( ioaddr + CONFIG_REG ) & ~CONFIG_EPH_POWER_EN,
+	smc_writew( readw( ioaddr + CONFIG_REG ) & ~CONFIG_EPH_POWER_EN,
 		ioaddr + CONFIG_REG  );
 #endif
 }
@@ -956,11 +926,11 @@ static int smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * de
 	*/
 	time_out = MEMORY_WAIT_TIME;
 	do {
-		status = smc_readb( ioaddr + INT_REG );
+		status = readb( ioaddr + INT_REG );
 		if ( status & IM_ALLOC_INT ) {
 			/* acknowledge the interrupt */
 #if defined(CONFIG_SMC16BITONLY)
-			smc_writew( IM_ALLOC_INT | (smc_readb(ioaddr + IM_REG) << 8),
+			smc_writew( IM_ALLOC_INT | (readb(ioaddr + IM_REG) << 8),
 				ioaddr + INT_REG );
 #else
 			smc_writeb( IM_ALLOC_INT, ioaddr + INT_REG );
@@ -976,7 +946,7 @@ static int smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * de
 		/* Check the status bit one more time just in case */
 		/* it snuk in between the time we last checked it */
 		/* and when we set the interrupt bit */
-		status = smc_readb( ioaddr + INT_REG );
+		status = readb( ioaddr + INT_REG );
 		if ( !(status & IM_ALLOC_INT) ) {
       			PRINTK2("%s: memory allocation deferred. \n",
 				dev->name);
@@ -1033,7 +1003,7 @@ static void smc_hardware_send_packet( struct net_device * dev )
 	buf = skb->data;
 
 	/* If I get here, I _know_ there is a packet slot waiting for me */
-	packet_no = smc_readb( ioaddr + AR_REG );
+	packet_no = readb( ioaddr + AR_REG );
 	if ( packet_no & AR_FAILED ) {
 		/* or isn't there?  BAD CHIP! */
 		printk(KERN_DEBUG "%s: Memory allocation failed. \n",
@@ -1239,7 +1209,7 @@ int __init smc_findirq( unsigned int ioaddr )
 	SMC_SELECT_BANK(2);
 	/* enable ALLOCation interrupts ONLY */
 #if defined(CONFIG_SMC16BITONLY)
-	smc_writew( IM_ALLOC_INT | (smc_readb(ioaddr + IM_REG) << 8), ioaddr + INT_REG );
+	smc_writew( IM_ALLOC_INT | (readb(ioaddr + IM_REG) << 8), ioaddr + INT_REG );
 #else
 	smc_writeb( IM_ALLOC_INT, ioaddr + IM_REG );
 #endif
@@ -1256,7 +1226,7 @@ int __init smc_findirq( unsigned int ioaddr )
 	while ( timeout ) {
 		byte	int_status;
 
-		int_status = smc_readb( ioaddr + INT_REG );
+		int_status = readb( ioaddr + INT_REG );
 
 		if ( int_status & IM_ALLOC_INT )
 			break;		/* got the interrupt */
@@ -1348,7 +1318,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 #endif
 
 	/* First, see if the high byte is 0x33 */
-	bank = smc_readw( ioaddr + BANK_SELECT );
+	bank = readw( ioaddr + BANK_SELECT );
 	if ( (bank & 0xFF00) != 0x3300 ) 
 	{
 		printk(KERN_DEBUG "SMSC91111:Device not found : %x\n", bank);
@@ -1360,7 +1330,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 
 	/* The above MIGHT indicate a device, but I need to write to further test this.  */
 	smc_writew( 0x0, ioaddr + BANK_SELECT );
-	bank = smc_readw( ioaddr + BANK_SELECT );
+	bank = readw( ioaddr + BANK_SELECT );
 	if ( (bank & 0xFF00 ) != 0x3300 )
 	{
 		retval = -ENODEV;
@@ -1373,8 +1343,8 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	   so I can access the base address register */
 
 	SMC_SELECT_BANK(1);
-	base_address_register = smc_readw( ioaddr + BASE_REG );
-	printk("BAR: %x \n",smc_readw( ioaddr + BASE_REG ));
+	base_address_register = readw( ioaddr + BASE_REG );
+	printk("BAR: %x \n",readw( ioaddr + BASE_REG ));
 #if defined(CONFIG_M5249C3) || defined(CONFIG_GILBARCONAP) || defined(CONFIG_BFIN)
 	if ((ioaddr & 0xfff) != (base_address_register >> 3 & 0x3E0))
 #else
@@ -1394,7 +1364,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	    These might need to be added to later, as future revisions
 	    could be added.  */
 	SMC_SELECT_BANK(3);
-	revision_register  = smc_readw( ioaddr + REV_REG );
+	revision_register  = readw( ioaddr + REV_REG );
 	if ( !chip_ids[ ( revision_register  >> 4 ) & 0xF  ] )
 	{
 		/* I don't recognize this chip, so... */
@@ -1420,7 +1390,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	SMC_SELECT_BANK( 1 );
 	for (i = 0; (i < 6); i += 2) {
 		word address;
-		address = smc_readw( ioaddr + ADDR0_REG + i ) ;
+		address = readw( ioaddr + ADDR0_REG + i ) ;
 		if ((address != 0x0000) && (address != 0xffff))
 			break;
 	}
@@ -1461,7 +1431,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	{
 		word	address;
 
-		address = smc_readw( ioaddr + ADDR0_REG + i  );
+		address = readw( ioaddr + ADDR0_REG + i  );
 		dev->dev_addr[ i + 1] = address >> 8;
 		dev->dev_addr[ i ] = address & 0xFF;
 	}
@@ -1469,7 +1439,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	/* get the memory information */
 
 	SMC_SELECT_BANK( 0 );
-	memory_info_register = smc_readw( ioaddr + MIR_REG );
+	memory_info_register = readw( ioaddr + MIR_REG );
 	memory = memory_info_register & (word)0x00ff;
 	memory *= LAN91C111_MEMORY_MULTIPLIER;
 
@@ -1479,7 +1449,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
  	 one VERY long probe procedure.
 	*/
 	SMC_SELECT_BANK(3);
-	revision_register  = smc_readw( ioaddr + REV_REG );
+	revision_register  = readw( ioaddr + REV_REG );
 	version_string = chip_ids[ ( revision_register  >> 4 ) & 0xF  ];
 	if ( !version_string )
 	{
@@ -1605,7 +1575,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 
 	/* => Store the ChipRevision and ChipID, to be used in resolving the Odd-Byte issue in RevB of LAN91C111; Pramod */
 	SMC_SELECT_BANK(3);
-	revision_register  = smc_readw( ioaddr + REV_REG );
+	revision_register  = readw( ioaddr + REV_REG );
 	lp = (struct smc_local *)dev->priv;
 	lp->ChipID = (revision_register >> 4) & 0xF;
 	lp->ChipRev = revision_register & 0xF;
@@ -1812,13 +1782,13 @@ static irqreturn_t smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
 		0x77777777) | 0x00080000;
 #endif
 
-	saved_bank = smc_readw( ioaddr + BANK_SELECT );
+	saved_bank = readw( ioaddr + BANK_SELECT );
 
 	SMC_SELECT_BANK(2);
-	saved_pointer = smc_readw( ioaddr + PTR_REG );
+	saved_pointer = readw( ioaddr + PTR_REG );
 
 	/* read the interrupt status register */
-	mask = smc_readb( ioaddr + IM_REG );
+	mask = readb( ioaddr + IM_REG );
 
 	/* disable all interrupts */
 #if defined(CONFIG_SMC16BITONLY)
@@ -1832,7 +1802,7 @@ static irqreturn_t smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
 	PRINTK2(KERN_WARNING "%s: MASK IS %x \n", dev->name, mask);
 	do {
 		/* read the status flag, and mask it */
-		status = smc_readb( ioaddr + INT_REG ) & mask;
+		status = readb( ioaddr + INT_REG ) & mask;
 		if (!status )
 			break;
 
@@ -1858,7 +1828,7 @@ static irqreturn_t smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
 		} else if (status & IM_TX_EMPTY_INT ) {
 			/* update stats */
 			SMC_SELECT_BANK( 0 );
-			card_stats = smc_readw( ioaddr + COUNTER_REG );
+			card_stats = readw( ioaddr + COUNTER_REG );
 			/* single collisions */
 			lp->stats.collisions += card_stats & 0xF;
 			card_stats >>= 4;
@@ -1982,7 +1952,7 @@ static void smc_rcv(struct net_device *dev)
 
 	/* assume bank 2 */
 
-	packet_number = smc_readw( ioaddr + RXFIFO_REG );
+	packet_number = readw( ioaddr + RXFIFO_REG );
 
 	if ( packet_number & RXFIFO_REMPTY ) {
 
@@ -1997,8 +1967,8 @@ static void smc_rcv(struct net_device *dev)
 	smc_writew( PTR_READ | PTR_RCV | PTR_AUTOINC, ioaddr + PTR_REG );
 
 	/* First two words are status and packet_length */
-	status 		= smc_readw( ioaddr + DATA_REG );
-	packet_length 	= smc_readw( ioaddr + DATA_REG );
+	status 		= readw( ioaddr + DATA_REG );
+	packet_length 	= readw( ioaddr + DATA_REG );
 
 	packet_length &= 0x07ff;  /* mask off top bits */
 
@@ -2083,7 +2053,7 @@ static void smc_rcv(struct net_device *dev)
 		if ( status & RS_BADCRC)	lp->stats.rx_crc_errors++;
 	}
 
-	while ( smc_readw( ioaddr + MMU_CMD_REG ) & MC_BUSY )
+	while ( readw( ioaddr + MMU_CMD_REG ) & MC_BUSY )
 		udelay(1); // Wait until not busy
 done:
 	/*  error or good, tell the card to get rid of this packet */
@@ -2118,8 +2088,8 @@ static void smc_tx( struct net_device * dev )
 
 	/* assume bank 2  */
 
-	saved_packet = smc_readb( ioaddr + PN_REG );
-	packet_no = smc_readw( ioaddr + RXFIFO_REG );
+	saved_packet = readb( ioaddr + PN_REG );
+	packet_no = readw( ioaddr + RXFIFO_REG );
 	packet_no &= 0x7F;
 
 	/* If the TX FIFO is empty then nothing to do */
@@ -2136,7 +2106,7 @@ static void smc_tx( struct net_device * dev )
 	/* read the first word (status word) from this packet */
 	smc_writew( PTR_AUTOINC | PTR_READ, ioaddr + PTR_REG );
 
-	tx_status = smc_readw( ioaddr + DATA_REG );
+	tx_status = readw( ioaddr + DATA_REG );
 	PRINTK3("%s: TX DONE STATUS: %4x \n", dev->name, tx_status);
 
 	lp->stats.tx_errors++;
@@ -2159,7 +2129,7 @@ static void smc_tx( struct net_device * dev )
 	}
 	/* re-enable transmit */
 	SMC_SELECT_BANK( 0 );
-	smc_writew( smc_readw( ioaddr + TCR_REG ) | TCR_ENABLE, ioaddr + TCR_REG );
+	smc_writew( readw( ioaddr + TCR_REG ) | TCR_ENABLE, ioaddr + TCR_REG );
 
 	/* kill the packet */
 	SMC_SELECT_BANK( 2 );
@@ -2170,7 +2140,7 @@ static void smc_tx( struct net_device * dev )
 
 	/* Don't change Packet Number Reg until busy bit is cleared */
 	/* Per LAN91C111 Spec, Page 50 */
-	while ( smc_readw( ioaddr + MMU_CMD_REG ) & MC_BUSY );
+	while ( readw( ioaddr + MMU_CMD_REG ) & MC_BUSY );
 
 #if defined(CONFIG_SMC16BITONLY)
 	smc_writew( saved_packet, ioaddr + PN_REG );
@@ -2241,7 +2211,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 	if ( dev->flags & IFF_PROMISC )
 		{
 		PRINTK2("%s:smc_set_multicast_list:RCR_PRMS\n", dev->name);
-		smc_writew( smc_readw(ioaddr + RCR_REG ) | RCR_PRMS, ioaddr + RCR_REG );
+		smc_writew( readw(ioaddr + RCR_REG ) | RCR_PRMS, ioaddr + RCR_REG );
 		}
 
 /* BUG?  I never disable promiscuous mode if multicasting was turned on.
@@ -2255,7 +2225,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 	*/
 	else if (dev->flags & IFF_ALLMULTI)
 		{
-		smc_writew( smc_readw(ioaddr + RCR_REG ) | RCR_ALMUL, ioaddr + RCR_REG );
+		smc_writew( readw(ioaddr + RCR_REG ) | RCR_ALMUL, ioaddr + RCR_REG );
 		PRINTK2("%s:smc_set_multicast_list:RCR_ALMUL\n", dev->name);
 		}
 
@@ -2266,7 +2236,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 		/* support hardware multicasting */
 
 		/* be sure I get rid of flags I might have set */
-		smc_writew( smc_readw( ioaddr + RCR_REG ) & ~(RCR_PRMS | RCR_ALMUL),
+		smc_writew( readw( ioaddr + RCR_REG ) & ~(RCR_PRMS | RCR_ALMUL),
 			ioaddr + RCR_REG );
 		/* NOTE: this has to set the bank, so make sure it is the
 		   last thing called.  The bank is set to zero at the top */
@@ -2274,7 +2244,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 	} else  {
 		PRINTK2("%s:smc_set_multicast_list:~(RCR_PRMS|RCR_ALMUL)\n",
 			dev->name);
-		smc_writew( smc_readw( ioaddr + RCR_REG ) & ~(RCR_PRMS | RCR_ALMUL),
+		smc_writew( readw( ioaddr + RCR_REG ) & ~(RCR_PRMS | RCR_ALMUL),
 			ioaddr + RCR_REG );
 
 		/*
@@ -2354,7 +2324,7 @@ static word smc_modify_regbit(int bank, unsigned int ioaddr, int reg,
 
 	SMC_SELECT_BANK( bank );
 
-	regval = smc_readw( ioaddr+reg );
+	regval = readw( ioaddr+reg );
 	if (val)
 		regval |= bit;
 	else
@@ -2371,7 +2341,7 @@ static word smc_modify_regbit(int bank, unsigned int ioaddr, int reg,
 static int smc_get_regbit(int bank, unsigned int ioaddr, int reg, unsigned int bit)
 {
 	SMC_SELECT_BANK( bank );
-	if ( smc_readw( ioaddr+reg ) & bit)
+	if ( readw( ioaddr+reg ) & bit)
 		return(1);
 	else
 		return(0);
@@ -2394,7 +2364,7 @@ static void smc_modify_reg(int bank, unsigned int ioaddr, int reg, word val)
 static int smc_get_reg(int bank, unsigned int ioaddr, int reg)
 {
 	SMC_SELECT_BANK( bank );
-	return(smc_readw( ioaddr+reg ));
+	return(readw( ioaddr+reg ));
 }
 
 
@@ -3574,13 +3544,13 @@ static word smc_read_phy_register(unsigned int ioaddr, byte phyaddr, byte phyreg
 	bits[clk_idx++] = 0;
 
 	// Save the current bank
-	oldBank = smc_readw( ioaddr+BANK_SELECT );
+	oldBank = readw( ioaddr+BANK_SELECT );
 
 	// Select bank 3
 	SMC_SELECT_BANK( 3 );
 
 	// Get the current MII register value
-	mii_reg = smc_readw( ioaddr+MII_REG );
+	mii_reg = readw( ioaddr+MII_REG );
 
 	// Turn off all MII Interface bits
 	mii_reg &= ~(MII_MDOE|MII_MCLK|MII_MDI|MII_MDO);
@@ -3596,7 +3566,7 @@ static word smc_read_phy_register(unsigned int ioaddr, byte phyaddr, byte phyreg
 		// Clock Hi - input data
 		smc_writew( mii_reg | bits[i] | MII_MCLK, ioaddr+MII_REG );
 		udelay(50);
-		bits[i] |= smc_readw( ioaddr+MII_REG ) & MII_MDI;
+		bits[i] |= readw( ioaddr+MII_REG ) & MII_MDI;
 		}
 
 	// Return to idle state
@@ -3699,13 +3669,13 @@ static void smc_write_phy_register(unsigned int ioaddr,
 	bits[clk_idx++] = 0;
 
 	// Save the current bank
-	oldBank = smc_readw( ioaddr+BANK_SELECT );
+	oldBank = readw( ioaddr+BANK_SELECT );
 
 	// Select bank 3
 	SMC_SELECT_BANK( 3 );
 
 	// Get the current MII register value
-	mii_reg = smc_readw( ioaddr+MII_REG );
+	mii_reg = readw( ioaddr+MII_REG );
 
 	// Turn off all MII Interface bits
 	mii_reg &= ~(MII_MDOE|MII_MCLK|MII_MDI|MII_MDO);
@@ -3721,7 +3691,7 @@ static void smc_write_phy_register(unsigned int ioaddr,
 		// Clock Hi - input data
 		smc_writew( mii_reg | bits[i] | MII_MCLK, ioaddr+MII_REG );
 		udelay(50);
-		bits[i] |= smc_readw( ioaddr+MII_REG ) & MII_MDI;
+		bits[i] |= readw( ioaddr+MII_REG ) & MII_MDI;
 		}
 
 	// Return to idle state
