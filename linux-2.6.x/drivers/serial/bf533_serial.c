@@ -28,6 +28,7 @@
 #include <asm/irq.h>
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
 #include <asm/dma.h>
+#include <asm/cacheflush.h>
 #endif
 
 #include "bf533_serial.h"
@@ -405,7 +406,7 @@ static void dma_transmit_chars(struct bf533_serial *info)
 	tx_xcount = info->xmit_cnt;
 	if(tx_xcount > SERIAL_XMIT_SIZE - info->xmit_tail)
 		tx_xcount = SERIAL_XMIT_SIZE - info->xmit_tail; 
-		
+
 	/* Only use dma to transfer data when count > 1.
 	 * Add 4 to the count before start dma, this is a walkarround to a dma hardware bug.
 	 */
@@ -415,6 +416,7 @@ static void dma_transmit_chars(struct bf533_serial *info)
 		info->xmit_cnt-=2;
 		tx_xcount-=2;
 
+		flush_dcache_range((int)(info->xmit_buf+info->xmit_tail), (int)(info->xmit_buf+info->xmit_tail+tx_xcount-1));
 		set_dma_config(CH_UART_TX, set_bfin_dma_config(DIR_READ, FLOW_STOP, INTR_ON_BUF, DIMENSION_LINEAR, DATA_SIZE_8));
 		set_dma_start_addr(CH_UART_TX, (unsigned long)(info->xmit_buf+info->xmit_tail));
 		set_dma_x_count(CH_UART_TX, tx_xcount);
@@ -678,27 +680,10 @@ static void dma_start_recv(struct bf533_serial * info)
         }
 }
 
-/*
- * The value of tx_interval is set to 3 to walk around system hang
- * when the Instruction cache is enabled and the transmit buffer is 
- * larger than 200 bytes.
- */
-static int tx_interval = 1;
-                                                                                
 static void uart_dma_timer(struct bf533_serial * info)
 {
-	if(!(--tx_interval)) {
-		if(tx_xcount==0) {
-			dma_transmit_chars(info);
-			if(tx_xcount>200)
-				tx_interval = 3;
-		}
-		if(!tx_interval)
-			tx_interval=1;
-	}
-
+	dma_transmit_chars(info);
 	dma_receive_chars(info, 1);
-
         info->dma_timer.expires = jiffies + TIME_INTERVAL;
         add_timer(&info->dma_timer);
 }
@@ -772,11 +757,11 @@ static int startup(struct bf533_serial * info)
         dma_start_recv(info);
 
 	/*
-	 * The timer should only start after the receive DMA engine is working.
+	 * The timer should only start a bit later after the receive DMA engine is working.
 	 */                         
         info->dma_timer.data = (unsigned long)info;
         info->dma_timer.function = (void *)uart_dma_timer;
-        info->dma_timer.expires = jiffies + TIME_INTERVAL;
+        info->dma_timer.expires = jiffies + TIME_INTERVAL*4;
         add_timer(&info->dma_timer);
 #endif
 
