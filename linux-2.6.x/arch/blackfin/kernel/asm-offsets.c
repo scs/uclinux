@@ -51,7 +51,6 @@ int main(void)
 	/* offsets into the pt_regs */
 	DEFINE(PT_ORIG_R0, offsetof(struct pt_regs, orig_r0));
 	DEFINE(PT_ORIG_PC, offsetof(struct pt_regs, orig_pc));
-//	DEFINE(PT_ORIG_PC, offsetof(struct pt_regs, orig_pc));
 	DEFINE(PT_R0, offsetof(struct pt_regs, r0));
 	DEFINE(PT_R1, offsetof(struct pt_regs, r1));
 	DEFINE(PT_R2, offsetof(struct pt_regs, r2));
@@ -108,6 +107,9 @@ int main(void)
 
 
 	DEFINE(PT_IPEND, offsetof(struct pt_regs, ipend));
+        DEFINE(PT_EXTRA1, sizeof(struct pt_regs));
+        DEFINE(PT_EXTRA2, 4 + sizeof(struct pt_regs));
+        DEFINE(PT_EXTRA3, 8 + sizeof(struct pt_regs));
 
 	/* bitfields are a bit difficult */
 	DEFINE(PT_VECTOR, offsetof(struct pt_regs, pc) + 4);
