@@ -19,23 +19,7 @@
 #define _Bf533_SERIAL_H
 
 #include <linux/config.h>
-
-struct serial_struct { /****** ??do we need a specific serial_struct */
-	int	type;
-	int	line;
-	int	hub2;
-	int	irq;
-	int	flags;
-	int	xmit_fifo_size;
-	int	custom_divisor;
-	int	baud_base;
-	unsigned short	close_delay;
-	char	reserved_char[2];
-	int	hub6;  /* FIXME: We don't have AT&T Hub6 boards! */
-	unsigned short	closing_wait; /* time to wait before closing */
-	unsigned short	closing_wait2; /* no longer used... */
-	int	reserved[4];
-};
+#include <linux/serial.h>
 
 /*
  * For the close wait times, 0 means wait forever for serial port to
@@ -138,18 +122,9 @@ struct bf533_serial {
 	struct termios		callout_termios;
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
-
-
 };
 
-
-#define SERIAL_MAGIC 0x5301	/******* ?? value for BlackFin Serial */
 #define UART_IRQ_NUM	10	/* change accordingly */
-
-/*
- * The size of the serial xmit buffer is 1 page, or 4096 bytes
- */
-#define SERIAL_XMIT_SIZE 4096
 
 /*
  * Events are used to schedule things to happen at timer-interrupt
