@@ -23,7 +23,6 @@
 #include <asm/setup.h>
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>
-#include <asm/cachectl.h>
 #include <asm/traps.h>
 #include <asm/ipc.h>
 
@@ -190,11 +189,6 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 			return -EINVAL;
 		}
 	return -EINVAL;
-}
-
-asmlinkage long  sys_ioperm(unsigned long from, unsigned long num, int on)
-{
-  return -ENOSYS;
 }
 
 /* sys_cacheflush -- flush (part of) the processor cache.  */
