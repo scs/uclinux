@@ -34,25 +34,13 @@
  * far better time resolution for real time benchmarking.
  */
 
-/*The below MACROS are hardcoded.Watch out soon for better
- * implementation with DPMC
- */
-
-#if defined CONFIG_EZKIT
-#define CCLK_MHZ	594
-#else
-#if defined CONFIG_BLKFIN_STAMP
-#define CCLK_MHZ 	550			 
-#endif
-#endif
+extern void config_bfin_irq(void);
+extern u_long get_cclk(void);
 
 #define TSCALE_SHIFT 2	/* 0.25 microseconds */
-#define TSCALE_COUNT (CCLK_MHZ >> TSCALE_SHIFT)
+#define TSCALE_COUNT (get_cclk() >> TSCALE_SHIFT)
 #define CLOCKS_PER_JIFFY ((1000*1000/HZ) << TSCALE_SHIFT)
 
-void config_bfin_irq(void);
-extern u_long get_sclk(u_long vco);
-extern u_long get_cclk(void);
 
 void BSP_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
 {
@@ -60,17 +48,21 @@ void BSP_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
 	/* power up the timer, but don't enable it just yet */
 
 	*pTCNTL = 1;
+	asm("csync;");
 
 	/* make TCOUNT a binary fraction of microseconds using
 	* the TSCALE prescaler counter.
 	*/
 
 	*pTSCALE = TSCALE_COUNT - 1;
+	asm("csync;");
 	*pTCOUNT = *pTPERIOD = CLOCKS_PER_JIFFY - 1;
+	asm("csync;");
 
 	/* now enable the timer */
 	
 	*pTCNTL = 7;
+	asm("csync;");
 
 	/* set up the timer irq */
 

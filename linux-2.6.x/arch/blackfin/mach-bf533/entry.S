@@ -18,7 +18,6 @@
  *
  * NOTE: This code handles signal-recognition, which happens every time
  * after a timer-interrupt and after each system call.
- *
  */
 
 
@@ -48,6 +47,7 @@ ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
         p2.l = 0x2108;
         p2.h = 0xffe0;
         r0 = [p2];              /* Read current IPEND */
+	csync;
         [sp + PT_IPEND] = r0;   /* Store IPEND */
 
 	r1 = [sp + PT_SEQSTAT];	/* reason code is in bit 5:0 */
@@ -62,7 +62,7 @@ ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 1:
 	r0 = sp; 		/* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
-	call	trap_c;
+	call trap_c;
 	SP += 12; 
 	RESTORE_ALL_SYS
 	rtx;
@@ -104,6 +104,7 @@ ENTRY(system_call)
 	p2.l = 0x2108;
 	p2.h = 0xffe0;
 	r0 = [p2];
+	csync;
 	[sp + PT_IPEND] = r0;
 
 	/* Store RETS for now */
@@ -146,7 +147,7 @@ ENTRY(system_call)
 	r6 = __NR_wait4;		/*FIX for wait4 call*/
 	cc = r5 == r6;
 	if cc jump l_next_4;
-#if 1 
+	
 	r6 = __NR_rt_sigprocmask;	/*FIX for rt_sigprocmask call*/
 	cc = r5 == r6;
 	if cc jump l_next_4;
@@ -158,11 +159,32 @@ ENTRY(system_call)
 	r6 = __NR_mount;		/*FIX for mount call*/
 	cc = r5 == r6;
 	if cc jump l_next;
-#endif
+	
+	r6 = __NR_mremap;		/*FIX for mremap call*/
+	cc = r5 == r6;
+	if cc jump l_next_4;
+
+	r6 = __NR_sendfile;		/*FIX for sendfile call*/
+	cc = r5 == r6;
+	if cc jump l_next_4;
+
+	r6 = __NR_ptrace;		/*FIX for ptrace call*/
+	cc = r5 == r6;
+	if cc jump l_next_4;
+
+	r6 = __NR_init_module;		/*FIX for init_module call*/
+	cc = r5 == r6;
+	if cc jump l_next;
+
+	r6 = __NR_ipc;			/*FIX for ipc call*/
+	cc = r5 == r6;
+	if cc jump l_next;
+
 	SP += -12;
 	call (p5);
 	SP += 12;
-l_before:[sp + PT_R0] = r0;
+l_before:
+	[sp + PT_R0] = r0;
 	
 	/* Check whether we need to drop to user mode */
 	r0 = [sp + PT_IPEND];
@@ -248,14 +270,6 @@ resume:
 	r1.h = new_old_task;
 	[p0+(TASK_THREAD+THREAD_PC)] = r1;
 
-	/* Return previous task in r1 */
-	r1.l = _current_task;
-	r1.h = _current_task;
-
-	/* switch to new task (p1 contains new task) */
-	p5 = r1;
-	[p5] = p1;
-
 	/* restore the kernel stack pointer */
 	sp = [p1+(TASK_THREAD+THREAD_KSP)];
 
@@ -293,6 +307,7 @@ new_old_task:
 	 */
 
 	rts;
+
 l_next:
 	[--sp] = r4;
 	[--sp] = r3;

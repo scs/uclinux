@@ -279,7 +279,7 @@ unsigned long get_wchan(struct task_struct *p)
 	stack_page = (unsigned long)p;
 	fp = p->thread.usp;
 	do {
-		if (fp < stack_page+sizeof(struct task_struct) ||
+		if (fp < stack_page+sizeof(struct thread_info) ||
 		    fp >= 8184+stack_page)
 			return 0;
 		pc = ((unsigned long *)fp)[1];
@@ -291,5 +291,3 @@ unsigned long get_wchan(struct task_struct *p)
 	} while (count++ < 16);
 	return 0;
 }
-
-

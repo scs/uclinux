@@ -50,22 +50,18 @@ ENTRY(reschedule)
 	rts;
 
 ENTRY(ret_from_fork)
-	/* Don't bother with trace yet - akale */
-	r0 = r1;
 	SP += -12;
 	call schedule_tail; 
 	SP += 12;
-	/* Note: void schedule_tail(struct task_struct *prev)	*/
-	
 	r0 = [sp + PT_IPEND];
 	cc = bittst(r0, 15);
 	if cc jump in_kernel;
-	RESTORE_ALL
+	RESTORE_ALL_SYS
 	rti; 
 in_kernel:
 	/* do a 'fake' RTI by jumping to [RETI] */
         /* to avoid clearing supervisor mode in child */
-	RESTORE_ALL
+	RESTORE_ALL_SYS
 	p0 = reti;
 	jump (p0);
 
@@ -135,4 +131,3 @@ ENTRY(sys_rt_sigreturn)
 	SP += 12;
 	rets = [sp++];
 	rts;
-

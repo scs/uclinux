@@ -162,9 +162,9 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
 			ret = -EIO;
 			if (copied != sizeof(tmp))
-				goto out_tsk; 
+				break;
 			ret = put_user(tmp,(unsigned long *) data);
-			goto out_tsk;   
+			break;
 		}
 
 	/* read the word at location addr in the USER area. */
@@ -173,8 +173,8 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			
 			ret = -EIO;
 			if ((addr & 3) || addr < 0 || (addr >= sizeof(struct user_regs_struct)&&(addr!=(49*4))&&(addr!=(50*4))&&(addr!=(51*4))))
-				goto out_tsk; 
-			
+				break;
+
 			tmp = 0;  /* Default return condition */
 			addr = addr >> 2; /* temporary hack. */
 			ret = -EIO;
@@ -187,9 +187,9 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			} else if (addr == 51) {
 				tmp = child->mm->end_code;
 			} else
-				goto out_tsk;
+				break;
 			ret = put_user(tmp,(unsigned long *) data);
-			goto out_tsk; 
+			break;
 		}
 
       		/* when I and D space are separate, this will have to be fixed. */
@@ -197,22 +197,22 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		case PTRACE_POKEDATA:
 			ret = 0;
 			if (access_process_vm(child, addr, &data, sizeof(data), 1) == sizeof(data))
-				goto out_tsk;
+				break;
 			ret = -EIO;
-			goto out_tsk; 
-
+			break;
 		case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 			ret = -EIO;
-			if ((addr & 3) || addr < 0 || addr >= sizeof(struct user_regs_struct))
-				goto out_tsk; 
-
+			if ((addr & 3) || addr < 0 || addr > sizeof(struct user) - 3)
+				break;
+		
+			addr = addr >> 2; /* temporary hack. */
 			if (addr == PT_SYSCFG) {
 				data &= SYSCFG_MASK;
 				data |= get_reg(child, PT_SYSCFG);
 			}
 			if (addr < 27 * 4) 
 				ret = put_reg(child, addr, data);
-			goto out_tsk; 
+			break;
 
 		case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 		case PTRACE_CONT: { /* restart after signal. */
@@ -220,7 +220,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
 			ret = -EIO;
 			if ((unsigned long) data > _NSIG)
-				goto out_tsk;
+				break;
 			if (request == PTRACE_SYSCALL)
 				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 			else
@@ -228,11 +228,11 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
 			child->exit_code = data;
 			/* make sure the single step bit is not set. */
-			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS);
+			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS << 16);
 			put_reg(child, PT_SYSCFG, tmp);
 			wake_up_process(child);
 			ret = 0;
-			goto out_tsk;
+			break;
 		}
 
 /*
@@ -245,13 +245,13 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
 			ret = 0;
 			if (child->state == TASK_ZOMBIE) /* already dead */
-				goto out_tsk;	
+				break;
 			child->exit_code = SIGKILL;
 			/* make sure the single step bit is not set. */
-			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS);
+			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS << 16);
 			put_reg(child, PT_SYSCFG, tmp);
 			wake_up_process(child);
-			goto out_tsk;
+			break;
 		}
 
 		case PTRACE_SINGLESTEP: {  /* set the trap flag. */
@@ -259,7 +259,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
 			ret = -EIO;
 			if ((unsigned long) data > _NSIG)
-				goto out_tsk;
+				break;
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 
 			tmp = get_reg(child, PT_SYSCFG) | (TRACE_BITS << 16);
@@ -269,7 +269,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			/* give it a chance to run. */
 			wake_up_process(child);
 			ret = 0;
-			goto out;
+			break;
 		}
 
 		case PTRACE_DETACH: { /* detach a process that was attached. */
@@ -287,12 +287,12 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			    
 			    if (put_user(tmp, (unsigned long *) data)) {
 				ret = -EFAULT;
-				goto out;
+				break;
 			    }
 			    data += sizeof(long);
 			}
 			ret = 0;
-			goto out_tsk;	
+			break;
 		}
 
 		case PTRACE_SETREGS: {
@@ -303,21 +303,22 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			for (i = 0; i < 42; i++) {
 			    if (get_user(tmp, (unsigned long *) data)) {
 				ret = -EFAULT;
-				goto out;
+				break;
 			    }
 			    if (i == PT_SYSCFG) {
 				tmp &= SYSCFG_MASK;
+				tmp <<= 16;
 				tmp |= get_reg(child, PT_SYSCFG) & ~(SYSCFG_MASK);
 			    }
 			    put_reg(child, i, tmp);
 			    data += sizeof(long);
 			}
 			ret = 0;
-			goto out_tsk;
+			break;
 		}
 		default:
 			ret = -EIO;
-			goto out_tsk;
+			break;
 	}
 out_tsk:
 	put_task_struct(child);

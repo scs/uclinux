@@ -189,13 +189,11 @@ void setup_arch(char **cmdline_p)
 #endif
 
 #ifdef DEBUG
-
 	printk("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack= 0x%06x-0x%06x\n",
 		(int)&_stext,(int)&_etext,(int)&_sdata,(int)&_edata,
 		(int)&_sbss,(int)&_ebss,
 		(int)&ramdisk_begin,(int)&ramdisk_end,(int)memory_end,
 		(int)_ramend);
-
 #endif
 
 	init_task.mm->start_code = (unsigned long) &_stext;
@@ -252,18 +250,10 @@ u_long get_cclk()
 	u_long cclk = 0;
 
 	vco = (CONFIG_CLKIN * 1000000) * ((*pPLL_CTL >> 9)& 0x3F);
-	if(((*pPLL_DIV >> 4) && 0x03) == 0)
-		cclk = vco;
 
-	else if(((*pPLL_DIV >> 4) && 0x03) == 1)
-		cclk = vco/2;
-
-	else if(((*pPLL_DIV >> 4) && 0x03) == 2)
-		cclk = vco/4;
-
-	else if(((*pPLL_DIV >> 4) && 0x03) == 3)
-		cclk = vco/8;
-	
+	if (1 & *pPLL_CTL) /* DR bit */
+		vco >>= 1;
+	cclk = vco >> (*pPLL_DIV >> 4 & 0x03);
 	return (cclk/1000000);
 }
 
@@ -274,6 +264,9 @@ u_long get_sclk()
 	
 	vco = (CONFIG_CLKIN * 1000000) * ((*pPLL_CTL >> 9)& 0x3F);
 	
+	if (1 & *pPLL_CTL) /* DR bit */
+		vco >>= 1;
+
 	if((*pPLL_DIV & 0xf) != 0)
 		sclk = vco/(*pPLL_DIV & 0xf);
 	else

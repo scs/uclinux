@@ -17,47 +17,31 @@
 #include <asm/semaphore.h>
 #include <asm/checksum.h>
 #include <asm/hardirq.h>
-#include <asm/softirq.h>
-
-asmlinkage long long __ashrdi3 (long long, int);
-asmlinkage long long __lshrdi3 (long long, int);
-extern char bfin_debug_device[];
+#include <asm/current.h>
 
 extern void dump_thread(struct pt_regs *, struct user *);
+extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 
 /* platform dependent support */
 
-EXPORT_SYMBOL(bfin_machtype);
-EXPORT_SYMBOL(bfin_cputype);
-EXPORT_SYMBOL(cache_push);
-EXPORT_SYMBOL(cache_clear);
-#ifndef CONFIG_SINGLE_MEMORY_CHUNK
-EXPORT_SYMBOL(mm_vtop);
-EXPORT_SYMBOL(mm_ptov);
-EXPORT_SYMBOL(mm_end_of_chunk);
-#endif
-EXPORT_SYMBOL(bfin_realnum_memory);
-EXPORT_SYMBOL(bfin_memory);
-#ifndef CONFIG_SUN3
-EXPORT_SYMBOL(mm_vtop_fallback);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
-EXPORT_SYMBOL(kernel_set_cachemode);
-#endif
-EXPORT_SYMBOL(bfin_debug_device);
 EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strstr);
-EXPORT_SYMBOL(local_irq_count);
-EXPORT_SYMBOL(local_bh_count);
+EXPORT_SYMBOL(strchr);
+EXPORT_SYMBOL(strcat);
+EXPORT_SYMBOL(strlen);
+EXPORT_SYMBOL(strcmp);
+EXPORT_SYMBOL(strncmp);
+
+EXPORT_SYMBOL(ip_fast_csum);
+
 EXPORT_SYMBOL(mach_enable_irq);
 EXPORT_SYMBOL(mach_disable_irq);
 EXPORT_SYMBOL(kernel_thread);
-#ifdef CONFIG_VME
-EXPORT_SYMBOL(vme_brdtype);
-#endif
 
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_partial_copy);
@@ -66,19 +50,41 @@ EXPORT_SYMBOL(csum_partial_copy);
    explicitly (the C compiler generates them).  Fortunately,
    their interface isn't gonna change any time soon now, so
    it's OK to leave it out of version control.  */
-EXPORT_SYMBOL_NOVERS(__ashrdi3);
-EXPORT_SYMBOL_NOVERS(__lshrdi3);
 EXPORT_SYMBOL_NOVERS(memcpy);
 EXPORT_SYMBOL_NOVERS(memset);
 EXPORT_SYMBOL_NOVERS(memcmp);
 EXPORT_SYMBOL_NOVERS(memscan);
+EXPORT_SYMBOL_NOVERS(memmove);
 
-EXPORT_SYMBOL(get_wchan);
-
-#if 0
 EXPORT_SYMBOL_NOVERS(__down_failed);
 EXPORT_SYMBOL_NOVERS(__down_failed_interruptible);
 EXPORT_SYMBOL_NOVERS(__down_failed_trylock);
 EXPORT_SYMBOL_NOVERS(__up_wakeup);
-#endif
 
+EXPORT_SYMBOL(get_wchan);
+
+/*
+ * libgcc functions - functions that are used internally by the
+ * compiler...  (prototypes are not correct though, but that
+ * doesn't really matter since they're not versioned).
+ */
+extern void __ashldi3(void);
+extern void __ashrdi3(void);
+extern void __divsi3(void);
+extern void __lshrdi3(void);
+extern void __modsi3(void);
+extern void __muldi3(void);
+extern void __mulsi3(void);
+extern void __udivsi3(void);
+extern void __umodsi3(void);
+
+        /* gcc lib functions */
+EXPORT_SYMBOL_NOVERS(__ashldi3);
+EXPORT_SYMBOL_NOVERS(__ashrdi3);
+EXPORT_SYMBOL_NOVERS(__divsi3);
+EXPORT_SYMBOL_NOVERS(__lshrdi3);
+EXPORT_SYMBOL_NOVERS(__modsi3);
+EXPORT_SYMBOL_NOVERS(__muldi3);
+EXPORT_SYMBOL_NOVERS(__mulsi3);
+EXPORT_SYMBOL_NOVERS(__udivsi3);
+EXPORT_SYMBOL_NOVERS(__umodsi3);

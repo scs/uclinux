@@ -77,6 +77,7 @@ static const char version[] =
 #include <linux/in.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/crc32.h>
 #include <linux/init.h>
 #include <asm/bitops.h>
 
@@ -158,7 +159,6 @@ inline unsigned int smc_readl(unsigned int addr)
 
 	rval = (*(volatile unsigned long*)(addr));
 	return rval;
-    
 }
 
 inline void smc_writew(unsigned short b,unsigned int addr) 
@@ -180,9 +180,6 @@ inline void smc_writel(unsigned int b,unsigned int addr)
 	((*(volatile unsigned int *) (addr)) = (b));
 }
 
-
-
-
 #define readsb(port, addr, count) memcpy((void*)addr, (void*)(port), count)
 #define readsw(port, addr, count) SMC_insw(port, addr, count) 
 #define readsl(port, addr, count) memcpy((void*)addr, (void*)(port), (4*count))
@@ -191,14 +188,10 @@ inline void smc_writel(unsigned int b,unsigned int addr)
 #define writesw(port, addr, count) SMC_outsw(port, addr, count)
 #define writesl(port, addr, count) memcpy((void*)(port), (void*)addr, (4*count))
 
-
-
-
 #endif
 
 #include <linux/errno.h>
 #include <linux/delay.h>
-
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -223,7 +216,6 @@ inline void smc_writel(unsigned int b,unsigned int addr)
 #if !(defined(CONFIG_BFIN))
 #define USE_32_BIT 1
 #endif
-
 
 /*
  .the LAN91C111 can be at any of the following port addresses.  To change,
@@ -286,7 +278,6 @@ static unsigned int smc_portlist[] __initdata =
 #define PRINTK(args...)
 #endif
 
-
 /*------------------------------------------------------------------------
  .
  . The internal workings of the driver.  If you are changing anything
@@ -347,7 +338,6 @@ struct smc_local {
 	/*Contains the Current ChipRevision */
 	unsigned short ChipRev;
 	/* <= Pramod, Odd Byte issue */
-
 
 #ifdef CONFIG_SYSCTL
 
@@ -424,10 +414,7 @@ struct smc_local {
 	int ctl_phy_int;
 	int ctl_phy_mask;
 #endif 
-
-
 #endif 
-
 };
 
 
@@ -568,7 +555,6 @@ static int smc_findirq( unsigned int ioaddr );
   values given it by the higher level routines
 */
 static void smc_setmulticast( unsigned int ioaddr, int count, struct dev_mc_list *  );
-static int crc32( char *, int );
 
 /* Routines to Read and Write the PHY Registers across the
    MII Management Interface
@@ -584,7 +570,6 @@ static void smc_sysctl_register(struct net_device *);
 static void smc_sysctl_unregister(struct net_device *);
 #endif /* CONFIG_SYSCTL */ 
 
-
 #if defined(CONFIG_BFIN)
 void bfin_EBIU_AM_setup(void)
 {
@@ -595,6 +580,7 @@ void bfin_EBIU_AM_setup(void)
 	stmp = *pFIO_DIR;
         asm("ssync;");
 	*pFIO_DIR = stmp | 1;
+	asm("ssync;");
 	*pFIO_FLAG_S = 0x0001;
 	asm("ssync;");
 
@@ -622,33 +608,39 @@ void bfin_SMC_interrupt_setup(int irq)
 
 	PRINTK2("EZ-LAN interrupt setup.\n");
 
-	// Direction setup
+	/* Direction setup*/
 	stmp = *pFIO_DIR;
         asm("ssync;");
 	*pFIO_DIR = stmp & (~LAN_FIO_PATTERN);
+        asm("ssync;");
 
-	// Clear pending IRQ for PF7
+	/* Clear pending IRQ for PF7*/
 	*pFIO_MASKB_C = LAN_FIO_PATTERN;   	
+        asm("ssync;");
 
-        // Enable Flag PF7 for IRQ_B
+        /* Enable Flag PF7 for IRQ_B */
 	*pFIO_MASKB_S = LAN_FIO_PATTERN;    	
+        asm("ssync;");
  
-        // Set Polarity for IRQs (8:HIGH)
+        /* Set Polarity for IRQs (8:HIGH)*/
 	stmp = *pFIO_POLAR;    	
         asm("ssync;");
         *pFIO_POLAR = stmp & (~LAN_FIO_PATTERN);    	
+        asm("ssync;");
 
-        // Set Edge Sensitivity PF8, PF9
+        /* Set Edge Sensitivity PF8, PF9 */
 	stmp = *pFIO_EDGE;
         asm("ssync;");
 	*pFIO_EDGE = stmp & (~LAN_FIO_PATTERN);    	
+        asm("ssync;");
 
-        // Clear Both Edge Sensitivity for IRQ_A and IRQ_B
+        /* Clear Both Edge Sensitivity for IRQ_A and IRQ */
 	stmp = *pFIO_BOTH;    	
         asm("ssync;");
 	*pFIO_BOTH = stmp & ~(LAN_FIO_PATTERN);    	
+        asm("ssync;");
 
-	// finally clear flag pin value	
+	/* finally clear flag pin value	*/
 	stmp = *pFIO_FLAG_C;    	
         asm("ssync;");
 	*pFIO_FLAG_C = stmp & LAN_FIO_PATTERN;    	
@@ -686,7 +678,6 @@ void bfin_SMC_interrupt_setup(int irq)
 */
 static void smc_reset( struct net_device* dev )
 {
-	//struct smc_local *lp 	= (struct smc_local *)dev->priv;
 	unsigned int	ioaddr = dev->base_addr;
 
 	PRINTK2("%s:smc_reset\n", dev->name);
@@ -845,7 +836,6 @@ static void smc_shutdown( unsigned int ioaddr )
  . This routine is based very heavily on the one provided by Peter Cammaert.
 */
 
-
 static void smc_setmulticast( unsigned int ioaddr, int count, struct dev_mc_list * addrs ) {
 	int			i;
 	unsigned char		multicast_table[ 8 ];
@@ -871,7 +861,7 @@ static void smc_setmulticast( unsigned int ioaddr, int count, struct dev_mc_list
 			continue;
 
 		/* only use the low order bits */
-		position = crc32( cur_addr->dmi_addr, 6 ) & 0x3f;
+		position = ether_crc_le(6, cur_addr->dmi_addr) & 0x3f;
 
 		/* do some messy swapping to put the bit in the right spot */
 		multicast_table[invert3[position&7]] |=
@@ -892,33 +882,6 @@ static void smc_setmulticast( unsigned int ioaddr, int count, struct dev_mc_list
 	}
 #endif
 }
-
-/*
-  Finds the CRC32 of a set of bytes.
-  Again, from Peter Cammaert's code.
-*/
-static int crc32( char * s, int length ) {
-	/* indices */
-	int perByte;
-	int perBit;
-	/* crc polynomial for Ethernet */
-	const unsigned long poly = 0xedb88320;
-	/* crc value - preinitialized to all 1's */
-	unsigned long crc_value = 0xffffffff;
-
-	for ( perByte = 0; perByte < length; perByte ++ ) {
-		unsigned char	c;
-
-		c = *(s++);
-		for ( perBit = 0; perBit < 8; perBit++ ) {
-			crc_value = (crc_value>>1)^
-				(((crc_value^c)&0x01)?poly:0);
-			c >>= 1;
-		}
-	}
-	return	crc_value;
-}
-
 
 /*
  . Function: smc_wait_to_send_packet( struct sk_buff * skb, struct device * )
@@ -959,7 +922,6 @@ static int smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * de
 	lp->saved_skb = skb;
 
 	length = ETH_ZLEN < skb->len ? skb->len : ETH_ZLEN;
-
 		
 	/*
 	** The MMU wants the number of pages to be the number of 256 bytes
@@ -1177,12 +1139,8 @@ static void smc_hardware_send_packet( struct net_device * dev )
 
 	/* we can send another packet */
 	netif_wake_queue(dev);
-
-
 	return;
 }
-
-
 
 /*-------------------------------------------------------------------------
  |
@@ -1239,7 +1197,6 @@ int __init smc_init(struct net_device *dev)
 	}
 }
 #endif
-		
 	/* couldn't find anything */
 	return -ENODEV;
 }
@@ -1649,10 +1606,6 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 #if defined(CONFIG_BFIN)
 	bfin_SMC_interrupt_setup(dev->irq);
 #endif
-
-
-
-
 	dev->open	        = smc_open;
 	dev->stop	        = smc_close;
 	dev->hard_start_xmit   	= smc_wait_to_send_packet;
@@ -1885,8 +1838,6 @@ static irqreturn_t smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
 #else
 	smc_writeb( 0, ioaddr + IM_REG );
 #endif
-
-
 	/* set a timeout value, so I don't stay here forever */
 	timeout = 4;
 
@@ -2149,8 +2100,6 @@ static void smc_rcv(struct net_device *dev)
 done:
 	/*  error or good, tell the card to get rid of this packet */
 	smc_writew( MC_RELEASE, ioaddr + MMU_CMD_REG );
-
-
 	return;
 }
 
@@ -2177,8 +2126,6 @@ static void smc_tx( struct net_device * dev )
 	byte saved_packet;
 	byte packet_no;
 	word tx_status;
-
-
 	PRINTK3("%s:smc_tx\n", dev->name);
 
 	/* assume bank 2  */

@@ -1,7 +1,5 @@
 /*
- * linux/arch/$(ARCH)/platform/$(PLATFORM)/traps.c 
- *
- * Cloned from Linux/m68k.
+ * arch/bfinnommu/mach-bf533/traps.c 
  *
  * Copyright 1999-2000 D. Jeff Dionne, <jeff@uclinux.org>
  *
@@ -10,8 +8,6 @@
  * for more details.
  */
 
-/* This #define is to cause the variables interruptFlags and interruptEnable
-   to be defined ...MaTed--- */
 #define DEF_INTERRUPT_FLAGS 1
 
 #include <linux/types.h>

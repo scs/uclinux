@@ -34,31 +34,13 @@
 #include <asm/pgtable.h>
 #include <asm/machdep.h>
 #include <asm/siginfo.h>
-
-/* bfin specific include headers */
 #include <asm/blackfin.h>
 
 /* assembler routines */
-asmlinkage void excpt_handle(void);
 asmlinkage void system_call(void);
 asmlinkage void trap(void);
-asmlinkage void inthandler(void);
-asmlinkage void nmihandler(void);
-asmlinkage void emu_handle(void);
-asmlinkage void rst_handle(void);
-asmlinkage void nmi_handler(void);
-asmlinkage void ivhw_handle(void);
-asmlinkage void ivtmr_handle(void);
-asmlinkage void ivg7_handle(void);
 
-extern int kprintf(char *, ...);
 extern void _cplb_hdr(void);
-
-/* Declare exception handler: For detail, look into gcc nisa.
- */
-
-void excpt_handle(void)
-{ }
 
 enum {
 #undef REG
@@ -73,15 +55,15 @@ static void __init nisa_trap_init (void)
     asm("p0.l = 0x2000; p0.h = 0xffe0;"
 	"p1.h = trap;" 
 	"p1.l = trap;"
-	"[p0+(4*3)] = p1;"     
-	"p1.l = system_call;" 
+	"[p0+(4*3)] = p1;"
+	"csync;"  
+	"p1.l = system_call;"
 	"p1.h = system_call;"
-	"[p0+(4*15)] = p1;"); 
-
+	"[p0+(4*15)] = p1;"
+	"csync;"); 
 }
 
-/* Initiate the event table handler 
- */
+/* Initiate the event table handler */
 void __init trap_init (void)
 {
 	nisa_trap_init();
@@ -95,8 +77,7 @@ asmlinkage void trap_c(struct pt_regs *fp);
 
 int kstack_depth_to_print = 48;
 
-/* MODULE_RANGE is a guess of how much space is likely to be
-   vmalloced.  */
+/* MODULE_RANGE is a guess of how much space is likely to be vmalloced.  */
 #define MODULE_RANGE (8*1024*1024)
 
 asmlinkage void trap_c(struct pt_regs *fp)

@@ -21,6 +21,7 @@
 #include <linux/utsname.h>
 
 #include <asm/setup.h>
+#include <asm/cacheflush.h>
 #include <asm/uaccess.h>
 #include <asm/cachectl.h>
 #include <asm/traps.h>
@@ -200,6 +201,13 @@ asmlinkage long  sys_ioperm(unsigned long from, unsigned long num, int on)
 asmlinkage int
 sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 {
-	int ret = -EINVAL;
-	return ret;
+	flush_cache_all();
+	return 0;
 }
+
+asmlinkage int sys_getpagesize(void)
+{
+	return PAGE_SIZE;
+}
+
+

@@ -10,7 +10,6 @@
 
 #include <linux/config.h>
 #include <asm/segment.h>
-/*   #include <asm/fpu.h>	*/
 #include <asm/ptrace.h>
 #include <asm/current.h>
 

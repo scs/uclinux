@@ -11,4 +11,3 @@ obj-y		:= entry.o process.o ptrace.o semaphore.o setup.o signal.o sys_bfin.o tim
 
 obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_BLKFIN_DMA)	+= dma.o
-obj-$(CONFIG_BLKFIN_DMA)	+= blackfin_dma_test.o

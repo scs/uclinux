@@ -17,39 +17,31 @@
  * ########################################################################
 */
 
-/*
-*  arch/bfinnommu/kernel/dma.c
-*  This file contains the DMA Implementation for BF533
-*
-*  Copyright (C) 2004 LG Soft India
-*
-*/
-
 #include <asm/dma.h>
 
 /**************************************************************************
  * Global Variables 
 ***************************************************************************/
 
-static DMA_channel 	dma_ch[MAX_BLACKFIN_DMA_CHANNEL];
+DMA_channel 	dma_ch[MAX_BLACKFIN_DMA_CHANNEL];
 
-static DMA_register* 	base_addr[MAX_BLACKFIN_DMA_CHANNEL] =
+DMA_register* 	base_addr[MAX_BLACKFIN_DMA_CHANNEL] =
 {
-	(DMA_register *) DMA0_NEXT_DESC_PTR,
-	(DMA_register *) DMA1_NEXT_DESC_PTR,
-	(DMA_register *) DMA2_NEXT_DESC_PTR,
-	(DMA_register *) DMA3_NEXT_DESC_PTR,
-	(DMA_register *) DMA4_NEXT_DESC_PTR,
-	(DMA_register *) DMA5_NEXT_DESC_PTR,
-	(DMA_register *) DMA6_NEXT_DESC_PTR,
-	(DMA_register *) DMA7_NEXT_DESC_PTR,
-	(DMA_register *) MDMA_D0_NEXT_DESC_PTR,
-	(DMA_register *) MDMA_S0_NEXT_DESC_PTR,
-	(DMA_register *) MDMA_D1_NEXT_DESC_PTR,
-	(DMA_register *) MDMA_S1_NEXT_DESC_PTR,
+	(DMA_register *) 0xffc00c00,		
+	(DMA_register *) 0xffc00c40,	
+	(DMA_register *) 0xffc00c80,
+	(DMA_register *) 0xffc00cc0,
+	(DMA_register *) 0xffc00d00,
+	(DMA_register *) 0xffc00d40,
+	(DMA_register *) 0xffc00d80,
+	(DMA_register *) 0xffc00dc0,
+	(DMA_register *) 0xffc00e00,
+	(DMA_register *) 0xffc00e40,
+	(DMA_register *) 0xffc00e80,
+	(DMA_register *) 0xffc00ec0,
 };
 
-static DMA_MAPPING Mapping[] = {
+DMA_MAPPING Mapping[] = {
 	{ DMA_DEVICE_PPI,	0,	0,	PMAP_PPI	},
 	{ DMA_DEVICE_SPORT_RX,	0,	0,	PMAP_SPORT0_RX	},
 	{ DMA_DEVICE_SPORT_TX,	0,	0,	PMAP_SPORT0_TX	},
@@ -60,6 +52,9 @@ static DMA_MAPPING Mapping[] = {
 	{ DMA_DEVICE_UART_TX,	0,	0,	PMAP_UART_TX	},
 };
 
+struct semaphore dmalock;
+
+void 		testcallback (DMA_EVENT, void *);
 
 /****************************************************************************
 *
@@ -76,21 +71,24 @@ static DMA_MAPPING Mapping[] = {
 *		None
 * Return:
 *		None
-*-----------------------------------------------------------------------------*/
+*-------------------------------------------------------------------------------*/
+
 int __init blackfin_dma_init(void)
 {
 	int 	i;
 	
-	printk("Blackfin DMA Controller for BF533\n");
+	printk("Blackfin DMA Controller for BF533\n");	
+	
+	init_MUTEX(&dmalock);
 
-	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++) {
-
-		dma_ch[i].dma_channel_status = DMA_CHANNEL_FREE;
-		dma_ch[i].regs = base_addr[i];
-		init_MUTEX(&(dma_ch[i].dmalock));
+	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++)
+	{
+		dma_ch[i].dma_channel_status = DMA_CHANNEL_AVAILABLE;
+		dma_ch[i].regs = base_addr[i];	
 	}
 	
 	return 0;
+
 }
 module_init(blackfin_dma_init);
 
@@ -98,45 +96,46 @@ module_init(blackfin_dma_init);
 * Name:
 *		InitializeChannel()
 * Description:
-*		This function is used to Initialize the channel with the given
-*		values
+*		This function is used to Initialize the channel with the given values 			
 * Parameters:
-*		channel_number:	Channel Number of the Channel to be initialized
-*		cfg:		Configuaration value to be set
-*		start_addr:	start address of the DMA Transfer, to be set
-*		x_count:	x_count value to be set for the DMA transfer
-*		x_modify:	x_modify value to be set for the DMA transfer
-*		y_count:	y_count value to be set for the DMA transfer
-*		y_modify:	y_modify value to be set for the DMA transfer
-* Return:
-*		DMA_NO_SUCH_CHANNEL: If the channel number is > 11
-*		DMA_SUCCESS: For successful Initialization
-*-----------------------------------------------------------------------------*/
-static DMA_RESULT InitializeChannel (unsigned int channel_number,
-			unsigned short cfg, unsigned short start_addr,
-			unsigned short x_count, unsigned short x_modify,
+*		channel_number:	Channel Number of the Channel to be initialized		
+*		cfg:		Configuaration value to be set		
+*		start_addr:	start address of the DMA Transfer, to be set		
+*		x_count:	x_count value to be set for the DMA transfer		
+*		x_modify:	x_modify value to be set for the DMA transfer		
+*		y_count:	y_count value to be set for the DMA transfer		
+*		y_modify:	y_modify value to be set for the DMA transfer		
+* Return: 
+*		None
+*-------------------------------------------------------------------------------*/
+
+int InitializeChannel (unsigned int channel_number, unsigned short cfg, unsigned short start_addr, 
+			unsigned short x_count, unsigned short x_modify, 
 			unsigned short y_count, unsigned short y_modify)
 {
-
-	assert (channel_number < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel_number >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel_number >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	dma_ch[channel_number].regs->cfg = cfg;
+	dma_ch[channel_number].regs->cfg = cfg; 
+	SSYNC();
 	dma_ch[channel_number].regs->start_addr = start_addr;
+	SSYNC();
 	dma_ch[channel_number].regs->x_count = x_count;
+	SSYNC();
 	dma_ch[channel_number].regs->x_modify = x_modify;
+	SSYNC();
 	dma_ch[channel_number].regs->y_count = y_count;
+	SSYNC();
 	dma_ch[channel_number].regs->y_modify = y_modify;
 	SSYNC();
 
 	return DMA_SUCCESS;
 }
 
+
 /***************************************************************************
 *
-*			Generic DMA API's
+*			Generic DMA API's 
 *
 *****************************************************************************/
 
@@ -144,127 +143,83 @@ static DMA_RESULT InitializeChannel (unsigned int channel_number,
 * Name:
 *		request_dma()
 * Description:
-*		Request the specific DMA channel from the system.
+*		Request the specific DMA channel from the system. 
 *
 * Parameters:
-*		channel:	DMA channel number
-*		device_id:	pointer to the device ID for the DMA channel.
-*		dma_interrupt:	Interrupt service routine.
-*		callback:	Callback function that can be called from ISR.
+*		channel:	DMA channel number (See header file for more information).
+*		device_id:	pointer to the device ID for the DMA channel. 
+*		dma_interrupt:	Interrupt service routine. 
+*		callback:	Callback function that can be called from ISR. 
 * Return:
-*		DMA_NO_SUCH_CHANNEL will be returned for invalid channel number
-*		DMA_CHANNEL_IN_USE will be returned, if the channel is already
-*		in use.
-*		DMA_FAIL will be returned if the device_id is null.
-*		The return value of the request_irq() for the failure of the
-*		request_irq()
-*		DMA_SUCCESS will be returned for success ?
-*-----------------------------------------------------------------------------*/
-DMA_RESULT request_dma(unsigned int channel,const char* device_id,
-			dma_callback_t callback)
+*		The channel number will be returned on success.
+*		DMA_NO_SUCH_CHANNEL will be returned for invalid channel number 
+*		DMA_CHANNEL_IN_USE will be returned, if the channel is already in use. 
+*-------------------------------------------------------------------------------*/
+int request_dma(unsigned int channel, const char* device_id, dma_interrupt_t dma_interrupt, dma_callback_t callback)
 {
 
-	int		ret_irq = 0;
-	DMA_RESULT	retValue;
- 
 	DMA_DBG("request_dma() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-	assert(device_id !=  NULL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (device_id == NULL)
-		return DMA_FAIL;
+	down(&dmalock);
 
-	down(&(dma_ch[channel].dmalock));
-
-	if ((dma_ch[channel].dma_channel_status == DMA_CHANNEL_REQUESTED )
-		||(dma_ch[channel].dma_channel_status == DMA_CHANNEL_ENABLED)){
-
-		up(&(dma_ch[channel].dmalock));
+	if (dma_ch[channel].dma_channel_status == DMA_CHANNEL_ALLOCATED ) {
+		up(&dmalock);
 		DMA_DBG("DMA CHANNEL IN USE  \n");
-		return DMA_CHANNEL_IN_USE;
+		return DMA_CHANNEL_IN_USE; 
 	}
 	else{
 	
-		dma_ch[channel].dma_channel_status = DMA_CHANNEL_REQUESTED ;
-		DMA_DBG("DMA CHANNEL IS ALLOCATED  \n");
+		dma_ch[channel].dma_channel_status = DMA_CHANNEL_ALLOCATED ;		
+		DMA_DBG("DMA CHANNEL IN USE  \n");
 	}
-	up(&(dma_ch[channel].dmalock));
+	up(&dmalock);
 
 	dma_ch[channel].device_id = device_id;
  	dma_ch[channel].callback = callback;
  	dma_ch[channel].descr_base = BASE_VALUE;
 	dma_ch[channel].LoopbackFlag = 0;
 
-	/* This is to be enabled by putting a restriction -
-	   you have to request DMA , before doing any operations on
-	   descriptor/channel
-	*/
+	/* This is to be enabled by putting a restriction - you have to request DMA , 
+	   before doing any operations on descriptor/channel */
 
-	retValue = InitializeChannel(channel, 0x00, 0x00, 0x00, 0x02, 
-					0x01, 0x02);
-	if (retValue != DMA_SUCCESS)
-		return retValue;
-
+	InitializeChannel(channel, 0x00, 0x00, 0x00, 0x02, 0x01, 0x02);
 	DMA_DBG("InitializeChannel : Done  \n");
 
 	switch (channel){
-		case CH_PPI:
-			ret_irq = request_irq(IRQ_PPI, (void *)dma_interrupt,
-					SA_INTERRUPT, "ppi-dma", NULL);
-			if (ret_irq)
-				return ret_irq;
-
+		case CH_PPI: 
+			request_irq(IRQ_PPI, (void *)dma_interrupt, SA_INTERRUPT, "ppi-dma", NULL);
 			enable_irq (IRQ_PPI);
 			break;
-		case CH_SPORT0_RX:
-		case CH_SPORT0_TX:
-			ret_irq = request_irq(IRQ_SPORT0, (void *)dma_interrupt,
-					SA_INTERRUPT, "sport0-dma", NULL);
-			if (ret_irq)
-				return ret_irq;
+		case CH_SPORT0_RX: 
+		case CH_SPORT0_TX: 
+			request_irq(IRQ_SPORT0, (void *)dma_interrupt, SA_INTERRUPT, "sport0-dma", NULL);
 			enable_irq (IRQ_SPORT0);
 			break;
-		case CH_SPORT1_RX:
-		case CH_SPORT1_TX:
-			ret_irq = request_irq(IRQ_SPORT1, (void *)dma_interrupt,
-					SA_INTERRUPT, "sport1-dma", NULL);
-			if (ret_irq)
-				return ret_irq;
+		case CH_SPORT1_RX: 
+		case CH_SPORT1_TX: 
+			request_irq(IRQ_SPORT1, (void *)dma_interrupt, SA_INTERRUPT, "sport1-dma", NULL);
 			enable_irq (IRQ_SPORT1);
 			break;
-		case CH_SPI:
-			ret_irq = request_irq(IRQ_SPI, (void *)dma_interrupt,
-					SA_INTERRUPT, "spi-dma", NULL);
-			if (ret_irq)
-				return ret_irq;
+		case CH_SPI: 
+			request_irq(IRQ_SPI, (void *)dma_interrupt, SA_INTERRUPT, "spi-dma", NULL);
 			enable_irq (IRQ_SPI);
 			break;
-		case CH_UART_RX:
-		case CH_UART_TX:
-			ret_irq	= request_irq(IRQ_UART, (void *)dma_interrupt,
-					SA_INTERRUPT, "uart-dma", NULL);
-			if (ret_irq)
-				return ret_irq;
+		case CH_UART_RX: 
+		case CH_UART_TX: 
+			request_irq(IRQ_UART, (void *)dma_interrupt, SA_INTERRUPT, "uart-dma", NULL);
 			enable_irq (IRQ_UART);
 			break;
-		case CH_MEM_STREAM0_SRC:
-		case CH_MEM_STREAM0_DEST:
-			ret_irq = request_irq(IRQ_MEM_DMA0,(void *)dma_interrupt,
-					SA_INTERRUPT, "MemStream0-dma", NULL);
-			if (ret_irq)
-				return ret_irq;
+		case CH_MEM_STREAM0_SRC: 
+		case CH_MEM_STREAM0_DEST: 
+			request_irq(IRQ_MEM_DMA0, (void *)dma_interrupt, SA_INTERRUPT, "MemoryStream0-dma", NULL);
 			enable_irq (IRQ_MEM_DMA0);
 			break;
-		case CH_MEM_STREAM1_SRC:
-		case CH_MEM_STREAM1_DEST:
-			ret_irq = request_irq(IRQ_MEM_DMA1,(void *)dma_interrupt,
-					SA_INTERRUPT, "MemStream1-dma", NULL);
-			if (ret_irq)
-				return ret_irq;
+		case CH_MEM_STREAM1_SRC: 
+		case CH_MEM_STREAM1_DEST: 
+			request_irq(IRQ_MEM_DMA1, (void *)dma_interrupt, SA_INTERRUPT, "MemoryStream1-dma", NULL);
 			enable_irq (IRQ_MEM_DMA1);
 			break;
 		default:
@@ -273,87 +228,86 @@ DMA_RESULT request_dma(unsigned int channel,const char* device_id,
 	DMA_DBG("IRQ related : Done  \n");
 
 /* If the user calls the request_dma() , at the end of descriptor setup
-   then this will cause problem
+   then this will cause problem  
    To avoid this problem , we can have restriction, to call the request_dma()
-   before using the any other DMA API's, that uses/modifies the channel info.
-   - To Be Discussed and Finalized
+   before using the any other DMA API's, that uses/modifies the channel info. 	
+   - To Be Discussed and Finalized 
 */
 #if 0
-	dma_ch[channel].last_descriptor = BASE_VALUE;
-	dma_ch[channel].first_descriptor = BASE_VALUE;
-	dma_ch[channel].wait_last_descriptor = BASE_VALUE;
-	dma_ch[channel].wait_first_descriptor = BASE_VALUE;
-	dma_ch[channel].next_descriptor = BASE_VALUE;
+	dma_ch[channel].L_last_descriptor = BASE_VALUE;
+	dma_ch[channel].L_first_descriptor = BASE_VALUE;
+	dma_ch[channel].L_wait_last_descriptor = BASE_VALUE;
+	dma_ch[channel].L_wait_first_descriptor = BASE_VALUE;
+	dma_ch[channel].L_next_descriptor = BASE_VALUE;
 
+	dma_ch[channel].S_last_descriptor = BASE_VALUE;
+	dma_ch[channel].S_first_descriptor = BASE_VALUE;
+	dma_ch[channel].S_wait_last_descriptor = BASE_VALUE;
+	dma_ch[channel].S_wait_first_descriptor = BASE_VALUE;
+	dma_ch[channel].S_next_descriptor = BASE_VALUE;
 #endif
 
 	/* DMA_ERR Interrupt Handler request process has to be done - TODO */
 
 	DMA_DBG("request_dma() : END  \n");
 
-	return DMA_SUCCESS;
+	return channel;
 }
+
 
 /*------------------------------------------------------------------------------
 * Name:
 *		free_dma()
 * Description:
-*		Free the specific DMA channel
+*		Free the specific DMA channel 
 * Parameters:
 *		channel:	DMA channel number.
 * Return:
-*		DMA_NO_SUCH_CHANNEL: If the Invalid Channel Number is given.
-*		DMA_FAIL:  If the Channel is already freed
-*		DMA_SUCCESS : for successful execution
-*-----------------------------------------------------------------------------*/
-DMA_RESULT freedma(unsigned int channel)
+*		None		
+*-------------------------------------------------------------------------------*/
+int freedma(unsigned int channel)
 {
 	DMA_DBG("freedma() : BEGIN \n");
 		
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status == DMA_CHANNEL_FREE)
-		return DMA_FAIL;
 		
 	/* Check for the DMA Error - TODO  */
 
 	/* Halt the DMA */
 	disable_dma(channel);
-	clear_dma_buffer(channel);
+	clear_dma_buffer(channel);	
 	disable_dma_buffer_clear(channel);
 
 	/* DMA Error Handler processing - TODO  */
 
 	/* Make sure the DMA channel will be stopped before free it */
 	switch (channel){
-		case CH_PPI:
+		case CH_PPI: 
 			disable_irq (IRQ_PPI);
 			break;
-		case CH_SPORT0_RX:
-		case CH_SPORT0_TX:
+		case CH_SPORT0_RX: 
+		case CH_SPORT0_TX: 
 			disable_irq (IRQ_SPORT0);
 			break;
-		case CH_SPORT1_RX:
-		case CH_SPORT1_TX:
+		case CH_SPORT1_RX: 
+		case CH_SPORT1_TX: 
 			disable_irq (IRQ_SPORT1);
 			break;
-		case CH_SPI:
+		case CH_SPI: 
 			disable_irq (IRQ_SPI);
 			break;
-		case CH_UART_RX:
-		case CH_UART_TX:
+		case CH_UART_RX: 
+		case CH_UART_TX: 
 			disable_irq (IRQ_UART);
 			break;
-		case CH_MEM_STREAM0_SRC:
-		case CH_MEM_STREAM0_DEST:
+		case CH_MEM_STREAM0_SRC: 
+		case CH_MEM_STREAM0_DEST: 
 			disable_irq (IRQ_MEM_DMA0);
 			break;
-		case CH_MEM_STREAM1_SRC:
-		case CH_MEM_STREAM1_DEST:
+		case CH_MEM_STREAM1_SRC: 
+		case CH_MEM_STREAM1_DEST: 
 			disable_irq (IRQ_MEM_DMA1);
 			break;
 		default:
@@ -361,20 +315,27 @@ DMA_RESULT freedma(unsigned int channel)
 	}
 	
 	/* Clear the DMA Variable in the Channel*/
-	dma_ch[channel].last_descriptor = BASE_VALUE;
-	dma_ch[channel].first_descriptor = BASE_VALUE;
-	dma_ch[channel].wait_last_descriptor = BASE_VALUE;
-	dma_ch[channel].wait_first_descriptor = BASE_VALUE;
-	dma_ch[channel].next_descriptor = BASE_VALUE;
+	dma_ch[channel].L_last_descriptor = BASE_VALUE;
+	dma_ch[channel].L_first_descriptor = BASE_VALUE;
+	dma_ch[channel].L_wait_last_descriptor = BASE_VALUE;
+	dma_ch[channel].L_wait_first_descriptor = BASE_VALUE;
+	dma_ch[channel].L_next_descriptor = BASE_VALUE;
 
-	down(&(dma_ch[channel].dmalock));
-	dma_ch[channel].dma_channel_status = DMA_CHANNEL_FREE;
-	up(&(dma_ch[channel].dmalock));
+	dma_ch[channel].S_last_descriptor = BASE_VALUE;
+	dma_ch[channel].S_first_descriptor = BASE_VALUE;
+	dma_ch[channel].S_wait_last_descriptor = BASE_VALUE;
+	dma_ch[channel].S_wait_first_descriptor = BASE_VALUE;
+	dma_ch[channel].S_next_descriptor = BASE_VALUE;
+
+	down(&dmalock);
+	dma_ch[channel].dma_channel_status = DMA_CHANNEL_AVAILABLE;
+	up(&dmalock);
 
 	DMA_DBG("freedma() : END \n");
 
 	return DMA_SUCCESS;
 }
+
 
 /*------------------------------------------------------------------------------
 * Name:
@@ -384,25 +345,19 @@ DMA_RESULT freedma(unsigned int channel)
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
-*		DMA_NO_SUCH_CHANNEL for invalid cahnnel number
-*		DMA_SUCCESS after successfully disabling the DMA for the
-*		specified channel
-*-----------------------------------------------------------------------------*/
-DMA_RESULT disable_dma(unsigned int channel)
+*		DMA_NO_SUCH_CHANNEL for invalid cahnnel number 
+*		DMA_SUCCESS after successfully disabling the DMA for the specified channel 
+*-------------------------------------------------------------------------------*/
+int disable_dma(unsigned int channel)
 {
 	DMA_DBG("disable_dma() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	/* Here we are not checking for enable_dma() - is it required ?*/
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
+
 
 	dma_ch[channel].regs->cfg &= ~DMAEN;	/* Clean the enable bit */
 	SSYNC();
-
-	dma_ch[channel].dma_channel_status  = DMA_CHANNEL_REQUESTED;
 
 	/* Needs to be enabled Later */
 
@@ -421,44 +376,40 @@ DMA_RESULT disable_dma(unsigned int channel)
 * Return:
 *		DMA_SUCCESS will be return for Success
 *		DMA_NO_SUCH_CHANNEL will be return for invalid channel number
-*-----------------------------------------------------------------------------*/
-DMA_RESULT enable_dma(unsigned int channel)
+*-------------------------------------------------------------------------------*/
+int enable_dma(unsigned int channel)
 {
 	DMA_DBG("enable_dma() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	/* here we are not returning if the channel is not requested. 
-	   We have to do this - But need to be discussed */
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-
-	dma_ch[channel].flowmode = (((dma_ch[channel].regs->cfg ) &
-							(0xf000)) >> 12);
+	dma_ch[channel].flowmode = ((dma_ch[channel].regs->cfg ) & (0xf000)) >> 12 ;
+	SSYNC();
 	dma_ch[channel].regs->cfg |= DMAEN;	/* Set the enable bit */
 	SSYNC();
 
-	dma_ch[channel].dma_channel_status = DMA_CHANNEL_ENABLED;
-
-	DMA_DBG("enable_dma() : END \n");
+	DMA_DBG("enable_dma() : BEGIN \n");
 
 	return DMA_SUCCESS;
 
 }
 
+
+
 /*------------------------------------------------------------------------------
 * Name:
 *		dmaGetMapping()
 * Description:
-*		Get the pheripharal Mapping of the given channel
+*		Get the pheripharal Mapping of the given channel 
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
 *		DMA_SUCCESS will be return for Success
-*		DMA_BAD_DEVICE will be return for invalid Device
-*-----------------------------------------------------------------------------*/
-/* This function is not tested */
+*		DMA_BAD_DEVICE will be return for invalid Device 
+*-------------------------------------------------------------------------------*/
+
+/* This function is not tested */ 
 DMA_RESULT	dmaGetMapping(
 		DMA_DEVICE_TYPE	DeviceType,
 		unsigned int	DeviceNumber,
@@ -469,47 +420,29 @@ DMA_RESULT	dmaGetMapping(
 	DMA_MAPPING	*pMapping;
 	DMA_channel	*pChannel;
 
-	assert(*ChannelNumber < MAX_BLACKFIN_DMA_CHANNEL);
-	if (*ChannelNumber >= MAX_BLACKFIN_DMA_CHANNEL)
-		return DMA_NO_SUCH_CHANNEL;
-
-	for (pMapping = Mapping, i = 0 ;
-		i < (sizeof (Mapping)/sizeof(DMA_MAPPING)); i++, pMapping++) {
-
-		if ((pMapping->DeviceType == DeviceType) &&
+	for (pMapping = Mapping, i = 0 ; i < (sizeof (Mapping)/sizeof(DMA_MAPPING)); i++, pMapping++)
+	{
+		if ((pMapping->DeviceType == DeviceType) && 
 			(pMapping->DeviceNumber == DeviceNumber)) {
-
-			for (i=0; i < MAX_BLACKFIN_DMA_CHANNEL; i++) {
-
-				pChannel = &dma_ch[i];
-				if((pChannel->ControllerNumber == pMapping->ControllerNumber)
-					&& (pChannel->PeripheralMap->b_PMAP == pMapping->PeripheralMap)) {
-
+			for (i=0; i < MAX_BLACKFIN_DMA_CHANNEL; i++)
+			{
+				pChannel = &dma_ch[i];		
+				if( (pChannel->ControllerNumber == pMapping->ControllerNumber) && (pChannel->PeripheralMap->b_PMAP == pMapping->PeripheralMap)) {
+				
 					*ControllerNumber = pChannel->ControllerNumber;
 					*ChannelNumber = i;
 					return DMA_SUCCESS;
 				} /* End of if*/
 			} /* End of For */
 		} /* End of If */
+		
 	} /* End of for loop */
+	
 	return (DMA_BAD_DEVICE);
+
 }
 
-/*------------------------------------------------------------------------------
-* Name:
-*		dmaSetMapping()
-* Description:
-*		Get the pheripharal Mapping of the given channel
-* Parameters:
-*		DeviceType:		DMA Device Type.
-*		DeviceNumber:		DMA Device Number.
-*		ControllerNumber:	DMA Controller Number.
-*		ChannelNumber:		DMA Channel Number.
-* Return:
-*		DMA_SUCCESS will be return for Success
-*		DMA_BAD_DEVICE will be return for invalid Device 
-*-----------------------------------------------------------------------------*/
-/* This function is not tested */
+/* This function is not tested */ 
 DMA_RESULT	dmaSetMapping(
 		DMA_DEVICE_TYPE		DeviceType,
 		unsigned int		DeviceNumber,
@@ -520,21 +453,11 @@ DMA_RESULT	dmaSetMapping(
 	DMA_MAPPING	*pMapping;	/* Pointer to the Mapping structure */
 	DMA_channel	*pChannel;	/* pointer to the channel */
 
-	assert(ChannelNumber < MAX_BLACKFIN_DMA_CHANNEL);
-	if (ChannelNumber >= MAX_BLACKFIN_DMA_CHANNEL)
-		return DMA_NO_SUCH_CHANNEL;
-
-	for (pMapping = Mapping, i = 0;
-		i < (sizeof (Mapping) / (sizeof (DMA_MAPPING)));
-		i++, pMapping++ ){
-
-		if ((pMapping->DeviceType == DeviceType) &&
-			(pMapping->DeviceNumber == DeviceNumber)) {
-
+	for (pMapping = Mapping, i = 0; i < (sizeof (Mapping) / (sizeof (DMA_MAPPING))); i++, pMapping++ ){
+		if ((pMapping->DeviceType == DeviceType) && (pMapping->DeviceNumber == DeviceNumber)) {
 			for (i=0; i < MAX_BLACKFIN_DMA_CHANNEL; i++) {
-				pChannel = &dma_ch[i];
-				if( (pChannel->ControllerNumber == ControllerNumber) &&
-					( i  == ChannelNumber)) {
+				pChannel = &dma_ch[i];		
+				if( (pChannel->ControllerNumber == ControllerNumber) && ( i  == ChannelNumber)) {
 				
 					/* Set the mapping to the device the client wants */
 					pChannel->PeripheralMap->b_PMAP = pMapping->PeripheralMap;
@@ -549,44 +472,40 @@ DMA_RESULT	dmaSetMapping(
 	return (DMA_BAD_DEVICE);
 }
 	
+
 /**********************************************************************
 *
 *      SET/GET Functions
 *
 **********************************************************************/
 
-/* The following function is not used now.
+/* The following function is not used now. 
 *  But this can be used for Small descriptor Modes
 *  to setup the base - Currently the Base of the starting descriptor
-*  is taken as the Base for entire list.
+*  is taken as the Base for entire list. 
 */
 
 /*------------------------------------------------------------------------------
 * Name:
 *		set_dma_descriptor_base()
 * Description:
-*		Set the base address of the DMA descriptor block
+*		Set the base address of the DMA descriptor block 
 *
 * Parameters:
 *		channel:		DMA channel number.
 *		base:			The address of the DMA descriptors
 * Return:
-*		DMA_SUCCESS will be returned on success,
-*		DMA_NO_SUCH_CHANNEL will be returned for invalid channel number,
-*-----------------------------------------------------------------------------*/
-DMA_RESULT set_dma_descriptor_base(unsigned int channel, unsigned int base)
+*		DMA_SUCCESS will be returned on success, 
+*		DMA_NO_SUCH_CHANNEL will be returned for invalid channel number, 
+*-------------------------------------------------------------------------------*/
+int set_dma_descriptor_base(unsigned int channel, unsigned int base)
 {
 	DMA_DBG("set_dma_descriptor_base() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_ENABLED);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status  == DMA_CHANNEL_ENABLED)
-		return DMA_ALREADY_RUNNING ;
-
+	
  	dma_ch[channel].descr_base = base;
 
 	DMA_DBG("set_dma_descriptor_base() : END \n");
@@ -598,29 +517,21 @@ DMA_RESULT set_dma_descriptor_base(unsigned int channel, unsigned int base)
 * Name:
 *		set_dma_addr()
 * Description:
-*		Set the Start Address register for the specific DMA channel
-* 		This function can be used for register based DMA ,
-*		to setup the start address
+*		Set the Start Address register for the specific DMA channel 
+* 		This function can be used for register based DMA , to setup the start address
 * Parameters:
-*		channel:	DMA channel number.
-*		addr:		Starting address of the DMA Data to be
-*				transferred.
+*		channel:		DMA channel number.
+*		addr:			Starting address of the DMA Data to be transferred.
 * Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS after successfully set the starting address for DMA
-*-----------------------------------------------------------------------------*/
+*		DMA_NO_SUCH_CHANNEL for invalid channel number 
+*		DMA_SUCCESS after successfully set the starting address for DMA  
+*-------------------------------------------------------------------------------*/
 DMA_RESULT set_dma_addr(unsigned int channel, unsigned long addr)
 {
 	DMA_DBG("set_dma_addr() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
-
-	if (dma_ch[channel].dma_channel_status  != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL ;
 
 	dma_ch[channel].regs->start_addr = addr;
 	SSYNC();
@@ -630,35 +541,32 @@ DMA_RESULT set_dma_addr(unsigned int channel, unsigned long addr)
 	return DMA_SUCCESS;
 }
 
+
 /*------------------------------------------------------------------------------
 * Name:
 *		set_dma_dir()
 * Description:
-*		Set the transfer direction for the specific DMA channel
+*		Set the transfer direction for the specific DMA channel 
 * 		This function can be used in the Register based DMA.
 * Parameters:
 *		channel:		DMA channel number.
 *		dir:			Transfer direction
-*						1: Read from memory,
+*						1: Read from memory, 
 *						2: Write to memory
 * Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS after successfully set the direction for DMA
-*-----------------------------------------------------------------------------*/
+*		DMA_NO_SUCH_CHANNEL for invalid channel number 
+*		DMA_SUCCESS after successfully set the direction for DMA  
+*-------------------------------------------------------------------------------*/
+
 DMA_RESULT set_dma_dir(unsigned int channel,  char dir)
 {
 	DMA_DBG("set_dma_dir() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status  != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
 
-	dma_ch[channel].regs->cfg |= WNR;	/* Write to memory */
+	dma_ch[channel].regs->cfg |= DMAWNR;	/* Write to memory */
 	SSYNC();
 
 	DMA_DBG("set_dma_dir() : END \n");
@@ -666,11 +574,12 @@ DMA_RESULT set_dma_dir(unsigned int channel,  char dir)
 	return DMA_SUCCESS;
 }
 
+
 /*------------------------------------------------------------------------------
 * Name:
 *		set_dma_type()
 * Description:
-*		Specify the transfer mode for the specific DMA channel
+*		Specify the transfer mode for the specific DMA channel 
 * Parameters:
 *		channel:		DMA channel number.
 *		type:			Transfer mode
@@ -680,90 +589,87 @@ DMA_RESULT set_dma_dir(unsigned int channel,  char dir)
 *						6: Descriptor list (small Model)
 *						7: Descriptor list (large Model)
 * Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS after successfully set the DMA type.
-*-----------------------------------------------------------------------------*/
+*		DMA_NO_SUCH_CHANNEL for invalid channel number 
+*		DMA_SUCCESS after successfully set the DMA type.  
+*-------------------------------------------------------------------------------*/
 DMA_RESULT set_dma_type(unsigned int channel, char type)
 {
 	DMA_DBG("set_dma_type() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status  != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
+	
 
-	dma_ch[channel].regs->cfg &= 0x0FFF;
-	switch(type){
+	dma_ch[channel].regs->cfg &= 0x0FFF;	
+	switch(type)	
+	{
 		case FLOW_STOP:		/* STOP mode */
 			break;
 		case FLOW_AUTO:	/* Autobuffer based DMA */
-			dma_ch[channel].regs->cfg |= (FLOW_AUTO << 12 );
+			dma_ch[channel].regs->cfg |= (FLOW_AUTO << 12 );	
+			SSYNC();
 			break;
 		case FLOW_ARRAY:	/* Decriptor Array based DMA mode */
-			dma_ch[channel].regs->cfg |= (FLOW_ARRAY << 12);
+			dma_ch[channel].regs->cfg |= (FLOW_ARRAY << 12);	
+			SSYNC();
 			break;
 		case FLOW_SMALL:	/* Decriptor list (small) */
-			dma_ch[channel].regs->cfg |= (FLOW_SMALL << 12);
+			dma_ch[channel].regs->cfg |= (FLOW_SMALL << 12);	
+			SSYNC();
 			break;
 		case FLOW_LARGE:	/* Decripotr list (large)*/
-			dma_ch[channel].regs->cfg |= (FLOW_LARGE << 12);
+			dma_ch[channel].regs->cfg |= (FLOW_LARGE << 12);	
+			SSYNC();
 			break;
 		default: 	/* Invalid TYPE */
 			DMA_DBG ("Invalid TYPE \n");
 			break;
 	}
-	SSYNC();
 
 	DMA_DBG("set_dma_type() : END \n");
 
 	return DMA_SUCCESS;
 }
 
+
 /*------------------------------------------------------------------------------
 * Name:
 *		set_dma_x_count()
 * Description:
-*		Set the Inner Loop Count register for the specific DMA channel
+*		Set the Inner Loop Count register for the specific DMA channel 
 * 		This function can be used to setup the x_count for the channel
-* 		mainly during the register based DMA
+* 		mainly during the register based DMA 
 * Parameters:
 *		channel:		DMA channel number.
 *		x_count:		The 16-bit transfer count.
 *
 * Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS after successfully set the x-count value.
-*-----------------------------------------------------------------------------*/
+*		DMA_NO_SUCH_CHANNEL for invalid channel number 
+*		DMA_SUCCESS after successfully set the x-count value for the DMA.  
+*-------------------------------------------------------------------------------*/
 DMA_RESULT set_dma_x_count(unsigned int channel, unsigned short x_count)
 {
 	DMA_DBG("set_dma_x_count() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status  != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
 
 	dma_ch[channel].regs->x_count = x_count;
-	SSYNC();
+	SSYNC();	
 
 	DMA_DBG("set_dma_x_count() : END \n");
 
 	return DMA_SUCCESS;
 }
 
+
 /*------------------------------------------------------------------------------
 * Name:
 *		set_dma_y_count()
 * Description:
-*		Set the Outer Loop Count register for the specific DMA channel
+*		Set the Outer Loop Count register for the specific DMA channel 
 *		( This will be used during the 2D DMA method )
 * 		This function can be used to setup the y_count for the channel
 * 		mainly during the register based DMA
@@ -772,60 +678,51 @@ DMA_RESULT set_dma_x_count(unsigned int channel, unsigned short x_count)
 *		y_count:		The 16-bit transfer count.
 *
 * Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS after successfully set the y-count value.
-*-----------------------------------------------------------------------------*/
+*		DMA_NO_SUCH_CHANNEL for invalid channel number 
+*		DMA_SUCCESS after successfully set the y-count value for the DMA.  
+*-------------------------------------------------------------------------------*/
 DMA_RESULT set_dma_y_count(unsigned int channel, unsigned short y_count)
 {
 	DMA_DBG("set_dma_y_count() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status  != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL ;
 
 	dma_ch[channel].regs->y_count = y_count;
-	SSYNC();
+	SSYNC();	
 
 	DMA_DBG("set_dma_y_count() : END \n");
 
 	return DMA_SUCCESS;
 }
 
+
 /*------------------------------------------------------------------------------
 * Name:
 *		set_dma_x_modify()
 * Description:
-*		Set the Inner Loop Address Increment register for the specific
-*		DMA channel. This function can be used to setup the x_modify for
-*		the channe, mainly during the register based DMA
+*		Set the Inner Loop Address Increment register for the specific DMA channel 
+* 		This function can be used to setup the x_modify for the channel
+* 		mainly during the register based DMA 
 * Parameters:
 *		channel:		DMA channel number.
-*		x_modify:		The 16-bit modification/increment value.
+*		x_modify:		The 16-bit modification/increment value .
 *
 * Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS after successfully set the x-modify value.
-*-----------------------------------------------------------------------------*/
+*		DMA_NO_SUCH_CHANNEL for invalid channel number 
+*		DMA_SUCCESS after successfully set the x-modify value for the DMA.  
+*-------------------------------------------------------------------------------*/
 DMA_RESULT set_dma_x_modify(unsigned int channel, unsigned short x_modify)
 {
 	DMA_DBG("set_dma_x_modify() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status  != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
 
 	dma_ch[channel].regs->x_modify = x_modify;
-	SSYNC();
+	SSYNC();	
 
 	DMA_DBG("set_dma_x_modify() : END \n");
 	return DMA_SUCCESS;
@@ -835,198 +732,74 @@ DMA_RESULT set_dma_x_modify(unsigned int channel, unsigned short x_modify)
 * Name:
 *		set_dma_y_modify()
 * Description:
-*		Set the Inner Loop Address Increment register for the specific
-*		DMA channel.
+*		Set the Inner Loop Address Increment register for the specific DMA channel 
+*		(This register is used during 2D DMA transfer method only)	
 * 		This function can be used to setup the y_modify for the channel
-* 		mainly during the register based DMA
+* 		mainly during the register based DMA 
 * Parameters:
 *		channel:		DMA channel number.
-*		y_modify:		The 16-bit modification/increment value.
+*		y_modify:		The 16-bit modification/increment value .
 *
 * Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS after successfully set the y-modify value
-*-----------------------------------------------------------------------------*/
+*		DMA_NO_SUCH_CHANNEL for invalid channel number 
+*		DMA_SUCCESS after successfully set the y-modify value for the DMA.  
+*-------------------------------------------------------------------------------*/
 
 DMA_RESULT set_dma_y_modify(unsigned int channel, unsigned short y_modify)
 {
 	DMA_DBG("set_dma_y_modify() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status  != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
 
 	dma_ch[channel].regs->y_modify = y_modify;
-	SSYNC();
+	SSYNC();	
 
 	DMA_DBG("set_dma_y_modify() : END \n");
 	return DMA_SUCCESS;
 }
 
-/*------------------------------------------------------------------------------
-* Name:
-*		set_dma_config()
-* Description:
-* 		This function can be used to setup the configuaration for the
-*		channel.This function is used Mainly during the register based
-*		DMA.
-* Parameters:
-*		channel:		DMA channel number.
-*		config:			configuaration value to be set.
-*
-* Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS after successfully set the y-modify value
-*-----------------------------------------------------------------------------*/
-DMA_RESULT set_dma_config(unsigned int channel, unsigned short config)
-{
-	DMA_DBG("set_dma_config() : BEGIN \n");
-
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
-		return DMA_NO_SUCH_CHANNEL;
-
-	if (dma_ch[channel].dma_channel_status  != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
-
-	dma_ch[channel].regs->cfg = config;
-	SSYNC();
-
-	DMA_DBG("set_dma_config() : END \n");
-	return DMA_SUCCESS;
-}
-
-/*------------------------------------------------------------------------------
-* Name:
-*		set_dma_currdesc_addr()
-* Description:
-* 		This function can be used to setup the Current Descriptor Address 
-*		for the channel.This function is used Mainly during the register 
-*		based DMA.
-* Parameters:
-*		channel:		DMA channel number.
-*		desc_addr:		Current Descriptor Address .
-*
-* Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_BAD_DESCRIPTOR if the Invalid Descriptor address is given
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS after successfully set the y-modify value
-*-----------------------------------------------------------------------------*/
-DMA_RESULT set_dma_currdesc_addr(unsigned int channel, unsigned long desc_addr)
-{
-	DMA_DBG("set_dma_current_descriptor() : BEGIN \n");
-
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-	assert(desc_addr != 0);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
-		return DMA_NO_SUCH_CHANNEL;
-
-	if ( desc_addr == 0)
-		return DMA_BAD_DESCRIPTOR;
-
-	if (dma_ch[channel].dma_channel_status  != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
-
-	dma_ch[channel].regs->curr_desc_ptr = desc_addr;
-	SSYNC();
-
-	DMA_DBG("set_dma_current_descriptor() : END \n");
-	return DMA_SUCCESS;
-}
-
-/*------------------------------------------------------------------------------
-* Name:
-*		set_dma_nextdesc_addr()
-* Description:
-* 		This function can be used to setup the Next Descriptor Address 
-*		for the channel.This function is used Mainly during the register 
-*		based DMA.
-* Parameters:
-*		channel:		DMA channel number.
-*		next_desc_addr:		Next Descriptor Address .
-*
-* Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_BAD_DESCRIPTOR if the Invalid Descriptor address is given
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS after successfully set the y-modify value
-*-----------------------------------------------------------------------------*/
-DMA_RESULT set_dma_nextdesc_addr(unsigned int channel, unsigned long next_desc_addr)
-{
-	DMA_DBG("set_dma_next_descriptor() : BEGIN \n");
-
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-	assert(next_desc_addr != 0);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
-		return DMA_NO_SUCH_CHANNEL;
-
-	if ( next_desc_addr == 0)
-		return DMA_BAD_DESCRIPTOR;
-
-	if (dma_ch[channel].dma_channel_status  != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
-
-	dma_ch[channel].regs->next_desc_ptr = next_desc_addr;
-	SSYNC();
-
-	DMA_DBG("set_dma_next_descriptor() : END \n");
-	return DMA_SUCCESS;
-}
 
 /*------------------------------------------------------------------------------
 * Name:
 *		set_dma_transfer_size()
 * Description:
-*		Set the data size of transfer for the specific DMA channel
+*		Set the data size of transfer for the specific DMA channel 
 * Parameters:
 *		channel:		DMA channel number.
-*		size:			Data size.
+*		size:			Data size. 
 *						DATA_SIZE_8:	8-bit width
 *						DATA_SIZE_16:	16-bit width
 *						DATA_SIZE_32:	32-bit width
 * Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS after successfully set the y-modify value
-*-----------------------------------------------------------------------------*/
+*		DMA_NO_SUCH_CHANNEL for invalid channel number 
+*		DMA_SUCCESS after successfully set the y-modify value for the DMA.  
+*-------------------------------------------------------------------------------*/
 DMA_RESULT set_dma_transfer_size(unsigned int channel, char size)
 {
 	unsigned short size_word;
 
 	DMA_DBG("set_dma_tranfer() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
-
-	if (dma_ch[channel].dma_channel_status != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
+	
 
 	size_word = 0;
 
-	/* Set the 2 & 3 bits as 0 for Initialization */
-	dma_ch[channel].regs->cfg &= 0xFFF3;
+	dma_ch[channel].regs->cfg &= 0xFFF3; /* Set the 2 & 3 bits as 0 for Initialization */
 	
-	switch (size) {
+	switch (size)
+	{
 
 		case DATA_SIZE_8:
 			break;
 		case DATA_SIZE_16:
-			dma_ch[channel].regs->cfg |= WDSIZE_16;
+			dma_ch[channel].regs->cfg |= DMAWDSIZE16;
 			break;
 		case DATA_SIZE_32:
-			dma_ch[channel].regs->cfg |= WDSIZE_32;
+			dma_ch[channel].regs->cfg |= DMAWDSIZE32;
 			break;
 		default:
 			DMA_DBG ("Invalid tranfer_size \n");
@@ -1043,48 +816,42 @@ DMA_RESULT set_dma_transfer_size(unsigned int channel, char size)
 * Name:
 *		get_dma_transfer_size()
 * Description:
-*		Get the current data size of the specific DMA channel
+*		Get the current data size of the specific DMA channel 
 * Parameters:
-*		IN :  channel:		DMA channel number.
-*		OUT:  size:		transfer size of the DMA channel
+*		channel:		DMA channel number.
 * Return:
-*		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_FAIL for NULL value for the size
-*		DMA_SUCCESS for successful execution
-*-----------------------------------------------------------------------------*/
-DMA_RESULT get_dma_transfer_size(unsigned int channel, unsigned short* size)
+*		DMA_NO_SUCH_CHANNEL for invalid channel number	
+*		For Success : The data_size of the DMA transfer , set for the specified channel 	
+*-------------------------------------------------------------------------------*/
+int get_dma_transfer_size(unsigned int channel)
 {
+	unsigned short  size_word;
 
 	DMA_DBG("get_dma_tranfer_size() : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-	assert(size != 0);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (size == NULL)
-		return DMA_FAIL;
 
-	*size = dma_ch[channel].regs->cfg;
-	*size &= 0x000C; 	/* Bits 2 & 3 represents the WDSIZE  */
-	*size >>=2;
+	size_word = dma_ch[channel].regs->cfg;
+	size_word &= 0x000C; 	/* Bits 2 & 3 represents the WDSIZE  */ 
+	size_word >>=2;	   
 
 	DMA_DBG("get_dma_tranfer_size() : END \n");
 
-	return DMA_SUCCESS;
+	return size_word;
 }
 
 /*------------------------------------------------------------------------------
 * Name:
 *		enable_dma_stopmode()
 * Description:
-*		Enable stop mode for the specific DMA channel
+*		Enable stop mode for the specific DMA channel 
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
-*		DMA_RESULT
-*-----------------------------------------------------------------------------*/
+*		DMA_RESULT 
+*-------------------------------------------------------------------------------*/
 DMA_RESULT enable_dma_stopmode(unsigned int channel)
 {
 	return set_dma_type(channel, DMA_STOP);
@@ -1094,12 +861,12 @@ DMA_RESULT enable_dma_stopmode(unsigned int channel)
 * Name:
 *		enable_dma_autobuffer()
 * Description:
-*		Enable Autobuffer mode for the specific DMA channel
+*		Enable Autobuffer mode for the specific DMA channel 
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
-*		DMA_RESULT
-*-----------------------------------------------------------------------------*/
+*		DMA_RESULT 
+*-------------------------------------------------------------------------------*/
 DMA_RESULT enable_dma_autobuffer(unsigned int channel)
 {
 	return 	set_dma_type(channel, DMA_AUTO);
@@ -1109,11 +876,11 @@ DMA_RESULT enable_dma_autobuffer(unsigned int channel)
 * Name:
 *		enable_dma_descr_array()
 * Description:
-*		Enable descriptor array mode for the specific DMA channel
+*		Enable descriptor array mode for the specific DMA channel 
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
-*		DMA_RESULT
+*		DMA_RESULT 
 *-------------------------------------------------------------------------------*/
 DMA_RESULT enable_dma_descr_array(unsigned int channel)
 {
@@ -1124,117 +891,93 @@ DMA_RESULT enable_dma_descr_array(unsigned int channel)
 * Name:
 *		enable_dma_descr_small()
 * Description:
-*		Enable descriptor list (small) mode for the specific DMA channel
+*		Enable descriptor list (small) mode for the specific DMA channel 
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
 *		DMA_RESULT
-*-----------------------------------------------------------------------------*/
+*-------------------------------------------------------------------------------*/
 DMA_RESULT enable_dma_descr_small(unsigned int channel)
 {
 	return	set_dma_type(channel, DMA_SMALL);
 }
 
+
+
 /*------------------------------------------------------------------------------
 * Name:
 *		enable_dma_descr_large()
 * Description:
-*		Enable descriptor list (large) mode for the specific DMA channel
+*		Enable descriptor list (large) mode for the specific DMA channel 
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
 *		DMA_RESULT
-*-----------------------------------------------------------------------------*/
+*-------------------------------------------------------------------------------*/
 DMA_RESULT enable_dma_descr_large(unsigned int channel)
 {
 	return set_dma_type(channel, DMA_LARGE);
 }
 
+
 /*------------------------------------------------------------------------------
 * Name:
 *		get_dma_curr_x_count()
 * Description:
-*		Get the content of curr_x_count register for the specific DMA
-*		channel
+*		Get the content of curr_x_count register for the specific DMA channel 
 * Parameters:
-*		IN : channel:		DMA channel number.
-*		OUT: x_count:		The x_count value will be retreived
-*					and returned using this variable
+*		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel number
-*		DMA_FAIL : for NULL value given for x_count
-*		DMA_SUCCESS : for successful completion
-*-----------------------------------------------------------------------------*/
-DMA_RESULT get_dma_curr_x_count(unsigned int channel, unsigned short *x_count)
+*		The current value of curr_x_count register
+*-------------------------------------------------------------------------------*/
+int get_dma_curr_x_count(unsigned int channel)
 {
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-	assert(x_count != NULL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
-	if (x_count == NULL)
-		return DMA_FAIL;
 
-	*x_count = dma_ch[channel].regs->curr_x_count;
-	return DMA_SUCCESS;
+	return dma_ch[channel].regs->curr_x_count;
 }
 
 /*------------------------------------------------------------------------------
 * Name:
 *		get_dma_curr_y_count()
 * Description:
-*		Get the content of curr_y_count register for the specific DMA
-*		channel
+*		Get the content of curr_y_count register for the specific DMA channel 
 * Parameters:
-*		IN : channel:		DMA channel number.
-*		OUT: y_count:		The y_count value will be retreived
-*					and returned using this variable
+*		channel:		DMA channel number.
 * Return:
-*		DMA_NO_SUCH_CHANNEL : for invalid channel number
-*		DMA_FAIL : for NULL value given for y_count
-*		DMA_SUCCESS : for successful completion
-*-----------------------------------------------------------------------------*/
-DMA_RESULT get_dma_curr_y_count(unsigned int channel, unsigned short *y_count)
+*		The current value of curr_y_count register
+*-------------------------------------------------------------------------------*/
+int get_dma_curr_y_count(unsigned int channel)
 {
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-	assert(y_count != NULL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
-	if (y_count == NULL)
-		return DMA_FAIL;
 
-	*y_count = dma_ch[channel].regs->curr_y_count;
-	return DMA_SUCCESS;
+	return dma_ch[channel].regs->curr_y_count;
 }
+
 
 /*------------------------------------------------------------------------------
 * Name:
 *		clear_dma_buffer()
 * Description:
-*		Set the Buffer Clear bit in the Configuration register of
-*		specific DMA channel. This will stop the descriptor based DMA
-*		operation.
+*		Set the Buffer Clear bit in the Configuration register of specific 
+*		DMA channel. This will stop the descriptor based DMA operation.
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel Number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS : for successful completion
-*-----------------------------------------------------------------------------*/
+*		DMA_SUCCESS : for successful completion 
+*-------------------------------------------------------------------------------*/
 DMA_RESULT clear_dma_buffer(unsigned int channel)
 {
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
-
-	dma_ch[channel].regs->cfg |= RESTART;
+	dma_ch[channel].regs->cfg |= DMARESTART;
 	SSYNC();
 
 	return DMA_SUCCESS;
@@ -1244,27 +987,21 @@ DMA_RESULT clear_dma_buffer(unsigned int channel)
 * Name:
 *		disable_dma_buffer_clear()
 * Description:
-*		Clear the Buffer Clear bit in the Configuration register of
-*		specific DMA channel.
+*		Clear the Buffer Clear bit in the Configuration register of specific 
+*		DMA channel. 
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel Number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS : for successful completion
-*-----------------------------------------------------------------------------*/
+*		DMA_SUCCESS : for successful completion 
+*-------------------------------------------------------------------------------*/
 DMA_RESULT  disable_dma_buffer_clear(unsigned int channel)
 {
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
-
-	dma_ch[channel].regs->cfg &= ~RESTART;
+	dma_ch[channel].regs->cfg &= ~DMARESTART;
 	SSYNC();
 
 	return DMA_SUCCESS;
@@ -1274,14 +1011,13 @@ DMA_RESULT  disable_dma_buffer_clear(unsigned int channel)
 * Name:
 *		enable_dma_data_row_intr()
 * Description:
-*		Enable Data Interrupt Timing Select ( used in 2D DMA )
+*		Enable Data Interrupt Timing Select ( used in 2D DMA )  
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel Number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS : for successful completion
-*-----------------------------------------------------------------------------*/
+*		DMA_SUCCESS : for successful completion 
+*-------------------------------------------------------------------------------*/
 
 DMA_RESULT enable_dma_data_row_intr(unsigned int channel)
 {
@@ -1289,18 +1025,12 @@ DMA_RESULT enable_dma_data_row_intr(unsigned int channel)
 	/* Check whether this function is called from 2D-DMA only */
 	DMA_DBG("enable_dma_data_row_intr () : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
+	dma_ch[channel].regs->cfg |= DMASEL; /* Interrupt After completing each row */
 
- 	/* Interrupt After completing each row */
-	dma_ch[channel].regs->cfg |= DI_SEL;
-
-	SSYNC();
+	SSYNC();	
 
 	DMA_DBG("enable_dma_data_row_intr () : END \n");
 
@@ -1311,29 +1041,24 @@ DMA_RESULT enable_dma_data_row_intr(unsigned int channel)
 * Name:
 *		enable_dma_data_intr()
 * Description:
-*		Enable Data Interrupt
+*		Enable Interrupt On Completion (IOC) 
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel Number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS : for successful completion
-*-----------------------------------------------------------------------------*/
+*		DMA_SUCCESS : for successful completion 
+*-------------------------------------------------------------------------------*/
+
 DMA_RESULT enable_dma_data_intr(unsigned int channel)
 {
 	DMA_DBG("enable_dma_data_intr () : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
-
 	/* enable Data Interrupt  */
-	dma_ch[channel].regs->cfg |= DI_EN;
-	SSYNC();
+	dma_ch[channel].regs->cfg |= DMADI; 
+	SSYNC();	
 
 	DMA_DBG("enable_dma_data_intr () : BEGIN \n");
 
@@ -1344,30 +1069,24 @@ DMA_RESULT enable_dma_data_intr(unsigned int channel)
 * Name:
 *		enable_dma_err_intr()
 * Description:
-*		Enable DMA Error for the specific DMA channel.
+*		Enable Interrupt On Error(IOE) for the specific DMA channel.
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel Number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS : for successful completion
-*-----------------------------------------------------------------------------*/
+*		DMA_SUCCESS : for successful completion 
+*-------------------------------------------------------------------------------*/
+
 DMA_RESULT enable_dma_err_intr(unsigned int channel)
 {
 	DMA_DBG("enable_dma_err_intr () : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
-
-	if (dma_ch[channel].dma_channel_status != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
-
 
 	/* enable Error Interrupt  */
 	dma_ch[channel].regs->irq_status |= DMAERR;
-	SSYNC();
+	SSYNC();	
 
 	DMA_DBG("enable_dma_err_intr () : END \n");
 
@@ -1378,25 +1097,20 @@ DMA_RESULT enable_dma_err_intr(unsigned int channel)
 * Name:
 *		enable_dma_intr()
 * Description:
-*		This function enables all interrupts ( error, DI_EN and DMASEL )
+*		This function enables all interrupts ( error, DI_EN and DMASEL ) 
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL for invalid channel number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS for successfully enabling the interrupts
-*-----------------------------------------------------------------------------*/
+*		DMA_SUCCESS for successfully enabling the interrupts	
+*-------------------------------------------------------------------------------*/
 DMA_RESULT enable_dma_intr(unsigned int channel)
 {
 	DMA_DBG("enable_dma_intr () : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
 
 	/* enable Data Interrupt */
 	enable_dma_data_intr(channel);
@@ -1407,7 +1121,7 @@ DMA_RESULT enable_dma_intr(unsigned int channel)
 	/* enable Error Interrupt */
 	enable_dma_err_intr(channel);
 		
-	SSYNC();
+	SSYNC();	
 
 	DMA_DBG("enable_dma_intr () : END \n");
 	return DMA_SUCCESS;
@@ -1417,30 +1131,23 @@ DMA_RESULT enable_dma_intr(unsigned int channel)
 * Name:
 *		disable_dma_data_row_intr()
 * Description:
-*		Disable Data Interrupt Timing Select (used in 2D DMA )
+*		Disable Data Interrupt Timing Select (used in 2D DMA ) 
 * Parameters:
 *		channel:		DMA channel number.
 *	
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel Number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS : for successful completion
-*-----------------------------------------------------------------------------*/
+*		DMA_SUCCESS : for successful completion 
+*-------------------------------------------------------------------------------*/
 
 DMA_RESULT disable_dma_data_row_intr(unsigned int channel)
 {
 	DMA_DBG("disable_dma_data_row_intr () : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (dma_ch[channel].dma_channel_status != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
-
-
-	dma_ch[channel].regs->cfg &= ~DI_SEL;
+	dma_ch[channel].regs->cfg &= ~DMASEL;
 	SSYNC();
 
 	DMA_DBG("disable_dma_data_row_intr () : END \n");
@@ -1452,31 +1159,25 @@ DMA_RESULT disable_dma_data_row_intr(unsigned int channel)
 * Name:
 *		disable_dma_data_intr()
 * Description:
-*		Disable Data Data Interrupt
+*		Disable Data Data Interrupt 
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel Number
-*		DMA_FAIL if the channel is not requested or already enabled
-*		DMA_SUCCESS : for successful completion
-*-----------------------------------------------------------------------------*/
+*		DMA_SUCCESS : for successful completion 
+*-------------------------------------------------------------------------------*/
 DMA_RESULT  disable_dma_data_intr(unsigned int channel)
 {
 	unsigned short intr_word;
 
 	DMA_DBG("disable_dma_data_intr () : BEGIN \n");
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
-
-	if (dma_ch[channel].dma_channel_status != DMA_CHANNEL_REQUESTED)
-		return DMA_FAIL;
 
 	intr_word = 0;
 
-	dma_ch[channel].regs->cfg &= ~DI_EN;
+	dma_ch[channel].regs->cfg &= ~DMADI;		
 
 	SSYNC();
 
@@ -1484,6 +1185,7 @@ DMA_RESULT  disable_dma_data_intr(unsigned int channel)
 
 	return DMA_SUCCESS;
 }
+
 
 /*------------------------------------------------------------------------------
 * Name:
@@ -1494,16 +1196,16 @@ DMA_RESULT  disable_dma_data_intr(unsigned int channel)
 *		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel Number
-*		DMA_SUCCESS : for successful completion
-*-----------------------------------------------------------------------------*/
+*		DMA_SUCCESS : for successful completion 
+*-------------------------------------------------------------------------------*/
+
 DMA_RESULT disable_dma_err_intr(unsigned int channel)
 {
 	DMA_DBG("disable_dma_err_intr () : BEGIN \n");
 	DMA_DBG("channel Number %d \n", channel);
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
 
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
 	dma_ch[channel].regs->irq_status &= ~DMAERR;
@@ -1513,6 +1215,7 @@ DMA_RESULT disable_dma_err_intr(unsigned int channel)
 
 	return DMA_SUCCESS;
 }
+
 
 /*------------------------------------------------------------------------------
 * Name:
@@ -1525,8 +1228,8 @@ DMA_RESULT disable_dma_err_intr(unsigned int channel)
 *		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel Number
-*		DMA_SUCCESS : for successful completion
-*-----------------------------------------------------------------------------*/
+*		DMA_SUCCESS : for successful completion 
+*-------------------------------------------------------------------------------*/
 DMA_RESULT disable_dma_intr(unsigned int channel, unsigned char intr)
 {
 	
@@ -1541,33 +1244,25 @@ DMA_RESULT disable_dma_intr(unsigned int channel, unsigned char intr)
 	return DMA_SUCCESS;
 }
 
+
 /*------------------------------------------------------------------------------
 * Name:
 *		get_dma_irq_stat()
 * Description:
 *		Get the content of IRQ Status register of specific DMA channel
 * Parameters:
-*		IN  : channel:		DMA channel number.
-*		OUT : irq_stat:		IRQ status of the DMA Channel.
+*		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel Number
-*		DMA_FAIL for invalid address for irq_stat
-*		DMA_SUCCESS : for successful execution
-*-----------------------------------------------------------------------------*/
-DMA_RESULT get_dma_irq_stat(unsigned int channel, unsigned short *irq_stat)
+*		The content of IRQ Status register for successful execution. 
+*-------------------------------------------------------------------------------*/
+unsigned short get_dma_irq_stat(unsigned int channel)
 {
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-	assert(irq_stat != NULL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (irq_stat == NULL)
-		return DMA_FAIL;
-
-	*irq_stat = dma_ch[channel].regs->irq_status;
-	return DMA_SUCCESS;
+	return dma_ch[channel].regs->irq_status;
 }
 
 /*------------------------------------------------------------------------------
@@ -1579,14 +1274,12 @@ DMA_RESULT get_dma_irq_stat(unsigned int channel, unsigned short *irq_stat)
 *		channel:		DMA channel number.
 * Return:
 *		DMA_NO_SUCH_CHANNEL : for invalid channel Number
-*		The content of IRQ Status register for successful execution.
-*-----------------------------------------------------------------------------*/
+*		The content of IRQ Status register for successful execution. 
+*-------------------------------------------------------------------------------*/
 int clr_dma_irq_stat(unsigned int channel)
 {
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
 	dma_ch[channel].regs->irq_status = BASE_VALUE;
@@ -1594,11 +1287,13 @@ int clr_dma_irq_stat(unsigned int channel)
 	return DMA_SUCCESS;
 }
 
+
 /*******************************************************
 *
 *    DESCRIPTOR RELATED FUNCTIONS
 *
 *******************************************************/
+
 
 /* NOTE: The descriptor must be aligned to 16-bit boundary */
 #if 0
@@ -1624,6 +1319,7 @@ static dmasg_t * pDescDummy = NULL;
 #endif
 #endif /* SPECIAL_DESC */
 
+
 /*------------------------------------------------------------------------------
 * Name:
 *		create_descriptor()
@@ -1635,7 +1331,8 @@ static dmasg_t * pDescDummy = NULL;
 * Return:
 *		returns the descriptor for success.
 *		returns NULL for failure.
-*-----------------------------------------------------------------------------*/
+*-------------------------------------------------------------------------------*/
+
 void* create_descriptor(int flowtype)
 {
 	void 		*pDescriptor;
@@ -1647,17 +1344,14 @@ void* create_descriptor(int flowtype)
 		   So the respective code is commented */
 		/*
 		case FLOW_ARRAY:
-			descriptor =
-			(dmasgarray_t *)kmalloc(sizeof(dmasgarray_t),GFP_KERNEL);
+			descriptor = (dmasgarray_t *)kmalloc(sizeof(dmasgarray_t), GFP_KERNEL);
 			break;
 		*/
 		case FLOW_SMALL:
-			pDescriptor = 
-			(dmasgsmall_t *)kmalloc(sizeof(dmasgsmall_t),GFP_KERNEL);
+			pDescriptor = (dmasgsmall_t *)kmalloc(sizeof(dmasgsmall_t), GFP_KERNEL);	
 			break;
 		case FLOW_LARGE:
-			pDescriptor = 
-			(dmasglarge_t *)kmalloc(sizeof(dmasglarge_t),GFP_KERNEL);
+			pDescriptor = (dmasglarge_t *)kmalloc(sizeof(dmasglarge_t), GFP_KERNEL);	
 			break;
 		default:
 			return NULL;
@@ -1666,7 +1360,11 @@ void* create_descriptor(int flowtype)
 	DMA_DBG("create_desriptor() : END \n");
 
 	return pDescriptor;
+	
 }
+
+
+/* This function is not used currently */
 
 /*------------------------------------------------------------------------------
 * Name:
@@ -1675,21 +1373,21 @@ void* create_descriptor(int flowtype)
 *		Set the values in the specified descriptor
 * Parameters:
 *		desc:		Descriptor to be set .
-*		next:		Next Descriptor address to be set.
-*		start_addr:	starting address of the DMA to be set.
-*		cfg:		configuaration register value to be set.
-*		x_count:	x_count value to be set in the descriptor.
-*		x_modify:	x_modify value to be set in the descriptor.
-*		y_count:	y_count value to be set in the descriptor.
-*		y_modify:	y_modify value to be set in the descriptor.
+*		next:		Next Descriptor address to be set in the descriptor.
+*		start_addr:	starting address of the DMA to be set in the descriptor.
+*		cfg:		configuaration register value to be set in the descriptor.
+*		x_count:	x_count value to be set in the descriptor  .
+*		x_modify:	x_modify value to be set int the descriptor.
+*		y_count:	y_count value to be set in the descriptor to be set .
+*		y_modify:	y_modify value to be set in the descriptor to be set .
 * Return:
 *		none
-*-----------------------------------------------------------------------------*/
-/* This function is not used currently */
-void dma_setup_desc(unsigned long desc,
-	            unsigned long next,
-		    unsigned long start_addr,
-		    unsigned short cfg,
+*-------------------------------------------------------------------------------*/
+
+void dma_setup_desc(unsigned long desc, 
+	            unsigned long next, 
+		    unsigned long start_addr, 
+		    unsigned short cfg, 
 		    /* DMA_CONFIG_REG cfg, */
 		    unsigned short x_count,
 		    unsigned short x_modify,
@@ -1700,27 +1398,27 @@ void dma_setup_desc(unsigned long desc,
 
 	/* Set the next addr  */
 	/*
-	((dmasglarge_t *) desc)->next_desc_ptr_lsb = (unsigned short) ((next) & LOW_WORD);
-	((dmasglarge_t *) desc)->next_desc_ptr_msb = (unsigned short) (((next) >> 16) & LOW_WORD);
+	((dmasg_t *) desc)->next_desc_ptr_lsb = (unsigned short) ((next) & LOW_WORD);
+	((dmasg_t *) desc)->next_desc_ptr_msb = (unsigned short) (((next) >> 16) & LOW_WORD);
 	*/
 
 	/* Set the start  addr  */
-	((dmasglarge_t *) desc)->start_addr = start_addr;
+	((dmasg_t *) desc)->start_addr = start_addr;
 
 	/* Set the Configuaration Register */
-	((dmasglarge_t *) desc)->cfg = cfg;
+	((dmasg_t *) desc)->cfg = cfg;
 
 	/* Set the x-count */
-	((dmasglarge_t *) desc)->x_count = x_count;
+	((dmasg_t *) desc)->x_count = x_count;
 
 	/* Set the x-modify */
-	((dmasglarge_t *) desc)->x_modify = x_modify;
+	((dmasg_t *) desc)->x_modify = x_modify;
 
 	/* Set the y-count */
-	((dmasglarge_t *) desc)->y_count = y_count;
+	((dmasg_t *) desc)->y_count = y_count;
 	
 	/* Set the y-modify */
-	((dmasglarge_t *) desc)->y_modify = y_modify;
+	((dmasg_t *) desc)->y_modify = y_modify;
 
 	DMA_DBG("dma_setup_desc () : END \n");
 }
@@ -1729,25 +1427,24 @@ void dma_setup_desc(unsigned long desc,
 * Name:
 *		check_desc_size()
 * Description:
-*		Checks the size of the descriptor set in the config register
+*		Checks the size of the descriptor set in the config register 
 *		based on the flow type
 * Parameters:
 *		channel:		DMA channel number.
 * Return:
-*		DMA_NO_SUCH_CHANNEL : for invalid channel number.
-*		DMA_BAD_DESCRIPTOR : for Bad descriptor Size Value
-*		DMA_SUCCESS : for Valid descriptor Size
-*-----------------------------------------------------------------------------*/
+*		DMA_NO_SUCH_CHANNEL : for invalid channel number . 
+*		DMA_BAD_DESCRIPTOR : for Bad descriptor Size Value	
+*		DMA_SUCCESS : for Valid descriptor Size	
+*-------------------------------------------------------------------------------*/
 /* This function is not used currently */
 DMA_RESULT check_desc_size(unsigned int channel)
 {
 	unsigned short desc_size,flow_type = 0x0000;
-	unsigned short cfg_word;
+	unsigned short cfg_word; 
 
-	assert(channel < MAX_BLACKFIN_DMA_CHANNEL);
-
-	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
+
 
 	cfg_word = dma_ch[channel].regs->cfg;
 	flow_type = cfg_word & 0xF000;
@@ -1756,62 +1453,58 @@ DMA_RESULT check_desc_size(unsigned int channel)
 	desc_size = cfg_word & 0x0F00;
 	desc_size >>= 8;
 
-	switch (flow_type){
-
+	switch (flow_type)
+	{
 		case DMA_STOP:
 		case DMA_AUTO:
 			if (desc_size)
-				return DMA_BAD_DESCRIPTOR;
+				return DMA_BAD_DESCRIPTOR;	
 			break;
 		case DMA_ARRAY:
 			if (desc_size > NDSIZE_ARRAY )
-				return DMA_BAD_DESCRIPTOR;
+				return DMA_BAD_DESCRIPTOR;	
 			break;
 		case DMA_SMALL:
 			if (desc_size > NDSIZE_SMALL )
-				return DMA_BAD_DESCRIPTOR;
+				return DMA_BAD_DESCRIPTOR;	
 			break;
 		case DMA_LARGE:
 			if (desc_size > NDSIZE_LARGE )
-				return DMA_BAD_DESCRIPTOR;
+				return DMA_BAD_DESCRIPTOR;	
 			break;
-	}
+	} 
 	return DMA_SUCCESS;
 
 }
+
 
 /*------------------------------------------------------------------------------
 * Name:
 *		set_desc_start_addr()
 * Description:
-*		Set the starting address of  the DMA Transfer in the given
-*		descriptor
+*		Set the starting address of  the DMA Transfer in the given descriptor
 * Parameters:
 *		pDescriptor:	Pointer to the descriptor.
 *		startaddr:	starting address of the DMA,  to be set .
-*		flowtype:	The flow type of the descriptor
+*		flowtype:	The flow type of the descriptor 
 *				The flow type can be  Array or Small or Large.
 * Return:
-*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL
+*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL	
 *		DMA_SUCCESS : for successfully setting the DMA Start address
-*-----------------------------------------------------------------------------*/
-DMA_RESULT set_desc_startaddr(void *pDescriptor, unsigned long startaddr,
-				 int flowtype)
-{
-	assert(pDescriptor != NULL);
+*-------------------------------------------------------------------------------*/
 
+DMA_RESULT set_desc_startaddr(void *pDescriptor, unsigned long startaddr, int flowtype)
+{
 	if (pDescriptor == NULL)
-		return DMA_BAD_DESCRIPTOR;
+		return DMA_BAD_DESCRIPTOR;	
 
 	switch (flowtype){
 		case DMA_ARRAY:
 			((dmasgarray_t *)pDescriptor)->start_addr = startaddr;
 			break;
 		case DMA_SMALL:
-			((dmasgsmall_t *)pDescriptor)->start_addr_lo =
-						startaddr & LOW_WORD;
-			((dmasgsmall_t *)pDescriptor)->start_addr_hi =
-						(startaddr & HIGH_WORD ) >> 16 ;
+			((dmasgsmall_t *)pDescriptor)->start_addr_lo = startaddr & LOW_WORD;
+			((dmasgsmall_t *)pDescriptor)->start_addr_hi = (startaddr & HIGH_WORD ) >> 16 ;
 			break;
 		case DMA_LARGE:
 			((dmasglarge_t *)pDescriptor)->start_addr = startaddr;
@@ -1821,31 +1514,29 @@ DMA_RESULT set_desc_startaddr(void *pDescriptor, unsigned long startaddr,
 	}
 	
 	return DMA_SUCCESS;
+	
 }
 
 /*------------------------------------------------------------------------------
 * Name:
 *		set_desc_x_count()
 * Description:
-*		Set the x_count value for the DMA Transfer in the given
-*		descriptor
+*		Set the x_count value for the DMA Transfer in the given descriptor
 * Parameters:
 *		pDescriptor:	Pointer to the descriptor.
 *		x_count:	x_count value to be set.
-*		flowtype:	The flow type of the descriptor
+*		flowtype:	The flow type of the descriptor 
 *				The flow type can be  Array or Small or Large.
 * Return:
-*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL
+*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL	
 *		DMA_SUCCESS : for successfully setting the x_count
-*-----------------------------------------------------------------------------*/
-DMA_RESULT set_desc_xcount(void *pDescriptor, unsigned short x_count,
-				 int flowtype)
+*-------------------------------------------------------------------------------*/
+
+DMA_RESULT set_desc_xcount(void *pDescriptor, unsigned short x_count, int flowtype)
 {
 
-	assert(pDescriptor != NULL);
-
 	if (pDescriptor == NULL)
-		return DMA_BAD_DESCRIPTOR;
+		return DMA_BAD_DESCRIPTOR;	
 
 	switch (flowtype){
 		case DMA_ARRAY:
@@ -1869,24 +1560,21 @@ DMA_RESULT set_desc_xcount(void *pDescriptor, unsigned short x_count,
 * Name:
 *		set_desc_x_modify()
 * Description:
-*		Set the x_modify value for the DMA Transfer in the given
-*		descriptor
+*		Set the x_modify value for the DMA Transfer in the given descriptor
 * Parameters:
 *		pDescriptor:	Pointer to the descriptor.
 *		x_modify:	x_modify value to be set.
-*		flowtype:	The flow type of the descriptor
+*		flowtype:	The flow type of the descriptor 
 *				The flow type can be  Array or Small or Large.
 * Return:
-*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL
+*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL	
 *		DMA_SUCCESS : for successfully setting the x_count
-*----------------------------------------------------------------------------*/
-DMA_RESULT set_desc_xmodify(void *pDescriptor, unsigned short x_modify,
-				int flowtype)
-{
-	assert(pDescriptor != NULL);
+*------------------------------------------------------------------------------*/
 
+DMA_RESULT set_desc_xmodify(void *pDescriptor, unsigned short x_modify, int flowtype)
+{
 	if (pDescriptor == NULL)
-		return DMA_BAD_DESCRIPTOR;
+		return DMA_BAD_DESCRIPTOR;	
 
 	switch (flowtype){
 		case DMA_ARRAY:
@@ -1905,29 +1593,25 @@ DMA_RESULT set_desc_xmodify(void *pDescriptor, unsigned short x_modify,
 	return DMA_SUCCESS;
 	
 }
-
 /*------------------------------------------------------------------------------
 * Name:
 *		set_desc_y_count()
 * Description:
-*		Set the y_count value for the DMA Transfer in the given
-*		descriptor
+*		Set the y_count value for the DMA Transfer in the given descriptor
 * Parameters:
 *		pDescriptor:	Pointer to the descriptor.
 *		y_count:	y_count value to be set.
-*		flowtype:	The flow type of the descriptor
+*		flowtype:	The flow type of the descriptor 
 *				The flow type can be  Array or Small or Large.
 * Return:
-*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL
+*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL	
 *		DMA_SUCCESS : for successfully setting the y_count
-*-----------------------------------------------------------------------------*/
-DMA_RESULT set_desc_ycount(void *pDescriptor, unsigned short y_count,
-				 int flowtype)
-{
-	assert(pDescriptor != NULL);
+*-------------------------------------------------------------------------------*/
 
+DMA_RESULT set_desc_ycount(void *pDescriptor, unsigned short y_count, int flowtype)
+{
 	if (pDescriptor == NULL)
-		return DMA_BAD_DESCRIPTOR;
+		return DMA_BAD_DESCRIPTOR;	
 
 	switch (flowtype){
 		case DMA_ARRAY:
@@ -1951,24 +1635,20 @@ DMA_RESULT set_desc_ycount(void *pDescriptor, unsigned short y_count,
 * Name:
 *		set_desc_y_modify()
 * Description:
-*		Set the y_modify value for the DMA Transfer in the given
-*		descriptor
+*		Set the y_modify value for the DMA Transfer in the given descriptor
 * Parameters:
 *		pDescriptor:	Pointer to the descriptor.
 *		y_modify:	y_modify value to be set.
-*		flowtype:	The flow type of the descriptor
+*		flowtype:	The flow type of the descriptor 
 *				The flow type can be  Array or Small or Large.
 * Return:
-*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL
+*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL	
 *		DMA_SUCCESS : for successfully setting the y_modify
-*-----------------------------------------------------------------------------*/
-DMA_RESULT set_desc_ymodify(void *pDescriptor, unsigned short y_modify,
-				 int flowtype)
+*-------------------------------------------------------------------------------*/
+DMA_RESULT set_desc_ymodify(void *pDescriptor, unsigned short y_modify, int flowtype)
 {
-	assert(pDescriptor != NULL);
-
 	if (pDescriptor == NULL)
-		return DMA_BAD_DESCRIPTOR;
+		return DMA_BAD_DESCRIPTOR;	
 
 	switch (flowtype){
 		case DMA_ARRAY:
@@ -1983,8 +1663,9 @@ DMA_RESULT set_desc_ymodify(void *pDescriptor, unsigned short y_modify,
 		default:
 			break;
 	}
-
+	
 	return DMA_SUCCESS;
+	
 }
 
 /*------------------------------------------------------------------------------
@@ -1999,196 +1680,176 @@ DMA_RESULT set_desc_ymodify(void *pDescriptor, unsigned short y_modify,
 *		channel_number:	Channel number.
 *		flowtype:	The flow type of the descriptor 
 *				The flow type can be  Array or Small or Large.
-* Return:
+* Return: 
 *		DMA_NO_SUCH_CHANNEL: If the  channel number is invalid
-*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL
+*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL	
 *		DMA_SUCCESS : For successful execution
-*-----------------------------------------------------------------------------*/
-DMA_RESULT add_descriptor(	void *pNewdescriptor,
-				int  channel_number,
-				int flowtype)
-{
-	DMA_channel *channel = &dma_ch[channel_number];
-	DMA_RESULT 	retValue;
-	void *last_descriptor = channel->last_descriptor;
+*-------------------------------------------------------------------------------*/
 
-	assert(pNewdescriptor != NULL);
-	assert(channel_number < MAX_BLACKFIN_DMA_CHANNEL);
+DMA_RESULT add_descriptor(void *pNewdescriptor, int  channel_number, int flowtype)
+{
+	DMA_channel *channel = &dma_ch[channel_number];		
+	void *last_descriptor = channel->L_last_descriptor;
 
 	DMA_DBG (" add_descriptor(): BEGIN \n");
 
-	if (channel_number >= MAX_BLACKFIN_DMA_CHANNEL)
+	if (channel_number >= MAX_BLACKFIN_DMA_CHANNEL)  
 		return DMA_NO_SUCH_CHANNEL;
 
-	if (pNewdescriptor == NULL)
+	if (pNewdescriptor == NULL)  
 		return DMA_BAD_DESCRIPTOR;
 
 	if (( dma_ch[channel_number].regs->cfg ) & (DMAEN)) {
-		down(&(dma_ch[channel_number].dmalock));
-		retValue = 
-			add_to_wait_descriptor(pNewdescriptor, 
-						channel_number,flowtype);
-		up(&(dma_ch[channel_number].dmalock));
-		return retValue;
+		down(&dmalock);
+		add_to_wait_descriptor(pNewdescriptor, channel_number, flowtype);	
+		up(&dmalock);
 	}
 
-	if (last_descriptor){ /* Channel has already a list of descriptors  */
+
+	if (flowtype == FLOW_LARGE)
+		(dmasglarge_t *)last_descriptor = channel->L_last_descriptor;
+	else
+		(dmasgsmall_t *)last_descriptor = channel->S_last_descriptor;
+
+
+	if (last_descriptor){ /* Channel has already a list of descriptors  */ 
 
 		if (flowtype == FLOW_LARGE){
 
-			/*set the next descriptor address of the newdescriptor*/
-			((dmasglarge_t *)pNewdescriptor)->next_desc_addr =
-				((dmasglarge_t *)last_descriptor)->next_desc_addr;
+			/* set the next descriptor address of the new descriptor */
+			((dmasglarge_t *)pNewdescriptor)->next_desc_addr = 
+					((dmasglarge_t *)last_descriptor)->next_desc_addr;
 
-			/* update the  next descriptor address of the last
-			descriptor in the existing list */
-			((dmasglarge_t *)last_descriptor)->next_desc_addr =
-				(unsigned long)pNewdescriptor;
+			/* update the  next descriptor address of the last descriptor in the existing list */
+			((dmasglarge_t *)last_descriptor)->next_desc_addr = (unsigned long)pNewdescriptor;
 
-			((dmasglarge_t *)last_descriptor)->cfg |= 0x7900;
-		} else {
+			((dmasglarge_t *)last_descriptor)->cfg |= 0x7900  ; 
+		}
+		else
+		{
+			/* set the lower 4 bytes of the next descriptor address of the new descriptor */
+			((dmasgsmall_t *)pNewdescriptor)->next_desc_addr_lo = 
+					((dmasgsmall_t *)last_descriptor)->next_desc_addr_lo;
 
-			/* If the new descriptor is 64K out of range of
-			   previous descriptor then return error */
-			int descr_base =
-			(unsigned short)((unsigned long)pNewdescriptor & HIGH_WORD);
-			if (channel->descr_base != descr_base){
-				return DMA_BAD_DESCRIPTOR;
-			}
+			/* update the lower 4 bytes of the  next descriptor address of the last descriptor 
+				in the existing list */
+			((dmasgsmall_t *)last_descriptor)->next_desc_addr_lo = 
+					(unsigned short)((unsigned long)pNewdescriptor & LOW_WORD);
 
-			/* set the lower 4 bytes of the next descriptor address
-			 of the new descriptor */
-			((dmasgsmall_t *)pNewdescriptor)->next_desc_addr_lo =
-				((dmasgsmall_t *)last_descriptor)->next_desc_addr_lo;
-
-			/* update the lower 4 bytes of the  next descriptor
-			address of the last descriptor in the existing
-			list */
-			((dmasgsmall_t *)last_descriptor)->next_desc_addr_lo =
-				(unsigned short)((unsigned long)pNewdescriptor & LOW_WORD);
-
-			/* In non-loopback mode, the last descriptor used to
-			have STOP flow mode.  This is to be changed */
-			((dmasgsmall_t *)last_descriptor)->cfg |= 0x6800;
+			/* In non-loopback mode, the last descriptor used to have STOP flow mode. 
+			   This is to be changed */
+			((dmasgsmall_t *)last_descriptor)->cfg |= 0x6800  ; 
 		}
 		
- 	} else { /* Channel does not have any existing list of descriptors */
+ 	} /* end of if (last_descriptor) */
+	else { /* Channel does not have any existing list of descriptors */
 		if (flowtype == DMA_LARGE){
-			((dmasglarge_t *)pNewdescriptor)->next_desc_addr =
-				(unsigned long)pNewdescriptor;
-			(dmasglarge_t *)(channel->first_descriptor) =
-				(dmasglarge_t *)pNewdescriptor;
-		} else{
-			((dmasgsmall_t *)pNewdescriptor)->next_desc_addr_lo =
-				(unsigned short)((unsigned long)pNewdescriptor & LOW_WORD);
+			/*  */
+			((dmasglarge_t *)pNewdescriptor)->next_desc_addr = (unsigned long)pNewdescriptor;
+			channel->L_first_descriptor = (dmasglarge_t *)pNewdescriptor;
+		}
+		else{
+			((dmasgsmall_t *)pNewdescriptor)->next_desc_addr_lo = 
+					(unsigned short)((unsigned long)pNewdescriptor & LOW_WORD);
 			
-			(dmasgsmall_t *)(channel->first_descriptor) =
-				(dmasgsmall_t *)pNewdescriptor;
-
-			channel->descr_base =
-				(unsigned short)((unsigned long)pNewdescriptor & HIGH_WORD);
+			channel->S_first_descriptor = (dmasgsmall_t *)pNewdescriptor; 
 		}
 	 }
 
 	if (flowtype == DMA_LARGE){
-		(dmasglarge_t *)(channel->last_descriptor) =
-					(dmasglarge_t *)pNewdescriptor;
-		((dmasgsmall_t *)pNewdescriptor)->cfg &= 0x0fff;
-	} else {
-		(dmasgsmall_t *)(channel->last_descriptor) =
-					(dmasgsmall_t *)pNewdescriptor;
-		((dmasgsmall_t *)pNewdescriptor)->cfg &= 0x0fff;
+		channel->L_last_descriptor = (dmasglarge_t *)pNewdescriptor;
+		((dmasgsmall_t *)pNewdescriptor)->cfg &= 0x0fff; 
+	}
+	else {
+		channel->S_last_descriptor = (dmasgsmall_t *)pNewdescriptor;
+		((dmasgsmall_t *)pNewdescriptor)->cfg &= 0x0fff; 
 	}
 
 	DMA_DBG (" add_descriptor(): END \n");
 	return DMA_SUCCESS;
 }
 
+
 /*------------------------------------------------------------------------------
 * Name:
 *		add_to_wait_descriptor()
 * Description:
-*		Adds a new descriptor at the end of the existing Waiting
-*		descriptor list	of the given channel.
+*		Adds a new descriptor at the end of the existing Waitingdescriptor list
+*		of the given channel.
 * Parameters:
 *		pNewDescriptor:	Pointer to the new descriptor to be addded.
 *		channel_number:	Channel number.
-*		flowtype:	The flow type of the descriptor
+*		flowtype:	The flow type of the descriptor 
 *				The flow type can be  Array or Small or Large.
-* Return:
+* Return: 
 *		DMA_NO_SUCH_CHANNEL: If the  channel number is invalid
-*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL
+*		DMA_BAD_DESCRIPTOR : If the Descriptor is NULL	
 *		DMA_SUCCESS : For successful execution
-*-----------------------------------------------------------------------------*/
-DMA_RESULT add_to_wait_descriptor(	void *pNewdescriptor,
-					int  channel_number,
-			 		int flowtype)
+*-------------------------------------------------------------------------------*/
+
+DMA_RESULT add_to_wait_descriptor(void *pNewdescriptor, int  channel_number, int flowtype)
 {
-	DMA_channel *channel = &dma_ch[channel_number];
+	DMA_channel *channel = &dma_ch[channel_number];		
 	void* last_descriptor;
 	
-	assert(pNewdescriptor != NULL);
-	assert(channel_number < MAX_BLACKFIN_DMA_CHANNEL);
-
 	DMA_DBG (" add_to_wait_descriptor : BEGIN \n");
 
 	if (flowtype == FLOW_SMALL){
-		(dmasgsmall_t *)last_descriptor =
-			(dmasgsmall_t *)(channel->wait_last_descriptor);
-	} else{
-		(dmasglarge_t *)last_descriptor =
-			(dmasglarge_t *)(channel->wait_last_descriptor);
+		last_descriptor = channel->L_wait_last_descriptor;
+	}
+	else{
+		last_descriptor = channel->S_wait_last_descriptor;
 	}
 
 	if (flowtype == DMA_SMALL){
-		unsigned short base =
-			(unsigned short)(((unsigned long)pNewdescriptor & HIGH_WORD)>>16);
+		unsigned short base = (unsigned short)(((unsigned long)pNewdescriptor & HIGH_WORD ) >> 16 );
 
-		if ((channel->descr_base) && (base  != channel->descr_base)) {
+		if ((channel->descr_base) && (base  != channel->descr_base))
+		{
 			DMA_DBG ("Descriptor Out of Range \n");
 			return DMA_BAD_DESCRIPTOR;
 		}
 	}
 
+
 	if (last_descriptor){
 		if (flowtype == DMA_LARGE){
-			((dmasglarge_t *)pNewdescriptor)->next_desc_addr =
-			((dmasglarge_t *)(channel->wait_last_descriptor))->next_desc_addr;
+			((dmasglarge_t *)pNewdescriptor)->next_desc_addr = 
+					channel->L_wait_last_descriptor->next_desc_addr;
 
-			((dmasglarge_t *)last_descriptor)->next_desc_addr =
-						(unsigned long)pNewdescriptor;
-		} else{ /* SMALL Descriptor Case */
-			((dmasgsmall_t *)pNewdescriptor)->next_desc_addr_lo =
-			((dmasgsmall_t *)(channel->wait_last_descriptor))->next_desc_addr_lo;
-
-			((dmasgsmall_t *)(last_descriptor))->next_desc_addr_lo =
-			(unsigned short)((unsigned long)pNewdescriptor & LOW_WORD);
+			((dmasglarge_t *)last_descriptor)->next_desc_addr = (unsigned long)pNewdescriptor;
 		}
- 	} else {
+		else{ /* SMALL Descriptor Case */
+			((dmasgsmall_t *)pNewdescriptor)->next_desc_addr_lo = 
+					channel->S_wait_last_descriptor->next_desc_addr_lo;
+			((dmasgsmall_t *)(last_descriptor))->next_desc_addr_lo = 
+					(unsigned short)((unsigned long)pNewdescriptor & LOW_WORD);
+		}
+ 	}
+	else {
 		if (flowtype == DMA_LARGE){
-			((dmasglarge_t *)pNewdescriptor)->next_desc_addr =
-				(unsigned long)pNewdescriptor;
-			(dmasglarge_t *)(channel->wait_first_descriptor) =
-				(dmasglarge_t *)pNewdescriptor;
-		} else{
-			((dmasgsmall_t *)pNewdescriptor)->next_desc_addr_lo =
+			((dmasglarge_t *)pNewdescriptor)->next_desc_addr = (unsigned long)pNewdescriptor;
+			channel->L_wait_first_descriptor = (dmasglarge_t *)pNewdescriptor;
+		}
+		else{
+			((dmasgsmall_t *)pNewdescriptor)->next_desc_addr_lo = 
 				(unsigned short)((unsigned long)pNewdescriptor & LOW_WORD);
 
-			(dmasgsmall_t *)(channel->wait_first_descriptor) =
-			(dmasgsmall_t *)pNewdescriptor;
+			channel->S_wait_first_descriptor = (dmasgsmall_t *)pNewdescriptor; 
 		}
 	}
 
 	if (flowtype == DMA_LARGE)
-		(dmasglarge_t *)(channel->wait_last_descriptor) =
-					(dmasglarge_t *)pNewdescriptor;
+		channel->L_wait_last_descriptor = (dmasglarge_t *)pNewdescriptor;
 	else
-		(dmasgsmall_t *)(channel->wait_last_descriptor) =
-					(dmasgsmall_t *)pNewdescriptor;
+		channel->S_wait_last_descriptor = (dmasgsmall_t *)pNewdescriptor;
 
 	DMA_DBG (" add_to_wait_descriptor : END \n");
 	return DMA_SUCCESS;
 }
+
+
+
 
 /***********************************************************
 *
@@ -2205,20 +1866,16 @@ DMA_RESULT add_to_wait_descriptor(	void *pNewdescriptor,
 *		
 * Parameters:
 *		event:		The DMA_EVENT that caused to generate interrupt.
-*		startAddress:	Starting address of the DMA in the descriptor
+*		startAddress:	Starting address of the DMA in the descriptor 
 * Return: 
 *		None
-*-----------------------------------------------------------------------------*/
+*-------------------------------------------------------------------------------*/
 
 /* Current Implementation of callback function is for testing purpose  */
 void testcallback (DMA_EVENT event,  void *startAddress)
 {
-	
 
 	DMA_DBG ("Callback Function is called \n");
-
-	if (startAddress == NULL)
-		return;
 
 	switch (event){
 		case DMA_ERROR_INTERRUPT:
@@ -2237,8 +1894,11 @@ void testcallback (DMA_EVENT event,  void *startAddress)
 		default:
 			DMA_DBG ("DMA Unknown Event  \n");
 			break;
+			 
+
 	}
 	DMA_DBG ("\n Completed the Callback function processing \n");
+	 
 }
 
 /*------------------------------------------------------------------------------
@@ -2246,187 +1906,124 @@ void testcallback (DMA_EVENT event,  void *startAddress)
 *		dma_interrupt()
 * Description:
 *		Interrupt Service  Routine (ISR).
-*		This function checks the Interrupt Type and Calls the
-*		Callback function. After the execution of Callback function, the
-*		next descriptor in the descriptor list will be used to start the
-*		DMA.
+*		This function checks the Interrupt Type and Calls the Callback function
+*		After the execution of Callback function, the next descriptor in the
+*		descriptor list will be used to start the DMA		
 * Parameters:
 *		irq:		irq number of the Interrupt
-*				(refer bf533_irq.h for the mapping between
-*				irq numbers and INTERRUPTS )
-*		dev_id:		Device id
-*		pt_regs:	pt_regs
+*				(refer bf533_irq.h for the mapping between irq numbers and INTERRUPTS )	
+*		dev_id:		Device id of the Device that generated the interrupt 
+*		pt_regs:	Device id of the Device that generated the interrupt 
 * Return: 
 *		None
 *-------------------------------------------------------------------------------*/
+
 void dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
 	int 		i=0;
 	DMA_EVENT	event;
-	DMA_channel 	*channel;
+	DMA_channel 	*channel;		
 	
-	assert(pt_regs != NULL);
-
-	for (i=0; i<MAX_BLACKFIN_DMA_CHANNEL; i++) {
-		channel = &dma_ch[i];
+	for (i=0; i<MAX_BLACKFIN_DMA_CHANNEL; i++)
+	{
+		channel = &dma_ch[i];		
 		/* check the DMA Channels that caused the interrupt */
-		/* Check for the IRQ_STATUS is DMA_DONE or not */
-		if (dma_ch[i].regs->irq_status & DMA_DONE) {
-			if (dma_ch[i].flowmode == DMA_AUTO) {
-				/* This has to be crosschecked once again */
-				/* disable_dma(i); */
+		if (dma_ch[i].regs->irq_status & DMA_DONE) /* Check for the IRQ_STATUS is DMA_DONE or not */
+		{
+			if (dma_ch[i].flowmode == DMA_AUTO)
+			{
+			/*	disable_dma(i); */ /* This has to be crosschecked once again - TODO*/
 				DMA_DBG ("Auto Mode Interrupt is processing \n");
 
-				/* to be verified Again -TODO */
-				if (((dma_ch[i].regs->cfg ) & DI_SEL) &&
-					((dma_ch[i].regs->curr_y_count != 1))) {
+				/* This part of the is as per the reference code from ADI - to be verified Again -TODO */ 
+				if (((dma_ch[i].regs->cfg ) & DMASEL) && 
+					((dma_ch[i].regs->curr_y_count != 1) ))
+				{
 					event = DMA_INNER_LOOP_PROCESSED;
 				}else {
 					event = DMA_OUTER_LOOP_PROCESSED;
 				}
 				if (dma_ch[i].callback)
 					(dma_ch[i].callback)(event, NULL);
+		/*		enable_dma(i); */ /* This has to be crosschecked once again - TODO*/
+			}
+			else {
 
-				/* This has to be crosschecked once again*/
-				/* enable_dma(i); */
-			} else {
-
-			/* Proposed Implementation  with DI_EN on any of the
-			   descriptor in the list in addition to the last
-			   descriptor in the list.
+			/* Proposed Implementation  with DI_EN on any of the descriptor in the list 
+			   in addition to the last descriptor in the list. 
 				- Send the intimation to the Callback function
-				- Get the next descriptor in the list
-				- If the descriptor is the last descriptor in
-				  the list, then
-  					- If the Loop back method was set, then
-					   start DMA once again.
-						( Using the next_desc_ptr and
-						  next descriptor config )
-						(Is it not automatic ???
-						 Check once again )
-					- If there is a waiting descriptor list
-						start the DMA using the waiting
-						descriptor as active descriptor
-						list.
-				- If the descriptor is not last descriptor, then
-					load the values to restart the DMA
-					( Not required always, if the values will
-					  be stored automatically)
+				- Get the next descriptor in the list 
+				- If the descriptor is the last descriptor in the list, then 
+  					- If the Loop back method was set, then start DMA once again. 
+						( Using the next_desc_ptr and next descriptor config )
+						(Is it not automatic ??? Check once again )
+					- If there is a waiting descriptor list 
+						start the DMA using the waiting descriptor as active descriptor list.
+				- If the descriptor is not last descriptor, then 
+						load the values to restart the DMA 
+						( Not required always, if the values will be stored automatically)
 			*/
 
-			/* 1) 	We are not getting the interrupts at the end of
-				each descriptor (in 1-D DMA ) eventhough the
-				DI_EN is set at each descriptor,
-				- 2D DMA (to be checked) or
-			      	- use the interrupt that was generated
-				in this case at the end of the descriptor list
+			/* 1) 	We are not getting the interrupts at the end of each descriptor (in 1-D DMA ) 
+			    	eventhough the DI_EN is set at each descriptor,
+			      	- to solve this, we can go for 2D DMA or 
+			      	- use the interrupt that was generated - in this case at the end of the descriptor list 
 
-			   2) 	Here we are not taking care of Loopback method ,
-				due to a problem while executing the Loop back
-				Mode.
-				This has to be taken care or to be informed to
-				ADI
+			   2) 	Here we are not taking care of Loopback method , due to a problem while executing the 
+			   	Loop back Mode - This has to be taken care or to be informed to ADI 
 			*/
 
-			/* 	With current execution of interrupts -
-				i.e interrupts coming at the end of the
-				descriptor list the following implementation
-				was done. This will be finalized after the
+			/* 	With current execution of interrupts - i.e interrupts coming at the end of the 	
+				descriptor list the following implementation was done. This will be finalized after the 
 				review or confirmation from ADI. - TODO
-			*/
+			*/ 	
 
 
 				DMA_DBG ("Not In the AutoBuffer Mode  \n");
 				disable_dma(i);
 				
-				if (((dma_ch[i].regs->cfg ) & DI_SEL) &&
-					((dma_ch[i].regs->curr_y_count != 1))) {
-					DMA_DBG("Inner Loop Processing \n ");
+				if (((dma_ch[i].regs->cfg ) & DMASEL) && 
+					((dma_ch[i].regs->curr_y_count != 1) ))
+				{
+					DMA_DBG("Descrptor, Inner Loop Processing \n ");
 					event = DMA_INNER_LOOP_PROCESSED;
 				}else {
-					DMA_DBG("Outer Loop Processing \n");
+					DMA_DBG("Descrptor, Outer Loop Processing , curr_y_count is %d \n", (dma_ch[i].regs->curr_y_count));
 					event = DMA_OUTER_LOOP_PROCESSED;
 				}
 
-				if (dma_ch[i].callback)
-				    	(dma_ch[i].callback)(DMA_DESCRIPTOR_PROCESSED, NULL);
 
-				if (dma_ch[i].regs->next_desc_ptr ==
-				    	(unsigned long)(channel->first_descriptor)){
-					/*All the descriptors are processed */
+				if (dma_ch[i].callback)
+					(dma_ch[i].callback)(DMA_DESCRIPTOR_PROCESSED, NULL);
+
+				if (dma_ch[i].regs->next_desc_ptr == (unsigned int)(channel->L_first_descriptor)) { /*All the descriptors are processed */
 
 					/* execute the waiting descriptor list */
-				    	if ((unsigned long)channel->wait_first_descriptor) {
-						DMA_DBG ("Wait descriptor \n ");
-						channel->first_descriptor =
-							channel->wait_first_descriptor;
-						channel->last_descriptor =
-					    		channel->wait_last_descriptor;
-						channel->regs->next_desc_ptr =
-					    		(unsigned long)(channel->first_descriptor);
+					if (channel->L_wait_first_descriptor)
+					{
+						DMA_DBG ("Wait descriptor processing \n ");
+						channel->L_first_descriptor = channel->L_wait_first_descriptor;
+						channel->L_last_descriptor = channel->L_wait_last_descriptor;
+						SSYNC();
+						channel->regs->next_desc_ptr = (unsigned long)(channel->L_first_descriptor);
+						SSYNC();
 
-					/* If we have a single waiting
-					   descriptor then it is like stop mode
-					   - Because with Loop back mode we have
-					     a problem
-					   - Once the loopback problem is
-                                             solved this code can be removed*/
-					/* ************************************/
-						if (channel->last_descriptor ==
-					    		channel->wait_first_descriptor){
-
-							if (dma_ch[i].flowmode == DMA_SMALL) {
-					    			channel->regs->start_addr =
-									((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
-						    			(channel->descr_base << 16)) ;
-
-								channel->regs->x_count =
-						    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
-
-								channel->regs->x_modify =
-						    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
-
-								channel->regs->y_count =
-						    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
-
-								channel->regs->y_modify =
-						    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
-					     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
-
-					     			channel->regs->start_addr =
-						    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
-
-								channel->regs->x_count =
-						    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
-
-								channel->regs->x_modify =
-						    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
-
-								channel->regs->y_count =
-						    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
-
-								channel->regs->y_modify =
-						    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
-							}
+						/* If we have a single waiting descriptor then it is like stop mode 
+						- Because with Loop back mode we have a problem */
+						if (channel->L_last_descriptor == channel->L_wait_first_descriptor)
+						{
+				
+							channel->regs->start_addr = channel->L_first_descriptor->start_addr;
+							channel->regs->x_count = channel->L_first_descriptor->x_count;
+							channel->regs->x_modify = channel->L_first_descriptor->x_modify;
+							channel->regs->y_count = channel->L_first_descriptor->y_modify;
+							channel->regs->y_modify = channel->L_first_descriptor->y_modify;
 						}
-						/************************************/
-
-			   	 		if (dma_ch[i].flowmode == DMA_LARGE)
-				    			channel->regs->cfg =
-					    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
-					    		else if (dma_ch[i].flowmode == DMA_SMALL)
-								channel->regs->cfg =
-						    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
-
-				     			SSYNC();
-						
-						channel->wait_first_descriptor = NULL;
-						channel->wait_last_descriptor = NULL;
+							channel->L_wait_first_descriptor = NULL;
+							channel->L_wait_last_descriptor = NULL;
 					}
 				}
 			} /* End of the Else loop - for Not Auto Buffer */
-		/* We have to Clear the Interrupt Here */
-		/* dma_ch[i].regs->irq_status &= ~DMA_DONE; */
 		} /* End of Irq_status register Check */
 	} /* End of the For Loop */
 }
@@ -2435,10 +2032,11 @@ void dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 * Name:
 *		blkfin_inv_cache_all()
 * Description:
-*		This function will invalidate the Cache
-* Return:
+*		This function will invalidate the Cache 			
+* Return: 
 *		None
 *-------------------------------------------------------------------------------*/
+
 void blkfin_inv_cache_all()
 {
 #ifdef CONFIG_BLKFIN_CACHE
@@ -2456,37 +2054,20 @@ void blkfin_inv_cache_all()
 #endif
 }
 
-/*------------------------------------------------------------------------------
-* Name:
-*		add_descriptor_descr()
-* Description:
-*		This function will add a new descriptor to another descriptor
-*		Currently this function is not used. In future we can enhance
-*		this function to add a descriptor to the list of descriptors. 			
-* Return:
-*		None
-*-----------------------------------------------------------------------------*/
-/* This function is not used */
-DMA_RESULT add_descriptor_descr(void *newdescriptor,
-			void *previousdescriptor,
-			int flowtype)
+void add_descriptor_descr(void *newdescriptor, void *previousdescriptor, int flowtype)
 {
 	dmasglarge_t* newdescr = (dmasglarge_t *)newdescriptor;
 	dmasglarge_t* prevdescr = (dmasglarge_t *)previousdescriptor;
+
 	DMA_DBG (" add_descriptor_descr \n");
-
-	assert(newdescriptor != NULL);
-	assert(previousdescriptor != NULL);
-	if(newdescriptor == NULL);
-		return DMA_BAD_DESCRIPTOR;
-	if(previousdescriptor == NULL);
-		return DMA_BAD_DESCRIPTOR;
-
-
 	if (prevdescr) {
 		newdescr->next_desc_addr = (unsigned long)prevdescr;
 		prevdescr->next_desc_addr =  (unsigned long)newdescr;
-	} else{
+	}
+	else{
 		newdescr->next_desc_addr = (unsigned long)newdescr;
 	}
 }
+
+
+

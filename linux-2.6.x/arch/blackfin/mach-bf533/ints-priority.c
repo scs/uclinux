@@ -1,12 +1,10 @@
 /*
- * linux/arch/$(ARCH)/platform/$(PLATFORM)/ints.c
+ * arch/bfinnommu/mach-bf533/ints-priority.c
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
  *
- * Apr18 2003, Changed by HuTao to support interrupt cascading for Blackfin 
- *             drivers
  * Sep 2003, Changed to support BlackFin BF533.
  *
  * June 2004, Support for Priority based Interrupt handling for Blackfin 
@@ -59,17 +57,16 @@ unsigned char ivg7_cnt=0,ivg8_cnt=0,ivg9_cnt=0,ivg10_cnt=0,ivg11_cnt=0,ivg12_cnt
 /*********************
  * Prototypes
  ********************/
-/* Changed by HuTao, May21, 2003 2:38PM */
 asmlinkage void bfin_irq_panic( int reason, struct pt_regs * reg);
 extern void dump(struct pt_regs * regs);
 
 /* BASE LEVEL interrupt handler routines */
-/*asmlinkage void evt_reset(void);*/
 asmlinkage void evt_nmi(void);
 asmlinkage void evt_exception(void);
 asmlinkage void trap(void);
 asmlinkage void evt_ivhw(void);
 asmlinkage void evt_timer(void);
+asmlinkage void evt_evt2(void);
 asmlinkage void evt_evt7(void);
 asmlinkage void evt_evt8(void);
 asmlinkage void evt_evt9(void);
@@ -88,9 +85,6 @@ int getirq_number(struct ivgx *ivg);
 /* irq node variables for the 32 (potential) on chip sources */
 static irq_node_t int_irq_list[INTERNAL_IRQS];
 
-/*static int int_irq_count[INTERNAL_IRQS]; */
-
-/* Modified by HuTao, May21, 2003 */
 /*********
  * bfin_irq_panic
  * - calls panic with string setup
@@ -106,16 +100,7 @@ asmlinkage void bfin_irq_panic( int reason, struct pt_regs * regs)
 	panic("Unhandled IRQ or exceptions!\n");
 }
 
-/*
-static int int_badint(int irq, void *dev_id, struct pt_regs *fp)
-{
-	num_spurious += 1;
-	return 0;
-}
-*/
-
 /*Program the IAR registers*/
-
 void program_IAR()
 {
 		unsigned long val=0;
@@ -124,49 +109,65 @@ void program_IAR()
 		if (CONFIG_DEF_UART_ERROR != CONFIG_UART_ERROR)	{
 			val = ((CONFIG_UART_ERROR-7) << UART_ERROR_POS);
 			*pSIC_IAR0 &= UART_ERROR_BIT;
+			asm("ssync;");	
 			*pSIC_IAR0 |= val;
+			asm("ssync;");	
 			}
 		
 		if (CONFIG_DEF_SPORT0_ERROR != CONFIG_SPORT0_ERROR)	{	
 			val = ((CONFIG_SPORT0_ERROR-7) << SPORT0_ERROR_POS);
 			*pSIC_IAR0 &= SPORT0_ERROR_BIT;
+			asm("ssync;");	
 			*pSIC_IAR0 |= val;
+			asm("ssync;");	
 			}
 		
 		if (CONFIG_DEF_SPI_ERROR != CONFIG_SPI_ERROR)	{	
 			val = ((CONFIG_SPI_ERROR-7) << SPI_ERROR_POS);
 			*pSIC_IAR0 &= SPI_ERROR_BIT;
+			asm("ssync;");	
 			*pSIC_IAR0 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_SPORT1_ERROR != CONFIG_SPORT1_ERROR)	{	
 			val = ((CONFIG_SPORT1_ERROR-7) << SPORT1_ERROR_POS);
 			*pSIC_IAR0 &= SPORT1_ERROR_BIT;
+			asm("ssync;");	
 			*pSIC_IAR0 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_PPI_ERROR != CONFIG_PPI_ERROR)	{	
 			val = ((CONFIG_PPI_ERROR-7) << PPI_ERROR_POS);
 			*pSIC_IAR0 &= PPI_ERROR_BIT;
+			asm("ssync;");	
 			*pSIC_IAR0 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_DMA_ERROR != CONFIG_DMA_ERROR)	{	
 			val = ((CONFIG_DMA_ERROR-7) << DMA_ERROR_POS);
 			*pSIC_IAR0 &= DMA_ERROR_BIT;
+			asm("ssync;");	
 			*pSIC_IAR0 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_PLLWAKE_ERROR != CONFIG_PLLWAKE_ERROR)	{	
 			val = ((CONFIG_PLLWAKE_ERROR-7) << PLLWAKE_ERROR_POS);
 			*pSIC_IAR0 &= PLLWAKE_ERROR_BIT;
+			asm("ssync;");	
 			*pSIC_IAR0 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_RTC_ERROR != CONFIG_RTC_ERROR)	{	
 			val = ((CONFIG_RTC_ERROR-7) << RTC_ERROR_POS);
 			*pSIC_IAR0 &= RTC_ERROR_BIT;
+			asm("ssync;");	
 			*pSIC_IAR0 |= val;
+			asm("ssync;");	
 			}
 				
 		/* Program the IAR1 Register with the configured priority */
@@ -174,100 +175,131 @@ void program_IAR()
 		if (CONFIG_DEF_DMA0_PPI != CONFIG_DMA0_PPI)	{	
 			val = ((CONFIG_DMA0_PPI-7) << DMA0_PPI_POS);
 			*pSIC_IAR1 &= DMA0_PPI_BIT;
+			asm("ssync;");	
 			*pSIC_IAR1 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_DMA1_SPORT0RX != CONFIG_DMA1_SPORT0RX)	{	
 			val = ((CONFIG_DMA1_SPORT0RX-7) << DMA1_SPORT0RX_POS);
 			*pSIC_IAR1 &= DMA1_SPORT0RX_BIT;
+			asm("ssync;");	
 			*pSIC_IAR1 |= val;
+			asm("ssync;");	
 			}
 		
 		if (CONFIG_DEF_DMA2_SPORT0TX != CONFIG_DMA2_SPORT0TX)	{	
 			val = ((CONFIG_DMA2_SPORT0TX-7) << DMA2_SPORT0TX_POS);
 			*pSIC_IAR1 &= DMA2_SPORT0TX_BIT;
+			asm("ssync;");	
 			*pSIC_IAR1 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_DMA3_SPORT1RX != CONFIG_DMA3_SPORT1RX)	{	
 			val = ((CONFIG_DMA3_SPORT1RX-7) << DMA3_SPORT1RX_POS);
 			*pSIC_IAR1 &= DMA3_SPORT1RX_BIT;
+			asm("ssync;");	
 			*pSIC_IAR1 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_DMA4_SPORT1TX != CONFIG_DMA4_SPORT1TX)	{	
 			val = ((CONFIG_DMA4_SPORT1TX-7) << DMA4_SPORT1TX_POS);
 			*pSIC_IAR1 &= DMA4_SPORT1TX_BIT;
+			asm("ssync;");	
 			*pSIC_IAR1 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_DMA5_SPI != CONFIG_DMA5_SPI)	{	
 			val = ((CONFIG_DMA5_SPI-7) << DMA5_SPI_POS);
 			*pSIC_IAR1 &= DMA5_SPI_BIT;
+			asm("ssync;");	
 			*pSIC_IAR1 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_DMA6_UARTRX != CONFIG_DMA6_UARTRX)	{
 			val = ((CONFIG_DMA6_UARTRX-7) << DMA6_UARTRX_POS);
 			*pSIC_IAR1 &= DMA6_UARTRX_BIT;
+			asm("ssync;");	
 			*pSIC_IAR1 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_DMA7_UARTTX != CONFIG_DMA7_UARTTX)	{	
 			val = ((CONFIG_DMA7_UARTTX-7) << DMA7_UARTTX_POS);
 			*pSIC_IAR1 &= DMA7_UARTTX_BIT;
+			asm("ssync;");	
 			*pSIC_IAR1 |= val;
+			asm("ssync;");	
 			}
-		
 
 		/* Program the IAR2 Register with the configured priority */
 
 		if (CONFIG_DEF_TIMER0 != CONFIG_TIMER0)	{	
 			val = ((CONFIG_TIMER0-7) << TIMER0_POS);
 			*pSIC_IAR2 &= TIMER0_BIT;
+			asm("ssync;");	
 			*pSIC_IAR2 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_TIMER1 != CONFIG_TIMER1)	{	
 			val = ((CONFIG_TIMER1-7) << TIMER1_POS);
 			*pSIC_IAR2 &= TIMER1_BIT;
+			asm("ssync;");	
 			*pSIC_IAR2 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_TIMER2 != CONFIG_TIMER2)	{	
 			val = ((CONFIG_TIMER2-7) << TIMER2_POS);
 			*pSIC_IAR2 &= TIMER2_BIT;
+			asm("ssync;");	
 			*pSIC_IAR2 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_PFA != CONFIG_PFA)	{	
 			val = ((CONFIG_PFA-7) << PFA_POS);
 			*pSIC_IAR2 &= PFA_BIT;
+			asm("ssync;");	
 			*pSIC_IAR2 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_PFB != CONFIG_PFB)	{	
 			val = ((CONFIG_PFB-7) << PFB_POS);
 			*pSIC_IAR2 &= PFB_BIT;
+			asm("ssync;");	
 			*pSIC_IAR2 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_MEMDMA0 != CONFIG_MEMDMA0)	{	
 			val = ((CONFIG_MEMDMA0-7) << MEMDMA0_POS);
 			*pSIC_IAR2 &= MEMDMA0_BIT;
+			asm("ssync;");	
 			*pSIC_IAR2 |= val;
+			asm("ssync;");	
 			}
 
 		if (CONFIG_DEF_MEMDMA1 != CONFIG_MEMDMA1)	{	
 			val = ((CONFIG_MEMDMA1-7) << MEMDMA1_POS);
 			*pSIC_IAR2 &= MEMDMA1_BIT;
+			asm("ssync;");	
 			*pSIC_IAR2 |= val;
+			asm("ssync;");	
 			}
 		
 		if (CONFIG_DEF_WDTIMER != CONFIG_WDTIMER)	{	
 			val = ((CONFIG_WDTIMER-7) << WDTIMER_POS);
 			*pSIC_IAR2 &= WDTIMER_BIT;
+			asm("ssync;");	
 			*pSIC_IAR2 |= val;
+			asm("ssync;");	
 			}
 
 }	/*End of program_IAR*/
@@ -282,14 +314,17 @@ void search_IAR(unsigned int sic_iarx)
 
 	if (sic_iarx==0)	{
 		val= *pSIC_IAR0 & 0xf;
+		asm("ssync;");	
 		irqval = 7;
 	}	
 	else if (sic_iarx==1)	{
 		val= *pSIC_IAR1 & 0xf;
+		asm("ssync;");	
 		irqval = 15;
 	}
 	else if (sic_iarx==2)	{
 		val= *pSIC_IAR2 & 0xf;
+		asm("ssync;");	
 		irqval = 23;
 	}
 
@@ -351,7 +386,7 @@ void search_IAR(unsigned int sic_iarx)
 			
 /*
  * This function should be called during kernel startup to initialize
- * the Frio IRQ handling routines.
+ * the BFin IRQ handling routines.
  */
 
 int  bfin_init_IRQ(void)
@@ -360,27 +395,42 @@ int  bfin_init_IRQ(void)
 	int i;	
 	unsigned long ilat = 0;
 	/*  Disable all the peripheral intrs  - page 4-29 HW Ref manual */
-	*pSIC_IMASK = SIC_UNMASK_ALL;	   		
+	*pSIC_IMASK = SIC_UNMASK_ALL;
+	asm("ssync;");	
    
 	local_irq_disable();
 	
 #ifndef CONFIG_KGDB	
-	*pEVT0 =
+	*pEVT0 = evt_nmi;
+	asm("csync;");	
 #endif
-	*pEVT2  = evt_nmi;
+	*pEVT2  = evt_evt2;
+	asm("csync;");	
 	*pEVT3	= trap;
+	asm("csync;");	
 	*pEVT5 	= evt_ivhw;
+	asm("csync;");	
 	*pEVT6 	= evt_timer;	 
+	asm("csync;");	
 	*pEVT7 	= evt_evt7;
+	asm("csync;");	
 	*pEVT8	= evt_evt8;	
+	asm("csync;");	
 	*pEVT9	= evt_evt9;	
+	asm("csync;");	
 	*pEVT10	= evt_evt10;	
+	asm("csync;");	
 	*pEVT11	= evt_evt11;	
+	asm("csync;");	
 	*pEVT12	= evt_evt12;	
+	asm("csync;");	
 	*pEVT13	= evt_evt13;	
+	asm("csync;");	
 
 	*pEVT14 = evt_system_call;	
+	asm("csync;");	
 	*pEVT15 = evt_soft_int1;	
+	asm("csync;");	
 
   	for (i = 0; i < INTERNAL_IRQS; i++) {
 		int_irq_list[i].handler = NULL;
@@ -389,14 +439,15 @@ int  bfin_init_IRQ(void)
 		int_irq_list[i].devname = NULL;
 	}
    	*pIMASK = 0;
-	asm("CSYNC;");
+	asm("csync;");
 	ilat  = *pILAT;
+	asm("csync;");
 	*pILAT = ilat;
-	asm("CSYNC;");
+	asm("csync;");
    	/* Enable interrupts IVG7-15 */
 	*pIMASK = irq_flags = irq_flags | IMASK_IVG15 | IMASK_IVG14 |IMASK_IVG13 |IMASK_IVG12 |IMASK_IVG11 |
 	IMASK_IVG10 |IMASK_IVG9 |IMASK_IVG8 |IMASK_IVG7 |IMASK_IVGHW;	
-	asm("CSYNC;");
+	asm("csync;");
 
 	printk(KERN_INFO "Configuring Blackfin Priority Driven Interrupts\n");
 	program_IAR();
@@ -493,9 +544,9 @@ void bfin_enable_irq(unsigned int irq)
 		irq_val = (1<<(irq - (IRQ_CORETMR+1)));		
 
    	*pSIC_IMASK |= irq_val;
+	asm("ssync;");
 
 	local_irq_enable();
-	
 }
 
 void bfin_disable_irq(unsigned int irq)
@@ -522,7 +573,6 @@ void bfin_disable_irq(unsigned int irq)
 	 * since all of the IVG for peripherals was 
  	 * enabled in bfin_init_IRQ()
 	 *
- 	 * HuTao, Apr18 2003
 	 */
 
 	if (irq == IRQ_SPORT0)
@@ -532,11 +582,12 @@ void bfin_disable_irq(unsigned int irq)
 	else if (irq == IRQ_UART)
 		irq_val = 0xC000;
 	else
-		irq_val = (1<<(irq - IRQ_CORETMR));
+		irq_val = (1<<(irq - (IRQ_CORETMR + 1)));
 
 	local_irq_disable();
 
    	*pSIC_IMASK &= ~(irq_val); 
+	asm("ssync;");
 	
 	local_irq_enable();
 
@@ -546,11 +597,8 @@ void  call_isr(int irq, struct pt_regs * fp)
 {
 	if(int_irq_list[irq].handler)
 	    int_irq_list[irq].handler(irq,int_irq_list[irq].dev_id, fp);
-	/*else 
-	 printk("unregistered interrupt %d\n", irq);  */
 }
 
-/* A simple do_irq :) */
 void bfin_do_irq(int vec, struct pt_regs *fp)
 {
 
@@ -594,49 +642,28 @@ void bfin_do_irq(int vec, struct pt_regs *fp)
 
 int getirq_number(struct ivgx *ivg)
 {
-
 	int i=0;
 	unsigned long sic_isr, sic_imask, posval;
 	
 	sic_imask = *pSIC_IMASK;
-	asm("ssync");
+	asm("ssync;");
 	
 	sic_isr = *pSIC_ISR;
+	asm("ssync;");
 
 	for (;i<7;i++)	{
-		
 		posval = (1 << ivg[i].isrpos);
-
 		if((sic_isr & posval) != 0)	{
 			if((sic_imask & posval) != 0)	{
 				return ivg[i].irqno;
 			}
 		}
 	}
-
-	/*printk("Cant get the irq number \n");*/
-	return -1;		/*What to do ?*/
+	return -1;
 }
 
 int bfin_get_irq_list(struct seq_file* p, void* v)
 {
-/*Obsolete function - BFin */
-/*
-	int i, len = 0;
-	irq_node_t *node;
-
-	len += sprintf(buf+len, "Internal Blackfin interrupts\n");
-
-	for (i = 0; i < INTERNAL_IRQS; i++) {
-		if (!(node = int_irq_list[i]))
-			continue;
-		if (!(node->handler))
-			continue;
-
-		len += sprintf(buf+len, " %2d: %10u    %s\n", i,
-		               int_irq_count[i], int_irq_list[i].devname);
-	}
-	return len;*/
 	return 0;
 }
 
@@ -668,12 +695,10 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 	if (i == NR_IRQS)
 		seq_printf(p, "   : %10u   spurious\n", num_spurious);
-	
 	return 0;
-	
 }
+
 void init_irq_proc(void)
 {
 	/* Insert /proc/irq driver here */
 }
-

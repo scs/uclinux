@@ -14,21 +14,24 @@
  *
  *  DEC/2000 -- linux 2.4 support <davidm@lineo.com>
  *
-#include <asm/shglcore.h>
  */
 
 #include <linux/config.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/swap.h>
 #include <linux/kernel.h>
+#include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#ifdef CONFIG_BLK_DEV_RAM
-#include <linux/blkdev.h>	
-#endif
+#include <linux/ptrace.h>
+#include <linux/mman.h>
+#include <linux/mm.h>
+#include <linux/swap.h>
+#include <linux/init.h>
+#include <linux/highmem.h>
+#include <linux/pagemap.h>
 #include <linux/bootmem.h>
+#include <linux/slab.h>
 
 #include <asm/setup.h>
 #include <asm/segment.h>
@@ -40,12 +43,8 @@
 
 #undef DEBUG
 
-static unsigned long totalram_pages = 0;
-
 extern void die_if_kernel(char *,struct pt_regs *,long);
-
 extern void free_initmem(void);
-
 extern void l1mem_init(void);	
 
 /*
@@ -137,7 +136,7 @@ void paging_init(void)
 	set_fs (USER_DS);
 
 #ifdef DEBUG
-	printk ("free_area_init -> start_mem is %#lx  virtual_end is %#lx\n",
+	printk (KERN_DEBUG "free_area_init -> start_mem is %#lx  virtual_end is %#lx\n",
 		start_mem, end_mem);
 #endif
 
@@ -155,16 +154,13 @@ void paging_init(void)
 
 void mem_init(void)
 {
-
 	int codek = 0, datak = 0, initk = 0;
-	/* DAVIDM look at setup memory map generically with reserved area */
-	int datapages = 0;
 	unsigned long tmp;
 	extern char _etext, _stext, _sdata, _ebss, __init_begin, __init_end;
-	extern int _ramend, _rambase; 
+	extern unsigned int _ramend, _rambase; 
 	unsigned long len = _ramend - _rambase; 
-	unsigned long start_mem = memory_start; /* DAVIDM - these must start at end of kernel */
-	unsigned long end_mem   = memory_end; /* DAVIDM - this must not include kernel stack at top */
+	unsigned long start_mem = memory_start;
+	unsigned long end_mem   = memory_end;
 
 	end_mem &= PAGE_MASK;
 	high_memory = (void *) end_mem;
@@ -176,13 +172,6 @@ void mem_init(void)
 	/* this will put all memory onto the freelists */
 	totalram_pages = free_all_bootmem();
 
-	for (tmp = PAGE_OFFSET ; tmp < end_mem ; tmp += PAGE_SIZE) {
-		if (PageReserved(mem_map+MAP_NR(tmp))) {
-			datapages++;
-			continue;
-		}
-	}
-	
 	codek = (&_etext - &_stext) >> 10;
 	datak = (&_ebss - &_sdata) >> 10;
 	initk = (&__init_begin - &__init_end) >> 10;
@@ -237,8 +226,5 @@ free_initmem()
 			(addr - PAGE_ALIGN((long) &__init_begin)) >> 10,
 			(int)(PAGE_ALIGN((unsigned long)(&__init_begin))),
 			(int)(addr - PAGE_SIZE));
-
-	
 #endif
 }
-

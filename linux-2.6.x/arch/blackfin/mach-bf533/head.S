@@ -4,7 +4,6 @@
  *
  * Copyright (C) 1998  D. Jeff Dionne <jeff@uclinux.org>
  * Copyright (C) 2004 LG Soft India 
- * Based on: arch/bfinnommu/platform/535/ADI/crt0_ram.S
  *
  */
 
@@ -47,6 +46,7 @@ _stext:
 	p0.l = (PLL_DIV & 0xFFFF);
 	r0 = 0x5 ;
 	w[p0] = r0;
+	ssync;
 
 /**********************/
 
@@ -143,12 +143,14 @@ del_end:
 	p1.l = _real_start;
 	p1.h = _real_start;
 	[p0] = p1;
+	csync;
 
 	p0.l = (IMASK & 0xFFFF);
 	p0.h = (IMASK >> 16);
 	p1.l = IMASK_IVG15;
 	p1.h = 0x0;
 	[p0] = p1;
+	csync;
 
 	raise 15;
 	p0.l = WAIT_HERE;
@@ -159,14 +161,14 @@ del_end:
 WAIT_HERE:
 	jump WAIT_HERE;
 
-
 .global _real_start; 
 _real_start:
 	[ -- sp ] = reti;
 	p0.l = (WDOG_CTL & 0xFFFF);
 	p0.h = (WDOG_CTL >> 16);
-	r0 = 0xD6(z);
+	r0 = 0xAD6(z);
 	w[p0] = r0;	/* watchdog off for now */
+	ssync;
 
 	/* Code update for BSS size == 0
 	 * Zero out the bss region.
@@ -176,14 +178,11 @@ _real_start:
 	p1.h = _sbss;
 	p2.l = _ebss;
 	p2.h = _ebss;
-	lsetup (_clear_bss, _clear_bss_end ) lc1 = p2 - p1;
-	CC = p2<=p1;
-	if CC jump _clear_bss_skip;
 	r0 = 0;
+	lsetup (_clear_bss, _clear_bss_end ) lc0 = p2 - p1;
 _clear_bss:
-_clear_bss_end:
 	[p1++] = r0;
-_clear_bss_skip:	/* to skip bss clear */
+_clear_bss_end:
 
 	p1.l = _rambase;
 	p1.h = _rambase;
@@ -203,14 +202,10 @@ _clear_bss_skip:	/* to skip bss clear */
 	[p1] = r0;
 
 	/*
-	 *  load the current task pointer and stack
+	 *  load the current thread pointer and stack
 	 */
 	r1.l = init_thread_union;	
 	r1.h = init_thread_union;
-
-	p1.l = _current_task;
-	p1.h = _current_task;
-	[p1] = r1;
 
 /* Use kernel stack instead of an l1 stack. l1 stack might overflow.
  * For this time being this should be sufficient.
@@ -221,9 +216,7 @@ _clear_bss_skip:	/* to skip bss clear */
 	sp = r1; 
 	call	start_kernel;
 _exit:
-
 	jump.s	_exit;
-
 	
 .data
 
@@ -239,5 +232,3 @@ _ramstart:
 .long   0
 _ramend:
 .long   0
-env:
-.long	0;

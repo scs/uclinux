@@ -92,6 +92,10 @@ int main(void)
 	DEFINE(PT_B1, offsetof(struct pt_regs, b1));
 	DEFINE(PT_B2, offsetof(struct pt_regs, b2));
 	DEFINE(PT_B3, offsetof(struct pt_regs, b3));
+	DEFINE(PT_L0, offsetof(struct pt_regs, l0));
+	DEFINE(PT_L1, offsetof(struct pt_regs, l1));
+	DEFINE(PT_L2, offsetof(struct pt_regs, l2));
+	DEFINE(PT_L3, offsetof(struct pt_regs, l3));
 	DEFINE(PT_M0, offsetof(struct pt_regs, m0));
 	DEFINE(PT_M1, offsetof(struct pt_regs, m1));
 	DEFINE(PT_M2, offsetof(struct pt_regs, m2));

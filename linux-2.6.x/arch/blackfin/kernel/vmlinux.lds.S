@@ -10,7 +10,7 @@
 
 #ifdef CONFIG_BLKFIN_STAMP
 #define RAM_START		0x1000
-#define RAM_LENGTH		0x1000000
+#define RAM_LENGTH		0x8000000
 #endif
 
 #ifdef CONFIG_EZKIT
@@ -164,14 +164,10 @@ SECTIONS
 		 _end = . ;
     	} > ram
 
-#ifdef CONFIG_BLKFIN_STAMP
    . = RAM_LENGTH ;
-#endif
-#ifdef CONFIG_EZKIT
-   . = RAM_LENGTH ;
-#endif
 	.eram : {
 		__ramend = .  ;
+		_ramend = .  ;
      	} > ram 	
 	
 	. = L1_SCRATCH_START;		/*Usage of L1 scratchpad for PAGE TABLE*/	

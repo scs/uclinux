@@ -555,12 +555,14 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (ka->sa.sa_flags & SA_ONESHOT)
 		ka->sa.sa_handler = SIG_DFL;
 
-	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
+	//sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NODEFER)){
+		spin_lock_irq(&current->sighand->siglock);
 		sigaddset(&current->blocked,sig);
-	spin_lock_irq(&current->sighand->siglock);
-	recalc_sigpending(); 
-	spin_unlock_irq(&current->sighand->siglock);
+		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+		recalc_sigpending(); 
+		spin_unlock_irq(&current->sighand->siglock);
+	}
 }
 
 /*
