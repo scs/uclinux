@@ -53,7 +53,7 @@ static inline unsigned int csum_fold(unsigned int sum)
 {
 	while (sum >> 16)
 		sum = (sum & 0xffff) + (sum >> 16);
-	return ~sum;
+	return ((~(sum<<16))>>16);
 }
 
 
