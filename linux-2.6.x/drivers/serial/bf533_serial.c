@@ -56,11 +56,6 @@
 #define	CONFIG_SERIAL_CONSOLE_PORT 0 /* default UART1 as serial console */
 #endif
 
-#if 0
-struct tty_struct bf533_ttys;
-struct bf533_serial *bf533_consinfo = 0;
-#endif
-
 /*
  *	Setup for console. Argument comes from the menuconfig 
  */
@@ -85,7 +80,6 @@ struct bf533_serial *bf533_consinfo = 0;
 static int bf533_console_initted = 0;
 static int bf533_console_baud    = CONSOLE_BAUD_RATE;
 static int bf533_console_cbaud   = DEFAULT_CBAUD;
-/* static int bf533_console_port = -1;		*/
 
 #ifdef CONFIG_CONSOLE
 extern wait_queue_head_t keypress_wait;
@@ -131,26 +125,6 @@ static int rs_write(struct tty_struct * tty, int from_user,
 static int baud_table[] = {
 	0, 114, 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 0 };
 
-#if 0
-#if defined(CONFIG_EZKIT) //Please fixme som day ... but not now...
-struct { unsigned short dl_high, dl_low;
-        } hw_baud_table[] = {
-        {0xff, 0xff}, /* approximately 0 */
-        {0xff, 0xff}, /* 114 */
-        {0x61, 0xa8}, /* 300 */
-        {0x18, 0x6a}, /* 1200 */
-        {0xc, 0x35},  /* 2400 */
-        {0x0, 0x1a},  /* 4800 */
-        {0x0, 0x56},  /* 9600 */
-        {0x0, 0x56},  /* 19200 */
-        {0x0, 0x56},  /* 38400 */
-        {0x0, 0x80},  /* 57600 */		
-        {0x0, 0x56},  /* 115200 */
-                      /* rate = SCLK / (16 * DL) - SCLK = 120MHz
-                         DL = (dl_high:dl_low) */
-};
-#endif
-#endif
 #if defined(CONFIG_BLKFIN_STAMP) 
 struct { unsigned short dl_high, dl_low;
         } hw_baud_table[] = {
@@ -268,10 +242,6 @@ DECLARE_MUTEX(tmp_buf_sem);
 /* Forward declarations.... */
 static void bf533_change_speed(struct bf533_serial *info);
 static void bf533_set_baud( void );
-
-/****************************************************************************/
-/*static inline int serial_paranoia_check(struct bf533_serial *info,
-					dev_t device, const char *routine)*/
 
 static inline int serial_paranoia_check(struct bf533_serial *info,char *name, const char *routine)
 {
@@ -423,20 +393,6 @@ static _INLINE_ void status_handle(struct bf533_serial *info, unsigned short sta
 	return;
 }
 
-/*
- * This routine is used by the interrupt handler to schedule
- * processing in the software interrupt portion of the driver.
- */
-
-/* 
-static _INLINE_ void rs_sched_event(struct bf533_serial *info,
-				    int event)
-{
-	info->event |= 1 << event;
-	queue_task(&info->tqueue, &tq_serial);
-	mark_bh(SERIAL_BH);
-}
-*/
 static void receive_chars(struct bf533_serial *info, struct pt_regs *regs, unsigned short rx)
 {
 	struct tty_struct *tty = info->tty;
@@ -594,7 +550,6 @@ int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	}	
 	return 0;
 }
-
 
 static void do_softint(void *private_)
 {
@@ -925,7 +880,6 @@ static int rs_chars_in_buffer(struct tty_struct *tty)
 				
 	if (serial_paranoia_check(info, tty->name, "rs_chars_in_buffer"))
 		return 0;
-	/*return info->xmit_cnt;*/
 	return 0;
 }
 
@@ -1474,8 +1428,8 @@ static struct tty_operations rs_ops = {
 	.set_ldisc = rs_set_ldisc,
 };
 
-/* rs_bf533_init inits the driver *
-static */ int __init rs_bf533_init(void)
+/* rs_bf533_init inits the driver */
+static int __init rs_bf533_init(void)
 {
 	int flags = 0;
 	struct bf533_serial *info;
@@ -1487,9 +1441,11 @@ static */ int __init rs_bf533_init(void)
 	show_serial_version();
 
 	/* Initialize the tty_driver structure */
-	/* NOTE: Not all of this is exactly right for us. */
+	bf533_serial_driver->owner = THIS_MODULE;
 	bf533_serial_driver->magic = TTY_DRIVER_MAGIC;
 	bf533_serial_driver->name = "ttyS";
+	bf533_serial_driver->devfs_name = "ttys/";
+	bf533_serial_driver->driver_name = "serial";
 	bf533_serial_driver->major = TTY_MAJOR;
 	bf533_serial_driver->minor_start = 64; 
 	bf533_serial_driver->num = NR_PORTS;
@@ -1501,8 +1457,11 @@ static */ int __init rs_bf533_init(void)
 	bf533_serial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(bf533_serial_driver, &rs_ops);
 
-	if (tty_register_driver(bf533_serial_driver))
-		panic("Couldn't register serial driver\n");
+	if (tty_register_driver(bf533_serial_driver)) {
+		printk("Blackfin: Couldn't register serial driver\n");
+		put_tty_driver(bf533_serial_driver);
+		return(-EBUSY);
+	}
 	local_irq_save(flags);
 
         /*
@@ -1520,10 +1479,9 @@ static */ int __init rs_bf533_init(void)
 	info->blocked_open = 0;
 	INIT_WORK(&info->tqueue, do_softint, info);
 	INIT_WORK(&info->tqueue_hangup, do_serial_hangup, info);
-
-
 	init_waitqueue_head(&info->open_wait);
 	init_waitqueue_head(&info->close_wait);
+
 	info->line = 0;
 	info->is_cons = 1; /* Means shortcuts work */
 	info->irq = IRQ_UART;
