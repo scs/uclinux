@@ -308,7 +308,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			tmp= 0;
                         if((addr&3)  || (addr > (sizeof(struct pt_regs) + 8)))
                          {
-                                  printk("ptrace error : PEEKUSR : temporarily returning 0 - %x sizeof(pt_regs) is %x\n", (int)addr, sizeof(struct pt_regs));
+                                  printk("ptrace error : PEEKUSR : temporarily returning 0 - %x sizeof(pt_regs) is %lx\n", (int)addr, sizeof(struct pt_regs));
 				goto out_tsk;
                          }
                          if(addr == sizeof(struct pt_regs))
