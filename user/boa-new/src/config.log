@@ -1,0 +1,131 @@
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+configure:537: checking for gunzip
+configure:577: checking for flex
+configure:611: checking for yywrap in -lfl
+configure:630: cc -o conftest    conftest.c -lfl   1>&5
+configure:657: checking for bison
+configure:690: checking for gcc
+configure:803: checking whether the C compiler (gcc  ) works
+configure:819: gcc -o conftest    conftest.c  1>&5
+configure:845: checking whether the C compiler (gcc  ) is a cross-compiler
+configure:850: checking whether we are using GNU C
+configure:859: gcc -E conftest.c
+configure:878: checking whether gcc accepts -g
+configure:910: checking how to run the C preprocessor
+configure:931: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:990: checking whether make sets ${MAKE}
+configure:1025: checking for dirent.h that defines DIR
+configure:1038: gcc -c -g -O2  conftest.c 1>&5
+configure:1063: checking for opendir in -ldir
+configure:1082: gcc -o conftest -g -O2   conftest.c -ldir   1>&5
+/usr/bin/ld: cannot find -ldir
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 1071 "configure"
+#include "confdefs.h"
+/* Override any gcc2 internal prototype to avoid an error.  */
+/* We use char because int might match the return type of a gcc2
+    builtin and then its argument prototype would still apply.  */
+char opendir();
+
+int main() {
+opendir()
+; return 0; }
+configure:1146: checking for ANSI C header files
+configure:1159: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1226: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1250: checking for sys/wait.h that is POSIX.1 compatible
+configure:1271: gcc -c -g -O2  conftest.c 1>&5
+configure:1295: checking for fcntl.h
+configure:1305: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1295: checking for sys/fcntl.h
+configure:1305: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1295: checking for limits.h
+configure:1305: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1295: checking for sys/time.h
+configure:1305: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1295: checking for sys/select.h
+configure:1305: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1335: checking for getopt.h
+configure:1345: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1373: checking for working const
+configure:1427: gcc -c -g -O2  conftest.c 1>&5
+configure:1448: checking for uid_t in sys/types.h
+configure:1482: checking for pid_t
+configure:1515: checking whether time.h and sys/time.h may both be included
+configure:1529: gcc -c -g -O2  conftest.c 1>&5
+configure:1551: checking whether setvbuf arguments are reversed
+configure:1573: gcc -o conftest -g -O2   conftest.c  1>&5
+configure: In function `main':
+configure:1566: warning: passing arg 2 of `setvbuf' makes pointer from integer without a cast
+configure:1566: warning: passing arg 3 of `setvbuf' makes integer from pointer without a cast
+configure: failed program was:
+#line 1559 "configure"
+#include "confdefs.h"
+#include <stdio.h>
+/* If setvbuf has the reversed format, exit 0. */
+main () {
+  /* This call has the arguments reversed.
+     A reversed system may check and see that the address of main
+     is not _IOLBF, _IONBF, or _IOFBF, and return nonzero.  */
+  if (setvbuf(stdout, _IOLBF, (char *) main, BUFSIZ) != 0)
+    exit(1);
+  putc('\r', stdout);
+  exit(0);			/* Non-reversed systems segv here.  */
+}
+configure:1600: checking for unistd.h
+configure:1610: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1639: checking for getpagesize
+configure:1667: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1692: checking for working mmap
+configure:1840: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1865: checking for getcwd
+configure:1893: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1865: checking for strdup
+configure:1893: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1865: checking for strstr
+configure:1893: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1877: warning: conflicting types for built-in function `strstr'
+configure:1920: checking for gethostname
+configure:1948: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1920: checking for gethostbyname
+configure:1948: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1920: checking for select
+configure:1948: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1920: checking for socket
+configure:1948: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1920: checking for inet_aton
+configure:1948: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1975: checking for scandir
+configure:2003: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1975: checking for alphasort
+configure:2003: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:2035: checking for tm.tm_gmtoff
+configure:2071: gcc -c -g -O2  conftest.c 1>&5
+configure:2110: checking for tm.tm_zone
+configure:2147: gcc -c -g -O2  conftest.c 1>&5
+configure:2186: checking for sockaddr_in.sin_len
+configure:2214: gcc -c -g -O2  conftest.c 1>&5
+configure: In function `main':
+configure:2209: structure has no member named `sin_len'
+configure: failed program was:
+#line 2199 "configure"
+#include "confdefs.h"
+
+
+#include <sys/types.h>
+#include <netinet/in.h>
+
+
+int main() {
+
+struct sockaddr_in testit;
+testit.sin_len = 0;
+
+; return 0; }
+configure:2441: checking compile and link profiling code
+configure:2463: checking whether to compile and link debugging code
+configure:2486: checking whether to link with the Dmalloc memory debugger/profiler
+configure:2552: checking whether to link with the Electric Fence memory debugger
