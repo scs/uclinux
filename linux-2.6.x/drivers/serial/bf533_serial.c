@@ -28,8 +28,6 @@
 
 #include "bf533_serial.h"
 
-#define SERIAL_PARANOIA_CHECK
-
 #undef SERIAL_DEBUG_OPEN
 #undef SERIAL_DEBUG_CALLTRACE
 #undef SERIAL_DEBUG_TERMIOS
@@ -166,7 +164,6 @@ void calc_baud(void)
 
 static inline int serial_paranoia_check(struct bf533_serial *info,char *name, const char *routine)
 {
-#ifdef SERIAL_PARANOIA_CHECK
 	static const char *badmagic =
 		"Warning: bad magic number for serial struct (%d,%d) in %s\n";
 	static const char *badinfo =
@@ -180,7 +177,6 @@ static inline int serial_paranoia_check(struct bf533_serial *info,char *name, co
 		printk(badmagic, name,routine);
 		return 1;
 	}
-#endif
 	return 0;
 }
 
@@ -205,28 +201,6 @@ static inline void bf533_rtsdtr(struct bf533_serial *info, int set)
 	}
 	local_irq_restore(flags);
 	return;
-}
-
-/* Utility routines */
-static inline int get_baud(struct bf533_serial *info)
-{
-        unsigned long result = 115200;
-        unsigned short int baud_lo, baud_hi;
-        int i;
- 
-        ACCESS_LATCH /* change access to divisor latch */
-	asm("csync;");
-        baud_lo = *pUART_DLL;
-	asm("csync;");
-        baud_hi = *pUART_DLH;
- 
-        for (i=0; i<BAUD_TABLE_SIZE ; i++){
-                if ( baud_lo == hw_baud_table[i].dl_low && baud_hi == hw_baud_table[i].dl_high)
-                {    result = baud_table[i];
-                     break;
-                }
-        }
-        return result; 
 }
 
 /*
@@ -259,7 +233,8 @@ static void local_put_char(char ch)
 
 	local_irq_save(flags);
 	
-	do{
+	do{	
+		asm("csync;");
 		status = *pUART_LSR; 
  		SYNC_ALL;
 	}while (!(status & THRE)); 
@@ -405,7 +380,6 @@ void receive_chars(struct bf533_serial *info, struct pt_regs *regs)
 			tty_flip_buffer_push(tty);
 			return;
 		}
-		asm("csync;");
 		if(status & PE) {
 			flag = TTY_PARITY;
 			status_handle(info, status);
@@ -676,7 +650,7 @@ static int startup(struct bf533_serial * info)
         dma_start_recv(info);
                          
         info->recv_timer.data = (unsigned long)info;
-        info->recv_timer.function = dma_recv_timer;
+        info->recv_timer.function = (void *)dma_recv_timer;
         info->recv_timer.expires = jiffies + 3;
         add_timer(&info->recv_timer);
 
