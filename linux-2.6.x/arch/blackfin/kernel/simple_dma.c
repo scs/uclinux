@@ -189,8 +189,7 @@ int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 	  int     ret_val;
 	  ret_irq =bf533_channel2irq(channel);
 	  
-	  set_irq_flags(ret_irq,IRQF_NOAUTOEN);  /* avoid irq enable unbalance */
-          ret_val = request_irq(ret_irq,(void *)callback,SA_INTERRUPT,dma_ch[channel].device_id,data);
+	  ret_val = request_irq(ret_irq,(void *)callback,SA_INTERRUPT,dma_ch[channel].device_id,data);
           if( ret_val ) {
                printk("Request irq in DMA engine failed.\n");
                return -EPERM;
