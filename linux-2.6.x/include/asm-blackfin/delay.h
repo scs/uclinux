@@ -2,7 +2,6 @@
 #define _BFINNOMMU_DELAY_H
 
 /*
- * Changes made by akbar.hussain@Lineo.com, for BFIN
  * Copyright (C) 1994 Hamish Macdonald
  *
  * Delay routines, using a pre-computed "loops_per_second" value.
@@ -10,12 +9,14 @@
 
 extern __inline__ void __delay(unsigned long loops)
 {
-	__asm__ __volatile__ (	"1:\t%0 += -1;\n\t"
-				"cc = %0 == 0;\n\t"
+	__asm__ __volatile__ (	"1:\t cc = %0 == 0;\n\t"
+				"%0 += -1;\n\t"
 				"if ! cc jump 1b;\n"
 				: "=d" (loops) 
 				: "0" (loops));
 }
+
+#include <linux/param.h> /* need for HZ */
 
 /*
  * Use only for very small delays ( < 1 msec).  Should probably use a
@@ -26,7 +27,8 @@ extern __inline__ void __delay(unsigned long loops)
  */
 extern __inline__ void udelay(unsigned long usecs)
 {
-	__delay(usecs);
+	  extern unsigned long loops_per_jiffy;
+       __delay(usecs * loops_per_jiffy / (1000000/HZ));
 }
 
 
