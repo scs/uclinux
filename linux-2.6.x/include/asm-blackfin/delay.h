@@ -1,13 +1,7 @@
 #ifndef _BFINNOMMU_DELAY_H
 #define _BFINNOMMU_DELAY_H
 
-/*
- * Copyright (C) 1994 Hamish Macdonald
- *
- * Delay routines, using a pre-computed "loops_per_second" value.
- */
-
-extern __inline__ void __delay(unsigned long loops)
+static __inline__ void __delay(unsigned long loops)
 {
 	__asm__ __volatile__ (	"1:\t cc = %0 == 0;\n\t"
 				"%0 += -1;\n\t"
@@ -16,7 +10,7 @@ extern __inline__ void __delay(unsigned long loops)
 				: "0" (loops));
 }
 
-#include <linux/param.h> /* need for HZ */
+#include <linux/param.h> /* needed for HZ */
 
 /*
  * Use only for very small delays ( < 1 msec).  Should probably use a
@@ -25,10 +19,10 @@ extern __inline__ void __delay(unsigned long loops)
  * first constant multiplications gets optimized away if the delay is
  * a constant)  
  */
-extern __inline__ void udelay(unsigned long usecs)
+static __inline__ void udelay(unsigned long usecs)
 {
-	  extern unsigned long loops_per_jiffy;
-       __delay(usecs * loops_per_jiffy / (1000000/HZ));
+	extern unsigned long loops_per_jiffy;
+	__delay(usecs * loops_per_jiffy / (1000000/HZ));
 }
 
 
