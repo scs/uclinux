@@ -9,6 +9,7 @@
 
 #include <linux/config.h>
 #include <asm/blackfin.h>
+#include <asm/board/mem_init.h>
 
 .global _rambase
 .global _ramstart
@@ -100,24 +101,49 @@ _stext:
 	w[p0] = r0.L;	/* To enable UART clock */
 	ssync;
 
-	p0.h = (PLL_CTL >> 16);
-	p0.l = (PLL_CTL & 0xFFFF);
-#ifdef CONFIG_BLKFIN_STAMP 
-	r0 = 0x4800 ;
-#elif defined CONFIG_EZKIT
-	r0 = CCLK_594; /* 27 * 22 = 594MHZ core clock, sclk = 118.8MHz */
-#endif
+/**************************************PLL Setup ************************************/
+	/*
+         *  Set PLL_CTL
+         *   - [14:09] = MSEL[5:0] : CLKIN / VCO multiplication factors
+         *   - [8]     = BYPASS    : BYPASS the PLL, run CLKIN into CCLK/SCLK
+         *   - [7]     = output delay (add 200ps of delay to mem signals)
+         *   - [6]     = input delay (add 200ps of input delay to mem signals)
+         *   - [5]     = PDWN      : 1=All Clocks off
+         *   - [3]     = STOPCK    : 1=Core Clock off
+         *   - [1]     = PLL_OFF   : 1=Disable Power to PLL
+         *   - [0]     = DF        : 1=Pass CLKIN/2 to PLL / 0=Pass CLKIN to PLL
+         *   all other bits set to zero
+         */
+	
+	p0.h = hi(PLL_LOCKCNT);
+	p0.l = lo(PLL_LOCKCNT);
+	r0 = 0x300(Z);
 	w[p0] = r0.l;
-	cli r2;
 	ssync;
-	idle;
-	sti r2;
 
-	p0.h = (PLL_DIV >> 16);
-	p0.l = (PLL_DIV & 0xFFFF);
-	r0 = 0x5 ;
-	w[p0] = r0;
+	SSYNC;
+        P2.H = hi(EBIU_SDGCTL);
+        P2.L = lo(EBIU_SDGCTL);
+        R0 = [P2];
+        BITSET (R0, 24);
+        [P2] = R0;
+        SSYNC;
+
+        r0 = CONFIG_VCO_MULT;           /* Load the VCO multiplier         */
+        r0 = r0 << 9;                   /* Shift it over,                  */
+        r1 = CLKIN_HALF;        /* Do we need to divide CLKIN by 2?*/
+        r0 = r1 | r0;
+        r1 = PLL_BYPASS;         /* Bypass the PLL?                 */
+        r1 = r1 << 8;                   /* Shift it over                   */
+        r0 = r1 | r0;                   /* add them all together           */
+
+        p0.h = (PLL_CTL >> 16);
+        p0.l = (PLL_CTL & 0xFFFF);      /* Load the address                */
+        cli r2;                         /* Disable interrupts              */
 	ssync;
+        w[p0] = r0.l;                     /* Set the value                   */
+        idle;                           /* Wait for the PLL to stablize    */
+        sti r2;                         /* Enable interrupts               */
 
 check_again:
 	p0.h = hi(PLL_STAT);
@@ -125,7 +151,27 @@ check_again:
 	R0 = W[P0](Z);
 	CC = BITTST(R0,5);
 	if ! CC jump check_again;
-	
+
+	/* Configure SCLK & CCLK Dividers */
+       	r2 = CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV;
+        p0.h = (PLL_DIV >> 16);
+        p0.l = (PLL_DIV & 0xFFFF);
+        w[p0] = r2.l;
+        ssync;
+
+	p0.l = (EBIU_SDRRC & 0xFFFF);
+        p0.h = (EBIU_SDRRC >> 16);
+        r0 = mem_SDRRC;
+        w[p0] = r0.l;
+        ssync;
+
+	P2.H = hi(EBIU_SDGCTL);
+        P2.L = lo(EBIU_SDGCTL);
+        R0 = [P2];
+        BITCLR (R0, 24);
+        [P2] = R0;
+        SSYNC;
+
 	/* Code for initializing Async memory banks */
 
         p2.h = (EBIU_AMBCTL1 >> 16);

@@ -115,7 +115,7 @@ void bf53x_cache_init(void)
 }
 
 extern char _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
-extern int _ramstart, _ramend,_rambase;
+extern int _ramstart, _ramend;
 extern int ramdisk_begin,ramdisk_end;
 
 void setup_arch(char **cmdline_p)
@@ -131,7 +131,7 @@ void setup_arch(char **cmdline_p)
 
 	memory_start = PAGE_ALIGN(_ramstart);
 	memory_end = _ramend; /* by now the stack is part of the init task */
-	printk("rambase=%x armstart=%x ramend=%x\n",_rambase,_ramstart,_ramend);
+
 	init_mm.start_code = (unsigned long) &_stext;
 	init_mm.end_code = (unsigned long) &_etext;
 	init_mm.end_data = (unsigned long) &_edata;
@@ -202,12 +202,15 @@ u_long get_cclk()
 {
 	u_long cclk = 0;
 
-	vco = (CONFIG_CLKIN * 1000000) * ((*pPLL_CTL >> 9)& 0x3F);
+	if(*pPLL_STAT & 0x1) return CONFIG_CLKIN_HZ;
 
-	if (1 & *pPLL_CTL) /* DR bit */
+	vco = CONFIG_CLKIN_HZ * ((*pPLL_CTL >> 9)& 0x3F);
+
+	if (1 & *pPLL_CTL) /* DF bit */
 		vco >>= 1;
 	cclk = vco >> (*pPLL_DIV >> 4 & 0x03);
-	return (cclk/1000000);
+
+	return cclk;
 }
 
 /* Get the System clock */
@@ -215,17 +218,19 @@ u_long get_sclk()
 {
 	u_long sclk=0;
 	
-	vco = (CONFIG_CLKIN * 1000000) * ((*pPLL_CTL >> 9)& 0x3F);
+	if(*pPLL_STAT & 0x1) return CONFIG_CLKIN_HZ;
 	
-	if (1 & *pPLL_CTL) /* DR bit */
+	vco = CONFIG_CLKIN_HZ * ((*pPLL_CTL >> 9)& 0x3F);
+	
+	if (1 & *pPLL_CTL) /* DF bit */
 		vco >>= 1;
 
 	if((*pPLL_DIV & 0xf) != 0)
 		sclk = vco/(*pPLL_DIV & 0xf);
 	else
-		printk("Invalid System Clock\n");	
-
-	return (sclk/1000000);
+		printk("Invalid System Clock\n");
+	
+	return sclk;
 }
 
 /*
@@ -250,12 +255,13 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "CPU:\t\t%s\n"
 		   "MMU:\t\t%s\n"
 		   "FPU:\t\t%s\n"
-		   "Core Clock:\t%lu MHz\n"
-		   "System Clock:\t%lu MHz\n"
+		   "Core Clock:\t%lu Hz\n"
+		   "System Clock:\t%lu Hz\n"
 		   "BogoMips:\t%lu.%02lu\n"
 		   "Calibration:\t%lu loops\n",
 		   cpu, mmu, fpu,
-		   cclk, sclk,
+		   cclk,
+		   sclk,
 		   (loops_per_jiffy*HZ)/500000,((loops_per_jiffy*HZ)/5000)%100,
 		   (loops_per_jiffy*HZ));
 #if defined CONFIG_BLKFIN_STAMP	
