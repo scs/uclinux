@@ -123,14 +123,14 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
   switch (size) {
   case 1:
     __asm__ __volatile__
-    ("%0 = b[%2] (z);\n\t"
-     "%2 = b[%1] (z);\n\t"
+    ("%0 = b%2 (z);\n\t"
+     "b%2 = %1;\n\t"
     : "=&d" (tmp) : "d" (x), "m" (*__xg(ptr)) : "memory");
     break;
   case 2:
     __asm__ __volatile__
-    ("%0 = w[%2] (z);\n\t"
-     "%2 = w[%1] (z);\n\t"
+    ("%0 = w%2 (z);\n\t"
+     "w%2 = %1;\n\t"
     : "=&d" (tmp) : "d" (x), "m" (*__xg(ptr)) : "memory");
     break;
   case 4:
@@ -160,19 +160,19 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
   switch (size) {
   case 1:
     __asm__ __volatile__
-    ("%0 = b[%3] (z);\n\t"
-     "CC = b[%1] == %0;\n\t"
+    ("%0 = b%3 (z);\n\t"
+     "CC = %1 == %0;\n\t"
      "IF !CC JUMP 1f;\n\t"
-     "%3 = b[%2] (z);\n\t"
+     "b%3 = %2;\n\t"
      "1:\n\t"
     : "=&d" (tmp) : "d" (old), "d" (new), "m" (*__xg(ptr)) : "memory");
     break;
   case 2:
     __asm__ __volatile__
-    ("%0 = w[%3] (z);\n\t"
-     "CC = w[%1] == %0;\n\t"
+    ("%0 = w%3 (z);\n\t"
+     "CC = %1 == %0;\n\t"
      "IF !CC JUMP 1f;\n\t"
-     "%3 = w[%2] (z);\n\t"
+     "w%3 = %2;\n\t"
      "1:\n\t"
     : "=&d" (tmp) : "d" (old), "d" (new), "m" (*__xg(ptr)) : "memory");
     break;
