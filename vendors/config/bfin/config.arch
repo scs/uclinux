@@ -53,11 +53,10 @@ ifdef UCLINUX_BUILD_LIB
 
 	# don't want all the CFLAGS for uClibc/Config
 	ARCH_CFLAGS = $(CPUFLAGS) $(CFLAGS)
-	CFLAGS  += -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include -I$(ROOTDIR)
+	CFLAGS  += -I$(ROOTDIR)/lib/$(LIBCDIR)/include
 	CFLAGS  += -Dlinux -D__linux__ -D__uClinux__ -Dunix
 
 	# the following is needed for uClinux-2.4
-	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include
 
 	UCLINUX_BUILD_SET=1
 endif
@@ -96,19 +95,19 @@ ifdef UCLINUX_BUILD_USER
 	LIBSTDCPP   = -lstdc++
 
 	LDPATH = \
-			-L$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/. \
-			-L$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/lib \
-			-L$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/libm \
+			-L$(ROOTDIR)/lib/$(LIBCDIR)/. \
+			-L$(ROOTDIR)/lib/$(LIBCDIR)/lib \
+			-L$(ROOTDIR)/lib/$(LIBCDIR)/libm \
 			-L$(ROOTDIR)/lib/libnet \
 			-L$(ROOTDIR)/lib/libdes \
 			-L$(ROOTDIR)/lib/libaes \
 			-L$(ROOTDIR)/lib/libpcap \
 			-L$(ROOTDIR)/lib/zlib \
 			-L$(ROOTDIR)/lib/libssl \
-			-L$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/libc \
-			-L$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/libcrypt
+			-L$(ROOTDIR)/lib/$(LIBCDIR)/libc \
+			-L$(ROOTDIR)/lib/$(LIBCDIR)/libcrypt
 
-	INCLIBC = -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include
+	INCLIBC = -I$(ROOTDIR)/lib/$(LIBCDIR)/include
 	INCLIBM = -I$(ROOTDIR)/lib/libm
 	INCNET  = -I$(ROOTDIR)/lib/libnet
 	INCDES  = -I$(ROOTDIR)/freeswan/libdes
@@ -117,7 +116,9 @@ ifdef UCLINUX_BUILD_USER
 	INCPCAP = -I$(ROOTDIR)/lib/libpcap
 	INCSSL  = -I$(ROOTDIR)/lib/libssl/include
 	INCZ    = -I$(ROOTDIR)/lib/zlib
-	INCCRYPT= -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/libcrypt
+	INCCRYPT= -I$(ROOTDIR)/lib/$(LIBCDIR)/libcrypt
+	INCLINUX= -I$(ROOTDIR)/$(LINUXDIR)/include
+	INCDIST= -I$(ROOTDIR)
 
   ifdef CONFIG_USER_DEBUG
 	CFLAGS  :=  -O0 -g
@@ -125,13 +126,12 @@ ifdef UCLINUX_BUILD_USER
 	CFLAGS  := -O2
   endif
 	CFLAGS  += -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
-	CFLAGS  += $(INCLIBC) $(INCNET)
+	CFLAGS  += $(INCDIST) $(INCLIBC)
 	CFLAGS  += -fno-builtin -nostartfiles
-	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include -I$(ROOTDIR)
 
 	CXXFLAGS = $(CFLAGS) $(INCCXX) -fname-mangling-version-0
 
-	LDFLAGS  = -fno-builtin -nostartfiles -Wl,-elf2flt $(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/lib/crt0.o
+	LDFLAGS  = -nostartfiles -Wl,-elf2flt $(ROOTDIR)/lib/$(LIBCDIR)/lib/crt0.o
 	LDLIBS   = $(LDPATH)
 	CXXLIBS  = $(LIBSTDCPP) $(LIBIBERTY) $(LIBC) $(LIBGCC)
 	
