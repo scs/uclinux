@@ -61,48 +61,43 @@ extern int irq_flags;
 			
 #define local_irq_enable() {		\
 	__asm__ __volatile__ (		\
-		"r3 = %0;"		\
-		"sti r3;"		\
-		::"m"(irq_flags):"R3");	\
+		"sti %0;"		\
+		::"d"(irq_flags));	\
 if (irq_flags == 0) printk("Whoops\n");	\
 }
 
 
-#define local_irq_disable() {			\
+#define local_irq_disable() {		\
+	int _tmp_dummy;			\
 	__asm__ __volatile__ (		\
-		"cli r3;"		\
-		:::"R3");		\
+		"cli %0;"		\
+		:"=d" (_tmp_dummy):);		\
 }
 
 #define __save_flags(x) {		\
 	__asm__ __volatile__ (		\
-		"cli r3;"		\
-		"%0 = r3;"		\
-		"sti r3;"		\
-		::"m"(x):"R3");		\
+		"cli %0;"		\
+		"sti %0;"		\
+		:"=d"(x):);		\
 }
 
 #define __save_and_cli(x) {		\
 	__asm__ __volatile__ (          \
-		"cli r3;"		\
-		"%0 = r3;"		\
-		::"m"(x):"R3");         \
+		"cli %0;"		\
+		:"=d"(x):);         \
 }
 
 #define __restore_flags(x) {		\
 	__asm__ __volatile__ (		\
-		"r3 = %0;"		\
-		"sti r3;"		\
-		::"m"(x):"R3");		\
+		"sti %0;"		\
+		::"d"(x):"R3");		\
 }
 
-#define local_save_flags(x) asm volatile ("cli r3;"     \
-					  "%0 = r3;"	\
-					  "sti r3;"     \
-				    	  ::"m"(x):"R3");    
-#define local_irq_restore(x) asm volatile ("r3 = %0;"	\
-				           "sti r3;"	\
-				           ::"m"(x):"R3")
+#define local_save_flags(x) asm volatile ("cli %0;"     \
+					  "sti %0;"     \
+				    	  :"=d"(x):);    
+#define local_irq_restore(x) asm volatile ("sti %0;"	\
+				           ::"d"(x))
 
 /* For spinlocks etc */
 #define local_irq_save(x) do { local_save_flags(x); local_irq_disable(); } while (0)
