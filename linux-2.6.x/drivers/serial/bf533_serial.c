@@ -2,8 +2,6 @@
  * Copyright (c) 2003	Bas Vermeulen <bas@buyways.nl>,
  * 			BuyWays B.V. (www.buyways.nl)
  *
- * Based heavily on blkfinserial.c
- * blkfinserial.c: Serial driver for BlackFin DSP internal USRTs.
  * Copyright(c) 2004	LG Soft India
  * Copyright(c) 2003	Metrowerks	<mwaddel@metrowerks.com>
  * Copyright(c)	2001	Tony Z. Kou	<tonyko@arcturusnetworks.com>
@@ -17,45 +15,59 @@
  */
  
 #include <linux/module.h>
-#include <linux/errno.h>
-#include <linux/signal.h>
-#include <linux/sched.h>
-#include <linux/timer.h>
-#include <linux/interrupt.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-#include <linux/config.h>
-#include <linux/major.h>
-#include <linux/string.h>
-#include <linux/fcntl.h>
-#include <linux/mm.h>
-#include <linux/kernel.h>
 #include <linux/serial.h>
 #include <linux/serialP.h>
 #include <linux/console.h>
 #include <linux/reboot.h>
-#include <linux/keyboard.h>
-#include <linux/init.h>
 
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/system.h>
-#include <asm/segment.h>
-#include <asm/bitops.h>
-#include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/board/cdefBF533.h>
+#include <asm/dma.h>
 
 #include "bf533_serial.h"
 
-#define USE_INTS
 #define SERIAL_PARANOIA_CHECK
 
+#undef SERIAL_DEBUG_OPEN
+#undef SERIAL_DEBUG_CALLTRACE
+#undef SERIAL_DEBUG_TERMIOS
+
 #define SYNC_ALL	__asm__ __volatile__ ("ssync;\n")
-#define ACCESS_LATCH		*pUART_LCR |= DLAB;
-#define ACCESS_PORT_IER		*pUART_LCR &= (~DLAB);
+#define ACCESS_LATCH	{ *pUART_LCR |= DLAB; SYNC_ALL;}
+#define ACCESS_PORT_IER	{ *pUART_LCR &= (~DLAB); SYNC_ALL;}
 #ifndef CONFIG_SERIAL_CONSOLE_PORT
 #define	CONFIG_SERIAL_CONSOLE_PORT 0 /* default UART1 as serial console */
+#endif
+
+#if defined (SERIAL_DEBUG_CALLTRACE)
+#define FUNC_ENTER()  printk("<0> %s: entered\n", __FUNCTION__)
+#else
+#define FUNC_ENTER()  do {} while (0)
+#endif
+
+#if defined (SERIAL_DEBUG_TERMIOS)
+#define DUMP_TERMIOS(termios) printk("<0> %s: termios %p c_iflag %08x " \
+                      "c_oflag %08x c_cflag %08x c_lflag %08x c_line %02x " \
+                      "VINTR %02x VQUIT %02x VERASE %02x VKILL %02x " \
+                      "VEOF %02x VTIME %02x VMIN %02x VSWTC %02x "    \
+                      "VSTART %02x VSTOP %02x VSUSP %02x VEOL %02x "  \
+                      "VREPRINT %02x VDISCARD %02x VWERASE %02x "     \
+                      "VLNEXT %02x VEOL2 %02x.\n",                    \
+                      __FUNCTION__, termios, termios->c_iflag,        \
+                      termios->c_oflag, termios->c_cflag, termios->c_lflag, \
+                      termios->c_line, termios->c_cc[VINTR],          \
+                      termios->c_cc[VQUIT], termios->c_cc[VERASE],    \
+                      termios->c_cc[VKILL], termios->c_cc[VEOF],      \
+                      termios->c_cc[VTIME], termios->c_cc[VMIN],      \
+                      termios->c_cc[VSWTC], termios->c_cc[VSTART],    \
+                      termios->c_cc[VSTOP], termios->c_cc[VSUSP],     \
+                      termios->c_cc[VEOL], termios->c_cc[VREPRINT],   \
+                      termios->c_cc[VDISCARD], termios->c_cc[VWERASE], \
+                      termios->c_cc[VLNEXT], termios->c_cc[VEOL2])
+#else
+#define DUMP_TERMIOS(termios) do {} while (0)
 #endif
 
 /*
@@ -87,6 +99,7 @@ static int bf533_console_cbaud   = DEFAULT_CBAUD;
 extern wait_queue_head_t keypress_wait;
 #endif
 
+extern unsigned long l1_data_A_sram_alloc(unsigned long size);
 /*
  *	Driver data structures.
  */
@@ -94,23 +107,14 @@ struct tty_driver *bf533_serial_driver;
 
 /* serial subtype definitions */
 #define SERIAL_TYPE_NORMAL	1
-#define SERIAL_TYPE_CALLOUT	2
   
 /* number of characters left in xmit buffer before we ask for more */
 #define WAKEUP_CHARS 256
 
-#undef SERIAL_DEBUG_INTR
-#undef SERIAL_DEBUG_OPEN
-#undef SERIAL_DEBUG_FLOW
-
-#define _INLINE_ inline
-
 static struct bf533_serial bf533_soft =
-{	0, 	0, 	IRQ_UART_RX, 	0 }; /* ttyS0 */
-
+{	0, 	IRQ_UART_RX, 	0 }; /* ttyS0 */
 
 #define NR_PORTS (sizeof(bf533_soft) / sizeof(struct bf533_serial))
-
 
 #ifndef MIN
 #define MIN(a,b)	((a) < (b) ? (a) : (b))
@@ -123,7 +127,7 @@ static int rs_write(struct tty_struct * tty, int from_user,
  */
 
 static int baud_table[] = {
-	 9600, 19200, 38400, 57600, 115200, 0 };
+	 9600, 19200, 38400, 57600, 115200};
 
 #define BAUD_TABLE_SIZE (sizeof(baud_table)/sizeof(baud_table[0]))
 
@@ -145,6 +149,8 @@ static unsigned char tmp_buf[SERIAL_XMIT_SIZE]; /* This is cheating */
 DECLARE_MUTEX(tmp_buf_sem);
 
 /* Forward declarations.... */
+static void dma_start_recv(struct bf533_serial * info);
+static void dma_recv_timer(struct bf533_serial * info);
 static void bf533_change_speed(struct bf533_serial *info);
 static void bf533_set_baud( void );
 
@@ -181,7 +187,7 @@ static inline int serial_paranoia_check(struct bf533_serial *info,char *name, co
 /* Sets or clears DTR/RTS on the requested line */
 static inline void bf533_rtsdtr(struct bf533_serial *info, int set)
 {
-	unsigned long           flags = 0;
+	unsigned long flags = 0;
 #ifdef SERIAL_DEBUG_OPEN
         printk("%s(%d): bf533_rtsdtr(info=%x,set=%d)\n",
                 __FILE__, __LINE__, info, set);
@@ -190,8 +196,12 @@ static inline void bf533_rtsdtr(struct bf533_serial *info, int set)
 	local_irq_save(flags);
 	if (set) {
 		/* set the RTS/CTS line */
+                *pFIO_FLAG_C = (1 << 13);
+		SYNC_ALL;
 	} else {
 		/* clear it */
+                *pFIO_FLAG_S = (1 << 13);
+		SYNC_ALL;
 	}
 	local_irq_restore(flags);
 	return;
@@ -205,10 +215,10 @@ static inline int get_baud(struct bf533_serial *info)
         int i;
  
         ACCESS_LATCH /* change access to divisor latch */
+	asm("csync;");
         baud_lo = *pUART_DLL;
-	SYNC_ALL;
+	asm("csync;");
         baud_hi = *pUART_DLH;
-	SYNC_ALL;
  
         for (i=0; i<BAUD_TABLE_SIZE ; i++){
                 if ( baud_lo == hw_baud_table[i].dl_low && baud_hi == hw_baud_table[i].dl_high)
@@ -242,8 +252,6 @@ static void rs_stop(struct tty_struct *tty)
 	local_irq_restore(flags);
 }
 
-extern void cache_delay(void);
-
 static void local_put_char(char ch)
 {
 	int flags = 0;
@@ -253,27 +261,23 @@ static void local_put_char(char ch)
 	
 	do{
 		status = *pUART_LSR; 
-		SYNC_ALL;
+ 		SYNC_ALL;
 	}while (!(status & THRE)); 
 
 	ACCESS_PORT_IER
 	*pUART_THR = ch;
 	SYNC_ALL;
-	
+
 	local_irq_restore(flags);
 }
-/*
-static void rs_put_char(struct tty_struct *tty, char ch)
-{
-	rs_write(tty, 1, &ch, 1);
-}
-*/
 
 static void rs_start(struct tty_struct *tty)
 {
 	struct bf533_serial *info = (struct bf533_serial *)tty->driver_data;
 	unsigned long flags = 0;
 	
+        FUNC_ENTER();
+
 	if (serial_paranoia_check(info, tty->name, "rs_start"))
 		return;
 	
@@ -293,11 +297,13 @@ static void rs_start(struct tty_struct *tty)
  */
 static void batten_down_hatches(void)
 {
-	/* Drop into the debugger */
+        FUNC_ENTER();
 }
 
-static _INLINE_ void status_handle(struct bf533_serial *info, unsigned short status)
+static inline void status_handle(struct bf533_serial *info, unsigned short status)
 {
+        FUNC_ENTER();
+
 	/* If this is console input and this is a
 	 * 'break asserted' status change interrupt
 	 * see if we can drop into the debugger
@@ -307,26 +313,78 @@ static _INLINE_ void status_handle(struct bf533_serial *info, unsigned short sta
 	return;
 }
 
-static void receive_chars(struct bf533_serial *info, struct pt_regs *regs, unsigned short rx)
+static void dma_receive_chars(struct bf533_serial *info)
+{
+      struct tty_struct *tty = info->tty;
+      unsigned char flag = 0;
+      int i, len = 0;
+
+      spin_lock_bh(info->recv_lock);
+
+      info->recv_head = TTY_FLIPBUF_SIZE - *pDMA6_CURR_X_COUNT;
+
+      /*
+       * Check for a valid value of recv_head
+       */
+      if ((info->recv_head < 0) || (info->recv_head >= TTY_FLIPBUF_SIZE))
+      {
+              info->recv_head = 0;
+              goto unlock_and_exit;
+      }
+
+      if (info->recv_tail == info->recv_head)
+              goto unlock_and_exit;
+
+#if defined(CONFIG_CONSOLE)
+      if (info->is_cons && (info->recv_tail != info->recv_head))
+              wake_up(&keypress_wait);
+#endif
+      if (!tty) {
+              printk("no tty\n");
+              goto unlock_and_exit;
+      }
+
+      len = info->recv_head - info->recv_tail;
+      if (len < 0) len += TTY_FLIPBUF_SIZE;
+
+      for (i = 0; i < len; i++)
+      {
+              tty_insert_flip_char(tty, info->recv_buf[info->recv_tail++],flag);
+              if (info->recv_tail >= TTY_FLIPBUF_SIZE)
+                      info->recv_tail = 0;
+      }
+
+      tty_flip_buffer_push(tty);
+unlock_and_exit:
+      spin_unlock_bh(info->recv_lock);
+}
+
+void receive_chars(struct bf533_serial *info, struct pt_regs *regs)
 {
 	struct tty_struct *tty = info->tty;
-	unsigned char ch;
+	unsigned char ch = 0, flag = 0;
+	unsigned short status = 0 ;
+	FUNC_ENTER();
 
 	/*
 	 * This do { } while() loop will get ALL chars out of Rx FIFO 
          */
 	do {
-		ch = (unsigned char) rx;
+		ACCESS_PORT_IER;
+		asm("csync;");
+		ch = (unsigned char) *pUART_RBR;
 	
 		if(info->is_cons) {
-			if (*pUART_LSR & BI){ /* break received */ 
-				status_handle(info, *pUART_LSR);
+			asm("csync;");
+			status = *pUART_LSR;
+			if (status & BI){ /* break received */ 
+				status_handle(info, status);
 				return;
 			} else if (ch == 0x10) { /* ^P */
 				show_state();
 				show_free_areas();
 				return;
-			} else if (ch == 0x12) { /*  */
+			} else if (ch == 0x12) { /* ^R */
 				machine_restart(NULL);
 				return;
 			}
@@ -340,37 +398,27 @@ static void receive_chars(struct bf533_serial *info, struct pt_regs *regs, unsig
 			printk("no tty\n");
 			goto clear_and_exit;
 		}
-		
 		/*
 		 * Make sure that we do not overflow the buffer
 		 */
 		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			schedule_work(&tty->flip.work);
+			tty_flip_buffer_push(tty);
 			return;
 		}
-
-		if(*pUART_LSR & PE) {
-			*tty->flip.flag_buf_ptr++ = TTY_PARITY;
-			status_handle(info, *pUART_LSR);
-		} else if(*pUART_LSR & OE) {
-			*tty->flip.flag_buf_ptr++ = TTY_OVERRUN;
-			status_handle(info, *pUART_LSR);
-		} else if(*pUART_LSR & FE) {
-			*tty->flip.flag_buf_ptr++ = TTY_FRAME;
-			status_handle(info, *pUART_LSR);
-		} else {
-			*tty->flip.flag_buf_ptr++ = 0; /* XXX */
-		}
-
-		tty->flip.count++;
-                *tty->flip.char_buf_ptr++ = ch;
-
-		ACCESS_PORT_IER /* change access to port data */
-		rx = *pUART_RBR;
-		SYNC_ALL;
-	} while(*pUART_LSR & DR);
-
-	schedule_work(&tty->flip.work);
+		asm("csync;");
+		if(status & PE) {
+			flag = TTY_PARITY;
+			status_handle(info, status);
+		} else if(status & OE) {
+			flag = TTY_OVERRUN;
+			status_handle(info, status);
+		} else if(status & FE) {
+			flag = TTY_FRAME;
+			status_handle(info, status);
+		} 
+                tty_insert_flip_char(tty, ch, flag);
+	} while(status & DR);
+        tty_flip_buffer_push(tty);
 
 clear_and_exit:
 	return;
@@ -398,8 +446,10 @@ static void transmit_chars(struct bf533_serial *info)
 	info->xmit_cnt--;
 
 	if (info->xmit_cnt < WAKEUP_CHARS)
+	{
+		info->event |= 1 << RS_EVENT_WRITE_WAKEUP;
 		schedule_work(&info->tqueue);
-
+	}
 	if(info->xmit_cnt <= 0) { /* All done for now... TX ints off */
 		ACCESS_PORT_IER /* Change access to IER & data port */
 		*pUART_IER &= ~ETBEI;
@@ -412,7 +462,6 @@ clear_and_return:
 	return;
 }
 
-#define UART_INVOKED	3
 /*
  * This is the serial driver's generic interrupt routine
  * Note: Generally it should be attached to general interrupt 10, responsile 
@@ -424,35 +473,56 @@ int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 {
 	struct bf533_serial *info; // = &bf533_soft[CONFIG_SERIAL_CONSOLE_PORT];
 	unsigned short iir; /* Interrupt Identification Register */
-	unsigned short rx; 
+
+	unsigned short rx, lsr; 
 	unsigned int sic_status = 0;
+	asm("csync;");
 	sic_status = *pSIC_ISR;
-	SYNC_ALL;
 	if (sic_status & 0xC000)
 	{ 
 		/* test bit 10-11 and 12-13 */
-		iir = *pUART_IIR;
-		SYNC_ALL;
 		info = &bf533_soft;
+		asm("csync;");
+		iir = *pUART_IIR;
 
 		if (!(iir & NINT))
 		{
 			switch (iir & 0x06)
 			{
 		   	case 0x06:
+                              	/* Change access to IER & data port */
+                              	ACCESS_PORT_IER;
+				asm("csync;");
+                              	lsr = *pUART_LSR;
 				break;
 		   	case STATUS(2):			/*UART_IIR_RBR:*/
-		   		/* Change access to IER & data port */
-				ACCESS_PORT_IER 
-				if (*pUART_LSR & DR){
-				   rx = *pUART_RBR;
-				   SYNC_ALL;
-				   receive_chars(info, regs, rx);
+				asm("csync;");
+                               if (*pDMA6_CONFIG & DMAEN)
+                               {
+				       asm("csync;");
+                                       if (*pDMA6_IRQ_STATUS & DMA_DONE)
+                                       {
+					       info->event |= 1 << RS_EVENT_READ;
+					       schedule_work(&info->tqueue);
+                                               dma_start_recv(info);
+                                               *pDMA6_IRQ_STATUS |= DMA_DONE;
+					       SYNC_ALL;
+                                       }
+                               } else {
+		   			/* Change access to IER & data port */
+					ACCESS_PORT_IER 
+					asm("csync;");
+					if (*pUART_LSR & DR){
+						asm("csync;");
+				   		rx = *pUART_RBR;
+				   		receive_chars(info, regs);
+					}
 				}
 				break;
 		   	case STATUS_P1:				/*UART_IIR_THR:*/
 		   		/* Change access to IER & data port */
 				ACCESS_PORT_IER 
+				asm("csync;");
 				if (*pUART_LSR & THRE){
 				    transmit_chars(info);
 				}
@@ -480,6 +550,9 @@ static void do_softint(void *private_)
 			(tty->ldisc.write_wakeup)(tty);
 		wake_up_interruptible(&tty->write_wait);
 	}
+        if (test_and_clear_bit(RS_EVENT_READ, &info->event)) {
+                dma_receive_chars(info);
+        }
 }
 
 /*
@@ -495,6 +568,8 @@ static void do_serial_hangup(void *private_)
 {
 	struct bf533_serial	*info = (struct bf533_serial *) private_;
 	struct tty_struct	*tty;
+
+	FUNC_ENTER();
 	
 	tty = info->tty;
 	if (!tty)
@@ -503,11 +578,62 @@ static void do_serial_hangup(void *private_)
 	tty_hangup(tty);
 }
 
+void dma_start_recv(struct bf533_serial * info)
+{
+       FUNC_ENTER();
+
+       asm("csync;");
+       if (((*pDMA6_IRQ_STATUS & DMA_RUN) == 0) ||(*pDMA6_IRQ_STATUS & DMA_DONE))
+       {
+                *pDMA6_START_ADDR = info->recv_buf;
+		SYNC_ALL;
+                *pDMA6_X_COUNT = TTY_FLIPBUF_SIZE;
+		SYNC_ALL;
+                *pDMA6_X_MODIFY = sizeof(unsigned char);
+		SYNC_ALL;
+		*pDMA6_CURR_X_COUNT = TTY_FLIPBUF_SIZE;
+		SYNC_ALL;
+                *pDMA6_CONFIG = DMA_DI_ENABLE | DMA_WDSIZE_8 | DMA_WNR | DMA_ENABLE;
+		SYNC_ALL;
+        } else {
+                printk("bf533_serial: DMA started while already running!\n");
+        }
+}
+                                                                                
+static void dma_recv_timer(struct bf533_serial * info)
+{
+	asm("csync;");
+        if ((*pDMA6_IRQ_STATUS & DMA_DONE) == 0)
+        {
+                dma_receive_chars(info);
+        }
+        info->recv_timer.expires = jiffies + 3;
+        add_timer(&info->recv_timer);
+}
+                                                                                
+static void dma_stop_recv(struct bf533_serial *info)
+{
+        FUNC_ENTER();
+        *pDMA6_CONFIG = 0;
+	SYNC_ALL;
+}
 
 static int startup(struct bf533_serial * info)
 {
 	unsigned long flags = 0;
 	
+	FUNC_ENTER();
+	init_timer(&info->recv_timer);
+
+	*pUART_GCTL |= UCEN;
+	SYNC_ALL;
+
+	/*
+	 * Finally, enable sequencing and interrupts
+	 */
+	*pUART_IER = ERBFI | ETBEI | ELSI | 0x8;
+	SYNC_ALL;
+
 	if (info->flags & S_INITIALIZED)
 		return 0;
 
@@ -516,7 +642,16 @@ static int startup(struct bf533_serial * info)
 		if (!info->xmit_buf)
 			return -ENOMEM;
 	}
-
+                                                                                
+        if (!info->recv_buf) {
+		info->recv_buf = (unsigned char*)l1_data_A_sram_alloc(PAGE_SIZE);
+                if (!info->recv_buf)
+                {
+                        free_page((unsigned long)info->xmit_buf);
+                        return -ENOMEM;
+                }
+        }
+                                                                                
 	local_irq_save(flags);
 
 	/*
@@ -527,24 +662,23 @@ static int startup(struct bf533_serial * info)
 	info->xmit_fifo_size = 1;
 	ACCESS_PORT_IER /* Change access to IER & data port */
 		
-	*pUART_GCTL |= UCEN;
-	SYNC_ALL;
-
-	*pUART_IER = ERBFI | ETBEI | ELSI | 0x08;
-	SYNC_ALL;
-	(void)*pUART_RBR;
-	SYNC_ALL;
-
-	/*
-	 * Finally, enable sequencing and interrupts
-	 */
-	*pUART_IER = ERBFI | ELSI | 0x08;
-	SYNC_ALL;
 	bf533_rtsdtr(info, 1);
 
 	if (info->tty)
 		clear_bit(TTY_IO_ERROR, &info->tty->flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
+
+        /*
+         * Start the receive DMA
+         */
+        info->recv_cnt = info->recv_head = info->recv_tail = 0;
+        info->recv_lock = SPIN_LOCK_UNLOCKED;
+        dma_start_recv(info);
+                         
+        info->recv_timer.data = (unsigned long)info;
+        info->recv_timer.function = dma_recv_timer;
+        info->recv_timer.expires = jiffies + 3;
+        add_timer(&info->recv_timer);
 
 	/*
 	 * and set the speed of the serial port
@@ -565,6 +699,8 @@ static void shutdown(struct bf533_serial * info)
 {
 	unsigned long	flags = 0;
 
+	FUNC_ENTER();
+
         if (!(info->flags & S_INITIALIZED))
                 return; 
 
@@ -578,6 +714,8 @@ static void shutdown(struct bf533_serial * info)
 
 	*pUART_GCTL &= ~UCEN;
 	SYNC_ALL;
+
+        dma_stop_recv(info);
 	
         if (!info->tty || (info->tty->termios->c_cflag & HUPCL))
                 bf533_rtsdtr(info, 0);
@@ -587,6 +725,11 @@ static void shutdown(struct bf533_serial * info)
 		info->xmit_buf = 0;
 	}
 
+        if (info->recv_buf) {
+                free_page((unsigned long) info->recv_buf);
+                info->recv_buf = 0;
+        }
+	
 	if (info->tty)
 		set_bit(TTY_IO_ERROR, &info->tty->flags);
 
@@ -600,56 +743,55 @@ static void shutdown(struct bf533_serial * info)
  */
 static void bf533_change_speed(struct bf533_serial *info)
 {
-	unsigned short uart_lcr;
-	unsigned cflag, flags = 0;
+	unsigned short uart_dll = 0x00ff, uart_dlh = 0xff;
+	unsigned cflag, flags = 0, cval = 0;
+
 	int	i;
+	FUNC_ENTER();
 
 	if (!info->tty || !info->tty->termios)
 		return;
 	cflag = info->tty->termios->c_cflag;
 
-	local_irq_save(flags);
-	ACCESS_PORT_IER /* Change access to IER & data port */
-
+        /* byte size and parity */
+        switch (cflag & CSIZE)
+        {
+                case CS5:       cval = 0x00; break;
+                case CS6:       cval = 0x01; break;
+                case CS7:       cval = 0x02; break;
+                case CS8:       cval = 0x03; break;
+                default:        cval = 0x00; break;
+        }
+                                                                                
+        if (cflag & CSTOPB)
+                cval |= STB;
+        if (cflag & PARENB)
+                cval |= PEN;
+        if (!(cflag & PARODD))
+                cval |= EPS;
+        if (cflag & CRTSCTS)
+                printk(KERN_DEBUG "%s: CRTSCTS not supported. Ignoring.\n", __FUNCTION__);
+                                                                                
 	i = cflag & CBAUD;
         if (i & CBAUDEX) {
                 i = (i & ~CBAUDEX) + B38400;
         }
 
 	info->baud = baud_table[i];
-	ACCESS_LATCH	/* change to access of divisor latch */
-	*pUART_DLL = hw_baud_table[i].dl_low;
+
+	uart_dll = hw_baud_table[i].dl_low;
+	uart_dlh = hw_baud_table[i].dl_high;
+
+        local_irq_save(flags);
+        *pUART_LCR = cval | DLAB;
 	SYNC_ALL;
-	*pUART_DLH = hw_baud_table[i].dl_high;
+        *pUART_DLL = uart_dll;
 	SYNC_ALL;
-
-	*pUART_LCR &= DLAB; /* clear all except DLAB bit */
+        *pUART_DLH = uart_dlh;
 	SYNC_ALL;
-	uart_lcr = *pUART_LCR;
+        *pUART_LCR = cval;
 	SYNC_ALL;
-
-	switch (cflag & CSIZE) {
-	case CS6:	uart_lcr |= WLS(6); break;
-	case CS7:	uart_lcr |= WLS(7); break;
-	case CS8:	uart_lcr |= WLS(8); break;
-	default: 	break;
-	}
-		
-	if (cflag & CSTOPB)
-		uart_lcr |= STB;
-
-	if (cflag & PARENB){
-		uart_lcr |= PEN;
-		if (cflag & PARODD)
-		uart_lcr &= ~(EPS | STP);
-	}
-
-        if (cflag & CRTSCTS) {
-		uart_lcr |= SB;
-        }
-		*pUART_LCR = uart_lcr;
-		SYNC_ALL;
-
+	
 	local_irq_restore(flags);
 	return;
 }
@@ -657,6 +799,8 @@ static void bf533_change_speed(struct bf533_serial *info)
 static void rs_set_ldisc(struct tty_struct *tty)
 {
 	struct bf533_serial *info = (struct bf533_serial *)tty->driver_data;
+
+	FUNC_ENTER();	
 
 	if (serial_paranoia_check(info, tty->name, "rs_set_ldisc"))
 		return;
@@ -673,9 +817,6 @@ static void rs_flush_chars(struct tty_struct *tty)
 
 	if (serial_paranoia_check(info, tty->name, "rs_flush_chars"))
 		return;
-#ifndef USE_INTS
-	for(;;) {
-#endif
 		if (info->xmit_cnt <= 0 || tty->stopped || tty->hw_stopped || 
 	   	   !info->xmit_buf)
 			return;
@@ -683,26 +824,15 @@ static void rs_flush_chars(struct tty_struct *tty)
 		local_irq_save(flags);
 
 		ACCESS_PORT_IER /* Change access to IER & data port */
-#ifdef USE_INTS
 		*pUART_IER |= ETBEI;
 		SYNC_ALL;
 		if (*pUART_LSR & TEMT) {
-#else
-		*pUART_IER = 0; /* disable all interrupts for UART0  */
-		SYNC_ALL;
-		if (1) {
-#endif
 			/* Send char */
 			local_put_char(info->xmit_buf[info->xmit_tail++]);
 			info->xmit_tail = info->xmit_tail&(SERIAL_XMIT_SIZE-1);
 			info->xmit_cnt--;
 		}
 
-#ifndef USE_INTS
-		while (!(*pUART_LSR & TEMT)) 
-			SYNC_ALL;
-	}
-#endif
 		local_irq_restore(flags);
 }
 
@@ -746,13 +876,9 @@ static int rs_write(struct tty_struct * tty, int from_user,
 	if (info->xmit_cnt && !tty->stopped && !tty->hw_stopped) {
 		/* Enable transmitter */
 		local_irq_save(flags);
-#ifdef USE_INTS
 		ACCESS_PORT_IER /* Change access to IER & data port */
 		*pUART_IER |= ETBEI;
 		SYNC_ALL;
-#else
-		while(info->xmit_cnt) {
-#endif
 		while (!(*pUART_LSR & TEMT))
 			SYNC_ALL;
 
@@ -762,9 +888,6 @@ static int rs_write(struct tty_struct * tty, int from_user,
 			info->xmit_cnt--;
 		}
 
-#ifndef USE_INTS
-		}
-#endif
 		local_irq_restore(flags);
 	}
 	return total;
@@ -794,13 +917,15 @@ static int rs_chars_in_buffer(struct tty_struct *tty)
 
 static void rs_flush_buffer(struct tty_struct *tty)
 {
+        unsigned long flags = 0;
 	struct bf533_serial *info = (struct bf533_serial *)tty->driver_data;
+        FUNC_ENTER();
 				
 	if (serial_paranoia_check(info, tty->name, "rs_flush_buffer"))
 		return;
-	cli();
+	local_irq_save(flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
-	sti();
+	local_irq_restore(flags);
 	wake_up_interruptible(&tty->write_wait);
 	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
 	    tty->ldisc.write_wakeup)
@@ -819,19 +944,18 @@ static void rs_throttle(struct tty_struct * tty)
 {
 	struct bf533_serial *info = (struct bf533_serial *)tty->driver_data;
 
+        FUNC_ENTER();
 	if (serial_paranoia_check(info, tty->name, "rs_throttle"))
 		return;
-	
 	if (I_IXOFF(tty))
 		info->x_char = STOP_CHAR(tty);
-
-	/* Turn off RTS line (do this atomic) */
 }
 
 static void rs_unthrottle(struct tty_struct * tty)
 {
 	struct bf533_serial *info = (struct bf533_serial *)tty->driver_data;
 
+        FUNC_ENTER();
 	if (serial_paranoia_check(info, tty->name, "rs_unthrottle"))
 		return;
 	
@@ -841,8 +965,6 @@ static void rs_unthrottle(struct tty_struct * tty)
 		else
 			info->x_char = START_CHAR(tty);
 	}
-
-	/* Assert RTS line (do this atomic) */
 }
 
 /*
@@ -878,6 +1000,7 @@ static int set_serial_info(struct bf533_serial * info,
 	struct bf533_serial old_info;
 	int    retval = 0;
 
+        FUNC_ENTER();
 	if (!new_info)
 		return -EFAULT;
 	copy_from_user(&new_serial,new_info,sizeof(new_serial));
@@ -928,31 +1051,39 @@ check_and_exit:
  */
 static int get_lsr_info(struct bf533_serial * info, unsigned int *value)
 {
-	unsigned char status;
+	unsigned char status = 0;
 
-	cli();
-
-	status = 0; /* no CTS status pin in BlackFin Serial */
-	sti();
+        FUNC_ENTER();
 	put_user(status,value);
 	return 0;
 }
-
-/*
- * This routine sends a break character out the serial port.
- */
-static void send_break(	struct bf533_serial * info, int duration)
+                                                                                
+static int set_modem_info(struct bf533_serial *info, unsigned int cmd,
+                unsigned int *value)
 {
-        unsigned long flags = 0;
-
-        current->state = TASK_INTERRUPTIBLE;
-	local_irq_save(flags);
-	*pUART_LCR |= SB;
-	SYNC_ALL;
-        schedule_timeout(duration);
-	*pUART_LCR &= ~SB;
-	SYNC_ALL;
-	local_irq_restore(flags);
+        unsigned int arg;
+                                                                                
+        FUNC_ENTER();
+        if (copy_from_user(&arg, value, sizeof(int)))
+                return -EFAULT;
+                                                                                
+        switch (cmd)
+        {
+        	case TIOCMBIS:
+                	if (arg & TIOCM_DTR)
+                        	bf533_rtsdtr(info, 1);
+	                break;
+        	case TIOCMBIC:
+                	if (arg & TIOCM_DTR)
+                        	bf533_rtsdtr(info, 0);
+	                break;
+        	case TIOCMSET:
+                	bf533_rtsdtr(info, arg & TIOCM_DTR ? 1 : 0);
+	                break;
+        	default:
+                	return -EINVAL;
+        }
+        return 0;
 }
 
 static int rs_ioctl(struct tty_struct *tty, struct file * file,
@@ -960,7 +1091,6 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 {
 	int error;
 	struct bf533_serial * info = (struct bf533_serial *)tty->driver_data;
-	int retval;
 
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
 		return -ENODEV;
@@ -973,34 +1103,6 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 	}
 	
 	switch (cmd) {
-		case TCSBRK:	/* SVID version: non-zero arg --> no break */
-			retval = tty_check_change(tty);
-			if (retval)
-				return retval;
-			tty_wait_until_sent(tty, 0);
-			if (!arg)
-				send_break(info, HZ/4);	/* 1/4 second */
-			return 0;
-		case TCSBRKP:	/* support for POSIX tcsendbreak() */
-			retval = tty_check_change(tty);
-			if (retval)
-				return retval;
-			tty_wait_until_sent(tty, 0);
-			send_break(info, arg ? arg*(HZ/10) : HZ/4);
-			return 0;
-		case TIOCGSOFTCAR:
-			error = verify_area(VERIFY_WRITE, (void *) arg,sizeof(long));
-			if (error)
-				return error;
-			put_user(C_CLOCAL(tty) ? 1 : 0,
-				    (unsigned long *) arg);
-			return 0;
-		case TIOCSSOFTCAR:
-			get_user(arg, (unsigned long *) arg);
-			tty->termios->c_cflag =
-				((tty->termios->c_cflag & ~CLOCAL) |
-				 (arg ? CLOCAL : 0));
-			return 0;
 		case TIOCGSERIAL:
 			error = verify_area(VERIFY_WRITE, (void *) arg,
 						sizeof(struct serial_struct));
@@ -1012,22 +1114,22 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 			return set_serial_info(info,
 					       (struct serial_struct *) arg);
 		case TIOCSERGETLSR: /* Get line status register */
-			error = verify_area(VERIFY_WRITE, (void *) arg,
-				sizeof(unsigned int));
-			if (error)
-				return error;
-			else
 			    return get_lsr_info(info, (unsigned int *) arg);
 
 		case TIOCSERGSTRUCT:
-			error = verify_area(VERIFY_WRITE, (void *) arg,
-						sizeof(struct bf533_serial));
-			if (error)
-				return error;
-			copy_to_user((struct bf533_serial *) arg,
-				    info, sizeof(struct bf533_serial));
+			if (copy_to_user((struct bf533_serial *) arg,
+				    info, sizeof(struct bf533_serial)))
+				return -EFAULT;
 			return 0;
-			
+                case TIOCMBIS:
+                case TIOCMBIC:
+                case TIOCMSET:
+                        return set_modem_info(info, cmd, (unsigned int *) arg);
+                case TIOCSERGWILD:
+                case TIOCSERSWILD:
+                        /* "setserial -W" is called in Debian boot */
+                        printk("TIOCSER?WILD ioctl obsolete, ignored.\n");
+                        return 0;
 		default:
 			return -ENOIOCTLCMD;
 		}
@@ -1038,17 +1140,15 @@ static void rs_set_termios(struct tty_struct *tty, struct termios *old_termios)
 {
 	struct bf533_serial *info = (struct bf533_serial *)tty->driver_data;
 
+	FUNC_ENTER();
+
 	if (tty->termios->c_cflag == old_termios->c_cflag)
 		return;
+                                                                                
+        DUMP_TERMIOS(old_termios);
+        DUMP_TERMIOS(tty->termios);
 
 	bf533_change_speed(info);
-
-	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios->c_cflag & CRTSCTS)) {
-		tty->hw_stopped = 0;
-		rs_start(tty);
-	}
-	
 }
 
 /*
@@ -1065,6 +1165,8 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 {
 	struct bf533_serial * info = (struct bf533_serial *)tty->driver_data;
 	unsigned long flags = 0;
+
+	FUNC_ENTER();
 
 	if (!info || serial_paranoia_check(info, tty->name, "rs_close"))
 		return;
@@ -1104,8 +1206,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	 */
 	if (info->flags & S_NORMAL_ACTIVE)
 		info->normal_termios = *tty->termios;
-	if (info->flags & S_CALLOUT_ACTIVE)
-		info->callout_termios = *tty->termios;
 	/*
 	 * Now we wait for the transmit buffer to clear; and we notify 
 	 * the line discipline to only process XON/XOFF characters.
@@ -1160,6 +1260,7 @@ void rs_hangup(struct tty_struct *tty)
 {
 	struct bf533_serial * info = (struct bf533_serial *)tty->driver_data;
 	
+	FUNC_ENTER();
 	if (serial_paranoia_check(info, tty->name, "rs_hangup"))
 		return;
 	
@@ -1183,7 +1284,9 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	DECLARE_WAITQUEUE(wait, current);
 	int		retval;
 	int		do_clocal = 0;
+        unsigned long flags = 0;
 
+	FUNC_ENTER();
 	/*
 	 * If the device is in the middle of being closed, then block
 	 * until it's done, and then try again.
@@ -1233,10 +1336,10 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	info->count--;
 	info->blocked_open++;
 	while (1) {
-		cli();
+		local_irq_save(flags);
 		if (!(info->flags & S_CALLOUT_ACTIVE))
 			bf533_rtsdtr(info, 1);
-		sti();
+		local_irq_restore(flags);
 		current->state = TASK_INTERRUPTIBLE;
 		if (tty_hung_up_p(filp) ||
 		    !(info->flags & S_INITIALIZED)) {
@@ -1282,7 +1385,8 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 	struct bf533_serial	*info;
 	int 			retval, line;
 
-	line = tty->index; /* FIXME */
+	FUNC_ENTER();
+	line = tty->index;
 	
 	if ((line < 0) || (line >= NR_PORTS)) 
 		return -ENODEV;
@@ -1315,7 +1419,7 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 
 static void show_serial_version(void)
 {
-	printk("BlackFin BF533 serial driver version 1.00\n");
+	printk("BlackFin BF533 serial driver version 2.00 With DMA Support \n");
 }
 
 static struct tty_operations rs_ops = {
@@ -1342,6 +1446,7 @@ static int __init rs_bf533_init(void)
 	int flags = 0;
 	struct bf533_serial *info;
 	
+	FUNC_ENTER();
 	bf533_serial_driver = alloc_tty_driver(NR_PORTS);
 	if (!bf533_serial_driver)
 		return -ENOMEM;
@@ -1358,8 +1463,11 @@ static int __init rs_bf533_init(void)
 	bf533_serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	bf533_serial_driver->subtype = SERIAL_TYPE_NORMAL;
 	bf533_serial_driver->init_termios = tty_std_termios;
-	bf533_serial_driver->init_termios.c_cflag = 
-			bf533_console_cbaud | CS8 | CREAD | HUPCL | CLOCAL;
+        bf533_serial_driver->init_termios.c_cflag =
+                        bf533_console_cbaud | CS8 | CREAD | CLOCAL;
+        bf533_serial_driver->init_termios.c_lflag =
+                        ISIG | ICANON | IEXTEN;
+
 	bf533_serial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(bf533_serial_driver, &rs_ops);
 
@@ -1391,6 +1499,7 @@ static int __init rs_bf533_init(void)
 	info->line = 0;
 	info->is_cons = 1; /* Means shortcuts work */
 	info->irq = IRQ_UART_RX;
+        info->xmit_desc = NULL;
 	
 	printk("%s0 at irq = %d", \
 		bf533_serial_driver->name, info->irq);
@@ -1399,12 +1508,16 @@ static int __init rs_bf533_init(void)
 	local_irq_restore(flags);
 
 	if (request_irq(IRQ_UART_RX, rs_interrupt, IRQ_FLG_STD, "BF533_UART_RX", NULL))
-		panic("Unable to attach BlackFin UART interrupt\n");
+		panic("Unable to attach BlackFin UART RX interrupt\n");
 
 	if (request_irq(IRQ_UART_TX, rs_interrupt, IRQ_FLG_STD, "BF533_UART_TX", NULL))
-		panic("Unable to attach BlackFin UART interrupt\n");
-	
+		panic("Unable to attach BlackFin UART TX interrupt\n");
+        if (new_request_dma(CH_UART_RX, "BF533_UART", NULL, 0))
+                panic("Unable to attach BlackFin UART RX DMA channel\n");
+        if (new_request_dma(CH_UART_TX, "BF533_UART", NULL, 0))
+                panic("Unable to attach BlackFin UART TX DMA channel\n");
 	printk("Enabling Serial UART Interrupts\n");
+	
 	
 	enable_irq(IRQ_UART_RX);
 	enable_irq(IRQ_UART_TX);
@@ -1418,6 +1531,7 @@ static void bf533_set_baud( void )
 {
 	int	i;
 
+	FUNC_ENTER();
 	/* Change access to IER & data port */
 	ACCESS_PORT_IER 
 	*pUART_IER &= ~ETBEI;
@@ -1461,6 +1575,7 @@ int bf533_console_setup(struct console *cp, char *arg)
 {
 	int	i, n = CONSOLE_BAUD_RATE;
 
+	FUNC_ENTER();
 	if (!cp)
 		return(-1);
 
@@ -1486,6 +1601,7 @@ int bf533_console_setup(struct console *cp, char *arg)
 
 static struct tty_driver * bf533_console_device(struct console *c, int *index)
 {
+	FUNC_ENTER();
 	*index = c->index;
 	return bf533_serial_driver;
 }
