@@ -63,7 +63,7 @@
  * Cache Support
  */
 #define CONFIG_BLKFIN_CACHE 1
-#undef CONFIG_BLKFIN_DCACHE
+#define CONFIG_BLKFIN_DCACHE 1
 
 /*
  * Crystal Frequency
@@ -369,7 +369,8 @@
 #define CONFIG_PROC_FS 1
 #define CONFIG_PROC_KCORE 1
 #undef CONFIG_DEVFS_FS
-#undef CONFIG_DEVPTS_FS
+#define CONFIG_DEVPTS_FS 1
+#undef CONFIG_DEVPTS_FS_XATTR
 #undef CONFIG_TMPFS
 #undef CONFIG_HUGETLB_PAGE
 #define CONFIG_RAMFS 1

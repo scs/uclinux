@@ -736,15 +736,12 @@ void __pagevec_free(struct pagevec *pvec)
 
 void __free_pages(struct page *page, unsigned int order)
 {
-//	printk("inside __free_pages\n");
 	if (!PageReserved(page) && put_page_testzero(page)) {
-	//	printk("pagereserved and put_page_testzero OK\n");	
 		if (order == 0)
 			free_hot_page(page);
 		else
 			__free_pages_ok(page, order);
 	}
-//	printk("exiting __free_pages\n");
 }
 
 EXPORT_SYMBOL(__free_pages);

@@ -839,9 +839,9 @@ runcmd(cmd, bg, argc, argv)
 			(status & 0x80) ? "core dumped" : "killed",
 			status & 0x7f);
 #else
-//#if defined(BFIN_WAS_HERE)
+#if defined(BFIN_WAS_HERE)
 		fprintf(stderr, "pid %d: failed %d\n", pid, status);
-//#endif
+#endif
 #endif
 #if defined(BFIN_WAS_HERE)
 		fflush(stderr);

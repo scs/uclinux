@@ -1,7 +1,7 @@
 #
 # Makefile for the linux ext2-filesystem routines.
 #
-
+CFLAGS = -O0
 obj-$(CONFIG_EXT2_FS) += ext2.o
 
 ext2-y := balloc.o bitmap.o dir.o file.o fsync.o ialloc.o inode.o \

@@ -71,7 +71,6 @@ static int bf533_console_baud    = CONSOLE_BAUD_RATE;
 static int bf533_console_cbaud   = DEFAULT_CBAUD;
 /* static int bf533_console_port = -1;		*/
 
-//DECLARE_TASK_QUEUE(tq_serial); /* NRV for 2.6.2
 
 #ifdef CONFIG_CONSOLE
 extern wait_queue_head_t keypress_wait;
@@ -97,7 +96,6 @@ static int bf533_serial_refcount;
 #define _INLINE_ inline
 
 static struct bf533_serial bf533_soft[] = {
-/*    magic    hub2     irq   flags           */
   {	0, 	0, 	IRQ_UART, 	0 }, /* ttyS0 */
 };
 
@@ -142,8 +140,7 @@ struct { unsigned short dl_high, dl_low;
 };
 #endif
 #endif
-
-#if defined(CONFIG_BLKFIN_STAMP) //Please fixme som day ... but not now...
+#if defined(CONFIG_BLKFIN_STAMP) 
 struct { unsigned short dl_high, dl_low;
         } hw_baud_table[] = {
         {0xff, 0xff}, /* approximately 0 */
@@ -295,14 +292,12 @@ static inline void bf533_rtsdtr(struct bf533_serial *info, int set)
                 __FILE__, __LINE__, info, set);
 #endif
 
-/*        save_flags(flags); cli(); NRV*/
 	local_irq_save(flags);
 	if (set) {
 		/* set the RTS/CTS line */
 	} else {
 		/* clear it */
 	}
-/*        restore_flags(flags);NRV*/
 	local_irq_restore(flags);
 	return;
 }
@@ -362,7 +357,6 @@ static void local_put_char(int hub2, char ch)
 		return; /* validate port op(UART 0) */
 	}
 
-/*	save_flags(flags); cli();*/
 	local_irq_save(flags);
 
 	while (!(UART_LSR(hub2) & UART_LSR_THRE)) {
@@ -377,7 +371,6 @@ static void local_put_char(int hub2, char ch)
 		udelay(5);
 	}*/
 
-/*	restore_flags(flags);*/
 	local_irq_restore(flags);
 }
 
@@ -427,7 +420,7 @@ static _INLINE_ void status_handle(struct bf533_serial *info, unsigned short sta
  * processing in the software interrupt portion of the driver.
  */
 
-/* NRV for 2.6.2 
+/* 
 static _INLINE_ void rs_sched_event(struct bf533_serial *info,
 				    int event)
 {
@@ -455,8 +448,6 @@ static void receive_chars(struct bf533_serial *info, struct pt_regs *regs, unsig
 			} else if (ch == 0x10) { /* ^P */
 				show_state();
 				show_free_areas();
-			/*	show_buffers();	
-				show_net_buffers(); */
 				return;
 			} else if (ch == 0x12) { /*  */
 				machine_restart(NULL);
@@ -477,7 +468,6 @@ static void receive_chars(struct bf533_serial *info, struct pt_regs *regs, unsig
 		 * Make sure that we do not overflow the buffer
 		 */
 		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			//queue_task(&tty->flip.tqueue, &tq_timer); NRV
 			schedule_work(&tty->flip.work);
 			return;
 		}
@@ -568,7 +558,7 @@ int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 			switch (iir & UART_IIR_STATUS)
 			{
 		   	case UART_IIR_LSR:
-			//	printk("Line status changed for serial port %d.\n", idx);
+			/*printk("Line status changed for serial port %d.\n", idx);*/
 				break;
 		   	case UART_IIR_RBR:
 		   		/* Change access to IER & data port */
@@ -583,9 +573,6 @@ int rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				ACCESS_PORT_IER(idx) 
 				if (UART_LSR(idx) & UART_LSR_THRE){
 				    transmit_chars(info);
-//				    do{
-//					transmit_chars(info);
-//				    }while(info->xmit_cnt > 0);
 				}
 				break;
 		   	case UART_IIR_MSR:
@@ -645,7 +632,6 @@ static int startup(struct bf533_serial * info)
 		return 0;
 
 	if (!info->xmit_buf) {
-		//info->xmit_buf = (unsigned char *) get_free_page(GFP_KERNEL);/* NRV 2.6.2*/
 		info->xmit_buf = (unsigned char *) __get_free_page(GFP_KERNEL);
 		if (!info->xmit_buf)
 			return -ENOMEM;
@@ -664,14 +650,12 @@ static int startup(struct bf533_serial * info)
 	UART_GCTL(idx) |= UART_GCTL_UCEN;
 
 	UART_IER(idx) = UART_IER_ERBFI | UART_IER_ETBEI | UART_IER_ELSI | UART_IER_EDDSI;
-	//UART_IER(idx) =  UART_IER_ETBEI | UART_IER_ELSI | UART_IER_EDDSI;
 	(void)UART_RBR(idx);
 
 	/*
 	 * Finally, enable sequencing and interrupts
 	 */
 	UART_IER(idx) = UART_IER_ERBFI | UART_IER_ELSI | UART_IER_EDDSI;
-	//UART_IER(idx) =  UART_IER_ELSI | UART_IER_EDDSI;
 	bf533_rtsdtr(info, 1);
 
 	if (info->tty)
@@ -706,7 +690,6 @@ static void shutdown(struct bf533_serial * info)
                info->irq);
 #endif
       
-/*	save_flags(flags); cli();*/ /* Disable interrupts */
 	local_irq_save(flags);
 
 	UART_LCR(idx) = 0;
@@ -728,7 +711,6 @@ static void shutdown(struct bf533_serial * info)
 		set_bit(TTY_IO_ERROR, &info->tty->flags);
 
 	info->flags &= ~S_INITIALIZED;
-/*	restore_flags(flags);*/
 	local_irq_restore(flags);
 }
 
@@ -784,7 +766,6 @@ static void bf533_change_speed(struct bf533_serial *info)
         }
 		UART_LCR(idx) = uart_lcr;
 
-/*        restore_flags(flags);	*/
 	local_irq_restore(flags);
 	return;
 }
@@ -807,7 +788,6 @@ static void rs_flush_chars(struct tty_struct *tty)
 	unsigned long flags = 0;
 	int idx = info->hub2;
 
-	//if (serial_paranoia_check(info, tty->device, "rs_flush_chars")) /* NRV 2.6.2 */
 	if (serial_paranoia_check(info, tty->name, "rs_flush_chars"))
 		return;
 #ifndef USE_INTS
@@ -817,7 +797,6 @@ static void rs_flush_chars(struct tty_struct *tty)
 	   	   !info->xmit_buf)
 			return;
 
-/*		save_flags(flags); cli();*/
 		local_irq_save(flags);
 
 		ACCESS_PORT_IER(idx) /* Change access to IER & data port */
@@ -839,7 +818,6 @@ static void rs_flush_chars(struct tty_struct *tty)
 			SYNC_ALL;
 	}
 #endif
-/*	restore_flags(flags);*/
 		local_irq_restore(flags);
 }
 
@@ -863,7 +841,6 @@ static int rs_write(struct tty_struct * tty, int from_user,
 		if (c <= 0)
 			break;
 
-	/*	save_flags(flags); cli();*/
 		local_irq_save(flags);
 		if (from_user) {
 			down(&tmp_buf_sem);
@@ -876,7 +853,6 @@ static int rs_write(struct tty_struct * tty, int from_user,
 			memcpy(info->xmit_buf + info->xmit_head, buf, c);
 		info->xmit_head = (info->xmit_head + c) & (SERIAL_XMIT_SIZE-1);
 		info->xmit_cnt += c;
-		/*restore_flags(flags);*/
 		local_irq_restore(flags);
 		buf += c;
 		count -= c;
@@ -885,7 +861,6 @@ static int rs_write(struct tty_struct * tty, int from_user,
 
 	if (info->xmit_cnt && !tty->stopped && !tty->hw_stopped) {
 		/* Enable transmitter */
-/*		save_flags(flags); cli();	NRV	*/
 		local_irq_save(flags);
 #ifdef USE_INTS
 		ACCESS_PORT_IER(idx) /* Change access to IER & data port */
@@ -905,7 +880,6 @@ static int rs_write(struct tty_struct * tty, int from_user,
 #ifndef USE_INTS
 		}
 #endif
-/*		restore_flags(flags);*/
 		local_irq_restore(flags);
 	}
 	return total;
@@ -916,7 +890,6 @@ static int rs_write_room(struct tty_struct *tty)
 	struct bf533_serial *info = (struct bf533_serial *)tty->driver_data;
 	int	ret;
 				
-	//if (serial_paranoia_check(info, tty->device, "rs_write_room")) /* NRV 2.6.2 */
 	if (serial_paranoia_check(info, tty->name, "rs_write_room"))
 		return 0;
 	ret = SERIAL_XMIT_SIZE - info->xmit_cnt - 1;
@@ -931,7 +904,8 @@ static int rs_chars_in_buffer(struct tty_struct *tty)
 				
 	if (serial_paranoia_check(info, tty->name, "rs_chars_in_buffer"))
 		return 0;
-	return info->xmit_cnt;
+	/*return info->xmit_cnt;*/
+	return 0;
 }
 
 static void rs_flush_buffer(struct tty_struct *tty)
@@ -1090,13 +1064,10 @@ static void send_break(	struct bf533_serial * info, int duration)
 	int	 idx = info->hub2;
 
         current->state = TASK_INTERRUPTIBLE;
- /*       save_flags(flags);
-        cli();*/
 	local_irq_save(flags);
 	UART_LCR(idx) |= UART_LCR_SB;
         schedule_timeout(duration);
 	UART_LCR(idx) &= ~UART_LCR_SB;
-       /* restore_flags(flags);*/
 	local_irq_restore(flags);
 }
 
@@ -1215,11 +1186,9 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	if (!info || serial_paranoia_check(info, tty->name, "rs_close"))
 		return;
 	
-	/*save_flags(flags); cli();*/
 	local_irq_save(flags);
 	
 	if (tty_hung_up_p(filp)) {
-	/*	restore_flags(flags);*/
 	local_irq_restore(flags);
 		return;
 	}
@@ -1242,7 +1211,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		info->count = 0;
 	}
 	if (info->count) {
-	/*	restore_flags(flags);*/
 		local_irq_restore(flags);
 		return;
 	}
@@ -1349,27 +1317,6 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 #endif
 	}
 
-	/*
-	 * If this is a callout device, then just make sure the normal
-	 * device isn't being used.
-	 */
-/********************** Removed FIXME - BFin ***************/
-/*
-	if (tty->driver.subtype == SERIAL_TYPE_CALLOUT) {
-		if (info->flags & S_NORMAL_ACTIVE)
-			return -EBUSY;
-		if ((info->flags & S_CALLOUT_ACTIVE) &&
-		    (info->flags & S_SESSION_LOCKOUT) &&
-		    (info->session != current->session))
-		    return -EBUSY;
-		if ((info->flags & S_CALLOUT_ACTIVE) &&
-		    (info->flags & S_PGRP_LOCKOUT) &&
-		    (info->pgrp != current->pgrp))
-		    return -EBUSY;
-		info->flags |= S_CALLOUT_ACTIVE;
-		return 0;
-	}*/
-	
 	/*
 	 * If non-blocking mode is set, or the port is not enabled,
 	 * then make the check up front and then exit.
@@ -1479,27 +1426,6 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 
 	retval = block_til_ready(tty, filp, info);
 
-/* BFin - removed FIXME ***********************/
-/*
-	if (retval) {
-#ifdef SERIAL_DEBUG_OPEN
-                printk("bf533_open returning after block_til_ready with %d\n",
-                       retval);
-#endif 
-		return retval;
-	}
-
-	if ((info->count == 1) && (info->flags & S_SPLIT_TERMIOS)) {
-		if (tty->driver.subtype == SERIAL_TYPE_NORMAL)
-			*tty->termios = info->normal_termios;
-		else 
-			*tty->termios = info->callout_termios;
-		bf533_change_speed(info);
-	}
-
-	info->session = current->session;
-	info->pgrp = current->pgrp; */
-
 	return 0;
 }
 
@@ -1546,7 +1472,6 @@ static */ int __init rs_bf533_init(void)
 
 
 	/* Setup base handler, and timer table. */
-/*	init_bh(SERIAL_BH, do_serial_bh);*/ /* NRV */
 	show_serial_version();
 
 	/* Initialize the tty_driver structure */
@@ -1565,50 +1490,8 @@ static */ int __init rs_bf533_init(void)
 	bf533_serial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(bf533_serial_driver, &rs_ops);
 
-	/*
-
-	bf533_serial_driver.refcount = &bf533_serial_refcount;
-	bf533_serial_driver.table = bf533_serial_table;
-	bf533_serial_driver.termios = bf533_serial_termios;
-	bf533_serial_driver.termios_locked = bf533_serial_termios_locked;
-
-	bf533_serial_driver.open = rs_open;
-	bf533_serial_driver.close = rs_close;
-	bf533_serial_driver.write = rs_write;
-	bf533_serial_driver.flush_chars = rs_flush_chars;
-	bf533_serial_driver.put_char = rs_put_char;
-	bf533_serial_driver.write_room = rs_write_room;
-	bf533_serial_driver.chars_in_buffer = rs_chars_in_buffer;
-	bf533_serial_driver.flush_buffer = rs_flush_buffer;
-	bf533_serial_driver.ioctl = rs_ioctl;
-	bf533_serial_driver.throttle = rs_throttle;
-	bf533_serial_driver.unthrottle = rs_unthrottle;
-	bf533_serial_driver.send_xchar = ????	
-	bf533_serial_driver.set_termios = rs_set_termios;
-	bf533_serial_driver.stop = rs_stop;
-	bf533_serial_driver.start = rs_start;
-	bf533_serial_driver.hangup = rs_hangup;
-	bf533_serial_driver.set_ldisc = rs_set_ldisc;
-	bf533_serial_driver.wait_until_sent = ????	
-	bf533_serial_driver.read_proc = ????	*/
-
-	/*
-	 * The callout device is just like normal device except for
-	 * major number and the subtype code. ??? --tonyko
-	 */
-	/*bf533_callout_driver = bf533_serial_driver;
-	bf533_callout_driver->name = "cua";
-	bf533_callout_driver->major = TTYAUX_MAJOR;
-	bf533_callout_driver->subtype = SERIAL_TYPE_CALLOUT;*/
-
-	//if (tty_register_driver(&bf533_serial_driver)) NRV 2.6
 	if (tty_register_driver(bf533_serial_driver))
 		panic("Couldn't register serial driver\n");
-	//if (tty_register_driver(&bf533_callout_driver)) NRV 
-	/*if (tty_register_driver(bf533_callout_driver))
-		panic("Couldn't register callout driver\n");
-	*/
-/*	save_flags(flags); cli();*/
 	local_irq_save(flags);
 
         /*
@@ -1624,13 +1507,8 @@ static */ int __init rs_bf533_init(void)
 	info->event = 0;
 	info->count = 0;
 	info->blocked_open = 0;
-/*
-	info->tqueue.routine = do_softint;
-	info->tqueue.data = info;
-	info->tqueue_hangup.routine = do_serial_hangup;
-	info->tqueue_hangup.data = info;*/
-	INIT_WORK(&info->tqueue, do_softint, info);//ADd NRV
-	INIT_WORK(&info->tqueue_hangup, do_serial_hangup, info); //add NRV
+	INIT_WORK(&info->tqueue, do_softint, info);
+	INIT_WORK(&info->tqueue_hangup, do_serial_hangup, info);
 
 
 	init_waitqueue_head(&info->open_wait);
@@ -1643,7 +1521,6 @@ static */ int __init rs_bf533_init(void)
 		bf533_serial_driver->name, info->irq);
 	printk(" is a builtin BlackFin BF533 UART\n");
 
-/*	restore_flags(flags);*/
 	local_irq_restore(flags);
 
 	if (request_irq(IRQ_UART, rs_interrupt, IRQ_FLG_STD, "BF533_UART", NULL))
@@ -1759,21 +1636,6 @@ void bf533_console_write (struct console *co, const char *str,
     }
 }
 
-/*
-static struct console bf533_driver = {
-	name:		"ttyS",
-	write:		bf533_console_write,
-	read:		NULL,  //NRV
-	device:		bf533_console_device,
-	wait_key:	NULL,  //Not in 2.6.2 NRV
-	unblank:	NULL,
-	setup:		bf533_console_setup,
-	flags:		CON_PRINTBUFFER,
-flags	index:		CONFIG_SERIAL_CONSOLE_PORT,
-	cflag:		0,
-	next:		NULL
-};
-*/
 static struct console bf533_driver = {
 	.name		"ttyS",
 	.write		bf533_console_write,
@@ -1788,4 +1650,4 @@ void bf533_console_init(void)
 	register_console(&bf533_driver);
 }
 
-console_initcall(bf533_console_init); /* BFin -  2.6.2 */
+console_initcall(bf533_console_init); 

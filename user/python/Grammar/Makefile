@@ -14,7 +14,7 @@ RANLIB=		ranlib
 AR=		ar
 
 DEFS=		-DHAVE_CONFIG_H
-LIBS=		-lpthread -ldl  -lutil
+LIBS=		
 
 
 # === Fixed definitions ===

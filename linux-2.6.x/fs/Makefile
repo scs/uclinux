@@ -4,7 +4,7 @@
 # 14 Sep 2000, Christoph Hellwig <hch@infradead.org>
 # Rewritten to use lists instead of if-statements.
 # 
-CFLAGS = -O0
+CFLAGS_buffer.o = -O0
 CFLAGS_binfmt_flat.o = -O1
 
 obj-y :=	open.o read_write.o file_table.o buffer.o \

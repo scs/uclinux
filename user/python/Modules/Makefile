@@ -10,7 +10,7 @@
 
 # === Variables set by makesetup ===
 
-MODOBJS=	  threadmodule.o  gcmodule.o  bsddbmodule.o  posixmodule.o  stropmodule.o  timemodule.o  fcntlmodule.o  pwdmodule.o  grpmodule.o
+MODOBJS=	  gcmodule.o  posixmodule.o  stropmodule.o  timemodule.o  fcntlmodule.o  pwdmodule.o  grpmodule.o
 MODLIBS=	$(LOCALMODLIBS) $(BASEMODLIBS)
 
 # === Variables set by configure ===
@@ -30,7 +30,7 @@ SGI_ABI=
 FLTFLAGS+= 	-s 50000
 
 DEFS=		-DHAVE_CONFIG_H
-LIBS=		-lpthread -ldl  -lutil
+LIBS=		
 #LIBM=		-lm
 LIBC=		
 
@@ -95,7 +95,7 @@ MAKESETUP=	$(srcdir)/makesetup
 # for the benefits of independent extensions.)
 # === Definitions added by makesetup ===
 
-LOCALMODLIBS=    -ldb      
+LOCALMODLIBS=       
 BASEMODLIBS=
 TKPATH=:lib-tk
 GLHACK=-Dclear=__GLclear
@@ -285,12 +285,8 @@ ccpython.o: ccpython.cc
 
 # Rules appended by makedepend
 
-threadmodule.o: $(srcdir)/threadmodule.c; $(CC)  $(CFLAGS) -c $(srcdir)/threadmodule.c
-threadmodule$(SO):  threadmodule.o; $(LDSHARED)  threadmodule.o  -o threadmodule$(SO)
 gcmodule.o: $(srcdir)/gcmodule.c; $(CC)  $(CFLAGS) -c $(srcdir)/gcmodule.c
 gcmodule$(SO):  gcmodule.o; $(LDSHARED)  gcmodule.o  -o gcmodule$(SO)
-bsddbmodule.o: $(srcdir)/bsddbmodule.c; $(CC)  $(CFLAGS) -c $(srcdir)/bsddbmodule.c
-bsddbmodule$(SO):  bsddbmodule.o; $(LDSHARED)  bsddbmodule.o  -ldb -o bsddbmodule$(SO)
 posixmodule.o: $(srcdir)/posixmodule.c; $(CC)  $(CFLAGS) -c $(srcdir)/posixmodule.c
 posixmodule$(SO):  posixmodule.o; $(LDSHARED)  posixmodule.o  -o posixmodule$(SO)
 stropmodule.o: $(srcdir)/stropmodule.c; $(CC)  $(CFLAGS) -c $(srcdir)/stropmodule.c

@@ -40,8 +40,15 @@ struct mtd_info *uclinux_ram_mtdinfo;
 
 struct mtd_partition uclinux_romfs[] = {
 	{
-/*	.name = "ROMfs",*/
+#if defined CONFIG_EXT2_FS	
 	.name = "EXT2fs",
+#elif defined  CONFIG_EXT3_FS
+	.name = "EXT3fs",
+#elif defined  CONFIG_ROMFS_FS
+	.name = "ROMfs" ,
+#elif defined  CONFIG_CRAMFS
+	.name = "CRAMfs", 
+#endif
 	}
 };
 
@@ -59,7 +66,6 @@ int uclinux_point(struct mtd_info *mtd, loff_t from, size_t len,
 }
 
 /****************************************************************************/
-//#undef CONFIG_EZKIT
 
 int __init uclinux_mtd_init(void)
 {
@@ -73,7 +79,7 @@ int __init uclinux_mtd_init(void)
 	addr = (unsigned long) (&_etext + (&__init_end - &_sdata));
 #endif
 
-#if defined(CONFIG_EZKIT) || defined(CONFIG_BLKFIN_STAMP)
+#ifdef CONFIG_FRIO
 	extern char ramdisk_begin,ramdisk_end;
 	unsigned long magic;
 	addr = (unsigned long) &ramdisk_begin;
@@ -82,10 +88,14 @@ int __init uclinux_mtd_init(void)
 	mapp->phys = addr;
 	mapp->size = PAGE_ALIGN(*((unsigned long *)(addr + 8)));
 
-#if defined(CONFIG_EZKIT) || defined(CONFIG_BLKFIN_STAMP)
+#ifdef CONFIG_FRIO
+#ifdef CONFIG_ROMFS_FS		
 	mapp->size = PAGE_ALIGN(ntohl(*((unsigned long *)(addr + 8))));
+#endif
 	mapp->map_priv_2 = addr;
+#ifndef CONFIG_ROMFS_FS
 	mapp->size = (&ramdisk_begin - &ramdisk_end); 
+#endif
 #endif
 	mapp->buswidth = 4;
 	printk("uclinux[mtd]: RAM probe address=0x%x size=0x%x\n",

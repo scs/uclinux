@@ -4,3 +4,273 @@ running configure, to aid debugging if configure makes a mistake.
 configure:625: checking MACHDEP
 configure:685: checking for --without-gcc
 configure:741: checking for --with-cxx=<compiler>
+configure:785: checking for gcc
+configure:898: checking whether the C compiler (gcc  ) works
+configure:914: gcc -o conftest    conftest.c  1>&5
+configure:940: checking whether the C compiler (gcc  ) is a cross-compiler
+configure:945: checking whether we are using GNU C
+configure:973: checking whether gcc accepts -g
+configure:1006: checking for --with-suffix
+configure:1051: checking LINKCC
+configure:1071: checking LDLIBRARY
+configure:1104: checking for ranlib
+configure:1137: checking for ar
+configure:1216: checking how to run the C preprocessor
+configure:1296: checking for AIX
+configure:1321: checking for minix/config.h
+configure:1370: checking whether gcc accepts -OPT:Olimit=0
+configure:1407: checking whether gcc accepts -Olimit 1500
+configure:1445: checking for ANSI C header files
+configure:1557: checking for dlfcn.h
+configure:1557: checking for fcntl.h
+configure:1557: checking for limits.h
+configure:1557: checking for locale.h
+configure:1557: checking for ncurses.h
+configure:1557: checking for poll.h
+configure:1557: checking for pthread.h
+configure:1557: checking for signal.h
+configure:1557: checking for stdarg.h
+configure:1557: checking for stddef.h
+configure:1557: checking for stdlib.h
+configure:1557: checking for thread.h
+configure:1557: checking for unistd.h
+configure:1557: checking for utime.h
+configure:1557: checking for sys/audioio.h
+configure:1557: checking for sys/file.h
+configure:1557: checking for sys/lock.h
+configure:1557: checking for db_185.h
+configure:1557: checking for db.h
+configure:1557: checking for sys/param.h
+configure:1557: checking for sys/select.h
+configure:1557: checking for sys/socket.h
+configure:1557: checking for sys/time.h
+configure:1557: checking for sys/times.h
+configure:1557: checking for sys/un.h
+configure:1557: checking for sys/utsname.h
+configure:1557: checking for sys/wait.h
+configure:1557: checking for pty.h
+configure:1557: checking for libutil.h
+configure:1557: checking for ndbm.h
+configure:1557: checking for db1/ndbm.h
+configure:1557: checking for gdbm/ndbm.h
+configure:1598: checking for dirent.h that defines DIR
+configure:1636: checking for opendir in -ldir
+configure:1722: checking for clock_t in time.h
+configure:1752: checking for mode_t
+configure:1785: checking for off_t
+configure:1818: checking for pid_t
+configure:1851: checking return type of signal handlers
+configure:1892: checking for size_t
+configure:1925: checking for uid_t in sys/types.h
+configure:1961: checking size of int
+configure:2000: checking size of long
+configure:2039: checking size of void *
+configure:2078: checking size of char
+configure:2117: checking size of short
+configure:2156: checking size of float
+configure:2195: checking size of double
+configure:2234: checking size of fpos_t
+configure:2274: checking for long long support
+configure:2284: gcc -c -g -O2  conftest.c 1>&5
+configure:2298: checking size of long long
+configure:2339: checking for uintptr_t support
+configure:2349: gcc -c -g -O2  conftest.c 1>&5
+configure: In function `main':
+configure:2345: `uintptr_t' undeclared (first use in this function)
+configure:2345: (Each undeclared identifier is reported only once
+configure:2345: for each function it appears in.)
+configure:2345: parse error before "x"
+configure:2345: `x' undeclared (first use in this function)
+configure:2345: parse error before numeric constant
+configure: failed program was:
+#line 2342 "configure"
+#include "confdefs.h"
+
+int main() {
+uintptr_t x; x = (uintptr_t)0;
+; return 0; }
+configure:2405: checking size of off_t
+configure:2447: checking whether to enable large file support
+configure:2462: checking size of time_t
+configure:2506: checking for pthread_t
+configure:2516: gcc -c -g -O2  conftest.c 1>&5
+configure:2528: checking size of pthread_t
+configure:2586: checking for --with-next-framework
+configure:2603: checking for --with-dyld
+configure:2629: checking SO
+configure:2643: checking LDSHARED
+configure:2699: checking CCSHARED
+configure:2723: checking LINKFORSHARED
+configure:2760: checking for dlopen in -ldl
+configure:2807: checking for shl_load in -ldld
+configure:2856: checking for --with-pydebug
+configure:2909: checking for t_open in -lnsl
+configure:2949: checking for socket in -lsocket
+configure:3036: checking for --with-libs
+configure:3053: checking for --with-dec-threads
+configure:3070: checking for --with-threads
+configure:3108: checking for mach/cthreads.h
+configure:3147: checking for --with-pth
+configure:3167: checking for pthread_create in -lpthread
+configure:3215: checking for pthread_detach
+configure:3274: checking for kernel/OS.h
+configure:3313: checking for pthread_create in -lpthreads
+configure:3361: checking for pthread_create in -lc_r
+configure:3409: checking for __d6_pthread_create in -lthread
+configure:3457: checking for pthread_create in -lcma
+configure:3526: checking for usconfig in -lmpc
+configure:3572: checking for thr_create in -lthread
+configure:3632: checking for --with-cycle-gc
+configure:3659: checking for --with-libdb
+configure:3754: checking for --with-wctype-functions
+configure:3776: checking for --with-sgi-dl
+configure:3800: checking for --with-dl-dld
+configure:3829: checking for dlopen
+configure:3886: checking DYNLOADFILE
+configure:3927: checking for alarm
+configure:3927: checking for chown
+configure:3927: checking for clock
+configure:3927: checking for confstr
+configure:3927: checking for ctermid
+configure:3927: checking for ctermid_r
+configure:3927: checking for execv
+configure:3927: checking for flock
+configure:3927: checking for fork
+configure:3927: checking for fsync
+configure:3927: checking for fdatasync
+configure:3927: checking for fpathconf
+configure:3927: checking for ftime
+configure:3927: checking for ftruncate
+configure:3927: checking for getgroups
+configure:3927: checking for getlogin
+configure:3927: checking for getpeername
+configure:3927: checking for getpid
+configure:3927: checking for getpwent
+configure:3927: checking for getwd
+configure:3927: checking for kill
+configure:3927: checking for link
+configure:3927: checking for lstat
+configure:3927: checking for mkfifo
+configure:3927: checking for mktime
+configure:3927: checking for mremap
+configure:3927: checking for nice
+configure:3927: checking for pathconf
+configure:3927: checking for pause
+configure:3927: checking for plock
+configure:3927: checking for poll
+configure:3927: checking for pthread_init
+configure:3927: checking for putenv
+configure:3927: checking for readlink
+configure:3927: checking for select
+configure:3927: checking for setegid
+configure:3927: checking for seteuid
+configure:3927: checking for setgid
+configure:3927: checking for setlocale
+configure:3927: checking for setregid
+configure:3927: checking for setreuid
+configure:3927: checking for setsid
+configure:3927: checking for setpgid
+configure:3927: checking for setuid
+configure:3927: checking for setvbuf
+configure:3927: checking for sigaction
+configure:3927: checking for siginterrupt
+configure:3927: checking for sigrelse
+configure:3927: checking for strftime
+configure:3927: checking for strptime
+configure:3927: checking for symlink
+configure:3927: checking for sysconf
+configure:3927: checking for tcgetpgrp
+configure:3927: checking for tcsetpgrp
+configure:3927: checking for tempnam
+configure:3927: checking for timegm
+configure:3927: checking for times
+configure:3927: checking for tmpfile
+configure:3927: checking for tmpnam
+configure:3927: checking for tmpnam_r
+configure:3927: checking for truncate
+configure:3927: checking for uname
+configure:3927: checking for waitpid
+configure:3927: checking for _getpty
+configure:3985: checking for openpty
+configure:4035: checking for openpty in -lutil
+configure:4083: checking for forkpty
+configure:4133: checking for forkpty in -lutil
+configure:4183: checking for fseek64
+configure:4183: checking for fseeko
+configure:4183: checking for fstatvfs
+configure:4183: checking for ftell64
+configure:4183: checking for ftello
+configure:4183: checking for statvfs
+configure:4239: checking for dup2
+configure:4239: checking for getcwd
+configure:4239: checking for strdup
+configure:4239: checking for strerror
+configure:4239: checking for memmove
+configure:4296: checking for getpgrp
+configure:4350: gcc -c -g -O2  conftest.c 1>&5
+configure: In function `main':
+configure:4346: too many arguments to function `getpgrp'
+configure: failed program was:
+#line 4343 "configure"
+#include "confdefs.h"
+#include <unistd.h>
+int main() {
+getpgrp(0);
+; return 0; }
+configure:4369: checking for setpgrp
+configure:4442: checking for gettimeofday
+configure:4496: gcc -c -g -O2  conftest.c 1>&5
+configure:4516: checking whether time.h and sys/time.h may both be included
+configure:4551: checking whether struct tm is in sys/time.h or time.h
+configure:4585: checking for tm_zone in struct tm
+configure:4618: checking for tzname
+configure:4656: checking for time.h that defines altzone
+configure:4690: checking whether sys/select.h and sys/time.h may both be included
+configure:4703: gcc -c -g -O2  conftest.c 1>&5
+configure:4719: checking whether char is unsigned
+configure:4782: checking for working const
+configure:4857: checking for inline
+configure:4899: checking for working volatile
+configure:4908: gcc -c -g -O2  conftest.c 1>&5
+configure:4925: checking for working signed char
+configure:4934: gcc -c -g -O2  conftest.c 1>&5
+configure:4951: checking for prototypes
+configure:4960: gcc -c -g -O2  conftest.c 1>&5
+configure:4975: checking for variable length prototypes and stdarg.h
+configure:4994: gcc -c -g -O2  conftest.c 1>&5
+configure:5010: checking for bad exec* prototypes
+configure:5019: gcc -c -g -O2  conftest.c 1>&5
+configure:5036: checking for bad static forward
+configure:5057: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:5076: checking whether va_list is an array
+configure:5091: gcc -c -g -O2  conftest.c 1>&5
+configure:5107: checking for gethostbyname_r
+configure:5155: checking gethostbyname_r with 6 args
+configure:5176: gcc -c -g -O2     conftest.c 1>&5
+configure:5354: checking for __fpu_control
+configure:5452: checking for --with-fpectl
+configure:5478: checking for --with-libm=STRING
+configure:5499: checking for --with-libc=STRING
+configure:5523: checking for hypot
+configure:5581: checking for genuine getopt
+configure:5619: checking what malloc(0) returns
+configure:5672: checking for wchar.h
+configure:5712: checking for usable wchar_t
+configure:5731: gcc -o conftest -g -O2   conftest.c  1>&5
+configure: failed program was:
+#line 5717 "configure"
+#include "confdefs.h"
+
+#include "wchar.h"
+#include "wctype.h"
+main() {
+ wchar_t s;
+ if (sizeof(s) == 2)
+  exit(0);
+ else
+  exit(1);
+}
+
+configure:5750: checking whether byte ordering is bigendian
+configure:5843: checking whether right shift extends the sign bit
+configure:5893: checking for socklen_t
