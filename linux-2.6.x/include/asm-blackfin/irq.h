@@ -69,13 +69,14 @@
  *                                                      01/11/97 - Jes
  */
 
-extern void (*mach_enable_irq)(unsigned int);
-extern void (*mach_disable_irq)(unsigned int);
-
 extern int sys_request_irq(unsigned int, 
 	int (*)(int, void *, struct pt_regs *),  
 	unsigned long, const char *, void *);
 extern void sys_free_irq(unsigned int, void *);
+static __inline__ int irq_canonicalize(int irq)
+{
+	return ((irq == 2) ? 9 : irq);
+}
 
 /*
  * various flags for request_irq() - the Amiga now uses the standard
@@ -114,17 +115,13 @@ typedef struct irq_handler {
 
 /* count of spurious interrupts */
 extern volatile unsigned int num_spurious;
+void enable_irq(unsigned int irq);
+void disable_irq(unsigned int irq);
 
 /*
  * This function returns a new irq_node_t
  */
 extern irq_node_t *new_irq_node(void);
-
-/*
- * Some drivers want these entry points
- */
-#define enable_irq(x)	(mach_enable_irq  ? (*mach_enable_irq)(x)  : 0)
-#define disable_irq(x)	(mach_disable_irq ? (*mach_disable_irq)(x) : 0)
 
 #define enable_irq_nosync(x)	enable_irq(x)
 #define disable_irq_nosync(x)	disable_irq(x)
