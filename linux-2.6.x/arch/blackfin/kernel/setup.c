@@ -51,6 +51,7 @@ void __you_cannot_kmalloc_that_much(void)
 void bf53x_cache_init(void);
 u_long get_cclk(void) ;
 u_long get_sclk(void);
+u_int get_dsp_rev_id(void);
 
 /* Blackfin cache functions */
 extern void icache_init(void);
@@ -58,22 +59,29 @@ extern void dcache_init(void);
 extern int read_iloc(void);
 	
 #define DEBUG 1
-#ifdef CONFIG_BFIN
-	#define CPU "Blackfin"
+
+#ifdef CONFIG_BF533
+#define CPU "BF533"
+#endif
+#ifdef CONFIG_BF532
+#define CPU "BF532"
+#endif
+#ifdef CONFIG_BF531
+#define CPU "BF531"
 #endif
 #ifndef CPU
-	#define	CPU "UNKOWN"
+#define	CPU "UNKOWN"
 #endif
 
 void bf53x_cache_init(void)
 {
 #ifdef CONFIG_BLKFIN_CACHE
 	icache_init();
-	printk("Instruction Cache enabled\n");
+	printk("Instruction Cache Enabled\n");
 #endif
 #ifdef CONFIG_BLKFIN_DCACHE
 	dcache_init();
-	printk("Data cache Enabled\n");
+	printk("Data Cache Enabled\n");
 #endif
 }
 
@@ -83,7 +91,7 @@ extern int ramdisk_begin,ramdisk_end;
 
 void setup_arch(char **cmdline_p)
 {
-	int bootmap_size;
+	int bootmap_size, id;
 
 #if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)  
 	/* we need to initialize the Flashrom device here since we might
@@ -100,7 +108,12 @@ void setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) &_edata;
 	init_mm.brk = (unsigned long) 0;	
 	
-	printk(KERN_INFO "BF533 Blackfin support (C) 2004 Analog Devices, Inc.\n");
+	id = get_dsp_rev_id();
+
+	printk(KERN_INFO "Blackfin support (C) 2004 Analog Devices, Inc.\n");
+	printk(KERN_INFO "ADSP-%s Rev. 0.%d\n",CPU,id);
+	if(id <= 2)
+		printk(KERN_INFO "Warning: Unsupported Chip Revision ADSP-%s Rev. 0.%d detected \n",CPU,id);
 
 #if defined(CONFIG_BOOTPARAM)
 	strncpy(&command_line[0], CONFIG_BOOTPARAM_STRING, sizeof(command_line));
@@ -111,7 +124,7 @@ void setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "uClinux/" CPU "\n");
 
-	printk("Blackfin support by LG Soft India (www.lgsoftindia.com) \n");
+	printk("Blackfin uClinux support by LG Soft India (www.lgsoftindia.com) \n");
 	printk("Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",get_cclk()/1000000,get_sclk()/1000000);
 
 #ifdef DEBUG
@@ -204,6 +217,14 @@ u_long get_sclk()
 	return sclk;
 }
 
+/*Get the DSP Revision ID*/
+u_int get_dsp_rev_id()
+{
+	u_int id;
+	id = *pDSPID & 0xffff;
+	return id;
+}
+
 /*
  *	Get CPU information for use by the procfs.
  */
@@ -215,6 +236,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #endif
 
 	u_long cclk=0,sclk=0;
+	u_int id;
 
 	cpu = CPU;
 	mmu = "none";
@@ -222,15 +244,16 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	cclk = get_cclk();
 	sclk = get_sclk();
+	id = get_dsp_rev_id();
 
-	seq_printf(m, "CPU:\t\t%s\n"
+	seq_printf(m, "CPU:\t\tADSP-%s Rev. 0.%d\n"
 		   "MMU:\t\t%s\n"
 		   "FPU:\t\t%s\n"
 		   "Core Clock:\t%lu Hz\n"
 		   "System Clock:\t%lu Hz\n"
 		   "BogoMips:\t%lu.%02lu\n"
 		   "Calibration:\t%lu loops\n",
-		   cpu, mmu, fpu,
+		   cpu, id, mmu, fpu,
 		   cclk,
 		   sclk,
 		   (loops_per_jiffy*HZ)/500000,((loops_per_jiffy*HZ)/5000)%100,

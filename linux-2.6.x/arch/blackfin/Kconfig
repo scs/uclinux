@@ -42,6 +42,17 @@ config BF533
 	bool "BF533"
 	help
 	 BF533 Processor Support.
+
+config BF532 
+	bool "BF532"
+	help
+	 BF532 Processor Support.
+
+config BF531 
+	bool "BF531"
+	help
+	 BF531 Processor Support.
+
 config BF535 
 	bool "BF535"
 	help
@@ -51,14 +62,14 @@ endchoice
 
 config BLACKFIN
 	bool
-	depends on (BF535 || BF533)
+	depends on (BF535 || BF533 || BF532 || BF531)
 	default y
 
 comment "Platform"
 
 choice 
 	prompt	"Platform"
-	default BF533 
+	default STAMP 
 
 config EZKIT 
 	bool "EZKITLITE board support"
@@ -73,7 +84,7 @@ config MEM_MT48LC16M16A2TG_75
 
 config  BLKFIN_STAMP
 	bool "STAMP board support"
-	depends on BF533
+	depends on (BF533)
 	help
 	 STAMP board Support.
 
@@ -125,7 +136,7 @@ comment 'DMA Support'
 
 config BLKFIN_DMA
 	bool 'Enable DMA Support'
-	depends on BF533
+	depends on BF533 || BF532 || BF531
 	default n
 
 comment 'Cache Support'
@@ -147,10 +158,17 @@ endchoice
 
 comment 'Crystal Frequency'
 
+if BLKFIN_STAMP
 config CLKIN_HZ
 	int "Crystal"
 	default "11059200" if BLKFIN_STAMP
+endif
+
+if EZKIT
+config CLKIN_HZ
+	int "Crystal"
 	default "27000000" if EZKIT
+endif
 
 comment 'VCO Multiplier'
 
@@ -196,6 +214,55 @@ config MEM_ADD_WIDTH
 	int "SDRAM Memory Address Width"
 	default 9 if EZKIT
 	default 11 if BLKFIN_STAMP
+
+comment'Asynchonous Memory Configuration'
+
+menu'EBIU_AMBCTL Global Control' 
+config C_AMCKEN
+	bool "Enable CLKOUT"
+	default y 
+
+config C_CDPRIO
+	bool "DMA has priority over core for ext. accesses"
+	default n 
+choice 
+	prompt"Enable Asynchonous Memory Banks"
+	default C_AMBEN_ALL 
+
+config C_AMBEN
+	bool "Disable All Banks"
+
+config C_AMBEN_B0
+	bool "Enable Bank 0"
+
+config C_AMBEN_B0_B1
+	bool "Enable Bank 0 & 1"
+
+config C_AMBEN_B0_B1_B2
+	bool "Enable Bank 0 & 1 & 2"
+
+config C_AMBEN_ALL
+	bool "Enable All Banks"
+endchoice
+endmenu
+
+menu'EBIU_AMBCTL Control' 
+config BANK_0
+	hex "Bank 0"
+	default 0x7BB0 
+
+config BANK_1
+	hex "Bank 1"
+	default 0x7BB0
+
+config BANK_2
+	hex "Bank 2"
+	default 0x7BB0
+
+config BANK_3
+	hex "Bank 3"
+	default 0x99B3
+endmenu
 
 comment 'Baud Rate'
 

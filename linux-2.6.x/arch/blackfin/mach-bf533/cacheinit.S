@@ -1,7 +1,7 @@
 /*This file is subject to the terms and conditions of the GNU General Public
  * License. 
  * 	
- * Blackfin BF533/2.6 support : LG Soft India	
+ * Blackfin BF533/2/1/2.6 support : LG Soft India	
  */
 
 /* This function sets up the data and instruction cache. The 
@@ -93,7 +93,11 @@ ddone:
 	P0.L = (DMEM_CONTROL & 0xFFFF);
 	P0.H = (DMEM_CONTROL >> 16);
 
+#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
 	R0 = (ACACHE_BCACHE | ENDCPLB | ENDM);
+#else
+	R0 = (ACACHE_BSRAM | ENDCPLB | ENDM);
+#endif
 	[P0] = R0;
 	CSYNC;
 	RTS;	
