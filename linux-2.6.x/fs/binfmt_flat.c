@@ -375,7 +375,7 @@ failed:
 /****************************************************************************/
 #ifdef CONFIG_BFIN
 
-void calc_v5_reloc(int i, unsigned long rl)
+int calc_v5_reloc(int i, unsigned long *rlp)
 {
 	/*
 	 * This was flat_reloc_t, but since it changes based on version, and this
@@ -383,24 +383,19 @@ void calc_v5_reloc(int i, unsigned long rl)
 	 * Faisal Akber 2001-11-28
 	 */
 	flat_v5_reloc_t r;
+	unsigned long rl = ntohl (*(rlp + i));
 	unsigned long *ptr;
 	unsigned short *usptr;
 #ifdef CONFIG_BFIN
 	unsigned long offset=0;
-	static unsigned long carry = 0;
 #endif
 
 	r.value = rl;
-	if(carry)
-	if(r.reloc.sp != FLAT_BFIN_RELOC_SP_TYPE_16_BIT || (!r.reloc.hi_lo)){
-	printk("lo with overflow not followed by hi\n");
-	carry = 0;
-	}
 
 	ptr = (unsigned long *) (current->mm->start_code + r.reloc.offset);
 #ifdef DEBUG_BFIN_RELOC
-	printk("reloc.offset=%x",r.reloc.offset);
-	printk(" type =%x",r.reloc.type);
+	printk("reloc %d reloc.offset=%x", i, r.reloc.offset);
+	printk(" type = %x sp = %d", r.reloc.type, r.reloc.sp);
 #endif
 
 #if defined(CONFIG_BFIN)
@@ -428,37 +423,71 @@ void calc_v5_reloc(int i, unsigned long rl)
 		}
 
 
+		offset += *usptr;
 		if (r.reloc.hi_lo) {
 #ifdef DEBUG_BFIN_RELOC
-			printk(" hi");
+			printk(" hi ");
 #endif
-#if 0
 			offset >>= 16;
-			offset += *usptr;
-			offset += carry;
-			carry  = 0;
-#endif
-			offset = (carry >> 16) + (*usptr);
-			carry = 0;
-			
-		} else {
+		}
+		else{
 #ifdef DEBUG_BFIN_RELOC
-			printk(" lo");
+			printk(" lo ");
 #endif
-#if 0
-			offset &= 0xffff;
-			offset += *usptr;
-			carry = (offset >> 16) & 1;
-#endif
-			offset += *usptr;
-			carry  = offset & 0xffff0000;
-			offset &= 0xffff;
+			offset &= 0xFFFF;
 		}
 		*usptr = offset;
 #ifdef DEBUG_BFIN_RELOC
 		printk(" new value %x", *usptr);
 #endif
 
+		i++;
+		break;
+
+	case FLAT_BFIN_RELOC_SP_TYPE_16H_BIT:
+		usptr = (unsigned short *) ptr;
+#ifdef DEBUG_BFIN_RELOC
+		printk(" sp = 16 bit *offset = %x", ntohl (rlp[i + 1]));
+#endif
+
+		switch (r.reloc.type) {
+		  case FLAT_RELOC_TYPE_TEXT:
+			  offset = current->mm->start_code;
+			  break;
+		  case FLAT_RELOC_TYPE_DATA:
+			  offset = current->mm->start_data;
+			  break;
+		  case FLAT_RELOC_TYPE_BSS:
+			  offset = current->mm->end_data;
+			  break;
+		  default:
+			  printk("BINFMT_FLAT: Unknown relocation type=%x\n",
+			       r.reloc.type);
+			  break;
+		}
+		if(*usptr == 0){
+		  offset += ntohl (rlp[i + 1]);
+		  i += 2;
+		}
+		else{
+		  offset += ntohl (rlp[*usptr]);
+		  i++;
+		}
+		if (r.reloc.hi_lo) {
+#ifdef DEBUG_BFIN_RELOC
+			printk(" hi");
+#endif
+			offset >>= 16;
+			
+		} else {
+#ifdef DEBUG_BFIN_RELOC
+			printk(" lo");
+#endif
+		}
+		*usptr = offset;
+#ifdef DEBUG_BFIN_RELOC
+		printk(" new value %x", *usptr);
+#endif
 		break;
 
 	case FLAT_BFIN_RELOC_SP_TYPE_32_BIT:
@@ -489,6 +518,7 @@ void calc_v5_reloc(int i, unsigned long rl)
 #ifdef DEBUG_BFIN_RELOC
 		printk(" new ptr =%x", *ptr);
 #endif
+		i++;
 		break;
 
 	default:
@@ -497,9 +527,9 @@ void calc_v5_reloc(int i, unsigned long rl)
 		break;
 	}
 #ifdef DEBUG_BFIN_RELOC
-		printk("\n");
+	printk("\n");
 #endif
-
+	return i;
 #else
 #warning "This architecture doesn't have support for version 5 bFLT binaries."
 #endif
@@ -857,9 +887,9 @@ DBG_FLT("rev= %d\n", rev);
 	printk("start_code=%x start_data=%x end_data=%x\n",current->mm->start_code,
 	current->mm->start_data, current->mm->end_data);
 #endif
-				 for(i = 0; i < relocs; i++)
+				 for(i = 0; i < relocs;)
 				 {
-					 calc_v5_reloc(i, ntohl(reloc[i]));
+					 i = calc_v5_reloc(i, reloc);
 				 }
 			 }
 			 break;
