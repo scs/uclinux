@@ -1,3 +1,6 @@
 2005-02-17  Michael Hennerich  <hennerich@blackfin.uclinux.org>
 
-        *Initail Release 
+        *Initail Release
+2005-03-24  Michael Hennerich  <hennerich@blackfin.uclinux.org> 
+
+		Driver now supports new DMA-API 

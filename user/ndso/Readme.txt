@@ -43,15 +43,6 @@ kernel and user space adjustments needs to be done.
                                                                                                 
 Check Customize Kernel Settings and Customize Vendor/User Settings, then save and exit          
 During kernel configuration under 'Processor type and features', Enable 'Simple DMA Support'.   
-Since there is a dependency with the standard Serial driver, we also need to enable the         
-'Blackfin Serial Driver IRQ on RX and TX'.                                                      
-                                                                                                
-Therefore go to 'Character devices' -> 'Serial drivers'                                         
-                                                                                                
-   [ ] 8250/16550 and compatible serial support                                                 
-   --- Non-8250 serial port support                                                             
-   --- Blackfin serial support                                                                  
-       Select Serial Driver (Blackfin Serial Driver IRQ on RX and TX (Experimental)) --->       
                                                                                                 
 In addition to that also check 'Blackfin BF533/2/1 ADSP SPI ADC support'                        
                                                                                                 
