@@ -1,9 +1,7 @@
 /*
- * Blackfin BF533/2.6 support : LG Soft India
- * Tab Size == 4 ....MaTed
+ * Blackfin BF533/2/1/2.6 support : LG Soft India
  */
 
-#ifndef __ADSPLPBLACKFIN__
 #ifndef _BLKFin_H_
 #define _BLKFin_H_
 
@@ -29,21 +27,24 @@
 #define IMASK_IVGTMR		0x0040
 #define IMASK_IVGHW		0x0020
 
-/***************************
- * Blackfin Cache setup
- */
+/***************************/
 
 #define BLKFIN_ICACHESIZE	(16*1024)
-#define BLKFIN_DCACHESIZE	(32*1024)
 
+#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
+#define BLKFIN_DCACHESIZE	(32*1024)
+#define BLKFIN_DSUPBANKS	2
+#else
+#define BLKFIN_DCACHESIZE	(16*1024)
+#define BLKFIN_DSUPBANKS	1
+#endif
+
+#define BLKFIN_DSUBBANKS	4
+#define BLKFIN_DWAYS		2	
+#define BLKFIN_DLINES		64
 #define BLKFIN_ISUBBANKS	4
 #define BLKFIN_IWAYS		4
 #define BLKFIN_ILINES		32
-
-#define BLKFIN_DSUPBANKS	2
-#define BLKFIN_DSUBBANKS	4
-#define BLKFIN_DWAYS		2	
-#define BLKFIN_DLINES		64	
 
 #define WAY0_L			0x1
 #define WAY1_L			0x2
@@ -95,28 +96,41 @@
 #define TIMER1_BIT			0xFFFFFF0F
 #define TIMER0_BIT		        0xFFFFFFFF
 
-/*Miscellaneous Values*/
-#define CCLK_550	0x6400	/* For STAMP board */
-#define CCLK_594	0x2C00	/* For EZKIT board */
-
-#define DELAY_STMP	0x80
-#define DELAY_EZ	0x1000
-
 #define ZERO		0x0
 
-#ifdef CONFIG_EZKIT
-#define AMBCTL0VAL	0x7BB07BB0
-#define AMBCTL1VAL	0x22547BB0
-#define AMGCTLVAL	0xFF
-#define RAM_END		0x1FFEFF0
+#define RAM_END (CONFIG_MEM_SIZE * 1024 * 1024)
+
+/********************************* EBIU Settings ************************************/
+#define AMBCTL0VAL	(CONFIG_BANK_1 << 16) | CONFIG_BANK_0
+#define AMBCTL1VAL	(CONFIG_BANK_3 << 16) | CONFIG_BANK_2
+
+#if (CONFIG_C_AMBEN_ALL)
+#define V_AMBEN AMBEN_ALL
+#endif
+#if (CONFIG_C_AMBEN)
+#define V_AMBEN 0x0
+#endif
+#if (CONFIG_C_AMBEN_B0)
+#define V_AMBEN AMBEN_B0
+#endif
+#if (CONFIG_C_AMBEN_B0_B1)
+#define V_AMBEN AMBEN_B0_B1
+#endif
+#if (CONFIG_C_AMBEN_B0_B1_B2)
+#define V_AMBEN AMBEN_B0_B1_B2
+#endif 
+#if (CONFIG_C_AMCKEN)
+#define V_AMCKEN AMCKEN 
+#else    
+#define V_AMCKEN 0x0
+#endif
+#if (CONFIG_C_CDPRIO)
+#define V_CDPRIO 0x100
+#else    
+#define V_CDPRIO 0x0
 #endif
 
-#ifdef CONFIG_BLKFIN_STAMP
-#define AMBCTL0VAL	0xBBC3BBC3
-#define AMBCTL1VAL	0x99B39983
-#define AMGCTLVAL	0xFF
-#define RAM_END		0x8000000
-#endif
+#define AMGCTLVAL	(V_AMBEN | V_AMCKEN | V_CDPRIO)
 
 /********************************PLL Settings **************************************/
 
@@ -207,4 +221,3 @@
 #endif
 
 #endif  /* _BLKFin_H_  */
-#endif /* !defined __ADSPLPBLACKFIN__ */
