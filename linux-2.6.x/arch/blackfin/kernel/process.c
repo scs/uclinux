@@ -1,7 +1,7 @@
 /*
  *  linux/arch/bfinnommu/kernel/process.c
  *
- *  Copyright (C) 2004 LG Soft India. 
+ *  Copyright (C) 2004 LG Soft India.
  *
  *  uClinux changes Copyright (C) 2000, Lineo, davidm@lineo.com
  */
@@ -33,7 +33,7 @@ static void default_idle(void)
 	while(1) {
 		leds_switch(LED_OFF);
 		while (!need_resched())
-			__asm__("idle;\n\t" : : : "cc"); 
+			__asm__("idle;\n\t" : : : "cc");
 		leds_switch(LED_ON);
 		schedule();
 	}
@@ -54,7 +54,6 @@ void cpu_idle(void)
 
 void machine_restart(char * __unused)
 {
-	printk("Restarting\n");
 #if defined(CONFIG_BLKFIN_CACHE)
 	asm("csync;");
 	*pIMEM_CONTROL = 0x01;
@@ -118,7 +117,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 			"%1 = sp; \n\t"
 			"cc = %1 == r1; \n\t"
 			"if cc jump 1f; \n\t"
-			"r0 = %4; \n\t"	
+			"r0 = %4; \n\t"
 			"SP += -12; \n\t"
 			"call (%5); \n\t"
 			"SP += 12; \n\t"
@@ -134,7 +133,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 		  "a" (clone_arg)
 		: "CC", "R0", "R1", "R2", "P0");
 
-	set_fs(fs);	
+	set_fs(fs);
 	return retval;
 }
 
@@ -175,11 +174,6 @@ int copy_thread(int nr, unsigned long clone_flags,
 	childregs->r0 = 0;
 
 	p->thread.usp = usp;
-
-	/* we should be this from copy_thread and not try to construct
-	 * ourselves. We'll get in trouble if we get a sys_clone from user
-	 * space */
-
 	p->thread.ksp = (unsigned long)childregs; 
 	p->thread.pc = (unsigned long)ret_from_fork;
 
