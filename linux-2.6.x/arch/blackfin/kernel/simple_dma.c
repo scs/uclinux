@@ -188,11 +188,15 @@ int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 	  int     ret_val;
 	  ret_irq =bf533_channel2irq(channel);
 	  
+	  set_irq_flag(ret_irq,IRQF_NOAUTOEN);  /* avoid irq enable unbalance */
           ret_val = request_irq(ret_irq,(void *)callback,SA_INTERRUPT,dma_ch[channel].device_id,data);
           if( ret_val ) {
                printk("Request irq in DMA engine failed.\n");
                return -EPERM;
-          }
+          }else{
+	       enable_irq(ret_irq);
+	  }
+	  
      }
      return 0;
 }
@@ -200,21 +204,25 @@ int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 
 void free_dma(unsigned int channel)
 {
-	DMA_DBG("freedma() : BEGIN \n");
-
+     int ret_irq=0;
+     
+     DMA_DBG("freedma() : BEGIN \n");
+	
      assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE || channel < MAX_BLACKFIN_DMA_CHANNEL);
 	 
-	/* Halt the DMA */
-	disable_dma(channel);
-	clear_dma_buffer(channel);
-	
-	/* Clear the DMA Variable in the Channel*/
-	down(&(dma_ch[channel].dmalock));
-	dma_ch[channel].dma_channel_status = DMA_CHANNEL_FREE;
-	up(&(dma_ch[channel].dmalock));
-
-	DMA_DBG("freedma() : END \n");
-	return;
+     /* Halt the DMA */
+     disable_dma(channel);
+     clear_dma_buffer(channel);
+     ret_irq =bf533_channel2irq(channel);
+     disable_dma(ret_irq);	
+     
+     /* Clear the DMA Variable in the Channel*/
+     down(&(dma_ch[channel].dmalock));
+     dma_ch[channel].dma_channel_status = DMA_CHANNEL_FREE;
+     up(&(dma_ch[channel].dmalock));
+     
+     DMA_DBG("freedma() : END \n");
+     return;
 }
 
 int dma_channel_active(unsigned int channel)
@@ -314,7 +322,7 @@ void set_dma_config(unsigned int channel,  unsigned short config)
 {
      assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE && channel < MAX_BLACKFIN_DMA_CHANNEL);
          
-     dma_ch[channel].regs->cfg |= config;
+     dma_ch[channel].regs->cfg = config;
      SSYNC();
 }
 
@@ -327,6 +335,17 @@ unsigned short set_bfin_dma_config(char direction, char flow_mode,
      return config;
 }
 
+void set_dma_sg(unsigned int channel, dmasg_t *sg, int nr_sg)
+{
+     assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE && channel < MAX_BLACKFIN_DMA_CHANNEL);
+
+     dma_ch[channel].regs->cfg |= ((nr_sg & 0x0F) << 8);
+     
+     dma_ch[channel].regs->next_desc_pt = (unsigned int)sg;
+
+     SSYNC();
+  
+}
 
 
 /*------------------------------------------------------------------------------
@@ -374,6 +393,7 @@ EXPORT_SYMBOL(set_dma_callback);
 EXPORT_SYMBOL(enable_dma);
 EXPORT_SYMBOL(disable_dma);
 EXPORT_SYMBOL(dma_channel_active);
+EXPORT_SYMBOl(free_dma);
 
 EXPORT_SYMBOL(get_dma_curr_irqstat);
 EXPORT_SYMBOL(clear_dma_irqstat);
@@ -387,6 +407,7 @@ EXPORT_SYMBOL(set_dma_x_count);
 EXPORT_SYMBOL(set_dma_x_modify);
 EXPORT_SYMBOL(set_dma_y_count);
 EXPORT_SYMBOL(set_dma_y_modify);
+EXPORT_SYMBOL(set_dma_sg);
 
 
 
