@@ -89,24 +89,12 @@ static const char version[] =
 #define CONFIG_SMC16BITONLY     1
 #define LAN_FIO_PATTERN		0x80
 
-void udelay2(unsigned long loops)
-{
-	__asm__ __volatile__ ( "[--sp] = p2;\n\t"
-				"p2 = %0; \n\t"
-				"LSETUP(4, 4) LC0 =p2;\n\t"
-				"nop;\n\t"
-				"p2 = [sp++];\n\t"
-				: "=d" (loops)
-				: "0" (loops)
-				);
-}
-
 inline void mdelay2(int milliseconds)
 {
     int i;
 
     for(i=0; i<milliseconds; i++)
-        udelay2(1000);
+        udelay(1000);
 } 
 
 #endif
@@ -2096,7 +2084,7 @@ static void smc_rcv(struct net_device *dev)
 	}
 
 	while ( smc_readw( ioaddr + MMU_CMD_REG ) & MC_BUSY )
-		udelay2(1); // Wait until not busy
+		udelay(1); // Wait until not busy
 done:
 	/*  error or good, tell the card to get rid of this packet */
 	smc_writew( MC_RELEASE, ioaddr + MMU_CMD_REG );
@@ -3602,19 +3590,19 @@ static word smc_read_phy_register(unsigned int ioaddr, byte phyaddr, byte phyreg
 		{
 		// Clock Low - output data
 		smc_writew( mii_reg | bits[i], ioaddr+MII_REG );
-		udelay2(50);
+		udelay(50);
 
 
 		// Clock Hi - input data
 		smc_writew( mii_reg | bits[i] | MII_MCLK, ioaddr+MII_REG );
-		udelay2(50);
+		udelay(50);
 		bits[i] |= smc_readw( ioaddr+MII_REG ) & MII_MDI;
 		}
 
 	// Return to idle state
 	// Set clock to low, data to low, and output tristated
 	smc_writew( mii_reg, ioaddr+MII_REG );
-	udelay2(50);
+	udelay(50);
 
 	// Restore original bank select
 	SMC_SELECT_BANK( oldBank );
@@ -3727,19 +3715,19 @@ static void smc_write_phy_register(unsigned int ioaddr,
 		{
 		// Clock Low - output data
 		smc_writew( mii_reg | bits[i], ioaddr+MII_REG );
-		udelay2(50);
+		udelay(50);
 
 
 		// Clock Hi - input data
 		smc_writew( mii_reg | bits[i] | MII_MCLK, ioaddr+MII_REG );
-		udelay2(50);
+		udelay(50);
 		bits[i] |= smc_readw( ioaddr+MII_REG ) & MII_MDI;
 		}
 
 	// Return to idle state
 	// Set clock to low, data to low, and output tristated
 	smc_writew( mii_reg, ioaddr+MII_REG );
-	udelay2(50);
+	udelay(50);
 
 	// Restore original bank select
 	SMC_SELECT_BANK( oldBank );
