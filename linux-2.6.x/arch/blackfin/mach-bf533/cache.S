@@ -14,6 +14,7 @@
 #include <asm/cplb.h>
 #include <asm/entry.h>
 #include <asm/blackfin.h>
+#include <asm/cache.h>
 
 .text
  
@@ -218,8 +219,10 @@ ENTRY(invalidate_entire_dcache)
  * end:		End address
  */ 						
 ENTRY(blackfin_icache_flush_range)
-	P0 = R0 ;
-	P1 = R1 ;
+	R2 = -L1_CACHE_BYTES;
+	R2 = R0 & R2;
+	P0 = R2;
+	P1 = R1;
 1:
 	IFLUSH [P0++];
 	CC = P0 < P1 (iu);
@@ -235,16 +238,21 @@ ENTRY(blackfin_icache_flush_range)
  */
 
 ENTRY(blackfin_dcache_invalidate_range)
-	P0 = R0;
+	R2 = -L1_CACHE_BYTES;
+	R2 = R0 & R2;
+	P0 = R2;
 	P1 = R1;
 1:
 	FLUSHINV[P0++];
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
+	SSYNC;
 	RTS;
 	
 ENTRY(blackfin_dcache_flush_range)
-	P0 = R0;
+	R2 = -L1_CACHE_BYTES;
+	R2 = R0 & R2;
+	P0 = R2;
 	P1 = R1;
 1:
 	FLUSH[P0++];
@@ -254,7 +262,8 @@ ENTRY(blackfin_dcache_flush_range)
 	RTS;
 
 ENTRY(blackfin_dflush_page)
-	P1 = 128;		/*128*32(cacheline) = 4K Page*/
+	P1 = 1 << (PAGE_SHIFT - L1_CACHE_SHIFT);
+	P0 = R0;
 	LSETUP (fl1, fl1) LC0 = P1;
 fl1:	FLUSH [P0++];
 	SSYNC;
