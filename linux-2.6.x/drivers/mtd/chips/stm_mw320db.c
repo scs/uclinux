@@ -100,27 +100,8 @@ static void send_unlock(struct map_info *map, unsigned long base)
 	map->write(map, mw , base + ADDR_UNLOCK_2);
 	mw.x[0] = CMD_UNLOCK_DATA_3;
 	map->write(map, mw , base + ADDR_UNLOCK_3);
-	
-	/*map->write16(map, CMD_UNLOCK_DATA_1, base + ADDR_UNLOCK_1);
-	map->write16(map, CMD_UNLOCK_DATA_2, base + ADDR_UNLOCK_2);
-	map->write16(map, CMD_UNLOCK_DATA_3, base + ADDR_UNLOCK_3);
-	*/
-}
-/*
-static void send_cmd(struct map_info *map, unsigned long base, 
-		     unsigned long cmd)
-{
-	send_unlock(map, base);
-	map->write16(map, cmd, base + ADDR_UNLOCK_1);
 }
 
-static void send_cmd_to_addr(struct map_info *map, unsigned long base, 
-			     unsigned long cmd, unsigned long addr)
-{
-	send_unlock(map, base);
-	map->write16(map, cmd, addr);
-}
-*/
 static int probe_new_chip(struct mtd_info *mtd, __u32 base, 
 			  struct flchip *chips,
 			  struct stm_flash_private *private,
@@ -144,10 +125,6 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 	mw.x[0] = CMD_RESET_DATA;
 	map->write(map, mw , base);
 
-	/*map->write16(map, CMD_UNLOCK_DATA_1, base + ADDR_UNLOCK_1);
-        map->write16(map, CMD_UNLOCK_DATA_2, base + ADDR_UNLOCK_2);
-	map->write16(map, CMD_RESET_DATA, base);
-	*/
 	mw.x[0] = CMD_UNLOCK_DATA_1;
 	map->write(map, mw , base + ADDR_UNLOCK_1);
 	mw.x[0] = CMD_UNLOCK_DATA_2;
@@ -155,14 +132,6 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 	mw.x[0] = 0x90; 
 	map->write(map, mw , base + ADDR_UNLOCK_3);
 
-	/*map->write16(map, CMD_UNLOCK_DATA_1, base + ADDR_UNLOCK_1);
-        map->write16(map, CMD_UNLOCK_DATA_2, base + ADDR_UNLOCK_2);
-        map->write16(map, 0x90, base + ADDR_UNLOCK_3);
-	*/
-
-	/*mfr_id = map->read16(map, base + ADDR_MANUFACTURER) & 0x00FF;
-	dev_id = map->read16(map, base + ADDR_DEVICE_ID) & 0x00FF;
-	*/
 	mfr_id1=map->read(map, base + ADDR_MANUFACTURER) ;
 	dev_id1=map->read(map, base + ADDR_DEVICE_ID) ;
 
@@ -180,16 +149,7 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 
 				for (j = 0; j < private->numchips; j++)
 				{
-					/*
-					if ((map->read16(map, chips[j].start +
-							ADDR_MANUFACTURER)
-						== mfr_id) &&
-					    (map->read16(map, chips[j].start +
-							 ADDR_DEVICE_ID)
-						== dev_id))
-					*/
-					mfr_id1=map->read(map, chips[j].start +
-							ADDR_MANUFACTURER);
+					mfr_id1=map->read(map, chips[j].start +	ADDR_MANUFACTURER);
 						
 					dev_id1=map->read(map, chips[j].start +
 							 ADDR_DEVICE_ID) ;
@@ -203,11 +163,6 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 						map->write(map, mw , base + ADDR_UNLOCK_2);
 						mw.x[0] = CMD_RESET_DATA;
 						map->write(map, mw , base);
-						/*
-						map->write16(map, CMD_UNLOCK_DATA_1, base + ADDR_UNLOCK_1);
-					        map->write16(map, CMD_UNLOCK_DATA_2, base + ADDR_UNLOCK_2);
-					        map->write16(map, CMD_RESET_DATA, base);
-						*/
 						return -1;
 					}
 				}
@@ -239,11 +194,9 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 			break;
 		}
 	}
-	/* Exit autoselect mode. */
-	/*map->write16(map, CMD_UNLOCK_DATA_1, base + ADDR_UNLOCK_1);
-        map->write16(map, CMD_UNLOCK_DATA_2, base + ADDR_UNLOCK_2);
-        map->write16(map, CMD_RESET_DATA, base);	
-	*/	
+	
+	printk("mfr id 0x%02x, dev_id 0x%02x\n", mfr_id, dev_id);
+
 	mw.x[0] = CMD_UNLOCK_DATA_1;
 	map->write(map, mw , base + ADDR_UNLOCK_1);
 	mw.x[0] = CMD_UNLOCK_DATA_2;
@@ -571,23 +524,15 @@ static int stm_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
 extern void reset_flash(void);
 static int flash_is_busy(struct map_info *map, unsigned long addr)
 {
-	/*unsigned short read1, read2,toggled;*/
 	unsigned short toggled;
 	map_word read11,read21;	
 	
-	/*read1 = map->read16(map, addr);
-	read2 = map->read16(map, addr);
-	*/
 	read11 = map->read(map,addr); 
 	read21 = map->read(map,addr); 
 	
-	/*toggled = read1 ^ read2;*/
 	toggled = (unsigned short)read11.x[0] ^ (unsigned short)read21.x[0];
 	
 	toggled &= (((unsigned short)1) << 6);
-	/*if (toggled)
-		printk("%s: Flash is busy (0x%04x)\n", map->name, toggled);
-	*/
 
 	return toggled;
 }
@@ -630,7 +575,6 @@ retry:
 	addr += chip->start;
 
 	send_unlock(map, chip->start);
-	/*map->write16(map, datum, addr);*/
 	mw.x[0] = datum;	
 	map->write(map, mw, addr);
 
@@ -653,7 +597,6 @@ retry:
 		unsigned long verify;
 		map_word mw;
 	
-		/*if ((verify = map->read16(map, addr)) != datum) */
 		mw = map->read(map,addr);
 		verify = mw.x[0] ;
 		if(verify != datum)
@@ -801,7 +744,6 @@ static int erase_one_block(struct map_info *map, struct flchip *chip,
 			   unsigned long addr, unsigned long size)
 {
 	unsigned long timeo = jiffies + HZ;
-	/*struct stm_flash_private *private = map->fldrv_priv;*/
 	map_word mw;
 
 	DECLARE_WAITQUEUE(wait, current);
@@ -830,14 +772,6 @@ retry:
 	chip->state = FL_ERASING;
 
 	addr += chip->start;
-	/*
-	map->write16(map,CMD_SECTOR_ERASE_UNLOCK_DATA_1, chip->start + CMD_SECTOR_ERASE_UNLOCK_ADDR_1);
-	map->write16(map,CMD_SECTOR_ERASE_UNLOCK_DATA_2, chip->start + CMD_SECTOR_ERASE_UNLOCK_ADDR_2);
-	map->write16(map,CMD_SECTOR_ERASE_UNLOCK_DATA_3, chip->start + CMD_SECTOR_ERASE_UNLOCK_ADDR_3);
-	map->write16(map,CMD_SECTOR_ERASE_UNLOCK_DATA_4, chip->start + CMD_SECTOR_ERASE_UNLOCK_ADDR_4);
-	map->write16(map,CMD_SECTOR_ERASE_UNLOCK_DATA_5, chip->start + CMD_SECTOR_ERASE_UNLOCK_ADDR_5);
-	map->write16(map,0x30,addr);
-	*/
 	mw.x[0] = CMD_SECTOR_ERASE_UNLOCK_DATA_1;
 	map->write(map, mw , chip->start + CMD_SECTOR_ERASE_UNLOCK_ADDR_1);
 
@@ -914,7 +848,6 @@ retry:
 		map_word mw;
 		
 		for (address = addr; address < (addr + size); address += 2){	
-			/*if ((verify = map->read16(map, address)) != 0xFFFF)*/
 			mw = map->read(map,address);
 			verify = mw.x[0];
 			if(verify != 0xFFFF)	
@@ -1046,8 +979,6 @@ static int stm_flash_suspend(struct mtd_info *mtd)
 	printk("stm_flash_suspend(): not implemented!\n");
 	        return -EINVAL;
 }
-
-
 
 static void stm_flash_resume(struct mtd_info *mtd)
 {
