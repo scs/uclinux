@@ -371,11 +371,14 @@ reset_start:
         w[p0] = r0;
         ssync;
 
+force_reset:
 	r0 = w[p0];
 	csync;
         r0 = 0x0000;
         w[p0] = r0;
-        ssync;
+	ssync;
+	cc = r0 == 0;
+	if !cc jump force_reset;
         /* Core reset - forces reboot */
         RAISE 1 ;
 reset_end: nop;
