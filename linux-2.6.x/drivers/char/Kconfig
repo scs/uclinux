@@ -4,6 +4,24 @@
 
 menu "Character devices"
 
+config SPI_BF533
+    bool "Blackfin BF533/2/1 SPI port support"
+
+    default n
+    ---help---
+    
+config SPI_ADC_BF533    
+    bool "Blackfin BF533/2/1 ADSP SPI ADC support"
+
+	default n
+	---help---
+	 
+config BF533_PFLAGS    
+    bool "Blackfin BF533/2/1 Programmable Flags Driver"
+
+	default n
+	---help---
+
 config VT
 	bool "Virtual terminal" if EMBEDDED
 	select INPUT
