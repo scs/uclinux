@@ -52,13 +52,13 @@ idone:
 	/* Enable Instruction Cache */
 	P0.l = (IMEM_CONTROL & 0xFFFF);
 	P0.h = (IMEM_CONTROL >> 16);
-	CSYNC;
 	R1 = [P0];
 	R0 = (IMC | ENICPLB);
 	R0 = R0 | R1;
 	
 	/*Anamoly 05000125 */
 	CLI R2;
+	SSYNC;		/* SSYNC required before writing to IMEM_CONTROL. */
 	.align 8;
 	[P0] = R0;
 	SSYNC;
@@ -99,7 +99,6 @@ read_ddata:
 ddone:
 	P0.L = (DMEM_CONTROL & 0xFFFF);
 	P0.H = (DMEM_CONTROL >> 16);
-	CSYNC;
 	R1 = [P0];
 
 #if defined(CONFIG_BF533) || defined(CONFIG_BF532)
@@ -110,6 +109,7 @@ ddone:
 	R0 = R0 | R1;
 	/*Anamoly 05000125 */
 	CLI R2;
+	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */
 	.align 8;
 	[P0] = R0;
 	SSYNC;

@@ -176,6 +176,7 @@ iflush_whole_page:
 	CC = BITTST(R1, 16);	/* Whether 1K or 4K*/
 	IF CC P1 = P2;
 	P1 += -1;		/* Unroll one iteration*/
+	SSYNC;
 	IFLUSH [P0++];		/* because CSYNC can't end loops.*/
 	LSETUP (isall, ieall) LC0 = P1;
 isall:	CSYNC;
@@ -328,7 +329,7 @@ fs0:	R6 = R5 << 5;		/* Combine set*/
 	R6.H = R3.H << 0 ;	/* and sub-bank*/
 	R6 = R6 | R2;		/* and Bank. Leave Way==0 at first.*/
 	[P5] = R6;		/* Issue Command*/
-	CSYNC;
+	SSYNC;
 	R7 = [P4];		/* and read Tag.*/
 	CC = BITTST(R7, 0);	/* Check if valid*/
 	IF !CC JUMP fskip;	/* and skip if not.*/
@@ -351,6 +352,7 @@ fs0:	R6 = R5 << 5;		/* Combine set*/
 	R7 >>= 10;		/* Mask off the non-address bits*/
 	R7 <<= 10;
 	P3 = R7;
+	SSYNC;
 	FLUSHINV [P3];		/* And flush the entry*/
 fskip:
 fe0:	R5 += 1;		/* Advance to next Set*/
@@ -381,6 +383,7 @@ dflush_whole_page:
 	CC = BITTST(R1, 16);	/* Whether 1K or 4K*/
 	IF CC P1 = P2;
 	P1 += -1;		/* Unroll one iteration*/
+    SSYNC;
 	FLUSHINV [P0++];	/* because CSYNC can't end loops.*/
 	LSETUP (sall, eall) LC0 = P1;
 sall:	CSYNC;

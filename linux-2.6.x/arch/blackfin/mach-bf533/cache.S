@@ -64,8 +64,9 @@ ENTRY(invalidate_entire_icache)
 	/* Clear the IMC bit , All valid bits in the instruction
 	 * cache are set to the invalid state
 	 */
-	BITCLR(R7,2);
+	BITCLR(R7,IMC_P);
 	CLI R6;
+	SSYNC;		/* SSYNC required before invalidating cache. */
 	.align 8;
 	[P0] = R7;
 	SSYNC;
@@ -76,6 +77,7 @@ ENTRY(invalidate_entire_icache)
 	R7 = R7 | R6;
 
 	CLI R6;
+	SSYNC;		/* SSYNC required before writing to IMEM_CONTROL. */
 	.align 8;
 	[P0] = R7;
 	SSYNC;
@@ -99,8 +101,11 @@ ENTRY(blackfin_icache_flush_range)
 	P1 = R1;
 1:
 	IFLUSH [P0++];
+	CSYNC;
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
+	IFLUSH [P0];
+	SSYNC;
 	RTS;
 
 /* Throw away all D-cached data in specified region without any obligation to write
@@ -118,8 +123,15 @@ ENTRY(blackfin_dcache_invalidate_range)
 	P1 = R1;
 1:
 	FLUSHINV[P0++];
+	CSYNC;
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
+
+	/* If the data crosses a cache line, then we'll be pointing to
+	** the last cache line, but won't have flushed/invalidated it yet, so do
+	** one more.
+	*/
+	FLUSHINV[P0];
 	SSYNC;
 	RTS;
 
@@ -137,9 +149,10 @@ ENTRY(_dcache_invalidate)
 	/* Clear the DMC[1:0] bits, All valid bits in the data
 	 * cache are set to the invalid state
 	 */		
-	BITCLR(R7,2);
-	BITCLR(R7,3);
+	BITCLR(R7,DMC0_P);
+	BITCLR(R7,DMC1_P);
 	CLI R6;
+	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */
 	.align 8;
 	[P0] = R7;
 	SSYNC;
@@ -151,6 +164,7 @@ ENTRY(_dcache_invalidate)
 	R7 = R7 | R6;
 	
 	CLI R6;
+	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */
 	.align 8;
 	[P0] = R7;
 	SSYNC;
@@ -166,15 +180,23 @@ ENTRY(blackfin_dcache_flush_range)
 	P1 = R1;
 1:
 	FLUSH[P0++];
+	CSYNC;
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
+
+	/* If the data crosses a cache line, then we'll be pointing to
+	** the last cache line, but won't have flushed it yet, so do
+	** one more.
+	*/
+	FLUSH[P0];
 	SSYNC;
 	RTS;
 
 ENTRY(blackfin_dflush_page)
 	P1 = 1 << (PAGE_SHIFT - L1_CACHE_SHIFT);
 	P0 = R0;
-	LSETUP (fl1, fl1) LC0 = P1;
+	LSETUP (fl1, fl2) LC0 = P1;
 fl1:	FLUSH [P0++];
+fl2:	CSYNC;	
 	SSYNC;
 	RTS;

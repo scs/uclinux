@@ -77,7 +77,10 @@ CLEAR1:
 DONE1:	R4 = R7 << 3;
 	R7 = [P1];
 	R7 = R7 | R4;
+	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */
+	.align 8;
 	[P1] = R7;
+	SSYNC;
 	
 	R7 = R5;
 	CC = BITTST(R7,1);
@@ -92,7 +95,10 @@ CLEAR2:
 DONE2:	R4 = R7 << 3;
 	R7 = [P1];
 	R7 = R7 | R4;
-	[P1] = R7;	
+	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */
+	.align 8;
+	[P1] = R7;
+	SSYNC;	
 
 	R7 = R5;
 	CC = BITTST(R7,2);
@@ -106,7 +112,10 @@ CLEAR3:
 DONE3:	R4 = R7 << 3;
 	R7 = [P1];
 	R7 = R7 | R4;
-	[P1] = R7;	
+	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */
+	.align 8;
+	[P1] = R7;
+	SSYNC;	
 	
 
 	R7 = R5;
@@ -121,7 +130,10 @@ CLEAR4:
 DONE4:	R4 = R7 << 3;
 	R7 = [P1];
 	R7 = R7 | R4;
-	[P1] = R7;	
+	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */
+	.align 8;
+	[P1] = R7;
+	SSYNC;	
 
 	STI R3;
 
@@ -150,9 +162,10 @@ cache_lock:
 	R7 = R7 & R2;
 	R0 = R0 << 3;
 	R7 = R0 | R7;
-
+	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */
+	.align 8;
 	[P1] = R7;
-
+	SSYNC;
 	/* Renable the Interrupts */
 	STI R3;
 

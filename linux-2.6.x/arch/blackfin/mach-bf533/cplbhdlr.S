@@ -55,14 +55,14 @@ ENTRY(_cplb_hdr)
 	R2 <<= 26;
 	R2 >>= 26;
 
-	R1 = 0x23;
+	R1 = 0x23; /* Data access CPLB protection violation */
 	CC = R2 == R1;
 	IF !CC JUMP not_data_write;
 	R0 = 2;		/* is a write to data space*/
 	JUMP is_icplb_miss;
 
 not_data_write:
-	R1 = 0x2C;
+	R1 = 0x2C; /* CPLB miss on an instruction fetch */
 	CC = R2 == R1;
 	R0 = 0;		/* is_data_miss == False*/
 	IF CC JUMP is_icplb_miss;
@@ -75,11 +75,20 @@ not_data_write:
 
 is_icplb_miss:
 
-#if defined (CONFIG_BLKFIN_CACHE)
-	R1 = CPLB_ENABLE_ICACHE;
-#else
-	R1 = CPLB_ENABLE_DCACHE;
+#if ( defined (CONFIG_BLKFIN_CACHE) || defined (CONFIG_BLKFIN_DCACHE))
+#if ( defined (CONFIG_BLKFIN_CACHE) && !defined (CONFIG_BLKFIN_DCACHE))
+	R1 = CPLB_ENABLE_ICACHE; 
 #endif
+#if ( !defined (CONFIG_BLKFIN_CACHE) && defined (CONFIG_BLKFIN_DCACHE))
+	R1 = CPLB_ENABLE_DCACHE; 
+#endif
+#if ( defined (CONFIG_BLKFIN_CACHE) && defined (CONFIG_BLKFIN_DCACHE))
+	R1 = CPLB_ENABLE_DCACHE | CPLB_ENABLE_ICACHE; 
+#endif
+#else
+	R1 = 0;
+#endif
+
 	[--SP] = RETS;			
 	CALL _cplb_mgr;
 	RETS = [SP++];

@@ -68,11 +68,8 @@ ENTRY(_cplb_mgr)
 
 	R5 = 0;
 isearch:
-	R1 = P0;
-	R2 = 0x100;
-	R2 = R1 - R2;
-	P3 = R2;
-	R1 = [P3];
+
+	R1 = [P0-0x100];	/* Address for this CPLB */
 	
 	R0 = [P0++];		/* Info for this CPLB*/
 	CC = BITTST(R0,0);	/* Is the CPLB valid?*/
@@ -107,8 +104,9 @@ isearch_done:
 
 	/* disable cplbs */
 	R5 = [P4];		/* Control Register*/
-	BITCLR(R5,1);
+	BITCLR(R5,ENICPLB_P);
 	CLI R1;
+	SSYNC;		/* SSYNC required before writing to IMEM_CONTROL. */
 	.align 8;
 	[P4] = R5;
 	SSYNC;
@@ -156,10 +154,8 @@ icount_done:
 is_move: 
 	R0 = [P0];
 	[P0 - 4] = R0;
-	CSYNC;
 	R0 = [P0 - 0x100];
 	[P0-0x104] = R0; 
-	CSYNC;
 ie_move:P0+=4;
 	
 	/* We've made space in the ICPLB table, so that ICPLB15
@@ -233,14 +229,14 @@ inext:	R4 = [P2++];	/* address from config table */
 	R3 += 1;
 	[P3] = R3;
 #endif
-	CSYNC;
 
 	/* P4 points to IMEM_CONTROL, and R5 contains its old
 	 * value, after we disabled ICPLBS. Re-enable them.
 	 */
 
-	BITSET(R5,1);
+	BITSET(R5,ENICPLB_P);
 	CLI R2;
+	SSYNC;		/* SSYNC required before writing to IMEM_CONTROL. */
 	.align 8;
 	[P4] = R5;
 	SSYNC;
@@ -351,8 +347,9 @@ dcplb_miss_compare:
 	P4.L = (DMEM_CONTROL & 0xFFFF);
 	P4.H = (DMEM_CONTROL >> 16);
 	R5 = [P4];
-	BITCLR(R5,1);
+	BITCLR(R5,ENDCPLB_P);
 	CLI R0;
+	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */
 	.align 8;
 	[P4] = R5;
 	SSYNC;
@@ -486,7 +483,6 @@ Ddoverwrite:
 ds_move:
 	 R0 = [P0++];	/* move data */
 	[P0 - 8] = R0;
-	CSYNC;
 	R0 = [P0-0x104]	/* move address */
 de_move: [P0-0x108] = R0;
 
@@ -571,14 +567,13 @@ dnext:	R4 = [P2++];	/* address */
 	R3 += 1;
 	[P3] = R3;
 #endif
-	CSYNC;
 
 	/* We've installed the CPLB, so re-enable CPLBs. P4
 	 * points to DMEM_CONTROL, and R5 is the value we
 	 * last wrote to it, when we were disabling CPLBs.
 	 */
 
-	BITSET(R5,1);
+	BITSET(R5,ENDCPLB_P);
 	CLI R2;
 	.align 8;
 	[P4] = R5;
