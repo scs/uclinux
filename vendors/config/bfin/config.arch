@@ -132,8 +132,7 @@ ifdef UCLINUX_BUILD_USER
 	CXXFLAGS = $(CFLAGS) $(INCCXX) -fname-mangling-version-0
 
 	LDFLAGS  = -fno-builtin -nostartfiles -Wl,-elf2flt $(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/lib/crt0.o
-	LDLIBS   = $(LDPATH) $(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/lib/libc.a
-	#LDLIBS   = $(LDPATH)
+	LDLIBS   = $(LDPATH)
 	CXXLIBS  = $(LIBSTDCPP) $(LIBIBERTY) $(LIBC) $(LIBGCC)
 	
 	FLTFLAGS :=
