@@ -64,7 +64,7 @@ static inline long get_reg(struct task_struct *task, int regno)
 	    ( KTHREAD_SIZE - sizeof(struct pt_regs)));
 	switch(regno){
 		case PT_PC :
-		case 140 :
+	//	case 140 :
 		               return regs->pc -  task->mm->start_code - TEXT_OFFSET;
 		case PT_R0 : return regs->r0;
 		case PT_ORIG_R0 : return regs->orig_r0;
@@ -112,7 +112,7 @@ static inline long get_reg(struct task_struct *task, int regno)
 		case PT_M1 : return regs->m1;
 		case PT_M2 : return regs->m2;
 		case PT_M3 : return regs->m3;
-		//case PT_I0 : return regs->i0;
+		case PT_I0 : return regs->i0;
 		case PT_I1 : return regs->i1;
 		case PT_I2 : return regs->i2;
 		case PT_I3 : return regs->i3;
@@ -153,7 +153,7 @@ static inline int put_reg(struct task_struct *task, int regno,
     		( KTHREAD_SIZE - sizeof(struct pt_regs)));
 	switch(regno){
 		case PT_PC : break;
-		case 140 :
+		//case 140 :
                		regs->pc = data +  task->mm->start_code + TEXT_OFFSET; break;
 		case PT_R0 : regs->r0 = data; break;
 		case PT_ORIG_R0 : regs->orig_r0 = data; break;
@@ -201,7 +201,7 @@ static inline int put_reg(struct task_struct *task, int regno,
 		case PT_M1 : regs->m1 = data; break;
 		case PT_M2 : regs->m2 = data; break;
 		case PT_M3 : regs->m3 = data; break;
-		//case PT_I0 : regs->i0 = data; break;
+		case PT_I0 : regs->i0 = data; break;
 		case PT_I1 : regs->i1 = data; break;
 		case PT_I2 : regs->i2 = data; break;
 		case PT_I3 : regs->i3 = data; break;
