@@ -28,7 +28,7 @@
 typedef int greg_t;
 
 /* Number of general registers.  */
-#define NGREG	16
+#define NGREG	20
 
 /* Container for all general registers.  */
 typedef greg_t gregset_t[NGREG];
@@ -52,34 +52,37 @@ enum
 #define R6	R6
   R7 = 7,
 #define R7	R7
-  R8 = 8,
-#define R8	R8
-  R9 = 9,
-#define R9	R9
-  R10 = 10,
-#define R10	R10
-  R11 = 11,
-#define R11	R11
-  R12 = 12,
-#define R12	R12
-  R13 = 13,
-#define R13	R13
-  R14 = 14,
-#define R14	R14
-  R15 = 15
-#define R15	R15
+  P0 = 8,
+#define P0	P0
+  P1 = 9,
+#define P1	P1
+  P2 = 10,
+#define P2	P2
+  P3 = 11,
+#define P3	P3
+  P4 = 12,
+#define P4	P4
+  P5 = 13,
+#define P5	P5
+  A0W = 14,
+#define A0W	A0W
+  A1W = 15,
+#define A1W	A1W
+  A0X = 16,
+#define A0X	A0X
+  A1X = 17,
+#define A1X	A1X
+  ASTAT = 18,
+#define ASTAT	ASTAT
+  RETS = 19
+#define RETS	RETS
 };
-
-/* Structure to describe FPU registers.  */
-typedef struct fpregset
-{
-} fpregset_t;
 
 /* Context to describe whole processor state.  */
 typedef struct
 {
+  int version;
   gregset_t gregs;
-  fpregset_t fpregs;
 } mcontext_t;
 
 
@@ -88,10 +91,9 @@ typedef struct ucontext
 {
   unsigned long int uc_flags;
   struct ucontext *uc_link;
-  __sigset_t uc_sigmask;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
-  long int uc_filler[5];
+  __sigset_t uc_sigmask;
 } ucontext_t;
 
 #endif /* sys/ucontext.h */
