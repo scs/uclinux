@@ -361,16 +361,6 @@ _NtscVideoOutFrameBuffInit:
         [--sp] = astat;
 
 
-        // R0 has destination buffer
-        // R1 has source RGB buffer
-        P0.h = _rgb_buffer;
-        P0.l = _rgb_buffer;
-        [P0] = R1;
-        R2 = 1440;
-        P0.h = _cycrcbbuffer;
-        P0.l = _cycrcbbuffer;
-        R1 = R1 + R2;
-        [P0] = R1;
         P0 = R0;
 
 
@@ -382,29 +372,47 @@ _NtscVideoOutFrameBuffInit:
         P4.h = _NtscLineMap;
         P4.l = _NtscLineMap;
 
+        r1 = p0;	//Address of ycrcb_buffer
+        [--sp] = r1;	//Save it
+        r0 = 0;		//First line of even field
+        [--sp] = r0;	//Save it
+
+
         //number of frames ->  NUM_FRAMES
         p2 = NUM_OF_VOUT_FRAMES;
         LSETUP(ntscoutputfieldstart_init, ntscoutputfieldend_init) LC0 = P2;
 
 ntscoutputfieldstart_init:
-        P2.h = _cycrcbbuffer;
-        P2.l = _cycrcbbuffer;
-        R0 = [P2];
-        P2.h = _rgb_buffer;
-        P2.l = _rgb_buffer;
-        [P2] = R0;
+        r0 = [sp++];	
+        r1 = [sp++];
+        r2 = 1716;	//offset between 1st and 2nd ycrcb line
+        r1 = r1 + r2;	//first line of odd field
+        [--sp] = r1;
+        r1 = r1 - r2;	
+        p0 = r1;	
+        r0 += 1;	//first line of odd field
+        [--sp] = r0;
 
-        r0 = 1;                 //line #1
-
-        //number of lines ->  525
         P2 = 262;
         LSETUP(ntscoutputlinestart_init, ntscoutputlineend_init) LC1 = P2;
 ntscoutputlinestart_init:
         call NtscOutputLine_init;
+
+        r2 = 1716;
+        r1 = p0;
+        r1 = r1 + r2; //next line
+        p0 = r1;
+
+
 ntscoutputlineend_init:
-        r0 += 1;                //increment line number
+        r0 += 2;                //increment line number
 ntscoutputfieldend_init:
         nop;
+        r0 = 525;
+        call NtscOutputLine_init;
+        r0 = [sp++];
+        p0 = [sp++];
+
         astat = [sp++];
 //R0.l = debug_video;
 //R0.h = (debug_video>>16);
@@ -548,63 +556,6 @@ ntscoutputblank2_e:     b[p0++] = r1;
         rts;
 
 NtscOutputColorBarLine_init:
-#ifdef REAL_DATA
-// ***************** OUTPUT REFERENCE COLOR HORIZONTAL DATA **************
-        // R0 has the line number
-        // P0 has the destination buffer
-
-        P2.L = _rgb_buffer;
-        P2.H = _rgb_buffer;
-        P3 = [P2];
-        P1 = 2880; // 360 * 4 * 2 for alternate lines
-        P3 = P3 + P1;
-        [P2] = P3;
-        // P3 now has the source rgb line
-        [--sp]=(P5:4);
-        [--SP]=(R7:0);
-
-        P2 = 360;
-        LSETUP(ntsclinestart_init, ntsclineend_init) LC0 = P2;
-ntsclinestart_init:
-        // now convert to YCrCb
-        R3 = 0xff;
-        R0 = [p3++];
-        R1 = R0 >> 16;
-        R1 = R1 & R3;
-        R2 = R0 >> 24;
-        R2 = R2 & R3;
-        R0 = R0 & R3;
-        [--sp] = P0;
-        [--sp] = P3;
-        sp += -12;
-        CALL _rgb2crcb; // conversion every pixel
-        sp += 12;
-        p3 = [sp++];
-        p0 = [sp++];
-        // result is in R0
-
-        R1 = R0;
-//number of sample to output (720/8)/2
-        r2 = r1 >> 24;
-        b[p0++] = r2;
-        r2 = r1 >> 16;
-        b[p0++] = r2;
-        r2 = r1 >> 8;
-        b[p0++] = r2;
-ntsclineend_init:b[p0++] = r1;
-        (R7:0)=[SP++];
-        (P5:4)=[sp++];
-
-
-        lt1 = [sp++];
-        lb1 = [sp++];
-        lc1 = [sp++];
-        lt0 = [sp++];
-        lb0 = [sp++];
-        lc0 = [sp++];
-        rets = [sp++];
-        rts;
-#else
 // ***************** OUTPUT REFERENCE COLOR HORIZONTAL DATA **************
 // get pointer to color bar table
         P3.h = _ColorBarTable;
@@ -615,10 +566,6 @@ ntsclineend_init:b[p0++] = r1;
         P2.H = 0x0000;
         LSETUP(ntsccolorbarstart, ntsccolorbarend) LC0 = P2;
 ntsccolorbarstart:
-#if 0
-// get next color bar data
-        R1 = [P3++];
-#else
         [--sp]=R0;
         [--SP]=(R7:2);
         [--sp]=(P5:0);
@@ -640,14 +587,7 @@ ntsccolorbarstart:
         (R7:2)=[SP++];
         r0 = [sp++];
         P3 += 4;
-#endif
 //number of sample to output (720/8)/2
-#if 0
-        P2 = 45;
-        LSETUP(ntscoutputcolorbardata, ntscoutputcolorbardata) LC1 = P2;
-ntscoutputcolorbardata:
-        [P0++] = R1;
-#else
         P2 = 45;
         LSETUP(ntscoutputcolorbardata_s, ntscoutputcolorbardata_e) LC1 = P2;
 ntscoutputcolorbardata_s:
@@ -658,7 +598,6 @@ ntscoutputcolorbardata_s:
         r2 = r1 >> 8;
         b[p0++] = r2;
 ntscoutputcolorbardata_e:b[p0++] = r1;
-#endif
 
  ntsccolorbarend:
 NOP;
@@ -672,7 +611,6 @@ NOP;
         rets = [sp++];
         rts;
 
-#endif
 
 _NtscVideoOutFrameBuffInit.END:
 
