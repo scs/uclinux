@@ -54,7 +54,7 @@ ENTRY(ret_from_fork)
 	r0 = [sp + PT_IPEND];
 	cc = bittst(r0,15);
 	if cc jump in_kernel;
-	RESTORE_ALL_SYS
+	RESTORE_CONTEXT
 	rti; 
 in_kernel:
 	/* do a 'fake' RTI by jumping to [RETI] */
