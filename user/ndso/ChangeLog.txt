@@ -3,4 +3,10 @@
         *Initail Release
 2005-03-24  Michael Hennerich  <hennerich@blackfin.uclinux.org> 
 
-		Driver now supports new DMA-API 
+        *Driver now supports new DMA-API 
+2005-04-05  Michael Hennerich  <hennerich@blackfin.uclinux.org>
+		
+        *Added Multi-User capability by using remote IP-ADDR. as session ID.
+        *Fixed negative trigger voltage bug
+        *Added error message, in case someone runs REPLOT before ACQUIRE
+        *Added full generic support  for different ADCs based on dac.h 

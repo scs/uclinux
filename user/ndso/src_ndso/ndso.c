@@ -79,6 +79,7 @@ main ()
       getvars = getGETvars ();
     }
 
+  MakeSessionFiles (info);
 
   ParseRequest (form_method, getvars, postvars, info);
 
@@ -93,24 +94,20 @@ main ()
       MakeFileInit (form_method, getvars, postvars, info);
       if (info->sdisplay.tdom)
 	{
-
 	  MakeFileSamples (form_method, getvars, postvars, info);
-
 	}
       else
 	{
-
 	  MakeFileFrequencySamples (form_method, getvars, postvars, info);
-
 	}
-      system ("/bin/gnuplot /home/httpd/cgi-bin/gnu.plt");
+      system (info->pGNUPLOT);
       DoHTML (form_method, getvars, postvars, info);
       free (info->samples);
       break;
 
     case REPLOT:
       MakeFileInit (form_method, getvars, postvars, info);
-      system ("/bin/gnuplot /home/httpd/cgi-bin/gnu.plt");
+      system (info->pGNUPLOT);
       DoHTML (form_method, getvars, postvars, info);
       break;
 
@@ -134,6 +131,7 @@ main ()
       break;
     }
 
+  CleanupSessionFiles (info);
   exit (0);
 }
 
@@ -170,11 +168,8 @@ Sample (int form_method, char **getvars, char **postvars, s_info * info)
   ioctl (info->fd0, CMD_SPI_SET_TRIGGER_SENSE, info->strigger.sense);
   ioctl (info->fd0, CMD_SPI_SET_TRIGGER_EDGE, info->strigger.edge);
 
-  if (info->sinput.mode)
-    ioctl (info->fd0, CMD_SPI_SET_TRIGGER_LEVEL, info->strigger.level);
-  else
-    ioctl (info->fd0, CMD_SPI_SET_TRIGGER_LEVEL,
-	   info->strigger.level + AC_MODE_DC_OFFSET);
+  ioctl (info->fd0, CMD_SPI_SET_TRIGGER_LEVEL,
+	 (unsigned short) VoltageToSample (info->strigger.level, info));
 
   errval = read (info->fd0, info->samples, info->stime_s.samples);
 
@@ -196,8 +191,8 @@ DoHTML (int form_method, char **getvars, char **postvars, s_info * info)
     case ACQUIRE:
       htmlHeader ("NDSO Demo Web Page");
       htmlBody ();
-      printf ("\n<img border=\"0\" src=\"img.png?id=%s\" align=\"left\">\n",
-	      itostr (getrand (6), 6, 1, 1));
+      printf ("\n<img border=\"0\" src=\"img%s.png?id=%s\" align=\"left\">\n",
+	      info->pREMOTE_ADDR, itostr (getrand (6), 6, 1, 1));
 
       if ((info->smeasurements.min || info->smeasurements.max
 	   || info->smeasurements.mean) && info->sdisplay.tdom)
@@ -207,16 +202,16 @@ DoHTML (int form_method, char **getvars, char **postvars, s_info * info)
 
 	  if (info->smeasurements.min)
 	    printf
-	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Min&nbsp;: %04d mV  </font></p>\n",
-	       info->smeasurements.valuemin);
+	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Min&nbsp;: %4.5f V  </font></p>\n",
+	       ((float) info->smeasurements.valuemin) / 1000);
 	  if (info->smeasurements.max)
 	    printf
-	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Max&nbsp;: %04d mV  </font></p>\n",
-	       info->smeasurements.valuemax);
+	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Max&nbsp;: %4.5f V  </font></p>\n",
+	       ((float) info->smeasurements.valuemax) / 1000);
 	  if (info->smeasurements.mean)
 	    printf
-	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Mean: %04d mV  </font></p>\n",
-	       info->smeasurements.valuemean);
+	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Mean: %4.5f V  </font></p>\n",
+	       ((float) info->smeasurements.valuemean) / 1000);
 	  printf
 	    ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> ______________</font></p>\n");
 
@@ -225,17 +220,11 @@ DoHTML (int form_method, char **getvars, char **postvars, s_info * info)
     case REPLOT:
       htmlHeader ("NDSO Demo Web Page");
       htmlBody ();
-      printf ("\n<img border=\"0\" src=\"img.png?id=%s\" align=\"left\">\n",
-	      itostr (getrand (6), 6, 1, 1));
+      printf ("\n<img border=\"0\" src=\"img%s.png?id=%s\" align=\"left\">\n",
+	      info->pREMOTE_ADDR, itostr (getrand (6), 6, 1, 1));
       break;
     case MULTIMETER:
       DoDM_HTML_Page (form_method, getvars, postvars, info);
-//                  printf(INLINE_FRAME);
-//              for (i=0; i<400 ; i++) {
-//                Sample(form_method, getvars, postvars, info);                 
-//                  DoDM_HTML_Page(form_method, getvars, postvars, info); //fixme
-//              sleep(1);
-//                  }
       break;
     case SHOWSAMPLES:
       htmlHeader ("NDSO Demo Web Page");
@@ -350,7 +339,8 @@ NDSO_Error (int errnum, int form_method, char **getvars, char **postvars,
 	      TRIGGER_LEVEL);
       printf
 	("<p><font face=\"Tahoma\" size=\"7\">Trigger Level outside specified range: [%d] < Level < [%d] \n</font></p>",
-	 MINTRIGGERLEVEL, MAXTRIGGERLEVEL);
+	 (short) SampleToVoltage (0, info),
+	 (short) SampleToVoltage (GetMaxSampleValue (info), info));
       break;
     case SAMPLE_RATE:
       printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
@@ -379,6 +369,12 @@ NDSO_Error (int errnum, int form_method, char **getvars, char **postvars,
       printf
 	("<p><font face=\"Tahoma\" size=\"7\">Plot Range contains invlaid characters.\n</font></p>");
       break;
+    case FILE_OPEN_SAMPLES:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      FILE_OPEN_SAMPLES);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">Can't open SAMPLE FILE for REPLOT.\n</font></p>");
+      break;
     default:
       printf
 	("<p><font face=\"Tahoma\" size=\"7\">ERROR[UNDEF]:\n</font></p>");
@@ -389,6 +385,7 @@ NDSO_Error (int errnum, int form_method, char **getvars, char **postvars,
 
   htmlFooter ();
   cleanUp (form_method, getvars, postvars);
+  CleanupSessionFiles (info);
   fflush (stdout);
 
   exit (1);
@@ -450,7 +447,7 @@ ParseRequest (int form_method, char **getvars, char **postvars, s_info * info)
 	    }
 	  else if (strncmp (postvars[i], "T1", 2) == 0)
 	    {
-	      info->strigger.level = str2num (postvars[i + 1]);
+	      info->strigger.level = (short) str2num (postvars[i + 1]);
 	    }
 	  else if (strncmp (postvars[i], "D5", 2) == 0)
 	    {
@@ -553,7 +550,6 @@ ParseRequest (int form_method, char **getvars, char **postvars, s_info * info)
 	      info->run = MULTIMETER;
 	    };
 
-
 	}
 
     }
@@ -570,8 +566,10 @@ int
 CheckRequest (int form_method, char **getvars, char **postvars, s_info * info)
 {
 
-  if (info->strigger.level > MAXTRIGGERLEVEL
-      || info->strigger.level < MINTRIGGERLEVEL)
+
+  if (info->strigger.level >
+      (short) SampleToVoltage (GetMaxSampleValue (info), info)
+      || info->strigger.level < (short) SampleToVoltage (0, info))
     NDSO_Error (TRIGGER_LEVEL, form_method, getvars, postvars, info);
 
   if (info->stime_s.sps >
@@ -591,6 +589,39 @@ CheckRequest (int form_method, char **getvars, char **postvars, s_info * info)
 
   if (str2num (postvars[info->sdisplay.xrange1]) < 0)
     NDSO_Error (RANGE, form_method, getvars, postvars, info);
+
+  if (info->run == REPLOT)
+    {
+      switch (info->sdisplay.tdom)
+	{
+	case FREQ_DOM:
+
+	  info->pFile_fsamples = fopen (info->pFILENAME_F_OUT, "r");
+
+	  if (info->pFile_fsamples == NULL)
+	    {
+	      NDSO_Error (FILE_OPEN_SAMPLES, form_method, getvars, postvars,
+			  info);
+	    }
+
+	  fclose (info->pFile_fsamples);
+	  break;
+
+	case TIME_DOM:
+	  info->pFile_samples = fopen (info->pFILENAME_T_OUT, "r");
+
+	  if (info->pFile_samples == NULL)
+	    {
+	      NDSO_Error (FILE_OPEN_SAMPLES, form_method, getvars, postvars,
+			  info);
+	    }
+	  fclose (info->pFile_samples);
+	  break;
+
+	default:
+	  break;
+	}
+    }
 
   return 0;
 }
@@ -612,7 +643,7 @@ MakeFileSamples (int form_method, char **getvars, char **postvars,
   ref = hw_device_table[info->sinput.type][REF_VOLTAGE].arg;
   /* open file for write */
 
-  info->pFile_samples = fopen (FILENAME_T_OUT, "w");
+  info->pFile_samples = fopen (info->pFILENAME_T_OUT, "w");
 
   if (info->pFile_samples == NULL)
     {
@@ -684,7 +715,7 @@ MakeFileFrequencySamples (int form_method, char **getvars, char **postvars,
 
   /* open file for write */
 
-  info->pFile_fsamples = fopen (FILENAME_F_OUT, "w");
+  info->pFile_fsamples = fopen (info->pFILENAME_F_OUT, "w");
 
   if (info->pFile_fsamples == NULL)
     {
@@ -721,7 +752,7 @@ MakeFileInit (int form_method, char **getvars, char **postvars, s_info * info)
 
   /* open file for write */
 
-  info->pFile_init = fopen (FILENAME_GNUPLT, "w");
+  info->pFile_init = fopen (info->pFILENAME_GNUPLT, "w");
 
   if (info->pFile_init == NULL)
     {
@@ -731,7 +762,8 @@ MakeFileInit (int form_method, char **getvars, char **postvars, s_info * info)
   /* print header information */
 
   fprintf (info->pFile_init, "#GNUPLOT File generated by NDSO\n");
-  fprintf (info->pFile_init, "set term png\nset output \"img.png\"\n");
+  fprintf (info->pFile_init, "set term png\nset output \"img%s.png\"\n",
+	   info->pREMOTE_ADDR);
 
   /* print commands */
 
@@ -771,14 +803,14 @@ MakeFileInit (int form_method, char **getvars, char **postvars, s_info * info)
 	{
 
 	  fprintf (info->pFile_init,
-		   "plot  \"/home/httpd/cgi-bin/t_samples.txt\" smooth %s notitle \nexit\n",
-		   postvars[info->sdisplay.smooth]);
+		   "plot  \"%s\" smooth %s notitle \nexit\n",
+		   info->pFILENAME_T_OUT, postvars[info->sdisplay.smooth]);
 	}
       else
 	{
 	  fprintf (info->pFile_init,
-		   "plot  \"/home/httpd/cgi-bin/t_samples.txt\" notitle %s  \nexit\n",
-		   postvars[info->sdisplay.color]);
+		   "plot  \"%s\" notitle %s  \nexit\n",
+		   info->pFILENAME_T_OUT, postvars[info->sdisplay.color]);
 	}
     }
   else
@@ -792,9 +824,9 @@ MakeFileInit (int form_method, char **getvars, char **postvars, s_info * info)
 		   "set xlabel \"%d point FFT @ %d Samples/s               f/Hz->\"\n",
 		   info->stime_s.samples, info->stime_s.sps);
 	  fprintf (info->pFile_init,
-		   "plot  \"/home/httpd/cgi-bin/f_samples.txt\" using ($1*%d/%d):(sqrt($2*$2+$3*$3)) notitle %s  \nexit\n",
-		   info->stime_s.sps, info->stime_s.samples,
-		   postvars[info->sdisplay.color]);
+		   "plot  \"%s\" using ($1*%d/%d):(sqrt($2*$2+$3*$3)) notitle %s  \nexit\n",
+		   info->pFILENAME_F_OUT, info->stime_s.sps,
+		   info->stime_s.samples, postvars[info->sdisplay.color]);
 	}
       else
 	{
@@ -802,8 +834,8 @@ MakeFileInit (int form_method, char **getvars, char **postvars, s_info * info)
 		   "set xlabel \"%d point FFT @ %d Samples/s               f->\"\n",
 		   info->stime_s.samples, info->stime_s.sps);
 	  fprintf (info->pFile_init,
-		   "plot  \"/home/httpd/cgi-bin/f_samples.txt\" using 1:(sqrt($2*$2+$3*$3)) notitle %s  \nexit\n",
-		   postvars[info->sdisplay.color]);
+		   "plot  \"%s\" using 1:(sqrt($2*$2+$3*$3)) notitle %s  \nexit\n",
+		   info->pFILENAME_F_OUT, postvars[info->sdisplay.color]);
 	}
     }
 
@@ -815,44 +847,32 @@ MakeFileInit (int form_method, char **getvars, char **postvars, s_info * info)
 };
 
 
+
 int
 DoDM_HTML_Page (int form_method, char **getvars, char **postvars,
 		s_info * info)
 {
 
-
-  FILE *pFile;
   char bar[44];
   unsigned char Cntr;
   unsigned short *samples = info->samples;
 
-  if (samples[2] > 4096)
-    samples[10] = 4096;
-
   bar[0] = '<';
-  for (Cntr = 1; Cntr < (samples[10] / 100); Cntr++)
+  for (Cntr = 1;
+       Cntr < (abs ((short) SampleToVoltage (samples[10], info)) / 100);
+       Cntr++)
     bar[Cntr] = '|';
   for (; Cntr < 42; Cntr++)
     bar[Cntr] = '_';
   bar[42] = '>';
   bar[43] = '\0';
 
-  pFile = fopen (FILENAME_VALUE, "w");
-  if (pFile == NULL)
-    {
-      NDSO_Error (FILE_OPEN, form_method, getvars, postvars, info);
-    }
+  printf (VALUE_FRAME,
+	  ((float) ((short) SampleToVoltage (samples[10], info))) / 1000);
 
-
-//         fprintf (pFile,VALUE_FRAME,samples[2]);
-//         fprintf (pFile,"<p><font face=\"Courier New\" size=\"1\"> %s</font></p>\n  </body>\n</html>\n",bar);
-
-  printf (VALUE_FRAME, samples[10]);
   printf
-    ("<p><font face=\"Courier New\" size=\"1\"> %s</font></p>\n  </body>\n</html>\n",
+    ("<p><font face=\"Courier New\" size=\"1\"> %s </font></p>\n  </body>\n</html>\n",
      bar);
-
-  fclose (pFile);
 
   return 0;
 };
@@ -880,12 +900,7 @@ DoMeasurements (s_info * info)
       for (i = 0; i < info->stime_s.samples; i++)
 	{
 	  val = samples[i];
-	  if (val > 4095)
-	    {
-	      i++;
-	      count--;
-	      val = samples[i];
-	    };
+
 	  if (val < min)
 	    min = val;
 	  if (val > max)
@@ -894,9 +909,11 @@ DoMeasurements (s_info * info)
 
 	};
 
-      info->smeasurements.valuemin = min;
-      info->smeasurements.valuemax = max;
-      info->smeasurements.valuemean = mean / count;
+      info->smeasurements.valuemin = (short) SampleToVoltage (min, info);
+      info->smeasurements.valuemax = (short) SampleToVoltage (max, info);
+      info->smeasurements.valuemean =
+	(short) SampleToVoltage (mean / count, info);
+
     }
 
   return 0;
@@ -1015,12 +1032,84 @@ str2num (char *str)
 
   for (i = 0; i < ilen; i++)
     {
-      if (str[i] == '.')
-	i++;			// ignore dot
+      if (str[i] == '.' || str[i] == '-')
+	i++;			// ignore dot and sign
 
       if (str[i] > 57 || str[i] < 48)
 	return -1;
       num = num * 10 + (str[i] - 48);
     }
-  return (num);
+  return (str[0] == '-' ? (-1) * num : num);
+};
+
+void
+MakeSessionFiles (s_info * info)
+{
+  char str[80];
+  
+/* Generate File Names Based on the REMOTE IP ADDR */
+    info->pREMOTE_ADDR = strdup ((char *) getRemoteAddr ());
+
+  info->pGNUPLOT =
+    strdup (strcat (strcpy (str, CALL_GNUPLOT), info->pREMOTE_ADDR));
+  info->pFILENAME_T_OUT =
+    strdup (strcat (strcpy (str, FILENAME_T_OUT), info->pREMOTE_ADDR));
+  info->pFILENAME_F_OUT =
+    strdup (strcat (strcpy (str, FILENAME_F_OUT), info->pREMOTE_ADDR));
+  info->pFILENAME_GNUPLT =
+    strdup (strcat (strcpy (str, FILENAME_GNUPLT), info->pREMOTE_ADDR));
+
+  return;
+};
+
+void
+CleanupSessionFiles (s_info * info)
+{
+  free (info->pREMOTE_ADDR);
+  free (info->pFILENAME_T_OUT);
+  free (info->pFILENAME_F_OUT);
+  free (info->pFILENAME_GNUPLT);
+  free (info->pGNUPLOT);
+
+  return;
+};
+
+int
+SampleToVoltage (unsigned short value, s_info * info)
+{
+  unsigned int res, ref;
+  int voltage;
+
+  res = hw_device_table[info->sinput.type][DAC_RESOLUTION].arg;
+  ref = hw_device_table[info->sinput.type][REF_VOLTAGE].arg;
+
+  if (info->sinput.mode)
+    voltage = value * ref / res;	// DC
+  else
+    voltage = (value - (res / 2)) * ref / res;	//AC
+
+  return voltage;
+};
+
+int
+VoltageToSample (short voltage, s_info * info)
+{
+  unsigned int res, ref;
+  int value;
+
+  res = hw_device_table[info->sinput.type][DAC_RESOLUTION].arg;
+  ref = hw_device_table[info->sinput.type][REF_VOLTAGE].arg;
+
+  if (info->sinput.mode)
+    value = voltage * res / ref;	// DC
+  else
+    value = (voltage * res / ref) + (res / 2);	//AC
+
+  return value;
+};
+
+int
+GetMaxSampleValue (s_info * info)
+{
+  return (hw_device_table[info->sinput.type][DAC_RESOLUTION].arg);
 };

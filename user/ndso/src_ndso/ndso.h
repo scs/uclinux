@@ -1,27 +1,18 @@
 /* ------------ Defines ------------ */
 
+#define DEBUG 				0
 
-#define FILENAME_T_OUT "/home/httpd/cgi-bin/t_samples.txt"
-#define FILENAME_F_OUT "/home/httpd/cgi-bin/f_samples.txt"
-#define FILENAME_GNUPLT "/home/httpd/cgi-bin/gnu.plt"
-#define FILENAME_VALUE "/home/httpd/cgi-bin/value.htm"
-
-#define INLINE_FRAME "Content-type: text/html\n\n<html>\n\n<head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1252\">\n<META HTTP-EQUIV=\"PRAGMA\" CONTENT=\"NO-CACHE\"><meta http-equiv=\"Expires\" CONTENT=\"-1\">\n<title>\n</title>\n</head>\n<body>\n<p>&nbsp;<H1>Digital Multimeter</H1>\n<p>\n<iframe name=\"I1\" width=\"367\" height=\"180\" scrolling=\"no\"  border=\"0\" frameborder=\"0\" src=\"value.htm\">\nYour browser does not support inline frames or is currently configured not to display inline frames.\n</iframe></p>\n</body>\n</html>\n"
-#define VALUE_FRAME "\n<html>\n<head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1252\">\n<title></title></head><body> <p><font face=\"Tahoma\" size=\"10\">%d mVolt</font></p>\n"
+#define CALL_GNUPLOT "/bin/gnuplot /home/httpd/cgi-bin/gnu.plt_"
+#define FILENAME_T_OUT "/home/httpd/cgi-bin/t_samples.txt_"
+#define FILENAME_F_OUT "/home/httpd/cgi-bin/f_samples.txt_"
+#define FILENAME_GNUPLT "/home/httpd/cgi-bin/gnu.plt_"
 
 
-#define AC_MODE_DC_OFFSET 	2048
+#define VALUE_FRAME "\n<html>\n<head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1252\">\n<title></title></head><body> <p><font face=\"Tahoma\" size=\"10\">%4.3f Volt</font></p>\n"
 
-#define MAXTRIGGERLEVEL 	4096
-#define MINTRIGGERLEVEL 	0
-#define MAXSAMPLERATE 		1000000
 #define MINSAMPLERATE 		1
 #define MAXNUMSAMPLES 		4000
 #define MINNUMSAMPLES 		4
-
-
-#define DEBUG 				0
-
 
 #define OUT_DEC 1		//Converts the number based on the decimal format
 #define OUT_BIN 2		// Converts the number based on the binary format
@@ -39,14 +30,13 @@ typedef struct
   unsigned short mode;
   unsigned short sense;
   unsigned short edge;
-  unsigned short level;
+  short level;
 } trigger;
 
 
 typedef struct
 {
   unsigned short vdiv;
-//      int voffset;
 } vertical;
 
 
@@ -72,9 +62,9 @@ typedef struct
   unsigned short min;
   unsigned short max;
   unsigned short mean;
-  unsigned short valuemin;
-  unsigned short valuemax;
-  unsigned short valuemean;
+  short valuemin;
+  short valuemax;
+  short valuemean;
 } measurements;
 
 
@@ -105,6 +95,11 @@ typedef struct
   FILE *pFile_samples;
   FILE *pFile_fsamples;
   FILE *pFile_init;
+  char *pFILENAME_T_OUT;
+  char *pFILENAME_F_OUT; 
+  char *pFILENAME_GNUPLT;
+  char *pGNUPLOT;
+  char *pREMOTE_ADDR; 
   unsigned short *samples;
 } s_info;
 
@@ -123,8 +118,13 @@ enum
 enum
 {
   SPIOPEN, FILE_OPEN, MEMORY, TRIGCOND, TRIGGER_LEVEL, SAMPLE_RATE,
-    SAMPLE_DEPTH, SIZE_RATIO, RANGE
+    SAMPLE_DEPTH, SIZE_RATIO, RANGE, FILE_OPEN_SAMPLES
 };
+
+enum
+{
+ FREQ_DOM, TIME_DOM
+};	
 
 
 
@@ -145,10 +145,15 @@ int MakeFileSamples (int, char **, char **, s_info *);
 int MakeFileFrequencySamples (int, char **, char **, s_info *);
 int MakeFileInit (int, char **, char **, s_info *);
 int PrintSamples (s_info *);
+void MakeSessionFiles (s_info *);
+void CleanupSessionFiles (s_info *);
 int str2num (char *);
 int getrand (int);
 char *itostr (u_int, u_char, u_char, u_char);
 int DoMeasurements (s_info *);
+int SampleToVoltage (unsigned short value, s_info * );
+int VoltageToSample (short , s_info * );
+int GetMaxSampleValue (s_info * );
 
 extern int fix_fft (fixed *, fixed *, int, int);
 extern int iscale (int, int, int);

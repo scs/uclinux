@@ -13,6 +13,7 @@ int getRequestMethod ();
 char **getGETvars ();
 char **getPOSTvars ();
 int cleanUp (int form_method, char **getvars, char **postvars);
+char * getRemoteAddr (void);
 
 
 #endif /* !_CGIVARS_H */
