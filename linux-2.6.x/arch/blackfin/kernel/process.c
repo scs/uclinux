@@ -18,12 +18,10 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>	
 
 #include <linux/user.h>
 #include <linux/a.out.h>
@@ -101,7 +99,6 @@ void show_regs(struct pt_regs * regs)
 	printk(KERN_NOTICE "R4: %08lx  R5: %08lx  R6: %08lx  R7: %08lx\n",
 	       regs->r4, regs->r5, regs->r6, regs->r7);
 
-	/* PS_S should be 0x0c00, to expect the 0b00 value in SEQSTAT's bit 11:10 */
 	if (!(regs->ipend))
 		printk("USP: %08lx\n", rdusp());
 }
@@ -274,8 +271,6 @@ unsigned long get_wchan(struct task_struct *p)
 		    fp >= 8184+stack_page)
 			return 0;
 		pc = ((unsigned long *)fp)[1];
-		/* FIXME: This depends on the order of these functions. 
-		if (pc < first_sched || pc >= last_sched)*/
 		if (!in_sched_functions(pc))
 			return pc;
 		fp = *(unsigned long *) fp;
