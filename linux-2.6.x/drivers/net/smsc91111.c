@@ -135,7 +135,6 @@ inline void SMC_insw(unsigned int addr, void *buf, int len)
 		*bp++ = (*ap);}
 }
 
-
 /* some problem with the toolchain.
  * If smc_readw is inline then smc_probe fails.
  * The upper byte of bank select register is not 0x33. 
