@@ -209,7 +209,7 @@ inline void smc_writel(unsigned int b,unsigned int addr)
 #include <linux/sysctl.h>
 #endif
 
-#include "smc91111.h"
+#include "smsc91111.h"
 /*------------------------------------------------------------------------
  .
  . Configuration options, for the experienced user to change.
