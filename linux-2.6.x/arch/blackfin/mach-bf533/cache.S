@@ -17,15 +17,6 @@
 
 .text
  
-.globl _cache_invalidate
-.globl _icache_invalidate
-.globl blackfin_cache_clean_invalidate_range
-.global blackfin_dflush_page
-.global invalidate_entire_icache
-.global invalidate_entire_dcache
-
-.align 2;
-
 ENTRY(_cache_invalidate)
 
 	/********************************************
@@ -58,112 +49,7 @@ no_dcache_b:
 	R7 = [SP++];
 	UNLINK;
 	RTS;
-._cache_invalidate.end:
 
-
-.align 2;
-
-_icache_invalidate:
-	/***********************************
-         * Icache Invalidation
-    	 ***********************************/
-	[--SP] = ( R7:4, P5:5);
-
-    	/* Enable, and as cache. This will already be the case if this is a
-    	 * user request, but for use at RESET it will be enabled as SRAM.
-    	 */ 	      
-	
-	P0.L = (IMEM_CONTROL & 0xFFFF);
-	P0.H = (IMEM_CONTROL >> 16);
-
-    	/* Save the current settings of IMEM_CONTROL, so that we don't
-    	 * clobber it by invalidation.
-    	 */
-	R7 = [P0];
-	R0 = (IMC | ENIM);
-	CLI R6;			/* Avoid Anomalies #32/#52 on*/
-	.align 8;		/* BF531/2/3 when writing to enable*/
-	[P0]=R0;		/* CPLBs or cache.*/
-	SSYNC;
-	STI R6;
-
-	I0.L = (ITEST_COMMAND & 0xFFFF);
-	I0.H = (ITEST_COMMAND >> 16);
-
-    	/* When the TEST_COMMAND register is written, the tag or line
-    	 * contents for the line it addresses is read or written to/from the
-    	 * TEST_DATA0/TEST_DATA1 registers respectively.
-    	 *
-    	 * To invalidate a line we write zero to the tag for the line.
-    	 */
-       
-	I1.L = (ITEST_DATA0 & 0xFFFF);
-	I1.H = (ITEST_DATA0 >> 16);
-	R0=0;
-	[I1]=R0;
-
-	
-	/* I-CACHE:
-    	 * 4 sub-banks, 
-    	 * each sub-bank has 4 ways, 
-    	 * each way has 32 lines
-	 */
-    	  
-	R2=32;		/* line index increment*/
-	R3.L=0;	
-	R3.H=1;		/* sub-bank increment*/
-	P2=4;		/* number of sub-banks, outer loop iterations*/
-             		/* (Should be 2 for D-cache)*/
-	P5=R2;		/* number of lines in each way*/
-	R4=2;		/* initial value for ITEST_COMMAND for way 0 */
-			/* write to tag for sub-bank 0, way 0, line 0*/
-	R5.H=0x400;	/* initial value for ITEST_COMMAND for way 1*/
-	R5.L=2;		/* write to tag for sub-bank 0, way 1, line 0*/
-	LSETUP(lbl0a,lbl3a) LC1=P2; /* for each of 4 sub-banks*/
-lbl0a:  R0=R4;
-	R1=R5;
-	LSETUP(lbl1a,lbl2a) LC0=P5;	/* for each of 32 lines*/
-lbl1a:	R0 = R0+|+R2 ; 			/* way 0*/
-	[I0] = R0;
-	CSYNC;				/* Requires CSYNC - BFin*/
-lbl2a:	R1 = R1+|+R2; 			/* way 1*/
-	[I0] = R1;
-	CSYNC;				/* Requires CSYNC - BFin*/
-	R4=R4+R3;			/* next sub-bank way 0*/
-	
-lbl3a:  R5=R5+R3;			/* next sub-bank way 1*/
-
-    	/* and now do it all again for ways 2 and 3*/
-	R4.H=0x800;
-	R4.L=2;				/* initial value for ITEST_COMMAND for way 2*/                
-	R5.H=0xc00;
-	R5.L=2;				/* initial value for ITEST_COMMAND for way 3*/
-	LSETUP(lbl0b,lbl3b) LC1=P2;
-lbl0b:	R0=R4;
-	R1=R5;
-	LSETUP(lbl1b,lbl2b) LC0=P5;
-lbl1b:	R0 = R0+|+R2; 
-	[I0] = R0;
-	CSYNC;
-lbl2b:	R1 = R1+|+R2;
-	[I0] = R1;
-	CSYNC;
-	R4=R4+R3;
-
-lbl3b:  R5=R5+R3;
-
-	/* Restore the previous value of IMEM_CONTROL*/
-
-	CSYNC;
-	CLI R6;
-	.align 8;
-	[P0] = R7;
-	SSYNC;
-	STI R6;
-	( R7:4, P5:5) = [SP++];
-	RTS;
-
-.align 2;
 _dcache_invalidate:
 
 	/***********************************
@@ -182,7 +68,7 @@ _dcache_invalidate:
 	 */
 	
 	R6 = [P0];
-	R0 = (ACACHE_BCACHE | ENDM);
+	R0 = (ACACHE_BCACHE | ENDCPLB | ENDM);
 
 	/* Enable both as cache although we are going to invalidate only 1.
 	 * This is because if only 1 bank is configured as cache it must be
@@ -255,8 +141,8 @@ lbl3c:	R5=R5+R3;
 /* Invalidate the Entire Instruction cache by 
  * disabling IMC bit
  */
-
-invalidate_entire_icache:
+ENTRY(_icache_invalidate)
+ENTRY(invalidate_entire_icache)
 
 	[--SP] = ( R7:4, P5:5); 
 
@@ -278,7 +164,7 @@ invalidate_entire_icache:
 
 	R6 = [P0];
 	
-	R7 = (IMC | ENICPLB);
+	R7 = (IMC | ENICPLB | ENIM);
 	R7 = R7 | R6;
 
 	[P0] = R7;
@@ -291,9 +177,7 @@ invalidate_entire_icache:
 /* Invalidate the Entire Data cache by 
  * clearing DMC[1:0] bits
  */
-
-
-invalidate_entire_dcache:
+ENTRY(invalidate_entire_dcache)
 
 	[--SP] = ( R7:4, P5:5); 
 
@@ -316,7 +200,7 @@ invalidate_entire_dcache:
 
 	R6 = [P0];
 	
-	R7 = (DMC_ENABLE | ENDCPLB);
+	R7 = (ACACHE_BCACHE | ENDCPLB | ENDM);
 	R7 = R7 | R6;
 
 	[P0] = R7;
@@ -332,41 +216,31 @@ invalidate_entire_dcache:
  * 
  * start:	Start address
  * end:		End address
- * flags:	nonzero for Instruction cache
  */ 						
-	.align 5
-blackfin_cache_clean_invalidate_range:
+ENTRY(blackfin_icache_clean_invalidate_range)
 
 	[--SP] = ( R7:0, P5:0 );
 	R4 = 1;
 	R3 = R1 - R0;
 	P2 = R0 ;
 BACK:	CSYNC;
-	FLUSHINV [P2++];
+	IFLUSH [P2++];
 	R3 = R3 - R4; 
 	CC = R3 < 0;
 	IF !CC JUMP BACK;
 	
-	CC = R2 ; 
-	IF !CC JUMP RET;
-
-	[--sp] = RETS;
-	CALL _icache_invalidate;
-	RETS = [sp++];
-
-RET:	( R7:0, P5:0 ) = [SP++];
+	( R7:0, P5:0 ) = [SP++];
 	RTS;
-	
 
 /* Throw away all D-cached data in specified region without any obligation to write
  * them back. However, we must clean the D-cached entries around the boundaries 
  * of the start and/or end address is not cache aligned. 
  *  
- *  Start: virtual start address, 
- *  end  : virtual end address.
+ *  Start: start address, 
+ *  end  : end address.
  */
 
-blackfin_dcache_invalidate_range:
+ENTRY(blackfin_dcache_invalidate_range)
 	
 	[--SP] = ( R7:0, P5:0 );
 	R4 = 1;
@@ -395,9 +269,5 @@ ENTRY(blackfin_dflush_page)
 fl1:	CSYNC;
 fl2:	FLUSHINV [P0++];	
 	CSYNC;
-	JUMP over;
-
-over:
-	SSYNC;
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
