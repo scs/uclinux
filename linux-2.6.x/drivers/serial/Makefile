@@ -41,3 +41,4 @@ obj-$(CONFIG_SERIAL_SGI_L1_CONSOLE) += sn_console.o
 obj-$(CONFIG_SERIAL_CPM) += cpm_uart/
 obj-$(CONFIG_SERIAL_MPC52xx) += mpc52xx_uart.o
 obj-$(CONFIG_SERIAL_BLACKFIN) += bf533_serial.o
+obj-$(CONFIG_SERIAL_BLACKFIN_EXP) += bf533_serial_exp.o

@@ -720,4 +720,24 @@ config SERIAL_BLACKFIN
 	help
 	  This driver supports the built-in serial ports of the Blackfin family of CPUs.
 
+
+comment 'Blackfin serial support'
+choice
+	prompt	"Select Serial Driver"
+	---help---
+	  Choose DMA driver
+
+config SERIAL_BLACKFIN
+	bool 'Blackfin Serial Driver DMA on RX' 
+	depends on (BF533 || BF532 || BF531) 
+	help
+	  Blackfin Serial Driver DMA on RX and IRQ on TX
+	
+config SERIAL_BLACKFIN_EXP
+	bool 'Blackfin Serial Driver IRQ on RX and TX (Experimental)' 
+	depends on (BF533 || BF532 || BF531) 
+	help
+	  Blackfin Serial Driver (None DMA) IRQ on RX and TX (Experimental)
+endchoice
+
 endmenu
