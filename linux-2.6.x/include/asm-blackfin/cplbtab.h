@@ -27,7 +27,7 @@
 	
 #define SDRAM_IGENERIC		(PAGE_SIZE_4MB | CPLB_L1_CHBL | CPLB_USER_RD | CPLB_VALID)
 #define SDRAM_IKERNEL		(PAGE_SIZE_4MB | CPLB_L1_CHBL | CPLB_USER_RD | CPLB_VALID | CPLB_LOCK)
-#define L1_IMEMORY            	(PAGE_SIZE_1MB | CPLB_L1_CHBL | CPLB_USER_RD | CPLB_VALID)
+#define L1_IMEMORY            	(PAGE_SIZE_1MB | CPLB_L1_CHBL | CPLB_USER_RD | CPLB_VALID | CPLB_LOCK)
 #define SDRAM_INON_CHBL		(PAGE_SIZE_4MB | CPLB_USER_RD | CPLB_VALID)
 
 /*Use the menuconfig cache policy here - CONFIG_BLKFIN_WT/CONFIG_BLKFIN_WB*/
@@ -55,10 +55,10 @@ icplb_table:
 .byte4 (SDRAM_IKERNEL);			/*SDRAM_Page1*/
 .byte4 0x00400000;
 .byte4 (SDRAM_IKERNEL);		/*SDRAM_Page1*/
-.byte4 0x00800000;
-.byte4 (SDRAM_IGENERIC);		/*SDRAM_Page2*/
 .byte4 0x07C00000;
 .byte4 (SDRAM_IKERNEL);		/*SDRAM_Page14*/
+.byte4 0x00800000;
+.byte4 (SDRAM_IGENERIC);		/*SDRAM_Page2*/
 .byte4 0x00C00000;
 .byte4 (SDRAM_IGENERIC);		/*SDRAM_Page2*/
 .byte4 0x01000000;
@@ -88,10 +88,6 @@ icplb_table:
 .align 4;
 .global ipdt_table
 ipdt_table:
-.byte4 0x00000000;
-.byte4 (SDRAM_IKERNEL);              /*SDRAM_Page1*/
-.byte4 0x00400000;
-.byte4 (SDRAM_IKERNEL);              /*SDRAM_Page1*/
 .byte4 0x00800000;
 .byte4 (SDRAM_IGENERIC);              /*SDRAM_Page2*/
 .byte4 0x00C00000;
@@ -162,8 +158,6 @@ ipdt_table:
 .byte4  (SDRAM_IGENERIC);       /*SDRAM_Page30*/
 .byte4        0x07800000;
 .byte4  (SDRAM_IGENERIC);       /*SDRAM_Page31*/
-.byte4        0x07C00000;
-.byte4  (SDRAM_IGENERIC);       /*SDRAM_Page32*/
 #endif
 .byte4 0xffffffff;                    /* end of section - termination*/
 
@@ -177,10 +171,10 @@ dcplb_table:
 .byte4	(SDRAM_DKERNEL);	/*SDRAM_Page1*/
 .byte4	0x00400000; 
 .byte4	(SDRAM_DKERNEL);	/*SDRAM_Page1*/
-.byte4	0x00800000; 
-.byte4 	(SDRAM_DGENERIC);	/*SDRAM_Page2*/
 .byte4	0x07C00000;
 .byte4	(SDRAM_DKERNEL);	/*SDRAM_Page15*/
+.byte4	0x00800000; 
+.byte4 	(SDRAM_DGENERIC);	/*SDRAM_Page2*/
 .byte4 	0x00C00000; 
 .byte4	(SDRAM_DGENERIC);	/*SDRAM_Page3*/
 .byte4	0x01000000;
@@ -224,10 +218,6 @@ dcplb_table:
  */   
 .global dpdt_table
 dpdt_table:
-.byte4        0x00000000;
-.byte4        (SDRAM_DKERNEL);        /*SDRAM_Page1*/
-.byte4        0x00400000;
-.byte4        (SDRAM_DKERNEL);       /*SDRAM_Page1*/
 .byte4        0x00800000;
 .byte4        (SDRAM_DGENERIC);       /*SDRAM_Page2*/
 .byte4        0x00C00000;
@@ -299,8 +289,6 @@ dpdt_table:
 .byte4	(SDRAM_DGENERIC);	/*SDRAM_Page30*/
 .byte4	0x07800000;
 .byte4	(SDRAM_DGENERIC);	/*SDRAM_Page31*/
-.byte4	0x07C00000;
-.byte4	(SDRAM_DGENERIC);	/*SDRAM_Page32*/
 #endif
 
 .byte4  0xFF900000;
