@@ -25,6 +25,7 @@ EXPORT_SYMBOL(jiffies_64);
 extern void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *));
 unsigned long gettimeoffset (void);
 extern unsigned long wall_jiffies;
+extern int setup_irq(unsigned int, struct irqaction *);
 
 /*
  * By setting TSCALE such that TCOUNT counts a binary fraction
@@ -116,6 +117,11 @@ static void do_leds(void)
 inline void do_leds(void) {}
 #endif
 
+static struct irqaction bfin_timer_irq = {
+	.name    = "BFIN Timer Tick",
+	.flags   = SA_INTERRUPT
+};
+
 void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
 {
 	/* power up the timer, but don't enable it just yet */
@@ -138,9 +144,9 @@ void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *)
 	asm("csync;");
 
 	/* set up the timer irq */
-
-	request_irq(IRQ_CORETMR, timer_routine, IRQ_FLG_LOCK, "timer", NULL);
-	enable_irq(IRQ_CORETMR);
+	bfin_timer_irq.handler = timer_routine;
+	/* call setup_irq instead of request_irq because request_irq calls kmalloc which has not been initialized yet */
+	setup_irq(IRQ_CORETMR, &bfin_timer_irq);
 }
 
 unsigned long gettimeoffset (void)

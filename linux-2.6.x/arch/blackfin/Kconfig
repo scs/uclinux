@@ -63,6 +63,7 @@ endchoice
 config BLACKFIN
 	bool
 	depends on (BF535 || BF533 || BF532 || BF531)
+	select IRQCHIP
 	default y
 
 comment "Platform"
@@ -132,6 +133,13 @@ config LARGE_ALLOCS
 	  a lot of RAM, and you need to able to allocate very large
 	  contiguous chunks. If unsure, say N. 
 
+config IRQCHIP_DEMUX_GPIO
+       bool "Enable GPIO IRQ Demultiplexing"
+       depends on IRQCHIP
+       default n
+       help
+         Demultiplex GPIO interrupt, enabling IRQ_PF0 through IRQ_PF15
+
 comment 'DMA Support'
 choice
 	prompt	"Select DMA driver"
@@ -140,21 +148,18 @@ choice
 
 config NO_DMA
 	bool 'Disable DMA Support' 
-	default y
 	help
 	  Disable DMA driver
 
 config BLKFIN_DMA
 	bool 'Enable DMA Support' 
 	depends on (BF533 || BF532 || BF531) 
-	default n
 	help
 	  Fully-fledged DMA driver
 	
 config BLKFIN_SIMPLE_DMA
 	bool 'Enable Simple DMA Support' 
 	depends on (BF533 || BF532 || BF531) 
-	default n
 	help
 	  Simple DMA driver
 endchoice

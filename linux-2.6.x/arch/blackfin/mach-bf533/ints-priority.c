@@ -23,8 +23,11 @@
 #include <linux/module.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
+#include <asm/irqchip.h>
 #include <asm/traps.h>
 #include <asm/blackfin.h>
+
+
 /********************************************************************
  * NOTES:
  * - we have separated the physical Hardware interrupt from the
@@ -71,9 +74,6 @@ asmlinkage void evt_system_call(void);
 static void program_IAR(void);
 static void search_IAR(void);	
 
-/* irq node variables for the 32 (potential) on chip sources */
-static irq_node_t int_irq_list[INTERNAL_IRQS];
-
 /*********
  * irq_panic
  * - calls panic with string setup
@@ -93,27 +93,27 @@ asmlinkage void irq_panic( int reason, struct pt_regs * regs)
  	printk("\n----------- HARDWARE ERROR -----------\n\n");
 		
 	/* There is only need to check for Hardware Errors, since other EXCEPTIONS are handled in TRAPS.c (MH)  */
-		switch(((unsigned int)regs->seqstat) >> 14)	  {
-				case (0x2):			//System MMR Error
-					info.si_code = BUS_ADRALN;
-		                        sig = SIGBUS;
-					printk(HWC_x2);
-					break;
-				case (0x3):			//External Memory Addressing Error
-				        info.si_code = BUS_ADRERR;
-					sig = SIGBUS;
-					printk(HWC_x3);
-					break;
-				case (0x12):			//Performance Monitor Overflow
-					printk(HWC_x12);
-					break;
-				case (0x18):			//RAISE 5 instruction
-					printk(HWC_x18);
-					break;
-				default:			//Reserved
-					printk(HWC_default);
-					break;
-			}
+	switch(((unsigned int)regs->seqstat) >> 14) {
+		case (0x2):			//System MMR Error
+			info.si_code = BUS_ADRALN;
+			sig = SIGBUS;
+			printk(HWC_x2);
+			break;
+		case (0x3):			//External Memory Addressing Error
+		        info.si_code = BUS_ADRERR;
+			sig = SIGBUS;
+			printk(HWC_x3);
+			break;
+		case (0x12):			//Performance Monitor Overflow
+			printk(HWC_x12);
+			break;
+		case (0x18):			//RAISE 5 instruction
+			printk(HWC_x18);
+			break;
+		default:			//Reserved
+			printk(HWC_default);
+			break;
+		}
 	}
 	dump(regs);
 	if (0 == (info.si_signo = sig) || 
@@ -186,13 +186,187 @@ static void __init search_IAR(void)
 }		
 			
 /*
+ * This is for BF533 internal IRQs
+ */
+
+static void bf533_core_mask_irq(unsigned int irq)
+{
+	local_irq_disable();
+	irq_flags &= ~(1<<irq);
+	local_irq_enable();
+}
+
+static void bf533_core_unmask_irq(unsigned int irq)
+{
+	/* enable the interrupt */
+	local_irq_disable();
+	irq_flags |= 1<<irq;
+	local_irq_enable();
+	return;
+}
+
+static void bf533_internal_mask_irq(unsigned int irq)
+{
+	unsigned long irq_mask;
+
+	/*
+ 	 * If it is the interrupt for peripheral,
+	 * we only disable it in SIC_IMASK register.
+	 * No need to change IMASK register of CORE,
+	 * since all of the IVG for peripherals was 
+ 	 * enabled in init_IRQ()
+	 *
+	 */
+	local_irq_disable();
+	irq_mask = (1<<(irq - (IRQ_CORETMR + 1)));
+   	*pSIC_IMASK &= ~(irq_mask); 
+	asm("ssync;");
+	local_irq_enable();
+}
+
+static void bf533_internal_unmask_irq(unsigned int irq)
+{
+	unsigned long irq_mask;
+	local_irq_disable();
+	irq_mask = (1<<(irq - (IRQ_CORETMR+1)));
+   	*pSIC_IMASK |= irq_mask;
+	asm("ssync;");
+	local_irq_enable();
+}
+
+static struct irqchip bf533_core_irqchip = {
+	.ack		= bf533_core_mask_irq,
+	.mask		= bf533_core_mask_irq,
+	.unmask		= bf533_core_unmask_irq,
+};
+
+static struct irqchip bf533_internal_irqchip = {
+	.ack		= bf533_internal_mask_irq,
+	.mask		= bf533_internal_mask_irq,
+	.unmask		= bf533_internal_unmask_irq,
+};
+
+#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
+static int gpio_enabled;
+static int gpio_edge_triggered;
+
+static void bf533_gpio_ack_irq(unsigned int irq)
+{
+	int gpionr = irq - IRQ_PF0;
+	int mask = (1L << gpionr);
+	*pFIO_FLAG_C = mask;
+	asm("ssync");
+	*pFIO_MASKB_C = mask;
+	asm("ssync");
+	if (gpio_edge_triggered & mask) {
+		/* ack */
+	} else {
+		/* ack and mask */
+	}
+	asm("ssync");
+}
+
+static void bf533_gpio_mask_irq(unsigned int irq)
+{
+	int gpionr = irq - IRQ_PF0;
+	int mask = (1L << gpionr);
+	*pFIO_FLAG_C = mask;
+	asm("ssync");
+	*pFIO_MASKB_C = mask;
+	asm("ssync");
+}
+
+static void bf533_gpio_unmask_irq(unsigned int irq)
+{
+	int gpionr = irq - IRQ_PF0;
+	int mask = (1L << gpionr);
+	*pFIO_MASKB_S = mask;
+}
+
+static int bf533_gpio_irq_type(unsigned int irq, unsigned int type)
+{
+	int gpionr = irq - IRQ_PF0;
+	int mask = (1L << gpionr);
+
+	*pFIO_DIR &= ~mask; asm("ssync");
+	*pFIO_INEN |= mask; asm("ssync");
+
+	if (type == IRQT_PROBE) {
+		/* only probe unenabled GPIO interrupt lines */
+		if ( gpio_enabled & mask)
+			return 0;
+		type = __IRQT_RISEDGE | __IRQT_FALEDGE;
+	}
+	if (type & (__IRQT_RISEDGE|__IRQT_FALEDGE|__IRQT_HIGHLVL|__IRQT_LOWLVL))
+		gpio_enabled |= mask;
+	else
+		gpio_enabled &= ~mask;
+
+	if (type & (__IRQT_RISEDGE|__IRQT_FALEDGE)) {
+		gpio_edge_triggered |= mask;
+		*pFIO_EDGE |= mask;
+	} else {
+		*pFIO_EDGE &= ~mask;
+		gpio_edge_triggered &= ~mask;
+	}
+	asm("ssync");
+
+	if ((type & (__IRQT_RISEDGE|__IRQT_FALEDGE)) == (__IRQT_RISEDGE|__IRQT_FALEDGE))
+		*pFIO_BOTH |= mask;
+	else
+		*pFIO_BOTH &= ~mask;
+	asm("ssync");
+
+	if ((type & (__IRQT_FALEDGE|__IRQT_LOWLVL)) && ((type & (__IRQT_RISEDGE|__IRQT_FALEDGE)) != (__IRQT_RISEDGE|__IRQT_FALEDGE)))
+		*pFIO_POLAR |= mask;  /* low or falling edge denoted by one */
+	else
+		*pFIO_POLAR &= ~mask; /* high or rising edge denoted by zero */
+	asm("ssync");
+
+	if (type & (__IRQT_RISEDGE|__IRQT_FALEDGE))
+		set_irq_handler(irq, do_edge_IRQ);
+	else
+		set_irq_handler(irq, do_level_IRQ);
+
+	return 0;
+}
+static struct irqchip bf533_gpio_irqchip = {
+	.ack		= bf533_gpio_ack_irq,
+	.mask		= bf533_gpio_mask_irq,
+	.unmask		= bf533_gpio_unmask_irq,
+	.type           = bf533_gpio_irq_type
+};
+
+static void bf533_demux_gpio_irq(unsigned int intb_irq, struct irqdesc *intb_desc,
+				 struct pt_regs *regs)
+{
+	int loop = 0;
+	
+	do {
+		int irq = IRQ_PF0;
+		int flag_d = *pFIO_FLAG_D;
+		int mask = flag_d & gpio_enabled;
+		loop = mask;
+		do {
+			if (mask & 1) {
+				struct irqdesc *desc = irq_desc + irq;
+				desc->handle(irq, desc, regs);
+			}
+			irq++;
+			mask >>= 1;
+		} while (mask);
+	} while (loop);
+}
+#endif /* CONFIG_IRQCHIP_DEMUX_GPIO */
+
+/*
  * This function should be called during kernel startup to initialize
  * the BFin IRQ handling routines.
  */
 
-int __init  init_IRQ(void)
+int __init  init_arch_irq(void)
 {
-	int i;	
+	int irq;	
 	unsigned long ilat = 0;
 	/*  Disable all the peripheral intrs  - page 4-29 HW Ref manual */
 	*pSIC_IMASK = SIC_UNMASK_ALL;
@@ -232,12 +406,29 @@ int __init  init_IRQ(void)
 	*pEVT15 = evt_soft_int1;	
 	asm("csync;");	
 
-  	for (i = 0; i < INTERNAL_IRQS; i++) {
-		int_irq_list[i].handler = NULL;
-		int_irq_list[i].flags   = IRQ_FLG_STD;
-		int_irq_list[i].dev_id  = NULL;
-		int_irq_list[i].devname = NULL;
+  	for (irq = 0; irq < INTERNAL_IRQS; irq++) {
+		if (irq <= IRQ_CORETMR)
+			set_irq_chip(irq, &bf533_core_irqchip);
+		else
+			set_irq_chip(irq, &bf533_internal_irqchip);
+#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
+		if (irq != IRQ_PROG_INTB) {
+#endif
+			set_irq_handler(irq, do_level_IRQ);
+			set_irq_flags(irq, IRQF_VALID);
+#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
+		} else {
+			set_irq_chained_handler(irq, bf533_demux_gpio_irq);
+		}
+#endif
 	}
+#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
+  	for (irq = IRQ_PF0; irq <= IRQ_PF15; irq++) {
+		set_irq_chip(irq, &bf533_gpio_irqchip);
+		set_irq_handler(irq, do_level_IRQ); /* if configured as edge, then will be changed to do_edge_IRQ */
+		set_irq_flags(irq, IRQF_VALID|IRQF_PROBE);
+	}
+#endif
    	*pIMASK = 0;
 	asm("csync;");
 	ilat  = *pILAT;
@@ -251,118 +442,14 @@ int __init  init_IRQ(void)
 
    	/* Enable interrupts IVG7-15 */
 	*pIMASK = irq_flags = irq_flags | IMASK_IVG15 | IMASK_IVG14 |IMASK_IVG13 |IMASK_IVG12 |IMASK_IVG11 |
-	IMASK_IVG10 |IMASK_IVG9 |IMASK_IVG8 |IMASK_IVG7 |IMASK_IVGHW;	
+		IMASK_IVG10 |IMASK_IVG9 |IMASK_IVG8 |IMASK_IVG7 |IMASK_IVGHW;	
 	asm("csync;");
 
 	local_irq_enable();
 	return 0;
 }
 
-int request_irq(unsigned int irq, int (*handler)(int, void *, struct pt_regs *), unsigned long flags, const char *devname, void *dev_id)
-{
-	if (irq >= INTERNAL_IRQS) {
-		printk("%s: Unknown IRQ %d from %s\n", 
-			      __FUNCTION__, irq, devname);
-		return -ENXIO;
-	}
-
-	if (!(int_irq_list[irq].flags & IRQ_FLG_STD)) {
-		if (int_irq_list[irq].flags & IRQ_FLG_LOCK){
-			printk(KERN_ERR "%s: IRQ %d from %s is not replaceable\n",
-			       __FUNCTION__, irq, int_irq_list[irq].devname);
-			return -EBUSY;
-		}
-	}
-	int_irq_list[irq].handler = handler;
-	int_irq_list[irq].flags   = flags;
-	int_irq_list[irq].dev_id  = dev_id;
-	int_irq_list[irq].devname = devname;
-
-	return 0;
-}
-
-void free_irq(unsigned int irq, void *dev_id)
-{
-	if (irq >= INTERNAL_IRQS) {
-		printk (KERN_ERR "%s: Unknown IRQ %d\n", __FUNCTION__, irq);
-		return;
-	}
-
-	if (int_irq_list[irq].dev_id != dev_id)
-		printk(KERN_INFO "%s: removing probably wrong IRQ %d from %s\n",
-		       __FUNCTION__, irq, int_irq_list[irq].devname);
-	int_irq_list[irq].handler = NULL; 
-	int_irq_list[irq].flags   = IRQ_FLG_STD;
-	int_irq_list[irq].dev_id  = NULL;
-	int_irq_list[irq].devname = NULL;
-
-	disable_irq(irq);
-}
-
-/*
- * Enable/disable a particular machine specific interrupt source.
- * Note that this may affect other interrupts in case of a shared interrupt.
- * This function should only be called for a _very_ short time to change some
- * internal data, that may not be changed by the interrupt at the same time.
- * int_(enable|disable)_irq calls may also be nested.
- */
-
-void enable_irq(unsigned int irq)
-{
-	unsigned long irq_val;
-
-	if (irq >= INTERNAL_IRQS) {
-		printk("%s: Unknown IRQ %d\n", __FUNCTION__, irq);
-		return;
-	}
-
-	if (irq <= IRQ_CORETMR)
-	{
-		/* enable the interrupt */
-		local_irq_disable();
-		irq_flags |= 1<<irq;
-		local_irq_enable();
-		return;
-	}
-
-	local_irq_disable();
-	irq_val = (1<<(irq - (IRQ_CORETMR+1)));
-   	*pSIC_IMASK |= irq_val;
-	asm("ssync;");
-	local_irq_enable();
-}
-
-void disable_irq(unsigned int irq)
-{
-	unsigned long irq_val;
-
-	if (irq >= INTERNAL_IRQS) {
-		printk("%s: Unknown IRQ %d\n", __FUNCTION__, irq);
-		return;
-	}
-
-	if (irq < IRQ_CORETMR)
-	{
-		local_irq_disable();
-		irq_flags &= ~(1<<irq);
-		local_irq_enable();
-		return;
-	}
-	/*
- 	 * If it is the interrupt for peripheral,
-	 * we only disable it in SIC_IMASK register.
-	 * No need to change IMASK register of CORE,
-	 * since all of the IVG for peripherals was 
- 	 * enabled in init_IRQ()
-	 *
-	 */
-	local_irq_disable();
-	irq_val = (1<<(irq - (IRQ_CORETMR + 1)));
-   	*pSIC_IMASK &= ~(irq_val); 
-	asm("ssync;");
-	local_irq_enable();
-}
-
+extern asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs);
 void do_irq(int vec, struct pt_regs *fp)
 {
    	if (vec > IRQ_CORETMR)
@@ -384,48 +471,5 @@ void do_irq(int vec, struct pt_regs *fp)
          }
 	  vec = ivg->irqno;
         }
-	if(int_irq_list[vec].handler)
-	{
-	    int_irq_list[vec].handler(vec,int_irq_list[vec].dev_id, fp);
-	    kstat_cpu(0).irqs[vec]++;
-	}
-	else
-	{
-		printk("unregistered interrupt irq=%d\n",vec);
-		num_spurious++;
-	}
-}
-
-unsigned long probe_irq_on (void)
-{
-	return 0;
-}
-
-int probe_irq_off (unsigned long irqs)
-{
-	return 0;
-}
-
-int show_interrupts(struct seq_file *p, void *v)
-{
-	int i = *(loff_t *) v;
-	
-	if (i < INTERNAL_IRQS) {
-		if (int_irq_list[i].devname) {
-			seq_printf(p, "%3d: %10u ", i, kstat_cpu(0).irqs[i]);
-			if (int_irq_list[i].flags & IRQ_FLG_LOCK)
-				seq_printf(p, "L ");
-			else
-				seq_printf(p, "  ");
-			seq_printf(p, "%s\n", int_irq_list[i].devname);
-		}
-	}
-	if (i == NR_IRQS)
-		seq_printf(p, "   : %10u   spurious\n", num_spurious);
-	return 0;
-}
-
-void init_irq_proc(void)
-{
-	/* Insert /proc/irq driver here */
+	asm_do_IRQ(vec, fp);
 }

@@ -150,23 +150,6 @@ typedef enum _DMA_DEVICE_TYPE{		/* DMA Compatible Devices in BF533 */
 	DMA_DEVICE_MDMA_DESTINATION,
 } DMA_DEVICE_TYPE;
 
-#if 0
-typedef enum _DMA_DONE {
-	DONE_NOT_DONE,
-	DONE_DONE
-}DMA_DONE;
-#pragma pack(2)
-typedef struct _DMA_IRQ_STATUS
-{
-	unsigned short b_DMA_DONE:1;
-	unsigned short b_DMA_ERR:1;
-	unsigned short b_DFETCH:1;
-	unsigned short b_DMA_RUN:1;
-}DMA_IRQ_STATUS_REG;
-#pragma pack()
-
-#endif
-
 typedef enum _DMA_FLOW {
 	DMA_STOP	=0,
 	DMA_AUTO	=1,
@@ -345,7 +328,7 @@ typedef struct {
 }DMA_register;
 
 typedef void (*dma_callback_t)(DMA_EVENT event , void *data);
-typedef void (*dma_interrupt_t) (int irq, void *dev_id,struct pt_regs *pt_regs);
+typedef irqreturn_t (*dma_interrupt_t) (int irq, void *dev_id,struct pt_regs *pt_regs);
 
 typedef struct {
 	struct semaphore 	dmalock;
@@ -426,16 +409,16 @@ DMA_RESULT set_desc_ymodify(void *pDescriptor, unsigned short y_modify,
 				int flowtype);
 DMA_RESULT add_descriptor(void *pNewdescriptor, int channel_number,
 				int flowtype);
-void 	mem_stream0_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
-void 	mem_stream1_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
-void 	ppi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
-void 	sport0_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
-void 	sport0_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
-void 	sport1_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
-void 	sport1_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
-void 	spi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
-void 	uart_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
-void 	uart_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
+irqreturn_t mem_stream0_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
+irqreturn_t mem_stream1_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
+irqreturn_t ppi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
+irqreturn_t sport0_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
+irqreturn_t sport0_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
+irqreturn_t sport1_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
+irqreturn_t sport1_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
+irqreturn_t spi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
+irqreturn_t uart_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
+irqreturn_t uart_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs);
 
 /* This function will not be exposed to outside in the final release */
 DMA_RESULT add_to_wait_descriptor(void *pNewdescriptor, int channel_number,

@@ -1,6 +1,4 @@
 /*
- * linux/arch/$(ARCH)/platform/$(PLATFORM)/irq.c
- *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
@@ -62,7 +60,7 @@ Core        Emulation               **
             Software Interrupt 2    --
                  (lowest priority)  IVG15       32 *
  */
-#define SYS_IRQS 32
+#define SYS_IRQS		64
 /* The ABSTRACT IRQ definitions */
 /** the first seven of the following are fixed, the rest you change if you need to **/
 #define	IRQ_EMU			0	/*Emulation*/
@@ -98,6 +96,23 @@ Core        Emulation               **
 #define	IRQ_WATCH	   	30	/*Watch Dog Timer*/
 #define	IRQ_SW_INT1		31	/*Software Int 1*/
 #define	IRQ_SW_INT2		32	/*Software Int 2 (reserved for SYSCALL)*/
+
+#define IRQ_PF0			33
+#define IRQ_PF1			34
+#define IRQ_PF2			35
+#define IRQ_PF3			36
+#define IRQ_PF4			37
+#define IRQ_PF5			38
+#define IRQ_PF6			39
+#define IRQ_PF7			40
+#define IRQ_PF8			41
+#define IRQ_PF9			42
+#define IRQ_PF10		43
+#define IRQ_PF11		44
+#define IRQ_PF12		45
+#define IRQ_PF13		46
+#define IRQ_PF14		47
+#define IRQ_PF15		48
 
 #define IVG7			7
 #define IVG8			8

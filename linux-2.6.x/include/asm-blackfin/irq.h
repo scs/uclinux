@@ -1,5 +1,4 @@
 /*
- *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
@@ -20,19 +19,10 @@
 
 #include <linux/config.h>
 #include <linux/interrupt.h>
-#ifdef CONFIG_PUB
+#ifdef CONFIG_BF535
   #include <asm/board/bf535_irq.h>
 #endif
-#ifdef CONFIG_EAGLE
-  #include <asm/board/bf535_irq.h>
-#endif
-#ifdef CONFIG_HAWK
-  #include <asm/board/bf535_irq.h>
-#endif
-#ifdef CONFIG_EZKIT 
-  #include <asm/board/bf533_irq.h>
-#endif
-#ifdef CONFIG_BLKFIN_STAMP
+#ifdef CONFIG_BF533
   #include <asm/board/bf533_irq.h>
 #endif
 /*******************************************************************************
@@ -73,57 +63,37 @@ extern int sys_request_irq(unsigned int,
 	int (*)(int, void *, struct pt_regs *),  
 	unsigned long, const char *, void *);
 extern void sys_free_irq(unsigned int, void *);
+
 static __inline__ int irq_canonicalize(int irq)
 {
 	return ((irq == 2) ? 9 : irq);
 }
-
-/*
- * various flags for request_irq() - the Amiga now uses the standard
- * mechanism like all other architectures - SA_INTERRUPT and SA_SHIRQ
- * are your friends.
- */
-#define IRQ_FLG_LOCK    (0x0001)        /* handler is not replaceable   */
-#define IRQ_FLG_REPLACE (0x0002)        /* replace existing handler     */
-#define IRQ_FLG_FAST    (0x0004)
-#define IRQ_FLG_SLOW    (0x0008)
-#define IRQ_FLG_STD     (0x8000)        /* internally used              */
-
-/*
- * This structure is used to chain together the ISRs for a particular
- * interrupt source (if it supports chaining).
- */
-typedef struct irq_node {
-	irqreturn_t	(*handler)(int, void *, struct pt_regs *);
-	unsigned long	flags;
-	void		*dev_id;
-	const char	*devname;
-	struct irq_node *next;
-} irq_node_t;
-
-
-/*
- * This structure has only 4 elements for speed reasons
- */
-
-typedef struct irq_handler {
-	int		(*handler)(int, void *, struct pt_regs *);
-	unsigned long	flags;
-	void		*dev_id;
-	const char	*devname;
-} irq_handler_t;
 
 /* count of spurious interrupts */
 extern volatile unsigned int num_spurious;
 void enable_irq(unsigned int irq);
 void disable_irq(unsigned int irq);
 
-/*
- * This function returns a new irq_node_t
- */
-extern irq_node_t *new_irq_node(void);
-
 #define enable_irq_nosync(x)	enable_irq(x)
 #define disable_irq_nosync(x)	disable_irq(x)
+
+#ifndef NO_IRQ
+#define NO_IRQ ((unsigned int)(-1))
+#endif
+
+#define __IRQT_FALEDGE	(1 << 0)
+#define __IRQT_RISEDGE	(1 << 1)
+#define __IRQT_LOWLVL	(1 << 2)
+#define __IRQT_HIGHLVL	(1 << 3)
+
+#define IRQT_NOEDGE	(0)
+#define IRQT_RISING	(__IRQT_RISEDGE)
+#define IRQT_FALLING	(__IRQT_FALEDGE)
+#define IRQT_BOTHEDGE	(__IRQT_RISEDGE|__IRQT_FALEDGE)
+#define IRQT_LOW	(__IRQT_LOWLVL)
+#define IRQT_HIGH	(__IRQT_HIGHLVL)
+#define IRQT_PROBE	(1 << 4)
+
+int set_irq_type(unsigned int irq, unsigned int type);
 
 #endif /* _BFIN_IRQ_H_ */

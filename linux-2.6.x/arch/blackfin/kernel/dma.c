@@ -227,22 +227,18 @@ DMA_RESULT new_request_dma(unsigned int channel,const char* device_id,
 					SA_INTERRUPT, "ppi-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
-
-			enable_irq (IRQ_PPI);
 			break;
 		case CH_SPORT0_RX:
 			ret_irq = request_irq(IRQ_SPORT0_RX, (void *)sport0_rx_dma_interrupt,
 					SA_INTERRUPT, "sport0_rx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_SPORT0_RX);
 			break;
 		case CH_SPORT0_TX:
 			ret_irq = request_irq(IRQ_SPORT0_TX, (void *)sport0_tx_dma_interrupt,
 					SA_INTERRUPT, "sport0_tx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_SPORT0_TX);
 			break;
 
 		case CH_SPORT1_RX:
@@ -250,35 +246,30 @@ DMA_RESULT new_request_dma(unsigned int channel,const char* device_id,
 					SA_INTERRUPT, "sport1_rx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_SPORT1_RX);
 			break;
 		case CH_SPORT1_TX:
 			ret_irq = request_irq(IRQ_SPORT1_TX, (void *)sport1_tx_dma_interrupt,
 					SA_INTERRUPT, "sport1_tx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_SPORT1_TX);
 			break;
 		case CH_SPI:
 			ret_irq = request_irq(IRQ_SPI, (void *)spi_dma_interrupt,
-					SA_INTERRUPT, "spi-dma", NULL);
+					      SA_INTERRUPT, "spi-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_SPI);
 			break;
 		case CH_UART_RX:
 			ret_irq	= request_irq(IRQ_UART_RX, (void *)uart_rx_dma_interrupt,
-					SA_INTERRUPT, "uart_rx-dma", NULL);
+					      SA_INTERRUPT|SA_SHIRQ, "uart_rx-dma", (void *)device_id);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_UART_RX);
 			break;
 		case CH_UART_TX:
 			ret_irq	= request_irq(IRQ_UART_TX, (void *)uart_tx_dma_interrupt,
-					SA_INTERRUPT, "uart_tx-dma", NULL);
+					      SA_INTERRUPT|SA_SHIRQ, "uart_tx-dma", (void *)device_id);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_UART_TX);
 			break;
 		case CH_MEM_STREAM0_SRC:
 		case CH_MEM_STREAM0_DEST:
@@ -286,7 +277,6 @@ DMA_RESULT new_request_dma(unsigned int channel,const char* device_id,
 					SA_INTERRUPT, "MemStream0-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_MEM_DMA0);
 			break;
 		case CH_MEM_STREAM1_SRC:
 		case CH_MEM_STREAM1_DEST:
@@ -294,7 +284,6 @@ DMA_RESULT new_request_dma(unsigned int channel,const char* device_id,
 					SA_INTERRUPT, "MemStream1-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_MEM_DMA1);
 			break;
 		default:
 			break;
@@ -2225,7 +2214,7 @@ void testcallback (DMA_EVENT event,  void *startAddress)
 * Return: 
 *		None
 *-------------------------------------------------------------------------------*/
-void mem_stream0_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+irqreturn_t mem_stream0_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
 	int 		i=CH_MEM_STREAM0_DEST;
 	DMA_channel 	*channel;
@@ -2348,11 +2337,14 @@ void mem_stream0_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 		} /* End of the Else loop - for Not Auto Buffer */
 	/* We have to Clear the Interrupt Here */
 	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	 return IRQ_HANDLED;
 	} /* End of Irq_status register Check */
 	else if (dma_ch[CH_MEM_STREAM0_DEST].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
 	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 return IRQ_HANDLED;
 	}
+	return IRQ_NONE;
 }
 
 /*------------------------------------------------------------------------------
@@ -2414,7 +2406,7 @@ DMA_RESULT add_descriptor_descr(void *newdescriptor,
 		newdescr->next_desc_addr = (unsigned long)newdescr;
 	}
 }
-void mem_stream1_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+irqreturn_t mem_stream1_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
 	int 		i=CH_MEM_STREAM1_DEST;
 	DMA_channel 	*channel;
@@ -2503,14 +2495,17 @@ void mem_stream1_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 		} /* End of the Else loop - for Not Auto Buffer */
 	/* We have to Clear the Interrupt Here */
 	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	 return IRQ_HANDLED;
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
 	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+		return IRQ_HANDLED;
 	}
+	return IRQ_NONE;
 }
 
-void ppi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+irqreturn_t ppi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
 	int 		i=CH_PPI;
 	DMA_channel 	*channel;
@@ -2599,14 +2594,17 @@ void ppi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 		} /* End of the Else loop - for Not Auto Buffer */
 	/* We have to Clear the Interrupt Here */
 	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	 return IRQ_HANDLED;
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
 	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 return IRQ_HANDLED;
 	}
+	return IRQ_NONE;
 }
 
-void sport0_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+irqreturn_t sport0_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
 	int 		i=CH_SPORT0_TX;
 	DMA_channel 	*channel;
@@ -2695,14 +2693,17 @@ void sport0_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 		} /* End of the Else loop - for Not Auto Buffer */
 	/* We have to Clear the Interrupt Here */
 	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	 return IRQ_HANDLED;
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
 	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 return IRQ_HANDLED;
 	}
+	return IRQ_NONE;
 }
 
-void sport0_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+irqreturn_t sport0_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
 	int 		i=CH_SPORT0_RX;
 	DMA_channel 	*channel;
@@ -2791,14 +2792,17 @@ void sport0_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 		} /* End of the Else loop - for Not Auto Buffer */
 	/* We have to Clear the Interrupt Here */
 	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	 return IRQ_HANDLED;
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
 	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 return IRQ_HANDLED;
 	}
+	return IRQ_NONE;
 }
 
-void sport1_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+irqreturn_t sport1_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
 	int 		i=CH_SPORT1_TX;
 	DMA_channel 	*channel;
@@ -2886,14 +2890,17 @@ void sport1_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 		} /* End of the Else loop - for Not Auto Buffer */
 	/* We have to Clear the Interrupt Here */
 	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	 return IRQ_HANDLED;
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
 	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 return IRQ_HANDLED;
 	}
+	return IRQ_NONE;
 }
 
-void sport1_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+irqreturn_t sport1_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
 	int 		i=CH_SPORT1_RX;
 	DMA_channel 	*channel;
@@ -2981,14 +2988,17 @@ void sport1_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 		} /* End of the Else loop - for Not Auto Buffer */
 	/* We have to Clear the Interrupt Here */
 	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	 return IRQ_HANDLED;
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
 	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 return IRQ_HANDLED;
 	}
+	return IRQ_NONE;
 }
 
-void spi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+irqreturn_t spi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
 	int 		i=CH_SPI;
 	DMA_channel 	*channel;
@@ -3077,14 +3087,17 @@ void spi_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 		} /* End of the Else loop - for Not Auto Buffer */
 	/* We have to Clear the Interrupt Here */
 	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	 return IRQ_HANDLED;
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
 	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 return IRQ_HANDLED;
 	}
+	return IRQ_NONE;
 }
 
-void uart_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+irqreturn_t uart_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
 	int 		i=CH_UART_RX;
 	DMA_channel 	*channel;
@@ -3173,14 +3186,17 @@ void uart_rx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 		} /* End of the Else loop - for Not Auto Buffer */
 	/* We have to Clear the Interrupt Here */
 	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	 return IRQ_HANDLED;
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
 	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 return IRQ_HANDLED;
 	}
+	return IRQ_NONE;
 }
 
-void uart_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
+irqreturn_t uart_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 {
 	int 		i=CH_UART_TX;
 	DMA_channel 	*channel;
@@ -3268,9 +3284,12 @@ void uart_tx_dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 		} /* End of the Else loop - for Not Auto Buffer */
 	/* We have to Clear the Interrupt Here */
 	 dma_ch[i].regs->irq_status |= DMA_DONE; 
+	 return IRQ_HANDLED;
 	} /* End of Irq_status register Check */
 	else if (dma_ch[i].regs->irq_status & DMA_ERR) {
 		(dma_ch[i].callback)(DMA_ERROR_INTERRUPT, NULL);
 	 	dma_ch[i].regs->irq_status &= ~DMA_ERR; 
+	 return IRQ_HANDLED;
 	}
+	return IRQ_NONE;
 }
