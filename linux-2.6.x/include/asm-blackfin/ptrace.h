@@ -98,7 +98,7 @@ struct pt_regs {
 #define PS_M  (0x1000)  /*  I am not sure why this is required here Akbar  */
 #endif
 
-#define user_mode(regs) (!((regs)->seqstat & PS_S))
+#define user_mode(regs) (!((regs)->ipend))
 #define instruction_pointer(regs) ((regs)->pc)
 extern void show_regs(struct pt_regs *);
 
