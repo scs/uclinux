@@ -30,6 +30,8 @@
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/kernel.h>
+#include <linux/serial.h>
+#include <linux/serialP.h>
 #include <linux/console.h>
 #include <linux/reboot.h>
 #include <linux/keyboard.h>
@@ -88,7 +90,7 @@ extern wait_queue_head_t keypress_wait;
 /*
  *	Driver data structures.
  */
-struct tty_driver *bf533_serial_driver, *bf533_callout_driver;
+struct tty_driver *bf533_serial_driver;
 
 /* serial subtype definitions */
 #define SERIAL_TYPE_NORMAL	1
@@ -116,8 +118,6 @@ static struct bf533_serial bf533_soft =
 
 static int rs_write(struct tty_struct * tty, int from_user,
 		    const unsigned char *buf, int count);
-
-
 /*
  * This is used to figure out the divisor speeds and the timeouts
  */
@@ -654,11 +654,6 @@ static void shutdown(struct bf533_serial * info)
         if (!(info->flags & S_INITIALIZED))
                 return; 
 
-#ifdef SERIAL_DEBUG_OPEN
-        printk("Shutting down serial port %d (irq %d)....\n", info->hub2,
-               info->irq);
-#endif
-      
 	local_irq_save(flags);
 
 	*pUART_LCR = 0;
@@ -952,7 +947,6 @@ static int get_serial_info(struct bf533_serial * info,
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.type = info->type;
 	tmp.line = info->line;
-	tmp.hub2 = info->hub2;
 	tmp.irq = info->irq;
 	tmp.flags = info->flags;
 	tmp.baud_base = info->baud_base;
@@ -1442,13 +1436,11 @@ static int __init rs_bf533_init(void)
 
 	/* Initialize the tty_driver structure */
 	bf533_serial_driver->owner = THIS_MODULE;
-	bf533_serial_driver->magic = TTY_DRIVER_MAGIC;
 	bf533_serial_driver->name = "ttyS";
 	bf533_serial_driver->devfs_name = "ttys/";
 	bf533_serial_driver->driver_name = "serial";
 	bf533_serial_driver->major = TTY_MAJOR;
 	bf533_serial_driver->minor_start = 64; 
-	bf533_serial_driver->num = NR_PORTS;
 	bf533_serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	bf533_serial_driver->subtype = SERIAL_TYPE_NORMAL;
 	bf533_serial_driver->init_termios = tty_std_termios;
