@@ -42,7 +42,7 @@
  */
 .macro save_context_with_interrupts
 	
-//	[--sp] = RETI;	/*orig_pc*/
+/*	[--sp] = RETI;	*/ /*orig_pc*/
 	[--sp] = SYSCFG;
 
 	[--sp] = R0;	/*orig_r0*/
@@ -97,7 +97,7 @@
 
 .macro save_context_no_interrupts
 	
-//	[--sp] = RETI;	/* orig_pc */
+/*	[--sp] = RETI; */	/* orig_pc */
 	[--sp] = SYSCFG;
 	[--sp] = R0;	/* orig_r0 */
 	[--sp] = ( R7:0, P5:0 );
@@ -147,7 +147,9 @@
 	[--sp] = SEQSTAT;
 	/*[--sp] = SYSCFG;*/
 	[--sp] = r0;	/* Skip IPEND as well. */
-	[--sp] = RETI;  /*orig_pc*/
+	/* [--sp] = RETI;*/  /*orig_pc*/
+	r0 = RETI;
+	[--sp] = r0;
 .endm
 	 
 .macro restore_context_no_interrupts
@@ -206,7 +208,7 @@
 	sp += 4;	/* Skip orig_r0 */
 	
 	SYSCFG = [sp++];
-	//sp += 4;	/* Skip orig_pc */
+	/* sp += 4; */	/* Skip orig_pc */
 .endm
 
 .macro restore_context_with_interrupts
@@ -263,7 +265,7 @@
 	( R7 : 0, P5 : 0) = [ SP ++ ];
 	sp += 4;	/* Skip orig_r0 */
 	SYSCFG = [sp++];
-	///sp += 4;	/* Skip orig_pc */
+	/* sp += 4; */	/* Skip orig_pc */
 .endm
 
 #define STR(X) STR1(X)
