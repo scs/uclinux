@@ -63,7 +63,9 @@ static inline long get_reg(struct task_struct *task, int regno)
 	(struct pt_regs *)((unsigned long) task->thread_info + 
 	    ( KTHREAD_SIZE - sizeof(struct pt_regs)));
 	switch(regno){
+		case PT_ORIG_PC : return regs->orig_pc -  task->mm->start_code - TEXT_OFFSET;
 		case PT_PC :
+//printk("start_code is %x\n", task->mm->start_code);
 		               return regs->pc -  task->mm->start_code - TEXT_OFFSET;
 		case PT_R0 : return regs->r0;
 		case PT_ORIG_R0 : return regs->orig_r0;
@@ -87,6 +89,7 @@ static inline long get_reg(struct task_struct *task, int regno)
 		case PT_IPEND : return regs->ipend;
 		case PT_SYSCFG : return regs->syscfg;
 		case PT_SEQSTAT : return regs->seqstat;
+		//case PT_RETE : return task->mm->start_code + TEXT_OFFSET;
 		case PT_RETE : return regs->rete;
 		case PT_RETN : return regs->retn;
 		case PT_RETX : return regs->retx;
@@ -115,8 +118,9 @@ static inline long get_reg(struct task_struct *task, int regno)
 		case PT_I1 : return regs->i1;
 		case PT_I2 : return regs->i2;
 		case PT_I3 : return regs->i3;
-		case PT_USP : return regs->usp -  task->mm->start_code  -TEXT_OFFSET;
-		case PT_FP : return regs->fp  -  task->mm->start_code - TEXT_OFFSET;
+		case PT_USP : return regs->usp;
+		case PT_FP : return regs->fp;
+		//case PT_VECTOR : return regs->pc;
 	}
 	/* slight mystery ... never seems to come here but kernel misbehaves without this code! */
 
@@ -127,9 +131,7 @@ printk("did not return for %d\n", regno);
          }
 	 else if (regno < 208)
          {
-                printk("Register number %d has value ", (int)(*addr));
 	        addr = (unsigned long *)(task->thread.esp0 + regno);
-                printk("0x%x(%d)\n", (int)(*addr), (int)(*addr));
          }
 	 else
          {
@@ -150,8 +152,8 @@ static inline int put_reg(struct task_struct *task, int regno,
 		(struct pt_regs *)((unsigned long) task->thread_info + 
     		( KTHREAD_SIZE - sizeof(struct pt_regs)));
 	switch(regno){
-		case PT_PC : break;
-               		regs->pc = data +  task->mm->start_code + TEXT_OFFSET; break;
+		case PT_ORIG_PC : regs->orig_pc = data +  task->mm->start_code + TEXT_OFFSET; break;
+		case PT_PC : regs->pc = data +  task->mm->start_code + TEXT_OFFSET; break;
 		case PT_R0 : regs->r0 = data; break;
 		case PT_ORIG_R0 : regs->orig_r0 = data; break;
 		case PT_R1 : regs->r1 = data; break;
@@ -202,8 +204,9 @@ static inline int put_reg(struct task_struct *task, int regno,
 		case PT_I1 : regs->i1 = data; break;
 		case PT_I2 : regs->i2 = data; break;
 		case PT_I3 : regs->i3 = data; break;
-		case PT_USP : regs->usp =  task->mm->start_code + TEXT_OFFSET + data; break;
-		case PT_FP : regs->fp = task->mm->start_code + TEXT_OFFSET + data; break;
+		case PT_USP : regs->usp = data; break;
+		case PT_FP : regs->fp = data; break;
+		//case PT_VECTOR : regs->pc = data; break;
 	}
 return 0;
 }
@@ -220,7 +223,6 @@ void ptrace_disable(struct task_struct *child)
 	tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
 	put_reg(child, PT_SR, tmp);
 }
-
 
 asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 {
@@ -277,10 +279,21 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			   depending on addr being < or > textlen.
 			   Dont forget the MAX_SHARED_LIBS
 			*/
-			unsigned long tmp;
-			int copied;
-			add += TEXT_OFFSET; 		// we know flat puts 4 0's at top
-			copied = access_process_vm(child, child->mm->start_code + addr + add, 
+			unsigned long tmp = 0;
+			int copied, extra = 0;
+
+                        if(addr < child->mm->start_code)
+                        {
+			   add += TEXT_OFFSET; 		// we know flat puts 4 0's at top
+                            extra = child->mm->start_code;
+                         }
+                        if( addr > child->mm->start_stack)
+                         {
+                           printk("Ptrace Error: Invalid memory(0x%x) had been asked to access start_code=%x start_stack=%x\n", (int)addr, (int)(child->mm->start_code), (int)(child->mm->start_stack));
+                           goto out_tsk;
+                         }
+ 
+			copied = access_process_vm(child,  extra + addr + add,
 						   &tmp, sizeof(tmp), 0);
 			ret = -EIO;
 			if (copied != sizeof(tmp))
@@ -296,12 +309,12 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			tmp= 0;
                         if((addr&3)  || (addr > (sizeof(struct pt_regs) + 8)))
                          {
-                                  printk("ptrace error : PEEKUSR : temporarily returning 0\n");
+                                  printk("ptrace error : PEEKUSR : temporarily returning 0 - %x sizeof(pt_regs) is %x\n", (int)addr, sizeof(struct pt_regs));
 				goto out_tsk;
                          }
                          if(addr == sizeof(struct pt_regs))
                          {
-                             tmp = child->mm->start_code;
+                              tmp = child->mm->start_code + TEXT_OFFSET;
                          }
                          else if(addr == (sizeof(struct pt_regs) + 4))
                          {
@@ -402,7 +415,7 @@ printk("before wake_up_process\n");
 
 		case PTRACE_SINGLESTEP: {  /* set the trap flag. */
 			long tmp;
-
+printk("single step\n");
 			ret = -EIO;
 			if ((unsigned long) data > _NSIG)
 				goto out_tsk;
