@@ -87,12 +87,11 @@ static void gzip_release(void **);
  */
 static unsigned char *real_mode; /* Pointer to real-mode data */
 
-#define EXT_MEM_K   (*(unsigned short *)(real_mode + 0x2))
+#define RM_EXT_MEM_K   (*(unsigned short *)(real_mode + 0x2))
 #ifndef STANDARD_MEMORY_BIOS_CALL
-#define ALT_MEM_K   (*(unsigned long *)(real_mode + 0x1e0))
+#define RM_ALT_MEM_K   (*(unsigned long *)(real_mode + 0x1e0))
 #endif
-#define SCREEN_INFO (*(struct screen_info *)(real_mode+0))
-#define EDID_INFO   (*(struct edid_info *)(real_mode+0x440))
+#define RM_SCREEN_INFO (*(struct screen_info *)(real_mode+0))
 
 extern char input_data[];
 extern int input_len;
@@ -104,7 +103,7 @@ static unsigned long output_ptr = 0;
 static void *malloc(int size);
 static void free(void *where);
 
-static void puts(const char *);
+static void putstr(const char *);
 
 extern int end;
 static long free_mem_ptr = (long)&end;
@@ -169,13 +168,13 @@ static void scroll(void)
 		vidmem[i] = ' ';
 }
 
-static void puts(const char *s)
+static void putstr(const char *s)
 {
 	int x,y,pos;
 	char c;
 
-	x = SCREEN_INFO.orig_x;
-	y = SCREEN_INFO.orig_y;
+	x = RM_SCREEN_INFO.orig_x;
+	y = RM_SCREEN_INFO.orig_y;
 
 	while ( ( c = *s++ ) != '\0' ) {
 		if ( c == '\n' ) {
@@ -196,8 +195,8 @@ static void puts(const char *s)
 		}
 	}
 
-	SCREEN_INFO.orig_x = x;
-	SCREEN_INFO.orig_y = y;
+	RM_SCREEN_INFO.orig_x = x;
+	RM_SCREEN_INFO.orig_y = y;
 
 	pos = (x + cols * y) * 2;	/* Update cursor position */
 	outb_p(14, vidport);
@@ -287,9 +286,9 @@ static void flush_window(void)
 
 static void error(char *x)
 {
-	puts("\n\n");
-	puts(x);
-	puts("\n\n -- System halted");
+	putstr("\n\n");
+	putstr(x);
+	putstr("\n\n -- System halted");
 
 	while(1);	/* Halt */
 }
@@ -306,9 +305,9 @@ struct {
 static void setup_normal_output_buffer(void)
 {
 #ifdef STANDARD_MEMORY_BIOS_CALL
-	if (EXT_MEM_K < 1024) error("Less than 2MB of memory");
+	if (RM_EXT_MEM_K < 1024) error("Less than 2MB of memory");
 #else
-	if ((ALT_MEM_K > EXT_MEM_K ? ALT_MEM_K : EXT_MEM_K) < 1024) error("Less than 2MB of memory");
+	if ((RM_ALT_MEM_K > RM_EXT_MEM_K ? RM_ALT_MEM_K : RM_EXT_MEM_K) < 1024) error("Less than 2MB of memory");
 #endif
 	output_data = (char *)0x100000; /* Points to 1M */
 	free_mem_end_ptr = (long)real_mode;
@@ -323,9 +322,11 @@ static void setup_output_buffer_if_we_run_high(struct moveparams *mv)
 {
 	high_buffer_start = (uch *)(((ulg)&end) + HEAP_SIZE);
 #ifdef STANDARD_MEMORY_BIOS_CALL
-	if (EXT_MEM_K < (3*1024)) error("Less than 4MB of memory");
+	if (RM_EXT_MEM_K < (3*1024)) error("Less than 4MB of memory");
 #else
-	if ((ALT_MEM_K > EXT_MEM_K ? ALT_MEM_K : EXT_MEM_K) < (3*1024)) error("Less than 4MB of memory");
+	if ((RM_ALT_MEM_K > RM_EXT_MEM_K ? RM_ALT_MEM_K : RM_EXT_MEM_K) <
+			(3*1024))
+		error("Less than 4MB of memory");
 #endif	
 	mv->low_buffer_start = output_data = (char *)LOW_BUFFER_START;
 	low_buffer_end = ((unsigned int)real_mode > LOW_BUFFER_MAX
@@ -358,7 +359,7 @@ asmlinkage int decompress_kernel(struct moveparams *mv, void *rmode)
 {
 	real_mode = rmode;
 
-	if (SCREEN_INFO.orig_video_mode == 7) {
+	if (RM_SCREEN_INFO.orig_video_mode == 7) {
 		vidmem = (char *) 0xb0000;
 		vidport = 0x3b4;
 	} else {
@@ -366,16 +367,16 @@ asmlinkage int decompress_kernel(struct moveparams *mv, void *rmode)
 		vidport = 0x3d4;
 	}
 
-	lines = SCREEN_INFO.orig_video_lines;
-	cols = SCREEN_INFO.orig_video_cols;
+	lines = RM_SCREEN_INFO.orig_video_lines;
+	cols = RM_SCREEN_INFO.orig_video_cols;
 
 	if (free_mem_ptr < 0x100000) setup_normal_output_buffer();
 	else setup_output_buffer_if_we_run_high(mv);
 
 	makecrc();
-	puts("Uncompressing Linux... ");
+	putstr("Uncompressing Linux... ");
 	gunzip();
-	puts("Ok, booting the kernel.\n");
+	putstr("Ok, booting the kernel.\n");
 	if (high_loaded) close_output_buffer_if_we_run_high(mv);
 	return high_loaded;
 }

@@ -15,6 +15,7 @@
 #include <linux/file.h>		/* doh, must come after sched.h... */
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
+#include <linux/syscalls.h>
 #include <linux/highuid.h>
 #include <linux/hugetlb.h>
 
@@ -74,7 +75,6 @@ arch_get_unmapped_area (struct file *filp, unsigned long addr, unsigned long len
 asmlinkage long
 ia64_getpriority (int which, int who)
 {
-	extern long sys_getpriority (int, int);
 	long prio;
 
 	prio = sys_getpriority(which, who);
@@ -98,7 +98,7 @@ ia64_shmat (int shmid, void *shmaddr, int shmflg)
 	unsigned long raddr;
 	int retval;
 
-	retval = sys_shmat(shmid, shmaddr, shmflg, &raddr);
+	retval = do_shmat(shmid, shmaddr, shmflg, &raddr);
 	if (retval < 0)
 		return retval;
 
@@ -201,9 +201,15 @@ do_mmap2 (unsigned long addr, unsigned long len, int prot, int flags, int fd, un
 	 * A zero mmap always succeeds in Linux, independent of whether or not the
 	 * remaining arguments are valid.
 	 */
-	len = PAGE_ALIGN(len);
 	if (len == 0)
 		goto out;
+
+	/* Careful about overflows.. */
+	len = PAGE_ALIGN(len);
+	if (!len || len > TASK_SIZE) {
+		addr = -EINVAL;
+		goto out;
+	}
 
 	/*
 	 * Don't permit mappings into unmapped space, the virtual page table of a region,

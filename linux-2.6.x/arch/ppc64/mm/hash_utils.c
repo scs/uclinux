@@ -39,7 +39,6 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/naca.h>
-#include <asm/pmc.h>
 #include <asm/machdep.h>
 #include <asm/lmb.h>
 #include <asm/abs_addr.h>
@@ -49,6 +48,8 @@
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
 #include <asm/cputable.h>
+#include <asm/abs_addr.h>
+
 /*
  * Note:  pte   --> Linux PTE
  *        HPTE  --> PowerPC Hashed Page Table Entry
@@ -60,6 +61,10 @@
  *   to print debug info.
  *
  */
+
+#ifdef CONFIG_PMAC_DART
+extern unsigned long dart_tablebase;
+#endif /* CONFIG_PMAC_DART */
 
 HTAB htab_data = {NULL, 0, 0, 0, 0};
 
@@ -104,11 +109,11 @@ static inline void create_pte_mapping(unsigned long start, unsigned long end,
 
 		if (systemcfg->platform == PLATFORM_PSERIES_LPAR)
 			ret = pSeries_lpar_hpte_insert(hpteg, va,
-				(unsigned long)__v2a(addr) >> PAGE_SHIFT,
+				virt_to_abs(addr) >> PAGE_SHIFT,
 				0, mode, 1, large);
 		else
 			ret = pSeries_hpte_insert(hpteg, va,
-				(unsigned long)__v2a(addr) >> PAGE_SHIFT,
+				virt_to_abs(addr) >> PAGE_SHIFT,
 				0, mode, 1, large);
 
 		if (ret == -1) {
@@ -123,6 +128,7 @@ void __init htab_initialize(void)
 	unsigned long table, htab_size_bytes;
 	unsigned long pteg_count;
 	unsigned long mode_rw;
+	int i, use_largepages = 0;
 
 	/*
 	 * Calculate the required size of the htab.  We want the number of
@@ -140,7 +146,8 @@ void __init htab_initialize(void)
 	htab_data.htab_num_ptegs = pteg_count;
 	htab_data.htab_hash_mask = pteg_count - 1;
 
-	if (systemcfg->platform == PLATFORM_PSERIES) {
+	if (systemcfg->platform == PLATFORM_PSERIES ||
+	    systemcfg->platform == PLATFORM_POWERMAC) {
 		/* Find storage for the HPT.  Must be contiguous in
 		 * the absolute address space.
 		 */
@@ -149,7 +156,7 @@ void __init htab_initialize(void)
 			ppc64_terminate_msg(0x20, "hpt space");
 			loop_forever();
 		}
-		htab_data.htab = (HPTE *)__a2v(table);
+		htab_data.htab = abs_to_virt(table);
 
 		/* htab absolute addr + encoded htabsize */
 		_SDR1 = table + __ilog2(pteg_count) - 11;
@@ -164,18 +171,40 @@ void __init htab_initialize(void)
 
 	mode_rw = _PAGE_ACCESSED | _PAGE_COHERENT | PP_RWXX;
 
-	/* XXX we currently map kernel text rw, should fix this */
-	if ((cur_cpu_spec->cpu_features & CPU_FTR_16M_PAGE)
-	    && systemcfg->physicalMemorySize > 256*MB) {
-		create_pte_mapping((unsigned long)KERNELBASE, 
-				   KERNELBASE + 256*MB, mode_rw, 0);
-		create_pte_mapping((unsigned long)KERNELBASE + 256*MB, 
-				   KERNELBASE + (systemcfg->physicalMemorySize), 
-				   mode_rw, 1);
-	} else {
-		create_pte_mapping((unsigned long)KERNELBASE, 
-				   KERNELBASE+(systemcfg->physicalMemorySize), 
-				   mode_rw, 0);
+	/* On U3 based machines, we need to reserve the DART area and
+	 * _NOT_ map it to avoid cache paradoxes as it's remapped non
+	 * cacheable later on
+	 */
+	if (cur_cpu_spec->cpu_features & CPU_FTR_16M_PAGE)
+		use_largepages = 1;
+
+	/* add all physical memory to the bootmem map */
+	for (i=0; i < lmb.memory.cnt; i++) {
+		unsigned long base, size;
+
+		base = lmb.memory.region[i].physbase + KERNELBASE;
+		size = lmb.memory.region[i].size;
+
+#ifdef CONFIG_PMAC_DART
+		/* Do not map the DART space. Fortunately, it will be aligned
+		 * in such a way that it will not cross two lmb regions and will
+		 * fit within a single 16Mb page.
+		 * The DART space is assumed to be a full 16Mb region even if we
+		 * only use 2Mb of that space. We will use more of it later for
+		 * AGP GART. We have to use a full 16Mb large page.
+		 */
+		if (dart_tablebase != 0 && dart_tablebase >= base
+		    && dart_tablebase < (base + size)) {
+			if (base != dart_tablebase)
+				create_pte_mapping(base, dart_tablebase, mode_rw,
+						   use_largepages);
+			if ((base + size) > (dart_tablebase + 16*MB))
+				create_pte_mapping(dart_tablebase + 16*MB, base + size,
+						   mode_rw, use_largepages);
+			continue;
+		}
+#endif /* CONFIG_PMAC_DART */
+		create_pte_mapping(base, base + size, mode_rw, use_largepages);
 	}
 }
 #undef KB
@@ -237,7 +266,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		if (mm == NULL)
 			return 1;
 
-		vsid = get_vsid(mm->context, ea);
+		vsid = get_vsid(mm->context.id, ea);
 		break;
 	case IO_REGION_ID:
 		mm = &ioremap_mm;
@@ -287,7 +316,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		ret = __hash_page(ea, access, vsid, ptep, trap, local);
 	}
 
-
 	return ret;
 }
 
@@ -325,8 +353,7 @@ void flush_hash_range(unsigned long context, unsigned long number, int local)
 		ppc_md.flush_hash_range(context, number, local);
 	} else {
 		int i;
-		struct ppc64_tlb_batch *batch =
-			&ppc64_tlb_batch[smp_processor_id()];
+		struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
 
 		for (i = 0; i < number; i++)
 			flush_hash_page(context, batch->addr[i], batch->pte[i],

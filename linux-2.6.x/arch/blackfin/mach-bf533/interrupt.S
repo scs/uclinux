@@ -1,9 +1,8 @@
-/* linux/arch/bfinnommu/mach-bf533/interrupt.S: 
+/* linux/arch/bfinnommu/mach-bf533/interrupt.S 
  *	 H/W interrupts
  *	 - assumes default interrupt configuration for the interrupts
  * 
  * Copyright (C) 2004  LG Soft India
- * Copyright (C) 2003  Metrowerks, Inc. <mwaddel@metrowerks.com>
  * Copyright (C) 2002  Arcturus Networks Ltd. Ted Ma <mated@sympatico.ca>
  * Copyright (C) 1998  D. Jeff Dionne <jeff@ryeham.ee.ryerson.ca>,
  *                     Kenneth Albanowski <kjahds@kjahds.com>,
@@ -190,7 +189,7 @@ evt_system_call:
 
 evt_soft_int1:
 	 SAVE_CONTEXT
-	 r0 = IRQ_SW_INT1;	// Software Interrupt 1 
+	 r0 = IRQ_SW_INT1;	/*Software Interrupt 1 */
 	 SP += -12;	
 	 call	process_int; 
 	 SP += 12;	

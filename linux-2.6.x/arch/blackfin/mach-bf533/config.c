@@ -1,9 +1,7 @@
 /*
  *  arch/bfinnommu/mach-bf533/config.c
  *
- *  Copyright (C) 1993 Hamish Macdonald
  *  Copyright (C) 1999 D. Jeff Dionne
- *  Copyright (C) 2003 Metrowerks (Blackfin support)
  *  Copyright (C) 2004 LG Soft India (Blackfin support)
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -41,10 +39,10 @@
  */
 
 #if defined CONFIG_EZKIT
-#define CCLK_MHZ 594
+#define CCLK_MHZ	594
 #else
 #if defined CONFIG_BLKFIN_STAMP
-#define CCLK_MHZ 550			 
+#define CCLK_MHZ 	550			 
 #endif
 #endif
 
@@ -56,23 +54,23 @@ void config_bfin_irq(void);
 extern u_long get_sclk(u_long vco);
 extern u_long get_cclk(void);
 
-void BSP_sched_init(void (*timer_routine)(int, void *, struct pt_regs *))
+void BSP_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
 {
 
 	/* power up the timer, but don't enable it just yet */
 
-	TCNTL = 1;
+	*pTCNTL = 1;
 
 	/* make TCOUNT a binary fraction of microseconds using
 	* the TSCALE prescaler counter.
 	*/
 
-	TSCALE = TSCALE_COUNT - 1;
-	TCOUNT = TPERIOD = CLOCKS_PER_JIFFY - 1;
+	*pTSCALE = TSCALE_COUNT - 1;
+	*pTCOUNT = *pTPERIOD = CLOCKS_PER_JIFFY - 1;
 
 	/* now enable the timer */
 	
-	TCNTL = 7;
+	*pTCNTL = 7;
 
 	/* set up the timer irq */
 
@@ -90,7 +88,7 @@ void BSP_tick(void)
 
 unsigned long BSP_gettimeoffset (void)
 {
-	return (CLOCKS_PER_JIFFY - TCOUNT) >> TSCALE_SHIFT;
+	return (CLOCKS_PER_JIFFY - *pTCOUNT) >> TSCALE_SHIFT;
 }
 
 void BSP_gettod (int *yearp, int *monp, int *dayp,

@@ -82,6 +82,4 @@ finished:     R0 = 0;
               RTS;             
 
 ._memcmp.end:
-	   .global _memcmp;
-	   .type _memcmp,STT_FUNC;
 

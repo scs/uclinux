@@ -12,6 +12,7 @@
 #include <asm/smp.h>
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
+#include <asm/topology.h>
 #include <asm/sn/sgi.h>
 #include <asm/sn/iograph.h>
 #include <asm/sn/hcl.h>
@@ -30,6 +31,7 @@
 #include <asm/sal.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/sn2/shub_mmr.h>
+#include <asm/sn/pda.h>
 
 extern irqpda_t	*irqpdaindr;
 extern cnodeid_t master_node_get(vertex_hdl_t vhdl);
@@ -42,7 +44,6 @@ void intr_init_vecblk(cnodeid_t node)
 	sh_ii_int0_config_u_t		ii_int_config;
 	cpuid_t				cpu;
 	cpuid_t				cpu0, cpu1;
-	nodepda_t			*lnodepda;
 	sh_ii_int0_enable_u_t		ii_int_enable;
 	sh_int_node_id_config_u_t	node_id_config;
 	sh_local_int5_config_u_t	local5_config;
@@ -59,15 +60,13 @@ void intr_init_vecblk(cnodeid_t node)
 		HUB_S((unsigned long *)GLOBAL_MMR_ADDR(nasid, SH_INT_NODE_ID_CONFIG),
 			node_id_config.sh_int_node_id_config_regval);
 		cnode = nasid_to_cnodeid(master_nasid);
-		lnodepda = NODEPDA(cnode);
-		cpu = lnodepda->node_first_cpu;
+		cpu = first_cpu(node_to_cpumask(cnode));
 		cpu = cpu_physical_id(cpu);
 		SAL_CALL(ret_stuff, SN_SAL_REGISTER_CE, nasid, cpu, master_nasid,0,0,0,0);
 		if (ret_stuff.status < 0)
 			printk("%s: SN_SAL_REGISTER_CE SAL_CALL failed\n",__FUNCTION__);
 	} else {
-		lnodepda = NODEPDA(node);
-		cpu = lnodepda->node_first_cpu;
+		cpu = first_cpu(node_to_cpumask(node));
 		cpu = cpu_physical_id(cpu);
 	}
 
@@ -216,7 +215,6 @@ static cpuid_t intr_cpu_choose_from_node(cnodeid_t cnode)
 {
 	cpuid_t		cpu, best_cpu = CPU_NONE;
 	int		slice, min_count = 1000;
-	irqpda_t	*irqs;
 
 	for (slice = CPUS_PER_NODE - 1; slice >= 0; slice--) {
 		int intrs;
@@ -227,8 +225,7 @@ static cpuid_t intr_cpu_choose_from_node(cnodeid_t cnode)
 		if (!cpu_online(cpu))
 			continue;
 
-		irqs = irqpdaindr;
-		intrs = irqs->num_irq_used;
+		intrs = pdacpu(cpu)->sn_num_irqs;
 
 		if (min_count > intrs) {
 			min_count = intrs;
@@ -243,6 +240,7 @@ static cpuid_t intr_cpu_choose_from_node(cnodeid_t cnode)
 			}
 		}
 	}
+	pdacpu(best_cpu)->sn_num_irqs++;
 	return best_cpu;
 }
 

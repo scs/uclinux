@@ -19,25 +19,14 @@
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
+#include <asm/pmon.h>
+#include <asm/gt64240.h>
 
-#include "gt64240.h"
 #include "ocelot_pld.h"
 
-struct callvectors {
-	int	(*open) (char*, int, int);
-	int	(*close) (int);
-	int	(*read) (int, void*, int);
-	int	(*write) (int, void*, int);
-	off_t	(*lseek) (int, off_t, int);
-	int	(*printf) (const char*, ...);
-	void	(*cacheflush) (void);
-	char*	(*gets) (char*);
-};
-
 struct callvectors* debug_vectors;
-char arcs_cmdline[CL_SIZE];
 
-extern unsigned long gt64240_base;
+extern unsigned long marvell_base;
 extern unsigned long bus_clock;
 
 #ifdef CONFIG_GALILLEO_GT64240_ETH
@@ -49,11 +38,13 @@ const char *get_system_type(void)
 	return "Momentum Ocelot";
 }
 
-/* [jsun@junsun.net] PMON passes arguments in C main() style */
-void __init prom_init(int argc, char **arg, char** env, struct callvectors *cv)
+void __init prom_init(void)
 {
+	int argc = fw_arg0;
+	char **arg = (char **) fw_arg1;
+	char **env = (char **) fw_arg2;
+	struct callvectors *cv = (struct callvectors *) fw_arg3;
 	int i;
-	uint32_t tmp;
 
 	/* save the PROM vectors for debugging use */
 	debug_vectors = cv;
@@ -78,23 +69,18 @@ void __init prom_init(int argc, char **arg, char** env, struct callvectors *cv)
 
 	while (*env) {
 		if (strncmp("gtbase", *env, strlen("gtbase")) == 0) {
-			gt64240_base = simple_strtol(*env + strlen("gtbase="),
+			marvell_base = simple_strtol(*env + strlen("gtbase="),
 							NULL, 16);
 		}
 		if (strncmp("busclock", *env, strlen("busclock")) == 0) {
 			bus_clock = simple_strtol(*env + strlen("busclock="),
 							NULL, 10);
 		}
-		*env++;
+		env++;
 	}
-
-	debug_vectors->printf("Booting Linux kernel...\n");
 }
 
-void __init prom_free_prom_memory(void)
+unsigned long __init prom_free_prom_memory(void)
 {
-}
-
-void __init prom_fixup_mem_map(unsigned long start, unsigned long end)
-{
+	return 0;
 }

@@ -1,13 +1,8 @@
 /*
- * linux/arch/$(ARCH)/platform/$(PLATFORM)/traps.c -- general exception handling code
+ * linux/arch/$(ARCH)/platform/$(PLATFORM)/traps.c 
  *
  * Cloned from Linux/m68k.
  *
- * No original Copyright holder listed,
- * Probabily original (C) Roman Zippel (assigned DJD, 1999)
- *
- * Copyright 2003 Metrowerks - for Blackfin
- * Copyright 2000-2001 Lineo, Inc. D. Jeff Dionne <jeff@lineo.ca>
  * Copyright 1999-2000 D. Jeff Dionne, <jeff@uclinux.org>
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -74,7 +69,7 @@ irq_node_t *new_irq_node(void)
 }
 
 
-int request_irq(unsigned int irq, int (*handler)(int, void *, struct pt_regs *),unsigned long flags,const char *devname,void *dev_id)
+int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_regs *),unsigned long flags,const char *devname,void *dev_id)
 {
 	if (irq)
 		return mach_request_irq(irq, handler, flags, devname, dev_id);
@@ -151,7 +146,7 @@ asmlinkage void process_int(unsigned long vec, struct pt_regs *fp)
  *	Generic dumping code. Used for panic and debug.
  */
 
-void dump(struct pt_regs *fp)		/*BFin*/
+void dump(struct pt_regs *fp)		
 {
 	
 	printk("\nCURRENT PROCESS:\n\n");

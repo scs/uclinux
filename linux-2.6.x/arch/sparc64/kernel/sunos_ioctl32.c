@@ -22,17 +22,9 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
+#include <linux/syscalls.h>
 #include <linux/compat.h>
 #include <asm/kbio.h>
-
-/* Use this to get at 32-bit user passed pointers. */
-#define A(__x)				\
-({	unsigned long __ret;		\
-	__asm__ ("srl	%0, 0, %0"	\
-		 : "=r" (__ret)		\
-		 : "0" (__x));		\
-	__ret;				\
-})
 
 #define SUNOS_NR_OPEN	256
 
@@ -90,10 +82,7 @@ struct ifconf32 {
         compat_caddr_t  ifcbuf;
 };
 
-extern asmlinkage int sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
-
 extern asmlinkage int compat_sys_ioctl(unsigned int, unsigned int, u32);
-extern asmlinkage int sys_setsid(void);
 
 asmlinkage int sunos_ioctl (int fd, u32 cmd, u32 arg)
 {
@@ -106,10 +95,11 @@ asmlinkage int sunos_ioctl (int fd, u32 cmd, u32 arg)
 
 	if(cmd == TIOCSETD) {
 		mm_segment_t old_fs = get_fs();
-		int *p, ntty = N_TTY;
+		int __user *p;
+		int ntty = N_TTY;
 		int tmp;
 
-		p = (int *)A(arg);
+		p = (int __user *) (unsigned long) arg;
 		ret = -EFAULT;
 		if(get_user(tmp, p))
 			goto out;
@@ -239,10 +229,10 @@ asmlinkage int sunos_ioctl (int fd, u32 cmd, u32 arg)
 
 	/* Non posix grp */
 	case _IOW('t', 118, int): {
-		int oldval, newval, *ptr;
+		int oldval, newval, __user *ptr;
 
 		cmd = TIOCSPGRP;
-		ptr = (int *) A(arg);
+		ptr = (int __user *) (unsigned long) arg;
 		ret = -EFAULT;
 		if(get_user(oldval, ptr))
 			goto out;
@@ -258,10 +248,10 @@ asmlinkage int sunos_ioctl (int fd, u32 cmd, u32 arg)
 	}
 
 	case _IOR('t', 119, int): {
-		int oldval, newval, *ptr;
+		int oldval, newval, __user *ptr;
 
 		cmd = TIOCGPGRP;
-		ptr = (int *) A(arg);
+		ptr = (int __user *) (unsigned long) arg;
 		ret = -EFAULT;
 		if(get_user(oldval, ptr))
 			goto out;

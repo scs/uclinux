@@ -9,5 +9,6 @@ extra-y += ../mach-bf533/head.o init_task.o vmlinux.lds.s
 
 obj-y		:= entry.o process.o ptrace.o semaphore.o setup.o signal.o sys_bfin.o time.o traps.o
 
-obj-$(CONFIG_MODULES)	+= module.o
+obj-$(CONFIG_MODULES)		+= module.o
+obj-$(CONFIG_BLKFIN_DMA)	+= dma.o
 

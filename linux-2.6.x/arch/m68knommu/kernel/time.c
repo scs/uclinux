@@ -27,7 +27,7 @@
 
 #define	TICK_SIZE (tick_nsec / 1000)
 
-u64 jiffies_64 = INITIAL_JIFFIES;		
+u64 jiffies_64 = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 
@@ -199,6 +199,7 @@ int do_settimeofday(struct timespec *tv)
 	time_maxerror = NTP_PHASE_LIMIT;
 	time_esterror = NTP_PHASE_LIMIT;
 	write_sequnlock_irq(&xtime_lock);
+	clock_was_set();
 	return 0;
 }
 

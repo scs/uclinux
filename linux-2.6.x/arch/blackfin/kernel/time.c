@@ -2,12 +2,11 @@
  *  linux/arch/bfinnommu/kernel/time.c
  *
  *  Copyright (C) 1991, 1992, 1995  Linus Torvalds
+ *  Copyright (C) 2004 LG Soft India. 
  *
  * This file contains the bfin-specific time handling details.
  * Most of the stuff is located in the machine specific files.
  *
- * 1997-09-10	Updated NTP code according to technical memorandum Jan '96
- *		"A Kernel Model for Precision Timekeeping" by Dave Mills
  */
 
 #include <linux/config.h> /* CONFIG_HEARTBEAT */

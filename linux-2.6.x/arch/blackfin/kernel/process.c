@@ -1,11 +1,11 @@
 /*
  *  linux/arch/bfinnommu/kernel/process.c
  *
- *  Copyright (C) 1995  Hamish Macdonald
- *
+ *  Copyright (C) 2004 LG Soft India. 
  *
  *  uClinux changes Copyright (C) 2000, Lineo, davidm@lineo.com
  */
+
 /*
  * This file handles the architecture-dependent parts of process handling..
  */
@@ -48,9 +48,6 @@ static void default_idle(void)
 	while(1) {
 		  if (need_resched())
 			__asm__("idle;\n\t" : : : "cc"); 
-	/* for BFIN idle_req bit of SEQSTAT is set, and also idle is supervisor
-	 * mode insn, need "SSYNC" ???  Tony */
-
 		schedule();
 	}
 }
@@ -72,7 +69,7 @@ void machine_restart(char * __unused)
 {
 	if (mach_reset)
 		mach_reset();  
-	/*  Frio 1st system event is for machine setup, see setup.c */
+	/*  bfin 1st system event is for machine setup, see setup.c */
 	for (;;); 
 }
 
@@ -138,7 +135,8 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 			"SP += 12; \n\t"
 			"r5 = %3; \n\t"
 			"excpt 0; \n"
-			"1:"
+			"1:\n\t"
+			"%0 = R0;\n"
 		: "=d" (retval), "=d" (t_hold_sp)
 		: "i" (__NR_clone),
 		  "i" (__NR_exit),
@@ -195,9 +193,9 @@ int copy_thread(int nr, unsigned long clone_flags,
 
 	p->thread.usp = usp;
 
-	/* eeks we should be this from copy_thread and not try to construct
+	/* we should be this from copy_thread and not try to construct
 	 * ourselves. We'll get in trouble if we get a sys_clone from user
-	 * space - amit */
+	 * space */
 
 	p->thread.ksp = (unsigned long)childregs; 
 	p->thread.pc = (unsigned long)ret_from_fork;
@@ -270,16 +268,6 @@ out:
 	return error;
 }
 
-/*
- * These bracket the sleeping functions..
- */
-
-extern void scheduling_functions_start_here(void);
-extern void scheduling_functions_end_here(void);
-
-#define first_sched	((unsigned long) scheduling_functions_start_here)
-#define last_sched	((unsigned long) scheduling_functions_end_here)
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long fp, pc;
@@ -295,10 +283,13 @@ unsigned long get_wchan(struct task_struct *p)
 		    fp >= 8184+stack_page)
 			return 0;
 		pc = ((unsigned long *)fp)[1];
-		/* FIXME: This depends on the order of these functions. */
-		if (pc < first_sched || pc >= last_sched)
+		/* FIXME: This depends on the order of these functions. 
+		if (pc < first_sched || pc >= last_sched)*/
+		if (!in_sched_functions(pc))
 			return pc;
 		fp = *(unsigned long *) fp;
 	} while (count++ < 16);
 	return 0;
 }
+
+

@@ -103,11 +103,9 @@
 #include <asm/bootinfo.h>
 #include <asm/mpc10x.h>
 #include <asm/pci-bridge.h>
+#include <asm/kgdb.h>
 
 #include "sandpoint.h"
-
-extern void gen550_progress(char *, unsigned short);
-extern void gen550_init(int, struct uart_port *);
 
 unsigned char __res[sizeof(bd_t)];
 
@@ -435,17 +433,9 @@ sandpoint_init_IRQ(void)
 	OpenPIC_InitSenses = sandpoint_openpic_initsenses;
 	OpenPIC_NumInitSenses = sizeof(sandpoint_openpic_initsenses);
 
-	/*
-	 * We need to tell openpic_set_sources where things actually are.
-	 * mpc10x_common will setup OpenPIC_Addr at ioremap(EUMB phys base +
-	 * EPIC offset (0x40000));  The EPIC IRQ Register Address Map -
-	 * Interrupt Source Configuration Registers gives these numbers
-	 * as offsets starting at 0x50200, we need to adjust occordinly.
-	 */
-	/* Map serial interrupts 0-15 */
-	openpic_set_sources(0, 16, OpenPIC_Addr + 0x10200);
-
-	openpic_init(NUM_8259_INTERRUPTS);
+	mpc10x_set_openpic();
+	openpic_hookup_cascade(NUM_8259_INTERRUPTS, "82c59 cascade",
+			i8259_irq);
 
 	/*
 	 * openpic_init() has set up irq_desc[16-31] to be openpic
@@ -706,6 +696,9 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #if defined(CONFIG_SERIAL_8250) && \
 	(defined(CONFIG_KGDB) || defined(CONFIG_SERIAL_TEXT_DEBUG))
 	sandpoint_early_serial_map();
+#ifdef CONFIG_KGDB
+	ppc_md.kgdb_map_scc = gen550_kgdb_map_scc;
+#endif
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	ppc_md.progress = gen550_progress;
 #endif

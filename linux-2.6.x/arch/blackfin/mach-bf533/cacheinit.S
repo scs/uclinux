@@ -13,7 +13,7 @@
  */
 
 #include <asm/cplb.h>
-#include <asm/board/bf533.h>
+#include <asm/blackfin.h>
 #include <linux/linkage.h>
 #include <asm/entry.h>
 #include <asm/cplbtab.h>
@@ -48,7 +48,7 @@ read_iaddr:
 	R0 = [I2++];
 	CC = R0 == R1;
 	IF CC JUMP idone;
-	[I0++] = R0;	
+	[I0++] = R0;
 
 read_idata:
 	R2 = [I2++];
@@ -62,7 +62,6 @@ idone:
 
 	P0.l = (IMEM_CONTROL & 0xFFFF);
 	P0.h = (IMEM_CONTROL >> 16);
-
 	R0 = (IMC | ENICPLB);
 	[P0] = R0;
 	CSYNC;
@@ -102,7 +101,7 @@ ddone:
 	P0.L = (DMEM_CONTROL & 0xFFFF);
 	P0.H = (DMEM_CONTROL >> 16);
 
-	R0 = (DMC_531_ENABLE | ENDCPLB);
+	R0 = (DMC_ENABLE | ENDCPLB);
 	[P0] = R0;
 	CSYNC;
 	RTS;	

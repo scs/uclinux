@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2003 Hewlett-Packard Co
+ * Copyright (C) 1999-2004 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  * Copyright (C) 2003 Fenghua Yu <fenghua.yu@intel.com>
  * 	- Change pt_regs_off() to make it less dependant on pt_regs structure.
@@ -88,6 +88,8 @@ static struct {
 
 	/* list of unwind tables (one per load-module) */
 	struct unw_table *tables;
+
+	unsigned long r0;			/* constant 0 for r0 */
 
 	/* table of registers that prologues can save (and order in which they're saved): */
 	const unsigned char save_order[8];
@@ -239,7 +241,11 @@ static struct {
 #endif
 };
 
-/* Unwind accessors.  */
+static inline int
+read_only (void *addr)
+{
+	return (unsigned long) ((char *) addr - (char *) &unw.r0) < sizeof(unw.r0);
+}
 
 /*
  * Returns offset of rREG in struct pt_regs.
@@ -273,6 +279,8 @@ get_scratch_regs (struct unw_frame_info *info)
 	UNW_DPRINT(3, "unwind.%s: sp 0x%lx pt 0x%lx\n", __FUNCTION__, info->sp, info->pt);
 	return (struct pt_regs *) info->pt;
 }
+
+/* Unwind accessors.  */
 
 int
 unw_access_gr (struct unw_frame_info *info, int regnum, unsigned long *val, char *nat, int write)
@@ -377,11 +385,16 @@ unw_access_gr (struct unw_frame_info *info, int regnum, unsigned long *val, char
 	}
 
 	if (write) {
-		*addr = *val;
-		if (*nat)
-			*nat_addr |= nat_mask;
-		else
-			*nat_addr &= ~nat_mask;
+		if (read_only(addr)) {
+			UNW_DPRINT(0, "unwind.%s: ignoring attempt to write read-only location\n",
+				__FUNCTION__);
+		} else {
+			*addr = *val;
+			if (*nat)
+				*nat_addr |= nat_mask;
+			else
+				*nat_addr &= ~nat_mask;
+		}
 	} else {
 		if ((*nat_addr & nat_mask) == 0) {
 			*val = *addr;
@@ -420,7 +433,11 @@ unw_access_br (struct unw_frame_info *info, int regnum, unsigned long *val, int 
 		return -1;
 	}
 	if (write)
-		*addr = *val;
+		if (read_only(addr)) {
+			UNW_DPRINT(0, "unwind.%s: ignoring attempt to write read-only location\n",
+				__FUNCTION__);
+		} else
+			*addr = *val;
 	else
 		*val = *addr;
 	return 0;
@@ -465,7 +482,11 @@ unw_access_fr (struct unw_frame_info *info, int regnum, struct ia64_fpreg *val, 
 	}
 
 	if (write)
-		*addr = *val;
+		if (read_only(addr)) {
+			UNW_DPRINT(0, "unwind.%s: ignoring attempt to write read-only location\n",
+				__FUNCTION__);
+		} else
+			*addr = *val;
 	else
 		*val = *addr;
 	return 0;
@@ -557,9 +578,13 @@ unw_access_ar (struct unw_frame_info *info, int regnum, unsigned long *val, int 
 		return -1;
 	}
 
-	if (write)
-		*addr = *val;
-	else
+	if (write) {
+		if (read_only(addr)) {
+			UNW_DPRINT(0, "unwind.%s: ignoring attempt to write read-only location\n",
+				__FUNCTION__);
+		} else
+			*addr = *val;
+	} else
 		*val = *addr;
 	return 0;
 }
@@ -574,9 +599,13 @@ unw_access_pr (struct unw_frame_info *info, unsigned long *val, int write)
 	if (!addr)
 		addr = &info->sw->pr;
 
-	if (write)
-		*addr = *val;
-	else
+	if (write) {
+		if (read_only(addr)) {
+			UNW_DPRINT(0, "unwind.%s: ignoring attempt to write read-only location\n",
+				__FUNCTION__);
+		} else
+			*addr = *val;
+	} else
 		*val = *addr;
 	return 0;
 }
@@ -650,7 +679,7 @@ free_state_stack (struct unw_reg_state *rs)
 
 /* Unwind decoder routines */
 
-static enum unw_register_index __attribute__((const))
+static enum unw_register_index __attribute_const__
 decode_abreg (unsigned char abreg, int memory)
 {
 	switch (abreg) {
@@ -1407,6 +1436,9 @@ compile_reg (struct unw_state_record *sr, int i, struct unw_script *script)
 				need_nat_info = 0;
 			}
 			val = unw.preg_index[UNW_REG_R4 + (rval - 4)];
+		} else if (rval == 0) {
+			opc = UNW_INSN_MOVE_CONST;
+			val = 0;
 		} else {
 			/* register got spilled to a scratch register */
 			opc = UNW_INSN_MOVE_SCRATCH;
@@ -1416,7 +1448,7 @@ compile_reg (struct unw_state_record *sr, int i, struct unw_script *script)
 
 	      case UNW_WHERE_FR:
 		if (rval <= 5)
-			val = unw.preg_index[UNW_REG_F2  + (rval -  1)];
+			val = unw.preg_index[UNW_REG_F2  + (rval -  2)];
 		else if (rval >= 16 && rval <= 31)
 			val = unw.preg_index[UNW_REG_F16 + (rval - 16)];
 		else {
@@ -1729,6 +1761,17 @@ run_script (struct unw_script *script, struct unw_frame_info *state)
 			}
 			break;
 
+		      case UNW_INSN_MOVE_CONST:
+			if (val == 0)
+				s[dst] = (unsigned long) &unw.r0;
+			else {
+				s[dst] = 0;
+				UNW_DPRINT(0, "unwind.%s: UNW_INSN_MOVE_CONST bad val=%ld\n",
+					   __FUNCTION__, val);
+			}
+			break;
+
+
 		      case UNW_INSN_MOVE_STACKED:
 			s[dst] = (unsigned long) ia64_rse_skip_regs((unsigned long *)state->bsp,
 								    val);
@@ -1746,7 +1789,7 @@ run_script (struct unw_script *script, struct unw_frame_info *state)
 			if (!state->pri_unat_loc)
 				state->pri_unat_loc = &state->sw->ar_unat;
 			/* register off. is a multiple of 8, so the least 3 bits (type) are 0 */
-			s[dst+1] = (*state->pri_unat_loc - s[dst]) | UNW_NAT_MEMSTK;
+			s[dst+1] = ((unsigned long) state->pri_unat_loc - s[dst]) | UNW_NAT_MEMSTK;
 			break;
 
 		      case UNW_INSN_SETNAT_TYPE:

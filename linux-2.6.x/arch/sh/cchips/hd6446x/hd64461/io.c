@@ -8,6 +8,8 @@
 #include <asm/io.h>
 #include <asm/hd64461/hd64461.h>
 
+#define MEM_BASE (CONFIG_HD64461_IOBASE - HD64461_STBCR)
+
 static __inline__ unsigned long PORT2ADDR(unsigned long port)
 {
 	/* 16550A: HD64461 internal */
@@ -36,7 +38,9 @@ static __inline__ unsigned long PORT2ADDR(unsigned long port)
 #endif
 
 	/* ??? */
-	if (port < 0x10000) return 0xa0000000 + port;
+	if (port < 0xf000) return 0xa0000000 + port;
+	/* PCMCIA channel 0, I/O (0xba000000) */
+	if (port < 0x10000) return 0xba000000 + port - 0xf000;
 
 	/* HD64461 internal devices (0xb0000000) */
 	if (port < 0x20000) return CONFIG_HD64461_IOBASE + port - 0x10000;
@@ -97,5 +101,57 @@ void hd64461_outw(unsigned short b, unsigned long port)
 void hd64461_outl(unsigned int b, unsigned long port)
 {
         *(volatile unsigned long*)PORT2ADDR(port) = b;
+}
+
+void hd64461_insb(unsigned long port, void *buffer, unsigned long count)
+{
+	volatile unsigned char* addr=(volatile unsigned char*)PORT2ADDR(port);
+	unsigned char *buf=buffer;
+	while(count--) *buf++=*addr;
+}
+
+void hd64461_insw(unsigned long port, void *buffer, unsigned long count)
+{
+	volatile unsigned short* addr=(volatile unsigned short*)PORT2ADDR(port);
+	unsigned short *buf=buffer;
+	while(count--) *buf++=*addr;
+}
+
+void hd64461_insl(unsigned long port, void *buffer, unsigned long count)
+{
+	volatile unsigned long* addr=(volatile unsigned long*)PORT2ADDR(port);
+	unsigned long *buf=buffer;
+	while(count--) *buf++=*addr;
+}
+
+void hd64461_outsb(unsigned long port, const void *buffer, unsigned long count)
+{
+	volatile unsigned char* addr=(volatile unsigned char*)PORT2ADDR(port);
+	const unsigned char *buf=buffer;
+	while(count--) *addr=*buf++;
+}
+
+void hd64461_outsw(unsigned long port, const void *buffer, unsigned long count)
+{
+	volatile unsigned short* addr=(volatile unsigned short*)PORT2ADDR(port);
+	const unsigned short *buf=buffer;
+	while(count--) *addr=*buf++;
+}
+
+void hd64461_outsl(unsigned long port, const void *buffer, unsigned long count)
+{
+	volatile unsigned long* addr=(volatile unsigned long*)PORT2ADDR(port);
+	const unsigned long *buf=buffer;
+	while(count--) *addr=*buf++;
+}
+
+unsigned short hd64461_readw(unsigned long addr)
+{
+	return *(volatile unsigned short*)(MEM_BASE+addr);
+}
+
+void hd64461_writew(unsigned short b, unsigned long addr)
+{
+	*(volatile unsigned short*)(MEM_BASE+addr) = b;
 }
 

@@ -30,6 +30,7 @@ struct cpu_spec* cur_cpu_spec = NULL;
  */
 extern void __setup_cpu_power3(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_power4(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_ppc970(unsigned long offset, struct cpu_spec* spec);
 
 
 /* We only set the altivec features if the kernel was compiled with altivec
@@ -45,72 +46,72 @@ extern void __setup_cpu_power4(unsigned long offset, struct cpu_spec* spec);
 
 struct cpu_spec	cpu_specs[] = {
     {	/* Power3 */
-	    0xffff0000, 0x00400000, "Power3 (630)",
+	    0xffff0000, 0x00400000, "POWER3 (630)",
 	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-		    CPU_FTR_DABR | CPU_FTR_IABR,
+		    CPU_FTR_IABR | CPU_FTR_PMC8,
 	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power3,
 	    COMMON_PPC64_FW
     },
     {	/* Power3+ */
-	    0xffff0000, 0x00410000, "Power3 (630+)",
+	    0xffff0000, 0x00410000, "POWER3 (630+)",
 	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-		    CPU_FTR_DABR | CPU_FTR_IABR,
+		    CPU_FTR_IABR | CPU_FTR_PMC8,
 	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power3,
 	    COMMON_PPC64_FW
     },
     {	/* Northstar */
-	    0xffff0000, 0x00330000, "Northstar",
+	    0xffff0000, 0x00330000, "RS64-II (northstar)",
 	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-		    CPU_FTR_DABR | CPU_FTR_IABR,
+		    CPU_FTR_IABR | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
 	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power3,
 	    COMMON_PPC64_FW
     },
     {	/* Pulsar */
-	    0xffff0000, 0x00340000, "Pulsar",
+	    0xffff0000, 0x00340000, "RS64-III (pulsar)",
 	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-		    CPU_FTR_DABR | CPU_FTR_IABR,
+		    CPU_FTR_IABR | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
 	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power3,
 	    COMMON_PPC64_FW
     },
     {	/* I-star */
-	    0xffff0000, 0x00360000, "I-star",
+	    0xffff0000, 0x00360000, "RS64-III (icestar)",
 	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-		    CPU_FTR_DABR | CPU_FTR_IABR,
+		    CPU_FTR_IABR | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
 	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power3,
 	    COMMON_PPC64_FW
     },
     {	/* S-star */
-	    0xffff0000, 0x00370000, "S-star",
+	    0xffff0000, 0x00370000, "RS64-IV (sstar)",
 	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-		    CPU_FTR_DABR | CPU_FTR_IABR,
+		    CPU_FTR_IABR | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
 	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power3,
 	    COMMON_PPC64_FW
     },
     {	/* Power4 */
-	    0xffff0000, 0x00350000, "Power4",
+	    0xffff0000, 0x00350000, "POWER4 (gp)",
 	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_DABR,
+		    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
 	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power4,
 	    COMMON_PPC64_FW
     },
     {	/* Power4+ */
-	    0xffff0000, 0x00380000, "Power4+",
+	    0xffff0000, 0x00380000, "POWER4+ (gq)",
 	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_DABR,
+		    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
 	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power4,
@@ -119,25 +120,49 @@ struct cpu_spec	cpu_specs[] = {
     {	/* PPC970 */
 	    0xffff0000, 0x00390000, "PPC970",
 	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP,
+		    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
+		    CPU_FTR_CAN_NAP | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
 	    COMMON_USER_PPC64 | PPC_FEATURE_HAS_ALTIVEC_COMP,
+	    128, 128,
+	    __setup_cpu_ppc970,
+	    COMMON_PPC64_FW
+    },
+    {	/* PPC970FX */
+	    0xffff0000, 0x003c0000, "PPC970FX",
+	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
+		    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
+		    CPU_FTR_CAN_NAP | CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+	    COMMON_USER_PPC64 | PPC_FEATURE_HAS_ALTIVEC_COMP,
+	    128, 128,
+	    __setup_cpu_ppc970,
+	    COMMON_PPC64_FW
+    },
+    {	/* Power5 */
+	    0xffff0000, 0x003a0000, "POWER5 (gr)",
+	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
+		    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_MMCRA | CPU_FTR_SMT |
+		    CPU_FTR_COHERENT_ICACHE | CPU_FTR_LOCKLESS_TLBIE |
+		    CPU_FTR_MMCRA_SIHV,
+	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power4,
 	    COMMON_PPC64_FW
     },
     {	/* Power5 */
-	    0xffff0000, 0x003a0000, "Power5",
+	    0xffff0000, 0x003b0000, "POWER5 (gs)",
 	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-	    CPU_FTR_PPCAS_ARCH_V2,
+		    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_MMCRA | CPU_FTR_SMT |
+		    CPU_FTR_COHERENT_ICACHE | CPU_FTR_LOCKLESS_TLBIE |
+		    CPU_FTR_MMCRA_SIHV,
 	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power4,
 	    COMMON_PPC64_FW
     },
     {	/* default match */
-	    0x00000000, 0x00000000, "(Power4-Compatible)",
+	    0x00000000, 0x00000000, "POWER4 (compatible)",
   	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
-	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_DABR,
+		    CPU_FTR_PPCAS_ARCH_V2,
 	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power4,

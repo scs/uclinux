@@ -33,7 +33,7 @@
 #define DPRINTF(x...)
 #endif
 
-module_t	       *modules[MODULE_MAX];
+module_t	       *sn_modules[MODULE_MAX];
 int			nummodules;
 
 #define SN00_SERIAL_FUDGE	0x3b1af409d513c2
@@ -59,9 +59,9 @@ module_lookup(moduleid_t id)
     int			i;
 
     for (i = 0; i < nummodules; i++)
-	if (modules[i]->id == id) {
-	    DPRINTF("module_lookup: found m=0x%p\n", modules[i]);
-	    return modules[i];
+	if (sn_modules[i]->id == id) {
+	    DPRINTF("module_lookup: found m=0x%p\n", sn_modules[i]);
+	    return sn_modules[i];
 	}
 
     return NULL;
@@ -104,10 +104,10 @@ module_add_node(geoid_t geoid, cnodeid_t cnodeid)
 
 	/* Insert in sorted order by module number */
 
-	for (i = nummodules; i > 0 && modules[i - 1]->id > moduleid; i--)
-	    modules[i] = modules[i - 1];
+	for (i = nummodules; i > 0 && sn_modules[i - 1]->id > moduleid; i--)
+	    sn_modules[i] = sn_modules[i - 1];
 
-	modules[i] = m;
+	sn_modules[i] = m;
 	nummodules++;
     }
 
@@ -139,7 +139,7 @@ module_probe_snum(module_t *m, nasid_t host_nasid, nasid_t nasid)
     /*
      * record brick serial number
      */
-    board = find_lboard((lboard_t *) KL_CONFIG_INFO(host_nasid), KLTYPE_SNIA);
+    board = find_lboard_nasid((lboard_t *) KL_CONFIG_INFO(host_nasid), host_nasid, KLTYPE_SNIA);
 
     if (! board || KL_CONFIG_DUPLICATE_BOARD(board))
     {
@@ -152,8 +152,8 @@ module_probe_snum(module_t *m, nasid_t host_nasid, nasid_t nasid)
 	m->snum_valid = 1;
     }
 
-    board = find_lboard((lboard_t *) KL_CONFIG_INFO(nasid),
-			KLTYPE_IOBRICK_XBOW);
+    board = find_lboard_nasid((lboard_t *) KL_CONFIG_INFO(nasid),
+			nasid, KLTYPE_IOBRICK_XBOW);
 
     if (! board || KL_CONFIG_DUPLICATE_BOARD(board))
 	return 0;
@@ -185,6 +185,7 @@ io_module_init(void)
     nasid_t		nasid;
     int			nserial;
     module_t	       *m;
+    extern		int numionodes;
 
     DPRINTF("*******module_init\n");
 
@@ -195,15 +196,41 @@ io_module_init(void)
      * We do not support memoryless compute nodes.
      */
     for (node = 0; node < numnodes; node++) {
-	nasid = COMPACT_TO_NASID_NODEID(node);
-
-	board = find_lboard((lboard_t *) KL_CONFIG_INFO(nasid), KLTYPE_SNIA);
+	nasid = cnodeid_to_nasid(node);
+	board = find_lboard_nasid((lboard_t *) KL_CONFIG_INFO(nasid), nasid, KLTYPE_SNIA);
 	ASSERT(board);
 
-	HWGRAPH_DEBUG((__FILE__, __FUNCTION__, __LINE__, NULL, NULL, "Found Shub lboard 0x%lx nasid 0x%x cnode 0x%x \n", (unsigned long)board, (int)nasid, (int)node));
+	HWGRAPH_DEBUG(__FILE__, __FUNCTION__, __LINE__, NULL, NULL, "Found Shub lboard 0x%lx nasid 0x%x cnode 0x%x \n", (unsigned long)board, (int)nasid, (int)node);
 
 	m = module_add_node(board->brd_geoid, node);
 	if (! m->snum_valid && module_probe_snum(m, nasid, nasid))
 	    nserial++;
+    }
+
+    /*
+     * Second scan, look for headless/memless board hosted by compute nodes.
+     */
+    for (node = numnodes; node < numionodes; node++) {
+	nasid_t		nasid;
+	char		serial_number[16];
+
+        nasid = cnodeid_to_nasid(node);
+	board = find_lboard_nasid((lboard_t *) KL_CONFIG_INFO(nasid), 
+				nasid, KLTYPE_SNIA);
+	ASSERT(board);
+
+	HWGRAPH_DEBUG(__FILE__, __FUNCTION__, __LINE__, NULL, NULL, "Found headless/memless lboard 0x%lx node %d nasid %d cnode %d\n", (unsigned long)board, node, (int)nasid, (int)node);
+
+        m = module_add_node(board->brd_geoid, node);
+
+	/*
+	 * Get and initialize the serial number.
+	 */
+	board_serial_number_get( board, serial_number );
+    	if( serial_number[0] != '\0' ) {
+        	encode_str_serial( serial_number, m->snum.snum_str );
+        	m->snum_valid = 1;
+		nserial++;
+	}
     }
 }

@@ -27,6 +27,7 @@
 /************************************************************************/
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <asm/types.h>
 #include <asm/resource.h>
@@ -105,6 +106,7 @@ LocationData* iSeries_GetLocationData(struct pci_dev *PciDev)
 	strcpy(&LocationPtr->CardLocation[0], &DevNode->CardLocation[0]);
 	return LocationPtr;
 }
+EXPORT_SYMBOL(iSeries_GetLocationData);
 
 /*
  * Formats the device information.
@@ -291,7 +293,8 @@ void iSeries_Get_Location_Code(struct iSeries_Device_Node *DevNode)
 		return;
 	}
 	BusVpdLen = HvCallPci_getBusVpd(ISERIES_BUS(DevNode),
-			REALADDR(BusVpdPtr), BUS_VPDSIZE);
+					ISERIES_HV_ADDR(BusVpdPtr),
+					BUS_VPDSIZE);
 	if (BusVpdLen == 0) {
 		kfree(BusVpdPtr);
 		printk("PCI: Bus VPD Buffer zero length.\n");

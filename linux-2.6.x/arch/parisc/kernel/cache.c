@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/pagemap.h>
 
 #include <asm/pdc.h>
 #include <asm/cache.h>
@@ -68,7 +69,7 @@ update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
 	struct page *page = pte_page(pte);
 
-	if (VALID_PAGE(page) && page->mapping &&
+	if (pfn_valid(page_to_pfn(page)) && page_mapping(page) &&
 	    test_bit(PG_dcache_dirty, &page->flags)) {
 
 		flush_kernel_dcache_page(page_address(page));
@@ -81,10 +82,11 @@ show_cache_info(struct seq_file *m)
 {
 	seq_printf(m, "I-cache\t\t: %ld KB\n", 
 		cache_info.ic_size/1024 );
-	seq_printf(m, "D-cache\t\t: %ld KB (%s)%s\n", 
+	seq_printf(m, "D-cache\t\t: %ld KB (%s%s, %d-way associative)\n", 
 		cache_info.dc_size/1024,
 		(cache_info.dc_conf.cc_wt ? "WT":"WB"),
-		(cache_info.dc_conf.cc_sh ? " - shared I/D":"")
+		(cache_info.dc_conf.cc_sh ? ", shared I/D":""),
+		(cache_info.dc_conf.cc_assoc)
 	);
 
 	seq_printf(m, "ITLB entries\t: %ld\n" "DTLB entries\t: %ld%s\n",
@@ -122,51 +124,60 @@ parisc_cache_init(void)
 		panic("parisc_cache_init: pdc_cache_info failed");
 
 #if 0
-	printk(KERN_DEBUG "ic_size %lx dc_size %lx it_size %lx pdc_cache_info %d*long pdc_cache_cf %d\n",
-	    cache_info.ic_size,
-	    cache_info.dc_size,
-	    cache_info.it_size,
-	    sizeof (struct pdc_cache_info) / sizeof (long),
-	    sizeof (struct pdc_cache_cf)
-	);
+	printk("ic_size %lx dc_size %lx it_size %lx\n",
+		cache_info.ic_size,
+		cache_info.dc_size,
+		cache_info.it_size);
 
-	printk(KERN_DEBUG "dc base %x dc stride %x dc count %x dc loop %d\n",
-	    cache_info.dc_base,
-	    cache_info.dc_stride,
-	    cache_info.dc_count,
-	    cache_info.dc_loop);
+	printk("DC  base 0x%lx stride 0x%lx count 0x%lx loop 0x%lx\n",
+		cache_info.dc_base,
+		cache_info.dc_stride,
+		cache_info.dc_count,
+		cache_info.dc_loop);
 
-	printk(KERN_DEBUG "dc conf: alias %d block %d line %d wt %d sh %d cst %d assoc %d\n",
-	    cache_info.dc_conf.cc_alias,
-	    cache_info.dc_conf.cc_block,
-	    cache_info.dc_conf.cc_line,
-	    cache_info.dc_conf.cc_wt,
-	    cache_info.dc_conf.cc_sh,
-	    cache_info.dc_conf.cc_cst,
-	    cache_info.dc_conf.cc_assoc);
+	printk("dc_conf = 0x%lx  alias %d blk %d line %d shift %d\n",
+		*(unsigned long *) (&cache_info.dc_conf),
+		cache_info.dc_conf.cc_alias,
+		cache_info.dc_conf.cc_block,
+		cache_info.dc_conf.cc_line,
+		cache_info.dc_conf.cc_shift);
+	printk("	wt %d sh %d cst %d assoc %d\n",
+		cache_info.dc_conf.cc_wt,
+		cache_info.dc_conf.cc_sh,
+		cache_info.dc_conf.cc_cst,
+		cache_info.dc_conf.cc_assoc);
 
-	printk(KERN_DEBUG "ic conf: alias %d block %d line %d wt %d sh %d cst %d assoc %d\n",
-	    cache_info.ic_conf.cc_alias,
-	    cache_info.ic_conf.cc_block,
-	    cache_info.ic_conf.cc_line,
-	    cache_info.ic_conf.cc_wt,
-	    cache_info.ic_conf.cc_sh,
-	    cache_info.ic_conf.cc_cst,
-	    cache_info.ic_conf.cc_assoc);
+	printk("IC  base 0x%lx stride 0x%lx count 0x%lx loop 0x%lx\n",
+		cache_info.ic_base,
+		cache_info.ic_stride,
+		cache_info.ic_count,
+		cache_info.ic_loop);
 
-	printk(KERN_DEBUG "dt conf: sh %d page %d cst %d aid %d pad1 %d \n",
-	    cache_info.dt_conf.tc_sh,
-	    cache_info.dt_conf.tc_page,
-	    cache_info.dt_conf.tc_cst,
-	    cache_info.dt_conf.tc_aid,
-	    cache_info.dt_conf.tc_pad1);
+	printk("ic_conf = 0x%lx  alias %d blk %d line %d shift %d\n",
+		*(unsigned long *) (&cache_info.ic_conf),
+		cache_info.ic_conf.cc_alias,
+		cache_info.ic_conf.cc_block,
+		cache_info.ic_conf.cc_line,
+		cache_info.ic_conf.cc_shift);
+	printk("	wt %d sh %d cst %d assoc %d\n",
+		cache_info.ic_conf.cc_wt,
+		cache_info.ic_conf.cc_sh,
+		cache_info.ic_conf.cc_cst,
+		cache_info.ic_conf.cc_assoc);
 
-	printk(KERN_DEBUG "it conf: sh %d page %d cst %d aid %d pad1 %d \n",
-	    cache_info.it_conf.tc_sh,
-	    cache_info.it_conf.tc_page,
-	    cache_info.it_conf.tc_cst,
-	    cache_info.it_conf.tc_aid,
-	    cache_info.it_conf.tc_pad1);
+	printk("D-TLB conf: sh %d page %d cst %d aid %d pad1 %d \n",
+		cache_info.dt_conf.tc_sh,
+		cache_info.dt_conf.tc_page,
+		cache_info.dt_conf.tc_cst,
+		cache_info.dt_conf.tc_aid,
+		cache_info.dt_conf.tc_pad1);
+
+	printk("I-TLB conf: sh %d page %d cst %d aid %d pad1 %d \n",
+		cache_info.it_conf.tc_sh,
+		cache_info.it_conf.tc_page,
+		cache_info.it_conf.tc_cst,
+		cache_info.it_conf.tc_aid,
+		cache_info.it_conf.tc_pad1);
 #endif
 
 	split_tlb = 0;
@@ -178,10 +189,14 @@ parisc_cache_init(void)
 		split_tlb = 1;
 	}
 
-	dcache_stride = (1 << (cache_info.dc_conf.cc_block + 3)) *
-						cache_info.dc_conf.cc_line;
-	icache_stride = (1 << (cache_info.ic_conf.cc_block + 3)) *
-						cache_info.ic_conf.cc_line;
+	/* "New and Improved" version from Jim Hull 
+	 *	(1 << (cc_block-1)) * (cc_line << (4 + cnf.cc_shift))
+	 */
+#define CAFL_STRIDE(cnf) (cnf.cc_line << (3 + cnf.cc_block + cnf.cc_shift))
+	dcache_stride = CAFL_STRIDE(cache_info.dc_conf);
+	icache_stride = CAFL_STRIDE(cache_info.ic_conf);
+#undef CAFL_STRIDE
+
 #ifndef CONFIG_PA20
 	if (pdc_btlb_info(&btlb_info) < 0) {
 		memset(&btlb_info, 0, sizeof btlb_info);
@@ -190,8 +205,8 @@ parisc_cache_init(void)
 
 	if ((boot_cpu_data.pdc.capabilities & PDC_MODEL_NVA_MASK) ==
 						PDC_MODEL_NVA_UNSUPPORTED) {
-		printk(KERN_WARNING "Only equivalent aliasing supported\n");
-#ifndef CONFIG_SMP
+		printk(KERN_WARNING "parisc_cache_init: Only equivalent aliasing supported!\n");
+#if 0
 		panic("SMP kernel required to avoid non-equivalent aliasing");
 #endif
 	}
@@ -227,72 +242,65 @@ void disable_sr_hashing(void)
 	disable_sr_hashing_asm(srhash_type);
 }
 
-void __flush_dcache_page(struct page *page)
+void flush_dcache_page(struct page *page)
 {
-	struct mm_struct *mm = current->active_mm;
-	struct list_head *l;
+	struct address_space *mapping = page_mapping(page);
+	struct vm_area_struct *mpnt = NULL;
+	struct prio_tree_iter iter;
+	unsigned long offset;
+	unsigned long addr;
+	pgoff_t pgoff;
+	pte_t *pte;
+	unsigned long pfn = page_to_pfn(page);
+
+
+	if (mapping && !mapping_mapped(mapping)) {
+		set_bit(PG_dcache_dirty, &page->flags);
+		return;
+	}
 
 	flush_kernel_dcache_page(page_address(page));
 
-	if (!page->mapping)
+	if (!mapping)
 		return;
-	/* check shared list first if it's not empty...it's usually
-	 * the shortest */
-	list_for_each(l, &page->mapping->i_mmap_shared) {
-		struct vm_area_struct *mpnt;
-		unsigned long off;
 
-		mpnt = list_entry(l, struct vm_area_struct, shared);
+	pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
 
-		/*
-		 * If this VMA is not in our MM, we can ignore it.
-		 */
-		if (mpnt->vm_mm != mm)
+	/* We have carefully arranged in arch_get_unmapped_area() that
+	 * *any* mappings of a file are always congruently mapped (whether
+	 * declared as MAP_PRIVATE or MAP_SHARED), so we only need
+	 * to flush one address here for them all to become coherent */
+
+	flush_dcache_mmap_lock(mapping);
+	while ((mpnt = vma_prio_tree_next(mpnt, &mapping->i_mmap,
+					&iter, pgoff, pgoff)) != NULL) {
+		offset = (pgoff - mpnt->vm_pgoff) << PAGE_SHIFT;
+		addr = mpnt->vm_start + offset;
+
+		/* Flush instructions produce non access tlb misses.
+		 * On PA, we nullify these instructions rather than
+		 * taking a page fault if the pte doesn't exist.
+		 * This is just for speed.  If the page translation
+		 * isn't there, there's no point exciting the
+		 * nadtlb handler into a nullification frenzy */
+
+
+  		if(!(pte = translation_exists(mpnt, addr)))
 			continue;
 
-		if (page->index < mpnt->vm_pgoff)
-			continue;
+		/* make sure we really have this page: the private
+		 * mappings may cover this area but have COW'd this
+		 * particular page */
+		if(pte_pfn(*pte) != pfn)
+  			continue;
 
-		off = page->index - mpnt->vm_pgoff;
-		if (off >= (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT)
-			continue;
+		__flush_cache_page(mpnt, addr);
 
-		flush_cache_page(mpnt, mpnt->vm_start + (off << PAGE_SHIFT));
-
-		/* All user shared mappings should be equivalently mapped,
-		 * so once we've flushed one we should be ok
-		 */
-		return;
-	}
-
-	/* then check private mapping list for read only shared mappings
-	 * which are flagged by VM_MAYSHARE */
-	list_for_each(l, &page->mapping->i_mmap) {
-		struct vm_area_struct *mpnt;
-		unsigned long off;
-
-		mpnt = list_entry(l, struct vm_area_struct, shared);
-
-
-		if (mpnt->vm_mm != mm || !(mpnt->vm_flags & VM_MAYSHARE))
-			continue;
-
-		if (page->index < mpnt->vm_pgoff)
-			continue;
-
-		off = page->index - mpnt->vm_pgoff;
-		if (off >= (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT)
-			continue;
-
-		flush_cache_page(mpnt, mpnt->vm_start + (off << PAGE_SHIFT));
-
-		/* All user shared mappings should be equivalently mapped,
-		 * so once we've flushed one we should be ok
-		 */
 		break;
 	}
+	flush_dcache_mmap_unlock(mapping);
 }
-EXPORT_SYMBOL(__flush_dcache_page);
+EXPORT_SYMBOL(flush_dcache_page);
 
 /* Defined in arch/parisc/kernel/pacache.S */
 EXPORT_SYMBOL(flush_kernel_dcache_range_asm);

@@ -14,6 +14,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/module.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 
@@ -59,14 +60,6 @@ void show_trace(unsigned long * stack)
                 }
         }
 }
-
-void show_trace_task(struct task_struct *tsk)
-{
-	/* TODO, this is not really useful since its called from
-	 * SysRq-T and we don't have a keyboard.. :) 
-	 */
-}
-
 
 /*
  * These constants are for searching for possible module text

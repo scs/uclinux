@@ -51,7 +51,6 @@
 #include <asm/iSeries/ItLpQueue.h>
 #include <asm/iSeries/IoHriMainStore.h>
 #include <asm/iSeries/iSeries_proc.h>
-#include <asm/proc_pmc.h>
 #include <asm/iSeries/mf.h>
 
 /* Function Prototypes */
@@ -63,10 +62,11 @@ extern void tce_init_iSeries(void);
 static void build_iSeries_Memory_Map(void);
 static void setup_iSeries_cache_sizes(void);
 static void iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr);
-void build_valid_hpte(unsigned long vsid, unsigned long ea, unsigned long pa,
-		pte_t *ptep, unsigned hpteflags, unsigned bolted);
+extern void build_valid_hpte(unsigned long vsid, unsigned long ea, unsigned long pa,
+			     pte_t *ptep, unsigned hpteflags, unsigned bolted);
 static void iSeries_setup_dprofile(void);
-void iSeries_setup_arch(void);
+extern void iSeries_setup_arch(void);
+extern void iSeries_pci_final_fixup(void);
 
 /* Global Variables */
 static unsigned long procFreqHz;
@@ -311,12 +311,12 @@ void __init iSeries_init_early(void)
 	iSeries_recal_titan = HvCallXm_loadTod();
 
 	ppc_md.setup_arch = iSeries_setup_arch;
-	ppc_md.setup_residual = iSeries_setup_residual;
 	ppc_md.get_cpuinfo = iSeries_get_cpuinfo;
 	ppc_md.init_IRQ = iSeries_init_IRQ;
-	ppc_md.init_irq_desc = iSeries_init_irq_desc;
 	ppc_md.get_irq = iSeries_get_irq;
 	ppc_md.init = NULL;
+
+	ppc_md.pcibios_fixup  = iSeries_pci_final_fixup;
 
 	ppc_md.restart = iSeries_restart;
 	ppc_md.power_off = iSeries_power_off;
@@ -357,15 +357,14 @@ void __init iSeries_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	HvCallEvent_dmaToSp(cmd_line, 2 * 64* 1024, 256,
 			HvLpDma_Direction_RemoteToLocal);
 
-	p = q = cmd_line + 255;
-	while (p > cmd_line) {
-		if ((*p == 0) || (*p == ' ') || (*p == '\n'))
-			--p;
-		else
+	p = cmd_line;
+	q = cmd_line + 255;
+	while( p < q ) {
+		if (!*p || *p == '\n')
 			break;
+		++p;
 	}
-	if (p < q)
-		*(p + 1) = 0;
+	*p = 0;
 
         if (strstr(cmd_line, "dprofile=")) {
                 for (q = cmd_line; (p = strstr(q, "dprofile=")) != 0; ) {
@@ -391,12 +390,9 @@ void __init iSeries_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 	iSeries_setup_dprofile();
 
-	iSeries_proc_early_init();
 	mf_init();
 	mf_initialized = 1;
 	mb();
-
-	iSeries_proc_callback(&pmc_proc_init);
 }
 
 /*
@@ -566,11 +562,6 @@ static void __init build_iSeries_Memory_Map(void)
 	lmb_add(0, systemcfg->physicalMemorySize);
 	lmb_analyze();	/* ?? */
 	lmb_reserve(0, __pa(klimit));
-
-	/* 
-	 * Hardcode to GP size.  I am not sure where to get this info. DRENG
-	 */
-	naca->slb_size = 64;
 }
 
 /*
@@ -580,7 +571,7 @@ static void __init build_iSeries_Memory_Map(void)
 static void __init setup_iSeries_cache_sizes(void)
 {
 	unsigned int i, n;
-	unsigned int procIx = get_paca()->xLpPaca.xDynHvPhysicalProcIndex;
+	unsigned int procIx = get_paca()->lppaca.xDynHvPhysicalProcIndex;
 
 	systemcfg->iCacheL1Size =
 		xIoHriProcessorVpd[procIx].xInstCacheSize * 1024;
@@ -661,8 +652,7 @@ static void __init iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr)
 			HvCallHpt_setPp(slot, PP_RWXX);
 		} else
 			/* No HPTE exists, so create a new bolted one */
-			iSeries_make_pte(va, (unsigned long)__v2a(ea),
-					mode_rw);
+			iSeries_make_pte(va, phys_to_abs(pa), mode_rw);
 	}
 }
 
@@ -675,7 +665,7 @@ extern unsigned long ppc_tb_freq;
 void __init iSeries_setup_arch(void)
 {
 	void *eventStack;
-	unsigned procIx = get_paca()->xLpPaca.xDynHvPhysicalProcIndex;
+	unsigned procIx = get_paca()->lppaca.xDynHvPhysicalProcIndex;
 
 	/* Add an eye catcher and the systemcfg layout version number */
 	strcpy(systemcfg->eye_catcher, "SYSTEMCFG:PPC64");
@@ -726,29 +716,6 @@ void __init iSeries_setup_arch(void)
 			tbFreqMhzHundreths);
 	systemcfg->processor = xIoHriProcessorVpd[procIx].xPVR;
 	printk("Processor version = %x\n", systemcfg->processor);
-}
-
-/*
- * int as400_setup_residual()
- *
- * Description:
- *   This routine pretty-prints CPU information gathered from the VPD    
- *   for use in /proc/cpuinfo                               
- *
- * Input(s):
- *  *buffer - Buffer into which CPU data is to be printed.             
- *
- * Output(s):
- *  *buffer - Buffer with CPU data.
- */
-void iSeries_setup_residual(struct seq_file *m, int cpu_id)
-{
-	seq_printf(m, "clock\t\t: %lu.%02luMhz\n", procFreqMhz,
-			procFreqMhzHundreths);
-	seq_printf(m, "time base\t: %lu.%02luMHz\n", tbFreqMhz,
-			tbFreqMhzHundreths);
-	seq_printf(m, "i-cache\t\t: %d\n", systemcfg->iCacheL1LineSize);
-	seq_printf(m, "d-cache\t\t: %d\n", systemcfg->dCacheL1LineSize);
 }
 
 void iSeries_get_cpuinfo(struct seq_file *m)
@@ -885,3 +852,12 @@ static void iSeries_setup_dprofile(void)
 		}
 	}
 }
+
+int __init iSeries_src_init(void)
+{
+        /* clear the progress line */
+        ppc_md.progress(" ", 0xffff);
+        return 0;
+}
+
+late_initcall(iSeries_src_init);

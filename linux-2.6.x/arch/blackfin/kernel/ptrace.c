@@ -1,8 +1,7 @@
 /*
  *  linux/arch/bfinnommu/kernel/ptrace.c
  *
- *  Copyright (C) 1994 by Hamish Macdonald
- *  Taken from linux/kernel/ptrace.c and modified for M680x0.
+ *  Taken from linux/kernel/ptrace.c and modified for blckfin.
  *  linux/kernel/ptrace.c is by Ross Biro 1/23/92, edited by Linus Torvalds
  *
  * This file is subject to the terms and conditions of the GNU General
@@ -263,7 +262,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 				goto out_tsk;
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 
-			tmp = get_reg(child, PT_SYSCFG) | (TRACE_BITS);
+			tmp = get_reg(child, PT_SYSCFG) | (TRACE_BITS << 16);
 			put_reg(child, PT_SYSCFG, tmp);
 
 			child->exit_code = data;
@@ -281,8 +280,6 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		case PTRACE_GETREGS: {
 
 		 /* Get all gp regs from the child. */
-#if 0	
-		/* not used for nisa at present -- STchen */
 		  	int i;
 			unsigned long tmp;
 			for (i = 0; i < 42; i++) {
@@ -294,7 +291,6 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			    }
 			    data += sizeof(long);
 			}
-#endif
 			ret = 0;
 			goto out_tsk;	
 		}
@@ -302,7 +298,6 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		case PTRACE_SETREGS: {
 
 		 /* Set all gp regs in the child. */
-#if 0
 			int i;
 			unsigned long tmp;
 			for (i = 0; i < 42; i++) {
@@ -317,31 +312,9 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			    put_reg(child, i, tmp);
 			    data += sizeof(long);
 			}
-#endif
 			ret = 0;
 			goto out_tsk;
 		}
-
-#ifdef PTRACE_GETFPREGS
-		case PTRACE_GETFPREGS: { /* Get the child FPU state. */
-			ret = 0;
-			if (copy_to_user((void *)data, &child->thread.fp,
-					 sizeof(struct user_m68kfp_struct)))
-				ret = -EFAULT;
-			goto out_tsk;
-		}
-#endif
-
-#ifdef PTRACE_SETFPREGS
-		case PTRACE_SETFPREGS: { /* Set the child FPU state. */
-			ret = 0;
-			if (copy_from_user(&child->thread.fp, (void *)data,
-					   sizeof(struct user_m68kfp_struct)))
-				ret = -EFAULT;
-			goto out_tsk;	
-		}
-#endif
-
 		default:
 			ret = -EIO;
 			goto out_tsk;

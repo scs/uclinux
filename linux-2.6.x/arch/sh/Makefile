@@ -5,7 +5,7 @@
 # for more details.
 #
 # Copyright (C) 1999  Kaz Kojima
-# Copyright (C) 2002, 2003  Paul Mundt
+# Copyright (C) 2002, 2003, 2004  Paul Mundt
 # Copyright (C) 2002  M. R. Brown
 #
 # This file is included by the global makefile so that you can add your own
@@ -35,7 +35,6 @@ cflags-$(CONFIG_CPU_SH4)		+= -m4 \
 
 cflags-$(CONFIG_SH_DSP)			+= -Wa,-dsp
 cflags-$(CONFIG_SH_KGDB)		+= -g
-cflags-$(CONFIG_EMBEDDED)		+= -Os
 
 cflags-$(CONFIG_MORE_COMPILE_OPTIONS)	+= \
 	$(shell echo $(CONFIG_COMPILE_OPTIONS) | sed -e 's/"//g')
@@ -65,10 +64,18 @@ LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
 
 core-y				+= arch/sh/kernel/ arch/sh/mm/
 
+#
+# ramdisk/initrd support
+# You need a compressed ramdisk image, named
+# CONFIG_EMBEDDED_RAMDISK_IMAGE. Relative pathnames
+# are relative to arch/sh/ramdisk/.
+#
+core-$(CONFIG_EMBEDDED_RAMDISK)	+= arch/sh/ramdisk/
+
 # Boards
 machdir-$(CONFIG_SH_SOLUTION_ENGINE)		:= se/770x
 machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	:= se/7751
-machdir-$(CONFIG_SH_7751_SYSTEMH)		:= systemh
+machdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)	:= se/7300
 machdir-$(CONFIG_SH_STB1_HARP)			:= harp
 machdir-$(CONFIG_SH_STB1_OVERDRIVE)		:= overdrive
 machdir-$(CONFIG_SH_HP620)			:= hp6xx/hp620
@@ -85,19 +92,24 @@ machdir-$(CONFIG_SH_SH2000)			:= sh2000
 machdir-$(CONFIG_SH_ADX)			:= adx
 machdir-$(CONFIG_SH_MPC1211)			:= mpc1211
 machdir-$(CONFIG_SH_SECUREEDGE5410)		:= snapgear
+machdir-$(CONFIG_SH_HS7751RVOIP)		:= renesas/hs7751rvoip
+machdir-$(CONFIG_SH_RTS7751R2D)			:= renesas/rts7751r2d
+machdir-$(CONFIG_SH_7751_SYSTEMH)		:= renesas/systemh
 machdir-$(CONFIG_SH_UNKNOWN)			:= unknown
 
-incdir-y			:= $(machdir-y)
+incdir-y			:= $(notdir $(machdir-y))
 
 incdir-$(CONFIG_SH_SOLUTION_ENGINE)		:= se
 incdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	:= se7751
+incdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)        := se7300
 incdir-$(CONFIG_SH_HP600)			:= hp6xx
 
 core-y				+= arch/sh/boards/$(machdir-y)/
 
 # Companion chips
-core-$(CONFIG_HD64461)	+= arch/sh/cchips/hd6446x/hd64461/
-core-$(CONFIG_HD64465)	+= arch/sh/cchips/hd6446x/hd64465/
+core-$(CONFIG_HD64461)		+= arch/sh/cchips/hd6446x/hd64461/
+core-$(CONFIG_HD64465)		+= arch/sh/cchips/hd6446x/hd64465/
+core-$(CONFIG_VOYAGERGX)	+= arch/sh/cchips/voyagergx/
 
 cpuincdir-$(CONFIG_CPU_SH2)	:= cpu-sh2
 cpuincdir-$(CONFIG_CPU_SH3)	:= cpu-sh3
@@ -115,6 +127,9 @@ AFLAGS_vmlinux.lds.o := -traditional
 prepare: target_links
 
 .PHONY: target_links FORCE
+
+all: zImage
+
 target_links:
 	@echo '  Making asm-sh/cpu -> asm-sh/$(cpuincdir-y) link'
 	@rm -f include/asm-sh/cpu
@@ -134,19 +149,7 @@ compressed: zImage
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-defconfig-%:
-	@echo '  Copying arch/sh/configs/$@ -> .config'
-	@if [ -e .config ]; then mv -f .config .config.old; fi
-	@cp -f arch/sh/configs/$@ .config
-	@chmod 644 .config
-
 define archhelp
-	@echo '  zImage		  - Compressed kernel image (arch/sh/boot/zImage)'
-	for board in arch/sh/configs/*; \
-	do \
-		 echo -n ' ' $$board | sed -e 's|arch/sh/configs/||g' ; \
-		 echo -n '  	  - Build for ' ; \
-		 echo -e $$board | sed -e 's|.*-||g'; \
-	done
+	@echo '  zImage 	           - Compressed kernel image (arch/sh/boot/zImage)'
 endef
 

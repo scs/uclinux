@@ -29,10 +29,6 @@ config BFIN
 	bool
 	default y
 
-config NISA
-	bool
-	default y
-
 source "init/Kconfig"
 
 menu "Processor type and features"
@@ -110,6 +106,13 @@ config LARGE_ALLOCS
 	  a lot of RAM, and you need to able to allocate very large
 	  contiguous chunks. If unsure, say N. 
 
+comment 'DMA Support'
+
+config BLKFIN_DMA
+	bool 'Enable DMA Support'
+	depends on BF533
+	default n
+
 comment 'Cache Support'
 config	BLKFIN_CACHE 
 	bool "Enable CACHE" 
@@ -117,6 +120,15 @@ config	BLKFIN_DCACHE
 	bool "Enable DCACHE" 
 config 	BLKFIN_CACHE_LOCK
 	bool "Enable Cache Locking"
+
+choice
+	prompt "Policy"
+	default BLKFIN_WB
+config 	BLKFIN_WB
+	bool "Write back"
+config	BLKFIN_WT
+	bool "Write through"	
+endchoice
 
 comment 'Crystal Frequency'
 

@@ -10,7 +10,7 @@
 
 #include <linux/linkage.h>
 #include <asm/cplb.h>
-#include <asm/board/bf533.h>
+#include <asm/blackfin.h>
 
 .text
 

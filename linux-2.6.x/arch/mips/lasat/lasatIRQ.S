@@ -2,8 +2,6 @@
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 1999, 2000 MIPS Technologies, Inc.  All rights reserved.
  *
- * ########################################################################
- *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -17,13 +15,8 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
- * ########################################################################
- *
  * Interrupt exception dispatch code.
- *
  */
-#include <linux/config.h>
-
 #include <asm/asm.h>
 #include <asm/mipsregs.h>
 #include <asm/regdef.h>
@@ -31,12 +24,13 @@
 
 	.text
 	.set	noreorder
-	.set	noat
 	.align	5
-	NESTED(mipsIRQ, PT_SIZE, sp)
+	NESTED(lasatIRQ, PT_SIZE, sp)
+	.set	noat
 	SAVE_ALL
 	CLI
 	.set	at
+	.set	noreorder
 
 	mfc0	s0, CP0_CAUSE		# get irq mask
 
@@ -46,9 +40,9 @@
 	 andi	a0, s0, CAUSEF_IP2	# delay slot, check hw0 interrupt
 
 	/* Wheee, a timer interrupt. */
-	move	a0, sp
-	jal	lasat_timer_interrupt
-	 nop
+	li	a0, 7
+	jal	ll_timer_interrupt
+	 move	a1, sp
 
 	j	ret_from_irq
 	 nop
@@ -72,4 +66,4 @@
 
 	j	ret_from_irq
 	 nop
-	END(mipsIRQ)
+	END(lasatIRQ)

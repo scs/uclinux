@@ -30,6 +30,7 @@
 .type __cplb_miss_without_replacement, STT_FUNC;
 .extern __cplb_protection_violation;
 .type __cplb_protection_violation, STT_FUNC;
+.extern panic_pv;
 
 .align 2;
 
@@ -125,16 +126,28 @@ strange_return_from_cplb_mgr:
 
 
 /************************************
- * Diagnostic exception handlers - TODO
+ * Diagnostic exception handlers 
  */	
 
 __cplb_miss_all_locked:
+	sp += -12;
+	R0 = CPLB_NO_UNLOCKED;
+	call panic_bfin;
+	SP += 12;
 	RTS;
 
  __cplb_miss_without_replacement:
+	sp += -12;
+	R0 = CPLB_NO_ADDR_MATCH;
+	call panic_bfin;
+	SP += 12;
 	RTS;
 
 __cplb_protection_violation:
+	sp += -12;
+	R0 = CPLB_PROT_VIOL;
+	call panic_bfin;
+	SP += 12;
 	RTS;
 
 

@@ -2,25 +2,16 @@
  *
  * Startup code for Blackfin BF533 
  *
- * Copyright 2001 (C) SED Systems, a Division of Calian Ltd.
- * Based on: arch/m68knommu/platform/68328/pilot/crt0_rom.S
- * Based on: arch/m68knommu/platform/68360/uCquicc/crt0_rom.S, 2.0.38.1.pre7
- *           uClinux Kernel
- * Copyright (C) Michael Leslie <mleslie@lineo.com>
- * Based on: arch/m68knommu/platform/68EZ328/ucsimm/crt0_rom.S
- * Copyright (C) 1998  D. Jeff Dionne <jeff@uclinux.org>,
- * 
+ * Copyright (C) 1998  D. Jeff Dionne <jeff@uclinux.org>
  * Copyright (C) 2004 LG Soft India 
  * Based on: arch/bfinnommu/platform/535/ADI/crt0_ram.S
  *
  */
 
 #include <linux/config.h>
-#include <asm/board/bf533.h>
-#include <asm/board/bf533_serial.h>
+#include <asm/blackfin.h>
 
 .global _rambase
-.global _ramvec
 .global _ramstart
 .global _ramend
 .global _stext
@@ -41,8 +32,8 @@ _stext:
 #ifdef CONFIG_BLKFIN_STAMP 
 
 	cli r2;
-	p0.h = (PLLCTL_ADDR >> 16);
-	p0.l = (PLLCTL_ADDR & 0xFFFF);
+	p0.h = (PLL_CTL >> 16);
+	p0.l = (PLL_CTL & 0xFFFF);
 	/*r0 = CCLK_550;*/	/* 550 MHz CCLK and 110 MHz SCLK*/
 	r0 = 0x4800 ;
 	w[p0] = r0;
@@ -52,12 +43,12 @@ _stext:
 
 /********************/
 
-	p0.h = (PLLDIV_ADDR >> 16);
-	p0.l = (PLLDIV_ADDR & 0xFFFF);
+	p0.h = (PLL_DIV >> 16);
+	p0.l = (PLL_DIV & 0xFFFF);
 	r0 = 0x5 ;
 	w[p0] = r0;
 
-/************************/
+/**********************/
 
 	p1.l = DELAY_STMP;
 	p1.h = 0x0;
@@ -66,41 +57,41 @@ _stext:
 del_start:
 	nop;
 del_end:
-	p0.h = (UART_GCTL_ADDR>>16);
-	p0.l = (UART_GCTL_ADDR & 0xFFFF);
-	r0 = UART_GCTL_UCEN;
+	p0.h = (UART_GCTL>>16);
+	p0.l = (UART_GCTL & 0xFFFF);
+	r0 = UCEN;
 	w[p0] = r0;	/* To enable UART clock */
 	ssync;
 
-	p0.h = (UART_LCR_ADDR >> 16);
-	p0.l = (UART_LCR_ADDR & 0xFFFF);
-	r0 = UART_LCR_DLAB;	
+	p0.h = (UART_LCR >> 16);
+	p0.l = (UART_LCR & 0xFFFF);
+	r0 = DLAB;	
 	w[p0] = r0;	/* To enable DLL writes */
 	ssync;
 
-	p0.h = (UART_DLL_ADDR >> 16);
-	p0.l = (UART_DLL_ADDR & 0xFFFF);
+	p0.h = (UART_DLL >> 16);
+	p0.l = (UART_DLL & 0xFFFF);
 	r0 = 0x6b;	/* sys clock with 99MHz */
 	w[p0] = r0;
 	ssync;
 
-	p0.h = (UART_DLH_ADDR >> 16);
-	p0.l = (UART_DLH_ADDR & 0xFFFF);
+	p0.h = (UART_DLH >> 16);
+	p0.l = (UART_DLH & 0xFFFF);
 	r0 = 0x00;
 	w[p0] = r0;
 	ssync;
 
-	p0.h = (UART_LCR_ADDR >> 16);
-	p0.l = (UART_LCR_ADDR & 0xFFFF);	/* To enable writes to THR */
-	r0 = UART_LCR_WLS8;	
+	p0.h = (UART_LCR >> 16);
+	p0.l = (UART_LCR & 0xFFFF);	/* To enable writes to THR */
+	r0 = WLS(8);	
 	w[p0] = r0;
 	ssync;
 #endif
 		
 #ifdef CONFIG_EZKIT
 	cli r2;
-	p0.h = (PLLCTL_ADDR >> 16); 
-	p0.l = (PLLCTL_ADDR & 0xFFFF);
+	p0.h = (PLL_CTL >> 16); 
+	p0.l = (PLL_CTL & 0xFFFF);
 	r0 = CCLK_594; /* 27 * 22 = 594MHZ core clock, sclk = 118.8MHz */
 	w[p0] = r0;
 	idle;
@@ -119,22 +110,22 @@ del_end:
 #endif
 	/* Code for initializing Async memory banks */
 
-        p2.h = (EBIU_AMBCTL1_ADDR >> 16);
-        p2.l = (EBIU_AMBCTL1_ADDR & 0xFFFF);
+        p2.h = (EBIU_AMBCTL1 >> 16);
+        p2.l = (EBIU_AMBCTL1 & 0xFFFF);
         r0.h = (AMBCTL1VAL >> 16); 
         r0.l = (AMBCTL1VAL & 0xffff); 
         [p2] = r0;
         ssync;
 
-        p2.h = (EBIU_AMBCTL0_ADDR >> 16);
-        p2.l = (EBIU_AMBCTL0_ADDR & 0xFFFF);
+        p2.h = (EBIU_AMBCTL0 >> 16);
+        p2.l = (EBIU_AMBCTL0 & 0xFFFF);
         r0.h = (AMBCTL0VAL >> 16); 
         r0.l = (AMBCTL0VAL & 0xffff);
         [p2] = r0;
         ssync;
 
-        p2.h = (EBIU_AMGCTL_ADDR >> 16);
-        p2.l = (EBIU_AMGCTL_ADDR & 0xffff);
+        p2.h = (EBIU_AMGCTL >> 16);
+        p2.l = (EBIU_AMGCTL & 0xffff);
         r0 = AMGCTLVAL; 
         w[p2] = r0;
         ssync;
@@ -147,14 +138,14 @@ del_end:
 
 	/* EVT15 = _real_start */
 
-	p0.l = (EVT_IVG15_ADDR & 0xFFFF);
-	p0.h = (EVT_IVG15_ADDR >> 16);
+	p0.l = (EVT15 & 0xFFFF);
+	p0.h = (EVT15 >> 16);
 	p1.l = _real_start;
 	p1.h = _real_start;
 	[p0] = p1;
 
-	p0.l = (IMASK_ADDR & 0xFFFF);
-	p0.h = (IMASK_ADDR >> 16);
+	p0.l = (IMASK & 0xFFFF);
+	p0.h = (IMASK >> 16);
 	p1.l = IMASK_IVG15;
 	p1.h = 0x0;
 	[p0] = p1;
@@ -172,30 +163,10 @@ WAIT_HERE:
 .global _real_start; 
 _real_start:
 	[ -- sp ] = reti;
-	p0.l = (WDOGCTL_ADDR & 0xFFFF);
-	p0.h = (WDOGCTL_ADDR >> 16);
+	p0.l = (WDOG_CTL & 0xFFFF);
+	p0.h = (WDOG_CTL >> 16);
 	r0 = 0xD6(z);
 	w[p0] = r0;	/* watchdog off for now */
-
-/* copy data section to RAM */
-
-/*
- *	p1.l = ramdisk_begin;
- *	p1.h = ramdisk_begin;
- *	p2.l = 0x0000;
- *	p2.h = 0x0060;
- *	r0.h = 0x0020;
- *	r0.l = 0xd000;	
-*loop:	r1 = [p1];
- *	[p2] = r1;
- *	p3=0x4;
- *	p1=p1+p3;	
- *	p2=p2+p3;
- *	r2=0x4;	
- *	r0=r0-r2;
- *	cc=r0==0x0;
- *	if !cc jump loop;
- */
 
 	/* Code update for BSS size == 0
 	 * Zero out the bss region.
@@ -225,14 +196,8 @@ _clear_bss_skip:	/* to skip bss clear */
 	r0.l = _end;
 	r0.h = _end;
 	[p1] = r0;
-#ifdef CONFIG_BLKFIN_STAMP
-	r0.l = 0x0000;
-	r0.h = 0x0100;
-#endif
-#ifdef CONFIG_EZKIT
-	r0.l = 0x0000;
-	r0.h = 0x0100;
-#endif
+	r0.l = (RAM_END & 0xFFFF);
+	r0.h = (RAM_END >> 16);
 	p1.l = _ramend;
 	p1.h = _ramend; 
 	[p1] = r0;
@@ -242,6 +207,7 @@ _clear_bss_skip:	/* to skip bss clear */
 	 */
 	r1.l = init_thread_union;	
 	r1.h = init_thread_union;
+
 	p1.l = _current_task;
 	p1.h = _current_task;
 	[p1] = r1;
@@ -267,8 +233,6 @@ _exit:
  */
 
 .align 4
-_ramvec:
-.long   0
 _rambase:
 .long   0
 _ramstart:

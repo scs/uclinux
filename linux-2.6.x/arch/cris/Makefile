@@ -34,7 +34,7 @@ AFLAGS += -mlinux
 
 CFLAGS := $(CFLAGS) -mlinux -march=$(arch-y) -pipe
 
-ifdef CONFIG_ETRAX_KGDB
+ifdef CONFIG_FRAME_POINTER
 CFLAGS := $(subst -fomit-frame-pointer,,$(CFLAGS)) -g
 CFLAGS += -fno-omit-frame-pointer
 endif
@@ -81,7 +81,7 @@ compressed: zImage
 
 archmrproper:
 archclean:
-	$(Q)$(MAKE) -f scripts/Makefile.clean obj=arch/$(ARCH)/boot	
+	$(Q)$(MAKE) $(clean)=arch/$(ARCH)/boot
 	rm -f timage vmlinux.bin cramfs.img
 	rm -rf $(LD_SCRIPT).tmp
 
@@ -90,10 +90,14 @@ prepare: arch/$(ARCH)/.links include/asm-$(ARCH)/.arch \
 
 # Create some links to make all tools happy
 arch/$(ARCH)/.links:
+	@rm -rf arch/$(ARCH)/drivers
 	@ln -sfn $(SARCH)/drivers arch/$(ARCH)/drivers
+	@rm -rf arch/$(ARCH)/boot
 	@ln -sfn $(SARCH)/boot arch/$(ARCH)/boot
+	@rm -rf arch/$(ARCH)/lib
 	@ln -sfn $(SARCH)/lib arch/$(ARCH)/lib
-	@ln -sfn $(SARCH)/vmlinux.lds.S arch/$(ARCH)/kernel/vmlinux.lds.S
+	@ln -sfn $(SARCH) arch/$(ARCH)/arch
+	@ln -sfn ../$(SARCH)/vmlinux.lds.S arch/$(ARCH)/kernel/vmlinux.lds.S
 	@touch $@
 
 # Create link to sub arch includes

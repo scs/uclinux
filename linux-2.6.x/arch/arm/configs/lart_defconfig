@@ -44,7 +44,6 @@ CONFIG_KMOD=y
 # System Type
 #
 # CONFIG_ARCH_ADIFCC is not set
-# CONFIG_ARCH_ANAKIN is not set
 # CONFIG_ARCH_CLPS7500 is not set
 # CONFIG_ARCH_CLPS711X is not set
 # CONFIG_ARCH_CO285 is not set
@@ -308,7 +307,6 @@ CONFIG_IPV6_SCTP__=y
 # CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
-# CONFIG_NET_FASTROUTE is not set
 # CONFIG_NET_HW_FLOWCONTROL is not set
 
 #
@@ -470,7 +468,6 @@ CONFIG_BLK_DEV_IDECD=m
 # CONFIG_IDE_CHIPSETS is not set
 # CONFIG_BLK_DEV_IDEDMA is not set
 # CONFIG_IDEDMA_AUTO is not set
-# CONFIG_DMA_NONPCI is not set
 # CONFIG_BLK_DEV_HD is not set
 
 #

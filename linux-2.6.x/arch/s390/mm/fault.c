@@ -87,12 +87,12 @@ static int __check_access_register(struct pt_regs *regs, int error_code)
 	if (areg == 0)
 		/* Access via access register 0 -> kernel address */
 		return 0;
-	if (regs && areg < NUM_ACRS && regs->acrs[areg] <= 1)
+	if (regs && areg < NUM_ACRS && current->thread.acrs[areg] <= 1)
 		/*
 		 * access register contains 0 -> kernel address,
 		 * access register contains 1 -> user space address
 		 */
-		return regs->acrs[areg];
+		return current->thread.acrs[areg];
 
 	/* Something unhealthy was done with the access registers... */
 	die("page fault via unknown access register", regs, error_code);
@@ -115,8 +115,10 @@ static inline int check_user_space(struct pt_regs *regs, int error_code)
 	 *   3: Home Segment Table Descriptor
 	 */
 	int descriptor = S390_lowcore.trans_exc_code & 3;
-	if (descriptor == 1)
+	if (descriptor == 1) {
+		save_access_regs(current->thread.acrs);
 		return __check_access_register(regs, error_code);
+	}
 	return descriptor >> 1;
 }
 
@@ -157,7 +159,8 @@ static void force_sigsegv(struct pt_regs *regs, unsigned long error_code,
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)
  */
-extern inline void do_exception(struct pt_regs *regs, unsigned long error_code)
+extern inline void
+do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
 {
         struct task_struct *tsk;
         struct mm_struct *mm;
@@ -175,7 +178,7 @@ extern inline void do_exception(struct pt_regs *regs, unsigned long error_code)
 	 * as a special case because the translation exception code 
 	 * field is not guaranteed to contain valid data in this case.
 	 */
-	if (error_code == 4 && !(S390_lowcore.trans_exc_code & 4)) {
+	if (is_protection && !(S390_lowcore.trans_exc_code & 4)) {
 
 		/* Low-address protection hit in kernel mode means 
 		   NULL pointer write access in kernel mode.  */
@@ -230,7 +233,7 @@ extern inline void do_exception(struct pt_regs *regs, unsigned long error_code)
  */
 good_area:
 	si_code = SEGV_ACCERR;
-	if (error_code != 4) {
+	if (!is_protection) {
 		/* page not present, check vm flags */
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
 			goto bad_area;
@@ -245,7 +248,7 @@ survive:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	switch (handle_mm_fault(mm, vma, address, error_code == 4)) {
+	switch (handle_mm_fault(mm, vma, address, is_protection)) {
 	case VM_FAULT_MINOR:
 		tsk->min_flt++;
 		break;
@@ -261,6 +264,11 @@ survive:
 	}
 
         up_read(&mm->mmap_sem);
+	/*
+	 * The instruction that caused the program check will
+	 * be repeated. Don't signal single step via SIGTRAP.
+	 */
+	clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
         return;
 
 /*
@@ -335,28 +343,15 @@ do_sigbus:
 void do_protection_exception(struct pt_regs *regs, unsigned long error_code)
 {
 	regs->psw.addr -= (error_code >> 16);
-	do_exception(regs, 4);
+	do_exception(regs, 4, 1);
 }
 
-void do_segment_exception(struct pt_regs *regs, unsigned long error_code)
+void do_dat_exception(struct pt_regs *regs, unsigned long error_code)
 {
-	do_exception(regs, 0x10);
+	do_exception(regs, error_code & 0xff, 0);
 }
 
-void do_page_exception(struct pt_regs *regs, unsigned long error_code)
-{
-	do_exception(regs, 0x11);
-}
-
-#ifdef CONFIG_ARCH_S390X
-
-void
-do_region_exception(struct pt_regs *regs, unsigned long error_code)
-{
-	do_exception(regs, 0x3b);
-}
-
-#else /* CONFIG_ARCH_S390X */
+#ifndef CONFIG_ARCH_S390X
 
 typedef struct _pseudo_wait_t {
        struct _pseudo_wait_t *next;
@@ -454,6 +449,11 @@ do_pseudo_page_fault(struct pt_regs *regs, unsigned long error_code)
                 wait_struct.next = pseudo_lock_queue;
                 pseudo_lock_queue = &wait_struct;
                 spin_unlock(&pseudo_wait_spinlock);
+		/*
+		 * The instruction that caused the program check will
+		 * be repeated. Don't signal single step via SIGTRAP.
+		 */
+		clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
                 /* go to sleep */
                 wait_event(wait_struct.queue, wait_struct.resolved);
         }

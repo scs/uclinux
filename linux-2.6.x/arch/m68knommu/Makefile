@@ -33,6 +33,7 @@ board-$(CONFIG_eLIA)		:= eLIA
 board-$(CONFIG_NETtel)		:= NETtel
 board-$(CONFIG_SECUREEDGEMP3)	:= MP3
 board-$(CONFIG_CLEOPATRA)	:= CLEOPATRA
+board-$(CONFIG_senTec) 	:= senTec
 BOARD := $(board-y)
 
 model-$(CONFIG_RAMKERNEL)	:= ram
@@ -81,7 +82,7 @@ AFLAGS += $(cflags-y)
 
 CFLAGS += $(cflags-y)
 CFLAGS += -fno-builtin
-CFLAGS += -Os -g
+CFLAGS += -O2 -g
 CFLAGS += -D__linux__
 CFLAGS += -DUTS_SYSNAME=\"uClinux\"
 

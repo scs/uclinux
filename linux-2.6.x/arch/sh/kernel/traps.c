@@ -559,7 +559,7 @@ int is_dsp_inst(struct pt_regs *regs)
 	 * Safe guard if DSP mode is already enabled or we're lacking
 	 * the DSP altogether.
 	 */
-	if (!test_bit(CPU_HAS_DSP, &(cpu_data->flags)) || (regs->sr & SR_DSP))
+	if (!(cpu_data->flags & CPU_HAS_DSP) || (regs->sr & SR_DSP))
 		return 0;
 
 	get_user(inst, ((unsigned short *) regs->pc));
@@ -636,7 +636,7 @@ void __init trap_init(void)
 		= (void *)do_illegal_slot_inst;
 
 #ifdef CONFIG_CPU_SH4
-	if (!test_bit(CPU_HAS_FPU, &(cpu_data->flags))) {
+	if (!(cpu_data->flags & CPU_HAS_FPU)) {
 		/* For SH-4 lacking an FPU, treat floating point instructions
 		   as reserved. */
 		/* entry 64 corresponds to EXPEVT=0x800 */
@@ -655,6 +655,10 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 	unsigned long module_start = VMALLOC_START;
 	unsigned long module_end = VMALLOC_END;
 	int i = 1;
+
+	if (tsk && !sp) {
+		sp = (unsigned long *)tsk->thread.sp;
+	}
 
 	if (!sp) {
 		__asm__ __volatile__ (
@@ -701,14 +705,8 @@ void show_task(unsigned long *sp)
 	show_stack(NULL, sp);
 }
 
-void show_trace_task(struct task_struct *tsk)
-{
-	show_task((unsigned long *)tsk->thread.sp);
-}
-
 void dump_stack(void)
 {
 	show_stack(NULL, NULL);
 }
-
 EXPORT_SYMBOL(dump_stack);

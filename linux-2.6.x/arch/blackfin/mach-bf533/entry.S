@@ -1,8 +1,6 @@
 /* 
  *  linux/arch/bfinnommu/mach-bf533/entry.S
  *
- *  Copyright (C) 2003        Bas Vermeulen <bas@buyways.nl>,
- *                            BuyWays B.V. (www.buyways.nl)
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2004        LG Soft India
  *
@@ -10,8 +8,6 @@
  * License.  See the file README.legal in the main directory of this archive
  * for more details.
  *
- * Linux/bfin support: Tony Kou & Metrowerks
- * BlackFin BF533 fixes: Bas Vermeulen & BuyWays B.V.
  * Blackfin BF533/2.6 fixes : LG Soft India	
  */
 
@@ -54,7 +50,7 @@ ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
         r0 = [p2];              /* Read current IPEND */
         [sp + PT_IPEND] = r0;   /* Store IPEND */
 
-	r1 = [sp + PT_SEQSTAT];	/* reason code is it bit 5:0 */
+	r1 = [sp + PT_SEQSTAT];	/* reason code is in bit 5:0 */
 	r0.l = 0x3f;
 	r0.h = 0x0;
 	r1 = r1 & r0;
@@ -81,7 +77,7 @@ do_trace:
 	[sp + PT_R0] = r7;	/* needed for strace */
 	sp += -4;		/* why minus then plus again ??? Tony */
 	SP += -12;
-	call syscall_trace; 	/* void syscall_trace(void) */ 
+	call syscall_trace; 
 	SP += 12;
 	sp += 4;
 	r5 = [sp+PT_R5];
@@ -129,6 +125,7 @@ ENTRY(system_call)
 	if ! cc jump badsys;
 
 	/* Execute the appropriate system call */
+
 	p4 = r5;
 	p5.l = sys_call_table;
 	p5.h = sys_call_table;
@@ -137,24 +134,28 @@ ENTRY(system_call)
 	r1 = [sp + PT_R1];
 	r2 = [sp + PT_R2];
 	p5 = [p5];
-	r6 = 0x8e;	/*FIXME for select call*/
+
+	r6 = __NR__newselect;		/*FIX for select call*/
 	cc = r5 == r6;
 	if cc jump l_next;
-	r6 = 0xae;	/*FIXME for rt_sigaction call*/
+
+	r6 = __NR_rt_sigaction;		/*FIX for rt_sigaction call*/
 	cc = r5 == r6;
 	if cc jump l_next_4;
 
-	r6 = 0x72;	/*FIXME for wait4 call*/
+	r6 = __NR_wait4;		/*FIX for wait4 call*/
 	cc = r5 == r6;
 	if cc jump l_next_4;
-#if 0
-	r6 = 0xaf;	/*FIXME for rt_sigprocmask call*/
+#if 1 
+	r6 = __NR_rt_sigprocmask;	/*FIX for rt_sigprocmask call*/
 	cc = r5 == r6;
 	if cc jump l_next_4;
-	r6 = 0xb1;	/*FIXME for rt_sigtimedwait call*/
+
+	r6 = __NR_rt_sigtimedwait;	/*FIX for rt_sigtimedwait call*/
 	cc = r5 == r6;
 	if cc jump l_next_4;
-	r6 = 0x15;	/*FIXME for mount call*/
+
+	r6 = __NR_mount;		/*FIX for mount call*/
 	cc = r5 == r6;
 	if cc jump l_next;
 #endif
@@ -217,7 +218,7 @@ kernel_to_user_mode:
 	r0 = [sp++];
 	reti = r0;
 	rti;
-	
+
 resume:
 	/*
 	 * Beware - when entering resume, prev (the current task) is
@@ -247,7 +248,7 @@ resume:
 	r1.h = new_old_task;
 	[p0+(TASK_THREAD+THREAD_PC)] = r1;
 
-	/* Return previous task in %r1 */
+	/* Return previous task in r1 */
 	r1.l = _current_task;
 	r1.h = _current_task;
 

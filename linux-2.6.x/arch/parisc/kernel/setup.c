@@ -44,14 +44,15 @@
 #include <asm/machdep.h>	/* for pa7300lc_init() proto */
 #include <asm/pdc_chassis.h>
 #include <asm/io.h>
+#include <asm/setup.h>
 
-#define COMMAND_LINE_SIZE 1024
-char	saved_command_line[COMMAND_LINE_SIZE];
 char	command_line[COMMAND_LINE_SIZE];
 
 /* Intended for ccio/sba/cpu statistics under /proc/bus/{runway|gsc} */
 struct proc_dir_entry * proc_runway_root = NULL;
 struct proc_dir_entry * proc_gsc_root = NULL;
+struct proc_dir_entry * proc_mckinley_root = NULL;
+
 
 void __init setup_cmdline(char **cmdline_p)
 {
@@ -121,8 +122,11 @@ void __init setup_arch(char **cmdline_p)
 
 	pdc_console_init();
 
-#ifdef CONFIG_PDC_NARROW
-	printk(KERN_INFO "Kernel is using PDC in 32-bit mode.\n");
+#ifdef __LP64__
+	extern int parisc_narrow_firmware;
+	if(parisc_narrow_firmware) {
+		printk(KERN_INFO "Kernel is using PDC in 32-bit mode.\n");
+	}
 #endif
 	setup_pdc();
 	setup_cmdline(cmdline_p);
@@ -207,6 +211,12 @@ static void __init parisc_proc_mkdir(void)
                 if (NULL == proc_runway_root)
                 {
                         proc_runway_root = proc_mkdir("bus/runway", 0);
+                }
+                break;
+	case mako:
+                if (NULL == proc_mckinley_root)
+                {
+                        proc_mckinley_root = proc_mkdir("bus/mckinley", 0);
                 }
                 break;
 	default:

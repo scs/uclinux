@@ -6,9 +6,6 @@
  *  Copyright (C) 1999,2000  Greg Ungerer (gerg@lineo.com)
  *  Copyright (C) 1998,1999  D. Jeff Dionne <jeff@lineo.ca>
  *  Copyright (C) 1998       Kenneth Albanowski <kjahds@kjahds.com>
- *  Copyright (C) 1995       Hamish Macdonald
- *  Copyright (C) 2000       Lineo Inc. (www.lineo.com) 
- *  Copyright (C) 2003	     Metrowerks
  *  Copyright (C) 2004	     LG Soft India
  */
 
@@ -35,6 +32,7 @@
 #include <asm/pgtable.h>
 #endif
 #include <asm/cacheflush.h>
+#include <asm/blackfin.h>
 
 
 #ifdef CONFIG_CONSOLE
@@ -49,8 +47,7 @@ unsigned long memory_start;
 unsigned long memory_end;
 
 
-char command_line[512];
-char saved_command_line[512];
+char command_line[COMMAND_LINE_SIZE];
 
 u_long vco = 0; 
 
@@ -63,7 +60,7 @@ void __you_cannot_kmalloc_that_much(void)
 {
 }
 
-void (*mach_sched_init) (void (*handler)(int, void *, struct pt_regs *)) = NULL;
+void (*mach_sched_init) (int (*handler)(int, void *, struct pt_regs *)) = NULL;
 void (*mach_tick)( void ) = NULL;
 
 /* machine dependent keyboard functions */
@@ -73,7 +70,7 @@ void (*mach_kbd_leds) (unsigned int) = NULL;
 
 /* machine dependent irq functions */
 int (*mach_init_IRQ) (void) = NULL;
-void (*(*mach_default_handler)[]) (int, void *, struct pt_regs *) = NULL;
+irqreturn_t (*(*mach_default_handler)[]) (int, void *, struct pt_regs *) = NULL;
 int (*mach_request_irq) (unsigned int, int (*)(int, void *, struct pt_regs *),
                          unsigned long, const char *, void *);
 void (*mach_free_irq) (unsigned int irq, void *dev_id) = NULL;
@@ -102,6 +99,7 @@ u_long get_sclk(void);
 extern void icache_init(void);
 extern void dcache_init(void);
 extern int read_iloc(void);
+void panic_pv(void);
 	
 #define DEBUG 1
 #ifdef CONFIG_BFIN
@@ -176,7 +174,7 @@ void setup_arch(char **cmdline_p)
 	init_mm.start_code = (unsigned long) &_stext;
 	init_mm.end_code = (unsigned long) &_etext;
 	init_mm.end_data = (unsigned long) &_edata;
-	init_mm.brk = (unsigned long) 0;	/*BFin*/
+	init_mm.brk = (unsigned long) 0;	
 	
 	config_BSP(&command_line[0], sizeof(command_line));
 
@@ -207,8 +205,8 @@ void setup_arch(char **cmdline_p)
 
 	/* Keep a copy of command line */
 	*cmdline_p = &command_line[0];
-	memcpy(saved_command_line, command_line, sizeof(saved_command_line));
-	saved_command_line[sizeof(saved_command_line)-1] = 0;
+	memcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
+	saved_command_line[COMMAND_LINE_SIZE-1] = 0;
 
 #ifdef DEBUG
 	if (strlen(*cmdline_p)) 
@@ -245,37 +243,7 @@ void setup_arch(char **cmdline_p)
 	 */
 	paging_init();
 
-#ifdef CONFIG_BLKFIN_CACHE
 	bf53x_cache_init();
-#endif
-}
-
-int get_cpuinfo(char * buffer)
-{
-    char *cpu, *mmu, *fpu;
-    u_long clockfreq;
-
-    cpu = CPU;
-    mmu = "none";
-    fpu = "none";
-
-#ifdef CONFIG_BFIN
-    clockfreq = (loops_per_jiffy*HZ)*3;
-#else
-    clockfreq = (loops_per_jiffy*HZ)*16; 
-#endif
-
-    return(sprintf(buffer, "CPU:\t\t%s\n"
-		   "MMU:\t\t%s\n"
-		   "FPU:\t\t%s\n"
-		   "Clocking:\t%lu.%1luMHz\n"
-		   "BogoMips:\t%lu.%02lu\n"
-		   "Calibration:\t%lu loops\n",
-		   cpu, mmu, fpu,
-		   clockfreq/1000000,(clockfreq/100000)%10,
-		   (loops_per_jiffy*HZ)/500000,((loops_per_jiffy*HZ)/5000)%100,
-		   (loops_per_jiffy*HZ)));
-
 }
 
 /*Get the Core clock*/
@@ -283,17 +251,17 @@ u_long get_cclk()
 {
 	u_long cclk = 0;
 
-	vco = (CONFIG_CLKIN * 1000000) * ((PLLCTL >> 9)& 0x3F);
-	if(((PLLDIV >> 4) && 0x03) == 0)
+	vco = (CONFIG_CLKIN * 1000000) * ((*pPLL_CTL >> 9)& 0x3F);
+	if(((*pPLL_DIV >> 4) && 0x03) == 0)
 		cclk = vco;
 
-	else if(((PLLDIV >> 4) && 0x03) == 1)
+	else if(((*pPLL_DIV >> 4) && 0x03) == 1)
 		cclk = vco/2;
 
-	else if(((PLLDIV >> 4) && 0x03) == 2)
+	else if(((*pPLL_DIV >> 4) && 0x03) == 2)
 		cclk = vco/4;
 
-	else if(((PLLDIV >> 4) && 0x03) == 3)
+	else if(((*pPLL_DIV >> 4) && 0x03) == 3)
 		cclk = vco/8;
 	
 	return (cclk/1000000);
@@ -304,10 +272,10 @@ u_long get_sclk()
 {
 	u_long sclk=0;
 	
-	vco = (CONFIG_CLKIN * 1000000) * ((PLLCTL >> 9)& 0x3F);
+	vco = (CONFIG_CLKIN * 1000000) * ((*pPLL_CTL >> 9)& 0x3F);
 	
-	if((PLLDIV & 0xf) != 0)
-		sclk = vco/(PLLDIV & 0xf);
+	if((*pPLL_DIV & 0xf) != 0)
+		sclk = vco/(*pPLL_DIV & 0xf);
 	else
 		printk("Invalid System Clock\n");	
 
@@ -360,7 +328,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "I-CACHE:\tON\n");
 	else
 		seq_printf(m, "I-CACHE:\tOFF\n");		
-        if((*(volatile unsigned long *)DMEM_CONTROL) & (ENDCPLB | DMC_531_ENABLE))
+        if((*(volatile unsigned long *)DMEM_CONTROL) & (ENDCPLB | DMC_ENABLE))
 		seq_printf(m, "D-CACHE:\tON\n");
 	else
 		seq_printf(m, "D-CACHE:\tOFF\n");		
@@ -457,22 +425,19 @@ void arch_gettod(int *year, int *mon, int *day, int *hour,
 		*year = *mon = *day = *hour = *min = *sec = 0;
 }
 
-/* Routine to check the CPLB misses handling and management
- * by the _cplb_mgr CPLB manager.
- */
-/*
-void create_cplb_miss(void)
+/*blackfin panic*/
+void panic_bfin(int cplb_panic)
 {
-	unsigned long temp;
-	volatile unsigned long *temp1 = (unsigned long *)0x4000000;
-	temp = (unsigned long)*temp1;
-	*temp1 = 0x13;
-	printk("temp1 = %x\n",*temp1);
-	temp = (unsigned long)*temp1;
-	printk("temp1 = %x\n",*temp1);
-	temp1 = (unsigned long*)0x4800000;
-	printk("temp1 = %x\n",*temp1);
-		
+	switch(cplb_panic)
+	{
+	
+	case CPLB_NO_UNLOCKED:
+		panic("All CPLBs are locked\n");
+		break;
+	case CPLB_PROT_VIOL:
+		panic("Data Access CPLB Protection Voilation \n");
+		break;
+	case CPLB_NO_ADDR_MATCH:
+		panic("No CPLB Address Match \n");
+	}
 }
-*/
-

@@ -263,7 +263,7 @@ decompress_kernel()
 	__asm__ volatile ("move vr,%0" : "=rm" (revision));
 	if (revision < 10)
 	{
-		puts("You need an ETRAX 100LX to run linux 2.4\n");
+		puts("You need an ETRAX 100LX to run linux 2.6\n");
 		while(1);
 	}
 

@@ -28,6 +28,7 @@
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
+#include <linux/syscalls.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
@@ -46,8 +47,6 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-asmlinkage long sys_wait4(pid_t pid, unsigned int * stat_addr, int options,
-			struct rusage * ru);
 asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs);
 
 /*
@@ -193,6 +192,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, void *fp,
 	regs->er1 = context.sc_er1;
 	regs->er2 = context.sc_er2;
 	regs->er3 = context.sc_er3;
+	regs->er5 = context.sc_er5;
 	regs->ccr = (regs->ccr & 0x10)|(context.sc_ccr & 0xef);
 	regs->pc = context.sc_pc;
 	regs->orig_er0 = -1;		/* disable syscall checks */
@@ -309,6 +309,7 @@ static void setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 	sc->sc_er1 = regs->er1;
 	sc->sc_er2 = regs->er2;
 	sc->sc_er3 = regs->er3;
+	sc->sc_er5 = regs->er5;
 	sc->sc_ccr = regs->ccr;
 	sc->sc_pc = regs->pc;
 }
@@ -385,6 +386,7 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 			   ? current_thread_info()->exec_domain->signal_invmap[sig]
 		          : sig);
 	regs->er1 = (unsigned long)&(frame->sc);
+	regs->er5 = current->mm->start_data;	/* GOT base */
 
 	return;
 
@@ -436,6 +438,7 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 		     : sig);
 	regs->er1 = (unsigned long)&(frame->info);
 	regs->er2 = (unsigned long)&frame->uc;
+	regs->er5 = current->mm->start_data;	/* GOT base */
 
 	return;
 

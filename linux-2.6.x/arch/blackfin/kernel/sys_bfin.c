@@ -15,6 +15,7 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/stat.h>
+#include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/file.h>
 #include <linux/utsname.h>
@@ -110,8 +111,6 @@ out:
 	return error;
 }
 
-extern asmlinkage int sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
-
 struct sel_arg_struct {
 	unsigned long n;
 	fd_set *inp, *outp, *exp;
@@ -124,7 +123,6 @@ asmlinkage int old_select(struct sel_arg_struct *arg)
 
 	if (copy_from_user(&a, arg, sizeof(a)))
 		return -EFAULT;
-	/* sys_select() does the appropriate kernel locking */
 	return sys_select(a.n, a.inp, a.outp, a.exp, a.tvp);
 }
 

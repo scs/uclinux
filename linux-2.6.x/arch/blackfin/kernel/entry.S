@@ -2,15 +2,12 @@
  *  linux/arch/bfinnommu/mach-bf533/entry.S
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
- *  Copyright (C) 2001 SED Systems, a Division of Calian Ltd.
  *  Copyright (C) 2004 LG Soft India.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file README.legal in the main directory of this archive
  * for more details.
  *
- * Linux/m68k support by Hamish Macdonald
- * M68360 Port by SED Systems, and Lineo.
  * Linux/bfin support by LG Soft India.
  */
 
@@ -27,7 +24,6 @@
 .text
 
 .globl trap
-.globl ret_from_exception
 .globl reschedule
 .globl sys_fork
 .globl sys_clone
@@ -54,19 +50,22 @@ ENTRY(reschedule)
 	rts;
 
 ENTRY(ret_from_fork)
+	/* Don't bother with trace yet - akale */
 	r0 = r1;
 	SP += -12;
 	call schedule_tail; 
 	SP += 12;
+	/* Note: void schedule_tail(struct task_struct *prev)	*/
+	
 	r0 = [sp + PT_IPEND];
 	cc = bittst(r0, 15);
 	if cc jump in_kernel;
-	RESTORE_ALL_SYS
+	RESTORE_ALL
 	rti; 
 in_kernel:
 	/* do a 'fake' RTI by jumping to [RETI] */
         /* to avoid clearing supervisor mode in child */
-	RESTORE_ALL_SYS
+	RESTORE_ALL
 	p0 = reti;
 	jump (p0);
 
@@ -98,15 +97,23 @@ ENTRY(sys_clone)
 	rts;
 
 ENTRY(sys_sigsuspend)
+	r0 = sp;
+	r0 +=12;
+	[--sp] = rets;
 	SP += -12;
 	call	do_sigsuspend; 
 	SP += 12;
+	rets = [sp++];
 	rts;
 
 ENTRY(sys_rt_sigsuspend)
+	r0 = sp;
+	r0 +=12;
+	[--sp] = rets;
 	SP += -12;
 	call	do_rt_sigsuspend; 
 	SP += 12;
+	rets = [sp++];
 	rts;
 
 ENTRY(sys_sigreturn)
@@ -120,8 +127,12 @@ ENTRY(sys_sigreturn)
 	rts;
 
 ENTRY(sys_rt_sigreturn)
+	r0 = sp;
+	r0 +=12;
+	[--sp] = rets;
 	SP += -12;
 	call	do_rt_sigreturn; 
 	SP += 12;
+	rets = [sp++];
 	rts;
 

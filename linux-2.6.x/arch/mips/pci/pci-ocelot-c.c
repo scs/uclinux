@@ -1,458 +1,144 @@
 /*
- * Copyright 2002 Momentum Computer
- * Author: Matthew Dharm <mdharm@momenco.com>
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
- *  THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR IMPLIED
- *  WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
- *  USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- *  ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
+ * Copyright (C) 2004 by Ralf Baechle
  */
+
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/version.h>
-#include <asm/pci.h>
-#include <asm/io.h>
 #include <asm/mv64340.h>
+#include <asm/pci_channel.h>
 
 #include <linux/init.h>
 
 /*
- * These functions and structures provide the BIOS scan and mapping of the PCI
- * devices.
+ * We assume the address ranges have already been setup appropriately by
+ * the firmware.  PMON in case of the Ocelot C does that.
  */
+static struct resource mv_pci_io_mem0_resource = {
+	.name	= "MV64340 PCI0 IO MEM",
+	.flags	= IORESOURCE_IO
+};
 
-#define MAX_PCI_DEVS 10
+static struct resource mv_pci_mem0_resource = {
+	.name	= "MV64340 PCI0 MEM",
+	.flags	= IORESOURCE_MEM
+};
 
-void mv64340_board_pcibios_fixup_bus(struct pci_bus *c);
+static struct mv_pci_controller mv_bus0_controller = {
+	.pcic = {
+		.pci_ops	= &mv_pci_ops,
+		.mem_resource	= &mv_pci_mem0_resource,
+		.io_resource	= &mv_pci_io_mem0_resource,
+	},
+	.config_addr	= MV64340_PCI_0_CONFIG_ADDR,
+	.config_vreg	= MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG,
+};
 
-/*  Functions to implement "pci ops"  */
-static int marvell_pcibios_read_config_word(struct pci_dev *dev,
-					    int offset, u16 * val);
-static int marvell_pcibios_read_config_byte(struct pci_dev *dev,
-					    int offset, u8 * val);
-static int marvell_pcibios_read_config_dword(struct pci_dev *dev,
-					     int offset, u32 * val);
-static int marvell_pcibios_write_config_byte(struct pci_dev *dev,
-					     int offset, u8 val);
-static int marvell_pcibios_write_config_word(struct pci_dev *dev,
-					     int offset, u16 val);
-static int marvell_pcibios_write_config_dword(struct pci_dev *dev,
-					      int offset, u32 val);
-static void marvell_pcibios_set_master(struct pci_dev *dev);
+static uint32_t mv_io_base, mv_io_size;
 
-/*
- *  General-purpose PCI functions.
- */
-
-
-/*
- * pci_range_ck -
- *
- * Check if the pci device that are trying to access does really exists
- * on the evaluation board.  
- *
- * Inputs :
- * bus - bus number (0 for PCI 0 ; 1 for PCI 1)
- * dev - number of device on the specific pci bus
- *
- * Outpus :
- * 0 - if OK , 1 - if failure
- */
-static __inline__ int pci_range_ck(unsigned char bus, unsigned char dev)
+static void mv64340_pci0_init(void)
 {
-	/* Accessing device 31 crashes the MV-64340. */
-	if (dev < 5)
-		return 0;
-	return -1;
+	uint32_t mem0_base, mem0_size;
+	uint32_t io_base, io_size;
+
+	io_base = MV_READ(MV64340_PCI_0_IO_BASE_ADDR) << 16;
+	io_size = (MV_READ(MV64340_PCI_0_IO_SIZE) + 1) << 16;
+	mem0_base = MV_READ(MV64340_PCI_0_MEMORY0_BASE_ADDR) << 16;
+	mem0_size = (MV_READ(MV64340_PCI_0_MEMORY0_SIZE) + 1) << 16;
+
+	mv_pci_io_mem0_resource.start		= 0;
+	mv_pci_io_mem0_resource.end		= io_size - 1;
+	mv_pci_mem0_resource.start		= mem0_base;
+	mv_pci_mem0_resource.end		= mem0_base + mem0_size - 1;
+	mv_bus0_controller.pcic.mem_offset	= mem0_base;
+	mv_bus0_controller.pcic.io_offset	= 0;
+
+	ioport_resource.end		= io_size - 1;
+
+	register_pci_controller(&mv_bus0_controller.pcic);
+
+	mv_io_base = io_base;
+	mv_io_size = io_size;
 }
 
-/*
- * marvell_pcibios_(read/write)_config_(dword/word/byte) -
- *
- * reads/write a dword/word/byte register from the configuration space
- * of a device.
- *
- * Note that bus 0 and bus 1 are local, and we assume all other busses are
- * bridged from bus 1.  This is a safe assumption, since any other
- * configuration will require major modifications to the CP7000G
- *
- * Inputs :
- * bus - bus number
- * dev - device number
- * offset - register offset in the configuration space
- * val - value to be written / read
- *
- * Outputs :
- * PCIBIOS_SUCCESSFUL when operation was succesfull
- * PCIBIOS_DEVICE_NOT_FOUND when the bus or dev is errorneous
- * PCIBIOS_BAD_REGISTER_NUMBER when accessing non aligned
- */
+static struct resource mv_pci_io_mem1_resource = {
+	.name	= "MV64340 PCI1 IO MEM",
+	.flags	= IORESOURCE_IO
+};
 
-static int marvell_pcibios_read_config_dword(struct pci_dev *device,
-					     int offset, u32 * val)
+static struct resource mv_pci_mem1_resource = {
+	.name	= "MV64340 PCI1 MEM",
+	.flags	= IORESOURCE_MEM
+};
+
+static struct mv_pci_controller mv_bus1_controller = {
+	.pcic = {
+		.pci_ops	= &mv_pci_ops,
+		.mem_resource	= &mv_pci_mem1_resource,
+		.io_resource	= &mv_pci_io_mem1_resource,
+	},
+	.config_addr	= MV64340_PCI_1_CONFIG_ADDR,
+	.config_vreg	= MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG,
+};
+
+static __init void mv64340_pci1_init(void)
 {
-	int dev, bus, func;
-	uint32_t address_reg, data_reg;
-	uint32_t address;
+	uint32_t mem0_base, mem0_size;
+	uint32_t io_base, io_size;
 
-	bus = device->bus->number;
-	dev = PCI_SLOT(device->devfn);
-	func = PCI_FUNC(device->devfn);
-
-	/* verify the range */
-	if (pci_range_ck(bus, dev))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	/* select the MV-64340 registers to communicate with the PCI bus */
-	if (bus == 0) {
-		address_reg = MV64340_PCI_0_CONFIG_ADDR;
-		data_reg = MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG;
-	} else {
-		address_reg = MV64340_PCI_1_CONFIG_ADDR;
-		data_reg = MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG;
-	}
-
-	address = (bus << 16) | (dev << 11) | (func << 8) |
-	    (offset & 0xfc) | 0x80000000;
-
-	/* start the configuration cycle */
-	MV_WRITE(address_reg, address);
-
-	/* read the data */
-	MV_READ(data_reg, val);
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-
-static int marvell_pcibios_read_config_word(struct pci_dev *device,
-					    int offset, u16 * val)
-{
-	int dev, bus, func;
-	uint32_t address_reg, data_reg;
-	uint32_t address;
-
-	bus = device->bus->number;
-	dev = PCI_SLOT(device->devfn);
-	func = PCI_FUNC(device->devfn);
-
-	/* verify the range */
-	if (pci_range_ck(bus, dev))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	/* select the MV-64340 registers to communicate with the PCI bus */
-	if (bus == 0) {
-		address_reg = MV64340_PCI_0_CONFIG_ADDR;
-		data_reg = MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG;
-	} else {
-		address_reg = MV64340_PCI_1_CONFIG_ADDR;
-		data_reg = MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG;
-	}
-
-	address = (bus << 16) | (dev << 11) | (func << 8) |
-	    (offset & 0xfc) | 0x80000000;
-
-	/* start the configuration cycle */
-	MV_WRITE(address_reg, address);
-
-	/* read the data */
-	MV_READ_16(data_reg + (offset & 0x3), val);
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int marvell_pcibios_read_config_byte(struct pci_dev *device,
-					    int offset, u8 * val)
-{
-	int dev, bus, func;
-	uint32_t address_reg, data_reg;
-	uint32_t address;
-
-	bus = device->bus->number;
-	dev = PCI_SLOT(device->devfn);
-	func = PCI_FUNC(device->devfn);
-
-	/* verify the range */
-	if (pci_range_ck(bus, dev))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	/* select the MV-64340 registers to communicate with the PCI bus */
-	if (bus == 0) {
-		address_reg = MV64340_PCI_0_CONFIG_ADDR;
-		data_reg = MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG;
-	} else {
-		address_reg = MV64340_PCI_1_CONFIG_ADDR;
-		data_reg = MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG;
-	}
-
-	address = (bus << 16) | (dev << 11) | (func << 8) |
-	    (offset & 0xfc) | 0x80000000;
-
-	/* start the configuration cycle */
-	MV_WRITE(address_reg, address);
-
-	/* write the data */
-	MV_READ_8(data_reg + (offset & 0x3), val);
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int marvell_pcibios_write_config_dword(struct pci_dev *device,
-					      int offset, u32 val)
-{
-	int dev, bus, func;
-	uint32_t address_reg, data_reg;
-	uint32_t address;
-
-	bus = device->bus->number;
-	dev = PCI_SLOT(device->devfn);
-	func = PCI_FUNC(device->devfn);
-
-	/* verify the range */
-	if (pci_range_ck(bus, dev))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	/* select the MV-64340 registers to communicate with the PCI bus */
-	if (bus == 0) {
-		address_reg = MV64340_PCI_0_CONFIG_ADDR;
-		data_reg = MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG;
-	} else {
-		address_reg = MV64340_PCI_1_CONFIG_ADDR;
-		data_reg = MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG;
-	}
-
-	address = (bus << 16) | (dev << 11) | (func << 8) |
-	    (offset & 0xfc) | 0x80000000;
-
-	/* start the configuration cycle */
-	MV_WRITE(address_reg, address);
-
-	/* write the data */
-	MV_WRITE(data_reg, val);
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-
-static int marvell_pcibios_write_config_word(struct pci_dev *device,
-					     int offset, u16 val)
-{
-	int dev, bus, func;
-	uint32_t address_reg, data_reg;
-	uint32_t address;
-
-	bus = device->bus->number;
-	dev = PCI_SLOT(device->devfn);
-	func = PCI_FUNC(device->devfn);
-
-	/* verify the range */
-	if (pci_range_ck(bus, dev))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	/* select the MV-64340 registers to communicate with the PCI bus */
-	if (bus == 0) {
-		address_reg = MV64340_PCI_0_CONFIG_ADDR;
-		data_reg = MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG;
-	} else {
-		address_reg = MV64340_PCI_1_CONFIG_ADDR;
-		data_reg = MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG;
-	}
-
-	address = (bus << 16) | (dev << 11) | (func << 8) |
-	    (offset & 0xfc) | 0x80000000;
-
-	/* start the configuration cycle */
-	MV_WRITE(address_reg, address);
-
-	/* write the data */
-	MV_WRITE_16(data_reg + (offset & 0x3), val);
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int marvell_pcibios_write_config_byte(struct pci_dev *device,
-					     int offset, u8 val)
-{
-	int dev, bus, func;
-	uint32_t address_reg, data_reg;
-	uint32_t address;
-
-	bus = device->bus->number;
-	dev = PCI_SLOT(device->devfn);
-	func = PCI_FUNC(device->devfn);
-
-	/* verify the range */
-	if (pci_range_ck(bus, dev))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	/* select the MV-64340 registers to communicate with the PCI bus */
-	if (bus == 0) {
-		address_reg = MV64340_PCI_0_CONFIG_ADDR;
-		data_reg = MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG;
-	} else {
-		address_reg = MV64340_PCI_1_CONFIG_ADDR;
-		data_reg = MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG;
-	}
-
-	address = (bus << 16) | (dev << 11) | (func << 8) |
-	    (offset & 0xfc) | 0x80000000;
-
-	/* start the configuration cycle */
-	MV_WRITE(address_reg, address);
-
-	/* write the data */
-	MV_WRITE_8(data_reg + (offset & 0x3), val);
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static void marvell_pcibios_set_master(struct pci_dev *dev)
-{
-	u16 cmd;
-
-	marvell_pcibios_read_config_word(dev, PCI_COMMAND, &cmd);
-	cmd |= PCI_COMMAND_MASTER;
-	marvell_pcibios_write_config_word(dev, PCI_COMMAND, cmd);
-}
-
-/*  Externally-expected functions.  Do not change function names  */
-
-int pcibios_enable_resources(struct pci_dev *dev)
-{
-	u16 cmd, old_cmd;
-	u8 tmp1;
-	int idx;
-	struct resource *r;
-
-	marvell_pcibios_read_config_word(dev, PCI_COMMAND, &cmd);
-	old_cmd = cmd;
-	for (idx = 0; idx < 6; idx++) {
-		r = &dev->resource[idx];
-		if (!r->start && r->end) {
-			printk(KERN_ERR
-			       "PCI: Device %s not available because of "
-			       "resource collisions\n", pci_name(dev));
-			return -EINVAL;
-		}
-		if (r->flags & IORESOURCE_IO)
-			cmd |= PCI_COMMAND_IO;
-		if (r->flags & IORESOURCE_MEM)
-			cmd |= PCI_COMMAND_MEMORY;
-	}
-	if (cmd != old_cmd) {
-		marvell_pcibios_write_config_word(dev, PCI_COMMAND, cmd);
-	}
+	io_base = MV_READ(MV64340_PCI_1_IO_BASE_ADDR) << 16;
+	io_size = (MV_READ(MV64340_PCI_1_IO_SIZE) + 1) << 16;
+	mem0_base = MV_READ(MV64340_PCI_1_MEMORY0_BASE_ADDR) << 16;
+	mem0_size = (MV_READ(MV64340_PCI_1_MEMORY0_SIZE) + 1) << 16;
 
 	/*
-	 * Let's fix up the latency timer and cache line size here.  Cache
-	 * line size = 32 bytes / sizeof dword (4) = 8.
-	 * Latency timer must be > 8.  32 is random but appears to work.
+	 * Here we assume the I/O window of second bus to be contiguous with
+	 * the first.  A gap is no problem but would waste address space for
+	 * remapping the port space.
 	 */
-	marvell_pcibios_read_config_byte(dev, PCI_CACHE_LINE_SIZE, &tmp1);
-	if (tmp1 != 8) {
-		printk(KERN_WARNING
-		       "PCI setting cache line size to 8 from " "%d\n",
-		       tmp1);
-		marvell_pcibios_write_config_byte(dev, PCI_CACHE_LINE_SIZE,
-						  8);
-	}
-	marvell_pcibios_read_config_byte(dev, PCI_LATENCY_TIMER, &tmp1);
-	if (tmp1 < 32) {
-		printk(KERN_WARNING
-		       "PCI setting latency timer to 32 from %d\n", tmp1);
-		marvell_pcibios_write_config_byte(dev, PCI_LATENCY_TIMER,
-						  32);
+	mv_pci_io_mem1_resource.start		= mv_io_size;
+	mv_pci_io_mem1_resource.end		= mv_io_size + io_size - 1;
+	mv_pci_mem1_resource.start		= mem0_base;
+	mv_pci_mem1_resource.end		= mem0_base + mem0_size - 1;
+	mv_bus1_controller.pcic.mem_offset	= mem0_base;
+	mv_bus1_controller.pcic.io_offset	= 0;
+
+	ioport_resource.end		= io_base + io_size -mv_io_base - 1;
+
+	register_pci_controller(&mv_bus1_controller.pcic);
+
+	mv_io_size = io_base + io_size - mv_io_base;
+}
+
+static __init int __init ocelot_c_pci_init(void)
+{
+	unsigned long io_v_base;
+	uint32_t enable;
+
+	enable = ~MV_READ(MV64340_BASE_ADDR_ENABLE);
+
+	/*
+	 * We require at least one enabled I/O or PCI memory window or we
+	 * will ignore this PCI bus.  We ignore PCI windows 1, 2 and 3.
+	 */
+	if (enable & (0x01 <<  9) || enable & (0x01 << 10))
+		mv64340_pci0_init();
+
+	if (enable & (0x01 << 14) || enable & (0x01 << 15))
+		mv64340_pci1_init();
+
+	if (mv_io_size) {
+		io_v_base = (unsigned long) ioremap(mv_io_base, mv_io_size);
+		if (!io_v_base)
+			panic("Could not ioremap I/O port range");
+
+		set_io_port_base(io_v_base);
 	}
 
 	return 0;
 }
 
-int pcibios_enable_device(struct pci_dev *dev, int mask)
-{
-	return pcibios_enable_resources(dev);
-}
-
-void pcibios_align_resource(void *data, struct resource *res,
-			    unsigned long size)
-{
-	struct pci_dev *dev = data;
-
-	if (res->flags & IORESOURCE_IO) {
-		unsigned long start = res->start;
-
-		/* We need to avoid collisions with `mirrored' VGA ports
-		   and other strange ISA hardware, so we always want the
-		   addresses kilobyte aligned.  */
-		if (size > 0x100) {
-			printk(KERN_ERR "PCI: I/O Region %s/%d too large"
-			       " (%ld bytes)\n", pci_name(dev),
-			       dev->resource - res, size);
-		}
-
-		start = (start + 1024 - 1) & ~(1024 - 1);
-		res->start = start;
-	}
-}
-
-struct pci_ops marvell_pci_ops = {
-	marvell_pcibios_read_config_byte,
-	marvell_pcibios_read_config_word,
-	marvell_pcibios_read_config_dword,
-	marvell_pcibios_write_config_byte,
-	marvell_pcibios_write_config_word,
-	marvell_pcibios_write_config_dword
-};
-
-struct pci_fixup pcibios_fixups[] = {
-	{0}
-};
-
-void __init pcibios_fixup_bus(struct pci_bus *c)
-{
-	mv64340_board_pcibios_fixup_bus(c);
-}
-
-void __init pcibios_init(void)
-{
-	/* Reset PCI I/O and PCI MEM values */
-	ioport_resource.start = 0xe0000000;
-	ioport_resource.end = 0xe0000000 + 0x20000000 - 1;
-	iomem_resource.start = 0xc0000000;
-	iomem_resource.end = 0xc0000000 + 0x20000000 - 1;
-
-	pci_scan_bus(0, &marvell_pci_ops, NULL);
-	pci_scan_bus(1, &marvell_pci_ops, NULL);
-}
-
-/*
- * for parsing "pci=" kernel boot arguments.
- */
-char *pcibios_setup(char *str)
-{
-	printk(KERN_INFO "rr: pcibios_setup\n");
-	/* Nothing to do for now.  */
-
-	return str;
-}
-
-unsigned __init int pcibios_assign_all_busses(void)
-{
-	return 1;
-}
+arch_initcall(ocelot_c_pci_init);

@@ -103,8 +103,6 @@ int has_l2cache = 0;
 
 static int current_root_goodness = -1;
 
-extern char saved_command_line[];
-
 extern int pmac_newworld;
 
 #define DEFAULT_ROOT_DEVICE Root_SDA1	/* sda1 - slightly silly choice */
@@ -136,7 +134,7 @@ pmac_show_cpuinfo(struct seq_file *m)
 
 	if (pmac_call_feature(PMAC_FTR_GET_MB_INFO, NULL, PMAC_MB_INFO_NAME, (int)&mbname) != 0)
 		mbname = "Unknown";
-	
+
 	/* find motherboard type */
 	seq_printf(m, "machine\t\t: ");
 	np = find_devices("device-tree");
@@ -196,7 +194,7 @@ pmac_show_cpuinfo(struct seq_file *m)
 		int n;
 		struct reg_property *reg = (struct reg_property *)
 			get_property(np, "reg", &n);
-	
+
 		if (reg != 0) {
 			unsigned long total = 0;
 
@@ -207,9 +205,9 @@ pmac_show_cpuinfo(struct seq_file *m)
 	}
 
 	/* Checks "l2cr-value" property in the registry */
-	np = find_devices("cpus");	
+	np = find_devices("cpus");
 	if (np == 0)
-		np = find_type_devices("cpu");	
+		np = find_type_devices("cpu");
 	if (np != 0) {
 		unsigned int *l2cr = (unsigned int *)
 			get_property(np, "l2cr-value", NULL);
@@ -277,9 +275,9 @@ pmac_setup_arch(void)
 
 	/* Checks "l2cr-value" property in the registry */
 	if (cur_cpu_spec[0]->cpu_features & CPU_FTR_L2CR) {
-		struct device_node *np = find_devices("cpus");	
+		struct device_node *np = find_devices("cpus");
 		if (np == 0)
-			np = find_type_devices("cpu");	
+			np = find_type_devices("cpu");
 		if (np != 0) {
 			unsigned int *l2cr = (unsigned int *)
 				get_property(np, "l2cr-value", NULL);
@@ -332,7 +330,7 @@ pmac_setup_arch(void)
 
 #ifdef CONFIG_SMP
 	/* Check for Core99 */
-	if (find_devices("uni-n"))
+	if (find_devices("uni-n") || find_devices("u3"))
 		ppc_md.smp_ops = &core99_smp_ops;
 	else
 		ppc_md.smp_ops = &psurge_smp_ops;
@@ -469,10 +467,6 @@ pmac_restart(char *cmd)
 	struct adb_request req;
 #endif /* CONFIG_ADB_CUDA */
 
-#ifdef CONFIG_NVRAM
-	pmac_nvram_update();
-#endif
-
 	switch (sys_ctrler) {
 #ifdef CONFIG_ADB_CUDA
 	case SYS_CTRLER_CUDA:
@@ -482,11 +476,11 @@ pmac_restart(char *cmd)
 			cuda_poll();
 		break;
 #endif /* CONFIG_ADB_CUDA */
-#ifdef CONFIG_ADB_PMU	
+#ifdef CONFIG_ADB_PMU
 	case SYS_CTRLER_PMU:
 		pmu_restart();
 		break;
-#endif /* CONFIG_ADB_PMU */	
+#endif /* CONFIG_ADB_PMU */
 	default: ;
 	}
 }
@@ -497,10 +491,6 @@ pmac_power_off(void)
 #ifdef CONFIG_ADB_CUDA
 	struct adb_request req;
 #endif /* CONFIG_ADB_CUDA */
-
-#ifdef CONFIG_NVRAM
-	pmac_nvram_update();
-#endif
 
 	switch (sys_ctrler) {
 #ifdef CONFIG_ADB_CUDA
@@ -637,11 +627,6 @@ pmac_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.get_rtc_time   = pmac_get_rtc_time;
 	ppc_md.calibrate_decr = pmac_calibrate_decr;
 
-#ifdef CONFIG_NVRAM
-	ppc_md.nvram_read_val	= pmac_nvram_read_byte;
-	ppc_md.nvram_write_val	= pmac_nvram_write_byte;
-#endif
-
 	ppc_md.find_end_of_memory = pmac_find_end_of_memory;
 
 	ppc_md.feature_call   = pmac_do_feature_call;
@@ -682,6 +667,14 @@ pmac_declare_of_platform_devices(void)
 		for (np = np->child; np != NULL; np = np->sibling)
 			if (strncmp(np->name, "i2c", 3) == 0) {
 				of_platform_device_create(np, "uni-n-i2c");
+				break;
+			}
+	}
+	np = find_devices("u3");
+	if (np) {
+		for (np = np->child; np != NULL; np = np->sibling)
+			if (strncmp(np->name, "i2c", 3) == 0) {
+				of_platform_device_create(np, "u3-i2c");
 				break;
 			}
 	}

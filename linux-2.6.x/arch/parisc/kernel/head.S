@@ -22,17 +22,6 @@
 
 	.level 1.1
 
-	.section	.initcall.init
-	.align		4
-	.export __initcall_start
-__initcall_start:
-	.export __initcall_end
-__initcall_end:
-	.export __setup_start
-__setup_start:
-	.export __setup_end
-__setup_end:
-
 	.data
 
 	.export boot_args
@@ -64,13 +53,13 @@ stext:
 
 	/* Clear BSS (shouldn't the boot loader do this?) */
 
-	.import _edata,data
-	.import _end,data
+	.import __bss_start,data
+	.import __bss_stop,data
 
-	ldil            L%PA(_edata),%r3
-	ldo             R%PA(_edata)(%r3),%r3
-	ldil            L%PA(_end),%r4
-	ldo             R%PA(_end)(%r4),%r4
+	ldil            L%PA(__bss_start),%r3
+	ldo             R%PA(__bss_start)(%r3),%r3
+	ldil            L%PA(__bss_stop),%r4
+	ldo             R%PA(__bss_stop)(%r4),%r4
 $bss_loop:
 	cmpb,<<,n       %r3,%r4,$bss_loop
 	stw,ma          %r0,4(%r3)
@@ -87,25 +76,28 @@ $bss_loop:
 	/* Initialize startup VM. Just map first 8 MB of memory */
 	ldil		L%PA(pg0),%r1
 	ldo		R%PA(pg0)(%r1),%r1
-	ldo		_PAGE_TABLE(%r1),%r3
+	shr		%r1,PxD_VALUE_SHIFT,%r3
+	ldo		(PxD_FLAG_PRESENT+PxD_FLAG_VALID)(%r3),%r3
 
 	ldil		L%PA(swapper_pg_dir),%r4
 	ldo		R%PA(swapper_pg_dir)(%r4),%r4
 	mtctl		%r4,%cr24	/* Initialize kernel root pointer */
 	mtctl		%r4,%cr25	/* Initialize user root pointer */
+	ldi		ASM_PT_INITIAL,%r1
+	ldo		ASM_PGD_ENTRY*ASM_PGD_ENTRY_SIZE(%r4),%r4
+1:
+	stw             %r3,0(%r4)
+	ldo		(ASM_PAGE_SIZE >> PxD_VALUE_SHIFT)(%r3),%r3
+	addib,>		-1,%r1,1b
+	ldo		ASM_PGD_ENTRY_SIZE(%r4),%r4
 
-#if (__PAGE_OFFSET != 0x10000000UL)
-Error! Code below (the next two stw's) needs to be changed
-#endif
-
-	stw             %r3,0x100(%r4)  /* Hardwired 0x1... kernel Vaddr start*/
-	ldo		0x1000(%r3),%r3
-	stw             %r3,0x104(%r4)
 	ldo		_PAGE_KERNEL(%r0),%r3 /* Hardwired 0 phys addr start */
+	ldil		L%PA(pg0),%r1
+	ldo		R%PA(pg0)(%r1),%r1
 $pgt_fill_loop:
-	stwm		%r3,4(%r1)
-	ldo		0x1000(%r3),%r3
-	bb,>=		%r3,8,$pgt_fill_loop
+	stwm		%r3,ASM_PTE_ENTRY_SIZE(%r1)
+	ldo		ASM_PAGE_SIZE(%r3),%r3
+	bb,>=		%r3,31-KERNEL_INITIAL_ORDER,$pgt_fill_loop
 	nop
 
 
@@ -275,6 +267,8 @@ smp_slave_stext:
 	ldil		L%PA(smp_init_current_idle_task),%sp
 	ldo		R%PA(smp_init_current_idle_task)(%sp),%sp
 	ldw		0(%sp),%sp	/* load task address */
+	tophys_r1	%sp
+	ldw		TASK_THREAD_INFO(%sp), %sp
 	mtctl           %sp,%cr30       /* store in cr30 */
 	addil		L%THREAD_SZ_ALGN,%sp	/* stack is above task */
 	ldo		R%THREAD_SZ_ALGN(%r1),%sp

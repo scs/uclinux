@@ -14,8 +14,12 @@
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/sched.h>
+#include <linux/syscalls.h>
+#include <linux/unistd.h>
 #include <linux/mm.h>
+#include <linux/ptrace.h>
 #include <asm/ptrace.h>
+#include <asm/compat.h>
 #include <asm/uaccess.h>
 #include <asm/user32.h>
 #include <asm/user.h>
@@ -23,8 +27,6 @@
 #include <asm/debugreg.h>
 #include <asm/i387.h>
 #include <asm/fpu32.h>
-#include <linux/ptrace.h>
-#include <linux/mm.h>
 
 /* determines which flags the user has access to. */
 /* 1 = access 0 = no access */
@@ -223,12 +225,11 @@ static struct task_struct *find_target(int request, int pid, int *err)
 	
 } 
 
-extern asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, unsigned long data);
-
 asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 {
 	struct task_struct *child;
 	struct pt_regs *childregs; 
+	void __user *datap = compat_ptr(data);
 	int ret;
 	__u32 val;
 
@@ -265,7 +266,7 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 		if (access_process_vm(child, addr, &val, sizeof(u32), 0)!=sizeof(u32))
 			ret = -EIO;
 		else
-			ret = put_user(val, (unsigned int *)(u64)data); 
+			ret = put_user(val, (unsigned int __user *)datap); 
 		break; 
 
 	case PTRACE_POKEDATA:
@@ -278,7 +279,7 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_PEEKUSR:
 		ret = getreg32(child, addr, &val);
 		if (ret == 0)
-			ret = put_user(val, (__u32 *)(unsigned long) data);
+			ret = put_user(val, (__u32 __user *)datap);
 		break;
 
 	case PTRACE_POKEUSR:
@@ -287,15 +288,15 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 
 	case PTRACE_GETREGS: { /* Get all gp regs from the child. */
 		int i;
-	  	if (!access_ok(VERIFY_WRITE, (unsigned *)(unsigned long)data, 16*4)) {
+	  	if (!access_ok(VERIFY_WRITE, datap, 16*4)) {
 			ret = -EIO;
 			break;
 		}
 		ret = 0;
 		for ( i = 0; i <= 16*4 ; i += sizeof(__u32) ) {
 			getreg32(child, i, &val);
-			ret |= __put_user(val,(u32 *) (unsigned long) data);
-			data += sizeof(u32);
+			ret |= __put_user(val,(u32 __user *)datap);
+			datap += sizeof(u32);
 		}
 		break;
 	}
@@ -303,40 +304,40 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_SETREGS: { /* Set all gp regs in the child. */
 		unsigned long tmp;
 		int i;
-	  	if (!access_ok(VERIFY_READ, (unsigned *)(unsigned long)data, 16*4)) {
+	  	if (!access_ok(VERIFY_READ, datap, 16*4)) {
 			ret = -EIO;
 			break;
 		}
 		ret = 0; 
 		for ( i = 0; i <= 16*4; i += sizeof(u32) ) {
-			ret |= __get_user(tmp, (u32 *) (unsigned long) data);
+			ret |= __get_user(tmp, (u32 __user *)datap);
 			putreg32(child, i, tmp);
-			data += sizeof(u32);
+			datap += sizeof(u32);
 		}
 		break;
 	}
 
 	case PTRACE_GETFPREGS:
 		ret = -EIO; 
-		if (!access_ok(VERIFY_READ, (void *)(u64)data, 
+		if (!access_ok(VERIFY_READ, compat_ptr(data), 
 			       sizeof(struct user_i387_struct)))
 			break;
-		save_i387_ia32(child, (void *)(u64)data, childregs, 1);
+		save_i387_ia32(child, datap, childregs, 1);
 		ret = 0; 
 			break;
 
 	case PTRACE_SETFPREGS:
 		ret = -EIO;
-		if (!access_ok(VERIFY_WRITE, (void *)(u64)data, 
+		if (!access_ok(VERIFY_WRITE, datap, 
 			       sizeof(struct user_i387_struct)))
 			break;
 		ret = 0;
 		/* don't check EFAULT to be bug-to-bug compatible to i386 */
-		restore_i387_ia32(child, (void *)(u64)data, 1);
+		restore_i387_ia32(child, datap, 1);
 		break;
 
 	case PTRACE_GETFPXREGS: { 
-		struct user32_fxsr_struct *u = (void *)(u64)data; 
+		struct user32_fxsr_struct __user *u = datap;
 		init_fpu(child); 
 		ret = -EIO;
 		if (!access_ok(VERIFY_WRITE, u, sizeof(*u)))
@@ -349,7 +350,7 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 		break; 
 	} 
 	case PTRACE_SETFPXREGS: { 
-		struct user32_fxsr_struct *u = (void *)(u64)data; 
+		struct user32_fxsr_struct __user *u = datap;
 		unlazy_fpu(child);
 		ret = -EIO;
 		if (!access_ok(VERIFY_READ, u, sizeof(*u)))
@@ -357,10 +358,10 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 		/* no checking to be bug-to-bug compatible with i386 */
 		__copy_from_user(&child->thread.i387.fxsave, u, sizeof(*u));
 		child->used_math = 1;
-	        child->thread.i387.fxsave.mxcsr &= 0xffbf;
+		child->thread.i387.fxsave.mxcsr &= mxcsr_feature_mask;
 		ret = 0; 
-			break;
-		}
+		break;
+	}
 
 	default:
 		ret = -EINVAL;

@@ -1,4 +1,4 @@
-/* gcclib.h -- definitions for various functions 'borrowed' from gcc-2.95.3 */
+/* gcclib.h -- definitions for various functions */
 /* I Molton     29/07/01 */
 
 #define BITS_PER_UNIT  8

@@ -253,7 +253,7 @@ timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
  */
 
 static struct irqaction irq2  = { timer_interrupt, SA_SHIRQ | SA_INTERRUPT,
-				  0, "timer", NULL, NULL};
+				  CPU_MASK_NONE, "timer", NULL, NULL};
 
 void __init
 time_init(void)
@@ -276,6 +276,12 @@ time_init(void)
 		have_rtc = 1;
 		update_xtime_from_cmos();
 	}
+
+	/*
+	 * Initialize wall_to_monotonic such that adding it to xtime will yield zero, the
+	 * tv_nsec field must be normalized (i.e., 0 <= nsec < NSEC_PER_SEC).
+	 */
+	set_normalized_timespec(&wall_to_monotonic, -xtime.tv_sec, -xtime.tv_nsec);
 
 	/* Setup the etrax timers
 	 * Base frequency is 25000 hz, divider 250 -> 100 HZ

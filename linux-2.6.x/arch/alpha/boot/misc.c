@@ -25,7 +25,7 @@
 #define memzero(s,n)	memset ((s),0,(n))
 #define puts		srm_printk
 extern long srm_printk(const char *, ...)
-     __attribute__ ((format (printf, 1, 2)));;
+     __attribute__ ((format (printf, 1, 2)));
 
 /*
  * gzip delarations
@@ -204,4 +204,16 @@ decompress_kernel(void *output_start,
 	gunzip();
 /*	puts(" done, booting the kernel.\n"); */
 	return output_ptr;
+}
+
+/* dummy-up printk */
+asmlinkage int printk(const char *fmt, ...)
+{
+        va_list args;
+	long ret;
+
+        va_start(args, fmt);
+        ret = srm_printk(fmt, args);
+        va_end(args);
+	return ret;
 }

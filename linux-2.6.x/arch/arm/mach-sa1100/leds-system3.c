@@ -12,14 +12,8 @@
  * published by the Free Software Foundation.
  *
  * $Log$
- * Revision 1.2  2004/09/07 21:06:00  lgsoft
- * alpha-2.0
- *
- * Revision 1.1.1.1  2004/07/19 11:40:22  lgsoft
- * Import of uClinux 2.6.2
- *
- * Revision 1.1.1.1  2004/07/18 13:20:09  nidhi
- * Importing
+ * Revision 1.3  2004/09/08 10:14:51  lgsoft
+ * Import of 2.6.8
  *
  * Revision 1.1.6.1  2001/12/04 15:19:26  seletz
  * - merged from linux_2_4_13_ac5_rmk2

@@ -24,6 +24,10 @@
 #include <asm/proto.h>
 #include <asm/pci-direct.h>
 
+int iommu_aperture;
+int iommu_aperture_disabled __initdata = 0;
+int iommu_aperture_allowed __initdata = 0;
+
 int fallback_aper_order __initdata = 1; /* 64MB */
 int fallback_aper_force __initdata = 0; 
 
@@ -87,13 +91,15 @@ static int __init aperture_valid(char *name, u64 aper_base, u32 aper_size)
 /* Find a PCI capability */ 
 static __u32 __init find_cap(int num, int slot, int func, int cap) 
 { 
+	u8 pos;
+	int bytes;
 	if (!(read_pci_config_16(num,slot,func,PCI_STATUS) & PCI_STATUS_CAP_LIST))
 		return 0;
-	u8 pos = read_pci_config_byte(num,slot,func,PCI_CAPABILITY_LIST);
-	int bytes;
+	pos = read_pci_config_byte(num,slot,func,PCI_CAPABILITY_LIST);
 	for (bytes = 0; bytes < 48 && pos >= 0x40; bytes++) { 
+		u8 id;
 		pos &= ~3; 
-		u8 id = read_pci_config_byte(num,slot,func,pos+PCI_CAP_LIST_ID); 
+		id = read_pci_config_byte(num,slot,func,pos+PCI_CAP_LIST_ID);
 		if (id == 0xff)
 			break;
 		if (id == cap) 
@@ -106,26 +112,31 @@ static __u32 __init find_cap(int num, int slot, int func, int cap)
 /* Read a standard AGPv3 bridge header */
 static __u32 __init read_agp(int num, int slot, int func, int cap, u32 *order)
 { 
-	printk("AGP bridge at %02x:%02x:%02x\n", num, slot, func); 
-	u32 apsizereg = read_pci_config_16(num,slot,func, cap + 0x14);
+	u32 apsize;
+	u32 apsizereg;
+	int nbits;
+	u32 aper_low, aper_hi;
+	u64 aper;
 
+	printk("AGP bridge at %02x:%02x:%02x\n", num, slot, func);
+	apsizereg = read_pci_config_16(num,slot,func, cap + 0x14);
 	if (apsizereg == 0xffffffff) {
 		printk("APSIZE in AGP bridge unreadable\n");
 		return 0;
 	}
 
-	u32 apsize = apsizereg & 0xfff;
+	apsize = apsizereg & 0xfff;
 	/* Some BIOS use weird encodings not in the AGPv3 table. */
 	if (apsize & 0xff) 
 		apsize |= 0xf00; 
-	int nbits = hweight16(apsize);
+	nbits = hweight16(apsize);
 	*order = 7 - nbits;
 	if ((int)*order < 0) /* < 32MB */
 		*order = 0;
 	
-	u32 aper_low = read_pci_config(num,slot,func, 0x10); 
-	u32 aper_hi = read_pci_config(num,slot,func,0x14); 
-	u64 aper = (aper_low & ~((1<<22)-1)) | ((u64)aper_hi << 32); 
+	aper_low = read_pci_config(num,slot,func, 0x10);
+	aper_hi = read_pci_config(num,slot,func,0x14);
+	aper = (aper_low & ~((1<<22)-1)) | ((u64)aper_hi << 32);
 
 	printk("Aperture from AGP @ %Lx size %u MB (APSIZE %x)\n", 
 	       aper, 32 << *order, apsizereg);
@@ -155,6 +166,7 @@ static __u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 		for (slot = 0; slot < 32; slot++) { 
 			for (func = 0; func < 8; func++) { 
 				u32 class, cap;
+				u8 type;
 				class = read_pci_config(num,slot,func,
 							PCI_CLASS_REVISION);
 				if (class == 0xffffffff)
@@ -172,7 +184,7 @@ static __u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 				} 
 				
 				/* No multi-function device? */
-				u8 type = read_pci_config_byte(num,slot,func,
+				type = read_pci_config_byte(num,slot,func,
 							       PCI_HEADER_TYPE);
 				if (!(type & 0x80))
 					break;
@@ -190,6 +202,9 @@ void __init iommu_hole_init(void)
 	u64 aper_base; 
 	int valid_agp = 0;
 
+	if (iommu_aperture_disabled)
+		return;
+
 	printk("Checking aperture...\n"); 
 
 	fix = 0;
@@ -197,6 +212,8 @@ void __init iommu_hole_init(void)
 		char name[30];
 		if (read_pci_config(0, num, 3, 0x00) != NB_ID_3) 
 			continue;	
+
+		iommu_aperture = 1; 
 
 		aper_order = (read_pci_config(0, num, 3, 0x90) >> 1) & 7; 
 		aper_size = (32 * 1024 * 1024) << aper_order; 

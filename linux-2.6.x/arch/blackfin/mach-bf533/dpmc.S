@@ -6,19 +6,22 @@
  * Blackfin BF533/2.6 support : LG Soft India
  */
 
-#include <asm/board/bf533.h>
-#include <asm/board/bf533_serial.h>
+/* Dynamic Power Management support routines
+ */
+
+#include <linux/config.h>
+#include <asm/blackfin.h>
 
 .text
 
 .global pll_seq_trans
 pll_seq_trans:
-	[--SP] = R7;
+	[--SP] = ( R7:4, P5:5 );
 	CLI R7;
 	IDLE;
-	STI R7;
 	SSYNC;
-	R7 = [SP++];
+	STI R7;
+	( R7:4, P5:5 ) = [SP++];	
 	RTS;
 
 .global unmask_wdog_wakeup_evt
@@ -26,8 +29,10 @@ unmask_wdog_wakeup_evt:
 	[--SP] = ( R7:4, P5:5 );
 	R7.l = 0x0;
 	R7.h = 0x10;
-	P0.h = (SIC_IWR_ADDR >> 16);
-	P0.l = (SIC_IWR_ADDR & 0xFFFF);
+	P0.h = (SIC_IWR >> 16);
+	P0.l = (SIC_IWR & 0xFFFF);
+	R5 = [P0];
+	R5 = R5 | R7;
 	[P0] = R7;
 	SSYNC;
 	( R7:4, P5:5 ) = [SP++];	
@@ -36,21 +41,21 @@ unmask_wdog_wakeup_evt:
 .global program_wdog_timer
 program_wdog_timer:	
 	[--SP] = ( R7:4, P5:5 );
-	R7 = 0x00F1(z);
-	P0.h = (WDOGCNT_ADDR >> 16);
-	P0.l = (WDOGCNT_ADDR & 0xFFFF);
+	R7 = 0x1000(z);
+	P0.h = (WDOG_CNT >> 16);
+	P0.l = (WDOG_CNT & 0xFFFF);
 	[P0] = R7;
 	SSYNC;
 
 	R7 = 0x0000(z);
-	P0.h = (WDOGSTAT_ADDR >> 16);
-	P0.l = (WDOGSTAT_ADDR & 0xFFFF);
+	P0.h = (WDOG_STAT >> 16);
+	P0.l = (WDOG_STAT & 0xFFFF);
 	[P0] = R7;
 	SSYNC;
 	
 	R7 = 0x0004(z);
-	P0.h = (WDOGCTL_ADDR >> 16);
-	P0.l = (WDOGCTL_ADDR & 0xFFFF);
+	P0.h = (WDOG_CTL >> 16);
+	P0.l = (WDOG_CTL & 0xFFFF);
 	W[P0] = R7;
 	SSYNC;
 
@@ -60,8 +65,8 @@ program_wdog_timer:
 .global pll_bypass_on
 pll_bypass_on:
 	[--SP] = R7;
-	P0.h = (PLLCTL_ADDR >> 16);
-	P0.l = (PLLCTL_ADDR & 0xFFFF);
+	P0.h = PLL_CTL >> 16;
+	P0.l = PLL_CTL & 0xFFFF;
 	R7 = w[P0](z);
 	BITSET(R7,8);
 	w[P0] = R7;
@@ -72,8 +77,8 @@ pll_bypass_on:
 .global pll_bypass_off
 pll_bypass_off:
 	[--SP] = R7;
-	P0.h = (PLLCTL_ADDR >> 16);
-	P0.l = (PLLCTL_ADDR & 0xFFFF);
+	P0.h = PLL_CTL >> 16;
+	P0.l = PLL_CTL & 0xFFFF;
 	R7 = w[P0](z);
 	BITCLR(R7,8);
 	w[P0] = R7;
@@ -85,8 +90,8 @@ pll_bypass_off:
 clear_wdog_wakeup_evt:
 	[--SP] = R7;
 	R7 = 0x8006;
-	P0.h = (WDOGCTL_ADDR >> 16);
-	P0.l = (WDOGCTL_ADDR & 0xFFFF);
+	P0.h = (WDOG_CTL >> 16);
+	P0.l = (WDOG_CTL & 0xFFFF);
 	W[P0] = R7;
 	SSYNC;
 	R7 = [SP++];
@@ -95,8 +100,8 @@ clear_wdog_wakeup_evt:
 .global set_pll_ctl
 set_pll_ctl:
 	[--SP] = R7; 
-	P0.h = (PLLCTL_ADDR >> 16);
-	P0.l = (PLLCTL_ADDR & 0xFFFF);
+	P0.h = PLL_CTL >> 16;
+	P0.l = PLL_CTL & 0xFFFF;
 	R7 = w[P0](z);
 	R0 = R0 << 8 (S) ;
 	R0 = R0 | R7;
@@ -108,8 +113,8 @@ set_pll_ctl:
 .global set_vr_ctl
 set_vr_ctl:
 	[--SP] = R7;
-	P0.h = (VRCTL_ADDR >> 16);
-	P0.l = (VRCTL_ADDR & 0xFFFF);
+	P0.h = (VR_CTL >> 16);
+	P0.l = (VR_CTL & 0xFFFF);
 	R7 = [P0];
 	R0 = R0 << 4 (S);
 	R0 = R0 | R7;
@@ -121,8 +126,8 @@ set_vr_ctl:
 .global set_clr_stopck
 set_clr_stopck:
 	[--SP] = R7;
-	P0.h = (PLLCTL_ADDR >> 16);
-	P0.l = (PLLCTL_ADDR & 0xFFFF);
+	P0.h = PLL_CTL >> 16;
+	P0.l = PLL_CTL & 0xFFFF;
 	CC = R0 == 1;
 	if !CC JUMP set1;
 	R7 = w[P0](z);
@@ -131,9 +136,9 @@ set_clr_stopck:
 	SSYNC;
 	jump finish1;
 set1:
-	R7 = [P0];
+	R7 = [P0](z);
 	BITSET(R7,3);
-	[P0] = R7;
+	w[P0] = R7;
 	SSYNC;
 finish1:
 	R7 = [SP++];
@@ -142,8 +147,8 @@ finish1:
 .global set_clr_pdwn
 set_clr_pdwn:
 	[--SP] = R7;
-	P0.h = (PLLCTL_ADDR >> 16);
-	P0.l = (PLLCTL_ADDR & 0xFFFF);
+	P0.h = PLL_CTL >> 16;
+	P0.l = PLL_CTL & 0xFFFF;
 	CC = R0 == 1;
 	if !CC JUMP on;
 	R7 = w[P0](z);
@@ -163,8 +168,8 @@ finish2:
 .global set_clr_plloff
 set_clr_plloff:
 	[--SP] = R7;
-	P0.h = (PLLCTL_ADDR >> 16);
-	P0.l = (PLLCTL_ADDR & 0xFFFF);
+	P0.h = PLL_CTL >> 16;
+	P0.l = PLL_CTL & 0xFFFF;
 	CC = R0 == 1;
 	if !CC JUMP set2;
 	R7 = w[P0](z);
@@ -173,7 +178,7 @@ set_clr_plloff:
 	SSYNC;
 	jump finish3;
 set2:
-	R7 = [P0];
+	R7 = w[P0](z);
 	BITSET(R7,1);
 	[P0] = R7;
 	SSYNC;
@@ -181,4 +186,46 @@ finish3:
 	R7 = [SP++];
 	RTS;
 
+.global transit_sleep_mode
+transit_sleep_mode:
+	[--SP] = ( R7:4, P5:5 );
+	
+	P0.h = (SIC_IWR >> 16);
+	P0.l = (SIC_IWR & 0xFFFF);
+	R7 = [P0];
+	bitset(r7,0);
+	[P0] = R7;
+	SSYNC;
+	
+	R7 = 0xF000(z);
+	P0.h = (WDOG_CNT >> 16);
+	P0.l = (WDOG_CNT & 0xFFFF);
+	[P0] = R7;
+	SSYNC;
 
+	R7 = 0x0f14(z);
+	P0.h = (WDOG_CTL >> 16);
+	P0.l = (WDOG_CTL & 0xFFFF);
+	W[P0] = R7;
+	SSYNC;
+
+	P0.h = (PLL_CTL >> 16);
+	P0.l = (PLL_CTL & 0xFFFF);
+	R5 = W[P0](z);
+	BITSET(R5,3);
+	w[P0] = R5;
+
+	CLI R7;
+	SSYNC;
+	IDLE;
+	STI R7;
+
+	R7 = 0x8006;
+	P0.h = (WDOG_CTL >> 16);
+	P0.l = (WDOG_CTL & 0xFFFF);
+	W[P0] = R7;
+	SSYNC;
+	R7 = [SP++];
+
+	( R7:4, P5:5 ) = [SP++];	
+	RTS;

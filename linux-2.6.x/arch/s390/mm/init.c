@@ -40,6 +40,19 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
 char  empty_zero_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 
+void diag10(unsigned long addr)
+{
+        if (addr >= 0x7ff00000)
+                return;
+#ifdef __s390x__
+        asm volatile ("sam31\n\t"
+                      "diag %0,%0,0x10\n\t"
+                      "sam64" : : "a" (addr) );
+#else
+        asm volatile ("diag %0,%0,0x10" : : "a" (addr) );
+#endif
+}
+
 void show_mem(void)
 {
         int i, total = 0, reserved = 0;
@@ -47,7 +60,7 @@ void show_mem(void)
 
         printk("Mem-info:\n");
         show_free_areas();
-        printk("Free swap:       %6dkB\n",nr_swap_pages<<(PAGE_SHIFT-10));
+        printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
         i = max_mapnr;
         while (i-- > 0) {
                 total++;
@@ -56,7 +69,7 @@ void show_mem(void)
                 else if (PageSwapCache(mem_map+i))
                         cached++;
                 else if (page_count(mem_map+i))
-                        shared += atomic_read(&mem_map[i].count) - 1;
+                        shared += page_count(mem_map+i) - 1;
         }
         printk("%d pages of RAM\n",total);
         printk("%d reserved pages\n",reserved);
@@ -124,6 +137,8 @@ void __init paging_init(void)
                         pfn++;
                 }
         }
+
+	S390_lowcore.kernel_asce = pgdir_k;
 
         /* enable virtual mapping in kernel mode */
         __asm__ __volatile__("    LCTL  1,1,%0\n"
@@ -209,6 +224,8 @@ void __init paging_init(void)
                         }
                 }
         }
+
+	S390_lowcore.kernel_asce = pgdir_k;
 
         /* enable virtual mapping in kernel mode */
         __asm__ __volatile__("lctlg 1,1,%0\n\t"

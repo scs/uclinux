@@ -32,6 +32,8 @@
  * 03/02/19	B. Helgaas	Make pcat_compat system-wide, not per-IOSAPIC.
  *				Remove iosapic_address & gsi_base from external interfaces.
  *				Rationalize __init/__devinit attributes.
+ * 04/12/04 Ashok Raj	<ashok.raj@intel.com> Intel Corporation 2004
+ *				Updated to work with irq migration necessary for CPU Hotplug
  */
 /*
  * Here is what the interrupt logic between a PCI device and the kernel looks like:
@@ -103,6 +105,7 @@ static spinlock_t iosapic_lock = SPIN_LOCK_UNLOCKED;
 
 static struct iosapic_intr_info {
 	char		*addr;		/* base address of IOSAPIC */
+	u32		low32;		/* current value of low word of Redirection table entry */
 	unsigned int	gsi_base;	/* first GSI assigned to this IOSAPIC */
 	char		rte_index;	/* IOSAPIC RTE index (-1 => not an IOSAPIC interrupt) */
 	unsigned char	dmode	: 3;	/* delivery mode (see iosapic.h) */
@@ -114,7 +117,7 @@ static struct iosapic {
 	char		*addr;		/* base address of IOSAPIC */
 	unsigned int 	gsi_base;	/* first GSI assigned to this IOSAPIC */
 	unsigned short 	num_rte;	/* number of RTE in this IOSAPIC */
-} iosapic_lists[256];
+} iosapic_lists[NR_IOSAPICS];
 
 static int num_iosapic;
 
@@ -169,9 +172,9 @@ gsi_to_irq (unsigned int gsi)
 }
 
 static void
-set_rte (unsigned int vector, unsigned int dest)
+set_rte (unsigned int vector, unsigned int dest, int mask)
 {
-	unsigned long pol, trigger, dmode;
+	unsigned long pol, trigger, dmode, flags;
 	u32 low32, high32;
 	char *addr;
 	int rte_index;
@@ -187,8 +190,10 @@ set_rte (unsigned int vector, unsigned int dest)
 	pol     = iosapic_intr_info[vector].polarity;
 	trigger = iosapic_intr_info[vector].trigger;
 	dmode   = iosapic_intr_info[vector].dmode;
+	vector &= (~IA64_IRQ_REDIRECTED);
 
 	redir = (dmode == IOSAPIC_LOWEST_PRIORITY) ? 1 : 0;
+
 #ifdef CONFIG_SMP
 	{
 		unsigned int irq;
@@ -204,15 +209,19 @@ set_rte (unsigned int vector, unsigned int dest)
 	low32 = ((pol << IOSAPIC_POLARITY_SHIFT) |
 		 (trigger << IOSAPIC_TRIGGER_SHIFT) |
 		 (dmode << IOSAPIC_DELIVERY_SHIFT) |
+		 ((mask ? 1 : 0) << IOSAPIC_MASK_SHIFT) |
 		 vector);
 
 	/* dest contains both id and eid */
 	high32 = (dest << IOSAPIC_DEST_SHIFT);
 
-	writel(IOSAPIC_RTE_HIGH(rte_index), addr + IOSAPIC_REG_SELECT);
-	writel(high32, addr + IOSAPIC_WINDOW);
-	writel(IOSAPIC_RTE_LOW(rte_index), addr + IOSAPIC_REG_SELECT);
-	writel(low32, addr + IOSAPIC_WINDOW);
+	spin_lock_irqsave(&iosapic_lock, flags);
+	{
+		iosapic_write(addr, IOSAPIC_RTE_HIGH(rte_index), high32);
+		iosapic_write(addr, IOSAPIC_RTE_LOW(rte_index), low32);
+		iosapic_intr_info[vector].low32 = low32;
+	}
+	spin_unlock_irqrestore(&iosapic_lock, flags);
 }
 
 static void
@@ -238,11 +247,9 @@ mask_irq (unsigned int irq)
 
 	spin_lock_irqsave(&iosapic_lock, flags);
 	{
-		writel(IOSAPIC_RTE_LOW(rte_index), addr + IOSAPIC_REG_SELECT);
-		low32 = readl(addr + IOSAPIC_WINDOW);
-
-		low32 |= (1 << IOSAPIC_MASK_SHIFT);    /* set only the mask bit */
-		writel(low32, addr + IOSAPIC_WINDOW);
+		/* set only the mask bit */
+		low32 = iosapic_intr_info[vec].low32 |= IOSAPIC_MASK;
+		iosapic_write(addr, IOSAPIC_RTE_LOW(rte_index), low32);
 	}
 	spin_unlock_irqrestore(&iosapic_lock, flags);
 }
@@ -263,11 +270,8 @@ unmask_irq (unsigned int irq)
 
 	spin_lock_irqsave(&iosapic_lock, flags);
 	{
-		writel(IOSAPIC_RTE_LOW(rte_index), addr + IOSAPIC_REG_SELECT);
-		low32 = readl(addr + IOSAPIC_WINDOW);
-
-		low32 &= ~(1 << IOSAPIC_MASK_SHIFT);    /* clear only the mask bit */
-		writel(low32, addr + IOSAPIC_WINDOW);
+		low32 = iosapic_intr_info[vec].low32 &= ~IOSAPIC_MASK;
+		iosapic_write(addr, IOSAPIC_RTE_LOW(rte_index), low32);
 	}
 	spin_unlock_irqrestore(&iosapic_lock, flags);
 }
@@ -287,7 +291,7 @@ iosapic_set_affinity (unsigned int irq, cpumask_t mask)
 	irq &= (~IA64_IRQ_REDIRECTED);
 	vec = irq_to_vector(irq);
 
-	if (cpus_empty(mask) || vec >= IA64_NUM_VECTORS)
+	if (cpus_empty(mask))
 		return;
 
 	dest = cpu_physical_id(first_cpu(mask));
@@ -305,11 +309,8 @@ iosapic_set_affinity (unsigned int irq, cpumask_t mask)
 
 	spin_lock_irqsave(&iosapic_lock, flags);
 	{
-		/* get current delivery mode by reading the low32 */
-		writel(IOSAPIC_RTE_LOW(rte_index), addr + IOSAPIC_REG_SELECT);
-		low32 = readl(addr + IOSAPIC_WINDOW);
+		low32 = iosapic_intr_info[vec].low32 & ~(7 << IOSAPIC_DELIVERY_SHIFT);
 
-		low32 &= ~(7 << IOSAPIC_DELIVERY_SHIFT);
 		if (redir)
 		        /* change delivery mode to lowest priority */
 			low32 |= (IOSAPIC_LOWEST_PRIORITY << IOSAPIC_DELIVERY_SHIFT);
@@ -317,10 +318,9 @@ iosapic_set_affinity (unsigned int irq, cpumask_t mask)
 		        /* change delivery mode to fixed */
 			low32 |= (IOSAPIC_FIXED << IOSAPIC_DELIVERY_SHIFT);
 
-		writel(IOSAPIC_RTE_HIGH(rte_index), addr + IOSAPIC_REG_SELECT);
-		writel(high32, addr + IOSAPIC_WINDOW);
-		writel(IOSAPIC_RTE_LOW(rte_index), addr + IOSAPIC_REG_SELECT);
-		writel(low32, addr + IOSAPIC_WINDOW);
+		iosapic_intr_info[vec].low32 = low32;
+		iosapic_write(addr, IOSAPIC_RTE_HIGH(rte_index), high32);
+		iosapic_write(addr, IOSAPIC_RTE_LOW(rte_index), low32);
 	}
 	spin_unlock_irqrestore(&iosapic_lock, flags);
 #endif
@@ -342,7 +342,8 @@ iosapic_end_level_irq (unsigned int irq)
 {
 	ia64_vector vec = irq_to_vector(irq);
 
-	writel(vec, iosapic_intr_info[vec].addr + IOSAPIC_EOI);
+	move_irq(irq);
+	iosapic_eoi(iosapic_intr_info[vec].addr, vec);
 }
 
 #define iosapic_shutdown_level_irq	mask_irq
@@ -381,6 +382,8 @@ static void
 iosapic_ack_edge_irq (unsigned int irq)
 {
 	irq_desc_t *idesc = irq_descp(irq);
+
+	move_irq(irq);
 	/*
 	 * Once we have recorded IRQ_PENDING already, we can mask the
 	 * interrupt for real. This prevents IRQ storms from unhandled
@@ -417,8 +420,7 @@ iosapic_version (char *addr)
 	 *	unsigned int reserved2 : 8;
 	 * }
 	 */
-	writel(IOSAPIC_VERSION, addr + IOSAPIC_REG_SELECT);
-	return readl(IOSAPIC_WINDOW + addr);
+	return iosapic_read(addr, IOSAPIC_VERSION);
 }
 
 /*
@@ -434,7 +436,7 @@ iosapic_reassign_vector (int vector)
 	    || iosapic_intr_info[vector].gsi_base || iosapic_intr_info[vector].dmode
 	    || iosapic_intr_info[vector].polarity || iosapic_intr_info[vector].trigger)
 	{
-		new_vector = ia64_alloc_vector();
+		new_vector = assign_irq_vector(AUTO_ASSIGN);
 		printk(KERN_INFO "Reassigning vector %d to %d\n", vector, new_vector);
 		memcpy(&iosapic_intr_info[new_vector], &iosapic_intr_info[vector],
 		       sizeof(struct iosapic_intr_info));
@@ -456,7 +458,7 @@ register_intr (unsigned int gsi, int vector, unsigned char delivery,
 
 	index = find_iosapic(gsi);
 	if (index < 0) {
-		printk(KERN_WARNING "%s: No IOSAPIC for GSI 0x%x\n", __FUNCTION__, gsi);
+		printk(KERN_WARNING "%s: No IOSAPIC for GSI %u\n", __FUNCTION__, gsi);
 		return;
 	}
 
@@ -485,6 +487,42 @@ register_intr (unsigned int gsi, int vector, unsigned char delivery,
 	}
 }
 
+static unsigned int
+get_target_cpu (void)
+{
+#ifdef CONFIG_SMP
+	static int cpu = -1;
+
+	/*
+	 * If the platform supports redirection via XTP, let it
+	 * distribute interrupts.
+	 */
+	if (smp_int_redirect & SMP_IRQ_REDIRECTION)
+		return hard_smp_processor_id();
+
+	/*
+	 * Some interrupts (ACPI SCI, for instance) are registered
+	 * before the BSP is marked as online.
+	 */
+	if (!cpu_online(smp_processor_id()))
+		return hard_smp_processor_id();
+
+	/*
+	 * Otherwise, round-robin interrupt vectors across all the
+	 * processors.  (It'd be nice if we could be smarter in the
+	 * case of NUMA.)
+	 */
+	do {
+		if (++cpu >= NR_CPUS)
+			cpu = 0;
+	} while (!cpu_online(cpu));
+
+	return cpu_physical_id(cpu);
+#else
+	return hard_smp_processor_id();
+#endif
+}
+
 /*
  * ACPI can describe IOSAPIC interrupts via static tables and namespace
  * methods.  This provides an interface to register those interrupts and
@@ -495,21 +533,35 @@ iosapic_register_intr (unsigned int gsi,
 		       unsigned long polarity, unsigned long trigger)
 {
 	int vector;
-	unsigned int dest = (ia64_getreg(_IA64_REG_CR_LID) >> 16) & 0xffff;
+	unsigned int dest;
+	unsigned long flags;
 
-	vector = gsi_to_vector(gsi);
-	if (vector < 0)
-		vector = ia64_alloc_vector();
+	/*
+	 * If this GSI has already been registered (i.e., it's a
+	 * shared interrupt, or we lost a race to register it),
+	 * don't touch the RTE.
+	 */
+	spin_lock_irqsave(&iosapic_lock, flags);
+	{
+		vector = gsi_to_vector(gsi);
+		if (vector > 0) {
+			spin_unlock_irqrestore(&iosapic_lock, flags);
+			return vector;
+		}
 
-	register_intr(gsi, vector, IOSAPIC_LOWEST_PRIORITY,
-		      polarity, trigger);
+		vector = assign_irq_vector(AUTO_ASSIGN);
+		dest = get_target_cpu();
+		register_intr(gsi, vector, IOSAPIC_LOWEST_PRIORITY,
+			polarity, trigger);
+	}
+	spin_unlock_irqrestore(&iosapic_lock, flags);
 
-	printk(KERN_INFO "GSI 0x%x(%s,%s) -> CPU 0x%04x vector %d\n",
-	       gsi, (polarity == IOSAPIC_POL_HIGH ? "high" : "low"),
-	       (trigger == IOSAPIC_EDGE ? "edge" : "level"), dest, vector);
+	printk(KERN_INFO "GSI %u (%s, %s) -> CPU %d (0x%04x) vector %d\n",
+	       gsi, (trigger == IOSAPIC_EDGE ? "edge" : "level"),
+	       (polarity == IOSAPIC_POL_HIGH ? "high" : "low"),
+	       cpu_logical_id(dest), dest, vector);
 
-	/* program the IOSAPIC routing table */
-	set_rte(vector, dest);
+	set_rte(vector, dest, 1);
 	return vector;
 }
 
@@ -522,8 +574,9 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 				int iosapic_vector, u16 eid, u16 id,
 				unsigned long polarity, unsigned long trigger)
 {
+	static const char * const name[] = {"unknown", "PMI", "INIT", "CPEI"};
 	unsigned char delivery;
-	int vector;
+	int vector, mask = 0;
 	unsigned int dest = ((id << 8) | eid) & 0xffff;
 
 	switch (int_type) {
@@ -537,27 +590,28 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 		delivery = IOSAPIC_PMI;
 		break;
 	      case ACPI_INTERRUPT_INIT:
-		vector = ia64_alloc_vector();
+		vector = assign_irq_vector(AUTO_ASSIGN);
 		delivery = IOSAPIC_INIT;
 		break;
 	      case ACPI_INTERRUPT_CPEI:
 		vector = IA64_CPE_VECTOR;
 		delivery = IOSAPIC_LOWEST_PRIORITY;
+		mask = 1;
 		break;
 	      default:
-		printk(KERN_ERR "iosapic_register_platform_irq(): invalid int type\n");
+		printk(KERN_ERR "iosapic_register_platform_irq(): invalid int type 0x%x\n", int_type);
 		return -1;
 	}
 
-	register_intr(gsi, vector, delivery, polarity,
-		      trigger);
+	register_intr(gsi, vector, delivery, polarity, trigger);
 
-	printk(KERN_INFO "PLATFORM int 0x%x: GSI 0x%x(%s,%s) -> CPU 0x%04x vector %d\n",
-	       int_type, gsi, (polarity == IOSAPIC_POL_HIGH ? "high" : "low"),
-	       (trigger == IOSAPIC_EDGE ? "edge" : "level"), dest, vector);
+	printk(KERN_INFO "PLATFORM int %s (0x%x): GSI %u (%s, %s) -> CPU %d (0x%04x) vector %d\n",
+	       int_type < ARRAY_SIZE(name) ? name[int_type] : "unknown",
+	       int_type, gsi, (trigger == IOSAPIC_EDGE ? "edge" : "level"),
+	       (polarity == IOSAPIC_POL_HIGH ? "high" : "low"),
+	       cpu_logical_id(dest), dest, vector);
 
-	/* program the IOSAPIC routing table */
-	set_rte(vector, dest);
+	set_rte(vector, dest, mask);
 	return vector;
 }
 
@@ -572,18 +626,18 @@ iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
 			  unsigned long trigger)
 {
 	int vector;
-	unsigned int dest = (ia64_getreg(_IA64_REG_CR_LID) >> 16) & 0xffff;
+	unsigned int dest = hard_smp_processor_id();
 
 	vector = isa_irq_to_vector(isa_irq);
 
 	register_intr(gsi, vector, IOSAPIC_LOWEST_PRIORITY, polarity, trigger);
 
-	DBG("ISA: IRQ %u -> GSI 0x%x (%s,%s) -> CPU 0x%04x vector %d\n",
-	    isa_irq, gsi, polarity == IOSAPIC_POL_HIGH ? "high" : "low",
-	    trigger == IOSAPIC_EDGE ? "edge" : "level", dest, vector);
+	DBG("ISA: IRQ %u -> GSI %u (%s,%s) -> CPU %d (0x%04x) vector %d\n",
+	    isa_irq, gsi, trigger == IOSAPIC_EDGE ? "edge" : "level",
+	    polarity == IOSAPIC_POL_HIGH ? "high" : "low",
+	    cpu_logical_id(dest), dest, vector);
 
-	/* program the IOSAPIC routing table */
-	set_rte(vector, dest);
+	set_rte(vector, dest, 1);
 }
 
 void __init
@@ -638,94 +692,3 @@ iosapic_init (unsigned long phys_addr, unsigned int gsi_base)
 			iosapic_override_isa_irq(isa_irq, isa_irq, IOSAPIC_POL_HIGH, IOSAPIC_EDGE);
 	}
 }
-
-void
-iosapic_enable_intr (unsigned int vector)
-{
-	unsigned int dest;
-
-#ifdef CONFIG_SMP
-	/*
-	 * For platforms that do not support interrupt redirect via the XTP interface, we
-	 * can round-robin the PCI device interrupts to the processors
-	 */
-	if (!(smp_int_redirect & SMP_IRQ_REDIRECTION)) {
-		static int cpu_index = -1;
-
-		do
-			if (++cpu_index >= NR_CPUS)
-				cpu_index = 0;
-		while (!cpu_online(cpu_index));
-
-		dest = cpu_physical_id(cpu_index) & 0xffff;
-	} else {
-		/*
-		 * Direct the interrupt vector to the current cpu, platform redirection
-		 * will distribute them.
-		 */
-		dest = (ia64_getreg(_IA64_REG_CR_LID) >> 16) & 0xffff;
-	}
-#else
-	/* direct the interrupt vector to the running cpu id */
-	dest = (ia64_getreg(_IA64_REG_CR_LID) >> 16) & 0xffff;
-#endif
-	set_rte(vector, dest);
-
-	printk(KERN_INFO "IOSAPIC: vector %d -> CPU 0x%04x, enabled\n",
-	       vector, dest);
-}
-
-#ifdef CONFIG_ACPI_PCI
-
-void __init
-iosapic_parse_prt (void)
-{
-	struct acpi_prt_entry *entry;
-	struct list_head *node;
-	unsigned int gsi;
-	int vector;
-	char pci_id[16];
-	struct hw_interrupt_type *irq_type = &irq_type_iosapic_level;
-	irq_desc_t *idesc;
-
-	list_for_each(node, &acpi_prt.entries) {
-		entry = list_entry(node, struct acpi_prt_entry, node);
-
-		/* We're only interested in static (non-link) entries.  */
-		if (entry->link.handle)
-			continue;
-
-		gsi = entry->link.index;
-
-		vector = gsi_to_vector(gsi);
-		if (vector < 0) {
-			if (find_iosapic(gsi) < 0)
-				continue;
-
-			/* allocate a vector for this interrupt line */
-			if (pcat_compat && (gsi < 16))
-				vector = isa_irq_to_vector(gsi);
-			else
-				/* new GSI; allocate a vector for it */
-				vector = ia64_alloc_vector();
-
-			register_intr(gsi, vector, IOSAPIC_LOWEST_PRIORITY, IOSAPIC_POL_LOW,
-				      IOSAPIC_LEVEL);
-		}
-		entry->irq = vector;
-		snprintf(pci_id, sizeof(pci_id), "%02x:%02x:%02x[%c]",
-			 entry->id.segment, entry->id.bus, entry->id.device, 'A' + entry->pin);
-
-		/*
-		 * If vector was previously initialized to a different
-		 * handler, re-initialize.
-		 */
-		idesc = irq_descp(vector);
-		if (idesc->handler != irq_type)
-			register_intr(gsi, vector, IOSAPIC_LOWEST_PRIORITY, IOSAPIC_POL_LOW,
-				      IOSAPIC_LEVEL);
-
-	}
-}
-
-#endif /* CONFIG_ACPI */

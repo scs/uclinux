@@ -127,7 +127,7 @@ sn_pci_alloc_consistent(struct pci_dev *hwdev, size_t size, dma_addr_t *dma_hand
 	/*
 	 * Get hwgraph vertex for the device
 	 */
-	device_sysdata = (struct sn_device_sysdata *) hwdev->sysdata;
+	device_sysdata = SN_DEVICE_SYSDATA(hwdev);
 	vhdl = device_sysdata->vhdl;
 
 	/*
@@ -137,6 +137,8 @@ sn_pci_alloc_consistent(struct pci_dev *hwdev, size_t size, dma_addr_t *dma_hand
 	 */
 	if (!(cpuaddr = (void *)__get_free_pages(GFP_ATOMIC, get_order(size))))
 		return NULL;
+
+	memset(cpuaddr, 0x0, size);
 
 	/* physical addr. of the memory we just got */
 	phys_addr = __pa(cpuaddr);
@@ -150,11 +152,12 @@ sn_pci_alloc_consistent(struct pci_dev *hwdev, size_t size, dma_addr_t *dma_hand
 	 *   pcibr_dmatrans_addr ignores a missing PCIIO_DMA_A64 flag on
 	 *   PCI-X buses.
 	 */
-	if (hwdev->consistent_dma_mask == ~0UL)
+	if (hwdev->dev.coherent_dma_mask == ~0UL)
 		*dma_handle = pcibr_dmatrans_addr(vhdl, NULL, phys_addr, size,
 					  PCIIO_DMA_CMD | PCIIO_DMA_A64);
 	else {
-		dma_map = pcibr_dmamap_alloc(vhdl, NULL, size, PCIIO_DMA_CMD);
+		dma_map = pcibr_dmamap_alloc(vhdl, NULL, size, PCIIO_DMA_CMD | 
+					     MINIMAL_ATE_FLAG(phys_addr, size));
 		if (dma_map) {
 			*dma_handle = (dma_addr_t)
 				pcibr_dmamap_addr(dma_map, phys_addr, size);
@@ -166,7 +169,7 @@ sn_pci_alloc_consistent(struct pci_dev *hwdev, size_t size, dma_addr_t *dma_hand
 		}
 	}
 
-	if (!*dma_handle || *dma_handle > hwdev->consistent_dma_mask) {
+	if (!*dma_handle || *dma_handle > hwdev->dev.coherent_dma_mask) {
 		if (dma_map) {
 			pcibr_dmamap_done(dma_map);
 			pcibr_dmamap_free(dma_map);
@@ -222,13 +225,13 @@ sn_pci_free_consistent(struct pci_dev *hwdev, size_t size, void *vaddr, dma_addr
 int
 sn_pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents, int direction)
 {
-
 	int i;
 	vertex_hdl_t vhdl;
 	unsigned long phys_addr;
 	struct sn_device_sysdata *device_sysdata;
 	pcibr_dmamap_t dma_map;
 	struct scatterlist *saved_sg = sg;
+	unsigned dma_flag;
 
 	/* can't go anywhere w/o a direction in life */
 	if (direction == PCI_DMA_NONE)
@@ -237,8 +240,20 @@ sn_pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents, int dire
 	/*
 	 * Get the hwgraph vertex for the device
 	 */
-	device_sysdata = (struct sn_device_sysdata *) hwdev->sysdata;
+	device_sysdata = SN_DEVICE_SYSDATA(hwdev);
 	vhdl = device_sysdata->vhdl;
+
+	/*
+	 * 64 bit DMA mask can use direct translations
+	 * PCI only
+	 *   32 bit DMA mask might be able to use direct, otherwise use dma map
+	 * PCI-X
+	 *   only 64 bit DMA mask supported; both direct and dma map will fail
+	 */
+	if (hwdev->dma_mask == ~0UL)
+		dma_flag = PCIIO_DMA_DATA | PCIIO_DMA_A64;
+	else
+		dma_flag = PCIIO_DMA_DATA;
 
 	/*
 	 * Setup a DMA address for each entry in the
@@ -246,40 +261,15 @@ sn_pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents, int dire
 	 */
 	for (i = 0; i < nents; i++, sg++) {
 		phys_addr = __pa((unsigned long)page_address(sg->page) + sg->offset);
-
-		/*
-		 * Handle the most common case: 64 bit cards.  This
-		 * call should always succeed.
-		 */
-		if (IS_PCIA64(hwdev)) {
-			sg->dma_address = pcibr_dmatrans_addr(vhdl, NULL, phys_addr,
-						       sg->length,
-						       PCIIO_DMA_DATA | PCIIO_DMA_A64);
+		sg->dma_address = pcibr_dmatrans_addr(vhdl, NULL, phys_addr,
+					       sg->length, dma_flag);
+		if (sg->dma_address) {
 			sg->dma_length = sg->length;
 			continue;
 		}
 
-		/*
-		 * Handle 32-63 bit cards via direct mapping
-		 */
-		if (IS_PCI32G(hwdev)) {
-			sg->dma_address = pcibr_dmatrans_addr(vhdl, NULL, phys_addr,
-						       sg->length, PCIIO_DMA_DATA);
-			sg->dma_length = sg->length;
-			/*
-			 * See if we got a direct map entry
-			 */
-			if (sg->dma_address) {
-				continue;
-			}
-
-		}
-
-		/*
-		 * It is a 32 bit card and we cannot do direct mapping,
-		 * so we use an ATE.
-		 */
-		dma_map = pcibr_dmamap_alloc(vhdl, NULL, sg->length, PCIIO_DMA_DATA);
+		dma_map = pcibr_dmamap_alloc(vhdl, NULL, sg->length,
+			PCIIO_DMA_DATA|MINIMAL_ATE_FLAG(phys_addr, sg->length));
 		if (!dma_map) {
 			printk(KERN_ERR "sn_pci_map_sg: Unable to allocate "
 			       "anymore 32 bit page map entries.\n");
@@ -365,58 +355,45 @@ sn_pci_map_single(struct pci_dev *hwdev, void *ptr, size_t size, int direction)
 	unsigned long phys_addr;
 	struct sn_device_sysdata *device_sysdata;
 	pcibr_dmamap_t dma_map = NULL;
+	unsigned dma_flag;
 
 	if (direction == PCI_DMA_NONE)
 		BUG();
 
-	/* SN cannot support DMA addresses smaller than 32 bits. */
-	if (IS_PCI32L(hwdev))
-		return 0;
-
 	/*
 	 * find vertex for the device
 	 */
-	device_sysdata = (struct sn_device_sysdata *)hwdev->sysdata;
+	device_sysdata = SN_DEVICE_SYSDATA(hwdev);
 	vhdl = device_sysdata->vhdl;
 
-	/*
-	 * Call our dmamap interface
-	 */
-	dma_addr = 0;
 	phys_addr = __pa(ptr);
-
-	if (IS_PCIA64(hwdev)) {
-		/* This device supports 64 bit DMA addresses. */
-		dma_addr = pcibr_dmatrans_addr(vhdl, NULL, phys_addr, size,
-					       PCIIO_DMA_DATA | PCIIO_DMA_A64);
-		return dma_addr;
-	}
-
 	/*
-	 * Devices that support 32 bit to 63 bit DMA addresses get
-	 * 32 bit DMA addresses.
-	 *
-	 * First try to get a 32 bit direct map register.
+	 * 64 bit DMA mask can use direct translations
+	 * PCI only
+	 *   32 bit DMA mask might be able to use direct, otherwise use dma map
+	 * PCI-X
+	 *   only 64 bit DMA mask supported; both direct and dma map will fail
 	 */
-	if (IS_PCI32G(hwdev)) {
-		dma_addr = pcibr_dmatrans_addr(vhdl, NULL, phys_addr, size,
-					       PCIIO_DMA_DATA);
-		if (dma_addr)
-			return dma_addr;
-	}
+	if (hwdev->dma_mask == ~0UL)
+		dma_flag = PCIIO_DMA_DATA | PCIIO_DMA_A64;
+	else
+		dma_flag = PCIIO_DMA_DATA;
+
+	dma_addr = pcibr_dmatrans_addr(vhdl, NULL, phys_addr, size, dma_flag);
+	if (dma_addr)
+		return dma_addr;
 
 	/*
 	 * It's a 32 bit card and we cannot do direct mapping so
 	 * let's use the PMU instead.
 	 */
 	dma_map = NULL;
-	dma_map = pcibr_dmamap_alloc(vhdl, NULL, size, PCIIO_DMA_DATA);
+	dma_map = pcibr_dmamap_alloc(vhdl, NULL, size, PCIIO_DMA_DATA | 
+				     MINIMAL_ATE_FLAG(phys_addr, size));
 
-	if (!dma_map) {
-		printk(KERN_ERR "pci_map_single: Unable to allocate anymore "
-		       "32 bit page map entries.\n");
+	/* PMU out of entries */
+	if (!dma_map)
 		return 0;
-	}
 
 	dma_addr = (dma_addr_t) pcibr_dmamap_addr(dma_map, phys_addr, size);
 	dma_map->bd_dma_addr = dma_addr;
@@ -458,7 +435,8 @@ sn_pci_unmap_single(struct pci_dev *hwdev, dma_addr_t dma_addr, size_t size, int
 }
 
 /**
- * sn_pci_dma_sync_single - make sure all DMAs have completed
+ * sn_pci_dma_sync_single_* - make sure all DMAs or CPU accesses
+ * have completed
  * @hwdev: device to sync
  * @dma_handle: DMA address to sync
  * @size: size of region
@@ -469,14 +447,19 @@ sn_pci_unmap_single(struct pci_dev *hwdev, dma_addr_t dma_addr, size_t size, int
  * anything on our platform.
  */
 void
-sn_pci_dma_sync_single(struct pci_dev *hwdev, dma_addr_t dma_handle, size_t size, int direction)
+sn_pci_dma_sync_single_for_cpu(struct pci_dev *hwdev, dma_addr_t dma_handle, size_t size, int direction)
 {
 	return;
+}
 
+void
+sn_pci_dma_sync_single_for_device(struct pci_dev *hwdev, dma_addr_t dma_handle, size_t size, int direction)
+{
+	return;
 }
 
 /**
- * sn_pci_dma_sync_sg - make sure all DMAs have completed
+ * sn_pci_dma_sync_sg_* - make sure all DMAs or CPU accesses have completed
  * @hwdev: device to sync
  * @sg: scatterlist to sync
  * @nents: number of entries in the scatterlist
@@ -487,10 +470,15 @@ sn_pci_dma_sync_single(struct pci_dev *hwdev, dma_addr_t dma_handle, size_t size
  * on our platform.
  */
 void
-sn_pci_dma_sync_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents, int direction)
+sn_pci_dma_sync_sg_for_cpu(struct pci_dev *hwdev, struct scatterlist *sg, int nents, int direction)
 {
 	return;
+}
 
+void
+sn_pci_dma_sync_sg_for_device(struct pci_dev *hwdev, struct scatterlist *sg, int nents, int direction)
+{
+	return;
 }
 
 /**
@@ -623,28 +611,64 @@ sn_dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
 EXPORT_SYMBOL(sn_dma_unmap_sg);
 
 void
-sn_dma_sync_single(struct device *dev, dma_addr_t dma_handle, size_t size,
+sn_dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle, size_t size,
+			   int direction)
+{
+	BUG_ON(dev->bus != &pci_bus_type);
+
+	sn_pci_dma_sync_single_for_cpu(to_pci_dev(dev), dma_handle, size, (int)direction);
+}
+EXPORT_SYMBOL(sn_dma_sync_single_for_cpu);
+
+void
+sn_dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle, size_t size,
 		int direction)
 {
 	BUG_ON(dev->bus != &pci_bus_type);
 
-	sn_pci_dma_sync_single(to_pci_dev(dev), dma_handle, size, (int)direction);
+	sn_pci_dma_sync_single_for_device(to_pci_dev(dev), dma_handle, size, (int)direction);
 }
-EXPORT_SYMBOL(sn_dma_sync_single);
+EXPORT_SYMBOL(sn_dma_sync_single_for_device);
 
 void
-sn_dma_sync_sg(struct device *dev, struct scatterlist *sg, int nelems,
+sn_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
 	    int direction)
 {
 	BUG_ON(dev->bus != &pci_bus_type);
 
-	sn_pci_dma_sync_sg(to_pci_dev(dev), sg, nelems, (int)direction);
+	sn_pci_dma_sync_sg_for_cpu(to_pci_dev(dev), sg, nelems, (int)direction);
 }
-EXPORT_SYMBOL(sn_dma_sync_sg);
+EXPORT_SYMBOL(sn_dma_sync_sg_for_cpu);
 
+void
+sn_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
+	    int direction)
+{
+	BUG_ON(dev->bus != &pci_bus_type);
+
+	sn_pci_dma_sync_sg_for_device(to_pci_dev(dev), sg, nelems, (int)direction);
+}
+EXPORT_SYMBOL(sn_dma_sync_sg_for_device);
+
+int
+sn_dma_mapping_error(dma_addr_t dma_addr)
+{
+	/*
+	 * We can only run out of page mapping entries, so if there's
+	 * an error, tell the caller to try again later.
+	 */
+	if (!dma_addr)
+		return -EAGAIN;
+	return 0;
+}
+
+EXPORT_SYMBOL(sn_dma_mapping_error);
 EXPORT_SYMBOL(sn_pci_unmap_single);
 EXPORT_SYMBOL(sn_pci_map_single);
-EXPORT_SYMBOL(sn_pci_dma_sync_single);
+EXPORT_SYMBOL(sn_pci_dma_sync_single_for_cpu);
+EXPORT_SYMBOL(sn_pci_dma_sync_single_for_device);
+EXPORT_SYMBOL(sn_pci_dma_sync_sg_for_cpu);
+EXPORT_SYMBOL(sn_pci_dma_sync_sg_for_device);
 EXPORT_SYMBOL(sn_pci_map_sg);
 EXPORT_SYMBOL(sn_pci_unmap_sg);
 EXPORT_SYMBOL(sn_pci_alloc_consistent);

@@ -25,6 +25,8 @@
 #include <linux/version.h>
 #include <linux/tty.h>
 #include <linux/root_dev.h>
+#include <linux/notifier.h>
+#include <linux/cpu.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
@@ -40,6 +42,11 @@
 #include <asm/time.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
+#include <asm/btext.h>
+#include <asm/nvram.h>
+#include <asm/setup.h>
+#include <asm/system.h>
+#include <asm/rtas.h>
 
 extern unsigned long klimit;
 /* extern void *stab; */
@@ -54,10 +61,17 @@ extern void  chrp_init(unsigned long r3,
 		       unsigned long r6,
 		       unsigned long r7);
 
+extern void  pmac_init(unsigned long r3,
+		       unsigned long r4,
+		       unsigned long r5,
+		       unsigned long r6,
+		       unsigned long r7);
+
 extern void iSeries_init( void );
 extern void iSeries_init_early( void );
 extern void pSeries_init_early( void );
 extern void pSeriesLP_init_early(void);
+extern void pmac_init_early(void);
 extern void mm_init_ppc64( void ); 
 extern void pseries_secondary_smp_init(unsigned long); 
 extern int  idle_setup(void);
@@ -68,11 +82,8 @@ unsigned long decr_overclock_proc0 = 1;
 unsigned long decr_overclock_set = 0;
 unsigned long decr_overclock_proc0_set = 0;
 
-#ifdef CONFIG_XMON
-extern void xmon_map_scc(void);
-#endif
+int powersave_nap;
 
-char saved_command_line[256];
 unsigned char aux_device_present;
 
 void parse_cmd_line(unsigned long r3, unsigned long r4, unsigned long r5,
@@ -84,6 +95,13 @@ unsigned long SYSRQ_KEY;
 #endif /* CONFIG_MAGIC_SYSRQ */
 
 struct machdep_calls ppc_md;
+
+static int ppc64_panic_event(struct notifier_block *, unsigned long, void *);
+
+static struct notifier_block ppc64_panic_block = {
+	notifier_call: ppc64_panic_event,
+	priority: INT_MIN /* may not return; must be done last */
+};
 
 /*
  * Perhaps we can put the pmac screen_info[] here
@@ -147,16 +165,12 @@ void __init disable_early_printk(void)
 void setup_system(unsigned long r3, unsigned long r4, unsigned long r5,
 		  unsigned long r6, unsigned long r7)
 {
-#ifdef CONFIG_PPC_PSERIES
-        unsigned int ret, i;
+#if defined(CONFIG_SMP) && defined(CONFIG_PPC_PSERIES)
+	int ret, i;
 #endif
 
 #ifdef CONFIG_XMON_DEFAULT
-	debugger = xmon;
-	debugger_bpt = xmon_bpt;
-	debugger_sstep = xmon_sstep;
-	debugger_iabr_match = xmon_iabr_match;
-	debugger_dabr_match = xmon_dabr_match;
+	xmon_init();
 #endif
 
 #ifdef CONFIG_PPC_ISERIES
@@ -175,45 +189,76 @@ void setup_system(unsigned long r3, unsigned long r4, unsigned long r5,
 #ifdef CONFIG_PPC_PSERIES
 	case PLATFORM_PSERIES:
 		pSeries_init_early();
-#ifdef CONFIG_BLK_DEV_INITRD
-		initrd_start = initrd_end = 0;
-#endif
 		parse_bootinfo();
 		break;
 
 	case PLATFORM_PSERIES_LPAR:
 		pSeriesLP_init_early();
-#ifdef CONFIG_BLK_DEV_INITRD
-		initrd_start = initrd_end = 0;
-#endif
 		parse_bootinfo();
 		break;
-#endif
+#endif /* CONFIG_PPC_PSERIES */
+#ifdef CONFIG_PPC_PMAC
+	case PLATFORM_POWERMAC:
+		pmac_init_early();
+		parse_bootinfo();
+#endif /* CONFIG_PPC_PMAC */
 	}
+
+	/* If we were passed an initrd, set the ROOT_DEV properly if the values
+	 * look sensible. If not, clear initrd reference.
+	 */
+#ifdef CONFIG_BLK_DEV_INITRD
+	if (initrd_start >= KERNELBASE && initrd_end >= KERNELBASE &&
+	    initrd_end > initrd_start)
+		ROOT_DEV = Root_RAM0;
+	else
+		initrd_start = initrd_end = 0;
+#endif /* CONFIG_BLK_DEV_INITRD */
+
+#ifdef CONFIG_BOOTX_TEXT
+	map_boot_text();
+	if (systemcfg->platform == PLATFORM_POWERMAC) {
+		early_console_initialized = 1;
+		register_console(&udbg_console);
+	}
+#endif /* CONFIG_BOOTX_TEXT */
 
 #ifdef CONFIG_PPC_PSERIES
 	if (systemcfg->platform & PLATFORM_PSERIES) {
 		early_console_initialized = 1;
 		register_console(&udbg_console);
+		__irq_offset_value = NUM_ISA_INTERRUPTS;
 		finish_device_tree();
 		chrp_init(r3, r4, r5, r6, r7);
 
 #ifdef CONFIG_SMP
 		/* Start secondary threads on SMT systems */
 		for (i = 0; i < NR_CPUS; i++) {
-			if(cpu_available(i)  && !cpu_possible(i)) {
+			if (cpu_available(i) && !cpu_possible(i)) {
 				printk("%16.16x : starting thread\n", i);
-				rtas_call(rtas_token("start-cpu"), 3, 1, 
-					  (void *)&ret,
+				rtas_call(rtas_token("start-cpu"), 3, 1, &ret,
 					  get_hard_smp_processor_id(i), 
-					  *((unsigned long *)pseries_secondary_smp_init), i);
+					  (u32)*((unsigned long *)pseries_secondary_smp_init),
+					  i);
 				cpu_set(i, cpu_possible_map);
 				systemcfg->processorCount++;
 			}
 		}
-#endif
+#endif /* CONFIG_SMP */
 	}
-#endif
+#endif /* CONFIG_PPC_PSERIES */
+
+#ifdef CONFIG_PPC_PMAC
+	if (systemcfg->platform == PLATFORM_POWERMAC) {
+		finish_device_tree();
+		pmac_init(r3, r4, r5, r6, r7);
+	}
+#endif /* CONFIG_PPC_PMAC */
+
+#if defined(CONFIG_HOTPLUG_CPU) &&  !defined(CONFIG_PPC_PMAC)
+	rtas_stop_self_args.token = rtas_token("stop-self");
+#endif /* CONFIG_HOTPLUG_CPU && !CONFIG_PPC_PMAC */
+
 	/* Finish initializing the hash table (do the dynamic
 	 * patching for the fast-path hashtable.S code)
 	 */
@@ -226,7 +271,7 @@ void setup_system(unsigned long r3, unsigned long r4, unsigned long r5,
 	printk("naca->pftSize                 = 0x%lx\n", naca->pftSize);
 	printk("naca->debug_switch            = 0x%lx\n", naca->debug_switch);
 	printk("naca->interrupt_controller    = 0x%ld\n", naca->interrupt_controller);
-	printk("systemcfg                      = 0x%p\n", systemcfg);
+	printk("systemcfg                     = 0x%p\n", systemcfg);
 	printk("systemcfg->processorCount     = 0x%lx\n", systemcfg->processorCount);
 	printk("systemcfg->physicalMemorySize = 0x%lx\n", systemcfg->physicalMemorySize);
 	printk("systemcfg->dCacheL1LineSize   = 0x%x\n", systemcfg->dCacheL1LineSize);
@@ -261,6 +306,8 @@ void setup_system(unsigned long r3, unsigned long r4, unsigned long r5,
 
 void machine_restart(char *cmd)
 {
+	if (ppc_md.nvram_sync)
+		ppc_md.nvram_sync();
 	ppc_md.restart(cmd);
 }
 
@@ -268,6 +315,8 @@ EXPORT_SYMBOL(machine_restart);
   
 void machine_power_off(void)
 {
+	if (ppc_md.nvram_sync)
+		ppc_md.nvram_sync();
 	ppc_md.power_off();
 }
 
@@ -275,6 +324,8 @@ EXPORT_SYMBOL(machine_power_off);
   
 void machine_halt(void)
 {
+	if (ppc_md.nvram_sync)
+		ppc_md.nvram_sync();
 	ppc_md.halt();
 }
 
@@ -282,6 +333,18 @@ EXPORT_SYMBOL(machine_halt);
 
 unsigned long ppc_proc_freq;
 unsigned long ppc_tb_freq;
+
+static int ppc64_panic_event(struct notifier_block *this,
+                             unsigned long event, void *ptr)
+{
+	ppc_md.panic((char *)ptr);  /* May not return */
+	return NOTIFY_DONE;
+}
+
+
+#ifdef CONFIG_SMP
+DEFINE_PER_CPU(unsigned int, pvr);
+#endif
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
@@ -291,6 +354,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	unsigned short min;
 
 	if (cpu_id == NR_CPUS) {
+		seq_printf(m, "timebase\t: %lu\n", ppc_tb_freq);
 
 		if (ppc_md.get_cpuinfo != NULL)
 			ppc_md.get_cpuinfo(m);
@@ -298,11 +362,16 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		return 0;
 	}
 
-	if (!cpu_online(cpu_id))
+	/* We only show online cpus: disable preempt (overzealous, I
+	 * knew) to prevent cpu going down. */
+	preempt_disable();
+	if (!cpu_online(cpu_id)) {
+		preempt_enable();
 		return 0;
+	}
 
 #ifdef CONFIG_SMP
-	pvr = paca[cpu_id].pvr;
+	pvr = per_cpu(pvr, cpu_id);
 #else
 	pvr = _get_PVR();
 #endif
@@ -324,32 +393,16 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m, "\n");
 
-#ifdef CONFIG_PPC_PSERIES
 	/*
 	 * Assume here that all clock rates are the same in a
 	 * smp system.  -- Cort
 	 */
-	if (systemcfg->platform != PLATFORM_ISERIES_LPAR) {
-		struct device_node *cpu_node;
-		int *fp;
-
-		cpu_node = of_find_node_by_type(NULL, "cpu");
-		if (cpu_node) {
-			fp = (int *) get_property(cpu_node, "clock-frequency",
-						  NULL);
-			if (fp)
-				seq_printf(m, "clock\t\t: %dMHz\n",
-					   *fp / 1000000);
-			of_node_put(cpu_node);
-		}
-	}
-#endif
-
-	if (ppc_md.setup_residual != NULL)
-		ppc_md.setup_residual(m, cpu_id);
+	seq_printf(m, "clock\t\t: %lu.%06luMHz\n", ppc_proc_freq / 1000000,
+		   ppc_proc_freq % 1000000);
 
 	seq_printf(m, "revision\t: %hd.%hd\n\n", maj, min);
-	
+
+	preempt_enable();
 	return 0;
 }
 
@@ -378,15 +431,6 @@ struct seq_operations cpuinfo_op = {
 void parse_cmd_line(unsigned long r3, unsigned long r4, unsigned long r5,
 		  unsigned long r6, unsigned long r7)
 {
-#ifdef CONFIG_BLK_DEV_INITRD
-	if ((initrd_start == 0) && r3 && r4 && r4 != 0xdeadbeef) {
-		initrd_start = (r3 >= KERNELBASE) ? r3 : (unsigned long)__va(r3);
-		initrd_end = initrd_start + r4;
-		ROOT_DEV = Root_RAM0;
-		initrd_below_start_ok = 1;
-	}
-#endif
-
 	cmd_line[0] = 0;
 
 #ifdef CONFIG_CMDLINE
@@ -436,9 +480,10 @@ static int __init set_preferred_console(void)
 {
 	struct device_node *prom_stdout;
 	char *name;
+	int offset;
 
 	/* The user has requested a console so this is already set up. */
-	if (strstr(cmd_line, "console="))
+	if (strstr(saved_command_line, "console="))
 		return -EBUSY;
 
 	prom_stdout = find_path_device(of_stdout_device);
@@ -453,7 +498,6 @@ static int __init set_preferred_console(void)
 		int i;
 		u32 *reg = (u32 *)get_property(prom_stdout, "reg", &i);
 		if (i > 8) {
-			int offset;
 			switch (reg[1]) {
 				case 0x3f8:
 					offset = 0;
@@ -471,23 +515,25 @@ static int __init set_preferred_console(void)
 					/* We dont recognise the serial port */
 					return -ENODEV;
 			}
-
-			return add_preferred_console("ttyS", offset, NULL);
 		}
-	} else if (strcmp(name, "vty") == 0) {
+	} else if (strcmp(name, "vty") == 0)
 		/* pSeries LPAR virtual console */
 		return add_preferred_console("hvc", 0, NULL);
-	}
+	else if (strcmp(name, "ch-a") == 0)
+		offset = 0;
+	else if (strcmp(name, "ch-b") == 0)
+		offset = 1;
+	else
+		return -ENODEV;
 
-	return -ENODEV;
+	return add_preferred_console("ttyS", offset, NULL);
+
 }
 console_initcall(set_preferred_console);
 
 int parse_bootinfo(void)
 {
 	struct bi_record *rec;
-	extern char *sysmap;
-	extern unsigned long sysmap_size;
 
 	rec = prom.bi_recs;
 
@@ -497,20 +543,8 @@ int parse_bootinfo(void)
 	for ( ; rec->tag != BI_LAST ; rec = bi_rec_next(rec) ) {
 		switch (rec->tag) {
 		case BI_CMD_LINE:
-			memcpy(cmd_line, (void *)rec->data, rec->size);
+			strlcpy(cmd_line, (void *)rec->data, sizeof(cmd_line));
 			break;
-		case BI_SYSMAP:
-			sysmap = __va(rec->data[0]);
-			sysmap_size = rec->data[1];
-			break;
-#ifdef CONFIG_BLK_DEV_INITRD
-		case BI_INITRD:
-			initrd_start = (unsigned long)__va(rec->data[0]);
-			initrd_end = initrd_start + rec->data[1];
-			ROOT_DEV = Root_RAM0;
-			initrd_below_start_ok = 1;
-			break;
-#endif /* CONFIG_BLK_DEV_INITRD */
 		}
 	}
 
@@ -542,6 +576,23 @@ void __init ppc64_calibrate_delay(void)
 
 extern void (*calibrate_delay)(void);
 
+#ifdef CONFIG_IRQSTACKS
+static void __init irqstack_early_init(void)
+{
+	int i;
+
+	/* interrupt stacks must be under 256MB, we cannot afford to take SLB misses on them */
+	for (i = 0; i < NR_CPUS; i++) {
+		softirq_ctx[i] = (struct thread_info *)__va(lmb_alloc_base(THREAD_SIZE,
+					THREAD_SIZE, 0x10000000));
+		hardirq_ctx[i] = (struct thread_info *)__va(lmb_alloc_base(THREAD_SIZE,
+					THREAD_SIZE, 0x10000000));
+	}
+}
+#else
+#define irqstack_early_init()
+#endif
+
 /*
  * Called into from start_kernel, after lock_kernel has been called.
  * Initializes bootmem, which is unsed to manage page allocation until
@@ -555,12 +606,14 @@ void __init setup_arch(char **cmdline_p)
 	calibrate_delay = ppc64_calibrate_delay;
 
 	ppc64_boot_msg(0x12, "Setup Arch");
-#ifdef CONFIG_XMON
-	xmon_map_scc();
-	if (strstr(cmd_line, "xmon"))
-		xmon(0);
-#endif /* CONFIG_XMON */
 
+#ifdef CONFIG_XMON
+	if (strstr(cmd_line, "xmon")) {
+		/* ensure xmon is enabled */
+		xmon_init();
+		debugger(0);
+	}
+#endif /* CONFIG_XMON */
 
 	/*
 	 * Set cache line size based on type of cpu as a default.
@@ -573,14 +626,19 @@ void __init setup_arch(char **cmdline_p)
 	/* reboot on panic */
 	panic_timeout = 180;
 
+	if (ppc_md.panic)
+		notifier_chain_register(&panic_notifier_list, &ppc64_panic_block);
+
 	init_mm.start_code = PAGE_OFFSET;
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = klimit;
 	
 	/* Save unparsed command line copy for /proc/cmdline */
-	strcpy(saved_command_line, cmd_line);
+	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
 	*cmdline_p = cmd_line;
+
+	irqstack_early_init();
 
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();
@@ -645,7 +703,7 @@ int set_spread_lpevents( char * str )
 	unsigned long val = simple_strtoul( str, NULL, 0 );
 	if ( ( val > 0 ) && ( val <= NR_CPUS ) ) {
 		for ( i=1; i<val; ++i )
-			paca[i].lpQueuePtr = paca[0].lpQueuePtr;
+			paca[i].lpqueue_ptr = paca[0].lpqueue_ptr;
 		printk("lpevent processing spread over %ld processors\n", val);
 	}
 	else

@@ -37,9 +37,11 @@
 #include <asm/proto.h>
 #include <asm/smp.h>
 
+#ifndef Dprintk
 #define Dprintk(x...)
+#endif
 
-extern char _stext;
+extern char _stext[];
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
@@ -58,7 +60,7 @@ void show_mem(void)
 
 	printk("Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6dkB\n",nr_swap_pages<<(PAGE_SHIFT-10));
+	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 
 	for_each_pgdat(pgdat) {
                for (i = 0; i < pgdat->node_spanned_pages; ++i) {
@@ -80,7 +82,7 @@ void show_mem(void)
 
 /* References to section boundaries */
 
-extern char _text, _etext, _edata, __bss_start, _end;
+extern char _text, _etext, _edata, __bss_start, _end[];
 extern char __init_begin, __init_end;
 
 int after_bootmem;
@@ -402,6 +404,13 @@ void __init mem_init(void)
 	int codesize, reservedpages, datasize, initsize;
 	int tmp;
 
+#ifdef CONFIG_SWIOTLB
+	if (!iommu_aperture && end_pfn >= 0xffffffff>>PAGE_SHIFT)
+	       swiotlb = 1;
+	if (swiotlb)
+		swiotlb_init();	
+#endif
+
 	/* How many end-of-memory variables you have, grandma! */
 	max_low_pfn = end_pfn;
 	max_pfn = end_pfn;
@@ -442,7 +451,7 @@ void __init mem_init(void)
 	kclist_add(&kcore_mem, __va(0), max_low_pfn << PAGE_SHIFT); 
 	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START, 
 		   VMALLOC_END-VMALLOC_START);
-	kclist_add(&kcore_kernel, &_stext, &_end - &_stext); 
+	kclist_add(&kcore_kernel, &_stext, _end - _stext);
 	kclist_add(&kcore_modules, (void *)MODULES_VADDR, MODULES_LEN);
 	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_START, 
 				 VSYSCALL_END - VSYSCALL_START);
@@ -503,9 +512,7 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 	/* Should check here against the e820 map to avoid double free */ 
 #ifdef CONFIG_DISCONTIGMEM
 	int nid = phys_to_nid(phys);
-	if (phys < HIGH_MEMORY && nid) 
-		panic("reserve of %lx at node %d", phys, nid);
-	reserve_bootmem_node(NODE_DATA(nid), phys, len);
+  	reserve_bootmem_node(NODE_DATA(nid), phys, len);
 #else       		
 	reserve_bootmem(phys, len);    
 #endif
@@ -540,4 +547,60 @@ int kern_addr_valid(unsigned long addr)
 	if (pte_none(*pte))
 		return 0;
 	return pfn_valid(pte_pfn(*pte));
+}
+
+#ifdef CONFIG_SYSCTL
+#include <linux/sysctl.h>
+
+extern int exception_trace, page_fault_trace;
+
+static ctl_table debug_table2[] = {
+	{ 99, "exception-trace", &exception_trace, sizeof(int), 0644, NULL,
+	  proc_dointvec },
+#ifdef CONFIG_CHECKING
+	{ 100, "page-fault-trace", &page_fault_trace, sizeof(int), 0644, NULL,
+	  proc_dointvec },
+#endif
+	{ 0, }
+}; 
+
+static ctl_table debug_root_table2[] = { 
+	{ .ctl_name = CTL_DEBUG, .procname = "debug", .mode = 0555, 
+	   .child = debug_table2 }, 
+	{ 0 }, 
+}; 
+
+static __init int x8664_sysctl_init(void)
+{ 
+	register_sysctl_table(debug_root_table2, 1);
+	return 0;
+}
+__initcall(x8664_sysctl_init);
+#endif
+
+/* Pseudo VMAs to allow ptrace access for the vsyscall pages.  x86-64 has two
+   different ones: one for 32bit and one for 64bit. Use the appropiate
+   for the target task. */
+
+static struct vm_area_struct gate_vma = {
+	.vm_start = VSYSCALL_START,
+	.vm_end = VSYSCALL_END,
+	.vm_page_prot = PAGE_READONLY
+};
+
+static struct vm_area_struct gate32_vma = {
+	.vm_start = VSYSCALL32_BASE,
+	.vm_end = VSYSCALL32_END,
+	.vm_page_prot = PAGE_READONLY
+};
+
+struct vm_area_struct *get_gate_vma(struct task_struct *tsk)
+{
+	return test_tsk_thread_flag(tsk, TIF_IA32) ? &gate32_vma : &gate_vma;
+}
+
+int in_gate_area(struct task_struct *task, unsigned long addr)
+{
+	struct vm_area_struct *vma = get_gate_vma(task);
+	return (addr >= vma->vm_start) && (addr < vma->vm_end);
 }

@@ -1,5 +1,5 @@
 /*
- *	Intel Multiprocessor Specificiation 1.1 and 1.4
+ *	Intel Multiprocessor Specification 1.1 and 1.4
  *	compliant MP-table parsing routines.
  *
  *	(c) 1995 Alan Cox, Building #3 <alan@redhat.com>
@@ -23,12 +23,12 @@
 #include <linux/smp_lock.h>
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
+#include <linux/bitops.h>
 
 #include <asm/smp.h>
 #include <asm/acpi.h>
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
-#include <asm/pgalloc.h>
 #include <asm/io_apic.h>
 
 #include <mach_apic.h>
@@ -37,6 +37,7 @@
 
 /* Have we found an MP table */
 int smp_found_config;
+unsigned int __initdata maxcpus = NR_CPUS;
 
 /*
  * Various Linux-internal data structures created from the
@@ -103,6 +104,21 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 static int mpc_record; 
 static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY] __initdata;
 
+#ifdef CONFIG_X86_NUMAQ
+static int MP_valid_apicid(int apicid, int version)
+{
+	return hweight_long(apicid & 0xf) == 1 && (apicid >> 4) != 0xf;
+}
+#else
+static int MP_valid_apicid(int apicid, int version)
+{
+	if (version >= 0x14)
+		return apicid < 0xff;
+	else
+		return apicid < 0xf;
+}
+#endif
+
 void __init MP_processor_info (struct mpc_config_processor *m)
 {
  	int ver, apicid;
@@ -168,19 +184,25 @@ void __init MP_processor_info (struct mpc_config_processor *m)
 	}
 
 	if (num_processors >= NR_CPUS) {
-		printk(KERN_WARNING "NR_CPUS limit of %i reached.  Cannot "
-			"boot CPU(apicid 0x%x).\n", NR_CPUS, m->mpc_apicid);
+		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
+			"  Processor ignored.\n", NR_CPUS); 
+		return;
+	}
+
+	if (num_processors >= maxcpus) {
+		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
+			" Processor ignored.\n", maxcpus); 
 		return;
 	}
 	num_processors++;
+	ver = m->mpc_apicver;
 
-	if (MAX_APICS - m->mpc_apicid <= 0) {
+	if (!MP_valid_apicid(apicid, ver)) {
 		printk(KERN_WARNING "Processor #%d INVALID. (Max ID: %d).\n",
 			m->mpc_apicid, MAX_APICS);
 		--num_processors;
 		return;
 	}
-	ver = m->mpc_apicver;
 
 	tmp = apicid_to_cpu_present(apicid);
 	physids_or(phys_cpu_present_map, phys_cpu_present_map, tmp);
@@ -634,7 +656,7 @@ void __init get_smp_config (void)
 
 	/*
 	 * ACPI may be used to obtain the entire SMP configuration or just to 
-	 * enumerate/configure processors (CONFIG_ACPI_HT).  Note that 
+	 * enumerate/configure processors (CONFIG_ACPI_BOOT).  Note that 
 	 * ACPI supports both logical (e.g. Hyper-Threading) and physical 
 	 * processors, where MPS only supports physical.
 	 */
@@ -837,32 +859,32 @@ void __init mp_register_lapic (
 	MP_processor_info(&processor);
 }
 
-#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_ACPI_INTERPRETER)
+#if defined(CONFIG_X86_IO_APIC) && (defined(CONFIG_ACPI_INTERPRETER) || defined(CONFIG_ACPI_BOOT))
 
 #define MP_ISA_BUS		0
 #define MP_MAX_IOAPIC_PIN	127
 
 struct mp_ioapic_routing {
 	int			apic_id;
-	int			irq_start;
-	int			irq_end;
+	int			gsi_base;
+	int			gsi_end;
 	u32			pin_programmed[4];
 } mp_ioapic_routing[MAX_IO_APICS];
 
 
-static int __init mp_find_ioapic (
-	int			irq)
+static int mp_find_ioapic (
+	int			gsi)
 {
 	int			i = 0;
 
-	/* Find the IOAPIC that manages this IRQ. */
+	/* Find the IOAPIC that manages this GSI. */
 	for (i = 0; i < nr_ioapics; i++) {
-		if ((irq >= mp_ioapic_routing[i].irq_start)
-			&& (irq <= mp_ioapic_routing[i].irq_end))
+		if ((gsi >= mp_ioapic_routing[i].gsi_base)
+			&& (gsi <= mp_ioapic_routing[i].gsi_end))
 			return i;
 	}
 
-	printk(KERN_ERR "ERROR: Unable to locate IOAPIC for IRQ %d\n", irq);
+	printk(KERN_ERR "ERROR: Unable to locate IOAPIC for GSI %d\n", gsi);
 
 	return -1;
 }
@@ -871,7 +893,7 @@ static int __init mp_find_ioapic (
 void __init mp_register_ioapic (
 	u8			id, 
 	u32			address,
-	u32			irq_base)
+	u32			gsi_base)
 {
 	int			idx = 0;
 
@@ -897,19 +919,19 @@ void __init mp_register_ioapic (
 	mp_ioapics[idx].mpc_apicver = io_apic_get_version(idx);
 	
 	/* 
-	 * Build basic IRQ lookup table to facilitate irq->io_apic lookups
-	 * and to prevent reprogramming of IOAPIC pins (PCI IRQs).
+	 * Build basic GSI lookup table to facilitate gsi->io_apic lookups
+	 * and to prevent reprogramming of IOAPIC pins (PCI GSIs).
 	 */
 	mp_ioapic_routing[idx].apic_id = mp_ioapics[idx].mpc_apicid;
-	mp_ioapic_routing[idx].irq_start = irq_base;
-	mp_ioapic_routing[idx].irq_end = irq_base + 
+	mp_ioapic_routing[idx].gsi_base = gsi_base;
+	mp_ioapic_routing[idx].gsi_end = gsi_base + 
 		io_apic_get_redir_entries(idx);
 
 	printk("IOAPIC[%d]: apic_id %d, version %d, address 0x%lx, "
-		"IRQ %d-%d\n", idx, mp_ioapics[idx].mpc_apicid, 
+		"GSI %d-%d\n", idx, mp_ioapics[idx].mpc_apicid, 
 		mp_ioapics[idx].mpc_apicver, mp_ioapics[idx].mpc_apicaddr,
-		mp_ioapic_routing[idx].irq_start,
-		mp_ioapic_routing[idx].irq_end);
+		mp_ioapic_routing[idx].gsi_base,
+		mp_ioapic_routing[idx].gsi_end);
 
 	return;
 }
@@ -919,28 +941,26 @@ void __init mp_override_legacy_irq (
 	u8			bus_irq,
 	u8			polarity, 
 	u8			trigger, 
-	u32			global_irq)
+	u32			gsi)
 {
 	struct mpc_config_intsrc intsrc;
-	int			i = 0;
-	int			found = 0;
 	int			ioapic = -1;
 	int			pin = -1;
 
 	/* 
-	 * Convert 'global_irq' to 'ioapic.pin'.
+	 * Convert 'gsi' to 'ioapic.pin'.
 	 */
-	ioapic = mp_find_ioapic(global_irq);
+	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0)
 		return;
-	pin = global_irq - mp_ioapic_routing[ioapic].irq_start;
+	pin = gsi - mp_ioapic_routing[ioapic].gsi_base;
 
 	/*
 	 * TBD: This check is for faulty timer entries, where the override
 	 *      erroneously sets the trigger to level, resulting in a HUGE 
 	 *      increase of timer interrupts!
 	 */
-	if ((bus_irq == 0) && (global_irq == 2) && (trigger == 3))
+	if ((bus_irq == 0) && (trigger == 3))
 		trigger = 1;
 
 	intsrc.mpc_type = MP_INTSRC;
@@ -956,23 +976,9 @@ void __init mp_override_legacy_irq (
 		(intsrc.mpc_irqflag >> 2) & 3, intsrc.mpc_srcbus, 
 		intsrc.mpc_srcbusirq, intsrc.mpc_dstapic, intsrc.mpc_dstirq);
 
-	/* 
-	 * If an existing [IOAPIC.PIN -> IRQ] routing entry exists we override it.
-	 * Otherwise create a new entry (e.g. global_irq == 2).
-	 */
-	for (i = 0; i < mp_irq_entries; i++) {
-		if ((mp_irqs[i].mpc_dstapic == intsrc.mpc_dstapic) 
-			&& (mp_irqs[i].mpc_srcbusirq == intsrc.mpc_srcbusirq)) {
-			mp_irqs[i] = intsrc;
-			found = 1;
-			break;
-		}
-	}
-	if (!found) {
-		mp_irqs[mp_irq_entries] = intsrc;
-		if (++mp_irq_entries == MAX_IRQ_SOURCES)
-			panic("Max # of irq sources exceeded!\n");
-	}
+	mp_irqs[mp_irq_entries] = intsrc;
+	if (++mp_irq_entries == MAX_IRQ_SOURCES)
+		panic("Max # of irq sources exceeded!\n");
 
 	return;
 }
@@ -1003,14 +1009,31 @@ void __init mp_config_acpi_legacy_irqs (void)
 	intsrc.mpc_dstapic = mp_ioapics[ioapic].mpc_apicid;
 
 	/* 
-	 * Use the default configuration for the IRQs 0-15.  These may be
+	 * Use the default configuration for the IRQs 0-15.  Unless
 	 * overriden by (MADT) interrupt source override entries.
 	 */
 	for (i = 0; i < 16; i++) {
+		int idx;
 
-		if (i == 2) continue;			/* Don't connect IRQ2 */
+		for (idx = 0; idx < mp_irq_entries; idx++) {
+			struct mpc_config_intsrc *irq = mp_irqs + idx;
 
-		intsrc.mpc_irqtype = i ? mp_INT : mp_ExtINT;   /* 8259A to #0 */
+			/* Do we already have a mapping for this ISA IRQ? */
+			if (irq->mpc_srcbus == MP_ISA_BUS && irq->mpc_srcbusirq == i)
+				break;
+
+			/* Do we already have a mapping for this IOAPIC pin */
+			if ((irq->mpc_dstapic == intsrc.mpc_dstapic) &&
+				(irq->mpc_dstirq == i))
+				break;
+		}
+
+		if (idx != mp_irq_entries) {
+			printk(KERN_DEBUG "ACPI: IRQ%d used by override.\n", i);
+			continue;			/* IRQ already used */
+		}
+
+		intsrc.mpc_irqtype = mp_INT;
 		intsrc.mpc_srcbusirq = i;		   /* Identity mapped */
 		intsrc.mpc_dstirq = i;
 
@@ -1026,161 +1049,56 @@ void __init mp_config_acpi_legacy_irqs (void)
 	}
 }
 
-extern FADT_DESCRIPTOR acpi_fadt;
+int (*platform_rename_gsi)(int ioapic, int gsi);
 
-void __init mp_config_ioapic_for_sci(int irq)
+void mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
 {
-	int ioapic;
-	int ioapic_pin;
-	struct acpi_table_madt *madt;
-	struct acpi_table_int_src_ovr *entry = NULL;
-	acpi_interrupt_flags flags;
-	void *madt_end;
-	acpi_status status;
-
-	/*
-	 * Ensure that if there is an interrupt source override entry
-	 * for the ACPI SCI, we leave it as is. Unfortunately this involves
-	 * walking the MADT again.
-	 */
-	status = acpi_get_firmware_table("APIC", 1, ACPI_LOGICAL_ADDRESSING,
-		(struct acpi_table_header **) &madt);
-	if (ACPI_SUCCESS(status)) {
-		madt_end = (void *) (unsigned long)madt + madt->header.length;
-
-		entry = (struct acpi_table_int_src_ovr *)
-                ((unsigned long) madt + sizeof(struct acpi_table_madt));
-
-		while ((void *) entry < madt_end) {
-                	if (entry->header.type == ACPI_MADT_INT_SRC_OVR &&
-			    acpi_fadt.sci_int == entry->bus_irq)
-				goto found;
-			
-                	entry = (struct acpi_table_int_src_ovr *)
-                	        ((unsigned long) entry + entry->header.length);
-        	}
-	}
-	/*
-	 * Although the ACPI spec says that the SCI should be level/low
-	 * don't reprogram it unless there is an explicit MADT OVR entry
-	 * instructing us to do so -- otherwise we break Tyan boards which
-	 * have the SCI wired edge/high but no MADT OVR.
-	 */
-	return;
-
-found:
-	/*
-	 * See the note at the end of ACPI 2.0b section
-	 * 5.2.10.8 for what this is about.
-	 */
-	flags = entry->flags;
-	acpi_fadt.sci_int = entry->global_irq;
-	irq = entry->global_irq;
-
-	ioapic = mp_find_ioapic(irq);
-
-	ioapic_pin = irq - mp_ioapic_routing[ioapic].irq_start;
-
-	/*
-	 * MPS INTI flags:
-	 *  trigger: 0=default, 1=edge, 3=level
-	 *  polarity: 0=default, 1=high, 3=low
-	 * Per ACPI spec, default for SCI means level/low.
-	 */
-	io_apic_set_pci_routing(ioapic, ioapic_pin, irq, 
-		(flags.trigger == 1 ? 0 : 1), (flags.polarity == 1 ? 0 : 1));
-}
-
-#ifdef CONFIG_ACPI_PCI
-
-void __init mp_parse_prt (void)
-{
-	struct list_head	*node = NULL;
-	struct acpi_prt_entry	*entry = NULL;
 	int			ioapic = -1;
 	int			ioapic_pin = 0;
-	int			irq = 0;
 	int			idx, bit = 0;
-	int			edge_level = 0;
-	int			active_high_low = 0;
 
-	/*
-	 * Parsing through the PCI Interrupt Routing Table (PRT) and program
-	 * routing for all entries.
-	 */
-	list_for_each(node, &acpi_prt.entries) {
-		entry = list_entry(node, struct acpi_prt_entry, node);
+#ifdef CONFIG_ACPI_BUS
+	/* Don't set up the ACPI SCI because it's already set up */
+	if (acpi_fadt.sci_int == gsi)
+		return;
+#endif
 
-		/* Need to get irq for dynamic entry */
-		if (entry->link.handle) {
-			irq = acpi_pci_link_get_irq(entry->link.handle, entry->link.index, &edge_level, &active_high_low);
-			if (!irq)
-				continue;
-		}
-		else {
-			/* Hardwired IRQ. Assume PCI standard settings */
-			irq = entry->link.index;
-			edge_level = 1;
-			active_high_low = 1;
-		}
-
-		/* Don't set up the ACPI SCI because it's already set up */
-                if (acpi_fadt.sci_int == irq) {
-                        entry->irq = irq; /*we still need to set entry's irq*/
-			continue;
-                }
-	
-		ioapic = mp_find_ioapic(irq);
-		if (ioapic < 0)
-			continue;
-		ioapic_pin = irq - mp_ioapic_routing[ioapic].irq_start;
-
-		if (es7000_plat) {
-			if (!ioapic && (irq < 16))
-				irq += 16;
-		}
-
-		/* 
-		 * Avoid pin reprogramming.  PRTs typically include entries  
-		 * with redundant pin->irq mappings (but unique PCI devices);
-		 * we only only program the IOAPIC on the first.
-		 */
-		bit = ioapic_pin % 32;
-		idx = (ioapic_pin < 32) ? 0 : (ioapic_pin / 32);
-		if (idx > 3) {
-			printk(KERN_ERR "Invalid reference to IOAPIC pin "
-				"%d-%d\n", mp_ioapic_routing[ioapic].apic_id, 
-				ioapic_pin);
-			continue;
-		}
-		if ((1<<bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
-			printk(KERN_DEBUG "Pin %d-%d already programmed\n",
-				mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
- 			if (use_pci_vector() && !platform_legacy_irq(irq))
- 				irq = IO_APIC_VECTOR(irq);
- 			entry->irq = irq;
-			continue;
-		}
-
-		mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1<<bit);
-
-		if (!io_apic_set_pci_routing(ioapic, ioapic_pin, irq, edge_level, active_high_low)) {
- 			if (use_pci_vector() && !platform_legacy_irq(irq))
- 				irq = IO_APIC_VECTOR(irq);
- 			entry->irq = irq;
- 		}
-		printk(KERN_DEBUG "%02x:%02x:%02x[%c] -> %d-%d -> IRQ %d\n",
-			entry->id.segment, entry->id.bus, 
-			entry->id.device, ('A' + entry->pin), 
-			mp_ioapic_routing[ioapic].apic_id, ioapic_pin, 
-			entry->irq);
+	ioapic = mp_find_ioapic(gsi);
+	if (ioapic < 0) {
+		printk(KERN_WARNING "No IOAPIC for GSI %u\n", gsi);
+		return;
 	}
 
-	print_IO_APIC();
+	ioapic_pin = gsi - mp_ioapic_routing[ioapic].gsi_base;
 
-	return;
+	if (platform_rename_gsi)
+		gsi = platform_rename_gsi(ioapic, gsi);
+
+	/* 
+	 * Avoid pin reprogramming.  PRTs typically include entries  
+	 * with redundant pin->gsi mappings (but unique PCI devices);
+	 * we only program the IOAPIC on the first.
+	 */
+	bit = ioapic_pin % 32;
+	idx = (ioapic_pin < 32) ? 0 : (ioapic_pin / 32);
+	if (idx > 3) {
+		printk(KERN_ERR "Invalid reference to IOAPIC pin "
+			"%d-%d\n", mp_ioapic_routing[ioapic].apic_id, 
+			ioapic_pin);
+		return;
+	}
+	if ((1<<bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
+		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
+			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
+		return;
+	}
+
+	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1<<bit);
+
+	io_apic_set_pci_routing(ioapic, ioapic_pin, gsi,
+		    edge_level == ACPI_EDGE_SENSITIVE ? 0 : 1,
+		    active_high_low == ACPI_ACTIVE_HIGH ? 0 : 1);
 }
 
-#endif /*CONFIG_ACPI_PCI*/
-#endif /*CONFIG_X86_IO_APIC && CONFIG_ACPI_INTERPRETER*/
+#endif /*CONFIG_X86_IO_APIC && (CONFIG_ACPI_INTERPRETER || CONFIG_ACPI_BOOT)*/
 #endif /*CONFIG_ACPI_BOOT*/

@@ -27,7 +27,7 @@
 
 
 #include <asm/cplb.h>
-#include <asm/board/bf533.h>
+#include <asm/blackfin.h>
  		
 .text
 .global _cplb_mgr;
@@ -120,12 +120,13 @@ isearch_done:
 
 	/* disable cplbs */
 	
-	R5 = [P4];		/* Control Register */
+	R5 = [P4];		// Control Register
 	BITCLR(R5,1);
 	CLI R1;
 	.align 8;
+	CSYNC;
 	[P4] = R5;
-	SSYNC;
+	CSYNC;
 	STI R1;
 
 	R1 = -1;		/* end point comparison */
@@ -136,14 +137,14 @@ isearch_done:
 
 icheck_lock:
 	R0 = [P0++];
-	R3=R3 + R1;
+	R3 = R3 + R1;
 	CC = R3 == R1;
 	IF CC JUMP all_locked;
 	CC = BITTST(R0, 0);		/* an invalid entry is good */
 	IF CC JUMP ifound_victim;
 	CC = BITTST(R0,1);		/* but a locked entry isn't */
 	IF CC JUMP icheck_lock;
-
+	
 ifound_victim:
 	LC0=R3;
 	LSETUP(is_move,ie_move) LC0;
@@ -154,12 +155,13 @@ is_move:R0 = [P0];			/* move data */
 	P3 = R3;
 	[p3] = R0;
 	
-	SSYNC;			
+	CSYNC;
 	
 	R3 = 0x100;
 	R7 = P0;
 	R3 = R7 - R3;
 	P3 = R3;
+	SSYNC;
 	R0 = [P3];
 
 	/* move addresses */
@@ -168,11 +170,14 @@ is_move:R0 = [P0];			/* move data */
 	R7 = P0;
 	R3 = R7 - R3;
 	P3 = R3;
+	SSYNC;
 	[P3] = R0;
-	SSYNC;				
+
+	CSYNC;
 
 ie_move:P0+=4;
 
+	
 	/* We've made space in the ICPLB table, so that ICPLB15
 	 * is now free to be overwritten. Next, we have to determine
 	 * which CPLB we need to install, from the configuration
@@ -229,24 +234,23 @@ inext:	R4 = [P2++];	/* address from config table */
 	 * last entry of the table.
 	 */
 
-	P1.L = (ICPLB_DATAF & 0xFFFF);		/*ICPLB_DATA15*/
-	P1.H = (ICPLB_DATAF >> 16);
+	P1.L = (ICPLB_DATA15 & 0xFFFF);		/*ICPLB_DATA15*/
+	P1.H = (ICPLB_DATA15 >> 16);
 
 	/* R6 contains a bit mask, to remove any caching bits, if
 	 * cache is not enabled.
 	 */
-
+	
 	R2 = R2 & R6;
 	[P1] = R2;
-	SSYNC;
+	CSYNC;
 
 	R3 = 0x100;
 	R7 = P1;
 	R3 = R7 - R3;
 	P3 = R3;
-	[P3] = R4;
-
-	SSYNC;				
+	[P3] = R4;	
+	CSYNC;
 
 	/* P4 points to IMEM_CONTROL, and R5 contains its old
 	 * value, after we disabled ICPLBS. Re-enable them.
@@ -256,13 +260,12 @@ inext:	R4 = [P2++];	/* address from config table */
 	CLI R2;
 	.align 8;
 	[P4] = R5;
-	
-	SSYNC;
+	CSYNC;
 	STI R2;
 
 	( R7:0,P5:0 ) = [SP++];
 	R0 = CPLB_RELOADED;
-	RTS;	
+	RTS;
 
 dcplb_write:
 
@@ -336,8 +339,8 @@ dcplb_miss_compare:
 	 * config table, that covers the faulting address.
 	 */
 
-	P1.L = (DCPLB_DATAF & 0xFFFF);	
-	P1.H = (DCPLB_DATAF >> 16);
+	P1.L = (DCPLB_DATA15 & 0xFFFF);	
+	P1.H = (DCPLB_DATA15 >> 16);
 
 	P4.L = (DCPLB_FAULT_ADDR & 0xFFFF);
 	P4.H = (DCPLB_FAULT_ADDR >> 16);
@@ -435,8 +438,8 @@ doverwrite:
 	 * one space closer to the start.
 	 */
 	
-	R1.L = (DCPLB_DATAG & 0xFFFF);		/*DCPLB_DATA15+4*/
-	R1.H = (DCPLB_DATAG >> 16);
+	R1.L = (DCPLB_DATA16 & 0xFFFF);		/*DCPLB_DATA15+4*/
+	R1.H = (DCPLB_DATA16 >> 16);
 	R0 = P0;
 
 	/* If the victim happens to be in DCPLB15,
@@ -521,8 +524,8 @@ dnext:	R4 = [P2++];	/* address */
 	 * if necessary.
 	 */
 
-	P1.L = (DCPLB_DATAF & 0xFFFF);
-	P1.H = (DCPLB_DATAF >> 16);
+	P1.L = (DCPLB_DATA15 & 0xFFFF);
+	P1.H = (DCPLB_DATA15 >> 16);
 
 	/* If the DCPLB has cache bits set, but caching hasn't
 	 * been enabled, then we want to mask off the cache-in-L1
@@ -553,7 +556,7 @@ dnext:	R4 = [P2++];	/* address */
 	[P3] = R4;
 
 	/* We've installed the CPLB, so re-enable CPLBs. P4
-	 * points to IMEM_CONTROL, and R5 is the value we
+	 * points to DMEM_CONTROL, and R5 is the value we
 	 * last wrote to it, when we were disabling CPLBs.
 	 */
 
@@ -567,9 +570,6 @@ dnext:	R4 = [P2++];	/* address */
 	( R7:0,P5:0 ) = [SP++];
 	R0 = CPLB_RELOADED;
 	RTS;
-
-
-
 	
 /* FAILED CASES*/
 
@@ -588,7 +588,6 @@ prot_violation:
 	R0 = CPLB_PROT_VIOL;
 	RTS;
 ._cplb_mgr.end:
-
 
 
 .data

@@ -142,6 +142,10 @@ static int bad_address(void *p)
 void dump_pagetable(unsigned long address)
 {
 	pml4_t *pml4;
+	pgd_t *pgd;
+	pmd_t *pmd;
+	pte_t *pte;
+
 	asm("movq %%cr3,%0" : "=r" (pml4));
 
 	pml4 = __va((unsigned long)pml4 & PHYSICAL_PAGE_MASK); 
@@ -150,17 +154,17 @@ void dump_pagetable(unsigned long address)
 	if (bad_address(pml4)) goto bad;
 	if (!pml4_present(*pml4)) goto ret; 
 
-	pgd_t *pgd = __pgd_offset_k((pgd_t *)pml4_page(*pml4), address); 
+	pgd = __pgd_offset_k((pgd_t *)pml4_page(*pml4), address);
 	if (bad_address(pgd)) goto bad;
 	printk("PGD %lx ", pgd_val(*pgd)); 
 	if (!pgd_present(*pgd))	goto ret;
 
-	pmd_t *pmd = pmd_offset(pgd, address); 
+	pmd = pmd_offset(pgd, address);
 	if (bad_address(pmd)) goto bad;
 	printk("PMD %lx ", pmd_val(*pmd));
 	if (!pmd_present(*pmd))	goto ret;	 
 
-	pte_t *pte = pte_offset_kernel(pmd, address);
+	pte = pte_offset_kernel(pmd, address);
 	if (bad_address(pte)) goto bad;
 	printk("PTE %lx", pte_val(*pte)); 
 ret:
@@ -207,7 +211,8 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
 int unhandled_signal(struct task_struct *tsk, int sig)
 {
 	/* Warn for strace, but not for gdb */
-	if ((tsk->ptrace & (PT_PTRACED|PT_TRACESYSGOOD)) == PT_PTRACED)
+	if (!test_ti_thread_flag(tsk->thread_info, TIF_SYSCALL_TRACE) &&
+	    (tsk->ptrace & PT_PTRACED))
 		return 0;
 	return (tsk->sighand->action[sig-1].sa.sa_handler == SIG_IGN) ||
 		(tsk->sighand->action[sig-1].sa.sa_handler == SIG_DFL);
@@ -275,15 +280,6 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 */
 	if (unlikely(in_atomic() || !mm))
 		goto bad_area_nosemaphore;
-
-	/* Work around K8 erratum #100
-	   K8 in compat mode occasionally jumps to illegal addresses >4GB.
-	   We catch this here in the page fault handler because these
-	   addresses are not reachable. Just detect this case and return.
-	   Any code segment in LDT is compatibility mode. */
-	if ((regs->cs == __USER32_CS || (regs->cs & (1<<2))) &&
-		(address >> 32))
-		return;
 
  again:
 	down_read(&mm->mmap_sem);
@@ -369,7 +365,17 @@ bad_area_nosemaphore:
 		if (is_prefetch(regs, address))
 			return;
 
-		if (exception_trace && !unhandled_signal(tsk, SIGSEGV)) { 
+		/* Work around K8 erratum #100 K8 in compat mode
+		   occasionally jumps to illegal addresses >4GB.  We
+		   catch this here in the page fault handler because
+		   these addresses are not reachable. Just detect this
+		   case and return.  Any code segment in LDT is
+		   compatibility mode. */
+		if ((regs->cs == __USER32_CS || (regs->cs & (1<<2))) &&
+		    (address >> 32))
+			return;
+
+		if (exception_trace && unhandled_signal(tsk, SIGSEGV)) {
 		printk(KERN_INFO 
 		       "%s[%d]: segfault at %016lx rip %016lx rsp %016lx error %lx\n",
 					tsk->comm, tsk->pid, address, regs->rip,
@@ -383,7 +389,7 @@ bad_area_nosemaphore:
 		info.si_signo = SIGSEGV;
 		info.si_errno = 0;
 		/* info.si_code has been set above */
-		info.si_addr = (void *)address;
+		info.si_addr = (void __user *)address;
 		force_sig_info(SIGSEGV, &info, tsk);
 		return;
 	}
@@ -418,8 +424,9 @@ no_context:
 		printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference");
 	else
 		printk(KERN_ALERT "Unable to handle kernel paging request");
-	printk(" at %016lx RIP: \n",address);	
+	printk(" at %016lx RIP: \n" KERN_ALERT,address);
 	printk_address(regs->rip);
+	printk("\n");
 	dump_pagetable(address);
 	__die("Oops", regs, error_code);
 	/* Executive summary in case the body of the oops scrolled away */
@@ -456,7 +463,7 @@ do_sigbus:
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRERR;
-	info.si_addr = (void *)address;
+	info.si_addr = (void __user *)address;
 	force_sig_info(SIGBUS, &info, tsk);
 	return;
 

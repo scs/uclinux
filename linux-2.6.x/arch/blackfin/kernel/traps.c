@@ -3,22 +3,16 @@
  *
  *  Copyright (C) 1993, 1994 by Hamish Macdonald
  *
- * Adapted for BlackFin (ADI) by Ted Ma <mated@sympatico.ca>
- * Copyright (c) 2002 Arcturus Networks Inc. (www.arcturusnetworks.com)
+ *  Copyright (c) 2002 Arcturus Networks Inc. (www.arcturusnetworks.com)
  *		-BlackFin/BFIN uses S/W interrupt 15 for the system calls
- *
- * Copyright (c) 2004 LG Soft India. 
+ *  Copyright (c) 2004 LG Soft India. 
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
  *
- *
  * Sets up all exception vectors
  *
- * Note: 
- *    1. ILLEGAL USE PROTECTED RESOURCE ( EXCAUSE = 0x2E)
- *            illegal execution supervisor mode only instruction
  */
 
 #include <linux/config.h>
@@ -79,18 +73,17 @@ static void __init nisa_trap_init (void)
     asm("p0.l = 0x2000; p0.h = 0xffe0;"
 	"p1.h = trap;" 
 	"p1.l = trap;"
-	"[p0+(4*3)] = p1;"     /* Vector event 03 ----- Exception handler (trap) in entry.S*/
+	"[p0+(4*3)] = p1;"     
 	"p1.l = system_call;" 
 	"p1.h = system_call;"
-	"[p0+(4*15)] = p1;"); /* Vector event 15 ----- System call handler(system_call) in entry.S*/
+	"[p0+(4*15)] = p1;"); 
 
 }
 
-/* Initiate the event table handler  ---- called from init/main.c start_kernel()
+/* Initiate the event table handler 
  */
 void __init trap_init (void)
 {
-
 	nisa_trap_init();
 }
 
@@ -99,7 +92,6 @@ asmlinkage int do_page_fault(struct pt_regs *regs, unsigned long address,
                              unsigned long error_code);
 
 asmlinkage void trap_c(struct pt_regs *fp);
-
 
 int kstack_depth_to_print = 48;
 
@@ -139,22 +131,18 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		break;
-
 	    case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
 		sig = SIGILL;
 		break;
-
 	    case VEC_WATCH:
 		info.si_code = TRAP_WATCHPT;
 		sig = SIGTRAP;
 		break;
-
 	    case VEC_ISTRU_VL:
 		info.si_code = BUS_OPFETCH;
 		sig = SIGBUS;
                 break;
-
 	    case VEC_CPLB_I_VL:
 	    case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
@@ -162,20 +150,17 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		goto nsig;
 		sig = SIGILL;
                 break;
-
 	    case VEC_CPLB_I_M:
 	    case VEC_CPLB_M:
 		info.si_code = IlL_CPLB_MISS;
 		/*Call the handler to replace the CPLB*/
 		_cplb_hdr();
 		goto nsig;
-	
 	    case VEC_CPLB_I_MHIT:
 	    case VEC_CPLB_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
 		sig = SIGILL;
                 break;
-
 	    default:
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
@@ -214,10 +199,7 @@ void die_if_kernel (char *str, struct pt_regs *fp, int nr)
 	do_exit(SIGSEGV);
 }
 
-
 /* Typical exception handling routines	*/
-
-
 void show_stack(struct task_struct *task, unsigned long *esp)
 {
 	unsigned long *stack, *endstack, addr;

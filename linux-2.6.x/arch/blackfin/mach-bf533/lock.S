@@ -8,9 +8,11 @@
 
 #include <linux/linkage.h>
 #include <asm/cplb.h>
-#include <asm/board/bf533.h>
+#include <asm/blackfin.h>
 
 .text
+
+#ifdef CONFIG_BLKFIN_CACHE_LOCK
 
 .global cache_grab_lock
 .type	cache_grab_lock, STT_FUNC;
@@ -21,8 +23,6 @@
 /* When you come here, it is assumed that 
  * R0 - Which way to be locked
  */	
-
-#ifdef CONFIG_BLKFIN_CACHE_LOCK
 
 ENTRY(cache_grab_lock)
 	

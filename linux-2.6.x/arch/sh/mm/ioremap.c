@@ -160,5 +160,5 @@ void * p3_ioremap(unsigned long phys_addr, unsigned long size, unsigned long fla
 void p3_iounmap(void *addr)
 {
 	if (addr > high_memory)
-		return vfree((void *) (PAGE_MASK & (unsigned long) addr));
+		vfree((void *)(PAGE_MASK & (unsigned long)addr));
 }

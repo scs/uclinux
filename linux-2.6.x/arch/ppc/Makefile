@@ -13,23 +13,40 @@
 # This must match PAGE_OFFSET in include/asm-ppc/page.h.
 KERNELLOAD	:= $(CONFIG_KERNEL_START)
 
+HAS_BIARCH	:= $(shell if $(CC) -m32 -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo y; else echo n; fi;)
+ifeq ($(HAS_BIARCH),y)
+AS		:= $(AS) -a32
+LD		:= $(LD) -m elf32ppc
+CC		:= $(CC) -m32
+endif
+
 LDFLAGS_vmlinux	:= -Ttext $(KERNELLOAD) -Bstatic
 CPPFLAGS	+= -Iarch/$(ARCH)
 AFLAGS		+= -Iarch/$(ARCH)
-cflags-y	+= -Iarch/$(ARCH) -msoft-float -pipe \
-		-ffixed-r2 -Wno-uninitialized -mmultiple -mstring
+CFLAGS		+= -Iarch/$(ARCH) -msoft-float -pipe \
+		-ffixed-r2 -Wno-uninitialized -mmultiple
 CPP		= $(CC) -E $(CFLAGS)
 
-cflags-$(CONFIG_4xx)		+= -Wa,-m405
-cflags-$(CONFIG_PPC64BRIDGE)	+= -Wa,-mppc64bridge
+CHECK		:= $(CHECK) -D__powerpc__=1
 
-CFLAGS += $(cflags-y)
+ifndef CONFIG_E500
+CFLAGS		+= -mstring
+endif
 
+cpu-as-$(CONFIG_PPC64BRIDGE)	+= -Wa,-mppc64bridge
+cpu-as-$(CONFIG_4xx)		+= -Wa,-m405
+cpu-as-$(CONFIG_6xx)		+= -Wa,-maltivec
+cpu-as-$(CONFIG_POWER4)		+= -Wa,-maltivec
+cpu-as-$(CONFIG_E500)		+= -Wa,-me500
+
+AFLAGS += $(cpu-as-y)
+CFLAGS += $(cpu-as-y)
 
 head-y				:= arch/ppc/kernel/head.o
 head-$(CONFIG_8xx)		:= arch/ppc/kernel/head_8xx.o
 head-$(CONFIG_4xx)		:= arch/ppc/kernel/head_4xx.o
 head-$(CONFIG_44x)		:= arch/ppc/kernel/head_44x.o
+head-$(CONFIG_E500)		:= arch/ppc/kernel/head_e500.o
 
 head-$(CONFIG_6xx)		+= arch/ppc/kernel/idle_6xx.o
 head-$(CONFIG_POWER4)		+= arch/ppc/kernel/idle_power4.o
@@ -37,13 +54,15 @@ head-$(CONFIG_POWER4)		+= arch/ppc/kernel/idle_power4.o
 core-y				+= arch/ppc/kernel/ arch/ppc/platforms/ \
 				   arch/ppc/mm/ arch/ppc/lib/ arch/ppc/syslib/
 core-$(CONFIG_4xx)		+= arch/ppc/platforms/4xx/
+core-$(CONFIG_85xx)		+= arch/ppc/platforms/85xx/
 core-$(CONFIG_MATH_EMULATION)	+= arch/ppc/math-emu/
 core-$(CONFIG_XMON)		+= arch/ppc/xmon/
 core-$(CONFIG_APUS)		+= arch/ppc/amiga/
 drivers-$(CONFIG_8xx)		+= arch/ppc/8xx_io/
 drivers-$(CONFIG_4xx)		+= arch/ppc/4xx_io/
-drivers-$(CONFIG_8260)		+= arch/ppc/8260_io/
-drivers-$(CONFIG_OCP)		+= arch/ppc/ocp/
+drivers-$(CONFIG_CPM2)		+= arch/ppc/8260_io/
+
+drivers-$(CONFIG_OPROFILE)	+= arch/ppc/oprofile/
 
 BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm
 
@@ -87,22 +106,29 @@ include/asm-$(ARCH)/offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
 
 ifdef CONFIG_6xx
 # Ensure this is binutils 2.12.1 (or 2.12.90.0.7) or later
-NEW_AS	:= $(shell echo dssall | $(AS) -o /dev/null >/dev/null 2>&1 ; echo $$?)
+NEW_AS	:= $(shell echo dssall | $(AS) -many -o /dev/null >/dev/null 2>&1 ; echo $$?)
 GOODVER	:= 2.12.1
 else
 NEW_AS	:= 0
 endif
+# gcc-3.4 and binutils-2.14 are a fatal combination.
+GCC_VERSION	:= $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh $(CC))
+BAD_GCC_AS	:= $(shell echo mftb 5 | $(AS) -mppc -many -o /dev/null >/dev/null 2>&1 && echo 0 || echo 1)
 
-ifneq ($(NEW_AS),0)
 checkbin:
-	@echo -n '*** ${VERSION}.${PATCHLEVEL} kernels no longer build'
+ifeq ($(GCC_VERSION)$(BAD_GCC_AS),03041)
+	@echo -n '*** ${VERSION}.${PATCHLEVEL} kernels no longer build '
+	@echo 'correctly with gcc-3.4 and your version of binutils.'
+	@echo '*** Please upgrade your binutils or downgrade your gcc'
+	@false
+endif
+ifneq ($(NEW_AS),0)
+	@echo -n '*** ${VERSION}.${PATCHLEVEL} kernels no longer build '
 	@echo 'correctly with old versions of binutils.'
 	@echo '*** Please upgrade your binutils to ${GOODVER} or newer'
 	@false
-else
-checkbin:
-	@true
 endif
+	@true
 
 CLEAN_FILES +=	include/asm-$(ARCH)/offsets.h \
 		arch/$(ARCH)/kernel/asm-offsets.s

@@ -107,8 +107,8 @@ config SMP
 	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
 	  Management" code will be disabled if you say Y here.
 
-	  See also the <file:Documentation/smp.tex>,
-	  <file:Documentation/smp.txt>, <file:Documentation/i386/IO-APIC.txt>,
+	  See also the <file:Documentation/smp.txt>,
+	  <file:Documentation/i386/IO-APIC.txt>,
 	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
 	  <http://www.tldp.org/docs.html#howto>.
 
@@ -130,7 +130,7 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-64)"
 	range 2 64
 	depends on SMP
-	default "64"
+	default "32"
 
 config CPU_FREQ
 	bool "CPU Frequency scaling"
@@ -139,7 +139,7 @@ config CPU_FREQ
 	  fly.  Currently there are only sparc64 drivers for UltraSPARC-III
 	  and UltraSPARC-IIe processors.
 
-	  For details, take a look at linux/Documentation/cpufreq. 
+	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If in doubt, say N.
 
@@ -159,7 +159,7 @@ config US3_FREQ
 	help
 	  This adds the CPUFreq driver for UltraSPARC-III processors.
 
-	  For details, take a look at linux/Documentation/cpufreq. 
+	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If in doubt, say N.
 
@@ -169,7 +169,7 @@ config US2E_FREQ
 	help
 	  This adds the CPUFreq driver for UltraSPARC-IIe processors.
 
-	  For details, take a look at linux/Documentation/cpufreq. 
+	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If in doubt, say N.
 
@@ -185,24 +185,6 @@ config SPARC64
 	  UltraSPARC.  The UltraLinux project maintains both the SPARC32 and
 	  SPARC64 ports; its web page is available at
 	  <http://www.ultralinux.org/>.
-
-config HOTPLUG
-	bool "Support for hot-pluggable devices"
-	---help---
-	  Say Y here if you want to plug devices into your computer while
-	  the system is running, and be able to use them quickly.  In many
-	  cases, the devices can likewise be unplugged at any time too.
-
-	  One well known example of this is PCMCIA- or PC-cards, credit-card
-	  size devices such as network cards, modems or hard drives which are
-	  plugged into slots found on all modern laptop computers.  Another
-	  example, used on modern desktops as well as laptops, is USB.
-
-	  Enable HOTPLUG and KMOD, and build a modular kernel.  Get agent
-	  software (at <http://linux-hotplug.sourceforge.net/>) and install it.
-	  Then your kernel will automatically call out to a user mode "policy
-	  agent" (/sbin/hotplug) to load modules and set up software needed
-	  to use devices as you hotplug them.
 
 # Global things across all Sun machines.
 config RWSEM_GENERIC_SPINLOCK
@@ -400,6 +382,7 @@ source "fs/Kconfig.binfmt"
 
 config SUNOS_EMUL
 	bool "SunOS binary emulation"
+	depends on BINFMT_AOUT32
 	help
 	  This allows you to run most SunOS binaries.  If you want to do this,
 	  say Y here and place appropriate files in /usr/gnemul/sunos. See
@@ -409,7 +392,7 @@ config SUNOS_EMUL
 
 config SOLARIS_EMUL
 	tristate "Solaris binary emulation (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on SPARC32_COMPAT && EXPERIMENTAL
 	help
 	  This is experimental code which will enable you to run (many)
 	  Solaris binaries on your SPARC Linux machine.
@@ -467,28 +450,6 @@ config DISPLAY7SEG
 	  If you do not have a CompactPCI model CP1400 or CP1500, or
 	  another UltraSPARC-IIi-cEngine boardset with a 7-segment display,
 	  you should say N to this option.
-
-config WATCHDOG_CP1XXX
-	tristate "CP1XXX Hardware Watchdog support"
-	depends on PCI
-	---help---
-	  This is the driver for the hardware watchdog timers present on
-	  Sun Microsystems CompactPCI models CP1400 and CP1500.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cpwatchdog.
-
-	  If you do not have a CompactPCI model CP1400 or CP1500, or
-	  another UltraSPARC-IIi-cEngine boardset with hardware watchdog,
-	  you should say N to this option.
-
-config WATCHDOG_RIO
-	tristate "RIO Hardware Watchdog support"
-	depends on PCI
-	help
-	  Say Y here to support the hardware watchdog capability on Sun RIO
-	  machines.  The watchdog timeout period is normally one minute but
-	  can be changed with a boot-time parameter.
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
@@ -639,20 +600,7 @@ source "sound/Kconfig"
 
 source "drivers/usb/Kconfig"
 
-
-menu "Watchdog"
-
-config SOFT_WATCHDOG
-	tristate "Software watchdog"
-	help
-	  A software monitoring watchdog. This will fail to reboot your system
-	  from some situations that the hardware watchdog will recover
-	  from. Equally it's a lot cheaper to install.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called softdog.
-
-endmenu
+source "drivers/char/watchdog/Kconfig"
 
 source "arch/sparc64/oprofile/Kconfig"
 
@@ -663,6 +611,15 @@ config DEBUG_KERNEL
 	help
 	  Say Y here if you are developing drivers or trying to debug and
 	  identify kernel problems.
+
+config DEBUG_STACK_USAGE
+	bool "Enable stack utilization instrumentation"
+	depends on DEBUG_KERNEL
+	help
+	  Enables the display of the minimum amount of free stack which each
+	  task has ever had available in the sysrq-T and sysrq-P debug output.
+
+	  This option will slow down process creation somewhat.
 
 config DEBUG_SLAB
 	bool "Debug memory allocations"
@@ -742,6 +699,11 @@ config HAVE_DEC_LOCK
 config MCOUNT
 	bool
 	depends on STACK_DEBUG
+	default y
+
+config FRAME_POINTER
+	bool
+	depends on MCOUNT
 	default y
 
 endmenu

@@ -193,6 +193,7 @@ int do_settimeofday(struct timespec *tv)
 	time_esterror = NTP_PHASE_LIMIT;
 
 	write_sequnlock_irq (&xtime_lock);
+	clock_was_set();
 	return 0;
 }
 
@@ -202,7 +203,7 @@ static int timer_dev_id;
 static struct irqaction timer_irqaction = {
 	timer_interrupt,
 	SA_INTERRUPT,
-	0,
+	CPU_MASK_NONE,
 	"timer",
 	&timer_dev_id,
 	NULL

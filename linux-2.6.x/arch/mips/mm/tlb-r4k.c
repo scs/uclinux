@@ -19,9 +19,11 @@
 #include <asm/pgtable.h>
 #include <asm/system.h>
 
+extern void except_vec0_generic(void);
 extern void except_vec0_nevada(void);
 extern void except_vec0_r4000(void);
 extern void except_vec0_r4600(void);
+extern void except_vec1_generic(void);
 extern void except_vec1_r4k(void);
 
 /* CP0 hazard avoidance. */
@@ -37,10 +39,9 @@ void local_flush_tlb_all(void)
 
 	local_irq_save(flags);
 	/* Save old context and create impossible VPN2 value */
-	old_ctx = read_c0_entryhi() & ASID_MASK;
+	old_ctx = read_c0_entryhi();
 	write_c0_entrylo0(0);
 	write_c0_entrylo1(0);
-	BARRIER;
 
 	entry = read_c0_wired();
 
@@ -50,14 +51,13 @@ void local_flush_tlb_all(void)
 		 * Make sure all entries differ.  If they're not different
 		 * MIPS32 will take revenge ...
 		 */
-		write_c0_entryhi(KSEG0 + entry * 0x2000);
+		write_c0_entryhi(CKSEG0 + (entry << (PAGE_SHIFT + 1)));
 		write_c0_index(entry);
-		BARRIER;
+		mtc0_tlbw_hazard();
 		tlb_write_indexed();
-		BARRIER;
 		entry++;
 	}
-	BARRIER;
+	tlbw_use_hazard();
 	write_c0_entryhi(old_ctx);
 	local_irq_restore(flags);
 }
@@ -84,7 +84,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		size = (end - start + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		size = (size + 1) >> 1;
 		if (size <= current_cpu_data.tlbsize/2) {
-			int oldpid = read_c0_entryhi() & ASID_MASK;
+			int oldpid = read_c0_entryhi();
 			int newpid = cpu_asid(cpu, mm);
 
 			start &= (PAGE_MASK << 1);
@@ -95,7 +95,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 				write_c0_entryhi(start | newpid);
 				start += (PAGE_SIZE << 1);
-				BARRIER;
+				mtc0_tlbw_hazard();
 				tlb_probe();
 				BARRIER;
 				idx = read_c0_index();
@@ -104,11 +104,12 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 				if (idx < 0)
 					continue;
 				/* Make sure all entries differ. */
-				write_c0_entryhi(KSEG0 + idx * 0x2000);
-				BARRIER;
+				write_c0_entryhi(CKSEG0 +
+				                 (idx << (PAGE_SHIFT + 1)));
+				mtc0_tlbw_hazard();
 				tlb_write_indexed();
-				BARRIER;
 			}
+			tlbw_use_hazard();
 			write_c0_entryhi(oldpid);
 		} else {
 			drop_mmu_context(mm, cpu);
@@ -137,7 +138,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 
 			write_c0_entryhi(start);
 			start += (PAGE_SIZE << 1);
-			BARRIER;
+			mtc0_tlbw_hazard();
 			tlb_probe();
 			BARRIER;
 			idx = read_c0_index();
@@ -146,11 +147,11 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 			if (idx < 0)
 				continue;
 			/* Make sure all entries differ. */
-			write_c0_entryhi(KSEG0 + idx * 0x2000);
-			BARRIER;
+			write_c0_entryhi(CKSEG0 + (idx << (PAGE_SHIFT + 1)));
+			mtc0_tlbw_hazard();
 			tlb_write_indexed();
-			BARRIER;
 		}
+		tlbw_use_hazard();
 		write_c0_entryhi(pid);
 	} else {
 		local_flush_tlb_all();
@@ -169,9 +170,9 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 		newpid = cpu_asid(cpu, vma->vm_mm);
 		page &= (PAGE_MASK << 1);
 		local_irq_save(flags);
-		oldpid = read_c0_entryhi() & ASID_MASK;
+		oldpid = read_c0_entryhi();
 		write_c0_entryhi(page | newpid);
-		BARRIER;
+		mtc0_tlbw_hazard();
 		tlb_probe();
 		BARRIER;
 		idx = read_c0_index();
@@ -180,12 +181,12 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 		if (idx < 0)
 			goto finish;
 		/* Make sure all entries differ. */
-		write_c0_entryhi(KSEG0 + idx * 0x2000);
-		BARRIER;
+		write_c0_entryhi(CKSEG0 + (idx << (PAGE_SHIFT + 1)));
+		mtc0_tlbw_hazard();
 		tlb_write_indexed();
+		tlbw_use_hazard();
 
 	finish:
-		BARRIER;
 		write_c0_entryhi(oldpid);
 		local_irq_restore(flags);
 	}
@@ -202,9 +203,9 @@ void local_flush_tlb_one(unsigned long page)
 
 	local_irq_save(flags);
 	page &= (PAGE_MASK << 1);
-	oldpid = read_c0_entryhi() & 0xff;
+	oldpid = read_c0_entryhi();
 	write_c0_entryhi(page);
-	BARRIER;
+	mtc0_tlbw_hazard();
 	tlb_probe();
 	BARRIER;
 	idx = read_c0_index();
@@ -212,11 +213,11 @@ void local_flush_tlb_one(unsigned long page)
 	write_c0_entrylo1(0);
 	if (idx >= 0) {
 		/* Make sure all entries differ. */
-		write_c0_entryhi(KSEG0+(idx<<(PAGE_SHIFT+1)));
-		BARRIER;
+		write_c0_entryhi(CKSEG0 + (idx << (PAGE_SHIFT + 1)));
+		mtc0_tlbw_hazard();
 		tlb_write_indexed();
+		tlbw_use_hazard();
 	}
-	BARRIER;
 	write_c0_entryhi(oldpid);
 
 	local_irq_restore(flags);
@@ -247,25 +248,23 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	address &= (PAGE_MASK << 1);
 	write_c0_entryhi(address | pid);
 	pgdp = pgd_offset(vma->vm_mm, address);
-	BARRIER;
+	mtc0_tlbw_hazard();
 	tlb_probe();
 	BARRIER;
 	pmdp = pmd_offset(pgdp, address);
 	idx = read_c0_index();
 	ptep = pte_offset_map(pmdp, address);
-	BARRIER;
+
 	write_c0_entrylo0(pte_val(*ptep++) >> 6);
 	write_c0_entrylo1(pte_val(*ptep) >> 6);
 	write_c0_entryhi(address | pid);
-	BARRIER;
-	if (idx < 0) {
+	mtc0_tlbw_hazard();
+	if (idx < 0)
 		tlb_write_random();
-	} else {
+	else
 		tlb_write_indexed();
-	}
-	BARRIER;
+	tlbw_use_hazard();
 	write_c0_entryhi(pid);
-	BARRIER;
 	local_irq_restore(flags);
 }
 
@@ -274,6 +273,7 @@ static void r4k_update_mmu_cache_hwbug(struct vm_area_struct * vma,
 				       unsigned long address, pte_t pte)
 {
 	unsigned long flags;
+	unsigned int asid;
 	pgd_t *pgdp;
 	pmd_t *pmdp;
 	pte_t *ptep;
@@ -281,20 +281,23 @@ static void r4k_update_mmu_cache_hwbug(struct vm_area_struct * vma,
 
 	local_irq_save(flags);
 	address &= (PAGE_MASK << 1);
-	write_c0_entryhi(address | (read_c0_entryhi() & ASID_MASK));
+	asid = read_c0_entryhi() & ASID_MASK;
+	write_c0_entryhi(address | asid);
 	pgdp = pgd_offset(vma->vm_mm, address);
+	mtc0_tlbw_hazard();
 	tlb_probe();
+	BARRIER;
 	pmdp = pmd_offset(pgdp, address);
 	idx = read_c0_index();
 	ptep = pte_offset_map(pmdp, address);
 	write_c0_entrylo0(pte_val(*ptep++) >> 6);
 	write_c0_entrylo1(pte_val(*ptep) >> 6);
-	BARRIER;
+	mtc0_tlbw_hazard();
 	if (idx < 0)
 		tlb_write_random();
 	else
 		tlb_write_indexed();
-	BARRIER;
+	tlbw_use_hazard();
 	local_irq_restore(flags);
 }
 #endif
@@ -309,7 +312,7 @@ void __init add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 
 	local_irq_save(flags);
 	/* Save old context and create impossible VPN2 value */
-	old_ctx = read_c0_entryhi() & ASID_MASK;
+	old_ctx = read_c0_entryhi();
 	old_pagemask = read_c0_pagemask();
 	wired = read_c0_wired();
 	write_c0_wired(wired + 1);
@@ -319,9 +322,9 @@ void __init add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	write_c0_entryhi(entryhi);
 	write_c0_entrylo0(entrylo0);
 	write_c0_entrylo1(entrylo1);
-	BARRIER;
+	mtc0_tlbw_hazard();
 	tlb_write_indexed();
-	BARRIER;
+	tlbw_use_hazard();
 
 	write_c0_entryhi(old_ctx);
 	BARRIER;
@@ -349,7 +352,7 @@ __init int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
 
 	local_irq_save(flags);
 	/* Save old context and create impossible VPN2 value */
-	old_ctx = read_c0_entryhi() & ASID_MASK;
+	old_ctx = read_c0_entryhi();
 	old_pagemask = read_c0_pagemask();
 	wired = read_c0_wired();
 	if (--temp_tlb_entry < wired) {
@@ -359,17 +362,15 @@ __init int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
 	}
 
 	write_c0_index(temp_tlb_entry);
-	BARRIER;
 	write_c0_pagemask(pagemask);
 	write_c0_entryhi(entryhi);
 	write_c0_entrylo0(entrylo0);
 	write_c0_entrylo1(entrylo1);
-	BARRIER;
+	mtc0_tlbw_hazard();
 	tlb_write_indexed();
-	BARRIER;
+	tlbw_use_hazard();
 
 	write_c0_entryhi(old_ctx);
-	BARRIER;
 	write_c0_pagemask(old_pagemask);
 out:
 	local_irq_restore(flags);
@@ -378,25 +379,25 @@ out:
 
 static void __init probe_tlb(unsigned long config)
 {
-	unsigned int prid, config1;
+	struct cpuinfo_mips *c = &current_cpu_data;
+	unsigned int reg;
 
-	prid = read_c0_prid() & ASID_MASK;
-	if (prid == PRID_IMP_RM7000 || !(config & (1 << 31)))
-		/*
-		 * Not a MIPS32/MIPS64 CPU..  Config 1 register not
-		 * supported, we assume R4k style.  Cpu probing already figured
-		 * out the number of tlb entries.
-		 */
+	/*
+	 * If this isn't a MIPS32 / MIPS64 compliant CPU.  Config 1 register
+	 * is not supported, we assume R4k style.  Cpu probing already figured
+	 * out the number of tlb entries.
+	 */
+	if ((c->processor_id  & 0xff0000) == PRID_COMP_LEGACY)
 		return;
 
-	config1 = read_c0_config1();
+	reg = read_c0_config1();
 	if (!((config >> 7) & 3))
-		panic("No MMU present");
-	else
-		current_cpu_data.tlbsize = ((config1 >> 25) & 0x3f) + 1;
+		panic("No TLB present");
+
+	c->tlbsize = ((reg >> 25) & 0x3f) + 1;
 }
 
-void __init r4k_tlb_init(void)
+void __init tlb_init(void)
 {
 	unsigned int config = read_c0_config();
 
@@ -408,7 +409,7 @@ void __init r4k_tlb_init(void)
 	 *     be set for 4kb pages.
 	 */
 	probe_tlb(config);
-	write_c0_pagemask(PM_4K);
+	write_c0_pagemask(PM_DEFAULT_MASK);
 	write_c0_wired(0);
 	temp_tlb_entry = current_cpu_data.tlbsize - 1;
 	local_flush_tlb_all();
@@ -420,10 +421,12 @@ void __init r4k_tlb_init(void)
 		memcpy((void *)KSEG0, &except_vec0_r4600, 0x80);
 	else
 		memcpy((void *)KSEG0, &except_vec0_r4000, 0x80);
-	flush_icache_range(KSEG0, KSEG0 + 0x80);
+	memcpy((void *)(KSEG0 + 0x080), &except_vec1_generic, 0x80);
+	flush_icache_range(KSEG0, KSEG0 + 0x100);
 #endif
 #ifdef CONFIG_MIPS64
-	memcpy((void *)(KSEG0 + 0x80), except_vec1_r4k, 0x80);
-	flush_icache_range(KSEG0 + 0x80, KSEG0 + 0x100);
+	memcpy((void *)(CKSEG0 + 0x00), &except_vec0_generic, 0x80);
+	memcpy((void *)(CKSEG0 + 0x80), except_vec1_r4k, 0x80);
+	flush_icache_range(CKSEG0 + 0x80, CKSEG0 + 0x100);
 #endif
 }

@@ -201,6 +201,25 @@ asmlinkage int lookup_fault(unsigned long pc, unsigned long ret_pc,
 	return 0;
 }
 
+extern unsigned long safe_compute_effective_address(struct pt_regs *,
+						    unsigned int);
+
+static unsigned long compute_si_addr(struct pt_regs *regs, int text_fault)
+{
+	unsigned int insn;
+
+	if (text_fault)
+		return regs->pc;
+
+	if (regs->psr & PSR_PS) {
+		insn = *(unsigned int *) regs->pc;
+	} else {
+		__get_user(insn, (unsigned int *) regs->pc);
+	}
+
+	return safe_compute_effective_address(regs, insn);
+}
+
 asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
 			       unsigned long address)
 {
@@ -307,7 +326,7 @@ bad_area_nosemaphore:
 		info.si_errno = 0;
 		/* info.si_code set above to make clear whether
 		   this was a SEGV_MAPERR or SEGV_ACCERR fault.  */
-		info.si_addr = (void *)address;
+		info.si_addr = (void __user *)compute_si_addr(regs, text_fault);
 		info.si_trapno = 0;
 		force_sig_info (SIGSEGV, &info, tsk);
 		return;
@@ -361,7 +380,7 @@ do_sigbus:
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRERR;
-	info.si_addr = (void *)address;
+	info.si_addr = (void __user *) compute_si_addr(regs, text_fault);
 	info.si_trapno = 0;
 	force_sig_info (SIGBUS, &info, tsk);
 	if (!from_user)
@@ -412,10 +431,10 @@ asmlinkage void do_sun4c_fault(struct pt_regs *regs, int text_fault, int write,
 		address = regs->pc;
 	} else if (!write &&
 		   !(regs->psr & PSR_PS)) {
-		unsigned int insn, *ip;
+		unsigned int insn, __user *ip;
 
-		ip = (unsigned int *)regs->pc;
-		if (! get_user(insn, ip)) {
+		ip = (unsigned int __user *)regs->pc;
+		if (!get_user(insn, ip)) {
 			if ((insn & 0xc1680000) == 0xc0680000)
 				write = 1;
 		}
@@ -441,13 +460,13 @@ asmlinkage void do_sun4c_fault(struct pt_regs *regs, int text_fault, int write,
 				      _SUN4C_PAGE_VALID |
 				      _SUN4C_PAGE_DIRTY);
 
-			save_and_cli(flags);
+			local_irq_save(flags);
 			if (sun4c_get_segmap(address) != invalid_segment) {
 				sun4c_put_pte(address, pte_val(*ptep));
-				restore_flags(flags);
+				local_irq_restore(flags);
 				return;
 			}
-			restore_flags(flags);
+			local_irq_restore(flags);
 		}
 	    } else {
 		if ((pte_val(*ptep) & (_SUN4C_PAGE_READ|_SUN4C_PAGE_PRESENT))
@@ -457,13 +476,13 @@ asmlinkage void do_sun4c_fault(struct pt_regs *regs, int text_fault, int write,
 			*ptep = __pte(pte_val(*ptep) | _SUN4C_PAGE_ACCESSED |
 				      _SUN4C_PAGE_VALID);
 
-			save_and_cli(flags);
+			local_irq_save(flags);
 			if (sun4c_get_segmap(address) != invalid_segment) {
 				sun4c_put_pte(address, pte_val(*ptep));
-				restore_flags(flags);
+				local_irq_restore(flags);
 				return;
 			}
-			restore_flags(flags);
+			local_irq_restore(flags);
 		}
 	    }
 	}
@@ -530,7 +549,7 @@ bad_area:
 	info.si_errno = 0;
 	/* info.si_code set above to make clear whether
 	   this was a SEGV_MAPERR or SEGV_ACCERR fault.  */
-	info.si_addr = (void *)address;
+	info.si_addr = (void __user *) address;
 	info.si_trapno = 0;
 	force_sig_info (SIGSEGV, &info, tsk);
 	return;
@@ -540,7 +559,7 @@ do_sigbus:
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRERR;
-	info.si_addr = (void *)address;
+	info.si_addr = (void __user *) address;
 	info.si_trapno = 0;
 	force_sig_info (SIGBUS, &info, tsk);
 }

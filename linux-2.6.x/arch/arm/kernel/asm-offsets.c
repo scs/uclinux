@@ -12,6 +12,7 @@
  */
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <asm/mach/arch.h>
 
 /*
  * Make sure that the compiler and target are compatible.
@@ -47,6 +48,10 @@ int main(void)
 {
   DEFINE(TSK_ACTIVE_MM,		offsetof(struct task_struct, active_mm));
   BLANK();
+#if __LINUX_ARM_ARCH__ >= 6
+  DEFINE(MM_CONTEXT_ID,		offsetof(struct mm_struct, context.id));
+#endif
+  BLANK();
   DEFINE(VMA_VM_MM,		offsetof(struct vm_area_struct, vm_mm));
   DEFINE(VMA_VM_FLAGS,		offsetof(struct vm_area_struct, vm_flags));
   BLANK();
@@ -55,5 +60,7 @@ int main(void)
   DEFINE(PAGE_SZ,	       	PAGE_SIZE);
   BLANK();
   DEFINE(SYS_ERROR0,		0x9f0000);
+  BLANK();
+  DEFINE(SIZEOF_MACHINE_DESC,	sizeof(struct machine_desc));
   return 0; 
 }

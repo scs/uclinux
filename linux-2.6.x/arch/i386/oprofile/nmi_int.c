@@ -65,14 +65,14 @@ static int __init init_driverfs(void)
 {
 	int error;
 	if (!(error = sysdev_class_register(&oprofile_sysclass)))
-		error = sys_device_register(&device_oprofile);
+		error = sysdev_register(&device_oprofile);
 	return error;
 }
 
 
 static void __exit exit_driverfs(void)
 {
-	sys_device_unregister(&device_oprofile);
+	sysdev_unregister(&device_oprofile);
 	sysdev_class_unregister(&oprofile_sysclass);
 }
 
@@ -88,7 +88,7 @@ static int nmi_callback(struct pt_regs * regs, int cpu)
 }
  
  
-static void nmi_save_registers(struct op_msrs * msrs)
+static void nmi_cpu_save_registers(struct op_msrs * msrs)
 {
 	unsigned int const nr_ctrs = model->num_counters;
 	unsigned int const nr_ctrls = model->num_controls; 
@@ -107,6 +107,15 @@ static void nmi_save_registers(struct op_msrs * msrs)
 			controls[i].saved.low,
 			controls[i].saved.high);
 	}
+}
+
+
+static void nmi_save_registers(void * dummy)
+{
+	int cpu = smp_processor_id();
+	struct op_msrs * msrs = &cpu_msrs[cpu];
+	model->fill_in_addresses(msrs);
+	nmi_cpu_save_registers(msrs);
 }
 
 
@@ -156,8 +165,6 @@ static void nmi_cpu_setup(void * dummy)
 {
 	int cpu = smp_processor_id();
 	struct op_msrs * msrs = &cpu_msrs[cpu];
-	model->fill_in_addresses(msrs);
-	nmi_save_registers(msrs);
 	spin_lock(&oprofilefs_lock);
 	model->setup_ctrs(msrs);
 	spin_unlock(&oprofilefs_lock);
@@ -176,7 +183,14 @@ static int nmi_setup(void)
 	 * without actually triggering any NMIs as this will
 	 * break the core code horrifically.
 	 */
-	disable_lapic_nmi_watchdog();
+	if (reserve_lapic_nmi() < 0) {
+		free_msrs();
+		return -EBUSY;
+	}
+	/* We need to serialize save and setup for HT because the subset
+	 * of msrs are distinct for save and setup operations
+	 */
+	on_each_cpu(nmi_save_registers, NULL, 0, 1);
 	on_each_cpu(nmi_cpu_setup, NULL, 0, 1);
 	set_nmi_callback(nmi_callback);
 	nmi_enabled = 1;
@@ -230,7 +244,7 @@ static void nmi_shutdown(void)
 	nmi_enabled = 0;
 	on_each_cpu(nmi_cpu_shutdown, NULL, 0, 1);
 	unset_nmi_callback();
-	enable_lapic_nmi_watchdog();
+	release_lapic_nmi();
 	free_msrs();
 }
 
@@ -295,8 +309,6 @@ struct oprofile_operations nmi_ops = {
 };
  
 
-#if !defined(CONFIG_X86_64)
-
 static int __init p4_init(void)
 {
 	__u8 cpu_model = current_cpu_data.x86_model;
@@ -335,7 +347,9 @@ static int __init ppro_init(void)
 	if (cpu_model > 0xd)
 		return 0;
 
-	if (cpu_model > 5) {
+	if (cpu_model == 9) {
+		nmi_ops.cpu_type = "i386/p6_mobile";
+	} else if (cpu_model > 5) {
 		nmi_ops.cpu_type = "i386/piii";
 	} else if (cpu_model > 2) {
 		nmi_ops.cpu_type = "i386/pii";
@@ -346,9 +360,6 @@ static int __init ppro_init(void)
 	model = &op_ppro_spec;
 	return 1;
 }
-
-#endif /* !CONFIG_X86_64 */
- 
 
 /* in order to get driverfs right */
 static int using_nmi;
@@ -381,7 +392,6 @@ int __init nmi_init(struct oprofile_operations ** ops)
 			}
 			break;
  
-#if !defined(CONFIG_X86_64)
 		case X86_VENDOR_INTEL:
 			switch (family) {
 				/* Pentium IV */
@@ -400,7 +410,6 @@ int __init nmi_init(struct oprofile_operations ** ops)
 					return -ENODEV;
 			}
 			break;
-#endif /* !CONFIG_X86_64 */
 
 		default:
 			return -ENODEV;

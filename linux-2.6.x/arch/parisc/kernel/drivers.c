@@ -286,7 +286,7 @@ void get_pci_node_path(struct pci_dev *dev, struct hardware_path *path)
 		path->bc[i--] = PCI_SLOT(devfn) | (PCI_FUNC(devfn) << 5);
 	}
 
-	padev = HBA_DATA(bus->dev->platform_data)->dev;
+	padev = HBA_DATA(bus->bridge->platform_data)->dev;
 	while (padev != &root) {
 		path->bc[i--] = padev->hw_path;
 		padev = padev->parent;
@@ -618,6 +618,7 @@ static void parisc_generic_device_register_recursive( struct parisc_device *dev 
 		 tmp1);
 	/* make the generic dma mask a pointer to the parisc one */
 	dev->dev.dma_mask = &dev->dma_mask;
+	dev->dev.coherent_dma_mask = dev->dma_mask;
 	pr_debug("device_register(%s)\n", dev->dev.bus_id);
 	device_register(&dev->dev);
 }

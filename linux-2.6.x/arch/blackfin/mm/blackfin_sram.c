@@ -56,9 +56,6 @@ spinlock_t l1sram_lock, l2sram_lock;
 
 void l1sram_init(void);
 void l1mem_init(void);
-extern void _cache_invalidate(int);
-extern void bf53x_icache_init(void);
-extern void bf53x_dcache_init(void);
 extern unsigned long table_start,table_end;
 
 /* the data structure for L1 scratchpad */ 
@@ -73,33 +70,11 @@ struct {
 	}pfree[L1_MAX_PIECE];
 }l1_ssram;
 
-/*Just chenck wether setup.c has already initialized cache*/
 void l1mem_init()
 {
-	/*int imode,dmode;
-	imode = CPLB_ENABLE_ANY_CPLBS | CPLB_ENABLE_ICACHE ; 
-	dmode = CPLB_ENABLE_ANY_CPLBS | CPLB_ENABLE_DCACHE ; 
-	*/
-        if(!((*(volatile unsigned long *)IMEM_CONTROL) & (ENICPLB | IMC)))
-	{
-		/*_cache_invalidate(imode);*/
-	#ifdef CONFIG_BLKFIN_CACHE		
-		bf53x_icache_init();
-		/*printk("Instruction cache Initialized.\n");*/
-	#endif
-	}	
-	if(!((*(volatile unsigned long *)DMEM_CONTROL) & (ENDCPLB | DMC_531_ENABLE)))
-	{
-		/*_cache_invalidate(dmode);*/
-	#ifdef CONFIG_BLKFIN_DCACHE
-		bf53x_dcache_init();
-	#endif
-	}
-	else printk("l1 Memory already Initialized.\n");
 	/*Initialize the blackfin scratchpad memory*/
 	l1sram_init();
-	
-	/*Move the Page table to SCRATCH PAD memory :)*/
+	/*Move the Page table to SCRATCH PAD memory :)
 	asm("[--SP] = ( R7:4, P5:5);"
 	"p5.h = table_end;"
 	"p5.l = table_end;"
@@ -117,6 +92,7 @@ void l1mem_init()
 	"[p3++] = r3;"
 	"copy_end:"
 	"( R7:4, P5:5) = [SP++];");
+*/
 	return;
 }
 

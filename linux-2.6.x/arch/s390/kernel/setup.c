@@ -49,15 +49,15 @@
  * Machine setup..
  */
 unsigned int console_mode = 0;
-unsigned int console_device = -1;
+unsigned int console_devno = -1;
 unsigned int console_irq = -1;
 unsigned long memory_size = 0;
 unsigned long machine_flags = 0;
-struct { unsigned long addr, size, type; } memory_chunk[16] = { { 0 } };
+struct {
+	unsigned long addr, size, type;
+} memory_chunk[MEMORY_CHUNKS] = { { 0 } };
 #define CHUNK_READ_WRITE 0
 #define CHUNK_READ_ONLY 1
-int cpus_initialized = 0;
-static cpumask_t cpu_initialized;
 volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
 
 /*
@@ -74,7 +74,6 @@ extern int _text,_etext, _edata, _end;
 #include <asm/setup.h>
 
 static char command_line[COMMAND_LINE_SIZE] = { 0, };
-       char saved_command_line[COMMAND_LINE_SIZE];
 
 static struct resource code_resource = { "Kernel code", 0x100000, 0 };
 static struct resource data_resource = { "Kernel data", 0, 0 };
@@ -84,14 +83,7 @@ static struct resource data_resource = { "Kernel data", 0, 0 };
  */
 void __devinit cpu_init (void)
 {
-        int nr = smp_processor_id();
         int addr = hard_smp_processor_id();
-
-        if (cpu_test_and_set(nr,cpu_initialized)) {
-                printk("CPU#%d ALREADY INITIALIZED!!!!!!!!!\n", nr);
-                for (;;) local_irq_enable();
-        }
-        cpus_initialized++;
 
         /*
          * Store processor id in lowcore (used e.g. in timer_interrupt)
@@ -159,7 +151,7 @@ static int __init condev_setup(char *str)
 
 	vdev = simple_strtoul(str, &str, 0);
 	if (vdev >= 0 && vdev < 65536) {
-		console_device = vdev;
+		console_devno = vdev;
 		console_irq = -1;
 	}
 	return 1;
@@ -193,7 +185,7 @@ static void __init conmode_default(void)
 
         if (MACHINE_IS_VM) {
 		cpcmd("QUERY CONSOLE", query_buffer, 1024);
-		console_device = simple_strtoul(query_buffer + 5, NULL, 16);
+		console_devno = simple_strtoul(query_buffer + 5, NULL, 16);
 		ptr = strstr(query_buffer, "SUBCHANNEL =");
 		console_irq = simple_strtoul(ptr + 13, NULL, 16);
 		cpcmd("QUERY TERM", query_buffer, 1024);
@@ -254,13 +246,13 @@ void (*_machine_power_off)(void) = machine_power_off_smp;
 /*
  * Reboot, halt and power_off routines for non SMP.
  */
-extern void do_reipl(unsigned long devno);
+extern void reipl(unsigned long devno);
 static void do_machine_restart_nonsmp(char * __unused)
 {
 	if (MACHINE_IS_VM)
 		cpcmd ("IPL", NULL, 0);
 	else
-		do_reipl (0x10000 | S390_lowcore.ipl_device);
+		reipl (0x10000 | S390_lowcore.ipl_device);
 }
 
 static void do_machine_halt_nonsmp(void)
@@ -492,26 +484,27 @@ void __init setup_arch(char **cmdline_p)
 #endif /* CONFIG_ARCH_S390X */
 	lc->restart_psw.mask = PSW_BASE_BITS;
 	lc->restart_psw.addr =
-		PSW_ADDR_AMODE + (unsigned long) restart_int_handler;
+		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
 	lc->external_new_psw.mask = PSW_KERNEL_BITS;
 	lc->external_new_psw.addr =
-		PSW_ADDR_AMODE + (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = PSW_KERNEL_BITS;
-	lc->svc_new_psw.addr = PSW_ADDR_AMODE + (unsigned long) system_call;
+		PSW_ADDR_AMODE | (unsigned long) ext_int_handler;
+	lc->svc_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_IO | PSW_MASK_EXT;
+	lc->svc_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) system_call;
 	lc->program_new_psw.mask = PSW_KERNEL_BITS;
 	lc->program_new_psw.addr =
-		PSW_ADDR_AMODE + (unsigned long)pgm_check_handler;
+		PSW_ADDR_AMODE | (unsigned long)pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
 	lc->mcck_new_psw.addr =
-		PSW_ADDR_AMODE + (unsigned long) mcck_int_handler;
+		PSW_ADDR_AMODE | (unsigned long) mcck_int_handler;
 	lc->io_new_psw.mask = PSW_KERNEL_BITS;
-	lc->io_new_psw.addr = PSW_ADDR_AMODE + (unsigned long) io_int_handler;
+	lc->io_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) io_int_handler;
 	lc->ipl_device = S390_lowcore.ipl_device;
 	lc->jiffy_timer = -1LL;
 	lc->kernel_stack = ((unsigned long) &init_thread_union) + THREAD_SIZE;
 	lc->async_stack = (unsigned long)
 		__alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0) + ASYNC_SIZE;
 	lc->current_task = (unsigned long) init_thread_union.thread_info.task;
+	lc->thread_info = (unsigned long) &init_thread_union;
 #ifdef CONFIG_ARCH_S390X
 	if (MACHINE_HAS_DIAG44)
 		lc->diag44_opcode = 0x83000044;
@@ -646,4 +639,14 @@ int show_interrupts(struct seq_file *p, void *v)
         }
 	
         return 0;
+}
+
+/*
+ * For compatibilty only. S/390 specific setup of interrupts et al. is done
+ * much later in init_channel_subsystem().
+ */
+void __init
+init_IRQ(void)
+{
+	/* nothing... */
 }

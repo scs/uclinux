@@ -35,7 +35,7 @@
 /*
  * Set of msr bits that gdb can change on behalf of a process.
  */
-#ifdef CONFIG_4xx
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 #define MSR_DEBUGCHANGE	0
 #else
 #define MSR_DEBUGCHANGE	(MSR_SE | MSR_BE)
@@ -77,7 +77,7 @@ static inline int put_reg(struct task_struct *task, int regno,
 /*
  * Get contents of AltiVec register state in task TASK
  */
-static inline int get_vrregs(unsigned long *data, struct task_struct *task)
+static inline int get_vrregs(unsigned long __user *data, struct task_struct *task)
 {
 	int i, j;
 
@@ -105,7 +105,7 @@ static inline int get_vrregs(unsigned long *data, struct task_struct *task)
 /*
  * Write contents of AltiVec register state into task TASK.
  */
-static inline int set_vrregs(struct task_struct *task, unsigned long *data)
+static inline int set_vrregs(struct task_struct *task, unsigned long __user *data)
 {
 	int i, j;
 
@@ -131,13 +131,77 @@ static inline int set_vrregs(struct task_struct *task, unsigned long *data)
 }
 #endif
 
+#ifdef CONFIG_SPE
+
+/*
+ * For get_evrregs/set_evrregs functions 'data' has the following layout:
+ *
+ * struct {
+ *   u32 evr[32];
+ *   u64 acc;
+ *   u32 spefscr;
+ * }
+ */
+
+/*
+ * Get contents of SPE register state in task TASK.
+ */
+static inline int get_evrregs(unsigned long *data, struct task_struct *task)
+{
+	int i;
+
+	if (!access_ok(VERIFY_WRITE, data, 35 * sizeof(unsigned long)))
+		return -EFAULT;
+
+	/* copy SPEFSCR */
+	if (__put_user(task->thread.spefscr, &data[34]))
+		return -EFAULT;
+
+	/* copy SPE registers EVR[0] .. EVR[31] */
+	for (i = 0; i < 32; i++, data++)
+		if (__put_user(task->thread.evr[i], data))
+			return -EFAULT;
+
+	/* copy ACC */
+	if (__put_user64(task->thread.acc, (unsigned long long *)data))
+		return -EFAULT;
+
+	return 0;
+}
+
+/*
+ * Write contents of SPE register state into task TASK.
+ */
+static inline int set_evrregs(struct task_struct *task, unsigned long *data)
+{
+	int i;
+
+	if (!access_ok(VERIFY_READ, data, 35 * sizeof(unsigned long)))
+		return -EFAULT;
+
+	/* copy SPEFSCR */
+	if (__get_user(task->thread.spefscr, &data[34]))
+		return -EFAULT;
+
+	/* copy SPE registers EVR[0] .. EVR[31] */
+	for (i = 0; i < 32; i++, data++)
+		if (__get_user(task->thread.evr[i], data))
+			return -EFAULT;
+	/* copy ACC */
+	if (__get_user64(task->thread.acc, (unsigned long long*)data))
+		return -EFAULT;
+
+	return 0;
+}
+#endif /* CONFIG_SPE */
+
 static inline void
 set_single_step(struct task_struct *task)
 {
 	struct pt_regs *regs = task->thread.regs;
 
 	if (regs != NULL) {
-#ifdef CONFIG_4xx
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 		task->thread.dbcr0 = DBCR0_IDM | DBCR0_IC;
 		/* MSR.DE should already be set */
 #else
@@ -152,7 +216,7 @@ clear_single_step(struct task_struct *task)
 	struct pt_regs *regs = task->thread.regs;
 
 	if (regs != NULL) {
-#ifdef CONFIG_4xx
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 		task->thread.dbcr0 = 0;
 #else
 		regs->msr &= ~MSR_SE;
@@ -222,7 +286,7 @@ int sys_ptrace(long request, long pid, long addr, long data)
 		ret = -EIO;
 		if (copied != sizeof(tmp))
 			break;
-		ret = put_user(tmp,(unsigned long *) data);
+		ret = put_user(tmp,(unsigned long __user *) data);
 		break;
 	}
 
@@ -242,11 +306,13 @@ int sys_ptrace(long request, long pid, long addr, long data)
 		if (index < PT_FPR0) {
 			tmp = get_reg(child, (int) index);
 		} else {
+			preempt_disable();
 			if (child->thread.regs->msr & MSR_FP)
 				giveup_fpu(child);
+			preempt_enable();
 			tmp = ((unsigned long *)child->thread.fpr)[index - PT_FPR0];
 		}
-		ret = put_user(tmp,(unsigned long *) data);
+		ret = put_user(tmp,(unsigned long __user *) data);
 		break;
 	}
 
@@ -276,8 +342,10 @@ int sys_ptrace(long request, long pid, long addr, long data)
 		if (index < PT_FPR0) {
 			ret = put_reg(child, index, data);
 		} else {
+			preempt_disable();
 			if (child->thread.regs->msr & MSR_FP)
 				giveup_fpu(child);
+			preempt_enable();
 			((unsigned long *)child->thread.fpr)[index - PT_FPR0] = data;
 			ret = 0;
 		}
@@ -338,18 +406,39 @@ int sys_ptrace(long request, long pid, long addr, long data)
 #ifdef CONFIG_ALTIVEC
 	case PTRACE_GETVRREGS:
 		/* Get the child altivec register state. */
+		preempt_disable();
 		if (child->thread.regs->msr & MSR_VEC)
 			giveup_altivec(child);
-		ret = get_vrregs((unsigned long *)data, child);
+		preempt_enable();
+		ret = get_vrregs((unsigned long __user *)data, child);
 		break;
 
 	case PTRACE_SETVRREGS:
 		/* Set the child altivec register state. */
 		/* this is to clear the MSR_VEC bit to force a reload
 		 * of register state from memory */
+		preempt_disable();
 		if (child->thread.regs->msr & MSR_VEC)
 			giveup_altivec(child);
-		ret = set_vrregs(child, (unsigned long *)data);
+		preempt_enable();
+		ret = set_vrregs(child, (unsigned long __user *)data);
+		break;
+#endif
+#ifdef CONFIG_SPE
+	case PTRACE_GETEVRREGS:
+		/* Get the child spe register state. */
+		if (child->thread.regs->msr & MSR_SPE)
+			giveup_spe(child);
+		ret = get_evrregs((unsigned long __user *)data, child);
+		break;
+
+	case PTRACE_SETEVRREGS:
+		/* Set the child spe register state. */
+		/* this is to clear the MSR_SPE bit to force a reload
+		 * of register state from memory */
+		if (child->thread.regs->msr & MSR_SPE)
+			giveup_spe(child);
+		ret = set_evrregs(child, (unsigned long __user *)data);
 		break;
 #endif
 

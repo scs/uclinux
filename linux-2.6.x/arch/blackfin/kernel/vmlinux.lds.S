@@ -1,5 +1,5 @@
 /*
- *	vmlinux.lds.S -- master linker script for blackfin architecture
+ *	vmlinux.lds.S - Master linker script for blackfin architecture
  *
  *	(C) Copyright 2004-2005 LG Soft India 
  *
@@ -7,39 +7,57 @@
 
 #include <asm-generic/vmlinux.lds.h>
 #include <linux/config.h>
+
+#ifdef CONFIG_BLKFIN_STAMP
+#define RAM_START		0x1000
+#define RAM_LENGTH		0x1000000
+#endif
+
+#ifdef CONFIG_EZKIT
+#define RAM_START		0x1000
+#define RAM_LENGTH		0x2000000
+#endif
+
+#define L1_DATA_A_START		0xFF800000
+#define L1_DATA_A_LENGTH	0x4000
+#define L1_DATA_B_START		0xFF900000
+#define L1_DATA_B_LENGTH	0x4000
+#define L1_CODE_START		0xFFA00000
+#define L1_CODE_LENGTH		0x10000
+#define L1_SCRATCH_START	0xFFB00000
+#define L1_SCRATCH_LENGTH	0x1000
+	
+
 OUTPUT_FORMAT("elf32-bfin")
 ENTRY(start) 
 jiffies = jiffies_64 ;
 MEMORY 
 	{
-#ifdef CONFIG_BLKFIN_STAMP
-	ram		: ORIGIN = 0x1000,     LENGTH = 0x1000000	/*TODO*/
-#endif
-#ifdef CONFIG_EZKIT	
-	ram		: ORIGIN = 0x1000,     LENGTH = 0x1000000	/*TODO*/
-#endif
-	l1_data_a	: ORIGIN = 0xFF800000, LENGTH = 0x4000		/*Data A SRAM*/
-	l1_data_b	: ORIGIN = 0xFF900000, LENGTH = 0x4000		/*Data B SRAM*/
-	l1_code		: ORIGIN = 0xFFA00000, LENGTH = 0x10000		/*64K SRAM */
-	l1_scratch	: ORIGIN = 0xFFB00000, LENGTH = 0x1000		/*4K scratchpad SRAM*/
+	ram		: ORIGIN = RAM_START,       LENGTH = RAM_LENGTH			
+	l1_data_a	: ORIGIN = L1_DATA_A_START, LENGTH = L1_DATA_A_LENGTH		/*Data A SRAM*/
+	l1_data_b	: ORIGIN = L1_DATA_B_START, LENGTH = L1_DATA_B_START		/*Data B SRAM*/
+	l1_code		: ORIGIN = L1_CODE_START,   LENGTH = L1_CODE_LENGTH		/*64K SRAM */
+	l1_scratch	: ORIGIN = L1_SCRATCH_START,LENGTH = L1_SCRATCH_LENGTH		/*4K scratchpad SRAM*/
 	}
 
 SECTIONS
 {
-  . = 0x1000 ;
+	. = 0x1000 ;
 
-  .text  : {
-	  _text = .;                     /*Text and read-only data */
-	  _stext = .;                     
-	  text_start = . ;
-	  __text_start = . ;
-          *(.text)
-	  . = ALIGN(16);
-	  __start___ex_table = .;
-	  *(__ex_table)
-	  __stop___ex_table = .;
+	.text  : {
+		 _text = .;                     /*Text and read-only data */
+		 _stext = .;                     
+		text_start = . ;
+		 __text_start = . ;
+		*(.text)
+		SCHED_TEXT
+		*(.text.lock)
+		. = ALIGN(16);
+		  __start___ex_table = .;
+		*(__ex_table)
+		 __stop___ex_table = .;
 
-	  __init_begin = .;
+		 __init_begin = .;
 		_sinittext = .;
               	*(.init.text)		
 		. = ALIGN(4);	
@@ -108,60 +126,58 @@ SECTIONS
 		  etext = . ;
 	} > ram
    
-    .data :
-	{
-	 . = ALIGN(4);	
-	  _sdata = . ;
-	  __data_start = . ;
-          . = ALIGN(0x2000) ;
-	  *(.data.init_task)
-          . = ALIGN(0x2000) ;	
-	  *(.data)
-	  . = ALIGN(16);
-	  ramdisk_begin = .;
-	  *(.ramdisk)
-      	  ramdisk_end = .;
-	  . = ALIGN(16);	
-	  _edata = . ;
-	  edata = . ;
+	.data :	{
+
+		. = ALIGN(4);	
+		 _sdata = . ;
+		 __data_start = . ;
+		. = ALIGN(0x2000) ;
+		*(.data.init_task)
+		. = ALIGN(0x2000) ;	
+		*(.data)
+		. = ALIGN(16);
+		ramdisk_begin = .;
+		*(.ramdisk)
+		ramdisk_end = .;
+		. = ALIGN(16);	
+		_edata = . ;
+		edata = . ;
 	} > ram
 
 	/DISCARD/ : {			/* Exit code and data*/
 		*(.exit.text)
 		*(.exit.data)
 		*(.exitcall.exit)
-	}>ram
+	} > ram
 
-	.bss :
-	    {
-	  . = ALIGN(16) ;
-	  _sbss = . ;
-	  __bss_start = . ;
-	  __data_end = . ;
-	  *(.bss)
-	  *(COMMON)
-	  . = ALIGN(16) ;
-	  end = . ;
-	  _ebss = . ;	  
-	  _end = . ;
-    } > ram
+	.bss : {
+
+		. = ALIGN(16) ;
+		 _sbss = . ;
+		 __bss_start = . ;
+		 __data_end = . ;
+		*(.bss)
+		*(COMMON)
+		. = ALIGN(16) ;
+		end = . ;
+		 _ebss = . ;	  
+		 _end = . ;
+    	} > ram
 
 #ifdef CONFIG_BLKFIN_STAMP
-   . = 0x1000000;
+   . = RAM_LENGTH ;
 #endif
 #ifdef CONFIG_EZKIT
-   . = 0x1000000;
+   . = RAM_LENGTH ;
 #endif
-
-   .eram :
-     {	 
-	__ramend = .  ;
-     } > ram 	
+	.eram : {
+		__ramend = .  ;
+     	} > ram 	
 	
-   . = 0xFFB00000;		/*Usage of L1 scratchpad for PAGE TABLE*/	
-   .scrpad :
-     {
-	*(.scratch);
-     } > l1_scratch 
+	. = L1_SCRATCH_START;		/*Usage of L1 scratchpad for PAGE TABLE*/	
+
+	.scrpad : {
+		*(.scratch);
+	} > l1_scratch 
 
 }

@@ -50,11 +50,6 @@
 
 #ifdef MODULE
 void fp_send_sig(unsigned long sig, struct task_struct *p, int priv);
-#if LINUX_VERSION_CODE > 0x20115
-MODULE_AUTHOR("Scott Bambrough <scottb@rebel.com>");
-MODULE_DESCRIPTION("NWFPE floating point emulator (" NWFPE_BITS " precision)");
-#endif
-
 #else
 #define fp_send_sig	send_sig
 #define kern_fp_enter	fp_enter
@@ -136,7 +131,7 @@ void float_raise(signed char flags)
 
 #ifdef CONFIG_DEBUG_USER
 	printk(KERN_DEBUG
-	       "NWFPE: %s[%d] takes exception %08x at %p from %08x\n",
+	       "NWFPE: %s[%d] takes exception %08x at %p from %08lx\n",
 	       current->comm, current->pid, flags,
 	       __builtin_return_address(0), GET_USERREG()[15]);
 #endif
@@ -172,3 +167,7 @@ void float_raise(signed char flags)
 
 module_init(fpe_init);
 module_exit(fpe_exit);
+
+MODULE_AUTHOR("Scott Bambrough <scottb@rebel.com>");
+MODULE_DESCRIPTION("NWFPE floating point emulator (" NWFPE_BITS " precision)");
+MODULE_LICENSE("GPL");

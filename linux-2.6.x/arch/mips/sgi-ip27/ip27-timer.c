@@ -13,7 +13,6 @@
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/mm.h>
-#include <linux/bcd.h>
 
 #include <asm/time.h>
 #include <asm/pgtable.h>
@@ -46,7 +45,7 @@ static long last_rtc_update;		/* Last time the rtc clock got updated */
 
 extern volatile unsigned long wall_jiffies;
 
-
+#if 0
 static int set_rtc_mmss(unsigned long nowtime)
 {
 	int retval = 0;
@@ -89,11 +88,12 @@ static int set_rtc_mmss(unsigned long nowtime)
 
 	return retval;
 }
+#endif
 
-void rt_timer_interrupt(struct pt_regs *regs)
+void ip27_rt_timer_interrupt(struct pt_regs *regs)
 {
 	int cpu = smp_processor_id();
-	int cpuA = ((cputoslice(cpu)) == 0);
+	int cpuA = cputoslice(cpu) == 0;
 	int irq = 9;				/* XXX Assign number */
 
 	irq_enter();
@@ -182,12 +182,23 @@ static __init unsigned long get_m48t35_time(void)
         return mktime(year, month, date, hour, min, sec);
 }
 
+static void ip27_timer_setup(struct irqaction *irq)
+{
+	/* over-write the handler, we use our own way */
+	irq->handler = no_action;
+
+	/* setup irqaction */
+//	setup_irq(IP27_TIMER_IRQ, irq);		/* XXX Can't do this yet.  */
+}
+
 void __init ip27_time_init(void)
 {
 	xtime.tv_sec = get_m48t35_time();
 	xtime.tv_nsec = 0;
 
 	do_gettimeoffset = ip27_do_gettimeoffset;
+
+	board_timer_setup = ip27_timer_setup;
 }
 
 void __init cpu_time_init(void)

@@ -5,15 +5,7 @@
  * Copyright (C) 2002-2003  Hewlett Packard Co
  *               Stephane Eranian <eranian@hpl.hp.com>
  */
-
-#define RDEP(x)	(1UL<<(x))
-
-#ifndef CONFIG_MCKINLEY
-#error "This file is only valid when CONFIG_MCKINLEY is defined"
-#endif
-
 static int pfm_mck_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cnum, unsigned long *val, struct pt_regs *regs);
-static int pfm_write_ibr_dbr(int mode, pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs);
 
 static pfm_reg_desc_t pfm_mck_pmc_desc[PMU_MAX_PMCS]={
 /* pmc0  */ { PFM_REG_CONTROL , 0, 0x1UL, -1UL, NULL, NULL, {0UL,0UL, 0UL, 0UL}, {0UL,0UL, 0UL, 0UL}},
@@ -58,21 +50,6 @@ static pfm_reg_desc_t pfm_mck_pmd_desc[PMU_MAX_PMDS]={
 };
 
 /*
- * impl_pmcs, impl_pmds are computed at runtime to minimize errors!
- */
-static pmu_config_t pmu_conf={
-	.pmu_name      = "Itanium 2",
-	.pmu_family    = 0x1f,
-	.enabled       = 0,
-	.ovfl_val      = (1UL << 47) - 1,
-	.pmd_desc      = pfm_mck_pmd_desc,
-	.pmc_desc      = pfm_mck_pmc_desc,
-	.num_ibrs       = 8,
-	.num_dbrs       = 8,
-	.use_rr_dbregs = 1 /* debug register are use for range retrictions */
-};
-
-/*
  * PMC reserved fields must have their power-up values preserved
  */
 static int
@@ -101,12 +78,15 @@ pfm_mck_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cnu
 {
 	int ret = 0, check_case1 = 0;
 	unsigned long val8 = 0, val14 = 0, val13 = 0;
+	int is_loaded;
 
 	/* first preserve the reserved fields */
 	pfm_mck_reserved(cnum, val, regs);
 
 	/* sanitfy check */
 	if (ctx == NULL) return -EINVAL;
+
+	is_loaded = ctx->ctx_state == PFM_CTX_LOADED || ctx->ctx_state == PFM_CTX_MASKED;
 
 	/*
 	 * we must clear the debug registers if pmc13 has a value which enable
@@ -117,10 +97,11 @@ pfm_mck_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cnu
 	 * 	one of the pmc13.cfg_dbrpXX field is different from 0x3
 	 * AND
 	 * 	at the corresponding pmc13.ena_dbrpXX is set.
-	 *
-	 * For now, we just check on cfg_dbrXX != 0x3.
 	 */
-	if (cnum == 13 && ((*val & 0x18181818UL) != 0x18181818UL) && ctx->ctx_fl_using_dbreg == 0) {
+	DPRINT(("cnum=%u val=0x%lx, using_dbreg=%d loaded=%d\n", cnum, *val, ctx->ctx_fl_using_dbreg, is_loaded));
+
+	if (cnum == 13 && is_loaded
+	    && (*val & 0x1e00000000000UL) && (*val & 0x18181818UL) != 0x18181818UL && ctx->ctx_fl_using_dbreg == 0) {
 
 		DPRINT(("pmc[%d]=0x%lx has active pmc13 settings, clearing dbr\n", cnum, *val));
 
@@ -131,14 +112,14 @@ pfm_mck_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cnu
 		 * a count of 0 will mark the debug registers as in use and also
 		 * ensure that they are properly cleared.
 		 */
-		ret = pfm_write_ibr_dbr(1, ctx, NULL, 0, regs);
+		ret = pfm_write_ibr_dbr(PFM_DATA_RR, ctx, NULL, 0, regs);
 		if (ret) return ret;
 	}
 	/*
 	 * we must clear the (instruction) debug registers if any pmc14.ibrpX bit is enabled
 	 * before they are (fl_using_dbreg==0) to avoid picking up stale information.
 	 */
-	if (cnum == 14 && ((*val & 0x2222UL) != 0x2222UL) && ctx->ctx_fl_using_dbreg == 0) {
+	if (cnum == 14 && is_loaded && ((*val & 0x2222UL) != 0x2222UL) && ctx->ctx_fl_using_dbreg == 0) {
 
 		DPRINT(("pmc[%d]=0x%lx has active pmc14 settings, clearing ibr\n", cnum, *val));
 
@@ -149,7 +130,7 @@ pfm_mck_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cnu
 		 * a count of 0 will mark the debug registers as in use and also
 		 * ensure that they are properly cleared.
 		 */
-		ret = pfm_write_ibr_dbr(0, ctx, NULL, 0, regs);
+		ret = pfm_write_ibr_dbr(PFM_CODE_RR, ctx, NULL, 0, regs);
 		if (ret) return ret;
 
 	}
@@ -187,3 +168,20 @@ pfm_mck_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cnu
 
 	return ret ? -EINVAL : 0;
 }
+
+/*
+ * impl_pmcs, impl_pmds are computed at runtime to minimize errors!
+ */
+static pmu_config_t pmu_conf_mck={
+	.pmu_name      = "Itanium 2",
+	.pmu_family    = 0x1f,
+	.flags	       = PFM_PMU_IRQ_RESEND,
+	.ovfl_val      = (1UL << 47) - 1,
+	.pmd_desc      = pfm_mck_pmd_desc,
+	.pmc_desc      = pfm_mck_pmc_desc,
+	.num_ibrs       = 8,
+	.num_dbrs       = 8,
+	.use_rr_dbregs = 1 /* debug register are use for range retrictions */
+};
+
+

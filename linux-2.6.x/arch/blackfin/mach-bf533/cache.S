@@ -13,6 +13,7 @@
 #include <linux/linkage.h>
 #include <asm/cplb.h>
 #include <asm/entry.h>
+#include <asm/blackfin.h>
 
 .text
  
@@ -333,7 +334,7 @@ invalidate_entire_dcache:
 
 	R6 = [P0];
 	
-	R7 = (DMC_531_ENABLE | ENDCPLB);
+	R7 = (DMC_ENABLE | ENDCPLB);
 	R7 = R7 | R6;
 
 	[P0] = R7;
@@ -418,8 +419,3 @@ over:
 	SSYNC;
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
-		
-
-
-
-

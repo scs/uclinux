@@ -22,6 +22,7 @@
 #include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
+#include <linux/syscalls.h>
 #include <linux/kdev_t.h>
 #include <linux/major.h>
 #include <linux/string.h>
@@ -45,6 +46,8 @@
 #include <asm/idprom.h>
 #include <asm/hardirq.h>
 #include <asm/machines.h>
+#include <asm/cpudata.h>
+#include <asm/setup.h>
 
 struct screen_info screen_info = {
 	0, 0,			/* orig-x, orig-y */
@@ -66,7 +69,6 @@ struct screen_info screen_info = {
 
 extern unsigned long trapbase;
 void (*prom_palette)(int);
-asmlinkage void sys_sync(void);	/* it's really int */
 
 /* Pretty sick eh? */
 void prom_sync_me(void)
@@ -74,7 +76,7 @@ void prom_sync_me(void)
 	unsigned long prom_tbr, flags;
 
 	/* XXX Badly broken. FIX! - Anton */
-	save_and_cli(flags);
+	local_irq_save(flags);
 	__asm__ __volatile__("rd %%tbr, %0\n\t" : "=r" (prom_tbr));
 	__asm__ __volatile__("wr %0, 0x0, %%tbr\n\t"
 			     "nop\n\t"
@@ -86,9 +88,9 @@ void prom_sync_me(void)
 	prom_printf("PROM SYNC COMMAND...\n");
 	show_free_areas();
 	if(current->pid != 0) {
-		sti();
+		local_irq_enable();
 		sys_sync();
-		cli();
+		local_irq_disable();
 	}
 	prom_printf("Returning to prom\n");
 
@@ -96,7 +98,7 @@ void prom_sync_me(void)
 			     "nop\n\t"
 			     "nop\n\t"
 			     "nop\n\t" : : "r" (prom_tbr));
-	restore_flags(flags);
+	local_irq_restore(flags);
 
 	return;
 }
@@ -232,8 +234,6 @@ extern void sun4c_probe_vac(void);
 extern char cputypval;
 extern unsigned long start, end;
 extern void panic_setup(char *, int *);
-extern void srmmu_end_memory(unsigned long, unsigned long *);
-extern void sun_serial_setup(void);
 
 extern unsigned short root_flags;
 extern unsigned short root_dev;
@@ -244,8 +244,7 @@ extern unsigned short ram_flags;
 
 extern int root_mountflags;
 
-char saved_command_line[256];
-char reboot_command[256];
+char reboot_command[COMMAND_LINE_SIZE];
 enum sparc_cpu sparc_cpu_model;
 
 struct tt_entry *sparc_ttable;
@@ -331,6 +330,7 @@ void __init setup_arch(char **cmdline_p)
 		if (highest_paddr < top)
 			highest_paddr = top;
 	}
+	pfn_base = phys_base >> PAGE_SHIFT;
 
 	if (!root_flags)
 		root_mountflags &= ~MS_RDONLY;
@@ -390,18 +390,11 @@ static int __init set_preferred_console(void)
 }
 console_initcall(set_preferred_console);
 
-asmlinkage int sys_ioperm(unsigned long from, unsigned long num, int on)
-{
-	return -EIO;
-}
-
-extern char *sparc_cpu_type[];
-extern char *sparc_fpu_type[];
+extern char *sparc_cpu_type;
+extern char *sparc_fpu_type;
 
 static int show_cpuinfo(struct seq_file *m, void *__unused)
 {
-	int cpuid = hard_smp_processor_id();
-
 	seq_printf(m,
 		   "cpu\t\t: %s\n"
 		   "fpu\t\t: %s\n"
@@ -411,26 +404,28 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   "ncpus probed\t: %d\n"
 		   "ncpus active\t: %d\n"
 #ifndef CONFIG_SMP
-		   "BogoMips\t: %lu.%02lu\n"
+		   "CPU0Bogo\t: %lu.%02lu\n"
+		   "CPU0ClkTck\t: %ld\n"
 #endif
 		   ,
-		   sparc_cpu_type[cpuid] ? : "undetermined",
-		   sparc_fpu_type[cpuid] ? : "undetermined",
+		   sparc_cpu_type ? sparc_cpu_type : "undetermined",
+		   sparc_fpu_type ? sparc_fpu_type : "undetermined",
 		   romvec->pv_romvers,
 		   prom_rev,
 		   romvec->pv_printrev >> 16,
-		   (short) romvec->pv_printrev,
+		   romvec->pv_printrev & 0xffff,
 		   &cputypval,
-		   linux_num_cpus,
+		   num_possible_cpus(),
 		   num_online_cpus()
 #ifndef CONFIG_SMP
-		   , loops_per_jiffy/(500000/HZ),
-		   (loops_per_jiffy/(5000/HZ)) % 100
+		   , cpu_data(0).udelay_val/(500000/HZ),
+		   (cpu_data(0).udelay_val/(5000/HZ)) % 100,
+		   cpu_data(0).clock_tick
 #endif
 		);
 
 #ifdef CONFIG_SMP
-	smp_bogo_info(m);
+	smp_bogo(m);
 #endif
 	mmu_info(m);
 #ifdef CONFIG_SMP
