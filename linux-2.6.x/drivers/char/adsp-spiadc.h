@@ -10,17 +10,33 @@
 *
 * SYNOPSIS:
 *
-* DESCRIPTION: It's driver of SPI in ADSP25535(ADI's DSP). It can
+* DESCRIPTION: It's driver of SPI in ADSP-BF533 It can
 *              only be used in unix or linux.
 * CAUTION:     User should use 'ioctl' to change it's 
                configuration just after openning device.
 **************************************************************
 * MODIFICATION HISTORY:
 * March 8, 2003   File spi.h Created.
+* Sept 10, 2004   adsp-spiadc.c Created/Merged spic.h M.Hennerich
+************************************************************
+*
+* This program is free software; you can distribute it and/or modify it
+* under the terms of the GNU General Public License (Version 2) as
+* published by the Free Software Foundation.
+*
+* This program is distributed in the hope it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+* for more details.
+*
+* You should have received a copy of the GNU General Public License along
+* with this program; if not, write to the Free Software Foundation, Inc.,
+* 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
+*
 ************************************************************/
 
-#ifndef _SPI_H_
-#define _SPI_H_
+#ifndef _ADSP_SPIADC_H_
+#define _ADSP_SPIADC_H_
 
   
 
@@ -42,24 +58,23 @@
 #define CMD_SPI_SET_CSENABLE  17
 #define CMD_SPI_SET_CSDISABLE 18
 
-#define CMD_SPI_SET_TRIGGER_MODE  19
-#define CMD_SPI_SET_TRIGGER_SENSE 20
-#define CMD_SPI_SET_TRIGGER_EDGE  21
-#define CMD_SPI_SET_TRIGGER_LEVEL 22
+#define CMD_SPI_SET_TRIGGER_MODE  19		
+#define CMD_SPI_SET_TRIGGER_SENSE 20		
+#define CMD_SPI_SET_TRIGGER_EDGE  21		
+#define CMD_SPI_SET_TRIGGER_LEVEL 22		
+                                  		
+#define CMD_SPI_SET_TIME_SPS 	  23		
+#define CMD_SPI_SET_TIME_SAMPLES  24		
+#define CMD_SPI_GET_SYSTEMCLOCK   25		
 
-#define CMD_SPI_SET_TIME_SPS 	  23
-#define CMD_SPI_SET_TIME_SAMPLES  24
-
-
-
+#define CMD_SPI_SET_WRITECONTINUOUS     26
 
 #define CMD_SPI_GET_ALLCONFIG 32 /* For debug */
-
-
 
 #define SPI_DEFAULT_BARD    0x0100
 
 #define SPI_IRQ_NUM        20
+#define SPI_ERR_TRIG	   -1
 
 
 #define BIT_CTL_ENABLE      0x4000
@@ -122,4 +137,4 @@
 #define CFG_SPI_CS6VALUE    0x4000
 #define CFG_SPI_CS7VALUE    0x8000
 
-#endif /* _SPI_H_ */
+#endif /* _ADSP_SPIADC_H_ */
