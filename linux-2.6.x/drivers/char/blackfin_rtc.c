@@ -6,7 +6,6 @@
  *
  * Copyright (C) 1996 Paul Gortmaker
  *
- *
  *	Based on other minimal char device drivers, like Alan's
  *	watchdog, Ted's random, etc. etc.
  *
@@ -25,32 +24,18 @@
  *	1.10e   LG Soft India: Register access is different in BF533. 	
  */
 
-#define RTC_VERSION "1.10e"
-
-#define RTC_IO_EXTENT   0x10    /* Only really two ports, but...    */
-
-#include <linux/config.h>
 #include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/types.h>
 #include <linux/miscdevice.h>
-#include <linux/ioport.h>
-#include <linux/fcntl.h>
-#include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
-#include <linux/spinlock.h>
-#include <linux/time.h>
 #include <linux/rtc.h>
 
-#include <asm/io.h>
-#include <asm/uaccess.h>
-#include <asm/system.h>
-
 #include <asm/irq.h>
-#include <asm/board/defBF533.h>
 #include <asm/board/cdefBF532.h>
 #include "blackfin_rtc.h"
+
+#define RTC_VERSION "1.10e"
+#define RTC_IO_EXTENT   0x10    /* Only really two ports, but...    */
 
 #undef RTC_DEBUG
 
@@ -139,14 +124,10 @@ static inline void wait_for_complete(void)
 	unsigned long st;
 
 check:
-	asm("nop;");
-	asm("nop;");
 	st = *pRTC_ISTAT;
     	if((st & 0x8000) == 0)
 		goto check;
-    //*(volatile unsigned short *)RTC_ISTAT = 0x807F;
     *(volatile unsigned short *)RTC_ISTAT |= 0x8000;
-
 }
 
 #if RTC_IRQ
@@ -162,7 +143,6 @@ check:
 
 static irqreturn_t  rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-#if 1
     /*
      *  Can be an alarm interrupt, update complete interrupt,
      *  or a periodic interrupt. We store the status in the
@@ -228,7 +208,6 @@ printk("rtc_interrupt\n");
     /* Now do the rest of the actions */
     wake_up_interruptible(&rtc_wait);   
     kill_fasync (&rtc_async_queue, SIGIO, POLL_IN);
-#endif
     return 0;
 }
 #endif
@@ -302,7 +281,6 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
     switch (cmd) {
 #if RTC_IRQ
-#if 1   
 	/* stop watch interrupt*/
     case RTC_SWCNT_OFF: /* mask stop watch int. enab. bit */
     {
@@ -319,7 +297,6 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         //set_rtc_irq_bit(STPW_INT_EN);
         return 0;
     }
-#endif
 
     case RTC_AIE_OFF:   /* Mask alarm int. enab. bit    */
     {
@@ -496,7 +473,6 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         spin_unlock_irq(&rtc_lock);
         return 0;
     }
-//#elif !defined(CONFIG_DECSTATION)
     case RTC_EPOCH_READ:    /* Read the epoch.  */
     {
         return put_user (epoch, (unsigned long *)arg);
@@ -517,7 +493,6 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 #endif
 
 #if RTC_IRQ
-#if 1  // stop watch support
     case RTC_SWCNT_SET: /* Read the periodic IRQ rate.  */
     {
 	copy_from_user(&swcnttm, (unsigned long *)&arg, sizeof(unsigned long));
@@ -534,7 +509,6 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	swcnt = *pRTC_SWCNT;
         return put_user (swcnt, (unsigned long *)arg);
     }
-#endif
 #endif
     
     default:
@@ -577,7 +551,6 @@ static int rtc_fasync (int fd, struct file *filp, int on)
 
 static int rtc_release(struct inode *inode, struct file *file)
 {
-#if 1
 #if RTC_IRQ
     /*
      * Turn off all interrupts once the device is no longer
@@ -605,7 +578,6 @@ static int rtc_release(struct inode *inode, struct file *file)
     if (file->f_flags & FASYNC) {
         rtc_fasync (-1, file, 0);
     }
-#endif
 #endif
     spin_lock_irq (&rtc_lock);
     rtc_irq_data = 0;
@@ -667,12 +639,10 @@ int __init blackfin_rtc_init(void)
     asm("ssync;");
     *pRTC_ISTAT = 0x807F;
     asm("ssync;");
-    wait_for_complete();
     *pRTC_ICTL = 0x0;
     asm("ssync;");
     *pRTC_ALARM = 0;
     asm("ssync;");
-    wait_for_complete();
     
 #if RTC_IRQ
     if(request_irq(RTC_IRQ, rtc_interrupt, SA_INTERRUPT, "rtc", NULL))
@@ -717,7 +687,6 @@ void __exit blackfin_rtc_exit (void)
 
 module_init(blackfin_rtc_init);
 module_exit(blackfin_rtc_exit);
-/*EXPORT_NO_SYMBOLS;*/
 
 #if RTC_IRQ
 /*
@@ -829,7 +798,6 @@ static int rtc_read_proc(char *page, char **start, off_t off,
 /*
  * Returns true if a clock update is in progress
 4/8/3 11:45AM */
-/* FIXME shouldn't this be above rtc_init to make it fully inlined? */
 static inline unsigned char rtc_is_updating(void)
 {
     unsigned char uip;
@@ -843,20 +811,6 @@ static inline unsigned char rtc_is_updating(void)
 static void get_rtc_time(struct rtc_time *rtc_tm)
 {
     unsigned long cur_rtc_stat;
-    /*
-     * read RTC once any update in progress is done. The update
-     * can take just over 2ms. We wait 10 to 20ms. There is no need to
-     * to poll-wait (up to 1s - eeccch) for the falling edge of RTC_UIP.
-     * If you need to know *exactly* when a second has started, enable
-     * periodic update complete interrupts, (via ioctl) and then 
-     * immediately read /dev/rtc which will block until you get the IRQ.
-     * Once the read clears, read the RTC time (again via ioctl). Easy.
-     */
-/*
-    if (rtc_is_updating() != 0)
-        while (jiffies - uip_watchdog < 2*HZ/100)
-            barrier();
-*/
     /*
      * Only the values that we read from the RTC are set. We leave
      * tm_wday, tm_yday and tm_isdst untouched. Even though the
