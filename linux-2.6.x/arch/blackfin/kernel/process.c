@@ -10,31 +10,14 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
-#include <linux/config.h>
-#include <linux/errno.h>
-#include <linux/sched.h>
-#include <linux/init_task.h>
-#include <linux/fs_struct.h>
-#include <linux/fs.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
 #include <linux/smp_lock.h>
-#include <linux/stddef.h>
 #include <linux/unistd.h>
-#include <linux/ptrace.h>
-
 #include <linux/user.h>
 #include <linux/a.out.h>
 #include <linux/reboot.h>
 
 #include <asm/blackfin.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
-#include <asm/traps.h>
-#include <asm/setup.h>
-#include <asm/pgtable.h>
-#include <asm/segment.h>
-#include <asm/asm-offsets.h> 
 
 asmlinkage void ret_from_fork(void);
 
@@ -71,18 +54,22 @@ void machine_restart(char * __unused)
 	asm("csync;");
 	*pIMEM_CONTROL = 0x01;
 	asm("ssync;");
-#endif
-	asm("csync;"
-	    "p0.h = 0xffc0;"
-	    "p0.l = 0x0204;"
+#endif	
+	asm("csync;");
+	*pWDOG_CNT = 0x10;
+	asm("ssync;");
+	*pWDOG_CTL = 0xAF0;
+	asm("ssync;");
+	 /*   "p0.h = hi(WDOG_CNT);"
+	    "p0.l = lo(WDOG_CNT);"
 	    "r0 = 0x10 (z);"
 	    "[p0] = r0;"
 	    "ssync;"
-	    "p0.h = 0xffc0;"
-	    "p0.l = 0x0200;"
+	    "p0.h = hi(WDOG_CTL);"
+	    "p0.l = lo(WDOG_CTL);"
 	    "r0 = 0xaf0 (z);"
 	    "w[p0] = r0;"
-	    "ssync;");
+	    "ssync;");*/
 }
 
 void machine_halt(void)
@@ -158,6 +145,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 
 void flush_thread(void)
 {
+	set_fs(USER_DS);
 }
 
 asmlinkage int bfin_vfork(struct pt_regs *regs)
@@ -185,7 +173,7 @@ int copy_thread(int nr, unsigned long clone_flags,
 	struct pt_regs * childregs;
 	unsigned long stack_offset;
 
-	stack_offset = KTHREAD_SIZE - sizeof(struct pt_regs);
+	stack_offset = THREAD_SIZE - sizeof(struct pt_regs);
 	childregs = (struct pt_regs *) ((unsigned long) p->thread_info + stack_offset);
 
 	*childregs = *regs;
