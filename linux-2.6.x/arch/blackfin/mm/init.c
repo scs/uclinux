@@ -21,7 +21,8 @@
 #undef DEBUG
 
 extern void free_initmem(void);
-extern void l1mem_init(void);	
+extern void l1sram_init(void);	
+extern void l1_data_A_sram_init(void);	
 
 /*
  * BAD_PAGE is the page that is used for page faults when linux
@@ -158,7 +159,8 @@ void mem_init(void)
 	       datak
 	       );
 	/*Initialize the blackfin L1 Memory*/
-	l1mem_init();	
+	l1sram_init();	
+	l1_data_A_sram_init();	
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
