@@ -49,7 +49,7 @@ __umoddi3:
 
 	R0 = -R0;
 	//CC = CARRY;
-	CC = AC;
+	CC = AC0;
 	CC = !CC;
 	R3 = CC;
 	R1 = -R1;
@@ -60,7 +60,7 @@ __umoddi3:
 
 	R0 = R0 + R2;
 /*	CC = CARRY;*/		
-	CC = AC;	/*Assembler issues ?*/
+	CC = AC0;	/*Assembler issues ?*/
 	R2 = CC;
 	R1 = R1 + R3;
 	R1 = R1 + R2;
@@ -79,7 +79,7 @@ ___moddi3:
 	CC = R1 < 0;		// Negate either, if negative
 	IF !CC JUMP no_neg_x;
 	R0 = -R0;
-	CC = AC;
+	CC = AC0;
 	CC = !CC;
 	R4 = CC;
 	R1 = -R1;
@@ -89,7 +89,7 @@ no_neg_x:
 	CC = R3 < 0;
 	IF !CC JUMP no_neg_y;
 	R2 = -R2;
-	CC = AC;	/*Assembler issues ?*/
+	CC = AC0;	/*Assembler issues ?*/
 	CC = !CC;
 	R3 = -R3;
 	R3 = R3 - R4;
@@ -127,7 +127,7 @@ no_neg_y:
 	// r = x - z, so r = -z + x
 
 	R0 = -R0;
-	CC = AC;
+	CC = AC0;
 	CC = !CC;
 	R3 = CC;
 	R1 = -R1;
@@ -137,7 +137,7 @@ no_neg_y:
 	R3 = [SP +4];
 
 	R0 = R0 + R2;
-	CC = AC;
+	CC = AC0;
 	R2 = CC;
 	R1 = R1 + R3;
 	R1 = R1 + R2;
