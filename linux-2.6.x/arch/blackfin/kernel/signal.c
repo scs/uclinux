@@ -399,8 +399,7 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 
 	/* Set up to return from userspace.  */
 	err |= __put_user(frame->retcode, &frame->pretcode);
-	/* r5 = 0x77(z); excpt 0x0; -STchen*/
-	err |= __put_user(0x85, &(frame->retcode[0]));
+	err |= __put_user(0x88, &(frame->retcode[0]));
 	err |= __put_user(0xe1, &(frame->retcode[1]));
 	err |= __put_user(0x77, &(frame->retcode[2]));
 	err |= __put_user(0x00, &(frame->retcode[3]));
