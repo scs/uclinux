@@ -306,6 +306,7 @@ main(argc, argv)
 			 /*(int)seconds / 60, (int)seconds % 60,*/
 			 l ? psbuf : name);
 	next:
+	;	/*gcc 3.4 doesnt accept label at the end of compound stmt*/
 	}
 	
 	closedir(d);
