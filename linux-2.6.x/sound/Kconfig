@@ -55,6 +55,8 @@ source "sound/ppc/Kconfig"
 
 source "sound/arm/Kconfig"
 
+source "sound/blackfin/Kconfig"
+
 # the following will depenend on the order of config.
 # here assuming USB is defined before ALSA
 source "sound/usb/Kconfig"
@@ -81,8 +83,6 @@ config SOUND_PRIME
 source "sound/oss/Kconfig"
 
 endmenu
-
-source "sound/blackfin/Kconfig"
 
 endif
 

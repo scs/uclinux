@@ -1,6 +1,8 @@
 #
 # $Id$
 #
+menu "ALSA Blackfin devices"
+#	depends on SND!=n && BFIN
 
 config SND_BLACKFIN_ADI1836
 	bool "1836 Audio support for BF53x"
@@ -26,5 +28,5 @@ config SND_BLACKFIN_SPORT
 	help
 	  Enter the Blackfin SPORT port to which your sound chip is connected
 	  acceptable values are 0 or 1
-
+endmenu
 
