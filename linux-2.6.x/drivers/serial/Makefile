@@ -3,7 +3,8 @@
 #
 #  $Id$
 #
-
+CFLAGS_bf533_serial.o = -O0
+CFLAGS_built-in.o = -O0
 serial-8250-y :=
 serial-8250-$(CONFIG_SERIAL_8250_ACPI) += 8250_acpi.o
 serial-8250-$(CONFIG_GSC) += 8250_gsc.o
