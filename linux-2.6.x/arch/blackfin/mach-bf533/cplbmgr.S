@@ -31,13 +31,10 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/cplb.h>
 #include <asm/blackfin.h>
- 		
+#include <asm/cplb.h>
+ 	
 .text
-.extern dcplb_table;
-.extern ipdt_table;
-.extern dpdt_table;
 
 .align 2;
 ENTRY(_cplb_mgr)
@@ -533,19 +530,9 @@ page_size_table:
 .byte4	0x00001000;	/* 4K */
 .byte4	0x00100000;	/* 1M */
 .byte4	0x00400000;	/* 4M */
-.page_size_table.end:
-
-.align 4;
-page_prefix_table:
-.byte4	0xFFFFFC00;	/* 1K */
-.byte4	0xFFFFF000;	/* 4K */
-.byte4	0xFFF00000;	/* 1M */
-.byte4	0xFFC00000;	/* 4M */
-.page_prefix_table.end:
 
 .align 4;
 dcplb_preference:
 .byte4	0x00000001;	/* valid bit */
 .byte4	0x00000082;	/* dirty+lock bits */
 .byte4	0x00000002;	/* lock bit */
-.dcplb_preference.end:
