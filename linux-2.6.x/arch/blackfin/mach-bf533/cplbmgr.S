@@ -130,6 +130,27 @@ icheck_lock:
 	IF CC JUMP icheck_lock;
 
 ifound_victim:
+#ifdef CONFIG_CPLB_INFO
+	R7 = [P0 - 0x104];
+	P2.L = ipdt_table;
+	P2.H = ipdt_table;
+	P3.L = ipdt_swapcount_table;
+	P3.H = ipdt_swapcount_table;
+	P3 += -4;
+icount:
+	R2 = [P2];	/* address from config table */			
+	P2 += 8;
+	P3 += 8;
+	CC = R2==-1;
+	IF CC JUMP icount_done;
+	CC = R7==R2;
+	IF !CC JUMP icount;
+	R7 = [P3];
+	R7 += 1;
+	[P3] = R7;
+	CSYNC;
+icount_done:
+#endif
 	LC0=R3;
 	LSETUP(is_move,ie_move) LC0;
 is_move: 
@@ -152,7 +173,11 @@ ie_move:P0+=4;
 	
 	P2.L = ipdt_table;
 	P2.H = ipdt_table;
-
+#ifdef	CONFIG_CPLB_INFO
+	P3.L = ipdt_swapcount_table;
+	P3.H = ipdt_swapcount_table;
+	P3 += -8;
+#endif
 	P0.L = page_size_table;
 	P0.H = page_size_table;
 
@@ -169,6 +194,9 @@ ie_move:P0+=4;
 	R1 = ((16<<8)|2);
 inext:	R4 = [P2++];	/* address from config table */			
 	R2 = [P2++];	/* data from config table */
+#ifdef	CONFIG_CPLB_INFO
+	P3 += 8;
+#endif
 
 	CC = R4 == -1;	/* End of config table*/
 	IF CC JUMP no_page_in_table;
@@ -200,6 +228,11 @@ inext:	R4 = [P2++];	/* address from config table */
 	P1.H = (ICPLB_DATA15 >> 16);
 	[P1] = R2;
 	[P1-0x100] = R4;
+#ifdef	CONFIG_CPLB_INFO
+	R3 = [P3];
+	R3 += 1;
+	[P3] = R3;
+#endif
 	CSYNC;
 
 	/* P4 points to IMEM_CONTROL, and R5 contains its old
@@ -381,6 +414,28 @@ edsearch1: NOP;
 	JUMP all_locked;
 dfound_victim:
 
+#ifdef CONFIG_CPLB_INFO
+	R1 = [P0 - 0x104];
+	P2.L = dpdt_table;
+	P2.H = dpdt_table;
+	P3.L = dpdt_swapcount_table;
+	P3.H = dpdt_swapcount_table;
+	P3 += -4;
+dicount:
+	R2 = [P2];
+	P2 += 8;
+	P3 += 8;
+	CC = R2==-1;
+	IF CC JUMP dicount_done;
+	CC = R1==R2;
+	IF !CC JUMP dicount;
+	R1 = [P3];
+	R1 += 1;
+	[P3] = R1;
+	CSYNC;
+dicount_done:
+#endif
+
 	/* Clean down the hardware loops*/
 	R2 = 0;
 	LC1 = R2;
@@ -445,6 +500,11 @@ de_moved:NOP;
 
 	P2.L = dpdt_table;
 	P2.H = dpdt_table;
+#ifdef	CONFIG_CPLB_INFO
+	P3.L = dpdt_swapcount_table;
+	P3.H = dpdt_swapcount_table;
+	P3 += -8;
+#endif
 
 	P1.L = page_size_table;
 	P1.H = page_size_table;
@@ -454,6 +514,9 @@ de_moved:NOP;
 	R1 = (16<<8)|2;
 dnext:	R4 = [P2++];	/* address */			
 	R2 = [P2++];	/* data */
+#ifdef	CONFIG_CPLB_INFO
+	P3 += 8;
+#endif
 
 	CC = R4 == -1;
 	IF CC JUMP no_page_in_table;
@@ -503,6 +566,11 @@ dnext:	R4 = [P2++];	/* address */
 
 	[P1] = R2;
 	[P1-0x100] = R4;
+#ifdef	CONFIG_CPLB_INFO
+	R3 = [P3];
+	R3 += 1;
+	[P3] = R3;
+#endif
 	CSYNC;
 
 	/* We've installed the CPLB, so re-enable CPLBs. P4

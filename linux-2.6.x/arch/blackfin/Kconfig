@@ -559,6 +559,10 @@ config NO_KERNEL_MSG
 	help
 	  Do not output any debug BUG messages within the kernel.
 
+config CPLB_INFO
+	bool "Display the CPLB information"
+	help
+	  Display the CPLB information.
 endmenu
 
 source "security/Kconfig"

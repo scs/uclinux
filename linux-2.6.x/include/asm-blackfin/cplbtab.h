@@ -330,4 +330,233 @@ dpdt_table:
 
 .byte4	0xffffffff;		/*end of section - termination*/
 
+#ifdef CONFIG_CPLB_INFO
+.global ipdt_swapcount_table;	/* swapin count first, then swapout count*/
+ipdt_swapcount_table:
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 10 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 20 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 30 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 40 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 50 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 60 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 70 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 80 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 90 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 100 */
+
+.global dpdt_swapcount_table;	/* swapin count first, then swapout count*/
+dpdt_swapcount_table:
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 10 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 20 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 30 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 40 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 50 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 60 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 70 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 80 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 80 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 100 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 110 */
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;
+.byte4        0x00000000;	/* 120 */
+
+#endif
+
 #endif	/*__ARCH_BFINNOMMU_CPLBTAB_H*/
