@@ -7,19 +7,16 @@
  */
 #define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
-#include <linux/config.h>
 #include <asm/segment.h>
-#include <asm/ptrace.h>
-#include <asm/current.h>
 
-extern inline unsigned long rdusp(void) {
+static inline unsigned long rdusp(void) {
   	unsigned long usp;
 
 	__asm__ __volatile__("%0 = usp;\n\t" : "=da" (usp));
 	return usp;
 }
 
-extern inline void wrusp(unsigned long usp) {
+static inline void wrusp(unsigned long usp) {
 	__asm__ __volatile__("usp = %0;\n\t" : : "da" (usp));
 }
 
@@ -39,9 +36,9 @@ struct thread_struct {
 	unsigned long  pc;		/* instruction pointer */
 };
 
-#define INIT_THREAD  { \
-	sizeof(init_stack) + (unsigned long) init_stack, 0, \
-	PS_S, 0, 0\
+#define INIT_THREAD  {						\
+	sizeof(init_stack) + (unsigned long) init_stack, 0,	\
+	PS_S, 0, 0						\
 }
 
 /*
@@ -50,16 +47,12 @@ struct thread_struct {
  * pass the data segment into user programs if it exists,
  * it can't hurt anything as far as I can tell
  */
-#define start_thread(_regs, _pc, _usp)           \
-do {                                             \
-	set_fs(USER_DS); /* reads from user space */ \
-	(_regs)->pc = (_pc);                         \
-        if (current->mm)                             \
-                (_regs)->p5 = current->mm->start_data;   \
-	wrusp(_usp);                                 \
-	/* Adde by HuTao, May 26, 2003 3:39PM */\
-	if ((_regs)->ipend & 0x8000) /* check whether system in supper mode - StChen */\
-		(_regs)->ipend = 0x0;\
+#define start_thread(_regs, _pc, _usp)			\
+do {							\
+	(_regs)->pc = (_pc);				\
+        if (current->mm)				\
+                (_regs)->p5 = current->mm->start_data;	\
+	wrusp(_usp);					\
 } while(0)
 
 /* Forward declaration, a strange C thing */
@@ -70,7 +63,6 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
-/* Prepare to copy thread state - unlazy all lazy status */
 #define prepare_to_copy(tsk)	do { } while (0)
 
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
@@ -85,22 +77,18 @@ static inline void exit_thread(void)
 /*
  * Return saved PC of a blocked thread.
  */
-extern inline unsigned long thread_saved_pc(struct task_struct *t)
-{
-	extern void scheduling_functions_start_here(void);
-	extern void scheduling_functions_end_here(void);
-	return 0;
-}
+#define thread_saved_pc(tsk)	(tsk->thread.pc)
+
 unsigned long get_wchan(struct task_struct *p);
 
-#define	KSTK_EIP(tsk)	\
-    ({			\
-	unsigned long eip = 0;	 \
-	if ((tsk)->thread.esp0 > PAGE_SIZE && \
-	    MAP_NR((tsk)->thread.esp0) < max_mapnr) \
-	      eip = ((struct pt_regs *) (tsk)->thread.esp0)->pc; \
+#define	KSTK_EIP(tsk)							\
+    ({									\
+	unsigned long eip = 0;						\
+	if ((tsk)->thread.esp0 > PAGE_SIZE &&				\
+	    MAP_NR((tsk)->thread.esp0) < max_mapnr)			\
+	      eip = ((struct pt_regs *) (tsk)->thread.esp0)->pc;	\
 	eip; })
 #define	KSTK_ESP(tsk)	((tsk) == current ? rdusp() : (tsk)->thread.usp)
 
-#define cpu_relax()    do { } while (0) 
+#define cpu_relax()    do { } while (0)
 #endif
