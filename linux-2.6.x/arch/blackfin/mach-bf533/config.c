@@ -40,7 +40,7 @@ extern void config_bfin_irq(void);
 extern u_long get_cclk(void);
 
 #define TSCALE_SHIFT 2	/* 0.25 microseconds */
-#define TSCALE_COUNT (get_cclk() >> TSCALE_SHIFT)
+#define TSCALE_COUNT ((get_cclk()/1000000) >> TSCALE_SHIFT)
 #define CLOCKS_PER_JIFFY ((1000*1000/HZ) << TSCALE_SHIFT)
 
 
@@ -74,10 +74,6 @@ void BSP_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
 
 void BSP_tick(void)
 {
-#if 0
-  /* Reset Timer2 */
-  TSTAT2 &= 0;
-#endif
 }
 
 unsigned long BSP_gettimeoffset (void)
@@ -112,14 +108,6 @@ int BSP_hwclk(int op, struct hwclk_time *t)
 
 int BSP_set_clock_mmss (unsigned long nowtime)
 {
-#if 0
-  short real_seconds = nowtime % 60, real_minutes = (nowtime / 60) % 60;
-
-  tod->second1 = real_seconds / 10;
-  tod->second2 = real_seconds % 10;
-  tod->minute1 = real_minutes / 10;
-  tod->minute2 = real_minutes % 10;
-#endif
 	return 0;
 }
 
@@ -131,7 +119,6 @@ void BSP_reset (void)
 	:
 	: "a" (L1_ISRAM)
 	);
-
 }
 
 void BSP_init(void)
@@ -142,7 +129,6 @@ void BSP_init(void)
 
 void config_BSP(char *command, int len)
 {
-  
 	printk(KERN_INFO "BF533 Blackfin support (C) 2004 Analog Devices, Inc.\n");
 
 #if defined(CONFIG_BOOTPARAM)
