@@ -24,7 +24,6 @@ noconfig_targets := menuconfig config oldconfig randconfig \
 	defconfig allyesconfig allnoconfig clean distclean \
 	release tags
 TOPDIR=./
-uClpath = $(ROOTDIR)
 include Rules.mak
 
 DIRS:=applets archival archival/libunarchive coreutils console-tools \
@@ -56,7 +55,7 @@ busybox: .depend include/config.h $(libraries-y)
 busybox.links: applets/busybox.mkll include/config.h
 	- $(SHELL) $^ >$@
 
-install: applets/install.sh busybox busybox.links
+romfs: applets/install.sh busybox busybox.links
 	$(SHELL) $< $(PREFIX)
 ifeq ($(strip $(CONFIG_FEATURE_SUID)),y)
 	@echo
@@ -236,5 +235,4 @@ endif # ifeq ($(strip $(HAVE_DOT_CONFIG)),y)
 .PHONY: dummy subdirs release distclean clean config oldconfig \
 	menuconfig tags check test depend
 
-romfs:
-	cp busybox ../../romfs/bin
+

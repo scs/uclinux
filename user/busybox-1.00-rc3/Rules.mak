@@ -74,10 +74,13 @@ BB_SRC_DIR=
 #LIBCDIR:=/usr/i386-glibc20-linux
 #
 # For other libraries, you are on your own.  But these may (or may not) help...
+
+uClpath=../../
+
 CROSS_CFLAGS+=-O2 -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED -I$(uClpath)/lib/uClibc/include -I$(uClpath)/lib/libnet -fno-builtin -nostartfiles -I$(uClpath)/linux-2.6.x/include -I$(uClpath)
 LIBRARIES:=-L$(uClpath)/lib/uClibc/. -L$(uClpath)/lib/uClibc/lib -L$(uClpath)/lib/uClibc/libm -L$(uClpath)/lib/libnet -L$(uClpath)/lib/libdes -L$(uClpath)/lib/libaes -L$(uClpath)/lib/libpcap -L$(uClpath)/lib/zlib -L$(uClpath)/lib/libssl -L$(uClpath)/lib/uClibc/libc -L$(uClpath)/lib/uClibc/libcrypt $(uClpath)/lib/uClibc/lib/libc.a
-LDFLAGS+= -fno-builtin -nostartfiles -Wl,-elf2flt
-#GCCINCDIR:=$(shell gcc -print-search-dirs | sed -ne "s/install: \(.*\)/\1include/gp")
+LDFLAGS+= -fno-builtin -nostartfiles -Wl,-elf2flt 
+GCCINCDIR:=$(shell gcc -print-search-dirs | sed -ne "s/install: \(.*\)/\1include/gp")
 
 WARNINGS=-Wall -Wstrict-prototypes -Wshadow
 CFLAGS=-I$(TOPDIR)include
