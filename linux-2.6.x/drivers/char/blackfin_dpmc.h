@@ -46,6 +46,7 @@ void disable_wdog_timer(void);
 #define VOLTAGE_REGULATED 0x0080
 
 #define MHZ		1000000
+#define WDOG_DISABLE	0xAD6
 
 #ifdef CONFIG_BAUD_9600
 #define CONSOLE_BAUD_RATE 	9600
