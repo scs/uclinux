@@ -801,7 +801,7 @@ static int startup(struct bf533_serial * info)
 	/*
 	 * The recv timer should start some ticks later than the xmit timer.
 	 */
-        info->dma_recv_timer.expires = jiffies + 2 + TIME_INTERVAL;
+        info->dma_recv_timer.expires = jiffies + 10 + TIME_INTERVAL;
         add_timer(&info->dma_recv_timer);
 #endif
 #endif
