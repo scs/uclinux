@@ -65,10 +65,17 @@ static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 {
 	/* last time the cmos clock got updated */
 	static long last_rtc_update=0;
+	
+	/* may need to kick the hardware timer */
+	if (mach_tick)
+	  mach_tick();
+
 	write_seqlock(&xtime_lock); 
 
 	do_timer(regs);
 	
+	if (!user_mode(regs))
+		do_profile(regs->pc);
 	/*
 	 * If we have an externally synchronized Linux clock, then update
 	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
