@@ -131,7 +131,7 @@ struct bf53x_spi {
 /* initialize the spi port */
 
 /* dma channel, and data and error irq's should match the settings in the SIC_IARx registers */
-struct bf53x_spi* bf53x_spi_init0(int dma_chan, int irq_data, int irq_err, int multimaster ){
+struct bf53x_spi* bf53x_spi_init(int dma_chan, int irq_data, int irq_err, int multimaster ){
 
   int i;
 
@@ -157,10 +157,6 @@ struct bf53x_spi* bf53x_spi_init0(int dma_chan, int irq_data, int irq_err, int m
 
 }
 
-/* initialize with default settings */
-struct bf53x_spi* bf53x_spi_init(void){ 
-  return bf53x_spi_init0(5, 3, 0, 0); 
-} 
 
 void bf53x_spi_done(struct bf53x_spi* spi){
   free(spi);

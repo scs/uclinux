@@ -27,9 +27,15 @@ b4copy:
         P1 = R1;
         P2 = R2;
         P2 = P2 >> 2;
+	[--SP] = LC0;
+	[--SP] = LB0;
+	[--SP] = LT0;	  
         LSETUP (_b4copy_loop, _b4copy_loop_end) LC0 = P2;
 _b4copy_loop:
         R0 = [P0++];
         [P1++] = R0;
 _b4copy_loop_end:
+	LT0 = [SP++]; 
+	LB0 = [SP++]; 
+	LC0 = [SP++]; 
         RTS;

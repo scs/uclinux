@@ -192,6 +192,8 @@ int bf53x_sport_set_multichannel( struct bf53x_sport* sport, int tdm_count, int 
   if( tdm_count > 32 )
     return -EINVAL;  /* don't feel like overdoing it today :-) */
 
+  asm( "ssync;\n\t" ); /* is this really neccesary? */
+
   if( tdm_count ){
 
     int shift = 32 - tdm_count;    
@@ -215,6 +217,8 @@ int bf53x_sport_set_multichannel( struct bf53x_sport* sport, int tdm_count, int 
   sport->regs->mtcs1 = 0; sport->regs->mtcs2 = 0; sport->regs->mtcs3 = 0;
   sport->regs->mrcs1 = 0; sport->regs->mrcs2 = 0; sport->regs->mrcs3 = 0;
 
+  asm( "ssync;\n\t" );
+
   return 0;
 
 }
@@ -227,10 +231,14 @@ int bf53x_sport_config_rx( struct bf53x_sport* sport, unsigned int rcr1, unsigne
   if( (sport->regs->tcr1 & TSPEN) || (sport->regs->rcr1 & RSPEN) )
     return -EBUSY;
 
+  asm( "ssync;\n\t" );
+
   sport->regs->rcr1 = rcr1;
   sport->regs->rcr2 = rcr2;
   sport->regs->rclkdiv = clkdiv;
   sport->regs->rfsdiv = fsdiv;
+
+  asm( "ssync;\n\t" );
 
   return 0;
 
@@ -242,10 +250,14 @@ int bf53x_sport_config_tx( struct bf53x_sport* sport, unsigned int tcr1, unsigne
   if( (sport->regs->tcr1 & TSPEN) || (sport->regs->rcr1 & RSPEN) )
     return -EBUSY;
 
+  asm( "ssync;\n\t" );
+
   sport->regs->tcr1 = tcr1;
   sport->regs->tcr2 = tcr2;
   sport->regs->tclkdiv = clkdiv;
   sport->regs->tfsdiv = fsdiv;
+
+  asm( "ssync;\n\t" );
 
   return 0;
 
@@ -260,13 +272,16 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
 
   DMA_register* dma = sport->dma_rx;
 
-  if( sport->regs->rcr1 & RSPEN )
-    return -EBUSY;
+  sport_printd( KERN_INFO, "%s( %p, %d, %d, 0x%02x )\n", __FUNCTION__, buf, fragcount,fragsize_bytes, tdm_mask );
 
-  sport_printd( KERN_INFO, "%s( %p, %d, %ld, 0x%02x )\n", __FUNCTION__, buf, fragcount,fragsize_bytes, tdm_mask );
 
   if( fragsize_bytes > 0x10000*sizeof(long) ) 
     return -EINVAL;
+
+  asm( "ssync;\n\t" );
+
+  if( sport->regs->rcr1 & RSPEN )
+    return -EBUSY;
   
   dma->start_addr = (unsigned int)buf; 
   dma->cfg        = ( 0x1000 | DI_EN | DI_SEL | DMA2D | WDSIZE_32 | WNR ); /* autobuffer mode */
@@ -277,6 +292,8 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
   
   if( tdm_mask ) 
     sport->regs->mrcs0 = tdm_mask;
+
+  asm( "ssync;\n\t" );
 
   return 0;
 
@@ -289,10 +306,12 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
   
   DMA_register* dma = sport->dma_tx;
 
-  sport_printd( KERN_INFO, "%s( %p, %d, %ld, 0x%02x )\n", __FUNCTION__, buf, fragcount,fragsize_bytes, tdm_mask );
+  sport_printd( KERN_INFO, "%s( %p, %d, %d, 0x%02x )\n", __FUNCTION__, buf, fragcount,fragsize_bytes, tdm_mask );
 
   if( fragsize_bytes > 0x10000*sizeof(long) ) 
     return -EINVAL;
+
+  asm( "ssync;\n\t" );
 
   if( sport->regs->tcr1 & TSPEN ) 
     return -EBUSY;
@@ -307,22 +326,26 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
   if( tdm_mask ) 
     sport->regs->mtcs0 = tdm_mask;
 
+  asm( "ssync;\n\t" );
+
   return 0;
 
 }
 
-int sport_disable_dma_rx(struct bf53x_sport* sport){ sport->dma_rx->cfg &= ~(DI_EN|DI_SEL); }
-int sport_disable_dma_tx(struct bf53x_sport* sport){ sport->dma_tx->cfg &= ~(DI_EN|DI_SEL); }
+int sport_disable_dma_rx(struct bf53x_sport* sport){ return sport->dma_rx->cfg &= ~(DI_EN|DI_SEL); }
+int sport_disable_dma_tx(struct bf53x_sport* sport){ return sport->dma_tx->cfg &= ~(DI_EN|DI_SEL); }
 
 
 int bf53x_sport_start(struct bf53x_sport* sport){ 
 
-  asm( "csync;\n\t" );
+  asm( "ssync;\n\t" );
 
   sport->dma_tx->cfg |= DMAEN;
   sport->dma_rx->cfg |= DMAEN;
   sport->regs->tcr1 |= TSPEN;
   sport->regs->rcr1 |= RSPEN;
+
+  asm( "ssync;\n\t" );
 
   return 0;
 
@@ -331,12 +354,14 @@ int bf53x_sport_start(struct bf53x_sport* sport){
 
 int bf53x_sport_stop(struct bf53x_sport* sport){ 
 
-  asm( "csync;\n\t" );
+  asm( "ssync;\n\t" );
 
   sport->regs->tcr1 &= ~TSPEN;
   sport->regs->rcr1 &= ~RSPEN;
   sport->dma_tx->cfg &= ~DMAEN;
   sport->dma_rx->cfg &= ~DMAEN;
+
+  asm( "ssync;\n\t" );
 
   return 0;
 
@@ -375,6 +400,8 @@ int bf53x_sport_check_status( struct bf53x_sport* sport,
 			      unsigned int* rx_stat, 
 			      unsigned int* tx_stat )
 {
+
+  asm( "ssync;\n\t" );
 
   if( sport_stat ){
     int status = sport->regs->stat;

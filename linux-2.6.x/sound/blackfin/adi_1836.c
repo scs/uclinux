@@ -195,10 +195,10 @@ int Init_Sport_Interrupts(void)
 	// assign ISRs to interrupt vectors
 	// Sport0 RX ISR -> IVG 9
 	//register_handler(ik_ivg9, Sport0_RX_ISR);		
-  	if(request_irq(IRQ_SPORT0_RX, Sport0_RX_ISR, 
+  	if(request_irq(IRQ_SPORT0, Sport0_RX_ISR, 
 		0, "Sport AD1836", NULL) != 0)
     		return -EBUSY;
-  	enable_irq(IRQ_SPORT0_RX);
+  	enable_irq(IRQ_SPORT0);
 
 	// enable Sport0 RX interrupt
 	*pSIC_IMASK |= 0x00000200;

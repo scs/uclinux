@@ -94,7 +94,7 @@
 #define SNDRV_GET_ID
 #include <sound/initval.h>
 
-#include <asm/board/cdefBF532.h>
+#include <asm/blackfin.h>
 
 #include "bf53x_spi.h"
 #include "bf53x_sport.h"
@@ -108,10 +108,12 @@
 #define snd_printk_marker() 
 #endif
 
+#undef CONFIG_SND_DEBUG_CURRPTR  /* causes output every frame! */
+
 /* assembly helpers */
 extern void b4copy(unsigned int* src, unsigned int* dst, unsigned int count_bytes); /* in b4copy.S */
-extern void cache_flush(void* start, unsigned int size_bytes);
-extern void cache_flushinv(void* start, unsigned int size_bytes);
+extern void bf53x_cache_flush(void* start, unsigned int size_bytes);
+extern void bf53x_cache_flushinv(void* start, unsigned int size_bytes);
 
 
 #undef NOCONTROLS  /* define this to omit all the ALSA controls */
@@ -1130,7 +1132,7 @@ static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
 
 /* we might as well merge the following too...*/
 
-static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* substream){
+static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* substream ){
 
   ad1836_t* chip = _snd_pcm_substream_chip(substream);
   snd_pcm_runtime_t* runtime = substream->runtime;
@@ -1141,16 +1143,22 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* subst
   unsigned long bytes_per_frame = runtime->channels*sizeof(long) ;
   size_t frames = diff / bytes_per_frame;
  
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DEBUG_CURRPTR
   snd_printk( KERN_INFO " bf53x_sport_curr_addr_tx() == %p\n", curr );
 #endif
+
+  /* the loose syncing used here is accurate enough for alsa, but 
+     due to latency in the dma, the following may happen occasionally, 
+     and pcm_lib shouldn't complain */
+  if( frames == runtime->buffer_size ) 
+    frames = 0;
 
   return frames;
 
 }
 
 
-static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substream){
+static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substream ){
 
   ad1836_t* chip = _snd_pcm_substream_chip(substream);
   snd_pcm_runtime_t* runtime = substream->runtime;
@@ -1161,9 +1169,15 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substr
   unsigned long bytes_per_frame = runtime->channels*sizeof(long) ;
   size_t frames = diff / bytes_per_frame;
   
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DEBUG_CURRPTR
   snd_printk( KERN_INFO " bf53x_sport_curr_addr_rx() == %p\n", curr );
 #endif 
+
+  /* the loose syncing used here is accurate enough for alsa, but 
+     due to latency in the dma, the following may happen occasionally, 
+     and pcm_lib shouldn't complain */
+  if( frames == runtime->buffer_size ) 
+    frames = 0;
 
   return frames;
 
@@ -1533,13 +1547,13 @@ static irqreturn_t snd_adi1836_sport_handler(ad1836_t* chip, int irq){
       if( dst_frag >= TALKTROUGH_FRAGMENTS ) dst_frag -= TALKTROUGH_FRAGMENTS;
       src = frag2addr( chip->rx_buf, src_frag, cnt );
       dst = frag2addr( chip->tx_buf, dst_frag, cnt );
-      cache_flushinv(src,cnt); 
+      bf53x_cache_flushinv(src,cnt); 
 #if 0
       b4copy(src,dst,cnt);    
 #else
       memmove(dst,src,cnt);
 #endif
-      cache_flush(dst,cnt);
+      bf53x_cache_flush(dst,cnt);
 
     }
 
@@ -1674,7 +1688,7 @@ static int __init snd_bf53x_adi1836_init(void){
   
   int err;
 
-  if( (spi = bf53x_spi_init0(/* CONFIG_SND_BLACKFIN_SPI_DMA */ -1, 
+  if( (spi = bf53x_spi_init(/* CONFIG_SND_BLACKFIN_SPI_DMA */ -1, 
 			     CONFIG_SND_BLACKFIN_SPI_IRQ_DATA, 
 			     CONFIG_SND_BLACKFIN_SPI_IRQ_ERR, 0) ) == NULL ) 
     return -ENOMEM;

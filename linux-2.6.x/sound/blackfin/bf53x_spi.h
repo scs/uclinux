@@ -40,10 +40,8 @@ typedef int (*spi_callback)(struct bf53x_spi_channel* chan, void* buf, size_t le
 /* initialize the spi port */
 
 /* dma channel, and data and error irq's should match the settings in the SIC_IARx registers */
-struct bf53x_spi* bf53x_spi_init0(int dma_chan, int irq_data, int irq_err, int multimaster );
+struct bf53x_spi* bf53x_spi_init(int dma_chan, int irq_data, int irq_err, int multimaster );
 
-/* initialize with default settings */
-struct bf53x_spi* bf53x_spi_init(void);
 
 void bf53x_spi_done(struct bf53x_spi* spi);
 
