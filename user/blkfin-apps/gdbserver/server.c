@@ -89,6 +89,7 @@ void
 handle_query (char *own_buf)
 {
   static struct inferior_list_entry *thread_ptr;
+//fprintf(stderr, "query for %s\n", own_buf);
 
   if (strcmp ("qSymbol::", own_buf) == 0)
     {
@@ -121,6 +122,17 @@ handle_query (char *own_buf)
 	  return;
 	}
     }
+
+  if (strcmp ("qOffsets", own_buf) == 0)
+  {
+//fprintf(stderr, "qoffsets ...");
+     if (the_target->read_offset != NULL)
+	{
+		the_target->read_offset(own_buf);
+//fprintf(stderr, "returning %s\n", own_buf);
+		return;
+	}
+  }
 
   if (the_target->read_auxv != NULL
       && strncmp ("qPart:auxv:read::", own_buf, 17) == 0)
