@@ -108,7 +108,7 @@
 #define AMBCTL0VAL	0x7BB07BB0
 #define AMBCTL1VAL	0x22547BB0
 #define AMGCTLVAL	0xFF
-#define RAM_END		0x2000000
+#define RAM_END		0x1FFEFF0
 #endif
 
 #ifdef CONFIG_BLKFIN_STAMP
@@ -116,6 +116,94 @@
 #define AMBCTL1VAL	0x99B39983
 #define AMGCTLVAL	0xFF
 #define RAM_END		0x3000000
+#endif
+
+/********************************PLL Settings **************************************/
+
+#if(CONFIG_CLKIN_HALF == 0)
+	#define CONFIG_VCO_HZ	(CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)
+#else
+	#define CONFIG_VCO_HZ	((CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)/2)
+#endif
+
+#if(CONFIG_PLL_BYPASS == 0)
+	#define CONFIG_CCLK_HZ	(CONFIG_VCO_HZ/CONFIG_CCLK_DIV)
+	#define CONFIG_SCLK_HZ	(CONFIG_VCO_HZ/CONFIG_SCLK_DIV)
+#else
+	#define CONFIG_CCLK_HZ	CONFIG_CLKIN_HZ
+	#define CONFIG_SCLK_HZ	CONFIG_CLKIN_HZ
+#endif
+
+#if (CONFIG_VCO_MULT < 0)
+		#error "VCO Multiplier is either less than 0 or more than 63. Please select a different value"
+#endif
+
+#if(CONFIG_VCO_MULT > 63)
+		#error "VCO Multiplier is either less than 0 or more than 63. Please select a different value"
+#endif
+
+#if (CONFIG_SCLK_DIV < 1)
+		#error "SCLK DIV cannot be less than 1 or more than 15. Please select a proper value"
+#endif
+
+#if (CONFIG_SCLK_DIV > 15)
+		#error "SCLK DIV cannot be less than 1 or more than 15. Please select a proper value"
+#endif
+
+#if (CONFIG_CCLK_DIV != 1)
+	#if (CONFIG_CCLK_DIV != 2)
+		#if (CONFIG_CCLK_DIV != 4) 
+			#if (CONFIG_CCLK_DIV != 8)
+				#error "CCLK DIV can be 1,2,4 or 8 only.Please select a proper value"
+			#endif
+		#endif
+	#endif
+#endif
+
+#ifdef CONFIG_EZKIT
+	#define MAX_VC	600000000
+#elif defined CONFIG_BLKFIN_STAMP
+	#define MAX_VC	650000000
+#endif
+
+#if (CONFIG_VCO_HZ < 55000000)
+		#error "VCO selected is either less than minimum value of more than maximum value. Please change the VCO multipler"
+#endif
+
+#if(CONFIG_VCO_HZ > MAX_VC)
+		#error "VCO selected is either less than minimum value of more than maximum value. Please change the VCO multipler"
+#endif	
+
+#if (CONFIG_SCLK_HZ > 132000000)
+		#error "Sclk value selected is either less than minimum or more than maximum.Please select a proper value for SCLK multiplier"
+#endif
+	
+#if (CONFIG_SCLK_HZ < 27000000)
+		#error "Sclk value selected is either less than minimum or more than maximum.Please select a proper value for SCLK multiplier"
+#endif
+
+#if (CONFIG_SCLK_HZ >= CONFIG_CCLK_HZ)
+	#if(CONFIG_SCLK_HZ != CONFIG_CLKIN_HZ)
+		#if(CONFIG_CCLK_HZ != CONFIG_CLKIN_HZ)
+			#error "Please select sclk less than cclk"
+		#endif
+	#endif
+#endif
+
+#if (CONFIG_CCLK_DIV == 1)
+  #define CONFIG_CCLK_ACT_DIV   CCLK_DIV1
+#endif
+#if (CONFIG_CCLK_DIV == 2)
+  #define CONFIG_CCLK_ACT_DIV   CCLK_DIV2
+#endif
+#if (CONFIG_CCLK_DIV == 4)
+  #define CONFIG_CCLK_ACT_DIV   CCLK_DIV4
+#endif
+#if (CONFIG_CCLK_DIV == 8)
+  #define CONFIG_CCLK_ACT_DIV   CCLK_DIV8
+#endif
+#ifndef CONFIG_CCLK_ACT_DIV
+  #define CONFIG_CCLK_ACT_DIV   CONFIG_CCLK_DIV_not_defined_properly
 #endif
 
 #endif  /* _BLKFin_H_  */
