@@ -64,6 +64,10 @@ ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	SP += -12;
 	call trap_c;
 	SP += 12; 
+
+
+	call ret_from_exception;
+	
 	RESTORE_ALL_SYS
 	rtx;
 
@@ -322,6 +326,65 @@ l_next_4:
 	call (P5);
 	SP += 16;
 	jump l_before;
+
+ret_from_exception:
+	p2.l = 0x2108;
+	p2.h = 0xffe0;
+	r0 = [p2];
+	csync;
+	[sp + PT_IPEND] = r0;
+
+
+	r0 = [sp + PT_IPEND];
+	CC = bittst(r0, 15);	/* check if returning to kernel*/
+	if cc jump 4f;   /* if so, skip resched, signals*/   
+	cc = bittst(r0, 3);	/* check if return from exception */
+	if cc jump 1f;
+	/* reduce the nested interrupt IVG14 --> IVG 15, */
+	[--sp] = rets;
+	call kernel_to_user_mode; 
+	rets = [sp++];
+	r0.l = 0x2;
+	r0.h = 0x0;	/* flag for return to user mode */
+	[sp + PT_IPEND] = r0;
+
+1:	/* Set the stack for the current process */
+	r7 = sp;
+	r4.l = 0xe000;
+	r4.h = 0xffff;
+	r7 = r7 & r4;		/*thread_info->flags*/
+	p5 = r7;
+	r7 = [p5 + TI_FLAGS];
+	[--sp] = r4;
+	r4 = _TIF_WORK_MASK;
+	r7 =  r7 & r4;
+	r4 = [sp++]
+	cc = BITTST(r7, TIF_NEED_RESCHED);
+	cc = r7 == 0;
+	if !cc jump 3f; 
+	[--sp] = rets;
+	call reschedule;
+	rets = [sp++];
+	jump ret_from_exception;
+
+3:
+	[--sp] = p3;
+	p3 = [p5];
+	r7 = [p3 + TASK_SIGPENDING];
+	p3 = [sp++];		
+	cc = r7 == 0;
+	if cc jump 4f;
+
+	r0 = rets;
+	[sp + PT_RESERVED] = r0;
+
+	call Lsignal_return;
+
+	r7 = [sp+PT_RESERVED];
+	rets = r7;
+4:
+	rts;
+
 .data
 ALIGN
 sys_call_table:	
