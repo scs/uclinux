@@ -47,9 +47,9 @@
 #endif
 
 #ifndef CONFIG_SND_BLACKFIN_SPORT_IRQ_RX 
-#define CONFIG_SND_BLACKFIN_SPORT_IRQ_RX IRQ_SPORT0   /* periph irq 2 -> IVG 9 */
+#define CONFIG_SND_BLACKFIN_SPORT_IRQ_RX IRQ_SPORT0_RX   /* periph irq 2 -> IVG 9 */
 #endif
 
 #ifndef CONFIG_SND_BLACKFIN_SPORT_IRQ_TX 
-#define CONFIG_SND_BLACKFIN_SPORT_IRQ_TX IRQ_SPARE1  /* periph irq 2 -> IVG 9 */
+#define CONFIG_SND_BLACKFIN_SPORT_IRQ_TX IRQ_SPORT0_TX  /* periph irq 2 -> IVG 9 */
 #endif
