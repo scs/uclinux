@@ -68,15 +68,15 @@ csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr, unsigned short len,
 {
 
 	__asm__ ("%0 = %0 + %1;\n\t"
-		 "CC = AC;\n\t"
+		 "CC = AC0;\n\t"
 		 "if !CC jump 4;\n\t"
 		 "%0 = %0 + %4;\n\t"
 		 "%0 = %0 + %2;\n\t"
-		 "CC = AC;\n\t"
+		 "CC = AC0;\n\t"
                  "if !CC jump 4;\n\t"
                  "%0 = %0 + %4;\n\t"
  		 "%0 = %0 + %3;\n\t"
-		 "CC = AC;\n\t"
+		 "CC = AC0;\n\t"
                  "if !CC jump 4;\n\t"
                  "%0 = %0 + %4;\n\t"
                  "NOP;\n\t"
