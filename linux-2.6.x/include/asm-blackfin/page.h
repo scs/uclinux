@@ -71,6 +71,7 @@ extern unsigned long memory_end;
 #endif /* !__ASSEMBLY__ */
 
 #include <asm/page_offset.h>
+#include <asm/io.h>
 
 #define PAGE_OFFSET		(PAGE_OFFSET_RAW)
 
