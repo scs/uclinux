@@ -53,7 +53,7 @@ SECTIONS
 	.text  : {
 		 _stext = .;                     
 		*(.text)
-		SCHED_TEXT
+		SCHED_TEXT 
 		*(.text.lock)
 		. = ALIGN(16);
 		  __start___ex_table = .;
@@ -95,7 +95,8 @@ SECTIONS
 	  	_etext = . ;
 	} > ram
    
-	.init : {
+	.init : 
+	{
 		. = ALIGN(4096);
 		__init_begin = .;
 		_sinittext = .;
@@ -132,7 +133,37 @@ SECTIONS
 		__init_end = .;
 	} > ram
 
-	.data :	{
+	 _l1_lma_start = .;                     
+	.text_l1 L1_CODE_START : 
+		AT ( _l1_lma_start ) 
+	{
+		. = ALIGN(4) ;
+		 _stext_l1 = . ;
+		*(.text.l1)
+	
+		. = ALIGN(4) ;
+		 _etext_l1 = . ;  
+	} 
+
+	.data_l1 L1_DATA_A_START :
+		AT ( _l1_lma_start + SIZEOF(.text_l1) )
+	{
+		. = ALIGN(4) ;
+		 _sdata_l1 = . ;
+		*(.data.l1)
+		 _edata_l1 = . ;  
+
+		. = ALIGN(4) ;
+		 _sbss_l1 = . ;
+		*(.bss.l1)
+
+		. = ALIGN(4) ;
+		 _ebss_l1 = . ;  
+	} 
+
+	. = _l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) ;
+	.data (_l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1)) :	AT ( _l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) )
+	{
 		 _sdata = . ;
 		. = ALIGN(0x2000) ;
 		*(.data.init_task)
@@ -146,7 +177,9 @@ SECTIONS
 		*(.exitcall.exit)
 	} > ram
 
-	.bss : {
+
+	.bss : AT ( _l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data) )
+	{
 		. = ALIGN(4) ;
 		 _sbss = . ;
 		*(.bss)
@@ -154,12 +187,9 @@ SECTIONS
 		. = ALIGN(4) ;
 		 _ebss = . ;	  
 		 _end = . ;	  
+ 		_bss_end = . ;
     	} > ram
 
-	.bss_end : {
- 		. = ALIGN(4) ;
- 		_bss_end = . ;
- 	} > ram
 
 #ifdef CONFIG_FULLDEBUG
   /* Stabs debugging sections.  */
@@ -199,30 +229,5 @@ SECTIONS
 #else
   /DISCARD/ : { *(.comment) }
 #endif
-	.text_l1 : {
-		. = ALIGN(4) ;
-		 _stext_l1 = . ;
-		*(.text.l1)
-	
-		. = ALIGN(4) ;
-		 _etext_l1 = . ;  
-	} > l1_code
 
-	.data_l1 : {
-		. = ALIGN(4) ;
-		 _sdata_l1 = . ;
-		*(.data.l1)
-	
-		. = ALIGN(4) ;
-		 _edata_l1 = . ;  
-	} > l1_data_a
-
-	.bss_l1 : {
-		. = ALIGN(4) ;
-		 _sbss_l1 = . ;
-		*(.bss.l1)
-
-		. = ALIGN(4) ;
-		 _ebss_l1 = . ;  
-	} > l1_data_a
 }
