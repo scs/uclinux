@@ -1,0 +1,68 @@
+How to mount the a Root File system in uClinux/Blackfin
+-----------------------------------------------------
+
+1	Mounting EXT3 File system.
+	------------------------
+
+Creating an EXT3 File system for uClinux/Blackfin
+-------------------------------------------------
+
+Please follow the steps to form the Ext3 File system and mount the same as root file system.
+
+a	Make an ext3 file system as large as you want the final root file system.
+	
+		mkfs.ext3  /dev/ram0 <your-rootfs-size-in-1k-blocks>
+	
+b	Mount this Empty file system on a free directory as:
+
+		mount -t ext3 /dev/ram0  ./test
+
+c	Copy your root fs directory that you have so carefully made over.
+
+		cp -af  /tmp/my_final_rootfs_files/* ./test
+
+d	If you have done everything right till now you should be able to see the required
+	"root" dir's (that's etc, root, bin, lib, sbin...)
+
+e	Now unmount the file system
+
+		umount  ./test
+
+f	Create the root file system image.
+
+		dd if=/dev/ram0 bs=1k count=<your-rootfs-size-in-1k-blocks>  > ext3fs.img
+
+	
+Now you have to tell the kernel that will be mounting this file system as rootfs.
+So do a make menuconfig under kernel and select the Ext3 journalling file system support 
+under File system --> submenu.
+
+
+2.	Mounting EXT2 File system.
+	-------------------------
+
+By default, the ext2 file system image will be created if you invoke make
+from the top uClinux-dist directory.
+
+3.	Mounting CRAMFS File System
+	----------------------------
+To create a CRAMFS file system image execute the command
+
+	mkfs.cramfs ./test cramfs.img
+
+	where ./test is the target directory.
+
+
+4.	Mounting ROMMFS File System
+	--------------------------
+To create a ROMFS file system image execute the command
+
+	genromfs -v -V "ROMdisk" -f romfs.img -d ./test
+	
+	where ./test is the target directory
+
+
+
+
+
+
