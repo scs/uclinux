@@ -1,0 +1,108 @@
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+configure:530: checking for gcc
+configure:643: checking whether the C compiler (gcc  ) works
+configure:659: gcc -o conftest    conftest.c  1>&5
+configure:685: checking whether the C compiler (gcc  ) is a cross-compiler
+configure:690: checking whether we are using GNU C
+configure:699: gcc -E conftest.c
+configure:718: checking whether gcc accepts -g
+configure:797: checking host system type
+configure:818: checking target system type
+configure:836: checking build system type
+configure:871: checking for a BSD compatible install
+configure:925: checking how to run the C preprocessor
+configure:946: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1005: checking for ANSI C header files
+configure:1018: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1085: gcc -o conftest -g -O2   conftest.c  1>&5
+configure:1113: checking for sgtty.h
+configure:1123: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1113: checking for termio.h
+configure:1123: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1113: checking for termios.h
+configure:1123: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1113: checking for sys/reg.h
+configure:1123: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1113: checking for string.h
+configure:1123: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1113: checking for proc_service.h
+configure:1123: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1119:26: proc_service.h: No such file or directory
+configure: failed program was:
+#line 1118 "configure"
+#include "confdefs.h"
+#include <proc_service.h>
+configure:1113: checking for sys/procfs.h
+configure:1123: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1113: checking for thread_db.h
+configure:1123: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1113: checking for linux/elf.h
+configure:1123: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1113: checking for stdlib.h
+configure:1123: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1113: checking for unistd.h
+configure:1123: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1151: checking whether strerror must be declared
+configure:1177: gcc -c -g -O2  conftest.c 1>&5
+configure:1277: checking for lwpid_t in sys/procfs.h
+configure:1291: bfin-elf-gcc -c -g -O2  conftest.c 1>&5
+./configure: line 1: bfin-elf-gcc: command not found
+configure: failed program was:
+#line 1282 "configure"
+#include "confdefs.h"
+
+#define _SYSCALL32
+#include <sys/procfs.h>
+int main() {
+lwpid_t avar
+; return 0; }
+configure:1313: checking for psaddr_t in sys/procfs.h
+configure:1327: bfin-elf-gcc -c -g -O2  conftest.c 1>&5
+./configure: line 1: bfin-elf-gcc: command not found
+configure: failed program was:
+#line 1318 "configure"
+#include "confdefs.h"
+
+#define _SYSCALL32
+#include <sys/procfs.h>
+int main() {
+psaddr_t avar
+; return 0; }
+configure:1349: checking for prgregset_t in sys/procfs.h
+configure:1363: bfin-elf-gcc -c -g -O2  conftest.c 1>&5
+./configure: line 1: bfin-elf-gcc: command not found
+configure: failed program was:
+#line 1354 "configure"
+#include "confdefs.h"
+
+#define _SYSCALL32
+#include <sys/procfs.h>
+int main() {
+prgregset_t avar
+; return 0; }
+configure:1385: checking for prfpregset_t in sys/procfs.h
+configure:1399: bfin-elf-gcc -c -g -O2  conftest.c 1>&5
+./configure: line 1: bfin-elf-gcc: command not found
+configure: failed program was:
+#line 1390 "configure"
+#include "confdefs.h"
+
+#define _SYSCALL32
+#include <sys/procfs.h>
+int main() {
+prfpregset_t avar
+; return 0; }
+configure:1467: checking for elf_fpregset_t in sys/procfs.h
+configure:1481: bfin-elf-gcc -c -g -O2  conftest.c 1>&5
+./configure: line 1: bfin-elf-gcc: command not found
+configure: failed program was:
+#line 1472 "configure"
+#include "confdefs.h"
+
+#define _SYSCALL32
+#include <sys/procfs.h>
+int main() {
+elf_fpregset_t avar
+; return 0; }
