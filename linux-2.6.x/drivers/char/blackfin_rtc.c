@@ -136,7 +136,15 @@ static const unsigned char days_in_mo[] =
 
 static inline void wait_for_complete(void)
 {
-    while (!(*(volatile unsigned short *)RTC_ISTAT & 0x8000)) {	}
+	unsigned long st;
+
+check:
+	asm("nop;");
+	asm("nop;");
+	st = *pRTC_ISTAT;
+    	if((st & 0x8000) == 0)
+		goto check;
+
     //*(volatile unsigned short *)RTC_ISTAT = 0x807F;
     *(volatile unsigned short *)RTC_ISTAT |= 0x8000;
 

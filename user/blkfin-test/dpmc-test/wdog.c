@@ -18,6 +18,7 @@ int main()
 {
 	int fd;
 	int ret;
+	unsigned long pdtim=0x10000;
 
 	printf("##########################DPMC Test Programs##################################\n");
 
@@ -29,22 +30,24 @@ int main()
 	}
 	else printf("open success fd = %d \n",fd);
 
+	ret = ioctl(fd, IOCTL_UNMASK_WDOG_WAKEUP_EVENT, NULL);
+	if(ret == 0)
+		printf("WDOG event unmask success\n");
+
+	printf("IOCTL to clear the WDOG wakeup event \n");
+
 	printf("IOCTL to disable the WDOG timer \n");
 	ret = ioctl(fd, IOCTL_DISABLE_WDOG_TIMER, NULL);
 	if(ret == 0)
 		printf("WDOG disabled \n");
 
 	printf("IOCTL to program the WDOG timer \n");
-	ret = ioctl(fd, IOCTL_PROGRAM_WDOG_TIMER, 0x10000);
+	ret = ioctl(fd, IOCTL_PROGRAM_WDOG_TIMER, &pdtim);
 	if(ret == 0)
 		printf("WDOG programming success \n");
 
 	printf("IOCTL to unmask the WDOG timer \n");
-	ret = ioctl(fd, IOCTL_UNMASK_WDOG_WAKEUP_EVENT, NULL);
-	if(ret == 0)
-		printf("WDOG event unmask success\n");
-
-	printf("IOCTL to clear the WDOG wakeup event \n");
+	
 	ret = ioctl(fd, IOCTL_CLEAR_WDOG_WAKEUP_EVENT, NULL);
 	if(ret == 0)
 		printf("WDOG timer wakeup event cleared \n");
