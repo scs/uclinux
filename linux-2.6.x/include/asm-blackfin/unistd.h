@@ -412,6 +412,9 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
 
 #ifdef __KERNEL_SYSCALLS__
 
+#include <linux/compiler.h>
+#include <linux/interrupt.h>
+#include <linux/types.h>
 
 #define __NR__exit __NR_exit
 
@@ -433,6 +436,23 @@ static inline pid_t wait(int * wait_stat)
 {
 	return waitpid(-1,wait_stat,0); 
 }
+asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
+			unsigned long prot, unsigned long flags,
+			unsigned long fd, unsigned long pgoff);
+asmlinkage int sys_execve(char *name, char **argv, char **envp);
+asmlinkage int sys_pipe(unsigned long *fildes);
+asmlinkage int sys_ptrace(long request, long pid, long addr, long data);
+struct pt_regs;
+int sys_request_irq(unsigned int,
+			irqreturn_t (*)(int, void *, struct pt_regs *),
+			unsigned long, const char *, void *);
+void sys_free_irq(unsigned int, void *);
+struct sigaction;
+asmlinkage long sys_rt_sigaction(int sig,
+				const struct sigaction __user *act,
+				struct sigaction __user *oact,
+				size_t sigsetsize);
+
 
 #endif	/* __KERNEL_SYSCALLS__ */
 /*
