@@ -110,14 +110,14 @@ evt_timer:
 
 /* interrupt routine for evt2 - 2 */	 
 evt_evt2:
-	 SAVE_CONTEXT
-	 r0 = 2;
-	 r1 =  sp;
-	 SP += -12;	
-	 call	process_int; 
-	 SP += 12;	
-	 RESTORE_CONTEXT
-	 rti; 
+	SAVE_ALL_SYS
+	r0 = 2;
+	r1 =  sp;
+	SP += -12;
+	call process_int;
+	SP += 12;
+	RESTORE_ALL_SYS
+	rtn;
 
 /* interrupt routine for evt7 - 7 */	 
 evt_evt7:
