@@ -365,7 +365,7 @@ printk("PTRACE_PEEKDATA\n");
 #ifdef DEBUG
 printk("POKETEXT at addr %x + add %d %d bytes %x\n", addr,  add, sizeof(data), data);
 #endif
-			if (access_process_vm(child, child->mm->start_code + addr + add, 
+			if (access_process_vm(child, extra + addr + add, 
 				&data, sizeof(data), 1) == sizeof(data))
 				goto out_tsk;
 			ret = -EIO;
