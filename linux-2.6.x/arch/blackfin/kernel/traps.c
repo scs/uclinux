@@ -99,7 +99,6 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	int sig = 0;
 	siginfo_t info;
 
-	printk("exc %x\n",fp->seqstat);
  	/* trap_c() will be called for exceptions. During exceptions
  	   processing, the pc value should be set with retx value.  
  	   With this change we can cleanup some code in signal.c- TODO */
@@ -176,12 +175,12 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGILL;
                 break;
 	    case VEC_CPLB_I_M:
-		DPRINTK(EXC_0x2C);
-		DPRINTK("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
+		DPRINTK3(EXC_0x2C);
+		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
 	    case VEC_CPLB_M:
 		info.si_code = IlL_CPLB_MISS;
 		DPRINTK3(EXC_0x26);
-		DPRINTK("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
 		/*Call the handler to replace the CPLB*/
 		_cplb_hdr();
 		goto nsig;
