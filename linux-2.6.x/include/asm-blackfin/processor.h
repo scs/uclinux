@@ -47,7 +47,7 @@ inline unsigned long obtain_pc_indirectly (void)
 	__asm__ __volatile__ ("%0 = rets;\n" : "=d" (pc));
 	return (pc - 4);	/* call pcrel24 is 4 bytes long  */
 }
-#endif
+#ENDIf
 
 struct thread_struct {
 	unsigned long  ksp;		/* kernel stack pointer */
@@ -128,5 +128,5 @@ unsigned long get_wchan(struct task_struct *p);
 #define	KSTK_ESP(tsk)	((tsk) == current ? rdusp() : (tsk)->thread.usp)
 
 #define cpu_relax()    do { } while (0) 
-
+#define prefetch __prefetch
 #endif
