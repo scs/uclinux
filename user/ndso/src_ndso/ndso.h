@@ -10,9 +10,11 @@
 
 #define VALUE_FRAME "\n<html>\n<head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1252\">\n<title></title></head><body> <p><font face=\"Tahoma\" size=\"10\">%4.3f Volt</font></p>\n"
 
-#define MINSAMPLERATE 		1
-#define MAXNUMSAMPLES 		4000
-#define MINNUMSAMPLES 		4
+#define MINSAMPLERATE 		1     //Samples per second
+#define MAXNUMSAMPLES 		4000  //Samples per second 
+#define MINNUMSAMPLES 		4     //Number of samples
+#define MAXSIZERATIO		4     //relative to the default size
+#define TIMEOUT				10    //seconds
 
 #define OUT_DEC 1		//Converts the number based on the decimal format
 #define OUT_BIN 2		// Converts the number based on the binary format
@@ -118,7 +120,7 @@ enum
 enum
 {
   SPIOPEN, FILE_OPEN, MEMORY, TRIGCOND, TRIGGER_LEVEL, SAMPLE_RATE,
-    SAMPLE_DEPTH, SIZE_RATIO, RANGE, FILE_OPEN_SAMPLES
+    SAMPLE_DEPTH, SIZE_RATIO, RANGE, FILE_OPEN_SAMPLES, EMPTY_PLOT, TIME_OUT
 };
 
 enum

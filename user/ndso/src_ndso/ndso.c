@@ -202,15 +202,15 @@ DoHTML (int form_method, char **getvars, char **postvars, s_info * info)
 
 	  if (info->smeasurements.min)
 	    printf
-	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Min&nbsp;: %4.5f V  </font></p>\n",
+	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Min&nbsp;:%4.3fV</font></p>\n",
 	       ((float) info->smeasurements.valuemin) / 1000);
 	  if (info->smeasurements.max)
 	    printf
-	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Max&nbsp;: %4.5f V  </font></p>\n",
+	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Max&nbsp;:%4.3fV</font></p>\n",
 	       ((float) info->smeasurements.valuemax) / 1000);
 	  if (info->smeasurements.mean)
 	    printf
-	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Mean: %4.5f V  </font></p>\n",
+	      ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> Mean:%4.3fV</font></p>\n",
 	       ((float) info->smeasurements.valuemean) / 1000);
 	  printf
 	    ("<p style=\"margin-top: 0; margin-bottom: 0\"><font face=\"Courier new\"> ______________</font></p>\n");
@@ -361,19 +361,31 @@ NDSO_Error (int errnum, int form_method, char **getvars, char **postvars,
       printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
 	      SIZE_RATIO);
       printf
-	("<p><font face=\"Tahoma\" size=\"7\">Size Ratio contains invalid characters\n</font></p>");
+	("<p><font face=\"Tahoma\" size=\"7\">Size Ratio contains invalid characters r exceeds maximum Size Ratio < [%d]\n</font></p>",MAXSIZERATIO);
       break;
     case RANGE:
       printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
 	      RANGE);
       printf
-	("<p><font face=\"Tahoma\" size=\"7\">Plot Range contains invlaid characters.\n</font></p>");
+	("<p><font face=\"Tahoma\" size=\"7\">Specified Range is invalid or out of range.\n</font></p>");
       break;
     case FILE_OPEN_SAMPLES:
       printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
 	      FILE_OPEN_SAMPLES);
       printf
 	("<p><font face=\"Tahoma\" size=\"7\">Can't open SAMPLE FILE for REPLOT.\n</font></p>");
+      break;
+    case EMPTY_PLOT:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      EMPTY_PLOT);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">Empty Plot increase upper Range.\n</font></p>");
+      break;
+    case TIME_OUT:
+      printf ("<p><font face=\"Tahoma\" size=\"7\">ERROR[%d]:\n</font></p>",
+	      TIME_OUT);
+      printf
+	("<p><font face=\"Tahoma\" size=\"7\">Ratio between Sample Depth and Sample Rate will exceed Timeout criteria [%d sec].\n</font></p>", TIMEOUT);
       break;
     default:
       printf
@@ -581,14 +593,34 @@ CheckRequest (int form_method, char **getvars, char **postvars, s_info * info)
       || info->stime_s.samples <= MINNUMSAMPLES)
     NDSO_Error (SAMPLE_DEPTH, form_method, getvars, postvars, info);
 
-  if (str2num (postvars[info->sdisplay.size_ratio]) < 0)
-    NDSO_Error (SIZE_RATIO, form_method, getvars, postvars, info);
+  if ((info->stime_s.samples/info->stime_s.sps) > TIMEOUT)
+    NDSO_Error (TIME_OUT, form_method, getvars, postvars, info);
+
+  if ((str2num (postvars[info->sdisplay.size_ratio]) < 0 ||
+   str2num (postvars[info->sdisplay.size_ratio]) >= MAXSIZERATIO) &&
+    (str2num (postvars[info->sdisplay.size_ratio]) >= (MAXSIZERATIO*10) &&
+      (postvars[info->sdisplay.size_ratio][1] == '.')))   
+         NDSO_Error (SIZE_RATIO, form_method, getvars, postvars, info);
+
+  if (!info->sdisplay.tdom)
+    if (info->sdisplay.fftscaled)
+      if (!(postvars[info->sdisplay.xrange][0] == '*' &&
+        postvars[info->sdisplay.xrange1][0] == '*'))
+          if((info->stime_s.sps / info->stime_s.samples) > 
+            str2num (postvars[info->sdisplay.xrange1]))
+              NDSO_Error (EMPTY_PLOT, form_method, getvars, postvars, info);
 
   if (str2num (postvars[info->sdisplay.xrange]) < 0)
     NDSO_Error (RANGE, form_method, getvars, postvars, info);
 
   if (str2num (postvars[info->sdisplay.xrange1]) < 0)
     NDSO_Error (RANGE, form_method, getvars, postvars, info);
+
+  if (!(postvars[info->sdisplay.xrange][0] == '*' &&
+    postvars[info->sdisplay.xrange1][0] == '*'))
+    if (str2num (postvars[info->sdisplay.xrange1]) <= 
+      str2num (postvars[info->sdisplay.xrange])) 
+        NDSO_Error (RANGE, form_method, getvars, postvars, info);
 
   if (info->run == REPLOT)
     {
