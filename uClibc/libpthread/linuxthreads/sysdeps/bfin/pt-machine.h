@@ -32,6 +32,7 @@ extern long int testandset (int *spinlock);
 PT_EI long int
 testandset (int *spinlock)
 {
+#if 0
   char ret;
 
   __asm__ __volatile__(
@@ -41,13 +42,14 @@ testandset (int *spinlock)
        : "cc");
 
   return ret;
-
+#endif 
+return 0;
 }
 
 /* Get some notion of the current stack.  Need not be exactly the top
    of the stack, just something somewhere in the current frame.  */
-#define CURRENT_STACK_FRAME  stack_pointer
-char * stack_pointer __asm__ ("" : "=r0" (stack_pointer):);
+/*#define CURRENT_STACK_FRAME  stack_pointer
+char * stack_pointer __asm__ ("" : "=r0" (stack_pointer):);*/
 
 
 #endif /* pt-machine.h */
