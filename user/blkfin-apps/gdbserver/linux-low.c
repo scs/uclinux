@@ -1467,6 +1467,23 @@ linux_read_auxv (CORE_ADDR offset, char *myaddr, unsigned int len)
   return n;
 }
 
+/* Create a text , data and bss offset string */
+void
+linux_get_offset(char *own_buf){
+  register PTRACE_XFER_TYPE *buffer
+    = (PTRACE_XFER_TYPE *) alloca ( 3 * sizeof (PTRACE_XFER_TYPE));
+
+  /* Read all the longwords */
+#define PT_EXTRA1 216
+#define PT_EXTRA2 220
+  buffer[0] = ptrace (PTRACE_PEEKUSER, inferior_pid, (PTRACE_ARG3_TYPE) (PT_EXTRA1), 0);
+  buffer[1] = ptrace (PTRACE_PEEKUSER, inferior_pid, (PTRACE_ARG3_TYPE) (PT_EXTRA2), 0);
+  buffer[2] = ptrace (PTRACE_PEEKUSER, inferior_pid, (PTRACE_ARG3_TYPE) (PT_EXTRA2), 0);
+
+  /* Copy appropriate bytes out of the buffer.  */
+  // sprintf(own_buf, "Text=%x;Data=%x;Bss=%x;", buffer[0], buffer[1], buffer[2]);
+}
+
 
 static struct target_ops linux_target_ops = {
   linux_create_inferior,
@@ -1483,6 +1500,7 @@ static struct target_ops linux_target_ops = {
   linux_look_up_symbols,
   linux_send_signal,
   linux_read_auxv,
+  linux_get_offset,
 };
 
 static void
