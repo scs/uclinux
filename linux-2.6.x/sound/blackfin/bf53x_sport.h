@@ -28,11 +28,14 @@
 #define BF53X_SPORT_H
 
 #include <linux/types.h>
+#include <asm/simple_bf533_dma.h>
 
 
 struct bf53x_sport;
 
-struct bf53x_sport* bf53x_sport_init(int sport_chan, int dma_rx, int dma_tx);
+struct bf53x_sport* bf53x_sport_init(int sport_chan,  
+                int dma_rx, dma_interrupt_t rx_handler,
+                int dma_tx, dma_interrupt_t tx_handler);
 void bf53x_sport_done(struct bf53x_sport* sport);
 
 /* first use these ...*/

@@ -73,7 +73,7 @@
 #include <asm/board/cdefBF532.h>
 #include <asm/dma.h>
 #define FRAME_DELAY (1<<12)  /* delay between frame sync pulse and first data bit
-                              in multichannel mode */  
+                              in multichannel mode */ 
 
 /*
  * source: ADSP-BF533 Blackfin Processor Hardware Reference, 
@@ -129,13 +129,13 @@ struct bf53x_sport {
 
 };
 
-
 static unsigned int sport_iobase[] = {0xffc00800, 0xffc00900 };
 static unsigned int dma_iobase[]   = {0xffc00c00, 0xffc00c40, 0xffc00c80, 0xffc00cc0, 
 				      0xffc00d00, 0xffc00d40, 0xffc00d80, 0xffd00dc0 }; 
-
-struct bf53x_sport* bf53x_sport_init(int sport_chan, int dma_rx, int dma_tx){
-
+struct bf53x_sport* 
+bf53x_sport_init(int sport_chan, 
+		int dma_rx, dma_interrupt_t rx_handler,
+		int dma_tx, dma_interrupt_t tx_handler){
 
   struct bf53x_sport* sport = (struct bf53x_sport*) malloc( sizeof(struct bf53x_sport) );
   
@@ -153,24 +153,33 @@ struct bf53x_sport* bf53x_sport_init(int sport_chan, int dma_rx, int dma_tx){
 
   sport_printd( KERN_INFO, "%p dma rx: %p tx: %p\n", 
 		sport->regs, sport->dma_rx, sport->dma_tx );
-
-
-
-  if( request_dma(dma_rx, "SPORT RX Data", NULL) ){
-    sport_printf( KERN_ERR, "Unable to allocate sport RX dma %d\n", dma_rx);
-    free(sport);
-    return NULL;
+  if(request_dma(dma_rx, "SPORT RX Data") == -EBUSY){
+     sport_printf( KERN_ERR, "Unable to allocate sport RX dma %d\n", dma_rx);
+     free(sport);
+     return NULL ;
   }
-  
-  
-  if( request_dma(dma_tx, "SPORT TX Data", NULL ) ){
-    sport_printf( KERN_ERR, "Unable to allocate sport TX dma %d\n", dma_tx);
-    free(sport);
-    return NULL;
+
+  if( set_dma_callback(dma_rx, rx_handler, NULL) != 0){
+     sport_printf( KERN_ERR, "Unable to allocate sport RX dma %d\n", dma_rx);
+     free_dma(dma_rx);
+     free(sport);
+     return NULL ;
+   }  
+
+  if(request_dma(dma_tx, "SPORT TX Data") == -EBUSY){
+     sport_printf( KERN_ERR, "Unable to allocate sport TX dma %d\n", dma_tx);
+     free(sport);
+     return NULL ;
   }
-  
+
+  if( set_dma_callback(dma_tx, tx_handler, NULL) != 0){
+     sport_printf( KERN_ERR, "Unable to allocate sport TX dma %d\n", dma_tx);
+     free_dma(dma_tx);
+     free(sport);
+     return NULL ;
+   }  
+
   return sport;
-
 } 
 
 void bf53x_sport_done(struct bf53x_sport* sport){
@@ -333,16 +342,23 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
 
 }
 
-int sport_disable_dma_rx(struct bf53x_sport* sport){ return sport->dma_rx->cfg &= ~(DI_EN|DI_SEL); }
-int sport_disable_dma_tx(struct bf53x_sport* sport){ return sport->dma_tx->cfg &= ~(DI_EN|DI_SEL); }
+int sport_disable_dma_rx(struct bf53x_sport* sport)
+{ 
+  disable_dma(sport->dma_rx_chan);
+}
+
+int sport_disable_dma_tx(struct bf53x_sport* sport)
+{ 
+  disable_dma(sport->dma_tx_chan);
+}
 
 
 int bf53x_sport_start(struct bf53x_sport* sport){ 
 
   asm( "ssync;\n\t" );
 
-  sport->dma_tx->cfg |= DMAEN;
-  sport->dma_rx->cfg |= DMAEN;
+  enable_dma(sport->dma_rx_chan);
+  enable_dma(sport->dma_tx_chan);
   sport->regs->tcr1 |= TSPEN;
   sport->regs->rcr1 |= RSPEN;
 
@@ -359,8 +375,8 @@ int bf53x_sport_stop(struct bf53x_sport* sport){
 
   sport->regs->tcr1 &= ~TSPEN;
   sport->regs->rcr1 &= ~RSPEN;
-  sport->dma_tx->cfg &= ~DMAEN;
-  sport->dma_rx->cfg &= ~DMAEN;
+  disable_dma(sport->dma_rx_chan);
+  disable_dma(sport->dma_tx_chan);
 
   asm( "ssync;\n\t" );
 

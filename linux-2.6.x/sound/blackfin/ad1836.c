@@ -102,6 +102,10 @@
 #include "adi1836.h"
 #include "adi1836_config.h"
 
+#ifndef CONFIG_BLKFIN_SIMPLE_DMA
+#error "The sound driver requires the Blackfin Simple DMA"
+#endif
+
 #ifdef CONFIG_SND_DEBUG
 #define snd_printk_marker() snd_printk( KERN_INFO "%s\n", __FUNCTION__ )
 #else
@@ -114,7 +118,6 @@
 extern void b4copy(unsigned int* src, unsigned int* dst, unsigned int count_bytes); /* in b4copy.S */
 extern void bf53x_cache_flush(void* start, unsigned int size_bytes);
 extern void bf53x_cache_flushinv(void* start, unsigned int size_bytes);
-
 
 #undef NOCONTROLS  /* define this to omit all the ALSA controls */
 
@@ -1682,25 +1685,24 @@ static void /* __exit */ snd_bf53x_adi1836_exit(void){
 
 
 /* TODO: failure to alloc spi or sport should release dma and irq's */
-
-
 static int __init snd_bf53x_adi1836_init(void){
   
   int err;
+  static int id3 ;
+  static int id7;
+  static int id8;
 
   if( (spi = bf53x_spi_init(/* CONFIG_SND_BLACKFIN_SPI_DMA */ -1, 
 			     CONFIG_SND_BLACKFIN_SPI_IRQ_DATA, 
 			     CONFIG_SND_BLACKFIN_SPI_IRQ_ERR, 0) ) == NULL ) 
     return -ENOMEM;
-
-  if( request_irq(CONFIG_SND_BLACKFIN_SPI_IRQ_DATA, &spi_handler, SA_SHIRQ, "SPI Data", NULL ) ){
+  if( request_irq(CONFIG_SND_BLACKFIN_SPI_IRQ_DATA, &spi_handler, SA_SHIRQ, "SPI Data", &id7 ) ){
     snd_printk( KERN_ERR "Unable to allocate spi data IRQ %d\n", CONFIG_SND_BLACKFIN_SPI_IRQ_DATA);
     snd_bf53x_adi1836_exit();
     return -ENODEV;
   }
 
-  
-  if( request_irq(CONFIG_SND_BLACKFIN_SPI_IRQ_ERR, &spi_handler, SA_SHIRQ, "SPI Error", NULL ) ){
+  if( request_irq(CONFIG_SND_BLACKFIN_SPI_IRQ_ERR, &spi_handler, SA_SHIRQ, "SPI Error", &id8 ) ){
     snd_printk( KERN_ERR "Unable to allocate spi error IRQ %d\n", CONFIG_SND_BLACKFIN_SPI_IRQ_ERR);
     snd_bf53x_adi1836_exit();
     return -ENODEV;
@@ -1710,15 +1712,14 @@ static int __init snd_bf53x_adi1836_init(void){
   enable_irq(CONFIG_SND_BLACKFIN_SPI_IRQ_ERR);
 
   if( (sport = bf53x_sport_init(CONFIG_SND_BLACKFIN_SPORT,  
-				CONFIG_SND_BLACKFIN_SPORT_DMA_RX, 
-				CONFIG_SND_BLACKFIN_SPORT_DMA_TX ) ) == NULL ){ 
+				CONFIG_SND_BLACKFIN_SPORT_DMA_RX, sport_handler,
+				CONFIG_SND_BLACKFIN_SPORT_DMA_TX, sport_handler ) ) == NULL ){ 
     snd_bf53x_adi1836_exit();
     return -ENOMEM;
   }
 
   /* further configuration of the sport is in the device constuctor */
-
-  if( request_irq(CONFIG_SND_BLACKFIN_SPORT_IRQ_ERR, &sport_error_handler, SA_SHIRQ, "SPORT Error", NULL ) ){
+  if( request_irq(CONFIG_SND_BLACKFIN_SPORT_IRQ_ERR, &sport_error_handler, SA_SHIRQ, "SPORT Error", &id3 ) ){
     snd_printk( KERN_ERR "Unable to allocate sport error IRQ %d\n", CONFIG_SND_BLACKFIN_SPORT_IRQ_ERR);
     snd_bf53x_adi1836_exit();
     return -ENODEV;
@@ -1731,26 +1732,6 @@ static int __init snd_bf53x_adi1836_init(void){
    * the implementation in bfinnommu/kernel/dma.c adds a lot of overhead, 
    * without actually solving any problem for us.  
    */
-
-#define IRQREQFLAG 0 /* IRQ_FLG_REPLACE this is a bug(?) in bfinnommu/mach-bf533/ints-priority.c */
-
-  if( request_irq(CONFIG_SND_BLACKFIN_SPORT_IRQ_RX, &sport_handler, IRQREQFLAG, "SPORT RX Data", NULL ) ){
-    snd_printk( KERN_ERR "Unable to allocate sport RX data IRQ %d\n", CONFIG_SND_BLACKFIN_SPORT_IRQ_RX);
-    snd_bf53x_adi1836_exit();
-    return -ENODEV;
-  }
-
-  if( CONFIG_SND_BLACKFIN_SPORT_IRQ_RX != CONFIG_SND_BLACKFIN_SPORT_IRQ_TX )
-    if( request_irq(CONFIG_SND_BLACKFIN_SPORT_IRQ_TX, &sport_handler, IRQREQFLAG, "SPORT TX Data", NULL ) ){
-      snd_printk( KERN_ERR "Unable to allocate sport TX data IRQ %d\n", CONFIG_SND_BLACKFIN_SPORT_IRQ_TX);
-      snd_bf53x_adi1836_exit();
-      return -ENODEV;
-    }
-  
-#undef IRQREQFLAG
-
-  enable_irq(CONFIG_SND_BLACKFIN_SPORT_IRQ_TX);
-  enable_irq(CONFIG_SND_BLACKFIN_SPORT_IRQ_RX);
 
 
   err = snd_bf53x_adi1836_probe(spi, sport, &card);
