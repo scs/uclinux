@@ -470,7 +470,7 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 	case FLAT_BFIN_RELOC_SP_TYPE_16_BIT:
 		usptr = (unsigned short *) ptr;
 #ifdef DEBUG_BFIN_RELOC
-	printk(" sp = 16 bit *usptr = %x", *usptr);
+		printk(" sp = 16 bit *usptr = %x", get_unaligned (usptr));
 #endif
 
 		switch (r.reloc.type) {
@@ -490,7 +490,7 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 		}
 
 
-		offset += *usptr;
+		offset += get_unaligned (usptr);
 		if (r.reloc.hi_lo) {
 #ifdef DEBUG_BFIN_RELOC
 			printk(" hi ");
@@ -503,9 +503,9 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 #endif
 			offset &= 0xFFFF;
 		}
-		*usptr = offset;
+		put_unaligned (offset, usptr);
 #ifdef DEBUG_BFIN_RELOC
-		printk(" new value %x", *usptr);
+		printk(" new value %x", get_unaligned (usptr));
 #endif
 
 		i++;
@@ -532,13 +532,13 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 			       r.reloc.type);
 			  break;
 		}
-		if(*usptr == 0){
-		  offset += ntohl (rlp[i + 1]);
-		  i += 2;
+		if (get_unaligned (usptr) == 0) {
+			offset += ntohl (rlp[i + 1]);
+			i += 2;
 		}
-		else{
-		  offset += ntohl (rlp[*usptr]);
-		  i++;
+		else {
+			offset += ntohl (rlp[get_unaligned (usptr)]);
+			i++;
 		}
 		if (r.reloc.hi_lo) {
 #ifdef DEBUG_BFIN_RELOC
@@ -551,18 +551,18 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 			printk(" lo");
 #endif
 		}
-		*usptr = offset;
+		put_unaligned (offset, usptr);
 #ifdef DEBUG_BFIN_RELOC
-		printk(" new value %x", *usptr);
+		printk(" new value %x", get_unaligned (usptr));
 #endif
 		break;
 
 	case FLAT_BFIN_RELOC_SP_TYPE_32_BIT:
 
 #ifdef DEBUG_BFIN_RELOC
-		printk(" ptr =%x",*(unsigned short *)ptr);
+		printk(" ptr =%x", get_unaligned ((unsigned short *)ptr));
 #endif
-		offset = *ptr;
+		offset = get_unaligned (ptr);
 
 #ifdef CONFIG_BINFMT_SHARED_FLAT
 		/* relocation of R_byte4_data in another library.
@@ -572,7 +572,7 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 		new_id = (offset >> 24) & 0x03;	/* Find ID for this reloc */
 
 		// new_id = 0 indicates local relocation.
-		if(new_id !=0 && new_id != curid){
+		if (new_id !=0 && new_id != curid) {
 			/* this symbol is in a different library */
 			/* verify if it is loaded */
 			if(!load_library(curid, new_id, p, &r))
@@ -604,9 +604,9 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 			}
 		}
 
-		*ptr = offset;
+		put_unaligned (offset, ptr);
 #ifdef DEBUG_BFIN_RELOC
-		printk(" new ptr =%x", *ptr);
+		printk(" new ptr =%x", get_unaligned (ptr));
 #endif
 		i++;
 		break;
