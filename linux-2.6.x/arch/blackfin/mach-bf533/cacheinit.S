@@ -1,6 +1,4 @@
-/* Copyright (C) 2003 Analog Devices, Inc. All Rights Reserved. 
- *
- * This file is subject to the terms and conditions of the GNU General Public
+/*This file is subject to the terms and conditions of the GNU General Public
  * License. 
  * 	
  * Blackfin BF533/2.6 support : LG Soft India	
@@ -19,10 +17,9 @@
 #include <asm/cplbtab.h>
 
 .text
-.global icache_init
-.global dcache_init
 
 ENTRY(icache_init)
+
 	/* Initialize Instruction CPLBS */
 	
 	I0.L = (ICPLB_ADDR0 & 0xFFFF);
@@ -63,7 +60,7 @@ idone:
 
 	RTS;
 
-dcache_init:
+ENTRY(dcache_init)
 	
 	/* Initialize Data CPLBS */
 	
@@ -96,7 +93,7 @@ ddone:
 	P0.L = (DMEM_CONTROL & 0xFFFF);
 	P0.H = (DMEM_CONTROL >> 16);
 
-	R0 = (DMC_ENABLE | ENDCPLB | ENDM);
+	R0 = (ACACHE_BCACHE | ENDCPLB | ENDM);
 	[P0] = R0;
 	CSYNC;
 	RTS;	
