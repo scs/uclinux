@@ -398,8 +398,12 @@ static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
 
 static inline void push_cache (unsigned long vaddr, unsigned int len)
 {
+#if defined (CONFIG_BLKFIN_DCACHE)
 	flush_dcache_range(vaddr, vaddr + len);
+#endif
+#if defined (CONFIG_BLKFIN_CACHE)
 	blackfin_icache_flush_range(vaddr, vaddr + len);
+#endif
 }
 
 static inline void *
