@@ -1,0 +1,63 @@
+#
+# Plug and Play configuration
+#
+
+menu "Plug and Play support"
+
+config PNP
+	bool "Plug and Play support"
+	depends on ISA
+	---help---
+	  Plug and Play (PnP) is a standard for peripherals which allows those
+	  peripherals to be configured by software, e.g. assign IRQ's or other
+	  parameters. No jumpers on the cards are needed, instead the values
+	  are provided to the cards from the BIOS, from the operating system,
+	  or using a user-space utility.
+
+	  Say Y here if you would like Linux to configure your Plug and Play
+	  devices. You should then also say Y to all of the protocols below.
+	  Alternatively, you can say N here and configure your PnP devices
+	  using user space utilities such as the isapnptools package.
+
+	  If unsure, say Y.
+
+config PNP_DEBUG
+	bool "PnP Debug Messages"
+	depends on PNP
+	help
+	  Say Y if you want the Plug and Play Layer to print debug messages.
+	  This is useful if you are developing a PnP driver or troubleshooting.
+
+comment "Protocols"
+	depends on PNP
+
+config ISAPNP
+	bool "ISA Plug and Play support (EXPERIMENTAL)"
+	depends on PNP && EXPERIMENTAL
+	help
+	  Say Y here if you would like support for ISA Plug and Play devices.
+	  Some information is in <file:Documentation/isapnp.txt>.
+
+	  If unsure, say Y.
+
+config PNPBIOS
+	bool "Plug and Play BIOS support (EXPERIMENTAL)"
+	depends on PNP && EXPERIMENTAL
+	---help---
+	  Linux uses the PNPBIOS as defined in "Plug and Play BIOS
+	  Specification Version 1.0A May 5, 1994" to autodetect built-in
+	  mainboard resources (e.g. parallel port resources).
+
+	  Some features (e.g. event notification, docking station information,
+	  ISAPNP services) are not used.
+
+	  Note: ACPI is expected to supersede PNPBIOS some day, currently it
+	  co-exists nicely.
+
+	  See latest pcmcia-cs (stand-alone package) for a nice "lspnp" tools,
+	  or have a look at /proc/bus/pnp.
+
+	  If unsure, say Y.
+
+endmenu
+

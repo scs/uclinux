@@ -1,0 +1,82 @@
+/******************************************************************************
+ *
+ * Name:	skhwt.h
+ * Project:	Gigabit Ethernet Adapters, Event Scheduler Module
+ * Version:	$Revision$
+ * Date:	$Date$
+ * Purpose:	Defines for the hardware timer functions
+ *
+ ******************************************************************************/
+
+/******************************************************************************
+ *
+ *	(C)Copyright 1998-2002 SysKonnect GmbH.
+ *	(C)Copyright 2002-2003 Marvell.
+ *
+ *	This program is free software; you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation; either version 2 of the License, or
+ *	(at your option) any later version.
+ *
+ *	The information in this file is provided "AS IS" without warranty.
+ *
+ ******************************************************************************/
+
+/******************************************************************************
+ *
+ * History:
+ *
+ *	$Log$
+ *	Revision 1.1  2004/07/19 12:13:12  lgsoft
+ *	Initial revision
+ *
+ *	Revision 1.1.1.1  2004/07/18 13:21:34  nidhi
+ *	Importing
+ *	
+ *	Revision 1.7  2003/09/16 12:55:08  rschmidt
+ *	Editorial changes
+ *	
+ *	Revision 1.6  2003/05/13 17:57:48  mkarl
+ *	Editorial changes.
+ *	
+ *	Revision 1.5  1999/11/22 13:54:24  cgoos
+ *	Changed license header to GPL.
+ *	
+ *	Revision 1.4  1998/08/19 09:50:58  gklug
+ *	fix: remove struct keyword from C-code (see CCC) add typedefs
+ *	
+ *	Revision 1.3  1998/08/14 07:09:29  gklug
+ *	fix: chg pAc -> pAC
+ *	
+ *	Revision 1.2  1998/08/07 12:54:21  gklug
+ *	fix: first compiled version
+ *	
+ *	Revision 1.1  1998/08/07 09:32:58  gklug
+ *	first version
+ *
+ ******************************************************************************/
+
+/*
+ * SKGEHWT.H	contains all defines and types for the timer functions
+ */
+
+#ifndef	_SKGEHWT_H_
+#define _SKGEHWT_H_
+
+/*
+ * SK Hardware Timer
+ * - needed wherever the HWT module is used
+ * - use in Adapters context name pAC->Hwt
+ */
+typedef	struct s_Hwt {
+	SK_U32		TStart;	/* HWT start */
+	SK_U32		TStop;	/* HWT stop */
+	int		TActive;	/* HWT: flag : active/inactive */
+} SK_HWT;
+
+extern void SkHwtInit(SK_AC *pAC, SK_IOC Ioc);
+extern void SkHwtStart(SK_AC *pAC, SK_IOC Ioc, SK_U32 Time);
+extern void SkHwtStop(SK_AC *pAC, SK_IOC Ioc);
+extern SK_U32 SkHwtRead(SK_AC *pAC, SK_IOC Ioc);
+extern void SkHwtIsr(SK_AC *pAC, SK_IOC Ioc);
+#endif	/* _SKGEHWT_H_ */

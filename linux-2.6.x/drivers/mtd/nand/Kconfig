@@ -1,0 +1,51 @@
+# drivers/mtd/nand/Kconfig
+# $Id$
+
+menu "NAND Flash Device Drivers"
+	depends on MTD!=n
+
+config MTD_NAND
+	tristate "NAND Device Support"
+	depends on MTD
+	help
+	  This enables support for accessing all type of NAND flash
+	  devices with an 8-bit data bus interface. For further 
+	  information see www.linux-mtd.infradead.org/tech/nand.html.
+
+config MTD_NAND_VERIFY_WRITE
+	bool "Verify NAND page writes"
+	depends on MTD_NAND
+	help
+	  This adds an extra check when data is written to the flash. The
+	  NAND flash device internally checks only bits transitioning
+	  from 1 to 0. There is a rare possibility that even though the
+	  device thinks the write was successful, a bit could have been
+	  flipped accidentaly due to device wear or something else.
+
+config MTD_NAND_AUTCPU12
+	tristate "SmartMediaCard on autronix autcpu12 board"
+	depends on ARM && MTD_NAND && ARCH_AUTCPU12
+	help
+	  This enables the driver for the autronix autcpu12 board to 
+	  access the SmartMediaCard.
+
+config MTD_NAND_EDB7312
+	tristate "Support for Cirrus Logic EBD7312 evaluation board"
+	depends on ARM && MTD_NAND && ARCH_EDB7312
+	help
+	  This enables the driver for the Cirrus Logic EBD7312 evaluation 
+	  board to access the onboard NAND Flash.
+
+config MTD_NAND_SPIA
+	tristate "NAND Flash device on SPIA board"
+	depends on ARM && ARCH_P720T && MTD_NAND
+	help
+	  If you had to ask, you don't have one. Say 'N'.
+
+config MTD_NAND_IDS
+	tristate
+	default y if MTD_NAND = y || MTD_DOC2000 = y || MTD_DOC2001 = y || MTD_DOC2001PLUS = y
+	default m if MTD_NAND = m || MTD_DOC2000 = m || MTD_DOC2001 = m || MTD_DOC2001PLUS = m
+	
+endmenu
+

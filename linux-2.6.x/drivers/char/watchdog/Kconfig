@@ -1,0 +1,388 @@
+#
+# Watchdog device configuration
+#
+
+menu "Watchdog Cards"
+
+config WATCHDOG
+	bool "Watchdog Timer Support"
+	---help---
+	  If you say Y here (and to one of the following options) and create a
+	  character special file /dev/watchdog with major number 10 and minor
+	  number 130 using mknod ("man mknod"), you will get a watchdog, i.e.:
+	  subsequently opening the file and then failing to write to it for
+	  longer than 1 minute will result in rebooting the machine. This
+	  could be useful for a networked machine that needs to come back
+	  online as fast as possible after a lock-up. There's both a watchdog
+	  implementation entirely in software (which can sometimes fail to
+	  reboot the machine) and a driver for hardware watchdog boards, which
+	  are more robust and can also keep track of the temperature inside
+	  your computer. For details, read <file:Documentation/watchdog/watchdog.txt>
+	  in the kernel source.
+
+	  The watchdog is usually used together with the watchdog daemon
+	  which is available from
+	  <ftp://ibiblio.org/pub/Linux/system/daemons/watchdog/>. This daemon can
+	  also monitor NFS connections and can reboot the machine when the process
+	  table is full.
+
+	  If unsure, say N.
+
+config WATCHDOG_NOWAYOUT
+	bool "Disable watchdog shutdown on close"
+	depends on WATCHDOG
+	help
+	  The default watchdog behaviour (which you get if you say N here) is
+	  to stop the timer if the process managing it closes the file
+	  /dev/watchdog. It's always remotely possible that this process might
+	  get killed. If you say Y here, the watchdog cannot be stopped once
+	  it has been started.
+
+config SOFT_WATCHDOG
+	tristate "Software watchdog"
+	depends on WATCHDOG
+	help
+	  A software monitoring watchdog. This will fail to reboot your system
+	  from some situations that the hardware watchdog will recover
+	  from. Equally it's a lot cheaper to install.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called softdog.
+
+config WDT
+	tristate "WDT Watchdog timer"
+	depends on WATCHDOG
+	---help---
+	  If you have a WDT500P or WDT501P watchdog board, say Y here,
+	  otherwise N. It is not possible to probe for this board, which means
+	  that you have to inform the kernel about the IO port and IRQ using
+	  the "wdt=" kernel option (try "man bootparam" or see the
+	  documentation of your boot loader (lilo or loadlin) about how to
+	  pass options to the kernel at boot time).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wdt.
+
+config WDT_501
+	bool "WDT501 features"
+	depends on WDT
+	help
+	  Saying Y here and creating a character special file /dev/temperature
+	  with major number 10 and minor number 131 ("man mknod") will give
+	  you a thermometer inside your computer: reading from
+	  /dev/temperature yields one byte, the temperature in degrees
+	  Fahrenheit. This works only if you have a WDT501P watchdog board
+	  installed.
+
+config WDT_501_FAN
+	bool "Fan Tachometer"
+	depends on WDT_501
+	help
+	  Enable the Fan Tachometer on the WDT501. Only do this if you have a
+	  fan tachometer actually set up.
+
+config WDTPCI
+	tristate "WDT PCI Watchdog timer"
+	depends on WATCHDOG
+	---help---
+	  If you have a PCI WDT500/501 watchdog board, say Y here, otherwise
+	  N.  It is not possible to probe for this board, which means that you
+	  have to inform the kernel about the IO port and IRQ using the "wdt="
+	  kernel option (try "man bootparam" or see the documentation of your
+	  boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wdt_pci.
+
+config WDT_501_PCI
+	bool "WDT501-PCI features"
+	depends on WDTPCI
+	help
+	  Saying Y here and creating a character special file /dev/temperature
+	  with major number 10 and minor number 131 ("man mknod") will give
+	  you a thermometer inside your computer: reading from
+	  /dev/temperature yields one byte, the temperature in degrees
+	  Fahrenheit. This works only if you have a WDT501P watchdog board
+	  installed.
+
+config PCWATCHDOG
+	tristate "Berkshire Products PC Watchdog"
+	depends on WATCHDOG
+	---help---
+	  This is the driver for the Berkshire Products PC Watchdog card.
+	  This card simply watches your kernel to make sure it doesn't freeze,
+	  and if it does, it reboots your computer after a certain amount of
+	  time. This driver is like the WDT501 driver but for different
+	  hardware. Please read <file:Documentation/watchdog/pcwd-watchdog.txt>. The PC
+	  watchdog cards can be ordered from <http://www.berkprod.com/>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pcwd.
+
+	  Most people will say N.
+
+config ACQUIRE_WDT
+	tristate "Acquire SBC Watchdog Timer"
+	depends on WATCHDOG
+	---help---
+	  This is the driver for the hardware watchdog on the PSC-6x86 Single
+	  Board Computer produced by Acquire Inc (and others).  This watchdog
+	  simply watches your kernel to make sure it doesn't freeze, and if
+	  it does, it reboots your computer after a certain amount of time.
+	  This driver is like the WDT501 driver but for different hardware.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called acquirewdt.
+
+	  Most people will say N.
+
+config ADVANTECH_WDT
+	tristate "Advantech SBC Watchdog Timer"
+	depends on WATCHDOG
+	help
+	  If you are configuring a Linux kernel for the Advantech single-board
+	  computer, say `Y' here to support its built-in watchdog timer
+	  feature.  See the help for CONFIG_WATCHDOG for discussion.
+
+config 21285_WATCHDOG
+	tristate "DC21285 watchdog"
+	depends on WATCHDOG && FOOTBRIDGE
+	help
+	  The Intel Footbridge chip contains a builtin watchdog circuit. Say Y
+	  here if you wish to use this. Alternatively say M to compile the
+	  driver as a module, which will be called wdt285.
+
+	  This driver does not work on all machines. In particular, early CATS
+	  boards have hardware problems that will cause the machine to simply
+	  lock up if the watchdog fires.
+
+	  "If in doubt, leave it out" - say N.
+
+config 977_WATCHDOG
+	tristate "NetWinder WB83C977 watchdog"
+	depends on WATCHDOG && FOOTBRIDGE && ARCH_NETWINDER
+	help
+	  Say Y here to include support for the WB977 watchdog included in
+	  NetWinder machines. Alternatively say M to compile the driver as
+	  a module, which will be called wdt977.
+
+	  Not sure? It's safe to say N.
+
+config SA1100_WATCHDOG
+	tristate "SA1100 watchdog"
+	depends on WATCHDOG && ARCH_SA1100
+	help
+	  Watchdog timer embedded into SA11x0 chips. This will reboot your
+	  system when timeout is reached.
+	  NOTE, that once enabled, this timer cannot be disabled.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sa1100_wdt.
+
+config EUROTECH_WDT
+	tristate "Eurotech CPU-1220/1410 Watchdog Timer"
+	depends on WATCHDOG
+	help
+	  Enable support for the watchdog timer on the Eurotech CPU-1220 and
+	  CPU-1410 cards.  These are PC/104 SBCs. Spec sheets and product
+	  information are at <http://www.eurotech.it/>.
+
+config IB700_WDT
+	tristate "IB700 SBC Watchdog Timer"
+	depends on WATCHDOG
+	---help---
+	  This is the driver for the hardware watchdog on the IB700 Single
+	  Board Computer produced by TMC Technology (www.tmc-uk.com). This watchdog
+	  simply watches your kernel to make sure it doesn't freeze, and if
+	  it does, it reboots your computer after a certain amount of time.
+
+	  This driver is like the WDT501 driver but for slightly different hardware.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ib700wdt.
+
+	  Most people will say N.
+
+config I810_TCO
+	tristate "Intel i8xx TCO timer / Watchdog"
+	depends on WATCHDOG
+	---help---
+	  Hardware driver for the TCO timer built into the Intel i8xx
+	  chipset family.  The TCO (Total Cost of Ownership) timer is a
+	  watchdog timer that will reboot the machine after its second
+	  expiration. The expiration time can be configured by commandline
+	  argument "i810_margin=<n>" where <n> is the counter initial value.
+	  It is decremented every 0.6 secs, the default is 50 which gives a
+	  timeout of 30 seconds and one minute until reset.
+
+	  On some motherboards the driver may fail to reset the chipset's
+	  NO_REBOOT flag which prevents the watchdog from rebooting the
+	  machine. If this is the case you will get a kernel message like
+	  "i810tco init: failed to reset NO_REBOOT flag".
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called i810-tco.
+
+config MIXCOMWD
+	tristate "Mixcom Watchdog"
+	depends on WATCHDOG
+	---help---
+	  This is a driver for the Mixcom hardware watchdog cards.  This
+	  watchdog simply watches your kernel to make sure it doesn't freeze,
+	  and if it does, it reboots your computer after a certain amount of
+	  time.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mixcomwd.
+
+	  Most people will say N.
+
+config SCx200_WDT
+	tristate "NatSemi SCx200 Watchdog"
+	depends on WATCHDOG
+	help
+	  Enable the built-in watchdog timer support on the National 
+	  Semiconductor SCx200 processors.
+
+	  If compiled as a module, it will be called scx200_watchdog.
+
+config 60XX_WDT
+	tristate "SBC-60XX Watchdog Timer"
+	depends on WATCHDOG
+	help
+	  This driver can be used with the watchdog timer found on some
+	  single board computers, namely the 6010 PII based computer.
+	  It may well work with other cards.  It reads port 0x443 to enable
+	  and re-set the watchdog timer, and reads port 0x45 to disable
+	  the watchdog.  If you have a card that behave in similar ways,
+	  you can probably make this driver work with your card as well.
+
+	  You can compile this driver directly into the kernel, or use
+	  it as a module.  The module will be called sbc60xxwdt.
+
+config W83877F_WDT
+	tristate "W83877F (EMACS) Watchdog Timer"
+	depends on WATCHDOG
+	---help---
+	  This is the driver for the hardware watchdog on the W83877F chipset
+	  as used in EMACS PC-104 motherboards (and likely others).  This
+	  watchdog simply watches your kernel to make sure it doesn't freeze,
+	  and if it does, it reboots your computer after a certain amount of
+	  time.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called w83877f_wdt.
+
+	  Most people will say N.
+
+config W83627HF_WDT
+	tristate "W83627HF Watchdog Timer"
+	depends on WATCHDOG
+	---help---
+	  This is the driver for the hardware watchdog on the W83627HF chipset
+	  as used in Advantech PC-9578 and Tyan S2721-533 motherboards
+	  (and likely others).  This watchdog simply watches your kernel to
+	  make sure it doesn't freeze, and if it does, it reboots your computer
+	  after a certain amount of time.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called w83627hf_wdt.
+
+	  Most people will say N.
+
+config MACHZ_WDT
+	tristate "ZF MachZ Watchdog"
+	depends on WATCHDOG
+	---help---
+	  If you are using a ZF Micro MachZ processor, say Y here, otherwise
+	  N.  This is the driver for the watchdog timer builtin on that
+	  processor using ZF-Logic interface.  This watchdog simply watches
+	  your kernel to make sure it doesn't freeze, and if it does, it
+	  reboots your computer after a certain amount of time.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called machzwd.
+
+config SC520_WDT
+	tristate "AMD Elan SC520 processor Watchdog"
+	depends on WATCHDOG
+	help
+	  This is the driver for the hardware watchdog built in to the
+	  AMD "Elan" SC520 microcomputer commonly used in embedded systems.
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
+	
+	  You can compile this driver directly into the kernel, or use
+	  it as a module.  The module will be called sc520_wdt.
+
+config AMD7XX_TCO
+	tristate "AMD 766/768 TCO Timer/Watchdog"
+	depends on WATCHDOG
+	help
+	  This is the driver for the hardware watchdog built in to the
+	  AMD 766/768 chipsets.
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
+	
+	  You can compile this driver directly into the kernel, or use
+	  it as a module.  The module will be called amd7xx_tco.
+
+config ALIM7101_WDT
+	tristate "ALi M7101 PMU Computer Watchdog"
+	depends on WATCHDOG
+	help
+	  This is the driver for the hardware watchdog on the ALi M7101 PMU
+	  as used in the x86 Cobalt servers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called alim7101_wdt.
+
+	  Most people will say N.
+
+config ALIM1535_WDT
+	tristate "ALi M1535 PMU Watchdog Timer"
+	depends on WATCHDOG
+	---help---
+	  This is the driver for the hardware watchdog on the ALi M1535 PMU.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called alim1535_wdt.
+
+	  Most people will say N.
+
+config SC1200_WDT
+	tristate "National Semiconductor PC87307/PC97307 (ala SC1200) Watchdog"
+	depends on WATCHDOG
+	help
+	  This is a driver for National Semiconductor PC87307/PC97307 hardware
+	  watchdog cards as found on the SC1200. This watchdog is mainly used
+	  for power management purposes and can be used to power down the device
+	  during inactivity periods (includes interrupt activity monitoring).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sc1200wdt.
+
+	  Most people will say N.
+
+config WAFER_WDT
+	tristate "ICP Wafer 5823 Single Board Computer Watchdog"
+	depends on WATCHDOG
+	help
+	  This is a driver for the hardware watchdog on the ICP Wafer 5823
+	  Single Board Computer (and probably other similar models).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wafer5823wdt.
+
+config CPU5_WDT
+	tristate "SMA CPU5 Watchdog"
+	depends on WATCHDOG
+	---help---
+	  TBD.
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpu5wdt.
+
+endmenu
