@@ -64,8 +64,7 @@ ENTRY(_cplb_mgr)
 
 	P0.L = (ICPLB_DATA0 & 0xFFFF);
 	P0.H = (ICPLB_DATA0 >> 16);
-
-
+	CSYNC;
 	R4 = [P4];		/* Get faulting address*/
 	R6 = 64;		/* Advance past the fault address, which*/
 	R6 = R6 + R4;		/* we'll use if we find a match*/
@@ -77,6 +76,7 @@ isearch:
 	R2 = 0x100;
 	R2 = R1 - R2;
 	P3 = R2;
+	CSYNC;
 	R1 = [P3];
 	
 	R0 = [P0++];		/* Info for this CPLB*/
@@ -111,14 +111,14 @@ isearch_done:
 	P4.H = (IMEM_CONTROL >> 16);
 
 	/* disable cplbs */
-	
+	CSYNC;
 	R5 = [P4];		/* Control Register*/
 	BITCLR(R5,1);
 	CLI R1;
 	.align 8;
 	CSYNC;
 	[P4] = R5;
-	CSYNC;
+	SSYNC;
 	STI R1;
 
 	R1 = -1;		/* end point comparison */
@@ -127,6 +127,7 @@ isearch_done:
 	/* Search through CPLBs for first non-locked entry */
 	/* Overwrite it by moving everyone else up by 1 */
 icheck_lock:
+	CSYNC;
 	R0 = [P0++];
 	R3 = R3 + R1;
 	CC = R3 == R1;
@@ -139,11 +140,13 @@ icheck_lock:
 ifound_victim:
 	LC0=R3;
 	LSETUP(is_move,ie_move) LC0;
-is_move: R0 = [P0];
+is_move:CSYNC; 
+	R0 = [P0];
 	[P0 - 4] = R0;
-	 R0 = [P0 - 0x100];
+	SSYNC;
+	R0 = [P0 - 0x100];
 	[P0-0x104] = R0; 
-	CSYNC;
+	SSYNC;
 ie_move:P0+=4;
 	
 	/* We've made space in the ICPLB table, so that ICPLB15
@@ -204,8 +207,9 @@ inext:	R4 = [P2++];	/* address from config table */
 	P1.L = (ICPLB_DATA15 & 0xFFFF);		/*ICPLB_DATA15*/
 	P1.H = (ICPLB_DATA15 >> 16);
 	[P1] = R2;
+	SSYNC;
 	[P1-0x100] = R4;
-	CSYNC;
+	SSYNC;
 
 	/* P4 points to IMEM_CONTROL, and R5 contains its old
 	 * value, after we disabled ICPLBS. Re-enable them.
@@ -215,7 +219,7 @@ inext:	R4 = [P2++];	/* address from config table */
 	CLI R2;
 	.align 8;
 	[P4] = R5;
-	CSYNC;
+	SSYNC;
 	STI R2;
 
 	( R7:0,P5:0 ) = [SP++];
@@ -249,6 +253,7 @@ dcplb_write:
 	P4.H = (DCPLB_STATUS >> 16);
 	P3.L = (DCPLB_DATA0 & 0xFFFF);
 	P3.H = (DCPLB_DATA0 >> 16);
+	CSYNC;
 	R5 = [P4];	
 
 	/* A protection violation can be caused by more than just writes
@@ -272,6 +277,7 @@ dcplb_write:
 	R3 = R3 - R2;
 	P4 = R3;
 	P3 = P3 + (P4<<2);
+	CSYNC;
 	R3 = [P3];	/* Retrieve the CPLB*/
 
 	/* Now we can check whether it's a clean WB page*/
@@ -295,7 +301,7 @@ dcplb_write:
 
 	BITSET(R3, 7);		/* mark as dirty*/
 	[P3] = R3;		/* and write back.*/
-	CSYNC;
+	SSYNC;
 	( R7:0,P5:0 ) = [SP++];
 	R0 = CPLB_RELOADED;
 	RTS;
@@ -312,6 +318,7 @@ dcplb_miss_compare:
 
 	P4.L = (DCPLB_FAULT_ADDR & 0xFFFF);
 	P4.H = (DCPLB_FAULT_ADDR >> 16);
+	CSYNC;
 	R4 = [P4];
 	I0 = R4;
 
@@ -323,7 +330,7 @@ dcplb_miss_compare:
 
 	P4.L = (DMEM_CONTROL & 0xFFFF);
 	P4.H = (DMEM_CONTROL >> 16);
-
+	CSYNC;
 	R5 = [P4];
 	BITCLR(R5,1);
 	CLI R0;
@@ -349,11 +356,13 @@ sdsearch1:
 	P0 = I1;		/* Go back to start of table*/
 	LSETUP (sdsearch2, edsearch2) LC1 = P2;
 sdsearch2:
+	CSYNC;
 	R1 = [P0++];		/* Fetch each installed CPLB in turn*/
 	R2 = R1 & R0;		/* and test for interesting bits.*/
 	CC = R2 == 0;		/* If none are set, it'll do.*/
 	IF !CC JUMP skip_stack_check;
 
+	CSYNC;
 	R2 = [P0 - 0x104]; 	/* R2 - PageStart */
 	P3.L = page_size_table; /* retrive end address */
 	P3.H = page_size_table; /* retrive end address */
@@ -404,17 +413,15 @@ dfound_victim:
 	CC = BITTST(R1, 14);	/* Is it Write-Through?*/
 	IF CC JUMP Ddoverwrite;	/* Yep*/
 
-
 	/* This is a dirty page, so we need to flush all writes
 	 * that are pending on the page.
 	 */
 
 	/* Retrieve the page start address*/
+	CSYNC;
         R0 = [P0 - 0x104];
 
-	LINK 12;
 	CALL dcplb_flush;	/* R0==CPLB addr, R1==CPLB data*/
-	UNLINK;
 Ddoverwrite:
 
 	/* [P0-4] is a suitable victim CPLB, so we want to
@@ -436,11 +443,13 @@ Ddoverwrite:
 	R1 >>= 2;
 	P1 = R1;
 	LSETUP(ds_move, de_move) LC0=P1;
-ds_move: R0 = [P0++];	/* move data */
+ds_move:CSYNC;
+	 R0 = [P0++];	/* move data */
 	[P0 - 8] = R0;
+	CSYNC;
 	R0 = [P0-0x104]	/* move address */
 de_move: [P0-0x108] = R0;
-
+	SSYNC;
 
 	/* We've now made space in DCPLB15 for the new CPLB to be
 	 * installed. The next stage is to locate a CPLB in the
@@ -512,8 +521,9 @@ dnext:	R4 = [P2++];	/* address */
 	IF !CC R2 = R6;
 
 	[P1] = R2;
+	SSYNC;
 	[P1-0x100] = R4;
-	CSYNC;
+	SSYNC;
 
 	/* We've installed the CPLB, so re-enable CPLBs. P4
 	 * points to DMEM_CONTROL, and R5 is the value we
