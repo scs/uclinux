@@ -409,6 +409,16 @@ void do_irq(int vec, struct pt_regs *fp)
 	}
 }
 
+unsigned long probe_irq_on (void)
+{
+	return 0;
+}
+
+int probe_irq_off (unsigned long irqs)
+{
+	return 0;
+}
+
 int show_interrupts(struct seq_file *p, void *v)
 {
 	int i = *(loff_t *) v;
