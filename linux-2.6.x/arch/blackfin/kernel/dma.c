@@ -221,20 +221,33 @@ DMA_RESULT request_dma(unsigned int channel,const char* device_id,
 			enable_irq (IRQ_PPI);
 			break;
 		case CH_SPORT0_RX:
-		case CH_SPORT0_TX:
-			ret_irq = request_irq(IRQ_SPORT0, (void *)dma_interrupt,
-					SA_INTERRUPT, "sport0-dma", NULL);
+			ret_irq = request_irq(IRQ_SPORT0_RX, (void *)dma_interrupt,
+					SA_INTERRUPT, "sport0_rx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_SPORT0);
+			enable_irq (IRQ_SPORT0_RX);
 			break;
-		case CH_SPORT1_RX:
-		case CH_SPORT1_TX:
-			ret_irq = request_irq(IRQ_SPORT1, (void *)dma_interrupt,
-					SA_INTERRUPT, "sport1-dma", NULL);
+		case CH_SPORT0_TX:
+			ret_irq = request_irq(IRQ_SPORT0_TX, (void *)dma_interrupt,
+					SA_INTERRUPT, "sport0_tx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_SPORT1);
+			enable_irq (IRQ_SPORT0_TX);
+			break;
+
+		case CH_SPORT1_RX:
+			ret_irq = request_irq(IRQ_SPORT1_RX, (void *)dma_interrupt,
+					SA_INTERRUPT, "sport1_rx-dma", NULL);
+			if (ret_irq)
+				return ret_irq;
+			enable_irq (IRQ_SPORT1_RX);
+			break;
+		case CH_SPORT1_TX:
+			ret_irq = request_irq(IRQ_SPORT1_TX, (void *)dma_interrupt,
+					SA_INTERRUPT, "sport1_tx-dma", NULL);
+			if (ret_irq)
+				return ret_irq;
+			enable_irq (IRQ_SPORT1_TX);
 			break;
 		case CH_SPI:
 			ret_irq = request_irq(IRQ_SPI, (void *)dma_interrupt,
@@ -244,12 +257,18 @@ DMA_RESULT request_dma(unsigned int channel,const char* device_id,
 			enable_irq (IRQ_SPI);
 			break;
 		case CH_UART_RX:
-		case CH_UART_TX:
-			ret_irq	= request_irq(IRQ_UART, (void *)dma_interrupt,
-					SA_INTERRUPT, "uart-dma", NULL);
+			ret_irq	= request_irq(IRQ_UART_RX, (void *)dma_interrupt,
+					SA_INTERRUPT, "uart_rx-dma", NULL);
 			if (ret_irq)
 				return ret_irq;
-			enable_irq (IRQ_UART);
+			enable_irq (IRQ_UART_RX);
+			break;
+		case CH_UART_TX:
+			ret_irq	= request_irq(IRQ_UART_TX, (void *)dma_interrupt,
+					SA_INTERRUPT, "uart_tx-dma", NULL);
+			if (ret_irq)
+				return ret_irq;
+			enable_irq (IRQ_UART_TX);
 			break;
 		case CH_MEM_STREAM0_SRC:
 		case CH_MEM_STREAM0_DEST:
@@ -334,19 +353,22 @@ DMA_RESULT freedma(unsigned int channel)
 			disable_irq (IRQ_PPI);
 			break;
 		case CH_SPORT0_RX:
+			disable_irq (IRQ_SPORT0_RX);
 		case CH_SPORT0_TX:
-			disable_irq (IRQ_SPORT0);
+			disable_irq (IRQ_SPORT0_TX);
 			break;
 		case CH_SPORT1_RX:
+			disable_irq (IRQ_SPORT1_RX);
 		case CH_SPORT1_TX:
-			disable_irq (IRQ_SPORT1);
+			disable_irq (IRQ_SPORT1_TX);
 			break;
 		case CH_SPI:
 			disable_irq (IRQ_SPI);
 			break;
 		case CH_UART_RX:
+			disable_irq (IRQ_UART_RX);
 		case CH_UART_TX:
-			disable_irq (IRQ_UART);
+			disable_irq (IRQ_UART_TX);
 			break;
 		case CH_MEM_STREAM0_SRC:
 		case CH_MEM_STREAM0_DEST:
