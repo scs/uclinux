@@ -474,7 +474,7 @@ enum {
 		SMC_SELECT_BANK(2);\
 		mask = readb( ioaddr + IM_REG );\
 		mask &= ~(x);\
-		smc_writew( mask << 8, ioaddr + IM_REG ); \
+		smc_writew( mask << 8, ioaddr + INT_REG ); \
 }
 
 #else
