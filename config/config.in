@@ -657,7 +657,10 @@ endmenu
 mainmenu_option next_comment
 comment 'BusyBox'
 
-bool 'BusyBox'			CONFIG_USER_BUSYBOX_BUSYBOX
+comment 'For Configuartion goto user/busybox-1.00-rc3  type: make menuconfig'
+bool 'BusyBox 1.00-rc3'			CONFIG_USER_BUSYBOXNEW_BUSYBOXNEW
+
+bool 'BusyBox OLD'			CONFIG_USER_BUSYBOX_BUSYBOX
 
 if [ "$CONFIG_USER_BUSYBOX_BUSYBOX" = "y" ]; then
 	comment "Applets"
