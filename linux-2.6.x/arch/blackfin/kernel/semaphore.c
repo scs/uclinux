@@ -9,6 +9,8 @@
 
 #include <linux/sched.h>
 #include <asm/semaphore-helper.h>
+#include <linux/err.h>
+#include <linux/init.h>
 
 /*
  * Semaphores are implemented using a two-way counter:
@@ -93,7 +95,7 @@ void __up(struct semaphore *sem)
 	current->state = TASK_RUNNING;		\
 	remove_wait_queue(&sem->wait, &wait);
 
-void __down(struct semaphore * sem)
+void __sched __down(struct semaphore * sem)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
@@ -104,7 +106,7 @@ void __down(struct semaphore * sem)
 	DOWN_TAIL(TASK_UNINTERRUPTIBLE)
 }
 
-int __down_interruptible(struct semaphore * sem)
+int __sched __down_interruptible(struct semaphore * sem)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	int ret = 0;
