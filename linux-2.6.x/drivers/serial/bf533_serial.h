@@ -114,7 +114,6 @@ struct bf533_serial {
  */
 #define RS_EVENT_WRITE_WAKEUP	0
 #define RS_EVENT_READ		1
-#define RS_EVENT_WRITE		2
 
 #endif /* __KERNEL__ */
 #endif /* (_Bf533_SERIAL_H) */

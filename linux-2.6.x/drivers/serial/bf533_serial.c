@@ -379,18 +379,29 @@ unlock_and_exit:
 
 static void dma_transmit_chars(struct bf533_serial *info)
 {
-	/* tx_xcount > 0 means the dma is working now. */
-	if (tx_xcount) {
-		return;
-	}
-
 	spin_lock_bh(info->xmit_lock);
 
 	/* tx_xcount is rechecked here to make sure the dma won't be started again
 	 * if it is working now.
 	 */
 	if (tx_xcount) {
-		goto clear_and_return;
+		ACCESS_PORT_IER
+		if(*pUART_LSR&0x20) {
+			tx_xcount-=get_dma_curr_xcount(CH_UART_TX);
+			ACCESS_PORT_IER
+			*pUART_IER &= ~ETBEI;
+			SYNC_ALL;
+			disable_dma(CH_UART_TX);
+			tx_xcount-=4;
+			if(tx_xcount<0)
+				tx_xcount=0;
+			info->xmit_tail += tx_xcount;
+			info->xmit_tail %= SERIAL_XMIT_SIZE;
+			info->xmit_cnt -= tx_xcount;
+			tx_xcount = 0;
+		}
+		else
+			goto clear_and_return;
 	}
 
 	if (info->x_char) { /* Send next char */
@@ -410,29 +421,21 @@ static void dma_transmit_chars(struct bf533_serial *info)
 	/* Only use dma to transfer data when count > 1.
 	 * Add 4 to the count before start dma, this is a walkarround to a dma hardware bug.
 	 */
-	if(tx_xcount>3) {
-		local_put_char(info->xmit_buf[info->xmit_tail++]);
-		local_put_char(info->xmit_buf[info->xmit_tail++]);
-		info->xmit_cnt-=2;
-		tx_xcount-=2;
-
+	if(tx_xcount>1) {
 		flush_dcache_range((int)(info->xmit_buf+info->xmit_tail), (int)(info->xmit_buf+info->xmit_tail+tx_xcount-1));
 		set_dma_config(CH_UART_TX, set_bfin_dma_config(DIR_READ, FLOW_STOP, INTR_ON_BUF, DIMENSION_LINEAR, DATA_SIZE_8));
 		set_dma_start_addr(CH_UART_TX, (unsigned long)(info->xmit_buf+info->xmit_tail));
 		set_dma_x_count(CH_UART_TX, tx_xcount);
-				
-		enable_dma(CH_UART_TX);
 		ACCESS_PORT_IER
+		SYNC_ALL;
+		enable_dma(CH_UART_TX);
 		*pUART_IER |= ETBEI;
 		SYNC_ALL;
 	}
 	else {
-		while(tx_xcount>0) {
-			local_put_char(info->xmit_buf[info->xmit_tail++]);
-			info->xmit_tail %= SERIAL_XMIT_SIZE;
-			info->xmit_cnt--;
-			tx_xcount--;
-		}
+		local_put_char(info->xmit_buf[info->xmit_tail++]);
+		info->xmit_tail %= SERIAL_XMIT_SIZE;
+		info->xmit_cnt--;
 		tx_xcount = 0;
 
 		if (info->xmit_cnt < WAKEUP_CHARS)
@@ -625,9 +628,6 @@ static void do_softint(void *private_)
 		wake_up_interruptible(&tty->write_wait);
 	}
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
-        if (test_and_clear_bit(RS_EVENT_WRITE, &info->event)) {
-		dma_transmit_chars(info);
-      }
         if (test_and_clear_bit(RS_EVENT_READ, &info->event)) {
                 dma_receive_chars(info, 0);
       }
@@ -761,7 +761,7 @@ static int startup(struct bf533_serial * info)
 	 */                         
         info->dma_timer.data = (unsigned long)info;
         info->dma_timer.function = (void *)uart_dma_timer;
-        info->dma_timer.expires = jiffies + TIME_INTERVAL*4;
+        info->dma_timer.expires = jiffies + TIME_INTERVAL;
         add_timer(&info->dma_timer);
 #endif
 
@@ -914,8 +914,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
 	if(tx_xcount>0) {
-		info->event |= 1 << RS_EVENT_WRITE;
-		schedule_work(&info->tqueue);
+	        mod_timer(&info->dma_timer, jiffies);
 	}
 #else
 		local_irq_save(flags);
@@ -975,8 +974,7 @@ static int rs_write(struct tty_struct * tty, int from_user,
 	if (info->xmit_cnt && !tty->stopped && !tty->hw_stopped) {
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
 		if (tx_xcount > 0 && info->xmit_head == 0) {
-			info->event |= 1 << RS_EVENT_WRITE;
-			schedule_work(&info->tqueue);
+		        mod_timer(&info->dma_timer, jiffies);
 		}
 #else
 		/* Enable transmitter */
@@ -1526,7 +1524,7 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 irqreturn_t uart_rxdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 {
 	struct bf533_serial *info;
-
+	
 	clear_dma_irqstat(CH_UART_RX);
 	info = &bf533_soft;
 	info->event |= 1 << RS_EVENT_READ;
@@ -1537,8 +1535,11 @@ irqreturn_t uart_rxdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 irqreturn_t uart_txdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 {
 	struct bf533_serial *info;
+	unsigned int irqstat;
 
-	if((*pUART_LSR & THRE) && tx_xcount>0) {
+	irqstat = get_dma_curr_irqstat(CH_UART_TX);
+	
+	if(irqstat&1 && !(irqstat&8) && tx_xcount>0) {
 		ACCESS_PORT_IER
 		*pUART_IER &= ~ETBEI;
 		SYNC_ALL;
@@ -1551,8 +1552,7 @@ irqreturn_t uart_txdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 		tx_xcount = 0;
 		
 		if(info->xmit_cnt > 0) {
-			info->event |= 1 << RS_EVENT_WRITE;
-			schedule_work(&info->tqueue);
+		        mod_timer(&info->dma_timer, jiffies);
 		}
 
 		if (info->xmit_cnt < WAKEUP_CHARS)
@@ -1673,7 +1673,6 @@ static int __init rs_bf533_init(void)
 		panic("Unable to attach BlackFin UART TX DMA channel\n");
 	else 
 	     set_dma_callback(CH_UART_TX,uart_txdma_done,NULL);
-	
 #endif	
 	
 	printk("Enabling Serial UART Interrupts\n");
