@@ -1,23 +1,23 @@
 /*****************************************************************************
 **																			**
-**	 Project Name: Frame Buffer Driver For uClinux for BF533	
+**	 Project Name: 	Video_Output											**	
 **																			**
 ******************************************************************************
 
-(C) Copyright 2005 - Rrap Softwares Pvt. Ltd.
+(C) Copyright 2003 - Analog Devices, Inc.  All rights reserved.
 
-File Name:		bfin_ad7171fb_config.S		
+File Name:		config_dma.asm
 
-Date Modified:		6th Jan 2005	
+Date Modified:	4/4/03		CL		Rev 1.0
+
+Software:       VisualDSP++3.1
 
 Hardware:		ADSP-BF533 EZ-KIT Board
 
-Special Connections:  	None
+Special Connections:  None
 
-Purpose:		For video driver this file provide functions for 
-			Configuring various devices for video driver purpose. 
-			It defines some data buffers also.		
-		
+Purpose:		This config_dma.asm file sets up DMA0 (PPI DMA) for transmit,
+				2D, autobuffer transfers from SDRAM memory to the PPI port.
 				
 ******************************************************************************/
 
@@ -60,7 +60,6 @@ _dma_descriptor:
 ._dma_descriptor.end:
 .global _dma_descriptor;
 .type _dma_descriptor, STT_OBJECT ;
-
 .section .text;
 _config_dma:
 .align 4
@@ -196,8 +195,20 @@ _Flash_Setup_ADV_Reset:
 Flash_Setup_ADV_Reset.END:
 
 /******COLOR PATTERNS AND OTHER DATA BUFFERS*******/
+/*.section .video_buffer,"aw",@progbits;
+rgb_buffer:
+.space 0x200000 ;	//we dont need this much of space actually, but to keep rgb and ycrcb buffers apart i am putting extra space
+.global rgb_buffer ;
+.type rgb_buffer, STT_OBJECT ;
+rgb_buffer.end:
+.align 4 ;
+ycrcb_buffer:
+.space 1512000 ;
+.global ycrcb_buffer;
+.type ycrcb_buffer, STT_OBJECT ;
+ycrcb_buffer.end:
+*/
 .section .data
-
 .global _rgb_buffer;
 .type _rgb_buffer, STT_OBJECT ;
 _rgb_buffer:
@@ -286,6 +297,7 @@ YCrCbLine:
 .global RGBLineCache;
 .global YCrCbLine;
 
+.section .data;
 .global _SystemCodeMap;
 _SystemCodeMap:
 .byte4 0xFF000080;
@@ -349,8 +361,6 @@ _NtscVideoOutFrameBuffInit:
         [--sp] = astat;
 
 
-//      P0.h = 0x0000;
-//      P0.l = 0x0000;
         // R0 has destination buffer
         // R1 has source RGB buffer
         P0.h = _rgb_buffer;
@@ -395,8 +405,10 @@ ntscoutputlineend_init:
         r0 += 1;                //increment line number
 ntscoutputfieldend_init:
         nop;
-
         astat = [sp++];
+//R0.l = debug_video;
+//R0.h = (debug_video>>16);
+//call printk;
         (r7:3, p5:0) = [sp++];
         rets = [sp++];
         rts;
@@ -763,390 +775,78 @@ memcpy_dma_wait :
 //              Uses L1 RAM to create a line copying source to L1
 //              using memdma, processing in L1 and then
 //              transfers the result to the final destination using MemDMA
-_NtscVideoOutBuffUpdate:
-
-	[--sp] = rets;
-	[--sp] = (r7:3, p5:0);
-	[--sp] = astat;
 
 
-	// R0 has destination buffer
-	// R1 has source RGB buffer
-	P0.h = _rgb_buffer;
-	P0.l = _rgb_buffer;
-	[P0] = R1; 					// save into static variable
-	R2 = 1440;
-	P0.h = _cycrcbbuffer;		
-	P0.l = _cycrcbbuffer;
-	R1 = R1 + R2;				
-	[P0] = R1;					// save into static variable
-	P0 = R0;
 
+.align 2
+_rgb2crcb:
+	LINK 0;
+	R3 = R2;
+	R2 = R0.B (Z);
+	[--sp] = ( r7:4 );
 
-	// load base of system code map in P5
-	P5.h = _SystemCodeMap;
-	P5.l = _SystemCodeMap;
+	R6 = R3.B (Z);
+	R7 = R2;
+	R5 = R1.B (Z);
+	P2 = R6;
+	R7 <<= 5;
+	R7 = R7 + R2;
+	R0 = R5;
+	R7 <<= 3;
+	R0 <<= 7;
+	R0 = (R0 + R5) << 2;
+	R7 = R7 - R2;
+	R7 = R7 + R0;
+	P2 = P2 + (P2 << 1);
+	R0 = P2;
+	R0 <<= 3;
+	R0 = (R0 + R6) << 2;
+	R7 = R7 + R0;
+	R0 = 16384 (X);
+	R7 = R7 + R0;
+	R0 = -152 (X);
+	R1 = -298 (X);
+	R1 *=R5;
+	R0 *=R2;
+	R3 = R6;
+	R0 = R0 + R1;
+	R3 <<= 3;
+	R1 = R3 - R6;
+	R1 <<= 5;
+	R1 = (R1 + R6) << 1;
+	R0 = R0 + R1;
+	R1 = R2;
+	R1 <<= 3;
+	R1 = R1 - R2;
+	R1 <<= 5;
+	R1 = (R1 + R2) << 1;
+	R2 = -377 (X);
+	R3 = R3 + R6;
+	R5 *=R2;
+	R3 <<= 3;
+	R1 = R1 + R5;
+	R3 = R3 + R6;
+	R4 = 1 (X);
+	R4 <<= 17;
+	R1 = R1 - R3;
+	R7 >>>= 10;
+	R0 = R0 + R4;
+	R1 = R1 + R4;
+	R2 = R7;
+	R1 >>>= 10;
+	R0 >>>= 10;
+	R1 <<= 10;
+	R0 <<= 24;
+	R2 <<= 16;
+	R0 = R0 | R2;
+	R1 >>>= 2;
+	R0 = R0 | R1;
+	R0 = R0 | R7;
+	( r7:4 ) = [sp++];
 
-	// load base of ntsc line map in P4
-	P4.h = _NtscLineMap;
-	P4.l = _NtscLineMap;
-
-	//number of frames ->  NUM_FRAMES
-	p2 = NUM_OF_VOUT_FRAMES;
-	LSETUP(ntscoutputfieldstart, ntscoutputfieldend) LC0 = P2;
-
-ntscoutputfieldstart:
-	P2.h = _cycrcbbuffer;
-	P2.l = _cycrcbbuffer;
-	R0 = [P2];
-	P2.h = _rgb_buffer;
-	P2.l = _rgb_buffer;
-	[P2] = R0;
-	
-	r0 = 1;			//line #1
-
-	//number of lines ->  525
-	P2 = 262; // interlaced, so we go through twice
-	LSETUP(ntscoutputlinestart, ntscoutputlineend) LC1 = P2;
-ntscoutputlinestart:
-.ALIGN 4 ;
-	call NtscOutputLine;
-ntscoutputlineend:
-	r0 += 1;		//increment line number
-ntscoutputfieldend:
-	nop;
-
-	astat = [sp++];
-	(r7:3, p5:0) = [sp++];
-	rets = [sp++];
+	UNLINK;
 	rts;
-  
-// Routine : NtscOutputLine 
-// Parameters : R0 : Line number
-//              R1 : Offset in RGB Buffer
-// Abstract : Output a NTSC line. 
-NtscOutputLine:
-	[--sp] = rets;
-	[--sp] = lc0;
-	[--sp] = lb0;
-	[--sp] = lt0;
-	[--sp] = lc1;
-	[--sp] = lb1;
-	[--sp] = lt1;
-
-#ifdef SLOW_DOWN
-	// slow down line output ... flicker reduces
-	// ideally send line output to L1ram and do
-	// a mem dma to transfer to real output
-	[--sp] = P1;	
-	P1.l = 0x0000;
-	p1.h = 0x0100;
-	LSETUP(WAIT_1, WAIT_2) LC0 = P1;
-WAIT_1 : nop;
-WAIT_2 : nop;
-	p1 = [sp++];
-	// end slow down
-#endif // SLOW_DOWN
-
-// determine if this is a VBlank line
-	R1 = R0>>5;       	// get offset (divide line number by 32)
-	R1 = R1<<2;       	// multiply by 4 for word access
-	P2 = R1;          	// move computed offset to P register
-	R3 = 0x1F;        	// prepare mask
-	nop;nop;
-	P1 = P4 + P2;     	// add offset to P1
-	R2 = [P1];   		// get line mask word
-	R1 = R0 & R3;     	// get bit offset in line mask word
-	R2 >>= R1;        	// shift to get flag in bit 0
-	CC = BITTST(R2 , 0); // test bit 0
-	R2 = 0;           	// default add 0 to P3
-	R3 = 12;           	// prepare to add 8 to P3
-	if CC R2 = R3;    	// if CC this is vertical blanking so add 8 to P3
-	P2 = R2;          	// move offset in P2
-// see below for final offset in P3
-
-// determine which field we are outputing
-	R1 = 266;         	// line number where we are changing field (266)
-	CC = R1<R0;       	// test line to see if this field 1 or 2
-	R3 = 24;          	// offset to add to P3 if this is field 2
-	P3 = P5 + P2;     	// finally add to P3
-	R2 = 0;           	// by default don't offset P3
-	if CC R2 = R3;    	// if CC this is field 2
-
-	R1 = 3;           	// line number where we are changing field (3)
-	CC = R0<R1;       	// test line to see if this field 1 or 2
-	if CC R2 = R3;    	// if CC this is field 2
-
-	P2 = R2;          	// move offset in P2
-	nop;nop;nop;
-	P3 = P3 + P2;     	// finally add to P3
-// **************** OUTPUT EAV ******************
-    
-	R1 = [P3 + 4];  	// load EAV code , see down for storage
 #if 0
-	[P0++] = R1;    	// store EAV in FIFO
-#else
-#ifdef UPDATE
-	p0 += 4;				// would it increment by 4
-#else
-	r2 = r1 >> 24;
-	b[p0++] = r2;
-	r2 = r1 >> 16;
-	b[p0++] = r2;
-	r2 = r1 >> 8;
-	b[p0++] = r2;
-	b[p0++] = r1;
-#endif
-#endif	
-// ***************** OUTPUT HORIZONTAL BLANKING ***************
-// store blank data information
-	R1.h = 0x8010;
-	R1.l = 0x8010;
-  
-//number of sample to output 134/2
-#if 0
-	P2 = 67; 
-	LSETUP(ntscoutputblank1, ntscoutputBlank1) LC0 = P2;
-ntscoutputblank1:
-	[P0++] = R1;
-#else
-#ifdef UPDATE
-	p2 = 268;
-	p0 = p0 + p2; // would it multiply by 4?
-#else
-	P2 = 67; 
-	LSETUP(ntscoutputblank1_s, ntscoutputblank1_e) LC0 = P2;
-ntscoutputblank1_s:
-	r2 = r1 >> 24;
-	b[p0++] = r2;
-	r2 = r1 >> 16;
-	b[p0++] = r2;
-	r2 = r1 >> 8;
-	b[p0++] = r2;
-ntscoutputblank1_e:	b[p0++] = r1;	
-#endif
-#endif	
-  
-// **************** OUTPUT SAV ******************
-	R2 = [P3 + 8];      // load video output flag
-	R1 = [P3];          // load SAV code, see down for storage
-	CC = BITTST(R2, 0); // test bit 0 to know if we have to output some video
-#if 0
-	[P0++] = R1;        // output SAV in FIFO
-#else
-#ifdef UPDATE
-	p0 += 4;				// would it increment by 4
-#else
-	r2 = r1 >> 24;
-	b[p0++] = r2;
-	r2 = r1 >> 16;
-	b[p0++] = r2;
-	r2 = r1 >> 8;
-	b[p0++] = r2;
-	b[p0++] = r1;	
-#endif
-#endif	
-	IF CC JUMP NtscOutputColorBarLine;   
-  
-// ***************** OUTPUT EMPTY HORIZONTAL DATA ***************
-// store blanking information
-	R1.h = 0x8010;
-	R1.l = 0x8010;
-  
-//number of sample to output 720/2
-#if 0
-	P2 = 360;
-	LSETUP(ntscoutputblank2, ntscoutputblank2) LC0 = P2;
-ntscoutputblank2:
-	[P0++] = R1; 
-#else
-#ifdef UPDATE
-	P2 = 1440; 
-	P0 = p0 + P2;			// would it multiply by 4?
-#else
-	P2 = 360; 
-	LSETUP(ntscoutputblank2_s, ntscoutputblank2_e) LC0 = P2;
-ntscoutputblank2_s:
-	r2 = r1 >> 24;
-	b[p0++] = r2;
-	r2 = r1 >> 16;
-	b[p0++] = r2;
-	r2 = r1 >> 8;
-	b[p0++] = r2;	
-ntscoutputblank2_e:	b[p0++] = r1;	
-#endif
-#endif	
-    
-//	r1  = [sp++];
-	lt1 = [sp++];
-	lb1 = [sp++];
-	lc1 = [sp++];
-	lt0 = [sp++];
-	lb0 = [sp++];
-	lc0 = [sp++];
-	rets = [sp++];
-	rts;
-
-NtscOutputColorBarLine:
-#ifdef REAL_DATA
-// ***************** OUTPUT REFERENCE COLOR HORIZONTAL DATA **************
-	// R0 has the line number
-	// P0 has the destination buffer
-	
-	P2.L = _rgb_buffer;
-	P2.H = _rgb_buffer;
-	P3 = [P2];
-	P1 = 2880; // 360 * 4 * 2 for alternate lines
-	P3 = P3 + P1;
-	[P2] = P3;
-	// P3 now has the source rgb line
-	
-	[--sp]=(P5:1);
-	[--SP]=(R7:0);
-#define MEM_DMA 1
-#ifdef MEM_DMA
-	[--sp] = P0;
-	R0.L = YCrCbLine; 
-	R0.H = YCrCbLine; 
-	//R0.H = 0xff80;
-	P0 = R0; // now P0 has the L1 destination buffer
-	
-	R0.L = RGBLineCache;
-	R0.H = RGBLineCache;
-	//R0.H = 0xff80;
-	// MemDMA the source rgb line to L1 RAM
-	
-	R1 = P3;			// source and destination same??? TODO Moved from below, verify
-	P3 = R0;			// P3 has the L1 source buffer in L1
-	R2 = 1440;
-	call _DmaMemCpy;
-#endif	
-	P2 = 360;
-	LSETUP(ntsclinestart, ntsclineend) LC0 = P2;
-ntsclinestart :
-	// now convert to YCrCb
-	R3 = 0xff;
-	R0 = [p3++];
-	R1 = R0 >> 16;
-	R1 = R1 & R3;
-	R2 = R0 >> 24;
-	R2 = R2 & R3;
-	R0 = R0 & R3;
-	[--sp] = P0;
-	[--sp] = P3;
-	sp += -12;
-	call _rgb2crcb; // conversion every pixel
-	sp += 12;
-	p3 = [sp++];
-	p0 = [sp++];
-	// result is in R0
- 
-	R1 = R0;
-//number of sample to output (720/8)/2
-	r2 = r1 >> 24;
-	b[p0++] = r2;
-	r2 = r1 >> 16;
-	b[p0++] = r2;
-	r2 = r1 >> 8;
-	b[p0++] = r2;	
-ntsclineend:b[p0++] = r1;	
-
-#ifdef MEM_DMA
-	// copy the L1 YCrCb into the memory
-	P0 = [sp++];
-	R0 = P0; // destination of our MEMDMA
-	// MemDMA the source rgb line to L1 RAM
-	R1.L = YCrCbLine;
-	R1.H = YCrCbLine; // source for our MEMDMA
-	//R1.H = 0xff80;
-	
-	R2 = 1440;
-	call _DmaMemCpy;
-#endif	
-
-	(R7:0)=[SP++];
-	(P5:1)=[sp++];
-	
-    
-	lt1 = [sp++];
-	lb1 = [sp++];
-	lc1 = [sp++];
-	lt0 = [sp++];
-	lb0 = [sp++];
-	lc0 = [sp++];
-	rets = [sp++];
-	rts;
-#else // !REAL_DATA 
-// ***************** OUTPUT REFERENCE COLOR HORIZONTAL DATA **************
-// get pointer to color bar table
-	P3.h = _ColorBarTable;
-	P3.l = _ColorBarTable;
-	
-//number of color bar
-	P2 = 8;
-	LSETUP(ntsccolorbarstart, ntsccolorbarend) LC0 = P2;
-ntsccolorbarStart:
-#if 0
-// get next color bar data
-	R1 = [P3++];
-#else
-	[--sp]=R0;
-	[--SP]=(R7:2);
-	[--sp]=(P5:0);
-	// now convert to YCrCb
-	R3 = 0xff;
-	R0 = [p3];
-	R1 = R0 >> 16;
-	R1 = R1 & R3;
-	R2 = R0 >> 24;
-	R2 = R2 & R3;
-	R0 = R0 & R3;
-	sp += -12;
-	call _rgb2crcb; // conversion only once per color change
-	sp += 12;
-	// result is in R0
- 
-	R1 = R0;
-	(P5:0)=[sp++];
-	(R7:2)=[SP++];
-	r0 = [sp++];
-	P3 += 4; 
-#endif  
-//number of sample to output (720/8)/2
-#if 0
-	P2 = 45;
-	LSETUP(ntscoutputcolorbardata, ntscoutputcolorbardata) LC1 = P2;
-ntscoutputcolorbardata:    
-	[P0++] = R1; 
-#else
-	P2 = 45; 
-	LSETUP(ntscoutputcolorbardata_s, ntscoutputcolorbardata_e) LC1 = P2;
-ntscoutputcolorbardata_s:
-	r2 = r1 >> 24;
-	b[p0++] = r2;
-	r2 = r1 >> 16;
-	b[p0++] = r2;
-	r2 = r1 >> 8;
-	b[p0++] = r2;	
-ntscoutputcolorbardata_e:b[p0++] = r1;	
-#endif	// REAL_DATA
-
-ntsccolorbarend:
-	NOP;
-    
-	lt1 = [sp++];
-	lb1 = [sp++];
-	lc1 = [sp++];
-	lt0 = [sp++];
-	lb0 = [sp++];
-	lc0 = [sp++];
-	rets = [sp++];
-	rts;
-
-#endif
-
-_NtscVideoOutBuffUpdate.END:
-
 _rgb2crcb:
 
 // ".\rgb2ycrcb.c" line 4 col 1
@@ -1264,4 +964,7 @@ _rgb2crcb:
 		unlink;
 
 		rts;
+#endif
 _rgb2crcb.end:
+.global _rgb2crcb;
+.type _rgb2crcb, STT_FUNC;
