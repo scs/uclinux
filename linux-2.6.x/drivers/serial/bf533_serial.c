@@ -247,20 +247,19 @@ extern void cache_delay(void);
 static void local_put_char(char ch)
 {
 	int flags = 0;
+	unsigned short status;
 
 	local_irq_save(flags);
-
-	while (!(*pUART_LSR & THRE)) {
+	
+	do{
+		status = *pUART_LSR; 
 		SYNC_ALL;
-	}
+	}while (!(status & THRE)); 
+
 	ACCESS_PORT_IER
 	*pUART_THR = ch;
 	SYNC_ALL;
 	
-/*	while (*pUART_LSR(hub2) & THRE) {
-		udelay(5);
-	}*/
-
 	local_irq_restore(flags);
 }
 /*
