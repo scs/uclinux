@@ -408,8 +408,8 @@ static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
 
 static inline void push_cache (unsigned long vaddr, unsigned int len)
 {
-	flush_dcache_range(vaddr, len);
-	flush_icache_range(vaddr, len);
+	flush_dcache_range(vaddr, vaddr + len);
+	blackfin_icache_flush_range(vaddr, vaddr + len);
 }
 
 static inline void *
@@ -571,7 +571,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 	case -ERESTARTNOINTR:
 	do_restart:
 		regs->r0 = regs->orig_r0;
-	/*	regs->pc -= 2;*/ /* if minus 2 correct	*/
+		regs->pc -= 2;
 		break;
 	}
 }
