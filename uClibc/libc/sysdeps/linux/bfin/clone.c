@@ -16,7 +16,7 @@ clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg)
      long rval;
       __asm__ __volatile__ ("r1 = %2;"
 		    "r0 = %3;"
-		    "r5 = __NR_clone;"
+		    "r5 = 0x78;"
 		    "excpt 0;"			/*Call sys_clone*/
 		    "%0  = r0;"
 		    "r0 = %4;"
