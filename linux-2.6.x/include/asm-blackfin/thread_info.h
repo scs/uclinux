@@ -15,6 +15,11 @@
 
 #ifdef __KERNEL__
 
+/* Thread Align Mask to reach to the top of the stack
+ * for any process 
+ */
+#define ALIGN_PAGE_MASK         0xffffe000
+
 #ifndef __ASSEMBLY__
 
 /*
