@@ -2,9 +2,7 @@
  * Copyright (C) 2003	Bas Vermeulen <bas@buyways.nl>
  * 			BuyWays B.V. (www.buyways.nl)
  *
- * Based heavily on:
- * blkfinserial.h: Definitions for the BlackFin DSP serial driver.
- *
+ * Copyright(c) 2004	LG Soft India
  * Copyright (C) 2001	Tony Z. Kou	tonyko@arcturusnetworks.com
  * Copyright (C) 2001   Arcturus Networks Inc. <www.arcturusnetworks.com>
  *
@@ -18,8 +16,23 @@
 #ifndef _Bf533_SERIAL_H
 #define _Bf533_SERIAL_H
 
-#include <linux/config.h>
-#include <linux/serial.h>
+#define CACHE_LINE_SIZE		32
+#define DMA_DI_ENABLE             0x0080
+#define DMA_WDSIZE_8              0x0000
+#define DMA_WNR                   0x0002
+#define DMA_ENABLE              0x0001
+struct dma_descriptor_block;
+                                                                                
+struct dma_descriptor_block
+{
+        struct dma_descriptor_block     *next;
+        void                            *start_addr;
+        unsigned short                  dma_config;
+        unsigned short                  x_count;
+        unsigned short                  x_modify;
+        unsigned short                  y_count;
+        unsigned short                  y_modify;
+} __attribute__ ((packed));
 
 /*
  * For the close wait times, 0 means wait forever for serial port to
@@ -57,10 +70,7 @@
 #define S_INITIALIZED		0x80000000 /* Serial port was initialized */
 #define S_CALLOUT_ACTIVE	0x40000000 /* Call out device is active */
 #define S_NORMAL_ACTIVE		0x20000000 /* Normal device is active */
-#define S_BOOT_AUTOCONF		0x10000000 /* Autoconfigure port on bootup */
 #define S_CLOSING		0x08000000 /* Serial port is closing */
-#define S_CTS_FLOW		0x04000000 /* Do CTS flow control */
-#define S_CHECK_CD		0x02000000 /* i.e., CLOCAL */
 
 /* Software state per channel */
 
@@ -81,45 +91,42 @@ struct bf533_serial {
 	 * loaded.
 	 */
 	int			magic;
-	int			hub2;
 	int			irq;
 	int			flags; 		/* defined in tty.h */
 
-	char soft_carrier;  /* Use soft carrier on this channel */
 	char break_abort;   /* Is serial console in, so process brk/abrt */
 	char is_cons;       /* Is this our console. */
 
-	unsigned char		clk_divisor; 
 	int			baud;
 	int			baud_base;
 	int			type; 		/* UART type */
 	struct tty_struct 	*tty;
-	int			read_status_mask;
-	int			ignore_status_mask;
-	int			timeout;
 	int			xmit_fifo_size;
+	int			recv_fifo_size;
 	int			custom_divisor;
 	int			x_char;	/* xon/xoff character */
 	int			close_delay;
 	unsigned short		closing_wait;
-	unsigned short		closing_wait2;
 	unsigned long		event;
-	unsigned long		last_active;
 	int			line;
 	int			count;	    /* # of fd on device */
 	int			blocked_open; /* # of blocked opens */
-	long			session; /* Session of opening process */
-	long			pgrp; /* pgrp of opening process */
+        struct dma_descriptor_block *xmit_desc;
 	unsigned char 		*xmit_buf;
 	int			xmit_head;
 	int			xmit_tail;
 	int			xmit_cnt;
+        unsigned char           *recv_buf;
+        int                     recv_head;
+        int                     recv_tail;
+        int                     recv_cnt;
+        struct timer_list       recv_timer;
+        spinlock_t              recv_lock;
 
 	struct work_struct	tqueue;
 	struct work_struct	tqueue_hangup;
-
 	struct termios		normal_termios;
-	struct termios		callout_termios;
+	
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
 };
@@ -131,6 +138,7 @@ struct bf533_serial {
  * time, instead of at rs interrupt time.
  */
 #define RS_EVENT_WRITE_WAKEUP	0
+#define RS_EVENT_READ		1
 
 #endif /* __KERNEL__ */
 #endif /* (_Bf533_SERIAL_H) */
