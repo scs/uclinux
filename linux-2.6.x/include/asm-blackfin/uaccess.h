@@ -18,8 +18,8 @@
 
 static inline int _access_ok(unsigned long addr, unsigned long size)
 {
-	extern unsigned long memory_start, memory_end;
-	return ((addr >= memory_start) && (addr+size < memory_end));
+	extern unsigned long memory_end;
+	return (addr+size < memory_end);
 
 } 
 
