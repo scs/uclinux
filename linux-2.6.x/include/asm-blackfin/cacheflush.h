@@ -12,6 +12,10 @@
 #include <linux/mm.h>
 #include <asm/cplb.h>
 
+extern void blackfin_icache_flush_range(unsigned int start, unsigned int end);
+extern void blackfin_dcache_flush_range(unsigned int start, unsigned int end);
+extern void blackfin_dcache_invalidate_range(unsigned int start, unsigned int end);
+
 #define flush_cache_all()			__flush_cache_all()
 
 #define flush_cache_mm(mm)			\
@@ -34,7 +38,10 @@
 			flush_cache_all();	\
 	} while (0)
 
-#define flush_icache_range(start,len)		__flush_cache_all()
+#define flush_icache_range(start,end)do {\
+blackfin_dcache_invalidate_range((start), (end));\
+blackfin_icache_flush_range((start), (end)); } while (0)
+
 #define flush_icache_page(vma,pg)		do { } while (0)
 #define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
 #define flush_cache_vmap(start, end)		flush_cache_all()
@@ -47,10 +54,11 @@
 
 extern void blackfin_dflush_page(struct page *);
 
-#define invalidate_dcache_range(s,e)	\
-	blackfin_dcache_invalidate_range(s,e)
-#define flush_dcache_range(start,len)	\
-	blackfin_dcache_invalidate_range(start, (start+len))		
+#define invalidate_dcache_range(start,end)\
+blackfin_dcache_invalidate_range((start), (end))
+#define flush_dcache_range(start,end)\
+blackfin_dcache_flush_range((start), (end))
+
 #define flush_dcache_page(page) 	blackfin_dflush_page(page)	
 
 static inline void flush_page_to_ram(struct page *page)
