@@ -73,8 +73,8 @@ static DMA_MAPPING mapping[] = {
 };
 #endif
 
-#define	MEM_DMA_TEST 0
-//#undef MEM_DMA_TEST
+//#define	MEM_DMA_TEST 0
+#undef MEM_DMA_TEST 
 
 static void inline enable_dma_stopmode(unsigned int);
 static void inline enable_dma_autobuffer(unsigned int);
@@ -392,7 +392,7 @@ int bfin_freedma(unsigned int channel, void *data)
 
 	/* Make sure the DMA channel will be stopped before free it */
 	disable_irq (bf533_channel2irq(channel) );
-//	free_irq(bf533_channel2irq(channel) ,data);
+	free_irq(bf533_channel2irq(channel) ,data);
 	
 	/* Clear the DMA Variable in the Channel*/
 	dma_ch[channel].last_descriptor = BASE_VALUE;
