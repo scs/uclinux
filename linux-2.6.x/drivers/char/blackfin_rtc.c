@@ -48,47 +48,21 @@
 
 #include <asm/irq.h>
 #include <asm/board/defBF533.h>
+#include <asm/board/cdefBF532.h>
 #include "blackfin_rtc.h"
 
-/*#define RTC_DEBUG*/
+#undef RTC_DEBUG
 
 #ifndef RTC_IRQ
 #define RTC_IRQ         IRQ_RTC
 #endif
 
-
-unsigned int ADSP_RTC_READ(unsigned int r)
-{
-    /* 32-bit transaction is not allowed - BFin*/
-    if((r == RTC_ISTAT ) || (r == RTC_ICTL))	{
-	/*Delay issues -- BFin*/
-	/*printk("");*/
-	asm("ssync;");
-    	return  *(volatile unsigned short *)r;
-    }
-    else	
-    	return  *(volatile unsigned int *)r;
-}
-
-void ADSP_RTC_WRITE(unsigned int val, unsigned int r)
-{
-    /* 16-bit transaction is not allowed - BFin*/
-    if((r == RTC_ALARM) || (r == RTC_STAT))	
-	    *(volatile unsigned long *)r = val;
-    else
-	    *(volatile unsigned short *)r = val;
-	
-}
-
 void wait_for_complete(void)
 {   
-    while(!(ADSP_RTC_READ(RTC_ISTAT) & 0x8000)) {
-	/*Delay issues -- BFin*/
+    while(!(*pRTC_ISTAT & 0x8000)) {
 	asm("ssync;");
-	/*printk("");*/
-      /*schedule();*/
     }
-    ADSP_RTC_WRITE(0x8000, RTC_ISTAT);
+	*pRTC_ISTAT = 0x8000;
 }
 
 /*
@@ -197,16 +171,17 @@ printk("rtc_interrupt\n");
       Does there need to clear the day alram flag ???
       rtc_irq_data |= (ADSP_RTC_READ(RTC_ISTAT) & 0x001f);
       Clear the H24 event flag ???*/
-    rtc_irq_data |= (ADSP_RTC_READ(RTC_ISTAT) & 0x000f);
+	rtc_irq_data |= (*pRTC_ISTAT & 0x000f);
+	
     
-    ADSP_RTC_WRITE(ADSP_RTC_READ(RTC_ISTAT), RTC_ISTAT);
+	*pRTC_ISTAT = *pRTC_ISTAT;
 
     if (rtc_status & RTC_TIMER_ON)
         mod_timer(&rtc_irq_timer, jiffies + HZ/rtc_freq + 2*HZ/100);
 
     /* update the global year, month, and RTC-day */
     if(rtc_irq_data & H24_EVT_FG)   {
-        cur_stat = ADSP_RTC_READ(RTC_STAT);
+	cur_stat = *pRTC_STAT;
         day = (cur_stat>>24) & 0xff;
 
         mon2 = 0;
@@ -225,9 +200,8 @@ printk("rtc_interrupt\n");
                 g_mon = 0;
             }
             if(day == 0)    {
-/*              cur_stat = (cur_stat&0x00ffffff) | (day<<24);*/
                 cur_stat = (cur_stat&0x00ffffff);
-                ADSP_RTC_WRITE(cur_stat, RTC_STAT);
+		*pRTC_STAT = cur_stat;
                 wait_for_complete();
             }
         }
@@ -335,40 +309,6 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         return 0;
     }
 
-#if 0  
-	/* do not support the periodic interrupt*/
-    case RTC_PIE_OFF:   /* Mask periodic int. enab. bit */
-    {
-        mask_rtc_irq_bit(RTC_PIE);
-        if (rtc_status & RTC_TIMER_ON) {
-            spin_lock_irq (&rtc_lock);
-            rtc_status &= ~RTC_TIMER_ON;
-            del_timer(&rtc_irq_timer);
-            spin_unlock_irq (&rtc_lock);
-        }
-        return 0;
-    }
-    case RTC_PIE_ON:    /* Allow periodic ints      */
-    {
-        /*
-         * We don't really want Joe User enabling more
-         * than 64Hz of interrupts on a multi-user machine.
-         */
-        if ((rtc_freq > 64) && (!capable(CAP_SYS_RESOURCE)))
-            return -EACCES;
-
-        if (!(rtc_status & RTC_TIMER_ON)) {
-            spin_lock_irq (&rtc_lock);
-            rtc_irq_timer.expires = jiffies + HZ/rtc_freq + 2*HZ/100;
-            add_timer(&rtc_irq_timer);
-            rtc_status |= RTC_TIMER_ON;
-            spin_unlock_irq (&rtc_lock);
-        }
-        set_rtc_irq_bit(RTC_PIE);
-        return 0;
-    }
-#endif
-    
     case RTC_UIE_OFF:   /* Mask ints from RTC updates.  */
     {
         mask_rtc_irq_bit(SEC_INT_EN);//???
@@ -428,8 +368,8 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         
         spin_lock_irq(&rtc_lock);
 
-        ADSP_RTC_WRITE((g_alarm_day<<DAY_BITS_OFF) | (hrs<<HOUR_BITS_OFF) | (min<<MIN_BITS_OFF)
-                       | (sec<<SEC_BITS_OFF), RTC_ALARM);
+        *pRTC_ALARM = ((g_alarm_day<<DAY_BITS_OFF) | (hrs<<HOUR_BITS_OFF) | (min<<MIN_BITS_OFF)
+                       | (sec<<SEC_BITS_OFF));
         wait_for_complete();
 
         spin_unlock_irq(&rtc_lock);
@@ -455,16 +395,11 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
             return -EFAULT;
 
         yrs = rtc_tm.tm_year + epoch;
-/*/      yrs = rtc_tm.tm_year;*/
         mon = rtc_tm.tm_mon + 1;   /* tm_mon starts at zero */
         day = rtc_tm.tm_mday;
         hrs = rtc_tm.tm_hour;
         min = rtc_tm.tm_min;
         sec = rtc_tm.tm_sec;
-
-
-/*      if (yrs < 1970)
-          return -EINVAL;*/
 
         leap_yr = ((!(yrs % 4) && (yrs % 100)) || !(yrs % 400));
 
@@ -493,8 +428,8 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         g_last_day = 0;
         
         spin_lock_irq(&rtc_lock);
-        ADSP_RTC_WRITE((day<<DAY_BITS_OFF) | (hrs<<HOUR_BITS_OFF) | (min<<MIN_BITS_OFF)
-                       | (sec<<SEC_BITS_OFF), RTC_STAT);
+        *pRTC_STAT = ((day<<DAY_BITS_OFF) | (hrs<<HOUR_BITS_OFF) | (min<<MIN_BITS_OFF)
+                       | (sec<<SEC_BITS_OFF));
         wait_for_complete();
                    
         spin_unlock_irq(&rtc_lock);
@@ -535,9 +470,6 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         spin_lock_irq(&rtc_lock);
         rtc_freq = arg;
 
-/*      val |= (16 - tmp);
-             set periodic register
-           ????????????*/
         spin_unlock_irq(&rtc_lock);
         return 0;
     }
@@ -554,10 +486,6 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         if (arg < 2000)
             return -EINVAL;
 
-/*        if (!capable(CAP_SYS_TIME))
-            return -EACCES;*/
-
-/*      epoch = arg;*/
         epoch = arg - (arg%100);
         g_year = epoch + (g_year%100);
 
@@ -571,12 +499,12 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
     {
         if(arg >= 255)
             arg = 255;
-        ADSP_RTC_WRITE(arg, RTC_SWCNT);
+        *pRTC_SWCNT = arg;
         return 0;
     }
     case RTC_SWCNT_RD:  /* Set periodic IRQ rate.   */
     {
-        swcnt = ADSP_RTC_READ(RTC_SWCNT);
+	swcnt = *pRTC_SWCNT;
         return put_user (swcnt, (unsigned long *)arg);
     }
 #endif
@@ -630,14 +558,14 @@ static int rtc_release(struct inode *inode, struct file *file)
     unsigned char tmp;
 
     spin_lock_irq(&rtc_lock);
-    tmp = ADSP_RTC_READ(RTC_ICTL);
+	tmp = *pRTC_ICTL;
     tmp &=  ~STPW_INT_EN;
     tmp &=  ~ALM_INT_EN;
     tmp &=  ~SEC_INT_EN;
     tmp &=  ~MIN_INT_EN;
     tmp &=  ~DAY_INT_EN;
     tmp &=  ~WC_INT_EN;
-    ADSP_RTC_WRITE(tmp, RTC_ICTL);
+    *pRTC_ICTL = tmp;
     wait_for_complete();
 
     if (rtc_status & RTC_TIMER_ON) {
@@ -667,7 +595,6 @@ static unsigned int rtc_poll(struct file *file, poll_table *wait)
 {
     unsigned long l;
 
-    /*poll_wait(file, &rtc_wait, wait);*/
     spin_lock_irq (&rtc_lock);
     l = rtc_irq_data;
     spin_unlock_irq (&rtc_lock);
@@ -709,9 +636,8 @@ int __init blackfin_rtc_init(void)
     printk("blackfin_rtc_init\n");
 #endif
 
-    ADSP_RTC_WRITE(PRESCALE_EN, RTC_PREN);
-/*  ADSP_RTC_WRITE(0, RTC_STAT);*/
-    ADSP_RTC_WRITE(0, RTC_ALARM);
+    *pRTC_PREN = PRESCALE_EN;
+    *pRTC_ALARM = 0;
     wait_for_complete();
     
 #if RTC_IRQ
@@ -734,7 +660,7 @@ int __init blackfin_rtc_init(void)
     rtc_freq = 1024;
 #endif
     /* always enable day interrupt*/
-    ADSP_RTC_WRITE(H24_INT_EN, RTC_ICTL);
+    *pRTC_ICTL = H24_INT_EN;
 	enable_irq(RTC_IRQ);
 
     printk(KERN_INFO "Real Time Clock Driver v" RTC_VERSION "\n");
@@ -744,7 +670,7 @@ int __init blackfin_rtc_init(void)
 
 void __exit blackfin_rtc_exit (void)
 {
-	disable_irq(RTC_IRQ);
+    disable_irq(RTC_IRQ);
     remove_proc_entry ("driver/rtc", NULL);
     misc_deregister(&rtc_dev);
 #if RTC_IRQ
@@ -781,7 +707,8 @@ static void rtc_dropped_irq(unsigned long data)
 
     rtc_irq_data += ((rtc_freq/HZ)<<8);
     rtc_irq_data &= ~0xffff;
-    rtc_irq_data |= (ADSP_RTC_READ(RTC_ISTAT) & 0xffff);    /* restart */
+    rtc_irq_data |= (*pRTC_STAT & 0xffff);    /* restart */
+	
 
     freq = rtc_freq;
 
@@ -871,7 +798,7 @@ static inline unsigned char rtc_is_updating(void)
     unsigned char uip;
 
     spin_lock_irq(&rtc_lock);
-    uip = (ADSP_RTC_READ(RTC_ISTAT) & SEC_EVT_FG);
+	uip = (*pRTC_STAT & SEC_EVT_FG);
     spin_unlock_irq(&rtc_lock);
     return uip;
 }
@@ -900,7 +827,8 @@ static void get_rtc_time(struct rtc_time *rtc_tm)
      * by the RTC when initially set to a non-zero value.
      */
     spin_lock_irq(&rtc_lock);
-    cur_rtc_stat = ADSP_RTC_READ(RTC_STAT);
+    cur_rtc_stat = *pRTC_STAT;
+
     rtc_tm->tm_sec = (cur_rtc_stat>>SEC_BITS_OFF) & 0xff;
     rtc_tm->tm_min = (cur_rtc_stat>>MIN_BITS_OFF) & 0xff;
     rtc_tm->tm_hour = (cur_rtc_stat>>HOUR_BITS_OFF) & 0xff;
@@ -911,11 +839,6 @@ static void get_rtc_time(struct rtc_time *rtc_tm)
     
     rtc_tm->tm_mon = g_mon;
     rtc_tm->tm_year = g_year;
-
-/*  
-    if ((rtc_tm->tm_year += (epoch - 1900)) <= 69)
-        rtc_tm->tm_year += 100;
-*/
 
     spin_unlock_irq(&rtc_lock);
 
@@ -933,7 +856,7 @@ static void get_rtc_alm_time(struct rtc_time *alm_tm)
      * means only tm_hour, tm_min, and tm_sec.
      */
     spin_lock_irq(&rtc_lock);
-    cur_rtc_alarm = ADSP_RTC_READ(RTC_ALARM);
+    cur_rtc_alarm = *pRTC_ALARM;	
     alm_tm->tm_sec = (cur_rtc_alarm>>SEC_BITS_OFF) & 0xff;
     alm_tm->tm_min = (cur_rtc_alarm>>MIN_BITS_OFF) & 0xff;
     alm_tm->tm_hour = (cur_rtc_alarm>>HOUR_BITS_OFF) & 0xff;
@@ -957,9 +880,10 @@ static void mask_rtc_irq_bit(unsigned char bit)
     unsigned char val;
     
     spin_lock_irq(&rtc_lock);
-    val = ADSP_RTC_READ(RTC_ICTL);
+    val = *pRTC_ICTL;
+
     val &=  ~bit;
-    ADSP_RTC_WRITE(val, RTC_ICTL);
+    *pRTC_ICTL = val;
     wait_for_complete();
 
     rtc_irq_data = 0;
@@ -971,9 +895,9 @@ static void set_rtc_irq_bit(unsigned char bit)
     unsigned char val;
 
     spin_lock_irq(&rtc_lock);
-    val = ADSP_RTC_READ(RTC_ICTL);
+    val = *pRTC_ICTL;
     val |= bit;
-    ADSP_RTC_WRITE(val, RTC_ICTL);
+    *pRTC_ICTL = val;
     wait_for_complete();
 
     rtc_irq_data = 0;
