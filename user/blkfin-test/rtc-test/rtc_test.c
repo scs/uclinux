@@ -16,7 +16,7 @@
 
 int main()
 {
-	int rtc_fd, fd1;
+	int rtc_fd;
 	unsigned long data;
    	int ret, i;
 	struct rtc_time rtc_tm;

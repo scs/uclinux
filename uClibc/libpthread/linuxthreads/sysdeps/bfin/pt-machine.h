@@ -46,8 +46,6 @@ testandset (int *spinlock)
 PT_EI int
 __compare_and_swap (long int *p, long int oldval, long int newval)
 {
-  int ret;
-
   if((*p ^ oldval) == 0) {
 	*p = newval;
 	return 1;
