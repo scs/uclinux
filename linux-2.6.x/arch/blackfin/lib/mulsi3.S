@@ -4,7 +4,6 @@
 
 	.text
 	.globl	__mulsi3
-/* Assembler issues with FU options - under construction */
 __mulsi3:
 
 	R3 = [SP+12];
