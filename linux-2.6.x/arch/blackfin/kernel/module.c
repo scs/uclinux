@@ -5,9 +5,6 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 
-#if 0
-#define DEBUGP printk
-#else
 #define DEBUGP(fmt...)
 #endif
 
@@ -57,13 +54,9 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 		   undefined symbols have been resolved.  */
 		sym = (Elf32_Sym *)sechdrs[symindex].sh_addr
 			+ ELF32_R_SYM(rel[i].r_info);
-
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
-		case R_BFIN_32:
-			/* We add the value into the location given */
-			*location += sym->st_value;
-			break;
-		case R_BFIN_PC32:
+		
+		case R_pcrel24:
 			/* Add the value, subtract its postition */
 			*location += sym->st_value - (uint32_t)location;
 			break;
