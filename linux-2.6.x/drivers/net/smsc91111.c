@@ -584,20 +584,20 @@ void bfin_EBIU_AM_setup(void)
 	*pFIO_FLAG_S = 0x0001;
 	asm("ssync;");
 
-        *pEBIU_AMGCTL = 0xF;		/*AMGCTL*/
+        *pEBIU_AMGCTL = AMGCTLVAL;		/*AMGCTL*/
         asm("ssync;");
 #ifdef CONFIG_EZKIT               
-        *pEBIU_AMBCTL0 = 0x7BB07BB0;	/* AMBCTL0*/
+        *pEBIU_AMBCTL0 = AMBCTL0VAL;	/* AMBCTL0*/
         asm("ssync;");
 
-        *pEBIU_AMBCTL1 = 0x22547BB0;	/* AMBCTL1*/
+        *pEBIU_AMBCTL1 = AMBCTL1VAL;	/* AMBCTL1*/
         asm("ssync;");
 #endif
 #ifdef CONFIG_BLKFIN_STAMP
-        *pEBIU_AMBCTL0 = 0xBBC3BBC3;	/* AMBCTL0*/
+        *pEBIU_AMBCTL0 = AMBCTL0VAL;	/* AMBCTL0*/
         asm("ssync;");
 
-        *pEBIU_AMBCTL1 = 0x99B39983;	/* AMBCTL1*/
+        *pEBIU_AMBCTL1 = AMBCTL1VAL;	/* AMBCTL1*/
         asm("ssync;");
 #endif
 }
