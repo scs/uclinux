@@ -1,24 +1,12 @@
 #ifndef _BFINNOMMU_PAGE_H
 #define _BFINNOMMU_PAGE_H
 
-#include <linux/config.h>
-
 /* PAGE_SHIFT determines the page size */
-
 #define PAGE_SHIFT	(12)
 #define PAGE_SIZE	(1UL << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 
 #ifdef __KERNEL__
-
-#include <asm/setup.h>
-
-#if PAGE_SHIFT < 13
-#define KTHREAD_SIZE (8192)
-#else
-#define KTHREAD_SIZE PAGE_SIZE
-#endif
- 
 #ifndef __ASSEMBLY__
  
 #define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
@@ -95,7 +83,6 @@ extern unsigned long memory_end;
 				((void *)(kaddr) < (void *)memory_end))
 
 #endif /* __ASSEMBLY__ */
-
 #endif /* __KERNEL__ */
 
 #endif /* _BFINNOMMU_PAGE_H */
