@@ -91,6 +91,12 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = TRAP_STEP;
 		sig = SIGTRAP;
 		break;
+	    case VEC_EXCPT01 : /* gdb breakpoint */
+		info.si_code = TRAP_ILLTRAP;
+		fp->retx -=2;		/* For Service, proessor increments to next instruction. */
+		fp->pc = fp->retx;      /* gdb wants the value of the pc                         */
+		sig = SIGTRAP;
+		break;
 	    case VEC_UNDEF_I:
 		info.si_code = ILL_ILLOPC;
 		sig = SIGILL;
