@@ -25,10 +25,10 @@ CRT0_OBJ = crt0.o
 #CTOR_TARGETS=$(TOPDIR)lib/crti.o $(TOPDIR)lib/crtn.o
 CTOR_TARGETS=
 
-SSRC= __longjmp.S setjmp.S bsd-_setjmp.S clone.S vfork.S
+SSRC= __longjmp.S setjmp.S bsd-_setjmp.S vfork.S
 SOBJS=$(patsubst %.S,%.o, $(SSRC))
 
-CSRC=brk.c bsdsetjmp.c
+CSRC=brk.c bsdsetjmp.c clone.c
 COBJS=$(patsubst %.c,%.o, $(CSRC))
 
 OBJS=$(SOBJS) $(MOBJ) $(COBJS)
