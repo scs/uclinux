@@ -252,6 +252,14 @@ config FB_VGA16
 	  To compile this driver as a module, choose M here: the
 	  module will be called vga16fb.
 
+config FB_BFIN_7171
+	bool "Blackfin ADI7171 video encoder on uClinux"
+	depends on FB && BFIN
+	help
+	  This is the framebuffer device for a AD7171 video encoder
+	  attached to a Blackfin on the PPI port.
+	  If your Blackfin board has a 7171 select Y.
+
 config FB_STI
 	tristate "HP STI frame buffer device support"
 	depends on FB && PARISC

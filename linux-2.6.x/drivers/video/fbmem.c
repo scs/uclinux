@@ -100,6 +100,8 @@ extern int vesafb_init(void);
 extern int vesafb_setup(char*);
 extern int vga16fb_init(void);
 extern int vga16fb_setup(char*);
+extern int bfin_ad7171_fb_init(void);
+extern int bfin_ad7171_fb_setup(char*);
 extern int hgafb_init(void);
 extern int hgafb_setup(char*);
 extern int matroxfb_init(void);
@@ -291,6 +293,9 @@ static struct {
 #ifdef CONFIG_FB_LEO
 	{ "leofb", leo_init, leo_setup },
 #endif
+#ifdef CONFIG_FB_BFIN_7171 
+	{ "bfin_ad7171_fb", bfin_ad7171_fb_init, bfin_ad7171_fb_setup},
+#endif
 
 	/*
 	 * Generic drivers that are used as fallbacks
@@ -408,7 +413,7 @@ static struct {
 	 * Vfb must be last to avoid that it becomes your primary display if
 	 * other display devices are present
 	 */
-	{ "vfb", vfb_init, vfb_setup },
+	{ "vfb", vfb_init, vfb_setup }
 #endif
 };
 
@@ -1293,9 +1298,15 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 #else
 #warning What do we have to do here??
 #endif
+printk("calling remap_page_range, vma=%x, vma->vm_start=%x, off=%x, length=%x, prot=%x\n",
+vma, vma->vm_start, off, vma->vm_end - vma->vm_start, vma->vm_page_prot);
+io_remap_page_range(vma, vma->vm_start, off,
+                             vma->vm_end - vma->vm_start, vma->vm_page_prot);
 	if (io_remap_page_range(vma, vma->vm_start, off,
-			     vma->vm_end - vma->vm_start, vma->vm_page_prot))
+			     vma->vm_end - vma->vm_start, vma->vm_page_prot)){
+printk("Error:io_remap_page_range(vma, vma->vm_start, off \n") ;
 		return -EAGAIN;
+	}
 #endif /* !__sparc_v9__ */
 	return 0;
 #endif /* !sparc32 */
@@ -1304,6 +1315,7 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 static int
 fb_open(struct inode *inode, struct file *file)
 {
+printk("opening frame buffer\n") ;
 	int fbidx = iminor(inode);
 	struct fb_info *info;
 	int res = 0;
@@ -1499,7 +1511,7 @@ void __init
 fbmem_init(void)
 {
 	int i;
-
+printk("fbmem init is called\n");
 	create_proc_read_entry("fb", 0, NULL, fbmem_read_proc, NULL);
 
 	devfs_mk_dir("fb");
@@ -1528,6 +1540,7 @@ fbmem_init(void)
 	for (i = 0; i < NUM_FB_DRIVERS; i++)
 		if (fb_drivers[i].init)
 			fb_drivers[i].init();
+printk("fbmen init is done\n") ;
 }
 
 
@@ -1547,6 +1560,7 @@ int __init video_setup(char *options)
 {
 	int i, j;
 
+printk("***** video_setup called\n") ;
 	if (!options || !*options)
 		return 0;
 	   
@@ -1587,7 +1601,16 @@ int __init video_setup(char *options)
 	return 0;
 }
 
+int __init
+__temp_video__init(void)
+{
+  printk("temp_video_init is called\n") ;
+  video_setup("bfin_ad7171_fb:on");
+  return 0;
+}
+
 __setup("video=", video_setup);
+module_init(__temp_video__init);
 
     /*
      *  Visible symbols for modules
