@@ -20,7 +20,7 @@
 #include <linux/user.h>
 #include <linux/config.h>
 
-//#define DEBUG
+#define DEBUG
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -117,7 +117,7 @@ static inline long get_reg(struct task_struct *task, int regno)
 		case PT_I1 : return regs->i1;
 		case PT_I2 : return regs->i2;
 		case PT_I3 : return regs->i3;
-		case PT_USP : return regs->usp;
+		case PT_USP : return task->thread.usp;
 		case PT_FP : return regs->fp;
 		//case PT_VECTOR : return regs->pc;
 	}
@@ -208,7 +208,9 @@ static inline int put_reg(struct task_struct *task, int regno,
 		case PT_I1 : regs->i1 = data; break;
 		case PT_I2 : regs->i2 = data; break;
 		case PT_I3 : regs->i3 = data; break;
-		case PT_USP : regs->usp = data; break;
+		case PT_USP : regs->usp = data; 
+			      task->thread.usp = data;
+			      break;
 		case PT_FP : regs->fp = data; break;
 		//case PT_VECTOR : regs->pc = data; break;
 	}
