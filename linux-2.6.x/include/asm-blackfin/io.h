@@ -63,6 +63,7 @@
 #ifndef __ASSEMBLY__	
 
 extern void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag);
+extern void iounmap(void *addr);
 
 extern inline void *ioremap(unsigned long physaddr, unsigned long size)
 {
