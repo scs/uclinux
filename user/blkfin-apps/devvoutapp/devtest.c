@@ -19,19 +19,68 @@ int colorarray[] = {
 
 int screen_fd ;
 char *device = "/dev/vout0";
-FILE *userfile ;
+#define MAX_BUFFERS 50 /* the ultimate upper limit */
 struct v4l2_standard user_vid_std ;
 struct v4l2_format user_fmt;
-char *user_buffer[50];
+char *user_buffer[MAX_BUFFERS];
 int linenum =0;
 int byteheight ;
 int bytewidth ;
 int bytesizeimage ;
 void draw_color_bars(int *);
 
-int main(int argc, char *argb[])
+void
+usage(char *program)
 {
-	int i, j, current_time1, current_time2;
+  fprintf(stderr, "usage : %s [options]\nwhere options can be :"
+	"\n\t[-d : wait 1 sec before write]"
+	"\n\t[-b <buf_count : max/default %d>]"
+	"\n\t[-l <loop_count : min 1, default : 100>]"
+	"\n\t[-v : verbose]"
+	"\n", 
+	program, MAX_BUFFERS);
+  exit(0);
+}
+
+int main(int argc, char *argv[])
+{
+	int i, j, k, current_time1, current_time2;
+	int nMaxBuffers = MAX_BUFFERS;
+	int bDelay = 0;
+	int nLoopCount = 100;
+	int bVerbose = 0;
+	int nbuffers; 
+
+	if(argc > 1){
+		for(i = 1; i < argc; i++){
+			if(!strcmp(argv[i], "-d")){
+				bDelay = 1;
+			}
+			else if(!strcmp(argv[i], "-v")){
+				bVerbose = 1;
+			}
+			else if(!strcmp(argv[i], "-b")){
+				nbuffers = atoi(argv[i+1]);
+				if(nbuffers > 0 && nbuffers <= MAX_BUFFERS){
+					nMaxBuffers = nbuffers;
+					i++;
+				}
+				else{
+					usage(argv[0]);
+				}
+			}
+			else if(!strcmp(argv[i], "-l")){
+				nLoopCount = atoi(argv[i+1]);
+				i++;
+				if(nLoopCount < 1){
+					usage(argv[0]);
+				}
+			}
+			else{
+				usage(argv[0]);
+			}
+		}
+	}
 	screen_fd = open(device, O_RDWR);
 	if (screen_fd == -1) {
 		perror("Unable to open vout device /dev/vout0\n");
@@ -51,25 +100,36 @@ int main(int argc, char *argb[])
 	bytesizeimage = user_fmt.fmt.pix.sizeimage *4;
 
 	fprintf(stderr, "setting up buffers, Please wait\n");
-	for(i=0; i<50; i++) {
+	for(i=0; i<nMaxBuffers; i++) {
 		user_buffer[i] = malloc((bytewidth * byteheight) +10);
 		if(user_buffer[i] == NULL) {
-			fprintf(stderr, "memory allocation for buffer %d failed, application will exit now\n", i);
-			return 0;
+			if(bVerbose)
+				fprintf(stderr, "memory allocation for buffer %d failed, using limited buffers\n", i);
+			break ;
 		}
 		draw_color_bars(user_buffer[i]) ;
 		if(i%4 == 0)
 			linenum -=1;
 		fprintf(stderr, ".");
 	}
-	fprintf(stderr,"\nbuffers are set, starting demo \n");
+	k = i;
+	if(bVerbose && (k < 8)){
+		fprintf(stderr, "\nTo get the best in the demo, increase memory\n");
+	}
+	fprintf(stderr,"Done.\nBuffers are set, starting demo. Watch the output on your TV!\n");
 	current_time1 = clock()/CLOCKS_PER_SEC;
-	for(j=0; j< 20; j++)
-		for(i = 0; i<50; i++)
+	for(j=0; j< nLoopCount; j++)
+		for(i = 0; i<k; i++) {
 			write(screen_fd, user_buffer[i], bytesizeimage);
+			if(bVerbose)
+				fprintf(stderr, "Buffer %d written \n", i);
+			if(bDelay)
+				sleep(1);
+		}
+		
 	fprintf(stderr, "\t****End Of Demo****\n");
 	current_time2 = clock()/CLOCKS_PER_SEC;
-	fprintf(stderr, "number of frames per second = %d \n", (1000/(current_time2 - current_time1)));
+	fprintf(stderr, "number of frames per second = %d \n", ((nLoopCount*k)/(current_time2 - current_time1)));
 	
 	sleep(2);
 	return 0;
