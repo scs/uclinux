@@ -1,5 +1,5 @@
 
-/*********************************************************** 
+/************************************************************ 
 *
 *   THIS FILE  CONTAINS THE TEST PROGRAMS 
 *   THIS FILE MAY NOT BE INCLUDED IN THE FINAL RELEASE 

@@ -1,0 +1,247 @@
+Release Notes for uClinux_dist-2.6.8-BF533-beta1
+-------------------------------------------------
+
+Find below sections in this Release Notes,
+
+Version
+Development Environment
+Deliverables
+Fixes in beta
+Known Issues
+Improvements
+Build Procedure
+Loading kernel To Target Board
+Reporting Bugs
+
+Version
+-------
+uClinux_dist-2.6.8-BF533-beta1
+Date: 9 Sept 2004
+
+Development Environments
+------------------------
+
+Tool Chain: 3.3.x Blackfin Toolchain
+Host platform: Red hat Linux 9.0
+Target board: STAMP Board/ EZKIT board
+	
+Note: However other similar host platforms (SuSe Linux) are also supported. 
+But currently they are not tested
+
+Deliverables
+------------
+uClinux_dist-2.6.8-BF533-beta1.tar.bz2
+
+Note: Above bunzip file includes "2.6.8.1" kernel and "uClibc 0.9.26".
+
+Fixes in beta
+-------------
+
+1.	Fixes related to CPLB misses.
+2.	Cache enabling and disabling Fixes.
+3.	Fix to the sigaction, sigprocmask, sigtimedwait,mount and select system calls.
+ 
+	
+Improvements
+------------
+1.	Latest 2.6.8.1 kernel
+2.	Network features supported - ping, telnet, ftp, ifconfig.
+3.	File system Support  - ext3, ext2, JFFS2, CRAMFS, ROMFS 
+	(Please refer linux-2.6.x/Documentation/blackfin/Filesystems for more information)
+4.	Cache Management support.
+	(Please refer linux-2.6.x/Documentation/blackfin/cachefeature.txt for the features supported.)
+5.	Priority driven Interrupt Management support.
+6.	RTC driver and demo application supported.
+7.	SRAM support.
+8.	Support for allocating large blocks (> 1 MB) of memory.
+9.	Configurable BAUD RATE support.
+10.	Tiny Login Support (adduser, passwd, su, sulogin, login).
+11.	Busybox applications.
+12.	uClibc (Libc, Libcrypt and libm) support
+13.	boa web server support.	
+14.	DMA driver support.
+15.	Dynamic Power Management Driver (Not tested completly)
+16.	VDSP header files usage.
+17. 	Kernel build with ZERO warnings ( except few toolchain warnings )	
+
+
+Known Issues
+------------
+
+1.	Some files/directories needs to build with different optimization levels.
+
+	a.User applications and uClibc library needs to built with -O0 option for the predictable behavior.
+	b.Kernel has to be built with -O1
+	c.ftpd will work if we compile the user directory with -O2. 
+
+2.	Enabling Data cnd Instruction cache at a time has some issues in EZKIT.
+3.	Assigning priority Number 7 or 13 to any devices may crash the system. 
+4.	cat /proc/kallsyms will crashes the system. REASON - The compiler is not recognizing the weak symbols.
+5.	telnetd crashes the system.
+6.	Kernel sometimes fails while probing EZLAN card in EZKIT board.
+7.	udchp server crashes the system.
+8.	DMA driver not tested with cache.	
+9.	Floating point printf (%f) will not work.
+10.	No pthread support.
+
+Build Procedure
+---------------
+
+1.	Download the latest release (uClinux_dist-2.6.8-BF533-beta1.tar.bz2) from the following location,
+	http://blackfin.uclinux.org/frs/?group_id=17
+
+3.	Otherwise check out the distribution from the following link
+	http://cvs.blackfin.uclinux.org/cgi-bin/cvsweb.cgi/?cvsroot=uclinux533
+	Using the following command,
+
+	$ cvs -z9 -d:ext:anonymous@cvs.blackfin.uclinux.org:/cvsroot/uclinux533 co uClinux-dist
+
+4.	Compile the source using following commands 
+
+	a.# cd $(WORK_DIR)/uClinux-dist
+	b.# make clean
+	c.# make menuconfig
+	d.Set the following options in menuconfig depending on the board type,
+
+	For EZKIT boards,
+		EZKITLITE board Support 
+		Crystal	27
+		Clock 	118 Mhz 
+	For STAMP boards,
+		Enable STAMP Support
+		Crystal 	11
+		Clock 	132 Mhz
+	Save and exit from the menuconfig
+	
+	e.# make
+
+5.	Find the compiled blackfin executable linux.dxe in the following location
+
+	$(WORK_DIR)/uClinux-dist/linux-2.6.x
+
+6.	Above file shall be used to download to the target board.
+	
+
+ 
+Loading Kernel To Target Board
+------------------------------
+
+1.	Use below serial cables to connect board to host computer.
+		For EZ-KIT boards:- 1:1 EIA-232 serial cable.
+		For STAMP boards:- Male-Female 1-1 serial cable 
+
+2.	Use minicom or some other serial communications utility to configure the serial port with the following parameters.
+		Baud Rate = Baud that have been selected in kernel menuconfig
+		Number of bits = 8
+		Parity = None
+		Stop bits = 1
+
+3.	Set the BMODE pins of the target to 00 and reset the board, boot loaders prompt appears, and proceed to step 5. 
+	If the boot loader prompt doesn't appear proceed to next step.
+
+4.	If the target board is not already having the u-boot boot loader flashed in it, go through latest u-boot 
+	"Release Notes", available in the following page.
+	http://blackfin.uclinux.org/frs/?group_id=20&release_id=92
+	Flash the latest u-boot boot loader. For further information contact the vendor.
+
+5.	Make sure tftp server is installed in the host machine. Copy linux.dxe that is built in above steps 
+	to the /tftpboot of the host PC.
+
+6.	Load the linux.dxe file with the following bootloader commands,
+		BOOT> set ipaddr x.y.z.n 
+		BOOT> set serverip x.y.z.m
+		BOOT> tftp 0x1000000 linux.dxe
+		BOOT> bootelf 0x1000000
+	Where x.y.z.m is the ip address of the host machine, and x.y.z.n is the ip address of the target board.
+
+7.	Following Linux kernel boot messages (or similar) should appear on the host terminal.
+
+Linux version 2.6.8.1 (nidhi@localhost.localdomain) (gcc version 3.3.3) #463 Sat Sep 4 11:52:04 IST 2004
+BF533 Blackfin support (C) 2004 Analog Devices, Inc.
+uClinux/Blackfin
+Blackfin BF533 support by LG Soft India (www.lgsoftindia.com)
+Memory map:
+  text = 0x001000-0x0e1000
+  data = 0x0e1000-0x310df0
+  bss  = 0x310df0-0x310df0
+  rootfs = 0x1109f0-0x310df0
+  stack= 0x1000000-0x1000000
+Command line: 'root=/dev/mtdblock0 rw'
+Instruction Cache enabled
+Data cache Enabled
+Built 1 zonelists
+Kernel command line: root=/dev/mtdblock0 rw
+Configuring Blackfin Priority Driven Interrupts
+PID hash table entries: 16 (order 4: 128 bytes)
+Dentry cache hash table entries: 4096 (order: 2, 16384 bytes)
+Inode-cache hash table entries: 2048 (order: 1, 8192 bytes)
+Physical pages: 1000
+Memory available: 13052k/15484k RAM, 0k/0k ROM (224k kernel code, 559k data)
+Blackfin Scratchpad data SRAM: 4 KB
+Calibrating delay loop... 99.53 BogoMIPS
+Mount-cache hash table entries: 512 (order: 0, 4096 bytes)
+NET: Registered protocol family 16
+Blackfin DMA Controller
+Real Time Clock Driver v1.10e
+BlackFin BF533 serial driver version 1.00
+ttyS0 at irq = 21 is a builtin BlackFin BF533 UART
+Enabling Serial UART Interrupts
+SMSC LAN91C111 Driver (v2.9), (BF533) 02/05/2004
+eth0: SMC91C11xFD(rev:1) at 0x20300300 IRQ:27 MEMSIZE:8192b NOWAIT:0 ADDR: 02:80:ad:20:31:b8
+Using anticipatory io scheduler
+uclinux[mtd]: RAM probe address=0x1109f0 size=0xffdffc00
+Creating 1 MTD partitions on "RAM":
+0x00000000-0xffdffc00 : "EXT2fs"
+uclinux[mtd]: set EXT2fs to be root filesystem
+mice: PS/2 mouse device common for all mice
+NET: Registered protocol family 2
+IP: routing cache hash table of 512 buckets, 4Kbytes
+TCP: Hash tables configured (established 1024 bind 2048)
+NET: Registered protocol family 1
+NET: Registered protocol family 17
+VFS: Mounted root (ext2 filesystem).
+Freeing unused kernel memory: 32k freed (0xd8000 - 0xdf000)
+Shell invoked to run file: /etc/r
+Command: hostname blackfin
+Command: mount -t proc none proc
+Command: mount -t ext2 /dev/ram0 var
+Command: mkdir var/tmp
+Command: #ifconfig eth0 10.100.4.251 up
+Command: #ifconfig lo 127.0.0.1
+Command: #inetd &
+Command: cat etc/issue
+
+
+/etc/issue       www.lgsoftindia.com     30 May 2004
+
+
+Command: cat etc/motd
+
+Welcome to:
+       ____ _  _
+      /  __| ||_|             _  _
+ _   _| |  | | _ ____  _   _ \ \/ /
+| | | | |  | || |  _ \| | | | \  /
+| |_| | |__| || | | | | |_| | /  \
+|  ___\____|_||_|_| |_|\____|/_/\_\
+|_|
+
+For further information see:
+http://www.uclinux.org/
+http://blackfin.uclinux.org/
+
+Execution Finished, Exiting
+
+Sash command shell (version 1.1.1)
+/>	
+			
+
+Reporting Bugs
+---------------
+
+1.	Go to the following blackfin uclinux bug tracker page,
+
+	http://blackfin.uclinux.org/tracker/?atid=141&group_id=17&func=browse
+
+2.	If the bug is not already reported click on "Submit New" button to report new bug.
+
