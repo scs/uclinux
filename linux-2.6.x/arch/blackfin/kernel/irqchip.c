@@ -25,6 +25,15 @@
 
 #include <asm/irqchip.h>
 
+//#define IRQ_DEBUG
+#undef IRQ_DEBUG
+
+#ifdef IRQ_DEBUG
+#define IRQ_DPRINTK(x...)	printk(x)
+#else
+#define IRQ_DPRINTK(x...)	do { } while (0)
+#endif 
+
 /*
  * Maximum IRQ count.  Currently, this is arbitary.  However, it should
  * not be set too low to prevent false triggering.  Conversely, if it
@@ -650,7 +659,7 @@ int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_
 	unsigned long retval;
 	struct irqaction *action;
 
-	printk("request_irq: irq=%d handler=%p irq_flags=%#lx devname=%s devid=%p\n",
+	IRQ_DPRINTK("request_irq: irq=%d handler=%p irq_flags=%#lx devname=%s devid=%p\n",
 	       irq, handler, irq_flags, devname, dev_id);
 	if (irq >= NR_IRQS || !irq_desc[irq].valid || !handler ||
 	    (irq_flags & SA_SHIRQ && !dev_id))
