@@ -123,14 +123,14 @@ static int rs_write(struct tty_struct * tty, int from_user,
  */
 
 static int baud_table[] = {
-	0, 114, 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 0 };
+	 9600, 19200, 38400, 57600, 115200, 0 };
+
+#define BAUD_TABLE_SIZE (sizeof(baud_table)/sizeof(baud_table[0]))
 
 struct {
         unsigned char dl_high;
         unsigned char dl_low;
-} hw_baud_table[5];
-
-#define BAUD_TABLE_SIZE (sizeof(baud_table)/sizeof(baud_table[0]))
+} hw_baud_table[BAUD_TABLE_SIZE];
 
 /*
  * tmp_buf is used as a temporary buffer by serial_write.  We need to
@@ -152,7 +152,7 @@ void calc_baud(void)
 {
         unsigned char i;
 
-        for(i = 0; i < sizeof(baud_table)/sizeof(int); i++) {
+        for(i = 0; i < BAUD_TABLE_SIZE; i++) {
                 hw_baud_table[i].dl_high = ((CONFIG_SCLK_HZ/(baud_table[i]*16)) >> 8)& 0xFF;
                 hw_baud_table[i].dl_low = (CONFIG_SCLK_HZ/(baud_table[i]*16)) & 0xFF;
         }
