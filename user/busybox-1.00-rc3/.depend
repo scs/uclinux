@@ -1,0 +1,1045 @@
+loginutils/su.o: loginutils/su.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/u/w/tmp.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/selinux.h)
+loginutils/delgroup.o: loginutils/delgroup.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/deluser.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/shadowpasswds.h)
+loginutils/adduser.o: loginutils/adduser.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/shadowpasswds.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/addgroup.h)
+loginutils/login.o: loginutils/login.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/selinux.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/u/w/tmp.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/securetty.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/wheel/group.h)
+loginutils/passwd.o: loginutils/passwd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/shadowpasswds.h)
+loginutils/getty.o: loginutils/getty.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/syslogd.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/u/w/tmp.h)
+loginutils/delline.o: loginutils/delline.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+loginutils/deluser.o: loginutils/deluser.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/shadowpasswds.h)
+loginutils/vlock.o: loginutils/vlock.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/shadowpasswds.h)
+loginutils/sulogin.o: loginutils/sulogin.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/shadowpasswds.h)
+loginutils/addgroup.o: loginutils/addgroup.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/shadowpasswds.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/adduser.h)
+init/init_shared.o: init/init_shared.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/initrd.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/init.h)
+init/poweroff.o: init/poweroff.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/init.h)
+init/halt.o: init/halt.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/init.h)
+init/init.o: init/init.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/syslogd.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/init/coredumps.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/extra/quiet.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/use/inittab.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/initrd.h)
+init/mesg.o: init/mesg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+init/reboot.o: init/reboot.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/init.h)
+util-linux/swaponoff.o: util-linux/swaponoff.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+util-linux/umount.o: util-linux/umount.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/mount/force.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/mount/loop.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/mtab/support.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+util-linux/losetup.o: util-linux/losetup.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+util-linux/rdate.o: util-linux/rdate.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+util-linux/dmesg.o: util-linux/dmesg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+util-linux/fsck_minix.o: util-linux/fsck_minix.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/minix2.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+util-linux/nfsmount.o: util-linux/nfsmount.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+util-linux/fdflush.o: util-linux/fdflush.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+util-linux/fbset.o: util-linux/fbset.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fbset/fancy.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fbset/readmode.h)
+util-linux/fdisk.o: util-linux/fdisk.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sun/label.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sgi/label.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/aix/label.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/osf/label.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fdisk/writable.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fdisk/advanced.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/weird/partition/types.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fdisk/blksize.h)
+util-linux/freeramdisk.o: util-linux/freeramdisk.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+util-linux/hwclock.o: util-linux/hwclock.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/hwclock/longoptions.h)
+util-linux/pivot_root.o: util-linux/pivot_root.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+util-linux/getopt.o: util-linux/getopt.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+util-linux/mount.o: util-linux/mount.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/nfsmount.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/mount/loop.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/mtab/support.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+util-linux/hexdump.o: util-linux/hexdump.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/dump.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/dump.h)
+util-linux/fdformat.o: util-linux/fdformat.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+util-linux/more.o: util-linux/more.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/use/termios.h)
+util-linux/mkfs_minix.o: util-linux/mkfs_minix.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/minix2.h)
+util-linux/mkswap.o: util-linux/mkswap.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+miscutils/dc.o: miscutils/dc.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+miscutils/mt.o: miscutils/mt.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+miscutils/rx.o: miscutils/rx.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+miscutils/crond.o: miscutils/crond.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/crond/call/sendmail.h)
+miscutils/strings.o: miscutils/strings.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+miscutils/adjtimex.o: miscutils/adjtimex.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+miscutils/crontab.o: miscutils/crontab.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+miscutils/last.o: miscutils/last.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+miscutils/time.o: miscutils/time.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+miscutils/devfsd.o: miscutils/devfsd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/devfsd/modload.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/devfsd/verbose.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/debug.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/devfsd/fg/np.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/file.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/modules/devfs.h)
+miscutils/watchdog.o: miscutils/watchdog.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+miscutils/hdparm.o: miscutils/hdparm.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/hdparm/get/identity.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/hdparm/hdio/getset/dma.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/hdparm/hdio/unregister/hwif.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/hdparm/hdio/scan/hwif.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/hdparm/hdio/tristate/hwif.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/hdparm/hdio/drive/reset.h)
+miscutils/makedevs.o: miscutils/makedevs.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+libbb/simplify_path.o: libbb/simplify_path.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/interface.o: libbb/interface.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ipv6.h)
+libbb/vherror_msg.o: libbb/vherror_msg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/parse_number.o: libbb/parse_number.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/vdprintf.o: libbb/vdprintf.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/herror_msg_and_die.o: libbb/herror_msg_and_die.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/full_write.o: libbb/full_write.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/xreadlink.o: libbb/xreadlink.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/warn_ignoring_args.o: libbb/warn_ignoring_args.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/perror_nomsg_and_die.o: libbb/perror_nomsg_and_die.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/get_line_from_file.o: libbb/get_line_from_file.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/vfork_daemon_rexec.o: libbb/vfork_daemon_rexec.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/mtab_file.o: libbb/mtab_file.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/mtab/support.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/mtab/filename.h)
+libbb/messages.o: libbb/messages.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/ask_confirmation.o: libbb/ask_confirmation.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/get_console.o: libbb/get_console.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/xgetularg.o: libbb/xgetularg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/make_directory.o: libbb/make_directory.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/read_package_field.o: libbb/read_package_field.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/qmodule.o: libbb/qmodule.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/xregcomp.o: libbb/xregcomp.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/wfopen.o: libbb/wfopen.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/device_open.o: libbb/device_open.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/recursive_action.o: libbb/recursive_action.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/bb_asprintf.o: libbb/bb_asprintf.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/default_error_retval.o: libbb/default_error_retval.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/create_icmp6_socket.o: libbb/create_icmp6_socket.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ipv6.h)
+libbb/wfopen_input.o: libbb/wfopen_input.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/run_shell.o: libbb/run_shell.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/selinux.h)
+libbb/login.o: libbb/login.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/xgetcwd.o: libbb/xgetcwd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/skip_whitespace.o: libbb/skip_whitespace.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/safe_read.o: libbb/safe_read.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/find_pid_by_name.o: libbb/find_pid_by_name.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/selinux.h)
+libbb/getopt_ulflags.o: libbb/getopt_ulflags.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/remove_file.o: libbb/remove_file.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/vperror_msg.o: libbb/vperror_msg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/herror_msg.o: libbb/herror_msg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/my_getgrgid.o: libbb/my_getgrgid.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h)
+libbb/verror_msg.o: libbb/verror_msg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/my_getgrnam.o: libbb/my_getgrnam.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h)
+libbb/hash_fd.o: libbb/hash_fd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/sha1sum.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/md5sum.h)
+libbb/kernel_version.o: libbb/kernel_version.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/dump.o: libbb/dump.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/dump.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/dump.h)
+libbb/last_char_is.o: libbb/last_char_is.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/fflush_stdout_and_exit.o: libbb/fflush_stdout_and_exit.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/safe_strncpy.o: libbb/safe_strncpy.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/copyfd.o: libbb/copyfd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+libbb/error_msg_and_die.o: libbb/error_msg_and_die.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/create_icmp_socket.o: libbb/create_icmp_socket.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/full_read.o: libbb/full_read.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/xgethostbyname2.o: libbb/xgethostbyname2.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ipv6.h)
+libbb/loop.o: libbb/loop.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/fgets_str.o: libbb/fgets_str.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/mtab.o: libbb/mtab.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/xgethostbyname.o: libbb/xgethostbyname.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/find_root_device.o: libbb/find_root_device.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/devfs.h)
+libbb/get_terminal_width_height.o: libbb/get_terminal_width_height.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/autowidth.h)
+libbb/inode_hash.o: libbb/inode_hash.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+libbb/concat_subpath_file.o: libbb/concat_subpath_file.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/change_identity.o: libbb/change_identity.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/isdirectory.o: libbb/isdirectory.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/inet_common.o: libbb/inet_common.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ipv6.h)
+libbb/trim.o: libbb/trim.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/perror_msg_and_die.o: libbb/perror_msg_and_die.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/setup_environment.o: libbb/setup_environment.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/printf.o: libbb/printf.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/find_mount_point.o: libbb/find_mount_point.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/perror_nomsg.o: libbb/perror_nomsg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/xconnect.o: libbb/xconnect.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/perror_msg.o: libbb/perror_msg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/my_getug.o: libbb/my_getug.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/human_readable.o: libbb/human_readable.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/fclose_nonstdin.o: libbb/fclose_nonstdin.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/procps.o: libbb/procps.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/selinux.h)
+libbb/parse_mode.o: libbb/parse_mode.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/my_getpwnam.o: libbb/my_getpwnam.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h)
+libbb/concat_path_file.o: libbb/concat_path_file.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/syscalls.o: libbb/syscalls.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/my_getpwuid.o: libbb/my_getpwuid.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h)
+libbb/run_parts.o: libbb/run_parts.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/restricted_shell.o: libbb/restricted_shell.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/copy_file.o: libbb/copy_file.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/preserve/hardlinks.h)
+libbb/process_escape_sequence.o: libbb/process_escape_sequence.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/xgetlarg.o: libbb/xgetlarg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+libbb/print_file.o: libbb/print_file.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/safe_write.o: libbb/safe_write.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/error_msg.o: libbb/error_msg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/xfuncs.o: libbb/xfuncs.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/speed_table.o: libbb/speed_table.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/correct_password.o: libbb/correct_password.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/shadowpasswds.h)
+libbb/chomp.o: libbb/chomp.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/module_syscalls.o: libbb/module_syscalls.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/safe_strtol.o: libbb/safe_strtol.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/pwd2spwd.o: libbb/pwd2spwd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/shadow_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/shadow_.h)
+libbb/obscure.o: libbb/obscure.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+libbb/pw_encrypt.o: libbb/pw_encrypt.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sha1/passwords.h)
+libbb/llist_add_to.o: libbb/llist_add_to.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+shell/ash.o: shell/ash.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ash/job/control.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ash/alias.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ash/optimize/for/size.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ash/math/support.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ash/cmdcmd.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ash/getopts.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/extra/quiet.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ash/mail.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ash/math/support/64.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ash/random/support.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/locale/support.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/command/savehistory.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/command/editing.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/fancy/prompt.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/standalone/shell.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/command/tab/completion.h)
+shell/msh.o: shell/msh.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/command/editing.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/fancy/prompt.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/extra/quiet.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/standalone/shell.h)
+shell/hush.o: shell/hush.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/fancy/prompt.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/command/editing.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/standalone/shell.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/extra/quiet.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+shell/cmdedit.o: shell/cmdedit.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/../shell/cmdedit.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/../shell/cmdedit.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/locale/support.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/command/tab/completion.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/command/editing.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/command/username/completion.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/fancy/prompt.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/getusername/and/homedir.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/command/history.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/nonprintable/inverse/put.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ash.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/command/savehistory.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+shell/lash.o: shell/lash.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/locale/support.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/lash/pipe/n/redirects.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/fancy/prompt.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/lash/job/control.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/command/editing.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/standalone/shell.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/sh/extra/quiet.h)
+libpwdgrp/pwd_grp.o: libpwdgrp/pwd_grp.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/shadow_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/shadow_.h)
+editors/vi.o: editors/vi.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/locale/support.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/vi/optimize/cursor.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/vi/use/signals.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/vi/crashme.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/vi/dot/cmd.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/vi/yankmark.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/vi/readonly.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/vi/search.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/vi/colon.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/vi/win/resize.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/vi/setopts.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/vi/set.h)
+editors/awk.o: editors/awk.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/awk/math.h)
+editors/sed.o: editors/sed.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+editors/patch.o: editors/patch.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+findutils/find.o: findutils/find.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/find/type.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/find/perm.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/find/mtime.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/find/xdev.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/find/newer.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/find/inum.h)
+findutils/grep.o: findutils/grep.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/grep/context.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/grep/egrep/alias.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+findutils/xargs.o: findutils/xargs.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/xargs/support/confirmation.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/xargs/support/quotes.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/xargs/support/termopt.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/xargs/support/zero/term.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+modutils/rmmod.o: modutils/rmmod.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/2/6/modules.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/query/module/interface.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+modutils/lsmod.o: modutils/lsmod.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/check/tainted/module.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/query/module/interface.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+modutils/modprobe.o: modutils/modprobe.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/2/6/modules.h)
+modutils/insmod.o: modutils/insmod.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/2/4/modules.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/2/6/modules.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/insmod/loadinkmem.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/insmod/version/checking.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/use/list.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/list/archtype.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/use/single.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/use/plt/entries.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/use/got/entries.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/use/plt/list.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/got/entry/size.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/plt/entry/size.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/check/tainted/module.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/insmod/ksymoops/symbols.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/insmod/load/map.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/insmod/load/map/full.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+archival/ar.o: archival/ar.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+archival/uncompress.o: archival/uncompress.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/rpm.o: archival/rpm.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/tar.o: archival/tar.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tar/create.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tar/from.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tar/gzip.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tar/compress.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tar/bzip2.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tar/long/options.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+archival/cpio.o: archival/cpio.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+archival/dpkg.o: archival/dpkg.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/deb/tar/gz.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/deb/tar/bz2.h)
+archival/gzip.o: archival/gzip.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/gunzip.h)
+archival/dpkg_deb.o: archival/dpkg_deb.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/deb/tar/gz.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/deb/tar/bz2.h)
+archival/bunzip2.o: archival/bunzip2.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/data_skip.o: archival/libunarchive/data_skip.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+archival/libunarchive/seek_by_char.o: archival/libunarchive/seek_by_char.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+archival/libunarchive/filter_accept_all.o: archival/libunarchive/filter_accept_all.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/data_extract_to_buffer.o: archival/libunarchive/data_extract_to_buffer.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/decompress_bunzip2.o: archival/libunarchive/decompress_bunzip2.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+archival/libunarchive/seek_by_jump.o: archival/libunarchive/seek_by_jump.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/unarchive/tape.h)
+archival/libunarchive/get_header_tar_gz.o: archival/libunarchive/get_header_tar_gz.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/data_extract_to_stdout.o: archival/libunarchive/data_extract_to_stdout.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/filter_accept_list_reassign.o: archival/libunarchive/filter_accept_list_reassign.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/deb/tar/gz.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/deb/tar/bz2.h)
+archival/libunarchive/header_verbose_list.o: archival/libunarchive/header_verbose_list.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/decompress_uncompress.o: archival/libunarchive/decompress_uncompress.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/config.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/config.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+archival/libunarchive/get_header_tar.o: archival/libunarchive/get_header_tar.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tar/gnu/extensions.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tar/oldgnu/compatability.h)
+archival/libunarchive/decompress_unzip.o: archival/libunarchive/decompress_unzip.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/config.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/config.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/unpack_ar_archive.o: archival/libunarchive/unpack_ar_archive.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+archival/libunarchive/init_handle.o: archival/libunarchive/init_handle.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/header_list.o: archival/libunarchive/header_list.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/filter_accept_reject_list.o: archival/libunarchive/filter_accept_reject_list.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/data_extract_all.o: archival/libunarchive/data_extract_all.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/get_header_ar.o: archival/libunarchive/get_header_ar.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ar/long/filenames.h)
+archival/libunarchive/header_skip.o: archival/libunarchive/header_skip.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/open_transformer.o: archival/libunarchive/open_transformer.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+archival/libunarchive/archive_xread_all_eof.o: archival/libunarchive/archive_xread_all_eof.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+archival/libunarchive/data_align.o: archival/libunarchive/data_align.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/find_list_entry.o: archival/libunarchive/find_list_entry.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/filter_accept_list.o: archival/libunarchive/filter_accept_list.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/libunarchive/get_header_cpio.o: archival/libunarchive/get_header_cpio.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+archival/libunarchive/check_header_gzip.o: archival/libunarchive/check_header_gzip.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+archival/libunarchive/archive_xread_all.o: archival/libunarchive/archive_xread_all.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+archival/libunarchive/get_header_tar_bz2.o: archival/libunarchive/get_header_tar_bz2.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/rpm2cpio.o: archival/rpm2cpio.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h)
+archival/unzip.o: archival/unzip.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+archival/gunzip.o: archival/gunzip.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/unarchive.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/gunzip/uncompress.h)
+procps/ps.o: procps/ps.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/selinux.h)
+procps/renice.o: procps/renice.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+procps/top.o: procps/top.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/use/termios.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/selinux.h)
+procps/free.o: procps/free.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+procps/kill.o: procps/kill.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/killall.h)
+procps/uptime.o: procps/uptime.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+procps/sysctl.o: procps/sysctl.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+procps/pidof.o: procps/pidof.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+sysklogd/klogd.o: sysklogd/klogd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+sysklogd/syslogd.o: sysklogd/syslogd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/rotate/logfile.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/remote/log.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ipc/syslog.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ipc/syslog/buffer/size.h)
+sysklogd/logread.o: sysklogd/logread.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/logread/reduced/locking.h)
+sysklogd/logger.o: sysklogd/logger.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/syslogd.h)
+networking/ip.o: networking/ip.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ip/address.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ip/route.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ip/link.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ip/tunnel.h)
+networking/nc.o: networking/nc.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+networking/ipaddr.o: networking/ipaddr.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+networking/iproute.o: networking/iproute.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+networking/ipcalc.o: networking/ipcalc.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ipcalc/fancy.h)
+networking/iplink.o: networking/iplink.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+networking/vconfig.o: networking/vconfig.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+networking/route.o: networking/route.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ipv6.h)
+networking/telnet.o: networking/telnet.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/telnet/ttype.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/telnet/autologin.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/autowidth.h)
+networking/ifupdown.o: networking/ifupdown.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ifupdown/mapping.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ifupdown/ip.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ifupdown/ipx.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ifupdown/ipv6.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ifupdown/ipv4.h)
+networking/iptunnel.o: networking/iptunnel.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+networking/netstat.o: networking/netstat.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/route.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ipv6.h)
+networking/ifconfig.o: networking/ifconfig.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ifconfig/slip.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ipv6.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ifconfig/broadcast/plus.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ifconfig/hw.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ifconfig/memstart/ioaddr/irq.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ifconfig/status.h)
+networking/ftpgetput.o: networking/ftpgetput.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ftpget.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/ftpput.h)
+networking/ping.o: networking/ping.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fancy/ping.h)
+networking/libiproute/iproute.o: networking/libiproute/iproute.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+networking/libiproute/iplink.o: networking/libiproute/iplink.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+networking/libiproute/ipaddress.o: networking/libiproute/ipaddress.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+networking/libiproute/ll_addr.o: networking/libiproute/ll_addr.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+networking/libiproute/ip_parse_common_args.o: networking/libiproute/ip_parse_common_args.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+networking/libiproute/iptunnel.o: networking/libiproute/iptunnel.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+networking/libiproute/utils.o: networking/libiproute/utils.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+networking/libiproute/libnetlink.o: networking/libiproute/libnetlink.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+networking/tftp.o: networking/tftp.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tftp/blocksize.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tftp/debug.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tftp/get.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tftp/put.h)
+networking/wget.o: networking/wget.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/wget/statusbar.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/wget/authentication.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/wget/ip6/literal.h)
+networking/nslookup.o: networking/nslookup.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+networking/arping.o: networking/arping.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+networking/telnetd.o: networking/telnetd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/login.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/telnetd/inetd.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/devpts.h)
+networking/httpd.o: networking/httpd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/lfs.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/httpd/usage/from/inetd/only.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/httpd/basic/auth.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/httpd/cgi.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/httpd/config/with/mime/types.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/httpd/encode/url/str.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/httpd/set/remote/port/to/env.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/httpd/auth/md5.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/httpd/reload/config/sighup.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/httpd/setuid.h)
+networking/hostname.o: networking/hostname.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+networking/ping6.o: networking/ping6.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fancy/ping6.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fancy/ping.h)
+networking/inetd.o: networking/inetd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/inetd/support/biltin/echo.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/inetd/support/biltin/discard.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/inetd/support/biltin/time.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/inetd/support/biltin/daytime.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/inetd/support/biltin/chargen.h)
+networking/traceroute.o: networking/traceroute.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/inet_common.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/traceroute/verbose.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/traceroute.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/traceroute/so/debug.h)
+networking/nameif.o: networking/nameif.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+applets/applets.o: applets/applets.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/usage.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/usage.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/applets.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/applets.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/applets.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/applets.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/suid.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/suid/config.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/grp_.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/suid/config/quiet.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/file.h)
+applets/busybox.o: applets/busybox.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/locale/support.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/installer.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/init.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/autowidth.h)
+coreutils/dd.o: coreutils/dd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/cp.o: coreutils/cp.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/df.o: coreutils/df.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/human/readable.h)
+coreutils/du.o: coreutils/du.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/human/readable.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/du/defalt/blocksize/1k.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+coreutils/id.o: coreutils/id.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/selinux.h)
+coreutils/ln.o: coreutils/ln.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/ls.o: coreutils/ls.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/selinux.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ls/timestamps.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ls/sortfiles.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ls/followlinks.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/human/readable.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ls/filetypes.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ls/color.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/autowidth.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ls/recursive.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/locale/support.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/ls/username.h)
+coreutils/mv.o: coreutils/mv.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/od.o: coreutils/od.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/dump.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/dump.h)
+coreutils/rm.o: coreutils/rm.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/tr.o: coreutils/tr.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/wc.o: coreutils/wc.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/locale/support.h)
+coreutils/cal.o: coreutils/cal.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/locale/support.h)
+coreutils/cat.o: coreutils/cat.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/cmp.o: coreutils/cmp.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/cut.o: coreutils/cut.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/env.o: coreutils/env.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/pwd.o: coreutils/pwd.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/seq.o: coreutils/seq.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/tee.o: coreutils/tee.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/tee/use/block/io.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+coreutils/tty.o: coreutils/tty.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/who.o: coreutils/who.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/yes.o: coreutils/yes.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/rmdir.o: coreutils/rmdir.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/libcoreutils/xgetoptfile_sort_uniq.o: coreutils/libcoreutils/xgetoptfile_sort_uniq.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+coreutils/libcoreutils/getopt_mk_fifo_nod.o: coreutils/libcoreutils/getopt_mk_fifo_nod.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+coreutils/libcoreutils/cp_mv_stat.o: coreutils/libcoreutils/cp_mv_stat.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+coreutils/uuencode.o: coreutils/uuencode.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/basename.o: coreutils/basename.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/false.o: coreutils/false.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/uudecode.o: coreutils/uudecode.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+coreutils/sleep.o: coreutils/sleep.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fancy/sleep.h)
+coreutils/dos2unix.o: coreutils/dos2unix.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/length.o: coreutils/length.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/logname.o: coreutils/logname.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/mkdir.o: coreutils/mkdir.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/mknod.o: coreutils/mknod.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/date.o: coreutils/date.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/date/isofmt.h)
+coreutils/echo.o: coreutils/echo.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fancy/echo.h)
+coreutils/expr.o: coreutils/expr.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/fold.o: coreutils/fold.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/whoami.o: coreutils/whoami.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/head.o: coreutils/head.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fancy/head.h)
+coreutils/md5_sha1_sum.o: coreutils/md5_sha1_sum.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/md5/sha1/sum/check.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/md5sum.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/sha1sum.h)
+coreutils/chroot.o: coreutils/chroot.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/touch.o: coreutils/touch.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/hostid.o: coreutils/hostid.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/uname.o: coreutils/uname.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/tail.o: coreutils/tail.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/fancy/tail.h)
+coreutils/sort.o: coreutils/sort.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/test.o: coreutils/test.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/test/64.h)
+coreutils/stty.o: coreutils/stty.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/sync.o: coreutils/sync.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/true.o: coreutils/true.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/uniq.o: coreutils/uniq.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/printf.o: coreutils/printf.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/realpath.o: coreutils/realpath.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+coreutils/mkfifo.o: coreutils/mkfifo.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/watch.o: coreutils/watch.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/usleep.o: coreutils/usleep.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/dirname.o: coreutils/dirname.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/install.o: coreutils/install.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/chgrp.o: coreutils/chgrp.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/chmod.o: coreutils/chmod.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+coreutils/chown.o: coreutils/chown.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+debianutils/readlink.o: debianutils/readlink.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+debianutils/start_stop_daemon.o: debianutils/start_stop_daemon.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/pwd_.h)
+debianutils/run_parts.o: debianutils/run_parts.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/libbb.h)
+debianutils/which.o: debianutils/which.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+debianutils/pipe_progress.o: debianutils/pipe_progress.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h) \
+   $(wildcard /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/config/feature/clean/up.h)
+debianutils/mktemp.o: debianutils/mktemp.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+console-tools/dumpkmap.o: console-tools/dumpkmap.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+console-tools/reset.o: console-tools/reset.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+console-tools/chvt.o: console-tools/chvt.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+console-tools/loadfont.o: console-tools/loadfont.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+console-tools/deallocvt.o: console-tools/deallocvt.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+console-tools/loadkmap.o: console-tools/loadkmap.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+console-tools/setkeycodes.o: console-tools/setkeycodes.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+console-tools/openvt.o: console-tools/openvt.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
+console-tools/clear.o: console-tools/clear.c \
+ /home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h $(dep_/home-new/Checkout-ADI-Fresh/uClinux-dist/user/busybox/include/busybox.h)
