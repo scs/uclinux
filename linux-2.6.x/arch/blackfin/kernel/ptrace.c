@@ -297,12 +297,7 @@ printk("PTRACE_PEEKDATA\n");
 				add += MAX_SHARED_LIBS * 4;
 			   }
                         }
-                        if( addr > child->mm->start_stack)
-                         {
-                           printk("Ptrace Error: Invalid memory(0x%x) had been asked to access start_code=%x start_stack=%x\n", (int)addr, (int)(child->mm->start_code), (int)(child->mm->start_stack));
-                           goto out_tsk;
-                         }
- 
+
 			copied = access_process_vm(child,  extra + addr + add,
 						   &tmp, sizeof(tmp), 0);
 			ret = -EIO;
