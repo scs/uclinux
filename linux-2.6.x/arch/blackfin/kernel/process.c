@@ -46,7 +46,7 @@ asmlinkage void ret_from_fork(void);
 static void default_idle(void)
 {
 	while(1) {
-		  if (need_resched())
+		  while (!need_resched())
 			__asm__("idle;\n\t" : : : "cc"); 
 		schedule();
 	}
