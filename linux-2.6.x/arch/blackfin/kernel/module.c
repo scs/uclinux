@@ -6,7 +6,6 @@
 #include <linux/kernel.h>
 
 #define DEBUGP(fmt...)
-#endif
 
 void *module_alloc(unsigned long size)
 {
@@ -15,13 +14,10 @@ void *module_alloc(unsigned long size)
 	return vmalloc(size);
 }
 
-
 /* Free memory returned from module_alloc */
 void module_free(struct module *mod, void *module_region)
 {
 	vfree(module_region);
-	/* FIXME: If module_region == mod->init_region, trim exception
-           table entries. */
 }
 
 /* We don't need anything special. */
@@ -39,6 +35,17 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 		   unsigned int relsec,
 		   struct module *me)
 {
+	printk(KERN_ERR "module %s: .rel unsupported\n",
+	       me->name);
+	return -ENOEXEC;
+}
+
+int apply_relocate_add(Elf32_Shdr *sechdrs,
+		       const char *strtab,
+		       unsigned int symindex,
+		       unsigned int relsec,
+		       struct module *me)
+{
 	unsigned int i;
 	Elf32_Rel *rel = (void *)sechdrs[relsec].sh_addr;
 	Elf32_Sym *sym;
@@ -55,10 +62,27 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 		sym = (Elf32_Sym *)sechdrs[symindex].sh_addr
 			+ ELF32_R_SYM(rel[i].r_info);
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
-		
+	
+		case R_pcrel12_jump:
+		case R_pcrel12_jump_s:
 		case R_pcrel24:
+		case R_pcrel24_jump_l:
+		case R_pcrel24_jump_x:
+		case R_pcrel24_call_x:
+		case R_pcrel10:
 			/* Add the value, subtract its postition */
 			*location += sym->st_value - (uint32_t)location;
+			break;
+	
+		case R_luimm16:
+		case R_huimm16:
+			break;
+		case R_rimm16:
+			break;
+		case R_byte4_data:
+			break;
+		case R_unusedc:
+		case R_unused0:
 			break;
 		default:
 			printk(KERN_ERR "module %s: Unknown relocation: %u\n",
@@ -67,17 +91,6 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 		}
 	}
 	return 0;
-}
-
-int apply_relocate_add(Elf32_Shdr *sechdrs,
-		       const char *strtab,
-		       unsigned int symindex,
-		       unsigned int relsec,
-		       struct module *me)
-{
-	printk(KERN_ERR "module %s: ADD RELOCATION unsupported\n",
-	       me->name);
-	return -ENOEXEC;
 }
 
 int module_finalize(const Elf_Ehdr *hdr,
