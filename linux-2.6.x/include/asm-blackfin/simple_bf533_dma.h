@@ -402,4 +402,10 @@ int bfin_setupdma(unsigned int,void *, unsigned int, struct dma_config_t );
 int enable_dma_intr(unsigned int);
 int bfin_request_dma(char *,unsigned int,dma_interrupt_t, void *);
 int bfin_ack_dma_int(unsigned int, int);
+
+int bfin_get_dma_status(unsigned int);
+void bfin_clear_dma_done(unsigned int);
+void bfin_clear_dma_err(unsigned int);
+int bfin_get_curxcount(unsigned int);
+int bfin_get_curycount(unsigned int);
 #endif
