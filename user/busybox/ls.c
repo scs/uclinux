@@ -526,16 +526,13 @@ static void showdirs(struct dnode **dn, int ndirs)
 	int dndirs;
 	struct dnode **dnd;
 #endif
-	//printf("in showdir/n");
 	if (dn==NULL || ndirs < 1) return;
 
 	for (i=0; i<ndirs; i++) {
 		if (disp_opts & (DISP_DIRNAME | DISP_RECURSIVE)) {
 			printf("\n%s:\n", dn[i]->fullname);
 		}
-	//	printf("bef readdir\n");
 		subdnp= list_dir(dn[i]->fullname);
-	//	printf("after readdir subdnp=%x\n",subdnp);
 		nfiles= countfiles(subdnp);
 		if (nfiles > 0) {
 			/* list all files at this level */
