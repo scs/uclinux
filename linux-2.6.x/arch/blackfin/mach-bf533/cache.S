@@ -18,20 +18,13 @@
 .text
  
 .globl _cache_invalidate
-.type _cache_invalidate, STT_FUNC;
-
 .globl _icache_invalidate
-.type _icache_invalidate, STT_FUNC;
-
 .globl blackfin_cache_clean_invalidate_range
-.type blackfin_cache_clean_invalidate_range, STT_FUNC;
-
+.global blackfin_dflush_page
+.global invalidate_entire_icache
+.global invalidate_entire_dcache
 
 .align 2;
-
-.global blackfin_dflush_page
-.type blackfin_dflush_page, STT_FUNC;
-
 
 ENTRY(_cache_invalidate)
 
@@ -170,10 +163,6 @@ lbl3b:  R5=R5+R3;
 	( R7:4, P5:5) = [SP++];
 	RTS;
 
-._icache_invalidate.end:
-
-
-
 .align 2;
 _dcache_invalidate:
 
@@ -262,15 +251,10 @@ lbl3c:	R5=R5+R3;
 	STI R5;
 	( R7:4, P5:5) = [SP++];
 	RTS;
-._dcache_invalidate.end:
-
 
 /* Invalidate the Entire Instruction cache by 
  * disabling IMC bit
  */
-
-.global invalidate_entire_icache
-.type invalidate_entire_icache, STT_FUNC;
 
 invalidate_entire_icache:
 
@@ -308,8 +292,6 @@ invalidate_entire_icache:
  * clearing DMC[1:0] bits
  */
 
-.global invalidate_entire_dcache
-.type invalidate_entire_dcache, STT_FUNC;
 
 invalidate_entire_dcache:
 
