@@ -244,6 +244,15 @@ if [ "$CONFIG_USER_FNORD_HTTPD" != "y" ]; then
 		fi
 	fi
 fi
+if [ "$CONFIG_USER_FNORD_HTTPD" != "y" ]; then
+	bool 'boa_new'			CONFIG_USER_BOA_SRC_BOA_NEW
+	if [ "$CONFIG_USER_BOA_SRC_BOA_NEW" = "y" ]; then
+		bool '  boa uses SSL'	CONFIG_USER_BOA_WITH_SSL
+		if [ "$CONFIG_USER_BOA_WITH_SSL" = "y" ]; then
+			define_bool	CONFIG_LIB_LIBSSL y
+		fi
+	fi
+fi
 bool 'bpalogin'			CONFIG_USER_BPALOGIN_BPALOGIN
 bool 'br2684ctl'		CONFIG_USER_BR2684CTL_BR2684CTL
 bool 'brcfg'			CONFIG_USER_BRCFG_BRCFG
