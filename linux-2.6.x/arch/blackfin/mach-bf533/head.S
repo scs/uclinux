@@ -6,23 +6,21 @@
  * Copyright (C) 2004 LG Soft India
  *
  */
-
+#include <linux/linkage.h>
 #include <asm/blackfin.h>
 #include <asm/board/mem_init.h>
 
 .global _rambase
 .global _ramstart
 .global _ramend
-.global _stext
-.global _start
 
 .text
 
-_start:
-_stext:
+ENTRY(_start)
+ENTRY(_stext)
 	/* Set the SYSCFG register */
-	R0 = 0x36; 		/*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
-	SYSCFG = r0;
+	R0 = 0x36;
+	SEQSTAT = R0; 		/*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
 	R0 = 0;
 
 /*Clear Out All the data and pointer  Registers*/
@@ -64,119 +62,52 @@ _stext:
 	M2 = r0;
 	M3 = r0;
 
-	p0.h = (UART_LCR >> 16);
-	p0.l = (UART_LCR & 0xFFFF);
+/*Initialise UART*/
+	p0.h = hi(UART_LCR);
+	p0.l = lo(UART_LCR);
 	r0 = 0x0(Z);
 	w[p0] = r0.L;	/* To enable DLL writes */
 	ssync;
 
-	p0.h = (UART_DLL >> 16);
-	p0.l = (UART_DLL & 0xFFFF);
+	p0.h = hi(UART_DLL);
+	p0.l = lo(UART_DLL);
 	r0 = 0x0(Z);
 	w[p0] = r0.L;
 	ssync;
 
-	p0.h = (UART_DLH >> 16);
-	p0.l = (UART_DLH & 0xFFFF);
+	p0.h = hi(UART_DLH);
+	p0.l = lo(UART_DLH);
 	r0 = 0x00(Z);
 	w[p0] = r0.L;
 	ssync;
 	
-	p0.h = (UART_GCTL>>16);
-	p0.l = (UART_GCTL & 0xFFFF);
+	p0.h = hi(UART_GCTL);
+	p0.l = lo(UART_GCTL);
 	r0 = 0x0(Z);
 	w[p0] = r0.L;	/* To enable UART clock */
 	ssync;
 
-/**************************************PLL Setup ************************************/
-	/*
-         *  Set PLL_CTL
-         *   - [14:09] = MSEL[5:0] : CLKIN / VCO multiplication factors
-         *   - [8]     = BYPASS    : BYPASS the PLL, run CLKIN into CCLK/SCLK
-         *   - [7]     = output delay (add 200ps of delay to mem signals)
-         *   - [6]     = input delay (add 200ps of input delay to mem signals)
-         *   - [5]     = PDWN      : 1=All Clocks off
-         *   - [3]     = STOPCK    : 1=Core Clock off
-         *   - [1]     = PLL_OFF   : 1=Disable Power to PLL
-         *   - [0]     = DF        : 1=Pass CLKIN/2 to PLL / 0=Pass CLKIN to PLL
-         *   all other bits set to zero
-         */
-	
-	p0.h = hi(PLL_LOCKCNT);
-	p0.l = lo(PLL_LOCKCNT);
-	r0 = 0x300(Z);
-	w[p0] = r0.l;
-	ssync;
-
-	SSYNC;
-        P2.H = hi(EBIU_SDGCTL);
-        P2.L = lo(EBIU_SDGCTL);
-        R0 = [P2];
-        BITSET (R0, 24);
-        [P2] = R0;
-        SSYNC;
-
-        r0 = CONFIG_VCO_MULT;           /* Load the VCO multiplier         */
-        r0 = r0 << 9;                   /* Shift it over,                  */
-        r1 = CLKIN_HALF;        /* Do we need to divide CLKIN by 2?*/
-        r0 = r1 | r0;
-        r1 = PLL_BYPASS;         /* Bypass the PLL?                 */
-        r1 = r1 << 8;                   /* Shift it over                   */
-        r0 = r1 | r0;                   /* add them all together           */
-
-        p0.h = (PLL_CTL >> 16);
-        p0.l = (PLL_CTL & 0xFFFF);      /* Load the address                */
-        cli r2;                         /* Disable interrupts              */
-	ssync;
-        w[p0] = r0.l;                     /* Set the value                   */
-        idle;                           /* Wait for the PLL to stablize    */
-        sti r2;                         /* Enable interrupts               */
-
-check_again:
-	p0.h = hi(PLL_STAT);
-	p0.l = lo(PLL_STAT);
-	R0 = W[P0](Z);
-	CC = BITTST(R0,5);
-	if ! CC jump check_again;
-
-	/* Configure SCLK & CCLK Dividers */
-       	r2 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
-        p0.h = (PLL_DIV >> 16);
-        p0.l = (PLL_DIV & 0xFFFF);
-        w[p0] = r2.l;
-        ssync;
-
-	p0.l = (EBIU_SDRRC & 0xFFFF);
-        p0.h = (EBIU_SDRRC >> 16);
-        r0 = mem_SDRRC;
-        w[p0] = r0.l;
-        ssync;
-
-	P2.H = hi(EBIU_SDGCTL);
-        P2.L = lo(EBIU_SDGCTL);
-        R0 = [P2];
-        BITCLR (R0, 24);
-        [P2] = R0;
-        SSYNC;
+	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
+	call start_dma_code;
 
 	/* Code for initializing Async memory banks */
 
-        p2.h = (EBIU_AMBCTL1 >> 16);
-        p2.l = (EBIU_AMBCTL1 & 0xFFFF);
-        r0.h = (AMBCTL1VAL >> 16);
-        r0.l = (AMBCTL1VAL & 0xffff);
+        p2.h = hi(EBIU_AMBCTL1);
+        p2.l = lo(EBIU_AMBCTL1);
+        r0.h = hi(AMBCTL1VAL);
+        r0.l = lo(AMBCTL1VAL);
         [p2] = r0;
         ssync;
 
-        p2.h = (EBIU_AMBCTL0 >> 16);
-        p2.l = (EBIU_AMBCTL0 & 0xFFFF);
-        r0.h = (AMBCTL0VAL >> 16);
-        r0.l = (AMBCTL0VAL & 0xffff);
+        p2.h = hi(EBIU_AMBCTL0);
+        p2.l = lo(EBIU_AMBCTL0);
+        r0.h = hi(AMBCTL0VAL);
+        r0.l = lo(AMBCTL0VAL);
         [p2] = r0;
         ssync;
 
-        p2.h = (EBIU_AMGCTL >> 16);
-        p2.l = (EBIU_AMGCTL & 0xffff);
+        p2.h = hi(EBIU_AMGCTL);
+        p2.l = lo(EBIU_AMGCTL);
         r0 = AMGCTLVAL;
         w[p2] = r0;
         ssync;
@@ -188,15 +119,15 @@ check_again:
 
 	/* EVT15 = _real_start */
 
-	p0.l = (EVT15 & 0xFFFF);
-	p0.h = (EVT15 >> 16);
+	p0.l = lo(EVT15);
+	p0.h = hi(EVT15);
 	p1.l = _real_start;
 	p1.h = _real_start;
 	[p0] = p1;
 	csync;
 
-	p0.l = (IMASK & 0xFFFF);
-	p0.h = (IMASK >> 16);
+	p0.l = lo(IMASK);
+	p0.h = hi(IMASK);
 	p1.l = IMASK_IVG15;
 	p1.h = 0x0;
 	[p0] = p1;
@@ -211,11 +142,10 @@ check_again:
 WAIT_HERE:
 	jump WAIT_HERE;
 
-.global _real_start;
-_real_start:
+ENTRY(_real_start)
 	[ -- sp ] = reti;
-	p0.l = (WDOG_CTL & 0xFFFF);
-	p0.h = (WDOG_CTL >> 16);
+	p0.l = lo(WDOG_CTL);
+	p0.h = hi(WDOG_CTL);
 	r0 = 0xAD6(z);
 	w[p0] = r0;	/* watchdog off for now */
 	ssync;
@@ -245,8 +175,9 @@ _clear_bss:
 	r0.l = _end;
 	r0.h = _end;
 	[p1] = r0;
-	r0.l = (RAM_END & 0xFFFF);
-	r0.h = (RAM_END >> 16);
+
+	r0.l = lo(RAM_END);
+	r0.h = hi(RAM_END);
 	p1.l = _ramend;
 	p1.h = _ramend;
 	[p1] = r0;
@@ -257,9 +188,6 @@ _clear_bss:
 	r1.l = init_thread_union;
 	r1.h = init_thread_union;
 
-/* Use kernel stack instead of an l1 stack. l1 stack might overflow.
- * For this time being this should be sufficient.
- */
 	r2.l = 0x2000; 
 	r2.h = 0x0000;
 	r1 = r1 + r2;
@@ -270,6 +198,184 @@ _clear_bss:
 _exit:
 	jump.s	_exit;
 	
+.section .text.l1
+ENTRY(start_dma_code)
+	p0.h = hi(SIC_IWR);
+	p0.l = lo(SIC_IWR);
+	r0.l = 0x1;
+	[p0] = r0;
+	SSYNC;
+	
+	/*
+         *  Set PLL_CTL
+         *   - [14:09] = MSEL[5:0] : CLKIN / VCO multiplication factors
+         *   - [8]     = BYPASS    : BYPASS the PLL, run CLKIN into CCLK/SCLK
+         *   - [7]     = output delay (add 200ps of delay to mem signals)
+         *   - [6]     = input delay (add 200ps of input delay to mem signals)
+         *   - [5]     = PDWN      : 1=All Clocks off
+         *   - [3]     = STOPCK    : 1=Core Clock off
+         *   - [1]     = PLL_OFF   : 1=Disable Power to PLL
+         *   - [0]     = DF        : 1=Pass CLKIN/2 to PLL / 0=Pass CLKIN to PLL
+         *   all other bits set to zero
+         */
+	
+	p0.h = hi(PLL_LOCKCNT);
+	p0.l = lo(PLL_LOCKCNT);
+	r0 = 0x300(Z);
+	w[p0] = r0.l;
+	ssync;
+
+        P2.H = hi(EBIU_SDGCTL);
+        P2.L = lo(EBIU_SDGCTL);
+        R0 = [P2];
+        BITSET (R0, 24);
+        [P2] = R0;
+        SSYNC;
+
+        r0 = CONFIG_VCO_MULT;           /* Load the VCO multiplier         */
+        r0 = r0 << 9;                   /* Shift it over,                  */
+        r1 = CLKIN_HALF;        /* Do we need to divide CLKIN by 2?*/
+        r0 = r1 | r0;
+        r1 = PLL_BYPASS;         /* Bypass the PLL?                 */
+        r1 = r1 << 8;                   /* Shift it over                   */
+        r0 = r1 | r0;                   /* add them all together           */
+	
+        p0.h = hi(PLL_CTL);
+        p0.l = lo(PLL_CTL);      /* Load the address                */
+        cli r2;                         /* Disable interrupts              */
+	ssync;
+        w[p0] = r0.l;                     /* Set the value                   */
+        idle;                           /* Wait for the PLL to stablize    */
+        sti r2;                         /* Enable interrupts               */
+
+check_again:
+	p0.h = hi(PLL_STAT);
+	p0.l = lo(PLL_STAT);
+	R0 = W[P0](Z);
+	CC = BITTST(R0,5);
+	if ! CC jump check_again;
+
+	/* Configure SCLK & CCLK Dividers */
+       	r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
+        p0.h = hi(PLL_DIV);
+        p0.l = lo(PLL_DIV);
+        w[p0] = r0.l;
+        ssync;
+
+	p0.l = lo(EBIU_SDRRC);
+        p0.h = hi(EBIU_SDRRC);
+        r0 = mem_SDRRC;
+        w[p0] = r0.l;
+        ssync;
+
+	P2.H = hi(EBIU_SDGCTL);
+        P2.L = lo(EBIU_SDGCTL);
+        R0 = [P2];
+        BITCLR (R0, 24);
+	p0.h = hi(EBIU_SDSTAT);
+	p0.l = lo(EBIU_SDSTAT);
+	r2.l = w[p0];
+	cc = bittst(r2,3);
+	if !cc jump skip;
+	BITSET (R0, 23);
+skip:
+	[P2] = R0;
+        SSYNC;
+
+        R0.L = lo(mem_SDGCTL);
+        R0.H = hi(mem_SDGCTL);
+	R1 = [p2];
+	R1 = R1 | R0;
+	[P2] = R1;
+        SSYNC;
+
+	RTS;
+
+ENTRY(reset)
+	/* No more interrupts to be handled*/
+	CLI R6;
+	SSYNC;
+
+	/* Clear the bits 13-15 in SWRST if they werent cleared */
+	p0.h = hi(SWRST);
+	p0.l = lo(SWRST);
+	csync;
+	r0.l = w[p0];
+
+	/* Clear the IMASK register */
+	p0.h = hi(IMASK);
+	p0.l = lo(IMASK);
+	r0 = 0x0;
+	[p0] = r0;
+
+	/* Clear the ILAT register */
+	p0.h = hi(ILAT);
+	p0.l = lo(ILAT);
+	r0 = [p0];
+	[p0] = r0;
+	SSYNC;
+	
+	/* Disable the WDOG TIMER */
+	p0.h = hi(WDOG_CTL);
+	p0.l = lo(WDOG_CTL);
+	r0.l = 0xAD6;
+	w[p0] = r0.l;
+	SSYNC;
+	
+	/* Clear the sticky bit incase it is already set */	
+	p0.h = hi(WDOG_CTL);
+	p0.l = lo(WDOG_CTL);
+	r0.l = 0x8AD6;
+	w[p0] = r0.l;
+	SSYNC;
+
+	/* Program the count value */
+	R0.l = 0x100;
+	R0.h = 0x0;
+	P0.h = hi(WDOG_CNT);
+	P0.l = lo(WDOG_CNT);
+	[P0] = R0;
+	SSYNC;
+
+	/* Program WDOG_STAT if necessary */
+	P0.h = hi(WDOG_CTL);
+	P0.l = lo(WDOG_CTL);
+	R0 = W[P0](Z);
+	CC = BITTST(R0,1);
+	if !CC JUMP WRITESTAT;
+	CC = BITTST(R0,2);
+	if !CC JUMP WRITESTAT;
+	JUMP SKIP_WRITE;
+
+WRITESTAT:
+	/* When watch dog timer is enabled, a write to STAT will load the contents of CNT to STAT */
+	R0 = 0x0000(z);
+	P0.h = hi(WDOG_STAT);
+	P0.l = lo(WDOG_STAT)
+	[P0] = R0;
+	SSYNC;
+
+SKIP_WRITE:
+	/* Enable the reset event */
+	P0.h = hi(WDOG_CTL);
+        P0.l = lo(WDOG_CTL);
+        R0 = W[P0](Z);
+        BITCLR(R0,1);
+        BITCLR(R0,2);
+        W[P0] = R0.L;
+        SSYNC;
+        NOP;
+
+	/* Enable the wdog counter */
+        R0 = W[P0](Z);
+        BITCLR(R0,4);
+        W[P0] = R0.L;
+        SSYNC;
+	
+	IDLE;
+
+	RTS;
+
 .data
 
 /*

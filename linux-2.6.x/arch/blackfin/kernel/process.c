@@ -14,7 +14,6 @@
 #include <linux/unistd.h>
 #include <linux/user.h>
 #include <linux/a.out.h>
-#include <linux/reboot.h>
 
 #include <asm/blackfin.h>
 #include <asm/uaccess.h>
@@ -24,6 +23,7 @@
 
 void leds_switch(int flag);
 asmlinkage void ret_from_fork(void);
+extern void reset(void);
 
 /*
  * The idle loop on BFIN 
@@ -55,15 +55,14 @@ void cpu_idle(void)
 void machine_restart(char * __unused)
 {
 #if defined(CONFIG_BLKFIN_CACHE)
-	asm("csync;");
 	*pIMEM_CONTROL = 0x01;
 	asm("ssync;");
 #endif	
-	asm("csync;");
-	*pWDOG_CNT = 0x10;
-	asm("ssync;");
-	*pWDOG_CTL = 0xAF0;
-	asm("ssync;");
+	reset();
+	/* Dont do anything till the reset occurs */
+	while(1) {
+		asm("ssync;");
+	}
 }
 
 void machine_halt(void)
@@ -105,10 +104,6 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	long clone_arg = flags | CLONE_VM;
 	unsigned long t_hold_sp;
 
-	mm_segment_t fs; 
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-
 	__asm__ __volatile__ (
 			"r1 = sp; \n\t"
 			"r0 = %6; \n\t"
@@ -133,13 +128,11 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 		  "a" (clone_arg)
 		: "CC", "R0", "R1", "R2", "P0");
 
-	set_fs(fs);
 	return retval;
 }
 
 void flush_thread(void)
 {
-	set_fs(USER_DS);
 }
 
 asmlinkage int bfin_vfork(struct pt_regs *regs)
