@@ -28,95 +28,14 @@
 #define	PF_DTRACE_OFF	1
 #define	PF_DTRACE_BIT	5
 
-#define NEW_PT_REGS	
-
-#if defined(NEW_PT_REGS)
-
 # define SAVE_ALL_INT		save_context_with_interrupts
 # define SAVE_ALL_SYS		save_context_no_interrupts
 # define SAVE_CONTEXT		save_context_with_interrupts
 
 
-# define RESTORE_ALL_SYS	restore_context_no_interrupts
-# define RESTORE_ALL		restore_context_no_interrupts
 # define RESTORE_ALL_INT	restore_context_with_interrupts
+# define RESTORE_ALL_SYS	restore_context_no_interrupts
 # define RESTORE_CONTEXT	restore_context_with_interrupts
-
-#else
-
-# define SAVE_ALL_INT		save_all_int
-# define SAVE_ALL_SYS		save_all_sys
-# define SAVE_CONTEXT		save_context
-
-# define RESTORE_ALL		restore_context
-# define RESTORE_CONTEXT	restore_context
-
-#endif
-
-/*
- * Don't use the following registers in interrupt handlers:
- *   I0-3, M0-3, L0-3, B0-3, LC0-1, LT0-1, LB0-1
- */
-.macro save_interrupt_context
-        [--sp] = R0;    /* orig_r0*/
-        [--sp] = ( R7:0, P5:0 );
-        [--sp] = fp;
-        [--sp] = usp;
-
-        SP += -32;
-        SP += -32;      /* Skip I0-3, M0-3, L0-3, B0-3 */
-
-        [--sp] = a0.x;
-        [--sp] = a0.w;
-        [--sp] = a1.x;
-        [--sp] = a1.w;
-
-        SP += -24;      /* Skip LC0-1, LT0-1, LB0-1 */
-
-        [--sp] = ASTAT;
-
-        [--sp] = r0;    /* Skip reserved */
-        [--sp] = RETS;
-        [--sp] = RETI;
-
-        SP += -12;      /* Skip RETX, RETN, RETE */
-
-        [--sp] = SEQSTAT;
-        [--sp] = SYSCFG;
-        [--sp] = r0;    /* Skip IPEND as well. */
-.endm
-
-.macro restore_interrupt_context
-        sp += 4;        /* Skip IPEND*/
-        SYSCFG = [sp++];
-        SEQSTAT = [sp++];
-
-        sp += 12;       /* Skip RETX, RETN, RETE*/
-        RETI = [sp++];
-        RETS = [sp++];
-
-        sp += 4;        /* Skip Reserved */
-
-        ASTAT = [sp++];
-
-        sp += 24;       /* Skip LC0-1, LT0-1, LB0-1*/
-
-        a1.w = [sp++];
-        a1.x = [sp++];
-        a0.w = [sp++];
-        a0.x = [sp++];
-
-        sp += 32;
-        sp += 32;       /* Skip I0-3, M0-3, L0-3, B0-3  */
-
-        /* Don't mess with USP unless we have to. Things break if we do. */
-        /* usp = [sp++]; */
-        sp += 4;
-        fp = [sp++];
-
-        ( R7 : 0, P5 : 0) = [ SP ++ ];
-        sp += 4;        /* Skip orig_r0 */
-.endm
 
 /*
  * Code to save processor context.
@@ -124,9 +43,6 @@
  *	 - r4, r5, r6, r7, p3, p4, p5
  */
 .macro save_context_with_interrupts
-	
-	[--sp] = SYSCFG;
-
 	[--sp] = R0;	/*orig_r0*/
 	[--sp] = ( R7:0, P5:0 );
 	[--sp] = fp;
@@ -172,13 +88,11 @@
 	[--sp] = RETN;
 	[--sp] = RETE;
 	[--sp] = SEQSTAT;
-	/*[--sp] = SYSCFG;*/
+	[--sp] = SYSCFG;
 	[--sp] = r0;	/* Skip IPEND as well. */
 .endm
 
 .macro save_context_no_interrupts
-	
-	[--sp] = SYSCFG;
 	[--sp] = R0;	/* orig_r0 */
 	[--sp] = ( R7:0, P5:0 );
 	[--sp] = fp;
@@ -225,14 +139,14 @@
 	[--sp] = RETN;
 	[--sp] = RETE;
 	[--sp] = SEQSTAT;
-	/*[--sp] = SYSCFG;*/
+	[--sp] = SYSCFG;
 	[--sp] = r0;	/* Skip IPEND as well. */
 
 .endm
 	 
 .macro restore_context_no_interrupts
 	sp += 4;	/* Skip IPEND */
-	/*SYSCFG = [sp++];*/
+	SYSCFG = [sp++];
 	SEQSTAT = [sp++];
 	RETE = [sp++];
 	RETN = [sp++];
@@ -283,13 +197,11 @@
 
 	( R7 : 0, P5 : 0) = [ SP ++ ];
 	sp += 4;	/* Skip orig_r0 */
-	
-	SYSCFG = [sp++];
 .endm
 
 .macro restore_context_with_interrupts
 	sp += 4;	/* Skip IPEND */
-	/*SYSCFG = [sp++];*/
+	SYSCFG = [sp++];
 	SEQSTAT = [sp++];
 	RETE = [sp++];
 	RETN = [sp++];
@@ -339,101 +251,7 @@
 
 	( R7 : 0, P5 : 0) = [ SP ++ ];
 	sp += 4;	/* Skip orig_r0 */
-	SYSCFG = [sp++];
 .endm
-/*
- * regs a3-a6 and d6-d7 are preserved by C code
- * the kernel doesn't mess with usp unless it needs to
- */
-
-#if !defined(NEW_PT_REGS)
-/*
- * a -1 in the orig_r0 field signifies
- * that the stack frame is NOT for syscall
- */
-.macro	save_all_int
-/* reserved and disable the single step of SYSCFG, by Steven Chen 03/07/10 */
-	[--sp] = r0;
-	r0.l = 0x30;	/* Errata for BF533 */
-	r0.h = 0x0;
-	syscfg = r0;	 /* disable single step flag in SYSCFG */
-	r0 = [sp++];
-	[--sp] = syscfg;	/* store SYSCFG */
-
-/********************************/
-	[--sp] = r0;		/* Reserved for IPEND */	
-	[--sp] = fp;
-	[--sp] = usp;
-/*******************************/
-	[--sp] = r0;
-
-	[--sp] = r0;
-	r0 = [sp + 8];
-	[--sp] = a0.x;
-	[--sp] = a1.x;
-	[--sp] = a0.w;
-	[--sp] = a1.w;
-	[--sp] = rets;
-	[--sp] = astat;
-	[--sp] = seqstat;
-	[--sp] = retx;	/* current pc when exception happens */
-	[--sp] = ( r7:5, p5:0 );
-	[--sp] = r1;
-	[--sp] = r2;
-	[--sp] = r4;
-	[--sp] = r3;
-
-
-/******************************
-	clrl	%sp@-		 stk_adj 
-	pea	-1:w		 orig d0 
-	movel	%d0,%sp@-	 d0 
-	moveml	%d1-%d5/%a0-%a1/%curptr,%sp@-
-******************************/
-.endm
-
-.macro	save_all_sys
-	[--sp] = r0;
-	[--sp] = r0;
-	[--sp] = a0.x;
-	[--sp] = a1.x;
-	[--sp] = a0.w;
-	[--sp] = a1.w;
-	[--sp] = rets;
-	[--sp] = astat;
-	[--sp] = seqstat;
-	[--sp] = retx;	/* current pc when exception happens */
-	[--sp] = ( r7:5, p5:0 );
-	[--sp] = ( r2:1 );
-	[--sp] = r4;
-	[--sp] = r3;
-.endm
-
-.macro	restore_all
-	r3 = [sp++];
-	r4 = [sp++];
-	( r2:1 ) = [sp++];
-	( r7:5, p5:0 ) = [sp++];
-	retx = [sp++];
-	seqstat = [sp++];
-	astat = [sp++];
-	rets = [sp++];
-	a1.w = [sp++];
-	a0.w = [sp++];
-	a1.x = [sp++];
-	a0.x = [sp++];
-	sp += 4;	/* orig r0 */
-	r0 = [sp++];
-	
-	/* usp = [sp++]; */
-	sp += 4;
-	fp = [sp++];
-	sp +=4;		/* Skip the IPEND */
-
-	syscfg = [sp++];
-.endm
-
-#endif
 
 #define STR(X) STR1(X)
 #define STR1(X) #X
