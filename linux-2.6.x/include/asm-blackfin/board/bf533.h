@@ -115,7 +115,7 @@
 #define AMBCTL0VAL	0xBBC3BBC3
 #define AMBCTL1VAL	0x99B39983
 #define AMGCTLVAL	0xFF
-#define RAM_END		0x4000000
+#define RAM_END		0x3000000
 #endif
 
 #endif  /* _BLKFin_H_  */
