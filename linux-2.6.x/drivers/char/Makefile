@@ -44,6 +44,9 @@ obj-$(CONFIG_RAW_DRIVER)	+= raw.o
 obj-$(CONFIG_VIOCONS) += viocons.o
 obj-$(CONFIG_VIOTAPE)		+= viotape.o
 obj-$(CONFIG_HVCS)		+= hvcs.o
+obj-$(CONFIG_SPI_BF533) += spi.o
+obj-$(CONFIG_SPI_ADC_BF533) += adsp-spiadc.o  
+obj-$(CONFIG_BF533_PFLAGS) += pflags.o  
 
 obj-$(CONFIG_PRINTER) += lp.o
 obj-$(CONFIG_TIPAR) += tipar.o
