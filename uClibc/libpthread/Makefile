@@ -81,8 +81,7 @@ shared: all
 		$(LD) $(LDFLAGS_PTHREADS) -soname=$(LIBPTHREAD_SHARED).$(MAJOR_VERSION) \
 			-o $(LIBPTHREAD_SHARED_FULLNAME) $(START_FILES) --whole-archive $(LIBPTHREAD) \
 			--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
-			-L$(TOPDIR)lib -lc $(LDADD_LIBFLOAT) $(LIBGCC) \
-			$(END_FILES); \
+			-L$(TOPDIR)lib -lc $(END_FILES); \
 		$(INSTALL) -d $(TOPDIR)lib; \
 		$(RM) $(TOPDIR)lib/$(LIBPTHREAD_SHARED_FULLNAME) \
 			$(TOPDIR)lib/$(LIBPTHREAD_SHARED).$(MAJOR_VERSION); \

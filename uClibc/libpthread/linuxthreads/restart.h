@@ -15,10 +15,6 @@
 #include <signal.h>
 #include <sys/syscall.h>
 
-#ifdef arm
-#undef __NR_rt_sigaction
-#endif
-
 /* Primitives for controlling thread execution */
 
 static inline void restart(pthread_descr th)

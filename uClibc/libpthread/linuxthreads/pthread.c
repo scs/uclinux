@@ -38,10 +38,6 @@
 #include <sys/types.h>
 #include <sys/syscall.h>
 
-#ifdef arm
-#undef __NR_rt_sigaction
-#endif
-
 /* mods for uClibc: getpwd and getpagesize are the syscalls */
 #define __getpid getpid
 #define __getpagesize getpagesize
@@ -227,8 +223,14 @@ int __pthread_timedsuspend_new(pthread_descr self, const struct timespec *abstim
    platform does not support any real-time signals we will define the
    values to some unreasonable value which will signal failing of all
    the functions below.  */
-
-#if defined(__NR_rt_sigaction) && __SIGRTMAX - __SIGRTMIN >= 3
+#ifndef __NR_rt_sigaction
+static int current_rtmin = -1;
+static int current_rtmax = -1;
+int __pthread_sig_restart = SIGUSR1;
+int __pthread_sig_cancel = SIGUSR2;
+int __pthread_sig_debug;
+#else
+#if __SIGRTMAX - __SIGRTMIN >= 3
 static int current_rtmin = __SIGRTMIN + 3;
 static int current_rtmax = __SIGRTMAX;
 int __pthread_sig_restart = __SIGRTMIN;
@@ -248,6 +250,7 @@ void (*__pthread_suspend)(pthread_descr) = __pthread_suspend_old;
 int (*__pthread_timedsuspend)(pthread_descr, const struct timespec *) = __pthread_timedsuspend_old;
 #endif
 
+#endif
 /* Return number of available real-time signal with highest priority.  */
 int __libc_current_sigrtmin (void)
 {
@@ -872,7 +875,7 @@ __pthread_timedsuspend_old(pthread_descr self, const struct timespec *abstime)
 	struct timespec reltime;
 
 	/* Compute a time offset relative to now.  */
-	gettimeofday (&now, NULL);
+	__gettimeofday (&now, NULL);
 	reltime.tv_nsec = abstime->tv_nsec - now.tv_usec * 1000;
 	reltime.tv_sec = abstime->tv_sec - now.tv_sec;
 	if (reltime.tv_nsec < 0) {
