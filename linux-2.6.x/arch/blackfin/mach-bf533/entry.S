@@ -202,20 +202,23 @@ exit_syscall:
 	r7 = [p5 + TI_FLAGS];
 	r4 = _TIF_WORK_MASK;
 	r7 =  r7 & r4;
-	cc = BITTST(r7, TIF_NEED_RESCHED);
-	if !cc jump syscall_sigpending; 
-	call reschedule;
 
 syscall_sigpending:
 	cc = BITTST(r7, TIF_SIGPENDING);
-	if !cc jump syscall_really_exit;
+	if !cc jump syscall_resched;
 
 Lsignal_return:
+
 	r0 = 0;
 	r1 = sp;
 	SP += -12;
 	call do_signal; 
 	SP += 12;
+
+syscall_resched:
+	cc = BITTST(r7, TIF_NEED_RESCHED);
+	if !cc jump syscall_really_exit; 
+	call reschedule;
 
 syscall_really_exit:
 	r0 = [sp + PT_RESERVED];
