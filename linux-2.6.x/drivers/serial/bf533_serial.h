@@ -98,7 +98,8 @@ struct bf533_serial {
         int                     recv_tail;
         int                     recv_cnt;
         spinlock_t              recv_lock;
-        struct timer_list       dma_timer;
+        struct timer_list       dma_xmit_timer;
+        struct timer_list       dma_recv_timer;
 
 	struct work_struct	tqueue;
 	struct work_struct	tqueue_hangup;

@@ -350,11 +350,6 @@ static void dma_receive_chars(struct bf533_serial *info, int in_timer)
 
       len = info->recv_head - info->recv_tail;
       
-/*      for (i = 0; i < len; i++)
-      {
-              tty_insert_flip_char(tty, info->recv_buf[info->recv_tail++],flag);
-      }
-*/
 	ttylen = TTY_FLIPBUF_SIZE - tty->flip.count;
 	if(ttylen>0) {
 		if(len > ttylen)
@@ -381,12 +376,19 @@ static void dma_transmit_chars(struct bf533_serial *info)
 {
 	spin_lock_bh(info->xmit_lock);
 
-	/* tx_xcount is rechecked here to make sure the dma won't be started again
-	 * if it is working now.
+	/* 
+	 * tx_xcount is checked here to make sure the dma won't be started if it is working.
 	 */
 	if (tx_xcount) {
+		/*
+		 * The DMA engine sometimes hangs when transfer a large buffer(> about 200 bytes) 
+		 * to the UART. It stops working before all data in the buffer is sent.
+		 * Current solution is to stop the DMA transmit operatoin in timer handler if the
+		 * DMA hang conditioni is met. The DMA hang condition is that the number of byte 
+		 * left in the xmit buffer is not 0 and the UART xmit empty status is set.
+		 */
 		ACCESS_PORT_IER
-		if(*pUART_LSR&0x20) {
+		if(*pUART_LSR&THRE) {
 			tx_xcount-=get_dma_curr_xcount(CH_UART_TX);
 			ACCESS_PORT_IER
 			*pUART_IER &= ~ETBEI;
@@ -418,8 +420,8 @@ static void dma_transmit_chars(struct bf533_serial *info)
 	if(tx_xcount > SERIAL_XMIT_SIZE - info->xmit_tail)
 		tx_xcount = SERIAL_XMIT_SIZE - info->xmit_tail; 
 
-	/* Only use dma to transfer data when count > 1.
-	 * Add 4 to the count before start dma, this is a walkarround to a dma hardware bug.
+	/* 
+	 *Only use dma to transfer data when count > 1.
 	 */
 	if(tx_xcount>1) {
 		flush_dcache_range((int)(info->xmit_buf+info->xmit_tail), (int)(info->xmit_buf+info->xmit_tail+tx_xcount-1));
@@ -680,15 +682,19 @@ static void dma_start_recv(struct bf533_serial * info)
         }
 }
 
-static void uart_dma_timer(struct bf533_serial * info)
+static void uart_dma_xmit_timer(struct bf533_serial * info)
 {
 	dma_transmit_chars(info);
-	dma_receive_chars(info, 1);
-        info->dma_timer.expires = jiffies + TIME_INTERVAL;
-        add_timer(&info->dma_timer);
+        info->dma_xmit_timer.expires = jiffies + TIME_INTERVAL;
+        add_timer(&info->dma_xmit_timer);
 }
                                                                                 
-
+static void uart_dma_recv_timer(struct bf533_serial * info)
+{
+	dma_receive_chars(info, 1);
+        info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
+        add_timer(&info->dma_recv_timer);
+}
 #endif
 
 static int startup(struct bf533_serial * info)
@@ -696,7 +702,8 @@ static int startup(struct bf533_serial * info)
 	unsigned long flags = 0;
 	
 	FUNC_ENTER();
-	init_timer(&info->dma_timer);
+	init_timer(&info->dma_xmit_timer);
+	init_timer(&info->dma_recv_timer);
 
 	*pUART_GCTL |= UCEN;
 	SYNC_ALL;
@@ -757,12 +764,16 @@ static int startup(struct bf533_serial * info)
         dma_start_recv(info);
 
 	/*
-	 * The timer should only start a bit later after the receive DMA engine is working.
+	 * The timer should only start after the receive DMA engine is working.
 	 */                         
-        info->dma_timer.data = (unsigned long)info;
-        info->dma_timer.function = (void *)uart_dma_timer;
-        info->dma_timer.expires = jiffies + TIME_INTERVAL;
-        add_timer(&info->dma_timer);
+        info->dma_xmit_timer.data = (unsigned long)info;
+        info->dma_xmit_timer.function = (void *)uart_dma_xmit_timer;
+        info->dma_xmit_timer.expires = jiffies + TIME_INTERVAL;
+        add_timer(&info->dma_xmit_timer);
+        info->dma_recv_timer.data = (unsigned long)info;
+        info->dma_recv_timer.function = (void *)uart_dma_recv_timer;
+        info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
+        add_timer(&info->dma_recv_timer);
 #endif
 
 	/*
@@ -914,7 +925,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
 	if(tx_xcount>0) {
-	        mod_timer(&info->dma_timer, jiffies);
+	        mod_timer(&info->dma_xmit_timer, jiffies);
 	}
 #else
 		local_irq_save(flags);
@@ -974,7 +985,7 @@ static int rs_write(struct tty_struct * tty, int from_user,
 	if (info->xmit_cnt && !tty->stopped && !tty->hw_stopped) {
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
 		if (tx_xcount > 0 && info->xmit_head == 0) {
-		        mod_timer(&info->dma_timer, jiffies);
+		        mod_timer(&info->dma_xmit_timer, jiffies);
 		}
 #else
 		/* Enable transmitter */
@@ -1552,7 +1563,7 @@ irqreturn_t uart_txdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 		tx_xcount = 0;
 		
 		if(info->xmit_cnt > 0) {
-		        mod_timer(&info->dma_timer, jiffies);
+		        mod_timer(&info->dma_xmit_timer, jiffies);
 		}
 
 		if (info->xmit_cnt < WAKEUP_CHARS)
