@@ -682,7 +682,7 @@ static void smc_reset( struct net_device* dev )
 	/* Note:  It doesn't seem that waiting for the MMU busy is needed here,
 	   but this is a place where future chipsets _COULD_ break.  Be wary
  	   of issuing another MMU command right after this */
-
+	while (readw( ioaddr + MMU_CMD_REG ) & MC_BUSY );
 	/* Disable all interrupts */
 #if defined(CONFIG_SMC16BITONLY)
 	smc_writew( 0, ioaddr + INT_REG );
@@ -1300,7 +1300,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	bank = readw( ioaddr + BANK_SELECT );
 	if ( (bank & 0xFF00) != 0x3300 ) 
 	{
-		printk(CARDNAME":Not a SMC device : %x\n", bank);
+		printk(CARDNAME":Device not found : %x\n", bank);
 		retval = -ENODEV;
 		goto err_out;
 	}
@@ -1312,8 +1312,8 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	bank = readw( ioaddr + BANK_SELECT );
 	if ( (bank & 0xFF00 ) != 0x3300 )
 	{
+		printk(CARDNAME":Not a SMC device : %x\n", bank);
 		retval = -ENODEV;
-		printk(KERN_DEBUG "SMSC91111:Not a SMC device : %x\n", bank);
 		goto err_out;
 	}
 
@@ -2021,6 +2021,7 @@ static void smc_rcv(struct net_device *dev)
 
 		skb->protocol = eth_type_trans(skb, dev );
 		netif_rx(skb);
+		dev->last_rx = jiffies;
 		lp->stats.rx_packets++;
 		lp->stats.rx_bytes += packet_length;
 	} else {
