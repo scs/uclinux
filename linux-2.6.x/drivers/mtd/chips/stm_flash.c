@@ -75,8 +75,6 @@ static void send_unlock(struct map_info *map, unsigned long base)
 	map_word test;
 	test.x[0]=0x00aa;
 	map->write(map,test, base + ADDR_UNLOCK_1);
-	//map->write(map, CMD_UNLOCK_DATA_1, base + ADDR_UNLOCK_1);
-	//map->write(map, CMD_UNLOCK_DATA_2, base + ADDR_UNLOCK_2);
 	test.x[0]=0x0055;
 	map->write(map,test, base + ADDR_UNLOCK_2);
 }
@@ -87,7 +85,6 @@ static void send_cmd(struct map_info *map, unsigned long base,
 	map_word test;
 	test.x[0]=cmd;
 	send_unlock(map, base);
-	//map->write(map, cmd, base + ADDR_UNLOCK_1);
 	map->write(map, test, base + ADDR_UNLOCK_1);
 }
 
@@ -97,7 +94,6 @@ static void send_cmd_to_addr(struct map_info *map, unsigned long base,
 	map_word test;
 	test.x[0]=cmd;
 	send_unlock(map, base);
-	//map->write(map, cmd, addr);
 	map->write(map, test, addr);
 }
 
@@ -121,8 +117,6 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 	send_cmd(map, base, CMD_RESET_DATA);
 	send_cmd(map, base, CMD_MANUFACTURER_UNLOCK_DATA);
 
-	//mfr_id = map->read(map, base + ADDR_MANUFACTURER) & 0x00FF;
-	//dev_id = map->read(map, base + ADDR_DEVICE_ID) & 0x00FF;
 	mfr_id1=map->read(map, base + ADDR_MANUFACTURER) ;
 	dev_id1=map->read(map, base + ADDR_DEVICE_ID) ;
 
@@ -140,17 +134,7 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 
 				for (j = 0; j < private->numchips; j++)
 				{
-					/*
-					if ((map->read(map, chips[j].start +
-							ADDR_MANUFACTURER)
-						== mfr_id) &&
-					    (map->read(map, chips[j].start +
-							 ADDR_DEVICE_ID)
-						== dev_id))
-					*/
-					mfr_id1=map->read(map, chips[j].start +
-							ADDR_MANUFACTURER);
-						
+					mfr_id1=map->read(map, chips[j].start +	ADDR_MANUFACTURER);
 					dev_id1=map->read(map, chips[j].start +
 							 ADDR_DEVICE_ID) ;
 					if ((mfr_id1.x[0] == mfr_id) && ( dev_id1.x[0] == dev_id))
@@ -160,7 +144,7 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 						return -1;
 					}
 				}
-
+				
 				if (private->numchips == MAX_SMT_CHIPS)
 				{
 					printk(KERN_WARNING "%s: Too many "
@@ -187,7 +171,8 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 
 			break;
 		}
-	}
+	}	
+	printk("Manufacture id 0x%02x, Device id 0x%02x\n", mfr_id, dev_id);
 
 	/* Exit autoselect mode. */
 	send_cmd(map, base, CMD_RESET_DATA);
@@ -510,24 +495,15 @@ static int stm_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 static int flash_is_busy(struct map_info *map, unsigned long addr)
 {
-//	unsigned short read1, read2, toggled;
 	unsigned short toggled;
 	map_word read11,read21;	
 
-	//read1 = map->read(map, addr);
-	//read2 = map->read(map, addr);
-	
 	read11 = map->read(map,addr);
 	read21 = map->read(map,addr);
-
-
-	//toggled = read1 ^ read2;
 
 	toggled = (unsigned short)read11.x[0] ^ (unsigned short)read21.x[0];
 
 	toggled &= (((unsigned short)1) << 6);
-//	if (toggled)
-//		printk("%s: Flash is busy (0x%04x)\n", map->name, toggled);
 	return toggled;
 }
 
@@ -572,12 +548,11 @@ retry:
 
 	test.x[0]=datum;
 	map->write(map, test, addr);
-	//map->write(map, datum, addr);
 
 	times_left = 50000;
 	while (times_left-- && flash_is_busy(map, addr))
 	{
-		if (need_resched())		/*BFin*/ 
+		if (need_resched())
 		{
 			spin_unlock_bh(chip->mutex);
 			schedule();
@@ -594,7 +569,6 @@ retry:
 		unsigned long verify;
 		map_word test;
 	
-	//	if ((verify = map->read(map, addr)) != datum) 
 		test = map->read(map,addr);
 		verify = test.x[0] ;
 		if(verify != datum)
@@ -631,7 +605,7 @@ static int stm_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 	chipstart = private->chips[chipnum].start;
 
 	/* If it's not bus-aligned, do the first byte write. */
-	if (offset & (map->bankwidth -1))	/*BFin*/
+	if (offset & (map->bankwidth -1))
 	{
 		unsigned long bus_offset = offset & ~(map->bankwidth - 1);
 		int i = offset - bus_offset;
@@ -831,7 +805,6 @@ retry:
 		map_word test;
 		
 		for (address = addr; address < (addr + size); address += 2){
-			//if ((verify = map->read(map, address)) != 0xFFFF)
 			test = map_read(map,address);
 			verify = test.x[0];
 			if(verify != 0xFFFF)	
