@@ -112,6 +112,7 @@ void setup_arch(char **cmdline_p)
 	printk(KERN_INFO "uClinux/" CPU "\n");
 
 	printk("Blackfin support by LG Soft India (www.lgsoftindia.com) \n");
+	printk("Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",get_cclk()/1000000,get_sclk()/1000000);
 
 #ifdef DEBUG
 	printk("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n",
