@@ -91,7 +91,10 @@ static irq_node_t int_irq_list[INTERNAL_IRQS];
  *********/
 asmlinkage void bfin_irq_panic( int reason, struct pt_regs * regs)
 {
-	
+	extern char _etext;
+	int sig = 0;
+	siginfo_t info;
+
   	printk("\n\nException: IRQ 0x%x entered\n", reason);
 	printk(" code=[0x%08x],  ", (unsigned int)regs->seqstat);
 	printk(" stack frame=0x%04x,  ",(unsigned int)(unsigned long) regs);
@@ -101,13 +104,15 @@ asmlinkage void bfin_irq_panic( int reason, struct pt_regs * regs)
  	printk("\n----------- HARDWARE ERROR -----------\n\n");
 		
 	/* There is only need to check for Hardware Errors, since other EXCEPTIONS are handled in TRAPS.c (MH)  */
-
 		switch(((unsigned int)regs->seqstat) >> 14)	  {
-		
 				case (0x2):			//System MMR Error
+					info.si_code = BUS_ADRALN;
+		                        sig = SIGBUS;
 					printk(HWC_x2);
 					break;
 				case (0x3):			//External Memory Addressing Error
+				        info.si_code = BUS_ADRERR;
+					sig = SIGBUS;
 					printk(HWC_x3);
 					break;
 				case (0x12):			//Performance Monitor Overflow
@@ -121,16 +126,19 @@ asmlinkage void bfin_irq_panic( int reason, struct pt_regs * regs)
 					break;
 			}
 	}
-
-
-
-
 	dump(regs);
-	panic("Unhandled IRQ or exceptions!\n");
+	if (0 == (info.si_signo = sig) || 
+	    regs->orig_pc < (unsigned)&_etext) /* in kernelspace */
+	    panic("Unhandled IRQ or exceptions!\n");
+	else { /* in userspace */
+	    info.si_errno = 0;
+	    info.si_addr = (void *) regs->pc;
+	    force_sig_info (sig, &info, current);
+        }
 }
 
 /*Program the IAR registers*/
-void __init program_IAR()
+static void __init program_IAR()
 {
 		/* Program the IAR0 Register with the configured priority */
 	        *pSIC_IAR0 =  ((CONFIG_PLLWAKE_ERROR-7) << PLLWAKE_ERROR_POS) |
@@ -167,7 +175,7 @@ void __init program_IAR()
 /* Search SIC_IAR and fill tables with the irqvalues 
 and their positions in the SIC_ISR register -Nidhi */
 
-static __init void search_IAR()	
+static void __init search_IAR()	
 {
     unsigned ivg, irq_pos = 0;
     for(ivg = IVG7; ivg <= IVG13; ivg++)
@@ -409,7 +417,7 @@ void bfin_do_irq(int vec, struct pt_regs *fp)
 
 	  for(;; ivg++) {
               if (ivg >= ivg_stop)  {
-              /* printk("unregistered interrupt ivg=%d\n",vec);*/
+		num_spurious++;
                 return;
               }
               else if ((sic_status & ivg->isrflag) != 0)
@@ -423,7 +431,10 @@ void bfin_do_irq(int vec, struct pt_regs *fp)
 	    kstat_cpu(0).irqs[vec]++;
 	}
 	else
+	{
 		printk("unregistered interrupt irq=%d\n",vec);
+		num_spurious++;
+	}
 }
 
 int bfin_get_irq_list(struct seq_file* p, void* v)
@@ -447,7 +458,7 @@ int show_interrupts(struct seq_file *p, void *v)
 {
 	int i = *(loff_t *) v;
 	
-	if (i < NR_IRQS) {
+	if (i < INTERNAL_IRQS) {
 		if (int_irq_list[i].devname) {
 			seq_printf(p, "%3d: %10u ", i, kstat_cpu(0).irqs[i]);
 			if (int_irq_list[i].flags & IRQ_FLG_LOCK)
