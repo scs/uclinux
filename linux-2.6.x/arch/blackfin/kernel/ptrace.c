@@ -20,6 +20,8 @@
 #include <linux/user.h>
 #include <linux/config.h>
 
+#define DEBUG
+
 #include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -270,6 +272,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 	switch (request) {
 	/* when I and D space are separate, these will need to be fixed. */
 		case PTRACE_PEEKDATA: 
+printk("PTRACE_PEEKDATA\n");
 			add = MAX_SHARED_LIBS * 4;	// space between text and data
 			// fall through
 		case PTRACE_PEEKTEXT: /* read word at location addr. */ 
@@ -281,11 +284,14 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			unsigned long tmp = 0;
 			int copied, extra = 0;
 
-                        if(addr < child->mm->start_code)
-                        {
+                        if(addr < child->mm->start_code){
 			   add += TEXT_OFFSET; 		// we know flat puts 4 0's at top
-                            extra = child->mm->start_code;
-                         }
+                           extra = child->mm->start_code;
+			   if(addr > (child->mm->end_code - child->mm->start_code)){
+				/* data section is spaced by MAX_SHARED_LIBS * 4 */
+				add += MAX_SHARED_LIBS * 4;
+			   }
+                        }
                         if( addr > child->mm->start_stack)
                          {
                            printk("Ptrace Error: Invalid memory(0x%x) had been asked to access start_code=%x start_stack=%x\n", (int)addr, (int)(child->mm->start_code), (int)(child->mm->start_stack));
@@ -321,7 +327,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
                          }
                          else if(addr == (sizeof(struct pt_regs) + 8))
                          {
-                             tmp = child->mm->end_code;
+                             tmp = MAX_SHARED_LIBS * 4;
                          }
                          else
                          {
@@ -333,10 +339,24 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
       		/* when I and D space are separate, this will have to be fixed. */
 		case PTRACE_POKEDATA:
-			add = MAX_SHARED_LIBS * 4;	// space between text and data
+printk("PTRACE_PEEKDATA\n");
 			// fall through
 		case PTRACE_POKETEXT: /* write the word at location addr. */
-			add += TEXT_OFFSET; 		// we know flat puts 4 0's at top
+		{
+			int extra = 0;
+                        if(addr < child->mm->start_code){
+			   add += TEXT_OFFSET; 		// we know flat puts 4 0's at top
+                           extra = child->mm->start_code;
+			   if(addr > (child->mm->end_code - child->mm->start_code)){
+				/* data section is spaced by MAX_SHARED_LIBS * 4 */
+				add += MAX_SHARED_LIBS * 4;
+			   }
+                        }
+                        if( addr > child->mm->start_stack)
+                         {
+                           printk("Ptrace Error: Invalid memory(0x%x) had been asked to access start_code=%x start_stack=%x\n", (int)addr, (int)(child->mm->start_code), (int)(child->mm->start_stack));
+                           goto out_tsk;
+                         }
 			ret = 0;
 			/* added start_code to addr, actually need to add text or data
 			   depending on addr being < or > textlen.
@@ -350,6 +370,7 @@ printk("POKETEXT at addr %x + add %d %d bytes %x\n", addr,  add, sizeof(data), d
 				goto out_tsk;
 			ret = -EIO;
 			goto out_tsk; 
+		}
 
 		case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 			ret = -EIO;
