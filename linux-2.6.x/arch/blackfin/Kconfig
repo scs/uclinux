@@ -276,10 +276,6 @@ config PCI
 	help
 	  Support for PCI bus.
 
-config COMEMPCI
-	bool "CO-MEM lite PCI controller support"
-	depends on (M5307 || M5407)
-
 source "drivers/pci/Kconfig"
 
 config HOTPLUG
@@ -400,12 +396,6 @@ config MAGIC_SYSRQ
 	help
 	  Enables console device to interpret special characters as
 	  commands to dump state information.
-
-config HIGHPROFILE
-	bool "Use fast second timer for profiling"
-	depends on COLDFIRE
-	help
-	  Use a fast secondary clock to produce profiling information.
 
 config BOOTPARAM
 	bool 'Compiled-in Kernel Boot Parameter'
