@@ -22,13 +22,6 @@ unmask_wdog_wakeup_evt:
 	BITSET(R7,23);
 	[P0] = R7;
 	SSYNC;
-	
-	P0.h = (SIC_IMASK >> 16);
-	P0.l = (SIC_IMASK & 0xFFFF);
-	R7 = [P0];
-	BITSET(R7,23);
-	[P0] = R7;
-	SSYNC;
 
 	( R7:0, P5:0 ) = [SP++];	
 	RTS;
@@ -111,15 +104,8 @@ sleep_mode:
 
         P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
-        R0 = [P0];
-        BITSET(R0,7);
+	R0 = IWR_ENABLE(7)(Z);
         [P0] = R0;
-        SSYNC;
-
-        P0.H = hi(RTC_PREN);
-        P0.L = lo(RTC_PREN);
-        R0 = PREN(Z);
-        w[P0] = R0.L;
         SSYNC;
 
         P0.H = hi(RTC_ISTAT);
@@ -127,57 +113,12 @@ sleep_mode:
         R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);	/* Clear all the interrupts,bits sticky */
         w[P0] = R0.L;
         SSYNC;        
-        
-        P0.H = hi(RTC_ICTL);
-        P0.L = lo(RTC_ICTL);
-        R1 = 1;
-        w[P0] = R1.L;
-        SSYNC;
-
-        P0.H = hi(RTC_ISTAT);
-        P0.L = lo(RTC_ISTAT);
-Poll_WC2:
-	nop;
-	nop;
-        R1 = w[P0](z);
-        R1 = R1 & R0;
-        CC = AZ;
-        IF CC JUMP Poll_WC2;
-
-	nop;
-	nop;	
-	r0 = w[p0](z);
-	bitset(r0,15);
-	w[p0] = r0.l;
-	ssync;
-
-	P0.H = hi(PLL_LOCKCNT);
-	P0.L = lo(PLL_LOCKCNT);
-	R0 = 0x300 (Z);
-	W[P0] = R0.L;
-	SSYNC;
 
 	P0.H = hi(PLL_CTL);
         P0.L = lo(PLL_CTL);
         R1 = W[P0](z);
         BITSET (R1, 3);
-
-        P2.H = hi(SIC_IMASK);
-        P2.L = lo(SIC_IMASK);
-        R0 = [P2];
-        BITSET (R0, 7);
-        [P2] = R0;
-        SSYNC;
-
-        P2.H = hi(IMASK);
-        P2.L = lo(IMASK);
-        R0 = [P2];
-        BITSET (R0, 8);
-        [P2] = R0;
-        CSYNC;
-
 	W[P0] = R1.L;
-	SSYNC;
 
         CLI R2;
         SSYNC;
@@ -208,31 +149,9 @@ deep_sleep:
 
         P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
-        R0 = [P0];
-        BITSET(R0,7);
+	R0 = IWR_ENABLE(7)(Z);
         [P0] = R0;
         SSYNC;
-
-        P0.H = hi(RTC_PREN);
-        P0.L = lo(RTC_PREN);
-        R0 = PREN(Z);
-        w[P0] = R0.L;
-        SSYNC;
-
-        R0 = WCOM(z);
-        P0.L = hi(RTC_ISTAT);
-        P0.L = lo(RTC_ISTAT);
-Poll_WC4:
-        R1 = w[P0](z);
-        R1 = R1 & R0;
-        CC = AZ;
-        IF CC JUMP Poll_WC4;
-        nop;
-	nop;	
-	r0 = w[p0](z);
-	bitset(r0,15);
-	w[p0] = r0.l;
-	ssync;
 
         P0.H = hi(RTC_ISTAT);
         P0.L = lo(RTC_ISTAT);
@@ -240,53 +159,11 @@ Poll_WC4:
         w[P0] = R0;
         SSYNC;        
         
-        P0.H = hi(RTC_ICTL);
-        P0.L = lo(RTC_ICTL);
-        R1 = 1;
-        w[P0] = R1.L;
-        SSYNC;
-
-        P0.H = hi(RTC_ISTAT);
-        P0.L = lo(RTC_ISTAT);
-Poll_WC5:
-        R1 = w[P0](z);
-        R1 = R1 & R0;
-        CC = AZ;
-        IF CC JUMP Poll_WC5;
-	
-	nop;
-	nop;	
-	r0 = w[p0](z);
-	bitset(r0,15);
-	w[p0] = r0.l;
-	ssync;
-
-	P0.H = hi(PLL_LOCKCNT);
-	P0.L = lo(PLL_LOCKCNT);
-	R0 = 0x300 (Z);
-	W[P0] = R0.L;
-	SSYNC;
-
-	P0.H = hi(PLL_CTL);
+        P0.H = hi(PLL_CTL);
         P0.L = lo(PLL_CTL);
         R1 = W[P0](z);
         BITSET (R1, 5);
-
-        P2.H = hi(SIC_IMASK);
-        P2.L = lo(SIC_IMASK);
-        R0 = [P2];
-        BITSET (R0, 7);
-        [P2] = R0;
-        SSYNC;
-
-        P2.H = hi(IMASK);
-        P2.L = lo(IMASK);
-        R0 = [P2];
-        BITSET (R0, 8);
-        [P2] = R0;
-        CSYNC;
-
-	W[P0] = R1.L;
+       	W[P0] = R1.L;
 
         CLI R2;
         SSYNC;
@@ -317,79 +194,42 @@ hibernate_mode:
 	
  	P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
-        R0 = [P0];
-        BITSET(R0,7);
+	R0 = IWR_ENABLE(7)(Z);
         [P0] = R0;
         SSYNC;
-
-        P0.H = hi(RTC_PREN);
-        P0.L = lo(RTC_PREN);
-        R0 = PREN(Z);
-        w[P0] = R0.L;
-        SSYNC;
-
-        R0 = WCOM(z);
-        P0.H = hi(RTC_ISTAT);
-        P0.L = lo(RTC_ISTAT);
-Poll_WC7:
-        R1 = w[P0](z);
-        R1 = R1 & R0;
-        CC = AZ;
-        IF CC JUMP Poll_WC7;
-        nop;
-	nop;	
-	r0 = w[p0](z);
-	bitset(r0,15);
-	w[p0] = r0.l;
-	ssync;
-
+        
         P0.H = hi(RTC_ISTAT);
         P0.L = lo(RTC_ISTAT);
         R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);	/* Clear all the interrupts,bits sticky */
         w[P0] = R0;
         SSYNC;        
-        
-        P0.H = hi(RTC_ICTL);
-        P0.L = lo(RTC_ICTL);
-        R1 = 1;
-        w[P0] = R1.L;
-        SSYNC;
-
-        P0.H = hi(RTC_ISTAT);
-        P0.L = lo(RTC_ISTAT);
-Poll_WC8:
-        R1 = w[P0](z);
-        R1 = R1 & R0;
-        CC = AZ;
-        IF CC JUMP Poll_WC8;
-        nop;
-	nop;	
-	r0 = w[p0](z);
-	bitset(r0,15);
-	w[p0] = r0.l;
-	ssync;
-
-	P0.H = hi(PLL_LOCKCNT);
-	P0.L = lo(PLL_LOCKCNT);
-	R0 = 0x300 (Z);
-	W[P0] = R0.L;
-	SSYNC;
 
 	P0.H = hi(VR_CTL);
         P0.L = lo(VR_CTL);
         R1 = W[P0](z);
         BITSET (R1, 8);
-	BITSET (R1, 0);
-	BITSET (R1, 1);
+	BITCLR (R1, 0);
+	BITCLR (R1, 1);
 	W[P0] = R1.L;
+	SSYNC;
 	
         CLI R2;
-        SSYNC;
         IDLE;
-        STI R2;
 
 	/* Actually, adding anything may not be necessary...SDRAM contents are lost */
 
+	STI R2;
+
+	P0.H = hi(VR_CTL);
+        P0.L = lo(VR_CTL);
+        R1 = W[P0](z);
+        BITCLR (R1, 8);
+        BITSET (R1, 0);
+        BITSET (R1, 1);
+        W[P0] = R1.L;
+        SSYNC;
+	
+	IDLE;
+
         ( R7:0, P5:0 ) = [SP++];
         RTS;
-
