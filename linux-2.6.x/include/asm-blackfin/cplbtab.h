@@ -83,7 +83,7 @@ icplb_table:
 #else  /*Write Through*/
          #define SDRAM_DGENERIC  (PAGE_SIZE_4MB | CPLB_L1_CHBL | CPLB_WT | CPLB_L1_AOW | CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID)
 #endif 
-         #define SDRAM_DKERNEL  (PAGE_SIZE_4MB | CPLB_L1_CHBL | CPLB_WT | CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | CPLB_LOCK)
+	#define SDRAM_DKERNEL  (SDRAM_DGENERIC | CPLB_LOCK)
 
 ipdt_table:
  // first the contents of the above table
