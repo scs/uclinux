@@ -6,10 +6,6 @@
  * Blackfin BF533/2.6 support : LG Soft India
  */
 
-/* This function can be called to invalidate instruction and data caches
- * when flushing is not required.
- */
-
 #include <linux/linkage.h>
 #include <asm/cplb.h>
 #include <asm/entry.h>
@@ -17,7 +13,7 @@
 #include <asm/cache.h>
 
 .text
- 
+ .align 2
 ENTRY(_cache_invalidate)
 
 	/********************************************
@@ -32,18 +28,24 @@ ENTRY(_cache_invalidate)
 	R7 = R0;
 	CC = BITTST(R7,CPLB_ENABLE_ICACHE_P);
 	IF !CC JUMP no_icache;
+	[--SP] = RETS;
 	CALL _icache_invalidate;
+	RETS = [SP++];
 no_icache:
 	CC = BITTST(R7,CPLB_ENABLE_DCACHE_P);
 	IF !CC JUMP no_dcache_a;
 	R0 = 0;         /* specifies bank A */
+	[--SP] = RETS;
 	CALL _dcache_invalidate;
+	RETS = [SP++];
 no_dcache_a:
 	CC = BITTST(R7,CPLB_ENABLE_DCACHE2_P);
 	IF !CC JUMP no_dcache_b;
 	R0 = 0;
 	BITSET(R0, 23);		/* specifies bank B */
+	[--SP] = RETS;
 	CALL  _dcache_invalidate;
+	RETS = [SP++];
 no_dcache_b:
 	R7 = [SP++];
 	RTS;
@@ -83,8 +85,8 @@ ENTRY(invalidate_entire_icache)
 	RTS;
 
 /*
- * blackfin_cache_clean_invalidate_range(start, end, flags)
- * Clean and invalidate all cache lines assocoiated with this
+ * blackfin_cache_flush_range(start, end)
+ * Invalidate all cache lines assocoiated with this
  * area of memory.
  * 
  * start:	Start address
@@ -125,6 +127,7 @@ ENTRY(blackfin_dcache_invalidate_range)
  * clearing DMC[1:0] bits
  */
 ENTRY(invalidate_entire_dcache)
+ENTRY(_dcache_invalidate)
 	[--SP] = ( R7:6);
 
 	P0.L = (DMEM_CONTROL & 0xFFFF);
@@ -154,92 +157,6 @@ ENTRY(invalidate_entire_dcache)
 	STI R6;
 	
 	( R7:6) = [SP++];
-	RTS;
-
-ENTRY(_dcache_invalidate)
-	/***********************************
-	* DCACHE Invalidation
-	***********************************/
-
-	/* R0 has bit 23 set to specify bank A or bank B*/
-	[--SP] = ( R7:4, P5:5);
-
-	R7 = R0;
-	P0.L = (DMEM_CONTROL & 0xFFFF);
-	P0.H = (DMEM_CONTROL >> 16);
-
-	/* Save the existing value of DMEM_CONTROL, so that we
-    	 * don't clobber it by invalidation.
-	 */
-	
-	R6 = [P0];
-	R0 = (ACACHE_BCACHE | ENDCPLB | PORT_PREF0);
-
-	/* Enable both as cache although we are going to invalidate only 1.
-	 * This is because if only 1 bank is configured as cache it must be
-	 * bank A. However if a user has both banks as cache and wishes to
-	 * invalidate only bank B, we cannot enable it alone as cache.
-	 * Bank A must already be cache in this case, so no SRAM data is lost.
-	 * At RESET both will currently be enabled as SRAM.
-	 */
-	
-	SSYNC;
-	CLI R5;		/* work around anomaly #32/#52 on BF531/2/3*/
-	.align 8;	/* when writing to DMEM_CONTROL.*/
-	[P0]=R0;
-	SSYNC;
-	STI R5;
-
-	I0.L = (DTEST_COMMAND & 0xFFFF);
-	I0.H = (DTEST_COMMAND >> 16);
-	I1.L = (DTEST_DATA0 & 0xFFFF);
-	I1.H = (DTEST_DATA0 >> 16);
-
-	R0=0;
-	[I1]=R0;
-	SSYNC;
-
-	/*  D-CACHE:
-	 *    2 superbanks,
-	 *    each superbank has 4 sub-banks,
-	 *    each sub-bank has 2 ways,
-	 *    each way has 64 lines,
-	 */
-	
-	R3.L=0;
-	R3.H=1;	/* sub-bank increment*/
-	P2=4;	/* number of sub-banks*/
-	R2=64;
-	P5=R2;	/* number of lines in each way*/
-	R2=32;	/* line index increment*/
-
-	R4=2;	/* initial value for DTEST_COMMAND for way 0*/
-
-	/* write to tag for sub-bank 0, way 0, line 0
-	 * for BF535, bit 24 is reserved, but for BF532 it signifies
-	 * 0 = access data, 1= access instruction
-	 */
-
-	R5.H=0x400;	/* Initial value for DTEST_COMMAND for way 1*/
-	R5.L=2;		/* write to tag for sub-bank 0, way 1, line 0*/
-	R4=R4|R7;	/* include superbank specifier*/
-	R5=R5|R7;
-	LSETUP(lbl0c,lbl3c) LC1=P2;	/* 4 sub-banks*/
-lbl0c:	R0=R4;
-	R1=R5;
-	LSETUP(lbl1c,lbl2c) LC0=P5;	/* 64 lines*/
-lbl1c:	R0 = R0+|+R2 || [I0]=R0;
-lbl2c:	R1 = R1+|+R2 || [I0]=R1;
-	R4=R4+R3;
-lbl3c:	R5=R5+R3;
-
-	/* Restore the original value of DMEM_CONTROL*/
-	CLI R5;
-	.align 8;
-	[P0] = R6;
-	SSYNC;
-	STI R5;
-	( R7:4, P5:5) = [SP++];
 	RTS;
 
 ENTRY(blackfin_dcache_flush_range)

@@ -35,7 +35,7 @@
 #include <asm/cplb.h>
  	
 .text
-
+ 
 .align 2;
 ENTRY(_cplb_mgr)
 
@@ -404,8 +404,9 @@ dfound_victim:
 
 	/* Retrieve the page start address*/
         R0 = [P0 - 0x104];
-
+	[--sp] = rets;
 	CALL dcplb_flush;	/* R0==CPLB addr, R1==CPLB data*/
+	rets = [sp++];
 Ddoverwrite:
 
 	/* [P0-4] is a suitable victim CPLB, so we want to
@@ -496,12 +497,9 @@ dnext:	R4 = [P2++];	/* address */
 	 * cost of first-write exceptions to mark the page as dirty.
 	 */
 
-	CC = BITTST(R6, CPLB_ENABLE_DCACHE_P);
-	R3 = CPLB_L1_CHBL (Z);
-	R3 = ~R3;
-	R6 = R2 & R3;		/* Mask off cache-in-L1*/
+#ifdef CONFIG_BLKFIN_WT
 	BITSET(R6, 14);		/* Set WT*/
-	IF !CC R2 = R6;
+#endif
 
 	[P1] = R2;
 	[P1-0x100] = R4;

@@ -75,12 +75,14 @@ not_data_write:
 
 is_icplb_miss:
 
-	P0.L = 0x0;	/*___cplb_ctrl;*/
-	P0.H = 0x0;	/*___cplb_ctrl;*/
-	R1 = [P0+0];
-	LINK 12;
+#if defined (CONFIG_BLKFIN_CACHE)
+	R1 = CPLB_ENABLE_ICACHE;
+#else
+	R1 = CPLB_ENABLE_DCACHE;
+#endif
+	[--SP] = RETS;			
 	CALL _cplb_mgr;
-	UNLINK;
+	RETS = [SP++];
 	CC = R0 == 0;
 	IF !CC JUMP not_replaced;
 	LC1 = [SP++];
@@ -99,7 +101,6 @@ is_icplb_miss:
 	RTS;
 
 unknown:
-	
 	[--SP] = RETS;			
 	CALL __unknown_exception_occurred;
 	RETS = [SP++];
@@ -107,23 +108,27 @@ unknown:
 not_replaced:
 	CC = R0 == CPLB_NO_UNLOCKED;
 	IF !CC JUMP next_check;
+	[--SP] = RETS;			
 	CALL __cplb_miss_all_locked;
+	RETS = [SP++];
 next_check:
 	CC = R0 == CPLB_NO_ADDR_MATCH;
 	IF !CC JUMP next_check2;
+	[--SP] = RETS;			
 	CALL __cplb_miss_without_replacement;
+	RETS = [SP++];
 	JUMP not_replaced;
 next_check2:
 	CC = R0 == CPLB_PROT_VIOL;
 	IF !CC JUMP strange_return_from_cplb_mgr;
+	[--SP] = RETS;			
 	CALL __cplb_protection_violation;
+	RETS = [SP++];
 	JUMP not_replaced;
 strange_return_from_cplb_mgr:
 	IDLE;
 	CSYNC;
 	JUMP strange_return_from_cplb_mgr;
-._cplb_hdr.end:
-
 
 /************************************
  * Diagnostic exception handlers 
@@ -150,7 +155,6 @@ __cplb_protection_violation:
 	SP += 12;
 	RTS;
 
-
 __unknown_exception_occurred:
 
 	/* This function is invoked by the default exception
@@ -176,5 +180,3 @@ do_not_know_what_to_do:
 .__unknown_exception_occurred.end:
 .global __unknown_exception_occurred;
 .type __unknown_exception_occurred, STT_FUNC;
-
-

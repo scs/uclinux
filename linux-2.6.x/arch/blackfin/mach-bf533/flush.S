@@ -31,7 +31,9 @@ ENTRY(flush_instruction_cache)
 	R6 = 16;
 inext:	R0 = [P5++];
 	R1 = [P4++];
+	[--SP] =  RETS;
 	CALL icplb_flush;	/* R0 = page, R1 = data*/
+	RETS = [SP++];
 iskip:	R6 += -1;
 	CC = R6;
 	IF CC JUMP inext;
@@ -203,7 +205,9 @@ next:	R0 = [P5++];
 	R2 = R1 & R7;		/* Is it a dirty, cached page?*/
 	CC = R2;
 	IF !CC JUMP skip;	/* If not, ignore it.*/
+	[--SP] = RETS;
 	CALL dcplb_flush;	/* R0 = page, R1 = data*/
+	RETS = [SP++];
 skip:	R6 += -1;
 	CC = R6;
 	IF CC JUMP next;
@@ -324,6 +328,7 @@ fs0:	R6 = R5 << 5;		/* Combine set*/
 	R6.H = R3.H << 0 ;	/* and sub-bank*/
 	R6 = R6 | R2;		/* and Bank. Leave Way==0 at first.*/
 	[P5] = R6;		/* Issue Command*/
+	CSYNC;
 	R7 = [P4];		/* and read Tag.*/
 	CC = BITTST(R7, 0);	/* Check if valid*/
 	IF !CC JUMP fskip;	/* and skip if not.*/
