@@ -19,6 +19,7 @@
 #include <linux/autoconf.h>
 #include <linux/linkage.h>
 #include <asm/entry.h>
+#include <asm/asm-offsets.h>
 
 .text
 .align 4 	/* just in case */
@@ -66,7 +67,13 @@ ENTRY(evt_ivhw)
 /* interrupt routine for core timer - 6 */	 
 ENTRY(evt_timer)
 	 SAVE_CONTEXT
-	 r0 = IRQ_CORETMR;  
+	 p2.l = 0x2108;
+         p2.h = 0xffe0;
+         r0 = [p2];              /* Read current IPEND */
+         csync;
+         [sp + PT_IPEND] = r0;   /* Store IPEND */
+
+	 r0 = IRQ_CORETMR;
 	 r1 = sp;	
 	 SP += -12;	
 	 call do_irq;
