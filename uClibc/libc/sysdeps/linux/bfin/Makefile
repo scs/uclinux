@@ -28,7 +28,7 @@ CTOR_TARGETS=
 SSRC= __longjmp.S setjmp.S bsd-_setjmp.S vfork.S
 SOBJS=$(patsubst %.S,%.o, $(SSRC))
 
-CSRC=brk.c bsdsetjmp.c clone.c
+CSRC=brk.c bsdsetjmp.c clone.c syscall.c
 COBJS=$(patsubst %.c,%.o, $(CSRC))
 
 OBJS=$(SOBJS) $(MOBJ) $(COBJS)
