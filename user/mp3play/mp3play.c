@@ -489,7 +489,11 @@ void setdsp(int fd, int playstereo, int playbits)
 		exit(1);
 	}
 
+#if BYTE_ORDER == LITTLE_ENDIAN
+	bits = (playbits == 16) ? AFMT_S16_LE : AFMT_U8;
+#elif BYTE_ORDER == BIG_ENDIAN
 	bits = (playbits == 16) ? AFMT_S16_BE : AFMT_U8;
+#endif 
 	if (ioctl(fd, SNDCTL_DSP_SAMPLESIZE, &bits) < 0) {
 		fprintf(stderr, "ERROR: Unable to set sample size to "
 			"%d, errno=%d\n", bits, errno);
