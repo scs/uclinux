@@ -26,6 +26,8 @@
 #include <asm/processor.h>
 #include <asm/asm-offsets.h>
 
+#define MAX_SHARED_LIBS 1
+#define TEXT_OFFSET 4
 
 /*
  * does not yet catch signals sent when the child dies.
@@ -45,36 +47,36 @@
 /* Find the stack offset for a register, relative to thread.esp0. */
 #define PT_REG(reg)	((long)&((struct pt_regs *)0)->reg)
 
-/* Mapping from PT_xxx to the stack offset at which the register is
-   saved.  Notice that usp has no stack-slot and needs to be treated
-   specially (see get_reg/put_reg below). */
-static int regoff[] = {
-	PT_REG(r3), PT_REG(r4), PT_REG(r2), PT_REG(r1),
-	PT_REG(p5), PT_REG(p4), PT_REG(p3), PT_REG(p2), PT_REG(p1), PT_REG(p0),
-	PT_REG(r7), PT_REG(r6), PT_REG(r5),
-	PT_REG(pc),
-	PT_REG(seqstat), PT_REG(astat), PT_REG(rets),
-	PT_REG(a1w),     PT_REG(a0w),   PT_REG(a1x), PT_REG(a0x),
-	PT_REG(orig_r0), PT_REG(r0),
-	PT_REG(usp), PT_REG(fp),
-	PT_REG(ipend),
-	PT_REG(syscfg)
-};
 
 /*
  * Get contents of register REGNO in task TASK.
  */
 static inline long get_reg(struct task_struct *task, int regno)
 {
-	unsigned long *addr;
-	regno /= 4;
-	if (regno == PT_USP / 4)
-		addr = &task->thread.usp;
-	else if (regno < sizeof(regoff)/sizeof(regoff[0]))
-		addr = (unsigned long *)(task->thread.esp0 + regoff[regno]);
-	else
-		return 0;
-	return *addr;
+	 unsigned long *addr;
+
+         if (regno == PT_USP)
+         {
+                addr = &task->thread.usp;
+         }
+         else if((regno == PT_PC)|| (140 == regno))
+         {
+               struct pt_regs *regs =
+               (struct pt_regs *)((unsigned long) task->thread_info +
+                               ( KTHREAD_SIZE - sizeof(struct pt_regs)));
+               return regs->pc -  task->mm->start_code - TEXT_OFFSET;
+         }
+         else if (regno < 208)
+         {
+                addr = (unsigned long *)(task->thread.esp0 + regno);
+                //printk("Register number %d has value 0x%x(%d)\n", (int)regno, (int)(*addr), (int)(*addr));
+         }
+         else
+         {
+                printk("Request to get for unknown register\n");
+                return 0;
+         }
+         return *addr;
 }
 
 /*
@@ -84,15 +86,25 @@ static inline int put_reg(struct task_struct *task, int regno,
 			  unsigned long data)
 {
 	unsigned long *addr;
-	regno /= 4;
-	if (regno == PT_USP / 4)
-		addr = &task->thread.usp;
-	else if (regno < sizeof(regoff)/sizeof(regoff[0]))
-		addr = (unsigned long *) (task->thread.esp0 + regoff[regno]);
-	else
-		return -1;
-	*addr = data;
-	return 0;
+        if(regno == PT_USP)
+        {
+                addr = &task->thread.usp;
+        }
+        else if(regno == PT_PC)
+        {
+                addr = &task->thread.pc;
+        }
+        else if (regno < 208)
+        {
+               addr = (unsigned long *) (task->thread.esp0 + regno);
+        }
+        else
+        {
+              printk("Request to set for unknown register found:\n");
+              return -1;
+        }
+        *addr = data;
+        return 0;
 }
 
 /*
@@ -113,7 +125,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
 	int ret;
-
+        int add = 0;
 	lock_kernel();
 	ret = -EPERM;
 	if (request == PTRACE_TRACEME) {
@@ -154,12 +166,19 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
 	switch (request) {
 	/* when I and D space are separate, these will need to be fixed. */
-		case PTRACE_PEEKTEXT: /* read word at location addr. */ 
+		case PTRACE_PEEKTEXT: /* read word at location addr. */
+                        add = MAX_SHARED_LIBS * 4;      // space between text and data
+                        // fall through 
 		case PTRACE_PEEKDATA: {
-			unsigned long tmp;
-			int copied;
-
-			copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
+			/* added start_code to addr, actually need to add text or data
+                           depending on addr being < or > textlen.
+                           Dont forget the MAX_SHARED_LIBS
+                        */
+                        unsigned long tmp;
+                        int copied;
+                        add += TEXT_OFFSET;             // we know flat puts 4 0's at top
+                        copied = access_process_vm(child, child->mm->start_code + addr + add,
+                                                   &tmp, sizeof(tmp), 0);
 			ret = -EIO;
 			if (copied != sizeof(tmp))
 				break;
@@ -170,47 +189,63 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 	/* read the word at location addr in the USER area. */
 		case PTRACE_PEEKUSR: {
 			unsigned long tmp;
-			
-			ret = -EIO;
-			if ((addr & 3) || addr < 0 || (addr >= sizeof(struct user_regs_struct)&&(addr!=(49*4))&&(addr!=(50*4))&&(addr!=(51*4))))
-				break;
-
-			tmp = 0;  /* Default return condition */
-			addr = addr >> 2; /* temporary hack. */
-			ret = -EIO;
-			if (addr < 27) {
-				tmp = get_reg(child, addr * 4);
-			} else if (addr == 49) {
-				tmp = child->mm->start_code;
-			} else if (addr == 50) {
-				tmp = child->mm->start_data;
-			} else if (addr == 51) {
-				tmp = child->mm->end_code;
-			} else
-				break;
-			ret = put_user(tmp,(unsigned long *) data);
+                        ret = -EIO;
+                        tmp= 0;
+                        if((addr&3)  || (addr > (sizeof(struct pt_regs) + 8)))
+                         {
+                                  printk("ptrace error : PEEKUSR : temporarily returning 0\n");
+                                goto out_tsk;
+                         }
+                         if(addr == sizeof(struct pt_regs))
+                         {
+                             tmp = child->mm->start_code;
+                         }
+                         else if(addr == (sizeof(struct pt_regs) + 4))
+                         {
+                             tmp = child->mm->start_data;
+                         }
+                         else if(addr == (sizeof(struct pt_regs) + 8))
+                         {
+                             tmp = child->mm->end_code;
+                         }
+                         else
+                         {
+                             tmp = get_reg(child, addr);
+                         }
+                        ret = put_user(tmp,(unsigned long *) data);
 			break;
 		}
 
       		/* when I and D space are separate, this will have to be fixed. */
 		case PTRACE_POKETEXT: /* write the word at location addr. */
+			add = MAX_SHARED_LIBS * 4;      // space between text and data
+                        // fall through
 		case PTRACE_POKEDATA:
+			add += TEXT_OFFSET;
 			ret = 0;
-			if (access_process_vm(child, addr, &data, sizeof(data), 1) == sizeof(data))
+			 /* added start_code to addr, actually need to add text or data
+                           depending on addr being < or > textlen.
+                           Dont forget the MAX_SHARED_LIBS
+                        */
+                        if (access_process_vm(child, child->mm->start_code + addr + add,
+                                &data, sizeof(data), 1) == sizeof(data))
 				break;
 			ret = -EIO;
 			break;
 		case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 			ret = -EIO;
-			if ((addr & 3) || addr < 0 || addr > sizeof(struct user) - 3)
-				break;
-		
-			addr = addr >> 2; /* temporary hack. */
+			if((addr&3)  || (addr > (sizeof(struct pt_regs) + 8)))
+                        {
+                                  printk("ptrace error : POKEUSR: temporarily returning 0\n");
+                                break;
+                         }
+	
+			//Jyotik Removed addr = addr >> 2; /* temporary hack. */
 			if (addr == PT_SYSCFG) {
 				data &= SYSCFG_MASK;
 				data |= get_reg(child, PT_SYSCFG);
 			}
-			if (addr < 27 * 4) 
+		        //Jyotik_Removed	if (addr < 27 * 4) 
 				ret = put_reg(child, addr, data);
 			break;
 

@@ -49,8 +49,8 @@ int main(void)
 	DEFINE(THREAD_PC, offsetof(struct thread_struct, pc));
 
 	/* offsets into the pt_regs */
-	DEFINE(PT_R0, offsetof(struct pt_regs, r0));
 	DEFINE(PT_ORIG_R0, offsetof(struct pt_regs, orig_r0));
+	DEFINE(PT_R0, offsetof(struct pt_regs, r0));
 	DEFINE(PT_R1, offsetof(struct pt_regs, r1));
 	DEFINE(PT_R2, offsetof(struct pt_regs, r2));
 	DEFINE(PT_R3, offsetof(struct pt_regs, r3));
@@ -66,46 +66,46 @@ int main(void)
 	DEFINE(PT_P4, offsetof(struct pt_regs, p4));
 	DEFINE(PT_P5, offsetof(struct pt_regs, p5));
 
-	DEFINE(PT_A0w, offsetof(struct pt_regs, a0w));
-	DEFINE(PT_A1w, offsetof(struct pt_regs, a1w));
-	DEFINE(PT_A0x, offsetof(struct pt_regs, a0x));
-	DEFINE(PT_A1x, offsetof(struct pt_regs, a1x));
-	DEFINE(PT_PC, offsetof(struct pt_regs, pc));
-
-
-	DEFINE(PT_IPEND, offsetof(struct pt_regs, ipend));
-	DEFINE(PT_SYSCFG, offsetof(struct pt_regs, syscfg));
-	DEFINE(PT_SEQSTAT, offsetof(struct pt_regs, seqstat));
-	DEFINE(PT_RETE, offsetof(struct pt_regs, rete));
-	DEFINE(PT_RETN, offsetof(struct pt_regs, retn));
-	DEFINE(PT_RETX, offsetof(struct pt_regs, retx));
-	DEFINE(PT_RETS, offsetof(struct pt_regs, rets));
-	DEFINE(PT_RESERVED, offsetof(struct pt_regs, reserved));
-	DEFINE(PT_ASTAT, offsetof(struct pt_regs, astat));
-	DEFINE(PT_LB0, offsetof(struct pt_regs, lb0));
-	DEFINE(PT_LB1, offsetof(struct pt_regs, lb1));
-	DEFINE(PT_LT0, offsetof(struct pt_regs, lt0));
-	DEFINE(PT_LT1, offsetof(struct pt_regs, lt1));
-	DEFINE(PT_LC0, offsetof(struct pt_regs, lc0));
-	DEFINE(PT_LC1, offsetof(struct pt_regs, lc1));
-	DEFINE(PT_B0, offsetof(struct pt_regs, b0));
-	DEFINE(PT_B1, offsetof(struct pt_regs, b1));
-	DEFINE(PT_B2, offsetof(struct pt_regs, b2));
-	DEFINE(PT_B3, offsetof(struct pt_regs, b3));
-	DEFINE(PT_L0, offsetof(struct pt_regs, l0));
-	DEFINE(PT_L1, offsetof(struct pt_regs, l1));
-	DEFINE(PT_L2, offsetof(struct pt_regs, l2));
-	DEFINE(PT_L3, offsetof(struct pt_regs, l3));
-	DEFINE(PT_M0, offsetof(struct pt_regs, m0));
-	DEFINE(PT_M1, offsetof(struct pt_regs, m1));
-	DEFINE(PT_M2, offsetof(struct pt_regs, m2));
-	DEFINE(PT_M3, offsetof(struct pt_regs, m3));
+	DEFINE(PT_FP, offsetof(struct pt_regs, fp));
+	DEFINE(PT_USP, offsetof(struct pt_regs, usp));
 	DEFINE(PT_I0, offsetof(struct pt_regs, i0));
 	DEFINE(PT_I1, offsetof(struct pt_regs, i1));
 	DEFINE(PT_I2, offsetof(struct pt_regs, i2));
 	DEFINE(PT_I3, offsetof(struct pt_regs, i3));
-	DEFINE(PT_USP, offsetof(struct pt_regs, usp));
-	DEFINE(PT_FP, offsetof(struct pt_regs, fp));
+	DEFINE(PT_M0, offsetof(struct pt_regs, m0));
+	DEFINE(PT_M1, offsetof(struct pt_regs, m1));
+	DEFINE(PT_M2, offsetof(struct pt_regs, m2));
+	DEFINE(PT_M3, offsetof(struct pt_regs, m3));
+	DEFINE(PT_L0, offsetof(struct pt_regs, l0));
+	DEFINE(PT_L1, offsetof(struct pt_regs, l1));
+	DEFINE(PT_L2, offsetof(struct pt_regs, l2));
+	DEFINE(PT_L3, offsetof(struct pt_regs, l3));
+	DEFINE(PT_B0, offsetof(struct pt_regs, b0));
+	DEFINE(PT_B1, offsetof(struct pt_regs, b1));
+	DEFINE(PT_B2, offsetof(struct pt_regs, b2));
+	DEFINE(PT_B3, offsetof(struct pt_regs, b3));
+	DEFINE(PT_A0X, offsetof(struct pt_regs, a0x));
+	DEFINE(PT_A0W, offsetof(struct pt_regs, a0w));
+	DEFINE(PT_A1X, offsetof(struct pt_regs, a1x));
+	DEFINE(PT_A1W, offsetof(struct pt_regs, a1w));
+	DEFINE(PT_LC0, offsetof(struct pt_regs, lc0));
+	DEFINE(PT_LC1, offsetof(struct pt_regs, lc1));
+	DEFINE(PT_LT0, offsetof(struct pt_regs, lt0));
+	DEFINE(PT_LT1, offsetof(struct pt_regs, lt1));
+	DEFINE(PT_LB0, offsetof(struct pt_regs, lb0));
+	DEFINE(PT_LB1, offsetof(struct pt_regs, lb1));
+	DEFINE(PT_ASTAT, offsetof(struct pt_regs, astat));
+	DEFINE(PT_RESERVED, offsetof(struct pt_regs, reserved));
+	DEFINE(PT_RETS, offsetof(struct pt_regs, rets));
+	DEFINE(PT_PC, offsetof(struct pt_regs, pc));
+	DEFINE(PT_RETX, offsetof(struct pt_regs, retx));
+	DEFINE(PT_RETN, offsetof(struct pt_regs, retn));
+	DEFINE(PT_RETE, offsetof(struct pt_regs, rete));
+	DEFINE(PT_SEQSTAT, offsetof(struct pt_regs, seqstat));
+	DEFINE(PT_SYSCFG, offsetof(struct pt_regs, syscfg));
+
+
+	DEFINE(PT_IPEND, offsetof(struct pt_regs, ipend));
 
 	/* bitfields are a bit difficult */
 	DEFINE(PT_VECTOR, offsetof(struct pt_regs, pc) + 4);
