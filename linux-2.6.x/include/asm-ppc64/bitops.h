@@ -154,6 +154,20 @@ static __inline__ int test_and_change_bit(unsigned long nr, volatile unsigned lo
 	return (old & mask) != 0;
 }
 
+static __inline__ void set_bits(unsigned long mask, unsigned long *addr)
+{
+	unsigned long old;
+
+	__asm__ __volatile__(
+"1:	ldarx	%0,0,%3		# set_bit\n\
+	or	%0,%0,%2\n\
+	stdcx.	%0,0,%3\n\
+	bne-	1b"
+	: "=&r" (old), "=m" (*addr)
+	: "r" (mask), "r" (addr), "m" (*addr)
+	: "cc");
+}
+
 /*
  * non-atomic versions
  */
@@ -274,15 +288,15 @@ static __inline__ int ffs(int x)
 #define hweight16(x) generic_hweight16(x)
 #define hweight8(x) generic_hweight8(x)
 
-extern unsigned long find_next_zero_bit(unsigned long *addr, unsigned long size, unsigned long offset);
+extern unsigned long find_next_zero_bit(const unsigned long *addr, unsigned long size, unsigned long offset);
 #define find_first_zero_bit(addr, size) \
 	find_next_zero_bit((addr), (size), 0)
 
-extern unsigned long find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset);
+extern unsigned long find_next_bit(const unsigned long *addr, unsigned long size, unsigned long offset);
 #define find_first_bit(addr, size) \
 	find_next_bit((addr), (size), 0)
 
-extern unsigned long find_next_zero_le_bit(unsigned long *addr, unsigned long size, unsigned long offset);
+extern unsigned long find_next_zero_le_bit(const unsigned long *addr, unsigned long size, unsigned long offset);
 #define find_first_zero_le_bit(addr, size) \
 	find_next_zero_le_bit((addr), (size), 0)
 

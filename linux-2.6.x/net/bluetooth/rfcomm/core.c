@@ -31,8 +31,6 @@
  * $Id$
  */
 
-#define __KERNEL_SYSCALLS__
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -52,7 +50,7 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/rfcomm.h>
 
-#define VERSION "1.1"
+#define VERSION "1.3"
 
 #ifndef CONFIG_BT_RFCOMM_DEBUG
 #undef  BT_DBG
@@ -160,7 +158,7 @@ static int rfcomm_l2sock_create(struct socket **sock)
 
 	BT_DBG("");
 
-	err = sock_create(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP, sock);
+	err = sock_create_kern(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP, sock);
 	if (!err) {
 		struct sock *sk = (*sock)->sk;
 		sk->sk_data_ready   = rfcomm_l2data_ready;
@@ -325,14 +323,11 @@ static int __rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 
 int rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst, u8 channel)
 {
-	mm_segment_t fs;
 	int r;
 
 	rfcomm_lock();
 
-	fs = get_fs(); set_fs(KERNEL_DS);
 	r = __rfcomm_dlc_open(d, src, dst, channel);
-	set_fs(fs);
 
 	rfcomm_unlock();
 	return r;
@@ -378,14 +373,11 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 
 int rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 {
-	mm_segment_t fs;
 	int r;
 
 	rfcomm_lock();
 
-	fs = get_fs(); set_fs(KERNEL_DS);
 	r = __rfcomm_dlc_close(d, err);
-	set_fs(fs);
 
 	rfcomm_unlock();
 	return r;
@@ -411,7 +403,7 @@ int rfcomm_dlc_send(struct rfcomm_dlc *d, struct sk_buff *skb)
 	return len;
 }
 
-void __rfcomm_dlc_throttle(struct rfcomm_dlc *d)
+void fastcall __rfcomm_dlc_throttle(struct rfcomm_dlc *d)
 {
 	BT_DBG("dlc %p state %ld", d, d->state);
 
@@ -422,7 +414,7 @@ void __rfcomm_dlc_throttle(struct rfcomm_dlc *d)
 	rfcomm_schedule(RFCOMM_SCHED_TX);
 }
 
-void __rfcomm_dlc_unthrottle(struct rfcomm_dlc *d)
+void fastcall __rfcomm_dlc_unthrottle(struct rfcomm_dlc *d)
 {
 	BT_DBG("dlc %p state %ld", d, d->state);
 
@@ -472,32 +464,33 @@ struct rfcomm_session *rfcomm_session_add(struct socket *sock, int state)
 	if (!s)
 		return NULL;
 	memset(s, 0, sizeof(*s));
-	
+
 	BT_DBG("session %p sock %p", s, sock);
 
 	INIT_LIST_HEAD(&s->dlcs);
 	s->state = state;
 	s->sock  = sock;
 
-	s->mtu   = RFCOMM_DEFAULT_MTU;
-	s->cfc   = RFCOMM_CFC_UNKNOWN;
-	
+	s->mtu = RFCOMM_DEFAULT_MTU;
+	s->cfc = RFCOMM_CFC_UNKNOWN;
+
+	/* Do not increment module usage count for listening sessions.
+	 * Otherwise we won't be able to unload the module. */
+	if (state != BT_LISTEN)
+		if (!try_module_get(THIS_MODULE)) {
+			kfree(s);
+			return NULL;
+		}
+
 	list_add(&s->list, &session_list);
 
-	/* Do not increment module usage count for listeting sessions.
-	 * Otherwise we won't be able to unload the module.
-	 * Non listening session are added either by a socket or a TTYs
-	 * which means that we already hold refcount to this module.
-	 */
-	if (state != BT_LISTEN)
-		__module_get(THIS_MODULE);
 	return s;
 }
 
 void rfcomm_session_del(struct rfcomm_session *s)
 {
 	int state = s->state;
-	
+
 	BT_DBG("session %p state %ld", s, s->state);
 
 	list_del(&s->list);
@@ -553,9 +546,8 @@ struct rfcomm_session *rfcomm_session_create(bdaddr_t *src, bdaddr_t *dst, int *
 {
 	struct rfcomm_session *s = NULL;
 	struct sockaddr_l2 addr;
-	struct l2cap_options opts;
 	struct socket *sock;
-	int    size;
+	struct sock *sk;
 
 	BT_DBG("%s %s", batostr(src), batostr(dst));
 
@@ -571,11 +563,10 @@ struct rfcomm_session *rfcomm_session_create(bdaddr_t *src, bdaddr_t *dst, int *
 		goto failed;
 
 	/* Set L2CAP options */
-	size = sizeof(opts);
-	sock->ops->getsockopt(sock, SOL_L2CAP, L2CAP_OPTIONS, (void *)&opts, &size);
-	
-	opts.imtu = RFCOMM_MAX_L2CAP_MTU;
-	sock->ops->setsockopt(sock, SOL_L2CAP, L2CAP_OPTIONS, (void *)&opts, size);
+	sk = sock->sk;
+	lock_sock(sk);
+	l2cap_pi(sk)->imtu = RFCOMM_MAX_L2CAP_MTU;
+	release_sock(sk);
 
 	s = rfcomm_session_add(sock, BT_BOUND);
 	if (!s) {
@@ -613,16 +604,14 @@ void rfcomm_session_getaddr(struct rfcomm_session *s, bdaddr_t *src, bdaddr_t *d
 static int rfcomm_send_frame(struct rfcomm_session *s, u8 *data, int len)
 {
 	struct socket *sock = s->sock;
-	struct iovec iv = { data, len };
+	struct kvec iv = { data, len };
 	struct msghdr msg;
 
 	BT_DBG("session %p len %d", s, len);
 
 	memset(&msg, 0, sizeof(msg));
-	msg.msg_iovlen = 1;
-	msg.msg_iov = &iv;
 
-	return sock_sendmsg(sock, &msg, len);
+	return kernel_sendmsg(sock, &msg, &iv, 1, len);
 }
 
 static int rfcomm_send_sabm(struct rfcomm_session *s, u8 dlci)
@@ -906,7 +895,7 @@ static int rfcomm_send_fcon(struct rfcomm_session *s, int cr)
 static int rfcomm_send_test(struct rfcomm_session *s, int cr, u8 *pattern, int len)
 {
 	struct socket *sock = s->sock;
-	struct iovec iv[3];
+	struct kvec iv[3];
 	struct msghdr msg;
 	unsigned char hdr[5], crc[1];
 
@@ -931,10 +920,8 @@ static int rfcomm_send_test(struct rfcomm_session *s, int cr, u8 *pattern, int l
 	iv[2].iov_len  = 1;
 
 	memset(&msg, 0, sizeof(msg));
-	msg.msg_iovlen = 3;
-	msg.msg_iov = iv;
 
-	return sock_sendmsg(sock, &msg, 6 + len);
+	return kernel_sendmsg(sock, &msg, iv, 3, 6 + len);
 }
 
 static int rfcomm_send_credits(struct rfcomm_session *s, u8 addr, u8 credits)
@@ -1643,11 +1630,9 @@ static inline void rfcomm_accept_connection(struct rfcomm_session *s)
 
 	BT_DBG("session %p", s);
 
-	nsock = sock_alloc();
-	if (!nsock)
+	if (sock_create_lite(PF_BLUETOOTH, sock->type, BTPROTO_L2CAP, &nsock))
 		return;
 
-	nsock->type = sock->type;
 	nsock->ops  = sock->ops;
 
 	__module_get(nsock->ops->owner);
@@ -1663,9 +1648,10 @@ static inline void rfcomm_accept_connection(struct rfcomm_session *s)
 	nsock->sk->sk_state_change = rfcomm_l2state_change;
 
 	s = rfcomm_session_add(nsock, BT_OPEN);
-	if (s)
+	if (s) {
 		rfcomm_session_hold(s);
-	else
+		rfcomm_schedule(RFCOMM_SCHED_RX);
+	} else
 		sock_release(nsock);
 }
 
@@ -1751,10 +1737,10 @@ static void rfcomm_worker(void)
 static int rfcomm_add_listener(bdaddr_t *ba)
 {
 	struct sockaddr_l2 addr;
-	struct l2cap_options opts;
 	struct socket *sock;
+	struct sock *sk;
 	struct rfcomm_session *s;
-	int    size, err = 0;
+	int    err = 0;
 
 	/* Create socket */
 	err = rfcomm_l2sock_create(&sock);
@@ -1774,11 +1760,10 @@ static int rfcomm_add_listener(bdaddr_t *ba)
 	}
 
 	/* Set L2CAP options */
-	size = sizeof(opts);
-	sock->ops->getsockopt(sock, SOL_L2CAP, L2CAP_OPTIONS, (void *)&opts, &size);
-
-	opts.imtu = RFCOMM_MAX_L2CAP_MTU;
-	sock->ops->setsockopt(sock, SOL_L2CAP, L2CAP_OPTIONS, (void *)&opts, size);
+	sk = sock->sk;
+	lock_sock(sk);
+	l2cap_pi(sk)->imtu = RFCOMM_MAX_L2CAP_MTU;
+	release_sock(sk);
 
 	/* Start listening on the socket */
 	err = sock->ops->listen(sock, 10);
@@ -1820,9 +1805,7 @@ static int rfcomm_run(void *unused)
 
 	daemonize("krfcommd");
 	set_user_nice(current, -10);
-	current->flags |= PF_IOTHREAD;
-
-	set_fs(KERNEL_DS);
+	current->flags |= PF_NOFREEZE;
 
 	BT_DBG("");
 
@@ -1949,7 +1932,7 @@ static void __exit rfcomm_proc_cleanup(void)
 #endif /* CONFIG_PROC_FS */
 
 /* ---- Initialization ---- */
-int  __init rfcomm_init(void)
+static int __init rfcomm_init(void)
 {
 	l2cap_load();
 
@@ -1968,7 +1951,7 @@ int  __init rfcomm_init(void)
 	return 0;
 }
 
-void __exit rfcomm_cleanup(void)
+static void __exit rfcomm_exit(void)
 {
 	/* Terminate working thread.
 	 * ie. Set terminate flag and wake it up */
@@ -1989,9 +1972,10 @@ void __exit rfcomm_cleanup(void)
 }
 
 module_init(rfcomm_init);
-module_exit(rfcomm_cleanup);
+module_exit(rfcomm_exit);
 
 MODULE_AUTHOR("Maxim Krasnyansky <maxk@qualcomm.com>, Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth RFCOMM ver " VERSION);
+MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("bt-proto-3");

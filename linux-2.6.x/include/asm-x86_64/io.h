@@ -109,17 +109,6 @@ __OUTS(l)
 
 #include <linux/vmalloc.h>
 
-/*
- * Temporary debugging check to catch old code using
- * unmapped ISA addresses. Will be removed in 2.4.
- */
-#ifdef CONFIG_IO_DEBUG
-  extern void *__io_virt_debug(unsigned long x, const char *file, int line);
-  #define __io_virt(x) __io_virt_debug((unsigned long)(x), __FILE__, __LINE__)
-#else
-  #define __io_virt(x) ((void *)(x))
-#endif
-
 #ifndef __i386__
 /*
  * Change virtual addresses to physical addresses and vv.
@@ -184,27 +173,36 @@ extern void iounmap(void *addr);
  * memory location directly.
  */
 
-#define readb(addr) (*(volatile unsigned char *) __io_virt(addr))
-#define readw(addr) (*(volatile unsigned short *) __io_virt(addr))
-#define readl(addr) (*(volatile unsigned int *) __io_virt(addr))
-#define readq(addr) (*(volatile unsigned long *) __io_virt(addr))
+#define readb(addr) (*(volatile unsigned char *) (addr))
+#define readw(addr) (*(volatile unsigned short *) (addr))
+#define readl(addr) (*(volatile unsigned int *) (addr))
+#define readq(addr) (*(volatile unsigned long *) (addr))
+#define readb_relaxed(a) readb(a)
+#define readw_relaxed(a) readw(a)
+#define readl_relaxed(a) readl(a)
+#define readq_relaxed(a) readq(a)
 #define __raw_readb readb
 #define __raw_readw readw
 #define __raw_readl readl
 #define __raw_readq readq
 
-#define writeb(b,addr) (*(volatile unsigned char *) __io_virt(addr) = (b))
-#define writew(b,addr) (*(volatile unsigned short *) __io_virt(addr) = (b))
-#define writel(b,addr) (*(volatile unsigned int *) __io_virt(addr) = (b))
-#define writeq(b,addr) (*(volatile unsigned long *) __io_virt(addr) = (b))
+#define writeb(b,addr) (*(volatile unsigned char *) (addr) = (b))
+#define writew(b,addr) (*(volatile unsigned short *) (addr) = (b))
+#define writel(b,addr) (*(volatile unsigned int *) (addr) = (b))
+#define writeq(b,addr) (*(volatile unsigned long *) (addr) = (b))
 #define __raw_writeb writeb
 #define __raw_writew writew
 #define __raw_writel writel
 #define __raw_writeq writeq
 
-void *memcpy_fromio(void*,const void*,unsigned); 
-void *memcpy_toio(void*,const void*,unsigned); 
-#define memset_io(a,b,c)	memset(__io_virt(a),(b),(c))
+void *__memcpy_fromio(void*,unsigned long,unsigned);
+void *__memcpy_toio(unsigned long,const void*,unsigned);
+
+#define memcpy_fromio(to,from,len) \
+  __memcpy_fromio((to),(unsigned long)(from),(len))
+#define memcpy_toio(to,from,len) \
+  __memcpy_toio((unsigned long)(to),(from),(len))
+#define memset_io(a,b,c)	memset((void *)(a),(b),(c))
 
 /*
  * ISA space is 'always mapped' on a typical x86 system, no need to
@@ -231,8 +229,8 @@ void *memcpy_toio(void*,const void*,unsigned);
  * Again, x86-64 does not require mem IO specific function.
  */
 
-#define eth_io_copy_and_sum(a,b,c,d)		eth_copy_and_sum((a),__io_virt(b),(c),(d))
-#define isa_eth_io_copy_and_sum(a,b,c,d)	eth_copy_and_sum((a),__io_virt(__ISA_IO_base + (b)),(c),(d))
+#define eth_io_copy_and_sum(a,b,c,d)		eth_copy_and_sum((a),(void *)(b),(c),(d))
+#define isa_eth_io_copy_and_sum(a,b,c,d)	eth_copy_and_sum((a),(void *)(__ISA_IO_base + (b)),(c),(d))
 
 /**
  *	check_signature		-	find BIOS signatures

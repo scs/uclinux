@@ -148,15 +148,6 @@ static char *media[MAX_UNITS];
 #define TX_TIMEOUT  (4*HZ)
 #define PKT_BUF_SZ		1536	/* Size of each temporary Rx buffer.*/
 
-#ifndef __KERNEL__
-#define __KERNEL__
-#endif
-#if !defined(__OPTIMIZE__)
-#warning  You must compile this file with the correct options!
-#warning  See the last lines of the source file.
-#error You must compile this driver with "-O".
-#endif
-
 /* Include files, designed to support most kernel versions 2.0.0 and later. */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -309,7 +300,7 @@ static struct pci_id_info pci_id_tbl[] = {
 	{"D-Link DFE-530TXS FAST Ethernet Adapter"},
 	{"D-Link DL10050-based FAST Ethernet Adapter"},
 	{"Sundance Technology Alta"},
-	{0,},			/* 0 terminated list. */
+	{NULL,},			/* 0 terminated list. */
 };
 
 /* This driver was written to use PCI memory space, however x86-oriented
@@ -986,8 +977,8 @@ static void tx_timeout(struct net_device *dev)
 	{
 		int i;
 		for (i=0; i<TX_RING_SIZE; i++) {
-			printk(KERN_DEBUG "%02x %08Zx %08x %08x(%02x) %08x %08x\n", i,
-				np->tx_ring_dma + i*sizeof(*np->tx_ring),
+			printk(KERN_DEBUG "%02x %08llx %08x %08x(%02x) %08x %08x\n", i,
+				(unsigned long long)(np->tx_ring_dma + i*sizeof(*np->tx_ring)),
 				le32_to_cpu(np->tx_ring[i].next_desc),
 				le32_to_cpu(np->tx_ring[i].status),
 				(le32_to_cpu(np->tx_ring[i].status) >> 2) & 0xff,
@@ -1039,7 +1030,7 @@ static void init_ring(struct net_device *dev)
 			((i+1)%RX_RING_SIZE)*sizeof(*np->rx_ring));
 		np->rx_ring[i].status = 0;
 		np->rx_ring[i].frag[0].length = 0;
-		np->rx_skbuff[i] = 0;
+		np->rx_skbuff[i] = NULL;
 	}
 
 	/* Fill in the Rx buffers.  Handle allocation failure gracefully. */
@@ -1058,7 +1049,7 @@ static void init_ring(struct net_device *dev)
 	np->dirty_rx = (unsigned int)(i - RX_RING_SIZE);
 
 	for (i = 0; i < TX_RING_SIZE; i++) {
-		np->tx_skbuff[i] = 0;
+		np->tx_skbuff[i] = NULL;
 		np->tx_ring[i].status = 0;
 	}
 	return;
@@ -1136,7 +1127,7 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 static int
 reset_tx (struct net_device *dev)
 {
-	struct netdev_private *np = (struct netdev_private*) dev->priv;
+	struct netdev_private *np = dev->priv;
 	long ioaddr = dev->base_addr;
 	struct sk_buff *skb;
 	int i;
@@ -1162,7 +1153,7 @@ reset_tx (struct net_device *dev)
 				dev_kfree_skb_irq (skb);
 			else
 				dev_kfree_skb (skb);
-			np->tx_skbuff[i] = 0;
+			np->tx_skbuff[i] = NULL;
 			np->stats.tx_dropped++;
 		}
 	}
@@ -1265,7 +1256,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 					np->tx_ring[entry].frag[0].addr,
 					skb->len, PCI_DMA_TODEVICE);
 				dev_kfree_skb_irq (np->tx_skbuff[entry]);
-				np->tx_skbuff[entry] = 0;
+				np->tx_skbuff[entry] = NULL;
 				np->tx_ring[entry].frag[0].addr = 0;
 				np->tx_ring[entry].frag[0].length = 0;
 			}
@@ -1284,7 +1275,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 					np->tx_ring[entry].frag[0].addr,
 					skb->len, PCI_DMA_TODEVICE);
 				dev_kfree_skb_irq (np->tx_skbuff[entry]);
-				np->tx_skbuff[entry] = 0;
+				np->tx_skbuff[entry] = NULL;
 				np->tx_ring[entry].frag[0].addr = 0;
 				np->tx_ring[entry].frag[0].length = 0;
 			}
@@ -1331,9 +1322,6 @@ static void rx_poll(unsigned long data)
 		if (netif_msg_rx_status(np))
 			printk(KERN_DEBUG "  netdev_rx() status was %8.8x.\n",
 				   frame_status);
-		pci_dma_sync_single(np->pci_dev, desc->frag[0].addr,
-			np->rx_buf_sz, PCI_DMA_FROMDEVICE);
-
 		if (frame_status & 0x001f4000) {
 			/* There was a error. */
 			if (netif_msg_rx_err(np))
@@ -1363,7 +1351,16 @@ static void rx_poll(unsigned long data)
 				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 				skb->dev = dev;
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
+				pci_dma_sync_single_for_cpu(np->pci_dev,
+							    desc->frag[0].addr,
+							    np->rx_buf_sz,
+							    PCI_DMA_FROMDEVICE);
+
 				eth_copy_and_sum(skb, np->rx_skbuff[entry]->tail, pkt_len, 0);
+				pci_dma_sync_single_for_device(np->pci_dev,
+							       desc->frag[0].addr,
+							       np->rx_buf_sz,
+							       PCI_DMA_FROMDEVICE);
 				skb_put(skb, pkt_len);
 			} else {
 				pci_unmap_single(np->pci_dev,
@@ -1570,7 +1567,7 @@ static int __set_mac_addr(struct net_device *dev)
 }
 	
 
-static int netdev_ethtool_ioctl(struct net_device *dev, void *useraddr)
+static int netdev_ethtool_ioctl(struct net_device *dev, void __user *useraddr)
 {
 	struct netdev_private *np = dev->priv;
 	u32 ethcmd;
@@ -1653,7 +1650,6 @@ static int netdev_ethtool_ioctl(struct net_device *dev, void *useraddr)
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct netdev_private *np = dev->priv;
-	struct mii_ioctl_data *data = (struct mii_ioctl_data *) & rq->ifr_data;
 	int rc;
 	int i;
 	long ioaddr = dev->base_addr;
@@ -1662,18 +1658,18 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return -EINVAL;
 
 	if (cmd == SIOCETHTOOL)
-		rc = netdev_ethtool_ioctl(dev, (void *) rq->ifr_data);
+		rc = netdev_ethtool_ioctl(dev, rq->ifr_data);
 
 	else {
 		spin_lock_irq(&np->lock);
-		rc = generic_mii_ioctl(&np->mii_if, data, cmd, NULL);
+		rc = generic_mii_ioctl(&np->mii_if, if_mii(rq), cmd, NULL);
 		spin_unlock_irq(&np->lock);
 	}
 	switch (cmd) {
 		case SIOCDEVPRIVATE:
 		for (i=0; i<TX_RING_SIZE; i++) {
-			printk(KERN_DEBUG "%02x %08Zx %08x %08x(%02x) %08x %08x\n", i,
-				np->tx_ring_dma + i*sizeof(*np->tx_ring),	
+			printk(KERN_DEBUG "%02x %08llx %08x %08x(%02x) %08x %08x\n", i,
+				(unsigned long long)(np->tx_ring_dma + i*sizeof(*np->tx_ring)),	
 				le32_to_cpu(np->tx_ring[i].next_desc),
 				le32_to_cpu(np->tx_ring[i].status),
 				(le32_to_cpu(np->tx_ring[i].status) >> 2) 
@@ -1757,7 +1753,7 @@ static int netdev_close(struct net_device *dev)
 				np->rx_ring[i].frag[0].addr, np->rx_buf_sz,
 				PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(skb);
-			np->rx_skbuff[i] = 0;
+			np->rx_skbuff[i] = NULL;
 		}
 	}
 	for (i = 0; i < TX_RING_SIZE; i++) {
@@ -1767,7 +1763,7 @@ static int netdev_close(struct net_device *dev)
 				np->tx_ring[i].frag[0].addr, skb->len,
 				PCI_DMA_TODEVICE);
 			dev_kfree_skb(skb);
-			np->tx_skbuff[i] = 0;
+			np->tx_skbuff[i] = NULL;
 		}
 	}
 

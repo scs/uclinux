@@ -27,7 +27,6 @@ CONFIG_KMOD=y
 #
 # System Type
 #
-# CONFIG_ARCH_ANAKIN is not set
 # CONFIG_ARCH_ARCA5K is not set
 # CONFIG_ARCH_CLPS7500 is not set
 # CONFIG_ARCH_CLPS711X is not set
@@ -315,7 +314,6 @@ CONFIG_IP_MULTICAST=y
 # CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
-# CONFIG_NET_FASTROUTE is not set
 # CONFIG_NET_HW_FLOWCONTROL is not set
 
 #
@@ -518,8 +516,6 @@ CONFIG_SERIAL=m
 #
 # Serial drivers
 #
-# CONFIG_SERIAL_ANAKIN is not set
-# CONFIG_SERIAL_ANAKIN_CONSOLE is not set
 # CONFIG_SERIAL_AMBA is not set
 # CONFIG_SERIAL_AMBA_CONSOLE is not set
 # CONFIG_SERIAL_CLPS711X is not set
@@ -730,7 +726,6 @@ CONFIG_PC_KEYMAP=y
 CONFIG_FB=y
 CONFIG_DUMMY_CONSOLE=y
 # CONFIG_FB_ACORN is not set
-# CONFIG_FB_ANAKIN is not set
 # CONFIG_FB_CLPS711X is not set
 # CONFIG_FB_SA1100 is not set
 CONFIG_FB_EPSON1356=y

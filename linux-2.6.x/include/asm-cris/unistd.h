@@ -275,13 +275,53 @@
 #define __NR_clock_nanosleep	(__NR_timer_create+8)
 #define __NR_statfs64		268
 #define __NR_fstatfs64		269
+#define __NR_tgkill		270
+#define __NR_utimes		271
+#define __NR_fadvise64_64	272
+#define __NR_vserver		273
+#define __NR_mbind		274
+#define __NR_get_mempolicy	275
+#define __NR_set_mempolicy	276
+#define __NR_mq_open 		277
+#define __NR_mq_unlink		(__NR_mq_open+1)
+#define __NR_mq_timedsend	(__NR_mq_open+2)
+#define __NR_mq_timedreceive	(__NR_mq_open+3)
+#define __NR_mq_notify		(__NR_mq_open+4)
+#define __NR_mq_getsetattr	(__NR_mq_open+5)
  
-#define NR_syscalls 270
+#define NR_syscalls 283
 
 
-
+#ifdef __KERNEL__
+#define __ARCH_WANT_IPC_PARSE_VERSION
+#define __ARCH_WANT_OLD_READDIR
+#define __ARCH_WANT_OLD_STAT
+#define __ARCH_WANT_STAT64
+#define __ARCH_WANT_SYS_ALARM
+#define __ARCH_WANT_SYS_GETHOSTNAME
+#define __ARCH_WANT_SYS_PAUSE
+#define __ARCH_WANT_SYS_SGETMASK
+#define __ARCH_WANT_SYS_SIGNAL
+#define __ARCH_WANT_SYS_TIME
+#define __ARCH_WANT_SYS_UTIME
+#define __ARCH_WANT_SYS_WAITPID
+#define __ARCH_WANT_SYS_SOCKETCALL
+#define __ARCH_WANT_SYS_FADVISE64
+#define __ARCH_WANT_SYS_GETPGRP
+#define __ARCH_WANT_SYS_LLSEEK
+#define __ARCH_WANT_SYS_NICE
+#define __ARCH_WANT_SYS_OLD_GETRLIMIT
+#define __ARCH_WANT_SYS_OLDUMOUNT
+#define __ARCH_WANT_SYS_SIGPENDING
+#define __ARCH_WANT_SYS_SIGPROCMASK
+#define __ARCH_WANT_SYS_RT_SIGACTION
+#endif
 
 #ifdef __KERNEL_SYSCALLS__
+
+#include <linux/compiler.h>
+#include <linux/types.h>
+#include <linux/linkage.h>
 
 /*
  * we need this inline - forking from kernel space will result
@@ -304,6 +344,28 @@ extern inline _syscall1(int,dup,int,fd)
 extern inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
 extern inline _syscall3(int,open,const char *,file,int,flag,int,mode)
 extern inline _syscall1(int,close,int,fd)
+
+struct pt_regs;
+asmlinkage long sys_mmap2(
+			unsigned long addr, unsigned long len,
+			unsigned long prot, unsigned long flags,
+			unsigned long fd, unsigned long pgoff);
+asmlinkage int sys_execve(const char *fname, char **argv, char **envp,
+			long r13, long mof, long srp, struct pt_regs *regs);
+asmlinkage int sys_clone(unsigned long newusp, unsigned long flags,
+			int* parent_tid, int* child_tid, long mof, long srp,
+			struct pt_regs *regs);
+asmlinkage int sys_fork(long r10, long r11, long r12, long r13,
+			long mof, long srp, struct pt_regs *regs);
+asmlinkage int sys_vfork(long r10, long r11, long r12, long r13,
+			long mof, long srp, struct pt_regs *regs);
+asmlinkage int sys_pipe(unsigned long __user *fildes);
+asmlinkage int sys_ptrace(long request, long pid, long addr, long data);
+struct sigaction;
+asmlinkage long sys_rt_sigaction(int sig,
+				const struct sigaction __user *act,
+				struct sigaction __user *oact,
+				size_t sigsetsize);
 
 /*
  * Since we define it "external", it collides with the built-in

@@ -36,6 +36,8 @@
 #include "8390.h"
 
 
+#define DRV_NAME	"zorro8390"
+
 #define NE_BASE		(dev->base_addr)
 #define NE_CMD		(0x00*2)
 #define NE_DATAPORT	(0x10*2)	/* NatSemi-defined port window offset. */
@@ -59,22 +61,21 @@
 
 #define WORDSWAP(a)	((((a)>>8)&0xff) | ((a)<<8))
 
-#ifdef MODULE
-static struct net_device *root_zorro8390_dev;
-#endif
 
-static const struct card_info {
+static struct card_info {
     zorro_id id;
     const char *name;
     unsigned int offset;
-} cards[] __initdata = {
+} cards[] __devinitdata = {
     { ZORRO_PROD_VILLAGE_TRONIC_ARIADNE2, "Ariadne II", 0x0600 },
     { ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF, "X-Surf", 0x8600 },
 };
 
-static int __init zorro8390_probe(void);
-static int __init zorro8390_init(struct net_device *dev, unsigned long board,
-				 const char *name, unsigned long ioaddr);
+static int __devinit zorro8390_init_one(struct zorro_dev *z,
+					const struct zorro_device_id *ent);
+static int __devinit zorro8390_init(struct net_device *dev,
+				    unsigned long board, const char *name,
+				    unsigned long ioaddr);
 static int zorro8390_open(struct net_device *dev);
 static int zorro8390_close(struct net_device *dev);
 static void zorro8390_reset_8390(struct net_device *dev);
@@ -85,50 +86,57 @@ static void zorro8390_block_input(struct net_device *dev, int count,
 static void zorro8390_block_output(struct net_device *dev, const int count,
 				   const unsigned char *buf,
 				   const int start_page);
-static void __exit zorro8390_cleanup(void);
+static void __devexit zorro8390_remove_one(struct zorro_dev *z);
 
-static int __init zorro8390_probe(void)
+static struct zorro_device_id zorro8390_zorro_tbl[] __devinitdata = {
+    { ZORRO_PROD_VILLAGE_TRONIC_ARIADNE2, },
+    { ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF, },
+    { 0 }
+};
+
+static struct zorro_driver zorro8390_driver = {
+    .name	= "zorro8390",
+    .id_table	= zorro8390_zorro_tbl,
+    .probe	= zorro8390_init_one,
+    .remove	= __devexit_p(zorro8390_remove_one),
+};
+
+static int __devinit zorro8390_init_one(struct zorro_dev *z,
+					const struct zorro_device_id *ent)
 {
     struct net_device *dev;
-    struct zorro_dev *z = NULL;
     unsigned long board, ioaddr;
-    int err = -ENODEV;
-    int i;
+    int err, i;
 
-    while ((z = zorro_find_device(ZORRO_WILDCARD, z))) {
-	for (i = ARRAY_SIZE(cards)-1; i >= 0; i--)
-	    if (z->id == cards[i].id)
-		break;
-	if (i < 0)
-	    continue;
-	board = z->resource.start;
-	ioaddr = board+cards[i].offset;
-	dev = init_etherdev(0, 0);
-	SET_MODULE_OWNER(dev);
-	if (!dev)
-	    return -ENOMEM;
-	if (!request_mem_region(ioaddr, NE_IO_EXTENT*2, dev->name)) {
-	    kfree(dev);
-	    continue;
-	}
-	if ((err = zorro8390_init(dev, board, cards[i].name,
-				  ZTWO_VADDR(ioaddr)))) {
-	    release_mem_region(ioaddr, NE_IO_EXTENT*2);
-	    kfree(dev);
-	    return err;
-	}
-	err = 0;
+    for (i = ARRAY_SIZE(cards)-1; i >= 0; i--)
+	if (z->id == cards[i].id)
+	    break;
+    board = z->resource.start;
+    ioaddr = board+cards[i].offset;
+    dev = alloc_ei_netdev();
+    if (!dev)
+	return -ENOMEM;
+    SET_MODULE_OWNER(dev);
+    if (!request_mem_region(ioaddr, NE_IO_EXTENT*2, DRV_NAME)) {
+	free_netdev(dev);
+	return -EBUSY;
     }
-
-    if (err == -ENODEV)
-	printk("No Ariadne II or X-Surf ethernet card found.\n");
-    return err;
+    if ((err = zorro8390_init(dev, board, cards[i].name,
+			      ZTWO_VADDR(ioaddr)))) {
+	release_mem_region(ioaddr, NE_IO_EXTENT*2);
+	free_netdev(dev);
+	return err;
+    }
+    zorro_set_drvdata(z, dev);
+    return 0;
 }
 
-static int __init zorro8390_init(struct net_device *dev, unsigned long board,
-				 const char *name, unsigned long ioaddr)
+static int __devinit zorro8390_init(struct net_device *dev,
+				    unsigned long board, const char *name,
+				    unsigned long ioaddr)
 {
     int i;
+    int err;
     unsigned char SA_prom[32];
     int start_page, stop_page;
     static u32 zorro8390_offsets[16] = {
@@ -144,7 +152,7 @@ static int __init zorro8390_init(struct net_device *dev, unsigned long board,
 
 	while ((z_readb(ioaddr + NE_EN0_ISR) & ENISR_RESET) == 0)
 	    if (jiffies - reset_start_time > 2*HZ/100) {
-		printk(" not found (no reset ack).\n");
+		printk(KERN_WARNING " not found (no reset ack).\n");
 		return -ENODEV;
 	    }
 
@@ -192,14 +200,8 @@ static int __init zorro8390_init(struct net_device *dev, unsigned long board,
     dev->irq = IRQ_AMIGA_PORTS;
 
     /* Install the Interrupt handler */
-    i = request_irq(IRQ_AMIGA_PORTS, ei_interrupt, SA_SHIRQ, dev->name, dev);
+    i = request_irq(IRQ_AMIGA_PORTS, ei_interrupt, SA_SHIRQ, DRV_NAME, dev);
     if (i) return i;
-
-    /* Allocate dev->priv and fill in 8390 specific dev fields. */
-    if (ethdev_init(dev)) {
-	printk("Unable to get memory for dev->priv.\n");
-	return -ENOMEM;
-    }
 
     for(i = 0; i < ETHER_ADDR_LEN; i++) {
 #ifdef DEBUG
@@ -207,11 +209,6 @@ static int __init zorro8390_init(struct net_device *dev, unsigned long board,
 #endif
 	dev->dev_addr[i] = SA_prom[i];
     }
-
-    printk("%s: %s at 0x%08lx, Ethernet Address "
-	   "%02x:%02x:%02x:%02x:%02x:%02x\n", dev->name, name, board,
-	   dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-	   dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
 
     ei_status.name = name;
     ei_status.tx_start_page = start_page;
@@ -227,11 +224,22 @@ static int __init zorro8390_init(struct net_device *dev, unsigned long board,
     ei_status.reg_offset = zorro8390_offsets;
     dev->open = &zorro8390_open;
     dev->stop = &zorro8390_close;
-#ifdef MODULE
-    ei_status.priv = (unsigned long)root_zorro8390_dev;
-    root_zorro8390_dev = dev;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+    dev->poll_controller = ei_poll;
 #endif
+
     NS8390_init(dev, 0);
+    err = register_netdev(dev);
+    if (err) {
+	free_irq(IRQ_AMIGA_PORTS, dev);
+	return err;
+    }
+
+    printk(KERN_INFO "%s: %s at 0x%08lx, Ethernet Address "
+	   "%02x:%02x:%02x:%02x:%02x:%02x\n", dev->name, name, board,
+	   dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
+	   dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+
     return 0;
 }
 
@@ -244,7 +252,7 @@ static int zorro8390_open(struct net_device *dev)
 static int zorro8390_close(struct net_device *dev)
 {
     if (ei_debug > 1)
-	printk("%s: Shutting down ethercard.\n", dev->name);
+	printk(KERN_DEBUG "%s: Shutting down ethercard.\n", dev->name);
     ei_close(dev);
     return 0;
 }
@@ -256,7 +264,7 @@ static void zorro8390_reset_8390(struct net_device *dev)
     unsigned long reset_start_time = jiffies;
 
     if (ei_debug > 1)
-	printk("resetting the 8390 t=%ld...", jiffies);
+	printk(KERN_DEBUG "resetting the 8390 t=%ld...\n", jiffies);
 
     z_writeb(z_readb(NE_BASE + NE_RESET), NE_BASE + NE_RESET);
 
@@ -266,7 +274,8 @@ static void zorro8390_reset_8390(struct net_device *dev)
     /* This check _should_not_ be necessary, omit eventually. */
     while ((z_readb(NE_BASE+NE_EN0_ISR) & ENISR_RESET) == 0)
 	if (jiffies - reset_start_time > 2*HZ/100) {
-	    printk("%s: ne_reset_8390() did not complete.\n", dev->name);
+	    printk(KERN_WARNING "%s: ne_reset_8390() did not complete.\n",
+		   dev->name);
 	    break;
 	}
     z_writeb(ENISR_RESET, NE_BASE + NE_EN0_ISR);	/* Ack intr. */
@@ -285,7 +294,7 @@ static void zorro8390_get_8390_hdr(struct net_device *dev,
 
     /* This *shouldn't* happen. If it does, it's the last thing you'll see */
     if (ei_status.dmaing) {
-	printk("%s: DMAing conflict in ne_get_8390_hdr "
+	printk(KERN_ERR "%s: DMAing conflict in ne_get_8390_hdr "
 	   "[DMAstat:%d][irqlock:%d].\n", dev->name, ei_status.dmaing,
 	   ei_status.irqlock);
 	return;
@@ -326,7 +335,7 @@ static void zorro8390_block_input(struct net_device *dev, int count,
 
     /* This *shouldn't* happen. If it does, it's the last thing you'll see */
     if (ei_status.dmaing) {
-	printk("%s: DMAing conflict in ne_block_input "
+	printk(KERN_ERR "%s: DMAing conflict in ne_block_input "
 	   "[DMAstat:%d][irqlock:%d].\n",
 	   dev->name, ei_status.dmaing, ei_status.irqlock);
 	return;
@@ -366,7 +375,7 @@ static void zorro8390_block_output(struct net_device *dev, int count,
 
     /* This *shouldn't* happen. If it does, it's the last thing you'll see */
     if (ei_status.dmaing) {
-	printk("%s: DMAing conflict in ne_block_output."
+	printk(KERN_ERR "%s: DMAing conflict in ne_block_output."
 	   "[DMAstat:%d][irqlock:%d]\n", dev->name, ei_status.dmaing,
 	   ei_status.irqlock);
 	return;
@@ -392,7 +401,8 @@ static void zorro8390_block_output(struct net_device *dev, int count,
 
     while ((z_readb(NE_BASE + NE_EN0_ISR) & ENISR_RDC) == 0)
 	if (jiffies - dma_start > 2*HZ/100) {		/* 20ms */
-		printk("%s: timeout waiting for Tx RDC.\n", dev->name);
+		printk(KERN_ERR "%s: timeout waiting for Tx RDC.\n",
+		       dev->name);
 		zorro8390_reset_8390(dev);
 		NS8390_init(dev,1);
 		break;
@@ -403,23 +413,27 @@ static void zorro8390_block_output(struct net_device *dev, int count,
     return;
 }
 
-static void __exit zorro8390_cleanup(void)
+static void __devexit zorro8390_remove_one(struct zorro_dev *z)
 {
-#ifdef MODULE
-    struct net_device *dev, *next;
+    struct net_device *dev = zorro_get_drvdata(z);
 
-    while ((dev = root_zorro8390_dev)) {
-	next = (struct net_device *)(ei_status.priv);
-	unregister_netdev(dev);
-	free_irq(IRQ_AMIGA_PORTS, dev);
-	release_mem_region(ZTWO_PADDR(dev->base_addr), NE_IO_EXTENT*2);
-	free_netdev(dev);
-	root_zorro8390_dev = next;
-    }
-#endif
+    unregister_netdev(dev);
+    free_irq(IRQ_AMIGA_PORTS, dev);
+    release_mem_region(ZTWO_PADDR(dev->base_addr), NE_IO_EXTENT*2);
+    free_netdev(dev);
 }
 
-module_init(zorro8390_probe);
-module_exit(zorro8390_cleanup);
+static int __init zorro8390_init_module(void)
+{
+    return zorro_module_init(&zorro8390_driver);
+}
+
+static void __exit zorro8390_cleanup_module(void)
+{
+    zorro_unregister_driver(&zorro8390_driver);
+}
+
+module_init(zorro8390_init_module);
+module_exit(zorro8390_cleanup_module);
 
 MODULE_LICENSE("GPL");

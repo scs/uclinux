@@ -89,6 +89,7 @@ static int fill_read_buffer(struct file * file, struct sysfs_buffer * buffer)
 		return -ENOMEM;
 
 	count = ops->show(kobj,attr,buffer->page);
+	BUG_ON(count > (ssize_t)PAGE_SIZE);
 	if (count >= 0)
 		buffer->count = count;
 	else
@@ -238,7 +239,7 @@ sysfs_write_file(struct file *file, const char __user *buf, size_t count, loff_t
 
 static int check_perm(struct inode * inode, struct file * file)
 {
-	struct kobject * kobj = kobject_get(file->f_dentry->d_parent->d_fsdata);
+	struct kobject *kobj = sysfs_get_kobject(file->f_dentry->d_parent);
 	struct attribute * attr = file->f_dentry->d_fsdata;
 	struct sysfs_buffer * buffer;
 	struct sysfs_ops * ops = NULL;

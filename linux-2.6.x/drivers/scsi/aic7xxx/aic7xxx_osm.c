@@ -472,7 +472,7 @@ MODULE_PARM_DESC(aic7xxx,
 "	seltime:<int>		Selection Timeout\n"
 "				(0/256ms,1/128ms,2/64ms,3/32ms)\n"
 "\n"
-"	Sample /etc/modules.conf line:\n"
+"	Sample /etc/modprobe.conf line:\n"
 "		Toggle EISA/VLB probing\n"
 "		Set tag depth on Controller 1/Target 1 to 10 tags\n"
 "		Shorten the selection timeout to 128ms\n"
@@ -843,7 +843,7 @@ static int
 ahc_linux_detect(Scsi_Host_Template *template)
 {
 	struct	ahc_softc *ahc;
-	int     found;
+	int     found = 0;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	/*
@@ -891,28 +891,25 @@ ahc_linux_detect(Scsi_Host_Template *template)
 	 */
 	ahc_list_lockinit();
 
-#ifdef CONFIG_PCI
-	ahc_linux_pci_init();
-#endif
-
-#ifdef CONFIG_EISA
-	ahc_linux_eisa_init();
-#endif
-
+	found = ahc_linux_pci_init();
+	if (!ahc_linux_eisa_init())
+		found++;
+	
 	/*
 	 * Register with the SCSI layer all
 	 * controllers we've found.
 	 */
-	found = 0;
 	TAILQ_FOREACH(ahc, &ahc_tailq, links) {
 
 		if (ahc_linux_register_host(ahc, template) == 0)
 			found++;
 	}
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	spin_lock_irq(&io_request_lock);
 #endif
 	aic7xxx_detect_complete++;
+
 	return (found);
 }
 
@@ -1534,6 +1531,7 @@ ahc_softc_comp(struct ahc_softc *lahc, struct ahc_softc *rahc)
 
 	/* Still equal.  Sort by BIOS address, ioport, or bus/slot/func. */
 	switch (rvalue) {
+#ifdef CONFIG_PCI
 	case AHC_PCI:
 	{
 		char primary_channel;
@@ -1566,6 +1564,7 @@ ahc_softc_comp(struct ahc_softc *lahc, struct ahc_softc *rahc)
 			value = 1;
 		break;
 	}
+#endif
 	case AHC_EISA:
 		if ((rahc->flags & AHC_BIOS_ENABLED) != 0) {
 			value = rahc->platform_data->bios_address
@@ -2296,6 +2295,7 @@ ahc_linux_dv_thread(void *data)
 	sprintf(current->comm, "ahc_dv_%d", ahc->unit);
 #else
 	daemonize("ahc_dv_%d", ahc->unit);
+	current->flags |= PF_FREEZE;
 #endif
 	unlock_kernel();
 
@@ -3969,11 +3969,10 @@ ahc_linux_alloc_device(struct ahc_softc *ahc,
 }
 
 static void
-ahc_linux_free_device(struct ahc_softc *ahc, struct ahc_linux_device *dev)
+__ahc_linux_free_device(struct ahc_softc *ahc, struct ahc_linux_device *dev)
 {
 	struct ahc_linux_target *targ;
 
-	del_timer_sync(&dev->timer);
 	targ = dev->target;
 	targ->devices[dev->lun] = NULL;
 	free(dev, M_DEVBUF);
@@ -3981,6 +3980,13 @@ ahc_linux_free_device(struct ahc_softc *ahc, struct ahc_linux_device *dev)
 	if (targ->refcount == 0
 	 && (targ->flags & AHC_DV_REQUIRED) == 0)
 		ahc_linux_free_target(ahc, targ);
+}
+
+static void
+ahc_linux_free_device(struct ahc_softc *ahc, struct ahc_linux_device *dev)
+{
+	del_timer_sync(&dev->timer);
+	__ahc_linux_free_device(ahc, dev);
 }
 
 void
@@ -4693,7 +4699,7 @@ ahc_linux_dev_timed_unfreeze(u_long arg)
 		ahc_linux_run_device_queue(ahc, dev);
 	if (TAILQ_EMPTY(&dev->busyq)
 	 && dev->active == 0)
-		ahc_linux_free_device(ahc, dev);
+		__ahc_linux_free_device(ahc, dev);
 	ahc_unlock(ahc, &s);
 }
 
@@ -5067,11 +5073,17 @@ ahc_platform_dump_card_state(struct ahc_softc *ahc)
 	}
 }
 
+static void ahc_linux_exit(void);
+
 static int __init
 ahc_linux_init(void)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-	return (ahc_linux_detect(&aic7xxx_driver_template) ? 0 : -ENODEV);
+	int rc = ahc_linux_detect(&aic7xxx_driver_template);
+	if (rc)
+		return rc;
+	ahc_linux_exit();
+	return -ENODEV;
 #else
 	scsi_register_module(MODULE_SCSI_HA, &aic7xxx_driver_template);
 	if (aic7xxx_driver_template.present == 0) {
@@ -5084,7 +5096,7 @@ ahc_linux_init(void)
 #endif
 }
 
-static void __exit
+static void
 ahc_linux_exit(void)
 {
 	struct ahc_softc *ahc;
@@ -5111,12 +5123,8 @@ ahc_linux_exit(void)
 	 */
 	scsi_unregister_module(MODULE_SCSI_HA, &aic7xxx_driver_template);
 #endif
-#ifdef CONFIG_PCI
 	ahc_linux_pci_exit();
-#endif
-#ifdef CONFIG_EISA
 	ahc_linux_eisa_exit();
-#endif
 }
 
 module_init(ahc_linux_init);

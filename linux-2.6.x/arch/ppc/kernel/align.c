@@ -21,7 +21,7 @@ struct aligninfo {
 	unsigned char flags;
 };
 
-#if defined(CONFIG_4xx) || defined(CONFIG_POWER4)
+#if defined(CONFIG_4xx) || defined(CONFIG_POWER4) || defined(CONFIG_BOOKE)
 #define	OPCD(inst)	(((inst) & 0xFC000000) >> 26)
 #define	RS(inst)	(((inst) & 0x03E00000) >> 21)
 #define	RA(inst)	(((inst) & 0x001F0000) >> 16)
@@ -184,7 +184,7 @@ int
 fix_alignment(struct pt_regs *regs)
 {
 	int instr, nb, flags;
-#if defined(CONFIG_4xx) || defined(CONFIG_POWER4)
+#if defined(CONFIG_4xx) || defined(CONFIG_POWER4) || defined(CONFIG_BOOKE)
 	int opcode, f1, f2, f3;
 #endif
 	int i, t;
@@ -199,8 +199,8 @@ fix_alignment(struct pt_regs *regs)
 
 	CHECK_FULL_REGS(regs);
 
-#if defined(CONFIG_4xx) || defined(CONFIG_POWER4)
-	/* The 4xx-family processors have no DSISR register,
+#if defined(CONFIG_4xx) || defined(CONFIG_POWER4) || defined(CONFIG_BOOKE)
+	/* The 4xx-family & Book-E processors have no DSISR register,
 	 * so we emulate it.
 	 * The POWER4 has a DSISR register but doesn't set it on
 	 * an alignment fault.  -- paulus
@@ -250,7 +250,7 @@ fix_alignment(struct pt_regs *regs)
 
 	flags = aligninfo[instr].flags;
 
-	/* For the 4xx-family processors, the 'dar' field of the
+	/* For the 4xx-family & Book-E processors, the 'dar' field of the
 	 * pt_regs structure is overloaded and is really from the DEAR.
 	 */
 
@@ -262,8 +262,12 @@ fix_alignment(struct pt_regs *regs)
 			return -EFAULT;	/* bad address */
 	}
 
-	if ((flags & F) && (regs->msr & MSR_FP))
-		giveup_fpu(current);
+	if (flags & F) {
+		preempt_disable();
+		if (regs->msr & MSR_FP)
+			giveup_fpu(current);
+		preempt_enable();
+	}
 	if (flags & M)
 		return 0;		/* too hard for now */
 
@@ -321,14 +325,18 @@ fix_alignment(struct pt_regs *regs)
 	 * the kernel with -msoft-float so it doesn't use the
 	 * fp regs for copying 8-byte objects. */
 	case LD+F+S:
+		preempt_disable();
 		enable_kernel_fp();
 		cvt_fd(&data.f, &current->thread.fpr[reg], &current->thread.fpscr);
 		/* current->thread.fpr[reg] = data.f; */
+		preempt_enable();
 		break;
 	case ST+F+S:
+		preempt_disable();
 		enable_kernel_fp();
 		cvt_df(&current->thread.fpr[reg], &data.f, &current->thread.fpscr);
 		/* data.f = current->thread.fpr[reg]; */
+		preempt_enable();
 		break;
 	default:
 		printk("align: can't handle flags=%x\n", flags);

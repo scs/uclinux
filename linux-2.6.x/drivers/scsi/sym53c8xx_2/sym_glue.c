@@ -57,7 +57,13 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <scsi/scsi.h>
+#include <scsi/scsi_tcq.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_transport.h>
+#include <scsi/scsi_transport_spi.h>
+
 #include "sym_glue.h"
+#include "sym_nvram.h"
 
 #define NAME53C		"sym53c"
 #define NAME53C8XX	"sym53c8xx"
@@ -84,6 +90,8 @@ pci_get_base_address(struct pci_dev *pdev, int index, u_long *base)
 
 /* This lock protects only the memory allocation/free.  */
 spinlock_t sym53c8xx_lock = SPIN_LOCK_UNLOCKED;
+
+static struct scsi_transport_template *sym2_transport_template = NULL;
 
 /*
  *  Wrappers to the generic memory allocator.
@@ -169,7 +177,7 @@ struct sym_ucmd {		/* Override the SCSI pointer structure */
 
 static void __unmap_scsi_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 {
-	int dma_dir = scsi_to_pci_dma_dir(cmd->sc_data_direction);
+	int dma_dir = cmd->sc_data_direction;
 
 	switch(SYM_UCMD_PTR(cmd)->data_mapped) {
 	case 2:
@@ -186,7 +194,7 @@ static void __unmap_scsi_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 static dma_addr_t __map_scsi_single_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 {
 	dma_addr_t mapping;
-	int dma_dir = scsi_to_pci_dma_dir(cmd->sc_data_direction);
+	int dma_dir = cmd->sc_data_direction;
 
 	mapping = pci_map_single(pdev, cmd->request_buffer,
 				 cmd->request_bufflen, dma_dir);
@@ -201,7 +209,7 @@ static dma_addr_t __map_scsi_single_data(struct pci_dev *pdev, struct scsi_cmnd 
 static int __map_scsi_sg_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 {
 	int use_sg;
-	int dma_dir = scsi_to_pci_dma_dir(cmd->sc_data_direction);
+	int dma_dir = cmd->sc_data_direction;
 
 	use_sg = pci_map_sg(pdev, cmd->buffer, cmd->use_sg, dma_dir);
 	if (use_sg > 0) {
@@ -212,17 +220,32 @@ static int __map_scsi_sg_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 	return use_sg;
 }
 
-static void __sync_scsi_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
+static void __sync_scsi_data_for_cpu(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 {
-	int dma_dir = scsi_to_pci_dma_dir(cmd->sc_data_direction);
+	int dma_dir = cmd->sc_data_direction;
 
 	switch(SYM_UCMD_PTR(cmd)->data_mapped) {
 	case 2:
-		pci_dma_sync_sg(pdev, cmd->buffer, cmd->use_sg, dma_dir);
+		pci_dma_sync_sg_for_cpu(pdev, cmd->buffer, cmd->use_sg, dma_dir);
 		break;
 	case 1:
-		pci_dma_sync_single(pdev, SYM_UCMD_PTR(cmd)->data_mapping,
-				    cmd->request_bufflen, dma_dir);
+		pci_dma_sync_single_for_cpu(pdev, SYM_UCMD_PTR(cmd)->data_mapping,
+					    cmd->request_bufflen, dma_dir);
+		break;
+	}
+}
+
+static void __sync_scsi_data_for_device(struct pci_dev *pdev, struct scsi_cmnd *cmd)
+{
+	int dma_dir = cmd->sc_data_direction;
+
+	switch(SYM_UCMD_PTR(cmd)->data_mapped) {
+	case 2:
+		pci_dma_sync_sg_for_device(pdev, cmd->buffer, cmd->use_sg, dma_dir);
+		break;
+	case 1:
+		pci_dma_sync_single_for_device(pdev, SYM_UCMD_PTR(cmd)->data_mapping,
+					       cmd->request_bufflen, dma_dir);
 		break;
 	}
 }
@@ -233,8 +256,10 @@ static void __sync_scsi_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 		__map_scsi_single_data(np->s.device, cmd)
 #define map_scsi_sg_data(np, cmd)	\
 		__map_scsi_sg_data(np->s.device, cmd)
-#define sync_scsi_data(np, cmd)		\
-		__sync_scsi_data(np->s.device, cmd)
+#define sync_scsi_data_for_cpu(np, cmd)		\
+		__sync_scsi_data_for_cpu(np->s.device, cmd)
+#define sync_scsi_data_for_device(np, cmd)		\
+		__sync_scsi_data_for_device(np->s.device, cmd)
 
 /*
  *  Complete a pending CAM CCB.
@@ -359,6 +384,13 @@ void sym_set_cam_result_error(struct sym_hcb *np, struct sym_ccb *cp, int resid)
 			}
 #endif
 		} else {
+			/*
+			 * Error return from our internal request sense.  This
+			 * is bad: we must clear the contingent allegiance
+			 * condition otherwise the device will always return
+			 * BUSY.  Use a big stick.
+			 */
+			sym_reset_scsi_target(np, csio->device->id);
 			cam_status = DID_ERROR;
 		}
 	} else if (cp->host_status == HS_COMPLETE) 	/* Bad SCSI status */
@@ -394,10 +426,11 @@ void sym_sniff_inquiry(struct sym_hcb *np, struct scsi_cmnd *cmd, int resid)
 	if (!cmd || cmd->use_sg)
 		return;
 
-	sync_scsi_data(np, cmd);
+	sync_scsi_data_for_cpu(np, cmd);
 	retv = __sym_sniff_inquiry(np, cmd->device->id, cmd->device->lun,
 				   (u_char *) cmd->request_buffer,
 				   cmd->request_bufflen - resid);
+	sync_scsi_data_for_device(np, cmd);
 	if (retv < 0)
 		return;
 	else if (retv)
@@ -532,7 +565,7 @@ static int sym_queue_command(struct sym_hcb *np, struct scsi_cmnd *ccb)
 /*
  *  Setup buffers and pointers that address the CDB.
  */
-static int __inline sym_setup_cdb(struct sym_hcb *np, struct scsi_cmnd *ccb, struct sym_ccb *cp)
+static inline int sym_setup_cdb(struct sym_hcb *np, struct scsi_cmnd *ccb, struct sym_ccb *cp)
 {
 	u32	cmd_ba;
 	int	cmd_len;
@@ -574,7 +607,7 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *csio, struct 
 	 *  No direction means no data.
 	 */
 	dir = csio->sc_data_direction;
-	if (dir != SCSI_DATA_NONE) {
+	if (dir != DMA_NONE) {
 		cp->segments = sym_scatter(np, cp, csio);
 		if (cp->segments < 0) {
 			if (cp->segments == -2)
@@ -835,7 +868,7 @@ static void __sym_eh_done(struct scsi_cmnd *cmd, int timed_out)
 	}
 
 	/* Revert everything */
-	SYM_UCMD_PTR(cmd)->eh_wait = 0;
+	SYM_UCMD_PTR(cmd)->eh_wait = NULL;
 	cmd->scsi_done = ep->old_done;
 
 	/* Wake up the eh thread if it wants to sleep */
@@ -898,7 +931,6 @@ prepare:
 	switch(to_do) {
 	default:
 	case SYM_EH_DO_IGNORE:
-		goto finish;
 		break;
 	case SYM_EH_DO_WAIT:
 		init_MUTEX_LOCKED(&ep->sem);
@@ -933,12 +965,11 @@ prepare:
 
 	/* On error, restore everything and cross fingers :) */
 	if (sts) {
-		SYM_UCMD_PTR(cmd)->eh_wait = 0;
+		SYM_UCMD_PTR(cmd)->eh_wait = NULL;
 		cmd->scsi_done = ep->old_done;
 		to_do = SYM_EH_DO_IGNORE;
 	}
 
-finish:
 	ep->to_do = to_do;
 	/* Complete the command with locks held as required by the driver */
 	if (to_do == SYM_EH_DO_COMPLETE)
@@ -1132,6 +1163,8 @@ static int sym53c8xx_slave_configure(struct scsi_device *device)
 	lp->s.scdev_depth = depth_to_use;
 	sym_tune_dev_queuing(np, device->id, device->lun, reqtags);
 
+	spi_dv_device(device);
+
 	return 0;
 }
 
@@ -1281,7 +1314,7 @@ static int is_keyword(char *ptr, int len, char *verb)
 {
 	int verb_len = strlen(verb);
 
-	if (len >= strlen(verb) && !memcmp(verb, ptr, verb_len))
+	if (len >= verb_len && !memcmp(verb, ptr, verb_len))
 		return verb_len;
 	else
 		return 0;
@@ -1535,7 +1568,7 @@ static int sym53c8xx_proc_info(struct Scsi_Host *host, char *buffer,
 			char **start, off_t offset, int length, int func)
 {
 	struct host_data *host_data;
-	struct sym_hcb *np = 0;
+	struct sym_hcb *np = NULL;
 	int retv;
 
 	host_data = (struct host_data *) host->hostdata;
@@ -1817,6 +1850,8 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	instance->can_queue	= (SYM_CONF_MAX_START-2);
 	instance->sg_tablesize	= SYM_CONF_MAX_SG;
 	instance->max_cmd_len	= 16;
+	BUG_ON(sym2_transport_template == NULL);
+	instance->transportt	= sym2_transport_template;
 
 	spin_unlock_irqrestore(instance->host_lock, flags);
 
@@ -1880,7 +1915,7 @@ static inline void sym_get_nvram(struct sym_device *devp, struct sym_nvram *nvp)
 static struct sym_driver_setup
 	sym_driver_safe_setup __initdata = SYM_LINUX_DRIVER_SAFE_SETUP;
 #ifdef	MODULE
-char *sym53c8xx = 0;	/* command line passed by insmod */
+char *sym53c8xx;	/* command line passed by insmod */
 MODULE_PARM(sym53c8xx, "s");
 #endif
 
@@ -1938,7 +1973,7 @@ int __init sym53c8xx_setup(char *str)
 	char *cur = str;
 	char *pc, *pv;
 	unsigned long val;
-	int i,  c;
+	unsigned int i,  c;
 	int xi = 0;
 
 	while (cur != NULL && (pc = strchr(cur, ':')) != NULL) {
@@ -2171,6 +2206,55 @@ sym53c8xx_pci_init(struct pci_dev *pdev, struct sym_device *device)
 	return 0;
 }
 
+/*
+ * The NCR PQS and PDS cards are constructed as a DEC bridge
+ * behind which sits a proprietary NCR memory controller and
+ * either four or two 53c875s as separate devices.  We can tell
+ * if an 875 is part of a PQS/PDS or not since if it is, it will
+ * be on the same bus as the memory controller.  In its usual
+ * mode of operation, the 875s are slaved to the memory
+ * controller for all transfers.  To operate with the Linux
+ * driver, the memory controller is disabled and the 875s
+ * freed to function independently.  The only wrinkle is that
+ * the preset SCSI ID (which may be zero) must be read in from
+ * a special configuration space register of the 875.
+ */
+void sym_config_pqs(struct pci_dev *pdev, struct sym_device *sym_dev)
+{
+	int slot;
+
+	for (slot = 0; slot < 256; slot++) {
+		u8 tmp;
+		struct pci_dev *memc = pci_get_slot(pdev->bus, slot);
+
+		if (!memc || memc->vendor != 0x101a || memc->device == 0x0009) {
+			pci_dev_put(memc);
+			continue;
+		}
+
+		/*
+		 * We set these bits in the memory controller once per 875.
+		 * This isn't a problem in practice.
+		 */
+
+		/* bit 1: allow individual 875 configuration */
+		pci_read_config_byte(memc, 0x44, &tmp);
+		tmp |= 0x2;
+		pci_write_config_byte(memc, 0x44, tmp);
+
+		/* bit 2: drive individual 875 interrupts to the bus */
+		pci_read_config_byte(memc, 0x45, &tmp);
+		tmp |= 0x4;
+		pci_write_config_byte(memc, 0x45, tmp);
+
+		pci_read_config_byte(pdev, 0x84, &tmp);
+		sym_dev->host_id = tmp;
+
+		pci_dev_put(memc);
+
+		break;
+	}
+}
 
 /*
  *  Called before unloading the module.
@@ -2221,79 +2305,6 @@ static struct scsi_host_template sym2_template = {
 #endif
 };
 
-#ifdef _SYM_CONF_PQS_PDS_SUPPORT
-#if 0
-/*
- *  Detect all NCR PQS/PDS boards and keep track of their bus nr.
- *
- *  The NCR PQS or PDS card is constructed as a DEC bridge
- *  behind which sit a proprietary NCR memory controller and
- *  four or two 53c875s as separate devices.  In its usual mode
- *  of operation, the 875s are slaved to the memory controller
- *  for all transfers.  We can tell if an 875 is part of a
- *  PQS/PDS or not since if it is, it will be on the same bus
- *  as the memory controller.  To operate with the Linux
- *  driver, the memory controller is disabled and the 875s
- *  freed to function independently.  The only wrinkle is that
- *  the preset SCSI ID (which may be zero) must be read in from
- *  a special configuration space register of the 875
- */
-#ifndef SYM_CONF_MAX_PQS_BUS
-#define SYM_CONF_MAX_PQS_BUS 16
-#endif
-static int pqs_bus[SYM_CONF_MAX_PQS_BUS] __initdata = { 0 };
-
-static void __init sym_detect_pqs_pds(void)
-{
-	short index;
-	struct pci_dev *dev = NULL;
-
-	for(index=0; index < SYM_CONF_MAX_PQS_BUS; index++) {
-		u_char tmp;
-
-		dev = pci_find_device(0x101a, 0x0009, dev);
-		if (dev == NULL) {
-			pqs_bus[index] = -1;
-			break;
-		}
-		printf_info(NAME53C8XX ": NCR PQS/PDS memory controller detected on bus %d\n", dev->bus->number);
-		pci_read_config_byte(dev, 0x44, &tmp);
-		/* bit 1: allow individual 875 configuration */
-		tmp |= 0x2;
-		pci_write_config_byte(dev, 0x44, tmp);
-		pci_read_config_byte(dev, 0x45, &tmp);
-		/* bit 2: drive individual 875 interrupts to the bus */
-		tmp |= 0x4;
-		pci_write_config_byte(dev, 0x45, tmp);
-
-		pqs_bus[index] = dev->bus->number;
-	}
-}
-#endif
-
-static int pqs_probe()
-{
-}
-
-static void pqs_remove()
-{
-}
-
-static struct pci_device_id pqs_id_table[] __devinitdata = {
-	{ 0x101a, 0x0009, },
-	{ 0, }
-};
-
-MODULE_DEVICE_TABLE(pci, pqs_id_table);
-
-static struct pci_driver pqs_driver = {
-	.name		= NAME53C8XX " (PQS)",
-	.id_table	= pqs_id_table,
-	.probe		= pqs_probe,
-	.remove		= __devexit_p(pqs_remove),
-};
-#endif /* PQS */
-
 static int attach_count;
 
 static int __devinit sym2_probe(struct pci_dev *pdev,
@@ -2317,6 +2328,8 @@ static int __devinit sym2_probe(struct pci_dev *pdev,
 	sym_dev.host_id = SYM_SETUP_HOST_ID;
 	if (sym53c8xx_pci_init(pdev, &sym_dev))
 		goto free;
+
+	sym_config_pqs(pdev, &sym_dev);
 
 	sym_get_nvram(&sym_dev, &nvram);
 
@@ -2356,6 +2369,120 @@ static void __devexit sym2_remove(struct pci_dev *pdev)
 
 	attach_count--;
 }
+
+static void sym2_get_offset(struct scsi_device *sdev)
+{
+	struct sym_hcb *np = ((struct host_data *)sdev->host->hostdata)->ncb;
+	struct sym_tcb *tp = &np->target[sdev->id];
+
+	spi_offset(sdev) = tp->tinfo.curr.offset;
+}
+
+static void sym2_set_offset(struct scsi_device *sdev, int offset)
+{
+	struct sym_hcb *np = ((struct host_data *)sdev->host->hostdata)->ncb;
+	struct sym_tcb *tp = &np->target[sdev->id];
+
+	if (tp->tinfo.curr.options & PPR_OPT_DT) {
+		if (offset > np->maxoffs_dt)
+			offset = np->maxoffs_dt;
+	} else {
+		if (offset > np->maxoffs)
+			offset = np->maxoffs;
+	}
+	tp->tinfo.goal.offset = offset;
+}
+
+
+static void sym2_get_period(struct scsi_device *sdev)
+{
+	struct sym_hcb *np = ((struct host_data *)sdev->host->hostdata)->ncb;
+	struct sym_tcb *tp = &np->target[sdev->id];
+
+	spi_period(sdev) = tp->tinfo.curr.period;
+}
+
+static void sym2_set_period(struct scsi_device *sdev, int period)
+{
+	struct sym_hcb *np = ((struct host_data *)sdev->host->hostdata)->ncb;
+	struct sym_tcb *tp = &np->target[sdev->id];
+
+	if (period <= 9 && np->minsync_dt) {
+		if (period < np->minsync_dt)
+			period = np->minsync_dt;
+		tp->tinfo.goal.options = PPR_OPT_DT;
+		tp->tinfo.goal.period = period;
+		if (!tp->tinfo.curr.offset ||
+					tp->tinfo.curr.offset > np->maxoffs_dt)
+			tp->tinfo.goal.offset = np->maxoffs_dt;
+	} else {
+		if (period < np->minsync)
+			period = np->minsync;
+		tp->tinfo.goal.options = 0;
+		tp->tinfo.goal.period = period;
+		if (!tp->tinfo.curr.offset ||
+					tp->tinfo.curr.offset > np->maxoffs)
+			tp->tinfo.goal.offset = np->maxoffs;
+	}
+}
+
+static void sym2_get_width(struct scsi_device *sdev)
+{
+	struct sym_hcb *np = ((struct host_data *)sdev->host->hostdata)->ncb;
+	struct sym_tcb *tp = &np->target[sdev->id];
+
+	spi_width(sdev) = tp->tinfo.curr.width ? 1 : 0;
+}
+
+static void sym2_set_width(struct scsi_device *sdev, int width)
+{
+	struct sym_hcb *np = ((struct host_data *)sdev->host->hostdata)->ncb;
+	struct sym_tcb *tp = &np->target[sdev->id];
+
+	tp->tinfo.goal.width = width;
+}
+
+static void sym2_get_dt(struct scsi_device *sdev)
+{
+	struct sym_hcb *np = ((struct host_data *)sdev->host->hostdata)->ncb;
+	struct sym_tcb *tp = &np->target[sdev->id];
+
+	spi_dt(sdev) = (tp->tinfo.curr.options & PPR_OPT_DT) ? 1 : 0;
+}
+
+static void sym2_set_dt(struct scsi_device *sdev, int dt)
+{
+	struct sym_hcb *np = ((struct host_data *)sdev->host->hostdata)->ncb;
+	struct sym_tcb *tp = &np->target[sdev->id];
+
+	if (!dt) {
+		/* if clearing DT, then we may need to reduce the
+		 * period and the offset */
+		if (tp->tinfo.curr.period < np->minsync)
+			tp->tinfo.goal.period = np->minsync;
+		if (tp->tinfo.curr.offset > np->maxoffs)
+			tp->tinfo.goal.offset = np->maxoffs;
+		tp->tinfo.goal.options &= ~PPR_OPT_DT;
+	} else {
+		tp->tinfo.goal.options |= PPR_OPT_DT;
+	}
+}
+	
+
+static struct spi_function_template sym2_transport_functions = {
+	.set_offset	= sym2_set_offset,
+	.get_offset	= sym2_get_offset,
+	.show_offset	= 1,
+	.set_period	= sym2_set_period,
+	.get_period	= sym2_get_period,
+	.show_period	= 1,
+	.set_width	= sym2_set_width,
+	.get_width	= sym2_get_width,
+	.show_width	= 1,
+	.get_dt		= sym2_get_dt,
+	.set_dt		= sym2_set_dt,
+	.show_dt	= 1,
+};
 
 static struct pci_device_id sym2_id_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_NCR_53C810,
@@ -2406,9 +2533,10 @@ static struct pci_driver sym2_driver = {
 
 static int __init sym2_init(void)
 {
-#ifdef _SYM_CONF_PQS_PDS_SUPPORT
-	pci_register_driver(&pqs_driver);
-#endif
+	sym2_transport_template = spi_attach_transport(&sym2_transport_functions);
+	if (!sym2_transport_template)
+		return -ENODEV;
+
 	pci_register_driver(&sym2_driver);
 	return 0;
 }
@@ -2416,9 +2544,7 @@ static int __init sym2_init(void)
 static void __exit sym2_exit(void)
 {
 	pci_unregister_driver(&sym2_driver);
-#ifdef _SYM_CONF_PQS_PDS_SUPPORT
-	pci_unregister_driver(&pqs_driver);
-#endif
+	spi_release_transport(sym2_transport_template);
 }
 
 module_init(sym2_init);

@@ -32,6 +32,7 @@
 ======================================================================*/
 
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
@@ -55,14 +56,19 @@
 #include <pcmcia/ss.h>
 #include "tcic.h"
 
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-static const char *version =
+#ifdef DEBUG
+static int pc_debug;
+
+module_param(pc_debug, int, 0644);
+static const char version[] =
 "tcic.c 1.111 2000/02/15 04:13:12 (David Hinds)";
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+
+#define debug(lvl, fmt, arg...) do {				\
+	if (pc_debug > (lvl))					\
+		printk(KERN_DEBUG "tcic: " fmt , ## arg);	\
+} while (0)
 #else
-#define DEBUG(n, args...)
+#define debug(lvl, fmt, arg...) do { } while (0)
 #endif
 
 MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
@@ -84,7 +90,8 @@ static int do_scan = 1;
 
 /* Bit map of interrupts to choose from */
 static u_int irq_mask = 0xffff;
-static int irq_list[16] = { -1 };
+static int irq_list[16];
+static int irq_list_count;
 
 /* The card status change interrupt -- 0 means autoselect */
 static int cs_irq;
@@ -98,15 +105,15 @@ static int poll_quick = HZ/20;
 /* CCLK external clock time, in nanoseconds.  70 ns = 14.31818 MHz */
 static int cycle_time = 70;
 
-MODULE_PARM(tcic_base, "i");
-MODULE_PARM(ignore, "i");
-MODULE_PARM(do_scan, "i");
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-16i");
-MODULE_PARM(cs_irq, "i");
-MODULE_PARM(poll_interval, "i");
-MODULE_PARM(poll_quick, "i");
-MODULE_PARM(cycle_time, "i");
+module_param(tcic_base, int, 0444);
+module_param(ignore, int, 0444);
+module_param(do_scan, int, 0444);
+module_param(irq_mask, int, 0444);
+module_param_array(irq_list, int, irq_list_count, 0444);
+module_param(cs_irq, int, 0444);
+module_param(poll_interval, int, 0444);
+module_param(poll_quick, int, 0444);
+module_param(cycle_time, int, 0444);
 
 /*====================================================================*/
 
@@ -133,7 +140,7 @@ static struct tcic_socket socket_table[2];
    to map to irq 11, but is coded as 0 or 1 in the irq registers. */
 #define TCIC_IRQ(x) ((x) ? (((x) == 11) ? 1 : (x)) : 15)
 
-#ifdef PCMCIA_DEBUG_X
+#ifdef DEBUG_X
 static u_char tcic_getb(u_char reg)
 {
     u_char val = inb(tcic_base+reg);
@@ -168,7 +175,7 @@ static void tcic_setw(u_char reg, u_short data)
 
 static void tcic_setl(u_char reg, u_int data)
 {
-#ifdef PCMCIA_DEBUG_X
+#ifdef DEBUG_X
     printk(KERN_DEBUG "tcic_setl(%#x, %#lx)\n", tcic_base+reg, data);
 #endif
     outw(data & 0xffff, tcic_base+reg);
@@ -474,10 +481,10 @@ static int __init init_tcic(void)
 
     /* Build interrupt mask */
     printk(", %d sockets\n" KERN_INFO "  irq list (", sockets);
-    if (irq_list[0] == -1)
+    if (irq_list_count == 0)
 	mask = irq_mask;
     else
-	for (i = mask = 0; i < 16; i++)
+	for (i = mask = 0; i < irq_list_count; i++)
 	    mask |= (1<<irq_list[i]);
 
     /* irq 14, 11, 10, 7, 6, 5, 4, 3 */
@@ -573,7 +580,7 @@ static irqreturn_t tcic_interrupt(int irq, void *dev, struct pt_regs *regs)
     } else
 	active = 1;
 
-    DEBUG(2, "tcic: tcic_interrupt()\n");
+    debug(2, "tcic_interrupt()\n");
     
     for (i = 0; i < sockets; i++) {
 	psock = socket_table[i].psock;
@@ -610,13 +617,13 @@ static irqreturn_t tcic_interrupt(int irq, void *dev, struct pt_regs *regs)
     }
     active = 0;
     
-    DEBUG(2, "tcic: interrupt done\n");
+    debug(2, "interrupt done\n");
     return IRQ_HANDLED;
 } /* tcic_interrupt */
 
 static void tcic_timer(u_long data)
 {
-    DEBUG(2, "tcic: tcic_timer()\n");
+    debug(2, "tcic_timer()\n");
     tcic_timer_pending = 0;
     tcic_interrupt(0, NULL, NULL);
 } /* tcic_timer */
@@ -643,7 +650,7 @@ static int tcic_get_status(struct pcmcia_socket *sock, u_int *value)
     reg = tcic_getb(TCIC_PWR);
     if (reg & (TCIC_PWR_VCC(psock)|TCIC_PWR_VPP(psock)))
 	*value |= SS_POWERON;
-    DEBUG(1, "tcic: GetStatus(%d) = %#2.2x\n", psock, *value);
+    debug(1, "GetStatus(%d) = %#2.2x\n", psock, *value);
     return 0;
 } /* tcic_get_status */
   
@@ -694,7 +701,7 @@ static int tcic_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	state->csc_mask |= (scf2 & TCIC_SCF2_MRDY) ? 0 : SS_READY;
     }
 
-    DEBUG(1, "tcic: GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
+    debug(1, "GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
 	  "io_irq %d, csc_mask %#2.2x\n", psock, state->flags,
 	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
     return 0;
@@ -708,7 +715,7 @@ static int tcic_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
     u_char reg;
     u_short scf1, scf2;
 
-    DEBUG(1, "tcic: SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
+    debug(1, "SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
 	  "io_irq %d, csc_mask %#2.2x)\n", psock, state->flags,
 	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
     tcic_setw(TCIC_ADDR+2, (psock << TCIC_SS_SHFT) | TCIC_ADR2_INDREG);
@@ -783,7 +790,7 @@ static int tcic_set_io_map(struct pcmcia_socket *sock, struct pccard_io_map *io)
     u_int addr;
     u_short base, len, ioctl;
     
-    DEBUG(1, "tcic: SetIOMap(%d, %d, %#2.2x, %d ns, "
+    debug(1, "SetIOMap(%d, %d, %#2.2x, %d ns, "
 	  "%#4.4x-%#4.4x)\n", psock, io->map, io->flags,
 	  io->speed, io->start, io->stop);
     if ((io->map > 1) || (io->start > 0xffff) || (io->stop > 0xffff) ||
@@ -820,7 +827,7 @@ static int tcic_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map *m
     u_short addr, ctl;
     u_long base, len, mmap;
 
-    DEBUG(1, "tcic: SetMemMap(%d, %d, %#2.2x, %d ns, "
+    debug(1, "SetMemMap(%d, %d, %#2.2x, %d ns, "
 	  "%#5.5lx-%#5.5lx, %#5.5x)\n", psock, mem->map, mem->flags,
 	  mem->speed, mem->sys_start, mem->sys_stop, mem->card_start);
     if ((mem->map > 3) || (mem->card_start > 0x3ffffff) ||
@@ -861,10 +868,10 @@ static int tcic_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map *m
 static int tcic_init(struct pcmcia_socket *s)
 {
 	int i;
+	struct resource res = { .start = 0, .end = 0x1000 };
 	pccard_io_map io = { 0, 0, 0, 0, 1 };
-	pccard_mem_map mem = { 0, 0, 0, 0, 0, 0 };
+	pccard_mem_map mem = { .res = &res, .sys_stop = 0x1000, };
 
-	mem.sys_stop = 0x1000;
 	for (i = 0; i < 2; i++) {
 		io.map = i;
 		tcic_set_io_map(s, &io);

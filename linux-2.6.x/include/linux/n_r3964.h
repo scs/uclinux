@@ -13,11 +13,8 @@
  * L. Haag
  *
  * $Log$
- * Revision 1.1  2004/07/19 12:44:29  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:04  nidhi
- * Importing
+ * Revision 1.1.1.2  2004/09/07 09:04:53  lgsoft
+ * Import of 2.6.8
  *
  * Revision 1.3  2001/03/18 13:02:24  dwmw2
  * Fix timer usage, use spinlocks properly.

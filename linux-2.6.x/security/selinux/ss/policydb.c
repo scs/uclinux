@@ -3,12 +3,25 @@
  *
  * Author : Stephen Smalley, <sds@epoch.ncsc.mil>
  */
+
+/* Updated: Frank Mayer <mayerf@tresys.com> and Karl MacMillan <kmacmillan@tresys.com>
+ *
+ * 	Added conditional policy language extensions
+ *
+ * Copyright (C) 2003 - 2004 Tresys Technology, LLC
+ *	This program is free software; you can redistribute it and/or modify
+ *  	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation, version 2.
+ */
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include "security.h"
+
 #include "policydb.h"
+#include "conditional.h"
 #include "mls.h"
 
 #define _DEBUG_HASHES
@@ -19,26 +32,74 @@ static char *symtab_name[SYM_NUM] = {
 	"classes",
 	"roles",
 	"types",
-	"users"
+	"users",
 	mls_symtab_names
+	"bools"
 };
 #endif
+
+int policydb_loaded_version;
 
 static unsigned int symtab_sizes[SYM_NUM] = {
 	2,
 	32,
 	16,
 	512,
-	128
+	128,
 	mls_symtab_sizes
+	16
 };
+
+struct policydb_compat_info {
+	int version;
+	int sym_num;
+	int ocon_num;
+};
+
+/* These need to be updated if SYM_NUM or OCON_NUM changes */
+static struct policydb_compat_info policydb_compat[] = {
+	{
+		.version        = POLICYDB_VERSION_BASE,
+		.sym_num        = SYM_NUM - 1,
+		.ocon_num       = OCON_NUM - 1,
+	},
+	{
+		.version        = POLICYDB_VERSION_BOOL,
+		.sym_num        = SYM_NUM,
+		.ocon_num       = OCON_NUM - 1,
+	},
+	{
+		.version        = POLICYDB_VERSION_IPV6,
+		.sym_num        = SYM_NUM,
+		.ocon_num       = OCON_NUM,
+	},
+	{
+		.version        = POLICYDB_VERSION_NLCLASS,
+		.sym_num        = SYM_NUM,
+		.ocon_num       = OCON_NUM,
+	},
+};
+
+static struct policydb_compat_info *policydb_lookup_compat(int version)
+{
+	int i;
+	struct policydb_compat_info *info = NULL;
+
+	for (i = 0; i < sizeof(policydb_compat)/sizeof(*info); i++) {
+		if (policydb_compat[i].version == version) {
+			info = &policydb_compat[i];
+			break;
+		}
+	}
+	return info;
+}
 
 /*
  * Initialize the role table.
  */
 int roles_init(struct policydb *p)
 {
-	char *key = 0;
+	char *key = NULL;
 	int rc;
 	struct role_datum *role;
 
@@ -95,6 +156,10 @@ int policydb_init(struct policydb *p)
 	if (rc)
 		goto out_free_avtab;
 
+	rc = cond_policydb_init(p);
+	if (rc)
+		goto out_free_avtab;
+
 out:
 	return rc;
 
@@ -124,6 +189,8 @@ static int common_index(void *key, void *datum, void *datap)
 
 	comdatum = datum;
 	p = datap;
+	if (!comdatum->value || comdatum->value > p->p_commons.nprim)
+		return -EINVAL;
 	p->p_common_val_to_name[comdatum->value - 1] = key;
 	return 0;
 }
@@ -135,6 +202,8 @@ static int class_index(void *key, void *datum, void *datap)
 
 	cladatum = datum;
 	p = datap;
+	if (!cladatum->value || cladatum->value > p->p_classes.nprim)
+		return -EINVAL;
 	p->p_class_val_to_name[cladatum->value - 1] = key;
 	p->class_val_to_struct[cladatum->value - 1] = cladatum;
 	return 0;
@@ -147,6 +216,8 @@ static int role_index(void *key, void *datum, void *datap)
 
 	role = datum;
 	p = datap;
+	if (!role->value || role->value > p->p_roles.nprim)
+		return -EINVAL;
 	p->p_role_val_to_name[role->value - 1] = key;
 	p->role_val_to_struct[role->value - 1] = role;
 	return 0;
@@ -160,8 +231,11 @@ static int type_index(void *key, void *datum, void *datap)
 	typdatum = datum;
 	p = datap;
 
-	if (typdatum->primary)
+	if (typdatum->primary) {
+		if (!typdatum->value || typdatum->value > p->p_types.nprim)
+			return -EINVAL;
 		p->p_type_val_to_name[typdatum->value - 1] = key;
+	}
 
 	return 0;
 }
@@ -173,6 +247,8 @@ static int user_index(void *key, void *datum, void *datap)
 
 	usrdatum = datum;
 	p = datap;
+	if (!usrdatum->value || usrdatum->value > p->p_users.nprim)
+		return -EINVAL;
 	p->p_user_val_to_name[usrdatum->value - 1] = key;
 	p->user_val_to_struct[usrdatum->value - 1] = usrdatum;
 	return 0;
@@ -184,8 +260,9 @@ static int (*index_f[SYM_NUM]) (void *key, void *datum, void *datap) =
 	class_index,
 	role_index,
 	type_index,
-	user_index
+	user_index,
 	mls_index_f
+	cond_index_bool
 };
 
 /*
@@ -256,8 +333,8 @@ int policydb_index_others(struct policydb *p)
 {
 	int i, rc = 0;
 
-	printk(KERN_INFO "security:  %d users, %d roles, %d types",
-	       p->p_users.nprim, p->p_roles.nprim, p->p_types.nprim);
+	printk(KERN_INFO "security:  %d users, %d roles, %d types, %d bools",
+	       p->p_users.nprim, p->p_roles.nprim, p->p_types.nprim, p->p_bools.nprim);
 	mls_policydb_index_others(p);
 	printk("\n");
 
@@ -281,6 +358,11 @@ int policydb_index_others(struct policydb *p)
 		kmalloc(p->p_users.nprim * sizeof(*(p->user_val_to_struct)),
 		        GFP_KERNEL);
 	if (!p->user_val_to_struct) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	if (cond_init_bool_indexes(p)) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -320,7 +402,7 @@ static int common_destroy(void *key, void *datum, void *p)
 
 	kfree(key);
 	comdatum = datum;
-	hashtab_map(comdatum->permissions.table, perm_destroy, 0);
+	hashtab_map(comdatum->permissions.table, perm_destroy, NULL);
 	hashtab_destroy(comdatum->permissions.table);
 	kfree(datum);
 	return 0;
@@ -334,7 +416,7 @@ static int class_destroy(void *key, void *datum, void *p)
 
 	kfree(key);
 	cladatum = datum;
-	hashtab_map(cladatum->permissions.table, perm_destroy, 0);
+	hashtab_map(cladatum->permissions.table, perm_destroy, NULL);
 	hashtab_destroy(cladatum->permissions.table);
 	constraint = cladatum->constraints;
 	while (constraint) {
@@ -391,8 +473,9 @@ static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap) =
 	class_destroy,
 	role_destroy,
 	type_destroy,
-	user_destroy
+	user_destroy,
 	mls_destroy_f
+	cond_destroy_bool
 };
 
 void ocontext_destroy(struct ocontext *c, int i)
@@ -415,7 +498,7 @@ void policydb_destroy(struct policydb *p)
 	int i;
 
 	for (i = 0; i < SYM_NUM; i++) {
-		hashtab_map(p->symtab[i].table, destroy_f[i], 0);
+		hashtab_map(p->symtab[i].table, destroy_f[i], NULL);
 		hashtab_destroy(p->symtab[i].table);
 	}
 
@@ -455,6 +538,8 @@ void policydb_destroy(struct policydb *p)
 		g = g->next;
 		kfree(gtmp);
 	}
+
+	cond_policydb_destroy(p);
 
 	return;
 }
@@ -502,13 +587,19 @@ int policydb_context_isvalid(struct policydb *p, struct context *c)
 	struct role_datum *role;
 	struct user_datum *usrdatum;
 
-	/*
-	 * Role must be authorized for the type.
-	 */
 	if (!c->role || c->role > p->p_roles.nprim)
 		return 0;
 
+	if (!c->user || c->user > p->p_users.nprim)
+		return 0;
+
+	if (!c->type || c->type > p->p_types.nprim)
+		return 0;
+
 	if (c->role != OBJECT_R_VAL) {
+		/*
+		 * Role must be authorized for the type.
+		 */
 		role = p->role_val_to_struct[c->role - 1];
 		if (!ebitmap_get_bit(&role->types,
 				     c->type - 1))
@@ -518,8 +609,6 @@ int policydb_context_isvalid(struct policydb *p, struct context *c)
 		/*
 		 * User must be authorized for the role.
 		 */
-		if (!c->user || c->user > p->p_users.nprim)
-			return 0;
 		usrdatum = p->user_val_to_struct[c->user - 1];
 		if (!usrdatum)
 			return 0;
@@ -580,7 +669,7 @@ out:
 
 static int perm_read(struct policydb *p, struct hashtab *h, void *fp)
 {
-	char *key = 0;
+	char *key = NULL;
 	struct perm_datum *perdatum;
 	int rc;
 	u32 *buf, len;
@@ -629,7 +718,7 @@ bad:
 
 static int common_read(struct policydb *p, struct hashtab *h, void *fp)
 {
-	char *key = 0;
+	char *key = NULL;
 	struct common_datum *comdatum;
 	u32 *buf, len, nel;
 	int i, rc;
@@ -687,7 +776,7 @@ bad:
 
 static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 {
-	char *key = 0;
+	char *key = NULL;
 	struct class_datum *cladatum;
 	struct constraint_node *c, *lc;
 	struct constraint_expr *e, *le;
@@ -854,7 +943,7 @@ bad:
 
 static int role_read(struct policydb *p, struct hashtab *h, void *fp)
 {
-	char *key = 0;
+	char *key = NULL;
 	struct role_datum *role;
 	int rc;
 	u32 *buf, len;
@@ -919,7 +1008,7 @@ bad:
 
 static int type_read(struct policydb *p, struct hashtab *h, void *fp)
 {
-	char *key = 0;
+	char *key = NULL;
 	struct type_datum *typdatum;
 	int rc;
 	u32 *buf, len;
@@ -966,7 +1055,7 @@ bad:
 
 static int user_read(struct policydb *p, struct hashtab *h, void *fp)
 {
-	char *key = 0;
+	char *key = NULL;
 	struct user_datum *usrdatum;
 	int rc;
 	u32 *buf, len;
@@ -1025,8 +1114,9 @@ static int (*read_f[SYM_NUM]) (struct policydb *p, struct hashtab *h, void *fp) 
 	class_read,
 	role_read,
 	type_read,
-	user_read
+	user_read,
 	mls_read_f
+	cond_read_bool
 };
 
 #define mls_config(x) \
@@ -1042,9 +1132,10 @@ int policydb_read(struct policydb *p, void *fp)
 	struct role_trans *tr, *ltr;
 	struct ocontext *l, *c, *newc;
 	struct genfs *genfs_p, *genfs, *newgenfs;
-	int i, j, rc;
+	int i, j, rc, r_policyvers = 0;
 	u32 *buf, len, len2, config, nprim, nel, nel2;
 	char *policydb_str;
+	struct policydb_compat_info *info;
 
 	config = 0;
 	mls_set_config(config);
@@ -1072,7 +1163,7 @@ int policydb_read(struct policydb *p, void *fp)
 	len = buf[1];
 	if (len != strlen(POLICYDB_STRING)) {
 		printk(KERN_ERR "security:  policydb string length %d does not "
-		       "match expected length %Zd\n",
+		       "match expected length %Zu\n",
 		       len, strlen(POLICYDB_STRING));
 		goto bad;
 	}
@@ -1107,11 +1198,15 @@ int policydb_read(struct policydb *p, void *fp)
 	for (i = 0; i < 4; i++)
 		buf[i] = le32_to_cpu(buf[i]);
 
-	if (buf[0] != POLICYDB_VERSION) {
-		printk(KERN_ERR "security:  policydb version %d does not match "
-		       "my version %d\n", buf[0], POLICYDB_VERSION);
-		goto bad;
+	r_policyvers = buf[0];
+	if (r_policyvers < POLICYDB_VERSION_MIN ||
+	    r_policyvers > POLICYDB_VERSION_MAX) {
+	    	printk(KERN_ERR "security:  policydb version %d does not match "
+	    	       "my version range %d-%d\n",
+	    	       buf[0], POLICYDB_VERSION_MIN, POLICYDB_VERSION_MAX);
+	    	goto bad;
 	}
+
 	if (buf[1] != config) {
 		printk(KERN_ERR "security:  policydb configuration (%s) does "
 		       "not match my configuration (%s)\n",
@@ -1119,10 +1214,19 @@ int policydb_read(struct policydb *p, void *fp)
 		       mls_config(config));
 		goto bad;
 	}
-	if (buf[2] != SYM_NUM || buf[3] != OCON_NUM) {
+
+
+	info = policydb_lookup_compat(r_policyvers);
+	if (!info) {
+		printk(KERN_ERR "security:  unable to find policy compat info "
+		       "for version %d\n", r_policyvers);
+		goto bad;
+	}
+
+	if (buf[2] != info->sym_num || buf[3] != info->ocon_num) {
 		printk(KERN_ERR "security:  policydb table sizes (%d,%d) do "
-		       "not match mine (%d,%d)\n",
-		       buf[2], buf[3], SYM_NUM, OCON_NUM);
+		       "not match mine (%d,%d)\n", buf[2], buf[3],
+		       info->sym_num, info->ocon_num);
 		goto bad;
 	}
 
@@ -1130,7 +1234,7 @@ int policydb_read(struct policydb *p, void *fp)
 	if (rc)
 		goto bad;
 
-	for (i = 0; i < SYM_NUM; i++) {
+	for (i = 0; i < info->sym_num; i++) {
 		buf = next_entry(fp, sizeof(u32)*2);
 		if (!buf) {
 			rc = -EINVAL;
@@ -1150,6 +1254,12 @@ int policydb_read(struct policydb *p, void *fp)
 	rc = avtab_read(&p->te_avtab, fp, config);
 	if (rc)
 		goto bad;
+
+	if (r_policyvers >= POLICYDB_VERSION_BOOL) {
+		rc = cond_read_list(p, fp);
+		if (rc)
+			goto bad;
+	}
 
 	buf = next_entry(fp, sizeof(u32));
 	if (!buf) {
@@ -1218,7 +1328,7 @@ int policydb_read(struct policydb *p, void *fp)
 	if (rc)
 		goto bad;
 
-	for (i = 0; i < OCON_NUM; i++) {
+	for (i = 0; i < info->ocon_num; i++) {
 		buf = next_entry(fp, sizeof(u32));
 		if (!buf) {
 			rc = -EINVAL;
@@ -1316,6 +1426,20 @@ int policydb_read(struct policydb *p, void *fp)
 				if (rc)
 					goto bad;
 				break;
+			case OCON_NODE6: {
+				int k;
+
+				buf = next_entry(fp, sizeof(u32) * 8);
+				if (!buf)
+					goto bad;
+				for (k = 0; k < 4; k++)
+					c->u.node6.addr[k] = le32_to_cpu(buf[k]);
+				for (k = 0; k < 4; k++)
+					c->u.node6.mask[k] = le32_to_cpu(buf[k+4]);
+				if (context_read_and_validate(&c->context[0], p, fp))
+					goto bad;
+				break;
+			}
 			}
 		}
 	}
@@ -1429,6 +1553,7 @@ int policydb_read(struct policydb *p, void *fp)
 	if (rc)
 		goto bad;
 out:
+	policydb_loaded_version = r_policyvers;
 	return rc;
 bad_newc:
 	ocontext_destroy(newc,OCON_FSUSE);

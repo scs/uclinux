@@ -294,7 +294,7 @@ void setup_highmem(unsigned long len)
 			page = &map[i];
 			ClearPageReserved(page);
 			set_bit(PG_highmem, &page->flags);
-			atomic_set(&page->count, 1);
+			set_page_count(page, 1);
 			__free_page(page);
 		}
 		phys += cur;
@@ -380,7 +380,7 @@ void show_mem(void)
 
         printk("Mem-info:\n");
         show_free_areas();
-        printk("Free swap:       %6dkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+        printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
         pfn = max_mapnr;
         while(pfn-- > 0) {
 		page = pfn_to_page(pfn);

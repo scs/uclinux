@@ -548,6 +548,12 @@ acpi_ec_remove_fs (
 {
 	ACPI_FUNCTION_TRACE("acpi_ec_remove_fs");
 
+	if (acpi_device_dir(device)) {
+		remove_proc_entry(ACPI_EC_FILE_INFO, acpi_device_dir(device));
+		remove_proc_entry(acpi_device_bid(device), acpi_ec_dir);
+		acpi_device_dir(device) = NULL;
+	}
+
 	return_VALUE(0);
 }
 
@@ -578,8 +584,8 @@ acpi_ec_add (
 	ec->handle = device->handle;
 	ec->uid = -1;
 	ec->lock = SPIN_LOCK_UNLOCKED;
-	sprintf(acpi_device_name(device), "%s", ACPI_EC_DEVICE_NAME);
-	sprintf(acpi_device_class(device), "%s", ACPI_EC_CLASS);
+	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
+	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
 	acpi_driver_data(device) = ec;
 
 	/* Use the global lock for all EC transactions? */
@@ -719,7 +725,7 @@ acpi_ec_start (
 	 * Install GPE handler
 	 */
 	status = acpi_install_gpe_handler(NULL, ec->gpe_bit,
-		ACPI_EVENT_EDGE_TRIGGERED, &acpi_ec_gpe_handler, ec);
+		ACPI_GPE_EDGE_TRIGGERED, &acpi_ec_gpe_handler, ec);
 	if (ACPI_FAILURE(status)) {
 		return_VALUE(-ENODEV);
 	}
@@ -803,7 +809,7 @@ acpi_ec_ecdt_probe (void)
 	 * Install GPE handler
 	 */
 	status = acpi_install_gpe_handler(NULL, ec_ecdt->gpe_bit,
-		ACPI_EVENT_EDGE_TRIGGERED, &acpi_ec_gpe_handler,
+		ACPI_GPE_EDGE_TRIGGERED, &acpi_ec_gpe_handler,
 		ec_ecdt);
 	if (ACPI_FAILURE(status)) {
 		goto error;

@@ -7,11 +7,15 @@
  *  Authors:  Bjorn Wesen (bjornw@axis.com)
  *
  *  $Log$
- *  Revision 1.1  2004/07/19 11:41:48  lgsoft
- *  Initial revision
+ *  Revision 1.1.1.2  2004/09/07 09:14:14  lgsoft
+ *  Import of 2.6.8
  *
- *  Revision 1.1.1.1  2004/07/18 13:20:11  nidhi
- *  Importing
+ *  Revision 1.11  2004/05/28 09:28:56  starvik
+ *  Calculation of loops_per_usec moved because initalization order has changed
+ *  in Linux 2.6.
+ *
+ *  Revision 1.10  2004/05/14 07:58:05  starvik
+ *  Merge of changes from 2.4
  *
  *  Revision 1.9  2003/07/04 08:27:54  starvik
  *  Merge of Linux 2.5.74
@@ -126,9 +130,6 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 unsigned long empty_zero_page;
 
-extern unsigned long loops_per_jiffy; /* init/main.c */
-unsigned long loops_per_usec;
-
 extern char _stext, _edata, _etext; /* From linkerscript */
 extern char __init_begin, __init_end;
 
@@ -140,7 +141,7 @@ show_mem(void)
 
 	printk("\nMem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6dkB\n",nr_swap_pages<<(PAGE_SHIFT-10));
+	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	i = max_mapnr;
 	while (i-- > 0) {
 		total++;
@@ -196,7 +197,8 @@ mem_init(void)
         datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
         initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
 	
-        printk("Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, "
+        printk(KERN_INFO
+               "Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, "
 	       "%dk init)\n" ,
 	       (unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
 	       max_mapnr << (PAGE_SHIFT-10),
@@ -205,16 +207,6 @@ mem_init(void)
 	       datasize >> 10,
 	       initsize >> 10
                );
-
-	/* HACK alert - calculate a loops_per_usec for asm/delay.h here
-	 * since this is called just after calibrate_delay in init/main.c
-	 * but before places which use udelay. cannot be in time.c since
-	 * that is called _before_ calibrate_delay
-	 */
-
-	loops_per_usec = (loops_per_jiffy * HZ) / 1000000;
-
-	return;
 }
 
 /* free the pages occupied by initialization code */
@@ -231,6 +223,6 @@ free_initmem(void)
                 free_page(addr);
                 totalram_pages++;
         }
-        printk ("Freeing unused kernel memory: %luk freed\n", 
+        printk (KERN_INFO "Freeing unused kernel memory: %luk freed\n",
 		(unsigned long)((&__init_end - &__init_begin) >> 10));
 }

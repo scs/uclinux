@@ -21,10 +21,13 @@
 
 #include <linux/sysdev.h>
 #include <linux/node.h>
+#include <linux/compiler.h>
+#include <linux/cpumask.h>
 #include <asm/semaphore.h>
 
 struct cpu {
 	int node_id;		/* The node which contains the CPU */
+	int no_control;		/* Should the sysfs control file be created? */
 	struct sys_device sysdev;
 };
 
@@ -38,9 +41,6 @@ extern void unregister_cpu_notifier(struct notifier_block *nb);
 
 int cpu_up(unsigned int cpu);
 
-#define lock_cpu_hotplug()	down(&cpucontrol)
-#define unlock_cpu_hotplug()	up(&cpucontrol)
-
 #else
 
 static inline int register_cpu_notifier(struct notifier_block *nb)
@@ -51,12 +51,30 @@ static inline void unregister_cpu_notifier(struct notifier_block *nb)
 {
 }
 
-#define lock_cpu_hotplug()	do { } while (0)
-#define unlock_cpu_hotplug()		do { } while (0)
-
 #endif /* CONFIG_SMP */
 extern struct sysdev_class cpu_sysdev_class;
 
+#ifdef CONFIG_HOTPLUG_CPU
 /* Stop CPUs going up and down. */
 extern struct semaphore cpucontrol;
+#define lock_cpu_hotplug()	down(&cpucontrol)
+#define unlock_cpu_hotplug()	up(&cpucontrol)
+#define lock_cpu_hotplug_interruptible() down_interruptible(&cpucontrol)
+#define hotcpu_notifier(fn, pri) {				\
+	static struct notifier_block fn##_nb =			\
+		{ .notifier_call = fn, .priority = pri };	\
+	register_cpu_notifier(&fn##_nb);			\
+}
+int cpu_down(unsigned int cpu);
+#define cpu_is_offline(cpu) unlikely(!cpu_online(cpu))
+#else
+#define lock_cpu_hotplug()	do { } while (0)
+#define unlock_cpu_hotplug()	do { } while (0)
+#define lock_cpu_hotplug_interruptible() 0
+#define hotcpu_notifier(fn, pri)
+
+/* CPUs don't go offline once they're online w/o CONFIG_HOTPLUG_CPU */
+#define cpu_is_offline(cpu) 0
+#endif
+
 #endif /* _LINUX_CPU_H_ */

@@ -51,7 +51,7 @@
 static struct map_info beech_mtd_map = {
 	.name =		NAME,
 	.size =		SIZE,
-	.buswidth =	BUSWIDTH,
+	.bankwidth =	BUSWIDTH,
 	.phys =		PADDR
 };
 

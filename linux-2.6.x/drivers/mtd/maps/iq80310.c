@@ -31,7 +31,7 @@ static struct mtd_info *mymtd;
 static struct map_info iq80310_map = {
 	.name = "IQ80310 flash",
 	.size = WINDOW_SIZE,
-	.buswidth = BUSWIDTH,
+	.bankwidth = BUSWIDTH,
 	.phys = WINDOW_ADDR
 };
 

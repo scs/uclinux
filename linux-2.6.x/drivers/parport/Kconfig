@@ -54,7 +54,7 @@ config PARPORT_PC_CML1
 
 config PARPORT_SERIAL
 	tristate "Multi-IO cards (parallel and serial)"
-	depends on SERIAL_8250!=n && PARPORT_PC_CML1
+	depends on SERIAL_8250!=n && PARPORT_PC_CML1 && PCI
 	help
 	  This adds support for multi-IO PCI cards that have parallel and
 	  serial ports.  You should say Y or M here.  If you say M, the module
@@ -102,7 +102,7 @@ config PARPORT_AMIGA
 
 config PARPORT_MFC3
 	tristate "Multiface III parallel port"
-	depends on AMIGA && ZORRO && PARPORT
+	depends on ZORRO && PARPORT
 	help
 	  Say Y here if you need parallel port support for the MFC3 card.
 	  This code is also available as a module (say M), called

@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/time.h>
+#include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/gus.h>
 #include <sound/es1688.h>
@@ -32,7 +33,6 @@
 #define SNDRV_LEGACY_AUTO_PROBE
 #define SNDRV_LEGACY_FIND_FREE_IRQ
 #define SNDRV_LEGACY_FIND_FREE_DMA
-#define SNDRV_GET_ID
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
@@ -56,47 +56,48 @@ static int joystick_dac[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 29};
 				/* 0 to 31, (0.59V-4.52V or 0.389V-2.98V) */
 static int channels[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 24};
 static int pcm_channels[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 2};
+static int boot_devs;
 
-MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(index, int, boot_devs, 0444);
 MODULE_PARM_DESC(index, "Index value for GUS Extreme soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
+module_param_array(id, charp, boot_devs, 0444);
 MODULE_PARM_DESC(id, "ID string for GUS Extreme soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(enable, bool, boot_devs, 0444);
 MODULE_PARM_DESC(enable, "Enable GUS Extreme soundcard.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-MODULE_PARM(port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
+module_param_array(port, long, boot_devs, 0444);
 MODULE_PARM_DESC(port, "Port # for GUS Extreme driver.");
 MODULE_PARM_SYNTAX(port, SNDRV_ENABLED ",allows:{{0x220,0x260,0x20}},dialog:list");
-MODULE_PARM(gf1_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
+module_param_array(gf1_port, long, boot_devs, 0444);
 MODULE_PARM_DESC(gf1_port, "GF1 port # for GUS Extreme driver (optional).");
 MODULE_PARM_SYNTAX(gf1_port, SNDRV_ENABLED ",allows:{{0x210,0x270,0x10}},dialog:list");
-MODULE_PARM(mpu_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
+module_param_array(mpu_port, long, boot_devs, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for GUS Extreme driver.");
 MODULE_PARM_SYNTAX(mpu_port, SNDRV_ENABLED ",allows:{{0x300,0x320,0x10}},dialog:list");
-MODULE_PARM(irq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(irq, int, boot_devs, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for GUS Extreme driver.");
 MODULE_PARM_SYNTAX(irq, SNDRV_ENABLED ",allows:{{5},{7},{9},{10}},dialog:list");
-MODULE_PARM(mpu_irq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(mpu_irq, int, boot_devs, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for GUS Extreme driver.");
 MODULE_PARM_SYNTAX(mpu_irq, SNDRV_ENABLED ",allows:{{5},{7},{9},{10}},dialog:list");
-MODULE_PARM(gf1_irq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(gf1_irq, int, boot_devs, 0444);
 MODULE_PARM_DESC(gf1_irq, "GF1 IRQ # for GUS Extreme driver.");
 MODULE_PARM_SYNTAX(gf1_irq, SNDRV_ENABLED ",allows:{{2},{3},{5},{9},{11},{12},{15}},dialog:list");
-MODULE_PARM(dma8, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(dma8, int, boot_devs, 0444);
 MODULE_PARM_DESC(dma8, "8-bit DMA # for GUS Extreme driver.");
 MODULE_PARM_SYNTAX(dma8, SNDRV_DMA8_DESC);
-MODULE_PARM(dma1, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(dma1, int, boot_devs, 0444);
 MODULE_PARM_DESC(dma1, "GF1 DMA # for GUS Extreme driver.");
 MODULE_PARM_SYNTAX(dma1, SNDRV_DMA_DESC);
-MODULE_PARM(joystick_dac, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(joystick_dac, int, boot_devs, 0444);
 MODULE_PARM_DESC(joystick_dac, "Joystick DAC level 0.59V-4.52V or 0.389V-2.98V for GUS Extreme driver.");
 MODULE_PARM_SYNTAX(joystick_dac, SNDRV_ENABLED ",allows:{{0,31}}");
-MODULE_PARM(channels, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(channels, int, boot_devs, 0444);
 MODULE_PARM_DESC(channels, "GF1 channels for GUS Extreme driver.");
 MODULE_PARM_SYNTAX(channels, SNDRV_ENABLED ",allows:{{14,32}}");
-MODULE_PARM(pcm_channels, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(pcm_channels, int, boot_devs, 0444);
 MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for GUS Extreme driver.");
 MODULE_PARM_SYNTAX(pcm_channels, SNDRV_ENABLED ",allows:{{2,16}}");
 
@@ -220,17 +221,17 @@ static int __init snd_gusextreme_probe(int dev)
 	xgf1_irq = gf1_irq[dev];
 	if (xgf1_irq == SNDRV_AUTO_IRQ) {
 		if ((xgf1_irq = snd_legacy_find_free_irq(possible_gf1_irqs)) < 0) {
-			snd_card_free(card);
 			snd_printk("unable to find a free IRQ for GF1\n");
-			return -EBUSY;
+			err = -EBUSY;
+			goto out;
 		}
 	}
 	xess_irq = irq[dev];
 	if (xess_irq == SNDRV_AUTO_IRQ) {
 		if ((xess_irq = snd_legacy_find_free_irq(possible_ess_irqs)) < 0) {
-			snd_card_free(card);
 			snd_printk("unable to find a free IRQ for ES1688\n");
-			return -EBUSY;
+			err = -EBUSY;
+			goto out;
 		}
 	}
 	if (mpu_port[dev] == SNDRV_AUTO_PORT)
@@ -241,26 +242,24 @@ static int __init snd_gusextreme_probe(int dev)
 	xgf1_dma = dma1[dev];
 	if (xgf1_dma == SNDRV_AUTO_DMA) {
 		if ((xgf1_dma = snd_legacy_find_free_dma(possible_gf1_dmas)) < 0) {
-			snd_card_free(card);
 			snd_printk("unable to find a free DMA for GF1\n");
-			return -EBUSY;
+			err = -EBUSY;
+			goto out;
 		}
 	}
 	xess_dma = dma8[dev];
 	if (xess_dma == SNDRV_AUTO_DMA) {
 		if ((xess_dma = snd_legacy_find_free_dma(possible_ess_dmas)) < 0) {
-			snd_card_free(card);
 			snd_printk("unable to find a free DMA for ES1688\n");
-			return -EBUSY;
+			err = -EBUSY;
+			goto out;
 		}
 	}
 
 	if ((err = snd_es1688_create(card, port[dev], mpu_port[dev],
 				     xess_irq, xmpu_irq, xess_dma,
-				     ES1688_HW_1688, &es1688)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+				     ES1688_HW_1688, &es1688)) < 0)
+		goto out;
 	if (gf1_port[dev] < 0)
 		gf1_port[dev] = port[dev] + 0x20;
 	if ((err = snd_gus_create(card,
@@ -270,77 +269,65 @@ static int __init snd_gusextreme_probe(int dev)
 				  -1,
 				  0, channels[dev],
 				  pcm_channels[dev], 0,
-				  &gus)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_gusextreme_detect(dev, card, gus, es1688)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+				  &gus)) < 0)
+		goto out;
+
+	if ((err = snd_gusextreme_detect(dev, card, gus, es1688)) < 0)
+		goto out;
+
 	snd_gusextreme_init(dev, gus);
-	if ((err = snd_gus_initialize(gus)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_gus_initialize(gus)) < 0)
+		goto out;
+
 	if (!gus->ess_flag) {
 		snd_printdd("GUS Extreme soundcard was not detected at 0x%lx\n", gus->gf1.port);
-		snd_card_free(card);
-		return -ENODEV;
+		err = -ENODEV;
+		goto out;
 	}
-	if ((err = snd_es1688_pcm(es1688, 0, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_es1688_mixer(es1688)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_es1688_pcm(es1688, 0, NULL)) < 0)
+		goto out;
+
+	if ((err = snd_es1688_mixer(es1688)) < 0)
+		goto out;
+
 	snd_component_add(card, "ES1688");
 	if (pcm_channels[dev] > 0) {
-		if ((err = snd_gf1_pcm_new(gus, 1, 1, NULL)) < 0) {
-			snd_card_free(card);
-			return err;
-		}
+		if ((err = snd_gf1_pcm_new(gus, 1, 1, NULL)) < 0)
+			goto out;
 	}
-	if ((err = snd_gf1_new_mixer(gus)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_gusextreme_mixer(es1688)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_gf1_new_mixer(gus)) < 0)
+		goto out;
+
+	if ((err = snd_gusextreme_mixer(es1688)) < 0)
+		goto out;
 
 	if (snd_opl3_create(card, es1688->port, es1688->port + 2,
 			    OPL3_HW_OPL3, 0, &opl3) < 0) {
 		printk(KERN_ERR "gusextreme: opl3 not detected at 0x%lx\n", es1688->port);
 	} else {
-		if ((err = snd_opl3_hwdep_new(opl3, 0, 2, NULL)) < 0) {
-			snd_card_free(card);
-			return err;
-		}
+		if ((err = snd_opl3_hwdep_new(opl3, 0, 2, NULL)) < 0)
+			goto out;
 	}
 
-	if (es1688->mpu_port >= 0x300) {
-		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_ES1688,
+	if (es1688->mpu_port >= 0x300 &&
+	    (err = snd_mpu401_uart_new(card, 0, MPU401_HW_ES1688,
 					       es1688->mpu_port, 0,
 					       xmpu_irq,
 					       SA_INTERRUPT,
-					       NULL)) < 0) {
-			snd_card_free(card);
-			return err;
-		}
-	}
+					       NULL)) < 0)
+		goto out;
 
 	sprintf(card->longname, "Gravis UltraSound Extreme at 0x%lx, irq %i&%i, dma %i&%i",
 		es1688->port, xgf1_irq, xess_irq, xgf1_dma, xess_dma);
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_card_register(card)) < 0)
+		goto out;
+
 	snd_gusextreme_cards[dev] = card;
 	return 0;
+
+      out:
+	snd_card_free(card);
+	return err;
 }
 
 static int __init snd_gusextreme_legacy_auto_probe(unsigned long xport)
@@ -363,7 +350,7 @@ static int __init snd_gusextreme_legacy_auto_probe(unsigned long xport)
 static int __init alsa_card_gusextreme_init(void)
 {
 	static unsigned long possible_ports[] = {0x220, 0x240, 0x260, -1};
-	int dev, cards;
+	int dev, cards, i;
 
 	for (dev = cards = 0; dev < SNDRV_CARDS && enable[dev] > 0; dev++) {
 		if (port[dev] == SNDRV_AUTO_PORT)
@@ -371,7 +358,10 @@ static int __init alsa_card_gusextreme_init(void)
 		if (snd_gusextreme_probe(dev) >= 0)
 			cards++;
 	}
-	cards += snd_legacy_auto_probe(possible_ports, snd_gusextreme_legacy_auto_probe);
+	i = snd_legacy_auto_probe(possible_ports, snd_gusextreme_legacy_auto_probe);
+	if (i > 0)
+		cards += i;
+
 	if (!cards) {
 #ifdef MODULE
 		printk(KERN_ERR "GUS Extreme soundcard not found or device busy\n");
@@ -398,37 +388,3 @@ static void __exit alsa_card_gusextreme_exit(void)
 
 module_init(alsa_card_gusextreme_init)
 module_exit(alsa_card_gusextreme_exit)
-
-#ifndef MODULE
-
-/* format is: snd-gusextreme=enable,index,id,
-			     port,gf1_port,mpu_port,
-			     irq,gf1_irq,mpu_irq,
-			     dma8,dma1,
-			     joystick_dac,
-			     channels,pcm_channels */
-
-static int __init alsa_card_gusextreme_setup(char *str)
-{
-	static unsigned __initdata nr_dev = 0;
-
-	if (nr_dev >= SNDRV_CARDS)
-		return 0;
-	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
-	       get_option(&str,&index[nr_dev]) == 2 &&
-	       get_id(&str,&id[nr_dev]) == 2 &&
-	       get_option(&str,(int *)&port[nr_dev]) == 2 &&
-	       get_option(&str,(int *)&gf1_port[nr_dev]) == 2 &&
-	       get_option(&str,(int *)&mpu_port[nr_dev]) == 2 &&
-	       get_option(&str,&irq[nr_dev]) == 2 &&
-	       get_option(&str,&gf1_irq[nr_dev]) == 2 &&
-	       get_option(&str,&mpu_irq[nr_dev]) == 2 &&
-	       get_option(&str,&dma8[nr_dev]) == 2 &&
-	       get_option(&str,&dma1[nr_dev]) == 2);
-	nr_dev++;
-	return 1;
-}
-
-__setup("snd-gusextreme=", alsa_card_gusextreme_setup);
-
-#endif /* ifndef MODULE */

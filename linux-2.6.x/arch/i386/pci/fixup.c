@@ -92,6 +92,15 @@ static void __devinit  pci_fixup_ide_trash(struct pci_dev *d)
 	int i;
 
 	/*
+	 * Runs the fixup only for the first IDE controller
+	 * (Shai Fultheim - shai@ftcon.com)
+	 */
+	static int called = 0;
+	if (called)
+		return;
+	called = 1;
+
+	/*
 	 * There exist PCI IDE controllers which have utter garbage
 	 * in first four base registers. Ignore that.
 	 */
@@ -187,23 +196,155 @@ static void __devinit pci_fixup_transparent_bridge(struct pci_dev *dev)
 		dev->transparent = 1;
 }
 
+/*
+ * Fixup for C1 Halt Disconnect problem on nForce2 systems.
+ *
+ * From information provided by "Allen Martin" <AMartin@nvidia.com>:
+ *
+ * A hang is caused when the CPU generates a very fast CONNECT/HALT cycle
+ * sequence.  Workaround is to set the SYSTEM_IDLE_TIMEOUT to 80 ns.
+ * This allows the state-machine and timer to return to a proper state within
+ * 80 ns of the CONNECT and probe appearing together.  Since the CPU will not
+ * issue another HALT within 80 ns of the initial HALT, the failure condition
+ * is avoided.
+ */
+static void __init pci_fixup_nforce2(struct pci_dev *dev)
+{
+	u32 val, fixed_val;
+	u8 rev;
+
+	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
+
+	/*
+	 * Chip  Old value   New value
+	 * C17   0x1F0FFF01  0x1F01FF01
+	 * C18D  0x9F0FFF01  0x9F01FF01
+	 *
+	 * Northbridge chip version may be determined by
+	 * reading the PCI revision ID (0xC1 or greater is C18D).
+	 */
+	fixed_val = rev < 0xC1 ? 0x1F01FF01 : 0x9F01FF01;
+
+	pci_read_config_dword(dev, 0x6c, &val);
+
+	/*
+	 * Apply fixup only if C1 Halt Disconnect is enabled
+	 * (bit28) because it is not supported on some boards.
+	 */
+	if ((val & (1 << 28)) && val != fixed_val) {
+		printk(KERN_WARNING "PCI: nForce2 C1 Halt Disconnect fixup\n");
+		pci_write_config_dword(dev, 0x6c, fixed_val);
+	}
+}
+
 struct pci_fixup pcibios_fixups[] = {
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82451NX,	pci_fixup_i450nx },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82454GX,	pci_fixup_i450gx },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_UMC,	PCI_DEVICE_ID_UMC_UM8886BF,	pci_fixup_umc_ide },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_5513,		pci_fixup_ide_trash },
-	{ PCI_FIXUP_HEADER,	PCI_ANY_ID,		PCI_ANY_ID,			pci_fixup_ide_bases },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_5597,		pci_fixup_latency },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_5598,		pci_fixup_latency },
- 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82371AB_3,	pci_fixup_piix4_acpi },
- 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801CA_10,	pci_fixup_ide_trash },
- 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801CA_11,	pci_fixup_ide_trash },
- 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801DB_9,	pci_fixup_ide_trash },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8363_0,	pci_fixup_via_northbridge_bug },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8622,	        pci_fixup_via_northbridge_bug },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8361,	        pci_fixup_via_northbridge_bug },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8367_0,	pci_fixup_via_northbridge_bug },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_NCR,	PCI_DEVICE_ID_NCR_53C810,	pci_fixup_ncr53c810 },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_ANY_ID,			pci_fixup_transparent_bridge },
-	{ 0 }
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_82451NX,
+		.hook		= pci_fixup_i450nx
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_82454GX,
+		.hook		= pci_fixup_i450gx
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_UMC,
+		.device		= PCI_DEVICE_ID_UMC_UM8886BF,
+		.hook		= pci_fixup_umc_ide
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_5513,
+		.hook		= pci_fixup_ide_trash
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_ANY_ID,
+		.device		= PCI_ANY_ID,
+		.hook		= pci_fixup_ide_bases
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_5597,
+		.hook		= pci_fixup_latency
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_5598,
+		.hook		= pci_fixup_latency
+	},
+ 	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_82371AB_3,
+		.hook		= pci_fixup_piix4_acpi
+	},
+ 	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_82801CA_10,
+		.hook		= pci_fixup_ide_trash
+	},
+ 	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_82801CA_11,
+		.hook		= pci_fixup_ide_trash
+	},
+ 	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_82801DB_9,
+		.hook		= pci_fixup_ide_trash
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_VIA,
+		.device		= PCI_DEVICE_ID_VIA_8363_0,
+		.hook		= pci_fixup_via_northbridge_bug
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_VIA,
+		.device		= PCI_DEVICE_ID_VIA_8622,
+		.hook		= pci_fixup_via_northbridge_bug
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_VIA,
+		.device		= PCI_DEVICE_ID_VIA_8361,
+		.hook		= pci_fixup_via_northbridge_bug
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_VIA,
+		.device		= PCI_DEVICE_ID_VIA_8367_0,
+		.hook		= pci_fixup_via_northbridge_bug
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_NCR,
+		.device		= PCI_DEVICE_ID_NCR_53C810,
+		.hook		= pci_fixup_ncr53c810
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_ANY_ID,
+		.hook		= pci_fixup_transparent_bridge
+	},
+	{
+		.pass		= PCI_FIXUP_HEADER,
+		.vendor		= PCI_VENDOR_ID_NVIDIA,
+		.device		= PCI_DEVICE_ID_NVIDIA_NFORCE2,
+		.hook		= pci_fixup_nforce2
+	},
+	{ .pass = 0 }
 };

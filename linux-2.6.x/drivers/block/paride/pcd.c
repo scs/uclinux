@@ -198,7 +198,7 @@ static int pcd_get_mcn(struct cdrom_device_info *cdi, struct cdrom_mcn *mcn);
 static int pcd_audio_ioctl(struct cdrom_device_info *cdi,
 			   unsigned int cmd, void *arg);
 static int pcd_packet(struct cdrom_device_info *cdi,
-		      struct cdrom_generic_command *cgc);
+		      struct packet_command *cgc);
 
 static int pcd_detect(void);
 static void pcd_probe_capabilities(void);
@@ -259,7 +259,7 @@ static int pcd_block_ioctl(struct inode *inode, struct file *file,
 				unsigned cmd, unsigned long arg)
 {
 	struct pcd_unit *cd = inode->i_bdev->bd_disk->private_data;
-	return cdrom_ioctl(&cd->info, inode, cmd, arg);
+	return cdrom_ioctl(file, &cd->info, inode, cmd, arg);
 }
 
 static int pcd_block_media_changed(struct gendisk *disk)
@@ -501,7 +501,7 @@ static int pcd_atapi(struct pcd_unit *cd, char *cmd, int dlen, char *buf, char *
 	return r;
 }
 
-static int pcd_packet(struct cdrom_device_info *cdi, struct cdrom_generic_command *cgc)
+static int pcd_packet(struct cdrom_device_info *cdi, struct packet_command *cgc)
 {
 	return pcd_atapi(cdi->handle, cgc->cmd, cgc->buflen, cgc->buffer,
 			 "generic packet");
@@ -752,7 +752,7 @@ static void do_pcd_request(request_queue_t * q)
 			pcd_count = pcd_req->current_nr_sectors;
 			pcd_buf = pcd_req->buffer;
 			pcd_busy = 1;
-			ps_set_intr(do_pcd_read, 0, 0, nice);
+			ps_set_intr(do_pcd_read, NULL, 0, nice);
 			return;
 		} else
 			end_request(pcd_req, 0);

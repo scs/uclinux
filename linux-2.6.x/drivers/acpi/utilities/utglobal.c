@@ -171,13 +171,27 @@ u8                                  acpi_gbl_shutdown = TRUE;
 
 const u8                            acpi_gbl_decode_to8bit [8] = {1,2,4,8,16,32,64,128};
 
-const char                          *acpi_gbl_db_sleep_states[ACPI_S_STATE_COUNT] = {
+const char                          *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT] = {
 			  "\\_S0_",
 			  "\\_S1_",
 			  "\\_S2_",
 			  "\\_S3_",
 			  "\\_S4_",
 			  "\\_S5_"};
+
+const char                          *acpi_gbl_highest_dstate_names[4] = {
+					   "_S1D",
+					   "_S2D",
+					   "_S3D",
+					   "_S4D"};
+
+/* Strings supported by the _OSI predefined (internal) method */
+
+const char                          *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STRINGS] = {
+							 "Linux",
+							 "Windows 2000",
+							 "Windows 2001",
+							 "Windows 2001.1"};
 
 
 /******************************************************************************
@@ -190,14 +204,10 @@ const char                          *acpi_gbl_db_sleep_states[ACPI_S_STATE_COUNT
 /*
  * Predefined ACPI Names (Built-in to the Interpreter)
  *
- * Initial values are currently supported only for types String and Number.
- * Both are specified as strings in this table.
- *
  * NOTES:
- * 1) _SB_ is defined to be a device to allow _SB_/_INI to be run
+ * 1) _SB_ is defined to be a device to allow \_SB_._INI to be run
  *    during the initialization sequence.
  */
-
 const struct acpi_predefined_names      acpi_gbl_pre_defined_names[] =
 { {"_GPE",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
 	{"_PR_",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
@@ -208,7 +218,7 @@ const struct acpi_predefined_names      acpi_gbl_pre_defined_names[] =
 	{"_OS_",    ACPI_TYPE_STRING,           ACPI_OS_NAME},
 	{"_GL_",    ACPI_TYPE_MUTEX,            "0"},
 
-#if defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
+#if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
 	{"_OSI",    ACPI_TYPE_METHOD,           "1"},
 #endif
 	{NULL,      ACPI_TYPE_ANY,              NULL}              /* Table terminator */
@@ -219,7 +229,6 @@ const struct acpi_predefined_names      acpi_gbl_pre_defined_names[] =
  * Properties of the ACPI Object Types, both internal and external.
  * The table is indexed by values of acpi_object_type
  */
-
 const u8                                acpi_gbl_ns_properties[] =
 {
 	ACPI_NS_NORMAL,                     /* 00 Any              */
@@ -244,14 +253,15 @@ const u8                                acpi_gbl_ns_properties[] =
 	ACPI_NS_NORMAL,                     /* 19 index_field      */
 	ACPI_NS_NORMAL,                     /* 20 Reference        */
 	ACPI_NS_NORMAL,                     /* 21 Alias            */
-	ACPI_NS_NORMAL,                     /* 22 Notify           */
-	ACPI_NS_NORMAL,                     /* 23 Address Handler  */
-	ACPI_NS_NEWSCOPE | ACPI_NS_LOCAL,   /* 24 Resource Desc    */
-	ACPI_NS_NEWSCOPE | ACPI_NS_LOCAL,   /* 25 Resource Field   */
-	ACPI_NS_NEWSCOPE,                   /* 26 Scope            */
-	ACPI_NS_NORMAL,                     /* 27 Extra            */
-	ACPI_NS_NORMAL,                     /* 28 Data             */
-	ACPI_NS_NORMAL                      /* 29 Invalid          */
+	ACPI_NS_NORMAL,                     /* 22 method_alias     */
+	ACPI_NS_NORMAL,                     /* 23 Notify           */
+	ACPI_NS_NORMAL,                     /* 24 Address Handler  */
+	ACPI_NS_NEWSCOPE | ACPI_NS_LOCAL,   /* 25 Resource Desc    */
+	ACPI_NS_NEWSCOPE | ACPI_NS_LOCAL,   /* 26 Resource Field   */
+	ACPI_NS_NEWSCOPE,                   /* 27 Scope            */
+	ACPI_NS_NORMAL,                     /* 28 Extra            */
+	ACPI_NS_NORMAL,                     /* 29 Data             */
+	ACPI_NS_NORMAL                      /* 30 Invalid          */
 };
 
 
@@ -298,9 +308,7 @@ acpi_ut_hex_to_ascii_char (
  *
  ******************************************************************************/
 
-
 struct acpi_table_list              acpi_gbl_table_lists[NUM_ACPI_TABLE_TYPES];
-
 
 struct acpi_table_support           acpi_gbl_table_data[NUM_ACPI_TABLE_TYPES] =
 {
@@ -465,9 +473,8 @@ acpi_ut_get_event_name (
  *
  * The type ACPI_TYPE_ANY (Untyped) is used as a "don't care" when searching; when
  * stored in a table it really means that we have thus far seen no evidence to
- * indicatewhat type is actually going to be stored for this entry.
+ * indicate what type is actually going to be stored for this entry.
  */
-
 static const char                   acpi_gbl_bad_type[] = "UNDEFINED";
 #define TYPE_NAME_LENGTH    12                           /* Maximum length of each string */
 
@@ -495,14 +502,15 @@ static const char                   *acpi_gbl_ns_type_names[] = /* printable nam
 	/* 19 */ "index_field",
 	/* 20 */ "Reference",
 	/* 21 */ "Alias",
-	/* 22 */ "Notify",
-	/* 23 */ "addr_handler",
-	/* 24 */ "resource_desc",
-	/* 25 */ "resource_fld",
-	/* 26 */ "Scope",
-	/* 27 */ "Extra",
-	/* 28 */ "Data",
-	/* 39 */ "Invalid"
+	/* 22 */ "method_alias",
+	/* 23 */ "Notify",
+	/* 24 */ "addr_handler",
+	/* 25 */ "resource_desc",
+	/* 26 */ "resource_fld",
+	/* 27 */ "Scope",
+	/* 28 */ "Extra",
+	/* 29 */ "Data",
+	/* 30 */ "Invalid"
 };
 
 
@@ -550,7 +558,7 @@ char *
 acpi_ut_get_node_name (
 	void                            *object)
 {
-	struct acpi_namespace_node      *node;
+	struct acpi_namespace_node      *node = (struct acpi_namespace_node *) object;
 
 
 	if (!object)
@@ -558,7 +566,10 @@ acpi_ut_get_node_name (
 		return ("NULL NODE");
 	}
 
-	node = (struct acpi_namespace_node *) object;
+	if (object == ACPI_ROOT_OBJECT)
+	{
+		node = acpi_gbl_root_node;
+	}
 
 	if (node->descriptor != ACPI_DESC_TYPE_NAMED)
 	{
@@ -771,6 +782,11 @@ acpi_ut_init_globals (
 
 
 	ACPI_FUNCTION_TRACE ("ut_init_globals");
+
+	/* Runtime configuration */
+
+	acpi_gbl_create_osi_method = TRUE;
+	acpi_gbl_all_methods_serialized = FALSE;
 
 	/* Memory allocation and cache lists */
 

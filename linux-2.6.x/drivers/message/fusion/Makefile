@@ -17,10 +17,11 @@ EXTRA_CFLAGS += ${MPT_CFLAGS}
 
 # Fusion MPT drivers; recognized debug defines...
 #  MPT general:
-#EXTRA_CFLAGS += -DDEBUG
+#EXTRA_CFLAGS += -DMPT_DEBUG_SCSI
 #EXTRA_CFLAGS += -DMPT_DEBUG
 #EXTRA_CFLAGS += -DMPT_DEBUG_MSG_FRAME
 #EXTRA_CFLAGS += -DMPT_DEBUG_SG
+
 #
 # driver/module specifics...
 #

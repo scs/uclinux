@@ -67,7 +67,7 @@ static struct mtd_info *scb2_mtd;
 struct map_info scb2_map = {
 	.name =      "SCB2 BIOS Flash",
 	.size =      0,
-	.buswidth =  1,
+	.bankwidth =  1,
 };
 static int region_fail;
 

@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>
 #include <linux/delay.h>
+#include <linux/list.h>
 #include <asm/types.h>
 #include <asm/io.h>
 
@@ -213,10 +214,7 @@ void diva_os_free_message_buffer(diva_os_message_buffer_s *dmb);
 */
 static __inline__ void diva_os_sleep(dword mSec)
 {
-	unsigned long timeout = HZ * mSec / 1000 + 1;
-
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(timeout);
+	msleep(mSec);
 }
 static __inline__ void diva_os_wait(dword mSec)
 {
@@ -332,7 +330,6 @@ diva_os_atomic_decrement(diva_os_atomic_t* pv)
 */
 #define NO_CORNETN
 #define IMPLEMENT_DTMF 1
-#define IMPLEMENT_LINE_INTERCONNECT2 1
 #define IMPLEMENT_ECHO_CANCELLER 1
 #define IMPLEMENT_RTP 1
 #define IMPLEMENT_T38 1
@@ -346,7 +343,6 @@ diva_os_atomic_decrement(diva_os_atomic_t* pv)
 #define IMPLEMENT_FAX_NONSTANDARD 1
 #define VSWITCH_SUPPORT 1
 
-#define IMPLEMENT_LINE_INTERCONNECT  0
 #define IMPLEMENT_MARKED_OK_AFTER_FC 1
 
 #define DIVA_IDI_RX_DMA 1

@@ -8,6 +8,23 @@
 #include <linux/agp_backend.h>
 #include "agp.h"
 
+#define SVWRKS_COMMAND		0x04
+#define SVWRKS_APSIZE		0x10
+#define SVWRKS_MMBASE		0x14
+#define SVWRKS_CACHING		0x4b
+#define SVWRKS_AGP_ENABLE	0x60
+#define SVWRKS_FEATURE		0x68
+
+#define SVWRKS_SIZE_MASK	0xfe000000
+
+/* Memory mapped registers */
+#define SVWRKS_GART_CACHE	0x02
+#define SVWRKS_GATTBASE		0x04
+#define SVWRKS_TLBFLUSH		0x10
+#define SVWRKS_POSTFLUSH	0x14
+#define SVWRKS_DIRFLUSH		0x0c
+
+
 struct serverworks_page_map {
 	unsigned long *real;
 	unsigned long *remapped;
@@ -231,26 +248,13 @@ static int serverworks_fetch_size(void)
  */
 static void serverworks_tlbflush(struct agp_memory *temp)
 {
-	unsigned long end;
+	OUTREG8(serverworks_private.registers, SVWRKS_POSTFLUSH, 1);
+	while(INREG8(serverworks_private.registers, SVWRKS_POSTFLUSH) == 1)
+		cpu_relax();
 
-	OUTREG8(serverworks_private.registers, SVWRKS_POSTFLUSH, 0x01);
-	end = jiffies + 3*HZ;
-	while(INREG8(serverworks_private.registers, 
-		     SVWRKS_POSTFLUSH) == 0x01) {
-		if((signed)(end - jiffies) <= 0) {
-			printk(KERN_ERR PFX "Posted write buffer flush took more"
-			       "then 3 seconds\n");
-		}
-	}
-	OUTREG32(serverworks_private.registers, SVWRKS_DIRFLUSH, 0x00000001);
-	end = jiffies + 3*HZ;
-	while(INREG32(serverworks_private.registers, 
-		     SVWRKS_DIRFLUSH) == 0x00000001) {
-		if((signed)(end - jiffies) <= 0) {
-			printk(KERN_ERR PFX "TLB flush took more"
-			       "then 3 seconds\n");
-		}
-	}
+	OUTREG32(serverworks_private.registers, SVWRKS_DIRFLUSH, 1);
+	while(INREG32(serverworks_private.registers, SVWRKS_DIRFLUSH) == 1)
+		cpu_relax();
 }
 
 static int serverworks_configure(void)
@@ -443,6 +447,7 @@ static int __devinit agp_serverworks_probe(struct pci_dev *pdev,
 	struct agp_bridge_data *bridge;
 	struct pci_dev *bridge_dev;
 	u32 temp, temp2;
+	u8 cap_ptr = 0;
 
 	/* Everything is on func 1 here so we are hardcoding function one */
 	bridge_dev = pci_find_slot((unsigned int)pdev->bus->number,
@@ -453,20 +458,30 @@ static int __devinit agp_serverworks_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
+	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
+
 	switch (pdev->device) {
+	case 0x0006:
+		/* ServerWorks CNB20HE
+		Fail silently.*/
+		printk (KERN_ERR PFX "Detected ServerWorks CNB20HE chipset: No AGP present.\n");
+		return -ENODEV;
+
 	case PCI_DEVICE_ID_SERVERWORKS_HE:
 	case PCI_DEVICE_ID_SERVERWORKS_LE:
 	case 0x0007:
 		break;
+
 	default:
-		printk(KERN_ERR PFX "Unsupported Serverworks chipset "
-				"(device id: %04x)\n", pdev->device);
+		if (cap_ptr)
+			printk(KERN_ERR PFX "Unsupported Serverworks chipset "
+					"(device id: %04x)\n", pdev->device);
 		return -ENODEV;
 	}
 
 	serverworks_private.svrwrks_dev = bridge_dev;
 	serverworks_private.gart_addr_ofs = 0x10;
-	
+
 	pci_read_config_dword(pdev, SVWRKS_APSIZE, &temp);
 	if (temp & PCI_BASE_ADDRESS_MEM_TYPE_64) {
 		pci_read_config_dword(pdev, SVWRKS_APSIZE + 4, &temp2);

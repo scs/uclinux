@@ -282,8 +282,8 @@ int __init detect_pdc4030(ide_hwif_t *hwif)
 	hwif->OUTB(0xF3, IDE_SECTOR_REG);
 	hwif->OUTB(0x14, IDE_SELECT_REG);
 	hwif->OUTB(PROMISE_EXTENDED_COMMAND, IDE_COMMAND_REG);
-	
-	ide_delay_50ms();
+
+	msleep(50);
 
 	if (hwif->INB(IDE_ERROR_REG) == 'P' &&
 	    hwif->INB(IDE_NSECTOR_REG) == 'T' &&
@@ -311,29 +311,7 @@ int __init pdc4030_init(void)
 }
 
 #ifdef MODULE
-static void __exit pdc4030_release_hwif(ide_hwif_t *hwif)
-{
-	hwif->chipset = ide_unknown;
-	hwif->selectproc = NULL;
-	hwif->serialized = 0;
-	hwif->drives[0].io_32bit = 0;
-	hwif->drives[1].io_32bit = 0;
-	hwif->drives[0].keep_settings = 0;
-	hwif->drives[1].keep_settings = 0;
-	hwif->drives[0].noprobe = 0;
-	hwif->drives[1].noprobe = 0;
-}
-
-static void __exit pdc4030_exit(void)
-{
-	unsigned int index;
-
-	for (index = 0; index < MAX_HWIFS; index++)
-		pdc4030_release_hwif(&ide_hwifs[index]);
-}
-
 module_init(pdc4030_init);
-module_exit(pdc4030_exit);
 #endif
 
 MODULE_AUTHOR("Peter Denison");
@@ -377,7 +355,7 @@ read_next:
 #endif /* DEBUG_READ */
 
 #ifdef CONFIG_IDE_TASKFILE_IO
-	task_sectors(drive, rq, nsect, IDE_PIO_IN);
+	task_bio_sectors(drive, rq, nsect, IDE_PIO_IN);
 
 	/* FIXME: can we check status after transfer on pdc4030? */
 	/* Complete previously submitted bios. */
@@ -500,7 +478,7 @@ static void promise_multwrite (ide_drive_t *drive, unsigned int msect)
 		if (nsect > msect)
 			nsect = msect;
 
-		task_sectors(drive, rq, nsect, IDE_PIO_OUT);
+		task_bio_sectors(drive, rq, nsect, IDE_PIO_OUT);
 
 		if (!rq->nr_sectors)
 			msect = 0;
@@ -778,18 +756,6 @@ static ide_startstop_t promise_rw_disk (ide_drive_t *drive, struct request *rq, 
 
 	BUG_ON(rq->nr_sectors > 127);
 
-	if (!blk_fs_request(rq)) {
-		blk_dump_rq_flags(rq, "promise_rw_disk - bad command");
-		DRIVER(drive)->end_request(drive, 0, 0);
-		return ide_stopped;
-	}
-
-#ifdef DEBUG
-	printk(KERN_DEBUG "%s: %sing: LBAsect=%lu, sectors=%lu\n",
-			  drive->name, rq_data_dir(rq) ? "writ" : "read",
-			  block, rq->nr_sectors);
-#endif
-
 #ifndef CONFIG_IDE_TASKFILE_IO
 	if (IDE_CONTROL_REG)
 		hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
@@ -814,11 +780,10 @@ static ide_startstop_t promise_rw_disk (ide_drive_t *drive, struct request *rq, 
 
 	memcpy(args.tfRegister, &taskfile, sizeof(struct hd_drive_task_hdr));
 	memset(args.hobRegister, 0, sizeof(struct hd_drive_hob_hdr));
-	/* We can't call ide_cmd_type_parser here, since it won't understand
-	   our command, but that doesn't matter, since we don't use the
-	   generic interrupt handlers either. Setup the bits of args that we
-	   do need.
-	*/
+	/*
+	 * Setup the bits of args that we do need.
+	 * Note that we don't use the generic interrupt handlers.
+	 */
 	args.handler		= NULL;
 	args.rq			= (struct request *) rq;
 	rq->special		= (ide_task_t *)&args;

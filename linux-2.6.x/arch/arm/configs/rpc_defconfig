@@ -31,7 +31,6 @@ CONFIG_KMOD=y
 # System Type
 #
 # CONFIG_ARCH_ADIFCC is not set
-# CONFIG_ARCH_ANAKIN is not set
 # CONFIG_ARCH_ARCA5K is not set
 # CONFIG_ARCH_CLPS7500 is not set
 # CONFIG_ARCH_CLPS711X is not set
@@ -199,7 +198,6 @@ CONFIG_IPV6_SCTP__=y
 # CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
-# CONFIG_NET_FASTROUTE is not set
 # CONFIG_NET_HW_FLOWCONTROL is not set
 
 #
@@ -462,9 +460,6 @@ CONFIG_PRINTER=m
 #
 CONFIG_I2C=y
 CONFIG_I2C_ALGOBIT=y
-# CONFIG_I2C_PHILIPSPAR is not set
-# CONFIG_I2C_ELV is not set
-# CONFIG_I2C_VELLEMAN is not set
 # CONFIG_SCx200_ACB is not set
 # CONFIG_I2C_ALGOPCF is not set
 CONFIG_I2C_CHARDEV=y

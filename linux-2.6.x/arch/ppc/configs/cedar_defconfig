@@ -197,7 +197,6 @@ CONFIG_IPV6_SCTP__=y
 # CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
-# CONFIG_NET_FASTROUTE is not set
 # CONFIG_NET_HW_FLOWCONTROL is not set
 
 #
@@ -366,7 +365,6 @@ CONFIG_WATCHDOG=y
 # CONFIG_ADVANTECH_WDT is not set
 # CONFIG_EUROTECH_WDT is not set
 # CONFIG_IB700_WDT is not set
-# CONFIG_I810_TCO is not set
 # CONFIG_MIXCOMWD is not set
 # CONFIG_SCx200_WDT is not set
 # CONFIG_60XX_WDT is not set

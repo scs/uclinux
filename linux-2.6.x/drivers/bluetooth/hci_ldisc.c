@@ -32,7 +32,6 @@
 #include <linux/config.h>
 #include <linux/module.h>
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -96,7 +95,7 @@ static struct hci_uart_proto *hci_uart_get_proto(unsigned int id)
 
 static inline void hci_uart_tx_complete(struct hci_uart *hu, int pkt_type)
 {
-	struct hci_dev *hdev = &hu->hdev;
+	struct hci_dev *hdev = hu->hdev;
 	
 	/* Update HCI stat counters */
 	switch (pkt_type) {
@@ -127,7 +126,7 @@ static inline struct sk_buff *hci_uart_dequeue(struct hci_uart *hu)
 int hci_uart_tx_wakeup(struct hci_uart *hu)
 {
 	struct tty_struct *tty = hu->tty;
-	struct hci_dev *hdev = &hu->hdev;
+	struct hci_dev *hdev = hu->hdev;
 	struct sk_buff *skb;
 	
 	if (test_and_set_bit(HCI_UART_SENDING, &hu->tx_state)) {
@@ -306,12 +305,13 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 	tty->disc_data = NULL;
 
 	if (hu) {
-		struct hci_dev *hdev = &hu->hdev;
+		struct hci_dev *hdev = hu->hdev;
 		hci_uart_close(hdev);
 
 		if (test_and_clear_bit(HCI_UART_PROTO_SET, &hu->flags)) {
 			hu->proto->close(hu);
 			hci_unregister_dev(hdev);
+			hci_free_dev(hdev);
 		}
 	}
 }
@@ -380,7 +380,7 @@ static void hci_uart_tty_receive(struct tty_struct *tty, const __u8 *data, char 
 	
 	spin_lock(&hu->rx_lock);
 	hu->proto->recv(hu, (void *) data, count);
-	hu->hdev.stat.byte_rx += count;
+	hu->hdev->stat.byte_rx += count;
 	spin_unlock(&hu->rx_lock);
 
 	if (test_and_clear_bit(TTY_THROTTLED,&tty->flags) && tty->driver->unthrottle)
@@ -394,7 +394,13 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	BT_DBG("");
 
 	/* Initialize and register HCI device */
-	hdev = &hu->hdev;
+	hdev = hci_alloc_dev();
+	if (!hdev) {
+		BT_ERR("Can't allocate HCI device");
+		return -ENOMEM;
+	}
+
+	hu->hdev = hdev;
 
 	hdev->type = HCI_UART;
 	hdev->driver_data = hu;
@@ -408,7 +414,8 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	hdev->owner = THIS_MODULE;
 	
 	if (hci_register_dev(hdev) < 0) {
-		BT_ERR("Can't register HCI device %s", hdev->name);
+		BT_ERR("Can't register HCI device");
+		hci_free_dev(hdev);
 		return -ENODEV;
 	}
 
@@ -491,11 +498,11 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 /*
  * We don't provide read/write/poll interface for user space.
  */
-static ssize_t hci_uart_tty_read(struct tty_struct *tty, struct file *file, unsigned char *buf, size_t nr)
+static ssize_t hci_uart_tty_read(struct tty_struct *tty, struct file *file, unsigned char __user *buf, size_t nr)
 {
 	return 0;
 }
-static ssize_t hci_uart_tty_write(struct tty_struct *tty, struct file *file, const unsigned char *data, size_t count)
+static ssize_t hci_uart_tty_write(struct tty_struct *tty, struct file *file, const unsigned char __user *data, size_t count)
 {
 	return 0;
 }
@@ -513,7 +520,7 @@ int bcsp_init(void);
 int bcsp_deinit(void);
 #endif
 
-int __init hci_uart_init(void)
+static int __init hci_uart_init(void)
 {
 	static struct tty_ldisc hci_uart_ldisc;
 	int err;
@@ -551,7 +558,7 @@ int __init hci_uart_init(void)
 	return 0;
 }
 
-void hci_uart_cleanup(void)
+static void __exit hci_uart_exit(void)
 {
 	int err;
 
@@ -568,9 +575,10 @@ void hci_uart_cleanup(void)
 }
 
 module_init(hci_uart_init);
-module_exit(hci_uart_cleanup);
+module_exit(hci_uart_exit);
 
 MODULE_AUTHOR("Maxim Krasnyansky <maxk@qualcomm.com>");
 MODULE_DESCRIPTION("Bluetooth HCI UART driver ver " VERSION);
+MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_HCI);

@@ -13,11 +13,8 @@
  * published by the Free Software Foundation.
  *
  * $Log$
- * Revision 1.1  2004/07/19 11:40:26  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:20:09  nidhi
- * Importing
+ * Revision 1.1.1.2  2004/09/07 09:12:26  lgsoft
+ * Import of 2.6.8
  *
  * Revision 1.1.6.1  2001/12/04 17:28:06  seletz
  * - merged from previous branch
@@ -399,6 +396,7 @@ static struct platform_device sa1111_device = {
 	.id		= 0,
 	.dev		= {
 		.dma_mask = &sa1111_dmamask,
+		.coherent_dma_mask = 0xffffffff,
 	},
 	.num_resources	= ARRAY_SIZE(sa1111_resources),
 	.resource	= sa1111_resources,
@@ -475,4 +473,5 @@ MACHINE_START(PT_SYSTEM3, "PT System 3")
 	BOOT_PARAMS(0xc0000100)
 	MAPIO(system3_map_io)
 	INITIRQ(sa1100_init_irq)
+	INITTIME(sa1100_init_time)
 MACHINE_END

@@ -3,6 +3,13 @@
  * of an skb for qdisc classification.
  */
 
+/* (C) 2001-2002 Patrick McHardy <kaber@trash.net>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -47,15 +54,17 @@ checkentry(const char *tablename,
 		return 0;
 	}
 	
-	if (hook_mask & ~(1 << NF_IP_POST_ROUTING)) {
-		printk(KERN_ERR "CLASSIFY: only valid in POST_ROUTING.\n");
+	if (hook_mask & ~((1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_FORWARD) |
+	                  (1 << NF_IP_POST_ROUTING))) {
+		printk(KERN_ERR "CLASSIFY: only valid in LOCAL_OUT, FORWARD "
+		                "and POST_ROUTING.\n");
 		return 0;
 	}
 
 	if (strcmp(tablename, "mangle") != 0) {
-		printk(KERN_WARNING "CLASSIFY: can only be called from "
-		                    "\"mangle\" table, not \"%s\".\n",
-		                    tablename);
+		printk(KERN_ERR "CLASSIFY: can only be called from "
+		                "\"mangle\" table, not \"%s\".\n",
+		                tablename);
 		return 0;
 	}
 
@@ -71,10 +80,7 @@ static struct ipt_target ipt_classify_reg = {
 
 static int __init init(void)
 {
-	if (ipt_register_target(&ipt_classify_reg))
-		return -EINVAL;
-
-	return 0;
+	return ipt_register_target(&ipt_classify_reg);
 }
 
 static void __exit fini(void)

@@ -8,6 +8,12 @@
  * instead of just grabbing them. Thus setups with different IRQ numbers
  * shouldn't result in any weird surprises, and installing new handlers
  * should be easier.
+ *
+ * Copyright (C) Ashok Raj<ashok.raj@intel.com>, Intel Corporation 2004
+ *
+ * 4/14/2004: Added code to handle cpu migration and do safe irq
+ *			migration without lossing interrupts for iosapic
+ *			architecture.
  */
 
 /*
@@ -27,6 +33,7 @@
 #include <linux/timex.h>
 #include <linux/slab.h>
 #include <linux/random.h>
+#include <linux/cpu.h>
 #include <linux/ctype.h>
 #include <linux/smp_lock.h>
 #include <linux/init.h>
@@ -35,17 +42,19 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
+#include <linux/notifier.h>
 
 #include <asm/atomic.h>
+#include <asm/cpu.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/system.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
+#include <asm/tlbflush.h>
 #include <asm/delay.h>
 #include <asm/irq.h>
-
 
 
 /*
@@ -74,6 +83,12 @@ irq_desc_t _irq_desc[NR_IRQS] __cacheline_aligned = {
 		.lock = SPIN_LOCK_UNLOCKED
 	}
 };
+
+/*
+ * This is updated when the user sets irq affinity via /proc
+ */
+cpumask_t __cacheline_aligned pending_irq_cpumask[NR_IRQS];
+static unsigned long pending_irq_redir[BITS_TO_LONGS(NR_IRQS)];
 
 #ifdef CONFIG_IA64_GENERIC
 irq_desc_t * __ia64_irq_desc (unsigned int irq)
@@ -455,7 +470,6 @@ unsigned int do_IRQ(unsigned long irq, struct pt_regs *regs)
 	unsigned int status;
 	int cpu;
 
-	irq_enter();
 	cpu = smp_processor_id(); /* for CONFIG_PREEMPT, this must come after irq_enter()! */
 
 	kstat_cpu(cpu).irqs[irq]++;
@@ -465,8 +479,6 @@ unsigned int do_IRQ(unsigned long irq, struct pt_regs *regs)
 		desc->handler->ack(irq);
 		action_ret = handle_IRQ_event(irq, regs, desc->action);
 		desc->handler->end(irq);
-		if (!noirqdebug)
-			note_interrupt(irq, desc, action_ret);
 	} else {
 		spin_lock(&desc->lock);
 		desc->handler->ack(irq);
@@ -527,7 +539,6 @@ unsigned int do_IRQ(unsigned long irq, struct pt_regs *regs)
 		desc->handler->end(irq);
 		spin_unlock(&desc->lock);
 	}
-	irq_exit();
 	return 1;
 }
 
@@ -597,7 +608,7 @@ int request_irq(unsigned int irq,
 
 	action->handler = handler;
 	action->flags = irqflags;
-	action->mask = 0;
+	cpus_clear(action->mask);
 	action->name = devname;
 	action->next = NULL;
 	action->dev_id = dev_id;
@@ -942,7 +953,9 @@ void set_irq_affinity_info (unsigned int irq, int hwid, int redir)
 static int irq_affinity_read_proc (char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
-	int len = cpumask_snprintf(page, count, irq_affinity[(long)data]);
+	int len = sprintf(page, "%s", irq_redir[(long)data] ? "r " : "");
+
+	len += cpumask_scnprintf(page+len, count, irq_affinity[(long)data]);
 	if (count - len < 2)
 		return -EINVAL;
 	len += sprintf(page + len, "\n");
@@ -960,6 +973,8 @@ static int irq_affinity_write_proc (struct file *file, const char *buffer,
 	int rlen;
 	int prelen;
 	irq_desc_t *desc = irq_descp(irq);
+	unsigned long flags;
+	int redir = 0;
 
 	if (!desc->handler->set_affinity)
 		return -EIO;
@@ -982,7 +997,7 @@ static int irq_affinity_write_proc (struct file *file, const char *buffer,
 	prelen = 0;
 	if (tolower(*rbuf) == 'r') {
 		prelen = strspn(rbuf, "Rr ");
-		irq |= IA64_IRQ_REDIRECTED;
+		redir++;
 	}
 
 	err = cpumask_parse(buffer+prelen, count-prelen, new_value);
@@ -998,16 +1013,134 @@ static int irq_affinity_write_proc (struct file *file, const char *buffer,
 	if (cpus_empty(tmp))
 		return -EINVAL;
 
-	desc->handler->set_affinity(irq, new_value);
+	spin_lock_irqsave(&desc->lock, flags);
+	pending_irq_cpumask[irq] = new_value;
+	if (redir)
+		set_bit(irq, pending_irq_redir);
+	else
+		clear_bit(irq, pending_irq_redir);
+	spin_unlock_irqrestore(&desc->lock, flags);
+
 	return full_count;
 }
 
+void move_irq(int irq)
+{
+	/* note - we hold desc->lock */
+	cpumask_t tmp;
+	irq_desc_t *desc = irq_descp(irq);
+	int redir = test_bit(irq, pending_irq_redir);
+
+	if (!cpus_empty(pending_irq_cpumask[irq])) {
+		cpus_and(tmp, pending_irq_cpumask[irq], cpu_online_map);
+		if (unlikely(!cpus_empty(tmp))) {
+			desc->handler->set_affinity(irq | (redir ? IA64_IRQ_REDIRECTED : 0),
+						    pending_irq_cpumask[irq]);
+		}
+		cpus_clear(pending_irq_cpumask[irq]);
+	}
+}
+
+
 #endif /* CONFIG_SMP */
+
+#ifdef CONFIG_HOTPLUG_CPU
+unsigned int vectors_in_migration[NR_IRQS];
+
+/*
+ * Since cpu_online_map is already updated, we just need to check for
+ * affinity that has zeros
+ */
+static void migrate_irqs(void)
+{
+	cpumask_t	mask;
+	irq_desc_t *desc;
+	int 		irq, new_cpu;
+
+	for (irq=0; irq < NR_IRQS; irq++) {
+		desc = irq_descp(irq);
+
+		/*
+		 * No handling for now.
+		 * TBD: Implement a disable function so we can now
+		 * tell CPU not to respond to these local intr sources.
+		 * such as ITV,CPEI,MCA etc.
+		 */
+		if (desc->status == IRQ_PER_CPU)
+			continue;
+
+		cpus_and(mask, irq_affinity[irq], cpu_online_map);
+		if (any_online_cpu(mask) == NR_CPUS) {
+			/*
+			 * Save it for phase 2 processing
+			 */
+			vectors_in_migration[irq] = irq;
+
+			new_cpu = any_online_cpu(cpu_online_map);
+			mask = cpumask_of_cpu(new_cpu);
+
+			/*
+			 * Al three are essential, currently WARN_ON.. maybe panic?
+			 */
+			if (desc->handler && desc->handler->disable &&
+				desc->handler->enable && desc->handler->set_affinity) {
+				desc->handler->disable(irq);
+				desc->handler->set_affinity(irq, mask);
+				desc->handler->enable(irq);
+			} else {
+				WARN_ON((!(desc->handler) || !(desc->handler->disable) ||
+						!(desc->handler->enable) ||
+						!(desc->handler->set_affinity)));
+			}
+		}
+	}
+}
+
+void fixup_irqs(void)
+{
+	unsigned int irq;
+	extern void ia64_process_pending_intr(void);
+
+	ia64_set_itv(1<<16);
+	/*
+	 * Phase 1: Locate irq's bound to this cpu and
+	 * relocate them for cpu removal.
+	 */
+	migrate_irqs();
+
+	/*
+	 * Phase 2: Perform interrupt processing for all entries reported in
+	 * local APIC.
+	 */
+	ia64_process_pending_intr();
+
+	/*
+	 * Phase 3: Now handle any interrupts not captured in local APIC.
+	 * This is to account for cases that device interrupted during the time the
+	 * rte was being disabled and re-programmed.
+	 */
+	for (irq=0; irq < NR_IRQS; irq++) {
+		if (vectors_in_migration[irq]) {
+			vectors_in_migration[irq]=0;
+			do_IRQ(irq, NULL);
+		}
+	}
+
+	/*
+	 * Now let processor die. We do irq disable and max_xtp() to
+	 * ensure there is no more interrupts routed to this processor.
+	 * But the local timer interrupt can have 1 pending which we
+	 * take care in timer_interrupt().
+	 */
+	max_xtp();
+	local_irq_disable();
+}
+#endif
 
 static int prof_cpu_mask_read_proc (char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
-	int len = cpumask_snprintf(page, count, *(cpumask_t *)data);
+	int len = cpumask_scnprintf(page, count, *(cpumask_t *)data);
 	if (count - len < 2)
 		return -EINVAL;
 	len += sprintf(page + len, "\n");

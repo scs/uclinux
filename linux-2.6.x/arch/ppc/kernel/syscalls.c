@@ -29,6 +29,7 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/stat.h>
+#include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/sys.h>
 #include <linux/ipc.h>
@@ -66,7 +67,7 @@ sys_ipc (uint call, int first, int second, int third, void __user *ptr, long fif
 		break;
 	case SEMTIMEDOP:
 		ret = sys_semtimedop (first, (struct sembuf __user *)ptr,
-				      second, (const struct timespec *) fifth);
+				      second, (const struct timespec __user *) fifth);
 		break;
 	case SEMGET:
 		ret = sys_semget (first, second, third);
@@ -77,7 +78,7 @@ sys_ipc (uint call, int first, int second, int third, void __user *ptr, long fif
 		if (!ptr)
 			break;
 		if ((ret = verify_area (VERIFY_READ, ptr, sizeof(long)))
-		    || (ret = get_user(fourth.__pad, (void *__user *)ptr)))
+		    || (ret = get_user(fourth.__pad, (void __user *__user *)ptr)))
 			break;
 		ret = sys_semctl (first, second, third, fourth);
 		break;
@@ -119,7 +120,7 @@ sys_ipc (uint call, int first, int second, int third, void __user *ptr, long fif
 		if ((ret = verify_area(VERIFY_WRITE, (ulong __user *) third,
 				       sizeof(ulong))))
 			break;
-		ret = sys_shmat (first, (char __user *) ptr, second, &raddr);
+		ret = do_shmat (first, (char __user *) ptr, second, &raddr);
 		if (ret)
 			break;
 		ret = put_user (raddr, (ulong __user *) third);
@@ -200,8 +201,6 @@ out:
 	return err;
 }
 
-extern int sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
-
 /*
  * Due to some executables calling the wrong select we sometimes
  * get wrong args.  This determines how the args are being passed
@@ -209,17 +208,17 @@ extern int sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
  * sys_select() with the appropriate args. -- Cort
  */
 int
-ppc_select(int n, fd_set *inp, fd_set *outp, fd_set *exp, struct timeval *tvp)
+ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct timeval __user *tvp)
 {
 	if ( (unsigned long)n >= 4096 )
 	{
 		unsigned long __user *buffer = (unsigned long __user *)n;
 		if (verify_area(VERIFY_READ, buffer, 5*sizeof(unsigned long))
 		    || __get_user(n, buffer)
-		    || __get_user(inp, ((fd_set **)(buffer+1)))
-		    || __get_user(outp, ((fd_set **)(buffer+2)))
-		    || __get_user(exp, ((fd_set **)(buffer+3)))
-		    || __get_user(tvp, ((struct timeval **)(buffer+4))))
+		    || __get_user(inp, ((fd_set __user * __user *)(buffer+1)))
+		    || __get_user(outp, ((fd_set  __user * __user *)(buffer+2)))
+		    || __get_user(exp, ((fd_set  __user * __user *)(buffer+3)))
+		    || __get_user(tvp, ((struct timeval  __user * __user *)(buffer+4))))
 			return -EFAULT;
 	}
 	return sys_select(n, inp, outp, exp, tvp);

@@ -37,7 +37,9 @@ struct pmcw {
 	__u8  chpid[8];		/* CHPID 0-7 (if available) */
 	__u32 unused1 : 8;	/* reserved zeros */
 	__u32 st      : 3;	/* subchannel type */
-	__u32 unused2 : 20;	/* reserved zeros */
+	__u32 unused2 : 18;	/* reserved zeros */
+	__u32 mbfc    : 1;      /* measurement block format control */
+	__u32 xmwme   : 1;      /* extended measurement word mode enable */
 	__u32 csense  : 1;	/* concurrent sense; can be enabled ...*/
 				/*  ... per MSCH, however, if facility */
 				/*  ... is not installed, this results */
@@ -50,7 +52,8 @@ struct pmcw {
 struct schib {
 	struct pmcw pmcw;	 /* path management control word */
 	struct scsw scsw;	 /* subchannel status word */
-	__u8 mda[12];		 /* model dependent area */
+	__u64 mba;               /* measurement block address */
+	__u8 mda[4];		 /* model dependent area */
 } __attribute__ ((packed,aligned(4)));
 
 /*
@@ -124,10 +127,15 @@ extern int cio_set_options (struct subchannel *, int);
 extern int cio_get_options (struct subchannel *);
 extern int cio_modify (struct subchannel *);
 /* Use with care. */
+#ifdef CONFIG_CCW_CONSOLE
 extern struct subchannel *cio_probe_console(void);
 extern void cio_release_console(void);
 extern int cio_is_console(int irq);
 extern struct subchannel *cio_get_console_subchannel(void);
+#else
+#define cio_is_console(irq) 0
+#define cio_get_console_subchannel() NULL
+#endif
 
 extern int cio_show_msg;
 

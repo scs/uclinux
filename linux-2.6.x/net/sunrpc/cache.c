@@ -214,6 +214,7 @@ void cache_register(struct cache_detail *cd)
 	cd->entries = 0;
 	atomic_set(&cd->readers, 0);
 	cd->last_close = 0;
+	cd->last_warn = -1;
 	list_add(&cd->others, &cache_list);
 	spin_unlock(&cache_list_lock);
 
@@ -325,6 +326,7 @@ int cache_clean(void)
 	
 	if (current_detail && current_index < current_detail->hash_size) {
 		struct cache_head *ch, **cp;
+		struct cache_detail *d;
 		
 		write_lock(&current_detail->hash_lock);
 
@@ -354,12 +356,14 @@ int cache_clean(void)
 			rv = 1;
 		}
 		write_unlock(&current_detail->hash_lock);
-		if (ch)
-			current_detail->cache_put(ch, current_detail);
-		else
+		d = current_detail;
+		if (!ch)
 			current_index ++;
-	}
-	spin_unlock(&cache_list_lock);
+		spin_unlock(&cache_list_lock);
+		if (ch)
+			d->cache_put(ch, d);
+	} else
+		spin_unlock(&cache_list_lock);
 
 	return rv;
 }
@@ -571,15 +575,12 @@ struct cache_reader {
 };
 
 static ssize_t
-cache_read(struct file *filp, char *buf, size_t count, loff_t *ppos)
+cache_read(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 {
 	struct cache_reader *rp = filp->private_data;
 	struct cache_request *rq;
 	struct cache_detail *cd = PDE(filp->f_dentry->d_inode)->data;
 	int err;
-
-	if (ppos != &filp->f_pos)
-		return -ESPIPE;
 
 	if (count == 0)
 		return 0;
@@ -649,44 +650,33 @@ cache_read(struct file *filp, char *buf, size_t count, loff_t *ppos)
 	return err ? err :  count;
 }
 
+static char write_buf[8192]; /* protected by queue_io_sem */
+
 static ssize_t
-cache_write(struct file *filp, const char *buf, size_t count,
+cache_write(struct file *filp, const char __user *buf, size_t count,
 	    loff_t *ppos)
 {
 	int err;
-	char *page;
 	struct cache_detail *cd = PDE(filp->f_dentry->d_inode)->data;
-
-	if (ppos != &filp->f_pos)
-		return -ESPIPE;
 
 	if (count == 0)
 		return 0;
-	if (count > PAGE_SIZE)
+	if (count >= sizeof(write_buf))
 		return -EINVAL;
 
 	down(&queue_io_sem);
 
-	page = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (page == NULL) {
+	if (copy_from_user(write_buf, buf, count)) {
 		up(&queue_io_sem);
-		return -ENOMEM;
-	}
-
-	if (copy_from_user(page, buf, count)) {
-		up(&queue_io_sem);
-		kfree(page);
 		return -EFAULT;
 	}
-	if (count < PAGE_SIZE)
-		page[count] = '\0';
+	write_buf[count] = '\0';
 	if (cd->cache_parse)
-		err = cd->cache_parse(cd, page, count);
+		err = cd->cache_parse(cd, write_buf, count);
 	else
 		err = -EINVAL;
 
 	up(&queue_io_sem);
-	kfree(page);
 	return err ? err : count;
 }
 
@@ -747,7 +737,7 @@ cache_ioctl(struct inode *ino, struct file *filp,
 		}
 	spin_unlock(&queue_lock);
 
-	return put_user(len, (int *)arg);
+	return put_user(len, (int __user *)arg);
 }
 
 static int
@@ -755,6 +745,7 @@ cache_open(struct inode *inode, struct file *filp)
 {
 	struct cache_reader *rp = NULL;
 
+	nonseekable_open(inode, filp);
 	if (filp->f_mode & FMODE_READ) {
 		struct cache_detail *cd = PDE(inode)->data;
 
@@ -910,7 +901,14 @@ void qword_addhex(char **bpp, int *lp, char *buf, int blen)
 	*lp = len;
 }
 
-			
+void warn_no_listener(struct cache_detail *detail)
+{
+	if (detail->last_warn != detail->last_close) {
+		detail->last_warn = detail->last_close;
+		if (detail->warn_no_listener)
+			detail->warn_no_listener(detail);
+	}
+}
 
 /*
  * register an upcall request to user-space.
@@ -928,9 +926,10 @@ static int cache_make_upcall(struct cache_detail *detail, struct cache_head *h)
 		return -EINVAL;
 
 	if (atomic_read(&detail->readers) == 0 &&
-	    detail->last_close < get_seconds() - 60)
-		/* nobody is listening */
-		return -EINVAL;
+	    detail->last_close < get_seconds() - 30) {
+			warn_no_listener(detail);
+			return -EINVAL;
+	}
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -1162,7 +1161,7 @@ static struct file_operations content_file_operations = {
 	.release	= content_release,
 };
 
-static ssize_t read_flush(struct file *file, char *buf,
+static ssize_t read_flush(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
 	struct cache_detail *cd = PDE(file->f_dentry->d_inode)->data;
@@ -1183,7 +1182,7 @@ static ssize_t read_flush(struct file *file, char *buf,
 	return len;
 }
 
-static ssize_t write_flush(struct file * file, const char * buf,
+static ssize_t write_flush(struct file * file, const char __user * buf,
 			     size_t count, loff_t *ppos)
 {
 	struct cache_detail *cd = PDE(file->f_dentry->d_inode)->data;
@@ -1208,6 +1207,7 @@ static ssize_t write_flush(struct file * file, const char * buf,
 }
 
 static struct file_operations cache_flush_operations = {
+	.open		= nonseekable_open,
 	.read		= read_flush,
 	.write		= write_flush,
 };

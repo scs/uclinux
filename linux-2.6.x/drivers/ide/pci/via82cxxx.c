@@ -37,7 +37,8 @@
 #include <asm/io.h>
 
 #include "ide-timing.h"
-#include "via82cxxx.h"
+
+#define DISPLAY_VIA_TIMINGS
 
 #define VIA_IDE_ENABLE		0x40
 #define VIA_IDE_CONFIG		0x41
@@ -375,7 +376,7 @@ static void via82cxxx_tune_drive(ide_drive_t *drive, u8 pio)
 		return;
 	}
 
-	via_set_drive(drive, XFER_PIO_0 + MIN(pio, 5));
+	via_set_drive(drive, XFER_PIO_0 + min_t(u8, pio, 5));
 }
 
 /**
@@ -567,7 +568,7 @@ static unsigned int __init init_chipset_via82cxxx(struct pci_dev *dev, const cha
 		via_base = pci_resource_start(dev, 4);
 		bmide_dev = dev;
 		isa_dev = isa;
-		ide_pci_register_host_proc(&via_procs[0]);
+		ide_pci_create_host_proc("via", via_get_info);
 		via_proc = 1;
 	}
 #endif /* DISPLAY_VIA_TIMINGS && CONFIG_PROC_FS */
@@ -607,23 +608,28 @@ static void __init init_hwif_via82cxxx(ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
-extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
+static ide_pci_device_t via82cxxx_chipset __devinitdata = {
+	.name		= "VP_IDE",
+	.init_chipset	= init_chipset_via82cxxx,
+	.init_hwif	= init_hwif_via82cxxx,
+	.channels	= 2,
+	.autodma	= NOAUTODMA,
+	.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},
+	.bootable	= ON_BOARD,
+};
 
 static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &via82cxxx_chipsets[id->driver_data];
-	if (dev->device != d->device)
-		BUG();
-	ide_setup_pci_device(dev, d);
-	MOD_INC_USE_COUNT;
+	ide_setup_pci_device(dev, &via82cxxx_chipset);
 	return 0;
 }
 
 static struct pci_device_id via_pci_tbl[] = {
 	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C576_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
+	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, via_pci_tbl);
 
 static struct pci_driver driver = {
 	.name 		= "VIA IDE",
@@ -636,13 +642,7 @@ static int via_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
-static void via_ide_exit(void)
-{
-	ide_pci_unregister_driver(&driver);
-}
-
 module_init(via_ide_init);
-module_exit(via_ide_exit);
 
 MODULE_AUTHOR("Vojtech Pavlik, Michel Aubry, Jeff Garzik, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for VIA IDE");

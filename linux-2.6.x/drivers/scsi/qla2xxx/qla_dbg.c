@@ -2,7 +2,7 @@
  *                  QLOGIC LINUX SOFTWARE
  *
  * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003 QLogic Corporation
+ * Copyright (C) 2003-2004 QLogic Corporation
  * (www.qlogic.com)
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -16,9 +16,9 @@
  * General Public License for more details.
  *
  */
-#include "qla_os.h"
-
 #include "qla_def.h"
+
+#include <linux/delay.h>
 
 static int qla_uprintf(char **, char *, ...);
 
@@ -40,9 +40,10 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	uint16_t	*dmp_reg;
 	unsigned long	flags;
 	struct qla2300_fw_dump	*fw;
+	uint32_t	dump_size, data_ram_cnt;
 
 	reg = ha->iobase;
-	risc_address = 0;
+	risc_address = data_ram_cnt = 0;
 	mb0 = mb2 = 0;
 	flags = 0;
 
@@ -53,18 +54,20 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		qla_printk(KERN_WARNING, ha,
 		    "Firmware has been previously dumped (%p) -- ignoring "
 		    "request...\n", ha->fw_dump);
-		return;
+		goto qla2300_fw_dump_failed;
 	}
 
 	/* Allocate (large) dump buffer. */
-	ha->fw_dump_order = get_order(sizeof(struct qla2300_fw_dump));
+	dump_size = sizeof(struct qla2300_fw_dump);
+	dump_size += (ha->fw_memory_size - 0x11000) * sizeof(uint16_t);
+	ha->fw_dump_order = get_order(dump_size);
 	ha->fw_dump = (struct qla2300_fw_dump *) __get_free_pages(GFP_ATOMIC,
 	    ha->fw_dump_order);
 	if (ha->fw_dump == NULL) {
 		qla_printk(KERN_WARNING, ha,
 		    "Unable to allocated memory for firmware dump (%d/%d).\n",
-		    ha->fw_dump_order, sizeof(struct qla2300_fw_dump));
-		return;
+		    ha->fw_dump_order, dump_size);
+		goto qla2300_fw_dump_failed;
 	}
 	fw = ha->fw_dump;
 
@@ -73,7 +76,7 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 	/* Pause RISC. */
 	WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC); 
-	if (!IS_QLA2312(ha) && !IS_QLA2322(ha)) {
+	if (IS_QLA2300(ha)) {
 		for (cnt = 30000;
 		    (RD_REG_WORD(&reg->hccr) & HCCR_RISC_PAUSE) == 0 &&
 			rval == QLA_SUCCESS; cnt--) {
@@ -180,7 +183,7 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		}
 	}
 
-	if (IS_QLA2312(ha) || IS_QLA2322(ha)) {
+	if (!IS_QLA2300(ha)) {
 		for (cnt = 30000; RD_MAILBOX_REG(ha, reg, 0) != 0 &&
 		    rval == QLA_SUCCESS; cnt--) {
 			if (cnt)
@@ -304,10 +307,11 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	if (rval == QLA_SUCCESS) {
 		/* Get data SRAM. */
 		risc_address = 0x11000;
+		data_ram_cnt = ha->fw_memory_size - risc_address + 1;
  		WRT_MAILBOX_REG(ha, reg, 0, MBC_READ_RAM_EXTENDED);
 		clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 	}
-	for (cnt = 0; cnt < sizeof(fw->data_ram) / 2 && rval == QLA_SUCCESS;
+	for (cnt = 0; cnt < data_ram_cnt && rval == QLA_SUCCESS;
 	    cnt++, risc_address++) {
  		WRT_MAILBOX_REG(ha, reg, 1, LSW(risc_address));
  		WRT_MAILBOX_REG(ha, reg, 8, MSW(risc_address));
@@ -360,7 +364,7 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 	if (rval != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha,
-		    "Failed to dump firmware (%d)!!!\n", rval);
+		    "Failed to dump firmware (%x)!!!\n", rval);
 
 		free_pages((unsigned long)ha->fw_dump, ha->fw_dump_order);
 		ha->fw_dump = NULL;
@@ -370,6 +374,7 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		    ha->host_no, ha->fw_dump);
 	}
 
+qla2300_fw_dump_failed:
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
@@ -385,6 +390,7 @@ qla2300_ascii_fw_dump(scsi_qla_host_t *ha)
 	char *uiter;
 	char fw_info[30];
 	struct qla2300_fw_dump *fw;
+	uint32_t data_ram_cnt;
 
 	uiter = ha->fw_dump_buffer;
 	fw = ha->fw_dump;
@@ -549,7 +555,8 @@ qla2300_ascii_fw_dump(scsi_qla_host_t *ha)
 	}
 
 	qla_uprintf(&uiter, "\n\nData RAM Dump:");
-	for (cnt = 0; cnt < sizeof (fw->data_ram) / 2; cnt++) {
+	data_ram_cnt = ha->fw_memory_size - 0x11000 + 1;
+	for (cnt = 0; cnt < data_ram_cnt; cnt++) {
 		if (cnt % 8 == 0) {
 			qla_uprintf(&uiter, "\n%05x: ", cnt + 0x11000);
 		}
@@ -569,7 +576,7 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 {
 	int		rval;
 	uint32_t	cnt, timer;
-	uint32_t	risc_address;
+	uint16_t	risc_address;
 	uint16_t	mb0, mb2;
 
 	device_reg_t	*reg;
@@ -589,7 +596,7 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		qla_printk(KERN_WARNING, ha,
 		    "Firmware has been previously dumped (%p) -- ignoring "
 		    "request...\n", ha->fw_dump);
-		return;
+		goto qla2100_fw_dump_failed;
 	}
 
 	/* Allocate (large) dump buffer. */
@@ -598,9 +605,9 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	    ha->fw_dump_order);
 	if (ha->fw_dump == NULL) {
 		qla_printk(KERN_WARNING, ha,
-		    "Unable to allocated memory for firmware dump (%d/%d).\n",
+		    "Unable to allocated memory for firmware dump (%d/%Zd).\n",
 		    ha->fw_dump_order, sizeof(struct qla2100_fw_dump));
-		return;
+		goto qla2100_fw_dump_failed;
 	}
 	fw = ha->fw_dump;
 
@@ -616,7 +623,6 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		else
 			rval = QLA_FUNCTION_TIMEOUT;
 	}
-
 	if (rval == QLA_SUCCESS) {
 		dmp_reg = (uint16_t *)(reg + 0);
 		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++) 
@@ -694,18 +700,8 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		for (cnt = 0; cnt < sizeof(fw->fpm_b1_reg) / 2; cnt++) 
 			fw->fpm_b1_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		/* Disable ISP interrupts. */
-		WRT_REG_WORD(&reg->ictrl, 0);
-
-		/* Reset RISC module. */
-		WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
-
-		/* Release RISC module. */
-		WRT_REG_WORD(&reg->hccr, HCCR_RELEASE_RISC); 
-
-		/* Insure mailbox registers are free. */
-		WRT_REG_WORD(&reg->hccr, HCCR_CLR_RISC_INT); 
-		WRT_REG_WORD(&reg->hccr, HCCR_CLR_HOST_INT); 
+		/* Reset the ISP. */
+		WRT_REG_WORD(&reg->ctrl_status, CSR_ISP_SOFT_RESET);
 	}
 
 	for (cnt = 30000; RD_MAILBOX_REG(ha, reg, 0) != 0 &&
@@ -729,7 +725,6 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 			else
 				rval = QLA_FUNCTION_TIMEOUT;
 		}
-
 		if (rval == QLA_SUCCESS) {
 			/* Set memory configuration and timing. */
 			if (IS_QLA2100(ha))
@@ -750,7 +745,7 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	}
 	for (cnt = 0; cnt < sizeof(fw->risc_ram) / 2 && rval == QLA_SUCCESS;
 	    cnt++, risc_address++) {
- 		WRT_MAILBOX_REG(ha, reg, 1, (uint16_t)risc_address);
+ 		WRT_MAILBOX_REG(ha, reg, 1, risc_address);
 		WRT_REG_WORD(&reg->hccr, HCCR_SET_HOST_INT);
 
 		for (timer = 6000000; timer != 0; timer--) {
@@ -783,7 +778,7 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 	if (rval != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha,
-		    "Failed to dump firmware (%d)!!!\n", rval);
+		    "Failed to dump firmware (%x)!!!\n", rval);
 
 		free_pages((unsigned long)ha->fw_dump, ha->fw_dump_order);
 		ha->fw_dump = NULL;
@@ -793,6 +788,7 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		    ha->host_no, ha->fw_dump);
 	}
 
+qla2100_fw_dump_failed:
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
@@ -1070,18 +1066,6 @@ qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd)
 	    sp->lun_queue->fclun->fcport->cur_path);
 }
 
-/*
- * qla2x00_print_q_info
- * 	 Prints queue info
- * Input
- *      q: lun queue	 
- */ 
-void 
-qla2x00_print_q_info(struct os_lun *q) 
-{
-	printk("Queue info: flags=0x%lx\n", q->q_flag);
-}
-
 #if defined(QL_DEBUG_ROUTINES)
 /*
  * qla2x00_formatted_dump_buffer
@@ -1163,67 +1147,4 @@ qla2x00_formatted_dump_buffer(char *string, uint8_t * buffer,
 			break;
 	}
 }
-
 #endif
-
-
-#if STOP_ON_ERROR
-/**************************************************************************
-*   qla2x00_panic
-*
-**************************************************************************/
-static void 
-qla2x00_panic(char *cp, struct Scsi_Host *host) 
-{
-	struct scsi_qla_host *ha;
-	long *fp;
-
-	ha = (struct scsi_qla_host *) host->hostdata;
-	DEBUG2(ql2x_debug_print = 1;);
-	printk("qla2100 - PANIC:  %s\n", cp);
-	printk("Current time=0x%lx\n", jiffies);
-	printk("Number of pending commands =0x%lx\n", ha->actthreads);
-	printk("Number of queued commands =0x%lx\n", ha->qthreads);
-	printk("Number of free entries = (%d)\n", ha->req_q_cnt);
-	printk("Request Queue @ 0x%lx, Response Queue @ 0x%lx\n",
-			       ha->request_dma, ha->response_dma);
-	printk("Request In Ptr %d\n", ha->req_ring_index);
-	fp = (long *) &ha->flags;
-	printk("HA flags =0x%lx\n", *fp);
-	qla2x00_dump_requests(ha);
-	qla2x00_dump_regs(ha);
-	cli();
-	for (;;) {
-		udelay(2);
-		barrier();
-		/* cpu_relax();*/
-	}
-	sti();
-}
-
-#endif
-
-/**************************************************************************
-*   qla2x00_dump_requests
-*
-**************************************************************************/
-void
-qla2x00_dump_requests(scsi_qla_host_t *ha) 
-{
-
-	struct scsi_cmnd       *cp;
-	srb_t           *sp;
-	int i;
-
-	printk("Outstanding Commands on controller:\n");
-
-	for (i = 1; i < MAX_OUTSTANDING_COMMANDS; i++) {
-		if ((sp = ha->outstanding_cmds[i]) == NULL)
-			continue;
-		if ((cp = sp->cmd) == NULL)
-			continue;
-
-		printk("(%d): Pid=%ld, sp flags=0x%x, cmd=0x%p\n",
-		    i, sp->cmd->serial_number, sp->flags, CMD_SP(sp->cmd));
-	}
-}

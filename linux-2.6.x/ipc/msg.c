@@ -51,11 +51,6 @@ struct msg_sender {
 	struct task_struct* tsk;
 };
 
-struct msg_msgseg {
-	struct msg_msgseg* next;
-	/* the next part of the message follows immediately */
-};
-
 #define SEARCH_ANY		1
 #define SEARCH_EQUAL		2
 #define SEARCH_NOTEQUAL		3
@@ -85,7 +80,7 @@ void __init msg_init (void)
 	ipc_init_ids(&msg_ids,msg_ctlmni);
 
 #ifdef CONFIG_PROC_FS
-	create_proc_read_entry("sysvipc/msg", 0, 0, sysvipc_msg_read_proc, NULL);
+	create_proc_read_entry("sysvipc/msg", 0, NULL, sysvipc_msg_read_proc, NULL);
 #endif
 }
 
@@ -127,106 +122,6 @@ static int newque (key_t key, int msgflg)
 	msg_unlock(msq);
 
 	return msg_buildid(id,msq->q_perm.seq);
-}
-
-static void free_msg(struct msg_msg* msg)
-{
-	struct msg_msgseg* seg;
-
-	security_msg_msg_free(msg);
-
-	seg = msg->next;
-	kfree(msg);
-	while(seg != NULL) {
-		struct msg_msgseg* tmp = seg->next;
-		kfree(seg);
-		seg = tmp;
-	}
-}
-
-static struct msg_msg* load_msg(void* src, int len)
-{
-	struct msg_msg* msg;
-	struct msg_msgseg** pseg;
-	int err;
-	int alen;
-
-	alen = len;
-	if(alen > DATALEN_MSG)
-		alen = DATALEN_MSG;
-
-	msg = (struct msg_msg *) kmalloc (sizeof(*msg) + alen, GFP_KERNEL);
-	if(msg==NULL)
-		return ERR_PTR(-ENOMEM);
-
-	msg->next = NULL;
-	msg->security = NULL;
-
-	if (copy_from_user(msg+1, src, alen)) {
-		err = -EFAULT;
-		goto out_err;
-	}
-
-	len -= alen;
-	src = ((char*)src)+alen;
-	pseg = &msg->next;
-	while(len > 0) {
-		struct msg_msgseg* seg;
-		alen = len;
-		if(alen > DATALEN_SEG)
-			alen = DATALEN_SEG;
-		seg = (struct msg_msgseg *) kmalloc (sizeof(*seg) + alen, GFP_KERNEL);
-		if(seg==NULL) {
-			err=-ENOMEM;
-			goto out_err;
-		}
-		*pseg = seg;
-		seg->next = NULL;
-		if(copy_from_user (seg+1, src, alen)) {
-			err = -EFAULT;
-			goto out_err;
-		}
-		pseg = &seg->next;
-		len -= alen;
-		src = ((char*)src)+alen;
-	}
-	
-	err = security_msg_msg_alloc(msg);
-	if (err)
-		goto out_err;
-
-	return msg;
-
-out_err:
-	free_msg(msg);
-	return ERR_PTR(err);
-}
-
-static int store_msg(void* dest, struct msg_msg* msg, int len)
-{
-	int alen;
-	struct msg_msgseg *seg;
-
-	alen = len;
-	if(alen > DATALEN_MSG)
-		alen = DATALEN_MSG;
-	if(copy_to_user (dest, msg+1, alen))
-		return -1;
-
-	len -= alen;
-	dest = ((char*)dest)+alen;
-	seg = msg->next;
-	while(len > 0) {
-		alen = len;
-		if(alen > DATALEN_SEG)
-			alen = DATALEN_SEG;
-		if(copy_to_user (dest, seg+1, alen))
-			return -1;
-		len -= alen;
-		dest = ((char*)dest)+alen;
-		seg=seg->next;
-	}
-	return 0;
 }
 
 static inline void ss_add(struct msg_queue* msq, struct msg_sender* mss)
@@ -334,7 +229,7 @@ asmlinkage long sys_msgget (key_t key, int msgflg)
 	return ret;
 }
 
-static inline unsigned long copy_msqid_to_user(void *buf, struct msqid64_ds *in, int version)
+static inline unsigned long copy_msqid_to_user(void __user *buf, struct msqid64_ds *in, int version)
 {
 	switch(version) {
 	case IPC_64:
@@ -385,7 +280,7 @@ struct msq_setbuf {
 	mode_t		mode;
 };
 
-static inline unsigned long copy_msqid_from_user(struct msq_setbuf *out, void *buf, int version)
+static inline unsigned long copy_msqid_from_user(struct msq_setbuf *out, void __user *buf, int version)
 {
 	switch(version) {
 	case IPC_64:
@@ -425,7 +320,7 @@ static inline unsigned long copy_msqid_from_user(struct msq_setbuf *out, void *b
 	}
 }
 
-asmlinkage long sys_msgctl (int msqid, int cmd, struct msqid_ds *buf)
+asmlinkage long sys_msgctl (int msqid, int cmd, struct msqid_ds __user *buf)
 {
 	int err, version;
 	struct msg_queue *msq;
@@ -644,7 +539,7 @@ static inline int pipelined_send(struct msg_queue* msq, struct msg_msg* msg)
 	return 0;
 }
 
-asmlinkage long sys_msgsnd (int msqid, struct msgbuf *msgp, size_t msgsz, int msgflg)
+asmlinkage long sys_msgsnd (int msqid, struct msgbuf __user *msgp, size_t msgsz, int msgflg)
 {
 	struct msg_queue *msq;
 	struct msg_msg *msg;
@@ -750,7 +645,7 @@ static inline int convert_mode(long* msgtyp, int msgflg)
 	return SEARCH_EQUAL;
 }
 
-asmlinkage long sys_msgrcv (int msqid, struct msgbuf *msgp, size_t msgsz,
+asmlinkage long sys_msgrcv (int msqid, struct msgbuf __user *msgp, size_t msgsz,
 			    long msgtyp, int msgflg)
 {
 	struct msg_queue *msq;

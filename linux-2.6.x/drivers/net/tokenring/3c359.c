@@ -314,7 +314,6 @@ int __devinit xl_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev->irq=pdev->irq;
 	dev->base_addr=pci_resource_start(pdev,0) ; 
-	dev->init=NULL ; /* Must be null with new api, otherwise get called twice */
 	xl_priv->xl_card_name = pci_name(pdev);
 	xl_priv->xl_mmio=ioremap(pci_resource_start(pdev,1), XL_IO_SPACE);
 	xl_priv->pdev = pdev ; 
@@ -332,7 +331,7 @@ int __devinit xl_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		
 	if((i = xl_init(dev))) {
 		iounmap(xl_priv->xl_mmio) ; 
-		kfree(dev) ; 
+		free_netdev(dev) ; 
 		pci_release_regions(pdev) ; 
 		return i ; 
 	}				
@@ -346,13 +345,14 @@ int __devinit xl_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->get_stats=&xl_get_stats ;
 	dev->set_mac_address=&xl_set_mac_address ; 
 	SET_MODULE_OWNER(dev); 
+	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	pci_set_drvdata(pdev,dev) ; 
 	if ((i = register_netdev(dev))) { 
 		printk(KERN_ERR "3C359, register netdev failed\n") ;  
 		pci_set_drvdata(pdev,NULL) ; 
 		iounmap(xl_priv->xl_mmio) ; 
-		kfree(dev) ; 
+		free_netdev(dev) ; 
 		pci_release_regions(pdev) ; 
 		return i ; 
 	}
@@ -642,7 +642,20 @@ static int xl_open(struct net_device *dev)
 	 */
 	/* These MUST be on 8 byte boundaries */
 	xl_priv->xl_tx_ring = kmalloc((sizeof(struct xl_tx_desc) * XL_TX_RING_SIZE) + 7, GFP_DMA | GFP_KERNEL) ; 
+	if (xl_priv->xl_tx_ring == NULL) {
+		printk(KERN_WARNING "%s: Not enough memory to allocate rx buffers.\n",
+				     dev->name);
+		free_irq(dev->irq,dev);
+		return -ENOMEM;
+	}
 	xl_priv->xl_rx_ring = kmalloc((sizeof(struct xl_rx_desc) * XL_RX_RING_SIZE) +7, GFP_DMA | GFP_KERNEL) ; 
+	if (xl_priv->xl_tx_ring == NULL) {
+		printk(KERN_WARNING "%s: Not enough memory to allocate rx buffers.\n",
+				     dev->name);
+		free_irq(dev->irq,dev);
+		kfree(xl_priv->xl_tx_ring);
+		return -ENOMEM;
+	}
 	memset(xl_priv->xl_tx_ring,0,sizeof(struct xl_tx_desc) * XL_TX_RING_SIZE) ; 
 	memset(xl_priv->xl_rx_ring,0,sizeof(struct xl_rx_desc) * XL_RX_RING_SIZE) ; 
 
@@ -925,15 +938,17 @@ static void xl_rx(struct net_device *dev)
 			while (xl_priv->rx_ring_tail != temp_ring_loc) { 
 				copy_len = xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfraglen & 0x7FFF ; 
 				frame_length -= copy_len ;  
-				pci_dma_sync_single(xl_priv->pdev,xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr,xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ; 
+				pci_dma_sync_single_for_cpu(xl_priv->pdev,xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr,xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ;
 				memcpy(skb_put(skb,copy_len), xl_priv->rx_ring_skb[xl_priv->rx_ring_tail]->data, copy_len) ; 
+				pci_dma_sync_single_for_device(xl_priv->pdev,xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr,xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ;
 				adv_rx_ring(dev) ; 
 			} 
 
 			/* Now we have found the last fragment */
-			pci_dma_sync_single(xl_priv->pdev,xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr,xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ; 
+			pci_dma_sync_single_for_cpu(xl_priv->pdev,xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr,xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ;
 			memcpy(skb_put(skb,copy_len), xl_priv->rx_ring_skb[xl_priv->rx_ring_tail]->data, frame_length) ; 
 /*			memcpy(skb_put(skb,frame_length), bus_to_virt(xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr), frame_length) ; */
+			pci_dma_sync_single_for_device(xl_priv->pdev,xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr,xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ;
 			adv_rx_ring(dev) ; 
 			skb->protocol = tr_type_trans(skb,dev) ; 
 			netif_rx(skb) ; 
@@ -1130,7 +1145,7 @@ static irqreturn_t xl_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				xl_freemem(dev) ; 
 				free_irq(dev->irq,dev); 
 				unregister_netdev(dev) ; 
-				kfree(dev) ;  
+				free_netdev(dev) ;  
 				xl_reset(dev) ; 
 				writel(ACK_INTERRUPT | LATCH_ACK, xl_mmio + MMIO_COMMAND) ; 
 				spin_unlock(&xl_priv->xl_lock) ; 

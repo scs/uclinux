@@ -27,15 +27,10 @@
 /*
     Supports the Via VT82C686A, VT82C686B south bridges.
     Reports all as a 686A.
-    See doc/chips/via686a for details.
     Warning - only supports a single device.
 */
 
 #include <linux/config.h>
-#ifdef CONFIG_I2C_DEBUG_CHIP
-#define DEBUG	1
-#endif
-
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
@@ -113,7 +108,7 @@ static const u8 reghyst[] = { 0x3a, 0x3e, 0x1e };
 #define VIA686A_TEMP_MODE_MASK 0x3F
 #define VIA686A_TEMP_MODE_CONTINUOUS (0x00)
 
-/* Conversions. Rounding and limit checking is only done on the TO_REG
+/* Conversions. Limit checking is only done on the TO_REG
    variants. 
 
 ********* VOLTAGE CONVERSIONS (Bob Dougherty) ********
@@ -128,49 +123,41 @@ static const u8 reghyst[] = { 0x3a, 0x3e, 0x1e };
  volts = (25*regVal+133)*factor
  regVal = (volts/factor-133)/25
  (These conversions were contributed by Jonathan Teh Soon Yew 
- <j.teh@iname.com>)
- 
- These get us close, but they don't completely agree with what my BIOS 
- says- they are all a bit low.  But, it all we have to go on... */
+ <j.teh@iname.com>) */
 static inline u8 IN_TO_REG(long val, int inNum)
 {
-	/* to avoid floating point, we multiply everything by 100.
-	 val is guaranteed to be positive, so we can achieve the effect of 
-	 rounding by (...*10+5)/10.  Note that the *10 is hidden in the 
-	 /250 (which should really be /2500).
-	 At the end, we need to /100 because we *100 everything and we need
-	 to /10 because of the rounding thing, so we /1000.   */
+	/* To avoid floating point, we multiply constants by 10 (100 for +12V).
+	   Rounding is done (120500 is actually 133000 - 12500).
+	   Remember that val is expressed in 0.001V/bit, which is why we divide
+	   by an additional 10000 (100000 for +12V): 1000 for val and 10 (100)
+	   for the constants. */
 	if (inNum <= 1)
 		return (u8)
-		    SENSORS_LIMIT(((val * 210240 - 13300) / 250 + 5) / 1000, 
-				  0, 255);
+		    SENSORS_LIMIT((val * 21024 - 1205000) / 250000, 0, 255);
 	else if (inNum == 2)
 		return (u8)
-		    SENSORS_LIMIT(((val * 157370 - 13300) / 250 + 5) / 1000, 
-				  0, 255);
+		    SENSORS_LIMIT((val * 15737 - 1205000) / 250000, 0, 255);
 	else if (inNum == 3)
 		return (u8)
-		    SENSORS_LIMIT(((val * 101080 - 13300) / 250 + 5) / 1000, 
-				  0, 255);
+		    SENSORS_LIMIT((val * 10108 - 1205000) / 250000, 0, 255);
 	else
-		return (u8) SENSORS_LIMIT(((val * 41714 - 13300) / 250 + 5)
-					  / 1000, 0, 255);
+		return (u8)
+		    SENSORS_LIMIT((val * 41714 - 12050000) / 2500000, 0, 255);
 }
 
 static inline long IN_FROM_REG(u8 val, int inNum)
 {
-	/* to avoid floating point, we multiply everything by 100.
-	 val is guaranteed to be positive, so we can achieve the effect of
-	 rounding by adding 0.5.  Or, to avoid fp math, we do (...*10+5)/10.
-	 We need to scale with *100 anyway, so no need to /100 at the end. */
+	/* To avoid floating point, we multiply constants by 10 (100 for +12V).
+	   We also multiply them by 1000 because we want 0.001V/bit for the
+	   output value. Rounding is done. */
 	if (inNum <= 1)
-		return (long) (((250000 * val + 13300) / 210240 * 10 + 5) /10);
+		return (long) ((250000 * val + 1330000 + 21024 / 2) / 21024);
 	else if (inNum == 2)
-		return (long) (((250000 * val + 13300) / 157370 * 10 + 5) /10);
+		return (long) ((250000 * val + 1330000 + 15737 / 2) / 15737);
 	else if (inNum == 3)
-		return (long) (((250000 * val + 13300) / 101080 * 10 + 5) /10);
+		return (long) ((250000 * val + 1330000 + 10108 / 2) / 10108);
 	else
-		return (long) (((250000 * val + 13300) / 41714 * 10 + 5) /10);
+		return (long) ((2500000 * val + 13300000 + 41714 / 2) / 41714);
 }
 
 /********* FAN RPM CONVERSIONS ********/
@@ -281,52 +268,31 @@ static const u8 viaLUT[] =
 	    239, 240
 };
 
-/* Converting temps to (8-bit) hyst and over registers 
- No interpolation here.  Just check the limits and go.
- The +5 effectively rounds off properly and the +50 is because 
- the temps start at -50 */
+/* Converting temps to (8-bit) hyst and over registers
+   No interpolation here.
+   The +50 is because the temps start at -50 */
 static inline u8 TEMP_TO_REG(long val)
 {
-	return (u8)
-	    SENSORS_LIMIT(viaLUT[((val <= -500) ? 0 : (val >= 1100) ? 160 : 
-				  ((val + 5) / 10 + 50))], 0, 255);
+	return viaLUT[val <= -50000 ? 0 : val >= 110000 ? 160 : 
+		      (val < 0 ? val - 500 : val + 500) / 1000 + 50];
 }
 
-/* for 8-bit temperature hyst and over registers 
- The temp values are already *10, so we don't need to do that.
- But we _will_ round these off to the nearest degree with (...*10+5)/10 */
-#define TEMP_FROM_REG(val) ((tempLUT[(val)]*10+5)/10)
+/* for 8-bit temperature hyst and over registers */
+#define TEMP_FROM_REG(val) (tempLUT[(val)] * 100)
 
-/* for 10-bit temperature readings 
- You might _think_ this is too long to inline, but's it's really only
- called once... */
+/* for 10-bit temperature readings */
 static inline long TEMP_FROM_REG10(u16 val)
 {
-	/* the temp values are already *10, so we don't need to do that. */
-	long temp;
 	u16 eightBits = val >> 2;
 	u16 twoBits = val & 3;
 
-	/* handle the extremes first (they won't interpolate well! ;-) */
-	if (val == 0)
-		return (long) tempLUT[0];
-	if (val == 1023)
-		return (long) tempLUT[255];
+	/* no interpolation for these */
+	if (twoBits == 0 || eightBits == 255)
+		return TEMP_FROM_REG(eightBits);
 
-	if (twoBits == 0)
-		return (long) tempLUT[eightBits];
-	else {
-		/* do some interpolation by multipying the lower and upper
-		 bounds by 25, 50 or 75, then /100. */
-		temp = ((25 * (4 - twoBits)) * tempLUT[eightBits]
-			+ (25 * twoBits) * tempLUT[eightBits + 1]);
-		/* increase the magnitude by 50 to achieve rounding. */
-		if (temp > 0)
-			temp += 50;
-		else
-			temp -= 50;
-		return (temp / 100);
-	}
+	/* do some linear interpolation */
+	return (tempLUT[eightBits] * (4 - twoBits) +
+	        tempLUT[eightBits + 1] * twoBits) * 25;
 }
 
 #define ALARMS_FROM_REG(val) (val)
@@ -334,48 +300,11 @@ static inline long TEMP_FROM_REG10(u16 val)
 #define DIV_FROM_REG(val) (1 << (val))
 #define DIV_TO_REG(val) ((val)==8?3:(val)==4?2:(val)==1?0:1)
 
-/* Initial limits */
-#define VIA686A_INIT_IN_0 200
-#define VIA686A_INIT_IN_1 250
-#define VIA686A_INIT_IN_2 330
-#define VIA686A_INIT_IN_3 500
-#define VIA686A_INIT_IN_4 1200
-
-#define VIA686A_INIT_IN_PERCENTAGE 10
-
-#define VIA686A_INIT_IN_MIN_0 (VIA686A_INIT_IN_0 - VIA686A_INIT_IN_0 \
-        * VIA686A_INIT_IN_PERCENTAGE / 100)
-#define VIA686A_INIT_IN_MAX_0 (VIA686A_INIT_IN_0 + VIA686A_INIT_IN_0 \
-        * VIA686A_INIT_IN_PERCENTAGE / 100)
-#define VIA686A_INIT_IN_MIN_1 (VIA686A_INIT_IN_1 - VIA686A_INIT_IN_1 \
-        * VIA686A_INIT_IN_PERCENTAGE / 100)
-#define VIA686A_INIT_IN_MAX_1 (VIA686A_INIT_IN_1 + VIA686A_INIT_IN_1 \
-        * VIA686A_INIT_IN_PERCENTAGE / 100)
-#define VIA686A_INIT_IN_MIN_2 (VIA686A_INIT_IN_2 - VIA686A_INIT_IN_2 \
-        * VIA686A_INIT_IN_PERCENTAGE / 100)
-#define VIA686A_INIT_IN_MAX_2 (VIA686A_INIT_IN_2 + VIA686A_INIT_IN_2 \
-        * VIA686A_INIT_IN_PERCENTAGE / 100)
-#define VIA686A_INIT_IN_MIN_3 (VIA686A_INIT_IN_3 - VIA686A_INIT_IN_3 \
-        * VIA686A_INIT_IN_PERCENTAGE / 100)
-#define VIA686A_INIT_IN_MAX_3 (VIA686A_INIT_IN_3 + VIA686A_INIT_IN_3 \
-        * VIA686A_INIT_IN_PERCENTAGE / 100)
-#define VIA686A_INIT_IN_MIN_4 (VIA686A_INIT_IN_4 - VIA686A_INIT_IN_4 \
-        * VIA686A_INIT_IN_PERCENTAGE / 100)
-#define VIA686A_INIT_IN_MAX_4 (VIA686A_INIT_IN_4 + VIA686A_INIT_IN_4 \
-        * VIA686A_INIT_IN_PERCENTAGE / 100)
-
-#define VIA686A_INIT_FAN_MIN	3000
-
-#define VIA686A_INIT_TEMP_OVER 600
-#define VIA686A_INIT_TEMP_HYST 500
-
-/* For the VIA686A, we need to keep some data in memory. That
-   data is pointed to by via686a_list[NR]->data. The structure itself is
-   dynamically allocated, at the same time when a new via686a client is
-   allocated. */
+/* For the VIA686A, we need to keep some data in memory.
+   The structure is dynamically allocated, at the same time when a new
+   via686a client is allocated. */
 struct via686a_data {
-	int sysctl_id;
-
+	struct i2c_client client;
 	struct semaphore update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
@@ -409,38 +338,32 @@ static inline void via686a_write_value(struct i2c_client *client, u8 reg,
 	outb_p(value, client->addr + reg);
 }
 
-static void via686a_update_client(struct i2c_client *client);
+static struct via686a_data *via686a_update_device(struct device *dev);
 static void via686a_init_client(struct i2c_client *client);
 
 /* following are the sysfs callback functions */
 
 /* 7 voltage sensors */
 static ssize_t show_in(struct device *dev, char *buf, int nr) {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct via686a_data *data = i2c_get_clientdata(client);
-	via686a_update_client(client);
-	return sprintf(buf, "%ld\n", IN_FROM_REG(data->in[nr], nr)*10 );
+	struct via686a_data *data = via686a_update_device(dev);
+	return sprintf(buf, "%ld\n", IN_FROM_REG(data->in[nr], nr));
 }
 
 static ssize_t show_in_min(struct device *dev, char *buf, int nr) {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct via686a_data *data = i2c_get_clientdata(client);
-	via686a_update_client(client);
-	return sprintf(buf, "%ld\n", IN_FROM_REG(data->in_min[nr], nr)*10 );
+	struct via686a_data *data = via686a_update_device(dev);
+	return sprintf(buf, "%ld\n", IN_FROM_REG(data->in_min[nr], nr));
 }
 
 static ssize_t show_in_max(struct device *dev, char *buf, int nr) {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct via686a_data *data = i2c_get_clientdata(client);
-	via686a_update_client(client);
-	return sprintf(buf, "%ld\n", IN_FROM_REG(data->in_max[nr], nr)*10 );
+	struct via686a_data *data = via686a_update_device(dev);
+	return sprintf(buf, "%ld\n", IN_FROM_REG(data->in_max[nr], nr));
 }
 
 static ssize_t set_in_min(struct device *dev, const char *buf, 
 		size_t count, int nr) {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct via686a_data *data = i2c_get_clientdata(client);
-	unsigned long val = simple_strtoul(buf, NULL, 10)/10;
+	unsigned long val = simple_strtoul(buf, NULL, 10);
 	data->in_min[nr] = IN_TO_REG(val,nr);
 	via686a_write_value(client, VIA686A_REG_IN_MIN(nr), 
 			data->in_min[nr]);
@@ -450,7 +373,7 @@ static ssize_t set_in_max(struct device *dev, const char *buf,
 		size_t count, int nr) {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct via686a_data *data = i2c_get_clientdata(client);
-	unsigned long val = simple_strtoul(buf, NULL, 10)/10;
+	unsigned long val = simple_strtoul(buf, NULL, 10);
 	data->in_max[nr] = IN_TO_REG(val,nr);
 	via686a_write_value(client, VIA686A_REG_IN_MAX(nr), 
 			data->in_max[nr]);
@@ -482,11 +405,11 @@ static ssize_t set_in##offset##_max (struct device *dev,	\
 {								\
 	return set_in_max(dev, buf, count, 0x##offset);		\
 }								\
-static DEVICE_ATTR(in_input##offset, S_IRUGO, show_in##offset, NULL) 	\
-static DEVICE_ATTR(in_min##offset, S_IRUGO | S_IWUSR, 		\
-		show_in##offset##_min, set_in##offset##_min)	\
-static DEVICE_ATTR(in_max##offset, S_IRUGO | S_IWUSR, 		\
-		show_in##offset##_max, set_in##offset##_max)
+static DEVICE_ATTR(in##offset##_input, S_IRUGO, show_in##offset, NULL);\
+static DEVICE_ATTR(in##offset##_min, S_IRUGO | S_IWUSR, 	\
+		show_in##offset##_min, set_in##offset##_min);	\
+static DEVICE_ATTR(in##offset##_max, S_IRUGO | S_IWUSR, 	\
+		show_in##offset##_max, set_in##offset##_max);
 
 show_in_offset(0);
 show_in_offset(1);
@@ -496,28 +419,22 @@ show_in_offset(4);
 
 /* 3 temperatures */
 static ssize_t show_temp(struct device *dev, char *buf, int nr) {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct via686a_data *data = i2c_get_clientdata(client);
-	via686a_update_client(client);
-	return sprintf(buf, "%ld\n", TEMP_FROM_REG10(data->temp[nr])*100 );
+	struct via686a_data *data = via686a_update_device(dev);
+	return sprintf(buf, "%ld\n", TEMP_FROM_REG10(data->temp[nr]));
 }
 static ssize_t show_temp_over(struct device *dev, char *buf, int nr) {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct via686a_data *data = i2c_get_clientdata(client);
-	via686a_update_client(client);
-	return sprintf(buf, "%ld\n", TEMP_FROM_REG(data->temp_over[nr])*100);
+	struct via686a_data *data = via686a_update_device(dev);
+	return sprintf(buf, "%ld\n", TEMP_FROM_REG(data->temp_over[nr]));
 }
 static ssize_t show_temp_hyst(struct device *dev, char *buf, int nr) {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct via686a_data *data = i2c_get_clientdata(client);
-	via686a_update_client(client);
-	return sprintf(buf, "%ld\n", TEMP_FROM_REG(data->temp_hyst[nr])*100);
+	struct via686a_data *data = via686a_update_device(dev);
+	return sprintf(buf, "%ld\n", TEMP_FROM_REG(data->temp_hyst[nr]));
 }
 static ssize_t set_temp_over(struct device *dev, const char *buf, 
 		size_t count, int nr) {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct via686a_data *data = i2c_get_clientdata(client);
-	int val = simple_strtol(buf, NULL, 10)/100;
+	int val = simple_strtol(buf, NULL, 10);
 	data->temp_over[nr] = TEMP_TO_REG(val);
 	via686a_write_value(client, VIA686A_REG_TEMP_OVER(nr), data->temp_over[nr]);
 	return count;
@@ -526,7 +443,7 @@ static ssize_t set_temp_hyst(struct device *dev, const char *buf,
 		size_t count, int nr) {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct via686a_data *data = i2c_get_clientdata(client);
-	int val = simple_strtol(buf, NULL, 10)/100;
+	int val = simple_strtol(buf, NULL, 10);
 	data->temp_hyst[nr] = TEMP_TO_REG(val);
 	via686a_write_value(client, VIA686A_REG_TEMP_HYST(nr), data->temp_hyst[nr]);
 	return count;
@@ -556,11 +473,11 @@ static ssize_t set_temp_##offset##_hyst (struct device *dev, 		\
 {									\
 	return set_temp_hyst(dev, buf, count, 0x##offset - 1);		\
 }									\
-static DEVICE_ATTR(temp_input##offset, S_IRUGO, show_temp_##offset, NULL) \
-static DEVICE_ATTR(temp_max##offset, S_IRUGO | S_IWUSR, 		\
-		show_temp_##offset##_over, set_temp_##offset##_over) 	\
-static DEVICE_ATTR(temp_hyst##offset, S_IRUGO | S_IWUSR, 		\
-		show_temp_##offset##_hyst, set_temp_##offset##_hyst)	
+static DEVICE_ATTR(temp##offset##_input, S_IRUGO, show_temp_##offset, NULL);\
+static DEVICE_ATTR(temp##offset##_max, S_IRUGO | S_IWUSR, 		\
+		show_temp_##offset##_over, set_temp_##offset##_over);	\
+static DEVICE_ATTR(temp##offset##_max_hyst, S_IRUGO | S_IWUSR, 		\
+		show_temp_##offset##_hyst, set_temp_##offset##_hyst);	
 
 show_temp_offset(1);
 show_temp_offset(2);
@@ -568,23 +485,17 @@ show_temp_offset(3);
 
 /* 2 Fans */
 static ssize_t show_fan(struct device *dev, char *buf, int nr) {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct via686a_data *data = i2c_get_clientdata(client);
-	via686a_update_client(client);
+	struct via686a_data *data = via686a_update_device(dev);
 	return sprintf(buf,"%d\n", FAN_FROM_REG(data->fan[nr], 
 				DIV_FROM_REG(data->fan_div[nr])) );
 }
 static ssize_t show_fan_min(struct device *dev, char *buf, int nr) {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct via686a_data *data = i2c_get_clientdata(client);
-	via686a_update_client(client);
+	struct via686a_data *data = via686a_update_device(dev);
 	return sprintf(buf,"%d\n",
 		FAN_FROM_REG(data->fan_min[nr], DIV_FROM_REG(data->fan_div[nr])) );
 }
 static ssize_t show_fan_div(struct device *dev, char *buf, int nr) {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct via686a_data *data = i2c_get_clientdata(client);
-	via686a_update_client(client);
+	struct via686a_data *data = via686a_update_device(dev);
 	return sprintf(buf,"%d\n", DIV_FROM_REG(data->fan_div[nr]) );
 }
 static ssize_t set_fan_min(struct device *dev, const char *buf, 
@@ -631,20 +542,18 @@ static ssize_t set_fan_##offset##_div (struct device *dev, 		\
 {									\
 	return set_fan_div(dev, buf, count, 0x##offset - 1);		\
 }									\
-static DEVICE_ATTR(fan_input##offset, S_IRUGO, show_fan_##offset, NULL) \
-static DEVICE_ATTR(fan_min##offset, S_IRUGO | S_IWUSR, 			\
-		show_fan_##offset##_min, set_fan_##offset##_min) 	\
-static DEVICE_ATTR(fan_div##offset, S_IRUGO | S_IWUSR, 			\
-		show_fan_##offset##_div, set_fan_##offset##_div)
+static DEVICE_ATTR(fan##offset##_input, S_IRUGO, show_fan_##offset, NULL);\
+static DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR, 		\
+		show_fan_##offset##_min, set_fan_##offset##_min);	\
+static DEVICE_ATTR(fan##offset##_div, S_IRUGO | S_IWUSR, 		\
+		show_fan_##offset##_div, set_fan_##offset##_div);
 
 show_fan_offset(1);
 show_fan_offset(2);
 
 /* Alarms */
 static ssize_t show_alarms(struct device *dev, char *buf) {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct via686a_data *data = i2c_get_clientdata(client);
-	via686a_update_client(client);
+	struct via686a_data *data = via686a_update_device(dev);
 	return sprintf(buf,"%d\n", ALARMS_FROM_REG(data->alarms));
 }
 static DEVICE_ATTR(alarms, S_IRUGO | S_IWUSR, show_alarms, NULL);
@@ -653,7 +562,7 @@ static DEVICE_ATTR(alarms, S_IRUGO | S_IWUSR, show_alarms, NULL);
    smbus_driver and isa_driver, and clients could be of either kind */
 static struct i2c_driver via686a_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "VIA686A",
+	.name		= "via686a",
 	.id		= I2C_DRIVERID_VIA686A,
 	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= via686a_attach_adapter,
@@ -664,7 +573,7 @@ static struct i2c_driver via686a_driver = {
 /* This is called when the module is loaded */
 static int via686a_attach_adapter(struct i2c_adapter *adapter)
 {
-	if (!(adapter->class & I2C_ADAP_CLASS_SMBUS))
+	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
 	return i2c_detect(adapter, &addr_data, via686a_detect);
 }
@@ -712,16 +621,13 @@ static int via686a_detect(struct i2c_adapter *adapter, int address, int kind)
 		return -ENODEV;
 	}
 
-	if (!(new_client = kmalloc(sizeof(struct i2c_client) +
-				   sizeof(struct via686a_data),
-				   GFP_KERNEL))) {
+	if (!(data = kmalloc(sizeof(struct via686a_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto ERROR0;
 	}
+	memset(data, 0, sizeof(struct via686a_data));
 
-	memset(new_client,0x00, sizeof(struct i2c_client) +
-				sizeof(struct via686a_data));
-	data = (struct via686a_data *) (new_client + 1);
+	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
 	new_client->adapter = adapter;
@@ -742,44 +648,44 @@ static int via686a_detect(struct i2c_adapter *adapter, int address, int kind)
 	via686a_init_client(new_client);
 
 	/* Register sysfs hooks */
-	device_create_file(&new_client->dev, &dev_attr_in_input0);
-	device_create_file(&new_client->dev, &dev_attr_in_input1);
-	device_create_file(&new_client->dev, &dev_attr_in_input2);
-	device_create_file(&new_client->dev, &dev_attr_in_input3);
-	device_create_file(&new_client->dev, &dev_attr_in_input4);
-	device_create_file(&new_client->dev, &dev_attr_in_min0);
-	device_create_file(&new_client->dev, &dev_attr_in_min1);
-	device_create_file(&new_client->dev, &dev_attr_in_min2);
-	device_create_file(&new_client->dev, &dev_attr_in_min3);
-	device_create_file(&new_client->dev, &dev_attr_in_min4);
-	device_create_file(&new_client->dev, &dev_attr_in_max0);
-	device_create_file(&new_client->dev, &dev_attr_in_max1);
-	device_create_file(&new_client->dev, &dev_attr_in_max2);
-	device_create_file(&new_client->dev, &dev_attr_in_max3);
-	device_create_file(&new_client->dev, &dev_attr_in_max4);
-	device_create_file(&new_client->dev, &dev_attr_temp_input1);
-	device_create_file(&new_client->dev, &dev_attr_temp_input2);
-	device_create_file(&new_client->dev, &dev_attr_temp_input3);
-	device_create_file(&new_client->dev, &dev_attr_temp_max1);
-	device_create_file(&new_client->dev, &dev_attr_temp_max2);
-	device_create_file(&new_client->dev, &dev_attr_temp_max3);
-	device_create_file(&new_client->dev, &dev_attr_temp_hyst1);
-	device_create_file(&new_client->dev, &dev_attr_temp_hyst2);
-	device_create_file(&new_client->dev, &dev_attr_temp_hyst3);
-	device_create_file(&new_client->dev, &dev_attr_fan_input1);
-	device_create_file(&new_client->dev, &dev_attr_fan_input2);
-	device_create_file(&new_client->dev, &dev_attr_fan_min1);
-	device_create_file(&new_client->dev, &dev_attr_fan_min2);
-	device_create_file(&new_client->dev, &dev_attr_fan_div1);
-	device_create_file(&new_client->dev, &dev_attr_fan_div2);
+	device_create_file(&new_client->dev, &dev_attr_in0_input);
+	device_create_file(&new_client->dev, &dev_attr_in1_input);
+	device_create_file(&new_client->dev, &dev_attr_in2_input);
+	device_create_file(&new_client->dev, &dev_attr_in3_input);
+	device_create_file(&new_client->dev, &dev_attr_in4_input);
+	device_create_file(&new_client->dev, &dev_attr_in0_min);
+	device_create_file(&new_client->dev, &dev_attr_in1_min);
+	device_create_file(&new_client->dev, &dev_attr_in2_min);
+	device_create_file(&new_client->dev, &dev_attr_in3_min);
+	device_create_file(&new_client->dev, &dev_attr_in4_min);
+	device_create_file(&new_client->dev, &dev_attr_in0_max);
+	device_create_file(&new_client->dev, &dev_attr_in1_max);
+	device_create_file(&new_client->dev, &dev_attr_in2_max);
+	device_create_file(&new_client->dev, &dev_attr_in3_max);
+	device_create_file(&new_client->dev, &dev_attr_in4_max);
+	device_create_file(&new_client->dev, &dev_attr_temp1_input);
+	device_create_file(&new_client->dev, &dev_attr_temp2_input);
+	device_create_file(&new_client->dev, &dev_attr_temp3_input);
+	device_create_file(&new_client->dev, &dev_attr_temp1_max);
+	device_create_file(&new_client->dev, &dev_attr_temp2_max);
+	device_create_file(&new_client->dev, &dev_attr_temp3_max);
+	device_create_file(&new_client->dev, &dev_attr_temp1_max_hyst);
+	device_create_file(&new_client->dev, &dev_attr_temp2_max_hyst);
+	device_create_file(&new_client->dev, &dev_attr_temp3_max_hyst);
+	device_create_file(&new_client->dev, &dev_attr_fan1_input);
+	device_create_file(&new_client->dev, &dev_attr_fan2_input);
+	device_create_file(&new_client->dev, &dev_attr_fan1_min);
+	device_create_file(&new_client->dev, &dev_attr_fan2_min);
+	device_create_file(&new_client->dev, &dev_attr_fan1_div);
+	device_create_file(&new_client->dev, &dev_attr_fan2_div);
 	device_create_file(&new_client->dev, &dev_attr_alarms);
 
 	return 0;
 
       ERROR3:
-	release_region(address, VIA686A_EXTENT);
-	kfree(new_client);
+	kfree(data);
       ERROR0:
+	release_region(address, VIA686A_EXTENT);
 	return err;
 }
 
@@ -794,7 +700,7 @@ static int via686a_detach_client(struct i2c_client *client)
 	}
 
 	release_region(client->addr, VIA686A_EXTENT);
-	kfree(client);
+	kfree(i2c_get_clientdata(client));
 
 	return 0;
 }
@@ -802,60 +708,21 @@ static int via686a_detach_client(struct i2c_client *client)
 /* Called when we have found a new VIA686A. Set limits, etc. */
 static void via686a_init_client(struct i2c_client *client)
 {
-	int i;
-
-	/* Reset the device */
-	via686a_write_value(client, VIA686A_REG_CONFIG, 0x80);
-
-	/* Have to wait for reset to complete or else the following
-	   initializations won't work reliably. The delay was arrived at
-	   empirically, the datasheet doesn't tell you.
-	   Waiting for the reset bit to clear doesn't work, it
-	   clears in about 2-4 udelays and that isn't nearly enough. */
-	udelay(50);
-
-	via686a_write_value(client, VIA686A_REG_IN_MIN(0),
-			    IN_TO_REG(VIA686A_INIT_IN_MIN_0, 0));
-	via686a_write_value(client, VIA686A_REG_IN_MAX(0),
-			    IN_TO_REG(VIA686A_INIT_IN_MAX_0, 0));
-	via686a_write_value(client, VIA686A_REG_IN_MIN(1),
-			    IN_TO_REG(VIA686A_INIT_IN_MIN_1, 1));
-	via686a_write_value(client, VIA686A_REG_IN_MAX(1),
-			    IN_TO_REG(VIA686A_INIT_IN_MAX_1, 1));
-	via686a_write_value(client, VIA686A_REG_IN_MIN(2),
-			    IN_TO_REG(VIA686A_INIT_IN_MIN_2, 2));
-	via686a_write_value(client, VIA686A_REG_IN_MAX(2),
-			    IN_TO_REG(VIA686A_INIT_IN_MAX_2, 2));
-	via686a_write_value(client, VIA686A_REG_IN_MIN(3),
-			    IN_TO_REG(VIA686A_INIT_IN_MIN_3, 3));
-	via686a_write_value(client, VIA686A_REG_IN_MAX(3),
-			    IN_TO_REG(VIA686A_INIT_IN_MAX_3, 3));
-	via686a_write_value(client, VIA686A_REG_IN_MIN(4),
-			    IN_TO_REG(VIA686A_INIT_IN_MIN_4, 4));
-	via686a_write_value(client, VIA686A_REG_IN_MAX(4),
-			    IN_TO_REG(VIA686A_INIT_IN_MAX_4, 4));
-	via686a_write_value(client, VIA686A_REG_FAN_MIN(1),
-			    FAN_TO_REG(VIA686A_INIT_FAN_MIN, 2));
-	via686a_write_value(client, VIA686A_REG_FAN_MIN(2),
-			    FAN_TO_REG(VIA686A_INIT_FAN_MIN, 2));
-	for (i = 0; i <= 2; i++) {
-		via686a_write_value(client, VIA686A_REG_TEMP_OVER(i),
-				    TEMP_TO_REG(VIA686A_INIT_TEMP_OVER));
-		via686a_write_value(client, VIA686A_REG_TEMP_HYST(i),
-				    TEMP_TO_REG(VIA686A_INIT_TEMP_HYST));
-	}
+	u8 reg;
 
 	/* Start monitoring */
-	via686a_write_value(client, VIA686A_REG_CONFIG, 0x01);
+	reg = via686a_read_value(client, VIA686A_REG_CONFIG);
+	via686a_write_value(client, VIA686A_REG_CONFIG, (reg|0x01)&0x7F);
 
-	/* Cofigure temp interrupt mode for continuous-interrupt operation */
+	/* Configure temp interrupt mode for continuous-interrupt operation */
 	via686a_write_value(client, VIA686A_REG_TEMP_MODE, 
 			    via686a_read_value(client, VIA686A_REG_TEMP_MODE) &
 			    !(VIA686A_TEMP_MODE_MASK | VIA686A_TEMP_MODE_CONTINUOUS));
 }
 
-static void via686a_update_client(struct i2c_client *client)
+static struct via686a_data *via686a_update_device(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct via686a_data *data = i2c_get_clientdata(client);
 	int i;
 
@@ -916,6 +783,8 @@ static void via686a_update_client(struct i2c_client *client)
 	}
 
 	up(&data->update_lock);
+
+	return data;
 }
 
 static struct pci_device_id via686a_pci_ids[] = {

@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/ioport.h>
 #include <linux/sysctl.h>
@@ -41,11 +42,6 @@ static int daca_detach_client(struct i2c_client *client);
 
 /* Unique ID allocation */
 static int daca_id;
-
-struct daca_data
-{
-	int arf; /* place holder for furture use */
-};
 
 struct i2c_driver daca_driver = {  
 	.owner			= THIS_MODULE,
@@ -102,14 +98,14 @@ int daca_leave_sleep(void)
 	/* Do a short sleep, just to make sure I2C bus is awake and paying
 	 * attention to us
 	 */
-	wait_ms(20);
+	msleep(20);
 	/* Write the sample rate reg the value it needs */
 	i2c_smbus_write_byte_data(daca_client, 1, 8);
 	daca_set_volume(cur_left_vol >> 5, cur_right_vol >> 5);
 	/* Another short delay, just to make sure the other I2C bus writes
 	 * have taken...
 	 */
-	wait_ms(20);
+	msleep(20);
 	/* Write the global config reg - invert right power amp,
 	 * DAC on, use 5-volt mode */
 	i2c_smbus_write_byte_data(daca_client, 3, 0x45);
@@ -168,12 +164,12 @@ static int daca_detect_client(struct i2c_adapter *adapter, int address)
 {
 	const char *client_name = "DAC 3550A Digital Equalizer";
 	struct i2c_client *new_client;
-	struct daca_data *data;
 	int rc = -ENODEV;
 
-	new_client = kmalloc(sizeof(*new_client) + sizeof(*data), GFP_KERNEL);
+	new_client = kmalloc(sizeof(*new_client), GFP_KERNEL);
 	if (!new_client)
 		return -ENOMEM;
+	memset(new_client, 0, sizeof(*new_client));
 
 	new_client->addr = address;
 	new_client->adapter = adapter;
@@ -181,9 +177,6 @@ static int daca_detect_client(struct i2c_adapter *adapter, int address)
 	new_client->flags = 0;
 	strcpy(new_client->name, client_name);
 	new_client->id = daca_id++; /* racy... */
-
-	data = (struct daca_data *)(new_client+1);
-	dev_set_drvdata(&new_client->dev, data);
 
 	if (daca_init_client(new_client))
 		goto bail;

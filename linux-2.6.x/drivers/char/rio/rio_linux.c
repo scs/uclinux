@@ -27,11 +27,8 @@
  *
  * Revision history:
  * $Log$
- * Revision 1.1  2004/07/19 12:04:08  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:20:59  nidhi
- * Importing
+ * Revision 1.1.1.2  2004/09/07 09:26:08  lgsoft
+ * Import of 2.6.8
  *
  * Revision 1.1  1999/07/11 10:13:54  wolff
  * Initial revision
@@ -734,6 +731,11 @@ static int rio_ioctl (struct tty_struct * tty, struct file * filp,
       rc = gs_setserial(&PortP->gs, (struct serial_struct *) arg);
     break;
 #if 0
+  /*
+   * note: these IOCTLs no longer reach here.  Use
+   * tiocmset/tiocmget driver methods instead.  The
+   * #if 0 disablement predates this comment.
+   */
   case TIOCMGET:
     if ((rc = verify_area(VERIFY_WRITE, (void *) arg,
                           sizeof(unsigned int))) == 0) {

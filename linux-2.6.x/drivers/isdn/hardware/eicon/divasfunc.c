@@ -29,7 +29,6 @@ extern PISDN_ADAPTER IoAdapters[MAX_ADAPTER];
 
 #define MAX_DESCRIPTORS  32
 
-extern void diva_run_trap_script(PISDN_ADAPTER IoAdapter, dword ANum);
 extern char *DRIVERRELEASE_DIVAS;
 
 static dword notify_handle;
@@ -87,10 +86,8 @@ void diva_xdi_didd_register_adapter(int card)
 		DAdapter.request((ENTITY *) & req);
 		if (req.didd_add_adapter.e.Rc != 0xff) {
 			DBG_ERR(("DIDD register A(%d) failed !", card))
-		} else {
-			IoAdapters[card - 1]->os_trap_nfy_Fnc =
-			    diva_run_trap_script;
 		}
+		IoAdapters[card - 1]->os_trap_nfy_Fnc = NULL;
 	}
 }
 
@@ -176,7 +173,7 @@ static int DIVA_INIT_FUNCTION connect_didd(void)
 			req.didd_notify.e.Rc =
 			    IDI_SYNC_REQ_DIDD_REGISTER_ADAPTER_NOTIFY;
 			req.didd_notify.info.callback = (void *)didd_callback;
-			req.didd_notify.info.context = 0;
+			req.didd_notify.info.context = NULL;
 			DAdapter.request((ENTITY *) & req);
 			if (req.didd_notify.e.Rc != 0xff) {
 				stop_dbg();

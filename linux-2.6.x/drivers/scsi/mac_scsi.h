@@ -24,11 +24,8 @@
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 12:17:58  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:21:55  nidhi
- * Importing
+ * Revision 1.1.1.2  2004/09/07 09:30:18  lgsoft
+ * Import of 2.6.8
  *
  */
 

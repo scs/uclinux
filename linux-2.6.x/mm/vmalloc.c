@@ -17,7 +17,6 @@
 #include <linux/vmalloc.h>
 
 #include <asm/uaccess.h>
-#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
 
@@ -114,15 +113,16 @@ static int map_area_pmd(pmd_t *pmd, unsigned long address,
 			       unsigned long size, pgprot_t prot,
 			       struct page ***pages)
 {
-	unsigned long end;
+	unsigned long base, end;
 
+	base = address & PGDIR_MASK;
 	address &= ~PGDIR_MASK;
 	end = address + size;
 	if (end > PGDIR_SIZE)
 		end = PGDIR_SIZE;
 
 	do {
-		pte_t * pte = pte_alloc_kernel(&init_mm, pmd, address);
+		pte_t * pte = pte_alloc_kernel(&init_mm, pmd, base + address);
 		if (!pte)
 			return -ENOMEM;
 		if (map_area_pte(pte, address, end - address, prot, pages))
@@ -199,7 +199,7 @@ struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 	}
 
 	write_lock(&vmlist_lock);
-	for (p = &vmlist; (tmp = *p) ;p = &tmp->next) {
+	for (p = &vmlist; (tmp = *p) != NULL ;p = &tmp->next) {
 		if ((unsigned long)tmp->addr < addr)
 			continue;
 		if ((size + addr) < addr)
@@ -260,7 +260,7 @@ struct vm_struct *remove_vm_area(void *addr)
 	struct vm_struct **p, *tmp;
 
 	write_lock(&vmlist_lock);
-	for (p = &vmlist ; (tmp = *p) ;p = &tmp->next) {
+	for (p = &vmlist ; (tmp = *p) != NULL ;p = &tmp->next) {
 		 if (tmp->addr == addr)
 			 goto found;
 	}
@@ -283,6 +283,7 @@ void __vunmap(void *addr, int deallocate_pages)
 
 	if ((PAGE_SIZE-1) & (unsigned long)addr) {
 		printk(KERN_ERR "Trying to vfree() bad address (%p)\n", addr);
+		WARN_ON(1);
 		return;
 	}
 
@@ -290,6 +291,7 @@ void __vunmap(void *addr, int deallocate_pages)
 	if (unlikely(!area)) {
 		printk(KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
 				addr);
+		WARN_ON(1);
 		return;
 	}
 	
@@ -451,6 +453,28 @@ void *vmalloc(unsigned long size)
 }
 
 EXPORT_SYMBOL(vmalloc);
+
+/**
+ *	vmalloc_exec  -  allocate virtually contiguous, executable memory
+ *
+ *	@size:		allocation size
+ *
+ *	Kernel-internal function to allocate enough pages to cover @size
+ *	the page level allocator and map them into contiguous and
+ *	executable kernel virtual space.
+ *
+ *	For tight cotrol over page level allocator and protection flags
+ *	use __vmalloc() instead.
+ */
+
+#ifndef PAGE_KERNEL_EXEC
+# define PAGE_KERNEL_EXEC PAGE_KERNEL
+#endif
+
+void *vmalloc_exec(unsigned long size)
+{
+	return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL_EXEC);
+}
 
 /**
  *	vmalloc_32  -  allocate virtually contiguous memory (32bit addressable)

@@ -1,6 +1,13 @@
-/* Kernel module to match connection tracking information.
- * GPL (C) 1999  Rusty Russell (rusty@rustcorp.com.au).
+/* Kernel module to match connection tracking information. */
+
+/* (C) 1999-2001 Paul `Rusty' Russell
+ * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
+
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
@@ -23,7 +30,9 @@ match(const struct sk_buff *skb,
 	enum ip_conntrack_info ctinfo;
 	unsigned int statebit;
 
-	if (!ip_conntrack_get((struct sk_buff *)skb, &ctinfo))
+	if (skb->nfct == &ip_conntrack_untracked.infos[IP_CT_NEW])
+		statebit = IPT_STATE_UNTRACKED;
+	else if (!ip_conntrack_get((struct sk_buff *)skb, &ctinfo))
 		statebit = IPT_STATE_INVALID;
 	else
 		statebit = IPT_STATE_BIT(ctinfo);

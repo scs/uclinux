@@ -6,22 +6,19 @@
  * Code common to all TSUNAMI core logic chips.
  */
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/pci.h>
-#include <linux/sched.h>
-#include <linux/init.h>
-
-#include <asm/ptrace.h>
-#include <asm/system.h>
-#include <asm/smp.h>
-
 #define __EXTERN_INLINE inline
 #include <asm/io.h>
 #include <asm/core_tsunami.h>
 #undef __EXTERN_INLINE
 
+#include <linux/types.h>
+#include <linux/pci.h>
+#include <linux/sched.h>
+#include <linux/init.h>
 #include <linux/bootmem.h>
+
+#include <asm/ptrace.h>
+#include <asm/smp.h>
 
 #include "proto.h"
 #include "pci_impl.h"
@@ -266,9 +263,9 @@ tsunami_init_one_pchip(tsunami_pchip *pchip, int index)
 	hose->sparse_mem_base = 0;
 	hose->sparse_io_base = 0;
 	hose->dense_mem_base
-	  = (TSUNAMI_MEM(index) & 0xffffffffff) | 0x80000000000;
+	  = (TSUNAMI_MEM(index) & 0xffffffffffL) | 0x80000000000L;
 	hose->dense_io_base
-	  = (TSUNAMI_IO(index) & 0xffffffffff) | 0x80000000000;
+	  = (TSUNAMI_IO(index) & 0xffffffffffL) | 0x80000000000L;
 
 	hose->config_space_base = TSUNAMI_CONF(index);
 	hose->index = index;

@@ -84,14 +84,15 @@ acpi_ex_create_alias (
 	alias_node = (struct acpi_namespace_node *) walk_state->operands[0];
 	target_node = (struct acpi_namespace_node *) walk_state->operands[1];
 
-	if (target_node->type == ACPI_TYPE_LOCAL_ALIAS) {
+	if ((target_node->type == ACPI_TYPE_LOCAL_ALIAS) ||
+		(target_node->type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
 		/*
 		 * Dereference an existing alias so that we don't create a chain
 		 * of aliases.  With this code, we guarantee that an alias is
 		 * always exactly one level of indirection away from the
 		 * actual aliased name.
 		 */
-		target_node = (struct acpi_namespace_node *) target_node->object;
+		target_node = ACPI_CAST_PTR (struct acpi_namespace_node, target_node->object);
 	}
 
 	/*
@@ -114,6 +115,17 @@ acpi_ex_create_alias (
 		 * types, the object can change dynamically via a Store.
 		 */
 		alias_node->type = ACPI_TYPE_LOCAL_ALIAS;
+		alias_node->object = ACPI_CAST_PTR (union acpi_operand_object, target_node);
+		break;
+
+	case ACPI_TYPE_METHOD:
+
+		/*
+		 * The new alias has the type ALIAS and points to the original
+		 * NS node, not the object itself.  This is because for these
+		 * types, the object can change dynamically via a Store.
+		 */
+		alias_node->type = ACPI_TYPE_LOCAL_METHOD_ALIAS;
 		alias_node->object = ACPI_CAST_PTR (union acpi_operand_object, target_node);
 		break;
 
@@ -587,27 +599,33 @@ acpi_ex_create_method (
 	obj_desc->method.aml_start = aml_start;
 	obj_desc->method.aml_length = aml_length;
 
-	/* disassemble the method flags */
-
+	/*
+	 * Disassemble the method flags.  Split off the Arg Count
+	 * for efficiency
+	 */
 	method_flags = (u8) operand[1]->integer.value;
 
-	obj_desc->method.method_flags = method_flags;
-	obj_desc->method.param_count = (u8) (method_flags & METHOD_FLAGS_ARG_COUNT);
+	obj_desc->method.method_flags = (u8) (method_flags & ~AML_METHOD_ARG_COUNT);
+	obj_desc->method.param_count = (u8) (method_flags & AML_METHOD_ARG_COUNT);
 
 	/*
 	 * Get the concurrency count.  If required, a semaphore will be
 	 * created for this method when it is parsed.
 	 */
-	if (method_flags & METHOD_FLAGS_SERIALIZED) {
+	if (acpi_gbl_all_methods_serialized) {
+		obj_desc->method.concurrency = 1;
+		obj_desc->method.method_flags |= AML_METHOD_SERIALIZED;
+	}
+	else if (method_flags & AML_METHOD_SERIALIZED) {
 		/*
 		 * ACPI 1.0: Concurrency = 1
 		 * ACPI 2.0: Concurrency = (sync_level (in method declaration) + 1)
 		 */
 		obj_desc->method.concurrency = (u8)
-				  (((method_flags & METHOD_FLAGS_SYNCH_LEVEL) >> 4) + 1);
+				  (((method_flags & AML_METHOD_SYNCH_LEVEL) >> 4) + 1);
 	}
 	else {
-		obj_desc->method.concurrency = INFINITE_CONCURRENCY;
+		obj_desc->method.concurrency = ACPI_INFINITE_CONCURRENCY;
 	}
 
 	/* Attach the new object to the method Node */

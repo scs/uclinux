@@ -12,12 +12,14 @@
  * to ABI64 calling convention.  64-bit syscalls are also processed
  * here for now.
  */
+#include <linux/config.h>
 #include <linux/errno.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/mipsregs.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
+#include <asm/thread_info.h>
 #include <asm/unistd.h>
 #include <asm/sysmips.h>
 
@@ -32,8 +34,8 @@ NESTED(handle_sys, PT_SIZE, sp)
 	subu	t0, v0, __NR_O32_Linux	# check syscall number
 	sltiu	t0, t0, __NR_O32_Linux_syscalls + 1
 	daddiu	t1, 4			# skip to next instruction
-	beqz	t0, not_o32_scall
 	sd	t1, PT_EPC(sp)
+	beqz	t0, not_o32_scall
 #if 0
  SAVE_ALL
  move a1, v0
@@ -56,8 +58,9 @@ NESTED(handle_sys, PT_SIZE, sp)
 	bgez	t0, stackargs
 
 stack_done:
-	LONG_L	t0, TI_FLAGS($28)
-					# syscall tracing enabled?
+	li	t1, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
+	LONG_L	t0, TI_FLAGS($28)	# syscall tracing enabled?
+	and	t0, t1, t0
 	bnez	t0, trace_a_syscall
 
 	jalr	t2			# Do The Real Thing (TM)
@@ -76,14 +79,14 @@ FEXPORT(o32_syscall_exit)
 					# signals dont change between
 					# sampling and return
 	LONG_L	a2, TI_FLAGS($28)
-	bnez	a2, o32_syscall_exit_work
+	li	t0, _TIF_ALLWORK_MASK
+	and	t0, a2, t0
+	bnez	t0, o32_syscall_exit_work
 
-	RESTORE_SOME
-	RESTORE_SP_AND_RET
+	j	restore_partial
 
 o32_syscall_exit_work:
-	SAVE_STATIC
-	j	syscall_exit_work
+	j	syscall_exit_work_partial
 
 /* ------------------------------------------------------------------------ */
 
@@ -95,6 +98,8 @@ trace_a_syscall:
 	sd	a7, PT_R11(sp)
 
 	sd	t2,PT_R1(sp)
+	move	a0, sp
+	li	a1, 0
 	jal	do_syscall_trace
 	ld	t2,PT_R1(sp)
 
@@ -315,7 +320,7 @@ out:	jr	ra
 	sys	sys_olduname	1
 	sys	sys_umask	1			/* 4060 */
 	sys	sys_chroot	1
-	sys	sys_ustat	2
+	sys	sys32_ustat	2
 	sys	sys_dup2	2
 	sys	sys_getppid	0
 	sys	sys_getpgrp	0			/* 4065 */
@@ -355,7 +360,7 @@ out:	jr	ra
 	sys	compat_sys_statfs	2
 	sys	compat_sys_fstatfs	2		/* 4100 */
 	sys	sys_ni_syscall		0		/* sys_ioperm */
-	sys	sys_socketcall		2
+	sys	sys32_socketcall		2
 	sys	sys_syslog		3
 	sys	compat_sys_setitimer	3
 	sys	compat_sys_getitimer	2	/* 4105 */
@@ -395,11 +400,11 @@ out:	jr	ra
 	sys	sys_setfsgid	1
 	sys	sys32_llseek	5			/* 4140 */
 	sys	sys32_getdents	3
-	sys	sys32_select	5
+	sys	compat_sys_select	5
 	sys	sys_flock	2
 	sys	sys_msync	3
-	sys	sys32_readv	3			/* 4145 */
-	sys	sys32_writev	3
+	sys	compat_sys_readv	3		/* 4145 */
+	sys	compat_sys_writev	3
 	sys	sys_cacheflush	3
 	sys	sys_cachectl	3
 	sys	sys_sysmips	4
@@ -492,8 +497,8 @@ out:	jr	ra
 	sys	sys_tkill		2
 	sys	sys_sendfile64		5
 	sys	compat_sys_futex	5
-	sys	sys32_sched_setaffinity	3
-	sys	sys32_sched_getaffinity	3		/* 4240 */
+	sys	compat_sys_sched_setaffinity	3
+	sys	compat_sys_sched_getaffinity	3	/* 4240 */
 	sys	sys_io_setup		2
 	sys	sys_io_destroy		1
 	sys	sys_io_getevents	5
@@ -507,7 +512,7 @@ out:	jr	ra
 	sys	sys_remap_file_pages	5
 	sys	sys_set_tid_address	1
 	sys	sys_restart_syscall	0
-	sys	sys_fadvise64		6
+	sys	sys_fadvise64_64	7
 	sys	sys_statfs64		3		/* 4255 */
 	sys	sys_fstatfs64		2
 	sys	sys_timer_create	3
@@ -521,6 +526,16 @@ out:	jr	ra
 	sys	sys_clock_nanosleep	4		/* 4265 */
 	sys	sys_tgkill		3
 	sys	compat_sys_utimes	2
+	sys	sys_ni_syscall		0	/* sys_mbind */
+	sys	sys_ni_syscall		0	/* sys_get_mempolicy */
+	sys	sys_ni_syscall		0	/* 4270 sys_set_mempolicy */
+	sys	compat_sys_mq_open	4
+	sys	sys_mq_unlink		1
+	sys	compat_sys_mq_timedsend	5
+	sys	compat_sys_mq_timedreceive 5
+	sys	compat_sys_mq_notify	2	/* 4275 */
+	sys	compat_sys_mq_getsetattr 3
+	sys	sys_ni_syscall		0	/* sys_vserver */
 
 	.endm
 

@@ -30,8 +30,6 @@
 #ifndef _VXFS_OLT_H_
 #define _VXFS_OLT_H_
 
-#ident "$Id$"
-
 /*
  * Veritas filesystem driver - Object Location Table data structures.
  *

@@ -1,4 +1,13 @@
 /* FTP extension for TCP NAT alteration. */
+
+/* (C) 1999-2001 Paul `Rusty' Russell
+ * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
 #include <linux/module.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/ip.h>
@@ -24,9 +33,7 @@ MODULE_DESCRIPTION("ftp NAT helper");
 static int ports[MAX_PORTS];
 static int ports_c;
 
-#ifdef MODULE_PARM
 MODULE_PARM(ports, "1-" __MODULE_STRING(MAX_PORTS) "i");
-#endif
 
 DECLARE_LOCK_EXTERN(ip_ftp_lock);
 

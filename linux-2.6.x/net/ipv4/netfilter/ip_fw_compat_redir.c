@@ -7,12 +7,22 @@
    FIXME: Timing is overly simplistic.  If anyone complains, make it
    use conntrack.
 */
+
+/* (C) 1999-2001 Paul `Rusty' Russell
+ * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
 #include <linux/config.h>
 #include <linux/netfilter.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
 #include <linux/tcp.h>
 #include <net/checksum.h>
+#include <net/ip.h>
 #include <linux/timer.h>
 #include <linux/netdevice.h>
 #include <linux/if.h>

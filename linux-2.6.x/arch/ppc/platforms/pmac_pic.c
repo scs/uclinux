@@ -34,6 +34,7 @@
 #include <asm/time.h>
 #include <asm/open_pic.h>
 #include <asm/xmon.h>
+#include <asm/pmac_feature.h>
 
 #include "pmac_pic.h"
 
@@ -143,6 +144,22 @@ static void __pmac pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
 	spin_unlock_irqrestore(&pmac_pic_lock, flags);
 }
 
+/* When an irq gets requested for the first client, if it's an
+ * edge interrupt, we clear any previous one on the controller
+ */
+static unsigned int __pmac pmac_startup_irq(unsigned int irq_nr)
+{
+        unsigned long bit = 1UL << (irq_nr & 0x1f);
+        int i = irq_nr >> 5;
+
+	if ((irq_desc[irq_nr].status & IRQ_LEVEL) == 0)
+		out_le32(&pmac_irq_hw[i]->ack, bit);
+        set_bit(irq_nr, ppc_cached_irq_mask);
+        pmac_set_irq_mask(irq_nr, 0);
+
+	return 0;
+}
+
 static void __pmac pmac_mask_irq(unsigned int irq_nr)
 {
         clear_bit(irq_nr, ppc_cached_irq_mask);
@@ -167,25 +184,21 @@ static void __pmac pmac_end_irq(unsigned int irq_nr)
 
 
 struct hw_interrupt_type pmac_pic = {
-        " PMAC-PIC ",
-        NULL,
-        NULL,
-        pmac_unmask_irq,
-        pmac_mask_irq,
-        pmac_mask_and_ack_irq,
-        pmac_end_irq,
-        NULL
+	.typename	= " PMAC-PIC ",
+	.startup	= pmac_startup_irq,
+	.enable		= pmac_unmask_irq,
+	.disable	= pmac_mask_irq,
+	.ack		= pmac_mask_and_ack_irq,
+	.end		= pmac_end_irq,
 };
 
 struct hw_interrupt_type gatwick_pic = {
-	" GATWICK  ",
-	NULL,
-	NULL,
-	pmac_unmask_irq,
-	pmac_mask_irq,
-	pmac_mask_and_ack_irq,
-	pmac_end_irq,
-	NULL
+	.typename	= " GATWICK  ",
+	.startup	= pmac_startup_irq,
+	.enable		= pmac_unmask_irq,
+	.disable	= pmac_mask_irq,
+	.ack		= pmac_mask_and_ack_irq,
+	.end		= pmac_end_irq,
 };
 
 static irqreturn_t gatwick_action(int cpl, void *dev_id, struct pt_regs *regs)
@@ -259,7 +272,7 @@ pmac_fix_gatwick_interrupts(struct device_node *gw, int irq_base)
 					node->child->intrs = &gatwick_int_pool[count];
 					count += 3;
 				}
-				node->child->n_intrs = 3;			
+				node->child->n_intrs = 3;
 				node->child->intrs[0].line = 15+irq_base;
 				node->child->intrs[1].line =  4+irq_base;
 				node->child->intrs[2].line =  5+irq_base;
@@ -278,7 +291,7 @@ pmac_fix_gatwick_interrupts(struct device_node *gw, int irq_base)
 			node->intrs[0].line = 29+irq_base;
 			printk(KERN_INFO "irq: fixed media-bay on second controller (%d)\n",
 					node->intrs[0].line);
-		
+
 			ya_node = node->child;
 			while(ya_node)
 			{
@@ -363,32 +376,76 @@ static int __init enable_second_ohare(void)
 	return irqctrler->intrs[0].line;
 }
 
-void __init
-pmac_pic_init(void)
+#ifdef CONFIG_POWER4
+static irqreturn_t k2u3_action(int cpl, void *dev_id, struct pt_regs *regs)
+{
+	int irq;
+
+	irq = openpic2_get_irq(regs);
+	if (irq != -1)
+		ppc_irq_dispatch_handler(regs, irq);
+	return IRQ_HANDLED;
+}
+#endif /* CONFIG_POWER4 */
+
+void __init pmac_pic_init(void)
 {
         int i;
-        struct device_node *irqctrler;
+        struct device_node *irqctrler  = NULL;
+        struct device_node *irqctrler2 = NULL;
+	struct device_node *np;
         unsigned long addr;
 	int irq_cascade = -1;
 
 	/* We first try to detect Apple's new Core99 chipset, since mac-io
 	 * is quite different on those machines and contains an IBM MPIC2.
 	 */
-	irqctrler = find_type_devices("open-pic");
+	np = find_type_devices("open-pic");
+	while(np) {
+		if (np->parent && !strcmp(np->parent->name, "u3"))
+			irqctrler2 = np;
+		else
+			irqctrler = np;
+		np = np->next;
+	}
 	if (irqctrler != NULL)
 	{
-		printk("PowerMac using OpenPIC irq controller\n");
 		if (irqctrler->n_addrs > 0)
 		{
-			unsigned char senses[NR_IRQS];
+			unsigned char senses[128];
 
-			prom_get_irq_senses(senses, 0, NR_IRQS);
+			printk(KERN_INFO "PowerMac using OpenPIC irq controller at 0x%08x\n",
+			       irqctrler->addrs[0].address);
+
+			prom_get_irq_senses(senses, 0, 128);
 			OpenPIC_InitSenses = senses;
-			OpenPIC_NumInitSenses = NR_IRQS;
+			OpenPIC_NumInitSenses = 128;
 			ppc_md.get_irq = openpic_get_irq;
+			pmac_call_feature(PMAC_FTR_ENABLE_MPIC, irqctrler, 0, 0);
 			OpenPIC_Addr = ioremap(irqctrler->addrs[0].address,
 					       irqctrler->addrs[0].size);
 			openpic_init(0);
+
+#ifdef CONFIG_POWER4
+			if (irqctrler2 != NULL && irqctrler2->n_intrs > 0 &&
+			    irqctrler2->n_addrs > 0) {
+				printk(KERN_INFO "Slave OpenPIC at 0x%08x hooked on IRQ %d\n",
+				       irqctrler2->addrs[0].address,
+				       irqctrler2->intrs[0].line);
+				pmac_call_feature(PMAC_FTR_ENABLE_MPIC, irqctrler2, 0, 0);
+				OpenPIC2_Addr = ioremap(irqctrler2->addrs[0].address,
+							irqctrler2->addrs[0].size);
+				prom_get_irq_senses(senses, PMAC_OPENPIC2_OFFSET,
+						    PMAC_OPENPIC2_OFFSET+128);
+				OpenPIC_InitSenses = senses;
+				OpenPIC_NumInitSenses = 128;
+				openpic2_init(PMAC_OPENPIC2_OFFSET);
+				if (request_irq(irqctrler2->intrs[0].line, k2u3_action, 0,
+						"U3->K2 Cascade", NULL))
+					printk("Unable to get OpenPIC IRQ for cascade\n");
+			}
+#endif /* CONFIG_POWER4 */
+
 #ifdef CONFIG_XMON
 			{
 				struct device_node* pswitch;
@@ -399,7 +456,7 @@ pmac_pic_init(void)
 					nmi_irq = pswitch->intrs[0].line;
 					openpic_init_nmi_irq(nmi_irq);
 					request_irq(nmi_irq, xmon_irq, 0,
-						    "NMI - XMON", 0);
+						    "NMI - XMON", NULL);
 				}
 			}
 #endif	/* CONFIG_XMON */
@@ -456,7 +513,7 @@ pmac_pic_init(void)
 				pmac_irq_hw[i] = (volatile struct pmac_irq_hw*)
 					(addr + (2 - i) * 0x10);
 		}
-	
+
 		/* get addresses of second controller */
 		irqctrler = irqctrler->next;
 		if (irqctrler && irqctrler->n_addrs > 0) {
@@ -497,7 +554,7 @@ pmac_pic_init(void)
 		for ( i = max_real_irqs ; i < max_irqs ; i++ )
 			irq_desc[i].handler = &gatwick_pic;
 		request_irq( irq_cascade, gatwick_action, SA_INTERRUPT,
-			     "cascade", 0 );
+			     "cascade", NULL );
 	}
 	printk("System has %d possible interrupts\n", max_irqs);
 	if (max_irqs != max_real_irqs)
@@ -505,7 +562,7 @@ pmac_pic_init(void)
 			max_real_irqs);
 
 #ifdef CONFIG_XMON
-	request_irq(20, xmon_irq, 0, "NMI - XMON", 0);
+	request_irq(20, xmon_irq, 0, "NMI - XMON", NULL);
 #endif	/* CONFIG_XMON */
 }
 
@@ -601,7 +658,7 @@ static int __init init_pmacpic_sysfs(void)
 
 	printk(KERN_DEBUG "Registering pmac pic with sysfs...\n");
 	sysdev_class_register(&pmacpic_sysclass);
-	sys_device_register(&device_pmacpic);
+	sysdev_register(&device_pmacpic);
 	sysdev_driver_register(&pmacpic_sysclass, &driver_pmacpic);
 	return 0;
 }

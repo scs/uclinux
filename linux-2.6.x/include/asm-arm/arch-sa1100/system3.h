@@ -10,11 +10,8 @@
  * published by the Free Software Foundation.
  *
  * $Log$
- * Revision 1.1  2004/07/19 12:39:59  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:22:47  nidhi
- * Importing
+ * Revision 1.1.1.2  2004/09/07 09:06:01  lgsoft
+ * Import of 2.6.8
  *
  * Revision 1.2.4.2  2001/12/04 14:58:50  seletz
  * - removed neponset hack

@@ -87,7 +87,7 @@ static void autofs4_put_super(struct super_block *sb)
 
 	kfree(sbi);
 
-	DPRINTK(("autofs: shutting down\n"));
+	DPRINTK("shutting down");
 }
 
 static struct super_operations autofs4_sops = {
@@ -187,12 +187,13 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	struct file * pipe;
 	int pipefd;
 	struct autofs_sb_info *sbi;
+	struct autofs_info *ino;
 	int minproto, maxproto;
 
 	sbi = (struct autofs_sb_info *) kmalloc(sizeof(*sbi), GFP_KERNEL);
 	if ( !sbi )
 		goto fail_unlock;
-	DPRINTK(("autofs: starting up, sbi = %p\n",sbi));
+	DPRINTK("starting up, sbi = %p",sbi);
 
 	memset(sbi, 0, sizeof(*sbi));
 
@@ -203,6 +204,8 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	sbi->oz_pgrp = process_group(current);
 	sbi->sb = s;
 	sbi->version = 0;
+	sbi->sub_version = 0;
+	init_MUTEX(&sbi->wq_sem);
 	sbi->queues = NULL;
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
@@ -212,7 +215,14 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	/*
 	 * Get the root inode and dentry, but defer checking for errors.
 	 */
-	root_inode = autofs4_get_inode(s, autofs4_mkroot(sbi));
+	ino = autofs4_mkroot(sbi);
+	if (!ino)
+		goto fail_free;
+	root_inode = autofs4_get_inode(s, ino);
+	kfree(ino);
+	if (!root_inode)
+		goto fail_free;
+
 	root_inode->i_op = &autofs4_root_inode_operations;
 	root_inode->i_fop = &autofs4_root_operations;
 	root = d_alloc_root(root_inode);
@@ -241,8 +251,9 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	}
 
 	sbi->version = maxproto > AUTOFS_MAX_PROTO_VERSION ? AUTOFS_MAX_PROTO_VERSION : maxproto;
+	sbi->sub_version = AUTOFS_PROTO_SUBVERSION;
 
-	DPRINTK(("autofs: pipe fd = %d, pgrp = %u\n", pipefd, sbi->oz_pgrp));
+	DPRINTK("pipe fd = %d, pgrp = %u", pipefd, sbi->oz_pgrp);
 	pipe = fget(pipefd);
 	
 	if ( !pipe ) {
@@ -264,22 +275,13 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	 */
 fail_fput:
 	printk("autofs: pipe file descriptor does not contain proper ops\n");
-	/*
-	 * fput() can block, so we clear the super block first.
-	 */
 	fput(pipe);
 	/* fall through */
 fail_dput:
-	/*
-	 * dput() can block, so we clear the super block first.
-	 */
 	dput(root);
 	goto fail_free;
 fail_iput:
 	printk("autofs: get root dentry failed\n");
-	/*
-	 * iput() can block, so we clear the super block first.
-	 */
 	iput(root_inode);
 fail_free:
 	kfree(sbi);
@@ -311,7 +313,7 @@ struct inode *autofs4_get_inode(struct super_block *sb,
 	if (S_ISDIR(inf->mode)) {
 		inode->i_nlink = 2;
 		inode->i_op = &autofs4_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
+		inode->i_fop = &autofs4_dir_operations;
 	} else if (S_ISLNK(inf->mode)) {
 		inode->i_size = inf->size;
 		inode->i_op = &autofs4_symlink_inode_operations;

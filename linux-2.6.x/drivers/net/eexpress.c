@@ -230,7 +230,7 @@ static unsigned short start_code[] = {
 /* maps irq number to EtherExpress magic value */
 static char irqrmap[] = { 0,0,1,2,3,4,0,0,0,1,5,6,0,0,0,0 };
 
-#ifdef CONFIG_MCA
+#ifdef CONFIG_MCA_LEGACY
 /* mapping of the first four bits of the second POS register */
 static unsigned short mca_iomap[] = {
 	0x270, 0x260, 0x250, 0x240, 0x230, 0x220, 0x210, 0x200,
@@ -244,7 +244,6 @@ static char mca_irqmap[] = { 12, 9, 3, 4, 5, 10, 11, 15 };
  * Prototypes for Linux interface
  */
 
-extern int express_probe(struct net_device *dev);
 static int eexp_open(struct net_device *dev);
 static int eexp_close(struct net_device *dev);
 static void eexp_timeout(struct net_device *dev);
@@ -334,17 +333,19 @@ static inline unsigned short int SHADOW(short int addr)
  * checks for presence of EtherExpress card
  */
 
-int __init express_probe(struct net_device *dev)
+static int __init do_express_probe(struct net_device *dev)
 {
 	unsigned short *port;
 	static unsigned short ports[] = { 0x240,0x300,0x310,0x270,0x320,0x340,0 };
 	unsigned short ioaddr = dev->base_addr;
+	int dev_irq = dev->irq;
+	int err;
 
 	SET_MODULE_OWNER(dev);
 
 	dev->if_port = 0xff; /* not set */
 
-#ifdef CONFIG_MCA
+#ifdef CONFIG_MCA_LEGACY
 	if (MCA_bus) {
 		int slot = 0;
 
@@ -391,26 +392,59 @@ int __init express_probe(struct net_device *dev)
 		}
 	}
 #endif
-	if (ioaddr&0xfe00)
-		return eexp_hw_probe(dev,ioaddr);
-	else if (ioaddr)
+	if (ioaddr&0xfe00) {
+		if (!request_region(ioaddr, EEXP_IO_EXTENT, "EtherExpress"))
+			return -EBUSY;
+		err = eexp_hw_probe(dev,ioaddr);
+		release_region(ioaddr, EEXP_IO_EXTENT);
+		return err;
+	} else if (ioaddr)
 		return -ENXIO;
 
 	for (port=&ports[0] ; *port ; port++ )
 	{
 		unsigned short sum = 0;
 		int i;
+		if (!request_region(*port, EEXP_IO_EXTENT, "EtherExpress"))
+			continue;
 		for ( i=0 ; i<4 ; i++ )
 		{
 			unsigned short t;
 			t = inb(*port + ID_PORT);
 			sum |= (t>>4) << ((t & 0x03)<<2);
 		}
-		if (sum==0xbaba && !eexp_hw_probe(dev,*port))
+		if (sum==0xbaba && !eexp_hw_probe(dev,*port)) {
+			release_region(*port, EEXP_IO_EXTENT);
 			return 0;
+		}
+		release_region(*port, EEXP_IO_EXTENT);
+		dev->irq = dev_irq;
 	}
 	return -ENODEV;
 }
+
+#ifndef MODULE
+struct net_device * __init express_probe(int unit)
+{
+	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));
+	int err;
+
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	sprintf(dev->name, "eth%d", unit);
+	netdev_boot_setup_check(dev);
+
+	err = do_express_probe(dev);
+	if (!err) {
+		err = register_netdev(dev);
+		if (!err)
+			return dev;
+	}
+	free_netdev(dev);
+	return ERR_PTR(err);
+}
+#endif
 
 /*
  * open and initialize the adapter, ready for use
@@ -420,7 +454,7 @@ static int eexp_open(struct net_device *dev)
 {
 	int ret;
 	unsigned short ioaddr = dev->base_addr;
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 
 #if NET_DEBUG > 6
 	printk(KERN_DEBUG "%s: eexp_open()\n", dev->name);
@@ -483,7 +517,7 @@ static int eexp_open(struct net_device *dev)
 static int eexp_close(struct net_device *dev)
 {
 	unsigned short ioaddr = dev->base_addr;
-	struct net_local *lp = dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 
 	int irq = dev->irq;
 
@@ -509,7 +543,7 @@ static int eexp_close(struct net_device *dev)
 
 static struct net_device_stats *eexp_stats(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 
 	return &lp->stats;
 }
@@ -521,7 +555,7 @@ static struct net_device_stats *eexp_stats(struct net_device *dev)
 
 static void unstick_cu(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	unsigned short ioaddr = dev->base_addr;
 
 	if (lp->started)
@@ -595,7 +629,7 @@ static void unstick_cu(struct net_device *dev)
 
 static void eexp_timeout(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 #ifdef CONFIG_SMP
 	unsigned long flags;
 #endif
@@ -635,7 +669,7 @@ static void eexp_timeout(struct net_device *dev)
  */
 static int eexp_xmit(struct sk_buff *buf, struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	short length = buf->len;
 #ifdef CONFIG_SMP
 	unsigned long flags;
@@ -696,7 +730,7 @@ static unsigned short eexp_start_irq(struct net_device *dev,
 				     unsigned short status)
 {
 	unsigned short ack_cmd = SCB_ack(status);
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	unsigned short ioaddr = dev->base_addr;
 	if ((dev->flags & IFF_UP) && !(lp->started & STARTED_CU)) {
 		short diag_status, tdr_status;
@@ -774,7 +808,7 @@ static irqreturn_t eexp_irq(int irq, void *dev_info, struct pt_regs *regs)
 		return IRQ_NONE;
 	}
 
-	lp = (struct net_local *)dev->priv;
+	lp = netdev_priv(dev);
 	ioaddr = dev->base_addr;
 
 	spin_lock(&lp->lock);
@@ -893,7 +927,7 @@ static void eexp_hw_set_interface(struct net_device *dev)
 
 static void eexp_hw_rx_pio(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	unsigned short rx_block = lp->rx_ptr;
 	unsigned short boguscount = lp->num_rx_bufs;
 	unsigned short ioaddr = dev->base_addr;
@@ -990,7 +1024,7 @@ static void eexp_hw_rx_pio(struct net_device *dev)
 static void eexp_hw_tx_pio(struct net_device *dev, unsigned short *buf,
 		       unsigned short len)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	unsigned short ioaddr = dev->base_addr;
 
 	if (LOCKUP16 || lp->width) {
@@ -1058,7 +1092,7 @@ static int __init eexp_hw_probe(struct net_device *dev, unsigned short ioaddr)
 	unsigned int memory_size;
 	int i;
 	unsigned short xsum = 0;
-	struct net_local *lp;
+	struct net_local *lp = netdev_priv(dev);
 
 	printk("%s: EtherExpress 16 at %#x ",dev->name,ioaddr);
 
@@ -1108,17 +1142,18 @@ static int __init eexp_hw_probe(struct net_device *dev, unsigned short ioaddr)
 		buswidth = !((setupval & 0x400) >> 10);
 	}
 
-	dev->priv = lp = kmalloc(sizeof(struct net_local), GFP_KERNEL);
-	if (!dev->priv)
-		return -ENOMEM;
-
-	memset(dev->priv, 0, sizeof(struct net_local));
+	memset(lp, 0, sizeof(struct net_local));
 	spin_lock_init(&lp->lock);
 
  	printk("(IRQ %d, %s connector, %d-bit bus", dev->irq, 
  	       eexp_ifmap[dev->if_port], buswidth?8:16);
  
+	if (!request_region(dev->base_addr + 0x300e, 1, "EtherExpress"))
+		return -EBUSY;
+
  	eexp_hw_set_interface(dev);
+ 
+	release_region(dev->base_addr + 0x300e, 1);
   
 	/* Find out how much RAM we have on the card */
 	outw(0, dev->base_addr + WRITE_PTR);
@@ -1156,7 +1191,6 @@ static int __init eexp_hw_probe(struct net_device *dev, unsigned short ioaddr)
 		break;
 	default:
 		printk(") bad memory size (%dk).\n", memory_size);
-		kfree(dev->priv);
 		return -ENODEV;
 		break;
 	}
@@ -1171,7 +1205,6 @@ static int __init eexp_hw_probe(struct net_device *dev, unsigned short ioaddr)
 	dev->set_multicast_list = &eexp_set_multicast;
 	dev->tx_timeout = eexp_timeout;
 	dev->watchdog_timeo = 2*HZ;
-	ether_setup(dev);
 	return 0;
 }
 
@@ -1231,7 +1264,7 @@ static unsigned short __init eexp_hw_readeeprom(unsigned short ioaddr,
 
 static unsigned short eexp_hw_lasttxstat(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	unsigned short tx_block = lp->tx_reap;
 	unsigned short status;
 
@@ -1301,7 +1334,7 @@ static unsigned short eexp_hw_lasttxstat(struct net_device *dev)
 
 static void eexp_hw_txrestart(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	unsigned short ioaddr = dev->base_addr;
 
 	lp->last_tx_restart = lp->tx_link;
@@ -1346,7 +1379,7 @@ static void eexp_hw_txrestart(struct net_device *dev)
 
 static void eexp_hw_txinit(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	unsigned short tx_block = TX_BUF_START;
 	unsigned short curtbuf;
 	unsigned short ioaddr = dev->base_addr;
@@ -1388,7 +1421,7 @@ static void eexp_hw_txinit(struct net_device *dev)
 
 static void eexp_hw_rxinit(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	unsigned short rx_block = lp->rx_buf_start;
 	unsigned short ioaddr = dev->base_addr;
 
@@ -1447,7 +1480,7 @@ static void eexp_hw_rxinit(struct net_device *dev)
 
 static void eexp_hw_init586(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	unsigned short ioaddr = dev->base_addr;
 	int i;
 
@@ -1608,7 +1641,7 @@ static void
 eexp_set_multicast(struct net_device *dev)
 {
         unsigned short ioaddr = dev->base_addr;
-        struct net_local *lp = (struct net_local *)dev->priv;
+        struct net_local *lp = netdev_priv(dev);
         int kick = 0, i;
         if ((dev->flags & IFF_PROMISC) != lp->was_promisc) {
                 outw(CONF_PROMISC & ~31, ioaddr+SM_PTR);
@@ -1654,7 +1687,7 @@ eexp_set_multicast(struct net_device *dev)
 
 #define EEXP_MAX_CARDS     4    /* max number of cards to support */
 
-static struct net_device dev_eexp[EEXP_MAX_CARDS];
+static struct net_device *dev_eexp[EEXP_MAX_CARDS];
 static int irq[EEXP_MAX_CARDS];
 static int io[EEXP_MAX_CARDS];
 
@@ -1671,25 +1704,30 @@ MODULE_LICENSE("GPL");
  */
 int init_module(void)
 {
+	struct net_device *dev;
 	int this_dev, found = 0;
 
 	for (this_dev = 0; this_dev < EEXP_MAX_CARDS; this_dev++) {
-		struct net_device *dev = &dev_eexp[this_dev];
+		dev = alloc_etherdev(sizeof(struct net_local));
 		dev->irq = irq[this_dev];
 		dev->base_addr = io[this_dev];
-		dev->init = express_probe;
 		if (io[this_dev] == 0) {
-			if (this_dev) break;
+			if (this_dev)
+				break;
 			printk(KERN_NOTICE "eexpress.c: Module autoprobe not recommended, give io=xx.\n");
 		}
-		if (register_netdev(dev) != 0) {
-			printk(KERN_WARNING "eexpress.c: Failed to register card at 0x%x.\n", io[this_dev]);
-			if (found != 0) return 0;
-			return -ENXIO;
+		if (do_express_probe(dev) == 0 && register_netdev(dev) == 0) {
+			dev_eexp[this_dev] = dev;
+			found++;
+			continue;
 		}
-		found++;
+		printk(KERN_WARNING "eexpress.c: Failed to register card at 0x%x.\n", io[this_dev]);
+		free_netdev(dev);
+		break;
 	}
-	return 0;
+	if (found)
+		return 0;
+	return -ENXIO;
 }
 
 void cleanup_module(void)
@@ -1697,11 +1735,10 @@ void cleanup_module(void)
 	int this_dev;
 
 	for (this_dev = 0; this_dev < EEXP_MAX_CARDS; this_dev++) {
-		struct net_device *dev = &dev_eexp[this_dev];
-		if (dev->priv != NULL) {
+		struct net_device *dev = dev_eexp[this_dev];
+		if (dev) {
 			unregister_netdev(dev);
-			kfree(dev->priv);
-			dev->priv = NULL;
+			free_netdev(dev);
 		}
 	}
 }

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001-2003 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2001-2004 Silicon Graphics, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -16,6 +16,7 @@
 #include <asm/sn/pci/pcibr_private.h>
 #include <asm/sn/pci/pci_defs.h>
 #include <asm/sn/sn_private.h>
+#include <asm/sn/sn_sal.h>
 
 extern pcibr_info_t     pcibr_info_get(vertex_hdl_t);
 extern int              pcibr_widget_to_bus(vertex_hdl_t pcibr_vhdl);
@@ -37,14 +38,16 @@ int pcibr_slot_call_device_detach(vertex_hdl_t pcibr_vhdl,
 		 pciio_slot_t slot, int drv_flags);
 int pcibr_slot_detach(vertex_hdl_t pcibr_vhdl, pciio_slot_t slot,
                  int drv_flags, char *l1_msg, int *sub_errorp);
-static int pcibr_probe_slot(bridge_t *, cfg_p, unsigned int *);
+static int pcibr_probe_slot(pcibr_soft_t, cfg_p, unsigned int *);
+static int pcibr_probe_work(pcibr_soft_t pcibr_soft, void *addr, int len, void *valp);
 void pcibr_device_info_free(vertex_hdl_t, pciio_slot_t);
 iopaddr_t pcibr_bus_addr_alloc(pcibr_soft_t, pciio_win_info_t, 
                                pciio_space_t, int, int, int);
-void pciibr_bus_addr_free(pcibr_soft_t, pciio_win_info_t);
+void pcibr_bus_addr_free(pciio_win_info_t);
 cfg_p pcibr_find_capability(cfg_p, unsigned);
 extern uint64_t  do_pcibr_config_get(cfg_p, unsigned, unsigned);
 void do_pcibr_config_set(cfg_p, unsigned, unsigned, uint64_t); 
+int pcibr_slot_pwr(vertex_hdl_t pcibr_vhdl, pciio_slot_t slot, int up, char *err_msg);
 
 
 /* 
@@ -57,22 +60,411 @@ void do_pcibr_config_set(cfg_p, unsigned, unsigned, uint64_t);
 int max_splittrans_to_numbuf[MAX_SPLIT_TABLE] = {1, 2, 3, 4, 8, 12, 16, 32};
 int max_readcount_to_bufsize[MAX_READCNT_TABLE] = {512, 1024, 2048, 4096 };
 
-char *pci_space_name[] = {"NONE", 
-			  "ROM",
-			  "IO",
-			  "",
-			  "MEM",
-			  "MEM32",
-			  "MEM64",
-			  "CFG",
-			  "WIN0",
-			  "WIN1",
-			  "WIN2",
-			  "WIN3",
-			  "WIN4",
-			  "WIN5",
-			  "",
-			  "BAD"};
+#ifdef CONFIG_HOTPLUG_PCI_SGI
+
+/*
+ * PCI slot manipulation errors from the system controller, and their
+ * associated descriptions
+ */
+#define SYSCTL_REQERR_BASE	(-106000)
+#define SYSCTL_PCI_ERROR_BASE	(SYSCTL_REQERR_BASE - 100)
+#define SYSCTL_PCIX_ERROR_BASE	(SYSCTL_REQERR_BASE - 3000)
+
+struct sysctl_pci_error_s {
+
+    int	 	error;
+    char	*msg;
+
+} sysctl_pci_errors[] = {
+
+#define SYSCTL_PCI_UNINITIALIZED	(SYSCTL_PCI_ERROR_BASE - 0)
+    { SYSCTL_PCI_UNINITIALIZED, "module not initialized" },
+
+#define SYSCTL_PCI_UNSUPPORTED_BUS	(SYSCTL_PCI_ERROR_BASE - 1)
+    { SYSCTL_PCI_UNSUPPORTED_BUS, "unsupported bus" },
+
+#define SYSCTL_PCI_UNSUPPORTED_SLOT	(SYSCTL_PCI_ERROR_BASE - 2)
+    { SYSCTL_PCI_UNSUPPORTED_SLOT, "unsupported slot" },
+
+#define SYSCTL_PCI_POWER_NOT_OKAY	(SYSCTL_PCI_ERROR_BASE - 3)
+    { SYSCTL_PCI_POWER_NOT_OKAY, "slot power not okay" },
+
+#define SYSCTL_PCI_CARD_NOT_PRESENT	(SYSCTL_PCI_ERROR_BASE - 4)
+    { SYSCTL_PCI_CARD_NOT_PRESENT, "card not present" },
+
+#define SYSCTL_PCI_POWER_LIMIT		(SYSCTL_PCI_ERROR_BASE - 5)
+    { SYSCTL_PCI_POWER_LIMIT, "power limit reached - some cards not powered up" },
+
+#define SYSCTL_PCI_33MHZ_ON_66MHZ	(SYSCTL_PCI_ERROR_BASE - 6)
+    { SYSCTL_PCI_33MHZ_ON_66MHZ, "cannot add a 33 MHz card to an active 66 MHz bus" },
+
+#define SYSCTL_PCI_INVALID_ORDER	(SYSCTL_PCI_ERROR_BASE - 7)
+    { SYSCTL_PCI_INVALID_ORDER, "invalid reset order" },
+
+#define SYSCTL_PCI_DOWN_33MHZ		(SYSCTL_PCI_ERROR_BASE - 8)
+    { SYSCTL_PCI_DOWN_33MHZ, "cannot power down a 33 MHz card on an active bus" },
+
+#define SYSCTL_PCI_RESET_33MHZ		(SYSCTL_PCI_ERROR_BASE - 9)
+    { SYSCTL_PCI_RESET_33MHZ, "cannot reset a 33 MHz card on an active bus" },
+
+#define SYSCTL_PCI_SLOT_NOT_UP		(SYSCTL_PCI_ERROR_BASE - 10)
+    { SYSCTL_PCI_SLOT_NOT_UP, "cannot reset a slot that is not powered up" },
+
+#define SYSCTL_PCIX_UNINITIALIZED	(SYSCTL_PCIX_ERROR_BASE - 0)
+    { SYSCTL_PCIX_UNINITIALIZED, "module not initialized" },
+
+#define SYSCTL_PCIX_UNSUPPORTED_BUS	(SYSCTL_PCIX_ERROR_BASE - 1)
+    { SYSCTL_PCIX_UNSUPPORTED_BUS, "unsupported bus" },
+
+#define SYSCTL_PCIX_UNSUPPORTED_SLOT	(SYSCTL_PCIX_ERROR_BASE - 2)
+    { SYSCTL_PCIX_UNSUPPORTED_SLOT, "unsupported slot" },
+
+#define SYSCTL_PCIX_POWER_NOT_OKAY	(SYSCTL_PCIX_ERROR_BASE - 3)
+    { SYSCTL_PCIX_POWER_NOT_OKAY, "slot power not okay" },
+
+#define SYSCTL_PCIX_CARD_NOT_PRESENT	(SYSCTL_PCIX_ERROR_BASE - 4)
+    { SYSCTL_PCIX_CARD_NOT_PRESENT, "card not present" },
+
+#define SYSCTL_PCIX_POWER_LIMIT		(SYSCTL_PCIX_ERROR_BASE - 5)
+    { SYSCTL_PCIX_POWER_LIMIT, "power limit reached - some cards not powered up" },
+
+#define SYSCTL_PCIX_33MHZ_ON_66MHZ	(SYSCTL_PCIX_ERROR_BASE - 6)
+    { SYSCTL_PCIX_33MHZ_ON_66MHZ, "cannot add a 33 MHz card to an active 66 MHz bus" },
+
+#define SYSCTL_PCIX_PCI_ON_PCIX		(SYSCTL_PCIX_ERROR_BASE - 7)
+    { SYSCTL_PCIX_PCI_ON_PCIX, "cannot add a PCI card to an active PCIX bus" },
+
+#define SYSCTL_PCIX_ANYTHING_ON_133MHZ		(SYSCTL_PCIX_ERROR_BASE - 8)
+    { SYSCTL_PCIX_ANYTHING_ON_133MHZ, "cannot add any card to an active 133MHz PCIX bus" },
+
+#define SYSCTL_PCIX_X66MHZ_ON_X100MHZ		(SYSCTL_PCIX_ERROR_BASE - 9)
+    { SYSCTL_PCIX_X66MHZ_ON_X100MHZ, "cannot add a PCIX 66MHz card to an active 100MHz PCIX bus" },
+
+#define SYSCTL_PCIX_INVALID_ORDER	(SYSCTL_PCIX_ERROR_BASE - 10)
+    { SYSCTL_PCIX_INVALID_ORDER, "invalid reset order" },
+
+#define SYSCTL_PCIX_DOWN_33MHZ		(SYSCTL_PCIX_ERROR_BASE - 11)
+    { SYSCTL_PCIX_DOWN_33MHZ, "cannot power down a 33 MHz card on an active bus" },
+
+#define SYSCTL_PCIX_RESET_33MHZ		(SYSCTL_PCIX_ERROR_BASE - 12)
+    { SYSCTL_PCIX_RESET_33MHZ, "cannot reset a 33 MHz card on an active bus" },
+
+#define SYSCTL_PCIX_SLOT_NOT_UP		(SYSCTL_PCIX_ERROR_BASE - 13)
+    { SYSCTL_PCIX_SLOT_NOT_UP, "cannot reset a slot that is not powered up" },
+
+#define SYSCTL_PCIX_INVALID_BUS_SETTING	(SYSCTL_PCIX_ERROR_BASE - 14)
+    { SYSCTL_PCIX_INVALID_BUS_SETTING, "invalid bus type/speed selection (PCIX<66MHz, PCI>66MHz)" },
+
+#define SYSCTL_PCIX_INVALID_DEPENDENT_SLOT (SYSCTL_PCIX_ERROR_BASE - 15)
+    { SYSCTL_PCIX_INVALID_DEPENDENT_SLOT, "invalid dependent slot in PCI slot configuration" },
+
+#define SYSCTL_PCIX_SHARED_IDSELECT	(SYSCTL_PCIX_ERROR_BASE - 16)
+    { SYSCTL_PCIX_SHARED_IDSELECT, "cannot enable two slots sharing the same IDSELECT" },
+
+#define SYSCTL_PCIX_SLOT_DISABLED	(SYSCTL_PCIX_ERROR_BASE - 17)
+    { SYSCTL_PCIX_SLOT_DISABLED, "slot is disabled" },
+
+}; /* end sysctl_pci_errors[] */
+
+/*
+ * look up an error message for PCI operations that fail
+ */
+static void
+sysctl_pci_error_lookup(int error, char *err_msg)
+{
+    int i;
+    struct sysctl_pci_error_s *e = sysctl_pci_errors;
+    
+    for (i = 0; 
+	 i < (sizeof(sysctl_pci_errors) / sizeof(*e));
+	 i++, e++ )
+    {
+	if (e->error == error)
+	{
+	    strcpy(err_msg, e->msg);
+	    return;
+	}
+    }
+
+    sprintf(err_msg, "unrecognized PCI error type");
+}
+
+/*
+ * pcibr_slot_attach
+ *	This is a place holder routine to keep track of all the
+ *	slot-specific initialization that needs to be done.
+ *	This is usually called when we want to initialize a new
+ * 	PCI card on the bus.
+ */
+int
+pcibr_slot_attach(vertex_hdl_t pcibr_vhdl,
+		  pciio_slot_t slot,
+		  int          drv_flags,
+		  char        *l1_msg,
+                  int         *sub_errorp)
+{
+    pcibr_soft_t  pcibr_soft = pcibr_soft_get(pcibr_vhdl);
+    int		  error;
+
+    if (!(pcibr_soft->bs_slot[slot].slot_status & PCI_SLOT_POWER_ON)) {
+	uint64_t speed;
+	uint64_t mode;
+
+        /* Power-up the slot */
+        error = pcibr_slot_pwr(pcibr_vhdl, slot, PCI_REQ_SLOT_POWER_ON, l1_msg);
+
+        if (error) {
+            if (sub_errorp)
+                *sub_errorp = error;
+            return(PCI_L1_ERR);
+        } else {
+            pcibr_soft->bs_slot[slot].slot_status &= ~PCI_SLOT_POWER_MASK;
+            pcibr_soft->bs_slot[slot].slot_status |= PCI_SLOT_POWER_ON;
+        }
+
+	/* The speed/mode of the bus may have changed due to the hotplug */
+	speed = pcireg_speed_get(pcibr_soft);
+	mode = pcireg_mode_get(pcibr_soft);
+	pcibr_soft->bs_bridge_mode = ((speed << 1) | mode);
+
+        /*
+         * Allow cards like the Alteon Gigabit Ethernet Adapter to complete
+         * on-card initialization following the slot reset
+         */
+        set_current_state (TASK_INTERRUPTIBLE);
+        schedule_timeout (HZ);
+
+        /* Find out what is out there */
+        error = pcibr_slot_info_init(pcibr_vhdl, slot);
+
+        if (error) {
+            if (sub_errorp)
+                *sub_errorp = error;
+            return(PCI_SLOT_INFO_INIT_ERR);
+        }
+
+        /* Set up the address space for this slot in the PCI land */
+
+        error = pcibr_slot_addr_space_init(pcibr_vhdl, slot);
+
+        if (error) {
+            if (sub_errorp)
+                *sub_errorp = error;
+            return(PCI_SLOT_ADDR_INIT_ERR);
+        }
+
+	/* Allocate the PCI-X Read Buffer Attribute Registers (RBARs)*/
+	if (IS_PCIX(pcibr_soft)) {
+	    int tmp_slot;
+
+	    /* Recalculate the RBARs for all the devices on the bus.  Only
+	     * return an error if we error for the given 'slot'
+	     */
+	    pcibr_soft->bs_pcix_rbar_inuse = 0;
+	    pcibr_soft->bs_pcix_rbar_avail = NUM_RBAR;
+	    pcibr_soft->bs_pcix_rbar_percent_allowed = 
+					pcibr_pcix_rbars_calc(pcibr_soft);
+	    for (tmp_slot = pcibr_soft->bs_min_slot;
+			tmp_slot < PCIBR_NUM_SLOTS(pcibr_soft); ++tmp_slot) {
+		if (tmp_slot == slot)
+		    continue;	/* skip this 'slot', we do it below */
+                (void)pcibr_slot_pcix_rbar_init(pcibr_soft, tmp_slot);
+	    }
+
+	    error = pcibr_slot_pcix_rbar_init(pcibr_soft, slot);
+	    if (error) {
+		if (sub_errorp)
+		    *sub_errorp = error;
+		return(PCI_SLOT_RBAR_ALLOC_ERR);
+	    }
+	}
+
+        /* Setup the device register */
+        error = pcibr_slot_device_init(pcibr_vhdl, slot);
+
+        if (error) {
+            if (sub_errorp)
+                *sub_errorp = error;
+            return(PCI_SLOT_DEV_INIT_ERR);
+        }
+
+        /* Setup host/guest relations */
+        error = pcibr_slot_guest_info_init(pcibr_vhdl, slot);
+
+        if (error) {
+            if (sub_errorp)
+                *sub_errorp = error;
+            return(PCI_SLOT_GUEST_INIT_ERR);
+        }
+
+        /* Initial RRB management */
+        error = pcibr_slot_initial_rrb_alloc(pcibr_vhdl, slot);
+
+        if (error) {
+            if (sub_errorp)
+                *sub_errorp = error;
+            return(PCI_SLOT_RRB_ALLOC_ERR);
+        }
+
+    }
+
+    /* Call the device attach */
+    error = pcibr_slot_call_device_attach(pcibr_vhdl, slot, drv_flags);
+
+    if (error) {
+        if (sub_errorp)
+            *sub_errorp = error;
+        if (error == EUNATCH)
+            return(PCI_NO_DRIVER);
+        else
+            return(PCI_SLOT_DRV_ATTACH_ERR);
+    }
+
+    return(0);
+}
+
+/*
+ * pcibr_slot_enable
+ *	Enable the PCI slot for a hot-plug insert.
+ */
+int
+pcibr_slot_enable(vertex_hdl_t pcibr_vhdl, struct pcibr_slot_enable_req_s *req_p)
+{
+    pcibr_soft_t                   pcibr_soft = pcibr_soft_get(pcibr_vhdl);
+    pciio_slot_t                   slot = req_p->req_device;
+    int                            error = 0;
+
+    /* Make sure that we are dealing with a bridge device vertex */
+    if (!pcibr_soft) {
+        return(PCI_NOT_A_BRIDGE);
+    }
+
+    PCIBR_DEBUG_ALWAYS((PCIBR_DEBUG_HOTPLUG, pcibr_vhdl,
+                "pcibr_slot_enable: pcibr_soft=0x%lx, slot=%d, req_p=0x%lx\n",
+                pcibr_soft, slot, req_p));
+
+    /* Check for the valid slot */
+    if (!PCIBR_VALID_SLOT(pcibr_soft, slot))
+        return(PCI_NOT_A_SLOT);
+
+    if (pcibr_soft->bs_slot[slot].slot_status & PCI_SLOT_ENABLE_CMPLT) {
+        error = PCI_SLOT_ALREADY_UP;
+        goto enable_unlock;
+    }
+
+    error = pcibr_slot_attach(pcibr_vhdl, slot, 0,
+                              req_p->req_resp.resp_l1_msg,
+			      &req_p->req_resp.resp_sub_errno);
+
+    req_p->req_resp.resp_l1_msg[PCI_L1_QSIZE] = '\0';
+
+    enable_unlock:
+
+    return(error);
+}
+
+/*
+ * pcibr_slot_disable
+ *	Disable the PCI slot for a hot-plug removal.
+ */
+int
+pcibr_slot_disable(vertex_hdl_t pcibr_vhdl, struct pcibr_slot_disable_req_s *req_p)
+{
+    pcibr_soft_t                   pcibr_soft = pcibr_soft_get(pcibr_vhdl);
+    pciio_slot_t                   slot = req_p->req_device;
+    int                            error = 0;
+    pciio_slot_t                   tmp_slot;
+
+    /* Make sure that we are dealing with a bridge device vertex */
+    if (!pcibr_soft) {
+        return(PCI_NOT_A_BRIDGE);
+    }
+
+    PCIBR_DEBUG_ALWAYS((PCIBR_DEBUG_HOTPLUG, pcibr_vhdl,
+                "pcibr_slot_disable: pcibr_soft=0x%lx, slot=%d, req_p=0x%lx\n",
+                pcibr_soft, slot, req_p));
+
+    /* Check for valid slot */
+    if (!PCIBR_VALID_SLOT(pcibr_soft, slot))
+        return(PCI_NOT_A_SLOT);
+
+    if ((pcibr_soft->bs_slot[slot].slot_status & PCI_SLOT_DISABLE_CMPLT) ||
+       ((pcibr_soft->bs_slot[slot].slot_status & PCI_SLOT_STATUS_MASK) == 0)) {
+        error = PCI_SLOT_ALREADY_DOWN;
+        /*
+         * RJR - Should we invoke an L1 slot power-down command just in case
+         *       a previous shut-down failed to power-down the slot?
+         */
+        goto disable_unlock;
+    }
+
+    /* Do not allow the last 33 MHz card to be removed */
+    if (IS_33MHZ(pcibr_soft)) {
+        for (tmp_slot = pcibr_soft->bs_first_slot;
+             tmp_slot <= pcibr_soft->bs_last_slot; tmp_slot++)
+            if (tmp_slot != slot)
+                if (pcibr_soft->bs_slot[tmp_slot].slot_status & PCI_SLOT_POWER_ON) {
+                    error++;
+                    break;
+                }
+        if (!error) {
+            error = PCI_EMPTY_33MHZ;
+            goto disable_unlock;
+        }
+    }
+
+    if (req_p->req_action == PCI_REQ_SLOT_ELIGIBLE)
+	return(0);
+
+    error = pcibr_slot_detach(pcibr_vhdl, slot, 1,
+                              req_p->req_resp.resp_l1_msg,
+			      &req_p->req_resp.resp_sub_errno);
+
+    req_p->req_resp.resp_l1_msg[PCI_L1_QSIZE] = '\0';
+
+    disable_unlock:
+
+    return(error);
+}
+
+/*
+ * pcibr_slot_pwr
+ *      Power-up or power-down a PCI slot.  This routines makes calls to
+ *      the L1 system controller driver which requires "external" slot#.
+ */
+int
+pcibr_slot_pwr(vertex_hdl_t pcibr_vhdl,
+               pciio_slot_t slot,
+               int          up,
+	       char        *err_msg)
+{
+    pcibr_soft_t        pcibr_soft = pcibr_soft_get(pcibr_vhdl);
+    nasid_t             nasid;
+    u64			connection_type;
+    int			rv;
+
+    nasid = NASID_GET(pcibr_soft->bs_base);
+    connection_type = SAL_SYSCTL_IO_XTALK;
+
+    rv = (int) ia64_sn_sysctl_iobrick_pci_op
+	(nasid,
+	 connection_type,
+	 (u64) pcibr_widget_to_bus(pcibr_vhdl),
+	 PCIBR_DEVICE_TO_SLOT(pcibr_soft, slot),
+	 (up ? SAL_SYSCTL_PCI_POWER_UP : SAL_SYSCTL_PCI_POWER_DOWN));
+
+    if (!rv) {
+	/* everything's okay; no error message */
+	*err_msg = '\0';
+    }
+    else {
+	/* there was a problem; look up an appropriate error message */
+	sysctl_pci_error_lookup(rv, err_msg);
+    }
+    return rv;
+}
+
+#endif /* CONFIG_HOTPLUG_PCI_SGI */
 
 /*
  * pcibr_slot_info_init
@@ -87,7 +479,6 @@ pcibr_slot_info_init(vertex_hdl_t 	pcibr_vhdl,
     pcibr_soft_t	    pcibr_soft;
     pcibr_info_h	    pcibr_infoh;
     pcibr_info_t	    pcibr_info;
-    bridge_t		   *bridge;
     cfg_p                   cfgw;
     unsigned                idword;
     unsigned                pfail;
@@ -106,31 +497,33 @@ pcibr_slot_info_init(vertex_hdl_t 	pcibr_vhdl,
     int			    func;
     vertex_hdl_t	    conn_vhdl;
     pcibr_soft_slot_t	    slotp;
-    
+    uint64_t		    device_reg;
+
     /* Get the basic software information required to proceed */
     pcibr_soft = pcibr_soft_get(pcibr_vhdl);
     if (!pcibr_soft)
-	return(EINVAL);
+	return -EINVAL;
 
-    bridge = pcibr_soft->bs_base;
     if (!PCIBR_VALID_SLOT(pcibr_soft, slot))
-	return(EINVAL);
+	return -EINVAL;
 
     /* If we have a host slot (eg:- IOC3 has 2 PCI slots and the initialization
      * is done by the host slot then we are done.
      */
     if (pcibr_soft->bs_slot[slot].has_host) {
-	return(0);    
+	return 0;
     }
 
     /* Try to read the device-id/vendor-id from the config space */
-    cfgw = pcibr_slot_config_addr(bridge, slot, 0);
+    cfgw = pcibr_slot_config_addr(pcibr_soft, slot, 0);
 
-    if (pcibr_probe_slot(bridge, cfgw, &idword)) 
-	return(ENODEV);
+    if (pcibr_probe_slot(pcibr_soft, cfgw, &idword)) 
+	return -ENODEV;
 
     slotp = &pcibr_soft->bs_slot[slot];
+#ifdef CONFIG_HOTPLUG_PCI_SGI
     slotp->slot_status |= SLOT_POWER_UP;
+#endif
 
     vendor = 0xFFFF & idword;
     device = 0xFFFF & (idword >> 16);
@@ -143,7 +536,7 @@ pcibr_slot_info_init(vertex_hdl_t 	pcibr_vhdl,
      * and we are done.
      */
     if (vendor == 0xFFFF) 
-	return(ENODEV);			
+	return -ENODEV;
     
     htype = do_pcibr_config_get(cfgw, PCI_CFG_HEADER_TYPE, 1);
     nfunc = 1;
@@ -157,8 +550,8 @@ pcibr_slot_info_init(vertex_hdl_t 	pcibr_vhdl,
 
     if (htype & 0x80) {		/* MULTIFUNCTION */
 	for (func = 1; func < 8; ++func) {
-	    cfgw = pcibr_func_config_addr(bridge, 0, slot, func, 0);
-	    if (pcibr_probe_slot(bridge, cfgw, &idwords[func])) {
+	    cfgw = pcibr_func_config_addr(pcibr_soft, 0, slot, func, 0);
+	    if (pcibr_probe_slot(pcibr_soft, cfgw, &idwords[func])) {
 		pfail |= 1 << func;
 		continue;
 	    }
@@ -170,11 +563,11 @@ pcibr_slot_info_init(vertex_hdl_t 	pcibr_vhdl,
 	    nfunc = func + 1;
 	    rfunc = 0;
 	}
-        cfgw = pcibr_slot_config_addr(bridge, slot, 0);
+        cfgw = pcibr_slot_config_addr(pcibr_soft, slot, 0);
     }
     pcibr_infoh = kmalloc(nfunc*sizeof (*(pcibr_infoh)), GFP_KERNEL);
     if ( !pcibr_infoh ) {
-	return ENOMEM;
+	return -ENOMEM;
     }
     memset(pcibr_infoh, 0, nfunc*sizeof (*(pcibr_infoh)));
     
@@ -189,7 +582,7 @@ pcibr_slot_info_init(vertex_hdl_t 	pcibr_vhdl,
 		continue;
 	    
 	    idword = idwords[func];
-	    cfgw = pcibr_func_config_addr(bridge, 0, slot, func, 0);
+	    cfgw = pcibr_func_config_addr(pcibr_soft, 0, slot, func, 0);
 	    
 	    device = 0xFFFF & (idword >> 16);
 	    htype = do_pcibr_config_get(cfgw, PCI_CFG_HEADER_TYPE, 1);
@@ -223,9 +616,8 @@ pcibr_slot_info_init(vertex_hdl_t 	pcibr_vhdl,
 	 */
 
 	lt_time = do_pcibr_config_get(cfgw, PCI_CFG_LATENCY_TIMER, 1);
-
-	if ((lt_time == 0) && !(bridge->b_device[slot].reg & BRIDGE_DEV_RT) &&
-				       (device == 0x5 /* RAD_DEV */)) {
+	device_reg = pcireg_device_get(pcibr_soft, slot);
+	if ((lt_time == 0) && !(device_reg & BRIDGE_DEV_RT)) {
 	     unsigned	min_gnt;
 	     unsigned	min_gnt_mult;
 	    
@@ -272,12 +664,14 @@ pcibr_slot_info_init(vertex_hdl_t 	pcibr_vhdl,
 			"func=%d, to 0x20\n",
 			PCIBR_DEVICE_TO_SLOT(pcibr_soft, slot), func));
 	    }
+	}
 
-	    /* Get the PCI-X capability if running in PCI-X mode.  If the func
-	     * doesnt have a pcix capability, allocate a PCIIO_VENDOR_ID_NONE
-	     * pcibr_info struct so the device driver for that function is not
-	     * called.
-	     */
+	/* Get the PCI-X capability if running in PCI-X mode.  If the func
+	 * doesnt have a pcix capability, allocate a PCIIO_VENDOR_ID_NONE
+	 * pcibr_info struct so the device driver for that function is not
+	 * called.
+	 */
+	if (IS_PCIX(pcibr_soft)) {
 	    if (!(pcix_cap = pcibr_find_capability(cfgw, PCI_CAP_PCIX))) {
 		printk(KERN_WARNING
 		        "%s: Bus running in PCI-X mode, But card in slot %d, "
@@ -398,7 +792,31 @@ pcibr_slot_info_init(vertex_hdl_t 	pcibr_vhdl,
 	    }
 
 	    if (base != 0) {	/* estimate size */
+		pciio_space_t	tmp_space = space;
+		iopaddr_t	tmp_base;
+
 		size = base & -base;
+
+		/*
+		 * Reserve this space in the relavent address map.  Don't
+		 * care about the return code from pcibr_bus_addr_alloc().
+		 */
+
+		if (space == PCIIO_SPACE_MEM && code != PCI_BA_MEM_1MEG) {
+			tmp_space = PCIIO_SPACE_MEM32;
+		}
+
+                tmp_base = pcibr_bus_addr_alloc(pcibr_soft,
+                                            	&pcibr_info->f_window[win],
+                                            	tmp_space,
+                                            	base, size, 0);
+
+		PCIBR_DEBUG_ALWAYS((PCIBR_DEBUG_BAR, pcibr_vhdl,
+			"pcibr_slot_info_init: slot=%d, func=%d win %d "
+			"reserving space %s [0x%lx..0x%lx], tmp_base 0x%lx\n",
+			PCIBR_DEVICE_TO_SLOT(pcibr_soft, slot), func, win,
+			pci_space[tmp_space], (uint64_t)base,
+			(uint64_t)(base + size - 1), (uint64_t)tmp_base));
 	    } else {		/* calculate size */
 		do_pcibr_config_set(wptr, (win * 4), 4, ~0);    /* write 1's */
 		size = do_pcibr_config_get(wptr, (win * 4), 4); /* read back */
@@ -419,7 +837,7 @@ pcibr_slot_info_init(vertex_hdl_t 	pcibr_vhdl,
 	}				/* next win */
     }				/* next func */
 
-    return(0);
+    return 0;
 }					
 
 /*
@@ -438,7 +856,7 @@ pcibr_find_capability(cfg_p	cfgw,
 
     /* Check to see if there is a capabilities pointer in the cfg header */
     if (!(do_pcibr_config_get(cfgw, PCI_CFG_STATUS, 2) & PCI_STAT_CAP_LIST)) {
-	return (NULL);
+	return NULL;
     }
 
     /*
@@ -453,13 +871,13 @@ pcibr_find_capability(cfg_p	cfgw,
     while (cap_nxt && (defend_against_circular_linkedlist <= 48)) {
 	cap_id = do_pcibr_config_get(cfgw, cap_nxt, 1);
 	if (cap_id == capability) {
-	    return ((cfg_p)((char *)cfgw + cap_nxt));
+	    return (cfg_p)((char *)cfgw + cap_nxt);
 	}
 	cap_nxt = (do_pcibr_config_get(cfgw, cap_nxt+1, 1) & 0xfc);
 	defend_against_circular_linkedlist++;
     }
 
-    return (NULL);
+    return NULL;
 }
 
 /*
@@ -478,10 +896,10 @@ pcibr_slot_info_free(vertex_hdl_t pcibr_vhdl,
     pcibr_soft = pcibr_soft_get(pcibr_vhdl);
 
     if (!pcibr_soft)
-	return(EINVAL);
+	return -EINVAL;
 
     if (!PCIBR_VALID_SLOT(pcibr_soft, slot))
-	return(EINVAL);
+	return -EINVAL;
 
     nfunc = pcibr_soft->bs_slot[slot].bss_ninfo;
 
@@ -491,7 +909,7 @@ pcibr_slot_info_free(vertex_hdl_t pcibr_vhdl,
     kfree(pcibr_infoh);
     pcibr_soft->bs_slot[slot].bss_ninfo = 0;
 
-    return(0);
+    return 0;
 }
 
 /*
@@ -508,13 +926,13 @@ pcibr_slot_pcix_rbar_init(pcibr_soft_t pcibr_soft,
     int			 func;
 
     if (!PCIBR_VALID_SLOT(pcibr_soft, slot))
-	return(EINVAL);
+	return -EINVAL;
 
     if ((nfunc = pcibr_soft->bs_slot[slot].bss_ninfo) < 1)
-	return(EINVAL);
+	return -EINVAL;
 
     if (!(pcibr_infoh = pcibr_soft->bs_slot[slot].bss_infos))
-	return(EINVAL);
+	return -EINVAL;
 
     PCIBR_DEBUG_ALWAYS((PCIBR_DEBUG_RBAR, pcibr_soft->bs_vhdl,
 		"pcibr_slot_pcix_rbar_init for slot %d\n", 
@@ -586,7 +1004,7 @@ pcibr_slot_pcix_rbar_init(pcibr_soft_t pcibr_soft,
 		pcibr_soft->bs_pcix_rbar_inuse,
 		pcibr_soft->bs_pcix_rbar_avail));
     }
-    return(0);
+    return 0;
 }
 
 int as_debug = 0;
@@ -602,41 +1020,38 @@ pcibr_slot_addr_space_init(vertex_hdl_t pcibr_vhdl,
     pcibr_soft_t	 pcibr_soft;
     pcibr_info_h	 pcibr_infoh;
     pcibr_info_t	 pcibr_info;
-    bridge_t		*bridge;
     iopaddr_t            mask;
     int		       	 nbars;
     int		       	 nfunc;
     int			 func;
     int			 win;
     int                  rc = 0;
-    int			 align;
+    int			 align = 0;
     int			 align_slot;
 
     pcibr_soft = pcibr_soft_get(pcibr_vhdl);
 
     if (!pcibr_soft)
-	return(EINVAL);
+	return -EINVAL;
 
     if (!PCIBR_VALID_SLOT(pcibr_soft, slot))
-	return(EINVAL);
-
-    bridge = pcibr_soft->bs_base;
+	return -EINVAL;
 
     /* allocate address space,
      * for windows that have not been
      * previously assigned.
      */
     if (pcibr_soft->bs_slot[slot].has_host) {
-	return(0);
+	return 0;
     }
 
     nfunc = pcibr_soft->bs_slot[slot].bss_ninfo;
     if (nfunc < 1)
-	return(EINVAL);
+	return -EINVAL;
 
     pcibr_infoh = pcibr_soft->bs_slot[slot].bss_infos;
     if (!pcibr_infoh)
-	return(EINVAL);
+	return -EINVAL;
 
     /*
      * Try to make the DevIO windows not
@@ -668,7 +1083,7 @@ pcibr_slot_addr_space_init(vertex_hdl_t pcibr_vhdl,
 	if (pcibr_info->f_vendor == PCIIO_VENDOR_ID_NONE)
 	    continue;
 	
-        cfgw = pcibr_func_config_addr(bridge, 0, slot, func, 0);
+        cfgw = pcibr_func_config_addr(pcibr_soft, 0, slot, func, 0);
 	wptr = cfgw + PCI_CFG_BASE_ADDR_0 / 4;
 
 	if ((do_pcibr_config_get(cfgw, PCI_CFG_HEADER_TYPE, 1) & 0x7f) != 0)
@@ -821,7 +1236,7 @@ pcibr_slot_addr_space_init(vertex_hdl_t pcibr_vhdl,
 	    do_pcibr_config_set(cfgw, PCI_CFG_COMMAND, 4, 
 				pci_cfg_cmd_reg | pci_cfg_cmd_reg_add);
     }				/* next func */
-    return(rc);
+    return rc;
 }
 
 /*
@@ -834,40 +1249,45 @@ pcibr_slot_device_init(vertex_hdl_t pcibr_vhdl,
 		       pciio_slot_t slot)
 {
     pcibr_soft_t	 pcibr_soft;
-    bridge_t		*bridge;
-    bridgereg_t		 devreg;
+    uint64_t		 devreg;
 
     pcibr_soft = pcibr_soft_get(pcibr_vhdl);
 
     if (!pcibr_soft)
-	return(EINVAL);
+	return -EINVAL;
 
     if (!PCIBR_VALID_SLOT(pcibr_soft, slot))
-	return(EINVAL);
-
-    bridge = pcibr_soft->bs_base;
+	return -EINVAL;
 
     /*
-     * Adjustments to Device(x)
-     * and init of bss_device shadow
+     * Adjustments to Device(x) and init of bss_device shadow
      */
-    devreg = bridge->b_device[slot].reg;
+    devreg = pcireg_device_get(pcibr_soft, slot);
     devreg &= ~BRIDGE_DEV_PAGE_CHK_DIS;
 
     /*
-     * PIC WAR. PV# 855271
-     * Don't enable virtual channels in the PIC by default.
-     * Can cause problems with 32-bit devices. (The bit is only intended
-     * for 64-bit devices).  We set the bit in pcibr_try_set_device()
-     * if we're 64-bit and requesting virtual channels.
+     * Enable virtual channels by default (exception: see PIC WAR below)
      */
-    if (PCIBR_WAR_ENABLED(PV855271, pcibr_soft))
-	devreg |= BRIDGE_DEV_COH;
-    else
-	devreg |= BRIDGE_DEV_COH | BRIDGE_DEV_VIRTUAL_EN;
+    devreg |= BRIDGE_DEV_VIRTUAL_EN;
+
+    /*
+     * PIC WAR. PV# 855271:  Disable virtual channels in the PIC since
+     * it can cause problems with 32-bit devices.  We'll set the bit in
+     * pcibr_try_set_device() iff we're 64-bit and requesting virtual 
+     * channels.
+     */
+    if (PCIBR_WAR_ENABLED(PV855271, pcibr_soft)) {
+	devreg &= ~BRIDGE_DEV_VIRTUAL_EN;
+    }
+    devreg |= BRIDGE_DEV_COH;
+
     pcibr_soft->bs_slot[slot].bss_device = devreg;
-    bridge->b_device[slot].reg = devreg;
-    return(0);
+    pcireg_device_set(pcibr_soft, slot, devreg);
+
+    PCIBR_DEBUG_ALWAYS((PCIBR_DEBUG_DEVREG, pcibr_vhdl,
+		"pcibr_slot_device_init: Device(%d): 0x%x\n",
+		slot, devreg));
+    return 0;
 }
 
 /*
@@ -886,10 +1306,10 @@ pcibr_slot_guest_info_init(vertex_hdl_t pcibr_vhdl,
     pcibr_soft = pcibr_soft_get(pcibr_vhdl);
 
     if (!pcibr_soft)
-	return(EINVAL);
+	return -EINVAL;
 
     if (!PCIBR_VALID_SLOT(pcibr_soft, slot))
-	return(EINVAL);
+	return -EINVAL;
 
     slotp = &pcibr_soft->bs_slot[slot];
 
@@ -901,7 +1321,7 @@ pcibr_slot_guest_info_init(vertex_hdl_t pcibr_vhdl,
     if (pcibr_soft->bs_slot[slot].bss_ninfo < 1) {
 	pcibr_infoh = kmalloc(sizeof (*(pcibr_infoh)), GFP_KERNEL);
 	if ( !pcibr_infoh ) {
-		return ENOMEM;
+		return -ENOMEM;
 	}
 	memset(pcibr_infoh, 0, sizeof (*(pcibr_infoh)));
 
@@ -939,7 +1359,7 @@ pcibr_slot_guest_info_init(vertex_hdl_t pcibr_vhdl,
 			 EDGE_LBL_GUEST);
     }
 
-    return(0);
+    return 0;
 }
 
 
@@ -966,13 +1386,13 @@ pcibr_slot_call_device_attach(vertex_hdl_t pcibr_vhdl,
     pcibr_soft = pcibr_soft_get(pcibr_vhdl);
 
     if (!pcibr_soft)
-	return(EINVAL);
+	return -EINVAL;
 
     if (!PCIBR_VALID_SLOT(pcibr_soft, slot))
-	return(EINVAL);
+	return -EINVAL;
 
     if (pcibr_soft->bs_slot[slot].has_host) {
-        return(EPERM);
+        return -EPERM;
     }
     
     xconn_vhdl = pcibr_soft->bs_conn;
@@ -1008,6 +1428,7 @@ pcibr_slot_call_device_attach(vertex_hdl_t pcibr_vhdl,
 
     }				/* next func */
 
+#ifdef CONFIG_HOTPLUG_PCI_SGI
     if (error) {
 	if ((error != ENODEV) && (error != EUNATCH) && (error != EPERM)) {
 	    pcibr_soft->bs_slot[slot].slot_status &= ~SLOT_STATUS_MASK;
@@ -1017,8 +1438,8 @@ pcibr_slot_call_device_attach(vertex_hdl_t pcibr_vhdl,
         pcibr_soft->bs_slot[slot].slot_status &= ~SLOT_STATUS_MASK;
         pcibr_soft->bs_slot[slot].slot_status |= SLOT_STARTUP_CMPLT;
     }
-        
-    return(error);
+#endif	/* CONFIG_HOTPLUG_PCI_SGI */
+    return error;
 }
 
 /*
@@ -1044,13 +1465,13 @@ pcibr_slot_call_device_detach(vertex_hdl_t pcibr_vhdl,
     pcibr_soft = pcibr_soft_get(pcibr_vhdl);
 
     if (!pcibr_soft)
-	return(EINVAL);
+	return -EINVAL;
 
     if (!PCIBR_VALID_SLOT(pcibr_soft, slot))
-	return(EINVAL);
+	return -EINVAL;
 
     if (pcibr_soft->bs_slot[slot].has_host)
-        return(EPERM);
+        return -EPERM;
 
     nfunc = pcibr_soft->bs_slot[slot].bss_ninfo;
     pcibr_infoh = pcibr_soft->bs_slot[slot].bss_infos;
@@ -1092,7 +1513,7 @@ pcibr_slot_call_device_detach(vertex_hdl_t pcibr_vhdl,
 
     }				/* next func */
 
-
+#ifdef CONFIG_HOTPLUG_PCI_SGI
     if (error) {
 	if ((error != ENODEV) && (error != EUNATCH) && (error != EPERM)) {
 	    pcibr_soft->bs_slot[slot].slot_status &= ~SLOT_STATUS_MASK;
@@ -1104,47 +1525,11 @@ pcibr_slot_call_device_detach(vertex_hdl_t pcibr_vhdl,
         pcibr_soft->bs_slot[slot].slot_status &= ~SLOT_STATUS_MASK;
         pcibr_soft->bs_slot[slot].slot_status |= SLOT_SHUTDOWN_CMPLT;
     }
-        
-    return(error);
+#endif	/* CONFIG_HOTPLUG_PCI_SGI */
+    return error;
 }
 
-/*
- * pcibr_slot_attach
- *	This is a place holder routine to keep track of all the
- *	slot-specific initialization that needs to be done.
- *	This is usually called when we want to initialize a new
- * 	PCI card on the bus.
- */
-int
-pcibr_slot_attach(vertex_hdl_t pcibr_vhdl,
-		  pciio_slot_t slot,
-		  int          drv_flags,
-		  char        *l1_msg,
-                  int         *sub_errorp)
-{
-    pcibr_soft_t  pcibr_soft = pcibr_soft_get(pcibr_vhdl);
-    int		  error;
 
-    /* Do not allow a multi-function card to be hot-plug inserted */
-    if (pcibr_soft->bs_slot[slot].bss_ninfo > 1) {
-        if (sub_errorp)
-            *sub_errorp = EPERM;
-        return(PCI_MULTI_FUNC_ERR);
-    }
-
-    /* Call the device attach */
-    error = pcibr_slot_call_device_attach(pcibr_vhdl, slot, drv_flags);
-    if (error) {
-        if (sub_errorp)
-            *sub_errorp = error;
-        if (error == EUNATCH)
-            return(PCI_NO_DRIVER);
-        else
-            return(PCI_SLOT_DRV_ATTACH_ERR);
-    }
-
-    return(0);
-}
 
 /*
  * pcibr_slot_detach
@@ -1166,7 +1551,9 @@ pcibr_slot_detach(vertex_hdl_t pcibr_vhdl,
     if (error) {
         if (sub_errorp)
             *sub_errorp = error;       
-        return(PCI_SLOT_DRV_DETACH_ERR);
+	if (l1_msg)
+	    ;
+        return PCI_SLOT_DRV_DETACH_ERR;
     }
 
     /* Recalculate the RBARs for all the devices on the bus since we've
@@ -1185,7 +1572,7 @@ pcibr_slot_detach(vertex_hdl_t pcibr_vhdl,
             (void)pcibr_slot_pcix_rbar_init(pcibr_soft, tmp_slot);
     }
 
-    return (0);
+    return 0;
 
 }
 
@@ -1197,33 +1584,75 @@ pcibr_slot_detach(vertex_hdl_t pcibr_vhdl,
  * through the valp parameter.
  */
 static int
-pcibr_probe_slot_pic(bridge_t *bridge,
-                 cfg_p cfg,
-                 unsigned *valp)
+pcibr_probe_slot(pcibr_soft_t pcibr_soft,
+		 cfg_p cfg,
+		 unsigned *valp)
 {
-	int rv;
-	picreg_t p_old_enable = (picreg_t)0, p_new_enable;
-	extern int snia_badaddr_val(volatile void *, int, volatile void *);
+    return pcibr_probe_work(pcibr_soft, (void *)cfg, 4, (void *)valp);
+}
 
-	p_old_enable = bridge->p_int_enable_64;
-	p_new_enable = p_old_enable & ~(BRIDGE_IMR_PCI_MST_TIMEOUT | PIC_ISR_PCIX_MTOUT);
-	bridge->p_int_enable_64 = p_new_enable;
+/*
+ * Probe an offset within a piomap with errors disabled.
+ * len must be 1, 2, 4, or 8.  	The probed address must be a multiple of
+ * len.
+ *
+ * Returns:	0	if the offset was probed and put valid data in valp
+ *		-1	if there was a usage error such as improper alignment
+ *			or out of bounds offset/len combination.  In this
+ *			case, the map was not probed
+ *		1 	if the offset was probed but resulted in an error
+ *			such as device not responding, bus error, etc.
+ */
 
-	if (bridge->p_err_int_view_64 & (BRIDGE_ISR_PCI_MST_TIMEOUT | PIC_ISR_PCIX_MTOUT))
-		bridge->p_int_rst_stat_64 = BRIDGE_IRR_MULTI_CLR;
-
-	if (bridge->p_int_status_64 & (BRIDGE_IRR_PCI_GRP | PIC_PCIX_GRP_CLR)) {
-		bridge->p_int_rst_stat_64 = (BRIDGE_IRR_PCI_GRP_CLR | PIC_PCIX_GRP_CLR);
-		(void) bridge->b_wid_tflush;	/* flushbus */
+int
+pcibr_piomap_probe(pcibr_piomap_t piomap, off_t offset, int len, void *valp)
+{
+	if (offset + len > piomap->bp_mapsz) {
+		return -1;
 	}
-	rv = snia_badaddr_val((void *) cfg, 4, valp);
-	if (bridge->p_err_int_view_64 & (BRIDGE_ISR_PCI_MST_TIMEOUT | PIC_ISR_PCIX_MTOUT)) {
-		bridge->p_int_rst_stat_64 = BRIDGE_IRR_MULTI_CLR;
-		rv = 1;         /* unoccupied slot */
-	}
-	bridge->p_int_enable_64 = p_old_enable;
-	bridge->b_wid_tflush;		/* wait until Bridge PIO complete */
-	return(rv);
+
+	return pcibr_probe_work(piomap->bp_soft,
+				piomap->bp_kvaddr + offset, len, valp);
+}
+
+static uint64_t
+pcibr_disable_mst_timeout(pcibr_soft_t pcibr_soft)
+{
+    uint64_t		old_enable;
+    uint64_t		new_enable;
+    uint64_t		intr_bits;
+
+    intr_bits = PIC_ISR_PCI_MST_TIMEOUT
+		| PIC_ISR_PCIX_MTOUT | PIC_ISR_PCIX_SPLIT_EMSG;
+    old_enable = pcireg_intr_enable_get(pcibr_soft);
+    pcireg_intr_enable_bit_clr(pcibr_soft, intr_bits);
+    new_enable = pcireg_intr_enable_get(pcibr_soft);
+
+    if (old_enable == new_enable) {
+	return 0;		/* was already disabled */
+    } else {
+	return 1;
+    }
+}
+
+static int
+pcibr_enable_mst_timeout(pcibr_soft_t pcibr_soft)
+{
+    uint64_t		old_enable;
+    uint64_t		new_enable;
+    uint64_t		intr_bits;
+    
+    intr_bits = PIC_ISR_PCI_MST_TIMEOUT
+		| PIC_ISR_PCIX_MTOUT | PIC_ISR_PCIX_SPLIT_EMSG;
+    old_enable = pcireg_intr_enable_get(pcibr_soft);
+    pcireg_intr_enable_bit_set(pcibr_soft, intr_bits);
+    new_enable = pcireg_intr_enable_get(pcibr_soft);
+
+    if (old_enable == new_enable) {
+	return 0;		/* was alread enabled */
+    } else {
+	return 1;
+    }
 }
 
 /*
@@ -1234,13 +1663,37 @@ pcibr_probe_slot_pic(bridge_t *bridge,
  * through the valp parameter.
  */
 static int
-pcibr_probe_slot(bridge_t *bridge,
-		 cfg_p cfg,
-		 unsigned *valp)
+pcibr_probe_work(pcibr_soft_t pcibr_soft,
+		 void *addr,
+		 int len,
+		 void *valp)
 {
-    return(pcibr_probe_slot_pic(bridge, cfg, valp));
-}
+    int			rv, changed;
 
+    /*
+     * Sanity checks ...
+     */
+
+    if (len != 1 && len != 2 && len != 4 && len != 8) {
+	return -1;				/* invalid len */
+    }
+
+    if ((uint64_t)addr & (len-1)) {
+	return -1;				/* invalid alignment */
+    }
+
+    changed = pcibr_disable_mst_timeout(pcibr_soft);
+
+    rv = snia_badaddr_val((void *)addr, len, valp);
+
+    /* Clear the int_view register incase it was set */
+    pcireg_intr_reset_set(pcibr_soft, BRIDGE_IRR_MULTI_CLR);
+
+    if (changed) {
+	pcibr_enable_mst_timeout(pcibr_soft);
+    }
+    return (rv ? 1 : 0);	/* return 1 for snia_badaddr_val error, 0 if ok */
+}
 
 void
 pcibr_device_info_free(vertex_hdl_t pcibr_vhdl, pciio_slot_t slot)
@@ -1249,7 +1702,6 @@ pcibr_device_info_free(vertex_hdl_t pcibr_vhdl, pciio_slot_t slot)
     pcibr_info_t	pcibr_info;
     pciio_function_t	func;
     pcibr_soft_slot_t	slotp = &pcibr_soft->bs_slot[slot];
-    bridge_t           *bridge = pcibr_soft->bs_base; 
     cfg_p               cfgw;
     int			nfunc = slotp->bss_ninfo;
     int                 bar;
@@ -1267,7 +1719,7 @@ pcibr_device_info_free(vertex_hdl_t pcibr_vhdl, pciio_slot_t slot)
         s = pcibr_lock(pcibr_soft);
 
         /* Disable memory and I/O BARs */
-	cfgw = pcibr_func_config_addr(bridge, 0, slot, func, 0);
+	cfgw = pcibr_func_config_addr(pcibr_soft, 0, slot, func, 0);
 	cmd_reg = do_pcibr_config_get(cfgw, PCI_CFG_COMMAND, 4);
 	cmd_reg &= (PCI_CMD_MEM_SPACE | PCI_CMD_IO_SPACE);
 	do_pcibr_config_set(cfgw, PCI_CFG_COMMAND, 4, cmd_reg);
@@ -1277,7 +1729,7 @@ pcibr_device_info_free(vertex_hdl_t pcibr_vhdl, pciio_slot_t slot)
                 continue;
 
             /* Free the PCI bus space */
-            pciibr_bus_addr_free(pcibr_soft, &pcibr_info->f_window[bar]);
+            pcibr_bus_addr_free(&pcibr_info->f_window[bar]);
 
             /* Get index of the DevIO(x) register used to access this BAR */
             devio_index = pcibr_info->f_window[bar].w_devio_index;
@@ -1295,7 +1747,7 @@ pcibr_device_info_free(vertex_hdl_t pcibr_vhdl, pciio_slot_t slot)
 
         /* Free the Expansion ROM PCI bus space */
 	if(pcibr_info->f_rbase && pcibr_info->f_rsize) {
-            pciibr_bus_addr_free(pcibr_soft, &pcibr_info->f_rwindow);
+            pcibr_bus_addr_free(&pcibr_info->f_rwindow);
         }
 
         pcibr_unlock(pcibr_soft, s);
@@ -1317,12 +1769,6 @@ pcibr_device_info_free(vertex_hdl_t pcibr_vhdl, pciio_slot_t slot)
     slotp->bss_d64_flags = 0;
     slotp->bss_d32_base = PCIBR_D32_BASE_UNSET;
     slotp->bss_d32_flags = 0;
-
-    /* Clear out shadow info necessary for the external SSRAM workaround */
-    slotp->bss_ext_ates_active = ATOMIC_INIT(0);
-    slotp->bss_cmd_pointer = 0;
-    slotp->bss_cmd_shadow = 0;
-
 }
 
 
@@ -1360,12 +1806,12 @@ pcibr_bus_addr_alloc(pcibr_soft_t pcibr_soft, pciio_win_info_t win_info_p,
 				  ? &win_info_p->w_win_alloc
 				  : NULL,
 				  start, size, align);
-    return(iopaddr);
+    return iopaddr;
 }
 
 
 void
-pciibr_bus_addr_free(pcibr_soft_t pcibr_soft, pciio_win_info_t win_info_p)
+pcibr_bus_addr_free(pciio_win_info_t win_info_p)
 {
 	pciio_device_win_free(&win_info_p->w_win_alloc);
 }
@@ -1381,17 +1827,16 @@ pcibr_widget_to_bus(vertex_hdl_t pcibr_vhdl)
     pcibr_soft_t	pcibr_soft = pcibr_soft_get(pcibr_vhdl);
     xwidgetnum_t	widget = pcibr_soft->bs_xid;
     int			bricktype = pcibr_soft->bs_bricktype;
-    int			bus = pcibr_soft->bs_busnum;
+    int			bus;
     
-    /* 
-     * For PIC there are 2 busses per widget and pcibr_soft->bs_busnum
-     * will be 0 or 1.  For [X]BRIDGE there is 1 bus per widget and 
-     * pcibr_soft->bs_busnum will always be zero.  So we add bs_busnum
-     * to what io_brick_map_widget returns to get the bus number.
-     */
-    if ((bus += io_brick_map_widget(bricktype, widget)) > 0) {
-	return bus;
-    } else {
+    if ((bus = io_brick_map_widget(bricktype, widget)) <= 0) {
+	printk(KERN_WARNING "pcibr_widget_to_bus() bad bricktype %d\n", bricktype);
 	return 0;
     }
+
+    /* For PIC there are 2 busses per widget and pcibr_soft->bs_busnum
+     * will be 0 or 1.  Add in the correct PIC bus offset.
+     */
+    bus += pcibr_soft->bs_busnum;
+    return bus;
 }

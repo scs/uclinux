@@ -33,13 +33,15 @@ static int kmsg_release(struct inode * inode, struct file * file)
 static ssize_t kmsg_read(struct file *file, char __user *buf,
 			 size_t count, loff_t *ppos)
 {
+	if ((file->f_flags & O_NONBLOCK) && !do_syslog(9, NULL, 0))
+		return -EAGAIN;
 	return do_syslog(2, buf, count);
 }
 
 static unsigned int kmsg_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &log_wait, wait);
-	if (do_syslog(9, 0, 0))
+	if (do_syslog(9, NULL, 0))
 		return POLLIN | POLLRDNORM;
 	return 0;
 }

@@ -105,6 +105,7 @@
 #define __NR_stat               106
 #define __NR_lstat              107
 #define __NR_fstat              108
+#define __NR_lookup_dcookie     110
 #define __NR_vhangup            111
 #define __NR_idle               112
 #define __NR_wait4              114
@@ -233,9 +234,7 @@
 #define __NR_sched_setaffinity	239
 #define __NR_sched_getaffinity	240
 #define __NR_tgkill		241
-/*
- * Number 242 is reserved for tux
- */
+/* Number 242 is reserved for tux */
 #define __NR_io_setup		243
 #define __NR_io_destroy		244
 #define __NR_io_getevents	245
@@ -256,12 +255,22 @@
 #define __NR_clock_gettime	(__NR_timer_create+6)
 #define __NR_clock_getres	(__NR_timer_create+7)
 #define __NR_clock_nanosleep	(__NR_timer_create+8)
-/*
- * Number 263 is reserved for vserver
- */
+/* Number 263 is reserved for vserver */
 #define __NR_fadvise64_64	264
+#define __NR_statfs64		265
+#define __NR_fstatfs64		266
+/* Number 267 is reserved for new sys_remap_file_pages */
+/* Number 268 is reserved for new sys_mbind */
+/* Number 269 is reserved for new sys_get_mempolicy */
+/* Number 270 is reserved for new sys_set_mempolicy */
+#define __NR_mq_open		271
+#define __NR_mq_unlink		272
+#define __NR_mq_timedsend	273
+#define __NR_mq_timedreceive	274
+#define __NR_mq_notify		275
+#define __NR_mq_getsetattr	276
 
-#define NR_syscalls 265
+#define NR_syscalls 277
 
 /* 
  * There are some system calls that are not present on 64 bit, some
@@ -503,9 +512,38 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4,    \
 	__syscall_return(type,__res);			     \
 }
 
+#ifdef __KERNEL__
+#define __ARCH_WANT_IPC_PARSE_VERSION
+#define __ARCH_WANT_OLD_READDIR
+#define __ARCH_WANT_SYS_ALARM
+#define __ARCH_WANT_SYS_GETHOSTNAME
+#define __ARCH_WANT_SYS_PAUSE
+#define __ARCH_WANT_SYS_SIGNAL
+#define __ARCH_WANT_SYS_TIME
+#define __ARCH_WANT_SYS_UTIME
+#define __ARCH_WANT_SYS_SOCKETCALL
+#define __ARCH_WANT_SYS_FADVISE64
+#define __ARCH_WANT_SYS_GETPGRP
+#define __ARCH_WANT_SYS_LLSEEK
+#define __ARCH_WANT_SYS_NICE
+#define __ARCH_WANT_SYS_OLD_GETRLIMIT
+#define __ARCH_WANT_SYS_OLDUMOUNT
+#define __ARCH_WANT_SYS_SIGPENDING
+#define __ARCH_WANT_SYS_SIGPROCMASK
+#define __ARCH_WANT_SYS_RT_SIGACTION
+# ifndef CONFIG_ARCH_S390X
+#   define __ARCH_WANT_STAT64
+# endif
+#endif
+
 #ifdef __KERNEL_SYSCALLS__
 
+#include <linux/config.h>
+#include <linux/compiler.h>
+#include <linux/types.h>
+#include <asm/ptrace.h>
 #include <asm/stat.h>
+#include <linux/syscalls.h>
 
 /*
  * we need this inline - forking from kernel space will result
@@ -528,15 +566,26 @@ static inline _syscall1(int,dup,int,fd)
 static inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
 static inline _syscall3(int,open,const char *,file,int,flag,int,mode)
 static inline _syscall1(int,close,int,fd)
-static inline _syscall1(int,_exit,int,exitcode)
 static inline _syscall2(long,stat,char *,filename,struct stat *,statbuf)
 
-struct rusage;
-extern long sys_wait4(pid_t, unsigned int *, int, struct rusage *);
 static inline pid_t waitpid(int pid, int *wait_stat, int flags)
 {
 	return sys_wait4(pid, wait_stat, flags, NULL);
 }
+struct mmap_arg_struct;
+asmlinkage long sys_mmap2(struct mmap_arg_struct __user *arg);
+
+asmlinkage long sys_execve(struct pt_regs regs);
+asmlinkage long sys_clone(struct pt_regs regs);
+asmlinkage long sys_fork(struct pt_regs regs);
+asmlinkage long sys_vfork(struct pt_regs regs);
+asmlinkage long sys_pipe(unsigned long __user *fildes);
+asmlinkage long sys_ptrace(long request, long pid, long addr, long data);
+struct sigaction;
+asmlinkage long sys_rt_sigaction(int sig,
+				const struct sigaction __user *act,
+				struct sigaction __user *oact,
+				size_t sigsetsize);
 
 #endif
 

@@ -1,13 +1,32 @@
 /*
- * linux/arch/parisc/kernel/sys_hpux.c
+ *    Implements HPUX syscalls.
  *
- * implements HPUX syscalls.
+ *    Copyright (C) 1999 Matthew Wilcox <willy with parisc-linux.org>
+ *    Copyright (C) 2000 Philipp Rumpf
+ *    Copyright (C) 2000 John Marvin <jsm with parisc-linux.org>
+ *    Copyright (C) 2000 Michael Ang <mang with subcarrier.org>
+ *    Copyright (C) 2001 Nathan Neulinger <nneul at umr.edu>
+ *
+ *    This program is free software; you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation; either version 2 of the License, or
+ *    (at your option) any later version.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License
+ *    along with this program; if not, write to the Free Software
+ *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
+#include <linux/syscalls.h>
 #include <linux/utsname.h>
 #include <linux/vmalloc.h>
 #include <linux/vfs.h>
@@ -16,8 +35,6 @@
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
 
-unsigned long sys_brk(unsigned long addr);
- 
 unsigned long hpux_brk(unsigned long addr)
 {
 	/* Sigh.  Looks like HP/UX libc relies on kernel bugs. */
@@ -43,7 +60,6 @@ int hpux_ptrace(void)
 
 int hpux_wait(int *stat_loc)
 {
-	extern int sys_waitpid(int, int *, int);
 	return sys_waitpid(-1, stat_loc, 0);
 }
 
@@ -195,7 +211,6 @@ int hpux_statfs(const char *path, struct hpux_statfs *buf)
 	kfree(kpath);
 
 	/* just fake it, beginning of structures match */
-	extern int sys_statfs(const char *, struct statfs *);
 	error = sys_statfs(path, (struct statfs *) buf);
 
 	/* ignoring rest of statfs struct, but it should be zeros. Need to do 
@@ -250,9 +265,6 @@ static int hpux_uname(struct hpux_utsname *name)
 
 	return error;
 }
-
-int sys_sethostname(char *, int);
-int sys_gethostname(char *, int);
 
 /*  Note: HP-UX just uses the old suser() function to check perms
  *  in this system call.  We'll use capable(CAP_SYS_ADMIN).

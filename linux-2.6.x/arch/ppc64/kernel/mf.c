@@ -30,18 +30,18 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/completion.h>
 #include <asm/iSeries/HvLpConfig.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <asm/nvram.h>
 #include <asm/time.h>
 #include <asm/iSeries/ItSpCommArea.h>
-#include <asm/iSeries/iSeries_proc.h>
 #include <asm/uaccess.h>
-#include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/bcd.h>
-
-extern struct pci_dev *iSeries_vio_dev;
+#include <asm/iSeries/vio.h>
 
 /*
  * This is the structure layout for the Machine Facilites LPAR event
@@ -82,7 +82,7 @@ struct VspCmdData {
 };
 
 struct VspRspData {
-	struct semaphore *sem;
+	struct completion com;
 	struct VspCmdData *response;
 };
 
@@ -277,12 +277,11 @@ static int signal_vsp_instruction(struct VspCmdData *vspCmd)
 	struct pending_event *ev = new_pending_event();
 	int rc;
 	struct VspRspData response;
-	DECLARE_MUTEX_LOCKED(Semaphore);
 
 	if (ev == NULL)
 		return -ENOMEM;
 
-	response.sem = &Semaphore;
+	init_completion(&response.com);
 	response.response = vspCmd;
 	ev->event.hp_lp_event.xSubtype = 6;
 	ev->event.hp_lp_event.x.xSubtypeData =
@@ -298,7 +297,7 @@ static int signal_vsp_instruction(struct VspCmdData *vspCmd)
 
 	rc = signal_event(ev);
 	if (rc == 0)
-		down(&Semaphore);
+		wait_for_completion(&response.com);
 	return rc;
 }
 
@@ -478,8 +477,7 @@ static void ackReceived(struct IoMFLpEvent *event)
 				if (rsp != NULL) {
 					if (rsp->response != NULL)
 						memcpy(rsp->response, &(event->data.vsp_cmd), sizeof(event->data.vsp_cmd));
-					if (rsp->sem != NULL)
-						up(rsp->sem);
+					complete(&rsp->com);
 				} else
 					printk(KERN_ERR "mf.c: no rsp\n");
 				freeIt = 1;
@@ -561,6 +559,7 @@ void mf_allocateLpEvents(HvLpIndex targetLp, HvLpEvent_Type type,
 	if ((rc != 0) && (hdlr != NULL))
 		(*hdlr)(userToken, rc);
 }
+EXPORT_SYMBOL(mf_allocateLpEvents);
 
 /*
  * Global kernel interface to unseed and deallocate events already in
@@ -591,6 +590,7 @@ void mf_deallocateLpEvents(HvLpIndex targetLp, HvLpEvent_Type type,
 	if ((rc != 0) && (hdlr != NULL))
 		(*hdlr)(userToken, rc);
 }
+EXPORT_SYMBOL(mf_deallocateLpEvents);
 
 /*
  * Global kernel interface to tell the VSP object in the primary
@@ -681,8 +681,6 @@ void mf_init(void)
 
 	/* initialization complete */
 	printk(KERN_NOTICE "mf.c: iSeries Linux LPAR Machine Facilities initialized\n");
-
-	iSeries_proc_callback(&mf_proc_init);
 }
 
 void mf_setSide(char side)
@@ -764,14 +762,10 @@ void mf_getSrcHistory(char *buffer, int size)
 	ev->event.data.vsp_cmd.lp_index = HvLpConfig_getLpIndex();
 	ev->event.data.vsp_cmd.result_code = 0xFF;
 	ev->event.data.vsp_cmd.reserved = 0;
-	ev->event.data.vsp_cmd.sub_data.page[0] =
-		(0x8000000000000000ULL | virt_to_absolute((unsigned long)pages[0]));
-	ev->event.data.vsp_cmd.sub_data.page[1] =
-		(0x8000000000000000ULL | virt_to_absolute((unsigned long)pages[1]));
-	ev->event.data.vsp_cmd.sub_data.page[2] =
-		(0x8000000000000000ULL | virt_to_absolute((unsigned long)pages[2]));
-	ev->event.data.vsp_cmd.sub_data.page[3] =
-		(0x8000000000000000ULL | virt_to_absolute((unsigned long)pages[3]));
+	ev->event.data.vsp_cmd.sub_data.page[0] = ISERIES_HV_ADDR(pages[0]);
+	ev->event.data.vsp_cmd.sub_data.page[1] = ISERIES_HV_ADDR(pages[1]);
+	ev->event.data.vsp_cmd.sub_data.page[2] = ISERIES_HV_ADDR(pages[2]);
+	ev->event.data.vsp_cmd.sub_data.page[3] = ISERIES_HV_ADDR(pages[3]);
 	mb();
 	if (signal_event(ev) != 0)
 		return;
@@ -791,7 +785,8 @@ void mf_setCmdLine(const char *cmdline, int size, u64 side)
 {
 	struct VspCmdData myVspCmd;
 	dma_addr_t dma_addr = 0;
-	char *page = pci_alloc_consistent(iSeries_vio_dev, size, &dma_addr);
+	char *page = dma_alloc_coherent(iSeries_vio_dev, size, &dma_addr,
+			GFP_ATOMIC);
 
 	if (page == NULL) {
 		printk(KERN_ERR "mf.c: couldn't allocate memory to set command line\n");
@@ -809,7 +804,7 @@ void mf_setCmdLine(const char *cmdline, int size, u64 side)
 	mb();
 	(void)signal_vsp_instruction(&myVspCmd);
 
-	pci_free_consistent(iSeries_vio_dev, size, page, dma_addr);
+	dma_free_coherent(iSeries_vio_dev, size, page, dma_addr);
 }
 
 int mf_getCmdLine(char *cmdline, int *size, u64 side)
@@ -819,8 +814,8 @@ int mf_getCmdLine(char *cmdline, int *size, u64 side)
 	int len = *size;
 	dma_addr_t dma_addr;
 
-	dma_addr = pci_map_single(iSeries_vio_dev, cmdline, len,
-			PCI_DMA_FROMDEVICE);
+	dma_addr = dma_map_single(iSeries_vio_dev, cmdline, len,
+			DMA_FROM_DEVICE);
 	memset(cmdline, 0, len);
 	memset(&myVspCmd, 0, sizeof(myVspCmd));
 	myVspCmd.cmd = 33;
@@ -840,7 +835,7 @@ int mf_getCmdLine(char *cmdline, int *size, u64 side)
 #endif
 	}
 
-	pci_unmap_single(iSeries_vio_dev, dma_addr, *size, PCI_DMA_FROMDEVICE);
+	dma_unmap_single(iSeries_vio_dev, dma_addr, *size, DMA_FROM_DEVICE);
 
 	return len;
 }
@@ -851,7 +846,8 @@ int mf_setVmlinuxChunk(const char *buffer, int size, int offset, u64 side)
 	struct VspCmdData myVspCmd;
 	int rc;
 	dma_addr_t dma_addr = 0;
-	char *page = pci_alloc_consistent(iSeries_vio_dev, size, &dma_addr);
+	char *page = dma_alloc_coherent(iSeries_vio_dev, size, &dma_addr,
+			GFP_ATOMIC);
 
 	if (page == NULL) {
 		printk(KERN_ERR "mf.c: couldn't allocate memory to set vmlinux chunk\n");
@@ -876,7 +872,7 @@ int mf_setVmlinuxChunk(const char *buffer, int size, int offset, u64 side)
 			rc = -ENOMEM;
 	}
 
-	pci_free_consistent(iSeries_vio_dev, size, page, dma_addr);
+	dma_free_coherent(iSeries_vio_dev, size, page, dma_addr);
 
 	return rc;
 }
@@ -888,8 +884,8 @@ int mf_getVmlinuxChunk(char *buffer, int *size, int offset, u64 side)
 	int len = *size;
 	dma_addr_t dma_addr;
 
-	dma_addr = pci_map_single(iSeries_vio_dev, buffer, len,
-			PCI_DMA_FROMDEVICE);
+	dma_addr = dma_map_single(iSeries_vio_dev, buffer, len,
+			DMA_FROM_DEVICE);
 	memset(buffer, 0, len);
 	memset(&myVspCmd, 0, sizeof(myVspCmd));
 	myVspCmd.cmd = 32;
@@ -907,7 +903,7 @@ int mf_getVmlinuxChunk(char *buffer, int *size, int offset, u64 side)
 			rc = -ENOMEM;
 	}
 
-	pci_unmap_single(iSeries_vio_dev, dma_addr, len, PCI_DMA_FROMDEVICE);
+	dma_unmap_single(iSeries_vio_dev, dma_addr, len, DMA_FROM_DEVICE);
 
 	return rc;
 }
@@ -922,7 +918,7 @@ int mf_setRtcTime(unsigned long time)
 }
 
 struct RtcTimeData {
-	struct semaphore *sem;
+	struct completion com;
 	struct CeMsgData xCeMsg;
 	int xRc;
 };
@@ -933,7 +929,7 @@ void getRtcTimeComplete(void * token, struct CeMsgData *ceMsg)
 
 	memcpy(&(rtc->xCeMsg), ceMsg, sizeof(rtc->xCeMsg));
 	rtc->xRc = 0;
-	up(rtc->sem);
+	complete(&rtc->com);
 }
 
 static unsigned long lastsec = 1;
@@ -981,17 +977,16 @@ int mf_getRtc(struct rtc_time *tm)
 	struct CeMsgCompleteData ceComplete;
 	struct RtcTimeData rtcData;
 	int rc;
-	DECLARE_MUTEX_LOCKED(Semaphore);
 
 	memset(&ceComplete, 0, sizeof(ceComplete));
 	memset(&rtcData, 0, sizeof(rtcData));
-	rtcData.sem = &Semaphore;
+	init_completion(&rtcData.com);
 	ceComplete.handler = &getRtcTimeComplete;
 	ceComplete.token = (void *)&rtcData;
 	rc = signal_ce_msg("\x00\x00\x00\x40\x00\x00\x00\x00\x00\x00\x00\x00",
 			&ceComplete);
 	if (rc == 0) {
-		down(&Semaphore);
+		wait_for_completion(&rtcData.com);
 
 		if (rtcData.xRc == 0) {
 			if ((rtcData.xCeMsg.ce_msg[2] == 0xa9) ||

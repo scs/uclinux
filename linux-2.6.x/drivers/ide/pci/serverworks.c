@@ -464,7 +464,7 @@ static int svwks_config_drive_xfer_rate (ide_drive_t *drive)
 
 	if ((id->capability & 1) && drive->autodma) {
 		/* Consult the list of known "bad" drives */
-		if (hwif->ide_dma_bad_drive(drive))
+		if (__ide_dma_bad_drive(drive))
 			goto fast_ata_pio;
 		if (id->field_valid & 4) {
 			if (id->dma_ultra & hwif->ultra_mask) {
@@ -472,7 +472,9 @@ static int svwks_config_drive_xfer_rate (ide_drive_t *drive)
 				int dma = config_chipset_for_dma(drive);
 				if ((id->field_valid & 2) && !dma)
 					goto try_dma_modes;
-			}
+			} else
+				/* UDMA disabled by mask, try other DMA modes */
+				goto try_dma_modes;
 		} else if (id->field_valid & 2) {
 try_dma_modes:
 			if ((id->dma_mword & hwif->mwdma_mask) ||
@@ -481,7 +483,7 @@ try_dma_modes:
 				if (!config_chipset_for_dma(drive))
 					goto no_dma_set;
 			}
-		} else if (hwif->ide_dma_good_drive(drive) &&
+		} else if (__ide_dma_good_drive(drive) &&
 			   (id->eide_dma_time < 150)) {
 			/* Consult the list of known "good" drives */
 			if (!config_chipset_for_dma(drive))
@@ -621,7 +623,7 @@ static unsigned int __init init_chipset_svwks (struct pci_dev *dev, const char *
 
 	if (!svwks_proc) {
 		svwks_proc = 1;
-		ide_pci_register_host_proc(&svwks_procs[0]);
+		ide_pci_create_host_proc("svwks", svwks_get_info);
 	}
 #endif /* DISPLAY_SVWKS_TIMINGS && CONFIG_PROC_FS */
 
@@ -754,8 +756,6 @@ static void __init init_dma_svwks (ide_hwif_t *hwif, unsigned long dmabase)
 	ide_setup_dma(hwif, dmabase, 8);
 }
 
-extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
-
 static void __init init_setup_svwks (struct pci_dev *dev, ide_pci_device_t *d)
 {
 	ide_setup_pci_device(dev, d);
@@ -777,8 +777,8 @@ static void __init init_setup_csb6 (struct pci_dev *dev, ide_pci_device_t *d)
 		d->autodma = AUTODMA;
 #endif
 
-	d->channels = (((d->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE) ||
-			(d->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2)) &&
+	d->channels = ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE ||
+			dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2) &&
 		       (!(PCI_FUNC(dev->devfn) & 1))) ? 1 : 2;
 
 	ide_setup_pci_device(dev, d);
@@ -798,10 +798,7 @@ static int __devinit svwks_init_one(struct pci_dev *dev, const struct pci_device
 {
 	ide_pci_device_t *d = &serverworks_chipsets[id->driver_data];
 
-	if (dev->device != d->device)
-		BUG();
 	d->init_setup(dev, d);
-	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -812,6 +809,7 @@ static struct pci_device_id svwks_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3},
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, svwks_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "Serverworks IDE",
@@ -828,13 +826,7 @@ static int svwks_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
-static void svwks_ide_exit(void)
-{
-	ide_pci_unregister_driver(&driver);
-}
-
 module_init(svwks_ide_init);
-module_exit(svwks_ide_exit);
 
 MODULE_AUTHOR("Michael Aubry. Andrzej Krzysztofowicz, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for Serverworks OSB4/CSB5/CSB6 IDE");

@@ -150,7 +150,7 @@
  *	SNMP management statistics
  */
 
-DEFINE_SNMP_STAT(struct ip_mib, ip_statistics);
+DEFINE_SNMP_STAT(struct ipstats_mib, ip_statistics);
 
 /*
  *	Process Router Attention IP option
@@ -202,17 +202,13 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 
 #ifdef CONFIG_NETFILTER_DEBUG
 	nf_debug_ip_local_deliver(skb);
-	skb->nf_debug = 0;
 #endif /*CONFIG_NETFILTER_DEBUG*/
 
 	__skb_pull(skb, ihl);
 
-#ifdef CONFIG_NETFILTER
 	/* Free reference early: we don't need it any more, and it may
            hold ip_conntrack module loaded indefinitely. */
-	nf_conntrack_put(skb->nfct);
-	skb->nfct = NULL;
-#endif /*CONFIG_NETFILTER*/
+	nf_reset(skb);
 
         /* Point into the IP datagram, just past the header. */
         skb->h.raw = skb->data;
@@ -223,7 +219,7 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 		int protocol = skb->nh.iph->protocol;
 		int hash;
 		struct sock *raw_sk;
-		struct inet_protocol *ipprot;
+		struct net_protocol *ipprot;
 
 	resubmit:
 		hash = protocol & (MAX_INET_PROTOS - 1);
@@ -249,16 +245,16 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 				protocol = -ret;
 				goto resubmit;
 			}
-			IP_INC_STATS_BH(IpInDelivers);
+			IP_INC_STATS_BH(IPSTATS_MIB_INDELIVERS);
 		} else {
 			if (!raw_sk) {
 				if (xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-					IP_INC_STATS_BH(IpInUnknownProtos);
+					IP_INC_STATS_BH(IPSTATS_MIB_INUNKNOWNPROTOS);
 					icmp_send(skb, ICMP_DEST_UNREACH,
 						  ICMP_PROT_UNREACH, 0);
 				}
 			} else
-				IP_INC_STATS_BH(IpInDelivers);
+				IP_INC_STATS_BH(IPSTATS_MIB_INDELIVERS);
 			kfree_skb(skb);
 		}
 	}
@@ -324,7 +320,7 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 		*/
 
 		if (skb_cow(skb, skb_headroom(skb))) {
-			IP_INC_STATS_BH(IpInDiscards);
+			IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
 			goto drop;
 		}
 		iph = skb->nh.iph;
@@ -353,7 +349,7 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 	return dst_input(skb);
 
 inhdr_error:
-	IP_INC_STATS_BH(IpInHdrErrors);
+	IP_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
 drop:
         kfree_skb(skb);
         return NET_RX_DROP;
@@ -372,10 +368,10 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop;
 
-	IP_INC_STATS_BH(IpInReceives);
+	IP_INC_STATS_BH(IPSTATS_MIB_INRECEIVES);
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
-		IP_INC_STATS_BH(IpInDiscards);
+		IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
 		goto out;
 	}
 
@@ -426,7 +422,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 		       ip_rcv_finish);
 
 inhdr_error:
-	IP_INC_STATS_BH(IpInHdrErrors);
+	IP_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
 drop:
         kfree_skb(skb);
 out:

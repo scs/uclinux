@@ -254,7 +254,7 @@ load_som_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 
 	set_binfmt(&som_format);
 	compute_creds(bprm);
-	setup_arg_pages(bprm);
+	setup_arg_pages(bprm, EXSTACK_DEFAULT);
 
 	create_som_tables(bprm);
 
@@ -305,5 +305,5 @@ static void __exit exit_som_binfmt(void)
 	unregister_binfmt(&som_format);
 }
 
-module_init(init_som_binfmt);
+core_initcall(init_som_binfmt);
 module_exit(exit_som_binfmt);

@@ -42,7 +42,8 @@ static int do_signal(sigset_t *oldset, struct pt_regs * regs,
 /* {set, get}context() needed for 64-bit SparcLinux userland. */
 asmlinkage void sparc64_set_context(struct pt_regs *regs)
 {
-	struct ucontext *ucp = (struct ucontext __user *) regs->u_regs[UREG_I0];
+	struct ucontext __user *ucp = (struct ucontext __user *)
+		regs->u_regs[UREG_I0];
 	mc_gregset_t __user *grp;
 	unsigned long pc, npc, tstate;
 	unsigned long fp, i7;
@@ -139,7 +140,8 @@ do_sigsegv:
 
 asmlinkage void sparc64_get_context(struct pt_regs *regs)
 {
-	struct ucontext *ucp = (struct ucontext __user *) regs->u_regs[UREG_I0];
+	struct ucontext __user *ucp = (struct ucontext __user *)
+		regs->u_regs[UREG_I0];
 	mc_gregset_t __user *grp;
 	mcontext_t __user *mcp;
 	unsigned long fp, i7;
@@ -427,7 +429,7 @@ void do_rt_sigreturn(struct pt_regs *regs)
 	   call it and ignore errors.  */
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-	do_sigaltstack(&st, NULL, (unsigned long)sf);
+	do_sigaltstack((const stack_t __user *) &st, NULL, (unsigned long)sf);
 	set_fs(old_fs);
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -659,4 +661,27 @@ void do_notify_resume(sigset_t *oldset, struct pt_regs *regs,
 {
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(oldset, regs, orig_i0, restart_syscall);
+}
+
+void ptrace_signal_deliver(struct pt_regs *regs, void *cookie)
+{
+	struct signal_deliver_cookie *cp = cookie;
+
+	if (cp->restart_syscall &&
+	    (regs->u_regs[UREG_I0] == ERESTARTNOHAND ||
+	     regs->u_regs[UREG_I0] == ERESTARTSYS ||
+	     regs->u_regs[UREG_I0] == ERESTARTNOINTR)) {
+		/* replay the system call when we are done */
+		regs->u_regs[UREG_I0] = cp->orig_i0;
+		regs->tpc -= 4;
+		regs->tnpc -= 4;
+		cp->restart_syscall = 0;
+	}
+	if (cp->restart_syscall &&
+	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) {
+		regs->u_regs[UREG_G1] = __NR_restart_syscall;
+		regs->tpc -= 4;
+		regs->tnpc -= 4;
+		cp->restart_syscall = 0;
+	}
 }

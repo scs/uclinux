@@ -23,10 +23,6 @@
 */
 
 #include <linux/config.h>
-#ifdef CONFIG_I2C_DEBUG_CHIP
-#define DEBUG	1
-#endif
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -355,6 +351,7 @@ struct lm85_autofan {
 };
 
 struct lm85_data {
+	struct i2c_client client;
 	struct semaphore lock;
 	enum chips type;
 
@@ -383,7 +380,7 @@ struct lm85_data {
 	u8 syncpwm3;		/* Saved PWM3 for TACH 2,3,4 config */
 	u8 oppoint[3];		/* Register value */
 	u16 tmin_ctl;		/* Register value */
-	u32 therm_total;	/* Cummulative therm count */
+	unsigned long therm_total; /* Cummulative therm count */
 	u8 therm_limit;		/* Register value */
 	u16 alarms;		/* Register encoding, combined */
 	struct lm85_autofan autofan[3];
@@ -397,7 +394,7 @@ static int lm85_detach_client(struct i2c_client *client);
 
 static int lm85_read_value(struct i2c_client *client, u8 register);
 static int lm85_write_value(struct i2c_client *client, u8 register, int value);
-static void lm85_update_client(struct i2c_client *client);
+static struct lm85_data *lm85_update_device(struct device *dev);
 static void lm85_init_client(struct i2c_client *client);
 
 
@@ -417,18 +414,12 @@ static int lm85_id = 0;
 /* 4 Fans */
 static ssize_t show_fan(struct device *dev, char *buf, int nr)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf,"%d\n", FAN_FROM_REG(data->fan[nr]) );
 }
 static ssize_t show_fan_min(struct device *dev, char *buf, int nr)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf,"%d\n", FAN_FROM_REG(data->fan_min[nr]) );
 }
 static ssize_t set_fan_min(struct device *dev, const char *buf, 
@@ -460,9 +451,9 @@ static ssize_t set_fan_##offset##_min (struct device *dev, 		\
 {									\
 	return set_fan_min(dev, buf, count, 0x##offset - 1);		\
 }									\
-static DEVICE_ATTR(fan_input##offset, S_IRUGO, show_fan_##offset, NULL) \
-static DEVICE_ATTR(fan_min##offset, S_IRUGO | S_IWUSR, 			\
-		show_fan_##offset##_min, set_fan_##offset##_min)
+static DEVICE_ATTR(fan##offset##_input, S_IRUGO, show_fan_##offset, NULL);\
+static DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR, 		\
+		show_fan_##offset##_min, set_fan_##offset##_min);
 
 show_fan_offset(1);
 show_fan_offset(2);
@@ -473,21 +464,15 @@ show_fan_offset(4);
 
 static ssize_t show_vid_reg(struct device *dev, char *buf)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%ld\n", (long) vid_from_reg(data->vid, data->vrm));
 }
 
-static DEVICE_ATTR(vid, S_IRUGO, show_vid_reg, NULL)
+static DEVICE_ATTR(in0_ref, S_IRUGO, show_vid_reg, NULL);
 
 static ssize_t show_vrm_reg(struct device *dev, char *buf)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%ld\n", (long) data->vrm);
 }
 
@@ -502,27 +487,21 @@ static ssize_t store_vrm_reg(struct device *dev, const char *buf, size_t count)
 	return count;
 }
 
-static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg)
+static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg);
 
 static ssize_t show_alarms_reg(struct device *dev, char *buf)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%ld\n", (long) ALARMS_FROM_REG(data->alarms));
 }
 
-static DEVICE_ATTR(alarms, S_IRUGO, show_alarms_reg, NULL)
+static DEVICE_ATTR(alarms, S_IRUGO, show_alarms_reg, NULL);
 
 /* pwm */
 
 static ssize_t show_pwm(struct device *dev, char *buf, int nr)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf,"%d\n", PWM_FROM_REG(data->pwm[nr]) );
 }
 static ssize_t set_pwm(struct device *dev, const char *buf, 
@@ -541,11 +520,9 @@ static ssize_t set_pwm(struct device *dev, const char *buf,
 }
 static ssize_t show_pwm_enable(struct device *dev, char *buf, int nr)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	int	pwm_zone;
 
-	lm85_update_client(client);
 	pwm_zone = ZONE_FROM_REG(data->autofan[nr].config);
 	return sprintf(buf,"%d\n", (pwm_zone != 0 && pwm_zone != -1) );
 }
@@ -564,9 +541,9 @@ static ssize_t show_pwm_enable##offset (struct device *dev, char *buf)	\
 {									\
 	return show_pwm_enable(dev, buf, 0x##offset - 1);			\
 }									\
-static DEVICE_ATTR(pwm##offset, S_IRUGO | S_IWUSR, 			\
-		show_pwm_##offset, set_pwm_##offset)			\
-static DEVICE_ATTR(pwm_enable##offset, S_IRUGO, show_pwm_enable##offset, NULL)
+static DEVICE_ATTR(fan##offset##_pwm, S_IRUGO | S_IWUSR, 			\
+		show_pwm_##offset, set_pwm_##offset);			\
+static DEVICE_ATTR(fan##offset##_pwm_enable, S_IRUGO, show_pwm_enable##offset, NULL);
 
 show_pwm_reg(1);
 show_pwm_reg(2);
@@ -576,18 +553,12 @@ show_pwm_reg(3);
 
 static ssize_t show_in(struct device *dev, char *buf, int nr)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf,"%d\n", INS_FROM_REG(nr, data->in[nr]) );
 }
 static ssize_t show_in_min(struct device *dev, char *buf, int nr)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf,"%d\n", INS_FROM_REG(nr, data->in_min[nr]) );
 }
 static ssize_t set_in_min(struct device *dev, const char *buf, 
@@ -606,10 +577,7 @@ static ssize_t set_in_min(struct device *dev, const char *buf,
 }
 static ssize_t show_in_max(struct device *dev, char *buf, int nr)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf,"%d\n", INS_FROM_REG(nr, data->in_max[nr]) );
 }
 static ssize_t set_in_max(struct device *dev, const char *buf, 
@@ -649,11 +617,11 @@ static ssize_t set_in_##offset##_max (struct device *dev, 		\
 {									\
 	return set_in_max(dev, buf, count, 0x##offset);			\
 }									\
-static DEVICE_ATTR(in_input##offset, S_IRUGO, show_in_##offset, NULL)	\
-static DEVICE_ATTR(in_min##offset, S_IRUGO | S_IWUSR, 			\
-		show_in_##offset##_min, set_in_##offset##_min)		\
-static DEVICE_ATTR(in_max##offset, S_IRUGO | S_IWUSR, 			\
-		show_in_##offset##_max, set_in_##offset##_max)
+static DEVICE_ATTR(in##offset##_input, S_IRUGO, show_in_##offset, NULL);	\
+static DEVICE_ATTR(in##offset##_min, S_IRUGO | S_IWUSR, 		\
+		show_in_##offset##_min, set_in_##offset##_min);		\
+static DEVICE_ATTR(in##offset##_max, S_IRUGO | S_IWUSR, 		\
+		show_in_##offset##_max, set_in_##offset##_max);
 
 show_in_reg(0);
 show_in_reg(1);
@@ -665,18 +633,12 @@ show_in_reg(4);
 
 static ssize_t show_temp(struct device *dev, char *buf, int nr)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf,"%d\n", TEMP_FROM_REG(data->temp[nr]) );
 }
 static ssize_t show_temp_min(struct device *dev, char *buf, int nr)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf,"%d\n", TEMP_FROM_REG(data->temp_min[nr]) );
 }
 static ssize_t set_temp_min(struct device *dev, const char *buf, 
@@ -695,10 +657,7 @@ static ssize_t set_temp_min(struct device *dev, const char *buf,
 }
 static ssize_t show_temp_max(struct device *dev, char *buf, int nr)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-
-	lm85_update_client(client);
+	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf,"%d\n", TEMP_FROM_REG(data->temp_max[nr]) );
 }
 static ssize_t set_temp_max(struct device *dev, const char *buf, 
@@ -738,11 +697,11 @@ static ssize_t set_temp_##offset##_max (struct device *dev, 		\
 {									\
 	return set_temp_max(dev, buf, count, 0x##offset - 1);		\
 }									\
-static DEVICE_ATTR(temp_input##offset, S_IRUGO, show_temp_##offset, NULL)	\
-static DEVICE_ATTR(temp_min##offset, S_IRUGO | S_IWUSR, 		\
-		show_temp_##offset##_min, set_temp_##offset##_min)	\
-static DEVICE_ATTR(temp_max##offset, S_IRUGO | S_IWUSR, 		\
-		show_temp_##offset##_max, set_temp_##offset##_max)
+static DEVICE_ATTR(temp##offset##_input, S_IRUGO, show_temp_##offset, NULL);	\
+static DEVICE_ATTR(temp##offset##_min, S_IRUGO | S_IWUSR, 		\
+		show_temp_##offset##_min, set_temp_##offset##_min);	\
+static DEVICE_ATTR(temp##offset##_max, S_IRUGO | S_IWUSR, 		\
+		show_temp_##offset##_max, set_temp_##offset##_max);
 
 show_temp_reg(1);
 show_temp_reg(2);
@@ -778,16 +737,13 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access lm85_{read,write}_value. */
 
-	if (!(new_client = kmalloc((sizeof(struct i2c_client)) +
-				    sizeof(struct lm85_data),
-				    GFP_KERNEL))) {
+	if (!(data = kmalloc(sizeof(struct lm85_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto ERROR0;
 	}
+	memset(data, 0, sizeof(struct lm85_data));
 
-	memset(new_client, 0, sizeof(struct i2c_client) +
-			      sizeof(struct lm85_data));
-	data = (struct lm85_data *) (new_client + 1);
+	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
 	new_client->adapter = adapter;
@@ -816,7 +772,7 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 			kind = lm85b ;
 		} else if( company == LM85_COMPANY_NATIONAL
 		    && (verstep & 0xf0) == LM85_VERSTEP_GENERIC ) {
-			dev_err(&adapter->dev, "Unrecgonized version/stepping 0x%02x"
+			dev_err(&adapter->dev, "Unrecognized version/stepping 0x%02x"
 				" Defaulting to LM85.\n", verstep);
 			kind = any_chip ;
 		} else if( company == LM85_COMPANY_ANALOG_DEV
@@ -827,7 +783,7 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 			kind = adt7463 ;
 		} else if( company == LM85_COMPANY_ANALOG_DEV
 		    && (verstep & 0xf0) == LM85_VERSTEP_GENERIC ) {
-			dev_err(&adapter->dev, "Unrecgonized version/stepping 0x%02x"
+			dev_err(&adapter->dev, "Unrecognized version/stepping 0x%02x"
 				" Defaulting to ADM1027.\n", verstep);
 			kind = adm1027 ;
 		} else if( kind == 0 && (verstep & 0xf0) == 0x60) {
@@ -857,10 +813,6 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 		type_name = "adm1027";
 	} else if ( kind == adt7463 ) {
 		type_name = "adt7463";
-	} else {
-		dev_dbg(&adapter->dev, "Internal error, invalid kind (%d)!", kind);
-		err = -EFAULT ;
-		goto ERROR1;
 	}
 	strlcpy(new_client->name, type_name, I2C_NAME_SIZE);
 
@@ -886,53 +838,53 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 	lm85_init_client(new_client);
 
 	/* Register sysfs hooks */
-	device_create_file(&new_client->dev, &dev_attr_fan_input1);
-	device_create_file(&new_client->dev, &dev_attr_fan_input2);
-	device_create_file(&new_client->dev, &dev_attr_fan_input3);
-	device_create_file(&new_client->dev, &dev_attr_fan_input4);
-	device_create_file(&new_client->dev, &dev_attr_fan_min1);
-	device_create_file(&new_client->dev, &dev_attr_fan_min2);
-	device_create_file(&new_client->dev, &dev_attr_fan_min3);
-	device_create_file(&new_client->dev, &dev_attr_fan_min4);
-	device_create_file(&new_client->dev, &dev_attr_pwm1);
-	device_create_file(&new_client->dev, &dev_attr_pwm2);
-	device_create_file(&new_client->dev, &dev_attr_pwm3);
-	device_create_file(&new_client->dev, &dev_attr_pwm_enable1);
-	device_create_file(&new_client->dev, &dev_attr_pwm_enable2);
-	device_create_file(&new_client->dev, &dev_attr_pwm_enable3);
-	device_create_file(&new_client->dev, &dev_attr_in_input0);
-	device_create_file(&new_client->dev, &dev_attr_in_input1);
-	device_create_file(&new_client->dev, &dev_attr_in_input2);
-	device_create_file(&new_client->dev, &dev_attr_in_input3);
-	device_create_file(&new_client->dev, &dev_attr_in_input4);
-	device_create_file(&new_client->dev, &dev_attr_in_min0);
-	device_create_file(&new_client->dev, &dev_attr_in_min1);
-	device_create_file(&new_client->dev, &dev_attr_in_min2);
-	device_create_file(&new_client->dev, &dev_attr_in_min3);
-	device_create_file(&new_client->dev, &dev_attr_in_min4);
-	device_create_file(&new_client->dev, &dev_attr_in_max0);
-	device_create_file(&new_client->dev, &dev_attr_in_max1);
-	device_create_file(&new_client->dev, &dev_attr_in_max2);
-	device_create_file(&new_client->dev, &dev_attr_in_max3);
-	device_create_file(&new_client->dev, &dev_attr_in_max4);
-	device_create_file(&new_client->dev, &dev_attr_temp_input1);
-	device_create_file(&new_client->dev, &dev_attr_temp_input2);
-	device_create_file(&new_client->dev, &dev_attr_temp_input3);
-	device_create_file(&new_client->dev, &dev_attr_temp_min1);
-	device_create_file(&new_client->dev, &dev_attr_temp_min2);
-	device_create_file(&new_client->dev, &dev_attr_temp_min3);
-	device_create_file(&new_client->dev, &dev_attr_temp_max1);
-	device_create_file(&new_client->dev, &dev_attr_temp_max2);
-	device_create_file(&new_client->dev, &dev_attr_temp_max3);
+	device_create_file(&new_client->dev, &dev_attr_fan1_input);
+	device_create_file(&new_client->dev, &dev_attr_fan2_input);
+	device_create_file(&new_client->dev, &dev_attr_fan3_input);
+	device_create_file(&new_client->dev, &dev_attr_fan4_input);
+	device_create_file(&new_client->dev, &dev_attr_fan1_min);
+	device_create_file(&new_client->dev, &dev_attr_fan2_min);
+	device_create_file(&new_client->dev, &dev_attr_fan3_min);
+	device_create_file(&new_client->dev, &dev_attr_fan4_min);
+	device_create_file(&new_client->dev, &dev_attr_fan1_pwm);
+	device_create_file(&new_client->dev, &dev_attr_fan2_pwm);
+	device_create_file(&new_client->dev, &dev_attr_fan3_pwm);
+	device_create_file(&new_client->dev, &dev_attr_fan1_pwm_enable);
+	device_create_file(&new_client->dev, &dev_attr_fan2_pwm_enable);
+	device_create_file(&new_client->dev, &dev_attr_fan3_pwm_enable);
+	device_create_file(&new_client->dev, &dev_attr_in0_input);
+	device_create_file(&new_client->dev, &dev_attr_in1_input);
+	device_create_file(&new_client->dev, &dev_attr_in2_input);
+	device_create_file(&new_client->dev, &dev_attr_in3_input);
+	device_create_file(&new_client->dev, &dev_attr_in4_input);
+	device_create_file(&new_client->dev, &dev_attr_in0_min);
+	device_create_file(&new_client->dev, &dev_attr_in1_min);
+	device_create_file(&new_client->dev, &dev_attr_in2_min);
+	device_create_file(&new_client->dev, &dev_attr_in3_min);
+	device_create_file(&new_client->dev, &dev_attr_in4_min);
+	device_create_file(&new_client->dev, &dev_attr_in0_max);
+	device_create_file(&new_client->dev, &dev_attr_in1_max);
+	device_create_file(&new_client->dev, &dev_attr_in2_max);
+	device_create_file(&new_client->dev, &dev_attr_in3_max);
+	device_create_file(&new_client->dev, &dev_attr_in4_max);
+	device_create_file(&new_client->dev, &dev_attr_temp1_input);
+	device_create_file(&new_client->dev, &dev_attr_temp2_input);
+	device_create_file(&new_client->dev, &dev_attr_temp3_input);
+	device_create_file(&new_client->dev, &dev_attr_temp1_min);
+	device_create_file(&new_client->dev, &dev_attr_temp2_min);
+	device_create_file(&new_client->dev, &dev_attr_temp3_min);
+	device_create_file(&new_client->dev, &dev_attr_temp1_max);
+	device_create_file(&new_client->dev, &dev_attr_temp2_max);
+	device_create_file(&new_client->dev, &dev_attr_temp3_max);
 	device_create_file(&new_client->dev, &dev_attr_vrm);
-	device_create_file(&new_client->dev, &dev_attr_vid);
+	device_create_file(&new_client->dev, &dev_attr_in0_ref);
 	device_create_file(&new_client->dev, &dev_attr_alarms);
 
 	return 0;
 
 	/* Error out and cleanup code */
     ERROR1:
-	kfree(new_client);
+	kfree(data);
     ERROR0:
 	return err;
 }
@@ -940,7 +892,7 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 int lm85_detach_client(struct i2c_client *client)
 {
 	i2c_detach_client(client);
-	kfree(client);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
@@ -1047,8 +999,9 @@ void lm85_init_client(struct i2c_client *client)
 	lm85_write_value(client, LM85_REG_CONFIG, value);
 }
 
-void lm85_update_client(struct i2c_client *client)
+static struct lm85_data *lm85_update_device(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct lm85_data *data = i2c_get_clientdata(client);
 	int i;
 
@@ -1189,6 +1142,8 @@ void lm85_update_client(struct i2c_client *client)
 	data->valid = 1;
 
 	up(&data->update_lock);
+
+	return data;
 }
 
 
@@ -1204,7 +1159,7 @@ static void  __exit sm_lm85_exit(void)
 
 /* Thanks to Richard Barrington for adding the LM85 to sensors-detect.
  * Thanks to Margit Schubert-While <margitsw@t-online.de> for help with
- *     post 2.7.0 CVS changes
+ *     post 2.7.0 CVS changes.
  */
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Philip Pokorny <ppokorny@penguincomputing.com>, Margit Schubert-While <margitsw@t-online.de>");

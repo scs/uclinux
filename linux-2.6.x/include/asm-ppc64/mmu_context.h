@@ -52,7 +52,7 @@ struct mmu_context_queue_t {
 	long head;
 	long tail;
 	long size;
-	mm_context_t elements[LAST_USER_CONTEXT];
+	mm_context_id_t elements[LAST_USER_CONTEXT];
 };
 
 extern struct mmu_context_queue_t mmu_context_queue;
@@ -83,7 +83,6 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	long head;
 	unsigned long flags;
 	/* This does the right thing across a fork (I hope) */
-	unsigned long low_hpages = mm->context & CONTEXT_LOW_HPAGES;
 
 	spin_lock_irqsave(&mmu_context_queue.lock, flags);
 
@@ -93,8 +92,7 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	}
 
 	head = mmu_context_queue.head;
-	mm->context = mmu_context_queue.elements[head];
-	mm->context |= low_hpages;
+	mm->context.id = mmu_context_queue.elements[head];
 
 	head = (head < LAST_USER_CONTEXT-1) ? head+1 : 0;
 	mmu_context_queue.head = head;
@@ -132,14 +130,13 @@ destroy_context(struct mm_struct *mm)
 #endif
 
 	mmu_context_queue.size++;
-	mmu_context_queue.elements[index] =
-		mm->context & ~CONTEXT_LOW_HPAGES;
+	mmu_context_queue.elements[index] = mm->context.id;
 
 	spin_unlock_irqrestore(&mmu_context_queue.lock, flags);
 }
 
 extern void flush_stab(struct task_struct *tsk, struct mm_struct *mm);
-extern void flush_slb(struct task_struct *tsk, struct mm_struct *mm);
+extern void switch_slb(struct task_struct *tsk, struct mm_struct *mm);
 
 /*
  * switch_mm is the entry point called from the architecture independent
@@ -156,15 +153,17 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 : : );
 #endif /* CONFIG_ALTIVEC */
 
+	if (!cpu_isset(smp_processor_id(), next->cpu_vm_mask))
+		cpu_set(smp_processor_id(), next->cpu_vm_mask);
+
 	/* No need to flush userspace segments if the mm doesnt change */
 	if (prev == next)
 		return;
 
 	if (cur_cpu_spec->cpu_features & CPU_FTR_SLB)
-		flush_slb(tsk, next);
+		switch_slb(tsk, next);
 	else
 		flush_stab(tsk, next);
-	cpu_set(smp_processor_id(), next->cpu_vm_mask);
 }
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
@@ -173,12 +172,14 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  * After we have set current->mm to a new value, this activates
  * the context for the new mm so we see the new mappings.
  */
-#define activate_mm(active_mm, mm) \
-	switch_mm(active_mm, mm, current);
+static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
+{
+	unsigned long flags;
 
-#define VSID_RANDOMIZER 42470972311
-#define VSID_MASK	0xfffffffff
-
+	local_irq_save(flags);
+	switch_mm(prev, next, current);
+	local_irq_restore(flags);
+}
 
 /* This is only valid for kernel (including vmalloc, imalloc and bolted) EA's
  */
@@ -187,18 +188,18 @@ get_kernel_vsid( unsigned long ea )
 {
 	unsigned long ordinal, vsid;
 	
-	ordinal = (((ea >> 28) & 0x1fffff) * LAST_USER_CONTEXT) | (ea >> 60);
+	ordinal = (((ea >> 28) & 0x1fff) * LAST_USER_CONTEXT) | (ea >> 60);
 	vsid = (ordinal * VSID_RANDOMIZER) & VSID_MASK;
 
-	ifppcdebug(PPCDBG_HTABSTRESS) {
-		/* For debug, this path creates a very poor vsid distribuition.
-		 * A user program can access virtual addresses in the form
-		 * 0x0yyyyxxxx000 where yyyy = xxxx to cause multiple mappings
-		 * to hash to the same page table group.
-		 */ 
-		ordinal = ((ea >> 28) & 0x1fff) | (ea >> 44);
-		vsid = ordinal & VSID_MASK;
-	}
+#ifdef HTABSTRESS
+	/* For debug, this path creates a very poor vsid distribuition.
+	 * A user program can access virtual addresses in the form
+	 * 0x0yyyyxxxx000 where yyyy = xxxx to cause multiple mappings
+	 * to hash to the same page table group.
+	 */
+	ordinal = ((ea >> 28) & 0x1fff) | (ea >> 44);
+	vsid = ordinal & VSID_MASK;
+#endif /* HTABSTRESS */
 
 	return vsid;
 } 
@@ -210,16 +211,14 @@ get_vsid( unsigned long context, unsigned long ea )
 {
 	unsigned long ordinal, vsid;
 
-	context &= ~CONTEXT_LOW_HPAGES;
-
-	ordinal = (((ea >> 28) & 0x1fffff) * LAST_USER_CONTEXT) | context;
+	ordinal = (((ea >> 28) & 0x1fff) * LAST_USER_CONTEXT) | context;
 	vsid = (ordinal * VSID_RANDOMIZER) & VSID_MASK;
 
-	ifppcdebug(PPCDBG_HTABSTRESS) {
-		/* See comment above. */
-		ordinal = ((ea >> 28) & 0x1fff) | (context << 16);
-		vsid = ordinal & VSID_MASK;
-	}
+#ifdef HTABSTRESS
+	/* See comment above. */
+	ordinal = ((ea >> 28) & 0x1fff) | (context << 16);
+	vsid = ordinal & VSID_MASK;
+#endif /* HTABSTRESS */
 
 	return vsid;
 }

@@ -18,11 +18,8 @@
 *! Jul 21 1999  Bjorn Wesen     eLinux port
 *!
 *! $Log$
-*! Revision 1.1  2004/07/19 11:41:37  lgsoft
-*! Initial revision
-*!
-*! Revision 1.1.1.1  2004/07/18 13:20:11  nidhi
-*! Importing
+*! Revision 1.1.1.2  2004/09/07 09:14:10  lgsoft
+*! Import of 2.6.8
 *!
 *! Revision 1.4  2003/04/09 05:20:44  starvik
 *! Merge of Linux 2.5.67

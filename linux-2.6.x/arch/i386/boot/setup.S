@@ -44,11 +44,6 @@
  *
  * New A20 code ported from SYSLINUX by H. Peter Anvin. AMD Elan bugfixes
  * by Robert Schwebel, December 2001 <robert@schwebel.de>
- *    
- * BIOS Enhanced Disk Drive support
- * by Matt Domsch <Matt_Domsch@dell.com> October 2002
- * conformant to T13 Committee www.t13.org
- *   projects 1572D, 1484D, 1386D, 1226DT
  */
 
 #include <linux/config.h>
@@ -57,7 +52,6 @@
 #include <linux/compile.h>
 #include <asm/boot.h>
 #include <asm/e820.h>
-#include <asm/edd.h>    
 #include <asm/page.h>
 	
 /* Signature words to ensure LILO loaded us right */
@@ -139,7 +133,7 @@ ramdisk_image:	.long	0		# address of loaded ramdisk image
 ramdisk_size:	.long	0		# its size in bytes
 
 bootsect_kludge:
-		.word  bootsect_helper, SETUPSEG
+		.long	0		# obsolete
 
 heap_end_ptr:	.word	modelist+1024	# (Header version 0x0201 or later)
 					# space from here (exclusive) down to
@@ -162,7 +156,8 @@ cmd_line_ptr:	.long 0			# (Header version 0x0202 or later)
 					# can be located anywhere in
 					# low memory 0x10000 or higher.
 
-ramdisk_max:	.long MAXMEM-1		# (Header version 0x0203 or later)
+ramdisk_max:	.long (MAXMEM-1) & 0x7fffffff
+					# (Header version 0x0203 or later)
 					# The highest safe address for
 					# the contents of an initrd
 
@@ -577,69 +572,7 @@ no_32_apm_bios:
 done_apm_bios:
 #endif
 
-#if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
-# Do the BIOS Enhanced Disk Drive calls
-# This consists of two calls:
-#    int 13h ah=41h "Check Extensions Present"
-#    int 13h ah=48h "Get Device Parameters"
-#
-# A buffer of size EDDMAXNR*(EDDEXTSIZE+EDDPARMSIZE) is reserved for our use
-# in the empty_zero_page at EDDBUF.  The first four bytes of which are
-# used to store the device number, interface support map and version
-# results from fn41.  The following 74 bytes are used to store
-# the results from fn48.  Starting from device 80h, fn41, then fn48
-# are called and their results stored in EDDBUF+n*(EDDEXTSIZE+EDDPARMIZE).
-# Then the pointer is incremented to store the data for the next call.
-# This repeats until either a device doesn't exist, or until EDDMAXNR
-# devices have been stored.
-# The one tricky part is that ds:si always points four bytes into
-# the structure, and the fn41 results are stored at offsets
-# from there.  This removes the need to increment the pointer for
-# every store, and leaves it ready for the fn48 call.
-# A second one-byte buffer, EDDNR, in the empty_zero_page stores
-# the number of BIOS devices which exist, up to EDDMAXNR.
-# In setup.c, copy_edd() stores both empty_zero_page buffers away
-# for later use, as they would get overwritten otherwise. 
-# This code is sensitive to the size of the structs in edd.h
-edd_start:  
-						# %ds points to the bootsector
-       						# result buffer for fn48
-    	movw	$EDDBUF+EDDEXTSIZE, %si		# in ds:si, fn41 results
-						# kept just before that    
-	movb	$0, (EDDNR)			# zero value at EDDNR
-    	movb	$0x80, %dl			# BIOS device 0x80
-
-edd_check_ext:
-	movb	$CHECKEXTENSIONSPRESENT, %ah    # Function 41
-	movw	$EDDMAGIC1, %bx			# magic
-	int	$0x13				# make the call
-	jc	edd_done			# no more BIOS devices
-
-    	cmpw	$EDDMAGIC2, %bx			# is magic right?
-	jne	edd_next			# nope, next...
-
-    	movb	%dl, %ds:-4(%si)		# store device number
-    	movb	%ah, %ds:-3(%si)		# store version
-	movw	%cx, %ds:-2(%si)		# store extensions
-	incb	(EDDNR)				# note that we stored something
-        
-edd_get_device_params:  
-	movw	$EDDPARMSIZE, %ds:(%si)		# put size
-    	movb	$GETDEVICEPARAMETERS, %ah	# Function 48
-	int	$0x13				# make the call
-						# Don't check for fail return
-						# it doesn't matter.
-	movw	%si, %ax			# increment si
-	addw	$EDDPARMSIZE+EDDEXTSIZE, %ax
-	movw	%ax, %si
-
-edd_next:
-        incb	%dl				# increment to next device
-       	cmpb	$EDDMAXNR, (EDDNR) 		# Out of space?
-	jb	edd_check_ext			# keep looping
-    
-edd_done:   
-#endif
+#include "edd.S"
 
 # Now we want to move to protected mode ...
 	cmpw	$0, %cs:realmode_swtch
@@ -755,7 +688,7 @@ end_move_self:					# now we are at the right place
 # AMD Elan bug fix by Robert Schwebel.
 #
 
-#if defined(CONFIG_MELAN)
+#if defined(CONFIG_X86_ELAN)
 	movb $0x02, %al			# alternate A20 gate
 	outb %al, $0x92			# this works on SC410/SC520
 a20_elan_wait:
@@ -905,7 +838,7 @@ flush_instr:
 	subw	$DELTA_INITSEG, %si
 	shll	$4, %esi			# Convert to 32-bit pointer
 
-# jump to startup_32 in arch/i386/kernel/head.S
+# jump to startup_32 in arch/i386/boot/compressed/head.S
 #	
 # NOTE: For high loaded big kernels we need a
 #	jmpi    0x100000,__BOOT_CS
@@ -939,88 +872,6 @@ default_switch:
 						# sequence
 	outb	%al, $0x70
 	lret
-
-# This routine only gets called, if we get loaded by the simple
-# bootsect loader _and_ have a bzImage to load.
-# Because there is no place left in the 512 bytes of the boot sector,
-# we must emigrate to code space here.
-bootsect_helper:
-	cmpw	$0, %cs:bootsect_es
-	jnz	bootsect_second
-
-	movb	$0x20, %cs:type_of_loader
-	movw	%es, %ax
-	shrw	$4, %ax
-	movb	%ah, %cs:bootsect_src_base+2
-	movw	%es, %ax
-	movw	%ax, %cs:bootsect_es
-	subw	$SYSSEG, %ax
-	lret					# nothing else to do for now
-
-bootsect_second:
-	pushw	%cx
-	pushw	%si
-	pushw	%bx
-	testw	%bx, %bx			# 64K full?
-	jne	bootsect_ex
-
-	movw	$0x8000, %cx			# full 64K, INT15 moves words
-	pushw	%cs
-	popw	%es
-	movw	$bootsect_gdt, %si
-	movw	$0x8700, %ax
-	int	$0x15
-	jc	bootsect_panic			# this, if INT15 fails
-
-	movw	%cs:bootsect_es, %es		# we reset %es to always point
-	incb	%cs:bootsect_dst_base+2		# to 0x10000
-bootsect_ex:
-	movb	%cs:bootsect_dst_base+2, %ah
-	shlb	$4, %ah				# we now have the number of
-						# moved frames in %ax
-	xorb	%al, %al
-	popw	%bx
-	popw	%si
-	popw	%cx
-	lret
-
-bootsect_gdt:
-	.word	0, 0, 0, 0
-	.word	0, 0, 0, 0
-
-bootsect_src:
-	.word	0xffff
-
-bootsect_src_base:
-	.byte	0x00, 0x00, 0x01		# base = 0x010000
-	.byte	0x93				# typbyte
-	.word	0				# limit16,base24 =0
-
-bootsect_dst:
-	.word	0xffff
-
-bootsect_dst_base:
-	.byte	0x00, 0x00, 0x10		# base = 0x100000
-	.byte	0x93				# typbyte
-	.word	0				# limit16,base24 =0
-	.word	0, 0, 0, 0			# BIOS CS
-	.word	0, 0, 0, 0			# BIOS DS
-
-bootsect_es:
-	.word	0
-
-bootsect_panic:
-	pushw	%cs
-	popw	%ds
-	cld
-	leaw	bootsect_panic_mess, %si
-	call	prtstr
-	
-bootsect_panic_loop:
-	jmp	bootsect_panic_loop
-
-bootsect_panic_mess:
-	.string	"INT15 refuses to access high mem, giving up."
 
 
 #ifndef CONFIG_X86_VOYAGER

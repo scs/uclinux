@@ -90,7 +90,7 @@ int register_blkdev(unsigned int major, const char *name)
 
 	p->major = major;
 	strlcpy(p->name, name, sizeof(p->name));
-	p->next = 0;
+	p->next = NULL;
 	index = major_to_index(major);
 
 	spin_lock_irqsave(&major_names_lock, flags);
@@ -184,7 +184,7 @@ static int exact_lock(dev_t dev, void *data)
 }
 
 /**
- * add_gendisk - add partitioning information to kernel list
+ * add_disk - add partitioning information to kernel list
  * @disk: per-device partitioning information
  *
  * This function registers the partitioning information in @disk
@@ -260,8 +260,11 @@ static int show_partition(struct seq_file *part, void *v)
 	if (&sgp->kobj.entry == block_subsys.kset.list.next)
 		seq_puts(part, "major minor  #blocks  name\n\n");
 
-	/* Don't show non-partitionable devices or empty devices */
-	if (!get_capacity(sgp) || sgp->minors == 1)
+	/* Don't show non-partitionable removeable devices or empty devices */
+	if (!get_capacity(sgp) ||
+			(sgp->minors == 1 && (sgp->flags & GENHD_FL_REMOVABLE)))
+		return 0;
+	if (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO)
 		return 0;
 
 	/* show the full disk and all non-0 size partitions of it */
@@ -349,21 +352,17 @@ static ssize_t disk_range_read(struct gendisk * disk, char *page)
 {
 	return sprintf(page, "%d\n", disk->minors);
 }
+static ssize_t disk_removable_read(struct gendisk * disk, char *page)
+{
+	return sprintf(page, "%d\n",
+		       (disk->flags & GENHD_FL_REMOVABLE ? 1 : 0));
+
+}
 static ssize_t disk_size_read(struct gendisk * disk, char *page)
 {
 	return sprintf(page, "%llu\n", (unsigned long long)get_capacity(disk));
 }
 
-static inline unsigned jiffies_to_msec(unsigned jif)
-{
-#if 1000 % HZ == 0
-	return jif * (1000 / HZ);
-#elif HZ % 1000 == 0
-	return jif / (HZ / 1000);
-#else
-	return (jif / HZ) * 1000 + (jif % HZ) * 1000 / HZ;
-#endif
-}
 static ssize_t disk_stats_read(struct gendisk * disk, char *page)
 {
 	disk_round_stats(disk);
@@ -374,14 +373,14 @@ static ssize_t disk_stats_read(struct gendisk * disk, char *page)
 		"\n",
 		disk_stat_read(disk, reads), disk_stat_read(disk, read_merges),
 		(unsigned long long)disk_stat_read(disk, read_sectors),
-		jiffies_to_msec(disk_stat_read(disk, read_ticks)),
+		jiffies_to_msecs(disk_stat_read(disk, read_ticks)),
 		disk_stat_read(disk, writes), 
 		disk_stat_read(disk, write_merges),
 		(unsigned long long)disk_stat_read(disk, write_sectors),
-		jiffies_to_msec(disk_stat_read(disk, write_ticks)),
+		jiffies_to_msecs(disk_stat_read(disk, write_ticks)),
 		disk->in_flight,
-		jiffies_to_msec(disk_stat_read(disk, io_ticks)),
-		jiffies_to_msec(disk_stat_read(disk, time_in_queue)));
+		jiffies_to_msecs(disk_stat_read(disk, io_ticks)),
+		jiffies_to_msecs(disk_stat_read(disk, time_in_queue)));
 }
 static struct disk_attribute disk_attr_dev = {
 	.attr = {.name = "dev", .mode = S_IRUGO },
@@ -390,6 +389,10 @@ static struct disk_attribute disk_attr_dev = {
 static struct disk_attribute disk_attr_range = {
 	.attr = {.name = "range", .mode = S_IRUGO },
 	.show	= disk_range_read
+};
+static struct disk_attribute disk_attr_removable = {
+	.attr = {.name = "removable", .mode = S_IRUGO },
+	.show	= disk_removable_read
 };
 static struct disk_attribute disk_attr_size = {
 	.attr = {.name = "size", .mode = S_IRUGO },
@@ -403,6 +406,7 @@ static struct disk_attribute disk_attr_stat = {
 static struct attribute * default_attrs[] = {
 	&disk_attr_dev.attr,
 	&disk_attr_range.attr,
+	&disk_attr_removable.attr,
 	&disk_attr_size.attr,
 	&disk_attr_stat.attr,
 	NULL,
@@ -495,13 +499,13 @@ static int diskstats_show(struct seq_file *s, void *v)
 		gp->major, n + gp->first_minor, disk_name(gp, n, buf),
 		disk_stat_read(gp, reads), disk_stat_read(gp, read_merges),
 		(unsigned long long)disk_stat_read(gp, read_sectors),
-		jiffies_to_msec(disk_stat_read(gp, read_ticks)),
+		jiffies_to_msecs(disk_stat_read(gp, read_ticks)),
 		disk_stat_read(gp, writes), disk_stat_read(gp, write_merges),
 		(unsigned long long)disk_stat_read(gp, write_sectors),
-		jiffies_to_msec(disk_stat_read(gp, write_ticks)),
+		jiffies_to_msecs(disk_stat_read(gp, write_ticks)),
 		gp->in_flight,
-		jiffies_to_msec(disk_stat_read(gp, io_ticks)),
-		jiffies_to_msec(disk_stat_read(gp, time_in_queue)));
+		jiffies_to_msecs(disk_stat_read(gp, io_ticks)),
+		jiffies_to_msecs(disk_stat_read(gp, time_in_queue)));
 
 	/* now show all non-0 size partitions of it */
 	for (n = 0; n < gp->minors - 1; n++) {

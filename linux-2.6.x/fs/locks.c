@@ -60,7 +60,7 @@
  *
  *  Initial implementation of mandatory locks. SunOS turned out to be
  *  a rotten model, so I implemented the "obvious" semantics.
- *  See 'linux/Documentation/mandatory.txt' for details.
+ *  See 'Documentation/mandatory.txt' for details.
  *  Andy Walker (andy@lysaker.kvaerner.no), April 06, 1996.
  *
  *  Don't allow mandatory locks on mmap()'ed files. Added simple functions to
@@ -177,7 +177,7 @@ void locks_init_lock(struct file_lock *fl)
 	init_waitqueue_head(&fl->fl_wait);
 	fl->fl_next = NULL;
 	fl->fl_fasync = NULL;
-	fl->fl_owner = 0;
+	fl->fl_owner = NULL;
 	fl->fl_pid = 0;
 	fl->fl_file = NULL;
 	fl->fl_flags = 0;
@@ -1453,13 +1453,10 @@ int fcntl_setlk(struct file *filp, unsigned int cmd, struct flock __user *l)
 	 * and shared.
 	 */
 	if (IS_MANDLOCK(inode) &&
-	    (inode->i_mode & (S_ISGID | S_IXGRP)) == S_ISGID) {
-		struct address_space *mapping = filp->f_mapping;
-
-		if (!list_empty(&mapping->i_mmap_shared)) {
-			error = -EAGAIN;
-			goto out;
-		}
+	    (inode->i_mode & (S_ISGID | S_IXGRP)) == S_ISGID &&
+	    mapping_writably_mapped(filp->f_mapping)) {
+		error = -EAGAIN;
+		goto out;
 	}
 
 	error = flock_to_posix_lock(filp, file_lock, &flock);
@@ -1591,13 +1588,10 @@ int fcntl_setlk64(struct file *filp, unsigned int cmd, struct flock64 __user *l)
 	 * and shared.
 	 */
 	if (IS_MANDLOCK(inode) &&
-	    (inode->i_mode & (S_ISGID | S_IXGRP)) == S_ISGID) {
-		struct address_space *mapping = filp->f_mapping;
-
-		if (!list_empty(&mapping->i_mmap_shared)) {
-			error = -EAGAIN;
-			goto out;
-		}
+	    (inode->i_mode & (S_ISGID | S_IXGRP)) == S_ISGID &&
+	    mapping_writably_mapped(filp->f_mapping)) {
+		error = -EAGAIN;
+		goto out;
 	}
 
 	error = flock64_to_posix_lock(filp, file_lock, &flock);
@@ -1699,6 +1693,8 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 	unlock_kernel();
 }
 
+EXPORT_SYMBOL(locks_remove_posix);
+
 /*
  * This function is called on the last close of an open file.
  */
@@ -1724,6 +1720,9 @@ void locks_remove_flock(struct file *filp)
 				lease_modify(before, F_UNLCK);
 				continue;
 			}
+			/* FL_POSIX locks of this process have already been
+			 * removed in filp_close->locks_remove_posix.
+			 */
 			BUG();
  		}
 		before = &fl->fl_next;
@@ -1817,7 +1816,7 @@ static void lock_get_status(char* out, struct file_lock *fl, int id, char *pfx)
 			       : (fl->fl_type & F_WRLCK) ? "WRITE" : "READ ");
 	}
 	if (inode) {
-#if WE_CAN_BREAK_LSLK_NOW
+#ifdef WE_CAN_BREAK_LSLK_NOW
 		out += sprintf(out, "%d %s:%ld ", fl->fl_pid,
 				inode->i_sb->s_id, inode->i_ino);
 #else
@@ -1983,30 +1982,59 @@ int lock_may_write(struct inode *inode, loff_t start, unsigned long len)
 
 EXPORT_SYMBOL(lock_may_write);
 
+static inline void __steal_locks(struct file *file, fl_owner_t from)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	struct file_lock *fl = inode->i_flock;
+
+	while (fl) {
+		if (fl->fl_file == file && fl->fl_owner == from)
+			fl->fl_owner = current->files;
+		fl = fl->fl_next;
+	}
+}
+
+/* When getting ready for executing a binary, we make sure that current
+ * has a files_struct on its own. Before dropping the old files_struct,
+ * we take over ownership of all locks for all file descriptors we own.
+ * Note that we may accidentally steal a lock for a file that a sibling
+ * has created since the unshare_files() call.
+ */
 void steal_locks(fl_owner_t from)
 {
-	struct list_head *tmp;
+	struct files_struct *files = current->files;
+	int i, j;
 
-	if (from == current->files)
+	if (from == files)
 		return;
 
 	lock_kernel();
-	list_for_each(tmp, &file_lock_list) {
-		struct file_lock *fl = list_entry(tmp, struct file_lock, fl_link);
-		if (fl->fl_owner == from)
-			fl->fl_owner = current->files;
+	j = 0;
+	for (;;) {
+		unsigned long set;
+		i = j * __NFDBITS;
+		if (i >= files->max_fdset || i >= files->max_fds)
+			break;
+		set = files->open_fds->fds_bits[j++];
+		while (set) {
+			if (set & 1) {
+				struct file *file = files->fd[i];
+				if (file)
+					__steal_locks(file, from);
+			}
+			i++;
+			set >>= 1;
+		}
 	}
 	unlock_kernel();
 }
-
 EXPORT_SYMBOL(steal_locks);
 
 static int __init filelock_init(void)
 {
 	filelock_cache = kmem_cache_create("file_lock_cache",
-			sizeof(struct file_lock), 0, 0, init_once, NULL);
-	if (!filelock_cache)
-		panic("cannot create file lock slab cache");
+			sizeof(struct file_lock), 0, SLAB_PANIC,
+			init_once, NULL);
 	return 0;
 }
 

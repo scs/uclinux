@@ -55,6 +55,8 @@ static const char version2[] =
 
 #include "8390.h"
 
+#define DRV_NAME "ne"
+
 /* Some defines that people can play with if so inclined. */
 
 /* Do we support clones that don't adhere to 14,15 of the SAprom ? */
@@ -109,7 +111,7 @@ bad_clone_list[] __initdata = {
     {"PCM-4823", "PCM-4823", {0x00, 0xc0, 0x6c}}, /* Broken Advantech MoBo */
     {"REALTEK", "RTL8019", {0x00, 0x00, 0xe8}}, /* no-name with Realtek chip */
     {"LCS-8834", "LCS-8836", {0x04, 0x04, 0x37}}, /* ShinyNet (SET) */
-    {0,}
+    {NULL,}
 };
 #endif
 
@@ -126,7 +128,6 @@ bad_clone_list[] __initdata = {
 #define NESM_START_PG	0x40	/* First page of TX buffer */
 #define NESM_STOP_PG	0x80	/* Last page +1 of RX ring */
 
-int ne_probe(struct net_device *dev);
 static int ne_probe1(struct net_device *dev, int ioaddr);
 static int ne_probe_isapnp(struct net_device *dev);
 
@@ -163,9 +164,12 @@ static void ne_block_output(struct net_device *dev, const int count,
 	E2010	 starts at 0x100 and ends at 0x4000.
 	E2010-x starts at 0x100 and ends at 0xffff.  */
 
-int __init ne_probe(struct net_device *dev)
+static int __init do_ne_probe(struct net_device *dev)
 {
 	unsigned int base_addr = dev->base_addr;
+#ifndef MODULE
+	int orig_irq = dev->irq;
+#endif
 
 	SET_MODULE_OWNER(dev);
 
@@ -183,6 +187,7 @@ int __init ne_probe(struct net_device *dev)
 	/* Last resort. The semi-risky ISA auto-probe. */
 	for (base_addr = 0; netcard_portlist[base_addr] != 0; base_addr++) {
 		int ioaddr = netcard_portlist[base_addr];
+		dev->irq = orig_irq;
 		if (ne_probe1(dev, ioaddr) == 0)
 			return 0;
 	}
@@ -190,6 +195,42 @@ int __init ne_probe(struct net_device *dev)
 
 	return -ENODEV;
 }
+
+static void cleanup_card(struct net_device *dev)
+{
+	struct pnp_dev *idev = (struct pnp_dev *)ei_status.priv;
+	if (idev)
+		pnp_device_detach(idev);
+	free_irq(dev->irq, dev);
+	release_region(dev->base_addr, NE_IO_EXTENT);
+}
+
+#ifndef MODULE
+struct net_device * __init ne_probe(int unit)
+{
+	struct net_device *dev = alloc_ei_netdev();
+	int err;
+
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	sprintf(dev->name, "eth%d", unit);
+	netdev_boot_setup_check(dev);
+
+	err = do_ne_probe(dev);
+	if (err)
+		goto out;
+	err = register_netdev(dev);
+	if (err)
+		goto out1;
+	return dev;
+out1:
+	cleanup_card(dev);
+out:
+	free_netdev(dev);
+	return ERR_PTR(err);
+}
+#endif
 
 static int __init ne_probe_isapnp(struct net_device *dev)
 {
@@ -247,7 +288,7 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 	int reg0, ret;
 	static unsigned version_printed;
 
-	if (!request_region(ioaddr, NE_IO_EXTENT, dev->name))
+	if (!request_region(ioaddr, NE_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
 
 	reg0 = inb_p(ioaddr);
@@ -425,20 +466,12 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 		goto err_out;
 	}
 
-	/* Allocate dev->priv and fill in 8390 specific dev fields. */
-	if (ethdev_init(dev))
-	{
-        	printk (" unable to get memory for dev->priv.\n");
-        	ret = -ENOMEM;
-		goto err_out;
-	}
-
 	/* Snarf the interrupt now.  There's no point in waiting since we cannot
 	   share and the board will usually be enabled. */
 	ret = request_irq(dev->irq, ei_interrupt, 0, name, dev);
 	if (ret) {
 		printk (" unable to get IRQ %d (errno=%d).\n", dev->irq, ret);
-		goto err_out_kfree;
+		goto err_out;
 	}
 
 	dev->base_addr = ioaddr;
@@ -469,12 +502,12 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 	ei_status.priv = 0;
 	dev->open = &ne_open;
 	dev->stop = &ne_close;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = ei_poll;
+#endif
 	NS8390_init(dev, 0);
 	return 0;
 
-err_out_kfree:
-	kfree(dev->priv);
-	dev->priv = NULL;
 err_out:
 	release_region(ioaddr, NE_IO_EXTENT);
 	return ret;
@@ -734,7 +767,7 @@ retry:
 
 #ifdef MODULE
 #define MAX_NE_CARDS	4	/* Max number of NE cards per module */
-static struct net_device dev_ne[MAX_NE_CARDS];
+static struct net_device *dev_ne[MAX_NE_CARDS];
 static int io[MAX_NE_CARDS];
 static int irq[MAX_NE_CARDS];
 static int bad[MAX_NE_CARDS];	/* 0xbad = bad sig or no reset ack */
@@ -758,25 +791,31 @@ int init_module(void)
 	int this_dev, found = 0;
 
 	for (this_dev = 0; this_dev < MAX_NE_CARDS; this_dev++) {
-		struct net_device *dev = &dev_ne[this_dev];
+		struct net_device *dev = alloc_ei_netdev();
+		if (!dev)
+			break;
 		dev->irq = irq[this_dev];
 		dev->mem_end = bad[this_dev];
 		dev->base_addr = io[this_dev];
-		dev->init = ne_probe;
-		if (register_netdev(dev) == 0) {
-			found++;
-			continue;
+		if (do_ne_probe(dev) == 0) {
+			if (register_netdev(dev) == 0) {
+				dev_ne[found++] = dev;
+				continue;
+			}
+			cleanup_card(dev);
 		}
-		if (found != 0) { 	/* Got at least one. */
-			return 0;
-		}
+		free_netdev(dev);
+		if (found)
+			break;
 		if (io[this_dev] != 0)
 			printk(KERN_WARNING "ne.c: No NE*000 card found at i/o = %#x\n", io[this_dev]);
 		else
 			printk(KERN_NOTICE "ne.c: You must supply \"io=0xNNN\" value(s) for ISA cards.\n");
 		return -ENXIO;
 	}
-	return 0;
+	if (found)
+		return 0;
+	return -ENODEV;
 }
 
 void cleanup_module(void)
@@ -784,16 +823,11 @@ void cleanup_module(void)
 	int this_dev;
 
 	for (this_dev = 0; this_dev < MAX_NE_CARDS; this_dev++) {
-		struct net_device *dev = &dev_ne[this_dev];
-		if (dev->priv != NULL) {
-			void *priv = dev->priv;
-			struct pnp_dev *idev = (struct pnp_dev *)ei_status.priv;
-			if (idev)
-				pnp_device_detach(idev);
-			free_irq(dev->irq, dev);
-			release_region(dev->base_addr, NE_IO_EXTENT);
+		struct net_device *dev = dev_ne[this_dev];
+		if (dev) {
 			unregister_netdev(dev);
-			kfree(priv);
+			cleanup_card(dev);
+			free_netdev(dev);
 		}
 	}
 }

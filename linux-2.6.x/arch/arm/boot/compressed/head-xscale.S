@@ -66,27 +66,4 @@ __XScale_start:
 		mov	r7, #MACH_TYPE_IQ80310
 #endif
 
-#ifdef CONFIG_ARCH_ADI_EVB
-		mov	r7, #MACH_TYPE_ADI_EVB
-#endif
 
-#ifdef CONFIG_ARCH_IXDP425
-		mov	r7, #MACH_TYPE_IXDP425
-#endif
-
-#ifdef CONFIG_ARCH_PRPMC1100
-		mov	r7, #(MACH_TYPE_PRPMC1100 & 0xff)
-		orr	r7, r7, #(MACH_TYPE_PRPMC1100 & 0xff00)
-#endif
-
-#ifdef CONFIG_ARCH_ADI_COYOTE
-		# Set machine ID into r7 (Coyote ID > 255 hence needs
-		# two instructions to build the ID safely).
-		mov r7, #MACH_TYPE_ADI_COYOTE & 0xff
-		orr r7, r7, #MACH_TYPE_ADI_COYOTE & 0xff00
-#endif
-
-#ifdef CONFIG_ARCH_SE4000
-		mov r7, #MACH_TYPE_SE4000 & 0xff
-		orr r7, r7, #MACH_TYPE_SE4000 & 0xff00
-#endif

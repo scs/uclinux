@@ -252,7 +252,7 @@ static unsigned char asn1_header_decode(struct asn1_ctx *ctx,
 	if (def)
 		*eoc = ctx->pointer + len;
 	else
-		*eoc = 0;
+		*eoc = NULL;
 	return 1;
 }
 
@@ -862,96 +862,6 @@ static unsigned char snmp_request_decode(struct asn1_ctx *ctx,
 	return 1;
 }
 
-static unsigned char snmp_trap_decode(struct asn1_ctx *ctx,
-                                      struct snmp_v1_trap *trap,
-                                      const struct oct1_map *map,
-                                      u_int16_t *check)
-{
-	unsigned int cls, con, tag, len;
-	unsigned char *end;
-
-	if (!asn1_header_decode(ctx, &end, &cls, &con, &tag))
-		return 0;
-		
-	if (cls != ASN1_UNI || con != ASN1_PRI || tag != ASN1_OJI)
-		return 0;
-	
-	if (!asn1_oid_decode(ctx, end, &trap->id, &trap->id_len))
-		return 0;
-		
-	if (!asn1_header_decode(ctx, &end, &cls, &con, &tag))
-		goto err_id_free;
-
-	if (!((cls == ASN1_APL && con == ASN1_PRI && tag == SNMP_IPA) ||
-	      (cls == ASN1_UNI && con == ASN1_PRI && tag == ASN1_OTS)))
-		goto err_id_free;
-	
-	if (!asn1_octets_decode(ctx, end, (unsigned char **)&trap->ip_address, &len))
-		goto err_id_free;
-	
-	/* IPv4 only */
-	if (len != 4)
-		goto err_addr_free;
-	
-	mangle_address(ctx->begin, ctx->pointer - 4, map, check);
-	
-	if (!asn1_header_decode(ctx, &end, &cls, &con, &tag))
-		goto err_addr_free;
-		
-	if (cls != ASN1_UNI || con != ASN1_PRI || tag != ASN1_INT)
-		goto err_addr_free;;
-		
-	if (!asn1_uint_decode(ctx, end, &trap->general))
-		goto err_addr_free;;
-		
-	if (!asn1_header_decode(ctx, &end, &cls, &con, &tag))
-		goto err_addr_free;
-	
-	if (cls != ASN1_UNI || con != ASN1_PRI || tag != ASN1_INT)
-		goto err_addr_free;
-		
-	if (!asn1_uint_decode(ctx, end, &trap->specific))
-		goto err_addr_free;
-		
-	if (!asn1_header_decode(ctx, &end, &cls, &con, &tag))
-		goto err_addr_free;
-		
-	if (!((cls == ASN1_APL && con == ASN1_PRI && tag == SNMP_TIT) ||
-	      (cls == ASN1_UNI && con == ASN1_PRI && tag == ASN1_INT)))
-		goto err_addr_free;
-		
-	if (!asn1_ulong_decode(ctx, end, &trap->time))
-		goto err_addr_free;
-		
-	return 1;
-
-err_id_free:
-	kfree(trap->id);
-
-err_addr_free:
-	kfree((unsigned long *)trap->ip_address);
-	
-	return 0;
-}
-
-/*****************************************************************************
- *
- * Misc. routines
- *
- *****************************************************************************/
-
-static void hex_dump(unsigned char *buf, size_t len)
-{
-	size_t i;
-	
-	for (i = 0; i < len; i++) {
-		if (i && !(i % 16))
-			printk("\n");
-		printk("%02x ", *(buf + i));
-	}
-	printk("\n");
-}
-
 /* 
  * Fast checksum update for possibly oddly-aligned UDP byte, from the
  * code example in the draft.
@@ -1021,6 +931,96 @@ static inline void mangle_address(unsigned char *begin,
 			printk(KERN_DEBUG "bsalg: mapped %u.%u.%u.%u to "
 			       "%u.%u.%u.%u\n", NIPQUAD(old), NIPQUAD(*addr));
 	}
+}
+
+static unsigned char snmp_trap_decode(struct asn1_ctx *ctx,
+                                      struct snmp_v1_trap *trap,
+                                      const struct oct1_map *map,
+                                      u_int16_t *check)
+{
+	unsigned int cls, con, tag, len;
+	unsigned char *end;
+
+	if (!asn1_header_decode(ctx, &end, &cls, &con, &tag))
+		return 0;
+		
+	if (cls != ASN1_UNI || con != ASN1_PRI || tag != ASN1_OJI)
+		return 0;
+	
+	if (!asn1_oid_decode(ctx, end, &trap->id, &trap->id_len))
+		return 0;
+		
+	if (!asn1_header_decode(ctx, &end, &cls, &con, &tag))
+		goto err_id_free;
+
+	if (!((cls == ASN1_APL && con == ASN1_PRI && tag == SNMP_IPA) ||
+	      (cls == ASN1_UNI && con == ASN1_PRI && tag == ASN1_OTS)))
+		goto err_id_free;
+	
+	if (!asn1_octets_decode(ctx, end, (unsigned char **)&trap->ip_address, &len))
+		goto err_id_free;
+	
+	/* IPv4 only */
+	if (len != 4)
+		goto err_addr_free;
+	
+	mangle_address(ctx->begin, ctx->pointer - 4, map, check);
+	
+	if (!asn1_header_decode(ctx, &end, &cls, &con, &tag))
+		goto err_addr_free;
+		
+	if (cls != ASN1_UNI || con != ASN1_PRI || tag != ASN1_INT)
+		goto err_addr_free;
+		
+	if (!asn1_uint_decode(ctx, end, &trap->general))
+		goto err_addr_free;
+		
+	if (!asn1_header_decode(ctx, &end, &cls, &con, &tag))
+		goto err_addr_free;
+	
+	if (cls != ASN1_UNI || con != ASN1_PRI || tag != ASN1_INT)
+		goto err_addr_free;
+		
+	if (!asn1_uint_decode(ctx, end, &trap->specific))
+		goto err_addr_free;
+		
+	if (!asn1_header_decode(ctx, &end, &cls, &con, &tag))
+		goto err_addr_free;
+		
+	if (!((cls == ASN1_APL && con == ASN1_PRI && tag == SNMP_TIT) ||
+	      (cls == ASN1_UNI && con == ASN1_PRI && tag == ASN1_INT)))
+		goto err_addr_free;
+		
+	if (!asn1_ulong_decode(ctx, end, &trap->time))
+		goto err_addr_free;
+		
+	return 1;
+
+err_id_free:
+	kfree(trap->id);
+
+err_addr_free:
+	kfree((unsigned long *)trap->ip_address);
+	
+	return 0;
+}
+
+/*****************************************************************************
+ *
+ * Misc. routines
+ *
+ *****************************************************************************/
+
+static void hex_dump(unsigned char *buf, size_t len)
+{
+	size_t i;
+	
+	for (i = 0; i < len; i++) {
+		if (i && !(i % 16))
+			printk("\n");
+		printk("%02x ", *(buf + i));
+	}
+	printk("\n");
 }
 
 /*

@@ -19,6 +19,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/module.h>
 #include <linux/parport.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -26,7 +27,7 @@
 #include <asm/current.h>
 #include <asm/uaccess.h>
 
-#define DEBUG /* undef me for production */
+#undef DEBUG
 
 #ifdef DEBUG
 #define DPRINTK(stuff...) printk (stuff)
@@ -40,6 +41,7 @@ static struct daisydev {
 	int daisy;
 	int devnum;
 } *topology = NULL;
+static spinlock_t topology_lock = SPIN_LOCK_UNLOCKED;
 
 static int numdevs = 0;
 
@@ -52,22 +54,18 @@ static int assign_addrs (struct parport *port);
 /* Add a device to the discovered topology. */
 static void add_dev (int devnum, struct parport *port, int daisy)
 {
-	struct daisydev *newdev;
+	struct daisydev *newdev, **p;
 	newdev = kmalloc (sizeof (struct daisydev), GFP_KERNEL);
 	if (newdev) {
 		newdev->port = port;
 		newdev->daisy = daisy;
 		newdev->devnum = devnum;
-		newdev->next = topology;
-		if (!topology || topology->devnum >= devnum)
-			topology = newdev;
-		else {
-			struct daisydev *prev = topology;
-			while (prev->next && prev->next->devnum < devnum)
-				prev = prev->next;
-			newdev->next = prev->next;
-			prev->next = newdev;
-		}
+		spin_lock(&topology_lock);
+		for (p = &topology; *p && (*p)->devnum<devnum; p = &(*p)->next)
+			;
+		newdev->next = *p;
+		*p = newdev;
+		spin_unlock(&topology_lock);
 	}
 }
 
@@ -82,6 +80,7 @@ static struct parport *clone_parport (struct parport *real, int muxport)
 		extra->portnum = real->portnum;
 		extra->physport = real;
 		extra->muxport = muxport;
+		real->slaves[muxport-1] = extra;
 	}
 
 	return extra;
@@ -96,7 +95,9 @@ int parport_daisy_init (struct parport *port)
 	static const char *th[] = { /*0*/"th", "st", "nd", "rd", "th" };
 	int num_ports;
 	int i;
+	int last_try = 0;
 
+again:
 	/* Because this is called before any other devices exist,
 	 * we don't have to claim exclusive access.  */
 
@@ -129,7 +130,7 @@ int parport_daisy_init (struct parport *port)
 			/* Analyse that port too.  We won't recurse
 			   forever because of the 'port->muxport < 0'
 			   test above. */
-			parport_announce_port (extra);
+			parport_daisy_init(extra);
 		}
 	}
 
@@ -151,32 +152,46 @@ int parport_daisy_init (struct parport *port)
 		kfree (deviceid);
 	}
 
+	if (!detected && !last_try) {
+		/* No devices were detected.  Perhaps they are in some
+                   funny state; let's try to reset them and see if
+                   they wake up. */
+		parport_daisy_fini (port);
+		parport_write_control (port, PARPORT_CONTROL_SELECT);
+		udelay (50);
+		parport_write_control (port,
+				       PARPORT_CONTROL_SELECT |
+				       PARPORT_CONTROL_INIT);
+		udelay (50);
+		last_try = 1;
+		goto again;
+	}
+
 	return detected;
 }
 
 /* Forget about devices on a physical port. */
 void parport_daisy_fini (struct parport *port)
 {
-	struct daisydev *dev, *prev = topology;
-	while (prev && prev->port == port) {
-		topology = topology->next;
-		kfree (prev);
-		prev = topology;
-	}
+	struct daisydev **p;
 
-	while (prev) {
-		dev = prev->next;
-		if (dev && dev->port == port) {
-			prev->next = dev->next;
-			kfree (dev);
+	spin_lock(&topology_lock);
+	p = &topology;
+	while (*p) {
+		struct daisydev *dev = *p;
+		if (dev->port != port) {
+			p = &dev->next;
+			continue;
 		}
-		prev = prev->next;
+		*p = dev->next;
+		kfree(dev);
 	}
 
 	/* Gaps in the numbering could be handled better.  How should
            someone enumerate through all IEEE1284.3 devices in the
            topology?. */
 	if (!topology) numdevs = 0;
+	spin_unlock(&topology_lock);
 	return;
 }
 
@@ -205,30 +220,34 @@ struct pardevice *parport_open (int devnum, const char *name,
 				void (*irqf) (int, void *, struct pt_regs *),
 				int flags, void *handle)
 {
-	struct parport *port = parport_enumerate ();
+	struct daisydev *p = topology;
+	struct parport *port;
 	struct pardevice *dev;
-	int portnum;
-	int muxnum;
-	int daisynum;
+	int daisy;
 
-	if (parport_device_coords (devnum,  &portnum, &muxnum, &daisynum))
+	spin_lock(&topology_lock);
+	while (p && p->devnum != devnum)
+		p = p->next;
+
+	if (!p) {
+		spin_unlock(&topology_lock);
 		return NULL;
+	}
 
-	while (port && ((port->portnum != portnum) ||
-			(port->muxport != muxnum)))
-		port = port->next;
-
-	if (!port)
-		/* No corresponding parport. */
-		return NULL;
+	daisy = p->daisy;
+	port = parport_get_port(p->port);
+	spin_unlock(&topology_lock);
 
 	dev = parport_register_device (port, name, pf, kf,
 				       irqf, flags, handle);
-	if (dev)
-		dev->daisy = daisynum;
+	parport_put_port(port);
+	if (!dev)
+		return NULL;
+
+	dev->daisy = daisy;
 
 	/* Check that there really is a device to select. */
-	if (daisynum >= 0) {
+	if (daisy >= 0) {
 		int selected;
 		parport_claim_or_block (dev);
 		selected = port->daisy;
@@ -271,16 +290,19 @@ void parport_close (struct pardevice *dev)
 
 int parport_device_num (int parport, int mux, int daisy)
 {
-	struct daisydev *dev = topology;
+	int res = -ENXIO;
+	struct daisydev *dev;
 
+	spin_lock(&topology_lock);
+	dev = topology;
 	while (dev && dev->port->portnum != parport &&
 	       dev->port->muxport != mux && dev->daisy != daisy)
 		dev = dev->next;
+	if (dev)
+		res = dev->devnum;
+	spin_unlock(&topology_lock);
 
-	if (!dev)
-		return -ENXIO;
-
-	return dev->devnum;
+	return res;
 }
 
 /**
@@ -310,17 +332,23 @@ int parport_device_num (int parport, int mux, int daisy)
 
 int parport_device_coords (int devnum, int *parport, int *mux, int *daisy)
 {
-	struct daisydev *dev = topology;
+	struct daisydev *dev;
 
+	spin_lock(&topology_lock);
+
+	dev = topology;
 	while (dev && dev->devnum != devnum)
 		dev = dev->next;
 
-	if (!dev)
+	if (!dev) {
+		spin_unlock(&topology_lock);
 		return -ENXIO;
+	}
 
 	if (parport) *parport = dev->port->portnum;
 	if (mux) *mux = dev->port->muxport;
 	if (daisy) *daisy = dev->daisy;
+	spin_unlock(&topology_lock);
 	return 0;
 }
 
@@ -557,9 +585,13 @@ static int assign_addrs (struct parport *port)
 
 int parport_find_device (const char *mfg, const char *mdl, int from)
 {
-	struct daisydev *d = topology; /* sorted by devnum */
+	struct daisydev *d;
+	int res = -1;
 
 	/* Find where to start. */
+
+	spin_lock(&topology_lock);
+	d = topology; /* sorted by devnum */
 	while (d && d->devnum <= from)
 		d = d->next;
 
@@ -575,9 +607,10 @@ int parport_find_device (const char *mfg, const char *mdl, int from)
 	}
 
 	if (d)
-		return d->devnum;
+		res = d->devnum;
 
-	return -1;
+	spin_unlock(&topology_lock);
+	return res;
 }
 
 /**
@@ -601,8 +634,11 @@ int parport_find_device (const char *mfg, const char *mdl, int from)
 
 int parport_find_class (parport_device_class cls, int from)
 {
-	struct daisydev *d = topology; /* sorted by devnum */
+	struct daisydev *d;
+	int res = -1;
 
+	spin_lock(&topology_lock);
+	d = topology; /* sorted by devnum */
 	/* Find where to start. */
 	while (d && d->devnum <= from)
 		d = d->next;
@@ -612,7 +648,18 @@ int parport_find_class (parport_device_class cls, int from)
 		d = d->next;
 
 	if (d)
-		return d->devnum;
+		res = d->devnum;
 
-	return -1;
+	spin_unlock(&topology_lock);
+	return res;
 }
+
+EXPORT_SYMBOL(parport_open);
+EXPORT_SYMBOL(parport_close);
+EXPORT_SYMBOL(parport_device_num);
+EXPORT_SYMBOL(parport_device_coords);
+EXPORT_SYMBOL(parport_daisy_deselect_all);
+EXPORT_SYMBOL(parport_daisy_select);
+EXPORT_SYMBOL(parport_daisy_init);
+EXPORT_SYMBOL(parport_find_device);
+EXPORT_SYMBOL(parport_find_class);

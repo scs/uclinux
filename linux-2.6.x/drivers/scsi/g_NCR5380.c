@@ -80,11 +80,8 @@
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 12:17:32  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:21:53  nidhi
- * Importing
+ * Revision 1.1.1.2  2004/09/07 09:29:28  lgsoft
+ * Import of 2.6.8
  *
  */
 
@@ -113,7 +110,7 @@
 #include <linux/sched.h>
 #include <linux/blkdev.h>
 #include "scsi.h"
-#include "hosts.h"
+#include <scsi/scsi_host.h>
 #include "g_NCR5380.h"
 #include "NCR5380.h"
 #include <linux/stat.h>
@@ -361,7 +358,7 @@ int __init generic_NCR5380_detect(Scsi_Host_Template * tpnt)
 		if (!(overrides[current_override].NCR5380_map_name))
 			continue;
 
-		ports = 0;
+		ports = NULL;
 		switch (overrides[current_override].board) {
 		case BOARD_NCR5380:
 			flags = FLAG_NO_PSEUDO_DMA;
@@ -456,7 +453,7 @@ int __init generic_NCR5380_detect(Scsi_Host_Template * tpnt)
 			instance->irq = NCR5380_probe_irq(instance, 0xffff);
 
 		if (instance->irq != SCSI_IRQ_NONE)
-			if (request_irq(instance->irq, generic_NCR5380_intr, SA_INTERRUPT, "NCR5380", NULL)) {
+			if (request_irq(instance->irq, generic_NCR5380_intr, SA_INTERRUPT, "NCR5380", instance)) {
 				printk(KERN_WARNING "scsi%d : IRQ%d not free, interrupts disabled\n", instance->host_no, instance->irq);
 				instance->irq = SCSI_IRQ_NONE;
 			}

@@ -4,7 +4,8 @@ net-3-driver for the SKNET MCA-based cards
 This is an extension to the Linux operating system, and is covered by the
 same GNU General Public License that covers that work.
 
-Copyright 1999 by Alfred Arnold (alfred@ccac.rwth-aachen.de, aarnold@elsa.de)
+Copyright 1999 by Alfred Arnold (alfred@ccac.rwth-aachen.de,
+                                 alfred.arnold@lancom.de)
 
 This driver is based both on the 3C523 driver and the SK_G16 driver.
 
@@ -997,13 +998,13 @@ static void skmca_set_multicast_list(struct net_device *dev)
 		block.Mode &= ~LANCE_INIT_PROM;
 
 	if (dev->flags & IFF_ALLMULTI) {	/* get all multicasts */
-		memset(block.LAdrF, 8, 0xff);
+		memset(block.LAdrF, 0xff, sizeof(block.LAdrF));
 	} else {		/* get selected/no multicasts */
 
 		struct dev_mc_list *mptr;
 		int code;
 
-		memset(block.LAdrF, 8, 0x00);
+		memset(block.LAdrF, 0, sizeof(block.LAdrF));
 		for (mptr = dev->mc_list; mptr != NULL; mptr = mptr->next) {
 			code = GetHash(mptr->dmi_addr);
 			block.LAdrF[(code >> 3) & 7] |= 1 << (code & 7);
@@ -1022,18 +1023,39 @@ static void skmca_set_multicast_list(struct net_device *dev)
 
 static int startslot;		/* counts through slots when probing multiple devices */
 
-int __init skmca_probe(struct net_device *dev)
+static void cleanup_card(struct net_device *dev)
 {
+	skmca_priv *priv = dev->priv;
+	DeinitBoard(dev);
+	if (dev->irq != 0)
+		free_irq(dev->irq, dev);
+	mca_mark_as_unused(priv->slot);
+	mca_set_adapter_procfn(priv->slot, NULL, NULL);
+}
+
+struct net_device * __init skmca_probe(int unit)
+{
+	struct net_device *dev;
 	int force_detect = 0;
 	int junior, slot, i;
 	int base = 0, irq = 0;
 	skmca_priv *priv;
 	skmca_medium medium;
+	int err;
 
 	/* can't work without an MCA bus ;-) */
 
 	if (MCA_bus == 0)
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
+
+	dev = alloc_etherdev(sizeof(skmca_priv));
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	if (unit >= 0) {
+		sprintf(dev->name, "eth%d", unit);
+		netdev_boot_setup_check(dev);
+	}
 
 	SET_MODULE_OWNER(dev);
 
@@ -1044,37 +1066,24 @@ int __init skmca_probe(struct net_device *dev)
 
 	/* search through slots */
 
-	if (dev != NULL) {
-		base = dev->mem_start;
-		irq = dev->irq;
-	}
-	slot = dofind(&junior, startslot);
-
-	while (slot != -1) {
+	base = dev->mem_start;
+	irq = dev->base_addr;
+	for (slot = startslot; (slot = dofind(&junior, slot)) != -1; slot++) {
 		/* deduce card addresses */
 
 		getaddrs(slot, junior, &base, &irq, &medium);
 
 		/* slot already in use ? */
 
-		if (mca_is_adapter_used(slot)) {
-			slot = dofind(&junior, slot + 1);
+		if (mca_is_adapter_used(slot))
 			continue;
-		}
 
 		/* were we looking for something different ? */
 
-		if ((dev->irq != 0) || (dev->mem_start != 0)) {
-			if ((dev->irq != 0) && (dev->irq != irq)) {
-				slot = dofind(&junior, slot + 1);
-				continue;
-			}
-			if ((dev->mem_start != 0)
-			    && (dev->mem_start != base)) {
-				slot = dofind(&junior, slot + 1);
-				continue;
-			}
-		}
+		if (dev->irq && dev->irq != irq)
+			continue;
+		if (dev->mem_start && dev->mem_start != base)
+			continue;
 
 		/* found something that matches */
 
@@ -1083,8 +1092,10 @@ int __init skmca_probe(struct net_device *dev)
 
 	/* nothing found ? */
 
-	if (slot == -1)
-		return ((base != 0) || (irq != 0)) ? ENXIO : ENODEV;
+	if (slot == -1) {
+		free_netdev(dev);
+		return (base || irq) ? ERR_PTR(-ENXIO) : ERR_PTR(-ENODEV);
+	}
 
 	/* make procfs entries */
 
@@ -1102,17 +1113,14 @@ int __init skmca_probe(struct net_device *dev)
 	       junior ? "Junior MC2" : "MC2+", slot + 1);
 
 	/* allocate structure */
-	priv = dev->priv =
-	    (skmca_priv *) kmalloc(sizeof(skmca_priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
+	priv = dev->priv;
 	priv->slot = slot;
 	priv->macbase = base + 0x3fc0;
 	priv->ioregaddr = base + 0x3ff0;
 	priv->ctrladdr = base + 0x3ff2;
 	priv->cmdaddr = base + 0x3ff3;
 	priv->medium = medium;
-	memset(&(priv->stat), 0, sizeof(struct net_device_stats));
+	memset(&priv->stat, 0, sizeof(struct net_device_stats));
 	spin_lock_init(&priv->lock);
 
 	/* set base + irq for this device (irq not allocated so far) */
@@ -1146,9 +1154,6 @@ int __init skmca_probe(struct net_device *dev)
 	dev->set_multicast_list = skmca_set_multicast_list;
 	dev->flags |= IFF_MULTICAST;
 
-	/* generic setup */
-	ether_setup(dev);
-
 	/* copy out MAC address */
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = SKMCA_READB(priv->macbase + (i << 1));
@@ -1167,7 +1172,13 @@ int __init skmca_probe(struct net_device *dev)
 
 	startslot = slot + 1;
 
-	return 0;
+	err = register_netdev(dev);
+	if (err) {
+		cleanup_card(dev);
+		free_netdev(dev);
+		dev = ERR_PTR(err);
+	}
+	return dev;
 }
 
 /* ------------------------------------------------------------------------
@@ -1179,51 +1190,34 @@ MODULE_LICENSE("GPL");
 
 #define DEVMAX 5
 
-static struct net_device moddevs[DEVMAX] = {
-	{ .name = "    ", .init = skmca_probe },
-	{ .name = "    ", .init = skmca_probe },
-	{ .name = "    ", .init = skmca_probe },
-	{ .name = "    ", .init = skmca_probe },
-	{ .name = "    ", .init = skmca_probe }
-};
-
-int irq;
-int io;
+static struct net_device *moddevs[DEVMAX];
 
 int init_module(void)
 {
-	int z, res;
+	int z;
 
 	startslot = 0;
 	for (z = 0; z < DEVMAX; z++) {
-		strcpy(moddevs[z].name, "     ");
-		res = register_netdev(moddevs + z);
-		if (res != 0)
-			return (z > 0) ? 0 : -EIO;
+		struct net_device *dev = skmca_probe(-1);
+		if (IS_ERR(dev))
+			break;
+		moddevs[z] = dev;
 	}
-
+	if (!z)
+		return -EIO;
 	return 0;
 }
 
 void cleanup_module(void)
 {
-	struct net_device *dev;
-	skmca_priv *priv;
 	int z;
 
 	for (z = 0; z < DEVMAX; z++) {
-		dev = moddevs + z;
-		if (dev->priv != NULL) {
-			priv = (skmca_priv *) dev->priv;
-			DeinitBoard(dev);
-			if (dev->irq != 0)
-				free_irq(dev->irq, dev);
-			dev->irq = 0;
+		struct net_device *dev = moddevs[z];
+		if (dev) {
 			unregister_netdev(dev);
-			mca_mark_as_unused(priv->slot);
-			mca_set_adapter_procfn(priv->slot, NULL, NULL);
-			kfree(dev->priv);
-			dev->priv = NULL;
+			cleanup_card(dev);
+			free_netdev(dev);
 		}
 	}
 }

@@ -1,22 +1,6 @@
 #ifndef _ATP870U_H
 #define _ATP870U_H
 
-/* $Id$
-
- * Header file for the ACARD 870U/W driver for Linux
- *
- * $Log$
- * Revision 1.1  2004/07/19 12:16:46  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:21:51  nidhi
- * Importing
- *
- * Revision 1.0  1997/05/07  15:09:00  root
- * Initial revision
- *
- */
-
 #include <linux/types.h>
 
 /* I/O Port */
@@ -47,7 +31,7 @@ struct atp_unit {
 	unsigned short deviceid;
 	unsigned char ata_cdbu[16];
 	unsigned char sp[16];
-	Scsi_Cmnd *querequ[qcnt];
+	struct scsi_cmnd *querequ[qcnt];
 	struct atp_id {
 		unsigned char dirctu;
 		unsigned char devspu;
@@ -58,20 +42,11 @@ struct atp_unit {
 		unsigned char *prd_posu;
 		unsigned char *prd_tableu;
 		dma_addr_t prd_phys;
-		Scsi_Cmnd *curr_req;
+		struct scsi_cmnd *curr_req;
 	} id[16];
 	struct Scsi_Host *host;
 	struct pci_dev *pdev;
 	unsigned int unit;
 };
-
-static int atp870u_queuecommand(Scsi_Cmnd *, void (*done) (Scsi_Cmnd *));
-static int atp870u_abort(Scsi_Cmnd *);
-static int atp870u_biosparam(struct scsi_device *, struct block_device *,
-		sector_t, int *);
-static void send_s870(struct Scsi_Host *);
-
-extern const char *atp870u_info(struct Scsi_Host *);
-static Scsi_Host_Template atp870u_template;
 
 #endif

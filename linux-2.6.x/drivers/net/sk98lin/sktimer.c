@@ -22,65 +22,6 @@
  *
  ******************************************************************************/
 
-/******************************************************************************
- *
- * History:
- *
- *	$Log$
- *	Revision 1.1  2004/07/19 12:13:08  lgsoft
- *	Initial revision
- *
- *	Revision 1.1.1.1  2004/07/18 13:21:33  nidhi
- *	Importing
- *	
- *	Revision 1.14  2003/09/16 13:46:51  rschmidt
- *	Added (C) Marvell to SysKonnectFileId
- *	Editorial changes
- *	
- *	Revision 1.13  2003/05/13 18:01:01  mkarl
- *	Editorial changes.
- *	
- *	Revision 1.12  1999/11/22 13:38:51  cgoos
- *	Changed license header to GPL.
- *	
- *	Revision 1.11  1998/12/17 13:24:13  gklug
- *	fix: restart problem: do NOT destroy timer queue if init 1 is done
- *	
- *	Revision 1.10  1998/10/15 15:11:36  gklug
- *	fix: ID_sccs to SysKonnectFileId
- *	
- *	Revision 1.9  1998/09/15 15:15:04  cgoos
- *	Changed TRUE/FALSE to SK_TRUE/SK_FALSE
- *	
- *	Revision 1.8  1998/09/08 08:47:55  gklug
- *	add: init level handling
- *	
- *	Revision 1.7  1998/08/19 09:50:53  gklug
- *	fix: remove struct keyword from c-code (see CCC) add typedefs
- *	
- *	Revision 1.6  1998/08/17 13:43:13  gklug
- *	chg: Parameter will be union of 64bit para, 2 times SK_U32 or SK_PTR
- *	
- *	Revision 1.5  1998/08/14 07:09:14  gklug
- *	fix: chg pAc -> pAC
- *	
- *	Revision 1.4  1998/08/07 12:53:46  gklug
- *	fix: first compiled version
- *	
- *	Revision 1.3  1998/08/07 09:31:53  gklug
- *	fix: delta spelling
- *	
- *	Revision 1.2  1998/08/07 09:31:02  gklug
- *	adapt functions to new c coding conventions
- *	rmv: "fast" handling
- *	chg: inserting of new timer in queue.
- *	chg: event queue generation when timer runs out
- *	
- *	Revision 1.1  1998/08/05 11:27:55  gklug
- *	first version: adapted from SMT
- *
- ******************************************************************************/
-
 
 /*
  *	Event queue and dispatcher
@@ -121,7 +62,7 @@ int		Level)		/* Init Level */
 {
 	switch (Level) {
 	case SK_INIT_DATA:
-		pAC->Tim.StQueue = 0;
+		pAC->Tim.StQueue = NULL;
 		break;
 	case SK_INIT_IO:
 		SkHwtInit(pAC, Ioc);
@@ -204,7 +145,7 @@ SK_EVPARA	Para)		/* Event Parameter for this timer */
 	if (!pAC->Tim.StQueue) {
 		/* First Timer to be started */
 		pAC->Tim.StQueue = pTimer;
-		pTimer->TmNext = 0;
+		pTimer->TmNext = NULL;
 		pTimer->TmDelta = Time;
 		
 		SkHwtStart(pAC, Ioc, Time);
@@ -287,7 +228,7 @@ int		Restart)	/* Do we need to restart the Hardware timer ? */
 			Done = 1;
 		}
 	}
-	*ppLast = 0;
+	*ppLast = NULL;
 	/*
 	 * pTm points to the first Timer that did not run out.
 	 * StQueue points to the first Timer that run out.

@@ -23,14 +23,13 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-
 #include <linux/ide.h>
 
 #include <asm/traps.h>
-#include <asm/bootinfo.h> 
-#include <asm/macintosh.h> 
+#include <asm/bootinfo.h>
+#include <asm/macintosh.h>
 #include <asm/macints.h>
-#include <asm/machw.h> 
+#include <asm/machw.h>
 #include <asm/mac_via.h>
 #include <asm/mac_psc.h>
 
@@ -62,7 +61,7 @@ static int gIER,gIFR,gBufA,gBufB;
 #define MAC_CLOCK_LOW		(MAC_CLOCK_TICK&0xFF)
 #define MAC_CLOCK_HIGH		(MAC_CLOCK_TICK>>8)
 
-static int  nubus_active = 0;
+static int  nubus_active;
 
 void via_debug_dump(void);
 irqreturn_t via1_irq(int, void *, struct pt_regs *);
@@ -94,7 +93,7 @@ void __init via_init(void)
 
 		/* IIci, IIsi, IIvx, IIvi (P6xx), LC series */
 
-		case MAC_VIA_IIci:	
+		case MAC_VIA_IIci:
 			via1 = (void *) VIA1_BASE;
 			if (macintosh_config->ident == MAC_MODEL_IIFX) {
 				via2 = NULL;
@@ -167,7 +166,7 @@ void __init via_init(void)
 	via1[vT2CH] = 0;
 	via1[vACR] &= 0x3F;
 
-	/* 
+	/*
 	 * SE/30: disable video IRQ
 	 * XXX: testing for SE/30 VBL
 	 */
@@ -175,8 +174,8 @@ void __init via_init(void)
 	if (macintosh_config->ident == MAC_MODEL_SE30) {
 		via1[vDirB] |= 0x40;
 		via1[vBufB] |= 0x40;
-	} 
-	
+	}
+
 	/*
 	 * Set the RTC bits to a known state: all lines to outputs and
 	 * RTC disabled (yes that's 0 to enable and 1 to disable).
@@ -244,7 +243,7 @@ void __init via_init(void)
  */
 
 void __init via_init_clock(irqreturn_t (*func)(int, void *, struct pt_regs *))
-{	
+{
 	via1[vACR] |= 0x40;
 	via1[vT1LL] = MAC_CLOCK_LOW;
 	via1[vT1LH] = MAC_CLOCK_HIGH;
@@ -261,24 +260,27 @@ void __init via_init_clock(irqreturn_t (*func)(int, void *, struct pt_regs *))
 void __init via_register_interrupts(void)
 {
 	if (via_alt_mapping) {
-		sys_request_irq(IRQ_AUTO_1, via1_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
-				"software", (void *) via1);
-		sys_request_irq(IRQ_AUTO_6, via1_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
-				"via1", (void *) via1);
+		cpu_request_irq(IRQ_AUTO_1, via1_irq,
+				IRQ_FLG_LOCK|IRQ_FLG_FAST, "software",
+				(void *) via1);
+		cpu_request_irq(IRQ_AUTO_6, via1_irq,
+				IRQ_FLG_LOCK|IRQ_FLG_FAST, "via1",
+				(void *) via1);
 	} else {
-		sys_request_irq(IRQ_AUTO_1, via1_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
-				"via1", (void *) via1);
+		cpu_request_irq(IRQ_AUTO_1, via1_irq,
+				IRQ_FLG_LOCK|IRQ_FLG_FAST, "via1",
+				(void *) via1);
 #if 0 /* interferes with serial on some machines */
 		if (!psc_present) {
-			sys_request_irq(IRQ_AUTO_6, mac_bang, IRQ_FLG_LOCK,
+			cpu_request_irq(IRQ_AUTO_6, mac_bang, IRQ_FLG_LOCK,
 					"Off Switch", mac_bang);
 		}
 #endif
 	}
-	sys_request_irq(IRQ_AUTO_2, via2_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
+	cpu_request_irq(IRQ_AUTO_2, via2_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
 			"via2", (void *) via2);
 	if (!psc_present) {
-		sys_request_irq(IRQ_AUTO_4, mac_scc_dispatch, IRQ_FLG_LOCK,
+		cpu_request_irq(IRQ_AUTO_4, mac_scc_dispatch, IRQ_FLG_LOCK,
 				"scc", mac_scc_dispatch);
 	}
 	request_irq(IRQ_MAC_NUBUS, via_nubus_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
@@ -535,7 +537,7 @@ void via_irq_enable(int irq) {
 			/* But not on PowerBooks, that's ADB... */
 			if ((macintosh_config->adb_type != MAC_ADB_PB1) &&
 			   (macintosh_config->adb_type != MAC_ADB_PB2)) {
-			   	switch(macintosh_config->ident)
+				switch(macintosh_config->ident)
 				{
 					case MAC_MODEL_II:
 					case MAC_MODEL_IIX:

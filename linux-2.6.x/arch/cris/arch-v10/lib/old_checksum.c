@@ -76,7 +76,7 @@ unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum)
     sum += *((unsigned short *)buff)++;
   }
   if(endMarker - buff > 0) {
-    sum += *buff;                 /* add extra byte separately */
+    sum += *buff;                 /* add extra byte seperately */
   }
   BITOFF;
   return(sum);

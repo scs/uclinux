@@ -228,7 +228,6 @@ static int __devinit olympic_probe(struct pci_dev *pdev, const struct pci_device
 #endif
 	dev->irq=pdev->irq;
 	dev->base_addr=pci_resource_start(pdev, 0);
-	dev->init=NULL; /* Must be NULL otherwise we get called twice */
 	olympic_priv->olympic_card_name = pci_name(pdev);
 	olympic_priv->pdev = pdev; 
 	olympic_priv->olympic_mmio = ioremap(pci_resource_start(pdev,1),256);
@@ -260,6 +259,7 @@ static int __devinit olympic_probe(struct pci_dev *pdev, const struct pci_device
 	dev->get_stats=&olympic_get_stats ;
 	dev->set_mac_address=&olympic_set_mac_address ;  
 	SET_MODULE_OWNER(dev) ; 
+	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	pci_set_drvdata(pdev,dev) ; 
 	register_netdev(dev) ; 
@@ -268,7 +268,7 @@ static int __devinit olympic_probe(struct pci_dev *pdev, const struct pci_device
 		char proc_name[20] ; 
 		strcpy(proc_name,"net/olympic_") ; 
 		strcat(proc_name,dev->name) ; 
-		create_proc_read_entry(proc_name,0,0,olympic_proc_info,(void *)dev) ; 
+		create_proc_read_entry(proc_name,0,NULL,olympic_proc_info,(void *)dev) ; 
 		printk("Olympic: Network Monitor information: /proc/%s\n",proc_name); 
 	}
 	return  0 ;
@@ -843,10 +843,13 @@ static void olympic_rx(struct net_device *dev)
 							olympic_priv->rx_ring_skb[rx_ring_last_received] = skb ; 
 							netif_rx(skb2) ; 
 						} else { 
-							pci_dma_sync_single(olympic_priv->pdev,
+							pci_dma_sync_single_for_cpu(olympic_priv->pdev,
 								le32_to_cpu(olympic_priv->olympic_rx_ring[rx_ring_last_received].buffer),
 								olympic_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ; 
 							memcpy(skb_put(skb,length-4),olympic_priv->rx_ring_skb[rx_ring_last_received]->data,length-4) ; 
+							pci_dma_sync_single_for_device(olympic_priv->pdev,
+								le32_to_cpu(olympic_priv->olympic_rx_ring[rx_ring_last_received].buffer),
+								olympic_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ;
 							skb->protocol = tr_type_trans(skb,dev) ; 
 							netif_rx(skb) ; 
 						} 
@@ -855,12 +858,15 @@ static void olympic_rx(struct net_device *dev)
 							olympic_priv->rx_ring_last_received++ ; 
 							olympic_priv->rx_ring_last_received &= (OLYMPIC_RX_RING_SIZE -1);
 							rx_ring_last_received = olympic_priv->rx_ring_last_received ; 
-							pci_dma_sync_single(olympic_priv->pdev,
+							pci_dma_sync_single_for_cpu(olympic_priv->pdev,
 								le32_to_cpu(olympic_priv->olympic_rx_ring[rx_ring_last_received].buffer),
 								olympic_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ; 
 							rx_desc = &(olympic_priv->olympic_rx_ring[rx_ring_last_received]);
 							cpy_length = (i == 1 ? frag_len : le32_to_cpu(rx_desc->res_length)); 
 							memcpy(skb_put(skb, cpy_length), olympic_priv->rx_ring_skb[rx_ring_last_received]->data, cpy_length) ;
+							pci_dma_sync_single_for_device(olympic_priv->pdev,
+								le32_to_cpu(olympic_priv->olympic_rx_ring[rx_ring_last_received].buffer),
+								olympic_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ;
 						} while (--i) ; 
 						skb_trim(skb,skb->len-4) ; 
 						skb->protocol = tr_type_trans(skb,dev);
@@ -1800,7 +1806,7 @@ static int __init olympic_pci_init(void)
 
 static void __exit olympic_pci_cleanup(void)
 {
-	return pci_unregister_driver(&olympic_driver) ; 
+	pci_unregister_driver(&olympic_driver) ; 
 }	
 
 

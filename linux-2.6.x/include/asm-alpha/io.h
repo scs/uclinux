@@ -9,9 +9,9 @@
  * Virtual -> physical identity mapping starts at this offset
  */
 #ifdef USE_48_BIT_KSEG
-#define IDENT_ADDR     0xffff800000000000
+#define IDENT_ADDR     0xffff800000000000UL
 #else
-#define IDENT_ADDR     0xfffffc0000000000
+#define IDENT_ADDR     0xfffffc0000000000UL
 #endif
 
 #ifdef __KERNEL__
@@ -411,6 +411,11 @@ extern void		___raw_writeq(u64 b, unsigned long addr);
 #ifndef readq
 # define readq(a)	_readq((unsigned long)(a))
 #endif
+
+#define readb_relaxed(addr) readb(addr)
+#define readw_relaxed(addr) readw(addr)
+#define readl_relaxed(addr) readl(addr)
+#define readq_relaxed(addr) readq(addr)
 
 #ifndef writeb
 # define writeb(v,a)	_writeb((v),(unsigned long)(a))

@@ -41,14 +41,10 @@
  * me to write this module.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
 
-/* for systcl */
+/* for sysctl */
 #include <linux/fs.h>
 #include <linux/sysctl.h>
 
@@ -69,7 +65,7 @@
  *    entries that haven't been touched for a day.
  */
 #define COUNT_FOR_FULL_EXPIRATION   30
-int sysctl_ip_vs_lblc_expiration = 24*60*60*HZ;
+static int sysctl_ip_vs_lblc_expiration = 24*60*60*HZ;
 
 
 /*
@@ -112,29 +108,50 @@ struct ip_vs_lblc_table {
 /*
  *      IPVS LBLC sysctl table
  */
-struct ip_vs_lblc_sysctl_table {
-	struct ctl_table_header *sysctl_header;
-	ctl_table vs_vars[2];
-	ctl_table vs_dir[2];
-	ctl_table ipv4_dir[2];
-	ctl_table root_dir[2];
+
+static ctl_table vs_vars_table[] = {
+	{
+		.ctl_name	= NET_IPV4_VS_LBLC_EXPIRE,
+		.procname	= "lblc_expiration",
+		.data		= &sysctl_ip_vs_lblc_expiration,
+		.maxlen		= sizeof(int),
+		.mode		= 0644, 
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{ .ctl_name = 0 }
 };
 
-
-static struct ip_vs_lblc_sysctl_table lblc_sysctl_table = {
-	NULL,
-	{{NET_IPV4_VS_LBLC_EXPIRE, "lblc_expiration",
-	  &sysctl_ip_vs_lblc_expiration,
-	  sizeof(int), 0644, NULL, &proc_dointvec_jiffies},
-	 {0}},
-	{{NET_IPV4_VS, "vs", NULL, 0, 0555, lblc_sysctl_table.vs_vars},
-	 {0}},
-	{{NET_IPV4, "ipv4", NULL, 0, 0555, lblc_sysctl_table.vs_dir},
-	 {0}},
-	{{CTL_NET, "net", NULL, 0, 0555, lblc_sysctl_table.ipv4_dir},
-	 {0}}
+static ctl_table vs_table[] = {
+	{
+		.ctl_name	= NET_IPV4_VS,
+		.procname	= "vs",
+		.mode		= 0555, 
+		.child		= vs_vars_table
+	},
+	{ .ctl_name = 0 }
 };
 
+static ctl_table ipv4_table[] = {
+	{
+		.ctl_name	= NET_IPV4,
+		.procname	= "ipv4", 
+		.mode		= 0555,
+		.child		= vs_table
+	},
+	{ .ctl_name = 0 }
+};
+
+static ctl_table lblc_root_table[] = {
+	{
+		.ctl_name	= CTL_NET,
+		.procname	= "net", 
+		.mode		= 0555, 
+		.child		= ipv4_table
+	},
+	{ .ctl_name = 0 }
+};
+
+static struct ctl_table_header * sysctl_header;
 
 /*
  *      new/free a ip_vs_lblc_entry, which is a mapping of a destionation
@@ -590,15 +607,14 @@ static struct ip_vs_scheduler ip_vs_lblc_scheduler =
 static int __init ip_vs_lblc_init(void)
 {
 	INIT_LIST_HEAD(&ip_vs_lblc_scheduler.n_list);
-	lblc_sysctl_table.sysctl_header =
-		register_sysctl_table(lblc_sysctl_table.root_dir, 0);
+	sysctl_header = register_sysctl_table(lblc_root_table, 0);
 	return register_ip_vs_scheduler(&ip_vs_lblc_scheduler);
 }
 
 
 static void __exit ip_vs_lblc_cleanup(void)
 {
-	unregister_sysctl_table(lblc_sysctl_table.sysctl_header);
+	unregister_sysctl_table(sysctl_header);
 	unregister_ip_vs_scheduler(&ip_vs_lblc_scheduler);
 }
 

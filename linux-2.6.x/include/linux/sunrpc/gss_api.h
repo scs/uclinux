@@ -16,6 +16,7 @@
 
 #ifdef __KERNEL__
 #include <linux/sunrpc/xdr.h>
+#include <linux/uio.h>
 
 /* The mechanism-independent gss-api context: */
 struct gss_ctx {
@@ -39,93 +40,82 @@ u32 gss_import_sec_context(
 u32 gss_get_mic(
 		struct gss_ctx		*ctx_id,
 		u32			qop,
-		struct xdr_netobj	*message,
+		struct xdr_buf		*message,
 		struct xdr_netobj	*mic_token);
 u32 gss_verify_mic(
 		struct gss_ctx		*ctx_id,
-		struct xdr_netobj	*message,
+		struct xdr_buf		*message,
 		struct xdr_netobj	*mic_token,
 		u32			*qstate);
 u32 gss_delete_sec_context(
 		struct gss_ctx		**ctx_id);
 
-/* We maintain a list of the pseudoflavors (equivalently, mechanism-qop-service
- * triples) that we currently support: */
+struct gss_api_mech * gss_mech_get_by_name(char *name);
+struct gss_api_mech * gss_mech_get_by_pseudoflavor(u32 pseudoflavor);
+u32 gss_pseudoflavor_to_service(struct gss_api_mech *, u32 pseudoflavor);
+char *gss_service_to_auth_domain_name(struct gss_api_mech *, u32 service);
 
-struct sup_sec_triple {
-	struct list_head	triples;
-	u32			pseudoflavor;
-	struct gss_api_mech	*mech;
-	u32			qop;
-	u32			service;
+struct pf_desc {
+	u32	pseudoflavor;
+	u32	qop;
+	u32	service;
+	char	*name;
+	char	*auth_domain_name;
 };
 
-int gss_register_triple(u32 pseudoflavor, struct gss_api_mech *mech, u32 qop,
-			u32 service);
-int gss_unregister_triple(u32 pseudoflavor);
-int gss_pseudoflavor_supported(u32 pseudoflavor);
-u32 gss_cmp_triples(u32 oid_len, char *oid_data, u32 qop, u32 service);
-u32 gss_get_pseudoflavor(struct gss_ctx *ctx_id, u32 qop, u32 service);
-u32 gss_pseudoflavor_to_service(u32 pseudoflavor);
-/* Both return NULL on failure: */
-struct gss_api_mech * gss_pseudoflavor_to_mech(u32 pseudoflavor);
-int gss_pseudoflavor_to_mechOID(u32 pseudoflavor, struct xdr_netobj *mech);
-
 /* Different mechanisms (e.g., krb5 or spkm3) may implement gss-api, and
- * mechanisms may be dynamically registered or unregistered by modules.
- * Our only built-in mechanism is a trivial debugging mechanism that provides
- * no actual security; the following function registers that mechanism: */
-
-void gss_mech_register_debug(void);
+ * mechanisms may be dynamically registered or unregistered by modules. */
 
 /* Each mechanism is described by the following struct: */
 struct gss_api_mech {
-	struct xdr_netobj	gm_oid;
 	struct list_head	gm_list;
-	atomic_t		gm_count;
+	struct module		*gm_owner;
+	struct xdr_netobj	gm_oid;
+	char			*gm_name;
 	struct gss_api_ops	*gm_ops;
+	/* pseudoflavors supported by this mechanism: */
+	int			gm_pf_num;
+	struct pf_desc *	gm_pfs;
 };
 
 /* and must provide the following operations: */
 struct gss_api_ops {
-	char *name;
 	u32 (*gss_import_sec_context)(
 			struct xdr_netobj	*input_token,
 			struct gss_ctx		*ctx_id);
 	u32 (*gss_get_mic)(
 			struct gss_ctx		*ctx_id,
 			u32			qop, 
-			struct xdr_netobj	*message,
+			struct xdr_buf		*message,
 			struct xdr_netobj	*mic_token);
 	u32 (*gss_verify_mic)(
 			struct gss_ctx		*ctx_id,
-			struct xdr_netobj	*message,
+			struct xdr_buf		*message,
 			struct xdr_netobj	*mic_token,
 			u32			*qstate);
 	void (*gss_delete_sec_context)(
 			void			*internal_ctx_id);
 };
 
-/* Returns nonzero on failure. */
-int gss_mech_register(struct xdr_netobj *, struct gss_api_ops *);
+int gss_mech_register(struct gss_api_mech *);
+void gss_mech_unregister(struct gss_api_mech *);
 
-/* Returns nonzero iff someone still has a reference to this mech. */
-int gss_mech_unregister(struct gss_api_mech *);
-
-/* Returns nonzer iff someone still has a reference to some mech. */
-int gss_mech_unregister_all(void);
-
-/* returns a mechanism descriptor given an OID, an increments the mechanism's
+/* returns a mechanism descriptor given an OID, and increments the mechanism's
  * reference count. */
 struct gss_api_mech * gss_mech_get_by_OID(struct xdr_netobj *);
+
+/* Returns a reference to a mechanism, given a name like "krb5" etc. */
+struct gss_api_mech *gss_mech_get_by_name(char *);
+
+/* Similar, but get by pseudoflavor. */
+struct gss_api_mech *gss_mech_get_by_pseudoflavor(u32);
 
 /* Just increments the mechanism's reference count and returns its input: */
 struct gss_api_mech * gss_mech_get(struct gss_api_mech *);
 
-/* Returns nonzero iff you've released the last reference to this mech.
- * Note that for every succesful gss_get_mech call there must be exactly
- * one corresponding call to gss_mech_put.*/
-int gss_mech_put(struct gss_api_mech *);
+/* For every succesful gss_mech_get or gss_mech_get_by_* call there must be a
+ * corresponding call to gss_mech_put. */
+void gss_mech_put(struct gss_api_mech *);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_GSS_API_H */

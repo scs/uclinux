@@ -139,7 +139,7 @@ static int cpufreq_proc_read (
 				break;
 			} 
 		} else
-			p += snprintf(p, CPUFREQ_NAME_LEN, "%s\n", policy.governor->name);
+			p += scnprintf(p, CPUFREQ_NAME_LEN, "%s\n", policy.governor->name);
 	}
 end:
 	len = (p - page);
@@ -164,7 +164,7 @@ end:
  */
 static int cpufreq_proc_write (
         struct file		*file,
-        const char		*buffer,
+        const char		__user *buffer,
         unsigned long		count,
         void			*data)
 {

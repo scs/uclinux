@@ -246,6 +246,12 @@ void cs46xx_dsp_proc_register_scb_desc (cs46xx_t *chip,dsp_scb_descriptor_t * sc
 		if ((entry = snd_info_create_card_entry(ins->snd_card, scb->scb_name, 
 							ins->proc_dsp_dir)) != NULL) {
 			scb_info = kmalloc(sizeof(proc_scb_info_t), GFP_KERNEL);
+			if (!scb_info) {
+				snd_info_free_entry(entry);
+				entry = NULL;
+				goto out;
+			}
+
 			scb_info->chip = chip;
 			scb_info->scb_desc = scb;
       
@@ -262,7 +268,7 @@ void cs46xx_dsp_proc_register_scb_desc (cs46xx_t *chip,dsp_scb_descriptor_t * sc
 				entry = NULL;
 			}
 		}
-
+out:
 		scb->proc_info = entry;
 	}
 }
@@ -1391,7 +1397,7 @@ int cs46xx_dsp_pcm_channel_set_period (cs46xx_t * chip,
 		temp |= DMA_RQ_C1_SOURCE_MOD16;
 		break; 
 	default:
-		snd_printdd ("period size (%d) not supported by HW\n");
+		snd_printdd ("period size (%d) not supported by HW\n", period_size);
 		return -EINVAL;
 	}
 
@@ -1429,7 +1435,7 @@ int cs46xx_dsp_pcm_ostream_set_period (cs46xx_t * chip,
 		temp |= DMA_RQ_C1_DEST_MOD16;
 		break; 
 	default:
-		snd_printdd ("period size (%d) not supported by HW\n");
+		snd_printdd ("period size (%d) not supported by HW\n", period_size);
 		return -EINVAL;
 	}
 

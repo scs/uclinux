@@ -67,6 +67,10 @@
  *					now it is in net/core/neighbour.c.
  *		Krzysztof Halasa:	Added Frame Relay ARP support.
  *		Arnaldo C. Melo :	convert /proc/net/arp to seq_file
+ *		Shmulik Hen:		Split arp_send to arp_create and
+ *					arp_xmit so intermediate drivers like
+ *					bonding can change the skb before
+ *					sending (e.g. insert 8021q tag).
  */
 
 #include <linux/module.h>
@@ -321,15 +325,40 @@ static void arp_error_report(struct neighbour *neigh, struct sk_buff *skb)
 
 static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 {
-	u32 saddr;
+	u32 saddr = 0;
 	u8  *dst_ha = NULL;
 	struct net_device *dev = neigh->dev;
 	u32 target = *(u32*)neigh->primary_key;
 	int probes = atomic_read(&neigh->probes);
+	struct in_device *in_dev = in_dev_get(dev);
 
-	if (skb && inet_addr_type(skb->nh.iph->saddr) == RTN_LOCAL)
+	if (!in_dev)
+		return;
+
+	switch (IN_DEV_ARP_ANNOUNCE(in_dev)) {
+	default:
+	case 0:		/* By default announce any local IP */
+		if (skb && inet_addr_type(skb->nh.iph->saddr) == RTN_LOCAL)
+			saddr = skb->nh.iph->saddr;
+		break;
+	case 1:		/* Restrict announcements of saddr in same subnet */
+		if (!skb)
+			break;
 		saddr = skb->nh.iph->saddr;
-	else
+		if (inet_addr_type(saddr) == RTN_LOCAL) {
+			/* saddr should be known to target */
+			if (inet_addr_onlink(in_dev, target, saddr))
+				break;
+		}
+		saddr = 0;
+		break;
+	case 2:		/* Avoid secondary IPs, get a primary/preferred one */
+		break;
+	}
+
+	if (in_dev)
+		in_dev_put(in_dev);
+	if (!saddr)
 		saddr = inet_select_addr(dev, target, RT_SCOPE_LINK);
 
 	if ((probes -= neigh->parms->ucast_probes) < 0) {
@@ -350,6 +379,42 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 		read_unlock_bh(&neigh->lock);
 }
 
+static int arp_ignore(struct in_device *in_dev, struct net_device *dev,
+		      u32 sip, u32 tip)
+{
+	int scope;
+
+	switch (IN_DEV_ARP_IGNORE(in_dev)) {
+	case 0:	/* Reply, the tip is already validated */
+		return 0;
+	case 1:	/* Reply only if tip is configured on the incoming interface */
+		sip = 0;
+		scope = RT_SCOPE_HOST;
+		break;
+	case 2:	/*
+		 * Reply only if tip is configured on the incoming interface
+		 * and is in same subnet as sip
+		 */
+		scope = RT_SCOPE_HOST;
+		break;
+	case 3:	/* Do not reply for scope host addresses */
+		sip = 0;
+		scope = RT_SCOPE_LINK;
+		dev = NULL;
+		break;
+	case 4:	/* Reserved */
+	case 5:
+	case 6:
+	case 7:
+		return 0;
+	case 8:	/* Do not reply */
+		return 1;
+	default:
+		return 0;
+	}
+	return !inet_confirm_addr(dev, sip, tip, scope);
+}
+
 static int arp_filter(__u32 sip, __u32 tip, struct net_device *dev)
 {
 	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = sip,
@@ -361,7 +426,7 @@ static int arp_filter(__u32 sip, __u32 tip, struct net_device *dev)
 	if (ip_route_output_key(&rt, &fl) < 0) 
 		return 1;
 	if (rt->u.dst.dev != dev) { 
-		NET_INC_STATS_BH(ArpFilter);
+		NET_INC_STATS_BH(LINUX_MIB_ARPFILTER);
 		flag = 1;
 	} 
 	ip_rt_put(rt); 
@@ -487,25 +552,17 @@ static inline int arp_fwd_proxy(struct in_device *in_dev, struct rtable *rt)
  */
 
 /*
- *	Create and send an arp packet. If (dest_hw == NULL), we create a broadcast
+ *	Create an arp packet. If (dest_hw == NULL), we create a broadcast
  *	message.
  */
-
-void arp_send(int type, int ptype, u32 dest_ip, 
-	      struct net_device *dev, u32 src_ip, 
-	      unsigned char *dest_hw, unsigned char *src_hw,
-	      unsigned char *target_hw)
+struct sk_buff *arp_create(int type, int ptype, u32 dest_ip,
+			   struct net_device *dev, u32 src_ip,
+			   unsigned char *dest_hw, unsigned char *src_hw,
+			   unsigned char *target_hw)
 {
 	struct sk_buff *skb;
 	struct arphdr *arp;
 	unsigned char *arp_ptr;
-
-	/*
-	 *	No arp on this interface.
-	 */
-	
-	if (dev->flags&IFF_NOARP)
-		return;
 
 	/*
 	 *	Allocate a buffer
@@ -514,7 +571,7 @@ void arp_send(int type, int ptype, u32 dest_ip,
 	skb = alloc_skb(sizeof(struct arphdr)+ 2*(dev->addr_len+4)
 				+ LL_RESERVED_SPACE(dev), GFP_ATOMIC);
 	if (skb == NULL)
-		return;
+		return NULL;
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 	skb->nh.raw = skb->data;
@@ -594,12 +651,46 @@ void arp_send(int type, int ptype, u32 dest_ip,
 	arp_ptr+=dev->addr_len;
 	memcpy(arp_ptr, &dest_ip, 4);
 
-	/* Send it off, maybe filter it using firewalling first.  */
-	NF_HOOK(NF_ARP, NF_ARP_OUT, skb, NULL, dev, dev_queue_xmit);
-	return;
+	return skb;
 
 out:
 	kfree_skb(skb);
+	return NULL;
+}
+
+/*
+ *	Send an arp packet.
+ */
+void arp_xmit(struct sk_buff *skb)
+{
+	/* Send it off, maybe filter it using firewalling first.  */
+	NF_HOOK(NF_ARP, NF_ARP_OUT, skb, NULL, skb->dev, dev_queue_xmit);
+}
+
+/*
+ *	Create and send an arp packet.
+ */
+void arp_send(int type, int ptype, u32 dest_ip, 
+	      struct net_device *dev, u32 src_ip, 
+	      unsigned char *dest_hw, unsigned char *src_hw,
+	      unsigned char *target_hw)
+{
+	struct sk_buff *skb;
+
+	/*
+	 *	No arp on this interface.
+	 */
+	
+	if (dev->flags&IFF_NOARP)
+		return;
+
+	skb = arp_create(type, ptype, dest_ip, dev, src_ip,
+			 dest_hw, src_hw, target_hw);
+	if (skb == NULL) {
+		return;
+	}
+
+	arp_xmit(skb);
 }
 
 static void parp_redo(struct sk_buff *skb)
@@ -734,7 +825,8 @@ int arp_process(struct sk_buff *skb)
 	/* Special case: IPv4 duplicate address detection packet (RFC2131) */
 	if (sip == 0) {
 		if (arp->ar_op == htons(ARPOP_REQUEST) &&
-		    inet_addr_type(tip) == RTN_LOCAL)
+		    inet_addr_type(tip) == RTN_LOCAL &&
+		    !arp_ignore(in_dev,dev,sip,tip))
 			arp_send(ARPOP_REPLY,ETH_P_ARP,tip,dev,tip,sha,dev->dev_addr,dev->dev_addr);
 		goto out;
 	}
@@ -749,7 +841,10 @@ int arp_process(struct sk_buff *skb)
 			n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 			if (n) {
 				int dont_send = 0;
-				if (IN_DEV_ARPFILTER(in_dev))
+
+				if (!dont_send)
+					dont_send |= arp_ignore(in_dev,dev,sip,tip);
+				if (!dont_send && IN_DEV_ARPFILTER(in_dev))
 					dont_send |= arp_filter(sip,tip,dev); 
 				if (!dont_send)
 					arp_send(ARPOP_REPLY,ETH_P_ARP,sip,dev,tip,sha,dev->dev_addr,sha);
@@ -765,7 +860,7 @@ int arp_process(struct sk_buff *skb)
 				if (n)
 					neigh_release(n);
 
-				if (skb->stamp.tv_sec == 0 ||
+				if (skb->stamp.tv_sec == LOCALLY_ENQUEUED || 
 				    skb->pkt_type == PACKET_HOST ||
 				    in_dev->arp_parms->proxy_delay == 0) {
 					arp_send(ARPOP_REPLY,ETH_P_ARP,sip,dev,tip,sha,dev->dev_addr,sha);
@@ -796,15 +891,14 @@ int arp_process(struct sk_buff *skb)
 
 	if (n) {
 		int state = NUD_REACHABLE;
-		int override = 0;
+		int override;
 
 		/* If several different ARP replies follows back-to-back,
 		   use the FIRST one. It is possible, if several proxy
 		   agents are active. Taking the first reply prevents
 		   arp trashing and chooses the fastest router.
 		 */
-		if (jiffies - n->updated >= n->parms->locktime)
-			override = 1;
+		override = time_after(jiffies, n->updated + n->parms->locktime);
 
 		/* Broadcast replies and request packets
 		   do not assert neighbour reachability.
@@ -1009,7 +1103,7 @@ int arp_req_delete(struct arpreq *r, struct net_device * dev)
  *	Handle an ARP layer I/O control request.
  */
 
-int arp_ioctl(unsigned int cmd, void *arg)
+int arp_ioctl(unsigned int cmd, void __user *arg)
 {
 	int err;
 	struct arpreq r;
@@ -1437,6 +1531,8 @@ static int __init arp_proc_init(void)
 EXPORT_SYMBOL(arp_broken_ops);
 EXPORT_SYMBOL(arp_find);
 EXPORT_SYMBOL(arp_rcv);
+EXPORT_SYMBOL(arp_create);
+EXPORT_SYMBOL(arp_xmit);
 EXPORT_SYMBOL(arp_send);
 EXPORT_SYMBOL(arp_tbl);
 

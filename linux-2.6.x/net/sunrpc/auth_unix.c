@@ -82,7 +82,7 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 		cred->uc_gid = cred->uc_pgid = 0;
 		cred->uc_gids[0] = NOGROUP;
 	} else {
-		int groups = acred->ngroups;
+		int groups = acred->group_info->ngroups;
 		if (groups > NFS_NGROUPS)
 			groups = NFS_NGROUPS;
 
@@ -91,7 +91,7 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 		cred->uc_puid = current->uid;
 		cred->uc_pgid = current->gid;
 		for (i = 0; i < groups; i++)
-			cred->uc_gids[i] = (gid_t) acred->groups[i];
+			cred->uc_gids[i] = GROUP_AT(acred->group_info, i);
 		if (i < NFS_NGROUPS)
 		  cred->uc_gids[i] = NOGROUP;
 	}
@@ -126,11 +126,11 @@ unx_match(struct auth_cred *acred, struct rpc_cred *rcred, int taskflags)
 		 || cred->uc_pgid != current->gid)
 			return 0;
 
-		groups = acred->ngroups;
+		groups = acred->group_info->ngroups;
 		if (groups > NFS_NGROUPS)
 			groups = NFS_NGROUPS;
 		for (i = 0; i < groups ; i++)
-			if (cred->uc_gids[i] != (gid_t) acred->groups[i])
+			if (cred->uc_gids[i] != GROUP_AT(acred->group_info, i))
 				return 0;
 		return 1;
 	}
@@ -149,7 +149,7 @@ unx_marshal(struct rpc_task *task, u32 *p, int ruid)
 	struct rpc_clnt	*clnt = task->tk_client;
 	struct unx_cred	*cred = (struct unx_cred *) task->tk_msg.rpc_cred;
 	u32		*base, *hold;
-	int		i, n;
+	int		i;
 
 	*p++ = htonl(RPC_AUTH_UNIX);
 	base = p++;
@@ -158,10 +158,7 @@ unx_marshal(struct rpc_task *task, u32 *p, int ruid)
 	/*
 	 * Copy the UTS nodename captured when the client was created.
 	 */
-	n = clnt->cl_nodelen;
-	*p++ = htonl(n);
-	memcpy(p, clnt->cl_nodename, n);
-	p += (n + 3) >> 2;
+	p = xdr_encode_array(p, clnt->cl_nodename, clnt->cl_nodelen);
 
 	/* Note: we don't use real uid if it involves raising privilege */
 	if (ruid && cred->uc_puid != 0 && cred->uc_pgid != 0) {

@@ -205,7 +205,7 @@ dasd_fba_examine_error(struct dasd_ccw_req * cqr, struct irb * irb)
 		return dasd_era_none;
 	
 	cdev = device->cdev;
-	switch (cdev->id.dev_model) {
+	switch (cdev->id.dev_type) {
 	case 0x3370:
 		return dasd_3370_erp_examine(cqr, irb);
 	case 0x9336:
@@ -270,8 +270,8 @@ dasd_fba_build_cp(struct dasd_device * device, struct request *req)
 				return ERR_PTR(-EINVAL);
 			count += bv->bv_len >> (device->s2b_shift + 9);
 #if defined(CONFIG_ARCH_S390X)
-			cidaw += idal_nr_words(page_address(bv->bv_page) +
-					       bv->bv_offset, bv->bv_len);
+			if (idal_is_needed (page_address(bv->bv_page), bv->bv_len))
+				cidaw += bv->bv_len / blksize;
 #endif
 		}
 	}

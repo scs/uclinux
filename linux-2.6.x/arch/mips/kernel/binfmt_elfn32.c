@@ -95,16 +95,20 @@ struct elf_prpsinfo32
 #define elf_caddr_t	u32
 #define init_elf_binfmt init_elfn32_binfmt
 
-#define ELF_CORE_EFLAGS EF_MIPS_ABI2
+#define jiffies_to_timeval jiffies_to_compat_timeval
+static __inline__ void
+jiffies_to_compat_timeval(unsigned long jiffies, struct compat_timeval *value)
+{
+	/*
+	 * Convert jiffies to nanoseconds and seperate with
+	 * one divide.
+	 */
+	u64 nsec = (u64)jiffies * TICK_NSEC; 
+	value->tv_sec = div_long_long_rem(nsec, NSEC_PER_SEC, &value->tv_usec);
+	value->tv_usec /= NSEC_PER_USEC;
+}
 
-#undef CONFIG_BINFMT_ELF
-#ifdef CONFIG_BINFMT_ELF32
-#define CONFIG_BINFMT_ELF CONFIG_BINFMT_ELF32
-#endif
-#undef CONFIG_BINFMT_ELF_MODULE
-#ifdef CONFIG_BINFMT_ELF32_MODULE
-#define CONFIG_BINFMT_ELF_MODULE CONFIG_BINFMT_ELF32_MODULE
-#endif
+#define ELF_CORE_EFLAGS EF_MIPS_ABI2
 
 MODULE_DESCRIPTION("Binary format loader for compatibility with n32 Linux/MIPS binaries");
 MODULE_AUTHOR("Ralf Baechle (ralf@linux-mips.org)");

@@ -1,9 +1,8 @@
 /*
  *  Amiga Linux/m68k Ariadne Ethernet Driver
  *
- *  © Copyright 1995 by Geert Uytterhoeven (geert@linux-m68k.org)
- *			Peter De Schrijver
- *		       (Peter.DeSchrijver@linux.cc.kuleuven.ac.be)
+ *  © Copyright 1995-2003 by Geert Uytterhoeven (geert@linux-m68k.org)
+ *			     Peter De Schrijver (p2@mind.be)
  *
  *  ---------------------------------------------------------------------------
  *
@@ -101,8 +100,6 @@ struct ariadne_private {
     int dirty_tx;			/* The ring entries to be free()ed. */
     struct net_device_stats stats;
     char tx_full;
-    struct net_device *dev;		/* Backpointer */
-    struct ariadne_private *next_module;
 };
 
 
@@ -116,10 +113,6 @@ struct lancedata {
     u_short tx_buff[TX_RING_SIZE][PKT_BUF_SIZE/sizeof(u_short)];
     u_short rx_buff[RX_RING_SIZE][PKT_BUF_SIZE/sizeof(u_short)];
 };
-
-#ifdef MODULE
-static struct ariadne_private *root_ariadne_dev;
-#endif
 
 static int ariadne_open(struct net_device *dev);
 static void ariadne_init_ring(struct net_device *dev);
@@ -146,72 +139,89 @@ static void memcpyw(volatile u_short *dest, u_short *src, int len)
 }
 
 
-static int __init ariadne_probe(void)
+static int __devinit ariadne_init_one(struct zorro_dev *z,
+				      const struct zorro_device_id *ent);
+static void __devexit ariadne_remove_one(struct zorro_dev *z);
+
+
+static struct zorro_device_id ariadne_zorro_tbl[] __devinitdata = {
+    { ZORRO_PROD_VILLAGE_TRONIC_ARIADNE },
+    { 0 }
+};
+
+static struct zorro_driver ariadne_driver = {
+    .name	= "ariadne",
+    .id_table	= ariadne_zorro_tbl,
+    .probe	= ariadne_init_one,
+    .remove	= __devexit_p(ariadne_remove_one),
+};
+
+static int __devinit ariadne_init_one(struct zorro_dev *z,
+				      const struct zorro_device_id *ent)
 {
-    struct zorro_dev *z = NULL;
+    unsigned long board = z->resource.start;
+    unsigned long base_addr = board+ARIADNE_LANCE;
+    unsigned long mem_start = board+ARIADNE_RAM;
+    struct resource *r1, *r2;
     struct net_device *dev;
     struct ariadne_private *priv;
-    int res = -ENODEV;
+    int err;
 
-    while ((z = zorro_find_device(ZORRO_PROD_VILLAGE_TRONIC_ARIADNE, z))) {
-	unsigned long board = z->resource.start;
-	unsigned long base_addr = board+ARIADNE_LANCE;
-	unsigned long mem_start = board+ARIADNE_RAM;
-	struct resource *r1, *r2;
-
-	r1 = request_mem_region(base_addr, sizeof(struct Am79C960),
-		    		"Am79C960");
-	if (!r1) continue;
-	r2 = request_mem_region(mem_start, ARIADNE_RAM_SIZE, "RAM");
-	if (!r2) {
-	    release_resource(r1);
-	    continue;
-	}
-
-	dev = init_etherdev(NULL, sizeof(struct ariadne_private));
-
-	if (dev == NULL) {
-	    release_resource(r1);
-	    release_resource(r2);
-	    return -ENOMEM;
-	}
-	SET_MODULE_OWNER(dev);
-	priv = dev->priv;
-
-	r1->name = dev->name;
-	r2->name = dev->name;
-
-	priv->dev = dev;
-	dev->dev_addr[0] = 0x00;
-	dev->dev_addr[1] = 0x60;
-	dev->dev_addr[2] = 0x30;
-	dev->dev_addr[3] = (z->rom.er_SerialNumber>>16) & 0xff;
-	dev->dev_addr[4] = (z->rom.er_SerialNumber>>8) & 0xff;
-	dev->dev_addr[5] = z->rom.er_SerialNumber & 0xff;
-	printk("%s: Ariadne at 0x%08lx, Ethernet Address "
-	       "%02x:%02x:%02x:%02x:%02x:%02x\n", dev->name, board,
-	       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
-
-	dev->base_addr = ZTWO_VADDR(base_addr);
-	dev->mem_start = ZTWO_VADDR(mem_start);
-	dev->mem_end = dev->mem_start+ARIADNE_RAM_SIZE;
-
-	dev->open = &ariadne_open;
-	dev->stop = &ariadne_close;
-	dev->hard_start_xmit = &ariadne_start_xmit;
-	dev->tx_timeout = &ariadne_tx_timeout;
-	dev->watchdog_timeo = 5*HZ;
-	dev->get_stats = &ariadne_get_stats;
-	dev->set_multicast_list = &set_multicast_list;
-
-#ifdef MODULE
-	priv->next_module = root_ariadne_dev;
-	root_ariadne_dev = priv;
-#endif
-	res = 0;
+    r1 = request_mem_region(base_addr, sizeof(struct Am79C960), "Am79C960");
+    if (!r1)
+	return -EBUSY;
+    r2 = request_mem_region(mem_start, ARIADNE_RAM_SIZE, "RAM");
+    if (!r2) {
+	release_resource(r1);
+	return -EBUSY;
     }
-    return res;
+
+    dev = alloc_etherdev(sizeof(struct ariadne_private));
+    if (dev == NULL) {
+	release_resource(r1);
+	release_resource(r2);
+	return -ENOMEM;
+    }
+
+    SET_MODULE_OWNER(dev);
+    priv = netdev_priv(dev);
+
+    r1->name = dev->name;
+    r2->name = dev->name;
+
+    dev->dev_addr[0] = 0x00;
+    dev->dev_addr[1] = 0x60;
+    dev->dev_addr[2] = 0x30;
+    dev->dev_addr[3] = (z->rom.er_SerialNumber>>16) & 0xff;
+    dev->dev_addr[4] = (z->rom.er_SerialNumber>>8) & 0xff;
+    dev->dev_addr[5] = z->rom.er_SerialNumber & 0xff;
+    dev->base_addr = ZTWO_VADDR(base_addr);
+    dev->mem_start = ZTWO_VADDR(mem_start);
+    dev->mem_end = dev->mem_start+ARIADNE_RAM_SIZE;
+
+    dev->open = &ariadne_open;
+    dev->stop = &ariadne_close;
+    dev->hard_start_xmit = &ariadne_start_xmit;
+    dev->tx_timeout = &ariadne_tx_timeout;
+    dev->watchdog_timeo = 5*HZ;
+    dev->get_stats = &ariadne_get_stats;
+    dev->set_multicast_list = &set_multicast_list;
+
+    err = register_netdev(dev);
+    if (err) {
+	release_resource(r1);
+	release_resource(r2);
+	free_netdev(dev);
+	return err;
+    }
+    zorro_set_drvdata(z, dev);
+
+    printk(KERN_INFO "%s: Ariadne at 0x%08lx, Ethernet Address "
+	   "%02x:%02x:%02x:%02x:%02x:%02x\n", dev->name, board,
+	   dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
+	   dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+
+    return 0;
 }
 
 
@@ -235,16 +245,16 @@ static int ariadne_open(struct net_device *dev)
     lance->RAP = CSR89;		/* Chip ID */
     version |= swapw(lance->RDP)<<16;
     if ((version & 0x00000fff) != 0x00000003) {
-	printk("ariadne_open: Couldn't find AMD Ethernet Chip\n");
+	printk(KERN_WARNING "ariadne_open: Couldn't find AMD Ethernet Chip\n");
 	return -EAGAIN;
     }
     if ((version & 0x0ffff000) != 0x00003000) {
-	printk("ariadne_open: Couldn't find Am79C960 (Wrong part number = %ld)\n",
-	       (version & 0x0ffff000)>>12);
+	printk(KERN_WARNING "ariadne_open: Couldn't find Am79C960 (Wrong part "
+	       "number = %ld)\n", (version & 0x0ffff000)>>12);
 	return -EAGAIN;
     }
 #if 0
-    printk("ariadne_open: Am79C960 (PCnet-ISA) Revision %ld\n",
+    printk(KERN_DEBUG "ariadne_open: Am79C960 (PCnet-ISA) Revision %ld\n",
 	   (version & 0xf0000000)>>28);
 #endif
 
@@ -323,7 +333,7 @@ static int ariadne_open(struct net_device *dev)
 
 static void ariadne_init_ring(struct net_device *dev)
 {
-    struct ariadne_private *priv = (struct ariadne_private *)dev->priv;
+    struct ariadne_private *priv = netdev_priv(dev);
     volatile struct lancedata *lancedata = (struct lancedata *)dev->mem_start;
     int i;
 
@@ -344,8 +354,8 @@ static void ariadne_init_ring(struct net_device *dev)
 	priv->tx_ring[i] = &lancedata->tx_ring[i];
 	priv->tx_buff[i] = lancedata->tx_buff[i];
 #if 0
-	printk("TX Entry %2d at %p, Buf at %p\n", i, &lancedata->tx_ring[i],
-	       lancedata->tx_buff[i]);
+	printk(KERN_DEBUG "TX Entry %2d at %p, Buf at %p\n", i,
+	       &lancedata->tx_ring[i], lancedata->tx_buff[i]);
 #endif
     }
 
@@ -360,8 +370,8 @@ static void ariadne_init_ring(struct net_device *dev)
 	priv->rx_ring[i] = &lancedata->rx_ring[i];
 	priv->rx_buff[i] = lancedata->rx_buff[i];
 #if 0
-	printk("RX Entry %2d at %p, Buf at %p\n", i, &lancedata->rx_ring[i],
-	       lancedata->rx_buff[i]);
+	printk(KERN_DEBUG "RX Entry %2d at %p, Buf at %p\n", i,
+	       &lancedata->rx_ring[i], lancedata->rx_buff[i]);
 #endif
     }
 }
@@ -369,7 +379,7 @@ static void ariadne_init_ring(struct net_device *dev)
 
 static int ariadne_close(struct net_device *dev)
 {
-    struct ariadne_private *priv = (struct ariadne_private *)dev->priv;
+    struct ariadne_private *priv = netdev_priv(dev);
     volatile struct Am79C960 *lance = (struct Am79C960*)dev->base_addr;
 
     netif_stop_queue(dev);
@@ -379,9 +389,9 @@ static int ariadne_close(struct net_device *dev)
     lance->RAP = CSR0;		/* PCnet-ISA Controller Status */
 
     if (ariadne_debug > 1) {
-	printk("%s: Shutting down ethercard, status was %2.2x.\n", dev->name,
-	       lance->RDP);
-	printk("%s: %lu packets missed\n", dev->name,
+	printk(KERN_DEBUG "%s: Shutting down ethercard, status was %2.2x.\n",
+	       dev->name, lance->RDP);
+	printk(KERN_DEBUG "%s: %lu packets missed\n", dev->name,
 	       priv->stats.rx_missed_errors);
     }
 
@@ -415,7 +425,7 @@ static irqreturn_t ariadne_interrupt(int irq, void *data, struct pt_regs *fp)
     int handled = 0;
 
     if (dev == NULL) {
-	printk("ariadne_interrupt(): irq for unknown device.\n");
+	printk(KERN_WARNING "ariadne_interrupt(): irq for unknown device.\n");
 	return IRQ_NONE;
     }
 
@@ -424,7 +434,7 @@ static irqreturn_t ariadne_interrupt(int irq, void *data, struct pt_regs *fp)
     if (!(lance->RDP & INTR))		/* Check if any interrupt has been */
 	return IRQ_NONE;		/* generated by the board. */
 
-    priv = (struct ariadne_private *)dev->priv;
+    priv = netdev_priv(dev);
 
     boguscnt = 10;
     while ((csr0 = lance->RDP) & (ERR|RINT|TINT) && --boguscnt >= 0) {
@@ -433,8 +443,8 @@ static irqreturn_t ariadne_interrupt(int irq, void *data, struct pt_regs *fp)
 
 #if 0
 	if (ariadne_debug > 5) {
-	    printk("%s: interrupt  csr0=%#2.2x new csr=%#2.2x.", dev->name,
-		   csr0, lance->RDP);
+	    printk(KERN_DEBUG "%s: interrupt  csr0=%#2.2x new csr=%#2.2x.",
+		   dev->name, csr0, lance->RDP);
 	    printk("[");
 	    if (csr0 & INTR)
 		printk(" INTR");
@@ -504,8 +514,8 @@ static irqreturn_t ariadne_interrupt(int irq, void *data, struct pt_regs *fp)
 			/* Ackk!  On FIFO errors the Tx unit is turned off! */
 			priv->stats.tx_fifo_errors++;
 			/* Remove this verbosity later! */
-			printk("%s: Tx FIFO error! Status %4.4x.\n", dev->name,
-			       csr0);
+			printk(KERN_ERR "%s: Tx FIFO error! Status %4.4x.\n",
+			       dev->name, csr0);
 			/* Restart the chip. */
 			lance->RDP = STRT;
 		    }
@@ -519,8 +529,8 @@ static irqreturn_t ariadne_interrupt(int irq, void *data, struct pt_regs *fp)
 
 #ifndef final_version
 	    if (priv->cur_tx - dirty_tx >= TX_RING_SIZE) {
-		printk("out-of-sync dirty pointer, %d vs. %d, full=%d.\n",
-		       dirty_tx, priv->cur_tx, priv->tx_full);
+		printk(KERN_ERR "out-of-sync dirty pointer, %d vs. %d, "
+		       "full=%d.\n", dirty_tx, priv->cur_tx, priv->tx_full);
 		dirty_tx += TX_RING_SIZE;
 	    }
 #endif
@@ -546,8 +556,8 @@ static irqreturn_t ariadne_interrupt(int irq, void *data, struct pt_regs *fp)
 	}
 	if (csr0 & MERR) {
 	    handled = 1;
-	    printk("%s: Bus master arbitration failure, status %4.4x.\n",
-		   dev->name, csr0);
+	    printk(KERN_ERR "%s: Bus master arbitration failure, status "
+		   "%4.4x.\n", dev->name, csr0);
 	    /* Restart the chip. */
 	    lance->RDP = STRT;
 	}
@@ -559,8 +569,8 @@ static irqreturn_t ariadne_interrupt(int irq, void *data, struct pt_regs *fp)
 
 #if 0
     if (ariadne_debug > 4)
-	printk("%s: exiting interrupt, csr%d=%#4.4x.\n", dev->name, lance->RAP,
-	       lance->RDP);
+	printk(KERN_DEBUG "%s: exiting interrupt, csr%d=%#4.4x.\n", dev->name,
+	       lance->RAP, lance->RDP);
 #endif
     return IRQ_RETVAL(handled);
 }
@@ -579,7 +589,7 @@ static void ariadne_tx_timeout(struct net_device *dev)
 
 static int ariadne_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-    struct ariadne_private *priv = (struct ariadne_private *)dev->priv;
+    struct ariadne_private *priv = netdev_priv(dev);
     volatile struct Am79C960 *lance = (struct Am79C960*)dev->base_addr;
     int entry;
     unsigned long flags;
@@ -588,8 +598,8 @@ static int ariadne_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #if 0
     if (ariadne_debug > 3) {
 	lance->RAP = CSR0;	/* PCnet-ISA Controller Status */
-	printk("%s: ariadne_start_xmit() called, csr0 %4.4x.\n", dev->name,
-	       lance->RDP);
+	printk(KERN_DEBUG "%s: ariadne_start_xmit() called, csr0 %4.4x.\n",
+	       dev->name, lance->RDP);
 	lance->RDP = 0x0000;
     }
 #endif
@@ -606,7 +616,7 @@ static int ariadne_start_xmit(struct sk_buff *skb, struct net_device *dev)
     /* Fill in a Tx ring entry */
 
 #if 0
-    printk("TX pkt type 0x%04x from ", ((u_short *)skb->data)[6]);
+    printk(KERN_DEBUG "TX pkt type 0x%04x from ", ((u_short *)skb->data)[6]);
     {
 	int i;
 	u_char *ptr = &((u_char *)skb->data)[6];
@@ -642,7 +652,7 @@ static int ariadne_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	len >>= 1;
 	for (i = 0; i < len; i += 8) {
 	    int j;
-	    printk("%04x:", i);
+	    printk(KERN_DEBUG "%04x:", i);
 	    for (j = 0; (j < 8) && ((i+j) < len); j++) {
 		if (!(j & 1))
 		    printk(" ");
@@ -661,8 +671,8 @@ static int ariadne_start_xmit(struct sk_buff *skb, struct net_device *dev)
     if ((priv->cur_tx >= TX_RING_SIZE) && (priv->dirty_tx >= TX_RING_SIZE)) {
 
 #if 0
-	printk("*** Subtracting TX_RING_SIZE from cur_tx (%d) and dirty_tx (%d)\n",
-	       priv->cur_tx, priv->dirty_tx);
+	printk(KERN_DEBUG "*** Subtracting TX_RING_SIZE from cur_tx (%d) and "
+	       "dirty_tx (%d)\n", priv->cur_tx, priv->dirty_tx);
 #endif
 
 	priv->cur_tx -= TX_RING_SIZE;
@@ -687,7 +697,7 @@ static int ariadne_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int ariadne_rx(struct net_device *dev)
 {
-    struct ariadne_private *priv = (struct ariadne_private *)dev->priv;
+    struct ariadne_private *priv = netdev_priv(dev);
     int entry = priv->cur_rx % RX_RING_SIZE;
     int i;
 
@@ -719,7 +729,8 @@ static int ariadne_rx(struct net_device *dev)
 
 	    skb = dev_alloc_skb(pkt_len+2);
 	    if (skb == NULL) {
-		printk("%s: Memory squeeze, deferring packet.\n", dev->name);
+		printk(KERN_WARNING "%s: Memory squeeze, deferring packet.\n",
+		       dev->name);
 		for (i = 0; i < RX_RING_SIZE; i++)
 		    if (lowb(priv->rx_ring[(entry+i) % RX_RING_SIZE]->RMD1) & RF_OWN)
 			break;
@@ -739,7 +750,8 @@ static int ariadne_rx(struct net_device *dev)
 	    eth_copy_and_sum(skb, (char *)priv->rx_buff[entry], pkt_len,0);
 	    skb->protocol=eth_type_trans(skb,dev);
 #if 0
-	    printk("RX pkt type 0x%04x from ", ((u_short *)skb->data)[6]);
+	    printk(KERN_DEBUG "RX pkt type 0x%04x from ",
+		   ((u_short *)skb->data)[6]);
 	    {
 		int i;
 		u_char *ptr = &((u_char *)skb->data)[6];
@@ -777,7 +789,7 @@ static int ariadne_rx(struct net_device *dev)
 
 static struct net_device_stats *ariadne_get_stats(struct net_device *dev)
 {
-    struct ariadne_private *priv = (struct ariadne_private *)dev->priv;
+    struct ariadne_private *priv = netdev_priv(dev);
     volatile struct Am79C960 *lance = (struct Am79C960*)dev->base_addr;
     short saved_addr;
     unsigned long flags;
@@ -815,7 +827,7 @@ static void set_multicast_list(struct net_device *dev)
 
     if (dev->flags & IFF_PROMISC) {
 	/* Log any net taps. */
-	printk("%s: Promiscuous mode enabled.\n", dev->name);
+	printk(KERN_INFO "%s: Promiscuous mode enabled.\n", dev->name);
 	lance->RAP = CSR15;		/* Mode Register */
 	lance->RDP = PROM;		/* Set promiscuous mode */
     } else {
@@ -840,25 +852,27 @@ static void set_multicast_list(struct net_device *dev)
 }
 
 
-static void __exit ariadne_cleanup(void)
+static void __devexit ariadne_remove_one(struct zorro_dev *z)
 {
-#ifdef MODULE
-    struct ariadne_private *next;
-    struct net_device *dev;
+    struct net_device *dev = zorro_get_drvdata(z);
 
-    while (root_ariadne_dev) {
-	next = root_ariadne_dev->next_module;
-	dev = root_ariadne_dev->dev;
-	unregister_netdev(dev);
-	release_mem_region(ZTWO_PADDR(dev->base_addr), sizeof(struct Am79C960));
-	release_mem_region(ZTWO_PADDR(dev->mem_start), ARIADNE_RAM_SIZE);
-	free_netdev(dev);
-	root_ariadne_dev = next;
-    }
-#endif
+    unregister_netdev(dev);
+    release_mem_region(ZTWO_PADDR(dev->base_addr), sizeof(struct Am79C960));
+    release_mem_region(ZTWO_PADDR(dev->mem_start), ARIADNE_RAM_SIZE);
+    free_netdev(dev);
 }
 
-module_init(ariadne_probe);
-module_exit(ariadne_cleanup);
+static int __init ariadne_init_module(void)
+{
+    return zorro_module_init(&ariadne_driver);
+}
+
+static void __exit ariadne_cleanup_module(void)
+{
+    zorro_unregister_driver(&ariadne_driver);
+}
+
+module_init(ariadne_init_module);
+module_exit(ariadne_cleanup_module);
 
 MODULE_LICENSE("GPL");

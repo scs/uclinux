@@ -26,6 +26,8 @@ source "drivers/ieee1394/Kconfig"
 
 source "drivers/message/i2o/Kconfig"
 
+source "drivers/macintosh/Kconfig"
+
 source "net/Kconfig"
 
 source "drivers/isdn/Kconfig"
@@ -40,7 +42,9 @@ source "drivers/char/Kconfig"
 
 source "drivers/i2c/Kconfig"
 
-# source "drivers/misc/Kconfig"
+source "drivers/w1/Kconfig"
+
+source "drivers/misc/Kconfig"
 
 source "drivers/media/Kconfig"
 

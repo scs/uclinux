@@ -242,7 +242,12 @@ asmlinkage int __do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 	 * So, we need to flush the entry by ourselves.
 	 */
 
-	__flush_tlb_page(get_asid(), address&PAGE_MASK);
+	{
+		unsigned long flags;
+		local_irq_save(flags);
+		__flush_tlb_page(get_asid(), address&PAGE_MASK);
+		local_irq_restore(flags);
+	}
 #endif
 
 	set_pte(pte, entry);

@@ -50,6 +50,8 @@
 #define RFCOMM_TTY_MAJOR 216		/* device node major id of the usb/bluetooth.c driver */
 #define RFCOMM_TTY_MINOR 0
 
+static struct tty_driver *rfcomm_tty_driver;
+
 struct rfcomm_dev {
 	struct list_head	list;
 	atomic_t		refcnt;
@@ -97,10 +99,18 @@ static void rfcomm_dev_destruct(struct rfcomm_dev *dev)
 	rfcomm_dlc_unlock(dlc);
 
 	rfcomm_dlc_put(dlc);
+
+	tty_unregister_device(rfcomm_tty_driver, dev->id);
+
+	/* Refcount should only hit zero when called from rfcomm_dev_del()
+	   which will have taken us off the list. Everything else are
+	   refcounting bugs. */
+	BUG_ON(!list_empty(&dev->list));
+
 	kfree(dev);
 
 	/* It's safe to call module_put() here because socket still 
-	 holds refference to this module. */
+	   holds reference to this module. */
 	module_put(THIS_MODULE);
 }
 
@@ -111,6 +121,13 @@ static inline void rfcomm_dev_hold(struct rfcomm_dev *dev)
 
 static inline void rfcomm_dev_put(struct rfcomm_dev *dev)
 {
+	/* The reason this isn't actually a race, as you no
+	   doubt have a little voice screaming at you in your
+	   head, is that the refcount should never actually
+	   reach zero unless the device has already been taken
+	   off the list, in rfcomm_dev_del(). And if that's not
+	   true, we'll hit the BUG() in rfcomm_dev_destruct()
+	   anyway. */
 	if (atomic_dec_and_test(&dev->refcnt))
 		rfcomm_dev_destruct(dev);
 }
@@ -134,10 +151,13 @@ static inline struct rfcomm_dev *rfcomm_dev_get(int id)
 	struct rfcomm_dev *dev;
 
 	read_lock(&rfcomm_dev_lock);
+
 	dev = __rfcomm_dev_get(id);
+	if (dev)
+		rfcomm_dev_hold(dev);
+
 	read_unlock(&rfcomm_dev_lock);
 
-	if (dev) rfcomm_dev_hold(dev);
 	return dev;
 }
 
@@ -214,16 +234,20 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 	rfcomm_dlc_unlock(dlc);
 
 	/* It's safe to call __module_get() here because socket already 
-	 holds refference to this module. */
+	   holds reference to this module. */
 	__module_get(THIS_MODULE);
+
 out:
 	write_unlock_bh(&rfcomm_dev_lock);
 
 	if (err) {
 		kfree(dev);
 		return err;
-	} else
-		return dev->id;
+	}
+
+	tty_register_device(rfcomm_tty_driver, dev->id, NULL);
+
+	return dev->id;
 }
 
 static void rfcomm_dev_del(struct rfcomm_dev *dev)
@@ -278,20 +302,20 @@ static struct sk_buff *rfcomm_wmalloc(struct rfcomm_dev *dev, unsigned long size
 
 #define NOCAP_FLAGS ((1 << RFCOMM_REUSE_DLC) | (1 << RFCOMM_RELEASE_ONHUP))
 
-static int rfcomm_create_dev(struct sock *sk, unsigned long arg)
+static int rfcomm_create_dev(struct sock *sk, void __user *arg)
 {
 	struct rfcomm_dev_req req;
 	struct rfcomm_dlc *dlc;
 	int id;
 
-	if (copy_from_user(&req, (void *) arg, sizeof(req)))
+	if (copy_from_user(&req, arg, sizeof(req)))
 		return -EFAULT;
 
 	BT_DBG("sk %p dev_id %id flags 0x%x", sk, req.dev_id, req.flags);
 
 	if (req.flags != NOCAP_FLAGS && !capable(CAP_NET_ADMIN))
 		return -EPERM;
-	
+
 	if (req.flags & (1 << RFCOMM_REUSE_DLC)) {
 		/* Socket must be connected */
 		if (sk->sk_state != BT_CONNECTED)
@@ -320,21 +344,23 @@ static int rfcomm_create_dev(struct sock *sk, unsigned long arg)
 	return id;
 }
 
-static int rfcomm_release_dev(unsigned long arg)
+static int rfcomm_release_dev(void __user *arg)
 {
 	struct rfcomm_dev_req req;
 	struct rfcomm_dev *dev;
 
-	if (copy_from_user(&req, (void *) arg, sizeof(req)))
+	if (copy_from_user(&req, arg, sizeof(req)))
 		return -EFAULT;
 
 	BT_DBG("dev_id %id flags 0x%x", req.dev_id, req.flags);
 
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-	
 	if (!(dev = rfcomm_dev_get(req.dev_id)))
 		return -ENODEV;
+
+	if (dev->flags != NOCAP_FLAGS && !capable(CAP_NET_ADMIN)) {
+		rfcomm_dev_put(dev);
+		return -EPERM;
+	}
 
 	if (req.flags & (1 << RFCOMM_HANGUP_NOW))
 		rfcomm_dlc_close(dev->dlc, 0);
@@ -344,26 +370,23 @@ static int rfcomm_release_dev(unsigned long arg)
 	return 0;
 }
 
-static int rfcomm_get_dev_list(unsigned long arg)
+static int rfcomm_get_dev_list(void __user *arg)
 {
 	struct rfcomm_dev_list_req *dl;
 	struct rfcomm_dev_info *di;
 	struct list_head *p;
-	int n = 0, size;
+	int n = 0, size, err;
 	u16 dev_num;
 
 	BT_DBG("");
 
-	if (get_user(dev_num, (u16 *) arg))
+	if (get_user(dev_num, (u16 __user *) arg))
 		return -EFAULT;
 
-	if (!dev_num)
+	if (!dev_num || dev_num > (PAGE_SIZE * 4) / sizeof(*di))
 		return -EINVAL;
 
 	size = sizeof(*dl) + dev_num * sizeof(*di);
-
-	if (verify_area(VERIFY_WRITE, (void *)arg, size))
-		return -EFAULT;
 
 	if (!(dl = kmalloc(size, GFP_KERNEL)))
 		return -ENOMEM;
@@ -389,12 +412,13 @@ static int rfcomm_get_dev_list(unsigned long arg)
 	dl->dev_num = n;
 	size = sizeof(*dl) + n * sizeof(*di);
 
-	copy_to_user((void *) arg, dl, size);
+	err = copy_to_user(arg, dl, size);
 	kfree(dl);
-	return 0;
+
+	return err ? -EFAULT : 0;
 }
 
-static int rfcomm_get_dev_info(unsigned long arg)
+static int rfcomm_get_dev_info(void __user *arg)
 {
 	struct rfcomm_dev *dev;
 	struct rfcomm_dev_info di;
@@ -402,7 +426,7 @@ static int rfcomm_get_dev_info(unsigned long arg)
 
 	BT_DBG("");
 
-	if (copy_from_user(&di, (void *)arg, sizeof(di)))
+	if (copy_from_user(&di, arg, sizeof(di)))
 		return -EFAULT;
 
 	if (!(dev = rfcomm_dev_get(di.id)))
@@ -414,16 +438,16 @@ static int rfcomm_get_dev_info(unsigned long arg)
 	bacpy(&di.src, &dev->src);
 	bacpy(&di.dst, &dev->dst);
 
-	if (copy_to_user((void *)arg, &di, sizeof(di)))
+	if (copy_to_user(arg, &di, sizeof(di)))
 		err = -EFAULT;
 
 	rfcomm_dev_put(dev);
 	return err;
 }
 
-int rfcomm_dev_ioctl(struct sock *sk, unsigned int cmd, unsigned long arg)
+int rfcomm_dev_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 {
-	BT_DBG("cmd %d arg %ld", cmd, arg);
+	BT_DBG("cmd %d arg %p", cmd, arg);
 
 	switch (cmd) {
 	case RFCOMMCREATEDEV:
@@ -488,7 +512,8 @@ static void rfcomm_dev_state_change(struct rfcomm_dlc *dlc, int err)
 				rfcomm_dev_del(dev);
 
 				/* We have to drop DLC lock here, otherwise
-				 * rfcomm_dev_put() will dead lock if it's the last refference */
+				   rfcomm_dev_put() will dead lock if it's
+				   the last reference. */
 				rfcomm_dlc_unlock(dlc);
 				rfcomm_dev_put(dev);
 				rfcomm_dlc_lock(dlc);
@@ -543,6 +568,10 @@ static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)
 
 	BT_DBG("tty %p id %d", tty, id);
 
+	/* We don't leak this refcount. For reasons which are not entirely
+	   clear, the TTY layer will call our ->close() method even if the
+	   open fails. We decrease the refcount there, and decreasing it
+	   here too would cause breakage. */
 	dev = rfcomm_dev_get(id);
 	if (!dev)
 		return -ENODEV;
@@ -851,8 +880,6 @@ static int rfcomm_tty_tiocmset(struct tty_struct *tty, struct file *filp, unsign
 
 /* ---- TTY structure ---- */
 
-static struct tty_driver *rfcomm_tty_driver;
-
 static struct tty_operations rfcomm_ops = {
 	.open			= rfcomm_tty_open,
 	.close			= rfcomm_tty_close,
@@ -886,7 +913,7 @@ int rfcomm_init_ttys(void)
 	rfcomm_tty_driver->minor_start	= RFCOMM_TTY_MINOR;
 	rfcomm_tty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
 	rfcomm_tty_driver->subtype	= SERIAL_TYPE_NORMAL;
-	rfcomm_tty_driver->flags	= TTY_DRIVER_REAL_RAW;
+	rfcomm_tty_driver->flags	= TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
 	rfcomm_tty_driver->init_termios	= tty_std_termios;
 	rfcomm_tty_driver->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL | CLOCAL;
 	tty_set_operations(rfcomm_tty_driver, &rfcomm_ops);

@@ -4,6 +4,15 @@
    ports 61000:65095 (in 2.0 and 2.2 they get EADDRINUSE).  Just DON'T
    DO IT.
  */
+
+/* (C) 1999-2001 Paul `Rusty' Russell
+ * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
 #include <linux/skbuff.h>
 #include <linux/in.h>
 #include <linux/ip.h>
@@ -15,6 +24,7 @@
 #include <linux/proc_fs.h>
 #include <linux/module.h>
 #include <net/route.h>
+#include <net/ip.h>
 
 #define ASSERT_READ_LOCK(x) MUST_BE_READ_LOCKED(&ip_conntrack_lock)
 #define ASSERT_WRITE_LOCK(x) MUST_BE_WRITE_LOCKED(&ip_conntrack_lock)
@@ -212,7 +222,7 @@ static const char *masq_proto_name(u_int16_t protonum)
 	case IPPROTO_TCP: return "TCP";
 	case IPPROTO_UDP: return "UDP";
 	case IPPROTO_ICMP: return "ICMP";
-	default: return "MORE-CAFFIENE-FOR-RUSTY";
+	default: return "MORE-CAFFEINE-FOR-RUSTY";
 	}
 }
 

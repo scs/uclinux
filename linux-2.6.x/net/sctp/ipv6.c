@@ -1,7 +1,7 @@
 /* SCTP kernel reference Implementation
+ * (C) Copyright IBM Corp. 2002, 2004
  * Copyright (c) 2001 Nokia, Inc.
  * Copyright (c) 2001 La Monte H.P. Yarroll
- * Copyright (c) 2002-2003 International Business Machines, Corp.
  * Copyright (c) 2002-2003 Intel Corp.
  *
  * This file is part of the SCTP kernel reference Implementation
@@ -107,7 +107,7 @@ void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	skb->nh.raw = saveip;
 	skb->h.raw = savesctp;
 	if (!sk) {
-		ICMP6_INC_STATS_BH(idev, Icmp6InErrors);
+		ICMP6_INC_STATS_BH(idev, ICMP6_MIB_INERRORS);
 		goto out;
 	}
 
@@ -177,7 +177,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport,
 			  __FUNCTION__, skb, skb->len,
 			  NIP6(fl.fl6_src), NIP6(fl.fl6_dst));
 
-	SCTP_INC_STATS(SctpOutSCTPPacks);
+	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
 
 	return ip6_xmit(sk, skb, &fl, np->opt, ipfragok);
 }
@@ -641,7 +641,7 @@ struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 #endif
 
 	if (newsk->sk_prot->init(newsk)) {
-		inet_sock_release(newsk);
+		sk_common_release(newsk);
 		newsk = NULL;
 	}
 
@@ -698,7 +698,7 @@ static void sctp_inet6_event_msgname(struct sctp_ulpevent *event,
 		union sctp_addr *addr;
 		struct sctp_association *asoc;
 
-		asoc = event->sndrcvinfo.sinfo_assoc_id;
+		asoc = event->asoc;
 		sctp_inet6_msgname(msgname, addrlen);
 		sin6 = (struct sockaddr_in6 *)msgname;
 		sin6->sin6_port = htons(asoc->peer.port);
@@ -882,10 +882,10 @@ static struct proto_ops inet6_seqpacket_ops = {
 	.ioctl      = inet6_ioctl,
 	.listen     = sctp_inet_listen,
 	.shutdown   = inet_shutdown,
-	.setsockopt = inet_setsockopt,
-	.getsockopt = inet_getsockopt,
+	.setsockopt = sock_common_setsockopt,
+	.getsockopt = sock_common_getsockopt,
 	.sendmsg    = inet_sendmsg,
-	.recvmsg    = inet_recvmsg,
+	.recvmsg    = sock_common_recvmsg,
 	.mmap       = sock_no_mmap,
 };
 

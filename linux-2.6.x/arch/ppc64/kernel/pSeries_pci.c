@@ -39,10 +39,17 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppcdebug.h>
 #include <asm/naca.h>
-#include <asm/pci_dma.h>
+#include <asm/iommu.h>
+#include <asm/rtas.h>
 
 #include "open_pic.h"
 #include "pci.h"
+
+/* legal IO pages under MAX_ISA_PORT.  This is to ensure we don't touch
+   devices we don't have access to. */
+unsigned long io_page_mask;
+
+EXPORT_SYMBOL(io_page_mask);
 
 /* RTAS tokens */
 static int read_pci_config;
@@ -56,7 +63,7 @@ extern unsigned long pci_probe_only;
 
 static int rtas_read_config(struct device_node *dn, int where, int size, u32 *val)
 {
-	unsigned long returnval = ~0L;
+	int returnval = -1;
 	unsigned long buid, addr;
 	int ret;
 
@@ -66,7 +73,8 @@ static int rtas_read_config(struct device_node *dn, int where, int size, u32 *va
 	addr = (dn->busno << 16) | (dn->devfn << 8) | where;
 	buid = dn->phb->buid;
 	if (buid) {
-		ret = rtas_call(ibm_read_pci_config, 4, 2, &returnval, addr, buid >> 32, buid & 0xffffffff, size);
+		ret = rtas_call(ibm_read_pci_config, 4, 2, &returnval,
+				addr, buid >> 32, buid & 0xffffffff, size);
 	} else {
 		ret = rtas_call(read_pci_config, 2, 2, &returnval, addr, size);
 	}
@@ -276,10 +284,12 @@ static void __init pci_process_bridge_OF_ranges(struct pci_controller *hose,
 				isa_dn = of_find_node_by_type(NULL, "isa");
 				if (isa_dn) {
 					isa_io_base = pci_io_base;
-					of_node_put(isa_dn);
 					pci_process_ISA_OF_ranges(isa_dn,
 						hose->io_base_phys,
 						hose->io_base_virt);
+					of_node_put(isa_dn);
+                                        /* Allow all IO */
+                                        io_page_mask = -1;
 				}
 			}
 
@@ -345,14 +355,51 @@ static void python_countermeasures(unsigned long addr)
 	iounmap(chip_regs);
 }
 
-struct pci_controller *alloc_phb(struct device_node *dev,
+void __init init_pci_config_tokens (void)
+{
+	read_pci_config = rtas_token("read-pci-config");
+	write_pci_config = rtas_token("write-pci-config");
+	ibm_read_pci_config = rtas_token("ibm,read-pci-config");
+	ibm_write_pci_config = rtas_token("ibm,write-pci-config");
+}
+
+unsigned long __init get_phb_buid (struct device_node *phb)
+{
+	int addr_cells;
+	unsigned int *buid_vals;
+	unsigned int len;
+	unsigned long buid;
+
+	if (ibm_read_pci_config == -1) return 0;
+
+	/* PHB's will always be children of the root node,
+	 * or so it is promised by the current firmware. */
+	if (phb->parent == NULL)
+		return 0;
+	if (phb->parent->parent)
+		return 0;
+
+	buid_vals = (unsigned int *) get_property(phb, "reg", &len);
+	if (buid_vals == NULL)
+		return 0;
+
+	addr_cells = prom_n_addr_cells(phb);
+	if (addr_cells == 1) {
+		buid = (unsigned long) buid_vals[0];
+	} else {
+		buid = (((unsigned long)buid_vals[0]) << 32UL) |
+			(((unsigned long)buid_vals[1]) & 0xffffffff);
+	}
+	return buid;
+}
+
+static struct pci_controller * __init alloc_phb(struct device_node *dev,
 				 unsigned int addr_size_words)
 {
 	struct pci_controller *phb;
 	unsigned int *ui_ptr = NULL, len;
 	struct reg_property64 reg_struct;
 	int *bus_range;
-	int *buid_vals;
 	char *model;
 	enum phb_types phb_type;
  	struct property *of_prop;
@@ -423,18 +470,7 @@ struct pci_controller *alloc_phb(struct device_node *dev,
 	phb->arch_data   = dev;
 	phb->ops = &rtas_pci_ops;
 
-	buid_vals = (int *) get_property(dev, "ibm,fw-phb-id", &len);
-
-	if (buid_vals == NULL) {
-		phb->buid = 0;
-	} else {
-		if (len < 2 * sizeof(int))
-			// Support for new OF that only has 1 integer for buid.
-			phb->buid = (unsigned long)buid_vals[0];
-		else
-			phb->buid = (((unsigned long)buid_vals[0]) << 32UL) |
-				(((unsigned long)buid_vals[1]) & 0xffffffff);
-	}
+	phb->buid = get_phb_buid(dev);
 
 	return phb;
 }
@@ -447,11 +483,6 @@ unsigned long __init find_and_init_phbs(void)
 	unsigned int index;
 	unsigned int *opprop;
 	struct device_node *root = of_find_node_by_path("/");
-
-	read_pci_config = rtas_token("read-pci-config");
-	write_pci_config = rtas_token("write-pci-config");
-	ibm_read_pci_config = rtas_token("ibm,read-pci-config");
-	ibm_write_pci_config = rtas_token("ibm,write-pci-config");
 
 	if (naca->interrupt_controller == IC_OPEN_PIC) {
 		opprop = (unsigned int *)get_property(root,
@@ -523,8 +554,24 @@ void __devinit pcibios_fixup_device_resources(struct pci_dev *dev,
 	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
 		if (dev->resource[i].flags & IORESOURCE_IO) {
 			unsigned long offset = (unsigned long)hose->io_base_virt - pci_io_base;
-			dev->resource[i].start += offset;
-			dev->resource[i].end += offset;
+                        unsigned long start, end, mask;
+
+                        start = dev->resource[i].start += offset;
+                        end = dev->resource[i].end += offset;
+
+                        /* Need to allow IO access to pages that are in the
+                           ISA range */
+                        if (start < MAX_ISA_PORT) {
+                                if (end > MAX_ISA_PORT)
+                                        end = MAX_ISA_PORT;
+
+                                start >>= PAGE_SHIFT;
+                                end >>= PAGE_SHIFT;
+
+                                /* get the range of pages for the map */
+                                mask = ((1 << (end+1))-1) ^ ((1 << start)-1);
+                                io_page_mask |= mask;
+                        }
 		}
                 else if (dev->resource[i].flags & IORESOURCE_MEM) {
 			dev->resource[i].start += hose->pci_mem_offset;
@@ -553,8 +600,9 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 			BUG();	/* No I/O resource for this PHB? */
 
 		if (request_resource(&ioport_resource, res))
-			printk(KERN_ERR "Failed to request IO"
-					"on hose %d\n", 0 /* FIXME */);
+			printk(KERN_ERR "Failed to request IO on "
+					"PCI domain %d\n", pci_domain_nr(bus));
+
 
 		for (i = 0; i < 3; ++i) {
 			res = &hose->mem_resources[i];
@@ -562,8 +610,9 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 				BUG();	/* No memory resource for this PHB? */
 			bus->resource[i+1] = res;
 			if (res->flags && request_resource(&iomem_resource, res))
-				printk(KERN_ERR "Failed to request MEM"
-						"on hose %d\n", 0 /* FIXME */);
+				printk(KERN_ERR "Failed to request MEM on "
+						"PCI domain %d\n",
+						pci_domain_nr(bus));
 		}
 	} else if (pci_probe_only &&
 		   (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
@@ -687,7 +736,7 @@ static void phbs_fixup_io(void)
 
 extern void chrp_request_regions(void);
 
-void __init pcibios_final_fixup(void)
+void __init pSeries_final_fixup(void)
 {
 	struct pci_dev *dev = NULL;
 
@@ -699,7 +748,8 @@ void __init pcibios_final_fixup(void)
 	phbs_fixup_io();
 	chrp_request_regions();
 	pci_fix_bus_sysdata();
-	create_tce_tables();
+	if (!ppc64_iommu_off)
+		iommu_setup_pSeries();
 }
 
 /*********************************************************************** 
@@ -720,4 +770,30 @@ pci_find_hose_for_OF_device(struct device_node *node)
 		node=node->parent;
 	}
 	return NULL;
+}
+
+/*
+ * ppc64 can have multifunction devices that do not respond to function 0.
+ * In this case we must scan all functions.
+ */
+int
+pcibios_scan_all_fns(struct pci_bus *bus, int devfn)
+{
+       struct device_node *busdn, *dn;
+
+       if (bus->self)
+               busdn = pci_device_to_OF_node(bus->self);
+       else
+               busdn = bus->sysdata;   /* must be a phb */
+
+       /*
+        * Check to see if there is any of the 8 functions are in the
+        * device tree.  If they are then we need to scan all the
+        * functions of this slot.
+        */
+       for (dn = busdn->child; dn; dn = dn->sibling)
+               if ((dn->devfn >> 3) == (devfn >> 3))
+                       return 1;
+
+       return 0;
 }

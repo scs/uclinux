@@ -33,12 +33,14 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/cpu.h>
 
 #include <asm/cache.h>
 #include <asm/hardware.h>	/* for register_parisc_driver() stuff */
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/pdc.h>
+#include <asm/pdcpat.h>
 #include <asm/irq.h>		/* for struct irq_region */
 #include <asm/parisc-device.h>
 
@@ -187,6 +189,17 @@ static int __init processor_probe(struct parisc_device *dev)
 		cpu_irq_actions[cpuid] = actions;
 	}
 #endif
+
+	/* 
+	 * Bring this CPU up now! (ignore bootstrap cpuid == 0)
+	 */
+#ifdef CONFIG_SMP
+	if (cpuid) {
+		cpu_set(cpuid, cpu_present_map);
+		cpu_up(cpuid);
+	}
+#endif
+
 	return 0;
 }
 
@@ -231,9 +244,7 @@ void __init collect_boot_cpu_data(void)
 	boot_cpu_data.hversion =  boot_cpu_data.pdc.model.hversion;
 	boot_cpu_data.sversion =  boot_cpu_data.pdc.model.sversion;
 
-	boot_cpu_data.cpu_type =
-			parisc_get_cpu_type(boot_cpu_data.hversion);
-
+	boot_cpu_data.cpu_type = parisc_get_cpu_type(boot_cpu_data.hversion);
 	boot_cpu_data.cpu_name = cpu_name_version[boot_cpu_data.cpu_type][0];
 	boot_cpu_data.family_name = cpu_name_version[boot_cpu_data.cpu_type][1];
 }
@@ -276,6 +287,7 @@ int __init init_per_cpu(int cpunum)
 	int ret;
 	struct pdc_coproc_cfg coproc_cfg;
 
+	set_firmware_width();
 	ret = pdc_coproc_cfg(&coproc_cfg);
 
 	if(ret >= 0 && coproc_cfg.ccr_functional) {

@@ -753,25 +753,26 @@ ext3_xattr_set_handle2(handle_t *handle, struct inode *inode,
 	if (header) {
 		new_bh = ext3_xattr_cache_find(handle, inode, header, &credits);
 		if (new_bh) {
-			/*
-			 * We found an identical block in the cache. The
-			 * block returned is locked. The old block will
-			 * be released after updating the inode.
-			 */
-			ea_bdebug(new_bh, "%s block %lu",
-				(old_bh == new_bh) ? "keeping" : "reusing",
-				(unsigned long) new_bh->b_blocknr);
+			/* We found an identical block in the cache. */
+			if (new_bh == old_bh)
+				ea_bdebug(new_bh, "keeping this block");
+			else {
+				/* The old block is released after updating
+				   the inode. */
+				ea_bdebug(new_bh, "reusing block");
 
-			error = -EDQUOT;
-			if (DQUOT_ALLOC_BLOCK(inode, 1)) {
-				unlock_buffer(new_bh);
-				journal_release_buffer(handle, new_bh, credits);
-				goto cleanup;
+				error = -EDQUOT;
+				if (DQUOT_ALLOC_BLOCK(inode, 1)) {
+					unlock_buffer(new_bh);
+					journal_release_buffer(handle, new_bh,
+							       credits);
+					goto cleanup;
+				}
+				HDR(new_bh)->h_refcount = cpu_to_le32(1 +
+					le32_to_cpu(HDR(new_bh)->h_refcount));
+				ea_bdebug(new_bh, "refcount now=%d",
+					le32_to_cpu(HDR(new_bh)->h_refcount));
 			}
-			HDR(new_bh)->h_refcount = cpu_to_le32(
-				le32_to_cpu(HDR(new_bh)->h_refcount) + 1);
-			ea_bdebug(new_bh, "refcount now=%d",
-				le32_to_cpu(HDR(new_bh)->h_refcount));
 			unlock_buffer(new_bh);
 		} else if (old_bh && header == HDR(old_bh)) {
 			/* Keep this block. No need to lock the block as we
@@ -785,8 +786,8 @@ ext3_xattr_set_handle2(handle_t *handle, struct inode *inode,
 					EXT3_SB(sb)->s_es->s_first_data_block) +
 				EXT3_I(inode)->i_block_group *
 				EXT3_BLOCKS_PER_GROUP(sb);
-			int block = ext3_new_block(handle,
-				inode, goal, 0, 0, &error);
+			int block = ext3_new_block(handle, inode, goal,
+						   NULL, NULL, &error);
 			if (error)
 				goto cleanup;
 			ea_idebug(inode, "creating block %d", block);
@@ -874,8 +875,9 @@ ext3_xattr_set(struct inode *inode, int name_index, const char *name,
 	       const void *value, size_t value_len, int flags)
 {
 	handle_t *handle;
-	int error;
+	int error, retries = 0;
 
+retry:
 	handle = ext3_journal_start(inode, EXT3_DATA_TRANS_BLOCKS);
 	if (IS_ERR(handle)) {
 		error = PTR_ERR(handle);
@@ -885,6 +887,9 @@ ext3_xattr_set(struct inode *inode, int name_index, const char *name,
 		error = ext3_xattr_set_handle(handle, inode, name_index, name,
 					      value, value_len, flags);
 		error2 = ext3_journal_stop(handle);
+		if (error == -ENOSPC &&
+		    ext3_should_retry_alloc(inode->i_sb, &retries))
+			goto retry;
 		if (error == 0)
 			error = error2;
 	}

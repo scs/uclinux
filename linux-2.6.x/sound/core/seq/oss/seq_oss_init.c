@@ -28,17 +28,18 @@
 #include "seq_oss_timer.h"
 #include "seq_oss_event.h"
 #include <linux/init.h>
+#include <linux/moduleparam.h>
 
 /*
  * common variables
  */
-MODULE_PARM(maxqlen, "i");
+static int maxqlen = SNDRV_SEQ_OSS_MAX_QLEN;
+module_param(maxqlen, int, 0444);
 MODULE_PARM_DESC(maxqlen, "maximum queue length");
 
 static int system_client = -1; /* ALSA sequencer client number */
 static int system_port = -1;
 
-int maxqlen = SNDRV_SEQ_OSS_MAX_QLEN;
 static int num_clients;
 static seq_oss_devinfo_t *client_table[SNDRV_SEQ_OSS_MAX_CLIENTS];
 
@@ -349,18 +350,11 @@ create_port(seq_oss_devinfo_t *dp)
 static int
 delete_port(seq_oss_devinfo_t *dp)
 {
-	snd_seq_port_info_t port_info;
-
 	if (dp->port < 0)
 		return 0;
 
 	debug_printk(("delete_port %i\n", dp->port));
-	memset(&port_info, 0, sizeof(port_info));
-	port_info.addr.client = dp->cseq;
-	port_info.addr.port = dp->port;
-	return snd_seq_kernel_client_ctl(dp->cseq,
-					 SNDRV_SEQ_IOCTL_DELETE_PORT,
-					 &port_info);
+	return snd_seq_event_port_detach(dp->cseq, dp->port);
 }
 
 /*

@@ -11,6 +11,7 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
+#include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -74,7 +75,6 @@ extern void *__memscan_zero(void *, size_t);
 extern void *__memscan_generic(void *, int, size_t);
 extern int __memcmp(const void *, const void *, __kernel_size_t);
 extern int __strncmp(const char *, const char *, __kernel_size_t);
-extern char saved_command_line[];
 
 extern void bcopy (const char *, char *, int);
 extern int __ashrdi3(int, int);
@@ -85,22 +85,28 @@ extern int __divdi3(int, int);
 
 extern void dump_thread(struct pt_regs *, struct user *);
 
-/* One thing to note is that the way the symbols of the mul/div
- * support routines are named is a mess, they all start with
- * a '.' which makes it a bitch to export, here is the trick:
+/* Private functions with odd calling conventions. */
+extern void ___atomic24_add(void);
+extern void ___atomic24_sub(void);
+extern void ___set_bit(void);
+extern void ___clear_bit(void);
+extern void ___change_bit(void);
+
+/* Alias functions whose names begin with "." and export the aliases.
+ * The module references will be fixed up by module_frob_arch_sections.
  */
+#define DOT_ALIAS2(__ret, __x, __arg1, __arg2) \
+	extern __ret __x(__arg1, __arg2) \
+	             __attribute__((weak, alias("." # __x)));
 
-#define EXPORT_SYMBOL_DOT(sym)					\
-extern int __sparc_dot_ ## sym (int) __asm__("." #sym);		\
-const struct kernel_symbol __ksymtab___sparc_dot_##sym		\
-__attribute__((section("__ksymtab")))				\
-= { (unsigned long)&__sparc_dot_##sym , "." #sym }
+DOT_ALIAS2(int, div, int, int)
+DOT_ALIAS2(int, mul, int, int)
+DOT_ALIAS2(int, rem, int, int)
+DOT_ALIAS2(unsigned, udiv, unsigned, unsigned)
+DOT_ALIAS2(unsigned, umul, unsigned, unsigned)
+DOT_ALIAS2(unsigned, urem, unsigned, unsigned)
 
-#define EXPORT_SYMBOL_PRIVATE(sym)				\
-extern int __sparc_priv_ ## sym (int) __asm__("__" #sym);	\
-const struct kernel_symbol __export_priv_##sym			\
-__attribute__((section("__ksymtab"))) =				\
-{ (unsigned long) &__sparc_priv_ ## sym, "__" #sym }
+#undef DOT_ALIAS2
 
 /* used by various drivers */
 EXPORT_SYMBOL(sparc_cpu_model);
@@ -129,32 +135,28 @@ EXPORT_SYMBOL(__down_interruptible);
 
 EXPORT_SYMBOL(sparc_valid_addr_bitmap);
 EXPORT_SYMBOL(phys_base);
+EXPORT_SYMBOL(pfn_base);
 
 /* Atomic operations. */
-EXPORT_SYMBOL_PRIVATE(_atomic_add);
-EXPORT_SYMBOL_PRIVATE(_atomic_sub);
+EXPORT_SYMBOL(___atomic24_add);
+EXPORT_SYMBOL(___atomic24_sub);
 
 /* Bit operations. */
-EXPORT_SYMBOL_PRIVATE(_set_bit);
-EXPORT_SYMBOL_PRIVATE(_clear_bit);
-EXPORT_SYMBOL_PRIVATE(_change_bit);
+EXPORT_SYMBOL(___set_bit);
+EXPORT_SYMBOL(___clear_bit);
+EXPORT_SYMBOL(___change_bit);
 
 #ifdef CONFIG_SMP
 /* IRQ implementation. */
-EXPORT_SYMBOL(global_irq_holder);
 EXPORT_SYMBOL(synchronize_irq);
-EXPORT_SYMBOL(__global_cli);
-EXPORT_SYMBOL(__global_sti);
-EXPORT_SYMBOL(__global_save_flags);
-EXPORT_SYMBOL(__global_restore_flags);
 
 /* Misc SMP information */
 EXPORT_SYMBOL(__cpu_number_map);
 EXPORT_SYMBOL(__cpu_logical_map);
 #endif
 
-EXPORT_SYMBOL(udelay);
-EXPORT_SYMBOL(ndelay);
+EXPORT_SYMBOL(__udelay);
+EXPORT_SYMBOL(__ndelay);
 EXPORT_SYMBOL(rtc_lock);
 EXPORT_SYMBOL(mostek_lock);
 EXPORT_SYMBOL(mstk48t02_regs);
@@ -168,21 +170,20 @@ EXPORT_SYMBOL(io_remap_page_range);
 /* EXPORT_SYMBOL(iounit_map_dma_init); */
 /* EXPORT_SYMBOL(iounit_map_dma_page); */
 
-/* Btfixup stuff cannot have versions, it would be complicated too much */
 #ifndef CONFIG_SMP
-EXPORT_SYMBOL_NOVERS(BTFIXUP_CALL(___xchg32));
+EXPORT_SYMBOL(BTFIXUP_CALL(___xchg32));
 #else
-EXPORT_SYMBOL_NOVERS(BTFIXUP_CALL(__smp_processor_id));
+EXPORT_SYMBOL(BTFIXUP_CALL(__hard_smp_processor_id));
 #endif
-EXPORT_SYMBOL_NOVERS(BTFIXUP_CALL(enable_irq));
-EXPORT_SYMBOL_NOVERS(BTFIXUP_CALL(disable_irq));
-EXPORT_SYMBOL_NOVERS(BTFIXUP_CALL(__irq_itoa));
-EXPORT_SYMBOL_NOVERS(BTFIXUP_CALL(mmu_unlockarea));
-EXPORT_SYMBOL_NOVERS(BTFIXUP_CALL(mmu_lockarea));
-EXPORT_SYMBOL_NOVERS(BTFIXUP_CALL(mmu_get_scsi_sgl));
-EXPORT_SYMBOL_NOVERS(BTFIXUP_CALL(mmu_get_scsi_one));
-EXPORT_SYMBOL_NOVERS(BTFIXUP_CALL(mmu_release_scsi_sgl));
-EXPORT_SYMBOL_NOVERS(BTFIXUP_CALL(mmu_release_scsi_one));
+EXPORT_SYMBOL(BTFIXUP_CALL(enable_irq));
+EXPORT_SYMBOL(BTFIXUP_CALL(disable_irq));
+EXPORT_SYMBOL(BTFIXUP_CALL(__irq_itoa));
+EXPORT_SYMBOL(BTFIXUP_CALL(mmu_unlockarea));
+EXPORT_SYMBOL(BTFIXUP_CALL(mmu_lockarea));
+EXPORT_SYMBOL(BTFIXUP_CALL(mmu_get_scsi_sgl));
+EXPORT_SYMBOL(BTFIXUP_CALL(mmu_get_scsi_one));
+EXPORT_SYMBOL(BTFIXUP_CALL(mmu_release_scsi_sgl));
+EXPORT_SYMBOL(BTFIXUP_CALL(mmu_release_scsi_one));
 
 #ifdef CONFIG_SBUS
 EXPORT_SYMBOL(sbus_root);
@@ -194,8 +195,10 @@ EXPORT_SYMBOL(sbus_map_single);
 EXPORT_SYMBOL(sbus_unmap_single);
 EXPORT_SYMBOL(sbus_map_sg);
 EXPORT_SYMBOL(sbus_unmap_sg);
-EXPORT_SYMBOL(sbus_dma_sync_single);
-EXPORT_SYMBOL(sbus_dma_sync_sg);
+EXPORT_SYMBOL(sbus_dma_sync_single_for_cpu);
+EXPORT_SYMBOL(sbus_dma_sync_single_for_device);
+EXPORT_SYMBOL(sbus_dma_sync_sg_for_cpu);
+EXPORT_SYMBOL(sbus_dma_sync_sg_for_device);
 EXPORT_SYMBOL(sbus_iounmap);
 EXPORT_SYMBOL(sbus_ioremap);
 #endif
@@ -207,7 +210,10 @@ EXPORT_SYMBOL(pci_alloc_consistent);
 EXPORT_SYMBOL(pci_free_consistent);
 EXPORT_SYMBOL(pci_map_single);
 EXPORT_SYMBOL(pci_unmap_single);
-EXPORT_SYMBOL(pci_dma_sync_single);
+EXPORT_SYMBOL(pci_dma_sync_single_for_cpu);
+EXPORT_SYMBOL(pci_dma_sync_single_for_device);
+EXPORT_SYMBOL(pci_dma_sync_sg_for_cpu);
+EXPORT_SYMBOL(pci_dma_sync_sg_for_device);
 /* Actually, ioremap/iounmap are not PCI specific. But it is ok for drivers. */
 EXPORT_SYMBOL(ioremap);
 EXPORT_SYMBOL(iounmap);
@@ -254,15 +260,15 @@ EXPORT_SYMBOL(__prom_getsibling);
 /* sparc library symbols */
 EXPORT_SYMBOL(bcopy);
 EXPORT_SYMBOL(memchr);
-EXPORT_SYMBOL_NOVERS(memscan);
-EXPORT_SYMBOL_NOVERS(strlen);
+EXPORT_SYMBOL(memscan);
+EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(strncpy);
 EXPORT_SYMBOL(strcat);
 EXPORT_SYMBOL(strncat);
 EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL_NOVERS(strncmp);
+EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(strchr);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strpbrk);
@@ -286,35 +292,30 @@ EXPORT_SYMBOL(__copy_user);
 EXPORT_SYMBOL(__strncpy_from_user);
 
 /* Networking helper routines. */
-/* XXX This is NOVERS because C_LABEL_STR doesn't get the version number. -DaveM */
-EXPORT_SYMBOL_NOVERS(__csum_partial_copy_sparc_generic);
+EXPORT_SYMBOL(__csum_partial_copy_sparc_generic);
 EXPORT_SYMBOL(csum_partial);
 
 /* Cache flushing.  */
 EXPORT_SYMBOL(sparc_flush_page_to_ram);
 
-/* No version information on this, heavily used in inline asm,
- * and will always be 'void __ret_efault(void)'.
- */
-EXPORT_SYMBOL_NOVERS(__ret_efault);
+EXPORT_SYMBOL(__ret_efault);
 
-/* No version information on these, as gcc produces such symbols. */
-EXPORT_SYMBOL_NOVERS(memcmp);
-EXPORT_SYMBOL_NOVERS(memcpy);
-EXPORT_SYMBOL_NOVERS(memset);
-EXPORT_SYMBOL_NOVERS(memmove);
-EXPORT_SYMBOL_NOVERS(__ashrdi3);
-EXPORT_SYMBOL_NOVERS(__ashldi3);
-EXPORT_SYMBOL_NOVERS(__lshrdi3);
-EXPORT_SYMBOL_NOVERS(__muldi3);
-EXPORT_SYMBOL_NOVERS(__divdi3);
+EXPORT_SYMBOL(memcmp);
+EXPORT_SYMBOL(memcpy);
+EXPORT_SYMBOL(memset);
+EXPORT_SYMBOL(memmove);
+EXPORT_SYMBOL(__ashrdi3);
+EXPORT_SYMBOL(__ashldi3);
+EXPORT_SYMBOL(__lshrdi3);
+EXPORT_SYMBOL(__muldi3);
+EXPORT_SYMBOL(__divdi3);
 
-EXPORT_SYMBOL_DOT(rem);
-EXPORT_SYMBOL_DOT(urem);
-EXPORT_SYMBOL_DOT(mul);
-EXPORT_SYMBOL_DOT(umul);
-EXPORT_SYMBOL_DOT(div);
-EXPORT_SYMBOL_DOT(udiv);
+EXPORT_SYMBOL(rem);
+EXPORT_SYMBOL(urem);
+EXPORT_SYMBOL(mul);
+EXPORT_SYMBOL(umul);
+EXPORT_SYMBOL(div);
+EXPORT_SYMBOL(udiv);
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 EXPORT_SYMBOL(do_BUG);

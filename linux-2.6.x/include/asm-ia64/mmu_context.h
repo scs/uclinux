@@ -106,6 +106,7 @@ get_mmu_context (struct mm_struct *mm)
 		/* re-check, now that we've got the lock: */
 		context = mm->context;
 		if (context == 0) {
+			cpus_clear(mm->cpu_vm_mask);
 			if (ia64_ctx.next >= ia64_ctx.limit)
 				wrap_mmu_context(mm);
 			mm->context = context = ia64_ctx.next++;
@@ -139,8 +140,9 @@ reload_context (mm_context_t context)
 {
 	unsigned long rid;
 	unsigned long rid_incr = 0;
-	unsigned long rr0, rr1, rr2, rr3, rr4;
+	unsigned long rr0, rr1, rr2, rr3, rr4, old_rr4;
 
+	old_rr4 = ia64_get_rr(0x8000000000000000);
 	rid = context << 3;	/* make space for encoding the region number */
 	rid_incr = 1 << 8;
 
@@ -151,7 +153,7 @@ reload_context (mm_context_t context)
 	rr3 = rr0 + 3*rid_incr;
 	rr4 = rr0 + 4*rid_incr;
 #ifdef  CONFIG_HUGETLB_PAGE
-	rr4 = (rr4 & (~(0xfcUL))) | (HPAGE_SHIFT << 2);
+	rr4 = (rr4 & (~(0xfcUL))) | (old_rr4 & 0xfc);
 #endif
 
 	ia64_set_rr(0x0000000000000000, rr0);
@@ -170,6 +172,8 @@ activate_context (struct mm_struct *mm)
 	do {
 		context = get_mmu_context(mm);
 		MMU_TRACE('A', smp_processor_id(), mm, context);
+		if (!cpu_isset(smp_processor_id(), mm->cpu_vm_mask))
+			cpu_set(smp_processor_id(), mm->cpu_vm_mask);
 		reload_context(context);
 		MMU_TRACE('a', smp_processor_id(), mm, context);
 		/* in the unlikely event of a TLB-flush by another thread, redo the load: */

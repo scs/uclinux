@@ -48,8 +48,8 @@
 #define ENABLE_PCI
 #endif /* CONFIG_PCI */
 
-#define putUser(arg1, arg2) put_user(arg1, (unsigned long *)arg2)
-#define getUser(arg1, arg2) get_user(arg1, (unsigned int *)arg2)
+#define putUser(arg1, arg2) put_user(arg1, (unsigned long __user *)arg2)
+#define getUser(arg1, arg2) get_user(arg1, (unsigned __user *)arg2)
 
 #ifdef ENABLE_PCI
 #include <linux/pci.h>
@@ -218,7 +218,7 @@ static void setup_empty_event(struct tty_struct *tty, struct channel *ch);
 void epca_setup(char *, int *);
 void console_print(const char *);
 
-static int get_termio(struct tty_struct *, struct termio *);
+static int get_termio(struct tty_struct *, struct termio __user *);
 static int pc_write(struct tty_struct *, int, const unsigned char *, int);
 int pc_init(void);
 
@@ -835,38 +835,29 @@ static int pc_write(struct tty_struct * tty, int from_user,
 
 		if (bytesAvailable) 
 		{ /* Begin bytesAvailable */
+			/* ---------------------------------------------------------------
+				The below function reads data from user memory.  This routine
+				can not be used in an interrupt routine. (Because it may 
+				generate a page fault)  It can only be called while we can the
+				user context is accessible. 
 
-			/* Can the user buffer be accessed at the moment ? */
-			if (verify_area(VERIFY_READ, (char*)buf, bytesAvailable))
-				bytesAvailable = 0; /* Can't do; try again later */
-			else  /* Evidently it can, began transmission */
-			{ /* Begin if area verified */
-				/* ---------------------------------------------------------------
-					The below function reads data from user memory.  This routine
-					can not be used in an interrupt routine. (Because it may 
-					generate a page fault)  It can only be called while we can the
-					user context is accessible. 
+				The prototype is :
+				inline void copy_from_user(void * to, const void * from,
+							  unsigned long count);
 
-					The prototype is :
-					inline void copy_from_user(void * to, const void * from,
-					                          unsigned long count);
+				I also think (Check hackers guide) that optimization must
+				be turned ON.  (Which sounds strange to me...)
 
-					I also think (Check hackers guide) that optimization must
-					be turned ON.  (Which sounds strange to me...)
-	
-					Remember copy_from_user WILL generate a page fault if the
-					user memory being accessed has been swapped out.  This can
-					cause this routine to temporarily sleep while this page
-					fault is occurring.
-				
-				----------------------------------------------------------------- */
+				Remember copy_from_user WILL generate a page fault if the
+				user memory being accessed has been swapped out.  This can
+				cause this routine to temporarily sleep while this page
+				fault is occurring.
+			
+			----------------------------------------------------------------- */
 
-				if (copy_from_user(ch->tmp_buf, buf,
-						   bytesAvailable))
-					return -EFAULT;
-
-			} /* End if area verified */
-
+			if (copy_from_user(ch->tmp_buf, buf,
+					   bytesAvailable))
+				return -EFAULT;
 		} /* End bytesAvailable */
 
 		/* ------------------------------------------------------------------ 
@@ -1644,6 +1635,7 @@ int __init pc_init(void)
 
 	pc_driver->owner = THIS_MODULE;
 	pc_driver->name = "ttyD"; 
+	pc_driver->devfs_name = "tts/D";
 	pc_driver->major = DIGI_MAJOR; 
 	pc_driver->minor_start = 0;
 	pc_driver->type = TTY_DRIVER_TYPE_SERIAL;
@@ -1983,7 +1975,7 @@ static void post_fep_init(unsigned int crd)
 		ch->boardnum   = crd;
 		ch->channelnum = i;
 		ch->magic      = EPCA_MAGIC;
-		ch->tty        = 0;
+		ch->tty        = NULL;
 
 		if (shrinkmem) 
 		{
@@ -2727,7 +2719,7 @@ static void receive_data(struct channel *ch)
 { /* Begin receive_data */
 
 	unchar *rptr;
-	struct termios *ts = 0;
+	struct termios *ts = NULL;
 	struct tty_struct *tty;
 	volatile struct board_chan *bc;
 	register int dataToRead, wrapgap, bytesAvailable;
@@ -2850,8 +2842,6 @@ static void receive_data(struct channel *ch)
 static int info_ioctl(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg)
 {
-	int error;
-	
 	switch (cmd) 
 	{ /* Begin switch cmd */
 
@@ -2861,13 +2851,7 @@ static int info_ioctl(struct tty_struct *tty, struct file * file,
 			struct digi_info di ;
 			int brd;
 
-			getUser(brd, (unsigned int *)arg);
-
-			if ((error = verify_area(VERIFY_WRITE, (char*)arg, sizeof(di))))
-			{
-				printk(KERN_ERR "DIGI_GETINFO : verify area size 0x%x failed\n",sizeof(di));
-				return(error);
-			}
+			getUser(brd, (unsigned int __user *)arg);
 
 			if ((brd < 0) || (brd >= num_cards) || (num_cards == 0))
 				return (-ENODEV);
@@ -2881,7 +2865,7 @@ static int info_ioctl(struct tty_struct *tty, struct file * file,
 			di.port = boards[brd].port ;
 			di.membase = boards[brd].membase ;
 
-			if (copy_to_user((char *)arg, &di, sizeof (di)))
+			if (copy_to_user((void __user *)arg, &di, sizeof (di)))
 				return -EFAULT;
 			break;
 
@@ -2931,17 +2915,109 @@ static int info_ioctl(struct tty_struct *tty, struct file * file,
 }
 /* --------------------- Begin pc_ioctl  ----------------------- */
 
+static int pc_tiocmget(struct tty_struct *tty, struct file *file)
+{
+	struct channel *ch = (struct channel *) tty->driver_data;
+	volatile struct board_chan *bc;
+	unsigned int mstat, mflag = 0;
+	unsigned long flags;
+
+	if (ch)
+		bc = ch->brdchan;
+	else
+	{
+		printk(KERN_ERR "<Error> - ch is NULL in pc_tiocmget!\n");
+		return(-EINVAL);
+	}
+
+	save_flags(flags);
+	cli();
+	globalwinon(ch);
+	mstat = bc->mstat;
+	memoff(ch);
+	restore_flags(flags);
+
+	if (mstat & ch->m_dtr)
+		mflag |= TIOCM_DTR;
+
+	if (mstat & ch->m_rts)
+		mflag |= TIOCM_RTS;
+
+	if (mstat & ch->m_cts)
+		mflag |= TIOCM_CTS;
+
+	if (mstat & ch->dsr)
+		mflag |= TIOCM_DSR;
+
+	if (mstat & ch->m_ri)
+		mflag |= TIOCM_RI;
+
+	if (mstat & ch->dcd)
+		mflag |= TIOCM_CD;
+
+	return mflag;
+}
+
+static int pc_tiocmset(struct tty_struct *tty, struct file *file,
+		       unsigned int set, unsigned int clear)
+{
+	struct channel *ch = (struct channel *) tty->driver_data;
+	unsigned long flags;
+
+	if (!ch) {
+		printk(KERN_ERR "<Error> - ch is NULL in pc_tiocmset!\n");
+		return(-EINVAL);
+	}
+
+	save_flags(flags);
+	cli();
+	/*
+	 * I think this modemfake stuff is broken.  It doesn't
+	 * correctly reflect the behaviour desired by the TIOCM*
+	 * ioctls.  Therefore this is probably broken.
+	 */
+	if (set & TIOCM_RTS) {
+		ch->modemfake |= ch->m_rts;
+		ch->modem |= ch->m_rts;
+	}
+	if (set & TIOCM_DTR) {
+		ch->modemfake |= ch->m_dtr;
+		ch->modem |= ch->m_dtr;
+	}
+	if (clear & TIOCM_RTS) {
+		ch->modemfake |= ch->m_rts;
+		ch->modem &= ~ch->m_rts;
+	}
+	if (clear & TIOCM_DTR) {
+		ch->modemfake |= ch->m_dtr;
+		ch->modem &= ~ch->m_dtr;
+	}
+
+	globalwinon(ch);
+
+	/*  --------------------------------------------------------------
+		The below routine generally sets up parity, baud, flow control
+		issues, etc.... It effect both control flags and input flags.
+	------------------------------------------------------------------ */
+
+	epcaparam(tty,ch);
+	memoff(ch);
+	restore_flags(flags);
+	return 0;
+}
+
 static int pc_ioctl(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg)
 { /* Begin pc_ioctl */
 
 	digiflow_t dflow;
-	int retval, error;
+	int retval;
 	unsigned long flags;
 	unsigned int mflag, mstat;
 	unsigned char startc, stopc;
 	volatile struct board_chan *bc;
 	struct channel *ch = (struct channel *) tty->driver_data;
+	void __user *argp = (void __user *)arg;
 	
 	if (ch)
 		bc = ch->brdchan;
@@ -2963,13 +3039,13 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 	{ /* Begin switch cmd */
 
 		case TCGETS:
-			if (copy_to_user((struct termios *)arg, 
+			if (copy_to_user(argp, 
 					 tty->termios, sizeof(struct termios)))
 				return -EFAULT;
 			return(0);
 
 		case TCGETA:
-			return get_termio(tty, (struct termio *)arg);
+			return get_termio(tty, argp);
 
 		case TCSBRK:	/* SVID version: non-zero arg --> no break */
 
@@ -2999,21 +3075,16 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 			return 0;
 
 		case TIOCGSOFTCAR:
-
-			error = verify_area(VERIFY_WRITE, (void *) arg,sizeof(long));
-			if (error)
-				return error;
-
-			putUser(C_CLOCAL(tty) ? 1 : 0,
-			            (unsigned long *) arg);
+			if (put_user(C_CLOCAL(tty)?1:0, (unsigned long __user *)arg))
+				return -EFAULT;
 			return 0;
 
 		case TIOCSSOFTCAR:
-			/*RONNIE PUT VERIFY_READ (See above) check here */
 		{
 			unsigned int value;
 
-			getUser(value, (unsigned int *)arg);
+			if (get_user(value, (unsigned __user *)argp))
+				return -EFAULT;
 			tty->termios->c_cflag =
 				((tty->termios->c_cflag & ~CLOCAL) |
 				 (value ? CLOCAL : 0));
@@ -3021,90 +3092,15 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 		}
 
 		case TIOCMODG:
-		case TIOCMGET:
-
-			mflag = 0;
-
-			cli();
-			globalwinon(ch);
-			mstat = bc->mstat;
-			memoff(ch);
-			restore_flags(flags);
-
-			if (mstat & ch->m_dtr)
-				mflag |= TIOCM_DTR;
-
-			if (mstat & ch->m_rts)
-				mflag |= TIOCM_RTS;
-
-			if (mstat & ch->m_cts)
-				mflag |= TIOCM_CTS;
-
-			if (mstat & ch->dsr)
-				mflag |= TIOCM_DSR;
-
-			if (mstat & ch->m_ri)
-				mflag |= TIOCM_RI;
-
-			if (mstat & ch->dcd)
-				mflag |= TIOCM_CD;
-
-			error = verify_area(VERIFY_WRITE, (void *) arg,sizeof(long));
-
-			if (error)
-				return error;
-
-			putUser(mflag, (unsigned int *) arg);
-
+			mflag = pc_tiocmget(tty, file);
+			if (put_user(mflag, (unsigned long __user *)argp))
+				return -EFAULT;
 			break;
 
-		case TIOCMBIS:
-		case TIOCMBIC:
 		case TIOCMODS:
-		case TIOCMSET:
-
-			getUser(mstat, (unsigned int *)arg);
-
-			mflag = 0;
-			if (mstat & TIOCM_DTR)
-				mflag |= ch->m_dtr;
-
-			if (mstat & TIOCM_RTS)
-				mflag |= ch->m_rts;
-
-			switch (cmd) 
-			{ /* Begin switch cmd */
-
-				case TIOCMODS:
-				case TIOCMSET:
-					ch->modemfake = ch->m_dtr|ch->m_rts;
-					ch->modem = mflag;
-					break;
-
-				case TIOCMBIS:
-					ch->modemfake |= mflag;
-					ch->modem |= mflag;
-					break;
-
-				case TIOCMBIC:
-					ch->modemfake |= mflag;
-					ch->modem &= ~mflag;
-					break;
-
-			} /* End switch cmd */
-
-			cli();
-			globalwinon(ch);
-
-			/*  --------------------------------------------------------------
-				The below routine generally sets up parity, baud, flow control 
-				issues, etc.... It effect both control flags and input flags.
-			------------------------------------------------------------------ */
-
-			epcaparam(tty,ch);
-			memoff(ch);
-			restore_flags(flags);
-			break;
+			if (get_user(mstat, (unsigned __user *)argp))
+				return -EFAULT;
+			return pc_tiocmset(tty, file, mstat, ~mstat);
 
 		case TIOCSDTR:
 			ch->omodem |= ch->m_dtr;
@@ -3125,8 +3121,7 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 			break;
 
 		case DIGI_GETA:
-			if (copy_to_user((char*)arg, &ch->digiext,
-					 sizeof(digi_t)))
+			if (copy_to_user(argp, &ch->digiext, sizeof(digi_t)))
 				return -EFAULT;
 			break;
 
@@ -3148,8 +3143,7 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 			/* Fall Thru */
 
 		case DIGI_SETA:
-			if (copy_from_user(&ch->digiext, (char*)arg,
-					   sizeof(digi_t)))
+			if (copy_from_user(&ch->digiext, argp, sizeof(digi_t)))
 				return -EFAULT;
 			
 			if (ch->digiext.digi_flags & DIGI_ALTPIN) 
@@ -3193,7 +3187,7 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 			memoff(ch);
 			restore_flags(flags);
 
-			if (copy_to_user((char*)arg, &dflow, sizeof(dflow)))
+			if (copy_to_user(argp, &dflow, sizeof(dflow)))
 				return -EFAULT;
 			break;
 
@@ -3210,7 +3204,7 @@ static int pc_ioctl(struct tty_struct *tty, struct file * file,
 				stopc = ch->stopca;
 			}
 
-			if (copy_from_user(&dflow, (char*)arg, sizeof(dflow)))
+			if (copy_from_user(&dflow, argp, sizeof(dflow)))
 				return -EFAULT;
 
 			if (dflow.startc != startc || dflow.stopc != stopc) 
@@ -3539,17 +3533,9 @@ static void setup_empty_event(struct tty_struct *tty, struct channel *ch)
 
 /* --------------------- Begin get_termio ----------------------- */
 
-static int get_termio(struct tty_struct * tty, struct termio * termio)
+static int get_termio(struct tty_struct * tty, struct termio __user * termio)
 { /* Begin get_termio */
-	int error;
-
-	error = verify_area(VERIFY_WRITE, termio, sizeof (struct termio));
-	if (error)
-		return error;
-
-	kernel_termios_to_user_termio(termio, tty->termios);
-
-	return 0;
+	return kernel_termios_to_user_termio(termio, tty->termios);
 } /* End get_termio */
 /* ---------------------- Begin epca_setup  -------------------------- */
 void epca_setup(char *str, int *ints)

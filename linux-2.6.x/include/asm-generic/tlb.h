@@ -15,6 +15,7 @@
 
 #include <linux/config.h>
 #include <linux/swap.h>
+#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
 /*
@@ -98,6 +99,11 @@ tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
 	check_pgt_cache();
 }
 
+static inline unsigned int
+tlb_is_full_mm(struct mmu_gather *tlb)
+{
+	return tlb->fullmm;
+}
 
 /* tlb_remove_page
  *	Must perform the equivalent to __free_pte(pte_get_and_clear(ptep)), while
@@ -140,5 +146,7 @@ static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 		tlb->need_flush = 1;				\
 		__pmd_free_tlb(tlb, pmdp);			\
 	} while (0)
+
+#define tlb_migrate_finish(mm) do {} while (0)
 
 #endif /* _ASM_GENERIC__TLB_H */

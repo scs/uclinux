@@ -28,6 +28,8 @@
 
 #ifdef __KERNEL__
 
+#include <asm/system.h>		/* defines cmpxchg */
+
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
 
@@ -52,42 +54,36 @@
 #define ACPI_ENABLE_IRQS()  local_irq_enable()
 #define ACPI_FLUSH_CPU_CACHE()	wbinvd()
 
-/*
- * A brief explanation as GNU inline assembly is a bit hairy
- *  %0 is the output parameter in EAX ("=a")
- *  %1 and %2 are the input parameters in ECX ("c")
- *  and an immediate value ("i") respectively
- *  All actual register references are preceded with "%%" as in "%%edx"
- *  Immediate values in the assembly are preceded by "$" as in "$0x1"
- *  The final asm parameter are the operation altered non-output registers.
- */
+
+static inline int
+__acpi_acquire_global_lock (unsigned int *lock)
+{
+	unsigned int old, new, val;
+	do {
+		old = *lock;
+		new = (((old & ~0x3) + 2) + ((old >> 1) & 0x1));
+		val = cmpxchg(lock, old, new);
+	} while (unlikely (val != old));
+	return (new < 3) ? -1 : 0;
+}
+
+static inline int
+__acpi_release_global_lock (unsigned int *lock)
+{
+	unsigned int old, new, val;
+	do {
+		old = *lock;
+		new = old & ~0x3;
+		val = cmpxchg(lock, old, new);
+	} while (unlikely (val != old));
+	return old & 0x1;
+}
+
 #define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) \
-    do { \
-        int dummy; \
-        asm("1:     movl (%1),%%eax;" \
-            "movl   %%eax,%%edx;" \
-            "andl   %2,%%edx;" \
-            "btsl   $0x1,%%edx;" \
-            "adcl   $0x0,%%edx;" \
-            "lock;  cmpxchgl %%edx,(%1);" \
-            "jnz    1b;" \
-            "cmpb   $0x3,%%dl;" \
-            "sbbl   %%eax,%%eax" \
-            :"=a"(Acq),"=c"(dummy):"c"(GLptr),"i"(~1L):"dx"); \
-    } while(0)
+	((Acq) = __acpi_acquire_global_lock((unsigned int *) GLptr))
 
 #define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq) \
-    do { \
-        int dummy; \
-        asm("1:     movl (%1),%%eax;" \
-            "movl   %%eax,%%edx;" \
-            "andl   %2,%%edx;" \
-            "lock;  cmpxchgl %%edx,(%1);" \
-            "jnz    1b;" \
-            "andl   $0x1,%%eax" \
-            :"=a"(Acq),"=c"(dummy):"c"(GLptr),"i"(~3L):"dx"); \
-    } while(0)
-
+	((Acq) = __acpi_release_global_lock((unsigned int *) GLptr))
 
 /*
  * Math helper asm macros
@@ -110,12 +106,27 @@
 extern int acpi_lapic;
 extern int acpi_ioapic;
 extern int acpi_noirq;
+extern int acpi_strict;
+extern int acpi_disabled;
+extern int acpi_ht;
+extern int acpi_pci_disabled;
+static inline void disable_acpi(void) 
+{ 
+	acpi_disabled = 1; 
+	acpi_ht = 0;
+	acpi_pci_disabled = 1;
+	acpi_noirq = 1;
+}
 
 /* Fixmap pages to reserve for ACPI boot-time tables (see fixmap.h) */
 #define FIX_ACPI_PAGES 4
 
+extern int acpi_gsi_to_irq(u32 gsi, unsigned int *irq);
+extern int (*platform_rename_gsi)(int ioapic, int gsi);
+
 #ifdef CONFIG_X86_IO_APIC
 extern int skip_ioapic_setup;
+extern int acpi_skip_timer_override;
 
 static inline void disable_ioapic_setup(void)
 {
@@ -141,9 +152,15 @@ static inline void disable_ioapic_setup(void)
 
 #ifdef CONFIG_ACPI_PCI
 static inline void acpi_noirq_set(void) { acpi_noirq = 1; }
+static inline void acpi_disable_pci(void) 
+{
+	acpi_pci_disabled = 1; 
+	acpi_noirq_set();
+}
 extern int acpi_irq_balance_set(char *str);
 #else
 static inline void acpi_noirq_set(void) { }
+static inline void acpi_disable_pci(void) { }
 static inline int acpi_irq_balance_set(char *str) { return 0; }
 #endif
 

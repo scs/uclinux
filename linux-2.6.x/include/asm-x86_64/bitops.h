@@ -204,7 +204,7 @@ static __inline__ int __test_and_change_bit(int nr, volatile void * addr)
 }
 
 /**
- * test_and_change_bit - Change a bit and return its new value
+ * test_and_change_bit - Change a bit and return its old value
  * @nr: Bit to change
  * @addr: Address to count from
  *
@@ -337,15 +337,14 @@ static __inline__ int find_first_bit(const unsigned long * addr, unsigned size)
 		"repe; scasl\n\t"
 		"jz 1f\n\t"
 		"leaq -4(%%rdi),%%rdi\n\t"
-		"bsfq (%%rdi),%%rax\n"
-		"1:\tsubl %%ebx,%%edi\n\t"
+		"bsfl (%%rdi),%%eax\n"
+		"1:\tsubq %%rbx,%%rdi\n\t"
 		"shll $3,%%edi\n\t"
 		"addl %%edi,%%eax"
 		:"=a" (res), "=&c" (d0), "=&D" (d1)
-		:"1" ((size + 31) >> 5), "2" (addr), "b" (addr));
+		:"1" ((size + 31) >> 5), "2" (addr), "b" (addr) : "memory");
 	return res;
 }
-
 
 /**
  * find_next_bit - find the first set bit in a memory region
@@ -458,7 +457,7 @@ static __inline__ int ffs(int x)
 
 	__asm__("bsfl %1,%0\n\t"
 		"cmovzl %2,%0" 
-		: "=r" (r) : "g" (x), "r" (-1));
+		: "=r" (r) : "rm" (x), "r" (-1));
 	return r+1;
 }
 
@@ -502,6 +501,8 @@ static __inline__ int ffs(int x)
 
 /* find last set bit */
 #define fls(x) generic_fls(x)
+
+#define ARCH_HAS_ATOMIC_UNSIGNED 1
 
 #endif /* __KERNEL__ */
 

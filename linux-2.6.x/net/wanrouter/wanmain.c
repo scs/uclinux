@@ -46,6 +46,7 @@
 #include <linux/stddef.h>	/* offsetof(), etc. */
 #include <linux/errno.h>	/* return codes */
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/module.h>	/* support for loadable modules */
 #include <linux/slab.h>	/* kmalloc(), kfree() */
 #include <linux/mm.h>		/* verify_area(), etc. */
@@ -127,13 +128,14 @@ static void dbg_kfree(void * v, int line) {
  */
 
 static int wanrouter_device_setup(struct wan_device *wandev,
-				  wandev_conf_t *u_conf);
+				  wandev_conf_t __user *u_conf);
 static int wanrouter_device_stat(struct wan_device *wandev,
-				 wandev_stat_t *u_stat);
+				 wandev_stat_t __user *u_stat);
 static int wanrouter_device_shutdown(struct wan_device *wandev);
 static int wanrouter_device_new_if(struct wan_device *wandev,
-				   wanif_conf_t *u_conf);
-static int wanrouter_device_del_if(struct wan_device *wandev, char *u_name);
+				   wanif_conf_t __user *u_conf);
+static int wanrouter_device_del_if(struct wan_device *wandev,
+				   char __user *u_name);
 
 /*
  *	Miscellaneous
@@ -164,13 +166,9 @@ static unsigned char wanrouter_oui_ether[] = { 0x00, 0x00, 0x00 };
 static unsigned char wanrouter_oui_802_2[] = { 0x00, 0x80, 0xC2 };
 #endif
 
-#ifndef MODULE
-
-int wanrouter_init(void)
+static int __init wanrouter_init(void)
 {
 	int err;
-	extern int wanpipe_init(void);
-	extern int sdladrv_init(void);
 
 	printk(KERN_INFO "%s v%u.%u %s\n",
 	       wanrouter_fullname, ROUTER_VERSION, ROUTER_RELEASE,
@@ -180,15 +178,6 @@ int wanrouter_init(void)
 	if (err)
 		printk(KERN_INFO "%s: can't create entry in proc filesystem!\n",
 		       wanrouter_modname);
-
-        /*
-         *      Initialise compiled in boards
-         */
-
-#ifdef CONFIG_VENDOR_SANGOMA
-	sdladrv_init();
-	wanpipe_init();
-#endif
 
 	return err;
 }
@@ -198,50 +187,13 @@ static void __exit wanrouter_cleanup (void)
 	wanrouter_proc_cleanup();
 }
 
-#else
-
 /*
- *	Kernel Loadable Module Entry Points
+ * This is just plain dumb.  We should move the bugger to drivers/net/wan,
+ * slap it first in directory and make it module_init().  The only reason
+ * for subsys_initcall() here is that net goes after drivers (why, BTW?)
  */
-
-/*
- * 	Module 'insert' entry point.
- * 	o print announcement
- * 	o initialize static data
- * 	o create /proc/net/router directory and static entries
- *
- * 	Return:	0	Ok
- *		< 0	error.
- * 	Context:	process
- */
-
-int init_module	(void)
-{
-	int err;
-
-	printk(KERN_INFO "%s v%u.%u %s\n",
-	       wanrouter_fullname, ROUTER_VERSION, ROUTER_RELEASE,
-	       wanrouter_copyright);
-
-	err = wanrouter_proc_init();
-
-	if (err)
-		printk(KERN_INFO "%s: can't create entry in proc filesystem!\n",
-		       wanrouter_modname);
-	return err;
-}
-
-/*
- * 	Module 'remove' entry point.
- * 	o delete /proc/net/router directory and static entries.
- */
-
-void cleanup_module (void)
-{
-	wanrouter_proc_cleanup();
-}
-
-#endif
+subsys_initcall(wanrouter_init);
+module_exit(wanrouter_cleanup);
 
 /*
  * 	Kernel APIs
@@ -459,6 +411,7 @@ int wanrouter_ioctl(struct inode *inode, struct file *file,
 	int err = 0;
 	struct proc_dir_entry *dent;
 	struct wan_device *wandev;
+	void __user *data = (void __user *)arg;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -476,7 +429,7 @@ int wanrouter_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case ROUTER_SETUP:
-		err = wanrouter_device_setup(wandev, (void*)arg);
+		err = wanrouter_device_setup(wandev, data);
 		break;
 
 	case ROUTER_DOWN:
@@ -484,15 +437,15 @@ int wanrouter_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case ROUTER_STAT:
-		err = wanrouter_device_stat(wandev, (void*)arg);
+		err = wanrouter_device_stat(wandev, data);
 		break;
 
 	case ROUTER_IFNEW:
-		err = wanrouter_device_new_if(wandev, (void*)arg);
+		err = wanrouter_device_new_if(wandev, data);
 		break;
 
 	case ROUTER_IFDEL:
-		err = wanrouter_device_del_if(wandev, (void*)arg);
+		err = wanrouter_device_del_if(wandev, data);
 		break;
 
 	case ROUTER_IFSTAT:
@@ -521,7 +474,7 @@ int wanrouter_ioctl(struct inode *inode, struct file *file,
  */
 
 static int wanrouter_device_setup(struct wan_device *wandev,
-				  wandev_conf_t *u_conf)
+				  wandev_conf_t __user *u_conf)
 {
 	void *data = NULL;
 	wandev_conf_t *conf;
@@ -632,7 +585,7 @@ static int wanrouter_device_shutdown(struct wan_device *wandev)
  */
 
 static int wanrouter_device_stat(struct wan_device *wandev,
-				 wandev_stat_t *u_stat)
+				 wandev_stat_t __user *u_stat)
 {
 	wandev_stat_t stat;
 
@@ -663,7 +616,7 @@ static int wanrouter_device_stat(struct wan_device *wandev,
  */
 
 static int wanrouter_device_new_if(struct wan_device *wandev,
-				   wanif_conf_t *u_conf)
+				   wanif_conf_t __user *u_conf)
 {
 	wanif_conf_t *cnf;
 	struct net_device *dev = NULL;
@@ -726,8 +679,6 @@ static int wanrouter_device_new_if(struct wan_device *wandev,
 
 		if (dev->name == NULL) {
 			err = -EINVAL;
-		} else if (dev_get(dev->name)) {
-			err = -EEXIST;	/* name already exists */
 		} else {
 
 			#ifdef WANDEBUG
@@ -791,7 +742,7 @@ out:
  *	 o copy configuration data to kernel address space
  */
 
-static int wanrouter_device_del_if(struct wan_device *wandev, char *u_name)
+static int wanrouter_device_del_if(struct wan_device *wandev, char __user *u_name)
 {
 	char name[WAN_IFNAME_SZ + 1];
         int err = 0;

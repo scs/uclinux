@@ -110,6 +110,7 @@ extern const char _sb_findmap[];
 
 #endif /* __s390x__ */
 
+#define __BITOPS_WORDS(bits) (((bits)+__BITOPS_WORDSIZE-1)/__BITOPS_WORDSIZE)
 #define __BITOPS_BARRIER() __asm__ __volatile__ ( "" : : : "memory" )
 
 #ifdef CONFIG_SMP
@@ -532,8 +533,9 @@ __constant_test_bit(unsigned long nr, const volatile unsigned long *addr) {
  * Find-bit routines..
  */
 static inline int
-find_first_zero_bit(unsigned long * addr, unsigned int size)
+find_first_zero_bit(const unsigned long * addr, unsigned int size)
 {
+	typedef struct { long _[__BITOPS_WORDS(size)]; } addrtype;
 	unsigned long cmp, count;
         unsigned int res;
 
@@ -566,13 +568,15 @@ find_first_zero_bit(unsigned long * addr, unsigned int size)
                 "   alr  %0,%2\n"
                 "4:"
                 : "=&a" (res), "=&d" (cmp), "=&a" (count)
-                : "a" (size), "a" (addr), "a" (&_zb_findmap) : "cc" );
+                : "a" (size), "a" (addr), "a" (&_zb_findmap),
+		  "m" (*(addrtype *) addr) : "cc" );
         return (res < size) ? res : size;
 }
 
 static inline int
-find_first_bit(unsigned long * addr, unsigned int size)
+find_first_bit(const unsigned long * addr, unsigned int size)
 {
+	typedef struct { long _[__BITOPS_WORDS(size)]; } addrtype;
 	unsigned long cmp, count;
         unsigned int res;
 
@@ -605,12 +609,13 @@ find_first_bit(unsigned long * addr, unsigned int size)
                 "   alr  %0,%2\n"
                 "4:"
                 : "=&a" (res), "=&d" (cmp), "=&a" (count)
-                : "a" (size), "a" (addr), "a" (&_sb_findmap) : "cc" );
+                : "a" (size), "a" (addr), "a" (&_sb_findmap),
+		  "m" (*(addrtype *) addr) : "cc" );
         return (res < size) ? res : size;
 }
 
 static inline int
-find_next_zero_bit (unsigned long * addr, int size, int offset)
+find_next_zero_bit (const unsigned long * addr, int size, int offset)
 {
         unsigned long * p = ((unsigned long *) addr) + (offset >> 5);
         unsigned long bitvec, reg;
@@ -649,7 +654,7 @@ find_next_zero_bit (unsigned long * addr, int size, int offset)
 }
 
 static inline int
-find_next_bit (unsigned long * addr, int size, int offset)
+find_next_bit (const unsigned long * addr, int size, int offset)
 {
         unsigned long * p = ((unsigned long *) addr) + (offset >> 5);
         unsigned long bitvec, reg;
@@ -693,8 +698,9 @@ find_next_bit (unsigned long * addr, int size, int offset)
  * Find-bit routines..
  */
 static inline unsigned long
-find_first_zero_bit(unsigned long * addr, unsigned long size)
+find_first_zero_bit(const unsigned long * addr, unsigned long size)
 {
+	typedef struct { long _[__BITOPS_WORDS(size)]; } addrtype;
         unsigned long res, cmp, count;
 
         if (!size)
@@ -730,13 +736,15 @@ find_first_zero_bit(unsigned long * addr, unsigned long size)
                 "   algr  %0,%2\n"
                 "5:"
                 : "=&a" (res), "=&d" (cmp), "=&a" (count)
-		: "a" (size), "a" (addr), "a" (&_zb_findmap) : "cc" );
+		: "a" (size), "a" (addr), "a" (&_zb_findmap),
+		  "m" (*(addrtype *) addr) : "cc" );
         return (res < size) ? res : size;
 }
 
 static inline unsigned long
-find_first_bit(unsigned long * addr, unsigned long size)
+find_first_bit(const unsigned long * addr, unsigned long size)
 {
+	typedef struct { long _[__BITOPS_WORDS(size)]; } addrtype;
         unsigned long res, cmp, count;
 
         if (!size)
@@ -772,12 +780,13 @@ find_first_bit(unsigned long * addr, unsigned long size)
                 "   algr  %0,%2\n"
                 "5:"
                 : "=&a" (res), "=&d" (cmp), "=&a" (count)
-		: "a" (size), "a" (addr), "a" (&_sb_findmap) : "cc" );
+		: "a" (size), "a" (addr), "a" (&_sb_findmap),
+		  "m" (*(addrtype *) addr) : "cc" );
         return (res < size) ? res : size;
 }
 
 static inline unsigned long
-find_next_zero_bit (unsigned long * addr, unsigned long size, unsigned long offset)
+find_next_zero_bit (const unsigned long * addr, unsigned long size, unsigned long offset)
 {
         unsigned long * p = ((unsigned long *) addr) + (offset >> 6);
         unsigned long bitvec, reg;
@@ -821,7 +830,7 @@ find_next_zero_bit (unsigned long * addr, unsigned long size, unsigned long offs
 }
 
 static inline unsigned long
-find_next_bit (unsigned long * addr, unsigned long size, unsigned long offset)
+find_next_bit (const unsigned long * addr, unsigned long size, unsigned long offset)
 {
         unsigned long * p = ((unsigned long *) addr) + (offset >> 6);
         unsigned long bitvec, reg;
@@ -983,6 +992,7 @@ static inline int sched_find_first_bit(unsigned long *b)
 static inline int 
 ext2_find_first_zero_bit(void *vaddr, unsigned int size)
 {
+	typedef struct { long _[__BITOPS_WORDS(size)]; } addrtype;
 	unsigned long cmp, count;
         unsigned int res;
 
@@ -1016,7 +1026,8 @@ ext2_find_first_zero_bit(void *vaddr, unsigned int size)
                 "   alr  %0,%2\n"
                 "4:"
                 : "=&a" (res), "=&d" (cmp), "=&a" (count)
-                : "a" (size), "a" (vaddr), "a" (&_zb_findmap) : "cc" );
+                : "a" (size), "a" (vaddr), "a" (&_zb_findmap),
+		  "m" (*(addrtype *) vaddr) : "cc" );
         return (res < size) ? res : size;
 }
 
@@ -1068,6 +1079,7 @@ ext2_find_next_zero_bit(void *vaddr, unsigned int size, unsigned offset)
 static inline unsigned long
 ext2_find_first_zero_bit(void *vaddr, unsigned long size)
 {
+	typedef struct { long _[__BITOPS_WORDS(size)]; } addrtype;
         unsigned long res, cmp, count;
 
         if (!size)
@@ -1103,7 +1115,8 @@ ext2_find_first_zero_bit(void *vaddr, unsigned long size)
                 "   algr  %0,%2\n"
                 "5:"
                 : "=&a" (res), "=&d" (cmp), "=&a" (count)
-		: "a" (size), "a" (vaddr), "a" (&_zb_findmap) : "cc" );
+		: "a" (size), "a" (vaddr), "a" (&_zb_findmap),
+		  "m" (*(addrtype *) vaddr) : "cc" );
         return (res < size) ? res : size;
 }
 

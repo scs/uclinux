@@ -37,6 +37,25 @@ static inline int is_kernel_text(unsigned long addr)
 	return 0;
 }
 
+/* Lookup the address for this symbol. Returns 0 if not found. */
+unsigned long kallsyms_lookup_name(const char *name)
+{
+	char namebuf[KSYM_NAME_LEN+1];
+	unsigned long i;
+	char *knames;
+
+	for (i = 0, knames = kallsyms_names; i < kallsyms_num_syms; i++) {
+		unsigned prefix = *knames++;
+
+		strlcpy(namebuf + prefix, knames, KSYM_NAME_LEN - prefix);
+		if (strcmp(namebuf, name) == 0)
+			return kallsyms_addresses[i];
+
+		knames += strlen(knames) + 1;
+	}
+	return module_kallsyms_lookup_name(name);
+}
+
 /* Lookup an address.  modname is set to NULL if it's in the kernel. */
 const char *kallsyms_lookup(unsigned long addr,
 			    unsigned long *symbolsize,
@@ -48,7 +67,7 @@ const char *kallsyms_lookup(unsigned long addr,
 	/* This kernel should never had been booted. */
 	BUG_ON(!kallsyms_addresses);
 
-	namebuf[127] = 0;
+	namebuf[KSYM_NAME_LEN] = 0;
 	namebuf[0] = 0;
 
 	if (is_kernel_text(addr) || is_kernel_inittext(addr)) {
@@ -65,17 +84,23 @@ const char *kallsyms_lookup(unsigned long addr,
 		/* Grab name */
 		for (i = 0; i <= best; i++) { 
 			unsigned prefix = *name++;
-			strncpy(namebuf + prefix, name, 127 - prefix);
+			strncpy(namebuf + prefix, name, KSYM_NAME_LEN - prefix);
 			name += strlen(name) + 1;
 		}
 
-		/* Base symbol size on next symbol. */
-		if (best + 1 < kallsyms_num_syms)
-			symbol_end = kallsyms_addresses[best + 1];
-		else if (is_kernel_inittext(addr))
+		/* At worst, symbol ends at end of section. */
+		if (is_kernel_inittext(addr))
 			symbol_end = (unsigned long)_einittext;
 		else
 			symbol_end = (unsigned long)_etext;
+
+		/* Search for next non-aliased symbol */
+		for (i = best+1; i < kallsyms_num_syms; i++) {
+			if (kallsyms_addresses[i] > kallsyms_addresses[best]) {
+				symbol_end = kallsyms_addresses[i];
+				break;
+			}
+		}
 
 		*symbolsize = symbol_end - kallsyms_addresses[best];
 		*modname = NULL;
@@ -92,34 +117,22 @@ void __print_symbol(const char *fmt, unsigned long address)
 	char *modname;
 	const char *name;
 	unsigned long offset, size;
-	char namebuf[128];
+	char namebuf[KSYM_NAME_LEN+1];
+	char buffer[sizeof("%s+%#lx/%#lx [%s]") + KSYM_NAME_LEN +
+		    2*(BITS_PER_LONG*3/10) + MODULE_NAME_LEN + 1];
 
 	name = kallsyms_lookup(address, &size, &offset, &modname, namebuf);
 
-	if (!name) {
-		char addrstr[sizeof("0x%lx") + (BITS_PER_LONG*3/10)];
-
-		sprintf(addrstr, "0x%lx", address);
-		printk(fmt, addrstr);
-		return;
+	if (!name)
+		sprintf(buffer, "0x%lx", address);
+	else {
+		if (modname)
+			sprintf(buffer, "%s+%#lx/%#lx [%s]", name, offset,
+				size, modname);
+		else
+			sprintf(buffer, "%s+%#lx/%#lx", name, offset, size);
 	}
-
-	if (modname) {
-		/* This is pretty small. */
-		char buffer[sizeof("%s+%#lx/%#lx [%s]")
-			   + strlen(name) + 2*(BITS_PER_LONG*3/10)
-			   + strlen(modname)];
-
-		sprintf(buffer, "%s+%#lx/%#lx [%s]",
-			name, offset, size, modname);
-		printk(fmt, buffer);
-	} else {
-		char buffer[sizeof("%s+%#lx/%#lx")
-			   + strlen(name) + 2*(BITS_PER_LONG*3/10)];
-
-		sprintf(buffer, "%s+%#lx/%#lx", name, offset, size);
-		printk(fmt, buffer);
-	}
+	printk(fmt, buffer);
 }
 
 /* To avoid O(n^2) iteration, we carry prefix along. */
@@ -130,7 +143,7 @@ struct kallsym_iter
 	unsigned long value;
 	unsigned int nameoff; /* If iterating in core kernel symbols */
 	char type;
-	char name[128];
+	char name[KSYM_NAME_LEN+1];
 };
 
 /* Only label it "global" if it is exported. */
@@ -152,21 +165,27 @@ static int get_ksymbol_mod(struct kallsym_iter *iter)
 	return 1;
 }
 
-static void get_ksymbol_core(struct kallsym_iter *iter)
+/* Returns space to next name. */
+static unsigned long get_ksymbol_core(struct kallsym_iter *iter)
 {
-	unsigned stemlen;
+	unsigned stemlen, off = iter->nameoff;
 
 	/* First char of each symbol name indicates prefix length
 	   shared with previous name (stem compression). */
-	stemlen = kallsyms_names[iter->nameoff++];
+	stemlen = kallsyms_names[off++];
 
-	strlcpy(iter->name+stemlen, kallsyms_names+iter->nameoff, 128-stemlen);
-	iter->nameoff += strlen(kallsyms_names + iter->nameoff) + 1;
+	strlcpy(iter->name+stemlen, kallsyms_names + off,
+		KSYM_NAME_LEN+1-stemlen);
+	off += strlen(kallsyms_names + off) + 1;
 	iter->owner = NULL;
 	iter->value = kallsyms_addresses[iter->pos];
-	iter->type = 't';
+	if (is_kernel_text(iter->value) || is_kernel_inittext(iter->value))
+		iter->type = 't';
+	else
+		iter->type = 'd';
 
 	upcase_if_global(iter);
+	return off - iter->nameoff;
 }
 
 static void reset_iter(struct kallsym_iter *iter)
@@ -191,9 +210,10 @@ static int update_iter(struct kallsym_iter *iter, loff_t pos)
 
 	/* We need to iterate through the previous symbols: can be slow */
 	for (; iter->pos != pos; iter->pos++) {
-		get_ksymbol_core(iter);
+		iter->nameoff += get_ksymbol_core(iter);
 		cond_resched();
 	}
+	get_ksymbol_core(iter);
 	return 1;
 }
 
@@ -289,5 +309,4 @@ int __init kallsyms_init(void)
 }
 __initcall(kallsyms_init);
 
-EXPORT_SYMBOL(kallsyms_lookup);
 EXPORT_SYMBOL(__print_symbol);

@@ -11,16 +11,20 @@
 
 #include <linux/config.h>
 #include <linux/seq_file.h>
+#include <linux/init.h>
+#include <linux/dma-mapping.h>
+
+#include <asm/setup.h>
 
 struct pt_regs;
 struct pci_bus;	
 struct device_node;
-struct TceTable;
+struct iommu_table;
 struct rtc_time;
 
 #ifdef CONFIG_SMP
 struct smp_ops_t {
-	void  (*message_pass)(int target, int msg, unsigned long data, int wait);
+	void  (*message_pass)(int target, int msg);
 	int   (*probe)(void);
 	void  (*kick_cpu)(int nr);
 	void  (*setup_cpu)(int nr);
@@ -53,21 +57,25 @@ struct machdep_calls {
 					    unsigned long number,
 					    int local);
 
-	void		(*tce_build)(struct TceTable * tbl,
-				     long tcenum,
+	void		(*tce_build)(struct iommu_table * tbl,
+				     long index,
+				     long npages,
 				     unsigned long uaddr,
-				     int direction);
-	void		(*tce_free_one)(struct TceTable *tbl,
-				        long tcenum);    
+				     enum dma_data_direction direction);
+	void		(*tce_free)(struct iommu_table *tbl,
+				    long index,
+				    long npages);
+	void		(*tce_flush)(struct iommu_table *tbl);
 
 	void		(*setup_arch)(void);
-	/* Optional, may be NULL. */
-	void		(*setup_residual)(struct seq_file *m, int cpu_id);
 	/* Optional, may be NULL. */
 	void		(*get_cpuinfo)(struct seq_file *m);
 
 	void		(*init_IRQ)(void);
 	int		(*get_irq)(struct pt_regs *);
+
+	/* PCI stuff */
+	void		(*pcibios_fixup)(void);
 
 	/* Optional, may be NULL. */
 	void		(*init)(void);
@@ -75,6 +83,7 @@ struct machdep_calls {
 	void		(*restart)(char *cmd);
 	void		(*power_off)(void);
 	void		(*halt)(void);
+	void		(*panic)(char *str);
 
 	int		(*set_rtc_time)(struct rtc_time *);
 	void		(*get_rtc_time)(struct rtc_time *);
@@ -94,15 +103,19 @@ struct machdep_calls {
 
 	ssize_t		(*nvram_write)(char *buf, size_t count, loff_t *index);
 	ssize_t		(*nvram_read)(char *buf, size_t count, loff_t *index);	
+	ssize_t		(*nvram_size)(void);		
+	int		(*nvram_sync)(void);
 
-#ifdef CONFIG_SMP
-	/* functions for dealing with other cpus */
-	struct smp_ops_t smp_ops;
-#endif /* CONFIG_SMP */
+	/* Motherboard/chipset features. This is a kind of general purpose
+	 * hook used to control some machine specific features (like reset
+	 * lines, chip power control, etc...).
+	 */
+	long	 	(*feature_call)(unsigned int feature, ...);
+
 };
 
 extern struct machdep_calls ppc_md;
-extern char cmd_line[512];
+extern char cmd_line[COMMAND_LINE_SIZE];
 
 /* Functions to produce codes on the leds.
  * The SRC code should be unique for the message category and should

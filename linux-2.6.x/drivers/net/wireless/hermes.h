@@ -364,7 +364,7 @@ static inline int hermes_inquire(hermes_t *hw, u16 rid)
 /* Note that for the next two, the count is in 16-bit words, not bytes */
 static inline void hermes_read_words(struct hermes *hw, int off, void *buf, unsigned count)
 {
-	off = off << hw->reg_spacing;;
+	off = off << hw->reg_spacing;
 
 	if (hw->io_space) {
 		insw(hw->iobase + off, buf, count);
@@ -384,7 +384,7 @@ static inline void hermes_read_words(struct hermes *hw, int off, void *buf, unsi
 
 static inline void hermes_write_words(struct hermes *hw, int off, const void *buf, unsigned count)
 {
-	off = off << hw->reg_spacing;;
+	off = off << hw->reg_spacing;
 
 	if (hw->io_space) {
 		outsw(hw->iobase + off, buf, count);
@@ -406,7 +406,7 @@ static inline void hermes_clear_words(struct hermes *hw, int off, unsigned count
 {
 	unsigned i;
 
-	off = off << hw->reg_spacing;;
+	off = off << hw->reg_spacing;
 
 	if (hw->io_space) {
 		for (i = 0; i < count; i++)

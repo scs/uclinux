@@ -11,12 +11,10 @@
 
 #include <linux/module.h>
 
-#define __KERNEL_SYSCALLS__
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/mempool.h>
-#include <linux/unistd.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/spinlock.h>
@@ -71,7 +69,7 @@ static LIST_HEAD(all_tasks);
  * rpciod-related stuff
  */
 static DECLARE_WAIT_QUEUE_HEAD(rpciod_idle);
-static DECLARE_WAIT_QUEUE_HEAD(rpciod_killer);
+static DECLARE_COMPLETION(rpciod_killer);
 static DECLARE_MUTEX(rpciod_sema);
 static unsigned int		rpciod_users;
 static pid_t			rpciod_pid;
@@ -164,6 +162,26 @@ rpc_delete_timer(struct rpc_task *task)
 }
 
 /*
+ * Add new request to a priority queue.
+ */
+static void __rpc_add_wait_queue_priority(struct rpc_wait_queue *queue, struct rpc_task *task)
+{
+	struct list_head *q;
+	struct rpc_task *t;
+
+	q = &queue->tasks[task->tk_priority];
+	if (unlikely(task->tk_priority > queue->maxpriority))
+		q = &queue->tasks[queue->maxpriority];
+	list_for_each_entry(t, q, tk_list) {
+		if (t->tk_cookie == task->tk_cookie) {
+			list_add_tail(&task->tk_list, &t->tk_links);
+			return;
+		}
+	}
+	list_add_tail(&task->tk_list, q);
+}
+
+/*
  * Add new request to wait queue.
  *
  * Swapper tasks always get inserted at the head of the queue.
@@ -171,8 +189,7 @@ rpc_delete_timer(struct rpc_task *task)
  * improve overall performance.
  * Everyone else gets appended to the queue to ensure proper FIFO behavior.
  */
-static inline int
-__rpc_add_wait_queue(struct rpc_wait_queue *queue, struct rpc_task *task)
+static int __rpc_add_wait_queue(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
 	if (task->tk_rpcwait == queue)
 		return 0;
@@ -181,10 +198,12 @@ __rpc_add_wait_queue(struct rpc_wait_queue *queue, struct rpc_task *task)
 		printk(KERN_WARNING "RPC: doubly enqueued task!\n");
 		return -EWOULDBLOCK;
 	}
-	if (RPC_IS_SWAPPER(task))
-		list_add(&task->tk_list, &queue->tasks);
+	if (RPC_IS_PRIORITY(queue))
+		__rpc_add_wait_queue_priority(queue, task);
+	else if (RPC_IS_SWAPPER(task))
+		list_add(&task->tk_list, &queue->tasks[0]);
 	else
-		list_add_tail(&task->tk_list, &queue->tasks);
+		list_add_tail(&task->tk_list, &queue->tasks[0]);
 	task->tk_rpcwait = queue;
 
 	dprintk("RPC: %4d added to queue %p \"%s\"\n",
@@ -193,8 +212,7 @@ __rpc_add_wait_queue(struct rpc_wait_queue *queue, struct rpc_task *task)
 	return 0;
 }
 
-int
-rpc_add_wait_queue(struct rpc_wait_queue *q, struct rpc_task *task)
+int rpc_add_wait_queue(struct rpc_wait_queue *q, struct rpc_task *task)
 {
 	int		result;
 
@@ -205,18 +223,35 @@ rpc_add_wait_queue(struct rpc_wait_queue *q, struct rpc_task *task)
 }
 
 /*
+ * Remove request from a priority queue.
+ */
+static void __rpc_remove_wait_queue_priority(struct rpc_task *task)
+{
+	struct rpc_task *t;
+
+	if (!list_empty(&task->tk_links)) {
+		t = list_entry(task->tk_links.next, struct rpc_task, tk_list);
+		list_move(&t->tk_list, &task->tk_list);
+		list_splice_init(&task->tk_links, &t->tk_links);
+	}
+	list_del(&task->tk_list);
+}
+
+/*
  * Remove request from queue.
  * Note: must be called with spin lock held.
  */
-static inline void
-__rpc_remove_wait_queue(struct rpc_task *task)
+static void __rpc_remove_wait_queue(struct rpc_task *task)
 {
 	struct rpc_wait_queue *queue = task->tk_rpcwait;
 
 	if (!queue)
 		return;
 
-	list_del(&task->tk_list);
+	if (RPC_IS_PRIORITY(queue))
+		__rpc_remove_wait_queue_priority(task);
+	else
+		list_del(&task->tk_list);
 	task->tk_rpcwait = NULL;
 
 	dprintk("RPC: %4d removed from queue %p \"%s\"\n",
@@ -232,6 +267,48 @@ rpc_remove_wait_queue(struct rpc_task *task)
 	__rpc_remove_wait_queue(task);
 	spin_unlock_bh(&rpc_queue_lock);
 }
+
+static inline void rpc_set_waitqueue_priority(struct rpc_wait_queue *queue, int priority)
+{
+	queue->priority = priority;
+	queue->count = 1 << (priority * 2);
+}
+
+static inline void rpc_set_waitqueue_cookie(struct rpc_wait_queue *queue, unsigned long cookie)
+{
+	queue->cookie = cookie;
+	queue->nr = RPC_BATCH_COUNT;
+}
+
+static inline void rpc_reset_waitqueue_priority(struct rpc_wait_queue *queue)
+{
+	rpc_set_waitqueue_priority(queue, queue->maxpriority);
+	rpc_set_waitqueue_cookie(queue, 0);
+}
+
+static void __rpc_init_priority_wait_queue(struct rpc_wait_queue *queue, const char *qname, int maxprio)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(queue->tasks); i++)
+		INIT_LIST_HEAD(&queue->tasks[i]);
+	queue->maxpriority = maxprio;
+	rpc_reset_waitqueue_priority(queue);
+#ifdef RPC_DEBUG
+	queue->name = qname;
+#endif
+}
+
+void rpc_init_priority_wait_queue(struct rpc_wait_queue *queue, const char *qname)
+{
+	__rpc_init_priority_wait_queue(queue, qname, RPC_PRIORITY_HIGH);
+}
+
+void rpc_init_wait_queue(struct rpc_wait_queue *queue, const char *qname)
+{
+	__rpc_init_priority_wait_queue(queue, qname, 0);
+}
+EXPORT_SYMBOL(rpc_init_wait_queue);
 
 /*
  * Make an RPC task runnable.
@@ -257,13 +334,11 @@ rpc_make_runnable(struct rpc_task *task)
 				return;
 			}
 			rpc_clear_sleeping(task);
-			if (waitqueue_active(&rpciod_idle))
-				wake_up(&rpciod_idle);
+			wake_up(&rpciod_idle);
 		}
 	} else {
 		rpc_clear_sleeping(task);
-		if (waitqueue_active(&task->tk_wait))
-			wake_up(&task->tk_wait);
+		wake_up(&task->tk_wait);
 	}
 }
 
@@ -289,8 +364,7 @@ void rpciod_wake_up(void)
 {
 	if(rpciod_pid==0)
 		printk(KERN_ERR "rpciod: wot no daemon?\n");
-	if (waitqueue_active(&rpciod_idle))
-		wake_up(&rpciod_idle);
+	wake_up(&rpciod_idle);
 }
 
 /*
@@ -408,17 +482,72 @@ rpc_wake_up_task(struct rpc_task *task)
 }
 
 /*
+ * Wake up the next task on a priority queue.
+ */
+static struct rpc_task * __rpc_wake_up_next_priority(struct rpc_wait_queue *queue)
+{
+	struct list_head *q;
+	struct rpc_task *task;
+
+	/*
+	 * Service a batch of tasks from a single cookie.
+	 */
+	q = &queue->tasks[queue->priority];
+	if (!list_empty(q)) {
+		task = list_entry(q->next, struct rpc_task, tk_list);
+		if (queue->cookie == task->tk_cookie) {
+			if (--queue->nr)
+				goto out;
+			list_move_tail(&task->tk_list, q);
+		}
+		/*
+		 * Check if we need to switch queues.
+		 */
+		if (--queue->count)
+			goto new_cookie;
+	}
+
+	/*
+	 * Service the next queue.
+	 */
+	do {
+		if (q == &queue->tasks[0])
+			q = &queue->tasks[queue->maxpriority];
+		else
+			q = q - 1;
+		if (!list_empty(q)) {
+			task = list_entry(q->next, struct rpc_task, tk_list);
+			goto new_queue;
+		}
+	} while (q != &queue->tasks[queue->priority]);
+
+	rpc_reset_waitqueue_priority(queue);
+	return NULL;
+
+new_queue:
+	rpc_set_waitqueue_priority(queue, (unsigned int)(q - &queue->tasks[0]));
+new_cookie:
+	rpc_set_waitqueue_cookie(queue, task->tk_cookie);
+out:
+	__rpc_wake_up_task(task);
+	return task;
+}
+
+/*
  * Wake up the next task on the wait queue.
  */
-struct rpc_task *
-rpc_wake_up_next(struct rpc_wait_queue *queue)
+struct rpc_task * rpc_wake_up_next(struct rpc_wait_queue *queue)
 {
 	struct rpc_task	*task = NULL;
 
 	dprintk("RPC:      wake_up_next(%p \"%s\")\n", queue, rpc_qname(queue));
 	spin_lock_bh(&rpc_queue_lock);
-	task_for_first(task, &queue->tasks)
-		__rpc_wake_up_task(task);
+	if (RPC_IS_PRIORITY(queue))
+		task = __rpc_wake_up_next_priority(queue);
+	else {
+		task_for_first(task, &queue->tasks[0])
+			__rpc_wake_up_task(task);
+	}
 	spin_unlock_bh(&rpc_queue_lock);
 
 	return task;
@@ -430,15 +559,22 @@ rpc_wake_up_next(struct rpc_wait_queue *queue)
  *
  * Grabs rpc_queue_lock
  */
-void
-rpc_wake_up(struct rpc_wait_queue *queue)
+void rpc_wake_up(struct rpc_wait_queue *queue)
 {
 	struct rpc_task *task;
 
+	struct list_head *head;
 	spin_lock_bh(&rpc_queue_lock);
-	while (!list_empty(&queue->tasks))
-		task_for_first(task, &queue->tasks)
+	head = &queue->tasks[queue->maxpriority];
+	for (;;) {
+		while (!list_empty(head)) {
+			task = list_entry(head->next, struct rpc_task, tk_list);
 			__rpc_wake_up_task(task);
+		}
+		if (head == &queue->tasks[0])
+			break;
+		head--;
+	}
 	spin_unlock_bh(&rpc_queue_lock);
 }
 
@@ -449,17 +585,22 @@ rpc_wake_up(struct rpc_wait_queue *queue)
  *
  * Grabs rpc_queue_lock
  */
-void
-rpc_wake_up_status(struct rpc_wait_queue *queue, int status)
+void rpc_wake_up_status(struct rpc_wait_queue *queue, int status)
 {
+	struct list_head *head;
 	struct rpc_task *task;
 
 	spin_lock_bh(&rpc_queue_lock);
-	while (!list_empty(&queue->tasks)) {
-		task_for_first(task, &queue->tasks) {
+	head = &queue->tasks[queue->maxpriority];
+	for (;;) {
+		while (!list_empty(head)) {
+			task = list_entry(head->next, struct rpc_task, tk_list);
 			task->tk_status = status;
 			__rpc_wake_up_task(task);
 		}
+		if (head == &queue->tasks[0])
+			break;
+		head--;
 	}
 	spin_unlock_bh(&rpc_queue_lock);
 }
@@ -532,6 +673,9 @@ __rpc_execute(struct rpc_task *task)
 			if (!task->tk_action)
 				break;
 			task->tk_action(task);
+			/* micro-optimization to avoid spinlock */
+			if (RPC_IS_RUNNING(task))
+				continue;
 		}
 
 		/*
@@ -547,29 +691,31 @@ __rpc_execute(struct rpc_task *task)
 		}
 		spin_unlock_bh(&rpc_queue_lock);
 
-		while (RPC_IS_SLEEPING(task)) {
-			/* sync task: sleep here */
-			dprintk("RPC: %4d sync task going to sleep\n",
-							task->tk_pid);
-			if (current->pid == rpciod_pid)
-				printk(KERN_ERR "RPC: rpciod waiting on sync task!\n");
+		if (!RPC_IS_SLEEPING(task))
+			continue;
+		/* sync task: sleep here */
+		dprintk("RPC: %4d sync task going to sleep\n", task->tk_pid);
+		if (current->pid == rpciod_pid)
+			printk(KERN_ERR "RPC: rpciod waiting on sync task!\n");
 
+		if (!task->tk_client->cl_intr) {
 			__wait_event(task->tk_wait, !RPC_IS_SLEEPING(task));
-			dprintk("RPC: %4d sync task resuming\n", task->tk_pid);
-
+		} else {
+			__wait_event_interruptible(task->tk_wait, !RPC_IS_SLEEPING(task), status);
 			/*
 			 * When a sync task receives a signal, it exits with
 			 * -ERESTARTSYS. In order to catch any callbacks that
 			 * clean up after sleeping on some queue, we don't
 			 * break the loop here, but go around once more.
 			 */
-			if (task->tk_client->cl_intr && signalled()) {
+			if (status == -ERESTARTSYS) {
 				dprintk("RPC: %4d got signal\n", task->tk_pid);
 				task->tk_flags |= RPC_TASK_KILLED;
 				rpc_exit(task, -ERESTARTSYS);
 				rpc_wake_up_task(task);
 			}
 		}
+		dprintk("RPC: %4d sync task resuming\n", task->tk_pid);
 	}
 
 	if (task->tk_exit) {
@@ -640,21 +786,22 @@ __rpc_schedule(void)
 
 	dprintk("RPC:      rpc_schedule enter\n");
 	while (1) {
-		spin_lock_bh(&rpc_queue_lock);
 
-		task_for_first(task, &schedq.tasks) {
+		task_for_first(task, &schedq.tasks[0]) {
 			__rpc_remove_wait_queue(task);
 			spin_unlock_bh(&rpc_queue_lock);
 
 			__rpc_execute(task);
+			spin_lock_bh(&rpc_queue_lock);
 		} else {
-			spin_unlock_bh(&rpc_queue_lock);
 			break;
 		}
 
 		if (++count >= 200 || need_resched()) {
 			count = 0;
+			spin_unlock_bh(&rpc_queue_lock);
 			schedule();
+			spin_lock_bh(&rpc_queue_lock);
 		}
 	}
 	dprintk("RPC:      rpc_schedule leave\n");
@@ -706,9 +853,7 @@ rpc_free(struct rpc_task *task)
 /*
  * Creation and deletion of RPC task structures
  */
-inline void
-rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt,
-				rpc_action callback, int flags)
+void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, rpc_action callback, int flags)
 {
 	memset(task, 0, sizeof(*task));
 	init_timer(&task->tk_timer);
@@ -726,13 +871,20 @@ rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt,
 	task->tk_cred_retry = 2;
 	task->tk_suid_retry = 1;
 
+	task->tk_priority = RPC_PRIORITY_NORMAL;
+	task->tk_cookie = (unsigned long)current;
+	INIT_LIST_HEAD(&task->tk_links);
+
 	/* Add to global list of all tasks */
 	spin_lock(&rpc_sched_lock);
 	list_add(&task->tk_task, &all_tasks);
 	spin_unlock(&rpc_sched_lock);
 
-	if (clnt)
+	if (clnt) {
 		atomic_inc(&clnt->cl_users);
+		if (clnt->cl_softrtry)
+			task->tk_flags |= RPC_TASK_SOFT;
+	}
 
 #ifdef RPC_DEBUG
 	task->tk_magic = 0xf00baa;
@@ -860,7 +1012,7 @@ rpc_find_parent(struct rpc_task *child)
 	struct list_head *le;
 
 	parent = (struct rpc_task *) child->tk_calldata;
-	task_for_each(task, le, &childq.tasks)
+	task_for_each(task, le, &childq.tasks[0])
 		if (task == parent)
 			return parent;
 
@@ -940,7 +1092,7 @@ static DECLARE_MUTEX_LOCKED(rpciod_running);
 static inline int
 rpciod_task_pending(void)
 {
-	return !list_empty(&schedq.tasks);
+	return !list_empty(&schedq.tasks[0]);
 }
 
 
@@ -950,7 +1102,6 @@ rpciod_task_pending(void)
 static int
 rpciod(void *ptr)
 {
-	wait_queue_head_t *assassin = (wait_queue_head_t*) ptr;
 	int		rounds = 0;
 
 	lock_kernel();
@@ -964,27 +1115,41 @@ rpciod(void *ptr)
 	allow_signal(SIGKILL);
 
 	dprintk("RPC: rpciod starting (pid %d)\n", rpciod_pid);
+	spin_lock_bh(&rpc_queue_lock);
 	while (rpciod_users) {
+		DEFINE_WAIT(wait);
 		if (signalled()) {
+			spin_unlock_bh(&rpc_queue_lock);
 			rpciod_killall();
 			flush_signals(current);
+			spin_lock_bh(&rpc_queue_lock);
 		}
 		__rpc_schedule();
-		if (current->flags & PF_FREEZE)
-			refrigerator(PF_IOTHREAD);
+		if (current->flags & PF_FREEZE) {
+			spin_unlock_bh(&rpc_queue_lock);
+			refrigerator(PF_FREEZE);
+			spin_lock_bh(&rpc_queue_lock);
+		}
 
 		if (++rounds >= 64) {	/* safeguard */
+			spin_unlock_bh(&rpc_queue_lock);
 			schedule();
 			rounds = 0;
+			spin_lock_bh(&rpc_queue_lock);
 		}
 
-		if (!rpciod_task_pending()) {
-			dprintk("RPC: rpciod back to sleep\n");
-			wait_event_interruptible(rpciod_idle, rpciod_task_pending());
-			dprintk("RPC: switch to rpciod\n");
+		dprintk("RPC: rpciod back to sleep\n");
+		prepare_to_wait(&rpciod_idle, &wait, TASK_INTERRUPTIBLE);
+		if (!rpciod_task_pending() && !signalled()) {
+			spin_unlock_bh(&rpc_queue_lock);
+			schedule();
 			rounds = 0;
+			spin_lock_bh(&rpc_queue_lock);
 		}
+		finish_wait(&rpciod_idle, &wait);
+		dprintk("RPC: switch to rpciod\n");
 	}
+	spin_unlock_bh(&rpc_queue_lock);
 
 	dprintk("RPC: rpciod shutdown commences\n");
 	if (!list_empty(&all_tasks)) {
@@ -992,11 +1157,11 @@ rpciod(void *ptr)
 		rpciod_killall();
 	}
 
-	rpciod_pid = 0;
-	wake_up(assassin);
-
 	dprintk("RPC: rpciod exiting\n");
 	unlock_kernel();
+
+	rpciod_pid = 0;
+	complete_and_exit(&rpciod_killer, 0);
 	return 0;
 }
 
@@ -1008,7 +1173,9 @@ rpciod_killall(void)
 	while (!list_empty(&all_tasks)) {
 		clear_thread_flag(TIF_SIGPENDING);
 		rpc_killall_tasks(NULL);
+		spin_lock_bh(&rpc_queue_lock);
 		__rpc_schedule();
+		spin_unlock_bh(&rpc_queue_lock);
 		if (!list_empty(&all_tasks)) {
 			dprintk("rpciod_killall: waiting for tasks to exit\n");
 			yield();
@@ -1041,7 +1208,7 @@ rpciod_up(void)
 	/*
 	 * Create the rpciod thread and wait for it to start.
 	 */
-	error = kernel_thread(rpciod, &rpciod_killer, 0);
+	error = kernel_thread(rpciod, NULL, 0);
 	if (error < 0) {
 		printk(KERN_WARNING "rpciod_up: create thread failed, error=%d\n", error);
 		rpciod_users--;
@@ -1057,8 +1224,6 @@ out:
 void
 rpciod_down(void)
 {
-	unsigned long flags;
-
 	down(&rpciod_sema);
 	dprintk("rpciod_down pid %d sema %d\n", rpciod_pid, rpciod_users);
 	if (rpciod_users) {
@@ -1073,27 +1238,8 @@ rpciod_down(void)
 	}
 
 	kill_proc(rpciod_pid, SIGKILL, 1);
-	/*
-	 * Usually rpciod will exit very quickly, so we
-	 * wait briefly before checking the process id.
-	 */
-	clear_thread_flag(TIF_SIGPENDING);
-	yield();
-	/*
-	 * Display a message if we're going to wait longer.
-	 */
-	while (rpciod_pid) {
-		dprintk("rpciod_down: waiting for pid %d to exit\n", rpciod_pid);
-		if (signalled()) {
-			dprintk("rpciod_down: caught signal\n");
-			break;
-		}
-		interruptible_sleep_on(&rpciod_killer);
-	}
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-out:
+	wait_for_completion(&rpciod_killer);
+ out:
 	up(&rpciod_sema);
 }
 

@@ -18,30 +18,6 @@ typedef struct { int counter; } atomic_t;
 #define atomic_read(v)		((v)->counter)
 #define atomic_set(v, i)	(((v)->counter) = i)
 
-#ifdef CONFIG_COLDFIRE
-
-static __inline__ void atomic_add(int i, atomic_t *v)
-{
-	__asm__ __volatile__(
-		"movel %1,%%d0\t\n"
-		"addl %%d0,%0"
-		:
-		: "m" (*v), "id" (i)
-		: "d0");
-}
-
-static __inline__ void atomic_sub(int i, atomic_t *v)
-{
-	__asm__ __volatile__(
-		"movel %1,%%d0\t\n"
-		"subl %%d0,%0"
-		:
-		: "m" (*v), "id" (i)
-		: "d0");
-}
-
-#else
-
 static __inline__ void atomic_add(int i, atomic_t *v)
 {
 	__asm__ __volatile__("addl %1,%0" : "=m" (*v) : "d" (i), "0" (*v));
@@ -51,8 +27,6 @@ static __inline__ void atomic_sub(int i, atomic_t *v)
 {
 	__asm__ __volatile__("subl %1,%0" : "=m" (*v) : "d" (i), "0" (*v));
 }
-
-#endif /* COLDFIRE */
 
 static __inline__ void atomic_inc(volatile atomic_t *v)
 {
@@ -96,6 +70,8 @@ extern __inline__ int atomic_add_return(int i, atomic_t * v)
 	return temp;
 }
 
+#define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
+
 extern __inline__ int atomic_sub_return(int i, atomic_t * v)
 {
 	unsigned long temp, flags;
@@ -111,6 +87,16 @@ extern __inline__ int atomic_sub_return(int i, atomic_t * v)
 
 #define atomic_dec_return(v) atomic_sub_return(1,(v))
 #define atomic_inc_return(v) atomic_add_return(1,(v))
+
+/*
+ * atomic_inc_and_test - increment and test
+ * @v: pointer of type atomic_t
+ *
+ * Atomically increments @v by 1
+ * and returns true if the result is zero, or false for all
+ * other cases.
+ */
+#define atomic_inc_and_test(v) (atomic_inc_return(v) == 0)
 
 #define atomic_sub_and_test(i,v) (atomic_sub_return((i), (v)) == 0)
 #define atomic_dec_and_test(v) (atomic_sub_return(1, (v)) == 0)

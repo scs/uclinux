@@ -64,8 +64,6 @@ static void kill_bdev(struct block_device *bdev)
 
 int set_blocksize(struct block_device *bdev, int size)
 {
-	int oldsize;
-
 	/* Size must be a power of two, and between 512 and PAGE_SIZE */
 	if (size > PAGE_SIZE || size < 512 || (size & (size-1)))
 		return -EINVAL;
@@ -74,15 +72,13 @@ int set_blocksize(struct block_device *bdev, int size)
 	if (size < bdev_hardsect_size(bdev))
 		return -EINVAL;
 
-	oldsize = bdev->bd_block_size;
-	if (oldsize == size)
-		return 0;
-
-	/* Ok, we're actually changing the blocksize.. */
-	sync_blockdev(bdev);
-	bdev->bd_block_size = size;
-	bdev->bd_inode->i_blkbits = blksize_bits(size);
-	kill_bdev(bdev);
+	/* Don't change the size if it is same as current */
+	if (bdev->bd_block_size != size) {
+		sync_blockdev(bdev);
+		bdev->bd_block_size = size;
+		bdev->bd_inode->i_blkbits = blksize_bits(size);
+		kill_bdev(bdev);
+	}
 	return 0;
 }
 
@@ -90,12 +86,15 @@ EXPORT_SYMBOL(set_blocksize);
 
 int sb_set_blocksize(struct super_block *sb, int size)
 {
-	int bits;
-	if (set_blocksize(sb->s_bdev, size) < 0)
+	int bits = 9; /* 2^9 = 512 */
+
+	if (set_blocksize(sb->s_bdev, size))
 		return 0;
+	/* If we get here, we know size is power of two
+	 * and it's value is between 512 and PAGE_SIZE */
 	sb->s_blocksize = size;
-	for (bits = 9, size >>= 9; size >>= 1; bits++)
-		;
+	for (size >>= 10; size; size >>= 1)
+		++bits;
 	sb->s_blocksize_bits = bits;
 	return sb->s_blocksize;
 }
@@ -116,9 +115,18 @@ static int
 blkdev_get_block(struct inode *inode, sector_t iblock,
 		struct buffer_head *bh, int create)
 {
-	if (iblock >= max_block(I_BDEV(inode)))
-		return -EIO;
+	if (iblock >= max_block(I_BDEV(inode))) {
+		if (create)
+			return -EIO;
 
+		/*
+		 * for reads, we're just trying to fill a partial page.
+		 * return a hole, they will have to call get_block again
+		 * before they can fill it, and they will get -EIO at that
+		 * time
+		 */
+		return 0;
+	}
 	bh->b_bdev = I_BDEV(inode);
 	bh->b_blocknr = iblock;
 	set_buffer_mapped(bh);
@@ -139,15 +147,15 @@ blkdev_get_blocks(struct inode *inode, sector_t iblock,
 	return 0;
 }
 
-static int
+static ssize_t
 blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 
-	return blockdev_direct_IO(rw, iocb, inode, I_BDEV(inode), iov, offset,
-				nr_segs, blkdev_get_blocks, NULL);
+	return blockdev_direct_IO_no_locking(rw, iocb, inode, I_BDEV(inode),
+				iov, offset, nr_segs, blkdev_get_blocks, NULL);
 }
 
 static int blkdev_writepage(struct page *page, struct writeback_control *wbc)
@@ -229,7 +237,10 @@ static struct inode *bdev_alloc_inode(struct super_block *sb)
 
 static void bdev_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(bdev_cachep, BDEV_I(inode));
+	struct bdev_inode *bdi = BDEV_I(inode);
+
+	bdi->bdev.bd_inode_backing_dev_info = NULL;
+	kmem_cache_free(bdev_cachep, bdi);
 }
 
 static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
@@ -242,6 +253,7 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 	{
 		memset(bdev, 0, sizeof(*bdev));
 		sema_init(&bdev->bd_sem, 1);
+		sema_init(&bdev->bd_mount_sem, 1);
 		INIT_LIST_HEAD(&bdev->bd_inodes);
 		INIT_LIST_HEAD(&bdev->bd_list);
 		inode_init_once(&ei->vfs_inode);
@@ -293,14 +305,9 @@ struct super_block *blockdev_superblock;
 void __init bdev_cache_init(void)
 {
 	int err;
-	bdev_cachep = kmem_cache_create("bdev_cache",
-					sizeof(struct bdev_inode),
-					0,
-					SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
-					init_once,
-					NULL);
-	if (!bdev_cachep)
-		panic("Cannot create bdev_cache SLAB cache");
+	bdev_cachep = kmem_cache_create("bdev_cache", sizeof(struct bdev_inode),
+			0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_PANIC,
+			init_once, NULL);
 	err = register_filesystem(&bd_type);
 	if (err)
 		panic("Cannot register bdev pseudo-fs");
@@ -479,13 +486,13 @@ EXPORT_SYMBOL(bd_release);
  * to be used for internal purposes.  If you ever need it - reconsider
  * your API.
  */
-struct block_device *open_by_devnum(dev_t dev, unsigned mode, int kind)
+struct block_device *open_by_devnum(dev_t dev, unsigned mode)
 {
 	struct block_device *bdev = bdget(dev);
 	int err = -ENOMEM;
 	int flags = mode & FMODE_WRITE ? O_RDWR : O_RDONLY;
 	if (bdev)
-		err = blkdev_get(bdev, mode, flags, kind);
+		err = blkdev_get(bdev, mode, flags);
 	return err ? ERR_PTR(err) : bdev;
 }
 
@@ -522,10 +529,11 @@ int check_disk_change(struct block_device *bdev)
 
 EXPORT_SYMBOL(check_disk_change);
 
-static void bd_set_size(struct block_device *bdev, loff_t size)
+void bd_set_size(struct block_device *bdev, loff_t size)
 {
 	unsigned bsize = bdev_hardsect_size(bdev);
-	i_size_write(bdev->bd_inode, size);
+
+	bdev->bd_inode->i_size = size;
 	while (bsize < PAGE_CACHE_SIZE) {
 		if (size & bsize)
 			break;
@@ -534,6 +542,7 @@ static void bd_set_size(struct block_device *bdev, loff_t size)
 	bdev->bd_block_size = bsize;
 	bdev->bd_inode->i_blkbits = blksize_bits(bsize);
 }
+EXPORT_SYMBOL(bd_set_size);
 
 static int do_open(struct block_device *bdev, struct file *file)
 {
@@ -579,7 +588,7 @@ static int do_open(struct block_device *bdev, struct file *file)
 			ret = -ENOMEM;
 			if (!whole)
 				goto out_first;
-			ret = blkdev_get(whole, file->f_mode, file->f_flags, BDEV_RAW);
+			ret = blkdev_get(whole, file->f_mode, file->f_flags);
 			if (ret)
 				goto out_first;
 			bdev->bd_contains = whole;
@@ -625,7 +634,7 @@ out_first:
 	bdev->bd_disk = NULL;
 	bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
 	if (bdev != bdev->bd_contains)
-		blkdev_put(bdev->bd_contains, BDEV_RAW);
+		blkdev_put(bdev->bd_contains);
 	bdev->bd_contains = NULL;
 	put_disk(disk);
 	module_put(owner);
@@ -637,7 +646,7 @@ out:
 	return ret;
 }
 
-int blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags, int kind)
+int blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags)
 {
 	/*
 	 * This crockload is due to bad choice of ->open() type.
@@ -682,13 +691,13 @@ int blkdev_open(struct inode * inode, struct file * filp)
 	if (!(res = bd_claim(bdev, filp)))
 		return 0;
 
-	blkdev_put(bdev, BDEV_FILE);
+	blkdev_put(bdev);
 	return res;
 }
 
 EXPORT_SYMBOL(blkdev_open);
 
-int blkdev_put(struct block_device *bdev, int kind)
+int blkdev_put(struct block_device *bdev)
 {
 	int ret = 0;
 	struct inode *bd_inode = bdev->bd_inode;
@@ -697,12 +706,7 @@ int blkdev_put(struct block_device *bdev, int kind)
 	down(&bdev->bd_sem);
 	lock_kernel();
 	if (!--bdev->bd_openers) {
-		switch (kind) {
-		case BDEV_FILE:
-		case BDEV_FS:
-			sync_blockdev(bdev);
-			break;
-		}
+		sync_blockdev(bdev);
 		kill_bdev(bdev);
 	}
 	if (bdev->bd_contains == bdev) {
@@ -726,7 +730,7 @@ int blkdev_put(struct block_device *bdev, int kind)
 		bdev->bd_disk = NULL;
 		bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
 		if (bdev != bdev->bd_contains) {
-			blkdev_put(bdev->bd_contains, BDEV_RAW);
+			blkdev_put(bdev->bd_contains);
 		}
 		bdev->bd_contains = NULL;
 	}
@@ -743,7 +747,7 @@ static int blkdev_close(struct inode * inode, struct file * filp)
 	struct block_device *bdev = I_BDEV(filp->f_mapping->host);
 	if (bdev->bd_holder == filp)
 		bd_release(bdev);
-	return blkdev_put(bdev, BDEV_FILE);
+	return blkdev_put(bdev);
 }
 
 static ssize_t blkdev_file_write(struct file *file, const char __user *buf,
@@ -790,7 +794,7 @@ struct file_operations def_blk_fops = {
 	.fsync		= block_fsync,
 	.ioctl		= block_ioctl,
 	.readv		= generic_file_readv,
-	.writev		= generic_file_writev,
+	.writev		= generic_file_write_nolock,
 	.sendfile	= generic_file_sendfile,
 };
 
@@ -855,14 +859,12 @@ fail:
  *
  * @path:	special file representing the block device
  * @flags:	%MS_RDONLY for opening read-only
- * @kind:	usage (same as the 4th paramter to blkdev_get)
  * @holder:	owner for exclusion
  *
  * Open the blockdevice described by the special file at @path, claim it
- * for the @holder and properly set it up for @kind usage.
+ * for the @holder.
  */
-struct block_device *open_bdev_excl(const char *path, int flags,
-				    int kind, void *holder)
+struct block_device *open_bdev_excl(const char *path, int flags, void *holder)
 {
 	struct block_device *bdev;
 	mode_t mode = FMODE_READ;
@@ -874,7 +876,7 @@ struct block_device *open_bdev_excl(const char *path, int flags,
 
 	if (!(flags & MS_RDONLY))
 		mode |= FMODE_WRITE;
-	error = blkdev_get(bdev, mode, 0, kind);
+	error = blkdev_get(bdev, mode, 0);
 	if (error)
 		return ERR_PTR(error);
 	error = -EACCES;
@@ -887,7 +889,7 @@ struct block_device *open_bdev_excl(const char *path, int flags,
 	return bdev;
 	
 blkdev_put:
-	blkdev_put(bdev, BDEV_FS);
+	blkdev_put(bdev);
 	return ERR_PTR(error);
 }
 
@@ -897,14 +899,13 @@ EXPORT_SYMBOL(open_bdev_excl);
  * close_bdev_excl  -  release a blockdevice openen by open_bdev_excl()
  *
  * @bdev:	blockdevice to close
- * @kind:	usage (same as the 4th paramter to blkdev_get)
  *
  * This is the counterpart to open_bdev_excl().
  */
-void close_bdev_excl(struct block_device *bdev, int kind)
+void close_bdev_excl(struct block_device *bdev)
 {
 	bd_release(bdev);
-	blkdev_put(bdev, kind);
+	blkdev_put(bdev);
 }
 
 EXPORT_SYMBOL(close_bdev_excl);

@@ -38,6 +38,7 @@
 #include <asm/pgtable.h>
 #include <asm/sbus.h>
 #include <asm/sbi.h>
+#include <asm/cacheflush.h>
 
 /* If you trust current SCSI layer to handle different SCSI IRQs, enable this. I don't trust it... -jj */
 /* #define DISTRIBUTE_IRQS */
@@ -54,6 +55,7 @@ unsigned char sbus_tid[32];
 #endif
 
 extern struct irqaction *irq_action[];
+extern spinlock_t irq_action_lock;
 
 struct sbus_action {
 	struct irqaction *action;
@@ -77,30 +79,32 @@ int show_sun4d_interrupts(struct seq_file *p, void *v)
 {
 	int i = *(loff_t *) v, j = 0, k = 0, sbusl;
 	struct irqaction * action;
+	unsigned long flags;
 #ifdef CONFIG_SMP
 	int x;
 #endif
 
+	spin_lock_irqsave(&irq_action_lock, flags);
 	if (i < NR_IRQS) {
 		sbusl = pil_to_sbus[i];
 		if (!sbusl) {
 	 		action = *(i + irq_action);
 			if (!action) 
-		        	goto out;
+		        	goto out_unlock;
 		} else {
 			for (j = 0; j < nsbi; j++) {
 				for (k = 0; k < 4; k++)
 					if ((action = sbus_actions [(j << 5) + (sbusl << 2) + k].action))
 						goto found_it;
 			}
-			goto out;
+			goto out_unlock;
 		}
 found_it:	seq_printf(p, "%3d: ", i);
 #ifndef CONFIG_SMP
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #else
 		for (x = 0; x < NR_CPUS; x++) {
-			if (cpu_online)
+			if (cpu_online(x))
 				seq_printf(p, "%10u ",
 				       kstat_cpu(cpu_logical_map(x)).irqs[i]);
 		}
@@ -128,7 +132,8 @@ found_it:	seq_printf(p, "%3d: ", i);
 		}
 		seq_putc(p, '\n');
 	}
-out:
+out_unlock:
+	spin_unlock_irqrestore(&irq_action_lock, flags);
 	return 0;
 }
 
@@ -137,7 +142,8 @@ void sun4d_free_irq(unsigned int irq, void *dev_id)
 	struct irqaction *action, **actionp;
 	struct irqaction *tmp = NULL;
         unsigned long flags;
-	
+
+	spin_lock_irqsave(&irq_action_lock, flags);
 	if (irq < 15)
 		actionp = irq + irq_action;
 	else
@@ -145,7 +151,7 @@ void sun4d_free_irq(unsigned int irq, void *dev_id)
 	action = *actionp;
 	if (!action) {
 		printk("Trying to free free IRQ%d\n",irq);
-		return;
+		goto out_unlock;
 	}
 	if (dev_id) {
 		for (; action; action = action->next) {
@@ -155,34 +161,40 @@ void sun4d_free_irq(unsigned int irq, void *dev_id)
 		}
 		if (!action) {
 			printk("Trying to free free shared IRQ%d\n",irq);
-			return;
+			goto out_unlock;
 		}
 	} else if (action->flags & SA_SHIRQ) {
 		printk("Trying to free shared IRQ%d with NULL device ID\n", irq);
-		return;
+		goto out_unlock;
 	}
 	if (action->flags & SA_STATIC_ALLOC)
 	{
-	    /* This interrupt is marked as specially allocated
-	     * so it is a bad idea to free it.
-	     */
-	    printk("Attempt to free statically allocated IRQ%d (%s)\n",
-		   irq, action->name);
-	    return;
+		/* This interrupt is marked as specially allocated
+		 * so it is a bad idea to free it.
+		 */
+		printk("Attempt to free statically allocated IRQ%d (%s)\n",
+		       irq, action->name);
+		goto out_unlock;
 	}
 	
-        save_and_cli(flags);
 	if (action && tmp)
 		tmp->next = action->next;
 	else
 		*actionp = action->next;
+
+	spin_unlock_irqrestore(&irq_action_lock, flags);
+
+	synchronize_irq(irq);
+
+	spin_lock_irqsave(&irq_action_lock, flags);
 
 	kfree(action);
 
 	if (!(*actionp))
 		disable_irq(irq);
 
-	restore_flags(flags);
+out_unlock:
+	spin_unlock_irqrestore(&irq_action_lock, flags);
 }
 
 extern void unexpected_irq(int, void *, struct pt_regs *);
@@ -204,7 +216,7 @@ void sun4d_handler_irq(int irq, struct pt_regs * regs)
 	if (!sbusl) {
 		action = *(irq + irq_action);
 		if (!action)
-			unexpected_irq(irq, 0, regs);
+			unexpected_irq(irq, NULL, regs);
 		do {
 			action->handler(irq, action->dev_id, regs);
 			action = action->next;
@@ -231,7 +243,7 @@ void sun4d_handler_irq(int irq, struct pt_regs * regs)
 						action = actionp->action;
 						
 						if (!action)
-							unexpected_irq(irq, 0, regs);
+							unexpected_irq(irq, NULL, regs);
 						do {
 							action->handler(irq, action->dev_id, regs);
 							action = action->next;
@@ -268,12 +280,19 @@ int sun4d_request_irq(unsigned int irq,
 {
 	struct irqaction *action, *tmp = NULL, **actionp;
 	unsigned long flags;
+	int ret;
 	
-	if(irq > 14 && irq < (1 << 5))
-		return -EINVAL;
+	if(irq > 14 && irq < (1 << 5)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
-	if (!handler)
-	    return -EINVAL;
+	if (!handler) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	spin_lock_irqsave(&irq_action_lock, flags);
 
 	if (irq >= (1 << 5))
 		actionp = &(sbus_actions[irq - (1 << 5)].action);
@@ -285,39 +304,39 @@ int sun4d_request_irq(unsigned int irq,
 		if ((action->flags & SA_SHIRQ) && (irqflags & SA_SHIRQ)) {
 			for (tmp = action; tmp->next; tmp = tmp->next);
 		} else {
-			return -EBUSY;
+			ret = -EBUSY;
+			goto out_unlock;
 		}
 		if ((action->flags & SA_INTERRUPT) ^ (irqflags & SA_INTERRUPT)) {
 			printk("Attempt to mix fast and slow interrupts on IRQ%d denied\n", irq);
-			return -EBUSY;
-		}   
+			ret = -EBUSY;
+			goto out_unlock;
+		}
 		action = NULL;		/* Or else! */
 	}
-
-	save_and_cli(flags);
 
 	/* If this is flagged as statically allocated then we use our
 	 * private struct which is never freed.
 	 */
 	if (irqflags & SA_STATIC_ALLOC) {
-	    if (static_irq_count < MAX_STATIC_ALLOC)
-		action = &static_irqaction[static_irq_count++];
-	    else
-		printk("Request for IRQ%d (%s) SA_STATIC_ALLOC failed using kmalloc\n",irq, devname);
+		if (static_irq_count < MAX_STATIC_ALLOC)
+			action = &static_irqaction[static_irq_count++];
+		else
+			printk("Request for IRQ%d (%s) SA_STATIC_ALLOC failed using kmalloc\n", irq, devname);
 	}
 	
 	if (action == NULL)
-	    action = (struct irqaction *)kmalloc(sizeof(struct irqaction),
-						 GFP_KERNEL);
+		action = (struct irqaction *)kmalloc(sizeof(struct irqaction),
+						     GFP_ATOMIC);
 	
 	if (!action) { 
-		restore_flags(flags);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_unlock;
 	}
 
 	action->handler = handler;
 	action->flags = irqflags;
-	action->mask = 0;
+	cpus_clear(action->mask);
 	action->name = devname;
 	action->next = NULL;
 	action->dev_id = dev_id;
@@ -328,8 +347,12 @@ int sun4d_request_irq(unsigned int irq,
 		*actionp = action;
 		
 	enable_irq(irq);
-	restore_flags(flags);
-	return 0;
+
+	ret = 0;
+out_unlock:
+	spin_unlock_irqrestore(&irq_action_lock, flags);
+out:
+	return ret;
 }
 
 static void sun4d_disable_irq(unsigned int irq)
@@ -449,9 +472,9 @@ static void sun4d_load_profile_irq(int cpu, unsigned int limit)
 static void __init sun4d_init_timers(irqreturn_t (*counter_fn)(int, void *, struct pt_regs *))
 {
 	int irq;
-	extern struct prom_cpuinfo linux_cpus[NR_CPUS];
 	int cpu;
 	struct resource r;
+	int mid;
 
 	/* Map the User Timer registers. */
 	memset(&r, 0, sizeof(r));
@@ -479,9 +502,12 @@ static void __init sun4d_init_timers(irqreturn_t (*counter_fn)(int, void *, stru
 	
 	/* Enable user timer free run for CPU 0 in BW */
 	/* bw_set_ctrl(0, bw_get_ctrl(0) | BW_CTRL_USER_TIMER); */
-    
-	for(cpu = 0; cpu < linux_num_cpus; cpu++)
-		sun4d_load_profile_irq((linux_cpus[cpu].mid >> 3), 0);
+
+	cpu = 0;
+	while (!cpu_find_by_instance(cpu, NULL, &mid)) {
+		sun4d_load_profile_irq(mid >> 3, 0);
+		cpu++;
+	}
 		
 #ifdef CONFIG_SMP
 	{

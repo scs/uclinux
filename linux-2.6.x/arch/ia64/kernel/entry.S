@@ -21,7 +21,7 @@
  * Jonathan Nicklin	<nicklin@missioncriticallinux.com>
  * Patrick O'Rourke	<orourke@missioncriticallinux.com>
  * 11/07/2000
- /
+ */
 /*
  * Global (preserved) predicate usage on syscall entry/exit path:
  *
@@ -179,21 +179,23 @@ GLOBAL_ENTRY(ia64_switch_to)
 	.body
 
 	adds r22=IA64_TASK_THREAD_KSP_OFFSET,r13
+	movl r25=init_task
 	mov r27=IA64_KR(CURRENT_STACK)
-	dep r20=0,in0,61,3		// physical address of "current"
+	adds r21=IA64_TASK_THREAD_KSP_OFFSET,in0
+	dep r20=0,in0,61,3		// physical address of "next"
 	;;
 	st8 [r22]=sp			// save kernel stack pointer of old task
 	shr.u r26=r20,IA64_GRANULE_SHIFT
-	adds r21=IA64_TASK_THREAD_KSP_OFFSET,in0
+	cmp.eq p7,p6=r25,in0
 	;;
 	/*
 	 * If we've already mapped this task's page, we can skip doing it again.
 	 */
-	cmp.eq p7,p6=r26,r27
+(p6)	cmp.eq p7,p6=r26,r27
 (p6)	br.cond.dpnt .map
 	;;
 .done:
-(p6)	ssm psr.ic			// if we we had to map, renable the psr.ic bit FIRST!!!
+(p6)	ssm psr.ic			// if we had to map, reenable the psr.ic bit FIRST!!!
 	;;
 (p6)	srlz.d
 	ld8 sp=[r21]			// load kernel stack pointer of new task
@@ -506,7 +508,7 @@ GLOBAL_ENTRY(ia64_trace_syscall)
 	;;
  	stf.spill [r16]=f10
  	stf.spill [r17]=f11
-	br.call.sptk.many rp=syscall_trace // give parent a chance to catch syscall args
+	br.call.sptk.many rp=syscall_trace_enter // give parent a chance to catch syscall args
 	adds r16=PT(F6)+16,sp
 	adds r17=PT(F7)+16,sp
 	;;
@@ -546,7 +548,7 @@ GLOBAL_ENTRY(ia64_trace_syscall)
 .strace_save_retval:
 .mem.offset 0,0; st8.spill [r2]=r8		// store return value in slot for r8
 .mem.offset 8,0; st8.spill [r3]=r10		// clear error indication in slot for r10
-	br.call.sptk.many rp=syscall_trace // give parent a chance to catch return value
+	br.call.sptk.many rp=syscall_trace_leave // give parent a chance to catch return value
 .ret3:	br.cond.sptk ia64_leave_syscall
 
 strace_error:
@@ -573,7 +575,7 @@ GLOBAL_ENTRY(ia64_strace_leave_kernel)
 	 */
 	nop.m 0
 	nop.i 0
-	br.call.sptk.many rp=syscall_trace // give parent a chance to catch return value
+	br.call.sptk.many rp=syscall_trace_leave // give parent a chance to catch return value
 }
 .ret4:	br.cond.sptk ia64_leave_kernel
 END(ia64_strace_leave_kernel)
@@ -599,7 +601,9 @@ GLOBAL_ENTRY(ia64_ret_from_clone)
 	ld4 r2=[r2]
 	;;
 	mov r8=0
-	tbit.nz p6,p0=r2,TIF_SYSCALL_TRACE
+	and r2=_TIF_SYSCALL_TRACEAUDIT,r2
+	;;
+	cmp.ne p6,p0=r2,r0
 (p6)	br.cond.spnt .strace_check_retval
 	;;					// added stop bits to prevent r8 dependency
 END(ia64_ret_from_clone)
@@ -661,25 +665,31 @@ GLOBAL_ENTRY(ia64_leave_syscall)
 	PT_REGS_UNWIND_INFO(0)
 	/*
 	 * work.need_resched etc. mustn't get changed by this CPU before it returns to
-	 * user- or fsys-mode, hence we disable interrupts early on:
+	 * user- or fsys-mode, hence we disable interrupts early on.
+	 *
+	 * p6 controls whether current_thread_info()->flags needs to be check for
+	 * extra work.  We always check for extra work when returning to user-level.
+	 * With CONFIG_PREEMPT, we also check for extra work when the preempt_count
+	 * is 0.  After extra work processing has been completed, execution
+	 * resumes at .work_processed_syscall with p6 set to 1 if the extra-work-check
+	 * needs to be redone.
 	 */
 #ifdef CONFIG_PREEMPT
 	rsm psr.i				// disable interrupts
-#else
-(pUStk)	rsm psr.i
-#endif
 	cmp.eq pLvSys,p0=r0,r0			// pLvSys=1: leave from syscall
-(pUStk)	cmp.eq.unc p6,p0=r0,r0			// p6 <- pUStk
-.work_processed_syscall:
-#ifdef CONFIG_PREEMPT
 (pKStk) adds r20=TI_PRE_COUNT+IA64_TASK_SIZE,r13
 	;;
 	.pred.rel.mutex pUStk,pKStk
 (pKStk) ld4 r21=[r20]			// r21 <- preempt_count
 (pUStk)	mov r21=0			// r21 <- 0
 	;;
-(p6)	cmp.eq.unc p6,p0=r21,r0		// p6 <- p6 && (r21 == 0)
-#endif /* CONFIG_PREEMPT */
+	cmp.eq p6,p0=r21,r0		// p6 <- pUStk || (preempt_count == 0)
+#else /* !CONFIG_PREEMPT */
+(pUStk)	rsm psr.i
+	cmp.eq pLvSys,p0=r0,r0		// pLvSys=1: leave from syscall
+(pUStk)	cmp.eq.unc p6,p0=r0,r0		// p6 <- pUStk
+#endif
+.work_processed_syscall:
 	adds r16=PT(LOADRS)+16,r12
 	adds r17=PT(AR_BSPSTORE)+16,r12
 	adds r18=TI_FLAGS+IA64_TASK_SIZE,r13
@@ -774,26 +784,31 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 	PT_REGS_UNWIND_INFO(0)
 	/*
 	 * work.need_resched etc. mustn't get changed by this CPU before it returns to
-	 * user- or fsys-mode, hence we disable interrupts early on:
+	 * user- or fsys-mode, hence we disable interrupts early on.
+	 *
+	 * p6 controls whether current_thread_info()->flags needs to be check for
+	 * extra work.  We always check for extra work when returning to user-level.
+	 * With CONFIG_PREEMPT, we also check for extra work when the preempt_count
+	 * is 0.  After extra work processing has been completed, execution
+	 * resumes at .work_processed_syscall with p6 set to 1 if the extra-work-check
+	 * needs to be redone.
 	 */
 #ifdef CONFIG_PREEMPT
 	rsm psr.i				// disable interrupts
-#else
-(pUStk)	rsm psr.i
-#endif
 	cmp.eq p0,pLvSys=r0,r0			// pLvSys=0: leave from kernel
-(pUStk)	cmp.eq.unc p6,p0=r0,r0			// p6 <- pUStk
-	;;
-.work_processed_kernel:
-#ifdef CONFIG_PREEMPT
-	adds r20=TI_PRE_COUNT+IA64_TASK_SIZE,r13
+(pKStk)	adds r20=TI_PRE_COUNT+IA64_TASK_SIZE,r13
 	;;
 	.pred.rel.mutex pUStk,pKStk
 (pKStk)	ld4 r21=[r20]			// r21 <- preempt_count
 (pUStk)	mov r21=0			// r21 <- 0
 	;;
-(p6)	cmp.eq.unc p6,p0=r21,r0		// p6 <- p6 && (r21 == 0)
-#endif /* CONFIG_PREEMPT */
+	cmp.eq p6,p0=r21,r0		// p6 <- pUStk || (preempt_count == 0)
+#else
+(pUStk)	rsm psr.i
+	cmp.eq p0,pLvSys=r0,r0		// pLvSys=0: leave from kernel
+(pUStk)	cmp.eq.unc p6,p0=r0,r0		// p6 <- pUStk
+#endif
+.work_processed_kernel:
 	adds r17=TI_FLAGS+IA64_TASK_SIZE,r13
 	;;
 (p6)	ld4 r31=[r17]				// load current_thread_info()->flags
@@ -1063,7 +1078,7 @@ skip_rbs_switch:
 	br.cond.sptk.many .work_processed_kernel	// re-check
 
 .notify:
-	br.call.spnt.many rp=notify_resume_user
+(pUStk)	br.call.spnt.many rp=notify_resume_user
 .ret10:	cmp.ne p6,p0=r0,r0				// p6 <- 0
 (pLvSys)br.cond.sptk.many .work_processed_syscall	// don't re-check
 	br.cond.sptk.many .work_processed_kernel	// don't re-check
@@ -1429,7 +1444,7 @@ sys_call_table:
 	data8 sys_getcwd
 	data8 sys_capget			// 1185
 	data8 sys_capset
-	data8 sys_sendfile
+	data8 sys_sendfile64
 	data8 sys_ni_syscall		// sys_getpmsg (STREAMS)
 	data8 sys_ni_syscall		// sys_putpmsg (STREAMS)
 	data8 sys_socket			// 1190
@@ -1501,16 +1516,16 @@ sys_call_table:
 	data8 sys_clock_nanosleep
 	data8 sys_fstatfs64
 	data8 sys_statfs64
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall			// 1260
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall			// 1265
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall
+	data8 sys_mbind
+	data8 sys_get_mempolicy			// 1260
+	data8 sys_set_mempolicy
+	data8 sys_mq_open
+	data8 sys_mq_unlink
+	data8 sys_mq_timedsend
+	data8 sys_mq_timedreceive		// 1265
+	data8 sys_mq_notify
+	data8 sys_mq_getsetattr
+	data8 sys_ni_syscall			// reserved for kexec_load
 	data8 sys_ni_syscall
 	data8 sys_ni_syscall			// 1270
 	data8 sys_ni_syscall

@@ -16,6 +16,8 @@
  */
 
 #include <linux/config.h>
+#include <linux/compiler.h>
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -33,6 +35,8 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -40,6 +44,7 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/irq.h>
+#include <asm/timer.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
@@ -64,18 +69,64 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 }
 
 /*
+ * Need to know about CPUs going idle?
+ */
+static struct notifier_block *idle_chain;
+
+int register_idle_notifier(struct notifier_block *nb)
+{
+	return notifier_chain_register(&idle_chain, nb);
+}
+EXPORT_SYMBOL(register_idle_notifier);
+
+int unregister_idle_notifier(struct notifier_block *nb)
+{
+	return notifier_chain_unregister(&idle_chain, nb);
+}
+EXPORT_SYMBOL(unregister_idle_notifier);
+
+void do_monitor_call(struct pt_regs *regs, long interruption_code)
+{
+	/* disable monitor call class 0 */
+	__ctl_clear_bit(8, 15);
+
+	notifier_call_chain(&idle_chain, CPU_NOT_IDLE,
+			    (void *)(long) smp_processor_id());
+}
+
+/*
  * The idle loop on a S390...
  */
-
 void default_idle(void)
 {
 	psw_t wait_psw;
 	unsigned long reg;
+	int cpu, rc;
 
+	local_irq_disable();
         if (need_resched()) {
+		local_irq_enable();
                 schedule();
                 return;
         }
+
+	/* CPU is going idle. */
+	cpu = smp_processor_id();
+	rc = notifier_call_chain(&idle_chain, CPU_IDLE, (void *)(long) cpu);
+	if (rc != NOTIFY_OK && rc != NOTIFY_DONE)
+		BUG();
+	if (rc != NOTIFY_OK) {
+		local_irq_enable();
+		return;
+	}
+
+	/* enable monitor call class 0 */
+	__ctl_set_bit(8, 15);
+
+#ifdef CONFIG_HOTPLUG_CPU
+	if (cpu_is_offline(smp_processor_id()))
+		cpu_die();
+#endif
 
 	/* 
 	 * Wait for external, I/O or machine check interrupt and
@@ -168,7 +219,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	memset(&regs, 0, sizeof(regs));
 	regs.psw.mask = PSW_KERNEL_BITS;
 	regs.psw.addr = (unsigned long) kernel_thread_starter | PSW_ADDR_AMODE;
-	regs.gprs[7] = STACK_FRAME_OVERHEAD;
+	regs.gprs[7] = STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
 	regs.gprs[8] = __LC_KERNEL_STACK;
 	regs.gprs[9] = (unsigned long) fn;
 	regs.gprs[10] = (unsigned long) arg;
@@ -219,6 +270,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 		 (THREAD_SIZE + (unsigned long) p->thread_info)) - 1;
         p->thread.ksp = (unsigned long) frame;
 	p->set_child_tid = p->clear_child_tid = NULL;
+	/* Store access registers to kernel stack of new process. */
         frame->childregs = *regs;
 	frame->childregs.gprs[2] = 0;	/* child returns 0 on fork. */
         frame->childregs.gprs[15] = new_stackp;
@@ -229,6 +281,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 
         /* fake return stack for resume(), don't go back to schedule */
         frame->gprs[9] = (unsigned long) frame;
+
+	/* Save access registers to new thread structure. */
+	save_access_regs(&p->thread.acrs[0]);
+
 #ifndef CONFIG_ARCH_S390X
         /*
 	 * save fprs to current->thread.fp_regs to merge them with
@@ -240,7 +296,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
         p->thread.user_seg = __pa((unsigned long) p->mm->pgd) | _SEGMENT_TABLE;
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS)
-		frame->childregs.acrs[0] = regs->gprs[6];
+		p->thread.acrs[0] = regs->gprs[6];
 #else /* CONFIG_ARCH_S390X */
 	/* Save the fpu registers to new thread structure. */
 	save_fp_regs(&p->thread.fp_regs);
@@ -248,39 +304,36 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
 		if (test_thread_flag(TIF_31BIT)) {
-			frame->childregs.acrs[0] =
-				(unsigned int) regs->gprs[6];
+			p->thread.acrs[0] = (unsigned int) regs->gprs[6];
 		} else {
-			frame->childregs.acrs[0] =
-				(unsigned int)(regs->gprs[6] >> 32);
-			frame->childregs.acrs[1] =
-				(unsigned int) regs->gprs[6];
+			p->thread.acrs[0] = (unsigned int)(regs->gprs[6] >> 32);
+			p->thread.acrs[1] = (unsigned int) regs->gprs[6];
 		}
 	}
 #endif /* CONFIG_ARCH_S390X */
 	/* start new process with ar4 pointing to the correct address space */
-	p->thread.ar4 = get_fs().ar4;
+	p->thread.mm_segment = get_fs();
         /* Don't copy debug registers */
         memset(&p->thread.per_info,0,sizeof(p->thread.per_info));
 
         return 0;
 }
 
-asmlinkage int sys_fork(struct pt_regs regs)
+asmlinkage long sys_fork(struct pt_regs regs)
 {
 	return do_fork(SIGCHLD, regs.gprs[15], &regs, 0, NULL, NULL);
 }
 
-asmlinkage int sys_clone(struct pt_regs regs)
+asmlinkage long sys_clone(struct pt_regs regs)
 {
         unsigned long clone_flags;
         unsigned long newsp;
-	int *parent_tidptr, *child_tidptr;
+	int __user *parent_tidptr, *child_tidptr;
 
         clone_flags = regs.gprs[3];
         newsp = regs.orig_gpr2;
-	parent_tidptr = (int *) regs.gprs[4];
-	child_tidptr = (int *) regs.gprs[5];
+	parent_tidptr = (int __user *) regs.gprs[4];
+	child_tidptr = (int __user *) regs.gprs[5];
         if (!newsp)
                 newsp = regs.gprs[15];
         return do_fork(clone_flags & ~CLONE_IDLETASK, newsp, &regs, 0,
@@ -297,7 +350,7 @@ asmlinkage int sys_clone(struct pt_regs regs)
  * do not have enough call-clobbered registers to hold all
  * the information you need.
  */
-asmlinkage int sys_vfork(struct pt_regs regs)
+asmlinkage long sys_vfork(struct pt_regs regs)
 {
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD,
 		       regs.gprs[15], &regs, 0, NULL, NULL);
@@ -306,17 +359,17 @@ asmlinkage int sys_vfork(struct pt_regs regs)
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(struct pt_regs regs)
+asmlinkage long sys_execve(struct pt_regs regs)
 {
         int error;
         char * filename;
 
-        filename = getname((char *) regs.orig_gpr2);
+        filename = getname((char __user *) regs.orig_gpr2);
         error = PTR_ERR(filename);
         if (IS_ERR(filename))
                 goto out;
-        error = do_execve(filename, (char **) regs.gprs[3],
-			  (char **) regs.gprs[4], &regs);
+        error = do_execve(filename, (char __user * __user *) regs.gprs[3],
+			  (char __user * __user *) regs.gprs[4], &regs);
 	if (error == 0) {
 		current->ptrace &= ~PT_DTRACE;
 		current->thread.fp_regs.fpc = 0;
@@ -368,14 +421,6 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	dump->regs.per_info = current->thread.per_info;
 }
 
-/*
- * These bracket the sleeping functions..
- */
-extern void scheduling_functions_start_here(void);
-extern void scheduling_functions_end_here(void);
-#define first_sched	((unsigned long) scheduling_functions_start_here)
-#define last_sched	((unsigned long) scheduling_functions_end_here)
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long r14, r15, bc;
@@ -398,12 +443,10 @@ unsigned long get_wchan(struct task_struct *p)
 #else
 		r14 = *(unsigned long *) (bc+112);
 #endif
-		if (r14 < first_sched || r14 >= last_sched)
+		if (!in_sched_functions(r14))
 			return r14;
 		bc = (*(unsigned long *) bc) & PSW_ADDR_INSN;
 	} while (count++ < 16);
 	return 0;
 }
-#undef last_sched
-#undef first_sched
 

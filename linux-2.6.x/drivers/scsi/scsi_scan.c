@@ -32,16 +32,24 @@
 #include <linux/blkdev.h>
 #include <asm/semaphore.h>
 
+#include <scsi/scsi.h>
+#include <scsi/scsi_device.h>
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_devinfo.h>
 #include <scsi/scsi_host.h>
-#include "scsi.h"
+#include <scsi/scsi_request.h>
+#include <scsi/scsi_transport.h>
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
 #define ALLOC_FAILURE_MSG	KERN_ERR "%s: Allocation failure during" \
 	" SCSI scanning, some SCSI devices might not be configured\n"
+
+/*
+ * Default timeout
+ */
+#define SCSI_TIMEOUT (2*HZ)
 
 /*
  * Prefix values for the SCSI id's (stored in driverfs name field)
@@ -79,7 +87,6 @@ module_param_named(max_luns, max_scsi_luns, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(max_luns,
 		 "last scsi LUN (should be between 1 and 2^32-1)");
 
-#ifdef CONFIG_SCSI_REPORT_LUNS
 /*
  * max_scsi_report_luns: the maximum number of LUNS that will be
  * returned from the REPORT LUNS command. 8 times this value must
@@ -87,13 +94,19 @@ MODULE_PARM_DESC(max_luns,
  * in practice, the maximum number of LUNs suppored by any device
  * is about 16k.
  */
-static unsigned int max_scsi_report_luns = 128;
+static unsigned int max_scsi_report_luns = 511;
 
 module_param_named(max_report_luns, max_scsi_report_luns, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(max_report_luns,
 		 "REPORT LUNS maximum number of LUNS received (should be"
 		 " between 1 and 16384)");
-#endif
+
+static unsigned int scsi_inq_timeout = SCSI_TIMEOUT/HZ+3;
+
+module_param_named(inq_timeout, scsi_inq_timeout, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(inq_timeout, 
+		 "Timeout (in seconds) waiting for devices to answer INQUIRY."
+		 " Default is 5. Some non-compliant devices need more.");
 
 /**
  * scsi_unlock_floptical - unlock device via a special MODE SENSE command
@@ -192,7 +205,7 @@ static struct scsi_device *scsi_alloc_sdev(struct Scsi_Host *shost,
 	struct scsi_device *sdev, *device;
 	unsigned long flags;
 
-	sdev = kmalloc(sizeof(*sdev), GFP_ATOMIC);
+	sdev = kmalloc(sizeof(*sdev) + shost->transportt->size, GFP_ATOMIC);
 	if (!sdev)
 		goto out;
 
@@ -204,13 +217,17 @@ static struct scsi_device *scsi_alloc_sdev(struct Scsi_Host *shost,
 	sdev->id = id;
 	sdev->lun = lun;
 	sdev->channel = channel;
-	sdev->online = TRUE;
 	sdev->sdev_state = SDEV_CREATED;
 	INIT_LIST_HEAD(&sdev->siblings);
 	INIT_LIST_HEAD(&sdev->same_target_siblings);
 	INIT_LIST_HEAD(&sdev->cmd_list);
 	INIT_LIST_HEAD(&sdev->starved_entry);
 	spin_lock_init(&sdev->list_lock);
+
+
+	/* if the device needs this changing, it may do so in the
+	 * slave_configure function */
+	sdev->max_device_blocked = SCSI_DEFAULT_DEVICE_BLOCKED;
 
 	/*
 	 * Some low level driver could use device->type
@@ -237,6 +254,11 @@ static struct scsi_device *scsi_alloc_sdev(struct Scsi_Host *shost,
 			goto out_free_queue;
 	}
 
+	if (shost->transportt->setup) {
+		if (shost->transportt->setup(sdev))
+			goto out_cleanup_slave;
+	}
+
 	if (get_device(&sdev->host->shost_gendev)) {
 
 		device_initialize(&sdev->sdev_gendev);
@@ -253,8 +275,15 @@ static struct scsi_device *scsi_alloc_sdev(struct Scsi_Host *shost,
 		snprintf(sdev->sdev_classdev.class_id, BUS_ID_SIZE,
 			 "%d:%d:%d:%d", sdev->host->host_no,
 			 sdev->channel, sdev->id, sdev->lun);
+
+		class_device_initialize(&sdev->transport_classdev);
+		sdev->transport_classdev.dev = &sdev->sdev_gendev;
+		sdev->transport_classdev.class = sdev->host->transportt->class;
+		snprintf(sdev->transport_classdev.class_id, BUS_ID_SIZE,
+			 "%d:%d:%d:%d", sdev->host->host_no,
+			 sdev->channel, sdev->id, sdev->lun);
 	} else
-		goto out_cleanup_slave;
+		goto out_cleanup_transport;
 
 	/*
 	 * If there are any same target siblings, add this to the
@@ -283,6 +312,9 @@ static struct scsi_device *scsi_alloc_sdev(struct Scsi_Host *shost,
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	return sdev;
 
+out_cleanup_transport:
+	if (shost->transportt->cleanup)
+		shost->transportt->cleanup(sdev);
 out_cleanup_slave:
 	if (shost->hostt->slave_destroy)
 		shost->hostt->slave_destroy(sdev);
@@ -315,6 +347,7 @@ static void scsi_probe_lun(struct scsi_request *sreq, char *inq_result,
 	struct scsi_device *sdev = sreq->sr_device;	/* a bit ugly */
 	unsigned char scsi_cmd[MAX_COMMAND_SIZE];
 	int possible_inq_resp_len;
+	int count = 0;
 
 	*bflags = 0;
  repeat_inquiry:
@@ -330,24 +363,29 @@ static void scsi_probe_lun(struct scsi_request *sreq, char *inq_result,
 
 	memset(inq_result, 0, 36);
 	scsi_wait_req(sreq, (void *) scsi_cmd, (void *) inq_result, 36,
-		      SCSI_TIMEOUT + 4 * HZ, 3);
+		      HZ/2 + HZ*scsi_inq_timeout, 3);
 
 	SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: 1st INQUIRY %s with"
 			" code 0x%x\n", sreq->sr_result ?
 			"failed" : "successful", sreq->sr_result));
+	++count;
 
 	if (sreq->sr_result) {
 		if ((driver_byte(sreq->sr_result) & DRIVER_SENSE) != 0 &&
 		    (sreq->sr_sense_buffer[2] & 0xf) == UNIT_ATTENTION &&
-		    sreq->sr_sense_buffer[12] == 0x28 &&
+		    (sreq->sr_sense_buffer[12] == 0x28 ||
+		     sreq->sr_sense_buffer[12] == 0x29) &&
 		    sreq->sr_sense_buffer[13] == 0) {
-			/* not-ready to ready transition - good */
+			/* not-ready to ready transition or power-on - good */
 			/* dpg: bogus? INQUIRY never returns UNIT_ATTENTION */
-		} else
-			/*
-			 * assume no peripheral if any other sort of error
-			 */
-			return;
+			/* Supposedly, but many buggy devices do so anyway */
+			if (count < 3)
+				goto repeat_inquiry;
+		}
+		/*
+		 * assume no peripheral if any other sort of error
+		 */
+		return;
 	}
 
 	/*
@@ -379,7 +417,7 @@ static void scsi_probe_lun(struct scsi_request *sreq, char *inq_result,
 		memset(inq_result, 0, possible_inq_resp_len);
 		scsi_wait_req(sreq, (void *) scsi_cmd,
 			      (void *) inq_result,
-			      possible_inq_resp_len, SCSI_TIMEOUT + 4 * HZ, 3);
+			      possible_inq_resp_len, (1+scsi_inq_timeout)*(HZ/2), 3);
 		SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: 2nd INQUIRY"
 				" %s with code 0x%x\n", sreq->sr_result ?
 				"failed" : "successful", sreq->sr_result));
@@ -528,17 +566,12 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	 * 011 the same. Stay compatible with previous code, and create a
 	 * Scsi_Device for a PQ of 1
 	 *
-	 * XXX Save the PQ field let the upper layers figure out if they
-	 * want to attach or not to this device, do not set online FALSE;
-	 * otherwise, offline devices still get an sd allocated, and they
-	 * use up an sd slot.
-	 */
-	if (((inq_result[0] >> 5) & 7) == 1) {
-		SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: peripheral"
-				" qualifier of 1, device offlined\n"));
-		sdev->online = FALSE;
-	}
+	 * Don't set the device offline here; rather let the upper
+	 * level drivers eval the PQ to decide whether they should
+	 * attach. So remove ((inq_result[0] >> 5) & 7) == 1 check.
+	 */ 
 
+	sdev->inq_periph_qual = (inq_result[0] >> 5) & 7;
 	sdev->removable = (0x80 & inq_result[1]) >> 7;
 	sdev->lockable = sdev->removable;
 	sdev->soft_reset = (inq_result[7] & 1) && ((inq_result[3] & 7) == 2);
@@ -612,10 +645,6 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 		spin_unlock_irqrestore(sdev->host->host_lock, flags);
 	}
 
-	/* if the device needs this changing, it may do so in the detect
-	 * function */
-	sdev->max_device_blocked = SCSI_DEFAULT_DEVICE_BLOCKED;
-
 	sdev->use_10_for_rw = 1;
 
 	if (*bflags & BLIST_MS_SKIP_PAGE_08)
@@ -626,6 +655,16 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 
 	if (*bflags & BLIST_USE_10_BYTE_MS)
 		sdev->use_10_for_ms = 1;
+
+	/* set the device running here so that slave configure
+	 * may do I/O */
+	scsi_device_set_state(sdev, SDEV_RUNNING);
+
+	if (*bflags & BLIST_MS_192_BYTES_FOR_3F)
+		sdev->use_192_bytes_for_3f = 1;
+
+	if (*bflags & BLIST_NOT_LOCKABLE)
+		sdev->lockable = 0;
 
 	if(sdev->host->hostt->slave_configure)
 		sdev->host->hostt->slave_configure(sdev);
@@ -744,6 +783,8 @@ static int scsi_probe_and_add_lun(struct Scsi_Host *host,
 	} else {
 		if (sdev->host->hostt->slave_destroy)
 			sdev->host->hostt->slave_destroy(sdev);
+		if (sdev->host->transportt->cleanup)
+			sdev->host->transportt->cleanup(sdev);
 		put_device(&sdev->sdev_gendev);
 	}
  out:
@@ -838,7 +879,6 @@ static void scsi_sequential_lun_scan(struct Scsi_Host *shost, uint channel,
 			return;
 }
 
-#ifdef CONFIG_SCSI_REPORT_LUNS
 /**
  * scsilun_to_int: convert a scsi_lun to an int
  * @scsilun:	struct scsi_lun to be converted.
@@ -899,9 +939,14 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 	u8 *data;
 
 	/*
-	 * Only support SCSI-3 and up devices.
+	 * Only support SCSI-3 and up devices if BLIST_NOREPORTLUN is not set.
+	 * Also allow SCSI-2 if BLIST_REPORTLUN2 is set and host adapter does
+	 * support more than 8 LUNs.
 	 */
-	if (sdev->scsi_level < SCSI_3)
+	if ((bflags & BLIST_NOREPORTLUN) || 
+	     sdev->scsi_level < SCSI_2 ||
+	    (sdev->scsi_level < SCSI_3 && 
+	     (!(bflags & BLIST_REPORTLUN2) || sdev->host->max_lun <= 8)) )
 		return 1;
 	if (bflags & BLIST_NOLUN)
 		return 0;
@@ -1065,9 +1110,6 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 	printk(ALLOC_FAILURE_MSG, __FUNCTION__);
 	return 0;
 }
-#else
-# define scsi_report_lun_scan(sdev, blags, rescan)	(1)
-#endif	/* CONFIG_SCSI_REPORT_LUNS */
 
 struct scsi_device *scsi_add_device(struct Scsi_Host *shost,
 				    uint channel, uint id, uint lun)
@@ -1300,5 +1342,7 @@ void scsi_free_host_dev(struct scsi_device *sdev)
 
 	if (sdev->host->hostt->slave_destroy)
 		sdev->host->hostt->slave_destroy(sdev);
+	if (sdev->host->transportt->cleanup)
+		sdev->host->transportt->cleanup(sdev);
 	put_device(&sdev->sdev_gendev);
 }

@@ -433,7 +433,7 @@ void cp_from_buf(const int type, void *to, const void *from, int len)
 /* Setup the Lance Rx and Tx rings */
 static void lance_init_ring(struct net_device *dev)
 {
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_init_block *ib;
 	int leptr;
 	int i;
@@ -530,7 +530,7 @@ static int init_restart_lance(struct lance_private *lp)
 
 static int lance_rx(struct net_device *dev)
 {
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_init_block *ib;
 	volatile struct lance_rx_desc *rd = 0;
 	unsigned char bits;
@@ -617,7 +617,7 @@ static int lance_rx(struct net_device *dev)
 
 static void lance_tx(struct net_device *dev)
 {
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_init_block *ib;
 	volatile struct lance_regs *ll = lp->ll;
 	volatile struct lance_tx_desc *td;
@@ -709,7 +709,7 @@ static irqreturn_t
 lance_interrupt(const int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
 	int csr0;
 
@@ -757,7 +757,7 @@ struct net_device *last_dev = 0;
 static int lance_open(struct net_device *dev)
 {
 	volatile struct lance_init_block *ib = (struct lance_init_block *) (dev->mem_start);
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
 	int status = 0;
 
@@ -786,7 +786,7 @@ static int lance_open(struct net_device *dev)
 
 	/* Associate IRQ with lance_interrupt */
 	if (request_irq(dev->irq, &lance_interrupt, 0, "lance", dev)) {
-		printk("lance: Can't get IRQ %d\n", dev->irq);
+		printk("%s: Can't get IRQ %d\n", dev->name, dev->irq);
 		return -EAGAIN;
 	}
 	if (lp->dma_irq >= 0) {
@@ -795,7 +795,8 @@ static int lance_open(struct net_device *dev)
 		if (request_irq(lp->dma_irq, &lance_dma_merr_int, 0,
 				"lance error", dev)) {
 			free_irq(dev->irq, dev);
-			printk("lance: Can't get DMA IRQ %d\n", lp->dma_irq);
+			printk("%s: Can't get DMA IRQ %d\n", dev->name,
+				lp->dma_irq);
 			return -EAGAIN;
 		}
 
@@ -822,7 +823,7 @@ static int lance_open(struct net_device *dev)
 
 static int lance_close(struct net_device *dev)
 {
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
 
 	netif_stop_queue(dev);
@@ -856,7 +857,7 @@ static int lance_close(struct net_device *dev)
 
 static inline int lance_reset(struct net_device *dev)
 {
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
 	int status;
 
@@ -873,18 +874,18 @@ static inline int lance_reset(struct net_device *dev)
 
 static void lance_tx_timeout(struct net_device *dev)
 {
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
 
 	printk(KERN_ERR "%s: transmit timed out, status %04x, reset\n",
-			       dev->name, ll->rdp);
-			lance_reset(dev);
+		dev->name, ll->rdp);
+	lance_reset(dev);
 	netif_wake_queue(dev);
 }
 
 static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
 	volatile struct lance_init_block *ib = (struct lance_init_block *) (dev->mem_start);
 	int entry, skblen, len;
@@ -936,7 +937,7 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *lance_get_stats(struct net_device *dev)
 {
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 
 	return &lp->stats;
 }
@@ -982,7 +983,7 @@ static void lance_load_multicast(struct net_device *dev)
 
 static void lance_set_multicast(struct net_device *dev)
 {
-	struct lance_private *lp = (struct lance_private *) dev->priv;
+	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_init_block *ib;
 	volatile struct lance_regs *ll = lp->ll;
 
@@ -1025,6 +1026,8 @@ static void lance_set_multicast_retry(unsigned long _opaque)
 static int __init dec_lance_init(const int type, const int slot)
 {
 	static unsigned version_printed;
+	static const char fmt[] = "declance%d";
+	char name[10];
 	struct net_device *dev;
 	struct lance_private *lp;
 	volatile struct lance_regs *ll;
@@ -1039,16 +1042,28 @@ static int __init dec_lance_init(const int type, const int slot)
 	if (dec_lance_debug && version_printed++ == 0)
 		printk(version);
 
-	dev = init_etherdev(NULL, sizeof(struct lance_private));
-	if (!dev)
-		return -ENOMEM;
-	SET_MODULE_OWNER(dev);
+	i = 0;
+	dev = root_lance_dev;
+	while (dev) {
+		i++;
+		lp = (struct lance_private *)dev->priv;
+		dev = lp->next;
+	}
+	snprintf(name, sizeof(name), fmt, i);
+
+	dev = alloc_etherdev(sizeof(struct lance_private));
+	if (!dev) {
+		printk(KERN_ERR "%s: Unable to allocate etherdev, aborting.\n",
+			name);
+		ret = -ENOMEM;
+		goto err_out;
+	}
 
 	/*
-	 * init_etherdev ensures the data structures used by the LANCE
+	 * alloc_etherdev ensures the data structures used by the LANCE
 	 * are aligned.
 	 */
-	lp = (struct lance_private *) dev->priv;
+	lp = netdev_priv(dev);
 	spin_lock_init(&lp->lock);
 
 	lp->type = type;
@@ -1160,9 +1175,10 @@ static int __init dec_lance_init(const int type, const int slot)
 		break;
 
 	default:
-		printk("declance_init called with unknown type\n");
+		printk(KERN_ERR "%s: declance_init called with unknown type\n",
+			name);
 		ret = -ENODEV;
-		goto err_out;
+		goto err_out_free_dev;
 	}
 
 	ll = (struct lance_regs *) dev->base_addr;
@@ -1172,24 +1188,23 @@ static int __init dec_lance_init(const int type, const int slot)
 	/* First, check for test pattern */
 	if (esar[0x60] != 0xff && esar[0x64] != 0x00 &&
 	    esar[0x68] != 0x55 && esar[0x6c] != 0xaa) {
-		printk("Ethernet station address prom not found!\n");
+		printk(KERN_ERR
+			"%s: Ethernet station address prom not found!\n",
+			name);
 		ret = -ENODEV;
-		goto err_out;
+		goto err_out_free_dev;
 	}
 	/* Check the prom contents */
 	for (i = 0; i < 8; i++) {
 		if (esar[i * 4] != esar[0x3c - i * 4] &&
 		    esar[i * 4] != esar[0x40 + i * 4] &&
 		    esar[0x3c - i * 4] != esar[0x40 + i * 4]) {
-			printk("Something is wrong with the ethernet "
-			       "station address prom!\n");
+			printk(KERN_ERR "%s: Something is wrong with the "
+				"ethernet station address prom!\n", name);
 			ret = -ENODEV;
-			goto err_out;
+			goto err_out_free_dev;
 		}
 	}
-
-	lp->next = root_lance_dev;
-	root_lance_dev = dev;
 
 	/* Copy the ethernet address to the device structure, later to the
 	 * lance initialization block so the lance gets it every time it's
@@ -1197,13 +1212,13 @@ static int __init dec_lance_init(const int type, const int slot)
 	 */
 	switch (type) {
 	case ASIC_LANCE:
-		printk("%s: IOASIC onboard LANCE, addr = ", dev->name);
+		printk("%s: IOASIC onboard LANCE, addr = ", name);
 		break;
 	case PMAD_LANCE:
-		printk("%s: PMAD-AA, addr = ", dev->name);
+		printk("%s: PMAD-AA, addr = ", name);
 		break;
 	case PMAX_LANCE:
-		printk("%s: PMAX onboard LANCE, addr = ", dev->name);
+		printk("%s: PMAX onboard LANCE, addr = ", name);
 		break;
 	}
 	for (i = 0; i < 6; i++) {
@@ -1240,11 +1255,23 @@ static int __init dec_lance_init(const int type, const int slot)
 	lp->multicast_timer.data = (unsigned long) dev;
 	lp->multicast_timer.function = &lance_set_multicast_retry;
 
+	ret = register_netdev(dev);
+	if (ret) {
+		printk(KERN_ERR
+			"%s: Unable to register netdev, aborting.\n", name);
+		goto err_out_free_dev;
+	}
+
+	lp->next = root_lance_dev;
+	root_lance_dev = dev;
+
+	printk("%s: registered as %s.\n", name, dev->name);
 	return 0;
 
+err_out_free_dev:
+	kfree(dev);
+
 err_out:
-	unregister_netdev(dev);
-	free_netdev(dev);
 	return ret;
 }
 
@@ -1287,14 +1314,13 @@ static void __exit dec_lance_cleanup(void)
 {
 	while (root_lance_dev) {
 		struct net_device *dev = root_lance_dev;
-		struct lance_private *lp = (struct lance_private *)dev->priv;
-
+		struct lance_private *lp = netdev_priv(dev);
+		unregister_netdev(dev);
 #ifdef CONFIG_TC
 		if (lp->slot >= 0)
 			release_tc_card(lp->slot);
 #endif
 		root_lance_dev = lp->next;
-		unregister_netdev(dev);
 		free_netdev(dev);
 	}
 }

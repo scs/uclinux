@@ -357,7 +357,8 @@ static int vx2_load_xilinx_binary(vx_core_t *chip, const snd_hwdep_dsp_image_t *
 {
 	unsigned int i;
 	unsigned int port;
-	unsigned char *image, data;
+	unsigned char data;
+	unsigned char __user *image;
 
 	/* XILINX reset (wait at least 1 milisecond between reset on and off). */
 	vx_outl(chip, CNTRL, VX_CNTRL_REGISTER_VALUE | VX_XILINX_RESET_MASK);
@@ -406,7 +407,8 @@ static int vx2_load_dsp(vx_core_t *vx, const snd_hwdep_dsp_image_t *dsp)
 	int err;
 
 	if (*dsp->name)
-		snd_printdd("loading dsp [%d] %s, size = %d\n", dsp->index, dsp->name, dsp->length);
+		snd_printdd("loading dsp [%d] %s, size = %Zd\n",
+			dsp->index, dsp->name, dsp->length);
 	switch (dsp->index) {
 	case 0:
 		/* xilinx image */

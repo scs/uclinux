@@ -97,7 +97,9 @@ struct cache_detail {
 	struct proc_dir_entry   *flush_ent, *channel_ent, *content_ent;
 
 	atomic_t		readers;		/* how many time is /chennel open */
-	time_t			last_close;		/* it no readers, when did last close */
+	time_t			last_close;		/* if no readers, when did last close */
+	time_t			last_warn;		/* when we last warned about no readers */
+	void			(*warn_no_listener)(struct cache_detail *cd);
 };
 
 
@@ -132,12 +134,14 @@ struct cache_deferred_req {
  * If "set" == 0 :
  *    If an entry is found, it is returned
  *    If no entry is found, a new non-VALID entry is created.
- * If "set" == 1 :
+ * If "set" == 1 and INPLACE == 0 :
  *    If no entry is found a new one is inserted with data from "template"
  *    If a non-CACHE_VALID entry is found, it is updated from template using UPDATE
  *    If a CACHE_VALID entry is found, a new entry is swapped in with data
  *       from "template"
- * If set == 2, we UPDATE, but don't swap. i.e. update in place
+ * If set == 1, and INPLACE == 1 :
+ *    As above, except that if a CACHE_VALID entry is found, we UPDATE in place
+ *       instead of swapping in a new entry.
  *
  * If the passed handle has the CACHE_NEGATIVE flag set, then UPDATE is not
  * run but insteead CACHE_NEGATIVE is set in any new item.
@@ -164,8 +168,8 @@ RTN *FNAME ARGS										\
 	RTN *tmp, *new=NULL;								\
 	struct cache_head **hp, **head;							\
 	SETUP;										\
- retry:											\
 	head = &(DETAIL)->hash_table[HASHFN];						\
+ retry:											\
 	if (set||new) write_lock(&(DETAIL)->hash_lock);					\
 	else read_lock(&(DETAIL)->hash_lock);						\
 	for(hp=head; *hp != NULL; hp = &tmp->MEMBER.next) {				\
@@ -175,6 +179,8 @@ RTN *FNAME ARGS										\
 			if (set && !INPLACE && test_bit(CACHE_VALID, &tmp->MEMBER.flags) && !new) \
 				break;							\
 											\
+			if (new)							\
+				{INIT;}							\
 			cache_get(&tmp->MEMBER);					\
 			if (set) {							\
 				if (!INPLACE && test_bit(CACHE_VALID, &tmp->MEMBER.flags))\
@@ -189,8 +195,11 @@ RTN *FNAME ARGS										\
 					t2 = tmp; tmp = new; new = t2;			\
 				}							\
 				if (test_bit(CACHE_NEGATIVE,  &item->MEMBER.flags))	\
-					 set_bit(CACHE_NEGATIVE, &tmp->MEMBER.flags);	\
-				else {UPDATE;}						\
+					set_bit(CACHE_NEGATIVE, &tmp->MEMBER.flags);	\
+				else {							\
+					UPDATE;						\
+					clear_bit(CACHE_NEGATIVE, &tmp->MEMBER.flags);	\
+				}							\
 			}								\
 			if (set||new) write_unlock(&(DETAIL)->hash_lock);		\
 			else read_unlock(&(DETAIL)->hash_lock);				\
@@ -203,6 +212,7 @@ RTN *FNAME ARGS										\
 	}										\
 	/* Didn't find anything */							\
 	if (new) {									\
+		INIT;									\
 		new->MEMBER.next = *head;						\
 		*head = &new->MEMBER;							\
 		(DETAIL)->entries ++;							\
@@ -224,8 +234,6 @@ RTN *FNAME ARGS										\
 	if (new) {									\
 		cache_init(&new->MEMBER);						\
 		cache_get(&new->MEMBER);						\
-		INIT;									\
-		tmp = new;								\
 		goto retry;								\
 	}										\
 	return NULL;									\

@@ -15,10 +15,10 @@
 #include <linux/kernel.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
+#include <linux/list.h>
 
 #include "platform.h"
 #include "debuglib.h"
-#include "dlist.h"
 #undef ID_MASK
 #undef N_DATA
 #include "pc.h"
@@ -33,7 +33,6 @@
 
 
 extern PISDN_ADAPTER IoAdapters[MAX_ADAPTER];
-extern diva_entity_queue_t adapter_queue;
 extern void divas_get_version(char *);
 extern void diva_get_vserial_number(PISDN_ADAPTER IoAdapter, char *buf);
 
@@ -55,7 +54,7 @@ extern struct proc_dir_entry *proc_net_eicon;
 static struct proc_dir_entry *divas_proc_entry = NULL;
 
 static ssize_t
-divas_read(struct file *file, char *buf, size_t count, loff_t * off)
+divas_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 {
 	int len = 0;
 	int cadapter;
@@ -64,8 +63,6 @@ divas_read(struct file *file, char *buf, size_t count, loff_t * off)
 
 	if (*off)
 		return 0;
-	if (off != &file->f_pos)
-		return -ESPIPE;
 
 	divas_get_version(tmpbuf);
 	if (copy_to_user(buf + len, &tmpbuf, strlen(tmpbuf)))
@@ -96,7 +93,7 @@ divas_read(struct file *file, char *buf, size_t count, loff_t * off)
 }
 
 static ssize_t
-divas_write(struct file *file, const char *buf, size_t count, loff_t * off)
+divas_write(struct file *file, const char __user *buf, size_t count, loff_t * off)
 {
 	return (-ENODEV);
 }
@@ -108,7 +105,7 @@ static unsigned int divas_poll(struct file *file, poll_table * wait)
 
 static int divas_open(struct inode *inode, struct file *file)
 {
-	return (0);
+	return nonseekable_open(inode, file);
 }
 
 static int divas_close(struct inode *inode, struct file *file)
@@ -152,14 +149,17 @@ void remove_divas_proc(void)
 ** write group_optimization 
 */
 static int
-write_grp_opt(struct file *file, const char *buffer, unsigned long count,
+write_grp_opt(struct file *file, const char __user *buffer, unsigned long count,
 	      void *data)
 {
 	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) data;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
 	if ((count == 1) || (count == 2)) {
-		switch (buffer[0]) {
+		char c;
+		if (get_user(c, buffer))
+			return -EFAULT;
+		switch (c) {
 		case '0':
 			IoAdapter->capi_cfg.cfg_1 &=
 			    ~DIVA_XDI_CAPI_CFG_1_GROUP_POPTIMIZATION_ON;
@@ -180,14 +180,17 @@ write_grp_opt(struct file *file, const char *buffer, unsigned long count,
 ** write dynamic_l1_down
 */
 static int
-write_d_l1_down(struct file *file, const char *buffer, unsigned long count,
+write_d_l1_down(struct file *file, const char __user *buffer, unsigned long count,
 		void *data)
 {
 	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) data;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
 	if ((count == 1) || (count == 2)) {
-		switch (buffer[0]) {
+		char c;
+		if (get_user(c, buffer))
+			return -EFAULT;
+		switch (c) {
 		case '0':
 			IoAdapter->capi_cfg.cfg_1 &=
 			    ~DIVA_XDI_CAPI_CFG_1_DYNAMIC_L1_ON;
@@ -257,14 +260,21 @@ read_grp_opt(char *page, char **start, off_t off, int count, int *eof,
 ** info write
 */
 static int
-info_write(struct file *file, const char *buffer, unsigned long count,
+info_write(struct file *file, const char __user *buffer, unsigned long count,
 	   void *data)
 {
 	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) data;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
+	char c[4];
+
+	if (count <= 4)
+		return -EINVAL;
+
+	if (copy_from_user(c, buffer, 4))
+		return -EFAULT;
 
 	/* this is for test purposes only */
-	if ((count > 4) && (!memcmp(buffer, "trap", 4))) {
+	if (!memcmp(c, "trap", 4)) {
 		(*(IoAdapter->os_trap_nfy_Fnc)) (IoAdapter, IoAdapter->ANum);
 		return (count);
 	}

@@ -31,7 +31,6 @@
 #include <asm/smp.h>
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
-#include <asm/pgalloc.h>
 #include <asm/desc.h>
 #include <asm/arch_hooks.h>
 #include <asm/hpet.h>
@@ -79,6 +78,17 @@ void enable_NMI_through_LVT0 (void * dummy)
 	if (!APIC_INTEGRATED(ver))		/* 82489DX */
 		v |= APIC_LVT_LEVEL_TRIGGER;
 	apic_write_around(APIC_LVT0, v);
+}
+
+int get_physical_broadcast(void)
+{
+	unsigned int lvr, version;
+	lvr = apic_read(APIC_LVR);
+	version = GET_APIC_VERSION(lvr);
+	if (version >= 0x14)
+		return 0xff;
+	else
+		return 0xf;
 }
 
 int get_maxlvt(void)
@@ -248,12 +258,6 @@ int __init verify_local_APIC(void)
 	 */
 	reg0 = apic_read(APIC_ID);
 	Dprintk("Getting ID: %x\n", reg0);
-	apic_write(APIC_ID, reg0 ^ APIC_ID_MASK);
-	reg1 = apic_read(APIC_ID);
-	Dprintk("Getting ID: %x\n", reg1);
-	apic_write(APIC_ID, reg0);
-	if (reg1 != (reg0 ^ APIC_ID_MASK))
-		return 0;
 
 	/*
 	 * The next two are just to see if we have sane values.
@@ -595,7 +599,7 @@ static int __init init_lapic_sysfs(void)
 
 	error = sysdev_class_register(&lapic_sysclass);
 	if (!error)
-		error = sys_device_register(&device_lapic);
+		error = sysdev_register(&device_lapic);
 	return error;
 }
 device_initcall(init_lapic_sysfs);

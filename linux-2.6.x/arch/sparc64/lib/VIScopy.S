@@ -120,7 +120,6 @@
 #define EXVIS2(x,y) EXVISN(x,y,2)
 #define EXVIS3(x,y) EXVISN(x,y,3)
 #define EXVIS4(x,y) EXVISN(x,y,4)
-#define EXVIS5(x,y) EXVISN(x,y,5)
 
 #define FREG_FROB(f1, f2, f3, f4, f5, f6, f7, f8, f9)		\
 	faligndata		%f1, %f2, %f48;			\
@@ -135,7 +134,7 @@
 #define MAIN_LOOP_CHUNK(src, dest, fdest, fsrc, len, jmptgt)	\
 	EXVIS(LDBLK		[%src] ASIBLK, %fdest);		\
 	ASI_SETDST_BLK						\
-	EXVIS2(STBLK		%fsrc, [%dest] ASIBLK);		\
+	EXVIS(STBLK		%fsrc, [%dest] ASIBLK);		\
 	add			%src, 0x40, %src;		\
 	subcc			%len, 0x40, %len;		\
 	be,pn			%xcc, jmptgt;			\
@@ -156,14 +155,14 @@
 #ifdef __KERNEL__
 #define STORE_JUMP(dest, fsrc, target)				\
 	srl			asi_dest, 3, %g5;		\
-	EXVIS3(STBLK		%fsrc, [%dest] ASIBLK);		\
+	EXVIS2(STBLK		%fsrc, [%dest] ASIBLK);		\
 	xor		       asi_dest, ASI_BLK_XOR1, asi_dest;\
 	add			%dest, 0x40, %dest;		\
 	xor			asi_dest, %g5, asi_dest;	\
 	ba,pt			%xcc, target;
 #else
 #define STORE_JUMP(dest, fsrc, target)				\
-	EXVIS3(STBLK		%fsrc, [%dest] ASIBLK);		\
+	EXVIS2(STBLK		%fsrc, [%dest] ASIBLK);		\
 	add			%dest, 0x40, %dest;		\
 	ba,pt			%xcc, target;
 #endif
@@ -182,7 +181,7 @@
 	subcc			%left, 8, %left;		\
 	bl,pn			%xcc, vis_out;			\
 	 faligndata		%f0, %f1, %f48;			\
-	EXVIS4(STDF		%f48, [%dest] ASINORMAL);	\
+	EXVIS3(STDF		%f48, [%dest] ASINORMAL);	\
 	add			%dest, 8, %dest;
 
 #define UNEVEN_VISCHUNK_LAST(dest, f0, f1, left)		\
@@ -304,14 +303,7 @@
 		.type			bcopy,@function
 
 #ifdef __KERNEL__
-		.globl			__memcpy_begin
-__memcpy_begin:
-
-		.globl			__memcpy
-		.type			__memcpy,@function
-
 memcpy_private:
-__memcpy:
 memcpy:		mov		ASI_P, asi_src			! IEU0	Group
 		brnz,pt		%o2, __memcpy_entry		! CTI
 		 mov		ASI_P, asi_dest			! IEU1
@@ -368,28 +360,6 @@ bcopy:		or		%o0, 0, %g3			! IEU0	Group
 	or	%g3, %lo(NOP), %g3; \
 	stw	%g3, [%g2 + 0x4]; \
 	flush	%g2;
-#define ULTRA3_PCACHE_DO_NOP(symbol)	\
-	sethi	%hi(symbol##_nop_1_6), %g1; \
-	or	%g1, %lo(symbol##_nop_1_6), %g1; \
-	sethi	%hi(NOP), %g2; \
-	stw	%g2, [%g1 + 0x00]; \
-	stw	%g2, [%g1 + 0x04]; \
-	flush	%g1 + 0x00; \
-	stw	%g2, [%g1 + 0x08]; \
-	stw	%g2, [%g1 + 0x0c]; \
-	flush	%g1 + 0x08; \
-	stw	%g2, [%g1 + 0x10]; \
-	stw	%g2, [%g1 + 0x04]; \
-	flush	%g1 + 0x10; \
-	sethi	%hi(symbol##_nop_2_3), %g1; \
-	or	%g1, %lo(symbol##_nop_2_3), %g1; \
-	stw	%g2, [%g1 + 0x00]; \
-	stw	%g2, [%g1 + 0x04]; \
-	flush	%g1 + 0x00; \
-	stw	%g2, [%g1 + 0x08]; \
-	flush	%g1 + 0x08;
-
-#include <asm/dcu.h>
 
 	.globl	cheetah_patch_copyops
 cheetah_patch_copyops:
@@ -397,23 +367,6 @@ cheetah_patch_copyops:
 	ULTRA3_DO_PATCH(__copy_from_user, U3copy_from_user)
 	ULTRA3_DO_PATCH(__copy_to_user, U3copy_to_user)
 	ULTRA3_DO_PATCH(__copy_in_user, U3copy_in_user)
-#if 0 /* Causes data corruption, nop out the optimization
-       * for now -DaveM
-       */
-	ldxa			[%g0] ASI_DCU_CONTROL_REG, %g3
-	sethi			%uhi(DCU_PE), %o3
-	sllx			%o3, 32, %o3
-	andcc			%g3, %o3, %g0
-	be,pn			%xcc, pcache_disabled
-	 nop
-#endif
-	ULTRA3_PCACHE_DO_NOP(U3memcpy)
-	ULTRA3_PCACHE_DO_NOP(U3copy_from_user)
-	ULTRA3_PCACHE_DO_NOP(U3copy_to_user)
-	ULTRA3_PCACHE_DO_NOP(cheetah_copy_user_page)
-#if 0
-pcache_disabled:
-#endif
 	retl
 	 nop
 #undef BRANCH_ALWAYS
@@ -675,21 +628,21 @@ vis_out_slk:
 	xor		asi_src, %g5, asi_src			! IEU0	Group
 #endif
 vis_slk:ASI_SETSRC_NOBLK					! LSU	Group
-	EXVIS4(LDDF	[%o1] ASINORMAL, %f2)			! Load	Group
+	EXVIS3(LDDF	[%o1] ASINORMAL, %f2)			! Load	Group
 	add		%o1, 8, %o1				! IEU0
 	subcc		%g3, 8, %g3				! IEU1
 	ASI_SETDST_NOBLK					! LSU	Group
 	faligndata	%f0, %f2, %f8				! GRU	Group
-	EXVIS5(STDF	%f8, [%o0] ASINORMAL)			! Store
+	EXVIS4(STDF	%f8, [%o0] ASINORMAL)			! Store
 	bl,pn		%xcc, vis_out_slp			! CTI
 	 add		%o0, 8, %o0				! IEU0	Group
 	ASI_SETSRC_NOBLK					! LSU	Group
-	EXVIS4(LDDF	[%o1] ASINORMAL, %f0)			! Load	Group
+	EXVIS3(LDDF	[%o1] ASINORMAL, %f0)			! Load	Group
 	add		%o1, 8, %o1				! IEU0
 	subcc		%g3, 8, %g3				! IEU1
 	ASI_SETDST_NOBLK					! LSU	Group
 	faligndata	%f2, %f0, %f8				! GRU	Group
-	EXVIS5(STDF	%f8, [%o0] ASINORMAL)			! Store
+	EXVIS4(STDF	%f8, [%o0] ASINORMAL)			! Store
 	bge,pt		%xcc, vis_slk				! CTI
 	 add		%o0, 8, %o0				! IEU0	Group
 vis_out_slp:
@@ -1060,9 +1013,6 @@ fpu_retl:
 	FPU_RETL
 
 #ifdef __KERNEL__
-	.globl		__memcpy_end
-__memcpy_end:
-
 		.section	.fixup
 		.align		4
 VIScopyfixup_reto2:
@@ -1138,19 +1088,17 @@ VIScopyfixup4:	mov		(7 * 16), %g7
 		sub		%g7, %g2, %g7
 		ba,pt		%xcc, VIScopyfixup_ret
 		 add		%g7, %o2, %o1
-VIScopyfixup_vis3:
-		sub		%o2, 0x80, %o2
 VIScopyfixup_vis2:
-		add		%o2, 0x40, %o2
+		sub		%o2, 0x40, %o2
 VIScopyfixup_vis0:
 		add		%o2, 0x80, %o2
 VIScopyfixup_vis1:
 		add		%g7, %g3, %g7
 		ba,pt		%xcc, VIScopyfixup_ret
 		 add		%o2, %g7, %o1
-VIScopyfixup_vis5:
-		add		%g3, 8, %g3
 VIScopyfixup_vis4:
+		add		%g3, 8, %g3
+VIScopyfixup_vis3:
 		add		%g3, 8, %g3
 		ba,pt		%xcc, VIScopyfixup_ret
 		 add		%o2, %g3, %o1

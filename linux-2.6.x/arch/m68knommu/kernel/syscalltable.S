@@ -120,8 +120,8 @@ ENTRY(sys_call_table)
 	.long sys_ni_syscall	/* old profil syscall holder */
 	.long sys_statfs
 	.long sys_fstatfs	/* 100 */
-	.long sys_ioperm
-	.long sys_cketcall
+	.long sys_ni_syscall	/* ioperm for i386 */
+	.long sys_socketcall
 	.long sys_syslog
 	.long sys_setitimer
 	.long sys_getitimer	/* 105 */

@@ -29,7 +29,7 @@
    physical nor logical disks are presented through the scsi layer. */
 
 #include "../scsi/scsi.h" 
-#include "../scsi/hosts.h" 
+#include <scsi/scsi_host.h> 
 #include <asm/atomic.h>
 #include <linux/timer.h>
 #include <linux/completion.h>
@@ -237,8 +237,7 @@ scsi_cmd_stack_free(int ctlr)
 		printk( "cciss: %d scsi commands are still outstanding.\n",
 			CMD_STACK_SIZE - stk->top);
 		// BUG();
-		printk("WE HAVE A BUG HERE!!! stk=0x%08x\n", 
-			(unsigned int) stk);
+		printk("WE HAVE A BUG HERE!!! stk=0x%p\n", stk);
 	}
 	size = sizeof(struct cciss_scsi_cmd_stack_elem_t) * CMD_STACK_SIZE;
 
@@ -693,7 +692,7 @@ complete_scsi_command( CommandList_struct *cp, int timeout, __u32 tag)
 	scsi_cmd_free(ctlr, cp);
 }
 
-static int __init 
+static int
 cciss_scsi_detect(int ctlr)
 {
 	struct Scsi_Host *sh;
@@ -1058,6 +1057,7 @@ cciss_update_non_disk_devices(int cntl_num, int hostno)
 		int devtype;
 
 		/* for each physical lun, do an inquiry */
+		if (ld_buff->LUN[i][3] & 0xC0) continue;
 		memset(inq_buff, 0, sizeof(InquiryData_struct));
 		memcpy(&scsi3addr[0], &ld_buff->LUN[i][0], 8);
 

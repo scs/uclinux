@@ -21,8 +21,9 @@ gcc --version 2>&1| grep gcc | awk \
 make --version 2>&1 | awk -F, '{print $1}' | awk \
       '/GNU Make/{print "Gnu make              ",$NF}'
 
-ld -v 2>&1 | awk -F\) '{print $1}' | awk \
-      '/BFD/{print "binutils              ",$NF}'
+ld -v | awk -F\) '{print $1}' | awk \
+'/BFD/{print "binutils              ",$NF} \
+/^GNU/{print "binutils              ",$4}'
 
 fdformat --version | awk -F\- '{print "util-linux            ", $NF}'
 
@@ -67,7 +68,8 @@ ldd -v > /dev/null 2>&1 && ldd -v || ldd --version |head -n 1 | awk \
 ls -l /usr/lib/lib{g,stdc}++.so  2>/dev/null | awk -F. \
        '{print "Linux C++ Library      " $4"."$5"."$6}'
 
-ps --version 2>&1 | awk 'NR==1{print "Procps                ", $NF}'
+ps --version 2>&1 | grep version | awk \
+'NR==1{print "Procps                ", $NF}'
 
 ifconfig --version 2>&1 | grep tools | awk \
 'NR==1{print "Net-tools             ", $NF}'

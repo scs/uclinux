@@ -644,9 +644,14 @@
 #define SOLEH			0x5d		/* Stop on loop enable high register		*/
 
 #define SPBYPASS		0x5e		/* SPDIF BYPASS mode register			*/
-#define SPBYPASS_ENABLE		0x00000001	/* Enable SPDIF bypass mode			*/
+#define SPBYPASS_SPDIF0_MASK	0x00000003	/* SPDIF 0 bypass mode				*/
+#define SPBYPASS_SPDIF1_MASK	0x0000000c	/* SPDIF 1 bypass mode				*/
+/* bypass mode: 0 - DSP; 1 - SPDIF A, 2 - SPDIF B, 3 - SPDIF C					*/
+#define SPBYPASS_FORMAT		0x00000f00      /* If 1, SPDIF XX uses 24 bit, if 0 - 20 bit	*/
 
 #define AC97SLOT		0x5f            /* additional AC97 slots enable bits		*/
+#define AC97SLOT_REAR_RIGHT	0x01		/* Rear left */
+#define AC97SLOT_REAR_LEFT	0x02		/* Rear right */
 #define AC97SLOT_CNTR		0x10            /* Center enable */
 #define AC97SLOT_LFE		0x20            /* LFE enable */
 
@@ -678,6 +683,9 @@
 
 #define A_ADCIDX		0x63
 #define A_ADCIDX_IDX		0x10000063
+
+#define A_MICIDX		0x64
+#define A_MICIDX_IDX		0x10000064
 
 #define FXIDX			0x65		/* FX recording buffer index register		*/
 #define FXIDX_MASK		0x0000ffff	/* 16-bit value					*/
@@ -834,7 +842,7 @@ typedef struct {
 typedef struct snd_emu10k1_memblk {
 	snd_util_memblk_t mem;
 	/* private part */
-	short first_page, last_page, pages, mapped_page;
+	int first_page, last_page, pages, mapped_page;
 	unsigned int map_locked;
 	struct list_head mapped_link;
 	struct list_head mapped_order_link;
@@ -894,9 +902,7 @@ typedef struct {
 	unsigned short extout_mask;	/* used external outputs (bitmask) */
 	unsigned short pad1;
 	unsigned int itram_size;	/* internal TRAM size in samples */
-	unsigned int etram_size;	/* external TRAM size in samples */
-	void *etram_pages;		/* allocated pages for external TRAM */
-	dma_addr_t etram_pages_dmaaddr;
+	struct snd_dma_buffer etram_pages; /* external TRAM pages and size */
 	unsigned int dbg;		/* FX debugger register */
 	unsigned char name[128];
 	int gpr_size;			/* size of allocated GPR controls */
@@ -932,7 +938,8 @@ struct _snd_emu10k1 {
 	struct resource *res_port;
 	int APS: 1,				/* APS flag */
 	    no_ac97: 1,				/* no AC'97 */
-	    tos_link: 1;			/* tos link detected */
+	    tos_link: 1,			/* tos link detected */
+	    rear_ac97: 1;			/* rear channels are on AC'97 */
 	unsigned int audigy;			/* is Audigy? */
 	unsigned int revision;			/* chip revision */
 	unsigned int serial;			/* serial number */
@@ -940,11 +947,10 @@ struct _snd_emu10k1 {
 	unsigned int card_type;			/* EMU10K1_CARD_* */
 	unsigned int ecard_ctrl;		/* ecard control bits */
 	unsigned long dma_mask;			/* PCI DMA mask */
+	struct snd_dma_device dma_dev;		/* DMA device description */
 	int max_cache_pages;			/* max memory size / PAGE_SIZE */
-	void *silent_page;			/* silent page */
-	dma_addr_t silent_page_dmaaddr;
-	volatile u32 *ptb_pages;		/* page table pages */
-	dma_addr_t ptb_pages_dmaaddr;
+	struct snd_dma_buffer silent_page;	/* silent page */
+	struct snd_dma_buffer ptb_pages;	/* page table pages */
 	snd_util_memhdr_t *memhdr;		/* page allocation list */
 	emu10k1_memblk_t *reserved_page;	/* reserved page */
 
@@ -1049,7 +1055,7 @@ int snd_emu10k1_free_pages(emu10k1_t *emu, snd_util_memblk_t *blk);
 snd_util_memblk_t *snd_emu10k1_synth_alloc(emu10k1_t *emu, unsigned int size);
 int snd_emu10k1_synth_free(emu10k1_t *emu, snd_util_memblk_t *blk);
 int snd_emu10k1_synth_bzero(emu10k1_t *emu, snd_util_memblk_t *blk, int offset, int size);
-int snd_emu10k1_synth_copy_from_user(emu10k1_t *emu, snd_util_memblk_t *blk, int offset, const char *data, int size);
+int snd_emu10k1_synth_copy_from_user(emu10k1_t *emu, snd_util_memblk_t *blk, int offset, const char __user *data, int size);
 int snd_emu10k1_memblk_map(emu10k1_t *emu, emu10k1_memblk_t *blk);
 
 /* voice allocation */
@@ -1152,10 +1158,12 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define FXBUS_MIDI_RIGHT	0x05
 #define FXBUS_PCM_CENTER	0x06
 #define FXBUS_PCM_LFE		0x07
-#define FXBUS_PT_LEFT		20
-#define FXBUS_PT_RIGHT		21
+#define FXBUS_PCM_LEFT_FRONT	0x08
+#define FXBUS_PCM_RIGHT_FRONT	0x09
 #define FXBUS_MIDI_REVERB	0x0c
 #define FXBUS_MIDI_CHORUS	0x0d
+#define FXBUS_PT_LEFT		0x14
+#define FXBUS_PT_RIGHT		0x15
 
 /* Inputs */
 #define EXTIN_AC97_L	   0x00	/* AC'97 capture channel - left */
@@ -1178,8 +1186,8 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define EXTOUT_AC97_R	   0x01	/* AC'97 playback channel - right */
 #define EXTOUT_TOSLINK_L   0x02	/* LiveDrive - TOSLink Optical - left */
 #define EXTOUT_TOSLINK_R   0x03	/* LiveDrive - TOSLink Optical - right */
-#define EXTOUT_CENTER      0x04	/* SB Live 5.1 - center */
-#define EXTOUT_LFE         0x05 /* SB Live 5.1 - LFE */
+#define EXTOUT_AC97_CENTER 0x04	/* SB Live 5.1 - center */
+#define EXTOUT_AC97_LFE	   0x05 /* SB Live 5.1 - LFE */
 #define EXTOUT_HEADPHONE_L 0x06	/* LiveDrive - Headphone - left */
 #define EXTOUT_HEADPHONE_R 0x07	/* LiveDrive - Headphone - right */
 #define EXTOUT_REAR_L	   0x08	/* Rear channel - left */
@@ -1187,6 +1195,8 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define EXTOUT_ADC_CAP_L   0x0a	/* ADC Capture buffer - left */
 #define EXTOUT_ADC_CAP_R   0x0b	/* ADC Capture buffer - right */
 #define EXTOUT_MIC_CAP	   0x0c	/* MIC Capture buffer */
+#define EXTOUT_AC97_REAR_L 0x0d	/* SB Live 5.1 (c) 2003 - Rear Left */
+#define EXTOUT_AC97_REAR_R 0x0e	/* SB Live 5.1 (c) 2003 - Rear Right */
 #define EXTOUT_ACENTER	   0x11 /* Analog Center */
 #define EXTOUT_ALFE	   0x12 /* Analog LFE */
 
@@ -1199,8 +1209,8 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define A_EXTIN_OPT_SPDIF_R     0x05    /*                              right */ 
 #define A_EXTIN_LINE2_L		0x08	/* audigy drive line2/mic2 - left */
 #define A_EXTIN_LINE2_R		0x09	/*                           right */
-#define A_EXTIN_RCA_SPDIF_L     0x0a    /* audigy drive RCA SPDIF - left */
-#define A_EXTIN_RCA_SPDIF_R     0x0b    /*                          right */
+#define A_EXTIN_ADC_L		0x0a    /* Philips ADC - left */
+#define A_EXTIN_ADC_R		0x0b    /*               right */
 #define A_EXTIN_AUX2_L		0x0c	/* audigy drive aux2 - left */
 #define A_EXTIN_AUX2_R		0x0d	/*                   - right */
 
@@ -1225,6 +1235,7 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define A_EXTOUT_AC97_R		0x11	/*      right */
 #define A_EXTOUT_ADC_CAP_L	0x16	/* ADC capture buffer left */
 #define A_EXTOUT_ADC_CAP_R	0x17	/*                    right */
+#define A_EXTOUT_MIC_CAP	0x18	/* Mic capture buffer */
 
 /* Audigy constants */
 #define A_C_00000000	0xc0
@@ -1249,8 +1260,8 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define A_C_4f1bbcdc	0xd3
 #define A_C_5a7ef9db	0xd4
 #define A_C_00100000	0xd5
-/* 0xd6 = 0x7fffffff  (?) ACCUM? */
-/* 0xd7 = 0x0000000   CCR */
+#define A_GPR_ACCU	0xd6		/* ACCUM, accumulator */
+#define A_GPR_COND	0xd7		/* CCR, condition register */
 /* 0xd8 = noise1 */
 /* 0xd9 = noise2 */
 
@@ -1306,14 +1317,14 @@ typedef struct {
 	unsigned int gpr_map[0x100];	  /* initializers */
 
 	unsigned int gpr_add_control_count; /* count of GPR controls to add/replace */
-	emu10k1_fx8010_control_gpr_t *gpr_add_controls; /* GPR controls to add/replace */
+	emu10k1_fx8010_control_gpr_t __user *gpr_add_controls; /* GPR controls to add/replace */
 
 	unsigned int gpr_del_control_count; /* count of GPR controls to remove */
-	snd_ctl_elem_id_t *gpr_del_controls; /* IDs of GPR controls to remove */
+	snd_ctl_elem_id_t __user *gpr_del_controls; /* IDs of GPR controls to remove */
 
 	unsigned int gpr_list_control_count; /* count of GPR controls to list */
 	unsigned int gpr_list_control_total; /* total count of GPR controls */
-	emu10k1_fx8010_control_gpr_t *gpr_list_controls; /* listed GPR controls */
+	emu10k1_fx8010_control_gpr_t __user *gpr_list_controls; /* listed GPR controls */
 
 	unsigned long tram_valid[0xa0/(sizeof(unsigned long)*8)]; /* bitmask of valid initializers */
 	unsigned int tram_data_map[0xa0]; /* data initializers */

@@ -54,7 +54,7 @@ struct map_info mbx_map = {
 	.name = "MBX flash",
 	.size = WINDOW_SIZE,
 	.phys = WINDOW_ADDR,
-	.buswidth = 4,
+	.bankwidth = 4,
 };
 
 int __init init_mbx(void)

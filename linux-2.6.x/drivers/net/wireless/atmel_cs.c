@@ -54,7 +54,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <linux/wireless.h>
-#include <linux/802_11.h>
 
 
 /*
@@ -101,10 +100,10 @@ MODULE_PARM(irq_list, "1-4i");
    event handler. 
 */
 
-struct net_device *init_atmel_card(int, int, char *, int, struct device *, 
+struct net_device *init_atmel_card(int, int, char *, struct device *, 
 				    int (*present_func)(void *), void * );
 void stop_atmel_card( struct net_device *, int );
-int reset_atmel_card( struct net_device * );
+int atmel_open( struct net_device * );
 
 static void atmel_config(dev_link_t *link);
 static void atmel_release(dev_link_t *link);
@@ -332,21 +331,36 @@ static struct {
 	{ 0, 0, "ATMEL/AT76C502AR_D", "atmel_at76c502d%s.bin", "NoName-revD" }, 
 	{ 0, 0, "ATMEL/AT76C502AR_E", "atmel_at76c502e%s.bin", "NoName-revE" },
 	{ 0, 0, "ATMEL/AT76C504", "atmel_at76c504%s.bin", "NoName-504" },
+	{ 0, 0, "ATMEL/AT76C504A", "atmel_at76c504a_2958%s.bin", "NoName-504a-2958" },
+	{ 0, 0, "ATMEL/AT76C504_R", "atmel_at76c504_2958%s.bin", "NoName-504-2958" },
 	{ MANFID_3COM, 0x0620, NULL, "atmel_at76c502_3com%s.bin", "3com 3CRWE62092B" }, 
-	{ MANFID_3COM, 0x0696, NULL, "atmel_at76c502_3com%s.bin", "3com 3CRSHPW_96" }, 
+	{ MANFID_3COM, 0x0696, NULL, "atmel_at76c502_3com%s.bin", "3com 3CRSHPW196" }, 
 	{ 0, 0, "SMC/2632W-V2", "atmel_at76c502%s.bin", "SMC 2632W-V2" },
         { 0, 0, "SMC/2632W", "atmel_at76c502d%s.bin", "SMC 2632W-V3" },
-	{ 0xd601, 0x0007, NULL, "atmel_at76c502%s.bin", "Sitecom WLAN-011"}, /* suspect - from a usenet posting. */
-	{ 0x01bf, 0x3302, NULL, "atmel_at76c502d%s.bin", "Belkin F5D6060u"},  /*    "        "  "    "      "     */
-	{ 0, 0, "BT/Voyager 1020 Laptop Adapter", "atmel_at76c502%s.bin", "BT Voyager 1020"},
+	{ 0xd601, 0x0007, NULL, "atmel_at76c502%s.bin", "Sitecom WLAN-011" }, 
+	{ 0x01bf, 0x3302, NULL, "atmel_at76c502e%s.bin", "Belkin F5D6020-V2" }, 
+	{ 0, 0, "BT/Voyager 1020 Laptop Adapter", "atmel_at76c502%s.bin", "BT Voyager 1020" },
         { 0, 0, "IEEE 802.11b/Wireless LAN PC Card", "atmel_at76c502%s.bin", "Siemens Gigaset PC Card II" },
-	{ 0, 0, "CNet/CNWLC 11Mbps Wireless PC Card V-5", "atmel_at76c502e%s.bin", "CNet CNWLC-811ARL" }
+	{ 0, 0, "CNet/CNWLC 11Mbps Wireless PC Card V-5", "atmel_at76c502e%s.bin", "CNet CNWLC-811ARL" },
+	{ 0, 0, "Wireless/PC_CARD", "atmel_at76c502d%s.bin", "Planet WL-3552" },
+	{ 0, 0, "OEM/11Mbps Wireless LAN PC Card V-3", "atmel_at76c502%s.bin", "OEM 11Mbps WLAN PCMCIA Card" },
+	{ 0, 0, "11WAVE/11WP611AL-E", "atmel_at76c502e%s.bin", "11WAVE WaveBuddy" } 
 };
 
 /* This is strictly temporary, until PCMCIA devices get integrated into the device model. */
-static struct device atmel_device = {
-        .bus_id    = "pcmcia",
-};
+static struct device *atmel_device(void)
+{
+	static char *kobj_name = "atmel_cs";
+
+	static struct device dev = {
+		.bus_id    = "pcmcia",
+	};
+	dev.kobj.k_name = kmalloc(strlen(kobj_name)+1, GFP_KERNEL);
+	strcpy(dev.kobj.k_name, kobj_name);
+	kobject_init(&dev.kobj);
+	
+	return &dev;
+}
 
 static void atmel_config(dev_link_t *link)
 {
@@ -533,13 +547,12 @@ static void atmel_config(dev_link_t *link)
 		       "atmel: cannot assign IRQ: check that CONFIG_ISA is set in kernel config.");
 		goto cs_failed;
 	}
-	
+       
 	((local_info_t*)link->priv)->eth_dev = 
 		init_atmel_card(link->irq.AssignedIRQ,
 				link->io.BasePort1,
 				card_index == -1 ? NULL :  card_table[card_index].firmware,
-				card_index == -1 ? 0 : (card_table[card_index].manf == MANFID_3COM),
-				&atmel_device,
+				atmel_device(),
 				card_present, 
 				link);
 	if (!((local_info_t*)link->priv)->eth_dev) 
@@ -599,7 +612,7 @@ static void atmel_release(dev_link_t *link)
 	
 	if (dev) 
 		stop_atmel_card(dev, 0);
-	((local_info_t*)link->priv)->eth_dev = 0; 
+	((local_info_t*)link->priv)->eth_dev = NULL; 
 	
 	/* Don't bother checking to see if these succeed or not */
 	pcmcia_release_configuration(link->handle);
@@ -657,7 +670,7 @@ static int atmel_event(event_t event, int priority,
 	case CS_EVENT_CARD_RESET:
 		if (link->state & DEV_CONFIG) {
 			pcmcia_request_configuration(link->handle, &link->conf);
-			reset_atmel_card(local->eth_dev);
+			atmel_open(local->eth_dev);
 			netif_device_attach(local->eth_dev);
 		}
 		break;

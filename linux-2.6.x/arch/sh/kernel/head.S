@@ -11,7 +11,6 @@
  * Head.S contains the SH exception handlers and startup code.
  */
 #include <linux/linkage.h>
-#include <linux/config.h>
 
 	.section	.empty_zero_page, "aw"
 ENTRY(empty_zero_page)
@@ -22,12 +21,8 @@ ENTRY(empty_zero_page)
 	.long	0x00360000	/* INITRD_START */
 	.long	0x000a0000	/* INITRD_SIZE */
 	.long	0
-	.balign	256,0,256
-	/* Command line goes here */
-#ifdef CONFIG_CMDLINE_BOOL
-	.ascii	CONFIG_CMDLINE "\0"
-#endif
 	.balign 4096,0,4096
+
 	.text	
 /*
  * Condition at the entry of _stext:
@@ -59,12 +54,6 @@ ENTRY(_stext)
 	mov.l	6f, r0
 	jsr	@r0
 	 nop
-#if defined(CONFIG_SH_CONCAT_FS)
-	! move the fs to after the bss
-	mov.l   7f, r0
-	jsr @r0
-	nop
-#endif
 	!			Clear BSS area
 	mov.l	3f, r1
 	add	#4, r1

@@ -1037,7 +1037,7 @@ static int atyfb_ioctl(struct inode *inode, struct file *file, u_int cmd,
 		fbtyp.fb_cmsize = info->cmap.len;
 		fbtyp.fb_size = info->fix.smem_len;
 		if (copy_to_user
-		    ((struct fbtype *) arg, &fbtyp, sizeof(fbtyp)))
+		    ((struct fbtype __user *) arg, &fbtyp, sizeof(fbtyp)))
 			return -EFAULT;
 		break;
 #endif				/* __sparc__ */
@@ -1231,10 +1231,7 @@ static void atyfb_palette(int enter)
 
 	for (i = 0; i < FB_MAX; i++) {
 		info = registered_fb[i];
-		if (info &&
-		    info->fbops == &atyfb_ops &&
-		    info->display_fg &&
-		    info->display_fg->vc_num == i) {
+		if (info && info->fbops == &atyfb_ops) {
 			par = (struct atyfb_par *) info->par;
 			
 			atyfb_save_palette(par, enter);
@@ -1408,7 +1405,7 @@ static int aty_sleep_notify(struct pmu_sleep_notifier *self, int when)
 		case PBOOK_SLEEP_REJECT:
 			if (par->save_framebuffer) {
 				vfree(par->save_framebuffer);
-				par->save_framebuffer = 0;
+				par->save_framebuffer = NULL;
 			}
 			break;
 		case PBOOK_SLEEP_NOW:
@@ -1438,7 +1435,7 @@ static int aty_sleep_notify(struct pmu_sleep_notifier *self, int when)
 				memcpy_toio((void *) info->screen_base,
 					    par->save_framebuffer, nb);
 				vfree(par->save_framebuffer);
-				par->save_framebuffer = 0;
+				par->save_framebuffer = NULL;
 			}
 			/* Restore display */
 			atyfb_set_par(info);
@@ -1941,6 +1938,19 @@ int __init atyfb_init(void)
 			if (i < 0)
 				continue;
 
+			rp = &pdev->resource[0];
+			if (rp->flags & IORESOURCE_IO)
+				rp = &pdev->resource[1];
+			addr = rp->start;
+			if (!addr)
+				continue;
+
+			res_start = rp->start;
+			res_size = rp->end - rp->start + 1;
+			if (!request_mem_region
+			    (res_start, res_size, "atyfb"))
+				continue;
+
 			info =
 			    kmalloc(sizeof(struct fb_info), GFP_ATOMIC);
 			if (!info) {
@@ -1962,19 +1972,6 @@ int __init atyfb_init(void)
 
 			info->fix = atyfb_fix;
 			info->par = default_par;
-
-			rp = &pdev->resource[0];
-			if (rp->flags & IORESOURCE_IO)
-				rp = &pdev->resource[1];
-			addr = rp->start;
-			if (!addr)
-				continue;
-
-			res_start = rp->start;
-			res_size = rp->end - rp->start + 1;
-			if (!request_mem_region
-			    (res_start, res_size, "atyfb"))
-				continue;
 
 #ifdef __sparc__
 			/*
@@ -2003,6 +2000,7 @@ int __init atyfb_init(void)
 			if (!default_par->mmap_map) {
 				printk
 				    ("atyfb_init: can't alloc mmap_map\n");
+				kfree(default_par);
 				kfree(info);
 				release_mem_region(res_start, res_size);
 				return -ENXIO;
@@ -2220,6 +2218,9 @@ int __init atyfb_init(void)
 			    ioremap(info->fix.mmio_start, 0x1000);
 
 			if (!default_par->ati_regbase) {
+#ifdef __sparc__
+				kfree(default_par->mmap_map);
+#endif
 				kfree(default_par);
 				kfree(info);
 				release_mem_region(res_start, res_size);
@@ -2250,6 +2251,10 @@ int __init atyfb_init(void)
 			    (char *) ioremap(addr, 0x800000);
 
 			if (!info->screen_base) {
+#ifdef __sparc__
+				kfree(default_par->mmap_map);
+#endif
+				kfree(default_par);
 				kfree(info);
 				release_mem_region(res_start, res_size);
 				return -ENXIO;
@@ -2261,6 +2266,7 @@ int __init atyfb_init(void)
 				if (default_par->mmap_map)
 					kfree(default_par->mmap_map);
 #endif
+				kfree(default_par);
 				kfree(info);
 				release_mem_region(res_start, res_size);
 				return -ENXIO;
@@ -2329,6 +2335,7 @@ int __init atyfb_init(void)
 		memset(default_par, 0, sizeof(struct atyfb_par));
 
 		info->fix = atyfb_fix;
+		info->par = default_par;
 
 		/*
 		 *  Map the video memory (physical address given) to somewhere in the
@@ -2360,6 +2367,7 @@ int __init atyfb_init(void)
 		}
 
 		if (!aty_init(info, "ISA bus")) {
+			kfree(default_par);
 			kfree(info);
 			/* This is insufficient! kernel_map has added two large chunks!! */
 			return -ENXIO;

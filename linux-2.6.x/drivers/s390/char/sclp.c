@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/cpumask.h>
 #include <asm/s390_ext.h>
 #include <asm/processor.h>
 
@@ -51,6 +52,9 @@ static char sclp_init_sccb[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 /* Timer for init mask retries. */
 static struct timer_list retry_timer;
 
+/* Timer for busy retries. */
+static struct timer_list sclp_busy_timer;
+
 static volatile unsigned long sclp_status = 0;
 /* some status flags */
 #define SCLP_INIT		0
@@ -58,6 +62,7 @@ static volatile unsigned long sclp_status = 0;
 #define SCLP_READING		2
 
 #define SCLP_INIT_POLL_INTERVAL	1
+#define SCLP_BUSY_POLL_INTERVAL	1
 
 #define SCLP_COMMAND_INITIATED	0
 #define SCLP_BUSY		2
@@ -92,45 +97,61 @@ __service_call(sclp_cmdw_t command, void *sccb)
 	 */
 	if (cc == SCLP_NOT_OPERATIONAL)
 		return -EIO;
-	/*
-	 * We set the SCLP_RUNNING bit for cc 2 as well because if
-	 * service_call returns cc 2 some old request is running
-	 * that has to complete first
-	 */
-	set_bit(SCLP_RUNNING, &sclp_status);
 	if (cc == SCLP_BUSY)
 		return -EBUSY;
 	return 0;
 }
 
-static int
+static void
 sclp_start_request(void)
 {
 	struct sclp_req *req;
 	int rc;
 	unsigned long flags;
 
-	/* quick exit if sclp is already in use */
-	if (test_bit(SCLP_RUNNING, &sclp_status))
-		return -EBUSY;
 	spin_lock_irqsave(&sclp_lock, flags);
-	/* Get first request on queue if available */
-	req = NULL;
-	if (!list_empty(&sclp_req_queue))
+	/* quick exit if sclp is already in use */
+	if (test_bit(SCLP_RUNNING, &sclp_status)) {
+		spin_unlock_irqrestore(&sclp_lock, flags);
+		return;
+	}
+	/* Try to start requests from the request queue. */
+	while (!list_empty(&sclp_req_queue)) {
 		req = list_entry(sclp_req_queue.next, struct sclp_req, list);
-	if (req) {
 		rc = __service_call(req->command, req->sccb);
-		if (rc) {
-			req->status = SCLP_REQ_FAILED;
-			list_del(&req->list);
-		} else
+		if (rc == 0) {
+			/* Sucessfully started request. */
 			req->status = SCLP_REQ_RUNNING;
-	} else
-		rc = -EINVAL;
+			/* Request active. Set running indication. */
+			set_bit(SCLP_RUNNING, &sclp_status);
+			break;
+		}
+		if (rc == -EBUSY) {
+			/**
+			 * SCLP is busy but no request is running.
+			 * Try again later.
+			 */
+			if (!timer_pending(&sclp_busy_timer) ||
+			    !mod_timer(&sclp_busy_timer,
+				       jiffies + SCLP_BUSY_POLL_INTERVAL*HZ)) {
+				sclp_busy_timer.function =
+					(void *) sclp_start_request;
+				sclp_busy_timer.expires =
+					jiffies + SCLP_BUSY_POLL_INTERVAL*HZ;
+				add_timer(&sclp_busy_timer);
+			}
+			break;
+		}
+		/* Request failed. */
+		req->status = SCLP_REQ_FAILED;
+		list_del(&req->list);
+		if (req->callback) {
+			spin_unlock_irqrestore(&sclp_lock, flags);
+			req->callback(req, req->callback_data);
+			spin_lock_irqsave(&sclp_lock, flags);
+		}
+	}
 	spin_unlock_irqrestore(&sclp_lock, flags);
-	if (rc == -EIO && req->callback != NULL)
-		req->callback(req, req->callback_data);
-	return rc;
 }
 
 static int
@@ -334,6 +355,8 @@ sclp_sync_wait(void)
 	unsigned long psw_mask;
 	unsigned long cr0, cr0_sync;
 
+	/* Prevent BH from executing. */
+	local_bh_disable();
 	/*
 	 * save cr0
 	 * enable service signal external interruption (cr0.22)
@@ -362,6 +385,7 @@ sclp_sync_wait(void)
 
 	/* restore cr0 */
 	__ctl_load(cr0, 0, 0);
+	__local_bh_enable();
 }
 
 /*
@@ -467,29 +491,46 @@ static struct sclp_register sclp_state_change_event = {
  * SCLP quiesce event handler
  */
 #ifdef CONFIG_SMP
-static cpumask_t cpu_quiesce_map;
-
 static void
 do_load_quiesce_psw(void * __unused)
 {
+	static atomic_t cpuid = ATOMIC_INIT(-1);
 	psw_t quiesce_psw;
+	__u32 status;
+	int i;
 
-	cpu_clear(smp_processor_id(), cpu_quiesce_map);
-	if (smp_processor_id() == 0) {
-		/* Wait for all other cpus to enter do_load_quiesce_psw */
-		while (!cpus_empty(cpu_quiesce_map));
-		/* Quiesce the last cpu with the special psw */
-		quiesce_psw.mask = PSW_BASE_BITS | PSW_MASK_WAIT;
-		quiesce_psw.addr = 0xfff;
-		__load_psw(quiesce_psw);
+	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid))
+		signal_processor(smp_processor_id(), sigp_stop);
+	/* Wait for all other cpus to enter stopped state */
+	i = 1;
+	while (i < NR_CPUS) {
+		if (!cpu_online(i)) {
+			i++;
+			continue;
+		}
+		switch (signal_processor_ps(&status, 0, i, sigp_sense)) {
+		case sigp_order_code_accepted:
+		case sigp_status_stored:
+			/* Check for stopped and check stop state */
+			if (status & 0x50)
+				i++;
+			break;
+		case sigp_busy:
+			break;
+		case sigp_not_operational:
+			i++;
+			break;
+		}
 	}
-	signal_processor(smp_processor_id(), sigp_stop);
+	/* Quiesce the last cpu with the special psw */
+	quiesce_psw.mask = PSW_BASE_BITS | PSW_MASK_WAIT;
+	quiesce_psw.addr = 0xfff;
+	__load_psw(quiesce_psw);
 }
 
 static void
 do_machine_quiesce(void)
 {
-	cpu_quiesce_map = cpu_online_map;
 	on_each_cpu(do_load_quiesce_psw, NULL, 0, 0);
 }
 #else
@@ -593,6 +634,8 @@ sclp_init_mask(void)
 		 */
 		do {
 			rc = __service_call(req->command, req->sccb);
+			if (rc == 0)
+				set_bit(SCLP_RUNNING, &sclp_status);
 			spin_unlock_irqrestore(&sclp_lock, flags);
 			if (rc == -EIO)
 				return -ENOSYS;
@@ -665,6 +708,7 @@ sclp_init(void)
 	ctl_set_bit(0, 9);
 
 	init_timer(&retry_timer);
+	init_timer(&sclp_busy_timer);
 	/* do the initial write event mask */
 	rc = sclp_init_mask();
 	if (rc == 0) {

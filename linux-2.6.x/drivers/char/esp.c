@@ -933,7 +933,7 @@ static int startup(struct esp_struct * info)
 		else if (request_dma(dma, "esp serial")) {
 			free_pages((unsigned long)dma_buffer,
 				   get_order(DMA_BUFFER_SZ));
-			dma_buffer = 0;
+			dma_buffer = NULL;
 			info->stat_flags |= ESP_STAT_USE_PIO;
 		}
 			
@@ -1038,13 +1038,13 @@ static void shutdown(struct esp_struct * info)
 			free_dma(dma);
 			free_pages((unsigned long)dma_buffer,
 				   get_order(DMA_BUFFER_SZ));
-			dma_buffer = 0;
+			dma_buffer = NULL;
 		}		
 	}
 
 	if (info->xmit_buf) {
 		free_page((unsigned long) info->xmit_buf);
-		info->xmit_buf = 0;
+		info->xmit_buf = NULL;
 	}
 
 	info->IER = 0;
@@ -1435,12 +1435,10 @@ static void rs_unthrottle(struct tty_struct * tty)
  */
 
 static int get_serial_info(struct esp_struct * info,
-			   struct serial_struct * retinfo)
+			   struct serial_struct __user *retinfo)
 {
 	struct serial_struct tmp;
   
-	if (!retinfo)
-		return -EFAULT;
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.type = PORT_16550A;
 	tmp.line = info->line;
@@ -1459,7 +1457,7 @@ static int get_serial_info(struct esp_struct * info,
 }
 
 static int get_esp_config(struct esp_struct * info,
-			  struct hayes_esp_config * retinfo)
+			  struct hayes_esp_config __user *retinfo)
 {
 	struct hayes_esp_config tmp;
   
@@ -1479,7 +1477,7 @@ static int get_esp_config(struct esp_struct * info,
 }
 
 static int set_serial_info(struct esp_struct * info,
-			   struct serial_struct * new_info)
+			   struct serial_struct __user *new_info)
 {
 	struct serial_struct new_serial;
 	struct esp_struct old_info;
@@ -1594,7 +1592,7 @@ static int set_serial_info(struct esp_struct * info,
 }
 
 static int set_esp_config(struct esp_struct * info,
-			  struct hayes_esp_config * new_info)
+			  struct hayes_esp_config __user * new_info)
 {
 	struct hayes_esp_config new_config;
 	unsigned int change_dma;
@@ -1739,7 +1737,7 @@ static int set_esp_config(struct esp_struct * info,
  * 	    transmit holding register is empty.  This functionality
  * 	    allows an RS485 driver to be written in user space. 
  */
-static int get_lsr_info(struct esp_struct * info, unsigned int *value)
+static int get_lsr_info(struct esp_struct * info, unsigned int __user *value)
 {
 	unsigned char status;
 	unsigned int result;
@@ -1753,55 +1751,51 @@ static int get_lsr_info(struct esp_struct * info, unsigned int *value)
 }
 
 
-static int get_modem_info(struct esp_struct * info, unsigned int *value)
+static int esp_tiocmget(struct tty_struct *tty, struct file *file)
 {
+	struct esp_struct * info = (struct esp_struct *)tty->driver_data;
 	unsigned char control, status;
-	unsigned int result;
+
+	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
+		return -ENODEV;
+	if (tty->flags & (1 << TTY_IO_ERROR))
+		return -EIO;
 
 	control = info->MCR;
 	cli();
 	serial_out(info, UART_ESI_CMD1, ESI_GET_UART_STAT);
 	status = serial_in(info, UART_ESI_STAT2);
 	sti();
-	result =  ((control & UART_MCR_RTS) ? TIOCM_RTS : 0)
+	return    ((control & UART_MCR_RTS) ? TIOCM_RTS : 0)
 		| ((control & UART_MCR_DTR) ? TIOCM_DTR : 0)
 		| ((status  & UART_MSR_DCD) ? TIOCM_CAR : 0)
 		| ((status  & UART_MSR_RI) ? TIOCM_RNG : 0)
 		| ((status  & UART_MSR_DSR) ? TIOCM_DSR : 0)
 		| ((status  & UART_MSR_CTS) ? TIOCM_CTS : 0);
-	return put_user(result,value);
 }
 
-static int set_modem_info(struct esp_struct * info, unsigned int cmd,
-			  unsigned int *value)
+static int esp_tiocmset(struct tty_struct *tty, struct file *file,
+			unsigned int set, unsigned int clear)
 {
-	unsigned int arg;
+	struct esp_struct * info = (struct esp_struct *)tty->driver_data;
 
-	if (get_user(arg, value))
-		return -EFAULT;
+	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
+		return -ENODEV;
+	if (tty->flags & (1 << TTY_IO_ERROR))
+		return -EIO;
 
-	switch (cmd) {
-	case TIOCMBIS: 
-		if (arg & TIOCM_RTS)
-			info->MCR |= UART_MCR_RTS;
-		if (arg & TIOCM_DTR)
-			info->MCR |= UART_MCR_DTR;
-		break;
-	case TIOCMBIC:
-		if (arg & TIOCM_RTS)
-			info->MCR &= ~UART_MCR_RTS;
-		if (arg & TIOCM_DTR)
-			info->MCR &= ~UART_MCR_DTR;
-		break;
-	case TIOCMSET:
-		info->MCR = ((info->MCR & ~(UART_MCR_RTS | UART_MCR_DTR))
-			     | ((arg & TIOCM_RTS) ? UART_MCR_RTS : 0)
-			     | ((arg & TIOCM_DTR) ? UART_MCR_DTR : 0));
-		break;
-	default:
-		return -EINVAL;
-	}
 	cli();
+
+	if (set & TIOCM_RTS)
+		info->MCR |= UART_MCR_RTS;
+	if (set & TIOCM_DTR)
+		info->MCR |= UART_MCR_DTR;
+
+	if (clear & TIOCM_RTS)
+		info->MCR &= ~UART_MCR_RTS;
+	if (clear & TIOCM_DTR)
+		info->MCR &= ~UART_MCR_DTR;
+
 	serial_out(info, UART_ESI_CMD1, ESI_WRITE_UART);
 	serial_out(info, UART_ESI_CMD2, UART_MCR);
 	serial_out(info, UART_ESI_CMD2, info->MCR);
@@ -1838,7 +1832,8 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 {
 	struct esp_struct * info = (struct esp_struct *)tty->driver_data;
 	struct async_icount cprev, cnow;	/* kernel counter temps */
-	struct serial_icounter_struct *p_cuser;	/* user space */
+	struct serial_icounter_struct __user *p_cuser;	/* user space */
+	void __user *argp = (void __user *)arg;
 
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
 		return -ENODEV;
@@ -1853,27 +1848,19 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 	}
 	
 	switch (cmd) {
-		case TIOCMGET:
-			return get_modem_info(info, (unsigned int *) arg);
-		case TIOCMBIS:
-		case TIOCMBIC:
-		case TIOCMSET:
-			return set_modem_info(info, cmd, (unsigned int *) arg);
 		case TIOCGSERIAL:
-			return get_serial_info(info,
-					       (struct serial_struct *) arg);
+			return get_serial_info(info, argp);
 		case TIOCSSERIAL:
-			return set_serial_info(info,
-					       (struct serial_struct *) arg);
+			return set_serial_info(info, argp);
 		case TIOCSERCONFIG:
 			/* do not reconfigure after initial configuration */
 			return 0;
 
 		case TIOCSERGWILD:
-			return put_user(0L, (unsigned long *) arg);
+			return put_user(0L, (unsigned long __user *)argp);
 
 		case TIOCSERGETLSR: /* Get line status register */
-			    return get_lsr_info(info, (unsigned int *) arg);
+			    return get_lsr_info(info, argp);
 
 		case TIOCSERSWILD:
 			if (!capable(CAP_SYS_ADMIN))
@@ -1927,7 +1914,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 			cli();
 			cnow = info->icount;
 			sti();
-			p_cuser = (struct serial_icounter_struct *) arg;
+			p_cuser = argp;
 			if (put_user(cnow.cts, &p_cuser->cts) ||
 			    put_user(cnow.dsr, &p_cuser->dsr) ||
 			    put_user(cnow.rng, &p_cuser->rng) ||
@@ -1936,9 +1923,9 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 
 			return 0;
 	case TIOCGHAYESESP:
-		return (get_esp_config(info, (struct hayes_esp_config *)arg));
+		return get_esp_config(info, argp);
 	case TIOCSHAYESESP:
-		return (set_esp_config(info, (struct hayes_esp_config *)arg));
+		return set_esp_config(info, argp);
 
 		default:
 			return -ENOIOCTLCMD;
@@ -2086,7 +2073,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		tty->ldisc.flush_buffer(tty);
 	tty->closing = 0;
 	info->event = 0;
-	info->tty = 0;
+	info->tty = NULL;
 
 	if (info->blocked_open) {
 		if (info->close_delay) {
@@ -2154,7 +2141,7 @@ static void esp_hangup(struct tty_struct *tty)
 	info->event = 0;
 	info->count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
-	info->tty = 0;
+	info->tty = NULL;
 	wake_up_interruptible(&info->open_wait);
 }
 
@@ -2444,6 +2431,8 @@ static struct tty_operations esp_ops = {
 	.hangup = esp_hangup,
 	.break_ctl = esp_break,
 	.wait_until_sent = rs_wait_until_sent,
+	.tiocmget = esp_tiocmget,
+	.tiocmset = esp_tiocmset,
 };
 
 /*
@@ -2454,7 +2443,7 @@ int __init espserial_init(void)
 	int i, offset;
 	int region_start;
 	struct esp_struct * info;
-	struct esp_struct *last_primary = 0;
+	struct esp_struct *last_primary = NULL;
 	int esp[] = {0x100,0x140,0x180,0x200,0x240,0x280,0x300,0x380};
 
 	esp_driver = alloc_tty_driver(NR_PORTS);
@@ -2498,6 +2487,7 @@ int __init espserial_init(void)
 	
 	esp_driver->owner = THIS_MODULE;
 	esp_driver->name = "ttyP";
+	esp_driver->devfs_name = "tts/P";
 	esp_driver->major = ESP_IN_MAJOR;
 	esp_driver->minor_start = 0;
 	esp_driver->type = TTY_DRIVER_TYPE_SERIAL;

@@ -102,8 +102,10 @@ ccwgroup_release (struct device *dev)
 
 	gdev = to_ccwgroupdev(dev);
 
-	for (i = 0; i < gdev->count; i++)
+	for (i = 0; i < gdev->count; i++) {
+		gdev->cdev[i]->dev.driver_data = NULL;
 		put_device(&gdev->cdev[i]->dev);
+	}
 	kfree(gdev);
 }
 
@@ -155,6 +157,7 @@ ccwgroup_create(struct device *root,
 	struct ccwgroup_device *gdev;
 	int i;
 	int rc;
+	int del_drvdata;
 
 	if (argc > 256) /* disallow dumb users */
 		return -EINVAL;
@@ -164,7 +167,9 @@ ccwgroup_create(struct device *root,
 		return -ENOMEM;
 
 	memset(gdev, 0, sizeof(*gdev) + argc*sizeof(gdev->cdev[0]));
+	atomic_set(&gdev->onoff, 0);
 
+	del_drvdata = 0;
 	for (i = 0; i < argc; i++) {
 		gdev->cdev[i] = get_ccwdev_by_busid(cdrv, argv[i]);
 
@@ -174,9 +179,17 @@ ccwgroup_create(struct device *root,
 		    || gdev->cdev[i]->id.driver_info !=
 		    gdev->cdev[0]->id.driver_info) {
 			rc = -EINVAL;
-			goto error;
+			goto free_dev;
+		}
+		/* Don't allow a device to belong to more than one group. */
+		if (gdev->cdev[i]->dev.driver_data) {
+			rc = -EINVAL;
+			goto free_dev;
 		}
 	}
+	for (i = 0; i < argc; i++)
+		gdev->cdev[i]->dev.driver_data = gdev;
+	del_drvdata = 1;
 
 	*gdev = (struct ccwgroup_device) {
 		.creator_id = creator_id,
@@ -194,8 +207,8 @@ ccwgroup_create(struct device *root,
 	rc = device_register(&gdev->dev);
 	
 	if (rc)
-		goto error;
-
+		goto free_dev;
+	get_device(&gdev->dev);
 	rc = device_create_file(&gdev->dev, &dev_attr_ungroup);
 
 	if (rc) {
@@ -204,18 +217,28 @@ ccwgroup_create(struct device *root,
 	}
 
 	rc = __ccwgroup_create_symlinks(gdev);
-	if (!rc)
+	if (!rc) {
+		put_device(&gdev->dev);
 		return 0;
-
+	}
 	device_remove_file(&gdev->dev, &dev_attr_ungroup);
 	device_unregister(&gdev->dev);
 error:
 	for (i = 0; i < argc; i++)
-		if (gdev->cdev[i])
+		if (gdev->cdev[i]) {
 			put_device(&gdev->cdev[i]->dev);
-
+			gdev->cdev[i]->dev.driver_data = NULL;
+		}
+	put_device(&gdev->dev);
+	return rc;
+free_dev:
+	for (i = 0; i < argc; i++)
+		if (gdev->cdev[i]) {
+			put_device(&gdev->cdev[i]->dev);
+			if (del_drvdata)
+				gdev->cdev[i]->dev.driver_data = NULL;
+		}
 	kfree(gdev);
-
 	return rc;
 }
 
@@ -242,18 +265,24 @@ ccwgroup_set_online(struct ccwgroup_device *gdev)
 	struct ccwgroup_driver *gdrv;
 	int ret;
 
-	if (gdev->state == CCWGROUP_ONLINE)
-		return 0;
-
-	if (!gdev->dev.driver)
-		return -EINVAL;
-
+	if (atomic_compare_and_swap(0, 1, &gdev->onoff))
+		return -EAGAIN;
+	if (gdev->state == CCWGROUP_ONLINE) {
+		ret = 0;
+		goto out;
+	}
+	if (!gdev->dev.driver) {
+		ret = -EINVAL;
+		goto out;
+	}
 	gdrv = to_ccwgroupdrv (gdev->dev.driver);
 	if ((ret = gdrv->set_online(gdev)))
-		return ret;
+		goto out;
 
 	gdev->state = CCWGROUP_ONLINE;
-	return 0;
+ out:
+	atomic_set(&gdev->onoff, 0);
+	return ret;
 }
 
 static int
@@ -262,40 +291,52 @@ ccwgroup_set_offline(struct ccwgroup_device *gdev)
 	struct ccwgroup_driver *gdrv;
 	int ret;
 
-	if (gdev->state == CCWGROUP_OFFLINE)
-		return 0;
-
-	if (!gdev->dev.driver)
-		return -EINVAL;
-
+	if (atomic_compare_and_swap(0, 1, &gdev->onoff))
+		return -EAGAIN;
+	if (gdev->state == CCWGROUP_OFFLINE) {
+		ret = 0;
+		goto out;
+	}
+	if (!gdev->dev.driver) {
+		ret = -EINVAL;
+		goto out;
+	}
 	gdrv = to_ccwgroupdrv (gdev->dev.driver);
 	if ((ret = gdrv->set_offline(gdev)))
-		return ret;
+		goto out;
 
 	gdev->state = CCWGROUP_OFFLINE;
-	return 0;
+ out:
+	atomic_set(&gdev->onoff, 0);
+	return ret;
 }
 
 static ssize_t
 ccwgroup_online_store (struct device *dev, const char *buf, size_t count)
 {
 	struct ccwgroup_device *gdev;
+	struct ccwgroup_driver *gdrv;
 	unsigned int value;
+	int ret;
 
 	gdev = to_ccwgroupdev(dev);
 	if (!dev->driver)
 		return count;
 
-	value = simple_strtoul(buf, 0, 0);
+	gdrv = to_ccwgroupdrv (gdev->dev.driver);
+	if (!try_module_get(gdrv->owner))
+		return -EINVAL;
 
+	value = simple_strtoul(buf, 0, 0);
+	ret = count;
 	if (value == 1)
 		ccwgroup_set_online(gdev);
 	else if (value == 0)
 		ccwgroup_set_offline(gdev);
 	else
-		return -EINVAL;
-
-	return count;
+		ret = -EINVAL;
+	module_put(gdrv->owner);
+	return ret;
 }
 
 static ssize_t
@@ -324,7 +365,7 @@ ccwgroup_probe (struct device *dev)
 	if ((ret = device_create_file(dev, &dev_attr_online)))
 		return ret;
 
-	pr_debug("%s: device %s\n", __func__, gdev->dev.name);
+	pr_debug("%s: device %s\n", __func__, gdev->dev.bus_id);
 	ret = gdrv->probe ? gdrv->probe(gdev) : -ENODEV;
 	if (ret)
 		device_remove_file(dev, &dev_attr_online);
@@ -341,7 +382,7 @@ ccwgroup_remove (struct device *dev)
 	gdev = to_ccwgroupdev(dev);
 	gdrv = to_ccwgroupdrv(dev->driver);
 
-	pr_debug("%s: device %s\n", __func__, gdev->dev.name);
+	pr_debug("%s: device %s\n", __func__, gdev->dev.bus_id);
 
 	device_remove_file(dev, &dev_attr_online);
 
@@ -364,9 +405,35 @@ ccwgroup_driver_register (struct ccwgroup_driver *cdriver)
 	return driver_register(&cdriver->driver);
 }
 
+static inline struct device *
+__get_next_ccwgroup_device(struct device_driver *drv)
+{
+	struct device *dev, *d;
+
+	down_read(&drv->bus->subsys.rwsem);
+	dev = NULL;
+	list_for_each_entry(d, &drv->devices, driver_list) {
+		dev = get_device(d);
+		if (dev)
+			break;
+	}
+	up_read(&drv->bus->subsys.rwsem);
+	return dev;
+}
+
 void
 ccwgroup_driver_unregister (struct ccwgroup_driver *cdriver)
 {
+	struct device *dev;
+
+	/* We don't want ccwgroup devices to live longer than their driver. */
+	get_driver(&cdriver->driver);
+	while ((dev = __get_next_ccwgroup_device(&cdriver->driver))) {
+		__ccwgroup_remove_symlinks(to_ccwgroupdev(dev));
+		device_unregister(dev);
+		put_device(dev);
+	};
+	put_driver(&cdriver->driver);
 	driver_unregister(&cdriver->driver);
 }
 
@@ -380,40 +447,17 @@ static inline struct ccwgroup_device *
 __ccwgroup_get_gdev_by_cdev(struct ccw_device *cdev)
 {
 	struct ccwgroup_device *gdev;
-	struct list_head *entry;
-	struct device *dev;
-	int i, found;
 
-	/*
-	 * Find groupdevice cdev belongs to.
-	 * Unfortunately, we can't use bus_for_each_dev() because of the
-	 * semaphore (and return value of fn() is int).
-	 */
-	if (!get_bus(&ccwgroup_bus_type))
-		return NULL;
-
-	gdev = NULL;
-	down_read(&ccwgroup_bus_type.subsys.rwsem);
-
-	list_for_each(entry, &ccwgroup_bus_type.devices.list) {
-		dev = get_device(container_of(entry, struct device, bus_list));
-		found = 0;
-		if (!dev)
-			continue;
-		gdev = to_ccwgroupdev(dev);
-		for (i = 0; i < gdev->count && (!found); i++) {
-			if (gdev->cdev[i] == cdev)
-				found = 1;
+	if (cdev->dev.driver_data) {
+		gdev = (struct ccwgroup_device *)cdev->dev.driver_data;
+		if (get_device(&gdev->dev)) {
+			if (!list_empty(&gdev->dev.node))
+				return gdev;
+			put_device(&gdev->dev);
 		}
-		if (found)
-			break;
-		put_device(dev);
-		gdev = NULL;
+		return NULL;
 	}
-	up_read(&ccwgroup_bus_type.subsys.rwsem);
-	put_bus(&ccwgroup_bus_type);
-
-	return gdev;
+	return NULL;
 }
 
 void

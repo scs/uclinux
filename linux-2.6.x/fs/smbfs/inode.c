@@ -93,6 +93,12 @@ static void destroy_inodecache(void)
 		printk(KERN_INFO "smb_inode_cache: not all structures were freed\n");
 }
 
+static int smb_remount(struct super_block *sb, int *flags, char *data)
+{
+	*flags |= MS_NODIRATIME;
+	return 0;
+}
+
 static struct super_operations smb_sops =
 {
 	.alloc_inode	= smb_alloc_inode,
@@ -102,6 +108,7 @@ static struct super_operations smb_sops =
 	.put_super	= smb_put_super,
 	.statfs		= smb_statfs,
 	.show_options	= smb_show_options,
+	.remount_fs	= smb_remount,
 };
 
 
@@ -499,6 +506,7 @@ int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 	if (ver != SMB_MOUNT_OLDVERSION && cpu_to_be32(ver) != SMB_MOUNT_ASCII)
 		goto out_wrong_data;
 
+	sb->s_flags |= MS_NODIRATIME;
 	sb->s_blocksize = 1024;	/* Eh...  Is this correct? */
 	sb->s_blocksize_bits = 10;
 	sb->s_magic = SMB_SUPER_MAGIC;
@@ -513,6 +521,7 @@ int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 	server->super_block = sb;
 	server->mnt = NULL;
 	server->sock_file = NULL;
+	init_waitqueue_head(&server->conn_wq);
 	init_MUTEX(&server->sem);
 	INIT_LIST_HEAD(&server->entry);
 	INIT_LIST_HEAD(&server->xmitq);
@@ -778,6 +787,7 @@ static struct file_system_type smb_fs_type = {
 	.name		= "smbfs",
 	.get_sb		= smb_get_sb,
 	.kill_sb	= kill_anon_super,
+	.fs_flags	= FS_BINARY_MOUNTDATA,
 };
 
 static int __init init_smb_fs(void)

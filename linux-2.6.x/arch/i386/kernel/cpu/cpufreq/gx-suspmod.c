@@ -28,30 +28,34 @@
  *	with 'Suspend Modulation OFF Count Register'
  *	and 'Suspend Modulation ON Count Register'.
  *	These registers are 8bit counters that represent the number of 
- *	32us intervals which the SUSP# pin is asserted/de-asserted to the 
- *	processor.
+ *	32us intervals which the SUSP# pin is asserted(ON)/de-asserted(OFF)
+ *	to the processor.
  *
  *	These counters define a ratio which is the effective frequency 
  * 	of operation of the system.
  *
- *			       On Count
+ *			       OFF Count
  *	F_eff = Fgx * ----------------------
- *	                On Count + Off Count
+ *	                OFF Count + ON Count
  *
  *	0 <= On Count, Off Count <= 255
  *
  *	From these limits, we can get register values 
  *
- *	on_duration + off_duration <= MAX_DURATION
- *	off_duration = on_duration * (stock_freq - freq) / freq
+ *	off_duration + on_duration <= MAX_DURATION
+ *	on_duration = off_duration * (stock_freq - freq) / freq
  *
- *      on_duration  =  (freq * DURATION) / stock_freq 
- *      off_duration = DURATION - on_duration 
+ *      off_duration  =  (freq * DURATION) / stock_freq 
+ *      on_duration = DURATION - off_duration 
  *
  *
  *---------------------------------------------------------------------------
  *
  * ChangeLog:
+ *  	Dec. 12, 2003	Hiroshi Miura <miura@da-cha.org>
+ *  		- fix on/off register mistake
+ *  		- fix cpu_khz calc when it stops cpu modulation.
+ *
  *	Dec. 11, 2002 	Hiroshi Miura <miura@da-cha.org>
  *		- rewrite for Cyrix MediaGX Cx5510/5520 and 
  *		  NatSemi Geode Cs5530(A).
@@ -71,7 +75,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h> 
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/cpufreq.h>
@@ -121,7 +124,7 @@ static int stock_freq;
 
 /* PCI bus clock - defaults to 30.000 if cpu_khz is not available */
 static int pci_busclk = 0;
-MODULE_PARM(pci_busclk, "i");
+module_param (pci_busclk, int, 0444);
 
 /* maximum duration for which the cpu may be suspended
  * (32us * MAX_DURATION). If no parameter is given, this defaults
@@ -130,7 +133,7 @@ MODULE_PARM(pci_busclk, "i");
  * is suspended -- processing power is just 0.39% of what it used to be,
  * though. 781.25 kHz(!) for a 200 MHz processor -- wow. */
 static int max_duration = 255;
-MODULE_PARM(max_duration, "i");
+module_param (max_duration, int, 0444);
 
 /* For the default policy, we want at least some processing power
  * - let's say 5%. (min = maxfreq / POLICY_MIN_DIV)
@@ -211,7 +214,7 @@ static __init struct pci_dev *gx_detect_chipset(void)
  *
  * Finds out at which efficient frequency the Cyrix MediaGX/NatSemi Geode CPU runs.
  */
-static int gx_get_cpuspeed(void)
+static unsigned int gx_get_cpuspeed(unsigned int cpu)
 {
 	if ((gx_params->pci_suscfg & SUSMOD) == 0) 
 		return stock_freq;
@@ -233,13 +236,13 @@ static unsigned int gx_validate_speed(unsigned int khz, u8 *on_duration, u8 *off
 	int old_tmp_freq = stock_freq;
 	int tmp_freq;
 
-	*on_duration=1;
-	*off_duration=0;
+	*off_duration=1;
+	*on_duration=0;
 
 	for (i=max_duration; i>0; i--) {
-		tmp_on = ((khz * i) / stock_freq) & 0xff; 
-		tmp_off = i - tmp_on;
-		tmp_freq = (stock_freq * tmp_on) / i;
+		tmp_off = ((khz * i) / stock_freq) & 0xff; 
+		tmp_on = i - tmp_off;
+		tmp_freq = (stock_freq * tmp_off) / i;
 		/* if this relation is closer to khz, use this. If it's equal,
 		 * prefer it, too - lower latency */
 		if (abs(tmp_freq - khz) <= abs(old_tmp_freq - khz)) {
@@ -267,48 +270,43 @@ static void gx_set_cpuspeed(unsigned int khz)
 
 
 	freqs.cpu = 0;
-	freqs.old = gx_get_cpuspeed();
+	freqs.old = gx_get_cpuspeed(0);
 
 	new_khz = gx_validate_speed(khz, &gx_params->on_duration, &gx_params->off_duration);
 
 	freqs.new = new_khz;
 
-	if (new_khz == stock_freq) {  /* if new khz == 100% of CPU speed, it is special case */
-		local_irq_save(flags);
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-		pci_write_config_byte(gx_params->cs55x0, PCI_SUSCFG, (gx_params->pci_suscfg & ~(SUSMOD)));
-		pci_read_config_byte(gx_params->cs55x0, PCI_SUSCFG, &(gx_params->pci_suscfg));
-		local_irq_restore(flags);
-		dprintk("suspend modulation disabled: cpu runs 100 percent speed.\n");
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-		return;
-	}
-
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-
 	local_irq_save(flags);
-	switch (gx_params->cs55x0->device) {
-	case PCI_DEVICE_ID_CYRIX_5530_LEGACY:
-		pmer1 = gx_params->pci_pmer1 | IRQ_SPDUP | VID_SPDUP;
-		/* FIXME: need to test other values -- Zwane,Miura */
-		pci_write_config_byte(gx_params->cs55x0, PCI_IRQTC, 4); /* typical 2 to 4ms */
-		pci_write_config_byte(gx_params->cs55x0, PCI_VIDTC, 100);/* typical 50 to 100ms */
-		pci_write_config_byte(gx_params->cs55x0, PCI_PMER1, pmer1);
 
-		if (gx_params->pci_rev < 0x10) {   /* CS5530(rev 1.2, 1.3) */
+	if (new_khz != stock_freq) {  /* if new khz == 100% of CPU speed, it is special case */
+		switch (gx_params->cs55x0->device) {
+		case PCI_DEVICE_ID_CYRIX_5530_LEGACY:
+			pmer1 = gx_params->pci_pmer1 | IRQ_SPDUP | VID_SPDUP;
+			/* FIXME: need to test other values -- Zwane,Miura */
+			pci_write_config_byte(gx_params->cs55x0, PCI_IRQTC, 4); /* typical 2 to 4ms */
+			pci_write_config_byte(gx_params->cs55x0, PCI_VIDTC, 100);/* typical 50 to 100ms */
+			pci_write_config_byte(gx_params->cs55x0, PCI_PMER1, pmer1);
+
+			if (gx_params->pci_rev < 0x10) {   /* CS5530(rev 1.2, 1.3) */
+				suscfg = gx_params->pci_suscfg | SUSMOD;
+			} else {                           /* CS5530A,B.. */
+				suscfg = gx_params->pci_suscfg | SUSMOD | PWRSVE;
+			}
+			break;
+		case PCI_DEVICE_ID_CYRIX_5520:
+		case PCI_DEVICE_ID_CYRIX_5510:
 			suscfg = gx_params->pci_suscfg | SUSMOD;
-		} else {                           /* CS5530A,B.. */
-			suscfg = gx_params->pci_suscfg | SUSMOD | PWRSVE;
+		default:
+			local_irq_restore(flags);
+			dprintk("fatal: try to set unknown chipset.\n");
+			return;
 		}
-		break;
-	case PCI_DEVICE_ID_CYRIX_5520:
-	case PCI_DEVICE_ID_CYRIX_5510:
-		suscfg = gx_params->pci_suscfg | SUSMOD;
-		break;
-	default:
-		local_irq_restore(flags);
-		dprintk("fatal: try to set unknown chipset.\n");
-		return;
+	} else {
+		suscfg = gx_params->pci_suscfg & ~(SUSMOD);
+		gx_params->off_duration = 0;
+		gx_params->on_duration = 0;
+		dprintk("suspend modulation disabled: cpu runs 100 percent speed.\n");
 	}
 
 	pci_write_config_byte(gx_params->cs55x0, PCI_MODOFF, gx_params->off_duration);
@@ -406,7 +404,7 @@ static int cpufreq_gx_target(struct cpufreq_policy *policy,
 
 static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 {
-	int maxfreq, curfreq;
+	unsigned int maxfreq, curfreq;
 
 	if (!policy || policy->cpu != 0)
 		return -ENODEV;
@@ -420,7 +418,7 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 		maxfreq = 30000 * gx_freq_mult[getCx86(CX86_DIR1) & 0x0f];
 	}
 	stock_freq = maxfreq;
-	curfreq = gx_get_cpuspeed();
+	curfreq = gx_get_cpuspeed(0);
 
 	dprintk("cpu max frequency is %d.\n", maxfreq);
 	dprintk("cpu current frequency is %dkHz.\n",curfreq);
@@ -447,6 +445,7 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
  *   MediaGX/Geode GX initialize cpufreq driver
  */
 static struct cpufreq_driver gx_suspmod_driver = {
+	.get		= gx_get_cpuspeed,
 	.verify		= cpufreq_gx_verify,
 	.target		= cpufreq_gx_target,
 	.init		= cpufreq_gx_cpu_init,

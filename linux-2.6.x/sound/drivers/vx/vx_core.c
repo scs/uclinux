@@ -355,11 +355,12 @@ int vx_send_msg_nolock(vx_core_t *chip, struct vx_rmh *rmh)
  */
 int vx_send_msg(vx_core_t *chip, struct vx_rmh *rmh)
 {
+	unsigned long flags;
 	int err;
 
-	spin_lock_bh(&chip->lock);
+	spin_lock_irqsave(&chip->lock, flags);
 	err = vx_send_msg_nolock(chip, rmh);
-	spin_unlock_bh(&chip->lock);
+	spin_unlock_irqrestore(&chip->lock, flags);
 	return err;
 }
 
@@ -414,11 +415,12 @@ int vx_send_rih_nolock(vx_core_t *chip, int cmd)
  */
 int vx_send_rih(vx_core_t *chip, int cmd)
 {
+	unsigned long flags;
 	int err;
 
-	spin_lock_bh(&chip->lock);
+	spin_lock_irqsave(&chip->lock, flags);
 	err = vx_send_rih_nolock(chip, cmd);
-	spin_unlock_bh(&chip->lock);
+	spin_unlock_irqrestore(&chip->lock, flags);
 	return err;
 }
 
@@ -641,7 +643,7 @@ static void vx_proc_init(vx_core_t *chip)
 	snd_info_entry_t *entry;
 
 	if (! snd_card_proc_new(chip->card, "vx-status", &entry))
-		snd_info_set_text_ops(entry, chip, vx_proc_read);
+		snd_info_set_text_ops(entry, chip, 1024, vx_proc_read);
 }
 
 

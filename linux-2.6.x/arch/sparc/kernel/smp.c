@@ -2,6 +2,7 @@
  *
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
  * Copyright (C) 1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
+ * Copyright (C) 2004 Keith M Wesolowski (wesolows@foobazco.org)
  */
 
 #include <asm/head.h>
@@ -19,43 +20,35 @@
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/cache.h>
+#include <linux/delay.h>
 
 #include <asm/ptrace.h>
 #include <asm/atomic.h>
 
-#include <asm/delay.h>
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/oplib.h>
 #include <asm/hardirq.h>
-
-#define __KERNEL_SYSCALLS__
-#include <linux/unistd.h>
-
-#define IRQ_RESCHEDULE		13
-#define IRQ_STOP_CPU		14
-#define IRQ_CROSS_CALL		15
+#include <asm/cacheflush.h>
+#include <asm/tlbflush.h>
+#include <asm/cpudata.h>
 
 volatile int smp_processors_ready = 0;
-unsigned long cpu_present_map = 0;
 int smp_num_cpus = 1;
 int smp_threads_ready=0;
-unsigned char mid_xlate[NR_CPUS] = { 0, 0, 0, 0, };
 volatile unsigned long cpu_callin_map[NR_CPUS] __initdata = {0,};
-#ifdef NOTUSED
-volatile unsigned long smp_spinning[NR_CPUS] = { 0, };
-#endif
-unsigned long smp_proc_in_lock[NR_CPUS] = { 0, };
-struct cpuinfo_sparc cpu_data[NR_CPUS];
-unsigned long cpu_offset[NR_CPUS];
 unsigned char boot_cpu_id = 0;
 unsigned char boot_cpu_id4 = 0; /* boot_cpu_id << 2 */
 int smp_activated = 0;
 volatile int __cpu_number_map[NR_CPUS];
 volatile int __cpu_logical_map[NR_CPUS];
 cycles_t cacheflush_time = 0; /* XXX */
+unsigned long cache_decay_ticks = 100;
+
+cpumask_t cpu_online_map = CPU_MASK_NONE;
+cpumask_t phys_cpu_present_map = CPU_MASK_NONE;
 
 /* The only guaranteed locking primitive available on all Sparc
  * processors is 'ldstub [%reg + immediate], %dest_reg' which atomically
@@ -73,40 +66,23 @@ volatile unsigned long ipi_count;
 volatile int smp_process_available=0;
 volatile int smp_commenced = 0;
 
-/* Not supported on Sparc yet. */
-void __init smp_setup(char *str, int *ints)
-{
-}
-
-/*
- *	The bootstrap kernel entry code has set these up. Save them for
- *	a given CPU
- */
-
 void __init smp_store_cpu_info(int id)
 {
-	cpu_data[id].udelay_val = loops_per_jiffy; /* this is it on sparc. */
+	int cpu_node;
+
+	cpu_data(id).udelay_val = loops_per_jiffy;
+
+	cpu_find_by_mid(id, &cpu_node);
+	cpu_data(id).clock_tick = prom_getintdefault(cpu_node,
+						     "clock-frequency", 0);
+	cpu_data(id).prom_node = cpu_node;
+	cpu_data(id).mid = cpu_get_hwmid(cpu_node);
+	if (cpu_data(id).mid < 0)
+		panic("No MID found for CPU%d at node 0x%08d", id, cpu_node);
 }
 
-void __init smp_commence(void)
+void __init smp_cpus_done(unsigned int max_cpus)
 {
-	/*
-	 *	Lets the callin's below out of their loop.
-	 */
-	local_flush_cache_all();
-	local_flush_tlb_all();
-	smp_commenced = 1;
-	local_flush_cache_all();
-	local_flush_tlb_all();
-}
-
-extern int cpu_idle(void);
-
-/* Activate a secondary processor. */
-int start_secondary(void *unused)
-{
-	prom_printf("Start secondary called. Should not happen\n");
-	return cpu_idle();
 }
 
 void cpu_panic(void)
@@ -115,11 +91,6 @@ void cpu_panic(void)
 	panic("SMP bolixed\n");
 }
 
-/*
- *	Cycle through the processors asking the PROM to start each one.
- */
- 
-extern struct prom_cpuinfo linux_cpus[NR_CPUS];
 struct linux_prom_registers smp_penguin_ctable __initdata = { 0 };
 
 void __init smp_boot_cpus(void)
@@ -135,12 +106,11 @@ void __init smp_boot_cpus(void)
 
 void smp_send_reschedule(int cpu)
 {
-	smp_message_pass (cpu, MSG_RESCHEDULE, 0, 0);
+	/* See sparc64 */
 }
 
 void smp_send_stop(void)
 {
-	smp_message_pass (MSG_ALL_BUT_SELF, MSG_STOP_CPU, 0, 0);
 }
 
 void smp_flush_cache_all(void)
@@ -158,7 +128,9 @@ void smp_flush_tlb_all(void)
 void smp_flush_cache_mm(struct mm_struct *mm)
 {
 	if(mm->context != NO_CONTEXT) {
-		if(mm->cpu_vm_mask != (1 << smp_processor_id()))
+		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpu_clear(smp_processor_id(), cpu_mask);
+		if (!cpus_empty(cpu_mask))
 			xc1((smpfunc_t) BTFIXUP_CALL(local_flush_cache_mm), (unsigned long) mm);
 		local_flush_cache_mm(mm);
 	}
@@ -167,10 +139,12 @@ void smp_flush_cache_mm(struct mm_struct *mm)
 void smp_flush_tlb_mm(struct mm_struct *mm)
 {
 	if(mm->context != NO_CONTEXT) {
-		if(mm->cpu_vm_mask != (1 << smp_processor_id())) {
+		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpu_clear(smp_processor_id(), cpu_mask);
+		if (!cpus_empty(cpu_mask)) {
 			xc1((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_mm), (unsigned long) mm);
 			if(atomic_read(&mm->mm_users) == 1 && current->active_mm == mm)
-				mm->cpu_vm_mask = (1 << smp_processor_id());
+				mm->cpu_vm_mask = cpumask_of_cpu(smp_processor_id());
 		}
 		local_flush_tlb_mm(mm);
 	}
@@ -182,7 +156,9 @@ void smp_flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 	struct mm_struct *mm = vma->vm_mm;
 
 	if (mm->context != NO_CONTEXT) {
-		if(mm->cpu_vm_mask != (1 << smp_processor_id()))
+		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpu_clear(smp_processor_id(), cpu_mask);
+		if (!cpus_empty(cpu_mask))
 			xc3((smpfunc_t) BTFIXUP_CALL(local_flush_cache_range), (unsigned long) vma, start, end);
 		local_flush_cache_range(vma, start, end);
 	}
@@ -194,7 +170,9 @@ void smp_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	struct mm_struct *mm = vma->vm_mm;
 
 	if (mm->context != NO_CONTEXT) {
-		if(mm->cpu_vm_mask != (1 << smp_processor_id()))
+		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpu_clear(smp_processor_id(), cpu_mask);
+		if (!cpus_empty(cpu_mask))
 			xc3((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_range), (unsigned long) vma, start, end);
 		local_flush_tlb_range(vma, start, end);
 	}
@@ -205,7 +183,9 @@ void smp_flush_cache_page(struct vm_area_struct *vma, unsigned long page)
 	struct mm_struct *mm = vma->vm_mm;
 
 	if(mm->context != NO_CONTEXT) {
-		if(mm->cpu_vm_mask != (1 << smp_processor_id()))
+		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpu_clear(smp_processor_id(), cpu_mask);
+		if (!cpus_empty(cpu_mask))
 			xc2((smpfunc_t) BTFIXUP_CALL(local_flush_cache_page), (unsigned long) vma, page);
 		local_flush_cache_page(vma, page);
 	}
@@ -216,10 +196,17 @@ void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 	struct mm_struct *mm = vma->vm_mm;
 
 	if(mm->context != NO_CONTEXT) {
-		if(mm->cpu_vm_mask != (1 << smp_processor_id()))
+		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpu_clear(smp_processor_id(), cpu_mask);
+		if (!cpus_empty(cpu_mask))
 			xc2((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_page), (unsigned long) vma, page);
 		local_flush_tlb_page(vma, page);
 	}
+}
+
+void smp_reschedule_irq(void)
+{
+	set_need_resched();
 }
 
 void smp_flush_page_to_ram(unsigned long page)
@@ -238,28 +225,17 @@ void smp_flush_page_to_ram(unsigned long page)
 
 void smp_flush_sig_insns(struct mm_struct *mm, unsigned long insn_addr)
 {
-	if(mm->cpu_vm_mask != (1 << smp_processor_id()))
+	cpumask_t cpu_mask = mm->cpu_vm_mask;
+	cpu_clear(smp_processor_id(), cpu_mask);
+	if (!cpus_empty(cpu_mask))
 		xc2((smpfunc_t) BTFIXUP_CALL(local_flush_sig_insns), (unsigned long) mm, insn_addr);
 	local_flush_sig_insns(mm, insn_addr);
 }
 
-/* Reschedule call back. */
-void smp_reschedule_irq(void)
-{
-	current->work.need_resched = 1;
-}
-
-/* Stopping processors. */
-void smp_stop_cpu_irq(void)
-{
-	local_irq_enable();
-	while(1)
-		barrier();
-}
-
-unsigned int prof_multiplier[NR_CPUS];
-unsigned int prof_counter[NR_CPUS];
 extern unsigned int lvl14_resolution;
+
+/* /proc/profile writes can call this, don't __init it please. */
+static spinlock_t prof_setup_lock = SPIN_LOCK_UNLOCKED;
 
 int setup_profiling_timer(unsigned int multiplier)
 {
@@ -270,38 +246,54 @@ int setup_profiling_timer(unsigned int multiplier)
 	if((!multiplier) || (lvl14_resolution / multiplier) < 500)
 		return -EINVAL;
 
-	save_and_cli(flags);
+	spin_lock_irqsave(&prof_setup_lock, flags);
 	for(i = 0; i < NR_CPUS; i++) {
-		if(cpu_present_map & (1 << i)) {
-			load_profile_irq(mid_xlate[i], lvl14_resolution / multiplier);
-			prof_multiplier[i] = multiplier;
-		}
+		if (cpu_possible(i))
+			load_profile_irq(i, lvl14_resolution / multiplier);
+		prof_multiplier(i) = multiplier;
 	}
-	restore_flags(flags);
+	spin_unlock_irqrestore(&prof_setup_lock, flags);
 
 	return 0;
 }
 
-void smp_bogo_info(struct seq_file *m)
+void __init smp_prepare_cpus(unsigned int maxcpus)
+{
+}
+
+void __devinit smp_prepare_boot_cpu(void)
+{
+	current_thread_info()->cpu = hard_smp_processor_id();
+	cpu_set(smp_processor_id(), cpu_online_map);
+	cpu_set(smp_processor_id(), phys_cpu_present_map);
+}
+
+int __devinit __cpu_up(unsigned int cpu)
+{
+	panic("smp doesn't work\n");
+}
+
+void smp_bogo(struct seq_file *m)
 {
 	int i;
 	
 	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_present_map & (1 << i))
+		if (cpu_online(i))
 			seq_printf(m,
 				   "Cpu%dBogo\t: %lu.%02lu\n", 
 				   i,
-				   cpu_data[i].udelay_val/(500000/HZ),
-				   (cpu_data[i].udelay_val/(5000/HZ))%100);
+				   cpu_data(i).udelay_val/(500000/HZ),
+				   (cpu_data(i).udelay_val/(5000/HZ))%100);
 	}
 }
 
 void smp_info(struct seq_file *m)
 {
 	int i;
-	
+
+	seq_printf(m, "State:\n");
 	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_present_map & (1 << i))
+		if (cpu_online(i))
 			seq_printf(m, "CPU%d\t\t: online\n", i);
 	}
 }

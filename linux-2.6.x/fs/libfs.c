@@ -7,6 +7,7 @@
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
+#include <asm/uaccess.h>
 
 int simple_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		   struct kstat *stat)
@@ -155,7 +156,6 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			}
 			spin_unlock(&dcache_lock);
 	}
-	update_atime(dentry->d_inode);
 	return 0;
 }
 
@@ -227,6 +227,7 @@ int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *den
 {
 	struct inode *inode = old_dentry->d_inode;
 
+	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	inode->i_nlink++;
 	atomic_inc(&inode->i_count);
 	dget(dentry);
@@ -258,6 +259,7 @@ int simple_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 
+	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	inode->i_nlink--;
 	dput(dentry);
 	return 0;
@@ -277,6 +279,7 @@ int simple_rmdir(struct inode *dir, struct dentry *dentry)
 int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 		struct inode *new_dir, struct dentry *new_dentry)
 {
+	struct inode *inode = old_dentry->d_inode;
 	int they_are_dirs = S_ISDIR(old_dentry->d_inode->i_mode);
 
 	if (!simple_empty(new_dentry))
@@ -290,6 +293,10 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 		old_dir->i_nlink--;
 		new_dir->i_nlink++;
 	}
+
+	old_dir->i_ctime = old_dir->i_mtime = new_dir->i_ctime =
+		new_dir->i_mtime = inode->i_ctime = CURRENT_TIME;
+
 	return 0;
 }
 
@@ -433,6 +440,22 @@ void simple_release_fs(struct vfsmount **mount, int *count)
 	mntput(mnt);
 }
 
+ssize_t simple_read_from_buffer(void __user *to, size_t count, loff_t *ppos,
+				const void *from, size_t available)
+{
+	loff_t pos = *ppos;
+	if (pos < 0)
+		return -EINVAL;
+	if (pos >= available)
+		return 0;
+	if (count > available - pos)
+		count = available - pos;
+	if (copy_to_user(to, from + pos, count))
+		return -EFAULT;
+	*ppos = pos + count;
+	return count;
+}
+
 EXPORT_SYMBOL(dcache_dir_close);
 EXPORT_SYMBOL(dcache_dir_lseek);
 EXPORT_SYMBOL(dcache_dir_open);
@@ -455,3 +478,4 @@ EXPORT_SYMBOL(simple_rmdir);
 EXPORT_SYMBOL(simple_statfs);
 EXPORT_SYMBOL(simple_sync_file);
 EXPORT_SYMBOL(simple_unlink);
+EXPORT_SYMBOL(simple_read_from_buffer);

@@ -4,7 +4,8 @@ net-3-driver for the IBM LAN Adapter/A
 This is an extension to the Linux operating system, and is covered by the
 same GNU General Public License that covers that work.
 
-Copyright 1999 by Alfred Arnold (alfred@ccac.rwth-aachen.de, aarnold@elsa.de)
+Copyright 1999 by Alfred Arnold (alfred@ccac.rwth-aachen.de,
+                                 alfred.arnold@lancom.de)
 
 This driver is based both on the SK_MCA driver, which is itself based on the
 SK_G16 and 3C523 driver.
@@ -96,6 +97,8 @@ History:
 #include "ibmlana.h"
 
 #undef DEBUG
+
+#define DRV_NAME "ibmlana"
 
 /* ------------------------------------------------------------------------
  * global static data - not more since we can handle multiple boards and
@@ -906,7 +909,7 @@ static void ibmlana_set_multicast_list(struct net_device *dev)
 
 static int startslot;		/* counts through slots when probing multiple devices */
 
-int ibmlana_probe(struct net_device *dev)
+static int ibmlana_probe(struct net_device *dev)
 {
 	int force_detect = 0;
 	int slot, z;
@@ -924,34 +927,21 @@ int ibmlana_probe(struct net_device *dev)
 	if (dev->mem_start == 1)
 		force_detect = 1;
 
-	/* search through slots */
-	if (dev != NULL) {
-		base = dev->mem_start;
-		irq = dev->irq;
-	}
-	slot = mca_find_adapter(IBM_LANA_ID, startslot);
+	base = dev->mem_start;
+	irq = dev->irq;
 
-	while (slot != -1) {
+	for (slot = startslot; (slot = mca_find_adapter(IBM_LANA_ID, slot)) != -1; slot++) {
 		/* deduce card addresses */
 		getaddrs(slot, &base, &memlen, &iobase, &irq, &medium);
 
 		/* slot already in use ? */
-		if (mca_is_adapter_used(slot)) {
-			slot = mca_find_adapter(IBM_LANA_ID, slot + 1);
+		if (mca_is_adapter_used(slot))
 			continue;
-		}
 		/* were we looking for something different ? */
-		if (dev->irq != 0 || dev->mem_start != 0) {
-			if (dev->irq != 0 && dev->irq != irq) {
-				slot = mca_find_adapter(IBM_LANA_ID, slot + 1);
-				continue;
-			}
-			if (dev->mem_start != 0 && dev->mem_start != base) 
-			{
-				slot = mca_find_adapter(IBM_LANA_ID, slot + 1);
-				continue;
-			}
-		}
+		if (dev->irq && dev->irq != irq)
+			continue;
+		if (dev->mem_start && dev->mem_start != base)
+			continue;
 		/* found something that matches */
 		break;
 	}
@@ -964,8 +954,8 @@ int ibmlana_probe(struct net_device *dev)
 	printk(KERN_INFO "%s: IBM LAN Adapter/A found in slot %d\n", dev->name, slot + 1);
 
 	/* try to obtain I/O range */
-	if (!request_region(iobase, IBM_LANA_IORANGE, dev->name)) {
-		printk(KERN_ERR "%s: cannot allocate I/O range at %#x!\n", dev->name, iobase);
+	if (!request_region(iobase, IBM_LANA_IORANGE, DRV_NAME)) {
+		printk(KERN_ERR "%s: cannot allocate I/O range at %#x!\n", DRV_NAME, iobase);
 		startslot = slot + 1;
 		return -EBUSY;
 	}
@@ -977,16 +967,11 @@ int ibmlana_probe(struct net_device *dev)
 	mca_mark_as_used(slot);
 
 	/* allocate structure */
-	priv = dev->priv = (ibmlana_priv *) kmalloc(sizeof(ibmlana_priv), GFP_KERNEL);
-	if (!priv) {
-		release_region(iobase, IBM_LANA_IORANGE);
-		return -ENOMEM;
-	}
+	priv = dev->priv;
 	priv->slot = slot;
 	priv->realirq = irq;
 	priv->medium = medium;
 	spin_lock_init(&priv->lock);
-	memset(&priv->stat, 0, sizeof(struct net_device_stats));
 
 	/* set base + irq for this device (irq not allocated so far) */
 
@@ -1005,10 +990,6 @@ int ibmlana_probe(struct net_device *dev)
 	dev->get_stats = ibmlana_stats;
 	dev->set_multicast_list = ibmlana_set_multicast_list;
 	dev->flags |= IFF_MULTICAST;
-
-	/* generic setup */
-
-	ether_setup(dev);
 
 	/* copy out MAC address */
 
@@ -1044,7 +1025,7 @@ int ibmlana_probe(struct net_device *dev)
 
 #define DEVMAX 5
 
-static struct net_device moddevs[DEVMAX];
+static struct net_device *moddevs[DEVMAX];
 static int irq;
 static int io;
 
@@ -1056,41 +1037,47 @@ MODULE_LICENSE("GPL");
 
 int init_module(void)
 {
-	int z, res;
+	int z;
 
 	startslot = 0;
 	for (z = 0; z < DEVMAX; z++) {
-		moddevs[z].init = ibmlana_probe;
-		moddevs[z].irq = irq;
-		moddevs[z].base_addr = io;
-		res = register_netdev(moddevs + z);
-		if (res != 0)
-			return (z > 0) ? 0 : -EIO;
+		struct net_device *dev = alloc_etherdev(sizeof(ibmlana_priv));
+		if (!dev)
+			break;
+		dev->irq = irq;
+		dev->base_addr = io;
+		if (ibmlana_probe(dev)) {
+			free_netdev(dev);
+			break;
+		}
+		if (register_netdev(dev)) {
+			ibmlana_priv *priv = dev->priv;
+			release_region(dev->base_addr, IBM_LANA_IORANGE);
+			mca_mark_as_unused(priv->slot);
+			mca_set_adapter_name(priv->slot, "");
+			mca_set_adapter_procfn(priv->slot, NULL, NULL);
+			free_netdev(dev);
+			break;
+		}
+		moddevs[z] = dev;
 	}
-	return 0;
+	return (z > 0) ? 0 : -EIO;
 }
 
 void cleanup_module(void)
 {
-	struct net_device *dev;
-	ibmlana_priv *priv;
 	int z;
-
 	for (z = 0; z < DEVMAX; z++) {
-		dev = moddevs + z;
-		if (dev->priv != NULL) {
-			priv = (ibmlana_priv *) dev->priv;
-			/*DeinitBoard(dev); */
-			if (dev->irq != 0)
-				free_irq(dev->irq, dev);
-			dev->irq = 0;
-			release_region(dev->base_addr, IBM_LANA_IORANGE);
+		struct net_device *dev = moddevs[z];
+		if (dev) {
+			ibmlana_priv *priv = (ibmlana_priv *) dev->priv;
 			unregister_netdev(dev);
+			/*DeinitBoard(dev); */
+			release_region(dev->base_addr, IBM_LANA_IORANGE);
 			mca_mark_as_unused(priv->slot);
 			mca_set_adapter_name(priv->slot, "");
 			mca_set_adapter_procfn(priv->slot, NULL, NULL);
-			kfree(dev->priv);
-			dev->priv = NULL;
+			free_netdev(dev);
 		}
 	}
 }

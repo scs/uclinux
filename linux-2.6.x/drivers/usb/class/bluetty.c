@@ -1025,7 +1025,7 @@ static int usb_bluetooth_probe (struct usb_interface *intf,
 	int num_bulk_in = 0;
 	int num_bulk_out = 0;
 
-	interface = &intf->altsetting[0];
+	interface = intf->cur_altsetting;
 	control_out_endpoint = interface->desc.bInterfaceNumber;
 
 	/* find the endpoints that we need */
@@ -1234,7 +1234,7 @@ static struct tty_operations bluetooth_ops = {
 	.chars_in_buffer =	bluetooth_chars_in_buffer,
 };
 
-int usb_bluetooth_init(void)
+static int usb_bluetooth_init(void)
 {
 	int i;
 	int result;
@@ -1283,7 +1283,7 @@ int usb_bluetooth_init(void)
 }
 
 
-void usb_bluetooth_exit(void)
+static void usb_bluetooth_exit(void)
 {
 	usb_deregister(&usb_bluetooth_driver);
 	tty_unregister_driver(bluetooth_tty_driver);

@@ -291,7 +291,7 @@ static int lp_wait_ready(int minor, int nonblock)
 	return error;
 }
 
-static ssize_t lp_write(struct file * file, const char * buf,
+static ssize_t lp_write(struct file * file, const char __user * buf,
 		        size_t count, loff_t *ppos)
 {
 	unsigned int minor = iminor(file->f_dentry->d_inode);
@@ -407,7 +407,7 @@ static ssize_t lp_write(struct file * file, const char * buf,
 #ifdef CONFIG_PARPORT_1284
 
 /* Status readback conforming to ieee1284 */
-static ssize_t lp_read(struct file * file, char * buf,
+static ssize_t lp_read(struct file * file, char __user * buf,
 		       size_t count, loff_t *ppos)
 {
 	unsigned int minor=iminor(file->f_dentry->d_inode);
@@ -560,6 +560,7 @@ static int lp_ioctl(struct inode *inode, struct file *file,
 	unsigned int minor = iminor(inode);
 	int status;
 	int retval = 0;
+	void __user *argp = (void __user *)arg;
 
 #ifdef LP_DEBUG
 	printk(KERN_DEBUG "lp%d ioctl, cmd: 0x%x, arg: 0x%lx\n", minor, cmd, arg);
@@ -603,7 +604,7 @@ static int lp_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 			break;
 		case LPGETIRQ:
-			if (copy_to_user((int *) arg, &LP_IRQ(minor),
+			if (copy_to_user(argp, &LP_IRQ(minor),
 					sizeof(int)))
 				return -EFAULT;
 			break;
@@ -612,7 +613,7 @@ static int lp_ioctl(struct inode *inode, struct file *file,
 			status = r_str(minor);
 			lp_release_parport (&lp_table[minor]);
 
-			if (copy_to_user((int *) arg, &status, sizeof(int)))
+			if (copy_to_user(argp, &status, sizeof(int)))
 				return -EFAULT;
 			break;
 		case LPRESET:
@@ -620,7 +621,7 @@ static int lp_ioctl(struct inode *inode, struct file *file,
 			break;
 #ifdef LP_STATS
 		case LPGETSTATS:
-			if (copy_to_user((int *) arg, &LP_STAT(minor),
+			if (copy_to_user(argp, &LP_STAT(minor),
 					sizeof(struct lp_stats)))
 				return -EFAULT;
 			if (capable(CAP_SYS_ADMIN))
@@ -630,13 +631,12 @@ static int lp_ioctl(struct inode *inode, struct file *file,
 #endif
  		case LPGETFLAGS:
  			status = LP_F(minor);
-			if (copy_to_user((int *) arg, &status, sizeof(int)))
+			if (copy_to_user(argp, &status, sizeof(int)))
 				return -EFAULT;
 			break;
 
 		case LPSETTIMEOUT:
-			if (copy_from_user (&par_timeout,
-					    (struct timeval *) arg,
+			if (copy_from_user (&par_timeout, argp,
 					    sizeof (struct timeval))) {
 				return -EFAULT;
 			}
@@ -862,15 +862,14 @@ static void lp_detach (struct parport *port)
 }
 
 static struct parport_driver lp_driver = {
-	"lp",
-	lp_attach,
-	lp_detach,
-	NULL
+	.name = "lp",
+	.attach = lp_attach,
+	.detach = lp_detach,
 };
 
 int __init lp_init (void)
 {
-	int i;
+	int i, err = 0;
 
 	if (parport_nr[0] == LP_PARPORT_OFF)
 		return 0;
@@ -901,10 +900,15 @@ int __init lp_init (void)
 
 	devfs_mk_dir("printers");
 	lp_class = class_simple_create(THIS_MODULE, "printer");
+	if (IS_ERR(lp_class)) {
+		err = PTR_ERR(lp_class);
+		goto out_devfs;
+	}
 
 	if (parport_register_driver (&lp_driver)) {
 		printk (KERN_ERR "lp: unable to register with parport\n");
-		return -EIO;
+		err = -EIO;
+		goto out_class;
 	}
 
 	if (!lp_count) {
@@ -916,6 +920,13 @@ int __init lp_init (void)
 	}
 
 	return 0;
+
+out_class:
+	class_simple_destroy(lp_class);
+out_devfs:
+	devfs_remove("printers");
+	unregister_chrdev(LP_MAJOR, "lp");
+	return err;
 }
 
 static int __init lp_init_module (void)

@@ -24,8 +24,9 @@
 extern char DRIVERRELEASE_CAPI[];
 
 typedef struct _diva_card {
+	struct list_head list;
+	int remove_in_progress;
 	int Id;
-	struct _diva_card *next;
 	struct capi_ctr capi_ctrl;
 	DIVA_CAPI_ADAPTER *adapter;
 	DESCRIPTOR d;

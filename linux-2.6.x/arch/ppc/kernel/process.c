@@ -35,6 +35,7 @@
 #include <linux/init_task.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
+#include <linux/mqueue.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -45,11 +46,11 @@
 #include <asm/prom.h>
 #include <asm/hardirq.h>
 
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpregs);
 extern unsigned long _get_SP(void);
 
 struct task_struct *last_task_used_math = NULL;
 struct task_struct *last_task_used_altivec = NULL;
+struct task_struct *last_task_used_spe = NULL;
 
 static struct fs_struct init_fs = INIT_FS;
 static struct files_struct init_files = INIT_FILES;
@@ -84,7 +85,7 @@ kernel_stack_top(struct task_struct *tsk)
 unsigned long
 task_top(struct task_struct *tsk)
 {
-	return ((unsigned long)tsk) + sizeof(struct task_struct);
+	return ((unsigned long)tsk) + sizeof(struct thread_info);
 }
 
 /* check to make sure the kernel stack is healthy */
@@ -164,6 +165,8 @@ dump_altivec(struct pt_regs *regs, elf_vrregset_t *vrregs)
 void
 enable_kernel_altivec(void)
 {
+	WARN_ON(preemptible());
+
 #ifdef CONFIG_SMP
 	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC))
 		giveup_altivec(current);
@@ -173,11 +176,42 @@ enable_kernel_altivec(void)
 	giveup_altivec(last_task_used_altivec);
 #endif /* __SMP __ */
 }
+EXPORT_SYMBOL(enable_kernel_altivec);
 #endif /* CONFIG_ALTIVEC */
+
+#ifdef CONFIG_SPE
+int
+dump_spe(struct pt_regs *regs, elf_vrregset_t *evrregs)
+{
+	if (regs->msr & MSR_SPE)
+		giveup_spe(current);
+	/* We copy u32 evr[32] + u64 acc + u32 spefscr -> 35 */
+	memcpy(evrregs, &current->thread.evr[0], sizeof(u32) * 35);
+	return 1;
+}
+
+void
+enable_kernel_spe(void)
+{
+	WARN_ON(preemptible());
+
+#ifdef CONFIG_SMP
+	if (current->thread.regs && (current->thread.regs->msr & MSR_SPE))
+		giveup_spe(current);
+	else
+		giveup_spe(NULL);	/* just enable SPE for kernel - force */
+#else
+	giveup_spe(last_task_used_spe);
+#endif /* __SMP __ */
+}
+EXPORT_SYMBOL(enable_kernel_spe);
+#endif /* CONFIG_SPE */
 
 void
 enable_kernel_fp(void)
 {
+	WARN_ON(preemptible());
+
 #ifdef CONFIG_SMP
 	if (current->thread.regs && (current->thread.regs->msr & MSR_FP))
 		giveup_fpu(current);
@@ -187,13 +221,16 @@ enable_kernel_fp(void)
 	giveup_fpu(last_task_used_math);
 #endif /* CONFIG_SMP */
 }
+EXPORT_SYMBOL(enable_kernel_fp);
 
 int
-dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpregs)
+dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
 {
-	if (regs->msr & MSR_FP)
-		giveup_fpu(current);
-	memcpy(fpregs, &current->thread.fpr[0], sizeof(*fpregs));
+	preempt_disable();
+	if (tsk->thread.regs && (tsk->thread.regs->msr & MSR_FP))
+		giveup_fpu(tsk);
+	preempt_enable();
+	memcpy(fpregs, &tsk->thread.fpr[0], sizeof(*fpregs));
 	return 1;
 }
 
@@ -237,6 +274,17 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	if ((prev->thread.regs && (prev->thread.regs->msr & MSR_VEC)))
 		giveup_altivec(prev);
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_SPE
+	/*
+	 * If the previous thread used spe in the last quantum
+	 * (thus changing spe regs) then save them.
+	 *
+	 * On SMP we always save/restore spe regs just to avoid the
+	 * complexity of changing processors.
+	 */
+	if ((prev->thread.regs && (prev->thread.regs->msr & MSR_SPE)))
+		giveup_spe(prev);
+#endif /* CONFIG_SPE */
 #endif /* CONFIG_SMP */
 
 	/* Avoid the trap.  On smp this this never happens since
@@ -244,6 +292,13 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	 */
 	if (new->thread.regs && last_task_used_altivec == new)
 		new->thread.regs->msr |= MSR_VEC;
+#ifdef CONFIG_SPE
+	/* Avoid the trap.  On smp this this never happens since
+	 * we don't set last_task_used_spe
+	 */
+	if (new->thread.regs && last_task_used_spe == new)
+		new->thread.regs->msr |= MSR_SPE;
+#endif /* CONFIG_SPE */
 	new_thread = &new->thread;
 	old_thread = &current->thread;
 	last = _switch(old_thread, new_thread);
@@ -266,8 +321,8 @@ void show_regs(struct pt_regs * regs)
 	trap = TRAP(regs);
 	if (trap == 0x300 || trap == 0x600)
 		printk("DAR: %08lX, DSISR: %08lX\n", regs->dar, regs->dsisr);
-	printk("TASK = %p[%d] '%s' ",
-	       current, current->pid, current->comm);
+	printk("TASK = %p[%d] '%s' THREAD: %p",
+	       current, current->pid, current->comm, current->thread_info);
 	printk("Last syscall: %ld ", current->thread.last_syscall);
 
 #if defined(CONFIG_4xx) && defined(DCRN_PLB0_BEAR)
@@ -296,6 +351,16 @@ void show_regs(struct pt_regs * regs)
 			break;
 	}
 	printk("\n");
+#ifdef CONFIG_KALLSYMS
+	/*
+	 * Lookup NIP late so we have the best change of getting the
+	 * above info out without failing
+	 */
+	printk("NIP [%08lx] ", regs->nip);
+	print_symbol("%s\n", regs->nip);
+	printk("LR [%08lx] ", regs->link);
+	print_symbol("%s\n", regs->link);
+#endif
 	show_stack(current, (unsigned long *) regs->gpr[1]);
 }
 
@@ -330,12 +395,18 @@ void prepare_to_copy(struct task_struct *tsk)
 
 	if (regs == NULL)
 		return;
+	preempt_disable();
 	if (regs->msr & MSR_FP)
 		giveup_fpu(current);
 #ifdef CONFIG_ALTIVEC
 	if (regs->msr & MSR_VEC)
 		giveup_altivec(current);
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_SPE
+	if (regs->msr & MSR_SPE)
+		giveup_spe(current);
+#endif /* CONFIG_SPE */
+	preempt_enable();
 }
 
 /*
@@ -408,9 +479,9 @@ void start_thread(struct pt_regs *regs, unsigned long nip, unsigned long sp)
 	regs->gpr[1] = sp;
 	regs->msr = MSR_USER;
 	if (last_task_used_math == current)
-		last_task_used_math = 0;
+		last_task_used_math = NULL;
 	if (last_task_used_altivec == current)
-		last_task_used_altivec = 0;
+		last_task_used_altivec = NULL;
 	memset(current->thread.fpr, 0, sizeof(current->thread.fpr));
 	current->thread.fpscr = 0;
 #ifdef CONFIG_ALTIVEC
@@ -419,18 +490,45 @@ void start_thread(struct pt_regs *regs, unsigned long nip, unsigned long sp)
 	current->thread.vrsave = 0;
 	current->thread.used_vr = 0;
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_SPE
+	memset(current->thread.evr, 0, sizeof(current->thread.evr));
+	current->thread.acc = 0;
+	current->thread.spefscr = 0;
+	current->thread.used_spe = 0;
+#endif /* CONFIG_SPE */
 }
+
+#define PR_FP_ALL_EXCEPT (PR_FP_EXC_DIV | PR_FP_EXC_OVF | PR_FP_EXC_UND \
+		| PR_FP_EXC_RES | PR_FP_EXC_INV)
 
 int set_fpexc_mode(struct task_struct *tsk, unsigned int val)
 {
 	struct pt_regs *regs = tsk->thread.regs;
 
-	if (val > PR_FP_EXC_PRECISE)
+	/* This is a bit hairy.  If we are an SPE enabled  processor
+	 * (have embedded fp) we store the IEEE exception enable flags in
+	 * fpexc_mode.  fpexc_mode is also used for setting FP exception
+	 * mode (asyn, precise, disabled) for 'Classic' FP. */
+	if (val & PR_FP_EXC_SW_ENABLE) {
+#ifdef CONFIG_SPE
+		tsk->thread.fpexc_mode = val &
+			(PR_FP_EXC_SW_ENABLE | PR_FP_ALL_EXCEPT);
+#else
 		return -EINVAL;
-	tsk->thread.fpexc_mode = __pack_fe01(val);
-	if (regs != NULL && (regs->msr & MSR_FP) != 0)
-		regs->msr = (regs->msr & ~(MSR_FE0|MSR_FE1))
-			| tsk->thread.fpexc_mode;
+#endif
+	} else {
+		/* on a CONFIG_SPE this does not hurt us.  The bits that
+		 * __pack_fe01 use do not overlap with bits used for
+		 * PR_FP_EXC_SW_ENABLE.  Additionally, the MSR[FE0,FE1] bits
+		 * on CONFIG_SPE implementations are reserved so writing to
+		 * them does not change anything */
+		if (val > PR_FP_EXC_PRECISE)
+			return -EINVAL;
+		tsk->thread.fpexc_mode = __pack_fe01(val);
+		if (regs != NULL && (regs->msr & MSR_FP) != 0)
+			regs->msr = (regs->msr & ~(MSR_FE0|MSR_FE1))
+				| tsk->thread.fpexc_mode;
+	}
 	return 0;
 }
 
@@ -438,8 +536,15 @@ int get_fpexc_mode(struct task_struct *tsk, unsigned long adr)
 {
 	unsigned int val;
 
-	val = __unpack_fe01(tsk->thread.fpexc_mode);
-	return put_user(val, (unsigned int *) adr);
+	if (tsk->thread.fpexc_mode & PR_FP_EXC_SW_ENABLE)
+#ifdef CONFIG_SPE
+		val = tsk->thread.fpexc_mode;
+#else
+		return -EINVAL;
+#endif
+	else
+		val = __unpack_fe01(tsk->thread.fpexc_mode);
+	return put_user(val, (unsigned int __user *) adr);
 }
 
 int sys_clone(unsigned long clone_flags, unsigned long usp,
@@ -480,12 +585,18 @@ int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
+	preempt_disable();
 	if (regs->msr & MSR_FP)
 		giveup_fpu(current);
 #ifdef CONFIG_ALTIVEC
 	if (regs->msr & MSR_VEC)
 		giveup_altivec(current);
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_SPE
+	if (regs->msr & MSR_SPE)
+		giveup_spe(current);
+#endif /* CONFIG_SPE */
+	preempt_enable();
 	error = do_execve(filename, (char __user *__user *) a1,
 			  (char __user *__user *) a2, regs);
 	if (error == 0)
@@ -647,14 +758,6 @@ void __init ll_puts(const char *s)
 }
 #endif
 
-/*
- * These bracket the sleeping functions..
- */
-extern void scheduling_functions_start_here(void);
-extern void scheduling_functions_end_here(void);
-#define first_sched    ((unsigned long) scheduling_functions_start_here)
-#define last_sched     ((unsigned long) scheduling_functions_end_here)
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long ip, sp;
@@ -669,7 +772,7 @@ unsigned long get_wchan(struct task_struct *p)
 			return 0;
 		if (count > 0) {
 			ip = *(unsigned long *)(sp + 4);
-			if (ip < first_sched || ip >= last_sched)
+			if (!in_sched_functions(ip))
 				return ip;
 		}
 	} while (count++ < 16);

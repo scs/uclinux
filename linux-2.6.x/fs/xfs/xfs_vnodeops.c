@@ -246,25 +246,10 @@ xfs_getattr(
 		goto all_done;
 
 	/*
-	 * convert di_flags to xflags
+	 * Convert di_flags to xflags.
 	 */
-	vap->va_xflags = 0;
-	if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME)
-		vap->va_xflags |= XFS_XFLAG_REALTIME;
-	if (ip->i_d.di_flags & XFS_DIFLAG_PREALLOC)
-		vap->va_xflags |= XFS_XFLAG_PREALLOC;
-	if (ip->i_d.di_flags & XFS_DIFLAG_IMMUTABLE)
-		vap->va_xflags |= XFS_XFLAG_IMMUTABLE;
-	if (ip->i_d.di_flags & XFS_DIFLAG_APPEND)
-		vap->va_xflags |= XFS_XFLAG_APPEND;
-	if (ip->i_d.di_flags & XFS_DIFLAG_SYNC)
-		vap->va_xflags |= XFS_XFLAG_SYNC;
-	if (ip->i_d.di_flags & XFS_DIFLAG_NOATIME)
-		vap->va_xflags |= XFS_XFLAG_NOATIME;
-	if (ip->i_d.di_flags & XFS_DIFLAG_NODUMP)
-		vap->va_xflags |= XFS_XFLAG_NODUMP;
-	if (XFS_IFORK_Q(ip))
-		vap->va_xflags |= XFS_XFLAG_HASATTR;
+	vap->va_xflags = xfs_dic2xflags(&ip->i_d, ARCH_NOCONVERT);
+
 	/*
 	 * Exit for inode revalidate.  See if any of the rest of
 	 * the fields to be filled in are needed.
@@ -413,8 +398,9 @@ xfs_setattr(
 	} else {
 		if (DM_EVENT_ENABLED (vp->v_vfsp, ip, DM_EVENT_TRUNCATE) &&
 		    !(flags & ATTR_DMI)) {
+			int dmflags = AT_DELAY_FLAG(flags) | DM_SEM_FLAG_WR;
 			code = XFS_SEND_DATA(mp, DM_EVENT_TRUNCATE, vp,
-				vap->va_size, 0, AT_DELAY_FLAG(flags), NULL);
+				vap->va_size, 0, dmflags, NULL);
 			if (code) {
 				lock_flags = 0;
 				goto error_return;
@@ -424,11 +410,6 @@ xfs_setattr(
 	}
 
 	xfs_ilock(ip, lock_flags);
-
-	if (_MAC_XFS_IACCESS(ip, MACWRITE, credp)) {
-		code = XFS_ERROR(EACCES);
-		goto error_return;
-	}
 
 	/* boolean: are we the file owner? */
 	file_owner = (current_fsuid(credp) == ip->i_d.di_uid);
@@ -679,18 +660,12 @@ xfs_setattr(
 	 * once it is a part of the transaction.
 	 */
 	if (mask & XFS_AT_SIZE) {
-		if (vap->va_size > ip->i_d.di_size) {
+		code = 0;
+		if (vap->va_size > ip->i_d.di_size)
 			code = xfs_igrow_start(ip, vap->va_size, credp);
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		} else if (vap->va_size <= ip->i_d.di_size) {
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-			xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE,
-					    (xfs_fsize_t)vap->va_size);
-			code = 0;
-		} else {
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-			code = 0;
-		}
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		if (!code)
+			code = xfs_itruncate_data(ip, vap->va_size);
 		if (code) {
 			ASSERT(tp == NULL);
 			lock_flags &= ~XFS_ILOCK_EXCL;
@@ -1105,14 +1080,11 @@ xfs_fsync(
 	xfs_off_t	stop)
 {
 	xfs_inode_t	*ip;
-	int		error;
-	int		error2;
-	int		syncall;
-	vnode_t		*vp;
 	xfs_trans_t	*tp;
+	int		error;
 
-	vp = BHV_TO_VNODE(bdp);
-	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
+	vn_trace_entry(BHV_TO_VNODE(bdp),
+			__FUNCTION__, (inst_t *)__return_address);
 
 	ip = XFS_BHVTOI(bdp);
 
@@ -1120,44 +1092,6 @@ xfs_fsync(
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return XFS_ERROR(EIO);
-
-	xfs_ilock(ip, XFS_IOLOCK_EXCL);
-
-	syncall = error = error2 = 0;
-
-	if (stop == -1)  {
-		ASSERT(start >= 0);
-		if (start == 0)
-			syncall = 1;
-		stop = xfs_file_last_byte(ip);
-	}
-
-	/*
-	 * If we're invalidating, always flush since we want to
-	 * tear things down.  Otherwise, don't flush anything if
-	 * we're not dirty.
-	 */
-	if (flag & FSYNC_INVAL) {
-		if (ip->i_df.if_flags & XFS_IFEXTENTS &&
-		    ip->i_df.if_bytes > 0) {
-			VOP_FLUSHINVAL_PAGES(vp, start, -1, FI_REMAPF_LOCKED);
-		}
-		ASSERT(syncall == 0 || (VN_CACHED(vp) == 0));
-	} else {
-		/*
-		 * In the non-invalidating case, calls to fsync() do not
-		 * flush all the dirty mmap'd pages.  That requires a
-		 * call to msync().
-		 */
-		VOP_FLUSH_PAGES(vp, start, -1,
-				(flag & FSYNC_WAIT) ? 0 : XFS_B_ASYNC,
-				FI_NONE, error2);
-	}
-
-	if (error2) {
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-		return XFS_ERROR(error2);
-	}
 
 	/*
 	 * We always need to make sure that the required inode state
@@ -1198,7 +1132,7 @@ xfs_fsync(
 		 * be pinned.  If it is, force the log.
 		 */
 
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_SHARED);
+		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 		if (xfs_ipincount(ip)) {
 			xfs_log_force(ip->i_mount, (xfs_lsn_t)0,
@@ -1221,7 +1155,6 @@ xfs_fsync(
 				XFS_FSYNC_TS_LOG_RES(ip->i_mount),
 				0, 0, 0)))  {
 			xfs_trans_cancel(tp, 0);
-			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 			return error;
 		}
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -1236,67 +1169,17 @@ xfs_fsync(
 		 * inode in another recent transaction.	 So we
 		 * play it safe and fire off the transaction anyway.
 		 */
-		xfs_trans_ijoin(tp, ip, XFS_IOLOCK_EXCL|XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 		xfs_trans_ihold(tp, ip);
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		if (flag & FSYNC_WAIT)
 			xfs_trans_set_sync(tp);
 		error = xfs_trans_commit(tp, 0, NULL);
 
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL|XFS_ILOCK_EXCL);
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	}
 	return error;
 }
-
-
-#if 0
-/*
- * This is a utility routine for xfs_inactive.  It is called when a
- * transaction attempting to free up the disk space for a file encounters
- * an error.  It cancels the old transaction and starts up a new one
- * to be used to free up the inode.  It also sets the inode size and extent
- * counts to 0 and frees up any memory being used to store inline data,
- * extents, or btree roots.
- */
-STATIC void
-xfs_itruncate_cleanup(
-	xfs_trans_t	**tpp,
-	xfs_inode_t	*ip,
-	int		commit_flags,
-	int		fork)
-{
-	xfs_mount_t	*mp;
-	/* REFERENCED */
-	int		error;
-
-	mp = ip->i_mount;
-	if (*tpp) {
-		xfs_trans_cancel(*tpp, commit_flags | XFS_TRANS_ABORT);
-	}
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
-	*tpp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-	error = xfs_trans_reserve(*tpp, 0, XFS_IFREE_LOG_RES(mp), 0, 0,
-				  XFS_DEFAULT_LOG_COUNT);
-	if (error) {
-		return;
-	}
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-	xfs_trans_ijoin(*tpp, ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
-	xfs_trans_ihold(*tpp, ip);
-
-	xfs_idestroy_fork(ip, fork);
-
-	if (fork == XFS_DATA_FORK) {
-		ip->i_d.di_nblocks = 0;
-		ip->i_d.di_nextents = 0;
-		ip->i_d.di_size = 0;
-	} else {
-		ip->i_d.di_anextents = 0;
-	}
-	xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
-}
-#endif
 
 /*
  * This is called by xfs_inactive to free any blocks beyond eof,
@@ -2558,11 +2441,6 @@ xfs_remove(
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	}
 
-	if ((error = _MAC_XFS_IACCESS(ip, MACWRITE, credp))) {
-		REMOVE_DEBUG_TRACE(__LINE__);
-		goto error_return;
-	}
-
 	/*
 	 * Entry must exist since we did a lookup in xfs_lock_dir_and_entry.
 	 */
@@ -2648,8 +2526,6 @@ xfs_remove(
  error1:
 	xfs_bmap_cancel(&free_list);
 	cancel_flags |= XFS_TRANS_ABORT;
-
- error_return:
 	xfs_trans_cancel(tp, cancel_flags);
 	goto std_return;
 
@@ -3216,10 +3092,6 @@ xfs_rmdir(
 
 	ITRACE(cdp);
 	xfs_trans_ijoin(tp, cdp, XFS_ILOCK_EXCL);
-
-	if ((error = _MAC_XFS_IACCESS(cdp, MACWRITE, credp))) {
-		goto error_return;
-	}
 
 	ASSERT(cdp->i_d.di_nlink >= 2);
 	if (cdp->i_d.di_nlink != 2) {

@@ -30,7 +30,9 @@ static spinlock_t uidhash_lock = SPIN_LOCK_UNLOCKED;
 struct user_struct root_user = {
 	.__count	= ATOMIC_INIT(1),
 	.processes	= ATOMIC_INIT(1),
-	.files		= ATOMIC_INIT(0)
+	.files		= ATOMIC_INIT(0),
+	.sigpending	= ATOMIC_INIT(0),
+	.mq_bytes	= 0
 };
 
 /*
@@ -64,9 +66,20 @@ static inline struct user_struct *uid_hash_find(uid_t uid, struct list_head *has
 	return NULL;
 }
 
+/*
+ * Locate the user_struct for the passed UID.  If found, take a ref on it.  The
+ * caller must undo that ref with free_uid().
+ *
+ * If the user_struct could not be found, return NULL.
+ */
 struct user_struct *find_user(uid_t uid)
 {
-	return uid_hash_find(uid, uidhashentry(uid));
+	struct user_struct *ret;
+
+	spin_lock(&uidhash_lock);
+	ret = uid_hash_find(uid, uidhashentry(uid));
+	spin_unlock(&uidhash_lock);
+	return ret;
 }
 
 void free_uid(struct user_struct *up)
@@ -97,6 +110,9 @@ struct user_struct * alloc_uid(uid_t uid)
 		atomic_set(&new->__count, 1);
 		atomic_set(&new->processes, 0);
 		atomic_set(&new->files, 0);
+		atomic_set(&new->sigpending, 0);
+
+		new->mq_bytes = 0;
 
 		/*
 		 * Before adding this, check whether we raced
@@ -138,10 +154,7 @@ static int __init uid_cache_init(void)
 	int n;
 
 	uid_cachep = kmem_cache_create("uid_cache", sizeof(struct user_struct),
-				       0,
-				       SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if(!uid_cachep)
-		panic("Cannot create uid taskcount SLAB cache\n");
+			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
 
 	for(n = 0; n < UIDHASH_SZ; ++n)
 		INIT_LIST_HEAD(uidhash_table + n);

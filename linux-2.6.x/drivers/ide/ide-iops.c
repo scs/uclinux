@@ -31,75 +31,6 @@
 #include <asm/bitops.h>
 
 /*
- *	IDE operator we assign to an unplugged device so that
- *	we don't trash new hardware assigned the same resources
- */
- 
-static u8 ide_unplugged_inb (unsigned long port)
-{
-	return 0xFF;
-}
-
-static u16 ide_unplugged_inw (unsigned long port)
-{
-	return 0xFFFF;
-}
-
-static void ide_unplugged_insw (unsigned long port, void *addr, u32 count)
-{
-}
-
-static u32 ide_unplugged_inl (unsigned long port)
-{
-	return 0xFFFFFFFF;
-}
-
-static void ide_unplugged_insl (unsigned long port, void *addr, u32 count)
-{
-}
-
-static void ide_unplugged_outb (u8 val, unsigned long port)
-{
-}
-
-static void ide_unplugged_outbsync (ide_drive_t *drive, u8 addr, unsigned long port)
-{
-}
-
-static void ide_unplugged_outw (u16 val, unsigned long port)
-{
-}
-
-static void ide_unplugged_outsw (unsigned long port, void *addr, u32 count)
-{
-}
-
-static void ide_unplugged_outl (u32 val, unsigned long port)
-{
-}
-
-static void ide_unplugged_outsl (unsigned long port, void *addr, u32 count)
-{
-}
-
-void unplugged_hwif_iops (ide_hwif_t *hwif)
-{
-	hwif->OUTB	= ide_unplugged_outb;
-	hwif->OUTBSYNC	= ide_unplugged_outbsync;
-	hwif->OUTW	= ide_unplugged_outw;
-	hwif->OUTL	= ide_unplugged_outl;
-	hwif->OUTSW	= ide_unplugged_outsw;
-	hwif->OUTSL	= ide_unplugged_outsl;
-	hwif->INB	= ide_unplugged_inb;
-	hwif->INW	= ide_unplugged_inw;
-	hwif->INL	= ide_unplugged_inl;
-	hwif->INSW	= ide_unplugged_insw;
-	hwif->INSL	= ide_unplugged_insl;
-}
-
-EXPORT_SYMBOL(unplugged_hwif_iops);
-
-/*
  *	Conventional PIO operations for ATA devices
  */
 
@@ -115,7 +46,7 @@ static u16 ide_inw (unsigned long port)
 
 static void ide_insw (unsigned long port, void *addr, u32 count)
 {
-	return insw(port, addr, count);
+	insw(port, addr, count);
 }
 
 static u32 ide_inl (unsigned long port)
@@ -836,7 +767,7 @@ int ide_driveid_update (ide_drive_t *drive)
 	SELECT_MASK(drive, 1);
 	if (IDE_CONTROL_REG)
 		hwif->OUTB(drive->ctl,IDE_CONTROL_REG);
-	ide_delay_50ms();
+	msleep(50);
 	hwif->OUTB(WIN_IDENTIFY, IDE_COMMAND_REG);
 	timeout = jiffies + WAIT_WORSTCASE;
 	do {
@@ -844,9 +775,9 @@ int ide_driveid_update (ide_drive_t *drive)
 			SELECT_MASK(drive, 0);
 			return 0;	/* drive timed-out */
 		}
-		ide_delay_50ms();	/* give drive a breather */
+		msleep(50);	/* give drive a breather */
 	} while (hwif->INB(IDE_ALTSTATUS_REG) & BUSY_STAT);
-	ide_delay_50ms();	/* wait for IRQ and DRQ_STAT */
+	msleep(50);	/* wait for IRQ and DRQ_STAT */
 	if (!OK_STAT(hwif->INB(IDE_STATUS_REG),DRQ_STAT,BAD_R_STAT)) {
 		SELECT_MASK(drive, 0);
 		printk("%s: CHECK for good STATUS\n", drive->name);
@@ -896,11 +827,12 @@ int ide_config_drive_speed (ide_drive_t *drive, u8 speed)
 	u8 stat;
 
 //	while (HWGROUP(drive)->busy)
-//		ide_delay_50ms();
+//		msleep(50);
 
-#if defined(CONFIG_BLK_DEV_IDEDMA) && !defined(CONFIG_DMA_NONPCI)
-	hwif->ide_dma_host_off(drive);
-#endif /* (CONFIG_BLK_DEV_IDEDMA) && !(CONFIG_DMA_NONPCI) */
+#ifdef CONFIG_BLK_DEV_IDEDMA
+	if (hwif->ide_dma_check)	 /* check if host supports DMA */
+		hwif->ide_dma_host_off(drive);
+#endif
 
 	/*
 	 * Don't use ide_wait_cmd here - it will
@@ -974,12 +906,12 @@ int ide_config_drive_speed (ide_drive_t *drive, u8 speed)
 	drive->id->dma_mword &= ~0x0F00;
 	drive->id->dma_1word &= ~0x0F00;
 
-#if defined(CONFIG_BLK_DEV_IDEDMA) && !defined(CONFIG_DMA_NONPCI)
+#ifdef CONFIG_BLK_DEV_IDEDMA
 	if (speed >= XFER_SW_DMA_0)
 		hwif->ide_dma_host_on(drive);
-	else
+	else if (hwif->ide_dma_check)	/* check if host supports DMA */
 		hwif->ide_dma_off_quietly(drive);
-#endif /* (CONFIG_BLK_DEV_IDEDMA) && !(CONFIG_DMA_NONPCI) */
+#endif
 
 	switch(speed) {
 		case XFER_UDMA_7:   drive->id->dma_ultra |= 0x8080; break;
@@ -1191,16 +1123,17 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 	return ide_stopped;
 }
 
-void check_dma_crc (ide_drive_t *drive)
+static void check_dma_crc(ide_drive_t *drive)
 {
+#ifdef CONFIG_BLK_DEV_IDEDMA
 	if (drive->crc_count) {
 		(void) HWIF(drive)->ide_dma_off_quietly(drive);
 		ide_set_xfer_rate(drive, ide_auto_reduce_xfer(drive));
 		if (drive->current_speed >= XFER_SW_DMA_0)
 			(void) HWIF(drive)->ide_dma_on(drive);
-	} else {
-		(void) HWIF(drive)->ide_dma_off(drive);
-	}
+	} else
+		(void)__ide_dma_off(drive);
+#endif
 }
 
 void pre_reset (ide_drive_t *drive)

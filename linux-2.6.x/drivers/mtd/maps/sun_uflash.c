@@ -51,7 +51,7 @@ struct uflash_dev {
 struct map_info uflash_map_templ = {
 		.name =		"SUNW,???-????",
 		.size =		UFLASH_WINDOW_SIZE,
-		.buswidth =	UFLASH_BUSWIDTH,
+		.bankwidth =	UFLASH_BUSWIDTH,
 };
 
 int uflash_devinit(struct linux_ebus_device* edev)

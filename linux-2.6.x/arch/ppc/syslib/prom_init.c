@@ -111,15 +111,15 @@ static void prom_instantiate_rtas(void);
 static void * early_get_property(unsigned long base, unsigned long node,
 				char *prop);
 
-prom_entry prom __initdata = 0;
-ihandle prom_chosen __initdata = 0;
-ihandle prom_stdout __initdata = 0;
+prom_entry prom __initdata;
+ihandle prom_chosen __initdata;
+ihandle prom_stdout __initdata;
 
-char *prom_display_paths[FB_MAX] __initdata = { 0, };
+char *prom_display_paths[FB_MAX] __initdata;
 phandle prom_display_nodes[FB_MAX] __initdata;
-unsigned int prom_num_displays __initdata = 0;
-static char *of_stdout_device __initdata = 0;
-static ihandle prom_disp_node __initdata = 0;
+unsigned int prom_num_displays __initdata;
+char *of_stdout_device __initdata;
+static ihandle prom_disp_node __initdata;
 
 unsigned int rtas_data;   /* physical pointer */
 unsigned int rtas_entry;  /* physical pointer */
@@ -161,7 +161,7 @@ call_prom(const char *service, int nargs, int nret, ...)
 		prom_args.args[i] = va_arg(list, void *);
 	va_end(list);
 	for (i = 0; i < nret; ++i)
-		prom_args.args[i + nargs] = 0;
+		prom_args.args[i + nargs] = NULL;
 	prom(&prom_args);
 	return prom_args.args[nargs];
 }
@@ -181,7 +181,7 @@ call_prom_ret(const char *service, int nargs, int nret, void **rets, ...)
 		prom_args.args[i] = va_arg(list, void *);
 	va_end(list);
 	for (i = 0; i < nret; ++i)
-		prom_args.args[i + nargs] = 0;
+		prom_args.args[i + nargs] = NULL;
 	prom(&prom_args);
 	for (i = 1; i < nret; ++i)
 		rets[i-1] = prom_args.args[nargs + i];
@@ -260,6 +260,74 @@ prom_next_node(phandle *nodep)
 	}
 }
 
+#ifdef CONFIG_POWER4
+/*
+ * Set up a hash table with a set of entries in it to map the
+ * first 64MB of RAM.  This is used on 64-bit machines since
+ * some of them don't have BATs.
+ */
+
+static inline void make_pte(unsigned long htab, unsigned int hsize,
+			    unsigned int va, unsigned int pa, int mode)
+{
+	unsigned int *pteg;
+	unsigned int hash, i, vsid;
+
+	vsid = ((va >> 28) * 0x111) << 12;
+	hash = ((va ^ vsid) >> 5) & 0x7fff80;
+	pteg = (unsigned int *)(htab + (hash & (hsize - 1)));
+	for (i = 0; i < 8; ++i, pteg += 4) {
+		if ((pteg[1] & 1) == 0) {
+			pteg[1] = vsid | ((va >> 16) & 0xf80) | 1;
+			pteg[3] = pa | mode;
+			break;
+		}
+	}
+}
+
+extern unsigned long _SDR1;
+extern PTE *Hash;
+extern unsigned long Hash_size;
+
+static void __init
+prom_alloc_htab(void)
+{
+	unsigned int hsize;
+	unsigned long htab;
+	unsigned int addr;
+
+	/*
+	 * Because of OF bugs we can't use the "claim" client
+	 * interface to allocate memory for the hash table.
+	 * This code is only used on 64-bit PPCs, and the only
+	 * 64-bit PPCs at the moment are RS/6000s, and their
+	 * OF is based at 0xc00000 (the 12M point), so we just
+	 * arbitrarily use the 0x800000 - 0xc00000 region for the
+	 * hash table.
+	 *  -- paulus.
+	 */
+	hsize = 4 << 20;	/* POWER4 has no BATs */
+	htab = (8 << 20);
+	call_prom("claim", 3, 1, htab, hsize, 0);
+	Hash = (void *)(htab + KERNELBASE);
+	Hash_size = hsize;
+	_SDR1 = htab + __ilog2(hsize) - 18;
+
+	/*
+	 * Put in PTEs for the first 64MB of RAM
+	 */
+	memset((void *)htab, 0, hsize);
+	for (addr = 0; addr < 0x4000000; addr += 0x1000)
+		make_pte(htab, hsize, addr + KERNELBASE, addr,
+			 _PAGE_ACCESSED | _PAGE_COHERENT | PP_RWXX);
+#if 0 /* DEBUG stuff mapping the SCC */
+	make_pte(htab, hsize, 0x80013000, 0x80013000,
+		 _PAGE_ACCESSED | _PAGE_NO_CACHE | _PAGE_GUARDED | PP_RWXX);
+#endif
+}
+#endif /* CONFIG_POWER4 */
+
+
 /*
  * If we have a display that we don't know how to drive,
  * we will want to try to execute OF's open method for it
@@ -295,9 +363,9 @@ check_display(unsigned long mem)
 	};
 	const unsigned char *clut;
 
-	prom_disp_node = 0;
+	prom_disp_node = NULL;
 
-	for (node = 0; prom_next_node(&node); ) {
+	for (node = NULL; prom_next_node(&node); ) {
 		type[0] = 0;
 		call_prom("getprop", 4, 1, node, "device_type",
 			  type, sizeof(type));
@@ -434,13 +502,30 @@ setup_disp_fake_bi(ihandle dp)
 		address += 0x1000;
 
 #ifdef CONFIG_POWER4
-	extern int boot_text_mapped;
-	btext_setup_display(width, height, depth, pitch, address);
-	boot_text_mapped = 0;
-#else
+#if CONFIG_TASK_SIZE > 0x80000000
+#error CONFIG_TASK_SIZE cannot be above 0x80000000 with BOOTX_TEXT on G5
+#endif
+	{
+		extern boot_infos_t disp_bi;
+		unsigned long va, pa, i, offset;
+       		va = 0x90000000;
+		pa = address & 0xfffff000ul;
+		offset = address & 0x00000fff;
+
+		for (i=0; i<0x4000; i++) {  
+			make_pte((unsigned long)Hash - KERNELBASE, Hash_size, va, pa, 
+				 _PAGE_ACCESSED | _PAGE_NO_CACHE |
+				 _PAGE_GUARDED | PP_RWXX);
+			va += 0x1000;
+			pa += 0x1000;
+		}
+		btext_setup_display(width, height, depth, pitch, 0x90000000 | offset);
+		disp_bi.dispDeviceBase = (u8 *)address;
+	}
+#else /* CONFIG_POWER4 */
 	btext_setup_display(width, height, depth, pitch, address);
 	btext_prepare_BAT();
-#endif
+#endif /* CONFIG_POWER4 */
 #endif /* CONFIG_BOOTX_TEXT */
 }
 
@@ -461,8 +546,8 @@ copy_device_tree(unsigned long mem_start, unsigned long mem_end)
 	}
 	allnextp = &allnodes;
 	mem_start = ALIGNUL(mem_start);
-	new_start = inspect_node(root, 0, mem_start, mem_end, &allnextp);
-	*allnextp = 0;
+	new_start = inspect_node(root, NULL, mem_start, mem_end, &allnextp);
+	*allnextp = NULL;
 	return new_start;
 }
 
@@ -610,7 +695,7 @@ prom_hold_cpus(unsigned long mem)
 	/* look for cpus */
 	*(unsigned long *)(0x0) = 0;
 	asm volatile("dcbf 0,%0": : "r" (0) : "memory");
-	for (node = 0; prom_next_node(&node); ) {
+	for (node = NULL; prom_next_node(&node); ) {
 		type[0] = 0;
 		call_prom("getprop", 4, 1, node, "device_type",
 			  type, sizeof(type));
@@ -647,72 +732,6 @@ prom_hold_cpus(unsigned long mem)
 		}
 	}
 }
-
-#ifdef CONFIG_POWER4
-/*
- * Set up a hash table with a set of entries in it to map the
- * first 64MB of RAM.  This is used on 64-bit machines since
- * some of them don't have BATs.
- * We assume the PTE will fit in the primary PTEG.
- */
-
-static inline void make_pte(unsigned long htab, unsigned int hsize,
-			    unsigned int va, unsigned int pa, int mode)
-{
-	unsigned int *pteg;
-	unsigned int hash, i, vsid;
-
-	vsid = ((va >> 28) * 0x111) << 12;
-	hash = ((va ^ vsid) >> 5) & 0x7fff80;
-	pteg = (unsigned int *)(htab + (hash & (hsize - 1)));
-	for (i = 0; i < 8; ++i, pteg += 4) {
-		if ((pteg[1] & 1) == 0) {
-			pteg[1] = vsid | ((va >> 16) & 0xf80) | 1;
-			pteg[3] = pa | mode;
-			break;
-		}
-	}
-}
-
-extern unsigned long _SDR1;
-extern PTE *Hash;
-extern unsigned long Hash_size;
-
-static void __init
-prom_alloc_htab(void)
-{
-	unsigned int hsize;
-	unsigned long htab;
-	unsigned int addr;
-
-	/*
-	 * Because of OF bugs we can't use the "claim" client
-	 * interface to allocate memory for the hash table.
-	 * This code is only used on 64-bit PPCs, and the only
-	 * 64-bit PPCs at the moment are RS/6000s, and their
-	 * OF is based at 0xc00000 (the 12M point), so we just
-	 * arbitrarily use the 0x800000 - 0xc00000 region for the
-	 * hash table.
-	 *  -- paulus.
-	 */
-	hsize = 4 << 20;	/* POWER4 has no BATs */
-	htab = (8 << 20);
-	call_prom("claim", 3, 1, htab, hsize, 0);
-	Hash = (void *)(htab + KERNELBASE);
-	Hash_size = hsize;
-	_SDR1 = htab + __ilog2(hsize) - 18;
-
-	/*
-	 * Put in PTEs for the first 64MB of RAM
-	 */
-	cacheable_memzero((void *)htab, hsize);
-	for (addr = 0; addr < 0x4000000; addr += 0x1000)
-		make_pte(htab, hsize, addr + KERNELBASE, addr,
-			 _PAGE_ACCESSED | _PAGE_COHERENT | PP_RWXX);
-	make_pte(htab, hsize, 0x80013000, 0x80013000,
-		 _PAGE_ACCESSED | _PAGE_NO_CACHE | _PAGE_GUARDED | PP_RWXX);
-}
-#endif /* CONFIG_POWER4 */
 
 static void __init
 prom_instantiate_rtas(void)
@@ -781,8 +800,7 @@ prom_init(int r3, int r4, prom_entry pp)
 
 	/* First get a handle for the stdout device */
 	prom = pp;
-	prom_chosen = call_prom("finddevice", 1, 1,
-				       "/chosen");
+	prom_chosen = call_prom("finddevice", 1, 1, "/chosen");
 	if (prom_chosen == (void *)-1)
 		prom_exit();
 	if ((int) call_prom("getprop", 4, 1, prom_chosen,
@@ -836,9 +854,10 @@ prom_init(int r3, int r4, prom_entry pp)
 	 * loaded by an OF bootloader which did set a BAT for us.
 	 * This breaks OF translate so we force phys to be 0.
 	 */
-	if (offset == 0)
+	if (offset == 0) {
+		prom_print("(already at 0xc0000000) phys=0\n");
 		phys = 0;
-	else if ((int) call_prom("getprop", 4, 1, prom_chosen, "mmu",
+	} else if ((int) call_prom("getprop", 4, 1, prom_chosen, "mmu",
 				 &prom_mmu, sizeof(prom_mmu)) <= 0) {
 		prom_print(" no MMU found\n");
 	} else if ((int)call_prom_ret("call-method", 4, 4, result, "translate",
@@ -861,10 +880,15 @@ prom_init(int r3, int r4, prom_entry pp)
 	for (i = 0; i < prom_num_displays; ++i)
 		prom_display_paths[i] = PTRUNRELOC(prom_display_paths[i]);
 
+#ifdef CONFIG_SERIAL_CORE_CONSOLE
+	/* Relocate the of stdout for console autodetection */
+	of_stdout_device = PTRUNRELOC(of_stdout_device);
+#endif
+
 	prom_print("returning 0x");
 	prom_print_hex(phys);
 	prom_print("from prom_init\n");
-	prom_stdout = 0;
+	prom_stdout = NULL;
 
 	return phys;
 }
@@ -886,7 +910,7 @@ early_get_property(unsigned long base, unsigned long node, char *prop)
 			return (void *)((unsigned long)pp->value + base);
 		}
 	}
-	return 0;
+	return NULL;
 }
 
 /* Is boot-info compatible ? */
@@ -904,7 +928,7 @@ bootx_init(unsigned long r4, unsigned long phys)
 
 	boot_infos = PTRUNRELOC(bi);
 	if (!BOOT_INFO_IS_V2_COMPATIBLE(bi))
-		bi->logicalDisplayBase = 0;
+		bi->logicalDisplayBase = NULL;
 
 #ifdef CONFIG_BOOTX_TEXT
 	btext_init(bi);

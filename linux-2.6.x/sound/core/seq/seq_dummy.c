@@ -21,6 +21,7 @@
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/moduleparam.h>
 #include <sound/core.h>
 #include "seq_clientmgr.h"
 #include <sound/initval.h>
@@ -45,8 +46,8 @@
   snd-seq-client-62 as "off".  This will help modprobe.
 
   The number of ports to be created can be specified via the module
-  paramter "ports".  For example, to create four ports, add the
-  following option in /etc/modules.conf:
+  parameter "ports".  For example, to create four ports, add the
+  following option in /etc/modprobe.conf:
 
 	option snd-seq-dummy ports=4
 
@@ -64,12 +65,14 @@ MODULE_DESCRIPTION("ALSA sequencer MIDI-through client");
 MODULE_LICENSE("GPL");
 MODULE_CLASSES("{sound}");
 MODULE_SUPPORTED_DEVICE("sound");
-MODULE_PARM(ports, "i");
+
+static int ports = 1;
+static int duplex = 0;
+
+module_param(ports, int, 0444);
 MODULE_PARM_DESC(ports, "number of ports to be created");
-MODULE_PARM(duplex, "i");
+module_param(duplex, bool, 0444);
 MODULE_PARM_DESC(duplex, "create DUPLEX ports");
-int ports = 1;
-int duplex = 0;
 
 typedef struct snd_seq_dummy_port {
 	int client;

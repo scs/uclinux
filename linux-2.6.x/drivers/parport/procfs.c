@@ -14,6 +14,8 @@
 
 #include <linux/string.h>
 #include <linux/config.h>
+#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -31,7 +33,7 @@
 #define PARPORT_MAX_SPINTIME_VALUE 1000
 
 static int do_active_device(ctl_table *table, int write, struct file *filp,
-		      void *result, size_t *lenp)
+		      void __user *result, size_t *lenp, loff_t *ppos)
 {
 	struct parport *port = (struct parport *)table->extra1;
 	char buffer[256];
@@ -41,7 +43,7 @@ static int do_active_device(ctl_table *table, int write, struct file *filp,
 	if (write)		/* can't happen anyway */
 		return -EACCES;
 
-	if (filp->f_pos) {
+	if (*ppos) {
 		*lenp = 0;
 		return 0;
 	}
@@ -61,14 +63,14 @@ static int do_active_device(ctl_table *table, int write, struct file *filp,
 	else
 		*lenp = len;
 
-	filp->f_pos += len;
+	*ppos += len;
 
 	return copy_to_user(result, buffer, len) ? -EFAULT : 0;
 }
 
 #ifdef CONFIG_PARPORT_1284
 static int do_autoprobe(ctl_table *table, int write, struct file *filp,
-			void *result, size_t *lenp)
+			void __user *result, size_t *lenp, loff_t *ppos)
 {
 	struct parport_device_info *info = table->extra2;
 	const char *str;
@@ -78,7 +80,7 @@ static int do_autoprobe(ctl_table *table, int write, struct file *filp,
 	if (write) /* permissions stop this */
 		return -EACCES;
 
-	if (filp->f_pos) {
+	if (*ppos) {
 		*lenp = 0;
 		return 0;
 	}
@@ -103,21 +105,21 @@ static int do_autoprobe(ctl_table *table, int write, struct file *filp,
 	else
 		*lenp = len;
 
-	filp->f_pos += len;
+	*ppos += len;
 
 	return copy_to_user (result, buffer, len) ? -EFAULT : 0;
 }
 #endif /* IEEE1284.3 support. */
 
 static int do_hardware_base_addr (ctl_table *table, int write,
-				  struct file *filp, void *result,
-				  size_t *lenp)
+				  struct file *filp, void __user *result,
+				  size_t *lenp, loff_t *ppos)
 {
 	struct parport *port = (struct parport *)table->extra1;
 	char buffer[20];
 	int len = 0;
 
-	if (filp->f_pos) {
+	if (*ppos) {
 		*lenp = 0;
 		return 0;
 	}
@@ -132,20 +134,20 @@ static int do_hardware_base_addr (ctl_table *table, int write,
 	else
 		*lenp = len;
 
-	filp->f_pos += len;
+	*ppos += len;
 
 	return copy_to_user(result, buffer, len) ? -EFAULT : 0;
 }
 
 static int do_hardware_irq (ctl_table *table, int write,
-			    struct file *filp, void *result,
-			    size_t *lenp)
+			    struct file *filp, void __user *result,
+			    size_t *lenp, loff_t *ppos)
 {
 	struct parport *port = (struct parport *)table->extra1;
 	char buffer[20];
 	int len = 0;
 
-	if (filp->f_pos) {
+	if (*ppos) {
 		*lenp = 0;
 		return 0;
 	}
@@ -160,20 +162,20 @@ static int do_hardware_irq (ctl_table *table, int write,
 	else
 		*lenp = len;
 
-	filp->f_pos += len;
+	*ppos += len;
 
 	return copy_to_user(result, buffer, len) ? -EFAULT : 0;
 }
 
 static int do_hardware_dma (ctl_table *table, int write,
-			    struct file *filp, void *result,
-			    size_t *lenp)
+			    struct file *filp, void __user *result,
+			    size_t *lenp, loff_t *ppos)
 {
 	struct parport *port = (struct parport *)table->extra1;
 	char buffer[20];
 	int len = 0;
 
-	if (filp->f_pos) {
+	if (*ppos) {
 		*lenp = 0;
 		return 0;
 	}
@@ -188,20 +190,20 @@ static int do_hardware_dma (ctl_table *table, int write,
 	else
 		*lenp = len;
 
-	filp->f_pos += len;
+	*ppos += len;
 
 	return copy_to_user(result, buffer, len) ? -EFAULT : 0;
 }
 
 static int do_hardware_modes (ctl_table *table, int write,
-			      struct file *filp, void *result,
-			      size_t *lenp)
+			      struct file *filp, void __user *result,
+			      size_t *lenp, loff_t *ppos)
 {
 	struct parport *port = (struct parport *)table->extra1;
 	char buffer[40];
 	int len = 0;
 
-	if (filp->f_pos) {
+	if (*ppos) {
 		*lenp = 0;
 		return 0;
 	}
@@ -227,7 +229,7 @@ static int do_hardware_modes (ctl_table *table, int write,
 	else
 		*lenp = len;
 
-	filp->f_pos += len;
+	*ppos += len;
 
 	return copy_to_user(result, buffer, len) ? -EFAULT : 0;
 }
@@ -479,21 +481,20 @@ int parport_device_proc_unregister(struct pardevice *device)
 	return 0;
 }
 
-int parport_default_proc_register(void)
+static int __init parport_default_proc_register(void)
 {
 	parport_default_sysctl_table.sysctl_header =
 		register_sysctl_table(parport_default_sysctl_table.dev_dir, 0);
 	return 0;
 }
 
-int parport_default_proc_unregister(void)
+static void __exit parport_default_proc_unregister(void)
 {
 	if (parport_default_sysctl_table.sysctl_header) {
 		unregister_sysctl_table(parport_default_sysctl_table.
 					sysctl_header);
 		parport_default_sysctl_table.sysctl_header = NULL;
 	}
-	return 0;
 }
 
 #else /* no sysctl or no procfs*/
@@ -518,13 +519,18 @@ int parport_device_proc_unregister(struct pardevice *device)
 	return 0;
 }
 
-int parport_default_proc_register (void)
+static int __init parport_default_proc_register (void)
 {
 	return 0;
 }
 
-int parport_default_proc_unregister (void)
+static void __exit parport_default_proc_unregister (void)
 {
-	return 0;
 }
 #endif
+
+EXPORT_SYMBOL(parport_device_proc_register);
+EXPORT_SYMBOL(parport_device_proc_unregister);
+
+module_init(parport_default_proc_register)
+module_exit(parport_default_proc_unregister)

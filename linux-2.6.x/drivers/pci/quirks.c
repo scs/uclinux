@@ -694,25 +694,43 @@ static int __initdata asus_hides_smbus = 0;
 
 static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 {
-	if (likely(dev->subsystem_vendor != PCI_VENDOR_ID_ASUSTEK))
-		return;
-
-	if (dev->device == PCI_DEVICE_ID_INTEL_82845_HB)
-		switch(dev->subsystem_device) {
-		case 0x8070: /* P4B */
-	    	case 0x8088: /* P4B533 */
-			asus_hides_smbus = 1;
-		}
-	if ((dev->device == PCI_DEVICE_ID_INTEL_82845G_HB) &&
-	    (dev->subsystem_device == 0x80b2)) /* P4PE */
-		asus_hides_smbus = 1;
-	if ((dev->device == PCI_DEVICE_ID_INTEL_82850_HB) &&
-	    (dev->subsystem_device == 0x8030)) /* P4T533 */
-		asus_hides_smbus = 1;
-	if ((dev->device == PCI_DEVICE_ID_INTEL_7205_0) &&
-	    (dev->subsystem_device == 0x8070)) /* P4G8X Deluxe */
-		asus_hides_smbus = 1;
-	return;
+	if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_ASUSTEK)) {
+		if (dev->device == PCI_DEVICE_ID_INTEL_82845_HB)
+			switch(dev->subsystem_device) {
+			case 0x8070: /* P4B */
+			case 0x8088: /* P4B533 */
+				asus_hides_smbus = 1;
+			}
+		if (dev->device == PCI_DEVICE_ID_INTEL_82845G_HB)
+			switch(dev->subsystem_device) {
+			case 0x80b1: /* P4GE-V */
+			case 0x80b2: /* P4PE */
+			case 0x8093: /* P4B533-V */
+				asus_hides_smbus = 1;
+			}
+		if (dev->device == PCI_DEVICE_ID_INTEL_82850_HB)
+			switch(dev->subsystem_device) {
+			case 0x8030: /* P4T533 */
+				asus_hides_smbus = 1;
+			}
+		if (dev->device == PCI_DEVICE_ID_INTEL_7205_0)
+			switch (dev->subsystem_device) {
+			case 0x8070: /* P4G8X Deluxe */
+				asus_hides_smbus = 1;
+			}
+		if (dev->device == PCI_DEVICE_ID_INTEL_82855GM_HB)
+			switch (dev->subsystem_device) {
+			case 0x1751: /* M2N notebook */
+				asus_hides_smbus = 1;
+			}
+	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_HP)) {
+		if (dev->device ==  PCI_DEVICE_ID_INTEL_82855PM_HB)
+			switch(dev->subsystem_device) {
+			case 0x088C: /* HP Compaq nc8000 */
+			case 0x0890: /* HP Compaq nc6000 */
+				asus_hides_smbus = 1;
+			}
+	}
 }
 
 static void __init asus_hides_smbus_lpc(struct pci_dev *dev)
@@ -757,7 +775,7 @@ static int __devinitdata sis_96x_compatible = 0;
 
 #define SIS_DETECT_REGISTER 0x40
 
-static void __init quirk_sis_503_smbus(struct pci_dev *dev)
+static void __init quirk_sis_503(struct pci_dev *dev)
 {
 	u8 reg;
 	u16 devid;
@@ -765,7 +783,7 @@ static void __init quirk_sis_503_smbus(struct pci_dev *dev)
 	pci_read_config_byte(dev, SIS_DETECT_REGISTER, &reg);
 	pci_write_config_byte(dev, SIS_DETECT_REGISTER, reg | (1 << 6));
 	pci_read_config_word(dev, PCI_DEVICE_ID, &devid);
-	if ((devid & 0xfff0) != 0x0960) {
+	if (((devid & 0xfff0) != 0x0960) && (devid != 0x0018)) {
 		pci_write_config_byte(dev, SIS_DETECT_REGISTER, reg);
 		return;
 	}
@@ -786,10 +804,34 @@ static void __init quirk_sis_96x_compatible(struct pci_dev *dev)
 	sis_96x_compatible = 1;
 }
 
+#ifdef CONFIG_X86_IO_APIC
+static void __init quirk_alder_ioapic(struct pci_dev *pdev)
+{
+	int i;
+
+	if ((pdev->class >> 8) != 0xff00)
+		return;
+
+	/* the first BAR is the location of the IO APIC...we must
+	 * not touch this (and it's already covered by the fixmap), so
+	 * forcibly insert it into the resource tree */
+	if(pci_resource_start(pdev, 0) && pci_resource_len(pdev, 0))
+		insert_resource(&iomem_resource, &pdev->resource[0]);
+
+	/* The next five BARs all seem to be rubbish, so just clean
+	 * them out */
+	for(i=1; i < 6; i++) {
+		memset(&pdev->resource[i], 0, sizeof(pdev->resource[i]));
+	}
+
+}
+#endif
+
 #ifdef CONFIG_SCSI_SATA
 static void __init quirk_intel_ide_combined(struct pci_dev *pdev)
 {
 	u8 prog, comb, tmp;
+	int ich = 0;
 
 	/*
 	 * Narrow down to Intel SATA PCI devices.
@@ -800,6 +842,12 @@ static void __init quirk_intel_ide_combined(struct pci_dev *pdev)
 	case 0x24df:
 	case 0x25a3:
 	case 0x25b0:
+		ich = 5;
+		break;
+	case 0x2651:
+	case 0x2652:
+	case 0x2653:
+		ich = 6;
 		break;
 	default:
 		/* we do not handle this PCI device */
@@ -810,13 +858,25 @@ static void __init quirk_intel_ide_combined(struct pci_dev *pdev)
 	 * Read combined mode register.
 	 */
 	pci_read_config_byte(pdev, 0x90, &tmp);	/* combined mode reg */
-	tmp &= 0x6;     /* interesting bits 2:1, PATA primary/secondary */
-	if (tmp == 0x4)		/* bits 10x */
-		comb = (1 << 0);		/* SATA port 0, PATA port 1 */
-	else if (tmp == 0x6)	/* bits 11x */
-		comb = (1 << 2);		/* PATA port 0, SATA port 1 */
-	else
-		return;				/* not in combined mode */
+
+	if (ich == 5) {
+		tmp &= 0x6;  /* interesting bits 2:1, PATA primary/secondary */
+		if (tmp == 0x4)		/* bits 10x */
+			comb = (1 << 0);	/* SATA port 0, PATA port 1 */
+		else if (tmp == 0x6)	/* bits 11x */
+			comb = (1 << 2);	/* PATA port 0, SATA port 1 */
+		else
+			return;			/* not in combined mode */
+	} else {
+		WARN_ON(ich != 6);
+		tmp &= 0x3;  /* interesting bits 1:0 */
+		if (tmp & (1 << 0))
+			comb = (1 << 2);	/* PATA port 0, SATA port 1 */
+		else if (tmp & (1 << 1))
+			comb = (1 << 0);	/* SATA port 0, PATA port 1 */
+		else
+			return;			/* not in combined mode */
+	}
 
 	/*
 	 * Read programming interface register.
@@ -839,6 +899,13 @@ static void __init quirk_intel_ide_combined(struct pci_dev *pdev)
 		request_region(0x170, 8, "libata");	/* port 1 */
 }
 #endif /* CONFIG_SCSI_SATA */
+
+int pciehp_msi_quirk;
+
+static void __devinit quirk_pciehp_msi(struct pci_dev *pdev)
+{
+	pciehp_msi_quirk = 1;
+}
 
 /*
  *  The main table of quirks.
@@ -877,12 +944,14 @@ static struct pci_fixup pci_fixups[] __devinitdata = {
 	{ PCI_FIXUP_FINAL,	PCI_VENDOR_ID_INTEL, 	PCI_DEVICE_ID_INTEL_82443BX_2, 	quirk_natoma },
 	{ PCI_FIXUP_FINAL,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_5597,		quirk_nopcipci },
 	{ PCI_FIXUP_FINAL,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_496,		quirk_nopcipci },
-	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_503,		quirk_sis_503_smbus },
+	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_503,		quirk_sis_503 },
+	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_LPC,		quirk_sis_96x_smbus },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_645,		quirk_sis_96x_compatible },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_646,		quirk_sis_96x_compatible },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_648,		quirk_sis_96x_compatible },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_650,		quirk_sis_96x_compatible },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_651,		quirk_sis_96x_compatible },
+	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_735,		quirk_sis_96x_compatible },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_961,		quirk_sis_96x_smbus },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_962,		quirk_sis_96x_smbus },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_963,		quirk_sis_96x_smbus },
@@ -897,7 +966,18 @@ static struct pci_fixup pci_fixups[] __devinitdata = {
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C586_3,	quirk_vt82c586_acpi },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C686_4,	quirk_vt82c686_acpi },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82371AB_3,	quirk_piix4_acpi },
+
+	/* Intel LPC interface bridges all have 128 bytes of magic ACPI/TCO regs and 64 bytes of GPIO */
+	{ PCI_FIXUP_HEADER,     PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801AA_0,	quirk_ich4_lpc_acpi },
+	{ PCI_FIXUP_HEADER,     PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801AB_0,	quirk_ich4_lpc_acpi },
+	{ PCI_FIXUP_HEADER,     PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801BA_0,	quirk_ich4_lpc_acpi },
+	{ PCI_FIXUP_HEADER,     PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801BA_10,	quirk_ich4_lpc_acpi },
+	{ PCI_FIXUP_HEADER,     PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801CA_0,	quirk_ich4_lpc_acpi },
+	{ PCI_FIXUP_HEADER,     PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801CA_12,	quirk_ich4_lpc_acpi },
+	{ PCI_FIXUP_HEADER,     PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801DB_0,	quirk_ich4_lpc_acpi },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801DB_12,	quirk_ich4_lpc_acpi },
+	{ PCI_FIXUP_HEADER,     PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801EB_0,	quirk_ich4_lpc_acpi },
+
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_AL,	PCI_DEVICE_ID_AL_M7101,		quirk_ali7101_acpi },
  	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82371SB_2,	quirk_piix3_usb },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82371AB_2,	quirk_piix3_usb },
@@ -911,6 +991,7 @@ static struct pci_fixup pci_fixups[] __devinitdata = {
 	{ PCI_FIXUP_FINAL,	PCI_VENDOR_ID_SI,	PCI_ANY_ID,			quirk_ioapic_rmw },
         { PCI_FIXUP_FINAL,      PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_APIC,
           quirk_amd_8131_ioapic }, 
+	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_EESSC,	quirk_alder_ioapic },
 #endif
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C586_3,	quirk_via_acpi },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C686_4,	quirk_via_acpi },
@@ -937,13 +1018,17 @@ static struct pci_fixup pci_fixups[] __devinitdata = {
 
 	/*
 	 * on Asus P4B boards, the i801SMBus device is disabled at startup.
+	 * this also goes for boards in HP Compaq nc6000 and nc8000 notebooks.
 	 */
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82845_HB,	asus_hides_smbus_hostbridge },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82845G_HB,	asus_hides_smbus_hostbridge },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82850_HB,	asus_hides_smbus_hostbridge },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_7205_0,	asus_hides_smbus_hostbridge },
+	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82855PM_HB,	asus_hides_smbus_hostbridge },
+	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82855GM_HB,	asus_hides_smbus_hostbridge },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801DB_0,	asus_hides_smbus_lpc },
 	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801BA_0,	asus_hides_smbus_lpc },
+	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801DB_12,	asus_hides_smbus_lpc },
 
 #ifdef CONFIG_SCSI_SATA
 	/* Fixup BIOSes that configure Parallel ATA (PATA / IDE) and
@@ -952,6 +1037,8 @@ static struct pci_fixup pci_fixups[] __devinitdata = {
 	{ PCI_FIXUP_FINAL,      PCI_VENDOR_ID_INTEL,    PCI_ANY_ID,
 	  quirk_intel_ide_combined },
 #endif /* CONFIG_SCSI_SATA */
+
+	{ PCI_FIXUP_FINAL,      PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_SMCH,	quirk_pciehp_msi },
 
 	{ 0 }
 };
@@ -977,3 +1064,5 @@ void pci_fixup_device(int pass, struct pci_dev *dev)
 	pci_do_fixups(dev, pass, pcibios_fixups);
 	pci_do_fixups(dev, pass, pci_fixups);
 }
+
+EXPORT_SYMBOL(pciehp_msi_quirk);

@@ -5,7 +5,8 @@
  *
  * sysfs port related routines
  *
- * Copyright (C) 2003 IBM Entwicklung GmbH, IBM Corporation
+ * (C) Copyright IBM Corp. 2003, 2004
+ *
  * Authors:
  *      Martin Peschke <mpeschke@de.ibm.com>
  *	Heiko Carstens <heiko.carstens@de.ibm.com>
@@ -27,14 +28,9 @@
 
 #define ZFCP_SYSFS_PORT_C_REVISION "$Revision$"
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <asm/ccwdev.h>
 #include "zfcp_ext.h"
-#include "zfcp_def.h"
 
 #define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_CONFIG
-#define ZFCP_LOG_AREA_PREFIX            ZFCP_LOG_AREA_PREFIX_CONFIG
 
 /**
  * zfcp_sysfs_port_release - gets called when a struct device port is released
@@ -43,11 +39,7 @@
 void
 zfcp_sysfs_port_release(struct device *dev)
 {
-	struct zfcp_port *port;
-
-	port = dev_get_drvdata(dev);
-	zfcp_port_dequeue(port);
-	return;
+	kfree(dev);
 }
 
 /**
@@ -112,7 +104,6 @@ zfcp_sysfs_unit_add_store(struct device *dev, const char *buf, size_t count)
 
 	zfcp_erp_unit_reopen(unit, 0);
 	zfcp_erp_wait(unit->port->adapter);
-	wait_event(unit->scsi_add_wq, atomic_read(&unit->scsi_add_work) == 0);
 	zfcp_unit_put(unit);
  out:
 	up(&zfcp_data.config_sema);
@@ -134,7 +125,7 @@ zfcp_sysfs_unit_remove_store(struct device *dev, const char *buf, size_t count)
 	struct zfcp_unit *unit;
 	fcp_lun_t fcp_lun;
 	char *endp;
-	int retval = -EINVAL;
+	int retval = 0;
 
 	down(&zfcp_data.config_sema);
 
@@ -145,8 +136,10 @@ zfcp_sysfs_unit_remove_store(struct device *dev, const char *buf, size_t count)
 	}
 
 	fcp_lun = simple_strtoull(buf, &endp, 0);
-	if ((endp + 1) < (buf + count))
+	if ((endp + 1) < (buf + count)) {
+		retval = -EINVAL;
 		goto out;
+	}
 
 	write_lock_irq(&zfcp_data.config_lock);
 	unit = zfcp_get_unit_by_lun(port, fcp_lun);
@@ -168,8 +161,7 @@ zfcp_sysfs_unit_remove_store(struct device *dev, const char *buf, size_t count)
 	zfcp_erp_unit_shutdown(unit, 0);
 	zfcp_erp_wait(unit->port->adapter);
 	zfcp_unit_put(unit);
-	zfcp_sysfs_unit_remove_files(&unit->sysfs_device);
-	device_unregister(&unit->sysfs_device);
+	zfcp_unit_dequeue(unit);
  out:
 	up(&zfcp_data.config_sema);
 	return retval ? retval : count;
@@ -209,11 +201,6 @@ zfcp_sysfs_port_failed_store(struct device *dev, const char *buf, size_t count)
 		goto out;
 	}
 
-	/* restart error recovery only if adapter is online */
-	if (port->adapter->ccw_device->online != 1) {
-		retval = -ENXIO;
-		goto out;
-	}
 	zfcp_erp_modify_port_status(port, ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
 	zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED);
 	zfcp_erp_wait(port->adapter);
@@ -268,6 +255,10 @@ zfcp_sysfs_port_in_recovery_show(struct device *dev, char *buf)
 static DEVICE_ATTR(in_recovery, S_IRUGO, zfcp_sysfs_port_in_recovery_show,
 		   NULL);
 
+/**
+ * zfcp_port_common_attrs
+ * sysfs attributes that are common for all kind of fc ports.
+ */
 static struct attribute *zfcp_port_common_attrs[] = {
 	&dev_attr_failed.attr,
 	&dev_attr_in_recovery.attr,
@@ -281,6 +272,10 @@ static struct attribute_group zfcp_port_common_attr_group = {
 	.attrs = zfcp_port_common_attrs,
 };
 
+/**
+ * zfcp_port_no_ns_attrs
+ * sysfs attributes not to be used for nameserver ports.
+ */
 static struct attribute *zfcp_port_no_ns_attrs[] = {
 	&dev_attr_unit_add.attr,
 	&dev_attr_unit_remove.attr,
@@ -330,4 +325,3 @@ zfcp_sysfs_port_remove_files(struct device *dev, u32 flags)
 }
 
 #undef ZFCP_LOG_AREA
-#undef ZFCP_LOG_AREA_PREFIX

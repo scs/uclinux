@@ -16,10 +16,8 @@
 #include <linux/bootmem.h>
 #include <linux/highmem.h>
 
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/page.h>
-#include <asm/rmap.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/tlbflush.h>
@@ -232,7 +230,7 @@ void free_pgd_slow(pgd_t *pgd)
 
 	pte = pmd_page(*pmd);
 	pmd_clear(pmd);
-	pgtable_remove_rmap(pte);
+	dec_page_state(nr_page_table_pages);
 	pte_free(pte);
 	pmd_free(pmd);
 free:
@@ -306,27 +304,27 @@ static struct mem_types mem_types[] __initdata = {
 	[MT_DEVICE] = {
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
 				L_PTE_WRITE,
-		.prot_l1   = PMD_TYPE_TABLE | PMD_BIT4,
-		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_UNCACHED |
+		.prot_l1   = PMD_TYPE_TABLE,
+		.prot_sect = PMD_TYPE_SECT | PMD_SECT_UNCACHED |
 				PMD_SECT_AP_WRITE,
 		.domain    = DOMAIN_IO,
 	},
 	[MT_CACHECLEAN] = {
-		.prot_sect = PMD_TYPE_SECT | PMD_BIT4,
+		.prot_sect = PMD_TYPE_SECT,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_MINICLEAN] = {
-		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_MINICACHE,
+		.prot_sect = PMD_TYPE_SECT | PMD_SECT_MINICACHE,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_VECTORS] = {
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
 				L_PTE_EXEC,
-		.prot_l1   = PMD_TYPE_TABLE | PMD_BIT4,
+		.prot_l1   = PMD_TYPE_TABLE,
 		.domain    = DOMAIN_USER,
 	},
 	[MT_MEMORY] = {
-		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_AP_WRITE,
+		.prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE,
 		.domain    = DOMAIN_KERNEL,
 	}
 };
@@ -352,6 +350,15 @@ static void __init build_mem_type_table(void)
 		if (cachepolicy >= CPOLICY_WRITEALLOC)
 			cachepolicy = CPOLICY_WRITEBACK;
 		ecc_mask = 0;
+	}
+
+	if (cpu_arch <= CPU_ARCH_ARMv5) {
+		mem_types[MT_DEVICE].prot_l1       |= PMD_BIT4;
+		mem_types[MT_DEVICE].prot_sect     |= PMD_BIT4;
+		mem_types[MT_CACHECLEAN].prot_sect |= PMD_BIT4;
+		mem_types[MT_MINICLEAN].prot_sect  |= PMD_BIT4;
+		mem_types[MT_VECTORS].prot_l1      |= PMD_BIT4;
+		mem_types[MT_MEMORY].prot_sect     |= PMD_BIT4;
 	}
 
 	/*
@@ -483,6 +490,7 @@ void setup_mm_for_reboot(char mode)
 	pgd_t *pgd;
 	pmd_t *pmd;
 	int i;
+	int cpu_arch = cpu_architecture();
 
 	if (current->mm && current->mm->pgd)
 		pgd = current->mm->pgd;
@@ -492,7 +500,9 @@ void setup_mm_for_reboot(char mode)
 	for (i = 0; i < FIRST_USER_PGD_NR + USER_PTRS_PER_PGD; i++) {
 		pmdval = (i << PGDIR_SHIFT) |
 			 PMD_SECT_AP_WRITE | PMD_SECT_AP_READ |
-			 PMD_BIT4 | PMD_TYPE_SECT;
+			 PMD_TYPE_SECT;
+		if (cpu_arch <= CPU_ARCH_ARMv5)
+			pmdval |= PMD_BIT4;
 		pmd = pmd_offset(pgd + i, i << PGDIR_SHIFT);
 		set_pmd(pmd, __pmd(pmdval));
 	}
@@ -585,20 +595,31 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 		create_mapping(io_desc + i);
 }
 
-static inline void free_memmap(int node, unsigned long start, unsigned long end)
+static inline void
+free_memmap(int node, unsigned long start_pfn, unsigned long end_pfn)
 {
+	struct page *start_pg, *end_pg;
 	unsigned long pg, pgend;
 
-	start = __phys_to_virt(start);
-	end   = __phys_to_virt(end);
+	/*
+	 * Convert start_pfn/end_pfn to a struct page pointer.
+	 */
+	start_pg = pfn_to_page(start_pfn);
+	end_pg = pfn_to_page(end_pfn);
 
-	pg    = PAGE_ALIGN((unsigned long)(virt_to_page(start)));
-	pgend = ((unsigned long)(virt_to_page(end))) & PAGE_MASK;
+	/*
+	 * Convert to physical addresses, and
+	 * round start upwards and end downwards.
+	 */
+	pg = PAGE_ALIGN(__pa(start_pg));
+	pgend = __pa(end_pg) & PAGE_MASK;
 
-	start = __virt_to_phys(pg);
-	end   = __virt_to_phys(pgend);
-
-	free_bootmem_node(NODE_DATA(node), start, end - start);
+	/*
+	 * If there are free pages between these,
+	 * free the section of the memmap array.
+	 */
+	if (pg < pgend)
+		free_bootmem_node(NODE_DATA(node), pg, pgend - pg);
 }
 
 static inline void free_unused_memmap_node(int node, struct meminfo *mi)
@@ -615,7 +636,12 @@ static inline void free_unused_memmap_node(int node, struct meminfo *mi)
 		if (mi->bank[i].size == 0 || mi->bank[i].node != node)
 			continue;
 
-		bank_start = mi->bank[i].start & PAGE_MASK;
+		bank_start = mi->bank[i].start >> PAGE_SHIFT;
+		if (bank_start < prev_bank_end) {
+			printk(KERN_ERR "MEM: unordered memory banks.  "
+				"Not freeing memmap.\n");
+			break;
+		}
 
 		/*
 		 * If we had a previous bank, and there is a space
@@ -625,7 +651,7 @@ static inline void free_unused_memmap_node(int node, struct meminfo *mi)
 			free_memmap(node, prev_bank_end, bank_start);
 
 		prev_bank_end = PAGE_ALIGN(mi->bank[i].start +
-					   mi->bank[i].size);
+					   mi->bank[i].size) >> PAGE_SHIFT;
 	}
 }
 

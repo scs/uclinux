@@ -1094,7 +1094,7 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 		kfree_skb(skb);
 		return;
 	}
-	skb->stamp.tv_sec  = 0;
+	skb->stamp.tv_sec  = LOCALLY_ENQUEUED;
 	skb->stamp.tv_usec = now + sched_next;
 
 	spin_lock(&tbl->proxy_queue.lock);
@@ -1164,10 +1164,13 @@ void neigh_table_init(struct neigh_table *tbl)
 
 	if (!tbl->kmem_cachep)
 		tbl->kmem_cachep = kmem_cache_create(tbl->id,
-						     (tbl->entry_size +
-						      15) & ~15,
+						     tbl->entry_size,
 						     0, SLAB_HWCACHE_ALIGN,
 						     NULL, NULL);
+
+	if (!tbl->kmem_cachep)
+		panic("cannot create neighbour cache");
+
 	tbl->lock	       = RW_LOCK_UNLOCKED;
 	init_timer(&tbl->gc_timer);
 	tbl->gc_timer.data     = (unsigned long)tbl;
@@ -1476,7 +1479,7 @@ static void neigh_app_notify(struct neighbour *n)
 
 #ifdef CONFIG_SYSCTL
 
-struct neigh_sysctl_table {
+static struct neigh_sysctl_table {
 	struct ctl_table_header *sysctl_header;
 	ctl_table		neigh_vars[17];
 	ctl_table		neigh_dev[2];

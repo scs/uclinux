@@ -11,58 +11,46 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/sysrq.h>
+#include <linux/init.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/udbg.h>
-
-extern void xmon_printf(const char *fmt, ...);
-
-#define TB_SPEED	25000000
-
-static inline unsigned int readtb(void)
-{
-	unsigned int ret;
-
-	asm volatile("mftb %0" : "=r" (ret) :);
-	return ret;
-}
+#include <asm/system.h>
+#include "nonstdio.h"
 
 #ifdef CONFIG_MAGIC_SYSRQ
 
 static void sysrq_handle_xmon(int key, struct pt_regs *pt_regs,
 			      struct tty_struct *tty) 
 {
-	xmon(pt_regs);
+	/* ensure xmon is enabled */
+	xmon_init();
+	debugger(pt_regs);
 }
 
 static struct sysrq_key_op sysrq_xmon_op = 
 {
 	.handler =	sysrq_handle_xmon,
-	.help_msg =	"xmon",
+	.help_msg =	"Xmon",
 	.action_msg =	"Entering xmon\n",
 };
 
-#endif /* CONFIG_MAGIC_SYSRQ */
-
-void
-xmon_map_scc(void)
+static int __init setup_xmon_sysrq(void)
 {
-#ifdef CONFIG_MAGIC_SYSRQ
-	/* This maybe isn't the best place to register sysrq 'x' */
 	__sysrq_put_key_op('x', &sysrq_xmon_op);
-#endif /* CONFIG_MAGIC_SYSRQ */
+	return 0;
 }
+__initcall(setup_xmon_sysrq);
+#endif /* CONFIG_MAGIC_SYSRQ */
 
 int
 xmon_write(void *handle, void *ptr, int nb)
 {
 	return udbg_write(ptr, nb);
 }
-
-int xmon_wants_key;
 
 int
 xmon_read(void *handle, void *ptr, int nb)
@@ -76,14 +64,8 @@ xmon_read_poll(void)
 	return udbg_getc_poll();
 }
  
-void *xmon_stdin;
-void *xmon_stdout;
-void *xmon_stderr;
-
-void
-xmon_init(void)
-{
-}
+FILE *xmon_stdin;
+FILE *xmon_stdout;
 
 int
 xmon_putc(int c, void *f)

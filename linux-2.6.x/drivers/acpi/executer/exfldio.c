@@ -154,8 +154,7 @@ acpi_ex_setup_region (
 			field_datum_byte_offset, obj_desc->common_field.access_byte_width,
 			acpi_ut_get_node_name (rgn_desc->region.node), rgn_desc->region.length));
 
-		#ifdef CONFIG_ACPI_RELAXED_AML
-		{
+		if (!acpi_strict) {
 			/*
 			 * Allow access to the field if it is within the region size
 			 * rounded up to a multiple of the access byte width.  This
@@ -186,9 +185,9 @@ acpi_ex_setup_region (
 				return_ACPI_STATUS (AE_OK);
 			}
 		}
-		#else
+		else {
 			return_ACPI_STATUS (AE_AML_REGION_LIMIT);
-		#endif
+		}
 	}
 
 	return_ACPI_STATUS (AE_OK);
@@ -507,8 +506,8 @@ acpi_ex_field_datum_io (
 
 	default:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%p, Wrong object type - %s\n",
-			obj_desc, acpi_ut_get_object_type_name (obj_desc)));
+		ACPI_REPORT_ERROR (("Wrong object type in field I/O %X\n",
+			ACPI_GET_OBJECT_TYPE (obj_desc)));
 		status = AE_AML_INTERNAL;
 		break;
 	}

@@ -50,7 +50,7 @@
 #define UFSD(x)
 #endif
 
-static int ufs_block_to_path(struct inode *inode, long i_block, int offsets[4])
+static int ufs_block_to_path(struct inode *inode, sector_t i_block, sector_t offsets[4])
 {
 	struct ufs_sb_private_info *uspi = UFS_SB(inode->i_sb)->s_uspi;
 	int ptrs = uspi->s_apb;
@@ -60,6 +60,8 @@ static int ufs_block_to_path(struct inode *inode, long i_block, int offsets[4])
 		double_blocks = (1 << (ptrs_bits * 2));
 	int n = 0;
 
+
+	UFSD(("ptrs=uspi->s_apb = %d,double_blocks=%d \n",ptrs,double_blocks));
 	if (i_block < 0) {
 		ufs_warning(inode->i_sb, "ufs_block_to_path", "block < 0");
 	} else if (i_block < direct_blocks) {
@@ -82,17 +84,28 @@ static int ufs_block_to_path(struct inode *inode, long i_block, int offsets[4])
 	return n;
 }
 
-int ufs_frag_map(struct inode *inode, int frag)
+/*
+ * Returns the location of the fragment from
+ * the begining of the filesystem.
+ */
+
+u64  ufs_frag_map(struct inode *inode, sector_t frag)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
-	int mask = uspi->s_apbmask>>uspi->s_fpbshift;
+	u64 mask = (u64) uspi->s_apbmask>>uspi->s_fpbshift;
 	int shift = uspi->s_apbshift-uspi->s_fpbshift;
-	int offsets[4], *p;
+	sector_t offsets[4], *p;
 	int depth = ufs_block_to_path(inode, frag >> uspi->s_fpbshift, offsets);
-	int ret = 0;
+	u64  ret = 0L;
 	u32 block;
+	u64 u2_block = 0L;
+	unsigned flags = UFS_SB(sb)->s_flags;
+	u64 temp = 0L;
+
+	UFSD((": frag = %lu  depth = %d\n",frag,depth));
+	UFSD((": uspi->s_fpbshift = %d ,uspi->s_apbmask = %x, mask=%llx\n",uspi->s_fpbshift,uspi->s_apbmask,mask));
 
 	if (depth == 0)
 		return 0;
@@ -100,12 +113,15 @@ int ufs_frag_map(struct inode *inode, int frag)
 	p = offsets;
 
 	lock_kernel();
+	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2)
+		goto ufs2;
+
 	block = ufsi->i_u1.i_data[*p++];
 	if (!block)
 		goto out;
 	while (--depth) {
 		struct buffer_head *bh;
-		int n = *p++;
+		sector_t n = *p++;
 
 		bh = sb_bread(sb, uspi->s_sbbase + fs32_to_cpu(sb, block)+(n>>shift));
 		if (!bh)
@@ -115,7 +131,31 @@ int ufs_frag_map(struct inode *inode, int frag)
 		if (!block)
 			goto out;
 	}
-	ret = uspi->s_sbbase + fs32_to_cpu(sb, block) + (frag & uspi->s_fpbmask);
+	ret = (u64) (uspi->s_sbbase + fs32_to_cpu(sb, block) + (frag & uspi->s_fpbmask));
+	goto out;
+ufs2:
+	u2_block = ufsi->i_u1.u2_i_data[*p++];
+	if (!u2_block)
+		goto out;
+
+
+	while (--depth) {
+		struct buffer_head *bh;
+		sector_t n = *p++;
+
+
+		temp = (u64)(uspi->s_sbbase) + fs64_to_cpu(sb, u2_block);
+		bh = sb_bread(sb, temp +(u64) (n>>shift));
+		if (!bh)
+			goto out;
+		u2_block = ((u64*)bh->b_data)[n & mask];
+		brelse(bh);
+		if (!u2_block)
+			goto out;
+	}
+	temp = (u64)uspi->s_sbbase + fs64_to_cpu(sb, u2_block);
+	ret = temp + (u64) (frag & uspi->s_fpbmask);
+
 out:
 	unlock_kernel();
 	return ret;
@@ -132,12 +172,20 @@ static struct buffer_head * ufs_inode_getfrag (struct inode *inode,
 	unsigned block, blockoff, lastfrag, lastblock, lastblockoff;
 	unsigned tmp, goal;
 	u32 * p, * p2;
+	unsigned flags = 0;
 
 	UFSD(("ENTER, ino %lu, fragment %u, new_fragment %u, required %u\n",
 		inode->i_ino, fragment, new_fragment, required))         
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
+
+	flags = UFS_SB(sb)->s_flags;
+        /* TODO : to be done for write support
+        if ( (flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2)
+             goto ufs2;
+         */
+
 	block = ufs_fragstoblks (fragment);
 	blockoff = ufs_fragnum (fragment);
 	p = ufsi->i_u1.i_data + block;
@@ -230,6 +278,21 @@ repeat:
 	mark_inode_dirty(inode);
 	UFSD(("EXIT, result %u\n", tmp + blockoff))
 	return result;
+
+     /* This part : To be implemented ....
+        Required only for writing, not required for READ-ONLY.
+ufs2:
+
+	u2_block = ufs_fragstoblks(fragment);
+	u2_blockoff = ufs_fragnum(fragment);
+	p = ufsi->i_u1.u2_i_data + block;
+	goal = 0;
+
+repeat2:
+	tmp = fs32_to_cpu(sb, *p);
+	lastfrag = ufsi->i_lastfrag;
+
+     */
 }
 
 static struct buffer_head * ufs_block_getfrag (struct inode *inode,
@@ -308,20 +371,28 @@ out:
 	return result;
 }
 
+/*
+ * This function gets the block which contains the fragment.
+ */
+
 static int ufs_getfrag_block (struct inode *inode, sector_t fragment, struct buffer_head *bh_result, int create)
 {
 	struct super_block * sb = inode->i_sb;
 	struct ufs_sb_private_info * uspi = UFS_SB(sb)->s_uspi;
 	struct buffer_head * bh;
 	int ret, err, new;
-	unsigned long ptr, phys;
+	unsigned long ptr,phys;
+	u64 phys64 = 0;
 	
 	if (!create) {
-		phys = ufs_frag_map(inode, fragment);
-		if (phys)
-			map_bh(bh_result, sb, phys);
+		phys64 = ufs_frag_map(inode, fragment);
+		UFSD(("phys64 = %lu \n",phys64));
+		if (phys64)
+			map_bh(bh_result, sb, phys64);
 		return 0;
 	}
+
+        /* This code entered only while writing ....? */
 
 	err = -EIO;
 	new = 0;
@@ -474,6 +545,7 @@ void ufs_read_inode (struct inode * inode)
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_inode * ufs_inode;	
+	struct ufs2_inode *ufs2_inode;
 	struct buffer_head * bh;
 	mode_t mode;
 	unsigned i;
@@ -496,6 +568,9 @@ void ufs_read_inode (struct inode * inode)
 		ufs_warning (sb, "ufs_read_inode", "unable to read inode %lu\n", inode->i_ino);
 		goto bad_inode;
 	}
+	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2)
+		goto ufs2_inode;
+
 	ufs_inode = (struct ufs_inode *) (bh->b_data + sizeof(struct ufs_inode) * ufs_inotofsbo(inode->i_ino));
 
 	/*
@@ -563,6 +638,78 @@ void ufs_read_inode (struct inode * inode)
 
 bad_inode:
 	make_bad_inode(inode);
+	return;
+
+ufs2_inode :
+	UFSD(("Reading ufs2 inode, ino %lu\n", inode->i_ino))
+
+	ufs2_inode = (struct ufs2_inode *)(bh->b_data + sizeof(struct ufs2_inode) * ufs_inotofsbo(inode->i_ino));
+
+	/*
+	 * Copy data to the in-core inode.
+	 */
+	inode->i_mode = mode = fs16_to_cpu(sb, ufs2_inode->ui_mode);
+	inode->i_nlink = fs16_to_cpu(sb, ufs2_inode->ui_nlink);
+	if (inode->i_nlink == 0)
+		ufs_error (sb, "ufs_read_inode", "inode %lu has zero nlink\n", inode->i_ino);
+
+        /*
+         * Linux now has 32-bit uid and gid, so we can support EFT.
+         */
+	inode->i_uid = fs32_to_cpu(sb, ufs2_inode->ui_uid);
+	inode->i_gid = fs32_to_cpu(sb, ufs2_inode->ui_gid);
+
+	inode->i_size = fs64_to_cpu(sb, ufs2_inode->ui_size);
+	inode->i_atime.tv_sec = fs32_to_cpu(sb, ufs2_inode->ui_atime.tv_sec);
+	inode->i_ctime.tv_sec = fs32_to_cpu(sb, ufs2_inode->ui_ctime.tv_sec);
+	inode->i_mtime.tv_sec = fs32_to_cpu(sb, ufs2_inode->ui_mtime.tv_sec);
+	inode->i_mtime.tv_nsec = 0;
+	inode->i_atime.tv_nsec = 0;
+	inode->i_ctime.tv_nsec = 0;
+	inode->i_blocks = fs64_to_cpu(sb, ufs2_inode->ui_blocks);
+	inode->i_blksize = PAGE_SIZE; /*This is the optimal IO size(for stat)*/
+
+	inode->i_version++;
+	ufsi->i_flags = fs32_to_cpu(sb, ufs2_inode->ui_flags);
+	ufsi->i_gen = fs32_to_cpu(sb, ufs2_inode->ui_gen);
+	/*
+	ufsi->i_shadow = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_shadow);
+	ufsi->i_oeftflag = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_oeftflag);
+	*/
+	ufsi->i_lastfrag= (inode->i_size + uspi->s_fsize- 1) >> uspi->s_fshift;
+
+	if (S_ISCHR(mode) || S_ISBLK(mode) || inode->i_blocks) {
+		for (i = 0; i < (UFS_NDADDR + UFS_NINDIR); i++)
+			ufsi->i_u1.u2_i_data[i] =
+				ufs2_inode->ui_u2.ui_addr.ui_db[i];
+	}
+	else {
+		for (i = 0; i < (UFS_NDADDR + UFS_NINDIR) * 4; i++)
+			ufsi->i_u1.i_symlink[i] = ufs2_inode->ui_u2.ui_symlink[i];
+	}
+	ufsi->i_osync = 0;
+
+	if (S_ISREG(inode->i_mode)) {
+		inode->i_op = &ufs_file_inode_operations;
+		inode->i_fop = &ufs_file_operations;
+		inode->i_mapping->a_ops = &ufs_aops;
+	} else if (S_ISDIR(inode->i_mode)) {
+		inode->i_op = &ufs_dir_inode_operations;
+		inode->i_fop = &ufs_dir_operations;
+	} else if (S_ISLNK(inode->i_mode)) {
+		if (!inode->i_blocks)
+			inode->i_op = &ufs_fast_symlink_inode_operations;
+		else {
+			inode->i_op = &page_symlink_inode_operations;
+			inode->i_mapping->a_ops = &ufs_aops;
+		}
+	} else   /* TODO  : here ...*/
+		init_special_inode(inode, inode->i_mode,
+			old_decode_dev(fs32_to_cpu(sb, ufsi->i_u1.i_data[0])));
+
+	brelse(bh);
+
+	UFSD(("EXIT\n"))
 	return;
 }
 

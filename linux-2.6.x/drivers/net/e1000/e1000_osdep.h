@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2003 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -47,7 +47,7 @@
 	                	BUG(); \
 			} else { \
 				set_current_state(TASK_UNINTERRUPTIBLE); \
-				schedule_timeout((x * HZ)/1000); \
+				schedule_timeout((x * HZ)/1000 + 2); \
 			} } while(0)
 #endif
 
@@ -63,7 +63,7 @@ typedef enum {
 
 #define MSGOUT(S, A, B)	printk(KERN_DEBUG S "\n", A, B)
 
-#if DBG
+#ifdef DBG
 #define DEBUGOUT(S)		printk(KERN_DEBUG S "\n")
 #define DEBUGOUT1(S, A...)	printk(KERN_DEBUG S "\n", A)
 #else

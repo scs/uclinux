@@ -17,7 +17,6 @@
  */
  
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/io.h>
 
 #include <asm/arch/bus.h>
@@ -134,7 +133,7 @@ static int omap_ohci_clock_power(int on)
 			writel(readl(ULPD_SOFT_REQ_REG) | SOFT_USB_REQ,
 				ULPD_SOFT_REQ_REG);
 
-			outl(inl(ULPD_STATUS_REQ_REG) | USB_HOST_DPLL_REQ,
+			writel(readl(ULPD_STATUS_REQ_REG) | USB_HOST_DPLL_REQ,
 			     ULPD_STATUS_REQ_REG);
 		}
 
@@ -248,7 +247,7 @@ static int omap_1610_usb_init(int mode)
 	val |= (1 << 2); /* Disable pulldown on integrated transceiver DM */
 	val |= (1 << 1); /* Disable pulldown on integraded transceiver DP */
 
-	outl(val, USB_TRANSCEIVER_CTRL);
+	writel(val, USB_TRANSCEIVER_CTRL);
 
 	/* Set the USB0_TRX_MODE */
 	val = 0;
@@ -256,7 +255,7 @@ static int omap_1610_usb_init(int mode)
 	val &= ~DEV_IDLE_EN;
 	val &= ~(7 << 16);	/* Clear USB0_TRX_MODE */
 	val |= (3 << 16);	/* 0 or 3, 6-wire DAT/SE0, TRM p 15-159 */
-	outl(val, OTG_SYSCON_1);
+	writel(val, OTG_SYSCON_1);
 
 	/* 
 	 * Control via OTG, see TRM p 15-163
@@ -275,10 +274,10 @@ static int omap_1610_usb_init(int mode)
 	val |= (4 << 16);	/* Must be 4 */
 	val |= USBX_SYNCHRO;	/* Must be set */
 	val |= SRP_VBUS;
-	outl(val, OTG_SYSCON_2);
+	writel(val, OTG_SYSCON_2);
 
 	/* Enable OTG idle */
-	//outl(inl(OTG_SYSCON_1) | OTG_IDLE_EN, OTG_SYSCON_1);
+	//writel(readl(OTG_SYSCON_1) | OTG_IDLE_EN, OTG_SYSCON_1);
 
 	return 0;
 }
@@ -388,9 +387,7 @@ int usb_hcd_omap_probe (const struct hc_driver *driver,
 	hcd->description = driver->description;
 	hcd->irq = dev->irq[0];
 	hcd->regs = dev->mapbase;
-	hcd->pdev = OMAP_FAKE_PCIDEV;
 	hcd->self.controller = &dev->dev;
-	hcd->controller = hcd->self.controller;
 
 	retval = hcd_buffer_create (hcd);
 	if (retval != 0) {
@@ -456,7 +453,6 @@ int usb_hcd_omap_probe (const struct hc_driver *driver,
  */
 void usb_hcd_omap_remove (struct usb_hcd *hcd, struct omap_dev *dev)
 {
-	struct usb_device	*hub;
 	void *base;
 
 	info ("remove: %s, state %x", hcd->self.bus_name, hcd->state);
@@ -464,11 +460,10 @@ void usb_hcd_omap_remove (struct usb_hcd *hcd, struct omap_dev *dev)
 	if (in_interrupt ())
 		BUG ();
 
-	hub = hcd->self.root_hub;
 	hcd->state = USB_STATE_QUIESCING;
 
 	dbg ("%s: roothub graceful disconnect", hcd->self.bus_name);
-	usb_disconnect (&hub);
+	usb_disconnect (&hcd->self.root_hub);
 
 	hcd->driver->stop (hcd);
 	hcd_buffer_destroy (hcd);
@@ -494,12 +489,10 @@ ohci_omap_start (struct usb_hcd *hcd)
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	int		ret;
 
-	if (hcd->pdev) {
-		ohci->hcca = pci_alloc_consistent (hcd->pdev,
-				sizeof *ohci->hcca, &ohci->hcca_dma);
-		if (!ohci->hcca)
-			return -ENOMEM;
-	}
+	ohci->hcca = dma_alloc_consistent (hcd->self.controller,
+			sizeof *ohci->hcca, &ohci->hcca_dma);
+	if (!ohci->hcca)
+		return -ENOMEM;
 
         memset (ohci->hcca, 0, sizeof (struct ohci_hcca));
 	if ((ret = ohci_mem_init (ohci)) < 0) {
@@ -569,6 +562,10 @@ static const struct hc_driver ohci_omap_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
+#ifdef	CONFIG_USB_SUSPEND
+	.hub_suspend =		ohci_hub_suspend,
+	.hub_resume =		ohci_hub_resume,
+#endif
 };
 
 /*-------------------------------------------------------------------------*/
@@ -631,7 +628,7 @@ static struct omap_dev ohci_hcd_omap_device = {
 		.end	= OMAP_OHCI_BASE + OMAP_OHCI_SIZE,
 	},
 	.irq = {
-		INT_OHCI,
+		INT_USB_HHC_1,
 	},
 };
 

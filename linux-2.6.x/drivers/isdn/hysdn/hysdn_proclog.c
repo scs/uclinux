@@ -150,16 +150,13 @@ put_log_buffer(hysdn_card * card, char *cp)
 /* write log file -> set log level bits */
 /****************************************/
 static ssize_t
-hysdn_log_write(struct file *file, const char *buf, size_t count, loff_t * off)
+hysdn_log_write(struct file *file, const char __user *buf, size_t count, loff_t * off)
 {
 	ulong u = 0;
 	int found = 0;
 	uchar *cp, valbuf[128];
 	long base = 10;
 	hysdn_card *card = (hysdn_card *) file->private_data;
-
-	if (&file->f_pos != off)	/* fs error check */
-		return (-ESPIPE);
 
 	if (count > (sizeof(valbuf) - 1))
 		count = sizeof(valbuf) - 1;	/* limit length */
@@ -203,7 +200,7 @@ hysdn_log_write(struct file *file, const char *buf, size_t count, loff_t * off)
 /* read log file */
 /******************/
 static ssize_t
-hysdn_log_read(struct file *file, char *buf, size_t count, loff_t * off)
+hysdn_log_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 {
 	struct log_data *inf;
 	int len;
@@ -233,11 +230,11 @@ hysdn_log_read(struct file *file, char *buf, size_t count, loff_t * off)
 		return (0);
 
 	inf->usage_cnt--;	/* new usage count */
-	(struct log_data **) file->private_data = &inf->next;	/* next structure */
+	file->private_data = &inf->next;	/* next structure */
 	if ((len = strlen(inf->log_start)) <= count) {
 		if (copy_to_user(buf, inf->log_start, len))
 			return -EFAULT;
-		file->f_pos += len;
+		*off += len;
 		return (len);
 	}
 	return (0);
@@ -276,16 +273,16 @@ hysdn_log_open(struct inode *ino, struct file *filep)
 		cli();
 		pd->if_used++;
 		if (pd->log_head)
-			(struct log_data **) filep->private_data = &(pd->log_tail->next);
+			filep->private_data = &pd->log_tail->next;
 		else
-			(struct log_data **) filep->private_data = &(pd->log_head);
+			filep->private_data = &pd->log_head;
 		restore_flags(flags);
 	} else {		/* simultaneous read/write access forbidden ! */
 		unlock_kernel();
 		return (-EPERM);	/* no permission this time */
 	}
 	unlock_kernel();
-	return (0);
+	return nonseekable_open(ino, filep);
 }				/* hysdn_log_open */
 
 /*******************************************************************************/

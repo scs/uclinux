@@ -31,7 +31,6 @@
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
-#include <linux/initrd.h>
 #include <linux/ioport.h>
 #include <linux/console.h>
 #include <linux/pci.h>
@@ -51,7 +50,7 @@
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/pci-bridge.h>
-#include <asm/pci_dma.h>
+#include <asm/iommu.h>
 #include <asm/dma.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
@@ -67,9 +66,10 @@
 
 void chrp_progress(char *, unsigned short);
 
-extern void openpic_init_IRQ(void);
+extern void pSeries_init_openpic(void);
 
 extern void find_and_init_phbs(void);
+extern void pSeries_final_fixup(void);
 
 extern void pSeries_get_boot_time(struct rtc_time *rtc_time);
 extern void pSeries_get_rtc_time(struct rtc_time *rtc_time);
@@ -87,13 +87,10 @@ extern unsigned long loops_per_jiffy;
 extern unsigned long ppc_proc_freq;
 extern unsigned long ppc_tb_freq;
 
-void 
-chrp_get_cpuinfo(struct seq_file *m)
+void chrp_get_cpuinfo(struct seq_file *m)
 {
 	struct device_node *root;
 	const char *model = "";
-
-	seq_printf(m, "timebase\t: %lu\n", ppc_tb_freq);
 
 	root = of_find_node_by_path("/");
 	if (root)
@@ -128,7 +125,6 @@ void __init chrp_request_regions(void)
 void __init
 chrp_setup_arch(void)
 {
-	extern char cmd_line[];
 	struct device_node *root;
 	unsigned int *opprop;
 	
@@ -139,15 +135,10 @@ chrp_setup_arch(void)
 	/* init to some ~sane value until calibrate_delay() runs */
 	loops_per_jiffy = 50000000;
 
-#ifdef CONFIG_BLK_DEV_INITRD
-	/* this is fine for chrp */
-	initrd_below_start_ok = 1;
-	
-	if (initrd_start)
-		ROOT_DEV = Root_RAM0;
-	else
-#endif
-	ROOT_DEV = Root_SDA2;
+	if (ROOT_DEV == 0) {
+		printk("No ramdisk, default root is /dev/sda2\n");
+		ROOT_DEV = Root_SDA2;
+	}
 
 	printk("Boot arguments: %s\n", cmd_line);
 
@@ -178,6 +169,10 @@ chrp_setup_arch(void)
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
+
+#ifdef CONFIG_PPC_PSERIES
+	pSeries_nvram_init();
+#endif
 }
 
 void __init
@@ -194,7 +189,7 @@ chrp_init2(void)
  */
 void __init fwnmi_init(void)
 {
-	long ret;
+	int ret;
 	int ibm_nmi_register = rtas_token("ibm,nmi-register");
 	if (ibm_nmi_register == RTAS_UNKNOWN_SERVICE)
 		return;
@@ -205,15 +200,17 @@ void __init fwnmi_init(void)
 		fwnmi_active = 1;
 }
 
-
 /* Early initialization.  Relocation is on but do not reference unbolted pages */
 void __init pSeries_init_early(void)
 {
-#ifdef CONFIG_PPC_PSERIES	/* This ifdef should go away */
 	void *comport;
 
 	hpte_init_pSeries();
-	tce_init_pSeries();
+
+	if (ppc64_iommu_off)
+		pci_dma_init_direct();
+	else
+		tce_init_pSeries();
 
 #ifdef CONFIG_SMP
 	smp_init_pSeries();
@@ -226,7 +223,6 @@ void __init pSeries_init_early(void)
 	ppc_md.udbg_putc = udbg_putc;
 	ppc_md.udbg_getc = udbg_getc;
 	ppc_md.udbg_getc_poll = udbg_getc_poll;
-#endif
 }
 
 void __init
@@ -237,33 +233,26 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	char * hypertas;
 	unsigned int len;
 
-#if 0 /* PPPBBB remove this later... -Peter */
-#ifdef CONFIG_BLK_DEV_INITRD
-	/* take care of initrd if we have one */
-	if ( r6 )
-	{
-		initrd_start = __va(r6);
-		initrd_end = __va(r6 + r7);
-	}
-#endif /* CONFIG_BLK_DEV_INITRD */
-#endif
-
 	ppc_md.setup_arch     = chrp_setup_arch;
-	ppc_md.setup_residual = NULL;
 	ppc_md.get_cpuinfo    = chrp_get_cpuinfo;
-	if(naca->interrupt_controller == IC_OPEN_PIC) {
-		ppc_md.init_IRQ       = openpic_init_IRQ; 
+	if (naca->interrupt_controller == IC_OPEN_PIC) {
+		ppc_md.init_IRQ       = pSeries_init_openpic; 
 		ppc_md.get_irq        = openpic_get_irq;
 	} else {
 		ppc_md.init_IRQ       = xics_init_IRQ;
 		ppc_md.get_irq        = xics_get_irq;
 	}
 
+	ppc_md.log_error      = pSeries_log_error;
+
 	ppc_md.init           = chrp_init2;
+
+	ppc_md.pcibios_fixup  = pSeries_final_fixup;
 
 	ppc_md.restart        = rtas_restart;
 	ppc_md.power_off      = rtas_power_off;
 	ppc_md.halt           = rtas_halt;
+	ppc_md.panic          = rtas_os_term;
 
 	ppc_md.get_boot_time  = pSeries_get_boot_time;
 	ppc_md.get_rtc_time   = pSeries_get_rtc_time;
@@ -272,15 +261,17 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 	ppc_md.progress       = chrp_progress;
 
-	ppc_md.nvram_read     = pSeries_nvram_read;
-	ppc_md.nvram_write    = pSeries_nvram_write;
-
         /* Build up the firmware_features bitmask field
          * using contents of device-tree/ibm,hypertas-functions.
          * Ultimately this functionality may be moved into prom.c prom_init().
          */
-	dn = of_find_node_by_path("/rtas");
 	cur_cpu_spec->firmware_features = 0;
+	dn = of_find_node_by_path("/rtas");
+	if (dn == NULL) {
+		printk(KERN_ERR "WARNING ! Cannot find RTAS in device-tree !\n");
+		goto no_rtas;
+	}
+
 	hypertas = get_property(dn, "ibm,hypertas-functions", &len);
 	if (hypertas) {
 		while (len > 0){
@@ -302,12 +293,12 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	}
 
 	of_node_put(dn);
+ no_rtas:
 	printk(KERN_INFO "firmware_features = 0x%lx\n", 
 	       cur_cpu_spec->firmware_features);
 }
 
-void
-chrp_progress(char *s, unsigned short hex)
+void chrp_progress(char *s, unsigned short hex)
 {
 	struct device_node *root;
 	int width, *p;
@@ -321,60 +312,55 @@ chrp_progress(char *s, unsigned short hex)
 		return;
 
 	if (max_width == 0) {
-		if ( (root = find_path_device("/rtas")) &&
+		if ((root = find_path_device("/rtas")) &&
 		     (p = (unsigned int *)get_property(root,
 						       "ibm,display-line-length",
-						       NULL)) )
+						       NULL)))
 			max_width = *p;
 		else
 			max_width = 0x10;
 		display_character = rtas_token("display-character");
 		set_indicator = rtas_token("set-indicator");
 	}
-	if (display_character == RTAS_UNKNOWN_SERVICE) {
-		/* use hex display */
-		if (set_indicator == RTAS_UNKNOWN_SERVICE)
-			return;
-		rtas_call(set_indicator, 3, 1, NULL, 6, 0, hex);
-		return;
-	}
 
-	if(display_character == RTAS_UNKNOWN_SERVICE) {
+	if (display_character == RTAS_UNKNOWN_SERVICE) {
 		/* use hex display if available */
-		if(set_indicator != RTAS_UNKNOWN_SERVICE)
+		if (set_indicator != RTAS_UNKNOWN_SERVICE)
 			rtas_call(set_indicator, 3, 1, NULL, 6, 0, hex);
 		return;
 	}
 
 	spin_lock(&progress_lock);
 
-	/* Last write ended with newline, but we didn't print it since
+	/*
+	 * Last write ended with newline, but we didn't print it since
 	 * it would just clear the bottom line of output. Print it now
 	 * instead.
 	 *
 	 * If no newline is pending, print a CR to start output at the
 	 * beginning of the line.
 	 */
-	if(pending_newline) {
+	if (pending_newline) {
 		rtas_call(display_character, 1, 1, NULL, '\r');
 		rtas_call(display_character, 1, 1, NULL, '\n');
 		pending_newline = 0;
-	} else
+	} else {
 		rtas_call(display_character, 1, 1, NULL, '\r');
+	}
  
 	width = max_width;
 	os = s;
 	while (*os) {
-		if(*os == '\n' || *os == '\r') {
+		if (*os == '\n' || *os == '\r') {
 			/* Blank to end of line. */
-			while(width-- > 0)
+			while (width-- > 0)
 				rtas_call(display_character, 1, 1, NULL, ' ');
  
 			/* If newline is the last character, save it
 			 * until next call to avoid bumping up the
 			 * display output.
 			 */
-			if(*os == '\n' && !os[1]) {
+			if (*os == '\n' && !os[1]) {
 				pending_newline = 1;
 				spin_unlock(&progress_lock);
 				return;
@@ -382,7 +368,7 @@ chrp_progress(char *s, unsigned short hex)
  
 			/* RTAS wants CR-LF, not just LF */
  
-			if(*os == '\n') {
+			if (*os == '\n') {
 				rtas_call(display_character, 1, 1, NULL, '\r');
 				rtas_call(display_character, 1, 1, NULL, '\n');
 			} else {
@@ -401,60 +387,78 @@ chrp_progress(char *s, unsigned short hex)
 		os++;
  
 		/* if we overwrite the screen length */
-		if ( width <= 0 )
-			while ( (*os != 0) && (*os != '\n') && (*os != '\r') )
+		if (width <= 0)
+			while ((*os != 0) && (*os != '\n') && (*os != '\r'))
 				os++;
 	}
  
 	/* Blank to end of line. */
-	while ( width-- > 0 )
-		rtas_call(display_character, 1, 1, NULL, ' ' );
+	while (width-- > 0)
+		rtas_call(display_character, 1, 1, NULL, ' ');
 
 	spin_unlock(&progress_lock);
 }
 
 extern void setup_default_decr(void);
 
+/* Some sane defaults: 125 MHz timebase, 1GHz processor */
+#define DEFAULT_TB_FREQ		125000000UL
+#define DEFAULT_PROC_FREQ	(DEFAULT_TB_FREQ * 8)
+
 void __init pSeries_calibrate_decr(void)
 {
 	struct device_node *cpu;
 	struct div_result divres;
-	int *fp;
-	unsigned long freq, processor_freq;
+	unsigned int *fp;
+	int node_found;
 
 	/*
 	 * The cpu node should have a timebase-frequency property
 	 * to tell us the rate at which the decrementer counts.
 	 */
-	freq = 16666000;        /* hardcoded default */
 	cpu = of_find_node_by_type(NULL, "cpu");
+
+	ppc_tb_freq = DEFAULT_TB_FREQ;		/* hardcoded default */
+	node_found = 0;
 	if (cpu != 0) {
-		fp = (int *) get_property(cpu, "timebase-frequency", NULL);
-		if (fp != 0)
-			freq = *fp;
+		fp = (unsigned int *)get_property(cpu, "timebase-frequency",
+						  NULL);
+		if (fp != 0) {
+			node_found = 1;
+			ppc_tb_freq = *fp;
+		}
 	}
-	ppc_tb_freq = freq;
-	processor_freq = freq;
+	if (!node_found)
+		printk(KERN_ERR "WARNING: Estimating decrementer frequency "
+				"(not found)\n");
+
+	ppc_proc_freq = DEFAULT_PROC_FREQ;
+	node_found = 0;
 	if (cpu != 0) {
-		fp = (int *) get_property(cpu, "clock-frequency", NULL);
-		if (fp != 0)
-			processor_freq = *fp;
+		fp = (unsigned int *)get_property(cpu, "clock-frequency",
+						  NULL);
+		if (fp != 0) {
+			node_found = 1;
+			ppc_proc_freq = *fp;
+		}
 	}
-	ppc_proc_freq = processor_freq;
+	if (!node_found)
+		printk(KERN_ERR "WARNING: Estimating processor frequency "
+				"(not found)\n");
+
 	of_node_put(cpu);
 
-	printk("time_init: decrementer frequency = %lu.%.6lu MHz\n",
-	       freq/1000000, freq%1000000);
-	printk("time_init: processor frequency   = %lu.%.6lu MHz\n",
-	       processor_freq/1000000, processor_freq%1000000);
+	printk(KERN_INFO "time_init: decrementer frequency = %lu.%.6lu MHz\n",
+	       ppc_tb_freq/1000000, ppc_tb_freq%1000000);
+	printk(KERN_INFO "time_init: processor frequency   = %lu.%.6lu MHz\n",
+	       ppc_proc_freq/1000000, ppc_proc_freq%1000000);
 
-	tb_ticks_per_jiffy = freq / HZ;
+	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
 	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
-	tb_ticks_per_usec = freq / 1000000;
-	tb_to_us = mulhwu_scale_factor(freq, 1000000);
-	div128_by_32( 1024*1024, 0, tb_ticks_per_sec, &divres );
+	tb_ticks_per_usec = ppc_tb_freq / 1000000;
+	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
+	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &divres);
 	tb_to_xs = divres.result_low;
 
 	setup_default_decr();
 }
-

@@ -593,20 +593,24 @@ int snd_ad1816a_create(snd_card_t *card,
 	chip->dma2 = -1;
 
 	if ((chip->res_port = request_region(port, 16, "AD1816A")) == NULL) {
+		snd_printk(KERN_ERR "ad1816a: can't grab port 0x%lx\n", port);
 		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
 	if (request_irq(irq, snd_ad1816a_interrupt, SA_INTERRUPT, "AD1816A", (void *) chip)) {
+		snd_printk(KERN_ERR "ad1816a: can't grab IRQ %d\n", irq);
 		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = irq;
 	if (request_dma(dma1, "AD1816A - 1")) {
+		snd_printk(KERN_ERR "ad1816a: can't grab DMA1 %d\n", dma1);
 		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
 	chip->dma1 = dma1;
 	if (request_dma(dma2, "AD1816A - 2")) {
+		snd_printk(KERN_ERR "ad1816a: can't grab DMA2 %d\n", dma2);
 		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
@@ -680,7 +684,9 @@ int snd_ad1816a_pcm(ad1816a_t *chip, int device, snd_pcm_t **rpcm)
 	strcpy(pcm->name, snd_ad1816a_chip_id(chip));
 	snd_ad1816a_init(chip);
 
-	snd_pcm_lib_preallocate_isa_pages_for_all(pcm, 64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_isa_data(),
+					      64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 
 	chip->pcm = pcm;
 	if (rpcm)

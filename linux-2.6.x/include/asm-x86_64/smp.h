@@ -39,6 +39,7 @@ extern void smp_alloc_memory(void);
 extern cpumask_t cpu_online_map;
 extern volatile unsigned long smp_invalidate_needed;
 extern int pic_mode;
+extern int smp_num_siblings;
 extern void smp_flush_tlb(void);
 extern void smp_message_irq(int cpl, void *dev_id, struct pt_regs *regs);
 extern void smp_send_reschedule(int cpu);
@@ -46,7 +47,8 @@ extern void smp_invalidate_rcv(void);		/* Process an NMI */
 extern void (*mtrr_hook) (void);
 extern void zap_low_mappings(void);
 void smp_stop_cpu(void);
-
+extern cpumask_t cpu_sibling_map[NR_CPUS];
+extern char phys_proc_id[NR_CPUS];
 
 #define SMP_TRAMPOLINE_BASE 0x6000
 
@@ -58,7 +60,6 @@ void smp_stop_cpu(void);
 
 extern cpumask_t cpu_callout_map;
 #define cpu_possible_map cpu_callout_map
-#define cpu_online(cpu) cpu_isset(cpu, cpu_online_map)
 
 static inline int num_booting_cpus(void)
 {
@@ -73,9 +74,36 @@ extern __inline int hard_smp_processor_id(void)
 	return GET_APIC_ID(*(unsigned int *)(APIC_BASE+APIC_ID));
 }
 
-#define safe_smp_processor_id() (disable_apic ? 0 : hard_smp_processor_id())
+/*
+ * Some lowlevel functions might want to know about
+ * the real APIC ID <-> CPU # mapping.
+ * AK: why is this volatile?
+ */
+extern volatile char x86_cpu_to_apicid[NR_CPUS];
 
-#define cpu_online(cpu) cpu_isset(cpu, cpu_online_map)
+static inline char x86_apicid_to_cpu(char apicid)
+{
+	int i;
+
+	for (i = 0; i < NR_CPUS; ++i)
+		if (x86_cpu_to_apicid[i] == apicid)
+			return i;
+
+	return -1;
+}
+
+#define safe_smp_processor_id() (disable_apic ? 0 : x86_apicid_to_cpu(hard_smp_processor_id()))
+
+extern u8 bios_cpu_apicid[];
+
+static inline int cpu_present_to_apicid(int mps_cpu)
+{
+	if (mps_cpu < NR_CPUS)
+		return (int)bios_cpu_apicid[mps_cpu];
+	else
+		return BAD_APICID;
+}
+
 #endif /* !ASSEMBLY */
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
@@ -85,9 +113,9 @@ extern __inline int hard_smp_processor_id(void)
 #define TARGET_CPUS 1
 
 #ifndef ASSEMBLY
-static inline unsigned int cpu_mask_to_apicid(cpumask_const_t cpumask)
+static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
 {
-	return cpus_coerce_const(cpumask);
+	return cpus_addr(cpumask)[0];
 }
 #endif
 

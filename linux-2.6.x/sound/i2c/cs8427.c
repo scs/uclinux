@@ -23,6 +23,7 @@
 #include <sound/driver.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/init.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -49,6 +50,7 @@ typedef struct {
 typedef struct {
 	unsigned char regmap[0x14];	/* map of first 1 + 13 registers */
 	unsigned int rate;
+	unsigned int reset_timeout;
 	cs8427_stream_t playback;
 	cs8427_stream_t capture;
 } cs8427_t;
@@ -162,6 +164,7 @@ static void snd_cs8427_free(snd_i2c_device_t *device)
 
 int snd_cs8427_create(snd_i2c_bus_t *bus,
 		      unsigned char addr,
+		      unsigned int reset_timeout,
 		      snd_i2c_device_t **r_cs8427)
 {
 	static unsigned char initvals1[] = {
@@ -255,6 +258,9 @@ int snd_cs8427_create(snd_i2c_bus_t *bus,
 	snd_i2c_unlock(bus);
 
 	/* turn on run bit and rock'n'roll */
+	if (reset_timeout < 1)
+		reset_timeout = 1;
+	chip->reset_timeout = reset_timeout;
 	snd_cs8427_reset(device);
 
 #if 0	// it's nice for read tests
@@ -300,7 +306,7 @@ void snd_cs8427_reset(snd_i2c_device_t *cs8427)
 	snd_cs8427_reg_write(cs8427, CS8427_REG_CLOCKSOURCE, chip->regmap[CS8427_REG_CLOCKSOURCE]);
 	udelay(200);
 	snd_i2c_unlock(cs8427->bus);
-	end_time = jiffies + HZ / 2;
+	end_time = jiffies + chip->reset_timeout;
 	while (time_after_eq(end_time, jiffies)) {
 		snd_i2c_lock(cs8427->bus);
 		data = snd_cs8427_reg_read(cs8427, CS8427_REG_RECVERRORS);
@@ -308,7 +314,7 @@ void snd_cs8427_reset(snd_i2c_device_t *cs8427)
 		if (!(data & CS8427_UNLOCK))
 			break;
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ/100);
+		schedule_timeout(1);
 	}
 	snd_i2c_lock(cs8427->bus);
 	chip->regmap[CS8427_REG_CLOCKSOURCE] &= ~CS8427_RXDMASK;
@@ -552,11 +558,24 @@ int snd_cs8427_iec958_pcm(snd_i2c_device_t *cs8427, unsigned int rate)
 			       SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->playback.pcm_ctl->id);
 	reset = chip->rate != rate;
+	chip->rate = rate;
 	snd_i2c_unlock(cs8427->bus);
 	if (reset)
 		snd_cs8427_reset(cs8427);
 	return err < 0 ? err : 0;
 }
+
+static int __init alsa_cs8427_module_init(void)
+{
+	return 0;
+}
+
+static void __exit alsa_cs8427_module_exit(void)
+{
+}
+
+module_init(alsa_cs8427_module_init)
+module_exit(alsa_cs8427_module_exit)
 
 EXPORT_SYMBOL(snd_cs8427_detect);
 EXPORT_SYMBOL(snd_cs8427_create);

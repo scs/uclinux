@@ -83,6 +83,9 @@ unsigned long p_mapped_by_bats(unsigned long pa)
 
 unsigned long __init mmu_mapin_ram(void)
 {
+#ifdef CONFIG_POWER4
+	return 0;
+#else
 	unsigned long tot, bl, done;
 	unsigned long max_size = (256<<20);
 	unsigned long align;
@@ -119,6 +122,7 @@ unsigned long __init mmu_mapin_ram(void)
 	}
 
 	return done;
+#endif
 }
 
 /*
@@ -133,10 +137,10 @@ void __init setbat(int index, unsigned long virt, unsigned long phys,
 	int wimgxpp;
 	union ubat *bat = BATS[index];
 
-#ifdef CONFIG_SMP
-	if ((flags & _PAGE_NO_CACHE) == 0)
+	if (((flags & _PAGE_NO_CACHE) == 0) &&
+	    (cur_cpu_spec[0]->cpu_features & CPU_FTR_NEED_COHERENT))
 		flags |= _PAGE_COHERENT;
-#endif
+
 	bl = (size >> 17) - 1;
 	if (PVR_VER(mfspr(PVR)) != 1) {
 		/* 603, 604, etc. */
@@ -244,8 +248,9 @@ void __init MMU_init_hw(void)
 	Hash = mem_pieces_find(Hash_size, Hash_size);
 	cacheable_memzero(Hash, Hash_size);
 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
-	Hash_end = (PTE *) ((unsigned long)Hash + Hash_size);
 #endif /* CONFIG_POWER4 */
+
+	Hash_end = (PTE *) ((unsigned long)Hash + Hash_size);
 
 	printk("Total memory = %ldMB; using %ldkB for hash table (at %p)\n",
 	       total_memory >> 20, Hash_size >> 10, Hash);

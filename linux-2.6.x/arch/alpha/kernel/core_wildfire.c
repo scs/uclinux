@@ -6,20 +6,18 @@
  *  Copyright (C) 2000 Andrea Arcangeli <andrea@suse.de> SuSE
  */
 
-#include <linux/kernel.h>
+#define __EXTERN_INLINE inline
+#include <asm/io.h>
+#include <asm/core_wildfire.h>
+#undef __EXTERN_INLINE
+
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 
 #include <asm/ptrace.h>
-#include <asm/system.h>
 #include <asm/smp.h>
-
-#define __EXTERN_INLINE inline
-#include <asm/io.h>
-#include <asm/core_wildfire.h>
-#undef __EXTERN_INLINE
 
 #include "proto.h"
 #include "pci_impl.h"
@@ -287,8 +285,8 @@ wildfire_hardware_probe(void)
 		    fe = WILDFIRE_fe(soft_qbb, i);
 
 		    if ((iop->iop_hose[i].init.csr & 1) == 1 &&
-			((ne->ne_what_am_i.csr & 0xf00000300) == 0x100000300) &&
-			((fe->fe_what_am_i.csr & 0xf00000300) == 0x100000200))
+			((ne->ne_what_am_i.csr & 0xf00000300UL) == 0x100000300UL) &&
+			((fe->fe_what_am_i.csr & 0xf00000300UL) == 0x100000200UL))
 		    {
 		        wildfire_pca_mask |= 1 << ((soft_qbb << 2) + i);
 		    }

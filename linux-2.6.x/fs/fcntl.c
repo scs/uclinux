@@ -19,7 +19,7 @@
 #include <asm/siginfo.h>
 #include <asm/uaccess.h>
 
-void set_close_on_exec(unsigned int fd, int flag)
+void fastcall set_close_on_exec(unsigned int fd, int flag)
 {
 	struct files_struct *files = current->files;
 	spin_lock(&files->file_lock);
@@ -212,7 +212,7 @@ asmlinkage long sys_dup(unsigned int fildes)
 	return ret;
 }
 
-#define SETFL_MASK (O_APPEND | O_NONBLOCK | O_NDELAY | FASYNC | O_DIRECT)
+#define SETFL_MASK (O_APPEND | O_NONBLOCK | O_NDELAY | FASYNC | O_DIRECT | O_NOATIME)
 
 static int setfl(int fd, struct file * filp, unsigned long arg)
 {
@@ -222,6 +222,11 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 	/* O_APPEND cannot be cleared if the file is marked as append-only */
 	if (!(arg & O_APPEND) && IS_APPEND(inode))
 		return -EPERM;
+
+	/* O_NOATIME can only be set by the owner or superuser */
+	if ((arg & O_NOATIME) && !(filp->f_flags & O_NOATIME))
+		if (current->fsuid != inode->i_uid && !capable(CAP_FOWNER))
+			return -EPERM;
 
 	/* required for strict SunOS emulation */
 	if (O_NONBLOCK != O_NDELAY)
@@ -233,6 +238,11 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 			!filp->f_mapping->a_ops->direct_IO)
 				return -EINVAL;
 	}
+
+	if (filp->f_op && filp->f_op->check_flags)
+		error = filp->f_op->check_flags(arg);
+	if (error)
+		return error;
 
 	lock_kernel();
 	if ((arg ^ filp->f_flags) & FASYNC) {
@@ -282,80 +292,79 @@ void f_delown(struct file *filp)
 
 EXPORT_SYMBOL(f_delown);
 
-static long do_fcntl(unsigned int fd, unsigned int cmd,
-		     unsigned long arg, struct file * filp)
+static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
+		struct file *filp)
 {
 	long err = -EINVAL;
 
 	switch (cmd) {
-		case F_DUPFD:
-			get_file(filp);
-			err = dupfd(filp, arg);
+	case F_DUPFD:
+		get_file(filp);
+		err = dupfd(filp, arg);
+		break;
+	case F_GETFD:
+		err = get_close_on_exec(fd) ? FD_CLOEXEC : 0;
+		break;
+	case F_SETFD:
+		err = 0;
+		set_close_on_exec(fd, arg & FD_CLOEXEC);
+		break;
+	case F_GETFL:
+		err = filp->f_flags;
+		break;
+	case F_SETFL:
+		err = setfl(fd, filp, arg);
+		break;
+	case F_GETLK:
+		err = fcntl_getlk(filp, (struct flock __user *) arg);
+		break;
+	case F_SETLK:
+	case F_SETLKW:
+		err = fcntl_setlk(filp, cmd, (struct flock __user *) arg);
+		break;
+	case F_GETOWN:
+		/*
+		 * XXX If f_owner is a process group, the
+		 * negative return value will get converted
+		 * into an error.  Oops.  If we keep the
+		 * current syscall conventions, the only way
+		 * to fix this will be in libc.
+		 */
+		err = filp->f_owner.pid;
+		force_successful_syscall_return();
+		break;
+	case F_SETOWN:
+		err = f_setown(filp, arg, 1);
+		break;
+	case F_GETSIG:
+		err = filp->f_owner.signum;
+		break;
+	case F_SETSIG:
+		/* arg == 0 restores default behaviour. */
+		if (arg < 0 || arg > _NSIG) {
 			break;
-		case F_GETFD:
-			err = get_close_on_exec(fd);
-			break;
-		case F_SETFD:
-			err = 0;
-			set_close_on_exec(fd, arg&1);
-			break;
-		case F_GETFL:
-			err = filp->f_flags;
-			break;
-		case F_SETFL:
-			err = setfl(fd, filp, arg);
-			break;
-		case F_GETLK:
-			err = fcntl_getlk(filp, (struct flock __user *) arg);
-			break;
-		case F_SETLK:
-		case F_SETLKW:
-			err = fcntl_setlk(filp, cmd, (struct flock __user *) arg);
-			break;
-		case F_GETOWN:
-			/*
-			 * XXX If f_owner is a process group, the
-			 * negative return value will get converted
-			 * into an error.  Oops.  If we keep the
-			 * current syscall conventions, the only way
-			 * to fix this will be in libc.
-			 */
-			err = filp->f_owner.pid;
-			force_successful_syscall_return();
-			break;
-		case F_SETOWN:
-			err = f_setown(filp, arg, 1);
-			break;
-		case F_GETSIG:
-			err = filp->f_owner.signum;
-			break;
-		case F_SETSIG:
-			/* arg == 0 restores default behaviour. */
-			if (arg < 0 || arg > _NSIG) {
-				break;
-			}
-			err = 0;
-			filp->f_owner.signum = arg;
-			break;
-		case F_GETLEASE:
-			err = fcntl_getlease(filp);
-			break;
-		case F_SETLEASE:
-			err = fcntl_setlease(fd, filp, arg);
-			break;
-		case F_NOTIFY:
-			err = fcntl_dirnotify(fd, filp, arg);
-			break;
-		default:
-			break;
+		}
+		err = 0;
+		filp->f_owner.signum = arg;
+		break;
+	case F_GETLEASE:
+		err = fcntl_getlease(filp);
+		break;
+	case F_SETLEASE:
+		err = fcntl_setlease(fd, filp, arg);
+		break;
+	case F_NOTIFY:
+		err = fcntl_dirnotify(fd, filp, arg);
+		break;
+	default:
+		break;
 	}
-
 	return err;
 }
 
-asmlinkage long sys_fcntl(unsigned int fd, unsigned int cmd, unsigned long arg)
+asmlinkage long sys_fcntl(int fd, unsigned int cmd, unsigned long arg)
 {	
-	struct file * filp;
+	struct file *filp;
 	long err = -EBADF;
 
 	filp = fget(fd);
@@ -619,15 +628,12 @@ void kill_fasync(struct fasync_struct **fp, int sig, int band)
 		read_unlock(&fasync_lock);
 	}
 }
-
 EXPORT_SYMBOL(kill_fasync);
 
 static int __init fasync_init(void)
 {
 	fasync_cache = kmem_cache_create("fasync_cache",
-		sizeof(struct fasync_struct), 0, 0, NULL, NULL);
-	if (!fasync_cache)
-		panic("cannot create fasync slab cache");
+		sizeof(struct fasync_struct), 0, SLAB_PANIC, NULL, NULL);
 	return 0;
 }
 

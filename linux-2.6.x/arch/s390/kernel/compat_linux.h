@@ -4,6 +4,7 @@
 #include <linux/config.h>
 #include <linux/compat.h>
 #include <linux/socket.h>
+#include <linux/syscalls.h>
 #include <linux/nfs_fs.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
@@ -143,6 +144,11 @@ typedef struct
 			 PSW32_MASK_IO | PSW32_MASK_EXT | PSW32_MASK_MCHECK | \
 			 PSW32_MASK_PSTATE)
 
+#define PSW32_MASK_MERGE(CURRENT,NEW) \
+        (((CURRENT) & ~(PSW32_MASK_CC|PSW32_MASK_PM)) | \
+         ((NEW) & (PSW32_MASK_CC|PSW32_MASK_PM)))
+
+
 typedef struct
 {
 	_psw_t32	psw;
@@ -207,5 +213,8 @@ struct sigevent32 {
 		} _sigev_thread;
 	} _sigev_un;
 };
+
+extern int copy_siginfo_to_user32(siginfo_t32 __user *to, siginfo_t *from);
+extern int copy_siginfo_from_user32(siginfo_t *to, siginfo_t32 __user *from);
 
 #endif /* _ASM_S390X_S390_H */

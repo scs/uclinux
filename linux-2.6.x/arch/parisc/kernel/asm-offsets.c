@@ -2,6 +2,29 @@
  * Generate definitions needed by assembly language modules.
  * This code generates raw asm output which is post-processed to extract
  * and format the required data.
+ *
+ *    Copyright (C) 2000-2001 John Marvin <jsm at parisc-linux.org>
+ *    Copyright (C) 2000 David Huggins-Daines <dhd with pobox.org>
+ *    Copyright (C) 2000 Sam Creasey <sammy@sammy.net>
+ *    Copyright (C) 2000 Grant Grundler <grundler with parisc-linux.org>
+ *    Copyright (C) 2001 Paul Bame <bame at parisc-linux.org>
+ *    Copyright (C) 2001 Richard Hirst <rhirst at parisc-linux.org>
+ *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
+ *    Copyright (C) 2003 James Bottomley <jejb at parisc-linux.org>
+ *
+ *    This program is free software; you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation; either version 2 of the License, or
+ *    (at your option) any later version.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License
+ *    along with this program; if not, write to the Free Software
+ *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/types.h>
@@ -9,6 +32,7 @@
 #include <linux/thread_info.h>
 #include <linux/version.h>
 #include <linux/ptrace.h>
+#include <asm/pgtable.h>
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -252,6 +276,20 @@ int main(void)
 	BLANK();
 	DEFINE(PA_BLOCKSTEP_BIT, 31-PT_BLOCKSTEP_BIT);
 	DEFINE(PA_SINGLESTEP_BIT, 31-PT_SINGLESTEP_BIT);
+	BLANK();
+	DEFINE(ASM_PMD_SHIFT, PMD_SHIFT);
+	DEFINE(ASM_PGDIR_SHIFT, PGDIR_SHIFT);
+	DEFINE(ASM_BITS_PER_PGD, BITS_PER_PGD);
+	DEFINE(ASM_BITS_PER_PMD, BITS_PER_PMD);
+	DEFINE(ASM_BITS_PER_PTE, BITS_PER_PTE);
+	DEFINE(ASM_PGD_PMD_OFFSET, -(PAGE_SIZE << PGD_ORDER));
+	DEFINE(ASM_PMD_ENTRY, ((PAGE_OFFSET & PMD_MASK) >> PMD_SHIFT));
+	DEFINE(ASM_PGD_ENTRY, PAGE_OFFSET >> PGDIR_SHIFT);
+	DEFINE(ASM_PGD_ENTRY_SIZE, PGD_ENTRY_SIZE);
+	DEFINE(ASM_PMD_ENTRY_SIZE, PMD_ENTRY_SIZE);
+	DEFINE(ASM_PTE_ENTRY_SIZE, PTE_ENTRY_SIZE);
+	DEFINE(ASM_PT_INITIAL, PT_INITIAL);
+	DEFINE(ASM_PAGE_SIZE, PAGE_SIZE);
 	BLANK();
 	return 0;
 }

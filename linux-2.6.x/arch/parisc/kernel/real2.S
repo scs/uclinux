@@ -12,8 +12,12 @@
 
 	.section	.bss
 	.export real_stack
+	.export real32_stack
+	.export real64_stack
 	.align	64
 real_stack:
+real32_stack:
+real64_stack:
 	.block	8192
 
 #ifdef __LP64__
@@ -26,6 +30,7 @@ real_stack:
 
 save_cr_space:
 	.block	REG_SZ * N_SAVED_REGS
+save_cr_end:
 
 
 /************************ 32-bit real-mode calls ***********************/
@@ -123,7 +128,7 @@ save_control_regs:
 	nop
 
 restore_control_regs:
-	load32	PA(save_cr_space+(N_SAVED_REGS*REG_SZ)), %r26
+	load32	PA(save_cr_end), %r26
 	POP_CR(%cr15, %r26)
 	POP_CR(%cr31, %r26)
 	POP_CR(%cr30, %r26)

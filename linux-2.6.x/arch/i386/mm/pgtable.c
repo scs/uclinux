@@ -33,7 +33,7 @@ void show_mem(void)
 
 	printk("Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6dkB\n",nr_swap_pages<<(PAGE_SHIFT-10));
+	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_pgdat(pgdat) {
 		for (i = 0; i < pgdat->node_spanned_pages; ++i) {
 			page = pgdat->node_mem_map + i;
@@ -172,7 +172,27 @@ void pmd_ctor(void *pmd, kmem_cache_t *cache, unsigned long flags)
  * -- wli
  */
 spinlock_t pgd_lock = SPIN_LOCK_UNLOCKED;
-LIST_HEAD(pgd_list);
+struct page *pgd_list;
+
+static inline void pgd_list_add(pgd_t *pgd)
+{
+	struct page *page = virt_to_page(pgd);
+	page->index = (unsigned long)pgd_list;
+	if (pgd_list)
+		pgd_list->private = (unsigned long)&page->index;
+	pgd_list = page;
+	page->private = (unsigned long)&pgd_list;
+}
+
+static inline void pgd_list_del(pgd_t *pgd)
+{
+	struct page *next, **pprev, *page = virt_to_page(pgd);
+	next = (struct page *)page->index;
+	pprev = (struct page **)page->private;
+	*pprev = next;
+	if (next)
+		next->private = (unsigned long)pprev;
+}
 
 void pgd_ctor(void *pgd, kmem_cache_t *cache, unsigned long unused)
 {
@@ -188,7 +208,7 @@ void pgd_ctor(void *pgd, kmem_cache_t *cache, unsigned long unused)
 	if (PTRS_PER_PMD > 1)
 		return;
 
-	list_add(&virt_to_page(pgd)->lru, &pgd_list);
+	pgd_list_add(pgd);
 	spin_unlock_irqrestore(&pgd_lock, flags);
 	memset(pgd, 0, USER_PTRS_PER_PGD*sizeof(pgd_t));
 }
@@ -199,7 +219,7 @@ void pgd_dtor(void *pgd, kmem_cache_t *cache, unsigned long unused)
 	unsigned long flags; /* can be called from interrupt context */
 
 	spin_lock_irqsave(&pgd_lock, flags);
-	list_del(&virt_to_page(pgd)->lru);
+	pgd_list_del(pgd);
 	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 

@@ -10,39 +10,76 @@
 #include <asm/pgtable.h>
 #include <asm/cache.h>
 
+/* Allocate the top level pgd (page directory)
+ *
+ * Here (for 64 bit kernels) we implement a Hybrid L2/L3 scheme: we
+ * allocate the first pmd adjacent to the pgd.  This means that we can
+ * subtract a constant offset to get to it.  The pmd and pgd sizes are
+ * arranged so that a single pmd covers 4GB (giving a full LP64
+ * process access to 8TB) so our lookups are effectively L2 for the
+ * first 4GB of the kernel (i.e. for all ILP32 processes and all the
+ * kernel for machines with under 4GB of memory) */
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	pgd_t *pgd = (pgd_t *)__get_free_page(GFP_KERNEL);
-	if (likely(pgd != NULL))
-		clear_page(pgd);
-	return pgd;
+	pgd_t *pgd = (pgd_t *)__get_free_pages(GFP_KERNEL,
+					       PGD_ALLOC_ORDER);
+	pgd_t *actual_pgd = pgd;
+
+	if (likely(pgd != NULL)) {
+		memset(pgd, 0, PAGE_SIZE<<PGD_ALLOC_ORDER);
+#ifdef __LP64__
+		actual_pgd += PTRS_PER_PGD;
+		/* Populate first pmd with allocated memory.  We mark it
+		 * with PxD_FLAG_ATTACHED as a signal to the system that this
+		 * pmd entry may not be cleared. */
+		__pgd_val_set(*actual_pgd, (PxD_FLAG_PRESENT | 
+				        PxD_FLAG_VALID | 
+					PxD_FLAG_ATTACHED) 
+			+ (__u32)(__pa((unsigned long)pgd) >> PxD_VALUE_SHIFT));
+		/* The first pmd entry also is marked with _PAGE_GATEWAY as
+		 * a signal that this pmd may not be freed */
+		__pgd_val_set(*pgd, PxD_FLAG_ATTACHED);
+#endif
+	}
+	return actual_pgd;
 }
 
 static inline void pgd_free(pgd_t *pgd)
 {
-	free_page((unsigned long)pgd);
+#ifdef __LP64__
+	pgd -= PTRS_PER_PGD;
+#endif
+	free_pages((unsigned long)pgd, PGD_ALLOC_ORDER);
 }
 
-#ifdef __LP64__
+#if PT_NLEVELS == 3
 
 /* Three Level Page Table Support for pmd's */
 
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmd)
 {
-	pgd_val(*pgd) = _PAGE_TABLE + __pa((unsigned long)pmd);
+	__pgd_val_set(*pgd, (PxD_FLAG_PRESENT | PxD_FLAG_VALID) +
+		        (__u32)(__pa((unsigned long)pmd) >> PxD_VALUE_SHIFT));
 }
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 {
-	pmd_t *pmd = (pmd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
+	pmd_t *pmd = (pmd_t *)__get_free_pages(GFP_KERNEL|__GFP_REPEAT,
+					       PMD_ORDER);
 	if (pmd)
-		clear_page(pmd);
+		memset(pmd, 0, PAGE_SIZE<<PMD_ORDER);
 	return pmd;
 }
 
 static inline void pmd_free(pmd_t *pmd)
 {
-	free_page((unsigned long)pmd);
+#ifdef __LP64__
+	if(pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
+		/* This is the permanent pmd attached to the pgd;
+		 * cannot free it */
+		return;
+#endif
+	free_pages((unsigned long)pmd, PMD_ORDER);
 }
 
 #else
@@ -63,7 +100,18 @@ static inline void pmd_free(pmd_t *pmd)
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 {
-	pmd_val(*pmd) = _PAGE_TABLE + __pa((unsigned long)pte);
+#ifdef __LP64__
+	/* preserve the gateway marker if this is the beginning of
+	 * the permanent pmd */
+	if(pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
+		__pmd_val_set(*pmd, (PxD_FLAG_PRESENT |
+				 PxD_FLAG_VALID |
+				 PxD_FLAG_ATTACHED) 
+			+ (__u32)(__pa((unsigned long)pte) >> PxD_VALUE_SHIFT));
+	else
+#endif
+		__pmd_val_set(*pmd, (PxD_FLAG_PRESENT | PxD_FLAG_VALID) 
+			+ (__u32)(__pa((unsigned long)pte) >> PxD_VALUE_SHIFT));
 }
 
 #define pmd_populate(mm, pmd, pte_page) \

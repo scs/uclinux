@@ -47,7 +47,7 @@ typedef struct _diva_os_idi_adapter_interface {
 } diva_os_idi_adapter_interface_t;
 
 typedef struct _diva_os_xdi_adapter {
-	diva_entity_link_t link;
+	struct list_head link;
 	int CardIndex;
 	int CardOrdinal;
 	int controller;		/* number of this controller */

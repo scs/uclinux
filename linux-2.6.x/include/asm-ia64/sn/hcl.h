@@ -8,15 +8,16 @@
 #ifndef _ASM_IA64_SN_HCL_H
 #define _ASM_IA64_SN_HCL_H
 
+#include <linux/fs.h>
 #include <asm/sn/sgi.h>
 
 extern vertex_hdl_t hwgraph_root;
 extern vertex_hdl_t linux_busnum;
 
-void hwgraph_debug(char *, char *, int, vertex_hdl_t, vertex_hdl_t, char *, ...);
+void hwgraph_debug(char *, const char *, int, vertex_hdl_t, vertex_hdl_t, char *, ...);
 
 #if 1
-#define HWGRAPH_DEBUG(args) hwgraph_debug args ;
+#define HWGRAPH_DEBUG(args...) hwgraph_debug(args)
 #else   
 #define HWGRAPH_DEBUG(args)
 #endif  
@@ -58,7 +59,6 @@ typedef long            arb_info_desc_t;
 #define hwgraph_connectpt_set labelcl_info_connectpt_set
 #define hwgraph_generate_path hwgfs_generate_path
 #define hwgraph_path_to_vertex(a) hwgfs_find_handle(NULL, a, 0, 0, 0, 1)
-#define hwgraph_edge_remove(a,b,c)
 #define hwgraph_vertex_unref(a)
 
 /*

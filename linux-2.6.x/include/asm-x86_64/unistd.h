@@ -98,7 +98,7 @@ __SYSCALL(__NR_setitimer, sys_setitimer)
 __SYSCALL(__NR_getpid, sys_getpid)
 
 #define __NR_sendfile                           40
-__SYSCALL(__NR_sendfile, sys_sendfile)
+__SYSCALL(__NR_sendfile, sys_sendfile64)
 #define __NR_socket                             41
 __SYSCALL(__NR_socket, sys_socket)
 #define __NR_connect                            42
@@ -532,10 +532,30 @@ __SYSCALL(__NR_tgkill, sys_tgkill)
 __SYSCALL(__NR_utimes, sys_utimes)
 #define __NR_vserver		236
 __SYSCALL(__NR_vserver, sys_ni_syscall)
+#define __NR_vserver		236
+__SYSCALL(__NR_vserver, sys_ni_syscall)
+#define __NR_mbind 		237
+__SYSCALL(__NR_mbind, sys_mbind)
+#define __NR_set_mempolicy 	238
+__SYSCALL(__NR_set_mempolicy, sys_set_mempolicy)
+#define __NR_get_mempolicy 	239
+__SYSCALL(__NR_get_mempolicy, sys_get_mempolicy)
+#define __NR_mq_open 		240
+__SYSCALL(__NR_mq_open, sys_mq_open)
+#define __NR_mq_unlink 		241
+__SYSCALL(__NR_mq_unlink, sys_mq_unlink)
+#define __NR_mq_timedsend 	242
+__SYSCALL(__NR_mq_timedsend, sys_mq_timedsend)
+#define __NR_mq_timedreceive	243
+__SYSCALL(__NR_mq_timedreceive, sys_mq_timedreceive)
+#define __NR_mq_notify 		244
+__SYSCALL(__NR_mq_notify, sys_mq_notify)
+#define __NR_mq_getsetattr 	245
+__SYSCALL(__NR_mq_getsetattr, sys_mq_getsetattr)
+#define __NR_kexec_load 	246
+__SYSCALL(__NR_kexec_load, sys_ni_syscall)
 
-/* 237,238,239 reserved for NUMA API */
-
-#define __NR_syscall_max __NR_vserver
+#define __NR_syscall_max __NR_kexec_load
 #ifndef __NO_STUBS
 
 /* user-visible error numbers are in the range -1 - -4095 */
@@ -550,6 +570,29 @@ do { \
 	} \
 	return (type) (res); \
 } while (0)
+
+#ifdef __KERNEL__
+#define __ARCH_WANT_OLD_READDIR
+#define __ARCH_WANT_OLD_STAT
+#define __ARCH_WANT_SYS_ALARM
+#define __ARCH_WANT_SYS_GETHOSTNAME
+#define __ARCH_WANT_SYS_PAUSE
+#define __ARCH_WANT_SYS_SGETMASK
+#define __ARCH_WANT_SYS_SIGNAL
+#define __ARCH_WANT_SYS_TIME
+#define __ARCH_WANT_SYS_UTIME
+#define __ARCH_WANT_SYS_WAITPID
+#define __ARCH_WANT_SYS_SOCKETCALL
+#define __ARCH_WANT_SYS_FADVISE64
+#define __ARCH_WANT_SYS_GETPGRP
+#define __ARCH_WANT_SYS_LLSEEK
+#define __ARCH_WANT_SYS_NICE
+#define __ARCH_WANT_SYS_OLD_GETRLIMIT
+#define __ARCH_WANT_SYS_OLDUMOUNT
+#define __ARCH_WANT_SYS_SIGPENDING
+#define __ARCH_WANT_SYS_SIGPROCMASK
+#define __ARCH_WANT_SYS_RT_SIGACTION
+#endif
 
 #ifndef __KERNEL_SYSCALLS__
 
@@ -636,6 +679,9 @@ __syscall_return(type,__res); \
 
 #else /* __KERNEL_SYSCALLS__ */
 
+#include <linux/syscalls.h>
+#include <asm/ptrace.h>
+
 /*
  * we need this inline - forking from kernel space will result
  * in NO COPY ON WRITE (!!!), until an execve is executed. This
@@ -650,31 +696,26 @@ __syscall_return(type,__res); \
  */
 #define __NR__exit __NR_exit
 
-extern pid_t sys_setsid(void);
 static inline pid_t setsid(void)
 {
 	return sys_setsid();
 }
 
-long sys_write(int fd, const char *buf, size_t size);
 static inline ssize_t write(unsigned int fd, char * buf, size_t count)
 {
 	return sys_write(fd, buf, count);
 }
 
-extern ssize_t sys_read(unsigned int, char *, size_t);
 static inline ssize_t read(unsigned int fd, char * buf, size_t count)
 {
 	return sys_read(fd, buf, count);
 }
 
-extern off_t sys_lseek(unsigned int, off_t, unsigned int);
 static inline off_t lseek(unsigned int fd, off_t offset, unsigned int origin)
 {
 	return sys_lseek(fd, offset, origin);
 }
 
-extern long sys_dup(unsigned int);
 static inline long dup(unsigned int fd)
 {
 	return sys_dup(fd);
@@ -683,33 +724,56 @@ static inline long dup(unsigned int fd)
 /* implemented in asm in arch/x86_64/kernel/entry.S */
 extern long execve(char *, char **, char **);
 
-extern long sys_open(const char *, int, int);
 static inline long open(const char * filename, int flags, int mode)
 {
 	return sys_open(filename, flags, mode);
 }
 
-extern long sys_close(unsigned int);
 static inline long close(unsigned int fd)
 {
 	return sys_close(fd);
 }
 
-extern long sys_exit(int) __attribute__((noreturn));
-extern inline void exit(int error_code)
-{
-	sys_exit(error_code);
-}
-
-struct rusage; 
-long sys_wait4(pid_t pid,unsigned int * stat_addr, 
-			int options, struct rusage * ru);
 static inline pid_t waitpid(int pid, int * wait_stat, int flags)
 {
 	return sys_wait4(pid, wait_stat, flags, NULL);
 }
 
+extern long sys_mmap(unsigned long addr, unsigned long len,
+			unsigned long prot, unsigned long flags,
+			unsigned long fd, unsigned long off);
+
+extern int sys_modify_ldt(int func, void *ptr, unsigned long bytecount);
+
+asmlinkage long sys_execve(char *name, char **argv, char **envp,
+			struct pt_regs regs);
+asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp,
+			void *parent_tid, void *child_tid,
+			struct pt_regs regs);
+asmlinkage long sys_fork(struct pt_regs regs);
+asmlinkage long sys_vfork(struct pt_regs regs);
+asmlinkage long sys_pipe(int *fildes);
+
 #endif /* __KERNEL_SYSCALLS__ */
+
+#if !defined(__ASSEMBLY__) && defined(__KERNEL__)
+
+#include <linux/linkage.h>
+#include <linux/compiler.h>
+#include <linux/types.h>
+#include <asm/ptrace.h>
+
+asmlinkage long sys_ptrace(long request, long pid,
+				unsigned long addr, long data);
+asmlinkage long sys_iopl(unsigned int level, struct pt_regs regs);
+asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on);
+struct sigaction;
+asmlinkage long sys_rt_sigaction(int sig,
+				const struct sigaction __user *act,
+				struct sigaction __user *oact,
+				size_t sigsetsize);
+
+#endif	/* __ASSEMBLY__ */
 
 #endif /* __NO_STUBS */
 

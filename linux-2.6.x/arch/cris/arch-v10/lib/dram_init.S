@@ -11,11 +11,12 @@
  * Authors:  Mikael Starvik (starvik@axis.com)	
  * 
  * $Log$
- * Revision 1.1  2004/07/19 11:41:14  lgsoft
- * Initial revision
+ * Revision 1.1.1.2  2004/09/07 09:14:07  lgsoft
+ * Import of 2.6.8
  *
- * Revision 1.1.1.1  2004/07/18 13:20:11  nidhi
- * Importing
+ * Revision 1.4  2003/09/22 09:21:59  starvik
+ * Decompresser is linked to 0x407xxxxx and sdram commands are at 0x000xxxxx
+ * so we need to mask off 12 bits.
  *
  * Revision 1.3  2003/03/31 09:38:37  starvik
  * Corrected calculation of end of sdram init commands
@@ -158,9 +159,9 @@ _set_timing:
 	
 	; Issue initialization command sequence
 	move.d   _sdram_commands_start, $r2
-	and.d    0x00ffffff, $r2 ; Make sure commands are read from flash
+	and.d    0x000fffff, $r2 ; Make sure commands are read from flash
 	move.d   _sdram_commands_end,  $r3
-	and.d    0x00ffffff, $r3
+	and.d    0x000fffff, $r3
 1:	clear.d  $r4
 	move.b   [$r2+], $r4
 	lslq     9, $r4	; Command starts at bit 9

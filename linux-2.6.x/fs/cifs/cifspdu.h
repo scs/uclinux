@@ -34,9 +34,10 @@
 #define SMB_COM_DELETE                0x06
 #define SMB_COM_RENAME                0x07
 #define SMB_COM_LOCKING_ANDX          0x24
+#define SMB_COM_COPY                  0x29
 #define SMB_COM_READ_ANDX             0x2E
 #define SMB_COM_WRITE_ANDX            0x2F
-#define SMB_COM_TRANSACTION2	      0x32
+#define SMB_COM_TRANSACTION2          0x32
 #define SMB_COM_TRANSACTION2_SECONDARY 0x33
 #define SMB_COM_FIND_CLOSE2           0x34
 #define SMB_COM_TREE_DISCONNECT       0x71
@@ -641,6 +642,9 @@ typedef struct smb_com_open_req {	/* also handles create */
 #define OPLOCK_BATCH	 2
 #define OPLOCK_READ	 3  /* level 2 oplock */
 
+/* open response for CreateAction shifted left */
+#define CIFS_CREATE_ACTION 0x20000 /* file created */
+
 typedef struct smb_com_open_rsp {
 	struct smb_hdr hdr;	/* wct = 34 BB */
 	__u8 AndXCommand;
@@ -727,8 +731,10 @@ typedef struct smb_com_read_rsp {
 typedef struct locking_andx_range {
 	__u16 Pid;
 	__u16 Pad;
-	__u64 Offset;
-	__u64 Length;
+	__u32 OffsetHigh;
+	__u32 OffsetLow;
+	__u32 LengthHigh;
+	__u32 LengthLow;
 } LOCKING_ANDX_RANGE;
 
 #define LOCKING_ANDX_SHARED_LOCK     0x01
@@ -769,6 +775,34 @@ typedef struct smb_com_rename_req {
 	/* followed by __u8 BufferFormat2 */
 	/* followed by NewFileName */
 } RENAME_REQ;
+
+	/* copy request flags */
+#define COPY_MUST_BE_FILE      0x0001
+#define COPY_MUST_BE_DIR       0x0002
+#define COPY_TARGET_MODE_ASCII 0x0004 /* if not set, binary */
+#define COPY_SOURCE_MODE_ASCII 0x0008 /* if not set, binary */
+#define COPY_VERIFY_WRITES     0x0010
+#define COPY_TREE              0x0020 
+
+typedef struct smb_com_copy_req {
+	struct smb_hdr hdr;	/* wct = 3 */
+	__u16 Tid2;
+	__u16 OpenFunction;
+	__u16 Flags;
+	__u16 ByteCount;
+	__u8 BufferFormat;	/* 4 = ASCII or Unicode */ 
+	unsigned char OldFileName[1];
+	/* followed by __u8 BufferFormat2 */
+	/* followed by NewFileName string */
+} COPY_REQ;
+
+typedef struct smb_com_copy_rsp {
+	struct smb_hdr hdr;     /* wct = 1 */
+	__u16 CopyCount;    /* number of files copied */
+	__u16 ByteCount;    /* may be zero */
+	__u8 BufferFormat;  /* 0x04 - only present if errored file follows */
+	unsigned char ErrorFileName[1]; /* only present if error in copy */
+} COPY_RSP;
 
 #define CREATE_HARD_LINK		0x103
 #define MOVEFILE_COPY_ALLOWED		0x0002
@@ -828,6 +862,10 @@ typedef struct smb_com_create_directory_rsp {
 	__u16 ByteCount;	/* bct = 0 */
 } CREATE_DIRECTORY_RSP;
 
+/***************************************************/
+/* NT Transact structure defintions follow         */
+/* Currently only ioctl and notify are implemented */
+/***************************************************/
 typedef struct smb_com_transaction_ioctl_req {
 	struct smb_hdr hdr;	/* wct = 23 */
 	__u8 MaxSetupCount;
@@ -870,29 +908,45 @@ typedef struct smb_com_transaction_ioctl_rsp {
 } TRANSACT_IOCTL_RSP;
 
 typedef struct smb_com_transaction_change_notify_req {
-        struct smb_hdr hdr;     /* wct = 23 */
-        __u8 MaxSetupCount;
-        __u16 Reserved;
-        __u32 TotalParameterCount;
-        __u32 TotalDataCount;
-        __u32 MaxParameterCount;
-        __u32 MaxDataCount;
-        __u32 ParameterCount;
-        __u32 ParameterOffset;
-        __u32 DataCount;
-        __u32 DataOffset;
-        __u8 SetupCount; /* four setup words follow subcommand */
-        /* SNIA spec incorrectly included spurious pad here */
-        __u16 SubCommand;/* 4 = Change Notify */
+	struct smb_hdr hdr;     /* wct = 23 */
+	__u8 MaxSetupCount;
+	__u16 Reserved;
+	__u32 TotalParameterCount;
+	__u32 TotalDataCount;
+	__u32 MaxParameterCount;
+	__u32 MaxDataCount;
+	__u32 ParameterCount;
+	__u32 ParameterOffset;
+	__u32 DataCount;
+	__u32 DataOffset;
+	__u8 SetupCount; /* four setup words follow subcommand */
+	/* SNIA spec incorrectly included spurious pad here */
+	__u16 SubCommand;/* 4 = Change Notify */
 	__u32 CompletionFilter;  /* operation to monitor */
 	__u16 Fid;
 	__u8 WatchTree;  /* 1 = Monitor subdirectories */
+	__u8 Reserved2;
 	__u16 ByteCount;
-	__u8 Pad[3];
-	__u8 Data[1];
+/* __u8 Pad[3];*/
+/*	__u8 Data[1];*/
 } TRANSACT_CHANGE_NOTIFY_REQ;
 
-/* Completion Filter flags */
+typedef struct smb_com_transaction_change_notify_rsp {
+	struct smb_hdr hdr;	/* wct = 18 */
+	__u8 Reserved[3];
+	__u32 TotalParameterCount;
+	__u32 TotalDataCount;
+	__u32 ParameterCount;
+	__u32 ParameterOffset;
+	__u32 ParameterDisplacement;
+	__u32 DataCount;
+	__u32 DataOffset;
+	__u32 DataDisplacement;
+	__u8 SetupCount;   /* 0 */
+	__u16 ByteCount;
+	/* __u8 Pad[3]; */
+} TRANSACT_CHANGE_NOTIFY_RSP;
+/* Completion Filter flags for Notify */
 #define FILE_NOTIFY_CHANGE_FILE_NAME    0x00000001
 #define FILE_NOTIFY_CHANGE_DIR_NAME     0x00000002
 #define FILE_NOTIFY_CHANGE_NAME         0x00000003
@@ -906,6 +960,15 @@ typedef struct smb_com_transaction_change_notify_req {
 #define FILE_NOTIFY_CHANGE_STREAM_NAME  0x00000200
 #define FILE_NOTIFY_CHANGE_STREAM_SIZE  0x00000400
 #define FILE_NOTIFY_CHANGE_STREAM_WRITE 0x00000800
+
+#define FILE_ACTION_ADDED		0x00000001
+#define FILE_ACTION_REMOVED		0x00000002
+#define FILE_ACTION_MODIFIED		0x00000003
+#define FILE_ACTION_RENAMED_OLD_NAME	0x00000004
+#define FILE_ACTION_RENAMED_NEW_NAME	0x00000005
+#define FILE_ACTION_ADDED_STREAM	0x00000006
+#define FILE_ACTION_REMOVED_STREAM	0x00000007
+#define FILE_ACTION_MODIFIED_STREAM	0x00000008
 
 /* response contains array of the following structures */
 struct file_notify_information {
@@ -983,9 +1046,14 @@ typedef union smb_com_transaction2 {
 
 /* PathInfo/FileInfo infolevels */
 #define SMB_INFO_STANDARD                   1
+#define SMB_SET_FILE_EA                     2
+#define SMB_QUERY_FILE_EA_SIZE              2
+#define SMB_INFO_QUERY_EAS_FROM_LIST        3
+#define SMB_INFO_QUERY_ALL_EAS              4
 #define SMB_INFO_IS_NAME_VALID              6
 #define SMB_QUERY_FILE_BASIC_INFO       0x101
 #define SMB_QUERY_FILE_STANDARD_INFO    0x102
+#define SMB_QUERY_FILE_EA_INFO          0x103
 #define SMB_QUERY_FILE_NAME_INFO        0x104
 #define SMB_QUERY_FILE_ALLOCATION_INFO  0x105
 #define SMB_QUERY_FILE_END_OF_FILEINFO  0x106
@@ -1005,8 +1073,13 @@ typedef union smb_com_transaction2 {
 #define SMB_SET_FILE_UNIX_HLINK         0x203
 #define SMB_SET_FILE_BASIC_INFO2        0x3ec
 #define SMB_SET_FILE_RENAME_INFORMATION 0x3f2
+#define SMB_FILE_ALL_INFO2              0x3fa
 #define SMB_SET_FILE_ALLOCATION_INFO2   0x3fb
 #define SMB_SET_FILE_END_OF_FILE_INFO2  0x3fc
+#define SMB_FILE_MOVE_CLUSTER_INFO      0x407
+#define SMB_FILE_QUOTA_INFO             0x408
+#define SMB_FILE_REPARSEPOINT_INFO      0x409
+#define SMB_FILE_MAXIMUM_INFO           0x40d
 
 /* Find File infolevels */
 #define SMB_FIND_FILE_DIRECTORY_INFO      0x101
@@ -1101,10 +1174,10 @@ typedef struct smb_com_transaction2_spi_rsp {
 } TRANSACTION2_SPI_RSP;
 
 struct set_file_rename {
-        __u32 overwrite;   /* 1 = overwrite dest */
-        __u32 root_fid;   /* zero */
+	__u32 overwrite;   /* 1 = overwrite dest */
+	__u32 root_fid;   /* zero */
 	__u32 target_name_len;
-        char  target_name[0];  /* Must be unicode */
+	char  target_name[0];  /* Must be unicode */
 };
 
 struct smb_com_transaction2_sfi_req {
@@ -1268,6 +1341,7 @@ typedef struct smb_com_transaction2_fnext_rsp_parms {
 	__u16 LastNameOffset;
 } T2_FNEXT_RSP_PARMS;
 
+/* QFSInfo Levels */
 #define SMB_INFO_ALLOCATION         1
 #define SMB_INFO_VOLUME             2
 #define SMB_QUERY_FS_VOLUME_INFO    0x102
@@ -1275,6 +1349,8 @@ typedef struct smb_com_transaction2_fnext_rsp_parms {
 #define SMB_QUERY_FS_DEVICE_INFO    0x104
 #define SMB_QUERY_FS_ATTRIBUTE_INFO 0x105
 #define SMB_QUERY_CIFS_UNIX_INFO    0x200
+#define SMB_QUERY_LABEL_INFO        0x3ea
+#define SMB_QUERY_FS_QUOTA_INFO     0x3ee
 
 typedef struct smb_com_transaction2_qfsi_req {
 	struct smb_hdr hdr;	/* wct = 14+ */
@@ -1546,6 +1622,19 @@ typedef struct {
 	char LinkDest[1];
 } FILE_UNIX_LINK_INFO;		/* level 513 QPathInfo */
 
+typedef struct {
+	__u16 CreationDate;
+	__u16 CreationTime;
+	__u16 LastAccessDate;
+	__u16 LastAccessTime;
+	__u16 LastWriteDate;
+	__u16 LastWriteTime;
+	__u32 DataSize; /* File Size (EOF) */
+	__u32 AllocationSize;
+	__u16 Attributes; /* verify not u32 */
+	__u32 EASize;
+} FILE_INFO_STANDARD;  /* level 1 SetPath/FileInfo */
+
 /* defines for enumerating possible values of the Unix type field below */
 #define UNIX_FILE      0
 #define UNIX_DIR       1
@@ -1606,26 +1695,27 @@ typedef struct {
 } FILE_DIRECTORY_INFO;   /* level 257 FF response data area */
 
 struct gea {
-	unsigned char cbName;
-	char szName[1];
+	unsigned char name_len;
+	char name[1];
 };
 
 struct gealist {
-	unsigned long cbList;
+	unsigned long list_len;
 	struct gea list[1];
 };
 
 struct fea {
-	unsigned char fEA;
-	unsigned char cbName;
-	unsigned short cbValue;
-	char szName[1];
+	unsigned char EA_flags;
+	__u8 name_len;
+	__u16 value_len;
+	char name[1];
+	/* optionally followed by value */
 };
 /* flags for _FEA.fEA */
 #define FEA_NEEDEA         0x80	/* need EA bit */
 
 struct fealist {
-	unsigned long cbList;
+	__u32 list_len;
 	struct fea list[1];
 };
 
@@ -1635,6 +1725,83 @@ struct data_blob {
 	size_t length;
 	void (*free) (struct data_blob * data_blob);
 };
+
+#ifdef CONFIG_CIFS_POSIX
+/* 
+	For better POSIX semantics from Linux client, (even better
+	than the existing CIFS Unix Extensions) we need updated PDUs for:
+	
+	1) PosixCreateX - to set and return the mode, inode#, device info and
+	perhaps add a CreateDevice - to create Pipes and other special .inodes
+	Also note POSIX open flags
+	2) Close - to return the last write time to do cache across close more safely
+	3) PosixQFSInfo - to return statfs info
+	4) FindFirst return unique inode number - what about resume key, two forms short (matches readdir) and full (enough info to cache inodes)
+	5) Mkdir - set mode
+	
+	And under consideration: 
+	6) FindClose2 (return nanosecond timestamp ??)
+	7) Use nanosecond timestamps throughout all time fields if 
+	   corresponding attribute flag is set
+	8) sendfile - handle based copy
+	9) Direct i/o
+	10) "POSIX ACL" support
+	11) Misc fcntls?
+	
+	what about fixing 64 bit alignment
+	
+	There are also various legacy SMB/CIFS requests used as is
+	
+	From existing Lanman and NTLM dialects:
+	--------------------------------------
+	NEGOTIATE
+	SESSION_SETUP_ANDX (BB which?)
+	TREE_CONNECT_ANDX (BB which wct?)
+	TREE_DISCONNECT (BB add volume timestamp on response)
+	LOGOFF_ANDX
+	DELETE (note delete open file behavior)
+	DELETE_DIRECTORY
+	READ_AND_X
+	WRITE_AND_X
+	LOCKING_AND_X (note posix lock semantics)
+	RENAME (note rename across dirs and open file rename posix behaviors)
+	NT_RENAME (for hardlinks) Is this good enough for all features?
+	FIND_CLOSE2
+	TRANSACTION2 (18 cases)
+		SMB_SET_FILE_END_OF_FILE_INFO2 SMB_SET_PATH_END_OF_FILE_INFO2
+		(BB verify that never need to set allocation size)
+		SMB_SET_FILE_BASIC_INFO2 (setting times - BB can it be done via Unix ext?)
+	
+	COPY (note support for copy across directories) - FUTURE, OPTIONAL
+	setting/getting OS/2 EAs - FUTURE (BB can this handle
+	        setting Linux xattrs perfectly)         - OPTIONAL
+    dnotify                                         - FUTURE, OPTIONAL
+    quota                                           - FUTURE, OPTIONAL
+			
+	Note that various requests implemented for NT interop such as 
+		NT_TRANSACT (IOCTL) QueryReparseInfo
+	are unneeded to servers compliant with the CIFS POSIX extensions
+	
+	From CIFS Unix Extensions:
+	-------------------------
+	T2 SET_PATH_INFO (SMB_SET_FILE_UNIX_LINK) for symlinks
+	T2 SET_PATH_INFO (SMB_SET_FILE_BASIC_INFO2)
+	T2 QUERY_PATH_INFO (SMB_QUERY_FILE_UNIX_LINK)
+	T2 QUERY_PATH_INFO (SMB_QUERY_FILE_UNIX_BASIC) - BB check for missing inode fields
+					Actually need QUERY_FILE_UNIX_INFO since has inode num
+					BB what about a) blksize/blkbits/blocks
+								  b) i_version
+								  c) i_rdev
+								  d) notify mask?
+								  e) generation
+								  f) size_seqcount
+	T2 FIND_FIRST/FIND_NEXT FIND_FILE_UNIX
+	TRANS2_GET_DFS_REFERRAL				  - OPTIONAL but recommended
+	T2_QFS_INFO QueryDevice/AttributeInfo - OPTIONAL
+	
+	
+ */
+#endif 
 
 #pragma pack()			/* resume default structure packing */
 

@@ -59,6 +59,7 @@ struct cpuinfo_x86 {
 	char	x86_model_id[64];
 	int 	x86_cache_size;  /* in KB - valid for CPUS which support this
 				    call  */
+	int 	x86_cache_alignment;	/* In bytes */
 	int	fdiv_bug;
 	int	f00f_bug;
 	int	coma_bug;
@@ -258,14 +259,8 @@ static inline void clear_in_cr4 (unsigned long mask)
 
 /*
  * Bus types (default is ISA, but people can check others with these..)
- * pc98 indicates PC98 systems (CBUS)
  */
 extern int MCA_bus;
-#ifdef CONFIG_X86_PC9800
-#define pc98 1
-#else
-#define pc98 0
-#endif
 
 static inline void __monitor(const void *eax, unsigned long ecx,
 		unsigned long edx)
@@ -302,9 +297,9 @@ extern unsigned int mca_pentium_flag;
 #define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
 
 /*
- * Size of io_bitmap, covering ports 0 to 0x3ff.
+ * Size of io_bitmap.
  */
-#define IO_BITMAP_BITS  1024
+#define IO_BITMAP_BITS  65536
 #define IO_BITMAP_BYTES (IO_BITMAP_BITS/8)
 #define IO_BITMAP_LONGS (IO_BITMAP_BYTES/sizeof(long))
 #define IO_BITMAP_OFFSET offsetof(struct tss_struct,io_bitmap)
@@ -332,7 +327,7 @@ struct i387_fxsave_struct {
 	long	foo;
 	long	fos;
 	long	mxcsr;
-	long	reserved;
+	long	mxcsr_mask;
 	long	st_space[32];	/* 8*16 bytes for each FP-reg = 128 bytes */
 	long	xmm_space[32];	/* 8*16 bytes for each XMM-reg = 128 bytes */
 	long	padding[56];
@@ -396,12 +391,14 @@ struct tss_struct {
 	/*
 	 * pads the TSS to be cacheline-aligned (size is 0x100)
 	 */
-	unsigned long __cacheline_filler[5];
+	unsigned long __cacheline_filler[37];
 	/*
 	 * .. and then another 0x100 bytes for emergency kernel stack
 	 */
 	unsigned long stack[64];
 } __attribute__((packed));
+
+#define ARCH_MIN_TASKALIGN	16
 
 struct thread_struct {
 /* cached TLS descriptors. */
@@ -489,8 +486,24 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 void show_trace(struct task_struct *task, unsigned long *stack);
 
 unsigned long get_wchan(struct task_struct *p);
-#define KSTK_EIP(tsk)	(((unsigned long *)(4096+(unsigned long)(tsk)->thread_info))[1019])
-#define KSTK_ESP(tsk)	(((unsigned long *)(4096+(unsigned long)(tsk)->thread_info))[1022])
+
+#define THREAD_SIZE_LONGS      (THREAD_SIZE/sizeof(unsigned long))
+#define KSTK_TOP(info)                                                 \
+({                                                                     \
+       unsigned long *__ptr = (unsigned long *)(info);                 \
+       (unsigned long)(&__ptr[THREAD_SIZE_LONGS]);                     \
+})
+
+#define task_pt_regs(task)                                             \
+({                                                                     \
+       struct pt_regs *__regs__;                                       \
+       __regs__ = (struct pt_regs *)KSTK_TOP((task)->thread_info);     \
+       __regs__ - 1;                                                   \
+})
+
+#define KSTK_EIP(task) (task_pt_regs(task)->eip)
+#define KSTK_ESP(task) (task_pt_regs(task)->esp)
+
 
 struct microcode_header {
 	unsigned int hdrver;
@@ -629,5 +642,12 @@ extern inline void prefetchw(const void *x)
 #define spin_lock_prefetch(x)	prefetchw(x)
 
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
+
+#define cache_line_size() (boot_cpu_data.x86_cache_alignment)
+
+#ifdef CONFIG_SCHED_SMT
+#define ARCH_HAS_SCHED_DOMAIN
+#define ARCH_HAS_SCHED_WAKE_IDLE
+#endif
 
 #endif /* __ASM_I386_PROCESSOR_H */

@@ -880,7 +880,7 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 
 	irq = pdev->irq;
 
-	if (pci_request_regions (pdev, dev->name)) {
+	if (pci_request_regions (pdev, DRV_NAME)) {
 		printk(KERN_ERR DRV_NAME " %d: cannot reserve PCI resources, aborting\n", card_idx);
 		goto err_out_free_netdev;
 	}
@@ -1637,10 +1637,13 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		    && (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 			skb->dev = dev;
 			skb_reserve(skb, 2);	/* 16 byte align the IP header */
-			pci_dma_sync_single(np->pci_dev,
-					    np->rx_info[entry].mapping,
-					    pkt_len, PCI_DMA_FROMDEVICE);
+			pci_dma_sync_single_for_cpu(np->pci_dev,
+						    np->rx_info[entry].mapping,
+						    pkt_len, PCI_DMA_FROMDEVICE);
 			eth_copy_and_sum(skb, np->rx_info[entry].skb->tail, pkt_len, 0);
+			pci_dma_sync_single_for_device(np->pci_dev,
+						       np->rx_info[entry].mapping,
+						       pkt_len, PCI_DMA_FROMDEVICE);
 			skb_put(skb, pkt_len);
 		} else {
 			pci_unmap_single(np->pci_dev, np->rx_info[entry].mapping, np->rx_buf_sz, PCI_DMA_FROMDEVICE);
@@ -1994,7 +1997,7 @@ static void set_rx_mode(struct net_device *dev)
 }
 
 
-static int netdev_ethtool_ioctl(struct net_device *dev, void *useraddr)
+static int netdev_ethtool_ioctl(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_cmd ecmd;
 	struct netdev_private *np = dev->priv;
@@ -2076,16 +2079,16 @@ static int netdev_ethtool_ioctl(struct net_device *dev, void *useraddr)
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct netdev_private *np = dev->priv;
-	struct mii_ioctl_data *data = (struct mii_ioctl_data *) & rq->ifr_data;
 	int rc;
 
 	if (!netif_running(dev))
 		return -EINVAL;
 
 	if (cmd == SIOCETHTOOL)
-		rc = netdev_ethtool_ioctl(dev, (void *) rq->ifr_data);
+		rc = netdev_ethtool_ioctl(dev, rq->ifr_data);
 
 	else {
+		struct mii_ioctl_data *data = if_mii(rq);
 		spin_lock_irq(&np->lock);
 		rc = generic_mii_ioctl(&np->mii_if, data, cmd, NULL);
 		spin_unlock_irq(&np->lock);

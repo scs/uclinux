@@ -15,6 +15,8 @@
 #include <linux/delay.h>
 #include <linux/smp_lock.h>
 #include <linux/module.h>
+#include <linux/init.h>
+#include <linux/kallsyms.h>
 
 #include <asm/gentrap.h>
 #include <asm/uaccess.h>
@@ -25,35 +27,37 @@
 
 #include "proto.h"
 
-/* data/code implementing a work-around for some SRMs which
-   mishandle opDEC faults
-*/
-static int opDEC_testing = 0;
-static int opDEC_fix = 0;
-static int opDEC_checked = 0;
-static unsigned long opDEC_test_pc = 0;
+/* Work-around for some SRMs which mishandle opDEC faults.  */
 
-static void
+static int opDEC_fix;
+
+static void __init
 opDEC_check(void)
 {
-	unsigned long test_pc;
+	__asm__ __volatile__ (
+	/* Load the address of... */
+	"	br	$16, 1f\n"
+	/* A stub instruction fault handler.  Just add 4 to the
+	   pc and continue.  */
+	"	ldq	$16, 8($sp)\n"
+	"	addq	$16, 4, $16\n"
+	"	stq	$16, 8($sp)\n"
+	"	call_pal %[rti]\n"
+	/* Install the instruction fault handler.  */
+	"1:	lda	$17, 3\n"
+	"	call_pal %[wrent]\n"
+	/* With that in place, the fault from the round-to-minf fp
+	   insn will arrive either at the "lda 4" insn (bad) or one
+	   past that (good).  This places the correct fixup in %0.  */
+	"	lda %[fix], 0\n"
+	"	cvttq/svm $f31,$f31\n"
+	"	lda %[fix], 4"
+	: [fix] "=r" (opDEC_fix)
+	: [rti] "n" (PAL_rti), [wrent] "n" (PAL_wrent)
+	: "$0", "$1", "$16", "$17", "$22", "$23", "$24", "$25");
 
-	if (opDEC_checked) return;
-
-	lock_kernel();
-	opDEC_testing = 1;
-
-	__asm__ __volatile__(
-		"       br      %0,1f\n"
-		"1:     addq    %0,8,%0\n"
-		"       stq     %0,%1\n"
-		"       cvttq/svm $f31,$f31\n"
-		: "=&r"(test_pc), "=m"(opDEC_test_pc)
-		: );
-
-	opDEC_testing = 0;
-	opDEC_checked = 1;
-	unlock_kernel();
+	if (opDEC_fix)
+		printk("opDEC fixup enabled.\n");
 }
 
 void
@@ -116,7 +120,7 @@ static void
 dik_show_trace(unsigned long *sp)
 {
 	long i = 0;
-	printk("Trace:");
+	printk("Trace:\n");
 	while (0x1ff8 & (unsigned long) sp) {
 		extern char _stext[], _etext[];
 		unsigned long tmp = *sp;
@@ -125,25 +129,15 @@ dik_show_trace(unsigned long *sp)
 			continue;
 		if (tmp >= (unsigned long) &_etext)
 			continue;
-		printk("%lx%c", tmp, ' ');
+		printk("[<%lx>]", tmp);
+		print_symbol(" %s", tmp);
+		printk("\n");
 		if (i > 40) {
 			printk(" ...");
 			break;
 		}
 	}
 	printk("\n");
-}
-
-void show_trace_task(struct task_struct * tsk)
-{
-	struct thread_info *ti = tsk->thread_info;
-	unsigned long fp, sp = ti->pcb.ksp, base = (unsigned long) ti;
- 
-	if (sp > base && sp+6*8 < base + 16*1024) {
-		fp = ((unsigned long*)sp)[6];
-		if (fp > sp && fp < base + 16*1024)
-			dik_show_trace((unsigned long *)fp);
-	}
 }
 
 static int kstack_depth_to_print = 24;
@@ -229,12 +223,12 @@ do_entArith(unsigned long summary, unsigned long write_mask,
 		if (si_code == 0)
 			return;
 	}
-	die_if_kernel("Arithmetic fault", regs, 0, 0);
+	die_if_kernel("Arithmetic fault", regs, 0, NULL);
 
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
 	info.si_code = si_code;
-	info.si_addr = (void *) regs->pc;
+	info.si_addr = (void __user *) regs->pc;
 	send_sig_info(SIGFPE, &info, current);
 }
 
@@ -244,7 +238,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 	siginfo_t info;
 	int signo, code;
 
-	if (!opDEC_testing || type != 4) {
+	if (regs->ps == 0) {
 		if (type == 1) {
 			const unsigned int *data
 			  = (const unsigned int *) regs->pc;
@@ -253,7 +247,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 			       data[0]);
 		}
 		die_if_kernel((type == 1 ? "Kernel Bug" : "Instruction fault"),
-			      regs, type, 0);
+			      regs, type, NULL);
 	}
 
 	switch (type) {
@@ -262,7 +256,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		info.si_errno = 0;
 		info.si_code = TRAP_BRKPT;
 		info.si_trapno = 0;
-		info.si_addr = (void *) regs->pc;
+		info.si_addr = (void __user *) regs->pc;
 
 		if (ptrace_cancel_bpt(current)) {
 			regs->pc -= 4;	/* make pc point to former bpt */
@@ -275,13 +269,13 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		info.si_signo = SIGTRAP;
 		info.si_errno = 0;
 		info.si_code = __SI_FAULT;
-		info.si_addr = (void *) regs->pc;
+		info.si_addr = (void __user *) regs->pc;
 		info.si_trapno = 0;
 		send_sig_info(SIGTRAP, &info, current);
 		return;
 		
 	      case 2: /* gentrap */
-		info.si_addr = (void *) regs->pc;
+		info.si_addr = (void __user *) regs->pc;
 		info.si_trapno = regs->r16;
 		switch ((long) regs->r16) {
 		case GEN_INTOVF:
@@ -343,7 +337,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		info.si_signo = signo;
 		info.si_errno = 0;
 		info.si_code = code;
-		info.si_addr = (void *) regs->pc;
+		info.si_addr = (void __user *) regs->pc;
 		send_sig_info(signo, &info, current);
 		return;
 
@@ -359,14 +353,6 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 			   fault during the boot sequence and testing if
 			   we get the correct PC.  If not, we set a flag
 			   to correct it every time through.  */
-			if (opDEC_testing) {
-				if (regs->pc == opDEC_test_pc) {
-					opDEC_fix = 4;
-					regs->pc += 4;
-					printk("opDEC fixup enabled.\n");
-				}
-				return;
-			}
 			regs->pc += opDEC_fix; 
 			
 			/* EV4 does not implement anything except normal
@@ -379,7 +365,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 				info.si_signo = SIGFPE;
 				info.si_errno = 0;
 				info.si_code = si_code;
-				info.si_addr = (void *) regs->pc;
+				info.si_addr = (void __user *) regs->pc;
 				send_sig_info(SIGFPE, &info, current);
 				return;
 			}
@@ -408,7 +394,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_ILLOPC;
-	info.si_addr = (void *) regs->pc;
+	info.si_addr = (void __user *) regs->pc;
 	send_sig_info(SIGILL, &info, current);
 }
 
@@ -424,12 +410,12 @@ do_entDbg(struct pt_regs *regs)
 {
 	siginfo_t info;
 
-	die_if_kernel("Instruction fault", regs, 0, 0);
+	die_if_kernel("Instruction fault", regs, 0, NULL);
 
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_ILLOPC;
-	info.si_addr = (void *) regs->pc;
+	info.si_addr = (void __user *) regs->pc;
 	force_sig_info(SIGILL, &info, current);
 }
 
@@ -779,7 +765,7 @@ static int unauser_reg_offsets[32] = {
 #undef R
 
 asmlinkage void
-do_entUnaUser(void * va, unsigned long opcode,
+do_entUnaUser(void __user * va, unsigned long opcode,
 	      unsigned long reg, struct pt_regs *regs)
 {
 	static int cnt = 0;
@@ -1083,12 +1069,17 @@ give_sigbus:
 	return;
 }
 
-void
+void __init
 trap_init(void)
 {
 	/* Tell PAL-code what global pointer we want in the kernel.  */
 	register unsigned long gptr __asm__("$29");
 	wrkgp(gptr);
+
+	/* Hack for Multia (UDB) and JENSEN: some of their SRMs have
+	   a bug in the handling of the opDEC fault.  Fix it up if so.  */
+	if (implver() == IMPLVER_EV4)
+		opDEC_check();
 
 	wrent(entArith, 1);
 	wrent(entMM, 2);
@@ -1096,9 +1087,4 @@ trap_init(void)
 	wrent(entUna, 4);
 	wrent(entSys, 5);
 	wrent(entDbg, 6);
-
-	/* Hack for Multia (UDB) and JENSEN: some of their SRMs have
-	   a bug in the handling of the opDEC fault.  Fix it up if so.  */
-	if (implver() == IMPLVER_EV4)
-		opDEC_check();
 }

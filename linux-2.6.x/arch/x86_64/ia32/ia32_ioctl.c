@@ -10,11 +10,10 @@
  */
 
 #define INCLUDES
+#include <linux/syscalls.h>
 #include "compat_ioctl.c"
 #include <asm/mtrr.h>
 #include <asm/ia32.h>
-
-extern asmlinkage long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 
 #define CODE
 #include "compat_ioctl.c"
@@ -22,13 +21,13 @@ extern asmlinkage long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned lon
 #ifndef TIOCGDEV
 #define TIOCGDEV       _IOR('T',0x32, unsigned int)
 #endif
-static int tiocgdev(unsigned fd, unsigned cmd,  unsigned int *ptr) 
+static int tiocgdev(unsigned fd, unsigned cmd,  unsigned int __user *ptr) 
 { 
 
 	struct file *file = fget(fd);
 	struct tty_struct *real_tty;
 
-	if (!fd)
+	if (!file)
 		return -EBADF;
 	if (file->f_op->ioctl != tty_ioctl)
 		return -EINVAL; 
@@ -55,7 +54,7 @@ static int rtc32_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
 		ret = sys_ioctl(fd, RTC_IRQP_READ, (unsigned long)&val); 
 		set_fs(oldfs); 
 		if (!ret)
-			ret = put_user(val, (unsigned int*) arg); 
+			ret = put_user(val, (unsigned int __user *) arg); 
 		return ret; 
 
 	case RTC_IRQP_SET32: 
@@ -67,7 +66,7 @@ static int rtc32_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
 		ret = sys_ioctl(fd, RTC_EPOCH_READ, (unsigned long) &val); 
 		set_fs(oldfs); 
 		if (!ret)
-			ret = put_user(val, (unsigned int*) arg); 
+			ret = put_user(val, (unsigned int __user *) arg); 
 		return ret; 
 
 	case RTC_EPOCH_SET32:
@@ -114,7 +113,7 @@ static int mtrr_ioctl32(unsigned int fd, unsigned int cmd, unsigned long arg)
 	struct mtrr_gentry g;
 	struct mtrr_sentry s;
 	int get = 0, err = 0; 
-	struct mtrr_gentry32 *g32 = (struct mtrr_gentry32 *)arg; 
+	struct mtrr_gentry32 __user *g32 = (struct mtrr_gentry32 __user *)arg; 
 	mm_segment_t oldfs = get_fs(); 
 
 	switch (cmd) { 
@@ -140,7 +139,7 @@ static int mtrr_ioctl32(unsigned int fd, unsigned int cmd, unsigned long arg)
 
 		arg = (unsigned long)&g; 
 	} else { 
-		struct mtrr_sentry32 *s32 = (struct mtrr_sentry32 *)arg;
+		struct mtrr_sentry32 __user *s32 = (struct mtrr_sentry32 __user *)arg;
 		err = get_user(s.base, &s32->base);
 		err |= get_user(s.size, &s32->size);
 		err |= get_user(s.type, &s32->type);
@@ -175,16 +174,6 @@ COMPATIBLE_IOCTL(BLKRASET)
 COMPATIBLE_IOCTL(BLKFRASET)
 COMPATIBLE_IOCTL(0x4B50)   /* KDGHWCLK - not in the kernel, but don't complain */
 COMPATIBLE_IOCTL(0x4B51)   /* KDSHWCLK - not in the kernel, but don't complain */
-#ifdef CONFIG_AUTOFS_FS
-COMPATIBLE_IOCTL(AUTOFS_IOC_READY)
-COMPATIBLE_IOCTL(AUTOFS_IOC_FAIL)
-COMPATIBLE_IOCTL(AUTOFS_IOC_CATATONIC)
-COMPATIBLE_IOCTL(AUTOFS_IOC_PROTOVER)
-COMPATIBLE_IOCTL(AUTOFS_IOC_SETTIMEOUT)
-COMPATIBLE_IOCTL(AUTOFS_IOC_EXPIRE)
-COMPATIBLE_IOCTL(AUTOFS_IOC_EXPIRE_MULTI)
-#endif
-#ifdef CONFIG_RTC
 COMPATIBLE_IOCTL(RTC_AIE_ON)
 COMPATIBLE_IOCTL(RTC_AIE_OFF)
 COMPATIBLE_IOCTL(RTC_UIE_ON)
@@ -199,18 +188,6 @@ COMPATIBLE_IOCTL(RTC_RD_TIME)
 COMPATIBLE_IOCTL(RTC_SET_TIME)
 COMPATIBLE_IOCTL(RTC_WKALM_SET)
 COMPATIBLE_IOCTL(RTC_WKALM_RD)
-#endif
-COMPATIBLE_IOCTL(HCIUARTSETPROTO)
-COMPATIBLE_IOCTL(HCIUARTGETPROTO)
-COMPATIBLE_IOCTL(RFCOMMCREATEDEV)
-COMPATIBLE_IOCTL(RFCOMMRELEASEDEV)
-COMPATIBLE_IOCTL(RFCOMMGETDEVLIST)
-COMPATIBLE_IOCTL(RFCOMMGETDEVINFO)
-COMPATIBLE_IOCTL(RFCOMMSTEALDLC)
-COMPATIBLE_IOCTL(BNEPCONNADD)
-COMPATIBLE_IOCTL(BNEPCONNDEL)
-COMPATIBLE_IOCTL(BNEPGETCONNLIST)
-COMPATIBLE_IOCTL(BNEPGETCONNINFO)
 COMPATIBLE_IOCTL(FIOQSIZE)
 
 /* And these ioctls need translation */

@@ -12,6 +12,7 @@
 #include <linux/pagemap.h>
 #include <linux/reiserfs_fs_sb.h>
 #include <linux/reiserfs_fs_i.h>
+#include <linux/quotaops.h>
 
 #define PREALLOCATION_SIZE 9
 
@@ -29,6 +30,9 @@
 #define  _ALLOC_hashed_formatted_nodes 7
 #define  _ALLOC_old_way 8
 #define  _ALLOC_hundredth_slices 9
+#define  _ALLOC_dirid_groups 10
+#define  _ALLOC_oid_groups 11
+#define  _ALLOC_packing_groups 12
 
 #define  concentrating_formatted_nodes(s)	test_bit(_ALLOC_concentrating_formatted_nodes, &SB_ALLOC_OPTS(s))
 #define  displacing_large_files(s)		test_bit(_ALLOC_displacing_large_files, &SB_ALLOC_OPTS(s))
@@ -36,7 +40,7 @@
 
 #define SET_OPTION(optname) \
    do { \
-        reiserfs_warning("reiserfs: option \"%s\" is set\n", #optname); \
+        reiserfs_warning(s, "reiserfs: option \"%s\" is set", #optname); \
         set_bit(_ALLOC_ ## optname , &SB_ALLOC_OPTS(s)); \
     } while(0)
 #define TEST_OPTION(optname, s) \
@@ -59,7 +63,7 @@ int is_reusable (struct super_block * s, b_blocknr_t block, int bit_value)
     int i, j;
 
     if (block == 0 || block >= SB_BLOCK_COUNT (s)) {
-	reiserfs_warning ("vs-4010: is_reusable: block number is out of range %lu (%u)\n",
+	reiserfs_warning (s, "vs-4010: is_reusable: block number is out of range %lu (%u)",
 			  block, SB_BLOCK_COUNT (s));
 	return 0;
     }
@@ -67,8 +71,8 @@ int is_reusable (struct super_block * s, b_blocknr_t block, int bit_value)
     /* it can't be one of the bitmap blocks */
     for (i = 0; i < SB_BMAP_NR (s); i ++)
 	if (block == SB_AP_BITMAP (s)[i].bh->b_blocknr) {
-	    reiserfs_warning ("vs: 4020: is_reusable: "
-			      "bitmap block %lu(%u) can't be freed or reused\n",
+	    reiserfs_warning (s, "vs: 4020: is_reusable: "
+			      "bitmap block %lu(%u) can't be freed or reused",
 			      block, SB_BMAP_NR (s));
 	    return 0;
 	}
@@ -76,8 +80,8 @@ int is_reusable (struct super_block * s, b_blocknr_t block, int bit_value)
     get_bit_address (s, block, &i, &j);
 
     if (i >= SB_BMAP_NR (s)) {
-	reiserfs_warning ("vs-4030: is_reusable: there is no so many bitmap blocks: "
-			  "block=%lu, bitmap_nr=%d\n", block, i);
+	reiserfs_warning (s, "vs-4030: is_reusable: there is no so many bitmap blocks: "
+			  "block=%lu, bitmap_nr=%d", block, i);
 	return 0;
     }
 
@@ -85,16 +89,16 @@ int is_reusable (struct super_block * s, b_blocknr_t block, int bit_value)
          reiserfs_test_le_bit(j, SB_AP_BITMAP(s)[i].bh->b_data)) ||
 	(bit_value == 1 && 
 	 reiserfs_test_le_bit(j, SB_AP_BITMAP (s)[i].bh->b_data) == 0)) {
-	reiserfs_warning ("vs-4040: is_reusable: corresponding bit of block %lu does not "
-			  "match required value (i==%d, j==%d) test_bit==%d\n",
+	reiserfs_warning (s, "vs-4040: is_reusable: corresponding bit of block %lu does not "
+			  "match required value (i==%d, j==%d) test_bit==%d",
 		block, i, j, reiserfs_test_le_bit (j, SB_AP_BITMAP (s)[i].bh->b_data));
 
 	return 0;
     }
 
     if (bit_value == 0 && block == SB_ROOT_BLOCK (s)) {
-	reiserfs_warning ("vs-4050: is_reusable: this is root block (%u), "
-			  "it must be busy\n", SB_ROOT_BLOCK (s));
+	reiserfs_warning (s, "vs-4050: is_reusable: this is root block (%u), "
+			  "it must be busy", SB_ROOT_BLOCK (s));
 	return 0;
     }
 
@@ -133,7 +137,7 @@ static int scan_bitmap_block (struct reiserfs_transaction_handle *th,
     int end, next;
     int org = *beg;
 
-    RFALSE(bmap_n >= SB_BMAP_NR (s), "Bitmap %d is out of range (0..%d)\n",bmap_n, SB_BMAP_NR (s) - 1);
+    RFALSE(bmap_n >= SB_BMAP_NR (s), "Bitmap %d is out of range (0..%d)",bmap_n, SB_BMAP_NR (s) - 1);
     PROC_INFO_INC( s, scan_bitmap.bmap );
 /* this is unclear and lacks comments, explain how journal bitmaps
    work here for the reader.  Convey a sense of the design here. What
@@ -141,18 +145,13 @@ static int scan_bitmap_block (struct reiserfs_transaction_handle *th,
 /* - I mean `a window of zero bits' as in description of this function - Zam. */
   
     if ( !bi ) {
-	printk("Hey, bitmap info pointer is zero for bitmap %d!\n",bmap_n);
+	reiserfs_warning (s, "NULL bitmap info pointer for bitmap %d", bmap_n);
 	return 0;
     }
     if (buffer_locked (bi->bh)) {
        PROC_INFO_INC( s, scan_bitmap.wait );
        __wait_on_buffer (bi->bh);
     }
-
-    /* If we know that first zero bit is only one or first zero bit is
-       closer to the end of bitmap than our start pointer */
-    if (bi->first_zero_hint > *beg || bi->free_count == 1)
-	*beg = bi->first_zero_hint;
 
     while (1) {
 	cont:
@@ -203,21 +202,12 @@ static int scan_bitmap_block (struct reiserfs_transaction_handle *th,
 		    while (--i >= *beg)
 			reiserfs_test_and_clear_le_bit (i, bi->bh->b_data);
 		    reiserfs_restore_prepared_buffer (s, bi->bh);
-		    *beg = max(org, (int)bi->first_zero_hint);
+		    *beg = org;
 		    /* ... and search again in current block from beginning */
 		    goto cont;	
 		}
 	    }
 	    bi->free_count -= (end - *beg);
-
-	    /* if search started from zero_hint bit, and zero hint have not
-                changed since, then we need to update first_zero_hint */
-	    if ( bi->first_zero_hint >= *beg)
-		/* no point in looking for free bit if there is not any */
-		bi->first_zero_hint = (bi->free_count > 0 ) ?
-			reiserfs_find_next_zero_le_bit
-			((unsigned long*)(bi->bh->b_data), s->s_blocksize << 3, end) : (s->s_blocksize << 3);
-
 	    journal_mark_dirty (th, s, bi->bh);
 
 	    /* free block count calculation */
@@ -230,7 +220,57 @@ static int scan_bitmap_block (struct reiserfs_transaction_handle *th,
 	    *beg = next;
 	}
     }
-  }
+}
+
+static int bmap_hash_id(struct super_block *s, u32 id) {
+    char * hash_in = NULL;
+    unsigned long hash;
+    unsigned bm;
+
+    if (id <= 2) {
+	bm = 1;
+    } else {
+        hash_in = (char *)(&id);
+        hash = keyed_hash(hash_in, 4);
+	bm = hash % SB_BMAP_NR(s);
+	if (!bm)
+	    bm = 1;
+    }
+    return bm;
+}
+
+/*
+ * hashes the id and then returns > 0 if the block group for the
+ * corresponding hash is full
+ */
+static inline int block_group_used(struct super_block *s, u32 id) {
+    int bm;
+    bm = bmap_hash_id(s, id);
+    if (SB_AP_BITMAP(s)[bm].free_count > ((s->s_blocksize << 3) * 60 / 100) ) {
+        return 0;
+    }
+    return 1;
+}
+
+/*
+ * the packing is returned in disk byte order
+ */
+u32 reiserfs_choose_packing(struct inode *dir) {
+    u32 packing;
+    if (TEST_OPTION(packing_groups, dir->i_sb)) {
+	u32 parent_dir = le32_to_cpu(INODE_PKEY(dir)->k_dir_id);
+	/*
+	 * some versions of reiserfsck expect packing locality 1 to be
+	 * special
+	 */
+	if (parent_dir == 1 || block_group_used(dir->i_sb,parent_dir))
+            packing = INODE_PKEY(dir)->k_objectid;
+        else
+            packing = INODE_PKEY(dir)->k_dir_id;
+    } else
+        packing = INODE_PKEY(dir)->k_objectid;
+    return packing;
+}
   
 /* Tries to find contiguous zero bit window (given size) in given region of
  * bitmap and place new blocks there. Returns number of allocated blocks. */
@@ -254,8 +294,18 @@ static int scan_bitmap (struct reiserfs_transaction_handle *th,
     get_bit_address (s, *start, &bm, &off);
     get_bit_address (s, finish, &end_bm, &end_off);
 
-    // With this option set first we try to find a bitmap that is at least 10%
-    // free, and if that fails, then we fall back to old whole bitmap scanning
+    /* When the bitmap is more than 10% free, anyone can allocate.
+     * When it's less than 10% free, only files that already use the
+     * bitmap are allowed. Once we pass 80% full, this restriction
+     * is lifted.
+     *
+     * We do this so that files that grow later still have space close to
+     * their original allocation. This improves locality, and presumably
+     * performance as a result.
+     *
+     * This is only an allocation policy and does not make up for getting a
+     * bad hint. Decent hinting must be implemented for this to work well.
+     */
     if ( TEST_OPTION(skip_busy, s) && SB_FREE_BLOCKS(s) > SB_BLOCK_COUNT(s)/20 ) {
 	for (;bm < end_bm; bm++, off = 0) {
 	    if ( ( off && (!unfm || (file_block != 0))) || SB_AP_BITMAP(s)[bm].free_count > (s->s_blocksize << 3) / 10 )
@@ -281,7 +331,8 @@ static int scan_bitmap (struct reiserfs_transaction_handle *th,
 }
 
 static void _reiserfs_free_block (struct reiserfs_transaction_handle *th,
-				  b_blocknr_t block)
+				  struct inode *inode, b_blocknr_t block,
+				  int for_unformatted)
 {
     struct super_block * s = th->t_super;
     struct reiserfs_super_block * rs;
@@ -298,8 +349,8 @@ static void _reiserfs_free_block (struct reiserfs_transaction_handle *th,
     get_bit_address (s, block, &nr, &offset);
 
     if (nr >= sb_bmap_nr (rs)) {
-	reiserfs_warning ("vs-4075: reiserfs_free_block: "
-			  "block %lu is out of range on %s\n", 
+	reiserfs_warning (s, "vs-4075: reiserfs_free_block: "
+			  "block %lu is out of range on %s",
 			  block, reiserfs_bdevname (s));
 	return;
     }
@@ -308,12 +359,9 @@ static void _reiserfs_free_block (struct reiserfs_transaction_handle *th,
 
     /* clear bit for the given block in bit map */
     if (!reiserfs_test_and_clear_le_bit (offset, apbi[nr].bh->b_data)) {
-	reiserfs_warning ("vs-4080: reiserfs_free_block: "
-			  "free_block (%s:%lu)[dev:blocknr]: bit already cleared\n", 
+	reiserfs_warning (s, "vs-4080: reiserfs_free_block: "
+			  "free_block (%s:%lu)[dev:blocknr]: bit already cleared",
 			  reiserfs_bdevname (s), block);
-    }
-    if (offset < apbi[nr].first_zero_hint) {
-      apbi[nr].first_zero_hint = offset;
     }
     apbi[nr].free_count ++;
     journal_mark_dirty (th, s, apbi[nr].bh);
@@ -323,11 +371,13 @@ static void _reiserfs_free_block (struct reiserfs_transaction_handle *th,
     set_sb_free_blocks( rs, sb_free_blocks(rs) + 1 );
 
     journal_mark_dirty (th, s, sbh);
-  s->s_dirt = 1;
+    if (for_unformatted)
+        DQUOT_FREE_BLOCK_NODIRTY(inode, 1);
 }
 
 void reiserfs_free_block (struct reiserfs_transaction_handle *th, 
-                          b_blocknr_t block)
+			  struct inode *inode, b_blocknr_t block,
+			  int for_unformatted)
 {
     struct super_block * s = th->t_super;
 
@@ -335,42 +385,46 @@ void reiserfs_free_block (struct reiserfs_transaction_handle *th,
     RFALSE(is_reusable (s, block, 1) == 0, "vs-4071: can not free such block");
     /* mark it before we clear it, just in case */
     journal_mark_freed(th, s, block) ;
-    _reiserfs_free_block(th, block) ;
+    _reiserfs_free_block(th, inode, block, for_unformatted) ;
 }
 
 /* preallocated blocks don't need to be run through journal_mark_freed */
 void reiserfs_free_prealloc_block (struct reiserfs_transaction_handle *th, 
-                          b_blocknr_t block) {
+			  struct inode *inode, b_blocknr_t block) {
     RFALSE(!th->t_super, "vs-4060: trying to free block on nonexistent device");
     RFALSE(is_reusable (th->t_super, block, 1) == 0, "vs-4070: can not free such block");
-    _reiserfs_free_block(th, block) ;
+    _reiserfs_free_block(th, inode, block, 1) ;
 }
 
 static void __discard_prealloc (struct reiserfs_transaction_handle * th,
 				struct reiserfs_inode_info *ei)
 {
     unsigned long save = ei->i_prealloc_block ;
+    int dirty = 0;
+    struct inode *inode = &ei->vfs_inode;
 #ifdef CONFIG_REISERFS_CHECK
     if (ei->i_prealloc_count < 0)
-	reiserfs_warning("zam-4001:%s: inode has negative prealloc blocks count.\n", __FUNCTION__ );
+	reiserfs_warning (th->t_super, "zam-4001:%s: inode has negative prealloc blocks count.", __FUNCTION__ );
 #endif
     while (ei->i_prealloc_count > 0) {
-	reiserfs_free_prealloc_block(th,ei->i_prealloc_block);
+	reiserfs_free_prealloc_block(th, inode, ei->i_prealloc_block);
 	ei->i_prealloc_block++;
 	ei->i_prealloc_count --;
+	dirty = 1;
     }
+    if (dirty)
+    	reiserfs_update_sd(th, inode);
     ei->i_prealloc_block = save;
     list_del_init(&(ei->i_prealloc_list));
 }
 
 /* FIXME: It should be inline function */
 void reiserfs_discard_prealloc (struct reiserfs_transaction_handle *th, 
-				struct inode * inode)
+				struct inode *inode)
 {
     struct reiserfs_inode_info *ei = REISERFS_I(inode);
-    if (ei->i_prealloc_count) {
+    if (ei->i_prealloc_count)
 	__discard_prealloc(th, ei);
-    }
 }
 
 void reiserfs_discard_all_prealloc (struct reiserfs_transaction_handle *th)
@@ -382,12 +436,20 @@ void reiserfs_discard_all_prealloc (struct reiserfs_transaction_handle *th)
 	ei = list_entry(plist->next, struct reiserfs_inode_info, i_prealloc_list);
 #ifdef CONFIG_REISERFS_CHECK
 	if (!ei->i_prealloc_count) {
-	    reiserfs_warning("zam-4001:%s: inode is in prealloc list but has no preallocated blocks.\n", __FUNCTION__);
+	    reiserfs_warning (th->t_super, "zam-4001:%s: inode is in prealloc list but has no preallocated blocks.", __FUNCTION__);
 	}
 #endif
 	__discard_prealloc(th, ei);
     }
 }
+
+void reiserfs_init_alloc_options (struct super_block *s)
+{
+    set_bit (_ALLOC_skip_busy, &SB_ALLOC_OPTS(s));
+    set_bit (_ALLOC_dirid_groups, &SB_ALLOC_OPTS(s));
+    set_bit (_ALLOC_packing_groups, &SB_ALLOC_OPTS(s));
+}
+
 /* block allocator related options are parsed here */
 int reiserfs_parse_alloc_options(struct super_block * s, char * options)
 {
@@ -431,6 +493,18 @@ int reiserfs_parse_alloc_options(struct super_block * s, char * options)
 	    continue;
 	}
 
+        if (!strcmp(this_char, "dirid_groups")) {
+	    SET_OPTION(dirid_groups);
+	    continue;
+        }
+        if (!strcmp(this_char, "oid_groups")) {
+	    SET_OPTION(oid_groups);
+	    continue;
+        }
+        if (!strcmp(this_char, "packing_groups")) {
+	    SET_OPTION(packing_groups);
+	    continue;
+        }
 	if (!strcmp(this_char, "hashed_formatted_nodes")) {
 	    SET_OPTION(hashed_formatted_nodes);
 	    continue;
@@ -468,10 +542,12 @@ int reiserfs_parse_alloc_options(struct super_block * s, char * options)
 	    continue;
 	}
 
-	reiserfs_warning("zam-4001: %s : unknown option - %s\n", __FUNCTION__ , this_char);
+	reiserfs_warning (s, "zam-4001: %s : unknown option - %s",
+			  __FUNCTION__ , this_char);
 	return 1;
       }
   
+    reiserfs_warning (s, "allocator options = [%08x]\n", SB_ALLOC_OPTS(s));
     return 0;
 }
   
@@ -494,21 +570,80 @@ static inline void new_hashed_relocation (reiserfs_blocknr_hint_t * hint)
     hint->search_start = hint->beg + keyed_hash(hash_in, 4) % (hint->end - hint->beg);
 }
 
-static inline void get_left_neighbor(reiserfs_blocknr_hint_t *hint)
+/*
+ * Relocation based on dirid, hashing them into a given bitmap block
+ * files. Formatted nodes are unaffected, a seperate policy covers them
+ */
+static void
+dirid_groups (reiserfs_blocknr_hint_t *hint)
+{
+    unsigned long hash;
+    __u32 dirid = 0;
+    int bm = 0;
+    struct super_block *sb = hint->th->t_super;
+    if (hint->inode)
+	dirid = le32_to_cpu(INODE_PKEY(hint->inode)->k_dir_id);
+    else if (hint->formatted_node)
+        dirid = hint->key.k_dir_id;
+
+    if (dirid) {
+	bm = bmap_hash_id(sb, dirid);
+	hash = bm * (sb->s_blocksize << 3);
+	/* give a portion of the block group to metadata */
+	if (hint->inode)
+	    hash += sb->s_blocksize/2;
+	hint->search_start = hash;
+    }
+}
+
+/*
+ * Relocation based on oid, hashing them into a given bitmap block
+ * files. Formatted nodes are unaffected, a seperate policy covers them
+ */
+static void
+oid_groups (reiserfs_blocknr_hint_t *hint)
+{
+    if (hint->inode) {
+	unsigned long hash;
+	__u32 oid;
+	__u32 dirid;
+	int bm;
+
+	dirid = le32_to_cpu(INODE_PKEY(hint->inode)->k_dir_id);
+
+	/* keep the root dir and it's first set of subdirs close to
+	 * the start of the disk
+	 */
+	if (dirid <= 2)
+	    hash = (hint->inode->i_sb->s_blocksize << 3);
+	else {
+	    oid = le32_to_cpu(INODE_PKEY(hint->inode)->k_objectid);
+	    bm = bmap_hash_id(hint->inode->i_sb, oid);
+	    hash = bm * (hint->inode->i_sb->s_blocksize << 3);
+	}
+	hint->search_start = hash;
+    }
+}
+
+/* returns 1 if it finds an indirect item and gets valid hint info
+ * from it, otherwise 0
+ */
+static int get_left_neighbor(reiserfs_blocknr_hint_t *hint)
 {
     struct path * path;
     struct buffer_head * bh;
     struct item_head * ih;
     int pos_in_item;
     __u32 * item;
+    int ret = 0;
 
     if (!hint->path)		/* reiserfs code can call this function w/o pointer to path
 				 * structure supplied; then we rely on supplied search_start */
-	return;
+	return 0;
 
     path = hint->path;
     bh = get_last_bh(path);
-    RFALSE( !bh, "green-4002: Illegal path specified to get_left_neighbor\n");
+    RFALSE( !bh, "green-4002: Illegal path specified to get_left_neighbor");
     ih = get_ih(path);
     pos_in_item = path->pos_in_item;
     item = get_item (path);
@@ -525,15 +660,15 @@ static inline void get_left_neighbor(reiserfs_blocknr_hint_t *hint)
 	    int t=get_block_num(item,pos_in_item);
 	    if (t) {
 		hint->search_start = t;
+		ret = 1;
 		break;
 	    }
 	    pos_in_item --;
 	}
-    } else {
-      }
+    }
 
     /* does result value fit into specified region? */
-    return;
+    return ret;
 }
 
 /* should be, if formatted node, then try to put on first part of the device
@@ -630,10 +765,12 @@ static inline void hundredth_slices (reiserfs_blocknr_hint_t * hint)
     }
 }
   
-static inline void determine_search_start(reiserfs_blocknr_hint_t *hint,
+static void determine_search_start(reiserfs_blocknr_hint_t *hint,
 					  int amount_needed)
 {
     struct super_block *s = hint->th->t_super;
+    int unfm_hint;
+
     hint->beg = 0;
     hint->end = SB_BLOCK_COUNT(s) - 1;
 
@@ -664,19 +801,14 @@ static inline void determine_search_start(reiserfs_blocknr_hint_t *hint,
 	return;
     }
 
-    /* attempt to copy a feature from old block allocator code */
-    if (TEST_OPTION(old_hashed_relocation, s) && !hint->formatted_node) {
-	old_hashed_relocation(hint);
-    }
-
     /* if none of our special cases is relevant, use the left neighbor in the
        tree order of the new node we are allocating for */
     if (hint->formatted_node && TEST_OPTION(hashed_formatted_nodes,s)) {
-	hash_formatted_node(hint);
+        hash_formatted_node(hint);
 	return;
-    } 
+    }
 
-    get_left_neighbor(hint);
+    unfm_hint = get_left_neighbor(hint);
 
     /* Mimic old block allocator behaviour, that is if VFS allowed for preallocation,
        new blocks are displaced based on directory ID. Also, if suggested search_start
@@ -701,10 +833,36 @@ static inline void determine_search_start(reiserfs_blocknr_hint_t *hint,
 	return;
     }
 
-    if (TEST_OPTION(old_hashed_relocation, s))
+    /* old_hashed_relocation only works on unformatted */
+    if (!unfm_hint && !hint->formatted_node &&
+        TEST_OPTION(old_hashed_relocation, s))
+    {
 	old_hashed_relocation(hint);
-    if (TEST_OPTION(new_hashed_relocation, s))
+    }
+    /* new_hashed_relocation works with both formatted/unformatted nodes */
+    if ((!unfm_hint || hint->formatted_node) &&
+        TEST_OPTION(new_hashed_relocation, s))
+    {
 	new_hashed_relocation(hint);
+    }
+    /* dirid grouping works only on unformatted nodes */
+    if (!unfm_hint && !hint->formatted_node && TEST_OPTION(dirid_groups,s))
+    {
+        dirid_groups(hint);
+    }
+
+#ifdef DISPLACE_NEW_PACKING_LOCALITIES
+    if (hint->formatted_node && TEST_OPTION(dirid_groups,s))
+    {
+        dirid_groups(hint);
+    }
+#endif
+
+    /* oid grouping works only on unformatted nodes */
+    if (!unfm_hint && !hint->formatted_node && TEST_OPTION(oid_groups,s))
+    {
+        oid_groups(hint);
+    }
     return;
 }
 
@@ -729,13 +887,14 @@ static int determine_prealloc_size(reiserfs_blocknr_hint_t * hint)
 static inline int allocate_without_wrapping_disk (reiserfs_blocknr_hint_t * hint,
 					 b_blocknr_t * new_blocknrs,
 					 b_blocknr_t start, b_blocknr_t finish,
+					 int min,
 					 int amount_needed, int prealloc_size)
 {
     int rest = amount_needed;
     int nr_allocated;
   
     while (rest > 0 && start <= finish) {
-	nr_allocated = scan_bitmap (hint->th, &start, finish, 1,
+	nr_allocated = scan_bitmap (hint->th, &start, finish, min,
 				    rest + prealloc_size, !hint->formatted_node,
 				    hint->block);
 
@@ -768,28 +927,94 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
     struct super_block *s = hint->th->t_super;
     b_blocknr_t start = hint->search_start;
     b_blocknr_t finish = SB_BLOCK_COUNT(s) - 1;
-    int second_pass = 0;
+    int passno = 0;
     int nr_allocated = 0;
+    int bigalloc = 0;
 
     determine_prealloc_size(hint);
-    while((nr_allocated
-	  += allocate_without_wrapping_disk(hint, new_blocknrs + nr_allocated, start, finish,
-					  amount_needed - nr_allocated, hint->prealloc_size))
-	  < amount_needed) {
+    if (!hint->formatted_node) {
+        int quota_ret;
+#ifdef REISERQUOTA_DEBUG
+	reiserfs_debug (s, "reiserquota: allocating %d blocks id=%u", amount_needed, hint->inode->i_uid);
+#endif
+	quota_ret = DQUOT_ALLOC_BLOCK_NODIRTY(hint->inode, amount_needed);
+	if (quota_ret)    /* Quota exceeded? */
+	    return QUOTA_EXCEEDED;
+	if (hint->preallocate && hint->prealloc_size ) {
+#ifdef REISERQUOTA_DEBUG
+	    reiserfs_debug (s, "reiserquota: allocating (prealloc) %d blocks id=%u", hint->prealloc_size, hint->inode->i_uid);
+#endif
+	    quota_ret = DQUOT_PREALLOC_BLOCK_NODIRTY(hint->inode, hint->prealloc_size);
+	    if (quota_ret)
+		hint->preallocate=hint->prealloc_size=0;
+	}
+	/* for unformatted nodes, force large allocations */
+	bigalloc = amount_needed;
+    }
 
-	/* not all blocks were successfully allocated yet*/
-	if (second_pass) {	/* it was a second pass; we must free all blocks */
-	    while (nr_allocated --)
-		reiserfs_free_block(hint->th, new_blocknrs[nr_allocated]);
+    do {
+	/* in bigalloc mode, nr_allocated should stay zero until
+	 * the entire allocation is filled
+	 */
+	if (unlikely(bigalloc && nr_allocated)) {
+	    reiserfs_warning(s, "bigalloc is %d, nr_allocated %d\n",
+	    bigalloc, nr_allocated);
+	    /* reset things to a sane value */
+	    bigalloc = amount_needed - nr_allocated;
+	}
+	/*
+	 * try pass 0 and pass 1 looking for a nice big
+	 * contiguous allocation.  Then reset and look
+	 * for anything you can find.
+	 */
+	if (passno == 2 && bigalloc) {
+	    passno = 0;
+	    bigalloc = 0;
+	}
+	switch (passno++) {
+        case 0: /* Search from hint->search_start to end of disk */
+	    start = hint->search_start;
+	    finish = SB_BLOCK_COUNT(s) - 1;
+	    break;
+        case 1: /* Search from hint->beg to hint->search_start */
+	    start = hint->beg;
+	    finish = hint->search_start;
+	    break;
+	case 2: /* Last chance: Search from 0 to hint->beg */
+	    start = 0;
+	    finish = hint->beg;
+	    break;
+	default: /* We've tried searching everywhere, not enough space */
+	    /* Free the blocks */
+	    if (!hint->formatted_node) {
+#ifdef REISERQUOTA_DEBUG
+		reiserfs_debug (s, "reiserquota: freeing (nospace) %d blocks id=%u", amount_needed + hint->prealloc_size - nr_allocated, hint->inode->i_uid);
+#endif
+		DQUOT_FREE_BLOCK_NODIRTY(hint->inode, amount_needed + hint->prealloc_size - nr_allocated);     /* Free not allocated blocks */
+	    }
+  	    while (nr_allocated --)
+		reiserfs_free_block(hint->th, hint->inode, new_blocknrs[nr_allocated], !hint->formatted_node);
 
 	    return NO_DISK_SPACE;
-	} else {		/* refine search parameters for next pass */
-	    second_pass = 1;
-	    finish = start;
-	    start = 0;
-	    continue;
 	}
-      }
+    } while ((nr_allocated += allocate_without_wrapping_disk (hint,
+			    new_blocknrs + nr_allocated, start, finish,
+			    bigalloc ? bigalloc : 1,
+			    amount_needed - nr_allocated,
+			    hint->prealloc_size))
+			< amount_needed);
+    if ( !hint->formatted_node &&
+         amount_needed + hint->prealloc_size >
+	 nr_allocated + REISERFS_I(hint->inode)->i_prealloc_count) {
+    /* Some of preallocation blocks were not allocated */
+#ifdef REISERQUOTA_DEBUG
+	reiserfs_debug (s, "reiserquota: freeing (failed prealloc) %d blocks id=%u", amount_needed + hint->prealloc_size - nr_allocated - INODE_INFO(hint->inode)->i_prealloc_count, hint->inode->i_uid);
+#endif
+	DQUOT_FREE_BLOCK_NODIRTY(hint->inode, amount_needed +
+	                         hint->prealloc_size - nr_allocated -
+				 REISERFS_I(hint->inode)->i_prealloc_count);
+    }
+
     return CARRY_ON;
 }
 
@@ -858,7 +1083,7 @@ int reiserfs_allocate_blocknrs(reiserfs_blocknr_hint_t *hint,
 
     if (ret != CARRY_ON) {
 	while (amount_needed ++ < initial_amount_needed) {
-	    reiserfs_free_block(hint->th, *(--new_blocknrs));
+	    reiserfs_free_block(hint->th, hint->inode, *(--new_blocknrs), 1);
 	}
     }
     return ret;

@@ -77,12 +77,19 @@ void efs_put_super(struct super_block *s)
 	s->s_fs_info = NULL;
 }
 
+static int efs_remount(struct super_block *sb, int *flags, char *data)
+{
+	*flags |= MS_RDONLY;
+	return 0;
+}
+
 static struct super_operations efs_superblock_operations = {
 	.alloc_inode	= efs_alloc_inode,
 	.destroy_inode	= efs_destroy_inode,
 	.read_inode	= efs_read_inode,
 	.put_super	= efs_put_super,
 	.statfs		= efs_statfs,
+	.remount_fs	= efs_remount,
 };
 
 static int __init init_efs_fs(void) {
@@ -210,6 +217,7 @@ int efs_fill_super(struct super_block *s, void *d, int silent)
 {
 	struct efs_sb_info *sb;
 	struct buffer_head *bh;
+	struct inode *root;
 
  	sb = kmalloc(sizeof(struct efs_sb_info), GFP_KERNEL);
 	if (!sb)
@@ -266,10 +274,12 @@ int efs_fill_super(struct super_block *s, void *d, int silent)
 		s->s_flags |= MS_RDONLY;
 	}
 	s->s_op   = &efs_superblock_operations;
-	s->s_root = d_alloc_root(iget(s, EFS_ROOTINODE));
+	root = iget(s, EFS_ROOTINODE);
+	s->s_root = d_alloc_root(root);
  
 	if (!(s->s_root)) {
 		printk(KERN_ERR "EFS: get root inode failed\n");
+		iput(root);
 		goto out_no_fs;
 	}
 

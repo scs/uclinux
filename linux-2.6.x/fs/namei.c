@@ -26,6 +26,7 @@
 #include <linux/personality.h>
 #include <linux/security.h>
 #include <linux/mount.h>
+#include <linux/audit.h>
 #include <asm/namei.h>
 #include <asm/uaccess.h>
 
@@ -141,10 +142,12 @@ char * getname(const char __user * filename)
 
 		result = tmp;
 		if (retval < 0) {
-			putname(tmp);
+			__putname(tmp);
 			result = ERR_PTR(retval);
 		}
 	}
+	if (unlikely(current->audit_context) && !IS_ERR(result) && result)
+		audit_getname(result);
 	return result;
 }
 
@@ -190,7 +193,8 @@ int vfs_permission(struct inode * inode, int mask)
 	 * Read/write DACs are always overridable.
 	 * Executable DACs are overridable if at least one exec bit is set.
 	 */
-	if ((mask & (MAY_READ|MAY_WRITE)) || (inode->i_mode & S_IXUGO))
+	if (!(mask & MAY_EXEC) ||
+	    (inode->i_mode & S_IXUGO) || S_ISDIR(inode->i_mode))
 		if (capable(CAP_DAC_OVERRIDE))
 			return 0;
 
@@ -237,30 +241,34 @@ int permission(struct inode * inode,int mask, struct nameidata *nd)
  * except for the cases where we don't hold i_writecount yet. Then we need to
  * use {get,deny}_write_access() - these functions check the sign and refuse
  * to do the change if sign is wrong. Exclusion between them is provided by
- * spinlock (arbitration_lock) and I'll rip the second arsehole to the first
- * who will try to move it in struct inode - just leave it here.
+ * the inode->i_lock spinlock.
  */
-static spinlock_t arbitration_lock = SPIN_LOCK_UNLOCKED;
+
 int get_write_access(struct inode * inode)
 {
-	spin_lock(&arbitration_lock);
+	spin_lock(&inode->i_lock);
 	if (atomic_read(&inode->i_writecount) < 0) {
-		spin_unlock(&arbitration_lock);
+		spin_unlock(&inode->i_lock);
 		return -ETXTBSY;
 	}
 	atomic_inc(&inode->i_writecount);
-	spin_unlock(&arbitration_lock);
+	spin_unlock(&inode->i_lock);
+
 	return 0;
 }
+
 int deny_write_access(struct file * file)
 {
-	spin_lock(&arbitration_lock);
-	if (atomic_read(&file->f_dentry->d_inode->i_writecount) > 0) {
-		spin_unlock(&arbitration_lock);
+	struct inode *inode = file->f_dentry->d_inode;
+
+	spin_lock(&inode->i_lock);
+	if (atomic_read(&inode->i_writecount) > 0) {
+		spin_unlock(&inode->i_lock);
 		return -ETXTBSY;
 	}
-	atomic_dec(&file->f_dentry->d_inode->i_writecount);
-	spin_unlock(&arbitration_lock);
+	atomic_dec(&inode->i_writecount);
+	spin_unlock(&inode->i_lock);
+
 	return 0;
 }
 
@@ -268,6 +276,16 @@ void path_release(struct nameidata *nd)
 {
 	dput(nd->dentry);
 	mntput(nd->mnt);
+}
+
+/*
+ * umount() mustn't call path_release()/mntput() as that would clear
+ * mnt_expiry_mark
+ */
+void path_release_on_umount(struct nameidata *nd)
+{
+	dput(nd->dentry);
+	_mntput(nd->mnt);
 }
 
 /*
@@ -308,7 +326,7 @@ static inline int exec_permission_lite(struct inode *inode,
 {
 	umode_t	mode = inode->i_mode;
 
-	if ((inode->i_op && inode->i_op->permission))
+	if (inode->i_op && inode->i_op->permission)
 		return -EAGAIN;
 
 	if (current->fsuid == inode->i_uid)
@@ -320,6 +338,9 @@ static inline int exec_permission_lite(struct inode *inode,
 		goto ok;
 
 	if ((inode->i_mode & S_IXUGO) && capable(CAP_DAC_OVERRIDE))
+		goto ok;
+
+	if (S_ISDIR(inode->i_mode) && capable(CAP_DAC_OVERRIDE))
 		goto ok;
 
 	if (S_ISDIR(inode->i_mode) && capable(CAP_DAC_READ_SEARCH))
@@ -387,6 +408,62 @@ static struct dentry * real_lookup(struct dentry * parent, struct qstr * name, s
 	return result;
 }
 
+static int __emul_lookup_dentry(const char *, struct nameidata *);
+
+/* SMP-safe */
+static inline int
+walk_init_root(const char *name, struct nameidata *nd)
+{
+	read_lock(&current->fs->lock);
+	if (current->fs->altroot && !(nd->flags & LOOKUP_NOALT)) {
+		nd->mnt = mntget(current->fs->altrootmnt);
+		nd->dentry = dget(current->fs->altroot);
+		read_unlock(&current->fs->lock);
+		if (__emul_lookup_dentry(name,nd))
+			return 0;
+		read_lock(&current->fs->lock);
+	}
+	nd->mnt = mntget(current->fs->rootmnt);
+	nd->dentry = dget(current->fs->root);
+	read_unlock(&current->fs->lock);
+	return 1;
+}
+
+static inline int __vfs_follow_link(struct nameidata *nd, const char *link)
+{
+	int res = 0;
+	char *name;
+	if (IS_ERR(link))
+		goto fail;
+
+	if (*link == '/') {
+		path_release(nd);
+		if (!walk_init_root(link, nd))
+			/* weird __emul_prefix() stuff did it */
+			goto out;
+	}
+	res = link_path_walk(link, nd);
+out:
+	if (nd->depth || res || nd->last_type!=LAST_NORM)
+		return res;
+	/*
+	 * If it is an iterative symlinks resolution in open_namei() we
+	 * have to copy the last component. And all that crap because of
+	 * bloody create() on broken symlinks. Furrfu...
+	 */
+	name = __getname();
+	if (unlikely(!name)) {
+		path_release(nd);
+		return -ENOMEM;
+	}
+	strcpy(name, nd->last.name);
+	nd->last.name = name;
+	return 0;
+fail:
+	path_release(nd);
+	return PTR_ERR(link);
+}
+
 /*
  * This limits recursive symlink follows to 8, while
  * limiting consecutive symlinks to 40.
@@ -397,19 +474,30 @@ static struct dentry * real_lookup(struct dentry * parent, struct qstr * name, s
 static inline int do_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	int err = -ELOOP;
-	if (current->link_count >= 5)
+	if (current->link_count >= MAX_NESTED_LINKS)
 		goto loop;
 	if (current->total_link_count >= 40)
 		goto loop;
+	BUG_ON(nd->depth >= MAX_NESTED_LINKS);
 	cond_resched();
 	err = security_inode_follow_link(dentry, nd);
 	if (err)
 		goto loop;
 	current->link_count++;
 	current->total_link_count++;
-	update_atime(dentry->d_inode);
+	nd->depth++;
+	touch_atime(nd->mnt, dentry);
+	nd_set_link(nd, NULL);
 	err = dentry->d_inode->i_op->follow_link(dentry, nd);
+	if (!err) {
+		char *s = nd_get_link(nd);
+		if (s)
+			err = __vfs_follow_link(nd, s);
+		if (dentry->d_inode->i_op->put_link)
+			dentry->d_inode->i_op->put_link(dentry, nd);
+	}
 	current->link_count--;
+	nd->depth--;
 	return err;
 loop:
 	path_release(nd);
@@ -420,15 +508,15 @@ int follow_up(struct vfsmount **mnt, struct dentry **dentry)
 {
 	struct vfsmount *parent;
 	struct dentry *mountpoint;
-	spin_lock(&dcache_lock);
+	spin_lock(&vfsmount_lock);
 	parent=(*mnt)->mnt_parent;
 	if (parent == *mnt) {
-		spin_unlock(&dcache_lock);
+		spin_unlock(&vfsmount_lock);
 		return 0;
 	}
 	mntget(parent);
 	mountpoint=dget((*mnt)->mnt_mountpoint);
-	spin_unlock(&dcache_lock);
+	spin_unlock(&vfsmount_lock);
 	dput(*dentry);
 	*dentry = mountpoint;
 	mntput(*mnt);
@@ -446,9 +534,9 @@ static int follow_mount(struct vfsmount **mnt, struct dentry **dentry)
 		struct vfsmount *mounted = lookup_mnt(*mnt, *dentry);
 		if (!mounted)
 			break;
+		mntput(*mnt);
 		*mnt = mounted;
 		dput(*dentry);
-		mntput(mounted->mnt_parent);
 		*dentry = dget(mounted->mnt_root);
 		res = 1;
 	}
@@ -464,9 +552,9 @@ static inline int __follow_down(struct vfsmount **mnt, struct dentry **dentry)
 
 	mounted = lookup_mnt(*mnt, *dentry);
 	if (mounted) {
+		mntput(*mnt);
 		*mnt = mounted;
 		dput(*dentry);
-		mntput(mounted->mnt_parent);
 		*dentry = dget(mounted->mnt_root);
 		return 1;
 	}
@@ -498,14 +586,16 @@ static inline void follow_dotdot(struct vfsmount **mnt, struct dentry **dentry)
 			dput(old);
 			break;
 		}
+		spin_unlock(&dcache_lock);
+		spin_lock(&vfsmount_lock);
 		parent = (*mnt)->mnt_parent;
 		if (parent == *mnt) {
-			spin_unlock(&dcache_lock);
+			spin_unlock(&vfsmount_lock);
 			break;
 		}
 		mntget(parent);
 		*dentry = dget((*mnt)->mnt_mountpoint);
-		spin_unlock(&dcache_lock);
+		spin_unlock(&vfsmount_lock);
 		dput(old);
 		mntput(*mnt);
 		*mnt = parent;
@@ -564,20 +654,20 @@ fail:
  *
  * We expect 'base' to be positive and a directory.
  */
-int link_path_walk(const char * name, struct nameidata *nd)
+int fastcall link_path_walk(const char * name, struct nameidata *nd)
 {
 	struct path next;
 	struct inode *inode;
 	int err;
 	unsigned int lookup_flags = nd->flags;
-
+	
 	while (*name=='/')
 		name++;
 	if (!*name)
 		goto return_reval;
 
 	inode = nd->dentry->d_inode;
-	if (current->link_count)
+	if (nd->depth)
 		lookup_flags = LOOKUP_FOLLOW;
 
 	/* At this point we know we have a real path component. */
@@ -656,7 +746,7 @@ int link_path_walk(const char * name, struct nameidata *nd)
 
 		if (inode->i_op->follow_link) {
 			mntget(next.mnt);
-			err = do_follow_link(next.dentry, nd);	
+			err = do_follow_link(next.dentry, nd);
 			dput(next.dentry);
 			mntput(next.mnt);
 			if (err)
@@ -764,7 +854,7 @@ return_err:
 	return err;
 }
 
-int path_walk(const char * name, struct nameidata *nd)
+int fastcall path_walk(const char * name, struct nameidata *nd)
 {
 	current->total_link_count = 0;
 	return link_path_walk(name, nd);
@@ -785,6 +875,7 @@ static int __emul_lookup_dentry(const char *name, struct nameidata *nd)
 		 */
 		nd_root.last_type = LAST_ROOT;
 		nd_root.flags = nd->flags;
+		nd_root.depth = 0;
 		memcpy(&nd_root.intent, &nd->intent, sizeof(nd_root.intent));
 		read_lock(&current->fs->lock);
 		nd_root.mnt = mntget(current->fs->rootmnt);
@@ -832,29 +923,13 @@ set_it:
 	}
 }
 
-/* SMP-safe */
-static inline int
-walk_init_root(const char *name, struct nameidata *nd)
+int fastcall path_lookup(const char *name, unsigned int flags, struct nameidata *nd)
 {
-	read_lock(&current->fs->lock);
-	if (current->fs->altroot && !(nd->flags & LOOKUP_NOALT)) {
-		nd->mnt = mntget(current->fs->altrootmnt);
-		nd->dentry = dget(current->fs->altroot);
-		read_unlock(&current->fs->lock);
-		if (__emul_lookup_dentry(name,nd))
-			return 0;
-		read_lock(&current->fs->lock);
-	}
-	nd->mnt = mntget(current->fs->rootmnt);
-	nd->dentry = dget(current->fs->root);
-	read_unlock(&current->fs->lock);
-	return 1;
-}
+	int retval;
 
-int path_lookup(const char *name, unsigned int flags, struct nameidata *nd)
-{
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags;
+	nd->depth = 0;
 
 	read_lock(&current->fs->lock);
 	if (*name=='/') {
@@ -875,7 +950,13 @@ int path_lookup(const char *name, unsigned int flags, struct nameidata *nd)
 	}
 	read_unlock(&current->fs->lock);
 	current->total_link_count = 0;
-	return link_path_walk(name, nd);
+	retval = link_path_walk(name, nd);
+	if (unlikely(current->audit_context
+		     && nd && nd->dentry && nd->dentry->d_inode))
+		audit_inode(name,
+			    nd->dentry->d_inode->i_ino,
+			    nd->dentry->d_inode->i_rdev);
+	return retval;
 }
 
 /*
@@ -964,7 +1045,7 @@ access:
  * that namei follows links, while lnamei does not.
  * SMP-safe
  */
-int __user_walk(const char __user *name, unsigned flags, struct nameidata *nd)
+int fastcall __user_walk(const char __user *name, unsigned flags, struct nameidata *nd)
 {
 	char *tmp = getname(name);
 	int err = PTR_ERR(tmp);
@@ -1188,6 +1269,11 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 			return -EPERM;
 	}
 
+	/* O_NOATIME can only be set by the owner or superuser */
+	if (flag & O_NOATIME)
+		if (current->fsuid != inode->i_uid && !capable(CAP_FOWNER))
+			return -EPERM;
+
 	/*
 	 * Ensure there are no outstanding leases on the file.
 	 */
@@ -1258,7 +1344,6 @@ int open_namei(const char * pathname, int flag, int mode, struct nameidata *nd)
 		error = path_lookup(pathname, lookup_flags(flag)|LOOKUP_OPEN, nd);
 		if (error)
 			return error;
-		dentry = nd->dentry;
 		goto ok;
 	}
 
@@ -1362,8 +1447,16 @@ do_link:
 	error = security_inode_follow_link(dentry, nd);
 	if (error)
 		goto exit_dput;
-	update_atime(dentry->d_inode);
+	touch_atime(nd->mnt, dentry);
+	nd_set_link(nd, NULL);
 	error = dentry->d_inode->i_op->follow_link(dentry, nd);
+	if (!error) {
+		char *s = nd_get_link(nd);
+		if (s)
+			error = __vfs_follow_link(nd, s);
+		if (dentry->d_inode->i_op->put_link)
+			dentry->d_inode->i_op->put_link(dentry, nd);
+	}
 	dput(dentry);
 	if (error)
 		return error;
@@ -1492,6 +1585,7 @@ asmlinkage long sys_mknod(const char __user * filename, int mode, unsigned dev)
 	path_release(&nd);
 out:
 	putname(tmp);
+
 	return error;
 }
 
@@ -1523,6 +1617,7 @@ asmlinkage long sys_mkdir(const char __user * pathname, int mode)
 {
 	int error = 0;
 	char * tmp;
+
 	tmp = getname(pathname);
 	error = PTR_ERR(tmp);
 	if (!IS_ERR(tmp)) {
@@ -1740,7 +1835,7 @@ slashes:
 	goto exit2;
 }
 
-int vfs_symlink(struct inode *dir, struct dentry *dentry, const char *oldname)
+int vfs_symlink(struct inode *dir, struct dentry *dentry, const char *oldname, int mode)
 {
 	int error = may_create(dir, dentry, NULL);
 
@@ -1784,7 +1879,7 @@ asmlinkage long sys_symlink(const char __user * oldname, const char __user * new
 		dentry = lookup_create(&nd, 0);
 		error = PTR_ERR(dentry);
 		if (!IS_ERR(dentry)) {
-			error = vfs_symlink(nd.dentry->d_inode, dentry, from);
+			error = vfs_symlink(nd.dentry->d_inode, dentry, from, S_IALLUGO);
 			dput(dentry);
 		}
 		up(&nd.dentry->d_inode->i_sem);
@@ -2142,40 +2237,23 @@ out:
 	return len;
 }
 
-static inline int
-__vfs_follow_link(struct nameidata *nd, const char *link)
+/*
+ * A helper for ->readlink().  This should be used *ONLY* for symlinks that
+ * have ->follow_link() touching nd only in nd_set_link().  Using (or not
+ * using) it for any given inode is up to filesystem.
+ */
+int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
-	int res = 0;
-	char *name;
-	if (IS_ERR(link))
-		goto fail;
-
-	if (*link == '/') {
-		path_release(nd);
-		if (!walk_init_root(link, nd))
-			/* weird __emul_prefix() stuff did it */
-			goto out;
+	struct nameidata nd;
+	int res;
+	nd.depth = 0;
+	res = dentry->d_inode->i_op->follow_link(dentry, &nd);
+	if (!res) {
+		res = vfs_readlink(dentry, buffer, buflen, nd_get_link(&nd));
+		if (dentry->d_inode->i_op->put_link)
+			dentry->d_inode->i_op->put_link(dentry, &nd);
 	}
-	res = link_path_walk(link, nd);
-out:
-	if (current->link_count || res || nd->last_type!=LAST_NORM)
-		return res;
-	/*
-	 * If it is an iterative symlinks resolution in open_namei() we
-	 * have to copy the last component. And all that crap because of
-	 * bloody create() on broken symlinks. Furrfu...
-	 */
-	name = __getname();
-	if (unlikely(!name)) {
-		path_release(nd);
-		return -ENOMEM;
-	}
-	strcpy(name, nd->last.name);
-	nd->last.name = name;
-	return 0;
-fail:
-	path_release(nd);
-	return PTR_ERR(link);
+	return res;
 }
 
 int vfs_follow_link(struct nameidata *nd, const char *link)
@@ -2216,6 +2294,30 @@ int page_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 		page_cache_release(page);
 	}
 	return res;
+}
+
+int page_follow_link_light(struct dentry *dentry, struct nameidata *nd)
+{
+	struct page *page;
+	char *s = page_getlink(dentry, &page);
+	if (!IS_ERR(s)) {
+		nd_set_link(nd, s);
+		s = NULL;
+	}
+	return PTR_ERR(s);
+}
+
+void page_put_link(struct dentry *dentry, struct nameidata *nd)
+{
+	if (!IS_ERR(nd_get_link(nd))) {
+		struct page *page;
+		page = find_get_page(dentry->d_inode->i_mapping, 0);
+		if (!page)
+			BUG();
+		kunmap(page);
+		page_cache_release(page);
+		page_cache_release(page);
+	}
 }
 
 int page_follow_link(struct dentry *dentry, struct nameidata *nd)
@@ -2272,8 +2374,9 @@ fail:
 }
 
 struct inode_operations page_symlink_inode_operations = {
-	.readlink	= page_readlink,
-	.follow_link	= page_follow_link,
+	.readlink	= generic_readlink,
+	.follow_link	= page_follow_link_light,
+	.put_link	= page_put_link,
 };
 
 EXPORT_SYMBOL(__user_walk);
@@ -2286,6 +2389,8 @@ EXPORT_SYMBOL(lookup_create);
 EXPORT_SYMBOL(lookup_hash);
 EXPORT_SYMBOL(lookup_one_len);
 EXPORT_SYMBOL(page_follow_link);
+EXPORT_SYMBOL(page_follow_link_light);
+EXPORT_SYMBOL(page_put_link);
 EXPORT_SYMBOL(page_readlink);
 EXPORT_SYMBOL(page_symlink);
 EXPORT_SYMBOL(page_symlink_inode_operations);
@@ -2305,3 +2410,4 @@ EXPORT_SYMBOL(vfs_rename);
 EXPORT_SYMBOL(vfs_rmdir);
 EXPORT_SYMBOL(vfs_symlink);
 EXPORT_SYMBOL(vfs_unlink);
+EXPORT_SYMBOL(generic_readlink);

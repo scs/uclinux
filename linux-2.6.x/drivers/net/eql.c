@@ -29,11 +29,8 @@
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 12:09:24  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:21:22  nidhi
- * Importing
+ * Revision 1.1.1.2  2004/09/07 09:22:13  lgsoft
+ * Import of 2.6.8
  *
  * Revision 1.2  1996/04/11 17:51:52  guru
  * Added one-line eql_remove_slave patch.
@@ -261,14 +258,14 @@ static int eql_close(struct net_device *dev)
 	return 0;
 }
 
-static int eql_enslave(struct net_device *dev,  slaving_request_t *srq);
-static int eql_emancipate(struct net_device *dev, slaving_request_t *srq);
+static int eql_enslave(struct net_device *dev,  slaving_request_t __user *srq);
+static int eql_emancipate(struct net_device *dev, slaving_request_t __user *srq);
 
-static int eql_g_slave_cfg(struct net_device *dev, slave_config_t *sc);
-static int eql_s_slave_cfg(struct net_device *dev, slave_config_t *sc);
+static int eql_g_slave_cfg(struct net_device *dev, slave_config_t __user *sc);
+static int eql_s_slave_cfg(struct net_device *dev, slave_config_t __user *sc);
 
-static int eql_g_master_cfg(struct net_device *dev, master_config_t *mc);
-static int eql_s_master_cfg(struct net_device *dev, master_config_t *mc);
+static int eql_g_master_cfg(struct net_device *dev, master_config_t __user *mc);
+static int eql_s_master_cfg(struct net_device *dev, master_config_t __user *mc);
 
 static int eql_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {  
@@ -278,23 +275,17 @@ static int eql_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 		case EQL_ENSLAVE:
-			return eql_enslave(dev,
-					   (slaving_request_t *) ifr->ifr_data);
+			return eql_enslave(dev, ifr->ifr_data);
 		case EQL_EMANCIPATE:
-			return eql_emancipate(dev,
-					      (slaving_request_t *) ifr->ifr_data);
+			return eql_emancipate(dev, ifr->ifr_data);
 		case EQL_GETSLAVECFG:
-			return eql_g_slave_cfg(dev,
-					       (slave_config_t *) ifr->ifr_data);
+			return eql_g_slave_cfg(dev, ifr->ifr_data);
 		case EQL_SETSLAVECFG:
-			return eql_s_slave_cfg(dev,
-					       (slave_config_t *) ifr->ifr_data);
+			return eql_s_slave_cfg(dev, ifr->ifr_data);
 		case EQL_GETMASTRCFG:
-			return eql_g_master_cfg(dev,
-						(master_config_t *) ifr->ifr_data);
+			return eql_g_master_cfg(dev, ifr->ifr_data);
 		case EQL_SETMASTRCFG:
-			return eql_s_master_cfg(dev,
-						(master_config_t *) ifr->ifr_data);
+			return eql_s_master_cfg(dev, ifr->ifr_data);
 		default:
 			return -EOPNOTSUPP;
 	};
@@ -401,7 +392,7 @@ static inline int eql_is_full(slave_queue_t *queue)
 static int __eql_insert_slave(slave_queue_t *queue, slave_t *slave)
 {
 	if (!eql_is_full(queue)) {
-		slave_t *duplicate_slave = 0;
+		slave_t *duplicate_slave = NULL;
 
 		duplicate_slave = __eql_find_slave_dev(queue, slave->dev);
 		if (duplicate_slave != 0)
@@ -417,7 +408,7 @@ static int __eql_insert_slave(slave_queue_t *queue, slave_t *slave)
 	return -ENOSPC;
 }
 
-static int eql_enslave(struct net_device *master_dev, slaving_request_t *srqp)
+static int eql_enslave(struct net_device *master_dev, slaving_request_t __user *srqp)
 {
 	struct net_device *slave_dev;
 	slaving_request_t srq;
@@ -463,7 +454,7 @@ static int eql_enslave(struct net_device *master_dev, slaving_request_t *srqp)
 	return -EINVAL;
 }
 
-static int eql_emancipate(struct net_device *master_dev, slaving_request_t *srqp)
+static int eql_emancipate(struct net_device *master_dev, slaving_request_t __user *srqp)
 {
 	equalizer_t *eql = master_dev->priv;
 	struct net_device *slave_dev;
@@ -495,7 +486,7 @@ static int eql_emancipate(struct net_device *master_dev, slaving_request_t *srqp
 	return ret;
 }
 
-static int eql_g_slave_cfg(struct net_device *dev, slave_config_t *scp)
+static int eql_g_slave_cfg(struct net_device *dev, slave_config_t __user *scp)
 {
 	equalizer_t *eql = dev->priv;
 	slave_t *slave;
@@ -507,8 +498,12 @@ static int eql_g_slave_cfg(struct net_device *dev, slave_config_t *scp)
 		return -EFAULT;
 
 	slave_dev = dev_get_by_name(sc.slave_name);
+	if (!slave_dev)
+		return -ENODEV;
 
 	ret = -EINVAL;
+	if (!slave_dev)
+		return ret;
 
 	spin_lock_bh(&eql->queue.lock);
 	if (eql_is_slave(slave_dev)) {
@@ -528,7 +523,7 @@ static int eql_g_slave_cfg(struct net_device *dev, slave_config_t *scp)
 	return ret;
 }
 
-static int eql_s_slave_cfg(struct net_device *dev, slave_config_t *scp)
+static int eql_s_slave_cfg(struct net_device *dev, slave_config_t __user *scp)
 {
 	slave_t *slave;
 	equalizer_t *eql;
@@ -539,11 +534,15 @@ static int eql_s_slave_cfg(struct net_device *dev, slave_config_t *scp)
 	if (copy_from_user(&sc, scp, sizeof (slave_config_t)))
 		return -EFAULT;
 
-	eql = dev->priv;
 	slave_dev = dev_get_by_name(sc.slave_name);
+	if (!slave_dev)
+		return -ENODEV;
 
 	ret = -EINVAL;
+	if (!slave_dev)
+		return ret;
 
+	eql = dev->priv;
 	spin_lock_bh(&eql->queue.lock);
 	if (eql_is_slave(slave_dev)) {
 		slave = __eql_find_slave_dev(&eql->queue, slave_dev);
@@ -559,7 +558,7 @@ static int eql_s_slave_cfg(struct net_device *dev, slave_config_t *scp)
 	return ret;
 }
 
-static int eql_g_master_cfg(struct net_device *dev, master_config_t *mcp)
+static int eql_g_master_cfg(struct net_device *dev, master_config_t __user *mcp)
 {
 	equalizer_t *eql;
 	master_config_t mc;
@@ -575,7 +574,7 @@ static int eql_g_master_cfg(struct net_device *dev, master_config_t *mcp)
 	return -EINVAL;
 }
 
-static int eql_s_master_cfg(struct net_device *dev, master_config_t *mcp)
+static int eql_s_master_cfg(struct net_device *dev, master_config_t __user *mcp)
 {
 	equalizer_t *eql;
 	master_config_t mc;
@@ -606,7 +605,7 @@ static int __init eql_init_module(void)
 
 	err = register_netdev(dev_eql);
 	if (err) 
-		kfree(dev_eql);
+		free_netdev(dev_eql);
 	return err;
 }
 

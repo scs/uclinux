@@ -24,6 +24,8 @@
  * 2000-08-13	Jan-Benedict Glaw <jbglaw@lug-owl.de>
  * 	Fixed time_init to be aware of epoches != 1900. This prevents
  * 	booting up in 2048 for me;) Code is stolen from rtc.c.
+ * 2003-06-03	R. Scott Bailey <scott.bailey@eds.com>
+ *	Tighten sanity in time_init from 1% (10,000 PPM) to 250 PPM
  */
 #include <linux/config.h>
 #include <linux/errno.h>
@@ -43,6 +45,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/hwrpb.h>
+#include <asm/8253pit.h>
 
 #include <linux/mc146818rtc.h>
 #include <linux/time.h>
@@ -252,12 +255,11 @@ validate_cc_value(unsigned long cc)
  * arch/i386/time.c.
  */
 
-#define PIC_TICK_RATE	1193180UL
 #define CALIBRATE_LATCH	0xffff
 #define TIMEOUT_COUNT	0x100000
 
 static unsigned long __init
-calibrate_cc_with_pic(void)
+calibrate_cc_with_pit(void)
 {
 	int cc, count = 0;
 
@@ -285,7 +287,7 @@ calibrate_cc_with_pic(void)
 	if (count <= 1 || count == TIMEOUT_COUNT)
 		return 0;
 
-	return ((long)cc * PIC_TICK_RATE) / (CALIBRATE_LATCH + 1);
+	return ((long)cc * PIT_TICK_RATE) / (CALIBRATE_LATCH + 1);
 }
 
 /* The Linux interpretation of the CMOS clock register contents:
@@ -306,12 +308,12 @@ void __init
 time_init(void)
 {
 	unsigned int year, mon, day, hour, min, sec, cc1, cc2, epoch;
-	unsigned long cycle_freq, one_percent;
+	unsigned long cycle_freq, tolerance;
 	long diff;
 
 	/* Calibrate CPU clock -- attempt #1.  */
 	if (!est_cycle_freq)
-		est_cycle_freq = validate_cc_value(calibrate_cc_with_pic());
+		est_cycle_freq = validate_cc_value(calibrate_cc_with_pit());
 
 	cc1 = rpcc_after_update_in_progress();
 
@@ -324,13 +326,13 @@ time_init(void)
 
 	cycle_freq = hwrpb->cycle_freq;
 	if (est_cycle_freq) {
-		/* If the given value is within 1% of what we calculated, 
+		/* If the given value is within 250 PPM of what we calculated,
 		   accept it.  Otherwise, use what we found.  */
-		one_percent = cycle_freq / 100;
+		tolerance = cycle_freq / 4000;
 		diff = cycle_freq - est_cycle_freq;
 		if (diff < 0)
 			diff = -diff;
-		if ((unsigned long)diff > one_percent) {
+		if ((unsigned long)diff > tolerance) {
 			cycle_freq = est_cycle_freq;
 			printk("HWRPB cycle frequency bogus.  "
 			       "Estimated %lu Hz\n", cycle_freq);
@@ -503,6 +505,7 @@ do_settimeofday(struct timespec *tv)
 	time_esterror = NTP_PHASE_LIMIT;
 
 	write_sequnlock_irq(&xtime_lock);
+	clock_was_set();
 	return 0;
 }
 
@@ -520,7 +523,6 @@ EXPORT_SYMBOL(do_settimeofday);
  *      sets the minutes. Usually you won't notice until after reboot!
  */
 
-extern int abs(int);
 
 static int
 set_rtc_mmss(unsigned long nowtime)

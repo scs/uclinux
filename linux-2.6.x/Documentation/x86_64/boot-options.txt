@@ -5,18 +5,11 @@ only the AMD64 specific ones are listed here.
 
 Machine check
 
-(see the Opteron BIOS&Kernel manual for more details on the banks etc.)
-
    mce=off disable machine check
-   mce=nok8 disable k8 specific features
-   mce=disable<NUMBER> disable bank NUMBER
-   mce=enable<NUMBER> enable bank number
-   mce=device	Enable more machine check options in Northbridge.
-		Can be useful for device driver debugging.
-   mce=NUMBER mcheck timer interval number seconds.
-   Can be also comma separated in a single mce=
 
    nomce (for compatibility with i386): same as mce=off
+
+   Everything else is in sysfs now.
 
 APICs
 
@@ -143,7 +136,7 @@ PCI
 
 IOMMU
 
-  iommu=[size][,noagp][,off][,force][,noforce][,leak][,memaper[=order]]
+  iommu=[size][,noagp][,off][,force][,noforce][,leak][,memaper[=order]][,soft]
    size  set size of iommu (in bytes)
    noagp don't initialize the AGP driver and use full aperture.
    off   don't use the IOMMU
@@ -151,5 +144,9 @@ IOMMU
    memaper[=order] allocate an own aperture over RAM with size 32MB^order.
    noforce don't force IOMMU usage. Default.
    force  Force IOMMU
+   soft   Use software bounce buffering for non 32bit IO. Default on Intel
+          machines. 
 
+  swiotlb=pages
 
+  Prereserve that many 4K pages for the software IO bounce buffering.

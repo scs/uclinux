@@ -17,6 +17,18 @@ config I2C_ALI1535
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-ali1535.
 
+config I2C_ALI1563
+	tristate "ALI 1563"
+	depends on I2C && PCI && EXPERIMENTAL
+	help
+	  If you say yes to this option, support will be included for the SMB
+	  Host controller on Acer Labs Inc. (ALI) M1563 South Bridges.  The SMB
+	  controller is part of the 7101 device, which is an ACPI-compliant
+	  Power Management Unit (PMU).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-ali1563.
+
 config I2C_ALI15X3
 	tristate "ALI 15x3"
 	depends on I2C && PCI && EXPERIMENTAL
@@ -58,16 +70,17 @@ config I2C_ELEKTOR
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-elektor.
 
-config I2C_ELV
-	tristate "ELV adapter"
-	depends on I2C
+config I2C_HYDRA
+	tristate "CHRP Apple Hydra Mac I/O I2C interface"
+	depends on I2C && PCI && PPC_CHRP && EXPERIMENTAL
 	select I2C_ALGOBIT
 	help
-	  This supports parallel-port I2C adapters called ELV.  Say Y if you
-	  own such an adapter.
+	  This supports the use of the I2C interface in the Apple Hydra Mac
+	  I/O chip on some CHRP machines (e.g. the LongTrail).  Say Y if you
+	  have such a machine.
 
-	  This support is also available as a module.  If so, the module 
-	  will be called i2c-elv.
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-hydra.
 
 config I2C_I801
 	tristate "Intel 801"
@@ -82,6 +95,8 @@ config I2C_I801
 	    82801CA/CAM
 	    82801DB
 	    82801EB
+	    6300ESB
+	    ICH6
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -103,8 +118,14 @@ config I2C_I810
 	  will be called i2c-i810.
 
 config I2C_IBM_IIC
-	tristate "IBM IIC I2C"
+	tristate "IBM PPC 4xx on-chip I2C interface"
 	depends on IBM_OCP && I2C
+	help
+	  Say Y here if you want to use IIC peripheral found on 
+	  embedded IBM PPC 4xx based systems. 
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-ibm_iic.
 
 config I2C_IOP3XX
 	tristate "Intel XScale IOP3xx on-chip I2C interface"
@@ -132,6 +153,17 @@ config I2C_ITE
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-ite.
 
+config I2C_IXP4XX
+	tristate "IXP4xx GPIO-Based I2C Interface"
+	depends on I2C && ARCH_IXP4XX
+	select I2C_ALGOBIT
+	help
+	  Say Y here if you have an Intel IXP4xx(420,421,422,425) based 
+	  system and are using GPIO lines for an I2C bus.
+
+	  This support is also available as a module. If so, the module
+	  will be called i2c-ixp4xx.
+
 config I2C_KEYWEST
 	tristate "Powermac Keywest I2C interface"
 	depends on I2C && PPC_PMAC
@@ -151,16 +183,6 @@ config I2C_NFORCE2
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-nforce2.
-
-config I2C_PHILIPSPAR
-	tristate "Philips style parallel port adapter"
-	depends on I2C && PARPORT
-	select I2C_ALGOBIT
-	help
-	  This supports parallel-port I2C adapters made by Philips.
-
-	  This support is also available as a module.  If so, the module 
-	  will be called i2c-philips-par.
 
 config I2C_PARPORT
 	tristate "Parallel port adapter"
@@ -330,17 +352,6 @@ config I2C_SIS96X
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sis96x.
-
-config I2C_VELLEMAN
-	tristate "Velleman K8000 adapter"
-	depends on I2C
-	select I2C_ALGOBIT
-	help
-	  This supports the Velleman K8000 parallel-port I2C adapter.  Say Y
-	  if you own such an adapter.
-
-	  This support is also available as a module.  If so, the module 
-	  will be called i2c-velleman.
 
 config I2C_VIA
 	tristate "VIA 82C586B"

@@ -52,6 +52,7 @@
 #define ELF_NGREG	48	/* includes nip, msr, lr, etc. */
 #define ELF_NFPREG	33	/* includes fpscr */
 #define ELF_NVRREG	33	/* includes vscr */
+#define ELF_NEVRREG	34	/* includes acc (as 2) */
 
 /*
  * These are used to set parameters in the core dumps.
@@ -74,6 +75,8 @@ typedef elf_vrreg_t elf_vrregset_t[ELF_NVRREG];
 
 #ifdef __KERNEL__
 
+struct task_struct;
+
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
@@ -90,11 +93,17 @@ typedef elf_vrreg_t elf_vrregset_t[ELF_NVRREG];
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
-#define ELF_CORE_COPY_REGS(gregs, regs) \
-	memcpy(gregs, regs, \
-	       sizeof(struct pt_regs) < sizeof(elf_gregset_t)? \
-	       sizeof(struct pt_regs): sizeof(elf_gregset_t));
+#define ELF_CORE_COPY_REGS(gregs, regs)				\
+	memcpy((gregs), (regs), sizeof(struct pt_regs));	\
+	memset((char *)(gregs) + sizeof(struct pt_regs), 0,	\
+	       sizeof(elf_gregset_t) - sizeof(struct pt_regs));
 
+#define ELF_CORE_COPY_TASK_REGS(t, elfregs)			\
+	((t)->thread.regs?					\
+	 ({ ELF_CORE_COPY_REGS((elfregs), (t)->thread.regs); 1; }): 0)
+
+extern int dump_task_fpu(struct task_struct *t, elf_fpregset_t *fpu);
+#define ELF_CORE_COPY_FPREGS(t, fpu)	dump_task_fpu((t), (fpu))
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,

@@ -33,11 +33,8 @@
 *   - 05 Jan 96: Geert: integration into the current source tree
 *   - 01 Aug 98: Alan: Merge in code from cvision.c and cvision_core.c
 * $Log$
-* Revision 1.1  2004/07/19 12:28:22  lgsoft
-* Initial revision
-*
-* Revision 1.1.1.1  2004/07/18 13:22:18  nidhi
-* Importing
+* Revision 1.1.1.2  2004/09/07 09:17:32  lgsoft
+* Import of 2.6.8
 *
 * Revision 1.6  1998/09/11 04:54:58  abair
 * Update for 2.1.120 change in include file location.
@@ -1071,7 +1068,6 @@ int __init cyberfb_init(void)
 		   fb_info.node, fb_info.modename, CyberSize>>10);
 
 	    /* TODO: This driver cannot be unloaded yet */
-	    MOD_INC_USE_COUNT;
 	    DPRINTK("EXIT\n");
 	    return 0;
 	}
@@ -1211,14 +1207,6 @@ MODULE_LICENSE("GPL");
 int init_module(void)
 {
 	return cyberfb_init();
-}
-
-void cleanup_module(void)
-{
-	/* Not reached because the usecount will never be
-	   decremented to zero */
-	unregister_framebuffer(&fb_info);
-	/* TODO: clean up ... */
 }
 #endif /* MODULE */
 

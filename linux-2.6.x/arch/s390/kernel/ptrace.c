@@ -137,25 +137,36 @@ peek_user(struct task_struct *child, addr_t addr, addr_t data)
 	if ((addr & 3) || addr > sizeof(struct user) - __ADDR_MASK)
 		return -EIO;
 
-	if (addr <= (addr_t) &dummy->regs.orig_gpr2) {
+	if (addr < (addr_t) &dummy->regs.acrs) {
 		/*
-		 * psw, gprs, acrs and orig_gpr2 are stored on the stack
+		 * psw and gprs are stored on the stack
 		 */
-		tmp = *(addr_t *)((addr_t) __KSTK_PTREGS(child) + addr);
+		tmp = *(addr_t *)((addr_t) &__KSTK_PTREGS(child)->psw + addr);
 		if (addr == (addr_t) &dummy->regs.psw.mask)
 			/* Remove per bit from user psw. */
 			tmp &= ~PSW_MASK_PER;
 
-	} else if (addr >= (addr_t) &dummy->regs.fp_regs &&
-		   addr < (addr_t) (&dummy->regs.fp_regs + 1)) {
+	} else if (addr < (addr_t) &dummy->regs.orig_gpr2) {
+		/*
+		 * access registers are stored in the thread structure
+		 */
+		offset = addr - (addr_t) &dummy->regs.acrs;
+		tmp = *(addr_t *)((addr_t) &child->thread.acrs + offset);
+
+	} else if (addr == (addr_t) &dummy->regs.orig_gpr2) {
+		/*
+		 * orig_gpr2 is stored on the kernel stack
+		 */
+		tmp = (addr_t) __KSTK_PTREGS(child)->orig_gpr2;
+
+	} else if (addr < (addr_t) (&dummy->regs.fp_regs + 1)) {
 		/* 
 		 * floating point regs. are stored in the thread structure
 		 */
 		offset = addr - (addr_t) &dummy->regs.fp_regs;
 		tmp = *(addr_t *)((addr_t) &child->thread.fp_regs + offset);
 
-	} else if (addr >= (addr_t) &dummy->regs.per_info &&
-		   addr < (addr_t) (&dummy->regs.per_info + 1)) {
+	} else if (addr < (addr_t) (&dummy->regs.per_info + 1)) {
 		/*
 		 * per_info is found in the thread structure
 		 */
@@ -165,7 +176,7 @@ peek_user(struct task_struct *child, addr_t addr, addr_t data)
 	} else
 		tmp = 0;
 
-	return put_user(tmp, (addr_t *) data);
+	return put_user(tmp, (addr_t __user *) data);
 }
 
 /*
@@ -187,15 +198,15 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 	if ((addr & 3) || addr > sizeof(struct user) - __ADDR_MASK)
 		return -EIO;
 
-	if (addr <= (addr_t) &dummy->regs.orig_gpr2) {
+	if (addr < (addr_t) &dummy->regs.acrs) {
 		/*
-		 * psw, gprs, acrs and orig_gpr2 are stored on the stack
+		 * psw and gprs are stored on the stack
 		 */
 		if (addr == (addr_t) &dummy->regs.psw.mask &&
 #ifdef CONFIG_S390_SUPPORT
-		    (data & ~PSW_MASK_CC) != PSW_USER32_BITS &&
+		    data != PSW_MASK_MERGE(PSW_USER32_BITS, data) &&
 #endif
-		    (data & ~PSW_MASK_CC) != PSW_USER_BITS)
+		    data != PSW_MASK_MERGE(PSW_USER_BITS, data))
 			/* Invalid psw mask. */
 			return -EINVAL;
 #ifndef CONFIG_ARCH_S390X
@@ -204,10 +215,22 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 			   high order bit but older gdb's rely on it */
 			data |= PSW_ADDR_AMODE;
 #endif
-		*(addr_t *)((addr_t) __KSTK_PTREGS(child) + addr) = data;
+		*(addr_t *)((addr_t) &__KSTK_PTREGS(child)->psw + addr) = data;
 
-	} else if (addr >= (addr_t) &dummy->regs.fp_regs &&
-		   addr < (addr_t) (&dummy->regs.fp_regs + 1)) {
+	} else if (addr < (addr_t) (&dummy->regs.orig_gpr2)) {
+		/*
+		 * access registers are stored in the thread structure
+		 */
+		offset = addr - (addr_t) &dummy->regs.acrs;
+		*(addr_t *)((addr_t) &child->thread.acrs + offset) = data;
+
+	} else if (addr == (addr_t) &dummy->regs.orig_gpr2) {
+		/*
+		 * orig_gpr2 is stored on the kernel stack
+		 */
+		__KSTK_PTREGS(child)->orig_gpr2 = data;
+
+	} else if (addr < (addr_t) (&dummy->regs.fp_regs + 1)) {
 		/*
 		 * floating point regs. are stored in the thread structure
 		 */
@@ -217,8 +240,7 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		offset = addr - (addr_t) &dummy->regs.fp_regs;
 		*(addr_t *)((addr_t) &child->thread.fp_regs + offset) = data;
 
-	} else if (addr >= (addr_t) &dummy->regs.per_info &&
-		   addr < (addr_t) (&dummy->regs.per_info + 1)) {
+	} else if (addr < (addr_t) (&dummy->regs.per_info + 1)) {
 		/*
 		 * per_info is found in the thread structure 
 		 */
@@ -247,7 +269,7 @@ do_ptrace_normal(struct task_struct *child, long request, long addr, long data)
 		copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
 		if (copied != sizeof(tmp))
 			return -EIO;
-		return put_user(tmp, (unsigned long *) data);
+		return put_user(tmp, (unsigned long __user *) data);
 
 	case PTRACE_PEEKUSR:
 		/* read the word at location addr in the USER area. */
@@ -269,7 +291,8 @@ do_ptrace_normal(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_PEEKUSR_AREA:
 	case PTRACE_POKEUSR_AREA:
-		if (copy_from_user(&parea, (void *) addr, sizeof(parea)))
+		if (copy_from_user(&parea, (void __user *) addr,
+							sizeof(parea)))
 			return -EFAULT;
 		addr = parea.kernel_addr;
 		data = parea.process_addr;
@@ -279,7 +302,7 @@ do_ptrace_normal(struct task_struct *child, long request, long addr, long data)
 				ret = peek_user(child, addr, data);
 			else {
 				addr_t tmp;
-				if (get_user (tmp, (addr_t *) data))
+				if (get_user (tmp, (addr_t __user *) data))
 					return -EFAULT;
 				ret = poke_user(child, addr, tmp);
 			}
@@ -324,40 +347,44 @@ peek_user_emu31(struct task_struct *child, addr_t addr, addr_t data)
 	    (addr & 3) || addr > sizeof(struct user) - 3)
 		return -EIO;
 
-	if (addr <= (addr_t) &dummy32->regs.orig_gpr2) {
+	if (addr < (addr_t) &dummy32->regs.acrs) {
 		/*
-		 * psw, gprs, acrs and orig_gpr2 are stored on the stack
+		 * psw and gprs are stored on the stack
 		 */
 		if (addr == (addr_t) &dummy32->regs.psw.mask) {
 			/* Fake a 31 bit psw mask. */
 			tmp = (__u32)(__KSTK_PTREGS(child)->psw.mask >> 32);
-			tmp = (tmp & PSW32_MASK_CC) | PSW32_USER_BITS;
+			tmp = PSW32_MASK_MERGE(PSW32_USER_BITS, tmp);
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Fake a 31 bit psw address. */
 			tmp = (__u32) __KSTK_PTREGS(child)->psw.addr |
 				PSW32_ADDR_AMODE31;
-		} else if (addr < (addr_t) &dummy32->regs.acrs[0]) {
-			/* gpr 0-15 */
-			tmp = *(__u32 *)((addr_t) __KSTK_PTREGS(child) + 
-					 addr*2 + 4);
-		} else if (addr < (addr_t) &dummy32->regs.orig_gpr2) {
-			offset = PT_ACR0 + addr - (addr_t) &dummy32->regs.acrs;
-			tmp = *(__u32*)((addr_t) __KSTK_PTREGS(child) + offset);
 		} else {
-			/* orig gpr 2 */
-			offset = PT_ORIGGPR2 + 4;
-			tmp = *(__u32*)((addr_t) __KSTK_PTREGS(child) + offset);
+			/* gpr 0-15 */
+			tmp = *(__u32 *)((addr_t) &__KSTK_PTREGS(child)->psw +
+					 addr*2 + 4);
 		}
-	} else if (addr >= (addr_t) &dummy32->regs.fp_regs &&
-		   addr < (addr_t) (&dummy32->regs.fp_regs + 1)) {
+	} else if (addr < (addr_t) (&dummy32->regs.orig_gpr2)) {
+		/*
+		 * access registers are stored in the thread structure
+		 */
+		offset = addr - (addr_t) &dummy32->regs.acrs;
+		tmp = *(__u32*)((addr_t) &child->thread.acrs + offset);
+
+	} else if (addr == (addr_t) (&dummy32->regs.orig_gpr2)) {
+		/*
+		 * orig_gpr2 is stored on the kernel stack
+		 */
+		tmp = *(__u32*)((addr_t) &__KSTK_PTREGS(child)->orig_gpr2 + 4);
+
+	} else if (addr < (addr_t) (&dummy32->regs.fp_regs + 1)) {
 		/*
 		 * floating point regs. are stored in the thread structure 
 		 */
 	        offset = addr - (addr_t) &dummy32->regs.fp_regs;
 		tmp = *(__u32 *)((addr_t) &child->thread.fp_regs + offset);
 
-	} else if (addr >= (addr_t) &dummy32->regs.per_info &&
-		   addr < (addr_t) (&dummy32->regs.per_info + 1)) {
+	} else if (addr < (addr_t) (&dummy32->regs.per_info + 1)) {
 		/*
 		 * per_info is found in the thread structure
 		 */
@@ -376,7 +403,7 @@ peek_user_emu31(struct task_struct *child, addr_t addr, addr_t data)
 	} else
 		tmp = 0;
 
-	return put_user(tmp, (__u32 *) data);
+	return put_user(tmp, (__u32 __user *) data);
 }
 
 /*
@@ -396,34 +423,40 @@ poke_user_emu31(struct task_struct *child, addr_t addr, addr_t data)
 
 	tmp = (__u32) data;
 
-	if (addr <= (addr_t) &dummy32->regs.orig_gpr2) {
+	if (addr < (addr_t) &dummy32->regs.acrs) {
 		/*
 		 * psw, gprs, acrs and orig_gpr2 are stored on the stack
 		 */
 		if (addr == (addr_t) &dummy32->regs.psw.mask) {
 			/* Build a 64 bit psw mask from 31 bit mask. */
-			if ((tmp & ~PSW32_MASK_CC) != PSW32_USER_BITS)
+			if (tmp != PSW32_MASK_MERGE(PSW32_USER_BITS, tmp))
 				/* Invalid psw mask. */
 				return -EINVAL;
-			__KSTK_PTREGS(child)->psw.mask = PSW_USER32_BITS |
-				((tmp & PSW32_MASK_CC) << 32);
+			__KSTK_PTREGS(child)->psw.mask =
+				PSW_MASK_MERGE(PSW_USER32_BITS, (__u64) tmp << 32);
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Build a 64 bit psw address from 31 bit address. */
 			__KSTK_PTREGS(child)->psw.addr = 
 				(__u64) tmp & PSW32_ADDR_INSN;
-		} else if (addr < (addr_t) &dummy32->regs.acrs[0]) {
-			/* gpr 0-15 */
-			*(__u32*)((addr_t) __KSTK_PTREGS(child) + addr*2 + 4) =
-				tmp;
-		} else if (addr < (addr_t) &dummy32->regs.orig_gpr2) {
-			offset = PT_ACR0 + addr - (addr_t) &dummy32->regs.acrs;
-			*(__u32*)((addr_t) __KSTK_PTREGS(child) + offset) = tmp;
 		} else {
-			offset = PT_ORIGGPR2 + 4;
-			*(__u32*)((addr_t) __KSTK_PTREGS(child) + offset) = tmp;
+			/* gpr 0-15 */
+			*(__u32*)((addr_t) &__KSTK_PTREGS(child)->psw
+				  + addr*2 + 4) = tmp;
 		}
-	} else if (addr >= (addr_t) &dummy32->regs.fp_regs &&
-		   addr < (addr_t) (&dummy32->regs.fp_regs + 1)) {
+	} else if (addr < (addr_t) (&dummy32->regs.orig_gpr2)) {
+		/*
+		 * access registers are stored in the thread structure
+		 */
+		offset = addr - (addr_t) &dummy32->regs.acrs;
+		*(__u32*)((addr_t) &child->thread.acrs + offset) = tmp;
+
+	} else if (addr == (addr_t) (&dummy32->regs.orig_gpr2)) {
+		/*
+		 * orig_gpr2 is stored on the kernel stack
+		 */
+		*(__u32*)((addr_t) &__KSTK_PTREGS(child)->orig_gpr2 + 4) = tmp;
+
+	} else if (addr < (addr_t) (&dummy32->regs.fp_regs + 1)) {
 		/*
 		 * floating point regs. are stored in the thread structure 
 		 */
@@ -434,8 +467,7 @@ poke_user_emu31(struct task_struct *child, addr_t addr, addr_t data)
 	        offset = addr - (addr_t) &dummy32->regs.fp_regs;
 		*(__u32 *)((addr_t) &child->thread.fp_regs + offset) = tmp;
 
-	} else if (addr >= (addr_t) &dummy32->regs.per_info &&
-		   addr < (addr_t) (&dummy32->regs.per_info + 1)) {
+	} else if (addr < (addr_t) (&dummy32->regs.per_info + 1)) {
 		/*
 		 * per_info is found in the thread structure.
 		 */
@@ -478,7 +510,7 @@ do_ptrace_emu31(struct task_struct *child, long request, long addr, long data)
 		copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
 		if (copied != sizeof(tmp))
 			return -EIO;
-		return put_user(tmp, (unsigned int *) data);
+		return put_user(tmp, (unsigned int __user *) data);
 
 	case PTRACE_PEEKUSR:
 		/* read the word at location addr in the USER area. */
@@ -499,7 +531,8 @@ do_ptrace_emu31(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_PEEKUSR_AREA:
 	case PTRACE_POKEUSR_AREA:
-		if (copy_from_user(&parea, (void *) addr, sizeof(parea)))
+		if (copy_from_user(&parea, (void __user *) addr,
+							sizeof(parea)))
 			return -EFAULT;
 		addr = parea.kernel_addr;
 		data = parea.process_addr;
@@ -509,7 +542,7 @@ do_ptrace_emu31(struct task_struct *child, long request, long addr, long data)
 				ret = peek_user_emu31(child, addr, data);
 			else {
 				__u32 tmp;
-				if (get_user (tmp, (__u32 *) data))
+				if (get_user (tmp, (__u32 __user *) data))
 					return -EFAULT;
 				ret = poke_user_emu31(child, addr, tmp);
 			}
@@ -520,6 +553,19 @@ do_ptrace_emu31(struct task_struct *child, long request, long addr, long data)
 			copied += sizeof(unsigned int);
 		}
 		return 0;
+	case PTRACE_GETEVENTMSG:
+		return put_user((__u32) child->ptrace_message,
+				(unsigned int __user *) data);
+	case PTRACE_GETSIGINFO:
+		if (child->last_siginfo == NULL)
+			return -EINVAL;
+		return copy_siginfo_to_user32((siginfo_t32 __user *) data,
+					      child->last_siginfo);
+	case PTRACE_SETSIGINFO:
+		if (child->last_siginfo == NULL)
+			return -EINVAL;
+		return copy_siginfo_from_user32(child->last_siginfo,
+						(siginfo_t32 __user *) data);
 	}
 	return ptrace_request(child, request, addr, data);
 }
@@ -616,7 +662,7 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 	return -EIO;
 }
 
-asmlinkage int
+asmlinkage long
 sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
@@ -659,8 +705,16 @@ out:
 }
 
 asmlinkage void
-syscall_trace(void)
+syscall_trace(struct pt_regs *regs, int entryexit)
 {
+	if (unlikely(current->audit_context)) {
+		if (!entryexit)
+			audit_syscall_entry(current, regs->gprs[2],
+					    regs->orig_gpr2, regs->gprs[3],
+					    regs->gprs[4], regs->gprs[5]);
+		else
+			audit_syscall_exit(current, regs->gprs[2]);
+	}
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
 	if (!(current->ptrace & PT_PTRACED))

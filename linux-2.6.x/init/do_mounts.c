@@ -66,11 +66,11 @@ static dev_t __init try_name(char *name, int part)
 	/* read device number from .../dev */
 
 	sprintf(path, "/sys/block/%s/dev", name);
-	fd = open(path, 0, 0);
+	fd = sys_open(path, 0, 0);
 	if (fd < 0)
 		goto fail;
-	len = read(fd, buf, 32);
-	close(fd);
+	len = sys_read(fd, buf, 32);
+	sys_close(fd);
 	if (len <= 0 || len == 32 || buf[len - 1] != '\n')
 		goto fail;
 	buf[len - 1] = '\0';
@@ -96,11 +96,11 @@ static dev_t __init try_name(char *name, int part)
 
 	/* otherwise read range from .../range */
 	sprintf(path, "/sys/block/%s/range", name);
-	fd = open(path, 0, 0);
+	fd = sys_open(path, 0, 0);
 	if (fd < 0)
 		goto fail;
-	len = read(fd, buf, 32);
-	close(fd);
+	len = sys_read(fd, buf, 32);
+	sys_close(fd);
 	if (len <= 0 || len == 32 || buf[len - 1] != '\n')
 		goto fail;
 	buf[len - 1] = '\0';
@@ -141,9 +141,11 @@ dev_t __init name_to_dev_t(char *name)
 	dev_t res = 0;
 	int part;
 
+#ifdef CONFIG_SYSFS
 	sys_mkdir("/sys", 0700);
 	if (sys_mount("sysfs", "/sys", "sysfs", 0, NULL) < 0)
 		goto out;
+#endif
 
 	if (strncmp(name, "/dev/", 5) != 0) {
 		unsigned maj, min;
@@ -162,6 +164,9 @@ dev_t __init name_to_dev_t(char *name)
 	name += 5;
 	res = Root_NFS;
 	if (strcmp(name, "nfs") == 0)
+		goto done;
+	res = Root_RAM0;
+	if (strcmp(name, "ram") == 0)
 		goto done;
 
 	if (strlen(name) > 31)
@@ -189,9 +194,11 @@ dev_t __init name_to_dev_t(char *name)
 	p[-1] = '\0';
 	res = try_name(s, part);
 done:
+#ifdef CONFIG_SYSFS
 	sys_umount("/sys", 0);
 out:
 	sys_rmdir("/sys");
+#endif
 	return res;
 fail:
 	res = 0;
@@ -253,7 +260,6 @@ static void __init get_fs_names(char *page)
 static int __init do_mount_root(char *name, char *fs, int flags, void *data)
 {
 	int err = sys_mount(name, "/root", fs, flags, data);
-		
 	if (err)
 		return err;
 
@@ -271,12 +277,11 @@ void __init mount_block_root(char *name, int flags)
 	char *fs_names = __getname();
 	char *p;
 	char b[BDEVNAME_SIZE];
-	get_fs_names(fs_names);
 
+	get_fs_names(fs_names);
 retry:
 	for (p = fs_names; *p; p += strlen(p)+1) {
 		int err = do_mount_root(name, p, flags, root_mount_data);
-
 		switch (err) {
 			case 0:
 				goto out;
@@ -287,18 +292,18 @@ retry:
 				continue;
 		}
 	        /*
-		 * Allow the user to distinguish between failed open
+		 * Allow the user to distinguish between failed sys_open
 		 * and bad superblock on root device.
 		 */
 		__bdevname(ROOT_DEV, b);
-	
+
 		printk("VFS: Cannot open root device \"%s\" or %s\n",
 				root_device_name, b);
 		printk("Please append a correct \"root=\" boot option\n");
 
 		panic("VFS: Unable to mount root fs on %s", b);
 	}
-		panic("VFS: Unable to mount root fs on %s", __bdevname(ROOT_DEV, b));
+	panic("VFS: Unable to mount root fs on %s", __bdevname(ROOT_DEV, b));
 out:
 	putname(fs_names);
 }
@@ -327,21 +332,21 @@ void __init change_floppy(char *fmt, ...)
 	va_start(args, fmt);
 	vsprintf(buf, fmt, args);
 	va_end(args);
-	fd = open("/dev/root", O_RDWR | O_NDELAY, 0);
+	fd = sys_open("/dev/root", O_RDWR | O_NDELAY, 0);
 	if (fd >= 0) {
 		sys_ioctl(fd, FDEJECT, 0);
-		close(fd);
+		sys_close(fd);
 	}
 	printk(KERN_NOTICE "VFS: Insert %s and press ENTER\n", buf);
-	fd = open("/dev/console", O_RDWR, 0);
+	fd = sys_open("/dev/console", O_RDWR, 0);
 	if (fd >= 0) {
 		sys_ioctl(fd, TCGETS, (long)&termios);
 		termios.c_lflag &= ~ICANON;
 		sys_ioctl(fd, TCSETSF, (long)&termios);
-		read(fd, &c, 1);
+		sys_read(fd, &c, 1);
 		termios.c_lflag |= ICANON;
 		sys_ioctl(fd, TCSETSF, (long)&termios);
-		close(fd);
+		sys_close(fd);
 	}
 }
 #endif
@@ -385,23 +390,19 @@ void __init prepare_namespace(void)
 	md_run_setup();
 
 	if (saved_root_name[0]) {
-		
 		root_device_name = saved_root_name;
 		ROOT_DEV = name_to_dev_t(root_device_name);
 		if (strncmp(root_device_name, "/dev/", 5) == 0)
 			root_device_name += 5;
 	}
 
-	
 	is_floppy = MAJOR(ROOT_DEV) == FLOPPY_MAJOR;
-	
-		
+
 	if (initrd_load())
 		goto out;
 
 	if (is_floppy && rd_doload && rd_load_disk(0))
 		ROOT_DEV = Root_RAM0;
-
 
 	mount_root();
 out:

@@ -5,6 +5,9 @@
  *
  * 09Apr2002	akpm@zip.com.au
  *		Initial version
+ * 29Feb2004	kaos@sgi.com
+ *		Move worker thread creation to kthread to avoid chewing
+ *		up stack space with nested calls to kernel_thread.
  */
 
 #include <linux/sched.h>
@@ -17,6 +20,7 @@
 #include <linux/suspend.h>
 #include <linux/fs.h>		// Needed by writeback.h
 #include <linux/writeback.h>	// Prototypes pdflush_operation()
+#include <linux/kthread.h>
 
 
 /*
@@ -86,8 +90,6 @@ struct pdflush_work {
 
 static int __pdflush(struct pdflush_work *my_work)
 {
-	daemonize("pdflush");
-
 	current->flags |= PF_FLUSHER;
 	my_work->fn = NULL;
 	my_work->who = current;
@@ -105,7 +107,7 @@ static int __pdflush(struct pdflush_work *my_work)
 
 		schedule();
 		if (current->flags & PF_FREEZE) {
-			refrigerator(PF_IOTHREAD);
+			refrigerator(PF_FREEZE);
 			spin_lock_irq(&pdflush_lock);
 			continue;
 		}
@@ -170,6 +172,12 @@ static int __pdflush(struct pdflush_work *my_work)
 static int pdflush(void *dummy)
 {
 	struct pdflush_work my_work;
+
+	/*
+	 * pdflush can spend a lot of time doing encryption via dm-crypt.  We
+	 * don't want to do that at keventd's priority.
+	 */
+	set_user_nice(current, 0);
 	return __pdflush(&my_work);
 }
 
@@ -207,7 +215,7 @@ int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0)
 
 static void start_one_pdflush_thread(void)
 {
-	kernel_thread(pdflush, NULL, CLONE_KERNEL);
+	kthread_run(pdflush, NULL, "pdflush");
 }
 
 static int __init pdflush_init(void)

@@ -1,5 +1,5 @@
 /* SCTP kernel reference Implementation
- * (C) Copyright IBM Corp. 2001, 2003
+ * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
  * Copyright (c) 2001 Intel Corp.
@@ -57,15 +57,6 @@ enum { SCTP_MAX_STREAM = 0xffff };
 enum { SCTP_DEFAULT_OUTSTREAMS = 10 };
 enum { SCTP_DEFAULT_INSTREAMS = SCTP_MAX_STREAM };
 
-/* Define the amount of space to reserve for SCTP, IP, LL.
- * There is a little bit of waste that we are always allocating
- * for ipv6 headers, but this seems worth the simplicity.
- */
-
-#define SCTP_IP_OVERHEAD ((sizeof(struct sctphdr)\
-                          + sizeof(struct ipv6hdr)\
-                          + MAX_HEADER))
-
 /* Since CIDs are sparse, we need all four of the following
  * symbols.  CIDs are dense through SCTP_CID_BASE_MAX.
  */
@@ -76,6 +67,8 @@ enum { SCTP_DEFAULT_INSTREAMS = SCTP_MAX_STREAM };
 #define SCTP_NUM_CHUNK_TYPES		(SCTP_NUM_BASE_CHUNKTYPES + 2)
 
 #define SCTP_NUM_ADDIP_CHUNK_TYPES	2
+
+#define SCTP_NUM_PRSCTP_CHUNK_TYPES	1
 
 /* These are the different flavours of event.  */
 typedef enum {
@@ -182,6 +175,10 @@ typedef enum {
 	SCTP_IERROR_BAD_TAG,
 	SCTP_IERROR_BIG_GAP,
 	SCTP_IERROR_DUP_TSN,
+	SCTP_IERROR_HIGH_TSN,
+	SCTP_IERROR_IGNORE_TSN,
+	SCTP_IERROR_NO_DATA,
+	SCTP_IERROR_BAD_STREAM,
 
 } sctp_ierror_t;
 
@@ -237,11 +234,6 @@ const char *sctp_pname(const sctp_subtype_t);	/* primitives */
 
 /* This is a table of printable names of sctp_state_t's.  */
 extern const char *sctp_state_tbl[], *sctp_evttype_tbl[], *sctp_status_tbl[];
-
-/* SCTP reachability state for each address */
-#define SCTP_ADDR_NOHB			4
-#define SCTP_ADDR_REACHABLE		2
-#define SCTP_ADDR_NOT_REACHABLE		1
 
 /* Maximum chunk length considering padding requirements. */
 enum { SCTP_MAX_CHUNK_LEN = ((1<<16) - sizeof(__u32)) };
@@ -323,7 +315,7 @@ typedef enum {
 #define SCTP_DEFAULT_COOKIE_LIFE_USEC	0  /* microseconds */
 
 #define SCTP_DEFAULT_MINWINDOW	1500	/* default minimum rwnd size */
-#define SCTP_DEFAULT_MAXWINDOW	32768	/* default rwnd size */
+#define SCTP_DEFAULT_MAXWINDOW	65535	/* default rwnd size */
 #define SCTP_DEFAULT_MAXSEGMENT 1500	/* MTU size, this is the limit
                                          * to which we will raise the P-MTU.
 					 */
@@ -355,7 +347,6 @@ typedef enum {
 	SCTP_XMIT_OK,
 	SCTP_XMIT_PMTU_FULL,
 	SCTP_XMIT_RWND_FULL,
-	SCTP_XMIT_MUST_FRAG,
 	SCTP_XMIT_NAGLE_DELAY,
 } sctp_xmit_t;
 

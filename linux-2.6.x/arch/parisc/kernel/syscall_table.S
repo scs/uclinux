@@ -1,3 +1,35 @@
+/*    System Call Table
+ *
+ *    Copyright (C) 1999-2003 Matthew Wilcox <willy at parisc-linux.org>
+ *    Copyright (C) 2000-2001 John Marvin <jsm at parisc-linux.org>
+ *    Copyright (C) 2000 Alan Modra <amodra at parisc-linux.org>
+ *    Copyright (C) 2000-2003 Paul Bame <bame at parisc-linux.org>
+ *    Copyright (C) 2000 Philipp Rumpf <prumpf with tux.org>
+ *    Copyright (C) 2000 Michael Ang <mang with subcarrier.org>
+ *    Copyright (C) 2000 David Huggins-Daines <dhd with pobox.org>
+ *    Copyright (C) 2000 Grant Grundler <grundler at parisc-linux.org>
+ *    Copyright (C) 2001 Richard Hirst <rhirst with parisc-linux.org>
+ *    Copyright (C) 2001-2002 Ryan Bradetich <rbrad at parisc-linux.org>
+ *    Copyright (C) 2001 Helge Deller <deller at parisc-linux.org>
+ *    Copyright (C) 2000-2001 Thomas Bogendoerfer <tsbogend at parisc-linux.org>
+ *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
+ *
+ *
+ *    This program is free software; you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation; either version 2 of the License, or
+ *    (at your option) any later version.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License
+ *    along with this program; if not, write to the Free Software
+ *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #undef ENTRY_SAME
 #undef ENTRY_DIFF
 #undef ENTRY_UHOH
@@ -52,7 +84,7 @@
 	ENTRY_DIFF(lseek)
 	ENTRY_SAME(getpid)		/* 20 */
 	/* the 'void * data' parameter may need re-packing in wide */
-	ENTRY_DIFF(mount)
+	ENTRY_COMP(mount)
 	/* concerned about struct sockaddr in wide/narrow */
 	/* ---> I think sockaddr is OK unless the compiler packs the struct */
 	/*      differently to align the char array */
@@ -200,12 +232,12 @@
 	ENTRY_DIFF(getdents)
 	/* it is POSSIBLE that select will be OK because even though fd_set
 	 * contains longs, the macros and sizes are clever. */
-	ENTRY_DIFF(select)
+	ENTRY_COMP(select)
 	ENTRY_SAME(flock)
 	ENTRY_SAME(msync)
 	/* struct iovec contains pointers */
-	ENTRY_DIFF(readv)		/* 145 */
-	ENTRY_DIFF(writev)
+	ENTRY_COMP(readv)		/* 145 */
+	ENTRY_COMP(writev)
 	ENTRY_SAME(getsid)
 	ENTRY_SAME(fdatasync)
 	/* struct __sysctl_args is a mess */
@@ -234,7 +266,7 @@
 	ENTRY_SAME(ni_syscall)		/* query_module */
 	ENTRY_SAME(poll)
 	/* structs contain pointers and an in_addr... */
-	ENTRY_DIFF(nfsservctl)
+	ENTRY_COMP(nfsservctl)
 	ENTRY_SAME(setresgid)		/* 170 */
 	ENTRY_SAME(getresgid)
 	ENTRY_SAME(prctl)
@@ -302,3 +334,12 @@
 	ENTRY_SAME(epoll_ctl)		/* 225 */
 	ENTRY_SAME(epoll_wait)
  	ENTRY_SAME(remap_file_pages)
+  ENTRY_SAME(semtimedop)
+  ENTRY_SAME(mq_open)
+  ENTRY_SAME(mq_unlink)   /* 230 */
+  ENTRY_SAME(mq_timedsend)
+  ENTRY_SAME(mq_timedreceive)
+  ENTRY_SAME(mq_notify)
+  ENTRY_SAME(mq_getsetattr)
+  /* Nothing yet */       /* 235 */
+

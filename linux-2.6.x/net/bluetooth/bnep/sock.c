@@ -4,7 +4,7 @@
    Written 2001-2002 by
 	David Libault  <david.libault@inventel.fr>
 
-   Copyright (C) 2002 Maxim Krasnyanskiy <maxk@qualcomm.com>
+   Copyright (C) 2002 Maxim Krasnyansky <maxk@qualcomm.com>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License version 2 as
@@ -77,6 +77,7 @@ static int bnep_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 	struct bnep_conndel_req  cd;
 	struct bnep_conninfo ci;
 	struct socket *nsock;
+	void __user *argp = (void __user *)arg;
 	int err;
 
 	BT_DBG("cmd %x arg %lx", cmd, arg);
@@ -86,19 +87,21 @@ static int bnep_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
 
-		if (copy_from_user(&ca, (void *) arg, sizeof(ca)))
+		if (copy_from_user(&ca, argp, sizeof(ca)))
 			return -EFAULT;
 	
 		nsock = sockfd_lookup(ca.sock, &err);
 		if (!nsock)
 			return err;
 
-		if (nsock->sk->sk_state != BT_CONNECTED)
+		if (nsock->sk->sk_state != BT_CONNECTED) {
+			fput(nsock->file);
 			return -EBADFD;
+		}
 
 		err = bnep_add_connection(&ca, nsock);
 		if (!err) {
-    			if (copy_to_user((void *) arg, &ca, sizeof(ca)))
+    			if (copy_to_user(argp, &ca, sizeof(ca)))
 				err = -EFAULT;
 		} else
 			fput(nsock->file);
@@ -109,30 +112,30 @@ static int bnep_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
 
-		if (copy_from_user(&cd, (void *) arg, sizeof(cd)))
+		if (copy_from_user(&cd, argp, sizeof(cd)))
 			return -EFAULT;
 	
 		return bnep_del_connection(&cd);
 
 	case BNEPGETCONNLIST:
-		if (copy_from_user(&cl, (void *) arg, sizeof(cl)))
+		if (copy_from_user(&cl, argp, sizeof(cl)))
 			return -EFAULT;
 
 		if (cl.cnum <= 0)
 			return -EINVAL;
 	
 		err = bnep_get_connlist(&cl);
-		if (!err && copy_to_user((void *) arg, &cl, sizeof(cl)))
+		if (!err && copy_to_user(argp, &cl, sizeof(cl)))
 			return -EFAULT;
 
 		return err;
 
 	case BNEPGETCONNINFO:
-		if (copy_from_user(&ci, (void *) arg, sizeof(ci)))
+		if (copy_from_user(&ci, argp, sizeof(ci)))
 			return -EFAULT;
 
 		err = bnep_get_conninfo(&ci);
-		if (!err && copy_to_user((void *) arg, &ci, sizeof(ci)))
+		if (!err && copy_to_user(argp, &ci, sizeof(ci)))
 			return -EFAULT;
 
 		return err;

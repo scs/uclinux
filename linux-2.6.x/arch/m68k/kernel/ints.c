@@ -48,8 +48,14 @@
 static irq_handler_t irq_list[SYS_IRQS];
 
 static const char *default_names[SYS_IRQS] = {
-	"spurious int", "int1 handler", "int2 handler", "int3 handler",
-	"int4 handler", "int5 handler", "int6 handler", "int7 handler"
+	[0] = "spurious int",
+	[1] = "int1 handler",
+	[2] = "int2 handler",
+	[3] = "int3 handler",
+	[4] = "int4 handler",
+	[5] = "int5 handler",
+	[6] = "int6 handler",
+	[7] = "int7 handler"
 };
 
 /* The number of spurious interrupts */
@@ -137,8 +143,8 @@ void free_irq(unsigned int irq, void *dev_id)
 
 EXPORT_SYMBOL(free_irq);
 
-int sys_request_irq(unsigned int irq, 
-                    irqreturn_t (*handler)(int, void *, struct pt_regs *), 
+int cpu_request_irq(unsigned int irq,
+                    irqreturn_t (*handler)(int, void *, struct pt_regs *),
                     unsigned long flags, const char *devname, void *dev_id)
 {
 	if (irq < IRQ1 || irq > IRQ7) {
@@ -169,7 +175,7 @@ int sys_request_irq(unsigned int irq,
 	return 0;
 }
 
-void sys_free_irq(unsigned int irq, void *dev_id)
+void cpu_free_irq(unsigned int irq, void *dev_id)
 {
 	if (irq < IRQ1 || irq > IRQ7) {
 		printk("%s: Incorrect IRQ %d\n", __FUNCTION__, irq);
@@ -256,8 +262,8 @@ int show_interrupts(struct seq_file *p, void *v)
 	int i = *(loff_t *) v;
 
 	/* autovector interrupts */
-	if (mach_default_handler) {
-		if (i < SYS_IRQS) {
+	if (i < SYS_IRQS) {
+		if (mach_default_handler) {
 			seq_printf(p, "auto %2d: %10u ", i,
 			               i ? kstat_cpu(0).irqs[i] : num_spurious);
 			seq_puts(p, "  ");

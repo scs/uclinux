@@ -2,14 +2,19 @@
  * DMA memory management for framework level HCD code (hc_driver)
  *
  * This implementation plugs in through generic "usb_bus" level methods,
- * and works with real PCI, or when "pci device == null" makes sense.
+ * and should work with all USB controllers, regardles of bus type.
  */
 
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
+#include <linux/device.h>
+#include <linux/mm.h>
+#include <asm/io.h>
+#include <asm/scatterlist.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmapool.h>
 
 
 #ifdef CONFIG_USB_DEBUG
@@ -46,8 +51,8 @@ static const size_t	pool_max [HCD_BUFFER_POOLS] = {
  * @hcd: the bus whose buffer pools are to be initialized
  * Context: !in_interrupt()
  *
- * Call this as part of initializing a host controller that uses the pci dma
- * memory allocators.  It initializes some pools of dma-consistent memory that
+ * Call this as part of initializing a host controller that uses the dma
+ * memory allocators.  It initializes some pools of dma-coherent memory that
  * will be shared by all drivers using that controller, or returns a negative
  * errno value on error.
  *
@@ -62,7 +67,7 @@ int hcd_buffer_create (struct usb_hcd *hcd)
 		if (!(size = pool_max [i]))
 			continue;
 		snprintf (name, sizeof name, "buffer-%d", size);
-		hcd->pool [i] = pci_pool_create (name, hcd->pdev,
+		hcd->pool [i] = dma_pool_create (name, hcd->self.controller,
 				size, size, 0);
 		if (!hcd->pool [i]) {
 			hcd_buffer_destroy (hcd);
@@ -86,10 +91,10 @@ void hcd_buffer_destroy (struct usb_hcd *hcd)
 	int		i;
 
 	for (i = 0; i < HCD_BUFFER_POOLS; i++) { 
-		struct pci_pool		*pool = hcd->pool [i];
+		struct dma_pool		*pool = hcd->pool [i];
 		if (pool) {
-			pci_pool_destroy (pool);
-			hcd->pool [i] = 0;
+			dma_pool_destroy (pool);
+			hcd->pool[i] = NULL;
 		}
 	}
 }
@@ -110,11 +115,17 @@ void *hcd_buffer_alloc (
 	struct usb_hcd		*hcd = bus->hcpriv;
 	int 			i;
 
+	/* some USB hosts just use PIO */
+	if (!bus->controller->dma_mask) {
+		*dma = ~(dma_addr_t) 0;
+		return kmalloc (size, mem_flags);
+	}
+
 	for (i = 0; i < HCD_BUFFER_POOLS; i++) {
 		if (size <= pool_max [i])
-			return pci_pool_alloc (hcd->pool [i], mem_flags, dma);
+			return dma_pool_alloc (hcd->pool [i], mem_flags, dma);
 	}
-	return pci_alloc_consistent (hcd->pdev, size, dma);
+	return dma_alloc_coherent (hcd->self.controller, size, dma, 0);
 }
 
 void hcd_buffer_free (
@@ -129,11 +140,17 @@ void hcd_buffer_free (
 
 	if (!addr)
 		return;
+
+	if (!bus->controller->dma_mask) {
+		kfree (addr);
+		return;
+	}
+
 	for (i = 0; i < HCD_BUFFER_POOLS; i++) {
 		if (size <= pool_max [i]) {
-			pci_pool_free (hcd->pool [i], addr, dma);
+			dma_pool_free (hcd->pool [i], addr, dma);
 			return;
 		}
 	}
-	pci_free_consistent (hcd->pdev, size, addr, dma);
+	dma_free_coherent (hcd->self.controller, size, addr, dma);
 }

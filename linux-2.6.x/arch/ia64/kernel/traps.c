@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/tty.h>
 #include <linux/vt_kern.h>		/* For unblank_screen() */
+#include <linux/module.h>       /* for EXPORT_SYMBOL */
 
 #include <asm/fpswa.h>
 #include <asm/hardirq.h>
@@ -21,46 +22,17 @@
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 
-/*
- * fp_emulate() needs to be able to access and update all floating point registers.  Those
- * saved in pt_regs can be accessed through that structure, but those not saved, will be
- * accessed directly.  To make this work, we need to ensure that the compiler does not end
- * up using a preserved floating point register on its own.  The following achieves this
- * by declaring preserved registers that are not marked as "fixed" as global register
- * variables.
- */
-#ifdef ASM_SUPPORTED
-register double f2 asm ("f2"); register double f3 asm ("f3");
-register double f4 asm ("f4"); register double f5 asm ("f5");
-
-register long f16 asm ("f16"); register long f17 asm ("f17");
-register long f18 asm ("f18"); register long f19 asm ("f19");
-register long f20 asm ("f20"); register long f21 asm ("f21");
-register long f22 asm ("f22"); register long f23 asm ("f23");
-
-register double f24 asm ("f24"); register double f25 asm ("f25");
-register double f26 asm ("f26"); register double f27 asm ("f27");
-register double f28 asm ("f28"); register double f29 asm ("f29");
-register double f30 asm ("f30"); register double f31 asm ("f31");
-#endif
-
 extern spinlock_t timerlist_lock;
 
-static fpswa_interface_t *fpswa_interface;
+fpswa_interface_t *fpswa_interface;
+EXPORT_SYMBOL(fpswa_interface);
 
 void __init
 trap_init (void)
 {
-	int major = 0, minor = 0;
-
-	if (ia64_boot_param->fpswa) {
+	if (ia64_boot_param->fpswa)
 		/* FPSWA fixup: make the interface pointer a kernel virtual address: */
 		fpswa_interface = __va(ia64_boot_param->fpswa);
-		major = fpswa_interface->revision >> 16;
-		minor = fpswa_interface->revision & 0xffff;
-	}
-	printk(KERN_INFO "fpswa interface at %lx (rev %d.%d)\n",
-	       ia64_boot_param->fpswa, major, minor);
 }
 
 /*
@@ -495,7 +467,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 			siginfo.si_isr = isr;
 			force_sig_info(sig, &siginfo, current);
 			return;
-		} else if (done_with_exception(regs))
+		} else if (ia64_done_with_exception(regs))
 			return;
 		sprintf(buf, "NaT consumption");
 		break;

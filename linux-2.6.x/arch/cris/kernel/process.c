@@ -8,15 +8,21 @@
  *  Authors:   Bjorn Wesen (bjornw@axis.com)
  *
  *  $Log$
- *  Revision 1.1  2004/07/19 11:41:44  lgsoft
- *  Initial revision
+ *  Revision 1.1.1.2  2004/09/07 09:14:14  lgsoft
+ *  Import of 2.6.8
  *
- *  Revision 1.1.1.1  2004/07/18 13:20:11  nidhi
- *  Importing
+ *  Revision 1.17  2004/04/05 13:53:48  starvik
+ *  Merge of Linux 2.6.5
+ *
+ *  Revision 1.16  2003/10/27 08:04:33  starvik
+ *  Merge of Linux 2.6.0-test9
+ *
+ *  Revision 1.15  2003/09/11 07:29:52  starvik
+ *  Merge of Linux 2.6.0-test5
  *
  *  Revision 1.14  2003/06/10 10:21:12  johana
  *  Moved thread_saved_pc() from arch/cris/kernel/process.c to
- *  subarch specific process.c. 
+ *  subarch specific process.c. arch-v32 has an erp, no irp.
  *
  *  Revision 1.13  2003/04/09 05:20:47  starvik
  *  Merge of Linux 2.5.67
@@ -97,11 +103,10 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
-#define __KERNEL_SYSCALLS__
-
 #include <asm/atomic.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
+#include <asm/irq.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/fs_struct.h>
@@ -110,6 +115,7 @@
 #include <linux/fs.h>
 #include <linux/user.h>
 #include <linux/elfcore.h>
+#include <linux/mqueue.h>
 
 //#define DEBUG
 
@@ -190,13 +196,17 @@ void cpu_idle (void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
-		void (*idle)(void) = pm_idle;
-		if (!idle)
-			idle = default_idle;
-		while (!need_resched())
+		while (!need_resched()) {
+			void (*idle)(void) = pm_idle;
+
+			if (!idle)
+				idle = default_idle;
+
 			idle();
+		}
 		schedule();
 	}
+
 }
 
 void hard_reset_now (void);

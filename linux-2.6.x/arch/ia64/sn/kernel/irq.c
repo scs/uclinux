@@ -14,10 +14,11 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/bootmem.h>
+#include <linux/cpumask.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/sn/sgi.h>
-#include <asm/sn/iograph.h>
 #include <asm/sn/hcl.h>
 #include <asm/sn/types.h>
 #include <asm/sn/pci/pciio.h>
@@ -39,9 +40,15 @@
 static void force_interrupt(int irq);
 extern void pcibr_force_interrupt(pcibr_intr_t intr);
 extern int sn_force_interrupt_flag;
+struct irq_desc * sn_irq_desc(unsigned int irq);
+extern cpumask_t    __cacheline_aligned pending_irq_cpumask[NR_IRQS];
 
-static pcibr_intr_list_t *pcibr_intr_list;
+struct sn_intr_list_t {
+	struct sn_intr_list_t *next;
+	pcibr_intr_t intr;
+};
 
+static struct sn_intr_list_t *sn_intr_list[NR_IRQS];
 
 
 static unsigned int
@@ -63,6 +70,21 @@ sn_disable_irq(unsigned int irq)
 static void
 sn_enable_irq(unsigned int irq)
 {
+}
+
+static inline void sn_move_irq(int irq)
+{
+	/* note - we hold desc->lock */
+	cpumask_t tmp;
+	irq_desc_t *desc = irq_descp(irq);
+
+	if (!cpus_empty(pending_irq_cpumask[irq])) {
+		cpus_and(tmp, pending_irq_cpumask[irq], cpu_online_map);
+		if (unlikely(!cpus_empty(tmp))) {
+			desc->handler->set_affinity(irq, pending_irq_cpumask[irq]);
+		}
+		cpus_clear(pending_irq_cpumask[irq]);
+	}
 }
 
 static void
@@ -88,6 +110,7 @@ sn_ack_irq(unsigned int irq)
 	}
 	HUB_S((unsigned long *)GLOBAL_MMR_ADDR(nasid, SH_EVENT_OCCURRED_ALIAS), mask );
 	__set_bit(irq, (volatile void *)pda->sn_in_service_ivecs);
+	sn_move_irq(irq);
 }
 
 static void
@@ -96,6 +119,8 @@ sn_end_irq(unsigned int irq)
 	int nasid;
 	int ivec;
 	unsigned long event_occurred;
+	irq_desc_t *desc = sn_irq_desc(irq);
+	unsigned int status = desc->status;
 
 	ivec = irq & 0xff;
 	if (ivec == SGI_UART_VECTOR) {
@@ -110,34 +135,32 @@ sn_end_irq(unsigned int irq)
 	}
 	__clear_bit(ivec, (volatile void *)pda->sn_in_service_ivecs);
 	if (sn_force_interrupt_flag)
-		force_interrupt(irq);
+		if (!(status & (IRQ_DISABLED | IRQ_INPROGRESS)))
+			force_interrupt(irq);
 }
 
 static void
 sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 {
-#if CONFIG_SMP  
-        int redir = 0;
-        pcibr_intr_list_t p = pcibr_intr_list[irq];
-        pcibr_intr_t intr; 
-	int	cpu;
-        extern void sn_shub_redirect_intr(pcibr_intr_t intr, unsigned long cpu);
-        extern void sn_tio_redirect_intr(pcibr_intr_t intr, unsigned long cpu);
-                
+#ifdef CONFIG_SMP
+	int redir = 0;
+	int cpu;
+	struct sn_intr_list_t *p = sn_intr_list[irq];
+	pcibr_intr_t intr;
+	extern void sn_shub_redirect_intr(pcibr_intr_t intr, unsigned long cpu);
+	extern void sn_tio_redirect_intr(pcibr_intr_t intr, unsigned long cpu);
+
 	if (p == NULL)
 		return; 
         
-	intr = p->il_intr;
+	intr = p->intr;
 
 	if (intr == NULL)
 		return; 
 
 	cpu = first_cpu(mask);
-	if (IS_PIC_SOFT(intr->bi_soft) ) {
-		sn_shub_redirect_intr(intr, cpu);
-	} else { 
-		return; 
-	}
+	sn_shub_redirect_intr(intr, cpu);
+	irq = irq & 0xff;  /* strip off redirect bit, if someone stuck it on. */
 	(void) set_irq_affinity_info(irq, cpu_physical_id(intr->bi_cpu), redir);
 #endif /* CONFIG_SMP */
 }
@@ -156,7 +179,8 @@ struct hw_interrupt_type irq_type_sn = {
 
 
 struct irq_desc *
-sn_irq_desc(unsigned int irq) {
+sn_irq_desc(unsigned int irq)
+{
 
 	irq = SN_IVEC_FROM_IRQ(irq);
 
@@ -164,12 +188,14 @@ sn_irq_desc(unsigned int irq) {
 }
 
 u8
-sn_irq_to_vector(u8 irq) {
+sn_irq_to_vector(unsigned int irq)
+{
 	return(irq);
 }
 
 unsigned int
-sn_local_vector_to_irq(u8 vector) {
+sn_local_vector_to_irq(u8 vector)
+{
 	return (CPU_VECTOR_TO_IRQ(smp_processor_id(), vector));
 }
 
@@ -179,7 +205,7 @@ sn_irq_init (void)
 	int i;
 	irq_desc_t *base_desc = _irq_desc;
 
-	for (i=IA64_FIRST_DEVICE_VECTOR; i<NR_IRQS; i++) {
+	for (i=0; i<NR_IRQS; i++) {
 		if (base_desc[i].handler == &no_irq_type) {
 			base_desc[i].handler = &irq_type_sn;
 		}
@@ -187,60 +213,99 @@ sn_irq_init (void)
 }
 
 void
-register_pcibr_intr(int irq, pcibr_intr_t intr) {
-	pcibr_intr_list_t p = kmalloc(sizeof(struct pcibr_intr_list_s), GFP_KERNEL);
-	pcibr_intr_list_t list;
-	int cpu = SN_CPU_FROM_IRQ(irq);
+register_pcibr_intr(int irq, pcibr_intr_t intr)
+{
+	struct sn_intr_list_t *p = kmalloc(sizeof(struct sn_intr_list_t), GFP_KERNEL);
+	struct sn_intr_list_t *list;
+	int cpu = intr->bi_cpu;
 
-	if (pcibr_intr_list == NULL) {
-		pcibr_intr_list = kmalloc(sizeof(pcibr_intr_list_t) * NR_IRQS, GFP_KERNEL);
-		if (pcibr_intr_list == NULL) 
-			pcibr_intr_list = vmalloc(sizeof(pcibr_intr_list_t) * NR_IRQS);
-		if (pcibr_intr_list == NULL) panic("Could not allocate memory for pcibr_intr_list\n");
-		memset( (void *)pcibr_intr_list, 0, sizeof(pcibr_intr_list_t) * NR_IRQS);
-	}
 	if (pdacpu(cpu)->sn_last_irq < irq) {
 		pdacpu(cpu)->sn_last_irq = irq;
 	}
-	if (pdacpu(cpu)->sn_first_irq > irq) pdacpu(cpu)->sn_first_irq = irq;
-	if (!p) panic("Could not allocate memory for pcibr_intr_list_t\n");
-	if ((list = pcibr_intr_list[irq])) {
-		while (list->il_next) list = list->il_next;
-		list->il_next = p;
-		p->il_next = NULL;
-		p->il_intr = intr;
+	if (pdacpu(cpu)->sn_first_irq == 0 || pdacpu(cpu)->sn_first_irq > irq) pdacpu(cpu)->sn_first_irq = irq;
+	if (!p) panic("Could not allocate memory for sn_intr_list_t\n");
+	if ((list = sn_intr_list[irq])) {
+		while (list->next) list = list->next;
+		list->next = p;
+		p->next = NULL;
+		p->intr = intr;
 	} else {
-		pcibr_intr_list[irq] = p;
-		p->il_next = NULL;
-		p->il_intr = intr;
+		sn_intr_list[irq] = p;
+		p->next = NULL;
+		p->intr = intr;
 	}
 }
 
 void
-force_polled_int(void) {
+unregister_pcibr_intr(int irq, pcibr_intr_t intr)
+{
+
+	struct sn_intr_list_t **prev, *curr;
+	int cpu = intr->bi_cpu;
 	int i;
-	pcibr_intr_list_t p;
+
+	if (sn_intr_list[irq] == NULL)
+		return;
+
+	prev = &sn_intr_list[irq];
+	curr = sn_intr_list[irq];
+	while (curr) {
+		if (curr->intr == intr)	 {
+			*prev = curr->next;
+			break;
+		}
+		prev = &curr->next;
+		curr = curr->next;
+	}
+
+	if (curr)
+		kfree(curr);
+
+	if (!sn_intr_list[irq]) {
+		if (pdacpu(cpu)->sn_last_irq == irq) {
+			for (i = pdacpu(cpu)->sn_last_irq - 1; i; i--)
+				if (sn_intr_list[i])
+					break;
+			pdacpu(cpu)->sn_last_irq = i;
+		}
+
+		if (pdacpu(cpu)->sn_first_irq == irq) {
+			pdacpu(cpu)->sn_first_irq = 0;
+			for (i = pdacpu(cpu)->sn_first_irq + 1; i < NR_IRQS; i++)
+				if (sn_intr_list[i])
+					pdacpu(cpu)->sn_first_irq = i;
+		}
+	}
+
+}
+
+void
+force_polled_int(void)
+{
+	int i;
+	struct sn_intr_list_t *p;
 
 	for (i=0; i<NR_IRQS;i++) {
-		p = pcibr_intr_list[i];
+		p = sn_intr_list[i];
 		while (p) {
-			if (p->il_intr){
-				pcibr_force_interrupt(p->il_intr);
+			if (p->intr){
+				pcibr_force_interrupt(p->intr);
 			}
-			p = p->il_next;
+			p = p->next;
 		}
 	}
 }
 
 static void
-force_interrupt(int irq) {
-	pcibr_intr_list_t p = pcibr_intr_list[irq];
+force_interrupt(int irq)
+{
+	struct sn_intr_list_t *p = sn_intr_list[irq];
 
 	while (p) {
-		if (p->il_intr) {
-			pcibr_force_interrupt(p->il_intr);
+		if (p->intr) {
+			pcibr_force_interrupt(p->intr);
 		}
-		p = p->il_next;
+		p = p->next;
 	}
 }
 
@@ -255,14 +320,15 @@ but we should never miss a real lost interrupt.
 */
 
 static void
-sn_check_intr(int irq, pcibr_intr_t intr) {
+sn_check_intr(int irq, pcibr_intr_t intr)
+{
 	unsigned long regval;
 	int irr_reg_num;
 	int irr_bit;
 	unsigned long irr_reg;
 
 
-	regval = pcireg_intr_status_get(intr->bi_soft->bs_base);
+	regval = pcireg_intr_status_get(intr->bi_soft);
 	irr_reg_num = irq_to_vector(irq) / 64;
 	irr_bit = irq_to_vector(irq) % 64;
 	switch (irr_reg_num) {
@@ -294,68 +360,20 @@ sn_check_intr(int irq, pcibr_intr_t intr) {
 }
 
 void
-sn_lb_int_war_check(void) {
+sn_lb_int_war_check(void)
+{
 	int i;
 
 	if (pda->sn_first_irq == 0) return;
 	for (i=pda->sn_first_irq;
 		i <= pda->sn_last_irq; i++) {
-			pcibr_intr_list_t p = pcibr_intr_list[i];
+			struct sn_intr_list_t *p = sn_intr_list[i];
 			if (p == NULL) {
 				continue;
 			}
 			while (p) {
-				sn_check_intr(i, p->il_intr);
-				p = p->il_next;
+				sn_check_intr(i, p->intr);
+				p = p->next;
 			}
 	}
-}
-
-static inline int
-sn_get_next_bit(void) {
-	int i;
-	int bit;
-
-	for (i = 3; i >= 0; i--) {
-		if (pda->sn_soft_irr[i] != 0) {
-			bit = (i * 64) +  __ffs(pda->sn_soft_irr[i]);
-			__change_bit(bit, (volatile void *)pda->sn_soft_irr);
-			return(bit);
-		}
-	}
-	return IA64_SPURIOUS_INT_VECTOR;
-}
-
-void
-sn_set_tpr(int vector) {
-	if (vector > IA64_LAST_DEVICE_VECTOR || vector < IA64_FIRST_DEVICE_VECTOR) {
-		ia64_setreg(_IA64_REG_CR_TPR, vector);
-	} else {
-		ia64_setreg(_IA64_REG_CR_TPR, IA64_LAST_DEVICE_VECTOR);
-	}
-}
-
-static inline void
-sn_get_all_ivr(void) {
-	int vector;
-
-	vector = ia64_get_ivr();
-	while (vector != IA64_SPURIOUS_INT_VECTOR) {
-		__set_bit(vector, (volatile void *)pda->sn_soft_irr);
-		ia64_eoi();
-		if (vector > IA64_LAST_DEVICE_VECTOR) return;
-		vector = ia64_get_ivr();
-	}
-}
-	
-int
-sn_get_ivr(void) {
-	int vector;
-
-	vector = sn_get_next_bit();
-	if (vector == IA64_SPURIOUS_INT_VECTOR) {
-		sn_get_all_ivr();
-		vector = sn_get_next_bit();
-	}
-	return vector;
 }

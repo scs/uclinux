@@ -25,6 +25,7 @@
 #include <linux/highmem.h>
 #include <linux/kallsyms.h>
 #include <linux/ptrace.h>
+#include <linux/version.h>
 
 #ifdef CONFIG_EISA
 #include <linux/ioport.h>
@@ -46,7 +47,6 @@
 #include <asm/nmi.h>
 
 #include <asm/smp.h>
-#include <asm/pgalloc.h>
 #include <asm/arch_hooks.h>
 
 #include <linux/irq.h>
@@ -93,35 +93,76 @@ asmlinkage void machine_check(void);
 
 static int kstack_depth_to_print = 24;
 
-void show_trace(struct task_struct *task, unsigned long * stack)
+static int valid_stack_ptr(struct task_struct *task, void *p)
+{
+	if (p <= (void *)task->thread_info)
+		return 0;
+	if (kstack_end(p))
+		return 0;
+	return 1;
+}
+
+#ifdef CONFIG_FRAME_POINTER
+static void print_context_stack(struct task_struct *task, unsigned long *stack,
+			 unsigned long ebp)
 {
 	unsigned long addr;
 
-	if (!stack)
-		stack = (unsigned long*)&stack;
+	while (valid_stack_ptr(task, (void *)ebp)) {
+		addr = *(unsigned long *)(ebp + 4);
+		printk(" [<%08lx>] ", addr);
+		print_symbol("%s", addr);
+		printk("\n");
+		ebp = *(unsigned long *)ebp;
+	}
+}
+#else
+static void print_context_stack(struct task_struct *task, unsigned long *stack,
+			 unsigned long ebp)
+{
+	unsigned long addr;
 
-	printk("Call Trace:");
-#ifdef CONFIG_KALLSYMS
-	printk("\n");
-#endif
 	while (!kstack_end(stack)) {
 		addr = *stack++;
-		if (kernel_text_address(addr)) {
-			printk(" [<%08lx>] ", addr);
-			print_symbol("%s\n", addr);
+		if (__kernel_text_address(addr)) {
+			printk(" [<%08lx>]", addr);
+			print_symbol(" %s", addr);
+			printk("\n");
 		}
 	}
-	printk("\n");
 }
+#endif
 
-void show_trace_task(struct task_struct *tsk)
+void show_trace(struct task_struct *task, unsigned long * stack)
 {
-	unsigned long esp = tsk->thread.esp;
+	unsigned long ebp;
 
-	/* User space on another CPU? */
-	if ((esp ^ (unsigned long)tsk->thread_info) & (PAGE_MASK<<1))
+	if (!task)
+		task = current;
+
+	if (!valid_stack_ptr(task, stack)) {
+		printk("Stack pointer is garbage, not printing trace\n");
 		return;
-	show_trace(tsk, (unsigned long *)esp);
+	}
+
+	if (task == current) {
+		/* Grab ebp right from our regs */
+		asm ("movl %%ebp, %0" : "=r" (ebp) : );
+	} else {
+		/* ebp is the last reg pushed by switch_to */
+		ebp = *(unsigned long *) task->thread.esp;
+	}
+
+	while (1) {
+		struct thread_info *context;
+		context = (struct thread_info *)
+			((unsigned long)stack & (~(THREAD_SIZE - 1)));
+		print_context_stack(task, stack, ebp);
+		stack = (unsigned long*)context->previous_esp;
+		if (!stack)
+			break;
+		printk(" =======================\n");
+	}
 }
 
 void show_stack(struct task_struct *task, unsigned long *esp)
@@ -144,7 +185,7 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 			printk("\n       ");
 		printk("%08lx ", *stack++);
 	}
-	printk("\n");
+	printk("\nCall Trace:\n");
 	show_trace(task, esp);
 }
 
@@ -175,9 +216,10 @@ void show_registers(struct pt_regs *regs)
 		ss = regs->xss & 0xffff;
 	}
 	print_modules();
-	printk("CPU:    %d\nEIP:    %04x:[<%08lx>]    %s\nEFLAGS: %08lx\n",
-		smp_processor_id(), 0xffff & regs->xcs, regs->eip, print_tainted(), regs->eflags);
-
+	printk("CPU:    %d\nEIP:    %04x:[<%08lx>]    %s\nEFLAGS: %08lx"
+			"   (%s) \n",
+		smp_processor_id(), 0xffff & regs->xcs, regs->eip,
+		print_tainted(), regs->eflags, UTS_RELEASE);
 	print_symbol("EIP is at %s\n", regs->eip);
 	printk("eax: %08lx   ebx: %08lx   ecx: %08lx   edx: %08lx\n",
 		regs->eax, regs->ebx, regs->ecx, regs->edx);
@@ -240,7 +282,7 @@ static void handle_BUG(struct pt_regs *regs)
 		file = "<bad filename>";
 
 	printk("------------[ cut here ]------------\n");
-	printk("kernel BUG at %s:%d!\n", file, line);
+	printk(KERN_ALERT "kernel BUG at %s:%d!\n", file, line);
 
 no_bug:
 	return;
@@ -255,12 +297,27 @@ spinlock_t die_lock = SPIN_LOCK_UNLOCKED;
 void die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
+	int nl = 0;
 
 	console_verbose();
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
 	handle_BUG(regs);
-	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
+	printk(KERN_ALERT "%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
+#ifdef CONFIG_PREEMPT
+	printk("PREEMPT ");
+	nl = 1;
+#endif
+#ifdef CONFIG_SMP
+	printk("SMP ");
+	nl = 1;
+#endif
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	printk("DEBUG_PAGEALLOC");
+	nl = 1;
+#endif
+	if (nl)
+		printk("\n");
 	show_registers(regs);
 	bust_spinlocks(0);
 	spin_unlock_irq(&die_lock);
@@ -340,7 +397,7 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 	info.si_signo = signr; \
 	info.si_errno = 0; \
 	info.si_code = sicode; \
-	info.si_addr = (void *)siaddr; \
+	info.si_addr = (void __user *)siaddr; \
 	do_trap(trapnr, signr, str, 0, regs, error_code, &info); \
 }
 
@@ -357,7 +414,7 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 	info.si_signo = signr; \
 	info.si_errno = 0; \
 	info.si_code = sicode; \
-	info.si_addr = (void *)siaddr; \
+	info.si_addr = (void __user *)siaddr; \
 	do_trap(trapnr, signr, str, 1, regs, error_code, &info); \
 }
 
@@ -573,8 +630,8 @@ asmlinkage void do_debug(struct pt_regs * regs, long error_code)
 	/* If this is a kernel mode trap, save the user PC on entry to 
 	 * the kernel, that's what the debugger can make sense of.
 	 */
-	info.si_addr = ((regs->xcs & 3) == 0) ? (void *)tsk->thread.eip : 
-	                                        (void *)regs->eip;
+	info.si_addr = ((regs->xcs & 3) == 0) ? (void __user *)tsk->thread.eip
+	                                      : (void __user *)regs->eip;
 	force_sig_info(SIGTRAP, &info, tsk);
 
 	/* Disable additional traps. They'll be re-enabled when
@@ -602,7 +659,7 @@ clear_TF:
  * the correct behaviour even in the presence of the asynchronous
  * IRQ13 behaviour
  */
-void math_error(void *eip)
+void math_error(void __user *eip)
 {
 	struct task_struct * task;
 	siginfo_t info;
@@ -661,10 +718,10 @@ void math_error(void *eip)
 asmlinkage void do_coprocessor_error(struct pt_regs * regs, long error_code)
 {
 	ignore_fpu_irq = 1;
-	math_error((void *)regs->eip);
+	math_error((void __user *)regs->eip);
 }
 
-void simd_math_error(void *eip)
+void simd_math_error(void __user *eip)
 {
 	struct task_struct * task;
 	siginfo_t info;
@@ -718,7 +775,7 @@ asmlinkage void do_simd_coprocessor_error(struct pt_regs * regs,
 	if (cpu_has_xmm) {
 		/* Handle SIMD FPU exceptions on PIII+ processors. */
 		ignore_fpu_irq = 1;
-		simd_math_error((void *)regs->eip);
+		simd_math_error((void __user *)regs->eip);
 	} else {
 		/*
 		 * Handle strange cache flush from user space exception

@@ -61,6 +61,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/moduleparam.h>
 
 #include <sound/core.h>
 #include <sound/info.h>
@@ -68,7 +69,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/asoundef.h>
-#define SNDRV_GET_ID
 #include <sound/initval.h>
 
 #include <asm/io.h>
@@ -76,14 +76,15 @@
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
+static int boot_devs;
 
-MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(index, int, boot_devs, 0444);
 MODULE_PARM_DESC(index, "Index value for RME Digi32 soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
+module_param_array(id, charp, boot_devs, 0444);
 MODULE_PARM_DESC(id, "ID string for RME Digi32 soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(enable, bool, boot_devs, 0444);
 MODULE_PARM_DESC(enable, "Enable RME Digi32 soundcard.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
 MODULE_AUTHOR("Martin Langer <martin-langer@gmx.de>");
@@ -297,7 +298,7 @@ static int snd_rme32_playback_silence(snd_pcm_substream_t * substream, int chann
 
 static int snd_rme32_playback_copy(snd_pcm_substream_t * substream, int channel,	/* not used (interleaved data) */
 				   snd_pcm_uframes_t pos,
-				   void *src, snd_pcm_uframes_t count)
+				   void __user *src, snd_pcm_uframes_t count)
 {
 	rme32_t *rme32 = _snd_pcm_substream_chip(substream);
 	count <<= rme32->playback_frlog;
@@ -310,7 +311,7 @@ static int snd_rme32_playback_copy(snd_pcm_substream_t * substream, int channel,
 
 static int snd_rme32_capture_copy(snd_pcm_substream_t * substream, int channel,	/* not used (interleaved data) */
 				  snd_pcm_uframes_t pos,
-				  void *dst, snd_pcm_uframes_t count)
+				  void __user *dst, snd_pcm_uframes_t count)
 {
 	rme32_t *rme32 = _snd_pcm_substream_chip(substream);
 	count <<= rme32->capture_frlog;
@@ -1191,18 +1192,18 @@ snd_rme32_playback_pointer(snd_pcm_substream_t * substream)
 		}
 		bytes = diff << rme32->playback_frlog;
 		if (bytes > RME32_BUFFER_SIZE - rme32->playback_ptr) {
-			memcpy_toio(rme32->iobase + RME32_IO_DATA_BUFFER + rme32->playback_ptr,
+			memcpy_toio((void *)(rme32->iobase + RME32_IO_DATA_BUFFER + rme32->playback_ptr),
 				    runtime->dma_area + rme32->playback_ptr,
 				    RME32_BUFFER_SIZE - rme32->playback_ptr);
 			bytes -= RME32_BUFFER_SIZE - rme32->playback_ptr;
 			if (bytes > RME32_BUFFER_SIZE) {
 				bytes = RME32_BUFFER_SIZE;
 			}
-			memcpy_toio(rme32->iobase + RME32_IO_DATA_BUFFER,
+			memcpy_toio((void *)(rme32->iobase + RME32_IO_DATA_BUFFER),
 				    runtime->dma_area, bytes);
 			rme32->playback_ptr = bytes;
 		} else if (bytes != 0) {
-			memcpy_toio(rme32->iobase + RME32_IO_DATA_BUFFER + rme32->playback_ptr,
+			memcpy_toio((void *)(rme32->iobase + RME32_IO_DATA_BUFFER + rme32->playback_ptr),
 				    runtime->dma_area + rme32->playback_ptr, bytes);
 			rme32->playback_ptr += bytes;
 		}
@@ -1223,17 +1224,17 @@ snd_rme32_capture_pointer(snd_pcm_substream_t * substream)
 		ptr = frameptr << rme32->capture_frlog;
 		if (ptr > rme32->capture_ptr) {
 			memcpy_fromio(runtime->dma_area + rme32->capture_ptr,
-				      rme32->iobase + RME32_IO_DATA_BUFFER +
-				      rme32->capture_ptr,
+				      (void *)(rme32->iobase + RME32_IO_DATA_BUFFER +
+					       rme32->capture_ptr),
 				      ptr - rme32->capture_ptr);
 			rme32->capture_ptr += ptr - rme32->capture_ptr;
 		} else if (ptr < rme32->capture_ptr) {
 			memcpy_fromio(runtime->dma_area + rme32->capture_ptr,
-				      rme32->iobase + RME32_IO_DATA_BUFFER +
-				      rme32->capture_ptr,
+				      (void *)(rme32->iobase + RME32_IO_DATA_BUFFER +
+					       rme32->capture_ptr),
 				      RME32_BUFFER_SIZE - rme32->capture_ptr);
 			memcpy_fromio(runtime->dma_area,
-				      rme32->iobase + RME32_IO_DATA_BUFFER,
+				      (void *)(rme32->iobase + RME32_IO_DATA_BUFFER),
 				      ptr);
 			rme32->capture_ptr = ptr;
 		}
@@ -1378,9 +1379,10 @@ static int __devinit snd_rme32_create(rme32_t * rme32)
 	rme32->spdif_pcm->info_flags = 0;
 
 	snd_pcm_lib_preallocate_pages_for_all(rme32->spdif_pcm,
+					      SNDRV_DMA_TYPE_CONTINUOUS,
+					      snd_dma_continuous_data(GFP_KERNEL),
 					      RME32_BUFFER_SIZE,
-					      RME32_BUFFER_SIZE,
-					      GFP_KERNEL);
+					      RME32_BUFFER_SIZE);
 
 	/* set up ALSA pcm device for ADAT */
 	if ((pci->device == PCI_DEVICE_ID_DIGI32) ||
@@ -1405,9 +1407,10 @@ static int __devinit snd_rme32_create(rme32_t * rme32)
 		rme32->adat_pcm->info_flags = 0;
 
 		snd_pcm_lib_preallocate_pages_for_all(rme32->adat_pcm, 
+						      SNDRV_DMA_TYPE_CONTINUOUS,
+						      snd_dma_continuous_data(GFP_KERNEL),
 						      RME32_BUFFER_SIZE, 
-						      RME32_BUFFER_SIZE, 
-						      GFP_KERNEL);
+						      RME32_BUFFER_SIZE);
 	}
 
 
@@ -1545,7 +1548,7 @@ static void __devinit snd_rme32_proc_init(rme32_t * rme32)
 	snd_info_entry_t *entry;
 
 	if (! snd_card_proc_new(rme32->card, "rme32", &entry))
-		snd_info_set_text_ops(entry, rme32, snd_rme32_proc_read);
+		snd_info_set_text_ops(entry, rme32, 1024, snd_rme32_proc_read);
 }
 
 /*
@@ -1948,6 +1951,7 @@ snd_rme32_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	rme32 = (rme32_t *) card->private_data;
 	rme32->card = card;
 	rme32->pci = pci;
+	snd_card_set_dev(card, &pci->dev);
 	if ((err = snd_rme32_create(rme32)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -1992,15 +1996,7 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_rme32_init(void)
 {
-	int err;
-
-	if ((err = pci_module_init(&driver)) < 0) {
-#ifdef MODULE
-		snd_printk("No RME Digi32 cards found\n");
-#endif
-		return err;
-	}
-	return 0;
+	return pci_module_init(&driver);
 }
 
 static void __exit alsa_card_rme32_exit(void)
@@ -2010,22 +2006,3 @@ static void __exit alsa_card_rme32_exit(void)
 
 module_init(alsa_card_rme32_init)
 module_exit(alsa_card_rme32_exit)
-
-#ifndef MODULE
-
-static int __init alsa_card_rme32_setup(char *str)
-{
-	static unsigned __initdata nr_dev = 0;
-
-	if (nr_dev >= SNDRV_CARDS)
-		return 0;
-	(void) (get_option(&str, &enable[nr_dev]) == 2 &&
-		get_option(&str, &index[nr_dev]) == 2 &&
-		get_id(&str, &id[nr_dev]) == 2);
-	nr_dev++;
-	return 1;
-}
-
-__setup("snd-rme32=", alsa_card_rme32_setup);
-
-#endif				/* ifndef MODULE */

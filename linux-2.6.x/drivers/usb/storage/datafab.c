@@ -321,7 +321,7 @@ static int datafab_determine_lun(struct us_data *us,
 			goto leave;
 		}
 
-		wait_ms(20);
+		msleep(20);
 	}
 
 	rc = USB_STOR_TRANSPORT_ERROR;
@@ -489,7 +489,7 @@ static int datafab_handle_mode_sense(struct us_data *us,
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
-void datafab_info_destructor(void *extra)
+static void datafab_info_destructor(void *extra)
 {
 	// this routine is a placeholder...
 	// currently, we don't allocate any extra memory so we're okay
@@ -539,8 +539,8 @@ int datafab_transport(Scsi_Cmnd * srb, struct us_data *us)
 			  info->sectors, info->ssize);
 
 		// build the reply
-		//
-		((u32 *) ptr)[0] = cpu_to_be32(info->sectors);
+		// we need the last sector, not the number of sectors
+		((u32 *) ptr)[0] = cpu_to_be32(info->sectors - 1);
 		((u32 *) ptr)[1] = cpu_to_be32(info->ssize);
 		usb_stor_set_xfer_buf(ptr, 8, srb);
 

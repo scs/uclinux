@@ -17,17 +17,20 @@
 #ifndef _SR_H
 #define _SR_H
 
-#include "scsi.h"
 #include <linux/genhd.h>
+#include <linux/kref.h>
+
+struct scsi_device;
 
 /* The CDROM is fairly slow, so we need a little extra time */
 /* In fact, it is very slow if it has to spin up first */
 #define IOCTL_TIMEOUT 30*HZ
 
+
 typedef struct scsi_cd {
 	struct scsi_driver *driver;
 	unsigned capacity;	/* size in blocks                       */
-	Scsi_Device *device;
+	struct scsi_device *device;
 	unsigned int vendor;	/* vendor code, see sr_vendor.c         */
 	unsigned long ms_offset;	/* for reading multisession-CD's        */
 	unsigned needs_sector_size:1;	/* needs to get sector size */
@@ -36,10 +39,13 @@ typedef struct scsi_cd {
 	unsigned readcd_known:1;	/* drive supports READ_CD (0xbe) */
 	unsigned readcd_cdda:1;	/* reading audio data using READ_CD */
 	struct cdrom_device_info cdi;
+	/* We hold gendisk and scsi_device references on probe and use
+	 * the refs on this kref to decide when to release them */
+	struct kref kref;
 	struct gendisk *disk;
 } Scsi_CD;
 
-int sr_do_ioctl(Scsi_CD *, struct cdrom_generic_command *);
+int sr_do_ioctl(Scsi_CD *, struct packet_command *);
 
 int sr_lock_door(struct cdrom_device_info *, int);
 int sr_tray_move(struct cdrom_device_info *, int);

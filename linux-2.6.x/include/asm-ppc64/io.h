@@ -27,13 +27,20 @@
 #define SIO_CONFIG_RD	0x399
 
 #define SLOW_DOWN_IO
-/* Define this if you want to see virt_to_* messages */
-#undef __IO_DEBUG
 
 extern unsigned long isa_io_base;
 extern unsigned long pci_io_base;
 
 #ifdef CONFIG_PPC_ISERIES
+/* __raw_* accessors aren't supported on iSeries */
+#define __raw_readb(addr)	{ BUG(); 0; }
+#define __raw_readw(addr)       { BUG(); 0; }
+#define __raw_readl(addr)       { BUG(); 0; }
+#define __raw_readq(addr)       { BUG(); 0; }
+#define __raw_writeb(v, addr)   { BUG(); 0; }
+#define __raw_writew(v, addr)   { BUG(); 0; }
+#define __raw_writel(v, addr)   { BUG(); 0; }
+#define __raw_writeq(v, addr)   { BUG(); 0; }
 #define readb(addr)		iSeries_Read_Byte((void*)(addr))  
 #define readw(addr)		iSeries_Read_Word((void*)(addr))  
 #define readl(addr)		iSeries_Read_Long((void*)(addr))
@@ -49,13 +56,30 @@ extern unsigned long pci_io_base;
 #define outb(data,addr)		writeb(data,((unsigned long)(addr)))  
 #define outw(data,addr)		writew(data,((unsigned long)(addr)))  
 #define outl(data,addr)		writel(data,((unsigned long)(addr)))
+/*
+ * The *_ns versions below don't do byte-swapping.
+ * Neither do the standard versions now, these are just here
+ * for older code.
+ */
+#define insw_ns(port, buf, ns)	_insw_ns((u16 *)((port)+pci_io_base), (buf), (ns))
+#define insl_ns(port, buf, nl)	_insl_ns((u32 *)((port)+pci_io_base), (buf), (nl))
 #else
+#define __raw_readb(addr)       (*(volatile unsigned char *)(addr))
+#define __raw_readw(addr)       (*(volatile unsigned short *)(addr))
+#define __raw_readl(addr)       (*(volatile unsigned int *)(addr))
+#define __raw_readq(addr)       (*(volatile unsigned long *)(addr))
+#define __raw_writeb(v, addr)   (*(volatile unsigned char *)(addr) = (v))
+#define __raw_writew(v, addr)   (*(volatile unsigned short *)(addr) = (v))
+#define __raw_writel(v, addr)   (*(volatile unsigned int *)(addr) = (v))
+#define __raw_writeq(v, addr)   (*(volatile unsigned long *)(addr) = (v))
 #define readb(addr)		eeh_readb((void*)(addr))  
 #define readw(addr)		eeh_readw((void*)(addr))  
 #define readl(addr)		eeh_readl((void*)(addr))
+#define readq(addr)		eeh_readq((void*)(addr))
 #define writeb(data, addr)	eeh_writeb((data), ((void*)(addr)))
 #define writew(data, addr)	eeh_writew((data), ((void*)(addr)))
 #define writel(data, addr)	eeh_writel((data), ((void*)(addr)))
+#define writeq(data, addr)	eeh_writeq((data), ((void*)(addr)))
 #define memset_io(a,b,c)	eeh_memset_io((void *)(a),(b),(c))
 #define memcpy_fromio(a,b,c)	eeh_memcpy_fromio((a),(void *)(b),(c))
 #define memcpy_toio(a,b,c)	eeh_memcpy_toio((void *)(a),(b),(c))
@@ -71,13 +95,22 @@ extern unsigned long pci_io_base;
  * They are only used in practice for transferring buffers which
  * are arrays of bytes, and byte-swapping is not appropriate in
  * that case.  - paulus */
-#define insb(port, buf, ns)	_insb((u8 *)((port)+pci_io_base), (buf), (ns))
-#define outsb(port, buf, ns)	_outsb((u8 *)((port)+pci_io_base), (buf), (ns))
-#define insw(port, buf, ns)	_insw_ns((u16 *)((port)+pci_io_base), (buf), (ns))
-#define outsw(port, buf, ns)	_outsw_ns((u16 *)((port)+pci_io_base), (buf), (ns))
-#define insl(port, buf, nl)	_insl_ns((u32 *)((port)+pci_io_base), (buf), (nl))
-#define outsl(port, buf, nl)	_outsl_ns((u32 *)((port)+pci_io_base), (buf), (nl))
+#define insb(port, buf, ns)	eeh_insb((port), (buf), (ns))
+#define insw(port, buf, ns)	eeh_insw_ns((port), (buf), (ns))
+#define insl(port, buf, nl)	eeh_insl_ns((port), (buf), (nl))
+#define insw_ns(port, buf, ns)	eeh_insw_ns((port), (buf), (ns))
+#define insl_ns(port, buf, nl)	eeh_insl_ns((port), (buf), (nl))
+
+#define outsb(port, buf, ns)  _outsb((u8 *)((port)+pci_io_base), (buf), (ns))
+#define outsw(port, buf, ns)  _outsw_ns((u16 *)((port)+pci_io_base), (buf), (ns))
+#define outsl(port, buf, nl)  _outsl_ns((u32 *)((port)+pci_io_base), (buf), (nl))
+
 #endif
+
+#define readb_relaxed(addr) readb(addr)
+#define readw_relaxed(addr) readw(addr)
+#define readl_relaxed(addr) readl(addr)
+#define readq_relaxed(addr) readq(addr)
 
 extern void _insb(volatile u8 *port, void *buf, int ns);
 extern void _outsb(volatile u8 *port, const void *buf, int ns);
@@ -106,9 +139,7 @@ extern void _outsl_ns(volatile u32 *port, const void *buf, int nl);
  * Neither do the standard versions now, these are just here
  * for older code.
  */
-#define insw_ns(port, buf, ns)	_insw_ns((u16 *)((port)+pci_io_base), (buf), (ns))
 #define outsw_ns(port, buf, ns)	_outsw_ns((u16 *)((port)+pci_io_base), (buf), (ns))
-#define insl_ns(port, buf, nl)	_insl_ns((u32 *)((port)+pci_io_base), (buf), (nl))
 #define outsl_ns(port, buf, nl)	_outsl_ns((u32 *)((port)+pci_io_base), (buf), (nl))
 
 
@@ -116,40 +147,61 @@ extern void _outsl_ns(volatile u32 *port, const void *buf, int nl);
 
 
 #ifdef __KERNEL__
-/*
- * Map in an area of physical address space, for accessing
- * I/O devices etc.
- */
 extern int __ioremap_explicit(unsigned long p_addr, unsigned long v_addr,
 		     	      unsigned long size, unsigned long flags);
 extern void *__ioremap(unsigned long address, unsigned long size,
 		       unsigned long flags);
+
+/**
+ * ioremap     -   map bus memory into CPU space
+ * @address:   bus address of the memory
+ * @size:      size of the resource to map
+ *
+ * ioremap performs a platform specific sequence of operations to
+ * make bus memory CPU accessible via the readb/readw/readl/writeb/
+ * writew/writel functions and the other mmio helpers. The returned
+ * address is not guaranteed to be usable directly as a virtual
+ * address.
+ */
 extern void *ioremap(unsigned long address, unsigned long size);
+
 #define ioremap_nocache(addr, size)	ioremap((addr), (size))
 extern int iounmap_explicit(void *addr, unsigned long size);
 extern void iounmap(void *addr);
 extern void * reserve_phb_iospace(unsigned long size);
 
-/*
- * Change virtual addresses to physical addresses and vv, for
- * addresses in the area where the kernel has the RAM mapped.
+/**
+ *	virt_to_phys	-	map virtual addresses to physical
+ *	@address: address to remap
+ *
+ *	The returned physical address is the physical (CPU) mapping for
+ *	the memory address given. It is only valid to use this function on
+ *	addresses directly mapped or allocated via kmalloc.
+ *
+ *	This function does not give bus mappings for DMA transfers. In
+ *	almost all conceivable cases a device driver should not be using
+ *	this function
  */
 static inline unsigned long virt_to_phys(volatile void * address)
 {
-#ifdef __IO_DEBUG
-	printk("virt_to_phys: 0x%08lx -> 0x%08lx\n", 
-			(unsigned long) address,
-			__pa((unsigned long)address));
-#endif
 	return __pa((unsigned long)address);
 }
 
+/**
+ *	phys_to_virt	-	map physical address to virtual
+ *	@address: address to remap
+ *
+ *	The returned virtual address is a current CPU mapping for
+ *	the memory address given. It is only valid to use this function on
+ *	addresses that have a kernel mapping
+ *
+ *	This function does not handle bus mappings for DMA transfers. In
+ *	almost all conceivable cases a device driver should not be using
+ *	this function
+ */
 static inline void * phys_to_virt(unsigned long address)
 {
-#ifdef __IO_DEBUG
-	printk("phys_to_virt: 0x%08lx -> 0x%08lx\n", address, __va(address));
-#endif
-	return (void *) __va(address);
+	return (void *)__va(address);
 }
 
 /*
@@ -157,9 +209,12 @@ static inline void * phys_to_virt(unsigned long address)
  */
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
-#if 0
-#define BIO_VMERGE_BOUNDARY	4096
-#endif
+/* We do NOT want virtual merging, it would put too much pressure on
+ * our iommu allocator. Instead, we want drivers to be smart enough
+ * to coalesce sglists that happen to have been mapped in a contiguous
+ * way by the iommu
+ */
+#define BIO_VMERGE_BOUNDARY	0
 
 #endif /* __KERNEL__ */
 
@@ -177,26 +232,31 @@ static inline void iosync(void)
 
 /*
  * 8, 16 and 32 bit, big and little endian I/O operations, with barrier.
+ * These routines do not perform EEH-related I/O address translation,
+ * and should not be used directly by device drivers.  Use inb/readb
+ * instead.
  */
 static inline int in_8(volatile unsigned char *addr)
 {
 	int ret;
 
-	__asm__ __volatile__("eieio; lbz%U1%X1 %0,%1" : "=r" (ret) : "m" (*addr));
+	__asm__ __volatile__("lbz%U1%X1 %0,%1; twi 0,%0,0; isync"
+			     : "=r" (ret) : "m" (*addr));
 	return ret;
 }
 
 static inline void out_8(volatile unsigned char *addr, int val)
 {
-	__asm__ __volatile__("stb%U0%X0 %1,%0" : "=m" (*addr) : "r" (val));
+	__asm__ __volatile__("stb%U0%X0 %1,%0; sync"
+			     : "=m" (*addr) : "r" (val));
 }
 
 static inline int in_le16(volatile unsigned short *addr)
 {
 	int ret;
 
-	__asm__ __volatile__("eieio; lhbrx %0,0,%1" : "=r" (ret) :
-			      "r" (addr), "m" (*addr));
+	__asm__ __volatile__("lhbrx %0,0,%1; twi 0,%0,0; isync"
+			     : "=r" (ret) : "r" (addr), "m" (*addr));
 	return ret;
 }
 
@@ -204,27 +264,29 @@ static inline int in_be16(volatile unsigned short *addr)
 {
 	int ret;
 
-	__asm__ __volatile__("eieio; lhz%U1%X1 %0,%1" : "=r" (ret) : "m" (*addr));
+	__asm__ __volatile__("lhz%U1%X1 %0,%1; twi 0,%0,0; isync"
+			     : "=r" (ret) : "m" (*addr));
 	return ret;
 }
 
 static inline void out_le16(volatile unsigned short *addr, int val)
 {
-	__asm__ __volatile__("sthbrx %1,0,%2" : "=m" (*addr) :
-			      "r" (val), "r" (addr));
+	__asm__ __volatile__("sthbrx %1,0,%2; sync"
+			     : "=m" (*addr) : "r" (val), "r" (addr));
 }
 
 static inline void out_be16(volatile unsigned short *addr, int val)
 {
-	__asm__ __volatile__("sth%U0%X0 %1,%0" : "=m" (*addr) : "r" (val));
+	__asm__ __volatile__("sth%U0%X0 %1,%0; sync"
+			     : "=m" (*addr) : "r" (val));
 }
 
 static inline unsigned in_le32(volatile unsigned *addr)
 {
 	unsigned ret;
 
-	__asm__ __volatile__("eieio; lwbrx %0,0,%1" : "=r" (ret) :
-			     "r" (addr), "m" (*addr));
+	__asm__ __volatile__("lwbrx %0,0,%1; twi 0,%0,0; isync"
+			     : "=r" (ret) : "r" (addr), "m" (*addr));
 	return ret;
 }
 
@@ -232,19 +294,71 @@ static inline unsigned in_be32(volatile unsigned *addr)
 {
 	unsigned ret;
 
-	__asm__ __volatile__("eieio; lwz%U1%X1 %0,%1" : "=r" (ret) : "m" (*addr));
+	__asm__ __volatile__("lwz%U1%X1 %0,%1; twi 0,%0,0; isync"
+			     : "=r" (ret) : "m" (*addr));
 	return ret;
 }
 
 static inline void out_le32(volatile unsigned *addr, int val)
 {
-	__asm__ __volatile__("stwbrx %1,0,%2" : "=m" (*addr) :
-			     "r" (val), "r" (addr));
+	__asm__ __volatile__("stwbrx %1,0,%2; sync" : "=m" (*addr)
+			     : "r" (val), "r" (addr));
 }
 
 static inline void out_be32(volatile unsigned *addr, int val)
 {
-	__asm__ __volatile__("stw%U0%X0 %1,%0" : "=m" (*addr) : "r" (val));
+	__asm__ __volatile__("stw%U0%X0 %1,%0; sync"
+			     : "=m" (*addr) : "r" (val));
+}
+
+static inline unsigned long in_le64(volatile unsigned long *addr)
+{
+	unsigned long tmp, ret;
+
+	__asm__ __volatile__(
+			     "ld %1,0(%2)\n"
+			     "twi 0,%1,0\n"
+			     "isync\n"
+			     "rldimi %0,%1,5*8,1*8\n"
+			     "rldimi %0,%1,3*8,2*8\n"
+			     "rldimi %0,%1,1*8,3*8\n"
+			     "rldimi %0,%1,7*8,4*8\n"
+			     "rldicl %1,%1,32,0\n"
+			     "rlwimi %0,%1,8,8,31\n"
+			     "rlwimi %0,%1,24,16,23\n"
+			     : "=r" (ret) , "=r" (tmp) : "b" (addr) , "m" (*addr));
+	return ret;
+}
+
+static inline unsigned long in_be64(volatile unsigned long *addr)
+{
+	unsigned long ret;
+
+	__asm__ __volatile__("ld %0,0(%1); twi 0,%0,0; isync"
+			     : "=r" (ret) : "m" (*addr));
+	return ret;
+}
+
+static inline void out_le64(volatile unsigned long *addr, unsigned long val)
+{
+	unsigned long tmp;
+
+	__asm__ __volatile__(
+			     "rldimi %0,%1,5*8,1*8\n"
+			     "rldimi %0,%1,3*8,2*8\n"
+			     "rldimi %0,%1,1*8,3*8\n"
+			     "rldimi %0,%1,7*8,4*8\n"
+			     "rldicl %1,%1,32,0\n"
+			     "rlwimi %0,%1,8,8,31\n"
+			     "rlwimi %0,%1,24,16,23\n"
+			     "std %0,0(%3)\n"
+			     "sync"
+			     : "=&r" (tmp) , "=&r" (val) : "1" (val) , "b" (addr) , "m" (*addr));
+}
+
+static inline void out_be64(volatile unsigned long *addr, unsigned long val)
+{
+	__asm__ __volatile__("std%U0%X0 %1,%0; sync" : "=m" (*addr) : "r" (val));
 }
 
 #ifndef CONFIG_PPC_ISERIES 
@@ -252,6 +366,17 @@ static inline void out_be32(volatile unsigned *addr, int val)
 #endif
 
 #ifdef __KERNEL__
+
+/**
+ *	check_signature		-	find BIOS signatures
+ *	@io_addr: mmio address to check
+ *	@signature:  signature block
+ *	@length: length of signature
+ *
+ *	Perform a signature comparison with the mmio address io_addr. This
+ *	address should have been obtained by ioremap.
+ *	Returns 1 on a match.
+ */
 static inline int check_signature(unsigned long io_addr,
 	const unsigned char *signature, int length)
 {

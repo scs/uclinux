@@ -21,6 +21,7 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/cache.h>		/* for L1_CACHE_BYTES */
+#include <asm/superio.h>
 
 #define DEBUG_RESOURCES 0
 #define DEBUG_CONFIG 0
@@ -145,9 +146,13 @@ char *pcibios_setup(char *str)
 	return str;
 }
 
-
 /* Used in drivers/pci/quirks.c */
-struct pci_fixup pcibios_fixups[] = { {0} };
+struct pci_fixup pcibios_fixups[] = { 
+#ifdef CONFIG_SUPERIO
+	{ PCI_FIXUP_HEADER,	PCI_VENDOR_ID_NS,	PCI_DEVICE_ID_NS_87415,	superio_fixup_pci },
+#endif
+	{ 0 }
+};
 
 
 /*
@@ -229,7 +234,7 @@ void __devinit pcibios_resource_to_bus(struct pci_dev *dev,
 		struct pci_bus_region *region, struct resource *res)
 {
 	struct pci_bus *bus = dev->bus;
-	struct pci_hba_data *hba = HBA_DATA(bus->dev->platform_data);
+	struct pci_hba_data *hba = HBA_DATA(bus->bridge->platform_data);
 
 	if (res->flags & IORESOURCE_IO) {
 		/*

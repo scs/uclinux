@@ -7,8 +7,8 @@
  */
 
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <asm/sn/sgi.h>
-#include <asm/sn/iograph.h>
 #include <asm/sn/pci/pci_bus_cvlink.h>
 #include <asm/sn/sn_cpuid.h>
 #include <asm/sn/simulator.h>
@@ -22,13 +22,20 @@ unsigned char num_bridges;
 static int done_probing;
 extern irqpda_t *irqpdaindr;
 
-static int pci_bus_map_create(vertex_hdl_t xtalk, char * io_moduleid);
+static int pci_bus_map_create(struct pcibr_list_s *softlistp, moduleid_t io_moduleid);
 vertex_hdl_t devfn_to_vertex(unsigned char busnum, unsigned int devfn);
 
 extern void register_pcibr_intr(int irq, pcibr_intr_t intr);
 
-void sn_dma_flush_init(unsigned long start, unsigned long end, int idx, int pin, int slot);
+static struct sn_flush_device_list *sn_dma_flush_init(unsigned long start,
+				unsigned long end,
+				int idx, int pin, int slot);
 extern int cbrick_type_get_nasid(nasid_t);
+extern void ioconfig_bus_new_entries(void);
+extern void ioconfig_get_busnum(char *, int *);
+extern int iomoduleid_get(nasid_t);
+extern int pcibr_widget_to_bus(vertex_hdl_t);
+extern int isIO9(int);
 
 #define IS_OPUS(nasid) (cbrick_type_get_nasid(nasid) == MODULE_OPUSBRICK)
 #define IS_ALTIX(nasid) (cbrick_type_get_nasid(nasid) == MODULE_CBRICK)
@@ -37,7 +44,7 @@ extern int cbrick_type_get_nasid(nasid_t);
  * Init the provider asic for a given device
  */
 
-static void
+static inline void __init
 set_pci_provider(struct sn_device_sysdata *device_sysdata)
 {
 	pciio_info_t pciio_info = pciio_info_get(device_sysdata->vhdl);
@@ -46,7 +53,7 @@ set_pci_provider(struct sn_device_sysdata *device_sysdata)
 }
 
 /*
- * pci_bus_cvlink_init() - To be called once during initialization before 
+ * pci_bus_cvlink_init() - To be called once during initialization before
  *	SGI IO Infrastructure init is called.
  */
 int
@@ -66,10 +73,10 @@ pci_bus_cvlink_init(void)
 }
 
 /*
- * pci_bus_to_vertex() - Given a logical Linux Bus Number returns the associated 
+ * pci_bus_to_vertex() - Given a logical Linux Bus Number returns the associated
  *	pci bus vertex from the SGI IO Infrastructure.
  */
-vertex_hdl_t
+static inline vertex_hdl_t
 pci_bus_to_vertex(unsigned char busnum)
 {
 
@@ -84,7 +91,7 @@ pci_bus_to_vertex(unsigned char busnum)
 }
 
 /*
- * devfn_to_vertex() - returns the vertex of the device given the bus, slot, 
+ * devfn_to_vertex() - returns the vertex of the device given the bus, slot,
  *	and function numbers.
  */
 vertex_hdl_t
@@ -125,8 +132,8 @@ devfn_to_vertex(unsigned char busnum, unsigned int devfn)
 	 * ../pci/1, ../pci/2 ..
 	 */
 	if (func == 0) {
-        	sprintf(name, "%d", slot);
-		if (hwgraph_traverse(pci_bus, name, &device_vertex) == 
+		sprintf(name, "%d", slot);
+		if (hwgraph_traverse(pci_bus, name, &device_vertex) ==
 			GRAPH_SUCCESS) {
 			if (device_vertex) {
 				return(device_vertex);
@@ -148,25 +155,355 @@ devfn_to_vertex(unsigned char busnum, unsigned int devfn)
 	return(device_vertex);
 }
 
+/*
+ * sn_alloc_pci_sysdata() - This routine allocates a pci controller
+ *	which is expected as the pci_dev and pci_bus sysdata by the Linux
+ *      PCI infrastructure.
+ */
+static struct pci_controller *
+sn_alloc_pci_sysdata(void)
+{
+	struct pci_controller *pci_sysdata;
+
+	pci_sysdata = kmalloc(sizeof(*pci_sysdata), GFP_KERNEL);
+	if (!pci_sysdata)
+		return NULL;
+
+	memset(pci_sysdata, 0, sizeof(*pci_sysdata));
+	return pci_sysdata;
+}
+
+/*
+ * sn_pci_fixup_bus() - This routine sets up a bus's resources
+ * consistent with the Linux PCI abstraction layer.
+ */
+static int __init
+sn_pci_fixup_bus(struct pci_bus *bus)
+{
+	struct pci_controller *pci_sysdata;
+	struct sn_widget_sysdata *widget_sysdata;
+
+	pci_sysdata = sn_alloc_pci_sysdata();
+	if  (!pci_sysdata) {
+		printk(KERN_WARNING "sn_pci_fixup_bus(): Unable to "
+			       "allocate memory for pci_sysdata\n");
+		return -ENOMEM;
+	}
+	widget_sysdata = kmalloc(sizeof(struct sn_widget_sysdata),
+				 GFP_KERNEL);
+	if (!widget_sysdata) {
+		printk(KERN_WARNING "sn_pci_fixup_bus(): Unable to "
+			       "allocate memory for widget_sysdata\n");
+		kfree(pci_sysdata);
+		return -ENOMEM;
+	}
+
+	widget_sysdata->vhdl = pci_bus_to_vertex(bus->number);
+	pci_sysdata->platform_data = (void *)widget_sysdata;
+	bus->sysdata = pci_sysdata;
+	return 0;
+}
+
+
+/*
+ * sn_pci_fixup_slot() - This routine sets up a slot's resources
+ * consistent with the Linux PCI abstraction layer.  Resources acquired
+ * from our PCI provider include PIO maps to BAR space and interrupt
+ * objects.
+ */
+static int
+sn_pci_fixup_slot(struct pci_dev *dev)
+{
+	extern int bit_pos_to_irq(int);
+	unsigned int irq;
+	int idx;
+	u16 cmd;
+	vertex_hdl_t vhdl;
+	unsigned long size;
+	struct pci_controller *pci_sysdata;
+	struct sn_device_sysdata *device_sysdata;
+	pciio_intr_line_t lines = 0;
+	vertex_hdl_t device_vertex;
+	pciio_provider_t *pci_provider;
+	pciio_intr_t intr_handle;
+
+	/* Allocate a controller structure */
+	pci_sysdata = sn_alloc_pci_sysdata();
+	if (!pci_sysdata) {
+		printk(KERN_WARNING "sn_pci_fixup_slot: Unable to "
+			       "allocate memory for pci_sysdata\n");
+		return -ENOMEM;
+	}
+
+	/* Set the device vertex */
+	device_sysdata = kmalloc(sizeof(struct sn_device_sysdata), GFP_KERNEL);
+	if (!device_sysdata) {
+		printk(KERN_WARNING "sn_pci_fixup_slot: Unable to "
+			       "allocate memory for device_sysdata\n");
+		kfree(pci_sysdata);
+		return -ENOMEM;
+	}
+
+	device_sysdata->vhdl = devfn_to_vertex(dev->bus->number, dev->devfn);
+	pci_sysdata->platform_data = (void *) device_sysdata;
+	dev->sysdata = pci_sysdata;
+	set_pci_provider(device_sysdata);
+
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+
+	/*
+	 * Set the resources address correctly.  The assumption here
+	 * is that the addresses in the resource structure has been
+	 * read from the card and it was set in the card by our
+	 * Infrastructure.  NOTE: PIC and TIOCP don't have big-window
+	 * upport for PCI I/O space.  So by mapping the I/O space
+	 * first we will attempt to use Device(x) registers for I/O
+	 * BARs (which can't use big windows like MEM BARs can).
+	 */
+	vhdl = device_sysdata->vhdl;
+
+	/* Allocate the IORESOURCE_IO space first */
+	for (idx = 0; idx < PCI_ROM_RESOURCE; idx++) {
+		unsigned long start, end, addr;
+
+		device_sysdata->pio_map[idx] = NULL;
+
+		if (!(dev->resource[idx].flags & IORESOURCE_IO))
+			continue;
+
+		start = dev->resource[idx].start;
+		end = dev->resource[idx].end;
+		size = end - start;
+		if (!size)
+			continue;
+
+		addr = (unsigned long)pciio_pio_addr(vhdl, 0,
+		PCIIO_SPACE_WIN(idx), 0, size,
+				&device_sysdata->pio_map[idx], 0);
+
+		if (!addr) {
+			dev->resource[idx].start = 0;
+			dev->resource[idx].end = 0;
+			printk("sn_pci_fixup(): pio map failure for "
+				"%s bar%d\n", dev->slot_name, idx);
+		} else {
+			addr |= __IA64_UNCACHED_OFFSET;
+			dev->resource[idx].start = addr;
+			dev->resource[idx].end = addr + size;
+		}
+
+		if (dev->resource[idx].flags & IORESOURCE_IO)
+			cmd |= PCI_COMMAND_IO;
+	}
+
+	/* Allocate the IORESOURCE_MEM space next */
+	for (idx = 0; idx < PCI_ROM_RESOURCE; idx++) {
+		unsigned long start, end, addr;
+
+		if ((dev->resource[idx].flags & IORESOURCE_IO))
+			continue;
+
+		start = dev->resource[idx].start;
+		end = dev->resource[idx].end;
+		size = end - start;
+		if (!size)
+			continue;
+
+		addr = (unsigned long)pciio_pio_addr(vhdl, 0,
+		PCIIO_SPACE_WIN(idx), 0, size,
+				&device_sysdata->pio_map[idx], 0);
+
+		if (!addr) {
+			dev->resource[idx].start = 0;
+			dev->resource[idx].end = 0;
+			printk("sn_pci_fixup(): pio map failure for "
+				"%s bar%d\n", dev->slot_name, idx);
+		} else {
+			addr |= __IA64_UNCACHED_OFFSET;
+			dev->resource[idx].start = addr;
+			dev->resource[idx].end = addr + size;
+		}
+
+		if (dev->resource[idx].flags & IORESOURCE_MEM)
+			cmd |= PCI_COMMAND_MEMORY;
+	}
+
+        /*
+	 * Assign addresses to the ROMs, but don't enable them yet
+	 * Also note that we only map display card ROMs due to PIO mapping
+	 * space scarcity.
+	 */
+        if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
+                unsigned long addr;
+                size = dev->resource[PCI_ROM_RESOURCE].end -
+                        dev->resource[PCI_ROM_RESOURCE].start;
+
+                if (size) {
+                        addr = (unsigned long) pciio_pio_addr(vhdl, 0,
+					      PCIIO_SPACE_ROM,
+					      0, size, 0, PIOMAP_FIXED);
+                        if (!addr) {
+                                dev->resource[PCI_ROM_RESOURCE].start = 0;
+                                dev->resource[PCI_ROM_RESOURCE].end = 0;
+                                printk("sn_pci_fixup(): ROM pio map failure "
+				       "for %s\n", dev->slot_name);
+                        }
+                        addr |= __IA64_UNCACHED_OFFSET;
+                        dev->resource[PCI_ROM_RESOURCE].start = addr;
+                        dev->resource[PCI_ROM_RESOURCE].end = addr + size;
+                        if (dev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_MEM)
+                                cmd |= PCI_COMMAND_MEMORY;
+                }
+        }
+
+	/*
+	 * Update the Command Word on the Card.
+	 */
+	cmd |= PCI_COMMAND_MASTER; /* If the device doesn't support */
+				   /* bit gets dropped .. no harm */
+	pci_write_config_word(dev, PCI_COMMAND, cmd);
+
+	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, (unsigned char *)&lines);
+	device_vertex = device_sysdata->vhdl;
+	pci_provider = device_sysdata->pci_provider;
+	device_sysdata->intr_handle = NULL;
+
+	if (!lines)
+		return 0;
+
+	irqpdaindr->curr = dev;
+
+	intr_handle = (pci_provider->intr_alloc)(device_vertex, NULL, lines, device_vertex);
+	if (intr_handle == NULL) {
+		printk(KERN_WARNING "sn_pci_fixup:  pcibr_intr_alloc() failed\n");
+		kfree(pci_sysdata);
+		kfree(device_sysdata);
+		return -ENOMEM;
+	}
+
+	device_sysdata->intr_handle = intr_handle;
+	irq = intr_handle->pi_irq;
+	irqpdaindr->device_dev[irq] = dev;
+	(pci_provider->intr_connect)(intr_handle, (intr_func_t)0, (intr_arg_t)0);
+	dev->irq = irq;
+
+	register_pcibr_intr(irq, (pcibr_intr_t)intr_handle);
+
+	for (idx = 0; idx < PCI_ROM_RESOURCE; idx++) {
+		int ibits = ((pcibr_intr_t)intr_handle)->bi_ibits;
+		int i;
+
+		size = dev->resource[idx].end -
+			dev->resource[idx].start;
+		if (size == 0) continue;
+
+		for (i=0; i<8; i++) {
+			if (ibits & (1 << i) ) {
+				extern pcibr_info_t pcibr_info_get(vertex_hdl_t);
+				device_sysdata->dma_flush_list =
+				 sn_dma_flush_init(dev->resource[idx].start,
+						   dev->resource[idx].end,
+						   idx,
+						   i,
+						   PCIBR_INFO_SLOT_GET_EXT(pcibr_info_get(device_sysdata->vhdl)));
+			}
+		}
+	}
+	return 0;
+}
+
+#ifdef CONFIG_HOTPLUG_PCI_SGI
+
+void
+sn_dma_flush_clear(struct sn_flush_device_list *dma_flush_list,
+                   unsigned long start, unsigned long end)
+{
+
+        int i;
+
+        dma_flush_list->pin = -1;
+        dma_flush_list->bus = -1;
+        dma_flush_list->slot = -1;
+
+        for (i = 0; i < PCI_ROM_RESOURCE; i++)
+                if ((dma_flush_list->bar_list[i].start == start) &&
+                    (dma_flush_list->bar_list[i].end == end)) {
+                        dma_flush_list->bar_list[i].start = 0;
+                        dma_flush_list->bar_list[i].end = 0;
+                        break;
+                }           
+
+}
+
+/*
+ * sn_pci_unfixup_slot() - This routine frees a slot's resources
+ * consistent with the Linux PCI abstraction layer.  Resources released
+ * back to our PCI provider include PIO maps to BAR space and interrupt
+ * objects.
+ */
+void
+sn_pci_unfixup_slot(struct pci_dev *dev)
+{
+	struct sn_device_sysdata *device_sysdata;
+	vertex_hdl_t vhdl;
+	pciio_intr_t intr_handle;
+	unsigned int irq;
+	unsigned long size;
+	int idx;
+
+	device_sysdata = SN_DEVICE_SYSDATA(dev);
+
+	vhdl = device_sysdata->vhdl;
+
+	if (device_sysdata->dma_flush_list)
+		for (idx = 0; idx < PCI_ROM_RESOURCE; idx++) {
+			size = dev->resource[idx].end -
+				dev->resource[idx].start;
+			if (size == 0) continue;
+
+			sn_dma_flush_clear(device_sysdata->dma_flush_list,
+				   	   dev->resource[idx].start,
+				   	   dev->resource[idx].end);
+		}
+
+	intr_handle = device_sysdata->intr_handle;
+	if (intr_handle) {
+		extern void unregister_pcibr_intr(int, pcibr_intr_t);
+		irq = intr_handle->pi_irq;
+		irqpdaindr->device_dev[irq] = NULL;
+		unregister_pcibr_intr(irq, (pcibr_intr_t) intr_handle);
+		pciio_intr_disconnect(intr_handle);
+		pciio_intr_free(intr_handle);
+	}
+
+	for (idx = 0; idx < PCI_ROM_RESOURCE; idx++) {
+		if (device_sysdata->pio_map[idx]) {
+			pciio_piomap_done (device_sysdata->pio_map[idx]);
+			pciio_piomap_free (device_sysdata->pio_map[idx]);
+		}
+	}
+
+}
+#endif /* CONFIG_HOTPLUG_PCI_SGI */
+
 struct sn_flush_nasid_entry flush_nasid_list[MAX_NASIDS];
 
 /* Initialize the data structures for flushing write buffers after a PIO read.
- * The theory is: 
+ * The theory is:
  * Take an unused int. pin and associate it with a pin that is in use.
  * After a PIO read, force an interrupt on the unused pin, forcing a write buffer flush
- * on the in use pin.  This will prevent the race condition between PIO read responses and 
+ * on the in use pin.  This will prevent the race condition between PIO read responses and
  * DMA writes.
  */
-void
-sn_dma_flush_init(unsigned long start, unsigned long end, int idx, int pin, int slot) {
-	nasid_t nasid; 
+static struct sn_flush_device_list *
+sn_dma_flush_init(unsigned long start, unsigned long end, int idx, int pin, int slot)
+{
+	nasid_t nasid;
 	unsigned long dnasid;
 	int wid_num;
 	int bus;
 	struct sn_flush_device_list *p;
-	bridge_t *b;
-	bridgereg_t dev_sel;
-	extern int isIO9(int);
+	void *b;
 	int bwin;
 	int i;
 
@@ -178,9 +515,9 @@ sn_dma_flush_init(unsigned long start, unsigned long end, int idx, int pin, int 
 	if (flush_nasid_list[nasid].widget_p == NULL) {
 		flush_nasid_list[nasid].widget_p = (struct sn_flush_device_list **)kmalloc((HUB_WIDGET_ID_MAX+1) *
 			sizeof(struct sn_flush_device_list *), GFP_KERNEL);
-		if (flush_nasid_list[nasid].widget_p <= 0) {
-			printk("sn_dma_flush_init: Cannot allocate memory for nasid list\n");
-			return;
+		if (!flush_nasid_list[nasid].widget_p) {
+			printk(KERN_WARNING "sn_dma_flush_init: Cannot allocate memory for nasid list\n");
+			return NULL;
 		}
 		memset(flush_nasid_list[nasid].widget_p, 0, (HUB_WIDGET_ID_MAX+1) * sizeof(struct sn_flush_device_list *));
 	}
@@ -190,8 +527,8 @@ sn_dma_flush_init(unsigned long start, unsigned long end, int idx, int pin, int 
 
 		itte = HUB_L(IIO_ITTE_GET(nasid, itte_index));
 		flush_nasid_list[nasid].iio_itte[bwin] = itte;
-		wid_num = (itte >> IIO_ITTE_WIDGET_SHIFT) & 
-			  IIO_ITTE_WIDGET_MASK;
+		wid_num = (itte >> IIO_ITTE_WIDGET_SHIFT)
+				& IIO_ITTE_WIDGET_MASK;
 		bus = itte & IIO_ITTE_OFFSET_MASK;
 		if (bus == 0x4 || bus == 0x8) {
 			bus = 0;
@@ -204,16 +541,16 @@ sn_dma_flush_init(unsigned long start, unsigned long end, int idx, int pin, int 
 	 * because these are the IOC4 slots and we don't flush them.
 	 */
 	if (isIO9(nasid) && bus == 0 && (slot == 1 || slot == 4)) {
-		return;
+		return NULL;
 	}
 	if (flush_nasid_list[nasid].widget_p[wid_num] == NULL) {
 		flush_nasid_list[nasid].widget_p[wid_num] = (struct sn_flush_device_list *)kmalloc(
 			DEV_PER_WIDGET * sizeof (struct sn_flush_device_list), GFP_KERNEL);
-		if (flush_nasid_list[nasid].widget_p[wid_num] <= 0) {
-			printk("sn_dma_flush_init: Cannot allocate memory for nasid sub-list\n");
-			return;
+		if (!flush_nasid_list[nasid].widget_p[wid_num]) {
+			printk(KERN_WARNING "sn_dma_flush_init: Cannot allocate memory for nasid sub-list\n");
+			return NULL;
 		}
-		memset(flush_nasid_list[nasid].widget_p[wid_num], 0, 
+		memset(flush_nasid_list[nasid].widget_p[wid_num], 0,
 			DEV_PER_WIDGET * sizeof (struct sn_flush_device_list));
 		p = &flush_nasid_list[nasid].widget_p[wid_num][0];
 		for (i=0; i<DEV_PER_WIDGET;i++) {
@@ -243,7 +580,7 @@ sn_dma_flush_init(unsigned long start, unsigned long end, int idx, int pin, int 
 			break;
 		}
 	}
-	b = (bridge_t *)(NODE_SWIN_BASE(nasid, wid_num) | (bus << 23) );
+	b = (void *)(NODE_SWIN_BASE(nasid, wid_num) | (bus << 23) );
 
 	/* If it's IO9, then slot 2 maps to slot 7 and slot 6 maps to slot 8.
 	 * To see this is non-trivial.  By drawing pictures and reading manuals and talking
@@ -252,7 +589,7 @@ sn_dma_flush_init(unsigned long start, unsigned long end, int idx, int pin, int 
 	 * about the case when there is a card in slot 2.  A multifunction card will appear
 	 * to be in slot 6 (from an interrupt point of view) also.  That's the  most we'll
 	 * have to worry about.  A four function card will overload the interrupt lines in
-	 * slot 2 and 6.  
+	 * slot 2 and 6.
 	 * We also need to special case the 12160 device in slot 3.  Fortunately, we have
 	 * a spare intr. line for pin 4, so we'll use that for the 12160.
 	 * All other buses have slot 3 and 4 and slots 7 and 8 unused.  Since we can only
@@ -267,259 +604,41 @@ sn_dma_flush_init(unsigned long start, unsigned long end, int idx, int pin, int 
 	if (isIO9(nasid) && ( (IS_ALTIX(nasid) && wid_num == 0xc)
 				|| (IS_OPUS(nasid) && wid_num == 0xf) )
 				&& bus == 0) {
-		if (slot == 2) {
-			p->force_int_addr = (unsigned long)&b->b_force_always[6].intr;
-			dev_sel = b->b_int_device;
-			dev_sel |= (1<<18);
-			b->b_int_device = dev_sel;
+		if (pin == 1) {
+			p->force_int_addr = (unsigned long)pcireg_bridge_force_always_addr_get(b, 6);
+			pcireg_bridge_intr_device_bit_set(b, (1<<18));
 			dnasid = NASID_GET(virt_to_phys(&p->flush_addr));
-			b->p_int_addr_64[6] = (virt_to_phys(&p->flush_addr) & 0xfffffffff) | 
-				(dnasid << 36) | (0xfUL << 48);
-		} else  if (slot == 3) { /* 12160 SCSI device in IO9 */
-			p->force_int_addr = (unsigned long)&b->b_force_always[4].intr;
-			dev_sel = b->b_int_device;
-			dev_sel |= (2<<12);
-			b->b_int_device = dev_sel;
+			pcireg_bridge_intr_addr_set(b, 6, ((virt_to_phys(&p->flush_addr) & 0xfffffffff) |
+					(dnasid << 36) | (0xfUL << 48)));
+		} else if (pin == 2) { /* 12160 SCSI device in IO9 */
+			p->force_int_addr = (unsigned long)pcireg_bridge_force_always_addr_get(b, 4);
+			pcireg_bridge_intr_device_bit_set(b, (2<<12));
 			dnasid = NASID_GET(virt_to_phys(&p->flush_addr));
-			b->p_int_addr_64[4] = (virt_to_phys(&p->flush_addr) & 0xfffffffff) | 
-				(dnasid << 36) | (0xfUL << 48);
+			pcireg_bridge_intr_addr_set(b, 4,
+					((virt_to_phys(&p->flush_addr) & 0xfffffffff) |
+					(dnasid << 36) | (0xfUL << 48)));
 		} else { /* slot == 6 */
-			p->force_int_addr = (unsigned long)&b->b_force_always[7].intr;
-			dev_sel = b->b_int_device;
-			dev_sel |= (5<<21);
-			b->b_int_device = dev_sel;
+			p->force_int_addr = (unsigned long)pcireg_bridge_force_always_addr_get(b, 7);
+			pcireg_bridge_intr_device_bit_set(b, (5<<21));
 			dnasid = NASID_GET(virt_to_phys(&p->flush_addr));
-			b->p_int_addr_64[7] = (virt_to_phys(&p->flush_addr) & 0xfffffffff) | 
-				(dnasid << 36) | (0xfUL << 48);
+			pcireg_bridge_intr_addr_set(b, 7,
+					((virt_to_phys(&p->flush_addr) & 0xfffffffff) |
+					(dnasid << 36) | (0xfUL << 48)));
 		}
 	} else {
-		p->force_int_addr = (unsigned long)&b->b_force_always[pin + 2].intr;
-		dev_sel = b->b_int_device;
-		dev_sel |= ((slot - 1) << ( pin * 3) );
-		b->b_int_device = dev_sel;
+		p->force_int_addr = (unsigned long)pcireg_bridge_force_always_addr_get(b, (pin +2));
+		pcireg_bridge_intr_device_bit_set(b, (pin << (pin * 3)));
 		dnasid = NASID_GET(virt_to_phys(&p->flush_addr));
-		b->p_int_addr_64[pin + 2] = (virt_to_phys(&p->flush_addr) & 0xfffffffff) | 
-			(dnasid << 36) | (0xfUL << 48);
+		pcireg_bridge_intr_addr_set(b, (pin + 2),
+				((virt_to_phys(&p->flush_addr) & 0xfffffffff) |
+				(dnasid << 36) | (0xfUL << 48)));
 	}
+	return p;
 }
 
-/*
- * sn_pci_fixup() - This routine is called when platform_pci_fixup() is 
- *	invoked at the end of pcibios_init() to link the Linux pci 
- *	infrastructure to SGI IO Infrasturcture - ia64/kernel/pci.c
- *
- *	Other platform specific fixup can also be done here.
- */
-void
-sn_pci_fixup(int arg)
-{
-	struct list_head *ln;
-	struct pci_bus *pci_bus = NULL;
-	struct pci_dev *device_dev = NULL;
-	struct sn_widget_sysdata *widget_sysdata;
-	struct sn_device_sysdata *device_sysdata;
-	pcibr_intr_t intr_handle;
-	pciio_provider_t *pci_provider;
-	vertex_hdl_t device_vertex;
-	pciio_intr_line_t lines;
-	extern int numnodes;
-	int cnode;
-
-	if (arg == 0) {
-#ifdef CONFIG_PROC_FS
-		extern void register_sn_procfs(void);
-#endif
-		extern void sgi_master_io_infr_init(void);
-		extern void sn_init_cpei_timer(void);
-		
-		sgi_master_io_infr_init();
-		
-		for (cnode = 0; cnode < numnodes; cnode++) {
-			extern void intr_init_vecblk(cnodeid_t);
-			intr_init_vecblk(cnode);
-		} 
-
-		sn_init_cpei_timer();
-
-#ifdef CONFIG_PROC_FS
-		register_sn_procfs();
-#endif
-		return;
-	}
-
-
-	done_probing = 1;
-
-	/*
-	 * Initialize the pci bus vertex in the pci_bus struct.
-	 */
-	for( ln = pci_root_buses.next; ln != &pci_root_buses; ln = ln->next) {
-		pci_bus = pci_bus_b(ln);
-		widget_sysdata = kmalloc(sizeof(struct sn_widget_sysdata), 
-					GFP_KERNEL);
-		widget_sysdata->vhdl = pci_bus_to_vertex(pci_bus->number);
-		pci_bus->sysdata = (void *)widget_sysdata;
-	}
-
-	/*
- 	 * set the root start and end so that drivers calling check_region()
-	 * won't see a conflict
-	 */
-
-#ifdef CONFIG_IA64_SGI_SN_SIM
-	if (! IS_RUNNING_ON_SIMULATOR()) {
-		ioport_resource.start  = 0xc000000000000000;
-		ioport_resource.end =    0xcfffffffffffffff;
-	}
-#endif
-
-	/*
-	 * Set the root start and end for Mem Resource.
-	 */
-	iomem_resource.start = 0;
-	iomem_resource.end = 0xffffffffffffffff;
-
-	/*
-	 * Initialize the device vertex in the pci_dev struct.
-	 */
-	while ((device_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, device_dev)) != NULL) {
-		unsigned int irq;
-		int idx;
-		u16 cmd;
-		vertex_hdl_t vhdl;
-		unsigned long size;
-		extern int bit_pos_to_irq(int);
-
-		/* Set the device vertex */
-
-		device_sysdata = kmalloc(sizeof(struct sn_device_sysdata),
-					 GFP_KERNEL);
-		if (device_sysdata <= 0) {
-			printk("sn_pci_fixup: Cannot allocate memory for device sysdata\n");
-			return;
-		}
-
-		device_sysdata->vhdl = devfn_to_vertex(device_dev->bus->number, device_dev->devfn);
-		device_sysdata->isa64 = 0;
-		device_dev->sysdata = (void *) device_sysdata;
-		set_pci_provider(device_sysdata);
-
-		pci_read_config_word(device_dev, PCI_COMMAND, &cmd);
-
-		/*
-		 * Set the resources address correctly.  The assumption here 
-		 * is that the addresses in the resource structure has been
-		 * read from the card and it was set in the card by our
-		 * Infrastructure ..
-		 */
-		vhdl = device_sysdata->vhdl;
-		/* Allocate the IORESOURCE_IO space first */
-		for (idx = 0; idx < PCI_ROM_RESOURCE; idx++) {
-			unsigned long start, end, addr;
-
-			if (!(device_dev->resource[idx].flags & IORESOURCE_IO))
-				continue; 
-			
-			start = device_dev->resource[idx].start;
-			end = device_dev->resource[idx].end;
-			size = end - start;
-			if (!size)
-				continue; 
-			
-			addr = (unsigned long)pciio_pio_addr(vhdl, 0, 
-					PCIIO_SPACE_WIN(idx), 0, size, 0, 0);
-			if (!addr) {
-				device_dev->resource[idx].start = 0;
-				device_dev->resource[idx].end = 0;
-				printk("sn_pci_fixup(): pio map failure for "
-				    "%s bar%d\n", device_dev->slot_name, idx);
-			} else {
-				addr |= __IA64_UNCACHED_OFFSET;
-				device_dev->resource[idx].start = addr;
-				device_dev->resource[idx].end = addr + size;
-			}	
-
-			if (device_dev->resource[idx].flags & IORESOURCE_IO) 
-				cmd |= PCI_COMMAND_IO; 
-		} 
-
-		/* Allocate the IORESOURCE_MEM space next */
-		for (idx = 0; idx < PCI_ROM_RESOURCE; idx++) {
-			unsigned long start, end, addr;
-
-			if ((device_dev->resource[idx].flags & IORESOURCE_IO))
-				continue; 
-
-			start = device_dev->resource[idx].start;
-			end = device_dev->resource[idx].end;
-			size = end - start;
-			if (!size)
-				continue; 
-
-			addr = (unsigned long)pciio_pio_addr(vhdl, 0, 
-					PCIIO_SPACE_WIN(idx), 0, size, 0, 0);
-			if (!addr) {
-				device_dev->resource[idx].start = 0;
-				device_dev->resource[idx].end = 0;
-				printk("sn_pci_fixup(): pio map failure for "
-				    "%s bar%d\n", device_dev->slot_name, idx);
-			} else {
-				addr |= __IA64_UNCACHED_OFFSET;
-				device_dev->resource[idx].start = addr;
-				device_dev->resource[idx].end = addr + size;
-			}	
-
-			if (device_dev->resource[idx].flags & IORESOURCE_MEM)
-				cmd |= PCI_COMMAND_MEMORY;
-		}
-
-		/*
-		 * Update the Command Word on the Card.
-		 */
-		cmd |= PCI_COMMAND_MASTER; /* If the device doesn't support */
-					   /* bit gets dropped .. no harm */
-		pci_write_config_word(device_dev, PCI_COMMAND, cmd);
-
-		pci_read_config_byte(device_dev, PCI_INTERRUPT_PIN,
-				     (unsigned char *)&lines);
-		device_sysdata = (struct sn_device_sysdata *)device_dev->sysdata;
-		device_vertex = device_sysdata->vhdl;
-		pci_provider = device_sysdata->pci_provider;
- 
-		irqpdaindr->curr = device_dev;
-		intr_handle = (pci_provider->intr_alloc)(device_vertex, NULL, lines, device_vertex);
-
-		irq = intr_handle->bi_irq;
-		irqpdaindr->device_dev[irq] = device_dev;
-		(pci_provider->intr_connect)(intr_handle, (intr_func_t)0, (intr_arg_t)0);
-		device_dev->irq = irq;
-		register_pcibr_intr(irq, intr_handle);
-
-		for (idx = 0; idx < PCI_ROM_RESOURCE; idx++) {
-			int ibits = intr_handle->bi_ibits;
-			int i;
-
-			size = device_dev->resource[idx].end -
-				device_dev->resource[idx].start;
-			if (size == 0)
-				continue;
-
-			for (i=0; i<8; i++) {
-				if (ibits & (1 << i) ) {
-					sn_dma_flush_init(device_dev->resource[idx].start, 
-							device_dev->resource[idx].end,
-							idx,
-							i,
-							PCI_SLOT(device_dev->devfn));
-				}
-			}
-		}
-
-	}
-}
 
 /*
- * linux_bus_cvlink() Creates a link between the Linux PCI Bus number 
+ * linux_bus_cvlink() Creates a link between the Linux PCI Bus number
  *	to the actual hardware component that it represents:
  *	/dev/hw/linux/busnum/0 -> ../../../hw/module/001c01/slab/0/Ibrick/xtalk/15/pci
  *
@@ -539,7 +658,7 @@ linux_bus_cvlink(void)
 			continue;
 
 		sprintf(name, "%x", index);
-		(void) hwgraph_edge_add(linux_busnum, busnum_to_pcibr_vhdl[index], 
+		(void) hwgraph_edge_add(linux_busnum, busnum_to_pcibr_vhdl[index],
 				name);
 	}
 }
@@ -548,238 +667,132 @@ linux_bus_cvlink(void)
  * pci_bus_map_create() - Called by pci_bus_to_hcl_cvlink() to finish the job.
  *
  *	Linux PCI Bus numbers are assigned from lowest module_id numbers
- *	(rack/slot etc.) starting from HUB_WIDGET_ID_MAX down to 
- *	HUB_WIDGET_ID_MIN:
- *		widgetnum 15 gets lower Bus Number than widgetnum 14 etc.
- *
- *	Given 2 modules 001c01 and 001c02 we get the following mappings:
- *		001c01, widgetnum 15 = Bus number 0
- *		001c01, widgetnum 14 = Bus number 1
- *		001c02, widgetnum 15 = Bus number 3
- *		001c02, widgetnum 14 = Bus number 4
- *		etc.
- *
- * The rational for starting Bus Number 0 with Widget number 15 is because 
- * the system boot disks are always connected via Widget 15 Slot 0 of the 
- * I-brick.  Linux creates /dev/sd* devices(naming) strating from Bus Number 0 
- * Therefore, /dev/sda1 will be the first disk, on Widget 15 of the lowest 
- * module id(Master Cnode) of the system.
- *	
+ *	(rack/slot etc.)
  */
-static int 
-pci_bus_map_create(vertex_hdl_t xtalk, char * io_moduleid)
+static int
+pci_bus_map_create(struct pcibr_list_s *softlistp, moduleid_t moduleid)
 {
+	
+	int basebus_num, bus_number;
+	vertex_hdl_t pci_bus = softlistp->bl_vhdl;
+	char moduleid_str[16];
 
-	vertex_hdl_t master_node_vertex = NULL;
-	vertex_hdl_t xwidget = NULL;
-	vertex_hdl_t pci_bus = NULL;
-	hubinfo_t hubinfo = NULL;
-	xwidgetnum_t widgetnum;
-	char pathname[128];
-	graph_error_t rv;
-	int bus;
-	int basebus_num;
-	extern void ioconfig_get_busnum(char *, int *);
-
-	int bus_number;
+	memset(moduleid_str, 0, 16);
+	format_module_id(moduleid_str, moduleid, MODULE_FORMAT_BRIEF);
+	(void) ioconfig_get_busnum((char *)moduleid_str, &basebus_num);
 
 	/*
-	 * Loop throught this vertex and get the Xwidgets ..
+	 * Assign the correct bus number and also the nasid of this
+	 * pci Xwidget.
 	 */
-
-
-	/* PCI devices */
-
-	for (widgetnum = HUB_WIDGET_ID_MAX; widgetnum >= HUB_WIDGET_ID_MIN; widgetnum--) {
-		sprintf(pathname, "%d", widgetnum);
-		xwidget = NULL;
-		
-		/*
-		 * Example - /hw/module/001c16/Pbrick/xtalk/8 is the xwidget
-		 *	     /hw/module/001c16/Pbrick/xtalk/8/pci/1 is device
-		 */
-		rv = hwgraph_traverse(xtalk, pathname, &xwidget);
-		if ( (rv != GRAPH_SUCCESS) ) {
-			if (!xwidget) {
-				continue;
-			}
-		}
-
-		sprintf(pathname, "%d/"EDGE_LBL_PCI, widgetnum);
-		pci_bus = NULL;
-		if (hwgraph_traverse(xtalk, pathname, &pci_bus) != GRAPH_SUCCESS)
-			if (!pci_bus) {
-				continue;
-}
-
-		/*
-		 * Assign the correct bus number and also the nasid of this 
-		 * pci Xwidget.
-		 * 
-		 * Should not be any race here ...
-		 */
-		num_bridges++;
-		busnum_to_pcibr_vhdl[num_bridges - 1] = pci_bus;
-
-		/*
-		 * Get the master node and from there get the NASID.
-		 */
-		master_node_vertex = device_master_get(xwidget);
-		if (!master_node_vertex) {
-			printk("WARNING: pci_bus_map_create: Unable to get .master for vertex 0x%p\n", (void *)xwidget);
-		}
-	
-		hubinfo_get(master_node_vertex, &hubinfo);
-		if (!hubinfo) {
-			printk("WARNING: pci_bus_map_create: Unable to get hubinfo for master node vertex 0x%p\n", (void *)master_node_vertex);
-			return(1);
-		} else {
-			busnum_to_nid[num_bridges - 1] = hubinfo->h_nasid;
-		}
-
-		/*
-		 * Pre assign DMA maps needed for 32 Bits Page Map DMA.
-		 */
-		busnum_to_atedmamaps[num_bridges - 1] = (void *) kmalloc(
-			sizeof(struct pcibr_dmamap_s) * MAX_ATE_MAPS, GFP_KERNEL);
-		if (!busnum_to_atedmamaps[num_bridges - 1])
-			printk("WARNING: pci_bus_map_create: Unable to precreate ATE DMA Maps for busnum %d vertex 0x%p\n", num_bridges - 1, (void *)xwidget);
-
-		memset(busnum_to_atedmamaps[num_bridges - 1], 0x0, 
-			sizeof(struct pcibr_dmamap_s) * MAX_ATE_MAPS);
-
-	}
-
-	/*
-	 * PCIX devices
-	 * We number busses differently for PCI-X devices.
-	 * We start from Lowest Widget on up ..
-	 */
-
-        (void) ioconfig_get_busnum((char *)io_moduleid, &basebus_num);
-
-	for (widgetnum = HUB_WIDGET_ID_MIN; widgetnum <= HUB_WIDGET_ID_MAX; widgetnum++) {
-
-		/* Do both buses */
-		for ( bus = 0; bus < 2; bus++ ) {
-			sprintf(pathname, "%d", widgetnum);
-			xwidget = NULL;
-			
-			/*
-			 * Example - /hw/module/001c16/Pbrick/xtalk/8 is the xwidget
-			 *	     /hw/module/001c16/Pbrick/xtalk/8/pci-x/0 is the bus
-			 *	     /hw/module/001c16/Pbrick/xtalk/8/pci-x/0/1 is device
-			 */
-			rv = hwgraph_traverse(xtalk, pathname, &xwidget);
-			if ( (rv != GRAPH_SUCCESS) ) {
-				if (!xwidget) {
-					continue;
-				}
-			}
-	
-			if ( bus == 0 )
-				sprintf(pathname, "%d/"EDGE_LBL_PCIX_0, widgetnum);
-			else
-				sprintf(pathname, "%d/"EDGE_LBL_PCIX_1, widgetnum);
-			pci_bus = NULL;
-			if (hwgraph_traverse(xtalk, pathname, &pci_bus) != GRAPH_SUCCESS)
-				if (!pci_bus) {
-					continue;
-				}
-	
-			/*
-			 * Assign the correct bus number and also the nasid of this 
-			 * pci Xwidget.
-			 * 
-			 * Should not be any race here ...
-			 */
-			bus_number = basebus_num + bus + io_brick_map_widget(MODULE_PXBRICK, widgetnum);
+	bus_number = basebus_num + pcibr_widget_to_bus(pci_bus);
 #ifdef DEBUG
-			printk("bus_number %d basebus_num %d bus %d io %d\n", 
-				bus_number, basebus_num, bus, 
-				io_brick_map_widget(MODULE_PXBRICK, widgetnum));
-#endif
-			busnum_to_pcibr_vhdl[bus_number] = pci_bus;
-	
-			/*
-			 * Pre assign DMA maps needed for 32 Bits Page Map DMA.
-			 */
-			busnum_to_atedmamaps[bus_number] = (void *) kmalloc(
-				sizeof(struct pcibr_dmamap_s) * MAX_ATE_MAPS, GFP_KERNEL);
-			if (!busnum_to_atedmamaps[bus_number])
-				printk("WARNING: pci_bus_map_create: Unable to precreate ATE DMA Maps for busnum %d vertex 0x%p\n", num_bridges - 1, (void *)xwidget);
-	
-			memset(busnum_to_atedmamaps[bus_number], 0x0, 
-				sizeof(struct pcibr_dmamap_s) * MAX_ATE_MAPS);
-		}
-	}
+	{
+	char hwpath[MAXDEVNAME] = "\0";
+	extern int hwgraph_vertex_name_get(vertex_hdl_t, char *, uint);
 
-        return(0);
+	pcibr_soft_t pcibr_soft = softlistp->bl_soft;
+	hwgraph_vertex_name_get(pci_bus, hwpath, MAXDEVNAME);
+	printk("%s:\n\tbus_num %d, basebus_num %d, brick_bus %d, "
+		"bus_vhdl 0x%lx, brick_type %d\n", hwpath, bus_number,
+		basebus_num, pcibr_widget_to_bus(pci_bus),
+		(uint64_t)pci_bus, pcibr_soft->bs_bricktype);
+	}
+#endif
+	busnum_to_pcibr_vhdl[bus_number] = pci_bus;
+
+	/*
+	 * Pre assign DMA maps needed for 32 Bits Page Map DMA.
+	 */
+	busnum_to_atedmamaps[bus_number] = (void *) vmalloc(
+			sizeof(struct pcibr_dmamap_s)*MAX_ATE_MAPS);
+	if (busnum_to_atedmamaps[bus_number] <= 0) {
+		printk("pci_bus_map_create: Cannot allocate memory for ate maps\n");
+		return -1;
+	}
+	memset(busnum_to_atedmamaps[bus_number], 0x0,
+			sizeof(struct pcibr_dmamap_s) * MAX_ATE_MAPS);
+	return(0);
 }
 
 /*
- * pci_bus_to_hcl_cvlink() - This routine is called after SGI IO Infrastructure   
- *      initialization has completed to set up the mappings between Xbridge
- *      and logical pci bus numbers.  We also set up the NASID for each of these
- *      xbridges.
+ * pci_bus_to_hcl_cvlink() - This routine is called after SGI IO Infrastructure
+ *      initialization has completed to set up the mappings between PCI BRIDGE
+ *      ASIC and logical pci bus numbers.
  *
  *      Must be called before pci_init() is invoked.
  */
 int
-pci_bus_to_hcl_cvlink(void) 
+pci_bus_to_hcl_cvlink(void)
 {
+	int i;
+	extern pcibr_list_p pcibr_list;
 
-	vertex_hdl_t devfs_hdl = NULL;
-	vertex_hdl_t xtalk = NULL;
-	int rv = 0;
-	char name[256];
-	char tmp_name[256];
-	int i, ii, j;
-	char *brick_name;
-	extern void ioconfig_bus_new_entries(void);
-
-	/*
-	 * Figure out which IO Brick is connected to the Compute Bricks.
-	 */
 	for (i = 0; i < nummodules; i++) {
-		extern int iomoduleid_get(nasid_t);
-		moduleid_t iobrick_id;
-		nasid_t nasid = -1;
-		int nodecnt;
-		int n = 0;
+		struct pcibr_list_s *softlistp = pcibr_list;
+		struct pcibr_list_s *first_in_list = NULL;
+		struct pcibr_list_s *last_in_list = NULL;
 
-		nodecnt = modules[i]->nodecnt;
-		for ( n = 0; n < nodecnt; n++ ) {
-			nasid = cnodeid_to_nasid(modules[i]->nodes[n]);
-			iobrick_id = iomoduleid_get(nasid);
-			if ((int)iobrick_id > 0) { /* Valid module id */
-				char name[12];
-				memset(name, 0, 12);
-				format_module_id((char *)&(modules[i]->io[n].moduleid), iobrick_id, MODULE_FORMAT_BRIEF);
+		/* Walk the list of pcibr_soft structs looking for matches */
+		while (softlistp) {
+			struct pcibr_soft_s *pcibr_soft = softlistp->bl_soft;
+			moduleid_t moduleid;
+			
+			/* Is this PCI bus associated with this moduleid? */
+			moduleid = NODE_MODULEID(
+				nasid_to_cnodeid(pcibr_soft->bs_nasid));
+			if (sn_modules[i]->id == moduleid) {
+				struct pcibr_list_s *new_element;
+
+				new_element = kmalloc(sizeof (struct pcibr_soft_s), GFP_KERNEL);
+				if (new_element == NULL) {
+					printk("%s: Couldn't allocate memory\n",__FUNCTION__);
+					return -ENOMEM;
+				}
+				new_element->bl_soft = softlistp->bl_soft;
+				new_element->bl_vhdl = softlistp->bl_vhdl;
+				new_element->bl_next = NULL;
+
+				/* list empty so just put it on the list */
+				if (first_in_list == NULL) {
+					first_in_list = new_element;
+					last_in_list = new_element;
+					softlistp = softlistp->bl_next;
+					continue;
+				}
+
+				/*
+				 * BASEIO IObricks attached to a module have
+				 * a higher priority than non BASEIO IOBricks
+				 * when it comes to persistant pci bus
+				 * numbering, so put them on the front of the
+				 * list.
+				 */
+				if (isIO9(pcibr_soft->bs_nasid)) {
+					new_element->bl_next = first_in_list;
+					first_in_list = new_element;
+				} else {
+					last_in_list->bl_next = new_element;
+					last_in_list = new_element;
+				}
 			}
+			softlistp = softlistp->bl_next;
 		}
-	}
 				
-	devfs_hdl = hwgraph_path_to_vertex("hw/module");
-	for (i = 0; i < nummodules ; i++) {
-	    for ( j = 0; j < 2; j++ ) {
-		if ( j == 0 )
-			brick_name = EDGE_LBL_PXBRICK;
-		else
-			brick_name = EDGE_LBL_IXBRICK;
-
-		for ( ii = 0; ii < 2 ; ii++ ) {
-			memset(name, 0, 256);
-			memset(tmp_name, 0, 256);
-			format_module_id(name, modules[i]->id, MODULE_FORMAT_BRIEF);
-			sprintf(tmp_name, "/slab/%d/%s/xtalk", geo_slab(modules[i]->geoid[ii]), brick_name);
-			strcat(name, tmp_name);
-			xtalk = NULL;
-			rv = hwgraph_edge_get(devfs_hdl, name, &xtalk);
-			if ( rv == 0 ) 
-				pci_bus_map_create(xtalk, (char *)&(modules[i]->io[ii].moduleid));
+		/*
+		 * We now have a list of all the pci bridges associated with
+		 * the module_id, sn_modules[i].  Call pci_bus_map_create() for
+		 * each pci bridge
+		 */
+		softlistp = first_in_list;
+		while (softlistp) {
+			moduleid_t iobrick;
+			struct pcibr_list_s *next = softlistp->bl_next;
+			iobrick = iomoduleid_get(softlistp->bl_soft->bs_nasid);
+			pci_bus_map_create(softlistp, iobrick);
+			kfree(softlistp);
+			softlistp = next;
 		}
-	    }
 	}
 
 	/*
@@ -794,34 +807,98 @@ pci_bus_to_hcl_cvlink(void)
 /*
  * Ugly hack to get PCI setup until we have a proper ACPI namespace.
  */
+
+#define PCI_BUSES_TO_SCAN 256
+
 extern struct pci_ops sn_pci_ops;
 int __init
 sn_pci_init (void)
 {
-#	define PCI_BUSES_TO_SCAN 256
 	int i = 0;
 	struct pci_controller *controller;
+	struct list_head *ln;
+	struct pci_bus *pci_bus = NULL;
+	struct pci_dev *pci_dev = NULL;
+	int ret;
+#ifdef CONFIG_PROC_FS
+	extern void register_sn_procfs(void);
+#endif
+	extern void sgi_master_io_infr_init(void);
+	extern void sn_init_cpei_timer(void);
+
 
 	if (!ia64_platform_is("sn2") || IS_RUNNING_ON_SIMULATOR())
 		return 0;
 
 	/*
+	 * This is needed to avoid bounce limit checks in the blk layer
+	 */
+	ia64_max_iommu_merge_mask = ~PAGE_MASK;
+
+	/*
 	 * set pci_raw_ops, etc.
 	 */
-	sn_pci_fixup(0);
+	sgi_master_io_infr_init();
+
+	sn_init_cpei_timer();
+
+#ifdef CONFIG_PROC_FS
+	register_sn_procfs();
+#endif
 
 	controller = kmalloc(sizeof(struct pci_controller), GFP_KERNEL);
-	if (controller) {
-		memset(controller, 0, sizeof(struct pci_controller));
-		/* just allocate some devices and fill in the pci_dev structs */
-		for (i = 0; i < PCI_BUSES_TO_SCAN; i++)
+	if (!controller) {
+		printk(KERN_WARNING "cannot allocate PCI controller\n");
+		return 0;
+	}
+
+	memset(controller, 0, sizeof(struct pci_controller));
+
+	for (i = 0; i < PCI_BUSES_TO_SCAN; i++)
+		if (pci_bus_to_vertex(i))
 			pci_scan_bus(i, &sn_pci_ops, controller);
+
+	done_probing = 1;
+
+	/*
+	 * Initialize the pci bus vertex in the pci_bus struct.
+	 */
+	for( ln = pci_root_buses.next; ln != &pci_root_buses; ln = ln->next) {
+		pci_bus = pci_bus_b(ln);
+		ret = sn_pci_fixup_bus(pci_bus);
+		if ( ret ) {
+			printk(KERN_WARNING
+				"sn_pci_fixup: sn_pci_fixup_bus fails : error %d\n",
+					ret);
+			return 0;
+		}
 	}
 
 	/*
-	 * actually find devices and fill in hwgraph structs
+	 * set the root start and end so that drivers calling check_region()
+	 * won't see a conflict
 	 */
-	sn_pci_fixup(1);
+	ioport_resource.start = 0xc000000000000000;
+	ioport_resource.end = 0xcfffffffffffffff;
+
+	/*
+	 * Set the root start and end for Mem Resource.
+	 */
+	iomem_resource.start = 0;
+	iomem_resource.end = 0xffffffffffffffff;
+
+	/*
+	 * Initialize the device vertex in the pci_dev struct.
+	 */
+	while ((pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) != NULL) {
+		ret = sn_pci_fixup_slot(pci_dev);
+		if ( ret ) {
+			printk(KERN_WARNING
+				"sn_pci_fixup: sn_pci_fixup_slot fails : error %d\n",
+					ret);
+			return 0;
+		}
+	}
 
 	return 0;
 }

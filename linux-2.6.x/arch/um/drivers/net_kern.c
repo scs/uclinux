@@ -124,7 +124,6 @@ static int uml_net_open(struct net_device *dev)
 	spin_lock(&opened_lock);
 	list_add(&lp->list, &opened);
 	spin_unlock(&opened_lock);
-	MOD_INC_USE_COUNT;
  out:
 	spin_unlock(&lp->lock);
 	return(err);
@@ -144,7 +143,6 @@ static int uml_net_close(struct net_device *dev)
 	list_del(&lp->list);
 	spin_unlock(&opened_lock);
 
-	MOD_DEC_USE_COUNT;
 	spin_unlock(&lp->lock);
 	return 0;
 }
@@ -358,8 +356,12 @@ static int eth_configure(int n, void *init, char *mac,
 	rtnl_lock();
 	err = register_netdevice(dev);
 	rtnl_unlock();
-	if (err)
+	if (err) {
+		device->dev = NULL;
+		/* XXX: should we call ->remove() here? */
+		free_netdev(dev);
 		return 1;
+	}
 	lp = dev->priv;
 
 	INIT_LIST_HEAD(&lp->list);

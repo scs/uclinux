@@ -30,10 +30,6 @@
 */
 
 #include <linux/config.h>
-#ifdef CONFIG_I2C_DEBUG_BUS
-#define DEBUG	1
-#endif
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -124,7 +120,7 @@ static int bit_savi2c_getsda(void *data)
 
 static int config_s4(struct pci_dev *dev)
 {
-	unsigned int cadr;
+	unsigned long cadr;
 
 	/* map memory */
 	cadr = dev->resource[0].start;

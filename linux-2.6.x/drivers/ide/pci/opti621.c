@@ -348,8 +348,6 @@ static void __init init_hwif_opti621 (ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
-extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
-
 static void __init init_setup_opti621 (struct pci_dev *dev, ide_pci_device_t *d)
 {
 	ide_setup_pci_device(dev, d);
@@ -357,11 +355,7 @@ static void __init init_setup_opti621 (struct pci_dev *dev, ide_pci_device_t *d)
 
 static int __devinit opti621_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &opti621_chipsets[id->driver_data];
-	if (dev->device != d->device)
-		BUG();
-	ide_setup_pci_device(dev, d);
-	MOD_INC_USE_COUNT;
+	ide_setup_pci_device(dev, &opti621_chipsets[id->driver_data]);
 	return 0;
 }
 
@@ -370,6 +364,7 @@ static struct pci_device_id opti621_pci_tbl[] = {
 	{ PCI_VENDOR_ID_OPTI, PCI_DEVICE_ID_OPTI_82C825, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, opti621_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "Opti621 IDE",
@@ -382,13 +377,7 @@ static int opti621_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
-static void opti621_ide_exit(void)
-{
-	ide_pci_unregister_driver(&driver);
-}
-
 module_init(opti621_ide_init);
-module_exit(opti621_ide_exit);
 
 MODULE_AUTHOR("Jaromir Koutek, Jan Harkes, Mark Lord");
 MODULE_DESCRIPTION("PCI driver module for Opti621 IDE");

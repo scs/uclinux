@@ -48,7 +48,7 @@ extern void kobject_cleanup(struct kobject *);
 extern int kobject_add(struct kobject *);
 extern void kobject_del(struct kobject *);
 
-extern void kobject_rename(struct kobject *, char *new_name);
+extern int kobject_rename(struct kobject *, char *new_name);
 
 extern int kobject_register(struct kobject *);
 extern void kobject_unregister(struct kobject *);
@@ -145,6 +145,14 @@ struct subsystem {
 
 #define decl_subsys(_name,_type,_hotplug_ops) \
 struct subsystem _name##_subsys = { \
+	.kset = { \
+		.kobj = { .name = __stringify(_name) }, \
+		.ktype = _type, \
+		.hotplug_ops =_hotplug_ops, \
+	} \
+}
+#define decl_subsys_name(_varname,_name,_type,_hotplug_ops) \
+struct subsystem _varname##_subsys = { \
 	.kset = { \
 		.kobj = { .name = __stringify(_name) }, \
 		.ktype = _type, \

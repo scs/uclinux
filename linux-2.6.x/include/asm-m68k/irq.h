@@ -64,7 +64,7 @@ static __inline__ int irq_canonicalize(int irq)
  * All interrupt handling is actually machine specific so it is better
  * to use function pointers, as used by the Sparc port, and select the
  * interrupt handling functions when initializing the kernel. This way
- * we save some unnecessary overhead at run-time. 
+ * we save some unnecessary overhead at run-time.
  *                                                      01/11/97 - Jes
  */
 
@@ -76,10 +76,10 @@ extern void (*disable_irq)(unsigned int);
 
 struct pt_regs;
 
-extern int sys_request_irq(unsigned int, 
-	irqreturn_t (*)(int, void *, struct pt_regs *), 
-	unsigned long, const char *, void *);
-extern void sys_free_irq(unsigned int, void *);
+extern int cpu_request_irq(unsigned int,
+			   irqreturn_t (*)(int, void *, struct pt_regs *),
+			   unsigned long, const char *, void *);
+extern void cpu_free_irq(unsigned int, void *);
 
 /*
  * various flags for request_irq() - the Amiga now uses the standard
@@ -123,5 +123,9 @@ extern volatile unsigned int num_spurious;
  * This function returns a new irq_node_t
  */
 extern irq_node_t *new_irq_node(void);
+
+struct irqaction;
+struct pt_regs;
+int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
 
 #endif /* _M68K_IRQ_H_ */

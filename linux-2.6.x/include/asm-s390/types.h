@@ -58,6 +58,8 @@ typedef __signed__ long saddr_t;
 
 #ifndef __ASSEMBLY__
 
+#include <linux/config.h>
+
 typedef signed char s8;
 typedef unsigned char u8;
 
@@ -76,6 +78,8 @@ typedef unsigned  long u64;
 #endif /* __s390x__ */
 
 typedef u32 dma_addr_t;
+
+typedef unsigned int kmem_bufctl_t;
 
 #ifndef __s390x__
 typedef union {

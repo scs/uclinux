@@ -131,7 +131,9 @@ xfs_trans_alloc(
 	xfs_mount_t	*mp,
 	uint		type)
 {
-	xfs_check_frozen(mp, NULL, XFS_FREEZE_TRANS);
+	vfs_check_frozen(XFS_MTOVFS(mp)->vfs_super, SB_FREEZE_TRANS);
+	atomic_inc(&mp->m_active_trans);
+
 	return (_xfs_trans_alloc(mp, type));
 
 }
@@ -250,7 +252,7 @@ xfs_trans_reserve(
 		error = xfs_mod_incore_sb(tp->t_mountp, XFS_SBS_FDBLOCKS,
 					  -blocks, rsvd);
 		if (error != 0) {
-                        PFLAGS_RESTORE(&tp->t_pflags);
+                        PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
 			return (XFS_ERROR(ENOSPC));
 		}
 		tp->t_blk_res += blocks;
@@ -323,7 +325,7 @@ undo_blocks:
 		tp->t_blk_res = 0;
 	}
 
-        PFLAGS_RESTORE(&tp->t_pflags);
+        PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
 
 	return (error);
 }
@@ -734,7 +736,7 @@ shut_us_down:
 			if (commit_lsn == -1 && !shutdown)
 				shutdown = XFS_ERROR(EIO);
 		}
-                PFLAGS_RESTORE(&tp->t_pflags);
+                PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
 		xfs_trans_free_items(tp, shutdown? XFS_TRANS_ABORT : 0);
 		xfs_trans_free_busy(tp);
 		xfs_trans_free(tp);
@@ -823,7 +825,7 @@ shut_us_down:
 	 * had pinned, clean up, free trans structure, and return error.
 	 */
 	if (error || commit_lsn == -1) {
-                PFLAGS_RESTORE(&tp->t_pflags);
+                PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
 		xfs_trans_uncommit(tp, flags|XFS_TRANS_ABORT);
 		return XFS_ERROR(EIO);
 	}
@@ -853,16 +855,19 @@ shut_us_down:
 	tp->t_logcb.cb_func = (void(*)(void*, int))xfs_trans_committed;
 	tp->t_logcb.cb_arg = tp;
 
-	/* We need to pass the iclog buffer which was used for the
+	/*
+	 * We need to pass the iclog buffer which was used for the
 	 * transaction commit record into this function, and attach
 	 * the callback to it. The callback must be attached before
 	 * the items are unlocked to avoid racing with other threads
 	 * waiting for an item to unlock.
 	 */
-	error = xfs_log_notify(mp, commit_iclog, &(tp->t_logcb));
+	shutdown = xfs_log_notify(mp, commit_iclog, &(tp->t_logcb));
 
-	/* mark this thread as no longer being in a transaction */
-        PFLAGS_RESTORE(&tp->t_pflags);
+	/*
+	 * Mark this thread as no longer being in a transaction
+	 */
+	PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
 
 	/*
 	 * Once all the items of the transaction have been copied
@@ -878,6 +883,19 @@ shut_us_down:
 	 * purposes.
 	 */
 	xfs_trans_unlock_items(tp, commit_lsn);
+
+	/*
+	 * If we detected a log error earlier, finish committing
+	 * the transaction now (unpin log items, etc).
+	 *
+	 * Order is critical here, to avoid using the transaction
+	 * pointer after its been freed (by xfs_trans_committed
+	 * either here now, or as a callback).  We cannot do this
+	 * step inside xfs_log_notify as was done earlier because
+	 * of this issue.
+	 */
+	if (shutdown)
+		xfs_trans_committed(tp, XFS_LI_ABORTED);
 
 	/*
 	 * Now that the xfs_trans_committed callback has been attached,
@@ -1100,7 +1118,7 @@ xfs_trans_cancel(
 	}
 
 	/* mark this thread as no longer being in a transaction */
-        PFLAGS_RESTORE(&tp->t_pflags);
+        PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
 
 	xfs_trans_free_items(tp, flags);
 	xfs_trans_free_busy(tp);
@@ -1238,10 +1256,6 @@ xfs_trans_chunk_committed(
 		lip = lidp->lid_item;
 		if (aborted)
 			lip->li_flags |= XFS_LI_ABORTED;
-
-		if (lidp->lid_flags & XFS_LID_SYNC_UNLOCK) {
-			IOP_UNLOCK(lip);
-		}
 
 		/*
 		 * Send in the ABORTED flag to the COMMITTED routine

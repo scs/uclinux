@@ -272,10 +272,7 @@ static __inline__ void par96_rx(struct net_device *dev, struct baycom_state *bc)
 static void par96_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	struct baycom_state *bc = (struct baycom_state *)dev->priv;
-
-	if (!dev || !bc || bc->hdrv.magic != HDLCDRV_MAGIC)
-		return;
+	struct baycom_state *bc = netdev_priv(dev);
 
 	baycom_int_freq(bc);
 	/*
@@ -302,7 +299,7 @@ static void par96_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static void par96_wakeup(void *handle)
 {
         struct net_device *dev = (struct net_device *)handle;
-	struct baycom_state *bc = (struct baycom_state *)dev->priv;
+	struct baycom_state *bc = netdev_priv(dev);
 
 	printk(KERN_DEBUG "baycom_par: %s: why am I being woken up?\n", dev->name);
 	if (!parport_claim(bc->pdev))
@@ -313,30 +310,33 @@ static void par96_wakeup(void *handle)
 
 static int par96_open(struct net_device *dev)
 {
-	struct baycom_state *bc = (struct baycom_state *)dev->priv;
-	struct parport *pp = parport_enumerate();
+	struct baycom_state *bc = netdev_priv(dev);
+	struct parport *pp;
 
 	if (!dev || !bc)
 		return -ENXIO;
-	while (pp && pp->base != dev->base_addr) 
-		pp = pp->next;
+	pp = parport_find_base(dev->base_addr);
 	if (!pp) {
 		printk(KERN_ERR "baycom_par: parport at 0x%lx unknown\n", dev->base_addr);
 		return -ENXIO;
 	}
 	if (pp->irq < 0) {
 		printk(KERN_ERR "baycom_par: parport at 0x%lx has no irq\n", pp->base);
+		parport_put_port(pp);
 		return -ENXIO;
 	}
 	if ((~pp->modes) & (PARPORT_MODE_PCSPP | PARPORT_MODE_SAFEININT)) {
 		printk(KERN_ERR "baycom_par: parport at 0x%lx cannot be used\n", pp->base);
+		parport_put_port(pp);
 		return -ENXIO;
 	}
 	memset(&bc->modem, 0, sizeof(bc->modem));
 	bc->hdrv.par.bitrate = 9600;
-	if (!(bc->pdev = parport_register_device(pp, dev->name, NULL, par96_wakeup, 
-						 par96_interrupt, PARPORT_DEV_EXCL, dev))) {
-		printk(KERN_ERR "baycom_par: cannot register parport at 0x%lx\n", pp->base);
+	bc->pdev = parport_register_device(pp, dev->name, NULL, par96_wakeup, 
+				 par96_interrupt, PARPORT_DEV_EXCL, dev);
+	parport_put_port(pp);
+	if (!bc->pdev) {
+		printk(KERN_ERR "baycom_par: cannot register parport at 0x%lx\n", dev->base_addr);
 		return -ENXIO;
 	}
 	if (parport_claim(bc->pdev)) {
@@ -359,7 +359,7 @@ static int par96_open(struct net_device *dev)
 
 static int par96_close(struct net_device *dev)
 {
-	struct baycom_state *bc = (struct baycom_state *)dev->priv;
+	struct baycom_state *bc = netdev_priv(dev);
 	struct parport *pp;
 
 	if (!dev || !bc)
@@ -414,19 +414,16 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr,
 {
 	struct baycom_state *bc;
 	struct baycom_ioctl bi;
-	int cmd2;
 
 	if (!dev || !dev->priv ||
 	    ((struct baycom_state *)dev->priv)->hdrv.magic != HDLCDRV_MAGIC) {
 		printk(KERN_ERR "bc_ioctl: invalid device struct\n");
 		return -EINVAL;
 	}
-	bc = (struct baycom_state *)dev->priv;
+	bc = netdev_priv(dev);
 
 	if (cmd != SIOCDEVPRIVATE)
 		return -ENOIOCTLCMD;
-	if (get_user(cmd2, (int *)ifr->ifr_data))
-		return -EFAULT;
 	switch (hi->cmd) {
 	default:
 		break;
@@ -521,7 +518,7 @@ static int __init init_baycompar(void)
 		if (IS_ERR(dev)) 
 			break;
 
-		bc = (struct baycom_state *)dev->priv;
+		bc = netdev_priv(dev);
 		if (set_hw && baycom_setmode(bc, mode[i]))
 			set_hw = 0;
 		found++;

@@ -93,12 +93,12 @@ static struct dongle_driver act200l = {
 	.set_speed	= act200l_change_speed,
 };
 
-static int __init act200l_init(void)
+static int __init act200l_sir_init(void)
 {
 	return irda_register_dongle(&act200l);
 }
 
-static void __exit act200l_cleanup(void)
+static void __exit act200l_sir_cleanup(void)
 {
 	irda_unregister_dongle(&act200l);
 }
@@ -178,7 +178,7 @@ static int act200l_change_speed(struct sir_dev *dev, unsigned speed)
 	/* Write control bytes */
 	sirdev_raw_write(dev, control, 3);
 	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(MSECS_TO_JIFFIES(5));
+	schedule_timeout(msecs_to_jiffies(5));
 
 	/* Go back to normal mode */
 	sirdev_set_dtr_rts(dev, TRUE, TRUE);
@@ -254,5 +254,5 @@ MODULE_DESCRIPTION("ACTiSYS ACT-IR200L dongle driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("irda-dongle-10"); /* IRDA_ACT200L_DONGLE */
 
-module_init(act200l_init);
-module_exit(act200l_cleanup);
+module_init(act200l_sir_init);
+module_exit(act200l_sir_cleanup);

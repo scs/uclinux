@@ -1,8 +1,33 @@
+/* 
+ *    Static declaration of "init" task data structure.
+ *
+ *    Copyright (C) 2000 Paul Bame <bame at parisc-linux.org>
+ *    Copyright (C) 2000-2001 John Marvin <jsm at parisc-linux.org>
+ *    Copyright (C) 2001 Helge Deller <deller @ parisc-linux.org>
+ *    Copyright (C) 2002 Matthew Wilcox <willy with parisc-linux.org>
+ *
+ *
+ *    This program is free software; you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation; either version 2 of the License, or
+ *    (at your option) any later version.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License
+ *    along with this program; if not, write to the Free Software
+ *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/init_task.h>
+#include <linux/mqueue.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -28,11 +53,13 @@ union thread_union init_thread_union
 	__attribute__((aligned(128))) __attribute__((__section__(".data.init_task"))) =
 		{ INIT_THREAD_INFO(init_task) };
 
-pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__ ((aligned(4096))) = { {0}, };
 #ifdef __LP64__
-unsigned long pmd0[PTRS_PER_PMD] __attribute__ ((aligned(4096))) = { 0, };
+/* NOTE: This layout exactly conforms to the hybrid L2/L3 page table layout
+ * with the first pmd adjacent to the pgd and below it */
+pmd_t pmd0[PTRS_PER_PMD] __attribute__ ((aligned(PAGE_SIZE))) = { {0}, };
 #endif
-unsigned long pg0[PT_INITIAL * PTRS_PER_PTE] __attribute__ ((aligned(4096))) = { 0, };
+pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__ ((aligned(PAGE_SIZE))) = { {0}, };
+pte_t pg0[PT_INITIAL * PTRS_PER_PTE] __attribute__ ((aligned(PAGE_SIZE))) = { {0}, };
 
 /*
  * Initial task structure.

@@ -105,7 +105,6 @@ static __inline__ void serio_cleanup(struct serio *serio)
 #define SERIO_8042	0x01000000UL
 #define SERIO_RS232	0x02000000UL
 #define SERIO_HIL_MLC	0x03000000UL
-#define SERIO_PC9800	0x04000000UL
 #define SERIO_PS_PSTHRU	0x05000000UL
 #define SERIO_8042_XL	0x06000000UL
 
@@ -117,6 +116,7 @@ static __inline__ void serio_cleanup(struct serio *serio)
 #define SERIO_MZ	0x05
 #define SERIO_MZP	0x06
 #define SERIO_MZPP	0x07
+#define SERIO_VSXXXAA	0x08
 #define SERIO_SUNKBD	0x10
 #define SERIO_WARRIOR	0x18
 #define SERIO_SPACEORB	0x19
@@ -134,6 +134,7 @@ static __inline__ void serio_cleanup(struct serio *serio)
 #define SERIO_HIL	0x25
 #define SERIO_SNES232	0x26
 #define SERIO_SEMTECH	0x27
+#define SERIO_LKKBD	0x28
 
 #define SERIO_ID	0xff00UL
 #define SERIO_EXTRA	0xff0000UL

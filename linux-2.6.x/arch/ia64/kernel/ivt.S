@@ -118,10 +118,11 @@ ENTRY(vhpt_miss)
 #ifdef CONFIG_HUGETLB_PAGE
 	extr.u r26=r25,2,6
 	;;
-	cmp.eq p8,p0=HPAGE_SHIFT,r26
+	cmp.ne p8,p0=r18,r26
+	sub r27=r26,r18
 	;;
 (p8)	dep r25=r18,r25,2,6
-(p8)	shr r22=r22,HPAGE_SHIFT-PAGE_SHIFT
+(p8)	shr r22=r22,r27
 #endif
 	;;
 	cmp.eq p6,p7=5,r17			// is IFA pointing into to region 5?
@@ -181,6 +182,12 @@ ENTRY(vhpt_miss)
 	;;
 #ifdef CONFIG_SMP
 	/*
+	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
+	 * cannot possibly affect the following loads:
+	 */
+	dv_serialize_data
+
+	/*
 	 * Re-check L2 and L3 pagetable.  If they changed, we may have received a ptc.g
 	 * between reading the pagetable and the "itc".  If so, flush the entry we
 	 * inserted and retry.
@@ -228,6 +235,12 @@ ENTRY(itlb_miss)
 	itc.i r18
 	;;
 #ifdef CONFIG_SMP
+	/*
+	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
+	 * cannot possibly affect the following loads:
+	 */
+	dv_serialize_data
+
 	ld8 r19=[r17]				// read L3 PTE again and see if same
 	mov r20=PAGE_SHIFT<<2			// setup page size for purge
 	;;
@@ -266,6 +279,12 @@ dtlb_fault:
 	itc.d r18
 	;;
 #ifdef CONFIG_SMP
+	/*
+	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
+	 * cannot possibly affect the following loads:
+	 */
+	dv_serialize_data
+
 	ld8 r19=[r17]				// read L3 PTE again and see if same
 	mov r20=PAGE_SHIFT<<2			// setup page size for purge
 	;;
@@ -503,6 +522,12 @@ ENTRY(dirty_bit)
 	;;
 (p6)	itc.d r25				// install updated PTE
 	;;
+	/*
+	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
+	 * cannot possibly affect the following loads:
+	 */
+	dv_serialize_data
+
 	ld8 r18=[r17]				// read PTE again
 	;;
 	cmp.eq p6,p7=r18,r25			// is it same as the newly installed
@@ -562,6 +587,12 @@ ENTRY(iaccess_bit)
 	;;
 (p6)	itc.i r25				// install updated PTE
 	;;
+	/*
+	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
+	 * cannot possibly affect the following loads:
+	 */
+	dv_serialize_data
+
 	ld8 r18=[r17]				// read PTE again
 	;;
 	cmp.eq p6,p7=r18,r25			// is it same as the newly installed
@@ -609,6 +640,11 @@ ENTRY(daccess_bit)
 	cmp.eq p6,p7=r26,r18
 	;;
 (p6)	itc.d r25				// install updated PTE
+	/*
+	 * Tell the assemblers dependency-violation checker that the above "itc" instructions
+	 * cannot possibly affect the following loads:
+	 */
+	dv_serialize_data
 	;;
 	ld8 r18=[r17]				// read PTE again
 	;;
@@ -716,7 +752,9 @@ ENTRY(break_fault)
 	;;
 	ld4 r2=[r2]				// r2 = current_thread_info()->flags
 	;;
-	tbit.z p8,p0=r2,TIF_SYSCALL_TRACE
+	and r2=_TIF_SYSCALL_TRACEAUDIT,r2	// mask trace or audit
+	;;
+	cmp.eq p8,p0=r2,r0
 	mov b6=r20
 	;;
 (p8)	br.call.sptk.many b6=b6			// ignore this return addr
@@ -1537,10 +1575,11 @@ ENTRY(dispatch_to_ia32_handler)
 	ld4 r2=[r2]		// r2 = current_thread_info()->flags
 	;;
 	ld8 r16=[r16]
-	tbit.z p8,p0=r2,TIF_SYSCALL_TRACE
+	and r2=_TIF_SYSCALL_TRACEAUDIT,r2	// mask trace or audit
 	;;
 	mov b6=r16
 	movl r15=ia32_ret_from_syscall
+	cmp.eq p8,p0=r2,r0
 	;;
 	mov rp=r15
 (p8)	br.call.sptk.many b6=b6

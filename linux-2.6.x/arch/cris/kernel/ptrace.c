@@ -8,11 +8,8 @@
  * Authors:   Bjorn Wesen
  *
  * $Log$
- * Revision 1.1  2004/07/19 11:41:44  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:20:11  nidhi
- * Importing
+ * Revision 1.1.1.2  2004/09/07 09:14:13  lgsoft
+ * Import of 2.6.8
  *
  * Revision 1.9  2003/07/04 12:56:11  tobiasa
  * Moved arch-specific code to arch-specific files.

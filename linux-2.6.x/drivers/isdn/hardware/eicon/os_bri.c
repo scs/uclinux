@@ -3,7 +3,6 @@
 #include "platform.h"
 #include "debuglib.h"
 #include "cardtype.h"
-#include "dlist.h"
 #include "pc.h"
 #include "pr_pc.h"
 #include "di_defs.h"
@@ -283,7 +282,7 @@ static int diva_bri_cleanup_adapter(diva_os_xdi_adapter_t * a)
 
 	if (a->resources.pci.addr[0] && a->resources.pci.bar[0]) {
 		divasa_unmap_pci_bar(a->resources.pci.addr[0]);
-		a->resources.pci.addr[0] = 0;
+		a->resources.pci.addr[0] = NULL;
 		a->resources.pci.bar[0] = 0;
 	}
 
@@ -294,7 +293,7 @@ static int diva_bri_cleanup_adapter(diva_os_xdi_adapter_t * a)
 						 a->resources.pci.
 						 length[i],
 						 &a->port_name[0], i);
-			a->resources.pci.addr[i] = 0;
+			a->resources.pci.addr[i] = NULL;
 			a->resources.pci.bar[i] = 0;
 		}
 	}
@@ -306,7 +305,7 @@ static int diva_bri_cleanup_adapter(diva_os_xdi_adapter_t * a)
 	diva_os_cancel_soft_isr(&a->xdi_adapter.isr_soft_isr);
 
 	diva_os_remove_soft_isr(&a->xdi_adapter.req_soft_isr);
-	a->xdi_adapter.isr_soft_isr.object = 0;
+	a->xdi_adapter.isr_soft_isr.object = NULL;
 
 	diva_os_destroy_spin_lock(&a->xdi_adapter.isr_spin_lock, "rm");
 	diva_os_destroy_spin_lock(&a->xdi_adapter.data_spin_lock, "rm");
@@ -316,7 +315,7 @@ static int diva_bri_cleanup_adapter(diva_os_xdi_adapter_t * a)
 	 */
 	if (a->xdi_adapter.e_tbl) {
 		diva_os_free(0, a->xdi_adapter.e_tbl);
-		a->xdi_adapter.e_tbl = 0;
+		a->xdi_adapter.e_tbl = NULL;
 	}
 
 	return (0);
@@ -368,7 +367,7 @@ static int diva_bri_reregister_io(diva_os_xdi_adapter_t * a)
 		diva_os_register_io_port(a, 0, a->resources.pci.bar[i],
 					 a->resources.pci.length[i],
 					 &a->port_name[0], i);
-		a->resources.pci.addr[i] = 0;
+		a->resources.pci.addr[i] = NULL;
 	}
 
 	sprintf(a->port_name, "DIVA BRI %ld",
@@ -798,7 +797,7 @@ static int diva_bri_stop_adapter(diva_os_xdi_adapter_t * a)
 	} while (i-- && a->clear_interrupts_proc);
 	if (a->clear_interrupts_proc) {
 		diva_bri_clear_interrupts(a);
-		a->clear_interrupts_proc = 0;
+		a->clear_interrupts_proc = NULL;
 		DBG_ERR(("A: A(%d) no final interrupt from BRI adapter",
 			 IoAdapter->ANum))
 	}

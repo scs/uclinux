@@ -193,12 +193,21 @@ static void cramfs_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
+static int cramfs_remount(struct super_block *sb, int *flags, char *data)
+{
+	*flags |= MS_RDONLY;
+	return 0;
+}
+
 static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int i;
 	struct cramfs_super super;
 	unsigned long root_offset;
 	struct cramfs_sb_info *sbi;
+	struct inode *root;
+
+	sb->s_flags |= MS_RDONLY;
 
 	sbi = kmalloc(sizeof(struct cramfs_sb_info), GFP_KERNEL);
 	if (!sbi)
@@ -263,7 +272,14 @@ static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* Set it all up.. */
 	sb->s_op = &cramfs_ops;
-	sb->s_root = d_alloc_root(get_cramfs_inode(sb, &super.root));
+	root = get_cramfs_inode(sb, &super.root);
+	if (!root)
+		goto out;
+	sb->s_root = d_alloc_root(root);
+	if (!sb->s_root) {
+		iput(root);
+		goto out;
+	}
 	return 0;
 out:
 	kfree(sbi);
@@ -473,6 +489,7 @@ static struct inode_operations cramfs_dir_inode_operations = {
 
 static struct super_operations cramfs_ops = {
 	.put_super	= cramfs_put_super,
+	.remount_fs	= cramfs_remount,
 	.statfs		= cramfs_statfs,
 };
 

@@ -43,9 +43,11 @@
 #include <linux/major.h>
 #include <linux/blkdev.h>
 #include <scsi/scsi_ioctl.h>
+#include <linux/interrupt.h>
 
 #include "scsi.h"
-#include "hosts.h"
+#include <scsi/scsi_host.h>
+#include "../qlogicfas408.h"
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -54,11 +56,13 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/ciscode.h>
 
+/* Set the following to 2 to use normal interrupt (active high/totempole-
+ * tristate), otherwise use 0 (REQUIRED FOR PCMCIA) for active low, open
+ * drain
+ */
+#define INT_TYPE	0
 
-extern Scsi_Host_Template qlogicfas_driver_template;
-extern void qlogicfas_preset(int port, int irq);
-extern struct Scsi_Host *__qlogicfas_detect(Scsi_Host_Template *);
-extern int qlogicfas_bus_reset(Scsi_Cmnd *);
+static char qlogic_name[] = "qlogic_cs";
 
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
@@ -68,6 +72,24 @@ static char *version = "qlogic_cs.c 1.79-ac 2002/10/26 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
+
+static Scsi_Host_Template qlogicfas_driver_template = {
+	.module			= THIS_MODULE,
+	.name			= qlogic_name,
+	.proc_name		= qlogic_name,
+	.info			= qlogicfas408_info,
+	.queuecommand		= qlogicfas408_queuecommand,
+	.eh_abort_handler	= qlogicfas408_abort,
+	.eh_bus_reset_handler	= qlogicfas408_bus_reset,
+	.eh_device_reset_handler= qlogicfas408_device_reset,
+	.eh_host_reset_handler	= qlogicfas408_host_reset,
+	.bios_param		= qlogicfas408_biosparam,
+	.can_queue		= 1,
+	.this_id		= -1,
+	.sg_tablesize		= SG_ALL,
+	.cmd_per_lun		= 1,
+	.use_clustering		= DISABLE_CLUSTERING,
+};
 
 /*====================================================================*/
 
@@ -100,6 +122,61 @@ static dev_link_t *dev_list = NULL;
 
 static dev_info_t dev_info = "qlogic_cs";
 
+static struct Scsi_Host *qlogic_detect(Scsi_Host_Template *host,
+				dev_link_t *link, int qbase, int qlirq)
+{
+	int qltyp;		/* type of chip */
+	int qinitid;
+	struct Scsi_Host *shost;	/* registered host structure */
+	struct qlogicfas408_priv *priv;
+
+	qltyp = qlogicfas408_get_chip_type(qbase, INT_TYPE);
+	qinitid = host->this_id;
+	if (qinitid < 0)
+		qinitid = 7;	/* if no ID, use 7 */
+
+	qlogicfas408_setup(qbase, qinitid, INT_TYPE);
+
+	host->name = qlogic_name;
+	shost = scsi_host_alloc(host, sizeof(struct qlogicfas408_priv));
+	if (!shost)
+		goto err;
+	shost->io_port = qbase;
+	shost->n_io_port = 16;
+	shost->dma_channel = -1;
+	if (qlirq != -1)
+		shost->irq = qlirq;
+
+	priv = get_priv_by_host(shost);
+	priv->qlirq = qlirq;
+	priv->qbase = qbase;
+	priv->qinitid = qinitid;
+	priv->shost = shost;
+	priv->int_type = INT_TYPE;					
+
+	if (request_irq(qlirq, qlogicfas408_ihandl, 0, qlogic_name, shost))
+		goto free_scsi_host;
+
+	sprintf(priv->qinfo,
+		"Qlogicfas Driver version 0.46, chip %02X at %03X, IRQ %d, TPdma:%d",
+		qltyp, qbase, qlirq, QL_TURBO_PDMA);
+
+	if (scsi_add_host(shost, NULL))
+		goto free_interrupt;
+
+	scsi_scan_host(shost);
+
+	return shost;
+
+free_interrupt:
+	free_irq(qlirq, shost);
+
+free_scsi_host:
+	scsi_host_put(shost);
+	
+err:
+	return NULL;
+}
 static dev_link_t *qlogic_attach(void)
 {
 	scsi_info_t *info;
@@ -238,18 +315,16 @@ static void qlogic_config(dev_link_t * link)
 		outb(0x04, link->io.BasePort1 + 0xd);
 	}
 
-	/* A bad hack... */
-	release_region(link->io.BasePort1, link->io.NumPorts1);
-
 	/* The KXL-810AN has a bigger IO port window */
 	if (link->io.NumPorts1 == 32)
-		qlogicfas_preset(link->io.BasePort1 + 16, link->irq.AssignedIRQ);
+		host = qlogic_detect(&qlogicfas_driver_template, link,
+			link->io.BasePort1 + 16, link->irq.AssignedIRQ);
 	else
-		qlogicfas_preset(link->io.BasePort1, link->irq.AssignedIRQ);
-
-	host = __qlogicfas_detect(&qlogicfas_driver_template);
+		host = qlogic_detect(&qlogicfas_driver_template, link,
+			link->io.BasePort1, link->irq.AssignedIRQ);
+	
 	if (!host) {
-		printk(KERN_INFO "qlogic_cs: no SCSI devices found\n");
+		printk(KERN_INFO "%s: no SCSI devices found\n", qlogic_name);
 		goto out;
 	}
 
@@ -257,16 +332,17 @@ static void qlogic_config(dev_link_t * link)
 	link->dev = &info->node;
 	info->host = host;
 
-	scsi_add_host(host, NULL); /* XXX handle failure */
-	scsi_scan_host(host);
-
 out:
 	link->state &= ~DEV_CONFIG_PENDING;
 	return;
 
 cs_failed:
 	cs_error(link->handle, last_fn, last_ret);
-	qlogic_release(link);
+	link->dev = NULL;
+	pcmcia_release_configuration(link->handle);
+	pcmcia_release_io(link->handle, &link->io);
+	pcmcia_release_irq(link->handle, &link->irq);
+	link->state &= ~DEV_CONFIG;
 	return;
 
 }				/* qlogic_config */
@@ -282,11 +358,13 @@ static void qlogic_release(dev_link_t *link)
 	scsi_remove_host(info->host);
 	link->dev = NULL;
 
+	free_irq(link->irq.AssignedIRQ, info->host);
+
 	pcmcia_release_configuration(link->handle);
 	pcmcia_release_io(link->handle, &link->io);
 	pcmcia_release_irq(link->handle, &link->irq);
 
-	scsi_unregister(info->host);
+	scsi_host_put(info->host);
 
 	link->state &= ~DEV_CONFIG;
 }
@@ -329,7 +407,7 @@ static int qlogic_event(event_t event, int priority, event_callback_args_t * arg
 				outb(0x04, link->io.BasePort1 + 0xd);
 			}
 			/* Ugggglllyyyy!!! */
-			qlogicfas_bus_reset(NULL);
+			qlogicfas408_bus_reset(NULL);
 		}
 		break;
 	}
@@ -340,7 +418,7 @@ static int qlogic_event(event_t event, int priority, event_callback_args_t * arg
 static struct pcmcia_driver qlogic_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
-		.name	= "qlogic_cs",
+	.name		= "qlogic_cs",
 	},
 	.attach		= qlogic_attach,
 	.detach		= qlogic_detach,
@@ -360,5 +438,8 @@ static void __exit exit_qlogic_cs(void)
 		qlogic_detach(dev_list);
 }
 
+MODULE_AUTHOR("Tom Zerucha, Michael Griffith");
+MODULE_DESCRIPTION("Driver for the PCMCIA Qlogic FAS SCSI controllers");
+MODULE_LICENSE("GPL");
 module_init(init_qlogic_cs);
 module_exit(exit_qlogic_cs);

@@ -17,6 +17,7 @@
 
 #include <asm/btfixup.h>
 #include <asm/ptrace.h>
+#include <asm/page.h>
 
 /*
  * Low level task data.
@@ -53,6 +54,8 @@ struct thread_info {
 
 /*
  * macros/functions for gaining access to the thread information structure
+ *
+ * preempt_count needs to be 1 initially, until the scheduler is functional.
  */
 #define INIT_THREAD_INFO(tsk)				\
 {							\
@@ -61,6 +64,7 @@ struct thread_info {
 	.exec_domain	=	&default_exec_domain,	\
 	.flags		=	0,			\
 	.cpu		=	0,			\
+	.preempt_count	=	1,			\
 	.restart_block	= {				\
 		.fn	=	do_no_restart_syscall,	\
 	},						\
@@ -76,9 +80,9 @@ register struct thread_info *current_thread_info_reg asm("g6");
 /*
  * thread information allocation
  */
-#ifdef CONFIG_SUN4
+#if PAGE_SHIFT == 13
 #define THREAD_INFO_ORDER  0
-#else
+#else /* PAGE_SHIFT */
 #define THREAD_INFO_ORDER  1
 #endif
 
@@ -97,9 +101,6 @@ BTFIXUPDEF_CALL(void, free_thread_info, struct thread_info *)
  * Size of kernel stack for each process.
  * Observe the order of get_free_pages() in alloc_thread_info().
  * The sun4 has 8K stack too, because it's short on memory, and 16K is a waste.
- *
- * XXX Watch how INIT_THREAD_SIZE evolves in linux/sched.h and elsewhere.
- *     On 2.5.24 it happens to match 8192 magically.
  */
 #define THREAD_SIZE		8192
 

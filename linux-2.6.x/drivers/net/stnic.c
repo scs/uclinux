@@ -20,13 +20,15 @@
 
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/hitachi_se.h>
+#include <asm/se/se.h>
 #include <asm/machvec.h>
 #ifdef CONFIG_SH_STANDARD_BIOS 
 #include <asm/sh_bios.h>
 #endif
 
 #include "8390.h"
+
+#define DRV_NAME "stnic"
 
 #define byte	unsigned char
 #define half	unsigned short
@@ -98,28 +100,20 @@ STNIC_WRITE (int reg, byte val)
   STNIC_DELAY ();
 }
 
-int __init stnic_probe(void)
+static int __init stnic_probe(void)
 {
   struct net_device *dev;
-  int i;
+  int i, err;
 
   /* If we are not running on a SolutionEngine, give up now */
   if (! MACH_SE)
     return -ENODEV;
 
   /* New style probing API */
-  dev = init_etherdev (NULL, 0);
+  dev = alloc_ei_netdev();
   if (!dev)
   	return -ENOMEM;
   SET_MODULE_OWNER(dev);
-  stnic_dev = dev;
-
-  /* Allocate dev->priv and fill in 8390 specific dev fields. */
-  if (ethdev_init (dev))
-    {
-      printk (KERN_EMERG "Unable to get memory for dev->priv.\n");
-      return -ENOMEM;
-    }
 
 #ifdef CONFIG_SH_STANDARD_BIOS 
   sh_bios_get_node_addr (stnic_eadr);
@@ -132,16 +126,17 @@ int __init stnic_probe(void)
   dev->irq = IRQ_STNIC;
   dev->open = &stnic_open;
   dev->stop = &stnic_close;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+  dev->poll_controller = ei_poll;
+#endif
 
   /* Snarf the interrupt now.  There's no point in waiting since we cannot
      share and the board will usually be enabled. */
-  i = request_irq (dev->irq, ei_interrupt, 0, dev->name, dev);
-  if (i)  {
+  err = request_irq (dev->irq, ei_interrupt, 0, DRV_NAME, dev);
+  if (err)  {
       printk (KERN_EMERG " unable to get IRQ %d.\n", dev->irq);
-      unregister_netdev(dev);
-      kfree(dev->priv);
-      kfree(dev);
-      return i;
+      free_netdev(dev);
+      return err;
     }
 
   ei_status.name = dev->name;
@@ -161,6 +156,14 @@ int __init stnic_probe(void)
   ei_status.block_output = &stnic_block_output;
 
   stnic_init (dev);
+
+  err = register_netdev(dev);
+  if (err) {
+    free_irq(dev->irq, dev);
+    free_netdev(dev);
+    return err;
+  }
+  stnic_dev = dev;
 
   printk (KERN_INFO "NS ST-NIC 83902A\n");
 
@@ -305,15 +308,13 @@ stnic_init (struct net_device *dev)
   return;
 }
 
-/* Hardware interrupt handler.  */
-irqreturn_t ei_interrupt (int irq, void *dev_id, struct pt_regs *regs);
-
-irqreturn_t
-do_stnic_intr (int irq, void *dev_id, struct pt_regs *regs)
+static void __exit stnic_cleanup(void)
 {
-  return ei_interrupt (0, stnic_dev, regs);
+	unregister_netdev(stnic_dev);
+	free_irq(stnic_dev->irq, stnic_dev);
+	free_netdev(stnic_dev);
 }
 
 module_init(stnic_probe);
-/* No cleanup routine. */
+module_exit(stnic_cleanup);
 MODULE_LICENSE("GPL");

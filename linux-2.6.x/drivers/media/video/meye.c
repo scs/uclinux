@@ -160,23 +160,31 @@ static void rvfree(void * mem, unsigned long size) {
 	}
 }
 
-/* return a page table pointing to N pages of locked memory */
+/*
+ * return a page table pointing to N pages of locked memory
+ *
+ * NOTE: The meye device expects dma_addr_t size to be 32 bits
+ * (the toc must be exactly 1024 entries each of them being 4 bytes
+ * in size, the whole result being 4096 bytes). We're using here
+ * dma_addr_t for correctness but the compilation of this driver is
+ * disabled for HIGHMEM64G=y, where sizeof(dma_addr_t) != 4
+ */
 static int ptable_alloc(void) {
-	u32 *pt;
+	dma_addr_t *pt;
 	int i;
 
 	memset(meye.mchip_ptable, 0, sizeof(meye.mchip_ptable));
 
-	meye.mchip_ptable[MCHIP_NB_PAGES] = dma_alloc_coherent(&meye.mchip_dev->dev, 
-							       PAGE_SIZE, 
-							       &meye.mchip_dmahandle,
-							       GFP_KERNEL);
-	if (!meye.mchip_ptable[MCHIP_NB_PAGES]) {
+	meye.mchip_ptable_toc = dma_alloc_coherent(&meye.mchip_dev->dev,
+						   PAGE_SIZE,
+						   &meye.mchip_dmahandle,
+						   GFP_KERNEL);
+	if (!meye.mchip_ptable_toc) {
 		meye.mchip_dmahandle = 0;
 		return -1;
 	}
 
-	pt = (u32 *)meye.mchip_ptable[MCHIP_NB_PAGES];
+	pt = meye.mchip_ptable_toc;
 	for (i = 0; i < MCHIP_NB_PAGES; i++) {
 		meye.mchip_ptable[i] = dma_alloc_coherent(&meye.mchip_dev->dev, 
 							  PAGE_SIZE,
@@ -184,13 +192,18 @@ static int ptable_alloc(void) {
 							  GFP_KERNEL);
 		if (!meye.mchip_ptable[i]) {
 			int j;
-			pt = (u32 *)meye.mchip_ptable[MCHIP_NB_PAGES];
+			pt = meye.mchip_ptable_toc;
 			for (j = 0; j < i; ++j) {
 				dma_free_coherent(&meye.mchip_dev->dev,
 						  PAGE_SIZE,
 						  meye.mchip_ptable[j], *pt);
 				pt++;
 			}
+			dma_free_coherent(&meye.mchip_dev->dev,
+					  PAGE_SIZE,
+					  meye.mchip_ptable_toc,
+					  meye.mchip_dmahandle);
+			meye.mchip_ptable_toc = NULL;
 			meye.mchip_dmahandle = 0;
 			return -1;
 		}
@@ -200,10 +213,10 @@ static int ptable_alloc(void) {
 }
 
 static void ptable_free(void) {
-	u32 *pt;
+	dma_addr_t *pt;
 	int i;
 
-	pt = (u32 *)meye.mchip_ptable[MCHIP_NB_PAGES];
+	pt = meye.mchip_ptable_toc;
 	for (i = 0; i < MCHIP_NB_PAGES; i++) {
 		if (meye.mchip_ptable[i])
 			dma_free_coherent(&meye.mchip_dev->dev, 
@@ -212,13 +225,14 @@ static void ptable_free(void) {
 		pt++;
 	}
 
-	if (meye.mchip_ptable[MCHIP_NB_PAGES])
+	if (meye.mchip_ptable_toc)
 		dma_free_coherent(&meye.mchip_dev->dev, 
 				  PAGE_SIZE, 
-				  meye.mchip_ptable[MCHIP_NB_PAGES],
+				  meye.mchip_ptable_toc,
 				  meye.mchip_dmahandle);
 
 	memset(meye.mchip_ptable, 0, sizeof(meye.mchip_ptable));
+	meye.mchip_ptable_toc = NULL;
 	meye.mchip_dmahandle = 0;
 }
 
@@ -459,16 +473,6 @@ static u16 *jpeg_huffman_tables(int *size) {
 /* MCHIP low-level functions                                                */
 /****************************************************************************/
 
-/* waits for the specified miliseconds */
-static inline void wait_ms(unsigned int ms) {
-	if (!in_interrupt()) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1 + ms * HZ / 1000);
-	}
-	else
-		mdelay(ms);
-}
-
 /* returns the horizontal capture size */
 static inline int mchip_hsize(void) {
 	return meye.params.subsample ? 320 : 640;
@@ -626,12 +630,12 @@ static void mchip_hic_stop(void) {
 		for (j = 0; j < 100; ++j) {
 			if (mchip_delay(MCHIP_HIC_STATUS, MCHIP_HIC_STATUS_IDLE))
 				return;
-			wait_ms(1);
+			msleep(1);
 		}
 		printk(KERN_ERR "meye: need to reset HIC!\n");
 	
 		mchip_set(MCHIP_HIC_CTL, MCHIP_HIC_CTL_SOFT_RESET);
-		wait_ms(250);
+		msleep(250);
 	}
 	printk(KERN_ERR "meye: resetting HIC hanged!\n");
 }
@@ -727,7 +731,7 @@ static void mchip_take_picture(void) {
 	for (i = 0; i < 100; ++i) {
 		if (mchip_delay(MCHIP_HIC_STATUS, MCHIP_HIC_STATUS_IDLE))
 			break;
-		wait_ms(1);
+		msleep(1);
 	}
 }
 
@@ -743,7 +747,7 @@ static void mchip_get_picture(u8 *buf, int bufsize) {
 	for (i = 0; i < 100; ++i) {
 		if (mchip_delay(MCHIP_HIC_STATUS, MCHIP_HIC_STATUS_IDLE))
 			break;
-		wait_ms(1);
+		msleep(1);
 	}
 	for (i = 0; i < 4 ; ++i) {
 		v = mchip_get_frame();
@@ -785,7 +789,7 @@ static int mchip_compress_frame(u8 *buf, int bufsize) {
 	for (i = 0; i < 100; ++i) {
 		if (mchip_delay(MCHIP_HIC_STATUS, MCHIP_HIC_STATUS_IDLE))
 			break;
-		wait_ms(1);
+		msleep(1);
 	}
 
 	for (i = 0; i < 4 ; ++i) {
@@ -1246,11 +1250,11 @@ static int meye_resume(struct pci_dev *pdev)
 
 	mchip_delay(MCHIP_HIC_CMD, 0);
 	mchip_delay(MCHIP_HIC_STATUS, MCHIP_HIC_STATUS_IDLE);
-	wait_ms(1);
+	msleep(1);
 	mchip_set(MCHIP_VRJ_SOFT_RESET, 1);
-	wait_ms(1);
+	msleep(1);
 	mchip_set(MCHIP_MM_PCI_MODE, 5);
-	wait_ms(1);
+	msleep(1);
 	mchip_set(MCHIP_MM_INTA, MCHIP_MM_INTA_HIC_1_MASK);
 
 	switch (meye.pm_mchip_mode) {
@@ -1335,13 +1339,13 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 	mchip_delay(MCHIP_HIC_CMD, 0);
 	mchip_delay(MCHIP_HIC_STATUS, MCHIP_HIC_STATUS_IDLE);
 
-	wait_ms(1);
+	msleep(1);
 	mchip_set(MCHIP_VRJ_SOFT_RESET, 1);
 
-	wait_ms(1);
+	msleep(1);
 	mchip_set(MCHIP_MM_PCI_MODE, 5);
 
-	wait_ms(1);
+	msleep(1);
 	mchip_set(MCHIP_MM_INTA, MCHIP_MM_INTA_HIC_1_MASK);
 
 	if (video_register_device(meye.video_dev, VFL_TYPE_GRABBER, video_nr) < 0) {

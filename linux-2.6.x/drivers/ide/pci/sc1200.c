@@ -29,8 +29,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include "sc1200.h"
-
 #define SC1200_REV_A	0x00
 #define SC1200_REV_B1	0x01
 #define SC1200_REV_B3	0x02
@@ -164,7 +162,7 @@ static int sc1200_autoselect_dma_mode (ide_drive_t *drive)
 	 */
 	if (mate->present) {
 		struct hd_driveid *mateid = mate->id;
-		if (mateid && (mateid->capability & 1) && !hwif->ide_dma_bad_drive(mate)) {
+		if (mateid && (mateid->capability & 1) && !__ide_dma_bad_drive(mate)) {
 			if ((mateid->field_valid & 4) && (mateid->dma_ultra & 7))
 				udma_ok = 1;
 			else if ((mateid->field_valid & 2) && (mateid->dma_mword & 7))
@@ -177,7 +175,7 @@ static int sc1200_autoselect_dma_mode (ide_drive_t *drive)
 	 * Now see what the current drive is capable of,
 	 * selecting UDMA only if the mate said it was ok.
 	 */
-	if (id && (id->capability & 1) && hwif->autodma && !hwif->ide_dma_bad_drive(drive)) {
+	if (id && (id->capability & 1) && hwif->autodma && !__ide_dma_bad_drive(drive)) {
 		if (udma_ok && (id->field_valid & 4) && (id->dma_ultra & 7)) {
 			if      (id->dma_ultra & 4)
 				mode = XFER_UDMA_2;
@@ -420,7 +418,7 @@ static int sc1200_suspend (struct pci_dev *dev, u32 state)
 				ss = kmalloc(sizeof(sc1200_saved_state_t), GFP_KERNEL);
 				if (ss == NULL)
 					return -ENOMEM;
-				(sc1200_saved_state_t *)hwif->config_data = ss;
+				hwif->config_data = (unsigned long)ss;
 			}
 			ss = (sc1200_saved_state_t *)hwif->config_data;
 			//
@@ -493,7 +491,7 @@ printk("%s: SC1200: resume\n", hwif->name);
 		//
 		for (d = 0; d < MAX_DRIVES; ++d) {
 			ide_drive_t *drive = &(hwif->drives[d]);
-			if (drive->present && !hwif->ide_dma_bad_drive(drive)) {
+			if (drive->present && !__ide_dma_bad_drive(drive)) {
 				int was_using_dma = drive->using_dma;
 				hwif->ide_dma_off_quietly(drive);
 				sc1200_config_dma(drive);
@@ -515,7 +513,7 @@ static unsigned int __init init_chipset_sc1200 (struct pci_dev *dev, const char 
 	if (!bmide_dev) {
 		sc1200_proc = 1;
 		bmide_dev = dev;
-		ide_pci_register_host_proc(&sc1200_procs[0]);
+		ide_pci_create_host_proc("sc1200", sc1200_get_info);
 	}
 #endif /* DISPLAY_SC1200_TIMINGS && CONFIG_PROC_FS */
 	return 0;
@@ -545,16 +543,18 @@ static void __init init_hwif_sc1200 (ide_hwif_t *hwif)
         hwif->drives[1].autodma = hwif->autodma;
 }
 
-extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
-
+static ide_pci_device_t sc1200_chipset __devinitdata = {
+	.name		= "SC1200",
+	.init_chipset	= init_chipset_sc1200,
+	.init_hwif	= init_hwif_sc1200,
+	.channels	= 2,
+	.autodma	= AUTODMA,
+	.bootable	= ON_BOARD,
+};
 
 static int __devinit sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &sc1200_chipsets[id->driver_data];
-	if (dev->device != d->device)
-		BUG();
-	ide_setup_pci_device(dev, d);
-	MOD_INC_USE_COUNT;
+	ide_setup_pci_device(dev, &sc1200_chipset);
 	return 0;
 }
 
@@ -562,6 +562,7 @@ static struct pci_device_id sc1200_pci_tbl[] = {
 	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, sc1200_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "SC1200 IDE",
@@ -576,13 +577,7 @@ static int sc1200_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
-static void sc1200_ide_exit(void)
-{
-	ide_pci_unregister_driver(&driver);
-}
-
 module_init(sc1200_ide_init);
-module_exit(sc1200_ide_exit);
 
 MODULE_AUTHOR("Mark Lord");
 MODULE_DESCRIPTION("PCI driver module for NS SC1200 IDE");

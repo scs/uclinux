@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2003 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -52,6 +52,7 @@
 #include <linux/interrupt.h>
 #include <linux/string.h>
 #include <linux/pagemap.h>
+#include <linux/dma-mapping.h>
 #include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -70,19 +71,18 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <linux/moduleparam.h>
 
 #define BAR_0		0
 #define BAR_1		1
 #define BAR_5		5
-#define PCI_DMA_64BIT	0xffffffffffffffffULL
-#define PCI_DMA_32BIT	0x00000000ffffffffULL
 
 
 struct e1000_adapter;
 
 #include "e1000_hw.h"
 
-#if DBG
+#ifdef DBG
 #define E1000_DBG(args...) printk(KERN_DEBUG "e1000: " args)
 #else
 #define E1000_DBG(args...)
@@ -90,7 +90,23 @@ struct e1000_adapter;
 
 #define E1000_ERR(args...) printk(KERN_ERR "e1000: " args)
 
+#define PFX "e1000: "
+#define DPRINTK(nlevel, klevel, fmt, args...) \
+	(void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
+	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
+		__FUNCTION__ , ## args))
+
 #define E1000_MAX_INTR 10
+
+/* How many descriptors for TX and RX ? */
+#define E1000_DEFAULT_TXD                  256
+#define E1000_MAX_TXD                      256
+#define E1000_MIN_TXD                       80
+#define E1000_MAX_82544_TXD               4096
+#define E1000_DEFAULT_RXD                  256
+#define E1000_MAX_RXD                      256
+#define E1000_MIN_RXD                       80
+#define E1000_MAX_82544_RXD               4096
 
 /* Supported Rx Buffer Sizes */
 #define E1000_RXBUFFER_2048  2048
@@ -103,7 +119,7 @@ struct e1000_adapter;
 #define E1000_SMARTSPEED_MAX       15
 
 /* Packet Buffer allocations */
-#define E1000_TX_FIFO_SIZE_SHIFT 0xA
+#define E1000_PBA_BYTES_SHIFT 0xA
 #define E1000_TX_HEAD_ADDR_SHIFT 7
 #define E1000_PBA_TX_MASK 0xFFFF0000
 
@@ -180,6 +196,7 @@ struct e1000_adapter {
 	uint32_t part_num;
 	uint32_t wol;
 	uint32_t smartspeed;
+	uint32_t en_mng_pt;
 	uint16_t link_speed;
 	uint16_t link_duplex;
 	spinlock_t stats_lock;
@@ -192,10 +209,14 @@ struct e1000_adapter {
 
 	/* TX */
 	struct e1000_desc_ring tx_ring;
+	spinlock_t tx_lock;
 	uint32_t txd_cmd;
 	uint32_t tx_int_delay;
 	uint32_t tx_abs_int_delay;
 	uint32_t gotcl;
+	uint64_t gotcl_old;
+	uint64_t tpt_old;
+	uint64_t colc_old;
 	uint32_t tx_fifo_head;
 	uint32_t tx_head_addr;
 	uint32_t tx_fifo_size;
@@ -210,6 +231,7 @@ struct e1000_adapter {
 	uint32_t rx_abs_int_delay;
 	boolean_t rx_csum;
 	uint32_t gorcl;
+	uint64_t gorcl_old;
 
 	/* Interrupt Throttle Rate */
 	uint32_t itr;
@@ -231,5 +253,6 @@ struct e1000_adapter {
 
 
 	uint32_t pci_state[16];
+	int msg_enable;
 };
 #endif /* _E1000_H_ */

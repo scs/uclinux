@@ -15,10 +15,18 @@
 #include <linux/bio.h>
 #include <linux/workqueue.h>
 
+#define TAPE_DBF_AREA	tape_34xx_dbf
+
 #include "tape.h"
 #include "tape_std.h"
 
 #define PRINTK_HEADER "TAPE_34XX: "
+
+/*
+ * Pointer to debug area.
+ */
+debug_info_t *TAPE_DBF_AREA = NULL;
+EXPORT_SYMBOL(TAPE_DBF_AREA);
 
 enum tape_34xx_type {
 	tape_3480,
@@ -113,6 +121,7 @@ tape_34xx_work_handler(void *data)
 	switch(p->op) {
 		case TO_MSEN:
 			tape_34xx_medium_sense(p->device);
+			break;
 		default:
 			DBF_EVENT(3, "T34XX: internal error: unknown work\n");
 	}
@@ -202,8 +211,7 @@ tape_34xx_unsolicited_irq(struct tape_device *device, struct irb *irb)
 		tape_34xx_delete_sbid_from(device, 0);
 		tape_34xx_schedule_work(device, TO_MSEN);
 	} else {
-		DBF_EVENT(3, "unsol.irq! dev end: %s\n",
-				device->cdev->dev.bus_id);
+		DBF_EVENT(3, "unsol.irq! dev end: %08x\n", device->cdev_id);
 		PRINT_WARN("Unsolicited IRQ (Device End) caught.\n");
 		tape_dump_sense(device, NULL, irb);
 	}
@@ -885,7 +893,7 @@ tape_34xx_ioctl(struct tape_device *device, unsigned int cmd, unsigned long arg)
 	if (cmd == TAPE390_DISPLAY) {
 		struct display_struct disp;
 
-		if (copy_from_user(&disp, (char *) arg, sizeof(disp)) != 0)
+		if (copy_from_user(&disp, (char __user *) arg, sizeof(disp)) != 0)
 			return -EFAULT;
 
 		return tape_std_display(device, &disp);
@@ -1314,17 +1322,18 @@ static struct ccw_device_id tape_34xx_ids[] = {
 };
 
 static int
-tape_34xx_enable(struct ccw_device *cdev)
+tape_34xx_online(struct ccw_device *cdev)
 {
-	return tape_enable_device(cdev->dev.driver_data,
-				  &tape_discipline_34xx);
+	return tape_generic_online(
+		cdev->dev.driver_data,
+		&tape_discipline_34xx
+	);
 }
 
 static int
-tape_34xx_disable(struct ccw_device *cdev)
+tape_34xx_offline(struct ccw_device *cdev)
 {
-	tape_disable_device(cdev->dev.driver_data);
-	return 0;
+	return tape_generic_offline(cdev->dev.driver_data);
 }
 
 static struct ccw_driver tape_34xx_driver = {
@@ -1333,14 +1342,20 @@ static struct ccw_driver tape_34xx_driver = {
 	.ids = tape_34xx_ids,
 	.probe = tape_generic_probe,
 	.remove = tape_generic_remove,
-	.set_online = tape_34xx_enable,
-	.set_offline = tape_34xx_disable,
+	.set_online = tape_34xx_online,
+	.set_offline = tape_34xx_offline,
 };
 
 static int
 tape_34xx_init (void)
 {
 	int rc;
+
+	TAPE_DBF_AREA = debug_register ( "tape_34xx", 1, 2, 4*sizeof(long));
+	debug_register_view(TAPE_DBF_AREA, &debug_sprintf_view);
+#ifdef DBF_LIKE_HELL
+	debug_set_level(TAPE_DBF_AREA, 6);
+#endif
 
 	DBF_EVENT(3, "34xx init: $Revision$\n");
 	/* Register driver for 3480/3490 tapes. */
@@ -1356,6 +1371,8 @@ static void
 tape_34xx_exit(void)
 {
 	ccw_driver_unregister(&tape_34xx_driver);
+
+	debug_unregister(TAPE_DBF_AREA);
 }
 
 MODULE_DEVICE_TABLE(ccw, tape_34xx_ids);

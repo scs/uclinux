@@ -70,24 +70,6 @@ struct chipset_bus_clock_list_entry aec6xxx_34_base [] = {
 #define BUSCLOCK(D)	\
 	((struct chipset_bus_clock_list_entry *) pci_get_drvdata((D)))
 
-#if defined(DISPLAY_AEC62XX_TIMINGS) && defined(CONFIG_PROC_FS)
-#include <linux/stat.h>
-#include <linux/proc_fs.h>
-
-static u8 aec62xx_proc;
-
-static int aec62xx_get_info(char *, char **, off_t, int);
-
-static ide_pci_host_proc_t aec62xx_procs[] __initdata = {
-	{
-		.name		= "aec62xx",
-		.set		= 1,
-		.get_info	= aec62xx_get_info,
-		.parent		= NULL,
-	},
-};
-#endif /* DISPLAY_AEC62XX_TIMINGS && CONFIG_PROC_FS */
-
 static void init_setup_aec6x80(struct pci_dev *, ide_pci_device_t *);
 static void init_setup_aec62xx(struct pci_dev *, ide_pci_device_t *);
 static unsigned int init_chipset_aec62xx(struct pci_dev *, const char *);
@@ -96,75 +78,53 @@ static void init_dma_aec62xx(ide_hwif_t *, unsigned long);
 
 static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 	{	/* 0 */
-		.vendor		= PCI_VENDOR_ID_ARTOP,
-		.device		= PCI_DEVICE_ID_ARTOP_ATP850UF,
 		.name		= "AEC6210",
 		.init_setup	= init_setup_aec62xx,
 		.init_chipset	= init_chipset_aec62xx,
-		.init_iops	= NULL,
 		.init_hwif	= init_hwif_aec62xx,
 		.init_dma	= init_dma_aec62xx,
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.bootable	= OFF_BOARD,
-		.extra		= 0,
 	},{	/* 1 */
-		.vendor		= PCI_VENDOR_ID_ARTOP,
-		.device		= PCI_DEVICE_ID_ARTOP_ATP860,
 		.name		= "AEC6260",
 		.init_setup	= init_setup_aec62xx,
 		.init_chipset	= init_chipset_aec62xx,
-		.init_iops	= NULL,
 		.init_hwif	= init_hwif_aec62xx,
 		.init_dma	= init_dma_aec62xx,
 		.channels	= 2,
 		.autodma	= NOAUTODMA,
-		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
 		.bootable	= OFF_BOARD,
-		.extra		= 0,
 	},{	/* 2 */
-		.vendor		= PCI_VENDOR_ID_ARTOP,
-		.device		= PCI_DEVICE_ID_ARTOP_ATP860R,
 		.name		= "AEC6260R",
 		.init_setup	= init_setup_aec62xx,
 		.init_chipset	= init_chipset_aec62xx,
-		.init_iops	= NULL,
 		.init_hwif	= init_hwif_aec62xx,
 		.init_dma	= init_dma_aec62xx,
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.bootable	= NEVER_BOARD,
-		.extra		= 0,
 	},{	/* 3 */
-		.vendor		= PCI_VENDOR_ID_ARTOP,
-		.device		= PCI_DEVICE_ID_ARTOP_ATP865,
 		.name		= "AEC6X80",
 		.init_setup	= init_setup_aec6x80,
 		.init_chipset	= init_chipset_aec62xx,
-		.init_iops	= NULL,
 		.init_hwif	= init_hwif_aec62xx,
 		.init_dma	= init_dma_aec62xx,
 		.channels	= 2,
 		.autodma	= AUTODMA,
-		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
 		.bootable	= OFF_BOARD,
-		.extra		= 0,
 	},{	/* 4 */
-		.vendor		= PCI_VENDOR_ID_ARTOP,
-		.device		= PCI_DEVICE_ID_ARTOP_ATP865R,
 		.name		= "AEC6X80R",
 		.init_setup	= init_setup_aec6x80,
 		.init_chipset	= init_chipset_aec62xx,
-		.init_iops	= NULL,
 		.init_hwif	= init_hwif_aec62xx,
 		.init_dma	= init_dma_aec62xx,
 		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.bootable	= OFF_BOARD,
-		.extra		= 0,
 	}
 };
 

@@ -30,6 +30,10 @@ config PPC32
 	bool
 	default y
 
+# All PPCs use generic nvram driver through ppc_md
+config GENERIC_NVRAM
+	bool
+	default y
 
 source "init/Kconfig"
 
@@ -40,18 +44,18 @@ choice
 	default 6xx
 
 config 6xx
-	bool "6xx/7xx/74xx/8260"
+	bool "6xx/7xx/74xx/52xx/8260"
 	help
 	  There are four types of PowerPC chips supported.  The more common
 	  types (601, 603, 604, 740, 750, 7400), the Motorola embedded
-	  versions (821, 823, 850, 855, 860, 8260), the IBM embedded versions
-	  (403 and 405) and the high end 64 bit Power processors (POWER 3,
-	  POWER4, and IBM 970 also known as G5)
+	  versions (821, 823, 850, 855, 860, 52xx, 8260), the IBM embedded
+	  versions (403 and 405) and the high end 64 bit Power processors 
+	  (POWER 3, POWER4, and IBM 970 also known as G5)
 	  Unless you are building a kernel for one of the embedded processor
 	  systems, 64 bit IBM RS/6000 or an Apple G5, choose 6xx.
 	  Note that the kernel runs in 32-bit mode even on 64-bit chips.
-	  Also note that because the 82xx family has a 603e core, specific
-	  support for that chipset is asked later on.
+	  Also note that because the 52xx & 82xx family has a 603e core,
+	  specific support for that chipset is asked later on.
 
 config 40x
 	bool "40x"
@@ -68,7 +72,20 @@ config POWER4
 config 8xx
 	bool "8xx"
 
+config E500
+	bool "e500"
+
 endchoice
+
+config BOOKE
+	bool
+	depends on E500
+	default y
+
+config FSL_BOOKE
+	bool
+	depends on E500
+	default y
 
 config PTE_64BIT
 	bool
@@ -89,6 +106,21 @@ config ALTIVEC
 	  altivec (G4, otherwise known as 74xx series), but does not have
 	  any affect on a non-altivec cpu (it does, however add code to the
 	  kernel).
+
+	  If in doubt, say Y here.
+
+config SPE
+	bool "SPE Support"
+	depends on E500
+	---help---
+	  This option enables kernel support for the Signal Processing
+	  Extensions (SPE) to the PowerPC processor. The kernel currently
+	  supports saving and restoring SPE registers, and turning on the
+	  'spe enable' bit so user processes can execute SPE instructions.
+
+	  This option is only usefully if you have a processor that supports
+	  SPE (e500, otherwise known as 85xx series), but does not have any
+	  affect on a non-spe cpu (it does, however add code to the kernel).
 
 	  If in doubt, say Y here.
 
@@ -138,7 +170,7 @@ config TAU_AVERAGE
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx
+	depends on 4xx || 8xx || E500
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -159,7 +191,7 @@ config CPU_FREQ
 	  fly. This is a nice method to save battery power on notebooks,
 	  because the lower the clock speed, the less power the CPU consumes.
 
-	  For more information, take a look at linux/Documentation/cpufreq or
+	  For more information, take a look at <file:Documentation/cpu-freq> or
 	  at <http://www.brodo.de/cpufreq/>
 
 	  If in doubt, say N.
@@ -181,7 +213,7 @@ config CPU_FREQ_TABLE
 
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
-	depends on 6xx
+	depends on 6xx && (PPC_PREP || PPC_PMAC)
 	help
 	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
 	  mean that extra synchronization instructions are required near
@@ -194,6 +226,7 @@ config PPC601_SYNC_FIX
 	  If in doubt, say Y here.
 
 source arch/ppc/platforms/4xx/Kconfig
+source arch/ppc/platforms/85xx/Kconfig
 
 config PPC64BRIDGE
 	bool
@@ -291,7 +324,7 @@ config RPXLITE
 
 	  HERMES:
 	  Hermes-Pro ISDN/LAN router with integrated 8 x hub
-	  Manufacturer: Multidata Gesellschaft für Datentechnik und Informatik
+	  Manufacturer: Multidata Gesellschaft fÃ¼r Datentechnik und Informatik
 	  <http://www.multidata.de/>
 	  Date of Release: 2000 (?)
 	  End of life: -
@@ -538,10 +571,19 @@ config EST8260
 	  <http://www.windriver.com/>, but the EST8260 cannot be found on it
 	  and has probably been discontinued or rebadged.
 
+config SBC82xx
+	bool "SBC82xx"
+	---help---
+	  SBC PowerQUICC II, single-board computer with MPC82xx CPU
+	  Manufacturer: Wind River Systems, Inc.
+	  Date of Release: May 2003
+	  End of Life: -
+	  URL: <http://www.windriver.com/>
+
 config SBS8260
 	bool "SBS8260"
 
-config RPX6
+config RPX8260
 	bool "RPXSUPER"
 
 config TQM8260
@@ -556,7 +598,24 @@ config TQM8260
 	  End of Life: not yet :-)
 	  URL: <http://www.denx.de/PDF/TQM82xx_SPEC_Rev005.pdf>
 
+config ADS8272
+	bool "ADS8272"
+
+config LITE5200
+	bool "Freescale LITE5200 / (IceCube)"
+	select PPC_MPC52xx
+	help
+	  Support for the LITE5200 dev board for the MPC5200 from Freescale.
+	  This is for the LITE5200 version 2.0 board. Don't know if it changes
+	  much but it's only been tested on this board version. I think this
+	  board is also known as IceCube.
+
 endchoice
+
+config PQ2ADS
+	bool
+	depends on ADS8272
+	default y
 
 config TQM8xxL
 	bool
@@ -567,30 +626,51 @@ config EMBEDDEDBOOT
 	bool
 	depends on 8xx || 8260
 	default y
+	
+config PPC_MPC52xx
+	bool
 
 config 8260
-	bool "MPC8260 CPM Support" if WILLOW
+	bool "CPM2 Support" if WILLOW
 	depends on 6xx
-	default y if TQM8260 || RPXSUPER || EST8260 || SBS8260
+	default y if TQM8260 || RPX8260 || EST8260 || SBS8260 || SBC82xx
 	help
-	  The MPC8260 CPM (Communications Processor Module) is a typical
-	  embedded CPU made by Motorola.  Selecting this option means that
-	  you wish to build a kernel for a machine with specifically an 8260
-	  for a CPU.
+	  The MPC8260 is a typical embedded CPU made by Motorola.  Selecting
+	  this option means that you wish to build a kernel for a machine with
+	  an 8260 class CPU.
+
+config 8272
+	bool
+	depends on 6xx
+	default y if ADS8272
+	select 8260
+	help
+	  The MPC8272 CPM has a different internal dpram setup than other CPM2
+	  devices
+
+config CPM2
+	bool
+	depends on 8260 || MPC8560
+	default y
+	help
+	  The CPM2 (Communications Processor Module) is a coprocessor on
+	  embedded CPUs made by Motorola.  Selecting this option means that
+	  you wish to build a kernel for a machine with a CPM2 coprocessor
+	  on it (826x, 827x, 8560).
 
 config PPC_CHRP
 	bool
 	depends on PPC_MULTIPLATFORM
 	default y
 
-config PPC_GEN550
-	bool
-	depends on SANDPOINT
-	default y
-
 config PPC_PMAC
 	bool
 	depends on PPC_MULTIPLATFORM
+	default y
+
+config PPC_PMAC64
+	bool
+	depends on PPC_PMAC && POWER4
 	default y
 
 config PPC_PREP
@@ -603,6 +683,11 @@ config PPC_OF
 	depends on PPC_PMAC || PPC_CHRP
 	default y
 
+config PPC_GEN550
+	bool
+	depends on SANDPOINT || MCPN765 || SPRUCE || PPLUS || PCORE || PRPMC750 || K2 || PRPMC800
+	default y
+
 config FORCE
 	bool
 	depends on 6xx && (PCORE || POWERPMC250)
@@ -613,18 +698,46 @@ config GT64260
 	depends on EV64260
 	default y
 
+config NONMONARCH_SUPPORT
+	bool "Enable Non-Monarch Support"
+	depends on PRPMC800
+
+config HARRIER
+	bool
+	depends on PRPMC800
+	default y
+
 config EPIC_SERIAL_MODE
 	bool
 	depends on 6xx && (LOPEC || SANDPOINT)
 	default y
 
+config MPC10X_BRIDGE
+	bool
+	depends on PCORE || POWERPMC250 || LOPEC || SANDPOINT
+	default y
+
+config FSL_OCP
+	bool
+	depends on MPC10X_BRIDGE || PPC_MPC52xx
+	default y
+
+config MPC10X_OPENPIC
+	bool
+	depends on POWERPMC250 || LOPEC || SANDPOINT
+	default y
+
 config MPC10X_STORE_GATHERING
 	bool "Enable MPC10x store gathering"
-	depends on FORCE || SANDPOINT
+	depends on MPC10X_BRIDGE
 
 config CPC710_DATA_GATHERING
 	bool "Enable CPC710 data gathering"
 	depends on K2
+
+config HARRIER_STORE_GATHERING
+	bool "Enable Harrier store gathering"
+	depends on HARRIER
 
 config MVME5100_IPMC761_PRESENT
 	bool "MVME5100 configured with an IPMC761"
@@ -636,11 +749,11 @@ config SPRUCE_BAUD_33M
 
 config PC_KEYBOARD
 	bool "PC PS/2 style Keyboard"
-	depends on 4xx || 8260
+	depends on 4xx || CPM2
 
 config SERIAL_CONSOLE
 	bool
-	depends on 8xx || 8260
+	depends on 8xx
 	default y
 
 config SERIAL_CONSOLE_BAUD
@@ -687,14 +800,10 @@ config NR_CPUS
 
 config PREEMPT
 	bool "Preemptible Kernel"
-	depends on !SMP
 	help
 	  This option reduces the latency of the kernel when reacting to
 	  real-time or interactive events by allowing a low priority process to
 	  be preempted even if it is in kernel mode executing a system call.
-	  Unfortunately the kernel code has some race conditions if both
-	  CONFIG_SMP and CONFIG_PREEMPT are enabled, so this option is
-	  currently disabled if you are building an SMP kernel.
 
 	  Say Y here if you are building a kernel for a desktop, embedded
 	  or real-time system.  Say N if you are unsure.
@@ -715,39 +824,6 @@ config PROC_DEVICETREE
 	  This option adds a device-tree directory under /proc which contains
 	  an image of the device tree that the kernel copies from Open
 	  Firmware. If unsure, say Y here.
-
-config PPC_RTAS
-	bool "Support for RTAS (RunTime Abstraction Services) in /proc"
-	depends on PPC_OF && PROC_FS
-	---help---
-	  When you use this option, you will be able to use RTAS from
-	  userspace.
-
-	  RTAS stands for RunTime Abstraction Services and should
-	  provide a portable way to access and set system information. This is
-	  commonly used on RS/6000 (pSeries) computers.
-
-	  You can access RTAS via the special proc file system entry rtas.
-	  Don't confuse this rtas entry with the one in /proc/device-tree/rtas
-	  which is readonly.
-
-	  If you don't know if you can use RTAS look into
-	  /proc/device-tree/rtas. If there are some entries, it is very likely
-	  that you will be able to use RTAS.
-
-	  You can do cool things with rtas. To print out information about
-	  various sensors in the system, just do a
-
-	  $ cat /proc/rtas/sensors
-
-	  or if you power off your machine at night but want it running when
-	  you enter your office at 7:45 am, do a
-
-	  # date -d 'tomorrow 7:30' +%s > /proc/rtas/poweron
-
-	  and shutdown.
-
-	  If unsure, say Y.
 
 config PREP_RESIDUAL
 	bool "Support for PReP Residual Data"
@@ -925,7 +1001,7 @@ config ISA
 
 config GENERIC_ISA_DMA
 	bool
-	depends on POWER3 || POWER4 || 6xx && !8260
+	depends on POWER3 || POWER4 || 6xx && !CPM2
 	default y
 
 config EISA
@@ -942,10 +1018,10 @@ config MCA
 	bool
 
 config PCI
-	bool "PCI support" if 40x || 8260
-	default y if !40x && !8260 && !8xx && !APUS
-	default PCI_PERMEDIA if !4xx && !8260 && !8xx && APUS
-	default PCI_QSPAN if !4xx && !8260 && 8xx
+	bool "PCI support" if 40x || CPM2 || 85xx
+	default y if !40x && !CPM2 && !8xx && !APUS && !85xx
+	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
+	default PCI_QSPAN if !4xx && !CPM2 && 8xx
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of
 	  a bus system, i.e. the way the CPU talks to the other stuff inside
@@ -958,10 +1034,38 @@ config PCI_DOMAINS
 
 config PCI_QSPAN
 	bool "QSpan PCI"
-	depends on !4xx && !8260 && 8xx
+	depends on !4xx && !CPM2 && 8xx
 	help
 	  Say Y here if you have a system based on a Motorola 8xx-series
 	  embedded processor with a QSPAN PCI interface, otherwise say N.
+
+config PCI_8260
+	bool
+	depends on PCI && 8260 && !8272
+	default y
+	
+config 8260_PCI9
+	bool "  Enable workaround for MPC826x erratum PCI 9"
+	depends on PCI_8260
+	default y
+
+choice 
+	prompt "  IDMA channel for PCI 9 workaround"
+	depends on 8260_PCI9
+
+config 8260_PCI9_IDMA1
+	bool "IDMA1"
+
+config 8260_PCI9_IDMA2
+	bool "IDMA2"
+
+config 8260_PCI9_IDMA3
+	bool "IDMA3"
+
+config 8260_PCI9_IDMA4
+	bool "IDMA4"
+
+endchoice
 
 config PCI_PERMEDIA
 	bool "PCI for Permedia2"
@@ -969,27 +1073,7 @@ config PCI_PERMEDIA
 
 source "drivers/pci/Kconfig"
 
-config HOTPLUG
-	bool "Support for hot-pluggable devices"
-	---help---
-	  Say Y here if you want to plug devices into your computer while
-	  the system is running, and be able to use them quickly.  In many
-	  cases, the devices can likewise be unplugged at any time too.
-
-	  One well known example of this is PCMCIA- or PC-cards, credit-card
-	  size devices such as network cards, modems or hard drives which are
-	  plugged into slots found on all modern laptop computers.  Another
-	  example, used on modern desktops as well as laptops, is USB.
-
-	  Enable HOTPLUG and KMOD, and build a modular kernel.  Get agent
-	  software (at <http://linux-hotplug.sourceforge.net/>) and install it.
-	  Then your kernel will automatically call out to a user mode "policy
-	  agent" (/sbin/hotplug) to load modules and set up software needed
-	  to use devices as you hotplug them.
-
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/parport/Kconfig"
 
 endmenu
 
@@ -1067,6 +1151,30 @@ config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
 	default "0x80000000"
 
+config CONSISTENT_START_BOOL
+	bool "Set custom consistent memory pool address"
+	depends on ADVANCED_OPTIONS && NOT_COHERENT_CACHE
+	help
+	  This option allows you to set the base virtual address
+	  of the the consistent memory pool.  This pool of virtual
+	  memory is used to make consistent memory allocations.
+
+config CONSISTENT_START
+	hex "Base virtual address of consistent memory pool" if CONSISTENT_START_BOOL
+	default "0xff100000" if NOT_COHERENT_CACHE
+
+config CONSISTENT_SIZE_BOOL
+	bool "Set custom consistent memory pool size"
+	depends on ADVANCED_OPTIONS && NOT_COHERENT_CACHE
+	help
+	  This option allows you to set the size of the the
+	  consistent memory pool.  This pool of virtual memory
+	  is used to make consistent memory allocations.
+
+config CONSISTENT_SIZE
+	hex "Size of consistent memory pool" if CONSISTENT_SIZE_BOOL
+	default "0x00200000" if NOT_COHERENT_CACHE
+
 config BOOT_LOAD_BOOL
 	bool "Set the boot link/load address"
 	depends on ADVANCED_OPTIONS && !PPC_MULTIPLATFORM
@@ -1088,178 +1196,9 @@ config PIN_TLB
 	depends on ADVANCED_OPTIONS && 8xx
 endmenu
 
-source "drivers/base/Kconfig"
-
-source "drivers/mtd/Kconfig"
-
-source "drivers/pnp/Kconfig"
-
-source "drivers/block/Kconfig"
-
-source "drivers/md/Kconfig"
-
-source "drivers/ide/Kconfig"
-
-source "drivers/scsi/Kconfig"
-
-source "drivers/message/fusion/Kconfig"
-
-source "drivers/ieee1394/Kconfig"
-
-source "drivers/message/i2o/Kconfig"
-
-source "net/Kconfig"
-
-source "drivers/isdn/Kconfig"
-
-source "drivers/video/Kconfig"
-
-source "drivers/cdrom/Kconfig"
-
-source "drivers/input/Kconfig"
-
-
-menu "Macintosh device drivers"
-
-# we want to change this to something like CONFIG_SYSCTRL_CUDA/PMU
-config ADB_CUDA
-	bool "Support for CUDA based PowerMacs"
-	depends on PPC_PMAC
-	help
-	  This provides support for CUDA based Power Macintosh systems.  This
-	  includes most OldWorld PowerMacs, the first generation iMacs, the
-	  Blue&White G3 and the "Yikes" G4 (PCI Graphics).  All later models
-	  should use CONFIG_ADB_PMU instead.  It is safe to say Y here even if
-	  your machine doesn't have a CUDA.
-
-	  If unsure say Y.
-
-config ADB_PMU
-	bool "Support for PMU  based PowerMacs"
-	depends on PPC_PMAC
-	help
-	  On PowerBooks, iBooks, and recent iMacs and Power Macintoshes, the
-	  PMU is an embedded microprocessor whose primary function is to
-	  control system power, and battery charging on the portable models.
-	  The PMU also controls the ADB (Apple Desktop Bus) which connects to
-	  the keyboard and mouse on some machines, as well as the non-volatile
-	  RAM and the RTC (real time clock) chip.  Say Y to enable support for
-	  this device; you should do so if your machine is one of those
-	  mentioned above.
-
-config PMAC_PBOOK
-	bool "Power management support for PowerBooks"
-	depends on ADB_PMU
-	---help---
-	  This provides support for putting a PowerBook to sleep; it also
-	  enables media bay support.  Power management works on the
-	  PB2400/3400/3500, Wallstreet, Lombard, and Bronze PowerBook G3 and
-	  the Titanium Powerbook G4, as well as the iBooks.  You should get
-	  the power management daemon, pmud, to make it work and you must have
-	  the /dev/pmu device (see the pmud README).
-
-	  Get pmud from <ftp://ftp.samba.org/pub/ppclinux/pmud/>.
-
-	  If you have a PowerBook, you should say Y here.
-
-	  You may also want to compile the dma sound driver as a module and
-	  have it autoloaded. The act of removing the module shuts down the
-	  sound hardware for more power savings.
-
-config PM
-	bool
-	depends on PPC_PMAC && ADB_PMU && PMAC_PBOOK
-	default y
-
-config PMAC_APM_EMU
-	tristate "APM emulation"
-	depends on PMAC_PBOOK
-
-# made a separate option since backlight may end up beeing used
-# on non-powerbook machines (but only on PMU based ones AFAIK)
-config PMAC_BACKLIGHT
-	bool "Backlight control for LCD screens"
-	depends on ADB_PMU
-	help
-	  Say Y here to build in code to manage the LCD backlight on a
-	  Macintosh PowerBook.  With this code, the backlight will be turned
-	  on and off appropriately on power-management and lid-open/lid-closed
-	  events; also, the PowerBook button device will be enabled so you can
-	  change the screen brightness.
-
-config MAC_FLOPPY
-	bool "Support for PowerMac floppy"
-	depends on PPC_PMAC
-	help
-	  If you have a SWIM-3 (Super Woz Integrated Machine 3; from Apple)
-	  floppy controller, say Y here. Most commonly found in PowerMacs.
-
-config MAC_SERIAL
-	tristate "Support for PowerMac serial ports (OBSOLETE DRIVER)"
-	depends on PPC_PMAC
-	help
-	  This driver is obsolete. Use CONFIG_SERIAL_PMACZILOG in
-	  "Character devices --> Serial drivers --> PowerMac z85c30" option.
-
-config ADB
-	bool "Apple Desktop Bus (ADB) support"
-	depends on PPC_PMAC
-	help
-	  Apple Desktop Bus (ADB) support is for support of devices which
-	  are connected to an ADB port.  ADB devices tend to have 4 pins.
-	  If you have an Apple Macintosh prior to the iMac, an iBook or
-	  PowerBook, or a "Blue and White G3", you probably want to say Y
-	  here.  Otherwise say N.
-
-config ADB_MACIO
-	bool "Include MacIO (CHRP) ADB driver"
-	depends on ADB
-	help
-	  Say Y here to include direct support for the ADB controller in the
-	  Hydra chip used on PowerPC Macintoshes of the CHRP type.  (The Hydra
-	  also includes a MESH II SCSI controller, DBDMA controller, VIA chip,
-	  OpenPIC controller and two RS422/Geoports.)
-
-config INPUT_ADBHID
-	bool "Support for ADB input devices (keyboard, mice, ...)"
-	depends on ADB && INPUT=y
-	help
-	  Say Y here if you want to have ADB (Apple Desktop Bus) HID devices
-	  such as keyboards, mice, joysticks, trackpads  or graphic tablets
-	  handled by the input layer.  If you say Y here, make sure to say Y to
-	  the corresponding drivers "Keyboard support" (CONFIG_INPUT_KEYBDEV),
-	  "Mouse Support" (CONFIG_INPUT_MOUSEDEV) and "Event interface
-	  support" (CONFIG_INPUT_EVDEV) as well.
-
-	  If unsure, say Y.
-
-config MAC_EMUMOUSEBTN
-	bool "Support for mouse button 2+3 emulation"
-	depends on INPUT_ADBHID
-	help
-	  This provides generic support for emulating the 2nd and 3rd mouse
-	  button with keypresses.  If you say Y here, the emulation is still
-	  disabled by default.  The emulation is controlled by these sysctl
-	  entries:
-	  /proc/sys/dev/mac_hid/mouse_button_emulation
-	  /proc/sys/dev/mac_hid/mouse_button2_keycode
-	  /proc/sys/dev/mac_hid/mouse_button3_keycode
-
-	  If you have an Apple machine with a 1-button mouse, say Y here.
-
-config ANSLCD
-	bool "Support for ANS LCD display"
-	depends on ADB_CUDA
-
-endmenu
-
-source "drivers/char/Kconfig"
-
-source "drivers/media/Kconfig"
+source "drivers/Kconfig"
 
 source "fs/Kconfig"
-
-source "sound/Kconfig"
 
 source "arch/ppc/8xx_io/Kconfig"
 
@@ -1285,10 +1224,9 @@ config SERIAL_SICC_CONSOLE
 
 endmenu
 
-source "drivers/usb/Kconfig"
-
 source "lib/Kconfig"
 
+source "arch/ppc/oprofile/Kconfig"
 
 menu "Kernel hacking"
 
@@ -1336,7 +1274,7 @@ config DEBUG_SPINLOCK_SLEEP
 
 config KGDB
 	bool "Include kgdb kernel debugger"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && (BROKEN || PPC_GEN550 || 4xx)
 	select DEBUG_INFO
 	help
 	  Include in-kernel hooks for kgdb, the Linux kernel source level
@@ -1364,7 +1302,7 @@ endchoice
 
 config KGDB_CONSOLE
 	bool "Enable serial console thru kgdb port"
-	depends on KGDB && 8xx || 8260
+	depends on KGDB && 8xx || CPM2
 	help
 	  If you enable this, all serial console messages will be sent
 	  over the gdb stub.
@@ -1404,11 +1342,11 @@ config BOOTX_TEXT
 
 config SERIAL_TEXT_DEBUG
 	bool "Support for early boot texts over serial port"
-	depends on 4xx || GT64260 || LOPEC || MCPN765 || PPLUS || PRPMC800 || SANDPOINT
+	depends on 4xx || GT64260 || LOPEC || PPLUS || PRPMC800 || PPC_GEN550 || PPC_MPC52xx
 
-config OCP
+config PPC_OCP
 	bool
-	depends on IBM_OCP
+	depends on IBM_OCP || FSL_OCP
 	default y
 
 endmenu

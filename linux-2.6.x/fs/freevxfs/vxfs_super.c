@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#ident "$Id$"
-
 /*
  * Veritas filesystem driver - superblock related routines.
  */
@@ -58,12 +56,14 @@ MODULE_ALIAS("vxfs"); /* makes mount -t vxfs autoload the module */
 
 static void		vxfs_put_super(struct super_block *);
 static int		vxfs_statfs(struct super_block *, struct kstatfs *);
+static int		vxfs_remount(struct super_block *, int *, char *);
 
 static struct super_operations vxfs_super_ops = {
 	.read_inode =		vxfs_read_inode,
 	.put_inode =		vxfs_put_inode,
 	.put_super =		vxfs_put_super,
 	.statfs =		vxfs_statfs,
+	.remount_fs =		vxfs_remount,
 };
 
 /**
@@ -123,6 +123,12 @@ vxfs_statfs(struct super_block *sbp, struct kstatfs *bufp)
 	return 0;
 }
 
+static int vxfs_remount(struct super_block *sb, int *flags, char *data)
+{
+	*flags |= MS_RDONLY;
+	return 0;
+}
+
 /**
  * vxfs_read_super - read superblock into memory and initalize filesystem
  * @sbp:		VFS superblock (to fill)
@@ -145,6 +151,9 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	struct vxfs_sb		*rsbp;
 	struct buffer_head	*bp = NULL;
 	u_long			bsize;
+	struct inode *root;
+
+	sbp->s_flags |= MS_RDONLY;
 
 	infp = kmalloc(sizeof(*infp), GFP_KERNEL);
 	if (!infp) {
@@ -210,8 +219,10 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	}
 
 	sbp->s_op = &vxfs_super_ops;
-	sbp->s_root = d_alloc_root(iget(sbp, VXFS_ROOT_INO));
+	root = iget(sbp, VXFS_ROOT_INO);
+	sbp->s_root = d_alloc_root(root);
 	if (!sbp->s_root) {
+		iput(root);
 		printk(KERN_WARNING "vxfs: unable to get root dentry.\n");
 		goto out_free_ilist;
 	}

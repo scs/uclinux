@@ -76,7 +76,6 @@ struct reclaim_state {
 #ifdef __KERNEL__
 
 struct address_space;
-struct pte_chain;
 struct sysinfo;
 struct writeback_control;
 struct zone;
@@ -149,15 +148,15 @@ struct swap_list_t {
 #define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
 
 /* linux/mm/oom_kill.c */
-extern void out_of_memory(void);
+extern void out_of_memory(int gfp_mask);
 
 /* linux/mm/memory.c */
-extern void swapin_readahead(swp_entry_t);
+extern void swapin_readahead(swp_entry_t, unsigned long, struct vm_area_struct *);
 
 /* linux/mm/page_alloc.c */
 extern unsigned long totalram_pages;
 extern unsigned long totalhigh_pages;
-extern int nr_swap_pages;	/* XXX: shouldn't this be ulong? --hch */
+extern long nr_swap_pages;
 extern unsigned int nr_free_pages(void);
 extern unsigned int nr_free_pages_pgdat(pg_data_t *pgdat);
 extern unsigned int nr_free_buffer_pages(void);
@@ -177,25 +176,12 @@ extern int try_to_free_pages(struct zone **, unsigned int, unsigned int);
 extern int shrink_all_memory(int);
 extern int vm_swappiness;
 
-/* linux/mm/rmap.c */
 #ifdef CONFIG_MMU
-int FASTCALL(page_referenced(struct page *));
-struct pte_chain *FASTCALL(page_add_rmap(struct page *, pte_t *,
-					struct pte_chain *));
-void FASTCALL(page_remove_rmap(struct page *, pte_t *));
-int FASTCALL(try_to_unmap(struct page *));
-
 /* linux/mm/shmem.c */
 extern int shmem_unuse(swp_entry_t entry, struct page *page);
-#else
-#define page_referenced(page)	TestClearPageReferenced(page)
-#define try_to_unmap(page)	SWAP_FAIL
 #endif /* CONFIG_MMU */
 
-/* return values of try_to_unmap */
-#define	SWAP_SUCCESS	0
-#define	SWAP_AGAIN	1
-#define	SWAP_FAIL	2
+extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
 
 #ifdef CONFIG_SWAP
 /* linux/mm/page_io.c */
@@ -216,10 +202,11 @@ extern int move_from_swap_cache(struct page *, unsigned long,
 extern void free_page_and_swap_cache(struct page *);
 extern void free_pages_and_swap_cache(struct page **, int);
 extern struct page * lookup_swap_cache(swp_entry_t);
-extern struct page * read_swap_cache_async(swp_entry_t);
+extern struct page * read_swap_cache_async(swp_entry_t, struct vm_area_struct *vma,
+					   unsigned long addr);
 
 /* linux/mm/swapfile.c */
-extern int total_swap_pages;
+extern long total_swap_pages;
 extern unsigned int nr_swapfiles;
 extern struct swap_info_struct swap_info[];
 extern void si_swapinfo(struct sysinfo *);
@@ -232,6 +219,7 @@ extern sector_t map_swap_page(struct swap_info_struct *, pgoff_t);
 extern struct swap_info_struct *get_swap_info_struct(unsigned);
 extern int can_share_swap_page(struct page *);
 extern int remove_exclusive_swap_page(struct page *);
+struct backing_dev_info;
 
 extern struct swap_list_t swap_list;
 extern spinlock_t swaplock;
@@ -257,7 +245,7 @@ extern spinlock_t swaplock;
 #define free_swap_and_cache(swp)		/*NOTHING*/
 #define swap_duplicate(swp)			/*NOTHING*/
 #define swap_free(swp)				/*NOTHING*/
-#define read_swap_cache_async(swp)		NULL
+#define read_swap_cache_async(swp,vma,addr)	NULL
 #define lookup_swap_cache(swp)			NULL
 #define valid_swaphandles(swp, off)		0
 #define can_share_swap_page(p)			0

@@ -116,6 +116,7 @@ static void riowd_starttimer(void)
 
 static int riowd_open(struct inode *inode, struct file *filp)
 {
+	nonseekable_open(inode, filp);
 	return 0;
 }
 
@@ -130,18 +131,19 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 	static struct watchdog_info info = {
 	       	WDIOF_SETTIMEOUT, 0, "Natl. Semiconductor PC97317"
 	};
+	void __user *argp = (void __user *)arg;
 	unsigned int options;
 	int new_margin;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		if (copy_to_user((struct watchdog_info *) arg, &info, sizeof(info)))
+		if (copy_to_user(argp, &info, sizeof(info)))
 			return -EFAULT;
 		break;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-		if (put_user(0, (int *) arg))
+		if (put_user(0, (int __user *)argp))
 			return -EFAULT;
 		break;
 
@@ -150,7 +152,7 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 		break;
 
 	case WDIOC_SETOPTIONS:
-		if (copy_from_user(&options, (void *) arg, sizeof(options)))
+		if (copy_from_user(&options, argp, sizeof(options)))
 			return -EFAULT;
 
 		if (options & WDIOS_DISABLECARD)
@@ -163,7 +165,7 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 		break;
 
 	case WDIOC_SETTIMEOUT:
-		if (get_user(new_margin, (int *)arg))
+		if (get_user(new_margin, (int __user *)argp))
 			return -EFAULT;
 		if ((new_margin < 60) || (new_margin > (255 * 60)))
 		    return -EINVAL;
@@ -172,7 +174,7 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 		/* Fall */
 
 	case WDIOC_GETTIMEOUT:
-		return put_user(riowd_timeout * 60, (int *)arg);
+		return put_user(riowd_timeout * 60, (int __user *)argp);
 
 	default:
 		return -EINVAL;
@@ -181,11 +183,8 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-static ssize_t riowd_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
+static ssize_t riowd_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	if (ppos != &file->f_pos)
-		return -ESPIPE;
-
 	if (count) {
 		riowd_pingtimer();
 		return 1;

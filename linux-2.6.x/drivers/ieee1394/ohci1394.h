@@ -110,7 +110,7 @@ struct dma_rcv_ctx {
 	int ctxtMatch;
 };
 
-/* DMA transmit context */	
+/* DMA transmit context */
 struct dma_trm_ctx {
 	struct ti_ohci *ohci;
 	enum context_type type;
@@ -149,11 +149,9 @@ struct ohci1394_iso_tasklet {
 };
 
 struct ti_ohci {
-        int id; /* sequential card number */
-
         struct pci_dev *dev;
 
-	enum { 
+	enum {
 		OHCI_INIT_ALLOC_HOST,
 		OHCI_INIT_HAVE_MEM_REGION,
 		OHCI_INIT_HAVE_IOMAPPING,
@@ -163,17 +161,17 @@ struct ti_ohci {
 		OHCI_INIT_HAVE_IRQ,
 		OHCI_INIT_DONE,
 	} init_state;
-        
+
         /* remapped memory spaces */
-        void *registers; 
+        void *registers;
 
 	/* dma buffer for self-id packets */
         quadlet_t *selfid_buf_cpu;
         dma_addr_t selfid_buf_bus;
 
 	/* buffer for csr config rom */
-        quadlet_t *csr_config_rom_cpu; 
-        dma_addr_t csr_config_rom_bus; 
+        quadlet_t *csr_config_rom_cpu;
+        dma_addr_t csr_config_rom_bus;
 	int csr_config_rom_length;
 
 	unsigned int max_packet_size;
@@ -200,7 +198,7 @@ struct ti_ohci {
 
 	struct dma_rcv_ctx ir_legacy_context;
 	struct ohci1394_iso_tasklet ir_legacy_tasklet;
-	
+
         /* iso transmit */
 	int nb_iso_xmit_ctx;
 	unsigned long it_ctx_usage; /* use test_and_set_bit() for atomicity */
@@ -238,14 +236,13 @@ struct ti_ohci {
 
 static inline int cross_bound(unsigned long addr, unsigned int size)
 {
-	int cross=0;
-	if (size>PAGE_SIZE) {
-		cross = size/PAGE_SIZE;
-		size -= cross*PAGE_SIZE;
-	}
-	if ((PAGE_SIZE-addr%PAGE_SIZE)<size)
-		cross++;
-	return cross;
+	if (size > PAGE_SIZE)
+		return 1;
+
+	if (addr >> PAGE_SHIFT != (addr + size - 1) >> PAGE_SHIFT)
+		return 1;
+
+	return 0;
 }
 
 /*
@@ -263,7 +260,7 @@ static inline u32 reg_read(const struct ti_ohci *ohci, int offset)
 
 
 /* 2 KiloBytes of register space */
-#define OHCI1394_REGISTER_SIZE                0x800       
+#define OHCI1394_REGISTER_SIZE                0x800
 
 /* Offsets relative to context bases defined below */
 
@@ -320,6 +317,11 @@ static inline u32 reg_read(const struct ti_ohci *ohci, int offset)
 #define OHCI1394_FairnessControl              0x0DC
 #define OHCI1394_LinkControlSet               0x0E0
 #define OHCI1394_LinkControlClear             0x0E4
+#define  OHCI1394_LinkControl_RcvSelfID		0x00000200
+#define  OHCI1394_LinkControl_RcvPhyPkt		0x00000400
+#define  OHCI1394_LinkControl_CycleTimerEnable	0x00100000
+#define  OHCI1394_LinkControl_CycleMaster	0x00200000
+#define  OHCI1394_LinkControl_CycleSource	0x00400000
 #define OHCI1394_NodeID                       0x0E8
 #define OHCI1394_PhyControl                   0x0EC
 #define OHCI1394_IsochronousCycleTimer        0x0F0
@@ -438,9 +440,9 @@ static inline u32 reg_read(const struct ti_ohci *ohci, int offset)
 
 #define OHCI1394_TCODE_PHY               0xE
 
-void ohci1394_init_iso_tasklet(struct ohci1394_iso_tasklet *tasklet, 
+void ohci1394_init_iso_tasklet(struct ohci1394_iso_tasklet *tasklet,
 			       int type,
-			       void (*func)(unsigned long), 
+			       void (*func)(unsigned long),
 			       unsigned long data);
 int ohci1394_register_iso_tasklet(struct ti_ohci *ohci,
 				  struct ohci1394_iso_tasklet *tasklet);

@@ -48,7 +48,7 @@ static void usb_next_ctrl_msg(struct urb *urb,
 	// Prepare the URB
 	urb->dev = adapter->usb_dev;
 
-	SUBMIT_URB(urb, GFP_KERNEL);
+	SUBMIT_URB(urb, GFP_ATOMIC);
 }
 
 /*
@@ -96,7 +96,7 @@ void st5481_usb_device_ctrl_msg(struct st5481_adapter *adapter,
  * Asynchronous pipe reset (async version of usb_clear_halt).
  */
 void st5481_usb_pipe_reset(struct st5481_adapter *adapter,
-		    u8 pipe,
+		    u_char pipe,
 		    ctrl_complete_t complete, void *context)
 {
 	DBG(1,"pipe=%02x",pipe);
@@ -129,8 +129,8 @@ static void usb_ctrl_complete(struct urb *urb, struct pt_regs *regs)
 	struct st5481_ctrl *ctrl = &adapter->ctrl;
 	struct ctrl_msg *ctrl_msg;
 	
-	if (urb->status < 0) {
-		if (urb->status != -ENOENT) {
+	if (unlikely(urb->status < 0)) {
+		if (urb->status != -ENOENT && urb->status != -ESHUTDOWN) {
 			WARN("urb status %d",urb->status);
 		} else {
 			DBG(1,"urb killed");
@@ -239,12 +239,13 @@ exit:
  * initialization
  */
 
-int __devinit st5481_setup_usb(struct st5481_adapter *adapter)
+int st5481_setup_usb(struct st5481_adapter *adapter)
 {
 	struct usb_device *dev = adapter->usb_dev;
 	struct st5481_ctrl *ctrl = &adapter->ctrl;
 	struct st5481_intr *intr = &adapter->intr;
-	struct usb_host_interface *altsetting;
+	struct usb_interface *intf;
+	struct usb_host_interface *altsetting = NULL;
 	struct usb_host_endpoint *endpoint;
 	int status;
 	struct urb *urb;
@@ -257,8 +258,11 @@ int __devinit st5481_setup_usb(struct st5481_adapter *adapter)
 		return status;
 	}
 
-	
-	altsetting = &(dev->config->interface[0]->altsetting[3]);	
+	intf = usb_ifnum_to_if(dev, 0);
+	if (intf)
+		altsetting = usb_altnum_to_altsetting(intf, 3);
+	if (!altsetting)
+		return -ENXIO;
 
 	// Check if the config is sane
 	if ( altsetting->desc.bNumEndpoints != 7 ) {
@@ -341,7 +345,7 @@ void st5481_release_usb(struct st5481_adapter *adapter)
 /*
  *  Initialize the adapter.
  */
-void __devinit st5481_start(struct st5481_adapter *adapter)
+void st5481_start(struct st5481_adapter *adapter)
 {
 	static const u8 init_cmd_table[]={
 		SET_DEFAULT,0,
@@ -381,7 +385,7 @@ void __devinit st5481_start(struct st5481_adapter *adapter)
 /*
  * Reset the adapter to default values.
  */
-void __devexit st5481_stop(struct st5481_adapter *adapter)
+void st5481_stop(struct st5481_adapter *adapter)
 {
 	DBG(8,"");
 
@@ -392,7 +396,7 @@ void __devexit st5481_stop(struct st5481_adapter *adapter)
  * isochronous USB  helpers
  */
 
-static void __devinit
+static void
 fill_isoc_urb(struct urb *urb, struct usb_device *dev,
 	      unsigned int pipe, void *buf, int num_packets, 
 	      int packet_size, usb_complete_t complete,
@@ -417,7 +421,7 @@ fill_isoc_urb(struct urb *urb, struct usb_device *dev,
 	}
 }
 
-int __devinit
+int
 st5481_setup_isocpipes(struct urb* urb[2], struct usb_device *dev, 
 			   unsigned int pipe, int num_packets,
 			   int packet_size, int buf_size,
@@ -481,8 +485,8 @@ static void usb_in_complete(struct urb *urb, struct pt_regs *regs)
 	struct sk_buff *skb;
 	int len, count, status;
 
-	if (urb->status < 0) {
-		if (urb->status != -ENOENT) {
+	if (unlikely(urb->status < 0)) {
+		if (urb->status != -ENOENT && urb->status != -ESHUTDOWN) {
 			WARN("urb status %d",urb->status);
 		} else {
 			DBG(1,"urb killed");
@@ -500,8 +504,8 @@ static void usb_in_complete(struct urb *urb, struct pt_regs *regs)
 			status = len;
 			len = 0;
 		} else {
-			status = hdlc_decode(&in->hdlc_state, ptr, len, &count,
-					     in->rcvbuf, in->bufsize);
+			status = isdnhdlc_decode(&in->hdlc_state, ptr, len, &count,
+				in->rcvbuf, in->bufsize);
 			ptr += count;
 			len -= count;
 		}
@@ -529,10 +533,10 @@ static void usb_in_complete(struct urb *urb, struct pt_regs *regs)
 	urb->dev = in->adapter->usb_dev;
 	urb->actual_length = 0;
 
-	SUBMIT_URB(urb, GFP_KERNEL);
+	SUBMIT_URB(urb, GFP_ATOMIC);
 }
 
-int __devinit st5481_setup_in(struct st5481_in *in)
+int st5481_setup_in(struct st5481_in *in)
 {
 	struct usb_device *dev = in->adapter->usb_dev;
 	int retval;
@@ -633,8 +637,8 @@ void st5481_in_mode(struct st5481_in *in, int mode)
 
 	if (in->mode != L1_MODE_NULL) {
 		if (in->mode != L1_MODE_TRANS)
-			hdlc_rcv_init(&in->hdlc_state,
-				      in->mode == L1_MODE_HDLC_56K);
+			isdnhdlc_rcv_init(&in->hdlc_state,
+				in->mode == L1_MODE_HDLC_56K);
 		
 		st5481_usb_pipe_reset(in->adapter, in->ep, NULL, NULL);
 		st5481_usb_device_ctrl_msg(in->adapter, in->counter,

@@ -20,11 +20,11 @@
 *!                                  in the spin-lock.
 *!
 *!  $Log$
-*!  Revision 1.1  2004/07/19 11:41:23  lgsoft
-*!  Initial revision
+*!  Revision 1.1.1.2  2004/09/07 09:14:11  lgsoft
+*!  Import of 2.6.8
 *!
-*!  Revision 1.1.1.1  2004/07/18 13:20:11  nidhi
-*!  Importing
+*!  Revision 1.10  2003/09/11 07:29:48  starvik
+*!  Merge of Linux 2.6.0-test5
 *!
 *!  Revision 1.9  2003/07/04 08:27:37  starvik
 *!  Merge of Linux 2.5.74
@@ -447,9 +447,9 @@ int __init eeprom_init(void)
 static int eeprom_open(struct inode * inode, struct file * file)
 {
 
-  if(iminor(inode) != EEPROM_MINOR_NR)
+  if(MINOR(inode->i_rdev) != EEPROM_MINOR_NR)
      return -ENXIO;
-  if(imajor(inode) != EEPROM_MAJOR_NR)
+  if(MAJOR(inode->i_rdev) != EEPROM_MAJOR_NR)
      return -ENXIO;
 
   if( eeprom.size > 0 )

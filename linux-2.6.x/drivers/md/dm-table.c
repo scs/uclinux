@@ -149,7 +149,7 @@ static int setup_btree_index(unsigned int l, struct dm_table *t)
 	return 0;
 }
 
-static void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size)
+void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size)
 {
 	unsigned long size;
 	void *addr;
@@ -181,8 +181,8 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 	/*
 	 * Allocate both the target array and offset array at once.
 	 */
-	n_highs = (sector_t *) dm_vcalloc(sizeof(struct dm_target) +
-					  sizeof(sector_t), num);
+	n_highs = (sector_t *) dm_vcalloc(num, sizeof(struct dm_target) +
+					  sizeof(sector_t));
 	if (!n_highs)
 		return -ENOMEM;
 
@@ -205,7 +205,7 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 
 int dm_table_create(struct dm_table **result, int mode, unsigned num_targets)
 {
-	struct dm_table *t = kmalloc(sizeof(*t), GFP_NOIO);
+	struct dm_table *t = kmalloc(sizeof(*t), GFP_KERNEL);
 
 	if (!t)
 		return -ENOMEM;
@@ -279,6 +279,9 @@ void dm_table_get(struct dm_table *t)
 
 void dm_table_put(struct dm_table *t)
 {
+	if (!t)
+		return;
+
 	if (atomic_dec_and_test(&t->holders))
 		table_destroy(t);
 }
@@ -329,13 +332,11 @@ static int lookup_device(const char *path, dev_t *dev)
  */
 static struct dm_dev *find_device(struct list_head *l, dev_t dev)
 {
-	struct list_head *tmp;
+	struct dm_dev *dd;
 
-	list_for_each(tmp, l) {
-		struct dm_dev *dd = list_entry(tmp, struct dm_dev, list);
+	list_for_each_entry (dd, l, list)
 		if (dd->bdev->bd_dev == dev)
 			return dd;
-	}
 
 	return NULL;
 }
@@ -353,12 +354,12 @@ static int open_dev(struct dm_dev *d, dev_t dev)
 	if (d->bdev)
 		BUG();
 
-	bdev = open_by_devnum(dev, d->mode, BDEV_RAW);
+	bdev = open_by_devnum(dev, d->mode);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 	r = bd_claim(bdev, _claim_ptr);
 	if (r)
-		blkdev_put(bdev, BDEV_RAW);
+		blkdev_put(bdev);
 	else
 		d->bdev = bdev;
 	return r;
@@ -373,7 +374,7 @@ static void close_dev(struct dm_dev *d)
 		return;
 
 	bd_release(d->bdev);
-	blkdev_put(d->bdev, BDEV_RAW);
+	blkdev_put(d->bdev);
 	d->bdev = NULL;
 }
 
@@ -399,7 +400,7 @@ static int upgrade_mode(struct dm_dev *dd, int new_mode)
 	struct dm_dev dd_copy;
 	dev_t dev = dd->bdev->bd_dev;
 
-	memcpy(&dd_copy, dd, sizeof(dd_copy));
+	dd_copy = *dd;
 
 	dd->mode |= new_mode;
 	dd->bdev = NULL;
@@ -407,7 +408,7 @@ static int upgrade_mode(struct dm_dev *dd, int new_mode)
 	if (!r)
 		close_dev(&dd_copy);
 	else
-		memcpy(dd, &dd_copy, sizeof(dd_copy));
+		*dd = dd_copy;
 
 	return r;
 }
@@ -631,14 +632,20 @@ static int split_args(int *argc, char ***argvp, char *input)
 	return 0;
 }
 
-static void set_default_limits(struct io_restrictions *rs)
+static void check_for_valid_limits(struct io_restrictions *rs)
 {
-	rs->max_sectors = MAX_SECTORS;
-	rs->max_phys_segments = MAX_PHYS_SEGMENTS;
-	rs->max_hw_segments = MAX_HW_SEGMENTS;
-	rs->hardsect_size = 1 << SECTOR_SHIFT;
-	rs->max_segment_size = MAX_SEGMENT_SIZE;
-	rs->seg_boundary_mask = -1;
+	if (!rs->max_sectors)
+		rs->max_sectors = MAX_SECTORS;
+	if (!rs->max_phys_segments)
+		rs->max_phys_segments = MAX_PHYS_SEGMENTS;
+	if (!rs->max_hw_segments)
+		rs->max_hw_segments = MAX_HW_SEGMENTS;
+	if (!rs->hardsect_size)
+		rs->hardsect_size = 1 << SECTOR_SHIFT;
+	if (!rs->max_segment_size)
+		rs->max_segment_size = MAX_SEGMENT_SIZE;
+	if (!rs->seg_boundary_mask)
+		rs->seg_boundary_mask = -1;
 }
 
 int dm_table_add_target(struct dm_table *t, const char *type,
@@ -653,11 +660,17 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 
 	tgt = t->targets + t->num_targets;
 	memset(tgt, 0, sizeof(*tgt));
-	set_default_limits(&tgt->limits);
+
+	if (!len) {
+		tgt->error = "zero-length target";
+		DMERR(": %s\n", tgt->error);
+		return -EINVAL;
+	}
 
 	tgt->type = dm_get_target_type(type);
 	if (!tgt->type) {
 		tgt->error = "unknown target type";
+		DMERR(": %s\n", tgt->error);
 		return -EINVAL;
 	}
 
@@ -694,7 +707,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	return 0;
 
  bad:
-	printk(KERN_ERR DM_NAME ": %s\n", tgt->error);
+	DMERR(": %s\n", tgt->error);
 	dm_put_target_type(tgt->type);
 	return r;
 }
@@ -732,6 +745,8 @@ int dm_table_complete(struct dm_table *t)
 {
 	int r = 0;
 	unsigned int leaf_nodes;
+
+	check_for_valid_limits(&t->limits);
 
 	/* how many indexes will the btree have ? */
 	leaf_nodes = dm_div_up(t->num_targets, KEYS_PER_NODE);
@@ -857,8 +872,39 @@ void dm_table_resume_targets(struct dm_table *t)
 	}
 }
 
+int dm_table_any_congested(struct dm_table *t, int bdi_bits)
+{
+	struct list_head *d, *devices;
+	int r = 0;
 
+	devices = dm_table_get_devices(t);
+	for (d = devices->next; d != devices; d = d->next) {
+		struct dm_dev *dd = list_entry(d, struct dm_dev, list);
+		request_queue_t *q = bdev_get_queue(dd->bdev);
+		r |= bdi_congested(&q->backing_dev_info, bdi_bits);
+	}
+
+	return r;
+}
+
+void dm_table_unplug_all(struct dm_table *t)
+{
+	struct list_head *d, *devices = dm_table_get_devices(t);
+
+	for (d = devices->next; d != devices; d = d->next) {
+		struct dm_dev *dd = list_entry(d, struct dm_dev, list);
+		request_queue_t *q = bdev_get_queue(dd->bdev);
+
+		if (q->unplug_fn)
+			q->unplug_fn(q);
+	}
+}
+
+EXPORT_SYMBOL(dm_vcalloc);
 EXPORT_SYMBOL(dm_get_device);
 EXPORT_SYMBOL(dm_put_device);
 EXPORT_SYMBOL(dm_table_event);
 EXPORT_SYMBOL(dm_table_get_mode);
+EXPORT_SYMBOL(dm_table_put);
+EXPORT_SYMBOL(dm_table_get);
+EXPORT_SYMBOL(dm_table_unplug_all);

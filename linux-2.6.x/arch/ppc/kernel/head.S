@@ -141,23 +141,20 @@ __start:
 	mr	r27,r7
 	li	r24,0			/* cpu # */
 
-#ifdef CONFIG_POWER4
-/*
- * On the PPC970, we have to turn off real-mode cache inhibit
- * early, before we first turn the MMU off.
- */
-	mfspr	r0,SPRN_PVR
-	srwi	r0,r0,16
-	cmpwi	r0,0x39
-	beql	ppc970_setup_hid
-#endif /* CONFIG_POWER4 */
-
 /*
  * early_init() does the early machine identification and does
  * the necessary low-level setup and clears the BSS
  *  -- Cort <cort@fsmlabs.com>
  */
 	bl	early_init
+
+/*
+ * On POWER4, we first need to tweak some CPU configuration registers
+ * like real mode cache inhibit or exception base
+ */
+#ifdef CONFIG_POWER4
+	bl	__970_cpu_preinit
+#endif /* CONFIG_POWER4 */
 
 #ifdef CONFIG_APUS
 /* On APUS the __va/__pa constants need to be set to the correct
@@ -415,9 +412,7 @@ DataAccess:
 1:	stw	r10,_DSISR(r11)
 	mr	r5,r10
 	mfspr	r4,DAR
-	stw	r4,_DAR(r11)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_EE_LITE(0x300, do_page_fault)
+	EXC_XFER_EE_LITE(0x300, handle_page_fault)
 
 #ifdef CONFIG_PPC64BRIDGE
 /* SLB fault on data access. */
@@ -439,10 +434,9 @@ InstructionAccess:
 	li	r3,0			/* into the hash table */
 	mr	r4,r12			/* SRR0 is fault address */
 	bl	hash_page
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	mr	r4,r12
+1:	mr	r4,r12
 	mr	r5,r9
-	EXC_XFER_EE_LITE(0x400, do_page_fault)
+	EXC_XFER_EE_LITE(0x400, handle_page_fault)
 
 #ifdef CONFIG_PPC64BRIDGE
 /* SLB fault on instruction access. */
@@ -465,7 +459,7 @@ Alignment:
 	EXC_XFER_EE(0x600, AlignmentException)
 
 /* Program check exception */
-	EXCEPTION(0x700, ProgramCheck, ProgramCheckException, EXC_XFER_EE)
+	EXCEPTION(0x700, ProgramCheck, ProgramCheckException, EXC_XFER_STD)
 
 /* Floating-point unavailable */
 	. = 0x800
@@ -488,21 +482,24 @@ SystemCall:
 	EXC_XFER_EE_LITE(0xc00, DoSyscall)
 
 /* Single step - not used on 601 */
-	EXCEPTION(0xd00, SingleStep, SingleStepException, EXC_XFER_EE)
+	EXCEPTION(0xd00, SingleStep, SingleStepException, EXC_XFER_STD)
 	EXCEPTION(0xe00, Trap_0e, UnknownException, EXC_XFER_EE)
 
 /*
  * The Altivec unavailable trap is at 0x0f20.  Foo.
  * We effectively remap it to 0x3000.
+ * We include an altivec unavailable exception vector even if
+ * not configured for Altivec, so that you can't panic a
+ * non-altivec kernel running on a machine with altivec just
+ * by executing an altivec instruction.
  */
 	. = 0xf00
-
-#ifdef CONFIG_ALTIVEC
 	b	Trap_0f
+
 	. = 0xf20
 	b	AltiVecUnavailable
+
 Trap_0f:
-#endif
 	EXCEPTION_PROLOG
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_EE(0xf00, UnknownException)
@@ -555,7 +552,7 @@ InstructionTLBMiss:
 	rlwimi	r3,r3,32-1,31,31	/* _PAGE_USER -> PP lsb */
 	ori	r1,r1,0xe14		/* clear out reserved bits and M */
 	andc	r1,r3,r1		/* PP = user? (rw&dirty? 2: 3): 0 */
-	mtspr	RPA,r1
+	mtspr	SPRN_RPA,r1
 	mfspr	r3,IMISS
 	tlbli	r3
 	mfspr	r3,SRR1		/* Need to restore CR0 */
@@ -629,7 +626,7 @@ DataLoadTLBMiss:
 	rlwimi	r3,r3,32-1,31,31	/* _PAGE_USER -> PP lsb */
 	ori	r1,r1,0xe14		/* clear out reserved bits and M */
 	andc	r1,r3,r1		/* PP = user? (rw&dirty? 2: 3): 0 */
-	mtspr	RPA,r1
+	mtspr	SPRN_RPA,r1
 	mfspr	r3,DMISS
 	tlbld	r3
 	mfspr	r3,SRR1		/* Need to restore CR0 */
@@ -697,7 +694,7 @@ DataStoreTLBMiss:
 	rlwimi	r3,r3,32-1,30,30	/* _PAGE_USER -> PP msb */
 	li	r1,0xe15		/* clear out reserved bits and M */
 	andc	r1,r3,r1		/* PP = user? 2: 0 */
-	mtspr	RPA,r1
+	mtspr	SPRN_RPA,r1
 	mfspr	r3,DMISS
 	tlbld	r3
 	mfspr	r3,SRR1		/* Need to restore CR0 */
@@ -707,6 +704,7 @@ DataStoreTLBMiss:
 #ifndef CONFIG_ALTIVEC
 #define AltivecAssistException	UnknownException
 #endif
+
 	EXCEPTION(0x1300, Trap_13, InstructionBreakpoint, EXC_XFER_EE)
 	EXCEPTION(0x1400, SMI, SMIException, EXC_XFER_EE)
 	EXCEPTION(0x1500, Trap_15, UnknownException, EXC_XFER_EE)
@@ -748,12 +746,12 @@ DataStoreTLBMiss:
 
 	. = 0x3000
 
-#ifdef CONFIG_ALTIVEC
 AltiVecUnavailable:
 	EXCEPTION_PROLOG
+#ifdef CONFIG_ALTIVEC
 	bne	load_up_altivec		/* if from user, just load it up */
-	EXC_XFER_EE_LITE(0xf20, KernelAltiVec)
 #endif /* CONFIG_ALTIVEC */
+	EXC_XFER_EE_LITE(0xf20, AltivecUnavailException)
 
 #ifdef CONFIG_PPC64BRIDGE
 DataAccess:
@@ -1216,7 +1214,7 @@ __secondary_start_psurge99:
 __secondary_start:
 #ifdef CONFIG_PPC64BRIDGE
 	mfmsr	r0
-	clrldi	r0,r0,1		/* make sure it's in 32-bit mode */
+	clrldi	r0,r0,1			/* make sure it's in 32-bit mode */
 	SYNC
 	MTMSRD(r0)
 	isync
@@ -1278,26 +1276,15 @@ __secondary_start:
  */
 _GLOBAL(__setup_cpu_power3)
 	blr
-_GLOBAL(__setup_cpu_power4)
-	blr
-_GLOBAL(__setup_cpu_ppc970)
-	blr
 _GLOBAL(__setup_cpu_generic)
 	blr
 
-#ifndef CONFIG_6xx
+#if !defined(CONFIG_6xx) && !defined(CONFIG_POWER4)
 _GLOBAL(__save_cpu_setup)
 	blr
 _GLOBAL(__restore_cpu_setup)
-#ifdef CONFIG_POWER4
-	/* turn off real-mode cache inhibit on the PPC970 */
-	mfspr	r0,SPRN_PVR
-	srwi	r0,r0,16
-	cmpwi	r0,0x39
-	beq	ppc970_setup_hid
-#endif
 	blr
-#endif /* CONFIG_6xx */
+#endif /* !defined(CONFIG_6xx) && !defined(CONFIG_POWER4) */
 
 
 /*
@@ -1450,11 +1437,8 @@ _GLOBAL(set_context)
 	stw	r4, 0x4(r5)
 #endif
 	li	r4,0
-BEGIN_FTR_SECTION
-	dssall
-	sync
-END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
-3:	isync
+	isync
+3:
 #ifdef CONFIG_PPC64BRIDGE
 	slbie	r4
 #endif /* CONFIG_PPC64BRIDGE */
@@ -1506,22 +1490,22 @@ BEGIN_FTR_SECTION
 	 * seems that doesn't affect our ability to actually
 	 * write to these SPRs.
 	 */
-	mtspr	SPRN_DBAT4U,r20
-	mtspr	SPRN_DBAT4L,r20
-	mtspr	SPRN_DBAT5U,r20
-	mtspr	SPRN_DBAT5L,r20
-	mtspr	SPRN_DBAT6U,r20
-	mtspr	SPRN_DBAT6L,r20
-	mtspr	SPRN_DBAT7U,r20
-	mtspr	SPRN_DBAT7L,r20
-	mtspr	SPRN_IBAT4U,r20
-	mtspr	SPRN_IBAT4L,r20
-	mtspr	SPRN_IBAT5U,r20
-	mtspr	SPRN_IBAT5L,r20
-	mtspr	SPRN_IBAT6U,r20
-	mtspr	SPRN_IBAT6L,r20
-	mtspr	SPRN_IBAT7U,r20
-	mtspr	SPRN_IBAT7L,r20
+	mtspr	SPRN_DBAT4U,r10
+	mtspr	SPRN_DBAT4L,r10
+	mtspr	SPRN_DBAT5U,r10
+	mtspr	SPRN_DBAT5L,r10
+	mtspr	SPRN_DBAT6U,r10
+	mtspr	SPRN_DBAT6L,r10
+	mtspr	SPRN_DBAT7U,r10
+	mtspr	SPRN_DBAT7L,r10
+	mtspr	SPRN_IBAT4U,r10
+	mtspr	SPRN_IBAT4L,r10
+	mtspr	SPRN_IBAT5U,r10
+	mtspr	SPRN_IBAT5L,r10
+	mtspr	SPRN_IBAT6U,r10
+	mtspr	SPRN_IBAT6L,r10
+	mtspr	SPRN_IBAT7U,r10
+	mtspr	SPRN_IBAT7L,r10
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_HIGH_BATS)
 	blr
 
@@ -1633,10 +1617,14 @@ initial_mm_power4:
 	lis	r4,0x2000		/* set pseudo-segment reg 12 */
 	ori	r5,r4,0x0ccc
 	mtsr	12,r5
+#if 0
 	ori	r5,r4,0x0888		/* set pseudo-segment reg 8 */
 	mtsr	8,r5			/* (for access to serial port) */
-	ori	r5,r4,0x0999		/* set pseudo-segment reg 8 */
+#endif
+#ifdef CONFIG_BOOTX_TEXT
+	ori	r5,r4,0x0999		/* set pseudo-segment reg 9 */
 	mtsr	9,r5			/* (for access to screen) */
+#endif
 	mfmsr	r0
 	clrldi	r0,r0,1
 	sync
@@ -1644,41 +1632,6 @@ initial_mm_power4:
 	isync
 	blr
 
-/*
- * On 970 (G5), we pre-set a few bits in HID0 & HID1
- */
-ppc970_setup_hid:
-	li	r0,0
-	sync
-	mtspr	0x3f4,r0
-	isync
-	sync
-	mtspr	0x3f6,r0
-	isync
-	mfspr	r0,SPRN_HID0
-	li	r11,1			/* clear DOZE, NAP and SLEEP */
-	rldimi	r0,r11,52,8		/* set DPM */
-	mtspr	SPRN_HID0,r0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	mfspr	r0,SPRN_HID0
-	sync
-	isync
-	mfspr	r0,SPRN_HID1
-	li	r11,0x1200		/* enable i-fetch cacheability */
-	sldi	r11,r11,44		/* and prefetch */
-	or	r0,r0,r11
-	mtspr	SPRN_HID1,r0
-	mtspr	SPRN_HID1,r0
-	isync
-	li	r0,0
-	sync
-	mtspr	0x137,0
-	isync
-	blr
 #endif /* CONFIG_POWER4 */
 
 #ifdef CONFIG_8260
@@ -1702,7 +1655,7 @@ m8260_gorom:
 	andc	r11, r11, r10
 	mtspr	HID0, r11
 	isync
-	li	r5, MSR_
+	li	r5, MSR_ME|MSR_RI
 	lis	r6,2f@h
 	addis	r6,r6,-KERNELBASE@h
 	ori	r6,r6,2f@l

@@ -579,7 +579,7 @@ static int shaper_attach(struct net_device *shdev, struct shaper *sh, struct net
 
 static int shaper_ioctl(struct net_device *dev,  struct ifreq *ifr, int cmd)
 {
-	struct shaperconf *ss= (struct shaperconf *)&ifr->ifr_data;
+	struct shaperconf *ss= (struct shaperconf *)&ifr->ifr_ifru;
 	struct shaper *sh=dev->priv;
 	
 	if(ss->ss_cmd == SHAPER_SET_DEV || ss->ss_cmd == SHAPER_SET_SPEED)
@@ -642,7 +642,6 @@ static void __init shaper_setup(struct net_device *dev)
 
 	dev->open		= shaper_open;
 	dev->stop		= shaper_close;
-	dev->destructor 	= free_netdev;
 	dev->hard_start_xmit 	= shaper_start_xmit;
 	dev->get_stats 		= shaper_get_stats;
 	dev->set_multicast_list = NULL;
@@ -718,8 +717,10 @@ static int __init shaper_init(void)
 		if (!dev) 
 			break;
 
-		if (register_netdev(dev))
+		if (register_netdev(dev)) {
+			free_netdev(dev);
 			break;
+		}
 
 		devs[i] = dev;
 		shapers_registered++;
@@ -737,9 +738,12 @@ static void __exit shaper_exit (void)
 {
 	int i;
 
-	for (i = 0; i < shapers_registered; i++)
-		if (devs[i])
+	for (i = 0; i < shapers_registered; i++) {
+		if (devs[i]) {
 			unregister_netdev(devs[i]);
+			free_netdev(devs[i]);
+		}
+	}
 
 	kfree(devs);
 	devs = NULL;

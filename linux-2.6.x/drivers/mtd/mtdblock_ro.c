@@ -4,8 +4,6 @@
  * (C) 2003 David Woodhouse <dwmw2@infradead.org>
  *
  * Simple read-only (writable only for RAM) mtdblock driver
- *
- * (C) 2002 David McCullough, Added MAGIC_ROM_PTR support
  */
 
 #include <linux/init.h>
@@ -54,28 +52,6 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	add_mtd_blktrans_dev(dev);
 }
 
-#ifdef MAGIC_ROM_PTR
-static int
-mtdblock_romptr(kdev_t dev, struct vm_area_struct * vma)
-{
-	struct mtd_info *mtd;
-	u_char *ptr;
-	size_t len;
-
-	mtd = __get_mtd_device(NULL, MINOR(dev));
-
-	if (!mtd->point)
-		return -ENOSYS; /* Can't do it, No function to point to correct addr */
-
-	if ((*mtd->point)(mtd,vma->vm_offset,vma->vm_end-vma->vm_start,&len,&ptr) != 0)
-		return -ENOSYS;
-
-	vma->vm_start = (unsigned long) ptr;
-	vma->vm_end = vma->vm_start + len;
-	return 0;
-}
-#endif
-
 static void mtdblock_remove_dev(struct mtd_blktrans_dev *dev)
 {
 	del_mtd_blktrans_dev(dev);
@@ -91,9 +67,6 @@ struct mtd_blktrans_ops mtdblock_tr = {
 	.add_mtd	= mtdblock_add_mtd,
 	.remove_dev	= mtdblock_remove_dev,
 	.owner		= THIS_MODULE,
-#ifdef MAGIC_ROM_PTR
-	.romptr		= mtdblock_romptr,
-#endif
 };
 
 static int __init mtdblock_init(void)

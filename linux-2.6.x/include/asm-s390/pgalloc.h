@@ -21,6 +21,8 @@
 
 #define check_pgt_cache()	do {} while (0)
 
+extern void diag10(unsigned long addr);
+
 /*
  * Allocate and free page tables. The xxx_kernel() versions are
  * used to allocate a kernel page table - this turns on ASN bits
@@ -137,7 +139,10 @@ pte_alloc_one_kernel(struct mm_struct *mm, unsigned long vmaddr)
 static inline struct page *
 pte_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 {
-	return virt_to_page(pte_alloc_one_kernel(mm, vmaddr));
+	pte_t *pte = pte_alloc_one_kernel(mm, vmaddr);
+	if (pte)
+		return virt_to_page(pte);
+	return 0;
 }
 
 static inline void pte_free_kernel(pte_t *pte)

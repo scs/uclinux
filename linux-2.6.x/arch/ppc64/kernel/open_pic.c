@@ -34,14 +34,47 @@ static volatile struct OpenPIC *OpenPIC = NULL;
 u_int OpenPIC_NumInitSenses __initdata = 0;
 u_char *OpenPIC_InitSenses __initdata = NULL;
 
-void find_ISUs(void);
+/*
+ *  Local (static) OpenPIC Operations
+ */
+
+
+/* Global Operations */
+static void openpic_reset(void);
+static void openpic_enable_8259_pass_through(void);
+static void openpic_disable_8259_pass_through(void);
+static u_int openpic_irq(void);
+static void openpic_eoi(void);
+static u_int openpic_get_priority(void);
+static void openpic_set_priority(u_int pri);
+static u_int openpic_get_spurious(void);
+static void openpic_set_spurious(u_int vector);
+
+#ifdef CONFIG_SMP
+/* Interprocessor Interrupts */
+static void openpic_initipi(u_int ipi, u_int pri, u_int vector);
+static irqreturn_t openpic_ipi_action(int cpl, void *dev_id,
+					struct pt_regs *regs);
+#endif
+
+/* Timer Interrupts */
+static void openpic_inittimer(u_int timer, u_int pri, u_int vector);
+static void openpic_maptimer(u_int timer, u_int cpumask);
+
+/* Interrupt Sources */
+static void openpic_enable_irq(u_int irq);
+static void openpic_disable_irq(u_int irq);
+static void openpic_initirq(u_int irq, u_int pri, u_int vector, int polarity,
+			    int is_level);
+static void openpic_mapirq(u_int irq, u_int cpumask);
+
+static void find_ISUs(void);
 
 static u_int NumProcessors;
 static u_int NumSources;
 static int NumISUs;
 static int open_pic_irq_offset;
 static volatile unsigned char* chrp_int_ack_special;
-static int broken_ipi_registers;
 
 OpenPIC_SourcePtr ISU[OPENPIC_MAX_ISU];
 
@@ -130,13 +163,13 @@ unsigned int openpic_vec_spurious;
 
 #define GET_ISU(source)	ISU[(source) >> 4][(source) & 0xf]
 
-void __init openpic_init_IRQ(void)
+void __init pSeries_init_openpic(void)
 {
         struct device_node *np;
         int i;
         unsigned int *addrp;
-        unsigned char* chrp_int_ack_special = 0;
-        unsigned char init_senses[NR_IRQS - NUM_8259_INTERRUPTS];
+        unsigned char* chrp_int_ack_special = NULL;
+        unsigned char init_senses[NR_IRQS - NUM_ISA_INTERRUPTS];
         int nmi_irq = -1;
 #if defined(CONFIG_VT) && defined(CONFIG_ADB_KEYBOARD) && defined(XMON)
         struct device_node *kbd;
@@ -151,12 +184,12 @@ void __init openpic_init_IRQ(void)
 			__ioremap(addrp[prom_n_addr_cells(np)-1], 1, _PAGE_NO_CACHE);
         /* hydra still sets OpenPIC_InitSenses to a static set of values */
         if (OpenPIC_InitSenses == NULL) {
-                prom_get_irq_senses(init_senses, NUM_8259_INTERRUPTS, NR_IRQS);
+                prom_get_irq_senses(init_senses, NUM_ISA_INTERRUPTS, NR_IRQS);
                 OpenPIC_InitSenses = init_senses;
-                OpenPIC_NumInitSenses = NR_IRQS - NUM_8259_INTERRUPTS;
+                OpenPIC_NumInitSenses = NR_IRQS - NUM_ISA_INTERRUPTS;
         }
-        openpic_init(1, NUM_8259_INTERRUPTS, chrp_int_ack_special, nmi_irq);
-        for ( i = 0 ; i < NUM_8259_INTERRUPTS  ; i++ )
+        openpic_init(1, NUM_ISA_INTERRUPTS, chrp_int_ack_special, nmi_irq);
+        for (i = 0; i < NUM_ISA_INTERRUPTS; i++)
                 irq_desc[i].handler = &i8259_pic;
 	of_node_put(np);
 }
@@ -213,6 +246,9 @@ static void openpic_safe_writefield(volatile u_int *addr, u_int mask,
 }
 
 #ifdef CONFIG_SMP
+
+static int broken_ipi_registers;
+
 static u_int openpic_read_IPI(volatile u_int* addr)
 {
         u_int val = 0;
@@ -359,9 +395,12 @@ void __init openpic_init(int main_pic, int offset, unsigned char* chrp_ack,
 	}
 
 	/* Init all external sources */
-	for (i = 1; i < NumSources; i++) {
+	for (i = 0; i < NumSources; i++) {
 		int pri, sense;
 
+		/* skip cascade if any */
+		if (offset && i == 0)
+			continue;
 		/* the bootloader may have left it enabled (bad !) */
 		openpic_disable_irq(i+offset);
 
@@ -396,9 +435,12 @@ void __init openpic_init(int main_pic, int offset, unsigned char* chrp_ack,
  */
 static int __init openpic_setup_i8259(void)
 {
+	if (systemcfg->platform == PLATFORM_POWERMAC)
+		return 0;
+
 	if (naca->interrupt_controller == IC_OPEN_PIC) {
 		/* Initialize the cascade */
-		if (request_irq(NUM_8259_INTERRUPTS, no_action, SA_INTERRUPT,
+		if (request_irq(NUM_ISA_INTERRUPTS, no_action, SA_INTERRUPT,
 				"82c59 cascade", NULL))
 			printk(KERN_ERR "Unable to get OpenPIC IRQ 0 for cascade\n");
 		i8259_init();
@@ -419,6 +461,14 @@ void openpic_setup_ISU(int isu_num, unsigned long addr)
 
 void find_ISUs(void)
 {
+	/* For PowerMac, setup ISUs on base openpic */
+	if (systemcfg->platform == PLATFORM_POWERMAC) {
+		int i;
+		for (i=0; i<128; i+=0x10) {
+			ISU[i>>4] = &((struct OpenPIC *)OpenPIC_Addr)->Source[i];
+			NumISUs++;
+		}
+	}
         /* Use /interrupt-controller/reg and
          * /interrupt-controller/interrupt-ranges from OF device tree
 	 * the ISU array is setup in chrp_pci.c in ibm_add_bridges
@@ -429,11 +479,22 @@ void find_ISUs(void)
 	/* basically each ISU is a bus, and this assumes that
 	 * open_pic_isu_count interrupts per bus are possible 
 	 * ISU == Interrupt Source
+	 *
+	 * On G5, we keep the original NumSources provided by the controller,
+	 * it's below 128, so we have room to stuff the IPIs and timers like darwin
+	 * does. We put the spurrious vector up at 0xff though.
 	 */
-	NumSources = NumISUs * 0x10;
-	openpic_vec_ipi = NumSources + open_pic_irq_offset;
-	openpic_vec_timer = openpic_vec_ipi + OPENPIC_NUM_IPI; 
-	openpic_vec_spurious = openpic_vec_timer + OPENPIC_NUM_TIMERS;
+	if (systemcfg->platform == PLATFORM_POWERMAC) {
+		openpic_vec_ipi = NumSources;
+		openpic_vec_timer = openpic_vec_ipi + 4; 
+		openpic_vec_spurious = 0xff;
+	} else {
+		NumSources = NumISUs * 0x10;
+
+		openpic_vec_ipi = NumSources + open_pic_irq_offset;
+		openpic_vec_timer = openpic_vec_ipi + OPENPIC_NUM_IPI; 
+		openpic_vec_spurious = openpic_vec_timer + OPENPIC_NUM_TIMERS;
+	}
 }
 
 static inline void openpic_reset(void)
@@ -530,7 +591,7 @@ static inline u32 physmask(u32 cpumask)
 void openpic_init_processor(u_int cpumask)
 {
 	openpic_write(&OpenPIC->Global.Processor_Initialization,
-		      physmask(cpumask & cpus_coerce(cpu_online_map)));
+		      physmask(cpumask & cpus_addr(cpu_online_map)[0]));
 }
 
 #ifdef CONFIG_SMP
@@ -564,7 +625,7 @@ void openpic_cause_IPI(u_int ipi, u_int cpumask)
 	CHECK_THIS_CPU;
 	check_arg_ipi(ipi);
 	openpic_write(&OpenPIC->THIS_CPU.IPI_Dispatch(ipi),
-		      physmask(cpumask & cpus_coerce(cpu_online_map)));
+		      physmask(cpumask & cpus_addr(cpu_online_map)[0]));
 }
 
 void openpic_request_IPIs(void)
@@ -581,13 +642,13 @@ void openpic_request_IPIs(void)
 
 	/* IPIs are marked SA_INTERRUPT as they must run with irqs disabled */
 	request_irq(openpic_vec_ipi, openpic_ipi_action, SA_INTERRUPT,
-		    "IPI0 (call function)", 0);
+		    "IPI0 (call function)", NULL);
 	request_irq(openpic_vec_ipi+1, openpic_ipi_action, SA_INTERRUPT,
-		   "IPI1 (reschedule)", 0);
+		   "IPI1 (reschedule)", NULL);
 	request_irq(openpic_vec_ipi+2, openpic_ipi_action, SA_INTERRUPT,
-		   "IPI2 (invalidate tlb)", 0);
+		   "IPI2 (unused)", NULL);
 	request_irq(openpic_vec_ipi+3, openpic_ipi_action, SA_INTERRUPT,
-		   "IPI3 (xmon break)", 0);
+		   "IPI3 (debugger break)", NULL);
 
 	for ( i = 0; i < OPENPIC_NUM_IPI ; i++ )
 		openpic_enable_ipi(openpic_vec_ipi+i);
@@ -650,7 +711,7 @@ static void __init openpic_maptimer(u_int timer, u_int cpumask)
 {
 	check_arg_timer(timer);
 	openpic_write(&OpenPIC->Global.Timer[timer].Destination,
-		      physmask(cpumask & cpus_coerce(cpu_online_map)));
+		      physmask(cpumask & cpus_addr(cpu_online_map)[0]));
 }
 
 
@@ -758,17 +819,24 @@ static void openpic_mapirq(u_int irq, u_int physmask)
  *
  *  sense: 1 for level, 0 for edge
  */
-static inline void openpic_set_sense(u_int irq, int sense)
+#if 0	/* not used */
+static void openpic_set_sense(u_int irq, int sense)
 {
 	openpic_safe_writefield(&GET_ISU(irq).Vector_Priority,
 				OPENPIC_SENSE_LEVEL,
 				(sense ? OPENPIC_SENSE_LEVEL : 0));
 }
 
+static int openpic_get_sense(u_int irq)
+{
+	return openpic_readfield(&GET_ISU(irq).Vector_Priority,
+				 OPENPIC_SENSE_LEVEL) != 0;
+}
+#endif
+
 static void openpic_end_irq(unsigned int irq_nr)
 {
-	if ((irq_desc[irq_nr].status & IRQ_LEVEL) != 0)
-		openpic_eoi();
+	openpic_eoi();
 }
 
 static void openpic_set_affinity(unsigned int irq_nr, cpumask_t cpumask)
@@ -776,7 +844,7 @@ static void openpic_set_affinity(unsigned int irq_nr, cpumask_t cpumask)
 	cpumask_t tmp;
 
 	cpus_and(tmp, cpumask, cpu_online_map);
-	openpic_mapirq(irq_nr - open_pic_irq_offset, physmask(cpus_coerce(tmp)));
+	openpic_mapirq(irq_nr - open_pic_irq_offset, physmask(cpus_addr(tmp)[0]));
 }
 
 #ifdef CONFIG_SMP
@@ -807,9 +875,7 @@ int openpic_get_irq(struct pt_regs *regs)
 
 	int irq = openpic_irq();
 
-	/* Management of the cascade should be moved out of here */
-        if (open_pic_irq_offset && irq == open_pic_irq_offset)
-        {
+        if (open_pic_irq_offset && irq == open_pic_irq_offset) {
                 /*
                  * This magic address generates a PCI IACK cycle.
                  */
