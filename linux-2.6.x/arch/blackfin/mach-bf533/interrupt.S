@@ -78,6 +78,7 @@ ENTRY(evt_timer)
 	 SP += -12;	
 	 call process_int;  /* call do_timer; */ 
 	 SP += 12;
+	 call return_from_int;
 	 RESTORE_CONTEXT
 	 rti; 
 
