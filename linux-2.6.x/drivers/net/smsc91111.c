@@ -1077,10 +1077,9 @@ static void smc_hardware_send_packet( struct net_device * dev )
 	smc_writew( MC_ENQUEUE , ioaddr + MMU_CMD_REG );
 
 	PRINTK2("%s: Sent packet of length %d \n", dev->name, length);
-
+	lp->stats.tx_bytes += length;
 	lp->saved_skb = NULL;
 	dev_kfree_skb_any (skb);
-
 	dev->trans_start = jiffies;
 
 	/* we can send another packet */
@@ -1292,7 +1291,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	/* Grab the region so that no one else tries to probe our ioports. */
 	if (!request_region(ioaddr, SMC_IO_EXTENT, dev->name)) 
 	{
-		printk(KERN_DEBUG "SMSC91111:Resource Busy\n");
+		printk(CARDNAME":Resource Busy\n");
 		return -EBUSY;
 	}
 #endif
@@ -1301,7 +1300,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	bank = readw( ioaddr + BANK_SELECT );
 	if ( (bank & 0xFF00) != 0x3300 ) 
 	{
-		printk(KERN_DEBUG "SMSC91111:Device not found : %x\n", bank);
+		printk(CARDNAME":Not a SMC device : %x\n", bank);
 		retval = -ENODEV;
 		goto err_out;
 	}
@@ -1324,7 +1323,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 
 	SMC_SELECT_BANK(1);
 	base_address_register = readw( ioaddr + BASE_REG );
-	printk("BAR: %x \n",readw( ioaddr + BASE_REG ));
+	PRINTK2("BAR: %x \n",base_address_register);
 #if defined(CONFIG_M5249C3) || defined(CONFIG_GILBARCONAP) || defined(CONFIG_BFIN)
 	if ((ioaddr & 0xfff) != (base_address_register >> 3 & 0x3E0))
 #else
@@ -1470,7 +1469,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 		}
 	}
 	if (dev->irq == 0 ) {
-		printk("%s: Couldn't autodetect your IRQ. Use irq=xx.\n",
+		printk(CARDNAME":%s: Couldn't autodetect your IRQ. Use irq=xx.\n",
 			dev->name);
 		retval =  -ENODEV;
 		goto err_out;
@@ -1516,7 +1515,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	/* Grab the IRQ */
 	retval = request_irq(dev->irq, &smc_interrupt, 0, dev->name, dev);
 	if (retval) {
-       	  printk("%s: unable to get IRQ %d (irqval=%d).\n",
+	  printk(CARDNAME":%s: unable to get IRQ %d (irqval=%d).\n",
 		dev->name, dev->irq, retval);
 		  kfree (dev->priv);
 		  dev->priv = NULL;
@@ -2023,6 +2022,7 @@ static void smc_rcv(struct net_device *dev)
 		skb->protocol = eth_type_trans(skb, dev );
 		netif_rx(skb);
 		lp->stats.rx_packets++;
+		lp->stats.rx_bytes += packet_length;
 	} else {
 		/* error ... */
 		lp->stats.rx_errors++;
@@ -2373,7 +2373,7 @@ static const char smc_info_string[] =
  . Sysctl handler for all integer parameters
  .-------------------------------------------------------------*/
 static int smc_sysctl_handler(ctl_table *ctl, int write, struct file * filp,
-				void __user *buffer, size_t *lenp,loff_t *dummy)
+				void __user *buffer, size_t *lenp,loff_t *ppos)
 {
 	struct net_device *dev = (struct net_device*)ctl->extra1;
 	struct smc_local *lp = (struct smc_local *)ctl->extra2;
@@ -2602,7 +2602,7 @@ static int smc_sysctl_handler(ctl_table *ctl, int write, struct file * filp,
 	val = *valp;
 
 	// Perform the generic integer operation	
-	if ((ret = proc_dointvec(ctl, write, filp, buffer, lenp,NULL)) != 0)
+	if ((ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos)) != 0)
 		return(ret);
 
 	// Write changes out to the registers
