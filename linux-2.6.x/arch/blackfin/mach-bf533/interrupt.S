@@ -15,6 +15,7 @@
 
 #define ASSEMBLY
 
+#include <asm/blackfin.h>
 #include <asm/hw_irq.h>
 #include <linux/autoconf.h>
 #include <linux/linkage.h>
@@ -67,8 +68,8 @@ ENTRY(evt_ivhw)
 /* interrupt routine for core timer - 6 */	 
 ENTRY(evt_timer)
 	 SAVE_CONTEXT
-	 p2.l = 0x2108;
-         p2.h = 0xffe0;
+	 p2.l = lo(IPEND);
+         p2.h = hi(IPEND);
          r0 = [p2];              /* Read current IPEND */
          csync;
          [sp + PT_IPEND] = r0;   /* Store IPEND */
@@ -85,7 +86,7 @@ ENTRY(evt_timer)
 /* interrupt routine for evt2 - 2 */	 
 ENTRY(evt_evt2)
 	 SAVE_ALL_SYS
-	 r0 = 2;
+	 r0 = IRQ_NMI;
 	 r1 =  sp;
 	 SP += -12;
 	 call do_irq;
@@ -96,7 +97,7 @@ ENTRY(evt_evt2)
 /* interrupt routine for evt7 - 7 */	 
 ENTRY(evt_evt7)
 	 SAVE_CONTEXT
- 	 r0 = 7;
+ 	 r0 = EVT_IVG7_P;
 	 r1 =  sp;
 	 SP += -12;	
 	 call do_irq;
@@ -107,7 +108,7 @@ ENTRY(evt_evt7)
 /* interrupt routine for evt8 - 8 */
 ENTRY(evt_evt8)
 	 SAVE_CONTEXT
-	 r0 = 8;
+	 r0 = EVT_IVG8_P;
 	 r1 =  sp;
 	 SP += -12;	
 	 call do_irq;
@@ -118,7 +119,7 @@ ENTRY(evt_evt8)
 /* interrupt routine for evt9 - 9 */	 
 ENTRY(evt_evt9)
 	 SAVE_CONTEXT
-	 r0 = 9;
+	 r0 = EVT_IVG9_P;
 	 r1 =  sp;
 	 SP += -12;	
 	 call do_irq;
@@ -129,7 +130,7 @@ ENTRY(evt_evt9)
 /* interrupt routine for evt10	- 10 */	 
 ENTRY(evt_evt10)
 	 SAVE_CONTEXT
-	 r0 = 10;
+	 r0 = EVT_IVG10_P;
 	 r1 =  sp;
 	 SP += -12;	
 	 call do_irq;
@@ -140,7 +141,7 @@ ENTRY(evt_evt10)
 /* interrupt routine for evt11	- 11 */	 
 ENTRY(evt_evt11)
 	 SAVE_CONTEXT
-	 r0 = 11;
+	 r0 = EVT_IVG11_P;
 	 r1 =  sp;
 	 SP += -12;	
 	 call do_irq;
@@ -151,7 +152,7 @@ ENTRY(evt_evt11)
 /* interrupt routine for evt12	- 12 */	 
 ENTRY(evt_evt12)
 	 SAVE_CONTEXT
-	 r0 = 12;
+	 r0 = EVT_IVG12_P;
 	 r1 =  sp;
 	 SP += -12;	
 	 call do_irq;
@@ -162,7 +163,7 @@ ENTRY(evt_evt12)
  /* interrupt routine for evt13	- 13 */
 ENTRY(evt_evt13)
 	 SAVE_CONTEXT
-	 r0 = 13;
+	 r0 = EVT_IVG13_P;
 	 r1 =  sp;
 	 SP += -12;	
 	 call do_irq;
