@@ -20,6 +20,7 @@
  * Copyright 2004 LG Soft India 
  */
 
+#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -46,13 +47,14 @@
 int irq_flags = 0;
 
 struct ivgx	{
-
 	int irqno;	/*irq number for request_irq, available in bf533_irq.h*/
-	int isrpos;	/*corresponding position in the SIC_ISR register*/
-}ivg7[7],ivg8[7],ivg9[7],ivg10[7],ivg11[7],ivg12[7],ivg13[7];
+	int isrflag;	/*corresponding bit in the SIC_ISR register*/
+}ivg_table[23];
 
-/*counters for the table*/
-unsigned char ivg7_cnt=0,ivg8_cnt=0,ivg9_cnt=0,ivg10_cnt=0,ivg11_cnt=0,ivg12_cnt=0,ivg13_cnt=0;
+struct ivg_slice {
+	struct ivgx *ifirst; /* position of first irq in ivg_table for given ivg */
+	struct ivgx *istop;  
+} ivg7_13[16];
 
 /*********************
  * Prototypes
@@ -77,10 +79,8 @@ asmlinkage void evt_evt13(void);
 asmlinkage void evt_soft_int1(void);
 asmlinkage void evt_system_call(void);
 
-
-void program_IAR(void);
-void search_IAR(unsigned int sic_iarx);	
-int getirq_number(struct ivgx *ivg);
+static void program_IAR(void);
+static void search_IAR(void);	
 
 /* irq node variables for the 32 (potential) on chip sources */
 static irq_node_t int_irq_list[INTERNAL_IRQS];
@@ -96,9 +96,8 @@ asmlinkage void bfin_irq_panic( int reason, struct pt_regs * regs)
 	printk(" code=[0x%08x],  ", (unsigned int)regs->seqstat);
 	printk(" stack frame=0x%04x,  ",(unsigned int)(unsigned long) regs);
 	printk(" bad PC=0x%04x\n", (unsigned int)regs->pc);
-
 	if(reason == 0x5) {
-
+ 
  	printk("\n----------- HARDWARE ERROR -----------\n\n");
 		
 	/* There is only need to check for Hardware Errors, since other EXCEPTIONS are handled in TRAPS.c (MH)  */
@@ -122,292 +121,71 @@ asmlinkage void bfin_irq_panic( int reason, struct pt_regs * regs)
 					break;
 			}
 	}
+
+
+
+
 	dump(regs);
 	panic("Unhandled IRQ or exceptions!\n");
 }
 
 /*Program the IAR registers*/
-void program_IAR()
+void __init program_IAR()
 {
-		unsigned long val=0;
 		/* Program the IAR0 Register with the configured priority */
+	        *pSIC_IAR0 =  ((CONFIG_PLLWAKE_ERROR-7) << PLLWAKE_ERROR_POS) |
+                ((CONFIG_DMA_ERROR   -7) <<    DMA_ERROR_POS) |
+                ((CONFIG_PPI_ERROR   -7) <<    PPI_ERROR_POS) |
+                ((CONFIG_SPORT0_ERROR-7) << SPORT0_ERROR_POS) |
+                ((CONFIG_SPI_ERROR   -7) <<    SPI_ERROR_POS) |
+                ((CONFIG_SPORT1_ERROR-7) << SPORT1_ERROR_POS) |
+                ((CONFIG_UART_ERROR  -7) <<   UART_ERROR_POS) |
+                ((CONFIG_RTC_ERROR   -7) <<    RTC_ERROR_POS);
+	        asm("ssync;");	
 
-		if (CONFIG_DEF_UART_ERROR != CONFIG_UART_ERROR)	{
-			val = ((CONFIG_UART_ERROR-7) << UART_ERROR_POS);
-			*pSIC_IAR0 &= UART_ERROR_BIT;
-			asm("ssync;");	
-			*pSIC_IAR0 |= val;
-			asm("ssync;");	
-			}
-		
-		if (CONFIG_DEF_SPORT0_ERROR != CONFIG_SPORT0_ERROR)	{	
-			val = ((CONFIG_SPORT0_ERROR-7) << SPORT0_ERROR_POS);
-			*pSIC_IAR0 &= SPORT0_ERROR_BIT;
-			asm("ssync;");	
-			*pSIC_IAR0 |= val;
-			asm("ssync;");	
-			}
-		
-		if (CONFIG_DEF_SPI_ERROR != CONFIG_SPI_ERROR)	{	
-			val = ((CONFIG_SPI_ERROR-7) << SPI_ERROR_POS);
-			*pSIC_IAR0 &= SPI_ERROR_BIT;
-			asm("ssync;");	
-			*pSIC_IAR0 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_SPORT1_ERROR != CONFIG_SPORT1_ERROR)	{	
-			val = ((CONFIG_SPORT1_ERROR-7) << SPORT1_ERROR_POS);
-			*pSIC_IAR0 &= SPORT1_ERROR_BIT;
-			asm("ssync;");	
-			*pSIC_IAR0 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_PPI_ERROR != CONFIG_PPI_ERROR)	{	
-			val = ((CONFIG_PPI_ERROR-7) << PPI_ERROR_POS);
-			*pSIC_IAR0 &= PPI_ERROR_BIT;
-			asm("ssync;");	
-			*pSIC_IAR0 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_DMA_ERROR != CONFIG_DMA_ERROR)	{	
-			val = ((CONFIG_DMA_ERROR-7) << DMA_ERROR_POS);
-			*pSIC_IAR0 &= DMA_ERROR_BIT;
-			asm("ssync;");	
-			*pSIC_IAR0 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_PLLWAKE_ERROR != CONFIG_PLLWAKE_ERROR)	{	
-			val = ((CONFIG_PLLWAKE_ERROR-7) << PLLWAKE_ERROR_POS);
-			*pSIC_IAR0 &= PLLWAKE_ERROR_BIT;
-			asm("ssync;");	
-			*pSIC_IAR0 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_RTC_ERROR != CONFIG_RTC_ERROR)	{	
-			val = ((CONFIG_RTC_ERROR-7) << RTC_ERROR_POS);
-			*pSIC_IAR0 &= RTC_ERROR_BIT;
-			asm("ssync;");	
-			*pSIC_IAR0 |= val;
-			asm("ssync;");	
-			}
-				
-		/* Program the IAR1 Register with the configured priority */
-		
-		if (CONFIG_DEF_DMA0_PPI != CONFIG_DMA0_PPI)	{	
-			val = ((CONFIG_DMA0_PPI-7) << DMA0_PPI_POS);
-			*pSIC_IAR1 &= DMA0_PPI_BIT;
-			asm("ssync;");	
-			*pSIC_IAR1 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_DMA1_SPORT0RX != CONFIG_DMA1_SPORT0RX)	{	
-			val = ((CONFIG_DMA1_SPORT0RX-7) << DMA1_SPORT0RX_POS);
-			*pSIC_IAR1 &= DMA1_SPORT0RX_BIT;
-			asm("ssync;");	
-			*pSIC_IAR1 |= val;
-			asm("ssync;");	
-			}
-		
-		if (CONFIG_DEF_DMA2_SPORT0TX != CONFIG_DMA2_SPORT0TX)	{	
-			val = ((CONFIG_DMA2_SPORT0TX-7) << DMA2_SPORT0TX_POS);
-			*pSIC_IAR1 &= DMA2_SPORT0TX_BIT;
-			asm("ssync;");	
-			*pSIC_IAR1 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_DMA3_SPORT1RX != CONFIG_DMA3_SPORT1RX)	{	
-			val = ((CONFIG_DMA3_SPORT1RX-7) << DMA3_SPORT1RX_POS);
-			*pSIC_IAR1 &= DMA3_SPORT1RX_BIT;
-			asm("ssync;");	
-			*pSIC_IAR1 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_DMA4_SPORT1TX != CONFIG_DMA4_SPORT1TX)	{	
-			val = ((CONFIG_DMA4_SPORT1TX-7) << DMA4_SPORT1TX_POS);
-			*pSIC_IAR1 &= DMA4_SPORT1TX_BIT;
-			asm("ssync;");	
-			*pSIC_IAR1 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_DMA5_SPI != CONFIG_DMA5_SPI)	{	
-			val = ((CONFIG_DMA5_SPI-7) << DMA5_SPI_POS);
-			*pSIC_IAR1 &= DMA5_SPI_BIT;
-			asm("ssync;");	
-			*pSIC_IAR1 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_DMA6_UARTRX != CONFIG_DMA6_UARTRX)	{
-			val = ((CONFIG_DMA6_UARTRX-7) << DMA6_UARTRX_POS);
-			*pSIC_IAR1 &= DMA6_UARTRX_BIT;
-			asm("ssync;");	
-			*pSIC_IAR1 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_DMA7_UARTTX != CONFIG_DMA7_UARTTX)	{	
-			val = ((CONFIG_DMA7_UARTTX-7) << DMA7_UARTTX_POS);
-			*pSIC_IAR1 &= DMA7_UARTTX_BIT;
-			asm("ssync;");	
-			*pSIC_IAR1 |= val;
-			asm("ssync;");	
-			}
-
-		/* Program the IAR2 Register with the configured priority */
-
-		if (CONFIG_DEF_TIMER0 != CONFIG_TIMER0)	{	
-			val = ((CONFIG_TIMER0-7) << TIMER0_POS);
-			*pSIC_IAR2 &= TIMER0_BIT;
-			asm("ssync;");	
-			*pSIC_IAR2 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_TIMER1 != CONFIG_TIMER1)	{	
-			val = ((CONFIG_TIMER1-7) << TIMER1_POS);
-			*pSIC_IAR2 &= TIMER1_BIT;
-			asm("ssync;");	
-			*pSIC_IAR2 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_TIMER2 != CONFIG_TIMER2)	{	
-			val = ((CONFIG_TIMER2-7) << TIMER2_POS);
-			*pSIC_IAR2 &= TIMER2_BIT;
-			asm("ssync;");	
-			*pSIC_IAR2 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_PFA != CONFIG_PFA)	{	
-			val = ((CONFIG_PFA-7) << PFA_POS);
-			*pSIC_IAR2 &= PFA_BIT;
-			asm("ssync;");	
-			*pSIC_IAR2 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_PFB != CONFIG_PFB)	{	
-			val = ((CONFIG_PFB-7) << PFB_POS);
-			*pSIC_IAR2 &= PFB_BIT;
-			asm("ssync;");	
-			*pSIC_IAR2 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_MEMDMA0 != CONFIG_MEMDMA0)	{	
-			val = ((CONFIG_MEMDMA0-7) << MEMDMA0_POS);
-			*pSIC_IAR2 &= MEMDMA0_BIT;
-			asm("ssync;");	
-			*pSIC_IAR2 |= val;
-			asm("ssync;");	
-			}
-
-		if (CONFIG_DEF_MEMDMA1 != CONFIG_MEMDMA1)	{	
-			val = ((CONFIG_MEMDMA1-7) << MEMDMA1_POS);
-			*pSIC_IAR2 &= MEMDMA1_BIT;
-			asm("ssync;");	
-			*pSIC_IAR2 |= val;
-			asm("ssync;");	
-			}
-		
-		if (CONFIG_DEF_WDTIMER != CONFIG_WDTIMER)	{	
-			val = ((CONFIG_WDTIMER-7) << WDTIMER_POS);
-			*pSIC_IAR2 &= WDTIMER_BIT;
-			asm("ssync;");	
-			*pSIC_IAR2 |= val;
-			asm("ssync;");	
-			}
-
+		*pSIC_IAR1 =	((CONFIG_DMA0_PPI-7)    << DMA0_PPI_POS) |
+                ((CONFIG_DMA1_SPORT0RX-7) << DMA1_SPORT0RX_POS) |
+                ((CONFIG_DMA2_SPORT0TX-7) << DMA2_SPORT0TX_POS) |
+                ((CONFIG_DMA3_SPORT1RX-7) << DMA3_SPORT1RX_POS) |
+                ((CONFIG_DMA4_SPORT1TX-7) << DMA4_SPORT1TX_POS) |
+                ((CONFIG_DMA5_SPI-7)    << DMA5_SPI_POS)    |
+                ((CONFIG_DMA6_UARTRX-7) << DMA6_UARTRX_POS) |
+                ((CONFIG_DMA7_UARTTX-7) << DMA7_UARTTX_POS);
+	        asm("ssync;");	
+ 
+		*pSIC_IAR2 =	((CONFIG_TIMER0-7) << TIMER0_POS) |
+		((CONFIG_TIMER1-7) << TIMER1_POS) |
+		((CONFIG_TIMER2-7) << TIMER2_POS) |
+		((CONFIG_PFA-7) << PFA_POS) |
+		((CONFIG_PFB-7) << PFB_POS) |
+		((CONFIG_MEMDMA0-7) << MEMDMA0_POS) |
+		((CONFIG_MEMDMA1-7) << MEMDMA1_POS) |
+		((CONFIG_WDTIMER-7) << WDTIMER_POS);
+	        asm("ssync;");	
 }	/*End of program_IAR*/
 
 /* Search SIC_IAR and fill tables with the irqvalues 
 and their positions in the SIC_ISR register -Nidhi */
 
-void search_IAR(unsigned int sic_iarx)	
+static __init void search_IAR()	
 {
-	unsigned int irqval = 0,val = 0;
-	int i;
+    unsigned ivg, irq_pos = 0;
+    for(ivg = IVG7; ivg <= IVG13; ivg++)
+    {
+        int irqn;
 
-	if (sic_iarx==0)	{
-		val= *pSIC_IAR0 & 0xf;
-		asm("ssync;");	
-		irqval = 7;
-	}	
-	else if (sic_iarx==1)	{
-		val= *pSIC_IAR1 & 0xf;
-		asm("ssync;");	
-		irqval = 15;
-	}
-	else if (sic_iarx==2)	{
-		val= *pSIC_IAR2 & 0xf;
-		asm("ssync;");	
-		irqval = 23;
-	}
-
-	for(i=0;i<8;i++)	{	/*8 nibbles in the SIC_ISR register*/
-		if(i!=0)	{
-			if (sic_iarx==0)	val = ((*pSIC_IAR0) >> (i*4)) & 0xf;
-			if (sic_iarx==1)	val = ((*pSIC_IAR1) >> (i*4)) & 0xf;
-			if (sic_iarx==2)	val = ((*pSIC_IAR2) >> (i*4)) & 0xf;
-		}
-
-		/* check value in nibble and find which priority it is */
-		switch(val)	{
-			case 0:		/* interrupt will be routed to Ivg7 table */
-				ivg7[ivg7_cnt].irqno=irqval;	/* irqval for request_irq */		
-				ivg7[ivg7_cnt].isrpos=irqval-7;	/* pos in SIC_ISR to check if 
-									interrupt occurred*/ 
-				ivg7_cnt++;	
-				break;		
-					
-			case 1:
-				ivg8[ivg8_cnt].irqno=irqval;		
-				ivg8[ivg8_cnt].isrpos=irqval-7;
-				ivg8_cnt++;	
-				break;		
-	
-			case 2:
-				ivg9[ivg9_cnt].irqno=irqval;		
-				ivg9[ivg9_cnt].isrpos=irqval-7;
-
-				ivg9_cnt++;	
-				break;		
-			case 3:
-				ivg10[ivg10_cnt].irqno=irqval;		
-				ivg10[ivg10_cnt].isrpos=irqval-7;
-				
-				ivg10_cnt++;	
-				break;		
-			case 4:
-				ivg11[ivg11_cnt].irqno=irqval;		
-				ivg11[ivg11_cnt].isrpos=irqval-7;
-
-				ivg11_cnt++;	
-				break;		
-			case 5:
-				ivg12[ivg12_cnt].irqno=irqval;		
-				ivg12[ivg12_cnt].isrpos=irqval-7;
-				ivg12_cnt++;	
-				break;		
-			case 6:
-				ivg13[ivg13_cnt].irqno=irqval;		
-				ivg13[ivg13_cnt].isrpos=irqval-7;
-				ivg13_cnt++;	
-				break;
-			}	/*All nibles in SIC_IAR0 searched and all tables configured with
-				  respective interrupts*/		
-		irqval++;
-		}		/*End of for*/
+        ivg7_13[ivg].istop = 
+        ivg7_13[ivg].ifirst = &ivg_table[irq_pos];        
+          
+        for(irqn = 0; irqn < 24; irqn++)
+          if (ivg == IVG7 + (0x0f & pSIC_IAR0[irqn >> 3] >> (irqn & 7) * 4))
+          {
+             ivg_table[irq_pos].irqno = IVG7 + irqn;
+             ivg_table[irq_pos].isrflag = 1 << irqn;
+              ivg7_13[ivg].istop++;
+              irq_pos++;
+          }
+    }
 }		
 			
 /*
@@ -415,7 +193,7 @@ void search_IAR(unsigned int sic_iarx)
  * the BFin IRQ handling routines.
  */
 
-int  bfin_init_IRQ(void)
+int __init  bfin_init_IRQ(void)
 {
 
 	int i;	
@@ -470,17 +248,16 @@ int  bfin_init_IRQ(void)
 	asm("csync;");
 	*pILAT = ilat;
 	asm("csync;");
+
+	printk(KERN_INFO "Configuring Blackfin Priority Driven Interrupts\n");
+	program_IAR();   /* IMASK=xxx is equivalent to STI xx or irq_flags=xx, local_irq_enable() */
+	search_IAR();    /* Therefore it's better to setup IARs before interrupts enabled */
+
    	/* Enable interrupts IVG7-15 */
 	*pIMASK = irq_flags = irq_flags | IMASK_IVG15 | IMASK_IVG14 |IMASK_IVG13 |IMASK_IVG12 |IMASK_IVG11 |
 	IMASK_IVG10 |IMASK_IVG9 |IMASK_IVG8 |IMASK_IVG7 |IMASK_IVGHW;	
 	asm("csync;");
 
-	printk(KERN_INFO "Configuring Blackfin Priority Driven Interrupts\n");
-	program_IAR();
-	search_IAR(0);
-	search_IAR(1);
-	search_IAR(2);
-	
 	local_irq_enable();
 	return 0;
 }
@@ -519,7 +296,7 @@ int bfin_request_irq(unsigned int irq, int (*handler)(int, void *, struct pt_reg
 void bfin_free_irq(unsigned int irq, void *dev_id)
 {
 	if (irq >= INTERNAL_IRQS) {
-		printk ("%s: Unknown IRQ %d\n", __FUNCTION__, irq);
+		printk (KERN_ERR "%s: Unknown IRQ %d\n", __FUNCTION__, irq);
 		return;
 	}
 
@@ -619,77 +396,34 @@ void bfin_disable_irq(unsigned int irq)
 
 }
 
-void  call_isr(int irq, struct pt_regs * fp)
-{
-	if(int_irq_list[irq].handler)
-	{
-	    int_irq_list[irq].handler(irq,int_irq_list[irq].dev_id, fp);
-	    kstat_cpu(0).irqs[irq]++;
-	}
-/*	else
-		printk("unregistered interrupt %d\n",irq);*/
-}
-
 void bfin_do_irq(int vec, struct pt_regs *fp)
 {
-    	if (vec <= IRQ_CORETMR)
-	{	
-		 call_isr(vec, fp);
-		 return;
+   	if (vec > IRQ_CORETMR)
+        {
+          struct ivgx *ivg = ivg7_13[vec].ifirst;
+          struct ivgx *ivg_stop = ivg7_13[vec].istop;
+	  unsigned long sic_status;	
+
+	  asm("ssync;");	
+ 	  sic_status = *pSIC_IMASK & *pSIC_ISR;
+
+	  for(;; ivg++) {
+              if (ivg >= ivg_stop)  {
+              /* printk("unregistered interrupt ivg=%d\n",vec);*/
+                return;
+              }
+              else if ((sic_status & ivg->isrflag) != 0)
+                break;
+         }
+	  vec = ivg->irqno;
+        }
+	if(int_irq_list[vec].handler)
+	{
+	    int_irq_list[vec].handler(vec,int_irq_list[vec].dev_id, fp);
+	    kstat_cpu(0).irqs[vec]++;
 	}
-
-	switch(vec)	{
-
-		case IVG7:
-			call_isr(getirq_number(ivg7),fp);
-			break;
-		case IVG8:
-			call_isr(getirq_number(ivg8),fp);
-			break;
-		case IVG9:
-			call_isr(getirq_number(ivg9),fp);
-			break;
-		case IVG10:
-			call_isr(getirq_number(ivg10),fp);
-			break;
-		case IVG11:
-			call_isr(getirq_number(ivg11),fp);
-			break;
-		case IVG12:
-			call_isr(getirq_number(ivg12),fp);
-			break;
-		case IVG13:
-			call_isr(getirq_number(ivg13),fp);
-			break;
-	}
-
-}
-
-/* This function checks which interrupt occurred under the 
-   table and returns the irq number
-   Dont try to alter this.	 
-*/
-
-int getirq_number(struct ivgx *ivg)
-{
-	int i=0;
-	unsigned long sic_isr, sic_imask, posval;
-	
-	sic_imask = *pSIC_IMASK;
-	asm("ssync;");
-	
-	sic_isr = *pSIC_ISR;
-	asm("ssync;");
-
-	for (;i<7;i++)	{
-		posval = (1 << ivg[i].isrpos);
-		if((sic_isr & posval) != 0)	{
-			if((sic_imask & posval) != 0)	{
-				return ivg[i].irqno;
-			}
-		}
-	}
-	return -1;
+/*	else
+		printk("unregistered interrupt irq=%d\n",vec);*/
 }
 
 int bfin_get_irq_list(struct seq_file* p, void* v)
@@ -697,7 +431,7 @@ int bfin_get_irq_list(struct seq_file* p, void* v)
 	return 0;
 }
 
-void config_bfin_irq(void)
+void __init config_bfin_irq(void)
 {
 	mach_default_handler = NULL;
 	mach_init_IRQ        = bfin_init_IRQ;
