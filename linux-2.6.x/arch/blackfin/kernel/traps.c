@@ -32,7 +32,6 @@
 #include <asm/uaccess.h>
 #include <asm/traps.h>
 #include <asm/pgtable.h>
-#include <asm/machdep.h>
 #include <asm/siginfo.h>
 #include <asm/blackfin.h>
 
@@ -73,7 +72,8 @@ asmlinkage void trap(void);
 extern void dump(struct pt_regs *fp);
 extern void _cplb_hdr(void);
 
-static void __init bfin_trap_init (void)
+/* Initiate the event table handler */
+void __init trap_init (void)
 {
 	asm("csync;");
 	*pEVT3= trap;
@@ -82,12 +82,6 @@ static void __init bfin_trap_init (void)
 	asm("csync;");
 	*pEVT15 = evt_soft_int1;
 	asm("csync;");
-}
-
-/* Initiate the event table handler */
-void __init trap_init (void)
-{
-	bfin_trap_init();
 }
 
 asmlinkage void trap_c(struct pt_regs *fp);
@@ -102,7 +96,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
  	/* trap_c() will be called for exceptions. During exceptions
  	   processing, the pc value should be set with retx value.  
  	   With this change we can cleanup some code in signal.c- TODO */
- 	fp->orig_pc = fp->retx;      
+ 	fp->orig_pc = fp->retx;
 
 	/* send the appropriate signal to the user program */
 	switch (fp->seqstat & 0x3f) {

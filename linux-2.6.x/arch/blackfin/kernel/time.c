@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/string.h>
@@ -21,22 +22,22 @@
 #include <linux/time.h> 
 #include <linux/timex.h>
 
-#include <asm/machdep.h>
 #include <asm/io.h>
+#include <asm/bf533_rtc.h>
 
 #define	TICK_SIZE (tick_nsec / 1000)	
 
-unsigned long long  jiffies_64 = INITIAL_JIFFIES;
+u64 jiffies_64 = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 	
+extern void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *));
+unsigned long gettimeoffset (void);
 extern unsigned long wall_jiffies;
 
 static inline int set_rtc_mmss(unsigned long nowtime)
 {
-  if (mach_set_clock_mmss)
-    return mach_set_clock_mmss (nowtime);
-  return -1;
+    return 0;
 }
 
 static inline void do_profile (unsigned long pc)
@@ -66,10 +67,6 @@ static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 	/* last time the cmos clock got updated */
 	static long last_rtc_update=0;
 	
-	/* may need to kick the hardware timer */
-	if (mach_tick)
-	  mach_tick();
-
 	write_seqlock(&xtime_lock); 
 
 	do_timer(regs);
@@ -98,13 +95,11 @@ static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 void time_init(void)
 {
 	time_t secs_since_1970 = 0;
-        extern void arch_gettod(time_t *);
-	extern void arch_init(void);
 
 	/* Initialize the RTC sub-system*/
-        arch_init();
+        rtc_init();
 	/* Retrieve calendar time (secs since Jan 1970) */
-	arch_gettod(&secs_since_1970);
+	rtc_get(&secs_since_1970);
 
 	/* Initialize xtime. From now on, xtime is updated with timer interrupts */
         xtime.tv_sec = secs_since_1970;
@@ -112,7 +107,7 @@ void time_init(void)
 	
 	wall_to_monotonic.tv_sec = -xtime.tv_sec; 
 
-	mach_sched_init(timer_interrupt);
+	time_sched_init(timer_interrupt);
 }
 
 void do_gettimeofday(struct timeval *tv)
@@ -123,7 +118,7 @@ void do_gettimeofday(struct timeval *tv)
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
-		usec = mach_gettimeoffset ? mach_gettimeoffset() : 0;
+		usec = gettimeoffset();
 		lost = jiffies - wall_jiffies;
 		if (lost)
 			usec += lost * (1000000 / HZ);
@@ -144,8 +139,6 @@ EXPORT_SYMBOL(do_gettimeofday);
 
 int do_settimeofday(struct timespec *tv)
 {
-	extern void arch_settod(time_t t);
-
 	time_t wtm_sec, sec = tv->tv_sec;
 	long wtm_nsec, nsec = tv->tv_nsec;
 
@@ -160,8 +153,7 @@ int do_settimeofday(struct timespec *tv)
 	 * Discover what correction gettimeofday
 	 * would have done, and then undo it!
 	 */
-	if (mach_gettimeoffset)
-		nsec -= (mach_gettimeoffset() * 1000);
+	nsec -= (gettimeoffset() * 1000);
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -174,7 +166,7 @@ int do_settimeofday(struct timespec *tv)
 	time_maxerror = NTP_PHASE_LIMIT;
 	time_esterror = NTP_PHASE_LIMIT;
 
-	arch_settod(sec);
+	rtc_set(sec);
 	
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();

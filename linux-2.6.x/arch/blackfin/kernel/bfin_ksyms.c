@@ -10,7 +10,6 @@
 #include <linux/config.h>
 
 #include <asm/setup.h>
-#include <asm/machdep.h>
 #include <asm/pgalloc.h>
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -39,8 +38,8 @@ EXPORT_SYMBOL(strncmp);
 
 EXPORT_SYMBOL(ip_fast_csum);
 
-EXPORT_SYMBOL(mach_enable_irq);
-EXPORT_SYMBOL(mach_disable_irq);
+EXPORT_SYMBOL(enable_irq);
+EXPORT_SYMBOL(disable_irq);
 EXPORT_SYMBOL(kernel_thread);
 
 /* Networking helper routines. */

@@ -32,7 +32,6 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/traps.h>
-#include <asm/machdep.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
 #include <asm/segment.h>
@@ -50,6 +49,7 @@ static void default_idle(void)
 			__asm__("idle;\n\t" : : : "cc"); 
 		schedule();
 	}
+
 }
 
 void (*bfin_idle)(void) = default_idle;
@@ -67,23 +67,21 @@ void cpu_idle(void)
 
 void machine_restart(char * __unused)
 {
-	if (mach_reset)
-		mach_reset();  
-	/*  bfin 1st system event is for machine setup, see setup.c */
-	for (;;); 
+	__asm__ __volatile__
+	("cli r3;"
+        "JUMP (%0);"
+	:
+	: "a" (L1_ISRAM)
+	);
 }
 
 void machine_halt(void)
 {
-	if (mach_halt)
-		mach_halt(); /* NULL see setup.c, ? have hardware support */
 	for (;;);
 }
 
 void machine_power_off(void)
 {
-	if (mach_power_off)
-		mach_power_off(); /* NULL see setup.c */
 	for (;;);
 }
 

@@ -37,7 +37,7 @@ ENTRY(evt_emulation)
 	 r0 = IRQ_EMU;
 	 r1 = sp;
 	 SP += -12;	
-	 call	bfin_irq_panic;	
+	 call irq_panic;	
 	 SP += 12;	
 	 /* - GDB stub fills this in by itself (if defined) */
 	 rte; 
@@ -49,24 +49,17 @@ ENTRY(evt_nmi)
 	 r0 = IRQ_NMI;
 	 r1 = sp;	     /* get return address (but not going back)  */
 	 SP += -12;	
-	 call bfin_irq_panic; 
+	 call irq_panic; 
 	 SP += 12;	
 	 rtn; 
 			
-ENTRY(irq_panic)
-	 r0 = IRQ_EVX;
-	 r1 =  sp;
-	 SP += -12;	
-	 call	bfin_irq_panic; 
-	 SP += 12;	
-	 
 /* interrupt routine for ivhw - 5 */
 ENTRY(evt_ivhw)
 	 SAVE_CONTEXT
 	 r0 = IRQ_HWERR; 
 	 r1 = sp;
 	 SP += -12;	
-	 call	bfin_irq_panic; 
+	 call irq_panic; 
 	 SP += 12;	
 	 rti; 
 
@@ -76,7 +69,7 @@ ENTRY(evt_timer)
 	 r0 = IRQ_CORETMR;  
 	 r1 = sp;	
 	 SP += -12;	
-	 call process_int;  /* call do_timer; */ 
+	 call do_irq;
 	 SP += 12;
 	 call return_from_int;
 	 RESTORE_CONTEXT
@@ -88,7 +81,7 @@ ENTRY(evt_evt2)
 	 r0 = 2;
 	 r1 =  sp;
 	 SP += -12;
-	 call process_int;
+	 call do_irq;
 	 SP += 12;
 	 RESTORE_ALL_SYS
 	 rtn;
@@ -99,7 +92,7 @@ ENTRY(evt_evt7)
  	 r0 = 7;
 	 r1 =  sp;
 	 SP += -12;	
-	 call	process_int; 
+	 call do_irq;
 	 SP += 12;	
 	 RESTORE_CONTEXT
 	 rti; 
@@ -110,7 +103,7 @@ ENTRY(evt_evt8)
 	 r0 = 8;
 	 r1 =  sp;
 	 SP += -12;	
-	 call	process_int; 
+	 call do_irq;
 	 SP += 12;	
 	 RESTORE_CONTEXT
 	 rti; 
@@ -121,7 +114,7 @@ ENTRY(evt_evt9)
 	 r0 = 9;
 	 r1 =  sp;
 	 SP += -12;	
-	 call	process_int; 
+	 call do_irq;
 	 SP += 12;	
 	 RESTORE_CONTEXT
 	 rti; 
@@ -132,7 +125,7 @@ ENTRY(evt_evt10)
 	 r0 = 10;
 	 r1 =  sp;
 	 SP += -12;	
-	 call	process_int; 
+	 call do_irq;
 	 SP += 12;
 	 RESTORE_CONTEXT
 	 rti; 
@@ -143,7 +136,7 @@ ENTRY(evt_evt11)
 	 r0 = 11;
 	 r1 =  sp;
 	 SP += -12;	
-	 call	process_int; 
+	 call do_irq;
 	 SP += 12;	
 	 RESTORE_CONTEXT
 	 rti; 
@@ -154,7 +147,7 @@ ENTRY(evt_evt12)
 	 r0 = 12;
 	 r1 =  sp;
 	 SP += -12;	
-	 call	process_int; 
+	 call do_irq;
 	 SP += 12;	
 	 RESTORE_CONTEXT
 	 rti; 
@@ -165,7 +158,7 @@ ENTRY(evt_evt13)
 	 r0 = 13;
 	 r1 =  sp;
 	 SP += -12;	
-	 call	process_int;  
+	 call do_irq;
 	 SP += 12;	
 	 RESTORE_CONTEXT
 	 rti; 
@@ -182,7 +175,7 @@ ENTRY(evt_soft_int1)
 	 r0 = IRQ_SW_INT1;	/*Software Interrupt 1 */
 	 r1 =  sp;
 	 SP += -12;	
-	 call	process_int; 
+	 call do_irq;
 	 SP += 12;
 	 RESTORE_CONTEXT
 	 rti; 

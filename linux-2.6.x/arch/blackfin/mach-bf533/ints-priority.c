@@ -30,7 +30,6 @@
 #include <asm/irq.h>
 #include <asm/traps.h>
 #include <asm/io.h>
-#include <asm/machdep.h>
 #include <asm/setup.h>
 
 #include <asm/errno.h>	/*ENXIO etc*/
@@ -62,7 +61,7 @@ struct ivg_slice {
 /*********************
  * Prototypes
  ********************/
-asmlinkage void bfin_irq_panic( int reason, struct pt_regs * reg);
+asmlinkage void irq_panic( int reason, struct pt_regs * reg);
 extern void dump(struct pt_regs * regs);
 
 /* BASE LEVEL interrupt handler routines */
@@ -89,10 +88,10 @@ static void search_IAR(void);
 static irq_node_t int_irq_list[INTERNAL_IRQS];
 
 /*********
- * bfin_irq_panic
+ * irq_panic
  * - calls panic with string setup
  *********/
-asmlinkage void bfin_irq_panic( int reason, struct pt_regs * regs)
+asmlinkage void irq_panic( int reason, struct pt_regs * regs)
 {
 	extern char _etext;
 	int sig = 0;
@@ -178,7 +177,7 @@ static void __init program_IAR()
 /* Search SIC_IAR and fill tables with the irqvalues 
 and their positions in the SIC_ISR register */
 
-static void __init search_IAR()	
+static void __init search_IAR(void)	
 {
     unsigned ivg, irq_pos = 0;
     for(ivg = IVG7; ivg <= IVG13; ivg++)
@@ -193,8 +192,8 @@ static void __init search_IAR()
           {
              ivg_table[irq_pos].irqno = IVG7 + irqn;
              ivg_table[irq_pos].isrflag = 1 << irqn;
-              ivg7_13[ivg].istop++;
-              irq_pos++;
+             ivg7_13[ivg].istop++;
+             irq_pos++;
           }
     }
 }		
@@ -204,7 +203,7 @@ static void __init search_IAR()
  * the BFin IRQ handling routines.
  */
 
-int __init  bfin_init_IRQ(void)
+int __init  init_IRQ(void)
 {
 	int i;	
 	unsigned long ilat = 0;
@@ -272,10 +271,7 @@ int __init  bfin_init_IRQ(void)
 	return 0;
 }
 
-void bfin_enable_irq(unsigned int irq);
-void bfin_disable_irq(unsigned int irq);
-
-int bfin_request_irq(unsigned int irq, int (*handler)(int, void *, struct pt_regs *), unsigned long flags, const char *devname, void *dev_id)
+int request_irq(unsigned int irq, int (*handler)(int, void *, struct pt_regs *), unsigned long flags, const char *devname, void *dev_id)
 {
 	if (irq >= INTERNAL_IRQS) {
 		printk("%s: Unknown IRQ %d from %s\n", 
@@ -298,7 +294,7 @@ int bfin_request_irq(unsigned int irq, int (*handler)(int, void *, struct pt_reg
 	return 0;
 }
 
-void bfin_free_irq(unsigned int irq, void *dev_id)
+void free_irq(unsigned int irq, void *dev_id)
 {
 	if (irq >= INTERNAL_IRQS) {
 		printk (KERN_ERR "%s: Unknown IRQ %d\n", __FUNCTION__, irq);
@@ -313,7 +309,7 @@ void bfin_free_irq(unsigned int irq, void *dev_id)
 	int_irq_list[irq].dev_id  = NULL;
 	int_irq_list[irq].devname = NULL;
 
-	bfin_disable_irq(irq);
+	disable_irq(irq);
 }
 
 /*
@@ -324,7 +320,7 @@ void bfin_free_irq(unsigned int irq, void *dev_id)
  * int_(enable|disable)_irq calls may also be nested.
  */
 
-void bfin_enable_irq(unsigned int irq)
+void enable_irq(unsigned int irq)
 {
 	unsigned long irq_val;
 
@@ -336,7 +332,9 @@ void bfin_enable_irq(unsigned int irq)
 	if (irq <= IRQ_CORETMR)
 	{
 		/* enable the interrupt */
+		local_irq_disable();
 		irq_flags |= 1<<irq;
+		local_irq_enable();
 		return;
 	}
 
@@ -347,7 +345,7 @@ void bfin_enable_irq(unsigned int irq)
 	local_irq_enable();
 }
 
-void bfin_disable_irq(unsigned int irq)
+void disable_irq(unsigned int irq)
 {
 	unsigned long irq_val;
 
@@ -358,7 +356,9 @@ void bfin_disable_irq(unsigned int irq)
 
 	if (irq < IRQ_CORETMR)
 	{
+		local_irq_disable();
 		irq_flags &= ~(1<<irq);
+		local_irq_enable();
 		return;
 	}
 	/*
@@ -366,7 +366,7 @@ void bfin_disable_irq(unsigned int irq)
 	 * we only disable it in SIC_IMASK register.
 	 * No need to change IMASK register of CORE,
 	 * since all of the IVG for peripherals was 
- 	 * enabled in bfin_init_IRQ()
+ 	 * enabled in init_IRQ()
 	 *
 	 */
 	local_irq_disable();
@@ -376,7 +376,7 @@ void bfin_disable_irq(unsigned int irq)
 	local_irq_enable();
 }
 
-void bfin_do_irq(int vec, struct pt_regs *fp)
+void do_irq(int vec, struct pt_regs *fp)
 {
    	if (vec > IRQ_CORETMR)
         {
@@ -407,23 +407,6 @@ void bfin_do_irq(int vec, struct pt_regs *fp)
 		printk("unregistered interrupt irq=%d\n",vec);
 		num_spurious++;
 	}
-}
-
-int bfin_get_irq_list(struct seq_file* p, void* v)
-{
-	return 0;
-}
-
-void __init config_bfin_irq(void)
-{
-	mach_default_handler = NULL;
-	mach_init_IRQ        = bfin_init_IRQ;
-	mach_request_irq     = bfin_request_irq;
-	mach_free_irq        = bfin_free_irq;
-	mach_enable_irq      = bfin_enable_irq;
-	mach_disable_irq     = bfin_disable_irq;
-	mach_get_irq_list    = bfin_get_irq_list;
-	mach_process_int     = bfin_do_irq;
 }
 
 int show_interrupts(struct seq_file *p, void *v)

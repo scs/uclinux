@@ -24,10 +24,10 @@
 #include <linux/seq_file.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
-#include <asm/machdep.h>
 #include <linux/root_dev.h>
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
+#include <asm/bf533_rtc.h>
 
 #ifdef CONFIG_CONSOLE
 extern struct consw *conswitchp;
@@ -43,47 +43,10 @@ unsigned long memory_end;
 char command_line[COMMAND_LINE_SIZE];
 u_long vco = 0; 
 
-/* setup some dummy routines */
-static void dummy_waitbut(void)
-{
-}
-
 /*Tool chain ISSUES - BFin*/
 void __you_cannot_kmalloc_that_much(void)
 {
 }
-
-void (*mach_sched_init) (int (*handler)(int, void *, struct pt_regs *)) = NULL;
-void (*mach_tick)( void ) = NULL;
-
-/* machine dependent keyboard functions */
-int (*mach_keyb_init) (void) = NULL;
-int (*mach_kbdrate) (struct kbd_repeat *) = NULL;
-void (*mach_kbd_leds) (unsigned int) = NULL;
-
-/* machine dependent irq functions */
-int (*mach_init_IRQ) (void) = NULL;
-irqreturn_t (*(*mach_default_handler)[]) (int, void *, struct pt_regs *) = NULL;
-int (*mach_request_irq) (unsigned int, int (*)(int, void *, struct pt_regs *),
-                         unsigned long, const char *, void *);
-void (*mach_free_irq) (unsigned int irq, void *dev_id) = NULL;
-void (*mach_enable_irq) (unsigned int) = NULL;
-void (*mach_disable_irq) (unsigned int) = NULL;
-int (*mach_get_irq_list) (struct seq_file *, void *) = NULL;
-void (*mach_process_int) (int irq, struct pt_regs *fp) = NULL;
-/* machine dependent timer functions */
-unsigned long (*mach_gettimeoffset) (void) = NULL;
-void (*mach_gettod) (time_t *t) = NULL;
-void (*mach_settod)(time_t time_in_seconds) = NULL;
-void (*mach_init)(void) = NULL;
-int (*mach_hwclk) (int, struct hwclk_time*) = NULL;
-int (*mach_set_clock_mmss) (unsigned long) = NULL;
-void (*mach_mksound)( unsigned int count, unsigned int ticks ) = NULL;
-void (*mach_reset)( void ) = NULL;
-void (*waitbut)(void) = dummy_waitbut;
-void (*mach_debug_init)(void) = NULL;
-void (*mach_halt)( void ) = NULL;
-void (*mach_power_off)( void ) = NULL;
 
 void bf53x_cache_init(void);
 u_long get_cclk(void) ;
@@ -137,7 +100,14 @@ void setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) &_edata;
 	init_mm.brk = (unsigned long) 0;	
 	
-	config_BSP(&command_line[0], sizeof(command_line));
+	printk(KERN_INFO "BF533 Blackfin support (C) 2004 Analog Devices, Inc.\n");
+
+#if defined(CONFIG_BOOTPARAM)
+	strncpy(&command_line[0], CONFIG_BOOTPARAM_STRING, sizeof(command_line));
+	command_line[sizeof(command_line)-1] = 0;
+#else
+	memset(command_line, 0, size);
+#endif
 
 	printk(KERN_INFO "uClinux/" CPU "\n");
 
@@ -360,28 +330,6 @@ struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo,
 };
-
-void arch_gettod(time_t *secs_since_1970)
-{
-	if (secs_since_1970 == NULL )
-		return;
-
-	if (mach_gettod)   /* depend on arch, should provide mach_gettod */
-		mach_gettod(secs_since_1970);
-	else
-		*secs_since_1970 = 0;
-}
-void arch_settod(time_t t)
-{
-        if (mach_settod)
-                mach_settod(t);
-}
-
-void arch_init(void)
-{
-	if (mach_init)
-		mach_init();	
-}
 
 /*blackfin panic*/
 void panic_bfin(int cplb_panic)

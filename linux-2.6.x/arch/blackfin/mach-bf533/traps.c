@@ -15,7 +15,6 @@
 #include <asm/system.h>
 #include <asm/traps.h>
 #include <asm/page.h>
-#include <asm/machdep.h>
 
 /*
  * void init_IRQ(void)
@@ -28,22 +27,6 @@
  * the IRQ handling routines.
  */
 
-void init_IRQ(void)
-{
-	mach_init_IRQ ();
-}
-
-int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_regs *),unsigned long flags,const char *devname,void *dev_id)
-{
-	return mach_request_irq(irq, handler, flags, devname, dev_id);
-}
-
-void free_irq(unsigned int irq, void *dev_id)
-{
-	mach_free_irq(irq, dev_id);
-	return;
-}
-
 unsigned long probe_irq_on (void)
 {
 	return 0;
@@ -52,15 +35,6 @@ unsigned long probe_irq_on (void)
 int probe_irq_off (unsigned long irqs)
 {
 	return 0;
-}
-
-asmlinkage void process_int(unsigned long vec, struct pt_regs *fp)
-{
-	if (mach_process_int)
-		mach_process_int(vec, fp);
-	else
-		panic("Can't process interrupt vector %ld\n", vec);
-	return;
 }
 
 /*
