@@ -202,11 +202,11 @@ start_child(struct stService *p, int fd, int tcp, int local_port, struct sockadd
       dup2(fd, 0);
     if (fd != 1)
       dup2(fd, 1);
-#if 0
+//#if 0
     /* Don't redirect stderr to stdout */
     if (fd != 2)
       dup2(fd, 2);
-#endif
+//#endif
     if (fd > 2)
       close(fd);
     close_all_fds(2);
