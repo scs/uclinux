@@ -20,8 +20,7 @@
 
 static inline int _access_ok(unsigned long addr, unsigned long size)
 {
-	extern unsigned long memory_start, memory_end;
-	return ((addr >= memory_start) && (addr+size < memory_end));
+	return(addr < 0x10f00000);
 } 
 
 static inline int verify_area(int type, const void * addr, unsigned long size)
