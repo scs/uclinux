@@ -72,7 +72,8 @@
 
 #include <asm/board/cdefBF532.h>
 #include <asm/dma.h>
-
+#define FRAME_DELAY (1<<12)  /* delay between frame sync pulse and first data bit
+                              in multichannel mode */  
 
 /*
  * source: ADSP-BF533 Blackfin Processor Hardware Reference, 
@@ -200,7 +201,7 @@ int bf53x_sport_set_multichannel( struct bf53x_sport* sport, int tdm_count, int 
     unsigned int mask = (0xffffffff >> shift);
 
     sport->regs->mcmc1 = ((tdm_count>>3)-1) << 12;  /* set WSIZE bits */
-    sport->regs->mcmc2 = MCMEN | ( packed ? (MCDTXPE|MCDRXPE) : 0 );
+    sport->regs->mcmc2 = FRAME_DELAY| MCMEN | ( packed ? (MCDTXPE|MCDRXPE) : 0 );
 
     sport->regs->mtcs0 = mask; 
     sport->regs->mrcs0 = mask; 
