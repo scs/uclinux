@@ -46,7 +46,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-#include <asm-frionommu/irq.h>
+#include <asm-bfinnommu/irq.h>
 #include "blackfin_rtc.h"
 
 /*#define RTC_DEBUG*/

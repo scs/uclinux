@@ -64,9 +64,9 @@ config MTD_SUN_UFLASH
 
 config MTD_BF533
 	tristate "Blackfin BF533 Flash Chip Support" 
-	depends on EZKIT && MTD_PARTITIONS
+	depends on (EZKIT || BLKFIN_STAMP) && MTD_PARTITIONS
 	help
-	  Flah Chip from ST Microelctronics
+	  Flash Chip from ST Microelctronics
 
 config MTD_PNC2000
 	tristate "CFI Flash device mapped on Photron PNC-2000"

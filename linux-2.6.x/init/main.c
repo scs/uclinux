@@ -459,10 +459,6 @@ asmlinkage void __init start_kernel(void)
 #ifdef CONFIG_PROC_FS
 	proc_root_init();
 #endif
-
-//#ifdef CONFIG_BLACKFIN_RTC
-//	blackfin_rtc_init();
-//#endif
 	check_bugs();
 	printk("POSIX conformance testing by UNIFIX\n");
 
@@ -472,7 +468,7 @@ asmlinkage void __init start_kernel(void)
 	 *	make syscalls (and thus be locked).
 	 */
 	init_idle(current, smp_processor_id());
-	
+
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
 }
@@ -597,11 +593,10 @@ static int init(void * unused)
 
 	if (open("/dev/console", O_RDWR, 0) < 0)
 		printk("Warning: unable to open an initial console.\n");
-	
+
 	(void) dup(0);
 	(void) dup(0);
-	
-	
+
 	/*
 	 * We try each of these until one succeeds.
 	 *

@@ -82,7 +82,7 @@ typedef __s64	Elf64_Sxword;
 #define EM_H8_300H      47      /* Hitachi H8/300H */
 #define EM_H8S          48      /* Hitachi H8S     */
 
-#define EM_FRIO		99	//FIXME, for blackfin
+#define EM_BFIN		99	/* Blackfin BF533 */
 
 /*
  * This is an interim value that we will use until the committee comes

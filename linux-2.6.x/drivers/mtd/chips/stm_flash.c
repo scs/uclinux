@@ -491,8 +491,8 @@ static int flash_is_busy(struct map_info *map, unsigned long addr)
 	read2 = map->read16(map, addr);
 	toggled = read1 ^ read2;
 	toggled &= (((unsigned short)1) << 6);
-	if (toggled)
-		printk("%s: Flash is busy (0x%04x)\n", map->name, toggled);
+//	if (toggled)
+//		printk("%s: Flash is busy (0x%04x)\n", map->name, toggled);
 	return toggled;
 }
 

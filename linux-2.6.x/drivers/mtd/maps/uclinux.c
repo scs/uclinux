@@ -4,7 +4,7 @@
  *	uclinux.c -- generic memory mapped MTD driver for uclinux
  *
  *	(C) Copyright 2002, Greg Ungerer (gerg@snapgear.com)
- *	(C) Copyright 2004, LG Soft India (frio changes) 
+ *	(C) Copyright 2004, LG Soft India (bfin changes) 
  *
  * 	$Id$
  */
@@ -48,7 +48,10 @@ struct mtd_partition uclinux_romfs[] = {
 	.name = "ROMfs" ,
 #elif defined  CONFIG_CRAMFS
 	.name = "CRAMfs", 
+#elif defined CONFIG_JFFS2_FS
+	.name = "JFFS2fs",
 #endif
+
 	}
 };
 
@@ -79,7 +82,7 @@ int __init uclinux_mtd_init(void)
 	addr = (unsigned long) (&_etext + (&__init_end - &_sdata));
 #endif
 
-#ifdef CONFIG_FRIO
+#ifdef CONFIG_BFIN
 	extern char ramdisk_begin,ramdisk_end;
 	unsigned long magic;
 	addr = (unsigned long) &ramdisk_begin;
@@ -88,7 +91,7 @@ int __init uclinux_mtd_init(void)
 	mapp->phys = addr;
 	mapp->size = PAGE_ALIGN(*((unsigned long *)(addr + 8)));
 
-#ifdef CONFIG_FRIO
+#ifdef CONFIG_BFIN
 #ifdef CONFIG_ROMFS_FS		
 	mapp->size = PAGE_ALIGN(ntohl(*((unsigned long *)(addr + 8))));
 #endif

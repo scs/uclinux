@@ -12,7 +12,7 @@ deps_config := \
 	extra/Configs/Config.h8300 \
 	extra/Configs/Config.e1 \
 	extra/Configs/Config.cris \
-	extra/Configs/Config.blackfin \
+	extra/Configs/Config.bfin \
 	extra/Configs/Config.arm \
 	extra/Configs/Config.alpha \
 	extra/Configs/Config.in

@@ -20,7 +20,7 @@
 
 #ifdef __KERNEL__
 #include <asm/flat.h>
-#endif// __KERNEL__
+#endif
 
 /* 
  * This if condition allows users to force a particular bFLT version
@@ -224,11 +224,11 @@ typedef union
 #define FLAT_MIPS_RELOC_SP_CARRY 1
 #endif
 
-#ifdef CONFIG_FRIO
-#define TARGET_FRIO
-#define FLAT_FRIO_RELOC_SP_TYPE_16_BIT 0
-#define FLAT_FRIO_RELOC_SP_TYPE_24_BIT 1
-#define FLAT_FRIO_RELOC_SP_TYPE_32_BIT 2
+#ifdef CONFIG_BFIN
+#define TARGET_BFIN
+#define FLAT_BFIN_RELOC_SP_TYPE_16_BIT 0
+#define FLAT_BFIN_RELOC_SP_TYPE_24_BIT 1
+#define FLAT_BFIN_RELOC_SP_TYPE_32_BIT 2
 #endif
 /*
  * Need to add the rest of the macros for other architecture specific

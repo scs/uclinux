@@ -38,7 +38,7 @@ This release contains the following features:
 	5.2 Instruction/Data Cache Invalidation Routines
 	5.3 Cache Locking Features,Way locking (Still under development, but
 		sample code can be locked by way.
-		Please refer linux-2.6.x/arch/frionommu/mach-bf533/lock.S
+		Please refer linux-2.6.x/arch/bfinnommu/mach-bf533/lock.S
 6. 2.6 kernel Loader with v5 Relocations
 7. STAMP and EZKIT board Support - menuconfig configurable.
 8. 0.9.26 uClibc support
@@ -138,4 +138,17 @@ Plan for the Next Release
 4.	telnetd
 5.	libm and libpthread
 6.	boa webserver and udhcp server.
+
+######################################################################
+
+uClinux-2.6.2 (Alpha2 Release)
+-----------------------------
+Dated:	17/08/2004
+
+This release has the following features.
+
+1.	Cache Management.
+2.	boa web server
+3.	PDT for cache misses.
+4.	Some system call fixes.
 

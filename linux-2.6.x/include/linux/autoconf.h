@@ -7,7 +7,7 @@
 #define CONFIG_UID16 1
 #define CONFIG_RWSEM_GENERIC_SPINLOCK 1
 #undef CONFIG_RWSEM_XCHGADD_ALGORITHM
-#define CONFIG_FRIO 1
+#define CONFIG_BFIN 1
 #define CONFIG_NISA 1
 
 /*
@@ -64,7 +64,7 @@
  * Cache Support
  */
 #define CONFIG_BLKFIN_CACHE 1
-#undef CONFIG_BLKFIN_DCACHE
+#define CONFIG_BLKFIN_DCACHE 1
 #undef CONFIG_BLKFIN_CACHE_LOCK
 
 /*
@@ -179,6 +179,7 @@
  * Mapping drivers for chip access
  */
 #undef CONFIG_MTD_COMPLEX_MAPPINGS
+#undef CONFIG_MTD_BF533
 #define CONFIG_MTD_UCLINUX 1
 #undef CONFIG_MTD_SNAPGEARuC
 
@@ -258,7 +259,7 @@
 #define CONFIG_PACKET 1
 #undef CONFIG_PACKET_MMAP
 #define CONFIG_NETLINK_DEV 1
-#undef CONFIG_UNIX
+#define CONFIG_UNIX 1
 #undef CONFIG_NET_KEY
 #define CONFIG_INET 1
 #undef CONFIG_IP_MULTICAST

@@ -1,4 +1,4 @@
-	- Instruction and Data cache initialization . Assembly routines
+	- Instruction and Data cache initialization.
 		icache_init();
 		dcache_init();
 
@@ -24,7 +24,7 @@
 		icplb_flush();
 		dcplb_flush();
 
-	- Locking the cache. (IMPLEMENTATION IS DIFFERENT FROM THE PREVIOUS RELEASE)
+	- Locking the cache. 
 	
 		cache_grab_lock();
 		cache_lock();

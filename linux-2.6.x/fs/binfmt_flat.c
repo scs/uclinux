@@ -385,14 +385,14 @@ void calc_v5_reloc(int i, unsigned long rl)
 	flat_v5_reloc_t r;
 	unsigned long *ptr;
 	unsigned short *usptr;
-#ifdef CONFIG_FRIO
+#ifdef CONFIG_BFIN
 	unsigned long offset;
 	static unsigned long carry = 0;
 #endif
 
 	r.value = rl;
 	if(carry)
-	if(r.reloc.sp != FLAT_FRIO_RELOC_SP_TYPE_16_BIT || (!r.reloc.hi_lo)){
+	if(r.reloc.sp != FLAT_BFIN_RELOC_SP_TYPE_16_BIT || (!r.reloc.hi_lo)){
 	printk("lo with overflow not followed by hi\n");
 	carry = 0;
 	}
@@ -403,9 +403,9 @@ void calc_v5_reloc(int i, unsigned long rl)
 	printk(" type =%x",r.reloc.type);
 #endif
 
-#if defined(CONFIG_FRIO)
+#if defined(CONFIG_BFIN)
 	switch (r.reloc.sp) {
-	case FLAT_FRIO_RELOC_SP_TYPE_16_BIT:
+	case FLAT_BFIN_RELOC_SP_TYPE_16_BIT:
 		usptr = (unsigned short *) ptr;
 #ifdef DEBUG_BFIN_RELOC
 	printk(" sp = 16 bit *usptr = %x", *usptr);
@@ -461,7 +461,7 @@ void calc_v5_reloc(int i, unsigned long rl)
 
 		break;
 
-	case FLAT_FRIO_RELOC_SP_TYPE_32_BIT:
+	case FLAT_BFIN_RELOC_SP_TYPE_32_BIT:
 
 #ifdef DEBUG_BFIN_RELOC
 		printk(" ptr =%x",*(unsigned short *)ptr);

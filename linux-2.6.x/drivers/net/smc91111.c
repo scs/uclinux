@@ -81,10 +81,10 @@ static const char version[] =
 #include <asm/bitops.h>
 
 
-#if defined(CONFIG_FRIO)
-#include <asm-frionommu/irq.h>
+#if defined(CONFIG_BFIN)
+#include <asm-bfinnommu/irq.h>
 #include <asm/blackfin.h>
-#include <asm-frionommu/delay.h>
+#include <asm-bfinnommu/delay.h>
 #define CONFIG_SMC16BITONLY     1
 #define LAN_FIO_PATTERN		0x80
 
@@ -141,7 +141,7 @@ inline void SMC_insw(unsigned int addr, void *buf, int len)
  * The upper byte of bank select register is not 0x33. 
  */
 unsigned short smc_readw(unsigned int addr)
-/* inline unsigned short smc_readw(unsigned int addr)*/
+/*inline unsigned short smc_readw(unsigned int addr)*/
 {
 	unsigned short d = (*((volatile unsigned short *)((addr)))); 
 	return d;
@@ -221,7 +221,7 @@ inline void smc_writel(unsigned int b,unsigned int addr)
  . the chipset is designed to accommodate them.
 */
 
-#if !(defined(CONFIG_FRIO))
+#if !(defined(CONFIG_BFIN))
 #define USE_32_BIT 1
 #endif
 
@@ -235,7 +235,7 @@ inline void smc_writel(unsigned int b,unsigned int addr)
 static unsigned int smc_portlist[] = { 0xe0000300, 0 };
 static unsigned int smc_irqlist[]  = { 166, 0 };
 
-#elif defined(CONFIG_FRIO)
+#elif defined(CONFIG_BFIN)
 static unsigned int smc_portlist[] = { 0x20300300,0x20300300, 0 };
 static unsigned int smc_irqlist[]  = { 27, 26, 0 };
 
@@ -586,8 +586,8 @@ static void smc_sysctl_unregister(struct net_device *);
 #endif /* CONFIG_SYSCTL */ 
 
 
-#if defined(CONFIG_FRIO)
-void frio_EBIU_AM_setup(void)
+#if defined(CONFIG_BFIN)
+void bfin_EBIU_AM_setup(void)
 {
 	unsigned int stmp = 0;
 	
@@ -617,7 +617,7 @@ void frio_EBIU_AM_setup(void)
 #endif
 }
 
-void frio_SMC_interrupt_setup(int irq)
+void bfin_SMC_interrupt_setup(int irq)
 {
 	unsigned int stmp = 0;
 
@@ -1204,12 +1204,12 @@ int __init smc_init(struct net_device *dev)
 
 	SET_MODULE_OWNER (dev);
 
-#if defined(CONFIG_FRIO)
+#if defined(CONFIG_BFIN)
 	/* setup asynchronous memory control registers*/
-	frio_EBIU_AM_setup();
+	bfin_EBIU_AM_setup();
 #endif
 
-#if defined(CONFIG_COLDFIRE) || defined(CONFIG_FRIO)
+#if defined(CONFIG_COLDFIRE) || defined(CONFIG_BFIN)
 {
 	static int index = 0;
 
@@ -1428,7 +1428,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	SMC_SELECT_BANK(1);
 	base_address_register = smc_readw( ioaddr + BASE_REG );
 	printk("BAR: %x \n",smc_readw( ioaddr + BASE_REG ));
-#if defined(CONFIG_M5249C3) || defined(CONFIG_GILBARCONAP) || defined(CONFIG_FRIO)
+#if defined(CONFIG_M5249C3) || defined(CONFIG_GILBARCONAP) || defined(CONFIG_BFIN)
 	if ((ioaddr & 0xfff) != (base_address_register >> 3 & 0x3E0))
 #else
 	if ( ioaddr != ( base_address_register >> 3 & 0x3E0 ) )
@@ -1468,7 +1468,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	/* fill in some of the fields */
 	dev->base_addr = ioaddr;
 
-#if defined(CONFIG_M5249C3) || defined(CONFIG_FRIO) 
+#if defined(CONFIG_M5249C3) || defined(CONFIG_BFIN) 
 	/* Program MAC address if not set... */
 	SMC_SELECT_BANK( 1 );
 	for (i = 0; (i < 6); i += 2) {
@@ -1560,7 +1560,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	 . what (s)he is doing.  No checking is done!!!!
  	 .
 	*/
-//#if defined(CONFIG_FRIO)
+//#if defined(CONFIG_BFIN)
 //	
 //	if(request_irq(spiinfo[idev].irqnum, spi_irq, SA_INTERRUPT, 
 //                   intname, filp->private_data) < 0)
@@ -1659,8 +1659,8 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 }
 #endif
 
-#if defined(CONFIG_FRIO)
-	frio_SMC_interrupt_setup(dev->irq);
+#if defined(CONFIG_BFIN)
+	bfin_SMC_interrupt_setup(dev->irq);
 #endif
 
 
@@ -1855,8 +1855,6 @@ static void smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
 	/* state registers */
 	word	saved_bank;
 	word	saved_pointer;
-
-
 
 	PRINTK3("%s: SMC interrupt started \n", dev->name);
 

@@ -86,8 +86,8 @@
 + +#include <asm/bitops.h>
 + +
 + +
-+ +#if defined(CONFIG_FRIO)
-+ +#include <asm-frionommu/irq.h>
++ +#if defined(CONFIG_BFIN)
++ +#include <asm-bfinnommu/irq.h>
 + +#include <asm/BLKFin.h>
 + +#define CONFIG_SMC16BITONLY     1
 + +#define LAN_FIO_PATTERN		0x80
@@ -203,7 +203,7 @@
 +  the chipset is designed to accommodate them.
 + +*/
 + +
-+ +#if !(defined(CONFIG_FRIO))
++ +#if !(defined(CONFIG_BFIN))
 + +#define USE_32_BIT 1
 + +#endif
 + +
@@ -217,7 +217,7 @@
 + +static unsigned int smc_portlist[] = { 0xe0000300, 0 };
 + +static unsigned int smc_irqlist[]  = { 166, 0 };
 + +
-+ +#elif defined(CONFIG_FRIO)
++ +#elif defined(CONFIG_BFIN)
 + +static unsigned int smc_portlist[] = { 0x2C000300, 0 };
 + +static unsigned int smc_irqlist[]  = { 28, 27, 0 };
 + +
@@ -566,8 +566,8 @@
 + +#endif /* CONFIG_SYSCTL */ 
 + +
 + +
-+ +#if defined(CONFIG_FRIO)
-+ +void frio_EBIU_AM_setup()
++ +#if defined(CONFIG_BFIN)
++ +void bfin_EBIU_AM_setup()
 + +{
 + +	PRINTK2("EBIU Asynchronous memory setup.\n");
 + +
@@ -581,7 +581,7 @@
 +       asm("ssync;");
 + +}
 + +
-+ +void frio_SMC_interrupt_setup(int irq)
++ +void bfin_SMC_interrupt_setup(int irq)
 + +{
 + +	unsigned int stmp = 0;
 + +
@@ -1162,12 +1162,12 @@
 + +
 + +	SET_MODULE_OWNER (dev);
 + +
-+ +#if defined(CONFIG_FRIO)
++ +#if defined(CONFIG_BFIN)
 + +	// setup asynchronous memory control registers
-+ +	frio_EBIU_AM_setup();
++ +	bfin_EBIU_AM_setup();
 + +#endif
 + +
-+ +#if defined(CONFIG_COLDFIRE) || defined(CONFIG_FRIO)
++ +#if defined(CONFIG_COLDFIRE) || defined(CONFIG_BFIN)
 + +{
 + +	static int index = 0;
 + +
@@ -1388,7 +1388,7 @@
 + +	SMC_SELECT_BANK(1);
 + +	base_address_register = readw( ioaddr ASE_REG );
 +   printk("BAR: %x \n",readw( ioaddr BASE_REG ));
-+ +#if defined(CONFIG_M5249C3) || defined(CONFIG_GILBARCONAP) || defined(CONFIG_FRIO)
++ +#if defined(CONFIG_M5249C3) || defined(CONFIG_GILBARCONAP) || defined(CONFIG_BFIN)
 + +	if ((ioaddr & 0xfff) != (base_address_register >> 3 & 0x3E0))
 + +#else
 + +	if ( ioaddr != ( base_address_register >> 3 & 0x3E0 ) )
@@ -1428,7 +1428,7 @@
 + +	/* fill in some of the fields */
 + +	dev->base_addr = ioaddr;
 + +
-+ +#if defined(CONFIG_M5249C3) || defined(CONFIG_FRIO) 
++ +#if defined(CONFIG_M5249C3) || defined(CONFIG_BFIN) 
 + +	/* Program MAC address if not set... */
 + +	SMC_SELECT_BANK( 1 );
 + +	for (i = 0; (i < 6); i += 2) {
@@ -1520,7 +1520,7 @@
 + +	 . what (s)he is doing.  No checking is done!!!!
 +  .
 + +	*/
-+ +//#if defined(CONFIG_FRIO)
++ +//#if defined(CONFIG_BFIN)
 + +//	
 + +//	if(request_irq(spiinfo[idev].irqnum, spi_irq, SA_INTERRUPT, 
 + +//                   intname, filp->private_data) < 0)
@@ -1619,8 +1619,8 @@
 + +}
 + +#endif
 + +
-+ +#if defined(CONFIG_FRIO)
-+ +	frio_SMC_interrupt_setup(dev->irq);
++ +#if defined(CONFIG_BFIN)
++ +	bfin_SMC_interrupt_setup(dev->irq);
 + +#endif
 + +
 + +
