@@ -36,6 +36,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/traps.h>
+#include <asm/cacheflush.h>
 #include <asm/ucontext.h>
 #include <asm/asm-offsets.h>
 
@@ -139,6 +140,7 @@ sys_sigaction(int sig, const struct old_sigaction *act,
 	}
 
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
+
 	if (!ret && oact) {
 		if (verify_area(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
@@ -228,33 +230,6 @@ rt_restore_ucontext(struct pt_regs *regs, struct ucontext *uc, int *pr0)
 	err |= __get_user(regs->a1x, &gregs[18]);
 	err |= __get_user(regs->astat, &gregs[19]);
 	err |= __get_user(regs->rets, &gregs[20]);
-	err |= __get_user(regs->pc, &gregs[21]);
-	err |= __get_user(regs->retx, &gregs[22]);
-
-	err |= __get_user(regs->fp, &gregs[23]);
-	err |= __get_user(regs->i0, &gregs[24]);
-	err |= __get_user(regs->i1, &gregs[25]);
-	err |= __get_user(regs->i2, &gregs[26]);
-	err |= __get_user(regs->i3, &gregs[27]);
-	err |= __get_user(regs->m0, &gregs[28]);
-	err |= __get_user(regs->m1, &gregs[29]);
-	err |= __get_user(regs->m2, &gregs[30]);
-	err |= __get_user(regs->m3, &gregs[31]);
-	err |= __get_user(regs->l0, &gregs[32]);
-	err |= __get_user(regs->l1, &gregs[33]);
-	err |= __get_user(regs->l2, &gregs[34]);
-	err |= __get_user(regs->l3, &gregs[35]);
-	err |= __get_user(regs->b0, &gregs[36]);
-	err |= __get_user(regs->b1, &gregs[37]);
-	err |= __get_user(regs->b2, &gregs[38]);
-	err |= __get_user(regs->b3, &gregs[39]);
-	err |= __get_user(regs->lc0, &gregs[40]);
-	err |= __get_user(regs->lc1, &gregs[41]);
-	err |= __get_user(regs->lt0, &gregs[42]);
-	err |= __get_user(regs->lt1, &gregs[43]);
-	err |= __get_user(regs->lb0, &gregs[44]);
-	err |= __get_user(regs->lb1, &gregs[45]);
-	err |= __get_user(regs->seqstat, &gregs[46]);
 	regs->orig_r0 = -1;		/* disable syscall checks */
 
 	if (do_sigaltstack(&uc->uc_stack, NULL, usp) == -EFAULT)
@@ -350,7 +325,7 @@ static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
 {
 	greg_t *gregs = uc->uc_mcontext.gregs;
 	int err = 0;
-	
+
 	err |= __put_user(MCONTEXT_VERSION, &uc->uc_mcontext.version);
 	err |= __put_user(regs->r0, &gregs[0]);
 	err |= __put_user(regs->r1, &gregs[1]);
@@ -373,39 +348,14 @@ static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
 	err |= __put_user(regs->a1x, &gregs[18]);
 	err |= __put_user(regs->astat, &gregs[19]);
 	err |= __put_user(regs->rets, &gregs[20]);
-	err |= __put_user(regs->pc, &gregs[21]);
-	err |= __put_user(regs->retx, &gregs[22]);
-
-	err |= __put_user(regs->fp, &gregs[23]);
-	err |= __put_user(regs->i0, &gregs[24]);
-	err |= __put_user(regs->i1, &gregs[25]);
-	err |= __put_user(regs->i2, &gregs[26]);
-	err |= __put_user(regs->i3, &gregs[27]);
-	err |= __put_user(regs->m0, &gregs[28]);
-	err |= __put_user(regs->m1, &gregs[29]);
-	err |= __put_user(regs->m2, &gregs[30]);
-	err |= __put_user(regs->m3, &gregs[31]);
-	err |= __put_user(regs->l0, &gregs[32]);
-	err |= __put_user(regs->l1, &gregs[33]);
-	err |= __put_user(regs->l2, &gregs[34]);
-	err |= __put_user(regs->l3, &gregs[35]);
-	err |= __put_user(regs->b0, &gregs[36]);
-	err |= __put_user(regs->b1, &gregs[37]);
-	err |= __put_user(regs->b2, &gregs[38]);
-	err |= __put_user(regs->b3, &gregs[39]);
-	err |= __put_user(regs->lc0, &gregs[40]);
-	err |= __put_user(regs->lc1, &gregs[41]);
-	err |= __put_user(regs->lt0, &gregs[42]);
-	err |= __put_user(regs->lt1, &gregs[43]);
-	err |= __put_user(regs->lb0, &gregs[44]);
-	err |= __put_user(regs->lb1, &gregs[45]);	
-	err |= __put_user(regs->seqstat, &gregs[46]);
 
 	return err;
 }
 
-static inline void push_cache (unsigned long vaddr)
+static inline void push_cache (unsigned long vaddr, unsigned int len)
 {
+	flush_dcache_range(vaddr, len);
+	flush_icache_range(vaddr, len);
 }
 
 static inline void *
@@ -451,7 +401,7 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 
 	/* Set up to return from userspace.  */
 	err |= __put_user(frame->retcode, &frame->pretcode);
-	err |= __put_user(0x28, &(frame->retcode[0]));
+	err |= __put_user(0x88, &(frame->retcode[0]));
 	err |= __put_user(0xe1, &(frame->retcode[1]));
 	err |= __put_user(0x77, &(frame->retcode[2]));
 	err |= __put_user(0x00, &(frame->retcode[3]));
@@ -461,7 +411,7 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 	if (err)
 		goto give_sigsegv;
 
-	push_cache ((unsigned long) &frame->retcode);
+	push_cache ((unsigned long) &frame->retcode, sizeof(frame->retcode));
 
 	/* Set up registers for signal handler */
 	wrusp ((unsigned long) frame);
@@ -488,9 +438,7 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 	int err = 0;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
-	
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+
 	err |= __put_user((current_thread_info()->exec_domain
 			   && current_thread_info()->exec_domain->signal_invmap
 			   && sig < 32
@@ -500,10 +448,9 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	err |= __put_user(&frame->info, &frame->pinfo);
 
+	err |= __put_user(&frame->info, &frame->pinfo);
 	err |= __put_user(&frame->uc, &frame->puc);
 	err |= copy_siginfo_to_user(&frame->info, info);
-	if (err)
-		goto give_sigsegv;
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
@@ -518,7 +465,7 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Set up to return from userspace.  */
 	err |= __put_user(frame->retcode, &frame->pretcode);
- 	err |= __put_user(0x28, &(frame->retcode[0]));
+ 	err |= __put_user(0x88, &(frame->retcode[0]));
  	err |= __put_user(0xe1, &(frame->retcode[1]));
  	err |= __put_user(0xad, &(frame->retcode[2]));
  	err |= __put_user(0x00, &(frame->retcode[3]));
@@ -528,14 +475,13 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (err)
 		goto give_sigsegv;
 
-	push_cache ((unsigned long) &frame->retcode);
+	push_cache ((unsigned long) &frame->retcode, sizeof(frame->retcode));
 
 	/* Set up registers for signal handler */
 	wrusp ((unsigned long) frame);
 	regs->pc = (unsigned long) ka->sa.sa_handler;
-	regs->rets = (unsigned long) (frame->retcode);
 
-	regs->r0 = frame->sig;	
+	regs->r0 = frame->sig;
 	regs->r1 = (unsigned long)(&frame->info);
 	regs->r2 = (unsigned long)(&frame->uc);
 
@@ -603,7 +549,6 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 		recalc_sigpending(); 
 		spin_unlock_irq(&current->sighand->siglock);
 	}
-
 }
 
 /*
