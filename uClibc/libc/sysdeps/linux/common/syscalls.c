@@ -635,7 +635,7 @@ _syscall3(int, __syscall_ioctl, int, fd, int, request, void *, arg);
 #include <stdarg.h>
 #include <fcntl.h>
 #define __NR___syscall_fcntl __NR_fcntl
-#if defined(__UCLIBC_HAS_LFS__) && defined(__NR_fcntl64)
+#if defined(__UCLIBC_HAS_LFS__)
 static inline
 #endif
 _syscall3(int, __syscall_fcntl, int, fd, int, cmd, long, arg);
@@ -1004,37 +1004,8 @@ extern int _reboot(int magic, int magic2, int flag);
 
 _syscall3(int, _reboot, int, magic, int, magic2, int, flag);
 
-//#include <config/autoconf.h>
-#ifdef CONFIG_PROP_LOGD_LOGD
-#include <sys/types.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#endif
-
 int reboot(int flag)
 {
-#ifdef CONFIG_PROP_LOGD_LOGD
-	int pid = getpid();
-	char tmp[10];
-	char tmp1[50];
-	FILE *fp;
-	sprintf(tmp1, "/proc/%d/stat", pid);
-	fp = fopen(tmp1, "r");
-	if (fp) {
-		int pid1;
-		if (fscanf(fp, "%d (%[^)] ", &pid1, tmp) != 2)
-			strcpy(tmp, "NA");
-		else
-			if (pid1 != pid)
-				strcpy(tmp, "INVALID");
-		fclose(fp);
-	} else
-		strcpy(tmp, "unknown");
-	sprintf(tmp1, "/bin/logd reboot %d: %s", pid, tmp);
-	system(tmp1);
-	sleep(1);
-#endif
 	return (_reboot((int) 0xfee1dead, 672274793, flag));
 }
 #endif
