@@ -2142,7 +2142,7 @@ DMA_RESULT add_to_wait_descriptor(	void *pNewdescriptor,
 
 	if (flowtype == DMA_SMALL){
 		unsigned short base =
-		(unsigned short)(((unsigned long)pNewdescriptor & HIGH_WORD)>>16);
+			(unsigned short)(((unsigned long)pNewdescriptor & HIGH_WORD)>>16);
 
 		if ((channel->descr_base) && (base  != channel->descr_base)) {
 			DMA_DBG ("Descriptor Out of Range \n");
@@ -2172,7 +2172,7 @@ DMA_RESULT add_to_wait_descriptor(	void *pNewdescriptor,
 				(dmasglarge_t *)pNewdescriptor;
 		} else{
 			((dmasgsmall_t *)pNewdescriptor)->next_desc_addr_lo =
-			(unsigned short)((unsigned long)pNewdescriptor & LOW_WORD);
+				(unsigned short)((unsigned long)pNewdescriptor & LOW_WORD);
 
 			(dmasgsmall_t *)(channel->wait_first_descriptor) =
 			(dmasgsmall_t *)pNewdescriptor;
@@ -2279,7 +2279,7 @@ void dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 
 				/* to be verified Again -TODO */
 				if (((dma_ch[i].regs->cfg ) & DI_SEL) &&
-					((dma_ch[i].regs->curr_y_count != 1) )) {
+					((dma_ch[i].regs->curr_y_count != 1))) {
 					event = DMA_INNER_LOOP_PROCESSED;
 				}else {
 					event = DMA_OUTER_LOOP_PROCESSED;
@@ -2340,7 +2340,7 @@ void dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 				disable_dma(i);
 				
 				if (((dma_ch[i].regs->cfg ) & DI_SEL) &&
-					((dma_ch[i].regs->curr_y_count != 1) )) {
+					((dma_ch[i].regs->curr_y_count != 1))) {
 					DMA_DBG("Inner Loop Processing \n ");
 					event = DMA_INNER_LOOP_PROCESSED;
 				}else {
@@ -2349,21 +2349,21 @@ void dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 				}
 
 				if (dma_ch[i].callback)
-				    (dma_ch[i].callback)(DMA_DESCRIPTOR_PROCESSED, NULL);
+				    	(dma_ch[i].callback)(DMA_DESCRIPTOR_PROCESSED, NULL);
 
 				if (dma_ch[i].regs->next_desc_ptr ==
-				    (unsigned long)(channel->first_descriptor)){
+				    	(unsigned long)(channel->first_descriptor)){
 					/*All the descriptors are processed */
 
 					/* execute the waiting descriptor list */
-				    if ((unsigned long)channel->wait_first_descriptor) {
-					DMA_DBG ("Wait descriptor \n ");
-					channel->first_descriptor =
-					    channel->wait_first_descriptor;
-					channel->last_descriptor =
-					    channel->wait_last_descriptor;
-					channel->regs->next_desc_ptr =
-					    (unsigned long)(channel->first_descriptor);
+				    	if ((unsigned long)channel->wait_first_descriptor) {
+						DMA_DBG ("Wait descriptor \n ");
+						channel->first_descriptor =
+							channel->wait_first_descriptor;
+						channel->last_descriptor =
+					    		channel->wait_last_descriptor;
+						channel->regs->next_desc_ptr =
+					    		(unsigned long)(channel->first_descriptor);
 
 					/* If we have a single waiting
 					   descriptor then it is like stop mode
@@ -2372,57 +2372,56 @@ void dma_interrupt(int irq, void *dev_id, struct pt_regs *pt_regs)
 					   - Once the loopback problem is
                                              solved this code can be removed*/
 					/* ************************************/
-					if (channel->last_descriptor ==
-					    channel->wait_first_descriptor){
+						if (channel->last_descriptor ==
+					    		channel->wait_first_descriptor){
 
-					    if (dma_ch[i].flowmode == DMA_SMALL) {
-						channel->regs->start_addr =
-						((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
-						    (channel->descr_base << 16)) ;
+							if (dma_ch[i].flowmode == DMA_SMALL) {
+					    			channel->regs->start_addr =
+									((((dmasgsmall_t *)(channel->first_descriptor))->start_addr_lo) &
+						    			(channel->descr_base << 16)) ;
 
-						channel->regs->x_count =
-						    ((dmasgsmall_t *)(channel->first_descriptor))->x_count;
+								channel->regs->x_count =
+						    			((dmasgsmall_t *)(channel->first_descriptor))->x_count;
 
-						channel->regs->x_modify =
-						    ((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
+								channel->regs->x_modify =
+						    			((dmasgsmall_t *)(channel->first_descriptor))->x_modify;
 
-						channel->regs->y_count =
-						    ((dmasgsmall_t *)(channel->first_descriptor))->y_count;
+								channel->regs->y_count =
+						    			((dmasgsmall_t *)(channel->first_descriptor))->y_count;
 
-						channel->regs->y_modify =
-						    ((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
-					     }
-					     else if (dma_ch[i].flowmode == DMA_LARGE) {
+								channel->regs->y_modify =
+						    			((dmasgsmall_t *)(channel->first_descriptor))->y_modify;
+					     		} else if (dma_ch[i].flowmode == DMA_LARGE) {
 
-						channel->regs->start_addr =
-						    ((dmasglarge_t *)(channel->first_descriptor))->start_addr;
+					     			channel->regs->start_addr =
+						    			((dmasglarge_t *)(channel->first_descriptor))->start_addr;
 
-						channel->regs->x_count =
-						    ((dmasglarge_t *)(channel->first_descriptor))->x_count;
+								channel->regs->x_count =
+						    			((dmasglarge_t *)(channel->first_descriptor))->x_count;
 
-						channel->regs->x_modify =
-						    ((dmasglarge_t *)(channel->first_descriptor))->x_modify;
+								channel->regs->x_modify =
+						    			((dmasglarge_t *)(channel->first_descriptor))->x_modify;
 
-						channel->regs->y_count =
-						    ((dmasglarge_t *)(channel->first_descriptor))->y_count;
+								channel->regs->y_count =
+						    			((dmasglarge_t *)(channel->first_descriptor))->y_count;
 
-						channel->regs->y_modify =
-						    ((dmasglarge_t *)(channel->first_descriptor))->y_modify;
+								channel->regs->y_modify =
+						    			((dmasglarge_t *)(channel->first_descriptor))->y_modify;
+							}
 						}
-					    }
-					   /************************************/
+						/************************************/
 
-					    if (dma_ch[i].flowmode == DMA_LARGE)
-						channel->regs->cfg =
-						    ((dmasglarge_t *)(channel->first_descriptor))->cfg;
-					    else if (dma_ch[i].flowmode == DMA_SMALL)
-						channel->regs->cfg =
-						    ((dmasgsmall_t *)(channel->first_descriptor))->cfg;
+			   	 		if (dma_ch[i].flowmode == DMA_LARGE)
+				    			channel->regs->cfg =
+					    			((dmasglarge_t *)(channel->first_descriptor))->cfg;
+					    		else if (dma_ch[i].flowmode == DMA_SMALL)
+								channel->regs->cfg =
+						    			((dmasgsmall_t *)(channel->first_descriptor))->cfg;
 
-					     SSYNC();
+				     			SSYNC();
 						
-					channel->wait_first_descriptor = NULL;
-					channel->wait_last_descriptor = NULL;
+						channel->wait_first_descriptor = NULL;
+						channel->wait_last_descriptor = NULL;
 					}
 				}
 			} /* End of the Else loop - for Not Auto Buffer */
