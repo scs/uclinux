@@ -93,12 +93,6 @@ void cache_push_v (unsigned long vaddr, int len)
 	cache_invalidate_lines(vaddr, len);
 }
 
-/*
-unsigned long mm_phys_to_virt (unsigned long addr)
-{
-    return phys_to_virt (addr);
-}
-*/
 /* Map some physical address range into the kernel address space. The
  * code is copied and adapted from map_chunk().
  */
