@@ -1,5 +1,4 @@
-
-README for uC-libc on the blackfin architecture
+README for uClibc on the blackfin architecture
 
 developed/tested with bfin-elf-gcc 3.4.1, from
 
@@ -15,9 +14,8 @@ Configuration:
 	HAS_MMU = false
 	HAS_FLOATS = false
 	MALLOC = malloc-simple
-
+	
 Problems:
 	The regular malloc library is broken. Use simple-malloc.
 
 TODO:
-	libpthread
