@@ -3,8 +3,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
-
 /*
  * These are for ISA/PCI shared memory _only_ and should never be used
  * on any other type of memory, including Zorro memory. They are meant to
@@ -12,11 +10,8 @@
  *
  * readX/writeX() are used to access memory mapped devices. On some
  * architectures the memory mapped IO stuff needs to be accessed
- * differently. On the m68k architecture, we just read/write the
+ * differently. On the bfin architecture, we just read/write the
  * memory location directly.
- */
-/* ++roman: The assignments to temp. vars avoid that gcc sometimes generates
- * two accesses to memory, which may be undesireable for some devices.
  */
 #define readb(addr) ({ unsigned __v; asm volatile ("csync; %0 = b [%1] (z); " \
   : "=d"(__v): "a"(addr)); (unsigned char)__v; })
@@ -53,7 +48,6 @@
 #define outw_p(x,addr) outw(x,addr)
 #define outl_p(x,addr) outl(x,addr)
 
-
 #define insb(port, addr, count) memcpy((void*)addr, (void*)port, count)
 #define insw(port, addr, count) memcpy((void*)addr, (void*)port, (2*count))
 #define insl(port, addr, count) memcpy((void*)addr, (void*)port, (4*count))
@@ -63,17 +57,12 @@
 #define outsl(port, addr, count) memcpy((void*)port, (void*)addr, (4*count))
 #define IO_SPACE_LIMIT 0xffffffff
 
-
 /* Values for nocacheflag and cmode */
-#define IOMAP_FULL_CACHING		0
 #define IOMAP_NOCACHE_SER		1
-#define IOMAP_NOCACHE_NONSER		2
-#define IOMAP_WRITETHROUGH		3
 
 #ifndef __ASSEMBLY__	
 
 extern void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag);
-extern void __iounmap(void *addr, unsigned long size);
 
 extern inline void *ioremap(unsigned long physaddr, unsigned long size)
 {
@@ -83,19 +72,6 @@ extern inline void *ioremap_nocache(unsigned long physaddr, unsigned long size)
 {
 	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
 }
-extern inline void *ioremap_writethrough(unsigned long physaddr, unsigned long size)
-{
-	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
-}
-extern inline void *ioremap_fullcache(unsigned long physaddr, unsigned long size)
-{
-	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
-}
-
-extern void iounmap(void *addr);
-
-/* Nothing to do */
-
 
 extern void blkfin_inv_cache_all(void);
 
@@ -108,7 +84,6 @@ extern void blkfin_inv_cache_all(void);
 /* Pages to physical address... */ 
 #define page_to_phys(page)      ((page - mem_map) << PAGE_SHIFT)
 #define page_to_bus(page)       ((page - mem_map) << PAGE_SHIFT)
-
 
 #define mm_ptov(vaddr)		((void *) (vaddr))
 #define mm_vtop(vaddr)		((unsigned long) (vaddr))
