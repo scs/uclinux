@@ -953,7 +953,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 	/*
 	 * Info->count is now 1; so it's safe to sleep now.
 	 */
-	info->session = current->session;
+	info->session = current->signal->session;
 	info->pgrp = process_group(current);
 
 	if ((info->flags & ROCKET_INITIALIZED) == 0) {
@@ -1115,7 +1115,7 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 	} else {
 		if (info->xmit_buf) {
 			free_page((unsigned long) info->xmit_buf);
-			info->xmit_buf = 0;
+			info->xmit_buf = NULL;
 		}
 	}
 	info->flags &= ~(ROCKET_INITIALIZED | ROCKET_CLOSING | ROCKET_NORMAL_ACTIVE);
@@ -1216,59 +1216,6 @@ static int sGetChanRI(CHANNEL_T * ChP)
 /********************************************************************************************/
 /*  Here are the routines used by rp_ioctl.  These are all called from exception handlers.  */
 
-static int get_modem_info(struct r_port *info, unsigned int *value)
-{
-	unsigned int control, result, ChanStatus;
-
-	ChanStatus = sGetChanStatusLo(&info->channel);
-
-	control = info->channel.TxControl[3];
-	result = ((control & SET_RTS) ? TIOCM_RTS : 0) | 
-		((control & SET_DTR) ?  TIOCM_DTR : 0) |
-		((ChanStatus & CD_ACT) ? TIOCM_CAR : 0) |
-		(sGetChanRI(&info->channel) ? TIOCM_RNG : 0) |
-		((ChanStatus & DSR_ACT) ? TIOCM_DSR : 0) |
-		((ChanStatus & CTS_ACT) ? TIOCM_CTS : 0);
-
-	if (copy_to_user(value, &result, sizeof (int)))
-		return -EFAULT;
-	return 0;
-}
-
-static int set_modem_info(struct r_port *info, unsigned int cmd,
-			  unsigned int *value)
-{
-	unsigned int arg;
-
-	if (copy_from_user(&arg, value, sizeof (int)))
-		return -EFAULT;
-
-	switch (cmd) {
-	case TIOCMBIS:
-		if (arg & TIOCM_RTS)
-			info->channel.TxControl[3] |= SET_RTS;
-		if (arg & TIOCM_DTR)
-			info->channel.TxControl[3] |= SET_DTR;
-		break;
-	case TIOCMBIC:
-		if (arg & TIOCM_RTS)
-			info->channel.TxControl[3] &= ~SET_RTS;
-		if (arg & TIOCM_DTR)
-			info->channel.TxControl[3] &= ~SET_DTR;
-		break;
-	case TIOCMSET:
-		info->channel.TxControl[3] = ((info->channel.TxControl[3] & ~(SET_RTS | SET_DTR)) | 
-					      ((arg & TIOCM_RTS) ? SET_RTS : 0) | 
-					      ((arg & TIOCM_DTR) ? SET_DTR : 0));
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	sOutDW(info->channel.IndexAddr, *(DWord_t *) & (info->channel.TxControl[0]));
-	return 0;
-}
-
 /*
  *  Returns the state of the serial modem control lines.  These next 2 functions 
  *  are the way kernel versions > 2.5 handle modem control lines rather than IOCTLs.
@@ -1311,7 +1258,7 @@ static int rp_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static int get_config(struct r_port *info, struct rocket_config *retinfo)
+static int get_config(struct r_port *info, struct rocket_config __user *retinfo)
 {
 	struct rocket_config tmp;
 
@@ -1329,7 +1276,7 @@ static int get_config(struct r_port *info, struct rocket_config *retinfo)
 	return 0;
 }
 
-static int set_config(struct r_port *info, struct rocket_config *new_info)
+static int set_config(struct r_port *info, struct rocket_config __user *new_info)
 {
 	struct rocket_config new_serial;
 
@@ -1345,7 +1292,7 @@ static int set_config(struct r_port *info, struct rocket_config *new_info)
 		if ((new_serial.flags & ~ROCKET_USR_MASK) != (info->flags & ~ROCKET_USR_MASK))
 			return -EPERM;
 		info->flags = ((info->flags & ~ROCKET_USR_MASK) | (new_serial.flags & ROCKET_USR_MASK));
-		configure_r_port(info, 0);
+		configure_r_port(info, NULL);
 		return 0;
 	}
 
@@ -1362,7 +1309,7 @@ static int set_config(struct r_port *info, struct rocket_config *new_info)
 	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_WARP)
 		info->tty->alt_speed = 460800;
 
-	configure_r_port(info, 0);
+	configure_r_port(info, NULL);
 	return 0;
 }
 
@@ -1372,7 +1319,7 @@ static int set_config(struct r_port *info, struct rocket_config *new_info)
  *  to user space.  See setrocket.c where the info is used to create
  *  the /dev/ttyRx ports.
  */
-static int get_ports(struct r_port *info, struct rocket_ports *retports)
+static int get_ports(struct r_port *info, struct rocket_ports __user *retports)
 {
 	struct rocket_ports tmp;
 	int board;
@@ -1394,11 +1341,11 @@ static int get_ports(struct r_port *info, struct rocket_ports *retports)
 	return 0;
 }
 
-static int reset_rm2(struct r_port *info, unsigned long arg)
+static int reset_rm2(struct r_port *info, void __user *arg)
 {
 	int reset;
 
-	if (copy_from_user(&reset, (void *) arg, sizeof (int)))
+	if (copy_from_user(&reset, arg, sizeof (int)))
 		return -EFAULT;
 	if (reset)
 		reset = 1;
@@ -1415,7 +1362,7 @@ static int reset_rm2(struct r_port *info, unsigned long arg)
 	return 0;
 }
 
-static int get_version(struct r_port *info, struct rocket_version *retvers)
+static int get_version(struct r_port *info, struct rocket_version __user *retvers)
 {
 	if (copy_to_user(retvers, &driver_version, sizeof (*retvers)))
 		return -EFAULT;
@@ -1427,31 +1374,26 @@ static int rp_ioctl(struct tty_struct *tty, struct file *file,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct r_port *info = (struct r_port *) tty->driver_data;
+	void __user *argp = (void __user *)arg;
 
 	if (cmd != RCKP_GET_PORTS && rocket_paranoia_check(info, "rp_ioctl"))
 		return -ENXIO;
 
 	switch (cmd) {
-	case TIOCMGET:
-		return get_modem_info(info, (unsigned int *) arg);
-	case TIOCMBIS:
-	case TIOCMBIC:
-	case TIOCMSET:
-		return set_modem_info(info, cmd, (unsigned int *) arg);
 	case RCKP_GET_STRUCT:
-		if (copy_to_user((void *) arg, info, sizeof (struct r_port)))
+		if (copy_to_user(argp, info, sizeof (struct r_port)))
 			return -EFAULT;
 		return 0;
 	case RCKP_GET_CONFIG:
-		return get_config(info, (struct rocket_config *) arg);
+		return get_config(info, argp);
 	case RCKP_SET_CONFIG:
-		return set_config(info, (struct rocket_config *) arg);
+		return set_config(info, argp);
 	case RCKP_GET_PORTS:
-		return get_ports(info, (struct rocket_ports *) arg);
+		return get_ports(info, argp);
 	case RCKP_RESET_RM2:
-		return reset_rm2(info, arg);
+		return reset_rm2(info, argp);
 	case RCKP_GET_VERSION:
-		return get_version(info, (struct rocket_version *) arg);
+		return get_version(info, argp);
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -1630,7 +1572,7 @@ static void rp_hangup(struct tty_struct *tty)
 
 	info->count = 0;
 	info->flags &= ~ROCKET_NORMAL_ACTIVE;
-	info->tty = 0;
+	info->tty = NULL;
 
 	cp = &info->channel;
 	sDisRxFIFO(cp);

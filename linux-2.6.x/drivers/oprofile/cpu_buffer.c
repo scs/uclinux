@@ -57,7 +57,7 @@ int alloc_cpu_buffers(void)
 		if (!b->buffer)
 			goto fail;
  
-		b->last_task = 0;
+		b->last_task = NULL;
 		b->last_is_kernel = -1;
 		b->buffer_size = buffer_size;
 		b->tail_pos = 0;
@@ -86,9 +86,9 @@ static unsigned long nr_available_slots(struct oprofile_cpu_buffer const * b)
 	unsigned long tail = b->tail_pos;
 
 	if (tail > head)
-		return tail - head;
+		return (tail - head) - 1;
 
-	return tail + (b->buffer_size - head);
+	return tail + (b->buffer_size - head) - 1;
 }
 
 
@@ -176,5 +176,5 @@ void cpu_buffer_reset(struct oprofile_cpu_buffer * cpu_buf)
 	 * values to initialize the buffer
 	 */
 	cpu_buf->last_is_kernel = -1;
-	cpu_buf->last_task = 0;
+	cpu_buf->last_task = NULL;
 }

@@ -13,7 +13,7 @@
  
 #include <linux/config.h>
 #include <linux/module.h>
-
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
@@ -45,7 +45,7 @@ static void set_multicast_list(struct net_device *dev);
 static int ethertap_debug;
 
 static int max_taps = 1;
-MODULE_PARM(max_taps, "i");
+module_param(max_taps, int, 0);
 MODULE_PARM_DESC(max_taps,"Max number of ethernet tap devices");
 
 static struct net_device **tap_map;	/* Returns the tap device for a given netlink */
@@ -72,8 +72,7 @@ static int  __init ethertap_probe(int unit)
 	struct net_device *dev;
 	int err = -ENOMEM;
 
-	dev = alloc_netdev(sizeof(struct net_local), "tap%d",
-			   ether_setup);
+	dev = alloc_etherdev(sizeof(struct net_local));
 
 	if (!dev)
 		goto out;
@@ -122,7 +121,7 @@ out:
 
 static int ethertap_open(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local*)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 
 	if (ethertap_debug > 2)
 		printk(KERN_DEBUG "%s: Doing ethertap_open()...", dev->name);
@@ -151,7 +150,7 @@ static unsigned ethertap_mc_hash(__u8 *dest)
 static void set_multicast_list(struct net_device *dev)
 {
 	unsigned groups = ~0;
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 
 	if (!(dev->flags&(IFF_NOARP|IFF_PROMISC|IFF_ALLMULTI))) {
 		struct dev_mc_list *dmi;
@@ -177,7 +176,7 @@ static void set_multicast_list(struct net_device *dev)
  
 static int ethertap_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 #ifdef CONFIG_ETHERTAP_MC
 	struct ethhdr *eth = (struct ethhdr*)skb->data;
 #endif
@@ -235,7 +234,7 @@ static int ethertap_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static __inline__ int ethertap_rx_skb(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 #ifdef CONFIG_ETHERTAP_MC
 	struct ethhdr *eth = (struct ethhdr*)(skb->data + 2);
 #endif
@@ -321,7 +320,7 @@ static void ethertap_rx(struct sock *sk, int len)
 
 static int ethertap_close(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	struct sock *sk = lp->nl;
 
 	if (ethertap_debug > 2)
@@ -339,7 +338,7 @@ static int ethertap_close(struct net_device *dev)
 
 static struct net_device_stats *ethertap_get_stats(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	return &lp->stats;
 }
 

@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.
  *
  * $Log$
- * Revision 1.3  2004/09/08 10:14:51  lgsoft
+ * Revision 1.4  2004/09/08 14:50:54  lgsoft
  * Import of 2.6.8
  *
  * Revision 1.1.6.1  2001/12/04 15:19:26  seletz

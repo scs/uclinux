@@ -108,7 +108,7 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 		goto out2;
 	}
 
-	rrpriv = (struct rr_private *)dev->priv;
+	rrpriv = netdev_priv(dev);
 
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -197,7 +197,8 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 	 * Don't access any register before this point!
 	 */
 #ifdef __BIG_ENDIAN
-	writel(readl(&regs->HostCtrl) | NO_SWAP, &regs->HostCtrl);
+	writel(readl(&rrpriv->regs->HostCtrl) | NO_SWAP,
+		&rrpriv->regs->HostCtrl);
 #endif
 	/*
 	 * Need to add a case for little-endian 64-bit hosts here.
@@ -236,7 +237,7 @@ static void __devexit rr_remove_one (struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 
 	if (dev) {
-		struct rr_private *rr = dev->priv;
+		struct rr_private *rr = netdev_priv(dev);
 
 		if (!(readl(&rr->regs->HostCtrl) & NIC_HALTED)){
 			printk(KERN_ERR "%s: trying to unload running NIC\n",
@@ -308,7 +309,7 @@ static int rr_reset(struct net_device *dev)
 	u32 start_pc;
 	int i;
 
-	rrpriv = (struct rr_private *)dev->priv;
+	rrpriv = netdev_priv(dev);
 	regs = rrpriv->regs;
 
 	rr_load_firmware(dev);
@@ -524,7 +525,7 @@ static int __init rr_init(struct net_device *dev)
 	u32 sram_size, rev;
 	int i;
 
-	rrpriv = (struct rr_private *)dev->priv;
+	rrpriv = netdev_priv(dev);
 	regs = rrpriv->regs;
 
 	rev = readl(&regs->FwRev);
@@ -595,7 +596,7 @@ static int rr_init1(struct net_device *dev)
 	int ecode = 0;
 	short i;
 
-	rrpriv = (struct rr_private *)dev->priv;
+	rrpriv = netdev_priv(dev);
 	regs = rrpriv->regs;
 
 	spin_lock_irqsave(&rrpriv->lock, flags);
@@ -633,7 +634,7 @@ static int rr_init1(struct net_device *dev)
 	for (i = 0; i < TX_RING_ENTRIES; i++) {
 		rrpriv->tx_ring[i].size = 0;
 		set_rraddr(&rrpriv->tx_ring[i].addr, 0);
-		rrpriv->tx_skbuff[i] = 0;
+		rrpriv->tx_skbuff[i] = NULL;
 	}
 	rrpriv->info->tx_ctrl.entry_size = sizeof(struct tx_desc);
 	rrpriv->info->tx_ctrl.entries = TX_RING_ENTRIES;
@@ -743,7 +744,7 @@ static int rr_init1(struct net_device *dev)
 			rrpriv->rx_ring[i].size = 0;
 			set_rraddr(&rrpriv->rx_ring[i].addr, 0);
 			dev_kfree_skb(skb);
-			rrpriv->rx_skbuff[i] = 0;
+			rrpriv->rx_skbuff[i] = NULL;
 		}
 	}
 	return ecode;
@@ -761,7 +762,7 @@ static u32 rr_handle_event(struct net_device *dev, u32 prodidx, u32 eidx)
 	struct rr_regs *regs;
 	u32 tmp;
 
-	rrpriv = (struct rr_private *)dev->priv;
+	rrpriv = netdev_priv(dev);
 	regs = rrpriv->regs;
 
 	while (prodidx != eidx){
@@ -960,7 +961,7 @@ static u32 rr_handle_event(struct net_device *dev, u32 prodidx, u32 eidx)
 
 static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 {
-	struct rr_private *rrpriv = (struct rr_private *)dev->priv;
+	struct rr_private *rrpriv = netdev_priv(dev);
 	struct rr_regs *regs = rrpriv->regs;
 
 	do {
@@ -983,18 +984,26 @@ static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 
 			rx_skb = rrpriv->rx_skbuff[index];
 
-	        	pci_dma_sync_single(rrpriv->pci_dev, desc->addr.addrlo,
-				pkt_len, PCI_DMA_FROMDEVICE);
-
 			if (pkt_len < PKT_COPY_THRESHOLD) {
 				skb = alloc_skb(pkt_len, GFP_ATOMIC);
 				if (skb == NULL){
 					printk(KERN_WARNING "%s: Unable to allocate skb (%i bytes), deferring packet\n", dev->name, pkt_len);
 					rrpriv->stats.rx_dropped++;
 					goto defer;
-				}else
+				} else {
+					pci_dma_sync_single_for_cpu(rrpriv->pci_dev,
+								    desc->addr.addrlo,
+								    pkt_len,
+								    PCI_DMA_FROMDEVICE);
+
 					memcpy(skb_put(skb, pkt_len),
 					       rx_skb->data, pkt_len);
+
+					pci_dma_sync_single_for_device(rrpriv->pci_dev,
+								       desc->addr.addrlo,
+								       pkt_len,
+								       PCI_DMA_FROMDEVICE);
+				}
 			}else{
 				struct sk_buff *newskb;
 
@@ -1052,7 +1061,7 @@ static irqreturn_t rr_interrupt(int irq, void *dev_id, struct pt_regs *ptregs)
 	struct net_device *dev = (struct net_device *)dev_id;
 	u32 prodidx, rxindex, eidx, txcsmr, rxlimit, txcon;
 
-	rrpriv = (struct rr_private *)dev->priv;
+	rrpriv = netdev_priv(dev);
 	regs = rrpriv->regs;
 
 	if (!(readl(&regs->HostCtrl) & RR_INT))
@@ -1133,7 +1142,7 @@ static irqreturn_t rr_interrupt(int irq, void *dev_id, struct pt_regs *ptregs)
 static void rr_timer(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
-	struct rr_private *rrpriv = (struct rr_private *)dev->priv;
+	struct rr_private *rrpriv = netdev_priv(dev);
 	struct rr_regs *regs = rrpriv->regs;
 	unsigned long flags;
 
@@ -1160,7 +1169,7 @@ static void rr_timer(unsigned long data)
 
 static int rr_open(struct net_device *dev)
 {
-	struct rr_private *rrpriv = (struct rr_private *)dev->priv;
+	struct rr_private *rrpriv = netdev_priv(dev);
 	struct pci_dev *pdev = rrpriv->pci_dev;
 	struct rr_regs *regs;
 	int ecode = 0;
@@ -1296,7 +1305,7 @@ static void rr_dump(struct net_device *dev)
 	short i;
 	int len;
 
-	rrpriv = (struct rr_private *)dev->priv;
+	rrpriv = netdev_priv(dev);
 	regs = rrpriv->regs;
 
 	printk("%s: dumping NIC TX rings\n", dev->name);
@@ -1327,10 +1336,10 @@ static void rr_dump(struct net_device *dev)
 	if (rrpriv->tx_skbuff[cons]){
 		len = min_t(int, 0x80, rrpriv->tx_skbuff[cons]->len);
 		printk("skbuff for cons %i is valid - dumping data (0x%x bytes - skbuff len 0x%x)\n", cons, len, rrpriv->tx_skbuff[cons]->len);
-		printk("mode 0x%x, size 0x%x,\n phys %08x, skbuff-addr %08lx, truesize 0x%x\n",
+		printk("mode 0x%x, size 0x%x,\n phys %08Lx, skbuff-addr %08lx, truesize 0x%x\n",
 		       rrpriv->tx_ring[cons].mode,
 		       rrpriv->tx_ring[cons].size,
-		       rrpriv->tx_ring[cons].addr.addrlo,
+		       (unsigned long long) rrpriv->tx_ring[cons].addr.addrlo,
 		       (unsigned long)rrpriv->tx_skbuff[cons]->data,
 		       (unsigned int)rrpriv->tx_skbuff[cons]->truesize);
 		for (i = 0; i < len; i++){
@@ -1343,10 +1352,10 @@ static void rr_dump(struct net_device *dev)
 
 	printk("dumping TX ring info:\n");
 	for (i = 0; i < TX_RING_ENTRIES; i++)
-		printk("mode 0x%x, size 0x%x, phys-addr %08x\n",
+		printk("mode 0x%x, size 0x%x, phys-addr %08Lx\n",
 		       rrpriv->tx_ring[i].mode,
 		       rrpriv->tx_ring[i].size,
-		       rrpriv->tx_ring[i].addr.addrlo);
+		       (unsigned long long) rrpriv->tx_ring[i].addr.addrlo);
 
 }
 
@@ -1361,7 +1370,7 @@ static int rr_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	rrpriv = (struct rr_private *)dev->priv;
+	rrpriv = netdev_priv(dev);
 	regs = rrpriv->regs;
 
 	/*
@@ -1418,7 +1427,7 @@ static int rr_close(struct net_device *dev)
 
 static int rr_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct rr_private *rrpriv = (struct rr_private *)dev->priv;
+	struct rr_private *rrpriv = netdev_priv(dev);
 	struct rr_regs *regs = rrpriv->regs;
 	struct ring_ctrl *txctrl;
 	unsigned long flags;
@@ -1488,7 +1497,7 @@ static struct net_device_stats *rr_get_stats(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
 
-	rrpriv = (struct rr_private *)dev->priv;
+	rrpriv = netdev_priv(dev);
 
 	return(&rrpriv->stats);
 }
@@ -1511,7 +1520,7 @@ static int rr_load_firmware(struct net_device *dev)
 	u32 p2len, p2size, nr_seg, revision, io, sram_size;
 	struct eeprom *hw = NULL;
 
-	rrpriv = (struct rr_private *)dev->priv;
+	rrpriv = netdev_priv(dev);
 	regs = rrpriv->regs;
 
 	if (dev->flags & IFF_UP)
@@ -1614,7 +1623,7 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	unsigned int i;
 	int error = -EOPNOTSUPP;
 
-	rrpriv = dev->priv;
+	rrpriv = netdev_priv(dev);
 
 	switch(cmd){
 	case SIOCRRGFW:
@@ -1707,7 +1716,7 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return error;
 		
 	case SIOCRRID:
-		return put_user(0x52523032, (int *)(&rq->ifr_data[0]));
+		return put_user(0x52523032, (int __user *)rq->ifr_data);
 	default:
 		return error;
 	}

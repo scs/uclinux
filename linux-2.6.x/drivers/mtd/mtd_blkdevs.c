@@ -131,6 +131,8 @@ static int mtd_blktrans_thread(void *arg)
 
 		end_request(req, res);
 	}
+	spin_unlock_irq(rq->queue_lock);
+
 	complete_and_exit(&tr->blkcore_priv->thread_dead, 0);
 }
 
@@ -218,7 +220,7 @@ static int blktrans_ioctl(struct inode *inode, struct file *file,
 				return ret;
 
 			g.start = get_start_sect(inode->i_bdev);
-			if (copy_to_user((void *)arg, &g, sizeof(g)))
+			if (copy_to_user((void __user *)arg, &g, sizeof(g)))
 				return -EFAULT;
 			return 0;
 		} /* else */
@@ -293,7 +295,10 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	snprintf(gd->devfs_name, sizeof(gd->devfs_name),
 		 "%s/%c", tr->name, (tr->part_bits?'a':'0') + new->devnum);
 
-	set_capacity(gd, new->size);
+	/* 2.5 has capacity in units of 512 bytes while still
+	   having BLOCK_SIZE_BITS set to 10. Just to keep us amused. */
+	set_capacity(gd, (new->size * new->blksize) >> 9);
+
 	gd->private_data = new;
 	new->blkcore_priv = gd;
 	gd->queue = tr->blkcore_priv->rq;

@@ -26,13 +26,13 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/moduleparam.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
 #include <sound/info.h>
 #include <sound/asoundef.h>
-#define SNDRV_GET_ID
 #include <sound/initval.h>
 
 #include <asm/current.h>
@@ -42,17 +42,18 @@ static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 static int precise_ptr[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = 0 }; /* Enable precise pointer */
+static int boot_devs;
 
-MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(index, int, boot_devs, 0444);
 MODULE_PARM_DESC(index, "Index value for RME Digi9652 (Hammerfall) soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
+module_param_array(id, charp, boot_devs, 0444);
 MODULE_PARM_DESC(id, "ID string for RME Digi9652 (Hammerfall) soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(enable, bool, boot_devs, 0444);
 MODULE_PARM_DESC(enable, "Enable/disable specific RME96{52,36} soundcards.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-MODULE_PARM(precise_ptr, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(precise_ptr, bool, boot_devs, 0444);
 MODULE_PARM_DESC(precise_ptr, "Enable precise pointer (doesn't work reliably).");
 MODULE_PARM_SYNTAX(precise_ptr, SNDRV_ENABLED "," SNDRV_BOOLEAN_FALSE_DESC);
 MODULE_AUTHOR("Paul Davis <pbd@op.net>, Winfried Ritsch");
@@ -314,7 +315,10 @@ static void *snd_hammerfall_get_buffer(struct pci_dev *pci, size_t size, dma_add
 	struct snd_dma_device pdev;
 	struct snd_dma_buffer dmbuf;
 
-	snd_dma_device_pci(&pdev, pci, capture);
+	memset(&pdev, 0, sizeof(pdev));
+	pdev.type = SNDRV_DMA_TYPE_DEV;
+	pdev.dev = snd_dma_pci_data(pci);
+	pdev.id = capture;
 	dmbuf.bytes = 0;
 	if (! snd_dma_get_reserved(&pdev, &dmbuf)) {
 		if (snd_dma_alloc_pages(&pdev, size, &dmbuf) < 0)
@@ -327,9 +331,13 @@ static void *snd_hammerfall_get_buffer(struct pci_dev *pci, size_t size, dma_add
 
 static void snd_hammerfall_free_buffer(struct pci_dev *pci, size_t size, void *ptr, dma_addr_t addr, int capture)
 {
-	struct snd_dma_device dev;
-	snd_dma_device_pci(&dev, pci, capture);
-	snd_dma_free_reserved(&dev);
+	struct snd_dma_device pdev;
+
+	memset(&pdev, 0, sizeof(pdev));
+	pdev.type = SNDRV_DMA_TYPE_DEV;
+	pdev.dev = snd_dma_pci_data(pci);
+	pdev.id = capture;
+	snd_dma_free_reserved(&pdev);
 }
 
 #else
@@ -1618,7 +1626,6 @@ RME9652_SYNC_PREF("Preferred Sync Source", 0),
 RME9652_SPDIF_RATE("IEC958 Sample Rate", 0),
 RME9652_ADAT_SYNC("ADAT1 Sync Check", 0, 0),
 RME9652_ADAT_SYNC("ADAT2 Sync Check", 0, 1),
-RME9652_ADAT_SYNC("ADAT3 Sync Check", 0, 2),
 RME9652_TC_VALID("Timecode Valid", 0),
 RME9652_PASSTHRU("Passthru", 0)
 };
@@ -1835,7 +1842,7 @@ static void __devinit snd_rme9652_proc_init(rme9652_t *rme9652)
 	snd_info_entry_t *entry;
 
 	if (! snd_card_proc_new(rme9652->card, "rme9652", &entry))
-		snd_info_set_text_ops(entry, rme9652, snd_rme9652_proc_read);
+		snd_info_set_text_ops(entry, rme9652, 1024, snd_rme9652_proc_read);
 }
 
 static void snd_rme9652_free_buffers(rme9652_t *rme9652)
@@ -2004,7 +2011,7 @@ static char *rme9652_channel_buffer_location(rme9652_t *rme9652,
 }
 
 static int snd_rme9652_playback_copy(snd_pcm_substream_t *substream, int channel,
-				     snd_pcm_uframes_t pos, void *src, snd_pcm_uframes_t count)
+				     snd_pcm_uframes_t pos, void __user *src, snd_pcm_uframes_t count)
 {
 	rme9652_t *rme9652 = _snd_pcm_substream_chip(substream);
 	char *channel_buf;
@@ -2021,7 +2028,7 @@ static int snd_rme9652_playback_copy(snd_pcm_substream_t *substream, int channel
 }
 
 static int snd_rme9652_capture_copy(snd_pcm_substream_t *substream, int channel,
-				    snd_pcm_uframes_t pos, void *dst, snd_pcm_uframes_t count)
+				    snd_pcm_uframes_t pos, void __user *dst, snd_pcm_uframes_t count)
 {
 	rme9652_t *rme9652 = _snd_pcm_substream_chip(substream);
 	char *channel_buf;
@@ -2256,10 +2263,10 @@ static int snd_rme9652_prepare(snd_pcm_substream_t *substream)
 	rme9652_t *rme9652 = _snd_pcm_substream_chip(substream);
 	int result = 0;
 
-	spin_lock_irq(&rme9652->lock);
+	spin_lock(&rme9652->lock);
 	if (!rme9652->running)
 		rme9652_reset_hw_pointer(rme9652);
-	spin_unlock_irq(&rme9652->lock);
+	spin_unlock(&rme9652->lock);
 	return result;
 }
 
@@ -2705,6 +2712,7 @@ static int __devinit snd_rme9652_probe(struct pci_dev *pci,
 	card->private_free = snd_rme9652_card_free;
 	rme9652->dev = dev;
 	rme9652->pci = pci;
+	snd_card_set_dev(card, &pci->dev);
 
 	if ((err = snd_rme9652_create(card, rme9652, precise_ptr[dev])) < 0) {
 		snd_card_free(card);
@@ -2741,14 +2749,7 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_hammerfall_init(void)
 {
-	if (pci_module_init(&driver) < 0) {
-#ifdef MODULE
-		printk(KERN_ERR "RME Digi9652/Digi9636: no cards found\n");
-#endif
-		return -ENODEV;
-	}
-
-	return 0;
+	return pci_module_init(&driver);
 }
 
 static void __exit alsa_card_hammerfall_exit(void)
@@ -2758,24 +2759,3 @@ static void __exit alsa_card_hammerfall_exit(void)
 
 module_init(alsa_card_hammerfall_init)
 module_exit(alsa_card_hammerfall_exit)
-
-#ifndef MODULE
-
-/* format is: snd-rme9652=enable,index,id */
-
-static int __init alsa_card_rme9652_setup(char *str)
-{
-	static unsigned __initdata nr_dev = 0;
-
-	if (nr_dev >= SNDRV_CARDS)
-		return 0;
-	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
-	       get_option(&str,&index[nr_dev]) == 2 &&
-	       get_id(&str,&id[nr_dev]) == 2);
-	nr_dev++;
-	return 1;
-}
-
-__setup("snd-rme9652=", alsa_card_rme9652_setup);
-
-#endif /* ifndef MODULE */

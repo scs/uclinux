@@ -94,6 +94,7 @@ typedef struct pmac_tumbler_t {
 	unsigned int mix_vol[VOL_IDX_LAST_MIX][2]; /* stereo volumes for tas3004 */
 	int drc_range;
 	int drc_enable;
+	int capture_source;
 } pmac_tumbler_t;
 
 
@@ -135,7 +136,7 @@ static int snapper_init_client(pmac_keywest_t *i2c)
 		TAS_REG_MCS, (1<<6)|(2<<4)|0,
 		/* normal operation, all-pass mode */
 		TAS_REG_MCS2, (1<<1),
-		/* normal output, no deemphasis, A input, power-up */
+		/* normal output, no deemphasis, A input, power-up, line-in */
 		TAS_REG_ACS, 0,
 		0, /* terminator */
 	};
@@ -666,6 +667,10 @@ static int tumbler_put_mute_switch(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
 	pmac_tumbler_t *mix;
 	pmac_gpio_t *gp;
 	int val;
+#ifdef PMAC_SUPPORT_AUTOMUTE
+	if (chip->update_automute && chip->auto_mute)
+		return 0; /* don't touch in the auto-mute mode */
+#endif	
 	if (! (mix = chip->mixer_data))
 		return -ENODEV;
 	gp = (kcontrol->private_value == TUMBLER_MUTE_HP) ? &mix->hp_mute : &mix->amp_mute;
@@ -675,6 +680,53 @@ static int tumbler_put_mute_switch(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
 		return 1;
 	}
 	return 0;
+}
+
+static int snapper_set_capture_source(pmac_tumbler_t *mix)
+{
+	if (! mix->i2c.client)
+		return -ENODEV;
+	return snd_pmac_keywest_write_byte(&mix->i2c, TAS_REG_ACS,
+					   mix->capture_source ? 2 : 0);
+}
+
+static int snapper_info_capture_source(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+{
+	static char *texts[2] = {
+		"Line", "Mic"
+	};
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 2;
+	if (uinfo->value.enumerated.item > 1)
+		uinfo->value.enumerated.item = 1;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int snapper_get_capture_source(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	pmac_tumbler_t *mix = chip->mixer_data;
+
+	snd_assert(mix, return -ENODEV);
+	ucontrol->value.integer.value[0] = mix->capture_source;
+	return 0;
+}
+
+static int snapper_put_capture_source(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	pmac_tumbler_t *mix = chip->mixer_data;
+	int change;
+
+	snd_assert(mix, return -ENODEV);
+	change = ucontrol->value.integer.value[0] != mix->capture_source;
+	if (change) {
+		mix->capture_source = !!ucontrol->value.integer.value[0];
+		snapper_set_capture_source(mix);
+	}
+	return change;
 }
 
 #define DEFINE_SNAPPER_MIX(xname,idx,ofs) { \
@@ -750,6 +802,12 @@ static snd_kcontrol_new_t snapper_mixers[] __initdata = {
 	  .get = tumbler_get_drc_value,
 	  .put = tumbler_put_drc_value
 	},
+	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	  .name = "Input Source", /* FIXME: "Capture Source" doesn't work properly */
+	  .info = snapper_info_capture_source,
+	  .get = snapper_get_capture_source,
+	  .put = snapper_put_capture_source
+	},
 };
 
 static snd_kcontrol_new_t tumbler_hp_sw __initdata = {
@@ -814,7 +872,7 @@ static void tumbler_update_automute(pmac_t *chip, int do_notify)
 /* interrupt - headphone plug changed */
 static irqreturn_t headphone_intr(int irq, void *devid, struct pt_regs *regs)
 {
-	pmac_t *chip = snd_magic_cast(pmac_t, devid, return);
+	pmac_t *chip = snd_magic_cast(pmac_t, devid, return IRQ_NONE);
 	if (chip->update_automute && chip->initialized) {
 		chip->update_automute(chip, 1);
 		return IRQ_HANDLED;
@@ -925,9 +983,10 @@ static void tumbler_resume(pmac_t *chip)
 		snapper_set_mix_vol(mix, VOL_IDX_PCM);
 		snapper_set_mix_vol(mix, VOL_IDX_PCM2);
 		snapper_set_mix_vol(mix, VOL_IDX_ADC);
-		tumbler_set_mono_volume(mix, &tumbler_bass_vol_info);
-		tumbler_set_mono_volume(mix, &tumbler_treble_vol_info);
+		tumbler_set_mono_volume(mix, &snapper_bass_vol_info);
+		tumbler_set_mono_volume(mix, &snapper_treble_vol_info);
 		snapper_set_drc(mix);
+		snapper_set_capture_source(mix);
 	}
 	tumbler_set_master_volume(mix);
 	if (chip->update_automute)
@@ -993,7 +1052,8 @@ int __init snd_pmac_tumbler_init(pmac_t *chip)
 	char *chipname;
 
 #ifdef CONFIG_KMOD
-	request_module("i2c-keywest");
+	if (current->fs->root)
+		request_module("i2c-keywest");
 #endif /* CONFIG_KMOD */	
 
 	mix = kmalloc(sizeof(*mix), GFP_KERNEL);

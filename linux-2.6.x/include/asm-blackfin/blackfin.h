@@ -1,41 +1,31 @@
 /*
- * Rev:$Id$
+ * Common header file for blackfin family of processors.
+ * Copyright (C) 2004 LG Soft India.
  *
- * Copyright (C) 2003 Bas Vermeulen/Buyways B.V. <bf533@buyways.nl>
- *
- * Created by Buyways B.V. for Astent <info@astent.nl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA
  */
 
 #ifndef _BLACKFIN_H_
 #define _BLACKFIN_H_
+
+#include <linux/config.h>
+
 #ifdef CONFIG_PUB
-#include <asm/board/pub.h>
+/*Include your header file here*/
 #endif
 #ifdef CONFIG_HAWK
-#include <asm/board/hawk.h>
+/*Include your header file here*/
 #endif
 #ifdef CONFIG_EAGLE
-#include <asm/board/eagle.h>
+/*Include your header file here*/
 #endif
-#ifdef CONFIG_EZKIT	
-#include <asm/board/ezkit.h>
+#ifdef CONFIG_EZKIT
+#include <asm/board/bf533.h>	
+#include <asm/board/defBF533.h>
+#include <asm/board/cdefBF533.h>
 #endif
-#ifdef CONFIG_BLKFIN_STAMP		/*Later FIXME - BFin*/
-#include <asm/board/ezkit.h>
+#ifdef CONFIG_BLKFIN_STAMP
+#include <asm/board/bf533.h>	
+#include <asm/board/defBF533.h>
+#include <asm/board/cdefBF533.h>
 #endif
 #endif /* _BLACKFIN_H_ */

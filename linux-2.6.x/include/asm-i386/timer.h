@@ -4,11 +4,16 @@
 /**
  * struct timer_ops - used to define a timer source
  *
+ * @name: name of the timer.
  * @init: Probes and initializes the timer. Takes clock= override 
- *  string as an argument. Returns 0 on success, anything else on failure.
- * @mark_offset: called by the timer interrupt
- * @get_offset: called by gettimeofday().  Returns the number of ms since the
- *	last timer intruupt.
+ *        string as an argument. Returns 0 on success, anything else
+ *        on failure.
+ * @mark_offset: called by the timer interrupt.
+ * @get_offset:  called by gettimeofday(). Returns the number of microseconds
+ *               since the last timer interupt.
+ * @monotonic_clock: returns the number of nanoseconds since the init of the
+ *                   timer.
+ * @delay: delays this many clock cycles.
  */
 struct timer_opts{
 	char* name;
@@ -40,9 +45,13 @@ extern struct timer_opts timer_cyclone;
 #endif
 
 extern unsigned long calibrate_tsc(void);
+extern void init_cpu_khz(void);
 #ifdef CONFIG_HPET_TIMER
 extern struct timer_opts timer_hpet;
 extern unsigned long calibrate_tsc_hpet(unsigned long *tsc_hpet_quotient_ptr);
 #endif
 
+#ifdef CONFIG_X86_PM_TIMER
+extern struct timer_opts timer_pmtmr;
+#endif
 #endif

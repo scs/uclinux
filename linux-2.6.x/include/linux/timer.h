@@ -4,6 +4,7 @@
 #include <linux/config.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/stddef.h>
 
 struct tvec_t_base_s;
 
@@ -65,6 +66,8 @@ extern int del_timer(struct timer_list * timer);
 extern int __mod_timer(struct timer_list *timer, unsigned long expires);
 extern int mod_timer(struct timer_list *timer, unsigned long expires);
 
+extern unsigned long next_timer_interrupt(void);
+
 /***
  * add_timer - start a timer
  * @timer: the timer to be added
@@ -85,9 +88,11 @@ static inline void add_timer(struct timer_list * timer)
 }
 
 #ifdef CONFIG_SMP
-  extern int del_timer_sync(struct timer_list * timer);
+  extern int del_timer_sync(struct timer_list *timer);
+  extern int del_singleshot_timer_sync(struct timer_list *timer);
 #else
 # define del_timer_sync(t) del_timer(t)
+# define del_singleshot_timer_sync(t) del_timer(t)
 #endif
 
 extern void init_timers(void);

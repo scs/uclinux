@@ -36,8 +36,8 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/pnp.h>
+#include <linux/moduleparam.h>
 #include <sound/core.h>
-#define SNDRV_GET_ID
 #include <sound/initval.h>
 #include <sound/cs4231.h>
 #include <sound/mpu401.h>
@@ -68,38 +68,39 @@ static int irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* Pnp setup */
 static int mpu_irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* Pnp setup */
 static int dma1[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* PnP setup */
 static int dma2[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* PnP setup */
+static int boot_devs;
 
-MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(index, int, boot_devs, 0444);
 MODULE_PARM_DESC(index, "Index value for azt2320 based soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
+module_param_array(id, charp, boot_devs, 0444);
 MODULE_PARM_DESC(id, "ID string for azt2320 based soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(enable, bool, boot_devs, 0444);
 MODULE_PARM_DESC(enable, "Enable azt2320 based soundcard.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-MODULE_PARM(port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
+module_param_array(port, long, boot_devs, 0444);
 MODULE_PARM_DESC(port, "Port # for azt2320 driver.");
 MODULE_PARM_SYNTAX(port, SNDRV_PORT12_DESC);
-MODULE_PARM(wss_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
+module_param_array(wss_port, long, boot_devs, 0444);
 MODULE_PARM_DESC(wss_port, "WSS Port # for azt2320 driver.");
 MODULE_PARM_SYNTAX(wss_port, SNDRV_PORT12_DESC);
-MODULE_PARM(mpu_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
+module_param_array(mpu_port, long, boot_devs, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for azt2320 driver.");
 MODULE_PARM_SYNTAX(mpu_port, SNDRV_PORT12_DESC);
-MODULE_PARM(fm_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
+module_param_array(fm_port, long, boot_devs, 0444);
 MODULE_PARM_DESC(fm_port, "FM port # for azt2320 driver.");
 MODULE_PARM_SYNTAX(fm_port, SNDRV_PORT12_DESC);
-MODULE_PARM(irq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(irq, int, boot_devs, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for azt2320 driver.");
 MODULE_PARM_SYNTAX(irq, SNDRV_IRQ_DESC);
-MODULE_PARM(mpu_irq, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(mpu_irq, int, boot_devs, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for azt2320 driver.");
 MODULE_PARM_SYNTAX(mpu_irq, SNDRV_IRQ_DESC);
-MODULE_PARM(dma1, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(dma1, int, boot_devs, 0444);
 MODULE_PARM_DESC(dma1, "1st DMA # for azt2320 driver.");
 MODULE_PARM_SYNTAX(dma1, SNDRV_DMA_DESC);
-MODULE_PARM(dma2, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(dma2, int, boot_devs, 0444);
 MODULE_PARM_DESC(dma2, "2nd DMA # for azt2320 driver.");
 MODULE_PARM_SYNTAX(dma2, SNDRV_DMA_DESC);
 
@@ -255,6 +256,7 @@ static int __devinit snd_card_azt2320_probe(int dev,
 		snd_card_free(card);
 		return error;
 	}
+	snd_card_set_dev(card, &pcard->card->dev);
 
 	if ((error = snd_card_azt2320_enable_wss(port[dev]))) {
 		snd_card_free(card);
@@ -270,6 +272,11 @@ static int __devinit snd_card_azt2320_probe(int dev,
 		return error;
 	}
 
+	strcpy(card->driver, "AZT2320");
+	strcpy(card->shortname, "Aztech AZT2320");
+	sprintf(card->longname, "%s, WSS at 0x%lx, irq %i, dma %i&%i",
+		card->shortname, chip->port, irq[dev], dma1[dev], dma2[dev]);
+
 	if ((error = snd_cs4231_pcm(chip, 0, NULL)) < 0) {
 		snd_card_free(card);
 		return error;
@@ -283,7 +290,7 @@ static int __devinit snd_card_azt2320_probe(int dev,
 		return error;
 	}
 
-	if (mpu_port[dev] > 0) {
+	if (mpu_port[dev] > 0 && mpu_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_AZT2320,
 				mpu_port[dev], 0,
 				mpu_irq[dev], SA_INTERRUPT,
@@ -291,7 +298,7 @@ static int __devinit snd_card_azt2320_probe(int dev,
 			snd_printk(KERN_ERR PFX "no MPU-401 device at 0x%lx\n", mpu_port[dev]);
 	}
 
-	if (fm_port[dev] > 0) {
+	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_opl3_create(card,
 				    fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_AUTO, 0, &opl3) < 0) {
@@ -308,11 +315,6 @@ static int __devinit snd_card_azt2320_probe(int dev,
 			}
 		}
 	}
-
-	strcpy(card->driver, "AZT2320");
-	strcpy(card->shortname, "Aztech AZT2320");
-	sprintf(card->longname, "%s soundcard, WSS at 0x%lx, irq %i, dma %i&%i",
-		card->shortname, chip->port, irq[dev], dma1[dev], dma2[dev]);
 
 	if ((error = snd_card_register(card)) < 0) {
 		snd_card_free(card);
@@ -377,33 +379,3 @@ static void __exit alsa_card_azt2320_exit(void)
 
 module_init(alsa_card_azt2320_init)
 module_exit(alsa_card_azt2320_exit)
-
-#ifndef MODULE
-
-/* format is: snd-azt2320=enable,index,id,port,
-			  wss_port,mpu_port,fm_port,
-			  irq,mpu_irq,dma1,dma2 */
-
-static int __init alsa_card_azt2320_setup(char *str)
-{
-	static unsigned __initdata nr_dev = 0;
-
-	if (nr_dev >= SNDRV_CARDS)
-		return 0;
-	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
-	       get_option(&str,&index[nr_dev]) == 2 &&
-	       get_id(&str,&id[nr_dev]) == 2 &&
-	       get_option(&str,(int *)&port[nr_dev]) == 2 &&
-	       get_option(&str,(int *)&wss_port[nr_dev]) == 2 &&
-	       get_option(&str,(int *)&mpu_port[nr_dev]) == 2 &&
-	       get_option(&str,&irq[nr_dev]) == 2 &&
-	       get_option(&str,&mpu_irq[nr_dev]) == 2 &&
-	       get_option(&str,&dma1[nr_dev]) == 2 &&
-	       get_option(&str,&dma2[nr_dev]) == 2);
-	nr_dev++;
-	return 1;
-}
-
-__setup("snd-azt2320=", alsa_card_azt2320_setup);
-
-#endif /* ifndef MODULE */

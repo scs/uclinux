@@ -56,7 +56,7 @@ static unsigned int portlist[] __initdata = {
 /* A zero-terminated list of IRQs to be probed. 
  * Used again after initial probe for sktr_chipset_init, called from sktr_open.
  */
-static unsigned short irqlist[] = {
+static const unsigned short irqlist[] = {
 	3, 5, 9, 10, 11, 12, 15,
 	0
 };
@@ -69,9 +69,8 @@ static int dmalist[] __initdata = {
 
 static char isa_cardname[] = "SK NET TR 4/16 ISA\0";
 
-int sk_isa_probe(struct net_device *dev);
+struct net_device *sk_isa_probe(int unit);
 static int sk_isa_open(struct net_device *dev);
-static int sk_isa_close(struct net_device *dev);
 static void sk_isa_read_eeprom(struct net_device *dev);
 static unsigned short sk_isa_setnselout_pins(struct net_device *dev);
 
@@ -95,16 +94,13 @@ static void sk_isa_sifwritew(struct net_device *dev, unsigned short val, unsigne
 	outw(val, dev->base_addr + reg);
 }
 
-struct sk_isa_card {
-	struct net_device *dev;
-	struct sk_isa_card *next;
-};
 
-static struct sk_isa_card *sk_isa_card_list;
-
-static int __init sk_isa_probe1(int ioaddr)
+static int __init sk_isa_probe1(struct net_device *dev, int ioaddr)
 {
 	unsigned char old, chk1, chk2;
+
+	if (!request_region(ioaddr, SK_ISA_IO_EXTENT, isa_cardname))
+		return -ENODEV;
 
 	old = inb(ioaddr + SIFADR);	/* Get the old SIFADR value */
 
@@ -122,8 +118,10 @@ static int __init sk_isa_probe1(int ioaddr)
 		chk2 = inb(ioaddr + SIFADD);
 		chk2 ^= 0x0FE;
 
-		if(chk1 != chk2)
-			return (-1);	/* No adapter */
+		if(chk1 != chk2) {
+			release_region(ioaddr, SK_ISA_IO_EXTENT);
+			return -ENODEV;
+		}
 
 		chk1 -= 2;
 	} while(chk1 != 0);	/* Repeat 128 times (all byte values) */
@@ -131,58 +129,39 @@ static int __init sk_isa_probe1(int ioaddr)
     	/* Restore the SIFADR value */
 	outb(old, ioaddr + SIFADR);
 
-	return (0);
+	dev->base_addr = ioaddr;
+	return 0;
 }
 
-int __init sk_isa_probe(struct net_device *dev)
+static int __init setup_card(struct net_device *dev)
 {
-        static int versionprinted;
 	struct net_local *tp;
-	int i,j;
-	struct sk_isa_card *card;
+        static int versionprinted;
+	const unsigned *port;
+	int j, err = 0;
 
-#ifndef MODULE
-	netdev_boot_setup_check(dev);
-	tr_setup(dev);
-#endif
+	if (!dev)
+		return -ENOMEM;
 
 	SET_MODULE_OWNER(dev);
-	if (!dev->base_addr)
-	{
-		for(i = 0; portlist[i]; i++)
-		{
-			if (!request_region(portlist[i], SK_ISA_IO_EXTENT, isa_cardname))
-				continue;
-
-			if(sk_isa_probe1(portlist[i]))
-			{
-				release_region(dev->base_addr, SK_ISA_IO_EXTENT); 
-				continue;
-			}
-
-			dev->base_addr = portlist[i];
-			break;
+	if (dev->base_addr)	/* probe specific location */
+		err = sk_isa_probe1(dev, dev->base_addr);
+	else {
+		for (port = portlist; *port; port++) {
+			err = sk_isa_probe1(dev, *port);
+			if (!err)
+				break;
 		}
-		if(!dev->base_addr)
-			return -1;
 	}
-	else
-	{
-		if (!request_region(dev->base_addr, SK_ISA_IO_EXTENT, isa_cardname))
-			return -1;
-
-		if(sk_isa_probe1(dev->base_addr))
-		{
-			release_region(dev->base_addr, SK_ISA_IO_EXTENT); 
-			return -1;
-  		}
-	} 
+	if (err)
+		goto out4;
 
 	/* At this point we have found a valid card. */
 
 	if (versionprinted++ == 0)
 		printk(KERN_DEBUG "%s", version);
 
+	err = -EIO;
 	if (tmsdev_init(dev, ISA_MAX_ADDRESS, NULL))
 		goto out4;
 
@@ -196,7 +175,7 @@ int __init sk_isa_probe(struct net_device *dev)
 		printk(":%2.2x", dev->dev_addr[j]);
 	printk("\n");
 		
-	tp = (struct net_local *)dev->priv;
+	tp = netdev_priv(dev);
 	tp->setnselout = sk_isa_setnselout_pins;
 		
 	tp->sifreadb = sk_isa_sifreadb;
@@ -209,7 +188,7 @@ int __init sk_isa_probe(struct net_device *dev)
 	tp->tmspriv = NULL;
 
 	dev->open = sk_isa_open;
-	dev->stop = sk_isa_close;
+	dev->stop = tms380tr_close;
 
 	if (dev->irq == 0)
 	{
@@ -284,13 +263,10 @@ int __init sk_isa_probe(struct net_device *dev)
 	printk(KERN_DEBUG "%s:    IO: %#4lx  IRQ: %d  DMA: %d\n",
 	       dev->name, dev->base_addr, dev->irq, dev->dma);
 		
-	/* Enlist in the card list */
-	card = kmalloc(sizeof(struct sk_isa_card), GFP_KERNEL);
-	if (!card)
+	err = register_netdev(dev);
+	if (err)
 		goto out;
-	card->next = sk_isa_card_list;
-	sk_isa_card_list = card;
-	card->dev = dev;
+
 	return 0;
 out:
 	free_dma(dev->dma);
@@ -300,7 +276,30 @@ out3:
 	tmsdev_term(dev);
 out4:
 	release_region(dev->base_addr, SK_ISA_IO_EXTENT); 
-	return -1;
+	return err;
+}
+
+struct net_device * __init sk_isa_probe(int unit)
+{
+	struct net_device *dev = alloc_trdev(sizeof(struct net_local));
+	int err = 0;
+
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	if (unit >= 0) {
+		sprintf(dev->name, "tr%d", unit);
+		netdev_boot_setup_check(dev);
+	}
+
+	err = setup_card(dev);
+	if (err)
+		goto out;
+
+	return dev;
+out:
+	free_netdev(dev);
+	return ERR_PTR(err);
 }
 
 /*
@@ -333,7 +332,7 @@ unsigned short sk_isa_setnselout_pins(struct net_device *dev)
 
 static int sk_isa_open(struct net_device *dev)
 {  
-	struct net_local *tp = (struct net_local *)dev->priv;
+	struct net_local *tp = netdev_priv(dev);
 	unsigned short val = 0;
 	unsigned short oldval;
 	int i;
@@ -359,14 +358,7 @@ static int sk_isa_open(struct net_device *dev)
 	val &= oldval;
 	sk_isa_sifwriteb(dev, val, POSREG);
 
-	tms380tr_open(dev);
-	return 0;
-}
-
-static int sk_isa_close(struct net_device *dev)
-{
-	tms380tr_close(dev);
-	return 0;
+	return tms380tr_open(dev);
 }
 
 #ifdef MODULE
@@ -383,50 +375,31 @@ MODULE_PARM(io, "1-" __MODULE_STRING(ISATR_MAX_ADAPTERS) "i");
 MODULE_PARM(irq, "1-" __MODULE_STRING(ISATR_MAX_ADAPTERS) "i");
 MODULE_PARM(dma, "1-" __MODULE_STRING(ISATR_MAX_ADAPTERS) "i");
 
-static int __init setup_card(unsigned long io, unsigned irq, unsigned char dma)
-{
-	int res = -ENOMEM;
-	struct sk_isa_card *this_card;
-	struct net_device *dev = alloc_trdev(0);
-
-	if (dev) {
-		dev->base_addr = io;
-		dev->irq       = irq;
-		dev->dma       = dma;
-		res = -ENODEV;
-		if (sk_isa_probe(dev) == 0) {
-			res = register_netdev(dev);
-			if (!res)
-				return 0;
-			release_region(dev->base_addr, SK_ISA_IO_EXTENT);
-			free_irq(dev->irq, dev);
-			free_dma(dev->dma);
-			tmsdev_term(dev);
-			this_card = sk_isa_card_list;
-			sk_isa_card_list = this_card->next;
-			kfree(this_card);
-		}
-		kfree(dev);
-	}
-	return res;
-}
+static struct net_device *sk_isa_dev[ISATR_MAX_ADAPTERS];
 
 int init_module(void)
 {
-	int i, num;
+	struct net_device *dev;
+	int i, num = 0, err = 0;
 
-	num = 0;
-	if (io[0]) { /* Only probe addresses from command line */
-		for (i = 0; i < ISATR_MAX_ADAPTERS ; i++) {
-			if (io[i] && setup_card(io[i], irq[i], dma[i]) == 0)
-				num++;
-		}
-	} else {
-		for(i = 0; num < ISATR_MAX_ADAPTERS && portlist[i]; i++) {
-			if (setup_card(portlist[i], irq[num], dma[num]) == 0)
-				num++;
+	for (i = 0; i < ISATR_MAX_ADAPTERS ; i++) {
+		dev = alloc_trdev(sizeof(struct net_local));
+		if (!dev)
+			continue;
+
+		dev->base_addr = io[i];
+		dev->irq = irq[i];
+		dev->dma = dma[i];
+		err = setup_card(dev);
+
+		if (!err) {
+			sk_isa_dev[i] = dev;
+			++num;
+		} else {
+			free_netdev(dev);
 		}
 	}
+
 	printk(KERN_NOTICE "skisa.c: %d cards found.\n", num);
 	/* Probe for cards. */
 	if (num == 0) {
@@ -438,11 +411,13 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	struct net_device *dev;
-	struct sk_isa_card *this_card;
+	int i;
 
-	while (sk_isa_card_list) {
-		dev = sk_isa_card_list->dev;
+	for (i = 0; i < ISATR_MAX_ADAPTERS ; i++) {
+		struct net_device *dev = sk_isa_dev[i];
+
+		if (!dev) 
+			continue;
 		
 		unregister_netdev(dev);
 		release_region(dev->base_addr, SK_ISA_IO_EXTENT);
@@ -450,9 +425,6 @@ void cleanup_module(void)
 		free_dma(dev->dma);
 		tmsdev_term(dev);
 		free_netdev(dev);
-		this_card = sk_isa_card_list;
-		sk_isa_card_list = this_card->next;
-		kfree(this_card);
 	}
 }
 #endif /* MODULE */

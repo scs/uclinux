@@ -75,6 +75,30 @@ static inline int __ffs(int x)
 	}
 	return r;
 }
+
+static inline int find_first_bit(const unsigned long *vaddr, unsigned size)
+{
+	const unsigned long *p = vaddr;
+	int res = 32;
+	unsigned long num;
+
+	if (!size)
+		return 0;
+
+	size = (size + 31) >> 5;
+	while (!(num = *p++)) {
+		if (!--size)
+			goto out;
+	}
+/*
+	__asm__ __volatile__ ("bfffo %1{#0,#0},%0"
+			      : "=d" (res) : "d" (num & -num));*/
+	res ^= 31;
+out:
+	return ((long)p - (long)vaddr - 4) * 8 + res;
+}
+
+
 /*
  * Every architecture must define this function. It's the fastest
  * way of searching a 140-bit bitmap where the first 100 bits are
@@ -334,6 +358,48 @@ found_middle:
 }
 
 /*
+ * Find next one bit in a bitmap reasonably efficiently.
+ */
+static __inline__ unsigned long find_next_bit(const unsigned long *addr,
+	unsigned long size, unsigned long offset)
+{
+	unsigned int *p = ((unsigned int *) addr) + (offset >> 5);
+	unsigned int result = offset & ~31UL;
+	unsigned int tmp;
+
+	if (offset >= size)
+		return size;
+	size -= result;
+	offset &= 31UL;
+	if (offset) {
+		tmp = *p++;
+		tmp &= ~0UL << offset;
+		if (size < 32)
+			goto found_first;
+		if (tmp)
+			goto found_middle;
+		size -= 32;
+		result += 32;
+	}
+	while (size >= 32) {
+		if ((tmp = *p++) != 0)
+			goto found_middle;
+		result += 32;
+		size -= 32;
+	}
+	if (!size)
+		return result;
+	tmp = *p;
+
+found_first:
+	tmp &= ~0UL >> (32 - size);
+	if (tmp == 0UL)        /* Are any bits set? */
+		return result + size; /* Nope. */
+found_middle:
+	return result + __ffs(tmp);
+}
+
+/*
  * ffs: find first bit set. This is defined the same way as
  * the libc and compiler builtin ffs routines, therefore
  * differs in spirit from the above ffz (man ffs).
@@ -423,7 +489,6 @@ static __inline__ unsigned long ext2_find_next_zero_bit(void *addr, unsigned lon
 	if(offset) {
 		tmp = *(p++);
 		tmp |= __swab32(~0UL >> (32-offset));
-//BFin		tmp |= ~0UL >> (32-offset);
 		if(size < 32)
 			goto found_first;
 		if(~tmp)

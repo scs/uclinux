@@ -60,7 +60,7 @@ void __init shm_init (void)
 {
 	ipc_init_ids(&shm_ids, 1);
 #ifdef CONFIG_PROC_FS
-	create_proc_read_entry("sysvipc/shm", 0, 0, sysvipc_shm_read_proc, NULL);
+	create_proc_read_entry("sysvipc/shm", 0, NULL, sysvipc_shm_read_proc, NULL);
 #endif
 }
 
@@ -149,7 +149,7 @@ static void shm_close (struct vm_area_struct *shmd)
 
 static int shm_mmap(struct file * file, struct vm_area_struct * vma)
 {
-	update_atime(file->f_dentry->d_inode);
+	file_accessed(file);
 	vma->vm_ops = &shm_vm_ops;
 	shm_inc(file->f_dentry->d_inode->i_ino);
 	return 0;
@@ -163,6 +163,10 @@ static struct vm_operations_struct shm_vm_ops = {
 	.open	= shm_open,	/* callback for a new vm-area open */
 	.close	= shm_close,	/* callback for when the vm-area is released */
 	.nopage	= shmem_nopage,
+#ifdef CONFIG_NUMA
+	.set_policy = shmem_set_policy,
+	.get_policy = shmem_get_policy,
+#endif
 };
 
 static int newseg (key_t key, int shmflg, size_t size)
@@ -380,9 +384,7 @@ static void shm_get_stat(unsigned long *rss, unsigned long *swp)
 
 		if (is_file_hugepages(shp->shm_file)) {
 			struct address_space *mapping = inode->i_mapping;
-			spin_lock(&mapping->page_lock);
 			*rss += (HPAGE_SIZE/PAGE_SIZE)*mapping->nrpages;
-			spin_unlock(&mapping->page_lock);
 		} else {
 			struct shmem_inode_info *info = SHMEM_I(inode);
 			spin_lock(&info->lock);
@@ -635,7 +637,7 @@ out:
  * "raddr" thing points to kernel space, and there has to be a wrapper around
  * this.
  */
-long sys_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
+long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 {
 	struct shmid_kernel *shp;
 	unsigned long addr;
@@ -656,7 +658,10 @@ long sys_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 			if (shmflg & SHM_RND)
 				addr &= ~(SHMLBA-1);	   /* round down */
 			else
-				return -EINVAL;
+#ifndef __ARCH_FORCE_SHMLBA
+				if (addr & ~PAGE_MASK)
+#endif
+					return -EINVAL;
 		}
 		flags = MAP_SHARED | MAP_FIXED;
 	} else {
@@ -759,6 +764,21 @@ asmlinkage long sys_shmdt(char __user *shmaddr)
 
 	down_write(&mm->mmap_sem);
 
+	/*
+	 * This function tries to be smart and unmap shm segments that
+	 * were modified by partial mlock or munmap calls:
+	 * - It first determines the size of the shm segment that should be
+	 *   unmapped: It searches for a vma that is backed by shm and that
+	 *   started at address shmaddr. It records it's size and then unmaps
+	 *   it.
+	 * - Then it unmaps all shm vmas that started at shmaddr and that
+	 *   are within the initially determined size.
+	 * Errors from do_munmap are ignored: the function only fails if
+	 * it's called with invalid parameters or if it's called to unmap
+	 * a part of a vma. Both calls in this function are for full vmas,
+	 * the parameters are directly copied from the vma itself and always
+	 * valid - therefore do_munmap cannot fail. (famous last words?)
+	 */
 	/*
 	 * If it had been mremap()'d, the starting address would not
 	 * match the usual checks anyway. So assume all vma's are

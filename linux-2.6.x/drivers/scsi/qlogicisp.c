@@ -36,7 +36,7 @@
 #include <asm/irq.h>
 #include <asm/byteorder.h>
 #include "scsi.h"
-#include "hosts.h"
+#include <scsi/scsi_host.h>
 #include "qlogicisp.h"
 
 /* Configuration section *****************************************************/
@@ -1230,7 +1230,7 @@ int isp1020_reset(Scsi_Cmnd *Cmnd, unsigned int reset_flags)
 
 	LEAVE("isp1020_reset");
 
-	return return_status;;
+	return return_status;
 }
 
 

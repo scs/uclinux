@@ -49,7 +49,7 @@
 #include <scsi/scsicam.h>
 
 #include "scsi.h"
-#include "hosts.h"
+#include <scsi/scsi_host.h>
 
 #include "megaraid.h"
 
@@ -261,10 +261,6 @@ mega_query_adapter(adapter_t *adapter)
 			"megaraid: Product_info cmd failed with error: %d\n",
 				retval);
 
-		pci_dma_sync_single(adapter->dev, prod_info_dma_handle,
-				sizeof(mega_product_info),
-				PCI_DMA_FROMDEVICE);
-
 		pci_unmap_single(adapter->dev, prod_info_dma_handle,
 				sizeof(mega_product_info), PCI_DMA_FROMDEVICE);
 	}
@@ -339,6 +335,18 @@ mega_query_adapter(adapter_t *adapter)
 	return 0;
 }
 
+/**
+ * mega_runpendq()
+ * @adapter - pointer to our soft state
+ *
+ * Runs through the list of pending requests.
+ */
+static inline void
+mega_runpendq(adapter_t *adapter)
+{
+	if(!list_empty(&adapter->pending_list))
+		__mega_runpendq(adapter);
+}
 
 /*
  * megaraid_queue()
@@ -388,6 +396,95 @@ megaraid_queue(Scsi_Cmnd *scmd, void (*done)(Scsi_Cmnd *))
 	return busy;
 }
 
+/**
+ * mega_allocate_scb()
+ * @adapter - pointer to our soft state
+ * @cmd - scsi command from the mid-layer
+ *
+ * Allocate a SCB structure. This is the central structure for controller
+ * commands.
+ */
+static inline scb_t *
+mega_allocate_scb(adapter_t *adapter, Scsi_Cmnd *cmd)
+{
+	struct list_head *head = &adapter->free_list;
+	scb_t	*scb;
+
+	/* Unlink command from Free List */
+	if( !list_empty(head) ) {
+
+		scb = list_entry(head->next, scb_t, list);
+
+		list_del_init(head->next);
+
+		scb->state = SCB_ACTIVE;
+		scb->cmd = cmd;
+		scb->dma_type = MEGA_DMA_TYPE_NONE;
+
+		return scb;
+	}
+
+	return NULL;
+}
+
+/**
+ * mega_get_ldrv_num()
+ * @adapter - pointer to our soft state
+ * @cmd - scsi mid layer command
+ * @channel - channel on the controller
+ *
+ * Calculate the logical drive number based on the information in scsi command
+ * and the channel number.
+ */
+static inline int
+mega_get_ldrv_num(adapter_t *adapter, Scsi_Cmnd *cmd, int channel)
+{
+	int		tgt;
+	int		ldrv_num;
+
+	tgt = cmd->device->id;
+	
+	if ( tgt > adapter->this_id )
+		tgt--;	/* we do not get inquires for initiator id */
+
+	ldrv_num = (channel * 15) + tgt;
+
+
+	/*
+	 * If we have a logical drive with boot enabled, project it first
+	 */
+	if( adapter->boot_ldrv_enabled ) {
+		if( ldrv_num == 0 ) {
+			ldrv_num = adapter->boot_ldrv;
+		}
+		else {
+			if( ldrv_num <= adapter->boot_ldrv ) {
+				ldrv_num--;
+			}
+		}
+	}
+
+	/*
+	 * If "delete logical drive" feature is enabled on this controller.
+	 * Do only if at least one delete logical drive operation was done.
+	 *
+	 * Also, after logical drive deletion, instead of logical drive number,
+	 * the value returned should be 0x80+logical drive id.
+	 *
+	 * These is valid only for IO commands.
+	 */
+
+	if (adapter->support_random_del && adapter->read_ldidmap )
+		switch (cmd->cmnd[0]) {
+		case READ_6:	/* fall through */
+		case WRITE_6:	/* fall through */
+		case READ_10:	/* fall through */
+		case WRITE_10:
+			ldrv_num += 0x80;
+		}
+
+	return ldrv_num;
+}
 
 /**
  * mega_build_cmd()
@@ -970,52 +1067,6 @@ mega_prepare_extpassthru(adapter_t *adapter, scb_t *scb, Scsi_Cmnd *cmd,
 	return epthru;
 }
 
-
-/**
- * mega_allocate_scb()
- * @adapter - pointer to our soft state
- * @cmd - scsi command from the mid-layer
- *
- * Allocate a SCB structure. This is the central structure for controller
- * commands.
- */
-static inline scb_t *
-mega_allocate_scb(adapter_t *adapter, Scsi_Cmnd *cmd)
-{
-	struct list_head *head = &adapter->free_list;
-	scb_t	*scb;
-
-	/* Unlink command from Free List */
-	if( !list_empty(head) ) {
-
-		scb = list_entry(head->next, scb_t, list);
-
-		list_del_init(head->next);
-
-		scb->state = SCB_ACTIVE;
-		scb->cmd = cmd;
-		scb->dma_type = MEGA_DMA_TYPE_NONE;
-
-		return scb;
-	}
-
-	return NULL;
-}
-
-
-/**
- * mega_runpendq()
- * @adapter - pointer to our soft state
- *
- * Runs through the list of pending requests.
- */
-static inline void
-mega_runpendq(adapter_t *adapter)
-{
-	if(!list_empty(&adapter->pending_list))
-		__mega_runpendq(adapter);
-}
-
 static void
 __mega_runpendq(adapter_t *adapter)
 {
@@ -1047,7 +1098,7 @@ __mega_runpendq(adapter_t *adapter)
  * busy. We also take the scb from the pending list if the mailbox is
  * available.
  */
-static inline int
+static int
 issue_scb(adapter_t *adapter, scb_t *scb)
 {
 	volatile mbox64_t	*mbox64 = adapter->mbox64;
@@ -1108,6 +1159,16 @@ issue_scb(adapter_t *adapter, scb_t *scb)
 	return 0;
 }
 
+/*
+ * Wait until the controller's mailbox is available
+ */
+static inline int
+mega_busywait_mbox (adapter_t *adapter)
+{
+	if (adapter->mbox->m_in.busy)
+		return __mega_busywait_mbox(adapter);
+	return 0;
+}
 
 /**
  * issue_scb_block()
@@ -1354,7 +1415,7 @@ megaraid_isr_memmapped(int irq, void *devp, struct pt_regs *regs)
  *
  * Complete the comamnds and call the scsi mid-layer callback hooks.
  */
-static inline void
+static void
 mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 {
 	mega_ext_passthru	*epthru = NULL;
@@ -1651,26 +1712,11 @@ mega_free_scb(adapter_t *adapter, scb_t *scb)
 	case MEGA_BULK_DATA:
 		pci_unmap_page(adapter->dev, scb->dma_h_bulkdata,
 			scb->cmd->request_bufflen, scb->dma_direction);
-
-		if( scb->dma_direction == PCI_DMA_FROMDEVICE ) {
-			pci_dma_sync_single(adapter->dev,
-					scb->dma_h_bulkdata,
-					scb->cmd->request_bufflen,
-					PCI_DMA_FROMDEVICE);
-		}
-
 		break;
 
 	case MEGA_SGLIST:
 		pci_unmap_sg(adapter->dev, scb->cmd->request_buffer,
 			scb->cmd->use_sg, scb->dma_direction);
-
-		if( scb->dma_direction == PCI_DMA_FROMDEVICE ) {
-			pci_dma_sync_sg(adapter->dev,
-					scb->cmd->request_buffer,
-					scb->cmd->use_sg, PCI_DMA_FROMDEVICE);
-		}
-
 		break;
 
 	default:
@@ -1689,17 +1735,6 @@ mega_free_scb(adapter_t *adapter, scb_t *scb)
 	list_add(&scb->list, &adapter->free_list);
 }
 
-
-/*
- * Wait until the controller's mailbox is available
- */
-static inline int
-mega_busywait_mbox (adapter_t *adapter)
-{
-	if (adapter->mbox->m_in.busy)
-		return __mega_busywait_mbox(adapter);
-	return 0;
-}
 
 static int
 __mega_busywait_mbox (adapter_t *adapter)
@@ -1758,14 +1793,6 @@ mega_build_sglist(adapter_t *adapter, scb_t *scb, u32 *buf, u32 *len)
 			*buf = (u32)scb->dma_h_bulkdata;
 			*len = (u32)cmd->request_bufflen;
 		}
-
-		if( scb->dma_direction == PCI_DMA_TODEVICE ) {
-			pci_dma_sync_single(adapter->dev,
-					scb->dma_h_bulkdata,
-					cmd->request_bufflen,
-					PCI_DMA_TODEVICE);
-		}
-
 		return 0;
 	}
 
@@ -1803,11 +1830,6 @@ mega_build_sglist(adapter_t *adapter, scb_t *scb, u32 *buf, u32 *len)
 	 * with a sg list
 	 */
 	*len = (u32)cmd->request_bufflen;
-
-	if( scb->dma_direction == PCI_DMA_TODEVICE ) {
-		pci_dma_sync_sg(adapter->dev, sgl, cmd->use_sg,
-				PCI_DMA_TODEVICE);
-	}
 
 	/* Return count of SG requests */
 	return sgcnt;
@@ -2047,6 +2069,49 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 	}
 
 	return FALSE;
+}
+
+static inline int
+make_local_pdev(adapter_t *adapter, struct pci_dev **pdev)
+{
+	*pdev = kmalloc(sizeof(struct pci_dev), GFP_KERNEL);
+
+	if( *pdev == NULL ) return -1;
+
+	memcpy(*pdev, adapter->dev, sizeof(struct pci_dev));
+
+	if( pci_set_dma_mask(*pdev, 0xffffffff) != 0 ) {
+		kfree(*pdev);
+		return -1;
+	}
+
+	return 0;
+}
+
+static inline void
+free_local_pdev(struct pci_dev *pdev)
+{
+	kfree(pdev);
+}
+
+/**
+ * mega_allocate_inquiry()
+ * @dma_handle - handle returned for dma address
+ * @pdev - handle to pci device
+ *
+ * allocates memory for inquiry structure
+ */
+static inline void *
+mega_allocate_inquiry(dma_addr_t *dma_handle, struct pci_dev *pdev)
+{
+	return pci_alloc_consistent(pdev, sizeof(mega_inquiry3), dma_handle);
+}
+
+
+static inline void
+mega_free_inquiry(void *inquiry, dma_addr_t dma_handle, struct pci_dev *pdev)
+{
+	pci_free_consistent(pdev, sizeof(mega_inquiry3), inquiry, dma_handle);
 }
 
 
@@ -2604,21 +2669,15 @@ proc_pdrv(adapter_t *adapter, char *page, int channel)
 	}
 
 	if( (inquiry = mega_allocate_inquiry(&dma_handle, pdev)) == NULL ) {
-		free_local_pdev(pdev);
-		return len;
+		goto free_pdev;
 	}
 
 	if( mega_adapinq(adapter, dma_handle) != 0 ) {
-
 		len = sprintf(page, "Adapter inquiry failed.\n");
 
 		printk(KERN_WARNING "megaraid: inquiry failed.\n");
 
-		mega_free_inquiry(inquiry, dma_handle, pdev);
-
-		free_local_pdev(pdev);
-
-		return len;
+		goto free_inquiry;
 	}
 
 
@@ -2627,11 +2686,7 @@ proc_pdrv(adapter_t *adapter, char *page, int channel)
 	if( scsi_inq == NULL ) {
 		len = sprintf(page, "memory not available for scsi inq.\n");
 
-		mega_free_inquiry(inquiry, dma_handle, pdev);
-
-		free_local_pdev(pdev);
-
-		return len;
+		goto free_inquiry;
 	}
 
 	if( adapter->flag & BOARD_40LD ) {
@@ -2644,7 +2699,9 @@ proc_pdrv(adapter_t *adapter, char *page, int channel)
 
 	max_channels = adapter->product_info.nchannels;
 
-	if( channel >= max_channels ) return 0;
+	if( channel >= max_channels ) {
+		goto free_pci;
+	}
 
 	for( tgt = 0; tgt <= MAX_TARGET; tgt++ ) {
 
@@ -2709,10 +2766,11 @@ proc_pdrv(adapter_t *adapter, char *page, int channel)
 		len += mega_print_inquiry(page+len, scsi_inq);
 	}
 
+free_pci:
 	pci_free_consistent(pdev, 256, scsi_inq, scsi_inq_dma_handle);
-
+free_inquiry:
 	mega_free_inquiry(inquiry, dma_handle, pdev);
-
+free_pdev:
 	free_local_pdev(pdev);
 
 	return len;
@@ -3308,13 +3366,13 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 	nitioctl_t	uioc;
 	int		adapno;
 	int		rval;
-	mega_passthru	*upthru;	/* user address for passthru */
+	mega_passthru	__user *upthru;	/* user address for passthru */
 	mega_passthru	*pthru;		/* copy user passthru here */
 	dma_addr_t	pthru_dma_hndl;
 	void		*data = NULL;	/* data to be transferred */
 	dma_addr_t	data_dma_hndl;	/* dma handle for data xfer area */
 	megacmd_t	mc;
-	megastat_t	*ustats;
+	megastat_t	__user *ustats;
 	int		num_ldrv;
 	u32		uxferaddr = 0;
 	struct pci_dev	*pdev;
@@ -3339,20 +3397,20 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 	 * addresses.
 	 */
 	memset(&uioc, 0, sizeof(nitioctl_t));
-	if( (rval = mega_m_to_n( (void *)arg, &uioc)) != 0 )
+	if( (rval = mega_m_to_n( (void __user *)arg, &uioc)) != 0 )
 		return rval;
 
 
 	switch( uioc.opcode ) {
 
 	case GET_DRIVER_VER:
-		if( put_user(driver_ver, (u32 *)uioc.uioc_uaddr) )
+		if( put_user(driver_ver, (u32 __user *)uioc.uioc_uaddr) )
 			return (-EFAULT);
 
 		break;
 
 	case GET_N_ADAP:
-		if( put_user(hba_count, (u32 *)uioc.uioc_uaddr) )
+		if( put_user(hba_count, (u32 __user *)uioc.uioc_uaddr) )
 			return (-EFAULT);
 
 		/*
@@ -3386,7 +3444,7 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 
 		adapter = hba_soft_state[adapno];
 
-		ustats = (megastat_t *)uioc.uioc_uaddr;
+		ustats = uioc.uioc_uaddr;
 
 		if( copy_from_user(&num_ldrv, &ustats->num_ldrv, sizeof(int)) )
 			return (-EFAULT);
@@ -3457,7 +3515,7 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 
 				mc.status = rval;
 
-				rval = mega_n_to_m((void *)arg, &mc);
+				rval = mega_n_to_m((void __user *)arg, &mc);
 			}
 
 			return rval;
@@ -3497,12 +3555,12 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 			/*
 			 * The user passthru structure
 			 */
-			upthru = (mega_passthru *)MBOX(uioc)->xferaddr;
+			upthru = (mega_passthru __user *)MBOX(uioc)->xferaddr;
 
 			/*
 			 * Copy in the user passthru here.
 			 */
-			if( copy_from_user(pthru, (char *)upthru,
+			if( copy_from_user(pthru, upthru,
 						sizeof(mega_passthru)) ) {
 
 				pci_free_consistent(pdev,
@@ -3549,7 +3607,7 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 				/*
 				 * Get the user data
 				 */
-				if( copy_from_user(data, (char *)uxferaddr,
+				if( copy_from_user(data, (char __user *)uxferaddr,
 							pthru->dataxferlen) ) {
 					rval = (-EFAULT);
 					goto freemem_and_return;
@@ -3566,7 +3624,7 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 			 */
 			mega_internal_command(adapter, LOCK_INT, &mc, pthru);
 
-			rval = mega_n_to_m((void *)arg, &mc);
+			rval = mega_n_to_m((void __user *)arg, &mc);
 
 			if( rval ) goto freemem_and_return;
 
@@ -3575,7 +3633,7 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 			 * Is data going up-stream
 			 */
 			if( pthru->dataxferlen && (uioc.flags & UIOC_RD) ) {
-				if( copy_to_user((char *)uxferaddr, data,
+				if( copy_to_user((char __user *)uxferaddr, data,
 							pthru->dataxferlen) ) {
 					rval = (-EFAULT);
 				}
@@ -3627,7 +3685,7 @@ freemem_and_return:
 				/*
 				 * Get the user data
 				 */
-				if( copy_from_user(data, (char *)uxferaddr,
+				if( copy_from_user(data, (char __user *)uxferaddr,
 							uioc.xferlen) ) {
 
 					pci_free_consistent(pdev,
@@ -3649,7 +3707,7 @@ freemem_and_return:
 			 */
 			mega_internal_command(adapter, LOCK_INT, &mc, NULL);
 
-			rval = mega_n_to_m((void *)arg, &mc);
+			rval = mega_n_to_m((void __user *)arg, &mc);
 
 			if( rval ) {
 				if( uioc.xferlen ) {
@@ -3667,7 +3725,7 @@ freemem_and_return:
 			 * Is data going up-stream
 			 */
 			if( uioc.xferlen && (uioc.flags & UIOC_RD) ) {
-				if( copy_to_user((char *)uxferaddr, data,
+				if( copy_to_user((char __user *)uxferaddr, data,
 							uioc.xferlen) ) {
 
 					rval = (-EFAULT);
@@ -3703,7 +3761,7 @@ freemem_and_return:
  * Converts the older mimd ioctl structure to newer NIT structure
  */
 static int
-mega_m_to_n(void *arg, nitioctl_t *uioc)
+mega_m_to_n(void __user *arg, nitioctl_t *uioc)
 {
 	struct uioctl_t	uioc_mimd;
 	char	signature[8] = {0};
@@ -3718,7 +3776,7 @@ mega_m_to_n(void *arg, nitioctl_t *uioc)
 	 * begining of the structure.
 	 */
 
-	if( copy_from_user(signature, (char *)arg, 7) )
+	if( copy_from_user(signature, arg, 7) )
 		return (-EFAULT);
 
 	if( memcmp(signature, "MEGANIT", 7) == 0 ) {
@@ -3731,7 +3789,7 @@ mega_m_to_n(void *arg, nitioctl_t *uioc)
 		 */
 		return -EINVAL;
 #if 0
-		if( copy_from_user(uioc, (char *)arg, sizeof(nitioctl_t)) )
+		if( copy_from_user(uioc, arg, sizeof(nitioctl_t)) )
 			return (-EFAULT);
 		return 0;
 #endif
@@ -3742,7 +3800,7 @@ mega_m_to_n(void *arg, nitioctl_t *uioc)
 	 *
 	 * Get the user ioctl structure
 	 */
-	if( copy_from_user(&uioc_mimd, (char *)arg, sizeof(struct uioctl_t)) )
+	if( copy_from_user(&uioc_mimd, arg, sizeof(struct uioctl_t)) )
 		return (-EFAULT);
 
 
@@ -3829,50 +3887,52 @@ mega_m_to_n(void *arg, nitioctl_t *uioc)
  * conforms to older mimd ioctl interface or newer NIT ioctl interface
  */
 static int
-mega_n_to_m(void *arg, megacmd_t *mc)
+mega_n_to_m(void __user *arg, megacmd_t *mc)
 {
-	nitioctl_t	*uiocp;
-	megacmd_t	*umc;
-	mega_passthru	*upthru;
-	struct uioctl_t	*uioc_mimd;
+	nitioctl_t	__user *uiocp;
+	megacmd_t	__user *umc;
+	mega_passthru	__user *upthru;
+	struct uioctl_t	__user *uioc_mimd;
 	char	signature[8] = {0};
 
 	/*
 	 * check is the application conforms to NIT.
 	 */
-	if( copy_from_user(signature, (char *)arg, 7) )
+	if( copy_from_user(signature, arg, 7) )
 		return -EFAULT;
 
 	if( memcmp(signature, "MEGANIT", 7) == 0 ) {
 
-		uiocp = (nitioctl_t *)arg;
+		uiocp = arg;
 
-		if( put_user(mc->status, (u8 *)&MBOX_P(uiocp)->status) )
+		if( put_user(mc->status, (u8 __user *)&MBOX_P(uiocp)->status) )
 			return (-EFAULT);
 
 		if( mc->cmd == MEGA_MBOXCMD_PASSTHRU ) {
 
 			umc = MBOX_P(uiocp);
 
-			upthru = (mega_passthru *)umc->xferaddr;
+			if (get_user(upthru, (mega_passthru __user * __user *)&umc->xferaddr))
+				return -EFAULT;
 
-			if( put_user(mc->status, (u8 *)&upthru->scsistatus) )
+			if( put_user(mc->status, (u8 __user *)&upthru->scsistatus))
 				return (-EFAULT);
 		}
 	}
 	else {
-		uioc_mimd = (struct uioctl_t *)arg;
+		uioc_mimd = arg;
 
-		if( put_user(mc->status, (u8 *)&uioc_mimd->mbox[17]) )
+		if( put_user(mc->status, (u8 __user *)&uioc_mimd->mbox[17]) )
 			return (-EFAULT);
 
 		if( mc->cmd == MEGA_MBOXCMD_PASSTHRU ) {
 
-			umc = (megacmd_t *)uioc_mimd->mbox;
+			umc = (megacmd_t __user *)uioc_mimd->mbox;
 
-			upthru = (mega_passthru *)umc->xferaddr;
+			if (get_user(upthru, (mega_passthru __user * __user *)&umc->xferaddr))
+				return (-EFAULT);
 
-			if( put_user(mc->status, (u8 *)&upthru->scsistatus) )
+			if( put_user(mc->status, (u8 __user *)&upthru->scsistatus) )
 				return (-EFAULT);
 		}
 	}
@@ -4107,7 +4167,6 @@ mega_support_ext_cdb(adapter_t *adapter)
 static int
 mega_del_logdrv(adapter_t *adapter, int logdrv)
 {
-	DECLARE_WAIT_QUEUE_HEAD(wq);
 	unsigned long flags;
 	scb_t *scb;
 	int rval;
@@ -4122,11 +4181,9 @@ mega_del_logdrv(adapter_t *adapter, int logdrv)
 	 * Wait till all the issued commands are complete and there are no
 	 * commands in the pending queue
 	 */
-	while( atomic_read(&adapter->pend_cmds) > 0 ||
-			!list_empty(&adapter->pending_list) ) {
-
-		sleep_on_timeout( &wq, 1*HZ );	/* sleep for 1s */
-	}
+	while (atomic_read(&adapter->pend_cmds) > 0 ||
+	       !list_empty(&adapter->pending_list))
+		msleep(1000);	/* sleep for 1s */
 
 	rval = mega_do_del_logdrv(adapter, logdrv);
 
@@ -4273,67 +4330,6 @@ mega_support_cluster(adapter_t *adapter)
 }
 
 
-
-/**
- * mega_get_ldrv_num()
- * @adapter - pointer to our soft state
- * @cmd - scsi mid layer command
- * @channel - channel on the controller
- *
- * Calculate the logical drive number based on the information in scsi command
- * and the channel number.
- */
-static inline int
-mega_get_ldrv_num(adapter_t *adapter, Scsi_Cmnd *cmd, int channel)
-{
-	int		tgt;
-	int		ldrv_num;
-
-	tgt = cmd->device->id;
-	
-	if ( tgt > adapter->this_id )
-		tgt--;	/* we do not get inquires for initiator id */
-
-	ldrv_num = (channel * 15) + tgt;
-
-
-	/*
-	 * If we have a logical drive with boot enabled, project it first
-	 */
-	if( adapter->boot_ldrv_enabled ) {
-		if( ldrv_num == 0 ) {
-			ldrv_num = adapter->boot_ldrv;
-		}
-		else {
-			if( ldrv_num <= adapter->boot_ldrv ) {
-				ldrv_num--;
-			}
-		}
-	}
-
-	/*
-	 * If "delete logical drive" feature is enabled on this controller.
-	 * Do only if at least one delete logical drive operation was done.
-	 *
-	 * Also, after logical drive deletion, instead of logical drive number,
-	 * the value returned should be 0x80+logical drive id.
-	 *
-	 * These is valid only for IO commands.
-	 */
-
-	if (adapter->support_random_del && adapter->read_ldidmap )
-		switch (cmd->cmnd[0]) {
-		case READ_6:	/* fall through */
-		case WRITE_6:	/* fall through */
-		case READ_10:	/* fall through */
-		case WRITE_10:
-			ldrv_num += 0x80;
-		}
-
-	return ldrv_num;
-}
-
-
 /**
  * mega_adapinq()
  * @adapter - pointer to our soft state
@@ -4366,27 +4362,6 @@ mega_adapinq(adapter_t *adapter, dma_addr_t dma_handle)
 	}
 
 	return 0;
-}
-
-
-/**
- * mega_allocate_inquiry()
- * @dma_handle - handle returned for dma address
- * @pdev - handle to pci device
- *
- * allocates memory for inquiry structure
- */
-static inline caddr_t
-mega_allocate_inquiry(dma_addr_t *dma_handle, struct pci_dev *pdev)
-{
-	return pci_alloc_consistent(pdev, sizeof(mega_inquiry3), dma_handle);
-}
-
-
-static inline void
-mega_free_inquiry(caddr_t inquiry, dma_addr_t dma_handle, struct pci_dev *pdev)
-{
-	pci_free_consistent(pdev, sizeof(mega_inquiry3), inquiry, dma_handle);
 }
 
 
@@ -4590,30 +4565,8 @@ mega_internal_done(Scsi_Cmnd *scmd)
 }
 
 
-static inline int
-make_local_pdev(adapter_t *adapter, struct pci_dev **pdev)
-{
-	*pdev = kmalloc(sizeof(struct pci_dev), GFP_KERNEL);
-
-	if( *pdev == NULL ) return -1;
-
-	memcpy(*pdev, adapter->dev, sizeof(struct pci_dev));
-
-	if( pci_set_dma_mask(*pdev, 0xffffffff) != 0 ) {
-		kfree(*pdev);
-		return -1;
-	}
-
-	return 0;
-}
-
-static inline void
-free_local_pdev(struct pci_dev *pdev)
-{
-	kfree(pdev);
-}
-
 static struct scsi_host_template megaraid_template = {
+	.module				= THIS_MODULE,
 	.name				= "MegaRAID",
 	.proc_name			= "megaraid",
 	.info				= megaraid_info,
@@ -4644,9 +4597,30 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (pci_enable_device(pdev))
 		goto out;
+	pci_set_master(pdev);
 
 	pci_bus = pdev->bus->number;
 	pci_dev_func = pdev->devfn;
+
+	/*
+	 * The megaraid3 stuff reports the ID of the Intel part which is not
+	 * remotely specific to the megaraid
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
+		u16 magic;
+		/*
+		 * Don't fall over the Compaq management cards using the same
+		 * PCI identifier
+		 */
+		if (pdev->subsystem_vendor == PCI_VENDOR_ID_COMPAQ &&
+		    pdev->subsystem_device == 0xC000)
+		   	return -ENODEV;
+		/* Now check the magic signature byte */
+		pci_read_config_word(pdev, PCI_CONF_AMISIG, &magic);
+		if (magic != HBA_SIGNATURE_471 && magic != HBA_SIGNATURE)
+			return -ENODEV;
+		/* Ok it is probably a megaraid */
+	}
 
 	/*
 	 * For these vendor and device ids, signature offsets are not
@@ -5118,10 +5092,6 @@ static int __init megaraid_init(void)
 	if (max_mbox_busy_wait > MBOX_BUSY_WAIT)
 		max_mbox_busy_wait = MBOX_BUSY_WAIT;
 
-	error = pci_module_init(&megaraid_pci_driver);
-	if (error) 
-		return error;
-	
 #ifdef CONFIG_PROC_FS
 	mega_proc_dir_entry = proc_mkdir("megaraid", &proc_root);
 	if (!mega_proc_dir_entry) {
@@ -5129,6 +5099,13 @@ static int __init megaraid_init(void)
 				"megaraid: failed to create megaraid root\n");
 	}
 #endif
+	error = pci_module_init(&megaraid_pci_driver);
+	if (error) {
+#ifdef CONFIG_PROC_FS
+		remove_proc_entry("megaraid", &proc_root);
+#endif
+		return error;
+	}
 
 	/*
 	 * Register the driver as a character device, for applications

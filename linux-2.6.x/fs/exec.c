@@ -44,10 +44,10 @@
 #include <linux/ptrace.h>
 #include <linux/mount.h>
 #include <linux/security.h>
-#include <linux/rmap-locking.h>
+#include <linux/syscalls.h>
+#include <linux/rmap.h>
 
 #include <asm/uaccess.h>
-#include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 
 #ifdef CONFIG_KMOD
@@ -194,7 +194,6 @@ static int count(char __user * __user * argv, int max)
  * memory to free pages in kernel mem. These are in a format ready
  * to be put directly into the top of new user memory.
  */
-
 int copy_strings(int argc,char __user * __user * argv, struct linux_binprm *bprm)
 {
 	struct page *kmapped_page = NULL;
@@ -272,10 +271,10 @@ out:
 		kunmap(kmapped_page);
 	return ret;
 }
+
 /*
  * Like copy_strings, but get argv and its values from kernel memory.
  */
-
 int copy_strings_kernel(int argc,char ** argv, struct linux_binprm *bprm)
 {
 	int r;
@@ -293,56 +292,51 @@ EXPORT_SYMBOL(copy_strings_kernel);
  * This routine is used to map in a page into an address space: needed by
  * execve() for the initial stack and environment pages.
  *
- * tsk->mmap_sem is held for writing.
+ * vma->vm_mm->mmap_sem is held for writing.
  */
-void put_dirty_page(struct task_struct *tsk, struct page *page,
-			unsigned long address, pgprot_t prot)
+void install_arg_page(struct vm_area_struct *vma,
+			struct page *page, unsigned long address)
 {
+	struct mm_struct *mm = vma->vm_mm;
 	pgd_t * pgd;
 	pmd_t * pmd;
 	pte_t * pte;
-	struct pte_chain *pte_chain;
 
-	if (page_count(page) != 1)
-		printk(KERN_ERR "mem_map disagrees with %p at %08lx\n",
-				page, address);
-
-	pgd = pgd_offset(tsk->mm, address);
-	pte_chain = pte_chain_alloc(GFP_KERNEL);
-	if (!pte_chain)
+	if (unlikely(anon_vma_prepare(vma)))
 		goto out_sig;
-	spin_lock(&tsk->mm->page_table_lock);
-	pmd = pmd_alloc(tsk->mm, pgd, address);
+
+	flush_dcache_page(page);
+	pgd = pgd_offset(mm, address);
+
+	spin_lock(&mm->page_table_lock);
+	pmd = pmd_alloc(mm, pgd, address);
 	if (!pmd)
 		goto out;
-	pte = pte_alloc_map(tsk->mm, pmd, address);
+	pte = pte_alloc_map(mm, pmd, address);
 	if (!pte)
 		goto out;
 	if (!pte_none(*pte)) {
 		pte_unmap(pte);
 		goto out;
 	}
+	mm->rss++;
 	lru_cache_add_active(page);
-	flush_dcache_page(page);
-	set_pte(pte, pte_mkdirty(pte_mkwrite(mk_pte(page, prot))));
-	pte_chain = page_add_rmap(page, pte, pte_chain);
+	set_pte(pte, pte_mkdirty(pte_mkwrite(mk_pte(
+					page, vma->vm_page_prot))));
+	page_add_anon_rmap(page, vma, address);
 	pte_unmap(pte);
-	tsk->mm->rss++;
-	spin_unlock(&tsk->mm->page_table_lock);
+	spin_unlock(&mm->page_table_lock);
 
 	/* no need for flush_tlb */
-	pte_chain_free(pte_chain);
 	return;
 out:
-	spin_unlock(&tsk->mm->page_table_lock);
+	spin_unlock(&mm->page_table_lock);
 out_sig:
 	__free_page(page);
-	force_sig(SIGKILL, tsk);
-	pte_chain_free(pte_chain);
-	return;
+	force_sig(SIGKILL, current);
 }
 
-int setup_arg_pages(struct linux_binprm *bprm)
+int setup_arg_pages(struct linux_binprm *bprm, int executable_stack)
 {
 	unsigned long stack_base;
 	struct vm_area_struct *mpnt;
@@ -414,6 +408,8 @@ int setup_arg_pages(struct linux_binprm *bprm)
 		return -ENOMEM;
 	}
 
+	memset(mpnt, 0, sizeof(*mpnt));
+
 	down_write(&mm->mmap_sem);
 	{
 		mpnt->vm_mm = mm;
@@ -425,13 +421,17 @@ int setup_arg_pages(struct linux_binprm *bprm)
 		mpnt->vm_start = PAGE_MASK & (unsigned long) bprm->p;
 		mpnt->vm_end = STACK_TOP;
 #endif
-		mpnt->vm_page_prot = protection_map[VM_STACK_FLAGS & 0x7];
-		mpnt->vm_flags = VM_STACK_FLAGS;
-		mpnt->vm_ops = NULL;
-		mpnt->vm_pgoff = 0;
-		mpnt->vm_file = NULL;
-		INIT_LIST_HEAD(&mpnt->shared);
-		mpnt->vm_private_data = (void *) 0;
+		/* Adjust stack execute permissions; explicitly enable
+		 * for EXSTACK_ENABLE_X, disable for EXSTACK_DISABLE_X
+		 * and leave alone (arch default) otherwise. */
+		if (unlikely(executable_stack == EXSTACK_ENABLE_X))
+			mpnt->vm_flags = VM_STACK_FLAGS |  VM_EXEC;
+		else if (executable_stack == EXSTACK_DISABLE_X)
+			mpnt->vm_flags = VM_STACK_FLAGS & ~VM_EXEC;
+		else
+			mpnt->vm_flags = VM_STACK_FLAGS;
+		mpnt->vm_flags |= mm->def_flags;
+		mpnt->vm_page_prot = protection_map[mpnt->vm_flags & 0x7];
 		insert_vm_struct(mm, mpnt);
 		mm->total_vm = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
 	}
@@ -440,8 +440,7 @@ int setup_arg_pages(struct linux_binprm *bprm)
 		struct page *page = bprm->page[i];
 		if (page) {
 			bprm->page[i] = NULL;
-			put_dirty_page(current, page, stack_base,
-					mpnt->vm_page_prot);
+			install_arg_page(mpnt, page, stack_base);
 		}
 		stack_base += PAGE_SIZE;
 	}
@@ -601,6 +600,13 @@ static inline int de_thread(struct task_struct *tsk)
 		newsig->group_stop_count = 0;
 		newsig->curr_target = NULL;
 		init_sigpending(&newsig->shared_pending);
+		INIT_LIST_HEAD(&newsig->posix_timers);
+
+		newsig->tty = oldsig->tty;
+		newsig->pgrp = oldsig->pgrp;
+		newsig->session = oldsig->session;
+		newsig->leader = oldsig->leader;
+		newsig->tty_old_pgrp = oldsig->tty_old_pgrp;
 	}
 
 	if (thread_group_empty(current))
@@ -833,7 +839,8 @@ int flush_old_exec(struct linux_binprm * bprm)
 	flush_thread();
 
 	if (bprm->e_uid != current->euid || bprm->e_gid != current->egid || 
-	    permission(bprm->file->f_dentry->d_inode,MAY_READ, NULL))
+	    permission(bprm->file->f_dentry->d_inode,MAY_READ, NULL) ||
+	    (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP))
 		current->mm->dumpable = 0;
 
 	/* An exec changes our domain. We are no longer part of the thread
@@ -843,7 +850,6 @@ int flush_old_exec(struct linux_binprm * bprm)
 			
 	flush_signal_handlers(current, 0);
 	flush_old_files(current->files);
-	exit_itimers(current);
 
 	return 0;
 
@@ -855,15 +861,6 @@ out:
 }
 
 EXPORT_SYMBOL(flush_old_exec);
-
-/*
- * We mustn't allow tracing of suid binaries, unless
- * the tracer has the capability to trace anything..
- */
-static inline int must_not_trace_exec(struct task_struct * p)
-{
-	return (p->ptrace & PT_PTRACED) && !(p->ptrace & PT_PTRACE_CAP);
-}
 
 /* 
  * Fill the binprm structure from the inode. 
@@ -890,8 +887,10 @@ int prepare_binprm(struct linux_binprm *bprm)
 
 	if(!(bprm->file->f_vfsmnt->mnt_flags & MNT_NOSUID)) {
 		/* Set-uid? */
-		if (mode & S_ISUID)
+		if (mode & S_ISUID) {
+			current->personality &= ~PER_CLEAR_ON_SETID;
 			bprm->e_uid = inode->i_uid;
+		}
 
 		/* Set-gid? */
 		/*
@@ -899,8 +898,10 @@ int prepare_binprm(struct linux_binprm *bprm)
 		 * is a candidate for mandatory locking, not a setgid
 		 * executable.
 		 */
-		if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP))
+		if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
+			current->personality &= ~PER_CLEAR_ON_SETID;
 			bprm->e_gid = inode->i_gid;
+		}
 	}
 
 	/* fill in binprm security blob */
@@ -914,44 +915,30 @@ int prepare_binprm(struct linux_binprm *bprm)
 
 EXPORT_SYMBOL(prepare_binprm);
 
-/*
- * This function is used to produce the new IDs and capabilities
- * from the old ones and the file's capabilities.
- *
- * The formula used for evolving capabilities is:
- *
- *       pI' = pI
- * (***) pP' = (fP & X) | (fI & pI)
- *       pE' = pP' & fE          [NB. fE is 0 or ~0]
- *
- * I=Inheritable, P=Permitted, E=Effective // p=process, f=file
- * ' indicates post-exec(), and X is the global 'cap_bset'.
- *
- */
+static inline int unsafe_exec(struct task_struct *p)
+{
+	int unsafe = 0;
+	if (p->ptrace & PT_PTRACED) {
+		if (p->ptrace & PT_PTRACE_CAP)
+			unsafe |= LSM_UNSAFE_PTRACE_CAP;
+		else
+			unsafe |= LSM_UNSAFE_PTRACE;
+	}
+	if (atomic_read(&p->fs->count) > 1 ||
+	    atomic_read(&p->files->count) > 1 ||
+	    atomic_read(&p->sighand->count) > 1)
+		unsafe |= LSM_UNSAFE_SHARE;
+
+	return unsafe;
+}
 
 void compute_creds(struct linux_binprm *bprm)
 {
+	int unsafe;
 	task_lock(current);
-	if (bprm->e_uid != current->uid || bprm->e_gid != current->gid) {
-                current->mm->dumpable = 0;
-		
-		if (must_not_trace_exec(current)
-		    || atomic_read(&current->fs->count) > 1
-		    || atomic_read(&current->files->count) > 1
-		    || atomic_read(&current->sighand->count) > 1) {
-			if(!capable(CAP_SETUID)) {
-				bprm->e_uid = current->uid;
-				bprm->e_gid = current->gid;
-			}
-		}
-	}
-
-        current->suid = current->euid = current->fsuid = bprm->e_uid;
-        current->sgid = current->egid = current->fsgid = bprm->e_gid;
-
+	unsafe = unsafe_exec(current);
+	security_bprm_apply_creds(bprm, unsafe);
 	task_unlock(current);
-
-	security_bprm_compute_creds(bprm);
 }
 
 EXPORT_SYMBOL(compute_creds);
@@ -1012,7 +999,7 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 			return retval;
 
 		/* Remember if the application is TASO.  */
-		bprm->sh_bang = eh->ah.entry < 0x100000000;
+		bprm->sh_bang = eh->ah.entry < 0x100000000UL;
 
 		bprm->file = file;
 		bprm->loader = loader;
@@ -1092,13 +1079,13 @@ int do_execve(char * filename,
 	int retval;
 	int i;
 
-	sched_balance_exec();
-
 	file = open_exec(filename);
 
 	retval = PTR_ERR(file);
 	if (IS_ERR(file))
 		return retval;
+
+	sched_balance_exec();
 
 	bprm.p = PAGE_SIZE*MAX_ARG_PAGES-sizeof(void *);
 	memset(bprm.page, 0, MAX_ARG_PAGES*sizeof(bprm.page[0]));
@@ -1106,6 +1093,8 @@ int do_execve(char * filename,
 	bprm.file = file;
 	bprm.filename = filename;
 	bprm.interp = filename;
+	bprm.interp_flags = 0;
+	bprm.interp_data = 0;
 	bprm.sh_bang = 0;
 	bprm.loader = 0;
 	bprm.exec = 0;
@@ -1143,7 +1132,7 @@ int do_execve(char * filename,
 	retval = copy_strings(bprm.envc, envp, &bprm);
 	if (retval < 0)
 		goto out;
-	
+
 	retval = copy_strings(bprm.argc, argv, &bprm);
 	if (retval < 0)
 		goto out;
@@ -1387,7 +1376,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 		goto fail_unlock;
 
  	format_corename(corename, core_pattern, signr);
-	file = filp_open(corename, O_CREAT | 2 | O_NOFOLLOW, 0600);
+	file = filp_open(corename, O_CREAT | 2 | O_NOFOLLOW | O_LARGEFILE, 0600);
 	if (IS_ERR(file))
 		goto fail_unlock;
 	inode = file->f_dentry->d_inode;

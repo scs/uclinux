@@ -1,8 +1,13 @@
 /*
  * This is a module which is used for setting the MSS option in TCP packets.
  *
- * Copyright (c) 2000 Marc Boucher
+ * Copyright (C) 2000 Marc Boucher <marc@mbsi.ca>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
+
 #include <linux/module.h>
 #include <linux/skbuff.h>
 
@@ -181,8 +186,9 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	       newmss);
 
  retmodified:
-	/* If we had a hardware checksum before, it's now invalid */
-	(*pskb)->ip_summed = CHECKSUM_NONE;
+	/* We never hw checksum SYN packets.  */
+	BUG_ON((*pskb)->ip_summed == CHECKSUM_HW);
+
 	(*pskb)->nfcache |= NFC_UNKNOWN | NFC_ALTERED;
 	return IPT_CONTINUE;
 }

@@ -54,6 +54,16 @@ void __might_sleep(char *file, int line);
 #define might_sleep_if(cond) do {} while (0)
 #endif
 
+#define abs(x) ({				\
+		int __x = (x);			\
+		(__x < 0) ? -__x : __x;		\
+	})
+
+#define labs(x) ({				\
+		long __x = (x);			\
+		(__x < 0) ? -__x : __x;		\
+	})
+
 extern struct notifier_block *panic_notifier_list;
 NORET_TYPE void panic(const char * fmt, ...)
 	__attribute__ ((NORET_AND format (printf, 1, 2)));
@@ -61,7 +71,6 @@ asmlinkage NORET_TYPE void do_exit(long error_code)
 	ATTRIB_NORET;
 NORET_TYPE void complete_and_exit(struct completion *, long)
 	ATTRIB_NORET;
-extern int abs(int);
 extern unsigned long simple_strtoul(const char *,char **,unsigned int);
 extern long simple_strtol(const char *,char **,unsigned int);
 extern unsigned long long simple_strtoull(const char *,char **,unsigned int);
@@ -72,6 +81,9 @@ extern int vsprintf(char *buf, const char *, va_list);
 extern int snprintf(char * buf, size_t size, const char * fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern int vsnprintf(char *buf, size_t size, const char *fmt, va_list args);
+extern int scnprintf(char * buf, size_t size, const char * fmt, ...)
+	__attribute__ ((format (printf, 3, 4)));
+extern int vscnprintf(char *buf, size_t size, const char *fmt, va_list args);
 
 extern int sscanf(const char *, const char *, ...)
 	__attribute__ ((format (scanf,2,3)));
@@ -81,6 +93,7 @@ extern int get_option(char **str, int *pint);
 extern char *get_options(const char *str, int nints, int *ints);
 extern unsigned long long memparse(char *ptr, char **retptr);
 
+extern int __kernel_text_address(unsigned long addr);
 extern int kernel_text_address(unsigned long addr);
 extern int session_of_pgrp(int pgrp);
 
@@ -89,7 +102,17 @@ asmlinkage int printk(const char * fmt, ...)
 
 unsigned long int_sqrt(unsigned long);
 
+static inline int __attribute_pure__ long_log2(unsigned long x)
+{
+	int r = 0;
+	for (x >>= 1; x > 0; x >>= 1)
+		r++;
+	return r;
+}
+
+
 extern int printk_ratelimit(void);
+extern int __printk_ratelimit(int ratelimit_jiffies, int ratelimit_burst);
 
 static inline void console_silent(void)
 {
@@ -105,9 +128,18 @@ static inline void console_verbose(void)
 extern void bust_spinlocks(int yes);
 extern int oops_in_progress;		/* If set, an oops, panic(), BUG() or die() is in progress */
 extern int panic_on_oops;
-extern int system_running;
 extern int tainted;
 extern const char *print_tainted(void);
+
+/* Values used for system_state */
+extern enum system_states {
+	SYSTEM_BOOTING,
+	SYSTEM_RUNNING,
+	SYSTEM_HALT,
+	SYSTEM_POWER_OFF,
+	SYSTEM_RESTART,
+} system_state;
+
 #define TAINT_PROPRIETARY_MODULE	(1<<0)
 #define TAINT_FORCED_MODULE		(1<<1)
 #define TAINT_UNSAFE_SMP		(1<<2)
@@ -164,14 +196,14 @@ extern void dump_stack(void);
  * "unnecessary" pointer comparison.
  */
 #define min(x,y) ({ \
-	const typeof(x) _x = (x);	\
-	const typeof(y) _y = (y);	\
+	typeof(x) _x = (x);	\
+	typeof(y) _y = (y);	\
 	(void) (&_x == &_y);		\
 	_x < _y ? _x : _y; })
 
 #define max(x,y) ({ \
-	const typeof(x) _x = (x);	\
-	const typeof(y) _y = (y);	\
+	typeof(x) _x = (x);	\
+	typeof(y) _y = (y);	\
 	(void) (&_x == &_y);		\
 	_x > _y ? _x : _y; })
 

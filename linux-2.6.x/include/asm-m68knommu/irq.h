@@ -62,11 +62,6 @@
 extern void (*mach_enable_irq)(unsigned int);
 extern void (*mach_disable_irq)(unsigned int);
 
-extern int sys_request_irq(unsigned int, 
-	irqreturn_t (*)(int, void *, struct pt_regs *), 
-	unsigned long, const char *, void *);
-extern void sys_free_irq(unsigned int, void *);
-
 /*
  * various flags for request_irq() - the Amiga now uses the standard
  * mechanism like all other architectures - SA_INTERRUPT and SA_SHIRQ
@@ -125,5 +120,9 @@ extern irq_node_t *new_irq_node(void);
 
 #define enable_irq_nosync(x)	enable_irq(x)
 #define disable_irq_nosync(x)	disable_irq(x)
+
+struct irqaction;
+struct pt_regs;
+int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
 
 #endif /* _M68K_IRQ_H_ */

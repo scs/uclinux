@@ -16,6 +16,7 @@
 #include <linux/security.h>
 
 #include <asm/uaccess.h>
+#include <asm/unistd.h>
 
 void generic_fillattr(struct inode *inode, struct kstat *stat)
 {
@@ -105,9 +106,7 @@ int vfs_fstat(unsigned int fd, struct kstat *stat)
 
 EXPORT_SYMBOL(vfs_fstat);
 
-#if !defined(__alpha__) && !defined(__sparc__) && !defined(__ia64__) \
-  && !defined(CONFIG_ARCH_S390) && !defined(__hppa__) \
-  && !defined(__arm__) && !defined(CONFIG_V850) && !defined(__powerpc64__)
+#ifdef __ARCH_WANT_OLD_STAT
 
 /*
  * For backward compatibility?  Maybe this should be moved
@@ -132,6 +131,8 @@ static int cp_old_stat(struct kstat *stat, struct __old_kernel_stat __user * sta
 	tmp.st_ino = stat->ino;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
+	if (tmp.st_nlink != stat->nlink)
+		return -EOVERFLOW;
 	SET_UID(tmp.st_uid, stat->uid);
 	SET_GID(tmp.st_gid, stat->gid);
 	tmp.st_rdev = old_encode_dev(stat->rdev);
@@ -177,7 +178,7 @@ asmlinkage long sys_fstat(unsigned int fd, struct __old_kernel_stat __user * sta
 	return error;
 }
 
-#endif
+#endif /* __ARCH_WANT_OLD_STAT */
 
 static int cp_new_stat(struct kstat *stat, struct stat __user *statbuf)
 {
@@ -200,6 +201,8 @@ static int cp_new_stat(struct kstat *stat, struct stat __user *statbuf)
 	tmp.st_ino = stat->ino;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
+	if (tmp.st_nlink != stat->nlink)
+		return -EOVERFLOW;
 	SET_UID(tmp.st_uid, stat->uid);
 	SET_GID(tmp.st_gid, stat->gid);
 #if BITS_PER_LONG == 32
@@ -272,7 +275,7 @@ asmlinkage long sys_readlink(const char __user * path, char __user * buf, int bu
 		if (inode->i_op && inode->i_op->readlink) {
 			error = security_inode_readlink(nd.dentry);
 			if (!error) {
-				update_atime(inode);
+				touch_atime(nd.mnt, nd.dentry);
 				error = inode->i_op->readlink(nd.dentry, buf, bufsiz);
 			}
 		}
@@ -283,7 +286,7 @@ asmlinkage long sys_readlink(const char __user * path, char __user * buf, int bu
 
 
 /* ---------- LFS-64 ----------- */
-#if !defined(__alpha__) && !defined(__ia64__) && !defined(__mips64) && !defined(__x86_64__) && !defined(CONFIG_ARCH_S390X)
+#ifdef __ARCH_WANT_STAT64
 
 static long cp_new_stat64(struct kstat *stat, struct stat64 __user *statbuf)
 {
@@ -351,7 +354,7 @@ asmlinkage long sys_fstat64(unsigned long fd, struct stat64 __user * statbuf)
 	return error;
 }
 
-#endif /* LFS-64 */
+#endif /* __ARCH_WANT_STAT64 */
 
 void inode_add_bytes(struct inode *inode, loff_t bytes)
 {
@@ -397,6 +400,8 @@ EXPORT_SYMBOL(inode_get_bytes);
 
 void inode_set_bytes(struct inode *inode, loff_t bytes)
 {
+	/* Caller is here responsible for sufficient locking
+	 * (ie. inode->i_lock) */
 	inode->i_blocks = bytes >> 9;
 	inode->i_bytes = bytes & 511;
 }

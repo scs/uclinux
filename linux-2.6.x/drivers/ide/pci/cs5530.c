@@ -31,7 +31,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include "cs5530.h"
+#define DISPLAY_CS5530_TIMINGS
 
 #if defined(DISPLAY_CS5530_TIMINGS) && defined(CONFIG_PROC_FS)
 #include <linux/stat.h>
@@ -180,7 +180,7 @@ static int cs5530_config_dma (ide_drive_t *drive)
 	if (mate->present) {
 		struct hd_driveid *mateid = mate->id;
 		if (mateid && (mateid->capability & 1) &&
-		    !hwif->ide_dma_bad_drive(mate)) {
+		    !__ide_dma_bad_drive(mate)) {
 			if ((mateid->field_valid & 4) &&
 			    (mateid->dma_ultra & 7))
 				udma_ok = 1;
@@ -197,7 +197,7 @@ static int cs5530_config_dma (ide_drive_t *drive)
 	 * selecting UDMA only if the mate said it was ok.
 	 */
 	if (id && (id->capability & 1) && drive->autodma &&
-	    !hwif->ide_dma_bad_drive(drive)) {
+	    !__ide_dma_bad_drive(drive)) {
 		if (udma_ok && (id->field_valid & 4) && (id->dma_ultra & 7)) {
 			if      (id->dma_ultra & 4)
 				mode = XFER_UDMA_2;
@@ -276,7 +276,7 @@ static unsigned int __init init_chipset_cs5530 (struct pci_dev *dev, const char 
 	if (!cs5530_proc) {
 		cs5530_proc = 1;
 		bmide_dev = dev;
-		ide_pci_register_host_proc(&cs5530_procs[0]);
+		ide_pci_create_host_proc("cs5530", cs5530_get_info);
 	}
 #endif /* DISPLAY_CS5530_TIMINGS && CONFIG_PROC_FS */
 
@@ -404,16 +404,19 @@ static void __init init_hwif_cs5530 (ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
-extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
-
+static ide_pci_device_t cs5530_chipset __devinitdata = {
+	.name		= "CS5530",
+	.init_chipset	= init_chipset_cs5530,
+	.init_hwif	= init_hwif_cs5530,
+	.channels	= 2,
+	.autodma	= AUTODMA,
+	.bootable	= ON_BOARD,
+	.flags		= IDEPCI_FLAG_FORCE_MASTER,
+};
 
 static int __devinit cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &cs5530_chipsets[id->driver_data];
-	if (dev->device != d->device)
-		BUG();
-	ide_setup_pci_device(dev, d);
-	MOD_INC_USE_COUNT;
+	ide_setup_pci_device(dev, &cs5530_chipset);
 	return 0;
 }
 
@@ -421,6 +424,7 @@ static struct pci_device_id cs5530_pci_tbl[] = {
 	{ PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, cs5530_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "CS5530 IDE",
@@ -433,13 +437,7 @@ static int cs5530_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
-static void cs5530_ide_exit(void)
-{
-	ide_pci_unregister_driver(&driver);
-}
-
 module_init(cs5530_ide_init);
-module_exit(cs5530_ide_exit);
 
 MODULE_AUTHOR("Mark Lord");
 MODULE_DESCRIPTION("PCI driver module for Cyrix/NS 5530 IDE");

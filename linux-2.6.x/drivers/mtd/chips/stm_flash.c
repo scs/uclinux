@@ -72,22 +72,33 @@ static const char im_name[] = "stm_flash";
 
 static void send_unlock(struct map_info *map, unsigned long base)
 {
-	map->write16(map, CMD_UNLOCK_DATA_1, base + ADDR_UNLOCK_1);
-	map->write16(map, CMD_UNLOCK_DATA_2, base + ADDR_UNLOCK_2);
+	map_word test;
+	test.x[0]=0x00aa;
+	map->write(map,test, base + ADDR_UNLOCK_1);
+	//map->write(map, CMD_UNLOCK_DATA_1, base + ADDR_UNLOCK_1);
+	//map->write(map, CMD_UNLOCK_DATA_2, base + ADDR_UNLOCK_2);
+	test.x[0]=0x0055;
+	map->write(map,test, base + ADDR_UNLOCK_2);
 }
 
 static void send_cmd(struct map_info *map, unsigned long base, 
 		     unsigned long cmd)
 {
+	map_word test;
+	test.x[0]=cmd;
 	send_unlock(map, base);
-	map->write16(map, cmd, base + ADDR_UNLOCK_1);
+	//map->write(map, cmd, base + ADDR_UNLOCK_1);
+	map->write(map, test, base + ADDR_UNLOCK_1);
 }
 
 static void send_cmd_to_addr(struct map_info *map, unsigned long base, 
 			     unsigned long cmd, unsigned long addr)
 {
+	map_word test;
+	test.x[0]=cmd;
 	send_unlock(map, base);
-	map->write16(map, cmd, addr);
+	//map->write(map, cmd, addr);
+	map->write(map, test, addr);
 }
 
 static int probe_new_chip(struct mtd_info *mtd, __u32 base, 
@@ -100,6 +111,7 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 	struct map_info *map = mtd->priv;
 	struct stm_flash_private temp;
 	int i;
+	map_word mfr_id1,dev_id1;
 
 	temp.device_type = DEVICE_TYPE_X16;
 	temp.interleave = 1;
@@ -109,8 +121,13 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 	send_cmd(map, base, CMD_RESET_DATA);
 	send_cmd(map, base, CMD_MANUFACTURER_UNLOCK_DATA);
 
-	mfr_id = map->read16(map, base + ADDR_MANUFACTURER) & 0x00FF;
-	dev_id = map->read16(map, base + ADDR_DEVICE_ID) & 0x00FF;
+	//mfr_id = map->read(map, base + ADDR_MANUFACTURER) & 0x00FF;
+	//dev_id = map->read(map, base + ADDR_DEVICE_ID) & 0x00FF;
+	mfr_id1=map->read(map, base + ADDR_MANUFACTURER) ;
+	dev_id1=map->read(map, base + ADDR_DEVICE_ID) ;
+
+	mfr_id = mfr_id1.x[0] & 0x00FF;
+	dev_id = dev_id1.x[0] & 0x00FF;
 
 	for (i = 0; i < table_size; i++)
 	{
@@ -123,12 +140,20 @@ static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 
 				for (j = 0; j < private->numchips; j++)
 				{
-					if ((map->read16(map, chips[j].start +
+					/*
+					if ((map->read(map, chips[j].start +
 							ADDR_MANUFACTURER)
 						== mfr_id) &&
-					    (map->read16(map, chips[j].start +
+					    (map->read(map, chips[j].start +
 							 ADDR_DEVICE_ID)
 						== dev_id))
+					*/
+					mfr_id1=map->read(map, chips[j].start +
+							ADDR_MANUFACTURER);
+						
+					dev_id1=map->read(map, chips[j].start +
+							 ADDR_DEVICE_ID) ;
+					if ((mfr_id1.x[0] == mfr_id) && ( dev_id1.x[0] == dev_id))
 					{
 						/* Exit autoselect mode */
 						send_cmd(map, base, CMD_RESET_DATA);
@@ -485,11 +510,21 @@ static int stm_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 static int flash_is_busy(struct map_info *map, unsigned long addr)
 {
-	unsigned short read1, read2, toggled;
+//	unsigned short read1, read2, toggled;
+	unsigned short toggled;
+	map_word read11,read21;	
+
+	//read1 = map->read(map, addr);
+	//read2 = map->read(map, addr);
 	
-	read1 = map->read16(map, addr);
-	read2 = map->read16(map, addr);
-	toggled = read1 ^ read2;
+	read11 = map->read(map,addr);
+	read21 = map->read(map,addr);
+
+
+	//toggled = read1 ^ read2;
+
+	toggled = (unsigned short)read11.x[0] ^ (unsigned short)read21.x[0];
+
 	toggled &= (((unsigned short)1) << 6);
 //	if (toggled)
 //		printk("%s: Flash is busy (0x%04x)\n", map->name, toggled);
@@ -504,6 +539,7 @@ static int write_one_word(struct map_info *map, struct flchip *chip,
 	DECLARE_WAITQUEUE(wait, current);
 	int ret = 0;
 	int times_left;
+	map_word test;
 
 retry:
 	spin_lock_bh(chip->mutex);
@@ -533,7 +569,10 @@ retry:
 	addr += chip->start;
 
 	send_cmd(map, chip->start, CMD_PROGRAM_UNLOCK_DATA);
-	map->write16(map, datum, addr);
+
+	test.x[0]=datum;
+	map->write(map, test, addr);
+	//map->write(map, datum, addr);
 
 	times_left = 50000;
 	while (times_left-- && flash_is_busy(map, addr))
@@ -553,7 +592,12 @@ retry:
 		ret = -EIO;
 	} else {
 		unsigned long verify;
-		if ((verify = map->read16(map, addr)) != datum) 
+		map_word test;
+	
+	//	if ((verify = map->read(map, addr)) != datum) 
+		test = map->read(map,addr);
+		verify = test.x[0] ;
+		if(verify != datum)
 		{
 			printk(KERN_WARNING "%s: write to 0x%lx failed. "
 				"datum = %lx, verify = %lx\n", map->name,
@@ -587,9 +631,9 @@ static int stm_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 	chipstart = private->chips[chipnum].start;
 
 	/* If it's not bus-aligned, do the first byte write. */
-	if (offset & (map->buswidth -1))
+	if (offset & (map->bankwidth -1))	/*BFin*/
 	{
-		unsigned long bus_offset = offset & ~(map->buswidth - 1);
+		unsigned long bus_offset = offset & ~(map->bankwidth - 1);
 		int i = offset - bus_offset;
 		int n = 0;
 		unsigned char tmp_buf[4];
@@ -597,13 +641,13 @@ static int stm_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 		map->copy_from(map, tmp_buf, 
 			       bus_offset + private->chips[chipnum].start,
-			       map->buswidth);
-		while (len && i < map->buswidth)
+			       map->bankwidth);
+		while (len && i < map->bankwidth)
 			tmp_buf[i++] = buf[n++], len--;
 
-		if (map->buswidth == 2)
+		if (map->bankwidth == 2)
 			datum = *(__u16*)tmp_buf;
-		else if (map->buswidth == 4)
+		else if (map->bankwidth == 4)
 			datum = *(__u32*)tmp_buf;
 		else
 			return -EINVAL;
@@ -628,15 +672,15 @@ static int stm_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 	}
 
 	/* We are now aligned, write as much as possible. */
-	while (len >= map->buswidth)
+	while (len >= map->bankwidth)
 	{
 		unsigned long datum;
 
-		if (map->buswidth == 1)
+		if (map->bankwidth == 1)
 			datum = *(unsigned char*)buf;
-		else if (map->buswidth == 2)
+		else if (map->bankwidth == 2)
 			datum = *(unsigned short*)buf;
-		else if (map->buswidth == 4)
+		else if (map->bankwidth == 4)
 			datum = *(unsigned long*)buf;
 		else
 			return -EINVAL;
@@ -647,10 +691,10 @@ static int stm_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		if (ret)
 			return ret;
 
-		offset += map->buswidth;
-		buf += map->buswidth;
-		(*retlen) += map->buswidth;
-		len -= map->buswidth;
+		offset += map->bankwidth;
+		buf += map->bankwidth;
+		(*retlen) += map->bankwidth;
+		len -= map->bankwidth;
 
 		if (offset >> private->chipshift)
 		{
@@ -662,7 +706,7 @@ static int stm_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		}
 	}
 
-	if (len & (map->buswidth - 1))
+	if (len & (map->bankwidth - 1))
 	{
 		int i = 0, n = 0;
 		unsigned char tmp_buf[2];
@@ -670,14 +714,14 @@ static int stm_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 		map->copy_from(map, tmp_buf, 
 				offset + private->chips[chipnum].start,
-				map->buswidth);
+				map->bankwidth);
 
 		while (len--)
 			tmp_buf[i++] = buf[n++];
 
-		if (map->buswidth == 2)
+		if (map->bankwidth == 2)
 			datum = *(unsigned short*)tmp_buf;
-		else if (map->buswidth == 4)
+		else if (map->bankwidth == 4)
 			datum = *(unsigned long*)tmp_buf;
 		else
 			return -EINVAL;
@@ -698,7 +742,7 @@ static int erase_one_block(struct map_info *map, struct flchip *chip,
 			   unsigned long addr, unsigned long size)
 {
 	unsigned long timeo = jiffies + HZ;
-	struct stm_flash_private *private = map->fldrv_priv;
+	/*struct stm_flash_private *private = map->fldrv_priv;*/
 	DECLARE_WAITQUEUE(wait, current);
 
 retry:
@@ -771,7 +815,7 @@ retry:
 		/* Latency issues. Drop the lock, wait a while, and retry. */
 		spin_unlock_bh(chip->mutex);
 
-		if (need_resched())		/*BFin*/
+		if (need_resched())		
 			schedule();
 		else
 			udelay(1);
@@ -784,13 +828,18 @@ retry:
 		int address;
 		int error = 0;
 		int verify;
+		map_word test;
 		
-		for (address = addr; address < (addr + size); address += 2)
-			if ((verify = map->read16(map, address)) != 0xFFFF)
+		for (address = addr; address < (addr + size); address += 2){
+			//if ((verify = map->read(map, address)) != 0xFFFF)
+			test = map_read(map,address);
+			verify = test.x[0];
+			if(verify != 0xFFFF)	
 			{
 				error = 1;
 				break;
 			}
+		}
 
 		if (error)
 		{
@@ -912,8 +961,6 @@ static int stm_flash_suspend(struct mtd_info *mtd)
 	printk("stm_flash_suspend(): not implemented!\n");
 	        return -EINVAL;
 }
-
-
 
 static void stm_flash_resume(struct mtd_info *mtd)
 {

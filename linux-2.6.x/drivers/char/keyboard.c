@@ -52,13 +52,12 @@ extern void ctrl_alt_del(void);
 
 /*
  * Some laptops take the 789uiojklm,. keys as number pad when NumLock is on.
- * This seems a good reason to start with NumLock off. On PC9800 and HIL keyboards 
+ * This seems a good reason to start with NumLock off. On HIL keyboards
  * of PARISC machines however there is no NumLock key and everyone expects the keypad 
  * to be used for numbers.
  */
 
-#if defined(CONFIG_X86_PC9800) || \
-    defined(CONFIG_PARISC) && (defined(CONFIG_KEYBOARD_HIL) || defined(CONFIG_KEYBOARD_HIL_OLD))
+#if defined(CONFIG_PARISC) && (defined(CONFIG_KEYBOARD_HIL) || defined(CONFIG_KEYBOARD_HIL_OLD))
 #define KBD_DEFLEDS (1 << VC_NUMLOCK)
 #else
 #define KBD_DEFLEDS 0
@@ -201,8 +200,7 @@ int setkeycode(unsigned int scancode, unsigned int keycode)
 	if (scancode < 0 || scancode >= dev->keycodemax)
 		return -EINVAL;
 
-	oldkey = INPUT_KEYCODE(dev, scancode);
-	INPUT_KEYCODE(dev, scancode) = keycode;
+	oldkey = SET_INPUT_KEYCODE(dev, scancode, keycode);
 
 	clear_bit(oldkey, dev->keybit);
 	set_bit(keycode, dev->keybit);
@@ -941,7 +939,7 @@ void kbd_refresh_leds(struct input_handle *handle)
 	tasklet_enable(&keyboard_tasklet);
 }
 
-#if defined(CONFIG_X86) || defined(CONFIG_IA64) || defined(CONFIG_ALPHA) || defined(CONFIG_MIPS) || defined(CONFIG_PPC) || defined(CONFIG_SPARC32) || defined(CONFIG_SPARC64) || defined(CONFIG_PARISC) || defined(CONFIG_SH_MPC1211)
+#if defined(CONFIG_X86) || defined(CONFIG_IA64) || defined(CONFIG_ALPHA) || defined(CONFIG_MIPS) || defined(CONFIG_PPC) || defined(CONFIG_SPARC32) || defined(CONFIG_SPARC64) || defined(CONFIG_PARISC) || defined(CONFIG_SUPERH)
 
 static unsigned short x86_keycodes[256] =
 	{ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
@@ -972,11 +970,6 @@ extern void sun_do_break(void);
 static int emulate_raw(struct vc_data *vc, unsigned int keycode, 
 		       unsigned char up_flag)
 {
-#ifdef CONFIG_MAC_EMUMOUSEBTN
-	if (mac_hid_mouse_emulate_buttons(1, keycode, !up_flag))
-		return 0;
-#endif /* CONFIG_MAC_EMUMOUSEBTN */
-
 	if (keycode > 255 || !x86_keycodes[keycode])
 		return -1; 
 
@@ -1054,6 +1047,11 @@ void kbd_keycode(unsigned int keycode, int down, struct pt_regs *regs)
 #endif
 
 	rep = (down == 2);
+
+#ifdef CONFIG_MAC_EMUMOUSEBTN
+	if (mac_hid_mouse_emulate_buttons(1, keycode, down))
+		return;
+#endif /* CONFIG_MAC_EMUMOUSEBTN */
 
 	if ((raw_mode = (kbd->kbdmode == VC_RAW)))
 		if (emulate_raw(vc, keycode, !down << 7))

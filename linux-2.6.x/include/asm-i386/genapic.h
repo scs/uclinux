@@ -25,8 +25,8 @@ struct genapic {
 	cpumask_t (*target_cpus)(void);
 	int int_delivery_mode;
 	int int_dest_mode; 
-	int apic_broadcast_id; 
-	int esr_disable;
+	int ESR_DISABLE;
+	int apic_destination_logical;
 	unsigned long (*check_apicid_used)(physid_mask_t bitmap, int apicid);
 	unsigned long (*check_apicid_present)(int apicid); 
 	int no_balance_irq;
@@ -62,7 +62,7 @@ struct genapic {
 
 	unsigned (*get_apic_id)(unsigned long x);
 	unsigned long apic_id_mask;
-	unsigned int (*cpu_mask_to_apicid)(cpumask_const_t cpumask);
+	unsigned int (*cpu_mask_to_apicid)(cpumask_t cpumask);
 	
 	/* ipi */
 	void (*send_IPI_mask)(cpumask_t mask, int vector);
@@ -77,9 +77,10 @@ struct genapic {
 	.probe = aprobe, \
 	.int_delivery_mode = INT_DELIVERY_MODE, \
 	.int_dest_mode = INT_DEST_MODE, \
-	.apic_broadcast_id = APIC_BROADCAST_ID, \
 	.no_balance_irq = NO_BALANCE_IRQ, \
 	.no_ioapic_check = NO_IOAPIC_CHECK, \
+	.ESR_DISABLE = esr_disable, \
+	.apic_destination_logical = APIC_DEST_LOGICAL, \
 	APICFUNC(apic_id_registered), \
 	APICFUNC(target_cpus), \
 	APICFUNC(check_apicid_used), \

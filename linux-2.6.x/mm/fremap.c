@@ -12,7 +12,7 @@
 #include <linux/mman.h>
 #include <linux/pagemap.h>
 #include <linux/swapops.h>
-#include <linux/rmap-locking.h>
+#include <linux/rmap.h>
 #include <linux/module.h>
 
 #include <asm/mmu_context.h>
@@ -36,7 +36,7 @@ static inline void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 			if (!PageReserved(page)) {
 				if (pte_dirty(pte))
 					set_page_dirty(page);
-				page_remove_rmap(page, ptep);
+				page_remove_rmap(page);
 				page_cache_release(page);
 				mm->rss--;
 			}
@@ -49,22 +49,20 @@ static inline void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 }
 
 /*
- * Install a page to a given virtual memory address, release any
+ * Install a file page to a given virtual memory address, release any
  * previously existing mapping.
  */
 int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long addr, struct page *page, pgprot_t prot)
 {
+	struct inode *inode;
+	pgoff_t size;
 	int err = -ENOMEM;
 	pte_t *pte;
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t pte_val;
-	struct pte_chain *pte_chain;
 
-	pte_chain = pte_chain_alloc(GFP_KERNEL);
-	if (!pte_chain)
-		goto err;
 	pgd = pgd_offset(mm, addr);
 	spin_lock(&mm->page_table_lock);
 
@@ -76,23 +74,29 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!pte)
 		goto err_unlock;
 
+	/*
+	 * This page may have been truncated. Tell the
+	 * caller about it.
+	 */
+	err = -EINVAL;
+	inode = vma->vm_file->f_mapping->host;
+	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	if (!page->mapping || page->index >= size)
+		goto err_unlock;
+
 	zap_pte(mm, vma, addr, pte);
 
 	mm->rss++;
 	flush_icache_page(vma, page);
 	set_pte(pte, mk_pte(page, prot));
-	pte_chain = page_add_rmap(page, pte, pte_chain);
+	page_add_file_rmap(page);
 	pte_val = *pte;
 	pte_unmap(pte);
 	update_mmu_cache(vma, addr, pte_val);
-	spin_unlock(&mm->page_table_lock);
-	pte_chain_free(pte_chain);
-	return 0;
 
+	err = 0;
 err_unlock:
 	spin_unlock(&mm->page_table_lock);
-	pte_chain_free(pte_chain);
-err:
 	return err;
 }
 EXPORT_SYMBOL(install_page);
@@ -155,13 +159,15 @@ err_unlock:
  * protection is used. Arbitrary protections might be implemented in the
  * future.
  */
-long sys_remap_file_pages(unsigned long start, unsigned long size,
+asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 	unsigned long __prot, unsigned long pgoff, unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
+	struct address_space *mapping;
 	unsigned long end = start + size;
 	struct vm_area_struct *vma;
 	int err = -EINVAL;
+	int has_write_lock = 0;
 
 	if (__prot)
 		return err;
@@ -182,25 +188,45 @@ long sys_remap_file_pages(unsigned long start, unsigned long size,
 #endif
 
 	/* We need down_write() to change vma->vm_flags. */
-	down_write(&mm->mmap_sem);
+	down_read(&mm->mmap_sem);
+ retry:
 	vma = find_vma(mm, start);
 
 	/*
 	 * Make sure the vma is shared, that it supports prefaulting,
 	 * and that the remapped range is valid and fully within
-	 * the single existing vma:
+	 * the single existing vma.  vm_private_data is used as a
+	 * swapout cursor in a VM_NONLINEAR vma (unless VM_RESERVED
+	 * or VM_LOCKED, but VM_LOCKED could be revoked later on).
 	 */
 	if (vma && (vma->vm_flags & VM_SHARED) &&
+		(!vma->vm_private_data ||
+			(vma->vm_flags & (VM_NONLINEAR|VM_RESERVED))) &&
 		vma->vm_ops && vma->vm_ops->populate &&
 			end > start && start >= vma->vm_start &&
 				end <= vma->vm_end) {
 
 		/* Must set VM_NONLINEAR before any pages are populated. */
-		if (pgoff != ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff)
+		if (pgoff != linear_page_index(vma, start) &&
+		    !(vma->vm_flags & VM_NONLINEAR)) {
+			if (!has_write_lock) {
+				up_read(&mm->mmap_sem);
+				down_write(&mm->mmap_sem);
+				has_write_lock = 1;
+				goto retry;
+			}
+			mapping = vma->vm_file->f_mapping;
+			spin_lock(&mapping->i_mmap_lock);
+			flush_dcache_mmap_lock(mapping);
 			vma->vm_flags |= VM_NONLINEAR;
+			vma_prio_tree_remove(vma, &mapping->i_mmap);
+			vma_prio_tree_init(vma);
+			list_add_tail(&vma->shared.vm_set.list,
+					&mapping->i_mmap_nonlinear);
+			flush_dcache_mmap_unlock(mapping);
+			spin_unlock(&mapping->i_mmap_lock);
+		}
 
-		/* ->populate can take a long time, so downgrade the lock. */
-		downgrade_write(&mm->mmap_sem);
 		err = vma->vm_ops->populate(vma, start, size,
 					    vma->vm_page_prot,
 					    pgoff, flags & MAP_NONBLOCK);
@@ -210,10 +236,11 @@ long sys_remap_file_pages(unsigned long start, unsigned long size,
 		 * it after ->populate completes, and that would prevent
 		 * downgrading the lock.  (Locks can't be upgraded).
 		 */
-		up_read(&mm->mmap_sem);
-	} else {
-		up_write(&mm->mmap_sem);
 	}
+	if (likely(!has_write_lock))
+		up_read(&mm->mmap_sem);
+	else
+		up_write(&mm->mmap_sem);
 
 	return err;
 }

@@ -5,14 +5,8 @@
  * Added /proc/sys/net directories for each protocol family. [MS]
  *
  * $Log$
- * Revision 1.2  2004/09/07 23:18:39  lgsoft
- * alpha-2.0
- *
- * Revision 1.1.1.1  2004/07/19 12:46:44  lgsoft
- * Import of uClinux 2.6.2
- *
- * Revision 1.1.1.1  2004/07/18 13:23:12  nidhi
- * Importing
+ * Revision 1.3  2004/09/08 16:29:09  lgsoft
+ * Import of 2.6.8
  *
  * Revision 1.2  1996/05/08  20:24:40  shaver
  * Added bits for NET_BRIDGE and the NET_IPV4_ARP stuff and
@@ -33,10 +27,6 @@ extern struct ctl_table core_table[];
 
 #ifdef CONFIG_NET
 extern struct ctl_table ether_table[];
-#endif
-
-#ifdef CONFIG_IPV6
-extern struct ctl_table ipv6_table[];
 #endif
 
 #ifdef CONFIG_TR
@@ -64,14 +54,6 @@ struct ctl_table net_table[] = {
 		.procname	= "ipv4",
 		.mode		= 0555,
 		.child		= ipv4_table
-	},
-#endif
-#ifdef CONFIG_IPV6
-	{
-		.ctl_name	= NET_IPV6,
-		.procname	= "ipv6",
-		.mode		= 0555,
-		.child		= ipv6_table,
 	},
 #endif
 #ifdef CONFIG_TR

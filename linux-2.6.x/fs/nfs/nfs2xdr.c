@@ -36,33 +36,33 @@ extern int			nfs_stat_to_errno(int stat);
  * Declare the space requirements for NFS arguments and replies as
  * number of 32bit-words
  */
-#define NFS_fhandle_sz		8
-#define NFS_sattr_sz		8
-#define NFS_filename_sz		1+(NFS2_MAXNAMLEN>>2)
-#define NFS_path_sz		1+(NFS2_MAXPATHLEN>>2)
-#define NFS_fattr_sz		17
-#define NFS_info_sz		5
-#define NFS_entry_sz		NFS_filename_sz+3
+#define NFS_fhandle_sz		(8)
+#define NFS_sattr_sz		(8)
+#define NFS_filename_sz		(1+(NFS2_MAXNAMLEN>>2))
+#define NFS_path_sz		(1+(NFS2_MAXPATHLEN>>2))
+#define NFS_fattr_sz		(17)
+#define NFS_info_sz		(5)
+#define NFS_entry_sz		(NFS_filename_sz+3)
 
-#define NFS_diropargs_sz	NFS_fhandle_sz+NFS_filename_sz
-#define NFS_sattrargs_sz	NFS_fhandle_sz+NFS_sattr_sz
-#define NFS_readlinkargs_sz	NFS_fhandle_sz
-#define NFS_readargs_sz		NFS_fhandle_sz+3
-#define NFS_writeargs_sz	NFS_fhandle_sz+4
-#define NFS_createargs_sz	NFS_diropargs_sz+NFS_sattr_sz
-#define NFS_renameargs_sz	NFS_diropargs_sz+NFS_diropargs_sz
-#define NFS_linkargs_sz		NFS_fhandle_sz+NFS_diropargs_sz
-#define NFS_symlinkargs_sz	NFS_diropargs_sz+NFS_path_sz+NFS_sattr_sz
-#define NFS_readdirargs_sz	NFS_fhandle_sz+2
+#define NFS_diropargs_sz	(NFS_fhandle_sz+NFS_filename_sz)
+#define NFS_sattrargs_sz	(NFS_fhandle_sz+NFS_sattr_sz)
+#define NFS_readlinkargs_sz	(NFS_fhandle_sz)
+#define NFS_readargs_sz		(NFS_fhandle_sz+3)
+#define NFS_writeargs_sz	(NFS_fhandle_sz+4)
+#define NFS_createargs_sz	(NFS_diropargs_sz+NFS_sattr_sz)
+#define NFS_renameargs_sz	(NFS_diropargs_sz+NFS_diropargs_sz)
+#define NFS_linkargs_sz		(NFS_fhandle_sz+NFS_diropargs_sz)
+#define NFS_symlinkargs_sz	(NFS_diropargs_sz+NFS_path_sz+NFS_sattr_sz)
+#define NFS_readdirargs_sz	(NFS_fhandle_sz+2)
 
-#define NFS_attrstat_sz		1+NFS_fattr_sz
-#define NFS_diropres_sz		1+NFS_fhandle_sz+NFS_fattr_sz
-#define NFS_readlinkres_sz	1
-#define NFS_readres_sz		1+NFS_fattr_sz+1
-#define NFS_writeres_sz         NFS_attrstat_sz
-#define NFS_stat_sz		1
-#define NFS_readdirres_sz	1
-#define NFS_statfsres_sz	1+NFS_info_sz
+#define NFS_attrstat_sz		(1+NFS_fattr_sz)
+#define NFS_diropres_sz		(1+NFS_fhandle_sz+NFS_fattr_sz)
+#define NFS_readlinkres_sz	(1)
+#define NFS_readres_sz		(1+NFS_fattr_sz+1)
+#define NFS_writeres_sz         (NFS_attrstat_sz)
+#define NFS_stat_sz		(1)
+#define NFS_readdirres_sz	(1)
+#define NFS_statfsres_sz	(1+NFS_info_sz)
 
 /*
  * Common NFS XDR functions as inlines
@@ -231,7 +231,7 @@ nfs_xdr_readargs(struct rpc_rqst *req, u32 *p, struct nfs_readargs *args)
 static int
 nfs_xdr_readres(struct rpc_rqst *req, u32 *p, struct nfs_readres *res)
 {
-	struct iovec *iov = req->rq_rvec;
+	struct kvec *iov = req->rq_rcv_buf.head;
 	int	status, count, recvd, hdrlen;
 
 	if ((status = ntohl(*p++)))
@@ -250,7 +250,7 @@ nfs_xdr_readres(struct rpc_rqst *req, u32 *p, struct nfs_readres *res)
 		xdr_shift_buf(&req->rq_rcv_buf, iov->iov_len - hdrlen);
 	}
 
-	recvd = req->rq_received - hdrlen;
+	recvd = req->rq_rcv_buf.len - hdrlen;
 	if (count > recvd) {
 		printk(KERN_WARNING "NFS: server cheating in read reply: "
 			"count %d > recvd %d\n", count, recvd);
@@ -375,7 +375,7 @@ static int
 nfs_xdr_readdirres(struct rpc_rqst *req, u32 *p, void *dummy)
 {
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
-	struct iovec *iov = rcvbuf->head;
+	struct kvec *iov = rcvbuf->head;
 	struct page **page;
 	int hdrlen, recvd;
 	int status, nr;
@@ -396,7 +396,7 @@ nfs_xdr_readdirres(struct rpc_rqst *req, u32 *p, void *dummy)
 	}
 
 	pglen = rcvbuf->page_len;
-	recvd = req->rq_received - hdrlen;
+	recvd = rcvbuf->len - hdrlen;
 	if (pglen > recvd)
 		pglen = recvd;
 	page = rcvbuf->pages;
@@ -511,8 +511,8 @@ static int
 nfs_xdr_readlinkargs(struct rpc_rqst *req, u32 *p, struct nfs_readlinkargs *args)
 {
 	struct rpc_auth *auth = req->rq_task->tk_auth;
+	unsigned int count = args->count - 5;
 	unsigned int replen;
-	u32 count = args->count - 4;
 
 	p = xdr_encode_fhandle(p, args->fh);
 	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
@@ -530,7 +530,7 @@ static int
 nfs_xdr_readlinkres(struct rpc_rqst *req, u32 *p, void *dummy)
 {
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
-	struct iovec *iov = rcvbuf->head;
+	struct kvec *iov = rcvbuf->head;
 	unsigned int hdrlen;
 	u32	*strlen, len;
 	char	*string;
@@ -547,12 +547,15 @@ nfs_xdr_readlinkres(struct rpc_rqst *req, u32 *p, void *dummy)
 	strlen = (u32*)kmap_atomic(rcvbuf->pages[0], KM_USER0);
 	/* Convert length of symlink */
 	len = ntohl(*strlen);
-	if (len > rcvbuf->page_len)
-		len = rcvbuf->page_len;
+	if (len > rcvbuf->page_len) {
+		dprintk(KERN_WARNING "nfs: server returned giant symlink!\n");
+		kunmap_atomic(strlen, KM_USER0);
+		return -ENAMETOOLONG;
+	}
 	*strlen = len;
 	/* NULL terminate the string we got */
 	string = (char *)(strlen + 1);
-	string[len] = 0;
+	string[len] = '\0';
 	kunmap_atomic(strlen, KM_USER0);
 	return 0;
 }

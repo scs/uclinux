@@ -33,7 +33,6 @@
 #include <linux/config.h>
 #include <linux/module.h>
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -512,7 +511,7 @@ static int bcsp_recv(struct hci_uart *hu, void *data, int count)
 	struct bcsp_struct *bcsp = hu->priv;
 	register unsigned char *ptr;
 
-	BT_DBG("hu %p count %d rx_state %ld rx_count %ld", 
+	BT_DBG("hu %p count %d rx_state %d rx_count %ld", 
 		hu, count, bcsp->rx_state, bcsp->rx_count);
 
 	ptr = data;
@@ -617,7 +616,7 @@ static int bcsp_recv(struct hci_uart *hu, void *data, int count)
 					bcsp->rx_count = 0;
 					return 0;
 				}
-				bcsp->rx_skb->dev = (void *) &hu->hdev;
+				bcsp->rx_skb->dev = (void *) hu->hdev;
 				break;
 			}
 			break;
@@ -634,7 +633,8 @@ static void bcsp_timed_event(unsigned long arg)
 	struct sk_buff *skb;
 	unsigned long flags;
 
-	BT_ERR("Timeout, retransmitting %u pkts", bcsp->unack.qlen);
+	BT_DBG("hu %p retransmitting %u pkts", hu, bcsp->unack.qlen);
+
 	spin_lock_irqsave(&bcsp->unack.lock, flags);
 
 	while ((skb = __skb_dequeue_tail(&bcsp->unack)) != NULL) {

@@ -34,6 +34,7 @@ struct task_security_struct {
 	u32 exec_sid;        /* exec SID */
 	u32 create_sid;      /* fscreate SID */
         struct avc_entry_ref avcr;     /* reference to process permissions */
+	u32 ptrace_sid;      /* SID of ptrace parent */
 };
 
 struct inode_security_struct {
@@ -63,6 +64,7 @@ struct superblock_security_struct {
 	struct super_block *sb;         /* back pointer to sb object */
 	struct list_head list;          /* list of superblock_security_struct */
 	u32 sid;              /* SID of file system */
+	u32 def_sid;			/* default SID for labeling */
 	unsigned int behavior;          /* labeling behavior */
 	unsigned char initialized;      /* initialization flag */
 	unsigned char proc;             /* proc fs */

@@ -3,13 +3,12 @@
  *
  * Copyright (c) 2003-2004 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (c) 2003-2004 IBM Corp.
- * 
+ *
  * This file is released under the GPLv2
  *
  */
 
-#define DEBUG 1
-
+#include <linux/config.h>
 #include <linux/device.h>
 #include <linux/kdev_t.h>
 #include <linux/err.h>
@@ -112,7 +111,7 @@ EXPORT_SYMBOL(class_simple_destroy);
 
 /**
  * class_simple_device_add - adds a class device to sysfs for a character driver
- * @cs: pointer to the struct class_simple that this device should be registered to.  
+ * @cs: pointer to the struct class_simple that this device should be registered to.
  * @dev: the dev_t for the device to be added.
  * @device: a pointer to a struct device that is assiociated with this class device.
  * @fmt: string for the class device's name
@@ -147,8 +146,8 @@ struct class_device *class_simple_device_add(struct class_simple *cs, dev_t dev,
 	s_dev->dev = dev;
 	s_dev->class_dev.dev = device;
 	s_dev->class_dev.class = &cs->class;
-	
-	va_start(args,fmt);
+
+	va_start(args, fmt);
 	vsnprintf(s_dev->class_dev.class_id, BUS_ID_SIZE, fmt, args);
 	va_end(args);
 	retval = class_device_register(&s_dev->class_dev);
@@ -170,6 +169,24 @@ error:
 EXPORT_SYMBOL(class_simple_device_add);
 
 /**
+ * class_simple_set_hotplug - set the hotplug callback in the embedded struct class
+ * @cs: pointer to the struct class_simple to hold the pointer
+ * @hotplug: function pointer to the hotplug function
+ *
+ * Implement and set a hotplug function to add environment variables specific to this
+ * class on the hotplug event.
+ */
+int class_simple_set_hotplug(struct class_simple *cs,
+	int (*hotplug)(struct class_device *dev, char **envp, int num_envp, char *buffer, int buffer_size))
+{
+	if ((cs == NULL) || (IS_ERR(cs)))
+		return -ENODEV;
+	cs->class.hotplug = hotplug;
+	return 0;
+}
+EXPORT_SYMBOL(class_simple_set_hotplug);
+
+/**
  * class_simple_device_remove - removes a class device that was created with class_simple_device_add()
  * @dev: the dev_t of the device that was previously registered.
  *
@@ -179,12 +196,10 @@ EXPORT_SYMBOL(class_simple_device_add);
 void class_simple_device_remove(dev_t dev)
 {
 	struct simple_dev *s_dev = NULL;
-	struct list_head *tmp;
 	int found = 0;
 
 	spin_lock(&simple_dev_list_lock);
-	list_for_each(tmp, &simple_dev_list) {
-		s_dev = list_entry(tmp, struct simple_dev, node);
+	list_for_each_entry(s_dev, &simple_dev_list, node) {
 		if (s_dev->dev == dev) {
 			found = 1;
 			break;

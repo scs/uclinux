@@ -1,5 +1,5 @@
 /* SCTP kernel reference Implementation
- * (C) Copyright IBM Corp. 2001, 2003
+ * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
  * Copyright (c) 2001 Intel Corp.
@@ -141,6 +141,9 @@ sctp_state_fn_t sctp_sf_cookie_echoed_err;
 sctp_state_fn_t sctp_sf_do_5_2_6_stale;
 sctp_state_fn_t sctp_sf_do_asconf;
 sctp_state_fn_t sctp_sf_do_asconf_ack;
+sctp_state_fn_t sctp_sf_do_9_2_reshutack;
+sctp_state_fn_t sctp_sf_eat_fwd_tsn;
+sctp_state_fn_t sctp_sf_eat_fwd_tsn_fast;
 
 /* Prototypes for primitive event state functions.  */
 sctp_state_fn_t sctp_sf_do_prm_asoc;
@@ -169,25 +172,6 @@ sctp_state_fn_t sctp_sf_ignore_other;
 sctp_state_fn_t sctp_sf_do_6_3_3_rtx;
 sctp_state_fn_t sctp_sf_do_6_2_sack;
 sctp_state_fn_t sctp_sf_autoclose_timer_expire;
-
-
-/* These are state functions which are either obsolete or not in use yet.
- * If any of these functions needs to be revived, it should be renamed with
- * the "sctp_sf_xxx" prefix, and be moved to the above prototype groups.
- */
-
-/* Prototypes for chunk state functions.  Not in use. */
-sctp_state_fn_t sctp_sf_do_9_2_reshutack;
-sctp_state_fn_t sctp_sf_do_9_2_reshut;
-sctp_state_fn_t sctp_sf_do_9_2_shutack;
-
-/* Prototypes for timeout event state functions.  Not in use. */
-sctp_state_fn_t sctp_do_4_2_reinit;
-sctp_state_fn_t sctp_do_4_3_reecho;
-sctp_state_fn_t sctp_do_9_2_reshut;
-sctp_state_fn_t sctp_do_9_2_reshutack;
-sctp_state_fn_t sctp_do_8_3_hb_err;
-sctp_state_fn_t sctp_heartoff;
 
 /* Prototypes for utility support functions.  */
 __u8 sctp_get_chunk_type(struct sctp_chunk *chunk);
@@ -277,6 +261,9 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 				       struct sctp_chunk *asconf);
 int sctp_process_asconf_ack(struct sctp_association *asoc,
 			    struct sctp_chunk *asconf_ack);
+struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
+				    __u32 new_cum_tsn, size_t nstreams,
+				    struct sctp_fwdtsn_skip *skiplist);
 
 void sctp_chunk_assign_tsn(struct sctp_chunk *);
 void sctp_chunk_assign_ssn(struct sctp_chunk *);
@@ -335,6 +322,9 @@ void sctp_send_stale_cookie_err(const struct sctp_endpoint *ep,
 				const struct sctp_chunk *chunk,
 				sctp_cmd_seq_t *commands,
 				struct sctp_chunk *err_chunk);
+int sctp_eat_data(const struct sctp_association *asoc,
+		  struct sctp_chunk *chunk,
+		  sctp_cmd_seq_t *commands);
 
 /* 3rd level prototypes */
 __u32 sctp_generate_tag(const struct sctp_endpoint *);
@@ -451,6 +441,23 @@ static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb, sctp_a
 {
 	if (unlikely(!sctp_add_cmd(seq, verb, obj)))
 		BUG();
+}
+
+/* Check VTAG of the packet matches the sender's own tag. */
+static inline int
+sctp_vtag_verify(const struct sctp_chunk *chunk,
+		 const struct sctp_association *asoc)
+{
+	/* RFC 2960 Sec 8.5 When receiving an SCTP packet, the endpoint
+	 * MUST ensure that the value in the Verification Tag field of
+	 * the received SCTP packet matches its own Tag. If the received
+	 * Verification Tag value does not match the receiver's own
+	 * tag value, the receiver shall silently discard the packet...
+	 */
+        if (ntohl(chunk->sctp_hdr->vtag) == asoc->c.my_vtag)
+                return 1;
+
+	return 0;
 }
 
 /* Check VTAG of the packet matches the sender's own tag OR its peer's

@@ -979,19 +979,27 @@ irqreturn_t snd_cs4231_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	}		
 	if (chip->single_dma && chip->hardware != CS4231_HW_INTERWAVE) {
 		if (status & CS4231_PLAYBACK_IRQ) {
-			if (chip->mode & CS4231_MODE_PLAY)
-				snd_pcm_period_elapsed(chip->playback_substream);
+			if (chip->mode & CS4231_MODE_PLAY) {
+				if (chip->playback_substream)
+					snd_pcm_period_elapsed(chip->playback_substream);
+			}
 			if (chip->mode & CS4231_MODE_RECORD) {
-				snd_cs4231_overrange(chip);
-				snd_pcm_period_elapsed(chip->capture_substream);
+				if (chip->capture_substream) {
+					snd_cs4231_overrange(chip);
+					snd_pcm_period_elapsed(chip->capture_substream);
+				}
 			}
 		}
 	} else {
-		if (status & CS4231_PLAYBACK_IRQ)
-			snd_pcm_period_elapsed(chip->playback_substream);
+		if (status & CS4231_PLAYBACK_IRQ) {
+			if (chip->playback_substream)
+				snd_pcm_period_elapsed(chip->playback_substream);
+		}
 		if (status & CS4231_RECORD_IRQ) {
-			snd_cs4231_overrange(chip);
-			snd_pcm_period_elapsed(chip->capture_substream);
+			if (chip->capture_substream) {
+				snd_cs4231_overrange(chip);
+				snd_pcm_period_elapsed(chip->capture_substream);
+			}
 		}
 	}
 
@@ -1343,6 +1351,7 @@ static int snd_cs4231_capture_close(snd_pcm_substream_t * substream)
 
 #ifdef CONFIG_PM
 
+/* lowlevel suspend callback for CS4231 */
 static void snd_cs4231_suspend(cs4231_t *chip)
 {
 	int reg;
@@ -1354,6 +1363,7 @@ static void snd_cs4231_suspend(cs4231_t *chip)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
+/* lowlevel resume callback for CS4231 */
 static void snd_cs4231_resume(cs4231_t *chip)
 {
 	int reg;
@@ -1395,25 +1405,25 @@ static void snd_cs4231_resume(cs4231_t *chip)
 #endif
 }
 
-static int snd_cs4231_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data)
+static int snd_cs4231_pm_suspend(snd_card_t *card, unsigned int state)
 {
-	cs4231_t *chip = snd_magic_cast(cs4231_t, dev->data, return 0);
-
-	switch (rqst) {
-	case PM_SUSPEND:
-		if (chip->suspend) {
-			snd_pcm_suspend_all(chip->pcm);
-			(*chip->suspend)(chip);
-		}
-		break;
-	case PM_RESUME:
-		if (chip->resume)
-			(*chip->resume)(chip);
-		break;
+	cs4231_t *chip = snd_magic_cast(cs4231_t, card->pm_private_data, return -EINVAL);
+	if (chip->suspend) {
+		chip->suspend(chip);
+		snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	}
 	return 0;
 }
 
+static int snd_cs4231_pm_resume(snd_card_t *card, unsigned int state)
+{
+	cs4231_t *chip = snd_magic_cast(cs4231_t, card->pm_private_data, return -EINVAL);
+	if (chip->resume) {
+		chip->resume(chip);
+		snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	}
+	return 0;
+}
 #endif /* CONFIG_PM */
 
 #ifdef LEGACY_SUPPORT
@@ -1441,10 +1451,6 @@ static int snd_cs4231_free(cs4231_t *chip)
 		snd_dma_disable(chip->dma2);
 		free_dma(chip->dma2);
 	}
-#ifdef CONFIG_PM
-	if (chip->pm_dev)
-		pm_unregister(chip->pm_dev);
-#endif
 	if (chip->timer)
 		snd_device_free(chip->card, chip->timer);
 	snd_magic_kfree(chip);
@@ -1531,26 +1537,31 @@ int snd_cs4231_create(snd_card_t * card,
 	chip->dma2 = -1;
 
 	if ((chip->res_port = request_region(port, 4, "CS4231")) == NULL) {
+		snd_printk(KERN_ERR "cs4231: can't grab port 0x%lx\n", port);
 		snd_cs4231_free(chip);
 		return -EBUSY;
 	}
 	chip->port = port;
 	if ((long)cport >= 0 && (chip->res_cport = request_region(cport, 8, "CS4232 Control")) == NULL) {
+		snd_printk(KERN_ERR "cs4231: can't grab control port 0x%lx\n", cport);
 		snd_cs4231_free(chip);
 		return -ENODEV;
 	}
 	chip->cport = cport;
 	if (!(hwshare & CS4231_HWSHARE_IRQ) && request_irq(irq, snd_cs4231_interrupt, SA_INTERRUPT, "CS4231", (void *) chip)) {
+		snd_printk(KERN_ERR "cs4231: can't grab IRQ %d\n", irq);
 		snd_cs4231_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = irq;
 	if (!(hwshare & CS4231_HWSHARE_DMA1) && request_dma(dma1, "CS4231 - 1")) {
+		snd_printk(KERN_ERR "cs4231: can't grab DMA1 %d\n", dma1);
 		snd_cs4231_free(chip);
 		return -EBUSY;
 	}
 	chip->dma1 = dma1;
 	if (!(hwshare & CS4231_HWSHARE_DMA2) && dma1 != dma2 && dma2 >= 0 && request_dma(dma2, "CS4231 - 2")) {
+		snd_printk(KERN_ERR "cs4231: can't grab DMA2 %d\n", dma2);
 		snd_cs4231_free(chip);
 		return -EBUSY;
 	}
@@ -1582,9 +1593,7 @@ int snd_cs4231_create(snd_card_t * card,
 	/* Power Management */
 	chip->suspend = snd_cs4231_suspend;
 	chip->resume = snd_cs4231_resume;
-	chip->pm_dev = pm_register(PM_ISA_DEV, 0, snd_cs4231_pm_callback);
-	if (chip->pm_dev)
-		chip->pm_dev->data = chip;
+	snd_card_set_isa_pm_callback(card, snd_cs4231_pm_suspend, snd_cs4231_pm_resume, chip);
 #endif
 
 	*rchip = chip;
@@ -1648,17 +1657,21 @@ int snd_cs4231_pcm(cs4231_t *chip, int device, snd_pcm_t **rpcm)
 	strcpy(pcm->name, snd_cs4231_chip_id(chip));
 
 #ifdef LEGACY_SUPPORT
-	snd_pcm_lib_preallocate_isa_pages_for_all(pcm, 64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_isa_data(),
+					      64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 #else
 #  ifdef EBUS_SUPPORT
         if (chip->ebus_flag) {
-                snd_pcm_lib_preallocate_pci_pages_for_all(chip->dev_u.pdev, pcm,
-                                                          64*1024, 128*1024);
+                snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+                				      chip->dev_u.pdev,
+						      64*1024, 128*1024);
         } else {
 #  endif
 #  ifdef SBUS_SUPPORT
-                snd_pcm_lib_preallocate_sbus_pages_for_all(chip->dev_u.sdev, pcm,
-                                                           64*1024, 128*1024);
+                snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_SBUS,
+                				      chip->dev_u.sdev,
+						      64*1024, 128*1024);
 #  endif
 #  ifdef EBUS_SUPPORT
         }

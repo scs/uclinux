@@ -7,14 +7,12 @@
  *
  * This file contains the general definitions for the cyclades.c driver
  *$Log$
- *Revision 1.2  2004/09/07 23:12:25  lgsoft
- *alpha-2.0
+ *Revision 1.3  2004/09/08 16:20:01  lgsoft
+ *Import of 2.6.8
  *
- *Revision 1.1.1.1  2004/07/19 12:43:51  lgsoft
- *Import of uClinux 2.6.2
- *
- *Revision 1.1.1.1  2004/07/18 13:23:02  nidhi
- *Importing
+ *Revision 3.1  2002/01/29 11:36:16  henrique
+ *added throttle field on struct cyclades_port to indicate whether the
+ *port is throttled or not
  *
  *Revision 3.1  2000/04/19 18:52:52  ivan
  *converted address fields to unsigned long and added fields for physical
@@ -150,7 +148,7 @@ struct CYZ_BOOT_CTRL {
 /****************** ****************** *******************/
 /*
  *	The data types defined below are used in all ZFIRM interface
- *	data structures. They accommodate differences between HW
+ *	data structures. They accomodate differences between HW
  *	architectures and compilers.
  */
 
@@ -613,6 +611,7 @@ struct cyclades_port {
 	wait_queue_head_t       close_wait;
 	wait_queue_head_t       shutdown_wait;
 	wait_queue_head_t       delta_msr_wait;
+	int throttle;
 };
 
 /*

@@ -67,87 +67,17 @@ pci_max_busnr(void)
 	return max;
 }
 
-/**
- * pci_find_capability - query for devices' capabilities 
- * @dev: PCI device to query
- * @cap: capability code
- *
- * Tell if a device supports a given PCI capability.
- * Returns the address of the requested capability structure within the
- * device's PCI configuration space or 0 in case the device does not
- * support it.  Possible values for @cap:
- *
- *  %PCI_CAP_ID_PM           Power Management 
- *
- *  %PCI_CAP_ID_AGP          Accelerated Graphics Port 
- *
- *  %PCI_CAP_ID_VPD          Vital Product Data 
- *
- *  %PCI_CAP_ID_SLOTID       Slot Identification 
- *
- *  %PCI_CAP_ID_MSI          Message Signalled Interrupts
- *
- *  %PCI_CAP_ID_CHSWP        CompactPCI HotSwap 
- *
- *  %PCI_CAP_ID_PCIX         PCI-X
- */
-int
-pci_find_capability(struct pci_dev *dev, int cap)
+static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_type, int cap)
 {
 	u16 status;
 	u8 pos, id;
 	int ttl = 48;
-
-	pci_read_config_word(dev, PCI_STATUS, &status);
-	if (!(status & PCI_STATUS_CAP_LIST))
-		return 0;
-	switch (dev->hdr_type) {
-	case PCI_HEADER_TYPE_NORMAL:
-	case PCI_HEADER_TYPE_BRIDGE:
-		pci_read_config_byte(dev, PCI_CAPABILITY_LIST, &pos);
-		break;
-	case PCI_HEADER_TYPE_CARDBUS:
-		pci_read_config_byte(dev, PCI_CB_CAPABILITY_LIST, &pos);
-		break;
-	default:
-		return 0;
-	}
-	while (ttl-- && pos >= 0x40) {
-		pos &= ~3;
-		pci_read_config_byte(dev, pos + PCI_CAP_LIST_ID, &id);
-		if (id == 0xff)
-			break;
-		if (id == cap)
-			return pos;
-		pci_read_config_byte(dev, pos + PCI_CAP_LIST_NEXT, &pos);
-	}
-	return 0;
-}
-
-/**
- * pci_bus_find_capability - query for devices' capabilities 
- * @bus:   the PCI bus to query
- * @devfn: PCI device to query
- * @cap:   capability code
- *
- * Like pci_find_capability() but works for pci devices that do not have a
- * pci_dev structure set up yet. 
- *
- * Returns the address of the requested capability structure within the
- * device's PCI configuration space or 0 in case the device does not
- * support it.
- */
-int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
-{
-	u16 status;
-	u8 pos, id;
-	int ttl = 48;
-	struct pci_dev *dev = bus->self;
 
 	pci_bus_read_config_word(bus, devfn, PCI_STATUS, &status);
 	if (!(status & PCI_STATUS_CAP_LIST))
 		return 0;
-	switch (dev->hdr_type) {
+
+	switch (hdr_type) {
 	case PCI_HEADER_TYPE_NORMAL:
 	case PCI_HEADER_TYPE_BRIDGE:
 		pci_bus_read_config_byte(bus, devfn, PCI_CAPABILITY_LIST, &pos);
@@ -167,6 +97,100 @@ int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
 			return pos;
 		pci_bus_read_config_byte(bus, devfn, pos + PCI_CAP_LIST_NEXT, &pos);
 	}
+	return 0;
+}
+
+/**
+ * pci_find_capability - query for devices' capabilities 
+ * @dev: PCI device to query
+ * @cap: capability code
+ *
+ * Tell if a device supports a given PCI capability.
+ * Returns the address of the requested capability structure within the
+ * device's PCI configuration space or 0 in case the device does not
+ * support it.  Possible values for @cap:
+ *
+ *  %PCI_CAP_ID_PM           Power Management 
+ *  %PCI_CAP_ID_AGP          Accelerated Graphics Port 
+ *  %PCI_CAP_ID_VPD          Vital Product Data 
+ *  %PCI_CAP_ID_SLOTID       Slot Identification 
+ *  %PCI_CAP_ID_MSI          Message Signalled Interrupts
+ *  %PCI_CAP_ID_CHSWP        CompactPCI HotSwap 
+ *  %PCI_CAP_ID_PCIX         PCI-X
+ *  %PCI_CAP_ID_EXP          PCI Express
+ */
+int pci_find_capability(struct pci_dev *dev, int cap)
+{
+	return __pci_bus_find_cap(dev->bus, dev->devfn, dev->hdr_type, cap);
+}
+
+/**
+ * pci_bus_find_capability - query for devices' capabilities 
+ * @bus:   the PCI bus to query
+ * @devfn: PCI device to query
+ * @cap:   capability code
+ *
+ * Like pci_find_capability() but works for pci devices that do not have a
+ * pci_dev structure set up yet. 
+ *
+ * Returns the address of the requested capability structure within the
+ * device's PCI configuration space or 0 in case the device does not
+ * support it.
+ */
+int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
+{
+	u8 hdr_type;
+
+	pci_bus_read_config_byte(bus, devfn, PCI_HEADER_TYPE, &hdr_type);
+
+	return __pci_bus_find_cap(bus, devfn, hdr_type & 0x7f, cap);
+}
+
+/**
+ * pci_find_ext_capability - Find an extended capability
+ * @dev: PCI device to query
+ * @cap: capability code
+ *
+ * Returns the address of the requested extended capability structure
+ * within the device's PCI configuration space or 0 if the device does
+ * not support it.  Possible values for @cap:
+ *
+ *  %PCI_EXT_CAP_ID_ERR		Advanced Error Reporting
+ *  %PCI_EXT_CAP_ID_VC		Virtual Channel
+ *  %PCI_EXT_CAP_ID_DSN		Device Serial Number
+ *  %PCI_EXT_CAP_ID_PWR		Power Budgeting
+ */
+int pci_find_ext_capability(struct pci_dev *dev, int cap)
+{
+	u32 header;
+	int ttl = 480; /* 3840 bytes, minimum 8 bytes per capability */
+	int pos = 0x100;
+
+	if (dev->cfg_size <= 256)
+		return 0;
+
+	if (pci_read_config_dword(dev, pos, &header) != PCIBIOS_SUCCESSFUL)
+		return 0;
+
+	/*
+	 * If we have no capabilities, this is indicated by cap ID,
+	 * cap version and next pointer all being 0.
+	 */
+	if (header == 0)
+		return 0;
+
+	while (ttl-- > 0) {
+		if (PCI_EXT_CAP_ID(header) == cap)
+			return pos;
+
+		pos = PCI_EXT_CAP_NEXT(header);
+		if (pos < 0x100)
+			break;
+
+		if (pci_read_config_dword(dev, pos, &header) != PCIBIOS_SUCCESSFUL)
+			break;
+	}
+
 	return 0;
 }
 
@@ -361,6 +385,7 @@ pci_enable_device_bars(struct pci_dev *dev, int bars)
 int
 pci_enable_device(struct pci_dev *dev)
 {
+	dev->is_enabled = 1;
 	return pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
 }
 
@@ -375,6 +400,9 @@ void
 pci_disable_device(struct pci_dev *dev)
 {
 	u16 pci_command;
+	
+	dev->is_enabled = 0;
+	dev->is_busmaster = 0;
 
 	pci_read_config_word(dev, PCI_COMMAND, &pci_command);
 	if (pci_command & PCI_COMMAND_MASTER) {
@@ -414,7 +442,7 @@ int pci_enable_wake(struct pci_dev *dev, u32 state, int enable)
 	pci_read_config_word(dev,pm+PCI_PM_PMC,&value);
 
 	value &= PCI_PM_CAP_PME_MASK;
-	value >>= ffs(value);   /* First bit of mask */
+	value >>= ffs(PCI_PM_CAP_PME_MASK) - 1;   /* First bit of mask */
 
 	/* Check if it can generate PME# from requested state. */
 	if (!value || !(value & (1 << state))) 
@@ -553,11 +581,6 @@ int pci_request_regions(struct pci_dev *pdev, char *res_name)
 	return 0;
 
 err_out:
-	printk (KERN_WARNING "PCI: Unable to reserve %s region #%d:%lx@%lx for device %s\n",
-		pci_resource_flags(pdev, i) & IORESOURCE_IO ? "I/O" : "mem",
-		i + 1, /* PCI BAR # */
-		pci_resource_len(pdev, i), pci_resource_start(pdev, i),
-		pci_name(pdev));
 	while(--i >= 0)
 		pci_release_region(pdev, i);
 		
@@ -582,6 +605,7 @@ pci_set_master(struct pci_dev *dev)
 		cmd |= PCI_COMMAND_MASTER;
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
+	dev->is_busmaster = 1;
 	pcibios_set_master(dev);
 }
 
@@ -621,7 +645,7 @@ pci_generic_prep_mwi(struct pci_dev *dev)
 	if (cacheline_size == pci_cache_line_size)
 		return 0;
 
-	printk(KERN_WARNING "PCI: cache line size of %d is not supported "
+	printk(KERN_DEBUG "PCI: cache line size of %d is not supported "
 	       "by device %s\n", pci_cache_line_size << 2, pci_name(dev));
 
 	return -EINVAL;
@@ -681,6 +705,10 @@ pci_clear_mwi(struct pci_dev *dev)
 	}
 }
 
+#ifndef HAVE_ARCH_PCI_SET_DMA_MASK
+/*
+ * These can be overridden by arch-specific implementations
+ */
 int
 pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 {
@@ -709,10 +737,11 @@ pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 	if (!pci_dma_supported(dev, mask))
 		return -EIO;
 
-	dev->consistent_dma_mask = mask;
+	dev->dev.coherent_dma_mask = mask;
 
 	return 0;
 }
+#endif
      
 static int __devinit pci_init(void)
 {

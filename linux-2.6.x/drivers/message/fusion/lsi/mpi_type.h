@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2002 LSI Logic Corporation.
+ *  Copyright (c) 2000-2003 LSI Logic Corporation.
  *
  *
- *           Name:  MPI_TYPE.H
+ *           Name:  mpi_type.h
  *          Title:  MPI Basic type definitions
  *  Creation Date:  June 6, 2000
  *
- *    MPI Version:  01.02.01
+ *    mpi_type.h Version:  01.05.xx
  *
  *  Version History
  *  ---------------
@@ -47,18 +47,13 @@ typedef signed   short  S16;
 typedef unsigned short  U16;
 
 
-#if defined(unix) || defined(__arm) || defined(ALPHA)
+typedef int32_t   S32;
+typedef u_int32_t U32;
 
-    typedef signed   int   S32;
-    typedef unsigned int   U32;
-
-#else
-
-    typedef signed   long  S32;
-    typedef unsigned long  U32;
-
-#endif
-
+/*
+ *  The only way crap below could work on big-endian boxen would be if it
+ *  wasn't used at all.
+ */
 
 typedef struct _S64
 {

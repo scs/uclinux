@@ -6,7 +6,6 @@
 
 /* define constants */
 typedef unsigned long mm_segment_t;         /* domain register      */
-#endif
  
 #define KERNEL_CS   0x0
 #define KERNEL_DS   0x0
@@ -18,10 +17,22 @@ typedef unsigned long mm_segment_t;         /* domain register      */
 #define __USER_CS     0x1
 #define __USER_DS     0x1 
 
-#define get_ds()        (KERNEL_DS)
-#define set_fs(val)
-#define get_fs()        (__USER_DS)
+static inline mm_segment_t get_fs(void)
+{
+    return USER_DS;
+}
+
+static inline mm_segment_t get_ds(void)
+{
+    return KERNEL_DS;
+}
+
+static inline void set_fs(mm_segment_t val)
+{
+}
+
 #define segment_eq(a,b) ((a) == (b))
 
+#endif /* __ASSEMBLY__ */
 
 #endif /* _BFIN_SEGMENT_H */

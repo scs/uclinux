@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/hash.h>
 #include <linux/highmem.h>
-#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
 static mempool_t *page_pool, *isa_page_pool;
@@ -147,7 +146,7 @@ start:
 	return vaddr;
 }
 
-void *kmap_high(struct page *page)
+void fastcall *kmap_high(struct page *page)
 {
 	unsigned long vaddr;
 
@@ -170,7 +169,7 @@ void *kmap_high(struct page *page)
 
 EXPORT_SYMBOL(kmap_high);
 
-void kunmap_high(struct page *page)
+void fastcall kunmap_high(struct page *page)
 {
 	unsigned long vaddr;
 	unsigned long nr;
@@ -294,7 +293,12 @@ static void copy_to_high_bio_irq(struct bio *to, struct bio *from)
 		if (tovec->bv_page == fromvec->bv_page)
 			continue;
 
-		vfrom = page_address(fromvec->bv_page) + fromvec->bv_offset;
+		/*
+		 * fromvec->bv_offset and fromvec->bv_len might have been
+		 * modified by the block layer, so use the original copy,
+		 * bounce_copy_vec already uses tovec->bv_len
+		 */
+		vfrom = page_address(fromvec->bv_page) + tovec->bv_offset;
 
 		bounce_copy_vec(tovec, vfrom);
 	}
@@ -304,12 +308,10 @@ static void bounce_end_io(struct bio *bio, mempool_t *pool)
 {
 	struct bio *bio_orig = bio->bi_private;
 	struct bio_vec *bvec, *org_vec;
-	int i;
+	int i, err = 0;
 
 	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-		goto out_eio;
-
-	set_bit(BIO_UPTODATE, &bio_orig->bi_flags);
+		err = -EIO;
 
 	/*
 	 * free up bounce indirect pages used
@@ -322,8 +324,7 @@ static void bounce_end_io(struct bio *bio, mempool_t *pool)
 		mempool_free(bvec->bv_page, pool);	
 	}
 
-out_eio:
-	bio_endio(bio_orig, bio_orig->bi_size, 0);
+	bio_endio(bio_orig, bio_orig->bi_size, err);
 	bio_put(bio);
 }
 

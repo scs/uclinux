@@ -82,9 +82,9 @@ static const char version[] =
 
 
 #if defined(CONFIG_BFIN)
-#include <asm-bfinnommu/irq.h>
-#include <asm/blackfin.h>
-#include <asm-bfinnommu/delay.h>
+#include <asm/irq.h>
+#include <asm/board/cdefBF533.h>
+#include <asm/delay.h>
 #define CONFIG_SMC16BITONLY     1
 #define LAN_FIO_PATTERN		0x80
 
@@ -499,7 +499,7 @@ static void smc_phy_configure(struct net_device* dev);
 /*
  . Handles the actual interrupt
 */
-static void smc_interrupt(int irq, void *, struct pt_regs *regs);
+static irqreturn_t smc_interrupt(int irq, void *, struct pt_regs *regs);
 /*
  . This is a separate procedure to handle the receipt of a packet, to
  . leave the interrupt code looking slightly cleaner
@@ -592,26 +592,26 @@ void bfin_EBIU_AM_setup(void)
 	
 	PRINTK2("EBIU Asynchronous memory setup.\n");
 
-	stmp = FIO_DIR;
+	stmp = *pFIO_DIR;
         asm("ssync;");
-	FIO_DIR = stmp | 1;
-	FIO_FLAG_S = 0x0001;
+	*pFIO_DIR = stmp | 1;
+	*pFIO_FLAG_S = 0x0001;
 	asm("ssync;");
 
-        EBIU_AMGCTL = 0xF;		/*AMGCTL*/
+        *pEBIU_AMGCTL = 0xF;		/*AMGCTL*/
         asm("ssync;");
 #ifdef CONFIG_EZKIT               
-        EBIU_AMBCTL0 = 0x7BB07BB0;	/* AMBCTL0*/
+        *pEBIU_AMBCTL0 = 0x7BB07BB0;	/* AMBCTL0*/
         asm("ssync;");
 
-        EBIU_AMBCTL1 = 0x22547BB0;	/* AMBCTL1*/
+        *pEBIU_AMBCTL1 = 0x22547BB0;	/* AMBCTL1*/
         asm("ssync;");
 #endif
 #ifdef CONFIG_BLKFIN_STAMP
-        EBIU_AMBCTL0 = 0xBBC3BBC3;	/* AMBCTL0*/
+        *pEBIU_AMBCTL0 = 0xBBC3BBC3;	/* AMBCTL0*/
         asm("ssync;");
 
-        EBIU_AMBCTL1 = 0x99B39983;	/* AMBCTL1*/
+        *pEBIU_AMBCTL1 = 0x99B39983;	/* AMBCTL1*/
         asm("ssync;");
 #endif
 }
@@ -623,41 +623,41 @@ void bfin_SMC_interrupt_setup(int irq)
 	PRINTK2("EZ-LAN interrupt setup.\n");
 
 	// Direction setup
-	stmp = FIO_DIR;
+	stmp = *pFIO_DIR;
         asm("ssync;");
-	FIO_DIR = stmp & (~LAN_FIO_PATTERN);
+	*pFIO_DIR = stmp & (~LAN_FIO_PATTERN);
 
 	// Clear pending IRQ for PF7
-	FIO_MASKB_C = LAN_FIO_PATTERN;   	
+	*pFIO_MASKB_C = LAN_FIO_PATTERN;   	
 
         // Enable Flag PF7 for IRQ_B
-	FIO_MASKB_S = LAN_FIO_PATTERN;    	
+	*pFIO_MASKB_S = LAN_FIO_PATTERN;    	
  
         // Set Polarity for IRQs (8:HIGH)
-	stmp = FIO_POLAR;    	
+	stmp = *pFIO_POLAR;    	
         asm("ssync;");
-        FIO_POLAR = stmp & (~LAN_FIO_PATTERN);    	
+        *pFIO_POLAR = stmp & (~LAN_FIO_PATTERN);    	
 
         // Set Edge Sensitivity PF8, PF9
-	stmp = FIO_EDGE;
+	stmp = *pFIO_EDGE;
         asm("ssync;");
-	FIO_EDGE = stmp & (~LAN_FIO_PATTERN);    	
+	*pFIO_EDGE = stmp & (~LAN_FIO_PATTERN);    	
 
         // Clear Both Edge Sensitivity for IRQ_A and IRQ_B
-	stmp = FIO_BOTH;    	
+	stmp = *pFIO_BOTH;    	
         asm("ssync;");
-	FIO_BOTH = stmp & ~(LAN_FIO_PATTERN);    	
+	*pFIO_BOTH = stmp & ~(LAN_FIO_PATTERN);    	
 
 	// finally clear flag pin value	
-	stmp = FIO_FLAG_C;    	
+	stmp = *pFIO_FLAG_C;    	
         asm("ssync;");
-	FIO_FLAG_C = stmp & LAN_FIO_PATTERN;    	
+	*pFIO_FLAG_C = stmp & LAN_FIO_PATTERN;    	
         asm("ssync;");
 
 
-	stmp = FIO_INEN;    	
+	stmp = *pFIO_INEN;    	
         asm("ssync;");
-	FIO_INEN = stmp | LAN_FIO_PATTERN;    	
+	*pFIO_INEN = stmp | LAN_FIO_PATTERN;    	
         asm("ssync;");
 
 	/* enable irq b */
@@ -946,6 +946,8 @@ static int smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * de
 	word			status;
 
 	PRINTK3("%s:smc_wait_to_send_packet\n", dev->name);
+
+	netif_stop_queue(dev);	/*Let us wait*/
 
 	if ( lp->saved_skb) {
 		/* THIS SHOULD NEVER HAPPEN. */
@@ -1395,7 +1397,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	/* Grab the region so that no one else tries to probe our ioports. */
 	if (!request_region(ioaddr>>20, SMC_IO_EXTENT, dev->name)) 
 	{
-		printk(KERN_DEBUG "SMC91111:Resource Busy\n");
+		printk(KERN_DEBUG "SMSC91111:Resource Busy\n");
 		return -EBUSY;
 	}
 #endif
@@ -1404,7 +1406,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	bank = smc_readw( ioaddr + BANK_SELECT );
 	if ( (bank & 0xFF00) != 0x3300 ) 
 	{
-		printk(KERN_DEBUG "SMC91111:Device not found : %x\n", bank);
+		printk(KERN_DEBUG "SMSC91111:Device not found : %x\n", bank);
 		return -ENODEV;
 	}
 
@@ -1416,7 +1418,7 @@ static int __init smc_probe(struct net_device *dev, unsigned int ioaddr )
 	if ( (bank & 0xFF00 ) != 0x3300 )
 	{
 		retval = -ENODEV;
-		printk(KERN_DEBUG "SMC91111:Not a SMC device : %x\n", bank);
+		printk(KERN_DEBUG "SMSC91111:Not a SMC device : %x\n", bank);
 		goto err_out;
 	}
 
@@ -1841,7 +1843,7 @@ static void smc_timeout (struct net_device *dev)
  .   and finally restore state.
  .
  ---------------------------------------------------------------------*/
-static void smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
+static irqreturn_t smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
 {
 	struct net_device *dev 	= dev_id;
 	unsigned int ioaddr 	= dev->base_addr;
@@ -1860,7 +1862,7 @@ static void smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
 	if (dev == NULL) {
 		printk(KERN_WARNING "%s: irq %d for unknown device.\n",
 			dev->name, irq);
-		return;
+		return 1; 
 	}
 
 	/* will Linux let this happen ??  If not, this costs some speed
@@ -2028,7 +2030,7 @@ static void smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
 
 	//dev->interrupt = 0;
 	PRINTK3("%s: Interrupt done\n", dev->name);
-	return;
+	return 0;
 }
 
 /*-------------------------------------------------------------
@@ -2501,7 +2503,7 @@ static const char smc_info_string[] =
  . Sysctl handler for all integer parameters
  .-------------------------------------------------------------*/
 static int smc_sysctl_handler(ctl_table *ctl, int write, struct file * filp,
-				void *buffer, size_t *lenp)
+				void __user *buffer, size_t *lenp,loff_t *dummy)
 {
 	struct net_device *dev = (struct net_device*)ctl->extra1;
 	struct smc_local *lp = (struct smc_local *)ctl->extra2;
@@ -2730,7 +2732,7 @@ static int smc_sysctl_handler(ctl_table *ctl, int write, struct file * filp,
 	val = *valp;
 
 	// Perform the generic integer operation	
-	if ((ret = proc_dointvec(ctl, write, filp, buffer, lenp)) != 0)
+	if ((ret = proc_dointvec(ctl, write, filp, buffer, lenp,NULL)) != 0)
 		return(ret);
 
 	// Write changes out to the registers

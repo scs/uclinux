@@ -65,7 +65,7 @@ static struct mtd_info *amd_mtd;
 static struct map_info nettel_intel_map = {
 	.name = "SnapGear Intel",
 	.size = 0,
-	.buswidth = INTEL_BUSWIDTH,
+	.bankwidth = INTEL_BUSWIDTH,
 };
 
 static struct mtd_partition nettel_intel_partitions[] = {
@@ -103,7 +103,7 @@ static struct mtd_partition nettel_intel_partitions[] = {
 static struct map_info nettel_amd_map = {
 	.name = "SnapGear AMD",
 	.size = AMD_WINDOW_MAXSIZE,
-	.buswidth = AMD_BUSWIDTH,
+	.bankwidth = AMD_BUSWIDTH,
 };
 
 static struct mtd_partition nettel_amd_partitions[] = {

@@ -16,6 +16,7 @@
  * loader.
  */
 #define pcibios_assign_all_busses()     0
+#define pcibios_scan_all_fns(a, b)	0
 
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
@@ -75,7 +76,8 @@ extern int pcibios_prep_mwi (struct pci_dev *);
 #define pci_dac_page_to_dma(dev,pg,off,dir)		((dma_addr_t) page_to_bus(pg) + (off))
 #define pci_dac_dma_to_page(dev,dma_addr)		(virt_to_page(bus_to_virt(dma_addr)))
 #define pci_dac_dma_to_offset(dev,dma_addr)		offset_in_page(dma_addr)
-#define pci_dac_dma_sync_single(dev,dma_addr,len,dir)	do { mb(); } while (0)
+#define pci_dac_dma_sync_single_for_cpu(dev,dma_addr,len,dir)	do { } while (0)
+#define pci_dac_dma_sync_single_for_device(dev,dma_addr,len,dir)	do { mb(); } while (0)
 
 #define sg_dma_len(sg)		((sg)->dma_length)
 #define sg_dma_address(sg)	((sg)->dma_address)
@@ -96,6 +98,8 @@ struct pci_controller {
 
 	unsigned int windows;
 	struct pci_window *window;
+
+	void *platform_data;
 };
 
 #define PCI_CONTROLLER(busdev) ((struct pci_controller *) busdev->sysdata)
@@ -109,6 +113,10 @@ static inline int pci_name_bus(char *name, struct pci_bus *bus)
 		sprintf(name, "%04x:%02x", pci_domain_nr(bus), bus->number);
 	}
 	return 0;
+}
+
+static inline void pcibios_add_platform_entries(struct pci_dev *dev)
+{
 }
 
 /* generic pci stuff */

@@ -3,7 +3,7 @@
 
 /*
  * Copyright (C) 1999 Niibe Yutaka
- * Copyright (C) 2002, 2003 Paul Mundt
+ * Copyright (C) 2002, 2003, 2004 Paul Mundt
  */
 
 #include <linux/config.h>
@@ -16,6 +16,7 @@
 #ifndef __ASSEMBLY__
 #include <asm/processor.h>
 #include <asm/addrspace.h>
+#include <asm/fixmap.h>
 #include <linux/threads.h>
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
@@ -51,22 +52,22 @@ extern unsigned long empty_zero_page[1024];
  * Currently only 4-enty (16kB) is used (see arch/sh/mm/cache.c)
  */
 #define VMALLOC_START	(P3SEG+0x00100000)
-#define VMALLOC_END	P4SEG
+#define VMALLOC_END	(FIXADDR_START-2*PAGE_SIZE)
 
-/*			0x001     WT-bit on SH-4, 0 on SH-3 */
+#define	_PAGE_WT	0x001  /* WT-bit on SH-4, 0 on SH-3 */
 #define _PAGE_HW_SHARED	0x002  /* SH-bit  : page is shared among processes */
 #define _PAGE_DIRTY	0x004  /* D-bit   : page changed */
 #define _PAGE_CACHABLE	0x008  /* C-bit   : cachable */
-/*			0x010     SZ0-bit : Size of page */
+#define _PAGE_SZ0	0x010  /* SZ0-bit : Size of page */
 #define _PAGE_RW	0x020  /* PR0-bit : write access allowed */
 #define _PAGE_USER	0x040  /* PR1-bit : user space access allowed */
-/*			0x080     SZ1-bit : Size of page (on SH-4) */
+#define _PAGE_SZ1	0x080  /* SZ1-bit : Size of page (on SH-4) */
 #define _PAGE_PRESENT	0x100  /* V-bit   : page is valid */
 #define _PAGE_PROTNONE	0x200  /* software: if not present  */
 #define _PAGE_ACCESSED 	0x400  /* software: page referenced */
 #define _PAGE_U0_SHARED 0x800  /* software: page is shared in user space */
 
-#define	_PAGE_FILE	0x080  /* software: pagecache or swap? */
+#define	_PAGE_FILE	_PAGE_WT  /* software: pagecache or swap? */
 
 /* software: moves to PTEA.TC (Timing Control) */
 #define _PAGE_PCC_AREA5	0x00000000	/* use BSC registers for area5 */
@@ -83,20 +84,29 @@ extern unsigned long empty_zero_page[1024];
 
 
 /* Mask which drop software flags
- * We also drop SZ1 bit since it is always 0 and used for _PAGE_FILE
+ * We also drop WT bit since it is used for _PAGE_FILE
  * bit in this implementation.
  */
+#define _PAGE_CLEAR_FLAGS	(_PAGE_WT | _PAGE_PROTNONE | _PAGE_ACCESSED | _PAGE_U0_SHARED)
+
 #if defined(CONFIG_CPU_SH3)
 /*
  * MMU on SH-3 has bug on SH-bit: We can't use it if MMUCR.IX=1.
  * Work around: Just drop SH-bit.
  */
-#define _PAGE_FLAGS_HARDWARE_MASK	0x1ffff17c
+#define _PAGE_FLAGS_HARDWARE_MASK	(0x1fffffff & ~(_PAGE_CLEAR_FLAGS | _PAGE_HW_SHARED))
 #else
-#define _PAGE_FLAGS_HARDWARE_MASK	0x1ffff17e
+#define _PAGE_FLAGS_HARDWARE_MASK	(0x1fffffff & ~(_PAGE_CLEAR_FLAGS))
 #endif
-/* Hardware flags: SZ=1 (4k-byte) */
-#define _PAGE_FLAGS_HARD		0x00000010
+
+/* Hardware flags: SZ0=1 (4k-byte) */
+#define _PAGE_FLAGS_HARD	_PAGE_SZ0
+
+#if defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
+#define _PAGE_SZHUGE	(_PAGE_SZ1)
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_1MB)
+#define _PAGE_SZHUGE	(_PAGE_SZ0 | _PAGE_SZ1)
+#endif
 
 #define _PAGE_SHARED	_PAGE_U0_SHARED
 
@@ -110,17 +120,20 @@ extern unsigned long empty_zero_page[1024];
 #define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_CACHABLE | _PAGE_ACCESSED | _PAGE_FLAGS_HARD)
 #define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_CACHABLE | _PAGE_ACCESSED | _PAGE_FLAGS_HARD)
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_CACHABLE | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_HW_SHARED | _PAGE_FLAGS_HARD)
+#define PAGE_KERNEL_NOCACHE \
+			__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_HW_SHARED | _PAGE_FLAGS_HARD)
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_PRESENT | _PAGE_CACHABLE | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_HW_SHARED | _PAGE_FLAGS_HARD)
 #define PAGE_KERNEL_PCC(slot, type) \
 			__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_FLAGS_HARD | (slot ? _PAGE_PCC_AREA5 : _PAGE_PCC_AREA6) | (type))
 #else /* no mmu */
-#define PAGE_NONE	__pgprot(0)
-#define PAGE_SHARED	__pgprot(0)
-#define PAGE_COPY	__pgprot(0)
-#define PAGE_READONLY	__pgprot(0)
-#define PAGE_KERNEL	__pgprot(0)
-#define PAGE_KERNEL_RO	__pgprot(0)
-#define PAGE_KERNEL_PCC	__pgprot(0)
+#define PAGE_NONE		__pgprot(0)
+#define PAGE_SHARED		__pgprot(0)
+#define PAGE_COPY		__pgprot(0)
+#define PAGE_READONLY		__pgprot(0)
+#define PAGE_KERNEL		__pgprot(0)
+#define PAGE_KERNEL_NOCACHE	__pgprot(0)
+#define PAGE_KERNEL_RO		__pgprot(0)
+#define PAGE_KERNEL_PCC		__pgprot(0)
 #endif
 
 /*
@@ -195,6 +208,8 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 	return __pgprot(prot);
 }
 
+#define pgprot_writecombine(prot) __pgprot(pgprot_val(prot) & ~_PAGE_CACHABLE)
+
 /*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
@@ -243,25 +258,15 @@ extern void update_mmu_cache(struct vm_area_struct * vma,
 #define __swp_type(x)		((x).val & 0xff)
 #define __swp_offset(x)		((x).val >> 10)
 #define __swp_entry(type, offset) ((swp_entry_t) { (type) | ((offset) << 10) })
-#define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
-#define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+#define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) >> 1 })
+#define __swp_entry_to_pte(x)	((pte_t) { (x).val << 1 })
 
 /*
  * Encode and decode a nonlinear file mapping entry
  */
 #define PTE_FILE_MAX_BITS	29
-#define pte_to_pgoff(pte)	(pte_val(pte))
-#define pgoff_to_pte(off)	((pte_t) { (off) | _PAGE_FILE })
-
-/*
- * Routines for update of PTE 
- *
- * We just can use generic implementation, as SuperH has no SMP feature.
- * (We needed atomic implementation for SMP)
- *
- */
-
-#define pte_same(A,B)	(pte_val(A) == pte_val(B))
+#define pte_to_pgoff(pte)	(pte_val(pte) >> 1)
+#define pgoff_to_pte(off)	((pte_t) { ((off) << 1) | _PAGE_FILE })
 
 typedef pte_t *pte_addr_t;
 
@@ -280,12 +285,11 @@ typedef pte_t *pte_addr_t;
 extern unsigned int kobjsize(const void *objp);
 #endif /* !CONFIG_MMU */
 
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
+#ifdef CONFIG_CPU_SH4
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-#define __HAVE_ARCH_PTEP_SET_WRPROTECT
-#define __HAVE_ARCH_PTEP_MKDIRTY
-#define __HAVE_ARCH_PTE_SAME
+extern inline pte_t ptep_get_and_clear(pte_t *ptep);
+#endif
+
 #include <asm-generic/pgtable.h>
 
 #endif /* __ASM_SH_PAGE_H */

@@ -8,7 +8,7 @@
  * Authors:   Bjorn Wesen
  *
  * $Log$
- * Revision 1.3  2004/09/08 10:19:57  lgsoft
+ * Revision 1.4  2004/09/08 14:53:02  lgsoft
  * Import of 2.6.8
  *
  * Revision 1.9  2003/07/04 12:56:11  tobiasa

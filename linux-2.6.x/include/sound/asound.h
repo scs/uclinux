@@ -33,12 +33,14 @@
 #include <linux/time.h>
 #include <asm/byteorder.h>
 
-#if  __LITTLE_ENDIAN == 1234
+#ifdef  __LITTLE_ENDIAN
 #define SNDRV_LITTLE_ENDIAN
-#elif __BIG_ENDIAN == 4321
+#else
+#ifdef __BIG_ENDIAN
 #define SNDRV_BIG_ENDIAN
 #else
 #error "Unsupported endian..."
+#endif
 #endif
 
 #else /* !__KERNEL__ */
@@ -107,9 +109,10 @@ enum sndrv_hwdep_iface {
 	SNDRV_HWDEP_IFACE_VX,		/* Digigram VX cards */
 	SNDRV_HWDEP_IFACE_MIXART,	/* Digigram miXart cards */
 	SNDRV_HWDEP_IFACE_USX2Y,	/* Tascam US122, US224 & US428 usb */
+	SNDRV_HWDEP_IFACE_EMUX_WAVETABLE, /* EmuX wavetable */	
 
 	/* Don't forget to change the following: */
-	SNDRV_HWDEP_IFACE_LAST = SNDRV_HWDEP_IFACE_USX2Y,
+	SNDRV_HWDEP_IFACE_LAST = SNDRV_HWDEP_IFACE_EMUX_WAVETABLE,
 };
 
 struct sndrv_hwdep_info {
@@ -134,7 +137,7 @@ struct sndrv_hwdep_dsp_status {
 struct sndrv_hwdep_dsp_image {
 	unsigned int index;		/* W: DSP index */
 	unsigned char name[64];		/* W: ID (e.g. file name) */
-	unsigned char *image;		/* W: binary image */
+	unsigned char __user *image;	/* W: binary image */
 	size_t length;			/* W: size of image in bytes */
 	unsigned long driver_data;	/* W: driver-specific data */
 };
@@ -152,7 +155,7 @@ enum {
  *                                                                           *
  *****************************************************************************/
 
-#define SNDRV_PCM_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 5)
+#define SNDRV_PCM_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 7)
 
 typedef unsigned long sndrv_pcm_uframes_t;
 typedef long sndrv_pcm_sframes_t;
@@ -272,6 +275,7 @@ enum sndrv_pcm_subformat {
 #define SNDRV_PCM_INFO_HALF_DUPLEX	0x00100000	/* only half duplex */
 #define SNDRV_PCM_INFO_JOINT_DUPLEX	0x00200000	/* playback and capture stream are somewhat correlated */
 #define SNDRV_PCM_INFO_SYNC_START	0x00400000	/* pcm support some kind of sync go */
+#define SNDRV_PCM_INFO_NONATOMIC_OPS	0x00800000	/* non-atomic prepare callback */
 
 enum sndrv_pcm_state {
 	SNDRV_PCM_STATE_OPEN = 0,	/* stream is open */
@@ -282,7 +286,8 @@ enum sndrv_pcm_state {
 	SNDRV_PCM_STATE_DRAINING,	/* stream is draining */
 	SNDRV_PCM_STATE_PAUSED,		/* stream is paused */
 	SNDRV_PCM_STATE_SUSPENDED,	/* hardware is suspended */
-	SNDRV_PCM_STATE_LAST = SNDRV_PCM_STATE_SUSPENDED,
+	SNDRV_PCM_STATE_DISCONNECTED,	/* hardware is disconnected */
+	SNDRV_PCM_STATE_LAST = SNDRV_PCM_STATE_DISCONNECTED,
 };
 
 enum {
@@ -425,15 +430,31 @@ struct sndrv_pcm_mmap_control {
 	sndrv_pcm_uframes_t avail_min;	/* RW: min available frames for wakeup */
 };
 
+#define SNDRV_PCM_SYNC_PTR_HWSYNC	(1<<0)	/* execute hwsync */
+#define SNDRV_PCM_SYNC_PTR_APPL		(1<<1)	/* get appl_ptr from driver (r/w op) */
+#define SNDRV_PCM_SYNC_PTR_AVAIL_MIN	(1<<2)	/* get avail_min from driver */
+
+struct sndrv_pcm_sync_ptr {
+	unsigned int flags;
+	union {
+		struct sndrv_pcm_mmap_status status;
+		unsigned char reserved[64];
+	} s;
+	union {
+		struct sndrv_pcm_mmap_control control;
+		unsigned char reserved[64];
+	} c;
+};
+
 struct sndrv_xferi {
 	sndrv_pcm_sframes_t result;
-	void *buf;
+	void __user *buf;
 	sndrv_pcm_uframes_t frames;
 };
 
 struct sndrv_xfern {
 	sndrv_pcm_sframes_t result;
-	void **bufs;
+	void __user * __user *bufs;
 	sndrv_pcm_uframes_t frames;
 };
 
@@ -448,6 +469,7 @@ enum {
 	SNDRV_PCM_IOCTL_STATUS = _IOR('A', 0x20, struct sndrv_pcm_status),
 	SNDRV_PCM_IOCTL_DELAY = _IOR('A', 0x21, sndrv_pcm_sframes_t),
 	SNDRV_PCM_IOCTL_HWSYNC = _IO('A', 0x22),
+	SNDRV_PCM_IOCTL_SYNC_PTR = _IOWR('A', 0x23, struct sndrv_pcm_sync_ptr),
 	SNDRV_PCM_IOCTL_CHANNEL_INFO = _IOR('A', 0x32, struct sndrv_pcm_channel_info),
 	SNDRV_PCM_IOCTL_PREPARE = _IO('A', 0x40),
 	SNDRV_PCM_IOCTL_RESET = _IO('A', 0x41),
@@ -535,7 +557,7 @@ enum {
  *  Timer section - /dev/snd/timer
  */
 
-#define SNDRV_TIMER_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 1)
+#define SNDRV_TIMER_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 2)
 
 enum sndrv_timer_class {
 	SNDRV_TIMER_CLASS_NONE = -1,
@@ -616,6 +638,7 @@ struct sndrv_timer_info {
 
 #define SNDRV_TIMER_PSFLG_AUTO		(1<<0)	/* auto start, otherwise one-shot */
 #define SNDRV_TIMER_PSFLG_EXCLUSIVE	(1<<1)	/* exclusive use, precise start/stop/pause/continue */
+#define SNDRV_TIMER_PSFLG_EARLY_EVENT	(1<<2)	/* write early event to the poll queue */
 
 struct sndrv_timer_params {
 	unsigned int flags;		/* flags - SNDRV_MIXER_PSFLG_* */
@@ -664,6 +687,7 @@ enum sndrv_timer_event {
 	SNDRV_TIMER_EVENT_STOP,			/* val = 0 */
 	SNDRV_TIMER_EVENT_CONTINUE,		/* val = resolution in ns */
 	SNDRV_TIMER_EVENT_PAUSE,		/* val = 0 */
+	SNDRV_TIMER_EVENT_EARLY,		/* val = 0, early event */
 	/* master timer events for slave timer instances */
 	SNDRV_TIMER_EVENT_MSTART = SNDRV_TIMER_EVENT_START + 10,
 	SNDRV_TIMER_EVENT_MSTOP = SNDRV_TIMER_EVENT_STOP + 10,
@@ -683,7 +707,7 @@ struct sndrv_timer_tread {
  *                                                                          *
  ****************************************************************************/
 
-#define SNDRV_CTL_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 2)
+#define SNDRV_CTL_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 3)
 
 struct sndrv_ctl_card_info {
 	int card;			/* card number */
@@ -728,6 +752,7 @@ enum sndrv_ctl_elem_iface {
 #define SNDRV_CTL_ELEM_ACCESS_INACTIVE		(1<<8)	/* control does actually nothing, but may be updated */
 #define SNDRV_CTL_ELEM_ACCESS_LOCK		(1<<9)	/* write lock */
 #define SNDRV_CTL_ELEM_ACCESS_OWNER		(1<<10)	/* write lock owner */
+#define SNDRV_CTL_ELEM_ACCESS_USER		(1<<29) /* user space element */
 #define SNDRV_CTL_ELEM_ACCESS_DINDIRECT		(1<<30)	/* indirect access for matrix dimensions in the info structure */
 #define SNDRV_CTL_ELEM_ACCESS_INDIRECT		(1<<31)	/* indirect access for element value in the value structure */
 
@@ -753,7 +778,7 @@ struct sndrv_ctl_elem_list {
 	unsigned int space;		/* W: count of element IDs to get */
 	unsigned int used;		/* R: count of element IDs set */
 	unsigned int count;		/* R: count of all elements */
-	struct sndrv_ctl_elem_id *pids; /* R: IDs */
+	struct sndrv_ctl_elem_id __user *pids; /* R: IDs */
 	unsigned char reserved[50];
 };
 
@@ -824,6 +849,9 @@ enum {
 	SNDRV_CTL_IOCTL_ELEM_LOCK = _IOW('U', 0x14, struct sndrv_ctl_elem_id),
 	SNDRV_CTL_IOCTL_ELEM_UNLOCK = _IOW('U', 0x15, struct sndrv_ctl_elem_id),
 	SNDRV_CTL_IOCTL_SUBSCRIBE_EVENTS = _IOWR('U', 0x16, int),
+	SNDRV_CTL_IOCTL_ELEM_ADD = _IOWR('U', 0x17, struct sndrv_ctl_elem_info),
+	SNDRV_CTL_IOCTL_ELEM_REPLACE = _IOWR('U', 0x18, struct sndrv_ctl_elem_info),
+	SNDRV_CTL_IOCTL_ELEM_REMOVE = _IOWR('U', 0x19, struct sndrv_ctl_elem_id),
 	SNDRV_CTL_IOCTL_HWDEP_NEXT_DEVICE = _IOWR('U', 0x20, int),
 	SNDRV_CTL_IOCTL_HWDEP_INFO = _IOR('U', 0x21, struct sndrv_hwdep_info),
 	SNDRV_CTL_IOCTL_PCM_NEXT_DEVICE = _IOR('U', 0x30, int),

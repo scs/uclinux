@@ -78,6 +78,7 @@
 #include <linux/divert.h>
 #include <linux/mount.h>
 #include <linux/security.h>
+#include <linux/syscalls.h>
 #include <linux/compat.h>
 #include <linux/kmod.h>
 
@@ -86,6 +87,8 @@
 #endif	/* CONFIG_NET_RADIO */
 
 #include <asm/uaccess.h>
+#include <asm/unistd.h>
+
 #include <net/compat.h>
 
 #include <net/sock.h>
@@ -307,9 +310,9 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 static int init_inodecache(void)
 {
 	sock_inode_cachep = kmem_cache_create("sock_inode_cache",
-					     sizeof(struct socket_alloc),
-					     0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
-					     init_once, NULL);
+				sizeof(struct socket_alloc),
+				0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+				init_once, NULL);
 	if (sock_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;
@@ -398,7 +401,7 @@ int sock_map_fd(struct socket *sock)
 
 		sock->file = file;
 		file->f_op = SOCK_INODE(sock)->i_fop = &socket_file_ops;
-		file->f_mode = 3;
+		file->f_mode = FMODE_READ | FMODE_WRITE;
 		file->f_flags = O_RDWR;
 		file->f_pos = 0;
 		fd_install(fd, file);
@@ -545,15 +548,34 @@ static inline int __sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 {
 	struct kiocb iocb;
+	struct sock_iocb siocb;
 	int ret;
 
 	init_sync_kiocb(&iocb, NULL);
+	iocb.private = &siocb;
 	ret = __sock_sendmsg(&iocb, sock, msg, size);
 	if (-EIOCBQUEUED == ret)
 		ret = wait_on_sync_kiocb(&iocb);
 	return ret;
 }
 
+int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
+		   struct kvec *vec, size_t num, size_t size)
+{
+	mm_segment_t oldfs = get_fs();
+	int result;
+
+	set_fs(KERNEL_DS);
+	/*
+	 * the following is safe, since for compiler definitions of kvec and
+	 * iovec are identical, yielding the same in-core layout and alignment
+	 */
+	msg->msg_iov = (struct iovec *)vec,
+	msg->msg_iovlen = num;
+	result = sock_sendmsg(sock, msg, size);
+	set_fs(oldfs);
+	return result;
+}
 
 static inline int __sock_recvmsg(struct kiocb *iocb, struct socket *sock, 
 				 struct msghdr *msg, size_t size, int flags)
@@ -578,13 +600,39 @@ int sock_recvmsg(struct socket *sock, struct msghdr *msg,
 		 size_t size, int flags)
 {
 	struct kiocb iocb;
+	struct sock_iocb siocb;
 	int ret;
 
         init_sync_kiocb(&iocb, NULL);
+	iocb.private = &siocb;
 	ret = __sock_recvmsg(&iocb, sock, msg, size, flags);
 	if (-EIOCBQUEUED == ret)
 		ret = wait_on_sync_kiocb(&iocb);
 	return ret;
+}
+
+int kernel_recvmsg(struct socket *sock, struct msghdr *msg, 
+		   struct kvec *vec, size_t num,
+		   size_t size, int flags)
+{
+	mm_segment_t oldfs = get_fs();
+	int result;
+
+	set_fs(KERNEL_DS);
+	/*
+	 * the following is safe, since for compiler definitions of kvec and
+	 * iovec are identical, yielding the same in-core layout and alignment
+	 */
+	msg->msg_iov = (struct iovec *)vec,
+	msg->msg_iovlen = num;
+	result = sock_recvmsg(sock, msg, size, flags);
+	set_fs(oldfs);
+	return result;
+}
+
+static void sock_aio_dtor(struct kiocb *iocb)
+{
+	kfree(iocb->private);
 }
 
 /*
@@ -595,7 +643,7 @@ int sock_recvmsg(struct socket *sock, struct msghdr *msg,
 static ssize_t sock_aio_read(struct kiocb *iocb, char __user *ubuf,
 			 size_t size, loff_t pos)
 {
-	struct sock_iocb *x = kiocb_to_siocb(iocb);
+	struct sock_iocb *x, siocb;
 	struct socket *sock;
 	int flags;
 
@@ -604,6 +652,16 @@ static ssize_t sock_aio_read(struct kiocb *iocb, char __user *ubuf,
 	if (size==0)		/* Match SYS5 behaviour */
 		return 0;
 
+	if (is_sync_kiocb(iocb))
+		x = &siocb;
+	else {
+		x = kmalloc(sizeof(struct sock_iocb), GFP_KERNEL);
+		if (!x)
+			return -ENOMEM;
+		iocb->ki_dtor = sock_aio_dtor;
+	}
+	iocb->private = x;
+	x->kiocb = iocb;
 	sock = SOCKET_I(iocb->ki_filp->f_dentry->d_inode); 
 
 	x->async_msg.msg_name = NULL;
@@ -628,7 +686,7 @@ static ssize_t sock_aio_read(struct kiocb *iocb, char __user *ubuf,
 static ssize_t sock_aio_write(struct kiocb *iocb, const char __user *ubuf,
 			  size_t size, loff_t pos)
 {
-	struct sock_iocb *x = kiocb_to_siocb(iocb);
+	struct sock_iocb *x, siocb;
 	struct socket *sock;
 	
 	if (pos != 0)
@@ -636,6 +694,16 @@ static ssize_t sock_aio_write(struct kiocb *iocb, const char __user *ubuf,
 	if(size==0)		/* Match SYS5 behaviour */
 		return 0;
 
+	if (is_sync_kiocb(iocb))
+		x = &siocb;
+	else {
+		x = kmalloc(sizeof(struct sock_iocb), GFP_KERNEL);
+		if (!x)
+			return -ENOMEM;
+		iocb->ki_dtor = sock_aio_dtor;
+	}
+	iocb->private = x;
+	x->kiocb = iocb;
 	sock = SOCKET_I(iocb->ki_filp->f_dentry->d_inode); 
 
 	x->async_msg.msg_name = NULL;
@@ -658,9 +726,6 @@ ssize_t sock_sendpage(struct file *file, struct page *page,
 {
 	struct socket *sock;
 	int flags;
-
-	if (ppos != &file->f_pos)
-		return -ESPIPE;
 
 	sock = SOCKET_I(file->f_dentry->d_inode);
 
@@ -726,9 +791,9 @@ static ssize_t sock_writev(struct file *file, const struct iovec *vector,
  */
 
 static DECLARE_MUTEX(br_ioctl_mutex);
-static int (*br_ioctl_hook)(unsigned long arg) = NULL;
+static int (*br_ioctl_hook)(unsigned int cmd, void __user *arg) = NULL;
 
-void brioctl_set(int (*hook)(unsigned long))
+void brioctl_set(int (*hook)(unsigned int, void __user *))
 {
 	down(&br_ioctl_mutex);
 	br_ioctl_hook = hook;
@@ -737,9 +802,9 @@ void brioctl_set(int (*hook)(unsigned long))
 EXPORT_SYMBOL(brioctl_set);
 
 static DECLARE_MUTEX(vlan_ioctl_mutex);
-static int (*vlan_ioctl_hook)(unsigned long arg);
+static int (*vlan_ioctl_hook)(void __user *arg);
 
-void vlan_ioctl_set(int (*hook)(unsigned long))
+void vlan_ioctl_set(int (*hook)(void __user *))
 {
 	down(&vlan_ioctl_mutex);
 	vlan_ioctl_hook = hook;
@@ -748,9 +813,9 @@ void vlan_ioctl_set(int (*hook)(unsigned long))
 EXPORT_SYMBOL(vlan_ioctl_set);
 
 static DECLARE_MUTEX(dlci_ioctl_mutex);
-static int (*dlci_ioctl_hook)(unsigned int, void *);
+static int (*dlci_ioctl_hook)(unsigned int, void __user *);
 
-void dlci_ioctl_set(int (*hook)(unsigned int, void *))
+void dlci_ioctl_set(int (*hook)(unsigned int, void __user *))
 {
 	down(&dlci_ioctl_mutex);
 	dlci_ioctl_hook = hook;
@@ -767,39 +832,42 @@ static int sock_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		      unsigned long arg)
 {
 	struct socket *sock;
+	void __user *argp = (void __user *)arg;
 	int pid, err;
 
 	unlock_kernel();
 	sock = SOCKET_I(inode);
 	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
-		err = dev_ioctl(cmd, (void *)arg);
+		err = dev_ioctl(cmd, argp);
 	} else
 #ifdef WIRELESS_EXT
 	if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) {
-		err = dev_ioctl(cmd, (void *)arg);
+		err = dev_ioctl(cmd, argp);
 	} else
 #endif	/* WIRELESS_EXT */
 	switch (cmd) {
 		case FIOSETOWN:
 		case SIOCSPGRP:
 			err = -EFAULT;
-			if (get_user(pid, (int *)arg))
+			if (get_user(pid, (int __user *)argp))
 				break;
 			err = f_setown(sock->file, pid, 1);
 			break;
 		case FIOGETOWN:
 		case SIOCGPGRP:
-			err = put_user(sock->file->f_owner.pid, (int *)arg);
+			err = put_user(sock->file->f_owner.pid, (int __user *)argp);
 			break;
 		case SIOCGIFBR:
 		case SIOCSIFBR:
+		case SIOCBRADDBR:
+		case SIOCBRDELBR:
 			err = -ENOPKG;
 			if (!br_ioctl_hook)
 				request_module("bridge");
 
 			down(&br_ioctl_mutex);
 			if (br_ioctl_hook) 
-				err = br_ioctl_hook(arg);
+				err = br_ioctl_hook(cmd, argp);
 			up(&br_ioctl_mutex);
 			break;
 		case SIOCGIFVLAN:
@@ -810,13 +878,13 @@ static int sock_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 			down(&vlan_ioctl_mutex);
 			if (vlan_ioctl_hook)
-				err = vlan_ioctl_hook(arg);
+				err = vlan_ioctl_hook(argp);
 			up(&vlan_ioctl_mutex);
 			break;
 		case SIOCGIFDIVERT:
 		case SIOCSIFDIVERT:
 		/* Convert this to call through a hook */
-			err = divert_ioctl(cmd, (struct divert_cf *)arg);
+			err = divert_ioctl(cmd, argp);
 			break;
 		case SIOCADDDLCI:
 		case SIOCDELDLCI:
@@ -826,7 +894,7 @@ static int sock_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 			if (dlci_ioctl_hook) {
 				down(&dlci_ioctl_mutex);
-				err = dlci_ioctl_hook(cmd, (void *)arg);
+				err = dlci_ioctl_hook(cmd, argp);
 				up(&dlci_ioctl_mutex);
 			}
 			break;
@@ -839,6 +907,27 @@ static int sock_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	return err;
 }
 
+int sock_create_lite(int family, int type, int protocol, struct socket **res)
+{
+	int err;
+	struct socket *sock = NULL;
+	
+	err = security_socket_create(family, type, protocol, 1);
+	if (err)
+		goto out;
+
+	sock = sock_alloc();
+	if (!sock) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	security_socket_post_create(sock, family, type, protocol, 1);
+	sock->type = type;
+out:
+	*res = sock;
+	return err;
+}
 
 /* No kernel lock held - perfect */
 static unsigned int sock_poll(struct file *file, poll_table * wait)
@@ -982,8 +1071,7 @@ int sock_wake_async(struct socket *sock, int how, int band)
 	return 0;
 }
 
-
-int sock_create(int family, int type, int protocol, struct socket **res)
+static int __sock_create(int family, int type, int protocol, struct socket **res, int kern)
 {
 	int i;
 	int err;
@@ -1011,7 +1099,7 @@ int sock_create(int family, int type, int protocol, struct socket **res)
 		family = PF_PACKET;
 	}
 
-	err = security_socket_create(family, type, protocol);
+	err = security_socket_create(family, type, protocol, kern);
 	if (err)
 		return err;
 		
@@ -1074,7 +1162,7 @@ int sock_create(int family, int type, int protocol, struct socket **res)
 	 */
 	module_put(net_families[family]->owner);
 	*res = sock;
-	security_socket_post_create(sock, family, type, protocol);
+	security_socket_post_create(sock, family, type, protocol, kern);
 
 out:
 	net_family_read_unlock();
@@ -1084,6 +1172,16 @@ out_module_put:
 out_release:
 	sock_release(sock);
 	goto out;
+}
+
+int sock_create(int family, int type, int protocol, struct socket **res)
+{
+	return __sock_create(family, type, protocol, res, 0);
+}
+
+int sock_create_kern(int family, int type, int protocol, struct socket **res)
+{
+	return __sock_create(family, type, protocol, res, 1);
 }
 
 asmlinkage long sys_socket(int family, int type, int protocol)
@@ -1786,6 +1884,8 @@ out:
 	return err;
 }
 
+#ifdef __ARCH_WANT_SYS_SOCKETCALL
+
 /* Argument list sizes for sys_socketcall */
 #define AL(x) ((x) * sizeof(unsigned long))
 static unsigned char nargs[18]={AL(0),AL(3),AL(3),AL(3),AL(2),AL(3),
@@ -1879,6 +1979,8 @@ asmlinkage long sys_socketcall(int call, unsigned long __user *args)
 	return err;
 }
 
+#endif /* __ARCH_WANT_SYS_SOCKETCALL */
+
 /*
  *	This function is called by a protocol handler that wants to
  *	advertise its address family, and have it linked into the
@@ -1927,10 +2029,6 @@ int sock_unregister(int family)
 
 extern void sk_init(void);
 
-#ifdef CONFIG_WAN_ROUTER
-extern void wanrouter_init(void);
-#endif
-
 void __init sock_init(void)
 {
 	int i;
@@ -1953,14 +2051,6 @@ void __init sock_init(void)
 	 *	Initialize skbuff SLAB cache 
 	 */
 	skb_init();
-#endif
-
-	/*
-	 *	Wan router layer. 
-	 */
-
-#ifdef CONFIG_WAN_ROUTER	 
-	wanrouter_init();
 #endif
 
 	/*
@@ -2002,6 +2092,8 @@ EXPORT_SYMBOL(move_addr_to_user);
 EXPORT_SYMBOL(sock_alloc);
 EXPORT_SYMBOL(sock_alloc_inode);
 EXPORT_SYMBOL(sock_create);
+EXPORT_SYMBOL(sock_create_kern);
+EXPORT_SYMBOL(sock_create_lite);
 EXPORT_SYMBOL(sock_map_fd);
 EXPORT_SYMBOL(sock_recvmsg);
 EXPORT_SYMBOL(sock_register);
@@ -2010,3 +2102,5 @@ EXPORT_SYMBOL(sock_sendmsg);
 EXPORT_SYMBOL(sock_unregister);
 EXPORT_SYMBOL(sock_wake_async);
 EXPORT_SYMBOL(sockfd_lookup);
+EXPORT_SYMBOL(kernel_sendmsg);
+EXPORT_SYMBOL(kernel_recvmsg);

@@ -52,14 +52,12 @@ acpi_status (*acpi_pkg_callback) (
 	union acpi_generic_state        *state,
 	void                            *context);
 
-
 acpi_status
 acpi_ut_walk_package_tree (
 	union acpi_operand_object       *source_object,
 	void                            *target_object,
 	acpi_pkg_callback               walk_callback,
 	void                            *context);
-
 
 struct acpi_pkg_info
 {
@@ -473,7 +471,12 @@ acpi_ut_delete_internal_object_list (
 #define METHOD_NAME__PRT        "_PRT"
 #define METHOD_NAME__CRS        "_CRS"
 #define METHOD_NAME__PRS        "_PRS"
+#define METHOD_NAME__PRW        "_PRW"
 
+
+acpi_status
+acpi_ut_osi_implementation (
+	struct acpi_walk_state          *walk_state);
 
 acpi_status
 acpi_ut_evaluate_object (
@@ -508,6 +511,10 @@ acpi_ut_execute_UID (
 	struct acpi_namespace_node      *device_node,
 	struct acpi_device_id           *uid);
 
+acpi_status
+acpi_ut_execute_sxds (
+	struct acpi_namespace_node      *device_node,
+	u8                              *highest);
 
 /*
  * ut_mutex - mutual exclusion interfaces

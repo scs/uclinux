@@ -4,6 +4,10 @@
  *
  * ipc helper functions (c) 1999 Manfred Spraul <manfreds@colorfullife.com>
  */
+
+#ifndef _IPC_UTIL_H
+#define _IPC_UTIL_H
+
 #define USHRT_MAX 0xffff
 #define SEQ_MULTIPLIER	(IPCMNI)
 
@@ -56,9 +60,15 @@ int ipc_checkid(struct ipc_ids* ids, struct kern_ipc_perm* ipcp, int uid);
 void kernel_to_ipc64_perm(struct kern_ipc_perm *in, struct ipc64_perm *out);
 void ipc64_perm_to_ipc_perm(struct ipc64_perm *in, struct ipc_perm *out);
 
-#if defined(__ia64__) || defined(__x86_64__)
+#if defined(__ia64__) || defined(__x86_64__) || defined(__hppa__)
   /* On IA-64, we always use the "64-bit version" of the IPC structures.  */ 
 # define ipc_parse_version(cmd)	IPC_64
 #else
 int ipc_parse_version (int *cmd);
+#endif
+
+extern void free_msg(struct msg_msg *msg);
+extern struct msg_msg *load_msg(const void __user *src, int len);
+extern int store_msg(void __user *dest, struct msg_msg *msg, int len);
+
 #endif

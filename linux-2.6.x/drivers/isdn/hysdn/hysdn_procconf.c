@@ -89,14 +89,12 @@ process_line(struct conf_writedata *cnf)
 /* write conf file -> boot or send cfg line to card */
 /****************************************************/
 static ssize_t
-hysdn_conf_write(struct file *file, const char *buf, size_t count, loff_t * off)
+hysdn_conf_write(struct file *file, const char __user *buf, size_t count, loff_t * off)
 {
 	struct conf_writedata *cnf;
 	int i;
 	uchar ch, *cp;
 
-	if (&file->f_pos != off)	/* fs error check */
-		return (-ESPIPE);
 	if (!count)
 		return (0);	/* nothing to handle */
 
@@ -209,13 +207,10 @@ hysdn_conf_write(struct file *file, const char *buf, size_t count, loff_t * off)
 /* read conf file -> output card info data */
 /*******************************************/
 static ssize_t
-hysdn_conf_read(struct file *file, char *buf, size_t count, loff_t * off)
+hysdn_conf_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 {
 	char *cp;
 	int i;
-
-	if (off != &file->f_pos)	/* fs error check */
-		return -ESPIPE;
 
 	if (file->f_mode & FMODE_READ) {
 		if (!(cp = file->private_data))
@@ -320,7 +315,7 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 		return (-EPERM);	/* no permission this time */
 	}
 	unlock_kernel();
-	return (0);
+	return nonseekable_open(ino, filep);
 }				/* hysdn_conf_open */
 
 /***************************/

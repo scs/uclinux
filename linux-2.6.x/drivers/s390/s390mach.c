@@ -11,6 +11,8 @@
 #include <linux/config.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/errno.h>
+#include <linux/workqueue.h>
 
 #include <asm/lowcore.h>
 
@@ -19,12 +21,15 @@
 #define DBG printk
 // #define DBG(args,...) do {} while (0);
 
-static struct semaphore s_sem;
+static struct semaphore m_sem;
 
-extern void css_process_crw(int);
-extern void chsc_process_crw(void);
-extern void chp_process_crw(int, int);
+extern int css_process_crw(int);
+extern int chsc_process_crw(void);
+extern int chp_process_crw(int, int);
 extern void css_reiterate_subchannels(void);
+
+extern struct workqueue_struct *slow_path_wq;
+extern struct work_struct slow_path_work;
 
 static void
 s390_handle_damage(char *msg)
@@ -45,15 +50,15 @@ static int
 s390_collect_crw_info(void *param)
 {
 	struct crw crw;
-	int ccode;
+	int ccode, ret, slow;
 	struct semaphore *sem;
 
 	sem = (struct semaphore *)param;
 	/* Set a nice name. */
 	daemonize("kmcheck");
-
 repeat:
 	down_interruptible(sem);
+	slow = 0;
 	while (1) {
 		ccode = stcrw(&crw);
 		if (ccode != 0)
@@ -66,12 +71,15 @@ repeat:
 		if (crw.oflw) {
 			pr_debug("%s: crw overflow detected!\n", __FUNCTION__);
 			css_reiterate_subchannels();
+			slow = 1;
 			continue;
 		}
 		switch (crw.rsc) {
 		case CRW_RSC_SCH:
 			pr_debug("source is subchannel %04X\n", crw.rsid);
-			css_process_crw (crw.rsid);
+			ret = css_process_crw (crw.rsid);
+			if (ret == -EAGAIN)
+				slow = 1;
 			break;
 		case CRW_RSC_MONITOR:
 			pr_debug("source is monitoring facility\n");
@@ -80,28 +88,36 @@ repeat:
 			pr_debug("source is channel path %02X\n", crw.rsid);
 			switch (crw.erc) {
 			case CRW_ERC_IPARM: /* Path has come. */
-				chp_process_crw(crw.rsid, 1);
+				ret = chp_process_crw(crw.rsid, 1);
 				break;
 			case CRW_ERC_PERRI: /* Path has gone. */
-				chp_process_crw(crw.rsid, 0);
+			case CRW_ERC_PERRN:
+				ret = chp_process_crw(crw.rsid, 0);
 				break;
 			default:
 				pr_debug("Don't know how to handle erc=%x\n",
 					 crw.erc);
+				ret = 0;
 			}
+			if (ret == -EAGAIN)
+				slow = 1;
 			break;
 		case CRW_RSC_CONFIG:
 			pr_debug("source is configuration-alert facility\n");
 			break;
 		case CRW_RSC_CSS:
 			pr_debug("source is channel subsystem\n");
-			chsc_process_crw();
+			ret = chsc_process_crw();
+			if (ret == -EAGAIN)
+				slow = 1;
 			break;
 		default:
 			pr_debug("unknown source\n");
 			break;
 		}
 	}
+	if (slow)
+		queue_work(slow_path_wq, &slow_path_work);
 	goto repeat;
 	return 0;
 }
@@ -140,7 +156,7 @@ s390_do_machine_check(void)
 				   "check\n");
 
 	if (mci->cp)		/* channel report word pending */
-		up(&s_sem);
+		up(&m_sem);
 
 #ifdef CONFIG_MACHCHK_WARNING
 /*
@@ -172,7 +188,7 @@ s390_do_machine_check(void)
 static int
 machine_check_init(void)
 {
-	init_MUTEX_LOCKED( &s_sem );
+	init_MUTEX_LOCKED(&m_sem);
 	ctl_clear_bit(14, 25);	/* disable damage MCH */
 	ctl_set_bit(14, 26);	/* enable degradation MCH */
 	ctl_set_bit(14, 27);	/* enable system recovery MCH */
@@ -195,7 +211,7 @@ arch_initcall(machine_check_init);
 static int __init
 machine_check_crw_init (void)
 {
-	kernel_thread(s390_collect_crw_info, &s_sem, CLONE_FS|CLONE_FILES);
+	kernel_thread(s390_collect_crw_info, &m_sem, CLONE_FS|CLONE_FILES);
 	ctl_set_bit(14, 28);	/* enable channel report MCH */
 	return 0;
 }

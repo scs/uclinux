@@ -76,7 +76,7 @@ nlm_lookup_host(int server, struct sockaddr_in *sin,
 	if (time_after_eq(jiffies, next_gc))
 		nlm_gc_hosts();
 
-	for (hp = &nlm_hosts[hash]; (host = *hp); hp = &host->h_next) {
+	for (hp = &nlm_hosts[hash]; (host = *hp) != 0; hp = &host->h_next) {
 		if (host->h_proto != proto)
 			continue;
 		if (host->h_version != version)
@@ -145,7 +145,7 @@ nlm_find_client(void)
 	down(&nlm_host_sema);
 	for (hash = 0 ; hash < NLM_HOST_NRHASH; hash++) {
 		struct nlm_host *host, **hp;
-		for (hp = &nlm_hosts[hash]; (host = *hp) ; hp = &host->h_next) {
+		for (hp = &nlm_hosts[hash]; (host = *hp) != 0; hp = &host->h_next) {
 			if (host->h_server &&
 			    host->h_killed == 0) {
 				nlm_get_host(host);
@@ -188,14 +188,14 @@ nlm_bind_host(struct nlm_host *host)
 		}
 	} else {
 		xprt = xprt_create_proto(host->h_proto, &host->h_addr, NULL);
-		if (xprt == NULL)
+		if (IS_ERR(xprt))
 			goto forgetit;
 
 		xprt_set_timeout(&xprt->timeout, 5, nlmsvc_timeout);
 
 		clnt = rpc_create_client(xprt, host->h_name, &nlm_program,
 					host->h_version, host->h_authflavor);
-		if (clnt == NULL) {
+		if (IS_ERR(clnt)) {
 			xprt_destroy(xprt);
 			goto forgetit;
 		}

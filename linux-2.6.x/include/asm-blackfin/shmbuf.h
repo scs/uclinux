@@ -2,7 +2,7 @@
 #define _BFIN_SHMBUF_H
 
 /* 
- * The shmid64_ds structure for Frio architecture.
+ * The shmid64_ds structure for bfin architecture.
  * Note extra padding because this structure is passed back and forth
  * between kernel and user space.
  *

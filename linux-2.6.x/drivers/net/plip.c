@@ -277,18 +277,10 @@ inline static unsigned char read_status (struct net_device *dev)
    then calls us here.
 
    */
-static int
+static void
 plip_init_netdev(struct net_device *dev)
 {
-	struct net_local *nl = dev->priv;
-
-	printk(KERN_INFO "%s", version);
-	if (dev->irq != -1)
-		printk(KERN_INFO "%s: Parallel port at %#3lx, using IRQ %d.\n",
-		       dev->name, dev->base_addr, dev->irq);
-	else
-		printk(KERN_INFO "%s: Parallel port at %#3lx, not using IRQ.\n",
-		       dev->name, dev->base_addr);
+	struct net_local *nl = netdev_priv(dev);
 
 	/* Then, override parts of it */
 	dev->hard_start_xmit	 = plip_tx_packet;
@@ -323,8 +315,6 @@ plip_init_netdev(struct net_device *dev)
 		INIT_WORK(&nl->timer, (void (*)(void *))plip_timer_bh, dev);
 
 	spin_lock_init(&nl->lock);
-
-	return 0;
 }
 
 /* Bottom half handler for the delayed request.
@@ -333,7 +323,7 @@ plip_init_netdev(struct net_device *dev)
 static void
 plip_kick_bh(struct net_device *dev)
 {
-	struct net_local *nl = (struct net_local *)dev->priv;
+	struct net_local *nl = netdev_priv(dev);
 
 	if (nl->is_deferred)
 		schedule_work(&nl->immediate);
@@ -376,7 +366,7 @@ static plip_func connection_state_table[] =
 static void
 plip_bh(struct net_device *dev)
 {
-	struct net_local *nl = (struct net_local *)dev->priv;
+	struct net_local *nl = netdev_priv(dev);
 	struct plip_local *snd = &nl->snd_data;
 	struct plip_local *rcv = &nl->rcv_data;
 	plip_func f;
@@ -394,7 +384,7 @@ plip_bh(struct net_device *dev)
 static void
 plip_timer_bh(struct net_device *dev)
 {
-	struct net_local *nl = (struct net_local *)dev->priv;
+	struct net_local *nl = netdev_priv(dev);
 	
 	if (!(atomic_read (&nl->kill_timer))) {
 		plip_interrupt (-1, dev, NULL);
@@ -927,7 +917,7 @@ plip_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 		return;
 	}
 
-	nl = (struct net_local *)dev->priv;
+	nl = netdev_priv(dev);
 	rcv = &nl->rcv_data;
 
 	spin_lock_irq (&nl->lock);
@@ -971,7 +961,7 @@ plip_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 static int
 plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_local *nl = (struct net_local *)dev->priv;
+	struct net_local *nl = netdev_priv(dev);
 	struct plip_local *snd = &nl->snd_data;
 
 	if (netif_queue_stopped(dev))
@@ -1031,7 +1021,7 @@ plip_hard_header(struct sk_buff *skb, struct net_device *dev,
                  unsigned short type, void *daddr,
 	         void *saddr, unsigned len)
 {
-	struct net_local *nl = (struct net_local *)dev->priv;
+	struct net_local *nl = netdev_priv(dev);
 	int ret;
 
 	if ((ret = nl->orig_hard_header(skb, dev, type, daddr, saddr, len)) >= 0)
@@ -1043,7 +1033,7 @@ plip_hard_header(struct sk_buff *skb, struct net_device *dev,
 int plip_hard_header_cache(struct neighbour *neigh,
                            struct hh_cache *hh)
 {
-	struct net_local *nl = (struct net_local *)neigh->dev->priv;
+	struct net_local *nl = neigh->dev->priv;
 	int ret;
 	
 	if ((ret = nl->orig_hard_header_cache(neigh, hh)) == 0)
@@ -1067,7 +1057,7 @@ int plip_hard_header_cache(struct neighbour *neigh,
 static int
 plip_open(struct net_device *dev)
 {
-	struct net_local *nl = (struct net_local *)dev->priv;
+	struct net_local *nl = netdev_priv(dev);
 	struct in_device *in_dev;
 
 	/* Grab the port */
@@ -1126,7 +1116,7 @@ plip_open(struct net_device *dev)
 static int
 plip_close(struct net_device *dev)
 {
-	struct net_local *nl = (struct net_local *)dev->priv;
+	struct net_local *nl = netdev_priv(dev);
 	struct plip_local *snd = &nl->snd_data;
 	struct plip_local *rcv = &nl->rcv_data;
 
@@ -1173,7 +1163,7 @@ static int
 plip_preempt(void *handle)
 {
 	struct net_device *dev = (struct net_device *)handle;
-	struct net_local *nl = (struct net_local *)dev->priv;
+	struct net_local *nl = netdev_priv(dev);
 
 	/* Stand our ground if a datagram is on the wire */
 	if (nl->connection != PLIP_CN_NONE) {
@@ -1189,7 +1179,7 @@ static void
 plip_wakeup(void *handle)
 {
 	struct net_device *dev = (struct net_device *)handle;
-	struct net_local *nl = (struct net_local *)dev->priv;
+	struct net_local *nl = netdev_priv(dev);
 
 	if (nl->port_owner) {
 		/* Why are we being woken up? */
@@ -1217,7 +1207,7 @@ plip_wakeup(void *handle)
 static struct net_device_stats *
 plip_get_stats(struct net_device *dev)
 {
-	struct net_local *nl = (struct net_local *)dev->priv;
+	struct net_local *nl = netdev_priv(dev);
 	struct net_device_stats *r = &nl->enet_stats;
 
 	return r;
@@ -1226,8 +1216,11 @@ plip_get_stats(struct net_device *dev)
 static int
 plip_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct net_local *nl = (struct net_local *) dev->priv;
-	struct plipconf *pc = (struct plipconf *) &rq->ifr_data;
+	struct net_local *nl = netdev_priv(dev);
+	struct plipconf *pc = (struct plipconf *) &rq->ifr_ifru;
+
+	if (cmd != SIOCDEVPLIP)
+		return -EOPNOTSUPP;
 
 	switch(pc->pcmd) {
 	case PLIP_GET_TIMEOUT:
@@ -1282,14 +1275,13 @@ static void plip_attach (struct parport *port)
 		}
 
 		sprintf(name, "plip%d", unit);
-		dev = alloc_netdev(sizeof(struct net_local), name, 
-				   ether_setup);
+		dev = alloc_etherdev(sizeof(struct net_local));
 		if (!dev) {
 			printk(KERN_ERR "plip: memory squeeze\n");
 			return;
 		}
 		
-		dev->init = plip_init_netdev;
+		strcpy(dev->name, name);
 
 		SET_MODULE_OWNER(dev);
 		dev->irq = port->irq;
@@ -1299,24 +1291,42 @@ static void plip_attach (struct parport *port)
 		                 "which is fairly inefficient!\n", port->name);
 		}
 
-		nl = dev->priv;
+		nl = netdev_priv(dev);
 		nl->pardev = parport_register_device(port, name, plip_preempt,
 						 plip_wakeup, plip_interrupt, 
 						 0, dev);
 
 		if (!nl->pardev) {
 			printk(KERN_ERR "%s: parport_register failed\n", name);
-			kfree(dev);
+			goto err_free_dev;
 			return;
 		}
 
+		plip_init_netdev(dev);
+
 		if (register_netdev(dev)) {
 			printk(KERN_ERR "%s: network register failed\n", name);
-			kfree(dev);
-		} else {
-			dev_plip[unit++] = dev;
+			goto err_parport_unregister;
 		}
+
+		printk(KERN_INFO "%s", version);
+		if (dev->irq != -1)
+			printk(KERN_INFO "%s: Parallel port at %#3lx, "
+					 "using IRQ %d.\n",
+				         dev->name, dev->base_addr, dev->irq);
+		else
+			printk(KERN_INFO "%s: Parallel port at %#3lx, "
+					 "not using IRQ.\n",
+					 dev->name, dev->base_addr);
+		dev_plip[unit++] = dev;
 	}
+	return;
+
+err_parport_unregister:
+	parport_unregister_device(nl->pardev);
+err_free_dev:
+	free_netdev(dev);
+	return;
 }
 
 /* plip_detach() is called (by the parport code) when a port is
@@ -1341,7 +1351,7 @@ static void __exit plip_cleanup_module (void)
 
 	for (i=0; i < PLIP_MAX; i++) {
 		if ((dev = dev_plip[i])) {
-			struct net_local *nl = dev->priv;
+			struct net_local *nl = netdev_priv(dev);
 			unregister_netdev(dev);
 			if (nl->port_owner)
 				parport_release(nl->pardev);

@@ -41,7 +41,6 @@ EXPORT_SYMBOL(xfrm6_rcv);
 #endif
 EXPORT_SYMBOL(rt6_lookup);
 EXPORT_SYMBOL(fl6_sock_lookup);
-EXPORT_SYMBOL(ipv6_ext_hdr);
 EXPORT_SYMBOL(ip6_append_data);
 EXPORT_SYMBOL(ip6_flush_pending_frames);
 EXPORT_SYMBOL(ip6_push_pending_frames);

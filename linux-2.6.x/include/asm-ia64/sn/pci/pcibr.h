@@ -41,26 +41,6 @@ typedef struct pcibr_dmamap_s *pcibr_dmamap_t;
 typedef struct pcibr_intr_s *pcibr_intr_t;
 
 /* =====================================================================
- *    primary entry points: Bridge (pcibr) device driver
- *
- *	These functions are normal device driver entry points
- *	and are called along with the similar entry points from
- *	other device drivers. They are included here as documentation
- *	of their existence and purpose.
- *
- *	pcibr_init() is called to inform us that there is a pcibr driver
- *	configured into the kernel; it is responsible for registering
- *	as a crosstalk widget and providing a routine to be called
- *	when a widget with the proper part number is observed.
- *
- *	pcibr_attach() is called for each vertex in the hardware graph
- *	corresponding to a crosstalk widget with the manufacturer
- *	code and part number registered by pcibr_init().
- */
-
-extern int		pcibr_attach(vertex_hdl_t);
-
-/* =====================================================================
  *    bus provider function table
  *
  *	Normally, this table is only handed off explicitly
@@ -72,7 +52,6 @@ extern int		pcibr_attach(vertex_hdl_t);
  *	pcibr, we can go directly to this ops table.
  */
 
-extern pciio_provider_t pcibr_provider;
 extern pciio_provider_t pci_pic_provider;
 
 /* =====================================================================
@@ -107,6 +86,11 @@ extern caddr_t		pcibr_piomap_addr(pcibr_piomap_t piomap,
 
 extern void		pcibr_piomap_done(pcibr_piomap_t piomap);
 
+extern int		pcibr_piomap_probe(pcibr_piomap_t piomap,
+					   off_t offset,
+					   int len,
+					   void *valp);
+
 extern caddr_t		pcibr_piotrans_addr(vertex_hdl_t dev,
 					    device_desc_t dev_desc,
 					    pciio_space_t space,
@@ -135,10 +119,6 @@ extern iopaddr_t	pcibr_dmamap_addr(pcibr_dmamap_t dmamap,
 					  paddr_t paddr,
 					  size_t byte_count);
 
-extern alenlist_t	pcibr_dmamap_list(pcibr_dmamap_t dmamap,
-					  alenlist_t palenlist,
-					  unsigned flags);
-
 extern void		pcibr_dmamap_done(pcibr_dmamap_t dmamap);
 
 /*
@@ -155,19 +135,11 @@ extern iopaddr_t	pcibr_dmatrans_addr(vertex_hdl_t dev,
 					    size_t byte_count,
 					    unsigned flags);
 
-extern alenlist_t	pcibr_dmatrans_list(vertex_hdl_t dev,
-					    device_desc_t dev_desc,
-					    alenlist_t palenlist,
-					    unsigned flags);
-
 extern void		pcibr_dmamap_drain(pcibr_dmamap_t map);
 
 extern void		pcibr_dmaaddr_drain(vertex_hdl_t vhdl,
 					    paddr_t addr,
 					    size_t bytes);
-
-extern void		pcibr_dmalist_drain(vertex_hdl_t vhdl,
-					    alenlist_t list);
 
 typedef unsigned	pcibr_intr_ibit_f(pciio_info_t info,
 					  pciio_intr_line_t lines);
@@ -193,14 +165,9 @@ extern void		pcibr_provider_shutdown(vertex_hdl_t pcibr);
 
 extern int		pcibr_reset(vertex_hdl_t dev);
 
-extern int              pcibr_write_gather_flush(vertex_hdl_t dev);
-
 extern pciio_endian_t	pcibr_endian_set(vertex_hdl_t dev,
 					 pciio_endian_t device_end,
 					 pciio_endian_t desired_end);
-
-extern pciio_priority_t pcibr_priority_set(vertex_hdl_t dev,
-					   pciio_priority_t device_prio);
 
 extern uint64_t		pcibr_config_get(vertex_hdl_t conn,
 					 unsigned reg,
@@ -210,6 +177,10 @@ extern void		pcibr_config_set(vertex_hdl_t conn,
 					 unsigned reg,
 					 unsigned size,
 					 uint64_t value);
+
+extern pciio_slot_t	pcibr_error_extract(vertex_hdl_t pcibr_vhdl,
+					    pciio_space_t *spacep,
+					    iopaddr_t *addrp);
 
 extern int		pcibr_wrb_flush(vertex_hdl_t pconn_vhdl);
 extern int		pcibr_rrb_check(vertex_hdl_t pconn_vhdl,
@@ -234,6 +205,12 @@ void			pcibr_set_rrb_callback(vertex_hdl_t xconn_vhdl,
 					       rrb_alloc_funct_f *func);
 
 extern int		pcibr_device_unregister(vertex_hdl_t);
+extern void             pcibr_driver_reg_callback(vertex_hdl_t, int, int, int);
+extern void             pcibr_driver_unreg_callback(vertex_hdl_t,
+                                                    int, int, int);
+
+
+extern void *		pcibr_bridge_ptr_get(vertex_hdl_t, int);
 
 /*
  * Bridge-specific flags that can be set via pcibr_device_flags_set
@@ -297,6 +274,12 @@ extern int		pcibr_device_unregister(vertex_hdl_t);
 
 typedef int		pcibr_device_flags_t;
 
+#define MINIMAL_ATES_REQUIRED(addr, size) \
+	(IOPG(IOPGOFF(addr) + (size) - 1) == IOPG((size) - 1))
+
+#define MINIMAL_ATE_FLAG(addr, size) \
+	(MINIMAL_ATES_REQUIRED((u_long)addr, size) ? PCIBR_NO_ATE_ROUNDUP : 0)
+
 /*
  * Set bits in the Bridge Device(x) register for this device.
  * "flags" are defined above. NOTE: this includes turning
@@ -324,9 +307,6 @@ extern int		pcibr_rrb_alloc(vertex_hdl_t pconn_vhdl,
  * the allocation time in the current implementation of PCI bridge.
  */
 extern iopaddr_t	pcibr_dmamap_pciaddr_get(pcibr_dmamap_t);
-
-extern xwidget_intr_preset_f pcibr_xintr_preset;
-
 extern void		pcibr_hints_fix_rrbs(vertex_hdl_t);
 extern void		pcibr_hints_dualslot(vertex_hdl_t, pciio_slot_t, pciio_slot_t);
 extern void		pcibr_hints_subdevs(vertex_hdl_t, pciio_slot_t, ulong);
@@ -345,9 +325,27 @@ extern int		pcibr_asic_rev(vertex_hdl_t);
 #define PCIBR			'p'
 #define _PCIBR(x)		((PCIBR << 8) | (x))
 
-#define PCIBR_SLOT_STARTUP	_PCIBR(1)
-#define PCIBR_SLOT_SHUTDOWN     _PCIBR(2)
-#define PCIBR_SLOT_QUERY	_PCIBR(3)
+/*
+ * Bit defintions for variable slot_status in struct
+ * pcibr_soft_slot_s.  They are here so that the user
+ * hot-plug utility can interpret the slot's power
+ * status.
+ */
+#ifdef CONFIG_HOTPLUG_PCI_SGI
+#define PCI_SLOT_ENABLE_CMPLT       0x01    
+#define PCI_SLOT_ENABLE_INCMPLT     0x02    
+#define PCI_SLOT_DISABLE_CMPLT      0x04    
+#define PCI_SLOT_DISABLE_INCMPLT    0x08    
+#define PCI_SLOT_POWER_ON           0x10    
+#define PCI_SLOT_POWER_OFF          0x20    
+#define PCI_SLOT_IS_SYS_CRITICAL    0x40    
+#define PCI_SLOT_PCIBA_LOADED       0x80    
+
+#define PCI_SLOT_STATUS_MASK        (PCI_SLOT_ENABLE_CMPLT | \
+				     PCI_SLOT_ENABLE_INCMPLT | \
+                                     PCI_SLOT_DISABLE_CMPLT | \
+				     PCI_SLOT_DISABLE_INCMPLT)
+#define PCI_SLOT_POWER_MASK         (PCI_SLOT_POWER_ON | PCI_SLOT_POWER_OFF)
 
 /*
  * Bit defintions for variable slot_status in struct
@@ -376,25 +374,19 @@ extern int		pcibr_asic_rev(vertex_hdl_t);
 #define FUNC_IS_SYS_CRITICAL    0x02
 
 /*
- * Structures for requesting PCI bridge information and receiving a response
+ * L1 slot power operations for PCI hot-plug
  */
-typedef struct pcibr_slot_req_s *pcibr_slot_req_t;
-typedef struct pcibr_slot_up_resp_s *pcibr_slot_up_resp_t;
-typedef struct pcibr_slot_down_resp_s *pcibr_slot_down_resp_t;
-typedef struct pcibr_slot_info_resp_s *pcibr_slot_info_resp_t;
-typedef struct pcibr_slot_func_info_resp_s *pcibr_slot_func_info_resp_t;
+#define PCI_REQ_SLOT_POWER_ON       1
+#define PCI_L1_QSIZE                128      /* our L1 message buffer size */
+
 
 #define L1_QSIZE                128      /* our L1 message buffer size */
-struct pcibr_slot_req_s {
-    int                      req_slot;
-    union {
-        pcibr_slot_up_resp_t     up;
-        pcibr_slot_down_resp_t   down;
-        pcibr_slot_info_resp_t   query;
-        void                    *any;
-    }                       req_respp;
-    int                     req_size;
+
+enum pcibr_slot_disable_action_e {
+    PCI_REQ_SLOT_ELIGIBLE,
+    PCI_REQ_SLOT_DISABLE
 };
+
 
 struct pcibr_slot_up_resp_s {
     int                     resp_sub_errno;
@@ -426,7 +418,6 @@ struct pcibr_slot_info_resp_s {
     unsigned                resp_bss_d64_flags;
     iopaddr_t               resp_bss_d32_base;
     unsigned                resp_bss_d32_flags;
-    atomic_t		    resp_bss_ext_ates_active;
     volatile unsigned      *resp_bss_cmd_pointer;
     unsigned                resp_bss_cmd_shadow;
     int                     resp_bs_rrb_valid;
@@ -438,8 +429,6 @@ struct pcibr_slot_info_resp_s {
     uint64_t		    resp_b_int_device;
     uint64_t		    resp_b_int_enable;
     uint64_t		    resp_b_int_host;
-    picreg_t		    resp_p_int_enable;
-    picreg_t		    resp_p_int_host;
     struct pcibr_slot_func_info_resp_s {
         int                     resp_f_status;
         char                    resp_f_slot_name[MAXDEVNAME];
@@ -466,6 +455,45 @@ struct pcibr_slot_info_resp_s {
 
     } resp_func[8];
 };
+
+struct pcibr_slot_req_s {
+    int                      req_slot;
+    union {
+        enum pcibr_slot_disable_action_e up;
+        struct pcibr_slot_down_resp_s *down;
+        struct pcibr_slot_info_resp_s *query;
+        void                    *any;
+    }                       req_respp;
+    int                     req_size;
+};
+
+struct pcibr_slot_enable_resp_s {
+    int                     resp_sub_errno;
+    char                    resp_l1_msg[PCI_L1_QSIZE + 1];
+};
+
+struct pcibr_slot_disable_resp_s {
+    int                     resp_sub_errno;
+    char                    resp_l1_msg[PCI_L1_QSIZE + 1];
+};
+
+struct pcibr_slot_enable_req_s {
+    pciio_slot_t              	     req_device;
+    struct pcibr_slot_enable_resp_s  req_resp;
+};
+
+struct pcibr_slot_disable_req_s {
+    pciio_slot_t                     req_device;
+    enum pcibr_slot_disable_action_e req_action;
+    struct pcibr_slot_disable_resp_s req_resp;
+};
+
+struct pcibr_slot_info_req_s {
+    pciio_slot_t              	     req_device;
+    struct pcibr_slot_info_resp_s    req_resp;
+};
+
+#endif	/* CONFIG_HOTPLUG_PCI_SGI */
 
 
 /*

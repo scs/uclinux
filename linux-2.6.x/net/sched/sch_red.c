@@ -41,9 +41,6 @@
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
 
-#define RED_ECN_ECT  0x02
-#define RED_ECN_CE   0x01
-
 
 /*	Random Early Detection (RED) algorithm.
 	=======================================
@@ -165,28 +162,16 @@ static int red_ecn_mark(struct sk_buff *skb)
 
 	switch (skb->protocol) {
 	case __constant_htons(ETH_P_IP):
-	{
-		u8 tos = skb->nh.iph->tos;
-
-		if (!(tos & RED_ECN_ECT))
+		if (!INET_ECN_is_capable(skb->nh.iph->tos))
 			return 0;
-
-		if (!(tos & RED_ECN_CE))
+		if (INET_ECN_is_not_ce(skb->nh.iph->tos))
 			IP_ECN_set_ce(skb->nh.iph);
-
 		return 1;
-	}
-
 	case __constant_htons(ETH_P_IPV6):
-	{
-		u32 label = *(u32*)skb->nh.raw;
-
-		if (!(label & __constant_htonl(RED_ECN_ECT<<20)))
+		if (!INET_ECN_is_capable(ip6_get_dsfield(skb->nh.ipv6h)))
 			return 0;
-		label |= __constant_htonl(RED_ECN_CE<<20);
+		IP6_ECN_set_ce(skb->nh.ipv6h);
 		return 1;
-	}
-
 	default:
 		return 0;
 	}
@@ -195,7 +180,7 @@ static int red_ecn_mark(struct sk_buff *skb)
 static int
 red_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
-	struct red_sched_data *q = (struct red_sched_data *)sch->data;
+	struct red_sched_data *q = qdisc_priv(sch);
 
 	psched_time_t now;
 
@@ -204,7 +189,7 @@ red_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 		int  shift;
 
 		PSCHED_GET_TIME(now);
-		us_idle = PSCHED_TDIFF_SAFE(now, q->qidlestart, q->Scell_max, 0);
+		us_idle = PSCHED_TDIFF_SAFE(now, q->qidlestart, q->Scell_max);
 		PSCHED_SET_PASTPERFECT(q->qidlestart);
 
 /*
@@ -318,7 +303,7 @@ drop:
 static int
 red_requeue(struct sk_buff *skb, struct Qdisc* sch)
 {
-	struct red_sched_data *q = (struct red_sched_data *)sch->data;
+	struct red_sched_data *q = qdisc_priv(sch);
 
 	PSCHED_SET_PASTPERFECT(q->qidlestart);
 
@@ -331,7 +316,7 @@ static struct sk_buff *
 red_dequeue(struct Qdisc* sch)
 {
 	struct sk_buff *skb;
-	struct red_sched_data *q = (struct red_sched_data *)sch->data;
+	struct red_sched_data *q = qdisc_priv(sch);
 
 	skb = __skb_dequeue(&sch->q);
 	if (skb) {
@@ -345,7 +330,7 @@ red_dequeue(struct Qdisc* sch)
 static unsigned int red_drop(struct Qdisc* sch)
 {
 	struct sk_buff *skb;
-	struct red_sched_data *q = (struct red_sched_data *)sch->data;
+	struct red_sched_data *q = qdisc_priv(sch);
 
 	skb = __skb_dequeue_tail(&sch->q);
 	if (skb) {
@@ -362,7 +347,7 @@ static unsigned int red_drop(struct Qdisc* sch)
 
 static void red_reset(struct Qdisc* sch)
 {
-	struct red_sched_data *q = (struct red_sched_data *)sch->data;
+	struct red_sched_data *q = qdisc_priv(sch);
 
 	__skb_queue_purge(&sch->q);
 	sch->stats.backlog = 0;
@@ -373,7 +358,7 @@ static void red_reset(struct Qdisc* sch)
 
 static int red_change(struct Qdisc *sch, struct rtattr *opt)
 {
-	struct red_sched_data *q = (struct red_sched_data *)sch->data;
+	struct red_sched_data *q = qdisc_priv(sch);
 	struct rtattr *tb[TCA_RED_STAB];
 	struct tc_red_qopt *ctl;
 
@@ -422,7 +407,7 @@ rtattr_failure:
 
 static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
-	struct red_sched_data *q = (struct red_sched_data *)sch->data;
+	struct red_sched_data *q = qdisc_priv(sch);
 	unsigned char	 *b = skb->tail;
 	struct rtattr *rta;
 	struct tc_red_qopt opt;
@@ -449,11 +434,7 @@ rtattr_failure:
 	return -1;
 }
 
-static void red_destroy(struct Qdisc *sch)
-{
-}
-
-struct Qdisc_ops red_qdisc_ops = {
+static struct Qdisc_ops red_qdisc_ops = {
 	.next		=	NULL,
 	.cl_ops		=	NULL,
 	.id		=	"red",
@@ -464,22 +445,19 @@ struct Qdisc_ops red_qdisc_ops = {
 	.drop		=	red_drop,
 	.init		=	red_init,
 	.reset		=	red_reset,
-	.destroy	=	red_destroy,
 	.change		=	red_change,
 	.dump		=	red_dump,
 	.owner		=	THIS_MODULE,
 };
 
-
-#ifdef MODULE
-int init_module(void)
+static int __init red_module_init(void)
 {
 	return register_qdisc(&red_qdisc_ops);
 }
-
-void cleanup_module(void) 
+static void __exit red_module_exit(void) 
 {
 	unregister_qdisc(&red_qdisc_ops);
 }
-#endif
+module_init(red_module_init)
+module_exit(red_module_exit)
 MODULE_LICENSE("GPL");

@@ -22,56 +22,6 @@
  *
  ******************************************************************************/
 
-/******************************************************************************
- *
- * History:
- *
- *	$Log$
- *	Revision 1.2  2004/09/07 22:32:04  lgsoft
- *	alpha-2.0
- *
- *	Revision 1.1.1.1  2004/07/19 12:13:11  lgsoft
- *	Import of uClinux 2.6.2
- *	
- *	Revision 1.1.1.1  2004/07/18 13:21:34  nidhi
- *	Importing
- *	
- *	Revision 1.10  2003/07/04 12:25:01  rschmidt
- *	Added event SK_DRV_DOWNSHIFT_DET for Downshift 4-Pair / 2-Pair
- *	
- *	Revision 1.9  2003/05/13 17:24:21  mkarl
- *	Added events SK_DRV_LINK_UP and SK_DRV_LINK_DOWN for drivers not using
- *	RLMT (SK_NO_RLMT).
- *	Editorial changes.
- *	
- *	Revision 1.8  2003/03/31 07:18:54  mkarl
- *	Corrected Copyright.
- *	
- *	Revision 1.7  2003/03/18 09:43:47  rroesler
- *	Added new event for timer
- *	
- *	Revision 1.6  2002/07/15 15:38:01  rschmidt
- *	Power Management support
- *	Editorial changes
- *	
- *	Revision 1.5  2002/04/25 11:05:47  rschmidt
- *	Editorial changes
- *	
- *	Revision 1.4  1999/11/22 13:52:46  cgoos
- *	Changed license header to GPL.
- *	
- *	Revision 1.3  1998/12/01 13:31:39  cgoos
- *	SWITCH INTERN Event added.
- *	
- *	Revision 1.2  1998/11/25 08:28:38  gklug
- *	rmv: PORT SWITCH Event
- *	
- *	Revision 1.1  1998/09/29 06:14:07  gklug
- *	add: driver events (initial version)
- *	
- *
- ******************************************************************************/
-
 #ifndef __INC_SKGEDRV_H_
 #define __INC_SKGEDRV_H_
 

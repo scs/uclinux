@@ -48,28 +48,43 @@ pmd_free(pmd_t *pmd)
 	pmd_populate_kernel(mm, pmd, page_address(pte_page))
 
 static inline pte_t *
-pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr)
+pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
-	return kmem_cache_alloc(zero_cache, GFP_KERNEL|__GFP_REPEAT);
+	pte_t *pte;
+	pte = kmem_cache_alloc(zero_cache, GFP_KERNEL|__GFP_REPEAT);
+	if (pte) {
+		struct page *ptepage = virt_to_page(pte);
+		ptepage->mapping = (void *) mm;
+		ptepage->index = address & PMD_MASK;
+	}
+	return pte;
 }
 
 static inline struct page *
 pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
-	pte_t *pte = pte_alloc_one_kernel(mm, address);
-
-	if (pte)
-		return virt_to_page(pte);
-
+	pte_t *pte;
+	pte = kmem_cache_alloc(zero_cache, GFP_KERNEL|__GFP_REPEAT);
+	if (pte) {
+		struct page *ptepage = virt_to_page(pte);
+		ptepage->mapping = (void *) mm;
+		ptepage->index = address & PMD_MASK;
+		return ptepage;
+	}
 	return NULL;
 }
 		
 static inline void pte_free_kernel(pte_t *pte)
 {
+	virt_to_page(pte)->mapping = NULL;
 	kmem_cache_free(zero_cache, pte);
 }
 
-#define pte_free(pte_page)	pte_free_kernel(page_address(pte_page))
+static inline void pte_free(struct page *ptepage)
+{
+	ptepage->mapping = NULL;
+	kmem_cache_free(zero_cache, page_address(ptepage));
+}
 
 struct pte_freelist_batch
 {
@@ -78,41 +93,15 @@ struct pte_freelist_batch
 	struct page *	pages[0];
 };
 
-#define PTE_FREELIST_SIZE	((PAGE_SIZE - sizeof(struct pte_freelist_batch) / \
-				  sizeof(struct page *)))
+#define PTE_FREELIST_SIZE	((PAGE_SIZE - sizeof(struct pte_freelist_batch)) / \
+				  sizeof(struct page *))
 
 extern void pte_free_now(struct page *ptepage);
 extern void pte_free_submit(struct pte_freelist_batch *batch);
 
 DECLARE_PER_CPU(struct pte_freelist_batch *, pte_freelist_cur);
 
-static inline void __pte_free_tlb(struct mmu_gather *tlb, struct page *ptepage)
-{
-	/* This is safe as we are holding page_table_lock */
-        cpumask_t local_cpumask = cpumask_of_cpu(smp_processor_id());
-	struct pte_freelist_batch **batchp = &__get_cpu_var(pte_freelist_cur);
-
-	if (atomic_read(&tlb->mm->mm_users) < 2 ||
-	    cpus_equal(tlb->mm->cpu_vm_mask, local_cpumask)) {
-		pte_free(ptepage);
-		return;
-	}
-
-	if (*batchp == NULL) {
-		*batchp = (struct pte_freelist_batch *)__get_free_page(GFP_ATOMIC);
-		if (*batchp == NULL) {
-			pte_free_now(ptepage);
-			return;
-		}
-		(*batchp)->index = 0;
-	}
-	(*batchp)->pages[(*batchp)->index++] = ptepage;
-	if ((*batchp)->index == PTE_FREELIST_SIZE) {
-		pte_free_submit(*batchp);
-		*batchp = NULL;
-	}
-}
-
+void __pte_free_tlb(struct mmu_gather *tlb, struct page *ptepage);
 #define __pmd_free_tlb(tlb, pmd)	__pte_free_tlb(tlb, virt_to_page(pmd))
 
 #define check_pgt_cache()	do { } while (0)

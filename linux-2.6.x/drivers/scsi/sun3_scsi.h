@@ -31,14 +31,8 @@
 
 /*
  * $Log$
- * Revision 1.2  2004/09/07 22:37:22  lgsoft
- * alpha-2.0
- *
- * Revision 1.1.1.1  2004/07/19 12:19:09  lgsoft
- * Import of uClinux 2.6.2
- *
- * Revision 1.1.1.1  2004/07/18 13:21:59  nidhi
- * Importing
+ * Revision 1.3  2004/09/08 15:40:08  lgsoft
+ * Import of 2.6.8
  *
  */
 

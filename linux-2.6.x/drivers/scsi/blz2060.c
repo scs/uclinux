@@ -28,7 +28,7 @@
 #include <linux/interrupt.h>
 
 #include "scsi.h"
-#include "hosts.h"
+#include <scsi/scsi_host.h>
 #include "NCR53C9x.h"
 
 #include <linux/zorro.h>
@@ -287,6 +287,8 @@ static Scsi_Host_Template driver_template = {
 	.proc_info		= esp_proc_info,
 	.name			= "Blizzard2060 SCSI",
 	.detect			= blz2060_esp_detect,
+	.slave_alloc		= esp_slave_alloc,
+	.slave_destroy		= esp_slave_destroy,
 	.release		= blz2060_esp_release,
 	.queuecommand		= esp_queue,
 	.eh_abort_handler	= esp_abort,

@@ -30,8 +30,6 @@
 #ifndef _VXFS_FSHEAD_H_
 #define _VXFS_FSHEAD_H_
 
-#ident "$Id$"
-
 /*
  * Veritas filesystem driver - fileset header structures.
  *

@@ -38,6 +38,7 @@ static int __devinit snd_vt1724_amp_init(ice1712_t *ice)
 	/* only use basic functionality for now */
 
 	ice->num_total_dacs = 2;	/* only PSDOUT0 is connected */
+	ice->num_total_adcs = 2;
 
 	return 0;
 }
@@ -53,10 +54,11 @@ static int __devinit snd_vt1724_amp_add_controls(ice1712_t *ice)
 /* entry point */
 struct snd_ice1712_card_info snd_vt1724_amp_cards[] __devinitdata = {
 	{
-		VT1724_SUBDEVICE_AUDIO2000,
-		"AMP Ltd AUDIO2000",
-		snd_vt1724_amp_init,
-		snd_vt1724_amp_add_controls,
+		.subvendor = VT1724_SUBDEVICE_AUDIO2000,
+		.name = "AMP Ltd AUDIO2000",
+		.model = "amp2000",
+		.chip_init = snd_vt1724_amp_init,
+		.build_controls = snd_vt1724_amp_add_controls,
 	},
 	{ } /* terminator */
 };

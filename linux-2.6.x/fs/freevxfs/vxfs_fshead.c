@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#ident "$Id$"
-
 /*
  * Veritas filesystem driver - fileset header routines.
  */

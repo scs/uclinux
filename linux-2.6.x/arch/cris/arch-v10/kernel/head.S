@@ -7,7 +7,7 @@
  * Authors:	Bjorn Wesen (bjornw@axis.com)
  * 
  * $Log$
- * Revision 1.3  2004/09/08 10:19:15  lgsoft
+ * Revision 1.4  2004/09/08 14:52:21  lgsoft
  * Import of 2.6.8
  *
  * Revision 1.7  2004/05/14 07:58:01  starvik

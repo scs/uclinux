@@ -15,7 +15,7 @@
  *              ftp://prep.ai.mit.edu/pub/gnu/GPL
  *      Each contributing author retains all rights to their own work.
  *
- *  (C) 1998-2001 Ben Fennema
+ *  (C) 1998-2004 Ben Fennema
  *  (C) 1999-2000 Stelias Computing Inc
  *
  * HISTORY
@@ -36,11 +36,11 @@
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 
-static inline int udf_match(int len, const char * const name, struct qstr *qs)
+static inline int udf_match(int len1, const char *name1, int len2, const char *name2)
 {
-	if (len != qs->len)
+	if (len1 != len2)
 		return 0;
-	return !memcmp(name, qs->name, len);
+	return !memcmp(name1, name2, len1);
 }
 
 int udf_write_fi(struct inode *inode, struct fileIdentDesc *cfi,
@@ -155,7 +155,7 @@ udf_find_entry(struct inode *dir, struct dentry *dentry,
 	struct fileIdentDesc *fi=NULL;
 	loff_t f_pos;
 	int block, flen;
-	char fname[255];
+	char fname[UDF_NAME_LEN];
 	char *nameptr;
 	uint8_t lfi;
 	uint16_t liu;
@@ -252,7 +252,7 @@ udf_find_entry(struct inode *dir, struct dentry *dentry,
 
 		if ((flen = udf_get_filename(dir->i_sb, nameptr, fname, lfi)))
 		{
-			if (udf_match(flen, fname, &(dentry->d_name)))
+			if (udf_match(flen, fname, dentry->d_name.len, dentry->d_name.name))
 			{
 				udf_release_data(bh);
 				return fi;
@@ -306,7 +306,7 @@ udf_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	struct fileIdentDesc cfi, *fi;
 	struct udf_fileident_bh fibh;
 
-	if (dentry->d_name.len > UDF_NAME_LEN)
+	if (dentry->d_name.len > UDF_NAME_LEN-2)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	lock_kernel();
@@ -482,7 +482,7 @@ udf_add_entry(struct inode *dir, struct dentry *dentry,
 			continue;
 
 		if ((flen = udf_get_filename(dir->i_sb, nameptr, fname, lfi)) &&
-			udf_match(flen, fname, &(dentry->d_name)))
+			udf_match(flen, fname, dentry->d_name.len, dentry->d_name.name))
 		{
 			if (fibh->sbh != fibh->ebh)
 				udf_release_data(fibh->ebh);
@@ -674,8 +674,8 @@ static int udf_mknod(struct inode * dir, struct dentry * dentry, int mode, dev_t
 {
 	struct inode * inode;
 	struct udf_fileident_bh fibh;
-	int err;
 	struct fileIdentDesc cfi, *fi;
+	int err;
 
 	if (!old_valid_dev(rdev))
 		return -EINVAL;
@@ -721,8 +721,8 @@ static int udf_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 {
 	struct inode * inode;
 	struct udf_fileident_bh fibh;
-	int err;
 	struct fileIdentDesc cfi, *fi;
+	int err;
 
 	lock_kernel();
 	err = -EMLINK;
@@ -861,6 +861,7 @@ static int udf_rmdir(struct inode * dir, struct dentry * dentry)
 	struct inode * inode = dentry->d_inode;
 	struct udf_fileident_bh fibh;
 	struct fileIdentDesc *fi, cfi;
+	lb_addr tloc;
 
 	retval = -ENOENT;
 	lock_kernel();
@@ -869,7 +870,8 @@ static int udf_rmdir(struct inode * dir, struct dentry * dentry)
 		goto out;
 
 	retval = -EIO;
-	if (udf_get_lb_pblock(dir->i_sb, lelb_to_cpu(cfi.icb.extLocation), 0) != inode->i_ino)
+	tloc = lelb_to_cpu(cfi.icb.extLocation);
+	if (udf_get_lb_pblock(dir->i_sb, tloc, 0) != inode->i_ino)
 		goto end_rmdir;
 	retval = -ENOTEMPTY;
 	if (!empty_dir(inode))
@@ -904,6 +906,7 @@ static int udf_unlink(struct inode * dir, struct dentry * dentry)
 	struct udf_fileident_bh fibh;
 	struct fileIdentDesc *fi;
 	struct fileIdentDesc cfi;
+	lb_addr tloc;
 
 	retval = -ENOENT;
 	lock_kernel();
@@ -912,12 +915,9 @@ static int udf_unlink(struct inode * dir, struct dentry * dentry)
 		goto out;
 
 	retval = -EIO;
-
-	if (udf_get_lb_pblock(dir->i_sb, lelb_to_cpu(cfi.icb.extLocation), 0) !=
-		inode->i_ino)
-	{
+	tloc = lelb_to_cpu(cfi.icb.extLocation);
+	if (udf_get_lb_pblock(dir->i_sb, tloc, 0) != inode->i_ino)
 		goto end_unlink;
-	}
 
 	if (!inode->i_nlink)
 	{
@@ -1119,8 +1119,8 @@ static int udf_link(struct dentry * old_dentry, struct inode * dir,
 {
 	struct inode *inode = old_dentry->d_inode;
 	struct udf_fileident_bh fibh;
-	int err;
 	struct fileIdentDesc cfi, *fi;
+	int err;
 
 	lock_kernel();
 	if (inode->i_nlink >= (256<<sizeof(inode->i_nlink))-1)
@@ -1178,6 +1178,7 @@ static int udf_rename (struct inode * old_dir, struct dentry * old_dentry,
 	struct fileIdentDesc *ofi = NULL, *nfi = NULL, *dir_fi = NULL, ocfi, ncfi;
 	struct buffer_head *dir_bh = NULL;
 	int retval = -ENOENT;
+	lb_addr tloc;
 
 	lock_kernel();
 	if ((ofi = udf_find_entry(old_dir, old_dentry, &ofibh, &ocfi)))
@@ -1186,11 +1187,10 @@ static int udf_rename (struct inode * old_dir, struct dentry * old_dentry,
 			udf_release_data(ofibh.ebh);
 		udf_release_data(ofibh.sbh);
 	}
-	if (!ofi || udf_get_lb_pblock(old_dir->i_sb, lelb_to_cpu(ocfi.icb.extLocation), 0) !=
-		old_inode->i_ino)
-	{
+	tloc = lelb_to_cpu(ocfi.icb.extLocation);
+	if (!ofi || udf_get_lb_pblock(old_dir->i_sb, tloc, 0)
+					!= old_inode->i_ino)
 		goto end_rename;
-	}
 
 	nfi = udf_find_entry(new_dir, new_dentry, &nfibh, &ncfi);
 	if (nfi)
@@ -1231,11 +1231,11 @@ static int udf_rename (struct inode * old_dir, struct dentry * old_dentry,
 		}
 		if (!dir_fi)
 			goto end_rename;
-		if (udf_get_lb_pblock(old_inode->i_sb, cpu_to_lelb(dir_fi->icb.extLocation), 0) !=
-			old_dir->i_ino)
-		{
+		tloc = cpu_to_lelb(dir_fi->icb.extLocation);
+		if (udf_get_lb_pblock(old_inode->i_sb, tloc, 0)
+					!= old_dir->i_ino)
 			goto end_rename;
-		}
+
 		retval = -EMLINK;
 		if (!new_inode && new_dir->i_nlink >= (256<<sizeof(new_dir->i_nlink))-1)
 			goto end_rename;

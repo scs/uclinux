@@ -503,7 +503,7 @@ static int clip_mkip(struct atm_vcc *vcc,int timeout)
 	skb_queue_head_init(&copy);
 	skb_migrate(&vcc->sk->sk_receive_queue, &copy);
 	/* re-process everything received between connection setup and MKIP */
-	while ((skb = skb_dequeue(&copy)))
+	while ((skb = skb_dequeue(&copy)) != NULL)
 		if (!clip_devs) {
 			atm_return(vcc,skb->truesize);
 			kfree_skb(skb);
@@ -563,32 +563,20 @@ static int clip_setentry(struct atm_vcc *vcc,u32 ip)
 }
 
 
-static int clip_init(struct net_device *dev)
+static void clip_setup(struct net_device *dev)
 {
-	DPRINTK("clip_init %s\n",dev->name);
 	dev->hard_start_xmit = clip_start_xmit;
 	/* sg_xmit ... */
-	dev->hard_header = NULL;
-	dev->rebuild_header = NULL;
-	dev->set_mac_address = NULL;
-	dev->hard_header_parse = NULL;
-	dev->hard_header_cache = NULL;
-	dev->header_cache_update = NULL;
-	dev->change_mtu = NULL;
-	dev->do_ioctl = NULL;
 	dev->get_stats = clip_get_stats;
 	dev->type = ARPHRD_ATM;
 	dev->hard_header_len = RFC1483LLC_LEN;
 	dev->mtu = RFC1626_MTU;
-	dev->addr_len = 0;
 	dev->tx_queue_len = 100; /* "normal" queue (packets) */
 	    /* When using a "real" qdisc, the qdisc determines the queue */
 	    /* length. tx_queue_len is only used for the default case, */
 	    /* without any more elaborate queuing. 100 is a reasonable */
 	    /* compromise between decent burst-tolerance and protection */
 	    /* against memory hogs. */
-	dev->flags = 0;
-	return 0;
 }
 
 
@@ -608,18 +596,16 @@ static int clip_create(int number)
 			if (PRIV(dev)->number >= number)
 				number = PRIV(dev)->number+1;
 	}
-	dev = kmalloc(sizeof(struct net_device)+sizeof(struct clip_priv),
-	    GFP_KERNEL); 
-	if (!dev) return -ENOMEM;
-	memset(dev,0,sizeof(struct net_device)+sizeof(struct clip_priv));
+	dev = alloc_netdev(sizeof(struct clip_priv), "", clip_setup);
+	if (!dev)
+		return -ENOMEM;
 	clip_priv = PRIV(dev);
 	sprintf(dev->name,"atm%d",number);
-	dev->init = clip_init;
 	spin_lock_init(&clip_priv->xoff_lock);
 	clip_priv->number = number;
 	error = register_netdev(dev);
 	if (error) {
-		kfree(dev);
+		free_netdev(dev);
 		return error;
 	}
 	clip_priv->next = clip_devs;
@@ -634,7 +620,7 @@ static int clip_device_event(struct notifier_block *this,unsigned long event,
 {
 	/* ignore non-CLIP devices */
 	if (((struct net_device *) dev)->type != ARPHRD_ATM ||
-	    ((struct net_device *) dev)->init != clip_init)
+	    ((struct net_device *) dev)->hard_start_xmit != clip_start_xmit)
 		return NOTIFY_DONE;
 	switch (event) {
 		case NETDEV_UP:
@@ -843,7 +829,7 @@ static void atmarp_info(struct seq_file *seq, struct net_device *dev,
 	    !clip_vcc || clip_vcc->encap ? "LLC" : "NULL",
 	    (jiffies-(clip_vcc ? clip_vcc->last_use : entry->neigh->used))/HZ);
 
-	off = snprintf(buf, sizeof(buf) - 1, "%d.%d.%d.%d", NIPQUAD(entry->ip));
+	off = scnprintf(buf, sizeof(buf) - 1, "%d.%d.%d.%d", NIPQUAD(entry->ip));
 	while (off < 16)
 		buf[off++] = ' ';
 	buf[off] = '\0';
@@ -899,7 +885,7 @@ static void *arp_get_idx(struct arp_state *state, loff_t l)
 			if (v)
 				goto done;
   		}
-		state->n = clip_tbl_hook->hash_buckets[state->bucket + 1];
+		state->n = clip_tbl.hash_buckets[state->bucket + 1];
 	}
 done:
 	return v;
@@ -910,18 +896,12 @@ static void *arp_seq_start(struct seq_file *seq, loff_t *pos)
 	struct arp_state *state = seq->private;
 	void *ret = (void *)1;
 
-	if (!clip_tbl_hook) {
-		state->bucket = -1;
-		goto out;
-	}
-
-	read_lock_bh(&clip_tbl_hook->lock);
+	read_lock_bh(&clip_tbl.lock);
 	state->bucket = 0;
-	state->n = clip_tbl_hook->hash_buckets[0];
+	state->n = clip_tbl.hash_buckets[0];
 	state->vcc = (void *)1;
 	if (*pos)
 		ret = arp_get_idx(state, *pos);
-out:
 	return ret;
 }
 
@@ -930,7 +910,7 @@ static void arp_seq_stop(struct seq_file *seq, void *v)
 	struct arp_state *state = seq->private;
 
 	if (state->bucket != -1)
-		read_unlock_bh(&clip_tbl_hook->lock);
+		read_unlock_bh(&clip_tbl.lock);
 }
 
 static void *arp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
@@ -1008,27 +988,32 @@ static struct file_operations arp_seq_fops = {
 
 static int __init atm_clip_init(void)
 {
-#ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *p;
-
-	p = create_proc_entry("arp", S_IRUGO, atm_proc_root);
-	if (p)
-		p->proc_fops = &arp_seq_fops;
-#endif
-
 	/* we should use neigh_table_init() */
 	clip_tbl.lock = RW_LOCK_UNLOCKED;
 	clip_tbl.kmem_cachep = kmem_cache_create(clip_tbl.id,
 	    clip_tbl.entry_size, 0, SLAB_HWCACHE_ALIGN, NULL, NULL);
 
+	if (!clip_tbl.kmem_cachep)
+		return -ENOMEM;
+
 	/* so neigh_ifdown() doesn't complain */
 	clip_tbl.proxy_timer.data = 0;
-	clip_tbl.proxy_timer.function = 0;
+	clip_tbl.proxy_timer.function = NULL;
 	init_timer(&clip_tbl.proxy_timer);
 	skb_queue_head_init(&clip_tbl.proxy_queue);
 
 	clip_tbl_hook = &clip_tbl;
 	register_atm_ioctl(&clip_ioctl_ops);
+
+#ifdef CONFIG_PROC_FS
+{
+	struct proc_dir_entry *p;
+
+	p = create_proc_entry("arp", S_IRUGO, atm_proc_root);
+	if (p)
+		p->proc_fops = &arp_seq_fops;
+}
+#endif
 
 	return 0;
 }

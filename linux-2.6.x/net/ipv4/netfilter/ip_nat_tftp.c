@@ -1,5 +1,9 @@
-/*
- * Licensed under GNU GPL version 2 Copyright Magnus Boden <mb@ozaba.mine.nu>
+/* (C) 2001-2002 Magnus Boden <mb@ozaba.mine.nu>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  * Version: 0.0.7
  *
  * Thu 21 Mar 2002 Harald Welte <laforge@gnumonks.org>
@@ -37,14 +41,12 @@ MODULE_LICENSE("GPL");
 
 static int ports[MAX_PORTS];
 static int ports_c = 0;
-#ifdef MODULE_PARM
 MODULE_PARM(ports,"1-" __MODULE_STRING(MAX_PORTS) "i");
 MODULE_PARM_DESC(ports, "port numbers of tftp servers");
-#endif
 
 #if 0
-#define DEBUGP(format, args...) printk(__FILE__ ":" __FUNCTION__ ": " \
-				       format, ## args)
+#define DEBUGP(format, args...) printk("%s:%s:" format, \
+                                       __FILE__, __FUNCTION__ , ## args)
 #else
 #define DEBUGP(format, args...)
 #endif

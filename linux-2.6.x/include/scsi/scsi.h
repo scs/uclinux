@@ -10,13 +10,26 @@
 
 #include <linux/types.h>
 
+/*
+ *	The maximum sg list length SCSI can cope with
+ *	(currently must be a power of 2 between 32 and 256)
+ */
+#define SCSI_MAX_PHYS_SEGMENTS	MAX_PHYS_SEGMENTS
+
 
 /*
- * SCSI command lengths
+ *	SCSI command lengths
  */
 
 extern const unsigned char scsi_command_size[8];
 #define COMMAND_SIZE(opcode) scsi_command_size[((opcode) >> 5) & 7]
+
+/*
+ *	SCSI device types
+ */
+
+#define MAX_SCSI_DEVICE_CODE 14
+extern const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE];
 
 /*
  *      SCSI opcodes
@@ -193,6 +206,7 @@ static inline int scsi_status_is_good(int status)
 #define TYPE_MEDIUM_CHANGER 0x08
 #define TYPE_COMM           0x09    /* Communications device */
 #define TYPE_ENCLOSURE      0x0d    /* Enclosure Services Device */
+#define TYPE_RAID           0x0c
 #define TYPE_NO_LUN         0x7f
 
 /*
@@ -200,25 +214,25 @@ static inline int scsi_status_is_good(int status)
  */
 
 struct ccs_modesel_head {
-	u8 _r1;			/* reserved */
-	u8 medium;		/* device-specific medium type */
-	u8 _r2;			/* reserved */
-	u8 block_desc_length;	/* block descriptor length */
-	u8 density;		/* device-specific density code */
-	u8 number_blocks_hi;	/* number of blocks in this block desc */
-	u8 number_blocks_med;
-	u8 number_blocks_lo;
-	u8 _r3;
-	u8 block_length_hi;	/* block length for blocks in this desc */
-	u8 block_length_med;
-	u8 block_length_lo;
+	__u8 _r1;			/* reserved */
+	__u8 medium;		/* device-specific medium type */
+	__u8 _r2;			/* reserved */
+	__u8 block_desc_length;	/* block descriptor length */
+	__u8 density;		/* device-specific density code */
+	__u8 number_blocks_hi;	/* number of blocks in this block desc */
+	__u8 number_blocks_med;
+	__u8 number_blocks_lo;
+	__u8 _r3;
+	__u8 block_length_hi;	/* block length for blocks in this desc */
+	__u8 block_length_med;
+	__u8 block_length_lo;
 };
 
 /*
  * ScsiLun: 8 byte LUN.
  */
 struct scsi_lun {
-	u8 scsi_lun[8];
+	__u8 scsi_lun[8];
 };
 
 /*
@@ -266,6 +280,7 @@ struct scsi_lun {
 #define DID_BAD_INTR    0x09	/* Got an interrupt we weren't expecting.  */
 #define DID_PASSTHROUGH 0x0a	/* Force command past mid-layer            */
 #define DID_SOFT_ERROR  0x0b	/* The low level driver just wish a retry  */
+#define DID_IMM_RETRY   0x0c	/* Retry without decrementing retry count  */
 #define DRIVER_OK       0x00	/* Driver status                           */
 
 /*
@@ -310,6 +325,49 @@ struct scsi_lun {
 #define SCSI_MLQUEUE_HOST_BUSY   0x1055
 #define SCSI_MLQUEUE_DEVICE_BUSY 0x1056
 #define SCSI_MLQUEUE_EH_RETRY    0x1057
+
+/*
+ *  Use these to separate status msg and our bytes
+ *
+ *  These are set by:
+ *
+ *      status byte = set from target device
+ *      msg_byte    = return status from host adapter itself.
+ *      host_byte   = set by low-level driver to indicate status.
+ *      driver_byte = set by mid-level.
+ */
+#define status_byte(result) (((result) >> 1) & 0x1f)
+#define msg_byte(result)    (((result) >> 8) & 0xff)
+#define host_byte(result)   (((result) >> 16) & 0xff)
+#define driver_byte(result) (((result) >> 24) & 0xff)
+#define suggestion(result)  (driver_byte(result) & SUGGEST_MASK)
+
+#define sense_class(sense)  (((sense) >> 4) & 0x7)
+#define sense_error(sense)  ((sense) & 0xf)
+#define sense_valid(sense)  ((sense) & 0x80);
+
+
+#define IDENTIFY_BASE       0x80
+#define IDENTIFY(can_disconnect, lun)   (IDENTIFY_BASE |\
+		     ((can_disconnect) ?  0x40 : 0) |\
+		     ((lun) & 0x07))
+
+/*
+ *  SCSI command sets
+ */
+
+#define SCSI_UNKNOWN    0
+#define SCSI_1          1
+#define SCSI_1_CCS      2
+#define SCSI_2          3
+#define SCSI_3          4
+
+/*
+ * INQ PERIPHERAL QUALIFIERS
+ */
+#define SCSI_INQ_PQ_CON         0x00
+#define SCSI_INQ_PQ_NOT_CON     0x01
+#define SCSI_INQ_PQ_NOT_CAP     0x03
 
 
 /*

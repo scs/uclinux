@@ -25,7 +25,7 @@
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
 
-#if defined(CONFIG_SYSVIPC)
+#include <asm/unistd.h>
 
 #include "util.h"
 
@@ -333,25 +333,40 @@ void* ipc_rcu_alloc(int size)
  * Since RCU callback function is called in bh,
  * we need to defer the vfree to schedule_work
  */
-static void ipc_schedule_free(void* arg)
+static void ipc_schedule_free(struct rcu_head *head)
 {
-	struct ipc_rcu_vmalloc *free = arg;
+	struct ipc_rcu_vmalloc *free =
+		container_of(head, struct ipc_rcu_vmalloc, rcu);
 
 	INIT_WORK(&free->work, vfree, free);
 	schedule_work(&free->work);
 }
+
+/**
+ *	ipc_immediate_free	- free ipc + rcu space
+ *
+ *	Free from the RCU callback context
+ *
+ */
+static void ipc_immediate_free(struct rcu_head *head)
+{
+	struct ipc_rcu_kmalloc *free =
+		container_of(head, struct ipc_rcu_kmalloc, rcu);
+	kfree(free);
+}
+
+
 
 void ipc_rcu_free(void* ptr, int size)
 {
 	if (rcu_use_vmalloc(size)) {
 		struct ipc_rcu_vmalloc *free;
 		free = ptr - sizeof(*free);
-		call_rcu(&free->rcu, ipc_schedule_free, free);
+		call_rcu(&free->rcu, ipc_schedule_free);
 	} else {
 		struct ipc_rcu_kmalloc *free;
 		free = ptr - sizeof(*free);
-		/* kfree takes a "const void *" so gcc warns.  So we cast. */
-		call_rcu(&free->rcu, (void (*)(void *))kfree, free);
+		call_rcu(&free->rcu, ipc_immediate_free);
 	}
 
 }
@@ -509,7 +524,8 @@ int ipc_checkid(struct ipc_ids* ids, struct kern_ipc_perm* ipcp, int uid)
 	return 0;
 }
 
-#if !defined(__ia64__) && !defined(__x86_64__)
+#ifdef __ARCH_WANT_IPC_PARSE_VERSION
+
 
 /**
  *	ipc_parse_version	-	IPC call version
@@ -530,84 +546,4 @@ int ipc_parse_version (int *cmd)
 	}
 }
 
-#endif /* __ia64__ */
-
-#else
-/*
- * Dummy functions when SYSV IPC isn't configured
- */
-
-int copy_semundo(unsigned long clone_flags, struct task_struct *tsk)
-{
-	return 0;
-}
-
-void exit_sem(struct task_struct *tsk)
-{
-	return;
-}
-
-asmlinkage long sys_semget (key_t key, int nsems, int semflg)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys_semop (int semid, struct sembuf *sops, unsigned nsops)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys_semtimedop(int semid, struct sembuf *sops, unsigned nsops,
-				const struct timespec *timeout)
-{
-	return -ENOSYS;
-}
-
-
-asmlinkage long sys_semctl (int semid, int semnum, int cmd, union semun arg)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys_msgget (key_t key, int msgflg)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys_msgsnd (int msqid, struct msgbuf *msgp, size_t msgsz, int msgflg)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys_msgrcv (int msqid, struct msgbuf *msgp, size_t msgsz, long msgtyp,
-		       int msgflg)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys_msgctl (int msqid, int cmd, struct msqid_ds *buf)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys_shmget (key_t key, size_t size, int shmflag)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys_shmat (int shmid, char *shmaddr, int shmflg, ulong *addr)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys_shmdt (char *shmaddr)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds *buf)
-{
-	return -ENOSYS;
-}
-
-#endif /* CONFIG_SYSVIPC */
+#endif /* __ARCH_WANT_IPC_PARSE_VERSION */

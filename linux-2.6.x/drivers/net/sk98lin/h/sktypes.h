@@ -22,40 +22,6 @@
  *
  ******************************************************************************/
  
- /*****************************************************************************
- *
- * History:
- *
- *	$Log$
- *	Revision 1.2  2004/09/07 22:32:04  lgsoft
- *	alpha-2.0
- *
- *	Revision 1.1.1.1  2004/07/19 12:13:15  lgsoft
- *	Import of uClinux 2.6.2
- *	
- *	Revision 1.1.1.1  2004/07/18 13:21:34  nidhi
- *	Importing
- *	
- *	Revision 1.2  2003/10/07 08:16:51  mlindner
- *	Fix: Copyright changes
- *	
- *	Revision 1.1  2003/07/21 07:26:01  rroesler
- *	Fix: Re-Enter after CVS crash
- *	
- *	Revision 1.3  2003/02/25 14:16:40  mlindner
- *	Fix: Copyright statement
- *	
- *	Revision 1.2  1999/11/22 14:01:58  cgoos
- *	Changed license header to GPL.
- *	Now using Linux' fixed size types instead of standard types.
- *	
- *	Revision 1.1  1999/02/16 07:41:40  cgoos
- *	First version.
- *	
- *	
- *
- *****************************************************************************/
-
 /******************************************************************************
  *
  * Description:

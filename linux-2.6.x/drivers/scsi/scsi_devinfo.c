@@ -6,11 +6,12 @@
 #include <linux/moduleparam.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+
+#include <scsi/scsi_device.h>
 #include <scsi/scsi_devinfo.h>
 
-#include "scsi.h"
-#include "hosts.h"
 #include "scsi_priv.h"
+
 
 /*
  * scsi_dev_info_list: structure to hold black/white listed devices.
@@ -27,7 +28,7 @@ struct scsi_dev_info_list {
 static const char spaces[] = "                "; /* 16 of them */
 static unsigned scsi_default_dev_flags;
 static LIST_HEAD(scsi_dev_info_list);
-static __init char scsi_dev_flags[256];
+static __initdata char scsi_dev_flags[256];
 
 /*
  * scsi_static_device_list: deprecated list of devices that require
@@ -94,95 +95,105 @@ static struct {
 	 * The following causes a failed REQUEST SENSE on lun 1 for
 	 * seagate controller, which causes SCSI code to reset bus.
 	 */
-	{"TEXEL", "CD-ROM", "1.06", BLIST_NOLUN},
-	{"QUANTUM", "LPS525S", "3110", BLIST_NOLUN},	/* locks up */
-	{"QUANTUM", "PD1225S", "3110", BLIST_NOLUN},	/* locks up */
-	{"QUANTUM", "FIREBALL ST4.3S", "0F0C", BLIST_NOLUN},	/* locks up */
-	{"MEDIAVIS", "CDR-H93MV", "1.31", BLIST_NOLUN},	/* locks up */
-	{"SANKYO", "CP525", "6.64", BLIST_NOLUN},	/* causes failed REQ SENSE, extra reset */
 	{"HP", "C1750A", "3226", BLIST_NOLUN},		/* scanjet iic */
 	{"HP", "C1790A", "", BLIST_NOLUN},		/* scanjet iip */
 	{"HP", "C2500A", "", BLIST_NOLUN},		/* scanjet iicx */
+	{"MEDIAVIS", "CDR-H93MV", "1.31", BLIST_NOLUN},	/* locks up */
+	{"MICROTEK", "ScanMaker II", "5.61", BLIST_NOLUN},	/* responds to all lun */
+	{"MITSUMI", "CD-R CR-2201CS", "6119", BLIST_NOLUN},	/* locks up */
+	{"NEC", "D3856", "0009", BLIST_NOLUN},
+	{"QUANTUM", "LPS525S", "3110", BLIST_NOLUN},	/* locks up */
+	{"QUANTUM", "PD1225S", "3110", BLIST_NOLUN},	/* locks up */
+	{"QUANTUM", "FIREBALL ST4.3S", "0F0C", BLIST_NOLUN},	/* locks up */
+	{"RELISYS", "Scorpio", NULL, BLIST_NOLUN},	/* responds to all lun */
+	{"SANKYO", "CP525", "6.64", BLIST_NOLUN},	/* causes failed REQ SENSE, extra reset */
+	{"TEXEL", "CD-ROM", "1.06", BLIST_NOLUN},
 	{"YAMAHA", "CDR100", "1.00", BLIST_NOLUN},	/* locks up */
 	{"YAMAHA", "CDR102", "1.00", BLIST_NOLUN},	/* locks up */
 	{"YAMAHA", "CRW8424S", "1.0", BLIST_NOLUN},	/* locks up */
 	{"YAMAHA", "CRW6416S", "1.0c", BLIST_NOLUN},	/* locks up */
-	{"MITSUMI", "CD-R CR-2201CS", "6119", BLIST_NOLUN},	/* locks up */
-	{"RELISYS", "Scorpio", NULL, BLIST_NOLUN},	/* responds to all lun */
-	{"MICROTEK", "ScanMaker II", "5.61", BLIST_NOLUN},	/* responds to all lun */
-	{"NEC", "D3856", "0009", BLIST_NOLUN},
 
 	/*
 	 * Other types of devices that have special flags.
 	 */
-	{"SONY", "CD-ROM CDU-8001", NULL, BLIST_BORKEN},
-	{"TEXEL", "CD-ROM", "1.06", BLIST_BORKEN},
-	{"IOMEGA", "Io20S         *F", NULL, BLIST_KEY},
-	{"INSITE", "Floptical   F*8I", NULL, BLIST_KEY},
-	{"INSITE", "I325VM", NULL, BLIST_KEY},
-	{"LASOUND", "CDX7405", "3.10", BLIST_MAX5LUN | BLIST_SINGLELUN},
-	{"MICROP", "4110", NULL, BLIST_NOTQ},
-	{"NRC", "MBR-7", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
-	{"NRC", "MBR-7.4", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
-	{"REGAL", "CDC-4X", NULL, BLIST_MAX5LUN | BLIST_SINGLELUN},
-	{"NAKAMICH", "MJ-4.8S", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
-	{"NAKAMICH", "MJ-5.16S", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
-	{"PIONEER", "CD-ROM DRM-600", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
-	{"PIONEER", "CD-ROM DRM-602X", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
-	{"PIONEER", "CD-ROM DRM-604X", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
-	{"EMULEX", "MD21/S2     ESDI", NULL, BLIST_SINGLELUN},
+	{"ADAPTEC", "AACRAID", NULL, BLIST_FORCELUN},
+	{"ADAPTEC", "Adaptec 5400S", NULL, BLIST_FORCELUN},
+	{"AFT PRO", "-IX CF", "0.0>", BLIST_FORCELUN},
+	{"BELKIN", "USB 2 HS-CF", "1.95",  BLIST_FORCELUN},
 	{"CANON", "IPUBJD", NULL, BLIST_SPARSELUN},
-	{"nCipher", "Fastness Crypto", NULL, BLIST_FORCELUN},
-	{"DEC", "HSG80", NULL, BLIST_SPARSELUN | BLIST_NOSTARTONADD},
+	{"CBOX3", "USB Storage-SMC", "300A", BLIST_FORCELUN},
+	{"CMD", "CRA-7280", NULL, BLIST_SPARSELUN},	/* CMD RAID Controller */
+	{"CNSI", "G7324", NULL, BLIST_SPARSELUN},	/* Chaparral G7324 RAID */
+	{"CNSi", "G8324", NULL, BLIST_SPARSELUN},	/* Chaparral G8324 RAID */
 	{"COMPAQ", "LOGICAL VOLUME", NULL, BLIST_FORCELUN},
 	{"COMPAQ", "CR3500", NULL, BLIST_FORCELUN},
-	{"NEC", "PD-1 ODX654P", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
-	{"MATSHITA", "PD-1", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
-	{"iomega", "jaz 1GB", "J.86", BLIST_NOTQ | BLIST_NOLUN},
-	{"TOSHIBA", "CDROM", NULL, BLIST_ISROM},
-	{"TOSHIBA", "CD-ROM", NULL, BLIST_ISROM},
-	{"MegaRAID", "LD", NULL, BLIST_FORCELUN},
-	{"DGC", "RAID", NULL, BLIST_SPARSELUN},	/* Dell PV 650F, storage on LUN 0 */
-	{"DGC", "DISK", NULL, BLIST_SPARSELUN},	/* Dell PV 650F, no storage on LUN 0 */
+	{"COMPAQ", "MSA1000", NULL, BLIST_SPARSELUN | BLIST_NOSTARTONADD},
+	{"COMPAQ", "MSA1000 VOLUME", NULL, BLIST_SPARSELUN | BLIST_NOSTARTONADD},
+	{"COMPAQ", "HSV110", NULL, BLIST_REPORTLUN2 | BLIST_NOSTARTONADD},
+	{"DDN", "SAN DataDirector", "*", BLIST_SPARSELUN},
+	{"DEC", "HSG80", NULL, BLIST_SPARSELUN | BLIST_NOSTARTONADD},
 	{"DELL", "PV660F", NULL, BLIST_SPARSELUN},
 	{"DELL", "PV660F   PSEUDO", NULL, BLIST_SPARSELUN},
 	{"DELL", "PSEUDO DEVICE .", NULL, BLIST_SPARSELUN},	/* Dell PV 530F */
 	{"DELL", "PV530F", NULL, BLIST_SPARSELUN},
-	{"EMC", "SYMMETRIX", NULL, BLIST_SPARSELUN | BLIST_LARGELUN | BLIST_FORCELUN},
-	{"HP", "A6189A", NULL, BLIST_SPARSELUN | BLIST_LARGELUN},	/* HP VA7400 */
-	{"HP", "OPEN-", "*", BLIST_SPARSELUN | BLIST_LARGELUN}, /* HP XP Arrays */
-	{"CMD", "CRA-7280", NULL, BLIST_SPARSELUN},	/* CMD RAID Controller */
-	{"CNSI", "G7324", NULL, BLIST_SPARSELUN},	/* Chaparral G7324 RAID */
-	{"CNSi", "G8324", NULL, BLIST_SPARSELUN},	/* Chaparral G8324 RAID */
-	{"Zzyzx", "RocketStor 500S", NULL, BLIST_SPARSELUN},
-	{"Zzyzx", "RocketStor 2000", NULL, BLIST_SPARSELUN},
-	{"SONY", "TSL", NULL, BLIST_FORCELUN},		/* DDS3 & DDS4 autoloaders */
 	{"DELL", "PERCRAID", NULL, BLIST_FORCELUN},
-	{"HP", "NetRAID-4M", NULL, BLIST_FORCELUN},
-	{"ADAPTEC", "AACRAID", NULL, BLIST_FORCELUN},
-	{"ADAPTEC", "Adaptec 5400S", NULL, BLIST_FORCELUN},
-	{"COMPAQ", "MSA1000", NULL, BLIST_SPARSELUN | BLIST_NOSTARTONADD},
-	{"COMPAQ", "MSA1000 VOLUME", NULL, BLIST_SPARSELUN | BLIST_NOSTARTONADD},
-	{"COMPAQ", "HSV110", NULL, BLIST_SPARSELUN | BLIST_NOSTARTONADD},
-	{"HP", "HSV100", NULL, BLIST_SPARSELUN | BLIST_NOSTARTONADD},
-	{"HP", "C1557A", NULL, BLIST_FORCELUN},
-	{"IBM", "AuSaV1S2", NULL, BLIST_FORCELUN},
+	{"DGC", "RAID", NULL, BLIST_SPARSELUN},	/* Dell PV 650F, storage on LUN 0 */
+	{"DGC", "DISK", NULL, BLIST_SPARSELUN},	/* Dell PV 650F, no storage on LUN 0 */
+	{"EMC", "SYMMETRIX", NULL, BLIST_SPARSELUN | BLIST_LARGELUN | BLIST_FORCELUN},
+	{"EMULEX", "MD21/S2     ESDI", NULL, BLIST_SINGLELUN},
 	{"FSC", "CentricStor", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"DDN", "SAN DataDirector", "*", BLIST_SPARSELUN},
+	{"Generic", "USB SD Reader", "1.00", BLIST_FORCELUN},
+	{"Generic", "USB Storage-SMC", "0180", BLIST_FORCELUN},
+	{"Generic", "USB Storage-SMC", "0207", BLIST_FORCELUN},
 	{"HITACHI", "DF400", "*", BLIST_SPARSELUN},
 	{"HITACHI", "DF500", "*", BLIST_SPARSELUN},
 	{"HITACHI", "DF600", "*", BLIST_SPARSELUN},
+	{"HP", "A6189A", NULL, BLIST_SPARSELUN | BLIST_LARGELUN},	/* HP VA7400 */
+	{"HP", "OPEN-", "*", BLIST_SPARSELUN | BLIST_LARGELUN}, /* HP XP Arrays */
+	{"HP", "NetRAID-4M", NULL, BLIST_FORCELUN},
+	{"HP", "HSV100", NULL, BLIST_REPORTLUN2 | BLIST_NOSTARTONADD},
+	{"HP", "C1557A", NULL, BLIST_FORCELUN},
+	{"IBM", "AuSaV1S2", NULL, BLIST_FORCELUN},
 	{"IBM", "ProFibre 4000R", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"SUN", "T300", "*", BLIST_SPARSELUN},
-	{"SUN", "T4", "*", BLIST_SPARSELUN},
+	{"iomega", "jaz 1GB", "J.86", BLIST_NOTQ | BLIST_NOLUN},
+	{"IOMEGA", "Io20S         *F", NULL, BLIST_KEY},
+	{"INSITE", "Floptical   F*8I", NULL, BLIST_KEY},
+	{"INSITE", "I325VM", NULL, BLIST_KEY},
+	{"iRiver", "iFP Mass Driver", NULL, BLIST_NOT_LOCKABLE | BLIST_INQUIRY_36},
+	{"LASOUND", "CDX7405", "3.10", BLIST_MAX5LUN | BLIST_SINGLELUN},
+	{"MATSHITA", "PD-1", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
+	{"MATSHITA", "DMC-LC5", NULL, BLIST_NOT_LOCKABLE | BLIST_INQUIRY_36},
+	{"MATSHITA", "DMC-LC40", NULL, BLIST_NOT_LOCKABLE | BLIST_INQUIRY_36},
+	{"Medion", "Flash XL  MMC/SD", "2.6D", BLIST_FORCELUN},
+	{"MegaRAID", "LD", NULL, BLIST_FORCELUN},
+	{"MICROP", "4110", NULL, BLIST_NOTQ},
+	{"MYLEX", "DACARMRB", "*", BLIST_REPORTLUN2},
+	{"nCipher", "Fastness Crypto", NULL, BLIST_FORCELUN},
+	{"NAKAMICH", "MJ-4.8S", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
+	{"NAKAMICH", "MJ-5.16S", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
+	{"NEC", "PD-1 ODX654P", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
+	{"NRC", "MBR-7", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
+	{"NRC", "MBR-7.4", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
+	{"PIONEER", "CD-ROM DRM-600", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
+	{"PIONEER", "CD-ROM DRM-602X", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
+	{"PIONEER", "CD-ROM DRM-604X", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
+	{"REGAL", "CDC-4X", NULL, BLIST_MAX5LUN | BLIST_SINGLELUN},
+	{"SanDisk", "ImageMate CF-SD1", NULL, BLIST_FORCELUN},
 	{"SGI", "RAID3", "*", BLIST_SPARSELUN},
 	{"SGI", "RAID5", "*", BLIST_SPARSELUN},
-	{"SGI", "TP9100", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"SGI", "TP9300", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"SGI", "TP9400", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"SGI", "TP9500", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"MYLEX", "DACARMRB", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
+	{"SGI", "TP9100", "*", BLIST_REPORTLUN2},
+	{"SMSC", "USB 2 HS-CF", NULL, BLIST_SPARSELUN},
+	{"SONY", "CD-ROM CDU-8001", NULL, BLIST_BORKEN},
+	{"SONY", "TSL", NULL, BLIST_FORCELUN},		/* DDS3 & DDS4 autoloaders */
+	{"SUN", "T300", "*", BLIST_SPARSELUN},
+	{"SUN", "T4", "*", BLIST_SPARSELUN},
+	{"TEXEL", "CD-ROM", "1.06", BLIST_BORKEN},
+	{"TOSHIBA", "CDROM", NULL, BLIST_ISROM},
+	{"TOSHIBA", "CD-ROM", NULL, BLIST_ISROM},
+	{"USB2.0", "SMARTMEDIA/XD", NULL, BLIST_FORCELUN},
 	{"XYRATEX", "RS", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
+	{"Zzyzx", "RocketStor 500S", NULL, BLIST_SPARSELUN},
+	{"Zzyzx", "RocketStor 2000", NULL, BLIST_SPARSELUN},
 	{ NULL, NULL, NULL, 0 },
 };
 
@@ -331,7 +342,7 @@ int scsi_get_device_flags(struct scsi_device *sdev, unsigned char *vendor,
 	struct scsi_dev_info_list *devinfo;
 	unsigned int bflags;
 
-	bflags = sdev->host->hostt->flags;
+	bflags = sdev->sdev_bflags;
 	if (!bflags)
 		bflags = scsi_default_dev_flags;
 
@@ -431,7 +442,7 @@ stop_output:
  * To add a black/white list entry for vendor and model with an integer
  * value of flag to the scsi device info list.
  */
-static int proc_scsi_devinfo_write(struct file *file, const char *buf,
+static int proc_scsi_devinfo_write(struct file *file, const char __user *buf,
 				   unsigned long length, void *data)
 {
 	char *buffer;
@@ -481,7 +492,7 @@ void scsi_exit_devinfo(void)
 	struct scsi_dev_info_list *devinfo;
 
 #ifdef CONFIG_SCSI_PROC_FS
-	remove_proc_entry("scsi/device_info", 0);
+	remove_proc_entry("scsi/device_info", NULL);
 #endif
 
 	list_for_each_safe(lh, lh_next, &scsi_dev_info_list) {

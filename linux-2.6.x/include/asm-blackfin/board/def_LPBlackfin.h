@@ -2,91 +2,83 @@
  *
  * def_LPBlackfin.h
  *
- * This file is subject to the terms and conditions of the GNU Public 
- * License. See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * Non-GPL License also available as part of VisualDSP++
- * http://www.analog.com/processors/resources/crosscore/visualDspDevSoftware.html
- *
- * (c) Copyright 2001-2004 Analog Devices, Inc. All rights reserved
- *
- * Revision 1.5 - Tue May 18 09:35:13 2004 
- * This file under source code control, please send bugs or changes to:
- * dsptools.support@analog.com
+ * (c) Copyright 2001-2003 Analog Devices, Inc.  All rights reserved.
  *
  ************************************************************************/
 
-/* LP Blackfin CORE REGISTER BIT & ADDRESS DEFINITIONS FOR ADSP-BF532 */
+/* LP Blackfin CORE REGISTER BIT & ADDRESS DEFINITIONS FOR ADSP-BF532/33 */
 
 #ifndef _DEF_LPBLACKFIN_H
 #define _DEF_LPBLACKFIN_H
 
-#if !defined(__ADSPLPBLACKFIN__)
+/*#if !defined(__ADSPLPBLACKFIN__)
 #warning def_LPBlackfin.h should only be included for 532 compatible chips.
 #endif
+*/
+
 #define MK_BMSK_( x ) (1<<x)    // Make a bit mask from a bit position
 
-//**********************************************************************************
-// System Register Bits
-//**********************************************************************************
+/**********************************************************************************
+ * System Register Bits
+ **********************************************************************************/
 
-//**************************************************
-//   ASTAT register
-//**************************************************
+/**************************************************
+ * ASTAT register
+ **************************************************/
 
-// definitions of ASTAT bit positions
-#define ASTAT_AZ_P         0x00000000                  // Result of last ALU0 or shifter operation is zero
-#define ASTAT_AN_P         0x00000001                  // Result of last ALU0 or shifter operation is negative
-#define ASTAT_CC_P         0x00000005                  // Condition Code, used for holding comparison results
-#define ASTAT_AQ_P         0x00000006                  // Quotient Bit
-#define ASTAT_RND_MOD_P    0x00000008                  // Rounding mode, set for biased, clear for unbiased
-#define ASTAT_AC0_P        0x0000000C                  // Result of last ALU0 operation generated a carry
-#define ASTAT_AC0_COPY_P   0x00000002                  // Result of last ALU0 operation generated a carry
-#define ASTAT_AC1_P        0x0000000D                  // Result of last ALU1 operation generated a carry
-#define ASTAT_AV0_P        0x00000010                  // Result of last ALU0 or MAC0 operation overflowed, sticky for MAC
-#define ASTAT_AV0S_P       0x00000011                  // Sticky version of ASTAT_AV0 
-#define ASTAT_AV1_P        0x00000012                  // Result of last MAC1 operation overflowed, sticky for MAC
-#define ASTAT_AV1S_P       0x00000013                  // Sticky version of ASTAT_AV1 
-#define ASTAT_V_P          0x00000018		       // Result of last ALU0 or MAC0 operation overflowed
-#define ASTAT_V_COPY_P     0x00000003                  // Result of last ALU0 or MAC0 operation overflowed
-#define ASTAT_VS_P         0x00000019		       // Sticky version of ASTAT_V
+/* definitions of ASTAT bit positions*/
+
+#define ASTAT_AZ_P         0x00000000			/*Result of last ALU0 or shifter operation is zero*/
+#define ASTAT_AN_P         0x00000001			/*Result of last ALU0 or shifter operation is negative*/
+#define ASTAT_CC_P         0x00000005			/*Condition Code, used for holding comparison results*/
+#define ASTAT_AQ_P         0x00000006			/*Quotient Bit*/
+#define ASTAT_RND_MOD_P    0x00000008			/*Rounding mode, set for biased, clear for unbiased*/
+#define ASTAT_AC0_P        0x0000000C			/*Result of last ALU0 operation generated a carry*/
+#define ASTAT_AC0_COPY_P   0x00000002			/*Result of last ALU0 operation generated a carry*/
+#define ASTAT_AC1_P        0x0000000D			/*Result of last ALU1 operation generated a carry*/
+#define ASTAT_AV0_P        0x00000010			/*Result of last ALU0 or MAC0 operation overflowed, sticky for MAC*/
+#define ASTAT_AV0S_P       0x00000011			/*Sticky version of ASTAT_AV0 */
+#define ASTAT_AV1_P        0x00000012			/*Result of last MAC1 operation overflowed, sticky for MAC*/
+#define ASTAT_AV1S_P       0x00000013			/*Sticky version of ASTAT_AV1 */
+#define ASTAT_V_P          0x00000018			/*Result of last ALU0 or MAC0 operation overflowed*/
+#define ASTAT_V_COPY_P     0x00000003			/*Result of last ALU0 or MAC0 operation overflowed*/
+#define ASTAT_VS_P         0x00000019			/*Sticky version of ASTAT_V*/
 
 // ** Masks
-#define ASTAT_AZ           MK_BMSK_(ASTAT_AZ_P)        // Result of last ALU0 or shifter operation is zero
-#define ASTAT_AN           MK_BMSK_(ASTAT_AN_P)        // Result of last ALU0 or shifter operation is negative
-#define ASTAT_AC0          MK_BMSK_(ASTAT_AC0_P)       // Result of last ALU0 operation generated a carry
-#define ASTAT_AC0_COPY     MK_BMSK_(ASTAT_AC0_COPY_P)  // Result of last ALU0 operation generated a carry
-#define ASTAT_AC1          MK_BMSK_(ASTAT_AC1_P)       // Result of last ALU0 operation generated a carry
-#define ASTAT_AV0          MK_BMSK_(ASTAT_AV0_P)       // Result of last ALU0 or MAC0 operation overflowed, sticky for MAC
-#define ASTAT_AV1          MK_BMSK_(ASTAT_AV1_P)       // Result of last MAC1 operation overflowed, sticky for MAC
-#define ASTAT_CC           MK_BMSK_(ASTAT_CC_P)        // Condition Code, used for holding comparison results
-#define ASTAT_AQ           MK_BMSK_(ASTAT_AQ_P)        // Quotient Bit
-#define ASTAT_RND_MOD      MK_BMSK_(ASTAT_RND_MOD_P)   // Rounding mode, set for biased, clear for unbiased
-#define ASTAT_V            MK_BMSK_(ASTAT_V_P)         // Overflow Bit
-#define ASTAT_V_COPY       MK_BMSK_(ASTAT_V_COPY_P)    // Overflow Bit
+#define ASTAT_AZ           MK_BMSK_(ASTAT_AZ_P)		/*Result of last ALU0 or shifter operation is zero*/
+#define ASTAT_AN           MK_BMSK_(ASTAT_AN_P)		/*Result of last ALU0 or shifter operation is negative*/
+#define ASTAT_AC0          MK_BMSK_(ASTAT_AC0_P)	/*Result of last ALU0 operation generated a carry*/
+#define ASTAT_AC0_COPY     MK_BMSK_(ASTAT_AC0_COPY_P)	/*Result of last ALU0 operation generated a carry*/
+#define ASTAT_AC1          MK_BMSK_(ASTAT_AC1_P)	/*Result of last ALU0 operation generated a carry*/
+#define ASTAT_AV0          MK_BMSK_(ASTAT_AV0_P)	/*Result of last ALU0 or MAC0 operation overflowed, sticky for MAC*/
+#define ASTAT_AV1          MK_BMSK_(ASTAT_AV1_P)	/*Result of last MAC1 operation overflowed, sticky for MAC*/
+#define ASTAT_CC           MK_BMSK_(ASTAT_CC_P)		/*Condition Code, used for holding comparison results*/
+#define ASTAT_AQ           MK_BMSK_(ASTAT_AQ_P)		/*Quotient Bit*/
+#define ASTAT_RND_MOD      MK_BMSK_(ASTAT_RND_MOD_P)	/*Rounding mode, set for biased, clear for unbiased*/
+#define ASTAT_V            MK_BMSK_(ASTAT_V_P)		/*Overflow Bit*/
+#define ASTAT_V_COPY       MK_BMSK_(ASTAT_V_COPY_P)	/*Overflow Bit*/
 
-//**************************************************
-//   SEQSTAT register
-//**************************************************
+/**************************************************
+*   SEQSTAT register
+**************************************************/
 
-// ** Bit Positions
-#define SEQSTAT_EXCAUSE0_P      0x00000000     // Last exception cause bit 0
-#define SEQSTAT_EXCAUSE1_P      0x00000001  // Last exception cause bit 1
-#define SEQSTAT_EXCAUSE2_P      0x00000002  // Last exception cause bit 2
-#define SEQSTAT_EXCAUSE3_P      0x00000003  // Last exception cause bit 3
-#define SEQSTAT_EXCAUSE4_P      0x00000004  // Last exception cause bit 4
-#define SEQSTAT_EXCAUSE5_P      0x00000005  // Last exception cause bit 5
-#define SEQSTAT_IDLE_REQ_P      0x0000000C  // Pending idle mode request, set by IDLE instruction
-#define SEQSTAT_SFTRESET_P      0x0000000D  // Indicates whether the last reset was a software reset (=1)
-#define SEQSTAT_HWERRCAUSE0_P   0x0000000E  // Last hw error cause bit 0
-#define SEQSTAT_HWERRCAUSE1_P   0x0000000F  // Last hw error cause bit 1
-#define SEQSTAT_HWERRCAUSE2_P   0x00000010  // Last hw error cause bit 2
-#define SEQSTAT_HWERRCAUSE3_P   0x00000011  // Last hw error cause bit 3
-#define SEQSTAT_HWERRCAUSE4_P   0x00000012  // Last hw error cause bit 4
-#define SEQSTAT_HWERRCAUSE5_P   0x00000013  // Last hw error cause bit 5
-#define SEQSTAT_HWERRCAUSE6_P   0x00000014  // Last hw error cause bit 6
-#define SEQSTAT_HWERRCAUSE7_P   0x00000015  // Last hw error cause bit 7
+/* Bit Positions  */
+#define SEQSTAT_EXCAUSE0_P      0x00000000		// Last exception cause bit 0
+#define SEQSTAT_EXCAUSE1_P      0x00000001		// Last exception cause bit 1
+#define SEQSTAT_EXCAUSE2_P      0x00000002		// Last exception cause bit 2
+#define SEQSTAT_EXCAUSE3_P      0x00000003		// Last exception cause bit 3
+#define SEQSTAT_EXCAUSE4_P      0x00000004		// Last exception cause bit 4
+#define SEQSTAT_EXCAUSE5_P      0x00000005		// Last exception cause bit 5
+#define SEQSTAT_IDLE_REQ_P      0x0000000C		// Pending idle mode request, set by IDLE instruction
+#define SEQSTAT_SFTRESET_P      0x0000000D		// Indicates whether the last reset was a software reset (=1)
+#define SEQSTAT_HWERRCAUSE0_P   0x0000000E		// Last hw error cause bit 0
+#define SEQSTAT_HWERRCAUSE1_P   0x0000000F		// Last hw error cause bit 1
+#define SEQSTAT_HWERRCAUSE2_P   0x00000010		// Last hw error cause bit 2
+#define SEQSTAT_HWERRCAUSE3_P   0x00000011		// Last hw error cause bit 3
+#define SEQSTAT_HWERRCAUSE4_P   0x00000012		// Last hw error cause bit 4
+#define SEQSTAT_HWERRCAUSE5_P   0x00000013		// Last hw error cause bit 5
+#define SEQSTAT_HWERRCAUSE6_P   0x00000014		// Last hw error cause bit 6
+#define SEQSTAT_HWERRCAUSE7_P   0x00000015		// Last hw error cause bit 7
 // ** Masks
 // Exception cause
 #define SEQSTAT_EXCAUSE        MK_BMSK_(SEQSTAT_EXCAUSE0_P ) | \
@@ -169,6 +161,8 @@
 #define DCPLB_DATA13           0xFFE00234  // Data Cache 13 Status
 #define DCPLB_DATA14           0xFFE00238  // Data Cache 14 Status
 #define DCPLB_DATA15           0xFFE0023C  // Data Cache 15 Status
+#define DCPLB_DATA16           0xFFE00240  // Extra Dummy entry 
+
 #define DTEST_COMMAND          0xFFE00300  // Data Test Command Register
 #define DTEST_DATA0            0xFFE00400  // Data Test Data Register
 #define DTEST_DATA1            0xFFE00404  // Data Test Data Register

@@ -1,7 +1,7 @@
 /*
  * USB Serial Converter driver
  *
- *	Copyright (C) 1999 - 2003
+ *	Copyright (C) 1999 - 2004
  *	    Greg Kroah-Hartman (greg@kroah.com)
  *
  *	This program is free software; you can redistribute it and/or modify
@@ -55,21 +55,18 @@
 #define __LINUX_USB_SERIAL_H
 
 #include <linux/config.h>
+#include <linux/kref.h>
 
 #define SERIAL_TTY_MAJOR	188	/* Nice legal number now */
 #define SERIAL_TTY_MINORS	255	/* loads of devices :) */
 
 #define MAX_NUM_PORTS		8	/* The maximum number of ports one device can grab at once */
 
-#define USB_SERIAL_MAGIC	0x6702	/* magic number for usb_serial struct */
-#define USB_SERIAL_PORT_MAGIC	0x7301	/* magic number for usb_serial_port struct */
-
 /* parity check flag */
 #define RELEVANT_IFLAG(iflag)	(iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 
 /**
  * usb_serial_port: structure for the specific ports of a device.
- * @magic: magic number for internal validity of this pointer.
  * @serial: pointer back to the struct usb_serial owner of this port.
  * @tty: pointer to the corresponding tty for this port.
  * @number: the number of the port (the minor number).
@@ -94,8 +91,7 @@
  * ports of a device.
  */
 struct usb_serial_port {
-	int			magic;
-	struct usb_serial	*serial;
+	struct usb_serial *	serial;
 	struct tty_struct *	tty;
 	unsigned char		number;
 
@@ -132,7 +128,6 @@ static inline void usb_set_serial_port_data (struct usb_serial_port *port, void 
 
 /**
  * usb_serial - structure used by the usb-serial core for a device
- * @magic: magic number for internal validity of this pointer.
  * @dev: pointer to the struct usb_device for this device
  * @type: pointer to the struct usb_serial_device_type for this device
  * @interface: pointer to the struct usb_interface for this device
@@ -150,7 +145,6 @@ static inline void usb_set_serial_port_data (struct usb_serial_port *port, void 
  *	usb_set_serial_data() to access this.
  */
 struct usb_serial {
-	int				magic;
 	struct usb_device *		dev;
 	struct usb_serial_device_type *	type;
 	struct usb_interface *		interface;
@@ -163,10 +157,10 @@ struct usb_serial {
 	__u16				vendor;
 	__u16				product;
 	struct usb_serial_port *	port[MAX_NUM_PORTS];
-	struct kobject			kobj;
+	struct kref			kref;
 	void *				private;
 };
-#define to_usb_serial(d) container_of(d, struct usb_serial, kobj)
+#define to_usb_serial(d) container_of(d, struct usb_serial, kref)
 
 #define NUM_DONT_CARE	(-1)
 
@@ -300,74 +294,20 @@ extern struct usb_serial_device_type usb_serial_generic_device;
 extern struct bus_type usb_serial_bus_type;
 extern struct tty_driver *usb_serial_tty_driver;
 
-/* Inline functions to check the sanity of a pointer that is passed to us */
-static inline int serial_paranoia_check (struct usb_serial *serial, const char *function)
-{
-	if (!serial) {
-		dbg("%s - serial == NULL", function);
-		return -1;
-	}
-	if (serial->magic != USB_SERIAL_MAGIC) {
-		dbg("%s - bad magic number for serial", function);
-		return -1;
-	}
-	if (!serial->type) {
-		dbg("%s - serial->type == NULL!", function);
-		return -1;
-	}
-
-	return 0;
-}
-
-
-static inline int port_paranoia_check (struct usb_serial_port *port, const char *function)
-{
-	if (!port) {
-		dbg("%s - port == NULL", function);
-		return -1;
-	}
-	if (port->magic != USB_SERIAL_PORT_MAGIC) {
-		dbg("%s - bad magic number for port", function);
-		return -1;
-	}
-	if (!port->serial) {
-		dbg("%s - port->serial == NULL", function);
-		return -1;
-	}
-
-	return 0;
-}
-
-
-static inline struct usb_serial* get_usb_serial (struct usb_serial_port *port, const char *function) 
-{ 
-	/* if no port was specified, or it fails a paranoia check */
-	if (!port || 
-		port_paranoia_check (port, function) ||
-		serial_paranoia_check (port->serial, function)) {
-		/* then say that we don't have a valid usb_serial thing, which will
-		 * end up genrating -ENODEV return values */ 
-		return NULL;
-	}
-
-	return port->serial;
-}
-
-
-static inline void usb_serial_debug_data (const char *file, const char *function, int size, const unsigned char *data)
+static inline void usb_serial_debug_data(int debug,
+					 struct device *dev,
+					 const char *function, int size,
+					 const unsigned char *data)
 {
 	int i;
 
-	if (!debug)
-		return;
-	
-	printk (KERN_DEBUG "%s: %s - length = %d, data = ", file, function, size);
-	for (i = 0; i < size; ++i) {
-		printk ("%.2x ", data[i]);
+	if (debug) {
+		dev_printk(KERN_DEBUG, dev, "%s - length = %d, data = ", function, size);
+		for (i = 0; i < size; ++i)
+			printk ("%.2x ", data[i]);
+		printk ("\n");
 	}
-	printk ("\n");
 }
-
 
 /* Use our own dbg macro */
 #undef dbg

@@ -21,7 +21,7 @@ static struct mtd_info *mymtd;
 static struct map_info rpxlite_map = {
 	.name = "RPX",
 	.size = WINDOW_SIZE,
-	.buswidth = 4,
+	.bankwidth = 4,
 	.phys = WINDOW_ADDR,
 };
 

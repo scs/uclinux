@@ -34,7 +34,6 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>		/* for __init and __devinit */
-/* #define PCI_DEBUG	enable ASSERT */
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -43,6 +42,7 @@
 #include <asm/byteorder.h>
 #include <asm/irq.h>		/* for struct irq_region support */
 #include <asm/pdc.h>
+#include <asm/pdcpat.h>
 #include <asm/page.h>
 #include <asm/segment.h>
 #include <asm/system.h>
@@ -88,6 +88,19 @@
 #else
 #define DBG_PAT(x...)
 #endif
+
+#ifdef DEBUG_LBA
+#undef ASSERT
+#define ASSERT(expr) \
+	if(!(expr)) { \
+		printk("\n%s:%d: Assertion " #expr " failed!\n", \
+				__FILE__, __LINE__); \
+		panic(#expr); \
+	}
+#else
+#define ASSERT(expr)
+#endif
+
 
 /*
 ** Config accessor functions only pass in the 8-bit bus number and not
@@ -159,6 +172,8 @@
 #define LBA_HINT_CFG	0x0310
 #define LBA_HINT_BASE	0x0380	/* 14 registers at every 8 bytes. */
 
+#define LBA_BUS_MODE	0x0620
+
 /* ERROR regs are needed for config cycle kluges */
 #define LBA_ERROR_CONFIG 0x0680
 #define     LBA_SMART_MODE 0x20
@@ -168,11 +183,30 @@
 #define LBA_IOSAPIC_BASE	0x800 /* Offset of IRQ logic */
 
 /* non-postable I/O port space, densely packed */
-#ifdef __LP64__
+#ifdef CONFIG_PARISC64
 #define LBA_ASTRO_PORT_BASE	(0xfffffffffee00000UL)
 #else
 #define LBA_ASTRO_PORT_BASE	(0xfee00000UL)
 #endif
+
+#define ELROY_HVERS	0x782
+#define MERCURY_HVERS	0x783
+#define QUICKSILVER_HVERS	0x784
+
+static inline int IS_ELROY(struct parisc_device *d)
+{
+	return (d->id.hversion == ELROY_HVERS);
+}
+
+static inline int IS_MERCURY(struct parisc_device *d)
+{
+	return (d->id.hversion == MERCURY_HVERS);
+}
+
+static inline int IS_QUICKSILVER(struct parisc_device *d)
+{
+	return (d->id.hversion == QUICKSILVER_HVERS);
+}
 
 
 /*
@@ -184,9 +218,7 @@ struct lba_device {
 	spinlock_t	lba_lock;
 	void		*iosapic_obj;
 
-#ifdef __LP64__
-	unsigned long	lmmio_base;  /* PA_VIEW - fixup MEM addresses */
-	unsigned long	gmmio_base;  /* PA_VIEW - Not used (yet) */
+#ifdef CONFIG_PARISC64
 	unsigned long	iop_base;    /* PA_VIEW - for IO port accessor funcs */
 #endif
 
@@ -290,11 +322,6 @@ lba_device_present( u8 bus, u8 dfn, struct lba_device *d)
 {
 	u8 first_bus = d->hba.hba_bus->secondary;
 	u8 last_sub_bus = d->hba.hba_bus->subordinate;
-#if 0
-/* FIXME - see below in this function */
-        u8 dev = PCI_SLOT(dfn);
-        u8 func = PCI_FUNC(dfn);
-#endif
 
 	ASSERT(bus >= first_bus);
 	ASSERT(bus <= last_sub_bus);
@@ -308,19 +335,7 @@ lba_device_present( u8 bus, u8 dfn, struct lba_device *d)
 	    return(FALSE);
 	}
 
-#if 0
-/*
-** FIXME: Need to implement code to fill the devices bitmap based
-** on contents of the local pci_bus tree "data base".
-** pci_register_ops() walks the bus for us and builds the tree.
-** For now, always do the config cycle.
-*/
-	bus -= first_bus;
-
-	return (((d->devices[bus][dev]) >> func) & 0x1);
-#else
 	return TRUE;
-#endif
 }
 
 
@@ -505,10 +520,47 @@ lba_rd_cfg(struct lba_device *d, u32 tok, u8 reg, u32 size)
 	return(data);
 }
 
+#ifdef CONFIG_PARISC64
+#define pat_cfg_addr(bus, devfn, addr) (((bus) << 16) | ((devfn) << 8) | (addr))
+
+static int pat_cfg_read(struct pci_bus *bus, unsigned int devfn, int pos, int size, u32 *data)
+{
+	int tok = pat_cfg_addr(bus->number, devfn, pos);
+	u32 tmp;
+	int ret = pdc_pat_io_pci_cfg_read(tok, size, &tmp);
+
+	DBG_CFG("%s(%d:%d.%d+0x%02x) -> 0x%x %d\n", __FUNCTION__, bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), pos, tmp, ret);
+
+	switch (size) {
+		case 1: *data = (u8)  tmp; return (tmp == (u8)  ~0);
+		case 2: *data = (u16) tmp; return (tmp == (u16) ~0);
+		case 4: *data = (u32) tmp; return (tmp == (u32) ~0);
+	}
+	*data = ~0;
+	return (ret);
+}
+
+static int pat_cfg_write(struct pci_bus *bus, unsigned int devfn, int pos, int size, u32 data)
+{
+	int tok = pat_cfg_addr(bus->number, devfn, pos);
+	int ret = pdc_pat_io_pci_cfg_write(tok, size, data);
+
+	DBG_CFG("%s(%d:%d.%d+0x%02x, 0x%lx/%d)\n", __FUNCTION__, bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), pos, data, size);
+	return (ret);
+}
+
+static struct pci_ops pat_cfg_ops = {
+	.read =		pat_cfg_read,
+	.write =	pat_cfg_write,
+};
+#else
+/* keep the compiler from complaining about undeclared variables */
+#define pat_cfg_ops lba_cfg_ops
+#endif
 
 static int lba_cfg_read(struct pci_bus *bus, unsigned int devfn, int pos, int size, u32 *data)
 {
-	struct lba_device *d = LBA_DEV(parisc_walk_tree(bus->dev));
+	struct lba_device *d = LBA_DEV(parisc_walk_tree(bus->bridge));
 	u32 local_bus = (bus->parent == NULL) ? 0 : bus->secondary;
 	u32 tok = LBA_CFG_TOK(local_bus, devfn);
 
@@ -518,7 +570,7 @@ static int lba_cfg_read(struct pci_bus *bus, unsigned int devfn, int pos, int si
 		  with risk we will miss PCI bus errors. */
 		*data = lba_rd_cfg(d, tok, pos, size);
 		DBG_CFG("%s(%x+%2x) -> 0x%x (a)\n", __FUNCTION__, tok, pos, *data);
-		return(*data == ~0UL);
+		return(*data == ~0U);
 	}
 
 	if (LBA_SKIP_PROBE(d) && (!lba_device_present(bus->secondary, devfn, d)))
@@ -535,10 +587,10 @@ static int lba_cfg_read(struct pci_bus *bus, unsigned int devfn, int pos, int si
 	*/
 	LBA_CFG_TR4_ADDR_SETUP(d, tok | pos);
 	switch(size) {
-	case 1: *(u8 *)  data = READ_REG8(d->hba.base_addr + LBA_PCI_CFG_DATA);
-	   break;
-	case 2: *(u16 *) data = READ_REG16(d->hba.base_addr + LBA_PCI_CFG_DATA);
-	   break;
+	case 1: *(u8 *)  data = READ_REG8(d->hba.base_addr + LBA_PCI_CFG_DATA + (pos & 3));
+		break;
+	case 2: *(u16 *) data = READ_REG16(d->hba.base_addr + LBA_PCI_CFG_DATA + (pos & 2));
+		break;
 	case 4: *(u32 *) data = READ_REG32(d->hba.base_addr + LBA_PCI_CFG_DATA);
 	   break;
 	}
@@ -592,7 +644,7 @@ lba_wr_cfg( struct lba_device *d, u32 tok, u8 reg, u32 data, u32 size)
 
 static int lba_cfg_write(struct pci_bus *bus, unsigned int devfn, int pos, int size, u32 data)
 {
-	struct lba_device *d = LBA_DEV(parisc_walk_tree(bus->dev));
+	struct lba_device *d = LBA_DEV(parisc_walk_tree(bus->bridge));
 	u32 local_bus = (bus->parent == NULL) ? 0 : bus->secondary;
 	u32 tok = LBA_CFG_TOK(local_bus,devfn);
 
@@ -612,16 +664,18 @@ static int lba_cfg_write(struct pci_bus *bus, unsigned int devfn, int pos, int s
 	}
 
 	DBG_CFG("%s(%x+%2x) = 0x%x (c)\n", __FUNCTION__, tok, pos, data);
+
 	/* Basic Algorithm */
 	LBA_CFG_TR4_ADDR_SETUP(d, tok | pos);
 	switch(size) {
-	case 1: WRITE_REG8 (data, d->hba.base_addr + LBA_PCI_CFG_DATA);
+	case 1: WRITE_REG8 (data, d->hba.base_addr + LBA_PCI_CFG_DATA + (pos & 3));
 		   break;
-	case 2: WRITE_REG16(data, d->hba.base_addr + LBA_PCI_CFG_DATA);
+	case 2: WRITE_REG16(data, d->hba.base_addr + LBA_PCI_CFG_DATA + (pos & 2));
 		   break;
 	case 4: WRITE_REG32(data, d->hba.base_addr + LBA_PCI_CFG_DATA);
 		   break;
 	}
+	/* flush posted write */
 	lba_t32 = READ_REG32(d->hba.base_addr + LBA_PCI_CFG_ADDR);
 	return 0;
 }
@@ -640,7 +694,7 @@ lba_bios_init(void)
 }
 
 
-#ifdef __LP64__
+#ifdef CONFIG_PARISC64
 
 /*
 ** Determine if a device is already configured.
@@ -678,6 +732,8 @@ lba_claim_dev_resources(struct pci_dev *dev)
 		}
 	}
 }
+#else
+#define lba_claim_dev_resources(dev)
 #endif
 
 
@@ -695,20 +751,23 @@ lba_fixup_bus(struct pci_bus *bus)
 {
 	struct list_head *ln;
 #ifdef FBB_SUPPORT
-	u16 fbb_enable = PCI_STATUS_FAST_BACK;
 	u16 status;
 #endif
-	struct lba_device *ldev = LBA_DEV(parisc_walk_tree(bus->dev));
+	struct lba_device *ldev = LBA_DEV(parisc_walk_tree(bus->bridge));
 	int lba_portbase = HBA_PORT_BASE(ldev->hba.hba_num);
 
 	DBG("lba_fixup_bus(0x%p) bus %d sysdata 0x%p\n",
-		bus, bus->secondary, bus->dev->platform_data);
+		bus, bus->secondary, bus->bridge->platform_data);
 
 	/*
 	** Properly Setup MMIO resources for this bus.
 	** pci_alloc_primary_bus() mangles this.
 	*/
-	if (NULL == bus->self) {
+	if (bus->self) {
+		/* PCI-PCI Bridge */
+		pci_read_bridge_bases(bus);
+	} else {
+		/* Host-PCI Bridge */
 		int err;
 
 		DBG("lba_fixup_bus() %s [%lx/%lx]/%x\n",
@@ -725,58 +784,28 @@ lba_fixup_bus(struct pci_bus *bus)
 			BUG();
 			lba_dump_res(&ioport_resource, 2);
 		}
+
 		err = request_resource(&iomem_resource, &(ldev->hba.lmmio_space));
 		if (err < 0) {
 			BUG();
 			lba_dump_res(&iomem_resource, 2);
 		}
 
+#ifdef CONFIG_PARISC64
+		if (ldev->hba.gmmio_space.flags) {
+			err = request_resource(&iomem_resource, &(ldev->hba.gmmio_space));
+			if (err < 0) {
+				BUG();
+				lba_dump_res(&iomem_resource, 2);
+			}
+			bus->resource[2] = &(ldev->hba.gmmio_space);
+		}
+#endif
+
+		/* advertize Host bridge resources to PCI bus */
 		bus->resource[0] = &(ldev->hba.io_space);
 		bus->resource[1] = &(ldev->hba.lmmio_space);
-	} else {
-		/* KLUGE ALERT!
-		** PCI-PCI Bridge resource munging.
-		** This hack should go away in the near future.
-		** It's based on the Alpha port.
-		*/
-		int i;
-		u16 cmd;
-
-		for (i = 0; i < 4; i++) {
-			bus->resource[i] =
-				&bus->self->resource[PCI_BRIDGE_RESOURCES+i];
-			bus->resource[i]->name = bus->name;
-		}
-#if 0
-		bus->resource[0]->flags |= pci_bridge_check_io(bus->self);
-#else
-		bus->resource[0]->flags |= IORESOURCE_IO;
-#endif
-		bus->resource[1]->flags |= IORESOURCE_MEM;
-		bus->resource[2]->flags = 0;	/* Don't support prefetchable */
-		bus->resource[3]->flags = 0;	/* not used */
-
-		/* 
-		** If the PPB is enabled (ie already configured) then
-		** just read those values.
-		*/
-		(void) pci_read_config_word(bus->self, PCI_COMMAND, &cmd);
-		if (cmd & (PCI_COMMAND_MEMORY | PCI_COMMAND_IO)) {
-			pci_read_bridge_bases(bus);
-		} else {
-			/* Not configured.
-			** For now, propagate HBA limits to the bus;
-			**	PCI will adjust them later.
-			*/
-			bus->resource[0]->end = ldev->hba.io_space.end;
-			bus->resource[1]->end = ldev->hba.lmmio_space.end;
-		}
-
-		/* Turn off downstream PF memory address range by default */
-		bus->resource[2]->start = 1024*1024;
-		bus->resource[2]->end = bus->resource[2]->start - 1;
 	}
-
 
 	list_for_each(ln, &bus->devices) {
 		int i;
@@ -785,7 +814,7 @@ lba_fixup_bus(struct pci_bus *bus)
 		DBG("lba_fixup_bus() %s\n", pci_name(dev));
 
 		/* Virtualize Device/Bridge Resources. */
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
+		for (i = 0; i < PCI_BRIDGE_RESOURCES; i++) {
 			struct resource *res = &dev->resource[i];
 
 			/* If resource not allocated - skip it */
@@ -817,15 +846,13 @@ lba_fixup_bus(struct pci_bus *bus)
 		** No one on the bus can be allowed to use them.
 		*/
 		(void) pci_read_config_word(dev, PCI_STATUS, &status);
-		fbb_enable &= status;
+		bus->bridge_ctl &= ~(status & PCI_STATUS_FAST_BACK);
 #endif
 
-#ifdef __LP64__
 		if (is_pdc_pat()) {
 			/* Claim resources for PDC's devices */
 			lba_claim_dev_resources(dev);
 		}
-#endif
 
                 /*
 		** P2PB's have no IRQs. ignore them.
@@ -953,7 +980,7 @@ static struct pci_port_ops lba_astro_port_ops = {
 };
 
 
-#ifdef __LP64__
+#ifdef CONFIG_PARISC64
 #define PIOP_TO_GMMIO(lba, addr) \
 	((lba)->iop_base + (((addr)&0xFFFC)<<10) + ((addr)&3))
 
@@ -1069,6 +1096,7 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 			lba_dev->hba.bus_num.start = p->start;
 			lba_dev->hba.bus_num.end   = p->end;
 			break;
+
 		case PAT_LMMIO:
 			/* used to fix up pre-initialized MEM BARs */
 			lba_dev->hba.lmmio_space_offset = p->start - io->start;
@@ -1080,23 +1108,28 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 			r->flags  = IORESOURCE_MEM;
 			r->parent = r->sibling = r->child = NULL;
 			break;
+
 		case PAT_GMMIO:
-			printk(KERN_WARNING MODULE_NAME
-				" range[%d] : ignoring GMMIO (0x%lx)\n",
-				i, p->start);
-			lba_dev->gmmio_base = p->start;
+			/* MMIO space > 4GB phys addr; for 64-bit BAR */
+			r = &(lba_dev->hba.gmmio_space);
+			r->name   = "LBA GMMIO";
+			r->start  = p->start;
+			r->end    = p->end;
+			r->flags  = IORESOURCE_MEM;
+			r->parent = r->sibling = r->child = NULL;
 			break;
+
 		case PAT_NPIOP:
 			printk(KERN_WARNING MODULE_NAME
 				" range[%d] : ignoring NPIOP (0x%lx)\n",
 				i, p->start);
 			break;
+
 		case PAT_PIOP:
 			/*
 			** Postable I/O port space is per PCI host adapter.
+			** base of 64MB PIOP region
 			*/
-
-			/* save base of 64MB PIOP region */
 			lba_dev->iop_base = p->start;
 
 			r = &(lba_dev->hba.io_space);
@@ -1106,6 +1139,7 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 			r->flags  = IORESOURCE_IO;
 			r->parent = r->sibling = r->child = NULL;
 			break;
+
 		default:
 			printk(KERN_WARNING MODULE_NAME
 				" range[%d] : unknown pat range type (0x%lx)\n",
@@ -1114,7 +1148,11 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 		}
 	}
 }
-#endif	/* __LP64__ */
+#else
+/* keep compiler from complaining about missing declarations */
+#define lba_pat_port_ops lba_astro_port_ops
+#define lba_pat_resources(pa_dev, lba_dev)
+#endif	/* CONFIG_PARISC64 */
 
 
 static void
@@ -1124,7 +1162,7 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 	unsigned long rsize;
 	int lba_num;
 
-#ifdef __LP64__
+#ifdef CONFIG_PARISC64
 	/*
 	** Sign extend all BAR values on "legacy" platforms.
 	** "Sprockets" PDC (Forte/Allegro) initializes everything
@@ -1258,8 +1296,12 @@ lba_hw_init(struct lba_device *d)
 	printk("\n");
 #endif	/* DEBUG_LBA_PAT */
 
-#ifdef __LP64__
-#warning FIXME add support for PDC_PAT_IO "Get slot status" - OLAR support
+#ifdef CONFIG_PARISC64
+/*
+ * FIXME add support for PDC_PAT_IO "Get slot status" - OLAR support
+ * Only N-Class and up can really make use of Get slot status.
+ * maybe L-class too but I've never played with it there.
+ */
 #endif
 
 	/* PDC_PAT_BUG: exhibited in rev 40.48  on L2000 */
@@ -1334,7 +1376,7 @@ lba_common_init(struct lba_device *lba_dev)
 ** have work to do.
 */
 static int __init
-lba_driver_callback(struct parisc_device *dev)
+lba_driver_probe(struct parisc_device *dev)
 {
 	struct lba_device *lba_dev;
 	struct pci_bus *lba_bus;
@@ -1344,25 +1386,36 @@ lba_driver_callback(struct parisc_device *dev)
 
 	/* Read HW Rev First */
 	func_class = READ_REG32(dev->hpa + LBA_FCLASS);
-	func_class &= 0xf;
 
-	switch (func_class) {
-	case 0:	version = "TR1.0"; break;
-	case 1:	version = "TR2.0"; break;
-	case 2:	version = "TR2.1"; break;
-	case 3:	version = "TR2.2"; break;
-	case 4:	version = "TR3.0"; break;
-	case 5:	version = "TR4.0"; break;
-	default: version = "TR4+";
+	if (IS_ELROY(dev)) {	
+		func_class &= 0xf;
+		switch (func_class) {
+		case 0:	version = "TR1.0"; break;
+		case 1:	version = "TR2.0"; break;
+		case 2:	version = "TR2.1"; break;
+		case 3:	version = "TR2.2"; break;
+		case 4:	version = "TR3.0"; break;
+		case 5:	version = "TR4.0"; break;
+		default: version = "TR4+";
+		}
+		printk(KERN_INFO "%s version %s (0x%x) found at 0x%lx\n",
+			MODULE_NAME, version, func_class & 0xf, dev->hpa);
+
+		/* Just in case we find some prototypes... */
+	} else if (IS_MERCURY(dev) || IS_QUICKSILVER(dev)) {
+		func_class &= 0xff;
+		version = kmalloc(6, GFP_KERNEL);
+		sprintf(version,"TR%d.%d",(func_class >> 4),(func_class & 0xf));
+		/* We could use one printk for both and have it outside,
+                 * but for the mask for func_class.
+                 */ 
+		printk(KERN_INFO "%s version %s (0x%x) found at 0x%lx\n",
+			MODULE_NAME, version, func_class & 0xff, dev->hpa);
 	}
 
-	printk(KERN_INFO "%s version %s (0x%x) found at 0x%lx\n",
-		MODULE_NAME, version, func_class & 0xf, dev->hpa);
-
-	/* Just in case we find some prototypes... */
 	if (func_class < 2) {
-		printk(KERN_WARNING "Can't support LBA older than TR2.1 "
-			"- continuing under adversity.\n");
+		printk(KERN_WARNING "Can't support LBA older than TR2.1"
+				" - continuing under adversity.\n");
 	}
 
 	/*
@@ -1405,16 +1458,12 @@ lba_driver_callback(struct parisc_device *dev)
 
 	/* ---------- Third : setup I/O Port and MMIO resources  --------- */
 
-#ifdef __LP64__
 	if (is_pdc_pat()) {
 		/* PDC PAT firmware uses PIOP region of GMMIO space. */
 		pci_port = &lba_pat_port_ops;
-
 		/* Go ask PDC PAT what resources this LBA has */
 		lba_pat_resources(dev, lba_dev);
-	} else
-#endif
-	{
+	} else {
 		/* Sprockets PDC uses NPIOP region */
 		pci_port = &lba_astro_port_ops;
 
@@ -1429,9 +1478,9 @@ lba_driver_callback(struct parisc_device *dev)
 	dev->dev.platform_data = lba_dev;
 	lba_bus = lba_dev->hba.hba_bus =
 		pci_scan_bus_parented(&dev->dev, lba_dev->hba.bus_num.start,
-				      &lba_cfg_ops, NULL);
+				is_pdc_pat() ? &pat_cfg_ops : &lba_cfg_ops,
+				NULL);
 
-#ifdef __LP64__
 	if (is_pdc_pat()) {
 		/* assign resources to un-initialized devices */
 		DBG_PAT("LBA pci_bus_assign_resources()\n");
@@ -1444,7 +1493,6 @@ lba_driver_callback(struct parisc_device *dev)
 		lba_dump_res(&lba_dev->hba.lmmio_space, 2);
 #endif
 	}
-#endif
 
 	/*
 	** Once PCI register ops has walked the bus, access to config
@@ -1460,14 +1508,16 @@ lba_driver_callback(struct parisc_device *dev)
 }
 
 static struct parisc_device_id lba_tbl[] = {
-	{ HPHW_BRIDGE, HVERSION_REV_ANY_ID, 0x782, 0xa },
+	{ HPHW_BRIDGE, HVERSION_REV_ANY_ID, ELROY_HVERS, 0xa },
+	{ HPHW_BRIDGE, HVERSION_REV_ANY_ID, MERCURY_HVERS, 0xa },
+	{ HPHW_BRIDGE, HVERSION_REV_ANY_ID, QUICKSILVER_HVERS, 0xa },
 	{ 0, }
 };
 
 static struct parisc_driver lba_driver = {
 	.name =		MODULE_NAME,
 	.id_table =	lba_tbl,
-	.probe =	lba_driver_callback,
+	.probe =	lba_driver_probe,
 };
 
 /*

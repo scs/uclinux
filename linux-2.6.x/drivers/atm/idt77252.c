@@ -664,8 +664,8 @@ alloc_scq(struct idt77252_dev *card, int class)
 	skb_queue_head_init(&scq->transmit);
 	skb_queue_head_init(&scq->pending);
 
-	TXPRINTK("idt77252: SCQ: base 0x%p, next 0x%p, last 0x%p, paddr %08x\n",
-		 scq->base, scq->next, scq->last, scq->paddr);
+	TXPRINTK("idt77252: SCQ: base 0x%p, next 0x%p, last 0x%p, paddr %08llx\n",
+		 scq->base, scq->next, scq->last, (unsigned long long)scq->paddr);
 
 	return scq;
 }
@@ -1064,8 +1064,8 @@ dequeue_rx(struct idt77252_dev *card, struct rsq_entry *rsqe)
 
 	vcc = vc->rx_vcc;
 
-	pci_dma_sync_single(card->pcidev, IDT77252_PRV_PADDR(skb),
-			    skb->end - skb->data, PCI_DMA_FROMDEVICE);
+	pci_dma_sync_single_for_cpu(card->pcidev, IDT77252_PRV_PADDR(skb),
+				    skb->end - skb->data, PCI_DMA_FROMDEVICE);
 
 	if ((vcc->qos.aal == ATM_AAL0) ||
 	    (vcc->qos.aal == ATM_AAL34)) {
@@ -1902,6 +1902,9 @@ recycle_rx_skb(struct idt77252_dev *card, struct sk_buff *skb)
 {
 	u32 handle = IDT77252_PRV_POOL(skb);
 	int err;
+
+	pci_dma_sync_single_for_device(card->pcidev, IDT77252_PRV_PADDR(skb),
+				       skb->end - skb->data, PCI_DMA_FROMDEVICE);
 
 	err = push_rx_skb(card, skb, POOL_QUEUE(handle));
 	if (err) {
@@ -3726,7 +3729,7 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 		return -EIO;
 	}
 
-	dev = atm_dev_register("idt77252", &idt77252_ops, -1, 0);
+	dev = atm_dev_register("idt77252", &idt77252_ops, -1, NULL);
 	if (!dev) {
 		printk("%s: can't register atm device\n", card->name);
 		iounmap((void *) card->membase);

@@ -11,6 +11,7 @@
  * or architectures with incomplete PCI setup by the loader.
  */
 #define pcibios_assign_all_busses()	0
+#define pcibios_scan_all_fns(a, b)	0
 
 #define PCIBIOS_MIN_IO		0UL
 #define PCIBIOS_MIN_MEM		0UL
@@ -59,7 +60,7 @@ extern void pci_free_consistent(struct pci_dev *hwdev, size_t size, void *vaddr,
  * The 32-bit bus address to use is returned.
  *
  * Once the device is given the dma address, the device owns this memory
- * until either pci_unmap_single or pci_dma_sync_single is performed.
+ * until either pci_unmap_single or pci_dma_sync_single_for_cpu is performed.
  */
 extern dma_addr_t pci_map_single(struct pci_dev *hwdev, void *ptr, size_t size, int direction);
 
@@ -122,19 +123,36 @@ extern void pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg,
  * If you perform a pci_map_single() but wish to interrogate the
  * buffer using the cpu, yet do not wish to teardown the PCI dma
  * mapping, you must call this function before doing so.  At the
- * next point you give the PCI dma address back to the card, the
+ * next point you give the PCI dma address back to the card, you
+ * must first perform a pci_dma_sync_for_device, and then the
  * device again owns the buffer.
  */
-extern void pci_dma_sync_single(struct pci_dev *hwdev, dma_addr_t dma_handle,
-				size_t size, int direction);
+extern void pci_dma_sync_single_for_cpu(struct pci_dev *hwdev, dma_addr_t dma_handle,
+					size_t size, int direction);
+
+static inline void
+pci_dma_sync_single_for_device(struct pci_dev *hwdev, dma_addr_t dma_handle,
+			       size_t size, int direction)
+{
+	/* No flushing needed to sync cpu writes to the device.  */
+	BUG_ON(direction == PCI_DMA_NONE);
+}
 
 /* Make physical memory consistent for a set of streaming
  * mode DMA translations after a transfer.
  *
- * The same as pci_dma_sync_single but for a scatter-gather list,
+ * The same as pci_dma_sync_single_* but for a scatter-gather list,
  * same rules and usage.
  */
-extern void pci_dma_sync_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nelems, int direction);
+extern void pci_dma_sync_sg_for_cpu(struct pci_dev *hwdev, struct scatterlist *sg, int nelems, int direction);
+
+static inline void
+pci_dma_sync_sg_for_device(struct pci_dev *hwdev, struct scatterlist *sg,
+			int nelems, int direction)
+{
+	/* No flushing needed to sync cpu writes to the device.  */
+	BUG_ON(direction == PCI_DMA_NONE);
+}
 
 /* Return whether the given PCI device DMA address mask can
  * be supported properly.  For example, if your device can
@@ -150,7 +168,7 @@ extern int pci_dma_supported(struct pci_dev *hwdev, u64 mask);
  * can drive enough of the 64 bits.
  */
 #define PCI64_REQUIRED_MASK	(~(dma64_addr_t)0)
-#define PCI64_ADDR_BASE		0xfffc000000000000
+#define PCI64_ADDR_BASE		0xfffc000000000000UL
 
 /* Usage of the pci_dac_foo interfaces is only valid if this
  * test passes.
@@ -158,14 +176,14 @@ extern int pci_dma_supported(struct pci_dev *hwdev, u64 mask);
 #define pci_dac_dma_supported(pci_dev, mask) \
 	((((mask) & PCI64_REQUIRED_MASK) == PCI64_REQUIRED_MASK) ? 1 : 0)
 
-static __inline__ dma64_addr_t
+static inline dma64_addr_t
 pci_dac_page_to_dma(struct pci_dev *pdev, struct page *page, unsigned long offset, int direction)
 {
 	return (PCI64_ADDR_BASE +
 		__pa(page_address(page)) + offset);
 }
 
-static __inline__ struct page *
+static inline struct page *
 pci_dac_dma_to_page(struct pci_dev *pdev, dma64_addr_t dma_addr)
 {
 	unsigned long paddr = (dma_addr & PAGE_MASK) - PCI64_ADDR_BASE;
@@ -173,18 +191,33 @@ pci_dac_dma_to_page(struct pci_dev *pdev, dma64_addr_t dma_addr)
 	return virt_to_page(__va(paddr));
 }
 
-static __inline__ unsigned long
+static inline unsigned long
 pci_dac_dma_to_offset(struct pci_dev *pdev, dma64_addr_t dma_addr)
 {
 	return (dma_addr & ~PAGE_MASK);
 }
 
-static __inline__ void
-pci_dac_dma_sync_single(struct pci_dev *pdev, dma64_addr_t dma_addr, size_t len, int direction)
+static inline void
+pci_dac_dma_sync_single_for_cpu(struct pci_dev *pdev, dma64_addr_t dma_addr, size_t len, int direction)
 {
 	/* DAC cycle addressing does not make use of the
 	 * PCI controller's streaming cache, so nothing to do.
 	 */
+}
+
+static inline void
+pci_dac_dma_sync_single_for_device(struct pci_dev *pdev, dma64_addr_t dma_addr, size_t len, int direction)
+{
+	/* DAC cycle addressing does not make use of the
+	 * PCI controller's streaming cache, so nothing to do.
+	 */
+}
+
+#define PCI_DMA_ERROR_CODE	(~(dma_addr_t)0x0)
+
+static inline int pci_dma_mapping_error(dma_addr_t dma_addr)
+{
+	return (dma_addr == PCI_DMA_ERROR_CODE);
 }
 
 /* Return the index of the PCI controller for device PDEV. */
@@ -213,6 +246,10 @@ pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 extern void
 pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 			struct pci_bus_region *region);
+
+static inline void pcibios_add_platform_entries(struct pci_dev *dev)
+{
+}
 
 #endif /* __KERNEL__ */
 

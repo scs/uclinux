@@ -1,8 +1,8 @@
 /* $Id$
- * md.h: High speed xor_block operation for RAID4/5 
+ * md.h: High speed xor_block operation for RAID4/5
  *
  */
- 
+
 #ifndef __ASM_MD_H
 #define __ASM_MD_H
 

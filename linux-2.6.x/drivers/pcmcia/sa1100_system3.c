@@ -12,14 +12,8 @@
  * published by the Free Software Foundation.
  *
  * $Log$
- * Revision 1.2  2004/09/07 22:35:03  lgsoft
- * alpha-2.0
- *
- * Revision 1.1.1.1  2004/07/19 12:14:48  lgsoft
- * Import of uClinux 2.6.2
- *
- * Revision 1.1.1.1  2004/07/18 13:21:44  nidhi
- * Importing
+ * Revision 1.3  2004/09/08 15:37:02  lgsoft
+ * Import of 2.6.8
  *
  * Revision 1.1.4.2  2002/02/25 13:56:45  seletz
  * - more cleanups
@@ -56,7 +50,7 @@
 #	define DPRINTK( x, args... )	/* nix */
 #endif
 
-static int system3_pcmcia_hw_init(struct sa1100_pcmcia_socket *skt)
+static int system3_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	skt->irq = skt->nr ? IRQ_S1_READY_NINT : IRQ_S0_READY_NINT;
 
@@ -64,12 +58,12 @@ static int system3_pcmcia_hw_init(struct sa1100_pcmcia_socket *skt)
 	return 0;
 }
 
-void system3_pcmcia_hw_shutdown(struct sa1100_pcmcia_socket *skt)
+void system3_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 {
 }
 
 static void
-system3_pcmcia_socket_state(struct sa1100_pcmcia_socket *skt, struct pcmcia_state *state)
+system3_pcmcia_socket_state(struct soc_pcmcia_socket *skt, struct pcmcia_state *state)
 {
 	unsigned long status = PCSR;
 

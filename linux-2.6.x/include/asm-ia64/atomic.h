@@ -56,7 +56,7 @@ ia64_atomic64_add (__s64 i, atomic64_t *v)
 		CMPXCHG_BUGCHECK(v);
 		old = atomic_read(v);
 		new = old + i;
-	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic_t)) != old);
+	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic64_t)) != old);
 	return new;
 }
 
@@ -84,7 +84,7 @@ ia64_atomic64_sub (__s64 i, atomic64_t *v)
 		CMPXCHG_BUGCHECK(v);
 		old = atomic_read(v);
 		new = old - i;
-	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic_t)) != old);
+	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic64_t)) != old);
 	return new;
 }
 
@@ -159,10 +159,10 @@ atomic64_add_negative (__s64 i, atomic64_t *v)
 
 #define atomic_sub_and_test(i,v)	(atomic_sub_return((i), (v)) == 0)
 #define atomic_dec_and_test(v)		(atomic_sub_return(1, (v)) == 0)
-#define atomic_inc_and_test(v)		(atomic_add_return(1, (v)) != 0)
+#define atomic_inc_and_test(v)		(atomic_add_return(1, (v)) == 0)
 #define atomic64_sub_and_test(i,v)	(atomic64_sub_return((i), (v)) == 0)
 #define atomic64_dec_and_test(v)	(atomic64_sub_return(1, (v)) == 0)
-#define atomic64_inc_and_test(v)	(atomic64_add_return(1, (v)) != 0)
+#define atomic64_inc_and_test(v)	(atomic64_add_return(1, (v)) == 0)
 
 #define atomic_add(i,v)			atomic_add_return((i), (v))
 #define atomic_sub(i,v)			atomic_sub_return((i), (v))

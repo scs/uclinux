@@ -57,12 +57,9 @@ struct xfs_mount;
 #define XLOG_RECORD_BSHIFT	14		/* 16384 == 1 << 14 */
 #define XLOG_BIG_RECORD_BSHIFT	15		/* 32k == 1 << 15 */
 #define XLOG_MAX_RECORD_BSHIFT	18		/* 256k == 1 << 18 */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XLOG_BTOLRBB)
-int xlog_btolrbb(int b);
-#define XLOG_BTOLRBB(b)		xlog_btolrbb(b)
-#else
-#define XLOG_BTOLRBB(b)		(((b)+XLOG_RECORD_BSIZE-1) >> XLOG_RECORD_BSHIFT)
-#endif
+#define XLOG_BTOLSUNIT(log, b)  (((b)+(log)->l_mp->m_sb.sb_logsunit-1) / \
+                                 (log)->l_mp->m_sb.sb_logsunit)
+#define XLOG_LSUNITTOB(log, su) ((su) * (log)->l_mp->m_sb.sb_logsunit)
 
 #define XLOG_HEADER_SIZE	512
 
@@ -531,7 +528,6 @@ typedef struct log {
 	uint			l_flags;
 	uint			l_quotaoffs_flag; /* XFS_DQ_*, for QUOTAOFFs */
 	struct xfs_buf_cancel	**l_buf_cancel_table;
-	int			l_stripemask;	/* log stripe mask */
 	int			l_iclog_hsize;  /* size of iclog header */
 	int			l_iclog_heads;  /* # of iclog header sectors */
 	uint			l_sectbb_log;   /* log2 of sector size in BBs */
@@ -558,6 +554,7 @@ extern void	 xlog_put_bp(struct xfs_buf *);
 extern int	 xlog_bread(xlog_t *, xfs_daddr_t, int, struct xfs_buf *);
 extern xfs_caddr_t xlog_align(xlog_t *, xfs_daddr_t, int, struct xfs_buf *);
 
+/* iclog tracing */
 #define XLOG_TRACE_GRAB_FLUSH  1
 #define XLOG_TRACE_REL_FLUSH   2
 #define XLOG_TRACE_SLEEP_FLUSH 3

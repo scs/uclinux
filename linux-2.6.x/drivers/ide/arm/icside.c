@@ -1,13 +1,7 @@
 /*
  * linux/drivers/ide/arm/icside.c
  *
- * Copyright (c) 1996-2002 Russell King.
- *
- * Changelog:
- *  08-Jun-1996	RMK	Created
- *  12-Sep-1997	RMK	Added interrupt enable/disable
- *  17-Apr-1999	RMK	Added support for V6 EASI
- *  22-May-1999	RMK	Added support for V6 DMA
+ * Copyright (c) 1996-2003 Russell King.
  */
 
 #include <linux/config.h>
@@ -237,7 +231,7 @@ static void icside_build_sglist(ide_drive_t *drive, struct request *rq)
 		sg->length = rq->nr_sectors * SECTOR_SIZE;
 		nents = 1;
 	} else {
-		nents = blk_rq_map_sg(&drive->queue, rq, sg);
+		nents = blk_rq_map_sg(drive->queue, rq, sg);
 
 		if (rq_data_dir(rq) == READ)
 			hwif->sg_dma_direction = DMA_FROM_DEVICE;
@@ -330,72 +324,6 @@ static int icside_set_speed(ide_drive_t *drive, u8 xfer_mode)
 	return on;
 }
 
-/*
- * The following is a sick duplication from ide-dma.c ;(
- *
- * This should be defined in one place only.
- */
-struct drive_list_entry {
-	const char * id_model;
-	const char * id_firmware;
-};
-
-static const struct drive_list_entry drive_whitelist [] = {
-	{ "Micropolis 2112A",			"ALL"		},
-	{ "CONNER CTMA 4000",			"ALL"		},
-	{ "CONNER CTT8000-A",			"ALL"		},
-	{ "ST34342A",				"ALL"		},
-	{ NULL,					NULL		}
-};
-
-static struct drive_list_entry drive_blacklist [] = {
-	{ "WDC AC11000H",			"ALL"		},
-	{ "WDC AC22100H",			"ALL"		},
-	{ "WDC AC32500H",			"ALL"		},
-	{ "WDC AC33100H",			"ALL"		},
-	{ "WDC AC31600H",			"ALL"		},
-	{ "WDC AC32100H",			"24.09P07"	},
-	{ "WDC AC23200L",			"21.10N21"	},
-	{ "Compaq CRD-8241B",			"ALL"		},
-	{ "CRD-8400B",				"ALL"		},
-	{ "CRD-8480B",				"ALL"		},
-	{ "CRD-8480C",				"ALL"		},
-	{ "CRD-8482B",				"ALL"		},
- 	{ "CRD-84",				"ALL"		},
-	{ "SanDisk SDP3B",			"ALL"		},
-	{ "SanDisk SDP3B-64",			"ALL"		},
-	{ "SANYO CD-ROM CRD",			"ALL"		},
-	{ "HITACHI CDR-8",			"ALL"		},
-	{ "HITACHI CDR-8335",			"ALL"		},
-	{ "HITACHI CDR-8435",			"ALL"		},
-	{ "Toshiba CD-ROM XM-6202B",		"ALL"		},
-	{ "CD-532E-A",				"ALL"		},
-	{ "E-IDE CD-ROM CR-840",		"ALL"		},
-	{ "CD-ROM Drive/F5A",			"ALL"		},
-	{ "RICOH CD-R/RW MP7083A",		"ALL"		},
-	{ "WPI CDD-820",			"ALL"		},
-	{ "SAMSUNG CD-ROM SC-148C",		"ALL"		},
-	{ "SAMSUNG CD-ROM SC-148F",		"ALL"		},
-	{ "SAMSUNG CD-ROM SC",			"ALL"		},
-	{ "SanDisk SDP3B-64",			"ALL"		},
-	{ "SAMSUNG CD-ROM SN-124",		"ALL"		},
-	{ "PLEXTOR CD-R PX-W8432T",		"ALL"		},
-	{ "ATAPI CD-ROM DRIVE 40X MAXIMUM",	"ALL"		},
-	{ "_NEC DV5800A",			"ALL"		},
-	{ NULL,					NULL		}
-};
-
-static int
-in_drive_list(struct hd_driveid *id, const struct drive_list_entry *drive_table)
-{
-	for ( ; drive_table->id_model ; drive_table++)
-		if ((!strcmp(drive_table->id_model, id->model)) &&
-		    ((!strstr(drive_table->id_firmware, id->fw_rev)) ||
-		     (!strcmp(drive_table->id_firmware, "ALL"))))
-			return 1;
-	return 0;
-}
-
 static int icside_dma_host_off(ide_drive_t *drive)
 {
 	return 0;
@@ -405,12 +333,6 @@ static int icside_dma_off_quietly(ide_drive_t *drive)
 {
 	drive->using_dma = 0;
 	return icside_dma_host_off(drive);
-}
-
-static int icside_dma_off(ide_drive_t *drive)
-{
-	printk("%s: DMA disabled\n", drive->name);
-	return icside_dma_off_quietly(drive);
 }
 
 static int icside_dma_host_on(ide_drive_t *drive)
@@ -437,11 +359,8 @@ static int icside_dma_check(ide_drive_t *drive)
 	/*
 	 * Consult the list of known "bad" drives
 	 */
-	if (in_drive_list(id, drive_blacklist)) {
-		printk("%s: Disabling DMA for %s (blacklisted)\n",
-			drive->name, id->model);
+	if (__ide_dma_bad_drive(drive))
 		goto out;
-	}
 
 	/*
 	 * Enable DMA on any drive that has multiword DMA
@@ -454,7 +373,7 @@ static int icside_dma_check(ide_drive_t *drive)
 	/*
 	 * Consult the list of known "good" drives
 	 */
-	if (in_drive_list(id, drive_whitelist)) {
+	if (__ide_dma_good_drive(drive)) {
 		if (id->eide_dma_time > 150)
 			goto out;
 		xfer_mode = XFER_MW_DMA_1;
@@ -495,11 +414,6 @@ static int icside_dma_begin(ide_drive_t *drive)
 	BUG_ON(dma_channel_active(hwif->hw.dma));
 	enable_dma(hwif->hw.dma);
 	return 0;
-}
-
-static int icside_dma_count(ide_drive_t *drive)
-{
-	return icside_dma_begin(drive);
 }
 
 /*
@@ -567,25 +481,23 @@ icside_dma_common(ide_drive_t *drive, struct request *rq,
 	set_dma_sg(hwif->hw.dma, hwif->sg_table, hwif->sg_nents);
 	set_dma_mode(hwif->hw.dma, dma_mode);
 
+	drive->waiting_for_dma = 1;
+
 	return 0;
 }
 
 static int icside_dma_read(ide_drive_t *drive)
 {
 	struct request *rq = HWGROUP(drive)->rq;
-	task_ioreg_t cmd = WIN_NOP;
+	task_ioreg_t cmd;
 
 	if (icside_dma_common(drive, rq, DMA_MODE_READ))
 		return 1;
-
-	drive->waiting_for_dma = 1;
 
 	if (drive->media != ide_disk)
 		return 0;
 
 	BUG_ON(HWGROUP(drive)->handler != NULL);
-
-	ide_set_handler(drive, icside_dmaintr, 2*WAIT_CMD, NULL);
 
 	/*
 	 * FIX ME to use only ACB ide_task_t args Struct
@@ -593,7 +505,7 @@ static int icside_dma_read(ide_drive_t *drive)
 #if 0
 	{
 		ide_task_t *args = rq->special;
-		command = args->tfRegister[IDE_COMMAND_OFFSET];
+		cmd = args->tfRegister[IDE_COMMAND_OFFSET];
 	}
 #else
 	if (rq->flags & REQ_DRIVE_TASKFILE) {
@@ -606,27 +518,23 @@ static int icside_dma_read(ide_drive_t *drive)
 	}
 #endif
 	/* issue cmd to drive */
-	HWIF(drive)->OUTB(cmd, IDE_COMMAND_REG);
+	ide_execute_command(drive, cmd, icside_dmaintr, 2*WAIT_CMD, NULL);
 
 	return icside_dma_begin(drive);
 }
 
-int icside_dma_write(ide_drive_t *drive)
+static int icside_dma_write(ide_drive_t *drive)
 {
 	struct request *rq = HWGROUP(drive)->rq;
-	task_ioreg_t cmd = WIN_NOP;
+	task_ioreg_t cmd;
 
 	if (icside_dma_common(drive, rq, DMA_MODE_WRITE))
 		return 1;
-
-	drive->waiting_for_dma = 1;
 
 	if (drive->media != ide_disk)
 		return 0;
 
 	BUG_ON(HWGROUP(drive)->handler != NULL);
-
-	ide_set_handler(drive, icside_dmaintr, 2*WAIT_CMD, NULL);
 
 	/*
 	 * FIX ME to use only ACB ide_task_t args Struct
@@ -634,7 +542,7 @@ int icside_dma_write(ide_drive_t *drive)
 #if 0
 	{
 		ide_task_t *args = rq->special;
-		command = args->tfRegister[IDE_COMMAND_OFFSET];
+		cmd = args->tfRegister[IDE_COMMAND_OFFSET];
 	}
 #else
 	if (rq->flags & REQ_DRIVE_TASKFILE) {
@@ -646,8 +554,9 @@ int icside_dma_write(ide_drive_t *drive)
 		cmd = WIN_WRITEDMA;
 	}
 #endif
+
 	/* issue cmd to drive */
-	HWIF(drive)->OUTB(cmd, IDE_COMMAND_REG);
+	ide_execute_command(drive, cmd, icside_dmaintr, 2*WAIT_CMD, NULL);
 
 	return icside_dma_begin(drive);
 }
@@ -717,12 +626,10 @@ static int icside_dma_init(ide_hwif_t *hwif)
 	hwif->ide_dma_check	= icside_dma_check;
 	hwif->ide_dma_host_off	= icside_dma_host_off;
 	hwif->ide_dma_off_quietly = icside_dma_off_quietly;
-	hwif->ide_dma_off	= icside_dma_off;
 	hwif->ide_dma_host_on	= icside_dma_host_on;
 	hwif->ide_dma_on	= icside_dma_on;
 	hwif->ide_dma_read	= icside_dma_read;
 	hwif->ide_dma_write	= icside_dma_write;
-	hwif->ide_dma_count	= icside_dma_count;
 	hwif->ide_dma_begin	= icside_dma_begin;
 	hwif->ide_dma_end	= icside_dma_end;
 	hwif->ide_dma_test_irq	= icside_dma_test_irq;
@@ -869,7 +776,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	state->hwif[0]    = hwif;
 	state->hwif[1]    = mate;
 
-	ec->irq_data	  = state;
+	ec->irq_data      = state;
 	ec->ops           = &icside_ops_arcin_v6;
 
 	hwif->maskproc    = icside_maskproc;
@@ -879,7 +786,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	hwif->serialized  = 1;
 	hwif->config_data = slot_port;
 	hwif->select_data = sel;
-	hwif->hw.dma	  = ec->dma;
+	hwif->hw.dma      = ec->dma;
 
 	mate->maskproc    = icside_maskproc;
 	mate->channel     = 1;
@@ -888,7 +795,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	mate->serialized  = 1;
 	mate->config_data = slot_port;
 	mate->select_data = sel | 1;
-	mate->hw.dma	  = ec->dma;
+	mate->hw.dma      = ec->dma;
 
 	if (ec->dma != NO_DMA && !request_dma(ec->dma, hwif->name)) {
 		icside_dma_init(hwif);
@@ -954,18 +861,10 @@ icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 		break;
 	}
 
-	if (ret == 0) {
+	if (ret == 0)
 		ecard_set_drvdata(ec, state);
-
-		/*
-		 * this locks the driver in-core - remove this
-		 * comment and the line below when we can
-		 * safely remove interfaces.
-		 */
-		MOD_INC_USE_COUNT;
-	} else {
+	else
 		kfree(state);
-	}
  out:
 	return ret;
 }
@@ -1048,14 +947,8 @@ static int __init icside_init(void)
 	return ecard_register_driver(&icside_driver);
 }
 
-static void __exit icside_exit(void)
-{
-	ecard_remove_driver(&icside_driver);
-}
-
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ICS IDE driver");
 
 module_init(icside_init);
-module_exit(icside_exit);

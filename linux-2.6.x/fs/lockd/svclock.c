@@ -64,10 +64,10 @@ nlmsvc_insert_block(struct nlm_block *block, unsigned long when)
 	if (when != NLM_NEVER) {
 		if ((when += jiffies) == NLM_NEVER)
 			when ++;
-		while ((b = *bp) && time_before_eq(b->b_when,when))
+		while ((b = *bp) && time_before_eq(b->b_when,when) && b->b_when != NLM_NEVER)
 			bp = &b->b_next;
 	} else
-		while ((b = *bp))
+		while ((b = *bp) != 0)
 			bp = &b->b_next;
 
 	block->b_queued = 1;
@@ -86,7 +86,7 @@ nlmsvc_remove_block(struct nlm_block *block)
 
 	if (!block->b_queued)
 		return 1;
-	for (bp = &nlm_blocked; (b = *bp); bp = &b->b_next) {
+	for (bp = &nlm_blocked; (b = *bp) != 0; bp = &b->b_next) {
 		if (b == block) {
 			*bp = block->b_next;
 			block->b_queued = 0;
@@ -111,7 +111,7 @@ nlmsvc_lookup_block(struct nlm_file *file, struct nlm_lock *lock, int remove)
 				file, lock->fl.fl_pid,
 				(long long)lock->fl.fl_start,
 				(long long)lock->fl.fl_end, lock->fl.fl_type);
-	for (head = &nlm_blocked; (block = *head); head = &block->b_next) {
+	for (head = &nlm_blocked; (block = *head) != 0; head = &block->b_next) {
 		fl = &block->b_call.a_args.lock.fl;
 		dprintk("lockd: check f=%p pd=%d %Ld-%Ld ty=%d cookie=%x\n",
 				block->b_file, fl->fl_pid,
@@ -143,14 +143,15 @@ static inline int nlm_cookie_match(struct nlm_cookie *a, struct nlm_cookie *b)
  * Find a block with a given NLM cookie.
  */
 static inline struct nlm_block *
-nlmsvc_find_block(struct nlm_cookie *cookie)
+nlmsvc_find_block(struct nlm_cookie *cookie,  struct sockaddr_in *sin)
 {
 	struct nlm_block *block;
 
 	for (block = nlm_blocked; block; block = block->b_next) {
 		dprintk("cookie: head of blocked queue %p, block %p\n", 
 			nlm_blocked, block);
-		if (nlm_cookie_match(&block->b_call.a_args.cookie,cookie))
+		if (nlm_cookie_match(&block->b_call.a_args.cookie,cookie)
+				&& nlm_cmp_addr(sin, &block->b_host->h_addr))
 			break;
 	}
 
@@ -467,7 +468,7 @@ nlmsvc_notify_blocked(struct file_lock *fl)
 	struct nlm_block	**bp, *block;
 
 	dprintk("lockd: VFS unblock notification for block %p\n", fl);
-	for (bp = &nlm_blocked; (block = *bp); bp = &block->b_next) {
+	for (bp = &nlm_blocked; (block = *bp) != 0; bp = &block->b_next) {
 		if (nlm_compare_locks(&block->b_call.a_args.lock.fl, fl)) {
 			nlmsvc_insert_block(block, 0);
 			svc_wake_up(block->b_daemon);
@@ -566,12 +567,16 @@ nlmsvc_grant_callback(struct rpc_task *task)
 	struct nlm_rqst		*call = (struct nlm_rqst *) task->tk_calldata;
 	struct nlm_block	*block;
 	unsigned long		timeout;
+	struct sockaddr_in	*peer_addr = RPC_PEERADDR(task->tk_client);
 
 	dprintk("lockd: GRANT_MSG RPC callback\n");
-	dprintk("callback: looking for cookie %x \n", 
-		*(unsigned int *)(call->a_args.cookie.data));
-	if (!(block = nlmsvc_find_block(&call->a_args.cookie))) {
-		dprintk("lockd: no block for cookie %x\n", *(u32 *)(call->a_args.cookie.data));
+	dprintk("callback: looking for cookie %x, host (%08x)\n", 
+		*(unsigned int *)(call->a_args.cookie.data),
+		ntohl(peer_addr->sin_addr.s_addr));
+	if (!(block = nlmsvc_find_block(&call->a_args.cookie, peer_addr))) {
+		dprintk("lockd: no block for cookie %x, host (%08x)\n",
+			*(u32 *)(call->a_args.cookie.data),
+			ntohl(peer_addr->sin_addr.s_addr));
 		return;
 	}
 
@@ -600,18 +605,21 @@ nlmsvc_grant_callback(struct rpc_task *task)
  * block.
  */
 void
-nlmsvc_grant_reply(struct nlm_cookie *cookie, u32 status)
+nlmsvc_grant_reply(struct svc_rqst *rqstp, struct nlm_cookie *cookie, u32 status)
 {
 	struct nlm_block	*block;
 	struct nlm_file		*file;
 
-	if (!(block = nlmsvc_find_block(cookie)))
+	dprintk("grant_reply: looking for cookie %x, host (%08x), s=%d \n", 
+		*(unsigned int *)(cookie->data), 
+		ntohl(rqstp->rq_addr.sin_addr.s_addr), status);
+	if (!(block = nlmsvc_find_block(cookie, &rqstp->rq_addr)))
 		return;
 	file = block->b_file;
 
 	file->f_count++;
 	down(&file->f_sema);
-	if ((block = nlmsvc_find_block(cookie)) != NULL) {
+	if ((block = nlmsvc_find_block(cookie,&rqstp->rq_addr)) != NULL) {
 		if (status == NLM_LCK_DENIED_GRACE_PERIOD) {
 			/* Try again in a couple of seconds */
 			nlmsvc_insert_block(block, 10 * HZ);
@@ -645,7 +653,7 @@ nlmsvc_retry_blocked(void)
 	dprintk("nlmsvc_retry_blocked(%p, when=%ld)\n",
 			nlm_blocked,
 			nlm_blocked? nlm_blocked->b_when : 0);
-	while ((block = nlm_blocked)) {
+	while ((block = nlm_blocked) != 0) {
 		if (block->b_when == NLM_NEVER)
 			break;
 	        if (time_after(block->b_when,jiffies))

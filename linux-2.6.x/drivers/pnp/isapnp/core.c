@@ -68,13 +68,8 @@ MODULE_PARM(isapnp_verbose, "i");
 MODULE_PARM_DESC(isapnp_verbose, "ISA Plug & Play verbose mode");
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_X86_PC9800
-#define _PIDXR		0x259
-#define _PNPWRP		0xa59
-#else
 #define _PIDXR		0x279
 #define _PNPWRP		0xa79
-#endif
 
 /* short tags */
 #define _STAG_PNPVERNO		0x01
@@ -99,6 +94,7 @@ MODULE_LICENSE("GPL");
 static unsigned char isapnp_checksum_value;
 static DECLARE_MUTEX(isapnp_cfg_mutex);
 static int isapnp_detected;
+static int isapnp_csn_count;
 
 /* some prototypes */
 
@@ -371,11 +367,14 @@ static int __init isapnp_isolate(void)
 			break;
 		}
 	      __next:
+		if (csn == 255)
+			break;
 		checksum = 0x6a;
 		chksum = 0x00;
 		bit = 0x00;
 	}
 	isapnp_wait();
+	isapnp_csn_count = csn;
 	return csn;
 }
 
@@ -880,7 +879,7 @@ static int __init isapnp_build_device_list(void)
 
 	isapnp_wait();
 	isapnp_key();
-	for (csn = 1; csn <= 10; csn++) {
+	for (csn = 1; csn <= isapnp_csn_count; csn++) {
 		isapnp_wake(csn);
 		isapnp_peek(header, 9);
 		checksum = isapnp_checksum(header);
@@ -890,12 +889,6 @@ static int __init isapnp_build_device_list(void)
 			header[4], header[5], header[6], header[7], header[8]);
 		printk(KERN_DEBUG "checksum = 0x%x\n", checksum);
 #endif
-		/* Don't be strict on the checksum, here !
-                   e.g. 'SCM SwapBox Plug and Play' has header[8]==0 (should be: b7)*/
-		if (header[8] == 0)
-			;
-		else if (checksum == 0x00 || checksum != header[8])	/* not valid CSN */
-			continue;
 		if ((card = isapnp_alloc(sizeof(struct pnp_card))) == NULL)
 			continue;
 
@@ -932,9 +925,8 @@ int isapnp_present(void)
 
 int isapnp_cfg_begin(int csn, int logdev)
 {
-	if (csn < 1 || csn > 10 || logdev > 10)
+	if (csn < 1 || csn > isapnp_csn_count || logdev > 10)
 		return -EINVAL;
-	MOD_INC_USE_COUNT;
 	down(&isapnp_cfg_mutex);
 	isapnp_wait();
 	isapnp_key();
@@ -962,7 +954,6 @@ int isapnp_cfg_end(void)
 {
 	isapnp_wait();
 	up(&isapnp_cfg_mutex);
-	MOD_DEC_USE_COUNT;
 	return 0;
 }
 
@@ -999,7 +990,7 @@ static int isapnp_read_resources(struct pnp_dev *dev, struct pnp_resource_table 
 			res->port_resource[tmp].flags = IORESOURCE_IO;
 		}
 		for (tmp = 0; tmp < PNP_MAX_MEM; tmp++) {
-			ret = isapnp_read_dword(ISAPNP_CFG_MEM + (tmp << 3));
+			ret = isapnp_read_word(ISAPNP_CFG_MEM + (tmp << 3)) << 8;
 			if (!ret)
 				continue;
 			res->mem_resource[tmp].start = ret;
@@ -1039,18 +1030,18 @@ static int isapnp_set_resources(struct pnp_dev *dev, struct pnp_resource_table *
 
 	isapnp_cfg_begin(dev->card->number, dev->number);
 	dev->active = 1;
-	for (tmp = 0; tmp < PNP_MAX_PORT && res->port_resource[tmp].flags & IORESOURCE_IO; tmp++)
+	for (tmp = 0; tmp < PNP_MAX_PORT && (res->port_resource[tmp].flags & (IORESOURCE_IO | IORESOURCE_UNSET)) == IORESOURCE_IO; tmp++)
 		isapnp_write_word(ISAPNP_CFG_PORT+(tmp<<1), res->port_resource[tmp].start);
-	for (tmp = 0; tmp < PNP_MAX_IRQ && res->irq_resource[tmp].flags & IORESOURCE_IRQ; tmp++) {
+	for (tmp = 0; tmp < PNP_MAX_IRQ && (res->irq_resource[tmp].flags & (IORESOURCE_IRQ | IORESOURCE_UNSET)) == IORESOURCE_IRQ; tmp++) {
 		int irq = res->irq_resource[tmp].start;
 		if (irq == 2)
 			irq = 9;
 		isapnp_write_byte(ISAPNP_CFG_IRQ+(tmp<<1), irq);
 	}
-	for (tmp = 0; tmp < PNP_MAX_DMA && res->dma_resource[tmp].flags & IORESOURCE_DMA; tmp++)
+	for (tmp = 0; tmp < PNP_MAX_DMA && (res->dma_resource[tmp].flags & (IORESOURCE_DMA | IORESOURCE_UNSET)) == IORESOURCE_DMA; tmp++)
 		isapnp_write_byte(ISAPNP_CFG_DMA+tmp, res->dma_resource[tmp].start);
-	for (tmp = 0; tmp < PNP_MAX_MEM && res->mem_resource[tmp].flags & IORESOURCE_MEM; tmp++)
-		isapnp_write_word(ISAPNP_CFG_MEM+(tmp<<2), (res->mem_resource[tmp].start >> 8) & 0xffff);
+	for (tmp = 0; tmp < PNP_MAX_MEM && (res->mem_resource[tmp].flags & (IORESOURCE_MEM | IORESOURCE_UNSET)) == IORESOURCE_MEM; tmp++)
+		isapnp_write_word(ISAPNP_CFG_MEM+(tmp<<3), (res->mem_resource[tmp].start >> 8) & 0xffff);
 	/* FIXME: We aren't handling 32bit mems properly here */
 	isapnp_activate(dev->number);
 	isapnp_cfg_end();

@@ -1,5 +1,6 @@
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/module.h>
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/svcsock.h>
@@ -51,6 +52,8 @@ struct auth_domain *unix_domain_find(char *name)
 		return rv;
 
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	if (new == NULL)
+		return NULL;
 	cache_init(&new->h.h);
 	atomic_inc(&new->h.h.refcnt);
 	new->h.name = strdup(name);
@@ -119,7 +122,8 @@ static inline int ip_map_match(struct ip_map *item, struct ip_map *tmp)
 }
 static inline void ip_map_init(struct ip_map *new, struct ip_map *item)
 {
-	new->m_class = strdup(item->m_class);
+	new->m_class = item->m_class;
+	item->m_class = NULL;
 	new->m_addr.s_addr = item->m_addr.s_addr;
 }
 static inline void ip_map_update(struct ip_map *new, struct ip_map *item)
@@ -191,7 +195,9 @@ static int ip_map_parse(struct cache_detail *cd,
 	} else
 		dom = NULL;
 
-	ipm.m_class = class;
+	ipm.m_class = strdup(class);
+	if (ipm.m_class == NULL)
+		return -ENOMEM;
 	ipm.m_addr.s_addr =
 		htonl((((((b1<<8)|b2)<<8)|b3)<<8)|b4);
 	ipm.h.flags = 0;
@@ -207,6 +213,7 @@ static int ip_map_parse(struct cache_detail *cd,
 		ip_map_put(&ipmp->h, &ip_map_cache);
 	if (dom)
 		auth_domain_put(dom);
+	if (ipm.m_class) kfree(ipm.m_class);
 	if (!ipmp)
 		return -ENOMEM;
 	cache_flush();
@@ -266,7 +273,9 @@ int auth_unix_add_addr(struct in_addr addr, struct auth_domain *dom)
 	if (dom->flavour != RPC_AUTH_UNIX)
 		return -EINVAL;
 	udom = container_of(dom, struct unix_domain, h);
-	ip.m_class = "nfsd";
+	ip.m_class = strdup("nfsd");
+	if (!ip.m_class)
+		return -ENOMEM;
 	ip.m_addr = addr;
 	ip.m_client = udom;
 	ip.m_add_change = udom->addr_changes+1;
@@ -274,6 +283,7 @@ int auth_unix_add_addr(struct in_addr addr, struct auth_domain *dom)
 	ip.h.expiry_time = NEVER;
 	
 	ipmp = ip_map_lookup(&ip, 1);
+	if (ip.m_class) kfree(ip.m_class);
 	if (ipmp) {
 		ip_map_put(&ipmp->h, &ip_map_cache);
 		return 0;
@@ -328,8 +338,8 @@ void svcauth_unix_purge(void)
 static int
 svcauth_null_accept(struct svc_rqst *rqstp, u32 *authp)
 {
-	struct iovec	*argv = &rqstp->rq_arg.head[0];
-	struct iovec	*resv = &rqstp->rq_res.head[0];
+	struct kvec	*argv = &rqstp->rq_arg.head[0];
+	struct kvec	*resv = &rqstp->rq_res.head[0];
 	int		rv=0;
 	struct ip_map key, *ipm;
 
@@ -350,7 +360,9 @@ svcauth_null_accept(struct svc_rqst *rqstp, u32 *authp)
 	/* Signal that mapping to nobody uid/gid is required */
 	rqstp->rq_cred.cr_uid = (uid_t) -1;
 	rqstp->rq_cred.cr_gid = (gid_t) -1;
-	rqstp->rq_cred.cr_groups[0] = NOGROUP;
+	rqstp->rq_cred.cr_group_info = groups_alloc(0);
+	if (rqstp->rq_cred.cr_group_info == NULL)
+		return SVC_DROP; /* kmalloc failure - client must retry */
 
 	/* Put NULL verifier */
 	svc_putu32(resv, RPC_AUTH_NULL);
@@ -400,6 +412,7 @@ svcauth_null_release(struct svc_rqst *rqstp)
 
 struct auth_ops svcauth_null = {
 	.name		= "null",
+	.owner		= THIS_MODULE,
 	.flavour	= RPC_AUTH_NULL,
 	.accept 	= svcauth_null_accept,
 	.release	= svcauth_null_release,
@@ -409,13 +422,16 @@ struct auth_ops svcauth_null = {
 int
 svcauth_unix_accept(struct svc_rqst *rqstp, u32 *authp)
 {
-	struct iovec	*argv = &rqstp->rq_arg.head[0];
-	struct iovec	*resv = &rqstp->rq_res.head[0];
+	struct kvec	*argv = &rqstp->rq_arg.head[0];
+	struct kvec	*resv = &rqstp->rq_res.head[0];
 	struct svc_cred	*cred = &rqstp->rq_cred;
 	u32		slen, i;
 	int		len   = argv->iov_len;
 	int		rv=0;
 	struct ip_map key, *ipm;
+
+	cred->cr_group_info = NULL;
+	rqstp->rq_client = NULL;
 
 	if ((len -= 3*4) < 0)
 		return SVC_GARBAGE;
@@ -433,13 +449,11 @@ svcauth_unix_accept(struct svc_rqst *rqstp, u32 *authp)
 	slen = ntohl(svc_getu32(argv));			/* gids length */
 	if (slen > 16 || (len -= (slen + 2)*4) < 0)
 		goto badcred;
+	cred->cr_group_info = groups_alloc(slen);
+	if (cred->cr_group_info == NULL)
+		return SVC_DROP;
 	for (i = 0; i < slen; i++)
-		if (i < NGROUPS)
-			cred->cr_groups[i] = ntohl(svc_getu32(argv));
-		else
-			svc_getu32(argv);
-	if (i < NGROUPS)
-		cred->cr_groups[i] = NOGROUP;
+		GROUP_AT(cred->cr_group_info, i) = ntohl(svc_getu32(argv));
 
 	if (svc_getu32(argv) != RPC_AUTH_NULL || svc_getu32(argv) != 0) {
 		*authp = rpc_autherr_badverf;
@@ -453,7 +467,6 @@ svcauth_unix_accept(struct svc_rqst *rqstp, u32 *authp)
 
 	ipm = ip_map_lookup(&key, 0);
 
-	rqstp->rq_client = NULL;
 	if (ipm)
 		switch (cache_check(&ip_map_cache, &ipm->h, &rqstp->rq_chandle)) {
 		case -EAGAIN:
@@ -494,6 +507,9 @@ svcauth_unix_release(struct svc_rqst *rqstp)
 	if (rqstp->rq_client)
 		auth_domain_put(rqstp->rq_client);
 	rqstp->rq_client = NULL;
+	if (rqstp->rq_cred.cr_group_info)
+		put_group_info(rqstp->rq_cred.cr_group_info);
+	rqstp->rq_cred.cr_group_info = NULL;
 
 	return 0;
 }
@@ -501,6 +517,7 @@ svcauth_unix_release(struct svc_rqst *rqstp)
 
 struct auth_ops svcauth_unix = {
 	.name		= "unix",
+	.owner		= THIS_MODULE,
 	.flavour	= RPC_AUTH_UNIX,
 	.accept 	= svcauth_unix_accept,
 	.release	= svcauth_unix_release,

@@ -3,6 +3,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/seq_file.h>
 
 /* We are an ethernet device */
 #include <linux/if_ether.h>
@@ -224,29 +225,27 @@ int atm_mpoa_delete_qos(struct atm_mpoa_qos *entry)
 	return 0;
 }
 
-void atm_mpoa_disp_qos(char *page, ssize_t *len)
+/* this is buggered - we need locking for qos_head */
+void atm_mpoa_disp_qos(struct seq_file *m)
 {
-
 	unsigned char *ip;
 	char ipaddr[16];
 	struct atm_mpoa_qos *qos;
 
 	qos = qos_head;
-	*len += sprintf(page + *len, "QoS entries for shortcuts:\n");
-	*len += sprintf(page + *len, "IP address\n  TX:max_pcr pcr     min_pcr max_cdv max_sdu\n  RX:max_pcr pcr     min_pcr max_cdv max_sdu\n");
+	seq_printf(m, "QoS entries for shortcuts:\n");
+	seq_printf(m, "IP address\n  TX:max_pcr pcr     min_pcr max_cdv max_sdu\n  RX:max_pcr pcr     min_pcr max_cdv max_sdu\n");
 
 	ipaddr[sizeof(ipaddr)-1] = '\0';
 	while (qos != NULL) {
 		ip = (unsigned char *)&qos->ipaddr;
 		sprintf(ipaddr, "%u.%u.%u.%u", NIPQUAD(ip));
-		*len += sprintf(page + *len, "%u.%u.%u.%u\n     %-7d %-7d %-7d %-7d %-7d\n     %-7d %-7d %-7d %-7d %-7d\n",
+		seq_printf(m, "%u.%u.%u.%u\n     %-7d %-7d %-7d %-7d %-7d\n     %-7d %-7d %-7d %-7d %-7d\n",
 				NIPQUAD(ipaddr),
 				qos->qos.txtp.max_pcr, qos->qos.txtp.pcr, qos->qos.txtp.min_pcr, qos->qos.txtp.max_cdv, qos->qos.txtp.max_sdu,
 				qos->qos.rxtp.max_pcr, qos->qos.rxtp.pcr, qos->qos.rxtp.min_pcr, qos->qos.rxtp.max_cdv, qos->qos.rxtp.max_sdu);
 		qos = qos->next;
 	}
-	
-	return;
 }
 
 static struct net_device *find_lec_by_itfnum(int itf)
@@ -565,7 +564,7 @@ static int mpc_send_packet(struct sk_buff *skb, struct net_device *dev)
 	return retval;
 }
 
-int atm_mpoa_vcc_attach(struct atm_vcc *vcc, long arg)
+int atm_mpoa_vcc_attach(struct atm_vcc *vcc, void __user *arg)
 {
 	int bytes_left;
 	struct mpoa_client *mpc;
@@ -574,7 +573,7 @@ int atm_mpoa_vcc_attach(struct atm_vcc *vcc, long arg)
 	uint32_t  ipaddr;
 	unsigned char *ip;
 
-	bytes_left = copy_from_user(&ioc_data, (void *)arg, sizeof(struct atmmpc_ioc));
+	bytes_left = copy_from_user(&ioc_data, arg, sizeof(struct atmmpc_ioc));
 	if (bytes_left != 0) {
 		printk("mpoa: mpc_vcc_attach: Short read (missed %d bytes) from userland\n", bytes_left);
 		return -EFAULT;
@@ -1366,7 +1365,7 @@ static void clean_up(struct k_message *msg, struct mpoa_client *mpc, int action)
 	return;
 }
 
-static void mpc_timer_refresh()
+static void mpc_timer_refresh(void)
 {
 	mpc_timer.expires = jiffies + (MPC_P2 * HZ);
 	mpc_timer.data = mpc_timer.expires;
@@ -1418,7 +1417,7 @@ static int atm_mpoa_ioctl(struct socket *sock, unsigned int cmd, unsigned long a
 				sock->state = SS_CONNECTED;
 			break;
 		case ATMMPC_DATA:
-			err = atm_mpoa_vcc_attach(vcc, arg);
+			err = atm_mpoa_vcc_attach(vcc, (void __user *)arg);
 			break;
 		default:
 			break;

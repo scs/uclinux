@@ -25,6 +25,15 @@
 
 /* Platforms may set this to teach the BIO layer about IOMMU hardware. */
 #include <asm/io.h>
+
+#if defined(BIO_VMERGE_MAX_SIZE) && defined(BIO_VMERGE_BOUNDARY)
+#define BIOVEC_VIRT_START_SIZE(x) (bvec_to_phys(x) & (BIO_VMERGE_BOUNDARY - 1))
+#define BIOVEC_VIRT_OVERSIZE(x)	((x) > BIO_VMERGE_MAX_SIZE)
+#else
+#define BIOVEC_VIRT_START_SIZE(x)	0
+#define BIOVEC_VIRT_OVERSIZE(x)		0
+#endif
+
 #ifndef BIO_VMERGE_BOUNDARY
 #define BIO_VMERGE_BOUNDARY	0
 #endif
@@ -81,6 +90,15 @@ struct bio {
 	unsigned short		bi_hw_segments;
 
 	unsigned int		bi_size;	/* residual I/O count */
+
+	/*
+	 * To keep track of the max hw size, we account for the
+	 * sizes of the first and last virtually mergeable segments
+	 * in this bio
+	 */
+	unsigned int		bi_hw_front_size;
+	unsigned int		bi_hw_back_size;
+
 	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
 
 	struct bio_vec		*bi_io_vec;	/* the actual vec list */
@@ -102,6 +120,7 @@ struct bio {
 #define BIO_SEG_VALID	3	/* nr_hw_seg valid */
 #define BIO_CLONED	4	/* doesn't own data */
 #define BIO_BOUNCED	5	/* bio is a bounce bio */
+#define BIO_USER_MAPPED 6	/* contains user pages */
 #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
 
 /*
@@ -119,11 +138,13 @@ struct bio {
  * bit 1 -- rw-ahead when set
  * bit 2 -- barrier
  * bit 3 -- fail fast, don't want low level driver retries
+ * bit 4 -- synchronous I/O hint: the block layer will unplug immediately
  */
 #define BIO_RW		0
 #define BIO_RW_AHEAD	1
 #define BIO_RW_BARRIER	2
 #define BIO_RW_FAILFAST	3
+#define BIO_RW_SYNC	4
 
 /*
  * various member access, note that bio_data should of course not be used
@@ -138,6 +159,7 @@ struct bio {
 #define bio_cur_sectors(bio)	(bio_iovec(bio)->bv_len >> 9)
 #define bio_data(bio)		(page_address(bio_page((bio))) + bio_offset((bio)))
 #define bio_barrier(bio)	((bio)->bi_rw & (1 << BIO_RW_BARRIER))
+#define bio_sync(bio)		((bio)->bi_rw & (1 << BIO_RW_SYNC))
 
 /*
  * will die
@@ -231,21 +253,23 @@ extern void bio_put(struct bio *);
 
 extern void bio_endio(struct bio *, unsigned int, int);
 struct request_queue;
-extern inline int bio_phys_segments(struct request_queue *, struct bio *);
-extern inline int bio_hw_segments(struct request_queue *, struct bio *);
+extern int bio_phys_segments(struct request_queue *, struct bio *);
+extern int bio_hw_segments(struct request_queue *, struct bio *);
 
-extern inline void __bio_clone(struct bio *, struct bio *);
+extern void __bio_clone(struct bio *, struct bio *);
 extern struct bio *bio_clone(struct bio *, int);
 
-extern inline void bio_init(struct bio *);
+extern void bio_init(struct bio *);
 
 extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
 extern int bio_get_nr_vecs(struct block_device *);
-extern struct bio *bio_map_user(struct block_device *, unsigned long,
-				unsigned int, int);
-extern void bio_unmap_user(struct bio *, int);
+extern struct bio *bio_map_user(struct request_queue *, struct block_device *,
+				unsigned long, unsigned int, int);
+extern void bio_unmap_user(struct bio *);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
+extern struct bio *bio_copy_user(struct request_queue *, unsigned long, unsigned int, int);
+extern int bio_uncopy_user(struct bio *);
 
 #ifdef CONFIG_HIGHMEM
 /*

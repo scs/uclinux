@@ -2,7 +2,7 @@ This file contains brief information about the SCSI tape driver.
 The driver is currently maintained by Kai Mäkisara (email
 Kai.Makisara@kolumbus.fi)
 
-Last modified: Sun Nov  9 22:36:02 2003 by makisara
+Last modified: Wed Feb 25 14:09:08 2004 by makisara
 
 
 BASICS
@@ -36,8 +36,9 @@ The user can override the parameters defined by the system
 manager. The changes persist until the defaults again come into
 effect.
 
-3. Up to four modes can be defined and selected using the minor number
-(bits 5 and 6). Mode 0 corresponds to the defaults discussed
+3. By default, up to four modes can be defined and selected using the minor
+number (bits 5 and 6). The number of modes can be changed by changing
+ST_NBR_MODE_BITS in st.h. Mode 0 corresponds to the defaults discussed
 above. Additional modes are dormant until they are defined by the
 system manager (root). When specification of a new mode is started,
 the configuration of mode 0 is used to provide a starting point for
@@ -107,10 +108,30 @@ The minor numbers consist of the following bit fields:
 dev_upper non-rew mode dev-lower
   20 -  8     7    6 5  4      0
 The non-rewind bit is always bit 7 (the uppermost bit in the lowermost
-byte). The bits defining the mode are next to the non-rewind bits. The
+byte). The bits defining the mode are below the non-rewind bit. The
 remaining bits define the tape device number. This numbering is
 backward compatible with the numbering used when the minor number was
 only 8 bits wide.
+
+
+SYSFS SUPPORT
+
+The driver creates the directory /sys/class/scsi_tape and populates it with
+directories corresponding to the existing tape devices. There are autorewind
+and non-rewind entries for each mode. The names are stxy and nstxy, where x
+is the tape number and y a character corresponding to the mode (none, l, m,
+a). For example, the directories for the first tape device are (assuming four
+modes): st0  nst0  st0l  nst0l  st0m  nst0m  st0a  nst0a.
+
+Each directory contains the entries: default_blksize  default_compression
+default_density  defined  dev  device  driver. The file 'defined' contains 1
+if the mode is defined and zero if not defined. The files 'default_*' contain
+the defaults set by the user. The value -1 means the default is not set. The
+file 'dev' contains the device numbers corresponding to this device. The links
+'device' and 'driver' point to the SCSI device and driver entries.
+
+A link named 'tape' is made from the SCSI device directory to the class
+directory corresponding to the mode 0 auto-rewind device (e.g., st0). 
 
 
 BSD AND SYS V SEMANTICS
@@ -126,7 +147,7 @@ The default is BSD semantics.
 
 BUFFERING
 
-The driver tries to do tranfers directly to/from user space. If this
+The driver tries to do transfers directly to/from user space. If this
 is not possible, a driver buffer allocated at run-time is used. If
 direct i/o is not possible for the whole transfer, the driver buffer
 is used (i.e., bounce buffers for individual pages are not
@@ -146,6 +167,12 @@ allowed if ST_BUFFER_WRITES is non-zero and direct i/o is not used.
 Buffer allocation uses chunks of memory having sizes 2^n * (page
 size). Because of this the actual buffer size may be larger than the
 minimum allowable buffer size.
+
+NOTE that if direct i/o is used, the small writes are not buffered. This may
+cause a surprise when moving from 2.4. There small writes (e.g., tar without
+-b option) may have had good throughput but this is not true any more with
+2.6. Direct i/o can be turned off to solve this problem but a better solution
+is to use bigger write() byte counts (e.g., tar -b 64).
 
 Asynchronous writing. Writing the buffer contents to the tape is
 started and the write call returns immediately. The status is checked
@@ -453,7 +480,7 @@ DEBUGGING HINTS
 
 To enable debugging messages, edit st.c and #define DEBUG 1. As seen
 above, debugging can be switched off with an ioctl if debugging is
-compiled into the driver. The debugging output is not voluminuous.
+compiled into the driver. The debugging output is not voluminous.
 
 If the tape seems to hang, I would be very interested to hear where
 the driver is waiting. With the command 'ps -l' you can see the state

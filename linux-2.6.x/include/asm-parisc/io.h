@@ -13,15 +13,16 @@
 #include <linux/types.h>
 #include <asm/pgtable.h>
 
+extern unsigned long parisc_vmerge_boundary;
+extern unsigned long parisc_vmerge_max_size;
+
+#define BIO_VMERGE_BOUNDARY	parisc_vmerge_boundary
+#define BIO_VMERGE_MAX_SIZE	parisc_vmerge_max_size
+
 #define virt_to_phys(a) ((unsigned long)__pa(a))
 #define phys_to_virt(a) __va(a)
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
-
-/*
- * Change "struct page" to physical address.
- */
-#define page_to_phys(page)	((page - mem_map) << PAGE_SHIFT)
 
 /* Memory mapped IO */
 
@@ -170,6 +171,11 @@ extern __inline__ void ___raw_writeq(unsigned long long val, unsigned long addr)
 #define writel(b,addr) __raw_writel(cpu_to_le32(b),addr)
 #define writeq(b,addr) __raw_writeq(cpu_to_le64(b),addr)
 #endif /* !USE_HPPA_IOREMAP */
+
+#define readb_relaxed(addr) readb(addr)
+#define readw_relaxed(addr) readw(addr)
+#define readl_relaxed(addr) readl(addr)
+#define readq_relaxed(addr) readq(addr)
 
 extern void __memcpy_fromio(unsigned long dest, unsigned long src, int count);
 extern void __memcpy_toio(unsigned long dest, unsigned long src, int count);

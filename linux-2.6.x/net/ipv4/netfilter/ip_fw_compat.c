@@ -1,5 +1,14 @@
 /* Compatibility framework for ipchains and ipfwadm support; designed
    to look as much like the 2.2 infrastructure as possible. */
+
+/* (C) 1999-2001 Paul `Rusty' Russell
+ * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
 struct notifier_block;
 
 #include <linux/netfilter_ipv4.h>
@@ -60,7 +69,8 @@ fw_in(unsigned int hooknum,
 	/* Assume worse case: any hook could change packet */
 	(*pskb)->nfcache |= NFC_UNKNOWN | NFC_ALTERED;
 	if ((*pskb)->ip_summed == CHECKSUM_HW)
-		(*pskb)->ip_summed = CHECKSUM_NONE;
+		if (skb_checksum_help(pskb, (out == NULL)))
+			return NF_DROP;
 
 	switch (hooknum) {
 	case NF_IP_PRE_ROUTING:
@@ -172,7 +182,7 @@ static unsigned int fw_confirm(unsigned int hooknum,
 
 extern int ip_fw_ctl(int optval, void *m, unsigned int len);
 
-static int sock_fn(struct sock *sk, int optval, void *user, unsigned int len)
+static int sock_fn(struct sock *sk, int optval, void __user *user, unsigned int len)
 {
 	/* MAX of:
 	   2.2: sizeof(struct ip_fwtest) (~14x4 + 3x4 = 17x4)

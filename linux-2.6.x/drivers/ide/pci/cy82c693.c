@@ -434,7 +434,6 @@ static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_dev
 		dev2 = pci_find_slot(dev->bus->number, dev->devfn + 1);
 		ide_setup_pci_devices(dev, dev2, d);
 	}
-	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -442,6 +441,7 @@ static struct pci_device_id cy82c693_pci_tbl[] = {
 	{ PCI_VENDOR_ID_CONTAQ, PCI_DEVICE_ID_CONTAQ_82C693, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, cy82c693_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "Cypress IDE",
@@ -454,13 +454,7 @@ static int cy82c693_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
-static void cy82c693_ide_exit(void)
-{
-	ide_pci_unregister_driver(&driver);
-}
-
 module_init(cy82c693_ide_init);
-module_exit(cy82c693_ide_exit);
 
 MODULE_AUTHOR("Andreas Krebs, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for the Cypress CY82C693 IDE");

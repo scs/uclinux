@@ -11,7 +11,7 @@
  * Authors:  Mikael Starvik (starvik@axis.com)	
  * 
  * $Log$
- * Revision 1.3  2004/09/08 10:19:35  lgsoft
+ * Revision 1.4  2004/09/08 14:52:41  lgsoft
  * Import of 2.6.8
  *
  * Revision 1.4  2003/09/22 09:21:59  starvik

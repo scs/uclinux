@@ -13,27 +13,16 @@
 #include <linux/init.h>
 #include <linux/highuid.h>
 #include <linux/security.h>
+#include <linux/syscalls.h>
 
 #include <asm/uaccess.h>
 
-extern asmlinkage long sys_chown(const char *, uid_t,gid_t);
-extern asmlinkage long sys_lchown(const char *, uid_t,gid_t);
-extern asmlinkage long sys_fchown(unsigned int, uid_t,gid_t);
-extern asmlinkage long sys_setregid(gid_t, gid_t);
-extern asmlinkage long sys_setgid(gid_t);
-extern asmlinkage long sys_setreuid(uid_t, uid_t);
-extern asmlinkage long sys_setuid(uid_t);
-extern asmlinkage long sys_setresuid(uid_t, uid_t, uid_t);
-extern asmlinkage long sys_setresgid(gid_t, gid_t, gid_t);
-extern asmlinkage long sys_setfsuid(uid_t);
-extern asmlinkage long sys_setfsgid(gid_t);
- 
-asmlinkage long sys_chown16(const char * filename, old_uid_t user, old_gid_t group)
+asmlinkage long sys_chown16(const char __user * filename, old_uid_t user, old_gid_t group)
 {
 	return sys_chown(filename, low2highuid(user), low2highgid(group));
 }
 
-asmlinkage long sys_lchown16(const char * filename, old_uid_t user, old_gid_t group)
+asmlinkage long sys_lchown16(const char __user * filename, old_uid_t user, old_gid_t group)
 {
 	return sys_lchown(filename, low2highuid(user), low2highgid(group));
 }
@@ -50,7 +39,7 @@ asmlinkage long sys_setregid16(old_gid_t rgid, old_gid_t egid)
 
 asmlinkage long sys_setgid16(old_gid_t gid)
 {
-	return sys_setgid((gid_t)gid);
+	return sys_setgid(low2highgid(gid));
 }
 
 asmlinkage long sys_setreuid16(old_uid_t ruid, old_uid_t euid)
@@ -60,7 +49,7 @@ asmlinkage long sys_setreuid16(old_uid_t ruid, old_uid_t euid)
 
 asmlinkage long sys_setuid16(old_uid_t uid)
 {
-	return sys_setuid((uid_t)uid);
+	return sys_setuid(low2highuid(uid));
 }
 
 asmlinkage long sys_setresuid16(old_uid_t ruid, old_uid_t euid, old_uid_t suid)
@@ -69,7 +58,7 @@ asmlinkage long sys_setresuid16(old_uid_t ruid, old_uid_t euid, old_uid_t suid)
 		low2highuid(suid));
 }
 
-asmlinkage long sys_getresuid16(old_uid_t *ruid, old_uid_t *euid, old_uid_t *suid)
+asmlinkage long sys_getresuid16(old_uid_t __user *ruid, old_uid_t __user *euid, old_uid_t __user *suid)
 {
 	int retval;
 
@@ -86,7 +75,7 @@ asmlinkage long sys_setresgid16(old_gid_t rgid, old_gid_t egid, old_gid_t sgid)
 		low2highgid(sgid));
 }
 
-asmlinkage long sys_getresgid16(old_gid_t *rgid, old_gid_t *egid, old_gid_t *sgid)
+asmlinkage long sys_getresgid16(old_gid_t __user *rgid, old_gid_t __user *egid, old_gid_t __user *sgid)
 {
 	int retval;
 
@@ -99,53 +88,91 @@ asmlinkage long sys_getresgid16(old_gid_t *rgid, old_gid_t *egid, old_gid_t *sgi
 
 asmlinkage long sys_setfsuid16(old_uid_t uid)
 {
-	return sys_setfsuid((uid_t)uid);
+	return sys_setfsuid(low2highuid(uid));
 }
 
 asmlinkage long sys_setfsgid16(old_gid_t gid)
 {
-	return sys_setfsgid((gid_t)gid);
+	return sys_setfsgid(low2highgid(gid));
+}
+
+static int groups16_to_user(old_gid_t __user *grouplist,
+    struct group_info *group_info)
+{
+	int i;
+	old_gid_t group;
+
+	for (i = 0; i < group_info->ngroups; i++) {
+		group = high2lowgid(GROUP_AT(group_info, i));
+		if (put_user(group, grouplist+i))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int groups16_from_user(struct group_info *group_info,
+    old_gid_t __user *grouplist)
+{
+	int i;
+	old_gid_t group;
+
+	for (i = 0; i < group_info->ngroups; i++) {
+		if (get_user(group, grouplist+i))
+			return  -EFAULT;
+		GROUP_AT(group_info, i) = low2highgid(group);
+	}
+
+	return 0;
 }
 
 asmlinkage long sys_getgroups16(int gidsetsize, old_gid_t __user *grouplist)
 {
-	old_gid_t groups[NGROUPS];
-	int i,j;
+	int i = 0;
 
 	if (gidsetsize < 0)
 		return -EINVAL;
-	i = current->ngroups;
+
+	get_group_info(current->group_info);
+	i = current->group_info->ngroups;
 	if (gidsetsize) {
-		if (i > gidsetsize)
-			return -EINVAL;
-		for(j=0;j<i;j++)
-			groups[j] = current->groups[j];
-		if (copy_to_user(grouplist, groups, sizeof(old_gid_t)*i))
-			return -EFAULT;
+		if (i > gidsetsize) {
+			i = -EINVAL;
+			goto out;
+		}
+		if (groups16_to_user(grouplist, current->group_info)) {
+			i = -EFAULT;
+			goto out;
+		}
 	}
+out:
+	put_group_info(current->group_info);
 	return i;
 }
 
 asmlinkage long sys_setgroups16(int gidsetsize, old_gid_t __user *grouplist)
 {
-	old_gid_t groups[NGROUPS];
-	gid_t new_groups[NGROUPS];
-	int i;
+	struct group_info *group_info;
+	int retval;
 
 	if (!capable(CAP_SETGID))
 		return -EPERM;
-	if ((unsigned) gidsetsize > NGROUPS)
+	if ((unsigned)gidsetsize > NGROUPS_MAX)
 		return -EINVAL;
-	if (copy_from_user(groups, grouplist, gidsetsize * sizeof(old_gid_t)))
-		return -EFAULT;
-	for (i = 0 ; i < gidsetsize ; i++)
-		new_groups[i] = (gid_t)groups[i];
-	i = security_task_setgroups(gidsetsize, new_groups);
-	if (i)
-		return i;
-	memcpy(current->groups, new_groups, gidsetsize * sizeof(gid_t));
-	current->ngroups = gidsetsize;
-	return 0;
+
+	group_info = groups_alloc(gidsetsize);
+	if (!group_info)
+		return -ENOMEM;
+	retval = groups16_from_user(group_info, grouplist);
+	if (retval) {
+		put_group_info(group_info);
+		return retval;
+	}
+
+	retval = set_current_groups(group_info);
+	put_group_info(group_info);
+
+	return retval;
 }
 
 asmlinkage long sys_getuid16(void)

@@ -28,8 +28,8 @@
  */
 
 #define DRV_NAME		"de2104x"
-#define DRV_VERSION		"0.6"
-#define DRV_RELDATE		"Sep 1, 2003"
+#define DRV_VERSION		"0.7"
+#define DRV_RELDATE		"Mar 17, 2004"
 
 #include <linux/config.h>
 #include <linux/module.h>
@@ -303,7 +303,6 @@ struct de_private {
 	struct net_device_stats net_stats;
 
 	struct pci_dev		*pdev;
-	u32			macmode;
 
 	u16			setup_frame[DE_SETUP_FRAME_WORDS];
 
@@ -356,13 +355,6 @@ static u16 t21040_csr15[] = { 0, 0, 0x0006, 0x0000, 0x0000, };
 static u16 t21041_csr13[] = { 0xEF01, 0xEF09, 0xEF09, 0xEF01, 0xEF09, };
 static u16 t21041_csr14[] = { 0xFFFF, 0xF7FD, 0xF7FD, 0x6F3F, 0x6F3D, };
 static u16 t21041_csr15[] = { 0x0008, 0x0006, 0x000E, 0x0008, 0x0008, };
-
-
-static inline unsigned long
-msec_to_jiffies(unsigned long ms)
-{
-	return (((ms)*HZ+999)/1000);
-}
 
 
 #define dr32(reg)		readl(de->regs + (reg))
@@ -457,9 +449,11 @@ static void de_rx (struct de_private *de)
 					       buflen, PCI_DMA_FROMDEVICE);
 			de->rx_skb[rx_tail].skb = copy_skb;
 		} else {
-			pci_dma_sync_single(de->pdev, mapping, len, PCI_DMA_FROMDEVICE);
+			pci_dma_sync_single_for_cpu(de->pdev, mapping, len, PCI_DMA_FROMDEVICE);
 			skb_reserve(copy_skb, RX_OFFSET);
 			memcpy(skb_put(copy_skb, len), skb->tail, len);
+
+			pci_dma_sync_single_for_device(de->pdev, mapping, len, PCI_DMA_FROMDEVICE);
 
 			/* We'll reuse the original ring buffer. */
 			skb = copy_skb;
@@ -730,7 +724,7 @@ static void __de_set_rx_mode (struct net_device *dev)
 	struct de_desc *txd;
 	struct de_desc *dummy_txd = NULL;
 
-	macmode = de->macmode & ~(AcceptAllMulticast | AcceptAllPhys);
+	macmode = dr32(MacMode) & ~(AcceptAllMulticast | AcceptAllPhys);
 
 	if (dev->flags & IFF_PROMISC) {	/* Set promiscuous. */
 		macmode |= AcceptAllMulticast | AcceptAllPhys;
@@ -803,10 +797,8 @@ static void __de_set_rx_mode (struct net_device *dev)
 	dw32(TxPoll, NormalTxPoll);
 
 out:
-	if (macmode != de->macmode) {
-		dw32 (MacMode, macmode);
-		de->macmode = macmode;
-	}
+	if (macmode != dr32(MacMode))
+		dw32(MacMode, macmode);
 }
 
 static void de_set_rx_mode (struct net_device *dev)
@@ -921,6 +913,7 @@ static void de_link_down(struct de_private *de)
 static void de_set_media (struct de_private *de)
 {
 	unsigned media = de->media_type;
+	u32 macmode = dr32(MacMode);
 
 	if (de_is_running(de))
 		BUG();
@@ -938,9 +931,9 @@ static void de_set_media (struct de_private *de)
 	mdelay(10);
 
 	if (media == DE_MEDIA_TP_FD)
-		de->macmode |= FullDuplex;
+		macmode |= FullDuplex;
 	else
-		de->macmode &= ~FullDuplex;
+		macmode &= ~FullDuplex;
 	
 	if (netif_msg_link(de)) {
 		printk(KERN_INFO "%s: set link %s\n"
@@ -949,9 +942,11 @@ static void de_set_media (struct de_private *de)
 		       de->dev->name, media_name[media],
 		       de->dev->name, dr32(MacMode), dr32(SIAStatus),
 		       dr32(CSR13), dr32(CSR14), dr32(CSR15),
-		       de->dev->name, de->macmode, de->media[media].csr13,
+		       de->dev->name, macmode, de->media[media].csr13,
 		       de->media[media].csr14, de->media[media].csr15);
 	}
+	if (macmode != dr32(MacMode))
+		dw32(MacMode, macmode);
 }
 
 static void de_next_media (struct de_private *de, u32 *media,
@@ -1171,18 +1166,18 @@ static int de_reset_mac (struct de_private *de)
 	u32 status, tmp;
 
 	/*
-	 * Reset MAC.  Copied from de4x5.c.
+	 * Reset MAC.  de4x5.c and tulip.c examined for "advice"
+	 * in this area.
 	 */
 
-	tmp = dr32 (BusMode);
-	if (tmp == 0xffffffff)
-		return -ENODEV;
+	if (dr32(BusMode) == 0xffffffff)
+		return -EBUSY;
+
+	/* Reset the chip, holding bit 0 set at least 50 PCI cycles. */
+	dw32 (BusMode, CmdReset);
 	mdelay (1);
 
-	dw32 (BusMode, tmp | CmdReset);
-	mdelay (1);
-
-	dw32 (BusMode, tmp);
+	dw32 (BusMode, de_bus_mode);
 	mdelay (1);
 
 	for (tmp = 0; tmp < 5; tmp++) {
@@ -1214,7 +1209,7 @@ static void de_adapter_wake (struct de_private *de)
 
 		/* de4x5.c delays, so we do too */
 		current->state = TASK_UNINTERRUPTIBLE;
-		schedule_timeout(msec_to_jiffies(10));
+		schedule_timeout(msecs_to_jiffies(10));
 	}
 }
 
@@ -1233,11 +1228,12 @@ static void de_adapter_sleep (struct de_private *de)
 static int de_init_hw (struct de_private *de)
 {
 	struct net_device *dev = de->dev;
+	u32 macmode;
 	int rc;
 
 	de_adapter_wake(de);
 	
-	de->macmode = dr32(MacMode) & ~MacModeClear;
+	macmode = dr32(MacMode) & ~MacModeClear;
 
 	rc = de_reset_mac(de);
 	if (rc)
@@ -1248,7 +1244,7 @@ static int de_init_hw (struct de_private *de)
 	dw32(RxRingAddr, de->ring_dma);
 	dw32(TxRingAddr, de->ring_dma + (sizeof(struct de_desc) * DE_RX_RING_SIZE));
 
-	dw32(MacMode, RxTx | de->macmode);
+	dw32(MacMode, RxTx | macmode);
 
 	dr32(RxMissed); /* self-clearing */
 
@@ -1499,7 +1495,7 @@ static int __de_get_settings(struct de_private *de, struct ethtool_cmd *ecmd)
 		break;
 	}
 	
-	if (de->macmode & FullDuplex)
+	if (dr32(MacMode) & FullDuplex)
 		ecmd->duplex = DUPLEX_FULL;
 	else
 		ecmd->duplex = DUPLEX_HALF;
@@ -1673,8 +1669,6 @@ static void de_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 {
 	struct de_private *de = dev->priv;
 
-	if (regs->len > DE_REGS_SIZE)
-		regs->len = DE_REGS_SIZE;
 	regs->version = (DE_REGS_VER << 2) | de->de21040;
 
 	spin_lock_irq(&de->lock);
@@ -2084,7 +2078,7 @@ err_out_res:
 err_out_disable:
 	pci_disable_device(pdev);
 err_out_free:
-	kfree(dev);
+	free_netdev(dev);
 	return rc;
 }
 

@@ -151,7 +151,7 @@ static int __init clps_setup_mtd(struct clps_info *clps, int nr, struct mtd_info
 		}
 
 		clps[i].map->virt = (unsigned long)clps[i].vbase;
-		clps[i].map->buswidth = clps[i].width;
+		clps[i].map->bankwidth = clps[i].width;
 		clps[i].map->size = clps[i].size;
 
 		simple_map_init(&clps[i].map);

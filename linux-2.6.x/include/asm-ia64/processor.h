@@ -2,7 +2,7 @@
 #define _ASM_IA64_PROCESSOR_H
 
 /*
- * Copyright (C) 1998-2003 Hewlett-Packard Co
+ * Copyright (C) 1998-2004 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  *	Stephane Eranian <eranian@hpl.hp.com>
  * Copyright (C) 1999 Asit Mallick <asit.k.mallick@intel.com>
@@ -61,7 +61,6 @@
 							/* bit 5 is currently unused */
 #define IA64_THREAD_FPEMU_NOPRINT (__IA64_UL(1) << 6)	/* don't log any fpswa faults */
 #define IA64_THREAD_FPEMU_SIGFPE  (__IA64_UL(1) << 7)	/* send a SIGFPE for fpswa faults */
-#define IA64_THREAD_XSTACK	(__IA64_UL(1) << 8)	/* stack executable by default? */
 
 #define IA64_THREAD_UAC_SHIFT	3
 #define IA64_THREAD_UAC_MASK	(IA64_THREAD_UAC_NOPRINT | IA64_THREAD_UAC_SIGBUS)
@@ -137,20 +136,28 @@ struct ia64_psr {
  * state comes earlier:
  */
 struct cpuinfo_ia64 {
-	/* irq_stat must be 64-bit aligned */
-	union {
-		struct {
-			__u32 irq_count;
-			__u32 bh_count;
-		} f;
-		__u64 irq_and_bh_counts;
-	} irq_stat;
 	__u32 softirq_pending;
 	__u64 itm_delta;	/* # of clock cycles between clock ticks */
 	__u64 itm_next;		/* interval timer mask value to use for next clock tick */
+	__u64 nsec_per_cyc;	/* (1000000000<<IA64_NSEC_PER_CYC_SHIFT)/itc_freq */
+	__u64 unimpl_va_mask;	/* mask of unimplemented virtual address bits (from PAL) */
+	__u64 unimpl_pa_mask;	/* mask of unimplemented physical address bits (from PAL) */
 	__u64 *pgd_quick;
 	__u64 *pmd_quick;
 	__u64 pgtable_cache_sz;
+	__u64 itc_freq;		/* frequency of ITC counter */
+	__u64 proc_freq;	/* frequency of processor */
+	__u64 cyc_per_usec;	/* itc_freq/1000000 */
+	__u64 ptce_base;
+	__u32 ptce_count[2];
+	__u32 ptce_stride[2];
+	struct task_struct *ksoftirqd;	/* kernel softirq daemon for this CPU */
+
+#ifdef CONFIG_SMP
+	__u64 loops_per_jiffy;
+	int cpu;
+#endif
+
 	/* CPUID-derived information: */
 	__u64 ppn;
 	__u64 features;
@@ -160,23 +167,7 @@ struct cpuinfo_ia64 {
 	__u8 family;
 	__u8 archrev;
 	char vendor[16];
-	__u64 itc_freq;		/* frequency of ITC counter */
-	__u64 proc_freq;	/* frequency of processor */
-	__u64 cyc_per_usec;	/* itc_freq/1000000 */
-	__u64 nsec_per_cyc;	/* (1000000000<<IA64_NSEC_PER_CYC_SHIFT)/itc_freq */
-	__u64 unimpl_va_mask;	/* mask of unimplemented virtual address bits (from PAL) */
-	__u64 unimpl_pa_mask;	/* mask of unimplemented physical address bits (from PAL) */
-	__u64 ptce_base;
-	__u32 ptce_count[2];
-	__u32 ptce_stride[2];
-	struct task_struct *ksoftirqd;	/* kernel softirq daemon for this CPU */
-#ifdef CONFIG_SMP
-	int cpu;
-	__u64 loops_per_jiffy;
-	__u64 ipi_count;
-	__u64 prof_counter;
-	__u64 prof_multiplier;
-#endif
+
 #ifdef CONFIG_NUMA
 	struct ia64_node_data *node_data;
 #endif
@@ -238,6 +229,7 @@ struct desc_struct {
 
 #define TLS_SIZE (GDT_ENTRY_TLS_ENTRIES * 8)
 
+struct partial_page_list;
 #endif
 
 struct thread_struct {
@@ -259,6 +251,7 @@ struct thread_struct {
 	__u64 fdr;			/* IA32 fp except. data reg */
 	__u64 old_k1;			/* old value of ar.k1 */
 	__u64 old_iob;			/* old IOBase value */
+	struct partial_page_list *ppl;	/* partial page list for 4K page size issue */
         /* cached TLS descriptors. */
 	struct desc_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
 
@@ -268,7 +261,8 @@ struct thread_struct {
 				.fir =		0,			\
 				.fdr =		0,			\
 				.old_k1 =	0,			\
-				.old_iob =	0,
+				.old_iob =	0,			\
+				.ppl =		0,
 #else
 # define INIT_THREAD_IA32
 #endif /* CONFIG_IA32_SUPPORT */
@@ -289,19 +283,19 @@ struct thread_struct {
 	struct ia64_fpreg fph[96];	/* saved/loaded on demand */
 };
 
-#define INIT_THREAD {				\
-	.flags =	0,			\
-	.on_ustack =	0,			\
-	.ksp =		0,			\
-	.map_base =	DEFAULT_MAP_BASE,	\
-	.rbs_bot =	DEFAULT_USER_STACK_SIZE,	\
-	.task_size =	DEFAULT_TASK_SIZE,	\
-	.last_fph_cpu =  -1,			\
-	INIT_THREAD_IA32			\
-	INIT_THREAD_PM				\
-	.dbr =		{0, },			\
-	.ibr =		{0, },			\
-	.fph =		{{{{0}}}, }		\
+#define INIT_THREAD {						\
+	.flags =	0,					\
+	.on_ustack =	0,					\
+	.ksp =		0,					\
+	.map_base =	DEFAULT_MAP_BASE,			\
+	.rbs_bot =	STACK_TOP - DEFAULT_USER_STACK_SIZE,	\
+	.task_size =	DEFAULT_TASK_SIZE,			\
+	.last_fph_cpu =  -1,					\
+	INIT_THREAD_IA32					\
+	INIT_THREAD_PM						\
+	.dbr =		{0, },					\
+	.ibr =		{0, },					\
+	.fph =		{{{{0}}}, }				\
 }
 
 #define start_thread(regs,new_ip,new_sp) do {							\
@@ -655,24 +649,13 @@ ia64_get_dbr (__u64 regnum)
 	return retval;
 }
 
-/* XXX remove the handcoded version once we have a sufficiently clever compiler... */
-#ifdef SMART_COMPILER
-# define ia64_rotr(w,n)						\
-  ({								\
-	__u64 __ia64_rotr_w = (w), _n = (n);			\
-								\
-	(__ia64_rotr_w >> _n) | (__ia64_rotr_w << (64 - _n));	\
-  })
-#else
-# define ia64_rotr(w,n)					\
-  ({							\
-	__u64 __ia64_rotr_w;				\
-	__ia64_rotr_w = ia64_shrp((w), (w), (n));	\
-	__ia64_rotr_w;					\
-  })
-#endif
+static inline __u64
+ia64_rotr (__u64 w, __u64 n)
+{
+	return (w >> n) | (w << (64 - n));
+}
 
-#define ia64_rotl(w,n)	ia64_rotr((w),(64)-(n))
+#define ia64_rotl(w,n)	ia64_rotr((w), (64) - (n))
 
 /*
  * Take a mapped kernel address and return the equivalent address
@@ -689,7 +672,7 @@ ia64_imva (void *addr)
 #define ARCH_HAS_PREFETCH
 #define ARCH_HAS_PREFETCHW
 #define ARCH_HAS_SPINLOCK_PREFETCH
-#define PREFETCH_STRIDE 256
+#define PREFETCH_STRIDE			L1_CACHE_BYTES
 
 static inline void
 prefetch (const void *x)

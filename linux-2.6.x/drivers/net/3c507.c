@@ -74,10 +74,6 @@ static unsigned int net_debug = NET_DEBUG;
 #define debug net_debug
 
 
-/* A zero-terminated list of common I/O addresses to be probed. */
-static unsigned int netcard_portlist[] __initdata =
-	{ 0x300, 0x320, 0x340, 0x280, 0};
-
 /*
   			Details of the i82586.
 
@@ -286,8 +282,6 @@ static unsigned short init_words[] = {
 
 /* Index to functions, as function prototypes. */
 
-extern int el16_probe(struct net_device *dev);	/* Called from Space.c */
-
 static int	el16_probe1(struct net_device *dev, int ioaddr);
 static int	el16_open(struct net_device *dev);
 static int	el16_send_packet(struct sk_buff *skb, struct net_device *dev);
@@ -301,6 +295,10 @@ static void hardware_send_packet(struct net_device *dev, void *buf, short length
 static void init_82586_mem(struct net_device *dev);
 static struct ethtool_ops netdev_ethtool_ops;
 
+static int io = 0x300;
+static int irq;
+static int mem_start;
+
 
 /* Check for a network adaptor of this type, and return '0' iff one exists.
 	If dev->base_addr == 0, probe all likely locations.
@@ -309,23 +307,50 @@ static struct ethtool_ops netdev_ethtool_ops;
 	device and return success.
 	*/
 
-int __init el16_probe(struct net_device *dev)
+struct net_device * __init el16_probe(int unit)
 {
-	int base_addr = dev->base_addr;
-	int i;
+	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));
+	static unsigned ports[] = { 0x300, 0x320, 0x340, 0x280, 0};
+	unsigned *port;
+	int err = -ENODEV;
+
+	if (!dev)
+		return ERR_PTR(-ENODEV);
+
+	if (unit >= 0) {
+		sprintf(dev->name, "eth%d", unit);
+		netdev_boot_setup_check(dev);
+		io = dev->base_addr;
+		irq = dev->irq;
+		mem_start = dev->mem_start & 15;
+	}
 
 	SET_MODULE_OWNER(dev);
 
-	if (base_addr > 0x1ff)	/* Check a single specified location. */
-		return el16_probe1(dev, base_addr);
-	else if (base_addr != 0)
-		return -ENXIO;		/* Don't probe at all. */
+	if (io > 0x1ff) 	/* Check a single specified location. */
+		err = el16_probe1(dev, io);
+	else if (io != 0)
+		err = -ENXIO;		/* Don't probe at all. */
+	else {
+		for (port = ports; *port; port++) {
+			err = el16_probe1(dev, *port);
+			if (!err)
+				break;
+		}
+	}
 
-	for (i = 0; netcard_portlist[i]; i++)
-		if (el16_probe1(dev, netcard_portlist[i]) == 0)
-			return 0;
-
-	return -ENODEV;
+	if (err)
+		goto out;
+	err = register_netdev(dev);
+	if (err)
+		goto out1;
+	return dev;
+out1:
+	free_irq(dev->irq, dev);
+	release_region(dev->base_addr, EL16_IO_EXTENT);
+out:
+	free_netdev(dev);
+	return ERR_PTR(err);
 }
 
 static int __init el16_probe1(struct net_device *dev, int ioaddr)
@@ -348,7 +373,7 @@ static int __init el16_probe1(struct net_device *dev, int ioaddr)
 		init_ID_done = 1;
 	}
 
-	if (!request_region(ioaddr, EL16_IO_EXTENT, dev->name))
+	if (!request_region(ioaddr, EL16_IO_EXTENT, DRV_NAME))
 		return -ENODEV;
 
 	if ((inb(ioaddr) != '*') || (inb(ioaddr + 1) != '3') || 
@@ -367,7 +392,7 @@ static int __init el16_probe1(struct net_device *dev, int ioaddr)
 
 	irq = inb(ioaddr + IRQ_CONFIG) & 0x0f;
 
-	irqval = request_irq(irq, &el16_interrupt, 0, dev->name, dev);
+	irqval = request_irq(irq, &el16_interrupt, 0, DRV_NAME, dev);
 	if (irqval) {
 		printk ("unable to get IRQ %d (irqval=%d).\n", irq, irqval);
 		retval = -EAGAIN;
@@ -383,8 +408,8 @@ static int __init el16_probe1(struct net_device *dev, int ioaddr)
 		printk(" %02x", dev->dev_addr[i]);
 	}
 
-	if ((dev->mem_start & 0xf) > 0)
-		net_debug = dev->mem_start & 7;
+	if (mem_start)
+		net_debug = mem_start & 7;
 
 #ifdef MEM_BASE
 	dev->mem_start = MEM_BASE;
@@ -416,27 +441,18 @@ static int __init el16_probe1(struct net_device *dev, int ioaddr)
 	if (net_debug)
 		printk(version);
 
-	/* Initialize the device structure. */
-	lp = dev->priv = kmalloc(sizeof(struct net_local), GFP_KERNEL);
-	if (dev->priv == NULL) {
-		retval = -ENOMEM;
-		goto out;
-	}
-	memset(dev->priv, 0, sizeof(struct net_local));
+	lp = netdev_priv(dev);
+ 	memset(lp, 0, sizeof(*lp));
 	spin_lock_init(&lp->lock);
 
-	dev->open		= el16_open;
-	dev->stop		= el16_close;
+ 	dev->open = el16_open;
+ 	dev->stop = el16_close;
 	dev->hard_start_xmit = el16_send_packet;
 	dev->get_stats	= el16_get_stats;
 	dev->tx_timeout = el16_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	dev->ethtool_ops = &netdev_ethtool_ops;
-
-	ether_setup(dev);	/* Generic ethernet behaviour */
-
-	dev->flags&=~IFF_MULTICAST;	/* Multicast doesn't work */
-
+ 	dev->flags &= ~IFF_MULTICAST;	/* Multicast doesn't work */
 	return 0;
 out:
 	release_region(ioaddr, EL16_IO_EXTENT);
@@ -455,7 +471,7 @@ static int el16_open(struct net_device *dev)
 
 static void el16_tx_timeout (struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *) dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
 	unsigned long shmem = dev->mem_start;
 
@@ -485,7 +501,7 @@ static void el16_tx_timeout (struct net_device *dev)
 
 static int el16_send_packet (struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *) dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
 	unsigned long flags;
 	short length = ETH_ZLEN < skb->len ? skb->len : ETH_ZLEN;
@@ -530,7 +546,7 @@ static irqreturn_t el16_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	}
 
 	ioaddr = dev->base_addr;
-	lp = (struct net_local *)dev->priv;
+	lp = netdev_priv(dev);
 	shmem = dev->mem_start;
 
 	spin_lock(&lp->lock);
@@ -644,7 +660,7 @@ static int el16_close(struct net_device *dev)
    closed. */
 static struct net_device_stats *el16_get_stats(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 
 	/* ToDo: decide if there are any useful statistics from the SCB. */
 
@@ -654,7 +670,7 @@ static struct net_device_stats *el16_get_stats(struct net_device *dev)
 /* Initialize the Rx-block list. */
 static void init_rx_bufs(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	unsigned long write_ptr;
 	unsigned short SCB_base = SCB_BASE;
 
@@ -697,7 +713,7 @@ static void init_rx_bufs(struct net_device *dev)
 
 static void init_82586_mem(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	short ioaddr = dev->base_addr;
 	unsigned long shmem = dev->mem_start;
 
@@ -755,7 +771,7 @@ static void init_82586_mem(struct net_device *dev)
 
 static void hardware_send_packet(struct net_device *dev, void *buf, short length, short pad)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	short ioaddr = dev->base_addr;
 	ushort tx_block = lp->tx_head;
 	unsigned long write_ptr = dev->mem_start + tx_block;
@@ -804,7 +820,7 @@ static void hardware_send_packet(struct net_device *dev, void *buf, short length
 
 static void el16_rx(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *)dev->priv;
+	struct net_local *lp = netdev_priv(dev);
 	unsigned long shmem = dev->mem_start;
 	ushort rx_head = lp->rx_head;
 	ushort rx_tail = lp->rx_tail;
@@ -899,9 +915,7 @@ static struct ethtool_ops netdev_ethtool_ops = {
 };
 
 #ifdef MODULE
-static struct net_device dev_3c507;
-static int io = 0x300;
-static int irq;
+static struct net_device *dev_3c507;
 MODULE_PARM(io, "i");
 MODULE_PARM(irq, "i");
 MODULE_PARM_DESC(io, "EtherLink16 I/O base address");
@@ -911,26 +925,18 @@ int init_module(void)
 {
 	if (io == 0)
 		printk("3c507: You should not use auto-probing with insmod!\n");
-	dev_3c507.base_addr = io;
-	dev_3c507.irq       = irq;
-	dev_3c507.init	    = el16_probe;
-	if (register_netdev(&dev_3c507) != 0) {
-		printk("3c507: register_netdev() returned non-zero.\n");
-		return -EIO;
-	}
-	return 0;
+	dev_3c507 = el16_probe(-1);
+	return IS_ERR(dev_3c507) ? PTR_ERR(dev_3c507) : 0;
 }
 
 void
 cleanup_module(void)
 {
-	unregister_netdev(&dev_3c507);
-	kfree(dev_3c507.priv);
-	dev_3c507.priv = NULL;
-
-	/* If we don't do this, we can't re-insmod it later. */
-	free_irq(dev_3c507.irq, &dev_3c507);
-	release_region(dev_3c507.base_addr, EL16_IO_EXTENT);
+	struct net_device *dev = dev_3c507;
+	unregister_netdev(dev);
+	free_irq(dev->irq, dev);
+	release_region(dev->base_addr, EL16_IO_EXTENT);
+	free_netdev(dev);
 }
 #endif /* MODULE */
 MODULE_LICENSE("GPL");

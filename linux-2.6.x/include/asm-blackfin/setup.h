@@ -14,12 +14,14 @@
 
 #include <linux/config.h>
 
+#undef COMMAND_LINE_SIZE
+#define COMMAND_LINE_SIZE	512
 
 /*
  *  Linux/bfin Architectures
  */
 
-#define MACH_NISA    1
+#define MACH_BFIN    1
 
 #ifdef __KERNEL__
 
@@ -27,8 +29,8 @@
 extern unsigned long bfin_machtype;
 #endif /* !__ASSEMBLY__ */
 
-#if defined(CONFIG_NISA)
-#define MACH_IS_NISA (bfin_machtype == MACH_NISA)
+#if defined(CONFIG_BFIN)
+#define MACH_IS_BFIN (bfin_machtype == MACH_BFIN)
 #endif
 
 #ifndef MACH_TYPE

@@ -85,6 +85,22 @@ void capi_ctr_resume_output(struct capi_ctr * card);
 void capi_ctr_handle_message(struct capi_ctr * card, u16 appl, struct sk_buff *skb);
 
 // ---------------------------------------------------------------------------
+// needed for AVM capi drivers
+
+struct capi_driver {
+	char name[32];				/* driver name */
+	char revision[32];
+
+	int (*add_card)(struct capi_driver *driver, capicardparams *data);
+
+	/* management information for kcapi */
+	struct list_head list; 
+};
+
+void register_capi_driver(struct capi_driver *driver);
+void unregister_capi_driver(struct capi_driver *driver);
+
+// ---------------------------------------------------------------------------
 // library functions for use by hardware controller drivers
 
 void capilib_new_ncci(struct list_head *head, u16 applid, u32 ncci, u32 winsize);

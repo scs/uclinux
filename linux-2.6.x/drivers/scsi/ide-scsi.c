@@ -51,7 +51,7 @@
 #include <asm/uaccess.h>
 
 #include "scsi.h"
-#include "hosts.h"
+#include <scsi/scsi_host.h>
 #include <scsi/sg.h>
 
 #define IDESCSI_DEBUG_LOG		0
@@ -78,6 +78,7 @@ typedef struct idescsi_pc_s {
 #define PC_DMA_IN_PROGRESS		0	/* 1 while DMA in progress */
 #define PC_WRITING			1	/* Data direction */
 #define PC_TRANSFORM			2	/* transform SCSI commands */
+#define PC_TIMEDOUT			3	/* command timed out */
 #define PC_DMA_OK			4	/* Use DMA */
 
 /*
@@ -145,7 +146,7 @@ static void idescsi_input_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsigne
 			idescsi_discard_data (drive, bcount);
 			return;
 		}
-		count = IDE_MIN (pc->sg->length - pc->b_count, bcount);
+		count = min(pc->sg->length - pc->b_count, bcount);
 		buf = page_address(pc->sg->page) + pc->sg->offset;
 		atapi_input_bytes (drive, buf + pc->b_count, count);
 		bcount -= count; pc->b_count += count;
@@ -167,7 +168,7 @@ static void idescsi_output_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsign
 			idescsi_output_zeros (drive, bcount);
 			return;
 		}
-		count = IDE_MIN (pc->sg->length - pc->b_count, bcount);
+		count = min(pc->sg->length - pc->b_count, bcount);
 		buf = page_address(pc->sg->page) + pc->sg->offset;
 		atapi_output_bytes (drive, buf + pc->b_count, count);
 		bcount -= count; pc->b_count += count;
@@ -307,6 +308,55 @@ static int idescsi_check_condition(ide_drive_t *drive, struct request *failed_co
 	return ide_do_drive_cmd(drive, rq, ide_preempt);
 }
 
+ide_startstop_t idescsi_atapi_error (ide_drive_t *drive, const char *msg, byte stat)
+{
+	struct request *rq;
+	byte err;
+
+	err = ide_dump_atapi_status(drive, msg, stat);
+
+	if (drive == NULL || (rq = HWGROUP(drive)->rq) == NULL)
+		return ide_stopped;
+
+	/* retry only "normal" I/O: */
+	if (rq->flags & (REQ_DRIVE_CMD | REQ_DRIVE_TASK | REQ_DRIVE_TASKFILE)) {
+		rq->errors = 1;
+		ide_end_drive_cmd(drive, stat, err);
+		return ide_stopped;
+	}
+
+	if (HWIF(drive)->INB(IDE_STATUS_REG) & (BUSY_STAT|DRQ_STAT))
+		/* force an abort */
+		HWIF(drive)->OUTB(WIN_IDLEIMMEDIATE,IDE_COMMAND_REG);
+
+	rq->errors++;
+	DRIVER(drive)->end_request(drive, 0, 0);
+	return ide_stopped;
+}
+
+ide_startstop_t idescsi_atapi_abort (ide_drive_t *drive, const char *msg)
+{
+	struct request *rq;
+
+	if (drive == NULL || (rq = HWGROUP(drive)->rq) == NULL)
+	       return ide_stopped;
+
+	/* retry only "normal" I/O: */
+	if (rq->flags & (REQ_DRIVE_CMD | REQ_DRIVE_TASK | REQ_DRIVE_TASKFILE)) {
+		rq->errors = 1;
+		ide_end_drive_cmd(drive, BUSY_STAT, 0);
+		return ide_stopped;
+	}
+
+#if IDESCSI_DEBUG_LOG
+	printk(KERN_WARNING "idescsi_atapi_abort called for %lu\n",
+			((idescsi_pc_t *) rq->special)->scsi_cmd->serial_number);
+#endif
+	rq->errors |= ERROR_MAX;
+	DRIVER(drive)->end_request(drive, 0, 0);
+	return ide_stopped;
+}
+
 static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 {
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
@@ -334,7 +384,13 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 		kfree(rq);
 		pc = opc;
 		rq = pc->rq;
-		pc->scsi_cmd->result = (CHECK_CONDITION << 1) | (DID_OK << 16);
+		pc->scsi_cmd->result = (CHECK_CONDITION << 1) |
+					((test_bit(PC_TIMEDOUT, &pc->flags)?DID_TIME_OUT:DID_OK) << 16);
+	} else if (test_bit(PC_TIMEDOUT, &pc->flags)) {
+		if (log)
+			printk (KERN_WARNING "ide-scsi: %s: timed out for %lu\n",
+					drive->name, pc->scsi_cmd->serial_number);
+		pc->scsi_cmd->result = DID_TIME_OUT << 16;
 	} else if (rq->errors >= ERROR_MAX) {
 		pc->scsi_cmd->result = DID_ERROR << 16;
 		if (log)
@@ -354,7 +410,7 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 			if (!test_bit(PC_WRITING, &pc->flags) && pc->actually_transferred && pc->actually_transferred <= 1024 && pc->buffer) {
 				printk(", rst = ");
 				scsi_buf = pc->scsi_cmd->request_buffer;
-				hexdump(scsi_buf, IDE_MIN(16, pc->scsi_cmd->request_bufflen));
+				hexdump(scsi_buf, min_t(unsigned, 16, pc->scsi_cmd->request_bufflen));
 			} else printk("\n");
 		}
 	}
@@ -371,7 +427,20 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 
 static inline unsigned long get_timeout(idescsi_pc_t *pc)
 {
-	return IDE_MAX(WAIT_CMD, pc->timeout - jiffies);
+	return max_t(unsigned long, WAIT_CMD, pc->timeout - jiffies);
+}
+
+static int idescsi_expiry(ide_drive_t *drive)
+{
+	idescsi_scsi_t *scsi = drive->driver_data;
+	idescsi_pc_t   *pc   = scsi->pc;
+
+#if IDESCSI_DEBUG_LOG
+	printk(KERN_WARNING "idescsi_expiry called for %lu at %lu\n", pc->scsi_cmd->serial_number, jiffies);
+#endif
+	set_bit(PC_TIMEDOUT, &pc->flags);
+
+	return 0;					/* we do not want the ide subsystem to retry */
 }
 
 /*
@@ -393,6 +462,15 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	printk (KERN_INFO "ide-scsi: Reached idescsi_pc_intr interrupt handler\n");
 #endif /* IDESCSI_DEBUG_LOG */
 
+	if (test_bit(PC_TIMEDOUT, &pc->flags)){
+#if IDESCSI_DEBUG_LOG
+		printk(KERN_WARNING "idescsi_pc_intr: got timed out packet  %lu at %lu\n",
+				pc->scsi_cmd->serial_number, jiffies);
+#endif
+		/* end this request now - scsi should retry it*/
+		idescsi_end_request (drive, 1, 0);
+		return ide_stopped;
+	}
 	if (test_and_clear_bit (PC_DMA_IN_PROGRESS, &pc->flags)) {
 #if IDESCSI_DEBUG_LOG
 		printk ("ide-scsi: %s: DMA complete\n", drive->name);
@@ -442,7 +520,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 				pc->actually_transferred += temp;
 				pc->current_position += temp;
 				idescsi_discard_data(drive, bcount.all - temp);
-				ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), NULL);
+				ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
 				return ide_started;
 			}
 #if IDESCSI_DEBUG_LOG
@@ -467,7 +545,8 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	pc->actually_transferred += bcount.all;
 	pc->current_position += bcount.all;
 
-	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), NULL);	/* And set the interrupt handler again */
+	/* And set the interrupt handler again */
+	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
 	return ide_started;
 }
 
@@ -492,7 +571,7 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 	if (HWGROUP(drive)->handler != NULL)
 		BUG();
 	/* Set the interrupt routine */
-	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), NULL);
+	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
 	/* Send the actual packet */
 	atapi_output_bytes(drive, scsi->pc->c, 12);
 	if (test_bit (PC_DMA_OK, &pc->flags)) {
@@ -515,7 +594,7 @@ static ide_startstop_t idescsi_issue_pc (ide_drive_t *drive, idescsi_pc_t *pc)
 	scsi->pc=pc;							/* Set the current packet command */
 	pc->actually_transferred=0;					/* We haven't transferred any data yet */
 	pc->current_position=pc->buffer;
-	bcount.all = IDE_MIN(pc->request_transfer, 63 * 1024);		/* Request to transfer the entire buffer at once */
+	bcount.all = min(pc->request_transfer, 63 * 1024);		/* Request to transfer the entire buffer at once */
 
 	feature.all = 0;
 	if (drive->using_dma && rq->bio) {
@@ -540,7 +619,7 @@ static ide_startstop_t idescsi_issue_pc (ide_drive_t *drive, idescsi_pc_t *pc)
 		if (HWGROUP(drive)->handler != NULL)
 			BUG();
 		ide_set_handler(drive, &idescsi_transfer_pc,
-				get_timeout(pc), NULL);
+				get_timeout(pc), idescsi_expiry);
 		/* Issue the packet command */
 		HWIF(drive)->OUTB(WIN_PACKETCMD, IDE_COMMAND_REG);
 		return ide_started;
@@ -633,6 +712,8 @@ static ide_driver_t idescsi_driver = {
 	.cleanup		= idescsi_cleanup,
 	.do_request		= idescsi_do_request,
 	.end_request		= idescsi_end_request,
+	.error                  = idescsi_atapi_error,
+	.abort                  = idescsi_atapi_abort,
 	.drives			= LIST_HEAD_INIT(idescsi_driver.drives),
 };
 
@@ -654,7 +735,7 @@ static int idescsi_ide_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	struct block_device *bdev = inode->i_bdev;
-	return generic_ide_ioctl(bdev, cmd, arg);
+	return generic_ide_ioctl(file, bdev, cmd, arg);
 }
 
 static struct block_device_operations idescsi_ops = {
@@ -678,7 +759,7 @@ static const char *idescsi_info (struct Scsi_Host *host)
 	return "SCSI host adapter emulation for IDE ATAPI devices";
 }
 
-static int idescsi_ioctl (Scsi_Device *dev, int cmd, void *arg)
+static int idescsi_ioctl (Scsi_Device *dev, int cmd, void __user *arg)
 {
 	idescsi_scsi_t *scsi = scsihost_to_idescsi(dev->host);
 
@@ -689,7 +770,7 @@ static int idescsi_ioctl (Scsi_Device *dev, int cmd, void *arg)
 			clear_bit(IDESCSI_SG_TRANSFORM, &scsi->transform);
 		return 0;
 	} else if (cmd == SG_GET_TRANSFORM)
-		return put_user(test_bit(IDESCSI_SG_TRANSFORM, &scsi->transform), (int *) arg);
+		return put_user(test_bit(IDESCSI_SG_TRANSFORM, &scsi->transform), (int __user *) arg);
 	return -EINVAL;
 }
 
@@ -852,66 +933,132 @@ abort:
 	return 1;
 }
 
-static int idescsi_abort (Scsi_Cmnd *cmd)
+static int idescsi_eh_abort (Scsi_Cmnd *cmd)
 {
-	int countdown = 8;
-	unsigned long flags;
-	idescsi_scsi_t *scsi = scsihost_to_idescsi(cmd->device->host);
-	ide_drive_t *drive = scsi->drive;
+	idescsi_scsi_t *scsi  = scsihost_to_idescsi(cmd->device->host);
+	ide_drive_t    *drive = scsi->drive;
+	int		busy;
+	int             ret   = FAILED;
 
-	printk (KERN_ERR "ide-scsi: abort called for %lu\n", cmd->serial_number);
-	while (countdown--) {
-		/* is cmd active?
-		 *  need to lock so this stuff doesn't change under us */
-		spin_lock_irqsave(&ide_lock, flags);
-		if (scsi->pc && scsi->pc->scsi_cmd && 
-				scsi->pc->scsi_cmd->serial_number == cmd->serial_number) {
-			/* yep - let's give it some more time - 
-			 * we can do that, we're in _our_ error kernel thread */
-			spin_unlock_irqrestore(&ide_lock, flags);
-			scsi_sleep(HZ);
-			continue;
-		}
-		/* no, but is it queued in the ide subsystem? */
-		if (elv_queue_empty(drive->queue)) {
-			spin_unlock_irqrestore(&ide_lock, flags);
-			return SUCCESS;
-		}
-		spin_unlock_irqrestore(&ide_lock, flags);
-		schedule_timeout(HZ/10);
+	/* In idescsi_eh_abort we try to gently pry our command from the ide subsystem */
+
+	if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
+		printk (KERN_WARNING "ide-scsi: abort called for %lu\n", cmd->serial_number);
+
+	if (!drive) {
+		printk (KERN_WARNING "ide-scsi: Drive not set in idescsi_eh_abort\n");
+		WARN_ON(1);
+		goto no_drive;
 	}
-	return FAILED;
+
+	/* First give it some more time, how much is "right" is hard to say :-( */
+
+	busy = ide_wait_not_busy(HWIF(drive), 100);	/* FIXME - uses mdelay which causes latency? */
+	if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
+		printk (KERN_WARNING "ide-scsi: drive did%s become ready\n", busy?" not":"");
+
+	spin_lock_irq(&ide_lock);
+
+	/* If there is no pc running we're done (our interrupt took care of it) */
+	if (!scsi->pc) {
+		ret = SUCCESS;
+		goto ide_unlock;
+	}
+
+	/* It's somewhere in flight. Does ide subsystem agree? */
+	if (scsi->pc->scsi_cmd->serial_number == cmd->serial_number && !busy &&
+	    elv_queue_empty(drive->queue) && HWGROUP(drive)->rq != scsi->pc->rq) {
+		/*
+		 * FIXME - not sure this condition can ever occur
+		 */
+		printk (KERN_ERR "ide-scsi: cmd aborted!\n");
+
+		idescsi_free_bio(scsi->pc->rq->bio);
+		if (scsi->pc->rq->flags & REQ_SENSE)
+			kfree(scsi->pc->buffer);
+		kfree(scsi->pc->rq);
+		kfree(scsi->pc);
+		scsi->pc = NULL;
+
+		ret = SUCCESS;
+	}
+
+ide_unlock:
+	spin_unlock_irq(&ide_lock);
+no_drive:
+	if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
+		printk (KERN_WARNING "ide-scsi: abort returns %s\n", ret == SUCCESS?"success":"failed");
+
+	return ret;
 }
 
-static int idescsi_reset (Scsi_Cmnd *cmd)
+static int idescsi_eh_reset (Scsi_Cmnd *cmd)
 {
-	unsigned long flags;
 	struct request *req;
-	idescsi_scsi_t *idescsi = scsihost_to_idescsi(cmd->device->host);
-	ide_drive_t *drive = idescsi->drive;
+	idescsi_scsi_t *scsi  = scsihost_to_idescsi(cmd->device->host);
+	ide_drive_t    *drive = scsi->drive;
+	int             ready = 0;
+	int             ret   = SUCCESS;
 
-	printk (KERN_ERR "ide-scsi: reset called for %lu\n", cmd->serial_number);
-	/* first null the handler for the drive and let any process
-	 * doing IO (on another CPU) run to (partial) completion
-	 * the lock prevents processing new requests */
-	spin_lock_irqsave(&ide_lock, flags);
-	while (HWGROUP(drive)->handler) {
-		HWGROUP(drive)->handler = NULL;
-		schedule_timeout(1);
+	/* In idescsi_eh_reset we forcefully remove the command from the ide subsystem and reset the device. */
+
+	if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
+		printk (KERN_WARNING "ide-scsi: reset called for %lu\n", cmd->serial_number);
+
+	if (!drive) {
+		printk (KERN_WARNING "ide-scsi: Drive not set in idescsi_eh_reset\n");
+		WARN_ON(1);
+		return FAILED;
 	}
+
+	spin_lock_irq(&ide_lock);
+
+	if (!scsi->pc || (req = scsi->pc->rq) != HWGROUP(drive)->rq || !HWGROUP(drive)->handler) {
+		printk (KERN_WARNING "ide-scsi: No active request in idescsi_eh_reset\n");
+		spin_unlock(&ide_lock);
+		return FAILED;
+	}
+
+	/* kill current request */
+	blkdev_dequeue_request(req);
+	end_that_request_last(req);
+	idescsi_free_bio(req->bio);
+	if (req->flags & REQ_SENSE)
+		kfree(scsi->pc->buffer);
+	kfree(scsi->pc);
+	scsi->pc = NULL;
+	kfree(req);
+
 	/* now nuke the drive queue */
 	while ((req = elv_next_request(drive->queue))) {
 		blkdev_dequeue_request(req);
 		end_that_request_last(req);
 	}
-	/* FIXME - this will probably leak memory */
+
 	HWGROUP(drive)->rq = NULL;
-	if (drive_to_idescsi(drive))
-		drive_to_idescsi(drive)->pc = NULL;
-	spin_unlock_irqrestore(&ide_lock, flags);
-	/* finally, reset the drive (and its partner on the bus...) */
-	ide_do_reset (drive);	
-	return SUCCESS;
+	HWGROUP(drive)->handler = NULL;
+	HWGROUP(drive)->busy = 1;		/* will set this to zero when ide reset finished */
+	spin_unlock_irq(&ide_lock);
+
+	ide_do_reset(drive);
+
+	/* ide_do_reset starts a polling handler which restarts itself every 50ms until the reset finishes */
+
+	do {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		spin_unlock_irq(cmd->device->host->host_lock);
+		schedule_timeout(HZ/20);
+		spin_lock_irq(cmd->device->host->host_lock);
+	} while ( HWGROUP(drive)->handler );
+
+	ready = drive_is_ready(drive);
+	HWGROUP(drive)->busy--;
+	if (!ready) {
+		printk (KERN_ERR "ide-scsi: reset failed!\n");
+		ret = FAILED;
+	}
+
+	return ret;
 }
 
 static int idescsi_bios(struct scsi_device *sdev, struct block_device *bdev,
@@ -935,8 +1082,8 @@ static Scsi_Host_Template idescsi_template = {
 	.slave_configure        = idescsi_slave_configure,
 	.ioctl			= idescsi_ioctl,
 	.queuecommand		= idescsi_queue,
-	.eh_abort_handler	= idescsi_abort,
-	.eh_device_reset_handler = idescsi_reset,
+	.eh_abort_handler	= idescsi_eh_abort,
+	.eh_host_reset_handler  = idescsi_eh_reset,
 	.bios_param		= idescsi_bios,
 	.can_queue		= 40,
 	.this_id		= -1,
@@ -967,12 +1114,20 @@ static int idescsi_attach(ide_drive_t *drive)
 		return 1;
 
 	host->max_id = 1;
-	host->max_lun = 1;
+
+#if IDESCSI_DEBUG_LOG
+	if (drive->id->last_lun)
+		printk(KERN_NOTICE "%s: id->last_lun=%u\n", drive->name, drive->id->last_lun);
+#endif
+	if ((drive->id->last_lun & 0x7) != 7)
+		host->max_lun = (drive->id->last_lun & 0x7) + 1;
+	else
+		host->max_lun = 1;
+
 	drive->driver_data = host;
 	idescsi = scsihost_to_idescsi(host);
 	idescsi->drive = drive;
-	err = ide_register_subdriver (drive, &idescsi_driver,
-				      IDE_SUBDRIVER_VERSION);
+	err = ide_register_subdriver(drive, &idescsi_driver);
 	if (!err) {
 		idescsi_setup (drive, idescsi);
 		drive->disk->fops = &idescsi_ops;

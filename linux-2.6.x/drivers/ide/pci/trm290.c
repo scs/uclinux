@@ -3,6 +3,10 @@
  *
  *  Copyright (c) 1997-1998  Mark Lord
  *  May be copied or modified under the terms of the GNU General Public License
+ *
+ *  June 22, 2004 - get rid of check_region
+ *                  Jesper Juhl <juhl-lkml@dif.dk>
+ *
  */
 
 /*
@@ -140,8 +144,6 @@
 
 #include <asm/io.h>
 
-#include "trm290.h"
-
 static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 {
 	ide_hwif_t *hwif = HWIF(drive);
@@ -225,7 +227,7 @@ static int trm290_ide_dma_write (ide_drive_t *drive /*, struct request *rq */)
 #endif
 	/* issue cmd to drive */
 	hwif->OUTB(command, IDE_COMMAND_REG);
-	return HWIF(drive)->ide_dma_count(drive);
+	return hwif->ide_dma_begin(drive);
 }
 
 static int trm290_ide_dma_read (ide_drive_t *drive  /*, struct request *rq */)
@@ -269,7 +271,7 @@ static int trm290_ide_dma_read (ide_drive_t *drive  /*, struct request *rq */)
 #endif
 	/* issue cmd to drive */
 	hwif->OUTB(command, IDE_COMMAND_REG);
-	return HWIF(drive)->ide_dma_count(drive);
+	return hwif->ide_dma_begin(drive);
 }
 
 static int trm290_ide_dma_begin (ide_drive_t *drive)
@@ -280,7 +282,7 @@ static int trm290_ide_dma_begin (ide_drive_t *drive)
 static int trm290_ide_dma_end (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	u16 status = 0;;
+	u16 status = 0;
 
 	drive->waiting_for_dma = 0;
 	/* purge DMA mappings */
@@ -302,7 +304,7 @@ static int trm290_ide_dma_test_irq (ide_drive_t *drive)
 /*
  * Invoked from ide-dma.c at boot time.
  */
-void __init init_hwif_trm290 (ide_hwif_t *hwif)
+void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 {
 	unsigned int cfgbase = 0;
 	unsigned long flags;
@@ -374,16 +376,6 @@ void __init init_hwif_trm290 (ide_hwif_t *hwif)
 		if (old != compat && old_mask == 0xff) {
 			/* leave lower 10 bits untouched */
 			compat += (next_offset += 0x400);
-#  if 1
-			if (check_region(compat + 2, 1))
-				printk(KERN_ERR "%s: check_region failure at 0x%04x\n",
-					hwif->name, (compat + 2));
-			/*
-			 * The region check is not needed; however.........
-			 * Since this is the checked in ide-probe.c,
-			 * this is only an assignment.
-			 */
-#  endif
 			hwif->io_ports[IDE_CONTROL_OFFSET] = compat + 2;
 			hwif->OUTW(compat|1, hwif->config_data);
 			new = hwif->INW(hwif->config_data);
@@ -395,15 +387,17 @@ void __init init_hwif_trm290 (ide_hwif_t *hwif)
 #endif
 }
 
-extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
+static ide_pci_device_t trm290_chipset __devinitdata = {
+	.name		= "TRM290",
+	.init_hwif	= init_hwif_trm290,
+	.channels	= 2,
+	.autodma	= NOAUTODMA,
+	.bootable	= ON_BOARD,
+};
 
 static int __devinit trm290_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &trm290_chipsets[id->driver_data];
-	if (dev->device != d->device)
-		BUG();
-	ide_setup_pci_device(dev, d);
-	MOD_INC_USE_COUNT;
+	ide_setup_pci_device(dev, &trm290_chipset);
 	return 0;
 }
 
@@ -411,6 +405,7 @@ static struct pci_device_id trm290_pci_tbl[] = {
 	{ PCI_VENDOR_ID_TEKRAM, PCI_DEVICE_ID_TEKRAM_DC290, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, trm290_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "TRM290 IDE",
@@ -423,13 +418,7 @@ static int trm290_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
-static void trm290_ide_exit(void)
-{
-	ide_pci_unregister_driver(&driver);
-}
-
 module_init(trm290_ide_init);
-module_exit(trm290_ide_exit);
 
 MODULE_AUTHOR("Mark Lord");
 MODULE_DESCRIPTION("PCI driver module for Tekram TRM290 IDE");

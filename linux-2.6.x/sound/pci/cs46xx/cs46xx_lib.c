@@ -66,6 +66,8 @@
 #include "cs46xx_lib.h"
 #include "dsp_spos.h"
 
+static void amp_voyetra(cs46xx_t *chip, int change);
+
 static unsigned short snd_cs46xx_codec_read(cs46xx_t *chip,
 					    unsigned short reg,
 					    int codec_index)
@@ -203,6 +205,13 @@ static unsigned short snd_cs46xx_ac97_read(ac97_t * ac97,
 	chip->active_ctrl(chip, 1);
 	val = snd_cs46xx_codec_read(chip, reg, codec_index);
 	chip->active_ctrl(chip, -1);
+
+	/* HACK: voyetra uses EAPD bit in the reverse way.
+	 * we flip the bit to show the mixer status correctly
+	 */
+	if (reg == AC97_POWERDOWN && chip->amplifier_ctrl == amp_voyetra)
+		val ^= 0x8000;
+
 	return val;
 }
 
@@ -283,6 +292,12 @@ static void snd_cs46xx_ac97_write(ac97_t *ac97,
 		codec_index = CS46XX_SECONDARY_CODEC_INDEX;
 	else
 		snd_assert(0,return);
+
+	/* HACK: voyetra uses EAPD bit in the reverse way.
+	 * we flip the bit to show the mixer status correctly
+	 */
+	if (reg == AC97_POWERDOWN && chip->amplifier_ctrl == amp_voyetra)
+		val ^= 0x8000;
 
 	chip->active_ctrl(chip, 1);
 	snd_cs46xx_codec_write(chip, reg, val, codec_index);
@@ -699,7 +714,7 @@ static int snd_cs46xx_playback_transfer(snd_pcm_substream_t *substream)
 			bytes = hw_to_end;
 		if (sw_to_end < bytes)
 			bytes = sw_to_end;
-		memcpy(cpcm->hw_area + cpcm->hw_data,
+		memcpy(cpcm->hw_buf.area + cpcm->hw_data,
 		       runtime->dma_area + cpcm->sw_data,
 		       bytes);
 		cpcm->hw_data += bytes;
@@ -740,7 +755,7 @@ static int snd_cs46xx_capture_transfer(snd_pcm_substream_t *substream)
 		if (sw_to_end < bytes)
 			bytes = sw_to_end;
 		memcpy(runtime->dma_area + chip->capt.sw_data,
-		       chip->capt.hw_area + chip->capt.hw_data,
+		       chip->capt.hw_buf.area + chip->capt.hw_data,
 		       bytes);
 		chip->capt.hw_data += bytes;
 		if ((int)chip->capt.hw_data == buffer_size)
@@ -766,7 +781,7 @@ static snd_pcm_uframes_t snd_cs46xx_playback_direct_pointer(snd_pcm_substream_t 
 #else
 	ptr = snd_cs46xx_peek(chip, BA1_PBA);
 #endif
-	ptr -= cpcm->hw_addr;
+	ptr -= cpcm->hw_buf.addr;
 	return ptr >> cpcm->shift;
 }
 
@@ -784,7 +799,7 @@ static snd_pcm_uframes_t snd_cs46xx_playback_indirect_pointer(snd_pcm_substream_
 #else
 	ptr = snd_cs46xx_peek(chip, BA1_PBA);
 #endif
-	ptr -= cpcm->hw_addr;
+	ptr -= cpcm->hw_buf.addr;
 
 	bytes = ptr - cpcm->hw_io;
 
@@ -802,14 +817,14 @@ static snd_pcm_uframes_t snd_cs46xx_playback_indirect_pointer(snd_pcm_substream_
 static snd_pcm_uframes_t snd_cs46xx_capture_direct_pointer(snd_pcm_substream_t * substream)
 {
 	cs46xx_t *chip = snd_pcm_substream_chip(substream);
-	size_t ptr = snd_cs46xx_peek(chip, BA1_CBA) - chip->capt.hw_addr;
+	size_t ptr = snd_cs46xx_peek(chip, BA1_CBA) - chip->capt.hw_buf.addr;
 	return ptr >> chip->capt.shift;
 }
 
 static snd_pcm_uframes_t snd_cs46xx_capture_indirect_pointer(snd_pcm_substream_t * substream)
 {
 	cs46xx_t *chip = snd_pcm_substream_chip(substream);
-	size_t ptr = snd_cs46xx_peek(chip, BA1_CBA) - chip->capt.hw_addr;
+	size_t ptr = snd_cs46xx_peek(chip, BA1_CBA) - chip->capt.hw_buf.addr;
 	ssize_t bytes = ptr - chip->capt.hw_io;
 	int buffer_size = substream->runtime->period_size * CS46XX_FRAGS << chip->capt.shift;
 
@@ -933,7 +948,7 @@ static int _cs46xx_adjust_sample_rate (cs46xx_t *chip, cs46xx_pcm_t *cpcm,
 	/* If PCMReaderSCB and SrcTaskSCB not created yet ... */
 	if ( cpcm->pcm_channel == NULL) {
 		cpcm->pcm_channel = cs46xx_dsp_create_pcm_channel (chip, sample_rate, 
-								   cpcm, cpcm->hw_addr,cpcm->pcm_channel_id);
+								   cpcm, cpcm->hw_buf.addr,cpcm->pcm_channel_id);
 		if (cpcm->pcm_channel == NULL) {
 			snd_printk(KERN_ERR "cs46xx: failed to create virtual PCM channel\n");
 			return -ENOMEM;
@@ -946,7 +961,7 @@ static int _cs46xx_adjust_sample_rate (cs46xx_t *chip, cs46xx_pcm_t *cpcm,
 		cs46xx_dsp_destroy_pcm_channel (chip,cpcm->pcm_channel);
 
 		if ( (cpcm->pcm_channel = cs46xx_dsp_create_pcm_channel (chip, sample_rate, cpcm, 
-									 cpcm->hw_addr,
+									 cpcm->hw_buf.addr,
 									 cpcm->pcm_channel_id)) == NULL) {
 			snd_printk(KERN_ERR "cs46xx: failed to re-create virtual PCM channel\n");
 			return -ENOMEM;
@@ -1002,11 +1017,11 @@ static int snd_cs46xx_playback_hw_params(snd_pcm_substream_t * substream,
 #endif
 
 	if (params_periods(hw_params) == CS46XX_FRAGS) {
-		if (runtime->dma_area != cpcm->hw_area)
+		if (runtime->dma_area != cpcm->hw_buf.area)
 			snd_pcm_lib_free_pages(substream);
-		runtime->dma_area = cpcm->hw_area;
-		runtime->dma_addr = cpcm->hw_addr;
-		runtime->dma_bytes = cpcm->hw_size;
+		runtime->dma_area = cpcm->hw_buf.area;
+		runtime->dma_addr = cpcm->hw_buf.addr;
+		runtime->dma_bytes = cpcm->hw_buf.bytes;
 
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
@@ -1026,7 +1041,7 @@ static int snd_cs46xx_playback_hw_params(snd_pcm_substream_t * substream,
 #endif
 
 	} else {
-		if (runtime->dma_area == cpcm->hw_area) {
+		if (runtime->dma_area == cpcm->hw_buf.area) {
 			runtime->dma_area = NULL;
 			runtime->dma_addr = 0;
 			runtime->dma_bytes = 0;
@@ -1075,7 +1090,7 @@ static int snd_cs46xx_playback_hw_free(snd_pcm_substream_t * substream)
 	   is called and cpcm can actually be NULL here */
 	if (!cpcm) return -ENXIO;
 
-	if (runtime->dma_area != cpcm->hw_area)
+	if (runtime->dma_area != cpcm->hw_buf.area)
 		snd_pcm_lib_free_pages(substream);
     
 	runtime->dma_area = NULL;
@@ -1144,7 +1159,7 @@ static int snd_cs46xx_playback_prepare(snd_pcm_substream_t * substream)
 	/* playback format && interrupt enable */
 	snd_cs46xx_poke(chip, (cpcm->pcm_channel->pcm_reader_scb->address + 1) << 2, pfie | cpcm->pcm_channel->pcm_slot);
 #else
-	snd_cs46xx_poke(chip, BA1_PBA, cpcm->hw_addr);
+	snd_cs46xx_poke(chip, BA1_PBA, cpcm->hw_buf.addr);
 	tmp = snd_cs46xx_peek(chip, BA1_PDTC);
 	tmp &= ~0x000003ff;
 	tmp |= (4 << cpcm->shift) - 1;
@@ -1167,14 +1182,14 @@ static int snd_cs46xx_capture_hw_params(snd_pcm_substream_t * substream,
 	cs46xx_dsp_pcm_ostream_set_period (chip, params_period_bytes(hw_params));
 #endif
 	if (runtime->periods == CS46XX_FRAGS) {
-		if (runtime->dma_area != chip->capt.hw_area)
+		if (runtime->dma_area != chip->capt.hw_buf.area)
 			snd_pcm_lib_free_pages(substream);
-		runtime->dma_area = chip->capt.hw_area;
-		runtime->dma_addr = chip->capt.hw_addr;
-		runtime->dma_bytes = chip->capt.hw_size;
+		runtime->dma_area = chip->capt.hw_buf.area;
+		runtime->dma_addr = chip->capt.hw_buf.addr;
+		runtime->dma_bytes = chip->capt.hw_buf.bytes;
 		substream->ops = &snd_cs46xx_capture_ops;
 	} else {
-		if (runtime->dma_area == chip->capt.hw_area) {
+		if (runtime->dma_area == chip->capt.hw_buf.area) {
 			runtime->dma_area = NULL;
 			runtime->dma_addr = 0;
 			runtime->dma_bytes = 0;
@@ -1192,7 +1207,7 @@ static int snd_cs46xx_capture_hw_free(snd_pcm_substream_t * substream)
 	cs46xx_t *chip = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
 
-	if (runtime->dma_area != chip->capt.hw_area)
+	if (runtime->dma_area != chip->capt.hw_buf.area)
 		snd_pcm_lib_free_pages(substream);
 	runtime->dma_area = NULL;
 	runtime->dma_addr = 0;
@@ -1206,7 +1221,7 @@ static int snd_cs46xx_capture_prepare(snd_pcm_substream_t * substream)
 	cs46xx_t *chip = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
 
-	snd_cs46xx_poke(chip, BA1_CBA, chip->capt.hw_addr);
+	snd_cs46xx_poke(chip, BA1_CBA, chip->capt.hw_buf.addr);
 	chip->capt.shift = 2;
 	chip->capt.sw_bufsize = snd_pcm_lib_buffer_bytes(substream);
 	chip->capt.sw_data = chip->capt.sw_io = chip->capt.sw_ready = 0;
@@ -1382,8 +1397,7 @@ static int _cs46xx_playback_open_channel (snd_pcm_substream_t * substream,int pc
 	cpcm = snd_magic_kcalloc(cs46xx_pcm_t, 0, GFP_KERNEL);
 	if (cpcm == NULL)
 		return -ENOMEM;
-	cpcm->hw_size = PAGE_SIZE;
-	if ((cpcm->hw_area = snd_malloc_pci_pages(chip->pci, cpcm->hw_size, &cpcm->hw_addr)) == NULL) {
+	if (snd_dma_alloc_pages(&chip->dma_dev, PAGE_SIZE, &cpcm->hw_buf) < 0) {
 		snd_magic_kfree(cpcm);
 		return -ENOMEM;
 	}
@@ -1472,7 +1486,7 @@ static int snd_cs46xx_capture_open(snd_pcm_substream_t * substream)
 {
 	cs46xx_t *chip = snd_pcm_substream_chip(substream);
 
-	if ((chip->capt.hw_area = snd_malloc_pci_pages(chip->pci, chip->capt.hw_size, &chip->capt.hw_addr)) == NULL)
+	if (snd_dma_alloc_pages(&chip->dma_dev, PAGE_SIZE, &chip->capt.hw_buf) < 0)
 		return -ENOMEM;
 	chip->capt.substream = substream;
 	substream->runtime->hw = snd_cs46xx_capture;
@@ -1513,7 +1527,7 @@ static int snd_cs46xx_playback_close(snd_pcm_substream_t * substream)
 #endif
 
 	cpcm->substream = NULL;
-	snd_free_pci_pages(chip->pci, cpcm->hw_size, cpcm->hw_area, cpcm->hw_addr);
+	snd_dma_free_pages(&chip->dma_dev, &cpcm->hw_buf);
 	chip->active_ctrl(chip, -1);
 
 	return 0;
@@ -1524,7 +1538,7 @@ static int snd_cs46xx_capture_close(snd_pcm_substream_t * substream)
 	cs46xx_t *chip = snd_pcm_substream_chip(substream);
 
 	chip->capt.substream = NULL;
-	snd_free_pci_pages(chip->pci, chip->capt.hw_size, chip->capt.hw_area, chip->capt.hw_addr);
+	snd_dma_free_pages(&chip->dma_dev, &chip->capt.hw_buf);
 	chip->active_ctrl(chip, -1);
 
 	return 0;
@@ -1703,7 +1717,8 @@ int __devinit snd_cs46xx_pcm(cs46xx_t *chip, int device, snd_pcm_t ** rpcm)
 	strcpy(pcm->name, "CS46xx");
 	chip->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pci_pages_for_all(chip->pci, pcm, 64*1024, 256*1024);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_pci_data(chip->pci), 64*1024, 256*1024);
 
 	if (rpcm)
 		*rpcm = pcm;
@@ -1734,7 +1749,8 @@ int __devinit snd_cs46xx_pcm_rear(cs46xx_t *chip, int device, snd_pcm_t ** rpcm)
 	strcpy(pcm->name, "CS46xx - Rear");
 	chip->pcm_rear = pcm;
 
-	snd_pcm_lib_preallocate_pci_pages_for_all(chip->pci, pcm, 64*1024, 256*1024);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_pci_data(chip->pci), 64*1024, 256*1024);
 
 	if (rpcm)
 		*rpcm = pcm;
@@ -1763,7 +1779,8 @@ int __devinit snd_cs46xx_pcm_center_lfe(cs46xx_t *chip, int device, snd_pcm_t **
 	strcpy(pcm->name, "CS46xx - Center LFE");
 	chip->pcm_center_lfe = pcm;
 
-	snd_pcm_lib_preallocate_pci_pages_for_all(chip->pci, pcm, 64*1024, 256*1024);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_pci_data(chip->pci), 64*1024, 256*1024);
 
 	if (rpcm)
 		*rpcm = pcm;
@@ -1792,7 +1809,8 @@ int __devinit snd_cs46xx_pcm_iec958(cs46xx_t *chip, int device, snd_pcm_t ** rpc
 	strcpy(pcm->name, "CS46xx - IEC958");
 	chip->pcm_rear = pcm;
 
-	snd_pcm_lib_preallocate_pci_pages_for_all(chip->pci, pcm, 64*1024, 256*1024);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_pci_data(chip->pci), 64*1024, 256*1024);
 
 	if (rpcm)
 		*rpcm = pcm;
@@ -1804,6 +1822,13 @@ int __devinit snd_cs46xx_pcm_iec958(cs46xx_t *chip, int device, snd_pcm_t ** rpc
 /*
  *  Mixer routines
  */
+static void snd_cs46xx_mixer_free_ac97_bus(ac97_bus_t *bus)
+{
+	cs46xx_t *chip = snd_magic_cast(cs46xx_t, bus->private_data, return);
+
+	chip->ac97_bus = NULL;
+}
+
 static void snd_cs46xx_mixer_free_ac97(ac97_t *ac97)
 {
 	cs46xx_t *chip = snd_magic_cast(cs46xx_t, ac97->private_data, return);
@@ -2445,6 +2470,7 @@ static void snd_cs46xx_codec_reset (ac97_t * ac97)
 int __devinit snd_cs46xx_mixer(cs46xx_t *chip)
 {
 	snd_card_t *card = chip->card;
+	ac97_bus_t bus;
 	ac97_t ac97;
 	snd_ctl_elem_id_t id;
 	int err;
@@ -2453,14 +2479,20 @@ int __devinit snd_cs46xx_mixer(cs46xx_t *chip)
 	/* detect primary codec */
 	chip->nr_ac97_codecs = 0;
 	snd_printdd("snd_cs46xx: detecting primary codec\n");
+	memset(&bus, 0, sizeof(bus));
+	bus.write = snd_cs46xx_ac97_write;
+	bus.read = snd_cs46xx_ac97_read;
+#ifdef CONFIG_SND_CS46XX_NEW_DSP
+	bus.reset = snd_cs46xx_codec_reset;
+#endif
+	bus.private_data = chip;
+	bus.private_free = snd_cs46xx_mixer_free_ac97_bus;
+	if ((err = snd_ac97_bus(card, &bus, &chip->ac97_bus)) < 0)
+		return err;
+
 	memset(&ac97, 0, sizeof(ac97));
-	ac97.write = snd_cs46xx_ac97_write;
-	ac97.read = snd_cs46xx_ac97_read;
 	ac97.private_data = chip;
 	ac97.private_free = snd_cs46xx_mixer_free_ac97;
-#ifdef CONFIG_SND_CS46XX_NEW_DSP
-	ac97.reset = snd_cs46xx_codec_reset;
-#endif
 	chip->ac97[CS46XX_PRIMARY_CODEC_INDEX] = &ac97;
 
 	snd_cs46xx_ac97_write(&ac97, AC97_MASTER, 0x8000);
@@ -2474,7 +2506,7 @@ int __devinit snd_cs46xx_mixer(cs46xx_t *chip)
 	return -ENXIO;
 
  _ok:
-	if ((err = snd_ac97_mixer(card, &ac97, &chip->ac97[CS46XX_PRIMARY_CODEC_INDEX])) < 0)
+	if ((err = snd_ac97_mixer(chip->ac97_bus, &ac97, &chip->ac97[CS46XX_PRIMARY_CODEC_INDEX])) < 0)
 		return err;
 	snd_printdd("snd_cs46xx: primary codec phase one\n");
 	chip->nr_ac97_codecs = 1;
@@ -2483,8 +2515,6 @@ int __devinit snd_cs46xx_mixer(cs46xx_t *chip)
 	snd_printdd("snd_cs46xx: detecting seconadry codec\n");
 	/* try detect a secondary codec */
 	memset(&ac97, 0, sizeof(ac97));    
-	ac97.write = snd_cs46xx_ac97_write;
-	ac97.read = snd_cs46xx_ac97_read;
 	ac97.private_data = chip;
 	ac97.private_free = snd_cs46xx_mixer_free_ac97;
 	ac97.num = CS46XX_SECONDARY_CODEC_INDEX;
@@ -2516,13 +2546,7 @@ int __devinit snd_cs46xx_mixer(cs46xx_t *chip)
 	/* well, one codec only ... */
 	goto _end;
  _ok2:
-	/* set secondary codec in extended mode */
-
-	/* use custom reset to set secondary codec in
-	   extended mode */
-	ac97.reset = snd_cs46xx_codec_reset;
-
-	if ((err = snd_ac97_mixer(card, &ac97, &chip->ac97[CS46XX_SECONDARY_CODEC_INDEX])) < 0)
+	if ((err = snd_ac97_mixer(chip->ac97_bus, &ac97, &chip->ac97[CS46XX_SECONDARY_CODEC_INDEX])) < 0)
 		return err;
 	chip->nr_ac97_codecs = 2;
 
@@ -2541,13 +2565,15 @@ int __devinit snd_cs46xx_mixer(cs46xx_t *chip)
 	/* get EAPD mixer switch (for voyetra hack) */
 	memset(&id, 0, sizeof(id));
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	strcpy(id.name, "External Amplifier Power Down");
+	strcpy(id.name, "External Amplifier");
 	chip->eapd_switch = snd_ctl_find_id(chip->card, &id);
     
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 	if (chip->nr_ac97_codecs == 1 && 
-	    snd_cs46xx_codec_read(chip, AC97_VENDOR_ID2,
-				  CS46XX_PRIMARY_CODEC_INDEX) == 0x592d) {
+	    (snd_cs46xx_codec_read(chip, AC97_VENDOR_ID2,
+				  CS46XX_PRIMARY_CODEC_INDEX) == 0x592b ||
+	     snd_cs46xx_codec_read(chip, AC97_VENDOR_ID2,
+				   CS46XX_PRIMARY_CODEC_INDEX) == 0x592d)) {
 		/* set primary cs4294 codec into Extended Audio Mode */
 		snd_printdd("setting EAM bit on cs4294 CODEC\n");
 		snd_cs46xx_codec_write(chip, AC97_CSR_ACMODE, 0x200,
@@ -2840,32 +2866,20 @@ void __devinit snd_cs46xx_gameport(cs46xx_t *chip)
  */
 
 static long snd_cs46xx_io_read(snd_info_entry_t *entry, void *file_private_data,
-			       struct file *file, char *buf, long count)
+			       struct file *file, char __user *buf,
+			       unsigned long count, unsigned long pos)
 {
 	long size;
 	snd_cs46xx_region_t *region = (snd_cs46xx_region_t *)entry->private_data;
 	
 	size = count;
-	if (file->f_pos + (size_t)size > region->size)
-		size = region->size - file->f_pos;
+	if (pos + (size_t)size > region->size)
+		size = region->size - pos;
 	if (size > 0) {
-		char *tmp;
-		long res;
-		unsigned long virt;
-		if ((tmp = kmalloc(size, GFP_KERNEL)) == NULL)
-			return -ENOMEM;
-		virt = region->remap_addr + file->f_pos;
-		memcpy_fromio(tmp, virt, size);
-		if (copy_to_user(buf, tmp, size))
-			res = -EFAULT;
-		else {
-			res = size;
-			file->f_pos += size;
-		}
-		kfree(tmp);
-		return res;
+		if (copy_to_user_fromio(buf, region->remap_addr + pos, size))
+			return -EFAULT;
 	}
-	return 0;
+	return size;
 }
 
 static struct snd_info_entry_ops snd_cs46xx_proc_io_ops = {
@@ -3770,17 +3784,19 @@ static struct cs_card_type __devinitdata cards[] = {
  * APM support
  */
 #ifdef CONFIG_PM
-void snd_cs46xx_suspend(cs46xx_t *chip)
+static int snd_cs46xx_suspend(snd_card_t *card, unsigned int state)
 {
+	cs46xx_t *chip = snd_magic_cast(cs46xx_t, card->pm_private_data, return -EINVAL);
 	int amp_saved;
 
-	snd_card_t *card = chip->card;
-
-	if (card->power_state == SNDRV_CTL_POWER_D3hot)
-		return;
 	snd_pcm_suspend_all(chip->pcm);
 	// chip->ac97_powerdown = snd_cs46xx_codec_read(chip, AC97_POWER_CONTROL);
 	// chip->ac97_general_purpose = snd_cs46xx_codec_read(chip, BA0_AC97_GENERAL_PURPOSE);
+
+	snd_ac97_suspend(chip->ac97[CS46XX_PRIMARY_CODEC_INDEX]);
+	if (chip->ac97[CS46XX_SECONDARY_CODEC_INDEX])
+		snd_ac97_suspend(chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]);
+
 	amp_saved = chip->amplifier;
 	/* turn off amp */
 	chip->amplifier_ctrl(chip, -chip->amplifier);
@@ -3789,15 +3805,13 @@ void snd_cs46xx_suspend(cs46xx_t *chip)
 	chip->active_ctrl(chip, -chip->amplifier);
 	chip->amplifier = amp_saved; /* restore the status */
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	return 0;
 }
 
-void snd_cs46xx_resume(cs46xx_t *chip)
+static int snd_cs46xx_resume(snd_card_t *card, unsigned int state)
 {
-	snd_card_t *card = chip->card;
+	cs46xx_t *chip = snd_magic_cast(cs46xx_t, card->pm_private_data, return -EINVAL);
 	int amp_saved;
-
-	if (card->power_state == SNDRV_CTL_POWER_D0)
-		return;
 
 	pci_enable_device(chip->pci);
 	amp_saved = chip->amplifier;
@@ -3818,6 +3832,8 @@ void snd_cs46xx_resume(cs46xx_t *chip)
 #endif
 
 	snd_ac97_resume(chip->ac97[CS46XX_PRIMARY_CODEC_INDEX]);
+	if (chip->ac97[CS46XX_SECONDARY_CODEC_INDEX])
+		snd_ac97_resume(chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]);
 
 	if (amp_saved)
 		chip->amplifier_ctrl(chip, 1); /* turn amp on */
@@ -3825,25 +3841,6 @@ void snd_cs46xx_resume(cs46xx_t *chip)
 		chip->active_ctrl(chip, -1); /* disable CLKRUN */
 	chip->amplifier = amp_saved;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
-}
-
-static int snd_cs46xx_set_power_state(snd_card_t *card, unsigned int power_state)
-{
-	cs46xx_t *chip = snd_magic_cast(cs46xx_t, card->power_state_private_data, return -ENXIO);
-
-	switch (power_state) {
-	case SNDRV_CTL_POWER_D0:
-	case SNDRV_CTL_POWER_D1:
-	case SNDRV_CTL_POWER_D2:
-		snd_cs46xx_resume(chip);
-		break;
-	case SNDRV_CTL_POWER_D3hot:
-	case SNDRV_CTL_POWER_D3cold:
-		snd_cs46xx_suspend(chip);
-		break;
-	default:
-		return -EINVAL;
-	}
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -3881,7 +3878,6 @@ int __devinit snd_cs46xx_create(snd_card_t * card,
 #endif
 	chip->card = card;
 	chip->pci = pci;
-	chip->capt.hw_size = PAGE_SIZE;
 	chip->irq = -1;
 	chip->ba0_addr = pci_resource_start(pci, 0);
 	chip->ba1_addr = pci_resource_start(pci, 1);
@@ -3916,6 +3912,10 @@ int __devinit snd_cs46xx_create(snd_card_t * card,
 	strcpy(region->name, "CS46xx_BA1_reg");
 	region->base = chip->ba1_addr + BA1_SP_REG;
 	region->size = CS46XX_BA1_REG_SIZE;
+
+	memset(&chip->dma_dev, 0, sizeof(chip->dma_dev));
+	chip->dma_dev.type = SNDRV_DMA_TYPE_DEV;
+	chip->dma_dev.dev = snd_dma_pci_data(pci);
 
 	/* set up amp and clkrun hack */
 	pci_read_config_word(pci, PCI_SUBSYSTEM_VENDOR_ID, &ss_vendor);
@@ -3993,10 +3993,7 @@ int __devinit snd_cs46xx_create(snd_card_t * card,
 
 	snd_cs46xx_proc_init(card, chip);
 
-#ifdef CONFIG_PM
-	card->set_power_state = snd_cs46xx_set_power_state;
-	card->power_state_private_data = chip;
-#endif
+	snd_card_set_pm_callback(card, snd_cs46xx_suspend, snd_cs46xx_resume, chip);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_cs46xx_free(chip);
@@ -4004,6 +4001,8 @@ int __devinit snd_cs46xx_create(snd_card_t * card,
 	}
 	
 	chip->active_ctrl(chip, -1); /* disable CLKRUN */
+
+	snd_card_set_dev(card, &pci->dev);
 
 	*rchip = chip;
 	return 0;

@@ -13,6 +13,17 @@
 #include <linux/mm.h>
 #include "agp.h"
 
+/* NVIDIA registers */
+#define NVIDIA_0_APSIZE		0x80
+#define NVIDIA_1_WBC		0xf0
+#define NVIDIA_2_GARTCTRL	0xd0
+#define NVIDIA_2_APBASE		0xd8
+#define NVIDIA_2_APLIMIT	0xdc
+#define NVIDIA_2_ATTBASE(i)	(0xe0 + (i) * 4)
+#define NVIDIA_3_APBASE		0x50
+#define NVIDIA_3_APLIMIT	0x54
+
+
 static struct _nvidia_private {
 	struct pci_dev *dev_1;
 	struct pci_dev *dev_2;
@@ -369,7 +380,15 @@ static struct pci_device_id agp_nvidia_pci_table[] = {
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
 	.class_mask	= ~0,
 	.vendor		= PCI_VENDOR_ID_NVIDIA,
-	.device		= PCI_ANY_ID,
+	.device		= PCI_DEVICE_ID_NVIDIA_NFORCE,
+	.subvendor	= PCI_ANY_ID,
+	.subdevice	= PCI_ANY_ID,
+	},
+	{
+	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+	.class_mask	= ~0,
+	.vendor		= PCI_VENDOR_ID_NVIDIA,
+	.device		= PCI_DEVICE_ID_NVIDIA_NFORCE2,
 	.subvendor	= PCI_ANY_ID,
 	.subdevice	= PCI_ANY_ID,
 	},

@@ -29,6 +29,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/gameport.h>
+#include <linux/moduleparam.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -36,7 +37,6 @@
 #include <sound/control.h>
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
-#define SNDRV_GET_ID
 #include <sound/initval.h>
 
 #include <asm/io.h>
@@ -60,23 +60,24 @@ static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card *
 static int reverb[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
 static int mge[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
 static unsigned int dmaio = 0x7a00;	/* DDMA i/o address */
+static int boot_devs;
 
-MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(index, int, boot_devs, 0444);
 MODULE_PARM_DESC(index, "Index value for S3 SonicVibes soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
+module_param_array(id, charp, boot_devs, 0444);
 MODULE_PARM_DESC(id, "ID string for S3 SonicVibes soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(enable, bool, boot_devs, 0444);
 MODULE_PARM_DESC(enable, "Enable S3 SonicVibes soundcard.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-MODULE_PARM(reverb, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(reverb, bool, boot_devs, 0444);
 MODULE_PARM_DESC(reverb, "Enable reverb (SRAM is present) for S3 SonicVibes soundcard.");
 MODULE_PARM_SYNTAX(reverb, SNDRV_ENABLED "," SNDRV_ENABLE_DESC);
-MODULE_PARM(mge, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(mge, bool, boot_devs, 0444);
 MODULE_PARM_DESC(mge, "MIC Gain Enable for S3 SonicVibes soundcard.");
 MODULE_PARM_SYNTAX(mge, SNDRV_ENABLED "," SNDRV_ENABLE_DESC);
-MODULE_PARM(dmaio, "i");
+module_param(dmaio, uint, 0444);
 MODULE_PARM_DESC(dmaio, "DDMA i/o base address for S3 SonicVibes soundcard.");
 MODULE_PARM_SYNTAX(dmaio, "global," SNDRV_PORT_DESC);
 
@@ -804,7 +805,7 @@ static int snd_sonicvibes_playback_open(snd_pcm_substream_t * substream)
 	sonic->mode |= SV_MODE_PLAY;
 	sonic->playback_substream = substream;
 	runtime->hw = snd_sonicvibes_playback;
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, snd_sonicvibes_hw_constraint_dac_rate, 0, SNDRV_PCM_HW_PARAM_RATE, -1);
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, snd_sonicvibes_hw_constraint_dac_rate, NULL, SNDRV_PCM_HW_PARAM_RATE, -1);
 	return 0;
 }
 
@@ -886,7 +887,8 @@ static int __devinit snd_sonicvibes_pcm(sonicvibes_t * sonic, int device, snd_pc
 	strcpy(pcm->name, "S3 SonicVibes");
 	sonic->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pci_pages_for_all(sonic->pci, pcm, 64*1024, 128*1024);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_pci_data(sonic->pci), 64*1024, 128*1024);
 
 	if (rpcm)
 		*rpcm = pcm;
@@ -1177,7 +1179,7 @@ static void __devinit snd_sonicvibes_proc_init(sonicvibes_t * sonic)
 	snd_info_entry_t *entry;
 
 	if (! snd_card_proc_new(sonic->card, "sonicvibes", &entry))
-		snd_info_set_text_ops(entry, sonic, snd_sonicvibes_proc_read);
+		snd_info_set_text_ops(entry, sonic, 1024, snd_sonicvibes_proc_read);
 }
 
 /*
@@ -1249,11 +1251,11 @@ static int __devinit snd_sonicvibes_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 	/* check, if we can restrict PCI DMA transfers to 24 bits */
-        if (!pci_dma_supported(pci, 0x00ffffff)) {
+        if (pci_set_dma_mask(pci, 0x00ffffff) < 0 ||
+	    pci_set_consistent_dma_mask(pci, 0x00ffffff) < 0) {
                 snd_printk("architecture does not support 24bit PCI busmaster DMA\n");
                 return -ENXIO;
         }
-	pci_set_dma_mask(pci, 0x00ffffff);
 
 	sonic = snd_magic_kcalloc(sonicvibes_t, 0, GFP_KERNEL);
 	if (sonic == NULL)
@@ -1384,6 +1386,8 @@ static int __devinit snd_sonicvibes_create(snd_card_t * card,
 		return err;
 	}
 
+	snd_card_set_dev(card, &pci->dev);
+
 	*rsonic = sonic;
 	return 0;
 }
@@ -1467,6 +1471,15 @@ static int __devinit snd_sonic_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+
+	strcpy(card->driver, "SonicVibes");
+	strcpy(card->shortname, "S3 SonicVibes");
+	sprintf(card->longname, "%s rev %i at 0x%lx, irq %i",
+		card->shortname,
+		sonic->revision,
+		pci_resource_start(pci, 1),
+		sonic->irq);
+
 	if ((err = snd_sonicvibes_pcm(sonic, 0, NULL)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -1497,13 +1510,6 @@ static int __devinit snd_sonic_probe(struct pci_dev *pci,
 	sonic->gameport.io = sonic->game_port;
 	gameport_register_port(&sonic->gameport);
 #endif
-	strcpy(card->driver, "SonicVibes");
-	strcpy(card->shortname, "S3 SonicVibes");
-	sprintf(card->longname, "%s rev %i at 0x%lx, irq %i",
-		card->shortname,
-		sonic->revision,
-		pci_resource_start(pci, 1),
-		sonic->irq);
 
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);
@@ -1530,15 +1536,7 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_sonicvibes_init(void)
 {
-	int err;
-
-	if ((err = pci_module_init(&driver)) < 0) {
-#ifdef MODULE
-		printk(KERN_ERR "S3 SonicVibes soundcard not found or device busy\n");
-#endif
-		return err;
-	}
-	return 0;
+	return pci_module_init(&driver);
 }
 
 static void __exit alsa_card_sonicvibes_exit(void)
@@ -1548,28 +1546,3 @@ static void __exit alsa_card_sonicvibes_exit(void)
 
 module_init(alsa_card_sonicvibes_init)
 module_exit(alsa_card_sonicvibes_exit)
-
-#ifndef MODULE
-
-/* format is: snd-sonicvibes=enable,index,id,
-			     reverb,mge,dmaio */
-
-static int __init alsa_card_sonicvibes_setup(char *str)
-{
-	static unsigned __initdata nr_dev = 0;
-
-	if (nr_dev >= SNDRV_CARDS)
-		return 0;
-	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
-	       get_option(&str,&index[nr_dev]) == 2 &&
-	       get_id(&str,&id[nr_dev]) == 2 &&
-	       get_option(&str,&reverb[nr_dev]) == 2 &&
-	       get_option(&str,&mge[nr_dev]) == 2 &&
-	       get_option(&str,(int *)&dmaio) == 2);
-	nr_dev++;
-	return 1;
-}
-
-__setup("snd-sonicvibes=", alsa_card_sonicvibes_setup);
-
-#endif /* ifndef MODULE */

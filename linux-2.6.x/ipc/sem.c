@@ -116,7 +116,7 @@ void __init sem_init (void)
 	ipc_init_ids(&sem_ids,sc_semmni);
 
 #ifdef CONFIG_PROC_FS
-	create_proc_read_entry("sysvipc/sem", 0, 0, sysvipc_sem_read_proc, NULL);
+	create_proc_read_entry("sysvipc/sem", 0, NULL, sysvipc_sem_read_proc, NULL);
 #endif
 }
 
@@ -610,7 +610,7 @@ static int semctl_main(int semid, int semnum, int cmd, int version, union semun 
 	switch (cmd) {
 	case GETALL:
 	{
-		ushort *array = arg.array;
+		ushort __user *array = arg.array;
 		int i;
 
 		if(nsems > SEMMSL_FAST) {
@@ -972,8 +972,10 @@ static struct sem_undo *find_undo(int semid)
 	if(sma==NULL)
 		goto out;
 	un = ERR_PTR(-EIDRM);
-	if (sem_checkid(sma,semid))
-		goto out_unlock;
+	if (sem_checkid(sma,semid)) {
+		sem_unlock(sma);
+		goto out;
+	}
 	nsems = sma->sem_nsems;
 	sem_unlock(sma);
 
@@ -993,7 +995,6 @@ static struct sem_undo *find_undo(int semid)
 	}
 	error = sem_revalidate(semid, sma, nsems, 0);
 	if (error) {
-		sem_unlock(sma);
 		unlock_semundo();
 		kfree(new);
 		un = ERR_PTR(error);
@@ -1005,15 +1006,9 @@ static struct sem_undo *find_undo(int semid)
 	sma->undo = new;
 	sem_unlock(sma);
 	un = new;
-out_unlock:
 	unlock_semundo();
 out:
 	return un;
-}
-
-asmlinkage long sys_semop (int semid, struct sembuf __user *tsops, unsigned nsops)
-{
-	return sys_semtimedop(semid, tsops, nsops, NULL);
 }
 
 asmlinkage long sys_semtimedop(int semid, struct sembuf __user *tsops,
@@ -1179,6 +1174,11 @@ out_free:
 	if(sops != fast_sops)
 		kfree(sops);
 	return error;
+}
+
+asmlinkage long sys_semop (int semid, struct sembuf __user *tsops, unsigned nsops)
+{
+	return sys_semtimedop(semid, tsops, nsops, NULL);
 }
 
 /* If CLONE_SYSVSEM is set, establish sharing of SEM_UNDO state between

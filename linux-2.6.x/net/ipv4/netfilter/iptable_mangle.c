@@ -2,6 +2,11 @@
  * This is the 1999 rewrite of IP Firewalling, aiming for kernel 2.3.x.
  *
  * Copyright (C) 1999 Paul `Rusty' Russell & Michael J. Neuling
+ * Copyright (C) 2000-2004 Netfilter Core Team <coreteam@netfilter.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
  * Extended to all five netfilter hooks by Brad Chapman & Harald Welte
  */
@@ -168,7 +173,9 @@ ipt_local_hook(unsigned int hook,
 	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE
 	    && ((*pskb)->nh.iph->saddr != saddr
 		|| (*pskb)->nh.iph->daddr != daddr
+#ifdef CONFIG_IP_ROUTE_FWMARK
 		|| (*pskb)->nfmark != nfmark
+#endif
 		|| (*pskb)->nh.iph->tos != tos))
 		return ip_route_me_harder(pskb) == 0 ? ret : NF_DROP;
 

@@ -36,7 +36,8 @@ enum cpu_type {
 	pcxu_	= 7, /* pa8200	(u+)	pa 2.0  */
 	pcxw	= 8, /* pa8500		pa 2.0  */
 	pcxw_	= 9, /* pa8600	(w+)	pa 2.0  */
-	pcxw2	= 10 /* pa8700		pa 2.0  */
+	pcxw2	= 10, /* pa8700		pa 2.0  */
+	mako	= 11  /* pa8800		pa 2.0  */
 };
 
 extern char *cpu_name_version[][2]; /* mapping from enum cpu_type to strings */
@@ -96,6 +97,7 @@ struct bc_module {
 #define HPHW_IOA       12
 #define HPHW_BRIDGE    13
 #define HPHW_FABRIC    14
+#define HPHW_MC	       15
 #define HPHW_FAULTY    31
 
 

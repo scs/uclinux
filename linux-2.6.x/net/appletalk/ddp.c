@@ -673,7 +673,7 @@ static int ddp_device_event(struct notifier_block *this, unsigned long event,
 
 /* ioctl calls. Shouldn't even need touching */
 /* Device configuration ioctl calls */
-static int atif_ioctl(int cmd, void *arg)
+static int atif_ioctl(int cmd, void __user *arg)
 {
 	static char aarp_mcast[6] = { 0x09, 0x00, 0x00, 0xFF, 0xFF, 0xFF };
 	struct ifreq atreq;
@@ -892,7 +892,7 @@ static int atif_ioctl(int cmd, void *arg)
 }
 
 /* Routing ioctl() calls */
-static int atrtr_ioctl(unsigned int cmd, void *arg)
+static int atrtr_ioctl(unsigned int cmd, void __user *arg)
 {
 	struct rtentry rt;
 
@@ -908,12 +908,12 @@ static int atrtr_ioctl(unsigned int cmd, void *arg)
 
 		case SIOCADDRT: {
 			struct net_device *dev = NULL;
-			/*
-			 * FIXME: the name of the device is still in user
-			 * space, isn't it?
-			 */
 			if (rt.rt_dev) {
-				dev = __dev_get_by_name(rt.rt_dev);
+				char name[IFNAMSIZ];
+				if (copy_from_user(name, rt.rt_dev, IFNAMSIZ-1))
+					return -EFAULT;
+				name[IFNAMSIZ-1] = '\0';
+				dev = __dev_get_by_name(name);
 				if (!dev)
 					return -ENODEV;
 			}			
@@ -1051,7 +1051,7 @@ static int atalk_create(struct socket *sock, int protocol)
 	sk = sk_alloc(PF_APPLETALK, GFP_KERNEL, 1, NULL);
 	if (!sk)
 		goto out;
-	at = at_sk(sk) = kmalloc(sizeof(*at), GFP_KERNEL);
+	at = sk->sk_protinfo = kmalloc(sizeof(*at), GFP_KERNEL);
 	if (!at)
 		goto outsk;
 	memset(at, 0, sizeof(*at));
@@ -1567,7 +1567,7 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 	struct atalk_route *rt;
 	int err;
 
-	if (flags & ~MSG_DONTWAIT)
+	if (flags & ~(MSG_DONTWAIT|MSG_CMSG_COMPAT))
 		return -EINVAL;
 
 	if (len > DDP_MAXSZ)
@@ -1659,7 +1659,7 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 	ddp->deh_dport = usat->sat_port;
 	ddp->deh_sport = at->src_port;
 
-	SOCK_DEBUG(sk, "SK %p: Copy user data (%d bytes).\n", sk, len);
+	SOCK_DEBUG(sk, "SK %p: Copy user data (%Zd bytes).\n", sk, len);
 
 	err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
 	if (err) {
@@ -1706,7 +1706,7 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 			kfree_skb(skb);
 		/* else queued/sent above in the aarp queue */
 	}
-	SOCK_DEBUG(sk, "SK %p: Done write (%d).\n", sk, len);
+	SOCK_DEBUG(sk, "SK %p: Done write (%Zd).\n", sk, len);
 
 	return len;
 }
@@ -1769,6 +1769,7 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	int rc = -EINVAL;
 	struct sock *sk = sock->sk;
+	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
 		/* Protocol layer */
@@ -1778,7 +1779,7 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 			if (amount < 0)
 				amount = 0;
-			rc = put_user(amount, (int *)arg);
+			rc = put_user(amount, (int __user *)argp);
 			break;
 		}
 		case TIOCINQ: {
@@ -1791,24 +1792,18 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 			if (skb)
 				amount = skb->len - sizeof(struct ddpehdr);
-			rc = put_user(amount, (int *)arg);
+			rc = put_user(amount, (int __user *)argp);
 			break;
 		}
 		case SIOCGSTAMP:
-			if (!sk)
-				break;
-			rc = -ENOENT;
-			if (!sk->sk_stamp.tv_sec)
-				break;
-			rc = copy_to_user((void *)arg, &sk->sk_stamp,
-					  sizeof(struct timeval)) ? -EFAULT : 0;
+			rc = sock_get_timestamp(sk, argp);
 			break;
 		/* Routing */
 		case SIOCADDRT:
 		case SIOCDELRT:
 			rc = -EPERM;
 			if (capable(CAP_NET_ADMIN))
-				rc = atrtr_ioctl(cmd, (void *)arg);
+				rc = atrtr_ioctl(cmd, argp);
 			break;
 		/* Interface */
 		case SIOCGIFADDR:
@@ -1819,7 +1814,7 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		case SIOCSARP:		/* proxy AARP */
 		case SIOCDARP:		/* proxy AARP */
 			rtnl_lock();
-			rc = atif_ioctl(cmd, (void *)arg);
+			rc = atif_ioctl(cmd, argp);
 			rtnl_unlock();
 			break;
 		/* Physical layer ioctl calls */
@@ -1835,7 +1830,7 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		case SIOCGIFCOUNT:
 		case SIOCGIFINDEX:
 		case SIOCGIFNAME:
-			rc = dev_ioctl(cmd, (void *)arg);
+			rc = dev_ioctl(cmd, argp);
 			break;
 	}
 

@@ -7,10 +7,6 @@
 #include <linux/module.h>
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE > 131328
-#define LINUX21X
-#endif
-
 #ifdef __KERNEL__
 #include <linux/utsname.h>
 #include <linux/string.h>
@@ -46,7 +42,7 @@ extern void reprogram_timer(void);
 
 #define USE_AUTOINIT_DMA
 
-extern caddr_t sound_mem_blocks[1024];
+extern void *sound_mem_blocks[1024];
 extern int sound_nblocks;
 
 #undef PSEUDO_DMA_AUTOINIT

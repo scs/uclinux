@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -429,7 +429,7 @@ xfs_buf_item_unpin(
 		 */
 		if (bip->bli_flags & XFS_BLI_STALE_INODE) {
 			xfs_buf_do_callbacks(bp, (xfs_log_item_t *)bip);
-			XFS_BUF_FSPRIVATE(bp, void *) = NULL;
+			XFS_BUF_SET_FSPRIVATE(bp, NULL);
 			XFS_BUF_CLR_IODONE_FUNC(bp);
 		} else {
 			AIL_LOCK(mp,s);
@@ -1053,9 +1053,9 @@ xfs_buf_iodone_callbacks(
 		    (time_after(jiffies, (lasttime + 5*HZ)))) {
 			lasttime = jiffies;
 			prdev("XFS write error in file system meta-data "
-			      "block 0x%Lx in %s",
+			      "block 0x%llx in %s",
 			      XFS_BUF_TARGET(bp),
-			      XFS_BUF_ADDR(bp), mp->m_fsname);
+			      (__uint64_t)XFS_BUF_ADDR(bp), mp->m_fsname);
 		}
 		lasttarg = XFS_BUF_TARGET(bp);
 

@@ -28,14 +28,8 @@
 
 /*
  * $Log$
- * Revision 1.2  2004/09/07 22:37:21  lgsoft
- * alpha-2.0
- *
- * Revision 1.1.1.1  2004/07/19 12:15:20  lgsoft
- * Import of uClinux 2.6.2
- *
- * Revision 1.1.1.1  2004/07/18 13:21:49  nidhi
- * Importing
+ * Revision 1.3  2004/09/08 15:40:06  lgsoft
+ * Import of 2.6.8
  *
 
  * Revision 1.10 1998/9/2	Alan Cox
@@ -1257,7 +1251,7 @@ static void NCR5380_main(void *p)
 					 * and see if we can do an information transfer,
 					 * with failures we will restart.
 					 */
-					hostdata->selecting = 0;	
+					hostdata->selecting = NULL;
 					/* RvC: have to preset this to indicate a new command is being performed */
 
 					if (!NCR5380_select(instance, tmp,
@@ -1335,81 +1329,71 @@ static void NCR5380_main(void *p)
 static irqreturn_t NCR5380_intr(int irq, void *dev_id, struct pt_regs *regs) 
 {
 	NCR5380_local_declare();
-	struct Scsi_Host *instance;
+	struct Scsi_Host *instance = (struct Scsi_Host *)dev_id;
+	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 	int done;
 	unsigned char basr;
-	struct NCR5380_hostdata *hostdata;
-	int handled = 0;
 
 	dprintk(NDEBUG_INTR, ("scsi : NCR5380 irq %d triggered\n", irq));
 
 	do {
 		done = 1;
-		/* The instance list is constant while the driver is
-		   loaded */
-		for (hostdata = first_host; hostdata != NULL; hostdata = hostdata->next)
-		{
-			instance = hostdata->host;
-			if (instance->irq == irq) {
-				handled = 1;
-				spin_lock_irq(instance->host_lock);
-				/* Look for pending interrupts */
-				NCR5380_setup(instance);
-				basr = NCR5380_read(BUS_AND_STATUS_REG);
-				/* XXX dispatch to appropriate routine if found and done=0 */
-				if (basr & BASR_IRQ) {
-					NCR5380_dprint(NDEBUG_INTR, instance);
-					if ((NCR5380_read(STATUS_REG) & (SR_SEL | SR_IO)) == (SR_SEL | SR_IO)) {
-						done = 0;
-						dprintk(NDEBUG_INTR, ("scsi%d : SEL interrupt\n", instance->host_no));
-						NCR5380_reselect(instance);
-						(void) NCR5380_read(RESET_PARITY_INTERRUPT_REG);
-					} else if (basr & BASR_PARITY_ERROR) {
-						dprintk(NDEBUG_INTR, ("scsi%d : PARITY interrupt\n", instance->host_no));
-						(void) NCR5380_read(RESET_PARITY_INTERRUPT_REG);
-					} else if ((NCR5380_read(STATUS_REG) & SR_RST) == SR_RST) {
-						dprintk(NDEBUG_INTR, ("scsi%d : RESET interrupt\n", instance->host_no));
-						(void) NCR5380_read(RESET_PARITY_INTERRUPT_REG);
-					} else {
+		spin_lock_irq(instance->host_lock);
+		/* Look for pending interrupts */
+		NCR5380_setup(instance);
+		basr = NCR5380_read(BUS_AND_STATUS_REG);
+		/* XXX dispatch to appropriate routine if found and done=0 */
+		if (basr & BASR_IRQ) {
+			NCR5380_dprint(NDEBUG_INTR, instance);
+			if ((NCR5380_read(STATUS_REG) & (SR_SEL | SR_IO)) == (SR_SEL | SR_IO)) {
+				done = 0;
+				dprintk(NDEBUG_INTR, ("scsi%d : SEL interrupt\n", instance->host_no));
+				NCR5380_reselect(instance);
+				(void) NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+			} else if (basr & BASR_PARITY_ERROR) {
+				dprintk(NDEBUG_INTR, ("scsi%d : PARITY interrupt\n", instance->host_no));
+				(void) NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+			} else if ((NCR5380_read(STATUS_REG) & SR_RST) == SR_RST) {
+				dprintk(NDEBUG_INTR, ("scsi%d : RESET interrupt\n", instance->host_no));
+				(void) NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+			} else {
 #if defined(REAL_DMA)
-						/*
-						 * We should only get PHASE MISMATCH and EOP interrupts
-						 * if we have DMA enabled, so do a sanity check based on
-						 * the current setting of the MODE register.
-						 */
+				/*
+				 * We should only get PHASE MISMATCH and EOP interrupts
+				 * if we have DMA enabled, so do a sanity check based on
+				 * the current setting of the MODE register.
+				 */
 
-						if ((NCR5380_read(MODE_REG) & MR_DMA) && ((basr & BASR_END_DMA_TRANSFER) || !(basr & BASR_PHASE_MATCH))) {
-							int transfered;
+				if ((NCR5380_read(MODE_REG) & MR_DMA) && ((basr & BASR_END_DMA_TRANSFER) || !(basr & BASR_PHASE_MATCH))) {
+					int transfered;
 
-							if (!hostdata->connected)
-								panic("scsi%d : received end of DMA interrupt with no connected cmd\n", instance->hostno);
+					if (!hostdata->connected)
+						panic("scsi%d : received end of DMA interrupt with no connected cmd\n", instance->hostno);
 
-							transfered = (hostdata->dmalen - NCR5380_dma_residual(instance));
-							hostdata->connected->SCp.this_residual -= transferred;
-							hostdata->connected->SCp.ptr += transferred;
-							hostdata->dmalen = 0;
+					transfered = (hostdata->dmalen - NCR5380_dma_residual(instance));
+					hostdata->connected->SCp.this_residual -= transferred;
+					hostdata->connected->SCp.ptr += transferred;
+					hostdata->dmalen = 0;
 
-							(void) NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+					(void) NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 							
-							/* FIXME: we need to poll briefly then defer a workqueue task ! */
-							NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG, BASR_ACK, 0, 2*HZ);
+					/* FIXME: we need to poll briefly then defer a workqueue task ! */
+					NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG, BASR_ACK, 0, 2*HZ);
 
-							NCR5380_write(MODE_REG, MR_BASE);
-							NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-						}
+					NCR5380_write(MODE_REG, MR_BASE);
+					NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+				}
 #else
-						dprintk(NDEBUG_INTR, ("scsi : unknown interrupt, BASR 0x%X, MR 0x%X, SR 0x%x\n", basr, NCR5380_read(MODE_REG), NCR5380_read(STATUS_REG)));
-						(void) NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+				dprintk(NDEBUG_INTR, ("scsi : unknown interrupt, BASR 0x%X, MR 0x%X, SR 0x%x\n", basr, NCR5380_read(MODE_REG), NCR5380_read(STATUS_REG)));
+				(void) NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 #endif
-					}
-				}	/* if BASR_IRQ */
-				spin_unlock_irq(instance->host_lock);
-				if(!done)
-					schedule_work(&hostdata->coroutine);
-			}	/* if (instance->irq == irq) */
-		}
+			}
+		}	/* if BASR_IRQ */
+		spin_unlock_irq(instance->host_lock);
+		if(!done)
+			schedule_work(&hostdata->coroutine);
 	} while (!done);
-	return IRQ_RETVAL(handled);
+	return IRQ_HANDLED;
 }
 
 #endif 
@@ -1653,7 +1637,7 @@ part2:
 				   to go to sleep */
 	}
 
-	hostdata->selecting = 0;	/* clear this pointer, because we passed the
+	hostdata->selecting = NULL;/* clear this pointer, because we passed the
 					   waiting period */
 	if ((NCR5380_read(STATUS_REG) & (SR_SEL | SR_IO)) == (SR_SEL | SR_IO)) {
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);

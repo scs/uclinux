@@ -289,6 +289,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 {
 	struct v4l2_capability  *cap2 = NULL;
 	struct v4l2_format	*fmt2 = NULL;
+	enum v4l2_buf_type      captype = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
 	struct v4l2_framebuffer fbuf2;
 	struct v4l2_input	input2;
@@ -465,6 +466,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		fmt2 = kmalloc(sizeof(*fmt2),GFP_KERNEL);
 		memset(fmt2,0,sizeof(*fmt2));
 		fmt2->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		drv(inode, file, VIDIOC_STREAMOFF, &fmt2->type);
 		err1 = drv(inode, file, VIDIOC_G_FMT, fmt2);
 		if (err1 < 0)
 			dprintk("VIDIOCSWIN / VIDIOC_G_FMT: %d\n",err);
@@ -488,7 +490,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		fmt2->fmt.win.w.width   = win->width;
 		fmt2->fmt.win.w.height  = win->height;
 		fmt2->fmt.win.chromakey = win->chromakey;
-		fmt2->fmt.win.clips     = (void *)win->clips;
+		fmt2->fmt.win.clips     = (void __user *)win->clips;
 		fmt2->fmt.win.clipcount = win->clipcount;
 		err2 = drv(inode, file, VIDIOC_S_FMT, fmt2);
 		if (err2 < 0)
@@ -506,7 +508,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 			/* dirty hack time.  But v4l1 has no STREAMOFF
 			 * equivalent in the API, and this one at
 			 * least comes close ... */
-			drv(inode, file, VIDIOC_STREAMOFF, NULL);
+			drv(inode, file, VIDIOC_STREAMOFF, &captype);
 		}
 		err = drv(inode, file, VIDIOC_OVERLAY, arg);
 		if (err < 0)
@@ -897,7 +899,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 			dprintk("VIDIOCMCAPTURE / VIDIOC_QBUF: %d\n",err);
 			break;
 		}
-		err = drv(inode, file, VIDIOC_STREAMON, NULL);
+		err = drv(inode, file, VIDIOC_STREAMON, &captype);
 		if (err < 0)
 			dprintk("VIDIOCMCAPTURE / VIDIOC_STREAMON: %d\n",err);
 		break;
@@ -917,6 +919,13 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		if (!(buf2.flags & V4L2_BUF_FLAG_MAPPED)) {
 			/* Buffer is not mapped  */
 			err = -EINVAL;
+			break;
+		}
+
+		/* make sure capture actually runs so we don't block forever */
+		err = drv(inode, file, VIDIOC_STREAMON, &captype);
+		if (err < 0) {
+			dprintk("VIDIOCSYNC / VIDIOC_STREAMON: %d\n",err);
 			break;
 		}
 

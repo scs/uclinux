@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2003 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -63,7 +63,7 @@ MODULE_PARM_DESC(X, S);
 /* Transmit Descriptor Count
  *
  * Valid Range: 80-256 for 82542 and 82543 gigabit ethernet controllers
- * Valid Range: 80-4096 for 82544
+ * Valid Range: 80-4096 for 82544 and newer
  *
  * Default Value: 256
  */
@@ -73,7 +73,7 @@ E1000_PARAM(TxDescriptors, "Number of transmit descriptors");
 /* Receive Descriptor Count
  *
  * Valid Range: 80-256 for 82542 and 82543 gigabit ethernet controllers
- * Valid Range: 80-4096 for 82544
+ * Valid Range: 80-4096 for 82544 and newer
  *
  * Default Value: 256
  */
@@ -107,7 +107,7 @@ E1000_PARAM(Duplex, "Duplex setting");
 
 /* Auto-negotiation Advertisement Override
  *
- * Valid Range: 0x01-0x0F, 0x20-0x2F
+ * Valid Range: 0x01-0x0F, 0x20-0x2F (copper); 0x20 (fiber)
  *
  * The AutoNeg value is a bit mask describing which speed and duplex
  * combinations should be advertised during auto-negotiation.
@@ -117,7 +117,7 @@ E1000_PARAM(Duplex, "Duplex setting");
  * Speed (Mbps)  N/A   N/A   1000   N/A    100   100   10     10
  * Duplex                    Full          Full  Half  Full   Half
  *
- * Default Value: 0x2F
+ * Default Value: 0x2F (copper); 0x20 (fiber)
  */
 
 E1000_PARAM(AutoNeg, "Advertised auto-negotiation setting");
@@ -196,16 +196,6 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
 #define AUTONEG_ADV_MASK     0x2F
 #define FLOW_CONTROL_DEFAULT FLOW_CONTROL_FULL
 
-#define DEFAULT_TXD                  256
-#define MAX_TXD                      256
-#define MIN_TXD                       80
-#define MAX_82544_TXD               4096
-
-#define DEFAULT_RXD                  256
-#define MAX_RXD                      256
-#define MIN_RXD                       80
-#define MAX_82544_RXD               4096
-
 #define DEFAULT_RDTR                   0
 #define MAX_RXDELAY               0xFFFF
 #define MIN_RXDELAY                    0
@@ -244,7 +234,8 @@ struct e1000_option {
 };
 
 static int __devinit
-e1000_validate_option(int *value, struct e1000_option *opt)
+e1000_validate_option(int *value, struct e1000_option *opt,
+	struct e1000_adapter *adapter)
 {
 	if(*value == OPTION_UNSET) {
 		*value = opt->def;
@@ -255,16 +246,17 @@ e1000_validate_option(int *value, struct e1000_option *opt)
 	case enable_option:
 		switch (*value) {
 		case OPTION_ENABLED:
-			printk(KERN_INFO "%s Enabled\n", opt->name);
+			DPRINTK(PROBE, INFO, "%s Enabled\n", opt->name);
 			return 0;
 		case OPTION_DISABLED:
-			printk(KERN_INFO "%s Disabled\n", opt->name);
+			DPRINTK(PROBE, INFO, "%s Disabled\n", opt->name);
 			return 0;
 		}
 		break;
 	case range_option:
 		if(*value >= opt->arg.r.min && *value <= opt->arg.r.max) {
-			printk(KERN_INFO "%s set to %i\n", opt->name, *value);
+			DPRINTK(PROBE, INFO,
+				"%s set to %i\n", opt->name, *value);
 			return 0;
 		}
 		break;
@@ -276,7 +268,7 @@ e1000_validate_option(int *value, struct e1000_option *opt)
 			ent = &opt->arg.l.p[i];
 			if(*value == ent->i) {
 				if(ent->str[0] != '\0')
-					printk(KERN_INFO "%s\n", ent->str);
+					DPRINTK(PROBE, INFO, "%s\n", ent->str);
 				return 0;
 			}
 		}
@@ -286,7 +278,7 @@ e1000_validate_option(int *value, struct e1000_option *opt)
 		BUG();
 	}
 
-	printk(KERN_INFO "Invalid %s specified (%i) %s\n",
+	DPRINTK(PROBE, INFO, "Invalid %s specified (%i) %s\n",
 	       opt->name, *value, opt->err);
 	*value = opt->def;
 	return -1;
@@ -299,7 +291,7 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter);
  * e1000_check_options - Range Checking for Command Line Parameters
  * @adapter: board private structure
  *
- * This routine checks all command line paramters for valid user
+ * This routine checks all command line parameters for valid user
  * input.  If an invalid value is given, or if no user specified
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
@@ -310,9 +302,9 @@ e1000_check_options(struct e1000_adapter *adapter)
 {
 	int bd = adapter->bd_number;
 	if(bd >= E1000_MAX_NIC) {
-		printk(KERN_NOTICE
+		DPRINTK(PROBE, NOTICE,
 		       "Warning: no configuration for board #%i\n", bd);
-		printk(KERN_NOTICE "Using defaults for all values\n");
+		DPRINTK(PROBE, NOTICE, "Using defaults for all values\n");
 		bd = E1000_MAX_NIC;
 	}
 
@@ -320,33 +312,36 @@ e1000_check_options(struct e1000_adapter *adapter)
 		struct e1000_option opt = {
 			.type = range_option,
 			.name = "Transmit Descriptors",
-			.err  = "using default of " __MODULE_STRING(DEFAULT_TXD),
-			.def  = DEFAULT_TXD,
-			.arg  = { .r = { .min = MIN_TXD }}
+			.err  = "using default of "
+				__MODULE_STRING(E1000_DEFAULT_TXD),
+			.def  = E1000_DEFAULT_TXD,
+			.arg  = { .r = { .min = E1000_MIN_TXD }}
 		};
 		struct e1000_desc_ring *tx_ring = &adapter->tx_ring;
 		e1000_mac_type mac_type = adapter->hw.mac_type;
 		opt.arg.r.max = mac_type < e1000_82544 ?
-			MAX_TXD : MAX_82544_TXD;
+			E1000_MAX_TXD : E1000_MAX_82544_TXD;
 
 		tx_ring->count = TxDescriptors[bd];
-		e1000_validate_option(&tx_ring->count, &opt);
+		e1000_validate_option(&tx_ring->count, &opt, adapter);
 		E1000_ROUNDUP(tx_ring->count, REQ_TX_DESCRIPTOR_MULTIPLE);
 	}
 	{ /* Receive Descriptor Count */
 		struct e1000_option opt = {
 			.type = range_option,
 			.name = "Receive Descriptors",
-			.err  = "using default of " __MODULE_STRING(DEFAULT_RXD),
-			.def  = DEFAULT_RXD,
-			.arg  = { .r = { .min = MIN_RXD }}
+			.err  = "using default of "
+				__MODULE_STRING(E1000_DEFAULT_RXD),
+			.def  = E1000_DEFAULT_RXD,
+			.arg  = { .r = { .min = E1000_MIN_RXD }}
 		};
 		struct e1000_desc_ring *rx_ring = &adapter->rx_ring;
 		e1000_mac_type mac_type = adapter->hw.mac_type;
-		opt.arg.r.max = mac_type < e1000_82544 ? MAX_RXD : MAX_82544_RXD;
+		opt.arg.r.max = mac_type < e1000_82544 ? E1000_MAX_RXD :
+			E1000_MAX_82544_RXD;
 
 		rx_ring->count = RxDescriptors[bd];
-		e1000_validate_option(&rx_ring->count, &opt);
+		e1000_validate_option(&rx_ring->count, &opt, adapter);
 		E1000_ROUNDUP(rx_ring->count, REQ_RX_DESCRIPTOR_MULTIPLE);
 	}
 	{ /* Checksum Offload Enable/Disable */
@@ -358,7 +353,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		};
 
 		int rx_csum = XsumRX[bd];
-		e1000_validate_option(&rx_csum, &opt);
+		e1000_validate_option(&rx_csum, &opt, adapter);
 		adapter->rx_csum = rx_csum;
 	}
 	{ /* Flow Control */
@@ -380,7 +375,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		};
 
 		int fc = FlowControl[bd];
-		e1000_validate_option(&fc, &opt);
+		e1000_validate_option(&fc, &opt, adapter);
 		adapter->hw.fc = adapter->hw.original_fc = fc;
 	}
 	{ /* Transmit Interrupt Delay */
@@ -394,7 +389,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		};
 
 		adapter->tx_int_delay = TxIntDelay[bd];
-		e1000_validate_option(&adapter->tx_int_delay, &opt);
+		e1000_validate_option(&adapter->tx_int_delay, &opt, adapter);
 	}
 	{ /* Transmit Absolute Interrupt Delay */
 		struct e1000_option opt = {
@@ -407,7 +402,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		};
 
 		adapter->tx_abs_int_delay = TxAbsIntDelay[bd];
-		e1000_validate_option(&adapter->tx_abs_int_delay, &opt);
+		e1000_validate_option(&adapter->tx_abs_int_delay, &opt, adapter);
 	}
 	{ /* Receive Interrupt Delay */
 		struct e1000_option opt = {
@@ -420,7 +415,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		};
 
 		adapter->rx_int_delay = RxIntDelay[bd];
-		e1000_validate_option(&adapter->rx_int_delay, &opt);
+		e1000_validate_option(&adapter->rx_int_delay, &opt, adapter);
 	}
 	{ /* Receive Absolute Interrupt Delay */
 		struct e1000_option opt = {
@@ -433,7 +428,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		};
 
 		adapter->rx_abs_int_delay = RxAbsIntDelay[bd];
-		e1000_validate_option(&adapter->rx_abs_int_delay, &opt);
+		e1000_validate_option(&adapter->rx_abs_int_delay, &opt, adapter);
 	}
 	{ /* Interrupt Throttling Rate */
 		struct e1000_option opt = {
@@ -446,13 +441,20 @@ e1000_check_options(struct e1000_adapter *adapter)
 		};
 
 		adapter->itr = InterruptThrottleRate[bd];
-		if(adapter->itr == 0) {
-			printk(KERN_INFO "%s turned off\n", opt.name);
-		} else if(adapter->itr == 1 || adapter->itr == -1) {
-			/* Dynamic mode */
+		switch(adapter->itr) {
+		case -1:
 			adapter->itr = 1;
-		} else {
-			e1000_validate_option(&adapter->itr, &opt);
+			break;
+		case 0:
+			DPRINTK(PROBE, INFO, "%s turned off\n", opt.name);
+			break;
+		case 1:
+			DPRINTK(PROBE, INFO,
+				"%s set to dynamic mode\n", opt.name);
+			break;
+		default:
+			e1000_validate_option(&adapter->itr, &opt, adapter);
+			break;
 		}
 	}
 
@@ -483,16 +485,16 @@ e1000_check_fiber_options(struct e1000_adapter *adapter)
 	bd = bd > E1000_MAX_NIC ? E1000_MAX_NIC : bd;
 
 	if((Speed[bd] != OPTION_UNSET)) {
-		printk(KERN_INFO "Speed not valid for fiber adapters, "
+		DPRINTK(PROBE, INFO, "Speed not valid for fiber adapters, "
 		       "parameter ignored\n");
 	}
 	if((Duplex[bd] != OPTION_UNSET)) {
-		printk(KERN_INFO "Duplex not valid for fiber adapters, "
+		DPRINTK(PROBE, INFO, "Duplex not valid for fiber adapters, "
 		       "parameter ignored\n");
 	}
-	if((AutoNeg[bd] != OPTION_UNSET)) {
-		printk(KERN_INFO "AutoNeg not valid for fiber adapters, "
-		       "parameter ignored\n");
+	if((AutoNeg[bd] != OPTION_UNSET) && (AutoNeg[bd] != 0x20)) {
+		DPRINTK(PROBE, INFO, "AutoNeg other than Full/1000 is "
+		       "not valid for fiber adapters, parameter ignored\n");
 	}
 }
 
@@ -526,7 +528,7 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 		};
 
 		speed = Speed[bd];
-		e1000_validate_option(&speed, &opt);
+		e1000_validate_option(&speed, &opt, adapter);
 	}
 	{ /* Duplex */
 		struct e1000_opt_list dplx_list[] = {{           0, "" },
@@ -543,11 +545,11 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 		};
 
 		dplx = Duplex[bd];
-		e1000_validate_option(&dplx, &opt);
+		e1000_validate_option(&dplx, &opt, adapter);
 	}
 
 	if(AutoNeg[bd] != OPTION_UNSET && (speed != 0 || dplx != 0)) {
-		printk(KERN_INFO
+		DPRINTK(PROBE, INFO,
 		       "AutoNeg specified along with Speed or Duplex, "
 		       "parameter ignored\n");
 		adapter->hw.autoneg_advertised = AUTONEG_ADV_DEFAULT;
@@ -596,7 +598,7 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 		};
 
 		int an = AutoNeg[bd];
-		e1000_validate_option(&an, &opt);
+		e1000_validate_option(&an, &opt, adapter);
 		adapter->hw.autoneg_advertised = an;
 	}
 
@@ -604,78 +606,85 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 	case 0:
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		if(Speed[bd] != OPTION_UNSET || Duplex[bd] != OPTION_UNSET)
-			printk(KERN_INFO
+			DPRINTK(PROBE, INFO,
 			       "Speed and duplex autonegotiation enabled\n");
 		break;
 	case HALF_DUPLEX:
-		printk(KERN_INFO "Half Duplex specified without Speed\n");
-		printk(KERN_INFO "Using Autonegotiation at Half Duplex only\n");
+		DPRINTK(PROBE, INFO, "Half Duplex specified without Speed\n");
+		DPRINTK(PROBE, INFO,
+			"Using Autonegotiation at Half Duplex only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		adapter->hw.autoneg_advertised = ADVERTISE_10_HALF |
 		                                 ADVERTISE_100_HALF;
 		break;
 	case FULL_DUPLEX:
-		printk(KERN_INFO "Full Duplex specified without Speed\n");
-		printk(KERN_INFO "Using Autonegotiation at Full Duplex only\n");
+		DPRINTK(PROBE, INFO, "Full Duplex specified without Speed\n");
+		DPRINTK(PROBE, INFO,
+			"Using Autonegotiation at Full Duplex only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		adapter->hw.autoneg_advertised = ADVERTISE_10_FULL |
 		                                 ADVERTISE_100_FULL |
 		                                 ADVERTISE_1000_FULL;
 		break;
 	case SPEED_10:
-		printk(KERN_INFO "10 Mbps Speed specified without Duplex\n");
-		printk(KERN_INFO "Using Autonegotiation at 10 Mbps only\n");
+		DPRINTK(PROBE, INFO,
+			"10 Mbps Speed specified without Duplex\n");
+		DPRINTK(PROBE, INFO, "Using Autonegotiation at 10 Mbps only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		adapter->hw.autoneg_advertised = ADVERTISE_10_HALF |
 		                                 ADVERTISE_10_FULL;
 		break;
 	case SPEED_10 + HALF_DUPLEX:
-		printk(KERN_INFO "Forcing to 10 Mbps Half Duplex\n");
+		DPRINTK(PROBE, INFO, "Forcing to 10 Mbps Half Duplex\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 0;
 		adapter->hw.forced_speed_duplex = e1000_10_half;
 		adapter->hw.autoneg_advertised = 0;
 		break;
 	case SPEED_10 + FULL_DUPLEX:
-		printk(KERN_INFO "Forcing to 10 Mbps Full Duplex\n");
+		DPRINTK(PROBE, INFO, "Forcing to 10 Mbps Full Duplex\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 0;
 		adapter->hw.forced_speed_duplex = e1000_10_full;
 		adapter->hw.autoneg_advertised = 0;
 		break;
 	case SPEED_100:
-		printk(KERN_INFO "100 Mbps Speed specified without Duplex\n");
-		printk(KERN_INFO "Using Autonegotiation at 100 Mbps only\n");
+		DPRINTK(PROBE, INFO,
+			"100 Mbps Speed specified without Duplex\n");
+		DPRINTK(PROBE, INFO,
+			"Using Autonegotiation at 100 Mbps only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		adapter->hw.autoneg_advertised = ADVERTISE_100_HALF |
 		                                 ADVERTISE_100_FULL;
 		break;
 	case SPEED_100 + HALF_DUPLEX:
-		printk(KERN_INFO "Forcing to 100 Mbps Half Duplex\n");
+		DPRINTK(PROBE, INFO, "Forcing to 100 Mbps Half Duplex\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 0;
 		adapter->hw.forced_speed_duplex = e1000_100_half;
 		adapter->hw.autoneg_advertised = 0;
 		break;
 	case SPEED_100 + FULL_DUPLEX:
-		printk(KERN_INFO "Forcing to 100 Mbps Full Duplex\n");
+		DPRINTK(PROBE, INFO, "Forcing to 100 Mbps Full Duplex\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 0;
 		adapter->hw.forced_speed_duplex = e1000_100_full;
 		adapter->hw.autoneg_advertised = 0;
 		break;
 	case SPEED_1000:
-		printk(KERN_INFO "1000 Mbps Speed specified without Duplex\n");
-		printk(KERN_INFO
+		DPRINTK(PROBE, INFO,
+			"1000 Mbps Speed specified without Duplex\n");
+		DPRINTK(PROBE, INFO,
 		       "Using Autonegotiation at 1000 Mbps Full Duplex only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		adapter->hw.autoneg_advertised = ADVERTISE_1000_FULL;
 		break;
 	case SPEED_1000 + HALF_DUPLEX:
-		printk(KERN_INFO "Half Duplex is not supported at 1000 Mbps\n");
-		printk(KERN_INFO
+		DPRINTK(PROBE, INFO,
+			"Half Duplex is not supported at 1000 Mbps\n");
+		DPRINTK(PROBE, INFO,
 		       "Using Autonegotiation at 1000 Mbps Full Duplex only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		adapter->hw.autoneg_advertised = ADVERTISE_1000_FULL;
 		break;
 	case SPEED_1000 + FULL_DUPLEX:
-		printk(KERN_INFO
+		DPRINTK(PROBE, INFO,
 		       "Using Autonegotiation at 1000 Mbps Full Duplex only\n");
 		adapter->hw.autoneg = adapter->fc_autoneg = 1;
 		adapter->hw.autoneg_advertised = ADVERTISE_1000_FULL;
@@ -686,7 +695,8 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 
 	/* Speed, AutoNeg and MDI/MDI-X must all play nice */
 	if (e1000_validate_mdi_setting(&(adapter->hw)) < 0) {
-		printk(KERN_INFO "Speed, AutoNeg and MDI-X specifications are "
+		DPRINTK(PROBE, INFO,
+		       "Speed, AutoNeg and MDI-X specifications are "
 		       "incompatible. Setting MDI-X to a compatible value.\n");
 	}
 }

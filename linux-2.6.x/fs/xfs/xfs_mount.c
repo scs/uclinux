@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -117,6 +117,7 @@ static struct {
     { offsetof(xfs_sb_t, sb_logsectlog), 0 },
     { offsetof(xfs_sb_t, sb_logsectsize),0 },
     { offsetof(xfs_sb_t, sb_logsunit),	 0 },
+    { offsetof(xfs_sb_t, sb_features2),	 0 },
     { sizeof(xfs_sb_t),			 0 }
 };
 
@@ -139,9 +140,6 @@ xfs_mount_init(void)
 	 */
 	xfs_trans_ail_init(mp);
 
-	/* Init freeze sync structures */
-	spinlock_init(&mp->m_freeze_lock, "xfs_freeze");
-	init_sv(&mp->m_wait_unfreeze, SV_DEFAULT, "xfs_freeze", 0);
 	atomic_set(&mp->m_active_trans, 0);
 
 	return mp;
@@ -191,8 +189,6 @@ xfs_mount_free(
 		VFS_REMOVEBHV(vfsp, &mp->m_bhv);
 	}
 
-	spinlock_destroy(&mp->m_freeze_lock);
-	sv_destroy(&mp->m_wait_unfreeze);
 	kmem_free(mp, sizeof(xfs_mount_t));
 }
 
@@ -675,6 +671,7 @@ xfs_mountfs(
 				error = XFS_ERROR(EINVAL);
 				goto error1;
 			}
+			mp->m_dalign = mp->m_swidth = 0;
 		} else {
 			/*
 			 * Convert the stripe unit and width to FSBs.
@@ -685,14 +682,21 @@ xfs_mountfs(
 					error = XFS_ERROR(EINVAL);
 					goto error1;
 				}
+				xfs_fs_cmn_err(CE_WARN, mp,
+"stripe alignment turned off: sunit(%d)/swidth(%d) incompatible with agsize(%d)",
+					mp->m_dalign, mp->m_swidth,
+					sbp->sb_agblocks);
+
 				mp->m_dalign = 0;
 				mp->m_swidth = 0;
 			} else if (mp->m_dalign) {
 				mp->m_swidth = XFS_BB_TO_FSBT(mp, mp->m_swidth);
 			} else {
 				if (mp->m_flags & XFS_MOUNT_RETERR) {
-					cmn_err(CE_WARN,
-					"XFS: alignment check 3 failed");
+					xfs_fs_cmn_err(CE_WARN, mp,
+"stripe alignment turned off: sunit(%d) less than bsize(%d)",
+                                        	mp->m_dalign,
+						mp->m_blockmask +1);
 					error = XFS_ERROR(EINVAL);
 					goto error1;
 				}
@@ -1129,22 +1133,11 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 void
 xfs_unmountfs_close(xfs_mount_t *mp, struct cred *cr)
 {
-	int		have_logdev = (mp->m_logdev_targp != mp->m_ddev_targp);
-
-	if (mp->m_ddev_targp) {
-		xfs_free_buftarg(mp->m_ddev_targp);
-		mp->m_ddev_targp = NULL;
-	}
-	if (mp->m_rtdev_targp) {
-		xfs_blkdev_put(mp->m_rtdev_targp->pbr_bdev);
-		xfs_free_buftarg(mp->m_rtdev_targp);
-		mp->m_rtdev_targp = NULL;
-	}
-	if (mp->m_logdev_targp && have_logdev) {
-		xfs_blkdev_put(mp->m_logdev_targp->pbr_bdev);
-		xfs_free_buftarg(mp->m_logdev_targp);
-		mp->m_logdev_targp = NULL;
-	}
+	if (mp->m_logdev_targp != mp->m_ddev_targp)
+		xfs_free_buftarg(mp->m_logdev_targp, 1);
+	if (mp->m_rtdev_targp)
+		xfs_free_buftarg(mp->m_rtdev_targp, 1);
+	xfs_free_buftarg(mp->m_ddev_targp, 0);
 }
 
 int
@@ -1583,60 +1576,4 @@ xfs_mount_log_sbunit(
 	}
 	xfs_mod_sb(tp, fields);
 	xfs_trans_commit(tp, 0, NULL);
-}
-
-/* Functions to lock access out of the filesystem for forced
- * shutdown or snapshot.
- */
-
-void
-xfs_start_freeze(
-	xfs_mount_t	*mp,
-	int		level)
-{
-	unsigned long	s = mutex_spinlock(&mp->m_freeze_lock);
-
-	mp->m_frozen = level;
-	mutex_spinunlock(&mp->m_freeze_lock, s);
-
-	if (level == XFS_FREEZE_TRANS) {
-		while (atomic_read(&mp->m_active_trans) > 0)
-			delay(100);
-	}
-}
-
-void
-xfs_finish_freeze(
-	xfs_mount_t	*mp)
-{
-	unsigned long	s = mutex_spinlock(&mp->m_freeze_lock);
-
-	if (mp->m_frozen) {
-		mp->m_frozen = 0;
-		sv_broadcast(&mp->m_wait_unfreeze);
-	}
-
-	mutex_spinunlock(&mp->m_freeze_lock, s);
-}
-
-void
-xfs_check_frozen(
-	xfs_mount_t	*mp,
-	bhv_desc_t	*bdp,
-	int		level)
-{
-	unsigned long	s;
-
-	if (mp->m_frozen) {
-		s = mutex_spinlock(&mp->m_freeze_lock);
-
-		if (mp->m_frozen < level) {
-			mutex_spinunlock(&mp->m_freeze_lock, s);
-		} else {
-			sv_wait(&mp->m_wait_unfreeze, 0, &mp->m_freeze_lock, s);
-		}
-	}
-
-	if (level == XFS_FREEZE_TRANS)
-		atomic_inc(&mp->m_active_trans);
 }

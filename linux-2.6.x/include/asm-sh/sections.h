@@ -3,7 +3,7 @@
 
 #include <asm-generic/sections.h>
 
-extern char _end[], __initramfs_end[];
+extern char _end[];
 
 #endif /* __ASM_SH_SECTIONS_H */
 

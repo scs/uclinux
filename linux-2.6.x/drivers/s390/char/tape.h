@@ -32,7 +32,7 @@ struct gendisk;
 #ifdef  DBF_LIKE_HELL
 #define DBF_LH(level, str, ...) \
 do { \
-	debug_sprintf_event(tape_dbf_area, level, str, ## __VA_ARGS__); \
+	debug_sprintf_event(TAPE_DBF_AREA, level, str, ## __VA_ARGS__); \
 } while (0)
 #else
 #define DBF_LH(level, str, ...) do {} while(0)
@@ -43,12 +43,12 @@ do { \
  */
 #define DBF_EVENT(d_level, d_str...) \
 do { \
-	debug_sprintf_event(tape_dbf_area, d_level, d_str); \
+	debug_sprintf_event(TAPE_DBF_AREA, d_level, d_str); \
 } while (0)
 
 #define DBF_EXCEPTION(d_level, d_str...) \
 do { \
-	debug_sprintf_exception(tape_dbf_area, d_level, d_str); \
+	debug_sprintf_exception(TAPE_DBF_AREA, d_level, d_str); \
 } while (0)
 
 #define TAPE_VERSION_MAJOR 2
@@ -59,12 +59,6 @@ do { \
 #define TAPEBLOCK_HSEC_SIZE	2048
 #define TAPEBLOCK_HSEC_S2B	2
 #define TAPEBLOCK_RETRIES	5
-
-/* Event types for hotplug */
-#define TAPE_HOTPLUG_CHAR_ADD     1
-#define TAPE_HOTPLUG_BLOCK_ADD    2
-#define TAPE_HOTPLUG_CHAR_REMOVE  3
-#define TAPE_HOTPLUG_BLOCK_REMOVE 4
 
 enum tape_medium_state {
 	MS_UNKNOWN,
@@ -204,7 +198,10 @@ struct tape_device {
 	/* entry in tape_device_list */
 	struct list_head		node;
 
+	int				cdev_id;
 	struct ccw_device *		cdev;
+	struct tape_class_device *	nt;
+	struct tape_class_device *	rt;
 
 	/* Device discipline information. */
 	struct tape_discipline *	discipline;
@@ -267,8 +264,8 @@ extern int tape_release(struct tape_device *);
 extern int tape_mtop(struct tape_device *, int, int);
 extern void tape_state_set(struct tape_device *, enum tape_state);
 
-extern int tape_enable_device(struct tape_device *, struct tape_discipline *);
-extern void tape_disable_device(struct tape_device *device);
+extern int tape_generic_online(struct tape_device *, struct tape_discipline *);
+extern int tape_generic_offline(struct tape_device *device);
 
 /* Externals from tape_devmap.c */
 extern int tape_generic_probe(struct ccw_device *);
@@ -316,7 +313,7 @@ extern void tape_dump_sense_dbf(struct tape_device *, struct tape_request *,
 extern void tape_med_state_set(struct tape_device *, enum tape_medium_state);
 
 /* The debug area */
-extern debug_info_t *tape_dbf_area;
+extern debug_info_t *TAPE_DBF_AREA;
 
 /* functions for building ccws */
 static inline struct ccw1 *

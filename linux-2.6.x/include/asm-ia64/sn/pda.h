@@ -8,12 +8,9 @@
 #ifndef _ASM_IA64_SN_PDA_H
 #define _ASM_IA64_SN_PDA_H
 
-#include <linux/config.h>
 #include <linux/cache.h>
 #include <asm/percpu.h>
 #include <asm/system.h>
-#include <asm/processor.h>
-#include <asm/page.h>
 #include <asm/sn/bte.h>
 
 
@@ -51,8 +48,6 @@ typedef struct pda_s {
 	volatile unsigned long *pio_write_status_addr;
 	volatile unsigned long *pio_shub_war_cam_addr;
 	volatile unsigned long *mem_write_status_addr;
-
-	struct bteinfo_s *cpu_bte_if[BTES_PER_NODE];	/* cpu interface order */
 
 	unsigned long	sn_soft_irr[4];
 	unsigned long	sn_in_service_ivecs[4];

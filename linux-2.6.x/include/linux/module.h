@@ -16,13 +16,14 @@
 #include <linux/kmod.h>
 #include <linux/elf.h>
 #include <linux/stringify.h>
+#include <linux/kobject.h>
+#include <linux/moduleparam.h>
 #include <asm/local.h>
 
 #include <asm/module.h>
 
 /* Not Yet Implemented */
 #define MODULE_SUPPORTED_DEVICE(name)
-#define print_modules()
 
 /* v850 toolchain uses a `_' prefix for all user symbols */
 #ifndef MODULE_SYMBOL_PREFIX
@@ -70,6 +71,7 @@ static const char __module_cat(name,__LINE__)[]				  \
 extern const struct gtype##_id __mod_##gtype##_table		\
   __attribute__ ((unused, alias(__stringify(name))))
 
+extern struct module __this_module;
 #define THIS_MODULE (&__this_module)
 
 #else  /* !MODULE */
@@ -126,6 +128,24 @@ extern const struct gtype##_id __mod_##gtype##_table		\
 
 #define MODULE_DEVICE_TABLE(type,name)		\
   MODULE_GENERIC_TABLE(type##_device,name)
+
+/* Version of form [<epoch>:]<version>[-<extra-version>].
+   Or for CVS/RCS ID version, everything but the number is stripped.
+  <epoch>: A (small) unsigned integer which allows you to start versions
+           anew. If not mentioned, it's zero.  eg. "2:1.0" is after
+	   "1:2.0".
+  <version>: The <version> may contain only alphanumerics and the
+           character `.'.  Ordered by numeric sort for numeric parts,
+	   ascii sort for ascii parts (as per RPM or DEB algorithm).
+  <extraversion>: Like <version>, but inserted for local
+           customizations, eg "rh3" or "rusty1".
+
+  Using this automatically adds a checksum of the .c files and the
+  local headers to the end.  Use MODULE_VERSION("") if you want just
+  this.  Macro includes room for this.
+*/
+#define MODULE_VERSION(_version) \
+  MODULE_INFO(version, _version "\0xxxxxxxxxxxxxxxxxxxxxxxx")
 
 /* Given an address, look for it in the exception tables */
 const struct exception_table_entry *search_exception_tables(unsigned long add);
@@ -188,6 +208,39 @@ enum module_state
 	MODULE_STATE_GOING,
 };
 
+/* sysfs stuff */
+struct module_attribute
+{
+	struct attribute attr;
+	struct kernel_param *param;
+};
+
+struct module_kobject
+{
+	/* Everyone should have one of these. */
+	struct kobject kobj;
+
+	/* We always have refcnt, we may have others from module_param(). */
+	unsigned int num_attributes;
+	struct module_attribute attr[0];
+};
+
+/* Similar stuff for section attributes. */
+#define MODULE_SECT_NAME_LEN 32
+struct module_sect_attr
+{
+	struct attribute attr;
+	char name[MODULE_SECT_NAME_LEN];
+	unsigned long address;
+};
+
+struct module_sections
+{
+	struct kobject kobj;
+	struct module_sect_attr attrs[0];
+};
+
+
 struct module
 {
 	enum module_state state;
@@ -197,6 +250,9 @@ struct module
 
 	/* Unique handle for this module */
 	char name[MODULE_NAME_LEN];
+
+	/* Sysfs stuff. */
+	struct module_kobject *mkobj;
 
 	/* Exported symbols */
 	const struct kernel_symbol *syms;
@@ -248,6 +304,9 @@ struct module
 
 	/* Destruction function. */
 	void (*exit)(void);
+
+	/* Fake kernel param for refcnt. */
+	struct kernel_param refcnt_param;
 #endif
 
 #ifdef CONFIG_KALLSYMS
@@ -255,6 +314,9 @@ struct module
 	Elf_Sym *symtab;
 	unsigned long num_symtab;
 	char *strtab;
+
+	/* Section attributes */
+	struct module_sections *sect_attrs;
 #endif
 
 	/* Per-cpu data. */
@@ -273,8 +335,9 @@ static inline int module_is_live(struct module *mod)
 	return mod->state != MODULE_STATE_GOING;
 }
 
-/* Is this address in a module? */
+/* Is this address in a module? (second is with no locks, for oops) */
 struct module *module_text_address(unsigned long addr);
+struct module *__module_text_address(unsigned long addr);
 
 /* Returns module and fills in value, defined and namebuf, or NULL if
    symnum out of range. */
@@ -282,6 +345,10 @@ struct module *module_get_kallsym(unsigned int symnum,
 				  unsigned long *value,
 				  char *type,
 				  char namebuf[128]);
+
+/* Look for this name: can be of form module:name. */
+unsigned long module_kallsyms_lookup_name(const char *name);
+
 int is_exported(const char *name, const struct module *mod);
 
 extern void __module_put_and_exit(struct module *mod, long code)
@@ -377,6 +444,7 @@ const struct exception_table_entry *search_module_extables(unsigned long addr);
 int register_module_notifier(struct notifier_block * nb);
 int unregister_module_notifier(struct notifier_block * nb);
 
+extern void print_modules(void);
 #else /* !CONFIG_MODULES... */
 #define EXPORT_SYMBOL(sym)
 #define EXPORT_SYMBOL_GPL(sym)
@@ -391,6 +459,12 @@ search_module_extables(unsigned long addr)
 
 /* Is this address in a module? */
 static inline struct module *module_text_address(unsigned long addr)
+{
+	return NULL;
+}
+
+/* Is this address in a module? (don't take a lock, we're oopsing) */
+static inline struct module *__module_text_address(unsigned long addr)
 {
 	return NULL;
 }
@@ -434,6 +508,11 @@ static inline struct module *module_get_kallsym(unsigned int symnum,
 	return NULL;
 }
 
+static inline unsigned long module_kallsyms_lookup_name(const char *name)
+{
+	return 0;
+}
+
 static inline int is_exported(const char *name, const struct module *mod)
 {
 	return 0;
@@ -452,22 +531,10 @@ static inline int unregister_module_notifier(struct notifier_block * nb)
 
 #define module_put_and_exit(code) do_exit(code)
 
+static inline void print_modules(void)
+{
+}
 #endif /* CONFIG_MODULES */
-
-#ifdef MODULE
-extern struct module __this_module;
-#ifdef KBUILD_MODNAME
-/* We make the linker do some of the work. */
-struct module __this_module
-__attribute__((section(".gnu.linkonce.this_module"))) = {
-	.name = __stringify(KBUILD_MODNAME),
-	.init = init_module,
-#ifdef CONFIG_MODULE_UNLOAD
-	.exit = cleanup_module,
-#endif
-};
-#endif /* KBUILD_MODNAME */
-#endif /* MODULE */
 
 #define symbol_request(x) try_then_request_module(symbol_get(x), "symbol:" #x)
 

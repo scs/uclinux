@@ -27,6 +27,10 @@
 
 /* ------------------------------------------------------------- */
 
+static char *revision = "$Revision$";
+
+/* ------------------------------------------------------------- */
+
 MODULE_DESCRIPTION("CAPI4Linux: Driver for AVM PCMCIA cards");
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
@@ -186,3 +190,36 @@ EXPORT_SYMBOL(b1pcmcia_addcard_b1);
 EXPORT_SYMBOL(b1pcmcia_addcard_m1);
 EXPORT_SYMBOL(b1pcmcia_addcard_m2);
 EXPORT_SYMBOL(b1pcmcia_delcard);
+
+static struct capi_driver capi_driver_b1pcmcia = {
+	.name		= "b1pcmcia",
+	.revision	= "1.0",
+};
+
+static int __init b1pcmcia_init(void)
+{
+	char *p;
+	char rev[32];
+	int err;
+
+	if ((p = strchr(revision, ':')) != 0 && p[1]) {
+		strlcpy(rev, p + 2, 32);
+		if ((p = strchr(rev, '$')) != 0 && p > rev)
+		   *(p-1) = 0;
+	} else
+		strcpy(rev, "1.0");
+
+	strlcpy(capi_driver_b1pcmcia.revision, rev, 32);
+	register_capi_driver(&capi_driver_b1pcmcia);
+	printk(KERN_INFO "b1pci: revision %s\n", rev);
+
+	return 0;
+}
+
+static void __exit b1pcmcia_exit(void)
+{
+	unregister_capi_driver(&capi_driver_b1pcmcia);
+}
+
+module_init(b1pcmcia_init);
+module_exit(b1pcmcia_exit);

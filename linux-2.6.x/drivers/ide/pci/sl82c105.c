@@ -29,8 +29,6 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 
-#include "sl82c105.h"
-
 #undef DEBUG
 
 #ifdef DEBUG
@@ -158,7 +156,7 @@ static int sl82c105_check_drive (ide_drive_t *drive)
 			break;
 
 		/* Consult the list of known "bad" drives */
-		if (hwif->ide_dma_bad_drive(drive))
+		if (__ide_dma_bad_drive(drive))
 			break;
 
 		if (id->field_valid & 2) {
@@ -167,7 +165,7 @@ static int sl82c105_check_drive (ide_drive_t *drive)
 				return hwif->ide_dma_on(drive);
 		}
 
-		if (hwif->ide_dma_good_drive(drive))
+		if (__ide_dma_good_drive(drive))
 			return hwif->ide_dma_on(drive);
 	} while (0);
 
@@ -270,22 +268,6 @@ static int sl82c105_ide_dma_on (ide_drive_t *drive)
 	}
 	printk(KERN_INFO "%s: DMA enabled\n", drive->name);
 	return __ide_dma_on(drive);
-}
-
-static int sl82c105_ide_dma_off (ide_drive_t *drive)
-{
-	u8 speed = XFER_PIO_0;
-	int rc;
-	
-	DBG(("sl82c105_ide_dma_off(drive:%s)\n", drive->name));
-
-	rc = __ide_dma_off(drive);
-	if (drive->pio_speed)
-		speed = drive->pio_speed - XFER_PIO_0;
-	config_for_pio(drive, speed, 0, 1);
-	drive->current_speed = drive->pio_speed;
-
-	return rc;
 }
 
 static int sl82c105_ide_dma_off_quietly (ide_drive_t *drive)
@@ -485,7 +467,6 @@ static void __init init_hwif_sl82c105(ide_hwif_t *hwif)
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	hwif->ide_dma_check = &sl82c105_check_drive;
 	hwif->ide_dma_on = &sl82c105_ide_dma_on;
-	hwif->ide_dma_off = &sl82c105_ide_dma_off;
 	hwif->ide_dma_off_quietly = &sl82c105_ide_dma_off_quietly;
 	hwif->ide_dma_lostirq = &sl82c105_ide_dma_lost_irq;
 	hwif->ide_dma_begin = &sl82c105_ide_dma_begin;
@@ -498,15 +479,20 @@ static void __init init_hwif_sl82c105(ide_hwif_t *hwif)
 #endif /* CONFIG_BLK_DEV_IDEDMA */
 }
 
-extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
+static ide_pci_device_t sl82c105_chipset __devinitdata = {
+	.name		= "W82C105",
+	.init_chipset	= init_chipset_sl82c105,
+	.init_hwif	= init_hwif_sl82c105,
+	.init_dma	= init_dma_sl82c105,
+	.channels	= 2,
+	.autodma	= NOAUTODMA,
+	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},
+	.bootable	= ON_BOARD,
+};
 
 static int __devinit sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &sl82c105_chipsets[id->driver_data];
-	if (dev->device != d->device)
-		BUG();
-	ide_setup_pci_device(dev, d);
-	MOD_INC_USE_COUNT;
+	ide_setup_pci_device(dev, &sl82c105_chipset);
 	return 0;
 }
 
@@ -514,6 +500,7 @@ static struct pci_device_id sl82c105_pci_tbl[] = {
 	{ PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, sl82c105_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "W82C105 IDE",
@@ -526,13 +513,7 @@ static int sl82c105_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
-static void sl82c105_ide_exit(void)
-{
-	ide_pci_unregister_driver(&driver);
-}
-
 module_init(sl82c105_ide_init);
-module_exit(sl82c105_ide_exit);
 
 MODULE_DESCRIPTION("PCI driver module for W82C105 IDE");
 MODULE_LICENSE("GPL");

@@ -75,15 +75,10 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-
-#ifdef CONFIG_USB_SERIAL_DEBUG
- 	static int debug = 1;
-#else
- 	static int debug;
-#endif
-
 #include "usb-serial.h"
 #include "belkin_sa.h"
+
+static int debug;
 
 /*
  * Version Information
@@ -232,8 +227,10 @@ static int  belkin_sa_open (struct usb_serial_port *port, struct file *filp)
 
 	port->interrupt_in_urb->dev = port->serial->dev;
 	retval = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
-	if (retval)
+	if (retval) {
+		usb_unlink_urb(port->read_urb);
 		err(" usb_submit_urb(read int) failed");
+	}
 
 exit:
 	return retval;
@@ -242,23 +239,12 @@ exit:
 
 static void belkin_sa_close (struct usb_serial_port *port, struct file *filp)
 {
-	struct usb_serial *serial;
-
-	if (port_paranoia_check (port, __FUNCTION__))
-		return;
-
-	serial = get_usb_serial (port, __FUNCTION__);
-	if (!serial)
-		return;
-
 	dbg("%s port %d", __FUNCTION__, port->number);
 
-	if (serial->dev) {
-		/* shutdown our bulk reads and writes */
-		usb_unlink_urb (port->write_urb);
-		usb_unlink_urb (port->read_urb);
-		usb_unlink_urb (port->interrupt_in_urb);
-	}
+	/* shutdown our bulk reads and writes */
+	usb_unlink_urb (port->write_urb);
+	usb_unlink_urb (port->read_urb);
+	usb_unlink_urb (port->interrupt_in_urb);
 } /* belkin_sa_close */
 
 
@@ -266,7 +252,6 @@ static void belkin_sa_read_int_callback (struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct belkin_sa_private *priv;
-	struct usb_serial *serial;
 	unsigned char *data = urb->transfer_buffer;
 	int retval;
 	unsigned long flags;
@@ -286,15 +271,7 @@ static void belkin_sa_read_int_callback (struct urb *urb, struct pt_regs *regs)
 		goto exit;
 	}
 
-	if (port_paranoia_check (port, __FUNCTION__))
-		return;
-
-	serial = port->serial;
-
-	if (serial_paranoia_check (serial, __FUNCTION__))
-		return;
-	
-	usb_serial_debug_data (__FILE__, __FUNCTION__, urb->actual_length, data);
+	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
 
 	/* Handle known interrupt data */
 	/* ignore data[0] and data[1] */
@@ -632,6 +609,5 @@ MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(debug, "i");
+module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
-

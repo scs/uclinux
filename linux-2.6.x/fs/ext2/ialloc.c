@@ -294,7 +294,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 	ndirs = percpu_counter_read_positive(&sbi->s_dirs_counter);
 
 	if ((parent == sb->s_root->d_inode) ||
-	    (parent->i_flags & EXT2_TOPDIR_FL)) {
+	    (EXT2_I(parent)->i_flags & EXT2_TOPDIR_FL)) {
 		struct ext2_group_desc *best_desc = NULL;
 		struct buffer_head *best_bh = NULL;
 		int best_ndir = inodes_per_group;
@@ -431,8 +431,8 @@ static int find_group_other(struct super_block *sb, struct inode *parent)
 	 * That failed: try linear search for a free inode, even if that group
 	 * has no free blocks.
 	 */
-	group = parent_group + 1;
-	for (i = 2; i < ngroups; i++) {
+	group = parent_group;
+	for (i = 0; i < ngroups; i++) {
 		if (++group >= ngroups)
 			group = 0;
 		desc = ext2_get_group_desc (sb, group, &bh);
@@ -663,7 +663,7 @@ unsigned long ext2_count_free_inodes (struct super_block * sb)
 	}
 	brelse(bitmap_bh);
 	printk("ext2_count_free_inodes: stored = %lu, computed = %lu, %lu\n",
-		percpu_counter_read(EXT2_SB(sb)->s_freeinodes_counter),
+		percpu_counter_read(&EXT2_SB(sb)->s_freeinodes_counter),
 		desc_count, bitmap_count);
 	unlock_super(sb);
 	return desc_count;
@@ -724,7 +724,7 @@ void ext2_check_inodes_bitmap (struct super_block * sb)
 		bitmap_count += x;
 	}
 	brelse(bitmap_bh);
-	if (percpu_counter_read(EXT2_SB(sb)->s_freeinodes_counter) !=
+	if (percpu_counter_read(&EXT2_SB(sb)->s_freeinodes_counter) !=
 				bitmap_count)
 		ext2_error(sb, "ext2_check_inodes_bitmap",
 			    "Wrong free inodes count in super block, "

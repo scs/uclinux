@@ -1,8 +1,8 @@
 /*
    libata.h - helper library for ATA
 
-   Copyright 2003 Red Hat, Inc.  All rights reserved.
-   Copyright 2003 Jeff Garzik
+   Copyright 2003-2004 Red Hat, Inc.  All rights reserved.
+   Copyright 2003-2004 Jeff Garzik
 
    The contents of this file are subject to the Open
    Software License version 1.1 that can be found at
@@ -26,7 +26,7 @@
 #define __LIBATA_H__
 
 #define DRV_NAME	"libata"
-#define DRV_VERSION	"0.81"	/* must be exactly four chars */
+#define DRV_VERSION	"1.02"	/* must be exactly four chars */
 
 struct ata_scsi_args {
 	struct ata_port		*ap;
@@ -35,24 +35,17 @@ struct ata_scsi_args {
 	void			(*done)(struct scsi_cmnd *);
 };
 
-
 /* libata-core.c */
-extern unsigned int ata_dev_id_string(struct ata_device *dev, unsigned char *s,
-                               unsigned int ofs, unsigned int len);
 extern struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 				      struct ata_device *dev);
 extern int ata_qc_issue(struct ata_queued_cmd *qc);
 extern void ata_dev_select(struct ata_port *ap, unsigned int device,
                            unsigned int wait, unsigned int can_sleep);
 extern void ata_tf_to_host_nolock(struct ata_port *ap, struct ata_taskfile *tf);
-extern void ata_thread_wake(struct ata_port *ap, unsigned int thr_state);
 
 
 /* libata-scsi.c */
 extern void ata_to_sense_error(struct ata_queued_cmd *qc);
-extern void ata_scsi_rw_queue(struct ata_port *ap, struct ata_device *dev,
-		      struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *),
-		      unsigned int cmd_size);
 extern int ata_scsi_error(struct Scsi_Host *host);
 extern unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
 			       unsigned int buflen);

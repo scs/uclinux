@@ -90,19 +90,19 @@ static struct map_info sc520cdp_map[] = {
 	{
 		.name = "SC520CDP Flash Bank #0",
 		.size = WINDOW_SIZE_0,
-		.buswidth = 4,
+		.bankwidth = 4,
 		.phys = WINDOW_ADDR_0
 	},
 	{
 		.name = "SC520CDP Flash Bank #1",
 		.size = WINDOW_SIZE_1,
-		.buswidth = 4,
+		.bankwidth = 4,
 		.phys = WINDOW_ADDR_1
 	},
 	{
 		.name = "SC520CDP DIL Flash",
 		.size = WINDOW_SIZE_2,
-		.buswidth = 1,
+		.bankwidth = 1,
 		.phys = WINDOW_ADDR_2
 	},
 };

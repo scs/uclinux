@@ -33,6 +33,7 @@
 #include <linux/cpu.h>
 
 #include <asm/uaccess.h>
+#include <asm/unistd.h>
 #include <asm/div64.h>
 #include <asm/timex.h>
 
@@ -317,10 +318,16 @@ EXPORT_SYMBOL(del_timer);
  *
  * Synchronization rules: callers must prevent restarting of the timer,
  * otherwise this function is meaningless. It must not be called from
- * interrupt contexts. Upon exit the timer is not queued and the handler
- * is not running on any CPU.
+ * interrupt contexts. The caller must not hold locks which would prevent
+ * completion of the timer's handler.  Upon exit the timer is not queued and
+ * the handler is not running on any CPU.
  *
  * The function returns whether it has deactivated a pending timer or not.
+ *
+ * del_timer_sync() is slow and complicated because it copes with timer
+ * handlers which re-arm the timer (periodic timers).  If the timer handler
+ * is known to not do this (a single shot timer) then use
+ * del_singleshot_timer_sync() instead.
  */
 int del_timer_sync(struct timer_list *timer)
 {
@@ -332,7 +339,7 @@ int del_timer_sync(struct timer_list *timer)
 del_again:
 	ret += del_timer(timer);
 
-	for_each_cpu(i) {
+	for_each_online_cpu(i) {
 		base = &per_cpu(tvec_bases, i);
 		if (base->running_timer == timer) {
 			while (base->running_timer == timer) {
@@ -348,8 +355,36 @@ del_again:
 
 	return ret;
 }
-
 EXPORT_SYMBOL(del_timer_sync);
+
+/***
+ * del_singleshot_timer_sync - deactivate a non-recursive timer
+ * @timer: the timer to be deactivated
+ *
+ * This function is an optimization of del_timer_sync for the case where the
+ * caller can guarantee the timer does not reschedule itself in its timer
+ * function.
+ *
+ * Synchronization rules: callers must prevent restarting of the timer,
+ * otherwise this function is meaningless. It must not be called from
+ * interrupt contexts. The caller must not hold locks which wold prevent
+ * completion of the timer's handler.  Upon exit the timer is not queued and
+ * the handler is not running on any CPU.
+ *
+ * The function returns whether it has deactivated a pending timer or not.
+ */
+int del_singleshot_timer_sync(struct timer_list *timer)
+{
+	int ret = del_timer(timer);
+
+	if (!ret) {
+		ret = del_timer_sync(timer);
+		BUG_ON(ret);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(del_singleshot_timer_sync);
 #endif
 
 static int cascade(tvec_base_t *base, tvec_t *tv, int index)
@@ -427,6 +462,75 @@ repeat:
 	set_running_timer(base, NULL);
 	spin_unlock_irq(&base->lock);
 }
+
+#ifdef CONFIG_NO_IDLE_HZ
+/*
+ * Find out when the next timer event is due to happen. This
+ * is used on S/390 to stop all activity when a cpus is idle.
+ * This functions needs to be called disabled.
+ */
+unsigned long next_timer_interrupt(void)
+{
+	tvec_base_t *base;
+	struct list_head *list;
+	struct timer_list *nte;
+	unsigned long expires;
+	tvec_t *varray[4];
+	int i, j;
+
+	base = &__get_cpu_var(tvec_bases);
+	spin_lock(&base->lock);
+	expires = base->timer_jiffies + (LONG_MAX >> 1);
+	list = 0;
+
+	/* Look for timer events in tv1. */
+	j = base->timer_jiffies & TVR_MASK;
+	do {
+		list_for_each_entry(nte, base->tv1.vec + j, entry) {
+			expires = nte->expires;
+			if (j < (base->timer_jiffies & TVR_MASK))
+				list = base->tv2.vec + (INDEX(0));
+			goto found;
+		}
+		j = (j + 1) & TVR_MASK;
+	} while (j != (base->timer_jiffies & TVR_MASK));
+
+	/* Check tv2-tv5. */
+	varray[0] = &base->tv2;
+	varray[1] = &base->tv3;
+	varray[2] = &base->tv4;
+	varray[3] = &base->tv5;
+	for (i = 0; i < 4; i++) {
+		j = INDEX(i);
+		do {
+			if (list_empty(varray[i]->vec + j)) {
+				j = (j + 1) & TVN_MASK;
+				continue;
+			}
+			list_for_each_entry(nte, varray[i]->vec + j, entry)
+				if (time_before(nte->expires, expires))
+					expires = nte->expires;
+			if (j < (INDEX(i)) && i < 3)
+				list = varray[i + 1]->vec + (INDEX(i + 1));
+			goto found;
+		} while (j != (INDEX(i)));
+	}
+found:
+	if (list) {
+		/*
+		 * The search wrapped. We need to look at the next list
+		 * from next tv element that would cascade into tv element
+		 * where we found the timer element.
+		 */
+		list_for_each_entry(nte, list, entry) {
+			if (time_before(nte->expires, expires))
+				expires = nte->expires;
+		}
+	}
+	spin_unlock(&base->lock);
+	return expires;
+}
+#endif
 
 /******************************************************************/
 
@@ -677,7 +781,6 @@ static void update_wall_time(unsigned long ticks)
 	if (xtime.tv_nsec >= 1000000000) {
 	    xtime.tv_nsec -= 1000000000;
 	    xtime.tv_sec++;
-	    time_interpolator_update(NSEC_PER_SEC);
 	    second_overflow();
 	}
 }
@@ -689,12 +792,12 @@ static inline void do_process_times(struct task_struct *p,
 
 	psecs = (p->utime += user);
 	psecs += (p->stime += system);
-	if (psecs / HZ > p->rlim[RLIMIT_CPU].rlim_cur) {
+	if (psecs / HZ >= p->rlim[RLIMIT_CPU].rlim_cur) {
 		/* Send SIGXCPU every second.. */
 		if (!(psecs % HZ))
 			send_sig(SIGXCPU, p, 1);
 		/* and SIGKILL when we go over max.. */
-		if (psecs / HZ > p->rlim[RLIMIT_CPU].rlim_max)
+		if (psecs / HZ >= p->rlim[RLIMIT_CPU].rlim_max)
 			send_sig(SIGKILL, p, 1);
 	}
 }
@@ -726,7 +829,7 @@ static inline void do_it_prof(struct task_struct *p)
 	}
 }
 
-void update_one_process(struct task_struct *p, unsigned long user,
+static void update_one_process(struct task_struct *p, unsigned long user,
 			unsigned long system, int cpu)
 {
 	do_process_times(p, user, system);
@@ -850,7 +953,7 @@ void do_timer(struct pt_regs *regs)
 	update_times();
 }
 
-#if !defined(__alpha__) && !defined(__ia64__)
+#ifdef __ARCH_WANT_SYS_ALARM
 
 /*
  * For backwards compatibility?  This can be done in libc so Alpha
@@ -868,7 +971,7 @@ asmlinkage unsigned long sys_alarm(unsigned int seconds)
 	oldalarm = it_old.it_value.tv_sec;
 	/* ehhh.. We can't return 0 if we have an alarm pending.. */
 	/* And we'd better return too much than too little anyway */
-	if (it_old.it_value.tv_usec)
+	if ((!oldalarm && it_old.it_value.tv_usec) || it_old.it_value.tv_usec >= 500000)
 		oldalarm++;
 	return oldalarm;
 }
@@ -997,7 +1100,7 @@ static void process_timeout(unsigned long __data)
  *
  * In all cases the return value is guaranteed to be non-negative.
  */
-signed long schedule_timeout(signed long timeout)
+fastcall signed long __sched schedule_timeout(signed long timeout)
 {
 	struct timer_list timer;
 	unsigned long expire;
@@ -1041,7 +1144,7 @@ signed long schedule_timeout(signed long timeout)
 
 	add_timer(&timer);
 	schedule();
-	del_timer_sync(&timer);
+	del_singleshot_timer_sync(&timer);
 
 	timeout = expire - jiffies;
 
@@ -1057,10 +1160,10 @@ asmlinkage long sys_gettid(void)
 	return current->pid;
 }
 
-static long nanosleep_restart(struct restart_block *restart)
+static long __sched nanosleep_restart(struct restart_block *restart)
 {
 	unsigned long expire = restart->arg0, now = jiffies;
-	struct timespec *rmtp = (struct timespec *) restart->arg1;
+	struct timespec __user *rmtp = (struct timespec __user *) restart->arg1;
 	long ret;
 
 	/* Did it expire while we handled signals? */
@@ -1083,7 +1186,7 @@ static long nanosleep_restart(struct restart_block *restart)
 	return ret;
 }
 
-asmlinkage long sys_nanosleep(struct timespec *rqtp, struct timespec *rmtp)
+asmlinkage long sys_nanosleep(struct timespec __user *rqtp, struct timespec __user *rmtp)
 {
 	struct timespec t;
 	unsigned long expire;
@@ -1223,7 +1326,73 @@ static void __devinit init_timers_cpu(int cpu)
 
 	base->timer_jiffies = jiffies;
 }
-	
+
+#ifdef CONFIG_HOTPLUG_CPU
+static int migrate_timer_list(tvec_base_t *new_base, struct list_head *head)
+{
+	struct timer_list *timer;
+
+	while (!list_empty(head)) {
+		timer = list_entry(head->next, struct timer_list, entry);
+		/* We're locking backwards from __mod_timer order here,
+		   beware deadlock. */
+		if (!spin_trylock(&timer->lock))
+			return 0;
+		list_del(&timer->entry);
+		internal_add_timer(new_base, timer);
+		timer->base = new_base;
+		spin_unlock(&timer->lock);
+	}
+	return 1;
+}
+
+static void __devinit migrate_timers(int cpu)
+{
+	tvec_base_t *old_base;
+	tvec_base_t *new_base;
+	int i;
+
+	BUG_ON(cpu_online(cpu));
+	old_base = &per_cpu(tvec_bases, cpu);
+	new_base = &get_cpu_var(tvec_bases);
+
+	local_irq_disable();
+again:
+	/* Prevent deadlocks via ordering by old_base < new_base. */
+	if (old_base < new_base) {
+		spin_lock(&new_base->lock);
+		spin_lock(&old_base->lock);
+	} else {
+		spin_lock(&old_base->lock);
+		spin_lock(&new_base->lock);
+	}
+
+	if (old_base->running_timer)
+		BUG();
+	for (i = 0; i < TVR_SIZE; i++)
+		if (!migrate_timer_list(new_base, old_base->tv1.vec + i))
+			goto unlock_again;
+	for (i = 0; i < TVN_SIZE; i++)
+		if (!migrate_timer_list(new_base, old_base->tv2.vec + i)
+		    || !migrate_timer_list(new_base, old_base->tv3.vec + i)
+		    || !migrate_timer_list(new_base, old_base->tv4.vec + i)
+		    || !migrate_timer_list(new_base, old_base->tv5.vec + i))
+			goto unlock_again;
+	spin_unlock(&old_base->lock);
+	spin_unlock(&new_base->lock);
+	local_irq_enable();
+	put_cpu_var(tvec_bases);
+	return;
+
+unlock_again:
+	/* Avoid deadlock with __mod_timer, by backing off. */
+	spin_unlock(&old_base->lock);
+	spin_unlock(&new_base->lock);
+	cpu_relax();
+	goto again;
+}
+#endif /* CONFIG_HOTPLUG_CPU */
+
 static int __devinit timer_cpu_notify(struct notifier_block *self, 
 				unsigned long action, void *hcpu)
 {
@@ -1232,6 +1401,11 @@ static int __devinit timer_cpu_notify(struct notifier_block *self,
 	case CPU_UP_PREPARE:
 		init_timers_cpu(cpu);
 		break;
+#ifdef CONFIG_HOTPLUG_CPU
+	case CPU_DEAD:
+		migrate_timers(cpu);
+		break;
+#endif
 	default:
 		break;
 	}
@@ -1312,3 +1486,20 @@ unregister_time_interpolator(struct time_interpolator *ti)
 	spin_unlock(&time_interpolator_lock);
 }
 #endif /* CONFIG_TIME_INTERPOLATION */
+
+/**
+ * msleep - sleep safely even with waitqueue interruptions
+ * @msecs: Time in milliseconds to sleep for
+ */
+void msleep(unsigned int msecs)
+{
+	unsigned long timeout = msecs_to_jiffies(msecs);
+
+	while (timeout) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		timeout = schedule_timeout(timeout);
+	}
+}
+
+EXPORT_SYMBOL(msleep);
+

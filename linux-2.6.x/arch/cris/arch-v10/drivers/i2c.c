@@ -12,7 +12,7 @@
 *!                                 don't use PB_I2C if DS1302 uses same bits,
 *!                                 use PB.
 *! $Log$
-*! Revision 1.3  2004/09/08 10:19:12  lgsoft
+*! Revision 1.4  2004/09/08 14:52:19  lgsoft
 *! Import of 2.6.8
 *!
 *! Revision 1.7  2004/05/28 09:26:59  starvik

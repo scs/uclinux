@@ -24,6 +24,8 @@
 #ifndef _DVBVIDEO_H_
 #define _DVBVIDEO_H_
 
+#include <linux/compiler.h>
+
 #ifdef __KERNEL__
 #include <linux/types.h>
 #else
@@ -81,9 +83,11 @@ typedef enum {
 struct video_event { 
         int32_t type; 
 #define VIDEO_EVENT_SIZE_CHANGED 1
+#define VIDEO_EVENT_FRAME_RATE_CHANGED	2
         time_t timestamp;
 	union { 
 	        video_size_t size;
+		unsigned int frame_rate;	/* in frames per 1000sec */
 	} u; 
 };
 
@@ -98,7 +102,7 @@ struct video_status {
 
 
 struct video_still_picture {
-        char *iFrame;        /* pointer to a single iframe in memory */
+        char __user *iFrame;        /* pointer to a single iframe in memory */
         int32_t size; 
 };
 
@@ -194,6 +198,7 @@ typedef uint16_t video_attributes_t;
 #define VIDEO_GET_NAVI             _IOR('o', 52, video_navi_pack_t)
 #define VIDEO_SET_ATTRIBUTES       _IO('o', 53)
 #define VIDEO_GET_SIZE             _IOR('o', 55, video_size_t)
+#define VIDEO_GET_FRAME_RATE       _IOR('o', 56, unsigned int)
 
 #endif /*_DVBVIDEO_H_*/
 

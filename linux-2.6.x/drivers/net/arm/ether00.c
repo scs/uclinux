@@ -21,7 +21,6 @@
 /* includes */
 #include <linux/config.h>
 #include <linux/pci.h>
-#include <linux/netdevice.h>
 #include <linux/sched.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -923,8 +922,6 @@ static int ether00_add_device(struct pldhs_dev_info* dev_info,void* dev_ps_data)
 		result = -ENOMEM;
 		goto out_release;
 	}
-	memset(dev,0,sizeof(struct net_device));
-	memset(dev->priv, 0, sizeof(struct net_priv));
 	priv = dev->priv;
 
 	priv->tq_memupdate.routine=ether00_mem_update;
@@ -966,7 +963,7 @@ static int ether00_add_device(struct pldhs_dev_info* dev_info,void* dev_ps_data)
  out_unmap:
 	iounmap(map_addr);
  out_kfree:
-	kfree(dev);
+	free_netdev(dev);
  out_release:
 	release_mem_region(dev_info->base_addr, MAC_REG_SIZE);
 	return result;

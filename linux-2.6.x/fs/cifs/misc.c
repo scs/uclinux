@@ -21,12 +21,15 @@
 
 #include <linux/slab.h>
 #include <linux/ctype.h>
+#include <linux/mempool.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
+#include "smberr.h"
+#include "nterr.h"
 
-extern kmem_cache_t *cifs_req_cachep;
+extern mempool_t *cifs_req_poolp;
 extern struct task_struct * oplockThread;
 
 __u16 GlobalMid;		/* multiplex id - rotating counter */
@@ -99,6 +102,8 @@ sesInfoFree(struct cifsSesInfo *buf_to_free)
 		kfree(buf_to_free->serverDomain);
 	if (buf_to_free->serverNOS)
 		kfree(buf_to_free->serverNOS);
+	if (buf_to_free->password)
+		kfree(buf_to_free->password);
 	kfree(buf_to_free);
 }
 
@@ -118,6 +123,9 @@ tconInfoAlloc(void)
 		ret_buf->tidStatus = CifsNew;
 		INIT_LIST_HEAD(&ret_buf->openFileList);
 		init_MUTEX(&ret_buf->tconSem);
+#ifdef CONFIG_CIFS_STATS
+		ret_buf->stat_lock = SPIN_LOCK_UNLOCKED;
+#endif
 		write_unlock(&GlobalSMBSeslock);
 	}
 	return ret_buf;
@@ -139,27 +147,17 @@ tconInfoFree(struct cifsTconInfo *buf_to_free)
 	kfree(buf_to_free);
 }
 
-void *
-kcalloc(size_t size, int type)
-{
-	void *addr;
-	addr = kmalloc(size, type);
-	if (addr)
-		memset(addr, 0, size);
-	return addr;
-}
-
 struct smb_hdr *
-buf_get(void)
+cifs_buf_get(void)
 {
-	struct smb_hdr *ret_buf;
+	struct smb_hdr *ret_buf = NULL;
 
 /* We could use negotiated size instead of max_msgsize - 
    but it may be more efficient to always alloc same size 
    albeit slightly larger than necessary and maxbuffersize 
    defaults to this and can not be bigger */
 	ret_buf =
-	    (struct smb_hdr *) kmem_cache_alloc(cifs_req_cachep, SLAB_KERNEL);
+	    (struct smb_hdr *) mempool_alloc(cifs_req_poolp, SLAB_KERNEL | SLAB_NOFS);
 
 	/* clear the first few header bytes */
 	if (ret_buf) {
@@ -171,14 +169,14 @@ buf_get(void)
 }
 
 void
-buf_release(void *buf_to_free)
+cifs_buf_release(void *buf_to_free)
 {
 
 	if (buf_to_free == NULL) {
-		cFYI(1, ("Null buffer passed to buf_release"));
+		cFYI(1, ("Null buffer passed to cifs_buf_release"));
 		return;
 	}
-	kmem_cache_free(cifs_req_cachep, buf_to_free);
+	mempool_free(buf_to_free,cifs_req_poolp);
 
 	atomic_dec(&bufAllocCount);
 	return;
@@ -267,7 +265,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 								buffer->Uid = ses->Suid;
 								break;
 							} else {
-								/* BB eventually call setup_session here */
+								/* BB eventually call cifs_setup_session here */
 								cFYI(1,("local UID found but smb sess with this server does not exist"));  
 							}
 						}
@@ -324,8 +322,8 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 	     ("Entering checkSMB with Length: %x, smb_buf_length: %x ",
 	      length, ntohl(smb->smb_buf_length)));
 	if (((unsigned int)length < 2 + sizeof (struct smb_hdr))
-	    || (4 + ntohl(smb->smb_buf_length) >
-		CIFS_MAX_MSGSIZE + MAX_CIFS_HDR_SIZE)) {
+	    || (ntohl(smb->smb_buf_length) >
+		CIFS_MAX_MSGSIZE + MAX_CIFS_HDR_SIZE - 4)) {
 		if ((unsigned int)length < 2 + sizeof (struct smb_hdr)) {
 			cERROR(1, ("Length less than 2 + sizeof smb_hdr "));
 			if (((unsigned int)length >= sizeof (struct smb_hdr) - 1)
@@ -333,8 +331,8 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 				return 0;	/* some error cases do not return wct and bcc */
 
 		}
-		if (4 + ntohl(smb->smb_buf_length) >
-		    CIFS_MAX_MSGSIZE + MAX_CIFS_HDR_SIZE)
+		if (ntohl(smb->smb_buf_length) >
+		    CIFS_MAX_MSGSIZE + MAX_CIFS_HDR_SIZE - 4)
 			cERROR(1,
 			       ("smb_buf_length greater than CIFS_MAX_MSGSIZE ... "));
 		cERROR(1,
@@ -369,8 +367,22 @@ is_valid_oplock_break(struct smb_hdr *buf)
 	cFYI(1,("Checking for oplock break"));    
 	if(pSMB->hdr.Command != SMB_COM_LOCKING_ANDX)
 		return FALSE;
-	if(pSMB->hdr.Flags & SMBFLG_RESPONSE)
-		return FALSE; /* server sends us "request" here */
+	if(pSMB->hdr.Flags & SMBFLG_RESPONSE) {
+		/* no sense logging error on invalid handle on oplock
+		   break - harmless race between close request and oplock
+		   break response is expected from time to time writing out
+		   large dirty files cached on the client */
+		if ((NT_STATUS_INVALID_HANDLE) == 
+		   le32_to_cpu(pSMB->hdr.Status.CifsError)) { 
+			cFYI(1,("invalid handle on oplock break"));
+			return TRUE;
+		} else if (ERRbadfid == 
+		   le16_to_cpu(pSMB->hdr.Status.DosError.Error)) {
+			return TRUE;	  
+		} else {
+			return FALSE; /* on valid oplock brk we get "request" */
+		}
+	}
 	if(pSMB->hdr.WordCount != 8)
 		return FALSE;
 
@@ -383,12 +395,13 @@ is_valid_oplock_break(struct smb_hdr *buf)
 	list_for_each(tmp, &GlobalTreeConnectionList) {
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
 		if (tcon->tid == buf->Tid) {
+#ifdef CONFIG_CIFS_STATS
+			atomic_inc(&tcon->num_oplock_brks);
+#endif
 			list_for_each(tmp1,&tcon->openFileList){
 				netfile = list_entry(tmp1,struct cifsFileInfo,tlist);
 				if(pSMB->Fid == netfile->netfid) {
 					struct cifsInodeInfo *pCifsInode;
-			/* BB Add following logic to mark inode for write through 
-              		    inode->i_data.a_ops = &cifs_addr_ops_writethrough; */
 					read_unlock(&GlobalSMBSeslock);
 					cFYI(1,("Matching file id, processing oplock break"));
 					pCifsInode = 

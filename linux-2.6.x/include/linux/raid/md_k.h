@@ -186,7 +186,8 @@ struct mddev_s
 {
 	void				*private;
 	mdk_personality_t		*pers;
-	int				__minor;
+	dev_t				unit;
+	int				md_minor;
 	struct list_head 		disks;
 	int				sb_dirty;
 	int				ro;
@@ -211,9 +212,9 @@ struct mddev_s
 
 	struct mdk_thread_s		*thread;	/* management thread */
 	struct mdk_thread_s		*sync_thread;	/* doing resync or reconstruct */
-	unsigned long			curr_resync;	/* blocks scheduled */
+	sector_t			curr_resync;	/* blocks scheduled */
 	unsigned long			resync_mark;	/* a recent timestamp */
-	unsigned long			resync_mark_cnt;/* blocks written at resync_mark */
+	sector_t			resync_mark_cnt;/* blocks written at resync_mark */
 
 	/* recovery/resync flags 
 	 * NEEDED:   we might need to start a resync/recover
@@ -235,6 +236,7 @@ struct mddev_s
 	struct semaphore		reconfig_sem;
 	atomic_t			active;
 
+	int				changed;	/* true if we might need to reread partition info */
 	int				degraded;	/* whether md should consider
 							 * adding a spare
 							 */
@@ -253,6 +255,14 @@ struct mddev_s
 	struct list_head		all_mddevs;
 };
 
+
+static inline void rdev_dec_pending(mdk_rdev_t *rdev, mddev_t *mddev)
+{
+	int faulty = rdev->faulty;
+	if (atomic_dec_and_test(&rdev->nr_pending) && faulty)
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+}
+
 struct mdk_personality_s
 {
 	char *name;
@@ -269,17 +279,14 @@ struct mdk_personality_s
 	int (*hot_remove_disk) (mddev_t *mddev, int number);
 	int (*spare_active) (mddev_t *mddev);
 	int (*sync_request)(mddev_t *mddev, sector_t sector_nr, int go_faster);
+	int (*resize) (mddev_t *mddev, sector_t sectors);
+	int (*reshape) (mddev_t *mddev, int raid_disks);
 };
 
 
-/*
- * Currently we index md_array directly, based on the minor
- * number. This will have to change to dynamic allocation
- * once we start supporting partitioning of md devices.
- */
-static inline int mdidx (mddev_t * mddev)
+static inline char * mdname (mddev_t * mddev)
 {
-	return mddev->__minor;
+	return mddev->gendisk ? mddev->gendisk->disk_name : "mdX";
 }
 
 extern mdk_rdev_t * find_rdev_nr(mddev_t *mddev, int nr);
@@ -318,7 +325,7 @@ typedef struct mdk_thread_s {
 
 #define THREAD_WAKEUP  0
 
-#define __wait_event_lock_irq(wq, condition, lock) 			\
+#define __wait_event_lock_irq(wq, condition, lock, cmd) 		\
 do {									\
 	wait_queue_t __wait;						\
 	init_waitqueue_entry(&__wait, current);				\
@@ -329,7 +336,7 @@ do {									\
 		if (condition)						\
 			break;						\
 		spin_unlock_irq(&lock);					\
-		blk_run_queues();					\
+		cmd;							\
 		schedule();						\
 		spin_lock_irq(&lock);					\
 	}								\
@@ -337,36 +344,11 @@ do {									\
 	remove_wait_queue(&wq, &__wait);				\
 } while (0)
 
-#define wait_event_lock_irq(wq, condition, lock) 			\
+#define wait_event_lock_irq(wq, condition, lock, cmd) 			\
 do {									\
 	if (condition)	 						\
 		break;							\
-	__wait_event_lock_irq(wq, condition, lock);			\
-} while (0)
-
-
-#define __wait_disk_event(wq, condition) 				\
-do {									\
-	wait_queue_t __wait;						\
-	init_waitqueue_entry(&__wait, current);				\
-									\
-	add_wait_queue(&wq, &__wait);					\
-	for (;;) {							\
-		set_current_state(TASK_UNINTERRUPTIBLE);		\
-		if (condition)						\
-			break;						\
-		blk_run_queues();					\
-		schedule();						\
-	}								\
-	current->state = TASK_RUNNING;					\
-	remove_wait_queue(&wq, &__wait);				\
-} while (0)
-
-#define wait_disk_event(wq, condition) 					\
-do {									\
-	if (condition)	 						\
-		break;							\
-	__wait_disk_event(wq, condition);				\
+	__wait_event_lock_irq(wq, condition, lock, cmd);		\
 } while (0)
 
 #endif

@@ -1,7 +1,13 @@
 /* Kernel module to match connection tracking information.
  * Superset of Rusty's minimalistic state match.
- * GPL (C) 2001  Marc Boucher (marc@mbsi.ca).
+ *
+ * (C) 2001  Marc Boucher (marc@mbsi.ca).
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
+
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
@@ -29,11 +35,13 @@ match(const struct sk_buff *skb,
 
 #define FWINV(bool,invflg) ((bool) ^ !!(sinfo->invflags & invflg))
 
-	if (ct)
-		statebit = IPT_CONNTRACK_STATE_BIT(ctinfo);
-	else
-		statebit = IPT_CONNTRACK_STATE_INVALID;
-
+	if (skb->nfct == &ip_conntrack_untracked.infos[IP_CT_NEW])
+		statebit = IPT_CONNTRACK_STATE_UNTRACKED;
+	else if (ct)
+ 		statebit = IPT_CONNTRACK_STATE_BIT(ctinfo);
+ 	else
+ 		statebit = IPT_CONNTRACK_STATE_INVALID;
+ 
 	if(sinfo->flags & IPT_CONNTRACK_STATE) {
 		if (ct) {
 			if(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip !=

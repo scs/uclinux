@@ -199,7 +199,7 @@ struct __new_sigaction {
 #ifdef __KERNEL__
 struct k_sigaction {
 	struct __new_sigaction	sa;
-	void			*ka_restorer;
+	void			__user *ka_restorer;
 };
 #endif
 
@@ -211,37 +211,21 @@ struct __old_sigaction {
 };
 
 typedef struct sigaltstack {
-	void		*ss_sp;
+	void		__user *ss_sp;
 	int		ss_flags;
 	size_t		ss_size;
 } stack_t;
 
+#ifdef __KERNEL__
 struct sparc_deliver_cookie {
 	int restart_syscall;
 	unsigned long orig_i0;
 };
 
-#define ptrace_signal_deliver(REGS, COOKIE) \
-do {	struct sparc_deliver_cookie *cp = (COOKIE); \
-	if (cp->restart_syscall && \
-	    (regs->u_regs[UREG_I0] == ERESTARTNOHAND || \
-	     regs->u_regs[UREG_I0] == ERESTARTSYS || \
-	     regs->u_regs[UREG_I0] == ERESTARTNOINTR)) { \
-		/* replay the system call when we are done */ \
-		regs->u_regs[UREG_I0] = cp->orig_i0; \
-		regs->pc -= 4; \
-		regs->npc -= 4; \
-		cp->restart_syscall = 0; \
-	} \
-	if (cp->restart_syscall && \
-	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) { \
-		regs->u_regs[UREG_G1] = __NR_restart_syscall; \
-		regs->pc -= 4; \
-		regs->npc -= 4; \
-		cp->restart_syscall = 0; \
-	} \
-} while (0)
+struct pt_regs;
+extern void ptrace_signal_deliver(struct pt_regs *regs, void *cookie);
 
+#endif /* !(__KERNEL__) */
 
 #endif /* !(__ASSEMBLY__) */
 

@@ -23,11 +23,11 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/time.h>
+#include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/ymfpci.h>
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
-#define SNDRV_GET_ID
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
@@ -44,26 +44,35 @@ MODULE_DEVICES("{{Yamaha,YMF724},"
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static long fm_port[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = -1};
-static long mpu_port[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = -1};
+static long fm_port[SNDRV_CARDS];
+static long mpu_port[SNDRV_CARDS];
+#ifdef SUPPORT_JOYSTICK
+static long joystick_port[SNDRV_CARDS];
+#endif
 static int rear_switch[SNDRV_CARDS];
+static int boot_devs;
 
-MODULE_PARM(index, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(index, int, boot_devs, 0444);
 MODULE_PARM_DESC(index, "Index value for the Yamaha DS-XG PCI soundcard.");
 MODULE_PARM_SYNTAX(index, SNDRV_INDEX_DESC);
-MODULE_PARM(id, "1-" __MODULE_STRING(SNDRV_CARDS) "s");
+module_param_array(id, charp, boot_devs, 0444);
 MODULE_PARM_DESC(id, "ID string for the Yamaha DS-XG PCI soundcard.");
 MODULE_PARM_SYNTAX(id, SNDRV_ID_DESC);
-MODULE_PARM(enable, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+module_param_array(enable, bool, boot_devs, 0444);
 MODULE_PARM_DESC(enable, "Enable Yamaha DS-XG soundcard.");
 MODULE_PARM_SYNTAX(enable, SNDRV_ENABLE_DESC);
-MODULE_PARM(mpu_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
+module_param_array(mpu_port, long, boot_devs, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 Port.");
 MODULE_PARM_SYNTAX(mpu_port, SNDRV_ENABLED);
-MODULE_PARM(fm_port, "1-" __MODULE_STRING(SNDRV_CARDS) "l");
+module_param_array(fm_port, long, boot_devs, 0444);
 MODULE_PARM_DESC(fm_port, "FM OPL-3 Port.");
 MODULE_PARM_SYNTAX(fm_port, SNDRV_ENABLED);
-MODULE_PARM(rear_switch, "1-" __MODULE_STRING(SNDRV_CARDS) "i");
+#ifdef SUPPORT_JOYSTICK
+module_param_array(joystick_port, long, boot_devs, 0444);
+MODULE_PARM_DESC(joystick_port, "Joystick port address");
+MODULE_PARM_SYNTAX(joystick_port, SNDRV_ENABLED);
+#endif
+module_param_array(rear_switch, bool, boot_devs, 0444);
 MODULE_PARM_DESC(rear_switch, "Enable shared rear/line-in switch");
 MODULE_PARM_SYNTAX(rear_switch, SNDRV_ENABLED "," SNDRV_BOOLEAN_FALSE_DESC);
 
@@ -86,6 +95,9 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 	snd_card_t *card;
 	struct resource *fm_res = NULL;
 	struct resource *mpu_res = NULL;
+#ifdef SUPPORT_JOYSTICK
+	struct resource *joystick_res = NULL;
+#endif
 	ymfpci_t *chip;
 	opl3_t *opl3;
 	char *str;
@@ -117,51 +129,92 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 	legacy_ctrl2 = 0x0800;	/* SBEN = 0, SMOD = 01, LAD = 0 */
 
 	if (pci_id->device >= 0x0010) { /* YMF 744/754 */
-		if (fm_port[dev] < 0) {
+		if (fm_port[dev] == 1) {
+			/* auto-detect */
 			fm_port[dev] = pci_resource_start(pci, 1);
 		}
-		if (fm_port[dev] >= 0 &&
+		if (fm_port[dev] > 0 &&
 		    (fm_res = request_region(fm_port[dev], 4, "YMFPCI OPL3")) != NULL) {
 			legacy_ctrl |= YMFPCI_LEGACY_FMEN;
 			pci_write_config_word(pci, PCIR_DSXG_FMBASE, fm_port[dev]);
 		}
-		if (mpu_port[dev] < 0) {
+		if (mpu_port[dev] == 1) {
+			/* auto-detect */
 			mpu_port[dev] = pci_resource_start(pci, 1) + 0x20;
 		}
-		if (mpu_port[dev] >= 0 &&
+		if (mpu_port[dev] > 0 &&
 		    (mpu_res = request_region(mpu_port[dev], 2, "YMFPCI MPU401")) != NULL) {
 			legacy_ctrl |= YMFPCI_LEGACY_MEN;
 			pci_write_config_word(pci, PCIR_DSXG_MPU401BASE, mpu_port[dev]);
 		}
+#ifdef SUPPORT_JOYSTICK
+		if (joystick_port[dev] == 1) {
+			/* auto-detect */
+			joystick_port[dev] = pci_resource_start(pci, 2);
+		}
+		if (joystick_port[dev] > 0 &&
+		    (joystick_res = request_region(joystick_port[dev], 1, "YMFPCI gameport")) != NULL) {
+			legacy_ctrl |= YMFPCI_LEGACY_JPEN;
+			pci_write_config_word(pci, PCIR_DSXG_JOYBASE, joystick_port[dev]);
+		}
+#endif
 	} else {
 		switch (fm_port[dev]) {
 		case 0x388: legacy_ctrl2 |= 0; break;
 		case 0x398: legacy_ctrl2 |= 1; break;
 		case 0x3a0: legacy_ctrl2 |= 2; break;
 		case 0x3a8: legacy_ctrl2 |= 3; break;
-		default: fm_port[dev] = -1; break;
+		default: fm_port[dev] = 0; break;
 		}
 		if (fm_port[dev] > 0 &&
 		    (fm_res = request_region(fm_port[dev], 4, "YMFPCI OPL3")) != NULL) {
 			legacy_ctrl |= YMFPCI_LEGACY_FMEN;
 		} else {
 			legacy_ctrl2 &= ~YMFPCI_LEGACY2_FMIO;
-			fm_port[dev] = -1;
+			fm_port[dev] = 0;
 		}
 		switch (mpu_port[dev]) {
 		case 0x330: legacy_ctrl2 |= 0 << 4; break;
 		case 0x300: legacy_ctrl2 |= 1 << 4; break;
 		case 0x332: legacy_ctrl2 |= 2 << 4; break;
 		case 0x334: legacy_ctrl2 |= 3 << 4; break;
-		default: mpu_port[dev] = -1; break;
+		default: mpu_port[dev] = 0; break;
 		}
 		if (mpu_port[dev] > 0 &&
 		    (mpu_res = request_region(mpu_port[dev], 2, "YMFPCI MPU401")) != NULL) {
 			legacy_ctrl |= YMFPCI_LEGACY_MEN;
 		} else {
 			legacy_ctrl2 &= ~YMFPCI_LEGACY2_MPUIO;
-			mpu_port[dev] = -1;
+			mpu_port[dev] = 0;
 		}
+#ifdef SUPPORT_JOYSTICK
+		if (joystick_port[dev] == 1) {
+			/* auto-detect */
+			long p;
+			for (p = 0x201; p <= 0x205; p++) {
+				if (p == 0x203) continue;
+				if ((joystick_res = request_region(p, 1, "YMFPCI gameport")) != NULL)
+					break;
+			}
+			if (joystick_res)
+				joystick_port[dev] = p;
+		}
+		switch (joystick_port[dev]) {
+		case 0x201: legacy_ctrl2 |= 0 << 6; break;
+		case 0x202: legacy_ctrl2 |= 1 << 6; break;
+		case 0x204: legacy_ctrl2 |= 2 << 6; break;
+		case 0x205: legacy_ctrl2 |= 3 << 6; break;
+		default: joystick_port[dev] = 0; break;
+		}
+		if (! joystick_res && joystick_port[dev] > 0)
+			joystick_res = request_region(joystick_port[dev], 1, "YMFPCI gameport");
+		if (joystick_res) {
+			legacy_ctrl |= YMFPCI_LEGACY_JPEN;
+		} else {
+			legacy_ctrl2 &= ~YMFPCI_LEGACY2_JSIO;
+			joystick_port[dev] = 0;
+		}
+#endif
 	}
 	if (mpu_res) {
 		legacy_ctrl |= YMFPCI_LEGACY_MIEN;
@@ -182,10 +235,25 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 			release_resource(fm_res);
 			kfree_nocheck(fm_res);
 		}
+#ifdef SUPPORT_JOYSTICK
+		if (joystick_res) {
+			release_resource(joystick_res);
+			kfree_nocheck(joystick_res);
+		}
+#endif
 		return err;
 	}
 	chip->fm_res = fm_res;
 	chip->mpu_res = mpu_res;
+#ifdef SUPPORT_JOYSTICK
+	chip->joystick_res = joystick_res;
+#endif
+	strcpy(card->driver, str);
+	sprintf(card->shortname, "Yamaha DS-XG (%s)", str);
+	sprintf(card->longname, "%s at 0x%lx, irq %i",
+		card->shortname,
+		chip->reg_area_phys,
+		chip->irq);
 	if ((err = snd_ymfpci_pcm(chip, 0, NULL)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -203,6 +271,10 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 		return err;
 	}
 	if ((err = snd_ymfpci_mixer(chip, rear_switch[dev])) < 0) {
+		snd_card_free(card);
+		return err;
+	}
+	if ((err = snd_ymfpci_timer(chip, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -229,47 +301,25 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 			return err;
 		}
 	}
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
-	if ((err = snd_ymfpci_joystick(chip)) < 0) {
-		printk(KERN_WARNING "ymfpci: cannot initialize joystick, skipping...\n");
+#ifdef SUPPORT_JOYSTICK
+	if (chip->joystick_res) {
+		chip->gameport.io = joystick_port[dev];
+		gameport_register_port(&chip->gameport);
 	}
 #endif
-	strcpy(card->driver, str);
-	sprintf(card->shortname, "Yamaha DS-XG PCI (%s)", str);
-	sprintf(card->longname, "%s at 0x%lx, irq %i",
-		card->shortname,
-		chip->reg_area_phys,
-		chip->irq);
 
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	pci_set_drvdata(pci, chip);
+	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int snd_card_ymfpci_suspend(struct pci_dev *pci, u32 state)
-{
-	ymfpci_t *chip = snd_magic_cast(ymfpci_t, pci_get_drvdata(pci), return -ENXIO);
-	snd_ymfpci_suspend(chip);
-	return 0;
-}
-static int snd_card_ymfpci_resume(struct pci_dev *pci)
-{
-	ymfpci_t *chip = snd_magic_cast(ymfpci_t, pci_get_drvdata(pci), return -ENXIO);
-	snd_ymfpci_resume(chip);
-	return 0;
-}
-#endif
-
 static void __devexit snd_card_ymfpci_remove(struct pci_dev *pci)
 {
-	ymfpci_t *chip = snd_magic_cast(ymfpci_t, pci_get_drvdata(pci), return);
-	if (chip)
-		snd_card_free(chip->card);
+	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
 }
 
@@ -278,23 +328,12 @@ static struct pci_driver driver = {
 	.id_table = snd_ymfpci_ids,
 	.probe = snd_card_ymfpci_probe,
 	.remove = __devexit_p(snd_card_ymfpci_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_card_ymfpci_suspend,
-	.resume = snd_card_ymfpci_resume,
-#endif	
+	SND_PCI_PM_CALLBACKS
 };
 
 static int __init alsa_card_ymfpci_init(void)
 {
-	int err;
-
-	if ((err = pci_module_init(&driver)) < 0) {
-#ifdef MODULE
-		printk(KERN_ERR "Yamaha DS-XG PCI soundcard not found or device busy\n");
-#endif
-		return err;
-	}
-	return 0;
+	return pci_module_init(&driver);
 }
 
 static void __exit alsa_card_ymfpci_exit(void)
@@ -304,27 +343,3 @@ static void __exit alsa_card_ymfpci_exit(void)
 
 module_init(alsa_card_ymfpci_init)
 module_exit(alsa_card_ymfpci_exit)
-
-#ifndef MODULE
-
-/* format is: snd-ymfpci=enable,index,id,
-			 fm_port,mpu_port */
-
-static int __init alsa_card_ymfpci_setup(char *str)
-{
-	static unsigned __initdata nr_dev = 0;
-
-	if (nr_dev >= SNDRV_CARDS)
-		return 0;
-	(void)(get_option(&str,&enable[nr_dev]) == 2 &&
-	       get_option(&str,&index[nr_dev]) == 2 &&
-	       get_id(&str,&id[nr_dev]) == 2 &&
-	       get_option(&str,(int *)&fm_port[nr_dev]) == 2 &&
-	       get_option(&str,(int *)&mpu_port[nr_dev]) == 2);
-	nr_dev++;
-	return 1;
-}
-
-__setup("snd-ymfpci=", alsa_card_ymfpci_setup);
-
-#endif /* ifndef MODULE */

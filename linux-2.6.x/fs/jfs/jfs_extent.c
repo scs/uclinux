@@ -35,7 +35,6 @@ static s64 extRoundDown(s64 nb);
 /*
  * external references
  */
-extern int dbExtend(struct inode *, s64, s64, s64);
 extern int jfs_commit_inode(struct inode *, int);
 
 
@@ -534,7 +533,7 @@ extBalloc(struct inode *ip, s64 hint, s64 * nblocks, s64 * blkno)
 		nb = nblks = *nblocks;
 
 	/* try to allocate blocks */
-	while ((rc = dbAlloc(ip, hint, nb, &daddr))) {
+	while ((rc = dbAlloc(ip, hint, nb, &daddr)) != 0) {
 		/* if something other than an out of space error,
 		 * stop and return this error.
 		 */
@@ -554,6 +553,7 @@ extBalloc(struct inode *ip, s64 hint, s64 * nblocks, s64 * blkno)
 
 	if (S_ISREG(ip->i_mode) && (ji->fileset == FILESYSTEM_I)) {
 		ag = BLKTOAG(daddr, sbi);
+		spin_lock_irq(&ji->ag_lock);
 		if (ji->active_ag == -1) {
 			atomic_inc(&bmp->db_active[ag]);
 			ji->active_ag = ag;
@@ -562,6 +562,7 @@ extBalloc(struct inode *ip, s64 hint, s64 * nblocks, s64 * blkno)
 			atomic_inc(&bmp->db_active[ag]);
 			ji->active_ag = ag;
 		}
+		spin_unlock_irq(&ji->ag_lock);
 	}
 
 	return (0);

@@ -24,14 +24,8 @@
  * This version does not support shared irq's.
  *
  * $Log$
- * Revision 1.2  2004/09/07 22:13:09  lgsoft
- * alpha-2.0
- *
- * Revision 1.1.1.1  2004/07/19 12:02:32  lgsoft
- * Import of uClinux 2.6.2
- *
- * Revision 1.1.1.1  2004/07/18 13:20:54  nidhi
- * Importing
+ * Revision 1.3  2004/09/08 15:14:20  lgsoft
+ * Import of 2.6.8
  *
  * Revision 1.36.1.4  1995/03/29  06:14:14  bentson
  * disambiguate between Cyclom-16Y and Cyclom-32Ye;
@@ -1501,8 +1495,9 @@ check_and_exit:
 } /* set_serial_info */
 
 static int
-get_modem_info(struct cyclades_port * info, unsigned int *value)
+cy_tiocmget(struct tty_struct *tty, struct file *file)
 {
+  struct cyclades_port * info = (struct cyclades_port *)tty->driver_data;
   int channel;
   volatile unsigned char *base_addr = (u_char *)BASE_ADDR;
   unsigned long flags;
@@ -1516,36 +1511,32 @@ get_modem_info(struct cyclades_port * info, unsigned int *value)
         status = base_addr[CyMSVR1] | base_addr[CyMSVR2];
     local_irq_restore(flags);
 
-    result =  ((status  & CyRTS) ? TIOCM_RTS : 0)
+    return    ((status  & CyRTS) ? TIOCM_RTS : 0)
             | ((status  & CyDTR) ? TIOCM_DTR : 0)
             | ((status  & CyDCD) ? TIOCM_CAR : 0)
             | ((status  & CyDSR) ? TIOCM_DSR : 0)
             | ((status  & CyCTS) ? TIOCM_CTS : 0);
-    return put_user(result,(unsigned int *) value);
-} /* get_modem_info */
+} /* cy_tiocmget */
 
 static int
-set_modem_info(struct cyclades_port * info, unsigned int cmd,
-                          unsigned int *value)
+cy_tiocmset(struct tty_struct *tty, struct file *file,
+	    unsigned int set, unsigned int clear)
 {
+  struct cyclades_port * info = (struct cyclades_port *)tty->driver_data;
   int channel;
   volatile unsigned char *base_addr = (u_char *)BASE_ADDR;
   unsigned long flags;
   unsigned int arg;
 	  
-    if (get_user(arg, (unsigned long *) value))
-	return -EFAULT;
     channel = info->line;
 
-    switch (cmd) {
-    case TIOCMBIS:
-	if (arg & TIOCM_RTS){
+	if (set & TIOCM_RTS){
 	    local_irq_save(flags);
 		base_addr[CyCAR] = (u_char)channel;
 		base_addr[CyMSVR1] = CyRTS;
 	    local_irq_restore(flags);
 	}
-	if (arg & TIOCM_DTR){
+	if (set & TIOCM_DTR){
 	    local_irq_save(flags);
 	    base_addr[CyCAR] = (u_char)channel;
 /* CP('S');CP('2'); */
@@ -1556,15 +1547,14 @@ set_modem_info(struct cyclades_port * info, unsigned int cmd,
 #endif
 	    local_irq_restore(flags);
 	}
-	break;
-    case TIOCMBIC:
-	if (arg & TIOCM_RTS){
+
+	if (clear & TIOCM_RTS){
 	    local_irq_save(flags);
 		base_addr[CyCAR] = (u_char)channel;
 		base_addr[CyMSVR1] = 0;
 	    local_irq_restore(flags);
 	}
-	if (arg & TIOCM_DTR){
+	if (clear & TIOCM_DTR){
 	    local_irq_save(flags);
 	    base_addr[CyCAR] = (u_char)channel;
 /* CP('C');CP('2'); */
@@ -1575,44 +1565,7 @@ set_modem_info(struct cyclades_port * info, unsigned int cmd,
 #endif
 	    local_irq_restore(flags);
 	}
-	break;
-    case TIOCMSET:
-	if (arg & TIOCM_RTS){
-	    local_irq_save(flags);
-		base_addr[CyCAR] = (u_char)channel;
-		base_addr[CyMSVR1] = CyRTS;
-	    local_irq_restore(flags);
-	}else{
-	    local_irq_save(flags);
-		base_addr[CyCAR] = (u_char)channel;
-		base_addr[CyMSVR1] = 0;
-	    local_irq_restore(flags);
-	}
-	if (arg & TIOCM_DTR){
-	    local_irq_save(flags);
-	    base_addr[CyCAR] = (u_char)channel;
-/* CP('S');CP('3'); */
-	    base_addr[CyMSVR2] = CyDTR;
-#ifdef SERIAL_DEBUG_DTR
-            printk("cyc: %d: raising DTR\n", __LINE__);
-            printk("     status: 0x%x, 0x%x\n", base_addr[CyMSVR1], base_addr[CyMSVR2]);
-#endif
-	    local_irq_restore(flags);
-	}else{
-	    local_irq_save(flags);
-	    base_addr[CyCAR] = (u_char)channel;
-/* CP('C');CP('3'); */
-	    base_addr[CyMSVR2] = 0;
-#ifdef SERIAL_DEBUG_DTR
-            printk("cyc: %d: dropping DTR\n", __LINE__);
-            printk("     status: 0x%x, 0x%x\n", base_addr[CyMSVR1], base_addr[CyMSVR2]);
-#endif
-	    local_irq_restore(flags);
-	}
-	break;
-    default:
-		return -EINVAL;
-        }
+
     return 0;
 } /* set_modem_info */
 
@@ -1786,11 +1739,6 @@ cy_ioctl(struct tty_struct *tty, struct file * file,
             tty_wait_until_sent(tty,0);
             send_break(info, arg ? arg*(HZ/10) : HZ/4);
             break;
-        case TIOCMBIS:
-        case TIOCMBIC:
-        case TIOCMSET:
-            ret_val = set_modem_info(info, cmd, (unsigned int *) arg);
-            break;
 
 /* The following commands are incompletely implemented!!! */
         case TIOCGSOFTCAR:
@@ -1802,9 +1750,6 @@ cy_ioctl(struct tty_struct *tty, struct file * file,
 		    break;
             tty->termios->c_cflag =
                     ((tty->termios->c_cflag & ~CLOCAL) | (val ? CLOCAL : 0));
-            break;
-        case TIOCMGET:
-            ret_val = get_modem_info(info, (unsigned int *) arg);
             break;
         case TIOCGSERIAL:
             ret_val = get_serial_info(info, (struct serial_struct *) arg);
@@ -2308,6 +2253,8 @@ static struct tty_operations cy_ops = {
 	.stop = cy_stop,
 	.start = cy_start,
 	.hangup = cy_hangup,
+	.tiocmget = cy_tiocmget,
+	.tiocmset = cy_tiocmset,
 };
 /* The serial driver boot-time initialization code!
     Hardware I/O ports are mapped to character special devices on a

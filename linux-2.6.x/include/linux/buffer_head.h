@@ -62,13 +62,6 @@ struct buffer_head {
 };
 
 /*
- * Debug
- */
-
-void __buffer_error(char *file, int line);
-#define buffer_error() __buffer_error(__FILE__, __LINE__)
-
-/*
  * macro tricks to expand the set_buffer_foo(), clear_buffer_foo()
  * and buffer_foo() functions.
  */
@@ -164,6 +157,8 @@ void __wait_on_buffer(struct buffer_head *);
 wait_queue_head_t *bh_waitq_head(struct buffer_head *bh);
 void wake_up_buffer(struct buffer_head *bh);
 int fsync_bdev(struct block_device *);
+struct super_block *freeze_bdev(struct block_device *);
+void thaw_bdev(struct block_device *, struct super_block *);
 int fsync_super(struct super_block *);
 int fsync_no_super(struct block_device *);
 struct buffer_head *__find_get_block(struct block_device *, sector_t, int);
@@ -175,9 +170,10 @@ struct buffer_head *__bread(struct block_device *, sector_t block, int size);
 struct buffer_head *alloc_buffer_head(int gfp_flags);
 void free_buffer_head(struct buffer_head * bh);
 void FASTCALL(unlock_buffer(struct buffer_head *bh));
+void FASTCALL(__lock_buffer(struct buffer_head *bh));
 void ll_rw_block(int, int, struct buffer_head * bh[]);
 void sync_dirty_buffer(struct buffer_head *bh);
-int submit_bh(int, struct buffer_head *);
+void submit_bh(int, struct buffer_head *);
 void write_boundary_block(struct block_device *bdev,
 			sector_t bblock, unsigned blocksize);
 
@@ -284,8 +280,8 @@ static inline void wait_on_buffer(struct buffer_head *bh)
 
 static inline void lock_buffer(struct buffer_head *bh)
 {
-	while (test_set_buffer_locked(bh))
-		__wait_on_buffer(bh);
+	if (test_set_buffer_locked(bh))
+		__lock_buffer(bh);
 }
 
 #endif /* _LINUX_BUFFER_HEAD_H */

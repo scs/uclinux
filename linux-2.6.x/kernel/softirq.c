@@ -14,7 +14,9 @@
 #include <linux/notifier.h>
 #include <linux/percpu.h>
 #include <linux/cpu.h>
+#include <linux/kthread.h>
 
+#include <asm/irq.h>
 /*
    - No shared variables, all the data are CPU local.
    - If a softirq needs serialization, let it serialize itself
@@ -68,9 +70,46 @@ static inline void wakeup_softirqd(void)
  */
 #define MAX_SOFTIRQ_RESTART 10
 
+asmlinkage void __do_softirq(void)
+{
+	struct softirq_action *h;
+	__u32 pending;
+	int max_restart = MAX_SOFTIRQ_RESTART;
+
+	pending = local_softirq_pending();
+
+	local_bh_disable();
+restart:
+	/* Reset the pending bitmask before enabling irqs */
+	local_softirq_pending() = 0;
+
+	local_irq_enable();
+
+	h = softirq_vec;
+
+	do {
+		if (pending & 1)
+			h->action(h);
+		h++;
+		pending >>= 1;
+	} while (pending);
+
+	local_irq_disable();
+
+	pending = local_softirq_pending();
+	if (pending && --max_restart)
+		goto restart;
+
+	if (pending)
+		wakeup_softirqd();
+
+	__local_bh_enable();
+}
+
+#ifndef __ARCH_HAS_DO_SOFTIRQ
+
 asmlinkage void do_softirq(void)
 {
-	int max_restart = MAX_SOFTIRQ_RESTART;
 	__u32 pending;
 	unsigned long flags;
 
@@ -81,39 +120,15 @@ asmlinkage void do_softirq(void)
 
 	pending = local_softirq_pending();
 
-	if (pending) {
-		struct softirq_action *h;
-
-		local_bh_disable();
-restart:
-		/* Reset the pending bitmask before enabling irqs */
-		local_softirq_pending() = 0;
-
-		local_irq_enable();
-
-		h = softirq_vec;
-
-		do {
-			if (pending & 1)
-				h->action(h);
-			h++;
-			pending >>= 1;
-		} while (pending);
-
-		local_irq_disable();
-
-		pending = local_softirq_pending();
-		if (pending && --max_restart)
-			goto restart;
-		if (pending)
-			wakeup_softirqd();
-		__local_bh_enable();
-	}
+	if (pending)
+		__do_softirq();
 
 	local_irq_restore(flags);
 }
 
 EXPORT_SYMBOL(do_softirq);
+
+#endif
 
 void local_bh_enable(void)
 {
@@ -129,7 +144,7 @@ EXPORT_SYMBOL(local_bh_enable);
 /*
  * This function must run with irqs disabled!
  */
-inline void raise_softirq_irqoff(unsigned int nr)
+inline fastcall void raise_softirq_irqoff(unsigned int nr)
 {
 	__raise_softirq_irqoff(nr);
 
@@ -148,7 +163,7 @@ inline void raise_softirq_irqoff(unsigned int nr)
 
 EXPORT_SYMBOL(raise_softirq_irqoff);
 
-void raise_softirq(unsigned int nr)
+void fastcall raise_softirq(unsigned int nr)
 {
 	unsigned long flags;
 
@@ -178,7 +193,7 @@ struct tasklet_head
 static DEFINE_PER_CPU(struct tasklet_head, tasklet_vec) = { NULL };
 static DEFINE_PER_CPU(struct tasklet_head, tasklet_hi_vec) = { NULL };
 
-void __tasklet_schedule(struct tasklet_struct *t)
+void fastcall __tasklet_schedule(struct tasklet_struct *t)
 {
 	unsigned long flags;
 
@@ -191,7 +206,7 @@ void __tasklet_schedule(struct tasklet_struct *t)
 
 EXPORT_SYMBOL(__tasklet_schedule);
 
-void __tasklet_hi_schedule(struct tasklet_struct *t)
+void fastcall __tasklet_hi_schedule(struct tasklet_struct *t)
 {
 	unsigned long flags;
 
@@ -299,86 +314,139 @@ void tasklet_kill(struct tasklet_struct *t)
 
 EXPORT_SYMBOL(tasklet_kill);
 
-static void tasklet_init_cpu(int cpu)
-{
-	per_cpu(tasklet_vec, cpu).list = NULL;
-	per_cpu(tasklet_hi_vec, cpu).list = NULL;
-}
-	
-static int tasklet_cpu_notify(struct notifier_block *self, 
-				unsigned long action, void *hcpu)
-{
-	long cpu = (long)hcpu;
-	switch(action) {
-	case CPU_UP_PREPARE:
-		tasklet_init_cpu(cpu);
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-
-static struct notifier_block tasklet_nb = {
-	.notifier_call	= tasklet_cpu_notify,
-	.next		= NULL,
-};
-
 void __init softirq_init(void)
 {
 	open_softirq(TASKLET_SOFTIRQ, tasklet_action, NULL);
 	open_softirq(HI_SOFTIRQ, tasklet_hi_action, NULL);
-	tasklet_cpu_notify(&tasklet_nb, (unsigned long)CPU_UP_PREPARE,
-				(void *)(long)smp_processor_id());
-	register_cpu_notifier(&tasklet_nb);
 }
 
 static int ksoftirqd(void * __bind_cpu)
 {
-	int cpu = (int) (long) __bind_cpu;
-	
-	daemonize("ksoftirqd/%d", cpu);
 	set_user_nice(current, 19);
-	current->flags |= PF_IOTHREAD;
+	current->flags |= PF_NOFREEZE;
 
-	/* Migrate to the right CPU */
-	set_cpus_allowed(current, cpumask_of_cpu(cpu));
-	BUG_ON(smp_processor_id() != cpu);
+	set_current_state(TASK_INTERRUPTIBLE);
 
-	__set_current_state(TASK_INTERRUPTIBLE);
-	mb();
-
-	__get_cpu_var(ksoftirqd) = current;
-
-	for (;;) {
-
+	while (!kthread_should_stop()) {
 		if (!local_softirq_pending())
 			schedule();
 
 		__set_current_state(TASK_RUNNING);
 
 		while (local_softirq_pending()) {
+			/* Preempt disable stops cpu going offline.
+			   If already offline, we'll be on wrong CPU:
+			   don't process */
+			preempt_disable();
+			if (cpu_is_offline((long)__bind_cpu))
+				goto wait_to_die;
 			do_softirq();
+			preempt_enable();
 			cond_resched();
 		}
 
-		__set_current_state(TASK_INTERRUPTIBLE);
+		set_current_state(TASK_INTERRUPTIBLE);
 	}
+	__set_current_state(TASK_RUNNING);
+	return 0;
+
+wait_to_die:
+	preempt_enable();
+	/* Wait for kthread_stop */
+	set_current_state(TASK_INTERRUPTIBLE);
+	while (!kthread_should_stop()) {
+		schedule();
+		set_current_state(TASK_INTERRUPTIBLE);
+	}
+	__set_current_state(TASK_RUNNING);
+	return 0;
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * tasklet_kill_immediate is called to remove a tasklet which can already be
+ * scheduled for execution on @cpu.
+ *
+ * Unlike tasklet_kill, this function removes the tasklet
+ * _immediately_, even if the tasklet is in TASKLET_STATE_SCHED state.
+ *
+ * When this function is called, @cpu must be in the CPU_DEAD state.
+ */
+void tasklet_kill_immediate(struct tasklet_struct *t, unsigned int cpu)
+{
+	struct tasklet_struct **i;
+
+	BUG_ON(cpu_online(cpu));
+	BUG_ON(test_bit(TASKLET_STATE_RUN, &t->state));
+
+	if (!test_bit(TASKLET_STATE_SCHED, &t->state))
+		return;
+
+	/* CPU is dead, so no lock needed. */
+	for (i = &per_cpu(tasklet_vec, cpu).list; *i; i = &(*i)->next) {
+		if (*i == t) {
+			*i = t->next;
+			return;
+		}
+	}
+	BUG();
+}
+
+static void takeover_tasklets(unsigned int cpu)
+{
+	struct tasklet_struct **i;
+
+	/* CPU is dead, so no lock needed. */
+	local_irq_disable();
+
+	/* Find end, append list for that CPU. */
+	for (i = &__get_cpu_var(tasklet_vec).list; *i; i = &(*i)->next);
+	*i = per_cpu(tasklet_vec, cpu).list;
+	per_cpu(tasklet_vec, cpu).list = NULL;
+	raise_softirq_irqoff(TASKLET_SOFTIRQ);
+
+	for (i = &__get_cpu_var(tasklet_hi_vec).list; *i; i = &(*i)->next);
+	*i = per_cpu(tasklet_hi_vec, cpu).list;
+	per_cpu(tasklet_hi_vec, cpu).list = NULL;
+	raise_softirq_irqoff(HI_SOFTIRQ);
+
+	local_irq_enable();
+}
+#endif /* CONFIG_HOTPLUG_CPU */
 
 static int __devinit cpu_callback(struct notifier_block *nfb,
 				  unsigned long action,
 				  void *hcpu)
 {
 	int hotcpu = (unsigned long)hcpu;
-	if (action == CPU_ONLINE) {
-		if (kernel_thread(ksoftirqd, hcpu, CLONE_KERNEL) < 0) {
+	struct task_struct *p;
+
+	switch (action) {
+	case CPU_UP_PREPARE:
+		BUG_ON(per_cpu(tasklet_vec, hotcpu).list);
+		BUG_ON(per_cpu(tasklet_hi_vec, hotcpu).list);
+		p = kthread_create(ksoftirqd, hcpu, "ksoftirqd/%d", hotcpu);
+		if (IS_ERR(p)) {
 			printk("ksoftirqd for %i failed\n", hotcpu);
 			return NOTIFY_BAD;
 		}
-
-		while (!per_cpu(ksoftirqd, hotcpu))
-			yield();
+		kthread_bind(p, hotcpu);
+  		per_cpu(ksoftirqd, hotcpu) = p;
+ 		break;
+	case CPU_ONLINE:
+		wake_up_process(per_cpu(ksoftirqd, hotcpu));
+		break;
+#ifdef CONFIG_HOTPLUG_CPU
+	case CPU_UP_CANCELED:
+		/* Unbind so it can run.  Fall thru. */
+		kthread_bind(per_cpu(ksoftirqd, hotcpu), smp_processor_id());
+	case CPU_DEAD:
+		p = per_cpu(ksoftirqd, hotcpu);
+		per_cpu(ksoftirqd, hotcpu) = NULL;
+		kthread_stop(p);
+		takeover_tasklets(hotcpu);
+		break;
+#endif /* CONFIG_HOTPLUG_CPU */
  	}
 	return NOTIFY_OK;
 }
@@ -389,7 +457,9 @@ static struct notifier_block __devinitdata cpu_nfb = {
 
 __init int spawn_ksoftirqd(void)
 {
-	cpu_callback(&cpu_nfb, CPU_ONLINE, (void *)(long)smp_processor_id());
+	void *cpu = (void *)(long)smp_processor_id();
+	cpu_callback(&cpu_nfb, CPU_UP_PREPARE, cpu);
+	cpu_callback(&cpu_nfb, CPU_ONLINE, cpu);
 	register_cpu_notifier(&cpu_nfb);
 	return 0;
 }

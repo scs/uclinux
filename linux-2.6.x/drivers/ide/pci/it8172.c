@@ -202,7 +202,7 @@ static int it8172_config_drive_xfer_rate (ide_drive_t *drive)
 
 	if (id && (id->capability & 1) && drive->autodma) {
 		/* Consult the list of known "bad" drives */
-		if (hwif->ide_dma_bad_drive(drive))
+		if (__ide_dma_bad_drive(drive))
 			goto fast_ata_pio;
 		if (id->field_valid & 4) {
 			if (id->dma_ultra & hwif->ultra_mask) {
@@ -219,7 +219,7 @@ try_dma_modes:
 				if (!it8172_config_chipset_for_dma(drive))
 					goto no_dma_set;
 			}
-		} else if (hwif->ide_dma_good_drive(drive) &&
+		} else if (__ide_dma_good_drive(drive) &&
 			   (id->eide_dma_time < 150)) {
 			/* Consult the list of known "good" drives */
 			if (!it8172_config_chipset_for_dma(drive))
@@ -286,16 +286,12 @@ static void __init init_hwif_it8172 (ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
-extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
-
 static int __devinit it8172_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &it8172_chipsets[id->driver_data];
         if ((!(PCI_FUNC(dev->devfn) & 1) ||
             (!((dev->class >> 8) == PCI_CLASS_STORAGE_IDE))))
                 return 1; /* IT8172 is more than only a IDE controller */
-	ide_setup_pci_device(dev, d);
-	MOD_INC_USE_COUNT;
+	ide_setup_pci_device(dev, &it8172_chipsets[id->driver_data]);
 	return 0;
 }
 
@@ -303,6 +299,7 @@ static struct pci_device_id it8172_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ITE, PCI_DEVICE_ID_ITE_IT8172G, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, it8172_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "IT8172IDE",
@@ -315,13 +312,7 @@ static int it8172_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
-static void it8172_ide_exit(void)
-{
-	ide_pci_unregister_driver(&driver);
-}
-
 module_init(it8172_ide_init);
-module_exit(it8172_ide_exit);
 
 MODULE_AUTHOR("SteveL@mvista.com");
 MODULE_DESCRIPTION("PCI driver module for ITE 8172 IDE");

@@ -5,10 +5,6 @@
 
 #include <linux/config.h>
 
-/* Chang Junxiao, June 25, 2003.
- * This macro is base of PCI IO address window of AD21535 */
-#define AD21535_PCIIO_BASE 0xeefe0000
-
 /*
  * These are for ISA/PCI shared memory _only_ and should never be used
  * on any other type of memory, including Zorro memory. They are meant to
@@ -26,9 +22,14 @@
 #define readw(addr) ({ unsigned short __v = (*(volatile unsigned short *) (addr)); asm("ssync;");__v; })
 #define readl(addr) ({ unsigned int __v = (*(volatile unsigned int *) (addr));asm("ssync;"); __v; })
 
-#define writeb(b,addr) {((*(volatile unsigned char *) (addr)) = (b)); asm("ssync;");}
+/*#define writeb(b,addr) {((*(volatile unsigned char *) (addr)) = (b)); asm("ssync;");}
 #define writew(b,addr) {((*(volatile unsigned short *) (addr)) = (b)); asm("ssync;");}
 #define writel(b,addr) {((*(volatile unsigned int *) (addr)) = (b)); asm("ssync;");}
+*/
+#define writeb(b,addr) (void)((*(volatile unsigned char *) (addr)) = (b))
+#define writew(b,addr) (void)((*(volatile unsigned short *) (addr)) = (b))
+#define writel(b,addr) (void)((*(volatile unsigned int *) (addr)) = (b))
+
 #define __raw_readb readb
 #define __raw_readw readw
 #define __raw_readl readl
@@ -39,26 +40,28 @@
 #define memcpy_fromio(a,b,c)	memcpy((a),(void *)(b),(c))
 #define memcpy_toio(a,b,c)	memcpy((void *)(a),(b),(c))
 
-#define inb_p(addr) readb((addr) + AD21535_PCIIO_BASE)
-#define inb(addr) readb((addr) + AD21535_PCIIO_BASE)
+#define inb(addr)    readb(addr)
+#define inw(addr)    readw(addr)
+#define inl(addr)    readl(addr)
+#define outb(x,addr) ((void) writeb(x,addr))
+#define outw(x,addr) ((void) writew(x,addr))
+#define outl(x,addr) ((void) writel(x,addr))
 
-#define outb(x,addr) writeb(x, (addr) + AD21535_PCIIO_BASE)
-#define outb_p(x,addr) outb(x, (addr) + AD21535_PCIIO_BASE)
+#define inb_p(addr)    inb(addr)
+#define inw_p(addr)    inw(addr)
+#define inl_p(addr)    inl(addr)
+#define outb_p(x,addr) outb(x,addr)
+#define outw_p(x,addr) outw(x,addr)
+#define outl_p(x,addr) outl(x,addr)
 
-#define inw(addr) readw((addr) + AD21535_PCIIO_BASE)
-#define inl(addr) readl((addr) + AD21535_PCIIO_BASE)
 
-#define outw(x,addr) writew(x, (addr) + AD21535_PCIIO_BASE)
-#define outl(x,addr) writel(x, (addr) + AD21535_PCIIO_BASE)
+#define insb(port, addr, count) memcpy((void*)addr, (void*)port, count)
+#define insw(port, addr, count) memcpy((void*)addr, (void*)port, (2*count))
+#define insl(port, addr, count) memcpy((void*)addr, (void*)port, (4*count))
 
-#define insb(port, addr, count) memcpy((void*)addr, (void*)(AD21535_PCIIO_BASE + port), count)
-#define insw(port, addr, count) memcpy((void*)addr, (void*)(AD21535_PCIIO_BASE + port), (2*count))
-#define insl(port, addr, count) memcpy((void*)addr, (void*)(AD21535_PCIIO_BASE + port), (4*count))
-
-#define outsb(port, addr, count) memcpy((void*)(AD21535_PCIIO_BASE + port), (void*)addr, count)
-#define outsw(port, addr, count) memcpy((void*)(AD21535_PCIIO_BASE + port), (void*)addr, (2*count))
-#define outsl(port, addr, count) memcpy((void*)(AD21535_PCIIO_BASE + port), (void*)addr, (4*count))
-
+#define outsb(port, addr, count) memcpy((void*)port, (void*)addr, count)
+#define outsw(port, addr, count) memcpy((void*)port, (void*)addr, (2*count))
+#define outsl(port, addr, count) memcpy((void*)port, (void*)addr, (4*count))
 #define IO_SPACE_LIMIT 0xffff
 
 

@@ -30,7 +30,7 @@ static struct proc_dir_entry *dasd_devices_entry = NULL;
 static struct proc_dir_entry *dasd_statistics_entry = NULL;
 
 static inline char *
-dasd_get_user_string(const char *user_buf, size_t user_len)
+dasd_get_user_string(const char __user *user_buf, size_t user_len)
 {
 	char *buffer;
 
@@ -67,12 +67,17 @@ dasd_devices_show(struct seq_file *m, void *v)
 		seq_printf(m, "(none)");
 	/* Print kdev. */
 	if (device->gdp)
-		seq_printf(m, " at (%3d:%7d)",
+		seq_printf(m, " at (%3d:%6d)",
 			   device->gdp->major, device->gdp->first_minor);
 	else
-		seq_printf(m, "  at (???:???????)");
+		seq_printf(m, "  at (???:??????)");
+	/* Print device name. */
+	if (device->gdp)
+		seq_printf(m, " is %-8s", device->gdp->disk_name);
+	else
+		seq_printf(m, " is ????????");
 	/* Print devices features. */
-	substr = device->ro_flag ? "(ro)" : " ";
+	substr = test_bit(DASD_FLAG_RO, &device->flags) ? "(ro)" : " ";
 	seq_printf(m, "%4s: ", substr);
 	/* Print device status information. */
 	switch ((device != NULL) ? device->state : -1) {
@@ -234,7 +239,7 @@ dasd_statistics_read(char *page, char **start, off_t off,
 }
 
 static int
-dasd_statistics_write(struct file *file, const char *user_buf,
+dasd_statistics_write(struct file *file, const char __user *user_buf,
 		      unsigned long user_len, void *data)
 {
 #ifdef CONFIG_DASD_PROFILE

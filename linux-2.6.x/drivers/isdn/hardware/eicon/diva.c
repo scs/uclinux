@@ -8,7 +8,6 @@
 #include "platform.h"
 #include "debuglib.h"
 #include "cardtype.h"
-#include "dlist.h"
 #include "pc.h"
 #include "di_defs.h"
 #include "di.h"
@@ -75,14 +74,9 @@ DivaIdiReqFunc(31)
 struct pt_regs;
 
 /*
- * include queue functions
- */
-#include "dlist.c"
-
-/*
 **  LOCALS
 */
-diva_entity_queue_t adapter_queue;
+static LIST_HEAD(adapter_queue);
 
 typedef struct _diva_get_xlog {
 	word command;
@@ -137,7 +131,7 @@ static diva_supported_cards_info_t divas_supported_cards[] = {
 	/*
 	   EOL
 	 */
-	{-1, 0}
+	{-1}
 };
 
 static void diva_init_request_array(void);
@@ -158,6 +152,16 @@ static int diva_find_free_adapters(int base, int nr)
 	return (0);
 }
 
+static diva_os_xdi_adapter_t *diva_q_get_next(struct list_head * what)
+{
+	diva_os_xdi_adapter_t *a = NULL;
+
+	if (what && (what->next != &adapter_queue))
+		a = list_entry(what->next, diva_os_xdi_adapter_t, link);
+
+	return(a);
+}
+
 /* --------------------------------------------------------------------------
     Add card to the card list
    -------------------------------------------------------------------------- */
@@ -170,7 +174,7 @@ void *diva_driver_add_card(void *pdev, unsigned long CardOrdinal)
 	for (i = 0; divas_supported_cards[i].CardOrdinal != -1; i++) {
 		if (divas_supported_cards[i].CardOrdinal == CardOrdinal) {
 			if (!(pdiva = divas_create_pci_card(i, pdev))) {
-				return (0);
+				return NULL;
 			}
 			switch (CardOrdinal) {
 			case CARDTYPE_DIVASRV_Q_8M_PCI:
@@ -204,7 +208,7 @@ void *diva_driver_add_card(void *pdev, unsigned long CardOrdinal)
 					diva_os_enter_spin_lock(&adapter_lock, &old_irql, "add card");
 					pa = pdiva;
 					for (j = 1; j < nr; j++) {	/* slave adapters, if any */
-						pa = (diva_os_xdi_adapter_t *) diva_q_get_next(&pa->link);
+						pa = diva_q_get_next(&pa->link);
 						if (pa && !pa->interface.cleanup_adapter_proc) {
 							pa->controller = i + 1 + j;
 							pa->xdi_adapter.ANum = pa->controller;
@@ -233,11 +237,11 @@ void *diva_driver_add_card(void *pdev, unsigned long CardOrdinal)
 			DBG_ERR(("can not alloc request array"))
 			diva_driver_remove_card(pdiva);
 
-			return (0);
+			return NULL;
 		}
 	}
 
-	return (0);
+	return NULL;
 }
 
 /* --------------------------------------------------------------------------
@@ -246,7 +250,6 @@ void *diva_driver_add_card(void *pdev, unsigned long CardOrdinal)
 int divasa_xdi_driver_entry(void)
 {
 	diva_os_initialize_spin_lock(&adapter_lock, "adapter");
-	diva_q_init(&adapter_queue);
 	memset(&IoAdapters[0], 0x00, sizeof(IoAdapters));
 	diva_init_request_array();
 
@@ -259,12 +262,14 @@ int divasa_xdi_driver_entry(void)
 static diva_os_xdi_adapter_t *get_and_remove_from_queue(void)
 {
 	diva_os_spin_lock_magic_t old_irql;
-	diva_os_xdi_adapter_t *a;
+	diva_os_xdi_adapter_t *a = NULL;
 
 	diva_os_enter_spin_lock(&adapter_lock, &old_irql, "driver_unload");
 
-	if ((a = (diva_os_xdi_adapter_t *) diva_q_get_head(&adapter_queue)))
-		diva_q_remove(&adapter_queue, &a->link);
+	if (!list_empty(&adapter_queue)) {
+		a = list_entry(adapter_queue.next, diva_os_xdi_adapter_t, link);
+		list_del(adapter_queue.next);
+	}
 
 	diva_os_leave_spin_lock(&adapter_lock, &old_irql, "driver_unload");
 	return (a);
@@ -281,12 +286,12 @@ void diva_driver_remove_card(void *pdiva)
 	int i;
 
 	pa = a[0] = (diva_os_xdi_adapter_t *) pdiva;
-	a[1] = a[2] = a[3] = 0;
+	a[1] = a[2] = a[3] = NULL;
 
 	diva_os_enter_spin_lock(&adapter_lock, &old_irql, "remode adapter");
 
 	for (i = 1; i < 4; i++) {
-		if ((pa = (diva_os_xdi_adapter_t *) diva_q_get_next(&pa->link))
+		if ((pa = diva_q_get_next(&pa->link))
 		    && !pa->interface.cleanup_adapter_proc) {
 			a[i] = pa;
 		} else {
@@ -295,7 +300,7 @@ void diva_driver_remove_card(void *pdiva)
 	}
 
 	for (i = 0; ((i < 4) && a[i]); i++) {
-		diva_q_remove(&adapter_queue, &a[i]->link);
+		list_del(&a[i]->link);
 	}
 
 	diva_os_leave_spin_lock(&adapter_lock, &old_irql, "driver_unload");
@@ -306,7 +311,7 @@ void diva_driver_remove_card(void *pdiva)
 		if (a[i]) {
 			if (a[i]->controller) {
 				DBG_LOG(("remove adapter (%d)",
-					 a[i]->controller)) IoAdapters[a[i]->controller - 1] = 0;
+					 a[i]->controller)) IoAdapters[a[i]->controller - 1] = NULL;
 				remove_adapter_proc(a[i]);
 			}
 			diva_os_free(0, a[i]);
@@ -327,7 +332,7 @@ static void *divas_create_pci_card(int handle, void *pci_dev_handle)
 
 	if (!(a = (diva_os_xdi_adapter_t *) diva_os_malloc(0, sizeof(*a)))) {
 		DBG_ERR(("A: can't alloc adapter"));
-		return (0);
+		return NULL;
 	}
 
 	memset(a, 0x00, sizeof(*a));
@@ -345,16 +350,16 @@ static void *divas_create_pci_card(int handle, void *pci_dev_handle)
 	   numbers as master adapter
 	 */
 	diva_os_enter_spin_lock(&adapter_lock, &old_irql, "found_pci_card");
-	diva_q_add_tail(&adapter_queue, &a->link);
+	list_add_tail(&a->link, &adapter_queue);
 	diva_os_leave_spin_lock(&adapter_lock, &old_irql, "found_pci_card");
 
 	if ((*(pI->init_card)) (a)) {
 		diva_os_enter_spin_lock(&adapter_lock, &old_irql, "found_pci_card");
-		diva_q_remove(&adapter_queue, &a->link);
+		list_del(&a->link);
 		diva_os_leave_spin_lock(&adapter_lock, &old_irql, "found_pci_card");
 		diva_os_free(0, a);
 		DBG_ERR(("A: can't get adapter resources"));
-		return (0);
+		return NULL;
 	}
 
 	return (a);
@@ -372,7 +377,7 @@ void divasa_xdi_driver_unload(void)
 			(*(a->interface.cleanup_adapter_proc)) (a);
 		}
 		if (a->controller) {
-			IoAdapters[a->controller - 1] = 0;
+			IoAdapters[a->controller - 1] = NULL;
 			remove_adapter_proc(a);
 		}
 		diva_os_free(0, a);
@@ -383,36 +388,31 @@ void divasa_xdi_driver_unload(void)
 /*
 **  Receive and process command from user mode utility
 */
-static int cmp_adapter_nr(const void *what, const diva_entity_link_t * p)
-{
-	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) p;
-	dword nr = (dword) (unsigned long) what;
-
-	return (nr != a->controller);
-}
-
-void *diva_xdi_open_adapter(void *os_handle, const void *src,
+void *diva_xdi_open_adapter(void *os_handle, const void __user *src,
 			    int length,
 			    divas_xdi_copy_from_user_fn_t cp_fn)
 {
 	diva_xdi_um_cfg_cmd_t msg;
-	diva_os_xdi_adapter_t *a;
+	diva_os_xdi_adapter_t *a = NULL;
 	diva_os_spin_lock_magic_t old_irql;
+	struct list_head *tmp;
 
 	if (length < sizeof(diva_xdi_um_cfg_cmd_t)) {
 		DBG_ERR(("A: A(?) open, msg too small (%d < %d)",
 			 length, sizeof(diva_xdi_um_cfg_cmd_t)))
-		return (0);
+		return NULL;
 	}
 	if ((*cp_fn) (os_handle, &msg, src, sizeof(msg)) <= 0) {
 		DBG_ERR(("A: A(?) open, write error"))
-		return (0);
+		return NULL;
 	}
 	diva_os_enter_spin_lock(&adapter_lock, &old_irql, "open_adapter");
-	a = (diva_os_xdi_adapter_t *) diva_q_find(&adapter_queue,
-						  (void *) (unsigned long)
-						  msg.adapter,
-						  cmp_adapter_nr);
+	list_for_each(tmp, &adapter_queue) {
+		a = list_entry(tmp, diva_os_xdi_adapter_t, link);
+		if (a->controller == (int)msg.adapter)
+			break;
+		a = NULL;
+	}
 	diva_os_leave_spin_lock(&adapter_lock, &old_irql, "open_adapter");
 
 	if (!a) {
@@ -432,12 +432,12 @@ void diva_xdi_close_adapter(void *adapter, void *os_handle)
 	a->xdi_mbox.status &= ~DIVA_XDI_MBOX_BUSY;
 	if (a->xdi_mbox.data) {
 		diva_os_free(0, a->xdi_mbox.data);
-		a->xdi_mbox.data = 0;
+		a->xdi_mbox.data = NULL;
 	}
 }
 
 int
-diva_xdi_write(void *adapter, void *os_handle, const void *src,
+diva_xdi_write(void *adapter, void *os_handle, const void __user *src,
 	       int length, divas_xdi_copy_from_user_fn_t cp_fn)
 {
 	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) adapter;
@@ -480,7 +480,7 @@ diva_xdi_write(void *adapter, void *os_handle, const void *src,
 **  Write answers to user mode utility, if any
 */
 int
-diva_xdi_read(void *adapter, void *os_handle, void *dst,
+diva_xdi_read(void *adapter, void *os_handle, void __user *dst,
 	      int max_length, divas_xdi_copy_to_user_fn_t cp_fn)
 {
 	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) adapter;
@@ -507,7 +507,7 @@ diva_xdi_read(void *adapter, void *os_handle, void *dst,
 		      a->xdi_mbox.data_length);
 	if (ret > 0) {
 		diva_os_free(0, a->xdi_mbox.data);
-		a->xdi_mbox.data = 0;
+		a->xdi_mbox.data = NULL;
 		a->xdi_mbox.status &= ~DIVA_XDI_MBOX_BUSY;
 	}
 
@@ -526,7 +526,7 @@ irqreturn_t diva_os_irq_wrapper(int irq, void *context, struct pt_regs *regs)
 
 	if ((clear_int_proc = a->clear_interrupts_proc)) {
 		(*clear_int_proc) (a);
-		a->clear_interrupts_proc = 0;
+		a->clear_interrupts_proc = NULL;
 		return IRQ_HANDLED;
 	}
 
@@ -611,7 +611,7 @@ void diva_add_slave_adapter(diva_os_xdi_adapter_t * a)
 	diva_os_spin_lock_magic_t old_irql;
 
 	diva_os_enter_spin_lock(&adapter_lock, &old_irql, "add_slave");
-	diva_q_add_tail(&adapter_queue, &a->link);
+	list_add_tail(&a->link, &adapter_queue);
 	diva_os_leave_spin_lock(&adapter_lock, &old_irql, "add_slave");
 }
 

@@ -344,19 +344,14 @@ static dev_link_t *ray_attach(void)
 	    return NULL;
 
     /* Allocate space for private device-specific data */
-    dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+    dev = alloc_etherdev(sizeof(ray_dev_t));
 
     if (!dev)
 	    goto fail_alloc_dev;
 
-    local = kmalloc(sizeof(ray_dev_t), GFP_KERNEL);
-
-    if (!local)
-	    goto fail_alloc_local;
+    local = dev->priv;
 
     memset(link, 0, sizeof(struct dev_link_t));
-    memset(dev, 0, sizeof(struct net_device));
-    memset(local, 0, sizeof(ray_dev_t));
 
     /* The io structure describes IO port mapping. None used here */
     link->io.NumPorts1 = 0;
@@ -379,7 +374,6 @@ static dev_link_t *ray_attach(void)
     link->priv = dev;
     link->irq.Instance = dev;
     
-    dev->priv = local;
     local->finder = link;
     local->card_status = CARD_INSERTED;
     local->authentication_state = UNAUTHENTICATED;
@@ -401,7 +395,6 @@ static dev_link_t *ray_attach(void)
 
     DEBUG(2,"ray_cs ray_attach calling ether_setup.)\n");
     SET_MODULE_OWNER(dev);
-    ether_setup(dev);
     dev->init = &ray_dev_init;
     dev->open = &ray_open;
     dev->stop = &ray_dev_close;
@@ -434,8 +427,6 @@ static dev_link_t *ray_attach(void)
     DEBUG(2,"ray_cs ray_attach ending\n");
     return link;
 
-fail_alloc_local:
-    kfree(dev);
 fail_alloc_dev:
     kfree(link);
     return NULL;
@@ -463,11 +454,8 @@ static void ray_detach(dev_link_t *link)
       the release() function is called, that will trigger a proper
       detach().
     */
-    if (link->state & DEV_CONFIG) {
+    if (link->state & DEV_CONFIG)
         ray_release(link);
-        if(link->state & DEV_STALE_CONFIG)
-            return;
-    }
 
     /* Break the link with Card Services */
     if (link->handle)
@@ -478,9 +466,7 @@ static void ray_detach(dev_link_t *link)
     if (link->priv) {
         struct net_device *dev = link->priv;
 	if (link->dev) unregister_netdev(dev);
-        if (dev->priv)
-            kfree(dev->priv);
-        kfree(link->priv);
+        free_netdev(dev);
     }
     kfree(link);
     DEBUG(2,"ray_cs ray_detach ending\n");
@@ -883,15 +869,7 @@ static void ray_release(dev_link_t *link)
     int i;
     
     DEBUG(1, "ray_release(0x%p)\n", link);
-    /* If the device is currently in use, we won't release until it
-      is actually closed.
-    */
-    if (link->open) {
-        DEBUG(1, "ray_cs: release postponed, '%s' still open\n",
-              link->dev->dev_name);
-        link->state |= DEV_STALE_CONFIG;
-        return;
-    }
+
     del_timer(&local->timer);
     link->state &= ~DEV_CONFIG;
 
@@ -911,9 +889,6 @@ static void ray_release(dev_link_t *link)
     if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseIRQ ret = %x\n",i);
 
     DEBUG(2,"ray_release ending\n");
-
-    if (link->state & DEV_STALE_CONFIG)
-	    ray_detach(link);
 }
 
 /*=============================================================================
@@ -1735,8 +1710,6 @@ static int ray_dev_close(struct net_device *dev)
 
     link->open--;
     netif_stop_queue(dev);
-    if (link->state & DEV_STALE_CONFIG)
-	    ray_release(link);
 
     /* In here, we should stop the hardware (stop card from beeing active)
      * and set local->card_status to CARD_AWAITING_PARAM, so that while the
@@ -2881,7 +2854,7 @@ static void raycs_write(const char *name, write_proc_t *w, void *data)
 	}
 }
 
-static int write_essid(struct file *file, const char *buffer, unsigned long count, void *data)
+static int write_essid(struct file *file, const char __user *buffer, unsigned long count, void *data)
 {
 	static char proc_essid[33];
 	int len = count;
@@ -2895,7 +2868,7 @@ static int write_essid(struct file *file, const char *buffer, unsigned long coun
 	return count;
 }
 
-static int write_int(struct file *file, const char *buffer, unsigned long count, void *data)
+static int write_int(struct file *file, const char __user *buffer, unsigned long count, void *data)
 {
 	static char proc_number[10];
 	char *p;
@@ -2941,7 +2914,7 @@ static int __init init_ray_cs(void)
     DEBUG(1, "raylink init_module register_pcmcia_driver returns 0x%x\n",rc);
 
 #ifdef CONFIG_PROC_FS
-    proc_mkdir("driver/ray_cs", 0);
+    proc_mkdir("driver/ray_cs", NULL);
 
     create_proc_info_entry("driver/ray_cs/ray_cs", 0, NULL, &ray_cs_proc_read);
     raycs_write("driver/ray_cs/essid", write_essid, NULL);

@@ -173,9 +173,9 @@ int __init init_scx200_docflash(void)
 
 	scx200_docflash_map.size = size;
 	if (width == 8)
-		scx200_docflash_map.buswidth = 1;
+		scx200_docflash_map.bankwidth = 1;
 	else
-		scx200_docflash_map.buswidth = 2;
+		scx200_docflash_map.bankwidth = 2;
 
 	simple_map_init(&scx200_docflash_map);
 

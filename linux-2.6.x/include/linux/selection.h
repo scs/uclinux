@@ -13,9 +13,9 @@
 extern int sel_cons;
 
 extern void clear_selection(void);
-extern int set_selection(const struct tiocl_selection *sel, struct tty_struct *tty, int user);
+extern int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *tty);
 extern int paste_selection(struct tty_struct *tty);
-extern int sel_loadlut(const unsigned long arg);
+extern int sel_loadlut(char __user *p);
 extern int mouse_reporting(void);
 extern void mouse_report(struct tty_struct * tty, int butt, int mrx, int mry);
 
@@ -36,8 +36,8 @@ extern u16 screen_glyph(int currcons, int offset);
 extern void complement_pos(int currcons, int offset);
 extern void invert_screen(int currcons, int offset, int count, int shift);
 
-extern void getconsxy(int currcons, char *p);
-extern void putconsxy(int currcons, char *p);
+extern void getconsxy(int currcons, unsigned char *p);
+extern void putconsxy(int currcons, unsigned char *p);
 
 extern u16 vcs_scr_readw(int currcons, const u16 *org);
 extern void vcs_scr_writew(int currcons, u16 val, u16 *org);

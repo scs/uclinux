@@ -77,7 +77,7 @@ end:
 	return_VALUE(size);
 }
 
-static ssize_t acpi_system_read_dsdt (struct file*, char*, size_t, loff_t*);
+static ssize_t acpi_system_read_dsdt (struct file*, char __user *, size_t, loff_t*);
 
 static struct file_operations acpi_system_dsdt_ops = {
 	.read =			acpi_system_read_dsdt,
@@ -86,14 +86,13 @@ static struct file_operations acpi_system_dsdt_ops = {
 static ssize_t
 acpi_system_read_dsdt (
 	struct file		*file,
-	char			*buffer,
+	char			__user *buffer,
 	size_t			count,
 	loff_t			*ppos)
 {
 	acpi_status		status = AE_OK;
 	struct acpi_buffer	dsdt = {ACPI_ALLOCATE_BUFFER, NULL};
-	void			*data = 0;
-	size_t			size = 0;
+	ssize_t			res;
 
 	ACPI_FUNCTION_TRACE("acpi_system_read_dsdt");
 
@@ -101,26 +100,15 @@ acpi_system_read_dsdt (
 	if (ACPI_FAILURE(status))
 		return_VALUE(-ENODEV);
 
-	if (*ppos < dsdt.length) {
-		data = dsdt.pointer + file->f_pos;
-		size = dsdt.length - file->f_pos;
-		if (size > count)
-			size = count;
-		if (copy_to_user(buffer, data, size)) {
-			acpi_os_free(dsdt.pointer);
-			return_VALUE(-EFAULT);
-		}
-	}
-
+	res = simple_read_from_buffer(buffer, count, ppos,
+				      dsdt.pointer, dsdt.length);
 	acpi_os_free(dsdt.pointer);
 
-	*ppos += size;
-
-	return_VALUE(size);
+	return_VALUE(res);
 }
 
 
-static ssize_t acpi_system_read_fadt (struct file*, char*, size_t, loff_t*);
+static ssize_t acpi_system_read_fadt (struct file*, char __user *, size_t, loff_t*);
 
 static struct file_operations acpi_system_fadt_ops = {
 	.read =			acpi_system_read_fadt,
@@ -129,14 +117,13 @@ static struct file_operations acpi_system_fadt_ops = {
 static ssize_t
 acpi_system_read_fadt (
 	struct file		*file,
-	char			*buffer,
+	char			__user *buffer,
 	size_t			count,
 	loff_t			*ppos)
 {
 	acpi_status		status = AE_OK;
 	struct acpi_buffer	fadt = {ACPI_ALLOCATE_BUFFER, NULL};
-	void			*data = 0;
-	size_t			size = 0;
+	ssize_t			res;
 
 	ACPI_FUNCTION_TRACE("acpi_system_read_fadt");
 
@@ -144,22 +131,11 @@ acpi_system_read_fadt (
 	if (ACPI_FAILURE(status))
 		return_VALUE(-ENODEV);
 
-	if (*ppos < fadt.length) {
-		data = fadt.pointer + file->f_pos;
-		size = fadt.length - file->f_pos;
-		if (size > count)
-			size = count;
-		if (copy_to_user(buffer, data, size)) {
-			acpi_os_free(fadt.pointer);
-			return_VALUE(-EFAULT);
-		}
-	}
-
+	res = simple_read_from_buffer(buffer, count, ppos,
+				      fadt.pointer, fadt.length);
 	acpi_os_free(fadt.pointer);
 
-	*ppos += size;
-
-	return_VALUE(size);
+	return_VALUE(res);
 }
 
 

@@ -46,7 +46,7 @@ static void print_string(char *str)
 	struct tty_struct *my_tty;
 
 	/* The tty for the current task */
-	my_tty = current->tty;
+	my_tty = current->signal->tty;
 	if (my_tty != NULL) {
 		my_tty->driver->write(my_tty, 0, str, strlen(str));
 		my_tty->driver->write(my_tty, 0, "\015\012", 2);
@@ -902,7 +902,7 @@ static void get_counters(struct ebt_counter *oldcounters,
 }
 
 /* replace the table */
-static int do_replace(void *user, unsigned int len)
+static int do_replace(void __user *user, unsigned int len)
 {
 	int ret, i, countersize;
 	struct ebt_table_info *newinfo;
@@ -1217,7 +1217,7 @@ void ebt_unregister_table(struct ebt_table *table)
 }
 
 /* userspace just supplied us with counters */
-static int update_counters(void *user, unsigned int len)
+static int update_counters(void __user *user, unsigned int len)
 {
 	int i, ret;
 	struct ebt_counter *tmp;
@@ -1315,7 +1315,7 @@ static inline int ebt_make_names(struct ebt_entry *e, char *base, char *ubase)
 }
 
 /* called with ebt_mutex down */
-static int copy_everything_to_user(struct ebt_table *t, void *user,
+static int copy_everything_to_user(struct ebt_table *t, void __user *user,
    int *len, int cmd)
 {
 	struct ebt_replace tmp;
@@ -1391,7 +1391,7 @@ static int copy_everything_to_user(struct ebt_table *t, void *user,
 }
 
 static int do_ebt_set_ctl(struct sock *sk,
-	int cmd, void *user, unsigned int len)
+	int cmd, void __user *user, unsigned int len)
 {
 	int ret;
 
@@ -1408,7 +1408,7 @@ static int do_ebt_set_ctl(struct sock *sk,
 	return ret;
 }
 
-static int do_ebt_get_ctl(struct sock *sk, int cmd, void *user, int *len)
+static int do_ebt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 {
 	int ret;
 	struct ebt_replace tmp;

@@ -10,6 +10,7 @@
  */
 #include <linux/config.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -72,7 +73,7 @@ static struct sock *nr_alloc_sock(void)
 	if (!sk)
 		goto out;
 
-	nr = nr_sk(sk) = kmalloc(sizeof(*nr), GFP_ATOMIC);
+	nr = sk->sk_protinfo = kmalloc(sizeof(*nr), GFP_ATOMIC);
 	if (!nr)
 		goto frees;
 
@@ -297,7 +298,7 @@ void nr_destroy_socket(struct sock *sk)
  */
 
 static int nr_setsockopt(struct socket *sock, int level, int optname,
-	char *optval, int optlen)
+	char __user *optval, int optlen)
 {
 	struct sock *sk = sock->sk;
 	nr_cb *nr = nr_sk(sk);
@@ -309,7 +310,7 @@ static int nr_setsockopt(struct socket *sock, int level, int optname,
 	if (optlen < sizeof(int))
 		return -EINVAL;
 
-	if (get_user(opt, (int *)optval))
+	if (get_user(opt, (int __user *)optval))
 		return -EFAULT;
 
 	switch (optname) {
@@ -349,7 +350,7 @@ static int nr_setsockopt(struct socket *sock, int level, int optname,
 }
 
 static int nr_getsockopt(struct socket *sock, int level, int optname,
-	char *optval, int *optlen)
+	char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
 	nr_cb *nr = nr_sk(sk);
@@ -1021,7 +1022,7 @@ static int nr_sendmsg(struct kiocb *iocb, struct socket *sock,
 	unsigned char *asmptr;
 	int size;
 
-	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_EOR))
+	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_EOR|MSG_CMSG_COMPAT))
 		return -EINVAL;
 
 	lock_sock(sk);
@@ -1176,6 +1177,7 @@ static int nr_recvmsg(struct kiocb *iocb, struct socket *sock,
 static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
+	void __user *argp = (void __user *)arg;
 	int ret;
 
 	lock_sock(sk);
@@ -1186,7 +1188,7 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		if (amount < 0)
 			amount = 0;
 		release_sock(sk);
-		return put_user(amount, (int *)arg);
+		return put_user(amount, (int __user *)argp);
 	}
 
 	case TIOCINQ: {
@@ -1196,21 +1198,15 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		if ((skb = skb_peek(&sk->sk_receive_queue)) != NULL)
 			amount = skb->len;
 		release_sock(sk);
-		return put_user(amount, (int *)arg);
+		return put_user(amount, (int __user *)argp);
 	}
 
 	case SIOCGSTAMP:
-		if (sk != NULL) {
-			if (!sk->sk_stamp.tv_sec) {
-				release_sock(sk);
-				return -ENOENT;
-			}
-			ret = copy_to_user((void *)arg, &sk->sk_stamp, sizeof(struct timeval)) ? -EFAULT : 0;
-			release_sock(sk);
-			return ret;
-		}
+		ret = -EINVAL;
+		if (sk != NULL)
+			ret = sock_get_timestamp(sk, argp);
 		release_sock(sk);
-		return -EINVAL;
+		return ret;
 
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
@@ -1230,11 +1226,11 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	case SIOCNRDECOBS:
 		release_sock(sk);
 		if (!capable(CAP_NET_ADMIN)) return -EPERM;
-		return nr_rt_ioctl(cmd, (void *)arg);
+		return nr_rt_ioctl(cmd, argp);
 
 	default:
 		release_sock(sk);
-		return dev_ioctl(cmd, (void *)arg);
+		return dev_ioctl(cmd, argp);
 	}
 	release_sock(sk);
 
@@ -1456,8 +1452,7 @@ static int __init nr_proto_init(void)
 
 module_init(nr_proto_init);
 
-
-MODULE_PARM(nr_ndevs, "i");
+module_param(nr_ndevs, int, 0);
 MODULE_PARM_DESC(nr_ndevs, "number of NET/ROM devices");
 
 MODULE_AUTHOR("Jonathan Naylor G4KLX <g4klx@g4klx.demon.co.uk>");

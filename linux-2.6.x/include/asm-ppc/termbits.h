@@ -58,6 +58,7 @@ struct termios {
 #define IXANY		0004000
 #define IUCLC		0010000
 #define IMAXBEL	0020000
+#define IUTF8	0040000
 
 /* c_oflag bits */
 #define OPOST	0000001
@@ -80,6 +81,7 @@ struct termios {
 #define   TAB1	00002000
 #define   TAB2	00004000
 #define   TAB3	00006000
+#define   XTABS	00006000	/* required by POSIX to == TAB3 */
 #define CRDLY	00030000
 #define   CR0	00000000
 #define   CR1	00010000
@@ -94,7 +96,6 @@ struct termios {
 #define VTDLY	00200000
 #define   VT0	00000000
 #define   VT1	00200000
-#define XTABS	01000000 /* Hmm.. Linux/i386 considers this part of TABDLY.. */
 
 /* c_cflag bit meaning */
 #define CBAUD	0000377

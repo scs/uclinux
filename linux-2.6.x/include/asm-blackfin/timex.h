@@ -1,4 +1,4 @@
-/* Frio architecture timex specifications: Lineo Inc. 2001
+/* blackfin architecture timex specifications: Lineo Inc. 2001
  *
  * Based on: include/asm-m68knommu/timex.h
  */

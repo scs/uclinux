@@ -36,8 +36,6 @@ struct thread_info {
 	struct restart_block	restart_block;
 };
 
-#define PREEMPT_ACTIVE		0x4000000
-
 /*
  * macros/functions for gaining access to the thread information structure
  *
@@ -64,21 +62,46 @@ register struct thread_info *__current_thread_info __asm__("$28");
 #define current_thread_info()  __current_thread_info
 
 /* thread information allocation */
-#ifdef CONFIG_MIPS32
+#if defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_MIPS32)
 #define THREAD_SIZE_ORDER (1)
 #endif
-#ifdef CONFIG_MIPS64
+#if defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_MIPS64)
+#define THREAD_SIZE_ORDER (2)
+#endif
+#ifdef CONFIG_PAGE_SIZE_8KB
 #define THREAD_SIZE_ORDER (1)
 #endif
+#ifdef CONFIG_PAGE_SIZE_16KB
+#define THREAD_SIZE_ORDER (0)
+#endif
+#ifdef CONFIG_PAGE_SIZE_64KB
+#define THREAD_SIZE_ORDER (0)
+#endif
+
 #define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)
 #define THREAD_MASK (THREAD_SIZE - 1UL)
-#define alloc_thread_info(task) \
-	((struct thread_info *)kmalloc(THREAD_SIZE, GFP_KERNEL))
+
+#ifdef CONFIG_DEBUG_STACK_USAGE
+#define alloc_thread_info(tsk)					\
+({								\
+	struct thread_info *ret;				\
+								\
+	ret = kmalloc(THREAD_SIZE, GFP_KERNEL);			\
+	if (ret)						\
+		memset(ret, 0, THREAD_SIZE);			\
+	ret;							\
+})
+#else
+#define alloc_thread_info(tsk) kmalloc(THREAD_SIZE, GFP_KERNEL)
+#endif
+
 #define free_thread_info(info) kfree(info)
 #define get_thread_info(ti) get_task_struct((ti)->task)
 #define put_thread_info(ti) put_task_struct((ti)->task)
 
 #endif /* !__ASSEMBLY__ */
+
+#define PREEMPT_ACTIVE		0x4000000
 
 /*
  * thread information flags
@@ -90,6 +113,7 @@ register struct thread_info *__current_thread_info __asm__("$28");
 #define TIF_NOTIFY_RESUME	1	/* resumption notification requested */
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
+#define TIF_SYSCALL_AUDIT	4	/* syscall auditing active */
 #define TIF_USEDFPU		16	/* FPU was used by this task this quantum (SMP) */
 #define TIF_POLLING_NRFLAG	17	/* true if poll_idle() is polling TIF_NEED_RESCHED */
 #define TIF_SYSCALL_TRACE	31	/* syscall trace active */
@@ -98,12 +122,13 @@ register struct thread_info *__current_thread_info __asm__("$28");
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
+#define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_USEDFPU		(1<<TIF_USEDFPU)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 
-#define _TIF_WORK_MASK		0x0000fffe	/* work to do on
+#define _TIF_WORK_MASK		0x0000ffef	/* work to do on
                                                    interrupt/exception return */
-#define _TIF_ALLWORK_MASK	0x8000fffe	/* work to do on any return to
+#define _TIF_ALLWORK_MASK	0x8000ffff	/* work to do on any return to
                                                    u-space */
 
 #endif /* __KERNEL__ */

@@ -32,18 +32,14 @@
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
 
-#define __KERNEL_SYSCALLS__
-
 #define SHUTDOWN_SIGS	(sigmask(SIGKILL)|sigmask(SIGINT)|sigmask(SIGTERM))
-
-#include <linux/unistd.h>
 
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/dma.h>
 
 #include "scsi.h"
-#include "hosts.h"   // struct Scsi_Host definition for T handler
+#include <scsi/scsi_host.h>   // struct Scsi_Host definition for T handler
 #include "cpqfcTSchip.h"
 #include "cpqfcTSstructs.h"
 #include "cpqfcTStrigger.h"

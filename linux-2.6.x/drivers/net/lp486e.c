@@ -75,6 +75,8 @@ All other communication is through memory!
 #include <asm/io.h>
 #include <asm/dma.h>
 
+#define DRV_NAME "lp486e"
+
 /* debug print flags */
 #define LOG_SRCDST    0x80000000
 #define LOG_STATINT   0x40000000
@@ -477,7 +479,7 @@ remove_rx_bufs(struct net_device *dev) {
 		kfree(rfd);
 	} while (rfd != lp->rx_tail);
 
-	lp->rx_tail = 0;
+	lp->rx_tail = NULL;
 
 #if 0
 	for (lp->rbd_list) {
@@ -970,7 +972,7 @@ int __init lp486e_probe(struct net_device *dev) {
 		return -ENODEV;
 	probed++;
 
-	if (!request_region(IOADDR, LP486E_TOTAL_SIZE, dev->name)) {
+	if (!request_region(IOADDR, LP486E_TOTAL_SIZE, DRV_NAME)) {
 		printk(KERN_ERR "lp486e: IO address 0x%x in use\n", IOADDR);
 		return -EBUSY;
 	}
@@ -1314,18 +1316,23 @@ static int io = IOADDR;
 static int irq = IRQ;
 
 static int __init lp486e_init_module(void) {
-	struct net_device *dev;
-
-	dev = alloc_etherdev(sizeof(struct i596_private));
+	int err;
+	struct net_device *dev = alloc_etherdev(sizeof(struct i596_private));
 	if (!dev)
 		return -ENOMEM;
 
 	dev->irq = irq;
 	dev->base_addr = io;
-	dev->init = lp486e_probe;
-	if (register_netdev(dev) != 0) {
+	err = lp486e_probe(dev);
+	if (err) {
 		free_netdev(dev);
-		return -EIO;
+		return err;
+	}
+	err = register_netdev(dev);
+	if (err) {
+		release_region(dev->base_addr, LP486E_TOTAL_SIZE);
+		free_netdev(dev);
+		return err;
 	}
 	dev_lp486e = dev;
 	full_duplex = 0;

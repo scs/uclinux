@@ -7,7 +7,7 @@
 *! Functions exported: ds1302_readreg, ds1302_writereg, ds1302_init
 *!
 *! $Log$
-*! Revision 1.3  2004/09/08 10:19:12  lgsoft
+*! Revision 1.4  2004/09/08 14:52:19  lgsoft
 *! Import of 2.6.8
 *!
 *! Revision 1.13  2004/05/28 09:26:59  starvik

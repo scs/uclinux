@@ -91,7 +91,7 @@ static struct hpsb_iso* hpsb_iso_common_init(struct hpsb_host *host, enum hpsb_i
 	iso->irq_interval = irq_interval;
 	iso->dma_mode = dma_mode;
 	dma_region_init(&iso->data_buf);
-	iso->buf_size = round_up_to_page(data_buf_size);
+	iso->buf_size = PAGE_ALIGN(data_buf_size);
 	iso->buf_packets = buf_packets;
 	iso->pkt_dma = 0;
 	iso->first_packet = 0;
@@ -274,7 +274,7 @@ int hpsb_iso_recv_start(struct hpsb_iso *iso, int cycle, int tag_mask, int sync)
 		cycle %= 8000;
 
 	isoctl_args[0] = cycle;
-	
+
 	if (tag_mask < 0)
 		/* match all tags */
 		tag_mask = 0xF;
@@ -358,7 +358,7 @@ int hpsb_iso_xmit_queue_packet(struct hpsb_iso *iso, u32 offset, u16 len, u8 tag
 		}
 	}
 
-out:	
+out:
 	spin_unlock_irqrestore(&iso->lock, flags);
 	return rv;
 }

@@ -39,7 +39,9 @@
 #define _COMPONENT		ACPI_BUS_COMPONENT
 ACPI_MODULE_NAME		("acpi_bus")
 
-extern void __init acpi_pic_sci_set_trigger(unsigned int irq);
+#ifdef	CONFIG_X86
+extern void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger);
+#endif
 
 FADT_DESCRIPTOR			acpi_fadt;
 struct acpi_device		*acpi_root;
@@ -109,6 +111,14 @@ acpi_bus_get_status (
 		device->status = device->parent->status;
 	else
 		STRUCT_TO_INT(device->status) = 0x0F;
+
+	if (device->status.functional && !device->status.present) {
+		printk(KERN_WARNING PREFIX "Device [%s] status [%08x]: "
+			"functional but not present; setting present\n",
+			device->pnp.bus_id,
+			(u32) STRUCT_TO_INT(device->status));
+		device->status.present = 1;
+	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]\n", 
 		device->pnp.bus_id, (u32) STRUCT_TO_INT(device->status)));
@@ -296,8 +306,8 @@ acpi_bus_generate_event (
 	if (!event)
 		return_VALUE(-ENOMEM);
 
-	sprintf(event->device_class, "%s", device->pnp.device_class);
-	sprintf(event->bus_id, "%s", device->pnp.bus_id);
+	strcpy(event->device_class, device->pnp.device_class);
+	strcpy(event->bus_id, device->pnp.bus_id);
 	event->type = type;
 	event->data = data;
 
@@ -611,11 +621,23 @@ acpi_bus_init (void)
 	}
 
 #ifdef CONFIG_X86
-	/* Ensure the SCI is set to level-triggered, active-low */
-	if (acpi_ioapic)
-		mp_config_ioapic_for_sci(acpi_fadt.sci_int);
-	else
-		acpi_pic_sci_set_trigger(acpi_fadt.sci_int);
+	if (!acpi_ioapic) {
+		extern acpi_interrupt_flags acpi_sci_flags;
+
+		/* compatible (0) means level (3) */
+		if (acpi_sci_flags.trigger == 0)
+			acpi_sci_flags.trigger = 3;
+
+		/* Set PIC-mode SCI trigger type */
+		acpi_pic_sci_set_trigger(acpi_fadt.sci_int, acpi_sci_flags.trigger);
+	} else {
+		extern int acpi_sci_override_gsi;
+		/*
+		 * now that acpi_fadt is initialized,
+		 * update it with result from INT_SRC_OVR parsing
+		 */
+		acpi_fadt.sci_int = acpi_sci_override_gsi;
+	}
 #endif
 
 	status = acpi_enable_subsystem(ACPI_FULL_INITIALIZATION);
@@ -704,29 +726,14 @@ static int __init acpi_init (void)
 			pm_active = 1;
 		else {
 			printk(KERN_INFO PREFIX "APM is already active, exiting\n");
-			acpi_disabled = 1;
+			disable_acpi();
 			result = -ENODEV;
 		}
 #endif
 	} else
-		acpi_disabled = 1;
+		disable_acpi();
 
 	return_VALUE(result);
 }
 
-
-static int __init acpi_setup(char *str)
-{
-	while (str && *str) {
-		if (strncmp(str, "off", 3) == 0)
-			acpi_disabled = 1;
-		str = strchr(str, ',');
-		if (str)
-			str += strspn(str, ", \t");
-	}
-	return 1;
-}
-
 subsys_initcall(acpi_init);
-
-__setup("acpi=", acpi_setup);

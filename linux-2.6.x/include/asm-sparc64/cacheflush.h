@@ -9,7 +9,8 @@
 /* These are the same regardless of whether this is an SMP kernel or not. */
 #define flush_cache_mm(__mm) \
 	do { if ((__mm) == current->mm) flushw_user(); } while(0)
-extern void flush_cache_range(struct vm_area_struct *, unsigned long, unsigned long);
+#define flush_cache_range(vma, start, end) \
+	flush_cache_mm((vma)->vm_mm)
 #define flush_cache_page(vma, page) \
 	flush_cache_mm((vma)->vm_mm)
 
@@ -42,6 +43,8 @@ extern void __flush_dcache_range(unsigned long start, unsigned long end);
 	memcpy(dst, src, len)
 
 extern void flush_dcache_page(struct page *page);
+#define flush_dcache_mmap_lock(mapping)		do { } while (0)
+#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
 #define flush_cache_vmap(start, end)		do { } while (0)
 #define flush_cache_vunmap(start, end)		do { } while (0)

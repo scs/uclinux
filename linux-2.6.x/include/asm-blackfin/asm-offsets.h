@@ -10,13 +10,13 @@
 #define TASK_STATE 0 /* offsetof(struct task_struct, state) */
 #define TASK_FLAGS 12 /* offsetof(struct task_struct, flags) */
 #define TASK_PTRACE 16 /* offsetof(struct task_struct, ptrace) */
-#define TASK_BLOCKED 844 /* offsetof(struct task_struct, blocked) */
-#define TASK_THREAD 804 /* offsetof(struct task_struct, thread) */
+#define TASK_BLOCKED 696 /* offsetof(struct task_struct, blocked) */
+#define TASK_THREAD 656 /* offsetof(struct task_struct, thread) */
 #define TASK_THREAD_INFO 4 /* offsetof(struct task_struct, thread_info) */
 #define TASK_MM 104 /* offsetof(struct task_struct, mm) */
 #define TASK_ACTIVE_MM 108 /* offsetof(struct task_struct, active_mm) */
-#define TASK_SIGPENDING 860 /* offsetof(struct task_struct, pending) */
-#define STAT_IRQ 28 /* offsetof(struct kernel_stat, irqs) */
+#define TASK_SIGPENDING 712 /* offsetof(struct task_struct, pending) */
+#define STAT_IRQ 56 /* offsetof(struct kernel_stat, irqs) */
 #define CPUSTAT_SOFTIRQ_PENDING 0 /* offsetof(irq_cpustat_t, __softirq_pending) */
 #define THREAD_KSP 0 /* offsetof(struct thread_struct, ksp) */
 #define THREAD_USP 4 /* offsetof(struct thread_struct, usp) */
@@ -77,7 +77,7 @@
 #define IRQ_HANDLER 0 /* offsetof(struct irq_node, handler) */
 #define IRQ_DEVID 8 /* offsetof(struct irq_node, dev_id) */
 #define IRQ_NEXT 16 /* offsetof(struct irq_node, next) */
-#define STAT_IRQ 28 /* offsetof(struct kernel_stat, irqs) */
+#define STAT_IRQ 56 /* offsetof(struct kernel_stat, irqs) */
 #define SIGSEGV 11 /* SIGSEGV */
 #define SIGTRAP 5 /* SIGTRAP */
 

@@ -38,7 +38,7 @@ renew_parental_timestamps(struct dentry *direntry)
 	do {
 		direntry->d_time = jiffies;
 		direntry = direntry->d_parent;
-	} while (!IS_ROOT(direntry));	/* BB for DFS case should stop at the root of share which could be lower than root of this mount due to implicit dfs connections */
+	} while (!IS_ROOT(direntry));	
 }
 
 /* Note: caller must free return buffer */
@@ -49,14 +49,26 @@ build_path_from_dentry(struct dentry *direntry)
 	int namelen = 0;
 	char *full_path;
 
+	if(direntry == NULL)
+		return NULL;  /* not much we can do if dentry is freed and
+		we need to reopen the file after it was closed implicitly
+		when the server crashed */
+
+cifs_bp_rename_retry:
 	for (temp = direntry; !IS_ROOT(temp);) {
 		namelen += (1 + temp->d_name.len);
 		temp = temp->d_parent;
+		if(temp == NULL) {
+			cERROR(1,("corrupt dentry"));
+			return NULL;
+		}
 	}
-	namelen += 1;		/* allow for trailing null */
-	full_path = kmalloc(namelen, GFP_KERNEL);
-	namelen--;
+
+	full_path = kmalloc(namelen+1, GFP_KERNEL);
+	if(full_path == NULL)
+		return full_path;
 	full_path[namelen] = 0;	/* trailing null */
+
 	for (temp = direntry; !IS_ROOT(temp);) {
 		namelen -= 1 + temp->d_name.len;
 		if (namelen < 0) {
@@ -68,15 +80,28 @@ build_path_from_dentry(struct dentry *direntry)
 			cFYI(0, (" name: %s ", full_path + namelen));
 		}
 		temp = temp->d_parent;
+		if(temp == NULL) {
+			cERROR(1,("corrupt dentry"));
+			kfree(full_path);
+			return NULL;
+		}
 	}
-	if (namelen != 0)
+	if (namelen != 0) {
 		cERROR(1,
 		       ("We did not end path lookup where we expected namelen is %d",
 			namelen));
+		/* presumably this is only possible if we were racing with a rename 
+		of one of the parent directories  (we can not lock the dentries
+		above us to prevent this, but retrying should be harmless) */
+		kfree(full_path);
+		namelen = 0;
+		goto cifs_bp_rename_retry;
+	}
 
 	return full_path;
 }
 
+/* Note: caller must free return buffer */
 char *
 build_wildcard_path_from_dentry(struct dentry *direntry)
 {
@@ -84,18 +109,28 @@ build_wildcard_path_from_dentry(struct dentry *direntry)
 	int namelen = 0;
 	char *full_path;
 
+	if(direntry == NULL)
+		return NULL;  /* not much we can do if dentry is freed and
+		we need to reopen the file after it was closed implicitly
+		when the server crashed */
+
+cifs_bwp_rename_retry:
 	for (temp = direntry; !IS_ROOT(temp);) {
 		namelen += (1 + temp->d_name.len);
 		temp = temp->d_parent;
+		if(temp == NULL) {
+			cERROR(1,("corrupt dentry"));
+			return NULL;
+		}
 	}
-	namelen += 3;		/* allow for trailing null and wildcard (slash and *) */
-	full_path = kmalloc(namelen, GFP_KERNEL);
-	namelen--;
-	full_path[namelen] = 0;	/* trailing null */
-	namelen--;
-	full_path[namelen] = '*';
-	namelen--;
+
+	full_path = kmalloc(namelen+3, GFP_KERNEL);
+	if(full_path == NULL)
+		return full_path;
+
 	full_path[namelen] = '\\';
+	full_path[namelen+1] = '*';
+	full_path[namelen+2] = 0;  /* trailing null */
 
 	for (temp = direntry; !IS_ROOT(temp);) {
 		namelen -= 1 + temp->d_name.len;
@@ -105,13 +140,26 @@ build_wildcard_path_from_dentry(struct dentry *direntry)
 			full_path[namelen] = '\\';
 			strncpy(full_path + namelen + 1, temp->d_name.name,
 				temp->d_name.len);
+			cFYI(0, (" name: %s ", full_path + namelen));
 		}
 		temp = temp->d_parent;
+		if(temp == NULL) {
+			cERROR(1,("corrupt dentry"));
+			kfree(full_path);
+			return NULL;
+		}
 	}
-	if (namelen != 0)
+	if (namelen != 0) {
 		cERROR(1,
 		       ("We did not end path lookup where we expected namelen is %d",
 			namelen));
+		/* presumably this is only possible if we were racing with a rename 
+		of one of the parent directories  (we can not lock the dentries
+		above us to prevent this, but retrying should be harmless) */
+		kfree(full_path);
+		namelen = 0;
+		goto cifs_bwp_rename_retry;
+	}
 
 	return full_path;
 }
@@ -125,7 +173,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	int rc = -ENOENT;
 	int xid;
 	int oplock = 0;
-	int desiredAccess = GENERIC_ALL;
+	int desiredAccess = GENERIC_READ | GENERIC_WRITE;
 	__u16 fileHandle;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
@@ -135,23 +183,33 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	struct cifsFileInfo * pCifsFile = NULL;
 	struct cifsInodeInfo * pCifsInode;
 	int disposition = FILE_OVERWRITE_IF;
+	int write_only = FALSE;
 
 	xid = GetXid();
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
+	down(&direntry->d_sb->s_vfs_rename_sem);
 	full_path = build_path_from_dentry(direntry);
+	up(&direntry->d_sb->s_vfs_rename_sem);
+	if(full_path == NULL) {
+		FreeXid(xid);
+		return -ENOMEM;
+	}
 
-	if(nd) { 
-		cFYI(1,("In create for inode %p dentry->inode %p nd flags = 0x%x for %s",inode, direntry->d_inode, nd->flags,full_path));
-
+	if(nd) {
 		if ((nd->intent.open.flags & O_ACCMODE) == O_RDONLY)
-                	desiredAccess = GENERIC_READ;
-		else if ((nd->intent.open.flags & O_ACCMODE) == O_WRONLY)
+			desiredAccess = GENERIC_READ;
+		else if ((nd->intent.open.flags & O_ACCMODE) == O_WRONLY) {
 			desiredAccess = GENERIC_WRITE;
-		else if ((nd->intent.open.flags & O_ACCMODE) == O_RDWR)
-			desiredAccess = GENERIC_ALL;
+			write_only = TRUE;
+		} else if ((nd->intent.open.flags & O_ACCMODE) == O_RDWR) {
+			/* GENERIC_ALL is too much permission to request */
+			/* can cause unnecessary access denied on create */
+			/* desiredAccess = GENERIC_ALL; */
+			desiredAccess = GENERIC_READ | GENERIC_WRITE;
+		}
 
 		if((nd->intent.open.flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
 			disposition = FILE_CREATE;
@@ -169,20 +227,51 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		oplock = REQ_OPLOCK;
 
 	buf = kmalloc(sizeof(FILE_ALL_INFO),GFP_KERNEL);
+	if(buf == NULL) {
+		kfree(full_path);
+		FreeXid(xid);
+		return -ENOMEM;
+	}
+
 	rc = CIFSSMBOpen(xid, pTcon, full_path, disposition,
 			 desiredAccess, CREATE_NOT_DIR,
 			 &fileHandle, &oplock, buf, cifs_sb->local_nls);
 	if (rc) {
 		cFYI(1, ("cifs_create returned 0x%x ", rc));
 	} else {
-	/* BB for case of overwriting existing file can we use the inode that was
-		 passed in rather than creating new one?? */
+		/* If Open reported that we actually created a file
+		then we now have to set the mode if possible */
+		if ((cifs_sb->tcon->ses->capabilities & CAP_UNIX) &&
+			(oplock & CIFS_CREATE_ACTION))
+			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
+				CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode,
+					(__u64)current->euid,
+					(__u64)current->egid,
+					0 /* dev */,
+					cifs_sb->local_nls);
+			} else {
+				CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode,
+					(__u64)-1,
+					(__u64)-1,
+					0 /* dev */,
+					cifs_sb->local_nls);
+			}
+		else {
+			/* BB implement via Windows security descriptors */
+			/* eg CIFSSMBWinSetPerms(xid,pTcon,full_path,mode,-1,-1,local_nls);*/
+			/* could set r/o dos attribute if mode & 0222 == 0 */
+		}
+
+	/* BB server might mask mode so we have to query for Unix case*/
 		if (pTcon->ses->capabilities & CAP_UNIX)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
-						      inode->i_sb);
-		else
+						 inode->i_sb,xid);
+		else {
 			rc = cifs_get_inode_info(&newinode, full_path,
-						 buf, inode->i_sb);
+						 buf, inode->i_sb,xid);
+			if(newinode)
+				newinode->i_mode = mode;
+		}
 
 		if (rc != 0) {
 			cFYI(1,("Create worked but get_inode_info failed with rc = %d",
@@ -194,21 +283,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		if((nd->flags & LOOKUP_OPEN) == FALSE) {
 			/* mknod case - do not leave file open */
 			CIFSSMBClose(xid, pTcon, fileHandle);
-			if(newinode)
-				newinode->i_mode = mode;
-			if (cifs_sb->tcon->ses->capabilities & CAP_UNIX)
-				CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode,
-						(__u64)-1,
-						(__u64)-1,
-						0 /* dev */,
-						cifs_sb->local_nls);
-			else { /* BB implement via Windows security descriptors */
-                        /* eg CIFSSMBWinSetPerms(xid,pTcon,full_path,mode,-1,-1,local_nls);*/
-                        /* in the meantime could set r/o dos attribute when perms are eg:
-                                        mode & 0222 == 0 */
-			}
 		} else if(newinode) {
-			newinode->i_mode = mode;
 			pCifsFile = (struct cifsFileInfo *)
 			   kmalloc(sizeof (struct cifsFileInfo), GFP_KERNEL);
 		
@@ -220,32 +295,31 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 				pCifsFile->pInode = newinode;
 				pCifsFile->invalidHandle = FALSE;
 				pCifsFile->closePend     = FALSE;
-				/* pCifsFile->pfile = file; */ /* put in at open time */
+				init_MUTEX(&pCifsFile->fh_sem);
+				/* put the following in at open now */
+				/* pCifsFile->pfile = file; */ 
 				write_lock(&GlobalSMBSeslock);
 				list_add(&pCifsFile->tlist,&pTcon->openFileList);
 				pCifsInode = CIFS_I(newinode);
 				if(pCifsInode) {
-					list_add(&pCifsFile->flist,&pCifsInode->openFileList);
-					if(oplock == OPLOCK_EXCLUSIVE) {
+				/* if readable file instance put first in list*/
+					if (write_only == TRUE) {
+                                        	list_add_tail(&pCifsFile->flist,
+							&pCifsInode->openFileList);
+					} else {
+						list_add(&pCifsFile->flist,
+							&pCifsInode->openFileList);
+					}
+					if((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
 						pCifsInode->clientCanCacheAll = TRUE;
 						pCifsInode->clientCanCacheRead = TRUE;
-						cFYI(1,("Exclusive Oplock granted on inode %p",newinode));
-					} else if(oplock == OPLOCK_READ)
+						cFYI(1,("Exclusive Oplock granted on inode %p",
+							newinode));
+					} else if((oplock & 0xF) == OPLOCK_READ)
 						pCifsInode->clientCanCacheRead = TRUE;
 				}
 				write_unlock(&GlobalSMBSeslock);
-				if (cifs_sb->tcon->ses->capabilities & CAP_UNIX)                
-					CIFSSMBUnixSetPerms(xid, pTcon, full_path, inode->i_mode,
-						(__u64)-1, 
-						(__u64)-1,
-						0 /* dev */,
-						cifs_sb->local_nls);
-				else { /* BB implement via Windows security descriptors */
-			/* eg CIFSSMBWinSetPerms(xid,pTcon,full_path,mode,-1,-1,local_nls);*/
-			/* in the meantime could set r/o dos attribute when perms are eg:
-					mode & 0222 == 0 */
-				}
-			}			
+			}
 		}
 	} 
 
@@ -275,33 +349,45 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
+	down(&direntry->d_sb->s_vfs_rename_sem);
 	full_path = build_path_from_dentry(direntry);
+	up(&direntry->d_sb->s_vfs_rename_sem);
+	if(full_path == NULL)
+		rc = -ENOMEM;
+	
+	if (full_path && (pTcon->ses->capabilities & CAP_UNIX)) {
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
+			rc = CIFSSMBUnixSetPerms(xid, pTcon, full_path,
+				mode,(__u64)current->euid,(__u64)current->egid,
+				device_number, cifs_sb->local_nls);
+		} else {
+			rc = CIFSSMBUnixSetPerms(xid, pTcon,
+				full_path, mode, (__u64)-1, (__u64)-1,
+				device_number, cifs_sb->local_nls);
+		}
 
-	if (pTcon->ses->capabilities & CAP_UNIX) {
-		rc = CIFSSMBUnixSetPerms(xid, pTcon,
-			full_path, mode, current->euid, current->egid,
-			device_number, cifs_sb->local_nls);
 		if(!rc) {
-                        rc = cifs_get_inode_info_unix(&newinode, full_path,
-                                                      inode->i_sb);
+			rc = cifs_get_inode_info_unix(&newinode, full_path,
+						inode->i_sb,xid);
 			direntry->d_op = &cifs_dentry_ops;
 			if(rc == 0)
 				d_instantiate(direntry, newinode);
 		}
 	}
 
-        if (full_path)
-                kfree(full_path);
-        FreeXid(xid);
+	if (full_path)
+		kfree(full_path);
+	FreeXid(xid);
 
-        return rc;
+	return rc;
 }
 
 
 struct dentry *
 cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct nameidata *nd)
 {
-	int rc, xid;
+	int xid;
+	int rc = 0; /* to get around spurious gcc warning, set to zero here */
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	struct inode *newInode = NULL;
@@ -323,7 +409,15 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct name
 	cifs_sb = CIFS_SB(parent_dir_inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
+	/* can not grab the rename sem here since it would
+	deadlock in the cases (beginning of sys_rename itself)
+	in which we already have the sb rename sem */
 	full_path = build_path_from_dentry(direntry);
+	if(full_path == NULL) {
+		FreeXid(xid);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	if (direntry->d_inode != NULL) {
 		cFYI(1, (" non-NULL inode in lookup"));
 	} else {
@@ -334,10 +428,10 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct name
 
 	if (pTcon->ses->capabilities & CAP_UNIX)
 		rc = cifs_get_inode_info_unix(&newInode, full_path,
-					      parent_dir_inode->i_sb);
+					      parent_dir_inode->i_sb,xid);
 	else
 		rc = cifs_get_inode_info(&newInode, full_path, NULL,
-					 parent_dir_inode->i_sb);
+					 parent_dir_inode->i_sb,xid);
 
 	if ((rc == 0) && (newInode != NULL)) {
 		direntry->d_op = &cifs_dentry_ops;
@@ -350,10 +444,10 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct name
 		rc = 0;
 		d_add(direntry, NULL);
 	} else {
-		cERROR(1,
-		       ("Error 0x%x or (%d decimal) on cifs_get_inode_info in lookup",
-			rc, rc));
-		/* BB special case check for Access Denied - watch security exposure of returning dir info implicitly via different rc if file exists or not but no access BB */
+		cERROR(1,("Error 0x%x or on cifs_get_inode_info in lookup",rc));
+		/* BB special case check for Access Denied - watch security 
+		exposure of returning dir info implicitly via different rc 
+		if file exists or not but no access BB */
 	}
 
 	if (full_path)
@@ -376,9 +470,16 @@ cifs_dir_open(struct inode *inode, struct file *file)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
-	full_path = build_wildcard_path_from_dentry(file->f_dentry);
+	if(file->f_dentry) {
+		down(&file->f_dentry->d_sb->s_vfs_rename_sem);
+		full_path = build_wildcard_path_from_dentry(file->f_dentry);
+		up(&file->f_dentry->d_sb->s_vfs_rename_sem);
+	} else {
+		FreeXid(xid);
+		return -EIO;
+	}
 
-	cFYI(1, (" inode = 0x%p and full path is %s", inode, full_path));
+	cFYI(1, ("inode = 0x%p and full path is %s", inode, full_path));
 
 	if (full_path)
 		kfree(full_path);

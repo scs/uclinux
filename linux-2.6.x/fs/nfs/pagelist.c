@@ -32,7 +32,7 @@ static inline struct nfs_page *
 nfs_page_alloc(void)
 {
 	struct nfs_page	*p;
-	p = kmem_cache_alloc(nfs_page_cachep, SLAB_NOFS);
+	p = kmem_cache_alloc(nfs_page_cachep, SLAB_KERNEL);
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->wb_list);
@@ -88,6 +88,7 @@ nfs_create_request(struct file *file, struct inode *inode,
 	 * long write-back delay. This will be adjusted in
 	 * update_nfs_request below if the region is not locked. */
 	req->wb_page    = page;
+	atomic_set(&req->wb_complete, 0);
 	req->wb_index	= page->index;
 	page_cache_get(page);
 	req->wb_offset  = offset;
@@ -246,7 +247,6 @@ nfs_coalesce_requests(struct list_head *head, struct list_head *dst,
  * nfs_scan_list - Scan a list for matching requests
  * @head: One of the NFS inode request lists
  * @dst: Destination list
- * @file: if set, ensure we match requests from this file
  * @idx_start: lower bound of page->index to scan
  * @npages: idx_start + npages sets the upper bound to scan.
  *
@@ -258,7 +258,6 @@ nfs_coalesce_requests(struct list_head *head, struct list_head *dst,
  */
 int
 nfs_scan_list(struct list_head *head, struct list_head *dst,
-	      struct file *file,
 	      unsigned long idx_start, unsigned int npages)
 {
 	struct list_head	*pos, *tmp;
@@ -275,9 +274,6 @@ nfs_scan_list(struct list_head *head, struct list_head *dst,
 	list_for_each_safe(pos, tmp, head) {
 
 		req = nfs_list_entry(pos);
-
-		if (file && req->wb_file != file)
-			continue;
 
 		if (req->wb_index < idx_start)
 			continue;

@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/device.h>
+#include <linux/delay.h>
 
 #include <asm/ccwdev.h>
 #include <asm/idals.h>
@@ -38,6 +39,7 @@ ccw_device_set_options(struct ccw_device *cdev, unsigned long flags)
 	cdev->private->options.fast = (flags & CCWDEV_EARLY_NOTIFICATION) != 0;
 	cdev->private->options.repall = (flags & CCWDEV_REPORT_ALL) != 0;
 	cdev->private->options.pgroup = (flags & CCWDEV_DO_PATHGROUP) != 0;
+	cdev->private->options.force = (flags & CCWDEV_ALLOW_FORCE) != 0;
 	return 0;
 }
 
@@ -78,7 +80,8 @@ ccw_device_start(struct ccw_device *cdev, struct ccw1 *cpa,
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE ||
-	    sch->schib.scsw.actl != 0 ||
+	    ((sch->schib.scsw.stctl & SCSW_STCTL_PRIM_STATUS) &&
+	     !(sch->schib.scsw.stctl & SCSW_STCTL_SEC_STATUS)) ||
 	    cdev->private->flags.doverify)
 		return -EBUSY;
 	ret = cio_set_options (sch, flags);
@@ -154,6 +157,7 @@ ccw_device_call_handler(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
 	unsigned int stctl;
+	int ending_status;
 
 	sch = to_subchannel(cdev->dev.parent);
 
@@ -166,7 +170,10 @@ ccw_device_call_handler(struct ccw_device *cdev)
 	 *  - unsolicited interrupts
 	 */
 	stctl = cdev->private->irb.scsw.stctl;
-	if (sch->schib.scsw.actl != 0 &&
+	ending_status = (stctl & SCSW_STCTL_SEC_STATUS) ||
+		(stctl == (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND)) ||
+		(stctl == SCSW_STCTL_STATUS_PEND);
+	if (!ending_status &&
 	    !cdev->private->options.repall &&
 	    !(stctl & SCSW_STCTL_INTER_STATUS) &&
 	    !(cdev->private->options.fast &&
@@ -262,7 +269,7 @@ __ccw_device_retry_loop(struct ccw_device *cdev, struct ccw1 *ccw, long magic)
 		if ((ret == -EBUSY) || (ret == -EACCES)) {
 			/* Try again later. */
 			spin_unlock_irq(&sch->lock);
-			schedule_timeout(1);
+			msleep(10);
 			spin_lock_irq(&sch->lock);
 			continue;
 		}
@@ -288,7 +295,7 @@ __ccw_device_retry_loop(struct ccw_device *cdev, struct ccw1 *ccw, long magic)
 			break;
 		/* Try again later. */
 		spin_unlock_irq(&sch->lock);
-		schedule_timeout(1);
+		msleep(10);
 		spin_lock_irq(&sch->lock);
 	} while (1);
 
@@ -342,7 +349,9 @@ read_dev_chars (struct ccw_device *cdev, void **buffer, int length)
 	cdev->handler = ccw_device_wake_up;
 	if (cdev->private->state != DEV_STATE_ONLINE)
 		ret = -ENODEV;
-	else if (sch->schib.scsw.actl != 0 || cdev->private->flags.doverify)
+	else if (((sch->schib.scsw.stctl & SCSW_STCTL_PRIM_STATUS) &&
+		  !(sch->schib.scsw.stctl & SCSW_STCTL_SEC_STATUS)) ||
+		 cdev->private->flags.doverify)
 		ret = -EBUSY;
 	else
 		/* 0x00D9C4C3 == ebcdic "RDC" */
@@ -409,7 +418,9 @@ read_conf_data (struct ccw_device *cdev, void **buffer, int *length)
 	cdev->handler = ccw_device_wake_up;
 	if (cdev->private->state != DEV_STATE_ONLINE)
 		ret = -ENODEV;
-	else if (sch->schib.scsw.actl != 0 || cdev->private->flags.doverify)
+	else if (((sch->schib.scsw.stctl & SCSW_STCTL_PRIM_STATUS) &&
+		  !(sch->schib.scsw.stctl & SCSW_STCTL_SEC_STATUS)) ||
+		 cdev->private->flags.doverify)
 		ret = -EBUSY;
 	else
 		/* 0x00D9C3C4 == ebcdic "RCD" */
@@ -436,12 +447,12 @@ read_conf_data (struct ccw_device *cdev, void **buffer, int *length)
 }
 
 /*
- * Try to issue an unconditional reserve on a boxed device.
+ * Try to break the lock on a boxed device.
  */
 int
 ccw_device_stlck(struct ccw_device *cdev)
 {
-	char buf[32];
+	void *buf, *buf2;
 	unsigned long flags;
 	struct subchannel *sch;
 	int ret;
@@ -449,26 +460,44 @@ ccw_device_stlck(struct ccw_device *cdev)
 	if (!cdev)
 		return -ENODEV;
 
+	if (cdev->drv && !cdev->private->options.force)
+		return -EINVAL;
+
 	sch = to_subchannel(cdev->dev.parent);
 	
 	CIO_TRACE_EVENT(2, "stl lock");
 	CIO_TRACE_EVENT(2, cdev->dev.bus_id);
 
+	buf = kmalloc(32*sizeof(char), GFP_DMA|GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	buf2 = kmalloc(32*sizeof(char), GFP_DMA|GFP_KERNEL);
+	if (!buf2) {
+		kfree(buf);
+		return -ENOMEM;
+	}
 	spin_lock_irqsave(&sch->lock, flags);
 	ret = cio_enable_subchannel(sch, 3);
 	if (ret)
 		goto out_unlock;
-	/* Setup ccw. This cmd code seems not to be in use elsewhere. */
+	/*
+	 * Setup ccw. We chain an unconditional reserve and a release so we
+	 * only break the lock.
+	 */
 	cdev->private->iccws[0].cmd_code = CCW_CMD_STLCK;
 	cdev->private->iccws[0].cda = (__u32) __pa(buf);
 	cdev->private->iccws[0].count = 32;
-	cdev->private->iccws[0].flags = CCW_FLAG_SLI;
-
+	cdev->private->iccws[0].flags = CCW_FLAG_CC;
+	cdev->private->iccws[1].cmd_code = CCW_CMD_RELEASE;
+	cdev->private->iccws[1].cda = (__u32) __pa(buf2);
+	cdev->private->iccws[1].count = 32;
+	cdev->private->iccws[1].flags = 0;
 	ret = cio_start(sch, cdev->private->iccws, 0);
 	if (ret) {
 		cio_disable_subchannel(sch); //FIXME: return code?
 		goto out_unlock;
 	}
+	cdev->private->irb.scsw.actl |= SCSW_ACTL_START_PEND;
 	spin_unlock_irqrestore(&sch->lock, flags);
 	wait_event(cdev->private->wait_q, cdev->private->irb.scsw.actl == 0);
 	spin_lock_irqsave(&sch->lock, flags);
@@ -477,10 +506,13 @@ ccw_device_stlck(struct ccw_device *cdev)
 	     (DEV_STAT_CHN_END|DEV_STAT_DEV_END)) ||
 	    (cdev->private->irb.scsw.cstat != 0))
 		ret = -EIO;
-
 	/* Clear irb. */
 	memset(&cdev->private->irb, 0, sizeof(struct irb));
 out_unlock:
+	if (buf)
+		kfree(buf);
+	if (buf2)
+		kfree(buf2);
 	spin_unlock_irqrestore(&sch->lock, flags);
 	return ret;
 }

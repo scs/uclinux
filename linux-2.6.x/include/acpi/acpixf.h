@@ -446,11 +446,11 @@ acpi_status
 acpi_enter_sleep_state_prep (
 	u8                              sleep_state);
 
-acpi_status
+acpi_status asmlinkage
 acpi_enter_sleep_state (
 	u8                              sleep_state);
 
-acpi_status
+acpi_status asmlinkage
 acpi_enter_sleep_state_s4bios (
 	void);
 

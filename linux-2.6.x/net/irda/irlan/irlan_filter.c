@@ -29,12 +29,12 @@
 #include <net/irda/irlan_common.h>
 
 /*
- * Function handle_filter_request (self, skb)
+ * Function irlan_filter_request (self, skb)
  *
  *    Handle filter request from client peer device
  *
  */
-void handle_filter_request(struct irlan_cb *self, struct sk_buff *skb)
+void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
 {
 	ASSERT(self != NULL, return;);
 	ASSERT(self->magic == IRLAN_MAGIC, return;);
@@ -53,7 +53,7 @@ void handle_filter_request(struct irlan_cb *self, struct sk_buff *skb)
 			self->provider.mac_address[4] = 
 				self->provider.send_arb_val & 0xff;
 			self->provider.mac_address[5] = 
-				(self->provider.send_arb_val >> 8) & 0xff;;
+				(self->provider.send_arb_val >> 8) & 0xff;
 		} else {
 			/* Just generate something for now */
 			get_random_bytes(self->provider.mac_address+4, 1);

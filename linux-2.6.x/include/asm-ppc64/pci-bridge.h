@@ -2,6 +2,8 @@
 #ifndef _ASM_PCI_BRIDGE_H
 #define _ASM_PCI_BRIDGE_H
 
+#include <linux/pci.h>
+
 /*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,7 +23,8 @@ enum phb_types {
 	phb_type_hypervisor = 0x1,
 	phb_type_python     = 0x10,
 	phb_type_speedwagon = 0x11,
-	phb_type_winnipeg   = 0x12
+	phb_type_winnipeg   = 0x12,
+	phb_type_apple      = 0xff
 };
 
 /*
@@ -44,9 +47,10 @@ struct pci_controller {
 	 * the PCI memory space in the CPU bus space
 	 */
 	unsigned long pci_mem_offset;
-	unsigned long pci_io_offset;
 
 	struct pci_ops *ops;
+	volatile unsigned int *cfg_addr;
+	volatile unsigned char *cfg_data;
 
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
 	 * ranges since the common pci_bus structure can't handle more

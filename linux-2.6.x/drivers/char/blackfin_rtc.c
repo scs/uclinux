@@ -46,7 +46,8 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-#include <asm-bfinnommu/irq.h>
+#include <asm/irq.h>
+#include <asm/board/defBF533.h>
 #include "blackfin_rtc.h"
 
 /*#define RTC_DEBUG*/
@@ -117,7 +118,7 @@ static void get_rtc_alm_time (struct rtc_time *alm_tm);
 
 #if RTC_IRQ
 static void rtc_dropped_irq(unsigned long data);
-void set_rtc_irq_bit(unsigned char bit);
+static void set_rtc_irq_bit(unsigned char bit);
 static void mask_rtc_irq_bit(unsigned char bit);
 #endif
 
@@ -171,7 +172,7 @@ static const unsigned char days_in_mo[] =
  *  (See ./arch/XXXX/kernel/time.c for the set_rtc_mmss() function.)
  */
 
-static void rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t  rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
     /*
      *  Can be an alarm interrupt, update complete interrupt,
@@ -237,6 +238,7 @@ printk("rtc_interrupt\n");
     /* Now do the rest of the actions */
     wake_up_interruptible(&rtc_wait);   
     kill_fasync (&rtc_async_queue, SIGIO, POLL_IN);
+    return 0;
 }
 #endif
 
@@ -395,7 +397,8 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
          * "don't care" or "match all". Only the tm_hour,
          * tm_min and tm_sec are used.
          */
-        unsigned char hrs, min, sec, day;
+        unsigned char hrs, min, sec;
+        unsigned int day;
         struct rtc_time alm_tm;
 
         if (copy_from_user(&alm_tm, (struct rtc_time*)arg,
@@ -734,7 +737,6 @@ int __init blackfin_rtc_init(void)
     ADSP_RTC_WRITE(H24_INT_EN, RTC_ICTL);
 	enable_irq(RTC_IRQ);
 
-    printk("RTC: major=%d, minor = %d\n",MISC_MAJOR, RTC_MINOR);
     printk(KERN_INFO "Real Time Clock Driver v" RTC_VERSION "\n");
 
     return 0;

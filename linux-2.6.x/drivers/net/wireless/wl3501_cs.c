@@ -1306,10 +1306,6 @@ static int wl3501_close(struct net_device *dev)
 	/* Mask interrupts from the SUTRO */
 	wl3501_block_interrupt(this);
 
-	if (link->state & DEV_STALE_CONFIG) {
-		link->state |= DEV_RELEASE_PENDING;
-		wl3501_release(link);
-	}
 	rc = 0;
 	printk(KERN_INFO "%s: WL3501 closed\n", dev->name);
 out:
@@ -1449,18 +1445,6 @@ fail:
 	goto out;
 }
 
-/**
- * wl3501_init - "initialize" board
- * @dev - network device
- *
- * We never need to do anything when a wl3501 device is "initialized" by the net
- * software, because we only register already-found cards.
- */
-static int wl3501_init(struct net_device *dev)
-{
-	return 0;
-}
-
 struct net_device_stats *wl3501_get_stats(struct net_device *dev)
 {
 	struct wl3501_card *this = dev->priv;
@@ -1503,7 +1487,7 @@ struct iw_statistics *wl3501_get_wireless_stats(struct net_device *dev)
 	return wstats;
 }
 
-static inline int wl3501_ethtool_ioctl(struct net_device *dev, void *uaddr)
+static inline int wl3501_ethtool_ioctl(struct net_device *dev, void __user *uaddr)
 {
 	u32 ethcmd;
 	int rc = -EFAULT;
@@ -1548,7 +1532,7 @@ static int wl3501_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (netif_device_present(dev)) {
 		rc = -EOPNOTSUPP;
 		if (cmd == SIOCETHTOOL)
-			rc = wl3501_ethtool_ioctl(dev, (void *)rq->ifr_data);
+			rc = wl3501_ethtool_ioctl(dev, rq->ifr_data);
 	}
 	return rc;
 }
@@ -1592,7 +1576,7 @@ static void wl3501_detach(dev_link_t *link)
 	*linkp = link->next;
 
 	if (link->priv)
-		kfree(link->priv);
+		free_netdev(link->priv);
 	kfree(link);
 out:
 	return;
@@ -2056,7 +2040,6 @@ static dev_link_t *wl3501_attach(void)
 	dev = alloc_etherdev(sizeof(struct wl3501_card));
 	if (!dev)
 		goto out_link;
-	dev->init		= wl3501_init;
 	dev->open		= wl3501_open;
 	dev->stop		= wl3501_close;
 	dev->hard_start_xmit	= wl3501_hard_start_xmit;
@@ -2233,15 +2216,6 @@ static void wl3501_release(dev_link_t *link)
 {
 	struct net_device *dev = link->priv;
 
-	/* If the device is currently in use, we won't release until it is
-	 * actually closed. */
-	if (link->open) {
-		dprintk(1, "release postponed, '%s' still open",
-			link->dev->dev_name);
-		link->state |= DEV_STALE_CONFIG;
-		goto out;
-	}
-
 	/* Unlink the device chain */
 	if (link->dev) {
 		unregister_netdev(dev);
@@ -2253,11 +2227,6 @@ static void wl3501_release(dev_link_t *link)
 	pcmcia_release_io(link->handle, &link->io);
 	pcmcia_release_irq(link->handle, &link->irq);
 	link->state &= ~DEV_CONFIG;
-
-	if (link->state & DEV_STALE_CONFIG)
-		wl3501_detach(link);
-out:
-	return;
 }
 
 /**

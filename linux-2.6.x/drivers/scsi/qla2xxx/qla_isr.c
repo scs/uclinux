@@ -2,7 +2,7 @@
  *                  QLOGIC LINUX SOFTWARE
  *
  * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003 QLogic Corporation
+ * Copyright (C) 2003-2004 QLogic Corporation
  * (www.qlogic.com)
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -16,16 +16,7 @@
  * General Public License for more details.
  *
  */
-
-#include "qla_os.h"
-
 #include "qla_def.h"
-
-/* XXX(hch): this is ugly, but we don't want to pull in exioctl.h */
-#ifndef EXT_DEF_PORTSPEED_1GBIT
-#define EXT_DEF_PORTSPEED_1GBIT		1
-#define EXT_DEF_PORTSPEED_2GBIT		2
-#endif
 
 static void qla2x00_mbx_completion(scsi_qla_host_t *, uint16_t);
 static void qla2x00_async_event(scsi_qla_host_t *, uint32_t);
@@ -115,7 +106,25 @@ qla2x00_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 			}
 		} else /* IS_QLA23XX(ha) */ {
 			stat = RD_REG_DWORD(&reg->u.isp2300.host_status);
-			if ((stat & HSR_RISC_INT) == 0)
+			if (stat & HSR_RISC_PAUSED) {
+				hccr = RD_REG_WORD(&reg->hccr);
+				if (hccr & (BIT_15 | BIT_13 | BIT_11 | BIT_8))
+					qla_printk(KERN_INFO, ha,
+					    "Parity error -- HCCR=%x.\n", hccr);
+				else
+					qla_printk(KERN_INFO, ha,
+					    "RISC paused -- HCCR=%x\n", hccr);
+
+				/*
+				 * Issue a "HARD" reset in order for the RISC
+				 * interrupt bit to be cleared.  Schedule a big
+				 * hammmer to get out of the RISC PAUSED state.
+				 */
+				WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
+				RD_REG_WORD(&reg->hccr);
+				set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
+				break;
+			} else if ((stat & HSR_RISC_INT) == 0)
 				break;
 
 			mbx = MSW(stat);
@@ -145,33 +154,13 @@ qla2x00_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 				qla2x00_async_event(ha, mbx);
 				break;
 			default:
-				hccr = RD_REG_WORD(&reg->hccr);
-				if (hccr & HCCR_RISC_PAUSE) {
-					qla_printk(KERN_INFO, ha,
-					    "RISC paused, dumping HCCR=%x\n",
-					    hccr);
-
-					/*
-					 * Issue a "HARD" reset in order for
-					 * the RISC interrupt bit to be
-					 * cleared.  Schedule a big hammmer to
-					 * get out of the RISC PAUSED state.
-					 */
-					WRT_REG_WORD(&reg->hccr,
-					    HCCR_RESET_RISC);
-					RD_REG_WORD(&reg->hccr);
-					set_bit(ISP_ABORT_NEEDED,
-					    &ha->dpc_flags);
-					break;
-				} else {
-					DEBUG2(printk("scsi(%ld): Unrecognized "
-					    "interrupt type (%d)\n",
-					    ha->host_no, stat & 0xff));
-				}
+				DEBUG2(printk("scsi(%ld): Unrecognized "
+				    "interrupt type (%d)\n",
+				    ha->host_no, stat & 0xff));
 				break;
 			}
 			WRT_REG_WORD(&reg->hccr, HCCR_CLR_RISC_INT);
-			RD_REG_WORD(&reg->hccr);
+			RD_REG_WORD_RELAXED(&reg->hccr);
 		}
 	}
 
@@ -241,7 +230,7 @@ qla2x00_mbx_completion(scsi_qla_host_t *ha, uint16_t mb0)
 	device_reg_t	*reg = ha->iobase;
 
 	/* Load return mailbox registers. */
-	ha->flags.mbox_int = TRUE;
+	ha->flags.mbox_int = 1;
 	ha->mailbox_out[0] = mb0;
 	wptr = (uint16_t *)MAILBOX_REG(ha, reg, 1);
 
@@ -289,10 +278,13 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint32_t mbx)
 	switch (mb[0]) {
 	case MBA_SCSI_COMPLETION:
 		if (IS_QLA2100(ha) || IS_QLA2200(ha))
-			handles[0] = RD_MAILBOX_REG(ha, reg, 1);
+			handles[0] = le32_to_cpu(
+			    ((uint32_t)(RD_MAILBOX_REG(ha, reg, 2) << 16)) |
+			    RD_MAILBOX_REG(ha, reg, 1));
 		else
-			handles[0] = MSW(mbx);
-		handles[0] |= (uint32_t)(RD_MAILBOX_REG(ha, reg, 2) << 16);
+			handles[0] = le32_to_cpu(
+			    ((uint32_t)(RD_MAILBOX_REG(ha, reg, 2) << 16)) |
+			    MSW(mbx));
 		handle_cnt = 1;
 		break;
 	case MBA_CMPLT_1_16BIT:
@@ -334,9 +326,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint32_t mbx)
 		mb[0] = MBA_SCSI_COMPLETION;
 		break;
 	case MBA_CMPLT_2_32BIT:
-		handles[0] = (uint32_t)((RD_MAILBOX_REG(ha, reg, 2) << 16) |
+		handles[0] = le32_to_cpu(
+		    ((uint32_t)(RD_MAILBOX_REG(ha, reg, 2) << 16)) |
 		    RD_MAILBOX_REG(ha, reg, 1));
-		handles[1] = (uint32_t)((RD_MAILBOX_REG(ha, reg, 7) << 16) |
+		handles[1] = le32_to_cpu(
+		    ((uint32_t)(RD_MAILBOX_REG(ha, reg, 7) << 16)) |
 		    RD_MAILBOX_REG(ha, reg, 6));
 		handle_cnt = 2;
 		mb[0] = MBA_SCSI_COMPLETION;
@@ -345,7 +339,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint32_t mbx)
 		break;
 	}
 
-	mb[0] = LSW(mbx);
 	switch (mb[0]) {
 	case MBA_SCSI_COMPLETION:	/* Fast Post */
 		if (!ha->flags.online)
@@ -424,15 +417,14 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint32_t mbx)
 	case MBA_LOOP_UP:		/* Loop Up Event */
 		mb[1] = RD_MAILBOX_REG(ha, reg, 1);
 
-		ha->current_speed = EXT_DEF_PORTSPEED_1GBIT;
+		ha->link_data_rate = 0;
 		if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
 			link_speed = link_speeds[0];
 		} else {
 			link_speed = link_speeds[3];
 			if (mb[1] < 5)
 				link_speed = link_speeds[mb[1]];
-			if (mb[1] == 1)
-				ha->current_speed = EXT_DEF_PORTSPEED_2GBIT;
+			ha->link_data_rate = mb[1];
 		}
 
 		DEBUG2(printk("scsi(%ld): Asynchronous LOOP UP (%s Gbps).\n",
@@ -454,11 +446,12 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint32_t mbx)
 		if (atomic_read(&ha->loop_state) != LOOP_DOWN) {
 			atomic_set(&ha->loop_state, LOOP_DOWN);
 			atomic_set(&ha->loop_down_timer, LOOP_DOWN_TIME);
+			ha->device_flags |= DFLG_NO_CABLE;
 			qla2x00_mark_all_devices_lost(ha);
 		}
 
 		ha->flags.management_server_logged_in = 0;
-		ha->current_speed = 0; /* reset value */
+		ha->link_data_rate = 0;
 
 		/* Update AEN queue. */
 		qla2x00_enqueue_aen(ha, MBA_LOOP_DOWN, NULL);
@@ -547,7 +540,8 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint32_t mbx)
 		 * us, create a new entry in our rscn fcports list and handle
 		 * the event like an RSCN.
 		 */
-		if (IS_QLA23XX(ha) && ha->flags.init_done && mb[1] != 0xffff &&
+		if (!IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA6312(ha) &&
+		    !IS_QLA6322(ha) && ha->flags.init_done && mb[1] != 0xffff &&
 		    ((ha->operating_mode == P2P && mb[1] != 0) ||
 		    (ha->operating_mode != P2P && mb[1] !=
 			SNS_FIRST_LOOP_ID)) && (mb[2] == 6 || mb[2] == 7)) {
@@ -692,7 +686,7 @@ qla2x00_process_completed_request(struct scsi_qla_host *ha, uint32_t index)
 	sp = ha->outstanding_cmds[index];
 	if (sp) {
 		/* Free outstanding command slot. */
-		ha->outstanding_cmds[index] = 0;
+		ha->outstanding_cmds[index] = NULL;
 
 		if (ha->actthreads)
 			ha->actthreads--;
@@ -775,7 +769,8 @@ qla2x00_process_response_queue(struct scsi_qla_host *ha)
 			qla2x00_ms_entry(ha, (ms_iocb_entry_t *)pkt);
 			break;
 		case MBX_IOCB_TYPE:
-			if (IS_QLA23XX(ha)) {
+			if (!IS_QLA2100(ha) && !IS_QLA2200(ha) &&
+			    !IS_QLA6312(ha) && !IS_QLA6322(ha)) {
 				if (pkt->sys_define == SOURCE_ASYNC_IOCB) {
 					qla2x00_process_iodesc(ha,
 					    (struct mbx_entry *)pkt);
@@ -826,8 +821,9 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 	uint16_t	comp_status;
 	uint16_t	scsi_status;
 	uint8_t		lscsi_status;
-	uint32_t	resid;
+	int32_t		resid;
 	uint8_t		sense_sz = 0;
+	uint16_t	rsp_info_len;
 
 	/* Fast path completion. */
 	if (le16_to_cpu(pkt->comp_status) == CS_COMPLETE &&
@@ -840,7 +836,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 	/* Validate handle. */
 	if (pkt->handle < MAX_OUTSTANDING_COMMANDS) {
 		sp = ha->outstanding_cmds[pkt->handle];
-		ha->outstanding_cmds[pkt->handle] = 0;
+		ha->outstanding_cmds[pkt->handle] = NULL;
 	} else
 		sp = NULL;
 
@@ -905,7 +901,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 	 * If loop is in transient state Report DID_BUS_BUSY
 	 */
 	if ((comp_status != CS_COMPLETE || scsi_status != 0)) {
-		if (!(sp->flags & SRB_IOCTL) &&
+		if (!(sp->flags & (SRB_IOCTL | SRB_TAPE)) &&
 		    (atomic_read(&ha->loop_down_timer) ||
 			atomic_read(&ha->loop_state) != LOOP_READY)) {
 
@@ -919,6 +915,24 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 		}
 	}
 
+	/* Check for any FCP transport errors. */
+	if (scsi_status & SS_RESPONSE_INFO_LEN_VALID) {
+		rsp_info_len = le16_to_cpu(pkt->rsp_info_len);
+		if (rsp_info_len > 3 && pkt->rsp_info[3]) {
+			DEBUG2(printk("scsi(%ld:%d:%d:%d) FCP I/O protocol "
+			    "failure (%x/%02x%02x%02x%02x%02x%02x%02x%02x)..."
+			    "retrying command\n", ha->host_no, b, t, l,
+			    rsp_info_len, pkt->rsp_info[0], pkt->rsp_info[1],
+			    pkt->rsp_info[2], pkt->rsp_info[3],
+			    pkt->rsp_info[4], pkt->rsp_info[5],
+			    pkt->rsp_info[6], pkt->rsp_info[7]));
+
+			cp->result = DID_BUS_BUSY << 16;
+			add_to_done_queue(ha, sp);
+			return;
+		}
+	}
+
 	/*
 	 * Based on Host and scsi status generate status code for Linux
 	 */
@@ -927,6 +941,11 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 		if (scsi_status == 0) {
 			cp->result = DID_OK << 16;
 			break;
+		}
+		if (scsi_status & (SS_RESIDUAL_UNDER | SS_RESIDUAL_OVER)) {
+			resid = le32_to_cpu(pkt->residual_length);
+			cp->resid = resid;
+			CMD_RESID_LEN(cp) = resid;
 		}
 		if (lscsi_status == SS_BUSY_CONDITION) {
 			cp->result = DID_BUS_BUSY << 16 | lscsi_status;
@@ -966,7 +985,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 		if (sp->request_sense_length != 0)
 			ha->status_srb = sp;
 
-		if (!(sp->flags & SRB_IOCTL) &&
+		if (!(sp->flags & (SRB_IOCTL | SRB_TAPE)) &&
 		    qla2x00_check_sense(cp, lq) == QLA_SUCCESS) {
 			/* Throw away status_cont if any */
 			ha->status_srb = NULL;
@@ -989,7 +1008,10 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 		    ha->host_no, t, l, comp_status, scsi_status));
 
 		resid = le32_to_cpu(pkt->residual_length);
-		CMD_RESID_LEN(cp) = resid;
+		if (scsi_status & SS_RESIDUAL_UNDER) {
+			cp->resid = resid;
+			CMD_RESID_LEN(cp) = resid;
+		}
 
 		/*
 		 * Check to see if SCSI Status is non zero. If so report SCSI 
@@ -1033,7 +1055,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 			if (sp->request_sense_length != 0)
 				ha->status_srb = sp;
 
-			if (!(sp->flags & SRB_IOCTL) &&
+			if (!(sp->flags & (SRB_IOCTL | SRB_TAPE)) &&
 			    (qla2x00_check_sense(cp, lq) == QLA_SUCCESS)) {
 				ha->status_srb = NULL;
 				add_to_scsi_retry_queue(ha, sp);
@@ -1065,7 +1087,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 			}
 
 			/* Handle mid-layer underflow */
-			cp->resid = resid;
 			if ((unsigned)(cp->request_bufflen - resid) <
 			    cp->underflow) {
 				qla_printk(KERN_INFO, ha,
@@ -1117,9 +1138,13 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 		    ha->host_no, t, l, cp->serial_number, comp_status,
 		    atomic_read(&fcport->state)));
 
-		if ((sp->flags & SRB_IOCTL) ||
+		if ((sp->flags & (SRB_IOCTL | SRB_TAPE)) ||
 		    atomic_read(&fcport->state) == FCS_DEVICE_DEAD) {
 			cp->result = DID_NO_CONNECT << 16;
+			if (atomic_read(&ha->loop_state) == LOOP_DOWN) 
+				sp->err_id = SRB_ERR_LOOP;
+			else
+				sp->err_id = SRB_ERR_PORT;
 			add_to_done_queue(ha, sp);
 		} else {
 			qla2x00_extend_timeout(cp, EXTEND_CMD_TIMEOUT);
@@ -1138,7 +1163,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 		    "scsi(%ld): RESET status detected 0x%x-0x%x.\n",
 		    ha->host_no, comp_status, scsi_status));
 
-		if (sp->flags & SRB_IOCTL) {
+		if (sp->flags & (SRB_IOCTL | SRB_TAPE)) {
 			cp->result = DID_RESET << 16;
 		} else {
 			qla2x00_extend_timeout(cp, EXTEND_CMD_TIMEOUT);
@@ -1295,7 +1320,7 @@ qla2x00_error_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 
 	if (sp) {
 		/* Free outstanding command slot. */
-		ha->outstanding_cmds[pkt->handle] = 0;
+		ha->outstanding_cmds[pkt->handle] = NULL;
 		if (ha->actthreads)
 			ha->actthreads--;
 		sp->lun_queue->out_cnt--;
@@ -1358,7 +1383,7 @@ qla2x00_ms_entry(scsi_qla_host_t *ha, ms_iocb_entry_t *pkt)
 	CMD_ENTRY_STATUS(sp->cmd) = pkt->entry_status;
 
 	/* Free outstanding command slot. */
-	ha->outstanding_cmds[pkt->handle1] = 0;
+	ha->outstanding_cmds[pkt->handle1] = NULL;
 
 	add_to_done_queue(ha, sp);
 }

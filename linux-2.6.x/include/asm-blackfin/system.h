@@ -1,9 +1,9 @@
 #ifndef _BFINNOMMU_SYSTEM_H
 #define _BFINNOMMU_SYSTEM_H
 
-#include <linux/config.h> /* get configuration macros */
+#include <linux/config.h>
 #include <linux/linkage.h>
-#include <asm/blackfin.h>
+#include <asm/board/bf533.h>	
 #include <asm/segment.h>
 #include <asm/entry.h>
 
@@ -35,9 +35,9 @@ asmlinkage void resume(void);
   __asm__ __volatile__(							\
   			"r0 = %1;\n\t"					\
 			"r1 = %2;\n\t"					\
-			"SP += 12;\n\t"					\
+			"SP += -12;\n\t"					\
 			"call resume;\n\t" 				\
-			"SP += -12;\n\t"				\
+			"SP += 12;\n\t"				\
 			"%0 = r0;\n\t"					\
 		       : "=d" (_last)					\
 		       : "d" (prev),					\

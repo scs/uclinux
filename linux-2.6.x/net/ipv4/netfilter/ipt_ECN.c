@@ -1,9 +1,11 @@
 /* iptables module for the IPv4 and TCP ECN bits, Version 1.5
  *
- * (C) 2002 by Harald Welte <laforge@gnumonks.org>
+ * (C) 2002 by Harald Welte <laforge@netfilter.org>
  * 
- * This software is distributed under GNU GPL v2, 1991
- * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as 
+ * published by the Free Software Foundation.
+ *
  * ipt_ECN.c,v 1.5 2002/08/18 19:36:51 laforge Exp
 */
 
@@ -48,7 +50,7 @@ set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 
 /* Return 0 if there was an error. */
 static inline int
-set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
+set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo, int inward)
 {
 	struct tcphdr tcph;
 	u_int16_t diffs[2];
@@ -72,11 +74,15 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 		if (!skb_ip_make_writable(pskb,
 					  (*pskb)->nh.iph->ihl*4+sizeof(tcph)))
 			return 0;
-		tcph.check = csum_fold(csum_partial((char *)diffs,
-		                                    sizeof(diffs),
-		                                    tcph.check^0xFFFF));
+		if ((*pskb)->ip_summed != CHECKSUM_HW)
+			tcph.check = csum_fold(csum_partial((char *)diffs,
+					       sizeof(diffs),
+					       tcph.check^0xFFFF));
 		memcpy((*pskb)->data + (*pskb)->nh.iph->ihl*4,
 		       &tcph, sizeof(tcph));
+		if ((*pskb)->ip_summed == CHECKSUM_HW)
+			if (skb_checksum_help(pskb, inward))
+				return 0;
 		(*pskb)->nfcache |= NFC_ALTERED;
 	}
 	return 1;
@@ -98,7 +104,7 @@ target(struct sk_buff **pskb,
 
 	if (einfo->operation & (IPT_ECN_OP_SET_ECE | IPT_ECN_OP_SET_CWR)
 	    && (*pskb)->nh.iph->protocol == IPPROTO_TCP)
-		if (!set_ect_tcp(pskb, einfo))
+		if (!set_ect_tcp(pskb, einfo, (out == NULL)))
 			return NF_DROP;
 
 	return IPT_CONTINUE;
@@ -155,10 +161,7 @@ static struct ipt_target ipt_ecn_reg = {
 
 static int __init init(void)
 {
-	if (ipt_register_target(&ipt_ecn_reg))
-		return -EINVAL;
-
-	return 0;
+	return ipt_register_target(&ipt_ecn_reg);
 }
 
 static void __exit fini(void)

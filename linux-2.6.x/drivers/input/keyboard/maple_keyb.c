@@ -125,8 +125,11 @@ static int dc_kbd_connect(struct maple_device *dev)
 
 	kbd->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
 
+	init_input_dev(&kbd->dev);
+
 	for (i=0; i<255; i++)
 		set_bit(dc_kbd_keycode[i], kbd->dev.keybit);
+
 	clear_bit(0, kbd->dev.keybit);
 
 	kbd->dev.private = kbd;
@@ -136,15 +139,12 @@ static int dc_kbd_connect(struct maple_device *dev)
 
 	kbd->dev.name = dev->product_name;
 	kbd->dev.id.bustype = BUS_MAPLE;
-	
+
 	input_register_device(&kbd->dev);
 
 	maple_getcond_callback(dev, dc_kbd_callback, 1, MAPLE_FUNC_KEYBOARD);
 
-	printk(KERN_INFO "input%d: keyboard(0x%lx): %s\n",
-	       kbd->dev.number, data, kbd->dev.name);
-
-	MOD_INC_USE_COUNT;
+	printk(KERN_INFO "input: keyboard(0x%lx): %s\n", data, kbd->dev.name);
 
 	return 0;
 }
@@ -155,10 +155,7 @@ static void dc_kbd_disconnect(struct maple_device *dev)
 	struct dc_kbd *kbd = dev->private_data;
 
 	input_unregister_device(&kbd->dev);
-
 	kfree(kbd);
-
-	MOD_DEC_USE_COUNT;
 }
 
 

@@ -4,9 +4,15 @@
    These are not required by the compatibility layer.
 */
 
-/* (c) 1999 Paul `Rusty' Russell.  Licenced under the GNU General
- * Public Licence.
+/* (C) 1999-2001 Paul `Rusty' Russell
+ * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
  *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
  * 23 Apr 2001: Harald Welte <laforge@gnumonks.org>
  * 	- new API and handling of conntrack/nat helpers
  * 	- now capable of multiple expectations for one master
@@ -21,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
+#include <net/ip.h>
 #include <net/checksum.h>
 #include <linux/spinlock.h>
 
@@ -79,7 +86,8 @@ ip_nat_fn(unsigned int hooknum,
 
 	/* If we had a hardware checksum before, it's now invalid */
 	if ((*pskb)->ip_summed == CHECKSUM_HW)
-		(*pskb)->ip_summed = CHECKSUM_NONE;
+		if (skb_checksum_help(pskb, (out == NULL)))
+			return NF_DROP;
 
 	ct = ip_conntrack_get(*pskb, &ctinfo);
 	/* Can't track?  It's not due to stress, or conntrack would
@@ -118,7 +126,16 @@ ip_nat_fn(unsigned int hooknum,
 		WRITE_LOCK(&ip_nat_lock);
 		/* Seen it before?  This can happen for loopback, retrans,
 		   or local packets.. */
-		if (!(info->initialized & (1 << maniptype))) {
+		if (!(info->initialized & (1 << maniptype))
+#ifndef CONFIG_IP_NF_NAT_LOCAL
+		    /* If this session has already been confirmed we must not
+		     * touch it again even if there is no mapping set up.
+		     * Can only happen on local->local traffic with
+		     * CONFIG_IP_NF_NAT_LOCAL disabled.
+		     */
+		    && !(ct->status & IPS_CONFIRMED)
+#endif
+		    ) {
 			unsigned int ret;
 
 			if (ct->master

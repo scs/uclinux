@@ -9,16 +9,9 @@
 #ifndef _ASM_TYPES_H
 #define _ASM_TYPES_H
 
-#include <linux/config.h>
-
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_MIPS32
 typedef unsigned short umode_t;
-#endif
-#ifdef CONFIG_MIPS64
-typedef unsigned int umode_t;
-#endif
 
 /*
  * __xx is ok: it doesn't pollute the POSIX namespace. Use these in the
@@ -58,6 +51,8 @@ typedef unsigned long long __u64;
 #define BITS_PER_LONG _MIPS_SZLONG
 
 #ifndef __ASSEMBLY__
+
+#include <linux/config.h>
 
 typedef __signed char s8;
 typedef unsigned char u8;
@@ -103,6 +98,8 @@ typedef unsigned long phys_t;
 typedef u64 sector_t;
 #define HAVE_SECTOR_T
 #endif
+
+typedef unsigned short kmem_bufctl_t;
 
 #endif /* __ASSEMBLY__ */
 

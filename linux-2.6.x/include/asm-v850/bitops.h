@@ -1,8 +1,8 @@
 /*
  * include/asm-v850/bitops.h -- Bit operations
  *
- *  Copyright (C) 2001,02,03  NEC Electronics Corporation
- *  Copyright (C) 2001,02,03  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2001,02,03,04  NEC Electronics Corporation
+ *  Copyright (C) 2001,02,03,04  Miles Bader <miles@gnu.org>
  *  Copyright (C) 1992  Linus Torvalds.
  *
  * This file is subject to the terms and conditions of the GNU General
@@ -84,24 +84,26 @@ extern __inline__ unsigned long ffz (unsigned long word)
 #define change_bit __change_bit
 
 
-#define __const_tns_bit_op(op, nr, addr)				\
-  ({ int __tns_res;							\
-     __asm__ ("tst1 (%1 - 0x123), %2; setf nz, %0; " op " (%1 - 0x123), %2" \
-	      : "=&r" (__tns_res)					\
-	      : "g" (((nr) & 0x7) + 0x123),				\
-		"m" (*((char *)(addr) + ((nr) >> 3)))			\
-	      : "memory");						\
-     __tns_res;							\
+#define __const_tns_bit_op(op, nr, addr)				      \
+  ({ int __tns_res;							      \
+     __asm__ __volatile__ (						      \
+	     "tst1 (%1 - 0x123), %2; setf nz, %0; " op " (%1 - 0x123), %2"    \
+	     : "=&r" (__tns_res)					      \
+	     : "g" (((nr) & 0x7) + 0x123),				      \
+	       "m" (*((char *)(addr) + ((nr) >> 3)))			      \
+	     : "memory");						      \
+     __tns_res;								      \
   })
-#define __var_tns_bit_op(op, nr, addr)					\
-  ({ int __nr = (nr);							\
-     int __tns_res;							\
-     __asm__ ("tst1 %1, [%2]; setf nz, %0; " op " %1, [%2]"		\
-	      : "=&r" (__tns_res)					\
-	      : "r" (__nr & 0x7),					\
-		"r" ((char *)(addr) + (__nr >> 3))			\
-	      : "memory");						\
-     __tns_res;							\
+#define __var_tns_bit_op(op, nr, addr)					      \
+  ({ int __nr = (nr);							      \
+     int __tns_res;							      \
+     __asm__ __volatile__ (						      \
+	     "tst1 %1, [%2]; setf nz, %0; " op " %1, [%2]"		      \
+	      : "=&r" (__tns_res)					      \
+	      : "r" (__nr & 0x7),					      \
+		"r" ((char *)(addr) + (__nr >> 3))			      \
+	      : "memory");						      \
+     __tns_res;								      \
   })
 #define __tns_bit_op(op, nr, addr)					\
   ((__builtin_constant_p (nr) && (unsigned)(nr) <= 0x7FFFF)		\
@@ -125,20 +127,20 @@ extern __inline__ unsigned long ffz (unsigned long word)
 #define test_and_change_bit(nr, addr)	__tns_atomic_bit_op ("not1", nr, addr)
 
 
-#define __const_test_bit(nr, addr)					\
-  ({ int __test_bit_res;						\
-     __asm__ ("tst1 (%1 - 0x123), %2; setf nz, %0"			\
-	      : "=r" (__test_bit_res)					\
-	      : "g" (((nr) & 0x7) + 0x123),				\
-                "m" (*((const char *)(addr) + ((nr) >> 3))));		\
-     __test_bit_res;							\
+#define __const_test_bit(nr, addr)					      \
+  ({ int __test_bit_res;						      \
+     __asm__ __volatile__ ("tst1 (%1 - 0x123), %2; setf nz, %0"		      \
+			   : "=r" (__test_bit_res)			      \
+			   : "g" (((nr) & 0x7) + 0x123),		      \
+			     "m" (*((const char *)(addr) + ((nr) >> 3))));    \
+     __test_bit_res;							      \
   })
 extern __inline__ int __test_bit (int nr, const void *addr)
 {
 	int res;
-	__asm__ ("tst1 %1, [%2]; setf nz, %0"
-		 : "=r" (res)
-		 : "r" (nr & 0x7), "r" (addr + (nr >> 3)));
+	__asm__ __volatile__ ("tst1 %1, [%2]; setf nz, %0"
+			      : "=r" (res)
+			      : "r" (nr & 0x7), "r" (addr + (nr >> 3)));
 	return res;
 }
 #define test_bit(nr,addr)						\
@@ -191,9 +193,91 @@ extern __inline__ int find_next_zero_bit (void *addr, int size, int offset)
 	return result + ffz (tmp);
 }
 
+
+/* This is the same as generic_ffs, but we can't use that because it's
+   inline and the #include order mucks things up.  */
+static inline int generic_ffs_for_find_next_bit(int x)
+{
+	int r = 1;
+
+	if (!x)
+		return 0;
+	if (!(x & 0xffff)) {
+		x >>= 16;
+		r += 16;
+	}
+	if (!(x & 0xff)) {
+		x >>= 8;
+		r += 8;
+	}
+	if (!(x & 0xf)) {
+		x >>= 4;
+		r += 4;
+	}
+	if (!(x & 3)) {
+		x >>= 2;
+		r += 2;
+	}
+	if (!(x & 1)) {
+		x >>= 1;
+		r += 1;
+	}
+	return r;
+}
+
+/*
+ * Find next one bit in a bitmap reasonably efficiently.
+ */
+static __inline__ unsigned long find_next_bit(const unsigned long *addr,
+	unsigned long size, unsigned long offset)
+{
+	unsigned int *p = ((unsigned int *) addr) + (offset >> 5);
+	unsigned int result = offset & ~31UL;
+	unsigned int tmp;
+
+	if (offset >= size)
+		return size;
+	size -= result;
+	offset &= 31UL;
+	if (offset) {
+		tmp = *p++;
+		tmp &= ~0UL << offset;
+		if (size < 32)
+			goto found_first;
+		if (tmp)
+			goto found_middle;
+		size -= 32;
+		result += 32;
+	}
+	while (size >= 32) {
+		if ((tmp = *p++) != 0)
+			goto found_middle;
+		result += 32;
+		size -= 32;
+	}
+	if (!size)
+		return result;
+	tmp = *p;
+
+found_first:
+	tmp &= ~0UL >> (32 - size);
+	if (tmp == 0UL)        /* Are any bits set? */
+		return result + size; /* Nope. */
+found_middle:
+	return result + generic_ffs_for_find_next_bit(tmp);
+}
+
+/*
+ * find_first_bit - find the first set bit in a memory region
+ */
+#define find_first_bit(addr, size) \
+	find_next_bit((addr), (size), 0)
+
+
 #define ffs(x) generic_ffs (x)
 #define fls(x) generic_fls (x)
 #define __ffs(x) ffs(x)
+
 
 /*
  * This is just `generic_ffs' from <linux/bitops.h>, except that it assumes

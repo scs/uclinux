@@ -200,7 +200,7 @@ static void program_drive_counts (ide_drive_t *drive, int setup_count, int activ
 	 */
 	if (channel) {
 		drive->drive_data = setup_count;
-		setup_count = IDE_MAX(drives[0].drive_data,
+		setup_count = max(drives[0].drive_data,
 					drives[1].drive_data);
 		cmdprintk("Secondary interface, setup_count = %d\n",
 					setup_count);
@@ -459,7 +459,7 @@ static int cmd64x_config_drive_for_dma (ide_drive_t *drive)
 
 	if ((id != NULL) && ((id->capability & 1) != 0) && drive->autodma) {
 		/* Consult the list of known "bad" drives */
-		if (hwif->ide_dma_bad_drive(drive))
+		if (__ide_dma_bad_drive(drive))
 			goto fast_ata_pio;
 		if ((id->field_valid & 4) && cmd64x_ratemask(drive)) {
 			if (id->dma_ultra & hwif->ultra_mask) {
@@ -476,7 +476,7 @@ try_dma_modes:
 				if (!config_chipset_for_dma(drive))
 					goto no_dma_set;
 			}
-		} else if (hwif->ide_dma_good_drive(drive) &&
+		} else if (__ide_dma_good_drive(drive) &&
 			   (id->eide_dma_time < 150)) {
 			/* Consult the list of known "good" drives */
 			if (!config_chipset_for_dma(drive))
@@ -586,7 +586,7 @@ static int cmd646_1_ide_dma_end (ide_drive_t *drive)
 	return (dma_stat & 7) != 4;
 }
 
-static unsigned int __init init_chipset_cmd64x (struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const char *name)
 {
 	u32 class_rev = 0;
 	u8 mrdmode = 0;
@@ -667,14 +667,14 @@ static unsigned int __init init_chipset_cmd64x (struct pci_dev *dev, const char 
 
 	if (!cmd64x_proc) {
 		cmd64x_proc = 1;
-		ide_pci_register_host_proc(&cmd64x_procs[0]);
+		ide_pci_create_host_proc("cmd64x", cmd64x_get_info);
 	}
 #endif /* DISPLAY_CMD64X_TIMINGS && CONFIG_PROC_FS */
 
 	return 0;
 }
 
-static unsigned int __init ata66_cmd64x (ide_hwif_t *hwif)
+static unsigned int __devinit ata66_cmd64x(ide_hwif_t *hwif)
 {
 	u8 ata66 = 0, mask = (hwif->channel) ? 0x02 : 0x01;
 
@@ -689,7 +689,7 @@ static unsigned int __init ata66_cmd64x (ide_hwif_t *hwif)
 	return (ata66 & mask) ? 1 : 0;
 }
 
-static void __init init_hwif_cmd64x (ide_hwif_t *hwif)
+static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= hwif->pci_dev;
 	unsigned int class_rev;
@@ -744,15 +744,9 @@ static void __init init_hwif_cmd64x (ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
-extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
-
 static int __devinit cmd64x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &cmd64x_chipsets[id->driver_data];
-	if (dev->device != d->device)
-		BUG();
-	ide_setup_pci_device(dev, d);
-	MOD_INC_USE_COUNT;
+	ide_setup_pci_device(dev, &cmd64x_chipsets[id->driver_data]);
 	return 0;
 }
 
@@ -763,6 +757,7 @@ static struct pci_device_id cmd64x_pci_tbl[] = {
 	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_CMD_649, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3},
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, cmd64x_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "CMD64x IDE",
@@ -775,13 +770,7 @@ static int cmd64x_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
-static void cmd64x_ide_exit(void)
-{
-	ide_pci_unregister_driver(&driver);
-}
-
 module_init(cmd64x_ide_init);
-module_exit(cmd64x_ide_exit);
 
 MODULE_AUTHOR("Eddie Dost, David Miller, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for CMD64x IDE");

@@ -12,18 +12,18 @@
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or 
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- * 
+ *
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
@@ -35,6 +35,7 @@
 #include <linux/ioport.h>
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/gameport.h>
 #include <linux/slab.h>
 #include <linux/pnp.h>
@@ -58,7 +59,7 @@ struct ns558 {
 	char phys[32];
 	char name[32];
 };
-	
+
 static LIST_HEAD(ns558_list);
 
 /*
@@ -77,7 +78,7 @@ static void ns558_isa_probe(int io)
  * No one should be using this address.
  */
 
-	if (check_region(io, 1))
+	if (!request_region(io, 1, "ns558-isa"))
 		return;
 
 /*
@@ -89,7 +90,8 @@ static void ns558_isa_probe(int io)
 	outb(~c & ~3, io);
 	if (~(u = v = inb(io)) & 3) {
 		outb(c, io);
-		return;
+		i = 0;
+		goto out;
 	}
 /*
  * After a trigger, there must be at least some bits changing.
@@ -99,9 +101,10 @@ static void ns558_isa_probe(int io)
 
 	if (u == v) {
 		outb(c, io);
-		return;
+		i = 0;
+		goto out;
 	}
-	wait_ms(3);
+	msleep(3);
 /*
  * After some time (4ms) the axes shouldn't change anymore.
  */
@@ -110,34 +113,44 @@ static void ns558_isa_probe(int io)
 	for (i = 0; i < 1000; i++)
 		if ((u ^ inb(io)) & 0xf) {
 			outb(c, io);
-			return;
+			i = 0;
+			goto out;
 		}
-/* 
+/*
  * And now find the number of mirrors of the port.
  */
 
 	for (i = 1; i < 5; i++) {
 
-		if (check_region(io & (-1 << i), (1 << i)))	/* Don't disturb anyone */
+		release_region(io & (-1 << (i-1)), (1 << (i-1)));
+
+		if (!request_region(io & (-1 << i), (1 << i), "ns558-isa"))	/* Don't disturb anyone */
 			break;
 
 		outb(0xff, io & (-1 << i));
 		for (j = b = 0; j < 1000; j++)
 			if (inb(io & (-1 << i)) != inb((io & (-1 << i)) + (1 << i) - 1)) b++;
-		wait_ms(3);
+		msleep(3);
 
-		if (b > 300)					/* We allow 30% difference */
+		if (b > 300) {					/* We allow 30% difference */
+			release_region(io & (-1 << i), (1 << i));
 			break;
+		}
 	}
 
 	i--;
 
+	if (i != 4) {
+		if (!request_region(io & (-1 << i), (1 << i), "ns558-isa"))
+			return;
+	}
+
 	if (!(port = kmalloc(sizeof(struct ns558), GFP_KERNEL))) {
 		printk(KERN_ERR "ns558: Memory allocation failed.\n");
-		return;
+		goto out;
 	}
-       	memset(port, 0, sizeof(struct ns558));
-	
+	memset(port, 0, sizeof(struct ns558));
+
 	port->type = NS558_ISA;
 	port->size = (1 << i);
 	port->gameport.io = io;
@@ -148,8 +161,6 @@ static void ns558_isa_probe(int io)
 	sprintf(port->phys, "isa%04x/gameport0", io & (-1 << i));
 	sprintf(port->name, "NS558 ISA");
 
-	request_region(io & (-1 << i), (1 << i), "ns558-isa");
-
 	gameport_register_port(&port->gameport);
 
 	printk(KERN_INFO "gameport: NS558 ISA at %#x", port->gameport.io);
@@ -157,6 +168,9 @@ static void ns558_isa_probe(int io)
 	printk(" speed %d kHz\n", port->gameport.speed);
 
 	list_add(&port->node, &ns558_list);
+	return;
+out:
+	release_region(io & (-1 << i), (1 << i));
 }
 
 #ifdef CONFIG_PNP
@@ -276,8 +290,9 @@ void __exit ns558_exit(void)
 #endif
 			case NS558_ISA:
 				release_region(port->gameport.io & ~(port->size - 1), port->size);
+				kfree(port);
 				break;
-		
+
 			default:
 				break;
 		}

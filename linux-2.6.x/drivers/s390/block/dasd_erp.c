@@ -67,7 +67,8 @@ dasd_alloc_erp_request(char *magic, int cplength, int datasize,
 	}
 	strncpy((char *) &cqr->magic, magic, 4);
 	ASCEBC((char *) &cqr->magic, 4);
-	atomic_inc(&device->ref_count);
+	set_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
+	dasd_get_device(device);
 	return cqr;
 }
 
@@ -76,8 +77,6 @@ dasd_free_erp_request(struct dasd_ccw_req * cqr, struct dasd_device * device)
 {
 	unsigned long flags;
 
-	if (cqr->dstat != NULL)
-		kfree(cqr->dstat);
 	debug_text_event(dasd_debug_area, 1, "FREE");
 	debug_int_event(dasd_debug_area, 1, (long) cqr);
 	spin_lock_irqsave(&device->mem_lock, flags);

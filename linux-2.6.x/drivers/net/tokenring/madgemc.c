@@ -177,7 +177,7 @@ static int __init madgemc_probe(void)
 		if (versionprinted++ == 0)
 			printk("%s", version);
 
-		dev = alloc_trdev(0);
+		dev = alloc_trdev(sizeof(struct net_local));
 		if (dev == NULL) {
 			printk("madgemc: unable to allocate dev space\n");
 			if (madgemc_card_list)
@@ -197,7 +197,7 @@ static int __init madgemc_probe(void)
 		card = kmalloc(sizeof(struct madgemc_card), GFP_KERNEL);
 		if (card==NULL) {
 			printk("madgemc: unable to allocate card struct\n");
-			kfree(dev);
+			free_netdev(dev);
 			if (madgemc_card_list)
 				return 0;
 			return -1;
@@ -360,12 +360,12 @@ static int __init madgemc_probe(void)
 			
 			kfree(card);
 			tmsdev_term(dev);
-			kfree(dev);
+			free_netdev(dev);
 			if (madgemc_card_list)
 				return 0;
 			return -1;
 		}
-		tp = (struct net_local *)dev->priv;
+		tp = netdev_priv(dev);
 
 		/* 
 		 * The MC16 is physically a 32bit card.  However, Madge
@@ -399,7 +399,7 @@ static int __init madgemc_probe(void)
 			       MADGEMC_IO_EXTENT); 
 	getout1:
 		kfree(card);
-		kfree(dev);
+		free_netdev(dev);
 		slot++;
 	}
 
@@ -504,7 +504,7 @@ static irqreturn_t madgemc_interrupt(int irq, void *dev_id, struct pt_regs *regs
 unsigned short madgemc_setnselout_pins(struct net_device *dev)
 {
 	unsigned char reg1;
-	struct net_local *tp = (struct net_local *)dev->priv;
+	struct net_local *tp = netdev_priv(dev);
 	
 	reg1 = inb(dev->base_addr + MC_CONTROL_REG1);
 
@@ -731,7 +731,7 @@ static int madgemc_mcaproc(char *buf, int slot, void *d)
 	}
 	len += sprintf(buf+len, "-------\n");
 	if (curcard) {
-		struct net_local *tp = (struct net_local *)dev->priv;
+		struct net_local *tp = netdev_priv(dev);
 		int i;
 		
 		len += sprintf(buf+len, "Card Revision: %d\n", curcard->cardrev);

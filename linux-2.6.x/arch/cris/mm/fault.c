@@ -6,7 +6,7 @@
  *  Authors:  Bjorn Wesen 
  * 
  *  $Log$
- *  Revision 1.3  2004/09/08 10:20:17  lgsoft
+ *  Revision 1.4  2004/09/08 14:53:04  lgsoft
  *  Import of 2.6.8
  *
  *  Revision 1.11  2004/05/14 07:58:05  starvik

@@ -33,10 +33,6 @@
 /* Note: we assume there can only be one nForce2, with two SMBus interfaces */
 
 #include <linux/config.h>
-#ifdef CONFIG_I2C_DEBUG_BUS
-#define DEBUG	1
-#endif
-
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -123,7 +119,7 @@ static struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter nforce2_adapter = {
 	.owner          = THIS_MODULE,
-	.class          = I2C_ADAP_CLASS_SMBUS,
+	.class          = I2C_CLASS_HWMON,
 	.algo           = &smbus_algorithm,
 	.name   	= "unset",
 };

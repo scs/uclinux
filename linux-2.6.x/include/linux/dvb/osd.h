@@ -24,6 +24,8 @@
 #ifndef _DVBOSD_H_
 #define _DVBOSD_H_
 
+#include <linux/compiler.h>
+
 typedef enum {
   // All functions return -2 on "not open"
   OSD_Close=1,    // ()
@@ -101,7 +103,7 @@ typedef struct osd_cmd_s {
         int x1;
         int y1;
         int color;
-        void *data;
+        void __user *data;
 } osd_cmd_t;
 
 

@@ -53,25 +53,31 @@ static const char version[] =
 #ifdef __arm__
 static void write_rreg(u_long base, u_int reg, u_int val)
 {
-	__asm__("str%?h	%1, [%2]	@ NET_RAP
-		str%?h	%0, [%2, #-4]	@ NET_RDP
-		" : : "r" (val), "r" (reg), "r" (ISAIO_BASE + 0x0464));
+	__asm__(
+	"str%?h	%1, [%2]	@ NET_RAP\n\t"
+	"str%?h	%0, [%2, #-4]	@ NET_RDP"
+	:
+	: "r" (val), "r" (reg), "r" (ISAIO_BASE + 0x0464));
 }
 
 static inline unsigned short read_rreg(u_long base_addr, u_int reg)
 {
 	unsigned short v;
-	__asm__("str%?h	%1, [%2]	@ NET_RAP
-		ldr%?h	%0, [%2, #-4]	@ NET_RDP
-		" : "=r" (v): "r" (reg), "r" (ISAIO_BASE + 0x0464));
+	__asm__(
+	"str%?h	%1, [%2]	@ NET_RAP\n\t"
+	"ldr%?h	%0, [%2, #-4]	@ NET_RDP"
+	: "=r" (v)
+	: "r" (reg), "r" (ISAIO_BASE + 0x0464));
 	return v;
 }
 
 static inline void write_ireg(u_long base, u_int reg, u_int val)
 {
-	__asm__("str%?h	%1, [%2]	@ NET_RAP
-		str%?h	%0, [%2, #8]	@ NET_IDP
-		" : : "r" (val), "r" (reg), "r" (ISAIO_BASE + 0x0464));
+	__asm__(
+	"str%?h	%1, [%2]	@ NET_RAP\n\t"
+	"str%?h	%0, [%2, #8]	@ NET_IDP"
+	:
+	: "r" (val), "r" (reg), "r" (ISAIO_BASE + 0x0464));
 }
 
 static inline unsigned short read_ireg(u_long base_addr, u_int reg)
@@ -101,16 +107,16 @@ am_writebuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigne
 	}
 	while (length > 8) {
 		unsigned int tmp, tmp2;
-		__asm__ __volatile__("
-			ldm%?ia	%1!, {%2, %3}
-			str%?h	%2, [%0], #4
-			mov%?	%2, %2, lsr #16
-			str%?h	%2, [%0], #4
-			str%?h	%3, [%0], #4
-			mov%?	%3, %3, lsr #16
-			str%?h	%3, [%0], #4
-		" : "=&r" (offset), "=&r" (buf), "=r" (tmp), "=r" (tmp2)
-		  : "0" (offset), "1" (buf));
+		__asm__ __volatile__(
+			"ldm%?ia	%1!, {%2, %3}\n\t"
+			"str%?h	%2, [%0], #4\n\t"
+			"mov%?	%2, %2, lsr #16\n\t"
+			"str%?h	%2, [%0], #4\n\t"
+			"str%?h	%3, [%0], #4\n\t"
+			"mov%?	%3, %3, lsr #16\n\t"
+			"str%?h	%3, [%0], #4"
+		: "=&r" (offset), "=&r" (buf), "=r" (tmp), "=r" (tmp2)
+		: "0" (offset), "1" (buf));
 		length -= 8;
 	}
 	while (length > 0) {
@@ -128,36 +134,36 @@ am_readbuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigned
 	length = (length + 1) & ~1;
 	if ((int)buf & 2) {
 		unsigned int tmp;
-		__asm__ __volatile__("
-			ldr%?h	%2, [%0], #4
-			str%?b	%2, [%1], #1
-			mov%?	%2, %2, lsr #8
-			str%?b	%2, [%1], #1
-		" : "=&r" (offset), "=&r" (buf), "=r" (tmp): "0" (offset), "1" (buf));
+		__asm__ __volatile__(
+			"ldr%?h	%2, [%0], #4\n\t"
+			"str%?b	%2, [%1], #1\n\t"
+			"mov%?	%2, %2, lsr #8\n\t"
+			"str%?b	%2, [%1], #1"
+		: "=&r" (offset), "=&r" (buf), "=r" (tmp): "0" (offset), "1" (buf));
 		length -= 2;
 	}
 	while (length > 8) {
 		unsigned int tmp, tmp2, tmp3;
-		__asm__ __volatile__("
-			ldr%?h	%2, [%0], #4
-			ldr%?h	%3, [%0], #4
-			orr%?	%2, %2, %3, lsl #16
-			ldr%?h	%3, [%0], #4
-			ldr%?h	%4, [%0], #4
-			orr%?	%3, %3, %4, lsl #16
-			stm%?ia	%1!, {%2, %3}
-		" : "=&r" (offset), "=&r" (buf), "=r" (tmp), "=r" (tmp2), "=r" (tmp3)
-		  : "0" (offset), "1" (buf));
+		__asm__ __volatile__(
+			"ldr%?h	%2, [%0], #4\n\t"
+			"ldr%?h	%3, [%0], #4\n\t"
+			"orr%?	%2, %2, %3, lsl #16\n\t"
+			"ldr%?h	%3, [%0], #4\n\t"
+			"ldr%?h	%4, [%0], #4\n\t"
+			"orr%?	%3, %3, %4, lsl #16\n\t"
+			"stm%?ia	%1!, {%2, %3}"
+		: "=&r" (offset), "=&r" (buf), "=r" (tmp), "=r" (tmp2), "=r" (tmp3)
+		: "0" (offset), "1" (buf));
 		length -= 8;
 	}
 	while (length > 0) {
 		unsigned int tmp;
-		__asm__ __volatile__("
-			ldr%?h	%2, [%0], #4
-			str%?b	%2, [%1], #1
-			mov%?	%2, %2, lsr #8
-			str%?b	%2, [%1], #1
-		" : "=&r" (offset), "=&r" (buf), "=r" (tmp) : "0" (offset), "1" (buf));
+		__asm__ __volatile__(
+			"ldr%?h	%2, [%0], #4\n\t"
+			"str%?b	%2, [%1], #1\n\t"
+			"mov%?	%2, %2, lsr #8\n\t"
+			"str%?b	%2, [%1], #1"
+		: "=&r" (offset), "=&r" (buf), "=r" (tmp) : "0" (offset), "1" (buf));
 		length -= 2;
 	}
 }
@@ -196,7 +202,7 @@ am79c961_ramtest(struct net_device *dev, unsigned int val)
 static void
 am79c961_init_for_open(struct net_device *dev)
 {
-	struct dev_priv *priv = (struct dev_priv *)dev->priv;
+	struct dev_priv *priv = netdev_priv(dev);
 	unsigned long flags;
 	unsigned char *p;
 	u_int hdr_addr, first_free_addr;
@@ -271,7 +277,7 @@ am79c961_init_for_open(struct net_device *dev)
 static void am79c961_timer(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
-	struct dev_priv *priv = (struct dev_priv *)dev->priv;
+	struct dev_priv *priv = netdev_priv(dev);
 	unsigned int lnkstat, carrier;
 
 	lnkstat = read_ireg(dev->base_addr, ISALED0) & ISALED0_LNKST;
@@ -291,7 +297,7 @@ static void am79c961_timer(unsigned long data)
 static int
 am79c961_open(struct net_device *dev)
 {
-	struct dev_priv *priv = (struct dev_priv *)dev->priv;
+	struct dev_priv *priv = netdev_priv(dev);
 	int ret;
 
 	memset (&priv->stats, 0, sizeof (priv->stats));
@@ -318,7 +324,7 @@ am79c961_open(struct net_device *dev)
 static int
 am79c961_close(struct net_device *dev)
 {
-	struct dev_priv *priv = (struct dev_priv *)dev->priv;
+	struct dev_priv *priv = netdev_priv(dev);
 	unsigned long flags;
 
 	del_timer_sync(&priv->timer);
@@ -341,7 +347,7 @@ am79c961_close(struct net_device *dev)
  */
 static struct net_device_stats *am79c961_getstats (struct net_device *dev)
 {
-	struct dev_priv *priv = (struct dev_priv *)dev->priv;
+	struct dev_priv *priv = netdev_priv(dev);
 	return &priv->stats;
 }
 
@@ -365,7 +371,7 @@ static void am79c961_mc_hash(struct dev_mc_list *dmi, unsigned short *hash)
  */
 static void am79c961_setmulticastlist (struct net_device *dev)
 {
-	struct dev_priv *priv = (struct dev_priv *)dev->priv;
+	struct dev_priv *priv = netdev_priv(dev);
 	unsigned long flags;
 	unsigned short multi_hash[4], mode;
 	int i, stopped;
@@ -444,7 +450,7 @@ static void am79c961_timeout(struct net_device *dev)
 static int
 am79c961_sendpacket(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dev_priv *priv = (struct dev_priv *)dev->priv;
+	struct dev_priv *priv = netdev_priv(dev);
 	unsigned int hdraddr, bufaddr;
 	unsigned int head;
 	unsigned long flags;
@@ -593,7 +599,7 @@ static irqreturn_t
 am79c961_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	struct dev_priv *priv = (struct dev_priv *)dev->priv;
+	struct dev_priv *priv = netdev_priv(dev);
 	u_int status, n = 100;
 	int handled = 0;
 
@@ -618,6 +624,7 @@ am79c961_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if (status & CSR0_CERR) {
 			handled = 1;
 			mod_timer(&priv->timer, jiffies);
+		}
 	} while (--n && status & (CSR0_RINT | CSR0_TINT));
 
 	return IRQ_RETVAL(handled);
@@ -630,7 +637,7 @@ am79c961_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static int
 am79c961_hw_init(struct net_device *dev)
 {
-	struct dev_priv *priv = (struct dev_priv *)dev->priv;
+	struct dev_priv *priv = netdev_priv(dev);
 
 	spin_lock_irq(&priv->chip_lock);
 	write_rreg (dev->base_addr, CSR0, CSR0_STOP);
@@ -662,7 +669,7 @@ static int __init am79c961_init(void)
 	if (!dev)
 		goto out;
 
-	priv = dev->priv;
+	priv = netdev_priv(dev);
 
 	/*
 	 * Fixed address and IRQ lines here.
@@ -671,6 +678,10 @@ static int __init am79c961_init(void)
 	 */
 	dev->base_addr = 0x220;
 	dev->irq = IRQ_EBSA110_ETHERNET;
+
+    	ret = -ENODEV;
+	if (!request_region(dev->base_addr, 0x18, dev->name))
+		goto nodev;
 
 	/*
 	 * Reset the device.
@@ -682,14 +693,10 @@ static int __init am79c961_init(void)
 	 * Check the manufacturer part of the
 	 * ether address.
 	 */
-    	ret = -ENODEV;
 	if (inb(dev->base_addr) != 0x08 ||
 	    inb(dev->base_addr + 2) != 0x00 ||
 	    inb(dev->base_addr + 4) != 0x2b)
-	    	goto nodev;
-
-	if (!request_region(dev->base_addr, 0x18, dev->name))
-		goto nodev;
+	    	goto release;
 
 	am79c961_banner();
 	printk(KERN_INFO "%s: ether address ", dev->name);
@@ -722,7 +729,7 @@ static int __init am79c961_init(void)
 release:
 	release_region(dev->base_addr, 0x18);
 nodev:
-	kfree(dev);
+	free_netdev(dev);
 out:
 	return ret;
 }

@@ -38,7 +38,7 @@
 
 
 # define RESTORE_ALL_SYS	restore_context_no_interrupts
-# define RESTORE_ALL	restore_context_no_interrupts
+# define RESTORE_ALL		restore_context_no_interrupts
 # define RESTORE_ALL_INT	restore_context_with_interrupts
 # define RESTORE_CONTEXT	restore_context_with_interrupts
 
@@ -353,16 +353,12 @@
 	[--sp] = syscfg;	/* store SYSCFG */
 
 /********************************/
-/* Added by HuTao, May 26 2003 3:31PM */
 	[--sp] = r0;		/* Reserved for IPEND */	
 	[--sp] = fp;
 	[--sp] = usp;
 /*******************************/
 	[--sp] = r0;
 
-#if 0 /* HuTao, May 21, 2003 4:48 */
-	r0 = -1;
-#endif 
 	[--sp] = r0;
 	r0 = [sp + 8];
 	[--sp] = a0.x;

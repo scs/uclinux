@@ -2,18 +2,7 @@
  *
  * defBF532.h
  *
- * This file is subject to the terms and conditions of the GNU Public 
- * License. See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * Non-GPL License also available as part of VisualDSP++
- * http://www.analog.com/processors/resources/crosscore/visualDspDevSoftware.html
- *
- * (c) Copyright 2001-2004 Analog Devices, Inc. All rights reserved
- *
- * Revision 1.9 - Wed Mar 24 12:21:16 2004 UTC
- * This file under source code control, please send bugs or changes to:
- * dsptools.support@analog.com
+ * (c) Copyright 2001-2004 Analog Devices, Inc.  All rights reserved.
  *
  ************************************************************************/
 
@@ -22,11 +11,11 @@
 #ifndef _DEF_BF532_H
 #define _DEF_BF532_H
 
-#if !defined(__ADSPLPBLACKFIN__)
-#warning defBF532.h should only be included for 532 compatible chips
-#endif
-// include all Core registers and bit definitions
-#include <def_LPBlackfin.h>
+//#if !defined(__ADSPLPBLACKFIN__)
+//#warning defBF532.h should only be included for 532 compatible chips
+//#endif
+/*include all Core registers and bit definitions*/
+#include <asm/board/def_LPBlackfin.h>
 
 /* Helper macros 
  * usage:
@@ -41,20 +30,20 @@
 
 
 
-//**********************************************************************************
-// System MMR Register Map
-//**********************************************************************************
-//// Clock and System Control (0xFFC00000 - 0xFFC000FF)
+/**********************************************************************************
+ *	System MMR Register Map
+ ***********************************************************************************/
+/*Clock and System Control (0xFFC00000 - 0xFFC000FF)*/
 
-#define PLL_CTL                0xFFC00000       // PLL Control register (16-bit)
-#define PLL_DIV			 0xFFC00004		// PLL Divide Register (16-bit)
-#define VR_CTL			 0xFFC00008		// Voltage Regulator Control Register (16-bit)
-#define PLL_STAT               0xFFC0000C       // PLL Status register (16-bit)
-#define PLL_LOCKCNT            0xFFC00010   	// PLL Lock Count register (16-bit)
-#define SWRST                  0xFFC00100       // Software Reset Register (16-bit)
-#define SYSCR                  0xFFC00104       // System Configuration registe
+#define PLL_CTL			0xFFC00000       // PLL Control register (16-bit)*/
+#define PLL_DIV			0xFFC00004		// PLL Divide Register (16-bit)*/
+#define VR_CTL			0xFFC00008		// Voltage Regulator Control Register (16-bit)*/
+#define PLL_STAT		0xFFC0000C       // PLL Status register (16-bit)*/
+#define PLL_LOCKCNT		0xFFC00010   	// PLL Lock Count register (16-bit)*/
+#define SWRST			0xFFC00100       // Software Reset Register (16-bit)*/
+#define SYSCR			0xFFC00104/*System Configuration registe*/
  
-// System Interrupt Controller (0xFFC00100 - 0xFFC001FF)
+/*System Interrupt Controller (0xFFC00100 - 0xFFC001FF)*/
 #define SIC_RVECT             		0xFFC00108  // Interrupt Reset Vector Address Register
 #define SIC_IMASK             		0xFFC0010C  // Interrupt Mask Register
 #define SIC_IAR0               		0xFFC00110  // Interrupt Assignment Register 0
@@ -634,8 +623,8 @@
 #define TXHRE        	0x0040  	//TX Hold Register Empty
 
 //SPORTx_MCMC1 Masks
-#define WSIZE		0x0000F000 	//Multichannel Window Size Field
-#define WOFF		0x000003FF 	//Multichannel Window Offset Field
+#define SP_WSIZE		0x0000F000 	//Multichannel Window Size Field
+#define SP_WOFF		0x000003FF 	//Multichannel Window Offset Field
 
 //SPORTx_MCMC2 Masks
 #define MCCRM		0x00000003 	//Multichannel Clock Recovery Mode

@@ -599,7 +599,7 @@ static inline int qc_readbytes(struct qcam_device *q, char buffer[])
  * n=2^(bit depth)-1.  Ask me for more details if you don't understand
  * this. */
 
-long qc_capture(struct qcam_device * q, char *buf, unsigned long len)
+long qc_capture(struct qcam_device * q, char __user *buf, unsigned long len)
 {
 	int i, j, k, yield;
 	int bytes;
@@ -660,7 +660,7 @@ long qc_capture(struct qcam_device * q, char *buf, unsigned long len)
 			}
 			pixels_read += bytes;
 		}
-		(void) qc_readbytes(q, 0);	/* reset state machine */
+		(void) qc_readbytes(q, NULL);	/* reset state machine */
 		
 		/* Grabbing an entire frame from the quickcam is a lengthy
 		   process. We don't (usually) want to busy-block the
@@ -855,7 +855,7 @@ static int qcam_ioctl(struct inode *inode, struct file *file,
 	return video_usercopy(inode, file, cmd, arg, qcam_do_ioctl);
 }
 
-static ssize_t qcam_read(struct file *file, char *buf,
+static ssize_t qcam_read(struct file *file, char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	struct video_device *v = video_devdata(file);
@@ -958,45 +958,64 @@ static char *parport[MAX_CAMS] = { NULL, };
 MODULE_PARM(parport, "1-" __MODULE_STRING(MAX_CAMS) "s");
 #endif
 
-static void __exit exit_bw_qcams(void)
+static int accept_bwqcam(struct parport *port)
 {
-	unsigned int i;
-
-	for (i = 0; i < num_cams; i++)
-		close_bwqcam(qcams[i]);
-}
-
-static int __init init_bw_qcams(void)
-{
-	struct parport *port;
 #ifdef MODULE
 	int n;
-	
-	if(parport[0] && strncmp(parport[0], "auto", 4)){
+
+	if (parport[0] && strncmp(parport[0], "auto", 4) != 0) {
 		/* user gave parport parameters */
 		for(n=0; parport[n] && n<MAX_CAMS; n++){
 			char *ep;
 			unsigned long r;
 			r = simple_strtoul(parport[n], &ep, 0);
-			if(ep == parport[n]){
+			if (ep == parport[n]) {
 				printk(KERN_ERR
 					"bw-qcam: bad port specifier \"%s\"\n",
 					parport[n]);
 				continue;
 			}
-			for (port=parport_enumerate(); port; port=port->next){
-				if(r!=port->number)
-					continue;
-				init_bwqcam(port);
-				break;
-			}
+			if (r == port->number)
+				return 1;
 		}
-		return (num_cams)?0:-ENODEV;
-	} 
-	/* no parameter or "auto" */
-	for (port = parport_enumerate(); port; port=port->next)
-		init_bwqcam(port);
+		return 0;
+	}
+#endif
+	return 1;
+}
 
+static void bwqcam_attach(struct parport *port)
+{
+	if (accept_bwqcam(port))
+		init_bwqcam(port);
+}
+
+static void bwqcam_detach(struct parport *port)
+{
+	int i;
+	for (i = 0; i < num_cams; i++) {
+		struct qcam_device *qcam = qcams[i];
+		if (qcam && qcam->pdev->port == port) {
+			qcams[i] = NULL;
+			close_bwqcam(qcam);
+		}
+	}
+}
+
+static struct parport_driver bwqcam_driver = {
+	.name	= "bw-qcam",
+	.attach	= bwqcam_attach,
+	.detach	= bwqcam_detach,
+};
+
+static void __exit exit_bw_qcams(void)
+{
+	parport_unregister_driver(&bwqcam_driver);
+}
+
+static int __init init_bw_qcams(void)
+{
+#ifdef MODULE
 	/* Do some sanity checks on the module parameters. */
 	if (maxpoll > 5000) {
 		printk("Connectix Quickcam max-poll was above 5000. Using 5000.\n");
@@ -1007,13 +1026,8 @@ static int __init init_bw_qcams(void)
 		printk("Connectix Quickcam yieldlines was less than 1. Using 1.\n");
 		yieldlines = 1;
 	}
-
-	return (num_cams)?0:-ENODEV;
-#else
-	for (port = parport_enumerate(); port; port=port->next)
-		init_bwqcam(port);
-	return 0;
 #endif
+	return parport_register_driver(&bwqcam_driver);
 }
 
 module_init(init_bw_qcams);

@@ -5,8 +5,6 @@
 #include <linux/pci.h>
 #include <linux/ide.h>
 
-#define DISPLAY_PDC202XX_TIMINGS
-
 #ifndef SPLIT_BYTE
 #define SPLIT_BYTE(B,H,L)	((H)=(B>>4), (L)=(B-((B>>4)<<4)))
 #endif
@@ -171,52 +169,7 @@ static void decode_registers (u8 registers, u8 value)
 
 #endif /* PDC202XX_DECODE_REGISTER_INFO */
 
-#define set_2regs(a, b)					\
-	do {						\
-		hwif->OUTB((a + adj), indexreg);	\
-		hwif->OUTB(b, datareg);			\
-	} while(0)
-
-#define set_ultra(a, b, c)				\
-	do {						\
-		set_2regs(0x10,(a));			\
-		set_2regs(0x11,(b));			\
-		set_2regs(0x12,(c));			\
-	} while(0)
-
-#define set_ata2(a, b)					\
-	do {						\
-		set_2regs(0x0e,(a));			\
-		set_2regs(0x0f,(b));			\
-	} while(0)
-
-#define set_pio(a, b, c)				\
-	do { 						\
-		set_2regs(0x0c,(a));			\
-		set_2regs(0x0d,(b));			\
-		set_2regs(0x13,(c));			\
-	} while(0)
-
 #define DISPLAY_PDC202XX_TIMINGS
-
-#if defined(DISPLAY_PDC202XX_TIMINGS) && defined(CONFIG_PROC_FS)
-#include <linux/stat.h>
-#include <linux/proc_fs.h>
-
-static u8 pdc202xx_proc;
-
-static int pdc202xx_get_info(char *, char **, off_t, int);
-
-static ide_pci_host_proc_t pdc202xx_procs[] __initdata = {
-	{
-		.name		= "pdc202xx",
-		.set		= 1,
-		.get_info	= pdc202xx_get_info,
-		.parent		= NULL,
-	},
-};
-#endif /* DISPLAY_PDC202XX_TIMINGS && CONFIG_PROC_FS */
-
 
 static void init_setup_pdc202ata4(struct pci_dev *dev, ide_pci_device_t *d);
 static void init_setup_pdc20265(struct pci_dev *, ide_pci_device_t *);
@@ -227,62 +180,46 @@ static void init_dma_pdc202xx(ide_hwif_t *, unsigned long);
 
 static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 	{	/* 0 */
-		.vendor		= PCI_VENDOR_ID_PROMISE,
-		.device		= PCI_DEVICE_ID_PROMISE_20246,
 		.name		= "PDC20246",
 		.init_setup	= init_setup_pdc202ata4,
 		.init_chipset	= init_chipset_pdc202xx,
-		.init_iops	= NULL,
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
 		.channels	= 2,
 		.autodma	= AUTODMA,
-#ifdef CONFIG_PDC202XX_FORCE
-		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
-#else /* !CONFIG_PDC202XX_FORCE */
+#ifndef CONFIG_PDC202XX_FORCE
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
 #endif
 		.bootable	= OFF_BOARD,
 		.extra		= 16,
 	},{	/* 1 */
-		.vendor		= PCI_VENDOR_ID_PROMISE,
-		.device		= PCI_DEVICE_ID_PROMISE_20262,
 		.name		= "PDC20262",
 		.init_setup	= init_setup_pdc202ata4,
 		.init_chipset	= init_chipset_pdc202xx,
-		.init_iops	= NULL,
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
 		.channels	= 2,
 		.autodma	= AUTODMA,
-#ifdef CONFIG_PDC202XX_FORCE
-		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
-#else /* !CONFIG_PDC202XX_FORCE */
+#ifndef CONFIG_PDC202XX_FORCE
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
 #endif
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.flags		= IDEPCI_FLAG_FORCE_PDC,
 	},{	/* 2 */
-		.vendor		= PCI_VENDOR_ID_PROMISE,
-		.device		= PCI_DEVICE_ID_PROMISE_20263,
 		.name		= "PDC20263",
 		.init_setup	= init_setup_pdc202ata4,
 		.init_chipset	= init_chipset_pdc202xx,
-		.init_iops	= NULL,
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
 		.channels	= 2,
 		.autodma	= AUTODMA,
-#ifdef CONFIG_PDC202XX_FORCE
-		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
-#else /* !CONFIG_PDC202XX_FORCE */
+#ifndef CONFIG_PDC202XX_FORCE
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
 #endif
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
 	},{	/* 3 */
-		.vendor		= PCI_VENDOR_ID_PROMISE,
-		.device		= PCI_DEVICE_ID_PROMISE_20265,
 		.name		= "PDC20265",
 		.init_setup	= init_setup_pdc20265,
 		.init_chipset	= init_chipset_pdc202xx,
@@ -290,36 +227,25 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_dma	= init_dma_pdc202xx,
 		.channels	= 2,
 		.autodma	= AUTODMA,
-#ifdef CONFIG_PDC202XX_FORCE
-		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
-#else /* !CONFIG_PDC202XX_FORCE */
+#ifndef CONFIG_PDC202XX_FORCE
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
 #endif
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.flags		= IDEPCI_FLAG_FORCE_PDC,
 	},{	/* 4 */
-		.vendor		= PCI_VENDOR_ID_PROMISE,
-		.device		= PCI_DEVICE_ID_PROMISE_20267,
 		.name		= "PDC20267",
 		.init_setup	= init_setup_pdc202xx,
 		.init_chipset	= init_chipset_pdc202xx,
-		.init_iops	= NULL,
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
 		.channels	= 2,
 		.autodma	= AUTODMA,
-#ifdef CONFIG_PDC202XX_FORCE
-		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
-#else /* !CONFIG_PDC202XX_FORCE */
+#ifndef CONFIG_PDC202XX_FORCE
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
 #endif
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
-	},{
-		.vendor		= 0,
-		.device		= 0,
-		.channels	= 0,
-		.bootable	= EOL,
 	}
 };
 

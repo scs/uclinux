@@ -7,6 +7,7 @@
 #ifndef _SPARC_SBUS_H
 #define _SPARC_SBUS_H
 
+#include <linux/dma-mapping.h>
 #include <linux/ioport.h>
 
 #include <asm/oplib.h>
@@ -106,10 +107,10 @@ extern void sbus_set_sbus64(struct sbus_dev *, int);
 extern void *sbus_alloc_consistent(struct sbus_dev *, long, u32 *dma_addrp);
 extern void sbus_free_consistent(struct sbus_dev *, long, void *, u32);
 
-#define SBUS_DMA_BIDIRECTIONAL	0
-#define SBUS_DMA_TODEVICE	1
-#define SBUS_DMA_FROMDEVICE	2
-#define	SBUS_DMA_NONE		3
+#define SBUS_DMA_BIDIRECTIONAL	DMA_BIDIRECTIONAL
+#define SBUS_DMA_TODEVICE	DMA_TO_DEVICE
+#define SBUS_DMA_FROMDEVICE	DMA_FROM_DEVICE
+#define	SBUS_DMA_NONE		DMA_NONE
 
 /* All the rest use streaming mode mappings. */
 extern dma_addr_t sbus_map_single(struct sbus_dev *, void *, size_t, int);
@@ -118,8 +119,12 @@ extern int sbus_map_sg(struct sbus_dev *, struct scatterlist *, int, int);
 extern void sbus_unmap_sg(struct sbus_dev *, struct scatterlist *, int, int);
 
 /* Finally, allow explicit synchronization of streamable mappings. */
-extern void sbus_dma_sync_single(struct sbus_dev *, dma_addr_t, size_t, int);
-extern void sbus_dma_sync_sg(struct sbus_dev *, struct scatterlist *, int, int);
+extern void sbus_dma_sync_single_for_cpu(struct sbus_dev *, dma_addr_t, size_t, int);
+#define sbus_dma_sync_single sbus_dma_sync_single_for_cpu
+extern void sbus_dma_sync_single_for_device(struct sbus_dev *, dma_addr_t, size_t, int);
+extern void sbus_dma_sync_sg_for_cpu(struct sbus_dev *, struct scatterlist *, int, int);
+#define sbus_dma_sync_sg sbus_dma_sync_sg_for_cpu
+extern void sbus_dma_sync_sg_for_device(struct sbus_dev *, struct scatterlist *, int, int);
 
 /* Eric Brower (ebrower@usa.net)
  * Translate SBus interrupt levels to ino values--

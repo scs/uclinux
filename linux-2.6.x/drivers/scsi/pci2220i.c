@@ -59,7 +59,7 @@
 #include <asm/io.h>
 
 #include "scsi.h"
-#include "hosts.h"
+#include <scsi/scsi_host.h>
 #include "pci2220i.h"
 #include "psi_dale.h"
 
@@ -1389,7 +1389,7 @@ static void ReconTimerExpiry (unsigned long data)
 			 (pdev->DiskMirror[0].pairIdentifier == (pdev->DiskMirror[1].pairIdentifier ^ 1)) )
 			{
 			if ( (pdev->DiskMirror[0].status & UCBF_MATCHED) && (pdev->DiskMirror[1].status & UCBF_MATCHED) )
-				break;;
+				break;
 
 			if ( pdev->DiskMirror[0].status & UCBF_SURVIVOR )				// is first drive survivor?
 				testsize = SetReconstruct (pdev, 0);
@@ -2613,7 +2613,7 @@ int Pci2220i_Detect (Scsi_Host_Template *tpnt)
 	
 		if ( ++Installed < MAXADAPTER )
 			continue;
-		break;;
+		break;
 unregister:;
 		scsi_unregister (pshost);
 		}
@@ -2747,7 +2747,7 @@ unregister:;
 		
 		if ( ++Installed < MAXADAPTER )
 			continue;
-		break;;
+		break;
 unregister1:;
 		scsi_unregister (pshost);
 		}

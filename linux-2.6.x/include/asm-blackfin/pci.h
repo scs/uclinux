@@ -4,7 +4,6 @@
 #define _ASM_BFIN_PCI_H
 
 /*
- * asm-m68k/pci_m68k.h - m68k specific PCI declarations.
  *
  * Written by Wout Klaren.
  */

@@ -351,7 +351,7 @@ static void *z_decomp_alloc(unsigned char *options, int opt_len)
 	state->w_size         = w_size;
 	state->strm.next_out  = NULL;
 	state->strm.workspace = kmalloc(zlib_inflate_workspacesize(),
-					GFP_KERNEL);
+					GFP_KERNEL|__GFP_REPEAT);
 	if (state->strm.workspace == NULL)
 		goto out_free;
 
@@ -655,3 +655,5 @@ void __exit deflate_cleanup(void)
 module_init(deflate_init);
 module_exit(deflate_cleanup);
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_ALIAS("ppp-compress-" __stringify(CI_DEFLATE));
+MODULE_ALIAS("ppp-compress-" __stringify(CI_DEFLATE_DRAFT));

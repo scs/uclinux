@@ -22,6 +22,7 @@
 
 #include <sound/driver.h>
 #include <linux/init.h>
+#include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/initval.h>
@@ -35,9 +36,12 @@ MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("OSS-compatible sequencer module");
 MODULE_LICENSE("GPL");
 MODULE_CLASSES("{sound}");
+/* Takashi says this is really only for sound-service-0-, but this is OK. */
+MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_SEQUENCER);
+MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_MUSIC);
 
 #ifdef SNDRV_SEQ_OSS_DEBUG
-MODULE_PARM(seq_oss_debug, "i");
+module_param(seq_oss_debug, int, 0644);
 MODULE_PARM_DESC(seq_oss_debug, "debug option");
 int seq_oss_debug = 0;
 #endif
@@ -53,8 +57,8 @@ static void unregister_proc(void);
 
 static int odev_open(struct inode *inode, struct file *file);
 static int odev_release(struct inode *inode, struct file *file);
-static ssize_t odev_read(struct file *file, char *buf, size_t count, loff_t *offset);
-static ssize_t odev_write(struct file *file, const char *buf, size_t count, loff_t *offset);
+static ssize_t odev_read(struct file *file, char __user *buf, size_t count, loff_t *offset);
+static ssize_t odev_write(struct file *file, const char __user *buf, size_t count, loff_t *offset);
 static int odev_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 static unsigned int odev_poll(struct file *file, poll_table * wait);
 #ifdef CONFIG_PROC_FS
@@ -151,7 +155,7 @@ odev_release(struct inode *inode, struct file *file)
 }
 
 static ssize_t
-odev_read(struct file *file, char *buf, size_t count, loff_t *offset)
+odev_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
 	seq_oss_devinfo_t *dp;
 	dp = file->private_data;
@@ -161,7 +165,7 @@ odev_read(struct file *file, char *buf, size_t count, loff_t *offset)
 
 
 static ssize_t
-odev_write(struct file *file, const char *buf, size_t count, loff_t *offset)
+odev_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
 {
 	seq_oss_devinfo_t *dp;
 	dp = file->private_data;

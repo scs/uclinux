@@ -1,3 +1,11 @@
+/* (C) 1999-2001 Paul `Rusty' Russell
+ * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -59,7 +67,7 @@ unsigned long ip_ct_tcp_timeout_time_wait =     2 MINS;
 unsigned long ip_ct_tcp_timeout_close =        10 SECS;
 
 static unsigned long * tcp_timeouts[]
-= { 0,                                 /*      TCP_CONNTRACK_NONE */
+= { NULL,                              /*      TCP_CONNTRACK_NONE */
     &ip_ct_tcp_timeout_established,    /*      TCP_CONNTRACK_ESTABLISHED,      */
     &ip_ct_tcp_timeout_syn_sent,       /*      TCP_CONNTRACK_SYN_SENT, */
     &ip_ct_tcp_timeout_syn_recv,       /*      TCP_CONNTRACK_SYN_RECV, */
@@ -68,7 +76,7 @@ static unsigned long * tcp_timeouts[]
     &ip_ct_tcp_timeout_close,          /*      TCP_CONNTRACK_CLOSE,    */
     &ip_ct_tcp_timeout_close_wait,     /*      TCP_CONNTRACK_CLOSE_WAIT,       */
     &ip_ct_tcp_timeout_last_ack,       /*      TCP_CONNTRACK_LAST_ACK, */
-    0,                                 /*      TCP_CONNTRACK_LISTEN */
+    NULL,                              /*      TCP_CONNTRACK_LISTEN */
  };
  
 #define sNO TCP_CONNTRACK_NONE
@@ -169,6 +177,18 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 
 	if (skb_copy_bits(skb, skb->nh.iph->ihl * 4, &tcph, sizeof(tcph)) != 0)
 		return -1;
+	if (skb->len < skb->nh.iph->ihl * 4 + tcph.doff * 4)
+		return -1;
+
+	/* If only reply is a RST, we can consider ourselves not to
+	   have an established connection: this is a fairly common
+	   problem case, so we can delete the conntrack
+	   immediately.  --RR */
+	if (!test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status) && tcph.rst) {
+		if (del_timer(&conntrack->timeout))
+			conntrack->timeout.function((unsigned long)conntrack);
+		return NF_ACCEPT;
+	}
 
 	WRITE_LOCK(&tcp_lock);
 	oldtcpstate = conntrack->proto.tcp.state;
@@ -191,29 +211,21 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 	/* Poor man's window tracking: record SYN/ACK for handshake check */
 	if (oldtcpstate == TCP_CONNTRACK_SYN_SENT
 	    && CTINFO2DIR(ctinfo) == IP_CT_DIR_REPLY
-	    && tcph.syn && tcph.ack)
+	    && tcph.syn && tcph.ack) {
 		conntrack->proto.tcp.handshake_ack
 			= htonl(ntohl(tcph.seq) + 1);
-
-	/* If only reply is a RST, we can consider ourselves not to
-	   have an established connection: this is a fairly common
-	   problem case, so we can delete the conntrack
-	   immediately.  --RR */
-	if (!test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status) && tcph.rst) {
-		WRITE_UNLOCK(&tcp_lock);
-		if (del_timer(&conntrack->timeout))
-			conntrack->timeout.function((unsigned long)conntrack);
-	} else {
-		/* Set ASSURED if we see see valid ack in ESTABLISHED after SYN_RECV */
-		if (oldtcpstate == TCP_CONNTRACK_SYN_RECV
-		    && CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL
-		    && tcph.ack && !tcph.syn
-		    && tcph.ack_seq == conntrack->proto.tcp.handshake_ack)
-			set_bit(IPS_ASSURED_BIT, &conntrack->status);
-
-		WRITE_UNLOCK(&tcp_lock);
-		ip_ct_refresh(conntrack, *tcp_timeouts[newconntrack]);
+		goto out;
 	}
+
+	/* Set ASSURED if we see valid ack in ESTABLISHED after SYN_RECV */
+	if (oldtcpstate == TCP_CONNTRACK_SYN_RECV
+	    && CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL
+	    && tcph.ack && !tcph.syn
+	    && tcph.ack_seq == conntrack->proto.tcp.handshake_ack)
+		set_bit(IPS_ASSURED_BIT, &conntrack->status);
+
+out:	WRITE_UNLOCK(&tcp_lock);
+	ip_ct_refresh(conntrack, *tcp_timeouts[newconntrack]);
 
 	return NF_ACCEPT;
 }

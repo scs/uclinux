@@ -85,7 +85,7 @@ static struct fib6_node * fib6_repair_tree(struct fib6_node *fn);
 
 /*
  *	A routing update causes an increase of the serial number on the
- *	afected subtree. This allows for cached routes to be asynchronously
+ *	affected subtree. This allows for cached routes to be asynchronously
  *	tested when modifications are made to the destination cache as a
  *	result of redirects, path MTU changes, etc.
  */
@@ -94,7 +94,7 @@ static __u32 rt_sernum;
 
 static struct timer_list ip6_fib_timer = TIMER_INITIALIZER(fib6_run_gc, 0, 0);
 
-static struct fib6_walker_t fib6_walker_list = {
+struct fib6_walker_t fib6_walker_list = {
 	.prev	= &fib6_walker_list,
 	.next	= &fib6_walker_list, 
 };
@@ -1239,14 +1239,12 @@ void __init fib6_init(void)
 					   sizeof(struct fib6_node),
 					   0, SLAB_HWCACHE_ALIGN,
 					   NULL, NULL);
+	if (!fib6_node_kmem)
+		panic("cannot create fib6_nodes cache");
 }
 
-#ifdef MODULE
-void fib6_gc_cleanup(void)
+void __exit fib6_gc_cleanup(void)
 {
 	del_timer(&ip6_fib_timer);
 	kmem_cache_destroy(fib6_node_kmem);
 }
-#endif
-
-

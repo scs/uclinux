@@ -7,6 +7,7 @@
 
 #include <linux/timer.h>
 #include <linux/linkage.h>
+#include <linux/bitops.h>
 
 struct workqueue_struct;
 
@@ -49,7 +50,11 @@ struct work_struct {
 		init_timer(&(_work)->timer);			\
 	} while (0)
 
-extern struct workqueue_struct *create_workqueue(const char *name);
+extern struct workqueue_struct *__create_workqueue(const char *name,
+						    int singlethread);
+#define create_workqueue(name) __create_workqueue((name), 0)
+#define create_singlethread_workqueue(name) __create_workqueue((name), 1)
+
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
 extern int FASTCALL(queue_work(struct workqueue_struct *wq, struct work_struct *work));
@@ -60,6 +65,7 @@ extern int FASTCALL(schedule_work(struct work_struct *work));
 extern int FASTCALL(schedule_delayed_work(struct work_struct *work, unsigned long delay));
 extern void flush_scheduled_work(void);
 extern int current_is_keventd(void);
+extern int keventd_up(void);
 
 extern void init_workqueues(void);
 
@@ -70,8 +76,12 @@ extern void init_workqueues(void);
  */
 static inline int cancel_delayed_work(struct work_struct *work)
 {
-	return del_timer_sync(&work->timer);
+	int ret;
+
+	ret = del_timer_sync(&work->timer);
+	if (ret)
+		clear_bit(0, &work->pending);
+	return ret;
 }
 
 #endif
-

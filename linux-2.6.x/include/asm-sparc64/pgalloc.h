@@ -38,11 +38,12 @@ static __inline__ void free_pgd_fast(pgd_t *pgd)
 
 	preempt_disable();
 	if (!page->lru.prev) {
-		(unsigned long *)page->lru.next = pgd_quicklist;
+		page->lru.next = (void *) pgd_quicklist;
 		pgd_quicklist = (unsigned long *)page;
 	}
-	(unsigned long)page->lru.prev |=
-		(((unsigned long)pgd & (PAGE_SIZE / 2)) ? 2 : 1);
+	page->lru.prev = (void *)
+	  (((unsigned long)page->lru.prev) |
+	   (((unsigned long)pgd & (PAGE_SIZE / 2)) ? 2 : 1));
 	pgd_cache_size++;
 	preempt_enable();
 }
@@ -62,7 +63,7 @@ static __inline__ pgd_t *get_pgd_fast(void)
 			off = PAGE_SIZE / 2;
 			mask &= ~2;
 		}
-		(unsigned long)ret->lru.prev = mask;
+		ret->lru.prev = (void *) mask;
 		if (!mask)
 			pgd_quicklist = (unsigned long *)ret->lru.next;
                 ret = (struct page *)(__page_address(ret) + off);
@@ -76,10 +77,10 @@ static __inline__ pgd_t *get_pgd_fast(void)
 		if (page) {
 			ret = (struct page *)page_address(page);
 			clear_page(ret);
-			(unsigned long)page->lru.prev = 2;
+			page->lru.prev = (void *) 2UL;
 
 			preempt_disable();
-			(unsigned long *)page->lru.next = pgd_quicklist;
+			page->lru.next = (void *) pgd_quicklist;
 			pgd_quicklist = (unsigned long *)page;
 			pgd_cache_size++;
 			preempt_enable();
@@ -187,8 +188,31 @@ static __inline__ void free_pmd_slow(pmd_t *pmd)
 #define pmd_populate(MM,PMD,PTE_PAGE)		\
 	pmd_populate_kernel(MM,PMD,page_address(PTE_PAGE))
 
-extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address);
-#define pte_alloc_one(MM,ADDR)	virt_to_page(pte_alloc_one_kernel(MM,ADDR))
+extern pte_t *__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address);
+
+static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+{
+	pte_t *pte = __pte_alloc_one_kernel(mm, address);
+	if (pte) {
+		struct page *page = virt_to_page(pte);
+		page->mapping = (void *) mm;
+		page->index = address & PMD_MASK;
+	}
+	return pte;
+}
+
+static inline struct page *
+pte_alloc_one(struct mm_struct *mm, unsigned long addr)
+{
+	pte_t *pte = __pte_alloc_one_kernel(mm, addr);
+	if (pte) {
+		struct page *page = virt_to_page(pte);
+		page->mapping = (void *) mm;
+		page->index = addr & PMD_MASK;
+		return page;
+	}
+	return NULL;
+}
 
 static __inline__ pte_t *pte_alloc_one_fast(struct mm_struct *mm, unsigned long address)
 {
@@ -221,8 +245,18 @@ static __inline__ void free_pte_slow(pte_t *pte)
 	free_page((unsigned long)pte);
 }
 
-#define pte_free_kernel(pte)	free_pte_fast(pte)
-#define pte_free(pte)		free_pte_fast(page_address(pte))
+static inline void pte_free_kernel(pte_t *pte)
+{
+	virt_to_page(pte)->mapping = NULL;
+	free_pte_fast(pte);
+}
+
+static inline void pte_free(struct page *ptepage)
+{
+	ptepage->mapping = NULL;
+	free_pte_fast(page_address(ptepage));
+}
+
 #define pmd_free(pmd)		free_pmd_fast(pmd)
 #define pgd_free(pgd)		free_pgd_fast(pgd)
 #define pgd_alloc(mm)		get_pgd_fast()

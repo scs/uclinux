@@ -26,7 +26,7 @@
 #include <linux/interrupt.h>
 
 #include "scsi.h"
-#include "hosts.h"
+#include <scsi/scsi_host.h>
 #include "NCR53C9x.h"
 
 #include <asm/io.h>
@@ -734,6 +734,8 @@ static Scsi_Host_Template driver_template = {
 	.proc_name		= "esp",
 	.name			= "Mac 53C9x SCSI",
 	.detect			= mac_esp_detect,
+	.slave_alloc		= esp_slave_alloc,
+	.slave_destroy		= esp_slave_destroy,
 	.release		= mac_esp_release,
 	.info			= esp_info,
 	.queuecommand		= esp_queue,

@@ -18,7 +18,7 @@
 *! Jul 21 1999  Bjorn Wesen     eLinux port
 *!
 *! $Log$
-*! Revision 1.3  2004/09/08 10:19:15  lgsoft
+*! Revision 1.4  2004/09/08 14:52:21  lgsoft
 *! Import of 2.6.8
 *!
 *! Revision 1.4  2003/04/09 05:20:44  starvik

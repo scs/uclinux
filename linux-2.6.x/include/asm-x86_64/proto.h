@@ -21,10 +21,10 @@ extern void syscall_init(void);
 
 extern void ia32_syscall(void);
 extern void ia32_cstar_target(void); 
+extern void ia32_sysenter_target(void); 
 
 extern void calibrate_delay(void);
 extern void cpu_idle(void);
-extern void sys_ni_syscall(void);
 extern void config_acpi_tables(void);
 extern void ia32_syscall(void);
 extern void iommu_hole_init(void);
@@ -38,9 +38,11 @@ extern int numa_setup(char *opt);
 extern int setup_early_printk(char *); 
 extern void early_printk(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
+extern void early_identify_cpu(struct cpuinfo_x86 *c);
+
 extern int k8_scan_nodes(unsigned long start, unsigned long end);
 
-extern int numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn);
+extern void numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn);
 extern unsigned long numa_free_all_bootmem(void);
 
 extern void reserve_bootmem_generic(unsigned long phys, unsigned len);
@@ -69,12 +71,18 @@ extern void show_regs(struct pt_regs * regs);
 
 extern int map_syscall32(struct mm_struct *mm, unsigned long address);
 extern char *syscall32_page;
+extern void syscall32_cpu_init(void);
 
 extern void setup_node_bootmem(int nodeid, unsigned long start, unsigned long end);
 
 extern void check_ioapic(void);
+extern void check_efer(void);
 
 extern int unhandled_signal(struct task_struct *tsk, int sig);
+
+extern void select_idle_routine(const struct cpuinfo_x86 *c);
+extern void swiotlb_init(void);
+extern int swiotlb;
 
 extern unsigned long max_mapnr;
 extern unsigned long end_pfn; 
@@ -92,6 +100,9 @@ extern int acpi_disabled;
 
 extern int fallback_aper_order;
 extern int fallback_aper_force;
+extern int iommu_aperture;
+extern int iommu_aperture_disabled;
+extern int iommu_aperture_allowed;
 
 extern void smp_local_timer_interrupt(struct pt_regs * regs);
 

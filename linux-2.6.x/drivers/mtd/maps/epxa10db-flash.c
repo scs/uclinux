@@ -50,7 +50,7 @@ static int epxa_default_partitions(struct mtd_info *master, struct mtd_partition
 static struct map_info epxa_map = {
 	.name =		"EPXA flash",
 	.size =		FLASH_SIZE,
-	.buswidth =	2,
+	.bankwidth =	2,
 	.phys =		FLASH_START,
 };
 

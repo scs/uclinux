@@ -27,7 +27,7 @@ static inline void lprintk(char *buf)
 		p = strchr(buf, '\n');
 		if (p)
 			*p = 0;
-		printk("%s\n", buf);
+		printk(KERN_DEBUG "%s\n", buf);
 		buf = p;
 		if (buf)
 			buf++;
@@ -210,7 +210,7 @@ static const char *qh_names[] = {
   "skel_int32_qh", "skel_int16_qh",
   "skel_int8_qh", "skel_int4_qh",
   "skel_int2_qh", "skel_int1_qh",
-  "skel_ls_control_qh", "skel_hs_control_qh",
+  "skel_ls_control_qh", "skel_fs_control_qh",
   "skel_bulk_qh", "skel_term_qh"
 };
 
@@ -225,20 +225,22 @@ static int uhci_show_sc(int port, unsigned short status, char *buf, int len)
 	char *out = buf;
 
 	/* Try to make sure there's enough memory */
-	if (len < 80)
+	if (len < 160)
 		return 0;
 
-	out += sprintf(out, "  stat%d     =     %04x   %s%s%s%s%s%s%s%s\n",
+	out += sprintf(out, "  stat%d     =     %04x  %s%s%s%s%s%s%s%s%s%s\n",
 		port,
 		status,
-		(status & USBPORTSC_SUSP) ? "PortSuspend " : "",
-		(status & USBPORTSC_PR) ?   "PortReset " : "",
-		(status & USBPORTSC_LSDA) ? "LowSpeed " : "",
-		(status & USBPORTSC_RD) ?   "ResumeDetect " : "",
-		(status & USBPORTSC_PEC) ?  "EnableChange " : "",
-		(status & USBPORTSC_PE) ?   "PortEnabled " : "",
-		(status & USBPORTSC_CSC) ?  "ConnectChange " : "",
-		(status & USBPORTSC_CCS) ?  "PortConnected " : "");
+		(status & USBPORTSC_SUSP) ?	" Suspend" : "",
+		(status & USBPORTSC_OCC) ?	" OverCurrentChange" : "",
+		(status & USBPORTSC_OC) ?	" OverCurrent" : "",
+		(status & USBPORTSC_PR) ?	" Reset" : "",
+		(status & USBPORTSC_LSDA) ?	" LowSpeed" : "",
+		(status & USBPORTSC_RD) ?	" ResumeDetect" : "",
+		(status & USBPORTSC_PEC) ?	" EnableChange" : "",
+		(status & USBPORTSC_PE) ?	" Enabled" : "",
+		(status & USBPORTSC_CSC) ?	" ConnectChange" : "",
+		(status & USBPORTSC_CCS) ?	" Connected" : "");
 
 	return out - buf;
 }
@@ -246,7 +248,7 @@ static int uhci_show_sc(int port, unsigned short status, char *buf, int len)
 static int uhci_show_status(struct uhci_hcd *uhci, char *buf, int len)
 {
 	char *out = buf;
-	unsigned int io_addr = uhci->io_addr;
+	unsigned long io_addr = uhci->io_addr;
 	unsigned short usbcmd, usbstat, usbint, usbfrnum;
 	unsigned int flbaseadd;
 	unsigned char sof;
@@ -321,26 +323,22 @@ static int uhci_show_urbp(struct uhci_hcd *uhci, struct urb_priv *urbp, char *bu
 	out += sprintf(out, "%s", (urbp->fsbr ? "FSBR " : ""));
 	out += sprintf(out, "%s", (urbp->fsbr_timeout ? "FSBR_TO " : ""));
 
-	if (urbp->status != -EINPROGRESS)
-		out += sprintf(out, "Status=%d ", urbp->status);
+	if (urbp->urb->status != -EINPROGRESS)
+		out += sprintf(out, "Status=%d ", urbp->urb->status);
 	//out += sprintf(out, "Inserttime=%lx ",urbp->inserttime);
 	//out += sprintf(out, "FSBRtime=%lx ",urbp->fsbrtime);
 
-	spin_lock(&urbp->urb->lock);
 	count = 0;
 	list_for_each(tmp, &urbp->td_list)
 		count++;
-	spin_unlock(&urbp->urb->lock);
 	out += sprintf(out, "TDs=%d ",count);
 
 	if (urbp->queued)
 		out += sprintf(out, "queued\n");
 	else {
-		spin_lock(&uhci->frame_list_lock);
 		count = 0;
 		list_for_each(tmp, &urbp->queue_list)
 			count++;
-		spin_unlock(&uhci->frame_list_lock);
 		out += sprintf(out, "queued URBs=%d\n", count);
 	}
 
@@ -350,12 +348,10 @@ static int uhci_show_urbp(struct uhci_hcd *uhci, struct urb_priv *urbp, char *bu
 static int uhci_show_lists(struct uhci_hcd *uhci, char *buf, int len)
 {
 	char *out = buf;
-	unsigned long flags;
 	struct list_head *head, *tmp;
 	int count;
 
 	out += sprintf(out, "Main list URBs:");
-	spin_lock_irqsave(&uhci->urb_list_lock, flags);
 	if (list_empty(&uhci->urb_list))
 		out += sprintf(out, " Empty\n");
 	else {
@@ -371,10 +367,8 @@ static int uhci_show_lists(struct uhci_hcd *uhci, char *buf, int len)
 			tmp = tmp->next;
 		}
 	}
-	spin_unlock_irqrestore(&uhci->urb_list_lock, flags);
 
 	out += sprintf(out, "Remove list URBs:");
-	spin_lock_irqsave(&uhci->urb_remove_list_lock, flags);
 	if (list_empty(&uhci->urb_remove_list))
 		out += sprintf(out, " Empty\n");
 	else {
@@ -390,10 +384,8 @@ static int uhci_show_lists(struct uhci_hcd *uhci, char *buf, int len)
 			tmp = tmp->next;
 		}
 	}
-	spin_unlock_irqrestore(&uhci->urb_remove_list_lock, flags);
 
 	out += sprintf(out, "Complete list URBs:");
-	spin_lock_irqsave(&uhci->complete_list_lock, flags);
 	if (list_empty(&uhci->complete_list))
 		out += sprintf(out, " Empty\n");
 	else {
@@ -402,14 +394,13 @@ static int uhci_show_lists(struct uhci_hcd *uhci, char *buf, int len)
 		head = &uhci->complete_list;
 		tmp = head->next;
 		while (tmp != head) {
-			struct urb_priv *urbp = list_entry(tmp, struct urb_priv, complete_list);
+			struct urb_priv *urbp = list_entry(tmp, struct urb_priv, urb_list);
 
 			out += sprintf(out, "  %d: ", ++count);
 			out += uhci_show_urbp(uhci, urbp, out, len - (out - buf));
 			tmp = tmp->next;
 		}
 	}
-	spin_unlock_irqrestore(&uhci->complete_list_lock, flags);
 
 	return out - buf;
 }
@@ -418,12 +409,12 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 {
 	unsigned long flags;
 	char *out = buf;
-	int i;
+	int i, j;
 	struct uhci_qh *qh;
 	struct uhci_td *td;
 	struct list_head *tmp, *head;
 
-	spin_lock_irqsave(&uhci->frame_list_lock, flags);
+	spin_lock_irqsave(&uhci->schedule_lock, flags);
 
 	out += sprintf(out, "HC status\n");
 	out += uhci_show_status(uhci, out, len - (out - buf));
@@ -473,10 +464,11 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 			continue;
 		}
 
+		j = (i < 7) ? 7 : i+1;		/* Next skeleton */
 		if (list_empty(&qh->list)) {
 			if (i < UHCI_NUM_SKELQH - 1) {
 				if (qh->link !=
-				    (cpu_to_le32(uhci->skelqh[i + 1]->dma_handle) | UHCI_PTR_QH)) {
+				    (cpu_to_le32(uhci->skelqh[j]->dma_handle) | UHCI_PTR_QH)) {
 					show_qh_name();
 					out += sprintf(out, "    skeleton QH not linked to next skeleton QH!\n");
 				}
@@ -500,15 +492,15 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 
 		if (i < UHCI_NUM_SKELQH - 1) {
 			if (qh->link !=
-			    (cpu_to_le32(uhci->skelqh[i + 1]->dma_handle) | UHCI_PTR_QH))
+			    (cpu_to_le32(uhci->skelqh[j]->dma_handle) | UHCI_PTR_QH))
 				out += sprintf(out, "    last QH not linked to next skeleton!\n");
 		}
 	}
 
-	spin_unlock_irqrestore(&uhci->frame_list_lock, flags);
-
 	if (debug > 2)
 		out += uhci_show_lists(uhci, out, len - (out - buf));
+
+	spin_unlock_irqrestore(&uhci->schedule_lock, flags);
 
 	return out - buf;
 }
@@ -575,31 +567,11 @@ static loff_t uhci_proc_lseek(struct file *file, loff_t off, int whence)
 	return (file->f_pos = new);
 }
 
-static ssize_t uhci_proc_read(struct file *file, char *buf, size_t nbytes,
-			loff_t *ppos)
+static ssize_t uhci_proc_read(struct file *file, char __user *buf,
+				size_t nbytes, loff_t *ppos)
 {
 	struct uhci_proc *up = file->private_data;
-	unsigned int pos;
-	unsigned int size;
-
-	pos = *ppos;
-	size = up->size;
-	if (pos >= size)
-		return 0;
-	if (nbytes >= size)
-		nbytes = size;
-	if (pos + nbytes > size)
-		nbytes = size - pos;
-
-	if (!access_ok(VERIFY_WRITE, buf, nbytes))
-		return -EINVAL;
-
-	if (copy_to_user(buf, up->data + pos, nbytes))
-		return -EFAULT;
-
-	*ppos += nbytes;
-
-	return nbytes;
+	return simple_read_from_buffer(buf, nbytes, ppos, up->data, up->size);
 }
 
 static int uhci_proc_release(struct inode *inode, struct file *file)
@@ -620,4 +592,3 @@ static struct file_operations uhci_proc_operations = {
 	.release =	uhci_proc_release,
 };
 #endif
-

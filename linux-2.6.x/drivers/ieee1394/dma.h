@@ -14,7 +14,7 @@
 #include <asm/scatterlist.h>
 
 /* struct dma_prog_region
-   
+
    a small, physically-contiguous DMA buffer with random-access,
    synchronous usage characteristics
 */
@@ -37,7 +37,7 @@ static inline dma_addr_t dma_prog_region_offset_to_bus(struct dma_prog_region *p
 }
 
 /* struct dma_region
-   
+
    a large, non-physically-contiguous DMA buffer with streaming,
    asynchronous usage characteristics
 */
@@ -60,8 +60,10 @@ int  dma_region_alloc(struct dma_region *dma, unsigned long n_bytes, struct pci_
 /* unmap and free the buffer */
 void dma_region_free(struct dma_region *dma);
 
-/* sync the IO bus' view of the buffer with the CPU's view */
-void dma_region_sync(struct dma_region *dma, unsigned long offset, unsigned long len);
+/* sync the CPU's view of the buffer */
+void dma_region_sync_for_cpu(struct dma_region *dma, unsigned long offset, unsigned long len);
+/* sync the IO bus' view of the buffer */
+void dma_region_sync_for_device(struct dma_region *dma, unsigned long offset, unsigned long len);
 
 /* map the buffer into a user space process */
 int  dma_region_mmap(struct dma_region *dma, struct file *file, struct vm_area_struct *vma);
@@ -72,13 +74,5 @@ int  dma_region_mmap(struct dma_region *dma, struct file *file, struct vm_area_s
 /* return the DMA bus address of the byte with the given offset
    relative to the beginning of the dma_region */
 dma_addr_t dma_region_offset_to_bus(struct dma_region *dma, unsigned long offset);
-
-/* round up a number of bytes to be a multiple of the PAGE_SIZE */
-static inline unsigned long round_up_to_page(unsigned long len)
-{
-	if (len % PAGE_SIZE)
-		len += PAGE_SIZE - (len % PAGE_SIZE);
-	return len;
-}
 
 #endif /* IEEE1394_DMA_H */

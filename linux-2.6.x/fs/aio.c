@@ -15,7 +15,7 @@
 #include <linux/aio_abi.h>
 #include <linux/module.h>
 
-//#define DEBUG 1
+#define DEBUG 0
 
 #include <linux/sched.h>
 #include <linux/fs.h>
@@ -27,6 +27,7 @@
 #include <linux/aio.h>
 #include <linux/highmem.h>
 #include <linux/workqueue.h>
+#include <linux/security.h>
 
 #include <asm/kmap_types.h>
 #include <asm/uaccess.h>
@@ -64,14 +65,9 @@ static void aio_kick_handler(void *);
 static int __init aio_setup(void)
 {
 	kiocb_cachep = kmem_cache_create("kiocb", sizeof(struct kiocb),
-				0, SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if (!kiocb_cachep)
-		panic("unable to create kiocb cache\n");
-
+				0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
 	kioctx_cachep = kmem_cache_create("kioctx", sizeof(struct kioctx),
-				0, SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if (!kioctx_cachep)
-		panic("unable to create kioctx cache");
+				0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
 
 	aio_wq = create_workqueue("aio");
 
@@ -312,7 +308,7 @@ void wait_for_all_aios(struct kioctx *ctx)
 /* wait_on_sync_kiocb:
  *	Waits on the given sync kiocb to complete.
  */
-ssize_t wait_on_sync_kiocb(struct kiocb *iocb)
+ssize_t fastcall wait_on_sync_kiocb(struct kiocb *iocb)
 {
 	while (iocb->ki_users) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -331,7 +327,7 @@ ssize_t wait_on_sync_kiocb(struct kiocb *iocb)
  * go away, they will call put_ioctx and release any pinned memory
  * associated with the request (held via struct page * references).
  */
-void exit_aio(struct mm_struct *mm)
+void fastcall exit_aio(struct mm_struct *mm)
 {
 	struct kioctx *ctx = mm->ioctx_list;
 	mm->ioctx_list = NULL;
@@ -356,7 +352,7 @@ void exit_aio(struct mm_struct *mm)
  *	Called when the last user of an aio context has gone away,
  *	and the struct needs to be freed.
  */
-void __put_ioctx(struct kioctx *ctx)
+void fastcall __put_ioctx(struct kioctx *ctx)
 {
 	unsigned nr_events = ctx->max_reqs;
 
@@ -383,7 +379,7 @@ void __put_ioctx(struct kioctx *ctx)
  * req (after submitting it) and aio_complete() freeing the req.
  */
 static struct kiocb *FASTCALL(__aio_get_req(struct kioctx *ctx));
-static struct kiocb *__aio_get_req(struct kioctx *ctx)
+static struct kiocb fastcall *__aio_get_req(struct kioctx *ctx)
 {
 	struct kiocb *req = NULL;
 	struct aio_ring *ring;
@@ -399,7 +395,9 @@ static struct kiocb *__aio_get_req(struct kioctx *ctx)
 	req->ki_ctx = ctx;
 	req->ki_cancel = NULL;
 	req->ki_retry = NULL;
-	req->ki_user_obj = NULL;
+	req->ki_obj.user = NULL;
+	req->ki_dtor = NULL;
+	req->private = NULL;
 
 	/* Check if the completion queue has enough free space to
 	 * accept an event from this io.
@@ -440,9 +438,13 @@ static inline struct kiocb *aio_get_req(struct kioctx *ctx)
 
 static inline void really_put_req(struct kioctx *ctx, struct kiocb *req)
 {
+	if (req->ki_dtor)
+		req->ki_dtor(req);
 	req->ki_ctx = NULL;
 	req->ki_filp = NULL;
-	req->ki_user_obj = NULL;
+	req->ki_obj.user = NULL;
+	req->ki_dtor = NULL;
+	req->private = NULL;
 	kmem_cache_free(kiocb_cachep, req);
 	ctx->reqs_active--;
 
@@ -509,7 +511,7 @@ static int __aio_put_req(struct kioctx *ctx, struct kiocb *req)
  *	Returns true if this put was the last user of the kiocb,
  *	false if the request is still in use.
  */
-int aio_put_req(struct kiocb *req)
+int fastcall aio_put_req(struct kiocb *req)
 {
 	struct kioctx *ctx = req->ki_ctx;
 	int ret;
@@ -543,19 +545,25 @@ struct kioctx *lookup_ioctx(unsigned long ctx_id)
 
 static void use_mm(struct mm_struct *mm)
 {
-	struct mm_struct *active_mm = current->active_mm;
+	struct mm_struct *active_mm;
+
 	atomic_inc(&mm->mm_count);
+	task_lock(current);
+	active_mm = current->active_mm;
 	current->mm = mm;
 	if (mm != active_mm) {
 		current->active_mm = mm;
 		activate_mm(active_mm, mm);
 	}
+	task_unlock(current);
 	mmdrop(active_mm);
 }
 
 static void unuse_mm(struct mm_struct *mm)
 {
+	task_lock(current);
 	current->mm = NULL;
+	task_unlock(current);
 	/* active_mm is still 'mm' */
 	enter_lazy_tlb(mm, current);
 }
@@ -596,7 +604,7 @@ static void aio_kick_handler(void *data)
 	unuse_mm(ctx->mm);
 }
 
-void kick_iocb(struct kiocb *iocb)
+void fastcall kick_iocb(struct kiocb *iocb)
 {
 	struct kioctx	*ctx = iocb->ki_ctx;
 
@@ -604,7 +612,7 @@ void kick_iocb(struct kiocb *iocb)
 	 * single context. */
 	if (is_sync_kiocb(iocb)) {
 		kiocbSetKicked(iocb);
-		wake_up_process(iocb->ki_user_obj);
+		wake_up_process(iocb->ki_obj.tsk);
 		return;
 	}
 
@@ -613,16 +621,17 @@ void kick_iocb(struct kiocb *iocb)
 		spin_lock_irqsave(&ctx->ctx_lock, flags);
 		list_add_tail(&iocb->ki_run_list, &ctx->run_list);
 		spin_unlock_irqrestore(&ctx->ctx_lock, flags);
-		schedule_work(&ctx->wq);
+		queue_work(aio_wq, &ctx->wq);
 	}
 }
+EXPORT_SYMBOL(kick_iocb);
 
 /* aio_complete
  *	Called when the io request on the given iocb is complete.
  *	Returns true if this is the last user of the request.  The 
  *	only other user of the request can be the cancellation code.
  */
-int aio_complete(struct kiocb *iocb, long res, long res2)
+int fastcall aio_complete(struct kiocb *iocb, long res, long res2)
 {
 	struct kioctx	*ctx = iocb->ki_ctx;
 	struct aio_ring_info	*info;
@@ -652,7 +661,7 @@ int aio_complete(struct kiocb *iocb, long res, long res2)
 			spin_unlock_irq(&ctx->ctx_lock);
 		}
 		/* sync iocbs put the task here for us */
-		wake_up_process(iocb->ki_user_obj);
+		wake_up_process(iocb->ki_obj.tsk);
 		return ret;
 	}
 
@@ -672,13 +681,13 @@ int aio_complete(struct kiocb *iocb, long res, long res2)
 	event = aio_ring_event(info, tail, KM_IRQ0);
 	tail = (tail + 1) % info->nr;
 
-	event->obj = (u64)(unsigned long)iocb->ki_user_obj;
+	event->obj = (u64)(unsigned long)iocb->ki_obj.user;
 	event->data = iocb->ki_user_data;
 	event->res = res;
 	event->res2 = res2;
 
 	dprintk("aio_complete: %p[%lu]: %p: %p %Lx %lx %lx\n",
-		ctx, tail, iocb, iocb->ki_user_obj, iocb->ki_user_data,
+		ctx, tail, iocb, iocb->ki_obj.user, iocb->ki_user_data,
 		res, res2);
 
 	/* after flagging the request as done, we
@@ -776,30 +785,22 @@ static inline void init_timeout(struct timeout *to)
 static inline void set_timeout(long start_jiffies, struct timeout *to,
 			       const struct timespec *ts)
 {
-	unsigned long how_long;
-
-	if (ts->tv_sec < 0 || (!ts->tv_sec && !ts->tv_nsec)) {
+	to->timer.expires = start_jiffies + timespec_to_jiffies(ts);
+	if (time_after(to->timer.expires, jiffies))
+		add_timer(&to->timer);
+	else
 		to->timed_out = 1;
-		return;
-	}
-
-	how_long = ts->tv_sec * HZ;
-#define HZ_NS (1000000000 / HZ)
-	how_long += (ts->tv_nsec + HZ_NS - 1) / HZ_NS;
-	
-	to->timer.expires = jiffies + how_long;
-	add_timer(&to->timer);
 }
 
 static inline void clear_timeout(struct timeout *to)
 {
-	del_timer_sync(&to->timer);
+	del_singleshot_timer_sync(&to->timer);
 }
 
 static int read_events(struct kioctx *ctx,
 			long min_nr, long nr,
-			struct io_event *event,
-			struct timespec *timeout)
+			struct io_event __user *event,
+			struct timespec __user *timeout)
 {
 	long			start_jiffies = jiffies;
 	struct task_struct	*tsk = current;
@@ -939,7 +940,7 @@ static void io_destroy(struct kioctx *ioctx)
  *	pointer is passed for ctxp.  Will fail with -ENOSYS if not
  *	implemented.
  */
-asmlinkage long sys_io_setup(unsigned nr_events, aio_context_t *ctxp)
+asmlinkage long sys_io_setup(unsigned nr_events, aio_context_t __user *ctxp)
 {
 	struct kioctx *ioctx = NULL;
 	unsigned long ctx;
@@ -961,6 +962,7 @@ asmlinkage long sys_io_setup(unsigned nr_events, aio_context_t *ctxp)
 		ret = put_user(ioctx->user_id, ctxp);
 		if (!ret)
 			return 0;
+	 	get_ioctx(ioctx);
 		io_destroy(ioctx);
 	}
 
@@ -985,13 +987,13 @@ asmlinkage long sys_io_destroy(aio_context_t ctx)
 	return -EINVAL;
 }
 
-int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
+int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 			 struct iocb *iocb)
 {
 	struct kiocb *req;
 	struct file *file;
 	ssize_t ret;
-	char *buf;
+	char __user *buf;
 
 	/* enforce forwards compatibility on users */
 	if (unlikely(iocb->aio_reserved1 || iocb->aio_reserved2 ||
@@ -1028,11 +1030,11 @@ int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		goto out_put_req;
 	}
 
-	req->ki_user_obj = user_iocb;
+	req->ki_obj.user = user_iocb;
 	req->ki_user_data = iocb->aio_data;
 	req->ki_pos = iocb->aio_offset;
 
-	buf = (char *)(unsigned long)iocb->aio_buf;
+	buf = (char __user *)(unsigned long)iocb->aio_buf;
 
 	switch (iocb->aio_lio_opcode) {
 	case IOCB_CMD_PREAD:
@@ -1041,6 +1043,9 @@ int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 			goto out_put_req;
 		ret = -EFAULT;
 		if (unlikely(!access_ok(VERIFY_WRITE, buf, iocb->aio_nbytes)))
+			goto out_put_req;
+		ret = security_file_permission (file, MAY_READ);
+		if (ret)
 			goto out_put_req;
 		ret = -EINVAL;
 		if (file->f_op->aio_read)
@@ -1053,6 +1058,9 @@ int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 			goto out_put_req;
 		ret = -EFAULT;
 		if (unlikely(!access_ok(VERIFY_READ, buf, iocb->aio_nbytes)))
+			goto out_put_req;
+		ret = security_file_permission (file, MAY_WRITE);
+		if (ret)
 			goto out_put_req;
 		ret = -EINVAL;
 		if (file->f_op->aio_write)
@@ -1099,7 +1107,7 @@ out_put_req:
  *	fail with -ENOSYS if not implemented.
  */
 asmlinkage long sys_io_submit(aio_context_t ctx_id, long nr,
-			      struct iocb __user **iocbpp)
+			      struct iocb __user * __user *iocbpp)
 {
 	struct kioctx *ctx;
 	long ret = 0;
@@ -1148,13 +1156,13 @@ asmlinkage long sys_io_submit(aio_context_t ctx_id, long nr,
  *	Finds a given iocb for cancellation.
  *	MUST be called with ctx->ctx_lock held.
  */
-struct kiocb *lookup_kiocb(struct kioctx *ctx, struct iocb *iocb, u32 key)
+struct kiocb *lookup_kiocb(struct kioctx *ctx, struct iocb __user *iocb, u32 key)
 {
 	struct list_head *pos;
 	/* TODO: use a hash or array, this sucks. */
 	list_for_each(pos, &ctx->active_reqs) {
 		struct kiocb *kiocb = list_kiocb(pos);
-		if (kiocb->ki_user_obj == iocb && kiocb->ki_key == key)
+		if (kiocb->ki_obj.user == iocb && kiocb->ki_key == key)
 			return kiocb;
 	}
 	return NULL;
@@ -1170,8 +1178,8 @@ struct kiocb *lookup_kiocb(struct kioctx *ctx, struct iocb *iocb, u32 key)
  *	invalid.  May fail with -EAGAIN if the iocb specified was not
  *	cancelled.  Will fail with -ENOSYS if not implemented.
  */
-asmlinkage long sys_io_cancel(aio_context_t ctx_id, struct iocb *iocb,
-			      struct io_event *result)
+asmlinkage long sys_io_cancel(aio_context_t ctx_id, struct iocb __user *iocb,
+			      struct io_event __user *result)
 {
 	int (*cancel)(struct kiocb *iocb, struct io_event *res);
 	struct kioctx *ctx;
@@ -1201,7 +1209,7 @@ asmlinkage long sys_io_cancel(aio_context_t ctx_id, struct iocb *iocb,
 		struct io_event tmp;
 		pr_debug("calling cancel\n");
 		memset(&tmp, 0, sizeof(tmp));
-		tmp.obj = (u64)(unsigned long)kiocb->ki_user_obj;
+		tmp.obj = (u64)(unsigned long)kiocb->ki_obj.user;
 		tmp.data = kiocb->ki_user_data;
 		ret = cancel(kiocb, &tmp);
 		if (!ret) {
@@ -1234,17 +1242,15 @@ asmlinkage long sys_io_cancel(aio_context_t ctx_id, struct iocb *iocb,
 asmlinkage long sys_io_getevents(aio_context_t ctx_id,
 				 long min_nr,
 				 long nr,
-				 struct io_event *events,
-				 struct timespec *timeout)
+				 struct io_event __user *events,
+				 struct timespec __user *timeout)
 {
 	struct kioctx *ioctx = lookup_ioctx(ctx_id);
 	long ret = -EINVAL;
 
-	if (unlikely(min_nr > nr || min_nr < 0 || nr < 0))
-		return ret;
-
-	if (likely(NULL != ioctx)) {
-		ret = read_events(ioctx, min_nr, nr, events, timeout);
+	if (likely(ioctx)) {
+		if (likely(min_nr <= nr && min_nr >= 0 && nr >= 0))
+			ret = read_events(ioctx, min_nr, nr, events, timeout);
 		put_ioctx(ioctx);
 	}
 

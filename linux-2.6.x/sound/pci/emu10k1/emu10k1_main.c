@@ -97,7 +97,8 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 	unsigned int silent_page;
 
 	emu->fx8010.itram_size = (16 * 1024)/2;
-	emu->fx8010.etram_size = 0;
+	emu->fx8010.etram_pages.area = NULL;
+	emu->fx8010.etram_pages.bytes = 0;
 
 	/* disable audio and lock cache */
 	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, emu->port + HCFG);
@@ -184,15 +185,15 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 	/*
 	 *  Clear page with silence & setup all pointers to this page
 	 */
-	memset(emu->silent_page, 0, PAGE_SIZE);
-	silent_page = emu->silent_page_dmaaddr << 1;
+	memset(emu->silent_page.area, 0, PAGE_SIZE);
+	silent_page = emu->silent_page.addr << 1;
 	for (idx = 0; idx < MAXPAGES; idx++)
-		emu->ptb_pages[idx] = cpu_to_le32(silent_page | idx);
-	snd_emu10k1_ptr_write(emu, PTB, 0, emu->ptb_pages_dmaaddr);
+		((u32 *)emu->ptb_pages.area)[idx] = cpu_to_le32(silent_page | idx);
+	snd_emu10k1_ptr_write(emu, PTB, 0, emu->ptb_pages.addr);
 	snd_emu10k1_ptr_write(emu, TCB, 0, 0);	/* taken from original driver */
 	snd_emu10k1_ptr_write(emu, TCBS, 0, 4);	/* taken from original driver */
 
-	silent_page = (emu->silent_page_dmaaddr << 1) | MAP_PTI_MASK;
+	silent_page = (emu->silent_page.addr << 1) | MAP_PTI_MASK;
 	for (ch = 0; ch < NUM_G; ch++) {
 		snd_emu10k1_ptr_write(emu, MAPA, ch, silent_page);
 		snd_emu10k1_ptr_write(emu, MAPB, ch, silent_page);
@@ -239,14 +240,9 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
  		}
 	}
 	
-	if (!emu->APS) {	/* enable analog output */
-		if (!emu->audigy) {
-			unsigned int reg = inl(emu->port + HCFG);
-			outl(reg | HCFG_GPOUT0, emu->port + HCFG);
-		} else {
-			unsigned int reg = inl(emu->port + A_IOCFG);
-			outl(reg | A_IOCFG_GPOUT0, emu->port + A_IOCFG);
-		}
+	if (emu->audigy) {	/* enable analog output */
+		unsigned int reg = inl(emu->port + A_IOCFG);
+		outl(reg | A_IOCFG_GPOUT0, emu->port + A_IOCFG);
 	}
 
 	/*
@@ -269,6 +265,9 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 			 * This has to be done after init ALice3 I2SOut beyond 48KHz.
 			 * So, sequence is important. */
 			outl(inl(emu->port + A_IOCFG) | 0x0040, emu->port + A_IOCFG);
+		} else {
+			/* Disable routing from AC97 line out to Front speakers */
+			outl(inl(emu->port + A_IOCFG) | 0x0080, emu->port + A_IOCFG);
 		}
 	}
 	
@@ -548,10 +547,10 @@ static int snd_emu10k1_free(emu10k1_t *emu)
        	}
 	if (emu->memhdr)
 		snd_util_memhdr_free(emu->memhdr);
-	if (emu->silent_page)
-		snd_free_pci_pages(emu->pci, EMUPAGESIZE, emu->silent_page, emu->silent_page_dmaaddr);
-	if (emu->ptb_pages)
-		snd_free_pci_pages(emu->pci, 32 * 1024, (void *)emu->ptb_pages, emu->ptb_pages_dmaaddr);
+	if (emu->silent_page.area)
+		snd_dma_free_pages(&emu->dma_dev, &emu->silent_page);
+	if (emu->ptb_pages.area)
+		snd_dma_free_pages(&emu->dma_dev, &emu->ptb_pages);
 	if (emu->page_ptr_table)
 		vfree(emu->page_ptr_table);
 	if (emu->page_addr_table)
@@ -601,7 +600,8 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 		return -ENOMEM;
 	/* set the DMA transfer mask */
 	emu->dma_mask = is_audigy ? AUDIGY_DMA_MASK : EMU10K1_DMA_MASK;
-	if (pci_set_dma_mask(pci, emu->dma_mask) < 0) {
+	if (pci_set_dma_mask(pci, emu->dma_mask) < 0 ||
+	    pci_set_consistent_dma_mask(pci, emu->dma_mask) < 0) {
 		snd_printk(KERN_ERR "architecture does not support PCI busmaster DMA with mask 0x%lx\n", emu->dma_mask);
 		snd_magic_kfree(emu);
 		return -ENXIO;
@@ -639,9 +639,12 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	}
 	emu->irq = pci->irq;
 
+	memset(&emu->dma_dev, 0, sizeof(emu->dma_dev));
+	emu->dma_dev.type = SNDRV_DMA_TYPE_DEV;
+	emu->dma_dev.dev = snd_dma_pci_data(pci);
+
 	emu->max_cache_pages = max_cache_bytes >> PAGE_SHIFT;
-	emu->ptb_pages = snd_malloc_pci_pages(pci, 32 * 1024, &emu->ptb_pages_dmaaddr);
-	if (emu->ptb_pages == NULL) {
+	if (snd_dma_alloc_pages(&emu->dma_dev, 32 * 1024, &emu->ptb_pages) < 0) {
 		snd_emu10k1_free(emu);
 		return -ENOMEM;
 	}
@@ -653,8 +656,7 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 		return -ENOMEM;
 	}
 
-	emu->silent_page = snd_malloc_pci_pages(pci, EMUPAGESIZE, &emu->silent_page_dmaaddr);
-	if (emu->silent_page == NULL) {
+	if (snd_dma_alloc_pages(&emu->dma_dev, EMUPAGESIZE, &emu->silent_page) < 0) {
 		snd_emu10k1_free(emu);
 		return -ENOMEM;
 	}
@@ -688,7 +690,7 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	if (extin_mask == 0)
 		extin_mask = 0x3fcf;
 	if (extout_mask == 0)
-		extout_mask = 0x1fff;
+		extout_mask = 0x7fff;
 	emu->fx8010.extin_mask = extin_mask;
 	emu->fx8010.extout_mask = extout_mask;
 
@@ -715,6 +717,7 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 
 	snd_emu10k1_proc_init(emu);
 
+	snd_card_set_dev(card, &pci->dev);
 	*remu = emu;
 	return 0;
 }

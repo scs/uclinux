@@ -330,7 +330,7 @@ static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
 
 	if ((id->capability & 1) && drive->autodma) {
 		/* Consult the list of known "bad" drives */
-		if (hwif->ide_dma_bad_drive(drive))
+		if (__ide_dma_bad_drive(drive))
 			goto fast_ata_pio;
 		if (id->field_valid & 4) {
 			if (id->dma_ultra & hwif->ultra_mask) {
@@ -347,7 +347,7 @@ try_dma_modes:
 				if (!config_chipset_for_dma(drive))
 					goto no_dma_set;
 			}
-		} else if (hwif->ide_dma_good_drive(drive) &&
+		} else if (__ide_dma_good_drive(drive) &&
 			   (id->eide_dma_time < 150)) {
 			/* Consult the list of known "good" drives */
 			if (!config_chipset_for_dma(drive))
@@ -409,7 +409,7 @@ static int aec62xx_irq_timeout (ide_drive_t *drive)
 	return 0;
 }
 
-static unsigned int __init init_chipset_aec62xx (struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev, const char *name)
 {
 	int bus_speed = system_bus_clock();
 
@@ -423,7 +423,7 @@ static unsigned int __init init_chipset_aec62xx (struct pci_dev *dev, const char
 
 	if (!aec62xx_proc) {
 		aec62xx_proc = 1;
-		ide_pci_register_host_proc(&aec62xx_procs[0]);
+		ide_pci_create_host_proc("aec62xx", aec62xx_get_info);
 	}
 #endif /* DISPLAY_AEC62XX_TIMINGS && CONFIG_PROC_FS */
 
@@ -435,7 +435,7 @@ static unsigned int __init init_chipset_aec62xx (struct pci_dev *dev, const char
 	return dev->irq;
 }
 
-static void __init init_hwif_aec62xx (ide_hwif_t *hwif)
+static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 {
 	hwif->autodma = 0;
 	hwif->tuneproc = &aec62xx_tune_drive;
@@ -468,7 +468,7 @@ static void __init init_hwif_aec62xx (ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
-static void __init init_dma_aec62xx (ide_hwif_t *hwif, unsigned long dmabase)
+static void __devinit init_dma_aec62xx(ide_hwif_t *hwif, unsigned long dmabase)
 {
 	struct pci_dev *dev	= hwif->pci_dev;
 
@@ -490,14 +490,12 @@ static void __init init_dma_aec62xx (ide_hwif_t *hwif, unsigned long dmabase)
 	ide_setup_dma(hwif, dmabase, 8);
 }
 
-extern void ide_setup_pci_device(struct pci_dev *, ide_pci_device_t *);
-
-static void __init init_setup_aec62xx (struct pci_dev *dev, ide_pci_device_t *d)
+static void __devinit init_setup_aec62xx(struct pci_dev *dev, ide_pci_device_t *d)
 {
 	ide_setup_pci_device(dev, d);
 }
 
-static void __init init_setup_aec6x80 (struct pci_dev *dev, ide_pci_device_t *d)
+static void __devinit init_setup_aec6x80(struct pci_dev *dev, ide_pci_device_t *d)
 {
 	unsigned long bar4reg = pci_resource_start(dev, 4);
 
@@ -527,10 +525,7 @@ static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_devi
 {
 	ide_pci_device_t *d = &aec62xx_chipsets[id->driver_data];
 
-	if (dev->device != d->device)
-		BUG();
 	d->init_setup(dev, d);
-	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -542,6 +537,7 @@ static struct pci_device_id aec62xx_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP865R,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, aec62xx_pci_tbl);
 
 static struct pci_driver driver = {
 	.name		= "AEC62xx IDE",
@@ -554,13 +550,7 @@ static int aec62xx_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
-static void aec62xx_ide_exit(void)
-{
-	ide_pci_unregister_driver(&driver);
-}
-
 module_init(aec62xx_ide_init);
-module_exit(aec62xx_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for ARTOP AEC62xx IDE");

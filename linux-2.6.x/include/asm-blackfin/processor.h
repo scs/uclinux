@@ -111,7 +111,7 @@ static inline void exit_thread(void)
 /*
  * Return saved PC of a blocked thread.
  */
-extern inline unsigned long thread_saved_pc(struct thread_struct *t)
+extern inline unsigned long thread_saved_pc(struct task_struct *t)
 {
 	extern void scheduling_functions_start_here(void);
 	extern void scheduling_functions_end_here(void);

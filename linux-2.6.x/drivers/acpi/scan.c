@@ -101,7 +101,7 @@ acpi_bus_get_power_flags (
 	struct acpi_device	*device)
 {
 	acpi_status             status = 0;
-	acpi_handle		handle = 0;
+	acpi_handle		handle = NULL;
 	u32                     i = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_bus_get_power_flags");
@@ -311,8 +311,10 @@ static int acpi_driver_detach(struct acpi_driver * drv)
 		struct acpi_device * dev = container_of(node,struct acpi_device,g_list);
 
 		if (dev->driver == drv) {
+			spin_unlock(&acpi_device_lock);
 			if (drv->ops.remove)
 				drv->ops.remove(dev,ACPI_BUS_REMOVAL_NORMAL);
+			spin_lock(&acpi_device_lock);
 			dev->driver = NULL;
 			dev->driver_data = NULL;
 			atomic_dec(&drv->references);
@@ -486,13 +488,13 @@ static void acpi_device_get_busid(struct acpi_device * device, acpi_handle handl
 	 */
 	switch (type) {
 	case ACPI_BUS_TYPE_SYSTEM:
-		sprintf(device->pnp.bus_id, "%s", "ACPI");
+		strcpy(device->pnp.bus_id, "ACPI");
 		break;
 	case ACPI_BUS_TYPE_POWER_BUTTON:
-		sprintf(device->pnp.bus_id, "%s", "PWRF");
+		strcpy(device->pnp.bus_id, "PWRF");
 		break;
 	case ACPI_BUS_TYPE_SLEEP_BUTTON:
-		sprintf(device->pnp.bus_id, "%s", "SLPF");
+		strcpy(device->pnp.bus_id, "SLPF");
 		break;
 	default:
 		acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer);
@@ -503,7 +505,7 @@ static void acpi_device_get_busid(struct acpi_device * device, acpi_handle handl
 			else
 				break;
 		}
-		sprintf(device->pnp.bus_id, "%s", bus_id);
+		strcpy(device->pnp.bus_id, bus_id);
 		break;
 	}
 }
@@ -565,16 +567,16 @@ static void acpi_device_set_id(struct acpi_device * device, struct acpi_device *
 	 */
 	if ((parent == ACPI_ROOT_OBJECT) && (type == ACPI_BUS_TYPE_DEVICE)) {
 		hid = ACPI_BUS_HID;
-		sprintf(device->pnp.device_name, "%s", ACPI_BUS_DEVICE_NAME);
-		sprintf(device->pnp.device_class, "%s", ACPI_BUS_CLASS);
+		strcpy(device->pnp.device_name, ACPI_BUS_DEVICE_NAME);
+		strcpy(device->pnp.device_class, ACPI_BUS_CLASS);
 	}
 
 	if (hid) {
-		sprintf(device->pnp.hardware_id, "%s", hid);
+		strcpy(device->pnp.hardware_id, hid);
 		device->flags.hardware_id = 1;
 	}
 	if (uid) {
-		sprintf(device->pnp.unique_id, "%s", uid);
+		strcpy(device->pnp.unique_id, uid);
 		device->flags.unique_id = 1;
 	}
 	if (cid_list) {
@@ -797,8 +799,8 @@ static int acpi_bus_scan (struct acpi_device	*start)
 	acpi_status		status = AE_OK;
 	struct acpi_device	*parent = NULL;
 	struct acpi_device	*child = NULL;
-	acpi_handle		phandle = 0;
-	acpi_handle		chandle = 0;
+	acpi_handle		phandle = NULL;
+	acpi_handle		chandle = NULL;
 	acpi_object_type	type = 0;
 	u32			level = 1;
 
@@ -841,7 +843,7 @@ static int acpi_bus_scan (struct acpi_device	*start)
 		if (type == ACPI_TYPE_LOCAL_SCOPE) {
 			level++;
 			phandle = chandle;
-			chandle = 0;
+			chandle = NULL;
 			continue;
 		}
 
@@ -881,11 +883,11 @@ static int acpi_bus_scan (struct acpi_device	*start)
 		 */
 		if (child->status.present) {
 			status = acpi_get_next_object(ACPI_TYPE_ANY, chandle,
-				0, NULL);
+						      NULL, NULL);
 			if (ACPI_SUCCESS(status)) {
 				level++;
 				phandle = chandle;
-				chandle = 0;
+				chandle = NULL;
 				parent = child;
 			}
 		}

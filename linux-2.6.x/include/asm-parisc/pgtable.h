@@ -43,9 +43,9 @@
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
 #define pmd_ERROR(e) \
-	printk("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
+	printk("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, (unsigned long)pmd_val(e))
 #define pgd_ERROR(e) \
-	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, (unsigned long)pgd_val(e))
 
  /* Note: If you change ISTACK_SIZE, you need to change the corresponding
   * values in vmlinux.lds and vmlinux64.lds (init_istack section). Also,
@@ -55,49 +55,63 @@
 #define  ISTACK_SIZE  32768 /* Interrupt Stack Size */
 #define  ISTACK_ORDER 3
 
-/*
- * NOTE: Many of the below macros use PT_NLEVELS because
- *       it is convenient that PT_NLEVELS == LOG2(pte size in bytes),
- *       i.e. we use 3 level page tables when we use 8 byte pte's
- *       (for 64 bit) and 2 level page tables when we use 4 byte pte's
- */
-
-#ifdef __LP64__
-#define PT_NLEVELS 3
-#define PT_INITIAL 4 /* Number of initial page tables */
+/* This is the size of the initially mapped kernel memory (i.e. currently
+ * 0 to 1<<23 == 8MB */
+#ifdef CONFIG_64BIT
+#define KERNEL_INITIAL_ORDER	24
 #else
-#define PT_NLEVELS 2
-#define PT_INITIAL 2 /* Number of initial page tables */
+#define KERNEL_INITIAL_ORDER	23
+#endif
+#define KERNEL_INITIAL_SIZE	(1 << KERNEL_INITIAL_ORDER)
+
+#ifdef CONFIG_64BIT
+#define PT_NLEVELS	3
+#define PGD_ORDER	1 /* Number of pages per pgd */
+#define PMD_ORDER	1 /* Number of pages per pmd */
+#define PGD_ALLOC_ORDER	2 /* first pgd contains pmd */
+#else
+#define PT_NLEVELS	2
+#define PGD_ORDER	1 /* Number of pages per pgd */
+#define PGD_ALLOC_ORDER	PGD_ORDER
 #endif
 
-#define MAX_ADDRBITS (PAGE_SHIFT + (PT_NLEVELS)*(PAGE_SHIFT - PT_NLEVELS))
-#define MAX_ADDRESS (1UL << MAX_ADDRBITS)
-
-#define SPACEID_SHIFT (MAX_ADDRBITS - 32)
-
-/* Definitions for 1st level */
-
-#define PGDIR_SHIFT  (PAGE_SHIFT + (PT_NLEVELS - 1)*(PAGE_SHIFT - PT_NLEVELS))
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
-#define PGDIR_MASK	(~(PGDIR_SIZE-1))
-#define PTRS_PER_PGD    (1UL << (PAGE_SHIFT - PT_NLEVELS))
-#define USER_PTRS_PER_PGD       PTRS_PER_PGD
+/* Definitions for 3rd level (we use PLD here for Page Lower directory
+ * because PTE_SHIFT is used lower down to mean shift that has to be
+ * done to get usable bits out of the PTE) */
+#define PLD_SHIFT	PAGE_SHIFT
+#define PLD_SIZE	PAGE_SIZE
+#define BITS_PER_PTE	(PAGE_SHIFT - BITS_PER_PTE_ENTRY)
+#define PTRS_PER_PTE    (1UL << BITS_PER_PTE)
 
 /* Definitions for 2nd level */
 #define pgtable_cache_init()	do { } while (0)
 
-#define PMD_SHIFT       (PAGE_SHIFT + (PAGE_SHIFT - PT_NLEVELS))
+#define PMD_SHIFT       (PLD_SHIFT + BITS_PER_PTE)
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 #if PT_NLEVELS == 3
-#define PTRS_PER_PMD    (1UL << (PAGE_SHIFT - PT_NLEVELS))
+#define BITS_PER_PMD	(PAGE_SHIFT + PMD_ORDER - BITS_PER_PMD_ENTRY)
 #else
-#define PTRS_PER_PMD    1
+#define BITS_PER_PMD	0
 #endif
+#define PTRS_PER_PMD    (1UL << BITS_PER_PMD)
 
-/* Definitions for 3rd level */
+/* Definitions for 1st level */
+#define PGDIR_SHIFT	(PMD_SHIFT + BITS_PER_PMD)
+#define BITS_PER_PGD	(PAGE_SHIFT + PGD_ORDER - BITS_PER_PGD_ENTRY)
+#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
+#define PGDIR_MASK	(~(PGDIR_SIZE-1))
+#define PTRS_PER_PGD    (1UL << BITS_PER_PGD)
+#define USER_PTRS_PER_PGD       PTRS_PER_PGD
 
-#define PTRS_PER_PTE    (1UL << (PAGE_SHIFT - PT_NLEVELS))
+#define MAX_ADDRBITS	(PGDIR_SHIFT + BITS_PER_PGD)
+#define MAX_ADDRESS	(1UL << MAX_ADDRBITS)
+
+#define SPACEID_SHIFT (MAX_ADDRBITS - 32)
+
+/* This calculates the number of initial pages we need for the initial
+ * page tables */
+#define PT_INITIAL	(1 << (KERNEL_INITIAL_ORDER - PMD_SHIFT))
 
 /*
  * pgd entries used up by user/kernel:
@@ -110,7 +124,7 @@ extern  void *vmalloc_start;
 #define PCXL_DMA_MAP_SIZE   (8*1024*1024)
 #define VMALLOC_START   ((unsigned long)vmalloc_start)
 /* this is a fixmap remnant, see fixmap.h */
-#define VMALLOC_END	(TMPALIAS_MAP_START)
+#define VMALLOC_END	(KERNEL_MAP_END)
 #endif
 
 /* NB: The tlb miss handlers make certain assumptions about the order */
@@ -167,6 +181,21 @@ extern  void *vmalloc_start;
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _PAGE_KERNEL	(_PAGE_PRESENT | _PAGE_EXEC | _PAGE_READ | _PAGE_WRITE | _PAGE_DIRTY | _PAGE_ACCESSED)
 
+/* The pgd/pmd contains a ptr (in phys addr space); since all pgds/pmds
+ * are page-aligned, we don't care about the PAGE_OFFSET bits, except
+ * for a few meta-information bits, so we shift the address to be
+ * able to effectively address 40-bits of physical address space. */
+#define _PxD_PRESENT_BIT   31
+#define _PxD_ATTACHED_BIT  30
+#define _PxD_VALID_BIT     29
+
+#define PxD_FLAG_PRESENT  (1 << xlate_pabit(_PxD_PRESENT_BIT))
+#define PxD_FLAG_ATTACHED (1 << xlate_pabit(_PxD_ATTACHED_BIT))
+#define PxD_FLAG_VALID    (1 << xlate_pabit(_PxD_VALID_BIT))
+#define PxD_FLAG_MASK     (0xf)
+#define PxD_FLAG_SHIFT    (4)
+#define PxD_VALUE_SHIFT   (8)
+
 #ifndef __ASSEMBLY__
 
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
@@ -217,7 +246,7 @@ extern pgd_t swapper_pg_dir[]; /* declared in init_task.c */
 
 /* initial page tables for 0-8MB for kernel */
 
-extern unsigned long pg0[];
+extern pte_t pg0[];
 
 /* zero page used for uninitialized stuff */
 
@@ -234,22 +263,50 @@ extern unsigned long *empty_zero_page;
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
 #define pte_clear(xp)	do { pte_val(*(xp)) = 0; } while (0)
 
+#define pmd_flag(x)	(pmd_val(x) & PxD_FLAG_MASK)
+#define pmd_address(x)	((unsigned long)(pmd_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
+#define pgd_flag(x)	(pgd_val(x) & PxD_FLAG_MASK)
+#define pgd_address(x)	((unsigned long)(pgd_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
+
+#ifdef CONFIG_64BIT
+/* The first entry of the permanent pmd is not there if it contains
+ * the gateway marker */
+#define pmd_none(x)	(!pmd_val(x) || pmd_flag(x) == PxD_FLAG_ATTACHED)
+#else
 #define pmd_none(x)	(!pmd_val(x))
-#define pmd_bad(x)	((pmd_val(x) & ~PAGE_MASK) != _PAGE_TABLE)
-#define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
-#define pmd_clear(xp)	do { pmd_val(*(xp)) = 0; } while (0)
+#endif
+#define pmd_bad(x)	(!(pmd_flag(x) & PxD_FLAG_VALID))
+#define pmd_present(x)	(pmd_flag(x) & PxD_FLAG_PRESENT)
+static inline void pmd_clear(pmd_t *pmd) {
+#ifdef CONFIG_64BIT
+	if (pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
+		/* This is the entry pointing to the permanent pmd
+		 * attached to the pgd; cannot clear it */
+		__pmd_val_set(*pmd, PxD_FLAG_ATTACHED);
+	else
+#endif
+		__pmd_val_set(*pmd,  0);
+}
 
 
 
-#ifdef __LP64__
-#define pgd_page(pgd) ((unsigned long) __va(pgd_val(pgd) & PAGE_MASK))
+#if PT_NLEVELS == 3
+#define pgd_page(pgd) ((unsigned long) __va(pgd_address(pgd)))
 
 /* For 64 bit we have three level tables */
 
 #define pgd_none(x)     (!pgd_val(x))
-#define pgd_bad(x)      ((pgd_val(x) & ~PAGE_MASK) != _PAGE_TABLE)
-#define pgd_present(x)  (pgd_val(x) & _PAGE_PRESENT)
-#define pgd_clear(xp)   do { pgd_val(*(xp)) = 0; } while (0)
+#define pgd_bad(x)      (!(pgd_flag(x) & PxD_FLAG_VALID))
+#define pgd_present(x)  (pgd_flag(x) & PxD_FLAG_PRESENT)
+static inline void pgd_clear(pgd_t *pgd) {
+#ifdef CONFIG_64BIT
+	if(pgd_flag(*pgd) & PxD_FLAG_ATTACHED)
+		/* This is the permanent pmd attached to the pgd; cannot
+		 * free it */
+		return;
+#endif
+	__pgd_val_set(*pgd, 0);
+}
 #else
 /*
  * The "pgd_xxx()" functions here are trivial for a folded two-level
@@ -315,15 +372,11 @@ extern inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 #define pte_pfn(x) (pte_val(x) >> PAGE_SHIFT)
 
-#ifdef CONFIG_DISCONTIGMEM
-#define pte_page(x) (phys_to_page(pte_val(x)))
-#else
-#define pte_page(x) (mem_map+(pte_val(x) >> PAGE_SHIFT))
-#endif
+#define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
 
-#define pmd_page_kernel(pmd)	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
+#define pmd_page_kernel(pmd)	((unsigned long) __va(pmd_address(pmd)))
 
-#define __pmd_page(pmd) ((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
+#define __pmd_page(pmd) ((unsigned long) __va(pmd_address(pmd)))
 #define pmd_page(pmd)	virt_to_page((void *)__pmd_page(pmd))
 
 #define pgd_index(address) ((address) >> PGDIR_SHIFT)
@@ -337,7 +390,7 @@ extern inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 /* Find an entry in the second-level page table.. */
 
-#ifdef __LP64__
+#if PT_NLEVELS == 3
 #define pmd_offset(dir,address) \
 ((pmd_t *) pgd_page(*(dir)) + (((address)>>PMD_SHIFT) & (PTRS_PER_PMD-1)))
 #else
@@ -379,7 +432,9 @@ extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
 static inline int ptep_test_and_clear_young(pte_t *ptep)
 {
 #ifdef CONFIG_SMP
-	return test_and_clear_bit(xlate_pabit(_PAGE_ACCESSED_BIT), ptep);
+	if (!pte_young(*ptep))
+		return 0;
+	return test_and_clear_bit(xlate_pabit(_PAGE_ACCESSED_BIT), &pte_val(*ptep));
 #else
 	pte_t pte = *ptep;
 	if (!pte_young(pte))
@@ -392,7 +447,9 @@ static inline int ptep_test_and_clear_young(pte_t *ptep)
 static inline int ptep_test_and_clear_dirty(pte_t *ptep)
 {
 #ifdef CONFIG_SMP
-	return test_and_clear_bit(xlate_pabit(_PAGE_DIRTY_BIT), ptep);
+	if (!pte_dirty(*ptep))
+		return 0;
+	return test_and_clear_bit(xlate_pabit(_PAGE_DIRTY_BIT), &pte_val(*ptep));
 #else
 	pte_t pte = *ptep;
 	if (!pte_dirty(pte))
@@ -402,11 +459,7 @@ static inline int ptep_test_and_clear_dirty(pte_t *ptep)
 #endif
 }
 
-#ifdef CONFIG_SMP
 extern spinlock_t pa_dbit_lock;
-#else
-static int pa_dbit_lock; /* dummy to keep the compilers happy */
-#endif
 
 static inline pte_t ptep_get_and_clear(pte_t *ptep)
 {
@@ -441,7 +494,7 @@ static inline void ptep_set_wrprotect(pte_t *ptep)
 static inline void ptep_mkdirty(pte_t *ptep)
 {
 #ifdef CONFIG_SMP
-	set_bit(xlate_pabit(_PAGE_DIRTY_BIT), ptep);
+	set_bit(xlate_pabit(_PAGE_DIRTY_BIT), &pte_val(*ptep));
 #else
 	pte_t old_pte = *ptep;
 	set_pte(ptep, pte_mkdirty(old_pte));
@@ -449,8 +502,6 @@ static inline void ptep_mkdirty(pte_t *ptep)
 }
 
 #define pte_same(A,B)	(pte_val(A) == pte_val(B))
-
-typedef pte_t *pte_addr_t;
 
 #endif /* !__ASSEMBLY__ */
 

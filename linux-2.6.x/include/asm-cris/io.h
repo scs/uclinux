@@ -42,6 +42,9 @@ extern void iounmap(void *addr);
 #define readb(addr) (*(volatile unsigned char *) (addr))
 #define readw(addr) (*(volatile unsigned short *) (addr))
 #define readl(addr) (*(volatile unsigned int *) (addr))
+#define readb_relaxed(addr) readb(addr)
+#define readw_relaxed(addr) readw(addr)
+#define readl_relaxed(addr) readl(addr)
 #define __raw_readb readb
 #define __raw_readw readw
 #define __raw_readl readl
@@ -69,6 +72,8 @@ extern void iounmap(void *addr);
 
 #define IO_SPACE_LIMIT 0xffff
 #define inb(x) (0)
+#define inw(x) (0)
+#define inl(x) (0)
 #define outb(x,y)
 #define outw(x,y)
 #define outl(x,y)

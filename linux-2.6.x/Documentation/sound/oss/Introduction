@@ -24,7 +24,7 @@ History:
 ========
 0.1.0  11/20/1998  First version, draft
 1.0.0  11/1998     Alan Cox changes, incorporation in 2.2.0
-                   as /usr/src/linux/Documentation/sound/oss/Introduction
+                   as Documentation/sound/oss/Introduction
 1.1.0  6/30/1999   Second version, added notes on making the drivers,
                    added info on multiple sound cards of similar types,]
                    added more diagnostics info, added info about esd.
@@ -168,7 +168,7 @@ MODPROBE:
 =========
 
 If loading via modprobe, these common files are automatically loaded 
-when requested by modprobe.  For example, my /etc/modules.conf contains:
+when requested by modprobe.  For example, my /etc/modprobe.conf contains:
 
 alias sound sb 
 options sb io=0x240 irq=9 dma=3 dma16=5 mpu_io=0x300
@@ -228,7 +228,7 @@ http://www.opensound.com.  Before loading the commercial sound
 driver, you should do the following:
 
 1.  remove sound modules (detailed above)
-2.  remove the sound modules from /etc/modules.conf
+2.  remove the sound modules from /etc/modprobe.conf
 3.  move the sound modules from /lib/modules/<kernel>/misc
     (for example, I make a /lib/modules/<kernel>/misc/tmp
     directory and copy the sound module files to that 
@@ -265,7 +265,7 @@ twice, you need to do the following:
     sb.o could be copied (or symlinked) to sb1.o for the
     second SoundBlaster.
 
-2.  Make a second entry in /etc/modules.conf, for example,
+2.  Make a second entry in /etc/modprobe.conf, for example,
     sound1 or sb1.  This second entry should refer to the
     new module names for example sb1, and should include
     the I/O, etc. for the second sound card.
@@ -369,7 +369,7 @@ There are several ways of configuring your sound:
 2)  On the command line when using insmod or in a bash script
     using command line calls to load sound.
 
-3)  In /etc/modules.conf when using modprobe.
+3)  In /etc/modprobe.conf when using modprobe.
 
 4)  Via Red Hat's GPL'd /usr/sbin/sndconfig program (text based).
 
@@ -439,7 +439,7 @@ For More Information (RTFM):
 
 4)  OSS's WWW site at http://www.opensound.com.
 
-5)  All the files in linux/Documentation/sound.
+5)  All the files in Documentation/sound.
 
 6)  The comments and code in linux/drivers/sound.
 

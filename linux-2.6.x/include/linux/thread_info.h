@@ -52,7 +52,7 @@ static inline int test_thread_flag(int flag)
 	return test_bit(flag,&current_thread_info()->flags);
 }
 
-static inline void set_ti_thread_flag(struct thread_info *ti, int flag) 
+static inline void set_ti_thread_flag(struct thread_info *ti, int flag)
 {
 	set_bit(flag,&ti->flags);
 }

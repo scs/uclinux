@@ -39,6 +39,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/sunrpc/auth.h>
+#include <linux/in.h>
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/crypto.h>
@@ -98,7 +99,7 @@ get_key(char **p, char *end, struct crypto_tfm **res)
 			alg_mode = CRYPTO_TFM_MODE_CBC;
 			break;
 		default:
-			dprintk("RPC: get_key: unsupported algorithm %d", alg);
+			dprintk("RPC:      get_key: unsupported algorithm %d\n", alg);
 			goto out_err_free_key;
 	}
 	if (!(*res = crypto_alloc_tfm(alg_name, alg_mode)))
@@ -153,7 +154,7 @@ gss_import_sec_context_kerberos(struct xdr_netobj *inbuf,
 		goto out_err_free_key2;
 
 	ctx_id->internal_ctx_id = ctx;
-	dprintk("Succesfully imported new context.\n");
+	dprintk("RPC:      Succesfully imported new context.\n");
 	return 0;
 
 out_err_free_key2:
@@ -168,7 +169,7 @@ out_err:
 	return GSS_S_FAILURE;
 }
 
-void
+static void
 gss_delete_sec_context_kerberos(void *internal_ctx) {
 	struct krb5_ctx *kctx = internal_ctx;
 
@@ -181,69 +182,80 @@ gss_delete_sec_context_kerberos(void *internal_ctx) {
 	kfree(kctx);
 }
 
-u32
+static u32
 gss_verify_mic_kerberos(struct gss_ctx		*ctx,
-			struct xdr_netobj	*signbuf,
-			struct xdr_netobj	*checksum,
-			u32		*qstate) {
+			struct xdr_buf		*message,
+			struct xdr_netobj	*mic_token,
+			u32			*qstate) {
 	u32 maj_stat = 0;
 	int qop_state;
 	struct krb5_ctx *kctx = ctx->internal_ctx_id;
 
-	maj_stat = krb5_read_token(kctx, checksum, signbuf, &qop_state,
+	maj_stat = krb5_read_token(kctx, mic_token, message, &qop_state,
 				   KG_TOK_MIC_MSG);
 	if (!maj_stat && qop_state)
 	    *qstate = qop_state;
 
-	dprintk("RPC: gss_verify_mic_kerberos returning %d\n", maj_stat);
+	dprintk("RPC:      gss_verify_mic_kerberos returning %d\n", maj_stat);
 	return maj_stat;
 }
 
-u32
+static u32
 gss_get_mic_kerberos(struct gss_ctx	*ctx,
 		     u32		qop,
-		     struct xdr_netobj	*message_buffer,
-		     struct xdr_netobj	*message_token) {
+		     struct xdr_buf 	*message,
+		     struct xdr_netobj	*mic_token) {
 	u32 err = 0;
 	struct krb5_ctx *kctx = ctx->internal_ctx_id;
 
-	if (!message_buffer->data) return GSS_S_FAILURE;
+	err = krb5_make_token(kctx, qop, message, mic_token, KG_TOK_MIC_MSG);
 
-	dprintk("RPC: gss_get_mic_kerberos:"
-		" message_buffer->len %d\n",message_buffer->len);
-
-	err = krb5_make_token(kctx, qop, message_buffer,
-			      message_token, KG_TOK_MIC_MSG);
-
-	dprintk("RPC: gss_get_mic_kerberos returning %d\n",err);
+	dprintk("RPC:      gss_get_mic_kerberos returning %d\n",err);
 
 	return err;
 }
 
 static struct gss_api_ops gss_kerberos_ops = {
-	.name			= "krb5",
 	.gss_import_sec_context	= gss_import_sec_context_kerberos,
 	.gss_get_mic		= gss_get_mic_kerberos,
 	.gss_verify_mic		= gss_verify_mic_kerberos,
 	.gss_delete_sec_context	= gss_delete_sec_context_kerberos,
 };
 
-/* XXX error checking? reference counting? */
+static struct pf_desc gss_kerberos_pfs[] = {
+	[0] = {
+		.pseudoflavor = RPC_AUTH_GSS_KRB5,
+		.service = RPC_GSS_SVC_NONE,
+		.name = "krb5",
+	},
+	[1] = {
+		.pseudoflavor = RPC_AUTH_GSS_KRB5I,
+		.service = RPC_GSS_SVC_INTEGRITY,
+		.name = "krb5i",
+	},
+};
+
+static struct gss_api_mech gss_kerberos_mech = {
+	.gm_name	= "krb5",
+	.gm_owner	= THIS_MODULE,
+	.gm_ops		= &gss_kerberos_ops,
+	.gm_pf_num	= ARRAY_SIZE(gss_kerberos_pfs),
+	.gm_pfs		= gss_kerberos_pfs,
+};
+
 static int __init init_kerberos_module(void)
 {
-	struct gss_api_mech *gm;
+	int status;
 
-	if (gss_mech_register(&gss_mech_krb5_oid, &gss_kerberos_ops))
+	status = gss_mech_register(&gss_kerberos_mech);
+	if (status)
 		printk("Failed to register kerberos gss mechanism!\n");
-	gm = gss_mech_get_by_OID(&gss_mech_krb5_oid);
-	gss_register_triple(RPC_AUTH_GSS_KRB5 , gm, 0, RPC_GSS_SVC_NONE);
-	gss_mech_put(gm);
-	return 0;
+	return status;
 }
 
 static void __exit cleanup_kerberos_module(void)
 {
-	gss_unregister_triple(RPC_AUTH_GSS_KRB5);
+	gss_mech_unregister(&gss_kerberos_mech);
 }
 
 MODULE_LICENSE("GPL");

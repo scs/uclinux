@@ -49,6 +49,7 @@ static char version[] = "sb1000.c:v1.1.2 6/01/98 (fventuri@mediaone.net)\n";
 #include <linux/delay.h>	/* for udelay() */
 #include <linux/etherdevice.h>
 #include <linux/pnp.h>
+#include <linux/init.h>
 
 #include <asm/bitops.h>
 #include <asm/io.h>
@@ -746,7 +747,7 @@ sb1000_rx(struct net_device *dev)
 	int ioaddr, ns;
 	unsigned int skbsize;
 	struct sk_buff *skb;
-	struct sb1000_private *lp = (struct sb1000_private *)dev->priv;
+	struct sb1000_private *lp = netdev_priv(dev);
 	struct net_device_stats *stats = &lp->stats;
 
 	/* SB1000 frame constants */
@@ -798,7 +799,7 @@ skipped_frame:
 			skb ? session_id : session_id | 0x40, frame_id);
 	if (skb) {
 		dev_kfree_skb(skb);
-		skb = 0;
+		skb = NULL;
 	}
 
 good_frame:
@@ -874,7 +875,7 @@ printk("cm0: IP identification: %02x%02x  fragment offset: %02x%02x\n", buffer[3
 	dev->last_rx = jiffies;
 	stats->rx_bytes+=dlen;
 	stats->rx_packets++;
-	lp->rx_skb[ns] = 0;
+	lp->rx_skb[ns] = NULL;
 	lp->rx_session_id[ns] |= 0x40;
 	return 0;
 
@@ -892,7 +893,7 @@ dropped_frame:
 	if (ns < NPIDS) {
 		if ((skb = lp->rx_skb[ns])) {
 			dev_kfree_skb(skb);
-			lp->rx_skb[ns] = 0;
+			lp->rx_skb[ns] = NULL;
 		}
 		lp->rx_session_id[ns] |= 0x40;
 	}
@@ -905,7 +906,7 @@ sb1000_error_dpc(struct net_device *dev)
 	char *name;
 	unsigned char st[5];
 	int ioaddr[2];
-	struct sb1000_private *lp = (struct sb1000_private *)dev->priv;
+	struct sb1000_private *lp = netdev_priv(dev);
 	const unsigned char Command0[6] = {0x80, 0x26, 0x00, 0x00, 0x00, 0x00};
 	const int ErrorDpcCounterInitialize = 200;
 
@@ -932,7 +933,7 @@ sb1000_open(struct net_device *dev)
 {
 	char *name;
 	int ioaddr[2], status;
-	struct sb1000_private *lp = (struct sb1000_private *)dev->priv;
+	struct sb1000_private *lp = netdev_priv(dev);
 	const unsigned short FirmwareVersion[] = {0x01, 0x01};
 
 	ioaddr[0] = dev->base_addr;
@@ -998,7 +999,7 @@ static int sb1000_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	short PID[4];
 	int ioaddr[2], status, frequency;
 	unsigned int stats[5];
-	struct sb1000_private *lp = (struct sb1000_private *)dev->priv;
+	struct sb1000_private *lp = netdev_priv(dev);
 
 	if (!(dev && dev->flags & IFF_UP))
 		return -ENODEV;
@@ -1030,14 +1031,14 @@ static int sb1000_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGCMFREQUENCY:		/* get frequency */
 		if ((status = sb1000_get_frequency(ioaddr, name, &frequency)))
 			return status;
-		if(put_user(frequency, (int*) ifr->ifr_data))
+		if(put_user(frequency, (int __user *) ifr->ifr_data))
 			return -EFAULT;
 		break;
 
 	case SIOCSCMFREQUENCY:		/* set frequency */
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-		if(get_user(frequency, (int*) ifr->ifr_data))
+		if(get_user(frequency, (int __user *) ifr->ifr_data))
 			return -EFAULT;
 		if ((status = sb1000_set_frequency(ioaddr, name, frequency)))
 			return status;
@@ -1092,7 +1093,7 @@ static irqreturn_t sb1000_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	unsigned char st;
 	int ioaddr[2];
 	struct net_device *dev = (struct net_device *) dev_id;
-	struct sb1000_private *lp = (struct sb1000_private *)dev->priv;
+	struct sb1000_private *lp = netdev_priv(dev);
 
 	const unsigned char Command0[6] = {0x80, 0x2c, 0x00, 0x00, 0x00, 0x00};
 	const unsigned char Command1[6] = {0x80, 0x2e, 0x00, 0x00, 0x00, 0x00};
@@ -1148,7 +1149,7 @@ static irqreturn_t sb1000_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct net_device_stats *sb1000_stats(struct net_device *dev)
 {
-	struct sb1000_private *lp = (struct sb1000_private *)dev->priv;
+	struct sb1000_private *lp = netdev_priv(dev);
 	return &lp->stats;
 }
 
@@ -1156,7 +1157,7 @@ static int sb1000_close(struct net_device *dev)
 {
 	int i;
 	int ioaddr[2];
-	struct sb1000_private *lp = (struct sb1000_private *)dev->priv;
+	struct sb1000_private *lp = netdev_priv(dev);
 
 	if (sb1000_debug > 2)
 		printk(KERN_DEBUG "%s: Shutting down sb1000.\n", dev->name);

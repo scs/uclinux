@@ -39,6 +39,7 @@ extern ia64_mv_irq_init_t sn_irq_init;
 extern ia64_mv_send_ipi_t sn2_send_IPI;
 extern ia64_mv_timer_interrupt_t sn_timer_interrupt;
 extern ia64_mv_global_tlb_purge_t sn2_global_tlb_purge;
+extern ia64_mv_tlb_migrate_finish_t	sn_tlb_migrate_finish;
 extern ia64_mv_irq_desc sn_irq_desc;
 extern ia64_mv_irq_to_vector sn_irq_to_vector;
 extern ia64_mv_local_vector_to_irq sn_local_vector_to_irq;
@@ -52,14 +53,21 @@ extern ia64_mv_readb_t __sn_readb;
 extern ia64_mv_readw_t __sn_readw;
 extern ia64_mv_readl_t __sn_readl;
 extern ia64_mv_readq_t __sn_readq;
+extern ia64_mv_readb_t __sn_readb_relaxed;
+extern ia64_mv_readw_t __sn_readw_relaxed;
+extern ia64_mv_readl_t __sn_readl_relaxed;
+extern ia64_mv_readq_t __sn_readq_relaxed;
 extern ia64_mv_dma_alloc_coherent	sn_dma_alloc_coherent;
 extern ia64_mv_dma_free_coherent	sn_dma_free_coherent;
 extern ia64_mv_dma_map_single		sn_dma_map_single;
 extern ia64_mv_dma_unmap_single		sn_dma_unmap_single;
 extern ia64_mv_dma_map_sg		sn_dma_map_sg;
 extern ia64_mv_dma_unmap_sg		sn_dma_unmap_sg;
-extern ia64_mv_dma_sync_single		sn_dma_sync_single;
-extern ia64_mv_dma_sync_sg		sn_dma_sync_sg;
+extern ia64_mv_dma_sync_single_for_cpu	sn_dma_sync_single_for_cpu;
+extern ia64_mv_dma_sync_sg_for_cpu	sn_dma_sync_sg_for_cpu;
+extern ia64_mv_dma_sync_single_for_device sn_dma_sync_single_for_device;
+extern ia64_mv_dma_sync_sg_for_device	sn_dma_sync_sg_for_device;
+extern ia64_mv_dma_mapping_error	sn_dma_mapping_error;
 extern ia64_mv_dma_supported		sn_dma_supported;
 
 /*
@@ -76,6 +84,7 @@ extern ia64_mv_dma_supported		sn_dma_supported;
 #define platform_send_ipi		sn2_send_IPI
 #define platform_timer_interrupt	sn_timer_interrupt
 #define platform_global_tlb_purge       sn2_global_tlb_purge
+#define platform_tlb_migrate_finish	sn_tlb_migrate_finish
 #define platform_pci_fixup		sn_pci_fixup
 #define platform_inb			__sn_inb
 #define platform_inw			__sn_inw
@@ -87,6 +96,10 @@ extern ia64_mv_dma_supported		sn_dma_supported;
 #define platform_readw			__sn_readw
 #define platform_readl			__sn_readl
 #define platform_readq			__sn_readq
+#define platform_readb_relaxed		__sn_readb_relaxed
+#define platform_readw_relaxed		__sn_readw_relaxed
+#define platform_readl_relaxed		__sn_readl_relaxed
+#define platform_readq_relaxed		__sn_readq_relaxed
 #define platform_irq_desc		sn_irq_desc
 #define platform_irq_to_vector		sn_irq_to_vector
 #define platform_local_vector_to_irq	sn_local_vector_to_irq
@@ -97,8 +110,11 @@ extern ia64_mv_dma_supported		sn_dma_supported;
 #define platform_dma_unmap_single	sn_dma_unmap_single
 #define platform_dma_map_sg		sn_dma_map_sg
 #define platform_dma_unmap_sg		sn_dma_unmap_sg
-#define platform_dma_sync_single	sn_dma_sync_single
-#define platform_dma_sync_sg		sn_dma_sync_sg
+#define platform_dma_sync_single_for_cpu sn_dma_sync_single_for_cpu
+#define platform_dma_sync_sg_for_cpu	sn_dma_sync_sg_for_cpu
+#define platform_dma_sync_single_for_device sn_dma_sync_single_for_device
+#define platform_dma_sync_sg_for_device	sn_dma_sync_sg_for_device
+#define platform_dma_mapping_error		sn_dma_mapping_error
 #define platform_dma_supported		sn_dma_supported
 
 #include <asm/sn/sn2/io.h>

@@ -96,7 +96,7 @@ struct kobject *kobj_lookup(struct kobj_map *domain, dev_t dev, int *index)
 {
 	struct kobject *kobj;
 	struct probe *p;
-	unsigned best = ~0U;
+	unsigned long best = ~0UL;
 
 retry:
 	down_read(domain->sem);
@@ -138,6 +138,13 @@ struct kobj_map *kobj_map_init(kobj_probe_t *base_probe,
 	struct kobj_map *p = kmalloc(sizeof(struct kobj_map), GFP_KERNEL);
 	struct probe *base = kmalloc(sizeof(struct probe), GFP_KERNEL);
 	int i;
+
+	if ((p == NULL) || (base == NULL)) {
+		kfree(p);
+		kfree(base);
+		return NULL;
+	}
+
 	memset(base, 0, sizeof(struct probe));
 	base->dev = 1;
 	base->range = ~0;

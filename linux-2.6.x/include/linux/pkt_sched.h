@@ -38,9 +38,6 @@ struct tc_stats
 	__u32	pps;			/* Current flow packet rate */
 	__u32	qlen;
 	__u32	backlog;
-#ifdef __KERNEL__
-	spinlock_t *lock;
-#endif
 };
 
 struct tc_estimator
@@ -101,34 +98,6 @@ struct tc_prio_qopt
 {
 	int	bands;			/* Number of bands */
 	__u8	priomap[TC_PRIO_MAX+1];	/* Map: logical priority -> PRIO band */
-};
-
-/* CSZ section */
-
-struct tc_csz_qopt
-{
-	int		flows;		/* Maximal number of guaranteed flows */
-	unsigned char	R_log;		/* Fixed point position for round number */
-	unsigned char	delta_log;	/* Log of maximal managed time interval */
-	__u8		priomap[TC_PRIO_MAX+1];	/* Map: logical priority -> CSZ band */
-};
-
-struct tc_csz_copt
-{
-	struct tc_ratespec slice;
-	struct tc_ratespec rate;
-	struct tc_ratespec peakrate;
-	__u32		limit;
-	__u32		buffer;
-	__u32		mtu;
-};
-
-enum
-{
-	TCA_CSZ_UNSPEC,
-	TCA_CSZ_PARMS,
-	TCA_CSZ_RTAB,
-	TCA_CSZ_PTAB,
 };
 
 /* TBF section */
@@ -290,6 +259,37 @@ struct tc_htb_xstats
 	__u32 ctokens;
 };
 
+/* HFSC section */
+
+struct tc_hfsc_qopt
+{
+	__u16	defcls;		/* default class */
+};
+
+struct tc_service_curve
+{
+	__u32	m1;		/* slope of the first segment in bps */
+	__u32	d;		/* x-projection of the first segment in us */
+	__u32	m2;		/* slope of the second segment in bps */
+};
+
+struct tc_hfsc_stats
+{
+	__u64	work;		/* total work done */
+	__u64	rtwork;		/* work done by real-time criteria */
+	__u32	period;		/* current period */
+	__u32	level;		/* class level in hierarchy */
+};
+
+enum
+{
+	TCA_HFSC_UNSPEC,
+	TCA_HFSC_RSC,
+	TCA_HFSC_FSC,
+	TCA_HFSC_USC,
+	TCA_HFSC_MAX = TCA_HFSC_USC
+};
+
 /* CBQ section */
 
 #define TC_CBQ_MAXPRIO		8
@@ -401,4 +401,14 @@ enum {
 
 #define TCA_ATM_MAX	TCA_ATM_STATE
 
+/* Network emulator */
+struct tc_netem_qopt
+{
+	__u32	latency;	/* added delay (us) */
+	__u32   limit;		/* fifo limit (packets) */
+	__u32	loss;		/* random packet loss (0=none ~0=100%) */
+	__u32	gap;		/* re-ordering gap (0 for delay all) */
+	__u32   duplicate;	/* random packet dup  (0=none ~0=100%) */
+	__u32	jitter;		/* random jitter in latency (us) */
+};
 #endif

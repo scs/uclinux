@@ -19,16 +19,16 @@ extern struct pglist_data node_data[];
  */
 
 extern int numa_cpu_lookup_table[];
-extern int numa_memory_lookup_table[];
+extern char *numa_memory_lookup_table;
 extern cpumask_t numa_cpumask_lookup_table[];
 extern int nr_cpus_in_node[];
 
-#define MAX_MEMORY (1UL << 41)
-/* 256MB regions */
-#define MEMORY_INCREMENT_SHIFT 28
+/* 16MB regions */
+#define MEMORY_INCREMENT_SHIFT 24
 #define MEMORY_INCREMENT (1UL << MEMORY_INCREMENT_SHIFT)
 
-#define DEBUG_NUMA
+/* NUMA debugging, will not work on a DLPAR machine */
+#undef DEBUG_NUMA
 
 static inline int pa_to_nid(unsigned long pa)
 {
@@ -71,12 +71,6 @@ static inline int pa_to_nid(unsigned long pa)
 
 #define local_mapnr(kvaddr) \
 	( (__pa(kvaddr) >> PAGE_SHIFT) - node_start_pfn(kvaddr_to_nid(kvaddr)) 
-
-#if 0
-/* XXX fix - Anton */
-#define kern_addr_valid(kaddr)	test_bit(local_mapnr(kaddr), \
-		 NODE_DATA(kvaddr_to_nid(kaddr))->valid_addr_bitmap)
-#endif
 
 /* Written this way to avoid evaluating arguments twice */
 #define discontigmem_pfn_to_page(pfn) \

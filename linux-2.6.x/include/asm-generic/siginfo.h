@@ -6,7 +6,7 @@
 
 typedef union sigval {
 	int sival_int;
-	void *sival_ptr;
+	void __user *sival_ptr;
 } sigval_t;
 
 /*
@@ -26,8 +26,13 @@ typedef union sigval {
 #define __ARCH_SI_UID_T	uid_t
 #endif
 
+/*
+ * The default "si_band" type is "long", as specified by POSIX.
+ * However, some architectures want to override this to "int"
+ * for historical compatibility reasons, so we allow that.
+ */
 #ifndef __ARCH_SI_BAND_T
-#define __ARCH_SI_BAND_T int
+#define __ARCH_SI_BAND_T long
 #endif
 
 #ifndef HAVE_ARCH_SIGINFO_T
@@ -73,7 +78,7 @@ typedef struct siginfo {
 
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
 		struct {
-			void *_addr; /* faulting insn/memory ref. */
+			void __user *_addr; /* faulting insn/memory ref. */
 #ifdef __ARCH_SI_TRAPNO
 			int _trapno;	/* TRAP # which caused the signal */
 #endif
@@ -118,6 +123,7 @@ typedef struct siginfo {
 #define __SI_FAULT	(3 << 16)
 #define __SI_CHLD	(4 << 16)
 #define __SI_RT		(5 << 16)
+#define __SI_MESGQ	(6 << 16)
 #define __SI_CODE(T,N)	((T) | ((N) & 0xffff))
 #else
 #define __SI_KILL	0
@@ -126,6 +132,7 @@ typedef struct siginfo {
 #define __SI_FAULT	0
 #define __SI_CHLD	0
 #define __SI_RT		0
+#define __SI_MESGQ	0
 #define __SI_CODE(T,N)	(N)
 #endif
 
@@ -137,7 +144,7 @@ typedef struct siginfo {
 #define SI_KERNEL	0x80		/* sent by the kernel from somewhere */
 #define SI_QUEUE	-1		/* sent by sigqueue */
 #define SI_TIMER __SI_CODE(__SI_TIMER,-2) /* sent by timer expiration */
-#define SI_MESGQ	-3		/* sent by real time mesq state change */
+#define SI_MESGQ __SI_CODE(__SI_MESGQ,-3) /* sent by real time mesq state change */
 #define SI_ASYNCIO	-4		/* sent by AIO completion */
 #define SI_SIGIO	-5		/* sent by queued SIGIO */
 #define SI_TKILL	-6		/* sent by tkill system call */
@@ -158,7 +165,7 @@ typedef struct siginfo {
 #define ILL_PRVREG	(__SI_FAULT|6)	/* privileged register */
 #define ILL_COPROC	(__SI_FAULT|7)	/* coprocessor error */
 #define ILL_BADSTK	(__SI_FAULT|8)	/* internal stack error */
-#define NSIGILL		11		
+#define NSIGILL		8
 
 /*
  * SIGFPE si_codes
@@ -186,14 +193,14 @@ typedef struct siginfo {
 #define BUS_ADRALN	(__SI_FAULT|1)	/* invalid address alignment */
 #define BUS_ADRERR	(__SI_FAULT|2)	/* non-existant physical address */
 #define BUS_OBJERR	(__SI_FAULT|3)	/* object specific hardware error */
-#define NSIGBUS		4		
+#define NSIGBUS		3
 
 /*
  * SIGTRAP si_codes
  */
 #define TRAP_BRKPT	(__SI_FAULT|1)	/* process breakpoint */
 #define TRAP_TRACE	(__SI_FAULT|2)	/* process trace trap */
-#define NSIGTRAP	4		
+#define NSIGTRAP	2
 
 /*
  * SIGCHLD si_codes

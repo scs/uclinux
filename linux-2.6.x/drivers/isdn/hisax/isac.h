@@ -63,6 +63,8 @@
 #define ISAC_IND_AI10	0xD
 #define ISAC_IND_DID	0xF
 
-extern void initisac(struct IsdnCardState *cs);
-extern void isac_interrupt(struct IsdnCardState *cs, u8 val);
-extern int  isac_setup(struct IsdnCardState *cs, struct dc_hw_ops *isac_ops);
+extern void ISACVersion(struct IsdnCardState *, char *);
+extern void setup_isac(struct IsdnCardState *);
+extern void initisac(struct IsdnCardState *);
+extern void isac_interrupt(struct IsdnCardState *, u_char);
+extern void clear_pending_isac_ints(struct IsdnCardState *);

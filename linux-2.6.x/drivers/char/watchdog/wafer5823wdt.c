@@ -95,12 +95,8 @@ wafwdt_stop(void)
 	inb_p(wdt_stop);
 }
 
-static ssize_t wafwdt_write(struct file *file, const char *buf, size_t count, loff_t * ppos)
+static ssize_t wafwdt_write(struct file *file, const char __user *buf, size_t count, loff_t * ppos)
 {
-	/*  Can't seek (pwrite) on this device  */
-	if (ppos != &file->f_pos)
-		return -ESPIPE;
-
 	/* See if we got the magic character 'V' and reload the timer */
 	if (count) {
 		if (!nowayout) {
@@ -128,6 +124,8 @@ static int wafwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 	     unsigned long arg)
 {
 	int new_timeout;
+	void __user *argp = (void __user *)arg;
+	int __user *p = argp;
 	static struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
 		.firmware_version = 1,
@@ -136,21 +134,20 @@ static int wafwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		if (copy_to_user
-		    ((struct watchdog_info *) arg, &ident, sizeof (ident)))
+		if (copy_to_user(argp, &ident, sizeof (ident)))
 			return -EFAULT;
 		break;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-		return put_user(0, (int *)arg);
+		return put_user(0, p);
 
 	case WDIOC_KEEPALIVE:
 		wafwdt_ping();
 		break;
 
 	case WDIOC_SETTIMEOUT:
-		if (get_user(new_timeout, (int *)arg))
+		if (get_user(new_timeout, p))
 			return -EFAULT;
 		if ((new_timeout < 1) || (new_timeout > 255))
 			return -EINVAL;
@@ -159,13 +156,13 @@ static int wafwdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 		wafwdt_start();
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
-		return put_user(timeout, (int *)arg);
+		return put_user(timeout, p);
 
 	case WDIOC_SETOPTIONS:
 	{
 		int options, retval = -EINVAL;
 
-		if (get_user(options, (int *)arg))
+		if (get_user(options, p))
 			return -EFAULT;
 
 		if (options & WDIOS_DISABLECARD) {
@@ -196,7 +193,7 @@ static int wafwdt_open(struct inode *inode, struct file *file)
 	 *      Activate
 	 */
 	wafwdt_start();
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static int
@@ -252,8 +249,6 @@ static struct miscdevice wafwdt_miscdev = {
 
 static struct notifier_block wafwdt_notifier = {
 	.notifier_call = wafwdt_notify_sys,
-	.next = NULL,
-	.priority = 0,
 };
 
 static int __init wafwdt_init(void)
@@ -330,5 +325,6 @@ module_exit(wafwdt_exit);
 MODULE_AUTHOR("Justin Cormack");
 MODULE_DESCRIPTION("ICP Wafer 5823 Single Board Computer WDT driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 /* end of wafer5823wdt.c */

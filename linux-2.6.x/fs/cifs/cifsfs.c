@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsfs.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2003
+ *   Copyright (C) International Business Machines  Corp., 2002,2004
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   Common Internet FileSystem (CIFS) client
@@ -31,6 +31,7 @@
 #include <linux/list.h>
 #include <linux/seq_file.h>
 #include <linux/vfs.h>
+#include <linux/mempool.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE
@@ -39,19 +40,18 @@
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
 #include <linux/mm.h>
-#define CIFS_MAGIC_NUMBER 0xFF534D42	/* the first four bytes of all SMB PDUs */
+#define CIFS_MAGIC_NUMBER 0xFF534D42	/* the first four bytes of SMB PDUs */
 
-#ifdef CIFS_QUOTA
+#ifdef CONFIG_CIFS_QUOTA
 static struct quotactl_ops cifs_quotactl_ops;
 #endif
-
-extern struct file_system_type cifs_fs_type;
 
 int cifsFYI = 0;
 int cifsERROR = 1;
 int traceSMB = 0;
 unsigned int oplockEnabled = 1;
 unsigned int quotaEnabled = 0;
+unsigned int linuxExtEnabled = 1;
 unsigned int lookupCacheEnabled = 1;
 unsigned int multiuser_mount = 0;
 unsigned int extended_security = 0;
@@ -77,10 +77,14 @@ cifs_read_super(struct super_block *sb, void *data,
 	struct cifs_sb_info *cifs_sb;
 	int rc = 0;
 
+	sb->s_flags |= MS_NODIRATIME; /* and probably even noatime */
 	sb->s_fs_info = kmalloc(sizeof(struct cifs_sb_info),GFP_KERNEL);
 	cifs_sb = CIFS_SB(sb);
 	if(cifs_sb == NULL)
 		return -ENOMEM;
+	else
+		memset(cifs_sb,0,sizeof(struct cifs_sb_info));
+	
 
 	rc = cifs_mount(sb, cifs_sb, data, devname);
 
@@ -95,7 +99,7 @@ cifs_read_super(struct super_block *sb, void *data,
 	sb->s_op = &cifs_super_ops;
 /*	if(cifs_sb->tcon->ses->server->maxBuf > MAX_CIFS_HDR_SIZE + 512)
 	    sb->s_blocksize = cifs_sb->tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE; */
-#ifdef CIFS_QUOTA
+#ifdef CONFIG_CIFS_QUOTA
 	sb->s_qcop = &cifs_quotactl_ops;
 #endif
 	sb->s_blocksize = CIFS_MAX_MSGSIZE;
@@ -122,14 +126,15 @@ out_no_root:
 		iput(inode);
 
 out_mount_failed:
-	if(cifs_sb->local_nls)
-		unload_nls(cifs_sb->local_nls);	
-	if(cifs_sb)
+	if(cifs_sb) {
+		if(cifs_sb->local_nls)
+			unload_nls(cifs_sb->local_nls);	
 		kfree(cifs_sb);
+	}
 	return rc;
 }
 
-void
+static void
 cifs_put_super(struct super_block *sb)
 {
 	int rc = 0;
@@ -150,7 +155,7 @@ cifs_put_super(struct super_block *sb)
 	return;
 }
 
-int
+static int
 cifs_statfs(struct super_block *sb, struct kstatfs *buf)
 {
 	int xid, rc;
@@ -185,14 +190,25 @@ cifs_statfs(struct super_block *sb, struct kstatfs *buf)
 
 static int cifs_permission(struct inode * inode, int mask, struct nameidata *nd)
 {
-	/* the server does permission checks, we do not need to do it here */
-	return 0;
+	struct cifs_sb_info *cifs_sb;
+
+	cifs_sb = CIFS_SB(inode->i_sb);
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) {
+		return 0;
+	} else /* file mode might have been restricted at mount time 
+		on the client (above and beyond ACL on servers) for  
+		servers which do not support setting and viewing mode bits,
+		so allowing client to check permissions is useful */ 
+		return vfs_permission(inode, mask);
 }
 
 static kmem_cache_t *cifs_inode_cachep;
-kmem_cache_t *cifs_req_cachep;
-kmem_cache_t *cifs_mid_cachep;
+static kmem_cache_t *cifs_req_cachep;
+static kmem_cache_t *cifs_mid_cachep;
 kmem_cache_t *cifs_oplock_cachep;
+mempool_t *cifs_req_poolp;
+mempool_t *cifs_mid_poolp;
 
 static struct inode *
 cifs_alloc_inode(struct super_block *sb)
@@ -252,7 +268,7 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 	return 0;
 }
 
-#ifdef CIFS_QUOTA
+#ifdef CONFIG_CIFS_QUOTA
 int cifs_xquota_set(struct super_block * sb, int quota_type, qid_t qid,
 		struct fs_disk_quota * pdquota)
 {
@@ -356,6 +372,12 @@ static struct quotactl_ops cifs_quotactl_ops = {
 };
 #endif
 
+static int cifs_remount(struct super_block *sb, int *flags, char *data)
+{
+	*flags |= MS_NODIRATIME;
+	return 0;
+}
+
 struct super_operations cifs_super_ops = {
 	.read_inode = cifs_read_inode,
 	.put_super = cifs_put_super,
@@ -368,6 +390,7 @@ struct super_operations cifs_super_ops = {
    us with the same number of releases (closes) as opens */
 	.show_options = cifs_show_options,
 /*    .umount_begin   = cifs_umount_begin, *//* consider adding in the future */
+	.remount_fs = cifs_remount,
 };
 
 static struct super_block *
@@ -394,24 +417,58 @@ cifs_get_sb(struct file_system_type *fs_type,
 	return sb;
 }
 
-ssize_t
-cifs_read_wrapper(struct file * file, char *read_data, size_t read_size,
+static ssize_t
+cifs_read_wrapper(struct file * file, char __user *read_data, size_t read_size,
           loff_t * poffset)
 {
-	if(CIFS_I(file->f_dentry->d_inode)->clientCanCacheRead)
+	if(file == NULL)
+		return -EIO;
+	else if(file->f_dentry == NULL)
+		return -EIO;
+	else if(file->f_dentry->d_inode == NULL)
+		return -EIO;
+
+	cFYI(1,("In read_wrapper size %zd at %lld",read_size,*poffset));
+	if(CIFS_I(file->f_dentry->d_inode)->clientCanCacheRead) {
 		return generic_file_read(file,read_data,read_size,poffset);
-	else
-		return cifs_read(file,read_data,read_size,poffset);	
+	} else {
+		/* BB do we need to lock inode from here until after invalidate? */
+/*		if(file->f_dentry->d_inode->i_mapping) {
+			filemap_fdatawrite(file->f_dentry->d_inode->i_mapping);
+			filemap_fdatawait(file->f_dentry->d_inode->i_mapping);
+		}*/
+/*		cifs_revalidate(file->f_dentry);*/ /* BB fixme */
+
+		/* BB we should make timer configurable - perhaps 
+		   by simply calling cifs_revalidate here */
+		/* invalidate_remote_inode(file->f_dentry->d_inode);*/
+		return generic_file_read(file,read_data,read_size,poffset);
+	}
 }
 
-ssize_t
-cifs_write_wrapper(struct file * file, const char *write_data,
+static ssize_t
+cifs_write_wrapper(struct file * file, const char __user *write_data,
            size_t write_size, loff_t * poffset) 
 {
-	if(CIFS_I(file->f_dentry->d_inode)->clientCanCacheAll)    /* check caching for write */
-		return generic_file_write(file,write_data, write_size,poffset);
-	else
-		return cifs_write(file,write_data,write_size,poffset);
+	ssize_t written;
+
+	if(file == NULL)
+		return -EIO;
+	else if(file->f_dentry == NULL)
+		return -EIO;
+	else if(file->f_dentry->d_inode == NULL)
+		return -EIO;
+
+	cFYI(1,("In write_wrapper size %zd at %lld",write_size,*poffset));
+
+	/* check whether we can cache writes locally */
+	written = generic_file_write(file,write_data,write_size,poffset);
+	if(!CIFS_I(file->f_dentry->d_inode)->clientCanCacheAll)  {
+		if(file->f_dentry->d_inode->i_mapping) {
+			filemap_fdatawrite(file->f_dentry->d_inode->i_mapping);
+		}
+	}
+	return written;
 }
 
 
@@ -444,7 +501,7 @@ struct inode_operations cifs_file_inode_ops = {
 	.getattr = cifs_getattr, /* do we need this anymore? */
 	.rename = cifs_rename,
 	.permission = cifs_permission,
-#ifdef CIFS_XATTR
+#ifdef CONFIG_CIFS_XATTR
 	.setxattr = cifs_setxattr,
 	.getxattr = cifs_getxattr,
 	.listxattr = cifs_listxattr,
@@ -459,7 +516,7 @@ struct inode_operations cifs_symlink_inode_ops = {
 	/* BB add the following two eventually */
 	/* revalidate: cifs_revalidate,
 	   setattr:    cifs_notify_change, *//* BB do we need notify change */
-#ifdef CIFS_XATTR
+#ifdef CONFIG_CIFS_XATTR
 	.setxattr = cifs_setxattr,
 	.getxattr = cifs_getxattr,
 	.listxattr = cifs_listxattr,
@@ -468,8 +525,8 @@ struct inode_operations cifs_symlink_inode_ops = {
 };
 
 struct file_operations cifs_file_ops = {
-	.read = generic_file_read,
-	.write = generic_file_write, 
+	.read = cifs_read_wrapper,
+	.write = cifs_write_wrapper, 
 	.open = cifs_open,
 	.release = cifs_close,
 	.lock = cifs_lock,
@@ -477,12 +534,14 @@ struct file_operations cifs_file_ops = {
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
 	.sendfile = generic_file_sendfile,
+	.dir_notify = cifs_dir_notify,
 };
 
 struct file_operations cifs_dir_ops = {
 	.readdir = cifs_readdir,
 	.release = cifs_closedir,
 	.read    = generic_read_dir,
+	.dir_notify = cifs_dir_notify,
 };
 
 static void
@@ -497,7 +556,7 @@ cifs_init_once(void *inode, kmem_cache_t * cachep, unsigned long flags)
 	}
 }
 
-int
+static int
 cifs_init_inodecache(void)
 {
 	cifs_inode_cachep = kmem_cache_create("cifs_inode_cache",
@@ -510,14 +569,14 @@ cifs_init_inodecache(void)
 	return 0;
 }
 
-void
+static void
 cifs_destroy_inodecache(void)
 {
 	if (kmem_cache_destroy(cifs_inode_cachep))
 		printk(KERN_WARNING "cifs_inode_cache: error freeing\n");
 }
 
-int
+static int
 cifs_init_request_bufs(void)
 {
 	cifs_req_cachep = kmem_cache_create("cifs_request",
@@ -527,18 +586,29 @@ cifs_init_request_bufs(void)
 	if (cifs_req_cachep == NULL)
 		return -ENOMEM;
 
+	cifs_req_poolp = mempool_create(CIFS_MIN_RCV_POOL,
+					mempool_alloc_slab,
+					mempool_free_slab,
+					cifs_req_cachep);
+
+	if(cifs_req_poolp == NULL) {
+		kmem_cache_destroy(cifs_req_cachep);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
-void
+static void
 cifs_destroy_request_bufs(void)
 {
+	mempool_destroy(cifs_req_poolp);
 	if (kmem_cache_destroy(cifs_req_cachep))
 		printk(KERN_WARNING
 		       "cifs_destroy_request_cache: error not all structures were freed\n");
 }
 
-int
+static int
 cifs_init_mids(void)
 {
 	cifs_mid_cachep = kmem_cache_create("cifs_mpx_ids",
@@ -546,23 +616,36 @@ cifs_init_mids(void)
 				SLAB_HWCACHE_ALIGN, NULL, NULL);
 	if (cifs_mid_cachep == NULL)
 		return -ENOMEM;
+
+	cifs_mid_poolp = mempool_create(3 /* a reasonable min simultan opers */,
+					mempool_alloc_slab,
+					mempool_free_slab,
+					cifs_mid_cachep);
+	if(cifs_mid_poolp == NULL) {
+		kmem_cache_destroy(cifs_mid_cachep);
+		return -ENOMEM;
+	}
+
 	cifs_oplock_cachep = kmem_cache_create("cifs_oplock_structs",
 				sizeof (struct oplock_q_entry), 0,
 				SLAB_HWCACHE_ALIGN, NULL, NULL);
 	if (cifs_oplock_cachep == NULL) {
 		kmem_cache_destroy(cifs_mid_cachep);
+		mempool_destroy(cifs_mid_poolp);
 		return -ENOMEM;
 	}
 
 	return 0;
 }
 
-void
+static void
 cifs_destroy_mids(void)
 {
+	mempool_destroy(cifs_mid_poolp);
 	if (kmem_cache_destroy(cifs_mid_cachep))
 		printk(KERN_WARNING
 		       "cifs_destroy_mids: error not all structures were freed\n");
+
 	if (kmem_cache_destroy(cifs_oplock_cachep))
 		printk(KERN_WARNING
 		       "error not all oplock structures were freed\n");
@@ -583,32 +666,53 @@ static int cifs_oplock_thread(void * dummyarg)
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
 		
-		schedule_timeout(39*HZ);
+		schedule_timeout(1*HZ);  
 		spin_lock(&GlobalMid_Lock);
 		if(list_empty(&GlobalOplock_Q)) {
 			spin_unlock(&GlobalMid_Lock);
+			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(39*HZ);
 		} else {
 			oplock_item = list_entry(GlobalOplock_Q.next, 
 				struct oplock_q_entry, qhead);
 			if(oplock_item) {
+				cFYI(1,("found oplock item to write out")); 
 				pTcon = oplock_item->tcon;
 				inode = oplock_item->pinode;
 				netfid = oplock_item->netfid;
 				spin_unlock(&GlobalMid_Lock);
 				DeleteOplockQEntry(oplock_item);
-				if (S_ISREG(inode->i_mode)) 
+				/* can not grab inode sem here since it would
+				deadlock when oplock received on delete 
+				since vfs_unlink holds the i_sem across
+				the call */
+				/* down(&inode->i_sem);*/
+				if (S_ISREG(inode->i_mode)) {
 					rc = filemap_fdatawrite(inode->i_mapping);
-				else
+					if(CIFS_I(inode)->clientCanCacheRead == 0) {
+						filemap_fdatawait(inode->i_mapping);
+						invalidate_remote_inode(inode);
+					}
+				} else
 					rc = 0;
+				/* up(&inode->i_sem);*/
 				if (rc)
 					CIFS_I(inode)->write_behind_rc = rc;
 				cFYI(1,("Oplock flush inode %p rc %d",inode,rc));
-				rc = CIFSSMBLock(0, pTcon, netfid,
-					0 /* len */ , 0 /* offset */, 0, 
-					0, LOCKING_ANDX_OPLOCK_RELEASE,
-					0 /* wait flag */);
-				cFYI(1,("Oplock release rc = %d ",rc));
+
+				/* releasing a stale oplock after recent reconnection 
+				of smb session using a now incorrect file 
+				handle is not a data integrity issue but do  
+				not bother sending an oplock release if session 
+				to server still is disconnected since oplock 
+				already released by the server in that case */
+				if(pTcon->tidStatus != CifsNeedReconnect) {
+				    rc = CIFSSMBLock(0, pTcon, netfid,
+					    0 /* len */ , 0 /* offset */, 0, 
+					    0, LOCKING_ANDX_OPLOCK_RELEASE,
+					    0 /* wait flag */);
+					cFYI(1,("Oplock release rc = %d ",rc));
+				}
 			} else
 				spin_unlock(&GlobalMid_Lock);
 		}
@@ -632,6 +736,10 @@ init_cifs(void)
  */
 	atomic_set(&sesInfoAllocCount, 0);
 	atomic_set(&tconInfoAllocCount, 0);
+	atomic_set(&tcpSesAllocCount,0);
+	atomic_set(&tcpSesReconnectCount, 0);
+	atomic_set(&tconInfoReconnectCount, 0);
+
 	atomic_set(&bufAllocCount, 0);
 	atomic_set(&midCount, 0);
 	GlobalCurrentXid = 0;
@@ -685,5 +793,6 @@ MODULE_AUTHOR("Steve French <sfrench@us.ibm.com>");
 MODULE_LICENSE("GPL");		/* combination of LGPL + GPL source behaves as GPL */
 MODULE_DESCRIPTION
     ("VFS to access servers complying with the SNIA CIFS Specification e.g. Samba and Windows");
+MODULE_VERSION(CIFS_VERSION);
 module_init(init_cifs)
 module_exit(exit_cifs)

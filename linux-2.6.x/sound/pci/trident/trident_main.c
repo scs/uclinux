@@ -50,7 +50,8 @@ static int snd_trident_pcm_mixer_build(trident_t *trident, snd_trident_voice_t *
 static int snd_trident_pcm_mixer_free(trident_t *trident, snd_trident_voice_t * voice, snd_pcm_substream_t *substream);
 static irqreturn_t snd_trident_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 #ifdef CONFIG_PM
-static int snd_trident_set_power_state(snd_card_t *card, unsigned int power_state);
+static int snd_trident_suspend(snd_card_t *card, unsigned int state);
+static int snd_trident_resume(snd_card_t *card, unsigned int state);
 #endif
 static int snd_trident_sis_reset(trident_t *trident);
 
@@ -1008,8 +1009,6 @@ static int snd_trident_capture_prepare(snd_pcm_substream_t * substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_trident_voice_t *voice = (snd_trident_voice_t *) runtime->private_data;
 	unsigned int val, ESO_bytes;
-
-	snd_assert(substream->dma_device.type == SNDRV_DMA_TYPE_PCI, return -EIO);
 
 	spin_lock(&trident->reg_lock);
 
@@ -2189,10 +2188,15 @@ int __devinit snd_trident_pcm(trident_t * trident, int device, snd_pcm_t ** rpcm
 	if (trident->tlb.entries) {
 		snd_pcm_substream_t *substream;
 		for (substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; substream; substream = substream->next)
-			snd_pcm_lib_preallocate_sg_pages(trident->pci, substream, 64*1024, 128*1024);
-		snd_pcm_lib_preallocate_pci_pages(trident->pci, pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream, 64*1024, 128*1024);
+			snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV_SG,
+						      snd_dma_pci_data(trident->pci),
+						      64*1024, 128*1024);
+		snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
+					      SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(trident->pci),
+					      64*1024, 128*1024);
 	} else {
-		snd_pcm_lib_preallocate_pci_pages_for_all(trident->pci, pcm, 64*1024, 128*1024);
+		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+						      snd_dma_pci_data(trident->pci), 64*1024, 128*1024);
 	}
 
 	if (rpcm)
@@ -2246,9 +2250,11 @@ int __devinit snd_trident_foldback_pcm(trident_t * trident, int device, snd_pcm_
 	trident->foldback = foldback;
 
 	if (trident->tlb.entries)
-		snd_pcm_lib_preallocate_sg_pages_for_all(trident->pci, foldback, 0, 128*1024);
+		snd_pcm_lib_preallocate_pages_for_all(foldback, SNDRV_DMA_TYPE_DEV_SG,
+						      snd_dma_pci_data(trident->pci), 0, 128*1024);
 	else
-		snd_pcm_lib_preallocate_pci_pages_for_all(trident->pci, foldback, 64*1024, 128*1024);
+		snd_pcm_lib_preallocate_pages_for_all(foldback, SNDRV_DMA_TYPE_DEV,
+						      snd_dma_pci_data(trident->pci), 64*1024, 128*1024);
 
 	if (rpcm)
 		*rpcm = foldback;
@@ -2287,7 +2293,7 @@ int __devinit snd_trident_spdif_pcm(trident_t * trident, int device, snd_pcm_t *
 	strcpy(spdif->name, "Trident 4DWave IEC958");
 	trident->spdif = spdif;
 
-	snd_pcm_lib_preallocate_pci_pages_for_all(trident->pci, spdif, 64*1024, 128*1024);
+	snd_pcm_lib_preallocate_pages_for_all(spdif, SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(trident->pci), 64*1024, 128*1024);
 
 	if (rpcm)
 		*rpcm = spdif;
@@ -2955,6 +2961,7 @@ static int snd_trident_pcm_mixer_free(trident_t *trident, snd_trident_voice_t *v
 
 static int __devinit snd_trident_mixer(trident_t * trident, int pcm_spdif_device)
 {
+	ac97_bus_t _bus;
 	ac97_t _ac97;
 	snd_card_t * card = trident->card;
 	snd_kcontrol_t *kctl;
@@ -2965,14 +2972,18 @@ static int __devinit snd_trident_mixer(trident_t * trident, int pcm_spdif_device
 	if (!uctl)
 		return -ENOMEM;
 
+	memset(&_bus, 0, sizeof(_bus));
+	_bus.write = snd_trident_codec_write;
+	_bus.read = snd_trident_codec_read;
+	if ((err = snd_ac97_bus(trident->card, &_bus, &trident->ac97_bus)) < 0)
+		goto __out;
+
 	memset(&_ac97, 0, sizeof(_ac97));
-	_ac97.write = snd_trident_codec_write;
-	_ac97.read = snd_trident_codec_read;
 	_ac97.private_data = trident;
 	trident->ac97_detect = 1;
 
       __again:
-	if ((err = snd_ac97_mixer(trident->card, &_ac97, &trident->ac97)) < 0) {
+	if ((err = snd_ac97_mixer(trident->ac97_bus, &_ac97, &trident->ac97)) < 0) {
 		if (trident->device == TRIDENT_DEVICE_ID_SI7018) {
 			if ((err = snd_trident_sis_reset(trident)) < 0)
 				goto __out;
@@ -2987,7 +2998,7 @@ static int __devinit snd_trident_mixer(trident_t * trident, int pcm_spdif_device
 	if (trident->device == TRIDENT_DEVICE_ID_SI7018 &&
 	    (inl(TRID_REG(trident, SI_SERIAL_INTF_CTRL)) & SI_AC97_PRIMARY_READY) != 0) {
 		_ac97.num = 1;
-		err = snd_ac97_mixer(trident->card, &_ac97, &trident->ac97_sec);
+		err = snd_ac97_mixer(trident->ac97_bus, &_ac97, &trident->ac97_sec);
 		if (err < 0)
 			snd_printk("SI7018: the secondary codec - invalid access\n");
 #if 0	// only for my testing purpose --jk
@@ -3047,29 +3058,49 @@ static int __devinit snd_trident_mixer(trident_t * trident, int pcm_spdif_device
 	}
 	if (trident->device == TRIDENT_DEVICE_ID_NX || trident->device == TRIDENT_DEVICE_ID_SI7018) {
 
-		if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_trident_spdif_control, trident))) < 0)
+		kctl = snd_ctl_new1(&snd_trident_spdif_control, trident);
+		if (kctl == NULL) {
+			err = -ENOMEM;
 			goto __out;
+		}
 		if (trident->ac97->ext_id & AC97_EI_SPDIF)
 			kctl->id.index++;
 		if (trident->ac97_sec && (trident->ac97_sec->ext_id & AC97_EI_SPDIF))
 			kctl->id.index++;
 		idx = kctl->id.index;
+		if ((err = snd_ctl_add(card, kctl)) < 0)
+			goto __out;
 		kctl->put(kctl, uctl);
 
-		if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_trident_spdif_default, trident))) < 0)
+		kctl = snd_ctl_new1(&snd_trident_spdif_default, trident);
+		if (kctl == NULL) {
+			err = -ENOMEM;
 			goto __out;
+		}
 		kctl->id.index = idx;
 		kctl->id.device = pcm_spdif_device;
+		if ((err = snd_ctl_add(card, kctl)) < 0)
+			goto __out;
 
-		if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_trident_spdif_mask, trident))) < 0)
+		kctl = snd_ctl_new1(&snd_trident_spdif_mask, trident);
+		if (kctl == NULL) {
+			err = -ENOMEM;
 			goto __out;
+		}
 		kctl->id.index = idx;
 		kctl->id.device = pcm_spdif_device;
+		if ((err = snd_ctl_add(card, kctl)) < 0)
+			goto __out;
 
-		if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_trident_spdif_stream, trident))) < 0)
+		kctl = snd_ctl_new1(&snd_trident_spdif_stream, trident);
+		if (kctl == NULL) {
+			err = -ENOMEM;
 			goto __out;
+		}
 		kctl->id.index = idx;
 		kctl->id.device = pcm_spdif_device;
+		if ((err = snd_ctl_add(card, kctl)) < 0)
+			goto __out;
 		trident->spdif_pcm_ctl = kctl;
 	}
 
@@ -3295,7 +3326,7 @@ static void __devinit snd_trident_proc_init(trident_t * trident)
 	if (trident->device == TRIDENT_DEVICE_ID_SI7018)
 		s = "sis7018";
 	if (! snd_card_proc_new(trident->card, s, &entry))
-		snd_info_set_text_ops(entry, trident, snd_trident_proc_read);
+		snd_info_set_text_ops(entry, trident, 1024, snd_trident_proc_read);
 }
 
 static int snd_trident_dev_free(snd_device_t *device)
@@ -3323,13 +3354,12 @@ static int __devinit snd_trident_tlb_alloc(trident_t *trident)
 	/* TLB array must be aligned to 16kB !!! so we allocate
 	   32kB region and correct offset when necessary */
 
-	trident->tlb.buffer = snd_malloc_pci_pages(trident->pci, 2 * SNDRV_TRIDENT_MAX_PAGES * 4, &trident->tlb.buffer_dmaaddr);
-	if (trident->tlb.buffer == NULL) {
+	if (snd_dma_alloc_pages(&trident->dma_dev, 2 * SNDRV_TRIDENT_MAX_PAGES * 4, &trident->tlb.buffer) < 0) {
 		snd_printk(KERN_ERR "trident: unable to allocate TLB buffer\n");
 		return -ENOMEM;
 	}
-	trident->tlb.entries = (unsigned int*)(((unsigned long)trident->tlb.buffer + SNDRV_TRIDENT_MAX_PAGES * 4 - 1) & ~(SNDRV_TRIDENT_MAX_PAGES * 4 - 1));
-	trident->tlb.entries_dmaaddr = (trident->tlb.buffer_dmaaddr + SNDRV_TRIDENT_MAX_PAGES * 4 - 1) & ~(SNDRV_TRIDENT_MAX_PAGES * 4 - 1);
+	trident->tlb.entries = (unsigned int*)(((unsigned long)trident->tlb.buffer.area + SNDRV_TRIDENT_MAX_PAGES * 4 - 1) & ~(SNDRV_TRIDENT_MAX_PAGES * 4 - 1));
+	trident->tlb.entries_dmaaddr = (trident->tlb.buffer.addr + SNDRV_TRIDENT_MAX_PAGES * 4 - 1) & ~(SNDRV_TRIDENT_MAX_PAGES * 4 - 1);
 	/* allocate shadow TLB page table (virtual addresses) */
 	trident->tlb.shadow_entries = (unsigned long *)vmalloc(SNDRV_TRIDENT_MAX_PAGES*sizeof(unsigned long));
 	if (trident->tlb.shadow_entries == NULL) {
@@ -3337,15 +3367,14 @@ static int __devinit snd_trident_tlb_alloc(trident_t *trident)
 		return -ENOMEM;
 	}
 	/* allocate and setup silent page and initialise TLB entries */
-	trident->tlb.silent_page = snd_malloc_pci_pages(trident->pci, SNDRV_TRIDENT_PAGE_SIZE, &trident->tlb.silent_page_dmaaddr);
-	if (trident->tlb.silent_page == 0UL) {
+	if (snd_dma_alloc_pages(&trident->dma_dev, SNDRV_TRIDENT_PAGE_SIZE, &trident->tlb.silent_page) < 0) {
 		snd_printk(KERN_ERR "trident: unable to allocate silent page\n");
 		return -ENOMEM;
 	}
-	memset(trident->tlb.silent_page, 0, SNDRV_TRIDENT_PAGE_SIZE);
+	memset(trident->tlb.silent_page.area, 0, SNDRV_TRIDENT_PAGE_SIZE);
 	for (i = 0; i < SNDRV_TRIDENT_MAX_PAGES; i++) {
-		trident->tlb.entries[i] = cpu_to_le32(trident->tlb.silent_page_dmaaddr & ~(SNDRV_TRIDENT_PAGE_SIZE-1));
-		trident->tlb.shadow_entries[i] = (unsigned long)trident->tlb.silent_page;
+		trident->tlb.entries[i] = cpu_to_le32(trident->tlb.silent_page.addr & ~(SNDRV_TRIDENT_PAGE_SIZE-1));
+		trident->tlb.shadow_entries[i] = (unsigned long)trident->tlb.silent_page.area;
 	}
 
 	/* use emu memory block manager code to manage tlb page allocation */
@@ -3518,11 +3547,11 @@ int __devinit snd_trident_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 	/* check, if we can restrict PCI DMA transfers to 30 bits */
-	if (!pci_dma_supported(pci, 0x3fffffff)) {
+	if (pci_set_dma_mask(pci, 0x3fffffff) < 0 ||
+	    pci_set_consistent_dma_mask(pci, 0x3fffffff) < 0) {
 		snd_printk("architecture does not support 30bit PCI busmaster DMA\n");
 		return -ENXIO;
 	}
-	pci_set_dma_mask(pci, 0x3fffffff);
 	
 	trident = snd_magic_kcalloc(trident_t, 0, GFP_KERNEL);
 	if (trident == NULL)
@@ -3560,9 +3589,13 @@ int __devinit snd_trident_create(snd_card_t * card,
 	}
 	trident->irq = pci->irq;
 
+	memset(&trident->dma_dev, 0, sizeof(trident->dma_dev));
+	trident->dma_dev.type = SNDRV_DMA_TYPE_DEV;
+	trident->dma_dev.dev = snd_dma_pci_data(pci);
+
 	/* allocate 16k-aligned TLB for NX cards */
 	trident->tlb.entries = NULL;
-	trident->tlb.buffer = NULL;
+	trident->tlb.buffer.area = NULL;
 	if (trident->device == TRIDENT_DEVICE_ID_NX) {
 		if ((err = snd_trident_tlb_alloc(trident)) < 0) {
 			snd_trident_free(trident);
@@ -3614,16 +3647,15 @@ int __devinit snd_trident_create(snd_card_t * card,
 
 	snd_trident_enable_eso(trident);
 
-#ifdef CONFIG_PM
-	card->set_power_state = snd_trident_set_power_state;
-	card->power_state_private_data = trident;
-#endif
+	
+	snd_card_set_pm_callback(card, snd_trident_suspend, snd_trident_resume, trident);
 
 	snd_trident_proc_init(trident);
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, trident, &ops)) < 0) {
 		snd_trident_free(trident);
 		return err;
 	}
+	snd_card_set_dev(card, &pci->dev);
 	*rtrident = trident;
 	return 0;
 }
@@ -3655,15 +3687,15 @@ int snd_trident_free(trident_t *trident)
 	else if (trident->device == TRIDENT_DEVICE_ID_SI7018) {
 		outl(0, TRID_REG(trident, SI_SERIAL_INTF_CTRL));
 	}
-	if (trident->tlb.buffer) {
+	if (trident->tlb.buffer.area) {
 		outl(0, TRID_REG(trident, NX_TLBC));
 		if (trident->tlb.memhdr)
 			snd_util_memhdr_free(trident->tlb.memhdr);
-		if (trident->tlb.silent_page)
-			snd_free_pci_pages(trident->pci, SNDRV_TRIDENT_PAGE_SIZE, trident->tlb.silent_page, trident->tlb.silent_page_dmaaddr);
+		if (trident->tlb.silent_page.area)
+			snd_dma_free_pages(&trident->dma_dev, &trident->tlb.silent_page);
 		if (trident->tlb.shadow_entries)
 			vfree(trident->tlb.shadow_entries);
-		snd_free_pci_pages(trident->pci, 2 * SNDRV_TRIDENT_MAX_PAGES * 4, trident->tlb.buffer, trident->tlb.buffer_dmaaddr);
+		snd_dma_free_pages(&trident->dma_dev, &trident->tlb.buffer);
 	}
 	if (trident->irq >= 0)
 		free_irq(trident->irq, (void *)trident);
@@ -3916,19 +3948,21 @@ void snd_trident_clear_voices(trident_t * trident, unsigned short v_min, unsigne
 }
 
 #ifdef CONFIG_PM
-
-void snd_trident_suspend(trident_t *trident)
+static int snd_trident_suspend(snd_card_t *card, unsigned int state)
 {
-	snd_card_t *card = trident->card;
+	trident_t *trident = snd_magic_cast(trident_t, card->pm_private_data, return -EINVAL);
 
-	if (card->power_state == SNDRV_CTL_POWER_D3hot)
-		return;
 	trident->in_suspend = 1;
 	snd_pcm_suspend_all(trident->pcm);
 	if (trident->foldback)
 		snd_pcm_suspend_all(trident->foldback);
 	if (trident->spdif)
 		snd_pcm_suspend_all(trident->spdif);
+
+	snd_ac97_suspend(trident->ac97);
+	if (trident->ac97_sec)
+		snd_ac97_suspend(trident->ac97_sec);
+
 	switch (trident->device) {
 	case TRIDENT_DEVICE_ID_DX:
 	case TRIDENT_DEVICE_ID_NX:
@@ -3937,17 +3971,17 @@ void snd_trident_suspend(trident_t *trident)
 		break;
 	}
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	return 0;
 }
 
-void snd_trident_resume(trident_t *trident)
+static int snd_trident_resume(snd_card_t *card, unsigned int state)
 {
-	snd_card_t *card = trident->card;
-
-	if (card->power_state == SNDRV_CTL_POWER_D0)
-		return;
+	trident_t *trident = snd_magic_cast(trident_t, card->pm_private_data, return -EINVAL);
 
 	pci_enable_device(trident->pci);
-	pci_set_dma_mask(trident->pci, 0x3fffffff); /* to be sure */
+	if (pci_set_dma_mask(trident->pci, 0x3fffffff) < 0 ||
+	    pci_set_consistent_dma_mask(trident->pci, 0x3fffffff) < 0)
+		snd_printk(KERN_WARNING "trident: can't set the proper DMA mask\n");
 	pci_set_master(trident->pci); /* to be sure */
 
 	switch (trident->device) {
@@ -3963,6 +3997,8 @@ void snd_trident_resume(trident_t *trident)
 	}
 
 	snd_ac97_resume(trident->ac97);
+	if (trident->ac97_sec)
+		snd_ac97_resume(trident->ac97_sec);
 
 	/* restore some registers */
 	outl(trident->musicvol_wavevol, TRID_REG(trident, T4D_MUSICVOL_WAVEVOL));
@@ -3971,28 +4007,8 @@ void snd_trident_resume(trident_t *trident)
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	trident->in_suspend = 0;
+	return 0;
 }
-
-static int snd_trident_set_power_state(snd_card_t *card, unsigned int power_state)
-{
-	trident_t *chip = snd_magic_cast(trident_t, card->power_state_private_data, return -ENXIO);
-        
-	switch (power_state) {
-        case SNDRV_CTL_POWER_D0:
-        case SNDRV_CTL_POWER_D1:
-        case SNDRV_CTL_POWER_D2:
-        	snd_trident_resume(chip);
-                break;
-	case SNDRV_CTL_POWER_D3hot:
-        case SNDRV_CTL_POWER_D3cold:
-		snd_trident_suspend(chip);
-		break;
-        default:
-	        return -EINVAL;
-        }
-        return 0;
-}
-
 #endif /* CONFIG_PM */
 
 EXPORT_SYMBOL(snd_trident_alloc_voice);

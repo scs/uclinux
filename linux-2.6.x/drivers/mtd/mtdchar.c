@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/compatmac.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -16,14 +17,46 @@
 
 #ifdef CONFIG_DEVFS_FS
 #include <linux/devfs_fs_kernel.h>
-static void mtd_notify_add(struct mtd_info* mtd);
-static void mtd_notify_remove(struct mtd_info* mtd);
+
+static void mtd_notify_add(struct mtd_info* mtd)
+{
+	if (!mtd)
+		return;
+
+	devfs_mk_cdev(MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
+		      S_IFCHR | S_IRUGO | S_IWUGO, "mtd/%d", mtd->index);
+		
+	devfs_mk_cdev(MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
+		      S_IFCHR | S_IRUGO, "mtd/%dro", mtd->index);
+}
+
+static void mtd_notify_remove(struct mtd_info* mtd)
+{
+	if (!mtd)
+		return;
+	devfs_remove("mtd/%d", mtd->index);
+	devfs_remove("mtd/%dro", mtd->index);
+}
 
 static struct mtd_notifier notifier = {
 	.add	= mtd_notify_add,
 	.remove	= mtd_notify_remove,
 };
 
+static inline void mtdchar_devfs_init(void)
+{
+	devfs_mk_dir("mtd");
+	register_mtd_user(&notifier);
+}
+
+static inline void mtdchar_devfs_exit(void)
+{
+	unregister_mtd_user(&notifier);
+	devfs_remove("mtd");
+}
+#else /* !DEVFS */
+#define mtdchar_devfs_init() do { } while(0)
+#define mtdchar_devfs_exit() do { } while(0)
 #endif
 
 static loff_t mtd_lseek (struct file *file, loff_t offset, int orig)
@@ -116,7 +149,7 @@ static int mtd_close(struct inode *inode, struct file *file)
 */
 #define MAX_KMALLOC_SIZE 0x20000
 
-static ssize_t mtd_read(struct file *file, char *buf, size_t count,loff_t *ppos)
+static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t *ppos)
 {
 	struct mtd_info *mtd = (struct mtd_info *)file->private_data;
 	size_t retlen=0;
@@ -169,7 +202,7 @@ static ssize_t mtd_read(struct file *file, char *buf, size_t count,loff_t *ppos)
 	return total_retlen;
 } /* mtd_read */
 
-static ssize_t mtd_write(struct file *file, const char *buf, size_t count,loff_t *ppos)
+static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count,loff_t *ppos)
 {
 	struct mtd_info *mtd = (struct mtd_info *)file->private_data;
 	char *kbuf;
@@ -229,7 +262,7 @@ static ssize_t mtd_write(struct file *file, const char *buf, size_t count,loff_t
     IOCTL calls for getting device parameters.
 
 ======================================================================*/
-static void mtd_erase_callback (struct erase_info *instr)
+static void mtdchar_erase_callback (struct erase_info *instr)
 {
 	wake_up((wait_queue_head_t *)instr->priv);
 }
@@ -238,6 +271,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		     u_int cmd, u_long arg)
 {
 	struct mtd_info *mtd = (struct mtd_info *)file->private_data;
+	void __user *argp = (void __user *)arg;
 	int ret = 0;
 	u_long size;
 	
@@ -245,17 +279,17 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 	size = (cmd & IOCSIZE_MASK) >> IOCSIZE_SHIFT;
 	if (cmd & IOC_IN) {
-		ret = verify_area(VERIFY_READ, (char *)arg, size);
+		ret = verify_area(VERIFY_READ, argp, size);
 		if (ret) return ret;
 	}
 	if (cmd & IOC_OUT) {
-		ret = verify_area(VERIFY_WRITE, (char *)arg, size);
+		ret = verify_area(VERIFY_WRITE, argp, size);
 		if (ret) return ret;
 	}
 	
 	switch (cmd) {
 	case MEMGETREGIONCOUNT:
-		if (copy_to_user((int *) arg, &(mtd->numeraseregions), sizeof(int)))
+		if (copy_to_user(argp, &(mtd->numeraseregions), sizeof(int)))
 			return -EFAULT;
 		break;
 
@@ -263,24 +297,19 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	{
 		struct region_info_user ur;
 
-		if (copy_from_user(	&ur, 
-					(struct region_info_user *)arg, 
-					sizeof(struct region_info_user))) {
+		if (copy_from_user(&ur, argp, sizeof(struct region_info_user)))
 			return -EFAULT;
-		}
 
 		if (ur.regionindex >= mtd->numeraseregions)
 			return -EINVAL;
-		if (copy_to_user((struct mtd_erase_region_info *) arg, 
-				&(mtd->eraseregions[ur.regionindex]),
+		if (copy_to_user(argp, &(mtd->eraseregions[ur.regionindex]),
 				sizeof(struct mtd_erase_region_info)))
 			return -EFAULT;
 		break;
 	}
 
 	case MEMGETINFO:
-		if (copy_to_user((struct mtd_info *)arg, mtd,
-				 sizeof(struct mtd_info_user)))
+		if (copy_to_user(argp, mtd, sizeof(struct mtd_info_user)))
 			return -EFAULT;
 		break;
 
@@ -301,13 +330,13 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 			init_waitqueue_head(&waitq);
 
 			memset (erase,0,sizeof(struct erase_info));
-			if (copy_from_user(&erase->addr, (u_long *)arg,
-					   2 * sizeof(u_long))) {
+			if (copy_from_user(&erase->addr, argp,
+				    sizeof(struct erase_info_user))) {
 				kfree(erase);
 				return -EFAULT;
 			}
 			erase->mtd = mtd;
-			erase->callback = mtd_erase_callback;
+			erase->callback = mtdchar_erase_callback;
 			erase->priv = (unsigned long)&waitq;
 			
 			/*
@@ -345,7 +374,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if(!(file->f_mode & 2))
 			return -EPERM;
 
-		if (copy_from_user(&buf, (struct mtd_oob_buf *)arg, sizeof(struct mtd_oob_buf)))
+		if (copy_from_user(&buf, argp, sizeof(struct mtd_oob_buf)))
 			return -EFAULT;
 		
 		if (buf.length > 0x4096)
@@ -354,7 +383,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (!mtd->write_oob)
 			ret = -EOPNOTSUPP;
 		else
-			ret = verify_area(VERIFY_READ, (char *)buf.ptr, buf.length);
+			ret = verify_area(VERIFY_READ, buf.ptr, buf.length);
 
 		if (ret)
 			return ret;
@@ -370,7 +399,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 		ret = (mtd->write_oob)(mtd, buf.start, buf.length, &retlen, databuf);
 
-		if (copy_to_user((void *)arg + sizeof(u_int32_t), &retlen, sizeof(u_int32_t)))
+		if (copy_to_user(argp + sizeof(uint32_t), &retlen, sizeof(uint32_t)))
 			ret = -EFAULT;
 
 		kfree(databuf);
@@ -384,7 +413,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		void *databuf;
 		ssize_t retlen;
 
-		if (copy_from_user(&buf, (struct mtd_oob_buf *)arg, sizeof(struct mtd_oob_buf)))
+		if (copy_from_user(&buf, argp, sizeof(struct mtd_oob_buf)))
 			return -EFAULT;
 		
 		if (buf.length > 0x4096)
@@ -393,7 +422,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (!mtd->read_oob)
 			ret = -EOPNOTSUPP;
 		else
-			ret = verify_area(VERIFY_WRITE, (char *)buf.ptr, buf.length);
+			ret = verify_area(VERIFY_WRITE, buf.ptr, buf.length);
 
 		if (ret)
 			return ret;
@@ -404,7 +433,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		
 		ret = (mtd->read_oob)(mtd, buf.start, buf.length, &retlen, databuf);
 
-		if (copy_to_user((void *)arg + sizeof(u_int32_t), &retlen, sizeof(u_int32_t)))
+		if (put_user(retlen, (uint32_t __user *)argp))
 			ret = -EFAULT;
 		else if (retlen && copy_to_user(buf.ptr, databuf, retlen))
 			ret = -EFAULT;
@@ -415,41 +444,73 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 	case MEMLOCK:
 	{
-		unsigned long adrs[2];
+		struct erase_info_user info;
 
-		if (copy_from_user(adrs ,(void *)arg, 2* sizeof(unsigned long)))
+		if (copy_from_user(&info, argp, sizeof(info)))
 			return -EFAULT;
 
 		if (!mtd->lock)
 			ret = -EOPNOTSUPP;
 		else
-			ret = mtd->lock(mtd, adrs[0], adrs[1]);
+			ret = mtd->lock(mtd, info.start, info.length);
 		break;
 	}
 
 	case MEMUNLOCK:
 	{
-		unsigned long adrs[2];
+		struct erase_info_user info;
 
-		if (copy_from_user(adrs, (void *)arg, 2* sizeof(unsigned long)))
+		if (copy_from_user(&info, argp, sizeof(info)))
 			return -EFAULT;
 
 		if (!mtd->unlock)
 			ret = -EOPNOTSUPP;
 		else
-			ret = mtd->unlock(mtd, adrs[0], adrs[1]);
+			ret = mtd->unlock(mtd, info.start, info.length);
 		break;
 	}
 
 	case MEMSETOOBSEL:
 	{
-		if (copy_from_user(&mtd->oobinfo ,(void *)arg, sizeof(struct nand_oobinfo)))
+		if (copy_from_user(&mtd->oobinfo, argp, sizeof(struct nand_oobinfo)))
 			return -EFAULT;
 		break;
 	}
+
+	case MEMGETOOBSEL:
+	{
+		if (copy_to_user(argp, &(mtd->oobinfo), sizeof(struct nand_oobinfo)))
+			return -EFAULT;
+		break;
+	}
+
+	case MEMGETBADBLOCK:
+	{
+		loff_t offs;
 		
+		if (copy_from_user(&offs, argp, sizeof(loff_t)))
+			return -EFAULT;
+		if (!mtd->block_isbad)
+			ret = -EOPNOTSUPP;
+		else
+			return mtd->block_isbad(mtd, offs);
+		break;
+	}
+
+	case MEMSETBADBLOCK:
+	{
+		loff_t offs;
+
+		if (copy_from_user(&offs, argp, sizeof(loff_t)))
+			return -EFAULT;
+		if (!mtd->block_markbad)
+			ret = -EOPNOTSUPP;
+		else
+			return mtd->block_markbad(mtd, offs);
+		break;
+	}
+
 	default:
-		DEBUG(MTD_DEBUG_LEVEL0, "Invalid ioctl %x (MEMGETINFO = %x)\n", cmd, MEMGETINFO);
 		ret = -ENOTTY;
 	}
 
@@ -466,30 +527,6 @@ static struct file_operations mtd_fops = {
 	.release	= mtd_close,
 };
 
-
-#ifdef CONFIG_DEVFS_FS
-/* Notification that a new device has been added. Create the devfs entry for
- * it. */
-
-static void mtd_notify_add(struct mtd_info* mtd)
-{
-	if (!mtd)
-		return;
-	devfs_mk_cdev(MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
-			S_IFCHR | S_IRUGO | S_IWUGO, "mtd/%d", mtd->index);
-	devfs_mk_cdev(MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
-			S_IFCHR | S_IRUGO | S_IWUGO, "mtd/%dro", mtd->index);
-}
-
-static void mtd_notify_remove(struct mtd_info* mtd)
-{
-	if (!mtd)
-		return;
-	devfs_remove("mtd/%d", mtd->index);
-	devfs_remove("mtd/%dro", mtd->index);
-}
-#endif
-
 static int __init init_mtdchar(void)
 {
 	if (register_chrdev(MTD_CHAR_MAJOR, "mtd", &mtd_fops)) {
@@ -498,20 +535,13 @@ static int __init init_mtdchar(void)
 		return -EAGAIN;
 	}
 
-#ifdef CONFIG_DEVFS_FS
-	devfs_mk_dir("mtd");
-
-	register_mtd_user(&notifier);
-#endif
+	mtdchar_devfs_init();
 	return 0;
 }
 
 static void __exit cleanup_mtdchar(void)
 {
-#ifdef CONFIG_DEVFS_FS
-	unregister_mtd_user(&notifier);
-	devfs_remove("mtd");
-#endif
+	mtdchar_devfs_exit();
 	unregister_chrdev(MTD_CHAR_MAJOR, "mtd");
 }
 

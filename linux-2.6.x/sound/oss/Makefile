@@ -10,6 +10,7 @@ obj-$(CONFIG_SOUND_CS4232)	+= cs4232.o ad1848.o
 
 # Please leave it as is, cause the link order is significant !
 
+obj-$(CONFIG_SOUND_SH_DAC_AUDIO)	+= sh_dac_audio.o
 obj-$(CONFIG_SOUND_HAL2)	+= hal2.o
 obj-$(CONFIG_SOUND_AEDSP16)	+= aedsp16.o
 obj-$(CONFIG_SOUND_PSS)		+= pss.o ad1848.o mpu401.o
@@ -54,6 +55,12 @@ obj-$(CONFIG_SOUND_NM256)	+= nm256_audio.o ac97.o
 obj-$(CONFIG_SOUND_ICH)		+= i810_audio.o ac97_codec.o
 obj-$(CONFIG_SOUND_SONICVIBES)	+= sonicvibes.o
 obj-$(CONFIG_SOUND_CMPCI)	+= cmpci.o
+ifeq ($(CONFIG_SOUND_CMPCI_FM),y)
+  obj-$(CONFIG_SOUND_CMPCI)     += sound.o opl3.o
+endif
+ifeq ($(CONFIG_SOUND_CMPCI_MIDI),y)
+  obj-$(CONFIG_SOUND_CMPCI)     += sound.o mpu401.o
+endif
 obj-$(CONFIG_SOUND_ES1370)	+= es1370.o
 obj-$(CONFIG_SOUND_ES1371)	+= es1371.o ac97_codec.o
 obj-$(CONFIG_SOUND_VRC5477)	+= nec_vrc5477.o ac97_codec.o
@@ -68,7 +75,7 @@ obj-$(CONFIG_SOUND_RME96XX)     += rme96xx.o
 obj-$(CONFIG_SOUND_BT878)	+= btaudio.o
 obj-$(CONFIG_SOUND_ALI5455)	+= ali5455.o ac97_codec.o
 obj-$(CONFIG_SOUND_IT8172)	+= ite8172.o ac97_codec.o
-obj-$(CONFIG_SOUND_FORTE)	+= forte.o
+obj-$(CONFIG_SOUND_FORTE)	+= forte.o ac97_codec.o
 
 obj-$(CONFIG_SOUND_AD1980)	+= ac97_plugin_ad1980.o
 obj-$(CONFIG_SOUND_WM97XX)	+= ac97_plugin_wm97xx.o

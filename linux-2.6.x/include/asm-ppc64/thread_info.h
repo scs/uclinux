@@ -11,7 +11,9 @@
 #ifdef __KERNEL__
 
 #ifndef __ASSEMBLY__
+#include <linux/config.h>
 #include <asm/processor.h>
+#include <asm/page.h>
 #include <linux/stringify.h>
 
 /*
@@ -22,8 +24,10 @@ struct thread_info {
 	struct exec_domain *exec_domain;	/* execution domain */
 	unsigned long	flags;			/* low level flags */
 	int		cpu;			/* cpu we're on */
-	int		preempt_count;		/* not used at present */
+	int		preempt_count;
 	struct restart_block restart_block;
+	/* set by force_successful_syscall_return */
+	unsigned char	syscall_noerror;
 };
 
 /*
@@ -51,20 +55,28 @@ struct thread_info {
 #define THREAD_ORDER		2
 #define THREAD_SIZE		(PAGE_SIZE << THREAD_ORDER)
 #define THREAD_SHIFT		(PAGE_SHIFT + THREAD_ORDER)
-#define alloc_thread_info(task)	((struct thread_info *)kmalloc(THREAD_SIZE, GFP_KERNEL))
+#ifdef CONFIG_DEBUG_STACK_USAGE
+#define alloc_thread_info(tsk)					\
+	({							\
+		struct thread_info *ret;			\
+								\
+		ret = kmalloc(THREAD_SIZE, GFP_KERNEL);		\
+		if (ret)					\
+			memset(ret, 0, THREAD_SIZE);		\
+		ret;						\
+	})
+#else
+#define alloc_thread_info(tsk) kmalloc(THREAD_SIZE, GFP_KERNEL)
+#endif
 #define free_thread_info(ti)	kfree(ti)
 #define get_thread_info(ti)	get_task_struct((ti)->task)
 #define put_thread_info(ti)	put_task_struct((ti)->task)
-
-#if THREAD_SIZE != (4*PAGE_SIZE)
-#error update vmlinux.lds and current_thread_info to match
-#endif
 
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
-	__asm__("clrrdi %0,1,14" : "=r"(ti));
+	__asm__("clrrdi %0,1,%1" : "=r"(ti) : "i" (THREAD_SHIFT));
 	return ti;
 }
 
@@ -84,6 +96,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_32BIT		5	/* 32 bit binary */
 #define TIF_RUN_LIGHT		6	/* iSeries run light */
 #define TIF_ABI_PENDING		7	/* 32/64 bit switch needed */
+#define TIF_SYSCALL_AUDIT	8	/* syscall auditing active */
 
 /* as above, but as bit values */
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
@@ -94,6 +107,8 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_32BIT		(1<<TIF_32BIT)
 #define _TIF_RUN_LIGHT		(1<<TIF_RUN_LIGHT)
 #define _TIF_ABI_PENDING	(1<<TIF_ABI_PENDING)
+#define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
+#define _TIF_SYSCALL_T_OR_A	(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT)
 
 #define _TIF_USER_WORK_MASK	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING | \
 				 _TIF_NEED_RESCHED)

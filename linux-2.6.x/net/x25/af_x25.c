@@ -363,7 +363,7 @@ void x25_destroy_socket(struct sock *sk)
  */
 
 static int x25_setsockopt(struct socket *sock, int level, int optname,
-			  char *optval, int optlen)
+			  char __user *optval, int optlen)
 {
 	int opt;
 	struct sock *sk = sock->sk;
@@ -377,7 +377,7 @@ static int x25_setsockopt(struct socket *sock, int level, int optname,
 		goto out;
 
 	rc = -EFAULT;
-	if (get_user(opt, (int *)optval))
+	if (get_user(opt, (int __user *)optval))
 		goto out;
 
 	x25_sk(sk)->qbitincl = !!opt;
@@ -387,7 +387,7 @@ out:
 }
 
 static int x25_getsockopt(struct socket *sock, int level, int optname,
-			  char *optval, int *optlen)
+			  char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
 	int val, len, rc = -ENOPROTOOPT;
@@ -438,7 +438,7 @@ static struct sock *x25_alloc_socket(void)
 	if (!sk)
 		goto out;
 
-	x25 = x25_sk(sk) = kmalloc(sizeof(*x25), GFP_ATOMIC);
+	x25 = sk->sk_protinfo = kmalloc(sizeof(*x25), GFP_ATOMIC);
 	if (!x25)
 		goto frees;
 
@@ -922,7 +922,7 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	size_t size;
 	int qbit = 0, rc = -EINVAL;
 
-	if (msg->msg_flags & ~(MSG_DONTWAIT | MSG_OOB | MSG_EOR))
+	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_OOB|MSG_EOR|MSG_CMSG_COMPAT))
 		goto out;
 
 	/* we currently don't support segmented records at the user interface */
@@ -1180,6 +1180,7 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
 	struct x25_opt *x25 = x25_sk(sk);
+	void __user *argp = (void __user *)arg;
 	int rc;
 
 	switch (cmd) {
@@ -1188,7 +1189,7 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 				     atomic_read(&sk->sk_wmem_alloc);
 			if (amount < 0)
 				amount = 0;
-			rc = put_user(amount, (unsigned int *)arg);
+			rc = put_user(amount, (unsigned int __user *)argp);
 			break;
 		}
 
@@ -1201,19 +1202,15 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			 */
 			if ((skb = skb_peek(&sk->sk_receive_queue)) != NULL)
 				amount = skb->len;
-			rc = put_user(amount, (unsigned int *)arg);
+			rc = put_user(amount, (unsigned int __user *)argp);
 			break;
 		}
 
 		case SIOCGSTAMP:
-			if (sk) {
-				rc = -ENOENT;
-				if (!sk->sk_stamp.tv_sec)
-					break;
-				rc = copy_to_user((void *)arg, &sk->sk_stamp,
-						  sizeof(struct timeval)) ? -EFAULT : 0;
-			}
 			rc = -EINVAL;
+			if (sk)
+				rc = sock_get_timestamp(sk, 
+						(struct timeval __user *)argp); 
 			break;
 		case SIOCGIFADDR:
 		case SIOCSIFADDR:
@@ -1232,20 +1229,20 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			rc = -EPERM;
 			if (!capable(CAP_NET_ADMIN))
 				break;
-			rc = x25_route_ioctl(cmd, (void *)arg);
+			rc = x25_route_ioctl(cmd, argp);
 			break;
 		case SIOCX25GSUBSCRIP:
-			rc = x25_subscr_ioctl(cmd, (void *)arg);
+			rc = x25_subscr_ioctl(cmd, argp);
 			break;
 		case SIOCX25SSUBSCRIP:
 			rc = -EPERM;
 			if (!capable(CAP_NET_ADMIN))
 				break;
-			rc = x25_subscr_ioctl(cmd, (void *)arg);
+			rc = x25_subscr_ioctl(cmd, argp);
 			break;
 		case SIOCX25GFACILITIES: {
 			struct x25_facilities fac = x25->facilities;
-			rc = copy_to_user((void *)arg, &fac,
+			rc = copy_to_user(argp, &fac,
 					  sizeof(fac)) ? -EFAULT : 0;
 			break;
 		}
@@ -1253,7 +1250,7 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		case SIOCX25SFACILITIES: {
 			struct x25_facilities facilities;
 			rc = -EFAULT;
-			if (copy_from_user(&facilities, (void *)arg,
+			if (copy_from_user(&facilities, argp,
 					   sizeof(facilities)))
 				break;
 			rc = -EINVAL;
@@ -1281,7 +1278,7 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 		case SIOCX25GCALLUSERDATA: {
 			struct x25_calluserdata cud = x25->calluserdata;
-			rc = copy_to_user((void *)arg, &cud,
+			rc = copy_to_user(argp, &cud,
 					  sizeof(cud)) ? -EFAULT : 0;
 			break;
 		}
@@ -1290,7 +1287,7 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			struct x25_calluserdata calluserdata;
 
 			rc = -EFAULT;
-			if (copy_from_user(&calluserdata, (void *)arg,
+			if (copy_from_user(&calluserdata, argp,
 					   sizeof(calluserdata)))
 				break;
 			rc = -EINVAL;
@@ -1304,13 +1301,13 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		case SIOCX25GCAUSEDIAG: {
 			struct x25_causediag causediag;
 			causediag = x25->causediag;
-			rc = copy_to_user((void *)arg, &causediag,
+			rc = copy_to_user(argp, &causediag,
 					  sizeof(causediag)) ? -EFAULT : 0;
 			break;
 		}
 
  		default:
-			rc = dev_ioctl(cmd, (void *)arg);
+			rc = dev_ioctl(cmd, argp);
 			break;
 	}
 

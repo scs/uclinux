@@ -15,6 +15,11 @@
  *	* X.25
  *
  * Use sethdlc utility to set line parameters, protocol and PVCs
+ *
+ * How does it work:
+ * - proto.open(), close(), start(), stop() calls are serialized.
+ *   The order is: open, [ start, stop ... ] close ...
+ * - proto.start() and stop() are called with spin_lock_irq held.
  */
 
 #include <linux/config.h>
@@ -33,7 +38,7 @@
 #include <linux/hdlc.h>
 
 
-static const char* version = "HDLC support module revision 1.16";
+static const char* version = "HDLC support module revision 1.17";
 
 #undef DEBUG_LINK
 
@@ -50,7 +55,7 @@ static int hdlc_change_mtu(struct net_device *dev, int new_mtu)
 
 static struct net_device_stats *hdlc_get_stats(struct net_device *dev)
 {
-	return &dev_to_hdlc(dev)->stats;
+	return hdlc_stats(dev);
 }
 
 
@@ -69,49 +74,75 @@ static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 
 
 
-void hdlc_set_carrier(int on, hdlc_device *hdlc)
+static void __hdlc_set_carrier_on(struct net_device *dev)
 {
+	hdlc_device *hdlc = dev_to_hdlc(dev);
+	if (hdlc->proto.start)
+		return hdlc->proto.start(dev);
+#ifdef DEBUG_LINK
+	if (netif_carrier_ok(dev))
+		printk(KERN_ERR "hdlc_set_carrier_on(): already on\n");
+#endif
+	netif_carrier_on(dev);
+}
+
+
+
+static void __hdlc_set_carrier_off(struct net_device *dev)
+{
+	hdlc_device *hdlc = dev_to_hdlc(dev);
+	if (hdlc->proto.stop)
+		return hdlc->proto.stop(dev);
+
+#ifdef DEBUG_LINK
+	if (!netif_carrier_ok(dev))
+		printk(KERN_ERR "hdlc_set_carrier_off(): already off\n");
+#endif
+	netif_carrier_off(dev);
+}
+
+
+
+void hdlc_set_carrier(int on, struct net_device *dev)
+{
+	hdlc_device *hdlc = dev_to_hdlc(dev);
+	unsigned long flags;
 	on = on ? 1 : 0;
 
 #ifdef DEBUG_LINK
 	printk(KERN_DEBUG "hdlc_set_carrier %i\n", on);
 #endif
 
-	spin_lock_irq(&hdlc->state_lock);
+	spin_lock_irqsave(&hdlc->state_lock, flags);
 
 	if (hdlc->carrier == on)
 		goto carrier_exit; /* no change in DCD line level */
 
-	printk(KERN_INFO "%s: carrier %s\n", hdlc_to_name(hdlc),
-	       on ? "ON" : "off");
+#ifdef DEBUG_LINK
+	printk(KERN_INFO "%s: carrier %s\n", dev->name, on ? "ON" : "off");
+#endif
 	hdlc->carrier = on;
 
 	if (!hdlc->open)
 		goto carrier_exit;
 
-	if (hdlc->carrier) {
-		if (hdlc->proto.start)
-			hdlc->proto.start(hdlc);
-		else if (!netif_carrier_ok(&hdlc->netdev))
-			netif_carrier_on(&hdlc->netdev);
+	if (hdlc->carrier)
+		__hdlc_set_carrier_on(dev);
+	else
+		__hdlc_set_carrier_off(dev);
 
-	} else { /* no carrier */
-		if (hdlc->proto.stop)
-			hdlc->proto.stop(hdlc);
-		else if (netif_carrier_ok(&hdlc->netdev))
-			netif_carrier_off(&hdlc->netdev);
-	}
-
- carrier_exit:
-	spin_unlock_irq(&hdlc->state_lock);
+carrier_exit:
+	spin_unlock_irqrestore(&hdlc->state_lock, flags);
 }
 
 
+
 /* Must be called by hardware driver when HDLC device is being opened */
-int hdlc_open(hdlc_device *hdlc)
+int hdlc_open(struct net_device *dev)
 {
+	hdlc_device *hdlc = dev_to_hdlc(dev);
 #ifdef DEBUG_LINK
-	printk(KERN_DEBUG "hdlc_open carrier %i open %i\n",
+	printk(KERN_DEBUG "hdlc_open() carrier %i open %i\n",
 	       hdlc->carrier, hdlc->open);
 #endif
 
@@ -119,21 +150,15 @@ int hdlc_open(hdlc_device *hdlc)
 		return -ENOSYS;	/* no protocol attached */
 
 	if (hdlc->proto.open) {
-		int result = hdlc->proto.open(hdlc);
+		int result = hdlc->proto.open(dev);
 		if (result)
 			return result;
 	}
 
 	spin_lock_irq(&hdlc->state_lock);
 
-	if (hdlc->carrier) {
-		if (hdlc->proto.start)
-			hdlc->proto.start(hdlc);
-		else if (!netif_carrier_ok(&hdlc->netdev))
-			netif_carrier_on(&hdlc->netdev);
-
-	} else if (netif_carrier_ok(&hdlc->netdev))
-		netif_carrier_off(&hdlc->netdev);
+	if (hdlc->carrier)
+		__hdlc_set_carrier_on(dev);
 
 	hdlc->open = 1;
 
@@ -144,49 +169,50 @@ int hdlc_open(hdlc_device *hdlc)
 
 
 /* Must be called by hardware driver when HDLC device is being closed */
-void hdlc_close(hdlc_device *hdlc)
+void hdlc_close(struct net_device *dev)
 {
+	hdlc_device *hdlc = dev_to_hdlc(dev);
 #ifdef DEBUG_LINK
-	printk(KERN_DEBUG "hdlc_close carrier %i open %i\n",
+	printk(KERN_DEBUG "hdlc_close() carrier %i open %i\n",
 	       hdlc->carrier, hdlc->open);
 #endif
 
 	spin_lock_irq(&hdlc->state_lock);
 
 	hdlc->open = 0;
-	if (hdlc->carrier && hdlc->proto.stop)
-		hdlc->proto.stop(hdlc);
+	if (hdlc->carrier)
+		__hdlc_set_carrier_off(dev);
 
 	spin_unlock_irq(&hdlc->state_lock);
 
 	if (hdlc->proto.close)
-		hdlc->proto.close(hdlc);
+		hdlc->proto.close(dev);
 }
 
 
 
 #ifndef CONFIG_HDLC_RAW
-#define hdlc_raw_ioctl(hdlc, ifr)	-ENOSYS
+#define hdlc_raw_ioctl(dev, ifr)	-ENOSYS
 #endif
 
 #ifndef CONFIG_HDLC_RAW_ETH
-#define hdlc_raw_eth_ioctl(hdlc, ifr)	-ENOSYS
+#define hdlc_raw_eth_ioctl(dev, ifr)	-ENOSYS
 #endif
 
 #ifndef CONFIG_HDLC_PPP
-#define hdlc_ppp_ioctl(hdlc, ifr)	-ENOSYS
+#define hdlc_ppp_ioctl(dev, ifr)	-ENOSYS
 #endif
 
 #ifndef CONFIG_HDLC_CISCO
-#define hdlc_cisco_ioctl(hdlc, ifr)	-ENOSYS
+#define hdlc_cisco_ioctl(dev, ifr)	-ENOSYS
 #endif
 
 #ifndef CONFIG_HDLC_FR
-#define hdlc_fr_ioctl(hdlc, ifr)	-ENOSYS
+#define hdlc_fr_ioctl(dev, ifr)		-ENOSYS
 #endif
 
 #ifndef CONFIG_HDLC_X25
-#define hdlc_x25_ioctl(hdlc, ifr)	-ENOSYS
+#define hdlc_x25_ioctl(dev, ifr)	-ENOSYS
 #endif
 
 
@@ -213,22 +239,19 @@ int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 
 	switch(proto) {
-	case IF_PROTO_HDLC:	return hdlc_raw_ioctl(hdlc, ifr);
-	case IF_PROTO_HDLC_ETH:	return hdlc_raw_eth_ioctl(hdlc, ifr);
-	case IF_PROTO_PPP:	return hdlc_ppp_ioctl(hdlc, ifr);
-	case IF_PROTO_CISCO:	return hdlc_cisco_ioctl(hdlc, ifr);
-	case IF_PROTO_FR:	return hdlc_fr_ioctl(hdlc, ifr);
-	case IF_PROTO_X25:	return hdlc_x25_ioctl(hdlc, ifr);
+	case IF_PROTO_HDLC:	return hdlc_raw_ioctl(dev, ifr);
+	case IF_PROTO_HDLC_ETH:	return hdlc_raw_eth_ioctl(dev, ifr);
+	case IF_PROTO_PPP:	return hdlc_ppp_ioctl(dev, ifr);
+	case IF_PROTO_CISCO:	return hdlc_cisco_ioctl(dev, ifr);
+	case IF_PROTO_FR:	return hdlc_fr_ioctl(dev, ifr);
+	case IF_PROTO_X25:	return hdlc_x25_ioctl(dev, ifr);
 	default:		return -EINVAL;
 	}
 }
 
-
-
-int register_hdlc_device(hdlc_device *hdlc)
+static void hdlc_setup(struct net_device *dev)
 {
-	int result;
-	struct net_device *dev = hdlc_to_dev(hdlc);
+	hdlc_device *hdlc = dev_to_hdlc(dev);
 
 	dev->get_stats = hdlc_get_stats;
 	dev->change_mtu = hdlc_change_mtu;
@@ -244,8 +267,20 @@ int register_hdlc_device(hdlc_device *hdlc)
 	hdlc->carrier = 1;
 	hdlc->open = 0;
 	spin_lock_init(&hdlc->state_lock);
+}
 
-	result = dev_alloc_name(dev, "hdlc%d");
+struct net_device *alloc_hdlcdev(void *priv)
+{
+	struct net_device *dev;
+	dev = alloc_netdev(sizeof(hdlc_device), "hdlc%d", hdlc_setup);
+	if (dev)
+		dev_to_hdlc(dev)->priv = priv;
+	return dev;
+}
+
+int register_hdlc_device(struct net_device *dev)
+{
+	int result = dev_alloc_name(dev, "hdlc%d");
 	if (result < 0)
 		return result;
 
@@ -253,16 +288,19 @@ int register_hdlc_device(hdlc_device *hdlc)
 	if (result != 0)
 		return -EIO;
 
+	if (netif_carrier_ok(dev))
+		netif_carrier_off(dev); /* no carrier until DCD goes up */
+
 	return 0;
 }
 
 
 
-void unregister_hdlc_device(hdlc_device *hdlc)
+void unregister_hdlc_device(struct net_device *dev)
 {
 	rtnl_lock();
-	hdlc_proto_detach(hdlc);
-	unregister_netdevice(hdlc_to_dev(hdlc));
+	hdlc_proto_detach(dev_to_hdlc(dev));
+	unregister_netdevice(dev);
 	rtnl_unlock();
 }
 
@@ -276,6 +314,7 @@ EXPORT_SYMBOL(hdlc_open);
 EXPORT_SYMBOL(hdlc_close);
 EXPORT_SYMBOL(hdlc_set_carrier);
 EXPORT_SYMBOL(hdlc_ioctl);
+EXPORT_SYMBOL(alloc_hdlcdev);
 EXPORT_SYMBOL(register_hdlc_device);
 EXPORT_SYMBOL(unregister_hdlc_device);
 

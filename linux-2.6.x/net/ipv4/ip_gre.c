@@ -280,7 +280,7 @@ static struct ip_tunnel * ipgre_tunnel_locate(struct ip_tunnel_parm *parms, int 
 	nt->parms = *parms;
 
 	if (register_netdevice(dev) < 0) {
-		kfree(dev);
+		free_netdev(dev);
 		goto failed;
 	}
 
@@ -643,13 +643,7 @@ int ipgre_rcv(struct sk_buff *skb)
 		skb->dev = tunnel->dev;
 		dst_release(skb->dst);
 		skb->dst = NULL;
-#ifdef CONFIG_NETFILTER
-		nf_conntrack_put(skb->nfct);
-		skb->nfct = NULL;
-#ifdef CONFIG_NETFILTER_DEBUG
-		skb->nf_debug = 0;
-#endif
-#endif
+		nf_reset(skb);
 		ipgre_ecn_decapsulate(iph, skb);
 		netif_rx(skb);
 		read_unlock(&ipgre_lock);
@@ -877,13 +871,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-#ifdef CONFIG_NETFILTER
-	nf_conntrack_put(skb->nfct);
-	skb->nfct = NULL;
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug = 0;
-#endif
-#endif
+	nf_reset(skb);
 
 	IPTUNNEL_XMIT();
 	tunnel->recursion--;
@@ -1240,7 +1228,7 @@ int __init ipgre_fb_tunnel_init(struct net_device *dev)
 }
 
 
-static struct inet_protocol ipgre_protocol = {
+static struct net_protocol ipgre_protocol = {
 	.handler	=	ipgre_rcv,
 	.err_handler	=	ipgre_err,
 };
@@ -1250,7 +1238,7 @@ static struct inet_protocol ipgre_protocol = {
  *	And now the modules code and kernel interface.
  */
 
-int __init ipgre_init(void)
+static int __init ipgre_init(void)
 {
 	int err = -EINVAL;
 
@@ -1276,7 +1264,7 @@ out:
 	return err;
 fail:
 	inet_del_protocol(&ipgre_protocol, IPPROTO_GRE);
-	kfree(ipgre_fb_tunnel_dev);
+	free_netdev(ipgre_fb_tunnel_dev);
 	goto out;
 }
 
@@ -1288,8 +1276,6 @@ void ipgre_fini(void)
 	unregister_netdev(ipgre_fb_tunnel_dev);
 }
 
-#ifdef MODULE
 module_init(ipgre_init);
-#endif
 module_exit(ipgre_fini);
 MODULE_LICENSE("GPL");

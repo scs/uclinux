@@ -107,7 +107,7 @@ static int change_mtu (struct net_device *dev, int new_mtu);
 static void set_multicast (struct net_device *dev);
 static struct net_device_stats *get_stats (struct net_device *dev);
 static int clear_stats (struct net_device *dev);
-static int rio_ethtool_ioctl (struct net_device *dev, void *useraddr);
+static int rio_ethtool_ioctl (struct net_device *dev, void __user *useraddr);
 static int rio_ioctl (struct net_device *dev, struct ifreq *rq, int cmd);
 static int rio_close (struct net_device *dev);
 static int find_miiphy (struct net_device *dev);
@@ -583,7 +583,7 @@ alloc_list (struct net_device *dev)
 
 	/* Initialize Tx descriptors, TFDListPtr leaves in start_xmit(). */
 	for (i = 0; i < TX_RING_SIZE; i++) {
-		np->tx_skbuff[i] = 0;
+		np->tx_skbuff[i] = NULL;
 		np->tx_ring[i].status = cpu_to_le64 (TFDDone);
 		np->tx_ring[i].next_desc = cpu_to_le64 (np->tx_ring_dma +
 					      ((i+1)%TX_RING_SIZE) *
@@ -597,7 +597,7 @@ alloc_list (struct net_device *dev)
 						sizeof (struct netdev_desc));
 		np->rx_ring[i].status = 0;
 		np->rx_ring[i].fraginfo = 0;
-		np->rx_skbuff[i] = 0;
+		np->rx_skbuff[i] = NULL;
 	}
 
 	/* Allocate the rx buffers */
@@ -745,7 +745,7 @@ rio_interrupt (int irq, void *dev_instance, struct pt_regs *rgs)
 static void 
 rio_free_tx (struct net_device *dev, int irq) 
 {
-	struct netdev_private *np = (struct netdev_private *) dev->priv;
+	struct netdev_private *np = dev->priv;
 	int entry = np->old_tx % TX_RING_SIZE;
 	int tx_use = 0;
 	unsigned long flag = 0;
@@ -770,7 +770,7 @@ rio_free_tx (struct net_device *dev, int irq)
 		else
 			dev_kfree_skb (skb);
 
-		np->tx_skbuff[entry] = 0;
+		np->tx_skbuff[entry] = NULL;
 		entry = (entry + 1) % TX_RING_SIZE;
 		tx_use++;
 	}
@@ -855,7 +855,7 @@ tx_error (struct net_device *dev, int tx_status)
 static int
 receive_packet (struct net_device *dev)
 {
-	struct netdev_private *np = (struct netdev_private *) dev->priv;
+	struct netdev_private *np = dev->priv;
 	int entry = np->cur_rx % RX_RING_SIZE;
 	int cnt = 30;
 
@@ -874,8 +874,6 @@ receive_packet (struct net_device *dev)
 		frame_status = le64_to_cpu (desc->status);
 		if (--cnt < 0)
 			break;
-		pci_dma_sync_single (np->pdev, desc->fraginfo, np->rx_buf_sz,
-				     PCI_DMA_FROMDEVICE);
 		/* Update rx error statistics, drop packet. */
 		if (frame_status & RFS_Errors) {
 			np->stats.rx_errors++;
@@ -898,6 +896,10 @@ receive_packet (struct net_device *dev)
 				skb_put (skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
 			} else if ((skb = dev_alloc_skb (pkt_len + 2)) != NULL) {
+				pci_dma_sync_single_for_cpu(np->pdev,
+							    desc->fraginfo,
+							    np->rx_buf_sz,
+							    PCI_DMA_FROMDEVICE);
 				skb->dev = dev;
 				/* 16 byte align the IP header */
 				skb_reserve (skb, 2);
@@ -905,6 +907,10 @@ receive_packet (struct net_device *dev)
 						  np->rx_skbuff[entry]->tail,
 						  pkt_len, 0);
 				skb_put (skb, pkt_len);
+				pci_dma_sync_single_for_device(np->pdev,
+							       desc->fraginfo,
+							       np->rx_buf_sz,
+							       PCI_DMA_FROMDEVICE);
 			}
 			skb->protocol = eth_type_trans (skb, dev);
 #if 0			
@@ -1189,7 +1195,7 @@ set_multicast (struct net_device *dev)
 }
 
 static int
-rio_ethtool_ioctl (struct net_device *dev, void *useraddr)
+rio_ethtool_ioctl (struct net_device *dev, void __user *useraddr)
 {
 	struct netdev_private *np = dev->priv;
        	u32 ethcmd;
@@ -1319,7 +1325,7 @@ rio_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	int phy_addr;
 	struct netdev_private *np = dev->priv;
-	struct mii_data *miidata = (struct mii_data *) &rq->ifr_data;
+	struct mii_data *miidata = (struct mii_data *) &rq->ifr_ifru;
 	
 	struct netdev_desc *desc;
 	int i;
@@ -1327,7 +1333,7 @@ rio_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 	phy_addr = np->phy_addr;
 	switch (cmd) {
 	case SIOCETHTOOL:
-		return rio_ethtool_ioctl (dev, (void *) rq->ifr_data);		
+		return rio_ethtool_ioctl(dev, rq->ifr_data);		
 	case SIOCDEVPRIVATE:
 		break;
 	
@@ -1812,7 +1818,7 @@ rio_close (struct net_device *dev)
 			pci_unmap_single (np->pdev, np->rx_ring[i].fraginfo,
 					  skb->len, PCI_DMA_FROMDEVICE);
 			dev_kfree_skb (skb);
-			np->rx_skbuff[i] = 0;
+			np->rx_skbuff[i] = NULL;
 		}
 	}
 	for (i = 0; i < TX_RING_SIZE; i++) {
@@ -1821,7 +1827,7 @@ rio_close (struct net_device *dev)
 			pci_unmap_single (np->pdev, np->tx_ring[i].fraginfo,
 					  skb->len, PCI_DMA_TODEVICE);
 			dev_kfree_skb (skb);
-			np->tx_skbuff[i] = 0;
+			np->tx_skbuff[i] = NULL;
 		}
 	}
 

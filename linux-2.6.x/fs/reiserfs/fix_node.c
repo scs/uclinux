@@ -483,7 +483,8 @@ static int get_num_ver (int mode, struct tree_balance * tb, int h,
 	snum012[needed_nodes - 1 + 3] = units;
 
 	if (needed_nodes > 2)
-	    reiserfs_warning ("vs-8111: get_num_ver: split_item_position is out of boundary\n");
+	    reiserfs_warning (tb->tb_sb, "vs-8111: get_num_ver: "
+			      "split_item_position is out of boundary");
 	snum012[needed_nodes - 1] ++;
 	split_item_positions[needed_nodes - 1] = i;
 	needed_nodes ++;
@@ -510,7 +511,8 @@ static int get_num_ver (int mode, struct tree_balance * tb, int h,
 	snum012[4] = op_unit_num (&vn->vn_vi[split_item_num]) - snum012[4] - bytes_to_r - bytes_to_l - bytes_to_S1new;
 
 	if (vn->vn_vi[split_item_num].vi_index != TYPE_DIRENTRY)
-	    reiserfs_warning ("vs-8115: get_num_ver: not directory item\n");
+	    reiserfs_warning (tb->tb_sb, "vs-8115: get_num_ver: not "
+			      "directory item");
     }
 
     /* now we know S2bytes, calculate S1bytes */
@@ -795,8 +797,9 @@ static int  get_empty_nodes(
   else /* If we have enough already then there is nothing to do. */
     return CARRY_ON;
 
-  if ( reiserfs_new_form_blocknrs (p_s_tb, a_n_blocknrs,
-                                   n_amount_needed) == NO_DISK_SPACE )
+  /* No need to check quota - is not allocated for blocks used for formatted nodes */
+  if (reiserfs_new_form_blocknrs (p_s_tb, a_n_blocknrs,
+                                   n_amount_needed) == NO_DISK_SPACE)
     return NO_DISK_SPACE;
 
   /* for each blocknumber we just got, get a buffer and stick it on FEB */
@@ -1973,11 +1976,12 @@ void * reiserfs_kmalloc (size_t size, int flags, struct super_block * s)
     if (vp) {
 	REISERFS_SB(s)->s_kmallocs += size;
 	if (REISERFS_SB(s)->s_kmallocs > malloced + 200000) {
-	    reiserfs_warning ("vs-8301: reiserfs_kmalloc: allocated memory %d\n", REISERFS_SB(s)->s_kmallocs);
+	    reiserfs_warning (s,
+			      "vs-8301: reiserfs_kmalloc: allocated memory %d",
+			      REISERFS_SB(s)->s_kmallocs);
 	    malloced = REISERFS_SB(s)->s_kmallocs;
 	}
     }
-/*printk ("malloc : size %d, allocated %d\n", size, REISERFS_SB(s)->s_kmallocs);*/
     return vp;
 }
 
@@ -1987,7 +1991,8 @@ void reiserfs_kfree (const void * vp, size_t size, struct super_block * s)
   
     REISERFS_SB(s)->s_kmallocs -= size;
     if (REISERFS_SB(s)->s_kmallocs < 0)
-	reiserfs_warning ("vs-8302: reiserfs_kfree: allocated memory %d\n", REISERFS_SB(s)->s_kmallocs);
+	reiserfs_warning (s, "vs-8302: reiserfs_kfree: allocated memory %d",
+			  REISERFS_SB(s)->s_kmallocs);
 
 }
 #endif
@@ -2037,7 +2042,7 @@ static int get_mem_for_virtual_node (struct tree_balance * tb)
 	tb->vn_buf_size = size;
 
 	/* get memory for virtual item */
-	buf = reiserfs_kmalloc(size, GFP_ATOMIC, tb->tb_sb);
+	buf = reiserfs_kmalloc(size, GFP_ATOMIC | __GFP_NOWARN, tb->tb_sb);
 	if ( ! buf ) {
 	    /* getting memory with GFP_KERNEL priority may involve
                balancing now (due to indirect_to_direct conversion on
@@ -2047,8 +2052,9 @@ static int get_mem_for_virtual_node (struct tree_balance * tb)
 	    buf = reiserfs_kmalloc(size, GFP_NOFS, tb->tb_sb);
 	    if ( !buf ) {
 #ifdef CONFIG_REISERFS_CHECK
-		reiserfs_warning ("vs-8345: get_mem_for_virtual_node: "
-				  "kmalloc failed. reiserfs kmalloced %d bytes\n",
+		reiserfs_warning (tb->tb_sb,
+				  "vs-8345: get_mem_for_virtual_node: "
+				  "kmalloc failed. reiserfs kmalloced %d bytes",
 				  REISERFS_SB(tb->tb_sb)->s_kmallocs);
 #endif
 		tb->vn_buf_size = 0;
@@ -2106,9 +2112,9 @@ static void tb_buffer_sanity_check (struct super_block * p_s_sb,
 {;}
 #endif
 
-static void clear_all_dirty_bits(struct super_block *s, 
+static int clear_all_dirty_bits(struct super_block *s,
                                  struct buffer_head *bh) {
-  reiserfs_prepare_for_journal(s, bh, 0) ;
+  return reiserfs_prepare_for_journal(s, bh, 0) ;
 }
 
 static int wait_tb_buffers_until_unlocked (struct tree_balance * p_s_tb)
@@ -2137,11 +2143,11 @@ static int wait_tb_buffers_until_unlocked (struct tree_balance * p_s_tb)
 					    p_s_tb->tb_path->path_length - i);
 		}
 #endif
-		clear_all_dirty_bits(p_s_tb->tb_sb, 
-				     PATH_OFFSET_PBUFFER (p_s_tb->tb_path, i)) ;
-
-		if ( buffer_locked (PATH_OFFSET_PBUFFER (p_s_tb->tb_path, i)) )
+		if (!clear_all_dirty_bits(p_s_tb->tb_sb,
+				     PATH_OFFSET_PBUFFER (p_s_tb->tb_path, i)))
+		{
 		    locked = PATH_OFFSET_PBUFFER (p_s_tb->tb_path, i);
+		}
 	    }
 	}
 
@@ -2151,22 +2157,19 @@ static int wait_tb_buffers_until_unlocked (struct tree_balance * p_s_tb)
 
 		if ( p_s_tb->L[i] ) {
 		    tb_buffer_sanity_check (p_s_tb->tb_sb, p_s_tb->L[i], "L", i);
-		    clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->L[i]) ;
-		    if ( buffer_locked (p_s_tb->L[i]) )
+		    if (!clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->L[i]))
 			locked = p_s_tb->L[i];
 		}
 
 		if ( !locked && p_s_tb->FL[i] ) {
 		    tb_buffer_sanity_check (p_s_tb->tb_sb, p_s_tb->FL[i], "FL", i);
-		    clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->FL[i]) ;
-		    if ( buffer_locked (p_s_tb->FL[i]) )
+		    if (!clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->FL[i]))
 			locked = p_s_tb->FL[i];
 		}
 
 		if ( !locked && p_s_tb->CFL[i] ) {
 		    tb_buffer_sanity_check (p_s_tb->tb_sb, p_s_tb->CFL[i], "CFL", i);
-		    clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->CFL[i]) ;
-		    if ( buffer_locked (p_s_tb->CFL[i]) )
+		    if (!clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->CFL[i]))
 			locked = p_s_tb->CFL[i];
 		}
 
@@ -2176,23 +2179,20 @@ static int wait_tb_buffers_until_unlocked (struct tree_balance * p_s_tb)
 
 		if ( p_s_tb->R[i] ) {
 		    tb_buffer_sanity_check (p_s_tb->tb_sb, p_s_tb->R[i], "R", i);
-		    clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->R[i]) ;
-		    if ( buffer_locked (p_s_tb->R[i]) )
+		    if (!clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->R[i]))
 			locked = p_s_tb->R[i];
 		}
 
        
 		if ( !locked && p_s_tb->FR[i] ) {
 		    tb_buffer_sanity_check (p_s_tb->tb_sb, p_s_tb->FR[i], "FR", i);
-		    clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->FR[i]) ;
-		    if ( buffer_locked (p_s_tb->FR[i]) )
+		    if (!clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->FR[i]))
 			locked = p_s_tb->FR[i];
 		}
 
 		if ( !locked && p_s_tb->CFR[i] ) {
 		    tb_buffer_sanity_check (p_s_tb->tb_sb, p_s_tb->CFR[i], "CFR", i);
-		    clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->CFR[i]) ;
-		    if ( buffer_locked (p_s_tb->CFR[i]) )
+		    if (!clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->CFR[i]))
 			locked = p_s_tb->CFR[i];
 		}
 	    }
@@ -2207,10 +2207,8 @@ static int wait_tb_buffers_until_unlocked (struct tree_balance * p_s_tb)
 	*/
 	for ( i = 0; !locked && i < MAX_FEB_SIZE; i++ ) { 
 	    if ( p_s_tb->FEB[i] ) {
-		clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->FEB[i]) ;
-		if (buffer_locked(p_s_tb->FEB[i])) {
+		if (!clear_all_dirty_bits(p_s_tb->tb_sb, p_s_tb->FEB[i]))
 		    locked = p_s_tb->FEB[i] ;
-		}
 	    }
 	}
 
@@ -2218,7 +2216,10 @@ static int wait_tb_buffers_until_unlocked (struct tree_balance * p_s_tb)
 #ifdef CONFIG_REISERFS_CHECK
 	    repeat_counter++;
 	    if ( (repeat_counter % 10000) == 0) {
-		reiserfs_warning ("wait_tb_buffers_until_released(): too many iterations waiting for buffer to unlock (%b)\n", locked);
+		reiserfs_warning (p_s_tb->tb_sb,
+				  "wait_tb_buffers_until_released(): too many "
+				  "iterations waiting for buffer to unlock "
+				  "(%b)", locked);
 
 		/* Don't loop forever.  Try to recover from possible error. */
 
@@ -2280,7 +2281,6 @@ int fix_nodes (int n_op_mode,
     ** during wait_tb_buffers_run
     */
     int wait_tb_buffers_run = 0 ; 
-    int windex ;
     struct buffer_head  * p_s_tbS0 = PATH_PLAST_BUFFER(p_s_tb->tb_path);
 
     ++ REISERFS_SB(p_s_tb -> tb_sb) -> s_fix_nodes;
@@ -2332,8 +2332,7 @@ int fix_nodes (int n_op_mode,
     case M_CUT:
 	if ( n_item_num < 0 || n_item_num >= B_NR_ITEMS(p_s_tbS0) ) {
 	    print_block (p_s_tbS0, 0, -1, -1);
-	    printk("mode = %c insert_size = %d\n", n_op_mode, p_s_tb->insert_size[0]);
-	    reiserfs_panic(p_s_tb->tb_sb,"PAP-8335: fix_nodes: Incorrect item number(%d)", n_item_num);
+	    reiserfs_panic(p_s_tb->tb_sb,"PAP-8335: fix_nodes: Incorrect item number(%d); mode = %c insert_size = %d\n", n_item_num, n_op_mode, p_s_tb->insert_size[0]);
 	}
 	break;
     default:
@@ -2407,10 +2406,7 @@ int fix_nodes (int n_op_mode,
 		p_s_tb->insert_size[n_h + 1] = (DC_SIZE + KEY_SIZE) * (p_s_tb->blknum[n_h] - 1);
     }
 
-    
-    windex = push_journal_writer("fix_nodes") ;
     if ((n_ret_value = wait_tb_buffers_until_unlocked (p_s_tb)) == CARRY_ON) {
-	pop_journal_writer(windex) ;
 	if (FILESYSTEM_CHANGED_TB(p_s_tb)) {
 	    wait_tb_buffers_run = 1 ;
 	    n_ret_value = REPEAT_SEARCH ;
@@ -2420,7 +2416,6 @@ int fix_nodes (int n_op_mode,
 	}
     } else {
 	wait_tb_buffers_run = 1 ;
-	pop_journal_writer(windex) ;
 	goto repeat; 
     }
 
@@ -2450,12 +2445,12 @@ int fix_nodes (int n_op_mode,
 		reiserfs_restore_prepared_buffer(p_s_tb->tb_sb, p_s_tb->CFR[i]);
 	    }
 
-	    brelse (p_s_tb->L[i]);p_s_tb->L[i] = 0;
-	    brelse (p_s_tb->R[i]);p_s_tb->R[i] = 0;
-	    brelse (p_s_tb->FL[i]);p_s_tb->FL[i] = 0;
-	    brelse (p_s_tb->FR[i]);p_s_tb->FR[i] = 0;
-	    brelse (p_s_tb->CFL[i]);p_s_tb->CFL[i] = 0;
-	    brelse (p_s_tb->CFR[i]);p_s_tb->CFR[i] = 0;
+	    brelse (p_s_tb->L[i]);p_s_tb->L[i] = NULL;
+	    brelse (p_s_tb->R[i]);p_s_tb->R[i] = NULL;
+	    brelse (p_s_tb->FL[i]);p_s_tb->FL[i] = NULL;
+	    brelse (p_s_tb->FR[i]);p_s_tb->FR[i] = NULL;
+	    brelse (p_s_tb->CFL[i]);p_s_tb->CFL[i] = NULL;
+	    brelse (p_s_tb->CFR[i]);p_s_tb->CFR[i] = NULL;
 	}
 
 	if (wait_tb_buffers_run) {
@@ -2505,7 +2500,7 @@ void unfix_nodes (struct tree_balance * tb)
 	    /* de-allocated block which was not used by balancing and
                bforget about buffer for it */
 	    brelse (tb->FEB[i]);
-	    reiserfs_free_block (tb->transaction_handle, blocknr);
+	    reiserfs_free_block (tb->transaction_handle, NULL, blocknr, 0);
 	}
 	if (tb->used[i]) {
 	    /* release used as new nodes including a new root */

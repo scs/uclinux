@@ -19,7 +19,6 @@
 #define __NR_mknod		 14
 #define __NR_chmod		 15
 #define __NR_chown		 16
-/*#define __NR_break		 17    BFin*/
 #define __NR_dump		 17    
 #define __NR_oldstat		 18
 #define __NR_lseek		 19
@@ -382,12 +381,36 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
   return (type)__res;							\
 }
 
+#ifdef __KERNEL__
+#define __ARCH_WANT_IPC_PARSE_VERSION
+#define __ARCH_WANT_OLD_READDIR
+#define __ARCH_WANT_OLD_STAT
+#define __ARCH_WANT_STAT64
+#define __ARCH_WANT_SYS_ALARM
+#define __ARCH_WANT_SYS_GETHOSTNAME
+#define __ARCH_WANT_SYS_PAUSE
+#define __ARCH_WANT_SYS_SGETMASK
+#define __ARCH_WANT_SYS_SIGNAL
+#define __ARCH_WANT_SYS_TIME
+#define __ARCH_WANT_SYS_UTIME
+#define __ARCH_WANT_SYS_WAITPID
+#define __ARCH_WANT_SYS_SOCKETCALL
+#define __ARCH_WANT_SYS_FADVISE64
+#define __ARCH_WANT_SYS_GETPGRP
+#define __ARCH_WANT_SYS_LLSEEK
+#define __ARCH_WANT_SYS_NICE
+#define __ARCH_WANT_SYS_OLD_GETRLIMIT
+#define __ARCH_WANT_SYS_OLDUMOUNT
+#define __ARCH_WANT_SYS_SIGPENDING
+#define __ARCH_WANT_SYS_SIGPROCMASK
+#define __ARCH_WANT_SYS_RT_SIGACTION
+#endif
+
 #ifdef __KERNEL_SYSCALLS__
 
 
 #define __NR__exit __NR_exit
 
-/* BFin - Lets do the other way round*/
 static inline _syscall0(int,pause)
 static inline _syscall0(int,sync)
 static inline _syscall0(pid_t,setsid)

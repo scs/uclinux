@@ -1,5 +1,4 @@
 /*
- * linux/arch/$(ARCH)/platform/$(PLATFORM)/irq.c
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -53,17 +52,6 @@
 /* SYS_IRQS defined in <asm/board/bf53[35]_irq.h>*/
 
 #define	NR_IRQS		SYS_IRQS
-
-/*
- * "Generic" interrupt sources
- */
-#define IRQ_SCHED_TIMER	(8)    /* interrupt source for scheduling timer */
-
-static __inline__ int irq_cannonicalize(int irq)
-{
-	return irq;
-}
-
 /*
  * Machine specific interrupt sources.
  *

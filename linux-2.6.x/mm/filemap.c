@@ -55,17 +55,20 @@
 /*
  * Lock ordering:
  *
- *  ->i_shared_sem		(vmtruncate)
+ *  ->i_mmap_lock		(vmtruncate)
  *    ->private_lock		(__free_pte->__set_page_dirty_buffers)
  *      ->swap_list_lock
  *        ->swap_device_lock	(exclusive_swap_page, others)
- *          ->mapping->page_lock
+ *          ->mapping->tree_lock
+ *    ->page_map_lock()		(try_to_unmap_file)
  *
  *  ->i_sem
- *    ->i_shared_sem		(truncate->invalidate_mmap_range)
+ *    ->i_mmap_lock		(truncate->unmap_mapping_range)
  *
  *  ->mmap_sem
- *    ->i_shared_sem		(various places)
+ *    ->i_mmap_lock
+ *      ->page_table_lock	(various places, mainly in mmap.c)
+ *        ->mapping->tree_lock	(arch-dependent flush_dcache_mmap_lock)
  *
  *  ->mmap_sem
  *    ->lock_page		(access_process_vm)
@@ -73,15 +76,25 @@
  *  ->mmap_sem
  *    ->i_sem			(msync)
  *
+ *  ->i_sem
+ *    ->i_alloc_sem             (various)
+ *
  *  ->inode_lock
  *    ->sb_lock			(fs/fs-writeback.c)
- *    ->mapping->page_lock	(__sync_single_inode)
+ *    ->mapping->tree_lock	(__sync_single_inode)
  *
  *  ->page_table_lock
  *    ->swap_device_lock	(try_to_unmap_one)
  *    ->private_lock		(try_to_unmap_one)
- *    ->page_lock		(try_to_unmap_one)
+ *    ->tree_lock		(try_to_unmap_one)
  *    ->zone.lru_lock		(follow_page->mark_page_accessed)
+ *    ->page_map_lock()		(page_add_anon_rmap)
+ *      ->tree_lock		(page_remove_rmap->set_page_dirty)
+ *      ->private_lock		(page_remove_rmap->set_page_dirty)
+ *      ->inode_lock		(page_remove_rmap->set_page_dirty)
+ *    ->anon_vma.lock		(anon_vma_prepare)
+ *    ->inode_lock		(zap_pte_range->set_page_dirty)
+ *    ->private_lock		(zap_pte_range->__set_page_dirty_buffers)
  *
  *  ->task->proc_lock
  *    ->dcache_lock		(proc_pid_lookup)
@@ -90,16 +103,14 @@
 /*
  * Remove a page from the page cache and free it. Caller has to make
  * sure the page is locked and that nobody else uses it - or that usage
- * is safe.  The caller must hold a write_lock on the mapping's page_lock.
+ * is safe.  The caller must hold a write_lock on the mapping's tree_lock.
  */
 void __remove_from_page_cache(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
 
 	radix_tree_delete(&mapping->page_tree, page->index);
-	list_del(&page->list);
 	page->mapping = NULL;
-
 	mapping->nrpages--;
 	pagecache_acct(-1);
 }
@@ -111,15 +122,20 @@ void remove_from_page_cache(struct page *page)
 	if (unlikely(!PageLocked(page)))
 		PAGE_BUG(page);
 
-	spin_lock(&mapping->page_lock);
+	spin_lock_irq(&mapping->tree_lock);
 	__remove_from_page_cache(page);
-	spin_unlock(&mapping->page_lock);
+	spin_unlock_irq(&mapping->tree_lock);
 }
 
 static inline int sync_page(struct page *page)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping;
 
+	/*
+	 * FIXME, fercrissake.  What is this barrier here for?
+	 */
+	smp_mb();
+	mapping = page_mapping(page);
 	if (mapping && mapping->a_ops && mapping->a_ops->sync_page)
 		return mapping->a_ops->sync_page(page);
 	return 0;
@@ -129,10 +145,10 @@ static inline int sync_page(struct page *page)
  * filemap_fdatawrite - start writeback against all of a mapping's dirty pages
  * @mapping: address space structure to write
  *
- * This is a "data integrity" operation, as opposed to a regular memory
- * cleansing writeback.  The difference between these two operations is that
- * if a dirty page/buffer is encountered, it must be waited upon, and not just
- * skipped over.
+ * If sync_mode is WB_SYNC_ALL then this is a "data integrity" operation, as
+ * opposed to a regular memory * cleansing writeback.  The difference between
+ * these two operations is that if a dirty page/buffer is encountered, it must
+ * be waited upon, and not just skipped over.
  */
 static int __filemap_fdatawrite(struct address_space *mapping, int sync_mode)
 {
@@ -145,9 +161,6 @@ static int __filemap_fdatawrite(struct address_space *mapping, int sync_mode)
 	if (mapping->backing_dev_info->memory_backed)
 		return 0;
 
-	spin_lock(&mapping->page_lock);
-	list_splice_init(&mapping->dirty_pages, &mapping->io_pages);
-	spin_unlock(&mapping->page_lock);
 	ret = do_writepages(mapping, &wbc);
 	return ret;
 }
@@ -156,64 +169,50 @@ int filemap_fdatawrite(struct address_space *mapping)
 {
 	return __filemap_fdatawrite(mapping, WB_SYNC_ALL);
 }
-
 EXPORT_SYMBOL(filemap_fdatawrite);
 
 /*
  * This is a mostly non-blocking flush.  Not suitable for data-integrity
- * purposes.
+ * purposes - I/O may not be started against all dirty pages.
  */
 int filemap_flush(struct address_space *mapping)
 {
 	return __filemap_fdatawrite(mapping, WB_SYNC_NONE);
 }
+EXPORT_SYMBOL(filemap_flush);
 
-/**
- * filemap_fdatawait - walk the list of locked pages of the given address
- *                     space and wait for all of them.
- * @mapping: address space structure to wait for
+/*
+ * Wait for writeback to complete against pages indexed by start->end
+ * inclusive
  */
-int filemap_fdatawait(struct address_space * mapping)
+static int wait_on_page_writeback_range(struct address_space *mapping,
+				pgoff_t start, pgoff_t end)
 {
+	struct pagevec pvec;
+	int nr_pages;
 	int ret = 0;
-	int progress;
+	pgoff_t index;
 
-restart:
-	progress = 0;
-	spin_lock(&mapping->page_lock);
-        while (!list_empty(&mapping->locked_pages)) {
-		struct page *page;
+	if (end < start)
+		return 0;
 
-		page = list_entry(mapping->locked_pages.next,struct page,list);
-		list_del(&page->list);
-		if (PageDirty(page))
-			list_add(&page->list, &mapping->dirty_pages);
-		else
-			list_add(&page->list, &mapping->clean_pages);
+	pagevec_init(&pvec, 0);
+	index = start;
+	while ((nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
+			PAGECACHE_TAG_WRITEBACK,
+			min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1)) != 0) {
+		unsigned i;
 
-		if (!PageWriteback(page)) {
-			if (++progress > 32) {
-				if (need_resched()) {
-					spin_unlock(&mapping->page_lock);
-					__cond_resched();
-					goto restart;
-				}
-			}
-			continue;
+		for (i = 0; i < nr_pages; i++) {
+			struct page *page = pvec.pages[i];
+
+			wait_on_page_writeback(page);
+			if (PageError(page))
+				ret = -EIO;
 		}
-
-		progress = 0;
-		page_cache_get(page);
-		spin_unlock(&mapping->page_lock);
-
-		wait_on_page_writeback(page);
-		if (PageError(page))
-			ret = -EIO;
-
-		page_cache_release(page);
-		spin_lock(&mapping->page_lock);
+		pagevec_release(&pvec);
+		cond_resched();
 	}
-	spin_unlock(&mapping->page_lock);
 
 	/* Check for outstanding write errors */
 	if (test_and_clear_bit(AS_ENOSPC, &mapping->flags))
@@ -224,22 +223,35 @@ restart:
 	return ret;
 }
 
+/**
+ * filemap_fdatawait - walk the list of under-writeback pages of the given
+ *     address space and wait for all of them.
+ *
+ * @mapping: address space structure to wait for
+ */
+int filemap_fdatawait(struct address_space *mapping)
+{
+	return wait_on_page_writeback_range(mapping, 0, -1);
+}
+
 EXPORT_SYMBOL(filemap_fdatawait);
 
+int filemap_write_and_wait(struct address_space *mapping)
+{
+	int retval = 0;
+
+	if (mapping->nrpages) {
+		retval = filemap_fdatawrite(mapping);
+		if (retval == 0)
+			retval = filemap_fdatawait(mapping);
+	}
+	return retval;
+}
+
 /*
- * This adds a page to the page cache, starting out as locked, unreferenced,
- * not uptodate and with no errors.
- *
- * This function is used for two things: adding newly allocated pagecache
- * pages and for moving existing anon pages into swapcache.
- *
- * In the case of pagecache pages, the page is new, so we can just run
- * SetPageLocked() against it.  The other page state flags were set by
- * rmqueue()
- *
- * In the case of swapcache, try_to_swap_out() has already locked the page, so
- * SetPageLocked() is ugly-but-OK there too.  The required page state has been
- * set up by swap_out_add_to_swap_cache().
+ * This function is used to add newly allocated pagecache pages:
+ * the page is new, so we can just run SetPageLocked() against it.
+ * The other page state flags were set by rmqueue().
  *
  * This function does not add the page to the LRU.  The caller must do that.
  */
@@ -249,16 +261,17 @@ int add_to_page_cache(struct page *page, struct address_space *mapping,
 	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
 
 	if (error == 0) {
-		page_cache_get(page);
-		spin_lock(&mapping->page_lock);
+		spin_lock_irq(&mapping->tree_lock);
 		error = radix_tree_insert(&mapping->page_tree, offset, page);
 		if (!error) {
+			page_cache_get(page);
 			SetPageLocked(page);
-			___add_to_page_cache(page, mapping, offset);
-		} else {
-			page_cache_release(page);
+			page->mapping = mapping;
+			page->index = offset;
+			mapping->nrpages++;
+			pagecache_acct(1);
 		}
-		spin_unlock(&mapping->page_lock);
+		spin_unlock_irq(&mapping->tree_lock);
 		radix_tree_preload_end();
 	}
 	return error;
@@ -285,6 +298,40 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
  * at a cost of "thundering herd" phenomena during rare hash
  * collisions.
  */
+struct page_wait_queue {
+	struct page *page;
+	int bit;
+	wait_queue_t wait;
+};
+
+static int page_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
+{
+	struct page *page = key;
+	struct page_wait_queue *wq;
+
+	wq = container_of(wait, struct page_wait_queue, wait);
+	if (wq->page != page || test_bit(wq->bit, &page->flags))
+		return 0;
+	else
+		return autoremove_wake_function(wait, mode, sync, NULL);
+}
+
+#define __DEFINE_PAGE_WAIT(name, p, b, f)				\
+	struct page_wait_queue name = {					\
+		.page	= p,						\
+		.bit	= b,						\
+		.wait	= {						\
+			.task	= current,				\
+			.func	= page_wake_function,			\
+			.flags	= f,					\
+			.task_list = LIST_HEAD_INIT(name.wait.task_list),\
+		},							\
+	}
+
+#define DEFINE_PAGE_WAIT(name, p, b)	__DEFINE_PAGE_WAIT(name, p, b, 0)
+#define DEFINE_PAGE_WAIT_EXCLUSIVE(name, p, b)				\
+		__DEFINE_PAGE_WAIT(name, p, b, WQ_FLAG_EXCLUSIVE)
+
 static wait_queue_head_t *page_waitqueue(struct page *page)
 {
 	const struct zone *zone = page_zone(page);
@@ -292,19 +339,28 @@ static wait_queue_head_t *page_waitqueue(struct page *page)
 	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
 }
 
-void wait_on_page_bit(struct page *page, int bit_nr)
+static void wake_up_page(struct page *page)
+{
+	const unsigned int mode = TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE;
+	wait_queue_head_t *waitqueue = page_waitqueue(page);
+
+	if (waitqueue_active(waitqueue))
+		__wake_up(waitqueue, mode, 1, page);
+}
+
+void fastcall wait_on_page_bit(struct page *page, int bit_nr)
 {
 	wait_queue_head_t *waitqueue = page_waitqueue(page);
-	DEFINE_WAIT(wait);
+	DEFINE_PAGE_WAIT(wait, page, bit_nr);
 
 	do {
-		prepare_to_wait(waitqueue, &wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait(waitqueue, &wait.wait, TASK_UNINTERRUPTIBLE);
 		if (test_bit(bit_nr, &page->flags)) {
 			sync_page(page);
 			io_schedule();
 		}
 	} while (test_bit(bit_nr, &page->flags));
-	finish_wait(waitqueue, &wait);
+	finish_wait(waitqueue, &wait.wait);
 }
 
 EXPORT_SYMBOL(wait_on_page_bit);
@@ -324,15 +380,13 @@ EXPORT_SYMBOL(wait_on_page_bit);
  * the clear_bit and the read of the waitqueue (to avoid SMP races with a
  * parallel wait_on_page_locked()).
  */
-void unlock_page(struct page *page)
+void fastcall unlock_page(struct page *page)
 {
-	wait_queue_head_t *waitqueue = page_waitqueue(page);
 	smp_mb__before_clear_bit();
 	if (!TestClearPageLocked(page))
 		BUG();
 	smp_mb__after_clear_bit(); 
-	if (waitqueue_active(waitqueue))
-		wake_up_all(waitqueue);
+	wake_up_page(page);
 }
 
 EXPORT_SYMBOL(unlock_page);
@@ -343,16 +397,12 @@ EXPORT_SYMBOL(lock_page);
  */
 void end_page_writeback(struct page *page)
 {
-	wait_queue_head_t *waitqueue = page_waitqueue(page);
-
 	if (!TestClearPageReclaim(page) || rotate_reclaimable_page(page)) {
-		smp_mb__before_clear_bit();
-		if (!TestClearPageWriteback(page))
+		if (!test_clear_page_writeback(page))
 			BUG();
 		smp_mb__after_clear_bit();
 	}
-	if (waitqueue_active(waitqueue))
-		wake_up_all(waitqueue);
+	wake_up_page(page);
 }
 
 EXPORT_SYMBOL(end_page_writeback);
@@ -365,19 +415,19 @@ EXPORT_SYMBOL(end_page_writeback);
  * chances are that on the second loop, the block layer's plug list is empty,
  * so sync_page() will then return in state TASK_UNINTERRUPTIBLE.
  */
-void __lock_page(struct page *page)
+void fastcall __lock_page(struct page *page)
 {
 	wait_queue_head_t *wqh = page_waitqueue(page);
-	DEFINE_WAIT(wait);
+	DEFINE_PAGE_WAIT_EXCLUSIVE(wait, page, PG_locked);
 
 	while (TestSetPageLocked(page)) {
-		prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait_exclusive(wqh, &wait.wait, TASK_UNINTERRUPTIBLE);
 		if (PageLocked(page)) {
 			sync_page(page);
 			io_schedule();
 		}
 	}
-	finish_wait(wqh, &wait);
+	finish_wait(wqh, &wait.wait);
 }
 
 EXPORT_SYMBOL(__lock_page);
@@ -390,15 +440,11 @@ struct page * find_get_page(struct address_space *mapping, unsigned long offset)
 {
 	struct page *page;
 
-	/*
-	 * We scan the hash list read-only. Addition to and removal from
-	 * the hash-list needs a held write-lock.
-	 */
-	spin_lock(&mapping->page_lock);
+	spin_lock_irq(&mapping->tree_lock);
 	page = radix_tree_lookup(&mapping->page_tree, offset);
 	if (page)
 		page_cache_get(page);
-	spin_unlock(&mapping->page_lock);
+	spin_unlock_irq(&mapping->tree_lock);
 	return page;
 }
 
@@ -411,11 +457,11 @@ struct page *find_trylock_page(struct address_space *mapping, unsigned long offs
 {
 	struct page *page;
 
-	spin_lock(&mapping->page_lock);
+	spin_lock_irq(&mapping->tree_lock);
 	page = radix_tree_lookup(&mapping->page_tree, offset);
 	if (page && TestSetPageLocked(page))
 		page = NULL;
-	spin_unlock(&mapping->page_lock);
+	spin_unlock_irq(&mapping->tree_lock);
 	return page;
 }
 
@@ -437,15 +483,15 @@ struct page *find_lock_page(struct address_space *mapping,
 {
 	struct page *page;
 
-	spin_lock(&mapping->page_lock);
+	spin_lock_irq(&mapping->tree_lock);
 repeat:
 	page = radix_tree_lookup(&mapping->page_tree, offset);
 	if (page) {
 		page_cache_get(page);
 		if (TestSetPageLocked(page)) {
-			spin_unlock(&mapping->page_lock);
+			spin_unlock_irq(&mapping->tree_lock);
 			lock_page(page);
-			spin_lock(&mapping->page_lock);
+			spin_lock_irq(&mapping->tree_lock);
 
 			/* Has the page been truncated while we slept? */
 			if (page->mapping != mapping || page->index != offset) {
@@ -455,7 +501,7 @@ repeat:
 			}
 		}
 	}
-	spin_unlock(&mapping->page_lock);
+	spin_unlock_irq(&mapping->tree_lock);
 	return page;
 }
 
@@ -523,18 +569,39 @@ EXPORT_SYMBOL(find_or_create_page);
  *
  * find_get_pages() returns the number of pages which were found.
  */
-unsigned int find_get_pages(struct address_space *mapping, pgoff_t start,
+unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
 			    unsigned int nr_pages, struct page **pages)
 {
 	unsigned int i;
 	unsigned int ret;
 
-	spin_lock(&mapping->page_lock);
+	spin_lock_irq(&mapping->tree_lock);
 	ret = radix_tree_gang_lookup(&mapping->page_tree,
 				(void **)pages, start, nr_pages);
 	for (i = 0; i < ret; i++)
 		page_cache_get(pages[i]);
-	spin_unlock(&mapping->page_lock);
+	spin_unlock_irq(&mapping->tree_lock);
+	return ret;
+}
+
+/*
+ * Like find_get_pages, except we only return pages which are tagged with
+ * `tag'.   We update *index to index the next page for the traversal.
+ */
+unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
+			int tag, unsigned int nr_pages, struct page **pages)
+{
+	unsigned int i;
+	unsigned int ret;
+
+	spin_lock_irq(&mapping->tree_lock);
+	ret = radix_tree_gang_lookup_tag(&mapping->page_tree,
+				(void **)pages, *index, nr_pages, tag);
+	for (i = 0; i < ret; i++)
+		page_cache_get(pages[i]);
+	if (ret)
+		*index = pages[ret - 1]->index + 1;
+	spin_unlock_irq(&mapping->tree_lock);
 	return ret;
 }
 
@@ -572,7 +639,7 @@ EXPORT_SYMBOL(grab_cache_page_nowait);
 
 /*
  * This is a generic file read routine, and uses the
- * inode->i_op->readpage() function for the actual low-level
+ * mapping->a_ops->readpage() function for the actual low-level
  * stuff.
  *
  * This is really ugly. But the goto's actually try to clarify some
@@ -580,55 +647,60 @@ EXPORT_SYMBOL(grab_cache_page_nowait);
  * - note the struct file * is only passed for the use of readpage
  */
 void do_generic_mapping_read(struct address_space *mapping,
-			     struct file_ra_state *ra,
+			     struct file_ra_state *_ra,
 			     struct file * filp,
 			     loff_t *ppos,
 			     read_descriptor_t * desc,
 			     read_actor_t actor)
 {
 	struct inode *inode = mapping->host;
-	unsigned long index, offset;
+	unsigned long index, end_index, offset;
+	loff_t isize;
 	struct page *cached_page;
 	int error;
+	struct file_ra_state ra = *_ra;
 
 	cached_page = NULL;
 	index = *ppos >> PAGE_CACHE_SHIFT;
 	offset = *ppos & ~PAGE_CACHE_MASK;
 
+	isize = i_size_read(inode);
+	end_index = isize >> PAGE_CACHE_SHIFT;
+	if (index > end_index)
+		goto out;
+
 	for (;;) {
 		struct page *page;
-		unsigned long end_index, nr, ret;
-		loff_t isize = i_size_read(inode);
-
-		end_index = isize >> PAGE_CACHE_SHIFT;
-			
-		if (index > end_index)
-			break;
-		nr = PAGE_CACHE_SIZE;
-		if (index == end_index) {
-			nr = isize & ~PAGE_CACHE_MASK;
-			if (nr <= offset)
-				break;
-		}
+		unsigned long nr, ret;
 
 		cond_resched();
-		page_cache_readahead(mapping, ra, filp, index);
+		page_cache_readahead(mapping, &ra, filp, index);
 
-		nr = nr - offset;
 find_page:
 		page = find_get_page(mapping, index);
 		if (unlikely(page == NULL)) {
-			handle_ra_miss(mapping, ra, index);
+			handle_ra_miss(mapping, &ra, index);
 			goto no_cached_page;
 		}
 		if (!PageUptodate(page))
 			goto page_not_up_to_date;
 page_ok:
+		/* nr is the maximum number of bytes to copy from this page */
+		nr = PAGE_CACHE_SIZE;
+		if (index == end_index) {
+			nr = isize & ~PAGE_CACHE_MASK;
+			if (nr <= offset) {
+				page_cache_release(page);
+				goto out;
+			}
+		}
+		nr = nr - offset;
+
 		/* If users can be writing to this page using arbitrary
 		 * virtual addresses, take care about potential aliasing
 		 * before reading the page on the kernel side.
 		 */
-		if (!list_empty(&mapping->i_mmap_shared))
+		if (mapping_writably_mapped(mapping))
 			flush_dcache_page(page);
 
 		/*
@@ -655,12 +727,9 @@ page_ok:
 		page_cache_release(page);
 		if (ret == nr && desc->count)
 			continue;
-		break;
+		goto out;
 
 page_not_up_to_date:
-		if (PageUptodate(page))
-			goto page_ok;
-
 		/* Get exclusive access to the page ... */
 		lock_page(page);
 
@@ -678,22 +747,41 @@ page_not_up_to_date:
 		}
 
 readpage:
-		/* ... and start the actual read. The read will unlock the page. */
+		/* Start the actual read. The read will unlock the page. */
 		error = mapping->a_ops->readpage(filp, page);
 
-		if (!error) {
-			if (PageUptodate(page))
-				goto page_ok;
+		if (unlikely(error))
+			goto readpage_error;
+
+		if (!PageUptodate(page)) {
 			wait_on_page_locked(page);
-			if (PageUptodate(page))
-				goto page_ok;
-			error = -EIO;
+			if (!PageUptodate(page)) {
+				error = -EIO;
+				goto readpage_error;
+			}
 		}
 
+		/*
+		 * i_size must be checked after we have done ->readpage.
+		 *
+		 * Checking i_size after the readpage allows us to calculate
+		 * the correct value for "nr", which means the zero-filled
+		 * part of the page is not copied back to userspace (unless
+		 * another truncate extends the file - this is desired though).
+		 */
+		isize = i_size_read(inode);
+		end_index = isize >> PAGE_CACHE_SHIFT;
+		if (index > end_index) {
+			page_cache_release(page);
+			goto out;
+		}
+		goto page_ok;
+
+readpage_error:
 		/* UHHUH! A synchronous read error occurred. Report it */
 		desc->error = error;
 		page_cache_release(page);
-		break;
+		goto out;
 
 no_cached_page:
 		/*
@@ -704,7 +792,7 @@ no_cached_page:
 			cached_page = page_cache_alloc_cold(mapping);
 			if (!cached_page) {
 				desc->error = -ENOMEM;
-				break;
+				goto out;
 			}
 		}
 		error = add_to_page_cache_lru(cached_page, mapping,
@@ -713,17 +801,20 @@ no_cached_page:
 			if (error == -EEXIST)
 				goto find_page;
 			desc->error = error;
-			break;
+			goto out;
 		}
 		page = cached_page;
 		cached_page = NULL;
 		goto readpage;
 	}
 
+out:
+	*_ra = ra;
+
 	*ppos = ((loff_t) index << PAGE_CACHE_SHIFT) + offset;
 	if (cached_page)
 		page_cache_release(cached_page);
-	update_atime(inode);
+	file_accessed(filp);
 }
 
 EXPORT_SYMBOL(do_generic_mapping_read);
@@ -741,9 +832,9 @@ int file_read_actor(read_descriptor_t *desc, struct page *page,
 	 * Faults on the destination of a read are common, so do it before
 	 * taking the kmap.
 	 */
-	if (!fault_in_pages_writeable(desc->buf, size)) {
+	if (!fault_in_pages_writeable(desc->arg.buf, size)) {
 		kaddr = kmap_atomic(page, KM_USER0);
-		left = __copy_to_user(desc->buf, kaddr + offset, size);
+		left = __copy_to_user(desc->arg.buf, kaddr + offset, size);
 		kunmap_atomic(kaddr, KM_USER0);
 		if (left == 0)
 			goto success;
@@ -751,7 +842,7 @@ int file_read_actor(read_descriptor_t *desc, struct page *page,
 
 	/* Do it the slow way */
 	kaddr = kmap(page);
-	left = __copy_to_user(desc->buf, kaddr + offset, size);
+	left = __copy_to_user(desc->arg.buf, kaddr + offset, size);
 	kunmap(page);
 
 	if (left) {
@@ -761,7 +852,7 @@ int file_read_actor(read_descriptor_t *desc, struct page *page,
 success:
 	desc->count = count - size;
 	desc->written += size;
-	desc->buf += size;
+	desc->arg.buf += size;
 	return size;
 }
 
@@ -818,7 +909,7 @@ __generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 			if (retval > 0)
 				*ppos = pos + retval;
 		}
-		update_atime(filp->f_dentry->d_inode);
+		file_accessed(filp);
 		goto out;
 	}
 
@@ -828,7 +919,7 @@ __generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 			read_descriptor_t desc;
 
 			desc.written = 0;
-			desc.buf = iov[seg].iov_base;
+			desc.arg.buf = iov[seg].iov_base;
 			desc.count = iov[seg].iov_len;
 			if (desc.count == 0)
 				continue;
@@ -878,7 +969,7 @@ int file_send_actor(read_descriptor_t * desc, struct page *page, unsigned long o
 {
 	ssize_t written;
 	unsigned long count = desc->count;
-	struct file *file = (struct file *) desc->buf;
+	struct file *file = desc->arg.data;
 
 	if (size > count)
 		size = count;
@@ -895,7 +986,7 @@ int file_send_actor(read_descriptor_t * desc, struct page *page, unsigned long o
 }
 
 ssize_t generic_file_sendfile(struct file *in_file, loff_t *ppos,
-			 size_t count, read_actor_t actor, void __user *target)
+			 size_t count, read_actor_t actor, void *target)
 {
 	read_descriptor_t desc;
 
@@ -904,7 +995,7 @@ ssize_t generic_file_sendfile(struct file *in_file, loff_t *ppos,
 
 	desc.written = 0;
 	desc.count = count;
-	desc.buf = target;
+	desc.arg.data = target;
 	desc.error = 0;
 
 	do_generic_file_read(in_file, ppos, &desc, actor);
@@ -953,7 +1044,7 @@ asmlinkage ssize_t sys_readahead(int fd, loff_t offset, size_t count)
  * and schedules an I/O to read in its contents from disk.
  */
 static int FASTCALL(page_cache_read(struct file * file, unsigned long offset));
-static int page_cache_read(struct file * file, unsigned long offset)
+static int fastcall page_cache_read(struct file * file, unsigned long offset)
 {
 	struct address_space *mapping = file->f_mapping;
 	struct page *page; 
@@ -979,7 +1070,6 @@ static int page_cache_read(struct file * file, unsigned long offset)
 	return error == -EEXIST ? 0 : error;
 }
 
-#define MMAP_READAROUND (16UL)
 #define MMAP_LOTSAMISS  (100)
 
 /*
@@ -1035,6 +1125,8 @@ retry_all:
 retry_find:
 	page = find_get_page(mapping, pgoff);
 	if (!page) {
+		unsigned long ra_pages;
+
 		if (VM_SequentialReadHint(area)) {
 			handle_ra_miss(mapping, ra, pgoff);
 			goto no_cached_page;
@@ -1057,9 +1149,17 @@ retry_find:
 			inc_page_state(pgmajfault);
 		}
 		did_readaround = 1;
-		do_page_cache_readahead(mapping, file,
-				pgoff & ~(MMAP_READAROUND-1), MMAP_READAROUND);
-		goto retry_find;
+		ra_pages = max_sane_readahead(file->f_ra.ra_pages);
+		if (ra_pages) {
+			pgoff_t start = 0;
+
+			if (pgoff > ra_pages / 2)
+				start = pgoff - ra_pages / 2;
+			do_page_cache_readahead(mapping, file, start, ra_pages);
+		}
+		page = find_get_page(mapping, pgoff);
+		if (!page)
+			goto no_cached_page;
 	}
 
 	if (!did_readaround)
@@ -1317,19 +1417,9 @@ repeat:
 			return err;
 		}
 	} else {
-	    	/*
-		 * If a nonlinear mapping then store the file page offset
-		 * in the pte.
-		 */
-	    	unsigned long pgidx;
-		pgidx = (addr - vma->vm_start) >> PAGE_SHIFT;
-		pgidx += vma->vm_pgoff;
-		pgidx >>= PAGE_CACHE_SHIFT - PAGE_SHIFT;
-		if (pgoff != pgidx) {
-	    		err = install_file_pte(mm, vma, addr, pgoff, prot);
-			if (err)
-		    		return err;
-		}
+		err = install_file_pte(mm, vma, addr, pgoff, prot);
+		if (err)
+			return err;
 	}
 
 	len -= PAGE_SIZE;
@@ -1351,11 +1441,10 @@ static struct vm_operations_struct generic_file_vm_ops = {
 int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
 {
 	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
 
 	if (!mapping->a_ops->readpage)
 		return -ENOEXEC;
-	update_atime(inode);
+	file_accessed(file);
 	vma->vm_ops = &generic_file_vm_ops;
 	return 0;
 }
@@ -1495,22 +1584,37 @@ repeat:
 	return page;
 }
 
-void remove_suid(struct dentry *dentry)
+/*
+ * The logic we want is
+ *
+ *	if suid or (sgid and xgrp)
+ *		remove privs
+ */
+int remove_suid(struct dentry *dentry)
 {
-	struct iattr newattrs;
-	struct inode *inode = dentry->d_inode;
-	unsigned int mode = inode->i_mode & (S_ISUID|S_ISGID|S_IXGRP);
+	mode_t mode = dentry->d_inode->i_mode;
+	int kill = 0;
+	int result = 0;
 
-	if (!(mode & S_IXGRP))
-		mode &= S_ISUID;
+	/* suid always must be killed */
+	if (unlikely(mode & S_ISUID))
+		kill = ATTR_KILL_SUID;
 
-	/* were any of the uid bits set? */
-	if (mode && !capable(CAP_FSETID)) {
-		newattrs.ia_valid = ATTR_KILL_SUID|ATTR_KILL_SGID|ATTR_FORCE;
-		notify_change(dentry, &newattrs);
+	/*
+	 * sgid without any exec bits is just a mandatory locking mark; leave
+	 * it alone.  If some exec bits are set, it's a real sgid; kill it.
+	 */
+	if (unlikely((mode & S_ISGID) && (mode & S_IXGRP)))
+		kill |= ATTR_KILL_SGID;
+
+	if (unlikely(kill && !capable(CAP_FSETID))) {
+		struct iattr newattrs;
+
+		newattrs.ia_valid = ATTR_FORCE | kill;
+		result = notify_change(dentry, &newattrs);
 	}
+	return result;
 }
-
 EXPORT_SYMBOL(remove_suid);
 
 /*
@@ -1700,6 +1804,7 @@ EXPORT_SYMBOL(generic_write_checks);
 
 /*
  * Write to a file through the page cache. 
+ * Called under i_sem for S_ISREG files.
  *
  * We put everything into the page cache prior to writing it. This is not a
  * problem when writing full pages. With partial pages, however, we first have
@@ -1763,11 +1868,13 @@ generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 	if (err)
 		goto out;
 
-
 	if (count == 0)
 		goto out;
 
-	remove_suid(file->f_dentry);
+	err = remove_suid(file->f_dentry);
+	if (err)
+		goto out;
+
 	inode_update_time(inode, 1);
 
 	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
@@ -1788,15 +1895,24 @@ generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 		/*
 		 * Sync the fs metadata but not the minor inode changes and
 		 * of course not the data as we did direct DMA for the IO.
+		 * i_sem is held, which protects generic_osync_inode() from
+		 * livelocking.
 		 */
 		if (written >= 0 && file->f_flags & O_SYNC)
 			status = generic_osync_inode(inode, mapping, OSYNC_METADATA);
-		if (written >= 0 && !is_sync_kiocb(iocb))
+		if (written == count && !is_sync_kiocb(iocb))
 			written = -EIOCBQUEUED;
-		goto out_status;
+		if (written < 0 || written == count)
+			goto out_status;
+		/*
+		 * direct-io write to a hole: fall through to buffered I/O
+		 * for completing the rest of the request.
+		 */
+		pos += written;
+		count -= written;
 	}
 
-	buf = iov->iov_base;
+	buf = iov->iov_base + written;	/* handle partial DIO write */
 	do {
 		unsigned long index;
 		unsigned long offset;
@@ -1882,11 +1998,19 @@ generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 					OSYNC_METADATA|OSYNC_DATA);
 	}
 	
+	/*
+	 * If we get here for O_DIRECT writes then we must have fallen through
+	 * to buffered writes (block instantiation inside i_size).  So we sync
+	 * the file data here, to try to honour O_DIRECT expectations.
+	 */
+	if (unlikely(file->f_flags & O_DIRECT) && written)
+		status = filemap_write_and_wait(mapping);
+
 out_status:	
 	err = written ? written : status;
 out:
 	pagevec_lru_add(&lru_pvec);
-	current->backing_dev_info = 0;
+	current->backing_dev_info = NULL;
 	return err;
 }
 
@@ -1973,6 +2097,9 @@ ssize_t generic_file_writev(struct file *file, const struct iovec *iov,
 
 EXPORT_SYMBOL(generic_file_writev);
 
+/*
+ * Called under i_sem for writes to S_ISREG files
+ */
 ssize_t
 generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	loff_t offset, unsigned long nr_segs)
@@ -1981,18 +2108,13 @@ generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	struct address_space *mapping = file->f_mapping;
 	ssize_t retval;
 
-	if (mapping->nrpages) {
-		retval = filemap_fdatawrite(mapping);
-		if (retval == 0)
-			retval = filemap_fdatawait(mapping);
-		if (retval)
-			goto out;
+	retval = filemap_write_and_wait(mapping);
+	if (retval == 0) {
+		retval = mapping->a_ops->direct_IO(rw, iocb, iov,
+						offset, nr_segs);
+		if (rw == WRITE && mapping->nrpages)
+			invalidate_inode_pages2(mapping);
 	}
-
-	retval = mapping->a_ops->direct_IO(rw, iocb, iov, offset, nr_segs);
-	if (rw == WRITE && mapping->nrpages)
-		invalidate_inode_pages2(mapping);
-out:
 	return retval;
 }
 

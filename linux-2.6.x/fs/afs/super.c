@@ -53,6 +53,7 @@ static struct file_system_type afs_fs_type = {
 	.name		= "afs",
 	.get_sb		= afs_get_sb,
 	.kill_sb	= kill_anon_super,
+	.fs_flags	= FS_BINARY_MOUNTDATA,
 };
 
 static struct super_operations afs_super_ops = {
@@ -77,9 +78,7 @@ int __init afs_fs_init(void)
 
 	_enter("");
 
-#ifdef AFS_AUTOMOUNT_SUPPORT
 	afs_timer_init(&afs_mntpt_expiry_timer, &afs_mntpt_expiry_timer_ops);
-#endif
 
 	/* create ourselves an inode cache */
 	atomic_set(&afs_count_active_inodes, 0);
@@ -171,7 +170,7 @@ static int afs_super_parse_options(struct afs_mount_params *params,
 	options[PAGE_SIZE - 1] = 0;
 
 	ret = 0;
-	while ((key = strsep(&options, ",")))
+	while ((key = strsep(&options, ",")) != 0)
 	{
 		value = strchr(key, '=');
 		if (value)
@@ -280,7 +279,6 @@ static int afs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 
  error:
-	dput(root);
 	iput(inode);
 	afs_put_volume(as->volume);
 	kfree(as);

@@ -1,6 +1,7 @@
 #ifndef _BFIN_CHECKSUM_H
 #define _BFIN_CHECKSUM_H
 
+#include <linux/in6.h>
 /*
  * MODIFIED FOR BFIN April 30, 2001 akbar.hussain@lineo.com
  *
