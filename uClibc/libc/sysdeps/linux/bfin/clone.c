@@ -15,6 +15,7 @@ clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg)
 {
 	long rval = -1, arg0;
 	
+	printk("lib: Arg %d\n",arg);
 	if (fn && child_stack) {
 
 	__asm__ __volatile__ ("r1 = %2;"
