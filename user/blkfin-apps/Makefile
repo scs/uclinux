@@ -1,7 +1,6 @@
 dir_y =
 dir_$(CONFIG_USER_BLACKFIN_GDB)             += gdbserver
-dir_$(CONFIG_USER_LISSA_LISSA)              += lissa
-dir_$(CONFIG_USER_LISSA_LISSA)              += devfbapp 
+dir_y              += devfbapp 
 all:
 	for i in $(dir_y) ; do  make -C $$i || exit $? ; done
 
