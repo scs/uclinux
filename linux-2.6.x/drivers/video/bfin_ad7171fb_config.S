@@ -347,22 +347,22 @@ _ColorBarTable:
 .byte4   0xffff00ff;
 
 
-.section .text.l1, "ax", @progbits;
+//.section .text.l1, "ax", @progbits;
+.text
 .align 4;
 
 // Parameters : R0 : destination buffer - YCrCb data buffer
 //              R1 : source buffer      - RGB   data buffer
 //              When calling from "C", first parameter is YCrCb buffer pointer
 //                                     second parameter is RGB buffer pointer
+
 _NtscVideoOutFrameBuffInit:
 
         [--sp] = rets;
         [--sp] = (r7:3, p5:0);
         [--sp] = astat;
 
-
-        P0 = R0;
-
+        P0 = R0;	//Destination address
 
         // load base of system code map in P5
         P5.h = _SystemCodeMap;
@@ -403,7 +403,6 @@ ntscoutputlinestart_init:
         r1 = r1 + r2; //next line
         p0 = r1;
 
-
 ntscoutputlineend_init:
         r0 += 2;                //increment line number
 ntscoutputfieldend_init:
@@ -432,7 +431,6 @@ NtscOutputLine_init:
         [--sp] = lc1;
         [--sp] = lb1;
         [--sp] = lt1;
-
 
 // determine if this is a VBlank line
         R1 = R0>>5;             // get offset (divide line number by 32)
@@ -469,9 +467,7 @@ NtscOutputLine_init:
 // **************** OUTPUT EAV ******************
 
         R1 = [P3 + 4];          // load EAV code , see down for storage
-#if 0
-        [P0++] = R1;            // store EAV in FIFO
-#else
+
         r2 = r1 >> 24;
         b[p0++] = r2;
         r2 = r1 >> 16;
@@ -479,19 +475,13 @@ NtscOutputLine_init:
         r2 = r1 >> 8;
         b[p0++] = r2;
         b[p0++] = r1;
-#endif
+
 // ***************** OUTPUT HORIZONTAL BLANKING ***************
 // store blank data information
         R1.h = 0x8010;
         R1.l = 0x8010;
 
 //number of sample to output 134/2
-#if 0
-        P2 = 67;
-        LSETUP(ntscoutputblank1, ntscoutputblank1) LC0 = P2;
-ntscoutputblank1:
-        [P0++] = R1;
-#else
         P2 = 67;
         LSETUP(ntscoutputblank1_s, ntscoutputblank1_e) LC0 = P2;
 ntscoutputblank1_s:
@@ -502,15 +492,12 @@ ntscoutputblank1_s:
         r2 = r1 >> 8;
         b[p0++] = r2;
 ntscoutputblank1_e:     b[p0++] = r1;
-#endif
 
 // **************** OUTPUT SAV ******************
         R2 = [P3 + 8];      // load video output flag
         R1 = [P3];          // load SAV code, see down for storage
         CC = BITTST(R2, 0); // test bit 0 to know if we have to output some video
-#if 0
-        [P0++] = R1;        // output SAV in FIFO
-#else
+
         r2 = r1 >> 24;
         b[p0++] = r2;
         r2 = r1 >> 16;
@@ -518,7 +505,7 @@ ntscoutputblank1_e:     b[p0++] = r1;
         r2 = r1 >> 8;
         b[p0++] = r2;
         b[p0++] = r1;
-#endif
+
         IF CC JUMP NtscOutputColorBarLine_init;
 
 // ***************** OUTPUT EMPTY HORIZONTAL DATA ***************
@@ -527,12 +514,7 @@ ntscoutputblank1_e:     b[p0++] = r1;
         R1.l = 0x8010;
 
 //number of sample to output 720/2
-#if 0
-        P2 = 360;
-        LSETUP(ntscoutputblank2, ntscoutputblank2) LC0 = P2;
-ntscoutputblank2:
-        [P0++] = R1;
-#else
+
         P2 = 360;
         LSETUP(ntscoutputblank2_s, ntscoutputblank2_e) LC0 = P2;
 ntscoutputblank2_s:
@@ -543,7 +525,6 @@ ntscoutputblank2_s:
         r2 = r1 >> 8;
         b[p0++] = r2;
 ntscoutputblank2_e:     b[p0++] = r1;
-#endif
 
 //      r1  = [sp++];
         lt1 = [sp++];
@@ -611,10 +592,7 @@ NOP;
         rets = [sp++];
         rts;
 
-
 _NtscVideoOutFrameBuffInit.END:
-
-
 .section .text.l1, "ax", @progbits;
 
 // Use DMA to do a mem copy
