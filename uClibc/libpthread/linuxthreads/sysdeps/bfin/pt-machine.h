@@ -1,5 +1,4 @@
 /* Machine-dependent pthreads configuration and inline functions.
-   m68k version.
    Copyright (C) 1996, 1998, 2000, 2002 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
    Contributed by Richard Henderson <rth@tamu.edu>.
@@ -27,29 +26,34 @@
 #endif
 
 extern long int testandset (int *spinlock);
+extern int __compare_and_swap (long *, long , long);
 
 /* Spinlock implementation; required.  */
 PT_EI long int
 testandset (int *spinlock)
 {
-#if 0
-  char ret;
-
-  __asm__ __volatile__(
-         "bitset ( %1, 7);"
-       : "=dm"(ret), "=m"(*spinlock)
-       : "m"(*spinlock)
-       : "cc");
-
-  return ret;
-#endif 
-return 0;
+	if (*spinlock)
+		return 1;
+	else
+	{
+		*spinlock=1;
+		return 0;
+	}
 }
 
-/* Get some notion of the current stack.  Need not be exactly the top
-   of the stack, just something somewhere in the current frame.  */
-/*#define CURRENT_STACK_FRAME  stack_pointer
-char * stack_pointer __asm__ ("" : "=r0" (stack_pointer):);*/
+#define HAS_COMPARE_AND_SWAP
 
+PT_EI int
+__compare_and_swap (long int *p, long int oldval, long int newval)
+{
+  int ret;
+
+  if((*p ^ oldval) == 0) {
+	*p = newval;
+	return 1;
+  }
+  else
+	return 0;
+}
 
 #endif /* pt-machine.h */
