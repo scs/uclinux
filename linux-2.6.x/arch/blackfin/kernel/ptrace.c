@@ -1,7 +1,8 @@
 /*
- *  linux/arch/bfinnommu/kernel/ptrace.c
+ *  linux/arch/frionommu/kernel/ptrace.c
  *
- *  Taken from linux/kernel/ptrace.c and modified for blckfin.
+ *  Copyright (C) 1994 by Hamish Macdonald
+ *  Taken from linux/kernel/ptrace.c and modified for M680x0.
  *  linux/kernel/ptrace.c is by Ross Biro 1/23/92, edited by Linus Torvalds
  *
  * This file is subject to the terms and conditions of the GNU General
@@ -28,7 +29,6 @@
 
 #define MAX_SHARED_LIBS 1
 #define TEXT_OFFSET 4
-
 /*
  * does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
@@ -36,16 +36,20 @@
 
 /* determines which bits in the ASTAT reg the user has access to. */
 /* 1 = access 0 = no access */
-/*#define ASTAT_MASK 0x017f*/   /* BFIN ASTAT reg */
+/*#define ASTAT_MASK 0x017f*/   /* FRIO ASTAT reg */
 
 /* determines which bits in the SYSCFG reg the user has access to. */
 /* 1 = access 0 = no access */
-#define SYSCFG_MASK 0x0007   /* BFIN SYSCFG reg */
+#define SYSCFG_MASK 0x0007   /* FRIO SYSCFG reg */
 /* sets the trace bits. */
 #define TRACE_BITS 0x0001
 
 /* Find the stack offset for a register, relative to thread.esp0. */
 #define PT_REG(reg)	((long)&((struct pt_regs *)0)->reg)
+
+/* Mapping from PT_xxx to the stack offset at which the register is
+   saved.  Notice that usp has no stack-slot and needs to be treated
+   specially (see get_reg/put_reg below). */
 
 
 /*
@@ -55,28 +59,87 @@ static inline long get_reg(struct task_struct *task, int regno)
 {
 	 unsigned long *addr;
 
-         if (regno == PT_USP)
+	struct pt_regs *regs = 
+	(struct pt_regs *)((unsigned long) task->thread_info + 
+	    ( KTHREAD_SIZE - sizeof(struct pt_regs)));
+	switch(regno){
+		case PT_PC :
+		case 140 :
+		               return regs->pc -  task->mm->start_code - TEXT_OFFSET;
+		case PT_R0 : return regs->r0;
+		case PT_ORIG_R0 : return regs->orig_r0;
+		case PT_R1 : return regs->r1;
+		case PT_R2 : return regs->r2;
+		case PT_R3 : return regs->r3;
+		case PT_R4 : return regs->r4;
+		case PT_R5 : return regs->r5;
+		case PT_R6 : return regs->r6;
+		case PT_R7 : return regs->r7;
+		case PT_P0 : return regs->p0;
+		case PT_P1 : return regs->p1;
+		case PT_P2 : return regs->p2;
+		case PT_P3 : return regs->p3;
+		case PT_P4 : return regs->p4;
+		case PT_P5 : return regs->p5;
+		case PT_A0w : return regs->a0w;
+		case PT_A1w : return regs->a1w;
+		case PT_A0x : return regs->a0x;
+		case PT_A1x : return regs->a1x;
+		case PT_IPEND : return regs->ipend;
+		case PT_SYSCFG : return regs->syscfg;
+		case PT_SEQSTAT : return regs->seqstat;
+		case PT_RETE : return regs->rete;
+		case PT_RETN : return regs->retn;
+		case PT_RETX : return regs->retx;
+		case PT_RETS : return regs->rets;
+		case PT_RESERVED : return regs->reserved;
+		case PT_ASTAT : return regs->astat;
+		case PT_LB0 : return regs->lb0;
+		case PT_LB1 : return regs->lb1;
+		case PT_LT0 : return regs->lt0;
+		case PT_LT1 : return regs->lt1;
+		case PT_LC0 : return regs->lc0;
+		case PT_LC1 : return regs->lc1;
+		case PT_B0 : return regs->b0;
+		case PT_B1 : return regs->b1;
+		case PT_B2 : return regs->b2;
+		case PT_B3 : return regs->b3;
+		case PT_L0 : return regs->l0;
+		case PT_L1 : return regs->l1;
+		case PT_L2 : return regs->l2;
+		case PT_L3 : return regs->l3;
+		case PT_M0 : return regs->m0;
+		case PT_M1 : return regs->m1;
+		case PT_M2 : return regs->m2;
+		case PT_M3 : return regs->m3;
+		//case PT_I0 : return regs->i0;
+		case PT_I1 : return regs->i1;
+		case PT_I2 : return regs->i2;
+		case PT_I3 : return regs->i3;
+		case PT_USP : return regs->usp;
+		case PT_FP : return regs->fp;
+		//case PT_VECTOR : return regs->pc;
+	}
+	/* slight mystery ... never seems to come here but kernel misbehaves without this code! */
+
+printk("did not return for %d\n", regno);
+	 if (regno == PT_USP) 
          {
-                addr = &task->thread.usp;
+	        addr = &task->thread.usp;
          }
-         else if((regno == PT_PC)|| (140 == regno))
+	 else if (regno < 208)
          {
-               struct pt_regs *regs =
-               (struct pt_regs *)((unsigned long) task->thread_info +
-                               ( KTHREAD_SIZE - sizeof(struct pt_regs)));
-               return regs->pc -  task->mm->start_code - TEXT_OFFSET;
+                printk("Register number %d has value ", (int)(*addr));
+	        addr = (unsigned long *)(task->thread.esp0 + regno);
+                printk("0x%x(%d)\n", (int)(*addr), (int)(*addr));
          }
-         else if (regno < 208)
-         {
-                addr = (unsigned long *)(task->thread.esp0 + regno);
-                //printk("Register number %d has value 0x%x(%d)\n", (int)regno, (int)(*addr), (int)(*addr));
-         }
-         else
+	 else
          {
                 printk("Request to get for unknown register\n");
-                return 0;
+	        return 0;
          }
-         return *addr;
+	 return *addr;
+
 }
 
 /*
@@ -85,26 +148,68 @@ static inline long get_reg(struct task_struct *task, int regno)
 static inline int put_reg(struct task_struct *task, int regno,
 			  unsigned long data)
 {
-	unsigned long *addr;
-        if(regno == PT_USP)
-        {
-                addr = &task->thread.usp;
-        }
-        else if(regno == PT_PC)
-        {
-                addr = &task->thread.pc;
-        }
-        else if (regno < 208)
-        {
-               addr = (unsigned long *) (task->thread.esp0 + regno);
-        }
-        else
-        {
-              printk("Request to set for unknown register found:\n");
-              return -1;
-        }
-        *addr = data;
-        return 0;
+	struct pt_regs *regs = 
+		(struct pt_regs *)((unsigned long) task->thread_info + 
+    		( KTHREAD_SIZE - sizeof(struct pt_regs)));
+	switch(regno){
+		case PT_PC : break;
+		case 140 :
+               		regs->pc = data +  task->mm->start_code + TEXT_OFFSET; break;
+		case PT_R0 : regs->r0 = data; break;
+		case PT_ORIG_R0 : regs->orig_r0 = data; break;
+		case PT_R1 : regs->r1 = data; break;
+		case PT_R2 : regs->r2 = data; break;
+		case PT_R3 : regs->r3 = data; break;
+		case PT_R4 : regs->r4 = data; break;
+		case PT_R5 : regs->r5 = data; break;
+		case PT_R6 : regs->r6 = data; break;
+		case PT_R7 : regs->r7 = data; break;
+		case PT_P0 : regs->p0 = data; break;
+		case PT_P1 : regs->p1 = data; break;
+		case PT_P2 : regs->p2 = data; break;
+		case PT_P3 : regs->p3 = data; break;
+		case PT_P4 : regs->p4 = data; break;
+		case PT_P5 : regs->p5 = data; break;
+		case PT_A0w : regs->a0w = data; break;
+		case PT_A1w : regs->a1w = data; break;
+		case PT_A0x : regs->a0x = data; break;
+		case PT_A1x : regs->a1x = data; break;
+		case PT_IPEND : regs->ipend = data; break;
+		case PT_SYSCFG : regs->syscfg = data; break;
+		case PT_SEQSTAT : regs->seqstat = data; break;
+		case PT_RETE : regs->rete = data; break;
+		case PT_RETN : regs->retn = data; break;
+		case PT_RETX : regs->retx = data; break;
+		case PT_RETS : regs->rets = data; break;
+		case PT_RESERVED : regs->reserved = data; break;
+		case PT_ASTAT : regs->astat = data; break;
+		case PT_LB0 : regs->lb0 = data; break;
+		case PT_LB1 : regs->lb1 = data; break;
+		case PT_LT0 : regs->lt0 = data; break;
+		case PT_LT1 : regs->lt1 = data; break;
+		case PT_LC0 : regs->lc0 = data; break;
+		case PT_LC1 : regs->lc1 = data; break;
+		case PT_B0 : regs->b0 = data; break;
+		case PT_B1 : regs->b1 = data; break;
+		case PT_B2 : regs->b2 = data; break;
+		case PT_B3 : regs->b3 = data; break;
+		case PT_L0 : regs->l0 = data; break;
+		case PT_L1 : regs->l1 = data; break;
+		case PT_L2 : regs->l2 = data; break;
+		case PT_L3 : regs->l3 = data; break;
+		case PT_M0 : regs->m0 = data; break;
+		case PT_M1 : regs->m1 = data; break;
+		case PT_M2 : regs->m2 = data; break;
+		case PT_M3 : regs->m3 = data; break;
+		//case PT_I0 : regs->i0 = data; break;
+		case PT_I1 : regs->i1 = data; break;
+		case PT_I2 : regs->i2 = data; break;
+		case PT_I3 : regs->i3 = data; break;
+		case PT_USP : regs->usp = data; break;
+		case PT_FP : regs->fp = data; break;
+		//case PT_VECTOR : regs->pc = data; break;
+	}
+return 0;
 }
 
 /*
@@ -126,6 +231,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 	struct task_struct *child;
 	int ret;
         int add = 0;
+
 	lock_kernel();
 	ret = -EPERM;
 	if (request == PTRACE_TRACEME) {
@@ -166,35 +272,36 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
 	switch (request) {
 	/* when I and D space are separate, these will need to be fixed. */
-		case PTRACE_PEEKTEXT: /* read word at location addr. */
-                        add = MAX_SHARED_LIBS * 4;      // space between text and data
-                        // fall through 
-		case PTRACE_PEEKDATA: {
+		case PTRACE_PEEKDATA: 
+			add = MAX_SHARED_LIBS * 4;	// space between text and data
+			// fall through
+		case PTRACE_PEEKTEXT: /* read word at location addr. */ 
+		{
 			/* added start_code to addr, actually need to add text or data
-                           depending on addr being < or > textlen.
-                           Dont forget the MAX_SHARED_LIBS
-                        */
-                        unsigned long tmp;
-                        int copied;
-                        add += TEXT_OFFSET;             // we know flat puts 4 0's at top
-                        copied = access_process_vm(child, child->mm->start_code + addr + add,
-                                                   &tmp, sizeof(tmp), 0);
+			   depending on addr being < or > textlen.
+			   Dont forget the MAX_SHARED_LIBS
+			*/
+			unsigned long tmp;
+			int copied;
+			add += TEXT_OFFSET; 		// we know flat puts 4 0's at top
+			copied = access_process_vm(child, child->mm->start_code + addr + add, 
+						   &tmp, sizeof(tmp), 0);
 			ret = -EIO;
 			if (copied != sizeof(tmp))
-				break;
+				goto out_tsk; 
 			ret = put_user(tmp,(unsigned long *) data);
-			break;
+			goto out_tsk;   
 		}
 
 	/* read the word at location addr in the USER area. */
 		case PTRACE_PEEKUSR: {
 			unsigned long tmp;
-                        ret = -EIO;
-                        tmp= 0;
+			ret = -EIO;
+			tmp= 0;
                         if((addr&3)  || (addr > (sizeof(struct pt_regs) + 8)))
                          {
                                   printk("ptrace error : PEEKUSR : temporarily returning 0\n");
-                                goto out_tsk;
+				goto out_tsk;
                          }
                          if(addr == sizeof(struct pt_regs))
                          {
@@ -212,50 +319,56 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
                          {
                              tmp = get_reg(child, addr);
                          }
-                        ret = put_user(tmp,(unsigned long *) data);
-			break;
+			ret = put_user(tmp,(unsigned long *) data);
+			goto out_tsk; 
 		}
 
       		/* when I and D space are separate, this will have to be fixed. */
-		case PTRACE_POKETEXT: /* write the word at location addr. */
-			add = MAX_SHARED_LIBS * 4;      // space between text and data
-                        // fall through
 		case PTRACE_POKEDATA:
-			add += TEXT_OFFSET;
+			add = MAX_SHARED_LIBS * 4;	// space between text and data
+			// fall through
+		case PTRACE_POKETEXT: /* write the word at location addr. */
+			add += TEXT_OFFSET; 		// we know flat puts 4 0's at top
 			ret = 0;
-			 /* added start_code to addr, actually need to add text or data
-                           depending on addr being < or > textlen.
-                           Dont forget the MAX_SHARED_LIBS
-                        */
-                        if (access_process_vm(child, child->mm->start_code + addr + add,
-                                &data, sizeof(data), 1) == sizeof(data))
-				break;
+			/* added start_code to addr, actually need to add text or data
+			   depending on addr being < or > textlen.
+			   Dont forget the MAX_SHARED_LIBS
+			*/
+#ifdef DEBUG
+printk("POKETEXT at addr %x + add %d %d bytes %x\n", addr,  add, sizeof(data), data);
+#endif
+			if (access_process_vm(child, child->mm->start_code + addr + add, 
+				&data, sizeof(data), 1) == sizeof(data))
+				goto out_tsk;
 			ret = -EIO;
-			break;
+			goto out_tsk; 
+
 		case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 			ret = -EIO;
-			if((addr&3)  || (addr > (sizeof(struct pt_regs) + 8)))
-                        {
+                       if((addr&3)  || (addr > (sizeof(struct pt_regs) + 8)))  
+			{
                                   printk("ptrace error : POKEUSR: temporarily returning 0\n");
-                                break;
+                                goto out_tsk;
                          }
-	
-			//Jyotik Removed addr = addr >> 2; /* temporary hack. */
+
+
 			if (addr == PT_SYSCFG) {
 				data &= SYSCFG_MASK;
 				data |= get_reg(child, PT_SYSCFG);
 			}
-		        //Jyotik_Removed	if (addr < 27 * 4) 
-				ret = put_reg(child, addr, data);
-			break;
+			ret = put_reg(child, addr, data);
+			goto out_tsk; 
 
 		case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 		case PTRACE_CONT: { /* restart after signal. */
 			long tmp;
+#ifdef DEBUG
+printk("ptrace_cont\n");
+#endif
 
 			ret = -EIO;
 			if ((unsigned long) data > _NSIG)
-				break;
+				goto out_tsk;
 			if (request == PTRACE_SYSCALL)
 				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 			else
@@ -263,11 +376,14 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
 			child->exit_code = data;
 			/* make sure the single step bit is not set. */
-			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS << 16);
+			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS);
 			put_reg(child, PT_SYSCFG, tmp);
+#ifdef DEBUG
+printk("before wake_up_process\n");
+#endif
 			wake_up_process(child);
 			ret = 0;
-			break;
+			goto out_tsk;
 		}
 
 /*
@@ -277,16 +393,15 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
  */
 		case PTRACE_KILL: {
 			long tmp;
-
 			ret = 0;
 			if (child->state == TASK_ZOMBIE) /* already dead */
-				break;
+				goto out_tsk;	
 			child->exit_code = SIGKILL;
 			/* make sure the single step bit is not set. */
-			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS << 16);
+			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS);
 			put_reg(child, PT_SYSCFG, tmp);
 			wake_up_process(child);
-			break;
+			goto out_tsk;
 		}
 
 		case PTRACE_SINGLESTEP: {  /* set the trap flag. */
@@ -294,17 +409,17 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 
 			ret = -EIO;
 			if ((unsigned long) data > _NSIG)
-				break;
+				goto out_tsk;
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 
-			tmp = get_reg(child, PT_SYSCFG) | (TRACE_BITS << 16);
+			tmp = get_reg(child, PT_SYSCFG) | (TRACE_BITS);
 			put_reg(child, PT_SYSCFG, tmp);
 
 			child->exit_code = data;
 			/* give it a chance to run. */
 			wake_up_process(child);
 			ret = 0;
-			break;
+			goto out;
 		}
 
 		case PTRACE_DETACH: { /* detach a process that was attached. */
@@ -313,47 +428,25 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		}
 
 		case PTRACE_GETREGS: {
+printk("GETREGS : **** NOT IMPLEMENTED ***\n");
 
 		 /* Get all gp regs from the child. */
-		  	int i;
-			unsigned long tmp;
-			for (i = 0; i < 42; i++) {
-			    tmp = get_reg(child, i);
-			    
-			    if (put_user(tmp, (unsigned long *) data)) {
-				ret = -EFAULT;
-				break;
-			    }
-			    data += sizeof(long);
-			}
 			ret = 0;
-			break;
+			goto out_tsk;	
 		}
 
 		case PTRACE_SETREGS: {
 
+printk("SETREGS : **** NOT IMPLEMENTED ***\n");
 		 /* Set all gp regs in the child. */
-			int i;
-			unsigned long tmp;
-			for (i = 0; i < 42; i++) {
-			    if (get_user(tmp, (unsigned long *) data)) {
-				ret = -EFAULT;
-				break;
-			    }
-			    if (i == PT_SYSCFG) {
-				tmp &= SYSCFG_MASK;
-				tmp <<= 16;
-				tmp |= get_reg(child, PT_SYSCFG) & ~(SYSCFG_MASK);
-			    }
-			    put_reg(child, i, tmp);
-			    data += sizeof(long);
-			}
 			ret = 0;
-			break;
+			goto out_tsk;
 		}
+
 		default:
+printk("Ptrace :  *** Unhandled case **** %d\n", (int)request);
 			ret = -EIO;
-			break;
+			goto out_tsk;
 	}
 out_tsk:
 	put_task_struct(child);
