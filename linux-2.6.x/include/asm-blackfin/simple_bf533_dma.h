@@ -28,6 +28,7 @@ extern void prom_printf(char * fmt, ...);
 
 #endif
 
+//#define BFIN_DMA_DEBUG
 #undef BFIN_DMA_DEBUG
 #undef BFIN_DMA_NDEBUG
 
@@ -395,7 +396,7 @@ struct dma_config_t {
 /*******************************************************************************
 *	DMA API's 
 *******************************************************************************/
-int bfin_freedma(unsigned int);
+int bfin_freedma(unsigned int, void *);
 int bfin_stopdma(unsigned int);
 int bfin_startdma(unsigned int);
 int bfin_setupdma(unsigned int,void *, unsigned int, struct dma_config_t );

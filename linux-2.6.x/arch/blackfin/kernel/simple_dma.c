@@ -73,8 +73,8 @@ static DMA_MAPPING mapping[] = {
 };
 #endif
 
-//#define	MEM_DMA_TEST 0
-#undef MEM_DMA_TEST
+#define	MEM_DMA_TEST 0
+//#undef MEM_DMA_TEST
 
 static void inline enable_dma_stopmode(unsigned int);
 static void inline enable_dma_autobuffer(unsigned int);
@@ -92,7 +92,7 @@ static void disable_dma_intr(unsigned int channel);
 static void disable_dma_buffer_clear(unsigned int);
 static void clear_dma_buffer(unsigned int);
 inline unsigned short get_dma_irq_stat(unsigned int channel);
-int bfin_freedma(unsigned int);
+int bfin_freedma(unsigned int channel, void *data);
 int bfin_request_dma(char *,unsigned int,dma_interrupt_t,void *);
 static void set_dma_type(unsigned int, char);
 
@@ -180,8 +180,8 @@ int bfin_mem_dma(unsigned short *pages_src,unsigned short *pages_dest,
 		}	
 	}	
 	/* 8- After finish DMA, release it. */
-	bfin_freedma(CH_MEM_STREAM0_SRC);
-	bfin_freedma(CH_MEM_STREAM0_DEST);
+	bfin_freedma(CH_MEM_STREAM0_SRC,NULL);
+	bfin_freedma(CH_MEM_STREAM0_DEST,NULL);
 	return 0;
 }	
 
@@ -381,7 +381,7 @@ int bfin_request_dma(char *name,unsigned int channel,
 	return channel;
 }
 
-int bfin_freedma(unsigned int channel)
+int bfin_freedma(unsigned int channel, void *data)
 {
 	DMA_DBG("freedma() : BEGIN \n");
 		
@@ -392,6 +392,7 @@ int bfin_freedma(unsigned int channel)
 
 	/* Make sure the DMA channel will be stopped before free it */
 	disable_irq (bf533_channel2irq(channel) );
+//	free_irq(bf533_channel2irq(channel) ,data);
 	
 	/* Clear the DMA Variable in the Channel*/
 	dma_ch[channel].last_descriptor = BASE_VALUE;
@@ -446,7 +447,7 @@ int bfin_startdma(unsigned int channel)
 	dma_ch[channel].flowmode = (((dma_ch[channel].regs->cfg ) &
 							(0xf000)) >> 12);
 	enable_dma_intr(channel);
-    enable_irq(bf533_channel2irq(channel));
+//    enable_irq(bf533_channel2irq(channel));
 	dma_ch[channel].dma_channel_status = DMA_CHANNEL_ENABLED;
 	dma_ch[channel].regs->cfg |= DMAEN;	/* Set the enable bit */
 	SSYNC();

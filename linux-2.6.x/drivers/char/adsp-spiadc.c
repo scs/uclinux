@@ -294,7 +294,7 @@ void spiadc_reg_reset(spi_device_t *pdev)
 
 
 
-void spiadc_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t spiadc_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
     unsigned short regdata;
     unsigned short i;
@@ -386,8 +386,7 @@ if(pdev->mode) {
 	// disable spi
 	set_spi_reg(SPI_CTL, 0x0);
 
-	/* After finish DMA, release it. */
-	bfin_freedma(CH_SPI);
+
 
  	pdev->done = 1; // Found trigger
         
@@ -403,7 +402,7 @@ if(pdev->mode) {
         
     DPRINTK("spiadc_irq: return \n");
 
-    return;
+    return IRQ_HANDLED;
 
 /* Restart DMA sequence */
 
@@ -423,7 +422,7 @@ restartDMA:
 
 	DPRINTK("spiadc_irq: return Enable Dma Again\n");
 	
-	return;
+	return IRQ_HANDLED;
 }
 
 
@@ -891,11 +890,11 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
     DPRINTK("SPI wait_event_interruptible done\n");
 
 #ifdef DEBUG
+	int i;
     for (i=0; i<count; i++) printk("Val: %d \n",pdev->buffer[i]);   
     printk(" 1 = %d pdev->buffer = %x pdev->triggerpos = %x BOTH: %x \n",pdev->buffer[0],pdev->buffer,pdev->triggerpos, pdev->buffer + pdev->triggerpos);
 #endif 
 
- 
 	if(!(pdev->timeout < 0) && (!pdev->triggerpos))
 		copy_to_user(buf, pdev->buffer + SKFS, count*2);
 	  else 
@@ -1095,7 +1094,7 @@ static int spi_release (struct inode *inode, struct file *filp)
     
 
     /* After finish DMA, release it. */
-	bfin_freedma(CH_SPI);
+	bfin_freedma(CH_SPI, filp->private_data );
     
     spiadc_reg_reset(pdev);
     pdev->opened = 0; 
@@ -1145,6 +1144,7 @@ static struct file_operations spi_fops = {
 //#ifdef MODULE
 //int init_module(void)
 //#else 
+
 int __init spiadc_init(void)
 //#endif /* MODULE */
 {
