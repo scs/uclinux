@@ -1,3 +1,7 @@
+2004-11-10 LG Soft
+bug no 183 related to Smbmount problem is fixed.the prolem is due to an undocumented feature in blackfin processor which doesnt allow nested interrupts at some IVG level. This problem can be fixed by enabling "Nested Interrupt Bit" in SYSCFG register(3rd bit of SYSCFG Register).the required change is done arch/bfinnommu/mach-bf533/head.S file by changing SYSCFG value from 0x30 to 0x34.
+
+
 2004-10-12 LG Soft
 
 Problems (before adding the support)
