@@ -152,7 +152,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 #ARCH		?= $(SUBARCH)
 #CROSS_COMPILE	?=
 
-ARCH		?= frionommu
+ARCH		?= bfinnommu
 CROSS_COMPILE	?= bfin-elf-
 
 # Architecture as present in compile.h
@@ -276,10 +276,10 @@ AFLAGS_KERNEL	=
 
 NOSTDINC_FLAGS  = -nostdinc -iwithprefix include
 
-CPPFLAGS        := -mno-underscore -D__KERNEL__ -Iinclude \
+CPPFLAGS        := -D__KERNEL__ -Iinclude \
 		   $(if $(KBUILD_SRC),-Iinclude2 -I$(srctree)/include)
 
-#CFLAGS 		:= -Wall -Wstrict-prototypes -Wno-trigraphs \
+#CFLAGS 	:= -Wall -Wstrict-prototypes -Wno-trigraphs \
 	  	   -fno-strict-aliasing -fno-common
 CFLAGS 		:= -Wall -Wstrict-prototypes -Wno-trigraphs \
 	  	   -fno-strict-aliasing
