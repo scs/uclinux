@@ -69,22 +69,22 @@
 #endif
 
 /* assembler routines */
-asmlinkage void system_call(void);
+asmlinkage void evt_system_call(void);
+asmlinkage void evt_soft_int1(void);
 asmlinkage void trap(void);
 
+extern void dump(struct pt_regs *fp);
 extern void _cplb_hdr(void);
 
 static void __init bfin_trap_init (void)
 {
-    asm("p0.l = 0x2000; p0.h = 0xffe0;"
-	"p1.h = trap;" 
-	"p1.l = trap;"
-	"[p0+(4*3)] = p1;"
-	"csync;"  
-	"p1.l = system_call;"
-	"p1.h = system_call;"
-	"[p0+(4*15)] = p1;"
-	"csync;"); 
+	asm("csync;");
+	*pEVT3= trap;
+	asm("csync;");
+	*pEVT14 = evt_system_call;
+	asm("csync;");
+	*pEVT15 = evt_soft_int1;
+	asm("csync;");
 }
 
 /* Initiate the event table handler */
@@ -144,6 +144,8 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		DPRINTK(EXC_0x2E);
                 break;
 	    case VEC_MISALI_D:
+		info.si_code = BUS_ADRALN;
+		sig = SIGBUS;
 		DPRINTK(EXC_0x24);
 	    	break;
 	    case VEC_MISALI_I:
@@ -198,6 +200,10 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	info.si_errno = 0;
 	info.si_addr = (void *) fp->pc;
 	force_sig_info (sig, &info, current);
+	if (sig) {
+        	dump(fp);
+	        dump_stack();
+	}
 nsig:	
 	return;
 }
