@@ -186,6 +186,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, int *pr0)
 	regs->pc = context.sc_pc;
 	regs->retx  = context.sc_retx;
 	regs->pc = context.sc_retx;
+	regs->rets = context.sc_rets;
 	regs->orig_r0 = -1;		/* disable syscall checks */
 	wrusp(context.sc_usp);
 
@@ -342,6 +343,8 @@ static void setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 	sc->sc_p1 = regs->p1;
 	sc->sc_seqstat = regs->seqstat;
 	sc->sc_pc = regs->pc;
+	sc->sc_rets = regs->rets;
+
 	if (regs->seqstat)
 		sc->sc_retx = regs->retx;
 	else
