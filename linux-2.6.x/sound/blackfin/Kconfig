@@ -5,3 +5,7 @@ config ADI_1836_AUDIO
 	  select this driver for a OSS sound driver
 
 	  If unsure, say N.
+
+config SOUND_AD1981B
+	bool "1836 Audio support for BF533"
+	help
