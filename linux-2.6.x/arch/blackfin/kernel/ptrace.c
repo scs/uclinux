@@ -282,24 +282,17 @@ printk("PTRACE_PEEKDATA\n");
 			// fall through
 		case PTRACE_PEEKTEXT: /* read word at location addr. */ 
 		{
-			/* added start_code to addr, actually need to add text or data
-			   depending on addr being < or > textlen.
-			   Dont forget the MAX_SHARED_LIBS
-			*/
 			unsigned long tmp = 0;
-			int copied, extra = 0;
+			int copied;
 
-                        if(addr < child->mm->start_code){
-			   add += TEXT_OFFSET; 		// we know flat puts 4 0's at top
-                           extra = child->mm->start_code;
-			   if(addr > (child->mm->end_code - child->mm->start_code)){
-				/* data section is spaced by MAX_SHARED_LIBS * 4 */
-				add += MAX_SHARED_LIBS * 4;
-			   }
-                        }
-
-			copied = access_process_vm(child,  extra + addr + add,
+#ifdef DEBUG
+printk("PEEKTEXT at addr %x + add %d %d", addr,  add, sizeof(data));
+#endif
+			copied = access_process_vm(child, addr + add,
 						   &tmp, sizeof(tmp), 0);
+#ifdef DEBUG
+printk(" bytes %x\n", data);
+#endif
 			ret = -EIO;
 			if (copied != sizeof(tmp))
 				goto out_tsk; 
@@ -347,29 +340,11 @@ printk("PTRACE_PEEKDATA\n");
 			// fall through
 		case PTRACE_POKETEXT: /* write the word at location addr. */
 		{
-			int extra = 0;
-                        if(addr < child->mm->start_code){
-			   add += TEXT_OFFSET; 		// we know flat puts 4 0's at top
-                           extra = child->mm->start_code;
-			   if(addr > (child->mm->end_code - child->mm->start_code)){
-				/* data section is spaced by MAX_SHARED_LIBS * 4 */
-				add += MAX_SHARED_LIBS * 4;
-			   }
-                        }
-                        if( addr > child->mm->start_stack)
-                         {
-                           printk("Ptrace Error: Invalid memory(0x%x) had been asked to access start_code=%x start_stack=%x\n", (int)addr, (int)(child->mm->start_code), (int)(child->mm->start_stack));
-                           goto out_tsk;
-                         }
 			ret = 0;
-			/* added start_code to addr, actually need to add text or data
-			   depending on addr being < or > textlen.
-			   Dont forget the MAX_SHARED_LIBS
-			*/
 #ifdef DEBUG
 printk("POKETEXT at addr %x + add %d %d bytes %x\n", addr,  add, sizeof(data), data);
 #endif
-			if (access_process_vm(child, extra + addr + add, 
+			if (access_process_vm(child, addr + add, 
 				&data, sizeof(data), 1) == sizeof(data))
 				goto out_tsk;
 			ret = -EIO;
