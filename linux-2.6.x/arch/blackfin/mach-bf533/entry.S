@@ -194,7 +194,7 @@ ENTRY(system_call)
 	cc = r5 == r6;
 	if cc jump l_next;
 
-	r6 = __NR_llseek;		/*FIX for llseek call*/
+	r6 = __NR__llseek;		/*FIX for llseek call*/
 	cc = r5 == r6;
 	if cc jump l_next;
 
