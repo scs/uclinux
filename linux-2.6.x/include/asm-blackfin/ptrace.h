@@ -80,29 +80,15 @@ struct pt_regs {
 	long syscfg;
 };
 
-
-
 /* Arbitrarily choose the same ptrace numbers as used by the Sparc code. */
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13	/* ptrace signal  */
 
-#ifdef __KERNEL__
+#define PS_S  (0x0002)  
 
-#ifndef PS_S
-#define PS_S  (0x0c00)  
-/* Bit 11:10 of SEQSTAT defines user/supervisor/debug mode
- *        00: user 
- *        01: supervisor
- *        1x: debug
- */
-
-#define PS_M  (0x1000)  /*  I am not sure why this is required here Akbar  */
-#endif
-
-#define user_mode(regs) (!((regs)->ipend))
+#define user_mode(regs) (!((regs)->ipend & ((regs)->ipend -1)))
 #define instruction_pointer(regs) ((regs)->pc)
 extern void show_regs(struct pt_regs *);
 
-#endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 #endif /* _BFIN_PTRACE_H */
