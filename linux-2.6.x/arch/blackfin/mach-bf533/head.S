@@ -1,13 +1,12 @@
 /* arch/bfinnommu/mach-bf533/head.S
  *
- * Startup code for Blackfin BF533 
+ * Startup code for Blackfin BF533
  *
  * Copyright (C) 1998  D. Jeff Dionne <jeff@uclinux.org>
- * Copyright (C) 2004 LG Soft India 
+ * Copyright (C) 2004 LG Soft India
  *
  */
 
-#include <linux/config.h>
 #include <asm/blackfin.h>
 #include <asm/board/mem_init.h>
 
@@ -17,16 +16,16 @@
 .global _stext
 .global _start
 
-.text 
+.text
 
 _start:
 _stext:
-	/* Set the SYSCFG register */	
+	/* Set the SYSCFG register */
 	R0 = 0x36; 		/*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
 	SYSCFG = r0;
 	R0 = 0;
 
-/*Clear Out All the data and pointer  Registers*/	
+/*Clear Out All the data and pointer  Registers*/
 	R1 = R0;
 	R2 = R0;
 	R3 = R0;
@@ -49,7 +48,7 @@ _stext:
 	L2 = r0;
 	L3 = r0;
 
-/*Clear Out All the DAG Registers*/	
+/*Clear Out All the DAG Registers*/
 	B0 = r0;
 	B1 = r0;
 	B2 = r0;
@@ -65,21 +64,9 @@ _stext:
 	M2 = r0;
 	M3 = r0;
 
-	/* Set the port preferences of DAG0 and DAG1 to be
-	 different. this gives better performance when
-	 performing daul-dag operations on SDRAM.*/
-	
-	P0.L = DMEM_CONTROL & 0xFFFF;
-	P0.H = DMEM_CONTROL >> 16;
-	R0 = [P0];
-	BITCLR(R0, 12);
-	BITSET(R0, 13);
-	[P0] = R0;
-	CSYNC;
-
 	p0.h = (UART_LCR >> 16);
 	p0.l = (UART_LCR & 0xFFFF);
-	r0 = 0x0(Z);	
+	r0 = 0x0(Z);
 	w[p0] = r0.L;	/* To enable DLL writes */
 	ssync;
 
@@ -176,21 +163,21 @@ check_again:
 
         p2.h = (EBIU_AMBCTL1 >> 16);
         p2.l = (EBIU_AMBCTL1 & 0xFFFF);
-        r0.h = (AMBCTL1VAL >> 16); 
-        r0.l = (AMBCTL1VAL & 0xffff); 
+        r0.h = (AMBCTL1VAL >> 16);
+        r0.l = (AMBCTL1VAL & 0xffff);
         [p2] = r0;
         ssync;
 
         p2.h = (EBIU_AMBCTL0 >> 16);
         p2.l = (EBIU_AMBCTL0 & 0xFFFF);
-        r0.h = (AMBCTL0VAL >> 16); 
+        r0.h = (AMBCTL0VAL >> 16);
         r0.l = (AMBCTL0VAL & 0xffff);
         [p2] = r0;
         ssync;
 
         p2.h = (EBIU_AMGCTL >> 16);
         p2.l = (EBIU_AMGCTL & 0xffff);
-        r0 = AMGCTLVAL; 
+        r0 = AMGCTLVAL;
         w[p2] = r0;
         ssync;
 
@@ -224,7 +211,7 @@ check_again:
 WAIT_HERE:
 	jump WAIT_HERE;
 
-.global _real_start; 
+.global _real_start;
 _real_start:
 	[ -- sp ] = reti;
 	p0.l = (WDOG_CTL & 0xFFFF);
@@ -242,7 +229,7 @@ _real_start:
 	p2.l = _ebss;
 	p2.h = _ebss;
 	r0 = 0;
-	p2 -= p1; 
+	p2 -= p1;
 	lsetup (_clear_bss, _clear_bss ) lc0 = p2;
 _clear_bss:
 	B[p1++] = r0;
@@ -261,7 +248,7 @@ _clear_bss:
 	r0.l = (RAM_END & 0xFFFF);
 	r0.h = (RAM_END >> 16);
 	p1.l = _ramend;
-	p1.h = _ramend; 
+	p1.h = _ramend;
 	[p1] = r0;
 
 	/*
@@ -274,12 +261,12 @@ _clear_bss:
  * For this time being this should be sufficient.
  */
 	r2.l = 0x2000; 
-	r2.h = 0x0000; 
+	r2.h = 0x0000;
 	r1 = r1 + r2;
-	sp = r1; 
+	sp = r1;
 	usp = sp;
 	fp = sp;
-	call	start_kernel;
+	call start_kernel;
 _exit:
 	jump.s	_exit;
 	
