@@ -130,7 +130,7 @@ static struct bf533_serial bf533_soft =
 #undef CONFIG_DISABLE_RXDMA
 #ifdef CONFIG_BF531
 #ifdef CONFIG_BF532
-#ifdef CONFIG_DCACHE
+#ifdef CONFIG_BLKFIN_DCACHE
 #define CONFIG_DISABLE_RXDMA
 #endif
 #endif
