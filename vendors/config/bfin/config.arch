@@ -123,7 +123,7 @@ ifdef UCLINUX_BUILD_USER
   ifdef CONFIG_USER_DEBUG
 	CFLAGS  :=  -O0 -g
   else
-	CFLAGS  := -O2
+	CFLAGS  := -O0
   endif
 	CFLAGS  += -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
 	CFLAGS  += $(INCLIBC) $(INCNET)
