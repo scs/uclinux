@@ -12,7 +12,6 @@
 #ifdef __KERNEL__
 
 #include <asm/setup.h>
-#include <asm/io.h>	
 
 #if PAGE_SHIFT < 13
 #define KTHREAD_SIZE (8192)
@@ -66,6 +65,9 @@ extern __inline__ int get_order(unsigned long size)
 	return order;
 }
 
+extern unsigned long memory_start;
+extern unsigned long memory_end;
+
 #endif /* !__ASSEMBLY__ */
 
 #include <asm/page_offset.h>
@@ -83,19 +85,10 @@ extern __inline__ int get_order(unsigned long size)
 #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
 #define virt_to_page(addr)	(mem_map + (((unsigned long)(addr)-PAGE_OFFSET) >> PAGE_SHIFT))
 #define page_to_virt(page)	((((page) - mem_map) << PAGE_SHIFT) + PAGE_OFFSET)
-
-/*#define virt_to_page(addr)	(mem_map + (((unsigned long)(addr)-PAGE_OFFSET) >> PAGE_SHIFT))*/
 #define VALID_PAGE(page)	((page - mem_map) < max_mapnr)
 
 #define pfn_to_page(pfn)	virt_to_page(pfn_to_virt(pfn))
 #define page_to_pfn(page)	virt_to_pfn(page_to_virt(page))
-
-#define PAGE_BUG(page) do { \
-	BUG(); \
-} while (0)
-
-extern unsigned long memory_start;
-extern unsigned long memory_end;
 
 #define	virt_addr_valid(kaddr)	(((void *)(kaddr) >= (void *)PAGE_OFFSET) && \
 				((void *)(kaddr) < (void *)memory_end))
