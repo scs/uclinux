@@ -49,6 +49,8 @@
 
 .global icplb_table
 icplb_table:
+.byte4 0xFFA00000;
+.byte4 (L1_IMEMORY);	
 .byte4 0x00000000;
 .byte4 (SDRAM_IKERNEL);			/*SDRAM_Page1*/
 .byte4 0x00400000;
@@ -80,8 +82,6 @@ icplb_table:
 .byte4 (SDRAM_IGENERIC);		/*SDRAM_Page12*/
 .byte4 0x03400000;
 .byte4 (SDRAM_IGENERIC);		/*SDRAM_Page13*/
-.byte4 0x03800000;
-.byte4 (SDRAM_IGENERIC);		/*SDRAM_Page14*/
 #endif
 .byte4 0xffffffff;			/* end of section - termination*/
 
