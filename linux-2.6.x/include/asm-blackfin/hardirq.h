@@ -2,8 +2,8 @@
 #define __BFIN_HARDIRQ_H
 
 #include <linux/config.h>
+#include <linux/cache.h>
 #include <linux/threads.h>
-#include <asm/cache.h>
 
 typedef struct {
 	unsigned int __softirq_pending;
@@ -62,10 +62,9 @@ typedef struct {
 #endif
 
 /*
- * Are we in an interrupt context? Either doing bottom half
- * or hardware interrupt processing?
+ * Are we doing bottom half or hardware interrupt processing?
+ * Are we in a softirq context? Interrupt context?
  */
-
 #define in_irq()		(hardirq_count())
 #define in_softirq()		(softirq_count())
 #define in_interrupt()		(irq_count())
