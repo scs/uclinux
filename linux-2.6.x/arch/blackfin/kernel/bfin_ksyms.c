@@ -1,31 +1,13 @@
 #include <linux/module.h>
-#include <linux/linkage.h>
-#include <linux/sched.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/user.h>
-#include <linux/elfcore.h>
-#include <linux/in6.h>
-#include <linux/interrupt.h>
-#include <linux/config.h>
-
-#include <asm/setup.h>
-#include <asm/pgalloc.h>
 #include <asm/irq.h>
-#include <asm/io.h>
-#include <asm/semaphore.h>
 #include <asm/checksum.h>
-#include <asm/hardirq.h>
-#include <asm/current.h>
 
 extern void dump_thread(struct pt_regs *, struct user *);
-extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 
 /* platform dependent support */
 
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
-EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strrchr);
@@ -55,11 +37,6 @@ EXPORT_SYMBOL_NOVERS(memcmp);
 EXPORT_SYMBOL_NOVERS(memscan);
 EXPORT_SYMBOL_NOVERS(memmove);
 
-EXPORT_SYMBOL_NOVERS(__down_failed);
-EXPORT_SYMBOL_NOVERS(__down_failed_interruptible);
-EXPORT_SYMBOL_NOVERS(__down_failed_trylock);
-EXPORT_SYMBOL_NOVERS(__up_wakeup);
-
 EXPORT_SYMBOL(get_wchan);
 
 /*
@@ -73,7 +50,6 @@ extern void __divsi3(void);
 extern void __lshrdi3(void);
 extern void __modsi3(void);
 extern void __muldi3(void);
-extern void __mulsi3(void);
 extern void __udivsi3(void);
 extern void __umodsi3(void);
 
@@ -84,6 +60,5 @@ EXPORT_SYMBOL_NOVERS(__divsi3);
 EXPORT_SYMBOL_NOVERS(__lshrdi3);
 EXPORT_SYMBOL_NOVERS(__modsi3);
 EXPORT_SYMBOL_NOVERS(__muldi3);
-EXPORT_SYMBOL_NOVERS(__mulsi3);
 EXPORT_SYMBOL_NOVERS(__udivsi3);
 EXPORT_SYMBOL_NOVERS(__umodsi3);
