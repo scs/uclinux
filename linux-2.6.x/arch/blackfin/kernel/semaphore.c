@@ -12,6 +12,9 @@
 #include <linux/err.h>
 #include <linux/init.h>
 
+#ifndef CONFIG_RMW_INSNS
+spinlock_t semaphore_wake_lock;
+#endif
 /*
  * Semaphores are implemented using a two-way counter:
  * The "count" variable is decremented for each process
