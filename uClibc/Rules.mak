@@ -41,7 +41,7 @@ CC= $(CROSS)gcc
 AR= $(CROSS)ar
 LD= $(CROSS)ld
 NM= $(CROSS)nm
-STRIPTOOL= : $(CROSS)strip
+STRIPTOOL= $(CROSS)strip
 
 INSTALL= install
 LN= ln
