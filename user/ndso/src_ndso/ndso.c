@@ -126,6 +126,10 @@ main ()
       free (info->samples);
       break;
 
+    case GNUPLOT_FILES:
+      DoHTML (form_method, getvars, postvars, info);
+      break;
+
     default:
 
       break;
@@ -230,7 +234,10 @@ DoHTML (int form_method, char **getvars, char **postvars, s_info * info)
       htmlHeader ("NDSO Demo Web Page");
       htmlBody ();
       PrintSamples (info);
-
+    case GNUPLOT_FILES:
+      htmlHeader ("NDSO Demo Web Page");
+      htmlBody ();
+      DoFiles(info);
       break;
     default:
 
@@ -557,6 +564,10 @@ ParseRequest (int form_method, char **getvars, char **postvars, s_info * info)
 	    {
 	      info->run = SHOWSAMPLES;
 	    }
+	  else if (strncmp (postvars[i], "B6", 2) == 0)
+	    {
+	      info->run = GNUPLOT_FILES;
+	    }
 	  else if (strncmp (postvars[i], "B3", 2) == 0)
 	    {
 	      info->run = MULTIMETER;
@@ -596,11 +607,8 @@ CheckRequest (int form_method, char **getvars, char **postvars, s_info * info)
   if ((info->stime_s.samples/info->stime_s.sps) > TIMEOUT)
     NDSO_Error (TIME_OUT, form_method, getvars, postvars, info);
 
-  if ((str2num (postvars[info->sdisplay.size_ratio]) < 0 ||
-   str2num (postvars[info->sdisplay.size_ratio]) >= MAXSIZERATIO) &&
-    (str2num (postvars[info->sdisplay.size_ratio]) >= (MAXSIZERATIO*10) &&
-      (postvars[info->sdisplay.size_ratio][1] == '.')))   
-         NDSO_Error (SIZE_RATIO, form_method, getvars, postvars, info);
+  if(atof(postvars[info->sdisplay.size_ratio]) < 0 || atof(postvars[info->sdisplay.size_ratio]) >= MAXSIZERATIO)
+    NDSO_Error (SIZE_RATIO, form_method, getvars, postvars, info);
 
   if (!info->sdisplay.tdom)
     if (info->sdisplay.fftscaled)
@@ -618,8 +626,8 @@ CheckRequest (int form_method, char **getvars, char **postvars, s_info * info)
 
   if (!(postvars[info->sdisplay.xrange][0] == '*' &&
     postvars[info->sdisplay.xrange1][0] == '*'))
-    if (str2num (postvars[info->sdisplay.xrange1]) <= 
-      str2num (postvars[info->sdisplay.xrange])) 
+    if (atof(postvars[info->sdisplay.xrange1]) <= 
+      atof(postvars[info->sdisplay.xrange])) 
         NDSO_Error (RANGE, form_method, getvars, postvars, info);
 
   if (info->run == REPLOT)
@@ -1145,3 +1153,51 @@ GetMaxSampleValue (s_info * info)
 {
   return (hw_device_table[info->sinput.type][DAC_RESOLUTION].arg);
 };
+
+void
+DoFiles (s_info * info)
+{
+
+  printf
+    ("<hr>\n<menu>\n");
+
+	  info->pFile_samples = fopen (info->pFILENAME_T_OUT, "r");
+	  if (info->pFile_samples)
+	    {
+	  	fclose (info->pFile_samples);
+	    printf
+	      ("  <li><font face=\"Arial Black\"><a href=\"t_samples.txt_%s\">Time Samples</a></font></li>\n",
+	      info->pREMOTE_ADDR);
+	    }
+
+	  info->pFile_init = fopen (info->pFILENAME_GNUPLT, "r");
+	  if (info->pFile_init)
+	    {
+	  	fclose (info->pFile_init);
+	    printf
+	      ("  <li><font face=\"Arial Black\"><a href=\"gnu.plt_%s\">Gnuplot File</a></font></li>\n",
+	      info->pREMOTE_ADDR);
+	    }
+
+	  info->pFile_fsamples = fopen (info->pFILENAME_F_OUT, "r");
+	  if (info->pFile_fsamples)
+	    {
+	  	fclose (info->pFile_fsamples);
+	    printf
+	      ("<li><font face=\"Arial Black\"><a href=\"f_samples.txt_%s\">Frequency Samples</a></font></li>\n",
+	      info->pREMOTE_ADDR);
+	    }
+
+	  if ((info->pFile_fsamples == NULL) && (info->pFile_samples == NULL) &&  (info->pFile_init == NULL))
+	    printf
+	      ("  <li><font face=\"Arial Black\">No Files available from %s</font></li>\n",
+	      info->pREMOTE_ADDR);
+
+  printf
+    ("</menu>\n<hr>\n");
+
+  return;
+};
+
+
+

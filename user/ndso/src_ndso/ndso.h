@@ -114,7 +114,7 @@ typedef struct
 
 enum
 {
-  ACQUIRE, REPLOT, MULTIMETER, SHOWSAMPLES
+  ACQUIRE, REPLOT, MULTIMETER, SHOWSAMPLES, GNUPLOT_FILES
 };				/* what program we want to run */
 
 enum
@@ -156,6 +156,7 @@ int DoMeasurements (s_info *);
 int SampleToVoltage (unsigned short value, s_info * );
 int VoltageToSample (short , s_info * );
 int GetMaxSampleValue (s_info * );
+void DoFiles (s_info * );
 
 extern int fix_fft (fixed *, fixed *, int, int);
 extern int iscale (int, int, int);
