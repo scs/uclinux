@@ -607,8 +607,9 @@ CheckRequest (int form_method, char **getvars, char **postvars, s_info * info)
   if ((info->stime_s.samples/info->stime_s.sps) > TIMEOUT)
     NDSO_Error (TIME_OUT, form_method, getvars, postvars, info);
 
-  if(atof(postvars[info->sdisplay.size_ratio]) < 0 || atof(postvars[info->sdisplay.size_ratio]) >= MAXSIZERATIO)
-    NDSO_Error (SIZE_RATIO, form_method, getvars, postvars, info);
+  if(atof(postvars[info->sdisplay.size_ratio]) <= 0 
+    || atof(postvars[info->sdisplay.size_ratio]) >= MAXSIZERATIO)
+      NDSO_Error (SIZE_RATIO, form_method, getvars, postvars, info);
 
   if (!info->sdisplay.tdom)
     if (info->sdisplay.fftscaled)
