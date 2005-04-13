@@ -6,5 +6,5 @@
 
 This KGDB patch should be applied to the uclinux kernel 2.6.x for blackfin architecure. 
 
-You can find a simple guide on how to configure kgdb to debug kernel in file linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt .
+After you apply this patch, you can find a simple guide on how to configure kgdb to debug kernel in file linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt .
 
