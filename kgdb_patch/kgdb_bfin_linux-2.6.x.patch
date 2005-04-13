@@ -2722,47 +2722,71 @@ diff -urN linux-2.6.x.old/include/asm-bfinnommu/processor.h linux-2.6.x/include/
  #define INIT_THREAD  {						\
 diff -urN linux-2.6.x.old/Documentation/blackfin/kgdb_bfin.txt linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt
 --- linux-2.6.x.old/Documentation/blackfin/kgdb_bfin.txt	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt	2005-04-11 15:50:36.480638304 +0800
-@@ -0,0 +1,40 @@
-+This patch enable the kernel developer to do source level debugging on kernel for blackfin DSP over the ethernet interface.
-+Both software breakpoints and hardware breakpoints are supported in this porting.
++++ linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt	2005-04-13 11:48:38.221156248 +0800
+@@ -0,0 +1,64 @@
++			A Simple Guide to Configure KGDB
++
++			Sonic Zhang(sonic.zhang@analog.com)
++				Apr. 13th 2005
++
++
++This KGDB patch enable the kernel developer to do source level debugging on kernel for the Blackfin architecture. The debugging works over the ethernet interface. Both software breakpoints and hardware breakpoints are supported in this porting.
++
 +
 +2 known issue:
-+1. One bug "http://blackfin.uclinux.org/tracker/index.php?func=detail&aid=544&group_id=18&atid=145"
-+in the GDB porting for Blackfin uclinux cause error values of local variables are displayed when the user breaks the
++1. The bug "http://blackfin.uclinux.org/tracker/index.php?func=detail&aid=544&group_id=18&atid=145"
++in the GDB client for Blackfin uclinux causes error values of local variables are displayed when the user breaks the
 +running of kernel in GDB.
 +2. Because of one hardware bug "05000067 - Watchpoints (Hardware Breakpoints) are not supported" in Blackfin533
-+v1.0.3, the hardware breakpoints can't be set. So, the hardware breakpoints won't hit yet.
++v1.0.3, the hardware breakpoints can't be set. Then, the hardware breakpoints also can't hit.
 +
 +
 +See following detail steps to do source level debugging over Ethernet.
 + 
-+1. Compile and install the cross platform version of gdb for blackfin533, which can be found as
-+$(BINROOT)/bfin-elf-gdb.
-+2. Apply this patch to 2.6.x kernel. Select menu option under "kernel hacking" -> "kernel debugging"
-+-> "KGDB: kernel debug with remote gdb".
-+With this seledted, option "Full Symbolic/Source Debugging support" and "Compile the kernel with frame
-+pointers" are also selected.
-+3. Select option "KGDB: on Ethernet". Add "kgdboe=@target-IP/,@host-IP/"
-+to the kennel command line and compile.
-+4. Start bfin-elf-gdb.
-+5. Connect minicom to the serial port and boot the kernel image.
-+7. Configure the IP "ifconfig eth0 target-IP"
-+6. Connect to the target by "target remote udp:target-IP:6443".
-+7. Set software breakpoint "break sys_open".
-+8. Continue "c".
-+9. "ls" in the console.
-+10. Breakpoint hits. "Breakpoint 1: sys_open(..."
-+11. Display local variables and function paramters. This operation gives wrong results, see known issue 1.
-+12. Single stepping "si".
-+13. Set hardware breakpoint "hbreak sys_open".
-+14. Continue "c".
-+15. "ls" in the console.
-+16. Hardware breakpoint hits. "Breakpoint 1: sys_open(...". This hardware breakpoint won't hit, see known
-+issue 2.
-+13. Continue "c".
-+14. Interrupt the target "Ctrl+C".
-+11. Detach from the target "detach".
++1. Compile and install the cross platform version of gdb for blackfin533, which can be found as $(BINROOT)/bfin-elf-gdb.
++
++2. Apply this patch to 2.6.x kernel. Select menuconfig option under "kernel hacking" -> "kernel debugging" -> "KGDB: kernel debug with remote gdb". With this seledted, option "Full Symbolic/Source Debugging support" and "Compile the kernel with frame pointers" are also selected.
++
++3. Select option "KGDB: on Ethernet". Add "kgdboe=@target-IP/,@host-IP/" to the kennel command line and compile.
++
++4. Connect minicom to the serial port and boot the kernel image.
++
++5. Configure the IP "/> ifconfig eth0 target-IP"
++
++6. Start GDB client "bfin-elf-gdb vmlinux".
++
++7. Connect to the target "(gdb) target remote udp:target-IP:6443".
++
++8. Set software breakpoint "(gdb) break sys_open".
++
++9. Continue "(gdb) c".
++
++10. Run ls in the target console "/> ls".
++
++11. Breakpoint hits. "Breakpoint 1: sys_open(..."
++
++12. Display local variables and function paramters. (*)This operation gives wrong results, see known issue 1.
++
++13. Single stepping "(gdb) si".
++
++14. Remove breakpoint 1. "(gdb) del 1"
++
++15. Set hardware breakpoint "(gdb) hbreak sys_open".
++
++16. Continue "(gdb) c".
++
++17. Run ls in the target console "/> ls".
++
++18. Hardware breakpoint hits. "Breakpoint 1: sys_open(...". (*)This hardware breakpoint won't hit, see known issue 2.
++
++19. Continue "(gdb) c".
++
++20. Interrupt the target in GDB "Ctrl+C".
++
++21. Detach from the target "(gdb) detach".
++
++22. Exit GDB "(gdb) quit".
++
 +
 diff -urN linux-2.6.x.old/drivers/net/Makefile linux-2.6.x/drivers/net/Makefile
 --- linux-2.6.x.old/drivers/net/Makefile	2005-01-27 17:09:10.000000000 +0800
