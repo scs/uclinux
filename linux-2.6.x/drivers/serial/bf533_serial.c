@@ -393,36 +393,17 @@ unlock_and_exit:
 
 static void dma_transmit_chars(struct bf533_serial *info)
 {
+	if (tx_xcount) {
+		return;
+	}
+	
 	spin_lock_bh(info->xmit_lock);
 
 	/* 
 	 * tx_xcount is checked here to make sure the dma won't be started if it is working.
 	 */
 	if (tx_xcount) {
-		/*
-		 * The DMA engine sometimes hangs when transfer a large buffer(> about 200 bytes) 
-		 * to the UART. It stops working before all data in the buffer is sent.
-		 * Current solution is to stop the DMA transmit operatoin in timer handler if the
-		 * DMA hang conditioni is met. The DMA hang condition is that the number of byte 
-		 * left in the xmit buffer is not 0 and the UART xmit empty status is set.
-		 */
-		ACCESS_PORT_IER
-		if(*pUART_LSR&THRE) {
-			tx_xcount-=get_dma_curr_xcount(CH_UART_TX);
-			ACCESS_PORT_IER
-			*pUART_IER &= ~ETBEI;
-			SYNC_ALL;
-			disable_dma(CH_UART_TX);
-			tx_xcount-=4;
-			if(tx_xcount<0)
-				tx_xcount=0;
-			info->xmit_tail += tx_xcount;
-			info->xmit_tail %= SERIAL_XMIT_SIZE;
-			info->xmit_cnt -= tx_xcount;
-			tx_xcount = 0;
-		}
-		else
-			goto clear_and_return;
+		goto clear_and_return;
 	}
 
 	if (info->x_char) { /* Send next char */
@@ -440,9 +421,10 @@ static void dma_transmit_chars(struct bf533_serial *info)
 		tx_xcount = SERIAL_XMIT_SIZE - info->xmit_tail; 
 
 	/* 
-	 *Only use dma to transfer data when count > 1.
+	 * Only transfer data by dma when count >4.
+	 * If count <=4, the dma engine may not generate correct interrupt after it is done.
 	 */
-	if(tx_xcount>1) {
+	if(tx_xcount>4) {
 		flush_dcache_range((int)(info->xmit_buf+info->xmit_tail), (int)(info->xmit_buf+info->xmit_tail+tx_xcount));
 		set_dma_config(CH_UART_TX, set_bfin_dma_config(DIR_READ, FLOW_STOP, INTR_ON_BUF, DIMENSION_LINEAR, DATA_SIZE_8));
 		set_dma_start_addr(CH_UART_TX, (unsigned long)(info->xmit_buf+info->xmit_tail));
@@ -454,10 +436,12 @@ static void dma_transmit_chars(struct bf533_serial *info)
 		SYNC_ALL;
 	}
 	else {
-		local_put_char(info->xmit_buf[info->xmit_tail++]);
-		info->xmit_tail %= SERIAL_XMIT_SIZE;
-		info->xmit_cnt--;
-		tx_xcount = 0;
+		while(tx_xcount>0) {
+			local_put_char(info->xmit_buf[info->xmit_tail++]);
+			info->xmit_tail %= SERIAL_XMIT_SIZE;
+			info->xmit_cnt--;
+			tx_xcount--;
+		}
 
 		if (info->xmit_cnt < WAKEUP_CHARS)
 		{
@@ -794,7 +778,7 @@ static int startup(struct bf533_serial * info)
 #ifndef CONFIG_DISABLE_RXDMA
         info->dma_recv_timer.data = (unsigned long)info;
         info->dma_recv_timer.function = (void *)uart_dma_recv_timer;
-        info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
+        info->dma_recv_timer.expires = jiffies + TIME_INTERVAL*2;
         add_timer(&info->dma_recv_timer);
 #endif
 #endif
