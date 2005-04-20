@@ -57,19 +57,14 @@ ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	CC = r1 == 0;
 	if ! cc jump 1f;
 	raise 14;		/* invoked by TRAP #0, for sys call */
-	RESTORE_ALL_SYS
-	[--sp] = r0;
-        r0 = syscfg;
-        bitclr(r0, 0);
-        syscfg = r0;
-        r0 = [sp++];
-	rtx;
+	jump 2f;
 1:
 	r0 = sp; 		/* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
 	call trap_c;
 	SP += 12; 
 	call ret_from_exception;
+2:
 	RESTORE_ALL_SYS
 	rtx;
 
@@ -301,16 +296,21 @@ ENTRY(ret_from_exception)
 	r0 = [p2];
 	[sp + PT_IPEND] = r0;
 
-	CC = bittst(r0, 15);	/* check if returning to kernel*/
-	if cc jump 4f;   /* if so, skip resched, signals*/   
-
-	cc = bittst(r0, 3);	/* check if return from exception */
-	if cc jump 1f;
-	/* reduce the nested interrupt IVG14 --> IVG 15, */
-	call kernel_to_user_mode; 
-	rets = [sp++];
-
-1:	/* Set the stack for the current process */
+	cc = bittst(r0, 3);
+	if !cc jump 4f;		/* if not in exception, get out */
+	
+1:
+	r1 = 0x17(Z);
+	r2 = ~r1;
+	r2.h = 0;
+	r0 = r2 & r0;
+        r1 = 1;
+        r1 = r0 - r1;
+        r2 = r0 & r1;
+        cc = r2 == 0;
+        if !cc jump 4f;		/* if not return to kernelmode, get out */
+	
+	/* Set the stack for the current process */
 	r7 = sp;
 	r4.l = lo(ALIGN_PAGE_MASK);
 	r4.h = hi(ALIGN_PAGE_MASK);
@@ -320,19 +320,52 @@ ENTRY(ret_from_exception)
 	r4 = _TIF_WORK_MASK;
 	r7 =  r7 & r4;
 	cc = BITTST(r7, TIF_NEED_RESCHED);
-	if !cc jump 3f; 
-	call reschedule;
-3:
+	if cc jump 3f; 
+2:
 	r7 = [p5 + TI_FLAGS];
 	cc = BITTST(r7, TIF_SIGPENDING);
 	if !cc jump 4f;
-	r0 = rets;
-	[sp + PT_RESERVED] = r0;
-	call Lsignal_return;
-	r7 = [sp+PT_RESERVED];
-	rets = r7;
+3:
+	p0.l = lo(EVT15);
+	p0.h = hi(EVT15);
+	p1.l = _deferred_ret_from_exception;	/*  set the handler of event 15 */
+	p1.h = _deferred_ret_from_exception;
+	[p0] = p1;
+	csync;
+	raise 15;		/* raise evt15 to do signal or reschedule */
+        r0 = syscfg;
+        bitclr(r0, 0);
+        syscfg = r0;
 4:
 	rts;
+
+ENTRY(_deferred_ret_from_exception)
+	SAVE_CONTEXT
+        
+	r7 = sp;
+	r4.l = lo(ALIGN_PAGE_MASK);
+	r4.h = hi(ALIGN_PAGE_MASK);
+	r7 = r7 & r4;
+	p5 = r7;
+	r7 = [p5 + TI_FLAGS];
+	cc = BITTST(r7, TIF_SIGPENDING);
+	if !cc jump 1f; 
+	r0 = 0;
+	r1 = sp;
+	SP += -12;
+	call do_signal; 
+	SP += 12;
+	jump 2f;
+1:
+	r7 = [p5 + TI_FLAGS];
+	r4 = _TIF_WORK_MASK;
+	r7 =  r7 & r4;
+	cc = BITTST(r7, TIF_NEED_RESCHED);
+	if !cc jump 2f;
+	call reschedule;
+2:
+	RESTORE_CONTEXT
+	rti;
 
 ENTRY(return_from_int)
 	/* check whether current process is in user or kernel mode */
