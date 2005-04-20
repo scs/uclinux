@@ -245,6 +245,8 @@ void dump_stack(void)
 
 void dump(struct pt_regs *fp)		
 {
+	int i;
+
 	printk("\nCURRENT PROCESS:\n\n");
 	printk("COMM=%s PID=%d\n", current->comm, current->pid);
 	if (current->mm) {
@@ -259,7 +261,18 @@ void dump(struct pt_regs *fp)
 			(int) current->mm->start_stack);
 	}
 
-	printk("PC: %08lx\n", fp->pc);
+	printk("PC: %08lx; contents of [PC-16...PC+8[:\n", fp->pc);
+	for (i = -16; i < 8; i++)
+	{
+		unsigned short x;
+		get_user (x, (unsigned short *)fp->pc + i);
+		if (i == -8)
+			printk ("\n");
+		if (i == 0)
+			printk ("X\n");
+		printk ("%04x ", x);
+	}
+	printk ("\n\n");
 	printk("RETE:  %08lx  RETN: %08lx  RETX: %08lx  RETS: %08lx\n",
                 fp->rete, fp->retn, fp->retx, fp->rets);
 	printk("IPEND: %04lx  SYSCFG: %04lx\n", fp->ipend, fp->syscfg);
