@@ -402,7 +402,7 @@ linux_wait_for_process (struct process_info **childp, int *wstatp)
       else if (ret > 0)
 	break;
 
-      // usleep (1000);
+      usleep (1000);
     }
 
   if (debug_threads
