@@ -27,19 +27,20 @@
  ****************************************************************************
  * MODIFICATION HISTORY:
  * Jan 10, 2005   pflags.c Changed Michael Hennerich
+ * Apr 20, 2005   pflags.c Changed added PROC entry Michael Hennerich
  **************************************************************************** 
  */
- 
+
 	/*
-	STAMP Board Connections are made as follows:
-	PF2 -> GUI_LED1
-	PF3 -> GUI_LED2
-	PF4 -> GUI_LED3
-	GUI_BUT1 -> PF5
-	GUI_BUT2 -> PF6
-	LAN_IRQ -> PF7
-	GUI_BUT3 -> PF8
-	*/
+	   STAMP Board Connections are made as follows:
+	   PF2 -> GUI_LED1
+	   PF3 -> GUI_LED2
+	   PF4 -> GUI_LED3
+	   GUI_BUT1 -> PF5
+	   GUI_BUT2 -> PF6
+	   LAN_IRQ -> PF7
+	   GUI_BUT3 -> PF8
+	 */
 
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -48,194 +49,370 @@
 #include <asm/uaccess.h>
 #include <asm/blackfin.h>
 #include <asm/irq.h>
+#include <linux/proc_fs.h>
 #include "pflags.h"
 
 #undef	DEBUG
 //#define DEBUG
 
+#undef ENABLE_POLL
+//#define ENABLE_POLL
+
+
 #ifdef DEBUG
 #define DPRINTK(x...)	printk(x)
 #else
 #define DPRINTK(x...)	do { } while (0)
-#endif 
+#endif
 
+#define PFLAG_MAJOR 253		//experimental
 
-
-#define PFLAG_MAJOR 253 //experimental
-
-/* 0 / 1 meaning 0=input, 1=output */
+/* 0 / 1 meaning 0=input, 1=output */  
 /*                111111           */
 /*                5432109876543210 */
 #define PINCONF 0b0000000000011100
 
-
-
+#ifdef ENABLE_POLL
 static wait_queue_head_t pflags_in_waitq;
-static short pflags_laststate    = 0;
+static short pflags_laststate = 0;
 static short pflags_statechanged = 0;
+static unsigned int pflags_poll(struct file *filp, struct poll_table_struct *wait);
+static irqreturn_t pflags_irq_handler ( int irq, void *dev_id, struct pt_regs *regs );
+#endif
 
-
-static int pflags_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg);
+static int pflags_ioctl (struct inode *inode, struct file *filp, uint cmd,
+			 unsigned long arg);
+static int pflags_proc_output (char *buf);
+static int pflags_read_proc (char *page, char **start, off_t off, int count,
+			     int *eof, void *data);
+static int check_minor (struct inode *inode);
+static int pflags_open (struct inode *inode, struct file *filp);
+static ssize_t pflags_read (struct file *filp, char *buf, size_t size,
+			    loff_t * offp);
+static int pflags_release (struct inode *inode, struct file *filp);
+static ssize_t pflags_write (struct file *filp, const char *buf, size_t size,
+			     loff_t * offp);
 
 
 /* return the minor number or -ENODEV */
 
-static int check_minor(struct inode* inode){
-  
-  int minor = MINOR(inode->i_rdev);
-  
+static int
+check_minor (struct inode *inode)
+{
+
+  int minor = MINOR (inode->i_rdev);
+
   if (minor > 15)
     return -ENODEV;
-  
+
   return minor;
 
 }
 
-
-static int pflags_open(struct inode *inode, struct file *filp){
-  if( check_minor(inode) < 0 ) return -ENODEV;
+/***********************************************************
+*
+* FUNCTION NAME :pflags_open
+*
+* INPUTS/OUTPUTS:
+* in_inode - Description of openned file.
+* in_filp - Description of openned file.
+* 
+* RETURN
+* 0: Open ok.
+* -ENXIO  No such device
+*
+* FUNCTION(S) CALLED:
+*
+* GLOBAL VARIABLES REFERENCED:
+*
+* GLOBAL VARIABLES MODIFIED: NIL
+*
+* DESCRIPTION: It is invoked when user call 'open' system call
+*              to open spi device.
+*              
+* CAUTION:
+*************************************************************
+* MODIFICATION HISTORY :
+**************************************************************/
+static int
+pflags_open (struct inode *inode, struct file *filp)
+{
+  if (check_minor (inode) < 0)
+    return -ENODEV;
   return 0;
 }
 
-static int pflags_release(struct inode *inode, struct file *filp){
-  if( check_minor(inode) < 0 ) return -ENODEV;
+static int
+pflags_release (struct inode *inode, struct file *filp)
+{
+  if (check_minor (inode) < 0)
+    return -ENODEV;
   return 0;
 }
 
-
- static ssize_t pflags_read(struct file *filp, char * buf, size_t size, loff_t *offp)
+/***********************************************************
+*
+* FUNCTION NAME :pflags_read
+*
+* INPUTS/OUTPUTS:
+* in_filp - Description of openned file.
+* in_count - how many bytes user wants to get.
+* out_buf - data would be write to this address.
+* 
+* RETURN
+* positive number: bytes read back 
+* -ENODEV When minor not available.
+* -EMSGSIZE When size more than a single ASCII digit followed by /n.
+*
+* FUNCTION(S) CALLED:
+*
+* GLOBAL VARIABLES REFERENCED: 
+*
+* GLOBAL VARIABLES MODIFIED: NIL
+*
+* DESCRIPTION: It is invoked when user call 'read' system call
+*              to read from system.
+*              
+* CAUTION:
+*************************************************************
+* MODIFICATION HISTORY :
+**************************************************************/
+static ssize_t
+pflags_read (struct file *filp, char *buf, size_t size, loff_t * offp)
 {
-  int minor = check_minor( filp->f_dentry->d_inode);
-  
-//  printk("pfbits driver for bf53x minor = %d\n",minor);
-  
-  const char* bit;
+  int minor = check_minor (filp->f_dentry->d_inode);
 
-  if( minor < 0 ) return -ENODEV;
-  
-  if( size < 2 ) return -EMSGSIZE;
+  DPRINTK ("pfbits driver for bf53x minor = %d\n", minor);
 
-  bit = (*pFIO_FLAG_D & (1 << minor)) ?  "1" : "0";
-    printk("pfbits pFIO_FLAG_D = %x\n",*pFIO_FLAG_D);
+  const char *bit;
 
-  return ( copy_to_user(buf, bit , 2) ) ? -EFAULT : 2;
-  
+  if (minor < 0)
+    return -ENODEV;
+
+  if (size < 2)
+    return -EMSGSIZE;
+
+  bit = (*pFIO_FLAG_D & (1 << minor)) ? "1" : "0";
+
+  return (copy_to_user (buf, bit, 2)) ? -EFAULT : 2;
+
 }
 
-static ssize_t pflags_write(struct file *filp, const char *buf, size_t size, loff_t *offp)
+/***********************************************************
+*
+* FUNCTION NAME :pflags_write
+*
+* INPUTS/OUTPUTS:
+* in_filp - Description of openned file.
+* in_count - how many bytes user wants to send.
+* out_buf - where we get those sending data.
+* 
+* RETURN
+* positive number: bytes sending out.
+* 0: There is no data send out or parameter error.
+* RETURN
+* positive number: bytes read back 
+* -ENODEV When minor not available.
+* -EMSGSIZE When size more than a single ASCII digit followed by /n.
+*
+* FUNCTION(S) CALLED:
+*
+* GLOBAL VARIABLES REFERENCED:
+*
+* GLOBAL VARIABLES MODIFIED: NIL
+*
+* DESCRIPTION: It is invoked when user call 'Write' system call
+*              to write from system.
+*              
+* CAUTION:
+*************************************************************
+* MODIFICATION HISTORY :
+**************************************************************/
+static ssize_t
+pflags_write (struct file *filp, const char *buf, size_t size, loff_t * offp)
 {
-  
-  int minor = check_minor( filp->f_dentry->d_inode );
 
-  volatile unsigned short* set_or_clear;
-  
-//  printk("pfbits driver for bf53x minor = %d\n",minor);
-  
-  if( minor < 0 ) return -ENODEV;
-  
-  if( size < 2 ) return -EMSGSIZE;
-  
-  if( !buf ) return -EFAULT;
+  int minor = check_minor (filp->f_dentry->d_inode);
 
-  set_or_clear = (buf[0] == '0') ? ((volatile unsigned short *)FIO_FLAG_C) : ((volatile unsigned short *)FIO_FLAG_S);
+  volatile unsigned short *set_or_clear;
+
+  DPRINTK ("pfbits driver for bf53x minor = %d\n", minor);
+
+  if (minor < 0)
+    return -ENODEV;
+
+  if (size < 2)
+    return -EMSGSIZE;
+
+  if (!buf)
+    return -EFAULT;
+
+  set_or_clear =
+    (buf[0] ==
+     '0') ? ((volatile unsigned short *) FIO_FLAG_C) : ((volatile unsigned
+							 short *) FIO_FLAG_S);
 
   *set_or_clear = (1 << minor);
-  
+
   return size;
 
 }
 
+#ifdef ENABLE_POLL
+static unsigned int pflags_poll(struct file *filp, struct poll_table_struct *wait){
 
-//static unsigned int pflags_poll(struct file *filp, struct poll_table_struct *wait){
-//
-//  int minor = check_minor( filp->f_dentry->d_inode );
-//
-//  int changed=0;
-//
-//  unsigned int mask = 0;
-//  
-//  if( minor < 0 ) return -ENODEV;
-//
-//
+  int minor = check_minor( filp->f_dentry->d_inode );
+
+  int changed=0;
+
+  unsigned int mask = 0;
+  
+  if( minor < 0 ) return -ENODEV;
+
+
 //    *pFIO_MASKA_C |= (1 << minor);    
-//    *pFIO_MASKA_S |= (1 << minor);
-//    *pFIO_INEN    |= (1 << minor);   
-//    
-//    
-// 
-// 
-//  if (filp->f_mode & FMODE_READ){
-//
-//    do {
-//
-//      /* attention! this wakes up when /any/ of the flags changes */
-//      poll_wait(filp, &pflags_in_waitq, wait);
-//      
-//      changed = pflags_statechanged & (1<<minor);
-//      
-//    } while( !changed );
-//    
-//    mask |= POLLIN | POLLRDNORM;
-//  
-//  }
-//
-//  /* we can always write */
-//  if (filp->f_mode & FMODE_WRITE) 
-//    mask |= POLLOUT | POLLWRNORM;
-//
-//  return mask;
-//}
-//
-//
-//
-//static void pflags_irq_handler( int irq, void *dev_id, struct pt_regs *regs ){
-//  
-//  short pflags_nextstate = *pFIO_FLAG_D;
-//  
-//  *pFIO_FLAG_C = 0x20; /* clear irq status on interrupt lines */
-//  
-//  pflags_statechanged   = pflags_laststate ^ pflags_nextstate;
-//  pflags_laststate      = pflags_nextstate;
-//  
-//  wake_up( &pflags_in_waitq );
-//   
-//}
+    *pFIO_MASKA_S |= (1 << minor);
+    *pFIO_INEN    |= (1 << minor);   
+    
+  if (filp->f_mode & FMODE_READ){
 
+    do {
+
+      /* attention! this wakes up when /any/ of the flags changes */
+      poll_wait(filp, &pflags_in_waitq, wait);
+      
+      changed = pflags_statechanged & (1<<minor);
+      
+    } while( !changed );
+    
+    mask |= POLLIN | POLLRDNORM;
+  
+  }
+
+  /* we can always write */
+  if (filp->f_mode & FMODE_WRITE) 
+    mask |= POLLOUT | POLLWRNORM;
+
+  return mask;
+}
+
+
+
+static irqreturn_t pflags_irq_handler ( int irq, void *dev_id, struct pt_regs *regs ){
+  
+  short pflags_nextstate = *pFIO_FLAG_D;
+  
+  /* FIXME: Clear only status of flag pin that caused the interrupt */
+  *pFIO_FLAG_C = 0xFFFF; /* clear irq status on interrupt lines */
+
+  printk("pflags_irq_handler \n");
+  
+  pflags_statechanged   = pflags_laststate ^ pflags_nextstate;
+  pflags_laststate      = pflags_nextstate;
+  
+  wake_up( &pflags_in_waitq );
+   
+  return IRQ_HANDLED;
+
+}
+#endif
 
 
 static struct file_operations pflags_fops = {
-  read:	   pflags_read,
-  write:   pflags_write,
-  ioctl:   pflags_ioctl,
-  open:	   pflags_open,
-  release: pflags_release,
-//  poll:    pflags_poll
+read:pflags_read,
+write:pflags_write,
+ioctl:pflags_ioctl,
+open:pflags_open,
+release:pflags_release,
+#ifdef ENABLE_POLL
+poll:pflags_poll
+#endif
 };
 
 
-static int __init pflags_init(void){
-  
-  register_chrdev(PFLAG_MAJOR, "pflag", &pflags_fops);
-  
-//  if( request_irq (IRQ_PROG_INTA, pflags_irq_handler, SA_INTERRUPT, "pflags", NULL) ){
-//    printk (KERN_WARNING "pflags: IRQ %d is not free.\n", IRQ_PROG_INTA);
-//    return -EIO;
-//  }
+static int __init
+blackfin_pflags_init (void)
+{
 
-  init_waitqueue_head(&pflags_in_waitq);
-  
-    pflags_laststate = *pFIO_FLAG_D;
-    pflags_statechanged = 0xffff; 
-  
-  printk("pfx: pfbits driver for bf53x IRQ %d\n",IRQ_PROG_INTA);
-  
+  register_chrdev (PFLAG_MAJOR, "pflag", &pflags_fops);
+
+  create_proc_read_entry ("driver/pflags", 0, 0, pflags_read_proc, NULL);
+
+  /* FIXME: Remove following two lines as soon the default config has changed in u-boot */	
+  *pFIO_MASKA_C = (PF8 | PF6 | PF5);
+  *pFIO_EDGE &= ~(PF8 | PF6 | PF5);
+
+#ifdef ENABLE_POLL
+  if( request_irq (IRQ_PROG_INTA, pflags_irq_handler, SA_INTERRUPT, "pflags", NULL) ){
+    printk (KERN_WARNING "pflags: IRQ %d is not free.\n", IRQ_PROG_INTA);
+    return -EIO;
+  }
+  init_waitqueue_head (&pflags_in_waitq);
+  pflags_laststate = *pFIO_FLAG_D;
+  pflags_statechanged = 0xffff;
+  printk ("pfx: pfbits driver for bf53x IRQ %d\n", IRQ_PROG_INTA);
+#else
+  printk ("pfx: pfbits driver for bf53x\n");
+#endif
 //  enable_irq(IRQ_PROG_INTA);
-  
+
   return 0;
-  
+
 }
 
-__initcall(pflags_init);
+void __exit
+blackfin_plags_exit (void)
+{
+
+  remove_proc_entry ("driver/pflags", NULL);
+
+}
+
+module_init (blackfin_pflags_init);
+module_exit (blackfin_plags_exit);
+
+
+/*
+ *  Info exported via "/proc/driver/pflags".
+ */
+
+static int
+pflags_proc_output (char *buf)
+{
+  char *p;
+  p = buf;
+  unsigned short i, reg = *pFIO_FLAG_D;
+
+
+  p += sprintf (p, "FIO_DIR \t: = 0x%X\n", *pFIO_DIR);
+  p += sprintf (p, "FIO_MASKA\t: = 0x%X\n", *pFIO_MASKA_D);
+  p += sprintf (p, "FIO_MASKB\t: = 0x%X\n", *pFIO_MASKB_D);
+  p += sprintf (p, "FIO_POLAR\t: = 0x%X\n", *pFIO_POLAR);
+  p += sprintf (p, "FIO_EDGE \t: = 0x%X\n", *pFIO_EDGE);
+  p += sprintf (p, "FIO_INEN \t: = 0x%X\n", *pFIO_INEN);
+  p += sprintf (p, "FIO_FLAG_D\t: = 0x%X\n", reg);
+
+  for (i = 0; i < 16; i++)
+    p += sprintf (p, "PF%d\t: = %d \n", i, ((reg >> i) & 1));
+
+  return p - buf;
+}
+
+static int
+pflags_read_proc (char *page, char **start, off_t off,
+		  int count, int *eof, void *data)
+{
+  int len = pflags_proc_output (page);
+  if (len <= off + count)
+    *eof = 1;
+  *start = page + off;
+  len -= off;
+  if (len > count)
+    len = count;
+  if (len < 0)
+    len = 0;
+  return len;
+}
 
 /***********************************************************
 *
@@ -263,94 +440,93 @@ __initcall(pflags_init);
 *************************************************************
 * MODIFICATION HISTORY :
 **************************************************************/
-static int pflags_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
+static int
+pflags_ioctl (struct inode *inode, struct file *filp, uint cmd,
+	      unsigned long arg)
 {
 
-  int minor = check_minor( filp->f_dentry->d_inode );
+  int minor = check_minor (filp->f_dentry->d_inode);
 
- 
-  if( minor < 0 ) return -ENODEV;
 
-//printk("pfbits driver for bf53x minor = %d\n",minor);
+  if (minor < 0)
+    return -ENODEV;
 
-    switch (cmd) 
+  DPRINTK ("pfbits driver for bf53x minor = %d\n", minor);
+
+  switch (cmd)
     {
-        case SET_FIO_DIR:
-        {
-            DPRINTK("pflags_ioctl: SET_FIO_DIR \n");
+    case SET_FIO_DIR:
+      {
+	DPRINTK ("pflags_ioctl: SET_FIO_DIR \n");
 
-            if(arg) // OUTPUT
-            {
-				*pFIO_DIR |= (1 << minor);
-            }
-            else  // INPUT
-            {
-				*pFIO_DIR &= ~(1 << minor);
-            }
-            break;
-        }
-        case SET_FIO_POLAR:
-        {
-            DPRINTK("pflags_ioctl: SET_FIO_POLAR \n",arg);
+	if (arg)		// OUTPUT
+	  {
+	    *pFIO_DIR |= (1 << minor);
+	  }
+	else			// INPUT
+	  {
+	    *pFIO_DIR &= ~(1 << minor);
+	  }
+	break;
+      }
+    case SET_FIO_POLAR:
+      {
+	DPRINTK ("pflags_ioctl: SET_FIO_POLAR \n", arg);
 
-            if(arg) // ACTIVELOW_FALLINGEDGE
-            {
-				*pFIO_POLAR |= (1 << minor);
-            }
-            else  // ACTIVEHIGH_RISINGEDGE
-            {
-				*pFIO_POLAR &= ~(1 << minor);
-            }
-            break;
-        }
-        case SET_FIO_EDGE:
-        {
-            DPRINTK("pflags_ioctl: SET_FIO_EDGE \n");
+	if (arg)		// ACTIVELOW_FALLINGEDGE
+	  {
+	    *pFIO_POLAR |= (1 << minor);
+	  }
+	else			// ACTIVEHIGH_RISINGEDGE
+	  {
+	    *pFIO_POLAR &= ~(1 << minor);
+	  }
+	break;
+      }
+    case SET_FIO_EDGE:
+      {
+	DPRINTK ("pflags_ioctl: SET_FIO_EDGE \n");
 
-            if(arg) // EDGE
-            {
-				*pFIO_EDGE |= (1 << minor);
-            }
-            else  // LEVEL
-            {
-				*pFIO_EDGE &= ~(1 << minor);
-            }
-            break;
-        }
-        case SET_FIO_BOTH:
-        {
-            DPRINTK("pflags_ioctl: SET_FIO_BOTH \n");
+	if (arg)		// EDGE
+	  {
+	    *pFIO_EDGE |= (1 << minor);
+	  }
+	else			// LEVEL
+	  {
+	    *pFIO_EDGE &= ~(1 << minor);
+	  }
+	break;
+      }
+    case SET_FIO_BOTH:
+      {
+	DPRINTK ("pflags_ioctl: SET_FIO_BOTH \n");
 
-            if(arg) // BOTHEDGES
-            {
-				*pFIO_BOTH |= (1 << minor);
-            }
-            else  // SINGLEEDGE
-            {
-				*pFIO_BOTH &= ~(1 << minor);
-            }
-            break;
-        }
-        case SET_FIO_INEN:
-        {
-            DPRINTK("pflags_ioctl: SET_FIO_INEN \n");
+	if (arg)		// BOTHEDGES
+	  {
+	    *pFIO_BOTH |= (1 << minor);
+	  }
+	else			// SINGLEEDGE
+	  {
+	    *pFIO_BOTH &= ~(1 << minor);
+	  }
+	break;
+      }
+    case SET_FIO_INEN:
+      {
+	DPRINTK ("pflags_ioctl: SET_FIO_INEN \n");
 
-            if(arg) // OUTPUT_ENABLE
-            {
-				*pFIO_INEN |= (1 << minor);
-            }
-            else  // INPUT_DISABLE
-            {
-				*pFIO_INEN &= ~(1 << minor);
-            }
-            break;
-        }
-       default:
-            return -EINVAL;
+	if (arg)		// OUTPUT_ENABLE
+	  {
+	    *pFIO_INEN |= (1 << minor);
+	  }
+	else			// INPUT_DISABLE
+	  {
+	    *pFIO_INEN &= ~(1 << minor);
+	  }
+	break;
+      }
+    default:
+      return -EINVAL;
     }
-    return 0;
+  return 0;
 }
-
-
-
-

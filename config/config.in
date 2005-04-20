@@ -1124,6 +1124,9 @@ comment 'Blackfin test programs'
 
 bool    'RTC test program'              CONFIG_USER_BLACKFIN_RTC
 bool    'DPMC test program'             CONFIG_USER_BLACKFIN_DPMC
+bool    'AUDIO test program'            CONFIG_USER_BLACKFIN_AUDIOTEST
+bool    'VIDEO test program'            CONFIG_USER_BLACKFIN_VIDEOTEST
+bool    'PFLAGS test program'           CONFIG_USER_BLACKFIN_PFLAGS
 bool    'Still to write'                CONFIG_YET
 
 endmenu

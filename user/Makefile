@@ -31,7 +31,11 @@ dir_y =
 dir_n =
 dir_  =
 
-dir_$(CONFIG_USER_BLACKFIN_RTC)             += blkfin-test
+dir_$(CONFIG_USER_BLACKFIN_RTC)             += blkfin-test/rtc-test
+dir_$(CONFIG_USER_BLACKFIN_PFLAGS)          += blkfin-test/pflags-test
+dir_$(CONFIG_USER_BLACKFIN_DPMC)            += blkfin-test/dpmc-test
+dir_$(CONFIG_USER_BLACKFIN_AUDIOTEST)       += blkfin-test/audio_test
+dir_$(CONFIG_USER_BLACKFIN_VIDEOTEST)       += blkfin-test/video_test
 dir_y             			    += blkfin-apps
 
 #dir_$(CONFIG_JFFS_FS)                       += mtd-utils
