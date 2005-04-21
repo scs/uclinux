@@ -180,11 +180,10 @@ pflags_release (struct inode *inode, struct file *filp)
 static ssize_t
 pflags_read (struct file *filp, char *buf, size_t size, loff_t * offp)
 {
+  const char *bit;
   int minor = check_minor (filp->f_dentry->d_inode);
 
   DPRINTK ("pfbits driver for bf53x minor = %d\n", minor);
-
-  const char *bit;
 
   if (minor < 0)
     return -ENODEV;
@@ -380,20 +379,33 @@ static int
 pflags_proc_output (char *buf)
 {
   char *p;
+  unsigned short i, data,dir,maska,maskb,polar,edge,inen,both;
+  
   p = buf;
-  unsigned short i, reg = *pFIO_FLAG_D;
-
-
-  p += sprintf (p, "FIO_DIR \t: = 0x%X\n", *pFIO_DIR);
-  p += sprintf (p, "FIO_MASKA\t: = 0x%X\n", *pFIO_MASKA_D);
-  p += sprintf (p, "FIO_MASKB\t: = 0x%X\n", *pFIO_MASKB_D);
-  p += sprintf (p, "FIO_POLAR\t: = 0x%X\n", *pFIO_POLAR);
-  p += sprintf (p, "FIO_EDGE \t: = 0x%X\n", *pFIO_EDGE);
-  p += sprintf (p, "FIO_INEN \t: = 0x%X\n", *pFIO_INEN);
-  p += sprintf (p, "FIO_FLAG_D\t: = 0x%X\n", reg);
+  
+  data = *pFIO_FLAG_D;
+  dir = *pFIO_DIR;     
+  maska = *pFIO_MASKA_D;
+  maskb = *pFIO_MASKB_D;
+  polar = *pFIO_POLAR;  
+  both = *pFIO_BOTH;
+  edge = *pFIO_EDGE;   
+  inen = *pFIO_INEN;   
+         
+  
+  p += sprintf (p, "FIO_DIR \t: = 0x%X\n", dir);
+  p += sprintf (p, "FIO_MASKA\t: = 0x%X\n", maska);
+  p += sprintf (p, "FIO_MASKB\t: = 0x%X\n", maskb);
+  p += sprintf (p, "FIO_POLAR\t: = 0x%X\n", polar);
+  p += sprintf (p, "FIO_EDGE \t: = 0x%X\n", edge);
+  p += sprintf (p, "FIO_INEN \t: = 0x%X\n", inen);
+  p += sprintf (p, "FIO_BOTH \t: = 0x%X\n", both);
+  p += sprintf (p, "FIO_FLAG_D\t: = 0x%X\n", data);
+  p += sprintf (p, "PIN\t:DATA DIR INEN EDGE BOTH POLAR MASKA MASKB\n");
+  p += sprintf (p, "   \t:H/L  O/I D/E  E/L  B/S   L/H   S/C   S/C\n");
 
   for (i = 0; i < 16; i++)
-    p += sprintf (p, "PF%d\t: = %d \n", i, ((reg >> i) & 1));
+    p += sprintf (p, "PF%d\t: %d....%d....%d....%d....%d....%d.....%d.....%d \n", i, ((data >> i) & 1), ((dir >> i) & 1),((inen >> i) & 1),((edge >> i) & 1),((both >> i) & 1),((polar >> i) & 1),((maska >> i) & 1),((maskb >> i) & 1));
 
   return p - buf;
 }
