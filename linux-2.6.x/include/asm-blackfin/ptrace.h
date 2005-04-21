@@ -76,7 +76,7 @@ struct pt_regs {
 	long r2;
 	long r1;
 	long r0;
-	long orig_r0;
+	long orig_p0;
 	long syscfg;
 };
 
