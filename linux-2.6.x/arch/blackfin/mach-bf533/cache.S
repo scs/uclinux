@@ -99,12 +99,37 @@ ENTRY(blackfin_icache_flush_range)
 	R2 = R0 & R2;
 	P0 = R2;
 	P1 = R1;
+	CSYNC;
 1:
 	IFLUSH [P0++];
-	CSYNC;
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
 	IFLUSH [P0];
+	SSYNC;
+	RTS;
+
+/*
+ * blackfin_icache_dcache_flush_range(start, end)
+ * FLUSH all cache lines assocoiated with this
+ * area of memory.
+ * 
+ * start:	Start address
+ * end:		End address
+ */
+
+ENTRY(blackfin_icache_dcache_flush_range)
+	R2 = -L1_CACHE_BYTES;
+	R2 = R0 & R2;
+	P0 = R2;
+	P1 = R1;
+	CSYNC;
+1:
+	FLUSH [P0];
+	IFLUSH [P0++];
+	CC = P0 < P1 (iu);
+	IF CC JUMP 1b (bp);
+	IFLUSH [P0];
+	FLUSH [P0];
 	SSYNC;
 	RTS;
 
@@ -121,9 +146,9 @@ ENTRY(blackfin_dcache_invalidate_range)
 	R2 = R0 & R2;
 	P0 = R2;
 	P1 = R1;
+	CSYNC;
 1:
 	FLUSHINV[P0++];
-	CSYNC;
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
 
@@ -178,9 +203,9 @@ ENTRY(blackfin_dcache_flush_range)
 	R2 = R0 & R2;
 	P0 = R2;
 	P1 = R1;
+	CSYNC;
 1:
 	FLUSH[P0++];
-	CSYNC;
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
 
@@ -195,8 +220,8 @@ ENTRY(blackfin_dcache_flush_range)
 ENTRY(blackfin_dflush_page)
 	P1 = 1 << (PAGE_SHIFT - L1_CACHE_SHIFT);
 	P0 = R0;
-	LSETUP (fl1, fl2) LC0 = P1;
-fl1:	CSYNC;
-fl2:	FLUSH [P0++];	
+    CSYNC;
+	LSETUP (fl1, fl1) LC0 = P1;
+fl1:FLUSH [P0++];	
 	SSYNC;
 	RTS;

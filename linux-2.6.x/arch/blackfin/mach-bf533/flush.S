@@ -179,8 +179,9 @@ iflush_whole_page:
 	SSYNC;
 	IFLUSH [P0++];		/* because CSYNC can't end loops.*/
 	LSETUP (isall, ieall) LC0 = P1;
-isall:	CSYNC;
-ieall:	IFLUSH [P0++];
+isall:IFLUSH [P0++];
+ieall: NOP;	
+	SSYNC;
 	JUMP ifinished;
 
 /* This is an external function being called by the user 
@@ -328,6 +329,7 @@ fs1:	P0 = 64;		/* iterate over all sets*/
 fs0:	R6 = R5 << 5;		/* Combine set*/
 	R6.H = R3.H << 0 ;	/* and sub-bank*/
 	R6 = R6 | R2;		/* and Bank. Leave Way==0 at first.*/
+	BITSET(R6,14);
 	[P5] = R6;		/* Issue Command*/
 	SSYNC;
 	R7 = [P4];		/* and read Tag.*/
@@ -385,9 +387,9 @@ dflush_whole_page:
 	P1 += -1;		/* Unroll one iteration*/
     SSYNC;
 	FLUSHINV [P0++];	/* because CSYNC can't end loops.*/
-	LSETUP (sall, eall) LC0 = P1;
-sall:	CSYNC;
+	LSETUP (eall, eall) LC0 = P1;
 eall:	FLUSHINV [P0++];
+	SSYNC;
 	JUMP dfinished;
 
 .align 4;

@@ -12,6 +12,7 @@
 #include <asm/cplb.h>
 
 extern void flush_instruction_cache(void);
+extern void blackfin_icache_dcache_flush_range(unsigned int, unsigned int);
 extern void blackfin_icache_flush_range(unsigned int, unsigned int);
 extern void blackfin_dcache_flush_range(unsigned int, unsigned int);
 extern void blackfin_dcache_invalidate_range(unsigned int, unsigned int);
@@ -26,13 +27,14 @@ extern void flush_data_cache(void);
 
 static inline void flush_icache_range(unsigned start, unsigned end)
 {
-#if defined( CONFIG_BLKFIN_DCACHE ) && defined( CONFIG_BLKFIN_WB )
-	blackfin_dcache_flush_range((start), (end));
+#if defined( CONFIG_BLKFIN_DCACHE ) && defined( CONFIG_BLKFIN_WB ) && defined( CONFIG_BLKFIN_CACHE )
+	blackfin_icache_dcache_flush_range((start), (end));
 #endif
-#if defined( CONFIG_BLKFIN_CACHE )
+#if defined( CONFIG_BLKFIN_CACHE ) && !defined( CONFIG_BLKFIN_DCACHE )
 	blackfin_icache_flush_range((start), (end));
 #endif
 }
+
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len)	memcpy(dst, src, len)
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)	memcpy(dst, src, len)
