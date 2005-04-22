@@ -36,8 +36,6 @@ Cambridge, MA 02139, USA.  */
 .align 2
 .global _start;
 .type	_start,STT_FUNC;
-.global ___uClibc_main;
-.type	___uClibc_main,STT_FUNC;
 
 /* Stick in a dummy reference to main(), so that if an application
  * is linking when the main() function is in a static library (.a)
@@ -63,6 +61,12 @@ _start:
 	R2 = R1+R2;
 
 /*	Ok, now run uClibc's main() -- shouldn't return */
-	sp += -12;
-	jump.l	___uClibc_main;
+	sp += -20;
+	P0.L = _init;
+	P0.H = _init;
+	P1.L = _fini;
+	P1.H = _fini;
+	[SP + 12] = P0;
+	[SP + 16] = P1;
+	jump.l	___uClibc_start_main;
 
