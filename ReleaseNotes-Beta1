@@ -1,251 +1,138 @@
-Release Notes for uClinux_dist-2.6.8-BF533-beta1
--------------------------------------------------
-This linux version is known to work with only latest gcc-3.4.1 and binutils-2.15 checked out from the CVS on 30th september 2004.
+Release Notes for Uclinux-dist Beta April 12, 2005
+---------------------------------------------------------------
 
-This Kernel is known to NOT BOOT with latest bootloader in CVS, when Data Cache is turned on.
-
-To Get a Working Kernel with gcc-3.3.3 and binutils-2.14 checkout the kernel from cvs using the command
-$ cvs -z9 -d:ext:anonymous@cvs.blackfin.uclinux.org:/cvsroot/uclinux533 co uClinux-dist -rkernel-gcc-333
-
-Find below sections in this Release Notes,
 
 Version
-Development Environment
-Deliverables
-Fixes in beta
-Known Issues
-Improvements
-Build Procedure
-Loading kernel To Target Board
-Reporting Bugs
+uClinux_dist
+Date: April 12, 2005
 
-Version
--------
-uClinux_dist-2.6.8-BF533-beta1
-Date: 24 Sept 2004
 
 Development Environments
-------------------------
-
-Tool Chain: 3.4.x Blackfin Toolchain
-Host platform: Red hat Linux 9.0
-Target board: STAMP Board/ EZKIT board
-	
-Note: However other similar host platforms (SuSe Linux) are also supported. 
+Tool Chain: Beta Toolchain Release (March 3th 2005)
+u-boot_1.1.3 (kernel will not boot with 1.1.1 u-boot)
+Host platform: Suse Linux 9.2
+Target board: STAMP Board
+Note: However other similar host platforms are also supported.
 But currently they are not tested
 
+
 Deliverables
-------------
-uClinux_dist-2.6.8-BF533-beta1.tar.bz2
+uClinux_dist.tar.bz2
+Source files
+linux
+linux elf file
+uImage
+Compressed linux image that can be placed into flash
+release_notes_v2.pdf
+This document
+test_results.tar.gz
+compressed archive of test results
 
-Note: Above bunzip file includes "2.6.8.1" kernel and "uClibc 0.9.26".
 
-Fixes in beta
--------------
-
-1.	Fixes related to CPLB misses.
-2.	Cache enabling and disabling Fixes.
-3.	Fix to the sigaction, sigprocmask, sigtimedwait,mount and select system calls.
- 
-	
-Improvements
-------------
-1.	Latest 2.6.8.1 kernel
-2.	Network features supported - ping, telnet, ftp, ifconfig.
-3.	File system Support  - ext3, ext2, JFFS2, CRAMFS, ROMFS 
-	(Please refer linux-2.6.x/Documentation/blackfin/Filesystems for more information)
-4.	Cache Management support.
-	(Please refer linux-2.6.x/Documentation/blackfin/cachefeature.txt for the features supported.)
-5.	Priority driven Interrupt Management support.
-6.	RTC driver and demo application supported.
-7.	SRAM support.
-8.	Support for allocating large blocks (> 1 MB) of memory.
-9.	Configurable BAUD RATE support.
-10.	Busybox applications.
-11.	uClibc (Libc, Libcrypt and libm) support
-12.	boa web server support.	
-13.	DMA driver support.
-14.	Dynamic Power Management Driver (Not tested completly)
-15.	VDSP header files usage.
-16. 	Kernel build with ZERO warnings ( except few toolchain warnings )	
+Fixes in Beta
+See tracker at:
+http://blackfin.uclinux.org/tracker/index.php?group_id=17&atid=141
 
 
 Known Issues
-------------
+A full list of known issues can be found at:
+http://blackfin.uclinux.org/tracker/index.php?group_id=17&atid=141
 
-1.	Some files/directories needs to build with different optimization levels.
+681 CPLB manager unable to make replacements 2005-04-11 08:34 Nobody ashutosh singh
+680 make image no longer works 2005-04-10 23:25 Nobody Phil Wilshire
+674	Networking will randomly stops and gives error NETDEV WATCHDOG: eth0: transmit timed out 2005-04-09 16:58 Nobody David Skocypec
+633 bfin-elf-ld seg-faults building busybox 2005-03-27 14:35 Bernd Schmidt Richard Klingler
+631 ioctl did not return an error when set to BE for mp3play 2005-03-25 11:25 Nobody David Skocypec
+629 The content of a smbfs folder is wrong after mounting smbfs operation succeeds. 2005-03-25 04:40 Nobody sonic zhang
+623 threads do not function under msh 2005-03-22 18:56 Nobody Robin Getz
+609 setitimer(), not working as expected. 2005-03-18 08:15 Nobody Satyanarayana Reddy
+600 Module problem, insmod failure 2005-03-14 13:00 Nobody Ben Davis
+598 _access_ok broken in uClinux-dist/linux-2.6.x/include/asm-bfinnommu/uaccess.h 2005-03-14 11:55 Nobody Ben Davis
+594 htting ctrl-C during ping generates exception in msh * 2005-03-11 22:05 Nobody Dan Ledger
+578 Issuing a Ctl + c does not go to the command prompt. An enter must be entered. * 2005-03-04 16:13 Robin Getz Aaron Whittemore
+264 vfork() : Usage of Recursive implementation (vforking) of child processes. * 2004-09-18 23:39 Bruce Giese Aaron Whittemore
+220 killing /bin/sh sometimes crashes the system. * 2004-09-16 11:04 Robin Getz Ananth 677 USB-LAN EZ-Extender Interface not properly probed (patch included) 2005-04-10 18:36 Nobody Aidan Williams
 
-	User applications need to built with -O0 option for the predictable behavior.
-
-2.	Enabling Data cnd Instruction cache at a time has some issues in EZKIT.
-3.	Assigning priority Number 7 or 13 to any devices may crash the system. 
-5.	ftpd does not work.
-6.	Kernel sometimes fails while probing EZLAN card in EZKIT board.
-7.	udchp server crashes the system.
-8.	DMA driver not tested with cache.	
-9.	Floating point printf (%f) will not work.
-10.	No pthread support.
 
 Build Procedure
----------------
+1. Install Beta Toolchain Release (March 3th 2005) toolchain
+a. Go to http://blackfin.uclinux.org/frs/?group_id=18 for more information
+2. Uncompress uclinux-dist.tar.bz to working directory
+a. cp uClinux-dist.tar.bz /(WORK_DIR)
+b. cd /(WORK_DIR)
+c. bunzip2 uClinux-dist.tar.bz
+b. tar ¨Cxvf uClinux-dist.tar
+4. Compile the source using following commands
+a. cd uClinux-dist
+b. make clean
+c. make menuconfig (save and exit without making any changes)
+e. make
+5. Find the compiled blackfin executable linux in the following location
+$(WORK_DIR)/uClinux-dist/linux-2.6.x
+6. Above file shall be used to download to the target board.
 
-1.	Download the latest release (uClinux_dist-2.6.8-BF533-beta1.tar.bz2) from the following location,
-	http://blackfin.uclinux.org/frs/?group_id=17
 
-3.	Otherwise check out the distribution from the following link
-	http://cvs.blackfin.uclinux.org/cgi-bin/cvsweb.cgi/?cvsroot=uclinux533
-	Using the following command,
-
-	$ cvs -z9 -d:ext:anonymous@cvs.blackfin.uclinux.org:/cvsroot/uclinux533 co uClinux-dist
-
-4.	Compile the source using following commands 
-
-	a.# cd $(WORK_DIR)/uClinux-dist
-	b.# make clean
-	c.# make menuconfig
-	d.Set the following options in menuconfig depending on the board type,
-
-	For EZKIT boards,
-		EZKITLITE board Support 
-		Crystal	27
-		Clock 	118 Mhz 
-	For STAMP boards,
-		Enable STAMP Support
-		Crystal 	11
-		Clock 	132 Mhz
-	Save and exit from the menuconfig
-	
-	e.# make
-	f.# cd $(WORK_DIR)/uClinux-dist/linux-2.6.x
-	g.# make
-
-5.	Find the compiled blackfin executable linux.dxe in the following location
-
-	$(WORK_DIR)/uClinux-dist/linux-2.6.x
-
-6.	Above file shall be used to download to the target board.
-	
-
- 
 Loading Kernel To Target Board
-------------------------------
-
-1.	Use below serial cables to connect board to host computer.
-		For EZ-KIT boards:- 1:1 EIA-232 serial cable.
-		For STAMP boards:- Male-Female 1-1 serial cable 
-
-2.	Use minicom or some other serial communications utility to configure the serial port with the following parameters.
-		Baud Rate = Baud that have been selected in kernel menuconfig
-		Number of bits = 8
-		Parity = None
-		Stop bits = 1
-
-3.	Set the BMODE pins of the target to 00 and reset the board, boot loaders prompt appears, and proceed to step 5. 
-	If the boot loader prompt doesn't appear proceed to next step.
-
-4.	If the target board is not already having the u-boot boot loader flashed in it, go through latest u-boot 
-	"Release Notes", available in the following page.
-	http://blackfin.uclinux.org/frs/?group_id=20&release_id=92
-	Flash the latest u-boot boot loader. For further information contact the vendor.
-
-5.	Make sure tftp server is installed in the host machine. Copy linux.dxe that is built in above steps 
-	to the /tftpboot of the host PC.
-
-6.	Load the linux.dxe file with the following bootloader commands,
-		BOOT> set ipaddr x.y.z.n 
-		BOOT> set serverip x.y.z.m
-		BOOT> tftp 0x1000000 linux.dxe
-		BOOT> bootelf 0x1000000
-	Where x.y.z.m is the ip address of the host machine, and x.y.z.n is the ip address of the target board.
-
-7.	Following Linux kernel boot messages (or similar) should appear on the host terminal.
-
-Linux version 2.6.8.1 (nidhi@localhost.localdomain) (gcc version 3.4.1) #463 Sat Sep 24 11:52:04 IST 2004
-BF533 Blackfin support (C) 2004 Analog Devices, Inc.
-uClinux/Blackfin
-Blackfin BF533 support by LG Soft India (www.lgsoftindia.com)
-Memory map:
-  text = 0x001000-0x0e1000
-  data = 0x0e1000-0x310df0
-  bss  = 0x310df0-0x310df0
-  rootfs = 0x1109f0-0x310df0
-  stack= 0x1000000-0x1000000
-Command line: 'root=/dev/mtdblock0 rw'
-Instruction Cache enabled
-Data cache Enabled
-Built 1 zonelists
-Kernel command line: root=/dev/mtdblock0 rw
-Configuring Blackfin Priority Driven Interrupts
-PID hash table entries: 16 (order 4: 128 bytes)
-Dentry cache hash table entries: 4096 (order: 2, 16384 bytes)
-Inode-cache hash table entries: 2048 (order: 1, 8192 bytes)
-Physical pages: 1000
-Memory available: 13052k/15484k RAM, 0k/0k ROM (224k kernel code, 559k data)
-Blackfin Scratchpad data SRAM: 4 KB
-Calibrating delay loop... 99.53 BogoMIPS
-Mount-cache hash table entries: 512 (order: 0, 4096 bytes)
-NET: Registered protocol family 16
-Blackfin DMA Controller
-Real Time Clock Driver v1.10e
-BlackFin BF533 serial driver version 1.00
-ttyS0 at irq = 21 is a builtin BlackFin BF533 UART
-Enabling Serial UART Interrupts
-SMSC LAN91C111 Driver (v2.9), (BF533) 02/05/2004
-eth0: SMC91C11xFD(rev:1) at 0x20300300 IRQ:27 MEMSIZE:8192b NOWAIT:0 ADDR: 02:80:ad:20:31:b8
-Using anticipatory io scheduler
-uclinux[mtd]: RAM probe address=0x1109f0 size=0xffdffc00
-Creating 1 MTD partitions on "RAM":
-0x00000000-0xffdffc00 : "EXT2fs"
-uclinux[mtd]: set EXT2fs to be root filesystem
-mice: PS/2 mouse device common for all mice
-NET: Registered protocol family 2
-IP: routing cache hash table of 512 buckets, 4Kbytes
-TCP: Hash tables configured (established 1024 bind 2048)
-NET: Registered protocol family 1
-NET: Registered protocol family 17
-VFS: Mounted root (ext2 filesystem).
-Freeing unused kernel memory: 32k freed (0xd8000 - 0xdf000)
-Shell invoked to run file: /etc/r
-Command: hostname blackfin
-Command: mount -t proc none proc
-Command: mount -t ext2 /dev/ram0 var
-Command: mkdir var/tmp
-Command: #ifconfig eth0 10.100.4.251 up
-Command: #ifconfig lo 127.0.0.1
-Command: #inetd &
-Command: cat etc/issue
+1. Use below serial cables to connect board to host computer.
+Male-Female 1-1 serial cable
+2. Use minicom or some other serial communications utility to configure the serial port
+with the following parameters.
+Baud Rate = Baud that have been selected in kernel menuconfig
+Number of bits = 8
+Parity = None
+Stop bits = 1
+3. Make sure the BMODE pins of the target are set to 00, it u-boot already loads on
+reset this is already set.
+4. Make sure tftp server is installed in the host machine. Copy linux from
+uClinux-dist/linux-2.6.x/ that is built in above steps to the /tftpboot of the host PC.
+5. Load the linux file with the following bootloader commands,
+Make sure the ipaddr and serverip is correct
+STAMP> set ipaddr x.y.z.n
+STAMP> set serverip x.y.z.m
+STAMP> save
+STAMP> tftp 0x1000000 linux
+STAMP> bootelf 0x1000000
+Where x.y.z.m is the ip address of the host machine, and x.y.z.n is the ip address of the
+target board.
+7. The kernel should then boot
 
 
-/etc/issue       www.lgsoftindia.com     30 May 2004
+Adding / upgrading kernel in flash
+Building Linux image (compressed and uncompressed)
+(This Image Will be Used in bootm command)
+Linux ELF image has to be changed as per u-boot standards to load Linux using
+bootm command. Following subsections explain how to build compressed and
+uncompressed Linux images.
+Building Compressed Linux Image
+1. Generate the binary file from the ELF file, using following command
+$ bfin-elf-objcopy -O binary linux linux.bin
+2. Compress the binary file obtained above, using following command
+$ gzip -9 linux.bin
+3. Build the final linux image, using following command
+(WORK_DIR)/u-boot_1.1.3/tools/mkimage -A blackfin -O linux -T kernel -C gzip
+-a 0x1000 -e 0x1000 -n "Bfin uClinux Kernel" -d linux.bin.gz uImage
+Note: Use the utility mkimage present in the u-boot_1.1.3/tools directory to merge
+the header information like Image Name, Image Type, Data Size, Load Address,
+Entry Point into the linux.bin.gz.
+Building uncompressed Linux image
+Use following commands to build uncompressed Linux image
+(WORK_DIR)/u-boot_1.1.3tools/mkimage -A blackfin -O linux -T kernel -C none
+-a 0x1000 -e 0x1000 -n "Bfin uClinux kernel" -d linux.bin uImage
+Note: 0x1000 is used because we have compiled the kernel with that location as the
+entry point. If anyone wants to chose a different address for entry point (for eg,
+0x20000), then please give that address instead of 0x1000. Ensure to change the
+entry point of the kernel.
+Programming Flash
+STAMP> tftp 0x1000000 uImage
+STAMP> protect off all
+STAMP> erase 0x20100000 0x203FFFFF
+STAMP> cp.b 0x1000000 0x20100000 $(filesize)
+STAMP> setenv bootcmd bootm 0x20100000
+STAMP> save
+STAMP> reset
 
-
-Command: cat etc/motd
-
-Welcome to:
-       ____ _  _
-      /  __| ||_|             _  _
- _   _| |  | | _ ____  _   _ \ \/ /
-| | | | |  | || |  _ \| | | | \  /
-| |_| | |__| || | | | | |_| | /  \
-|  ___\____|_||_|_| |_|\____|/_/\_\
-|_|
-
-For further information see:
-http://www.uclinux.org/
-http://blackfin.uclinux.org/
-
-Execution Finished, Exiting
-
-Sash command shell (version 1.1.1)
-/>	
-			
 
 Reporting Bugs
----------------
-
-1.	Go to the following blackfin uclinux bug tracker page,
-
-	http://blackfin.uclinux.org/tracker/?atid=141&group_id=17&func=browse
-
-2.	If the bug is not already reported click on "Submit New" button to report new bug.
-
+1. Go to the following blackfin uclinux bug tracker page,
+http://blackfin.uclinux.org/tracker/?atid=141&group_id=17&func=browse
+2. If the bug is not already reported click on "Submit New" button to report new bug.
