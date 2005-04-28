@@ -27,11 +27,23 @@ extern void flush_data_cache(void);
 
 static inline void flush_icache_range(unsigned start, unsigned end)
 {
-#if defined( CONFIG_BLKFIN_DCACHE ) && defined( CONFIG_BLKFIN_WB ) && defined( CONFIG_BLKFIN_CACHE )
+#if defined( CONFIG_BLKFIN_DCACHE ) && defined( CONFIG_BLKFIN_CACHE )
+
+#if defined( CONFIG_BLKFIN_WT )
+	blackfin_icache_flush_range((start), (end));
+#else
 	blackfin_icache_dcache_flush_range((start), (end));
 #endif
-#if defined( CONFIG_BLKFIN_CACHE ) && !defined( CONFIG_BLKFIN_DCACHE )
+
+#else
+
+#if defined( CONFIG_BLKFIN_CACHE )
 	blackfin_icache_flush_range((start), (end));
+#endif
+#if defined( CONFIG_BLKFIN_DCACHE )
+	blackfin_dcache_flush_range((start), (end));
+#endif
+
 #endif
 }
 
