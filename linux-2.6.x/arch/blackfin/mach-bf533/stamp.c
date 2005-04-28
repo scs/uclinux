@@ -28,7 +28,7 @@ static struct platform_device smc91x_device = {
 
 static int __init stamp_init(void)
 {
-	printk("%s registe the device resurce to system.\n", __FUNCTION__);
+	printk("%s register the device resource to system.\n", __FUNCTION__);
 	platform_device_register(&smc91x_device);
 	return 0;
 }

@@ -124,9 +124,14 @@ MODULE_PARM_DESC(irq, "IRQ number");
 #include <asm/board/cdefBF533.h>
 #include <asm/delay.h>
 #define LAN_FIO_PATTERN     0x80
-static unsigned int smc_portlist[] = { 0x20300300,0x20300300, 0 };
-static unsigned int smc_irqlist[]  = { 27, 26, 0 };
+#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
+static unsigned int smc_portlist[] = { 0x20300300, 0 };
+static unsigned int smc_irqlist[]  = { IRQ_PF7, 0 };
+#else
+static unsigned int smc_portlist[] = { 0x20300300, 0x20300300, 0 };
+static unsigned int smc_irqlist[]  = { IRQ_PROG_INTB, IRQ_PROG_INTA, 0 };
 #endif
+#endif /* CONFIG_BFIN */
 
 #ifndef SMC_NOWAIT
 # define SMC_NOWAIT		0
@@ -346,53 +351,33 @@ static void bfin_EBIU_AM_setup(void)
 
 static void bfin_SMC_interrupt_setup(int irq)
 {
-	unsigned int stmp = 0;
-	printk("EZ-LAN interrupt setup.\n");
+#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
+    set_irq_type(irq, IRQT_HIGH);
+#else
+    printk("EZ-LAN interrupt setup.\n");
+  /* 26 = IRQ_PROG_INTA => FIO_MASKA
+     27 = IRQ_PROG_INTB => FIO_MASKB */
+  if (irq == IRQ_PROG_INTA/*26*/ ||
+      irq == IRQ_PROG_INTB/*27*/)
+    {
+      int ixab = (irq - IRQ_PROG_INTA) * (pFIO_MASKB_D - pFIO_MASKA_D);
 
-	/* Direction setup*/
-	stmp = *pFIO_DIR;
-	asm("ssync;");
-	*pFIO_DIR = stmp & (~LAN_FIO_PATTERN);
-	asm("ssync;");
+      asm("csync;");
+      pFIO_MASKA_C[ixab] = LAN_FIO_PATTERN; /* disable int */
+      asm("ssync;");
 
-	/* Clear pending IRQ for PF7*/
-	*pFIO_MASKB_C = LAN_FIO_PATTERN;
-	asm("ssync;");
+      *pFIO_POLAR &= ~LAN_FIO_PATTERN; /* active high (input) */
+      *pFIO_EDGE  &= ~LAN_FIO_PATTERN; /* by level (input) */
+      *pFIO_BOTH  &= ~LAN_FIO_PATTERN; 
 
-	/* Enable Flag PF7 for IRQ_B */
-	*pFIO_MASKB_S = LAN_FIO_PATTERN;
-	asm("ssync;");
+      *pFIO_DIR  &= ~LAN_FIO_PATTERN;   /* input */
+      *pFIO_FLAG_C = LAN_FIO_PATTERN;   /* clear output */
+      *pFIO_INEN |=  LAN_FIO_PATTERN;   /* enable pin */
 
-	/* Set Polarity for IRQs (8:HIGH)*/
-	stmp = *pFIO_POLAR;
-	asm("ssync;");
-	*pFIO_POLAR = stmp & (~LAN_FIO_PATTERN);
-	asm("ssync;");
-
-	/* Set Edge Sensitivity PF8, PF9 */
-	stmp = *pFIO_EDGE;
-	asm("ssync;");
-	*pFIO_EDGE = stmp & (~LAN_FIO_PATTERN);
-	asm("ssync;");
-
-	/* Clear Both Edge Sensitivity for IRQ_A and IRQ */
-	stmp = *pFIO_BOTH;
-	asm("ssync;");
-	*pFIO_BOTH = stmp & ~(LAN_FIO_PATTERN);
-	asm("ssync;");
-
-	/* finally clear flag pin value */
-	stmp = *pFIO_FLAG_C;
-	asm("ssync;");
-	*pFIO_FLAG_C = stmp & LAN_FIO_PATTERN;
-	asm("ssync;");
-	stmp = *pFIO_INEN;
-	asm("ssync;");
-	*pFIO_INEN = stmp | LAN_FIO_PATTERN;
-	asm("ssync;");
-
-	/* enable irq b */
-	enable_irq(irq);
+      asm("ssync;");
+      pFIO_MASKA_S[ixab] = LAN_FIO_PATTERN; /* enable int */
+    }
+#endif /*CONFIG_IRQCHIP_DEMUX_GPIO*/
 }
 #endif
 
@@ -1946,9 +1931,6 @@ static int __init smc_probe(struct net_device *dev, unsigned long ioaddr)
 		retval = -ENODEV;
 		goto err_out;
 	}
-#if defined(CONFIG_BFIN)
-	bfin_SMC_interrupt_setup(dev->irq);
-#endif
 	dev->irq = irq_canonicalize(dev->irq);
 
 	/* Fill in the fields of the device structure with ethernet values. */
@@ -1991,11 +1973,18 @@ static int __init smc_probe(struct net_device *dev, unsigned long ioaddr)
 		lp->ctl_rspeed = 100;
 	}
 
-	/* Grab the IRQ */
-      	retval = request_irq(dev->irq, &smc_interrupt, 0, dev->name, dev);
+	retval = register_netdev(dev);
       	if (retval)
       		goto err_out;
-#ifndef CONFIG_BFIN
+	/* Grab the IRQ */
+      	retval = request_irq(dev->irq, &smc_interrupt, SA_SHIRQ, dev->name, dev);
+        if (retval) {
+      		unregister_netdev(dev);
+      		goto err_out;
+        }
+#ifdef CONFIG_BFIN
+        bfin_SMC_interrupt_setup(dev->irq);
+#else
 	set_irq_type(dev->irq, IRQT_RISING);
 #endif
 #ifdef SMC_USE_PXA_DMA
@@ -2006,7 +1995,6 @@ static int __init smc_probe(struct net_device *dev, unsigned long ioaddr)
 			dev->dma = dma;
 	}
 #endif
-	retval = register_netdev(dev);
 	if (retval == 0) {
 		/* now, print out the card info, in a short format.. */
 		printk("%s: %s (rev %d) at %#lx IRQ %d",

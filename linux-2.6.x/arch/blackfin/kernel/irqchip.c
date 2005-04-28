@@ -454,7 +454,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 		desc = &bad_irq_desc;
 
 	irq_enter();
-	spin_lock(&irq_controller_lock);
+	spin_lock_irq(&irq_controller_lock);
 	desc->handle(irq, desc, regs);
 
 	/*
@@ -463,7 +463,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	if (!list_empty(&irq_pending))
 		do_pending_irqs(regs);
 
-	spin_unlock(&irq_controller_lock);
+	spin_unlock_irq(&irq_controller_lock);
 	irq_exit();
 }
 

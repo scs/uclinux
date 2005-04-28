@@ -63,7 +63,6 @@ endchoice
 config BLACKFIN
 	bool
 	depends on (BF535 || BF533 || BF532 || BF531)
-	select IRQCHIP
 	default y
 
 comment "Platform"
@@ -135,7 +134,7 @@ config LARGE_ALLOCS
 
 config IRQCHIP_DEMUX_GPIO
 	bool "Enable GPIO IRQ Demultiplexing"
-	depends on IRQCHIP
+	depends on BLACKFIN
 	default n
 	help
 	  Demultiplex GPIO interrupt, enabling IRQ_PF0 through IRQ_PF15
@@ -160,7 +159,7 @@ endchoice
 
 comment 'Cache Support'
 config	BLKFIN_CACHE 
-	bool "Enable CACHE" 
+	bool "Enable ICACHE" 
 config	BLKFIN_DCACHE 
 	bool "Enable DCACHE" 
 config 	BLKFIN_CACHE_LOCK
@@ -168,6 +167,7 @@ config 	BLKFIN_CACHE_LOCK
 
 choice
 	prompt "Policy"
+	depends on BLKFIN_DCACHE
 	default BLKFIN_WB
 config 	BLKFIN_WB
 	bool "Write back"
@@ -177,17 +177,12 @@ endchoice
 
 comment 'Crystal Frequency'
 
-if BLKFIN_STAMP
 config CLKIN_HZ
 	int "Crystal"
 	default "11059200" if BLKFIN_STAMP
-endif
-
-if EZKIT
-config CLKIN_HZ
-	int "Crystal"
 	default "27000000" if EZKIT
-endif
+	help
+	  The frequency of CLKIN crystal oscillator on the board in Hz.
 
 comment 'VCO Multiplier'
 
