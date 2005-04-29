@@ -21,14 +21,14 @@
 #define	LED_ON	0
 #define	LED_OFF	1
 
-void leds_switch(int flag);
+inline void static leds_switch(int flag);
 asmlinkage void ret_from_fork(void);
 extern void reset(void);
 
 /*
  * The idle loop on BFIN 
  */
-static void default_idle(void)
+inline static void default_idle(void)
 {
 	while(1) {
 		leds_switch(LED_OFF);
@@ -39,8 +39,6 @@ static void default_idle(void)
 	}
 }
 
-void (*bfin_idle)(void) = default_idle;
-
 /*
  * The idle thread. There's no useful work to be
  * done, so just try to conserve power and have a
@@ -49,7 +47,7 @@ void (*bfin_idle)(void) = default_idle;
  */
 void cpu_idle(void)
 {
-	bfin_idle();
+	default_idle();
 }
 
 void machine_restart(char * __unused)
@@ -259,3 +257,27 @@ unsigned long get_wchan(struct task_struct *p)
 	} while (count++ < 16);
 	return 0;
 }
+
+/*
+ *	We are using a different LED from the one used to indicate timer interrupt.
+ */
+#if defined(CONFIG_STAMP_BOARD_IDLE_LED)
+inline void static leds_switch(int flag)
+{
+	unsigned short tmp = 0;
+
+	tmp = *pFIO_FLAG_D;
+	asm("ssync;");
+
+	if( flag== LED_ON )
+		tmp &=~0x8;	/* light on */
+	else
+		tmp |=0x8;	/* light off */
+
+	*pFIO_FLAG_D = tmp;
+	asm("ssync;");
+
+}	
+#else 
+inline void static leds_switch(int flag) {}
+#endif

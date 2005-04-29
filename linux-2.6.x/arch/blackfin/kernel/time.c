@@ -26,6 +26,7 @@ extern void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_
 unsigned long gettimeoffset (void);
 extern unsigned long wall_jiffies;
 extern int setup_irq(unsigned int, struct irqaction *);
+inline static void do_leds(void);
 
 /*
  * By setting TSCALE such that TCOUNT counts a binary fraction
@@ -40,8 +41,7 @@ extern u_long get_cclk(void);
 #define TSCALE_SHIFT 2	/* 0.25 microseconds */
 #define TSCALE_COUNT ((get_cclk()/1000000) >> TSCALE_SHIFT)
 #define CLOCKS_PER_JIFFY ((1000*1000/HZ) << TSCALE_SHIFT)
-#define	LED_ON	0
-#define	LED_OFF	1
+
 
 #if (defined(CONFIG_STAMP_BOARD_ALIVE_LED) || defined(CONFIG_STAMP_BOARD_IDLE_LED))
 void __init init_leds(void)
@@ -64,34 +64,8 @@ void __init init_leds(void)
 inline void  __init init_leds(void) {}
 #endif
 
-/*
- *	We are using a different LED from the one used to indicate timer interrupt.
- */
-#if defined(CONFIG_STAMP_BOARD_IDLE_LED)
-void leds_switch(int flag)
-{
-	unsigned short tmp = 0;
-
-	tmp = *pFIO_FLAG_D;
-	asm("ssync;");
-
-	if( flag== LED_ON )
-		tmp &=~0x8;	/* light on */
-	else
-		tmp |=0x8;	/* light off */
-
-	*pFIO_FLAG_D = tmp;
-	asm("ssync;");
-
-}	
-#else 
-inline void leds_switch(void) {}
-#endif
-
-EXPORT_SYMBOL(leds_switch);
-
 #if defined(CONFIG_STAMP_BOARD_ALIVE_LED)
-static void do_leds(void)
+inline static void do_leds(void)
 {
 	static unsigned int count = 50;
 	static int	flag = 0;
@@ -114,7 +88,7 @@ static void do_leds(void)
 
 }
 #else 
-inline void do_leds(void) {}
+inline static void do_leds(void) {}
 #endif
 
 static struct irqaction bfin_timer_irq = {
