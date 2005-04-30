@@ -2747,7 +2747,7 @@ diff -urN linux-2.6.x.old/Documentation/blackfin/kgdb_bfin.txt linux-2.6.x/Docum
 +
 +2. Apply this patch to 2.6.x kernel. Select menuconfig option under "kernel hacking" -> "kernel debugging" -> "KGDB: kernel debug with remote gdb". With this seledted, option "Full Symbolic/Source Debugging support" and "Compile the kernel with frame pointers" are also selected.
 +
-+3. Select option "KGDB: on Ethernet". Add "kgdboe=@target-IP/,@host-IP/" to the kennel command line and compile.
++3. Select option "KGDB: on Ethernet". Add "kgdboe=@target-IP/,@host-IP/" to option "Kernel Boot Parameter" and compile.
 +
 +4. Connect minicom to the serial port and boot the kernel image.
 +
