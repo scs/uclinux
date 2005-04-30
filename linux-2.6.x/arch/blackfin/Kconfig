@@ -203,7 +203,7 @@ comment 'System Clock Divider'
 config SCLK_DIV
 	int "System Clock Divider"
 	default 5 if EZKIT
-	default 4 if BLKFIN_STAMP
+	default 5 if BLKFIN_STAMP
 
 comment 'Half clockin'
 
