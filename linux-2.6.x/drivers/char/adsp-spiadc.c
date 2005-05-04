@@ -954,6 +954,8 @@ static ssize_t spi_write (struct file *filp, const char *buf, size_t count, loff
     pdev->actcount = count;
     pdev->timeout = TIMEOUT;
 	pdev->done=0;
+
+    blackfin_dcache_invalidate_range((unsigned long)buf,((unsigned long)buf+(count*2)));
 		
 	// configure spi port for DMA TIMOD 
 		get_spi_reg(SPI_CTL,&regdata);
@@ -961,11 +963,12 @@ static ssize_t spi_write (struct file *filp, const char *buf, size_t count, loff
 	
 	    pdev->dma_config |= ( RESTART );
 	    set_dma_config(CH_SPI, pdev->dma_config);
-		set_dma_start_addr(CH_SPI, (unsigned long) pdev->buffer);
+		set_dma_start_addr(CH_SPI, (unsigned long) buf);
 		set_dma_x_count(CH_SPI, count);
 		set_dma_x_modify(CH_SPI, 2);
     	asm("ssync;");
 		enable_dma(CH_SPI);
+printk("Adress = %x\n",(unsigned long) buf);
 	
 	// enable spi
 	get_spi_reg(SPI_CTL,&regdata);
