@@ -204,7 +204,7 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	dump->regs.p3 = regs->p3;
 	dump->regs.p4 = regs->p4;
 	dump->regs.p5 = regs->p5;
-	dump->regs.orig_p0 = regs->orig_p0;
+	dump->regs.orig_r0 = regs->orig_r0;
 	dump->regs.a0w = regs->a0w;
 	dump->regs.a1w = regs->a1w;
 	dump->regs.a0x = regs->a0x;

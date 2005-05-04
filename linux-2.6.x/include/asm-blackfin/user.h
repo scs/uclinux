@@ -53,7 +53,7 @@ struct user_regs_struct {
 	unsigned long rets;
 	unsigned long astat;
 	unsigned long pc;
-        unsigned long orig_p0;
+        unsigned long orig_r0;
 };
 
 	

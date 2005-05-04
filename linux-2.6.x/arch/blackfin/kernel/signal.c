@@ -174,7 +174,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, int *pr0)
 	regs->retx  = context.sc_retx;
 	regs->pc = context.sc_retx;
 	regs->rets = context.sc_rets;
-	regs->orig_p0 = -1;		/* disable syscall checks */
+	regs->orig_r0 = -1;		/* disable syscall checks */
 	wrusp(context.sc_usp);
 
 	*pr0 = context.sc_r0;
@@ -246,7 +246,7 @@ rt_restore_ucontext(struct pt_regs *regs, struct ucontext *uc, int *pr0)
 	err |= __get_user(regs->lb1, &gregs[45]);
 	err |= __get_user(regs->seqstat, &gregs[46]);
 
-	regs->orig_p0 = -1;		/* disable syscall checks */
+	regs->orig_r0 = -1;		/* disable syscall checks */
 
 	if (do_sigaltstack(&uc->uc_stack, NULL, usp) == -EFAULT)
 		goto badframe;
@@ -558,7 +558,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 	/* fallthrough */
 	case -ERESTARTNOINTR:
 	do_restart:
-		regs->p0 = regs->orig_p0;
+		regs->r0 = regs->orig_r0;
 		regs->pc -= 2;
 		break;
 	}
@@ -571,8 +571,8 @@ static void
 handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 	      sigset_t *oldset, struct pt_regs *regs)
 {
-	/* are we from a system call? to see pt_regs->orig_p0 */
-	if (regs->orig_p0 >= 0)
+	/* are we from a system call? to see pt_regs->orig_r0 */
+	if (regs->orig_r0 >= 0)
 		/* If so, check system call restarting.. */
 		handle_restart(regs, ka, 1);
 
@@ -677,7 +677,7 @@ asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	}
 
 	/* Did we come from a system call? */
-	if (regs->orig_p0 >= 0)
+	if (regs->orig_r0 >= 0)
 		/* Restart the system call - no handlers present */
 		handle_restart(regs, NULL, 0);
 

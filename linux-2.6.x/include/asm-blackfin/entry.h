@@ -32,7 +32,7 @@
 .macro save_context_with_interrupts
 	[--sp] = SYSCFG;
 
-	[--sp] = P0;	/*orig_p0*/
+	[--sp] = R0;	/*orig_r0*/
 	[--sp] = ( R7:0, P5:0 );
 	[--sp] = fp;
 	[--sp] = usp;
@@ -90,7 +90,7 @@
 
 .macro save_context_no_interrupts
 	[--sp] = SYSCFG;
-	[--sp] = P0;	/* orig_p0 */
+	[--sp] = R0;	/* orig_r0 */
 	[--sp] = ( R7:0, P5:0 );
 	[--sp] = fp;
 	[--sp] = usp;
@@ -257,7 +257,7 @@
 
 #define STR(X) STR1(X)
 #define STR1(X) #X
-# define PT_OFF_ORIG_P0		208
+# define PT_OFF_ORIG_R0		208
 # define PT_OFF_SR		8
 
 #endif	/* __ASSEMBLY__	*/

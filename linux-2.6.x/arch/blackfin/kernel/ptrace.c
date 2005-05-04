@@ -67,7 +67,7 @@ static inline long get_reg(struct task_struct *task, int regno)
 		case PT_ORIG_PC : return regs->orig_pc;
 		case PT_PC : return regs->pc;
 		case PT_R0 : return regs->r0;
-		case PT_ORIG_P0 : return regs->orig_p0;
+		case PT_ORIG_R0 : return regs->orig_r0;
 		case PT_R1 : return regs->r1;
 		case PT_R2 : return regs->r2;
 		case PT_R3 : return regs->r3;
@@ -159,7 +159,7 @@ static inline int put_reg(struct task_struct *task, int regno,
 			     regs->retx = data;
                              regs->pc = data; break;
 		case PT_R0 : regs->r0 = data; break;
-		case PT_ORIG_P0 : regs->orig_p0 = data; break;
+		case PT_ORIG_R0 : regs->orig_r0 = data; break;
 		case PT_R1 : regs->r1 = data; break;
 		case PT_R2 : regs->r2 = data; break;
 		case PT_R3 : regs->r3 = data; break;
