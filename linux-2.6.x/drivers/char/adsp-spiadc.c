@@ -968,7 +968,6 @@ static ssize_t spi_write (struct file *filp, const char *buf, size_t count, loff
 		set_dma_x_modify(CH_SPI, 2);
     	asm("ssync;");
 		enable_dma(CH_SPI);
-printk("Adress = %x\n",(unsigned long) buf);
 	
 	// enable spi
 	get_spi_reg(SPI_CTL,&regdata);
