@@ -50,7 +50,7 @@ ENTRY(sys_fork)
 
 ENTRY(sys_vfork)
 	r0 = sp;
-	r0 += 12;
+	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
 	call bfin_vfork; 
@@ -60,7 +60,7 @@ ENTRY(sys_vfork)
 
 ENTRY(sys_clone)
 	r0 = sp;
-	r0 += 12;
+	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
 	call bfin_clone; 
@@ -70,7 +70,7 @@ ENTRY(sys_clone)
 
 ENTRY(sys_sigsuspend)
 	r0 = sp;
-	r0 +=12;
+	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
 	call do_sigsuspend; 
@@ -80,7 +80,7 @@ ENTRY(sys_sigsuspend)
 
 ENTRY(sys_rt_sigsuspend)
 	r0 = sp;
-	r0 +=12;
+	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
 	call do_rt_sigsuspend; 
@@ -90,7 +90,7 @@ ENTRY(sys_rt_sigsuspend)
 
 ENTRY(sys_sigreturn)
 	r0 = sp;
-	r0 +=12;
+	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
 	call do_sigreturn; 
@@ -100,7 +100,7 @@ ENTRY(sys_sigreturn)
 
 ENTRY(sys_rt_sigreturn)
 	r0 = sp;
-	r0 +=12;
+	r0 += 20;
 	[--sp] = rets;
 	SP += -12;
 	call do_rt_sigreturn; 

@@ -33,9 +33,10 @@ int main(void)
 	DEFINE(PT_SR, offsetof(struct thread_struct, seqstat));
 	DEFINE(THREAD_ESP0, offsetof(struct thread_struct, esp0));
 	DEFINE(THREAD_PC, offsetof(struct thread_struct, pc));
+	DEFINE(KERNEL_STACK_SIZE, THREAD_SIZE);
 
 	/* offsets into the pt_regs */
-	DEFINE(PT_ORIG_R0, offsetof(struct pt_regs, orig_r0));
+	DEFINE(PT_ORIG_P0, offsetof(struct pt_regs, orig_p0));
 	DEFINE(PT_ORIG_PC, offsetof(struct pt_regs, orig_pc));
 	DEFINE(PT_R0, offsetof(struct pt_regs, r0));
 	DEFINE(PT_R1, offsetof(struct pt_regs, r1));
@@ -91,6 +92,7 @@ int main(void)
 	DEFINE(PT_SEQSTAT, offsetof(struct pt_regs, seqstat));
 	DEFINE(PT_SYSCFG, offsetof(struct pt_regs, syscfg));
 	DEFINE(PT_IPEND, offsetof(struct pt_regs, ipend));
+	DEFINE(SIZEOF_PTREGS, sizeof(struct pt_regs));
       	DEFINE(PT_EXTRA1, sizeof(struct pt_regs));     /* Needed by gdb */
         DEFINE(PT_EXTRA2, 4 + sizeof(struct pt_regs)); /* Needed by gdb */
         DEFINE(PT_EXTRA3, 8 + sizeof(struct pt_regs)); /* Needed by gdb */

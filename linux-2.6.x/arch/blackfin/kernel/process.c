@@ -94,39 +94,35 @@ void show_regs(struct pt_regs * regs)
 }
 
 /*
- * Create a kernel thread
+ * This gets run with P1 containing the
+ * function to call, and R1 containing
+ * the "args".  Note P0 is clobbered on the way here.
  */
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
+extern void kernel_thread_helper(void);
+__asm__(".section .text\n"
+	".align 4\n"
+	"kernel_thread_helper:\n\t"
+	"\tsp += -12;\n\t"
+	"\tr0 = r1;\n\t"
+	"\tcall (p1);\n\t"
+	"\tcall do_exit;\n"
+	".previous");
+
+/*
+ * Create a kernel thread.
+ */
+pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 {
-	long retval;
-	long clone_arg = flags | CLONE_VM;
-	unsigned long t_hold_sp;
+	struct pt_regs regs;
 
-	__asm__ __volatile__ (
-			"r1 = sp; \n\t"
-			"r0 = %6; \n\t"
-			"p0 = %2; \n\t"
-			"excpt 0; \n\t"
-			"%1 = sp; \n\t"
-			"cc = %1 == r1; \n\t"
-			"if cc jump 1f; \n\t"
-			"r0 = %4; \n\t"
-			"SP += -12; \n\t"
-			"call (%5); \n\t"
-			"SP += 12; \n\t"
-			"p0 = %3; \n\t"
-			"excpt 0; \n"
-			"1:\n\t"
-			"%0 = R0;\n"
-		: "=d" (retval), "=d" (t_hold_sp)
-		: "i" (__NR_clone),
-		  "i" (__NR_exit),
-		  "a" (arg),
-		  "a" (fn),
-		  "a" (clone_arg)
-		: "CC", "R0", "R1", "R2", "P0");
+	memset(&regs, 0, sizeof(regs));
 
-	return retval;
+	regs.r1 = (unsigned long)arg;
+	regs.p1 = (unsigned long)fn;
+	regs.pc = (unsigned long)kernel_thread_helper;
+	regs.orig_p0 = -1;
+	regs.ipend = 0x8000;
+	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }
 
 void flush_thread(void)
@@ -204,7 +200,7 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	dump->regs.p3 = regs->p3;
 	dump->regs.p4 = regs->p4;
 	dump->regs.p5 = regs->p5;
-	dump->regs.orig_r0 = regs->orig_r0;
+	dump->regs.orig_p0 = regs->orig_p0;
 	dump->regs.a0w = regs->a0w;
 	dump->regs.a1w = regs->a1w;
 	dump->regs.a0x = regs->a0x;
@@ -222,7 +218,7 @@ asmlinkage int sys_execve(char *name, char **argv, char **envp)
 {
 	int error;
 	char * filename;
-	struct pt_regs *regs = (struct pt_regs *) ((&name)+3);
+	struct pt_regs *regs = (struct pt_regs *) ((&name) + 5);
 
 	lock_kernel();
 	filename = getname(name);

@@ -73,6 +73,58 @@ badsys:
 	[sp + PT_R0] = r7;	/* return value from system call */
 	rti;	
 
+ENTRY(execve)
+	link SIZEOF_PTREGS;
+	p0 = sp;
+	r3 = SIZEOF_PTREGS / 4;
+	r4 = 0(x);
+0:
+	[p0++] = r4;
+	r3 += -1;
+	cc = r3 == 0;
+	if ! cc jump 0b;
+
+	p0 = sp;
+	sp += -16;
+	[sp + 12] = p0;
+	call do_execve;
+	SP += 16;
+	cc = r0 == 0;
+	if ! cc jump 1f;
+	/* Success.  Copy our temporary pt_regs to the top of the kernel
+	   stack and do a normal exception return.  */
+	r1 = sp;
+	r0 = (-KERNEL_STACK_SIZE) (x);
+	r1 = r1 & r0;
+	p2 = r1;
+	p3 = [p2];
+	r0 = KERNEL_STACK_SIZE - 4 (z);
+	p1 = r0;
+	p1 = p1 + p2;
+
+	p0 = fp;
+	r4 = [p0--];
+	r3 = SIZEOF_PTREGS / 4;
+0:
+	r4 = [p0--];
+	[p1--] = r4;
+	r3 += -1;
+	cc = r3 == 0;
+	if ! cc jump 0b;
+
+	r0 = (KERNEL_STACK_SIZE - SIZEOF_PTREGS) (z);
+	p1 = r0;
+	p1 = p1 + p2;
+	sp = p1;
+
+	[p3 + (TASK_THREAD + THREAD_KSP)] = sp;
+
+	RESTORE_CONTEXT;
+	rti;
+1:
+	unlink;
+	rts;
+
 ENTRY(system_call)
 	/* Store IPEND */
         p2.l = lo(IPEND);
@@ -112,83 +164,13 @@ ENTRY(system_call)
 	r2 = [sp + PT_R2];
 	p5 = [p5];
 
-	r6 = __NR__newselect;		/*FIX for select call*/
-	cc = r5 == r6;
-	if cc jump l_next;
-
-	r6 = __NR_rt_sigaction;		/*FIX for rt_sigaction call*/
-	cc = r5 == r6;
-	if cc jump l_next_4;
-
-	r6 = __NR_wait4;		/*FIX for wait4 call*/
-	cc = r5 == r6;
-	if cc jump l_next_4;
-	
-	r6 = __NR_rt_sigprocmask;	/*FIX for rt_sigprocmask call*/
-	cc = r5 == r6;
-	if cc jump l_next_4;
-
-	r6 = __NR_rt_sigtimedwait;	/*FIX for rt_sigtimedwait call*/
-	cc = r5 == r6;
-	if cc jump l_next_4;
-
-	r6 = __NR_mount;		/*FIX for mount call*/
-	cc = r5 == r6;
-	if cc jump l_next;
-	
-	r6 = __NR_mremap;		/*FIX for mremap call*/
-	cc = r5 == r6;
-	if cc jump l_next_4;
-
-	r6 = __NR_sendfile;		/*FIX for sendfile call*/
-	cc = r5 == r6;
-	if cc jump l_next_4;
-
-	r6 = __NR_ptrace;		/*FIX for ptrace call*/
-	cc = r5 == r6;
-	if cc jump l_next_4;
-
-	r6 = __NR_init_module;		/*FIX for init_module call*/
-	cc = r5 == r6;
-	if cc jump l_next;
-
-	r6 = __NR_ipc;			/*FIX for ipc call*/
-	cc = r5 == r6;
-	if cc jump l_next;
-
-	r6 = __NR_pread;		/*FIX for pread64 call*/
-	cc = r5 == r6;
-	if cc jump l_next;
-	
-	r6 = __NR_pwrite;		/*FIX for pwrite64 call*/
-	cc = r5 == r6;
-	if cc jump l_next;
-
-	r6 = __NR__llseek;		/*FIX for llseek call*/
-	cc = r5 == r6;
-	if cc jump l_next;
-
+	[--sp] = r4;
+	[--sp] = r3;
 	SP += -12;
 	call (p5);
-	SP += 12;
-l_before:
+	SP += 20;
 	[sp + PT_R0] = r0;
-	/* check whether current process is in user or kernel mode */
-        p2.l = lo(IPEND);
-        p2.h = hi(IPEND);
-        csync;
-        r0 = [p2];              /* Read current IPEND */
-        r1 = 1;
-        r1 = r0 - r1;
-        r2 = r0 & r1;
-        cc = r2 == 0 ;          /* if usermode set */
-        if cc jump exit_syscall;
-	call kernel_to_user_mode;
-exit_syscall:
-	/* Only allow interrupts when we are really the last one on
-	 * the kernel stack, otherwise stack overflow can occur during
-         * heavy interrupt load
-	 */
+
 	r7 = sp;
 	r4.l = lo(ALIGN_PAGE_MASK);
 	r4.h = hi(ALIGN_PAGE_MASK);
@@ -219,12 +201,6 @@ syscall_really_exit:
 	r0 = [sp + PT_RESERVED];
 	rets = r0;
 	rts;
-
-/* Force kernel return from interrupt 15 to user mode*/
-kernel_to_user_mode:
-	r0 = rets;
-	reti = r0;
-	rti;
 
 ENTRY(resume)
 	/*
@@ -273,21 +249,6 @@ new_old_task:
 	 */
 	rts;
 
-l_next:
-	[--sp] = r4;
-	[--sp] = r3;
-	SP += -12;
-	call (P5);
-	SP += 20;
-	jump l_before;
-
-l_next_4:
-	[--sp] = r3;
-	SP += -12;
-	call (P5);
-	SP += 16;
-	jump l_before;
-
 ENTRY(ret_from_exception)
         p2.l = lo(IPEND);
         p2.h = hi(IPEND);
@@ -296,8 +257,8 @@ ENTRY(ret_from_exception)
 	r0 = [p2];
 	[sp + PT_IPEND] = r0;
 
-	cc = bittst(r0, 3);
-	if !cc jump 4f;		/* if not in exception, get out */
+//	cc = bittst(r0, 3);
+//	if !cc jump 4f;		/* if not in exception, get out */
 	
 1:
 	r1 = 0x17(Z);

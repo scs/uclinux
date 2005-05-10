@@ -407,7 +407,7 @@ __syscall_return(type,__res);						\
 #include <linux/interrupt.h>
 
 #define __NR__exit __NR_exit
-
+#if 0
 static inline _syscall0(int,pause)
 static inline _syscall0(int,sync)
 static inline _syscall0(pid_t,setsid)
@@ -415,7 +415,7 @@ static inline _syscall3(int,write,int,fd,const char *,buf,off_t,count)
 static inline _syscall3(int,read,int,fd,char *,buf,off_t,count)
 static inline _syscall3(off_t,lseek,int,fd,off_t,offset,int,count)
 static inline _syscall1(int,dup,int,fd)
-static inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
+//static inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
 static inline _syscall3(int,open,const char *,file,int,flag,int,mode)
 static inline _syscall1(int,close,int,fd)
 static inline _syscall1(int,_exit,int,exitcode)
@@ -426,6 +426,9 @@ static inline pid_t wait(int * wait_stat)
 {
 	return waitpid(-1,wait_stat,0); 
 }
+#endif
+
+asmlinkage long execve(char *, char **, char **);
 
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
