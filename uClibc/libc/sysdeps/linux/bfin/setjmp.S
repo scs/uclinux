@@ -98,7 +98,9 @@ ___sigsetjmp:
 	R0 = [P0 + 0x20];
 	CC = R1 == 1;
 	IF CC JUMP finished;
+	[--SP] = RETS; 
 	CALL ___sigjmp_save; 
+	RETS = [SP++]; 
 finished:
 	R0 = 0;
 	RTS;
