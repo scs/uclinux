@@ -6,10 +6,10 @@
 #define _SETJMP_H
 #include <bits/setjmp.h>
 
-.globl _setjmp;
+.globl __setjmp;
 .align 4;
 
-_setjmp:
+__setjmp:
 	[--SP] = P0;	// Save P0
 	P0 = R0;
 	R0 = [SP++];	
@@ -92,6 +92,6 @@ _setjmp:
 	R0 = 0;
 
 	RTS;
-_setjmp.end:
+__setjmp.end:
 
 
