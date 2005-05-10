@@ -16,6 +16,7 @@
 *              you may need use ioctl to change it's configuration.
 **************************************************************
 * MODIFICATION HISTORY:
+* May   10, 2005  Modifications for irqchip framework M.Hennerich
 * April 27, 2004  Modifications for ADSP-BF533 M.Hennerich
 * April 22, 2004  Bug fixes M.Hennerich
 * March 8, 2003   File spi.c Created.
@@ -45,6 +46,7 @@
 #include <linux/init.h>
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/blackfin.h>
 
 
 #include "spi.h"
@@ -297,7 +299,7 @@ void spi_reg_reset(spi_device_t *pdev)
 *************************************************************
 * MODIFICATION HISTORY :
 **************************************************************/
-void spi_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t spi_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
     unsigned short regdata;
     spi_device_t *pdev = (spi_device_t*)dev_id;
@@ -307,8 +309,7 @@ void spi_irq(int irq, void *dev_id, struct pt_regs *regs)
     
     /* There maybe a interrupt after enable irq before sending */
     get_spi_reg(pdev, SPI_STAU, &regdata);
-    if(!(regdata & 0x0001))
-        return;
+    if(!(regdata & 0x0001))	return IRQ_HANDLED;
         
     /* SPI interrupt is caused sending over.*/
     /* Is there any data unsend? */
@@ -355,7 +356,8 @@ void spi_irq(int irq, void *dev_id, struct pt_regs *regs)
     /* wake up read/write block. */
     wake_up_interruptible(pdev->tx_wq);
     wake_up_interruptible(pdev->rx_wq);
-    return;
+
+	return IRQ_HANDLED;
 }
 
 
@@ -913,8 +915,8 @@ static ssize_t spi_write (struct file *filp, const char *buf, size_t count, loff
         currpos = pdev->txwpos;
         for(i = 0; i < sendnum; i += 2)
         {
-            pdev->txbuf[currpos] = (unsigned short)buf[i / 2];
-            pdev->txbuf[currpos] |= (unsigned short)(buf[1 + i / 2] << 8);
+			pdev->txbuf[currpos] = (unsigned short)((unsigned char)(buf[i]));
+			pdev->txbuf[currpos] |= (unsigned short)((unsigned char)(buf[i+1]) << 8);
             currpos++;
             if(currpos == SPI_BUF_LEN)
                 currpos = 0;
