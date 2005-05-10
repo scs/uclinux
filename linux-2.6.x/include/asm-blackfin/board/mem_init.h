@@ -84,7 +84,7 @@
   /*SDRAM INFORMATION: */
   #define SDRAM_Tref  64       /* Refresh period in milliseconds   */
   #define SDRAM_NRA   8192     /* Number of row addresses in SDRAM */
-  #define SDRAM_CL    CL_2
+  #define SDRAM_CL    CL_3
 #endif
 
 #if ( CONFIG_MEM_SIZE == 128 )
