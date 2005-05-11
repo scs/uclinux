@@ -340,8 +340,8 @@ ENTRY(return_from_int)
         cc = r2 == 0 ;          /* if usermode set */
         if !cc jump ret_to_int;
 
-	/* Make sure any pending system call in ILAT
-         * for this process to get executed, otherwise
+	/* Make sure any pending system call or deferred exception
+	 * return in ILAT for this process to get executed, otherwise
 	 * in case context switch happens, system call of
 	 * first process (i.e in ILAT) will be carried 
 	 * forward to the switched process
@@ -350,11 +350,13 @@ ENTRY(return_from_int)
         p2.l = lo(ILAT);
         p2.h = hi(ILAT);
         r0 = [p2];
-	r1 = (EVT_IVG14);
+	r1 = (EVT_IVG14 | EVT_IVG15) (z);
         r0 = r0 & r1;
         cc = r0 == 0;
         if !cc jump ret_to_int;
 
+	r0 = -1 (x);
+	[sp + PT_ORIG_P0] = r0;
 	/* 
 	 * Current process in user mode 
 	 * Check to see scheduding is need for
