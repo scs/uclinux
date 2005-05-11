@@ -1,6 +1,1651 @@
+diff -urN linux-2.6.x.old/Documentation/blackfin/kgdb_bfin.txt linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt
+--- linux-2.6.x.old/Documentation/blackfin/kgdb_bfin.txt	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt	2005-05-11 14:44:10.232745424 +0800
+@@ -0,0 +1,64 @@
++			A Simple Guide to Configure KGDB
++
++			Sonic Zhang(sonic.zhang@analog.com)
++				Apr. 13th 2005
++
++
++This KGDB patch enable the kernel developer to do source level debugging on kernel for the Blackfin architecture. The debugging works over the ethernet interface. Both software breakpoints and hardware breakpoints are supported in this porting.
++
++
++2 known issue:
++1. The bug "http://blackfin.uclinux.org/tracker/index.php?func=detail&aid=544&group_id=18&atid=145"
++in the GDB client for Blackfin uclinux causes error values of local variables are displayed when the user breaks the
++running of kernel in GDB.
++2. Because of one hardware bug "05000067 - Watchpoints (Hardware Breakpoints) are not supported" in Blackfin533
++v1.0.3, the hardware breakpoints can't be set. Then, the hardware breakpoints also can't hit.
++
++
++See following detail steps to do source level debugging over Ethernet.
++ 
++1. Compile and install the cross platform version of gdb for blackfin533, which can be found as $(BINROOT)/bfin-elf-gdb.
++
++2. Apply this patch to 2.6.x kernel. Select menuconfig option under "kernel hacking" -> "kernel debugging" -> "KGDB: kernel debug with remote gdb". With this seledted, option "Full Symbolic/Source Debugging support" and "Compile the kernel with frame pointers" are also selected.
++
++3. Select option "KGDB: on Ethernet". Add "kgdboe=@target-IP/,@host-IP/" to option "Kernel Boot Parameter" and compile.
++
++4. Connect minicom to the serial port and boot the kernel image.
++
++5. Configure the IP "/> ifconfig eth0 target-IP"
++
++6. Start GDB client "bfin-elf-gdb vmlinux".
++
++7. Connect to the target "(gdb) target remote udp:target-IP:6443".
++
++8. Set software breakpoint "(gdb) break sys_open".
++
++9. Continue "(gdb) c".
++
++10. Run ls in the target console "/> ls".
++
++11. Breakpoint hits. "Breakpoint 1: sys_open(..."
++
++12. Display local variables and function paramters. (*)This operation gives wrong results, see known issue 1.
++
++13. Single stepping "(gdb) si".
++
++14. Remove breakpoint 1. "(gdb) del 1"
++
++15. Set hardware breakpoint "(gdb) hbreak sys_open".
++
++16. Continue "(gdb) c".
++
++17. Run ls in the target console "/> ls".
++
++18. Hardware breakpoint hits. "Breakpoint 1: sys_open(...". (*)This hardware breakpoint won't hit, see known issue 2.
++
++19. Continue "(gdb) c".
++
++20. Interrupt the target in GDB "Ctrl+C".
++
++21. Detach from the target "(gdb) detach".
++
++22. Exit GDB "(gdb) quit".
++
++
+diff -urN linux-2.6.x.old/arch/bfinnommu/Kconfig linux-2.6.x/arch/bfinnommu/Kconfig
+--- linux-2.6.x.old/arch/bfinnommu/Kconfig	2005-05-11 14:42:51.961644440 +0800
++++ linux-2.6.x/arch/bfinnommu/Kconfig	2005-05-11 14:44:10.218747552 +0800
+@@ -520,6 +520,8 @@
+ 	  allocation as well as poisoning memory on free to catch use of freed
+ 	  memory.
+ 
++source "kernel/Kconfig.kgdb"
++
+ config FRAME_POINTER
+ 	bool "Compile the kernel with frame pointers"
+ 	help
+diff -urN linux-2.6.x.old/arch/bfinnommu/Makefile linux-2.6.x/arch/bfinnommu/Makefile
+--- linux-2.6.x.old/arch/bfinnommu/Makefile	2005-05-11 14:42:51.961644440 +0800
++++ linux-2.6.x/arch/bfinnommu/Makefile	2005-05-11 14:44:10.219747400 +0800
+@@ -17,7 +17,7 @@
+ BFIN_TARGET 	= vmlinux
+ 
+ ifeq ($(CONFIG_FRAME_POINTER),y)
+-CFLAGS		+=-fno-omit-frame-pointer -mapcs -mno-sched-prolog
++CFLAGS		+=-fno-omit-frame-pointer 
+ endif
+ 
+ comma = ,
+diff -urN linux-2.6.x.old/arch/bfinnommu/kernel/Makefile linux-2.6.x/arch/bfinnommu/kernel/Makefile
+--- linux-2.6.x.old/arch/bfinnommu/kernel/Makefile	2005-05-11 14:42:51.962644288 +0800
++++ linux-2.6.x/arch/bfinnommu/kernel/Makefile	2005-05-11 14:44:10.219747400 +0800
+@@ -9,4 +9,6 @@
+ obj-$(CONFIG_MODULES)		+= module.o
+ obj-$(CONFIG_BLKFIN_DMA)	+= dma.o
+ obj-$(CONFIG_BLKFIN_SIMPLE_DMA)	+= simple_dma.o
+-obj-$(CONFIG_CPLB_INFO)		+= cplbinfo.o
+\ No newline at end of file
++obj-$(CONFIG_CPLB_INFO)		+= cplbinfo.o
++obj-$(CONFIG_KGDB)		+= kgdb.o
++obj-$(CONFIG_KGDB_TEST)		+= kgdb_test.o
+diff -urN linux-2.6.x.old/arch/bfinnommu/kernel/kgdb.c linux-2.6.x/arch/bfinnommu/kernel/kgdb.c
+--- linux-2.6.x.old/arch/bfinnommu/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x/arch/bfinnommu/kernel/kgdb.c	2005-05-11 14:44:10.220747248 +0800
+@@ -0,0 +1,435 @@
++/*
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU General Public License as published by the
++ * Free Software Foundation; either version 2, or (at your option) any
++ * later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ */
++
++#include <linux/string.h>
++#include <linux/kernel.h>
++#include <linux/sched.h>
++#include <linux/smp.h>
++#include <linux/spinlock.h>
++#include <linux/delay.h>
++#include <asm/system.h>
++#include <asm/ptrace.h>		/* for linux pt_regs struct */
++#include <linux/kgdb.h>
++#ifdef CONFIG_GDB_CONSOLE
++#include <linux/console.h>
++#endif
++#include <linux/init.h>
++#include <linux/debugger.h>
++#include <linux/errno.h>
++#include <asm/irq.h>
++#include <asm/traps.h>
++#include <asm/blackfin.h>
++
++/* Put the error code here just in case the user cares.  */
++int gdb_bf533errcode;
++/* Likewise, the vector number here (since GDB only gets the signal
++   number through the usual means, and that's not very specific).  */
++int gdb_bf533vector = -1;
++
++#if KGDB_MAX_NO_CPUS != 8
++#error change the definition of slavecpulocks
++#endif
++
++void regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
++{
++	gdb_regs[BFIN_SYSCFG] = regs->syscfg;
++	gdb_regs[BFIN_R0] = regs->r0;
++	gdb_regs[BFIN_R1] = regs->r1;
++	gdb_regs[BFIN_R2] = regs->r2;
++	gdb_regs[BFIN_R3] = regs->r3;
++	gdb_regs[BFIN_R4] = regs->r4;
++	gdb_regs[BFIN_R5] = regs->r5;
++	gdb_regs[BFIN_R6] = regs->r6;
++	gdb_regs[BFIN_R7] = regs->r7;
++	gdb_regs[BFIN_P0] = regs->p0;
++	gdb_regs[BFIN_P1] = regs->p1;
++	gdb_regs[BFIN_P2] = regs->p2;
++	gdb_regs[BFIN_P3] = regs->p3;
++	gdb_regs[BFIN_P4] = regs->p4;
++	gdb_regs[BFIN_P5] = regs->p5;
++	gdb_regs[BFIN_FP] = regs->fp;
++	if(regs->ipend>1)
++		gdb_regs[BFIN_SP] = regs->reserved;
++	else
++		gdb_regs[BFIN_SP] = regs->usp;
++	gdb_regs[BFIN_I0] = regs->i0;
++	gdb_regs[BFIN_I1] = regs->i1;
++	gdb_regs[BFIN_I2] = regs->i2;
++	gdb_regs[BFIN_I3] = regs->i3;
++	gdb_regs[BFIN_M0] = regs->m0;
++	gdb_regs[BFIN_M1] = regs->m1;
++	gdb_regs[BFIN_M2] = regs->m2;
++	gdb_regs[BFIN_M3] = regs->m3;
++	gdb_regs[BFIN_L0] = regs->l0;
++	gdb_regs[BFIN_L1] = regs->l1;
++	gdb_regs[BFIN_L2] = regs->l2;
++	gdb_regs[BFIN_L3] = regs->l3;
++	gdb_regs[BFIN_B0] = regs->b0;
++	gdb_regs[BFIN_B1] = regs->b1;
++	gdb_regs[BFIN_B2] = regs->b2;
++	gdb_regs[BFIN_B3] = regs->b3;
++	gdb_regs[BFIN_A0_DOT_X] = regs->a0x;
++	gdb_regs[BFIN_AO_DOT_W] = regs->a0w;
++	gdb_regs[BFIN_A1_DOT_X] = regs->a1x;
++	gdb_regs[BFIN_A1_DOT_W] = regs->a1w;
++	gdb_regs[BFIN_LC0] = regs->lc0;
++	gdb_regs[BFIN_LC1] = regs->lc1;
++	gdb_regs[BFIN_LT0] = regs->lt0;
++	gdb_regs[BFIN_LT1] = regs->lt1;
++	gdb_regs[BFIN_LB0] = regs->lb0;
++	gdb_regs[BFIN_LB1] = regs->lb1;
++	gdb_regs[BFIN_ASTAT] = regs->astat;
++	gdb_regs[BFIN_RETS] = regs->rets;
++	gdb_regs[BFIN_PC] = regs->pc;
++	gdb_regs[BFIN_RETX] = regs->retx;
++	gdb_regs[BFIN_RETN] = regs->retn;
++	gdb_regs[BFIN_RETE] = regs->rete;
++	gdb_regs[BFIN_SEQSTAT] = regs->seqstat;
++	gdb_regs[BFIN_IPEND] = regs->ipend;
++	gdb_regs[BFIN_ORIGPC] = regs->orig_pc;
++	gdb_regs[BFIN_EXTRA1] = 0;
++	gdb_regs[BFIN_EXTRA2] = 0;
++	gdb_regs[BFIN_EXTRA3] = 0;
++}
++
++/*
++ * Extracts ebp, esp and eip values understandable by gdb from the values
++ * saved by switch_to.
++ * thread.esp points to ebp. flags and ebp are pushed in switch_to hence esp
++ * prior to entering switch_to is 8 greater then the value that is saved.
++ * If switch_to changes, change following code appropriately.
++ */
++void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
++{
++	gdb_regs[BFIN_SP] = p->thread.ksp;
++	gdb_regs[BFIN_PC] = p->thread.pc;
++	gdb_regs[BFIN_SEQSTAT] = p->thread.seqstat;
++
++}
++
++void gdb_regs_to_regs(unsigned long *gdb_regs, struct pt_regs *regs)
++{
++	regs->syscfg = gdb_regs[BFIN_SYSCFG];
++	regs->r0 = gdb_regs[BFIN_R0];
++	regs->r1 = gdb_regs[BFIN_R1];
++	regs->r2 = gdb_regs[BFIN_R2];
++	regs->r3 = gdb_regs[BFIN_R3];
++	regs->r4 = gdb_regs[BFIN_R4];
++	regs->r5 = gdb_regs[BFIN_R5];
++	regs->r6 = gdb_regs[BFIN_R6];
++	regs->r7 = gdb_regs[BFIN_R7];
++	regs->p0 = gdb_regs[BFIN_P0];
++	regs->p1 = gdb_regs[BFIN_P1];
++	regs->p2 = gdb_regs[BFIN_P2];
++	regs->p3 = gdb_regs[BFIN_P3];
++	regs->p4 = gdb_regs[BFIN_P4];
++	regs->p5 = gdb_regs[BFIN_P5];
++	regs->fp = gdb_regs[BFIN_FP];
++	regs->i0 = gdb_regs[BFIN_I0];
++	regs->i1 = gdb_regs[BFIN_I1];
++	regs->i2 = gdb_regs[BFIN_I2];
++	regs->i3 = gdb_regs[BFIN_I3];
++	regs->m0 = gdb_regs[BFIN_M0];
++	regs->m1 = gdb_regs[BFIN_M1];
++	regs->m2 = gdb_regs[BFIN_M2];
++	regs->m3 = gdb_regs[BFIN_M3];
++	regs->l0 = gdb_regs[BFIN_L0];
++	regs->l1 = gdb_regs[BFIN_L1];
++	regs->l2 = gdb_regs[BFIN_L2];
++	regs->l3 = gdb_regs[BFIN_L3];
++	regs->b0 = gdb_regs[BFIN_B0];
++	regs->b1 = gdb_regs[BFIN_B1];
++	regs->b2 = gdb_regs[BFIN_B2];
++	regs->b3 = gdb_regs[BFIN_B3];
++	regs->a0x = gdb_regs[BFIN_A0_DOT_X];
++	regs->a0w = gdb_regs[BFIN_AO_DOT_W];
++	regs->a1x = gdb_regs[BFIN_A1_DOT_X];
++	regs->a1w = gdb_regs[BFIN_A1_DOT_W];
++	regs->lc0 = gdb_regs[BFIN_LC0];
++	regs->lc1 = gdb_regs[BFIN_LC1];
++	regs->lt0 = gdb_regs[BFIN_LT0];
++	regs->lt1 = gdb_regs[BFIN_LT1];
++	regs->lb0 = gdb_regs[BFIN_LB0];
++	regs->lb1 = gdb_regs[BFIN_LB1];
++	regs->rets = gdb_regs[BFIN_RETS];
++	regs->pc = gdb_regs[BFIN_PC];
++	regs->retx = gdb_regs[BFIN_RETX];
++	regs->retn = gdb_regs[BFIN_RETN];
++	regs->rete = gdb_regs[BFIN_RETE];
++	
++#if 0				/* can't change these */
++	regs->usp = gdb_regs[BFIN_SP];
++	regs->astat = gdb_regs[BFIN_ASTAT];
++	regs->seqstat = gdb_regs[BFIN_SEQSTAT];
++	regs->ipend = gdb_regs[BFIN_IPEND];
++	regs->orig_pc = gdb_regs[BFIN_ORIGPC];
++#endif
++}
++
++struct hw_breakpoint {
++	unsigned int occupied:1;
++	unsigned int skip:1;
++	unsigned int enabled:1;
++	unsigned int type:1;
++	unsigned int dataacc:2;
++	unsigned short count;
++	unsigned int addr;
++} breakinfo[HW_BREAKPOINT_NUM];
++
++int kgdb_arch_init(void)
++{
++	kgdb_remove_all_hw_break();
++	return 0;
++}
++
++int kgdb_set_hw_break(unsigned long addr)
++{
++	int breakno;
++	for(breakno=0;breakno<HW_BREAKPOINT_NUM;breakno++)
++		if(!breakinfo[breakno].occupied) {
++			breakinfo[breakno].occupied = 1;
++			breakinfo[breakno].enabled = 1;
++			breakinfo[breakno].type = 1;
++			breakinfo[breakno].addr = addr;
++			return 0;
++		}
++
++	return -ENOSPC;
++}
++
++int kgdb_remove_hw_break(unsigned long addr)
++{
++	int breakno;
++	for(breakno=0;breakno<HW_BREAKPOINT_NUM;breakno++)
++		if(breakinfo[breakno].addr == addr)
++			memset(&(breakinfo[breakno]), 0, sizeof(struct hw_breakpoint));
++
++	return 0;
++}
++
++void kgdb_remove_all_hw_break(void)
++{
++	memset(breakinfo, 0, sizeof(struct hw_breakpoint)*8);
++}
++/*
++void kgdb_show_info(void)
++{
++	int a0, ac0, actl, stat;
++	__asm__ volatile ("%0 = [%1];" :"=&d"(a0): "a"(WPIA0));
++	__asm__ volatile ("%0 = [%1];" :"=&d"(ac0): "a"(WPIACNT0));
++	__asm__ volatile ("%0 = [%1];" :"=&d"(actl): "a"(WPIACTL));
++	__asm__ volatile ("%0 = [%1];" :"=&d"(stat): "a"(WPSTAT));
++	printk("hwd: wpia0=0x%x, wpiacnt0=%d, wpiactl=0x%x, wpstat=0x%x\n", a0, ac0, actl, stat);
++}
++*/
++void kgdb_correct_hw_break(void)
++{
++	int breakno;
++	int correctit;
++	unsigned int wpdactl;
++
++	__asm__ volatile ("%0 = [%1];":"=&d"(wpdactl):"p"(WPDACTL));
++
++	correctit = 0;
++	for (breakno = 0; breakno < HW_BREAKPOINT_NUM; breakno++) {
++		if(breakinfo[breakno].type == 1) {
++			switch (breakno) {
++			case 0:
++				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN0)) {
++					correctit = 1;
++					wpdactl &= ~(WPIREN01|EMUSW0);
++					wpdactl |= WPIAEN0|WPICNTEN0;
++					__asm__ volatile (
++						"[%0] = %1;"
++						"[%2] = %3;"
++						::"p"(WPIA0), "d"(breakinfo[breakno].addr),
++						"p"(WPIACNT0), "d"(breakinfo[breakno].skip));
++				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN0)) {
++					correctit = 1;
++					wpdactl &= ~WPIAEN0;
++				}
++				break;
++
++			case 1:
++				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN1)) {
++					correctit = 1;
++					wpdactl &= ~(WPIREN01|EMUSW1);
++					wpdactl |= WPIAEN1|WPICNTEN1;
++					__asm__ volatile (
++						"[%0] = %1;"
++						"[%2] = %3;"
++						::"p"(WPIA1), "d"(breakinfo[breakno].addr),
++						"p"(WPIACNT1), "d"(breakinfo[breakno].skip));
++				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN1)) {
++					correctit = 1;
++					wpdactl &= ~WPIAEN1;
++				}
++				break;
++
++			case 2:
++				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN2)) {
++					correctit = 1;
++					wpdactl &= ~(WPIREN23|EMUSW2);
++					wpdactl |= WPIAEN2|WPICNTEN2;
++					__asm__ volatile (
++						"[%0] = %1;"
++						"[%2] = %3;"
++						::"p"(WPIA2), "d"(breakinfo[breakno].addr),
++						"p"(WPIACNT2), "d"(breakinfo[breakno].skip));
++				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN2)) {
++					correctit = 1;
++					wpdactl &= ~WPIAEN2;
++				}
++				break;
++
++			case 3:
++				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN3)) {
++					correctit = 1;
++					wpdactl &= ~(WPIREN23|EMUSW3);
++					wpdactl |= WPIAEN3|WPICNTEN3;
++					__asm__ volatile (
++						"[%0] = %1;"
++						"[%2] = %3;"
++						::"p"(WPIA3), "d"(breakinfo[breakno].addr),
++						"p"(WPIACNT3), "d"(breakinfo[breakno].skip));
++				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN3)) {
++					correctit = 1;
++					wpdactl &= ~WPIAEN3;
++				}
++				break;
++			case 4:
++				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN4)) {
++					correctit = 1;
++					wpdactl &= ~(WPIREN45|EMUSW4);
++					wpdactl |= WPIAEN4|WPICNTEN4;
++					__asm__ volatile (
++						"[%0] = %1;"
++						"[%2] = %3;"
++						::"p"(WPIA4), "d"(breakinfo[breakno].addr),
++						"p"(WPIACNT4), "d"(breakinfo[breakno].skip));
++				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN4)) {
++					correctit = 1;
++					wpdactl &= ~WPIAEN4;
++				}
++				break;
++			case 5:
++				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN5)) {
++					correctit = 1;
++					wpdactl &= ~(WPIREN45|EMUSW5);
++					wpdactl |= WPIAEN5|WPICNTEN5;
++					__asm__ volatile (
++						"[%0] = %1;"
++						"[%2] = %3;"
++						::"p"(WPIA5), "d"(breakinfo[breakno].addr),
++						"p"(WPIACNT5), "d"(breakinfo[breakno].skip));
++				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN5)) {
++					correctit = 1;
++					wpdactl &= ~WPIAEN5;
++				}
++				break;
++			}
++		}
++	}
++	if (correctit) {
++		wpdactl &= ~WPAND;
++		wpdactl |= WPPWR;
++/*printk("correct_hw_break: wpdactl=0x%x\n", wpdactl);*/
++		__asm__ volatile (
++			"[%0] = %1;"
++			"csync;"
++			::"a"(WPIACTL), "d"(wpdactl));
++/*		kgdb_show_info();*/
++	}
++}
++
++void kgdb_disable_hw_debug(struct pt_regs *regs)
++{
++	/* Disable hardware debugging while we are in kgdb */
++	__asm__ volatile (
++		"r0 = [%0];"
++		"bitclr (r0, 0);"
++		"[%0] = r0;"
++		"csync;"
++		: : "a"(WPIACTL) : "R0");
++}
++
++void kgdb_post_master_code(struct pt_regs *regs, int eVector, int err_code)
++{
++	/* Master processor is completely in the debugger */
++	gdb_bf533vector = eVector;
++	gdb_bf533errcode = err_code;
++}
++
++int kgdb_arch_handle_exception(int exceptionVector, int signo,
++			       int err_code, char *remcom_in_buffer,
++			       char *remcom_out_buffer,
++			       struct pt_regs *linux_regs)
++{
++	long addr;
++	long breakno;
++	char *ptr;
++	int newPC;
++	int wp_status;
++
++	switch (remcom_in_buffer[0]) {
++	case 'c':
++	case 's':
++		if (kgdb_contthread && kgdb_contthread != current) {
++			strcpy(remcom_out_buffer, "E00");
++			break;
++		}
++
++		kgdb_contthread = NULL;
++
++		/* try to read optional parameter, pc unchanged if no parm */
++		ptr = &remcom_in_buffer[1];
++		if (kgdb_hex2long(&ptr, &addr)) {
++			linux_regs->pc = addr;
++		}
++		newPC = linux_regs->pc;
++
++		/* clear the trace bit */
++		linux_regs->syscfg &= 0xfffffffe;
++
++		/* set the trace bit if we're stepping */
++		if (remcom_in_buffer[0] == 's') {
++			linux_regs->syscfg |= 0x1;
++			debugger_step = 1;
++		}
++
++		__asm__ volatile (
++			"%0 = [%1];"
++			"csync;"
++			: "=r" (wp_status) : "a"(WPSTAT));
++
++ 		if (exceptionVector == VEC_WATCH) {
++			for (breakno = 0; breakno < 6; ++breakno) {
++				if (wp_status & (1 << breakno)) {
++					breakinfo->skip = 1;
++					break;
++				}
++			}
++		}
++		kgdb_correct_hw_break();
++		__asm__ volatile ("[%0] = %1;" : :"a"(WPSTAT), "d"(0));
++
++		return (0);
++	}			/* switch */
++	return -1;		/* this means that we do not want to exit from the handler */
++}
++
++struct kgdb_arch arch_kgdb_ops = {
++	.gdb_bpt_instr = {0xa1},
++	.flags = KGDB_HW_BREAKPOINT,
++};
+diff -urN linux-2.6.x.old/arch/bfinnommu/kernel/kgdb_test.c linux-2.6.x/arch/bfinnommu/kernel/kgdb_test.c
+--- linux-2.6.x.old/arch/bfinnommu/kernel/kgdb_test.c	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x/arch/bfinnommu/kernel/kgdb_test.c	2005-05-11 14:44:10.220747248 +0800
+@@ -0,0 +1,84 @@
++
++
++#include <linux/config.h>
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/init.h>
++#include <linux/proc_fs.h>
++
++#include <asm/current.h>
++#include <asm/uaccess.h>
++#include <asm/system.h>
++
++#include <asm/blackfin.h>
++
++
++static char cmdline[256];
++static unsigned long len;
++
++int kgdb_test(char *name, int len, int count,int z)
++{
++	printk("kgdb name(%d): %s, %d, %d\n",len, name, count, z); 
++	count = z;
++	return count;
++}
++
++static int test_proc_output (char *buf)
++{
++	kgdb_test("hello world!", 12, 0x55, 0x10);
++	return 0;
++}
++
++static int test_read_proc(char *page, char **start, off_t off,
++                         int count, int *eof, void *data)
++{
++	int len;
++        
++	len = test_proc_output (page);
++        if (len <= off+count) *eof = 1;
++        *start = page + off;
++        len -= off;
++        if (len>count) len = count;
++        if (len<0) len = 0;
++        return len;
++}
++
++static int test_write_proc(struct file *file, const char *buffer,
++			   unsigned long count, void *data)
++{
++	if(count>=256)
++		len = 255;
++	else
++		len = count;
++	
++	memcpy(cmdline, buffer, count);
++	cmdline[len] = 0;
++		
++        return len;
++}
++
++
++static int __init cplbtest_init(void)
++{
++	struct proc_dir_entry *entry;
++
++	if ((entry=create_proc_entry ("kgdbtest", 0, NULL)) == NULL) {
++		return -ENOMEM;
++	}
++	
++	entry->read_proc = test_read_proc;
++	entry->write_proc = test_write_proc;
++	entry->data = NULL;
++
++	return 0;
++}
++
++
++static void __exit cplbtest_exit (void)
++{
++	remove_proc_entry ("kgdbtest", NULL);
++}
++
++module_init(cplbtest_init);
++module_exit(cplbtest_exit);
++
+diff -urN linux-2.6.x.old/arch/bfinnommu/kernel/traps.c linux-2.6.x/arch/bfinnommu/kernel/traps.c
+--- linux-2.6.x.old/arch/bfinnommu/kernel/traps.c	2005-05-11 14:42:52.017635928 +0800
++++ linux-2.6.x/arch/bfinnommu/kernel/traps.c	2005-05-11 14:47:13.034955264 +0800
+@@ -18,6 +18,7 @@
+ #include <asm/uaccess.h>
+ #include <asm/traps.h>
+ #include <asm/blackfin.h>
++#include <linux/debugger.h>
+ 
+ /*
+ . EXCEPTION TRAPS DEBUGGING LEVELS
+@@ -72,33 +73,57 @@
+ 
+ int kstack_depth_to_print = 48;
+ 
++
+ asmlinkage void trap_c(struct pt_regs *fp)
+ {
+ 	int sig = 0;
+ 	siginfo_t info;
++	unsigned long trapnr = fp->seqstat & 0x3f;
+ 
+  	/* trap_c() will be called for exceptions. During exceptions
+  	   processing, the pc value should be set with retx value.  
+  	   With this change we can cleanup some code in signal.c- TODO */
+  	fp->orig_pc = fp->retx;
++/*	printk("exception: 0x%x\n", trapnr);*/
+ 
+ 	/* send the appropriate signal to the user program */
+-	switch (fp->seqstat & 0x3f) {
++	switch (trapnr) {
+ 	    case VEC_STEP:
+ 		info.si_code = TRAP_STEP;
+ 		fp->pc = fp->retx;      /* gdb wants the value of the pc*/
+ 		sig = SIGTRAP;
++#ifdef CONFIG_KGDB
++		CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
++		return;
++#else
+ 		break;
++#endif
+ 	    case VEC_EXCPT01 :		 /* gdb breakpoint */
+ 		info.si_code = TRAP_ILLTRAP;
+ 		fp->retx -=2;		/* For Service, proessor increments to next instruction. */
+ 		fp->pc = fp->retx;      /* gdb wants the value of the pc*/
+ 		sig = SIGTRAP;
++#ifdef CONFIG_KGDB
++		CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
++		return;
++#else
+ 		break;
++#endif
++#ifdef CONFIG_KGDB
++	    case VEC_EXCPT02 :		 /* gdb connection */
++		info.si_code = TRAP_ILLTRAP;
++		fp->pc = fp->retx;      /* gdb wants the value of the pc*/
++		sig = SIGTRAP;
++		CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
++		return;
++#endif
+ 	    case VEC_UNDEF_I:
+ 		info.si_code = ILL_ILLOPC;
+ 		sig = SIGILL;
+ 		DPRINTK(EXC_0x21);
++#ifdef CONFIG_KGDB
++		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
++#endif
+ 		break;
+ 	    case VEC_OVFLOW:
+ 		info.si_code = TRAP_TRACEFLOW;
+@@ -109,6 +134,9 @@
+ 		info.si_code = ILL_ILLPARAOP;
+ 		sig = SIGILL;
+ 		DPRINTK(EXC_0x22);
++#ifdef CONFIG_KGDB
++		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
++#endif
+ 		break;
+ 	    case VEC_ILL_RES:
+ 		info.si_code = ILL_PRVOPC;
+@@ -120,23 +148,37 @@
+ 		sig = SIGBUS;
+ 		DPRINTK(EXC_0x24);
+ 		DPRINTK("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
++#ifdef CONFIG_KGDB
++		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
++#endif
+ 	    	break;
+ 	    case VEC_MISALI_I:
+ 		info.si_code = BUS_ADRALN;
+ 		sig = SIGBUS;
+ 		DPRINTK(EXC_0x2A);
+ 		DPRINTK("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
++#ifdef CONFIG_KGDB
++		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
++#endif
+ 		break;
+ 	    case VEC_UNCOV:
+ 		info.si_code = ILL_ILLEXCPT;
+ 		sig = SIGILL;
+ 		DPRINTK(EXC_0x25);
++#ifdef CONFIG_KGDB
++		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
++#endif
+ 		break;
+ 	    case VEC_WATCH:
+ 		info.si_code = TRAP_WATCHPT;
+ 		sig = SIGTRAP;
+ 		DPRINTK3(EXC_0x28);
++#ifdef CONFIG_KGDB
++		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,)
++		return;
++#else
+ 		break;
++#endif
+ 	    case VEC_ISTRU_VL:                /* ADSP-BF535 only (MH)*/
+ 		info.si_code = BUS_OPFETCH;
+ 		sig = SIGBUS;
+@@ -144,14 +186,13 @@
+ 	    case VEC_CPLB_I_VL:
+ 		DPRINTK2(EXC_0x2B);
+ 		DPRINTK2("ICPLB_FAULT_ADDR: %p\n", *pICPLB_FAULT_ADDR);
++		break;
+ 	    case VEC_CPLB_VL:
+ 		info.si_code = ILL_CPLB_VI;
+ 		DPRINTK3(EXC_0x23);
+ 		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
+ 		_cplb_hdr();
+ 		goto nsig;
+-		sig = SIGILL;
+-                break;
+ 	    case VEC_CPLB_I_M:
+ 		DPRINTK3(EXC_0x2C);
+ 		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
+@@ -177,6 +218,9 @@
+ 	    default:
+ 		info.si_code = TRAP_ILLTRAP;
+ 		sig = SIGTRAP;
++#ifdef CONFIG_KGDB
++		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
++#endif
+ 		break;
+ 	}
+ 	info.si_signo = sig;
+@@ -261,6 +305,9 @@
+ 			(int) current->mm->start_stack);
+ 	}
+ 
++#ifdef CONFIG_KGDB
++	printk("PC: %08lx;\n\n", fp->pc);
++#else
+ 	printk("PC: %08lx; contents of [PC-16...PC+8[:\n", fp->pc);
+ 	for (i = -16; i < 8; i++)
+ 	{
+@@ -273,6 +320,7 @@
+ 		printk ("%04x ", x);
+ 	}
+ 	printk ("\n\n");
++#endif
+ 	printk("RETE:  %08lx  RETN: %08lx  RETX: %08lx  RETS: %08lx\n",
+                 fp->rete, fp->retn, fp->retx, fp->rets);
+ 	printk("IPEND: %04lx  SYSCFG: %04lx\n", fp->ipend, fp->syscfg);
+diff -urN linux-2.6.x.old/arch/bfinnommu/mach-bf533/ints-priority.c linux-2.6.x/arch/bfinnommu/mach-bf533/ints-priority.c
+--- linux-2.6.x.old/arch/bfinnommu/mach-bf533/ints-priority.c	2005-05-11 14:42:52.048631216 +0800
++++ linux-2.6.x/arch/bfinnommu/mach-bf533/ints-priority.c	2005-05-11 14:44:10.231745576 +0800
+@@ -23,6 +23,9 @@
+ #include <linux/module.h>
+ #include <linux/kernel_stat.h>
+ #include <linux/seq_file.h>
++#ifdef CONFIG_KGDB
++#include <linux/kgdb.h>
++#endif
+ #include <asm/irqchip.h>
+ #include <asm/traps.h>
+ #include <asm/blackfin.h>
+@@ -473,4 +476,8 @@
+ 	  vec = ivg->irqno;
+         }
+ 	asm_do_IRQ(vec, fp);
++
++#ifdef CONFIG_KGDB
++	kgdb_process_breakpoint();
++#endif
+ }
+diff -urN linux-2.6.x.old/drivers/net/Makefile linux-2.6.x/drivers/net/Makefile
+--- linux-2.6.x.old/drivers/net/Makefile	2005-05-11 14:43:11.782631192 +0800
++++ linux-2.6.x/drivers/net/Makefile	2005-05-11 14:44:10.241744056 +0800
+@@ -192,3 +192,4 @@
+ obj-$(CONFIG_IRDA) += irda/
+ 
+ obj-$(CONFIG_NETCONSOLE) += netconsole.o
++obj-$(CONFIG_KGDB_ETH) += kgdb_eth.o
+diff -urN linux-2.6.x.old/drivers/net/kgdb_eth.c linux-2.6.x/drivers/net/kgdb_eth.c
+--- linux-2.6.x.old/drivers/net/kgdb_eth.c	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x/drivers/net/kgdb_eth.c	2005-05-11 14:44:10.241744056 +0800
+@@ -0,0 +1,177 @@
++/*
++ * drivers/net/kgdb_eth.c
++ *
++ * A network interface for GDB.
++ * Based upon 'gdbserial' by David Grothe <dave@gcom.com>
++ * and Scott Foehner <sfoehner@engr.sgi.com>
++ *
++ * Maintainers: Amit S. Kale <amitkale@emsyssoft.com> and
++ * 		Tom Rini <trini@kernel.crashing.org>
++ *
++ * 2004 (c) Amit S. Kale <amitkale@emsyssoft.com>
++ * 2004 (c) MontaVista Software, Inc.
++ *
++ * Other folks:
++ * San Mehat <nettwerk@biodome.org>
++ * Robert Walsh <rjwalsh@durables.org>
++ * wangdi <wangdi@clusterfs.com>.
++ * Matt Mackall <mpm@selenic.com>
++ * Pavel Machek <pavel@suse.cz>
++ *
++ * This file is licensed under the terms of the GNU General Public License
++ * version 2. This program is licensed "as is" without any warranty of any
++ * kind, whether express or implied.
++ */
++
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/string.h>
++#include <linux/kgdb.h>
++#include <linux/netpoll.h>
++#include <linux/init.h>
++#include <linux/inetdevice.h>
++#include <linux/rtnetlink.h>
++
++#include <asm/atomic.h>
++#include <asm/irq.h>
++
++#define IN_BUF_SIZE 512		/* power of 2, please */
++#define OUT_BUF_SIZE 30		/* We don't want to send too big of a packet. */
++
++static char in_buf[IN_BUF_SIZE], out_buf[OUT_BUF_SIZE];
++static int in_head, in_tail, out_count;
++static atomic_t in_count;
++static int configured;
++
++static void rx_hook(struct netpoll *np, int port, char *msg, int len);
++
++static struct netpoll np = {
++	.name = "kgdboe",
++	.dev_name = "eth0",
++	.rx_hook = rx_hook,
++	.local_port = 6443,
++	.remote_port = 6442,
++	.remote_mac = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
++};
++
++static int eth_getDebugChar(void)
++{
++	int chr;
++
++	while (atomic_read(&in_count) == 0)
++		netpoll_poll(&np);
++
++	chr = in_buf[in_tail++];
++	in_tail &= (IN_BUF_SIZE - 1);
++	atomic_dec(&in_count);
++	return chr;
++}
++
++static void eth_flushDebugChar(void)
++{
++	if (out_count && np.dev) {
++		netpoll_send_udp(&np, out_buf, out_count);
++/*out_buf[out_count]=0;
++printk("gdb_anw: %s\n", out_buf);*/
++		memset(out_buf, 0, sizeof(out_buf));
++		out_count = 0;
++	}
++}
++
++static void eth_putDebugChar(int chr)
++{
++	out_buf[out_count++] = chr;
++	if (out_count == OUT_BUF_SIZE) {
++		eth_flushDebugChar();
++	}
++}
++
++void kgdb_disable_eth_irq(void)
++{
++	struct net_device *ndev = NULL;
++	ndev = dev_get_by_name(np.dev_name);
++	local_irq_disable();
++	netpoll_set_trap(1);
++}
++
++void kgdb_enable_eth_irq(void)
++{
++	struct net_device *ndev = NULL;
++	ndev = dev_get_by_name(np.dev_name);
++	local_irq_enable();
++}
++
++static void rx_hook(struct netpoll *np, int port, char *msg, int len)
++{
++	int i;
++	int ksp,usp;
++
++	np->remote_port = port;
++
++	/* Is this gdb trying to attach? */
++	if (!kgdb_connected && msg[0]=='$' && len==8) {
++		if(strncmp(msg, "$Hc-1#09", 8)==0) {
++			kgdb_disable_eth_irq();
++			kgdb_schedule_breakpoint();
++		}
++	}
++
++/*	__asm__("%0 = SP;":"=d"(ksp)::"R0");
++	__asm__("%0 = USP;":"=d"(usp)::"R1");
++	printk("gdb_cmd(ksp=0x%x,usp=0x%x): ", ksp, usp);*/
++	for (i = 0; i < len; i++) {
++		if (msg[i] == 3) {
++			kgdb_disable_eth_irq();
++			kgdb_schedule_breakpoint();
++		}
++
++		if (atomic_read(&in_count) >= IN_BUF_SIZE) {
++			/* buffer overflow, clear it */
++			in_head = in_tail = 0;
++			atomic_set(&in_count, 0);
++			break;
++		}
++		in_buf[in_head++] = msg[i];
++		in_head &= (IN_BUF_SIZE - 1);
++		atomic_inc(&in_count);
++/*		printk("%c", msg[i]);*/
++	}
++/*	printk("\n");*/
++}
++
++/* We must be passed configuration options. */
++static int option_setup(char *opt)
++{
++	configured = !netpoll_parse_options(&np, opt);
++	return 0;
++}
++__setup("kgdboe=", option_setup);
++
++static int hook(void)
++{
++	/* We haven't been configured, giveup. */
++	if (!configured)
++		return 1;
++
++	return 0;
++}
++
++struct kgdb_serial kgdbeth_serial = {
++	.read_char = eth_getDebugChar,
++	.write_char = eth_putDebugChar,
++	.hook = hook,
++	.flush = eth_flushDebugChar,
++};
++
++int init_kgdboe(void)
++{
++	if (!configured || netpoll_setup(&np))
++		return 1;
++
++	if (!kgdb_serial)
++		kgdb_serial = &kgdbeth_serial;
++	printk(KERN_INFO "kgdb: debugging over ethernet enabled\n");
++
++	return 0;
++}
++module_init(init_kgdboe);
+diff -urN linux-2.6.x.old/drivers/serial/Makefile linux-2.6.x/drivers/serial/Makefile
+--- linux-2.6.x.old/drivers/serial/Makefile	2005-05-11 14:43:21.841102072 +0800
++++ linux-2.6.x/drivers/serial/Makefile	2005-05-11 14:44:10.242743904 +0800
+@@ -41,4 +41,5 @@
+ obj-$(CONFIG_SERIAL_CPM) += cpm_uart/
+ obj-$(CONFIG_SERIAL_MPC52xx) += mpc52xx_uart.o
+ obj-$(CONFIG_SERIAL_BLACKFIN) += bf533_serial.o
+-obj-$(CONFIG_SERIAL_BLACKFIN_EXP) += bf533_serial_exp.o
+\ No newline at end of file
++obj-$(CONFIG_SERIAL_BLACKFIN_EXP) += bf533_serial_exp.o
++obj-$(CONFIG_KGDB_BLACKFIN_SHAREDUART) += kgdb_bf_shareduart.o
+diff -urN linux-2.6.x.old/drivers/serial/bf533_serial.c linux-2.6.x/drivers/serial/bf533_serial.c
+--- linux-2.6.x.old/drivers/serial/bf533_serial.c	2005-05-11 14:43:21.845101464 +0800
++++ linux-2.6.x/drivers/serial/bf533_serial.c	2005-05-11 14:44:10.243743752 +0800
+@@ -126,6 +126,11 @@
+ #define MIN(a,b)	((a) < (b) ? (a) : (b))
+ #endif
+ 
++#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
++#undef CONFIG_BLKFIN_SIMPLE_DMA
++#define CONFIG_NO_DMA
++#endif
++
+ #ifdef CONFIG_BLKFIN_SIMPLE_DMA
+ 
+ #undef CONFIG_DISABLE_RXDMA
+@@ -455,6 +460,33 @@
+ }
+ #endif
+ 
++#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
++extern void kgdb_breakkey_pressed(struct pt_regs *regs);
++ 
++void kgdb_put_debug_char(char chr)
++{
++	while (!(*pUART_LSR & THRE)) {
++		SYNC_ALL;
++	}
++	ACCESS_PORT_IER 
++	*pUART_THR = chr;
++	SYNC_ALL;
++}
++
++int kgdb_get_debug_char(void)
++{
++	unsigned char chr;
++	while(!(*pUART_LSR & DR)) {
++		SYNC_ALL;
++	}
++	ACCESS_PORT_IER
++	chr = *pUART_RBR;
++	SYNC_ALL;
++
++	return chr;
++}
++#endif
++
+ void receive_chars(struct bf533_serial *info, struct pt_regs *regs)
+ {
+ 	struct tty_struct *tty = info->tty;
+@@ -484,6 +516,12 @@
+ 				machine_restart(NULL);
+ 				return;
+ 			}
++#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
++			else if(ch == '\4') { /* Ctrl + d */
++				kgdb_breakkey_pressed(regs);
++				continue;
++			}
++#endif
+ 			/* It is a 'keyboard interrupt' ;-) */
+ #ifdef CONFIG_CONSOLE
+ 			wake_up(&keypress_wait);
+diff -urN linux-2.6.x.old/drivers/serial/kgdb_bf_shareduart.c linux-2.6.x/drivers/serial/kgdb_bf_shareduart.c
+--- linux-2.6.x.old/drivers/serial/kgdb_bf_shareduart.c	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x/drivers/serial/kgdb_bf_shareduart.c	2005-05-11 14:44:10.244743600 +0800
+@@ -0,0 +1,75 @@
++/*
++ * shared uart interface for kgdb.
++ *
++ * Sonic Zhang <sonic.zhang@citiz.net>
++ */
++
++#include <linux/config.h>
++#include <linux/kernel.h>
++#include <linux/init.h>
++#include <linux/kgdb.h>
++#include <linux/interrupt.h>
++#include <linux/tty.h>
++#include <linux/serial.h>
++#include <linux/serial_core.h>
++#include <linux/serial_reg.h>
++#include <linux/serialP.h>
++
++
++static struct kgdb_serial kgdb_shareduart_driver;
++static int initialized;
++
++/*
++ * Wait until the interface can accept a char, then write it.
++ */
++extern void kgdb_put_debug_char(int chr);
++extern int kgdb_get_debug_char(void);
++
++void kgdb_print(const char *fmt, ...)
++{
++	va_list args;
++	char *p;
++	static char printk_buf[1024];
++
++	va_start(args, fmt);
++	vscnprintf(printk_buf, sizeof(printk_buf), fmt, args);
++	va_end(args);
++	
++	for (p = printk_buf; *p; p++) {
++		kgdb_put_debug_char(*p);
++	}
++}
++
++void kgdb_breakkey_pressed(struct pt_regs *regs) 
++{
++	if(initialized)
++		kgdb_schedule_breakpoint();
++}
++
++static int
++kgdb_hook_io(void)
++{
++	/* If we've already been initialized, return. */
++	if (initialized)
++		return 0;
++	
++	initialized = 1;
++
++	return 0;
++}
++
++static struct kgdb_serial kgdb_shareduart_driver = {
++	.read_char = kgdb_get_debug_char,
++	.write_char = kgdb_put_debug_char,
++	.hook = kgdb_hook_io,
++	.flush = NULL,
++};
++
++void init_kgdb_blackfin_shareduart(void)
++{
++	kgdb_serial = &kgdb_shareduart_driver;
++
++	/* Break in as soon as we can. */
++	kgdb_schedule_breakpoint();
++	kgdb_print("Init kgdb shared uart on blackfin.\n");
++}
+diff -urN linux-2.6.x.old/include/asm-bfinnommu/entry.h linux-2.6.x/include/asm-bfinnommu/entry.h
+--- linux-2.6.x.old/include/asm-bfinnommu/entry.h	2005-05-11 14:43:33.432339936 +0800
++++ linux-2.6.x/include/asm-bfinnommu/entry.h	2005-05-11 14:44:10.231745576 +0800
+@@ -70,6 +70,13 @@
+ 
+ 	[--sp] = ASTAT;
+ 
++#ifdef CONFIG_KGDB
++	fp     = 0(Z);
++	R0     = sp;
++	R0    += 60;
++	R0    += 60;
++	R0    += 60;
++#endif
+ 	[--sp] = r0;	/* Skip reserved */
+ 	[--sp] = RETS;
+ 	r0 = RETI;
+@@ -78,6 +85,16 @@
+ 	[--sp] = RETN;
+ 	[--sp] = RETE;
+ 	[--sp] = SEQSTAT;
++#ifdef CONFIG_KGDB
++	r0.l   = lo(IPEND);
++	r0.h   = 0;
++	BITCLR (R0, 4);
++	BITCLR (R0, 3);
++	BITCLR (R0, 2);
++	BITCLR (R0, 1);
++	BITCLR (R0, 0);
++	r0.l   = ONES r0;
++#endif
+ 	[--sp] = r0;	/* Skip IPEND as well. */
+ 	[--sp] = RETI;  /*orig_pc*/
+ 	/* Clear all L registers.  */
+@@ -128,6 +145,13 @@
+ 
+ 	[--sp] = ASTAT;
+ 
++#ifdef CONFIG_KGDB
++	fp     = 0(Z);
++	R0     = sp;
++	R0    += 60;
++	R0    += 60;
++	R0    += 60;
++#endif
+ 	[--sp] = r0;	/* Skip reserved */
+ 	[--sp] = RETS;
+ 	r0 = RETI;
+@@ -136,6 +160,16 @@
+ 	[--sp] = RETN;
+ 	[--sp] = RETE;
+ 	[--sp] = SEQSTAT;
++#ifdef CONFIG_KGDB
++	r0.l   = lo(IPEND);
++	r0.h   = 0;
++	BITCLR (R0, 4);
++	BITCLR (R0, 3);
++	BITCLR (R0, 2);
++	BITCLR (R0, 1);
++	BITCLR (R0, 0);
++	r0.l   = ONES r0;
++#endif
+ 	[--sp] = r0;	/* Skip IPEND as well. */
+ 	[--sp] = r0;  /*orig_pc*/
+ 	/* Clear all L registers.  */
+diff -urN linux-2.6.x.old/include/asm-bfinnommu/kgdb.h linux-2.6.x/include/asm-bfinnommu/kgdb.h
+--- linux-2.6.x.old/include/asm-bfinnommu/kgdb.h	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x/include/asm-bfinnommu/kgdb.h	2005-05-11 14:44:10.232745424 +0800
+@@ -0,0 +1,139 @@
++#ifndef _ASM_KGDB_H_
++#define _ASM_KGDB_H_
++
++#include <linux/ptrace.h>
++
++/* gdb locks */
++#define KGDB_MAX_NO_CPUS 8
++
++/************************************************************************/
++/* BUFMAX defines the maximum number of characters in inbound/outbound buffers*/
++/* at least NUMREGBYTES*2 are needed for register packets */
++/* Longer buffer is needed to list all threads */
++#define BUFMAX 2048
++
++/* Number of bytes of registers.  */
++#define NUMREGBYTES 224
++/*
++ *  Note that this register image is different from
++ *  the register image that Linux produces at interrupt time.
++ *  
++ *  Linux's register image is defined by struct pt_regs in ptrace.h.
++ */
++enum regnames {
++  BFIN_SYSCFG = 0,
++  //BFIN_ORIGR0, 
++  BFIN_R0,
++  BFIN_R1,
++  BFIN_R2,
++  BFIN_R3,
++  BFIN_R4,
++  BFIN_R5,
++  BFIN_R6,
++  BFIN_R7,
++  BFIN_P0,
++  BFIN_P1,
++  BFIN_P2,
++  BFIN_P3,
++  BFIN_P4,
++  BFIN_P5,
++  BFIN_FP,
++  BFIN_SP,
++  BFIN_I0,
++  BFIN_I1,
++  BFIN_I2,
++  BFIN_I3,
++  BFIN_M0,
++  BFIN_M1,
++  BFIN_M2,
++  BFIN_M3,
++  BFIN_L0,
++  BFIN_L1,
++  BFIN_L2,
++  BFIN_L3,
++  BFIN_B0,
++  BFIN_B1,         /* START MODIFIER REGISTER */
++  BFIN_B2,         /* END MODIFIER REGISTER */
++  BFIN_B3,
++  BFIN_A0_DOT_X,
++  BFIN_AO_DOT_W,
++  BFIN_A1_DOT_X,
++  BFIN_A1_DOT_W,
++  BFIN_LC0,
++  BFIN_LC1,
++  BFIN_LT0,
++  BFIN_LT1,
++  BFIN_LB0,
++  BFIN_LB1,
++  BFIN_ASTAT,
++  BFIN_RESERVED,
++  BFIN_RETS, 	/* Subroutine address register */
++  BFIN_PC, 	/*actually RETI pc will be in ORIG_PC*/
++  BFIN_RETX,
++  BFIN_RETN,
++  BFIN_RETE,
++  BFIN_SEQSTAT,
++  BFIN_IPEND,        /* Subroutine address register */  
++  BFIN_ORIGPC,        /* Subroutine address register */  
++  BFIN_EXTRA1,        /* Extra "registers" for hacks 1. address of .text */
++  BFIN_EXTRA2,        
++  BFIN_EXTRA3
++};
++
++#define BREAKPOINT() asm("   EXCPT 2;");
++#define BREAK_INSTR_SIZE       2
++#define HW_BREAKPOINT_NUM		6
++
++/* Instruction watchpoint address control register bits mask */
++#define WPPWR		0x1
++#define WPIREN01	0x2
++#define WPIRINV01	0x4
++#define WPIAEN0		0x8
++#define WPIAEN1		0x10
++#define WPICNTEN0	0x20
++#define WPICNTEN1	0x40
++#define EMUSW0		0x80
++#define EMUSW1		0x100
++#define WPIREN23	0x200
++#define WPIRINV23	0x400
++#define WPIAEN2		0x800
++#define WPIAEN3		0x1000
++#define WPICNTEN2	0x2000
++#define WPICNTEN3	0x4000
++#define EMUSW2		0x8000
++#define EMUSW3		0x10000
++#define WPIREN45	0x20000
++#define WPIRINV45	0x40000
++#define WPIAEN4		0x80000
++#define WPIAEN5		0x100000
++#define WPICNTEN4	0x200000
++#define WPICNTEN5	0x400000
++#define EMUSW4		0x800000
++#define EMUSW5		0x1000000
++#define WPAND		0x2000000
++
++/* Data watchpoint address control register bits mask */
++#define WPDREN01	0x1
++#define WPDRINV01	0x2
++#define WPDAEN0		0x4
++#define WPDAEN1		0x8
++#define WPDCNTEN0	0x10
++#define WPDCNTEN1	0x20
++#define WPDSRC0		0xc0
++#define WPDACC0		0x300
++#define WPDSRC1		0xc00
++#define WPDACC1		0x3000
++
++/* Watchpoint status register bits mask */
++#define STATIA0		0x1
++#define STATIA1		0x2
++#define STATIA2		0x4
++#define STATIA3		0x8
++#define STATIA4		0x10
++#define STATIA5		0x20
++#define STATDA0		0x40
++#define STATDA1		0x80
++
++extern void kgdb_print(const char *fmt, ...);
++
++#endif				/* _ASM_KGDB_H_ */
+diff -urN linux-2.6.x.old/include/asm-bfinnommu/processor.h linux-2.6.x/include/asm-bfinnommu/processor.h
+--- linux-2.6.x.old/include/asm-bfinnommu/processor.h	2005-05-11 14:43:33.445337960 +0800
++++ linux-2.6.x/include/asm-bfinnommu/processor.h	2005-05-11 14:44:10.232745424 +0800
+@@ -34,6 +34,7 @@
+ 	unsigned short seqstat;		/* saved status register */
+ 	unsigned long  esp0;		/* points to SR of stack frame pt_regs*/
+ 	unsigned long  pc;		/* instruction pointer */
++	void *         debuggerinfo;
+ };
+ 
+ #define INIT_THREAD  {						\
+diff -urN linux-2.6.x.old/include/linux/debugger.h linux-2.6.x/include/linux/debugger.h
+--- linux-2.6.x.old/include/linux/debugger.h	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x/include/linux/debugger.h	2005-05-11 14:44:10.198750592 +0800
+@@ -0,0 +1,59 @@
++#ifndef _DEBUGGER_H_
++#define _DEBUGGER_H_
++
++/*
++ * Copyright (C) 2003-2004 Amit S. Kale
++ *
++ * Definition switchout for debuggers
++ */
++
++/*
++ * KGDB
++ */
++#ifdef CONFIG_KGDB
++
++typedef int gdb_debug_hook(int exVector, int signo, int err_code,
++			   struct pt_regs *regs);
++extern gdb_debug_hook *linux_debug_hook;
++#define CHK_DEBUGGER(trapnr,signr,error_code,regs,after)			\
++    {									\
++	if (linux_debug_hook != (gdb_debug_hook *) NULL && !user_mode(regs)) \
++	{								\
++		(*linux_debug_hook)(trapnr, signr, error_code, regs) ;	\
++		after;							\
++	}								\
++    }
++
++void kgdb_nmihook(int cpu, void *regs);
++static inline void debugger_nmihook(int cpu, void *regs)
++{
++	kgdb_nmihook(cpu, regs);
++}
++
++extern int debugger_step;
++extern atomic_t debugger_active;
++
++/*
++ * No debugger in the kernel
++ */
++#else
++
++#define CHK_DEBUGGER(trapnr,signr,error_code,regs,after)	\
++{									\
++	if (0)								\
++		after;							\
++}
++
++static inline void debugger_nmihook(int cpu, void *regs)
++{
++	/* Do nothing */
++}
++
++#define debugger_step 0
++static const atomic_t debugger_active = { 0 };
++
++#define debugger_memerr_expected 0
++
++#endif
++
++#endif				/* _DEBUGGER_H_ */
+diff -urN linux-2.6.x.old/include/linux/kgdb.h linux-2.6.x/include/linux/kgdb.h
+--- linux-2.6.x.old/include/linux/kgdb.h	1970-01-01 08:00:00.000000000 +0800
++++ linux-2.6.x/include/linux/kgdb.h	2005-05-11 14:44:10.199750440 +0800
+@@ -0,0 +1,180 @@
++#ifndef _KGDB_H_
++#define _KGDB_H_
++
++/*
++ * Copyright (C) 2001-2004 Amit S. Kale
++ */
++
++#include <linux/ptrace.h>
++#include <asm/kgdb.h>
++#include <linux/spinlock.h>
++#include <asm/atomic.h>
++#include <linux/debugger.h>
++
++/*
++ * This file should not include ANY others.  This makes it usable
++ * most anywhere without the fear of include order or inclusion.
++ * TODO: Make it so!
++ *
++ * This file may be included all the time.  It is only active if
++ * CONFIG_KGDB is defined, otherwise it stubs out all the macros
++ * and entry points.
++ */
++
++#if defined(CONFIG_KGDB) && !defined(__ASSEMBLY__)
++/* To enter the debugger explicitly. */
++extern void breakpoint(void);
++extern void kgdb_schedule_breakpoint(void);
++extern void kgdb_process_breakpoint(void);
++extern volatile int kgdb_connected;
++
++extern atomic_t kgdb_setting_breakpoint;
++
++extern struct task_struct *kgdb_usethread, *kgdb_contthread;
++
++enum kgdb_bptype {
++	bp_breakpoint = '0',
++	bp_hardware_breakpoint,
++	bp_write_watchpoint,
++	bp_read_watchpoint,
++	bp_access_watchpoint
++};
++
++enum kgdb_bpstate {
++	bp_disabled,
++	bp_enabled
++};
++
++struct kgdb_bkpt {
++	unsigned long bpt_addr;
++	unsigned char saved_instr[BREAK_INSTR_SIZE];
++	enum kgdb_bptype type;
++	enum kgdb_bpstate state;
++};
++
++#ifndef BREAK_INSTR_SIZE
++#error BREAK_INSTR_SIZE  needed by kgdb
++#endif
++
++#ifndef MAX_BREAKPOINTS
++#define MAX_BREAKPOINTS        16
++#endif
++
++#define KGDB_HW_BREAKPOINT          1
++
++/* Required functions. */
++/**
++ *	regs_to_gdb_regs - Convert ptrace regs to GDB regs
++ *	@gdb_regs: A pointer to hold the registers in the order GDB wants.
++ *	@regs: The &struct pt_regs of the current process.
++ *
++ *	Convert the pt_regs in @regs into the format for registers that
++ *	GDB expects, stored in @gdb_regs.
++ */
++extern void regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs);
++
++/**
++ *	sleeping_regs_to_gdb_regs - Convert ptrace regs to GDB regs
++ *	@gdb_regs: A pointer to hold the registers in the order GDB wants.
++ *	@p: The &struct task_struct of the desired process.
++ *
++ *	Convert the register values of the sleeping process in @p to
++ *	the format that GDB expects.
++ *	This function is called when kgdb does not have access to the
++ *	&struct pt_regs and therefore it should fill the gdb registers
++ *	@gdb_regs with what has	been saved in &struct thread_struct
++ *	thread field during switch_to.
++ */
++extern void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs,
++					struct task_struct *p);
++
++/**
++ *	gdb_regs_to_regs - Convert GDB regs to ptrace regs.
++ *	@gdb_regs: A pointer to hold the registers we've recieved from GDB.
++ *	@regs: A pointer to a &struct pt_regs to hold these values in.
++ *
++ *	Convert the GDB regs in @gdb_regs into the pt_regs, and store them
++ *	in @regs.
++ */
++extern void gdb_regs_to_regs(unsigned long *gdb_regs, struct pt_regs *regs);
++
++/**
++ *	kgdb_arch_handle_exception - Handle architecture specific GDB packets.
++ *	@vector: The error vector of the exception that happened.
++ *	@signo: The signal number of the exception that happened.
++ *	@err_code: The error code of the exception that happened.
++ *	@InBuffer: The buffer of the packet we have read.
++ *	@outBuffer: The buffer, of %BUFMAX to write a packet into.
++ *	@regs: The &struct pt_regs of the current process.
++ *
++ *	This function MUST handle the 'c' and 's' command packets,
++ *	as well packets to set / remove a hardware breakpoint, if used.
++ *	If there are additional packets which the hardware needs to handle,
++ *	they are handled here.  The code should return -1 if it wants to
++ *	process more packets, and a %0 or %1 if it wants to exit from the
++ *	kgdb hook.
++ */
++extern int kgdb_arch_handle_exception(int vector, int signo, int err_code,
++				      char *InBuffer, char *outBuffer,
++				      struct pt_regs *regs);
++
++/* Optional functions. */
++extern int kgdb_arch_init(void);
++extern void kgdb_disable_hw_debug(struct pt_regs *regs);
++extern void kgdb_post_master_code(struct pt_regs *regs, int eVector,
++				  int err_code);
++extern int kgdb_set_hw_break(unsigned long addr);
++extern int kgdb_remove_hw_break(unsigned long addr);
++extern void kgdb_remove_all_hw_break(void);
++extern void kgdb_correct_hw_break(void);
++extern void kgdb_shadowinfo(struct pt_regs *regs, char *buffer,
++			    unsigned threadid);
++extern struct task_struct *kgdb_get_shadow_thread(struct pt_regs *regs,
++						  int threadid);
++extern struct pt_regs *kgdb_shadow_regs(struct pt_regs *regs, int threadid);
++
++/**
++ * struct kgdb_arch - Desribe architecture specific values.
++ * @gdb_bpt_instr: The instruction to trigger a breakpoint.
++ * @flags: Flags for the breakpoint, currently just %KGDB_HW_BREAKPOINT.
++ * @shadowth: A value of %1 indicates we shadow information on processes.
++ *
++ * The @shadowth flag is an option to shadow information not retrievable by
++ * gdb otherwise.  This is deprecated in favor of a binutils which supports
++ * CFI macros.
++ */
++struct kgdb_arch {
++	unsigned char gdb_bpt_instr[BREAK_INSTR_SIZE];
++	unsigned long flags;
++	unsigned shadowth;
++};
++
++/* Thread reference */
++typedef unsigned char threadref[8];
++
++/* Interface stuff. */
++struct kgdb_serial {
++	int (*read_char) (void);
++	void (*write_char) (int);
++	void (*flush) (void);
++	int (*hook) (void);
++};
++
++extern struct kgdb_serial *kgdb_serial;
++extern struct kgdb_arch arch_kgdb_ops;
++extern int kgdb_initialized;
++
++struct uart_port;
++
++extern void kgdb8250_add_port(int i, struct uart_port *serial_req);
++extern int init_kgdboe(void);
++
++int kgdb_hex2long(char **ptr, long *longValue);
++char *kgdb_mem2hex(char *mem, char *buf, int count);
++char *kgdb_hex2mem(char *buf, char *mem, int count);
++int kgdb_get_mem(char *addr, unsigned char *buf, int count);
++
++#else
++#define kgdb_process_breakpoint()      do {} while(0)
++#endif /* KGDB && !__ASSEMBLY__ */
++#endif				/* _KGDB_H_ */
+diff -urN linux-2.6.x.old/init/main.c linux-2.6.x/init/main.c
+--- linux-2.6.x.old/init/main.c	2005-05-11 14:43:41.171163456 +0800
++++ linux-2.6.x/init/main.c	2005-05-11 14:44:10.199750440 +0800
+@@ -435,6 +435,9 @@
+ 	done = 1;
+ }
+ 
++#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
++extern void init_kgdb_blackfin_shareduart(void);
++#endif
+ /*
+  *	Activate the first processor.
+  */
+@@ -488,6 +491,9 @@
+ 	 * this. But we do want output early, in case something goes wrong.
+ 	 */
+ 	console_init();
++#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
++	init_kgdb_blackfin_shareduart();
++#endif
+ 	if (panic_later)
+ 		panic(panic_later, panic_param);
+ 	profile_init();
 diff -urN linux-2.6.x.old/kernel/Kconfig.kgdb linux-2.6.x/kernel/Kconfig.kgdb
 --- linux-2.6.x.old/kernel/Kconfig.kgdb	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/kernel/Kconfig.kgdb	2005-01-20 13:42:24.000000000 +0800
++++ linux-2.6.x/kernel/Kconfig.kgdb	2005-05-11 14:44:10.177753784 +0800
 @@ -0,0 +1,53 @@
 +config KGDB
 +	bool "KGDB: kernel debugging with remote gdb"
@@ -56,8 +1701,8 @@ diff -urN linux-2.6.x.old/kernel/Kconfig.kgdb linux-2.6.x/kernel/Kconfig.kgdb
 +	depends on KGDB
 +	help
 diff -urN linux-2.6.x.old/kernel/Makefile linux-2.6.x/kernel/Makefile
---- linux-2.6.x.old/kernel/Makefile	2005-01-14 09:38:03.000000000 +0800
-+++ linux-2.6.x/kernel/Makefile	2005-01-21 11:07:55.595885408 +0800
+--- linux-2.6.x.old/kernel/Makefile	2005-05-11 14:43:41.277147344 +0800
++++ linux-2.6.x/kernel/Makefile	2005-05-11 14:44:10.194751200 +0800
 @@ -23,6 +23,7 @@
  obj-$(CONFIG_STOP_MACHINE) += stop_machine.o
  obj-$(CONFIG_AUDIT) += audit.o
@@ -68,7 +1713,7 @@ diff -urN linux-2.6.x.old/kernel/Makefile linux-2.6.x/kernel/Makefile
  # According to Alan Modra <alan@linuxcare.com.au>, the -fno-omit-frame-pointer is
 diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 --- linux-2.6.x.old/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/kernel/kgdb.c	2005-01-18 15:05:05.000000000 +0800
++++ linux-2.6.x/kernel/kgdb.c	2005-05-11 14:44:10.196750896 +0800
 @@ -0,0 +1,1364 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
@@ -1435,8 +3080,8 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +__setup("gdb", opt_gdb);
 +__setup("kgdbwait", opt_kgdb_enter);
 diff -urN linux-2.6.x.old/kernel/sched.c linux-2.6.x/kernel/sched.c
---- linux-2.6.x.old/kernel/sched.c	2005-01-14 09:38:03.000000000 +0800
-+++ linux-2.6.x/kernel/sched.c	2005-01-14 09:38:53.000000000 +0800
+--- linux-2.6.x.old/kernel/sched.c	2005-05-11 14:43:42.715928616 +0800
++++ linux-2.6.x/kernel/sched.c	2005-05-11 14:44:10.198750592 +0800
 @@ -40,6 +40,7 @@
  #include <linux/cpu.h>
  #include <linux/percpu.h>
@@ -1458,279 +3103,9 @@ diff -urN linux-2.6.x.old/kernel/sched.c linux-2.6.x/kernel/sched.c
  	if ((in_atomic() || irqs_disabled()) &&
  	    system_state == SYSTEM_RUNNING) {
  		if (time_before(jiffies, prev_jiffy + HZ) && prev_jiffy)
-diff -urN linux-2.6.x.old/include/linux/debugger.h linux-2.6.x/include/linux/debugger.h
---- linux-2.6.x.old/include/linux/debugger.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/linux/debugger.h	2005-01-14 09:38:53.000000000 +0800
-@@ -0,0 +1,59 @@
-+#ifndef _DEBUGGER_H_
-+#define _DEBUGGER_H_
-+
-+/*
-+ * Copyright (C) 2003-2004 Amit S. Kale
-+ *
-+ * Definition switchout for debuggers
-+ */
-+
-+/*
-+ * KGDB
-+ */
-+#ifdef CONFIG_KGDB
-+
-+typedef int gdb_debug_hook(int exVector, int signo, int err_code,
-+			   struct pt_regs *regs);
-+extern gdb_debug_hook *linux_debug_hook;
-+#define CHK_DEBUGGER(trapnr,signr,error_code,regs,after)			\
-+    {									\
-+	if (linux_debug_hook != (gdb_debug_hook *) NULL && !user_mode(regs)) \
-+	{								\
-+		(*linux_debug_hook)(trapnr, signr, error_code, regs) ;	\
-+		after;							\
-+	}								\
-+    }
-+
-+void kgdb_nmihook(int cpu, void *regs);
-+static inline void debugger_nmihook(int cpu, void *regs)
-+{
-+	kgdb_nmihook(cpu, regs);
-+}
-+
-+extern int debugger_step;
-+extern atomic_t debugger_active;
-+
-+/*
-+ * No debugger in the kernel
-+ */
-+#else
-+
-+#define CHK_DEBUGGER(trapnr,signr,error_code,regs,after)	\
-+{									\
-+	if (0)								\
-+		after;							\
-+}
-+
-+static inline void debugger_nmihook(int cpu, void *regs)
-+{
-+	/* Do nothing */
-+}
-+
-+#define debugger_step 0
-+static const atomic_t debugger_active = { 0 };
-+
-+#define debugger_memerr_expected 0
-+
-+#endif
-+
-+#endif				/* _DEBUGGER_H_ */
-diff -urN linux-2.6.x.old/include/linux/kgdb.h linux-2.6.x/include/linux/kgdb.h
---- linux-2.6.x.old/include/linux/kgdb.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/linux/kgdb.h	2005-01-14 09:38:53.000000000 +0800
-@@ -0,0 +1,180 @@
-+#ifndef _KGDB_H_
-+#define _KGDB_H_
-+
-+/*
-+ * Copyright (C) 2001-2004 Amit S. Kale
-+ */
-+
-+#include <linux/ptrace.h>
-+#include <asm/kgdb.h>
-+#include <linux/spinlock.h>
-+#include <asm/atomic.h>
-+#include <linux/debugger.h>
-+
-+/*
-+ * This file should not include ANY others.  This makes it usable
-+ * most anywhere without the fear of include order or inclusion.
-+ * TODO: Make it so!
-+ *
-+ * This file may be included all the time.  It is only active if
-+ * CONFIG_KGDB is defined, otherwise it stubs out all the macros
-+ * and entry points.
-+ */
-+
-+#if defined(CONFIG_KGDB) && !defined(__ASSEMBLY__)
-+/* To enter the debugger explicitly. */
-+extern void breakpoint(void);
-+extern void kgdb_schedule_breakpoint(void);
-+extern void kgdb_process_breakpoint(void);
-+extern volatile int kgdb_connected;
-+
-+extern atomic_t kgdb_setting_breakpoint;
-+
-+extern struct task_struct *kgdb_usethread, *kgdb_contthread;
-+
-+enum kgdb_bptype {
-+	bp_breakpoint = '0',
-+	bp_hardware_breakpoint,
-+	bp_write_watchpoint,
-+	bp_read_watchpoint,
-+	bp_access_watchpoint
-+};
-+
-+enum kgdb_bpstate {
-+	bp_disabled,
-+	bp_enabled
-+};
-+
-+struct kgdb_bkpt {
-+	unsigned long bpt_addr;
-+	unsigned char saved_instr[BREAK_INSTR_SIZE];
-+	enum kgdb_bptype type;
-+	enum kgdb_bpstate state;
-+};
-+
-+#ifndef BREAK_INSTR_SIZE
-+#error BREAK_INSTR_SIZE  needed by kgdb
-+#endif
-+
-+#ifndef MAX_BREAKPOINTS
-+#define MAX_BREAKPOINTS        16
-+#endif
-+
-+#define KGDB_HW_BREAKPOINT          1
-+
-+/* Required functions. */
-+/**
-+ *	regs_to_gdb_regs - Convert ptrace regs to GDB regs
-+ *	@gdb_regs: A pointer to hold the registers in the order GDB wants.
-+ *	@regs: The &struct pt_regs of the current process.
-+ *
-+ *	Convert the pt_regs in @regs into the format for registers that
-+ *	GDB expects, stored in @gdb_regs.
-+ */
-+extern void regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs);
-+
-+/**
-+ *	sleeping_regs_to_gdb_regs - Convert ptrace regs to GDB regs
-+ *	@gdb_regs: A pointer to hold the registers in the order GDB wants.
-+ *	@p: The &struct task_struct of the desired process.
-+ *
-+ *	Convert the register values of the sleeping process in @p to
-+ *	the format that GDB expects.
-+ *	This function is called when kgdb does not have access to the
-+ *	&struct pt_regs and therefore it should fill the gdb registers
-+ *	@gdb_regs with what has	been saved in &struct thread_struct
-+ *	thread field during switch_to.
-+ */
-+extern void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs,
-+					struct task_struct *p);
-+
-+/**
-+ *	gdb_regs_to_regs - Convert GDB regs to ptrace regs.
-+ *	@gdb_regs: A pointer to hold the registers we've recieved from GDB.
-+ *	@regs: A pointer to a &struct pt_regs to hold these values in.
-+ *
-+ *	Convert the GDB regs in @gdb_regs into the pt_regs, and store them
-+ *	in @regs.
-+ */
-+extern void gdb_regs_to_regs(unsigned long *gdb_regs, struct pt_regs *regs);
-+
-+/**
-+ *	kgdb_arch_handle_exception - Handle architecture specific GDB packets.
-+ *	@vector: The error vector of the exception that happened.
-+ *	@signo: The signal number of the exception that happened.
-+ *	@err_code: The error code of the exception that happened.
-+ *	@InBuffer: The buffer of the packet we have read.
-+ *	@outBuffer: The buffer, of %BUFMAX to write a packet into.
-+ *	@regs: The &struct pt_regs of the current process.
-+ *
-+ *	This function MUST handle the 'c' and 's' command packets,
-+ *	as well packets to set / remove a hardware breakpoint, if used.
-+ *	If there are additional packets which the hardware needs to handle,
-+ *	they are handled here.  The code should return -1 if it wants to
-+ *	process more packets, and a %0 or %1 if it wants to exit from the
-+ *	kgdb hook.
-+ */
-+extern int kgdb_arch_handle_exception(int vector, int signo, int err_code,
-+				      char *InBuffer, char *outBuffer,
-+				      struct pt_regs *regs);
-+
-+/* Optional functions. */
-+extern int kgdb_arch_init(void);
-+extern void kgdb_disable_hw_debug(struct pt_regs *regs);
-+extern void kgdb_post_master_code(struct pt_regs *regs, int eVector,
-+				  int err_code);
-+extern int kgdb_set_hw_break(unsigned long addr);
-+extern int kgdb_remove_hw_break(unsigned long addr);
-+extern void kgdb_remove_all_hw_break(void);
-+extern void kgdb_correct_hw_break(void);
-+extern void kgdb_shadowinfo(struct pt_regs *regs, char *buffer,
-+			    unsigned threadid);
-+extern struct task_struct *kgdb_get_shadow_thread(struct pt_regs *regs,
-+						  int threadid);
-+extern struct pt_regs *kgdb_shadow_regs(struct pt_regs *regs, int threadid);
-+
-+/**
-+ * struct kgdb_arch - Desribe architecture specific values.
-+ * @gdb_bpt_instr: The instruction to trigger a breakpoint.
-+ * @flags: Flags for the breakpoint, currently just %KGDB_HW_BREAKPOINT.
-+ * @shadowth: A value of %1 indicates we shadow information on processes.
-+ *
-+ * The @shadowth flag is an option to shadow information not retrievable by
-+ * gdb otherwise.  This is deprecated in favor of a binutils which supports
-+ * CFI macros.
-+ */
-+struct kgdb_arch {
-+	unsigned char gdb_bpt_instr[BREAK_INSTR_SIZE];
-+	unsigned long flags;
-+	unsigned shadowth;
-+};
-+
-+/* Thread reference */
-+typedef unsigned char threadref[8];
-+
-+/* Interface stuff. */
-+struct kgdb_serial {
-+	int (*read_char) (void);
-+	void (*write_char) (int);
-+	void (*flush) (void);
-+	int (*hook) (void);
-+};
-+
-+extern struct kgdb_serial *kgdb_serial;
-+extern struct kgdb_arch arch_kgdb_ops;
-+extern int kgdb_initialized;
-+
-+struct uart_port;
-+
-+extern void kgdb8250_add_port(int i, struct uart_port *serial_req);
-+extern int init_kgdboe(void);
-+
-+int kgdb_hex2long(char **ptr, long *longValue);
-+char *kgdb_mem2hex(char *mem, char *buf, int count);
-+char *kgdb_hex2mem(char *buf, char *mem, int count);
-+int kgdb_get_mem(char *addr, unsigned char *buf, int count);
-+
-+#else
-+#define kgdb_process_breakpoint()      do {} while(0)
-+#endif /* KGDB && !__ASSEMBLY__ */
-+#endif				/* _KGDB_H_ */
-diff -urN linux-2.6.x.old/init/main.c linux-2.6.x/init/main.c
---- linux-2.6.x.old/init/main.c	2005-01-14 09:38:03.000000000 +0800
-+++ linux-2.6.x/init/main.c	2005-01-14 09:38:53.000000000 +0800
-@@ -435,6 +435,9 @@
- 	done = 1;
- }
- 
-+#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
-+extern void init_kgdb_blackfin_shareduart(void);
-+#endif
- /*
-  *	Activate the first processor.
-  */
-@@ -488,6 +491,9 @@
- 	 * this. But we do want output early, in case something goes wrong.
- 	 */
- 	console_init();
-+#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
-+	init_kgdb_blackfin_shareduart();
-+#endif
- 	if (panic_later)
- 		panic(panic_later, panic_param);
- 	profile_init();
 diff -urN linux-2.6.x.old/net/core/netpoll.c linux-2.6.x/net/core/netpoll.c
---- linux-2.6.x.old/net/core/netpoll.c	2005-01-14 09:38:03.000000000 +0800
-+++ linux-2.6.x/net/core/netpoll.c	2005-01-14 11:16:32.000000000 +0800
+--- linux-2.6.x.old/net/core/netpoll.c	2005-05-11 14:43:43.574798048 +0800
++++ linux-2.6.x/net/core/netpoll.c	2005-05-11 14:44:10.200750288 +0800
 @@ -186,6 +186,10 @@
  	struct udphdr *udph;
  	struct iphdr *iph;
@@ -1772,1361 +3147,3 @@ diff -urN linux-2.6.x.old/net/core/netpoll.c linux-2.6.x/net/core/netpoll.c
  	iph->check    = ip_fast_csum((unsigned char *)iph, iph->ihl);
  
  	eth = (struct ethhdr *) skb_push(skb, ETH_HLEN);
-diff -urN linux-2.6.x.old/arch/bfinnommu/Kconfig linux-2.6.x/arch/bfinnommu/Kconfig
---- linux-2.6.x.old/arch/bfinnommu/Kconfig	2005-04-11 13:32:32.943927296 +0800
-+++ linux-2.6.x/arch/bfinnommu/Kconfig	2005-04-11 14:19:53.553089064 +0800
-@@ -525,6 +525,8 @@
- 	  allocation as well as poisoning memory on free to catch use of freed
- 	  memory.
- 
-+source "kernel/Kconfig.kgdb"
-+
- config FRAME_POINTER
- 	bool "Compile the kernel with frame pointers"
- 	help
-diff -urN linux-2.6.x.old/arch/bfinnommu/Makefile linux-2.6.x/arch/bfinnommu/Makefile
---- linux-2.6.x.old/arch/bfinnommu/Makefile	2005-04-11 13:32:32.943927296 +0800
-+++ linux-2.6.x/arch/bfinnommu/Makefile	2005-04-11 14:19:53.553089064 +0800
-@@ -17,7 +17,7 @@
- BFIN_TARGET 	= vmlinux
- 
- ifeq ($(CONFIG_FRAME_POINTER),y)
--CFLAGS		+=-fno-omit-frame-pointer -mapcs -mno-sched-prolog
-+CFLAGS		+=-fno-omit-frame-pointer 
- endif
- 
- comma = ,
-diff -urN linux-2.6.x.old/arch/bfinnommu/kernel/Makefile linux-2.6.x/arch/bfinnommu/kernel/Makefile
---- linux-2.6.x.old/arch/bfinnommu/kernel/Makefile	2005-04-11 13:32:32.944927144 +0800
-+++ linux-2.6.x/arch/bfinnommu/kernel/Makefile	2005-04-11 14:21:47.390783104 +0800
-@@ -9,4 +9,6 @@
- obj-$(CONFIG_MODULES)		+= module.o
- obj-$(CONFIG_BLKFIN_DMA)	+= dma.o
- obj-$(CONFIG_BLKFIN_SIMPLE_DMA)	+= simple_dma.o
--obj-$(CONFIG_CPLB_INFO)		+= cplbinfo.o
-\ No newline at end of file
-+obj-$(CONFIG_CPLB_INFO)		+= cplbinfo.o
-+obj-$(CONFIG_KGDB)		+= kgdb.o
-+obj-$(CONFIG_KGDB_TEST)		+= kgdb_test.o
-diff -urN linux-2.6.x.old/arch/bfinnommu/kernel/kgdb.c linux-2.6.x/arch/bfinnommu/kernel/kgdb.c
---- linux-2.6.x.old/arch/bfinnommu/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/arch/bfinnommu/kernel/kgdb.c	2005-04-11 14:19:53.554088912 +0800
-@@ -0,0 +1,435 @@
-+/*
-+ *
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms of the GNU General Public License as published by the
-+ * Free Software Foundation; either version 2, or (at your option) any
-+ * later version.
-+ *
-+ * This program is distributed in the hope that it will be useful, but
-+ * WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * General Public License for more details.
-+ *
-+ */
-+
-+#include <linux/string.h>
-+#include <linux/kernel.h>
-+#include <linux/sched.h>
-+#include <linux/smp.h>
-+#include <linux/spinlock.h>
-+#include <linux/delay.h>
-+#include <asm/system.h>
-+#include <asm/ptrace.h>		/* for linux pt_regs struct */
-+#include <linux/kgdb.h>
-+#ifdef CONFIG_GDB_CONSOLE
-+#include <linux/console.h>
-+#endif
-+#include <linux/init.h>
-+#include <linux/debugger.h>
-+#include <linux/errno.h>
-+#include <asm/irq.h>
-+#include <asm/traps.h>
-+#include <asm/blackfin.h>
-+
-+/* Put the error code here just in case the user cares.  */
-+int gdb_bf533errcode;
-+/* Likewise, the vector number here (since GDB only gets the signal
-+   number through the usual means, and that's not very specific).  */
-+int gdb_bf533vector = -1;
-+
-+#if KGDB_MAX_NO_CPUS != 8
-+#error change the definition of slavecpulocks
-+#endif
-+
-+void regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
-+{
-+	gdb_regs[BFIN_SYSCFG] = regs->syscfg;
-+	gdb_regs[BFIN_R0] = regs->r0;
-+	gdb_regs[BFIN_R1] = regs->r1;
-+	gdb_regs[BFIN_R2] = regs->r2;
-+	gdb_regs[BFIN_R3] = regs->r3;
-+	gdb_regs[BFIN_R4] = regs->r4;
-+	gdb_regs[BFIN_R5] = regs->r5;
-+	gdb_regs[BFIN_R6] = regs->r6;
-+	gdb_regs[BFIN_R7] = regs->r7;
-+	gdb_regs[BFIN_P0] = regs->p0;
-+	gdb_regs[BFIN_P1] = regs->p1;
-+	gdb_regs[BFIN_P2] = regs->p2;
-+	gdb_regs[BFIN_P3] = regs->p3;
-+	gdb_regs[BFIN_P4] = regs->p4;
-+	gdb_regs[BFIN_P5] = regs->p5;
-+	gdb_regs[BFIN_FP] = regs->fp;
-+	if(regs->ipend>1)
-+		gdb_regs[BFIN_SP] = regs->reserved;
-+	else
-+		gdb_regs[BFIN_SP] = regs->usp;
-+	gdb_regs[BFIN_I0] = regs->i0;
-+	gdb_regs[BFIN_I1] = regs->i1;
-+	gdb_regs[BFIN_I2] = regs->i2;
-+	gdb_regs[BFIN_I3] = regs->i3;
-+	gdb_regs[BFIN_M0] = regs->m0;
-+	gdb_regs[BFIN_M1] = regs->m1;
-+	gdb_regs[BFIN_M2] = regs->m2;
-+	gdb_regs[BFIN_M3] = regs->m3;
-+	gdb_regs[BFIN_L0] = regs->l0;
-+	gdb_regs[BFIN_L1] = regs->l1;
-+	gdb_regs[BFIN_L2] = regs->l2;
-+	gdb_regs[BFIN_L3] = regs->l3;
-+	gdb_regs[BFIN_B0] = regs->b0;
-+	gdb_regs[BFIN_B1] = regs->b1;
-+	gdb_regs[BFIN_B2] = regs->b2;
-+	gdb_regs[BFIN_B3] = regs->b3;
-+	gdb_regs[BFIN_A0_DOT_X] = regs->a0x;
-+	gdb_regs[BFIN_AO_DOT_W] = regs->a0w;
-+	gdb_regs[BFIN_A1_DOT_X] = regs->a1x;
-+	gdb_regs[BFIN_A1_DOT_W] = regs->a1w;
-+	gdb_regs[BFIN_LC0] = regs->lc0;
-+	gdb_regs[BFIN_LC1] = regs->lc1;
-+	gdb_regs[BFIN_LT0] = regs->lt0;
-+	gdb_regs[BFIN_LT1] = regs->lt1;
-+	gdb_regs[BFIN_LB0] = regs->lb0;
-+	gdb_regs[BFIN_LB1] = regs->lb1;
-+	gdb_regs[BFIN_ASTAT] = regs->astat;
-+	gdb_regs[BFIN_RETS] = regs->rets;
-+	gdb_regs[BFIN_PC] = regs->pc;
-+	gdb_regs[BFIN_RETX] = regs->retx;
-+	gdb_regs[BFIN_RETN] = regs->retn;
-+	gdb_regs[BFIN_RETE] = regs->rete;
-+	gdb_regs[BFIN_SEQSTAT] = regs->seqstat;
-+	gdb_regs[BFIN_IPEND] = regs->ipend;
-+	gdb_regs[BFIN_ORIGPC] = regs->orig_pc;
-+	gdb_regs[BFIN_EXTRA1] = 0;
-+	gdb_regs[BFIN_EXTRA2] = 0;
-+	gdb_regs[BFIN_EXTRA3] = 0;
-+}
-+
-+/*
-+ * Extracts ebp, esp and eip values understandable by gdb from the values
-+ * saved by switch_to.
-+ * thread.esp points to ebp. flags and ebp are pushed in switch_to hence esp
-+ * prior to entering switch_to is 8 greater then the value that is saved.
-+ * If switch_to changes, change following code appropriately.
-+ */
-+void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
-+{
-+	gdb_regs[BFIN_SP] = p->thread.ksp;
-+	gdb_regs[BFIN_PC] = p->thread.pc;
-+	gdb_regs[BFIN_SEQSTAT] = p->thread.seqstat;
-+
-+}
-+
-+void gdb_regs_to_regs(unsigned long *gdb_regs, struct pt_regs *regs)
-+{
-+	regs->syscfg = gdb_regs[BFIN_SYSCFG];
-+	regs->r0 = gdb_regs[BFIN_R0];
-+	regs->r1 = gdb_regs[BFIN_R1];
-+	regs->r2 = gdb_regs[BFIN_R2];
-+	regs->r3 = gdb_regs[BFIN_R3];
-+	regs->r4 = gdb_regs[BFIN_R4];
-+	regs->r5 = gdb_regs[BFIN_R5];
-+	regs->r6 = gdb_regs[BFIN_R6];
-+	regs->r7 = gdb_regs[BFIN_R7];
-+	regs->p0 = gdb_regs[BFIN_P0];
-+	regs->p1 = gdb_regs[BFIN_P1];
-+	regs->p2 = gdb_regs[BFIN_P2];
-+	regs->p3 = gdb_regs[BFIN_P3];
-+	regs->p4 = gdb_regs[BFIN_P4];
-+	regs->p5 = gdb_regs[BFIN_P5];
-+	regs->fp = gdb_regs[BFIN_FP];
-+	regs->i0 = gdb_regs[BFIN_I0];
-+	regs->i1 = gdb_regs[BFIN_I1];
-+	regs->i2 = gdb_regs[BFIN_I2];
-+	regs->i3 = gdb_regs[BFIN_I3];
-+	regs->m0 = gdb_regs[BFIN_M0];
-+	regs->m1 = gdb_regs[BFIN_M1];
-+	regs->m2 = gdb_regs[BFIN_M2];
-+	regs->m3 = gdb_regs[BFIN_M3];
-+	regs->l0 = gdb_regs[BFIN_L0];
-+	regs->l1 = gdb_regs[BFIN_L1];
-+	regs->l2 = gdb_regs[BFIN_L2];
-+	regs->l3 = gdb_regs[BFIN_L3];
-+	regs->b0 = gdb_regs[BFIN_B0];
-+	regs->b1 = gdb_regs[BFIN_B1];
-+	regs->b2 = gdb_regs[BFIN_B2];
-+	regs->b3 = gdb_regs[BFIN_B3];
-+	regs->a0x = gdb_regs[BFIN_A0_DOT_X];
-+	regs->a0w = gdb_regs[BFIN_AO_DOT_W];
-+	regs->a1x = gdb_regs[BFIN_A1_DOT_X];
-+	regs->a1w = gdb_regs[BFIN_A1_DOT_W];
-+	regs->lc0 = gdb_regs[BFIN_LC0];
-+	regs->lc1 = gdb_regs[BFIN_LC1];
-+	regs->lt0 = gdb_regs[BFIN_LT0];
-+	regs->lt1 = gdb_regs[BFIN_LT1];
-+	regs->lb0 = gdb_regs[BFIN_LB0];
-+	regs->lb1 = gdb_regs[BFIN_LB1];
-+	regs->rets = gdb_regs[BFIN_RETS];
-+	regs->pc = gdb_regs[BFIN_PC];
-+	regs->retx = gdb_regs[BFIN_RETX];
-+	regs->retn = gdb_regs[BFIN_RETN];
-+	regs->rete = gdb_regs[BFIN_RETE];
-+	
-+#if 0				/* can't change these */
-+	regs->usp = gdb_regs[BFIN_SP];
-+	regs->astat = gdb_regs[BFIN_ASTAT];
-+	regs->seqstat = gdb_regs[BFIN_SEQSTAT];
-+	regs->ipend = gdb_regs[BFIN_IPEND];
-+	regs->orig_pc = gdb_regs[BFIN_ORIGPC];
-+#endif
-+}
-+
-+struct hw_breakpoint {
-+	unsigned int occupied:1;
-+	unsigned int skip:1;
-+	unsigned int enabled:1;
-+	unsigned int type:1;
-+	unsigned int dataacc:2;
-+	unsigned short count;
-+	unsigned int addr;
-+} breakinfo[HW_BREAKPOINT_NUM];
-+
-+int kgdb_arch_init(void)
-+{
-+	kgdb_remove_all_hw_break();
-+	return 0;
-+}
-+
-+int kgdb_set_hw_break(unsigned long addr)
-+{
-+	int breakno;
-+	for(breakno=0;breakno<HW_BREAKPOINT_NUM;breakno++)
-+		if(!breakinfo[breakno].occupied) {
-+			breakinfo[breakno].occupied = 1;
-+			breakinfo[breakno].enabled = 1;
-+			breakinfo[breakno].type = 1;
-+			breakinfo[breakno].addr = addr;
-+			return 0;
-+		}
-+
-+	return -ENOSPC;
-+}
-+
-+int kgdb_remove_hw_break(unsigned long addr)
-+{
-+	int breakno;
-+	for(breakno=0;breakno<HW_BREAKPOINT_NUM;breakno++)
-+		if(breakinfo[breakno].addr == addr)
-+			memset(&(breakinfo[breakno]), 0, sizeof(struct hw_breakpoint));
-+
-+	return 0;
-+}
-+
-+void kgdb_remove_all_hw_break(void)
-+{
-+	memset(breakinfo, 0, sizeof(struct hw_breakpoint)*8);
-+}
-+/*
-+void kgdb_show_info(void)
-+{
-+	int a0, ac0, actl, stat;
-+	__asm__ volatile ("%0 = [%1];" :"=&d"(a0): "a"(WPIA0));
-+	__asm__ volatile ("%0 = [%1];" :"=&d"(ac0): "a"(WPIACNT0));
-+	__asm__ volatile ("%0 = [%1];" :"=&d"(actl): "a"(WPIACTL));
-+	__asm__ volatile ("%0 = [%1];" :"=&d"(stat): "a"(WPSTAT));
-+	printk("hwd: wpia0=0x%x, wpiacnt0=%d, wpiactl=0x%x, wpstat=0x%x\n", a0, ac0, actl, stat);
-+}
-+*/
-+void kgdb_correct_hw_break(void)
-+{
-+	int breakno;
-+	int correctit;
-+	unsigned int wpdactl;
-+
-+	__asm__ volatile ("%0 = [%1];":"=&d"(wpdactl):"p"(WPDACTL));
-+
-+	correctit = 0;
-+	for (breakno = 0; breakno < HW_BREAKPOINT_NUM; breakno++) {
-+		if(breakinfo[breakno].type == 1) {
-+			switch (breakno) {
-+			case 0:
-+				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN0)) {
-+					correctit = 1;
-+					wpdactl &= ~(WPIREN01|EMUSW0);
-+					wpdactl |= WPIAEN0|WPICNTEN0;
-+					__asm__ volatile (
-+						"[%0] = %1;"
-+						"[%2] = %3;"
-+						::"p"(WPIA0), "d"(breakinfo[breakno].addr),
-+						"p"(WPIACNT0), "d"(breakinfo[breakno].skip));
-+				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN0)) {
-+					correctit = 1;
-+					wpdactl &= ~WPIAEN0;
-+				}
-+				break;
-+
-+			case 1:
-+				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN1)) {
-+					correctit = 1;
-+					wpdactl &= ~(WPIREN01|EMUSW1);
-+					wpdactl |= WPIAEN1|WPICNTEN1;
-+					__asm__ volatile (
-+						"[%0] = %1;"
-+						"[%2] = %3;"
-+						::"p"(WPIA1), "d"(breakinfo[breakno].addr),
-+						"p"(WPIACNT1), "d"(breakinfo[breakno].skip));
-+				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN1)) {
-+					correctit = 1;
-+					wpdactl &= ~WPIAEN1;
-+				}
-+				break;
-+
-+			case 2:
-+				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN2)) {
-+					correctit = 1;
-+					wpdactl &= ~(WPIREN23|EMUSW2);
-+					wpdactl |= WPIAEN2|WPICNTEN2;
-+					__asm__ volatile (
-+						"[%0] = %1;"
-+						"[%2] = %3;"
-+						::"p"(WPIA2), "d"(breakinfo[breakno].addr),
-+						"p"(WPIACNT2), "d"(breakinfo[breakno].skip));
-+				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN2)) {
-+					correctit = 1;
-+					wpdactl &= ~WPIAEN2;
-+				}
-+				break;
-+
-+			case 3:
-+				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN3)) {
-+					correctit = 1;
-+					wpdactl &= ~(WPIREN23|EMUSW3);
-+					wpdactl |= WPIAEN3|WPICNTEN3;
-+					__asm__ volatile (
-+						"[%0] = %1;"
-+						"[%2] = %3;"
-+						::"p"(WPIA3), "d"(breakinfo[breakno].addr),
-+						"p"(WPIACNT3), "d"(breakinfo[breakno].skip));
-+				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN3)) {
-+					correctit = 1;
-+					wpdactl &= ~WPIAEN3;
-+				}
-+				break;
-+			case 4:
-+				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN4)) {
-+					correctit = 1;
-+					wpdactl &= ~(WPIREN45|EMUSW4);
-+					wpdactl |= WPIAEN4|WPICNTEN4;
-+					__asm__ volatile (
-+						"[%0] = %1;"
-+						"[%2] = %3;"
-+						::"p"(WPIA4), "d"(breakinfo[breakno].addr),
-+						"p"(WPIACNT4), "d"(breakinfo[breakno].skip));
-+				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN4)) {
-+					correctit = 1;
-+					wpdactl &= ~WPIAEN4;
-+				}
-+				break;
-+			case 5:
-+				if(breakinfo[breakno].enabled && !(wpdactl&WPIAEN5)) {
-+					correctit = 1;
-+					wpdactl &= ~(WPIREN45|EMUSW5);
-+					wpdactl |= WPIAEN5|WPICNTEN5;
-+					__asm__ volatile (
-+						"[%0] = %1;"
-+						"[%2] = %3;"
-+						::"p"(WPIA5), "d"(breakinfo[breakno].addr),
-+						"p"(WPIACNT5), "d"(breakinfo[breakno].skip));
-+				} else if (!breakinfo[breakno].enabled && (wpdactl&WPIAEN5)) {
-+					correctit = 1;
-+					wpdactl &= ~WPIAEN5;
-+				}
-+				break;
-+			}
-+		}
-+	}
-+	if (correctit) {
-+		wpdactl &= ~WPAND;
-+		wpdactl |= WPPWR;
-+/*printk("correct_hw_break: wpdactl=0x%x\n", wpdactl);*/
-+		__asm__ volatile (
-+			"[%0] = %1;"
-+			"csync;"
-+			::"a"(WPIACTL), "d"(wpdactl));
-+/*		kgdb_show_info();*/
-+	}
-+}
-+
-+void kgdb_disable_hw_debug(struct pt_regs *regs)
-+{
-+	/* Disable hardware debugging while we are in kgdb */
-+	__asm__ volatile (
-+		"r0 = [%0];"
-+		"bitclr (r0, 0);"
-+		"[%0] = r0;"
-+		"csync;"
-+		: : "a"(WPIACTL) : "R0");
-+}
-+
-+void kgdb_post_master_code(struct pt_regs *regs, int eVector, int err_code)
-+{
-+	/* Master processor is completely in the debugger */
-+	gdb_bf533vector = eVector;
-+	gdb_bf533errcode = err_code;
-+}
-+
-+int kgdb_arch_handle_exception(int exceptionVector, int signo,
-+			       int err_code, char *remcom_in_buffer,
-+			       char *remcom_out_buffer,
-+			       struct pt_regs *linux_regs)
-+{
-+	long addr;
-+	long breakno;
-+	char *ptr;
-+	int newPC;
-+	int wp_status;
-+
-+	switch (remcom_in_buffer[0]) {
-+	case 'c':
-+	case 's':
-+		if (kgdb_contthread && kgdb_contthread != current) {
-+			strcpy(remcom_out_buffer, "E00");
-+			break;
-+		}
-+
-+		kgdb_contthread = NULL;
-+
-+		/* try to read optional parameter, pc unchanged if no parm */
-+		ptr = &remcom_in_buffer[1];
-+		if (kgdb_hex2long(&ptr, &addr)) {
-+			linux_regs->pc = addr;
-+		}
-+		newPC = linux_regs->pc;
-+
-+		/* clear the trace bit */
-+		linux_regs->syscfg &= 0xfffffffe;
-+
-+		/* set the trace bit if we're stepping */
-+		if (remcom_in_buffer[0] == 's') {
-+			linux_regs->syscfg |= 0x1;
-+			debugger_step = 1;
-+		}
-+
-+		__asm__ volatile (
-+			"%0 = [%1];"
-+			"csync;"
-+			: "=r" (wp_status) : "a"(WPSTAT));
-+
-+ 		if (exceptionVector == VEC_WATCH) {
-+			for (breakno = 0; breakno < 6; ++breakno) {
-+				if (wp_status & (1 << breakno)) {
-+					breakinfo->skip = 1;
-+					break;
-+				}
-+			}
-+		}
-+		kgdb_correct_hw_break();
-+		__asm__ volatile ("[%0] = %1;" : :"a"(WPSTAT), "d"(0));
-+
-+		return (0);
-+	}			/* switch */
-+	return -1;		/* this means that we do not want to exit from the handler */
-+}
-+
-+struct kgdb_arch arch_kgdb_ops = {
-+	.gdb_bpt_instr = {0xa1},
-+	.flags = KGDB_HW_BREAKPOINT,
-+};
-diff -urN linux-2.6.x.old/arch/bfinnommu/kernel/kgdb_test.c linux-2.6.x/arch/bfinnommu/kernel/kgdb_test.c
---- linux-2.6.x.old/arch/bfinnommu/kernel/kgdb_test.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/arch/bfinnommu/kernel/kgdb_test.c	2005-04-11 14:19:53.555088760 +0800
-@@ -0,0 +1,84 @@
-+
-+
-+#include <linux/config.h>
-+#include <linux/module.h>
-+#include <linux/kernel.h>
-+#include <linux/init.h>
-+#include <linux/proc_fs.h>
-+
-+#include <asm/current.h>
-+#include <asm/uaccess.h>
-+#include <asm/system.h>
-+
-+#include <asm/blackfin.h>
-+
-+
-+static char cmdline[256];
-+static unsigned long len;
-+
-+int kgdb_test(char *name, int len, int count,int z)
-+{
-+	printk("kgdb name(%d): %s, %d, %d\n",len, name, count, z); 
-+	count = z;
-+	return count;
-+}
-+
-+static int test_proc_output (char *buf)
-+{
-+	kgdb_test("hello world!", 12, 0x55, 0x10);
-+	return 0;
-+}
-+
-+static int test_read_proc(char *page, char **start, off_t off,
-+                         int count, int *eof, void *data)
-+{
-+	int len;
-+        
-+	len = test_proc_output (page);
-+        if (len <= off+count) *eof = 1;
-+        *start = page + off;
-+        len -= off;
-+        if (len>count) len = count;
-+        if (len<0) len = 0;
-+        return len;
-+}
-+
-+static int test_write_proc(struct file *file, const char *buffer,
-+			   unsigned long count, void *data)
-+{
-+	if(count>=256)
-+		len = 255;
-+	else
-+		len = count;
-+	
-+	memcpy(cmdline, buffer, count);
-+	cmdline[len] = 0;
-+		
-+        return len;
-+}
-+
-+
-+static int __init cplbtest_init(void)
-+{
-+	struct proc_dir_entry *entry;
-+
-+	if ((entry=create_proc_entry ("kgdbtest", 0, NULL)) == NULL) {
-+		return -ENOMEM;
-+	}
-+	
-+	entry->read_proc = test_read_proc;
-+	entry->write_proc = test_write_proc;
-+	entry->data = NULL;
-+
-+	return 0;
-+}
-+
-+
-+static void __exit cplbtest_exit (void)
-+{
-+	remove_proc_entry ("kgdbtest", NULL);
-+}
-+
-+module_init(cplbtest_init);
-+module_exit(cplbtest_exit);
-+
-diff -urN linux-2.6.x.old/arch/bfinnommu/kernel/traps.c linux-2.6.x/arch/bfinnommu/kernel/traps.c
---- linux-2.6.x.old/arch/bfinnommu/kernel/traps.c	2005-04-11 13:32:32.959924864 +0800
-+++ linux-2.6.x/arch/bfinnommu/kernel/traps.c	2005-04-11 14:25:28.207213904 +0800
-@@ -18,6 +18,7 @@
- #include <asm/uaccess.h>
- #include <asm/traps.h>
- #include <asm/blackfin.h>
-+#include <linux/debugger.h>
- 
- /*
- . EXCEPTION TRAPS DEBUGGING LEVELS
-@@ -72,33 +73,57 @@
- 
- int kstack_depth_to_print = 48;
- 
-+
- asmlinkage void trap_c(struct pt_regs *fp)
- {
- 	int sig = 0;
- 	siginfo_t info;
-+	unsigned long trapnr = fp->seqstat & 0x3f;
- 
-  	/* trap_c() will be called for exceptions. During exceptions
-  	   processing, the pc value should be set with retx value.  
-  	   With this change we can cleanup some code in signal.c- TODO */
-  	fp->orig_pc = fp->retx;
-+/*	printk("exception: 0x%x\n", trapnr);*/
- 
- 	/* send the appropriate signal to the user program */
--	switch (fp->seqstat & 0x3f) {
-+	switch (trapnr) {
- 	    case VEC_STEP:
- 		info.si_code = TRAP_STEP;
- 		fp->pc = fp->retx;      /* gdb wants the value of the pc*/
- 		sig = SIGTRAP;
-+#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
-+		return;
-+#else
- 		break;
-+#endif
- 	    case VEC_EXCPT01 :		 /* gdb breakpoint */
- 		info.si_code = TRAP_ILLTRAP;
- 		fp->retx -=2;		/* For Service, proessor increments to next instruction. */
- 		fp->pc = fp->retx;      /* gdb wants the value of the pc*/
- 		sig = SIGTRAP;
-+#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
-+		return;
-+#else
- 		break;
-+#endif
-+#ifdef CONFIG_KGDB
-+	    case VEC_EXCPT02 :		 /* gdb connection */
-+		info.si_code = TRAP_ILLTRAP;
-+		fp->pc = fp->retx;      /* gdb wants the value of the pc*/
-+		sig = SIGTRAP;
-+		CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
-+		return;
-+#endif
- 	    case VEC_UNDEF_I:
- 		info.si_code = ILL_ILLOPC;
- 		sig = SIGILL;
- 		DPRINTK(EXC_0x21);
-+#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
-+#endif
- 		break;
- 	    case VEC_OVFLOW:
- 		info.si_code = TRAP_TRACEFLOW;
-@@ -109,6 +134,9 @@
- 		info.si_code = ILL_ILLPARAOP;
- 		sig = SIGILL;
- 		DPRINTK(EXC_0x22);
-+#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
-+#endif
- 		break;
- 	    case VEC_ILL_RES:
- 		info.si_code = ILL_PRVOPC;
-@@ -120,23 +148,37 @@
- 		sig = SIGBUS;
- 		DPRINTK(EXC_0x24);
- 		DPRINTK("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
-+#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
-+#endif
- 	    	break;
- 	    case VEC_MISALI_I:
- 		info.si_code = BUS_ADRALN;
- 		sig = SIGBUS;
- 		DPRINTK(EXC_0x2A);
- 		DPRINTK("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
-+#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
-+#endif
- 		break;
- 	    case VEC_UNCOV:
- 		info.si_code = ILL_ILLEXCPT;
- 		sig = SIGILL;
- 		DPRINTK(EXC_0x25);
-+#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
-+#endif
- 		break;
- 	    case VEC_WATCH:
- 		info.si_code = TRAP_WATCHPT;
- 		sig = SIGTRAP;
- 		DPRINTK3(EXC_0x28);
-+#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,)
-+		return;
-+#else
- 		break;
-+#endif
- 	    case VEC_ISTRU_VL:                /* ADSP-BF535 only (MH)*/
- 		info.si_code = BUS_OPFETCH;
- 		sig = SIGBUS;
-@@ -144,14 +186,13 @@
- 	    case VEC_CPLB_I_VL:
- 		DPRINTK2(EXC_0x2B);
- 		DPRINTK2("ICPLB_FAULT_ADDR: %p\n", *pICPLB_FAULT_ADDR);
-+		break;
- 	    case VEC_CPLB_VL:
- 		info.si_code = ILL_CPLB_VI;
- 		DPRINTK3(EXC_0x23);
- 		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
- 		_cplb_hdr();
- 		goto nsig;
--		sig = SIGILL;
--                break;
- 	    case VEC_CPLB_I_M:
- 		DPRINTK3(EXC_0x2C);
- 		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
-@@ -177,6 +218,9 @@
- 	    default:
- 		info.si_code = TRAP_ILLTRAP;
- 		sig = SIGTRAP;
-+#ifdef CONFIG_KGDB
-+		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
-+#endif
- 		break;
- 	}
- 	info.si_signo = sig;
-diff -urN linux-2.6.x.old/arch/bfinnommu/mach-bf533/ints-priority.c linux-2.6.x/arch/bfinnommu/mach-bf533/ints-priority.c
---- linux-2.6.x.old/arch/bfinnommu/mach-bf533/ints-priority.c	2005-04-11 13:32:32.979921824 +0800
-+++ linux-2.6.x/arch/bfinnommu/mach-bf533/ints-priority.c	2005-04-11 14:35:22.959797768 +0800
-@@ -23,6 +23,9 @@
- #include <linux/module.h>
- #include <linux/kernel_stat.h>
- #include <linux/seq_file.h>
-+#ifdef CONFIG_KGDB
-+#include <linux/kgdb.h>
-+#endif
- #include <asm/irqchip.h>
- #include <asm/traps.h>
- #include <asm/blackfin.h>
-@@ -473,4 +476,8 @@
- 	  vec = ivg->irqno;
-         }
- 	asm_do_IRQ(vec, fp);
-+
-+#ifdef CONFIG_KGDB
-+	kgdb_process_breakpoint();
-+#endif
- }
-diff -urN linux-2.6.x.old/include/asm-bfinnommu/entry.h linux-2.6.x/include/asm-bfinnommu/entry.h
---- linux-2.6.x.old/include/asm-bfinnommu/entry.h	2005-04-11 13:33:02.490435544 +0800
-+++ linux-2.6.x/include/asm-bfinnommu/entry.h	2005-04-11 14:19:53.557088456 +0800
-@@ -70,6 +70,13 @@
- 
- 	[--sp] = ASTAT;
- 
-+#ifdef CONFIG_KGDB
-+	fp     = 0(Z);
-+	R0     = sp;
-+	R0    += 60;
-+	R0    += 60;
-+	R0    += 60;
-+#endif
- 	[--sp] = r0;	/* Skip reserved */
- 	[--sp] = RETS;
- 	r0 = RETI;
-@@ -78,6 +85,16 @@
- 	[--sp] = RETN;
- 	[--sp] = RETE;
- 	[--sp] = SEQSTAT;
-+#ifdef CONFIG_KGDB
-+	r0.l   = lo(IPEND);
-+	r0.h   = 0;
-+	BITCLR (R0, 4);
-+	BITCLR (R0, 3);
-+	BITCLR (R0, 2);
-+	BITCLR (R0, 1);
-+	BITCLR (R0, 0);
-+	r0.l   = ONES r0;
-+#endif
- 	[--sp] = r0;	/* Skip IPEND as well. */
- 	[--sp] = RETI;  /*orig_pc*/
- 	/* Clear all L registers.  */
-@@ -128,6 +145,13 @@
- 
- 	[--sp] = ASTAT;
- 
-+#ifdef CONFIG_KGDB
-+	fp     = 0(Z);
-+	R0     = sp;
-+	R0    += 60;
-+	R0    += 60;
-+	R0    += 60;
-+#endif
- 	[--sp] = r0;	/* Skip reserved */
- 	[--sp] = RETS;
- 	r0 = RETI;
-@@ -136,6 +160,16 @@
- 	[--sp] = RETN;
- 	[--sp] = RETE;
- 	[--sp] = SEQSTAT;
-+#ifdef CONFIG_KGDB
-+	r0.l   = lo(IPEND);
-+	r0.h   = 0;
-+	BITCLR (R0, 4);
-+	BITCLR (R0, 3);
-+	BITCLR (R0, 2);
-+	BITCLR (R0, 1);
-+	BITCLR (R0, 0);
-+	r0.l   = ONES r0;
-+#endif
- 	[--sp] = r0;	/* Skip IPEND as well. */
- 	[--sp] = r0;  /*orig_pc*/
- 	/* Clear all L registers.  */
-diff -urN linux-2.6.x.old/include/asm-bfinnommu/kgdb.h linux-2.6.x/include/asm-bfinnommu/kgdb.h
---- linux-2.6.x.old/include/asm-bfinnommu/kgdb.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/asm-bfinnommu/kgdb.h	2005-04-11 14:19:53.558088304 +0800
-@@ -0,0 +1,139 @@
-+#ifndef _ASM_KGDB_H_
-+#define _ASM_KGDB_H_
-+
-+#include <linux/ptrace.h>
-+
-+/* gdb locks */
-+#define KGDB_MAX_NO_CPUS 8
-+
-+/************************************************************************/
-+/* BUFMAX defines the maximum number of characters in inbound/outbound buffers*/
-+/* at least NUMREGBYTES*2 are needed for register packets */
-+/* Longer buffer is needed to list all threads */
-+#define BUFMAX 2048
-+
-+/* Number of bytes of registers.  */
-+#define NUMREGBYTES 224
-+/*
-+ *  Note that this register image is different from
-+ *  the register image that Linux produces at interrupt time.
-+ *  
-+ *  Linux's register image is defined by struct pt_regs in ptrace.h.
-+ */
-+enum regnames {
-+  BFIN_SYSCFG = 0,
-+  //BFIN_ORIGR0, 
-+  BFIN_R0,
-+  BFIN_R1,
-+  BFIN_R2,
-+  BFIN_R3,
-+  BFIN_R4,
-+  BFIN_R5,
-+  BFIN_R6,
-+  BFIN_R7,
-+  BFIN_P0,
-+  BFIN_P1,
-+  BFIN_P2,
-+  BFIN_P3,
-+  BFIN_P4,
-+  BFIN_P5,
-+  BFIN_FP,
-+  BFIN_SP,
-+  BFIN_I0,
-+  BFIN_I1,
-+  BFIN_I2,
-+  BFIN_I3,
-+  BFIN_M0,
-+  BFIN_M1,
-+  BFIN_M2,
-+  BFIN_M3,
-+  BFIN_L0,
-+  BFIN_L1,
-+  BFIN_L2,
-+  BFIN_L3,
-+  BFIN_B0,
-+  BFIN_B1,         /* START MODIFIER REGISTER */
-+  BFIN_B2,         /* END MODIFIER REGISTER */
-+  BFIN_B3,
-+  BFIN_A0_DOT_X,
-+  BFIN_AO_DOT_W,
-+  BFIN_A1_DOT_X,
-+  BFIN_A1_DOT_W,
-+  BFIN_LC0,
-+  BFIN_LC1,
-+  BFIN_LT0,
-+  BFIN_LT1,
-+  BFIN_LB0,
-+  BFIN_LB1,
-+  BFIN_ASTAT,
-+  BFIN_RESERVED,
-+  BFIN_RETS, 	/* Subroutine address register */
-+  BFIN_PC, 	/*actually RETI pc will be in ORIG_PC*/
-+  BFIN_RETX,
-+  BFIN_RETN,
-+  BFIN_RETE,
-+  BFIN_SEQSTAT,
-+  BFIN_IPEND,        /* Subroutine address register */  
-+  BFIN_ORIGPC,        /* Subroutine address register */  
-+  BFIN_EXTRA1,        /* Extra "registers" for hacks 1. address of .text */
-+  BFIN_EXTRA2,        
-+  BFIN_EXTRA3
-+};
-+
-+#define BREAKPOINT() asm("   EXCPT 2;");
-+#define BREAK_INSTR_SIZE       2
-+#define HW_BREAKPOINT_NUM		6
-+
-+/* Instruction watchpoint address control register bits mask */
-+#define WPPWR		0x1
-+#define WPIREN01	0x2
-+#define WPIRINV01	0x4
-+#define WPIAEN0		0x8
-+#define WPIAEN1		0x10
-+#define WPICNTEN0	0x20
-+#define WPICNTEN1	0x40
-+#define EMUSW0		0x80
-+#define EMUSW1		0x100
-+#define WPIREN23	0x200
-+#define WPIRINV23	0x400
-+#define WPIAEN2		0x800
-+#define WPIAEN3		0x1000
-+#define WPICNTEN2	0x2000
-+#define WPICNTEN3	0x4000
-+#define EMUSW2		0x8000
-+#define EMUSW3		0x10000
-+#define WPIREN45	0x20000
-+#define WPIRINV45	0x40000
-+#define WPIAEN4		0x80000
-+#define WPIAEN5		0x100000
-+#define WPICNTEN4	0x200000
-+#define WPICNTEN5	0x400000
-+#define EMUSW4		0x800000
-+#define EMUSW5		0x1000000
-+#define WPAND		0x2000000
-+
-+/* Data watchpoint address control register bits mask */
-+#define WPDREN01	0x1
-+#define WPDRINV01	0x2
-+#define WPDAEN0		0x4
-+#define WPDAEN1		0x8
-+#define WPDCNTEN0	0x10
-+#define WPDCNTEN1	0x20
-+#define WPDSRC0		0xc0
-+#define WPDACC0		0x300
-+#define WPDSRC1		0xc00
-+#define WPDACC1		0x3000
-+
-+/* Watchpoint status register bits mask */
-+#define STATIA0		0x1
-+#define STATIA1		0x2
-+#define STATIA2		0x4
-+#define STATIA3		0x8
-+#define STATIA4		0x10
-+#define STATIA5		0x20
-+#define STATDA0		0x40
-+#define STATDA1		0x80
-+
-+extern void kgdb_print(const char *fmt, ...);
-+
-+#endif				/* _ASM_KGDB_H_ */
-diff -urN linux-2.6.x.old/include/asm-bfinnommu/processor.h linux-2.6.x/include/asm-bfinnommu/processor.h
---- linux-2.6.x.old/include/asm-bfinnommu/processor.h	2005-04-11 13:33:02.511432352 +0800
-+++ linux-2.6.x/include/asm-bfinnommu/processor.h	2005-04-11 14:19:53.558088304 +0800
-@@ -34,6 +34,7 @@
- 	unsigned short seqstat;		/* saved status register */
- 	unsigned long  esp0;		/* points to SR of stack frame pt_regs*/
- 	unsigned long  pc;		/* instruction pointer */
-+	void *         debuggerinfo;
- };
- 
- #define INIT_THREAD  {						\
-diff -urN linux-2.6.x.old/Documentation/blackfin/kgdb_bfin.txt linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt
---- linux-2.6.x.old/Documentation/blackfin/kgdb_bfin.txt	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt	2005-04-13 11:48:38.221156248 +0800
-@@ -0,0 +1,64 @@
-+			A Simple Guide to Configure KGDB
-+
-+			Sonic Zhang(sonic.zhang@analog.com)
-+				Apr. 13th 2005
-+
-+
-+This KGDB patch enable the kernel developer to do source level debugging on kernel for the Blackfin architecture. The debugging works over the ethernet interface. Both software breakpoints and hardware breakpoints are supported in this porting.
-+
-+
-+2 known issue:
-+1. The bug "http://blackfin.uclinux.org/tracker/index.php?func=detail&aid=544&group_id=18&atid=145"
-+in the GDB client for Blackfin uclinux causes error values of local variables are displayed when the user breaks the
-+running of kernel in GDB.
-+2. Because of one hardware bug "05000067 - Watchpoints (Hardware Breakpoints) are not supported" in Blackfin533
-+v1.0.3, the hardware breakpoints can't be set. Then, the hardware breakpoints also can't hit.
-+
-+
-+See following detail steps to do source level debugging over Ethernet.
-+ 
-+1. Compile and install the cross platform version of gdb for blackfin533, which can be found as $(BINROOT)/bfin-elf-gdb.
-+
-+2. Apply this patch to 2.6.x kernel. Select menuconfig option under "kernel hacking" -> "kernel debugging" -> "KGDB: kernel debug with remote gdb". With this seledted, option "Full Symbolic/Source Debugging support" and "Compile the kernel with frame pointers" are also selected.
-+
-+3. Select option "KGDB: on Ethernet". Add "kgdboe=@target-IP/,@host-IP/" to option "Kernel Boot Parameter" and compile.
-+
-+4. Connect minicom to the serial port and boot the kernel image.
-+
-+5. Configure the IP "/> ifconfig eth0 target-IP"
-+
-+6. Start GDB client "bfin-elf-gdb vmlinux".
-+
-+7. Connect to the target "(gdb) target remote udp:target-IP:6443".
-+
-+8. Set software breakpoint "(gdb) break sys_open".
-+
-+9. Continue "(gdb) c".
-+
-+10. Run ls in the target console "/> ls".
-+
-+11. Breakpoint hits. "Breakpoint 1: sys_open(..."
-+
-+12. Display local variables and function paramters. (*)This operation gives wrong results, see known issue 1.
-+
-+13. Single stepping "(gdb) si".
-+
-+14. Remove breakpoint 1. "(gdb) del 1"
-+
-+15. Set hardware breakpoint "(gdb) hbreak sys_open".
-+
-+16. Continue "(gdb) c".
-+
-+17. Run ls in the target console "/> ls".
-+
-+18. Hardware breakpoint hits. "Breakpoint 1: sys_open(...". (*)This hardware breakpoint won't hit, see known issue 2.
-+
-+19. Continue "(gdb) c".
-+
-+20. Interrupt the target in GDB "Ctrl+C".
-+
-+21. Detach from the target "(gdb) detach".
-+
-+22. Exit GDB "(gdb) quit".
-+
-+
-diff -urN linux-2.6.x.old/drivers/net/Makefile linux-2.6.x/drivers/net/Makefile
---- linux-2.6.x.old/drivers/net/Makefile	2005-01-27 17:09:10.000000000 +0800
-+++ linux-2.6.x/drivers/net/Makefile	2005-01-28 10:06:22.000000000 +0800
-@@ -192,3 +192,4 @@
- obj-$(CONFIG_IRDA) += irda/
- 
- obj-$(CONFIG_NETCONSOLE) += netconsole.o
-+obj-$(CONFIG_KGDB_ETH) += kgdb_eth.o
-diff -urN linux-2.6.x.old/drivers/net/kgdb_eth.c linux-2.6.x/drivers/net/kgdb_eth.c
---- linux-2.6.x.old/drivers/net/kgdb_eth.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/net/kgdb_eth.c	2005-01-28 10:46:25.490435824 +0800
-@@ -0,0 +1,177 @@
-+/*
-+ * drivers/net/kgdb_eth.c
-+ *
-+ * A network interface for GDB.
-+ * Based upon 'gdbserial' by David Grothe <dave@gcom.com>
-+ * and Scott Foehner <sfoehner@engr.sgi.com>
-+ *
-+ * Maintainers: Amit S. Kale <amitkale@emsyssoft.com> and
-+ * 		Tom Rini <trini@kernel.crashing.org>
-+ *
-+ * 2004 (c) Amit S. Kale <amitkale@emsyssoft.com>
-+ * 2004 (c) MontaVista Software, Inc.
-+ *
-+ * Other folks:
-+ * San Mehat <nettwerk@biodome.org>
-+ * Robert Walsh <rjwalsh@durables.org>
-+ * wangdi <wangdi@clusterfs.com>.
-+ * Matt Mackall <mpm@selenic.com>
-+ * Pavel Machek <pavel@suse.cz>
-+ *
-+ * This file is licensed under the terms of the GNU General Public License
-+ * version 2. This program is licensed "as is" without any warranty of any
-+ * kind, whether express or implied.
-+ */
-+
-+#include <linux/kernel.h>
-+#include <linux/module.h>
-+#include <linux/string.h>
-+#include <linux/kgdb.h>
-+#include <linux/netpoll.h>
-+#include <linux/init.h>
-+#include <linux/inetdevice.h>
-+#include <linux/rtnetlink.h>
-+
-+#include <asm/atomic.h>
-+#include <asm/irq.h>
-+
-+#define IN_BUF_SIZE 512		/* power of 2, please */
-+#define OUT_BUF_SIZE 30		/* We don't want to send too big of a packet. */
-+
-+static char in_buf[IN_BUF_SIZE], out_buf[OUT_BUF_SIZE];
-+static int in_head, in_tail, out_count;
-+static atomic_t in_count;
-+static int configured;
-+
-+static void rx_hook(struct netpoll *np, int port, char *msg, int len);
-+
-+static struct netpoll np = {
-+	.name = "kgdboe",
-+	.dev_name = "eth0",
-+	.rx_hook = rx_hook,
-+	.local_port = 6443,
-+	.remote_port = 6442,
-+	.remote_mac = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-+};
-+
-+static int eth_getDebugChar(void)
-+{
-+	int chr;
-+
-+	while (atomic_read(&in_count) == 0)
-+		netpoll_poll(&np);
-+
-+	chr = in_buf[in_tail++];
-+	in_tail &= (IN_BUF_SIZE - 1);
-+	atomic_dec(&in_count);
-+	return chr;
-+}
-+
-+static void eth_flushDebugChar(void)
-+{
-+	if (out_count && np.dev) {
-+		netpoll_send_udp(&np, out_buf, out_count);
-+/*out_buf[out_count]=0;
-+printk("gdb_anw: %s\n", out_buf);*/
-+		memset(out_buf, 0, sizeof(out_buf));
-+		out_count = 0;
-+	}
-+}
-+
-+static void eth_putDebugChar(int chr)
-+{
-+	out_buf[out_count++] = chr;
-+	if (out_count == OUT_BUF_SIZE) {
-+		eth_flushDebugChar();
-+	}
-+}
-+
-+void kgdb_disable_eth_irq(void)
-+{
-+	struct net_device *ndev = NULL;
-+	ndev = dev_get_by_name(np.dev_name);
-+	local_irq_disable();
-+	netpoll_set_trap(1);
-+}
-+
-+void kgdb_enable_eth_irq(void)
-+{
-+	struct net_device *ndev = NULL;
-+	ndev = dev_get_by_name(np.dev_name);
-+	local_irq_enable();
-+}
-+
-+static void rx_hook(struct netpoll *np, int port, char *msg, int len)
-+{
-+	int i;
-+	int ksp,usp;
-+
-+	np->remote_port = port;
-+
-+	/* Is this gdb trying to attach? */
-+	if (!kgdb_connected && msg[0]=='$' && len==8) {
-+		if(strncmp(msg, "$Hc-1#09", 8)==0) {
-+			kgdb_disable_eth_irq();
-+			kgdb_schedule_breakpoint();
-+		}
-+	}
-+
-+/*	__asm__("%0 = SP;":"=d"(ksp)::"R0");
-+	__asm__("%0 = USP;":"=d"(usp)::"R1");
-+	printk("gdb_cmd(ksp=0x%x,usp=0x%x): ", ksp, usp);*/
-+	for (i = 0; i < len; i++) {
-+		if (msg[i] == 3) {
-+			kgdb_disable_eth_irq();
-+			kgdb_schedule_breakpoint();
-+		}
-+
-+		if (atomic_read(&in_count) >= IN_BUF_SIZE) {
-+			/* buffer overflow, clear it */
-+			in_head = in_tail = 0;
-+			atomic_set(&in_count, 0);
-+			break;
-+		}
-+		in_buf[in_head++] = msg[i];
-+		in_head &= (IN_BUF_SIZE - 1);
-+		atomic_inc(&in_count);
-+/*		printk("%c", msg[i]);*/
-+	}
-+/*	printk("\n");*/
-+}
-+
-+/* We must be passed configuration options. */
-+static int option_setup(char *opt)
-+{
-+	configured = !netpoll_parse_options(&np, opt);
-+	return 0;
-+}
-+__setup("kgdboe=", option_setup);
-+
-+static int hook(void)
-+{
-+	/* We haven't been configured, giveup. */
-+	if (!configured)
-+		return 1;
-+
-+	return 0;
-+}
-+
-+struct kgdb_serial kgdbeth_serial = {
-+	.read_char = eth_getDebugChar,
-+	.write_char = eth_putDebugChar,
-+	.hook = hook,
-+	.flush = eth_flushDebugChar,
-+};
-+
-+int init_kgdboe(void)
-+{
-+	if (!configured || netpoll_setup(&np))
-+		return 1;
-+
-+	if (!kgdb_serial)
-+		kgdb_serial = &kgdbeth_serial;
-+	printk(KERN_INFO "kgdb: debugging over ethernet enabled\n");
-+
-+	return 0;
-+}
-+module_init(init_kgdboe);
-
-diff -urN linux-2.6.x.old/drivers/serial/Makefile linux-2.6.x/drivers/serial/Makefile
---- linux-2.6.x.old/drivers/serial/Makefile	2005-04-11 13:32:57.117252392 +0800
-+++ linux-2.6.x/drivers/serial/Makefile	2005-04-11 14:09:45.054594896 +0800
-@@ -41,4 +41,5 @@
- obj-$(CONFIG_SERIAL_CPM) += cpm_uart/
- obj-$(CONFIG_SERIAL_MPC52xx) += mpc52xx_uart.o
- obj-$(CONFIG_SERIAL_BLACKFIN) += bf533_serial.o
--obj-$(CONFIG_SERIAL_BLACKFIN_EXP) += bf533_serial_exp.o
-\ No newline at end of file
-+obj-$(CONFIG_SERIAL_BLACKFIN_EXP) += bf533_serial_exp.o
-+obj-$(CONFIG_KGDB_BLACKFIN_SHAREDUART) += kgdb_bf_shareduart.o
-diff -urN linux-2.6.x.old/drivers/serial/bf533_serial.c linux-2.6.x/drivers/serial/bf533_serial.c
---- linux-2.6.x.old/drivers/serial/bf533_serial.c	2005-04-11 13:32:57.133249960 +0800
-+++ linux-2.6.x/drivers/serial/bf533_serial.c	2005-04-11 16:20:25.667640536 +0800
-@@ -126,6 +126,11 @@
- #define MIN(a,b)	((a) < (b) ? (a) : (b))
- #endif
- 
-+#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
-+#undef CONFIG_BLKFIN_SIMPLE_DMA
-+#define CONFIG_NO_DMA
-+#endif
-+
- #ifdef CONFIG_BLKFIN_SIMPLE_DMA
- 
- #undef CONFIG_DISABLE_RXDMA
-@@ -471,6 +476,33 @@
- }
- #endif
- 
-+#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
-+extern void kgdb_breakkey_pressed(struct pt_regs *regs);
-+ 
-+void kgdb_put_debug_char(char chr)
-+{
-+	while (!(*pUART_LSR & THRE)) {
-+		SYNC_ALL;
-+	}
-+	ACCESS_PORT_IER 
-+	*pUART_THR = chr;
-+	SYNC_ALL;
-+}
-+
-+int kgdb_get_debug_char(void)
-+{
-+	unsigned char chr;
-+	while(!(*pUART_LSR & DR)) {
-+		SYNC_ALL;
-+	}
-+	ACCESS_PORT_IER
-+	chr = *pUART_RBR;
-+	SYNC_ALL;
-+
-+	return chr;
-+}
-+#endif
-+
- void receive_chars(struct bf533_serial *info, struct pt_regs *regs)
- {
- 	struct tty_struct *tty = info->tty;
-@@ -500,6 +532,12 @@
- 				machine_restart(NULL);
- 				return;
- 			}
-+#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
-+			else if(ch == '\4') { /* Ctrl + d */
-+				kgdb_breakkey_pressed(regs);
-+				continue;
-+			}
-+#endif
- 			/* It is a 'keyboard interrupt' ;-) */
- #ifdef CONFIG_CONSOLE
- 			wake_up(&keypress_wait);
-diff -urN linux-2.6.x.old/drivers/serial/kgdb_bf_shareduart.c linux-2.6.x/drivers/serial/kgdb_bf_shareduart.c
---- linux-2.6.x.old/drivers/serial/kgdb_bf_shareduart.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/serial/kgdb_bf_shareduart.c	2005-04-11 14:08:33.445481136 +0800
-@@ -0,0 +1,75 @@
-+/*
-+ * shared uart interface for kgdb.
-+ *
-+ * Sonic Zhang <sonic.zhang@citiz.net>
-+ */
-+
-+#include <linux/config.h>
-+#include <linux/kernel.h>
-+#include <linux/init.h>
-+#include <linux/kgdb.h>
-+#include <linux/interrupt.h>
-+#include <linux/tty.h>
-+#include <linux/serial.h>
-+#include <linux/serial_core.h>
-+#include <linux/serial_reg.h>
-+#include <linux/serialP.h>
-+
-+
-+static struct kgdb_serial kgdb_shareduart_driver;
-+static int initialized;
-+
-+/*
-+ * Wait until the interface can accept a char, then write it.
-+ */
-+extern void kgdb_put_debug_char(int chr);
-+extern int kgdb_get_debug_char(void);
-+
-+void kgdb_print(const char *fmt, ...)
-+{
-+	va_list args;
-+	char *p;
-+	static char printk_buf[1024];
-+
-+	va_start(args, fmt);
-+	vscnprintf(printk_buf, sizeof(printk_buf), fmt, args);
-+	va_end(args);
-+	
-+	for (p = printk_buf; *p; p++) {
-+		kgdb_put_debug_char(*p);
-+	}
-+}
-+
-+void kgdb_breakkey_pressed(struct pt_regs *regs) 
-+{
-+	if(initialized)
-+		kgdb_schedule_breakpoint();
-+}
-+
-+static int
-+kgdb_hook_io(void)
-+{
-+	/* If we've already been initialized, return. */
-+	if (initialized)
-+		return 0;
-+	
-+	initialized = 1;
-+
-+	return 0;
-+}
-+
-+static struct kgdb_serial kgdb_shareduart_driver = {
-+	.read_char = kgdb_get_debug_char,
-+	.write_char = kgdb_put_debug_char,
-+	.hook = kgdb_hook_io,
-+	.flush = NULL,
-+};
-+
-+void init_kgdb_blackfin_shareduart(void)
-+{
-+	kgdb_serial = &kgdb_shareduart_driver;
-+
-+	/* Break in as soon as we can. */
-+	kgdb_schedule_breakpoint();
-+	kgdb_print("Init kgdb shared uart on blackfin.\n");
-+}
