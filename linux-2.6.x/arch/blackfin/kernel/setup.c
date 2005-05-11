@@ -5,7 +5,7 @@
  *  Copyright (C) 1999,2000  Greg Ungerer (gerg@lineo.com)
  *  Copyright (C) 1998,1999  D. Jeff Dionne <jeff@lineo.ca>
  *  Copyright (C) 1998       Kenneth Albanowski <kjahds@kjahds.com>
- *  Copyright (C) 2004	     LG Soft India
+ *  Copyright (C) 2005	     blackfin.uclinux.org
  */
 
 #include <linux/delay.h>
