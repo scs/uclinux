@@ -559,6 +559,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 	case -ERESTARTNOINTR:
 	do_restart:
 		regs->p0 = regs->orig_p0;
+		regs->r0 = regs->orig_r0;
 		regs->pc -= 2;
 		break;
 	}

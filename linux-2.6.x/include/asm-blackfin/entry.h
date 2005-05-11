@@ -33,6 +33,7 @@
 	[--sp] = SYSCFG;
 
 	[--sp] = P0;	/*orig_p0*/
+	[--sp] = R0;	/*orig_r0*/
 	[--sp] = ( R7:0, P5:0 );
 	[--sp] = fp;
 	[--sp] = usp;
@@ -91,6 +92,7 @@
 .macro save_context_no_interrupts
 	[--sp] = SYSCFG;
 	[--sp] = P0;	/* orig_p0 */
+	[--sp] = R0;	/* orig_r0 */
 	[--sp] = ( R7:0, P5:0 );
 	[--sp] = fp;
 	[--sp] = usp;
@@ -196,7 +198,7 @@
 	fp = [sp++];
 
 	( R7 : 0, P5 : 0) = [ SP ++ ];
-	sp += 4;	/* Skip orig_r0 */
+	sp += 8;	/* Skip orig_r0/orig_p0 */
 	SYSCFG = [sp++];
 .endm
 
@@ -249,7 +251,7 @@
 	fp = [sp++];
 
 	( R7 : 0, P5 : 0) = [ SP ++ ];
-	sp += 4;	/* Skip orig_r0 */
+	sp += 8;	/* Skip orig_r0/orig_p0 */
 	csync;
 	SYSCFG = [sp++];
 	csync;
