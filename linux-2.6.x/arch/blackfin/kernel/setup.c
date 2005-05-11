@@ -5,7 +5,7 @@
  *  Copyright (C) 1999,2000  Greg Ungerer (gerg@lineo.com)
  *  Copyright (C) 1998,1999  D. Jeff Dionne <jeff@lineo.ca>
  *  Copyright (C) 1998       Kenneth Albanowski <kjahds@kjahds.com>
- *  Copyright (C) 2005	     blackfin.uclinux.org
+ *  Copyright (C) 2004	     LG Soft India
  */
 
 #include <linux/delay.h>
@@ -169,7 +169,7 @@ void setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "uClinux/" CPU "\n");
 
-	printk("Blackfin uClinux support by LG Soft India (www.lgsoftindia.com) \n");
+	printk("Blackfin uClinux support by blackfin.uclinux.org \n");
 	printk("Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",get_cclk()/1000000,get_sclk()/1000000);
 	printk("Board Memory: %dMB\n",CONFIG_MEM_SIZE);
 
