@@ -1,0 +1,246 @@
+#!/usr/bin/expect
+#
+#Test program to stress the system.
+#
+#Steps:
+#1.  Set up the tftp server on host. Set the root folder, such as "/tftpboot".
+#2.  Set up the uboot environment variables. such as serverip, ipaddress, filename, bootaddr, etc.
+#3.  Build the uclinux without the DHCPD daemon.
+#3.1 "make menuconfig"
+#3.2 Select option "Customize User/Vendor Settings"
+#3.5 In menu "Network Applications", unselect "dhcpcd-new (2.0/2.4)".
+#3.6 "make"
+#3.7 "cp linux-2.6.x/linux /tftpboot/uImage
+#4.  Hit the reset button on target board and start the test script.
+#4.1 "cd testsuites/stress/"
+#4.2 "./test_stress /dev/ttyS0"
+#
+
+set SERIAL_PORT_BAUD_RATE   "57600"
+set TITLE "Stress Test"
+set PING_COUNT   1999
+set targetip 10.100.4.2
+set serverip 10.100.4.174
+
+set argc [llength $argv]
+if { $argc < 1} {
+   puts "Usage:  $argv0 tty-device \[targetip serverip\]"
+   puts "   where tty-device is something like /dev/ttyS0"
+   puts ""
+   exit
+}
+# grab the user specified parameters.
+set ttydev             [lindex $argv 0]
+
+if { $argc >= 2} {
+   set targetip           [lindex $argv 1]
+}
+if { $argc >= 3} {
+   set serverip           [lindex $argv 2]
+}
+
+# Now set up the kermit parameters.
+#  I want these all contained in this file to make it easier for users.
+#  This just builds up a list of commands which are sent to kermit.
+#
+set kparams     [list "set line $ttydev\r"]
+lappend kparams "set speed $SERIAL_PORT_BAUD_RATE\r"
+lappend kparams "set carrier-watch off\r"
+lappend kparams "set handshake none\r"
+lappend kparams "set flow-control none\r"
+lappend kparams "robust\r"
+lappend kparams "set file type bin\r"
+lappend kparams "set file name lit\r"
+lappend kparams "set rec pack 1000\r"
+lappend kparams "set send pack 1000\r"
+lappend kparams "set window 5\r"
+set nkparams [llength $kparams]
+
+set timeout 3
+spawn kermit
+# We need to save the id because resetting the board will overwrite it.
+set kermit_spawn_id $spawn_id
+
+while 1 {
+	expect {
+	        "Type ?" { }
+		"ermit>" { break }
+		"not found" {
+                   tee "ERROR: Failed to start up kermit"
+                   exit
+		}
+		timeout {
+                   tee "ERROR: Time out starting up kermit"
+                   exit
+		}
+	}
+}
+
+for {set i 0} {$i < $nkparams} {incr i} {
+    send [lindex $kparams $i]
+
+    while 1 {
+	  expect {
+		 "ermit>" { break }
+
+		 "\\?\[A-Z]" {
+                    tee "ERROR: Failed to set up kermit parameters"
+                    exit
+		 }
+
+		 timeout {
+                    tee "ERROR: Time out setting up kermit parameters"
+                    exit
+		 }
+	  }
+    }
+}
+
+send "connect\r"
+while 1 {
+	expect {
+		"ype the escape character*" {
+		     break  }
+		timeout {
+		     puts "\nERROR: Can't connect to serial port\n"
+		     exit }
+	}
+}
+#
+#  Ok, Kermit is running and connected to the board.
+#
+
+set timeout 1
+set flag 0
+for {set i 0} {$i<4} {incr i} {
+   send "\r"
+   expect {
+      "stamp>" {
+         set flag 1
+      }
+   }
+}
+if {$flag==0} {
+   puts "fail to communicate with uboot.\n"
+   exit
+}
+
+set timeout 2
+set flag 0
+send "tftpboot\r"
+while 1 {
+   expect {
+      "Using MAC" {
+         set flag 1
+         set timeout 30
+      }
+      "stamp>" {
+         break
+      }
+   }
+}
+if {$flag==0} {
+   puts "fail to communicate with uboot.\n"
+   exit
+}
+
+set timeout 1
+set flag 0
+send "bootelf\r"
+while 1 {
+   expect {
+      "Loading .text" {
+         set flag 1
+         set timeout 30
+      }
+      "> " {
+         break
+      }
+   }
+}
+if {$flag==0} {
+   puts "fail to communicate with uboot.\n"
+   exit
+}
+
+   set timeout 3
+   send "ifconfig eth0 down\r"
+   expect {
+	"> " {
+	}
+
+         timeout {
+	 	puts "Fail to config eth0\r"
+		exit
+         }
+   }
+   
+   send "ifconfig eth0 $targetip\r"
+   expect {
+	"eth0: link up" {
+	}
+
+         timeout {
+	 	puts "Fail to config eth0\r"
+		exit
+         }
+   }
+
+puts "*********************************\r"
+puts "Start $TITLE\r"
+puts "*********************************\r"
+
+   set timeout 7200
+   
+   spawn ./test_ftp $targetip
+   set test_ftp_id $spawn_id
+   spawn ./test_telnet $targetip
+   set test_telnet_id $spawn_id
+   
+   set spawn_id $kermit_spawn_id
+   send "ping $serverip\r"
+   while 1 {
+      expect {
+	"icmp_seq=$PING_COUNT" {
+		send "\3"
+	}
+
+         "> " {
+	 	break;
+         }
+         timeout {
+	 	puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+      }
+   }
+
+   set found 0
+   spawn ps -A
+   while 1 {
+      expect {
+	"test_telnet" {
+		incr found
+	}
+
+	"test_ftp" {
+		incr found
+	}
+	
+        eof {
+	 	break
+        }
+      }
+   }
+   
+   if {$found == 2} {
+		set spawn_id $test_telnet_id
+		send "\3"
+		set spawn_id $test_ftp_id
+		send "\3"
+		puts "                                                                        \r"
+		puts "$TITLE ............\[PASS\]\r"
+		exit
+   }
+
+   puts "$TITLE ............\[FAIL\]\r"

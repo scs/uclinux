@@ -1,0 +1,45 @@
+#!/usr/bin/expect
+
+set targetip 10.100.4.2
+if { $argc >= 1} {
+   set targetip           [lindex $argv 0]
+}
+
+spawn /bin/sh
+
+while 1 {
+	send "telnet $targetip\r"
+	expect {
+		">" {  }
+		timeout { send_user "Failed inital telnet\n"
+			exit }
+	}
+	send "\r"
+	expect {
+	        ">" { }
+	        timeout { send_user "Failed first return\n"
+			exit }
+	}
+	send "ls\r"
+        expect {
+                ">" { }
+                timeout { send_user "Failed first return\n"
+                        exit }
+        }
+	send "dmesg\r"
+        expect {
+                ">" { }
+                timeout { send_user "Failed first return\n"
+                        exit }
+        }
+	send "cat /proc/slabinfo\r"
+        expect {
+                ">" { }
+                timeout { send_user "Failed first return\n"
+                        exit }
+        }
+
+	send "exit\r"
+	sleep 1
+}
+
