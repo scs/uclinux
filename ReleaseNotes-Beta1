@@ -102,6 +102,8 @@ No	Issue Title
 
 694	bad: scheduling while atomic!
 
+699	Ctrl+C when run dmesg hang the kernel.
+
 
 
 Test Status 
@@ -119,7 +121,9 @@ All test suites can be found in subfolder "testsuites" in CVS.
 
 6. Test for the KGDB patch is done. Run 18 cases, all pass. 
 
-7. LTP test is done. Run 250 cases, 230 cases pass, 20 cases fail. 12 cases not run. 
+7. Kernel fails to pass the reboot test.
+
+8. LTP test is done. Run 250 cases, 230 cases pass, 20 cases fail. 12 cases not run or skipped. 
 
 Build Procedure 
  
