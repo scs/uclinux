@@ -116,7 +116,8 @@ ENTRY(execve)
 	p1 = r0;
 	p1 = p1 + p2;
 	sp = p1;
-
+	r0 = syscfg; 
+	[SP + PT_SYSCFG] = r0;
 	[p3 + (TASK_THREAD + THREAD_KSP)] = sp;
 
 	RESTORE_CONTEXT;

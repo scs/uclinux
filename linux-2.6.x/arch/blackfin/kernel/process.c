@@ -122,6 +122,7 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.pc = (unsigned long)kernel_thread_helper;
 	regs.orig_p0 = -1;
 	regs.ipend = 0x8000;
+	__asm__ __volatile__ ("%0 = syscfg;" : "=da" (regs.syscfg) : );
 	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }
 
