@@ -59,6 +59,8 @@ Improvements
 13. Use new busybox 1.00 instead of the old version.
 14. Add an entry in proc file system for pflags driver.
 15. Add memory allocation routine for L1 data SRAM.
+16. Fix broken uClibc code.
+17. Fix and clean up signal related issues.
 
 Known Issues 
 A full list of known issues can be found at:
@@ -70,17 +72,11 @@ No	Issue Title
 
 264	vfork() : Usage of Recursive implementation (vforking) of child processes.
 
-578	Issuing a Ctl + c does not go to the command prompt. An enter must be entered.
-
-594	htting ctrl-C during ping generates exception in msh
-
 598	_access_ok broken in uClinux-dist/linux-2.6.x/include/asm-bfinnommu/uaccess.h
 
 600	Module problem, insmod failure
 
 609	setitimer(), not working as expected.
-
-623	threads do not function under msh
 
 629	The content of a smbfs folder is wrong after mounting smbfs operation succeeds.
 
@@ -98,11 +94,13 @@ No	Issue Title
 
 681	CPLB manager unable to make replacements
 
-684	ndefined instruction and kernel crash occurs while trying to start mp3play in rc
+684	undefined instruction and kernel crash occurs while trying to start mp3play in rc
 
 694	bad: scheduling while atomic!
 
 699	Ctrl+C when run dmesg hang the kernel.
+
+717	reboot after 2 minutes hangs the kernel.
 
 
 
@@ -123,7 +121,7 @@ All test suites can be found in subfolder "testsuites" in CVS.
 
 7. Kernel fails to pass the reboot test.
 
-8. LTP test is done. Run 250 cases, 230 cases pass, 20 cases fail. 12 cases not run or skipped. 
+8. LTP test is done. Total 254 cases, 229 cases pass, 11 cases fail, 6 cases not run, 2 cases is broken, 1 case crashes LTP, 5 cases are skipped. 
 
 Build Procedure 
  
