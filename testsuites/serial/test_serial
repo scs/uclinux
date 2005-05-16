@@ -297,6 +297,18 @@ while 1 {
    send "werigji\r"
    send "werigji\r"
    send "werigji\r"
+   for {set i 0} {$i<100} {incr i} {
+      send "x"
+      expect {
+	"x" {
+	}
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+      }
+   }
    send "a\r"
    send "b\r"
    send "c\r"
@@ -311,11 +323,11 @@ while 1 {
    for {set i 0} {$i<100} {incr i} {
       send "$STRDATA\r"
    }
-   send "====================================\r"
+   send "===================================#"
    expect {
-	"====================================" {
-		puts "\rCase $case_num ...PASS\r"
+	"#" {
 		sleep 1
+		puts "\rCase $case_num ...PASS\r"
 		break
 	}
 
