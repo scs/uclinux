@@ -177,14 +177,14 @@ while 1 {
    }
 }
 
-puts "Wait for 2 minutes before reboot.\r"
-sleep 120
+puts "Wait for 1 minutes before reboot.\r"
+sleep 60
 
-set timeout 1
-send "\r"
+set timeout 5
+send "\r\r"
 while 1 {
    expect {
-	"> " {
+	">" {
 		puts "\rReboot $reboot_num ...PASS\r"
 		break
 	}
