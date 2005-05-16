@@ -117,11 +117,11 @@ All test suites can be found in subfolder "testsuites" in CVS.
 
 5. Kernel passes the stress test when build with default configuration.
 
-6. Test for the KGDB patch is done. Run 18 cases, all pass. 
+6. Test for the KGDB patch is done. Total 18 cases, 15 pass, 1 fails, 2 not run. 
 
 7. Kernel fails to pass the reboot test.
 
-8. LTP test is done. Total 254 cases, 229 cases pass, 11 cases fail, 6 cases not run, 2 cases is broken, 1 case crashes LTP, 5 cases are skipped. 
+8. LTP test is done. Total 255 cases, 230 cases pass, 11 cases fail, 6 cases not run, 2 cases is broken, 1 case crashes LTP, 5 cases are skipped. 
 
 Build Procedure 
  
