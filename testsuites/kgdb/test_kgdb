@@ -251,9 +251,9 @@ while 1 {
 	}
 	incr case_num
 	set spawn_id $kermit_spawn_id
-	send "cat /proc/kgdbtest\r"
+	send "\r"
 	expect {
-		"/proc/kgdbtest" {
+		"> " {
 		}
 		timeout {
 			puts "\rCase $case_num ...FAIL\r"
@@ -261,6 +261,7 @@ while 1 {
 			exit
 		}
 	}
+	send "cat /proc/kgdbtest\r"
 	set spawn_id $gdb_id
 	expect {
 		"Breakpoint 1" {
@@ -315,15 +316,6 @@ while 1 {
 		}
 	}
 	send "cat /proc/kgdbtest\r"
-	expect {
-		"/proc/kgdbtest" {
-		}
-		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
-			exit
-		}
-	}
 	set spawn_id $gdb_id
 	expect {
 		"Breakpoint 1" {
@@ -465,15 +457,6 @@ while 1 {
 		}
 	}
 	send "cat /proc/kgdbtest\r"
-	expect {
-		"/proc/kgdbtest" {
-		}
-		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
-			exit
-		}
-	}
 	set spawn_id $gdb_id
 	expect {
 		"Breakpoint 2" {
@@ -544,6 +527,10 @@ while 1 {
 			puts "\rCase $case_num ...FAIL\r"
 			puts "$TITLE ............\[FAIL\]\r"
 			exit
+		}
+	}
+	expect {
+		"> " {
 		}
 	}
 	incr case_num
