@@ -21,8 +21,8 @@
 prefix = /usr/local
 exec_prefix = ${prefix}
 
-host_alias = bfin-elf
-target_alias = bfin-elf
+host_alias = bfin-uclinux
+target_alias = bfin-uclinux
 program_transform_name = s,x,x,
 bindir = ${exec_prefix}/bin
 libdir = ${exec_prefix}/lib
@@ -49,7 +49,7 @@ INSTALL = /usr/bin/install -c
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_DATA = ${INSTALL} -m 644
 
-CC = bfin-elf-gcc
+CC = bfin-uclinux-gcc
 
 # Directory containing source files.  Don't clean up the spacing,
 # this exact string is matched for by the "configure" script.

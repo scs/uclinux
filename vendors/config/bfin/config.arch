@@ -19,7 +19,7 @@
 MACHINE       = bfin
 ARCH          = bfinnommu
 ENDIAN        = little 
-CROSS_COMPILE = bfin-elf-
+CROSS_COMPILE = bfin-uclinux-
 CROSS         = $(CROSS_COMPILE)
 
 CC        = $(CROSS_COMPILE)gcc
@@ -148,7 +148,7 @@ ifdef UCLINUX_BUILD_USER
 
 	CXXFLAGS = $(CFLAGS) $(INCCXX) -fname-mangling-version-0
 
-	LDFLAGS  = -nostartfiles -Wl,-elf2flt $(ROOTDIR)/lib/$(LIBCDIR)/lib/crt0.o
+	LDFLAGS  = -Wl,-elf2flt
 	LDLIBS   = $(LDPATH)
 
 	CXXLIBS  = $(LIBSTDCPP) $(LIBIBERTY) $(LIBC) $(LIBGCC)
