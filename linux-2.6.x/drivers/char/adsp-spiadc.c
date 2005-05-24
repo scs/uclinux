@@ -848,7 +848,7 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
 
     /* Invalidate allocated memory in Data Cache */ 
 	// TODO: remove this line as soon GFP_DMA memory allocation is in place 
-    blackfin_dcache_invalidate_range((unsigned long)pdev->buffer,((unsigned long) pdev->buffer)+(count+SKFS*2)*4); 
+    blackfin_dcache_invalidate_range((unsigned long)pdev->buffer,((unsigned long) pdev->buffer)+(count+SKFS*2)*2); 
 
 	// configure spi port for DMA TIMOD RX
 
