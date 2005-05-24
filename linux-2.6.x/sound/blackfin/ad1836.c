@@ -24,6 +24,14 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+/*
+ * credits: thanks to ADI for lending me the stamp & daugher boards
+ *          thanks to Joep Duck for testing and useful comments
+ *          Aidan Williams implemented BROKEN_PACKED_DMA and various fixes
+ */
+
+
+
 /* notes: 
  * - once this code stabilizes, move the irq and dma stuff 
  *   into bf53x_spi.c and bf53x_sport.c
@@ -35,8 +43,11 @@
  *       to control the registers over the spi, and the methods of the sport
  * - there are useful proc entries for spi, sport and ad1836 register and irq status
  *       also, you could do echo 2 > talktrough and echo 0x1234 > registers
- *       to do what you'd expect,  but we don't have redirection in sash, 
- *       so the write interface to these  isn't very useful yet (and not tested).  
+ *       to do what you'd expect.  since sash doesn't have redirection, you
+ *       can use echo2 in the test/ directory. 
+ *  - this can also be used to control the volume directly through setting
+ *       the registers directly, eg.  echo2 /proc/asound/card0/registers 0x3000
+ *       silences DAC_1_left
  *  - the chan_mask facility may easily be split into separate masks for rx and tx
  *       by duplicating it, and using the proper one in the hw_params callback
  *  - define/undef NOCONTROLS below to omit/include all the ALSA controls
@@ -86,6 +97,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <asm/irq.h>
+#include <asm/delay.h>
 
 #include <sound/core.h>
 #include <sound/info.h>
@@ -196,6 +208,35 @@ typedef ad1836_t chip_t; /* used in alsa macro's */
 unsigned int dummy_buf_rx[16]; /* used for idle rx/tx channel */
 unsigned int dummy_buf_tx[16]; /* used for idle rx/tx channel */
 
+#define BROKEN_PACKED_DMA
+
+#ifdef BROKEN_PACKED_DMA
+/*
+ *  Some blackfin chips appear corrupt data when operated in
+ *  packed DMA mode.
+ *
+ *  Enabling BROKEN_PACKED_DMA works around this corruption by
+ *  always using 8 channel DMA to/from the AD1836 chip.  The
+ *  DMA buffer always contains 8 samples for each frame with
+ *  inactive channels being zeroed.
+ *
+ *  Always using 8-channel DMA increases the amount of buffer
+ *  space required.  A fragment of 2-channel audio data must
+ *  be inflated in size to 8-channel data.  This imposes a
+ *  size/4 limit on the fragment size (in bytes) so that the
+ *  inflated data will fit.  Unfortunately, this reduced
+ *  fragment size also applies to the 8 channel data and
+ *  limits the maximum effective fragment size for 8 channel
+ *  data.  The size below is a compromise between using a
+ *  gargantuan amount of memory and supporting a decent
+ *  frame size for 8 channel data.
+ *
+ *  Note that the maximum fragment size available to the
+ *  application is specified in snd_ad1836_playback_hw and
+ *  snd_ad1836_capture_hw.
+ */
+#endif
+
 static int ad1836_spi_handler(struct bf53x_spi_channel* chan, void* buf, size_t len, void* private){
   ad1836_t *chip = (ad1836_t*) private;
   unsigned int data = *(unsigned int*) buf;
@@ -203,9 +244,11 @@ static int ad1836_spi_handler(struct bf53x_spi_channel* chan, void* buf, size_t 
   // snd_printk( KERN_INFO "in ad1836 spi handler. polled: %x data = 0x%04x\n", chip->poll_reg, data );  
   ++(chip->spi_irq_count);
 
-  if( (data & 0xf00f) == 0xf000 ) /* its an answer to a VU query */
+  /* If we're running, we're issuing VU queries not configuring */
+  if (bf53x_sport_is_running(chip->sport)) {
     chip->chip_registers[chip->poll_reg] = 
       (chip->poll_reg << 12) | ADC_READ | (data & ADC_PEAK_MASK);
+  }
 
   wake_up(&chip->spi_waitq);
 
@@ -931,6 +974,39 @@ static snd_kcontrol_new_t snd_ad1836_controls[] __devinitdata = {
  *************************************************************/
 
 
+#ifdef BROKEN_PACKED_DMA
+static snd_pcm_hardware_t snd_ad1836_playback_hw = {
+  .info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
+	   SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID),
+  .formats =          SNDRV_PCM_FMTBIT_S32_LE,
+  .rates =            SNDRV_PCM_RATE_48000,
+  .rate_min =         48000,
+  .rate_max =         48000,
+  .channels_min =     2,
+  .channels_max =     8,
+  .buffer_bytes_max = AD1836_BUFFER_SIZE/4,	/* 2 chan mode, data quadruples */
+  .period_bytes_min = 4*1024, 
+  .period_bytes_max = AD1836_BUFFER_SIZE/4,
+  .periods_min =      2,
+  .periods_max =      32,
+};
+static snd_pcm_hardware_t snd_ad1836_capture_hw = {
+  .info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED | 
+	   SNDRV_PCM_INFO_BLOCK_TRANSFER |  SNDRV_PCM_INFO_MMAP_VALID),
+  .formats =          SNDRV_PCM_FMTBIT_S32_LE,
+  .rates =            SNDRV_PCM_RATE_48000,
+  .rate_min =         48000,
+  .rate_max =         48000,
+  .channels_min =     2,
+  .channels_max =     8,
+  .buffer_bytes_max = AD1836_BUFFER_SIZE/4,
+  .period_bytes_min = 4*1024, 
+  .period_bytes_max = AD1836_BUFFER_SIZE/4,
+  .periods_min =      2,
+  .periods_max =      32,
+};
+#else /* BROKEN_PACKED_DMA */
+
 static snd_pcm_hardware_t snd_ad1836_playback_hw = {
   .info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 	   SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID),
@@ -963,6 +1039,7 @@ static snd_pcm_hardware_t snd_ad1836_capture_hw = {
   .periods_min =      2,
   .periods_max =      32,
 };
+#endif /* BROKEN_PACKED_DMA */
 
 
 static int snd_ad1836_playback_open(snd_pcm_substream_t* substream){
@@ -1024,8 +1101,20 @@ static int snd_ad1836_hw_params( snd_pcm_substream_t* substream, snd_pcm_hw_para
 
   snd_printk_marker();
 
+#ifdef BROKEN_PACKED_DMA
+  /*
+   *  Allocate all available memory for our DMA buffer.
+   *  Necessary because we get a 4x increase in bytes for the 2 channel mode.
+   *  (we lie to the ALSA midlayer through the hwparams data)
+   *  We're relying on the driver not supporting full duplex mode
+   *  to allow us to grab all the memory.
+   */
+  if( snd_pcm_lib_malloc_pages(substream, AD1836_BUFFER_SIZE) < 0 )
+    return -ENOMEM;
+#else
   if( snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hwparams)) < 0 )
     return -ENOMEM;
+#endif
 
   return 0;
 
@@ -1036,14 +1125,6 @@ static int snd_ad1836_hw_free(snd_pcm_substream_t * substream){
   snd_printk_marker();
   snd_pcm_lib_free_pages(substream);
   return 0;
-}
-
-/* little helper */
-
-static int sport_is_running(struct bf53x_sport* sport){
-  unsigned int stat_rx, stat_tx;
-  bf53x_sport_check_status(sport, NULL, &stat_rx, &stat_tx);
-  return (stat_rx & DMA_RUN) || (stat_tx & DMA_RUN);
 }
 
 
@@ -1059,7 +1140,7 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
   int  fragcount      = runtime->periods;
   int  fragsize_bytes = frames_to_bytes(runtime, runtime->period_size);
   int  chan_mask      = chip->chan_mask[((runtime->channels&0xe)>>1)-1];
-  int was_running     = sport_is_running(chip->sport);
+  int was_running     = bf53x_sport_is_running(chip->sport);
   int err=0;
 
   snd_printk_marker();
@@ -1069,6 +1150,14 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
   snd_assert( (runtime->channels == 2)||(runtime->channels == 4)
 	      ||(runtime->channels == 6)||(runtime->channels == 8),
 	      return -EINVAL);
+
+#ifdef BROKEN_PACKED_DMA
+  snd_printk(KERN_INFO "old: chan_mask: %x, fragsize_bytes: %u\n", chan_mask, fragsize_bytes);
+  chan_mask = 0xff;				/* always transfer all 8 channels.. */
+  fragsize_bytes *= 8;				/* inflate the fragsize to match */
+  fragsize_bytes /= runtime->channels;
+  snd_printk(KERN_INFO "new: chan_mask: %x, fragsize_bytes: %u\n", chan_mask, fragsize_bytes);
+#endif
 
   /* if we were running (because of the other direction), stop the sport */
  
@@ -1107,7 +1196,7 @@ static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
 
   ad1836_t* chip = _snd_pcm_substream_chip(substream);
 
-  int runs = sport_is_running(chip->sport);
+  int runs = bf53x_sport_is_running(chip->sport);
   int mask = 0;
 
 #ifdef CONFIG_SND_DEBUG
@@ -1143,11 +1232,15 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* subst
   char* buf  = (char*) runtime->dma_area;
   char* curr = (char*) bf53x_sport_curr_addr_tx(chip->sport);
   unsigned long diff = curr - buf;
+#ifdef BROKEN_PACKED_DMA
+  unsigned long bytes_per_frame = 8*4;	/* always 8 channels in the DMA frame */
+#else
   unsigned long bytes_per_frame = runtime->channels*sizeof(long) ;
+#endif
   size_t frames = diff / bytes_per_frame;
  
 #ifdef CONFIG_SND_DEBUG_CURRPTR
-  snd_printk( KERN_INFO " bf53x_sport_curr_addr_tx() == %p\n", curr );
+  snd_printk( KERN_INFO " play pos: 0x%04lx / %lx\n", frames, runtime->buffer_size);
 #endif
 
   /* the loose syncing used here is accurate enough for alsa, but 
@@ -1169,11 +1262,15 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substr
   char* buf  = (char*) runtime->dma_area;
   char* curr = (char*) bf53x_sport_curr_addr_rx(chip->sport);
   unsigned long diff = curr - buf;
+#ifdef BROKEN_PACKED_DMA
+  unsigned long bytes_per_frame = 8*4;	/* always 8 channels in the DMA frame */
+#else
   unsigned long bytes_per_frame = runtime->channels*sizeof(long) ;
+#endif
   size_t frames = diff / bytes_per_frame;
   
 #ifdef CONFIG_SND_DEBUG_CURRPTR
-  snd_printk( KERN_INFO " bf53x_sport_curr_addr_rx() == %p\n", curr );
+  snd_printk( KERN_INFO " capture pos: 0x%04lx / %lx\n", frames, runtime->buffer_size);
 #endif 
 
   /* the loose syncing used here is accurate enough for alsa, but 
@@ -1186,8 +1283,62 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substr
 
 }
 
+#ifdef BROKEN_PACKED_DMA
+static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, void *src, snd_pcm_uframes_t count){
+  ad1836_t *chip = _snd_pcm_substream_chip(substream);
+  unsigned int *dst = (unsigned int *)substream->runtime->dma_area;
+  unsigned int *isrc = (unsigned int *)src;
+  unsigned int chan_mask = chip->chan_mask[substream->runtime->channels/2 - 1];
 
+  //snd_printk(KERN_INFO "playback_copy: src %p, pos %x, count %x\n", src, (uint)pos, (uint)count);
 
+  /* assumes tx DMA buffer initialised with zeros */
+  dst += pos * 8;
+
+  while(count--) {
+    unsigned int c;
+    for (c = 0; c < 8; c++) {
+      if (chan_mask & (1 << c)) {
+        *dst = *isrc++;
+      }
+      dst++;
+    }
+  }
+  return 0;
+}
+
+static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, void *dst, snd_pcm_uframes_t count){
+  ad1836_t *chip = _snd_pcm_substream_chip(substream);
+  unsigned int *src = (unsigned int *)substream->runtime->dma_area;
+  unsigned int *idst = (unsigned int *)dst;
+  unsigned int chan_mask = chip->chan_mask[substream->runtime->channels/2 - 1];
+
+  //snd_printk(KERN_INFO "capture_copy: dst %p, pos %x, count %x\n", dst, (uint)pos, (uint)count);
+
+  src += pos * 8;
+  while(count--) {
+    unsigned int c;
+    for (c = 0; c < 8; c++) {
+      if (chan_mask & (1 << c)) {
+        *idst++ = *src;
+      }
+      src++;
+    }
+  }
+  return 0;
+}
+
+static int snd_ad1836_silence(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, snd_pcm_uframes_t count){
+  unsigned char *buf = substream->runtime->dma_area;
+
+  snd_printk(KERN_INFO "silence: pos %x, count %x\n", (uint)pos, (uint)count);
+
+  buf += pos * 8 * 4;
+  memset(buf, '\0', count * 8 * 4);
+
+  return 0;
+}
+#endif /* BROKEN_PACKED_DMA */
 
 
 /* pcm method tables */
@@ -1201,6 +1352,10 @@ static snd_pcm_ops_t snd_ad1836_playback_ops = {
   .prepare   = snd_ad1836_prepare,
   .trigger   = snd_ad1836_trigger,
   .pointer   = snd_ad1836_playback_pointer,
+#ifdef BROKEN_PACKED_DMA
+  .copy      = snd_ad1836_playback_copy,
+  .silence   = snd_ad1836_silence,
+#endif
 };
 
 
@@ -1213,6 +1368,10 @@ static snd_pcm_ops_t snd_ad1836_capture_ops = {
   .prepare   = snd_ad1836_prepare,
   .trigger   = snd_ad1836_trigger,
   .pointer   = snd_ad1836_capture_pointer,
+#ifdef BROKEN_PACKED_DMA
+  .copy      = snd_ad1836_capture_copy,
+  .silence   = snd_ad1836_silence,
+#endif
 };
 
 
@@ -1251,6 +1410,61 @@ static int snd_ad1836_dev_free(snd_device_t *device)
 static snd_device_ops_t snd_ad1836_ops = {
   .dev_free = snd_ad1836_dev_free,
 };
+
+
+static int snd_bf53x_adi1836_reset(ad1836_t *chip)
+{
+#ifdef CONFIG_EZKIT
+  /*
+   *  On the EZKIT, the reset pin of the adi1836 is connected
+   *  to a programmable flag pin on one of the flash chips.
+   *  This code configures the flag pin and toggles it to
+   *  reset the adi1836 chip.  After reset, the chip takes
+   *  4500 cycles of MCLK @ 12.288MHz to recover, ie 367us.
+   *  Thanks to Joep Duck, Aidan Williams.
+   *
+   *  ADI 1836A data sheet:
+   * 	Reset will power down the chip and set the control registers
+   * 	to their default settings. After reset is de-asserted, an
+   * 	initialization routine will run inside the AD1836A to clear all
+   * 	memories to zero. This initialization lasts for approximately
+   * 	4500 MCLKs.
+   * 
+   * 	The power-down bit in the DAC Control Register 1 and ADC Control
+   * 	Register 1 will power down the respective digital section.
+   * 	The analog circuitry does not power down. All other register
+   * 	settings are retained.
+   * 
+   * 	To avoid possible synchronization problems, if MCLK is 512 fS
+   * 	or 768 fS, the clock rate should be set in ADC Control Register
+   * 	3  within the first 3072 MCLK cycles after reset, or DLRCLK and
+   * 	DBCLK should be withheld until after the internal initialization
+   * 	completes (see above).
+   */
+#define pFlashA_PortA_Dir	(volatile unsigned char *)0x20270006
+#define pFlashA_PortA_Data	(volatile unsigned char *)0x20270004
+
+  *pFlashA_PortA_Dir = 0x1;	/* configure flag as an output pin */
+
+  snd_printk( KERN_INFO "resetting ezkit 1836 using flash flag pin\n" );
+  *pFlashA_PortA_Data = 0x0;	/* reset is active low */
+  udelay(1);			/* hold low */
+
+#if 0
+  /* 256x fs is the default upon reset */
+  if (chip) {
+    if (snd_ad1836_set_register(chip, ADC_CTRL_3, ADC_CLOCK_MASK, ADC_CLOCK_512))
+      snd_printk( KERN_ERR "failed to set clock mode 512x fs\n");
+  }
+#endif
+
+  *pFlashA_PortA_Data = 0x1;	/* re-enable */
+  udelay(400);			/* 4500 MCLK recovery time */
+
+#endif /* CONFIG_EZKIT */
+
+  return 0;
+}
 
 
 /* create the card struct, 
@@ -1306,6 +1520,8 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   for(i=ADC_PEAK_1L; i<=ADC_PEAK_2R; ++i)
     chip->chip_registers[i] |= ADC_READ;
   
+  snd_bf53x_adi1836_reset(chip);
+
   /* see if we are connected by writing (preferably something useful)
    * to the chip, and see if we get an IRQ */
   
@@ -1350,8 +1566,11 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
 
   ad1836_set_chan_masks(chip, "0123");
 
-  err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &snd_ad1836_ops);
+#ifdef BROKEN_PACKED_DMA
+  snd_printk(KERN_INFO "Using BROKEN_PACKED_DMA workaround\n");
+#endif
 
+  err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &snd_ad1836_ops);
 
   if(!err){
     snd_info_entry_t* proc_entry;
@@ -1416,9 +1635,17 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
       strcpy(pcm->name, CHIP_NAME);
       snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ad1836_playback_ops);
       snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,  &snd_ad1836_capture_ops);
+
+#ifdef SNDRV_DMA_TYPE_BFIN
+      /* uncached DMA buffers */
       snd_pcm_lib_preallocate_pages_for_all(chip->pcm, SNDRV_DMA_TYPE_BFIN,
 					    NULL,
 					    AD1836_BUFFER_SIZE, AD1836_BUFFER_SIZE);
+#else
+       snd_pcm_lib_preallocate_pages_for_all(chip->pcm, SNDRV_DMA_TYPE_BFIN,
+					    NULL,
+					    AD1836_BUFFER_SIZE, AD1836_BUFFER_SIZE);
+#endif
       
 
       snd_assert( ((ad1836_t*)(pcm->private_data))->pcm == pcm, panic("inconsistency") );
@@ -1482,7 +1709,7 @@ static int __devinit snd_bf53x_adi1836_probe(struct bf53x_spi* spi,
   sprintf(card->longname, "%s at SPI irq %d/%d, SPORT%d rx/tx dma %d/%d irq %d/%d/%d ", 
 	  card->shortname,
 	  CONFIG_SND_BLACKFIN_SPI_IRQ_DATA,   /* we could get these from the spi and */
-	  CONFIG_SND_BLACKFIN_SPI_IRQ_ERR,    /* sport structs, but then we'd have to publicize them */
+	  CONFIG_SND_BLACKFIN_SPI_IRQ_ERR,    /* sport structs, but then we'd have to publish them */
 	  CONFIG_SND_BLACKFIN_SPORT,          /* and we set them ourselves below anyway */
 	  CONFIG_SND_BLACKFIN_SPORT_DMA_RX,
 	  CONFIG_SND_BLACKFIN_SPORT_DMA_TX,
@@ -1510,6 +1737,64 @@ static __devexit void snd_bf53x_adi1836_remove(snd_card_t* card){
   return;
 }
 
+/*
+ *  Print data byte by byte without endianness getting in the way
+ */
+void print_32x4(void *data)
+{
+  unsigned char *p = (unsigned char *)data;
+  snd_printk( KERN_INFO
+	"%02x%02x%02x%02x "
+	"%02x%02x%02x%02x "
+	"%02x%02x%02x%02x "
+	"%02x%02x%02x%02x "
+	"\n",
+	 p[0],  p[1],  p[2],  p[3],
+	 p[4],  p[5],  p[6],  p[7],
+	 p[8],  p[9], p[10], p[11],
+	p[12], p[13], p[14], p[15]
+	);
+}
+
+/*
+ *  Print the last 16 bits of 8 longs byte by byte
+ */
+void print_16x8(void *data)
+{
+  unsigned char *p = (unsigned char *)data;
+  snd_printk( KERN_INFO
+	"%02x%02x %02x%02x "
+	"%02x%02x %02x%02x "
+	"%02x%02x %02x%02x "
+	"%02x%02x %02x%02x "
+	"\n",
+	 p[2],  p[3],  p[6],  p[7],
+	p[10], p[11], p[14], p[15],
+	p[18], p[19], p[22], p[23],
+	p[26], p[27], p[30], p[31]
+	);
+}
+
+/*
+ *  Square fill.
+ *  Fill sequence: {256 max values, 256 min values}
+ */
+void square_fill(void *data, size_t size)
+{
+  int i;
+  static unsigned int period = 0;
+  int *idata = data;
+
+  if (size < 512) {
+    snd_printk( KERN_INFO "ack, size < 512 bytes!\n" );
+    return;
+  }
+
+  for (i=0; i < size/sizeof(int); i++) {
+    idata[i] = (period & 256) ? 0x00000000 : 0x7fffff00;
+    ++period;
+  }
+}
 
 static inline void* frag2addr( void* buf, int frag, size_t fragsize_bytes){
   char* addr = buf;
@@ -1518,80 +1803,95 @@ static inline void* frag2addr( void* buf, int frag, size_t fragsize_bytes){
 
 
 /* sport irq handler, called directly from module level */
+static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
+  
+  unsigned int rx_stat;
+    
+    ++(chip->sport_irq_count);
+  
+  bf53x_sport_check_status( chip->sport, NULL, &rx_stat, NULL );  
+    
+  if( !(rx_stat & DMA_DONE) ) 
+    return IRQ_NONE;
+      
+  ++(chip->sport_irq_count_rx);
+  
+#ifdef  BF53X_SHADOW_REGISTERS 
+  bf53x_sport_shadow_update_rx( chip->sport );  
+#endif
+    
+  if( chip->rx_substream ) {
+    //square_fill(chip->rx_substream->runtime->dma_area, chip->rx_substream->runtime->dma_bytes);
+    //print_16x8(chip->rx_substream->runtime->dma_area);
+    snd_pcm_period_elapsed(chip->rx_substream);
+  }
 
-static irqreturn_t snd_adi1836_sport_handler(ad1836_t* chip, int irq){
+  if( chip->talktrough_mode == TALKTROUGH_SMART  ){
+    // copy last rx frag to next tx frag
+    void* src;
+    void* dst;
+    int   cnt = (AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS);
+    static int   src_frag = -1;
+    static int   dst_frag = -1;
+    if( src_frag == -1 ) src_frag = bf53x_sport_curr_frag_rx(chip->sport)-1; else ++src_frag;
+    if( dst_frag == -1 ) dst_frag = bf53x_sport_curr_frag_tx(chip->sport)+1; else ++dst_frag;
+    if( src_frag < 0 ) src_frag += TALKTROUGH_FRAGMENTS;
+    if( src_frag >= TALKTROUGH_FRAGMENTS ) src_frag -= TALKTROUGH_FRAGMENTS;
+    if( dst_frag >= TALKTROUGH_FRAGMENTS ) dst_frag -= TALKTROUGH_FRAGMENTS;
+    src = frag2addr( chip->rx_buf, src_frag, cnt );
+    dst = frag2addr( chip->tx_buf, dst_frag, cnt );
+    bf53x_cache_flushinv(src,cnt); 
+#if 0
+    b4copy(src,dst,cnt);    
+#else
+    memmove(dst,src,cnt);
+#endif
+    //print_16x8(chip->rx_buf);
+    bf53x_cache_flush(dst,cnt);
+    
+  }
+ 
+  /* issue a query for a vu meter, one per frag */
+#if 1
+  {
+    ++(chip->poll_reg);
+    if( (chip->poll_reg < ADC_PEAK_1L) || ( chip->poll_reg > ADC_PEAK_2R ) )
+      chip->poll_reg = ADC_PEAK_1L;
+    
+    bf53x_spi_transceive(chip->spi_chan, (chip->poll_reg<<12) | ADC_READ , NULL, NULL);
+  }
+#endif
+  
+  return IRQ_HANDLED;
 
-  irqreturn_t handled = IRQ_NONE;
-  unsigned int rx_stat, tx_stat;
+} /* sport handler rx */
+  
+static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
+
+  unsigned int tx_stat;
   
   ++(chip->sport_irq_count);
-
-  bf53x_sport_check_status( chip->sport, NULL, &rx_stat, &tx_stat );  
   
-  if( rx_stat & DMA_DONE ){
-    
-    ++(chip->sport_irq_count_rx);
-    handled = IRQ_HANDLED;
-    
-    if( chip->rx_substream )
-      snd_pcm_period_elapsed(chip->rx_substream);
-
-    if( chip->talktrough_mode == TALKTROUGH_SMART  ){
-      // copy last rx frag to next tx frag
-      void* src;
-      void* dst;
-      int   cnt = (AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS);
-      static int   src_frag = -1;
-      static int   dst_frag = -1;
-      if( src_frag == -1 ) src_frag = bf53x_sport_curr_frag_rx(chip->sport)-1; else ++src_frag;
-      if( dst_frag == -1 ) dst_frag = bf53x_sport_curr_frag_tx(chip->sport)+1; else ++dst_frag;
-      if( src_frag < 0 ) src_frag += TALKTROUGH_FRAGMENTS;
-      if( src_frag >= TALKTROUGH_FRAGMENTS ) src_frag -= TALKTROUGH_FRAGMENTS;
-      if( dst_frag >= TALKTROUGH_FRAGMENTS ) dst_frag -= TALKTROUGH_FRAGMENTS;
-      src = frag2addr( chip->rx_buf, src_frag, cnt );
-      dst = frag2addr( chip->tx_buf, dst_frag, cnt );
-//      bf53x_cache_flushinv(src,cnt); 
-#if 0
-      b4copy(src,dst,cnt);    
-#else
-      memmove(dst,src,cnt);
-#endif
-//      bf53x_cache_flush(dst,cnt);
-
-    }
-
-
-    /* issue a query for a vu meter, one per frag */
-#if 1
-    {
-      ++(chip->poll_reg);
-      if( (chip->poll_reg < ADC_PEAK_1L) || ( chip->poll_reg > ADC_PEAK_2R ) )
-	chip->poll_reg = ADC_PEAK_1L;
-      
-      bf53x_spi_transceive(chip->spi_chan, (chip->poll_reg<<12) | ADC_READ , NULL, NULL);
-    }
-#endif
-  }  /* handle rx */
+  bf53x_sport_check_status( chip->sport, NULL, NULL, &tx_stat );  
   
+  if( !(tx_stat & DMA_DONE) )
+    return IRQ_NONE;
+  
+  ++(chip->sport_irq_count_tx);
 
+#ifdef  BF53X_SHADOW_REGISTERS 
+  bf53x_sport_shadow_update_tx( chip->sport );  
+#endif
 
-  if( tx_stat & DMA_DONE ){
-    
-    ++(chip->sport_irq_count_tx);
-    handled = IRQ_HANDLED;
+  if( chip->tx_substream ) {
+    snd_pcm_period_elapsed(chip->tx_substream);
+    //square_fill(chip->tx_substream->runtime->dma_area, chip->tx_substream->runtime->dma_bytes);
+    //print_16x8(chip->tx_substream->runtime->dma_area);
+  }
 
-    if( chip->tx_substream )
-      snd_pcm_period_elapsed(chip->tx_substream);
-
-    
-  } /* handle tx */
-    
-
-  return handled;
-
-} /* sport handler */
-
-
+  return IRQ_HANDLED;
+  
+} /* sport handler tx */
 
 /* ************************************************************
  * Module level
@@ -1626,9 +1926,17 @@ static irqreturn_t spi_handler(int irq, void *dev_id, struct pt_regs *regs){
   return IRQ_NONE;
 }
 
-static irqreturn_t sport_handler(int irq, void *dev_id, struct pt_regs *regs){
+static irqreturn_t sport_handler_rx(int irq, void *dev_id, struct pt_regs *regs){
   //  snd_printk( KERN_INFO "in module sport handler\n" );  
-  if(card) return snd_adi1836_sport_handler( (ad1836_t*)(card->private_data), irq );
+  if(card) 
+    return snd_adi1836_sport_handler_rx( (ad1836_t*)(card->private_data), irq );
+  return IRQ_NONE;
+}
+
+static irqreturn_t sport_handler_tx(int irq, void *dev_id, struct pt_regs *regs){
+  //  snd_printk( KERN_INFO "in module sport handler\n" );  
+  if(card) 
+    return snd_adi1836_sport_handler_tx( (ad1836_t*)(card->private_data), irq );
   return IRQ_NONE;
 }
 
@@ -1712,8 +2020,8 @@ static int __init snd_bf53x_adi1836_init(void){
   enable_irq(CONFIG_SND_BLACKFIN_SPI_IRQ_ERR);
 
   if( (sport = bf53x_sport_init(CONFIG_SND_BLACKFIN_SPORT,  
-				CONFIG_SND_BLACKFIN_SPORT_DMA_RX, sport_handler,
-				CONFIG_SND_BLACKFIN_SPORT_DMA_TX, sport_handler ) ) == NULL ){ 
+				CONFIG_SND_BLACKFIN_SPORT_DMA_RX, sport_handler_rx,
+				CONFIG_SND_BLACKFIN_SPORT_DMA_TX, sport_handler_tx ) ) == NULL ){ 
     snd_bf53x_adi1836_exit();
     return -ENOMEM;
   }

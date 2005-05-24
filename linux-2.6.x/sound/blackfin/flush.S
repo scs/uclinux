@@ -14,7 +14,7 @@
  */
 
 /*
- * note: the bfin ABI seems to require that LTx, LBx and LCx are preserved!
+ * note: it is not clear (to me) wether the bfin ABI requires that LTx, LBx and LCx are preserved!
  */
 	
 .section .text;
@@ -32,22 +32,22 @@ bf53x_cache_flush:
         R1 = R1 >> LOG_CACHE_LINE_SIZE;  /* count bytes->cache lines */
 	P1 = R1; 
         P0 = R0;  /* start */
-
+#if 0
 	[--SP] = LC0;
 	[--SP] = LB0;
 	[--SP] = LT0;
-
+#endif
         LSETUP (_flush_loop, _flush_loop_end) LC0 = P1;
 _flush_loop:
 	FLUSH[ P0++ ]; 
 	csync;    /* cf adsp-bf533-0.1 anomaly list 2003/06/12 13:52  #10 */
 _flush_loop_end:
 	NOP; 
-
+#if 0
 	LT0 = [SP++]; 
 	LB0 = [SP++]; 
 	LC0 = [SP++];
-
+#endif
         RTS;
 
 
@@ -60,20 +60,20 @@ bf53x_cache_flushinv:
         R1 = R1 >> LOG_CACHE_LINE_SIZE;  /* count bytes->cache lines */
 	P1 = R1; 
         P0 = R0;  /* start */
-
+#if 0
 	[--SP] = LC0;
 	[--SP] = LB0;
 	[--SP] = LT0;	 
-
+#endif
         LSETUP (_flushinv_loop, _flushinv_loop_end) LC0 = P1;
 _flushinv_loop:
 	FLUSHINV[ P0++ ];
 	csync;    /* cf adsp-bf533-0.1 anomaly list 2003/06/12 13:52  #10 */
 _flushinv_loop_end:	
 	NOP;
-
+#if 0
 	LT0 = [SP++]; 
 	LB0 = [SP++]; 
 	LC0 = [SP++]; 
-
+#endif
         RTS;

@@ -30,6 +30,14 @@
 #include <linux/types.h>
 #include <asm/simple_bf533_dma.h>
 
+/* keep copies of the dma registers, updated by us in an irq callback 
+ * to avoid queries back to this driver having to read them 
+ * this has to be in the header file, because ad1836.c needs this to decide
+ * wether to call bf53x_sport_shadow_update_XX()
+ */
+
+#define BF53X_SHADOW_REGISTERS 
+
 
 struct bf53x_sport;
 
@@ -71,11 +79,13 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
 /* rx and tx can only run simultanously, use a dummy buffer to have one
    of them disabled, and disable their irq's with the following */
 
-int sport_disable_dma_rx(struct bf53x_sport* sport);
-int sport_disable_dma_tx(struct bf53x_sport* sport);
+void sport_disable_dma_rx(struct bf53x_sport* sport);
+void sport_disable_dma_tx(struct bf53x_sport* sport);
 
 int bf53x_sport_start(struct bf53x_sport* sport);
 int bf53x_sport_stop(struct bf53x_sport* sport); /* idempotent */
+
+int bf53x_sport_is_running(struct bf53x_sport* sport);
 
 
 /* for use in interrupt handler */
@@ -94,6 +104,12 @@ int bf53x_sport_check_status(struct bf53x_sport* sport, unsigned int* sport_stat
 
 /* for use in diagnostics */
 int  bf53x_sport_dump_stat(struct bf53x_sport* sport, char* buf, size_t len);
+
+
+#ifdef BF53X_SHADOW_REGISTERS 
+void bf53x_sport_shadow_update_rx(struct bf53x_sport* sport);
+void bf53x_sport_shadow_update_tx(struct bf53x_sport* sport);
+#endif
 
 
 #endif /* BF53X_SPORT_H */
