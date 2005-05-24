@@ -68,6 +68,12 @@ extern unsigned long search_exception_table(unsigned long);
     case 4:						\
 	__put_user_asm(__pu_val, ptr,  );		\
 	break;						\
+    case 8: { long __pu_vall, __pu_valh;		\
+         __pu_vall = ((long *)&__pu_val)[0]; \
+        __pu_valh = ((long *)&__pu_val)[1]; \
+	__put_user_asm(__pu_vall, ((long *)ptr)+0, );	\
+	__put_user_asm(__pu_valh, ((long *)ptr)+1, );	\
+    } break;						\
     default:						\
 	__pu_err = __put_user_bad();			\
 	break;						\
@@ -82,7 +88,7 @@ static inline int bad_user_access_length(void)
 	return -1;
 }
 
-#define __put_user_bad() (bad_user_access_length(), (-EFAULT))
+#define __put_user_bad() (printk("put_user_bad %s:%d %s\n", __FILE__, __LINE__, __FUNCTION__), bad_user_access_length(), (-EFAULT))
 
 /*
  * Tell gcc we read from memory instead of writing: this is because
@@ -111,8 +117,15 @@ static inline int bad_user_access_length(void)
     case 4:						\
 	__get_user_asm(__gu_val, ptr,  , );		\
 	break;						\
+    case 8: { long __gu_vall, __gu_valh;		\
+	__get_user_asm(__gu_vall, ((long *)ptr)+0,  , );	\
+	__get_user_asm(__gu_valh, ((long *)ptr)+1,  , );	\
+        ((long *)&__gu_val)[0] = __gu_vall; \
+        ((long *)&__gu_val)[1] = __gu_valh; \
+    } break;						\
     default:						\
 	__gu_val = 0;					\
+        printk("get_user_bad: %s:%d %s\n", __FILE__, __LINE__, __FUNCTION__); \
 	__gu_err = __get_user_bad();			\
 	break;						\
     }							\
