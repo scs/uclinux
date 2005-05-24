@@ -38,7 +38,8 @@
 #ifndef _ADSP_SPIADC_H_
 #define _ADSP_SPIADC_H_
 
-  
+#define SPI_READ              0
+#define SPI_WRITE             1   
 
 #define CMD_SPI_OUT_ENABLE    1
 #define CMD_SPI_SET_BAUDRATE  2
@@ -51,7 +52,6 @@
 #define CMD_SPI_SET_LENGTH16  9
 #define CMD_SPI_GET_STAT      11
 #define CMD_SPI_GET_CFG       12
-#define CMD_SPI_SET_CSAVAIL   13
 #define CMD_SPI_SET_CSHIGH    14 /* CS unavail */
 #define CMD_SPI_SET_CSLOW     15 /* CS avail */
 #define CMD_SPI_MISO_ENABLE   16

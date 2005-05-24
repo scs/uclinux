@@ -15,7 +15,10 @@
 * CAUTION:     you may need use ioctl to change it's configuration.
 **************************************************************
 * MODIFICATION HISTORY:
-* Sept 10, 2004   adsp-spiadc.c Created.
+* Sept 10, 2004   adsp-spiadc.c Created. (Michael Hennerich)
+* May 24, 2005    Added waitqueue and interrupt for write (Michael Hennerich)
+*                 Removed obsolete code fragment form ioctl
+*                 Changed read / write count to always be in bytes
 ************************************************************
 *
 * This program is free software; you can distribute it and/or modify it
@@ -100,6 +103,7 @@ typedef struct Spi_Device_t
 
 
     unsigned char 	mode;
+    unsigned short  access_mode;
     unsigned char 	sense;
     unsigned char 	edge;
     unsigned char 	cont;
@@ -305,6 +309,8 @@ static irqreturn_t spiadc_irq(int irq, void *dev_id, struct pt_regs *regs)
 /* Acknowledge DMA Interrupt*/
 clear_dma_irqstat(CH_SPI);
 
+if (pdev->access_mode == SPI_WRITE) goto irq_done;
+
 pdev->triggerpos=0;
 
 if(pdev->mode) {
@@ -382,6 +388,7 @@ if(pdev->mode) {
 	};
 
 
+irq_done:
 
 	// disable spi
 	get_spi_reg(SPI_CTL,&regdata);
@@ -578,13 +585,13 @@ static int spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned 
             {
                 /* Flush received data if Rx Buffer is full */
                 pdev->recvopt = CFG_SPI_RCVFLUSH;
-                /*set_spi_reg(SPI_CTL, regdata | 0x0008 );*/
+                set_spi_reg(SPI_CTL, regdata | 0x0008 );
             }
             else
             {
                 /* Discard new data if Rx buffer is null */
                 pdev->recvopt = CFG_SPI_RCVDISCARD;
-                /*set_spi_reg(SPI_CTL, regdata & ~0x0008 );*/
+                set_spi_reg(SPI_CTL, regdata & ~0x0008 );
             }
             break;
         }
@@ -637,17 +644,6 @@ static int spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned 
                 set_spi_reg(SPI_CTL, regdata | BIT_CTL_MISOENABLE);
             else
                 set_spi_reg(SPI_CTL, regdata & ~BIT_CTL_MISOENABLE);                     
-            break;
-        }
-        case CMD_SPI_SET_CSAVAIL:
-        {
-            DPRINTK("spi_ioctl: CMD_SPI_SET_CSAVAIL \n"); 
-            get_spi_reg( SPI_CTL, &regdata);
-            /* First clear CS */
-            if((unsigned short)arg == 0)
-                set_spi_reg(SPI_CTL, 0xff00);
-            else
-                set_spi_reg(SPI_CTL, regdata | (unsigned short)arg);
             break;
         }
         case CMD_SPI_SET_CSENABLE:
@@ -761,7 +757,7 @@ static int spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned 
 	            }
 	            else
 	            {
-					pdev->dma_config &=  ~(FLOW_AUTO << 12);
+					pdev->dma_config &=  ~(FLOW_AUTO << 12);	            
 	            }
             break;
         } 
@@ -847,7 +843,7 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
 		pdev->done=0;
 
 	/* Allocate some memory */
-	pdev->buffer = kmalloc((count+SKFS*2)*4,GFP_KERNEL); // TODO: change GFP_KERNEL to GFP_DMA as soon as it is available
+	pdev->buffer = kmalloc((count+SKFS*2)*2,GFP_KERNEL); // TODO: change GFP_KERNEL to GFP_DMA as soon as it is available
 
 
     /* Invalidate allocated memory in Data Cache */ 
@@ -862,8 +858,13 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
 	    pdev->dma_config |= ( WNR | RESTART | DI_EN );
 	    set_dma_config(CH_SPI, pdev->dma_config);
 		set_dma_start_addr(CH_SPI, (unsigned long) pdev->buffer);
-		set_dma_x_count(CH_SPI, (count+SKFS)*2);
-		set_dma_x_modify(CH_SPI, 2);
+		set_dma_x_count(CH_SPI, (count+SKFS));
+		
+		if(pdev->length == CFG_SPI_WORDSIZE16)
+			set_dma_x_modify(CH_SPI, 2);
+		else 
+    		set_dma_x_modify(CH_SPI, 1);
+    	
     	asm("ssync;");
 		enable_dma(CH_SPI);
 
@@ -898,9 +899,9 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
 #endif 
 
 	if(!(pdev->timeout < 0) && (!pdev->triggerpos))
-		copy_to_user(buf, pdev->buffer + SKFS, count*2);
+		copy_to_user(buf, pdev->buffer + SKFS, count);
 	  else 
-		copy_to_user(buf, pdev->buffer + pdev->triggerpos, count*2);
+		copy_to_user(buf, pdev->buffer + pdev->triggerpos, count);
 
     kfree(pdev->buffer);
     
@@ -944,6 +945,7 @@ return count;
 static ssize_t spi_write (struct file *filp, const char *buf, size_t count, loff_t *f_pos)
 {
     unsigned short regdata;
+    int ierr;
     spi_device_t *pdev = filp->private_data;
 
 	DPRINTK("spi_write: \n");
@@ -955,26 +957,49 @@ static ssize_t spi_write (struct file *filp, const char *buf, size_t count, loff
     pdev->timeout = TIMEOUT;
 	pdev->done=0;
 
-    blackfin_dcache_invalidate_range((unsigned long)buf,((unsigned long)buf+(count*2)));
+    blackfin_dcache_invalidate_range((unsigned long)buf,((unsigned long)buf+(count)));
 		
 	// configure spi port for DMA TIMOD 
 		get_spi_reg(SPI_CTL,&regdata);
         set_spi_reg(SPI_CTL, regdata | BIT_CTL_TIMOD_DMA_TX );	
 	
 	    pdev->dma_config |= ( RESTART );
+		if(! pdev->cont)
+			pdev->dma_config |= ( DI_EN );
 	    set_dma_config(CH_SPI, pdev->dma_config);
 		set_dma_start_addr(CH_SPI, (unsigned long) buf);
 		set_dma_x_count(CH_SPI, count);
-		set_dma_x_modify(CH_SPI, 2);
+
+		if(pdev->length == CFG_SPI_WORDSIZE16)
+			set_dma_x_modify(CH_SPI, 2);
+		else 
+    		set_dma_x_modify(CH_SPI, 1);
+
     	asm("ssync;");
 		enable_dma(CH_SPI);
 	
 	// enable spi
 	get_spi_reg(SPI_CTL,&regdata);
 	set_spi_reg(SPI_CTL,regdata | BIT_CTL_ENABLE);
+	
 
-	/* TODO add wait queue */  	
-
+	    /* Wait for DMA finished */
+	    if(!pdev->cont)
+	    {
+	        if(pdev->nonblock)
+	            return -EAGAIN;
+	        else
+	        {
+	            DPRINTK("SPI wait_event_interruptible\n");
+	            ierr = wait_event_interruptible(*(pdev->rx_avail),pdev->done);
+	            if(ierr)
+	            {
+	                /* waiting is broken by a signal */
+	                printk("SPI wait_event_interruptible ierr\n");
+	                return ierr;
+	            }
+	        }
+	    }
 
     DPRINTK("spi_write: return \n");
 
@@ -1034,7 +1059,7 @@ static int spi_open (struct inode *inode, struct file *filp)
 	    spiinfo.opened = 1;
 	    spiinfo.phase = 1;
 	    spiinfo.bdrate = SPI_DEFAULT_BARD;
-	    
+        spiinfo.cont = 0;
 	    strcpy(intname, SPI_INTNAME);
 	    spiinfo.irqnum = SPI_IRQ_NUM;
 	        
