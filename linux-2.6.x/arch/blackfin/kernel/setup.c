@@ -146,6 +146,13 @@ void setup_arch(char **cmdline_p)
 
 	memory_start = PAGE_ALIGN(_ramstart);
 	memory_end = _ramend; /* by now the stack is part of the init task */
+#if defined (CONFIG_UNCACHED_1M)
+	memory_end -= (1024*1024);
+#elif defined (CONFIG_UNCACHED_512K)
+	memory_end -= (512*1024);
+#elif defined (CONFIG_UNCACHED_256K)
+	memory_end -= (256*1024);
+#endif
 
 	init_mm.start_code = (unsigned long) &_stext;
 	init_mm.end_code = (unsigned long) &_etext;

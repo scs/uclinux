@@ -183,7 +183,11 @@ dcplb_table:
 .byte4	0x00400000; 
 .byte4	(SDRAM_DKERNEL);	/*SDRAM_Page1*/
 .byte4	0x07C00000;
-.byte4	(SDRAM_DKERNEL);	/*SDRAM_Page15*/
+#ifdef CONFIG_BLKFIN_DCACHE
+.byte4	(SDRAM_DNON_CHBL);	/*SDRAM_Page32*/
+#else
+.byte4	(SDRAM_DKERNEL);
+#endif
 .byte4	0x00800000; 
 .byte4 	(SDRAM_DGENERIC);	/*SDRAM_Page2*/
 .byte4 	0x00C00000; 
@@ -308,7 +312,11 @@ dpdt_table:
 .byte4	(SDRAM_DGENERIC);	/*SDRAM_Page31*/
 #ifdef CONFIG_CPLB_INFO
 .byte4	0x07C00000;
-.byte4	(SDRAM_DKERNEL);	/*SDRAM_Page32*/
+#ifdef CONFIG_BLKFIN_DCACHE
+.byte4	(SDRAM_DNON_CHBL);	/*SDRAM_Page32*/
+#else
+.byte4	(SDRAM_DKERNEL);
+#endif
 #endif
 #endif
 

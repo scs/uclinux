@@ -115,9 +115,9 @@
 #undef CONFIG_SND_DEBUG_CURRPTR  /* causes output every frame! */
 
 /* assembly helpers */
-extern void b4copy(unsigned int* src, unsigned int* dst, unsigned int count_bytes); /* in b4copy.S */
-extern void bf53x_cache_flush(void* start, unsigned int size_bytes);
-extern void bf53x_cache_flushinv(void* start, unsigned int size_bytes);
+//extern void b4copy(unsigned int* src, unsigned int* dst, unsigned int count_bytes); /* in b4copy.S */
+//extern void bf53x_cache_flush(void* start, unsigned int size_bytes);
+//extern void bf53x_cache_flushinv(void* start, unsigned int size_bytes);
 
 #undef NOCONTROLS  /* define this to omit all the ALSA controls */
 
@@ -1416,8 +1416,8 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
       strcpy(pcm->name, CHIP_NAME);
       snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ad1836_playback_ops);
       snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,  &snd_ad1836_capture_ops);
-      snd_pcm_lib_preallocate_pages_for_all(chip->pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					    snd_dma_continuous_data(GFP_KERNEL),
+      snd_pcm_lib_preallocate_pages_for_all(chip->pcm, SNDRV_DMA_TYPE_BFIN,
+					    NULL,
 					    AD1836_BUFFER_SIZE, AD1836_BUFFER_SIZE);
       
 
@@ -1550,13 +1550,13 @@ static irqreturn_t snd_adi1836_sport_handler(ad1836_t* chip, int irq){
       if( dst_frag >= TALKTROUGH_FRAGMENTS ) dst_frag -= TALKTROUGH_FRAGMENTS;
       src = frag2addr( chip->rx_buf, src_frag, cnt );
       dst = frag2addr( chip->tx_buf, dst_frag, cnt );
-      bf53x_cache_flushinv(src,cnt); 
+//      bf53x_cache_flushinv(src,cnt); 
 #if 0
       b4copy(src,dst,cnt);    
 #else
       memmove(dst,src,cnt);
 #endif
-      bf53x_cache_flush(dst,cnt);
+//      bf53x_cache_flush(dst,cnt);
 
     }
 

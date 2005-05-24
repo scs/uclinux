@@ -51,6 +51,7 @@ struct snd_dma_device {
 #define SNDRV_DMA_TYPE_DEV		2	/* generic device continuous */
 #define SNDRV_DMA_TYPE_DEV_SG		3	/* generic device SG-buffer */
 #define SNDRV_DMA_TYPE_SBUS		4	/* SBUS continuous */
+#define SNDRV_DMA_TYPE_BFIN		5	/* Blackfin continuous DMA memory */
 
 /*
  * info for buffer allocation

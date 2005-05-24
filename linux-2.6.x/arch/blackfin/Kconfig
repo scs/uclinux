@@ -175,6 +175,24 @@ config	BLKFIN_WT
 	bool "Write through"	
 endchoice
 
+comment 'Uncached memory region'
+choice
+	prompt "Uncached memory region"
+	default UNCACHED_1M
+	---help---
+	  Choose the size of the uncached memory region
+
+config UNCACHED_256K
+	bool '256K'
+
+config UNCACHED_512K
+	bool '512K'
+
+config UNCACHED_1M
+	bool '1M'
+
+endchoice
+
 comment 'Crystal Frequency'
 
 config CLKIN_HZ

@@ -297,6 +297,52 @@ static void snd_free_dev_pages(struct device *dev, size_t size, void *ptr,
 	dma_free_coherent(dev, PAGE_SIZE << pg, ptr, dma);
 }
 
+#ifdef CONFIG_BLACKFIN
+static void *snd_malloc_bfin_pages(struct device *dev, size_t size, dma_addr_t *dma)
+{
+	int pg;
+	void *res;
+	unsigned int gfp_flags;
+
+	snd_assert(size > 0, return NULL);
+	snd_assert(dma != NULL, return NULL);
+	pg = get_order(size);
+	gfp_flags = GFP_KERNEL;
+	if (pg > 0)
+		gfp_flags |= __GFP_NOWARN;
+	res = dma_alloc_coherent(dev, PAGE_SIZE << pg, dma, gfp_flags);
+
+	return res;
+}
+
+static void *snd_malloc_bfin_pages_fallback(struct device *dev, size_t size,
+					   dma_addr_t *dma, size_t *res_size)
+{
+	void *res;
+
+	snd_assert(res_size != NULL, return NULL);
+	do {
+		if ((res = snd_malloc_dev_pages(dev, size, dma)) != NULL) {
+			*res_size = size;
+			return res;
+		}
+		size >>= 1;
+	} while (size >= PAGE_SIZE);
+	return NULL;
+}
+
+static void snd_free_bfin_pages(struct device *dev, size_t size, void *ptr,
+			       dma_addr_t dma)
+{
+	int pg;
+
+	if (ptr == NULL)
+		return;
+	pg = get_order(size);
+	dma_free_coherent(dev, PAGE_SIZE << pg, ptr, dma);
+}
+#endif
+
 #ifdef CONFIG_SBUS
 
 static void *snd_malloc_sbus_pages(struct device *dev, size_t size,
@@ -399,6 +445,11 @@ int snd_dma_alloc_pages(const struct snd_dma_device *dev, size_t size,
 		dmab->area = snd_malloc_sbus_pages(dev->dev, size, &dmab->addr);
 		break;
 #endif
+#ifdef CONFIG_BFIN
+	case SNDRV_DMA_TYPE_BFIN:
+		dmab->area = snd_malloc_bfin_pages(dev->dev, size, &dmab->addr);
+		break;
+#endif
 	case SNDRV_DMA_TYPE_DEV:
 		dmab->area = snd_malloc_dev_pages(dev->dev, size, &dmab->addr);
 		break;
@@ -449,6 +500,11 @@ int snd_dma_alloc_pages_fallback(const struct snd_dma_device *dev, size_t size,
 		dmab->area = snd_malloc_sbus_pages_fallback(dev->dev, size, &dmab->addr, &dmab->bytes);
 		break;
 #endif
+#ifdef CONFIG_BLACKFIN
+	case SNDRV_DMA_TYPE_BFIN:
+		dmab->area = snd_malloc_bfin_pages_fallback(dev->dev, size, &dmab->addr, &dmab->bytes);
+		break;
+#endif
 	case SNDRV_DMA_TYPE_DEV:
 		dmab->area = snd_malloc_dev_pages_fallback(dev->dev, size, &dmab->addr, &dmab->bytes);
 		break;
@@ -483,6 +539,11 @@ void snd_dma_free_pages(const struct snd_dma_device *dev, struct snd_dma_buffer 
 #ifdef CONFIG_SBUS
 	case SNDRV_DMA_TYPE_SBUS:
 		snd_free_sbus_pages(dev->dev, dmab->bytes, dmab->area, dmab->addr);
+		break;
+#endif
+#ifdef CONFIG_BLACKFIN
+	case SNDRV_DMA_TYPE_BFIN:
+		snd_free_bfin_pages(dev->dev, dmab->bytes, dmab->area, dmab->addr);
 		break;
 #endif
 	case SNDRV_DMA_TYPE_DEV:
@@ -776,6 +837,11 @@ static int snd_mem_proc_read(char *page, char **start, off_t off,
 				struct sbus_dev *sdev = (struct sbus_dev *)(mem->dev.dev);
 				len += sprintf(page + len, "SBUS [%x]", sdev->slot);
 			}
+			break;
+#endif
+#ifdef CONFIG_BLACKFIN
+		case SNDRV_DMA_TYPE_BFIN:
+			len += sprintf(page + len, "BFIN");
 			break;
 #endif
 		case SNDRV_DMA_TYPE_DEV:

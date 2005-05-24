@@ -29,6 +29,7 @@
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
 #include <asm/dma.h>
 #include <asm/cacheflush.h>
+#include <asm/dma-mapping.h>
 #endif
 
 #include <asm/dpmc.h> /* get_sclk() */
@@ -726,7 +727,8 @@ static int startup(struct bf533_serial * info)
 	}
                                                                                 
         if (!info->recv_buf) {
-		info->recv_buf = (unsigned char*)l1_data_A_sram_alloc(PAGE_SIZE);
+		dma_addr_t dma_handle;
+		info->recv_buf = (unsigned char*)dma_alloc_coherent(NULL, PAGE_SIZE, &dma_handle, GFP_DMA);
                 if (!info->recv_buf)
                 {
                         free_page((unsigned long)info->xmit_buf);
@@ -838,7 +840,8 @@ static void shutdown(struct bf533_serial * info)
 	}
 
         if (info->recv_buf) {
-                l1_data_A_sram_free((unsigned long) info->recv_buf);
+		dma_addr_t dma_handle = 0;
+		dma_free_coherent(NULL, PAGE_SIZE, info->recv_buf, dma_handle);
                 info->recv_buf = 0;
         }
 	
