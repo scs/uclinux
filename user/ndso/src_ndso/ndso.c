@@ -175,7 +175,7 @@ Sample (int form_method, char **getvars, char **postvars, s_info * info)
   ioctl (info->fd0, CMD_SPI_SET_TRIGGER_LEVEL,
 	 (unsigned short) VoltageToSample (info->strigger.level, info));
 
-  errval = read (info->fd0, info->samples, info->stime_s.samples);
+  errval = read (info->fd0, info->samples, (info->stime_s.samples * 2));
 
   close (info->fd0);
 
