@@ -28,19 +28,16 @@
 	.align 2;
 	   
 ENTRY(outsl)
-	LINK 0x0;
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
 
 	LSETUP( long_loop_s, long_loop_e) LC0 = P2;
-long_loop_s: R0 = W[P1++];
-long_loop_e: W[P0] = R0;
-	UNLINK;
+long_loop_s: R0 = [P1++];
+long_loop_e: [P0] = R0;
 	RTS;
 
 ENTRY(outsw)
-	LINK 0x0;
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
@@ -48,11 +45,9 @@ ENTRY(outsw)
 	LSETUP( word_loop_s, word_loop_e) LC0 = P2;
 word_loop_s: R0 = W[P1++];
 word_loop_e: W[P0] = R0;
-	UNLINK;
 	RTS;
 
 ENTRY(outsb)
-	LINK 0x0;
 	P0 = R0;	/* P0 = port */
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
@@ -60,5 +55,4 @@ ENTRY(outsb)
 	LSETUP( byte_loop_s, byte_loop_e) LC0 = P2;
 byte_loop_s: R0 = B[P1++];
 byte_loop_e: B[P0] = R0;
-	UNLINK;
 	RTS;
