@@ -253,7 +253,7 @@ ENTRY(start_dma_code)
         [P2] = R0;
         SSYNC;
 
-        r0 = CONFIG_VCO_MULT;           /* Load the VCO multiplier         */
+        r0 = CONFIG_VCO_MULT & 63; /* Load the VCO multiplier         */
         r0 = r0 << 9;                   /* Shift it over,                  */
         r1 = CLKIN_HALF;        /* Do we need to divide CLKIN by 2?*/
         r0 = r1 | r0;

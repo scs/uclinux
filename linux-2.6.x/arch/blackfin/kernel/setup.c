@@ -27,7 +27,6 @@ unsigned long memory_start;
 unsigned long memory_end;
 
 char command_line[COMMAND_LINE_SIZE];
-u_long vco = 0; 
 
 void init_leds(void);
 void bf53x_cache_init(void);
@@ -239,40 +238,50 @@ void setup_arch(char **cmdline_p)
 	bf53x_cache_init();
 }
 
+static inline u_long get_vco(void)
+{
+	u_long msel;
+	u_long vco;
+
+        msel = (*pPLL_CTL >> 9) & 0x3F;
+        if (0 == msel)
+          msel = 64;
+
+        vco = CONFIG_CLKIN_HZ;
+        vco >>= (1 & *pPLL_CTL); /* DF bit */
+	vco = msel * vco;
+	return vco;
+}
+
 /*Get the Core clock*/
 u_long get_cclk()
 {
-	u_long cclk = 0;
-
+	u_long csel, ssel;
 	if(*pPLL_STAT & 0x1) return CONFIG_CLKIN_HZ;
 
-	vco = CONFIG_CLKIN_HZ * ((*pPLL_CTL >> 9)& 0x3F);
-
-	if (1 & *pPLL_CTL) /* DF bit */
-		vco >>= 1;
-	cclk = vco >> (*pPLL_DIV >> 4 & 0x03);
-
-	return cclk;
+        ssel = *pPLL_DIV;
+	csel = ((ssel >> 4) & 0x03);
+        ssel &= 0xf;
+	if (ssel && ssel < (1 << csel)) /* SCLK > CCLK */
+		return get_vco() / ssel;
+	return get_vco() >> csel;
 }
 
 /* Get the System clock */
 u_long get_sclk()
 {
-	u_long sclk=0;
+	u_long ssel;
 	
 	if(*pPLL_STAT & 0x1) return CONFIG_CLKIN_HZ;
-	
-	vco = CONFIG_CLKIN_HZ * ((*pPLL_CTL >> 9)& 0x3F);
-	
-	if (1 & *pPLL_CTL) /* DF bit */
-		vco >>= 1;
 
-	if((*pPLL_DIV & 0xf) != 0)
-		sclk = vco/(*pPLL_DIV & 0xf);
-	else
-		printk("Invalid System Clock\n");
-	
-	return sclk;
+        ssel = (*pPLL_DIV & 0xf);
+	if(0 == ssel)
+        {
+		printk("Invalid System Clock\n");	
+                ssel = 1;
+        }
+
+	return get_vco() / ssel;
 }
 
 /*Get the DSP Revision ID*/
