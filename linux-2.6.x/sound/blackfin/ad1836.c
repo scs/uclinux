@@ -128,8 +128,8 @@
 
 /* assembly helpers */
 //extern void b4copy(unsigned int* src, unsigned int* dst, unsigned int count_bytes); /* in b4copy.S */
-//extern void bf53x_cache_flush(void* start, unsigned int size_bytes);
-//extern void bf53x_cache_flushinv(void* start, unsigned int size_bytes);
+extern void bf53x_cache_flush(void* start, unsigned int size_bytes);
+extern void bf53x_cache_flushinv(void* start, unsigned int size_bytes);
 
 #undef NOCONTROLS  /* define this to omit all the ALSA controls */
 
@@ -1642,11 +1642,10 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
 					    NULL,
 					    AD1836_BUFFER_SIZE, AD1836_BUFFER_SIZE);
 #else
-       snd_pcm_lib_preallocate_pages_for_all(chip->pcm, SNDRV_DMA_TYPE_BFIN,
-					    NULL,
+       snd_pcm_lib_preallocate_pages_for_all(chip->pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+					    snd_dma_continuous_data(GFP_KERNEL),
 					    AD1836_BUFFER_SIZE, AD1836_BUFFER_SIZE);
 #endif
-      
 
       snd_assert( ((ad1836_t*)(pcm->private_data))->pcm == pcm, panic("inconsistency") );
 
