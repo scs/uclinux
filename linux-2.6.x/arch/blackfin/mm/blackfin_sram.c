@@ -49,6 +49,8 @@ spinlock_t l1sram_lock, l1_data_A_sram_lock;
 
 #define L1_DATA_A_SADDR    0xFF800000
 #define L1_DATA_A_SIZE     0x4000		// For Testing purpose we are giving only 0x1000 size 
+#define L1_DATA_B_SADDR    0xFF900000
+#define L1_DATA_B_SIZE     0x4000
 /* L1 scratchpad management */
 
 /* L1 scratchpad SRAM */
@@ -57,32 +59,23 @@ spinlock_t l1sram_lock, l1_data_A_sram_lock;
 #define SRAM_SLT_ALLOCATED 2
 
 void l1sram_init(void);
-void l1mem_init(void);
 void l1_data_A_sram_init(void);
-void l1_data_A_mem_init(void);
 extern unsigned long table_start,table_end;
 
-/* the data structure for L1 scratchpad */ 
-/* L1 scratchpad SRAM */
-struct {
-	unsigned long saddr;
-	unsigned long max_size;
-	struct {
+/* the data structure for L1 scratchpad and DATA SRAM */ 
+struct l1_sram_piece {
 		unsigned long paddr;
 		int size;
 		int flag;
-	}pfree[L1_MAX_PIECE];
-}l1_ssram;
+	};
 
-struct {
-	unsigned long saddr;
-	unsigned long max_size;
-	struct {
-		unsigned long paddr;
-		int size;
-		int flag;
-	}pfree[L1_MAX_PIECE];
-}l1_data_A_ssram;
+struct l1_sram_piece l1_ssram[L1_MAX_PIECE];
+
+struct l1_sram_piece l1_data_A_sram[L1_MAX_PIECE];
+
+#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
+struct l1_sram_piece l1_data_B_sram[L1_MAX_PIECE];
+#endif
 
 /* L1 Scratchpad SRAM initialization function */
 void l1sram_init(void)
@@ -90,11 +83,9 @@ void l1sram_init(void)
 	printk("Blackfin Scratchpad data SRAM: %d KB\n",(L1_SCRATCH_SIZE/1000));
 
 	memset((void *)&l1_ssram, 0, sizeof(l1_ssram));
-	l1_ssram.saddr = L1_SCRATCH_SADDR;
-	l1_ssram.max_size = L1_SCRATCH_SIZE;
-	l1_ssram.pfree[0].paddr = L1_SCRATCH_SADDR;
-	l1_ssram.pfree[0].size = L1_SCRATCH_SIZE;
-	l1_ssram.pfree[0].flag = SRAM_SLT_FREE;
+	l1_ssram[0].paddr = L1_SCRATCH_SADDR;
+	l1_ssram[0].size = L1_SCRATCH_SIZE;
+	l1_ssram[0].flag = SRAM_SLT_FREE;
 
 	/* mutex initialize */
 	spin_lock_init (&l1sram_lock);
@@ -102,76 +93,81 @@ void l1sram_init(void)
 
 void l1_data_A_sram_init(void)
 {
+	memset((void *)&l1_data_A_sram, 0, sizeof(l1_data_A_sram));
+#if defined(CONFIG_BF533) || \
+	defined(CONFIG_BF532) && !defined(CONFIG_BLKFIN_DCACHE)
 	printk("Blackfin DATA_A SRAM: %d KB\n",(L1_DATA_A_SIZE/1000));
 
-	memset((void *)&l1_data_A_ssram, 0, sizeof(l1_data_A_ssram));
-	l1_data_A_ssram.saddr = L1_DATA_A_SADDR;
-	l1_data_A_ssram.max_size = L1_DATA_A_SIZE;
-	l1_data_A_ssram.pfree[0].paddr = L1_DATA_A_SADDR;
-	l1_data_A_ssram.pfree[0].size = L1_DATA_A_SIZE;
-	l1_data_A_ssram.pfree[0].flag = SRAM_SLT_FREE;
+	l1_data_A_sram[0].paddr = L1_DATA_A_SADDR;
+	l1_data_A_sram[0].size = L1_DATA_A_SIZE;
+	l1_data_A_sram[0].flag = SRAM_SLT_FREE;
+#endif
+#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
+	printk("Blackfin DATA_B SRAM: %d KB\n", L1_DATA_B_SIZE >> 10);
+
+	memset((void *)&l1_data_B_sram, 0, sizeof(l1_data_B_sram));
+	l1_data_B_sram[0].paddr = L1_DATA_B_SADDR;
+	l1_data_B_sram[0].size = L1_DATA_B_SIZE;
+	l1_data_B_sram[0].flag = SRAM_SLT_FREE;
+#endif
 
 	/* mutex initialize */
 	spin_lock_init (&l1_data_A_sram_lock);
 }
 
-/* L1 Scratchpad memory allocate function */
-unsigned long l1sram_alloc(unsigned long size)
+/* L1 memory allocate function */
+static unsigned long l1_sram_alloc(unsigned long size, 
+		struct l1_sram_piece *pfree, int count)
 {
 	int i, index=0;
 	unsigned long addr=0;
 	
-	/* add mutex operation*/
-	spin_lock (&l1sram_lock);
-
 	if(size <= 0)
 		return 0;
 
+	/* Align the size */
+	size = (size + 3) & ~3;
+
 	/* not use the good method to match the best slot !!! */
 	/* search an available memeory slot */
-	for(i = 0; i < L1_MAX_PIECE; i++)  {
-		if((l1_ssram.pfree[i].flag == SRAM_SLT_FREE) &&
-			(l1_ssram.pfree[i].size >= size))	{
-			addr = l1_ssram.pfree[i].paddr;
-			l1_ssram.pfree[i].flag = SRAM_SLT_ALLOCATED;
+	for(i = 0; i < count; i++)  {
+		if((pfree[i].flag == SRAM_SLT_FREE) &&
+			(pfree[i].size >= size))	{
+			addr = pfree[i].paddr;
+			pfree[i].flag = SRAM_SLT_ALLOCATED;
 			index = i;
 			break;
 		}
 	}
-	if( i >= L1_MAX_PIECE )
+	if( i >= count )
 		return 0;
 		
 	/* updated the NULL memeory slot !!!*/
-	if(l1_ssram.pfree[i].size > size)	{
-		for( i = 0; i < L1_MAX_PIECE; i++ )	{
-			if(l1_ssram.pfree[i].flag == SRAM_SLT_NULL)	{
-				l1_ssram.pfree[i].flag = SRAM_SLT_FREE;
-				l1_ssram.pfree[i].paddr = addr + size;
-				l1_ssram.pfree[i].size = l1_ssram.pfree[index].size - size;
-				l1_ssram.pfree[index].size = size;
+	if(pfree[i].size > size)	{
+		for( i = 0; i < count; i++ )	{
+			if(pfree[i].flag == SRAM_SLT_NULL)	{
+				pfree[i].flag = SRAM_SLT_FREE;
+				pfree[i].paddr = addr + size;
+				pfree[i].size = pfree[index].size - size;
+				pfree[index].size = size;
 				break;
 			}
 		}
 	}
 
-	/* add mutex operation*/
-	spin_unlock (&l1sram_lock);
-
 	return addr;
 }
 
-/* L1 Scratchpad memory free function */
-int l1sram_free(unsigned long addr)
+/* L1 memory free function */
+static int l1_sram_free(unsigned long addr,
+		struct l1_sram_piece *pfree, int count)
 {
 	int i, index=0;
 	
-	/* add mutex operation*/
-	spin_lock (&l1sram_lock);
-
 	/* search the relevant memory slot */
-	for(i = 0; i < L1_MAX_PIECE; i++)  {
-		if(l1_ssram.pfree[i].paddr == addr)	{
-			if(l1_ssram.pfree[i].flag != SRAM_SLT_ALLOCATED) {
+	for(i = 0; i < count; i++)  {
+		if(pfree[i].paddr == addr)	{
+			if(pfree[i].flag != SRAM_SLT_ALLOCATED) {
 				/* error log*/
 				return -1;
 			}
@@ -179,128 +175,114 @@ int l1sram_free(unsigned long addr)
 			break;
 		}
 	}
-	if( i >= L1_MAX_PIECE )
+	if( i >= count )
 		return -1;
 		
-	l1_ssram.pfree[index].flag = SRAM_SLT_FREE;
+	pfree[index].flag = SRAM_SLT_FREE;
 	
 	/* link the next address slot */
-	for(i = 0; i < L1_MAX_PIECE; i++)  {
-		if(((l1_ssram.pfree[index].paddr + l1_ssram.pfree[index].size) == l1_ssram.pfree[i].paddr) &&
-			(l1_ssram.pfree[i].flag == SRAM_SLT_FREE))
+	for(i = 0; i < count; i++)  {
+		if(((pfree[index].paddr + pfree[index].size) == pfree[i].paddr) &&
+			(pfree[i].flag == SRAM_SLT_FREE))
 		{
-			l1_ssram.pfree[i].flag = SRAM_SLT_NULL;
-			l1_ssram.pfree[index].size += l1_ssram.pfree[i].size;
-			l1_ssram.pfree[index].flag = SRAM_SLT_FREE;
+			pfree[i].flag = SRAM_SLT_NULL;
+			pfree[index].size += pfree[i].size;
+			pfree[index].flag = SRAM_SLT_FREE;
 			break;
 		}
 	}
 
 	/* link the last address slot */
-	for(i = 0; i < L1_MAX_PIECE; i++)  {
-		if(((l1_ssram.pfree[i].paddr + l1_ssram.pfree[i].size) == l1_ssram.pfree[index].paddr) &&
-			(l1_ssram.pfree[i].flag == SRAM_SLT_FREE))
+	for(i = 0; i < count; i++)  {
+		if(((pfree[i].paddr + pfree[i].size) == pfree[index].paddr) &&
+			(pfree[i].flag == SRAM_SLT_FREE))
 		{
-			l1_ssram.pfree[index].flag = SRAM_SLT_NULL;
-			l1_ssram.pfree[i].size += l1_ssram.pfree[index].size;
+			pfree[index].flag = SRAM_SLT_NULL;
+			pfree[i].size += pfree[index].size;
 			break;
 		}
 	}
-
-	/* add mutex operation*/
-	spin_unlock (&l1sram_lock);
 
 	return 0;
 }
 
 unsigned long l1_data_A_sram_alloc(unsigned long size)
 {
-	int i, index=0;
-	unsigned long addr=0;
+	unsigned flags;
+	unsigned long addr;
 	
 	/* add mutex operation*/
-	spin_lock (&l1_data_A_sram_lock);
+	spin_lock_irqsave (&l1_data_A_sram_lock, flags);
 
-	if(size <= 0)
-		return 0;
+	addr = l1_sram_alloc(size, 
+			l1_data_A_sram, ARRAY_SIZE(l1_data_A_sram));
 
-	/* not use the good method to match the best slot !!! */
-	/* search an available memeory slot */
-	for(i = 0; i < L1_MAX_PIECE; i++)  {
-		if((l1_data_A_ssram.pfree[i].flag == SRAM_SLT_FREE) &&
-			(l1_data_A_ssram.pfree[i].size >= size))	{
-			addr = l1_data_A_ssram.pfree[i].paddr;
-			l1_data_A_ssram.pfree[i].flag = SRAM_SLT_ALLOCATED;
-			index = i;
-			break;
-		}
-	}
-	if( i >= L1_MAX_PIECE )
-		return 0;
-	/* updated the NULL memeory slot !!!*/
-	if(l1_data_A_ssram.pfree[i].size > size)	{
-		for( i = 0; i < L1_MAX_PIECE; i++ )	{
-			if(l1_data_A_ssram.pfree[i].flag == SRAM_SLT_NULL)	{
-				l1_data_A_ssram.pfree[i].flag = SRAM_SLT_FREE;
-				l1_data_A_ssram.pfree[i].paddr = addr + size;
-				l1_data_A_ssram.pfree[i].size = l1_ssram.pfree[index].size - size;
-				l1_data_A_ssram.pfree[index].size = size;
-				break;
-			}
-		}
-	}
+#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
+	if (!addr) 
+		addr = l1_sram_alloc(size, 
+			l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
+#endif
 	/* add mutex operation*/
-	spin_unlock (&l1_data_A_sram_lock);
+	spin_unlock_irqrestore (&l1_data_A_sram_lock, flags);
 
-	printk ("Allocated address in l1sram_alloc is %lu\n",addr);
+	printk ("Allocated address in l1sram_alloc is 0x%lx+0x%lx\n",addr,size);
 	return addr;
 }
 
 int l1_data_A_sram_free(unsigned long addr)
 {
-	int i, index=0;
+	unsigned flags;
+	int ret;
 	
 	/* add mutex operation*/
-	spin_lock (&l1_data_A_sram_lock);
+	spin_lock_irqsave (&l1_data_A_sram_lock, flags);
 
-	/* search the relevant memory slot */
-	for(i = 0; i < L1_MAX_PIECE; i++)  {
-		if(l1_data_A_ssram.pfree[i].paddr == addr)	{
-			if(l1_data_A_ssram.pfree[i].flag != SRAM_SLT_ALLOCATED) {
-				return -1;
-			}
-			index = i;
-			break;
-		}
-	}
-	if( i >= L1_MAX_PIECE )
-		return -1;
-		
-	l1_data_A_ssram.pfree[index].flag = SRAM_SLT_FREE;
-	
-	/* link the next address slot */
-	for(i = 0; i < L1_MAX_PIECE; i++)  {
-		if(((l1_data_A_ssram.pfree[index].paddr + l1_data_A_ssram.pfree[index].size) == l1_data_A_ssram.pfree[i].paddr) &&
-			(l1_data_A_ssram.pfree[i].flag == SRAM_SLT_FREE))
-		{
-			l1_data_A_ssram.pfree[i].flag = SRAM_SLT_NULL;
-			l1_data_A_ssram.pfree[index].size += l1_data_A_ssram.pfree[i].size;
-			l1_data_A_ssram.pfree[index].flag = SRAM_SLT_FREE;
-			break;
-		}
-	}
+#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
+	if (L1_DATA_B_SADDR == (addr & ~0xffff))
+		ret = l1_sram_free(addr, 
+			l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
+	else
+#endif
+	ret = l1_sram_free(addr, 
+			l1_data_A_sram, ARRAY_SIZE(l1_data_A_sram));
 
-	/* link the last address slot */
-	for(i = 0; i < L1_MAX_PIECE; i++)  {
-		if(((l1_data_A_ssram.pfree[i].paddr + l1_data_A_ssram.pfree[i].size) == l1_data_A_ssram.pfree[index].paddr) &&
-			(l1_data_A_ssram.pfree[i].flag == SRAM_SLT_FREE))
-		{
-			l1_data_A_ssram.pfree[index].flag = SRAM_SLT_NULL;
-			l1_data_A_ssram.pfree[i].size += l1_data_A_ssram.pfree[index].size;
-			break;
-		}
-	}
 	/* add mutex operation*/
-	spin_unlock (&l1_data_A_sram_lock);
-	return 0;
+	spin_unlock_irqrestore (&l1_data_A_sram_lock, flags);
+
+	return ret;
 }
+
+/* L1 Scratchpad memory allocate function */
+unsigned long l1sram_alloc(unsigned long size)
+{
+	unsigned flags;
+	unsigned long addr;
+	
+	/* add mutex operation*/
+	spin_lock_irqsave (&l1sram_lock, flags);
+
+	addr = l1_sram_alloc(size, l1_ssram, ARRAY_SIZE(l1_ssram));
+
+	/* add mutex operation*/
+	spin_unlock_irqrestore (&l1sram_lock, flags);
+
+	return addr;
+}
+
+/* L1 Scratchpad memory free function */
+int l1sram_free(unsigned long addr)
+{
+	unsigned flags;
+	int ret;
+	
+	/* add mutex operation*/
+	spin_lock_irqsave (&l1sram_lock, flags);
+
+	ret = l1_sram_free(addr, l1_ssram, ARRAY_SIZE(l1_ssram));
+
+	/* add mutex operation*/
+	spin_unlock_irqrestore (&l1sram_lock, flags);
+
+	return ret;
+}
+
