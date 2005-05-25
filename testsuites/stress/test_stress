@@ -24,8 +24,8 @@ set serverip 10.100.4.174
 
 set argc [llength $argv]
 if { $argc < 1} {
-   puts "Usage:  $argv0 tty-device \[targetip serverip\]"
-   puts "   where tty-device is something like /dev/ttyS0"
+   puts "Usage:  $argv0 tty-device \[count\] \[targetip serverip\]"
+   puts "   where tty-device is something like /dev/ttyS0, count is ping times."
    puts ""
    exit
 }
@@ -33,10 +33,13 @@ if { $argc < 1} {
 set ttydev             [lindex $argv 0]
 
 if { $argc >= 2} {
-   set targetip           [lindex $argv 1]
+   set PING_COUNT           [lindex $argv 1]
 }
 if { $argc >= 3} {
-   set serverip           [lindex $argv 2]
+   set targetip           [lindex $argv 2]
+}
+if { $argc >= 4} {
+   set serverip           [lindex $argv 3]
 }
 
 # Now set up the kermit parameters.
