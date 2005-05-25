@@ -193,7 +193,7 @@ puts "*********************************\r"
 puts "Start $TITLE\r"
 puts "*********************************\r"
 
-   set timeout 7200
+   set timeout [expr $PING_COUNT * 1.5]
    
    spawn ./test_ftp $targetip
    set test_ftp_id $spawn_id
@@ -206,15 +206,24 @@ puts "*********************************\r"
       expect {
 	"icmp_seq=$PING_COUNT" {
 		send "\3"
+		break
 	}
 
-         "> " {
-	 	break;
-         }
          timeout {
 	 	puts "$TITLE ............\[FAIL\]\r"
 		exit
          }
+      }
+   }
+
+   set timeout 5
+   while 1 {
+      expect "> " {
+         break
+      }
+      timeout {
+	 	puts "$TITLE ............\[FAIL\]\r"
+		exit
       }
    }
 
@@ -228,6 +237,16 @@ puts "*********************************\r"
 
 	"test_ftp" {
 		incr found
+	}
+	
+	"test_telnet <defunct>" {
+		set found 0
+		break
+	}
+
+	"test_ftp <defunct>" {
+		set found 0
+		break
 	}
 	
         eof {
