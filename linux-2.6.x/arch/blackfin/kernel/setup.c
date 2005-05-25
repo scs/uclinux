@@ -472,5 +472,5 @@ int DmaMemCpy(char *dest_addr , char *source_addr, int size)
 void cmdline_init(unsigned long r0)
 {
 	if(r0)
-		strcpy(command_line, (char *)r0);
+		strncpy(command_line, (char *)r0, COMMAND_LINE_SIZE);
 }
