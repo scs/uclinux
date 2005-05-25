@@ -168,10 +168,9 @@ void setup_arch(char **cmdline_p)
 		printk(KERN_INFO "Warning: Unsupported Chip Revision ADSP-%s Rev. 0.%d detected \n",CPU,id);
 
 #if defined(CONFIG_BOOTPARAM)
+	memset(command_line, 0, sizeof(command_line));
 	strncpy(&command_line[0], CONFIG_BOOTPARAM_STRING, sizeof(command_line));
 	command_line[sizeof(command_line)-1] = 0;
-#else
-	memset(command_line, 0, sizeof(command_line));
 #endif
 
 	printk(KERN_INFO "uClinux/" CPU "\n");
@@ -470,3 +469,8 @@ int DmaMemCpy(char *dest_addr , char *source_addr, int size)
 	return 0;
 }
 
+void cmdline_init(unsigned long r0)
+{
+	if(r0)
+		strcpy(command_line, (char *)r0);
+}

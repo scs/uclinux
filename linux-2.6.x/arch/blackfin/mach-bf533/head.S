@@ -22,6 +22,8 @@
 
 ENTRY(_start)
 ENTRY(_stext)
+/*  R0: argument of command line string, passed from uboot, save it */
+	R7 = R0
 	/* Set the SYSCFG register */
 	R0 = 0x36;
 	SYSCFG = R0; 		/*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
@@ -34,7 +36,6 @@ ENTRY(_stext)
 	R4 = R0;
 	R5 = R0;
 	R6 = R0;
-	R7 = R0;
 
 	P0 = R0;
 	P1 = R0;
@@ -168,6 +169,10 @@ ENTRY(_real_start)
 	lsetup (_clear_bss, _clear_bss ) lc0 = p2;
 _clear_bss:
 	B[p1++] = r0;
+
+/* pass the uboot arguments to the global value command line */
+	R0 = R7;
+	call cmdline_init
 
 	p1.l = _rambase;
 	p1.h = _rambase;
