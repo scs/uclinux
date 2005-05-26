@@ -565,7 +565,7 @@ config MTD_PCMCIA
 
 config MTD_UCLINUX
 	tristate "Generic uClinux RAM/ROM filesystem support"
-	depends on MTD_PARTITIONS && !MMU
+	depends on MTD && !MMU
 	help
 	  Map driver to support image based filesystems for uClinux.
 

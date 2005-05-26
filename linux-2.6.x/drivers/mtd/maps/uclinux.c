@@ -116,8 +116,11 @@ int __init uclinux_mtd_init(void)
 	mtd->priv = mapp;
 
 	uclinux_ram_mtdinfo = mtd;
+#ifdef CONFIG_MTD_PARTITIONS
 	add_mtd_partitions(mtd, uclinux_romfs, NUM_PARTITIONS);
-
+#else
+        add_mtd_device(mtd);
+#endif
 	printk("uclinux[mtd]: set %s to be root filesystem\n",
 	    	uclinux_romfs[0].name);
 	ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, 0);
@@ -130,7 +133,11 @@ int __init uclinux_mtd_init(void)
 void __exit uclinux_mtd_cleanup(void)
 {
 	if (uclinux_ram_mtdinfo) {
+#ifdef CONFIG_MTD_PARTITIONS
 		del_mtd_partitions(uclinux_ram_mtdinfo);
+#else
+	        del_mtd_device(uclinux_ram_mtdinfo);
+#endif
 		map_destroy(uclinux_ram_mtdinfo);
 		uclinux_ram_mtdinfo = NULL;
 	}
