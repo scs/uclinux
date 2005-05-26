@@ -1,7 +1,11 @@
 /*
  *  linux/arch/bfinnommu/mach-bf533/stamp.c
+ *
  *  Copyright 2004 Analog Devices Inc.
  *  Only SMSC91C1111 was registered, may do more later.
+ *
+ *  Copyright 2005 National ICT Australia (NICTA), Aidan Williams <aidan@nicta.com.au>
+ *  Thanks to Jamey Hicks.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
@@ -9,27 +13,46 @@
  */
 
 #include <linux/device.h>
+#include <asm/irq.h>
 
-#define	STAMP_ETH_BASE	0x20300000
+/*
+ *  Driver needs to know address, irq and flag pin.
+ */
 static struct resource smc91x_resources[] = {
 	[0] = {
-		.start	= (STAMP_ETH_BASE + 0x300),
-		.end	= (STAMP_ETH_BASE + 0xfffff),
+		.start	= 0x20300300,
+		.end	= 0x20300300 + 16,
 		.flags	= IORESOURCE_MEM,
-	}
+	},
+	[1] = {
+		.start	= IRQ_PROG_INTB,
+		.end	= IRQ_PROG_INTB,
+		.flags	= IORESOURCE_IRQ|IORESOURCE_IRQ_HIGHLEVEL,
+	},
+	[2] = {
+		/*
+		 *  denotes the flag pin and is used directly if
+		 *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
+		 */
+		.start	= IRQ_PF7,
+		.end	= IRQ_PF7,
+		.flags	= IORESOURCE_IRQ|IORESOURCE_IRQ_HIGHLEVEL,
+	},
+};
+static struct platform_device smc91x_device = {
+	.name		= "smc91x",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(smc91x_resources),
+	.resource	= smc91x_resources,
 };
 
-static struct platform_device smc91x_device = {
-	.name			= "smc91x",
-	.id				= 0,
-	.num_resources	= ARRAY_SIZE(smc91x_resources),
-	.resource		= smc91x_resources,
+static struct platform_device *stamp_devices[] __initdata = {
+        &smc91x_device,
 };
 
 static int __init stamp_init(void)
 {
-	printk("%s register the device resource to system.\n", __FUNCTION__);
-	platform_device_register(&smc91x_device);
-	return 0;
+	printk("%s(): registering device resources\n", __FUNCTION__);
+        return platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 }
 arch_initcall(stamp_init);

@@ -123,14 +123,13 @@ MODULE_PARM_DESC(irq, "IRQ number");
 #include <asm/irq.h>
 #include <asm/board/cdefBF533.h>
 #include <asm/delay.h>
-#define LAN_FIO_PATTERN     0x80
-#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-static unsigned int smc_portlist[] = { 0x20300300, 0 };
-static unsigned int smc_irqlist[]  = { IRQ_PF7, 0 };
-#else
-static unsigned int smc_portlist[] = { 0x20300300, 0x20300300, 0 };
-static unsigned int smc_irqlist[]  = { IRQ_PROG_INTB, IRQ_PROG_INTA, 0 };
-#endif
+
+/*
+ *  irq_pfx comes from platform_device and tells us which flag pin is used
+ *    IRQ_PF0 <= irq_pfx <= IRQ_PF15
+ *  irq_pfx is used as the irq if CONFIG_IRQCHIP_DEMUX_GPIO is enabled.
+ */
+static int irq_pfx;
 #endif /* CONFIG_BFIN */
 
 #ifndef SMC_NOWAIT
@@ -352,15 +351,29 @@ static void bfin_EBIU_AM_setup(void)
 static void bfin_SMC_interrupt_setup(int irq)
 {
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
+    printk("EZ-LAN interrupt setup: DEMUX_GPIO irq %d\n", irq);
     set_irq_type(irq, IRQT_HIGH);
 #else
-    printk("EZ-LAN interrupt setup.\n");
+    unsigned short flag;
+    unsigned short LAN_FIO_PATTERN;
+
+    if (irq_pfx < IRQ_PF0 || irq_pfx > IRQ_PF15) {
+	printk(CARDNAME "irq_pfx out of range: %d\n", irq_pfx);
+	return;
+    }
+
+    flag = irq_pfx - IRQ_PF0;
+    LAN_FIO_PATTERN = (1 << flag);
+
+    printk("EZ-LAN interrupt setup: flag PF%d, irq %d\n", flag, irq);
   /* 26 = IRQ_PROG_INTA => FIO_MASKA
      27 = IRQ_PROG_INTB => FIO_MASKB */
   if (irq == IRQ_PROG_INTA/*26*/ ||
       irq == IRQ_PROG_INTB/*27*/)
     {
       int ixab = (irq - IRQ_PROG_INTA) * (pFIO_MASKB_D - pFIO_MASKA_D);
+
+      printk(" ### actually hacking interrupts, ixab %d\n", ixab);
 
       asm("csync;");
       pFIO_MASKA_C[ixab] = LAN_FIO_PATTERN; /* disable int */
@@ -1979,9 +1992,11 @@ static int __init smc_probe(struct net_device *dev, unsigned long ioaddr)
 	/* Grab the IRQ */
       	retval = request_irq(dev->irq, &smc_interrupt, SA_SHIRQ, dev->name, dev);
         if (retval) {
+		printk(" ###: failed to register irq %d\n", dev->irq);
       		unregister_netdev(dev);
       		goto err_out;
         }
+	printk(" ###: registered irq %d\n", dev->irq);
 #ifdef CONFIG_BFIN
         bfin_SMC_interrupt_setup(dev->irq);
 #else
@@ -2109,7 +2124,6 @@ static int smc_drv_probe(struct device *dev)
 	struct net_device *ndev;
 	struct resource *res, *ext = NULL;
 	unsigned int *addr;
-	static int index = 0;
 	int ret=0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2125,6 +2139,8 @@ static int smc_drv_probe(struct device *dev)
 		ret = -EBUSY;
 		goto out;
 	}
+
+	printk(" ###: got mem region 0x%lx.\n", res->start);
 
 	ndev = alloc_etherdev(sizeof(struct smc_local));
 	if (!ndev) {
@@ -2158,6 +2174,8 @@ static int smc_drv_probe(struct device *dev)
 			goto release_both;
 	}
 
+	printk(" ###: got ext region 0x%p.\n", ext);
+
 	addr = ioremap(res->start, SMC_IO_EXTENT);
 	if (!addr) {
 		ret = -ENOMEM;
@@ -2165,17 +2183,24 @@ static int smc_drv_probe(struct device *dev)
 	}
 
 	dev_set_drvdata(dev, ndev);
+
+	printk(" ###: irq is %d.\n", ndev->irq);
+
 #if defined(CONFIG_BFIN)
-	/* check every ethernet address */
-	while (smc_portlist[index]) {
-		ndev->irq = smc_irqlist[index];
-		ret = smc_probe( ndev,smc_portlist[index++] );
-		if( ret == 0)
-			break;
-	}
-#else
-	ret = smc_probe(ndev, (unsigned long)addr);
+	/*
+	 *  We're using the second IRQ (index 1) in the platform resources
+	 *  to store the flag pin info.  The second IRQ is also the correct
+	 *  IRQ_PFx value to use if we have CONFIG_IRQCHIP_DEMUX_GPIO enabled.
+	 */
+	irq_pfx = platform_get_irq(pdev, 1);
+	printk(" ###: irq_pfx is %d.\n", irq_pfx);
+
+#if defined(CONFIG_IRQCHIP_DEMUX_GPIO)
+	printk(" ###: DEMUX GPIO, setting irq = irq_pfx: %d.\n", irq_pfx);
+	ndev->irq = irq_pfx;
 #endif
+#endif
+	ret = smc_probe(ndev, (unsigned long)addr);
 	if (ret != 0) {
 		dev_set_drvdata(dev, NULL);
 		iounmap(addr);
