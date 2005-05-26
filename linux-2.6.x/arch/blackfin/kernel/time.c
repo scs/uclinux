@@ -40,8 +40,18 @@ extern u_long get_cclk(void);
 
 #define TSCALE_SHIFT 2	/* 0.25 microseconds */
 #define TSCALE_COUNT ((get_cclk()/1000000) >> TSCALE_SHIFT)
-#define CLOCKS_PER_JIFFY ((1000*1000/HZ) << TSCALE_SHIFT)
+#define CLOCKS_PER_JIFFY (((1000*1000/HZ) << TSCALE_SHIFT) + (1 << TSCALE_SHIFT))
 
+/*
+ *  Actual HZ values are affected by the truncation introduced
+ *  by the above TSCALE_SHIFT operations..
+ *  In time_sched_init(), we'll compute a more accurate value
+ *  for tick_nsec and tick_usec using:
+ *    tick_nsec = 10^3 * CLOCKS_PER_JIFFY * SCALE / F[cclk in MHz]
+ */
+unsigned long act_num, act_den;	/* numerator, denominator */
+unsigned long act_tick_nsec;
+unsigned long act_tick_usec;
 
 #if (defined(CONFIG_STAMP_BOARD_ALIVE_LED) || defined(CONFIG_STAMP_BOARD_IDLE_LED))
 void __init init_leds(void)
@@ -98,6 +108,21 @@ static struct irqaction bfin_timer_irq = {
 
 void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
 {
+	act_num = CLOCKS_PER_JIFFY * TSCALE_COUNT;
+	act_den = get_cclk() / 1000000;
+	/*
+	 *  Making the numerator as large as possible increases the
+	 *  precision of the calculation.
+	 *  Multiplying by 10^3 in two parts avoids overflow.
+	 */
+	act_tick_nsec = 100 * act_num / act_den;
+	act_tick_nsec *= 10;
+	act_tick_usec = act_tick_nsec / 1000;
+
+	/* update NTP tick_{n,u}sec value with more accurate values */
+	tick_nsec = act_tick_nsec;
+	tick_usec = act_tick_usec;
+
 	/* power up the timer, but don't enable it just yet */
 
 	*pTCNTL = 1;
@@ -266,10 +291,18 @@ int do_settimeofday(struct timespec *tv)
 	time_maxerror = NTP_PHASE_LIMIT;
 	time_esterror = NTP_PHASE_LIMIT;
 
-	rtc_set(sec);
-	
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
+
+	/*
+	 *  rtc_set() busy-waits up to a second (the next tick of the RTC)
+	 *  for completion of the write.
+	 *  We release xtime_lock before updating the RTC so as not to
+	 *  lock out the timer_interrupt() routine which also acquires
+	 *  xtime_lock.  Locking out timer_interrupt() loses ticks!
+	 */
+	rtc_set(sec);
+	
 	return 0;
 }
 /*
