@@ -16,44 +16,75 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 
+#include <asm/board/cdefBF533.h>
+
 #ifndef CONFIG_BFIN
 #error This is for BlackFin BF533 boards only
 #endif
 
 #define WINDOW_ADDR 0x20000000
 
-#ifndef lo
-# define lo(addr)	(addr & 0xFFFF)
-#endif
-#ifndef hi
-# define hi(addr)	(addr >> 16)
-#endif
+#ifdefine CONFIG_BLKFIN_STAMP
+struct flash_save {
+    u16 dir;
+    u16 flag_s;
+    u16 maska_d;
+    u16 maskb_d;
+    u16 inen;
+    
+    u32 ambctl0;
+    u32 ambctl1;
 
-volatile unsigned long *ambctl0 = (volatile unsigned long *) 0xffc00a04;
-volatile unsigned long *ambctl1 = (volatile unsigned long *) 0xffc00a08;
-volatile unsigned long *amgctl = (volatile unsigned long *) 0xffc00a00;
-volatile unsigned long *pFIO_DIR = (volatile unsigned long *) 0xffc00730;
-volatile unsigned long *pFIO_FLAG_S = (volatile unsigned long *) 0xffc00708;
-volatile unsigned long *pFIO_FLAG_C = (volatile unsigned long *) 0xffc00704;
-volatile unsigned long *pFIO_MASKA_D = (volatile unsigned long *) 0xffc00710;
-volatile unsigned long *pFIO_MASKB_D = (volatile unsigned long *) 0xffc00720;
-volatile unsigned long *pFIO_POLAR = (volatile unsigned long *) 0xffc00734;
-volatile unsigned long *pFIO_EDGE = (volatile unsigned long *) 0xffc00738;
-volatile unsigned long *pFIO_INEN = (volatile unsigned long *) 0xffc00740;
-volatile unsigned long *pFIO_FLAG_D = (volatile unsigned long *) 0xffc00700;
+    unsigned long flags;
+} ;
 
-void init_Flags(void)
+static inline void switch_to_flash(struct flash_save *save)
 {
-        *(volatile unsigned short *) pFIO_DIR = 0x1F;
-        *(volatile unsigned short *) pFIO_FLAG_S = 0x1C;
-        *(volatile unsigned short *) pFIO_MASKA_D = 0x160;
-        *(volatile unsigned short *) pFIO_MASKB_D = 0x80;
-        *(volatile unsigned short *) pFIO_POLAR = 0x160;
-        *(volatile unsigned short *) pFIO_EDGE = 0x1E0;
-        *(volatile unsigned short *) pFIO_INEN = 0x1e0;
-        *(volatile unsigned short *) pFIO_FLAG_D = 0x1C;
+	local_irq_save(save->flags);
+
+	save->dir	= *pFIO_DIR;
+	save->flag_d	= *pFIO_FLAG_D;
+	save->maska_d	= *pFIO_MASKA_D;
+	save->maskb_d	= *pFIO_MASKB_D;
+	save->inen	= *pFIO_INEN;
+	save->ambctl0	= *pEBIU_AMBCTL0;
+	save->ambctl1	= *pEBIU_AMBCTL1;
+
+	*pFIO_DIR 	|= PF1 | PF0;
+	*pFIO_FLAG_D	&= ~(PF1 | PF0);
+
+	*pFIO_MASKA_D	= 0;
+	*pFIO_MASKB_D	= 0;
+	*pFIO_INEN	= 0;
+
+	asm("ssync;");
+
+	*pEBIU_AMGCTL = AMGCTLVAL;      /*AMGCTL*/
+	asm("ssync;");
+
+	*pEBIU_AMBCTL0 = AMBCTL0VAL;
+	asm("ssync;");
+	*pEBIU_AMBCTL1 = AMBCTL1VAL;
+	asm("ssync;");
 }
 
+
+static inline void switch_back(struct flash_save *save)
+{
+	*pEBIU_AMBCTL0	= save->ambctl0;
+	asm("ssync;");
+	*pEBIU_AMBCTL1	= save->ambctl1;
+	asm("ssync;");
+
+	*pFIO_DIR 	= save->dir;
+	*pFIO_FLAG_D 	= save->flag_d;
+	*pFIO_MASKA_D 	= save->maska_d;
+	*pFIO_MASKB_D 	= save->maskb_d;
+	*pFIO_INEN 	= save->inen;
+
+	local_irq_restore(save->flags);
+}
+#endif
 
 volatile unsigned short *FLASH_Base = (unsigned short *) 0x20000000;
 unsigned volatile long *FB = (unsigned long *) 0x20000002;
@@ -62,13 +93,15 @@ static map_word bf533_read(struct map_info *map, unsigned long ofs)
 {
 	int nValue = 0x0;
 	map_word test;
-
 #ifdef CONFIG_BLKFIN_STAMP
+	struct flash_save save;
 	unsigned long offaddr = (0x20000000 + ofs);
-	
+
+	switch_to_flash(&save);
 	asm("ssync;");
         nValue = *(volatile unsigned short *) offaddr;
         asm("ssync;");
+	switch_back(&save);
 #endif
 
 #ifdef CONFIG_EZKIT
@@ -102,20 +135,27 @@ static void bf533_copy_from(struct map_info *map, void *to, unsigned long from, 
 		test = bf533_read(map,from+i);
 		*((u16*)(to + i)) = test.x[0];
 	}
-	if (len & 0x01)
+	if (len & 0x01) {
 		/* *((u8*)(to + (i-1))) = (u8)(bf533_read(map, from + i) >> 8); */
 		test = bf533_read(map, from + i);
 		test.x[0] = (u8)(test.x[0] >>8);
 		*((u8*)(to + (i-1))) = test.x[0];
+	}
 }
 
 static void bf533_write(struct map_info *map, map_word d1, unsigned long ofs)
 {
 
 	__u16 d;
+#ifdef CONFIG_BLKFIN_STAMP
+	struct flash_save save;
+#endif
+
 	d = (__u16)d1.x[0];	
 
+
 #ifdef CONFIG_BLKFIN_STAMP
+	switch_to_flash(&save);
 	/* asm("ssync;"); */
 	if((ofs == 0x555) || (ofs == 0x2AA)) {
 		FLASH_Base[ofs] = d;
@@ -125,6 +165,7 @@ static void bf533_write(struct map_info *map, map_word d1, unsigned long ofs)
 		asm("ssync;");
 	}
         /* asm("ssync;"); */
+	switch_back(&save);
 #endif
 
 #ifdef CONFIG_EZKIT
@@ -147,7 +188,14 @@ static void bf533_write(struct map_info *map, map_word d1, unsigned long ofs)
 
 static void bf533_copy_to(struct map_info *map, unsigned long to, const void *from, ssize_t len)
 {
+#ifdef CONFIG_BLKFIN_STAMP
+	struct flash_save save;
+	switch_to_flash(&save);
+#endif
 	memcpy((void *)(WINDOW_ADDR + to), from, len);
+#ifdef CONFIG_BLKFIN_STAMP
+	switch_back(&save);
+#endif
 }
 
 static struct map_info bf533_map = {
@@ -191,7 +239,11 @@ static struct mtd_partition bf533_partitions[] = {
 		name: "File system image",
 		size: 0x100000,
 		offset: 0x100000
-	}
+	},{
+		name: "64K area ;)", 
+		size: 0x10000,
+		offset: 0x00300000,
+	}	
 };
 
 #define NB_OF(x)  (sizeof(x)/sizeof(x[0]))

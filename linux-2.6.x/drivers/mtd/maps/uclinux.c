@@ -70,12 +70,15 @@ int uclinux_point(struct mtd_info *mtd, loff_t from, size_t len,
 
 /****************************************************************************/
 
+extern struct mtd_info *mtd_table[];
+
 int __init uclinux_mtd_init(void)
 {
-	struct mtd_info *mtd;
+	struct mtd_info *mtd, *root = NULL;
 	struct map_info *mapp;
 	extern char _ebss;
 	unsigned long addr = (unsigned long)&_ebss;
+	int i;
 
 #ifdef CONFIG_PILOT
 	extern char _etext, _sdata, __init_end;
@@ -121,9 +124,21 @@ int __init uclinux_mtd_init(void)
 #else
         add_mtd_device(mtd);
 #endif
-	printk("uclinux[mtd]: set %s to be root filesystem\n",
-	    	uclinux_romfs[0].name);
-	ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, 0);
+
+	/* That sucks! any other way to find partition we just created? */
+	for (i=0; i < MAX_MTD_DEVICES; i++) {
+		if (mtd_table[i] && !strcmp(mtd_table[i]->name, uclinux_romfs[0].name)) {
+		    root = mtd_table[i];
+		}
+	}
+
+	if (root) {
+		printk("uclinux[mtd%d]: set %s to be root filesystem\n", root->index,
+	    		uclinux_romfs[0].name);
+		ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, root->index);
+	} else {
+	    /* fault ?? */
+	}
 
 	return(0);
 }
