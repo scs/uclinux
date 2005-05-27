@@ -1,0 +1,34 @@
+This is a test release of this package.  Bugs are now handled through
+bug-inetutils for both released and unreleased versions of this
+package.
+
+If you see a problem that you've already reported, feel free to
+re-report it -- it won't bother me to get a reminder.  Besides, the
+more messages I get regarding a particular problem the sooner it'll be
+fixed -- usually.  If you sent a complete patch and I didn't apply it
+or get back to you, please let me know.
+
+Please send comments and problem reports to bug-inetutils@gnu.org.
+
+Snapshots can be obtained at ftp://alpha.gnu.org/gnu/cvs/inetutils.tgz
+
+The code is also available through anonymous CVS.  Set your CVSROOT
+string to:
+
+:pserver:anoncvs@cvs.gnu.org:/cvsroot/inetutils
+
+Hit enter when prompted for a password
+
+issue:
+
+cvs co inetutils.
+
+There is a script called "autogen.sh" which will setup all of
+the automatically created scripts for you.  You need automake and
+autoconf for this to work.
+
+You can track the CVS process through the mailing list:
+commit-inetutils@gnu.org
+
+This is a medium volume moderated list.
+

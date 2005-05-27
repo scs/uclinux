@@ -39,6 +39,8 @@ romfs:
 		-a "telnet  stream tcp nowait root /bin/telnetd" /etc/inetd.conf
 	$(ROMFSINST) -e CONFIG_USER_FTPD_FTPD \
 		-a "ftp     stream tcp nowait root /bin/ftpd -l" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_INETUTILS_RSHD \
+		-a "shell   stream tcp nowait root /bin/rshd" /etc/inetd.conf
 	$(ROMFSINST) -e CONFIG_USER_GAMES_ADVENT4 \
 		-a "advent4 stream tcp nowait root /bin/advent4" /etc/inetd.conf
 	$(ROMFSINST) -e CONFIG_USER_GAMES_DUNGEON \

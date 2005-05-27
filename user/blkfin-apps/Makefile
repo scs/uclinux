@@ -2,14 +2,17 @@ dir_y =
 dir_$(CONFIG_USER_BLACKFIN_GDB)             		+= gdbserver
 dir_$(CONFIG_USER_BLKFIN_APPS_DEVFBAPP_DEVTEST)         += devfbapp 
 dir_$(CONFIG_USER_BLKFIN_APPS_DEVVOUT_DEVOUT)		+= devvoutapp
+dir_$(CONFIG_USER_INETUTILS_RCP)			+= inetutils
+dir_$(CONFIG_USER_INETUTILS_RSH)			+= inetutils
+dir_$(CONFIG_USER_INETUTILS_RSHD)			+= inetutils
 all:
-	for i in $(dir_y) ; do  make -C $$i || exit $? ; done
+	for i in $(sort $(dir_y)) ; do  make -C $$i || exit $? ; done
 
 romfs:
-	for i in $(dir_y) ; do  make -C $$i romfs || exit $? ; done
+	for i in $(sort $(dir_y)) ; do  make -C $$i romfs || exit $? ; done
 
 clean:
-	-for i in $(dir_y) ; do \
+	-for i in $(sort $(dir_y)) ; do \
 		[ ! -d $$i ] || make -C $$i clean; \
 	done
 

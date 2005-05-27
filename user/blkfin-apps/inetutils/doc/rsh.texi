@@ -1,0 +1,86 @@
+@node rsh
+@chapter rsh
+@cindex rsh
+
+@command{Rsh} executes command on host and copies its standard input to the
+remote command, the standard output of the remote command to its standard
+output, and the standard error of the remote command to its standard error.
+Interrupt, quit and terminate signals are propagated to the remote command;
+@command{rsh} normally terminates when the remote command does.
+
+When using the @command{rsh} command, you can create a link to your path
+using a host name as the link name. For example:
+
+@example
+#
+# ln -s /usr/bin/rsh HostName
+# Hostname ls
+
+@end example
+
+@var{HostName} will be passed to @command{rsh} as the default host.
+
+@command{rsh} allows access to the remote host without the use of a passwd.
+For details, @xref{rcmd, , rcmd, libc, The GNU C Library Reference Manual}.
+
+@section Invoking
+
+The options are as follows :
+
+@table @samp
+
+@item -K
+@itemx --kerberos
+@opindex -K
+@opindex --kerberos
+Turns off all Kerberos authentication.
+
+@item -d
+@itemx --debug
+@opindex -d
+@opindex --debug
+Turns on socket debugging (see setsockopt(2))  on the TCP sockets used for
+communication with the remote host.
+
+@item -k
+@itemx --realm=REALM
+@opindex -k
+@opindex --realm
+The option requests rsh to obtain tickets for the remote host in REALM
+realm instead of the remote host's realm as determined by krb_realmofhost(3).
+
+@item -x
+@itemx --encrypt
+@opindex -x
+@opindex --encrypt
+Turns on DES encryption for all data passed via the rsh session.  This may
+impact response time and CPU utilization, but provides increased security.
+
+@item -l
+@itemx --user
+@opindex -l
+@opindex --user
+By default, the remote username is the same as the local username.
+The -l option or the username@@host format allow the remote name to
+be specified.  Kerberos authentication is used, and authorization
+is determined as in rlogin(1).
+
+@end table
+
+If no command is specified, you will be logged in on the remote host using
+rlogin(1).
+
+Shell metacharacters which are not quoted are interpreted on local machine,
+while quoted metacharacters are interpreted on the remote machine.
+@example
+
+For example, the command
+
+# rsh otherhost cat remotefile >> localfile
+
+appends the remote file remotefile to the local file localfile, while
+
+# rsh otherhost cat remotefile ">>" other_remotefile
+
+appends remotefile to other_remotefile.
+@end example

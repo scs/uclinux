@@ -1,0 +1,121 @@
+GNU inetutils NEWS -- history of user-visible changes.
+Copyright (C) 2002 Free Software Foundation, Inc.
+See the end for copying conditions.
+
+Please send inetutils bug reports to <bug-inetutils@gnu.org>.
+
+December 22, 2002
+Version 1.4.2:
+
+* Fix endianess problem in ftpd.
+
+* Various portability updates.
+
+* Security fix for rexecd/rshd.
+
+* Fix processing accumulated messages in syslogd
+
+
+September 02, 2002
+Version 1.4.1:
+
+* Fixes a build problem on Solaris
+
+* rsh now honours -V as well as --version
+
+* Fixed a security problem with rshd where new files were being
+  created as uid 0.
+
+* Fixed improper ping initialization.
+
+* The syntax of syslog.conf file has been extended. The new
+  wildcard facility specification, **, catches all messages with
+  a facility not specified explicitely in the configuration file. 
+
+
+July 31, 2002
+Version 1.4.0:
+
+* It is now possible to specify whether to compile individual
+  utilities using arguments to configure.
+
+* The GNU networking utilities manual has been started.
+
+* If you have the GNU readline library installed, it will now be used
+  by the ftp client.
+
+* There is now a whois client.
+
+* Several security fixes and other bug fixes have been applied.
+
+* The inetd server can read configuration file snippets from
+  /etc/inetd.d/.
+
+* The talkd and telnetd servers have been essentially rewritten.
+
+* The ping program was added.
+
+* The syslogd server supports several new features in the
+  configuration file, like omitting file sync, piping messages into
+  programs etc.  It also supports several new options on the command
+  line.
+
+* Inetutils should generally compile on most platforms now.
+
+Release 1.3.2:
+ This release attempts to get the encryption/authentication options to
+ compile correctly; they appear to work on systems with the appropriate
+ libraries, but have not been well tested.
+
+Release 1.3.1:
+ This release fixes various small problems.
+
+ Telnet now won't force the stripping of 8-bit characters when not in binary
+ mode (it will leave the terminal in whatever state it was originally).
+
+Release 1.3:
+ More portable again than 1.2.  It is still very BSD-specific, but now
+ works on many popular systems, such as linux and sunos/solaris.
+ 
+ The talk program finally seems to work.
+
+ ftp now supports a --prompt option to force it to print a prompt, even
+ when not on a tty (this makes it possible to use ange-ftp with pipes).
+
+ rsh now supports long options.
+
+ Many security fixes have been made, so this release should be more secure
+ than previous ones.
+
+Release 1.2:
+ An attempt to be somewhat more portable, and reorganize the code to make
+ porting a bit easier; it is still very BSD-specific.
+
+ A major bug in ftpd bug that prevents most logins from succeeding is
+ fixed, as well as other, more minor, bugs.
+
+Release 1.1:
+ A minor release intended only for the GNU hurd.
+
+ This release adds checking for crypt at both compile and runtime (on
+ systems where weak refs are supported).
+
+----------------------------------------------------------------------
+Copyright information:
+
+Copyright (C) 2002 Free Software Foundation, Inc.
+
+   Permission is granted to anyone to make or distribute verbatim copies
+   of this document as received, in any medium, provided that the
+   copyright notice and this permission notice are preserved,
+   thus giving the recipient permission to redistribute in turn.
+
+   Permission is granted to distribute modified versions
+   of this document, or of portions of it,
+   under the above conditions, provided also that they
+   carry prominent notices stating who last changed them.
+
+Local variables:
+mode: outline
+paragraph-separate: "[ 	]*$"
+end:

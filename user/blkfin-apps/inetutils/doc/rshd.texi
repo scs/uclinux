@@ -1,0 +1,214 @@
+@node rshd
+@chapter rshd
+@cindex rshd
+
+The @command{rshd} server is the server for the rcmd(3) routine and,
+consequently, for the rsh(1) program.  The server provides remote execution
+facilities with authentication based on privileged port numbers from trusted
+hosts.  The @command{rshd} server listens for service requests at the port
+indicated in the ``cmd'' service specification; see services(5).  When a
+service request is received the following protocol is initiated:
+
+@enumerate
+
+@item
+The server checks the client's source port.  If the port is not in
+the range 512-1023, the server aborts the connection.
+
+@item
+The server reads characters from the socket up to a null (`\0')
+byte.  The resultant string is interpreted as an ASCII number, base 10.
+
+@item
+If the number received in step 2 is non-zero, it is interpreted as
+the port number of a secondary stream to be used for the stderr. A
+second connection is then created to the specified port on the
+client's machine.  The source port of this second connection is also
+in the range 512-1023.
+
+@item
+The server checks the client's source address and requests the corresponding
+host name (see gethostbyaddr(3),  hosts(5) and named(8)).  If the hostname
+cannot be determined, the dot-notation representation of the host address is
+used.  If the hostname is in the same domain as the server (according to the
+last two components of the domain name), or if the -a option is given, the
+addresses for the hostname are requested, verifying that the name and address
+correspond.  If address verification fails, the connection is aborted
+with the message, ``Host address mismatch.''
+
+@item
+A null terminated user name of at most 16 characters is retrieved on
+the initial socket.  This user name is interpreted as the user identity
+on the client's machine.
+
+@item
+A null terminated user name of at most 16 characters is retrieved on
+the initial socket.  This user name is interpreted as a user identity to
+use on the server's machine.
+
+@item
+A null terminated command to be passed to a shell is retrieved on
+the initial socket.  The length of the command is limited by the upper
+bound on the size of the system's argument list.
+
+@item
+Rshd then validates the user using ruserok(3),  which uses the file
+/etc/hosts.equiv and the .rhosts file found in the user's home directory.
+The -l option prevents ruserok(3) from doing any validation based on the
+user's ``.rhosts'' file, unless the user is the superuser.
+
+@item
+If the file /etc/nologin exists and the user is not the superuser,
+the connection is closed.
+
+@item
+A null byte is returned on the initial socket and the command line
+is passed to the normal login shell of the user.  The shell inherits
+the network connections established by @command{rshd}.
+
+@item
+Transport-level keepalive messages are enabled unless the -n option is
+present.  The use of keepalive messages allows sessions to be timed out
+if the client crashes or becomes unreachable.
+
+@item
+The -L option causes all successful accesses to be logged to syslogd(8)
+as auth.info messages.
+
+@end enumerate
+
+@xref{ruserok, , ruserok, libc, The GNU C Library Reference Manual}, for details.
+
+@section Invoking
+
+The options are as follows :
+
+@table @samp
+@item -a
+@itemx --verify-hostname
+@opindex -a
+@opindex --verify-hostname
+Ask hostname for verification.
+
+@c @item -d
+@c @itemx --daemon
+@c @opindex -d
+@c @opindex --daemon
+@c Daemon mode.
+
+@item -l
+@itemx --no-rhosts
+@opindex -l
+@opindex --no-rhosts
+Ignore .rhosts file.
+
+@item -L
+@itemx --local-domain=NAME
+@opindex -L
+@opindex --local-domain
+Set local domain name.
+
+@item -n
+@itemx --no-keepalive
+@opindex -n
+@opindex --no-keepalive
+Do not set SO_KEEPALIVE.
+
+@item -k
+@itemx --kerberos
+@opindex -k
+@opindex --kerberos
+Use kerberos IV authentication.
+
+@item -x
+@itemx --encrypt
+@opindex -x
+@opindex --encrypt
+Turns on DES encryption for all data passed via the @command{rshd} session.
+This may impact response time and CPU utilization, but provides increased
+security.
+
+@item -D
+@itemx --debug[=LEVEL]
+@opindex -D
+@opindex -debug
+Set debug level, not implemented.
+
+@item -h
+@itemx --help
+@opindex -h
+@opindex --help
+Display usage instructions.
+
+@item -V
+@itemx --version
+@opindex -V
+@opindex --version
+Display program version.
+
+@c @item -o
+@c @itemx --allow-root
+@c @opindex -o
+@c @opindex --allow-root
+@c Allow uid == 0 to login, disable by default\n"
+
+@c @item -p
+@c @itemx --port=PORT
+@c @opindex -p
+@c @opindex --port
+@c Listen on given port (valid only in daemon mode).
+
+@c @item -r
+@c @itemx --reverse-required
+@c @opindex -r
+@c @opindex --reverse-required
+@c Required  Require reverse resolving of a remote host IP.
+
+@end table
+
+@section Diagnostics
+
+Except for the last one listed below, all diagnostic messages are returned
+on the initial socket, after which any network connections are closed.  An
+error is indicated by a leading byte with a value of 1 (0 is returned in
+step 10 above upon successful completion of all the steps prior to the
+execution of the login shell).
+
+@table @samp
+
+@item Locuser too long
+The name of the user on the client's machine is longer than 16
+characters.
+
+@item Ruser too long
+The name of the user on the remote machine is longer than 16 characters.
+
+@item Command too long
+The command line passed exceeds the size of the argument list (as
+configured into the system).
+
+@item Login incorrect
+No password file entry for the user name existed.
+
+@item Remote directory
+The chdir command to the home directory failed.
+
+@item Permission denied
+The authentication procedure described above failed.
+
+@item Can't make pipe.
+The pipe needed for the stderr, wasn't created.
+
+@item Can't fork; try again.
+A fork by the server failed.
+
+@item <shellname>: ...
+The user's login shell could not be started.  This message is re-
+turned on the connection associated with the stderr, and is not
+preceded by a flag byte.
+@end table
+
+
+The authentication procedure used here assumes the integrity of each
+client machine and the connecting medium.  This is insecure, but is useful
+in an ``open'' environment.

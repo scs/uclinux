@@ -1,0 +1,101 @@
+# Paths for inetutils
+#
+# Copyright (C) 1996, 1997, 2000 Free Software Foundation, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+#
+# This file describes how to set various paths used by programs in inetutils.
+#
+# The rules that determine what a given PATH_FOO define expands to are:
+#  (1) If the user specifies --with-path-foo, that value is used.
+#  (2) If _PATH_FOO is defined in <paths.h>, that value is used.
+#  (3) The lines below are consulted.  They are whitespace-separated
+#      lists of things to try, in order.  The various sorts of entries are:
+#
+#       "value" -- If a file VALUE exists, use VALUE; if no default yet, set
+#       	   it to VALUE.  If VALUE begins with a make-variable of the
+#		   form `$(NAME)' and a corresponding shell-variable $NAME
+#		   exists at configure time, the value of $NAME is substituted
+#		   for the $(NAME) for testing (but not subsitution) purposes.
+#	test:T	-- Use `test -T' to test for file existance
+#	x	-- The same as test:x
+#       d       -- The same as test:d
+#	c	-- The same as test:c
+#	b	-- The same as test:b
+#	<ach.h>:SYMBOL
+#		-- If SYMBOL is defined in <ack.h>, use SYM
+#       <ack.h> -- The same as <ack.h>:_PATH_FOO
+#       search:NAME:PATH
+#		-- Search for NAME in the colon-separated path PATH, and use
+#		   the first thing found; if the `:PATH' is omitted, it
+#		   uses the environment variable $PATH
+#	no	-- Set the default to `no' (even if there's already a default).
+#       FILE	-- The same as "FILE" (the quoted syntax only need be used if
+#		   the contents could match one of the special syntaxes)
+#
+#      If cross-compiling then every file-existance test is made to fail
+#      (regardless of what exists on the compilation system), forcing
+#      defaults to be used for paths not defined in any header file.  A
+#      warning message is printed by configure in this case, as the user may
+#      have to define many paths by hand.
+#
+#      If none of the things in the list matches a real file, the default is
+#      used, or `no' if there is none (this means that no path may ever have
+#      the value `no', but that's probably not a severe problem).
+#
+#  (4) If the resulting value is the string `no', then PATH_FOO is never
+#      defined by any method (programs that use it should check that it's
+#      defined before using it).
+#
+# Programs wanting to use a particular path PATH_FOO should:
+#  (1) Add the make variable $(PATHDEF_FOO) to CPPFLAGS while compiling (this
+#      expands either into either -D... for the path variable, or nothing).
+#  (2) Include any appropriate headers to match <header.h> entries below
+#
+
+PATH_BSHELL	x $(bindir)/sh search:sh
+PATH_CONSOLE	c /dev/console
+PATH_CP		x $(bindir)/cp search:cp
+PATH_DEFPATH	"$(bindir):/usr/bin:/bin"
+PATH_DEV	d /dev/
+# PATH_TTY_PFX is a prefix that's removed to get a tty device's name
+PATH_TTY_PFX	<paths.h>:_PATH_DEV d /dev/
+PATH_DEVNULL	c /dev/null
+PATH_FTPLOGINMESG /etc/motd
+PATH_FTPUSERS	$(sysconfdir)/ftpusers
+PATH_FTPCHROOT	$(sysconfdir)/ftpchroot
+PATH_FTPWELCOME $(sysconfdir)/ftpwelcome
+PATH_FTPDPID	$(localstatedir)/run/ftpd.pid
+PATH_INETDCONF	$(sysconfdir)/inetd.conf
+PATH_INETDDIR	$(sysconfdir)/inetd.d
+PATH_UTMP	<utmp.h> <utmp.h>:UTMP_FILE $(localstatedir)/run/utmp search:utmp:/var/run:/var/adm:/etc
+PATH_UTMPX	<utmpx.h> <utmpx.h>:UTMPX_FILE $(localstatedir)/run/utmpx search:utmpx:/var/run:/var/adm:/etc
+PATH_WTMP	<utmp.h> <utmp.h>:WTMP_FILE $(localstatedir)/log/wtmp search:wtmp:/var/log:/var/adm:/etc
+PATH_WTMPX	<utmpx.h> <utmpx.h>:WTMPX_FILE $(localstatedir)/log/wtmpx search:wtmpx:/var/log:/var/adm:/etc
+PATH_LASTLOG	<utmp.h> $(localstatedir)/log/lastlog search:lastlog:/var/log:/var/adm:/etc
+PATH_LOG	<syslog.h> /dev/log
+PATH_KLOG	<syslog.h> /dev/klog no
+PATH_LOGCONF	$(sysconfdir)/syslog.conf
+PATH_LOGIN	x $(bindir)/login search:login
+PATH_LOGPID	$(localstatedir)/run/syslog.pid
+PATH_NOLOGIN	$(sysconfdir)/nologin
+PATH_RLOGIN	x $(bindir)/rlogin
+PATH_RSH	x $(bindir)/rsh
+PATH_TMP	d /tmp/
+PATH_TTY	c /dev/tty
+PATH_UUCICO	x $(libexecdir)/uucp/uucico search:uucp/uucico:/usr/libexec:/usr/lib:/usr/etc:/etc
+PATH_HEQUIV	<netdb.h> /etc/hosts.equiv $(sysconfdir)/hosts.equiv

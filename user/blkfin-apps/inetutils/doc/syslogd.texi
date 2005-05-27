@@ -1,0 +1,237 @@
+@node syslogd
+@chapter syslogd
+@cindex syslogd
+
+@command{syslogd} is a system service that provides error logging
+facility.  Messages are read from the @acronym{UNIX} domain socket
+@file{/dev/log}, from an Internet domain socket specified in
+@file{/etc/services}, and from the special device @file{/dev/klog} (to
+read kernel messages).
+
+@command{syslogd} creates the file @file{/var/run/syslog.pid}, and
+stores its process id there.  This can be used to kill or reconfigure
+@command{syslogd}.
+
+The message sent to @command{syslogd} should consist of a single line.
+The message can contain a priority code, which should be a preceding
+decimal number in angle braces, for example, @code{<5>}.  This
+priority code should map into the priorities defined in the include
+file @code{sys/syslog.h}.
+
+@section Invoking
+
+The options are as follows:
+
+@table @samp
+@item -f @var{FILE}
+@itemx --rcfile=@var{FILE}
+@opindex -f
+@opindex --rcfile
+Override configuration (the default file is @file{/etc/syslog.conf}).
+
+@item --pidfile=@var{FILE}
+@opindex --pidfile
+Override pidfile (the default file is @file{/var/run/syslogd.pid}).
+
+@item -n
+@itemx --no-detach
+@opindex -n
+@opindex --no-detach
+Do not enter daemon mode.
+
+@item -d
+@itemx --debug
+@opindex -d
+@opindex --debug
+Print debug information (implies @option{-n}).
+
+@item -p @var{FILE}
+@item --socket=@var{FILE}
+@opindex -p
+@opindex --socket
+Override default @acronym{UNIX} domain socket @file{/dev/log}.
+@item -a @var{SOCKET}
+Add @acronym{UNIX} socket to listen.  An unlimited number of sockets
+is allowed.
+
+@item -r
+@itemx --inet
+@opindex -r
+@opindex --inet
+Receive remote messages via Internet domain socket.
+
+@item --no-unixaf
+@opindex --no-unixaf
+Do not listen on @acronym{UNIX} domain sockets (overrides @option{-a}
+and @option{-p}).
+
+@item --no-klog
+@opindex --no-klog
+Do not listen to kernel log device @file{/dev/klog}.
+
+@item --no-forward
+@opindex --no-forward
+Do not forward any messages (overrides @option{-h}).
+
+@item -h
+@item --hop
+@opindex -h
+@opindex --hop
+Forward messages from remote hosts.
+
+@item -m INTERVAL
+@item --mark=@var{INTERVAL}
+@opindex -m
+@opindex --mark
+Specify timestamp interval in logs (0 for no timestamps).
+
+@item -l @var{HOSTLIST}
+@opindex -l
+Log hosts in @var{HOSTLIST} by their hostname. Multiple lists are allowed.
+
+@item -s @var{DOMAINLIST}
+@opindex -s
+List of domains which should be stripped from the FQDN of hosts before
+logging their name.  Multiple lists are allowed.
+@end table
+
+@section Configuration file
+
+@command{syslogd} reads its configuration file when it starts up and
+whenever it receives a hangup signal.  The @file{syslog.conf} file is
+the configuration file for the @command{syslogd} program.  It consists
+of lines with two fields: the @emph{selector} field which specifies
+the types of messages and priorities to which the line applies, and an
+@emph{action} field which specifies the action to be taken if a
+message @command{syslogd} receives matches the selection criteria.
+The @emph{selector} field is separated from the action field by one or
+more tab or space characters. A rule can be splitted in several lines
+if all lines except the last are terminated with a backslash @samp{\}.
+
+The Selectors function are encoded as a facility, a period (@samp{.}),
+and a level, with no intervening white-space.  Both the facility and
+the level are case insensitive.
+
+The facility describes the part of the system generating the message,
+and is one of the following keywords: @samp{auth}, @samp{authpriv},
+@samp{cron}, @samp{daemon}, @samp{kern}, @samp{lpr}, @samp{mail},
+@samp{mark}, @samp{news}, @samp{syslog}, @samp{user}, @samp{uucp} and
+@samp{local0} through @samp{local7}.  These keywords (with the
+exception of @samp{mark}) correspond to the similar @samp{LOG_} values
+specified to the @samp{openlog} and @samp{syslog} library routines.
+@xref{Syslog, , Syslog, libc, The GNU C Library Reference Manual}, for
+details.
+
+The level describes the severity of the message, and is a keyword from
+the following ordered list (higher to lower): @samp{emerg},
+@samp{alert}, @samp{crit}, @samp{err, warning}, @samp{notice} and
+@samp{debug}.  These keywords correspond to the similar @samp{LOG_}
+values specified to the syslog library routine.
+
+@xref{syslog; vsyslog, , syslog and vsyslog, libc, The GNU C Library
+Reference Manual}, for a further descriptions of both the facility and
+level keywords and their significance.
+
+If a received message matches the specified facility and is of the
+specified level (or a higher level), the action specified in the
+action field will be taken.
+
+Multiple selectors may be specified for a single action by separating
+them with semicolon (@samp{;}) characters.  It is important to note,
+however, that each selector can modify the ones preceding it.
+
+Multiple facilities may be specified for a single level by separating
+them with comma (@samp{,}) characters.
+
+An asterisk (@samp{*}) can be used to specify all facilities or all
+levels.  Two asterisks (@samp{**}) specifie all facilities not named
+previously in the configuration file.
+
+By default, a level applies to all messages with the same or higher
+level. The equal (@samp{=}) character can be prepended to a level to
+restrict this line of the configuration file to messages with the very
+same level.
+
+An exclamation mark (@samp{!}) prepended to a level or the asterisk
+means that this line of the configuration file does not apply to the
+specified level (and higher ones). In conjunction with the equal sign,
+you can exclude single levels as well.
+
+The special facility @emph{mark} receives a message at priority
+@samp{info} every 20 minutes.  This is not enabled by a facility field
+containing an asterisk.
+
+The special level @samp{none} disables a particular facility.
+
+The action field of each line specifies the action to be taken when
+the selector field selects a message.  There are five forms:
+
+@itemize @bullet
+@item
+A pathname (beginning with a leading slash).  Selected messages are
+appended to the file.
+
+You may prepend a minus (@samp{-}) to the path to omit syncing the
+file after each message log. This can cause data loss at system
+crashes, but increases performance for programs which use logging
+extensively.
+
+@item
+A named pipe (fifo), beginning with a vertical bar (@samp{|}) followed
+by a pathname. The pipe must be created with @command{mkfifo}(8)
+before @command{syslogd} reads its configuration file.  This feature
+is especially useful fo debugging.
+
+@item
+A hostname (preceded by an at (@samp{@@}) sign).  Selected messages are
+forwarded to @command{syslogd} on the named host.
+
+@item
+A comma separated list of users.  Selected messages are written to
+those users if they are logged in.
+
+@item
+An asterisk.  Selected messages are written to all logged-in users.
+
+Blank lines and lines whose first non-blank character is a hash
+(@samp{#}) character are ignored.
+@end itemize
+
+A configuration file might appear as follows:
+
+@example
+# Log all kernel messages, authentication messages of
+# level notice or higher and anything of level err or
+# higher to the console.
+# Don't log private authentication messages!
+*.err;kern.*;auth.notice;authpriv.none  /dev/console
+
+# Log anything (except mail) of level info or higher.
+# Don't log private authentication messages!
+*.info;mail.none;authpriv.none          /var/log/messages
+
+# The authpriv file has restricted access.
+authpriv.*                              /var/log/secure
+
+# Log all the mail messages in one place.
+mail.*                                  /var/log/maillog
+
+# Everybody gets emergency messages, plus log them on another
+# machine.
+*.emerg                                 *
+*.emerg                                 @@arpa.berkeley.edu
+
+# Root and Eric get alert and higher messages.
+*.alert                                 root,eric
+
+# Save mail and news errors of level err and higher in a
+# special file.
+uucp,news.crit                          /var/log/spoolerr
+@end example
+
+@comment @section BUGS
+
+The effects of multiple selectors are sometimes not intuitive.  For
+example @samp{mail.crit,*.err} will select the @samp{mail} facility
+messages at the level of @samp{err} or higher, not at the level of
+@samp{crit} or higher.

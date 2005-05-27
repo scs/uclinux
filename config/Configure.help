@@ -2198,6 +2198,18 @@ CONFIG_USER_CGI_BRIDGE
 CONFIG_USER_CGI_VLAN
   VLAN cgi page - WIP
 
+CONFIG_USER_INETUTILS_RCP
+  RCP utility. Part of the InetUtils package.
+  Approx. binary size: 49.5k
+
+CONFIG_USER_INETUTILS_RSH
+  RSH utility. Part of the InetUtils packge.
+  Approx. binary size: 43k
+
+CONFIG_USER_INETUTILS_RSHD
+  RSH server. Part of the InetUtils packge.
+  Approx. binary size: 53k
+
 #
 # END of user config help
 #

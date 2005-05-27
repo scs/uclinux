@@ -1,0 +1,166 @@
+@node rlogind
+@chapter rlogind
+@cindex rlogind
+
+@command{rlogind} is the server for the rlogin(1) program.  The server
+provides a remote login facility with authentication based on privileged port
+numbers from trusted hosts.
+
+@command{Rlogind} listens for service requests at the port indicated in the
+``login'' service specification; see services(5).  When a service request is
+received the following protocol is initiated:
+@enumerate
+
+@item
+The server checks the client's source port.  If the port is not in the range
+512-1023, the server aborts the connection.
+
+@item
+The server checks the client's source address and requests the corresponding
+host name (see gethostbyaddr(3),  hosts(5) and named(8)).  If the hostname
+cannot be determined, the dot-notation representation of the host address is
+used.  If the hostname is in the same domain as the server (according to the
+last two components of the domain name), or if the -a option is given, the
+addresses for the hostname are requested, verifying that the name and address
+correspond.  Normal authentication is bypassed if the address verification
+fails.
+@end enumerate
+
+Once the source port and address have been checked, rlogind proceeds with
+the authentication process described in rshd(8).  It then allocates a
+pseudo terminal (see pty(4)),  and manipulates file descriptors so that
+the slave half of the pseudo terminal becomes the stdin, stdout, and
+stderr for a login process.  The login process is an instance of the login(1)
+program, invoked with the -f option if authentication has succeeded.  If
+automatic authentication fails, the user is prompted to log in as if on a
+standard terminal line.
+
+The parent of the login process manipulates the master side of the pseudo
+terminal, operating as an intermediary between the login process and the
+client instance of the rlogin program.  In normal operation, the packet
+protocol described in pty(4) is invoked to provide `^S/^Q' type facilities
+and propagate interrupt signals to the remote programs.  The login
+process propagates the client terminal's baud rate and terminal type, as
+found in the environment variable, `TERM'; see environ(7).  The screen or
+window size of the terminal is requested from the client, and window size
+changes from the client are propagated to the pseudo terminal.
+
+Transport-level keepalive messages are enabled unless the -n option is
+client instance of the rlogin program.  In normal operation, the packet
+protocol described in pty(4) is invoked to provide `^S/^Q' type facilities
+and propagate interrupt signals to the remote programs.  The login
+process propagates the client terminal's baud rate and terminal type, as
+found in the environment variable, `TERM'; see environ(7).  The screen or
+window size of the terminal is requested from the client, and window size
+changes from the client are propagated to the pseudo terminal.
+
+Transport-level keepalive messages are enabled unless the -n option is
+present.  The use of keepalive messages allows sessions to be timed out
+if the client crashes or becomes unreachable.
+
+
+@xref{ruserok, , ruserok, libc, The GNU C Library Reference Manual}, for details.
+
+@section Invoking
+
+The options are as follows :
+
+@table @samp
+@item -a
+@itemx --verify-hostname
+@opindex -a
+@opindex --verify-hostname
+Ask hostname for verification.
+
+@item -d
+@itemx --daemon
+@opindex -d
+@opindex --daemon
+Daemon mode.
+
+@item -l
+@itemx --no-rhosts
+@opindex -l
+@opindex --no-rhosts
+Ignore .rhosts file.
+
+@item -L
+@itemx --local-domain=NAME
+@opindex -L
+@opindex --local-domain
+Set local domain name.
+
+@item -n
+@itemx --no-keepalive
+@opindex -n
+@opindex --no-keepalive
+Do not set SO_KEEPALIVE.
+
+@item -k
+@itemx --kerberos
+@opindex -k
+@opindex --kerberos
+Use kerberos IV authentication.
+
+@item -x
+@itemx --encrypt
+@opindex -x
+@opindex --encrypt
+Turns on DES encryption for all data passed via the rlogind session.  This may
+impact response time and CPU utilization, but provides increased security.
+
+@item -D
+@itemx --debug[=LEVEL]
+@opindex -D
+@opindex -debug
+Set debug level, not implemented.
+
+@item -h
+@itemx --help
+@opindex -h
+@opindex --help
+Display usage instructions.
+
+@item -V
+@itemx --version
+@opindex -V
+@opindex --version
+Display program version.
+
+@item -o
+@itemx --allow-root
+@opindex -o
+@opindex --allow-root
+Allow uid == 0 to login, disable by default\n"
+
+@item -p
+@itemx --port=PORT
+@opindex -p
+@opindex --port
+Listen on given port (valid only in daemon mode).
+
+@item -r
+@itemx --reverse-required
+@opindex -r
+@opindex --reverse-required
+Required  Require reverse resolving of a remote host IP.
+
+@end table
+
+@section Diagnostics
+
+All initial diagnostic messages are indicated by a leading byte with a
+value of 1, after which any network connections are closed.  If there are
+no errors before login is invoked, a null byte is returned as in indication
+of success.
+
+@table @samp
+
+@item Try again.
+A fork by the server failed.
+
+@end table
+
+The authentication procedure used here assumes the integrity of each
+client machine and the connecting medium.  This is insecure, but is useful
+in an ``open'' environment.
