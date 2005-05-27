@@ -199,7 +199,11 @@ dcplb_table:
 .byte4	0x01800000;
 .byte4	(SDRAM_DGENERIC);	/*SDRAM_Page6*/
 .byte4	0x01C00000;
-.byte4  (SDRAM_DGENERIC);
+#if defined(CONFIG_EZKIT) && defined(CONFIG_BLKFIN_DCACHE)
+.byte4        (SDRAM_DNON_CHBL)       /*SDRAM_Page7 for EZkit*/
+#else
+.byte4        (SDRAM_DGENERIC);       /*SDRAM_Page7 for stamp*/
+#endif
 
 
 #ifndef CONFIG_EZKIT	
@@ -252,7 +256,12 @@ dpdt_table:
 .byte4        0x01800000;
 .byte4        (SDRAM_DGENERIC);       /*SDRAM_Page6*/
 .byte4        0x01C00000;
-.byte4        (SDRAM_DGENERIC);
+#if defined(CONFIG_EZKIT) && defined(CONFIG_BLKFIN_DCACHE)
+.byte4        (SDRAM_DNON_CHBL)       /*SDRAM_Page7 for EZkit*/
+#else
+.byte4        (SDRAM_DGENERIC);       /*SDRAM_Page7 for stamp*/
+#endif
+
 
 
 #ifndef CONFIG_EZKIT
