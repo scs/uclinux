@@ -24,13 +24,13 @@
 
 #define WINDOW_ADDR 0x20000000
 
-#ifdefine CONFIG_BLKFIN_STAMP
+#ifdef CONFIG_BLKFIN_STAMP
 struct flash_save {
     u16 dir;
-    u16 flag_s;
     u16 maska_d;
     u16 maskb_d;
     u16 inen;
+    u16 flag_d;
     
     u32 ambctl0;
     u32 ambctl1;
