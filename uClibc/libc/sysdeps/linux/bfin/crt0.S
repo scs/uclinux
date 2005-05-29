@@ -32,12 +32,21 @@ Cambridge, MA 02139, USA.  */
 *	R2=*envp[0]  
 */
 
+#include <features.h>
+
 .text
 .align 2
 .global _start;
 .type	_start,STT_FUNC;
+#if defined L_crt1 && defined __UCLIBC_CTOR_DTOR__
+.weak	_init;
+.weak	_fini;
+.global	___uClibc_start_main;
+.type	___uClibc_start_main,STT_FUNC;
+#else
 .global ___uClibc_main;
 .type	___uClibc_main,STT_FUNC;
+#endif
 
 /* Stick in a dummy reference to main(), so that if an application
  * is linking when the main() function is in a static library (.a)
@@ -63,6 +72,16 @@ _start:
 	R2 = R1+R2;
 
 /*	Ok, now run uClibc's main() -- shouldn't return */
+#if defined L_crt1 && defined __UCLIBC_CTOR_DTOR__
+	SP += -20;
+	R3.H = _init;
+	R3.L = _init;
+	[SP+12] = R3;
+	R3.H = _fini;
+	R3.L = _fini;
+	[SP+16] = R3;
+	jump.l	___uClibc_start_main;
+#else
 	sp += -12;
 	jump.l	___uClibc_main;
-
+#endif

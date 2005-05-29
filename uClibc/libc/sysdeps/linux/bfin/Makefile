@@ -21,7 +21,7 @@ include $(TOPDIR)Rules.mak
 ASFLAGS=$(CFLAGS)
 
 CRT0_SRC = crt0.S
-CRT0_OBJ = crt0.o
+CRT0_OBJ = crt0.o crt1.o
 #CTOR_TARGETS=$(TOPDIR)lib/crti.o $(TOPDIR)lib/crtn.o
 CTOR_TARGETS=
 
