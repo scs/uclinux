@@ -200,9 +200,9 @@ static void bf533_copy_to(struct map_info *map, unsigned long to, const void *fr
 
 static struct map_info bf533_map = {
 	name:    	"BF533 flash",
-	0,
-	0,
-	0,
+	0x400000,
+	0x20000000,
+	0x20000000,
 	NULL,		
 	read:		bf533_read,
 	copy_from:	bf533_copy_from,
@@ -232,17 +232,17 @@ static unsigned long bf533_max_flash_size = 0x00400000;
 static struct mtd_partition bf533_partitions[] = {
 	{
 		name: "bootloader",
-		size: 0x00100000,
+		size: 0x00080000,
 		offset: 0,
 		mask_flags: MTD_CAP_ROM
 	},{
 		name: "File system image",
-		size: 0x100000,
-		offset: 0x100000
+		size: 0x300000,
+		offset: 0x80000
 	},{
 		name: "64K area ;)", 
 		size: 0x10000,
-		offset: 0x00300000,
+		offset: 0x00380000,
 	}	
 };
 
