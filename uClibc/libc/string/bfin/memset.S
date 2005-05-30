@@ -1,5 +1,13 @@
-/* Copyright (C) 2003 Analog Devices Inc., All Rights Reserved,
-*/
+/* memset.S
+ * Copyright (C) 2003, 2005 Analog Devices Inc., All Rights Reserved.
+ *
+ * This file is subject to the terms and conditions of the GNU Library General
+ * Public License. See the file "COPYING.LIB" in the main directory of this
+ * archive for more details.
+ *
+ * Non-LGPL License also available as part of VisualDSP++
+ * http://www.analog.com/processors/resources/crosscore/visualDspDevSoftware.html
+ */
 
 	   //===============================================
 	   // C Library function MEMSET
