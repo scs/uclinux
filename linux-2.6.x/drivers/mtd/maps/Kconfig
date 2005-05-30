@@ -69,12 +69,6 @@ config MTD_SUN_UFLASH
 	  Sun Microsystems boardsets.  This driver will require CFI support 
 	  in the kernel, so if you did not enable CFI previously, do that now.
 
-config MTD_BF533
-	tristate "Blackfin BF533 Flash Chip Support" 
-	depends on (EZKIT || BLKFIN_STAMP) && MTD_PARTITIONS
-	help
-	  Flash Chip from ST Microelctronics
-
 config MTD_PNC2000
 	tristate "CFI Flash device mapped on Photron PNC-2000"
 	depends on X86 && MTD_CFI && MTD_PARTITIONS
@@ -341,7 +335,7 @@ config MTD_CFI_FLAGADM
 	tristate "CFI Flash device mapping on FlagaDM"
 	depends on PPC32 && 8xx && MTD_CFI
 	help
-	  Mapping for the Flaga digital module. If you don´t have one, ignore
+	  Mapping for the Flaga digital module. If you dont have one, ignore
 	  this setting.
 
 config MTD_BEECH
@@ -563,11 +557,25 @@ config MTD_PCMCIA
 	  cards are usually around 4-16MiB in size. This does not include
 	  Compact Flash cards which are treated as IDE devices.
 
+choice
+	prompt "Exclusive Drivers"
+	default MTD_UCLINUX
+	---help---
+	  Choose the which MTD device to use. The flash based one or memory mapped one.
+
+config MTD_BF533
+	bool "Blackfin BF533 Flash Chip Support" 
+	depends on (EZKIT || BLKFIN_STAMP) && MTD_PARTITIONS
+	help
+	  Flash Chip from ST Microelctronics
+
 config MTD_UCLINUX
-	tristate "Generic uClinux RAM/ROM filesystem support"
+	bool "Generic uClinux RAM/ROM FS support"
 	depends on MTD && !MMU
 	help
 	  Map driver to support image based filesystems for uClinux.
+
+endchoice
 
 config MTD_WRSBC8260
 	tristate "Map driver for WindRiver PowerQUICC II MPC82xx board"
