@@ -557,8 +557,11 @@ config MTD_PCMCIA
 	  cards are usually around 4-16MiB in size. This does not include
 	  Compact Flash cards which are treated as IDE devices.
 
+config MTD_EXCLUSIVE_DRIVER
+	tristate "Select Exclusive MTD driver"
 choice
-	prompt "Exclusive Drivers"
+	prompt ""
+	depends on MTD_EXCLUSIVE_DRIVER
 	default MTD_UCLINUX
 	---help---
 	  Choose the which MTD device to use. The flash based one or memory mapped one.
