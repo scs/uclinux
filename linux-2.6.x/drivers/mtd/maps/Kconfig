@@ -561,7 +561,7 @@ config MTD_EXCLUSIVE_DRIVERS
 	tristate "Select Exclusive MTD driver"
 choice
 	prompt ""
-	depends on MTD_EXCLUSIVE_DRIVER
+	depends on MTD_EXCLUSIVE_DRIVERS
 	default MTD_UCLINUX
 	---help---
 	  Choose the which MTD device to use. The flash based one or memory mapped one.
