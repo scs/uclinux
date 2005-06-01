@@ -557,7 +557,7 @@ config MTD_PCMCIA
 	  cards are usually around 4-16MiB in size. This does not include
 	  Compact Flash cards which are treated as IDE devices.
 
-config MTD_EXCLUSIVE_DRIVER
+config MTD_EXCLUSIVE_DRIVERS
 	tristate "Select Exclusive MTD driver"
 choice
 	prompt ""
