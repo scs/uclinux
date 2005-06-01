@@ -36,6 +36,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/syscall.h>
+#include <asm/asm-offsets.h>
 
 /* ``all_threads'' is keyed by the LWP ID - it should be the thread ID instead,
    however.  This requires changing the ID in place when we go from !using_threads
@@ -1474,8 +1475,6 @@ linux_get_offset(char *own_buf){
     = (PTRACE_XFER_TYPE *) alloca ( 3 * sizeof (PTRACE_XFER_TYPE));
 
   /* Read all the longwords */
-#define PT_EXTRA1 216
-#define PT_EXTRA2 220
   buffer[0] = ptrace (PTRACE_PEEKUSER, inferior_pid, (PTRACE_ARG3_TYPE) (PT_EXTRA1), 0);
   buffer[1] = ptrace (PTRACE_PEEKUSER, inferior_pid, (PTRACE_ARG3_TYPE) (PT_EXTRA2), 0);
   buffer[2] = ptrace (PTRACE_PEEKUSER, inferior_pid, (PTRACE_ARG3_TYPE) (PT_EXTRA2), 0);
