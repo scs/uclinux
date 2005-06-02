@@ -20,7 +20,7 @@ extern int is_in_rom(unsigned long);
 static inline int _access_ok(unsigned long addr, unsigned long size)
 {
 	extern unsigned long memory_end;
-	return (((addr >=memory_start) && addr+size < memory_end)) ||
+	return (((addr >=memory_start) && (addr+size < memory_end)) ||
 		(is_in_rom(addr) && is_in_rom(addr+size)));
 
 } 
