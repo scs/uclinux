@@ -77,7 +77,7 @@ choice
 
 config EZKIT 
 	bool "EZKITLITE board support"
-	depends on BF533 
+	depends on (BF533 || BF532 || BF531)
 	help
 	 EZKITLITE board Support.
 
@@ -88,7 +88,7 @@ config MEM_MT48LC16M16A2TG_75
 
 config  BLKFIN_STAMP
 	bool "STAMP board support"
-	depends on BF533 
+	depends on (BF533 || BF532 || BF531) 
 	help
 	 STAMP board Support.
 
