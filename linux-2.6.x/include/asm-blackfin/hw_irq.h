@@ -19,6 +19,12 @@
 #ifdef CONFIG_BF533
 #include <asm/board/bf533_irq.h>
 #endif
+#ifdef CONFIG_BF532
+#include <asm/board/bf533_irq.h>
+#endif
+#ifdef CONFIG_BF531
+#include <asm/board/bf533_irq.h>
+#endif
 #ifdef CONFIG_BF535
 #include <asm/board/bf535_irq.h>
 #endif

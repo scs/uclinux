@@ -16,6 +16,7 @@
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
 
+
 #ifdef CONFIG_CONSOLE
 extern struct consw *conswitchp;
 #ifdef CONFIG_FRAMEBUFFER
@@ -33,57 +34,26 @@ void bf53x_cache_init(void);
 u_long get_cclk(void) ;
 u_long get_sclk(void);
 u_int get_dsp_rev_id(void);
+static void generate_cpl_tables(void);
+static unsigned short fill_cpl_tables(unsigned long *, unsigned short, unsigned long, unsigned long, unsigned long, unsigned long); 
 
 /* Blackfin cache functions */
 extern void icache_init(void);
 extern void dcache_init(void);
 extern int read_iloc(void);
-	
-#ifdef CONFIG_BF533
-#define CPU "BF533"
-#endif
-#ifdef CONFIG_BF532
-#define CPU "BF532"
-#endif
-#ifdef CONFIG_BF531
-#define CPU "BF531"
-#endif
-#ifndef CPU
-#define	CPU "UNKOWN"
-#endif
+extern unsigned long ipdt_table[];
+extern unsigned long dpdt_table[];
+extern unsigned long icplb_table[];
+extern unsigned long dcplb_table[];	
 
-//
-#ifdef CONFIG_BF533
-#define L1_CODE_START           0xFFA00000
-#ifdef CONFIG_BLKFIN_CACHE
-#define L1_CODE_LENGTH          (0x10000 - 0x4000)
-#else
-#define L1_CODE_LENGTH          0x10000
-#endif
-#ifdef CONFIG_BLKFIN_DCACHE
-#define L1_DATA_LENGTH          (0x8000 - 0x4000)
-#else
-#define L1_DATA_LENGTH          (0x8000 - 0x4000)
-#endif
-#endif
-
-#ifdef CONFIG_BF532
-#define L1_CODE_START   0xFFA08000
-#ifdef CONFIG_BLKFIN_CACHE
-#define L1_CODE_LENGTH          (0xC000 - 0x4000)
-#else
-#define L1_CODE_LENGTH          0xC000
-#endif
-#endif
-
-#ifdef CONFIG_BF531
-#define L1_CODE_START   0xFFA08000
-#define L1_CODE_LENGTH          0x4000
-#endif
-//
 
 void bf53x_cache_init(void)
 {
+
+#if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)  
+  generate_cpl_tables();
+#endif
+
 #ifdef CONFIG_BLKFIN_CACHE
 	icache_init();
 	printk("Instruction Cache Enabled\n");
@@ -119,8 +89,8 @@ void bf53x_relocate_l1_mem(void)
   DmaMemCpy(&_stext_l1, &_l1_lma_start, l1_length);
 
   l1_length = &_ebss_l1 - &_sdata_l1;
-  if(l1_length > L1_DATA_LENGTH)
-    l1_length = L1_DATA_LENGTH;
+  if(l1_length > L1_DATA_A_LENGTH)
+    l1_length = L1_DATA_A_LENGTH;
 
   /* Copy _sdata_l1 to _ebss_l1 to L1 instruction SRAM */
   DmaMemCpy(&_sdata_l1, &_l1_lma_start + (&_etext_l1 - &_stext_l1),
@@ -232,11 +202,89 @@ void setup_arch(char **cmdline_p)
 		panic("L1 memory overflow\n");
 
   	l1_length = &_ebss_l1 - &_sdata_l1;
-  	if(l1_length > L1_DATA_LENGTH)
+  	if(l1_length > L1_DATA_A_LENGTH)
 		panic("L1 memory overflow\n");
 
 	bf53x_cache_init();
 }
+
+
+static unsigned short fill_cpl_tables(unsigned long * table, unsigned short pos, unsigned long start, unsigned long end, unsigned long block_size, unsigned long CPLB_data) 
+{
+  int i;
+
+	for (i = start; i < end; i+=block_size, pos+=2) 
+	{
+		*(table + pos)= start;
+		*(table + pos + 1) = CPLB_data;	
+		start += block_size;
+	} 
+  return pos;
+}
+
+static void generate_cpl_tables(void) 
+{
+
+  unsigned short pos;
+  unsigned long avail, dcplb_avail,icplb_avail;
+  
+
+  if (RAM_END % SIZE_4M) panic("SDRAM SIZE MUST BE MULTIBLE OF 4MB\n");
+  avail = (RAM_END-(SIZE_4M*2))/SIZE_4M;
+
+#ifdef CONFIG_BLKFIN_DCACHE
+ 
+  if (avail>=10) dcplb_avail = 10; else dcplb_avail = avail ;
+
+/* Generarte initial DCPLB table */
+	pos=0;
+	pos = fill_cpl_tables(dcplb_table, pos, ZERO, SIZE_4M, SIZE_4M, SDRAM_DKERNEL);
+	pos = fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_DGENERIC_1MB);
+	pos = fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_1M, RAM_END, SIZE_1M, SDRAM_DNON_CHBL);
+	pos = fill_cpl_tables(dcplb_table, pos, ASYNC_BANK3_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK3_SIZE, SDRAM_EBIU);
+	pos = fill_cpl_tables(dcplb_table, pos, SIZE_4M, SIZE_4M+(dcplb_avail * SIZE_4M) , SIZE_4M, SDRAM_DGENERIC);
+  *(dcplb_table + pos)= -1;
+
+/* Generarte DCPLB switch table */
+	pos=0;
+	pos = fill_cpl_tables(dpdt_table, pos, ZERO, SIZE_4M, SIZE_4M, SDRAM_DKERNEL);
+	pos = fill_cpl_tables(dpdt_table, pos, SIZE_4M, RAM_END - SIZE_4M, SIZE_4M, SDRAM_DGENERIC);
+	pos = fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_DGENERIC_1MB);
+	pos = fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_1M, RAM_END, SIZE_1M, SDRAM_DNON_CHBL);
+	pos = fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK0_SIZE, SDRAM_EBIU);
+	pos = fill_cpl_tables(dpdt_table, pos, L1_DATA_A_START, L1_DATA_A_START + L1_DATA_A_LENGTH, SIZE_4K, L1_DMEMORY);
+#if !defined(CONFIG_BF531) 
+	pos = fill_cpl_tables(dpdt_table, pos, L1_DATA_B_START, L1_DATA_B_START + L1_DATA_B_LENGTH, SIZE_4K, L1_DMEMORY);
+#endif
+  *(dpdt_table + pos)= -1;
+#endif
+
+#ifdef CONFIG_BLKFIN_CACHE
+
+  if (avail>=9) icplb_avail = 9; else icplb_avail = avail ;
+
+/* Generarte initial ICPLB table */
+	pos=0;
+	pos = fill_cpl_tables(icplb_table, pos, L1_CODE_START, L1_CODE_START + SIZE_1M, SIZE_1M, L1_IMEMORY);
+	pos = fill_cpl_tables(icplb_table, pos, ZERO, SIZE_4M, SIZE_4M, SDRAM_IKERNEL);
+	pos = fill_cpl_tables(icplb_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_IGENERIC_1MB);
+	pos = fill_cpl_tables(icplb_table, pos, RAM_END - SIZE_1M, RAM_END, SIZE_1M, SDRAM_INON_CHBL);
+	pos = fill_cpl_tables(icplb_table, pos, ASYNC_BANK3_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK3_SIZE, SDRAM_EBIU);
+	pos = fill_cpl_tables(icplb_table, pos, SIZE_4M, SIZE_4M+(icplb_avail * SIZE_4M), SIZE_4M, SDRAM_IGENERIC);
+  *(icplb_table + pos)= -1;
+
+/* Generarte ICPLB switch table */
+	pos=0;
+	pos = fill_cpl_tables(ipdt_table, pos, ZERO, SIZE_4M, SIZE_4M, SDRAM_IKERNEL);
+	pos = fill_cpl_tables(ipdt_table, pos, SIZE_4M, RAM_END - SIZE_4M, SIZE_4M, SDRAM_IGENERIC);
+	pos = fill_cpl_tables(ipdt_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_IGENERIC_1MB);
+	pos = fill_cpl_tables(ipdt_table, pos, RAM_END - SIZE_1M, RAM_END, SIZE_1M, SDRAM_INON_CHBL);
+	pos = fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK0_SIZE, SDRAM_EBIU);
+  *(ipdt_table + pos)= -1;
+#endif
+  return;
+}
+
 
 static inline u_long get_vco(void)
 {

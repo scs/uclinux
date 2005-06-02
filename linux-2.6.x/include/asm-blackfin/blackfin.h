@@ -9,23 +9,28 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_PUB
-/*Include your header file here*/
+#ifdef CONFIG_BF535
+#include <asm/board/bf535.h>	
+#include <asm/mem_map.h>	
+#include <asm/board/defBF535.h>
+#include <asm/board/cdefBF535.h>
 #endif
-#ifdef CONFIG_HAWK
-/*Include your header file here*/
-#endif
-#ifdef CONFIG_EAGLE
-/*Include your header file here*/
-#endif
-#ifdef CONFIG_EZKIT
+#ifdef CONFIG_BF533
 #include <asm/board/bf533.h>	
 #include <asm/board/defBF533.h>
 #include <asm/board/cdefBF533.h>
+#include <asm/mem_map.h>	
 #endif
-#ifdef CONFIG_BLKFIN_STAMP
+#ifdef CONFIG_BF532
 #include <asm/board/bf533.h>	
 #include <asm/board/defBF533.h>
 #include <asm/board/cdefBF533.h>
+#include <asm/mem_map.h>	
+#endif
+#ifdef CONFIG_BF531
+#include <asm/board/bf533.h>	
+#include <asm/board/defBF533.h>
+#include <asm/board/cdefBF533.h>
+#include <asm/mem_map.h>	
 #endif
 #endif /* _BLACKFIN_H_ */

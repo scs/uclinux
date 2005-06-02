@@ -22,9 +22,11 @@
 #ifdef CONFIG_BF535
   #include <asm/board/bf535_irq.h>
 #endif
-#ifdef CONFIG_BF533
+#if defined(CONFIG_BF533) || defined(CONFIG_BF532) || defined(CONFIG_BF531)
   #include <asm/board/bf533_irq.h>
 #endif
+
+
 /*******************************************************************************
  *****   INTRODUCTION ***********
  *   On the Blackfin, the interrupt structure allows remmapping of the hardware

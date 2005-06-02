@@ -7,30 +7,8 @@
 
 #include <asm-generic/vmlinux.lds.h>
 #include <linux/config.h>
+#include <asm/mem_map.h>
 
-#define RAM_START		0x1000
-#define RAM_LENGTH		CONFIG_MEM_SIZE * 1024 * 1024
-
-#ifdef CONFIG_BF533
-#define L1_DATA_A_START		0xFF800000
-#define L1_DATA_A_LENGTH	0x4000
-#define L1_DATA_B_START		0xFF900000
-#define L1_DATA_B_LENGTH	0x4000
-#define L1_CODE_START		0xFFA00000
-#define L1_CODE_LENGTH		0x10000
-#define L1_SCRATCH_START	0xFFB00000
-#define L1_SCRATCH_LENGTH	0x1000
-#endif
-
-#ifdef CONFIG_BF532
-#define L1_CODE_START	0xFFA08000
-#define L1_CODE_LENGTH	0x8000
-#endif
-
-#ifdef CONFIG_BF531
-#define L1_CODE_START	0xFFA08000
-#define L1_CODE_LENGTH	0x4000
-#endif
 
 OUTPUT_FORMAT("elf32-bfin")
 ENTRY(_start) 
@@ -38,17 +16,15 @@ jiffies = jiffies_64;
 MEMORY 
 	{
 	ram		: ORIGIN = RAM_START,       LENGTH = RAM_LENGTH
-	#ifdef CONFIG_BF533
 	l1_data_a	: ORIGIN = L1_DATA_A_START, LENGTH = L1_DATA_A_LENGTH
 	l1_data_b	: ORIGIN = L1_DATA_B_START, LENGTH = L1_DATA_B_LENGTH
-	#endif
 	l1_code		: ORIGIN = L1_CODE_START,   LENGTH = L1_CODE_LENGTH
 	l1_scratch	: ORIGIN = L1_SCRATCH_START,LENGTH = L1_SCRATCH_LENGTH
 	}
 
 SECTIONS
 {
-	. = 0x1000 ;
+	. = RAM_START ;
 
 	.text  : {
 		 _stext = .;                     
