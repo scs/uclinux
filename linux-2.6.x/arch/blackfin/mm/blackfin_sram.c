@@ -35,25 +35,15 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/rtc.h>
-#include <asm/cplb.h>
+#include <asm/blackfin.h>
 
 spinlock_t l1sram_lock, l1_data_A_sram_lock;
-
-#define L1_SCRATCH_SADDR    0xFFB00000
-#define L1_SCRATCH_SIZE     0x1000
 
 #define L1_MAX_PIECE        16
 
 #define MAX_CPLBS   16
 #define NUM_CPLBS   16
 
-#define L1_DATA_A_SADDR    0xFF800000
-#define L1_DATA_A_SIZE     0x4000		// For Testing purpose we are giving only 0x1000 size 
-#define L1_DATA_B_SADDR    0xFF900000
-#define L1_DATA_B_SIZE     0x4000
-/* L1 scratchpad management */
-
-/* L1 scratchpad SRAM */
 #define SRAM_SLT_NULL      0
 #define SRAM_SLT_FREE      1
 #define SRAM_SLT_ALLOCATED 2
@@ -73,18 +63,18 @@ struct l1_sram_piece l1_ssram[L1_MAX_PIECE];
 
 struct l1_sram_piece l1_data_A_sram[L1_MAX_PIECE];
 
-#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
+#if 0 != L1_DATA_B_LENGTH
 struct l1_sram_piece l1_data_B_sram[L1_MAX_PIECE];
 #endif
 
 /* L1 Scratchpad SRAM initialization function */
 void l1sram_init(void)
 {
-	printk("Blackfin Scratchpad data SRAM: %d KB\n",(L1_SCRATCH_SIZE/1000));
+	printk("Blackfin Scratchpad data SRAM: %d KB\n", L1_SCRATCH_LENGTH >> 10);
 
 	memset((void *)&l1_ssram, 0, sizeof(l1_ssram));
-	l1_ssram[0].paddr = L1_SCRATCH_SADDR;
-	l1_ssram[0].size = L1_SCRATCH_SIZE;
+	l1_ssram[0].paddr = L1_SCRATCH_START;
+	l1_ssram[0].size = L1_SCRATCH_LENGTH;
 	l1_ssram[0].flag = SRAM_SLT_FREE;
 
 	/* mutex initialize */
@@ -94,20 +84,19 @@ void l1sram_init(void)
 void l1_data_A_sram_init(void)
 {
 	memset((void *)&l1_data_A_sram, 0, sizeof(l1_data_A_sram));
-#if defined(CONFIG_BF533) || \
-	defined(CONFIG_BF532) && !defined(CONFIG_BLKFIN_DCACHE)
-	printk("Blackfin DATA_A SRAM: %d KB\n",(L1_DATA_A_SIZE/1000));
+#if 0 != L1_DATA_A_LENGTH
+	printk("Blackfin DATA_A SRAM: %d KB\n", L1_DATA_A_LENGTH >> 10);
 
-	l1_data_A_sram[0].paddr = L1_DATA_A_SADDR;
-	l1_data_A_sram[0].size = L1_DATA_A_SIZE;
+	l1_data_A_sram[0].paddr = L1_DATA_A_START;
+	l1_data_A_sram[0].size = L1_DATA_A_LENGTH;
 	l1_data_A_sram[0].flag = SRAM_SLT_FREE;
 #endif
-#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
-	printk("Blackfin DATA_B SRAM: %d KB\n", L1_DATA_B_SIZE >> 10);
+#if 0 != L1_DATA_B_LENGTH
+	printk("Blackfin DATA_B SRAM: %d KB\n", L1_DATA_B_LENGTH >> 10);
 
 	memset((void *)&l1_data_B_sram, 0, sizeof(l1_data_B_sram));
-	l1_data_B_sram[0].paddr = L1_DATA_B_SADDR;
-	l1_data_B_sram[0].size = L1_DATA_B_SIZE;
+	l1_data_B_sram[0].paddr = L1_DATA_B_START;
+	l1_data_B_sram[0].size = L1_DATA_B_LENGTH;
 	l1_data_B_sram[0].flag = SRAM_SLT_FREE;
 #endif
 
@@ -217,7 +206,7 @@ unsigned long l1_data_A_sram_alloc(unsigned long size)
 	addr = l1_sram_alloc(size, 
 			l1_data_A_sram, ARRAY_SIZE(l1_data_A_sram));
 
-#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
+#if 0 != L1_DATA_B_LENGTH
 	if (!addr) 
 		addr = l1_sram_alloc(size, 
 			l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
@@ -237,8 +226,8 @@ int l1_data_A_sram_free(unsigned long addr)
 	/* add mutex operation*/
 	spin_lock_irqsave (&l1_data_A_sram_lock, flags);
 
-#if defined(CONFIG_BF533) || defined(CONFIG_BF532)
-	if (L1_DATA_B_SADDR == (addr & ~0xffff))
+#if 0 != L1_DATA_B_LENGTH
+	if (L1_DATA_B_START == (addr & ~0xffff))
 		ret = l1_sram_free(addr, 
 			l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
 	else
