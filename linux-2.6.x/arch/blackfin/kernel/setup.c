@@ -375,8 +375,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   (loops_per_jiffy*HZ));
 #if defined CONFIG_BLKFIN_STAMP	
 	seq_printf(m, "BOARD:\t\tADSP-BF533 STAMP\n");
-#else
+#endif
+#if defined CONFIG_EZKIT
 	seq_printf(m, "BOARD:\t\tADSP-BF533 EZ-KIT LITE\n");
+#else
+	seq_printf(m, "BOARD:\t\tADSP-%s Custom Generic Board\n",cpu);
 #endif
 	seq_printf(m, "BOARD Memory:\t%d MB\n",CONFIG_MEM_SIZE);
         if((*(volatile unsigned long *)IMEM_CONTROL) & (ENICPLB | IMC))
