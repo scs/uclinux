@@ -22,22 +22,11 @@ void disable_wdog_timer(void);
 #define FLAG_CSEL	0x0
 #define FLAG_SSEL	0x1
 
-#ifdef CONFIG_EZKIT
-	#define MAX_VCO		600000000
-#endif
-#ifdef CONFIG_BLKFIN_STAMP
-	#define MAX_VCO		650000000
-#endif
-
+#define MAX_VCO		650000000
 #define MIN_VCO		56000000	/* VCO minimum should get set to 50 only */
-#define MAX_SCLK	133000000
 
-#ifdef CONFIG_EZKIT
+#define MAX_SCLK	133000000
 #define MIN_SCLK	27000000
-#endif
-#ifdef CONFIG_BLKFIN_STAMP
-#define MIN_SCLK	27000000 /* For now lets keep it at 22, actually it shld be 11 */
-#endif
 
 #define INTER_FREQ	MIN_SCLK*5
 
