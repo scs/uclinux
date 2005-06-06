@@ -41,9 +41,6 @@ spinlock_t l1sram_lock, l1_data_A_sram_lock;
 
 #define L1_MAX_PIECE        16
 
-#define MAX_CPLBS   16
-#define NUM_CPLBS   16
-
 #define SRAM_SLT_NULL      0
 #define SRAM_SLT_FREE      1
 #define SRAM_SLT_ALLOCATED 2

@@ -36,9 +36,6 @@
  * in exit.c or in signal.c.
  */
 
-/* determines which bits in the ASTAT reg the user has access to. */
-/* 1 = access 0 = no access */
-/*#define ASTAT_MASK 0x017f*/   /* FRIO ASTAT reg */
 
 /* determines which bits in the SYSCFG reg the user has access to. */
 /* 1 = access 0 = no access */
