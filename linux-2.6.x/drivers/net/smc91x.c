@@ -373,8 +373,6 @@ static void bfin_SMC_interrupt_setup(int irq)
     {
       int ixab = (irq - IRQ_PROG_INTA) * (pFIO_MASKB_D - pFIO_MASKA_D);
 
-      printk(" ### actually hacking interrupts, ixab %d\n", ixab);
-
       asm("csync;");
       pFIO_MASKA_C[ixab] = LAN_FIO_PATTERN; /* disable int */
       asm("ssync;");
@@ -1992,11 +1990,9 @@ static int __init smc_probe(struct net_device *dev, unsigned long ioaddr)
 	/* Grab the IRQ */
       	retval = request_irq(dev->irq, &smc_interrupt, SA_SHIRQ, dev->name, dev);
         if (retval) {
-		printk(" ###: failed to register irq %d\n", dev->irq);
       		unregister_netdev(dev);
       		goto err_out;
         }
-	printk(" ###: registered irq %d\n", dev->irq);
 #ifdef CONFIG_BFIN
         bfin_SMC_interrupt_setup(dev->irq);
 #else
@@ -2140,8 +2136,6 @@ static int smc_drv_probe(struct device *dev)
 		goto out;
 	}
 
-	printk(" ###: got mem region 0x%lx.\n", res->start);
-
 	ndev = alloc_etherdev(sizeof(struct smc_local));
 	if (!ndev) {
 		printk("%s: could not allocate device.\n", CARDNAME);
@@ -2174,8 +2168,6 @@ static int smc_drv_probe(struct device *dev)
 			goto release_both;
 	}
 
-	printk(" ###: got ext region 0x%p.\n", ext);
-
 	addr = ioremap(res->start, SMC_IO_EXTENT);
 	if (!addr) {
 		ret = -ENOMEM;
@@ -2184,8 +2176,6 @@ static int smc_drv_probe(struct device *dev)
 
 	dev_set_drvdata(dev, ndev);
 
-	printk(" ###: irq is %d.\n", ndev->irq);
-
 #if defined(CONFIG_BFIN)
 	/*
 	 *  We're using the second IRQ (index 1) in the platform resources
@@ -2193,10 +2183,8 @@ static int smc_drv_probe(struct device *dev)
 	 *  IRQ_PFx value to use if we have CONFIG_IRQCHIP_DEMUX_GPIO enabled.
 	 */
 	irq_pfx = platform_get_irq(pdev, 1);
-	printk(" ###: irq_pfx is %d.\n", irq_pfx);
 
 #if defined(CONFIG_IRQCHIP_DEMUX_GPIO)
-	printk(" ###: DEMUX GPIO, setting irq = irq_pfx: %d.\n", irq_pfx);
 	ndev->irq = irq_pfx;
 #endif
 #endif
