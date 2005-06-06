@@ -279,7 +279,7 @@ relink:
 clean: modules_clean
 	for dir in $(LINUXDIR) $(DIRS); do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir clean ; done
 	rm -rf $(ROMFSDIR)/*
-	rm -f $(IMAGEDIR)/*
+	rm -rf $(IMAGEDIR)/*
 	rm -f config.tk
 	rm -f $(LINUXDIR)/linux
 	rm -rf $(LINUXDIR)/net/ipsec/alg/libaes $(LINUXDIR)/net/ipsec/alg/perlasm
