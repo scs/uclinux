@@ -57,6 +57,10 @@ static int mount_ro;
 static unsigned mount_fmask;
 static unsigned mount_dmask;
 
+#ifdef __uClinux__
+#define CMD_CHILD "smbmount_child"
+#endif
+
 static void usage(void);
 
 static void exit_parent(int sig)
@@ -94,6 +98,51 @@ static void daemonize(void)
 
 	signal( SIGTERM, SIG_DFL );
 	chdir("/");
+}
+#else
+static void daemonize(int argc, char **argv)
+{
+  char *name=(char *)malloc((strlen(CMD_CHILD)+1)*sizeof(char));
+  char *oldname;
+  pid_t pid;
+  int status;
+  
+  if (name==NULL)
+  {
+    fprintf(stderr, "Failed to allocate memory for new argv\n");
+    exit(1);
+  }
+  //Replace process name
+  oldname=argv[0];
+  argv[0]=name;
+  strncpy(name, CMD_CHILD, strlen(CMD_CHILD));
+  name[strlen(CMD_CHILD)]=0;
+  signal(SIGTERM, exit_parent);
+  pid=vfork();
+  if (pid==0)
+  { 
+    execv(oldname, argv);
+    fprintf(stderr, "Failed to exec %s:%s\n", oldname, strerror(errno));
+    exit(1);
+  }
+  else if (pid==-1)
+  {
+    perror("Failed to vfork: ");
+    exit(1);
+  }
+  //parent
+  while( 1 )
+  {
+    if(waitpid(pid, &status, 0 ) < 0 )
+    {
+      if( EINTR == errno )
+	continue;
+      status = errno;
+    }
+    break;
+  }
+  /* If we get here - the child exited with some error status */
+  exit(status);
 }
 #endif
 
@@ -442,7 +491,11 @@ static void init_mount(void)
 		args[i++] = xstrdup(tmp);
 	}
 
+#ifndef __uClinux__
+	if (fork() == 0) {
+#else
 	if (vfork() == 0) {
+#endif
 		if (file_exist(BINDIR "/smbmnt", NULL)) {
 			execv(BINDIR "/smbmnt", args);
 			fprintf(stderr,"execv of %s failed. Error was %s.", BINDIR "/smbmnt", strerror(errno));
@@ -632,6 +685,12 @@ static void parse_mount_smb(int argc, char **argv)
 	static pstring servicesf = CONFIGFILE;
 	char *p;
 
+#ifdef __uClinux__
+	//Check if we're the child, if not create one.
+	//otherwise proceed with mount.
+	if (strcmp(argv[0], CMD_CHILD))
+	  daemonize(argc, argv);
+#endif
 	DEBUGLEVEL = 1;
 	
 	setup_logging("mount.smbfs",True);
