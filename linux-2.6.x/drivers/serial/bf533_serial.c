@@ -105,8 +105,6 @@ static int bf533_console_cbaud   = DEFAULT_CBAUD;
 extern wait_queue_head_t keypress_wait;
 #endif
 
-extern unsigned long l1_data_A_sram_alloc(unsigned long size);
-extern int l1_data_A_sram_free(unsigned long addr);
 /*
  *	Driver data structures.
  */
@@ -131,13 +129,8 @@ static struct bf533_serial bf533_soft =
 
 #undef CONFIG_DISABLE_RXDMA
 
-#ifdef CONFIG_BLKFIN_DCACHE
-#ifdef CONFIG_BF531
+#if defined(CONFIG_BLKFIN_DCACHE) && (defined(CONFIG_BF531) || defined(CONFIG_BF532))
 #define CONFIG_DISABLE_RXDMA
-#endif
-#ifdef CONFIG_BF532
-#define CONFIG_DISABLE_RXDMA
-#endif
 #endif
 
 static unsigned int tx_xcount=0;
@@ -426,7 +419,6 @@ static void dma_transmit_chars(struct bf533_serial *info)
 	 * If count <=4, the dma engine may not generate correct interrupt after it is done.
 	 */
 	if(tx_xcount>4) {
-		flush_dcache_range((int)(info->xmit_buf+info->xmit_tail), (int)(info->xmit_buf+info->xmit_tail+tx_xcount));
 		set_dma_config(CH_UART_TX, set_bfin_dma_config(DIR_READ, FLOW_STOP, INTR_ON_BUF, DIMENSION_LINEAR, DATA_SIZE_8));
 		set_dma_start_addr(CH_UART_TX, (unsigned long)(info->xmit_buf+info->xmit_tail));
 		set_dma_x_count(CH_UART_TX, tx_xcount);
@@ -638,6 +630,9 @@ static void do_softint(void *private_)
                 dma_receive_chars(info, 0);
       }
 #endif
+        if (test_and_clear_bit(RS_EVENT_WRITE, &info->event)) {
+                dma_transmit_chars(info);
+      }
 #endif
 }
 
@@ -687,16 +682,7 @@ static void dma_start_recv(struct bf533_serial * info)
                 printk("bf533_serial: DMA started while already running!\n");
         }
 }
-#endif
 
-static void uart_dma_xmit_timer(struct bf533_serial * info)
-{
-	dma_transmit_chars(info);
-        info->dma_xmit_timer.expires = jiffies + TIME_INTERVAL;
-        add_timer(&info->dma_xmit_timer);
-}
-                                                                                
-#ifndef CONFIG_DISABLE_RXDMA
 static void uart_dma_recv_timer(struct bf533_serial * info)
 {
 	dma_receive_chars(info, 1);
@@ -711,7 +697,6 @@ static int startup(struct bf533_serial * info)
 	unsigned long flags = 0;
 	
 	FUNC_ENTER();
-	init_timer(&info->dma_xmit_timer);
 	init_timer(&info->dma_recv_timer);
 
 	*pUART_GCTL |= UCEN;
@@ -721,17 +706,31 @@ static int startup(struct bf533_serial * info)
 		return 0;
 
 	if (!info->xmit_buf) {
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+		dma_addr_t dma_handle;
+		info->xmit_buf = (unsigned char*)dma_alloc_coherent(NULL, PAGE_SIZE, &dma_handle, GFP_DMA);
+#else
 		info->xmit_buf = (unsigned char *) __get_free_page(GFP_KERNEL);
+#endif
 		if (!info->xmit_buf)
 			return -ENOMEM;
 	}
                                                                                 
         if (!info->recv_buf) {
+#if defined(CONFIG_BLKFIN_SIMPLE_DMA) && !defined(CONFIG_DISABLE_RXDMA)
 		dma_addr_t dma_handle;
 		info->recv_buf = (unsigned char*)dma_alloc_coherent(NULL, PAGE_SIZE, &dma_handle, GFP_DMA);
+#else
+		info->recv_buf = (unsigned char *) __get_free_page(GFP_KERNEL);
+#endif
                 if (!info->recv_buf)
                 {
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+			dma_addr_t dma_handle = 0;
+			dma_free_coherent(NULL, PAGE_SIZE, info->xmit_buf, dma_handle);
+#else
                         free_page((unsigned long)info->xmit_buf);
+#endif
                         return -ENOMEM;
                 }
         }
@@ -769,18 +768,9 @@ static int startup(struct bf533_serial * info)
         info->recv_cnt = info->recv_head = info->recv_tail = 0;
         info->recv_lock = SPIN_LOCK_UNLOCKED;
         dma_start_recv(info);
-#endif
-	/*
-	 * The timer should only start after the receive DMA engine is working.
-	 */                         
-        info->dma_xmit_timer.data = (unsigned long)info;
-        info->dma_xmit_timer.function = (void *)uart_dma_xmit_timer;
-        info->dma_xmit_timer.expires = jiffies + TIME_INTERVAL;
-        add_timer(&info->dma_xmit_timer);
-#ifndef CONFIG_DISABLE_RXDMA
         info->dma_recv_timer.data = (unsigned long)info;
         info->dma_recv_timer.function = (void *)uart_dma_recv_timer;
-        info->dma_recv_timer.expires = jiffies + TIME_INTERVAL*2;
+        info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
         add_timer(&info->dma_recv_timer);
 #endif
 #endif
@@ -835,13 +825,22 @@ static void shutdown(struct bf533_serial * info)
                 bf533_rtsdtr(info, 0);
 	
 	if (info->xmit_buf) {
+#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+		dma_addr_t dma_handle = 0;
+		dma_free_coherent(NULL, PAGE_SIZE, info->xmit_buf, dma_handle);
+#else
 		free_page((unsigned long) info->xmit_buf);
+#endif
 		info->xmit_buf = 0;
 	}
 
         if (info->recv_buf) {
+#if defined(CONFIG_BLKFIN_SIMPLE_DMA) && !defined(CONFIG_DISABLE_RXDMA)
 		dma_addr_t dma_handle = 0;
 		dma_free_coherent(NULL, PAGE_SIZE, info->recv_buf, dma_handle);
+#else
+		free_page((unsigned long) info->recv_buf);
+#endif
                 info->recv_buf = 0;
         }
 	
@@ -958,7 +957,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
 	if(info->xmit_cnt > 0) {
-	        mod_timer(&info->dma_xmit_timer, jiffies);
+		dma_transmit_chars(info);
 	}
 #else
 		local_irq_save(flags);
@@ -1018,7 +1017,7 @@ static int rs_write(struct tty_struct * tty, int from_user,
 	if (info->xmit_cnt && !tty->stopped && !tty->hw_stopped) {
 #ifdef CONFIG_BLKFIN_SIMPLE_DMA
 		if (info->xmit_cnt > 0 && info->xmit_head == 0) {
-		        mod_timer(&info->dma_xmit_timer, jiffies);
+			dma_transmit_chars(info);
 		}
 #else
 		/* Enable transmitter */
@@ -1598,7 +1597,8 @@ irqreturn_t uart_txdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 		tx_xcount = 0;
 		
 		if(info->xmit_cnt > 0) {
-		        mod_timer(&info->dma_xmit_timer, jiffies);
+			info->event |= 1 << RS_EVENT_WRITE;
+			schedule_work(&info->tqueue);
 		}
 
 		if (info->xmit_cnt < WAKEUP_CHARS)

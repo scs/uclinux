@@ -98,7 +98,6 @@ struct bf533_serial {
         int                     recv_tail;
         int                     recv_cnt;
         spinlock_t              recv_lock;
-        struct timer_list       dma_xmit_timer;
         struct timer_list       dma_recv_timer;
 
 	struct work_struct	tqueue;
@@ -115,6 +114,7 @@ struct bf533_serial {
  */
 #define RS_EVENT_WRITE_WAKEUP	0
 #define RS_EVENT_READ		1
+#define RS_EVENT_WRITE		2
 
 #endif /* __KERNEL__ */
 #endif /* (_Bf533_SERIAL_H) */
