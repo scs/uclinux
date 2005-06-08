@@ -56,8 +56,13 @@ Cambridge, MA 02139, USA.  */
 
 _start:
 
-/*	clear the frame pointer */
+/*	clear the frame pointer and the L registers.  */
 	FP = 0;
+	L0 = 0;
+	L1 = 0;
+	L2 = 0;
+	L3 = 0;
+	
 /*	Load register R0 (argc) from the stack to its final resting place */
 	P0 = SP;
 	R0 = [P0++];
