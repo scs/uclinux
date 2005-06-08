@@ -319,6 +319,7 @@ dcplb_write:
 
 	BITSET(R3, 7);		/* mark as dirty*/
 	[P3] = R3;		/* and write back.*/
+	NOP;
 	CSYNC;
 	( R7:0,P5:0 ) = [SP++];
 	R0 = CPLB_RELOADED;
@@ -455,7 +456,7 @@ dicount_done:
 	 */
 
 	/* Retrieve the page start address*/
-        R0 = [P0 - 0x104];
+    R0 = [P0 - 0x104];
 	[--sp] = rets;
 	CALL dcplb_flush;	/* R0==CPLB addr, R1==CPLB data*/
 	rets = [sp++];

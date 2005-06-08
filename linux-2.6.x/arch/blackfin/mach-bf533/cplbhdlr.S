@@ -182,6 +182,7 @@ __unknown_exception_occurred:
 	
 	IDLE;
 do_not_know_what_to_do:
+	NOP;
 	CSYNC;
 	JUMP __unknown_exception_occurred;
 

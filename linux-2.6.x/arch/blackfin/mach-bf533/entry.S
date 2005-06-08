@@ -82,7 +82,7 @@ ENTRY(execve)
 	[p0++] = r4;
 	r3 += -1;
 	cc = r3 == 0;
-	if ! cc jump 0b;
+	if !cc jump 0b (bp);
 
 	p0 = sp;
 	sp += -16;
@@ -110,7 +110,7 @@ ENTRY(execve)
 	[p1--] = r4;
 	r3 += -1;
 	cc = r3 == 0;
-	if ! cc jump 0b;
+	if ! cc jump 0b (bp);
 
 	r0 = (KERNEL_STACK_SIZE - SIZEOF_PTREGS) (z);
 	p1 = r0;

@@ -298,6 +298,7 @@ check_again:
 	r2.l = w[p0];
 	cc = bittst(r2,3);
 	if !cc jump skip;
+    NOP;
 	BITSET (R0, 23);
 skip:
 	[P2] = R0;
