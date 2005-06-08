@@ -26,7 +26,7 @@
 #include <asm/board/cdefBF533.h>
 #include <asm/board/bf533_irq.h>
 #include <asm/irq.h>
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 #include <asm/dma.h>
 #include <asm/cacheflush.h>
 #include <asm/dma-mapping.h>
@@ -125,13 +125,7 @@ static struct bf533_serial bf533_soft =
 #define MIN(a,b)	((a) < (b) ? (a) : (b))
 #endif
 
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
-
-#undef CONFIG_DISABLE_RXDMA
-
-#if defined(CONFIG_BLKFIN_DCACHE) && (defined(CONFIG_BF531) || defined(CONFIG_BF532))
-#define CONFIG_DISABLE_RXDMA
-#endif
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 
 static unsigned int tx_xcount=0;
 
@@ -273,7 +267,7 @@ static void local_put_char(char ch)
 static void rs_start(struct tty_struct *tty)
 {
 	struct bf533_serial *info = (struct bf533_serial *)tty->driver_data;
-#ifndef CONFIG_BLKFIN_SIMPLE_DMA
+#ifndef CONFIG_SERIAL_BLACKFIN_DMA
 	unsigned long flags = 0;
 #endif
 	
@@ -282,7 +276,7 @@ static void rs_start(struct tty_struct *tty)
 	if (serial_paranoia_check(info, tty->name, "rs_start"))
 		return;
 	
-#ifndef CONFIG_BLKFIN_SIMPLE_DMA
+#ifndef CONFIG_SERIAL_BLACKFIN_DMA
 	local_irq_save(flags);
 	ACCESS_PORT_IER	/* Change access to IER & data port */
 	if (info->xmit_cnt && info->xmit_buf && !(*pUART_IER & ETBEI))
@@ -316,8 +310,7 @@ static inline void status_handle(struct bf533_serial *info, unsigned short statu
 	return;
 }
 
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
-#ifndef CONFIG_DISABLE_RXDMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 static void dma_receive_chars(struct bf533_serial *info, int in_timer)
 {
       struct tty_struct *tty = info->tty;
@@ -383,7 +376,6 @@ static void dma_receive_chars(struct bf533_serial *info, int in_timer)
 unlock_and_exit:
       spin_unlock_bh(info->recv_lock);
 }
-#endif
 
 static void dma_transmit_chars(struct bf533_serial *info)
 {
@@ -624,12 +616,10 @@ static void do_softint(void *private_)
 			(tty->ldisc.write_wakeup)(tty);
 		wake_up_interruptible(&tty->write_wait);
 	}
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
-#ifndef CONFIG_DISABLE_RXDMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
         if (test_and_clear_bit(RS_EVENT_READ, &info->event)) {
                 dma_receive_chars(info, 0);
       }
-#endif
         if (test_and_clear_bit(RS_EVENT_WRITE, &info->event)) {
                 dma_transmit_chars(info);
       }
@@ -659,11 +649,10 @@ static void do_serial_hangup(void *private_)
 	tty_hangup(tty);
 }
 
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 
 #define TIME_INTERVAL	5
 
-#ifndef CONFIG_DISABLE_RXDMA
 static void dma_start_recv(struct bf533_serial * info)
 {
        FUNC_ENTER();
@@ -690,7 +679,6 @@ static void uart_dma_recv_timer(struct bf533_serial * info)
         add_timer(&info->dma_recv_timer);
 }
 #endif
-#endif
 
 static int startup(struct bf533_serial * info)
 {
@@ -706,7 +694,7 @@ static int startup(struct bf533_serial * info)
 		return 0;
 
 	if (!info->xmit_buf) {
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 		dma_addr_t dma_handle;
 		info->xmit_buf = (unsigned char*)dma_alloc_coherent(NULL, PAGE_SIZE, &dma_handle, GFP_DMA);
 #else
@@ -717,7 +705,7 @@ static int startup(struct bf533_serial * info)
 	}
                                                                                 
         if (!info->recv_buf) {
-#if defined(CONFIG_BLKFIN_SIMPLE_DMA) && !defined(CONFIG_DISABLE_RXDMA)
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 		dma_addr_t dma_handle;
 		info->recv_buf = (unsigned char*)dma_alloc_coherent(NULL, PAGE_SIZE, &dma_handle, GFP_DMA);
 #else
@@ -725,7 +713,7 @@ static int startup(struct bf533_serial * info)
 #endif
                 if (!info->recv_buf)
                 {
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 			dma_addr_t dma_handle = 0;
 			dma_free_coherent(NULL, PAGE_SIZE, info->xmit_buf, dma_handle);
 #else
@@ -757,11 +745,10 @@ static int startup(struct bf533_serial * info)
 
 	bf533_change_speed(info);
 
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 
 	set_dma_x_modify(CH_UART_TX, 1);
 	info->xmit_lock = SPIN_LOCK_UNLOCKED;
-#ifndef CONFIG_DISABLE_RXDMA
         /*
          * Start the receive DMA
          */
@@ -773,12 +760,11 @@ static int startup(struct bf533_serial * info)
         info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
         add_timer(&info->dma_recv_timer);
 #endif
-#endif
 
 	/*
 	 * Finally, enable sequencing and interrupts
 	 */
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	*pUART_IER = ERBFI | ELSI | 0x8;
 #else
 	*pUART_IER = ERBFI | ETBEI | ELSI | 0x8;
@@ -814,10 +800,8 @@ static void shutdown(struct bf533_serial * info)
 	*pUART_GCTL &= ~UCEN;
 	SYNC_ALL;
 
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
-#ifndef CONFIG_DISABLE_RXDMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	disable_dma(CH_UART_RX);
-#endif
 	disable_dma(CH_UART_TX);
 #endif
 	
@@ -825,7 +809,7 @@ static void shutdown(struct bf533_serial * info)
                 bf533_rtsdtr(info, 0);
 	
 	if (info->xmit_buf) {
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 		dma_addr_t dma_handle = 0;
 		dma_free_coherent(NULL, PAGE_SIZE, info->xmit_buf, dma_handle);
 #else
@@ -835,7 +819,7 @@ static void shutdown(struct bf533_serial * info)
 	}
 
         if (info->recv_buf) {
-#if defined(CONFIG_BLKFIN_SIMPLE_DMA) && !defined(CONFIG_DISABLE_RXDMA)
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 		dma_addr_t dma_handle = 0;
 		dma_free_coherent(NULL, PAGE_SIZE, info->recv_buf, dma_handle);
 #else
@@ -944,7 +928,7 @@ static void rs_set_ldisc(struct tty_struct *tty)
 static void rs_flush_chars(struct tty_struct *tty)
 {
 	struct bf533_serial *info = (struct bf533_serial *)tty->driver_data;
-#ifndef CONFIG_BLKFIN_SIMPLE_DMA
+#ifndef CONFIG_SERIAL_BLACKFIN_DMA
 	unsigned long flags = 0;
 #endif
 
@@ -955,7 +939,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 		!info->xmit_buf)
 			return;
 
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	if(info->xmit_cnt > 0) {
 		dma_transmit_chars(info);
 	}
@@ -1015,7 +999,7 @@ static int rs_write(struct tty_struct * tty, int from_user,
 	}
 
 	if (info->xmit_cnt && !tty->stopped && !tty->hw_stopped) {
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 		if (info->xmit_cnt > 0 && info->xmit_head == 0) {
 			dma_transmit_chars(info);
 		}
@@ -1563,8 +1547,7 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 	return 0;
 }
 
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
-#ifndef CONFIG_DISABLE_RXDMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 irqreturn_t uart_rxdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 {
 	struct bf533_serial *info;
@@ -1575,7 +1558,6 @@ irqreturn_t uart_rxdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 	schedule_work(&info->tqueue);
 	return IRQ_HANDLED;
 }
-#endif
 
 irqreturn_t uart_txdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 {
@@ -1703,27 +1685,20 @@ static int __init rs_bf533_init(void)
 
 	local_irq_restore(flags);
 
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
-#ifndef CONFIG_DISABLE_RXDMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	if(request_dma(CH_UART_RX, "BF533_UART_RX")<0)
 		panic("Unable to attach BlackFin UART RX DMA channel\n");
 	else
-	     set_dma_callback(CH_UART_RX, uart_rxdma_done,NULL);
-#else	
-	if (request_irq(IRQ_UART_RX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_RX",bf533_serial_driver))
-		panic("Unable to attach BlackFin UART RX interrupt\n");
-#endif
-#else
-	if (request_irq(IRQ_UART_RX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_RX",bf533_serial_driver))
-		panic("Unable to attach BlackFin UART RX interrupt\n");
-#endif
-	
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+		set_dma_callback(CH_UART_RX, uart_rxdma_done,NULL);
+
 	if(request_dma(CH_UART_TX, "BF533_UART_TX")<0)
 		panic("Unable to attach BlackFin UART TX DMA channel\n");
 	else 
-	     set_dma_callback(CH_UART_TX,uart_txdma_done,NULL);
+		set_dma_callback(CH_UART_TX,uart_txdma_done,NULL);
 #else
+	if (request_irq(IRQ_UART_RX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_RX",bf533_serial_driver))
+		panic("Unable to attach BlackFin UART RX interrupt\n");
+
 	if (request_irq(IRQ_UART_TX, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BF533_UART_TX",bf533_serial_driver))
 		panic("Unable to attach BlackFin UART TX interrupt\n");
 #endif	
@@ -1768,7 +1743,7 @@ again:
 
 	/* Change access to IER & data port */
 	ACCESS_PORT_IER 
-#ifdef CONFIG_BLKFIN_SIMPLE_DMA
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
         *pUART_IER |= ELSI;
 #else
         *pUART_IER |=(ETBEI | ELSI);
