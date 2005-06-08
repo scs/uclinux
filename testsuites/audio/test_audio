@@ -420,9 +420,9 @@ while 1 {
 		exit
          }
    }
-   send "vrec -w -b 16 -s 11000 -t 6 bbb\r"
-   sleep 1
    send "vplay aaa &\r"
+   sleep 1
+   send "vrec -w -b 16 -s 11000 -t 6 bbb\r"
    expect {
 	"> " {
 		puts "\rCase $case_num ...DONE\r"
