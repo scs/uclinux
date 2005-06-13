@@ -1,6 +1,6 @@
 /************************************************************************
  *
- * cdefBF535.h
+ * $id$
  *
  * This file is subject to the terms and conditions of the GNU Public 
  * License. See the file "COPYING" in the main directory of this archive
@@ -9,25 +9,26 @@
  * Non-GPL License also available as part of VisualDSP++
  * http://www.analog.com/processors/resources/crosscore/visualDspDevSoftware.html
  *
- * (c) Copyright 2001-2003 Analog Devices, Inc. All rights reserved
+ * (c) Copyright 2001-2005 Analog Devices, Inc. All rights reserved
  *
- * Revision 1.6 - Thu Oct 30 12:56:47 2003 UTC 
  * This file under source code control, please send bugs or changes to:
  * dsptools.support@analog.com
  *
- ************************************************************************/
+ ************************************************************************//
 
 #ifndef _CDEF_BF535_H
 #define _CDEF_BF535_H
 
 // include all Core registers and bit definitions
+/*
 #if defined(__ADSPLPBLACKFIN__)
 #warning cdefBF535.h should only be included for 535 compatible chips.
 #endif
-#include <defBF535.h>
+*/
+#include "defBF535.h"
 
 // include core specific register pointer definitions
-#include <cdefblackfin.h>
+#include "cdefblackfin.h"
 
 // Clock and System Control (0xFFC0 0400-0xFFC0 07FF)
 #define pPLL_CTL ((volatile unsigned long *)PLL_CTL)

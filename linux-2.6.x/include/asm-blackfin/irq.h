@@ -19,12 +19,8 @@
 
 #include <linux/config.h>
 #include <linux/interrupt.h>
-#ifdef CONFIG_BF535
-  #include <asm/board/bf535_irq.h>
-#endif
-#if defined(CONFIG_BF533) || defined(CONFIG_BF532) || defined(CONFIG_BF531)
-  #include <asm/board/bf533_irq.h>
-#endif
+#include <asm/mach/irq.h>
+
 
 
 /*******************************************************************************
@@ -41,7 +37,7 @@
  *   interrupts apart (just the TX/RX for the various devices)
  *******************************************************************************/
 
-/* SYS_IRQS defined in <asm/board/bf53[35]_irq.h>*/
+/* SYS_IRQS defined in <asm/mach-bf5xx/irq.h>*/
 
 #define	NR_IRQS		SYS_IRQS
 /*

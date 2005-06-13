@@ -1,6 +1,6 @@
 /************************************************************************
  *
- * defblackfin.h
+ * $id$
  *
  * This file is subject to the terms and conditions of the GNU Public 
  * License. See the file "COPYING" in the main directory of this archive
@@ -9,9 +9,8 @@
  * Non-GPL License also available as part of VisualDSP++
  * http://www.analog.com/processors/resources/crosscore/visualDspDevSoftware.html
  *
- * (c) Copyright 2001-2004 Analog Devices, Inc. All rights reserved
+ * (c) Copyright 2001-2005 Analog Devices, Inc. All rights reserved
  *
- * Revision 1.6 - Tue May 18 09:35:13 2004 UTC 
  * This file under source code control, please send bugs or changes to:
  * dsptools.support@analog.com
  *

@@ -11,8 +11,7 @@
 #include <linux/spinlock.h>
 #include <linux/rtc.h>
 
-#include <asm/board/cdefBF532.h>
-#include <asm/board/defBF532.h>
+#include <asm/blackfin.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>

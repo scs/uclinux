@@ -23,8 +23,7 @@
 #include <linux/reboot.h>
 
 #include <asm/uaccess.h>
-#include <asm/board/cdefBF533.h>
-#include <asm/board/bf533_irq.h>
+#include <asm/blackfin.h>
 #include <asm/irq.h>
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 #include <asm/dma.h>

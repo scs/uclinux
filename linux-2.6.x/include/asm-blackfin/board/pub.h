@@ -1,6 +1,6 @@
 #ifndef _PUB_H_
 #define _PUB_H_
-#include <asm/board/bf535.h>
+
 
 /*
  * The PUB board uses the ADI21535 Rev0.2 silicon.

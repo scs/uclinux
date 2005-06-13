@@ -121,7 +121,7 @@ MODULE_PARM_DESC(irq, "IRQ number");
 
 #if defined(CONFIG_BFIN)
 #include <asm/irq.h>
-#include <asm/board/cdefBF533.h>
+#include <asm/blackfin.h>
 #include <asm/delay.h>
 
 /*

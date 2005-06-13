@@ -11,7 +11,7 @@
 #ifndef _CPLB_H
 #define _CPLB_H
 
-# include <asm/board/bf533.h> 
+# include <asm/blackfin.h> 
 
 #define CPLB_ENABLE_ICACHE_P	0
 #define CPLB_ENABLE_DCACHE_P	1

@@ -2,7 +2,7 @@
 #define _BFINNOMMU_SYSTEM_H
 
 #include <linux/linkage.h>
-#include <asm/board/bf533.h>	
+#include <asm/blackfin.h>	
 #include <linux/compiler.h>	
 
 #define prepare_to_switch()	do { } while(0)

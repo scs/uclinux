@@ -31,7 +31,7 @@
 #include <linux/rtc.h>
 
 #include <asm/irq.h>
-#include <asm/board/cdefBF532.h>
+#include <asm/blackfin.h>
 #include "blackfin_rtc.h"
 
 #define RTC_VERSION "1.10e"

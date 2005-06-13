@@ -84,7 +84,7 @@ static const char version[] =
 
 #if defined(CONFIG_BFIN)
 #include <asm/irq.h>
-#include <asm/board/cdefBF533.h>
+#include <asm/blackfin.h>
 #include <asm/delay.h>
 #define CONFIG_SMC16BITONLY     1
 #if defined(CONFIG_BLKFIN_STAMP)

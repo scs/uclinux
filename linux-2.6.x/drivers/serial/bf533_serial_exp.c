@@ -44,7 +44,7 @@
 #include <asm/bitops.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>
-#include <asm/board/cdefBF533.h>
+#include <asm/blackfin.h>
 
 #include "bf533_serial_exp.h"
 
