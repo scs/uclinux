@@ -8,7 +8,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/blackfin.h>
-#include <asm/board/mem_init.h>
+#include <asm/mach/mem_init.h>
 
 .global _rambase
 .global _ramstart

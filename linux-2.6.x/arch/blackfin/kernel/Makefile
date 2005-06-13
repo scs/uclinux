@@ -1,7 +1,7 @@
 # Makefile for the linux kernel.
 # modified for uClinux. 
 #
-extra-y += ../mach-bf533/head.o init_task.o vmlinux.lds.s
+extra-y += init_task.o vmlinux.lds.s
 # Object file lists.
 obj-y:= entry.o process.o bfin_ksyms.o ptrace.o semaphore.o setup.o signal.o sys_bfin.o time.o traps.o irqchip.o dma-mapping.o
 
