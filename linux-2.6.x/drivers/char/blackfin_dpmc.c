@@ -584,8 +584,6 @@ int calc_msel(int vco_hz)	{
 
 void fullon_mode(void)	{
 
-	unsigned long vl,ctlval;
-
 	*pSIC_IWR = IWR_ENABLE(0);
 	asm("ssync;");
 
