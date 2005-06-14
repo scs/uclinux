@@ -1062,10 +1062,10 @@
 
 /* *************  SYSTEM INTERRUPT CONTROLLER MASKS *************************************/
 /* Peripheral Masks For SIC_ISR, SIC_IWR, SIC_IMASK										*/
-#define IRQ_PLL_WAKEUP	0x00000001	/* PLL Wakeup Interrupt			 					*/
+/*#define IRQ_PLL_WAKEUP	0x00000001	 PLL Wakeup Interrupt			 					Conflicting name in irq.h mh */
 #define IRQ_ERROR1		0x00000002	/* Error Interrupt (DMA, CAN, Ethernet, SPORTs)		*/  
 #define IRQ_ERROR2		0x00000004	/* Error Interrupt (PPI, SPI, UARTs)				*/
-#define IRQ_RTC			0x00000008	/* Real Time Clock Interrupt 						*/ 
+/*#define IRQ_RTC			0x00000008  Real Time Clock Interrupt 						Conflicting name in irq.h mh */
 #define IRQ_DMA0		0x00000010	/* DMA Channel 0 (PPI) Interrupt 					*/ 
 #define IRQ_DMA3		0x00000020	/* DMA Channel 3 (SPORT0 RX) Interrupt 				*/ 
 #define IRQ_DMA4		0x00000040	/* DMA Channel 4 (SPORT0 TX) Interrupt 				*/
@@ -1222,7 +1222,7 @@
 
 /* UARTx_IIR Masks														*/
 #define NINT		0x01		/* Pending Interrupt					*/
-#define STATUS		0x06		/* Highest Priority Pending Interrupt	*/
+/*#define STATUS		0x06		 Highest Priority Pending Interrupt	 Conflicting name  mh */
 
 /* UARTx_GCTL Masks													*/
 #define UCEN		0x01		/* Enable UARTx Clocks				*/

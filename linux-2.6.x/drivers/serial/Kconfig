@@ -718,7 +718,7 @@ config SERIAL_BLACKFIN
 	tristate 'Blackfin Serial Driver'
 choice
 	prompt	""
-	depends on (BF533 || BF532 || BF531) 
+	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561) 
 	default SERIAL_BLACKFIN_DMA
 	---help---
 	  This driver supports the built-in serial ports of the Blackfin family of CPUs
