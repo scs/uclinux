@@ -75,7 +75,7 @@
 #define SPORT_ASSERT( x ) 
 #endif
 
-#include <asm/mach-bf533/cdefBF532.h>
+#include <asm/blackfin.h>
 #include <asm/dma.h>
 #define FRAME_DELAY (1<<12)  /* delay between frame sync pulse and first data bit
                               in multichannel mode */ 
