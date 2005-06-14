@@ -85,7 +85,7 @@
 #define SPI_ASSERT( x ) 
 #endif
 
-#include <asm/board/cdefBF532.h>
+#include <asm/mach-bf533/cdefBF532.h>
 
 
 struct bf53x_spi_channel {
