@@ -101,7 +101,8 @@ ENTRY(blackfin_icache_flush_range)
 	P1 = R1;
 	CSYNC;
 1:
-	IFLUSH [P0++];
+	IFLUSH [P0];
+	P0 += 1;
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
 	IFLUSH [P0];
@@ -125,7 +126,8 @@ ENTRY(blackfin_icache_dcache_flush_range)
 	CSYNC;
 1:
 	FLUSH [P0];
-	IFLUSH [P0++];
+	IFLUSH [P0];
+	P0 += 1;
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
 	IFLUSH [P0];
@@ -148,7 +150,8 @@ ENTRY(blackfin_dcache_invalidate_range)
 	P1 = R1;
 	CSYNC;
 1:
-	FLUSHINV[P0++];
+	FLUSHINV[P0];
+	P0 += 1;
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
 
@@ -205,7 +208,8 @@ ENTRY(blackfin_dcache_flush_range)
 	P1 = R1;
 	CSYNC;
 1:
-	FLUSH[P0++];
+	FLUSH[P0];
+	P0 += 1;
 	CC = P0 < P1 (iu);
 	IF CC JUMP 1b (bp);
 
@@ -221,7 +225,8 @@ ENTRY(blackfin_dflush_page)
 	P1 = 1 << (PAGE_SHIFT - L1_CACHE_SHIFT);
 	P0 = R0;
     CSYNC;
-	LSETUP (fl1, fl1) LC0 = P1;
-fl1:FLUSH [P0++];	
+	LSETUP (fl1, fl2) LC0 = P1;
+fl1:	FLUSH [P0];	
+fl2:	P0 += 1;
 	SSYNC;
 	RTS;
