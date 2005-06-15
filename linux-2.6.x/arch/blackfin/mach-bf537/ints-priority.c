@@ -18,6 +18,7 @@
  * Copyright 2003 Bas Vermeulen <bas@buyways.nl>,
  *                BuyWays B.V. (www.buyways.nl)
  * Copyright 2004 LG Soft India 
+ * Copyright 2005 Analog Devices Inc. 
  */
 
 #include <linux/module.h>
@@ -35,24 +36,26 @@
  * - 
  ********************************************************************/
 
-#define INTERNAL_IRQS (32)
+//ToDo: BF537 uses a multiplexed ERROR interrupt for CAN MAC SPORT0 SPORT1 SPI UART0 UART1 - currently only one device can request this single interrupt ... 
 
+
+#define INTERNAL_IRQS		NR_IRQS
+         
 volatile unsigned long irq_flags = 0;
 
 /* The number of spurious interrupts */
 volatile unsigned int num_spurious;
 
 struct ivgx	{
-	int irqno;	/*irq number for request_irq, available in bf533_irq.h*/
+	int irqno;	/*irq number for request_irq, available in mach-bf537/irq.h*/
 	int isrflag;	/*corresponding bit in the SIC_ISR register*/
-}ivg_table[23];
+}ivg_table[NR_PERI_INTS];
 
 struct ivg_slice {
 	struct ivgx *ifirst; /* position of first irq in ivg_table for given ivg */
 	struct ivgx *istop;  
-} ivg7_13[16];
+} ivg7_13[IVG13-IVG7+1];
 
-extern void dump(struct pt_regs * regs);
 
 /* BASE LEVEL interrupt handler routines */
 asmlinkage void evt_nmi(void);
@@ -74,92 +77,48 @@ asmlinkage void evt_system_call(void);
 static void program_IAR(void);
 static void search_IAR(void);	
 
-/*********
- * irq_panic
- * - calls panic with string setup
- *********/
-asmlinkage void irq_panic( int reason, struct pt_regs * regs)
-{
-	int sig = 0;
-	siginfo_t info;
-
-  	printk("\n\nException: IRQ 0x%x entered\n", reason);
-	printk(" code=[0x%08x],  ", (unsigned int)regs->seqstat);
-	printk(" stack frame=0x%04x,  ",(unsigned int)(unsigned long) regs);
-	printk(" bad PC=0x%04x\n", (unsigned int)regs->pc);
-	if(reason == 0x5) {
- 
- 	printk("\n----------- HARDWARE ERROR -----------\n\n");
-		
-	/* There is only need to check for Hardware Errors, since other EXCEPTIONS are handled in TRAPS.c (MH)  */
-	switch(((unsigned int)regs->seqstat) >> 14) {
-		case (0x2):			//System MMR Error
-			info.si_code = BUS_ADRALN;
-			sig = SIGBUS;
-			printk(HWC_x2);
-			break;
-		case (0x3):			//External Memory Addressing Error
-		        info.si_code = BUS_ADRERR;
-			sig = SIGBUS;
-			printk(HWC_x3);
-			break;
-		case (0x12):			//Performance Monitor Overflow
-			printk(HWC_x12);
-			break;
-		case (0x18):			//RAISE 5 instruction
-			printk(HWC_x18);
-			break;
-		default:			//Reserved
-			printk(HWC_default);
-			break;
-		}
-	}
-
-	regs->ipend = *pIPEND;
-	dump(regs);
-	if (0 == (info.si_signo = sig) || 
-	    0 == user_mode(regs)) /* in kernelspace */
-	    panic("Unhandled IRQ or exceptions!\n");
-	else { /* in userspace */
-	    info.si_errno = 0;
-	    info.si_addr = (void *) regs->pc;
-	    force_sig_info (sig, &info, current);
-        }
-}
-
 /*Program the IAR registers*/
 static void __init program_IAR()
 {
 		/* Program the IAR0 Register with the configured priority */
-	        *pSIC_IAR0 =  ((CONFIG_PLLWAKE_ERROR-7) << PLLWAKE_ERROR_POS) |
-                ((CONFIG_DMA_ERROR   -7) <<    DMA_ERROR_POS) |
-                ((CONFIG_PPI_ERROR   -7) <<    PPI_ERROR_POS) |
-                ((CONFIG_SPORT0_ERROR-7) << SPORT0_ERROR_POS) |
-                ((CONFIG_SPI_ERROR   -7) <<    SPI_ERROR_POS) |
-                ((CONFIG_SPORT1_ERROR-7) << SPORT1_ERROR_POS) |
-                ((CONFIG_UART_ERROR  -7) <<   UART_ERROR_POS) |
-                ((CONFIG_RTC_ERROR   -7) <<    RTC_ERROR_POS);
-	        asm("ssync;");	
+	      *pSIC_IAR0 =  ((CONFIG_IRQ_PLL_WAKEUP	 	-7) <<		IRQ_PLL_WAKEUP_POS) |
+						((CONFIG_IRQ_DMA_ERROR      -7) <<      IRQ_DMA_ERROR_POS ) |
+						((CONFIG_IRQ_ERROR          -7) <<      IRQ_ERROR_POS     ) |
+						((CONFIG_IRQ_RTC            -7) <<      IRQ_RTC_POS       ) |
+						((CONFIG_IRQ_PPI            -7) <<      IRQ_PPI_POS       ) |
+						((CONFIG_IRQ_SPORT0_RX      -7) <<      IRQ_SPORT0_RX_POS ) |
+						((CONFIG_IRQ_SPORT0_TX      -7) <<      IRQ_SPORT0_TX_POS ) |
+						((CONFIG_IRQ_SPORT1_RX      -7) <<      IRQ_SPORT1_RX_POS );
 
-		*pSIC_IAR1 =	((CONFIG_DMA0_PPI-7)    << DMA0_PPI_POS) |
-                ((CONFIG_DMA1_SPORT0RX-7) << DMA1_SPORT0RX_POS) |
-                ((CONFIG_DMA2_SPORT0TX-7) << DMA2_SPORT0TX_POS) |
-                ((CONFIG_DMA3_SPORT1RX-7) << DMA3_SPORT1RX_POS) |
-                ((CONFIG_DMA4_SPORT1TX-7) << DMA4_SPORT1TX_POS) |
-                ((CONFIG_DMA5_SPI-7)    << DMA5_SPI_POS)    |
-                ((CONFIG_DMA6_UARTRX-7) << DMA6_UARTRX_POS) |
-                ((CONFIG_DMA7_UARTTX-7) << DMA7_UARTTX_POS);
-	        asm("ssync;");	
+
+		*pSIC_IAR1 =	((CONFIG_IRQ_SPORT1_TX      -7) <<      IRQ_SPORT1_TX_POS ) |	
+						((CONFIG_IRQ_TWI            -7) <<      IRQ_TWI_POS       ) |  
+						((CONFIG_IRQ_SPI            -7) <<      IRQ_SPI_POS       ) |  
+						((CONFIG_IRQ_UART0_RX       -7) <<      IRQ_UART0_RX_POS  ) |  
+						((CONFIG_IRQ_UART0_TX       -7) <<      IRQ_UART0_TX_POS  ) |  
+						((CONFIG_IRQ_UART1_RX       -7) <<      IRQ_UART1_RX_POS  ) |  
+						((CONFIG_IRQ_UART1_TX       -7) <<      IRQ_UART1_TX_POS  ) |  
+						((CONFIG_IRQ_CAN_RX         -7) <<      IRQ_CAN_RX_POS    ); 
  
-		*pSIC_IAR2 =	((CONFIG_TIMER0-7) << TIMER0_POS) |
-		((CONFIG_TIMER1-7) << TIMER1_POS) |
-		((CONFIG_TIMER2-7) << TIMER2_POS) |
-		((CONFIG_PFA-7) << PFA_POS) |
-		((CONFIG_PFB-7) << PFB_POS) |
-		((CONFIG_MEMDMA0-7) << MEMDMA0_POS) |
-		((CONFIG_MEMDMA1-7) << MEMDMA1_POS) |
-		((CONFIG_WDTIMER-7) << WDTIMER_POS);
-	        asm("ssync;");	
+		*pSIC_IAR2 =	((CONFIG_IRQ_CAN_TX         -7) <<      IRQ_CAN_TX_POS    ) |		
+						((CONFIG_IRQ_MAC_RX         -7) <<      IRQ_MAC_RX_POS    ) |  
+						((CONFIG_IRQ_MAC_TX         -7) <<      IRQ_MAC_TX_POS    ) |  
+						((CONFIG_IRQ_TMR0           -7) <<      IRQ_TMR0_POS      ) |  
+						((CONFIG_IRQ_TMR1           -7) <<      IRQ_TMR1_POS      ) |  
+						((CONFIG_IRQ_TMR2           -7) <<      IRQ_TMR2_POS      ) |  
+						((CONFIG_IRQ_TMR3           -7) <<      IRQ_TMR3_POS      ) |  
+						((CONFIG_IRQ_TMR4           -7) <<      IRQ_TMR4_POS      ); 
+
+		*pSIC_IAR3 =	((CONFIG_IRQ_TMR5           -7) <<      IRQ_TMR5_POS	 ) |		
+						((CONFIG_IRQ_TMR6           -7) <<      IRQ_TMR6_POS     ) |   
+						((CONFIG_IRQ_TMR7           -7) <<      IRQ_TMR7_POS     ) |   
+						((CONFIG_IRQ_PROG_INTA      -7) <<      IRQ_PROG_INTA_POS) |   
+						((CONFIG_IRQ_PROG_INTB      -7) <<      IRQ_PROG_INTB_POS) |   
+						((CONFIG_IRQ_MEM_DMA0       -7) <<      IRQ_MEM_DMA0_POS ) |   
+						((CONFIG_IRQ_MEM_DMA1       -7) <<      IRQ_MEM_DMA1_POS ) |   
+						((CONFIG_IRQ_WATCH          -7) <<      IRQ_WATCH_POS    );
+	asm("ssync;");	
+
 }	/*End of program_IAR*/
 
 /* Search SIC_IAR and fill tables with the irqvalues 
@@ -168,36 +127,36 @@ and their positions in the SIC_ISR register */
 static void __init search_IAR(void)	
 {
     unsigned ivg, irq_pos = 0;
-    for(ivg = IVG7; ivg <= IVG13; ivg++)
+    for (ivg = 0; ivg <= IVG13-IVG7; ivg++)
     {
         int irqn;
 
         ivg7_13[ivg].istop = 
         ivg7_13[ivg].ifirst = &ivg_table[irq_pos];        
           
-        for(irqn = 0; irqn < 24; irqn++)
-          if (ivg == IVG7 + (0x0f & pSIC_IAR0[irqn >> 3] >> (irqn & 7) * 4))
+        for(irqn = 0; irqn < NR_PERI_INTS; irqn++)
+          if (ivg == (0x0f & pSIC_IAR0[irqn >> 3] >> (irqn & 7) * 4))
           {
              ivg_table[irq_pos].irqno = IVG7 + irqn;
-             ivg_table[irq_pos].isrflag = 1 << irqn;
+			 ivg_table[irq_pos].isrflag = 1 << irqn;
              ivg7_13[ivg].istop++;
              irq_pos++;
           }
     }
-}		
+}
 			
 /*
  * This is for BF533 internal IRQs
  */
 
-static void bf533_core_mask_irq(unsigned int irq)
+static void bf537_core_mask_irq(unsigned int irq)
 {
 	local_irq_disable();
 	irq_flags &= ~(1<<irq);
 	local_irq_enable();
 }
 
-static void bf533_core_unmask_irq(unsigned int irq)
+static void bf537_core_unmask_irq(unsigned int irq)
 {
 	/* enable the interrupt */
 	local_irq_disable();
@@ -206,7 +165,7 @@ static void bf533_core_unmask_irq(unsigned int irq)
 	return;
 }
 
-static void bf533_internal_mask_irq(unsigned int irq)
+static void bf537_internal_mask_irq(unsigned int irq)
 {
 	unsigned long irq_mask;
 
@@ -225,7 +184,7 @@ static void bf533_internal_mask_irq(unsigned int irq)
 	local_irq_enable();
 }
 
-static void bf533_internal_unmask_irq(unsigned int irq)
+static void bf537_internal_unmask_irq(unsigned int irq)
 {
 	unsigned long irq_mask;
 	local_irq_disable();
@@ -235,23 +194,23 @@ static void bf533_internal_unmask_irq(unsigned int irq)
 	local_irq_enable();
 }
 
-static struct irqchip bf533_core_irqchip = {
-	.ack		= bf533_core_mask_irq,
-	.mask		= bf533_core_mask_irq,
-	.unmask		= bf533_core_unmask_irq,
+static struct irqchip bf537_core_irqchip = {
+	.ack		= bf537_core_mask_irq,
+	.mask		= bf537_core_mask_irq,
+	.unmask		= bf537_core_unmask_irq,
 };
 
-static struct irqchip bf533_internal_irqchip = {
-	.ack		= bf533_internal_mask_irq,
-	.mask		= bf533_internal_mask_irq,
-	.unmask		= bf533_internal_unmask_irq,
+static struct irqchip bf537_internal_irqchip = {
+	.ack		= bf537_internal_mask_irq,
+	.mask		= bf537_internal_mask_irq,
+	.unmask		= bf537_internal_unmask_irq,
 };
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 static int gpio_enabled;
 static int gpio_edge_triggered;
 
-static void bf533_gpio_ack_irq(unsigned int irq)
+static void bf537_gpio_ack_irq(unsigned int irq)
 {
 	int gpionr = irq - IRQ_PF0;
 	int mask = (1L << gpionr);
@@ -267,7 +226,7 @@ static void bf533_gpio_ack_irq(unsigned int irq)
 	asm("ssync");
 }
 
-static void bf533_gpio_mask_irq(unsigned int irq)
+static void bf537_gpio_mask_irq(unsigned int irq)
 {
 	int gpionr = irq - IRQ_PF0;
 	int mask = (1L << gpionr);
@@ -277,14 +236,14 @@ static void bf533_gpio_mask_irq(unsigned int irq)
 	asm("ssync");
 }
 
-static void bf533_gpio_unmask_irq(unsigned int irq)
+static void bf537_gpio_unmask_irq(unsigned int irq)
 {
 	int gpionr = irq - IRQ_PF0;
 	int mask = (1L << gpionr);
 	*pFIO_MASKB_S = mask;
 }
 
-static int bf533_gpio_irq_type(unsigned int irq, unsigned int type)
+static int bf537_gpio_irq_type(unsigned int irq, unsigned int type)
 {
 	int gpionr = irq - IRQ_PF0;
 	int mask = (1L << gpionr);
@@ -331,14 +290,14 @@ static int bf533_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	return 0;
 }
-static struct irqchip bf533_gpio_irqchip = {
-	.ack		= bf533_gpio_ack_irq,
-	.mask		= bf533_gpio_mask_irq,
-	.unmask		= bf533_gpio_unmask_irq,
-	.type           = bf533_gpio_irq_type
+static struct irqchip bf537_gpio_irqchip = {
+	.ack		= bf537_gpio_ack_irq,
+	.mask		= bf537_gpio_mask_irq,
+	.unmask		= bf537_gpio_unmask_irq,
+	.type           = bf537_gpio_irq_type
 };
 
-static void bf533_demux_gpio_irq(unsigned int intb_irq, struct irqdesc *intb_desc,
+static void bf537_demux_gpio_irq(unsigned int intb_irq, struct irqdesc *intb_desc,
 				 struct pt_regs *regs)
 {
 	int loop = 0;
@@ -377,41 +336,27 @@ int __init  init_arch_irq(void)
 	
 #ifndef CONFIG_KGDB	
 	*pEVT0 = evt_nmi;
-	asm("csync;");	
 #endif
 	*pEVT2  = evt_evt2;
-	asm("csync;");	
-	*pEVT3	= trap;
-	asm("csync;");	
+	*pEVT3	= trap;	
 	*pEVT5 	= evt_ivhw;
-	asm("csync;");	
-	*pEVT6 	= evt_timer;	 
-	asm("csync;");	
+	*pEVT6 	= evt_timer;	 	
 	*pEVT7 	= evt_evt7;
-	asm("csync;");	
 	*pEVT8	= evt_evt8;	
-	asm("csync;");	
-	*pEVT9	= evt_evt9;	
-	asm("csync;");	
-	*pEVT10	= evt_evt10;	
-	asm("csync;");	
-	*pEVT11	= evt_evt11;	
-	asm("csync;");	
+	*pEVT9	= evt_evt9;		
+	*pEVT10	= evt_evt10;		
+	*pEVT11	= evt_evt11;		
 	*pEVT12	= evt_evt12;	
-	asm("csync;");	
 	*pEVT13	= evt_evt13;	
-	asm("csync;");	
-
-	*pEVT14 = evt_system_call;	
-	asm("csync;");	
+	*pEVT14 = evt_system_call;		
 	*pEVT15 = evt_soft_int1;	
 	asm("csync;");	
 
   	for (irq = 0; irq < INTERNAL_IRQS; irq++) {
 		if (irq <= IRQ_CORETMR)
-			set_irq_chip(irq, &bf533_core_irqchip);
+			set_irq_chip(irq, &bf537_core_irqchip);
 		else
-			set_irq_chip(irq, &bf533_internal_irqchip);
+			set_irq_chip(irq, &bf537_internal_irqchip);
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 		if (irq != IRQ_PROG_INTB) {
 #endif
@@ -419,13 +364,13 @@ int __init  init_arch_irq(void)
 			set_irq_flags(irq, IRQF_VALID);
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 		} else {
-			set_irq_chained_handler(irq, bf533_demux_gpio_irq);
+			set_irq_chained_handler(irq, bf537_demux_gpio_irq);
 		}
 #endif
 	}
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
   	for (irq = IRQ_PF0; irq <= IRQ_PF15; irq++) {
-		set_irq_chip(irq, &bf533_gpio_irqchip);
+		set_irq_chip(irq, &bf537_gpio_irqchip);
 		set_irq_handler(irq, do_level_IRQ); /* if configured as edge, then will be changed to do_edge_IRQ */
 		set_irq_flags(irq, IRQF_VALID|IRQF_PROBE);
 	}
@@ -455,8 +400,8 @@ void do_irq(int vec, struct pt_regs *fp)
 {
    	if (vec > IRQ_CORETMR)
         {
-          struct ivgx *ivg = ivg7_13[vec].ifirst;
-          struct ivgx *ivg_stop = ivg7_13[vec].istop;
+          struct ivgx *ivg = ivg7_13[vec-IVG7].ifirst;
+          struct ivgx *ivg_stop = ivg7_13[vec-IVG7].istop;
 	  unsigned long sic_status;	
 
 	  asm("csync;");	
@@ -467,7 +412,7 @@ void do_irq(int vec, struct pt_regs *fp)
 		num_spurious++;
                 return;
               }
-              else if ((sic_status & ivg->isrflag) != 0)
+              else if (sic_status & ivg->isrflag)
                 break;
          }
 	  vec = ivg->irqno;

@@ -1061,47 +1061,6 @@
 
 
 /* *************  SYSTEM INTERRUPT CONTROLLER MASKS *************************************/
-/* Peripheral Masks For SIC_ISR, SIC_IWR, SIC_IMASK										*/
-/*#define IRQ_PLL_WAKEUP	0x00000001	 PLL Wakeup Interrupt			 					Conflicting name in irq.h mh */
-#define IRQ_ERROR1		0x00000002	/* Error Interrupt (DMA, CAN, Ethernet, SPORTs)		*/  
-#define IRQ_ERROR2		0x00000004	/* Error Interrupt (PPI, SPI, UARTs)				*/
-/*#define IRQ_RTC			0x00000008  Real Time Clock Interrupt 						Conflicting name in irq.h mh */
-#define IRQ_DMA0		0x00000010	/* DMA Channel 0 (PPI) Interrupt 					*/ 
-#define IRQ_DMA3		0x00000020	/* DMA Channel 3 (SPORT0 RX) Interrupt 				*/ 
-#define IRQ_DMA4		0x00000040	/* DMA Channel 4 (SPORT0 TX) Interrupt 				*/
-#define IRQ_DMA5		0x00000080	/* DMA Channel 5 (SPORT1 RX) Interrupt 				*/
-
-#define IRQ_DMA6		0x00000100	/* DMA Channel 6 (SPORT1 TX) Interrupt 		 		*/
-#define IRQ_TWI			0x00000200	/* TWI Interrupt									*/
-#define IRQ_DMA7		0x00000400	/* DMA Channel 7 (SPI) Interrupt 					*/
-#define IRQ_DMA8		0x00000800	/* DMA Channel 8 (UART0 RX) Interrupt 				*/ 
-#define IRQ_DMA9		0x00001000	/* DMA Channel 9 (UART0 TX) Interrupt 				*/
-#define IRQ_DMA10		0x00002000	/* DMA Channel 10 (UART1 RX) Interrupt 				*/
-#define IRQ_DMA11		0x00004000	/* DMA Channel 11 (UART1 TX) Interrupt 				*/
-#define IRQ_CAN_RX		0x00008000	/* CAN Receive Interrupt 							*/
-
-#define IRQ_CAN_TX		0x00010000	/* CAN Transmit Interrupt  							*/
-#define IRQ_DMA1		0x00020000	/* DMA Channel 1 (Ethernet RX) Interrupt 			*/
-#define IRQ_PFA_PORTH	0x00020000	/* PF Port H (PF47:32) Interrupt A 					*/
-#define IRQ_DMA2		0x00040000	/* DMA Channel 2 (Ethernet TX) Interrupt 			*/
-#define IRQ_PFB_PORTH	0x00040000	/* PF Port H (PF47:32) Interrupt B 					*/
-#define IRQ_TIMER0		0x00080000	/* Timer 0 Interrupt								*/
-#define IRQ_TIMER1		0x00100000	/* Timer 1 Interrupt 								*/
-#define IRQ_TIMER2		0x00200000	/* Timer 2 Interrupt 								*/
-#define IRQ_TIMER3		0x00400000	/* Timer 3 Interrupt 								*/
-#define IRQ_TIMER4		0x00800000	/* Timer 4 Interrupt 								*/
-
-#define IRQ_TIMER5		0x01000000	/* Timer 5 Interrupt 								*/
-#define IRQ_TIMER6		0x02000000	/* Timer 6 Interrupt 								*/
-#define IRQ_TIMER7		0x04000000	/* Timer 7 Interrupt 								*/
-#define IRQ_PFA_PORTFG	0x08000000	/* PF Ports F&G (PF31:0) Interrupt A 				*/
-#define IRQ_PFB_PORTF	0x80000000	/* PF Port F (PF15:0) Interrupt B 					*/
-#define IRQ_DMA12		0x20000000	/* DMA Channels 12 (MDMA1 Source) RX Interrupt 		*/
-#define IRQ_DMA13		0x20000000	/* DMA Channels 13 (MDMA1 Destination) TX Interrupt */
-#define IRQ_DMA14		0x40000000	/* DMA Channels 14 (MDMA0 Source) RX Interrupt 		*/
-#define IRQ_DMA15		0x40000000	/* DMA Channels 15 (MDMA0 Destination) TX Interrupt */
-#define IRQ_WDOG		0x80000000	/* Software Watchdog Timer Interrupt 				*/
-#define IRQ_PFB_PORTG	0x10000000	/* PF Port G (PF31:16) Interrupt B 					*/
 
 /* SIC_IAR0 Macros															*/
 #define P0_IVG(x)		(((x)&0xF)-7)			/* Peripheral #0 assigned IVG #x 	*/

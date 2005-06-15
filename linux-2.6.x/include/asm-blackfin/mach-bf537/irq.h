@@ -1,5 +1,7 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
+ * File: $Id$
+ *
+ *This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
  *
@@ -15,7 +17,11 @@
  *
  * Adapted for BlackFin BF533 by Bas Vermeulen <bas@buyways.nl>
  * Copyright (c) 2003 BuyWays B.V. (www.buyways.nl)
- * Copyright (c) 2004 LG Soft India. 
+ * Copyright (c) 2004 LG Soft India.
+ *
+ * Adapted for BlackFin BF537 by Michael Hennerich <hennerich@blackfin.uclinux.org>
+ * Copyright (c) 2005 Analog Devices Inc.
+ *
  */
 
 #ifndef _BF537_IRQ_H_
@@ -32,70 +38,71 @@ Core        Emulation               **
             Reserved                --          4
             Hardware Error          IVHW        5
             Core Timer              IVTMR       6 *
-	    PLL Wakeup Interrupt    IVG7	7
-	    DMA Error (generic)	    IVG7	8
-	    PPI Error Interrupt     IVG7	9
-	    SPORT0 Error Interrupt  IVG7	10
-	    SPORT1 Error Interrupt  IVG7	11
-	    SPI Error Interrupt	    IVG7	12
-	    UART Error Interrupt    IVG7	13
-	    RTC Interrupt	    IVG8        14
-	    DMA0 Interrupt (PPI)    IVG8	15
-	    DMA1 (SPORT0 RX)	    IVG9	16
-	    DMA2 (SPORT0 TX)	    IVG9        17
-	    DMA3 (SPORT1 RX)        IVG9	18
-	    DMA4 (SPORT1 TX)	    IVG9	19
-	    DMA5 (PPI)		    IVG10	20
-	    DMA6 (UART RX)	    IVG10	21
-	    DMA7 (UART TX)	    IVG10	22
-	    Timer0		    IVG11	23
-	    Timer1		    IVG11	24
-	    Timer2		    IVG11	25
-	    PF Interrupt A	    IVG12	26
-	    PF Interrupt B	    IVG12	27
-	    DMA8/9 Interrupt	    IVG13	28
-	    DMA10/11 Interrupt	    IVG13	29
-	    Watchdog Timer	    IVG13	30
+
+.....
+
             Software Interrupt 1    IVG14       31
             Software Interrupt 2    --
                  (lowest priority)  IVG15       32 *
  */
-#define SYS_IRQS		64
+
+
+#define SYS_IRQS		41
+#define NR_PERI_INTS    32
+
 /* The ABSTRACT IRQ definitions */
 /** the first seven of the following are fixed, the rest you change if you need to **/
-#define	IRQ_EMU			0	/*Emulation*/
-#define	IRQ_RST			1	/*reset*/
-#define	IRQ_NMI			2	/*Non Maskable*/
-#define	IRQ_EVX			3	/*Exception*/
-#define	IRQ_UNUSED		4	/*- unused interrupt*/
-#define	IRQ_HWERR		5	/*Hardware Error*/
-#define	IRQ_CORETMR		6	/*Core timer*/
+#define	IRQ_EMU				0	/*Emulation*/
+#define	IRQ_RST				1	/*reset*/
+#define	IRQ_NMI				2	/*Non Maskable*/
+#define	IRQ_EVX				3	/*Exception*/
+#define	IRQ_UNUSED			4	/*- unused interrupt*/
+#define	IRQ_HWERR			5	/*Hardware Error*/
+#define	IRQ_CORETMR			6	/*Core timer*/
+
 #define	IRQ_PLL_WAKEUP		7	/*PLL Wakeup Interrupt*/
 #define	IRQ_DMA_ERROR		8	/*DMA Error (general)*/
 #define	IRQ_PPI_ERROR		9	/*PPI Error Interrupt*/
-#define	IRQ_SPORT0_ERROR	10 	/*SPORT0 Error Interrupt*/
-#define	IRQ_SPORT1_ERROR	11	/*SPORT1 Error Interrupt*/
-#define	IRQ_SPI_ERROR		12	/*SPI Error Interrupt*/
-#define	IRQ_UART_ERROR		13	/*UART Error Interrupt*/
-#define	IRQ_RTC			14	/*RTC Interrupt*/
-#define	IRQ_PPI			15	/*DMA0 Interrupt (PPI)*/
-#define	IRQ_SPORT0_RX		16	/*DMA1 Interrupt (SPORT0 RX)*/
-#define	IRQ_SPORT0_TX		17	/*DMA2 Interrupt (SPORT0 TX)*/
-#define	IRQ_SPORT1_RX		18	/*DMA3 Interrupt (SPORT1 RX)*/
-#define	IRQ_SPORT1_TX		19	/*DMA4 Interrupt (SPORT1 TX)*/
-#define IRQ_SPI			20	/*DMA5 Interrupt (SPI)*/
-#define	IRQ_UART_RX		21	/*DMA6 Interrupt (UART RX)*/
-#define	IRQ_UART_TX		22	/*DMA7 Interrupt (UART TX)*/
-#define	IRQ_TMR0		23	/*Timer 0*/
-#define	IRQ_TMR1		24	/*Timer 1*/
-#define	IRQ_TMR2		25	/*Timer 2*/
-#define	IRQ_PROG_INTA		26	/*Programmable Flags A (8)*/
-#define	IRQ_PROG_INTB		27	/*Programmable Flags B (8)*/
-#define	IRQ_MEM_DMA0		28	/*DMA8/9 Interrupt (Memory DMA Stream 0)*/
-#define	IRQ_MEM_DMA1		29	/*DMA10/11 Interrupt (Memory DMA Stream 1)*/
-#define	IRQ_WATCH	   	30	/*Watch Dog Timer*/
-#define	IRQ_SW_INT1		31	/*Software Int 1*/
-#define	IRQ_SW_INT2		32	/*Software Int 2 (reserved for SYSCALL)*/
+#define	IRQ_CAN_ERROR		9	/*CAN Error Interrupt*/
+#define	IRQ_MAC_ERROR		9	/*PPI Error Interrupt*/
+#define	IRQ_SPORT0_ERROR	9 	/*SPORT0 Error Interrupt*/
+#define	IRQ_SPORT1_ERROR	9	/*SPORT1 Error Interrupt*/
+#define	IRQ_SPI_ERROR		9	/*SPI Error Interrupt*/
+#define	IRQ_UART0_ERROR		9	/*UART Error Interrupt*/
+#define	IRQ_UART1_ERROR		9	/*UART Error Interrupt*/
+#define	IRQ_RTC				10	/*RTC Interrupt*/
+#define	IRQ_PPI				11	/*DMA0 Interrupt (PPI)*/
+#define	IRQ_SPORT0_RX		12	/*DMA3 Interrupt (SPORT0 RX)*/
+#define	IRQ_SPORT0_TX		13	/*DMA4 Interrupt (SPORT0 TX)*/
+#define	IRQ_SPORT1_RX		14	/*DMA5 Interrupt (SPORT1 RX)*/
+#define	IRQ_SPORT1_TX		15	/*DMA6 Interrupt (SPORT1 TX)*/
+#define IRQ_TWI				16	/*TWI Interrupt*/
+#define IRQ_SPI				17	/*DMA7 Interrupt (SPI)*/
+#define	IRQ_UART0_RX		18	/*DMA8 Interrupt (UART0 RX)*/
+#define	IRQ_UART0_TX		19	/*DMA9 Interrupt (UART0 TX)*/
+#define	IRQ_UART1_RX		20	/*DMA10 Interrupt (UART1 RX)*/
+#define	IRQ_UART1_TX		21	/*DMA11 Interrupt (UART1 TX)*/
+#define	IRQ_CAN_RX			22	/*CAN Receive Interrupt*/
+#define	IRQ_CAN_TX			23	/*CAN Transmit Interrupt*/
+#define	IRQ_MAC_RX			24  /*DMA1 (Ethernet RX) Interrupt*/
+#define	IRQ_MAC_TX			25  /*DMA2 (Ethernet TX) Interrupt*/
+#define	IRQ_TMR0			26	/*Timer 0*/
+#define	IRQ_TMR1			27	/*Timer 1*/
+#define	IRQ_TMR2			28	/*Timer 2*/
+#define	IRQ_TMR3			29	/*Timer 3*/
+#define	IRQ_TMR4			30	/*Timer 4*/
+#define	IRQ_TMR5			31	/*Timer 5*/
+#define	IRQ_TMR6			32	/*Timer 6*/
+#define	IRQ_TMR7			33	/*Timer 7*/
+#define	IRQ_PROG_INTA		34	/* PF Ports F&G (PF31:0) Interrupt A*/
+#define	IRQ_PROG_INTB		35	/* PF Port F (PF15:0) Interrupt B*/
+#define	IRQ_MEM_DMA0		36	/*(Memory DMA Stream 0)*/
+#define	IRQ_MEM_DMA1		37	/*(Memory DMA Stream 1)*/
+#define	IRQ_WATCH	   		38	/*Watch Dog Timer*/
+#define IRQ_PFB_PORTG		39  /*PF Port G (PF31:16) Interrupt B 	*/
+
+#define	IRQ_SW_INT1			40	/*Software Int 1*/
+#define	IRQ_SW_INT2			41	/*Software Int 2 (reserved for SYSCALL)*/
 
 #define IRQ_PF0			33
 #define IRQ_PF1			34
@@ -125,33 +132,43 @@ Core        Emulation               **
 #define IVG15			15
 
 /* IAR0 BIT FIELDS*/
-#define RTC_ERROR_POS			28
-#define UART_ERROR_POS			24
-#define SPORT1_ERROR_POS		20
-#define SPI_ERROR_POS			16
-#define SPORT0_ERROR_POS		12
-#define PPI_ERROR_POS			8
-#define DMA_ERROR_POS			4
-#define PLLWAKE_ERROR_POS		0
+#define	IRQ_PLL_WAKEUP_POS	0
+#define	IRQ_DMA_ERROR_POS   4
+#define	IRQ_ERROR_POS       8
+#define	IRQ_RTC_POS         12
+#define	IRQ_PPI_POS         16
+#define	IRQ_SPORT0_RX_POS   20
+#define	IRQ_SPORT0_TX_POS   24
+#define	IRQ_SPORT1_RX_POS   28
 
 /* IAR1 BIT FIELDS*/
-#define DMA7_UARTTX_POS			28
-#define DMA6_UARTRX_POS			24
-#define DMA5_SPI_POS			20
-#define DMA4_SPORT1TX_POS		16
-#define DMA3_SPORT1RX_POS		12
-#define DMA2_SPORT0TX_POS		8
-#define DMA1_SPORT0RX_POS		4
-#define DMA0_PPI_POS			0
+#define	IRQ_SPORT1_TX_POS	0
+#define IRQ_TWI_POS         4
+#define IRQ_SPI_POS         8
+#define	IRQ_UART0_RX_POS    12
+#define	IRQ_UART0_TX_POS    16
+#define	IRQ_UART1_RX_POS    20
+#define	IRQ_UART1_TX_POS    24
+#define	IRQ_CAN_RX_POS      28
 
 /* IAR2 BIT FIELDS*/
-#define WDTIMER_POS			28
-#define MEMDMA1_POS			24
-#define MEMDMA0_POS			20
-#define PFB_POS				16
-#define PFA_POS				12
-#define TIMER2_POS			8
-#define TIMER1_POS			4
-#define TIMER0_POS			0
+#define	IRQ_CAN_TX_POS		0
+#define	IRQ_MAC_RX_POS      4
+#define	IRQ_MAC_TX_POS      8
+#define	IRQ_TMR0_POS        12
+#define	IRQ_TMR1_POS        16
+#define	IRQ_TMR2_POS        20
+#define	IRQ_TMR3_POS        24
+#define	IRQ_TMR4_POS        28
+
+/* IAR3 BIT FIELDS*/
+#define	IRQ_TMR5_POS		0
+#define	IRQ_TMR6_POS        4
+#define	IRQ_TMR7_POS        8
+#define	IRQ_PROG_INTA_POS   12
+#define	IRQ_PROG_INTB_POS   16
+#define	IRQ_MEM_DMA0_POS    20
+#define	IRQ_MEM_DMA1_POS    24
+#define	IRQ_WATCH_POS       28
 
 #endif /* _BF537_IRQ_H_ */
