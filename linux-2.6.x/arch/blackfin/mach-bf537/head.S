@@ -1,9 +1,12 @@
-/* arch/bfinnommu/mach-bf533/head.S
+/* 
+ * File: $Id$
  *
- * Startup code for Blackfin BF533
+ * arch/bfinnommu/mach-bf537/head.S
+ * Startup code for Blackfin BF537
  *
  * Copyright (C) 1998  D. Jeff Dionne <jeff@uclinux.org>
  * Copyright (C) 2004 LG Soft India
+ * Copyright (C) 2005 Analog Devices Inc.
  *
  */
 #include <linux/linkage.h>
@@ -66,6 +69,20 @@ ENTRY(_stext)
 	M1 = r0;
 	M2 = r0;
 	M3 = r0;
+
+/* Initialise General-Purpose I/O Modules on BF537 */
+
+	p0.h = hi(PORT_MUX);
+	p0.l = lo(PORT_MUX);
+	r0 = (PGDE_UART | PFTE_UART);
+	w[p0] = r0.L;	/* Enable both UARTS */
+	ssync;
+
+	p0.h = hi(PORTF_FER);
+	p0.l = lo(PORTF_FER);
+	r0 = 0x000F(Z);
+	w[p0] = r0.L;	/* Enable peripheral function of PORTF for UART0 and UART1 */
+	ssync;
 
 /*Initialise UART*/
 	p0.h = hi(UART_LCR);
