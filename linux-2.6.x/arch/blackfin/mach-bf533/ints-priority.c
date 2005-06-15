@@ -35,8 +35,8 @@
  * - 
  ********************************************************************/
 
-#define INTERNAL_IRQS (32)
-
+#define INTERNAL_IRQS		NR_IRQS
+         
 volatile unsigned long irq_flags = 0;
 
 /* The number of spurious interrupts */
@@ -45,14 +45,13 @@ volatile unsigned int num_spurious;
 struct ivgx	{
 	int irqno;	/*irq number for request_irq, available in bf533_irq.h*/
 	int isrflag;	/*corresponding bit in the SIC_ISR register*/
-}ivg_table[23];
+}ivg_table[NR_PERI_INTS];
 
 struct ivg_slice {
 	struct ivgx *ifirst; /* position of first irq in ivg_table for given ivg */
 	struct ivgx *istop;  
-} ivg7_13[16];
+} ivg7_13[IVG13-IVG7+1];
 
-extern void dump(struct pt_regs * regs);
 
 /* BASE LEVEL interrupt handler routines */
 asmlinkage void evt_nmi(void);
@@ -74,59 +73,6 @@ asmlinkage void evt_system_call(void);
 static void program_IAR(void);
 static void search_IAR(void);	
 
-/*********
- * irq_panic
- * - calls panic with string setup
- *********/
-asmlinkage void irq_panic( int reason, struct pt_regs * regs)
-{
-	int sig = 0;
-	siginfo_t info;
-
-  	printk("\n\nException: IRQ 0x%x entered\n", reason);
-	printk(" code=[0x%08x],  ", (unsigned int)regs->seqstat);
-	printk(" stack frame=0x%04x,  ",(unsigned int)(unsigned long) regs);
-	printk(" bad PC=0x%04x\n", (unsigned int)regs->pc);
-	if(reason == 0x5) {
- 
- 	printk("\n----------- HARDWARE ERROR -----------\n\n");
-		
-	/* There is only need to check for Hardware Errors, since other EXCEPTIONS are handled in TRAPS.c (MH)  */
-	switch(((unsigned int)regs->seqstat) >> 14) {
-		case (0x2):			//System MMR Error
-			info.si_code = BUS_ADRALN;
-			sig = SIGBUS;
-			printk(HWC_x2);
-			break;
-		case (0x3):			//External Memory Addressing Error
-		        info.si_code = BUS_ADRERR;
-			sig = SIGBUS;
-			printk(HWC_x3);
-			break;
-		case (0x12):			//Performance Monitor Overflow
-			printk(HWC_x12);
-			break;
-		case (0x18):			//RAISE 5 instruction
-			printk(HWC_x18);
-			break;
-		default:			//Reserved
-			printk(HWC_default);
-			break;
-		}
-	}
-
-	regs->ipend = *pIPEND;
-	dump(regs);
-	if (0 == (info.si_signo = sig) || 
-	    0 == user_mode(regs)) /* in kernelspace */
-	    panic("Unhandled IRQ or exceptions!\n");
-	else { /* in userspace */
-	    info.si_errno = 0;
-	    info.si_addr = (void *) regs->pc;
-	    force_sig_info (sig, &info, current);
-        }
-}
-
 /*Program the IAR registers*/
 static void __init program_IAR()
 {
@@ -138,8 +84,7 @@ static void __init program_IAR()
                 ((CONFIG_SPI_ERROR   -7) <<    SPI_ERROR_POS) |
                 ((CONFIG_SPORT1_ERROR-7) << SPORT1_ERROR_POS) |
                 ((CONFIG_UART_ERROR  -7) <<   UART_ERROR_POS) |
-                ((CONFIG_RTC_ERROR   -7) <<    RTC_ERROR_POS);
-	        asm("ssync;");	
+                ((CONFIG_RTC_ERROR   -7) <<    RTC_ERROR_POS);	
 
 		*pSIC_IAR1 =	((CONFIG_DMA0_PPI-7)    << DMA0_PPI_POS) |
                 ((CONFIG_DMA1_SPORT0RX-7) << DMA1_SPORT0RX_POS) |
@@ -149,7 +94,6 @@ static void __init program_IAR()
                 ((CONFIG_DMA5_SPI-7)    << DMA5_SPI_POS)    |
                 ((CONFIG_DMA6_UARTRX-7) << DMA6_UARTRX_POS) |
                 ((CONFIG_DMA7_UARTTX-7) << DMA7_UARTTX_POS);
-	        asm("ssync;");	
  
 		*pSIC_IAR2 =	((CONFIG_TIMER0-7) << TIMER0_POS) |
 		((CONFIG_TIMER1-7) << TIMER1_POS) |
@@ -168,23 +112,23 @@ and their positions in the SIC_ISR register */
 static void __init search_IAR(void)	
 {
     unsigned ivg, irq_pos = 0;
-    for(ivg = IVG7; ivg <= IVG13; ivg++)
+    for (ivg = 0; ivg <= IVG13-IVG7; ivg++)
     {
         int irqn;
 
         ivg7_13[ivg].istop = 
         ivg7_13[ivg].ifirst = &ivg_table[irq_pos];        
           
-        for(irqn = 0; irqn < 24; irqn++)
-          if (ivg == IVG7 + (0x0f & pSIC_IAR0[irqn >> 3] >> (irqn & 7) * 4))
+        for(irqn = 0; irqn < NR_PERI_INTS; irqn++)
+          if (ivg == (0x0f & pSIC_IAR0[irqn >> 3] >> (irqn & 7) * 4))
           {
              ivg_table[irq_pos].irqno = IVG7 + irqn;
-             ivg_table[irq_pos].isrflag = 1 << irqn;
+			 ivg_table[irq_pos].isrflag = 1 << irqn;
              ivg7_13[ivg].istop++;
              irq_pos++;
           }
     }
-}		
+}
 			
 /*
  * This is for BF533 internal IRQs
@@ -377,33 +321,19 @@ int __init  init_arch_irq(void)
 	
 #ifndef CONFIG_KGDB	
 	*pEVT0 = evt_nmi;
-	asm("csync;");	
 #endif
 	*pEVT2  = evt_evt2;
-	asm("csync;");	
-	*pEVT3	= trap;
-	asm("csync;");	
+	*pEVT3	= trap;	
 	*pEVT5 	= evt_ivhw;
-	asm("csync;");	
-	*pEVT6 	= evt_timer;	 
-	asm("csync;");	
+	*pEVT6 	= evt_timer;	 	
 	*pEVT7 	= evt_evt7;
-	asm("csync;");	
 	*pEVT8	= evt_evt8;	
-	asm("csync;");	
-	*pEVT9	= evt_evt9;	
-	asm("csync;");	
-	*pEVT10	= evt_evt10;	
-	asm("csync;");	
-	*pEVT11	= evt_evt11;	
-	asm("csync;");	
+	*pEVT9	= evt_evt9;		
+	*pEVT10	= evt_evt10;		
+	*pEVT11	= evt_evt11;		
 	*pEVT12	= evt_evt12;	
-	asm("csync;");	
 	*pEVT13	= evt_evt13;	
-	asm("csync;");	
-
-	*pEVT14 = evt_system_call;	
-	asm("csync;");	
+	*pEVT14 = evt_system_call;		
 	*pEVT15 = evt_soft_int1;	
 	asm("csync;");	
 
@@ -455,8 +385,8 @@ void do_irq(int vec, struct pt_regs *fp)
 {
    	if (vec > IRQ_CORETMR)
         {
-          struct ivgx *ivg = ivg7_13[vec].ifirst;
-          struct ivgx *ivg_stop = ivg7_13[vec].istop;
+          struct ivgx *ivg = ivg7_13[vec-IVG7].ifirst;
+          struct ivgx *ivg_stop = ivg7_13[vec-IVG7].istop;
 	  unsigned long sic_status;	
 
 	  asm("csync;");	
@@ -467,7 +397,7 @@ void do_irq(int vec, struct pt_regs *fp)
 		num_spurious++;
                 return;
               }
-              else if ((sic_status & ivg->isrflag) != 0)
+              else if (sic_status & ivg->isrflag)
                 break;
          }
 	  vec = ivg->irqno;

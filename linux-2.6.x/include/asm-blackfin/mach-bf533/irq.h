@@ -60,7 +60,9 @@ Core        Emulation               **
             Software Interrupt 2    --
                  (lowest priority)  IVG15       32 *
  */
-#define SYS_IRQS		64
+#define SYS_IRQS		32
+#define NR_PERI_INTS    24
+
 /* The ABSTRACT IRQ definitions */
 /** the first seven of the following are fixed, the rest you change if you need to **/
 #define	IRQ_EMU			0	/*Emulation*/
@@ -70,6 +72,7 @@ Core        Emulation               **
 #define	IRQ_UNUSED		4	/*- unused interrupt*/
 #define	IRQ_HWERR		5	/*Hardware Error*/
 #define	IRQ_CORETMR		6	/*Core timer*/
+
 #define	IRQ_PLL_WAKEUP		7	/*PLL Wakeup Interrupt*/
 #define	IRQ_DMA_ERROR		8	/*DMA Error (general)*/
 #define	IRQ_PPI_ERROR		9	/*PPI Error Interrupt*/
@@ -94,6 +97,7 @@ Core        Emulation               **
 #define	IRQ_MEM_DMA0		28	/*DMA8/9 Interrupt (Memory DMA Stream 0)*/
 #define	IRQ_MEM_DMA1		29	/*DMA10/11 Interrupt (Memory DMA Stream 1)*/
 #define	IRQ_WATCH	   	30	/*Watch Dog Timer*/
+
 #define	IRQ_SW_INT1		31	/*Software Int 1*/
 #define	IRQ_SW_INT2		32	/*Software Int 2 (reserved for SYSCALL)*/
 
