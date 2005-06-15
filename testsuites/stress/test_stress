@@ -218,12 +218,15 @@ puts "*********************************\r"
 
    set timeout 5
    while 1 {
-      expect "> " {
-         break
-      }
-      timeout {
+      expect {
+	 "> " {
+        	break
+      	}
+
+      	timeout {
 	 	puts "$TITLE ............\[FAIL\]\r"
 		exit
+	}
       }
    }
 
