@@ -88,3 +88,5 @@ finished:     R0 = 0;
            .size _memcmp, .-_memcmp
 	   .global _memcmp;
 	   .type _memcmp,STT_FUNC;
+	   .weak _bcmp;
+	   _bcmp = _memcmp;
