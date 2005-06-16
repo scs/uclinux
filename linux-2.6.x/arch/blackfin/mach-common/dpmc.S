@@ -7,6 +7,9 @@
  */
 
 #include <asm/blackfin.h>
+#include <asm/mach/irq.h>
+
+#define ASSEMBLY 
 
 .text
 
