@@ -352,7 +352,7 @@ int __init  init_arch_irq(void)
 	*pEVT15 = evt_soft_int1;	
 	asm("csync;");	
 
-  	for (irq = 0; irq < INTERNAL_IRQS; irq++) {
+  	for (irq = 0; irq < SYS_IRQS; irq++) {
 		if (irq <= IRQ_CORETMR)
 			set_irq_chip(irq, &bf537_core_irqchip);
 		else
