@@ -19,7 +19,7 @@ unmask_wdog_wakeup_evt:
 	P0.h = (SIC_IWR >> 16);
 	P0.l = (SIC_IWR & 0xFFFF);
 	R7 = [P0];
-	BITSET(R7,23);
+	BITSET(R7,(IRQ_WATCH - IVG7));
 	[P0] = R7;
 	SSYNC;
 
@@ -111,7 +111,7 @@ sleep_mode:
 
         P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
-	R0 = IWR_ENABLE(7)(Z);
+	R0 = IWR_ENABLE(IRQ_PLL_WAKEUP)(Z);
         [P0] = R0;
         SSYNC;
 
@@ -156,7 +156,7 @@ deep_sleep:
 
         P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
-	R0 = IWR_ENABLE(7)(Z);
+	R0 = IWR_ENABLE(IRQ_PLL_WAKEUP)(Z);
         [P0] = R0;
         SSYNC;
 
@@ -201,7 +201,7 @@ hibernate_mode:
 	
  	P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
-	R0 = IWR_ENABLE(7)(Z);
+	R0 = IWR_ENABLE(IRQ_PLL_WAKEUP)(Z);
         [P0] = R0;
         SSYNC;
         
