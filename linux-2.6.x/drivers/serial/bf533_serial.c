@@ -39,6 +39,8 @@
 #undef SERIAL_DEBUG_CALLTRACE
 #undef SERIAL_DEBUG_TERMIOS
 
+#define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART_ERROR - IVG7)))
+
 #define SYNC_ALL	__asm__ __volatile__ ("ssync;\n")
 #define ACCESS_LATCH	{ *pUART_LCR |= DLAB; SYNC_ALL;}
 #define ACCESS_PORT_IER	{ *pUART_LCR &= (~DLAB); SYNC_ALL;}
@@ -556,8 +558,7 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	unsigned int sic_status = 0;
 	asm("csync;");
 	sic_status = *pSIC_ISR;
-	if (sic_status & 0xC040) {
-		/* test bit 10-11 and 12-13 */
+	if (sic_status & SIC_UART_MASK) {
 		info = &bf533_soft;
 		asm("csync;");
 		iir = *pUART_IIR;
