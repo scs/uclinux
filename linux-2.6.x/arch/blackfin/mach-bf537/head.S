@@ -71,18 +71,27 @@ ENTRY(_stext)
 	M3 = r0;
 
 /* Initialise General-Purpose I/O Modules on BF537 */
-
+/* Rev 0.0 Anomaly 05000212 - PORTx_FER, PORT_MUX Registers Do Not accept "writes" correctly: */
 	p0.h = hi(PORT_MUX);
 	p0.l = lo(PORT_MUX);
-	r0 = (PGDE_UART | PFTE_UART);
-	w[p0] = r0.L;	/* Enable both UARTS */
-	ssync;
+	R0.L = W[P0]; //Read	
+	SSYNC;
+	R0 = (PGDE_UART | PFTE_UART)(Z);
+	W[P0] = R0.L; //Write
+	SSYNC;
+	W[P0] = R0.L; /* Enable both UARTS */
+	SSYNC;
 
 	p0.h = hi(PORTF_FER);
 	p0.l = lo(PORTF_FER);
-	r0 = 0x000F(Z);
-	w[p0] = r0.L;	/* Enable peripheral function of PORTF for UART0 and UART1 */
-	ssync;
+	R0.L = W[P0]; //Read
+	SSYNC;
+	R0 = 0x000F(Z);
+	W[P0] = R0.L; //Write
+	SSYNC;
+	W[P0] = R0.L; /* Enable peripheral function of PORTF for UART0 and UART1 */
+	SSYNC;
+
 
 /*Initialise UART*/
 	p0.h = hi(UART_LCR);
@@ -93,7 +102,7 @@ ENTRY(_stext)
 
 	p0.h = hi(UART_DLL);
 	p0.l = lo(UART_DLL);
-	r0 = 0x0(Z);
+	r0 = 0x00(Z);
 	w[p0] = r0.L;
 	ssync;
 
@@ -109,10 +118,11 @@ ENTRY(_stext)
 	w[p0] = r0.L;	/* To enable UART clock */
 	ssync;
 
+#ifndef CONFIG_LOADVDSP
 	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
 	call bf53x_relocate_l1_mem;
 	call start_dma_code;
-
+#endif
 	/* Code for initializing Async memory banks */
 
         p2.h = hi(EBIU_AMBCTL1);
@@ -134,7 +144,9 @@ ENTRY(_stext)
         r0 = AMGCTLVAL;
         w[p2] = r0;
         ssync;
-
+#ifndef CONFIG_LOADVDSP        
+        call _real_start;
+#endif
 	/* This section keeps the processor in supervisor mode
          * during kernel boot.  Switches to user mode at end of boot.
 	 * See page 3-9 of Hardware Reference manual for documentation.

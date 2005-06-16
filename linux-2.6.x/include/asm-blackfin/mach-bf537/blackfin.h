@@ -99,7 +99,8 @@
 /* DPMC*/
 #define STOPCK_OFF STOPCK
 
-/* FIO */
+/* FIO USE PORT F*/
+#if CONFIG_BF537_PORT_F
 #define pFIO_FLAG_D		pPORTFIO
 #define pFIO_FLAG_C		pPORTFIO_CLEAR
 #define pFIO_FLAG_S		pPORTFIO_SET
@@ -117,6 +118,28 @@
 #define pFIO_EDGE		pPORTFIO_EDGE
 #define pFIO_BOTH		pPORTFIO_BOTH
 #define pFIO_INEN		pPORTFIO_INEN
+#endif
+
+/* FIO USE PORT G*/
+#if CONFIG_BF537_PORT_G
+#define pFIO_FLAG_D		pPORTGIO
+#define pFIO_FLAG_C		pPORTGIO_CLEAR
+#define pFIO_FLAG_S		pPORTGIO_SET
+#define pFIO_FLAG_T		pPORTGIO_TOGGLE
+#define pFIO_MASKA_D	pPORTGIO_MASKA
+#define pFIO_MASKA_C	pPORTGIO_MASKA_CLEAR
+#define pFIO_MASKA_S	pPORTGIO_MASKA_SET
+#define pFIO_MASKA_T	pPORTGIO_MASKA_TOGGLE
+#define pFIO_MASKB_D	pPORTGIO_MASKB
+#define pFIO_MASKB_C	pPORTGIO_MASKB_CLEAR
+#define pFIO_MASKB_S	pPORTGIO_MASKB_SET
+#define pFIO_MASKB_T	pPORTGIO_MASKB_TOGGLE
+#define pFIO_DIR		pPORTGIO_DIR
+#define pFIO_POLAR		pPORTGIO_POLAR
+#define pFIO_EDGE		pPORTGIO_EDGE
+#define pFIO_BOTH		pPORTGIO_BOTH
+#define pFIO_INEN		pPORTGIO_INEN
+#endif
 
 
 /* RTC_ICTL and RTC_ISTAT Masks															    */                                                      

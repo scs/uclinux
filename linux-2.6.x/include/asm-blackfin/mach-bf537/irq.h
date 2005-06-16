@@ -127,7 +127,6 @@ Core        Emulation               **
 #define	NR_IRQS		SYS_IRQS
 #endif
 
-
 #define IVG7			7
 #define IVG8			8
 #define IVG9			9

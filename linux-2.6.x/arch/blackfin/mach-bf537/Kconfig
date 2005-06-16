@@ -19,6 +19,32 @@ config BF537_UART_1
 	  Select this in case your termianl ic connected to UART1
 endchoice
 
+comment 'PORT F/G Selection'
+choice
+	prompt	"Select BF537/6/4 default GPIO PFx PORTx"
+	---help---
+	  Quick Hack for BF537/6/4 default GPIO PFx PORTF
+
+config BF537_PORT_F
+	bool 'Select BF537/6/4 default GPIO PFx PORTF' 
+	depends on (BF537 || BF536 || BF534) 
+	help
+	  Quick Hack for BF537/6/4 default GPIO PFx PORTF
+	
+config BF537_PORT_G
+	bool 'Select BF537/6/4 default GPIO PFx PORTG' 
+	depends on (BF537 || BF536 || BF534) 
+	help
+	  Quick Hack for BF537/6/4 default GPIO PFx PORTG
+endchoice
+
+config LOADVDSP
+	bool 'Disable some startup code to load the kernel using VDSP'
+	depends on BLACKFIN
+	default n
+	help
+	  Disable some startup code to load the kernel using VDSP 
+
 menu "BF537 Specific Configuration"
 
 comment	'Interrupt Priority Assignment'
