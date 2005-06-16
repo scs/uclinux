@@ -35,28 +35,28 @@ config	IRQ_ERROR
     default 7
 config	IRQ_RTC
     int "IRQ_RTC"
-    default 12
+    default 8
 config	IRQ_PPI
     int "IRQ_PPI"
     default 8
 config	IRQ_SPORT0_RX
     int "IRQ_SPORT0_RX"
-    default 8
+    default 9
 config	IRQ_SPORT0_TX
     int "IRQ_SPORT0_TX"
-    default 8
+    default 9
 config	IRQ_SPORT1_RX
     int "IRQ_SPORT1_RX"
-    default 8
+    default 9
 config	IRQ_SPORT1_TX
     int "IRQ_SPORT1_TX"
-    default 8
+    default 9
 config	IRQ_TWI
     int "IRQ_TWI"
-    default 13
+    default 10
 config	IRQ_SPI
     int "IRQ_SPI"
-    default 9
+    default 10
 config	IRQ_UART0_RX
     int "IRQ_UART0_RX"
     default 10
@@ -71,40 +71,40 @@ config	IRQ_UART1_TX
     default 10
 config	IRQ_CAN_RX
     int "IRQ_CAN_RX"
-    default 9
+    default 11
 config	IRQ_CAN_TX
     int "IRQ_CAN_TX"
-    default 9
+    default 11
 config	IRQ_MAC_RX
     int "IRQ_MAC_RX"
-    default 8
+    default 11
 config	IRQ_MAC_TX
     int "IRQ_MAC_TX"
-    default 8
+    default 11
 config	IRQ_TMR0
     int "IRQ_TMR0"
-    default 11
+    default 12
 config	IRQ_TMR1
     int "IRQ_TMR1"
-    default 11
+    default 12
 config	IRQ_TMR2
     int "IRQ_TMR2"
-    default 11
+    default 12
 config	IRQ_TMR3
     int "IRQ_TMR3"
-    default 11
+    default 12
 config	IRQ_TMR4
     int "IRQ_TMR4"
-    default 11
+    default 12
 config	IRQ_TMR5
     int "IRQ_TMR5"
-    default 11
+    default 12
 config	IRQ_TMR6
     int "IRQ_TMR6"
-    default 11
+    default 12
 config	IRQ_TMR7
     int "IRQ_TMR7"
-    default 11
+    default 12
 config	IRQ_PROG_INTA
     int "IRQ_PROG_INTA"
     default 12
@@ -113,10 +113,10 @@ config	IRQ_PROG_INTB
     default 12
 config	IRQ_MEM_DMA0
     int "IRQ_MEM_DMA0"
-    default 8
+    default 13
 config	IRQ_MEM_DMA1
     int "IRQ_MEM_DMA1"
-    default 8
+    default 13
 config	IRQ_WATCH
     int "IRQ_WATCH"
     default 13
