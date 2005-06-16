@@ -1,0 +1,241 @@
+
+
+
+Release Notes for Uclinux-dist RC1
+ 
+
+
+
+Version 
+ 
+uClinux_dist 
+Date: Jun 16, 2005 
+Development Environments 
+ 
+Tool Chain: Beta Toolchain Release (Jun 1st 2005)
+	u-boot_1.1.3 (kernel will not boot with 1.1.1 u-boot)
+Host platform: Suse Linux 9.2
+Target board: STAMP Board 
+  
+
+Note: However other similar host platforms are also supported.  
+But currently they are not tested 
+
+Deliverables 
+
+uClinux_dist.tar.bz2
+	Source files 
+
+	linux 
+		linux elf file
+
+	uImage 
+		Compressed linux image that can be placed into flash
+	
+	release_notes.pdf
+		This document
+
+	test_results.tar.gz
+		compressed archive of test results
+
+Fixes in RC1
+See tracker at:
+http://blackfin.uclinux.org/tracker/index.php?group_id=17&atid=141
+
+
+Improvements
+1. Use bfin-uclinux toolchain and enable necessary bits for C++ support.
+2. Enable uncached memory allocation for DMA based drivers.
+3. Add 8 bytes operation into get_user() and put_user().
+4. Fixe 1836 audio driver for EZKIT board.
+5. Accept the arguments passed from u-boot
+6. Calculate more accurate tick_nsec and tick_usec values.
+7. Porting assembly string functions from VDSP to uClibc
+8. Enable kernel to read and write flash when ethernet device is working.
+9. Restructure Blackfin specific include and source folders, as well as device driver includes.
+10. Generate the CPLB table according to the actual memory size at the kernel booting stage instead of static coding.
+11. Walk around a cache flush issue, which fails to flush instruction cache at first address before increase the address.
+12. Many bug fixes and code clean up.
+
+Known Issues 
+A full list of known issues can be found at:
+http://blackfin.uclinux.org/tracker/index.php?group_id=17&atid=141
+
+
+No	Issue Title
+220	killing /bin/sh sometimes crashes the system.
+
+600	Module problem, insmod failure
+
+622	Makefile error - infinite loop occuring during a make clean 
+
+660	Audio driver still functions if audio card is not connected to system
+
+663	The kernel will crash if you aquire date through the networked scope (NDSO) while the audio driver is enabled
+
+674	Networking will randomly stops and gives error NETDEV WATCHDOG: eth0: transmit timed out
+
+706	ping -f doesn't respond correctly to control-C
+
+717	reboot after 2 minutes hangs the kernel.
+
+738	fail to mount a NFS partition on target board.
+
+753	MTD-UTILS won't compile
+
+761	Boa Crash
+
+765	Fail to play and record audio concurrently with audio driver.
+
+
+There are also some issues in the LTP test cases. They are recorded as bug 264, 532, 561, 562, 563, 567, 732, 733, 734, 735, 736, 737, 742, 743, 744, 745 and 747.
+
+Test Status 
+All test suites can be found in subfolder "testsuites" in CVS.
+
+1. Test for DMA enabled serial driver is done. Run 7 cases, all pass. 
+
+2. Test for Ethernet driver by netperf is done. Run 2 cases. Fail to pass because of bug 647. If in linux-2.6.x/drivers/net/smc91x.c define THROTTLE_TX_PKTS as 1, both cases pass. 
+
+3. Test for Audio driver is done. Run 10 cases, 9 pass. Fail to pass case 10 which records and plays audio concurrently. Test script is not fully automated. Tester should check the results by ears. 
+
+4. Test for ADSPI driver is done. All cases pass. This is done manually. No test script.
+
+5. Kernel passes the stress test when build with default configuration.
+
+6. Test for the KGDB patch is done. Total 18 cases, all pass. 
+
+7. Kernel passes the reboot test.
+
+8. LTP test is done. Total 255 cases, 232 cases pass, 13 cases fail, 4 cases not run, 1 cases is broken, 1 case crashes LTP, 5 cases are skipped. 
+
+Build Procedure 
+ 
+1. Install Beta Toolchain Release (March 3th 2005) toolchain
+Go to http://blackfin.uclinux.org/frs/?group_id=18 for more information
+
+2. Download the source code of project "uclinux533"
+Go to http://blackfin.uclinux.org/frs/?group_id=17
+
+3. Uncompress uclinux-dist.tar.bz to working directory
+a. cp uClinux-dist.tar.bz /(WORK_DIR)
+b. cd /(WORK_DIR)
+c. bunzip2 uClinux-dist.tar.bz
+d. tar -xvf uClinux-dist.tar
+
+4. Compile the source using following commands  
+a. cd uClinux-dist
+b. make clean 
+c. make menuconfig (save and exit without making any changes)
+d. make 
+ 
+5. Find the compiled blackfin executable linux in the following location 
+$(WORK_DIR)/uClinux-dist/linux-2.6.x 
+
+6. Above file shall be used to download to the target board. 
+ 
+ 
+Load Kernel to Target Board 
+ 
+1. Use below serial cables to connect board to host computer. 
+
+Male-Female 1-1 serial cable  
+ 
+2. Use minicom or some other serial communications utility to configure the serial port with the following parameters. If run minicom for the first time, run "minicom -s" to setup the port.
+
+Serial Device = /dev/ttyS0
+Baud Rate = Baud that have been selected in kernel menuconfig (Default value is 57600)
+Number of bits = 8 
+Parity = None 
+Stop bits = 1 
+ 
+3. Make sure the BMODE pins on the target board are set to 00. If u-boot loads automatically on reset, the pins are already set correctly. 
+
+4. Make sure tftp server is installed in the host machine. Copy linux from uClinux-dist/linux-2.6.x/ that is built in above steps to the /tftpboot of the host PC. 
+
+5. Load the linux file with the following bootloader commands, 
+
+Make sure the ipaddr (target board IP) and serverip (host IP) are correct
+STAMP> setenv ipaddr x.y.z.n
+STAMP> setenv serverip x.y.z.m 
+		STAMP> saveenv
+
+STAMP> tftp 0x1000000 linux
+STAMP> bootelf 0x1000000
+	
+	
+Where x.y.z.m is the ip address of the host machine, and x.y.z.n is the ip address of the target board. 
+ 
+6. The kernel should then boot
+
+
+Adding / upgrading kernel in flash
+
+Building Linux image (compressed and uncompressed)  
+(This Image Will be Used in bootm command) 
+ 
+Linux ELF image has to be changed as per u-boot standards to load Linux using bootm command. Following subsections explain how to build compressed and uncompressed Linux images. 
+
+Building Compressed Linux Image 
+
+1. Generate the binary file from the ELF file, using following command
+
+$ bfin-elf-objcopy -O binary linux linux.bin 
+
+2. Compress the binary file obtained above, using following command 
+$ gzip -9 linux.bin  
+
+3. Build the final linux image, using following command
+
+(WORK_DIR)/u-boot_1.1.3/tools/mkimage -A blackfin -O linux -T kernel -C gzip -a 0x1000 -e 0x1000 -n "Bfin uClinux Kernel" -d linux.bin.gz uImage
+ 
+
+Note: Use the utility mkimage present in the u-boot_1.1.3/tools directory to merge the header information like Image Name, Image Type, Data Size, Load Address, Entry Point into the linux.bin.gz. 
+ 
+Building uncompressed Linux image 
+ 
+Use following commands to build uncompressed Linux image
+
+(WORK_DIR)/u-boot_1.1.3tools/mkimage -A blackfin -O linux -T kernel -C none -a 0x1000 -e 0x1000 -n "Bfin uClinux kernel" -d linux.bin uImage
+
+Note: 0x1000 is used because we have compiled the kernel with that location as the entry point. If anyone wants to chose a different address for entry point (for eg, 0x20000), then please give that address instead of 0x1000. Ensure to change the entry point of the kernel.   
+
+Programming Flash
+
+STAMP> tftp 0x1000000 uImage
+STAMP> protect off all 
+STAMP> erase 0x20100000 0x203FFFFF
+STAMP> cp.b 0x1000000 0x20100000 $(filesize) 
+STAMP> setenv bootcmd bootm 0x20100000 
+STAMP> save
+STAMP> reset
+
+Build Customized uClinux
+
+Customize Kernel
+1. make menuconfig in uclinux533 project
+2. select option "Kernel/Library/Defaults Selection" -> "Customize Kernel Settings" and exit
+3. In kernel configuration, processor and board specific options can be changed in "Processor type and features", such as cache status, CPU, DMA, etc.
+4. Driver specific options are in respective menus. Such as Ethernet driver in "Networking supporting", sound card driver in "Sound", video driver in "Graphic Support", etc.
+5. Save and exit. Then make the image again as mentioned before. The changes of the kernel take effects after you load and run the new image.
+
+Customize Application and Lib
+1. make menuconfig in uclinux533 project
+2. select option "Kernel/Library/Defaults Selection" -> "Customize Vender/User Settings" and exit
+3. In user configuration, applications can be selected to build and debugging information can be enabled.
+4. In order to configure busybox 1.00, you should go into the folder "user/busybox-1.00-rc3/" and do menuconfig.
+5. In order to configure uClibc, you should go into the folder "uClibc" and do menuconfig.
+6. After the menuconfig is done, make the image again as mentioned before. The new selected application can be found in the romfs after you load and run the new image.
+
+Customize for debugging
+1. To debug an application, please refer to the document "gdb_guide_bfin.txt" in subfolder kgdb_patch.
+2. To do source level kernel debugging by kgdb, please refer to the README file in subfolder kgdb_patch. After apply the kgdb patch file to the kernel, a simple guide "kgdb_bfin.txt" can be found in subfolder "linux-2.6.x/Documentation/blackfin/"
+
+Reporting Bugs 
+ 
+1. Go to the following blackfin uclinux bug tracker page, 
+ 
+http://blackfin.uclinux.org/tracker/?atid=141&group_id=17&func=browse 
+ 
+2. If the bug is not already reported click on "Submit New" button to report new bug. 
+
