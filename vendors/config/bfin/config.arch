@@ -140,7 +140,7 @@ ifdef UCLINUX_BUILD_USER
   endif
 	CFLAGS  += -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
 	CFLAGS  += $(INCDIST) $(INCLIBC)
-	CFLAGS  += -fno-builtin -nostartfiles
+	CFLAGS  += -fno-builtin
 
   ifdef BUILD_SHARED
 	CFLAGS  += -fpic -mid-shared-library -mshared-library-id=0
