@@ -421,11 +421,8 @@ while 1 {
          }
    }
    send "vplay aaa &\r"
-   sleep 1
-   send "vrec -w -b 16 -s 11000 -t 6 bbb\r"
    expect {
-	"> " {
-		puts "\rCase $case_num ...DONE\r"
+	"silence:" {
 	}
 
          timeout {
@@ -433,6 +430,43 @@ while 1 {
 		puts "$TITLE ............\[FAIL\]\r"
 		exit
          }
+   }
+
+   send "\r"
+   expect {
+	"> " {
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+   send "vrec -w -b 16 -s 11000 -t 6 bbb\r"
+   expect {
+	"> " {
+	}
+	
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+
+   sleep 5
+   expect {
+	"Input/output error" {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+	}
+	
+	timeout {
+		puts "\rCase $case_num ...DONE\r"
+		break;
+	}
    }
 }
 
