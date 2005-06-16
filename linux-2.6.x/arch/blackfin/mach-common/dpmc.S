@@ -111,7 +111,7 @@ sleep_mode:
 
         P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
-	R0 = IWR_ENABLE(IRQ_PLL_WAKEUP)(Z);
+	R0 = IWR_ENABLE(IRQ_RTC - IVG7)(Z);
         [P0] = R0;
         SSYNC;
 
@@ -156,7 +156,7 @@ deep_sleep:
 
         P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
-	R0 = IWR_ENABLE(IRQ_PLL_WAKEUP)(Z);
+	R0 = IWR_ENABLE(IRQ_RTC - IVG7)(Z);
         [P0] = R0;
         SSYNC;
 
@@ -201,7 +201,7 @@ hibernate_mode:
 	
  	P0.H = hi(SIC_IWR);
         P0.L = lo(SIC_IWR);
-	R0 = IWR_ENABLE(IRQ_PLL_WAKEUP)(Z);
+	R0 = IWR_ENABLE(IRQ_RTC - IVG7)(Z);
         [P0] = R0;
         SSYNC;
         
