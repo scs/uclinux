@@ -35,15 +35,13 @@
  * - 
  ********************************************************************/
 
-#define INTERNAL_IRQS		NR_IRQS
-         
 volatile unsigned long irq_flags = 0;
 
 /* The number of spurious interrupts */
 volatile unsigned int num_spurious;
 
 struct ivgx	{
-	int irqno;	/*irq number for request_irq, available in bf533_irq.h*/
+	int irqno;	/*irq number for request_irq, available in mach-bf533/irq.h*/
 	int isrflag;	/*corresponding bit in the SIC_ISR register*/
 }ivg_table[NR_PERI_INTS];
 
@@ -337,7 +335,7 @@ int __init  init_arch_irq(void)
 	*pEVT15 = evt_soft_int1;	
 	asm("csync;");	
 
-  	for (irq = 0; irq < INTERNAL_IRQS; irq++) {
+  	for (irq = 0; irq < SYS_IRQS; irq++) {
 		if (irq <= IRQ_CORETMR)
 			set_irq_chip(irq, &bf533_core_irqchip);
 		else

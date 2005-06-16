@@ -37,9 +37,8 @@
  *   interrupts apart (just the TX/RX for the various devices)
  *******************************************************************************/
 
-/* SYS_IRQS defined in <asm/mach-bf5xx/irq.h>*/
+/* SYS_IRQS and NR_IRQS are defined in <asm/mach-bf5xx/irq.h>*/
 
-#define	NR_IRQS		SYS_IRQS
 /*
  * Machine specific interrupt sources.
  *
