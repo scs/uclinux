@@ -437,7 +437,7 @@ static void dma_transmit_chars(struct bf533_serial *info)
 	}
 
 clear_and_return:
-	spin_unlock_bh(info->recv_lock);
+	spin_unlock_bh(info->xmit_lock);
 }
 #endif
 
