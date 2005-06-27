@@ -150,21 +150,7 @@ static void bf533_core_unmask_irq(unsigned int irq)
 
 static void bf533_internal_mask_irq(unsigned int irq)
 {
-	unsigned long irq_mask;
-
-	/*
- 	 * If it is the interrupt for peripheral,
-	 * we only disable it in SIC_IMASK register.
-	 * No need to change IMASK register of CORE,
-	 * since all of the IVG for peripherals was 
- 	 * enabled in init_IRQ()
-	 *
-	 */
-	local_irq_disable();
-	irq_mask = (1<<(irq - (IRQ_CORETMR + 1)));
-   	*pSIC_IMASK &= ~(irq_mask); 
-	asm("ssync;");
-	local_irq_enable();
+  //dummy function
 }
 
 static void bf533_internal_unmask_irq(unsigned int irq)
