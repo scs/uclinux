@@ -13,12 +13,30 @@
  * differently. On the bfin architecture, we just read/write the
  * memory location directly.
  */
-#define readb(addr) ({ unsigned __v; asm volatile ("csync; %0 = b [%1] (z); " \
-  : "=d"(__v): "a"(addr)); (unsigned char)__v; })
-#define readw(addr) ({ unsigned __v; asm volatile ("csync; %0 = w [%1] (z); " \
-  : "=d"(__v): "a"(addr)); (unsigned short)__v; })
-#define readl(addr) ({ unsigned __v; asm volatile ("csync; %0 = [%1]; " \
-  : "=d"(__v): "a"(addr)); __v; })
+#define readb(addr) ({ unsigned __v; \
+					   int _tmp; \
+					    __asm__ __volatile__ ("csync;\n\t" \
+					    					  "cli %1;\n\t"\
+					    					  "%0 = b [%2] (z);\n\t"\
+					    					  "sti %1;\n\t" \
+  : "=d"(__v), "=d"(_tmp): "a"(addr)); (unsigned char)__v; })
+
+#define readw(addr) ({ unsigned __v; \
+					   int _tmp; \
+					    __asm__ __volatile__ ("csync;\n\t" \
+					    					  "cli %1;\n\t"\
+					    					  "%0 = w [%2] (z);\n\t"\
+					    					  "sti %1;\n\t" \
+  : "=d"(__v), "=d"(_tmp): "a"(addr)); (unsigned short)__v; })
+  
+
+#define readl(addr) ({ unsigned __v; \
+					   int _tmp; \
+					    __asm__ __volatile__ ("csync;\n\t" \
+					    					  "cli %1;\n\t"\
+					    					  "%0 = [%2];\n\t"\
+					    					  "sti %1;\n\t" \
+  : "=d"(__v), "=d"(_tmp): "a"(addr)); __v; })  
 
 #define writeb(b,addr) (void)((*(volatile unsigned char *) (addr)) = (b))
 #define writew(b,addr) (void)((*(volatile unsigned short *) (addr)) = (b))
