@@ -198,14 +198,11 @@ static void bf533_gpio_ack_irq(unsigned int irq)
 	int gpionr = irq - IRQ_PF0;
 	int mask = (1L << gpionr);
 	*pFIO_FLAG_C = mask;
-	asm("ssync");
-	*pFIO_MASKB_C = mask;
-	asm("ssync");
-	if (gpio_edge_triggered & mask) {
-		/* ack */
-	} else {
-		/* ack and mask */
-	}
+//	if (gpio_edge_triggered & mask) {
+//		/* ack */
+//	} else {
+//		/* ack and mask */
+//	}
 	asm("ssync");
 }
 
@@ -288,7 +285,7 @@ static void bf533_demux_gpio_irq(unsigned int intb_irq, struct irqdesc *intb_des
 	do {
 		int irq = IRQ_PF0;
 		int flag_d = *pFIO_FLAG_D;
-		int mask = flag_d & gpio_enabled;
+		int mask = flag_d & (gpio_enabled & *pFIO_MASKB_C);
 		loop = mask;
 		do {
 			if (mask & 1) {
