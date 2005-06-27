@@ -60,7 +60,13 @@ void bf53x_cache_init(void)
 #endif
 #ifdef CONFIG_BLKFIN_DCACHE
 	dcache_init();
+#if defined CONFIG_BLKFIN_WB
+	printk("Data Cache Enabled (write-back)\n");
+#elif defined CONFIG_BLKFIN_WT
+	printk("Data Cache Enabled (write-through)\n");
+#else
 	printk("Data Cache Enabled\n");
+#endif
 #endif
 }
 
@@ -101,7 +107,7 @@ void bf53x_relocate_l1_mem(void)
 
 }
 
-void setup_arch(char **cmdline_p)
+void __init setup_arch(char **cmdline_p)
 {
 	int bootmap_size, id;
 	unsigned long l1_length;
@@ -209,9 +215,19 @@ void setup_arch(char **cmdline_p)
 }
 
 
-static unsigned short fill_cpl_tables(unsigned long * table, unsigned short pos, unsigned long start, unsigned long end, unsigned long block_size, unsigned long CPLB_data) 
+static unsigned short __init fill_cpl_tables(unsigned long * table, unsigned short pos, unsigned long start, unsigned long end, unsigned long block_size, unsigned long CPLB_data) 
 {
   int i;
+
+	switch(block_size)
+	{
+	case SIZE_4M: i = 3; break;
+	case SIZE_1M: i = 2; break;
+	case SIZE_4K: i = 1; break;
+	case SIZE_1K: 
+	default:      i = 0; break;
+	}
+	CPLB_data = (CPLB_data & ~(3 << 16)) | (i << 16);
 
 	for (i = start; i < end; i+=block_size, pos+=2) 
 	{
@@ -222,7 +238,7 @@ static unsigned short fill_cpl_tables(unsigned long * table, unsigned short pos,
   return pos;
 }
 
-static void generate_cpl_tables(void) 
+static void __init generate_cpl_tables(void) 
 {
 
   unsigned short pos;
@@ -239,7 +255,7 @@ static void generate_cpl_tables(void)
 /* Generarte initial DCPLB table */
 	pos=0;
 	pos = fill_cpl_tables(dcplb_table, pos, ZERO, SIZE_4M, SIZE_4M, SDRAM_DKERNEL);
-	pos = fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_DGENERIC_1MB);
+	pos = fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
 	pos = fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_1M, RAM_END, SIZE_1M, SDRAM_DNON_CHBL);
 	pos = fill_cpl_tables(dcplb_table, pos, ASYNC_BANK3_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK3_SIZE, SDRAM_EBIU);
 	pos = fill_cpl_tables(dcplb_table, pos, SIZE_4M, SIZE_4M+(dcplb_avail * SIZE_4M) , SIZE_4M, SDRAM_DGENERIC);
@@ -249,7 +265,7 @@ static void generate_cpl_tables(void)
 	pos=0;
 	pos = fill_cpl_tables(dpdt_table, pos, ZERO, SIZE_4M, SIZE_4M, SDRAM_DKERNEL);
 	pos = fill_cpl_tables(dpdt_table, pos, SIZE_4M, RAM_END - SIZE_4M, SIZE_4M, SDRAM_DGENERIC);
-	pos = fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_DGENERIC_1MB);
+	pos = fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
 	pos = fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_1M, RAM_END, SIZE_1M, SDRAM_DNON_CHBL);
 	pos = fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK0_SIZE, SDRAM_EBIU);
 	pos = fill_cpl_tables(dpdt_table, pos, L1_DATA_A_START, L1_DATA_A_START + L1_DATA_A_LENGTH, SIZE_4K, L1_DMEMORY);
@@ -267,7 +283,7 @@ static void generate_cpl_tables(void)
 	pos=0;
 	pos = fill_cpl_tables(icplb_table, pos, L1_CODE_START, L1_CODE_START + SIZE_1M, SIZE_1M, L1_IMEMORY);
 	pos = fill_cpl_tables(icplb_table, pos, ZERO, SIZE_4M, SIZE_4M, SDRAM_IKERNEL);
-	pos = fill_cpl_tables(icplb_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_IGENERIC_1MB);
+	pos = fill_cpl_tables(icplb_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_IGENERIC);
 	pos = fill_cpl_tables(icplb_table, pos, RAM_END - SIZE_1M, RAM_END, SIZE_1M, SDRAM_INON_CHBL);
 	pos = fill_cpl_tables(icplb_table, pos, ASYNC_BANK3_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK3_SIZE, SDRAM_EBIU);
 	pos = fill_cpl_tables(icplb_table, pos, SIZE_4M, SIZE_4M+(icplb_avail * SIZE_4M), SIZE_4M, SDRAM_IGENERIC);
@@ -277,9 +293,10 @@ static void generate_cpl_tables(void)
 	pos=0;
 	pos = fill_cpl_tables(ipdt_table, pos, ZERO, SIZE_4M, SIZE_4M, SDRAM_IKERNEL);
 	pos = fill_cpl_tables(ipdt_table, pos, SIZE_4M, RAM_END - SIZE_4M, SIZE_4M, SDRAM_IGENERIC);
-	pos = fill_cpl_tables(ipdt_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_IGENERIC_1MB);
+	pos = fill_cpl_tables(ipdt_table, pos, RAM_END - SIZE_4M, RAM_END - SIZE_1M, SIZE_1M, SDRAM_IGENERIC);
 	pos = fill_cpl_tables(ipdt_table, pos, RAM_END - SIZE_1M, RAM_END, SIZE_1M, SDRAM_INON_CHBL);
 	pos = fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE, ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE, ASYNC_BANK0_SIZE, SDRAM_EBIU);
+	pos = fill_cpl_tables(ipdt_table, pos, L1_CODE_START, L1_CODE_START + SIZE_1M, SIZE_1M, L1_IMEMORY);
   *(ipdt_table + pos)= -1;
 #endif
   return;
@@ -364,8 +381,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "CPU:\t\tADSP-%s Rev. 0.%d\n"
 		   "MMU:\t\t%s\n"
 		   "FPU:\t\t%s\n"
-		   "Core Clock:\t%lu Hz\n"
-		   "System Clock:\t%lu Hz\n"
+		   "Core Clock:\t%9lu Hz\n"
+		   "System Clock:\t%9lu Hz\n"
 		   "BogoMips:\t%lu.%02lu\n"
 		   "Calibration:\t%lu loops\n",
 		   cpu, id, mmu, fpu,
@@ -378,7 +395,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #endif
 #if defined CONFIG_EZKIT
 	seq_printf(m, "BOARD:\t\tADSP-BF533 EZ-KIT LITE\n");
-#else
+#endif
+#if defined CONFIG_GENERIC_BOARD
 	seq_printf(m, "BOARD:\t\tADSP-%s Custom Generic Board\n",cpu);
 #endif
 	seq_printf(m, "BOARD Memory:\t%d MB\n",CONFIG_MEM_SIZE);
@@ -387,7 +405,13 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	else
 		seq_printf(m, "I-CACHE:\tOFF\n");		
         if((*(volatile unsigned long *)DMEM_CONTROL) & (ENDCPLB | DMC_ENABLE))
-		seq_printf(m, "D-CACHE:\tON\n");
+		seq_printf(m, "D-CACHE:\tON"
+#if defined CONFIG_BLKFIN_WB
+				" (write-back)"
+#elif defined CONFIG_BLKFIN_WT
+				" (write-through)"
+#endif
+			  "\n");
 	else
 		seq_printf(m, "D-CACHE:\tOFF\n");		
 	seq_printf(m, "I-CACHE Size:\t%dKB\n",BLKFIN_ICACHESIZE/1024);
