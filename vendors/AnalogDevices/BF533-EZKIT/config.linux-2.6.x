@@ -52,12 +52,17 @@ CONFIG_IOSCHED_CFQ=y
 CONFIG_BF533=y
 # CONFIG_BF532 is not set
 # CONFIG_BF531 is not set
+# CONFIG_BF534 is not set
 # CONFIG_BF535 is not set
+# CONFIG_BF536 is not set
+# CONFIG_BF537 is not set
+# CONFIG_BF561 is not set
 CONFIG_BLACKFIN=y
 
 #
 # Platform
 #
+# CONFIG_GENERIC_BOARD is not set
 CONFIG_EZKIT=y
 CONFIG_MEM_MT48LC16M16A2TG_75=y
 # CONFIG_BLKFIN_STAMP is not set
