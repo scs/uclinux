@@ -38,9 +38,7 @@ inline static void do_leds(void);
 
 extern u_long get_cclk(void);
 
-#define TSCALE_SHIFT 2	/* 0.25 microseconds */
-#define TSCALE_COUNT ((get_cclk()/1000000) >> TSCALE_SHIFT)
-#define CLOCKS_PER_JIFFY (((1000*1000/HZ) << TSCALE_SHIFT) + (1 << TSCALE_SHIFT))
+#define CLOCKS_PER_JIFFY (get_cclk()/100)
 
 /*
  *  Actual HZ values are affected by the truncation introduced
@@ -108,40 +106,27 @@ static struct irqaction bfin_timer_irq = {
 
 void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
 {
-	act_num = CLOCKS_PER_JIFFY * TSCALE_COUNT;
-	act_den = get_cclk() / 1000000;
-	/*
-	 *  Making the numerator as large as possible increases the
-	 *  precision of the calculation.
-	 *  Multiplying by 10^3 in two parts avoids overflow.
-	 */
-	act_tick_nsec = 100 * act_num / act_den;
-	act_tick_nsec *= 10;
-	act_tick_usec = act_tick_nsec / 1000;
 
 	/* update NTP tick_{n,u}sec value with more accurate values */
-	tick_nsec = act_tick_nsec;
-	tick_usec = act_tick_usec;
+	tick_nsec = 10 * 1000 * 1000;
+
 
 	/* power up the timer, but don't enable it just yet */
-
 	*pTCNTL = 1;
 	asm("csync;");
 
 	/* make TCOUNT a binary fraction of microseconds using
 	* the TSCALE prescaler counter.
 	*/
+	*pTSCALE = 0;
 
-	*pTSCALE = TSCALE_COUNT - 1;
-	asm("csync;");
 	*pTCOUNT = *pTPERIOD = CLOCKS_PER_JIFFY - 1;
-	asm("csync;");
 
 	/* now enable the timer */
+	asm("csync;");
 	
 	*pTCNTL = 7;
-	asm("csync;");
-
+	
 	/* set up the timer irq */
 	bfin_timer_irq.handler = timer_routine;
 	/* call setup_irq instead of request_irq because request_irq calls kmalloc which has not been initialized yet */
@@ -150,7 +135,17 @@ void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *)
 
 unsigned long gettimeoffset (void)
 {
-	return (CLOCKS_PER_JIFFY - *pTCOUNT) >> TSCALE_SHIFT;
+ unsigned long offset;
+ unsigned long clocks_per_jiffy = CLOCKS_PER_JIFFY;
+
+    offset = ((1000/HZ)*(clocks_per_jiffy - *pTCOUNT ))/(clocks_per_jiffy/(100000/HZ));
+
+	/* Check if we just wrapped the counters and maybe missed a tick */
+	if ((*pILAT & (1<<IRQ_CORETMR)) && (offset < (100000 / HZ / 2))){
+		
+		offset += (1000000 / HZ); 
+    }
+	return offset;
 }
 
 static inline int set_rtc_mmss(unsigned long nowtime)
