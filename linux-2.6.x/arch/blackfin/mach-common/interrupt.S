@@ -77,7 +77,7 @@ ENTRY(evt_timer)
 	 r0 = IRQ_CORETMR;
 	 r1 = sp;	
 	 SP += -12;	
-     call asm_do_IRQ
+     call timer_interrupt;
 	 SP += 12;
 	 call return_from_int;
 	 RESTORE_CONTEXT
@@ -89,7 +89,7 @@ ENTRY(evt_evt2)
 	 r0 = IRQ_NMI;
 	 r1 =  sp;
 	 SP += -12;
-     call asm_do_IRQ
+     call asm_do_IRQ;
 	 SP += 12;
 	 RESTORE_ALL_SYS
 	 rtn;

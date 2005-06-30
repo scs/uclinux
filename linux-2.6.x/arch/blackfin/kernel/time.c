@@ -22,7 +22,7 @@ u64 jiffies_64 = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 	
-extern void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *));
+void time_sched_init(irqreturn_t (*timer_routine)(int, struct pt_regs *));
 unsigned long gettimeoffset (void);
 extern unsigned long wall_jiffies;
 extern int setup_irq(unsigned int, struct irqaction *);
@@ -95,7 +95,7 @@ inline static void do_leds(void)
 	asm("ssync;");
 
 }
-#else 
+#else  
 inline static void do_leds(void) {}
 #endif
 
@@ -103,8 +103,8 @@ static struct irqaction bfin_timer_irq = {
 	.name    = "BFIN Timer Tick",
 	.flags   = SA_INTERRUPT
 };
-
-void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
+ 
+void time_sched_init(irqreturn_t (*timer_routine)(int, struct pt_regs *))
 {
 
 	/* update NTP tick_{n,u}sec value with more accurate values */
@@ -127,8 +127,6 @@ void time_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *)
 	
 	*pTCNTL = 7;
 	
-	/* set up the timer irq */
-	bfin_timer_irq.handler = timer_routine;
 	/* call setup_irq instead of request_irq because request_irq calls kmalloc which has not been initialized yet */
 	setup_irq(IRQ_CORETMR, &bfin_timer_irq);
 }
@@ -181,7 +179,7 @@ static inline void do_profile (struct pt_regs * regs)
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
+irqreturn_t timer_interrupt(int irq, struct pt_regs * regs)
 {
 	/* last time the cmos clock got updated */
 	static long last_rtc_update=0;
@@ -209,8 +207,10 @@ static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 	    last_rtc_update = xtime.tv_sec - 600; /* do it again in 60 s */
 	}
 	write_sequnlock(&xtime_lock);
-	return IRQ_HANDLED;	
+	return IRQ_HANDLED;	 
 }
+
+EXPORT_SYMBOL(timer_interrupt);
 
 void time_init(void)
 {
