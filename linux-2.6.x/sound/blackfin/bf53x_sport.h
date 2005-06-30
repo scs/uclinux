@@ -84,6 +84,10 @@ void sport_disable_dma_tx(struct bf53x_sport* sport);
 
 int bf53x_sport_start(struct bf53x_sport* sport);
 int bf53x_sport_stop(struct bf53x_sport* sport); /* idempotent */
+int bf53x_sport_start_rx(struct bf53x_sport* sport);
+int bf53x_sport_stop_rx(struct bf53x_sport* sport);
+int bf53x_sport_start_tx(struct bf53x_sport* sport);
+int bf53x_sport_stop_tx(struct bf53x_sport* sport);
 
 int bf53x_sport_is_running(struct bf53x_sport* sport);
 

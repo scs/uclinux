@@ -87,6 +87,7 @@
 
 #include <asm/blackfin.h>
 
+#define SSYNC asm("nop;nop;nop;ssync;nop;nop;nop;")
 
 struct bf53x_spi_channel {
 
@@ -320,7 +321,7 @@ int bf53x_spi_transceive(struct bf53x_spi_channel* chan, short data,
 
   *pSPI_TDBR = data;
 
-  asm("ssync;");
+  SSYNC;
 
   spi_printd(KERN_INFO, "sent spi data 0x%04x\n", data);
   
