@@ -5,6 +5,13 @@
 menu "I2C Hardware Bus support"
 	depends on I2C
 
+config I2C_BFIN_HHBF
+	tristate "Generic Blackfin and HHBF533/561 development board I2C support"
+	depends on I2C && EXPERIMENTAL
+	select I2C_ALGOBIT
+	help
+	-- 
+
 config I2C_ALI1535
 	tristate "ALI 1535"
 	depends on I2C && PCI && EXPERIMENTAL
