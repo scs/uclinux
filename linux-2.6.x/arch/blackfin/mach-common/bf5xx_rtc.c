@@ -1,10 +1,12 @@
 /*
- * BF533 RTC support
+ * $Id$ 
+ *
+ *BF5xx RTC support
  * 
  */
 
 #include <asm/blackfin.h>
-#include <asm/bf533_rtc.h>
+#include <asm/bf5xx_rtc.h>
 
 #define MIN_TO_SECS(_x_) (60 * _x_)
 #define HRS_TO_SECS(_x_) (60 * 60 * _x_)

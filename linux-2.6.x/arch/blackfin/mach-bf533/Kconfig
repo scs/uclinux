@@ -1,6 +1,6 @@
-if BF533
+if (BF533 || BF532 || BF531)
 
-menu "BF533 Specific Configuration"
+menu "BF533/2/1 Specific Configuration"
 
 comment	'Interrupt Priority Assignment'
 menu	'Priority' 		
@@ -95,4 +95,9 @@ endmenu
 
 endmenu
 
-endif #
+config BFIN_HAVE_RTC
+	bool
+	depends on (BF533 || BF532 || BF531)
+	default y
+
+endif

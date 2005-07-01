@@ -1,5 +1,7 @@
 if (BF537 || BF534 || BF536)
 
+menu "BF537 Specific Configuration"
+
 comment 'UART 0/1 Selection'
 choice
 	prompt	"Select BF537/6/4 default UART"
@@ -45,7 +47,7 @@ config LOADVDSP
 	help
 	  Disable some startup code to load the kernel using VDSP 
 
-menu "BF537 Specific Configuration"
+
 
 comment	'Interrupt Priority Assignment'
 menu	'Priority' 		
@@ -157,4 +159,9 @@ endmenu
 
 endmenu
 
-endif #
+config BFIN_HAVE_RTC
+	bool
+	depends on (BF537 || BF536 || BF534)
+	default y
+
+endif

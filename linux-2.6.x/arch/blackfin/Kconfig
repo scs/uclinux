@@ -89,6 +89,16 @@ config BLACKFIN
 	depends on (BF537 || BF536 || BF534 || BF561 || BF535 || BF533 || BF532 || BF531)
 	default y
 
+config BFIN_SINGLE_CORE
+	bool
+	depends on (BF537 || BF536 || BF534 || BF535 || BF533 || BF532 || BF531)
+	default y
+
+config BFIN_DUAL_CORE
+	bool
+	depends on (BF561)
+	default y
+
 comment "Platform"
 
 choice 
