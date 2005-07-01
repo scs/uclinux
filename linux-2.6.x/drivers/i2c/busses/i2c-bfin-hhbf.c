@@ -26,8 +26,10 @@
 
 #include <asm/blackfin.h>
 
-#define	HHBF_I2C_SCLK		    PF0
-#define	HHBF_I2C_SDATA		    PF1
+
+#define	HHBF_I2C_SCLK		    (1 << CONFIG_BFIN_SCL)
+#define	HHBF_I2C_SDATA		    (1 << CONFIG_BFIN_SDA)
+
 #define	I2C_HW_B_HHBF		    I2C_HW_B_FRODO  /* 0x13 */
 
 static void hhbf_setsda(void *data, int state)
