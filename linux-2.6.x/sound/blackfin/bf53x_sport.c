@@ -63,7 +63,7 @@
 #define BF53X_AUTOBUFFER_MODE  /* use autobuffer, or (undef) circular descriptor list  */
 
 
-#define BF53X_SPORT_DEBUG
+/*#define BF53X_SPORT_DEBUG*/
 
 #define sport_printf(level, format, arg...)  printf(level "sport: " format, ## arg)
 

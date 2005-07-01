@@ -1306,7 +1306,10 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* subst
 #else
   unsigned long bytes_per_frame = runtime->channels*sizeof(long) ;
 #endif
-  size_t frames = diff / bytes_per_frame;
+  size_t frames = diff / bytes_per_frame -1;
+  
+  if( frames < 0 )
+    frames = 0;
  
 #ifdef CONFIG_SND_DEBUG_CURRPTR
   snd_printk( KERN_INFO " play pos: 0x%04lx / %lx\n", frames, runtime->buffer_size);

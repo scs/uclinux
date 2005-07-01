@@ -36,8 +36,7 @@
  * wether to call bf53x_sport_shadow_update_XX()
  */
 
-#define BF53X_SHADOW_REGISTERS 
-
+/* #define BF53X_SHADOW_REGISTERS */
 
 struct bf53x_sport;
 
