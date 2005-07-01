@@ -14,7 +14,7 @@
 
 #include <asm/blackfin.h>
 #include <asm/irq.h>
-#include <asm/bf533_rtc.h>
+#include <asm/bf5xx_rtc.h>
 
 #define	TICK_SIZE (tick_nsec / 1000)	
 
