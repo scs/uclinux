@@ -275,7 +275,6 @@ CONFIG_MTD_RAM=y
 # Mapping drivers for chip access
 #
 # CONFIG_MTD_COMPLEX_MAPPINGS is not set
-CONFIG_MTD_EXCLUSIVE_DRIVERS=y
 # CONFIG_MTD_BF533 is not set
 CONFIG_MTD_UCLINUX=y
 
