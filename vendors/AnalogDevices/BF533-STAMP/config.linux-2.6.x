@@ -7,6 +7,7 @@ CONFIG_UID16=y
 CONFIG_RWSEM_GENERIC_SPINLOCK=y
 # CONFIG_RWSEM_XCHGADD_ALGORITHM is not set
 CONFIG_BFIN=y
+CONFIG_FORCE_MAX_ZONEORDER=14
 
 #
 # Code maturity level options
@@ -57,14 +58,15 @@ CONFIG_BF533=y
 # CONFIG_BF537 is not set
 # CONFIG_BF561 is not set
 CONFIG_BLACKFIN=y
+CONFIG_BFIN_SINGLE_CORE=y
 
 #
 # Platform
 #
-# CONFIG_GENERIC_BOARD is not set
 # CONFIG_EZKIT is not set
 CONFIG_BLKFIN_STAMP=y
 CONFIG_MEM_MT48LC64M4A2FB_7E=y
+# CONFIG_GENERIC_BOARD is not set
 # CONFIG_HAWK is not set
 # CONFIG_EAGLE is not set
 CONFIG_RAMKERNEL=y
@@ -90,8 +92,6 @@ CONFIG_BLKFIN_WT=y
 #
 # Uncached memory region
 #
-# CONFIG_UNCACHED_256K is not set
-# CONFIG_UNCACHED_512K is not set
 CONFIG_UNCACHED_1M=y
 
 #
@@ -177,6 +177,10 @@ CONFIG_BAUD_57600=y
 # CONFIG_STAMP_BOARD_IDLE_LED is not set
 
 #
+# BF533/2/1 Specific Configuration
+#
+
+#
 # Interrupt Priority Assignment
 #
 
@@ -207,6 +211,7 @@ CONFIG_PFB=12
 CONFIG_MEMDMA0=13
 CONFIG_MEMDMA1=13
 CONFIG_WDTIMER=13
+CONFIG_BFIN_HAVE_RTC=y
 
 #
 # Bus options (PCI, PCMCIA, EISA, MCA, ISA)
@@ -477,6 +482,11 @@ CONFIG_SOUND_GAMEPORT=y
 #
 
 #
+# I2C support
+#
+# CONFIG_I2C is not set
+
+#
 # Character devices
 #
 # CONFIG_SPI_BF533 is not set
@@ -492,10 +502,6 @@ CONFIG_SOUND_GAMEPORT=y
 
 #
 # Non-8250 serial port support
-#
-
-#
-# Blackfin serial support
 #
 CONFIG_SERIAL_BLACKFIN=y
 CONFIG_SERIAL_BLACKFIN_DMA=y
