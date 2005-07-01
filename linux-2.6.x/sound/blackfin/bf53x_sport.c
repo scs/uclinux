@@ -80,7 +80,7 @@
 #define FRAME_DELAY (1<<12)  /* delay between frame sync pulse and first data bit
                               in multichannel mode */ 
 
-#define SSYNC asm( "nop;nop;nop;ssync;nop;nop;nop;\n\t" )
+#define SSYNC asm( "nop;nop;nop;ssync;\n\t" )
 
 /*
  * source: ADSP-BF533 Blackfin Processor Hardware Reference, 
