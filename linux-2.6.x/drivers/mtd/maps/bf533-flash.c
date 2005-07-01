@@ -16,7 +16,7 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 
-#include <asm/board/cdefBF533.h>
+#include <asm/mach/cdefBF532.h>
 
 #ifndef CONFIG_BFIN
 #error This is for BlackFin BF533 boards only
