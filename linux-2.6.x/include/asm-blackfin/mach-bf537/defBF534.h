@@ -1720,11 +1720,11 @@
 #define NDSIZE_7		0x0700		/* Next Descriptor Size = 7						*/
 #define NDSIZE_8		0x0800		/* Next Descriptor Size = 8						*/
 #define NDSIZE_9		0x0900		/* Next Descriptor Size = 9						*/
-#define FLOW_STOP		0x0000		/* Stop Mode									*/
-#define FLOW_AUTO		0x1000		/* Autobuffer Mode								*/
-#define FLOW_ARRAY		0x4000		/* Descriptor Array Mode						*/
-#define FLOW_SMALL		0x6000		/* Small Model Descriptor List Mode				*/
-#define FLOW_LARGE		0x7000		/* Large Model Descriptor List Mode				*/
+/* #define FLOW_STOP		0x0000		Stop Mode									*/
+/* #define FLOW_AUTO		0x1000		Autobuffer Mode								*/
+/* #define FLOW_ARRAY		0x4000		Descriptor Array Mode						*/
+/* #define FLOW_SMALL		0x6000		Small Model Descriptor List Mode				*/
+/* #define FLOW_LARGE		0x7000		Large Model Descriptor List Mode				*/
 
 /* DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP Masks								*/
 #define CTYPE			0x0040	/* DMA Channel Type Indicator (Memory/Peripheral*)	*/

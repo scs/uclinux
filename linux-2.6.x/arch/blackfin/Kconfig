@@ -197,7 +197,7 @@ config NO_DMA
 	
 config BLKFIN_SIMPLE_DMA
 	bool 'Enable Simple DMA Support' 
-	depends on (BF533 || BF532 || BF531) 
+	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534) 
 	help
 	  Simple DMA driver
 endchoice

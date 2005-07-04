@@ -55,6 +55,12 @@ static DMA_register* 	base_addr[MAX_BLACKFIN_DMA_CHANNEL] =
 	(DMA_register *) DMA5_NEXT_DESC_PTR,
 	(DMA_register *) DMA6_NEXT_DESC_PTR,
 	(DMA_register *) DMA7_NEXT_DESC_PTR,
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
+	(DMA_register *) DMA8_NEXT_DESC_PTR,
+	(DMA_register *) DMA9_NEXT_DESC_PTR,
+	(DMA_register *) DMA10_NEXT_DESC_PTR,
+	(DMA_register *) DMA11_NEXT_DESC_PTR,
+#endif
 	(DMA_register *) MDMA_D0_NEXT_DESC_PTR,
 	(DMA_register *) MDMA_S0_NEXT_DESC_PTR,
 	(DMA_register *) MDMA_D1_NEXT_DESC_PTR,
@@ -102,6 +108,17 @@ static int bf533_channel2irq( unsigned int channel)
 		case CH_PPI:
 			ret_irq = IRQ_PPI;
 			break;
+
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
+
+		case CH_EMAC_RX:	
+			ret_irq = IRQ_MAC_RX;
+			break;
+
+		case CH_EMAC_TX:
+			ret_irq = IRQ_MAC_TX;
+			break;
+#endif
 
 		case CH_SPORT0_RX:	
 			ret_irq = IRQ_SPORT0_RX;

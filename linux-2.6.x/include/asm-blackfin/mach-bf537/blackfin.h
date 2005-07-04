@@ -15,6 +15,8 @@
 #include "defBF537.h"
 #endif
 
+
+
 #if !(defined(__ASSEMBLY__) || defined(ASSEMBLY))
 #include "cdefBF534.h"
 #if CONFIG_BF537_UART_0
@@ -59,10 +61,16 @@
 #if CONFIG_BF537_UART_0
 /* UART 0*/
 
+/* DMA Channnel */
+#define CH_UART_RX CH_UART0_RX
+#define CH_UART_TX CH_UART0_TX
+
+/* System Interrupt Controller */
 #define IRQ_UART_RX IRQ_UART0_RX
 #define	IRQ_UART_TX IRQ_UART0_TX
 #define	IRQ_UART_ERROR IRQ_UART0_ERROR
 
+/* MMR Registers*/
 #define UART_THR UART0_THR
 #define UART_RBR UART0_RBR
 #define UART_DLL UART0_DLL
@@ -75,12 +83,19 @@
 #define UART_SCR  UART0_SCR
 #define UART_GCTL UART0_GCTL
 #else
+
 /* UART 1*/
 
+/* DMA Channnel */            
+#define CH_UART_RX CH_UART1_RX
+#define CH_UART_TX CH_UART1_TX
+
+/* System Interrupt Controller */
 #define	IRQ_UART_RX IRQ_UART1_RX
 #define	IRQ_UART_TX IRQ_UART1_TX
 #define	IRQ_UART_ERROR IRQ_UART1_ERROR
 
+/* MMR Registers*/
 #define UART_THR UART1_THR
 #define UART_RBR UART1_RBR
 #define UART_DLL UART1_DLL
