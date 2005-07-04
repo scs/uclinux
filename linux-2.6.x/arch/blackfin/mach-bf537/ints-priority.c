@@ -12,7 +12,7 @@
 void program_IAR(void);
 /*Program the IAR registers*/
 
-static void __init program_IAR()
+void program_IAR()
 {
 		/* Program the IAR0 Register with the configured priority */
 	      *pSIC_IAR0 =  ((CONFIG_IRQ_PLL_WAKEUP	 	-7) <<		IRQ_PLL_WAKEUP_POS) |
