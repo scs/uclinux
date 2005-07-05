@@ -23,6 +23,7 @@
 #endif
 
 #define WINDOW_ADDR 0x20000000
+#define SSYNC asm("nop;nop;nop;ssync;");
 
 #ifdef CONFIG_BLKFIN_STAMP
 struct flash_save {
@@ -57,24 +58,24 @@ static inline void switch_to_flash(struct flash_save *save)
 	*pFIO_MASKB_D	= 0;
 	*pFIO_INEN	= 0;
 
-	asm("ssync;");
+	SSYNC;
 
 	*pEBIU_AMGCTL = AMGCTLVAL;      /*AMGCTL*/
-	asm("ssync;");
+	SSYNC;
 
 	*pEBIU_AMBCTL0 = AMBCTL0VAL;
-	asm("ssync;");
+	SSYNC;
 	*pEBIU_AMBCTL1 = AMBCTL1VAL;
-	asm("ssync;");
+	SSYNC;
 }
 
 
 static inline void switch_back(struct flash_save *save)
 {
 	*pEBIU_AMBCTL0	= save->ambctl0;
-	asm("ssync;");
+	SSYNC;
 	*pEBIU_AMBCTL1	= save->ambctl1;
-	asm("ssync;");
+	SSYNC;
 
 	*pFIO_DIR 	= save->dir;
 	*pFIO_FLAG_D 	= save->flag_d;
@@ -98,9 +99,9 @@ static map_word bf533_read(struct map_info *map, unsigned long ofs)
 	unsigned long offaddr = (0x20000000 + ofs);
 
 	switch_to_flash(&save);
-	asm("ssync;");
+	SSYNC;
         nValue = *(volatile unsigned short *) offaddr;
-        asm("ssync;");
+	SSYNC;
 	switch_back(&save);
 #endif
 
@@ -130,7 +131,7 @@ static void bf533_copy_from(struct map_info *map, void *to, unsigned long from, 
 	unsigned long i;
 	map_word test;
 
-	for (i = 0; i < len; i += 2)	{
+	for (i = 0; i < len/2*2; i += 2)	{
 		/* *((u16*)(to + i)) = bf533_read(map, from + i);*/
 		test = bf533_read(map,from+i);
 		*((u16*)(to + i)) = test.x[0];
@@ -138,8 +139,7 @@ static void bf533_copy_from(struct map_info *map, void *to, unsigned long from, 
 	if (len & 0x01) {
 		/* *((u8*)(to + (i-1))) = (u8)(bf533_read(map, from + i) >> 8); */
 		test = bf533_read(map, from + i);
-		test.x[0] = (u8)(test.x[0] >>8);
-		*((u8*)(to + (i-1))) = test.x[0];
+		*((u8*)(to + i)) = (u8)test.x[0];
 	}
 }
 
@@ -156,15 +156,15 @@ static void bf533_write(struct map_info *map, map_word d1, unsigned long ofs)
 
 #ifdef CONFIG_BLKFIN_STAMP
 	switch_to_flash(&save);
-	/* asm("ssync;"); */
+	/* SSYNC; */
 	if((ofs == 0x555) || (ofs == 0x2AA)) {
 		FLASH_Base[ofs] = d;
-		asm("ssync;");
+		SSYNC;
 	} else {
 		*(volatile unsigned short *) (0x20000000 + ofs) = d;		
-		asm("ssync;");
+		SSYNC;
 	}
-        /* asm("ssync;"); */
+        /* SSYNC; */
 	switch_back(&save);
 #endif
 
