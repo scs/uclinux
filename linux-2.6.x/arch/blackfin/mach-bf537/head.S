@@ -152,6 +152,15 @@ ENTRY(_stext)
 	 * See page 3-9 of Hardware Reference manual for documentation.
 	 */
 
+#ifdef CONFIG_LOADVDSP
+        sp.l = (0xffb01000 & 0xFFFF);
+        sp.h = (0xffb01000 >> 16);
+        fp = sp;
+        usp = sp;
+#endif
+
+
+
 	/* EVT15 = _real_start */
 
 	p0.l = lo(EVT15);
