@@ -39,6 +39,7 @@ inline static void do_leds(void);
 extern u_long get_cclk(void);
 
 #define CLOCKS_PER_JIFFY (get_cclk()/100)
+#define TIME_SCALE 100
 
 /*
  *  Actual HZ values are affected by the truncation introduced
@@ -108,19 +109,19 @@ void time_sched_init(irqreturn_t (*timer_routine)(int, struct pt_regs *))
 {
 
 	/* update NTP tick_{n,u}sec value with more accurate values */
-	tick_nsec = 10 * 1000 * 1000;
+	tick_nsec = 1000000000/HZ;
 
 
 	/* power up the timer, but don't enable it just yet */
 	*pTCNTL = 1;
 	asm("csync;");
 
-	/* make TCOUNT a binary fraction of microseconds using
+	/*
 	* the TSCALE prescaler counter.
 	*/
-	*pTSCALE = 0;
+	*pTSCALE = (TIME_SCALE - 1);
 
-	*pTCOUNT = *pTPERIOD = CLOCKS_PER_JIFFY - 1;
+	*pTCOUNT = *pTPERIOD = ((CLOCKS_PER_JIFFY - 1) / TIME_SCALE);
 
 	/* now enable the timer */
 	asm("csync;");
@@ -134,15 +135,16 @@ void time_sched_init(irqreturn_t (*timer_routine)(int, struct pt_regs *))
 unsigned long gettimeoffset (void)
 {
  unsigned long offset;
- unsigned long clocks_per_jiffy = CLOCKS_PER_JIFFY;
+ unsigned long timer_ticks_per_jiffy = *pTPERIOD;
 
-    offset = ((1000/HZ)*(clocks_per_jiffy - *pTCOUNT ))/(clocks_per_jiffy/(100000/HZ));
+    offset = ((1000000/HZ)*(timer_ticks_per_jiffy - *pTCOUNT ))/timer_ticks_per_jiffy;
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
 	if ((*pILAT & (1<<IRQ_CORETMR)) && (offset < (100000 / HZ / 2))){
 		
 		offset += (1000000 / HZ); 
-    }
+    } 
+		
 	return offset;
 }
 
