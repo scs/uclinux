@@ -3,6 +3,7 @@
 #
 
 ROMFSIMG = $(IMAGEDIR)/rootfs.img
+JFFS2IMG = $(IMAGEDIR)/jffs2.img
 IMAGE    = $(IMAGEDIR)/linux
 
 # Blocks must be a multiple of 256
@@ -38,6 +39,7 @@ romfs:
 
 image:
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
+	./mkfs.jffs2 -d $(ROMFSDIR) -D device_table.txt -o $(JFFS2IMG)
 	./bfin-elf-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D device_table.txt $(ROMFSIMG)
 	cp $(ROMFSIMG) $(ROOTDIR)/$(LINUXDIR)/
 	BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(ROOTDIR)/$(LINUXDIR)/linux | grep .bss\` ; echo 0x$${4}` ; \
