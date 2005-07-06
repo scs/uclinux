@@ -221,7 +221,6 @@ while 1 {
    send "cat proc/slabinfo\r"
    expect {
 	"slabinfo - version" {
-		puts "\rCase $case_num ...PASS\r"
 		break
 	}
 
@@ -233,7 +232,6 @@ while 1 {
    }
 }
 
-incr case_num
 while 1 {
    expect {
 	"> " {
@@ -247,6 +245,40 @@ while 1 {
          }
    }
 }
+
+incr case_num
+while 1 {
+   set timeout 5
+   send "cat proc/kallsyms\r"
+   expect {
+	"start" {
+		break
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+}
+
+while 1 {
+   sleep 1
+   send "\3"
+   expect {
+	"> " {
+		puts "\rCase $case_num ...PASS\r"
+		break
+	}
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+}
+
 
 incr case_num
 set timeout 30
