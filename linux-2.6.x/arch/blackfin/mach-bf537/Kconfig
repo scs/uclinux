@@ -2,25 +2,6 @@ if (BF537 || BF534 || BF536)
 
 menu "BF537 Specific Configuration"
 
-comment 'UART 0/1 Selection'
-choice
-	prompt	"Select BF537/6/4 default UART"
-	---help---
-	  Quick Hack for BF537/6/4 UART Selection
-
-config BF537_UART_0
-	bool 'Select BF537/6/4 UART0 as default' 
-	depends on (BF537 || BF536 || BF534) 
-	help
-	  Select this in case your termianl ic connected to UART0
-	
-config BF537_UART_1
-	bool 'Select BF537/6/4 UART1 as default' 
-	depends on (BF537 || BF536 || BF534) 
-	help
-	  Select this in case your termianl ic connected to UART1
-endchoice
-
 comment 'PORT F/G Selection'
 choice
 	prompt	"Select BF537/6/4 default GPIO PFx PORTx"

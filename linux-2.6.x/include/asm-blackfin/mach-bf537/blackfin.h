@@ -19,7 +19,7 @@
 
 #if !(defined(__ASSEMBLY__) || defined(ASSEMBLY))
 #include "cdefBF534.h"
-#if CONFIG_BF537_UART_0
+
 /* UART 0*/
 #define pUART_THR pUART0_THR
 #define pUART_RBR pUART0_RBR
@@ -32,20 +32,7 @@
 #define pUART_LSR pUART0_LSR
 #define pUART_SCR  pUART0_SCR
 #define pUART_GCTL pUART0_GCTL
-#else
-/* UART 1*/
-#define pUART_THR pUART1_THR
-#define pUART_RBR pUART1_RBR
-#define pUART_DLL pUART1_DLL
-#define pUART_IER pUART1_IER
-#define pUART_DLH pUART1_DLH
-#define pUART_IIR pUART1_IIR
-#define pUART_LCR pUART1_LCR
-#define pUART_MCR pUART1_MCR
-#define pUART_LSR pUART1_LSR
-#define pUART_SCR  pUART1_SCR
-#define pUART_GCTL pUART1_GCTL
-#endif
+
 #if CONFIG_BF537
 #include "cdefBF537.h"
 #endif
@@ -58,7 +45,6 @@
 #define STATUS_P1	0x02
 #define STATUS_P0	0x01
 
-#if CONFIG_BF537_UART_0
 /* UART 0*/
 
 /* DMA Channnel */
@@ -82,33 +68,6 @@
 #define UART_LSR UART0_LSR
 #define UART_SCR  UART0_SCR
 #define UART_GCTL UART0_GCTL
-#else
-
-/* UART 1*/
-
-/* DMA Channnel */            
-#define CH_UART_RX CH_UART1_RX
-#define CH_UART_TX CH_UART1_TX
-
-/* System Interrupt Controller */
-#define	IRQ_UART_RX IRQ_UART1_RX
-#define	IRQ_UART_TX IRQ_UART1_TX
-#define	IRQ_UART_ERROR IRQ_UART1_ERROR
-
-/* MMR Registers*/
-#define UART_THR UART1_THR
-#define UART_RBR UART1_RBR
-#define UART_DLL UART1_DLL
-#define UART_IER UART1_IER
-#define UART_DLH UART1_DLH
-#define UART_IIR UART1_IIR
-#define UART_LCR UART1_LCR
-#define UART_MCR UART1_MCR
-#define UART_LSR UART1_LSR
-#define UART_SCR  UART1_SCR
-#define UART_GCTL UART1_GCTL
-#endif
-
 
 
 /* DPMC*/
