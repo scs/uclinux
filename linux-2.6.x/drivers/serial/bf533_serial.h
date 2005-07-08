@@ -93,6 +93,7 @@ struct bf533_serial {
 	int			xmit_tail;
 	int			xmit_cnt;
         spinlock_t              xmit_lock;
+        struct timer_list       dma_xmit_timer;
         unsigned char           *recv_buf;
         int                     recv_head;
         int                     recv_tail;

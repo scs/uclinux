@@ -678,6 +678,13 @@ static void uart_dma_recv_timer(struct bf533_serial * info)
         info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
         add_timer(&info->dma_recv_timer);
 }
+
+static void uart_dma_xmit_timer(struct bf533_serial * info)
+{
+	dma_transmit_chars(info);
+        info->dma_xmit_timer.expires = jiffies + TIME_INTERVAL;
+        add_timer(&info->dma_xmit_timer);
+}
 #endif
 
 static int startup(struct bf533_serial * info)
@@ -686,6 +693,7 @@ static int startup(struct bf533_serial * info)
 	
 	FUNC_ENTER();
 	init_timer(&info->dma_recv_timer);
+	init_timer(&info->dma_xmit_timer);
 
 	*pUART_GCTL |= UCEN;
 	SYNC_ALL;
@@ -759,6 +767,11 @@ static int startup(struct bf533_serial * info)
         info->dma_recv_timer.function = (void *)uart_dma_recv_timer;
         info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
         add_timer(&info->dma_recv_timer);
+
+        info->dma_xmit_timer.data = (unsigned long)info;
+        info->dma_xmit_timer.function = (void *)uart_dma_xmit_timer;
+        info->dma_xmit_timer.expires = jiffies + TIME_INTERVAL + 1;
+        add_timer(&info->dma_xmit_timer);
 #endif
 
 	/*
@@ -801,6 +814,8 @@ static void shutdown(struct bf533_serial * info)
 	SYNC_ALL;
 
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
+	del_timer(&info->dma_recv_timer);
+	del_timer(&info->dma_xmit_timer);
 	disable_dma(CH_UART_RX);
 	disable_dma(CH_UART_TX);
 #endif
@@ -941,7 +956,8 @@ static void rs_flush_chars(struct tty_struct *tty)
 
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	if(info->xmit_cnt > 0) {
-		dma_transmit_chars(info);
+		info->event |= 1 << RS_EVENT_WRITE_WAKEUP;
+		schedule_work(&info->tqueue);
 	}
 #else
 		local_irq_save(flags);
@@ -1001,7 +1017,8 @@ static int rs_write(struct tty_struct * tty, int from_user,
 	if (info->xmit_cnt && !tty->stopped && !tty->hw_stopped) {
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 		if (info->xmit_cnt > 0 && info->xmit_head == 0) {
-			dma_transmit_chars(info);
+			info->event |= 1 << RS_EVENT_WRITE_WAKEUP;
+			schedule_work(&info->tqueue);
 		}
 #else
 		/* Enable transmitter */
