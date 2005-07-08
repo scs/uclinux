@@ -1,7 +1,8 @@
-/* bf533_serial.h: Definitions for the BlackFin BF533 DSP serial driver.
+/* bf533_serial.h: Definitions for the BlackFin DSP serial driver.
  * Copyright (C) 2003	Bas Vermeulen <bas@buyways.nl>
  * 			BuyWays B.V. (www.buyways.nl)
  *
+ * Copyright(c) 2005	Sonic Zhang	<sonic.zhang@analog.com>
  * Copyright(c) 2004	LG Soft India
  * Copyright (C) 2001	Tony Z. Kou	tonyko@arcturusnetworks.com
  * Copyright (C) 2001   Arcturus Networks Inc. <www.arcturusnetworks.com>
@@ -51,6 +52,23 @@ struct dma_descriptor_block
 /* Software state per channel */
 
 #ifdef __KERNEL__
+/*
+ * This is our internal structure for each serial port's registers.
+ * 
+ */
+struct uart_registers {
+	volatile unsigned short	*rpUART_THR;
+	volatile unsigned short	*rpUART_RBR;
+	volatile unsigned short	*rpUART_DLL;
+	volatile unsigned short	*rpUART_IER;
+	volatile unsigned short	*rpUART_DLH;
+	volatile unsigned short	*rpUART_IIR;
+	volatile unsigned short	*rpUART_LCR;
+	volatile unsigned short	*rpUART_MCR;
+	volatile unsigned short	*rpUART_LSR;
+	volatile unsigned short	*rpUART_SCR;
+ 	volatile unsigned short	*rpUART_GCTL;
+};
 
 /*
  * This is our internal structure for each serial port's state.
@@ -61,13 +79,17 @@ struct dma_descriptor_block
  * For definitions of the flags field, see tty.h
  */
 
-struct bf533_serial {
+struct bfin_serial {
 	/* We need to know the current clock divisor
 	 * to read the bps rate the chip has currently
 	 * loaded.
 	 */
 	int			magic;
-	int			irq;
+	int			rx_DMA_channel;
+	int			tx_DMA_channel;
+	int			rx_irq;
+	int			tx_irq;
+	unsigned short		tx_xcount;	/* tx_xcount>0 means TX DMA is working. */
 	int			flags; 		/* defined in tty.h */
 
 	char break_abort;   /* Is serial console in, so process brk/abrt */
@@ -87,7 +109,6 @@ struct bf533_serial {
 	int			line;
 	int			count;	    /* # of fd on device */
 	int			blocked_open; /* # of blocked opens */
-        struct dma_descriptor_block *xmit_desc;
 	unsigned char 		*xmit_buf;
 	int			xmit_head;
 	int			xmit_tail;
@@ -107,15 +128,17 @@ struct bf533_serial {
 	
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
+
+	struct uart_registers	regs;
 };
 
 /*
  * Events are used to schedule things to happen at timer-interrupt
  * time, instead of at rs interrupt time.
  */
-#define RS_EVENT_WRITE_WAKEUP	0
-#define RS_EVENT_READ		1
-#define RS_EVENT_WRITE		2
+#define	RS_EVENT_WRITE_WAKEUP	0
+#define	RS_EVENT_READ		1
+#define	RS_EVENT_WRITE		2
 
 #endif /* __KERNEL__ */
 #endif /* (_Bf533_SERIAL_H) */
