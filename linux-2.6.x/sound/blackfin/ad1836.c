@@ -1084,9 +1084,6 @@ static int snd_ad1836_playback_close(snd_pcm_substream_t* substream){
 
   chip->tx_substream = NULL;
   
-  if(chip->rx_substream == NULL && bf53x_sport_is_running(chip->sport))
-    bf53x_sport_stop(chip->sport);
-
   return 0;
 }
 
@@ -1099,9 +1096,6 @@ static int snd_ad1836_capture_close(snd_pcm_substream_t* substream){
 
   chip->rx_substream = NULL;
   
-  if(chip->tx_substream == NULL && bf53x_sport_is_running(chip->sport))
-    bf53x_sport_stop(chip->sport);
-
   return 0;
 }
 
@@ -1169,66 +1163,32 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
   snd_printk(KERN_INFO "new: chan_mask: %x, fragsize_bytes: %u\n", chan_mask, fragsize_bytes);
 #endif
 
-  /* one of the following two must be true */
-  if( substream == chip->rx_substream ) {
-    /* if we were running (because of the other direction), stop the sport */
-    if(was_running) {
-      if( chip->tx_substream ) 
-        /* if tx_substream exists when prepare for tx_substream, stop rx dma in sport only*/
-        bf53x_sport_stop_rx(chip->sport);
-      else
-        bf53x_sport_stop(chip->sport);
-    }
-    
-    err = bf53x_sport_config_rx_dma( chip->sport, buf_addr , fragcount, fragsize_bytes, chan_mask );
-    
-    /* dummy config for tx channel */
-    if( !err && !chip->tx_substream ){ 
-      err = bf53x_sport_config_tx_dma( chip->sport, &dummy_buf_tx , 2, sizeof(dummy_buf_tx)/2, chan_mask );
-      sport_disable_dma_tx(chip->sport);
-    }
-    
-    /* if we were running, continue with the new settings */
-    if(was_running) {
-      if( chip->tx_substream ) 
-        /* if tx_substream exists when prepare for tx_substream, restart rx dma in sport only*/
-        bf53x_sport_start_rx(chip->sport);
-      else
-        bf53x_sport_start(chip->sport);
-      return err;
-    }
-  }
-  else if( substream == chip->tx_substream ) {
-    /* if we were running (because of the other direction), stop the sport */
-    if(was_running) {
-        /* if rx_substream exists when prepare for tx_substream, stop tx dma in sport only*/
-      if( chip->rx_substream ) 
-        bf53x_sport_stop_tx(chip->sport);
-      else
-        bf53x_sport_stop(chip->sport);
-    }
+  /* if we were running (because of the other direction), stop the sport */
+ 
+  if( was_running ) 
+    bf53x_sport_stop(chip->sport);
 
+  /* one of the following two must be true */
+  if( substream == chip->rx_substream )
+    err = bf53x_sport_config_rx_dma( chip->sport, buf_addr , fragcount, fragsize_bytes, chan_mask );
+
+  if( substream == chip->tx_substream )
     err = bf53x_sport_config_tx_dma( chip->sport, buf_addr , fragcount, fragsize_bytes, chan_mask );
 
-    /* dummy config for rx channel */
-    if( !err && !chip->rx_substream ){
-      err = bf53x_sport_config_rx_dma( chip->sport, &dummy_buf_rx , 2, sizeof(dummy_buf_rx)/2, chan_mask );
-      sport_disable_dma_rx(chip->sport);
-    }
-    
-    /* if we were running, continue with the new settings */
-    if(was_running) {
-        /* if rx_substream exists when prepare for tx_substream, restart tx dma in sport only*/
-      if( chip->rx_substream ) 
-        bf53x_sport_start_tx(chip->sport);
-      else
-        bf53x_sport_start(chip->sport);
-      return err;
-    }
-
+  /* one of the following two may be true: dummy config for other channel */
+  if( !err && !chip->tx_substream ){ 
+    err = bf53x_sport_config_tx_dma( chip->sport, &dummy_buf_tx , 2, sizeof(dummy_buf_tx)/2, chan_mask );
+    sport_disable_dma_tx(chip->sport);
   }
 
+  if( !err && !chip->rx_substream ){
+    err = bf53x_sport_config_rx_dma( chip->sport, &dummy_buf_rx , 2, sizeof(dummy_buf_rx)/2, chan_mask );
+    sport_disable_dma_rx(chip->sport);
+  }
 
+  /* if we were running, continue with the new settings */
+  if(!err && was_running) 
+    bf53x_sport_start(chip->sport);
 
   return err;
 
@@ -1237,56 +1197,55 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
 static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
 
   ad1836_t* chip = _snd_pcm_substream_chip(substream);
+  int  chan_mask = chip->chan_mask[((substream->runtime->channels&0xe)>>1)-1];
 
   int runs = bf53x_sport_is_running(chip->sport);
-  int mask = 0;
-  int chan_mask = 0;
 
 #ifdef CONFIG_SND_DEBUG
   snd_printk( KERN_INFO "%s(%d)\n", __FUNCTION__, cmd );
 #endif
 
-  if( substream == chip->rx_substream ) mask = RUN_RX;
-  if( substream == chip->tx_substream ) mask = RUN_TX;
-
-  if( ! mask ) return -EINVAL;
-
   switch(cmd){
   case SNDRV_PCM_TRIGGER_START: 
-	chip->runmode |=  mask; 
-	if( !runs ) {
-		/* The sport is not running.*/
-		bf53x_sport_start(chip->sport);
-	}
-	break;
-  case SNDRV_PCM_TRIGGER_STOP: 
-	chip->runmode &= ~mask; 
-	if( runs ) {
-		/* The sport is running.*/
-		if( substream == chip->rx_substream && chip->tx_substream ) {
-			/* if tx_substream exists when stop rx_substream, only dummy configure rx channel.*/
-			bf53x_sport_stop_rx(chip->sport);
-			chan_mask = chip->chan_mask[((chip->rx_substream->runtime->channels&0xe)>>1)-1];
-			bf53x_sport_config_rx_dma( chip->sport, &dummy_buf_rx , 
-				2, sizeof(dummy_buf_rx)/2, chan_mask );
-			bf53x_sport_start_rx(chip->sport);
-		}
-		else if( substream == chip->tx_substream && chip->rx_substream ) {
-			/* if rx_substream exists when stop tx_substream, only dummy configure tx channel.*/
-			bf53x_sport_stop_tx(chip->sport);
-			chan_mask = chip->chan_mask[((chip->tx_substream->runtime->channels&0xe)>>1)-1];
-			bf53x_sport_config_tx_dma( chip->sport, &dummy_buf_tx , 
-				2, sizeof(dummy_buf_tx)/2, chan_mask );
-			bf53x_sport_start_tx(chip->sport);
-		}
-		else
-			bf53x_sport_stop(chip->sport);
-	}
-	break;
+    if( substream == chip->rx_substream ) 
+      chip->runmode |= RUN_RX;
+    else if( substream == chip->tx_substream ) 
+      chip->runmode |= RUN_TX;
+    else
+      return -EINVAL;
+    if( !runs ) {
+      bf53x_sport_start(chip->sport);
+    }
+    break;
+  case SNDRV_PCM_TRIGGER_STOP:
+    if( runs ) {
+      if( substream == chip->rx_substream ) {
+        chip->runmode &= ~RUN_RX;
+        bf53x_sport_stop(chip->sport);
+        if( chip->runmode&RUN_TX ) {
+          bf53x_sport_config_rx_dma( chip->sport, &dummy_buf_rx , 2, sizeof(dummy_buf_rx)/2, chan_mask );
+          bf53x_sport_start(chip->sport);
+        }
+      }
+      else if( substream == chip->tx_substream ) {
+        chip->runmode &= ~RUN_TX;
+        bf53x_sport_stop(chip->sport);
+        if( chip->runmode&RUN_RX ) {
+          bf53x_sport_config_tx_dma( chip->sport, &dummy_buf_tx , 2, sizeof(dummy_buf_tx)/2, chan_mask );
+          bf53x_sport_start(chip->sport);
+        }
+      }
+      else
+        return -EINVAL;
+    }
+    break;
   default:
     return -EINVAL;
   }
 
+#ifdef CONFIG_SND_DEBUG
+printk("trigger: cmd=0x%x, runs=%d, runmode=0x%x\n", cmd, runs, chip->runmode);
+#endif
   return 0;
 
 }
@@ -1306,11 +1265,8 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* subst
 #else
   unsigned long bytes_per_frame = runtime->channels*sizeof(long) ;
 #endif
-  size_t frames = diff / bytes_per_frame -1;
+  size_t frames = diff / bytes_per_frame;
   
-  if( frames < 0 )
-    frames = 0;
- 
 #ifdef CONFIG_SND_DEBUG_CURRPTR
   snd_printk( KERN_INFO " play pos: 0x%04lx / %lx\n", frames, runtime->buffer_size);
 #endif

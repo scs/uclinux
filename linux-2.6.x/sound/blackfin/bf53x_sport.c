@@ -209,6 +209,9 @@ bf53x_sport_init(int sport_chan,
      free(sport);
      return NULL ;
    }  
+#ifdef BF53X_ANOMALY_29
+  sport->is_running = 0;
+#endif
 
 #ifdef BF53X_SHADOW_REGISTERS
 
@@ -292,8 +295,6 @@ int bf53x_sport_config_rx( struct bf53x_sport* sport, unsigned int rcr1, unsigne
   if( (sport->regs->tcr1 & TSPEN) || (sport->regs->rcr1 & RSPEN) )
     return -EBUSY;
 
-  SSYNC;
-
   sport->regs->rcr1 = rcr1;
   sport->regs->rcr2 = rcr2;
   sport->regs->rclkdiv = clkdiv;
@@ -310,8 +311,6 @@ int bf53x_sport_config_tx( struct bf53x_sport* sport, unsigned int tcr1, unsigne
 
   if( (sport->regs->tcr1 & TSPEN) || (sport->regs->rcr1 & RSPEN) )
     return -EBUSY;
-
-  SSYNC;
 
   sport->regs->tcr1 = tcr1;
   sport->regs->tcr2 = tcr2;
@@ -373,8 +372,6 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
 
 #endif
 
-  SSYNC;
-  
   if( sport->regs->rcr1 & RSPEN )
     return -EBUSY;
 
@@ -439,8 +436,6 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
   }
 #endif
 
-  SSYNC;
-
   if( tdm_mask ) 
     sport->regs->mrcs0 = tdm_mask;
 
@@ -472,8 +467,6 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
     if( (fragsize_bytes | (fragsize_bytes-1) ) != (2*fragsize_bytes - 1) )
       return -EINVAL;
 #endif
-
-  SSYNC;
 
   if( sport->regs->tcr1 & TSPEN ) 
     return -EBUSY;
@@ -538,8 +531,6 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
   }
 #endif
 
-  SSYNC;
-
   if( tdm_mask ) 
     sport->regs->mtcs0 = tdm_mask;
 
@@ -562,8 +553,6 @@ void sport_disable_dma_tx(struct bf53x_sport* sport)
 
 int bf53x_sport_start(struct bf53x_sport* sport){ 
 
-  SSYNC;
-
   enable_dma(sport->dma_rx_chan);
   enable_dma(sport->dma_tx_chan);
   sport->regs->tcr1 |= TSPEN;
@@ -582,88 +571,12 @@ int bf53x_sport_start(struct bf53x_sport* sport){
 
 int bf53x_sport_stop(struct bf53x_sport* sport){ 
 
-  SSYNC;
-
   sport->regs->tcr1 &= ~TSPEN;
   sport->regs->rcr1 &= ~RSPEN;
+  SSYNC;
+
   disable_dma(sport->dma_rx_chan);
   disable_dma(sport->dma_tx_chan);
-
-  SSYNC;
-
-#ifdef BF53X_ANOMALY_29
-  sport->is_running = 0;
-#endif
-
-  return 0;
-
-}
-
-int bf53x_sport_start_rx(struct bf53x_sport* sport){ 
-
-  SSYNC;
-
-  enable_dma(sport->dma_rx_chan);
-  sport->regs->tcr1 |= TSPEN;
-  sport->regs->rcr1 |= RSPEN;
-
-  SSYNC;
-
-#ifdef BF53X_ANOMALY_29
-  sport->is_running = 1;
-#endif
-
-  return 0;
-
-}
-
-
-int bf53x_sport_stop_rx(struct bf53x_sport* sport){ 
-
-  SSYNC;
-
-  sport->regs->tcr1 &= ~TSPEN;
-  sport->regs->rcr1 &= ~RSPEN;
-  disable_dma(sport->dma_rx_chan);
-
-  SSYNC;
-
-#ifdef BF53X_ANOMALY_29
-  sport->is_running = 0;
-#endif
-
-  return 0;
-
-}
-
-int bf53x_sport_start_tx(struct bf53x_sport* sport){ 
-
-  SSYNC;
-
-  enable_dma(sport->dma_tx_chan);
-  sport->regs->tcr1 |= TSPEN;
-  sport->regs->rcr1 |= RSPEN;
-
-  SSYNC;
-
-#ifdef BF53X_ANOMALY_29
-  sport->is_running = 1;
-#endif
-
-  return 0;
-
-}
-
-
-int bf53x_sport_stop_tx(struct bf53x_sport* sport){ 
-
-  SSYNC;
-
-  sport->regs->tcr1 &= ~TSPEN;
-  sport->regs->rcr1 &= ~RSPEN;
-  disable_dma(sport->dma_tx_chan);
-
-  SSYNC;
 
 #ifdef BF53X_ANOMALY_29
   sport->is_running = 0;

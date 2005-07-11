@@ -261,7 +261,7 @@ void disable_dma(unsigned int channel)
 
 	assert(dma_ch[channel].dma_channel_status != DMA_CHANNEL_FREE && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
-	dma_ch[channel].regs->cfg &= ((~DI_SEL) & (~DI_EN) & (~DMAEN));	/* Clean the enable bit and disable interrupt */
+	dma_ch[channel].regs->cfg &= ~DMAEN;	/* Clean the enable bit*/
 	SSYNC;
 	dma_ch[channel].dma_channel_status  = DMA_CHANNEL_REQUESTED;
 	/* Needs to be enabled Later */
