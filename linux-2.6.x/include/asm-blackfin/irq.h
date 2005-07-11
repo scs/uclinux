@@ -63,7 +63,7 @@ extern void sys_free_irq(unsigned int, void *);
 
 static __inline__ int irq_canonicalize(int irq)
 {
-	return ((irq == 2) ? 9 : irq);
+	return irq;
 }
 
 /* count of spurious interrupts */
