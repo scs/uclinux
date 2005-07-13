@@ -7,7 +7,7 @@
 #
 FONTMAPFILE = cp437.uni
 
-obj-y	 += mem.o random.o tty_io.o n_tty.o tty_ioctl.o pty.o misc.o
+obj-y	 += mem.o random.o tty_io.o n_tty.o tty_ioctl.o pty.o misc.o adsp-ppifcd.o
 
 obj-$(CONFIG_VT)		+= vt_ioctl.o vc_screen.o consolemap.o \
 				   consolemap_deftbl.o selection.o keyboard.o
@@ -45,8 +45,9 @@ obj-$(CONFIG_VIOCONS) += viocons.o
 obj-$(CONFIG_VIOTAPE)		+= viotape.o
 obj-$(CONFIG_HVCS)		+= hvcs.o
 obj-$(CONFIG_SPI_BF533) += spi.o
-obj-$(CONFIG_SPI_ADC_BF533) += adsp-spiadc.o  
-obj-$(CONFIG_BF533_PFLAGS) += pflags.o  
+obj-$(CONFIG_SPI_ADC_BF533) += adsp-spiadc.o
+obj-$(CONFIG_BF533_PFLAGS) += pflags.o
+obj-$(CONFIG_BF5xx_PPIFCD) += adsp-ppifcd.o
 
 obj-$(CONFIG_PRINTER) += lp.o
 obj-$(CONFIG_TIPAR) += tipar.o
