@@ -39,7 +39,7 @@
 .align 2;
 ENTRY(_cplb_mgr)
 
-	[--SP]=( R7:0,P5:0 );
+	[--SP]=( R7:4,P5:3 );
 
 	CC = R0 == 2;
 	IF CC JUMP dcplb_write;
@@ -242,21 +242,21 @@ inext:	R4 = [P2++];	/* address from config table */
 	SSYNC;
 	STI R2;
 
-	( R7:0,P5:0 ) = [SP++];
+	( R7:4,P5:3 ) = [SP++];
 	R0 = CPLB_RELOADED;
 	RTS;
 
 /* FAILED CASES*/
 no_page_in_table:
-        ( R7:0,P5:0 ) = [SP++];
+        ( R7:4,P5:3 ) = [SP++];
         R0 = CPLB_NO_ADDR_MATCH;
         RTS;
 all_locked:
-        ( R7:0,P5:0 ) = [SP++];
+        ( R7:4,P5:3 ) = [SP++];
         R0 = CPLB_NO_UNLOCKED;
         RTS;
 prot_violation:
-        ( R7:0,P5:0 ) = [SP++];
+        ( R7:4,P5:3 ) = [SP++];
         R0 = CPLB_PROT_VIOL;
         RTS;
 
@@ -321,7 +321,7 @@ dcplb_write:
 	[P3] = R3;		/* and write back.*/
 	NOP;
 	CSYNC;
-	( R7:0,P5:0 ) = [SP++];
+	( R7:4,P5:3 ) = [SP++];
 	R0 = CPLB_RELOADED;
 	RTS;
 
@@ -581,7 +581,7 @@ dnext:	R4 = [P2++];	/* address */
 	SSYNC;
 	STI R2;
 
-	( R7:0,P5:0 ) = [SP++];
+	( R7:4,P5:3 ) = [SP++];
 	R0 = CPLB_RELOADED;
 	RTS;
 

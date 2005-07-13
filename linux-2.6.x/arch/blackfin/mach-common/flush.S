@@ -52,13 +52,7 @@ iskip:	R6 += -1;
 
 .align 2
 ENTRY(icplb_flush)
-	[--SP] = ( R7:0, P5:0 );
-	[--SP] = LC0;
-	[--SP] = LT0;
-	[--SP] = LB0;
-	[--SP] = LC1;
-	[--SP] = LT1;
-	[--SP] = LB1;
+	[--SP] = ( R7:4, P5:3 );
 	
 	/* If it's a 1K or 4K page, then it's quickest to
 	 * just systematically flush all the addresses in
@@ -156,13 +150,7 @@ ifinished:
 	SSYNC;			/* Ensure the data gets out to mem.*/
 
 	/*Finished. Restore context.*/
-	LB1 = [SP++];
-	LT1 = [SP++];
-	LC1 = [SP++];
-	LB0 = [SP++];
-	LT0 = [SP++];
-	LC0 = [SP++];
-	( R7:0, P5:0 ) = [SP++];
+	( R7:4, P5:3 ) = [SP++];
 	RTS;
 
 iflush_whole_page:
@@ -228,13 +216,7 @@ skip:	R6 += -1;
 
 .align 2
 ENTRY(dcplb_flush)
-	[--SP] = ( R7:0, P5:0 );
-	[--SP] = LC0;
-	[--SP] = LT0;
-	[--SP] = LB0;
-	[--SP] = LC1;
-	[--SP] = LT1;
-	[--SP] = LB1;
+	[--SP] = ( R7:4, P5:3 );
 	
 	/* If it's a 1K or 4K page, then it's quickest to
 	 * just systematically flush all the addresses in
@@ -364,13 +346,7 @@ dfinished:
 	SSYNC;			/* Ensure the data gets out to mem.*/
 
 	/*Finished. Restore context.*/
-	LB1 = [SP++];
-	LT1 = [SP++];
-	LC1 = [SP++];
-	LB0 = [SP++];
-	LT0 = [SP++];
-	LC0 = [SP++];
-	( R7:0, P5:0 ) = [SP++];
+	( R7:4, P5:3 ) = [SP++];
 	RTS;
 
 dflush_whole_page:

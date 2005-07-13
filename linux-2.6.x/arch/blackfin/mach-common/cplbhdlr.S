@@ -36,19 +36,12 @@
 
 ENTRY(_cplb_hdr)
 	SSYNC;
-	[--SP] = ( R7:0, P5:0 );
 	[--SP] = ASTAT;
 	[--SP] = SEQSTAT;
 	[--SP] = I0;
 	[--SP] = I1;
 	[--SP] = I2;
 	[--SP] = I3;
-	[--SP] = LT0;
-	[--SP] = LB0;
-	[--SP] = LC0;
-	[--SP] = LT1;
-	[--SP] = LB1;
-	[--SP] = LC1;
 	R2 = SEQSTAT;
 
 	/*Mask the contents of SEQSTAT and leave only EXCAUSE in R2*/
@@ -94,19 +87,12 @@ is_icplb_miss:
 	RETS = [SP++];
 	CC = R0 == 0;
 	IF !CC JUMP not_replaced;
-	LC1 = [SP++];
-	LB1 = [SP++];
-	LT1 = [SP++];
-	LC0 = [SP++];
-	LB0 = [SP++];
-	LT0 = [SP++];
 	I3 = [SP++];
 	I2 = [SP++];
 	I1 = [SP++];
 	I0 = [SP++];
 	SEQSTAT = [SP++];
 	ASTAT = [SP++];
-	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
 unknown:
