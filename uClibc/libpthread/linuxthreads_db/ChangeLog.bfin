@@ -1,0 +1,5 @@
+2005-07-14  Jie Zhang  <jie.zhang@analog.com>
+
+	* td_symbol_list.c (THREAD_SYMBOL_PREFIX): Remove.
+	(symbol_list_arr): Remove references of THREAD_SYMBOL_PREFIX.
+
