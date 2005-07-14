@@ -352,8 +352,8 @@ void capture(int form_method, char **getvars, char **postvars)
 	/* Close PPI */
 	close(fd);
 
-	/* TODO	:
-	When data is transmitted from a	CMOS camera	that uses the Bayer	Color Filter Array
+	
+	/* When data is transmitted from a	CMOS camera	that uses the Bayer	Color Filter Array
 	(Bayer CFA)	we get a stream	of alternating values of Red (R) Green (G) for odd rows
 	and	alternating	values of Green	(G)	and	Blue (B) for even rows.
 
@@ -363,10 +363,7 @@ void capture(int form_method, char **getvars, char **postvars)
 
 	http://www.helicontech.co.il/whitepapers/bayer-rgb.html	*/
 
-	/*cfa2rgb( buffer+sizeof(bmphead) );*/
-
-	/*FIXME	: Anyways we put the unprocessed pixels	into a monochrome BMP
-	This will result in	a un-sharp noisy picture with nearly no	contrast */
+	/*For CFA Sensors: cfa2rgb( buffer+sizeof(bmphead) );*/
 
 	/* Write some HTTP and HTML	stuff to the browser at	the	far	end	*/
 	htmlHeaderNocache("FCD Demo	Web	Page");
