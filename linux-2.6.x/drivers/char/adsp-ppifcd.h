@@ -74,7 +74,7 @@
 #undef  MT9V022
 
 #ifdef MT9M001
-#define POL_C 			0x0000
+#define POL_C 			0x4000
 #define POL_S 			0x0000
 #define PIXEL_PER_LINE	1280
 #define LINES_PER_FRAME	1024
