@@ -1,5 +1,5 @@
 
-EXEC = fcd
+EXEC = ndso
 OBJS = thttpd.o libhttpd.o mmc.o timers.o match.o tdate_parse.o
 
 
