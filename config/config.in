@@ -1138,6 +1138,7 @@ comment 'Blackfin app programs'
 
 bool    'gdbserver'  	    	        CONFIG_USER_BLACKFIN_GDB
 bool    'Networked Software Defined Storage Oscilloscope' CONFIG_USER_NDSO 
+bool    'CGI based Test Application for the PPI Frame Capture Driver' CONFIG_USER_BLACKFIN_PPIFCDCGI
 
 comment 'Inetutils'
 bool	'rsh'				CONFIG_USER_INETUTILS_RSH

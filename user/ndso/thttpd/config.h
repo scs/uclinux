@@ -189,7 +189,7 @@
 
 /* CONFIGURE: $PATH to use for CGI programs.
 */
-#define CGI_PATH "/home/httpd"
+#define CGI_PATH "/"
 
 /* CONFIGURE: How often to run the occasional cleanup job.
 */
@@ -221,7 +221,7 @@
 */
 #define DEFAULT_PORT 80
 
-#define	DEFAULT_DIR	"/home/httpd"
+#define	DEFAULT_DIR	"/"
 
 /* CONFIGURE: The filename to use for index files.  This should really be a
 ** list of filenames - index.htm, index.cgi, etc., that get checked in order.
