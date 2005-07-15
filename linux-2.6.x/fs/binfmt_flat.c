@@ -482,6 +482,9 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 		  case FLAT_RELOC_TYPE_BSS:
 			  offset = end_data;
 			  break;
+		  case FLAT_RELOC_TYPE_STACK:
+			  offset = current->mm->context.end_brk;
+			  break;
 		  default:
 			  printk("BINFMT_FLAT: Unknown relocation type=%x\n",
 			       r.reloc.type);
@@ -525,6 +528,9 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 			  break;
 		  case FLAT_RELOC_TYPE_BSS:
 			  offset = end_data;
+			  break;
+		  case FLAT_RELOC_TYPE_STACK:
+			  offset = current->mm->context.end_brk;
 			  break;
 		  default:
 			  printk("BINFMT_FLAT: Unknown relocation type=%x\n",
@@ -594,6 +600,9 @@ int calc_v5_reloc(int i, unsigned long *rlp, struct lib_info *p, int curid, int 
 				break;
 			case FLAT_RELOC_TYPE_BSS:
 				offset += end_data;
+				break;
+			case FLAT_RELOC_TYPE_STACK:
+				offset = current->mm->context.end_brk;
 				break;
 			default:
 				printk
@@ -912,6 +921,11 @@ static int load_flat_file(struct linux_binprm * bprm,
 		current->mm->brk = (current->mm->start_brk + 3) & ~3;
 		current->mm->context.end_brk = memp + ksize((void *) memp) - stack_len;
 		current->mm->rss = 0;
+		if (flags & FLAT_FLAG_KTRACE)
+		    printk ("data start %p end %p, bss len %lx, brk %p start %p end %p\n",
+			    current->mm->start_data, current->mm->end_data,
+			    bss_len, current->mm->brk, current->mm->start_brk,
+			    current->mm->context.end_brk);
 	}
 
 	if (flags & FLAT_FLAG_KTRACE)

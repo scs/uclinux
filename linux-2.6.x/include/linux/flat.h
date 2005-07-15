@@ -213,6 +213,7 @@ typedef union
 #define FLAT_RELOC_TYPE_TEXT 0
 #define FLAT_RELOC_TYPE_DATA 1
 #define FLAT_RELOC_TYPE_BSS 2
+#define FLAT_RELOC_TYPE_STACK 3
 #define FLAT_RELOC_PART_LO 0
 #define FLAT_RELOC_PART_HI 1
 
