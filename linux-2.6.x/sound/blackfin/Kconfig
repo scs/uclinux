@@ -13,17 +13,6 @@ config SND_BLACKFIN_ADI1836
 
 	  If unsure, say N.
 
-config BROKEN_PACKED_DMA
-	bool "Walk around broken packed DMA in some blackfin chip"
-	depends on SND_BLACKFIN_ADI1836
-	help
-	  Some blackfin chips appear corrupt data when operated in
-	  packed DMA mode.
-	  Enabling BROKEN_PACKED_DMA works around this corruption by
-	  always using 8 channel DMA to/from the AD1836 chip.  The
-	  DMA buffer always contains 8 samples for each frame with
-	  inactive channels being zeroed.
-
 #config SND_BLACKFIN_ADI1981B
 #	bool "1981b Audio support for BF53x"
 #	depends on BFIN

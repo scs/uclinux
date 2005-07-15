@@ -38,7 +38,89 @@
 
 /* #define BF53X_SHADOW_REGISTERS */
 
-struct bf53x_sport;
+#define BF53X_ANOMALY_29  /* don't use the DMA_RUN bit, keep track of running status ourselves */
+
+
+/*
+ * source: ADSP-BF533 Blackfin Processor Hardware Reference, 
+ * chapter 12, and appendix B-12 table  B10 
+ */
+
+struct sport_register {
+  unsigned short tcr1;    unsigned short reserved0;
+  unsigned short tcr2;    unsigned short reserved1;
+  unsigned short tclkdiv; unsigned short reserved2;
+  unsigned short tfsdiv;  unsigned short reserved3;
+  unsigned long tx;
+  unsigned long reserved_l0;
+  unsigned long rx;
+  unsigned long reserved_l1;
+  unsigned short rcr1;    unsigned short reserved4;
+  unsigned short rcr2;    unsigned short reserved5;
+  unsigned short rclkdiv; unsigned short reserved6;
+  unsigned short rfsdiv;  unsigned short reserved7;
+  unsigned short stat;    unsigned short reserved8;
+  unsigned short chnl;    unsigned short reserved9;
+  unsigned short mcmc1;   unsigned short reserved10;
+  unsigned short mcmc2;   unsigned short reserved11;
+  unsigned long mtcs0;
+  unsigned long mtcs1;
+  unsigned long mtcs2;
+  unsigned long mtcs3;
+  unsigned long mrcs0;
+  unsigned long mrcs1;
+  unsigned long mrcs2;
+  unsigned long mrcs3;
+};
+
+#define DESC_ELEMENT_COUNT 9
+
+/* (large mode) descriptor arrays */
+struct bf53x_dma_desc {
+  unsigned long          next_desc;
+  unsigned long          start_addr;
+  unsigned short         cfg;
+  unsigned short         xcount;
+  unsigned short         xmodify;
+  unsigned short         ycount;
+  unsigned short         ymodify;
+} __attribute__((packed));
+
+
+struct bf53x_sport {
+  int sport_chan;
+  int dma_rx_chan;
+  int dma_tx_chan;
+  struct sport_register* regs;
+
+  DMA_register* dma_rx;   /* a struct gratefully borrowed from asm/bf533_dma.h */
+  DMA_register* dma_tx;
+
+#ifdef BF53X_SHADOW_REGISTERS
+  DMA_register* dma_shadow_rx;   /* a struct gratefully borrowed from asm/bf533_dma.h */
+  DMA_register* dma_shadow_tx;
+#endif
+
+  struct bf53x_dma_desc* dma_rx_desc;
+  struct bf53x_dma_desc* dma_tx_desc;
+  struct bf53x_dma_desc* dma_rx_expired_desc;
+  struct bf53x_dma_desc* dma_tx_expired_desc;
+  int dma_rx_change;
+  int dma_tx_change;
+
+  unsigned int rcr1;
+  unsigned int rcr2;
+  int rx_tdm_count;
+
+  unsigned int tcr1;
+  unsigned int tcr2;
+  int tx_tdm_count;
+
+#ifdef BF53X_ANOMALY_29
+  int is_running;   /* little kludge to work around anomaly 29: DMA_RUN bit unreliable */
+#endif
+
+};
 
 struct bf53x_sport* bf53x_sport_init(int sport_chan,  
                 int dma_rx, dma_interrupt_t rx_handler,
@@ -62,18 +144,17 @@ int bf53x_sport_config_tx( struct bf53x_sport* sport,
 /* ... then these: */
 
 /* buffer size (in bytes) == fragcount * fragsize_bytes */
-/* if tdm_mask != 0 the m[rt]cs0 register is updated with it */
 
 /* this is not a very general api, it sets the dma to 2d autobuffer mode */
 
 int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf, 
-			       int fragcount, size_t fragsize_bytes, 
-			       unsigned int tdm_mask );
+			       int fragcount, size_t fragsize_bytes);
 
 int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf, 
-			       int fragcount, size_t fragsize_bytes, 
-			       unsigned int tdm_mask );
+			       int fragcount, size_t fragsize_bytes);
 
+void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport);
+void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport);
 
 /* rx and tx can only run simultanously, use a dummy buffer to have one
    of them disabled, and disable their irq's with the following */

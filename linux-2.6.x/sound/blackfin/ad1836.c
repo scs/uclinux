@@ -30,7 +30,14 @@
  *          Aidan Williams implemented CONFIG_BROKEN_PACKED_DMA and various fixes
  */
 
-
+/*
+ * Sonic Zhang (sonic.zhang@analog.com) solve the problem to record and play 
+ * audio stream individually. The solution is based on the descriptor based DMA.
+ * DMA and SPORT are always enabled.
+ *
+ * The macro CONFIG_BROKEN_PACKED_DMA is also removed, because current
+ * implementation always transfer 8 channels in.
+ */
 
 /* notes: 
  * - once this code stabilizes, move the irq and dma stuff 
@@ -147,7 +154,7 @@ static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
 #define AD1836_BUFFER_SIZE 0x40000 /* 256kb */
 #define TALKTROUGH_FRAGMENTS 4
-#define TALKTROUGH_CHANMASK 0xff
+#define TALKTROUGH_CHANS 8
 
 #undef INIT_TALKTROUGH
 
@@ -205,40 +212,9 @@ typedef ad1836_t chip_t; /* used in alsa macro's */
 
 
 
-unsigned int dummy_buf_rx[16]; /* used for idle rx/tx channel */
-unsigned int dummy_buf_tx[16]; /* used for idle rx/tx channel */
+unsigned int dummy_buf_rx[256]; /* used for idle rx/tx channel */
+unsigned int dummy_buf_tx[256]; /* used for idle rx/tx channel */
 
-#ifdef CONFIG_BROKEN_PACKED_DMA
-/*
- *  The BROKEN_PACKED_DMA problem turns out to be becuase TFS is
- *  connected to the DLRCLK on the EzKit and cannot be disconnected
- *  via a jumper.  Unfortunately, in TDM mode, the TFS pin is driven
- *  by the processor as a "Transmit Data Valid" signal
- *  and this causes spurious RFS signals.  Selecting all 8 channels
- *  works around this problem by keeping the "Transmit Data
- *  Valid" signal stable throughout the entire frame.
- *
- *  Enabling CONFIG_BROKEN_PACKED_DMA works around this corruption by
- *  always using 8 channel DMA to/from the AD1836 chip.  The
- *  DMA buffer always contains 8 samples for each frame with
- *  inactive channels being zeroed.
- *
- *  Always using 8-channel DMA increases the amount of buffer
- *  space required.  A fragment of 2-channel audio data must
- *  be inflated in size to 8-channel data.  This imposes a
- *  size/4 limit on the fragment size (in bytes) so that the
- *  inflated data will fit.  Unfortunately, this reduced
- *  fragment size also applies to the 8 channel data and
- *  limits the maximum effective fragment size for 8 channel
- *  data.  The size below is a compromise between using a
- *  gargantuan amount of memory and supporting a decent
- *  frame size for 8 channel data.
- *
- *  Note that the maximum fragment size available to the
- *  application is specified in snd_ad1836_playback_hw and
- *  snd_ad1836_capture_hw.
- */
-#endif
 
 static int ad1836_spi_handler(struct bf53x_spi_channel* chan, void* buf, size_t len, void* private){
   ad1836_t *chip = (ad1836_t*) private;
@@ -395,14 +371,16 @@ static int snd_ad1836_talktrough_mode(ad1836_t* chip, int mode){
       return -ENOMEM;
     }
     
+    bf53x_sport_set_multichannel(chip->sport, TALKTROUGH_CHANS /* channels */, 1 /* packed */ );
+    
     if( bf53x_sport_config_rx_dma( chip->sport, chip->rx_buf,  TALKTROUGH_FRAGMENTS, 
-				   AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS, TALKTROUGH_CHANMASK ) ){
+				   AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS) ){
       snd_printk( KERN_ERR "talktrough mode: Unable to configure rx dma\n" );
       return -ENODEV;
     }
 
     if( bf53x_sport_config_tx_dma( chip->sport, chip->tx_buf,  TALKTROUGH_FRAGMENTS, 
-				   AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS, TALKTROUGH_CHANMASK ) ){
+				   AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS ) ){
       snd_printk( KERN_ERR "talktrough mode: Unable to configure tx dma\n" );
       return -ENODEV;
     }
@@ -411,8 +389,8 @@ static int snd_ad1836_talktrough_mode(ad1836_t* chip, int mode){
     snd_ad1836_reset_sport_stats(chip);
     bf53x_sport_start(chip->sport);
 
-    snd_printk( KERN_INFO "talktrough mode: switched on (%s) with channel mask 0x%02x\n", 
-		(mode == TALKTROUGH_STUPID) ? "stupid" : "smart", TALKTROUGH_CHANMASK );
+    snd_printk( KERN_INFO "talktrough mode: switched on (%s) with channels %d\n", 
+		(mode == TALKTROUGH_STUPID) ? "stupid" : "smart", TALKTROUGH_CHANS );
 
     break;
 
@@ -977,7 +955,6 @@ static snd_kcontrol_new_t snd_ad1836_controls[] __devinitdata = {
  *************************************************************/
 
 
-#ifdef CONFIG_BROKEN_PACKED_DMA
 static snd_pcm_hardware_t snd_ad1836_playback_hw = {
   .info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 	   SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID),
@@ -1008,8 +985,8 @@ static snd_pcm_hardware_t snd_ad1836_capture_hw = {
   .periods_min =      2,
   .periods_max =      32,
 };
-#else /* CONFIG_BROKEN_PACKED_DMA */
 
+#if 0
 static snd_pcm_hardware_t snd_ad1836_playback_hw = {
   .info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 	   SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID),
@@ -1042,7 +1019,7 @@ static snd_pcm_hardware_t snd_ad1836_capture_hw = {
   .periods_min =      2,
   .periods_max =      32,
 };
-#endif /* CONFIG_BROKEN_PACKED_DMA */
+#endif
 
 
 static int snd_ad1836_playback_open(snd_pcm_substream_t* substream){
@@ -1105,7 +1082,6 @@ static int snd_ad1836_hw_params( snd_pcm_substream_t* substream, snd_pcm_hw_para
 
   snd_printk_marker();
 
-#ifdef CONFIG_BROKEN_PACKED_DMA
   /*
    *  Allocate all available memory for our DMA buffer.
    *  Necessary because we get a 4x increase in bytes for the 2 channel mode.
@@ -1115,7 +1091,7 @@ static int snd_ad1836_hw_params( snd_pcm_substream_t* substream, snd_pcm_hw_para
    */
   if( snd_pcm_lib_malloc_pages(substream, AD1836_BUFFER_SIZE) < 0 )
     return -ENOMEM;
-#else
+#if 0
   if( snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hwparams)) < 0 )
     return -ENOMEM;
 #endif
@@ -1143,8 +1119,6 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
   void* buf_addr      = (void*) runtime->dma_area;
   int  fragcount      = runtime->periods;
   int  fragsize_bytes = frames_to_bytes(runtime, runtime->period_size);
-  int  chan_mask      = chip->chan_mask[((runtime->channels&0xe)>>1)-1];
-  int was_running     = bf53x_sport_is_running(chip->sport);
   int err=0;
 
   snd_printk_marker();
@@ -1155,41 +1129,18 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
 	      ||(runtime->channels == 6)||(runtime->channels == 8),
 	      return -EINVAL);
 
-#ifdef CONFIG_BROKEN_PACKED_DMA
-  snd_printk(KERN_INFO "old: chan_mask: %x, fragsize_bytes: %u\n", chan_mask, fragsize_bytes);
-  chan_mask = 0xff;				/* always transfer all 8 channels.. */
-  fragsize_bytes *= 8;				/* inflate the fragsize to match */
+/*  snd_printk(KERN_INFO "old: fragsize_bytes: %u\n", fragsize_bytes);*/
   fragsize_bytes /= runtime->channels;
-  snd_printk(KERN_INFO "new: chan_mask: %x, fragsize_bytes: %u\n", chan_mask, fragsize_bytes);
-#endif
-
-  /* if we were running (because of the other direction), stop the sport */
- 
-  if( was_running ) 
-    bf53x_sport_stop(chip->sport);
+  fragsize_bytes *= 8;				/* inflate the fragsize to match */
+/*  snd_printk(KERN_INFO "new: fragsize_bytes: %u\n", fragsize_bytes);*/
 
   /* one of the following two must be true */
-  if( substream == chip->rx_substream )
-    err = bf53x_sport_config_rx_dma( chip->sport, buf_addr , fragcount, fragsize_bytes, chan_mask );
-
-  if( substream == chip->tx_substream )
-    err = bf53x_sport_config_tx_dma( chip->sport, buf_addr , fragcount, fragsize_bytes, chan_mask );
-
-  /* one of the following two may be true: dummy config for other channel */
-  if( !err && !chip->tx_substream ){ 
-    err = bf53x_sport_config_tx_dma( chip->sport, &dummy_buf_tx , 2, sizeof(dummy_buf_tx)/2, chan_mask );
-    sport_disable_dma_tx(chip->sport);
+  if( substream == chip->rx_substream ) {
+    err = bf53x_sport_config_rx_dma( chip->sport, buf_addr , fragcount, fragsize_bytes);
   }
-
-  if( !err && !chip->rx_substream ){
-    err = bf53x_sport_config_rx_dma( chip->sport, &dummy_buf_rx , 2, sizeof(dummy_buf_rx)/2, chan_mask );
-    sport_disable_dma_rx(chip->sport);
+  if( substream == chip->tx_substream ) {
+    err = bf53x_sport_config_tx_dma( chip->sport, buf_addr , fragcount, fragsize_bytes);
   }
-
-  /* if we were running, continue with the new settings */
-  if(!err && was_running) 
-    bf53x_sport_start(chip->sport);
-
   return err;
 
 }
@@ -1197,47 +1148,40 @@ static int snd_ad1836_prepare( snd_pcm_substream_t* substream ){
 static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
 
   ad1836_t* chip = _snd_pcm_substream_chip(substream);
-  int  chan_mask = chip->chan_mask[((substream->runtime->channels&0xe)>>1)-1];
-
-  int runs = bf53x_sport_is_running(chip->sport);
-
 #ifdef CONFIG_SND_DEBUG
   snd_printk( KERN_INFO "%s(%d)\n", __FUNCTION__, cmd );
 #endif
 
   switch(cmd){
   case SNDRV_PCM_TRIGGER_START: 
-    if( substream == chip->rx_substream ) 
-      chip->runmode |= RUN_RX;
-    else if( substream == chip->tx_substream ) 
-      chip->runmode |= RUN_TX;
+    if( substream == chip->rx_substream ) {
+        chip->runmode |= RUN_RX;
+    bf53x_sport_hook_rx_desc(chip->sport);
+/*    printk("start rx\n");*/
+      }
+    else if( substream == chip->tx_substream ) {
+        chip->runmode |= RUN_TX;
+    bf53x_sport_hook_tx_desc(chip->sport);
+/*    printk("start tx\n");*/
+      }
     else
       return -EINVAL;
-    if( !runs ) {
-      bf53x_sport_start(chip->sport);
-    }
     break;
   case SNDRV_PCM_TRIGGER_STOP:
-    if( runs ) {
-      if( substream == chip->rx_substream ) {
-        chip->runmode &= ~RUN_RX;
-        bf53x_sport_stop(chip->sport);
-        if( chip->runmode&RUN_TX ) {
-          bf53x_sport_config_rx_dma( chip->sport, &dummy_buf_rx , 2, sizeof(dummy_buf_rx)/2, chan_mask );
-          bf53x_sport_start(chip->sport);
-        }
-      }
-      else if( substream == chip->tx_substream ) {
-        chip->runmode &= ~RUN_TX;
-        bf53x_sport_stop(chip->sport);
-        if( chip->runmode&RUN_RX ) {
-          bf53x_sport_config_tx_dma( chip->sport, &dummy_buf_tx , 2, sizeof(dummy_buf_tx)/2, chan_mask );
-          bf53x_sport_start(chip->sport);
-        }
-      }
-      else
-        return -EINVAL;
+    if( substream == chip->rx_substream ) {
+      chip->runmode &= ~RUN_RX;
+      bf53x_sport_config_rx_dma( chip->sport, &dummy_buf_rx , 2, sizeof(dummy_buf_rx)/2);
+      bf53x_sport_hook_rx_desc(chip->sport);
+/*      printk("stop rx\n");*/
     }
+    else if( substream == chip->tx_substream ) {
+      chip->runmode &= ~RUN_TX;
+      bf53x_sport_config_tx_dma( chip->sport, &dummy_buf_tx , 2, sizeof(dummy_buf_tx)/2);
+      bf53x_sport_hook_tx_desc(chip->sport);
+/*      printk("stop tx\n");*/
+    }
+    else
+      return -EINVAL;
     break;
   default:
     return -EINVAL;
@@ -1260,9 +1204,8 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* subst
   char* buf  = (char*) runtime->dma_area;
   char* curr = (char*) bf53x_sport_curr_addr_tx(chip->sport);
   unsigned long diff = curr - buf;
-#ifdef CONFIG_BROKEN_PACKED_DMA
   unsigned long bytes_per_frame = 8*4;	/* always 8 channels in the DMA frame */
-#else
+#if 0
   unsigned long bytes_per_frame = runtime->channels*sizeof(long) ;
 #endif
   size_t frames = diff / bytes_per_frame;
@@ -1290,9 +1233,8 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substr
   char* buf  = (char*) runtime->dma_area;
   char* curr = (char*) bf53x_sport_curr_addr_rx(chip->sport);
   unsigned long diff = curr - buf;
-#ifdef CONFIG_BROKEN_PACKED_DMA
   unsigned long bytes_per_frame = 8*4;	/* always 8 channels in the DMA frame */
-#else
+#if 0
   unsigned long bytes_per_frame = runtime->channels*sizeof(long) ;
 #endif
   size_t frames = diff / bytes_per_frame;
@@ -1311,7 +1253,6 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer( snd_pcm_substream_t* substr
 
 }
 
-#ifdef CONFIG_BROKEN_PACKED_DMA
 static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, void *src, snd_pcm_uframes_t count){
   ad1836_t *chip = _snd_pcm_substream_chip(substream);
   unsigned int *dst = (unsigned int *)substream->runtime->dma_area;
@@ -1359,14 +1300,15 @@ static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel, 
 static int snd_ad1836_silence(snd_pcm_substream_t *substream, int channel, snd_pcm_uframes_t pos, snd_pcm_uframes_t count){
   unsigned char *buf = substream->runtime->dma_area;
 
+#ifdef CONFIG_SND_DEBUG
   snd_printk(KERN_INFO "silence: pos %x, count %x\n", (uint)pos, (uint)count);
+#endif
 
   buf += pos * 8 * 4;
   memset(buf, '\0', count * 8 * 4);
 
   return 0;
 }
-#endif /* CONFIG_BROKEN_PACKED_DMA */
 
 
 /* pcm method tables */
@@ -1380,10 +1322,8 @@ static snd_pcm_ops_t snd_ad1836_playback_ops = {
   .prepare   = snd_ad1836_prepare,
   .trigger   = snd_ad1836_trigger,
   .pointer   = snd_ad1836_playback_pointer,
-#ifdef CONFIG_BROKEN_PACKED_DMA
   .copy      = snd_ad1836_playback_copy,
   .silence   = snd_ad1836_silence,
-#endif
 };
 
 
@@ -1396,10 +1336,8 @@ static snd_pcm_ops_t snd_ad1836_capture_ops = {
   .prepare   = snd_ad1836_prepare,
   .trigger   = snd_ad1836_trigger,
   .pointer   = snd_ad1836_capture_pointer,
-#ifdef CONFIG_BROKEN_PACKED_DMA
   .copy      = snd_ad1836_capture_copy,
   .silence   = snd_ad1836_silence,
-#endif
 };
 
 
@@ -1575,28 +1513,22 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
     return -ENODEV;
   }
   
+  memset(dummy_buf_tx, sizeof(dummy_buf_tx), 0);
+  bf53x_sport_stop(sport);
   err = 0;
   err = err || bf53x_sport_config_rx(sport, RFSR, 0x1f /* 32 bit word len */, 0, 0 );
   err = err || bf53x_sport_config_tx(sport, TFSR, 0x1f /* 32 bit word len */, 0, 0 );
   err = err || bf53x_sport_set_multichannel(sport, 8 /* channels */, 1 /* packed */ );
-
-  err = err || bf53x_sport_config_rx_dma( sport, &dummy_buf_rx , 2, sizeof(dummy_buf_tx)/2, 0x11 );
-  err = err || bf53x_sport_config_tx_dma( sport, &dummy_buf_tx , 2, sizeof(dummy_buf_rx)/2, 0x11 );
-
-  sport_disable_dma_rx(sport);
-  sport_disable_dma_tx(sport);
-
+  err = err || bf53x_sport_config_rx_dma( sport, &dummy_buf_rx , 2, sizeof(dummy_buf_rx)/2 );
+  err = err || bf53x_sport_config_tx_dma( sport, &dummy_buf_tx , 2, sizeof(dummy_buf_tx)/2 );
+  
   if(err){
     snd_printk( KERN_ERR "Unable to set sport configuration\n");
     snd_ad1836_free(chip);
     return -ENODEV;
   }
-
+  
   ad1836_set_chan_masks(chip, "0123");
-
-#ifdef CONFIG_BROKEN_PACKED_DMA
-  snd_printk(KERN_INFO "Using CONFIG_BROKEN_PACKED_DMA workaround\n");
-#endif
 
   err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &snd_ad1836_ops);
 
@@ -1681,6 +1613,7 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   }
 
   if(err) {
+    bf53x_sport_stop(sport);
     snd_ad1836_free(chip);
     return err;
   }
@@ -1750,9 +1683,10 @@ static int __devinit snd_bf53x_adi1836_probe(struct bf53x_spi* spi,
     return err;
   }
 
-
   *the_card = card;
   ++dev;
+  bf53x_sport_start(sport);
+
   return 0;
 }
 
@@ -1833,13 +1767,22 @@ static inline void* frag2addr( void* buf, int frag, size_t fragsize_bytes){
 static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
   
   unsigned int rx_stat;
+  DMA_register* dma = chip->sport->dma_rx;
     
-    ++(chip->sport_irq_count);
+  ++(chip->sport_irq_count);
   
   bf53x_sport_check_status( chip->sport, NULL, &rx_stat, NULL );  
     
-  if( !(rx_stat & DMA_DONE) ) 
+  if( !(rx_stat & DMA_DONE) )
     return IRQ_NONE;
+      
+  if( chip->sport->dma_rx_change == 1) {
+    if(dma->next_desc_ptr==(unsigned long)chip->sport->dma_rx_desc) {
+/*      printk("rx dma equal\n");*/
+      chip->sport->dma_rx_change = 0;
+    }
+    return IRQ_HANDLED;
+  }
       
   ++(chip->sport_irq_count_rx);
   
@@ -1896,21 +1839,30 @@ static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
 static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
 
   unsigned int tx_stat;
-  
+  DMA_register* dma = chip->sport->dma_tx;
+
   ++(chip->sport_irq_count);
   
   bf53x_sport_check_status( chip->sport, NULL, NULL, &tx_stat );  
   
-  if( !(tx_stat & DMA_DONE) )
+  if( !(tx_stat & DMA_DONE))
     return IRQ_NONE;
-  
+
+  if( chip->sport->dma_tx_change == 1) {
+    if(dma->next_desc_ptr==(unsigned long)chip->sport->dma_tx_desc) {
+/*    printk("tx dma equal\n");*/
+      chip->sport->dma_tx_change = 0;
+    }
+    return IRQ_HANDLED;
+  }
+    
   ++(chip->sport_irq_count_tx);
 
 #ifdef  BF53X_SHADOW_REGISTERS 
   bf53x_sport_shadow_update_tx( chip->sport );  
 #endif
 
-  if( chip->tx_substream ) {
+  if( chip->tx_substream) {
     snd_pcm_period_elapsed(chip->tx_substream);
     //square_fill(chip->tx_substream->runtime->dma_area, chip->tx_substream->runtime->dma_bytes);
     //print_16x8(chip->tx_substream->runtime->dma_area);
@@ -1970,6 +1922,7 @@ static irqreturn_t sport_handler_tx(int irq, void *dev_id, struct pt_regs *regs)
 static irqreturn_t sport_error_handler(int irq, void *dev_id, struct pt_regs *regs){
 
   unsigned int status;
+  
 
   if(!sport) return IRQ_NONE;
   if( bf53x_sport_check_status(sport, &status, NULL, NULL) ){

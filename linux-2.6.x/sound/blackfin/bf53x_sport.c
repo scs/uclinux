@@ -58,10 +58,6 @@
 
 #endif
 
-#define BF53X_ANOMALY_29  /* don't use the DMA_RUN bit, keep track of running status ourselves */
-
-#define BF53X_AUTOBUFFER_MODE  /* use autobuffer, or (undef) circular descriptor list  */
-
 
 /*#define BF53X_SPORT_DEBUG*/
 
@@ -77,87 +73,12 @@
 
 #include <asm/blackfin.h>
 #include <asm/dma.h>
+#include <asm/cacheflush.h>
 #define FRAME_DELAY (1<<12)  /* delay between frame sync pulse and first data bit
                               in multichannel mode */ 
 
 #define SSYNC asm( "nop;nop;nop;ssync;\n\t" )
 
-/*
- * source: ADSP-BF533 Blackfin Processor Hardware Reference, 
- * chapter 12, and appendix B-12 table  B10 
- */
-
-struct sport_register {
-  unsigned short tcr1;    unsigned short reserved0;
-  unsigned short tcr2;    unsigned short reserved1;
-  unsigned short tclkdiv; unsigned short reserved2;
-  unsigned short tfsdiv;  unsigned short reserved3;
-  unsigned long tx;
-  unsigned long reserved_l0;
-  unsigned long rx;
-  unsigned long reserved_l1;
-  unsigned short rcr1;    unsigned short reserved4;
-  unsigned short rcr2;    unsigned short reserved5;
-  unsigned short rclkdiv; unsigned short reserved6;
-  unsigned short rfsdiv;  unsigned short reserved7;
-  unsigned short stat;    unsigned short reserved8;
-  unsigned short chnl;    unsigned short reserved9;
-  unsigned short mcmc1;   unsigned short reserved10;
-  unsigned short mcmc2;   unsigned short reserved11;
-  unsigned long mtcs0;
-  unsigned long mtcs1;
-  unsigned long mtcs2;
-  unsigned long mtcs3;
-  unsigned long mrcs0;
-  unsigned long mrcs1;
-  unsigned long mrcs2;
-  unsigned long mrcs3;
-};
-
-
-#ifndef BF53X_AUTOBUFFER_MODE
-
-/* (large mode) descriptor arrays */
-struct bf53x_dma_desc {
-  struct bf53x_dma_desc* next_desc;
-  void*                  start_addr;
-};
-
-#endif
-
-
-struct bf53x_sport {
-  int sport_chan;
-  int dma_rx_chan;
-  int dma_tx_chan;
-  struct sport_register* regs;
-
-  DMA_register* dma_rx;   /* a struct gratefully borrowed from asm/bf533_dma.h */
-  DMA_register* dma_tx;
-
-#ifdef BF53X_SHADOW_REGISTERS
-  DMA_register* dma_shadow_rx;   /* a struct gratefully borrowed from asm/bf533_dma.h */
-  DMA_register* dma_shadow_tx;
-#endif
-
-#ifndef BF53X_AUTOBUFFER_MODE
-  struct bf53x_dma_desc* dma_rx_desc;
-  struct bf53x_dma_desc* dma_tx_desc;
-#endif
-
-  unsigned int rcr1;
-  unsigned int rcr2;
-  int rx_tdm_count;
-
-  unsigned int tcr1;
-  unsigned int tcr2;
-  int tx_tdm_count;
-
-#ifdef BF53X_ANOMALY_29
-  int is_running;   /* little kludge to work around anomaly 29: DMA_RUN bit unreliable */
-#endif
-
-};
 
 static unsigned int sport_iobase[] = {0xffc00800, 0xffc00900 };
 static unsigned int dma_iobase[]   = {0xffc00c00, 0xffc00c40, 0xffc00c80, 0xffc00cc0, 
@@ -227,12 +148,27 @@ bf53x_sport_init(int sport_chan,
 
 #endif
 
+  sport->dma_rx_desc = NULL;
+  sport->dma_tx_desc = NULL;
+  sport->dma_rx_expired_desc = NULL;
+  sport->dma_tx_expired_desc = NULL;
+  sport->dma_rx_change = 0;
+  sport->dma_tx_change = 0;
+
   return sport;
 } 
 
 void bf53x_sport_done(struct bf53x_sport* sport){
   if(sport) {
     bf53x_sport_stop(sport);
+    if( sport->dma_rx_desc ) 
+      free(sport->dma_rx_desc);
+    if( sport->dma_tx_desc ) 
+      free(sport->dma_tx_desc);
+    if( sport->dma_rx_expired_desc ) 
+      free(sport->dma_rx_expired_desc);
+    if( sport->dma_tx_expired_desc ) 
+      free(sport->dma_tx_expired_desc);
 #ifdef BF53X_SHADOW_REGISTERS
     free( sport->dma_shadow_tx );
     free( sport->dma_shadow_rx );
@@ -324,42 +260,84 @@ int bf53x_sport_config_tx( struct bf53x_sport* sport, unsigned int tcr1, unsigne
 }
 
 
-#ifndef BF53X_AUTOBUFFER_MODE  
 
-static void setup_desc(struct bf53x_dma_desc* desc, void* buf, int fragcount, size_t fragsize_bytes ){
+static void setup_desc(struct bf53x_dma_desc* desc, void* buf, int fragcount, size_t fragsize_bytes,
+		unsigned int cfg, unsigned int xcount, unsigned int ycount){
 
   int i;
 
   for( i=0; i<fragcount; ++i ){
-    desc[i].next_desc  = &( desc[i + 1] );
-    desc[i].start_addr = (char*)buf + i*fragsize_bytes;
+    desc[i].next_desc  = (unsigned long)&( desc[i + 1] );
+    desc[i].start_addr = (unsigned long)buf + i*fragsize_bytes;
+    desc[i].cfg = cfg;
+    desc[i].xcount = xcount;
+    desc[i].xmodify = sizeof(long);
+    desc[i].ycount = ycount;
+    desc[i].ymodify = sizeof(long);
   }
 
-  desc[fragcount-1].next_desc = desc; /* make circular */
+  desc[fragcount-1].next_desc = (unsigned long)desc; /* make circular */
 
+/*  printk("setup desc: desc0=%x, next0=%x, desc1=%x, next1=%x\nxcount=%d,ycount=%d,addr=0x%x,cfs=0x%x\n", 
+  	&(desc[0]), desc[0].next_desc, 
+	&(desc[1]), desc[1].next_desc,
+	desc[0].xcount, desc[0].ycount, desc[0].start_addr,desc[0].cfg);
+*/
+  flush_dcache_range(desc, desc + fragcount*sizeof(struct bf53x_dma_desc));
 }
 
-#endif
 
-
-
-int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf, 
-			       int fragcount, size_t fragsize_bytes, 
-			       unsigned int tdm_mask )
+void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport)
 {
-
 #ifdef BF53X_SHADOW_REGISTERS
   DMA_register* dma = sport->dma_shadow_rx;
 #else
   DMA_register* dma = sport->dma_rx;
 #endif
+  struct bf53x_dma_desc *desc;
+  
+  if( sport->regs->rcr1 & RSPEN ) {
+    desc = (struct bf53x_dma_desc*)dma->next_desc_ptr;
+    desc->next_desc = (unsigned int)(sport->dma_rx_desc);
+    flush_dcache_range(desc, desc + sizeof(struct bf53x_dma_desc));
+/*    printk("rx: cur_desc=%x, xcount=%d, rx_desc=%x\n", dma->curr_desc_ptr, 
+		dma->curr_x_count, sport->dma_rx_desc);
+*/
+  }
+}
 
-  sport_printd( KERN_INFO, "%s( %p, %d, %d, 0x%02x )\n", __FUNCTION__, buf, fragcount,fragsize_bytes, tdm_mask );
-
-#ifdef BF53X_AUTOBUFFER_MODE  
-  if( fragsize_bytes > 0x10000*sizeof(long) ) 
-    return -EINVAL;
+void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport)
+{
+#ifdef BF53X_SHADOW_REGISTERS
+  DMA_register* dma = sport->dma_shadow_tx;
 #else
+  DMA_register* dma = sport->dma_tx;
+#endif
+  struct bf53x_dma_desc *desc;
+  
+  if( sport->regs->tcr1 & TSPEN) {
+    desc = (struct bf53x_dma_desc*)dma->next_desc_ptr;
+    desc->next_desc = (unsigned int)(sport->dma_tx_desc);
+    flush_dcache_range(desc, desc + sizeof(struct bf53x_dma_desc));
+/*    printk("tx: dma=%x, desc=%x, next=%x\n oldaddr=0x%x, oldxcount=%d\n", 
+    	dma->next_desc_ptr, desc, desc->next_desc,
+	sport->dma_tx_desc->start_addr, sport->dma_tx_desc->xcount);
+*/  }
+}
+
+int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf, 
+			       int fragcount, size_t fragsize_bytes)
+{
+#ifdef BF53X_SHADOW_REGISTERS
+  DMA_register* dma = sport->dma_shadow_rx;
+#else
+  DMA_register* dma = sport->dma_rx;
+#endif
+  unsigned int x_count;
+  unsigned int y_count;
+  unsigned int cfg;
+
+/*  printk( "%s( %p, %d, %d )\n", __FUNCTION__, buf, fragcount,fragsize_bytes );*/
 
   /* for fragments larger than 32k words we use 2d dma, with the outer loop counting
      the number of 32k blocks. it follows that then
@@ -370,54 +348,51 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
     if( (fragsize_bytes | (fragsize_bytes-1) ) != (2*fragsize_bytes - 1) )
       return -EINVAL;
 
-#endif
-
-  if( sport->regs->rcr1 & RSPEN )
-    return -EBUSY;
-
-#ifdef BF53X_AUTOBUFFER_MODE  
-
-  dma->start_addr = (unsigned int)buf; 
-  dma->cfg        = ( 0x1000 | DI_EN | DI_SEL | DMA2D | WDSIZE_32 | WNR ); /* autobuffer mode */
-  dma->x_count    = fragsize_bytes/sizeof(long);
-  dma->x_modify   = sizeof(long);
-  dma->y_count    = fragcount;
-  dma->y_modify   = sizeof(long);
-
-#else
-
-  if( sport->dma_rx_desc ) 
-    free( sport->dma_rx_desc );
+  if(sport->dma_rx_change==0) {
+    if( sport->dma_rx_expired_desc) 
+      free(sport->dma_rx_expired_desc);
   
+    if( sport->dma_rx_desc ) 
+      sport->dma_rx_expired_desc = sport->dma_rx_desc;
+  }
+  else if( sport->dma_rx_desc) 
+      free(sport->dma_rx_desc);
+
+
   sport->dma_rx_desc = malloc( fragcount * sizeof( struct bf53x_dma_desc ) );
   
-  if( !sport->dma_rx_desc )
+  if( !sport->dma_rx_desc ) {
+    sport->dma_rx_desc = sport->dma_rx_expired_desc;
+    sport->dma_rx_expired_desc = NULL;
     return -ENOMEM;
-
-  setup_desc( sport->dma_rx_desc, buf, fragcount, fragsize_bytes );
-
-  {
-    
-    unsigned int x_count = fragsize_bytes/sizeof(long);
-    unsigned int y_count = 0;
-    unsigned int cfg     = 0x7000 | DI_EN | WDSIZE_32 | WNR | (sizeof(struct bf53x_dma_desc) << 8); /* large descriptor mode */
-
-    if( x_count > 0x8000 ){
-      y_count = x_count >> 15;
-      x_count = 0x8000;
-    }
-
-    dma->next_desc_ptr = (unsigned int)(sport->dma_rx_desc);
-    dma->cfg           = cfg | (y_count ? DMA2D : 0);
-    dma->x_count       = x_count;
-    dma->x_modify      = sizeof(long);
-    dma->y_count       = y_count;
-    dma->y_modify      = sizeof(long);
-
   }
 
-#endif  
+  x_count = fragsize_bytes/sizeof(long);
+  y_count = 0;
+  cfg     = 0x7000 | DI_EN | WDSIZE_32 | WNR | (DESC_ELEMENT_COUNT << 8); /* large descriptor mode */
 
+  if( x_count > 0x8000 ){
+    y_count = x_count >> 15;
+    x_count = 0x8000;
+    cfg |= DMA2D;
+  }
+
+  setup_desc( sport->dma_rx_desc, buf, fragcount, fragsize_bytes , cfg|DMAEN, x_count, y_count);
+
+  if( sport->regs->rcr1 & RSPEN ) {
+    sport->dma_rx_change=1;
+  }
+  else {  
+    dma->next_desc_ptr = (unsigned int)(sport->dma_rx_desc);
+    dma->cfg           = cfg;
+    dma->x_count       = 0;
+    dma->x_modify      = 0;
+    dma->y_count       = 0;
+    dma->y_modify      = 0;
+
+    SSYNC;
+  }
+  
 
 #ifdef BF53X_SHADOW_REGISTERS
   {
@@ -436,18 +411,12 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
   }
 #endif
 
-  if( tdm_mask ) 
-    sport->regs->mrcs0 = tdm_mask;
-
-  SSYNC;
-
   return 0;
 
 }
 
 int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf, 
-			       int fragcount, size_t fragsize_bytes, 
-			       unsigned int tdm_mask )
+			       int fragcount, size_t fragsize_bytes)
 {
   
 #ifdef BF53X_SHADOW_REGISTERS
@@ -455,65 +424,61 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
 #else
   DMA_register* dma = sport->dma_tx;
 #endif
+  unsigned int x_count;
+  unsigned int y_count;
+  unsigned int cfg;
 
-  sport_printd( KERN_INFO, "%s( %p, %d, %d, 0x%02x )\n", __FUNCTION__, buf, fragcount,fragsize_bytes, tdm_mask );
+/*  printk("%s( %p, %d, %d )\n", __FUNCTION__, buf, fragcount,fragsize_bytes );*/
 
-#ifdef BF53X_AUTOBUFFER_MODE  
-  if( fragsize_bytes > 0x10000*sizeof(long) ) 
-    return -EINVAL;
-#else
   /* fragsize must be a power of two (line below is the cheapest test I could think of :-) */
   if( fragsize_bytes > 0x8000*sizeof(long) )
     if( (fragsize_bytes | (fragsize_bytes-1) ) != (2*fragsize_bytes - 1) )
       return -EINVAL;
-#endif
 
-  if( sport->regs->tcr1 & TSPEN ) 
-    return -EBUSY;
-
-#ifdef BF53X_AUTOBUFFER_MODE  
-
-  dma->start_addr = (unsigned int) buf; 
-  dma->cfg = ( 0x1000 | DI_EN | DI_SEL | DMA2D | WDSIZE_32  ) ; /* autobuffer mode */
-  dma->x_count    = fragsize_bytes/sizeof(long);
-  dma->x_modify   = sizeof(long);
-  dma->y_count    = fragcount;
-  dma->y_modify   = sizeof(long);
+  if(sport->dma_tx_change==0) {
+    if( sport->dma_tx_expired_desc )
+      free(sport->dma_tx_expired_desc);
   
-#else
+    if( sport->dma_tx_desc )
+      sport->dma_tx_expired_desc = sport->dma_tx_desc;
+  }
+  else if( sport->dma_tx_desc )
+     free(sport->dma_tx_desc);
 
-  if( sport->dma_tx_desc ) free( sport->dma_tx_desc );
-  
   sport->dma_tx_desc = malloc( fragcount * sizeof( struct bf53x_dma_desc ) );
   
-  if( !sport->dma_tx_desc )
+  if( !sport->dma_tx_desc ) {
+    sport->dma_tx_desc = sport->dma_tx_expired_desc;
+    sport->dma_tx_expired_desc = NULL;
     return -ENOMEM;
-
-  setup_desc( sport->dma_tx_desc, buf, fragcount, fragsize_bytes );
-
-  {
-    
-    unsigned int x_count = fragsize_bytes/sizeof(long);
-    unsigned int y_count = 0;
-    unsigned int cfg     = 0x7000 | DI_EN | WDSIZE_32 | (sizeof(struct bf53x_dma_desc) << 8); /* large descriptor mode */
-
-    if( x_count > 0x8000 ){
-      y_count = x_count >> 15;
-      x_count = 0x8000;
-    }
-
-    dma->next_desc_ptr = (unsigned int)(sport->dma_tx_desc);
-    dma->cfg           = cfg | (y_count ? DMA2D : 0);
-    dma->x_count       = x_count;
-    dma->x_modify      = sizeof(long);
-    dma->y_count       = y_count;
-    dma->y_modify      = sizeof(long);
-
   }
 
+  x_count = fragsize_bytes/sizeof(long);
+  y_count = 0;
+  cfg     = 0x7000 | DI_EN | WDSIZE_32 | ( DESC_ELEMENT_COUNT << 8); /* large descriptor mode */
 
-#endif
+  if( x_count > 0x8000 ){
+    y_count = x_count >> 15;
+    x_count = 0x8000;
+    cfg |= DMA2D;
+  }
 
+  setup_desc( sport->dma_tx_desc, buf, fragcount, fragsize_bytes, cfg|DMAEN, x_count, y_count);
+    
+  if( sport->regs->tcr1 & TSPEN ) {
+    sport->dma_tx_change=1;
+  }
+  else {
+    dma->next_desc_ptr = (unsigned int)(sport->dma_tx_desc);
+    dma->cfg           = cfg;
+    dma->x_count       = 0;
+    dma->x_modify      = 0;
+    dma->y_count       = 0;
+    dma->y_modify      = 0;
+  
+    SSYNC;
+  }
+  
 #ifdef BF53X_SHADOW_REGISTERS
   {
     DMA_register* dma2 = sport->dma_tx;
@@ -530,11 +495,6 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
     dma->curr_addr_ptr_hi = dma->start_addr >> 16 ;
   }
 #endif
-
-  if( tdm_mask ) 
-    sport->regs->mtcs0 = tdm_mask;
-
-  SSYNC;
 
   return 0;
 
@@ -638,13 +598,9 @@ int bf53x_sport_curr_frag_rx( struct bf53x_sport* sport ){
 #else
   DMA_register* dma = sport->dma_rx;
 #endif
-#ifdef BF53X_AUTOBUFFER_MODE
-  return dma->y_count - dma->curr_y_count; 
-#else
   /* use the fact that we use an contiguous array of descriptors */
   return ( (struct bf53x_dma_desc*)(dma->curr_desc_ptr) - sport->dma_rx_desc) / 
     sizeof( struct bf53x_dma_desc );
-#endif
 }
 
 
@@ -654,13 +610,9 @@ int bf53x_sport_curr_frag_tx( struct bf53x_sport* sport ){
 #else
   DMA_register* dma = sport->dma_tx;
 #endif
-#ifdef BF53X_AUTOBUFFER_MODE
-  return dma->y_count - dma->curr_y_count; 
-#else
   /* use the fact that we use an contiguous array of descriptors */
   return ((struct bf53x_dma_desc*)(dma->curr_desc_ptr) - sport->dma_rx_desc) / 
     sizeof( struct bf53x_dma_desc );
-#endif
 }
 
 
