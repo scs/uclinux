@@ -433,7 +433,7 @@ static ssize_t ppi_read (struct file *filp, char *buf, size_t count, loff_t *pos
         return 0;
 
         pdev->done=0;
-
+ 
     /* Invalidate allocated memory in Data Cache */
 
         blackfin_dcache_invalidate_range((u_long)buf, (u_long)(buf + count));
@@ -548,12 +548,12 @@ static int ppi_open (struct inode *inode, struct file *filp)
 
         ppiinfo.opened = 1;
         ppiinfo.done = 0;
-        ppiinfo.dma_config = ( 0x1000 | WNR | RESTART | WDSIZE_16 | DMA2D | DI_EN );
+        ppiinfo.dma_config = ( DMA_FLOW_MODE | WNR | RESTART | DMA_WDSIZE_16 | DMA2D | DI_EN );
 
         ppiinfo.pixel_per_line = PIXEL_PER_LINE;
         ppiinfo.lines_per_frame = LINES_PER_FRAME;
         ppiinfo.bpp = 8;
-        ppiinfo.ppi_control = POL_S | POL_C | DLEN_8 | PACK_EN | CFG_GP_Input_3Syncs | GP_Input_Mode;
+        ppiinfo.ppi_control = POL_S | POL_C | PPI_DATA_LEN | PPI_PACKING | CFG_GP_Input_3Syncs | GP_Input_Mode;
         ppiinfo.ppi_status = 0;
         ppiinfo.ppi_delay = 0;
         ppiinfo.ppi_trigger_gpio = NO_TRIGGER;

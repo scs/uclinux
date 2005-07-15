@@ -80,6 +80,10 @@
 #define LINES_PER_FRAME	1024
 #define CFG_GP_Input_3Syncs 	0x0020
 #define GP_Input_Mode			0x000C
+#define PPI_DATA_LEN				DLEN_8
+#define PPI_PACKING					PACK_EN
+#define DMA_FLOW_MODE			0x0000 //STOPMODE
+#define DMA_WDSIZE_16			WDSIZE_16
 #endif
 
 #ifdef MT9V022
@@ -89,6 +93,10 @@
 #define LINES_PER_FRAME	488
 #define CFG_GP_Input_3Syncs 	0x0020
 #define GP_Input_Mode			0x000C
+#define PPI_DATA_LEN			DLEN_8
+#define PPI_PACKING				PACK_EN
+#define DMA_FLOW_MODE			0x0000 //STOPMODE
+#define DMA_WDSIZE_16			WDSIZE_16
 #endif
 
 
