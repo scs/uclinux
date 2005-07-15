@@ -42,6 +42,21 @@
 .text
 
 ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
+	/* Try to deal with syscalls quickly.  */
+	[--sp] = ASTAT;
+	[--sp] = (R7:6);
+	r7 = SEQSTAT;	/* reason code is in bit 5:0 */
+	r6.l = lo(SEQSTAT_EXCAUSE);
+	r6.h = hi(SEQSTAT_EXCAUSE);
+	r7 = r7 & r6;
+	CC = r7 == 0;
+	(R7:6) = [sp++];
+	if ! cc jump 1f;
+	ASTAT = [sp++];
+	raise 14;		/* invoked by TRAP #0, for sys call */
+	rtx
+1:
+	ASTAT = [sp++];
 	SAVE_ALL_SYS
 	
         p2.l = lo(IPEND);
@@ -50,21 +65,11 @@ ENTRY(trap) /* Exception: 4th entry into system event table(supervisor mode)*/
         r0 = [p2];              /* Read current IPEND */
         [sp + PT_IPEND] = r0;   /* Store IPEND */
 
-	r1 = [sp + PT_SEQSTAT];	/* reason code is in bit 5:0 */
-	r0.l = lo(SEQSTAT_EXCAUSE);
-	r0.h = hi(SEQSTAT_EXCAUSE);
-	r1 = r1 & r0;
-	CC = r1 == 0;
-	if ! cc jump 1f;
-	raise 14;		/* invoked by TRAP #0, for sys call */
-	jump 2f;
-1:
 	r0 = sp; 		/* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
 	call trap_c;
 	SP += 12; 
 	call ret_from_exception;
-2:
 	RESTORE_ALL_SYS
 	rtx;
 
