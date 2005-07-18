@@ -405,11 +405,102 @@ while 1 {
          }
    }
 
-   incr case_num
    puts "Finally, test play and record audio concurrently...\r"
-   send "rm aaa\r"
    sleep 1
-   send "vrec -w -b 16 -s 11000 -t 6 aaa\r"
+   set timeout 10
+
+   send "\r"
+   expect {
+	"> " {
+	}
+   }
+
+   incr case_num
+   send "vrec -w -S -b 16 -s 8000 -t 6|vplay\r"
+   expect {
+	"> " {
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+
+   sleep 1
+   incr case_num
+   send "vrec -w -S -b 16 -s 48000 -t 6|vplay\r"
+   expect {
+	"> " {
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+   
+   sleep 1
+   incr case_num
+   send "vrec -w -b 16 -s 8000 -t 6|vplay\r"
+   expect {
+	"> " {
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+   
+   sleep 1
+   incr case_num
+   send "vrec -w -b 16 -s 48000 -t 6|vplay\r"
+   expect {
+	"> " {
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+   
+   sleep 1
+   incr case_num
+   send "vrec -w -b 8 -s 8000 -t 6|vplay\r"
+   expect {
+	"> " {
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+
+   sleep 1
+   incr case_num
+   send "vrec -w -b 8 -s 48000 -t 6|vplay\r"
+   expect {
+	"> " {
+	}
+
+         timeout {
+		puts "\rCase $case_num ...FAIL\r"
+		puts "$TITLE ............\[FAIL\]\r"
+		exit
+         }
+   }
+
+   sleep 1
+   incr case_num
+   send "vrec -w -b 16 -s 11000 -t 8 aaa\r"
    expect {
 	"> " {
 	}
@@ -422,7 +513,7 @@ while 1 {
    }
    send "vplay aaa &\r"
    expect {
-	"silence:" {
+	"Playing WAVE" {
 	}
 
          timeout {
@@ -443,7 +534,7 @@ while 1 {
 		exit
          }
    }
-   send "vrec -w -b 16 -s 11000 -t 6 bbb\r"
+   send "vrec -w -b 16 -s 11000 -t 4 bbb\r"
    expect {
 	"> " {
 	}
