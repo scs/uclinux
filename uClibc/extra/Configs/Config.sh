@@ -24,8 +24,12 @@ config HAVE_DOT_HIDDEN
         bool
 	default y
 
-config UCLIBC_COMPLETELY_PIC
-        bool
+config ARCH_SUPPORTS_BIG_ENDIAN
+	bool
+	default y
+
+config ARCH_SUPPORTS_LITTLE_ENDIAN
+	bool
 	default y
 
 choice
@@ -49,15 +53,16 @@ config CONFIG_SH2
 	bool "SH2"
 
 config CONFIG_SH3
-	select UCLIBC_HAS_MMU
+	select ARCH_HAS_MMU
 	bool "SH3"
 
 config CONFIG_SH4
-	select UCLIBC_HAS_MMU
+	select ARCH_HAS_MMU
 	bool "SH4"
 
 config CONFIG_SH5
-	select UCLIBC_HAS_MMU
+	select ARCH_HAS_MMU
+	select UCLIBC_HAS_LFS
 	bool "SH5"
 
 endchoice

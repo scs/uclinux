@@ -35,7 +35,7 @@
 	.section ".text"
 	.globl	_start
 	.type	_start,@function
-#if defined L_crt0 || ! defined __UCLIBC_CTOR_DTOR__
+#if defined L_crt0 || defined L_Scrt0 || ! defined __UCLIBC_CTOR_DTOR__
 	.type	__uClibc_main,%function
 #else
 	.weak	_init
@@ -50,6 +50,10 @@
 _start:
 	/* Save the stack pointer, in case we're statically linked under Linux.  */
 	mr	r9,r1
+#if defined L_Scrt0 || defined L_Scrt1
+	bl	_GLOBAL_OFFSET_TABLE_-4@local
+	mflr	r31
+#endif
 	/* Set up an initial stack frame, and clear the LR.  */
 	clrrwi	r1,r1,4
 	li	r0,0
@@ -66,25 +70,33 @@ _start:
 	addi	r5,r5,1
 	rlwinm	r5,r5,2,0,29
 	add	r5,r5,r4
-
 	/* Ok, now run uClibc's main() -- shouldn't return */
-#if (defined L_crt1 || defined L_gcrt1 ) && defined __UCLIBC_CTOR_DTOR__
+#if (defined L_crt1 || defined L_Scrt1) && defined __UCLIBC_CTOR_DTOR__
+# ifdef L_Scrt1
+	lwz	r6,_init@got(r31)
+	lwz	r7,_fini@got(r31)
+	b	__uClibc_start_main@plt
+# else
 	lis     r6,_init@ha	# load top 16 bits
 	addi    r6,r6,_init@l	# load bottom 16 bits
 	lis     r7,_fini@ha	# load top 16 bits of &msg
 	addi    r7,r7,_fini@l	# load bottom 16 bits
-	bl	__uClibc_start_main
+	b	__uClibc_start_main
+# endif
 #else
-	bl	__uClibc_main
+# ifdef L_Scrt0
+	b	__uClibc_main@plt
+# else
+	b	__uClibc_main
+# endif
 #endif
 .size _start,.-_start
 
-	.section ".data"
-	.globl  __data_start
+/* Define a symbol for the first piece of initialized data.  */
+	.data
+	.globl __data_start
 __data_start:
-
-#if defined L_gcrt1 && defined __UCLIBC_PROFILING__
-# include "./gmon-start.S"
-#endif
-
+	.long 0
+	.weak data_start
+	data_start = __data_start
 

@@ -24,6 +24,8 @@
 TOPDIR=../
 include $(TOPDIR)Rules.mak
 
+CFLAGS+=$(SSP_ALL_CFLAGS)
+
 LIBCRYPT=libcrypt.a
 LIBCRYPT_SHARED=libcrypt.so
 LIBCRYPT_SHARED_FULLNAME=libcrypt-$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL).so
@@ -51,7 +53,7 @@ shared: all
 	$(LD) $(LDFLAGS) -soname=$(LIBCRYPT_SHARED).$(MAJOR_VERSION) \
 		-o $(LIBCRYPT_SHARED_FULLNAME) --whole-archive $(LIBCRYPT) \
 		--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
-		-L$(TOPDIR)lib -lc;
+		-L$(TOPDIR)lib -lc $(LDADD_LIBFLOAT) $(LIBGCC);
 	$(INSTALL) -d $(TOPDIR)lib
 	$(RM) $(TOPDIR)lib/$(LIBCRYPT_SHARED_FULLNAME) $(TOPDIR)lib/$(LIBCRYPT_SHARED).$(MAJOR_VERSION)
 	$(INSTALL) -m 644 $(LIBCRYPT_SHARED_FULLNAME) $(TOPDIR)lib;

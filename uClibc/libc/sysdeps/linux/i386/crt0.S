@@ -82,7 +82,7 @@ _start:
 	addl $_GLOBAL_OFFSET_TABLE_+[.-.L0],%edx
 #endif
 
-#if (defined L_crt1 || defined L_Scrt1 || defined L_gcrt1 ) && defined __UCLIBC_CTOR_DTOR__
+#if (defined L_crt1 || defined L_Scrt1) && defined __UCLIBC_CTOR_DTOR__
 	/* Push .init and .fini arguments to __uClibc_start_main() on the stack */
 #ifdef L_Scrt1
 	pushl _fini@GOT(%edx)
@@ -92,7 +92,7 @@ _start:
 	pushl $_init
 #endif
 
-	/* Push envp, argc, and argc arguments to __uClibc_start_main() on the stack */ 
+	/* Push envp, argc, and argc arguments to __uClibc_start_main() on the stack */
 	pushl %eax	/* Environment pointer */
 	pushl %ebx	/* Argument pointer */
 	pushl %ecx	/* And the argument count */
@@ -104,7 +104,7 @@ _start:
 	call __uClibc_start_main
 #endif
 #else
-	/* Push envp, argc, and argc arguments to __uClibc_start_main() on the stack */ 
+	/* Push envp, argc, and argc arguments to __uClibc_start_main() on the stack */
 	pushl %eax	/* Environment pointer */
 	pushl %ebx	/* Argument pointer */
 	pushl %ecx	/* And the argument count */
@@ -121,7 +121,11 @@ _start:
 .size _start,.-_start
 
 
-#if defined L_gcrt1 && defined __UCLIBC_PROFILING__
-# include "./gmon-start.S"
-#endif
+/* Define a symbol for the first piece of initialized data.  */
+	.data
+	.globl __data_start
+__data_start:
+	.long 0
+	.weak data_start
+	data_start = __data_start
 

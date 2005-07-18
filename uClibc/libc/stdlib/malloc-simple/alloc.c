@@ -6,13 +6,14 @@
  * Parts of the memalign code were stolen from malloc-930716.
  */
 
+#define _GNU_SOURCE
 #include <features.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/mman.h>
 
 
@@ -30,16 +31,16 @@ void *malloc(size_t size)
 #endif
     }
 
-#ifdef __UCLIBC_HAS_MMU__
+#ifdef __ARCH_HAS_MMU__
     result = mmap((void *) 0, size + sizeof(size_t), PROT_READ | PROT_WRITE,
-	    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	    MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
     if (result == MAP_FAILED)
 	return 0;
     * (size_t *) result = size;
     return(result + sizeof(size_t));
 #else
     result = mmap((void *) 0, size, PROT_READ | PROT_WRITE,
-	    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	    MAP_SHARED | MAP_ANONYMOUS, 0, 0);
     if (result == MAP_FAILED)
 	return 0;
     return(result);
@@ -87,7 +88,7 @@ void *realloc(void *ptr, size_t size)
     newptr = malloc(size);
     if (newptr) {
 	memcpy(newptr, ptr,
-#ifdef __UCLIBC_HAS_MMU__
+#ifdef __ARCH_HAS_MMU__
 		*((size_t *) (ptr - sizeof(size_t)))
 #else
 		size
@@ -100,7 +101,7 @@ void *realloc(void *ptr, size_t size)
 #endif
 
 #ifdef L_free
-extern int /* weak_function */ __libc_free_aligned(void *ptr);
+extern int weak_function __libc_free_aligned(void *ptr);
 void free(void *ptr)
 {
     if (ptr == NULL)
@@ -110,7 +111,7 @@ void free(void *ptr)
 	    return;
 	}
     }
-#ifdef __UCLIBC_HAS_MMU__
+#ifdef __ARCH_HAS_MMU__
     ptr -= sizeof(size_t);
     munmap(ptr, * (size_t *) ptr + sizeof(size_t));
 #else
@@ -122,9 +123,9 @@ void free(void *ptr)
 #ifdef L_memalign
 #ifdef __UCLIBC_HAS_THREADS__
 #include <pthread.h>
-static pthread_mutex_t __malloclock;
-# define LOCK	__pthread_mutex_lock(&__malloclock)
-# define UNLOCK	__pthread_mutex_unlock(&__malloclock);
+static pthread_mutex_t __malloc_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+# define LOCK	__pthread_mutex_lock(&__malloc_lock)
+# define UNLOCK	__pthread_mutex_unlock(&__malloc_lock);
 #else
 # define LOCK
 # define UNLOCK
@@ -153,7 +154,7 @@ int __libc_free_aligned(void *ptr)
 	    /* Mark the block as free */
 	    l->aligned = NULL;
 	    ptr = l->exact;
-#ifdef __UCLIBC_HAS_MMU__
+#ifdef __ARCH_HAS_MMU__
 	    ptr -= sizeof(size_t);
 	    munmap(ptr, * (size_t *) ptr + sizeof(size_t));
 #else

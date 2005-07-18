@@ -19,7 +19,7 @@
 TOPDIR=../../../
 include $(TOPDIR)Rules.mak
 
-SSRC= memcpy.S memset.S strcpy.S
+SSRC= memcpy.S memset.S strcpy.S strlen.S
 SOBJS=$(patsubst %.S,%.o, $(SSRC))
 
 all: $(SOBJS) $(LIBC)
@@ -30,7 +30,7 @@ ar-target: $(SOBJS)
 	$(AR) $(ARFLAGS) $(LIBC) $(SOBJS)
 
 $(SOBJS): %.o : %.S
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(ASFLAGS) -c $< -o $@
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 clean:

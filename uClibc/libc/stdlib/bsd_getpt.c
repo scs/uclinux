@@ -35,7 +35,7 @@ const char _ptyname1[] = PTYNAME1;
 
 /* Letters indicating the position within a series.  */
 #ifndef PTYNAME2
-#define PTYNAME2 "0123456789abcdefghijklmnopqrstuv";
+#define PTYNAME2 "0123456789abcdefghijklmnopqrstuv"
 #endif
 const char _ptyname2[] = PTYNAME2;
 

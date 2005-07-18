@@ -31,7 +31,7 @@ clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg)
       arg0 = flags;
       arg1 = (unsigned long)child_stack;
       syscall = __NR_clone;
-      asm volatile ("bralid r17, 0x08;nop;" 
+      asm volatile ("brki	r14, 0x08;" 
 		    : "=r" (rval), "=r" (syscall)
 		    : "1" (syscall), "r" (arg0), "r" (arg1)
 		    : SYSCALL_CLOBBERS);
@@ -41,7 +41,7 @@ clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg)
 	{
 	  arg0 = (*fn) (arg);
 	  syscall = __NR_exit;
-	  asm volatile ("bralid r17, 0x08;nop;" 
+	  asm volatile ("brki	r14, 0x08;" 
 			: "=r" (rval), "=r" (syscall)
 			: "1" (syscall), "r" (arg0)
 			: SYSCALL_CLOBBERS);

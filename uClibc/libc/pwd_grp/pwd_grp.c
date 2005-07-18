@@ -49,6 +49,8 @@
 /**********************************************************************/
 /* Sizes for staticly allocated buffers. */
 
+/* If you change these values, also change _SC_GETPW_R_SIZE_MAX and
+ * _SC_GETGR_R_SIZE_MAX in libc/unistd/sysconf.c to match */
 #define PWD_BUFFER_SIZE 256
 #define GRP_BUFFER_SIZE 256
 
@@ -777,11 +779,12 @@ int putgrent(const struct group *__restrict p, FILE *__restrict f)
 	char **m;
 	const char *fmt;
 	int rv = -1;
+	__STDIO_AUTO_THREADLOCK_VAR;
 
 	if (!p || !f) {				/* Sigh... glibc checks. */
 		__set_errno(EINVAL);
 	} else {
-		__STDIO_THREADLOCK(f);
+		__STDIO_AUTO_THREADLOCK(f);
 
 		if (fprintf(f, "%s:%s:%lu:",
 					p->gr_name, p->gr_passwd,
@@ -809,7 +812,7 @@ int putgrent(const struct group *__restrict p, FILE *__restrict f)
 
 		}
 
-		__STDIO_THREADUNLOCK(f);
+		__STDIO_AUTO_THREADUNLOCK(f);
 	}
 
 	return rv;
@@ -835,10 +838,11 @@ int putspent(const struct spwd *p, FILE *stream)
 	long int x;
 	int i;
 	int rv = -1;
+	__STDIO_AUTO_THREADLOCK_VAR;
 
 	/* Unlike putpwent and putgrent, glibc does not check the args. */
 
-	__STDIO_THREADLOCK(stream);
+	__STDIO_AUTO_THREADLOCK(stream);
 
 	if (fprintf(stream, "%s:%s:", p->sp_namp,
 				(p->sp_pwdp ? p->sp_pwdp : "")) < 0
@@ -865,7 +869,7 @@ int putspent(const struct spwd *p, FILE *stream)
 	}
 
  DO_UNLOCK:
-	__STDIO_THREADUNLOCK(stream);
+	__STDIO_AUTO_THREADUNLOCK(stream);
 
 	return rv;
 }
@@ -1117,11 +1121,12 @@ int __pgsreader(int (*__parserfunc)(void *d, char *line), void *data,
 	int line_len;
 	int skip;
 	int rv = ERANGE;
+	__STDIO_AUTO_THREADLOCK_VAR;
 
 	if (buflen < PWD_BUFFER_SIZE) {
 		__set_errno(rv);
 	} else {
-		__STDIO_THREADLOCK(f);
+		__STDIO_AUTO_THREADLOCK(f);
 
 		skip = 0;
 		do {
@@ -1165,7 +1170,7 @@ int __pgsreader(int (*__parserfunc)(void *d, char *line), void *data,
 			}
 		} while (1);
 
-		__STDIO_THREADUNLOCK(f);
+		__STDIO_AUTO_THREADUNLOCK(f);
 	}
 
 	return rv;

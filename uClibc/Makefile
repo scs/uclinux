@@ -28,7 +28,7 @@ noconfig_targets := menuconfig config oldconfig randconfig \
 TOPDIR=./
 include Rules.mak
 
-DIRS = ldso libc libcrypt libresolv libnsl libutil libm libpthread
+DIRS = ldso libc libcrypt libresolv libnsl libutil libm libpthread librt
 ifeq ($(strip $(UCLIBC_HAS_GETTEXT_AWARENESS)),y)
 	DIRS += libintl
 endif
@@ -51,6 +51,7 @@ ifeq ($(strip $(HAVE_SHARED)),y)
 	@$(MAKE) -C libutil shared
 	@$(MAKE) -C libm shared
 	@$(MAKE) -C libpthread shared
+	@$(MAKE) -C librt shared
 ifeq ($(strip $(UCLIBC_HAS_GETTEXT_AWARENESS)),y)
 	@$(MAKE) -C libintl shared
 endif
@@ -119,14 +120,14 @@ endif
 
 include/bits/uClibc_config.h: .config
 	@if [ ! -x ./extra/config/conf ] ; then \
-	    make -C extra/config conf; \
+	    $(MAKE) -C extra/config conf; \
 	fi;
 	$(RM) -r include/bits
 	$(INSTALL) -d include/bits
 	@./extra/config/conf -o extra/Configs/Config.in
 
 headers: include/bits/uClibc_config.h
-ifeq ($(strip $(UCLIBC_HAS_MMU)),y)
+ifeq ($(strip $(ARCH_HAS_MMU)),y)
 	@set -x; ./extra/scripts/fix_includes.sh -k $(KERNEL_SOURCE) -t $(TARGET_ARCH)
 else
 	@set -x; ./extra/scripts/fix_includes.sh -k $(KERNEL_SOURCE) -t $(TARGET_ARCH) -n
@@ -176,7 +177,7 @@ ifeq ($(strip $(UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA)),y)
 endif
 ifeq ($(strip $(UCLIBC_PREGENERATED_LOCALE_DATA)),y)
 	(cd extra/locale; zcat $(LOCALE_DATA_FILENAME) | tar -xvf -)
-	make -C extra/locale pregen
+	$(MAKE) -C extra/locale pregen
 endif
 
 
@@ -190,6 +191,8 @@ tags:
 
 install: install_runtime install_dev finished2
 
+
+RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB=$(shell extra/scripts/relative_path.sh $(DEVEL_PREFIX)lib $(RUNTIME_PREFIX)lib)
 
 # Installs header files and development library links.
 install_dev:
@@ -259,11 +262,11 @@ endif
 ifeq ($(strip $(HAVE_SHARED)),y)
 	for i in `find lib/ -type l -name 'lib[a-zA-Z]*.so' | \
 	sed -e 's/lib\///'` ; do \
-		$(LN) -sf $(RUNTIME_PREFIX)lib/$$i.$(MAJOR_VERSION) \
+		$(LN) -sf $(RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB)$$i.$(MAJOR_VERSION) \
 		$(PREFIX)$(DEVEL_PREFIX)lib/$$i; \
 	done;
 ifeq ($(strip $(PTHREADS_DEBUG_SUPPORT)),y)
-	ln -sf $(RUNTIME_PREFIX)lib/libthread_db.so.1 \
+	ln -sf $(RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB)libthread_db.so.1 \
 		$(PREFIX)$(DEVEL_PREFIX)lib/libthread_db.so
 endif
 #	# If we build shared libraries then the static libs are PIC...
@@ -275,15 +278,13 @@ endif
 endif
 
 
-# Installs run-time libraries and helper apps onto the host system
-# allowing cross development.  If you want to deploy to a target 
-# system, use the "install_target" target instead... 
+# Installs run-time libraries
 install_runtime:
 ifeq ($(strip $(HAVE_SHARED)),y)
 	$(INSTALL) -d $(PREFIX)$(RUNTIME_PREFIX)lib
 	$(INSTALL) -m 644 lib/lib*-$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL).so \
 		$(PREFIX)$(RUNTIME_PREFIX)lib
-	cp -fa lib/*.so.* $(PREFIX)$(RUNTIME_PREFIX)lib
+	cp -dRf lib/*.so.* $(PREFIX)$(RUNTIME_PREFIX)lib
 	@if [ -x lib/ld-uClibc-$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL).so ] ; then \
 	    set -x -e; \
 	    $(INSTALL) -m 755 lib/ld-uClibc-$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL).so \
@@ -299,6 +300,7 @@ else
 utils: dummy
 endif
 
+# Installs helper applications, such as 'ldd' and 'ldconfig'
 install_utils: utils
 	$(MAKE) CROSS=$(CROSS) CC=$(CC) -C utils install
 #ifeq ($(strip $(UCLIBC_HAS_LOCALE)),y)
@@ -319,10 +321,10 @@ all: menuconfig
 # configuration
 # ---------------------------------------------------------------------------
 extra/config/conf:
-	make -C extra/config conf
+	$(MAKE) -C extra/config conf
 
 extra/config/mconf:
-	make -C extra/config ncurses mconf
+	$(MAKE) -C extra/config ncurses mconf
 
 menuconfig: extra/config/mconf
 	$(RM) -r include/bits
@@ -348,6 +350,12 @@ allyesconfig: extra/config/conf
 	$(RM) -r include/bits
 	$(INSTALL) -d include/bits
 	@./extra/config/conf -y extra/Configs/Config.in
+	sed -i -e "s/^DODEBUG=.*/# DODEBUG is not set/" .config
+	sed -i -e "s/^DOASSERTS=.*/# DOASSERTS is not set/" .config
+	sed -i -e "s/^SUPPORT_LD_DEBUG_EARLY=.*/# SUPPORT_LD_DEBUG_EARLY is not set/" .config
+	sed -i -e "s/^SUPPORT_LD_DEBUG=.*/# SUPPORT_LD_DEBUG is not set/" .config
+	sed -i -e "s/^UCLIBC_MJN3_ONLY=.*/# UCLIBC_MJN3_ONLY is not set/" .config
+	@./extra/config/conf -o extra/Configs/Config.in
 
 allnoconfig: extra/config/conf
 	$(RM) -r include/bits
@@ -379,7 +387,7 @@ clean:
 			$(RM) include/sys/$$i; \
 		done; \
 	fi;
-	@$(RM) include/linux include/scsi include/asm*
+	@$(RM) include/linux include/asm*
 	@if [ -d libc/sysdeps/linux/$(TARGET_ARCH) ]; then		\
 	    $(MAKE) -C libc/sysdeps/linux/$(TARGET_ARCH) clean;		\
 	fi;
@@ -391,7 +399,7 @@ distclean: clean
 release: distclean
 	cd ..;					\
 	$(RM) -r uClibc-$(VERSION);		\
-	cp -fa uClibc uClibc-$(VERSION);	\
+	cp -dRf uClibc uClibc-$(VERSION);	\
 	find uClibc-$(VERSION)/ -type f		\
 	    -name .\#* -exec $(RM) -r {} \; ;	\
 	find uClibc-$(VERSION)/ -type d		\

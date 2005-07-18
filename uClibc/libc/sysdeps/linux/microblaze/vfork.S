@@ -29,8 +29,7 @@
 
 C_ENTRY (__vfork):
 	addi	r12, r0, SYS_vfork
-	bralid	r17, 0x08;
-	nop
+	brki	r14, 0x08;
 	addi	r4, r3, 125		// minimum err value
 	blti	r4, 1f			// is r3 < -125?
 	rtsd	r15, 8			// normal return

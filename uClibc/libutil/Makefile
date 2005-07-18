@@ -25,12 +25,14 @@ TOPDIR=../
 include $(TOPDIR)Rules.mak
 LIBC=$(TOPDIR)libc.a
 
+CFLAGS+=$(SSP_ALL_CFLAGS)
+
 LIBUTIL=libutil.a
 LIBUTIL_SHARED=libutil.so
 LIBUTIL_SHARED_FULLNAME=libutil-$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL).so
 
 CSRC=login.c login_tty.c logout.c logwtmp.c openpty.c
-ifeq ($(strip $(UCLIBC_HAS_MMU)),y)
+ifeq ($(strip $(ARCH_HAS_MMU)),y)
     CSRC+=forkpty.c
 endif
 OBJS=$(patsubst %.c,%.o, $(CSRC))
@@ -53,7 +55,7 @@ shared: all
 	$(LD) $(LDFLAGS) -soname=$(LIBUTIL_SHARED).$(MAJOR_VERSION) \
 		-o $(LIBUTIL_SHARED_FULLNAME) --whole-archive $(LIBUTIL) \
 		--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
-		-L$(TOPDIR)lib -lc;
+		-L$(TOPDIR)lib -lc $(LDADD_LIBFLOAT) $(LIBGCC);
 	$(INSTALL) -d $(TOPDIR)lib
 	$(RM) $(TOPDIR)lib/$(LIBUTIL_SHARED_FULLNAME) $(TOPDIR)lib/$(LIBUTIL_SHARED).$(MAJOR_VERSION)
 	$(INSTALL) -m 644 $(LIBUTIL_SHARED_FULLNAME) $(TOPDIR)lib

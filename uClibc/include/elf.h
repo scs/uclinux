@@ -1,5 +1,6 @@
 /* This file defines standard ELF types, structures, and macros.
-   Copyright (C) 1995-1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1995-1999, 2000, 2001, 2002, 2003, 2004
+   Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -254,7 +255,12 @@ typedef struct
    pick large random numbers (0x8523, 0xa7f2, etc.) to minimize the
    chances of collision with official or non-GNU unofficial values.  */
 
+/* Fujitsu FR-V.  */
+#define EM_CYGNUS_FRV	0x5441
+
 #define EM_ALPHA	0x9026
+#define EM_NIOS32	0xfebb		/* Altera Nios 32 */
+#define EM_ALTERA_NIOS2  0x9ee5	/* Altera Nios II */
 
 /* V850 backend magic number.  Written in the absense of an ABI.  */
 #define EM_CYGNUS_V850 0x9080
@@ -562,6 +568,9 @@ typedef struct
 #define	PT_NUM		8		/* Number of defined types */
 #define PT_LOOS		0x60000000	/* Start of OS-specific */
 #define PT_GNU_EH_FRAME	0x6474e550	/* GCC .eh_frame_hdr segment */
+#define PT_GNU_STACK	0x6474e551	/* Indicates stack executability */
+#define PT_GNU_RELRO	0x6474e552	/* Read-only after relocation */
+#define PT_PAX_FLAGS	0x65041580	/* Indicates PaX flag markings */
 #define PT_LOSUNW	0x6ffffffa
 #define PT_SUNWBSS	0x6ffffffa	/* Sun Specific segment */
 #define PT_SUNWSTACK	0x6ffffffb	/* Stack segment */
@@ -575,6 +584,18 @@ typedef struct
 #define PF_X		(1 << 0)	/* Segment is executable */
 #define PF_W		(1 << 1)	/* Segment is writable */
 #define PF_R		(1 << 2)	/* Segment is readable */
+#define PF_PAGEEXEC	(1 << 4)	/* Enable  PAGEEXEC */
+#define PF_NOPAGEEXEC	(1 << 5)	/* Disable PAGEEXEC */
+#define PF_SEGMEXEC	(1 << 6)	/* Enable  SEGMEXEC */
+#define PF_NOSEGMEXEC	(1 << 7)	/* Disable SEGMEXEC */
+#define PF_MPROTECT	(1 << 8)	/* Enable  MPROTECT */
+#define PF_NOMPROTECT	(1 << 9)	/* Disable MPROTECT */
+#define PF_RANDEXEC	(1 << 10)	/* Enable  RANDEXEC */
+#define PF_NORANDEXEC	(1 << 11)	/* Disable RANDEXEC */
+#define PF_EMUTRAMP	(1 << 12)	/* Enable  EMUTRAMP */
+#define PF_NOEMUTRAMP	(1 << 13)	/* Disable EMUTRAMP */
+#define PF_RANDMMAP	(1 << 14)	/* Enable  RANDMMAP */
+#define PF_NORANDMMAP	(1 << 15)	/* Disable RANDMMAP */
 #define PF_MASKOS	0x0ff00000	/* OS-specific */
 #define PF_MASKPROC	0xf0000000	/* Processor-specific */
 
@@ -584,6 +605,7 @@ typedef struct
 #define NT_FPREGSET	2		/* Contains copy of fpregset struct */
 #define NT_PRPSINFO	3		/* Contains copy of prpsinfo struct */
 #define NT_PRXREG	4		/* Contains copy of prxregset struct */
+#define NT_TASKSTRUCT	4		/* Contains copy of task structure */
 #define NT_PLATFORM	5		/* String from sysinfo(SI_PLATFORM) */
 #define NT_AUXV		6		/* Contains copy of auxv array */
 #define NT_GWINDOWS	7		/* Contains copy of gwindows struct */
@@ -947,7 +969,14 @@ typedef struct
 
 /* A special ignored value for PPC, used by the kernel to control the
    interpretation of the AUXV. Must be > 16.  */
-#define AT_IGNOREPPC	22		/* Entry should be ignored */
+#define AT_IGNOREPPC	22		/* Entry should be ignored.  */
+
+#define	AT_SECURE	23		/* Boolean, was exec setuid-like?  */
+
+/* Pointer to the global system page used for system calls and other
+   nice things.  */
+#define AT_SYSINFO	32
+#define AT_SYSINFO_EHDR	33
 
 
 /* Note section contents.  Each entry in the note section begins with
@@ -997,6 +1026,7 @@ typedef struct
 #define ELF_NOTE_OS_LINUX	0
 #define ELF_NOTE_OS_GNU		1
 #define ELF_NOTE_OS_SOLARIS2	2
+#define ELF_NOTE_OS_FREEBSD	3
 
 
 /* Move records.  */
@@ -1115,6 +1145,28 @@ typedef struct
 #define R_386_TLS_TPOFF32  37		/* Negated offset in static TLS block */
 /* Keep this the last entry.  */
 #define R_386_NUM	   38
+
+/* FR-V specific definitions.  */
+#define R_FRV_NONE		0	/* No reloc.  */
+#define R_FRV_32		1	/* Direct 32 bit.  */
+/* Canonical function descriptor address.  */
+#define R_FRV_FUNCDESC		14
+/* Private function descriptor initialization.  */
+#define R_FRV_FUNCDESC_VALUE	18
+
+						/* gpr support */
+#define EF_FRV_GPR_MASK		0x00000003	/* mask for # of gprs */
+#define EF_FRV_GPR_32		0x00000001	/* -mgpr-32 */
+#define EF_FRV_GPR_64		0x00000002	/* -mgpr-64 */
+
+						/* fpr support */
+#define EF_FRV_FPR_MASK		0x0000000c	/* mask for # of fprs */
+#define EF_FRV_FPR_32		0x00000004	/* -mfpr-32 */
+#define EF_FRV_FPR_64		0x00000008	/* -mfpr-64 */
+#define EF_FRV_FPR_NONE		0x0000000c	/* -msoft-float */
+
+#define EF_FRV_PIC   0x00000100
+#define EF_FRV_FDPIC 0x00008000
 
 /* SUN SPARC specific definitions.  */
 
@@ -2493,6 +2545,119 @@ typedef Elf32_Addr Elf32_Conflict;
 /* Keep this the last entry.  */
 #define R_V850_NUM		25
 
+
+//jari
+#define EM_XILINX_MICROBLAZE 0xbaab
+
+/* Microblaze Relocations */
+#define R_MICROBLAZE_NONE 0
+#define R_MICROBLAZE_32 1
+#define R_MICROBLAZE_32_PCREL 2
+#define R_MICROBLAZE_64_PCREL 3
+#define R_MICROBLAZE_32_PCREL_LO 4
+#define R_MICROBLAZE_64 5
+#define R_MICROBLAZE_32_LO 6
+#define R_MICROBLAZE_SRO32 7
+#define R_MICROBLAZE_SRW32 8
+#define R_MICROBLAZE_64_NONE 9
+#define R_MICROBLAZE_32_SYM_OP_SYM 10     
+/* Keep this the last entry.  */
+#define R_MICROBLAZE_NUM 11
+
+
+#define R_H8_NONE       0
+#define R_H8_DIR32      1
+#define R_H8_DIR32_28   2
+#define R_H8_DIR32_24   3
+#define R_H8_DIR32_16   4
+#define R_H8_DIR32U     6
+#define R_H8_DIR32U_28  7
+#define R_H8_DIR32U_24  8
+#define R_H8_DIR32U_20  9
+#define R_H8_DIR32U_16 10
+#define R_H8_DIR24     11
+#define R_H8_DIR24_20  12
+#define R_H8_DIR24_16  13
+#define R_H8_DIR24U    14
+#define R_H8_DIR24U_20 15
+#define R_H8_DIR24U_16 16
+#define R_H8_DIR16     17
+#define R_H8_DIR16U    18
+#define R_H8_DIR16S_32 19
+#define R_H8_DIR16S_28 20
+#define R_H8_DIR16S_24 21
+#define R_H8_DIR16S_20 22
+#define R_H8_DIR16S    23
+#define R_H8_DIR8      24
+#define R_H8_DIR8U     25
+#define R_H8_DIR8Z_32  26
+#define R_H8_DIR8Z_28  27
+#define R_H8_DIR8Z_24  28
+#define R_H8_DIR8Z_20  29
+#define R_H8_DIR8Z_16  30
+#define R_H8_PCREL16   31
+#define R_H8_PCREL8    32
+#define R_H8_BPOS      33
+#define R_H8_PCREL32   34
+#define R_H8_GOT32O    35
+#define R_H8_GOT16O    36
+#define R_H8_DIR16A8   59
+#define R_H8_DIR16R8   60
+#define R_H8_DIR24A8   61
+#define R_H8_DIR24R8   62
+#define R_H8_DIR32A16  63
+#define R_H8_ABS32     65
+#define R_H8_ABS32A16 127
+
+/* Altera NIOS specific definitions.  */
+
+/* NIOS relocations. */
+#define R_NIOS_NONE				0
+#define R_NIOS_32				1	/* A 32 bit absolute relocation.*/
+#define R_NIOS_LO16_LO5			2	/* A LO-16 5 bit absolute relocation.  */
+#define R_NIOS_LO16_HI11		3	/* A LO-16 top 11 bit absolute relocation.  */
+#define R_NIOS_HI16_LO5			4	/* A HI-16 5 bit absolute relocation.  */
+#define R_NIOS_HI16_HI11		5	/* A HI-16 top 11 bit absolute relocation.  */
+#define R_NIOS_PCREL6			6	/* A 6 bit relative relocation.  */
+#define R_NIOS_PCREL8			7	/* An 8 bit relative relocation.  */
+#define R_NIOS_PCREL11			8	/* An 11 bit relative relocation.  */
+#define R_NIOS_16				9	/* A 16 bit absolute relocation.  */
+#define R_NIOS_H_LO5			10	/* Low 5-bits of absolute relocation in halfwords.  */
+#define R_NIOS_H_HI11			11	/* Top 11 bits of 16-bit absolute relocation in halfwords.  */
+#define R_NIOS_H_XLO5			12	/* Low 5 bits of top 16-bits of 32-bit absolute relocation in halfwords.  */
+#define R_NIOS_H_XHI11			13	/* Top 11 bits of top 16-bits of 32-bit absolute relocation in halfwords.  */
+#define R_NIOS_H_16				14	/* Half-word @h value */
+#define R_NIOS_H_32				15	/* Word @h value */
+#define R_NIOS_GNU_VTINHERIT	200	/* GNU extension to record C++ vtable hierarchy */
+#define R_NIOS_GNU_VTENTRY		201	/* GNU extension to record C++ vtable member usage */
+/* Keep this the last entry.  */
+#define R_NIOS_NUM				202
+
+/* NIOS II relocations */
+#define R_NIOS2_NONE			0
+#define R_NIOS2_S16				1
+#define R_NIOS2_U16				2
+#define R_NIOS2_PCREL16			3
+#define R_NIOS2_CALL26			4
+#define R_NIOS2_IMM5			5
+#define R_NIOS2_CACHE_OPX 		6
+#define R_NIOS2_IMM6			7
+#define R_NIOS2_IMM8			8
+#define R_NIOS2_HI16			9
+#define R_NIOS2_LO16			10
+#define R_NIOS2_HIADJ16 		11
+#define R_NIOS2_BFD_RELOC_32	12
+#define R_NIOS2_BFD_RELOC_16	13
+#define R_NIOS2_BFD_RELOC_8 	14
+#define R_NIOS2_GPREL			15
+#define R_NIOS2_GNU_VTINHERIT 	16
+#define R_NIOS2_GNU_VTENTRY  	17
+#define R_NIOS2_UJMP			18
+#define R_NIOS2_CJMP			19
+#define R_NIOS2_CALLR			20
+#define R_NIOS2_ALIGN			21
+/* Keep this the last entry.  */
+#define R_NIOS2_NUM				22
 
 __END_DECLS
 

@@ -70,13 +70,13 @@ _start:
 	jmp @r0
 	nop
 
-_start_end:	
+_start_end:
 	.align	2
 
 L_main:
 	.long   __uClibc_main /* in libuClibc.*.so */
 
-#else /* (L_crt1 || L_gcrt1) && __UCLIBC_CTOR_DTOR__ */
+#else /* (L_crt1) && __UCLIBC_CTOR_DTOR__ */
 	/* Push the finip argument to __uClibc_start_main() onto the stack */
 	mov.l L_fini,r6
 	mov.l r6,@-r15
@@ -101,7 +101,7 @@ L_main:
 	mov.l L_abort, r0
 	jmp @r0
 	nop
-_start_end:	
+_start_end:
 	.align	2
 
 L_main:
@@ -124,9 +124,20 @@ L_fini:
 
 #endif
 
-L_abort: 
-      .long   abort   
+L_abort:
+      .long   abort
 
-#if defined L_gcrt1 && defined __UCLIBC_PROFILING__
-# include "./gmon-start.S"
+/* Define a symbol for the first piece of initialized data.  */
+	.data
+	.globl __data_start
+__data_start:
+	.long 0
+	.weak data_start
+	data_start = __data_start
+#if defined __CONFIG_SH4__
+       .global __fpscr_values
+__fpscr_values:
+       .long   0
+       .long   0x80000
 #endif
+

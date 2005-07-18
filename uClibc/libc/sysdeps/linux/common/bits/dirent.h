@@ -30,7 +30,7 @@ struct dirent
     __off64_t d_off;
 #endif
     unsigned short int d_reclen;
-   unsigned char d_type;
+    unsigned char d_type;
     char d_name[256];		/* We must not include limits.h! */
   };
 

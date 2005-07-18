@@ -58,7 +58,7 @@ HOSTCFLAGS=-O2 -Wall
 # this stuff alone.
 MAJOR_VERSION:=0
 MINOR_VERSION:=9
-SUBLEVEL:=26
+SUBLEVEL:=27
 VERSION:=$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL)
 # Ensure consistent sort order, 'gcc -print-search-dirs' behavior, etc.
 LC_ALL:= C
@@ -89,15 +89,23 @@ ARFLAGS:=r
 
 OPTIMIZATION:=
 PICFLAG:=-fPIC
+
+PIEFLAG:=$(call check_gcc,-fPIE,)
+ifeq ($(strip $(PIEFLAG)),-fPIE)
+LDPIEFLAG:=$(shell $(LD) --help | grep -q pie && echo "-Wl,-pie")
+endif
+
 # Some nice CPU specific optimizations
 ifeq ($(strip $(TARGET_ARCH)),i386)
 	OPTIMIZATION+=$(call check_gcc,-mpreferred-stack-boundary=2,)
 	OPTIMIZATION+=$(call check_gcc,-falign-jumps=0 -falign-loops=0,-malign-jumps=0 -malign-loops=0)
 	CPU_CFLAGS-$(CONFIG_386)+=-march=i386
 	CPU_CFLAGS-$(CONFIG_486)+=-march=i486
+	CPU_CFLAGS-$(CONFIG_ELAN)+=-march=i486
 	CPU_CFLAGS-$(CONFIG_586)+=-march=i586
 	CPU_CFLAGS-$(CONFIG_586MMX)+=$(call check_gcc,-march=pentium-mmx,-march=i586)
 	CPU_CFLAGS-$(CONFIG_686)+=-march=i686
+	CPU_CFLAGS-$(CONFIG_PENTIUMII)+=$(call check_gcc,-march=pentium2,-march=i686)
 	CPU_CFLAGS-$(CONFIG_PENTIUMIII)+=$(call check_gcc,-march=pentium3,-march=i686)
 	CPU_CFLAGS-$(CONFIG_PENTIUM4)+=$(call check_gcc,-march=pentium4,-march=i686)
 	CPU_CFLAGS-$(CONFIG_K6)+=$(call check_gcc,-march=k6,-march=i586)
@@ -105,7 +113,8 @@ ifeq ($(strip $(TARGET_ARCH)),i386)
 	CPU_CFLAGS-$(CONFIG_CRUSOE)+=-march=i686 -malign-functions=0 -malign-jumps=0 -malign-loops=0
 	CPU_CFLAGS-$(CONFIG_WINCHIPC6)+=$(call check_gcc,-march=winchip-c6,-march=i586)
 	CPU_CFLAGS-$(CONFIG_WINCHIP2)+=$(call check_gcc,-march=winchip2,-march=i586)
-	CPU_CFLAGS-$(CONFIG_CYRIXIII)+=$(call check_gcc,-march=c3,-march=i586)
+	CPU_CFLAGS-$(CONFIG_CYRIXIII)+=$(call check_gcc,-march=c3,-march=i486) -malign-functions=0 -malign-jumps=0 -malign-loops=0
+	CPU_CFLAGS-$(CONFIG_NEHEMIAH)+=$(call check_gcc,-march=c3-2,-march=i686)
 endif
 
 ifeq ($(strip $(TARGET_ARCH)),arm)
@@ -167,11 +176,35 @@ endif
 ifeq ($(strip $(TARGET_ARCH)),cris)
 	CPU_LDFLAGS-$(CONFIG_CRIS)+=-mcrislinux
 	CPU_CFLAGS-$(CONFIG_CRIS)+=-mlinux
-	PICFLAG=-fpic
+	PICFLAG:=-fpic
+	PIEFLAG:=$(call check_gcc,-fpie,)
 endif
 
-# use '-Os' optimization if available, else use -O2, allow Config to override
+ifeq ($(strip $(TARGET_ARCH)),powerpc)
+# PowerPC can hold 8192 entries in its GOT with -fpic which is more than
+# enough. Therefore use -fpic which will reduce code size and generates
+# faster code.
+	PICFLAG:=-fpic
+	PIEFLAG:=$(call check_gcc,-fpie,)
+endif
+
+ifeq ($(strip $(TARGET_ARCH)),frv)
+	CPU_LDFLAGS-$(CONFIG_FRV)+=-melf32frvfd
+	CPU_CFLAGS-$(CONFIG_FRV)+=-mfdpic
+	PICFLAG=-fPIC -DPIC
+	# Using -pie causes the program to have an interpreter, which is
+	# forbidden, so we must make do with -shared.  Unfortunately,
+	# -shared by itself would get us global function descriptors
+	# and calls through PLTs, dynamic resolution of symbols, etc,
+	# which would break as well, but -Bsymbolic comes to the rescue.
+	LDPIEFLAG=-shared -Bsymbolic
+	UCLIBC_LDSO=ld.so.1
+endif
+
+# Use '-Os' optimization if available, else use -O2, allow Config to override
 OPTIMIZATION+=$(call check_gcc,-Os,-O2)
+# Use the gcc 3.4 -funit-at-a-time optimization when available
+OPTIMIZATION+=$(call check_gcc,-funit-at-a-time,)
 
 
 # Add a bunch of extra pedantic annoyingly strict checks
@@ -183,35 +216,61 @@ LDADD_LIBFLOAT=
 ifeq ($(strip $(UCLIBC_HAS_SOFT_FLOAT)),y)
 # Add -msoft-float to the CPU_FLAGS since ldso and libdl ignore CFLAGS.
 # If -msoft-float isn't supported, we want an error anyway.
- #   CPU_CFLAGS += -msoft-float
+# Hmm... might need to revisit this for arm since it has 2 different
+# soft float encodings.
+#    CPU_CFLAGS += -msoft-float
 ifeq ($(strip $(TARGET_ARCH)),arm)
-    LDADD_LIBFLOAT=-lfloat
+# No longer needed with current toolchains, but leave it here for now.
+# If anyone is actually still using gcc 2.95 (say), they can uncomment it.
+#    LDADD_LIBFLOAT=-lfloat
 endif
+endif
+
+ifneq ($(UCLIBC_BUILD_PIE),y)
+PIEFLAG=
+LDPIEFLAG=
+endif
+
+SSP_DISABLE_FLAGS=$(call check_gcc,-fno-stack-protector,)
+ifeq ($(UCLIBC_BUILD_SSP),y)
+SSP_CFLAGS=$(call check_gcc,-fno-stack-protector-all,)
+SSP_CFLAGS+=$(call check_gcc,-fstack-protector,)
+SSP_ALL_CFLAGS=$(call check_gcc,-fstack-protector-all,)
+else
+SSP_CFLAGS=$(SSP_DISABLE_FLAGS)
 endif
 
 # Some nice CFLAGS to work with
-CFLAGS=$(XWARNINGS) $(OPTIMIZATION) $(XARCH_CFLAGS) $(CPU_CFLAGS) \
-	-fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)include -I.
+CFLAGS=$(XWARNINGS) $(OPTIMIZATION) $(XARCH_CFLAGS) $(CPU_CFLAGS) $(SSP_CFLAGS)\
+	-fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)include -I. -I$(ROOTDIR)
 
 ifeq ($(DODEBUG),y)
     #CFLAGS += -g3
-    CFLAGS = $(XWARNINGS) -O0 -g3 $(CPU_CFLAGS) -fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)include -I.
+    CFLAGS = $(XWARNINGS) -O0 -g3 $(CPU_CFLAGS) $(SSP_CFLAGS) \
+	-fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)include -I.
     LDFLAGS:= $(CPU_LDFLAGS-y) -shared --warn-common --warn-once -z combreloc
     STRIPTOOL:= true -Since_we_are_debugging
 else
-    LDFLAGS := $(CPU_LDFLAGS-y) -s -shared --warn-common --warn-once -z combreloc
+    LDFLAGS := $(CPU_LDFLAGS-y) -shared --warn-common --warn-once -z combreloc
+endif
+
+ifeq ($(UCLIBC_BUILD_RELRO),y)
+LDFLAGS+=-z relro
+endif
+
+ifeq ($(UCLIBC_BUILD_NOW),y)
+LDFLAGS+=-z now
 endif
 
 # Sigh, some stupid versions of gcc can't seem to cope with '-iwithprefix include'
 #CFLAGS+=-iwithprefix include
-CFLAGS+=$(shell $(CC) -print-search-dirs  | sed -ne "s/install: *\(.*\)/-I\1include/gp")
+CFLAGS+=-isystem $(shell $(CC) -print-file-name=include || echo)
 
 ifneq ($(DOASSERTS),y)
     CFLAGS += -DNDEBUG
 endif
 
 ifeq ($(HAVE_SHARED),y)
-    LIBRARY_CACHE:=#-DUSE_CACHE
     ifeq ($(BUILD_UCLIBC_LDSO),y)
 	LDSO:=$(TOPDIR)lib/$(UCLIBC_LDSO)
 	DYNAMIC_LINKER:=$(SHARED_LIB_LOADER_PREFIX)/$(UCLIBC_LDSO)
@@ -226,8 +285,14 @@ ifeq ($(DOPIC),y)
     CFLAGS += $(PICFLAG)
 endif
 
+ASFLAGS = $(CFLAGS)
+ifeq ($(UCLIBC_BUILD_NOEXECSTACK),y)
+check_as_noexecstack=$(shell if $(LD) --help | grep -q "z noexecstack"; then echo "-Wa,--noexecstack"; fi)
+ASFLAGS += $(check_as_noexecstack)
+endif
+
 LIBGCC_CFLAGS ?= $(CFLAGS) $(CPU_CFLAGS-y)
-LIBGCC:=$(shell $(CC) $(LIBGCC_CFLAGS) -print-libgcc-file-name)
+LIBGCC:=$(shell $(CC) $(LIBGCC_CFLAGS) -print-libgcc-file-name || echo)
 LIBGCC_DIR:=$(dir $(LIBGCC))
 
 ########################################

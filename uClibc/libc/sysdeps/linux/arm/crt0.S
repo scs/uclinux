@@ -18,7 +18,7 @@
 	NULL
         env[0...N]      environment variables (pointers)
         NULL
-	
+
    When we are done here, we want
 	a1=argc
 	a2=argv[0]
@@ -69,14 +69,14 @@ _start:
 	/* clear the frame pointer */
 	mov     fp, #0
 
-#ifdef __UCLIBC_HAS_MMU__
+#ifdef __ARCH_HAS_MMU__
 	/* Load register r0 (argc) from the stack to its final resting place */
 	ldr     r0, [sp], #4
 
 	/* Copy argv pointer into r1 -- which its final resting place */
 	mov     r1, sp
 
-	/* Skip to the end of argv and put a pointer to whatever 
+	/* Skip to the end of argv and put a pointer to whatever
 	   we find there (hopefully the environment) in r2 */
 	add     r2, r1, r0, lsl #2
 	add     r2, r2, #4
@@ -92,12 +92,23 @@ _start:
 	ldr r2,[sp, #8]
 #endif
 
-#if (defined L_crt1 || defined L_gcrt1 ) && defined __UCLIBC_CTOR_DTOR__
+#if (defined L_crt1 ) && defined __UCLIBC_CTOR_DTOR__
+#ifdef __PIC__
+	/* Store the address of _init in r3 as an argument to main() */
+	adr r5, .L_init
+	ldr r3, .L_init
+	add r3, r3, r5
+
+	/* Push _fini onto the stack as the final argument to main() */
+	ldr r4, .L_init + 4
+	add r4, r4, r5
+#else
 	/* Store the address of _init in r3 as an argument to main() */
 	ldr r3, =_init
 
 	/* Push _fini onto the stack as the final argument to main() */
 	ldr r4, =_fini
+#endif
 	stmfd sp!, {r4}
 
 	/* Ok, now run uClibc's main() -- shouldn't return */
@@ -109,21 +120,31 @@ _start:
 	/* Crash if somehow `exit' returns anyways.  */
 	bl abort
 
+#if (defined L_crt1 ) && defined __UCLIBC_CTOR_DTOR__ && defined __PIC__
+.L_init:
+	.word _init - .L_init
+	.word _fini - .L_init
+#endif
+
 /* We need this stuff to make gdb behave itself, otherwise
    gdb will chokes with SIGILL when trying to debug apps.
 */
 	.section ".note.ABI-tag", "a"
 	.align 4
-	.long 1f - 0f            
-	.long 3f - 2f            
-	.long  1                 
-0:	.asciz "GNU"             
-1:	.align 4                
-2:	.long 0          
-	.long 2,0,0 
-3:	.align 4                 
+	.long 1f - 0f
+	.long 3f - 2f
+	.long  1
+0:	.asciz "GNU"
+1:	.align 4
+2:	.long 0
+	.long 2,0,0
+3:	.align 4
 
-#if defined L_gcrt1 && defined __UCLIBC_PROFILING__
-# include "./gmon-start.S"
-#endif
+/* Define a symbol for the first piece of initialized data.  */
+	.data
+	.globl __data_start
+__data_start:
+	.long 0
+	.weak data_start
+	data_start = __data_start
 

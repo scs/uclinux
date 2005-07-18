@@ -24,6 +24,7 @@
 #include <features.h>
 #define _ERRNO_H
 #include <bits/errno.h>
+#include <sys/syscall.h>
 
 #ifdef __PIC__
 .section .bss
@@ -45,12 +46,6 @@ __brk:
     .frame $30 ,   8 , $26
 	ldgp	$29, 0($27)
 	subq	$30, 8, $30
-#ifdef PROF
-	.set noat
-	lda	AT, _mcount
-	jsr	AT, (AT), _mcount
-	.set at
-#endif
 	.prologue 1
 
 	/* Save the requested brk across the system call.  */

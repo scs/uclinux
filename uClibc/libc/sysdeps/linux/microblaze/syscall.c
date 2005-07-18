@@ -36,7 +36,7 @@ syscall (long num, arg_t a1, arg_t a2, arg_t a3, arg_t a4, arg_t a5, arg_t a6)
   register unsigned long ret asm (SYSCALL_RET);
 	unsigned long ret_sav;
 
-  asm ("bralid r17, 0x08; nop;" 
+  asm ("brki	r14, 0x08" 
        : "=r" (ret)
        : "r" (syscall), "r" (a), "r" (b), "r" (c), "r" (d), "r" (e), "r" (f)
        : SYSCALL_CLOBBERS);

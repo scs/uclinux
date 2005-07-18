@@ -20,8 +20,11 @@
 TOPDIR=../../../../
 include $(TOPDIR)Rules.mak
 
-CFLAGS += -I..
-SFLAGS = $(CFLAGS) -D__ASSEMBLER -DASM_GLOBAL_DIRECTIVE=.globl
+#FIXME -- this arch should include its own crti.S and crtn.S
+UCLIBC_CTOR_DTOR=n
+
+CFLAGS+=-I..
+ASFLAGS+=-I.. -D__ASSEMBLER -DASM_GLOBAL_DIRECTIVE=.globl
 
 TARGET_MACHINE_TYPE=$(shell $(CC) -dumpmachine)
 
@@ -32,14 +35,14 @@ CRT0_OBJ = crt0.o crt1.o
 SSRC = setjmp.S __longjmp.S vfork.S
 SOBJS = $(patsubst %.S,%.o, $(SSRC))
 
-CSRC = _mmap.c syscall.c clone.c fixdfsi.c
+CSRC = mmap.c syscall.c clone.c fixdfsi.c
 COBJS = $(patsubst %.c,%.o, $(CSRC))
 
 OBJS = $(SOBJS) $(COBJS)
 
 all: $(OBJS) $(LIBC)
 
-$(LIBC): ar-target 
+$(LIBC): ar-target
 
 ar-target: $(OBJS) $(CRT0_OBJ) $(CTOR_TARGETS)
 	$(AR) $(ARFLAGS) $(LIBC) $(OBJS)
@@ -47,11 +50,11 @@ ar-target: $(OBJS) $(CRT0_OBJ) $(CTOR_TARGETS)
 	cp $(CRT0_OBJ) $(TOPDIR)lib/
 
 $(CRT0_OBJ): $(CRT0_SRC)
-	$(CC) $(CFLAGS) -DL_$* $< -c -o $*.o
+	$(CC) $(ASFLAGS) -DL_$* $< -c -o $*.o
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 $(SOBJS): %.o : %.S
-	$(CC) $(SFLAGS) -c $< -o $@
+	$(CC) $(ASFLAGS) -c $< -o $@
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 $(COBJS): %.o : %.c
@@ -60,14 +63,14 @@ $(COBJS): %.o : %.c
 
 ifeq ($(strip $(UCLIBC_CTOR_DTOR)),y)
 crti.o: crti.S
-	$(CC) $(CFLAGS) -c crti.S -o crti.o
+	$(CC) $(ASFLAGS) -c crti.S -o crti.o
 
 $(TOPDIR)lib/crti.o: crti.o
 	$(INSTALL) -d $(TOPDIR)lib/
 	cp crti.o $(TOPDIR)lib/
 
 crtn.o: crtn.S
-	$(CC) $(CFLAGS) -c crtn.S -o crtn.o
+	$(CC) $(ASFLAGS) -c crtn.S -o crtn.o
 
 $(TOPDIR)lib/crtn.o: crtn.o
 	$(INSTALL) -d $(TOPDIR)lib/

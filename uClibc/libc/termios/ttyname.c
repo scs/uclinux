@@ -21,6 +21,8 @@
  * However, there is no need to waste space and support non-standard
  * tty names either.  So we compromise and use the following buffer
  * length.  (Erik and Manuel agreed that 32 was more than reasonable.)
+ *
+ * If you change this, also change _SC_TTY_NAME_MAX in libc/unistd/sysconf.c
  */
 #define TTYNAME_BUFLEN		32
 
@@ -35,6 +37,7 @@ static const char dirlist[] =
 /*   12345670123 */
 "\010/dev/vc/\0"	/* Try /dev/vc first (be devfs compatible) */
 "\011/dev/tts/\0"	/* and /dev/tts next (be devfs compatible) */
+"\011/dev/pty/\0"	/* and /dev/pty next (be devfs compatible) */
 "\011/dev/pts/\0"	/* and try /dev/pts next */
 "\005/dev/\0";		/* and try walking through /dev last */
 

@@ -14,9 +14,9 @@
 /* The alignment we guarantee for malloc return values.  */
 #define MALLOC_ALIGNMENT	(sizeof (double))
 
-/* The system pagesize we assume; we really ought to get it with
-   getpagesize, but gee, how annoying.  */
-#define MALLOC_PAGE_SIZE	4096
+/* The system pagesize... */
+extern size_t __pagesize;
+#define MALLOC_PAGE_SIZE	__pagesize
 
 /* The minimum size of block we request from the the system to extend the
    heap for small allocations (we may request a bigger block if necessary to
@@ -43,7 +43,7 @@
    heap, instead of mmap/munmap.  This is a tradeoff -- sbrk is faster than
    mmap/munmap, and guarantees contiguous allocation, but is also less
    flexible, and causes the heap to only be shrinkable from the end.  */
-#ifdef __UCLIBC_HAS_MMU__
+#ifdef __ARCH_HAS_MMU__
 # define MALLOC_USE_SBRK
 #endif
 

@@ -34,6 +34,10 @@
 #include <stdio_ext.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdlib.h>
+#ifdef __UCLIBC_HAS_THREADS__
+#include <pthread.h>
+#endif
 
 static char zapchar;
 static FILE *tf;
@@ -99,14 +103,22 @@ struct ttyent * getttyent(void)
 {
     register int c;
     register char *p;
-    static char line[BUFSIZ];
+    static char *line = NULL;
 
     if (!tf && !setttyent())
 	return (NULL);
-    flockfile (tf);
+
+    if (!line) {
+            line = malloc(BUFSIZ);
+		if (!line)
+		    abort();
+    }
+
+	__STDIO_ALWAYS_THREADLOCK(tf);
+
     for (;;) {
-	if (!fgets_unlocked(p = line, sizeof(line), tf)) {
-	    funlockfile (tf);
+	if (!fgets_unlocked(p = line, BUFSIZ, tf)) {
+		__STDIO_ALWAYS_THREADUNLOCK(tf);
 	    return (NULL);
 	}
 	/* skip lines that are too big */
@@ -151,7 +163,7 @@ struct ttyent * getttyent(void)
 	    break;
     }
     /* We can release the lock only here since `zapchar' is global.  */
-    funlockfile(tf);
+	__STDIO_ALWAYS_THREADUNLOCK(tf);
 
     if (zapchar == '#' || *p == '#')
 	while ((c = *++p) == ' ' || c == '\t')

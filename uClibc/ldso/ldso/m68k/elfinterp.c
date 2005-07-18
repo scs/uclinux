@@ -1,7 +1,7 @@
 /* vi: set sw=4 ts=4: */
 /* m68k ELF shared library loader suppport
  *
- * Copyright (c) 1994-2000 Eric Youngdale, Peter MacDonald, 
+ * Copyright (c) 1994-2000 Eric Youngdale, Peter MacDonald,
  *				David Engel, Hongjiu Lu and Mitch D'Souza
  * Adapted to ELF/68k by Andreas Schwab.
  *
@@ -56,7 +56,7 @@ static const char *_dl_reltypes[] =
    working. */
 
 
-unsigned int _dl_linux_resolver (int dummy1, int dummy2, 
+unsigned int _dl_linux_resolver (int dummy1, int dummy2,
 	struct elf_resolve *tpnt, int reloc_entry)
 {
   int reloc_type;
@@ -79,7 +79,7 @@ unsigned int _dl_linux_resolver (int dummy1, int dummy2,
   strtab = (char *) (tpnt->dynamic_info[DT_STRTAB] + tpnt->loadaddr);
 
 
-  if (reloc_type != R_68K_JMP_SLOT)
+  if (unlikely(reloc_type != R_68K_JMP_SLOT))
     {
       _dl_dprintf (2, "%s: incorrect relocation type in jump relocations\n",
 		    _dl_progname);
@@ -98,8 +98,8 @@ unsigned int _dl_linux_resolver (int dummy1, int dummy2,
 
   /* Get the address of the GOT entry.  */
   new_addr = _dl_find_hash (strtab + symtab[symtab_index].st_name,
-			    tpnt->symbol_scope, tpnt, resolver);
-  if (!new_addr)
+			    tpnt->symbol_scope, tpnt, ELF_RTYPE_CLASS_PLT);
+  if (unlikely(!new_addr))
     {
       _dl_dprintf (2, "%s: can't resolve symbol '%s'\n",
 		    _dl_progname, strtab + symtab[symtab_index].st_name);
@@ -112,7 +112,7 @@ unsigned int _dl_linux_resolver (int dummy1, int dummy2,
 		{
 			_dl_dprintf(_dl_debug_file, "\nresolve function: %s",
 					strtab + symtab[symtab_index].st_name);
-			if(_dl_debug_detail) _dl_dprintf(_dl_debug_file, 
+			if(_dl_debug_detail) _dl_dprintf(_dl_debug_file,
 					"\tpatch %x ==> %x @ %x", *got_addr, new_addr, got_addr);
 		}
 	}
@@ -126,9 +126,8 @@ unsigned int _dl_linux_resolver (int dummy1, int dummy2,
   return (unsigned int) new_addr;
 }
 
-void
-_dl_parse_lazy_relocation_information (struct elf_resolve *tpnt,
-                       unsigned long rel_addr, unsigned long rel_size, int type)
+void _dl_parse_lazy_relocation_information(struct dyn_elf *rpnt,
+	unsigned long rel_addr, unsigned long rel_size)
 {
   int i;
   char *strtab;
@@ -137,6 +136,7 @@ _dl_parse_lazy_relocation_information (struct elf_resolve *tpnt,
   Elf32_Sym *symtab;
   Elf32_Rela *rpnt;
   unsigned int *reloc_addr;
+  struct elf_resolve *tpnt = rpnt->dyn;
 
   /* Now parse the relocation information.  */
   rpnt = (Elf32_Rela *) (rel_addr + tpnt->loadaddr);
@@ -151,13 +151,6 @@ _dl_parse_lazy_relocation_information (struct elf_resolve *tpnt,
       reloc_addr = (int *) (tpnt->loadaddr + (int) rpnt->r_offset);
       reloc_type = ELF32_R_TYPE (rpnt->r_info);
       symtab_index = ELF32_R_SYM (rpnt->r_info);
-
-      /* When the dynamic linker bootstrapped itself, it resolved some symbols.
-         Make sure we do not do them again.  */
-      if (tpnt->libtype == program_interpreter
-	  && (!symtab_index
-	      || _dl_symbol (strtab + symtab[symtab_index].st_name)))
-	continue;
 
       switch (reloc_type)
 	{
@@ -179,9 +172,8 @@ _dl_parse_lazy_relocation_information (struct elf_resolve *tpnt,
     }
 }
 
-int 
-_dl_parse_relocation_information (struct elf_resolve *tpnt,
-                  unsigned long rel_addr, unsigned long rel_size, int type)
+int _dl_parse_relocation_information(struct dyn_elf *rpnt,
+	unsigned long rel_addr, unsigned long rel_size)
 {
   int i;
   char *strtab;
@@ -192,6 +184,7 @@ _dl_parse_relocation_information (struct elf_resolve *tpnt,
   unsigned int *reloc_addr;
   unsigned int symbol_addr;
   int symtab_index;
+  struct elf_resolve *tpnt = rpnt->dyn;
   /* Now parse the relocation information */
 
   rpnt = (Elf32_Rela *) (rel_addr + tpnt->loadaddr);
@@ -207,29 +200,23 @@ _dl_parse_relocation_information (struct elf_resolve *tpnt,
       reloc_type = ELF32_R_TYPE (rpnt->r_info);
       symtab_index = ELF32_R_SYM (rpnt->r_info);
       symbol_addr = 0;
-
-      if (tpnt->libtype == program_interpreter
-	  && (!symtab_index
-	      || _dl_symbol (strtab + symtab[symtab_index].st_name)))
-	continue;
-
       if (symtab_index)
 	{
 	  symbol_addr = (unsigned int)
 	    _dl_find_hash (strtab + symtab[symtab_index].st_name,
-			   tpnt->symbol_scope,
-			   reloc_type == R_68K_JMP_SLOT ? tpnt : NULL, symbolrel);
+			   tpnt->symbol_scope, tpnt,
+			   elf_machine_type_class(reloc_type));
 
 	  /* We want to allow undefined references to weak symbols -
 	     this might have been intentional.  We should not be
 	     linking local symbols here, so all bases should be
 	     covered.  */
 	  if (!symbol_addr
-	      && ELF32_ST_BIND (symtab[symtab_index].st_info) == STB_GLOBAL)
+	      && ELF32_ST_BIND (symtab[symtab_index].st_info) != STB_WEAK)
 	    {
-	      _dl_dprintf (2, "%s: can't resolve symbol '%s'\n",
-			    _dl_progname, strtab + symtab[symtab_index].st_name);
-	      goof++;
+			_dl_dprintf (2, "%s: can't resolve symbol '%s'\n",
+				     _dl_progname, strtab + symtab[symtab_index].st_name);
+			_dl_exit (1);
 	    }
 	}
       switch (reloc_type)
@@ -267,16 +254,9 @@ _dl_parse_relocation_information (struct elf_resolve *tpnt,
 			 + (rpnt->r_addend ? : *reloc_addr));
 	  break;
 	case R_68K_COPY:
-#if 0 /* Do this later.  */
-	  _dl_dprintf (2, "Doing copy");
-	  if (symtab_index)
-	    _dl_dprintf (2, " for symbol %s",
-			  strtab + symtab[symtab_index].st_name);
-	  _dl_dprintf (2, "\n");
-	  _dl_memcpy ((void *) symtab[symtab_index].st_value,
+	  _dl_memcpy ((void *) reloc_addr,
 		      (void *) symbol_addr,
 		      symtab[symtab_index].st_size);
-#endif
 	  break;
 	default:
 	  _dl_dprintf (2, "%s: can't handle reloc type ", _dl_progname);
@@ -289,71 +269,6 @@ _dl_parse_relocation_information (struct elf_resolve *tpnt,
 	  _dl_exit (1);
 	}
 
-    }
-  return goof;
-}
-
-/* This is done as a separate step, because there are cases where
-   information is first copied and later initialized.  This results in
-   the wrong information being copied.  Someone at Sun was complaining about
-   a bug in the handling of _COPY by SVr4, and this may in fact be what he
-   was talking about.  Sigh.  */
-
-/* No, there are cases where the SVr4 linker fails to emit COPY relocs
-   at all.  */
-
-int 
-_dl_parse_copy_information (struct dyn_elf *xpnt, unsigned long rel_addr,
-			    unsigned long rel_size, int type)
-{
-  int i;
-  char *strtab;
-  int reloc_type;
-  int goof = 0;
-  Elf32_Sym *symtab;
-  Elf32_Rela *rpnt;
-  unsigned int *reloc_addr;
-  unsigned int symbol_addr;
-  struct elf_resolve *tpnt;
-  int symtab_index;
-  /* Now parse the relocation information */
-
-  tpnt = xpnt->dyn;
-
-  rpnt = (Elf32_Rela *) (rel_addr + tpnt->loadaddr);
-  rel_size = rel_size / sizeof (Elf32_Rela);
-
-  symtab = (Elf32_Sym *) (tpnt->dynamic_info[DT_SYMTAB]
-				 + tpnt->loadaddr);
-  strtab = (char *) (tpnt->dynamic_info[DT_STRTAB] + tpnt->loadaddr);
-
-  for (i = 0; i < rel_size; i++, rpnt++)
-    {
-      reloc_addr = (int *) (tpnt->loadaddr + (int) rpnt->r_offset);
-      reloc_type = ELF32_R_TYPE (rpnt->r_info);
-      if (reloc_type != R_68K_COPY)
-	continue;
-      symtab_index = ELF32_R_SYM (rpnt->r_info);
-      symbol_addr = 0;
-      if (tpnt->libtype == program_interpreter
-	  && (!symtab_index
-	      || _dl_symbol (strtab + symtab[symtab_index].st_name)))
-	continue;
-      if (symtab_index)
-	{
-	  symbol_addr = (unsigned int)
-	    _dl_find_hash (strtab + symtab[symtab_index].st_name,
-			   xpnt->next, NULL, copyrel);
-	  if (!symbol_addr)
-	    {
-	      _dl_dprintf (2, "%s: can't resolve symbol '%s'\n",
-			    _dl_progname, strtab + symtab[symtab_index].st_name);
-	      goof++;
-	    }
-	}
-      if (!goof)
-      _dl_memcpy ((void *) symtab[symtab_index].st_value, (void *) symbol_addr,
-		  symtab[symtab_index].st_size);
     }
   return goof;
 }

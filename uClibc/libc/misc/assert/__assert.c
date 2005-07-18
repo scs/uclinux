@@ -27,11 +27,12 @@
  * and is useful in debugging the stdio code.
  */
 
-#define _STDIO_UTILITY	/* For _stdio_fdout and _int10tostr. */
+#define _ISOC99_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <bits/uClibc_uintmaxtostr.h>
 
 /* Get the prototype from assert.h as a double-check. */
 #undef NDEBUG
@@ -45,27 +46,26 @@
 extern const char *__progname;
 #endif
 
-#if 1
+static int in_assert;			/* bss inits to 0. */
 
 void __assert(const char *assertion, const char * filename,
 			  int linenumber, register const char * function)
 {
-	/* Guard against possible asserts in syslog */
-	static int syslogging = 0;
-	fprintf(stderr,
+	if (!in_assert) {
+		in_assert = 1;
+
+		fprintf(stderr,
 #ifdef ASSERT_SHOW_PROGNAME
-			"%s: %s: %d: %s: Assertion `%s' failed.\n", __progname,
+				"%s: %s: %d: %s: Assertion `%s' failed.\n", __progname,
 #else
-			"%s: %d: %s: Assertion `%s' failed.\n",
+				"%s: %d: %s: Assertion `%s' failed.\n",
 #endif
-			filename,
-			linenumber,
-			/* Function name isn't available with some compilers. */
-			((function == NULL) ? "?function?" : function),
-			assertion
-			);
-	if (!syslogging) {
-		syslogging = 1;
+				filename,
+				linenumber,
+				/* Function name isn't available with some compilers. */
+				((function == NULL) ? "?function?" : function),
+				assertion
+				);
 		syslog(LOG_ERR,
 #if 0
 				/* TODO: support program_name like glibc? */
@@ -79,35 +79,6 @@ void __assert(const char *assertion, const char * filename,
 				((function == NULL) ? "?function?" : function),
 				assertion
 				);
-		syslogging = 0;
-	} 
+	}
 	abort();
 }
-
-#else
-
-void __assert(const char *assertion, const char * filename,
-			  int linenumber, register const char * function)
-{
-	char buf[__BUFLEN_INT10TOSTR];
-
-	_stdio_fdout(STDERR_FILENO,
-#ifdef ASSERT_SHOW_PROGNAME
-				 __progname,
-				 ": ",
-#endif
-				 filename,
-				 ":",
-				 _int10tostr(buf+sizeof(buf)-1, linenumber),
-				 ": ",
-				 /* Function name isn't available with some compilers. */
-				 ((function == NULL) ? "?function?" : function),
-				 ":  Assertion `",
-				 assertion,
-				 "' failed.\n",
-				 NULL
-				 );
-	abort();
-}
-
-#endif

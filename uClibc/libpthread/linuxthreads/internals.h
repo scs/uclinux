@@ -257,12 +257,12 @@ extern pthread_descr __pthread_main_thread;
  * the bounds a-priori. -StS */
 
 extern char *__pthread_initial_thread_bos;
-#ifndef __UCLIBC_HAS_MMU__
+#ifndef __ARCH_HAS_MMU__
 extern char *__pthread_initial_thread_tos;
 #define NOMMU_INITIAL_THREAD_BOUNDS(tos,bos) if ((tos)>=__pthread_initial_thread_bos && (bos)<=__pthread_initial_thread_tos) __pthread_initial_thread_bos = (tos)+1
 #else
 #define NOMMU_INITIAL_THREAD_BOUNDS(tos,bos) /* empty */
-#endif /* __UCLIBC_HAS_MMU__ */
+#endif /* __ARCH_HAS_MMU__ */
 
 
 /* Indicate whether at least one thread has a user-defined stack (if 1),
@@ -316,30 +316,32 @@ static inline int invalid_handle(pthread_handle h, pthread_t id)
 
 /* The page size we can get from the system.  This should likely not be
    changed by the machine file but, you never know.  */
+extern size_t __pagesize;
+#include <bits/uClibc_page.h>
 #ifndef PAGE_SIZE
-#define PAGE_SIZE  (sysconf (_SC_PAGE_SIZE))
+#define PAGE_SIZE  (sysconf (_SC_PAGESIZE))
 #endif
 
 /* The max size of the thread stack segments.  If the default
    THREAD_SELF implementation is used, this must be a power of two and
    a multiple of PAGE_SIZE.  */
 #ifndef STACK_SIZE
-#ifdef __UCLIBC_HAS_MMU__
+#ifdef __ARCH_HAS_MMU__
 #define STACK_SIZE  (2 * 1024 * 1024)
 #else
-#define STACK_SIZE  (4 * PAGE_SIZE)
+#define STACK_SIZE  (4 * __pagesize)
 #endif
 #endif
 
 /* The initial size of the thread stack.  Must be a multiple of PAGE_SIZE.  */
 #ifndef INITIAL_STACK_SIZE
-#define INITIAL_STACK_SIZE  (4 * PAGE_SIZE)
+#define INITIAL_STACK_SIZE  (4 * __pagesize)
 #endif
 
 /* Size of the thread manager stack. The "- 32" avoids wasting space
    with some malloc() implementations. */
 #ifndef THREAD_MANAGER_STACK_SIZE
-#define THREAD_MANAGER_STACK_SIZE  (2 * PAGE_SIZE - 32)
+#define THREAD_MANAGER_STACK_SIZE  (2 * __pagesize - 32)
 #endif
 
 /* The base of the "array" of thread stacks.  The array will grow down from
@@ -381,7 +383,7 @@ static inline pthread_descr thread_self (void)
   return THREAD_SELF;
 #else
   char *sp = CURRENT_STACK_FRAME;
-#ifdef __UCLIBC_HAS_MMU__
+#ifdef __ARCH_HAS_MMU__
   if (sp >= __pthread_initial_thread_bos)
     return &__pthread_initial_thread;
   else if (sp >= __pthread_manager_thread_bos
@@ -414,7 +416,7 @@ static inline pthread_descr thread_self (void)
   else {
       return __pthread_find_self();
   }
-#endif /* __UCLIBC_HAS_MMU__ */
+#endif /* __ARCH_HAS_MMU__ */
 #endif
 }
 

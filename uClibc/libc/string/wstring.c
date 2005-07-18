@@ -36,7 +36,6 @@
  *  mapping of signal strings (alpha, mips, hppa, sparc).
  */
 
-#define _STDIO_UTILITY
 #define _GNU_SOURCE
 #include <string.h>
 #include <strings.h>
@@ -48,6 +47,7 @@
 #include <signal.h>
 #include <assert.h>
 #include <locale.h>
+#include <bits/uClibc_uintmaxtostr.h>
 
 #ifdef WANT_WIDE
 #include <wchar.h>
@@ -923,12 +923,16 @@ Wchar *Wstrstr(const Wchar *s1, const Wchar *s2)
 #define Wstrspn wcsspn
 #define Wstrpbrk wcspbrk
 #else
-#define Wstrtok_r strtok_r
+#define Wstrtok_r __strtok_r
 #define Wstrspn strspn
 #define Wstrpbrk strpbrk
 #endif
 
 #ifdef L_strtok_r
+
+#ifndef L_wcstok
+weak_alias(__strtok_r,strtok_r);
+#endif
 
 Wchar *Wstrtok_r(Wchar * __restrict s1, const Wchar * __restrict s2,
 				 Wchar ** __restrict next_start)
@@ -976,7 +980,7 @@ Wchar *Wstrtok_r(Wchar * __restrict s1, const Wchar * __restrict s2,
 
 #ifdef L_strtok
 #define Wstrtok strtok
-#define Wstrtok_r strtok_r
+#define Wstrtok_r __strtok_r
 
 Wchar *Wstrtok(Wchar * __restrict s1, const Wchar * __restrict s2)
 {
@@ -1616,14 +1620,13 @@ void *memmem(const void *haystack, size_t haystacklen,
 #define L_mempcpy
 #define Wmempcpy wmempcpy
 #else
-#define Wmempcpy mempcpy
+#define Wmempcpy __mempcpy
 #endif
 
 #ifdef L_mempcpy
 
 #ifndef L_wmempcpy
-/* uClibc's old string implementation did this to cater to some app. */
-weak_alias(mempcpy,__mempcpy);
+weak_alias(__mempcpy,mempcpy);
 #endif
 
 Wvoid *Wmempcpy(Wvoid * __restrict s1, const Wvoid * __restrict s2, size_t n)
@@ -1734,7 +1737,8 @@ Wchar *Wstpncpy(register Wchar * __restrict s1,
 /**********************************************************************/
 #ifdef L_bzero
 
-void bzero(void *s, size_t n)
+weak_alias(__bzero,bzero);
+void __bzero(void *s, size_t n)
 {
 	register unsigned char *p = s;
 #ifdef __BCC__
@@ -2326,14 +2330,7 @@ void psignal(int signum, register const char *message)
 		message = (sep += 2);	/* or passed an empty string. */
 	}
 
-#if 1
 	fprintf(stderr, "%s%s%s\n", message, sep, strsignal(signum));
-#else
-	/* Note: Assumes stderr not closed or buffered. */
-	__STDIO_THREADLOCK(stderr);
-	_stdio_fdout(STDERR_FILENO, message, sep, strsignal(signum));
-	__STDIO_THREADUNLOCK(stderr);
-#endif
 }
 
 #endif

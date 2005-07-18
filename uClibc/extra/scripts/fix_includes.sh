@@ -51,18 +51,18 @@ usage () {
 HAS_MMU="y";
 while [ -n "$1" ]; do
     case $1 in
-	-k ) shift; if [ -n "$1" ]; then KERNEL_SOURCE=$1; shift; else usage; fi; ;;
-	-t ) shift; if [ -n "$1" ]; then TARGET_ARCH=$1; shift; else usage; fi; ;;
+	-k ) shift; if [ -n "$1" ]; then KERNEL_SOURCE="$1"; shift; else usage; fi; ;;
+	-t ) shift; if [ -n "$1" ]; then TARGET_ARCH="$1"; shift; else usage; fi; ;;
 	-n ) shift; HAS_MMU="n"; ;;
 	-* ) usage; ;;
 	* ) usage; ;;
     esac;
 done;
 
-if [ ! -f "$KERNEL_SOURCE/Makefile" ]; then
+if [ ! -f "$KERNEL_SOURCE/Makefile" -a ! -f "$KERNEL_SOURCE/include/linux/version.h" ]; then
     echo "";
     echo "";
-    echo "The file $KERNEL_SOURCE/Makefile is missing!";
+    echo "The file $KERNEL_SOURCE/Makefile or $KERNEL_SOURCE/include/linux/version.h is missing!";
     echo "Perhaps your kernel source is broken?"
     echo "";
     echo "";
@@ -78,8 +78,21 @@ if [ ! -d "$KERNEL_SOURCE" ]; then
     exit 1;
 fi;
 
-# set current VERSION, PATCHLEVEL, SUBLEVEL, EXTERVERSION
+if [ -f "$KERNEL_SOURCE/Makefile" ] ; then
+# set current VERSION, PATCHLEVEL, SUBLEVEL, EXTRAVERSION
 eval `sed -n -e 's/^\([A-Z]*\) = \([0-9]*\)$/\1=\2/p' -e 's/^\([A-Z]*\) = \(-[-a-z0-9]*\)$/\1=\2/p' $KERNEL_SOURCE/Makefile`
+else
+ver=`grep UTS_RELEASE $KERNEL_SOURCE/include/linux/version.h | cut -d '"' -f 2`
+VERSION=`echo "$ver" | cut -d '.' -f 1`
+PATCHLEVEL=`echo "$ver" | cut -d '.' -f 2`
+if echo "$ver" | grep -q '-' ; then
+SUBLEVEL=`echo "$ver" | sed "s/${VERSION}.${PATCHLEVEL}.//" | cut -d '-' -f 1`
+EXTRAVERSION=`echo "$ver" | sed "s/${VERSION}.${PATCHLEVEL}.${SUBLEVEL}-//"`
+else
+SUBLEVEL=`echo "$ver" | cut -d '.' -f 3`
+#EXTRAVERSION=
+fi
+fi
 if [ -z "$VERSION" -o -z "$PATCHLEVEL" -o -z "$SUBLEVEL" ]
 then
     echo "Unable to determine version for kernel headers"
@@ -161,9 +174,7 @@ if [ $VERSION -eq 2 ] && [ $PATCHLEVEL -ge 6 ] ; then
 fi;
 
 
-# Create the include/linux and include/scsi symlinks.
+# Create the include/linux symlink.
 rm -f include/linux
 ln -fs $KERNEL_SOURCE/include/linux include/linux
-rm -f include/scsi
-ln -fs $KERNEL_SOURCE/include/scsi include/scsi
 

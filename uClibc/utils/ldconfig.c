@@ -37,8 +37,9 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <ld_elf.h>
-#include "readsoname.h"
+#include "dl-defs.h"
+
+#define BUFFER_SIZE 4096
 
 struct exec
 {
@@ -87,14 +88,35 @@ char *prog = NULL;
 int debug = 0;			/* debug mode */
 int verbose = 0;		/* verbose mode */
 int libmode = 0;		/* library mode */
-int nocache = 0;		/* don't build cache */
 int nolinks = 0;		/* don't update links */
-
+int nocache = 0;		/* don't build cache */
+void cache_print(void);
+void cache_write(void);
+void cache_dolib(const char *dir, const char *so, int libtype);
+#ifdef __LDSO_CACHE_SUPPORT__
 char *conffile = LDSO_CONF;	/* default conf file */
 char *cachefile = LDSO_CACHE;	/* default cache file */
-void cache_print(void);
-void cache_dolib(const char *dir, const char *so, int libtype);
-void cache_write(void);
+#endif
+
+struct needed_tab
+{
+  char *soname;
+  int type;
+};
+
+struct needed_tab needed_tab[] = {
+  { "libc.so.0",    LIB_ELF_LIBC0 },
+  { "libm.so.0",    LIB_ELF_LIBC0 },
+  { "libdl.so.0",   LIB_ELF_LIBC0 },
+  { "libc.so.5",    LIB_ELF_LIBC5 },
+  { "libm.so.5",    LIB_ELF_LIBC5 },
+  { "libdl.so.1",   LIB_ELF_LIBC5 },
+  { "libc.so.6",    LIB_ELF_LIBC6 },
+  { "libm.so.6",    LIB_ELF_LIBC6 },
+  { "libdl.so.2",   LIB_ELF_LIBC6 },
+  { NULL,           LIB_ELF }
+};
+
 
 /* These two are used internally -- you shouldn't need to use them */
 static void verror_msg(const char *s, va_list p)
@@ -104,7 +126,7 @@ static void verror_msg(const char *s, va_list p)
 	vfprintf(stderr, s, p);
 }
 
-extern void warnx(const char *s, ...)
+static void warnx(const char *s, ...)
 {
 	va_list p;
 
@@ -114,7 +136,7 @@ extern void warnx(const char *s, ...)
 	fprintf(stderr, "\n");
 }
 
-extern void err(int errnum, const char *s, ...)
+static void err(int errnum, const char *s, ...)
 {
 	va_list p;
 
@@ -137,7 +159,7 @@ static void vperror_msg(const char *s, va_list p)
 	fprintf(stderr, "%s%s\n", s, strerror(err));
 }
 
-extern void warn(const char *s, ...)
+static void warn(const char *s, ...)
 {
 	va_list p;
 
@@ -146,7 +168,7 @@ extern void warn(const char *s, ...)
 	va_end(p);
 }
 
-void *xmalloc(size_t size)
+static void *xmalloc(size_t size)
 {
     void *ptr;
     if ((ptr = malloc(size)) == NULL)
@@ -154,13 +176,46 @@ void *xmalloc(size_t size)
     return ptr;
 }
 
-char *xstrdup(const char *str)
+static char *xstrdup(const char *str)
 {
     char *ptr;
     if ((ptr = strdup(str)) == NULL)
 	err(EXIT_FATAL,"out of memory");
     return ptr;
 }
+
+
+#undef __ELF_NATIVE_CLASS
+#undef readsonameXX
+#define readsonameXX readsoname32
+#define __ELF_NATIVE_CLASS 32
+#include "readsoname2.c"
+
+#undef __ELF_NATIVE_CLASS
+#undef readsonameXX
+#define readsonameXX readsoname64
+#define __ELF_NATIVE_CLASS 64
+#include "readsoname2.c"
+
+char *readsoname(char *name, FILE *infile, int expected_type, 
+		 int *type, int elfclass)
+{
+  char *res;
+
+  if (elfclass == ELFCLASS32)
+    res = readsoname32(name, infile, expected_type, type);
+  else
+  {
+    res = readsoname64(name, infile, expected_type, type);
+#if 0
+    *type |= LIB_ELF64;
+#endif
+  }
+
+  return res;
+}
+
+
 
 /* If shared library, return a malloced copy of the soname and set the
    type, else return NULL.
@@ -186,7 +241,7 @@ char *is_shlib(const char *dir, const char *name, int *type,
     struct exec exec;
     ElfW(Ehdr) *elf_hdr;
     struct stat statbuf;
-    char buff[4096];
+    char buff[BUFFER_SIZE];
 
     /* see if name is of the form *.so* */
     if (name[strlen(name)-1] != '~' && (cp = strstr(name, ".so")))
@@ -286,8 +341,8 @@ char *is_shlib(const char *dir, const char *name, int *type,
 void link_shlib(const char *dir, const char *file, const char *so)
 {
     int change = 1;
-    char libname[4096];
-    char linkname[4096];
+    char libname[BUFFER_SIZE];
+    char linkname[BUFFER_SIZE];
     struct stat libstat;
     struct stat linkstat;
 
@@ -503,10 +558,8 @@ void scan_dir(const char *rawname)
     {
 	if (!lp->islink)
 	    link_shlib(name, lp->name, lp->so);
-#ifdef USE_CACHE
 	if (!nocache)
 	    cache_dolib(name, lp->so, lp->libtype);
-#endif
     }
 
     /* always try to clean up after ourselves */
@@ -523,6 +576,20 @@ void scan_dir(const char *rawname)
     return;
 }
 
+#ifndef __LDSO_CACHE_SUPPORT__
+void cache_print(void)
+{
+    printf("Library cache disabled\n");
+}
+void cache_dolib(const char *dir, const char *so, int libtype)
+{
+    return;
+}
+void cache_write(void)
+{
+    return;
+}
+#else
 /* return the list of system-specific directories */
 char *get_extpath(void)
 {
@@ -553,7 +620,6 @@ char *get_extpath(void)
     return res;
 }
 
-#ifdef USE_CACHE
 typedef struct liblist
 {
     int flags;
@@ -612,7 +678,7 @@ void cache_write(void)
 {
     int cachefd;
     int stroffset = 0;
-    char tempfile[4096];
+    char tempfile[BUFFER_SIZE];
     liblist_t *cur_lib;
 
     if (!magic.nlibs)
@@ -699,6 +765,9 @@ void cache_print(void)
 	    case LIB_ELF:
 		printf("(ELF%s)", libent[fd].flags & LIB_ELF64 ? "/64" : "");
 		break;
+	    case LIB_ELF_LIBC0:
+		printf("(libc0%s)",libent[fd].flags & LIB_ELF64 ? "/64" : "");
+		break;
 	    case LIB_ELF_LIBC5:
 	    case LIB_ELF_LIBC6:
 		printf("(libc%d%s)", (libent[fd].flags & ~LIB_ELF64) + 3,
@@ -713,20 +782,21 @@ void cache_print(void)
 
     munmap (c,st.st_size);
 }
-#else
-void cache_print(void)
-{
-    warnx("Cache support disabled\n");
-}
 #endif
 
 void usage(void)
 {
     fprintf(stderr,
-	    "ldconfig - updates symlinks for shared libraries\n\n"
+#ifdef __LDSO_CACHE_SUPPORT__
+	    "ldconfig - updates symlinks and cache for shared libraries\n\n"
 	    "Usage: ldconfig [-DvqnNX] [-f conf] [-C cache] [-r root] dir ...\n"
 	    "       ldconfig -l [-Dv] lib ...\n"
 	    "       ldconfig -p\n\nOptions:\n"
+#else
+	    "ldconfig - updates symlinks for shared libraries\n\n"
+	    "Usage: ldconfig [-DvqnX] [-r root] dir ...\n"
+	    "       ldconfig -l [-Dv] lib ...\n\nOptions:\n"
+#endif
 	    "\t-D:\t\tdebug mode, don't update links\n"
 	    "\t-v:\t\tverbose mode, print things as we go\n"
 	    "\t-q:\t\tquiet mode, don't print warnings\n"
@@ -735,12 +805,18 @@ void usage(void)
 	    "\t-X:\t\tdon't update the library links\n"
 	    "\t-l:\t\tlibrary mode, manually link libraries\n"
 	    "\t-p:\t\tprint the current library cache\n"
+#ifdef __LDSO_CACHE_SUPPORT__
 	    "\t-f conf :\tuse conf instead of %s\n"
 	    "\t-C cache:\tuse cache instead of %s\n"
+#endif
 	    "\t-r root :\tfirst, do a chroot to the indicated directory\n"
 	    "\tdir ... :\tdirectories to process\n"
+#ifdef __LDSO_CACHE_SUPPORT__
 	    "\tlib ... :\tlibraries to link\n\n",
 	    LDSO_CONF, LDSO_CACHE
+#else
+	    "\tlib ... :\tlibraries to link\n\n"
+#endif
 	   );
     exit(EXIT_FATAL);
 }
@@ -750,11 +826,13 @@ int main(int argc, char **argv)
 {
     int i, c;
     int nodefault = 0;
-    int printcache = 0;
     char *cp, *dir, *so;
-    char *extpath;
     int libtype, islink;
     char *chroot_dir = NULL;
+    int printcache = 0;
+#ifdef __LDSO_CACHE_SUPPORT__
+    char *extpath;
+#endif
 
     prog = argv[0];
     opterr = 0;
@@ -792,10 +870,14 @@ int main(int argc, char **argv)
 		printcache = 1;	/* print cache */
 		break;
 	    case 'f':
+#ifdef __LDSO_CACHE_SUPPORT__
 		conffile = optarg;	/* alternate conf file */
+#endif
 		break;
 	    case 'C':
+#ifdef __LDSO_CACHE_SUPPORT__
 		cachefile = optarg;	/* alternate cache file */
+#endif
 		break;
 	    case 'r':
 		chroot_dir = optarg;
@@ -874,24 +956,36 @@ int main(int argc, char **argv)
 	/* look ma, no defaults */
 	if (!nodefault)
 	{
+	    scan_dir(UCLIBC_RUNTIME_PREFIX "lib");
+	    scan_dir(UCLIBC_RUNTIME_PREFIX "usr/lib");
+#ifndef __LDSO_CACHE_SUPPORT__
+	    scan_dir(UCLIBC_RUNTIME_PREFIX "usr/X11R6/lib");
+#else
 	    /* I guess the defaults aren't good enough */
 	    if ((extpath = get_extpath()))
 	    {
-		for (cp = strtok(extpath, DIR_SEP); cp;
-			cp = strtok(NULL, DIR_SEP))
+		for (cp = strtok(extpath, DIR_SEP); cp; cp = strtok(NULL, DIR_SEP)) {
+			/* strip trailing slashes */
+			int len = strlen(cp);
+			if (len) 
+				while (cp[--len] == '/' && len)
+					cp[len] = 0;
+			/* we do the redundancy check only if cache usage is enabled */
+			if (strcmp(UCLIBC_RUNTIME_PREFIX "lib", cp) == 0 ||
+			    strcmp(UCLIBC_RUNTIME_PREFIX "usr/lib", cp) == 0) {
+				if (verbose >= 0)
+					warnx("Remove `%s' from `%s'\n", cp, LDSO_CONF);
+				continue;
+			}
 		    scan_dir(cp);
+		}
 		free(extpath);
 	    }
-
-	    scan_dir(UCLIBC_RUNTIME_PREFIX "/usr/X11R6/lib");
-	    scan_dir(UCLIBC_RUNTIME_PREFIX "/usr/lib");
-	    scan_dir(UCLIBC_RUNTIME_PREFIX "/lib");
+#endif
 	}
 
-#ifdef USE_CACHE
 	if (!nocache)
 	    cache_write();
-#endif
     }
 
     exit(EXIT_OK);

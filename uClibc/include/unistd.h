@@ -259,13 +259,6 @@ typedef __socklen_t socklen_t;
 /* Test for access to NAME using the real UID and real GID.  */
 extern int access (__const char *__name, int __type) __THROW;
 
-#if 0
-/*#ifdef __USE_GNU*/
-/* Test for access to NAME using the effective UID and GID
-   (as normal file operations use).  */
-extern int euidaccess (__const char *__name, int __type) __THROW;
-#endif
-
 
 /* Values for the WHENCE argument to lseek.  */
 #ifndef	_STDIO_H		/* <stdio.h> has the same definitions.  */
@@ -428,12 +421,6 @@ extern char *getcwd (char *__buf, size_t __size) __THROW;
    that value is used.  */
 extern char *get_current_dir_name (void) __THROW;
 
-#if defined __USE_BSD || defined __USE_XOPEN_EXTENDED
-/* Put the absolute pathname of the current working directory in BUF.
-   If successful, return BUF.  If not, put an error message in
-   BUF and return NULL.  BUF should be at least PATH_MAX bytes long.  */
-extern char *getwd (char *__buf) __THROW;
-#endif
 
 
 /* Duplicate FD, returning a new file descriptor on the same file.  */
@@ -453,15 +440,6 @@ extern char **environ;
    environment ENVP.  ARGV and ENVP are terminated by NULL pointers.  */
 extern int execve (__const char *__path, char *__const __argv[],
 		   char *__const __envp[]) __THROW;
-
-#if 0
-/*#ifdef __USE_GNU*/
-/* Execute the file FD refers to, overlaying the running program image.
-   ARGV and ENVP are passed to the new program, as for `execve'.  */
-extern int fexecve (int __fd, char *__const __argv[], char *__const __envp[])
-     __THROW;
-#endif
-
 
 /* Execute PATH with arguments ARGV and environment from `environ'.  */
 extern int execv (__const char *__path, char *__const __argv[]) __THROW;
@@ -601,12 +579,6 @@ extern __gid_t getegid (void) __THROW;
    of its supplementary groups in LIST and return the number written.  */
 extern int getgroups (int __size, __gid_t __list[]) __THROW;
 
-#if 0
-/*#ifdef	__USE_GNU*/
-/* Return nonzero iff the calling process is in group GID.  */
-extern int group_member (__gid_t __gid) __THROW;
-#endif
-
 /* Set the user ID of the calling process to UID.
    If the calling process is the super-user, set the real
    and effective user IDs, and the saved set-user-ID to UID;
@@ -686,12 +658,6 @@ extern int ttyname_r (int __fd, char *__buf, size_t __buflen) __THROW;
    with a terminal, zero if not.  */
 extern int isatty (int __fd) __THROW;
 
-#if defined __USE_BSD \
-    || (defined __USE_XOPEN_EXTENDED && !defined __USE_UNIX98)
-/* Return the index into the active-logins file (utmp) for
-   the controlling terminal.  */
-extern int ttyslot (void) __THROW;
-#endif
 
 
 /* Make a link to FROM named TO.  */
@@ -731,10 +697,6 @@ extern char *getlogin (void) __THROW;
 extern int getlogin_r (char *__name, size_t __name_len) __THROW;
 #endif
 
-#ifdef	__USE_BSD
-/* Set the login name returned by `getlogin'.  */
-extern int setlogin (__const char *__name) __THROW;
-#endif
 
 
 #ifdef	__USE_POSIX2
@@ -776,17 +738,6 @@ extern int setdomainname (__const char *__name, size_t __len) __THROW;
    group of the control terminal.  */
 extern int vhangup (void) __THROW;
 
-/* Revoke the access of all descriptors currently open on FILE.  */
-extern int revoke (__const char *__file) __THROW;
-
-
-/* Enable statistical profiling, writing samples of the PC into at most
-   SIZE bytes of SAMPLE_BUFFER; every processor clock tick while profiling
-   is enabled, the system examines the user PC and increments
-   SAMPLE_BUFFER[((PC - OFFSET) / 2) * SCALE / 65536].  If SCALE is zero,
-   disable profiling.  Returns zero on success, -1 on error.  */
-extern int profil (unsigned short int *__sample_buffer, size_t __size,
-		   size_t __offset, unsigned int __scale) __THROW;
 
 
 /* Turn accounting on if NAME is an existing file.  The system will then write

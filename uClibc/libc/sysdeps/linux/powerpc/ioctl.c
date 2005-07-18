@@ -20,11 +20,14 @@
 #include <termios.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/syscall.h>
 
 /* The user-visible size of struct termios has changed.  Catch ioctl calls
    using the new-style struct termios, and translate them to old-style.  */
 
-extern int __syscall_ioctl (int fd, unsigned long int request, ...);
+#define __NR___syscall_ioctl __NR_ioctl
+_syscall3(int, __syscall_ioctl, int, fd, unsigned long int, request, void *, arg);
+
 
 int ioctl (int fd, unsigned long int request, ...)
 {

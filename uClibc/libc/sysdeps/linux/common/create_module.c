@@ -29,7 +29,10 @@
 
 //#define __NR_create_module    127
 
+#ifdef __NR_create_module
+
 #if defined(__i386__) || defined(__m68k__) || defined(__arm__) || defined(__cris__) || defined(__i960__)
+#ifdef __NR_create_module
 #define __NR___create_module  __NR_create_module
 #ifdef __STR_NR_create_module
 #define __STR_NR___create_module  __STR_NR_create_module
@@ -49,6 +52,13 @@ unsigned long create_module(const char *name, size_t size)
 	}
 	return ret;
 }
+#else
+unsigned long create_module(const char *name, size_t size)
+{
+	__set_errno(ENOSYS);
+	return(-1);
+}
+#endif
 #elif defined(__alpha__)
 #define __NR___create_module  __NR_create_module
 /* Alpha doesn't have the same problem, exactly, but a bug in older
@@ -64,4 +74,11 @@ unsigned long create_module(const char *name, size_t size)
 _syscall2(unsigned long, create_module, const char *, name, size_t, size);
 #endif
 
+#else
+unsigned long create_module(const char *name, size_t size)
+{
+	__set_errno(ENOSYS);
+	return (unsigned long)-1;
+}
+#endif
 

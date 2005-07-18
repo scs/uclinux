@@ -21,12 +21,12 @@
 
 #include <sys/syscall.h>
 
-.text;  
-.global	fork;
+.text;
+.global	__libc_fork;
 .align 4;
-.type	fork,@function;
+.type	__libc_fork,@function;
 
-fork:
+__libc_fork:
 	mov __NR_fork, %g1
 	ta	0x10
 	bcc,a	9000f
@@ -43,5 +43,6 @@ fork:
 	retl
 	and	%o0, %o1, %o0
 
-.size fork,.-fork;
+.size __libc_fork,.-__libc_fork;
+.weak fork; fork = __libc_fork
 

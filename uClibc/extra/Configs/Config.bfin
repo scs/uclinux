@@ -30,3 +30,4 @@ config HAVE_ELF
 config ARCH_HAS_C_SYMBOL_PREFIX
 	bool
 	default y
+

@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <string.h>
 #include <malloc.h>
+#include <stdlib.h>
 
 
 #ifdef __UCLIBC_HAS_THREADS__
@@ -136,7 +137,7 @@ extern pthread_mutex_t __malloc_lock;
 */
 #ifndef malloc_getpagesize
 #  include <unistd.h>
-#  define malloc_getpagesize sysconf(_SC_PAGE_SIZE)
+#  define malloc_getpagesize sysconf(_SC_PAGESIZE)
 #else /* just guess */
 #  define malloc_getpagesize (4096)
 #endif
@@ -350,8 +351,17 @@ extern pthread_mutex_t __malloc_lock;
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-#define MMAP(addr, size, prot, flags) \
- (mmap((addr), (size), (prot), (flags)|MAP_ANONYMOUS, -1, 0))
+#ifdef __ARCH_HAS_MMU__
+
+#define MMAP(addr, size, prot) \
+ (mmap((addr), (size), (prot), MAP_PRIVATE|MAP_ANONYMOUS, 0, 0))
+
+#else
+
+#define MMAP(addr, size, prot) \
+ (mmap((addr), (size), (prot), MAP_SHARED|MAP_ANONYMOUS, 0, 0))
+
+#endif
 
 
 /* -----------------------  Chunk representations ----------------------- */
@@ -636,6 +646,8 @@ typedef struct malloc_chunk* mbinptr;
 #define unlink(P, BK, FD) {                                            \
   FD = P->fd;                                                          \
   BK = P->bk;                                                          \
+  if (FD->bk != P || BK->fd != P)                                      \
+      abort();                                                         \
   FD->bk = BK;                                                         \
   BK->fd = FD;                                                         \
 }

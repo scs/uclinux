@@ -38,39 +38,39 @@ union semun {
 
 #ifdef __NR_semctl
 #define __NR___semctl __NR_semctl
-static inline _syscall4(int, __semctl, int, semid, int, semnum, int, cmd, union semun *, arg);
+static inline _syscall4(int, __semctl, int, semid, int, semnum, int, cmd, void *, arg);
 #endif
 
 int semctl(int semid, int semnum, int cmd, ...)
 {
     union semun arg;
-    va_list ap; 
+    va_list ap;
 
     /* Get the argument.  */
     va_start (ap, cmd);
     arg = va_arg (ap, union semun);
     va_end (ap);
 #ifdef __NR_semctl
-    return __semctl(semid, semnum, cmd, &arg);
+    return __semctl(semid, semnum, cmd, arg.__pad);
 #else
-    return __ipc(IPCOP_semctl, semid, semnum, cmd, &arg);
+    return __syscall_ipc(IPCOP_semctl, semid, semnum, cmd, &arg);
 #endif
-}    
+}
 #endif
 
 #ifdef L_semget
 /* for definition of NULL */
-#include <stdlib.h>		
+#include <stdlib.h>
 
 #ifdef __NR_semget
 _syscall3(int, semget, key_t, key, int, nsems, int, semflg);
 
 #else
-/* Return identifier for array of NSEMS semaphores associated 
+/* Return identifier for array of NSEMS semaphores associated
  * with KEY.  */
 int semget (key_t key, int nsems, int semflg)
 {
-    return __ipc(IPCOP_semget, key, nsems, semflg, NULL);
+    return __syscall_ipc(IPCOP_semget, key, nsems, semflg, NULL);
 }
 #endif
 #endif
@@ -84,7 +84,7 @@ _syscall3(int, semop, int, semid, struct sembuf *, sops, size_t, nsops);
 /* Perform user-defined atomical operation of array of semaphores.  */
 int semop (int semid, struct sembuf *sops, size_t nsops)
 {
-    return __ipc(IPCOP_semop, semid, (int) nsops, 0, sops);
+    return __syscall_ipc(IPCOP_semop, semid, (int) nsops, 0, sops);
 }
 #endif
 #endif

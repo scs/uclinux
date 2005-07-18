@@ -52,7 +52,7 @@ static char *conf_expand_value(const char *in)
 char *conf_get_default_confname(void)
 {
 	struct stat buf;
-	static char fullname[4096+1];
+	static char fullname[PATH_MAX+1];
 	char *env, *name;
 
 	name = conf_expand_value(conf_defname);
@@ -225,6 +225,8 @@ int conf_read(const char *name)
 	}
 	fclose(in);
 
+	if (modules_sym)
+		sym_calc_value(modules_sym);
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
 		if (sym_has_value(sym) && !sym_is_choice_value(sym)) {
@@ -265,8 +267,14 @@ int conf_write(const char *name)
 
 	dirname[0] = 0;
 	if (name && name[0]) {
-		char *slash = strrchr(name, '/');
-		if (slash) {
+		struct stat st;
+		char *slash;
+
+		if (!stat(name, &st) && S_ISDIR(st.st_mode)) {
+			strcpy(dirname, name);
+			strcat(dirname, "/");
+			basename = conf_def_filename;
+		} else if ((slash = strrchr(name, '/'))) {
 			int size = slash - name + 1;
 			memcpy(dirname, name, size);
 			dirname[size] = 0;

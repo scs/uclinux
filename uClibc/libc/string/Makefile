@@ -20,10 +20,18 @@ TOPDIR=../../
 include $(TOPDIR)Rules.mak
 
 DIRS=
-ifeq ($(TARGET_ARCH),$(wildcard $(TARGET_ARCH)))
-DIRS = $(TARGET_ARCH)
+
+ifeq ($(UCLIBC_HAS_STRING_GENERIC_OPT),y)
+DIRS += generic
 endif
-ALL_SUBDIRS = i386 arm sh64 bfin
+
+ifeq ($(UCLIBC_HAS_STRING_ARCH_OPT),y)
+ifeq ($(TARGET_ARCH),$(wildcard $(TARGET_ARCH)))
+DIRS += $(TARGET_ARCH)
+endif
+endif
+
+ALL_SUBDIRS = generic arm bfin frv i386 sh64 powerpc mips
 
 MSRC= wstring.c
 MOBJ=  basename.o bcopy.o bzero.o dirname.o ffs.o memccpy.o memchr.o memcmp.o \

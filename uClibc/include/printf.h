@@ -56,7 +56,7 @@ struct printf_info
 {
   int prec;			/* Precision.  */
   int width;			/* Width.  */
-#ifdef __STDIO_WIDE				/* TODO: temporary fix for uClibc */
+#ifdef __UCLIBC_HAS_WCHAR__
   wchar_t spec;			/* Format letter.  */
 #else
   int spec;
@@ -136,7 +136,7 @@ struct printf_info
 #define PRINT_INFO_SET_extra(INFO_PTR,VAL) \
 	((INFO_PTR)->_flags |= (((INFO_PTR)->_flags & ~1) | ((VAL) & 1)))
 #endif /* __PRINTF_INFO_NO_BITFIELD */
-#ifdef __STDIO_WIDE				/* TODO: temporary fix for uClibc */
+#ifdef __UCLIBC_HAS_WCHAR__
   wchar_t pad;			/* Padding character.  */
 #else
   int pad;
@@ -226,6 +226,7 @@ enum
 
 #define __PA_INTMASK		(0x0f00) /* non-gnu -- all int flags */
 
+#if 0
 /* Function which can be registered as `printf'-handlers.  */
 
 /* Print floating point value using using abbreviations for the orders
@@ -241,6 +242,7 @@ extern int printf_size_info (__const struct printf_info *__restrict
 			     __info, size_t __n, int *__restrict __argtypes)
      __THROW;
 
+#endif
 
 __END_DECLS
 

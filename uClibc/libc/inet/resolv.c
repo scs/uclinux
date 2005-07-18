@@ -111,8 +111,8 @@
  *   and read_etc_hosts; getnameinfo() port from glibc; defined
  *   defined ip6addr_any and in6addr_loopback)
  *
- * 2-Feb-2002 Erik Andersen <andersee@debian.org>
- * Added gethostent(), sethostent(), and endhostent()
+ * 2-Feb-2002 Erik Andersen <andersen@codepoet.org>
+ *   Added gethostent(), sethostent(), and endhostent()
  *
  * 17-Aug-2002 Manuel Novoa III <mjn3@codepoet.org>
  *   Fixed __read_etc_hosts_r to return alias list, and modified buffer
@@ -127,6 +127,9 @@
  *   Lifted dn_expand() and dependent ns_name_uncompress(), ns_name_unpack(),
  *   and ns_name_ntop() from glibc 2.3.2 for compatibility with ipsec-tools 
  *   and openldap.
+ *
+ * 7-Sep-2004 Erik Andersen <andersen@codepoet.org>
+ *   Added gethostent_r()
  *
  */
 
@@ -162,7 +165,7 @@
 #define 	ALIAS_DIM		(2 + MAX_ALIASES + 1)
 
 #undef DEBUG
-/*#define DEBUG*/
+/* #define DEBUG */
 
 #ifdef DEBUG
 #define DPRINTF(X,args...) fprintf(stderr, X, ##args)
@@ -669,7 +672,7 @@ int __dns_lookup(const char *name, int type, int nscount, char **nsip,
 	int retries = 0;
 	unsigned char * packet = malloc(PACKETSZ);
 	char *dns, *lookup = malloc(MAXDNAME);
-	int variant = 0;
+	int variant = -1;
 	struct sockaddr_in sa;
 #ifdef __UCLIBC_HAS_IPV6__
 	int v6;
@@ -687,7 +690,7 @@ int __dns_lookup(const char *name, int type, int nscount, char **nsip,
 	ns %= nscount;
 	UNLOCK;
 
-	while (retries++ < MAX_RETRIES) {
+	while (retries < MAX_RETRIES) {
 		if (fd != -1)
 			close(fd);
 
@@ -713,13 +716,14 @@ int __dns_lookup(const char *name, int type, int nscount, char **nsip,
 			goto fail;
 
 		strncpy(lookup,name,MAXDNAME);
-		BIGLOCK;
-		if (variant < __searchdomains && strchr(lookup, '.') == NULL)
-		{
-		    strncat(lookup,".", MAXDNAME);
-		    strncat(lookup,__searchdomain[variant], MAXDNAME);
-		}
-		BIGUNLOCK;
+		if (variant >= 0) {
+                        BIGLOCK;
+                        if (variant < __searchdomains) {
+                                strncat(lookup,".", MAXDNAME);
+                                strncat(lookup,__searchdomain[variant], MAXDNAME);
+                        }
+                        BIGUNLOCK;
+                }
 		DPRINTF("lookup name: %s\n", lookup);
 		q.dotted = (char *)lookup;
 		q.qtype = type;
@@ -732,7 +736,7 @@ int __dns_lookup(const char *name, int type, int nscount, char **nsip,
 		len = i + j;
 
 		DPRINTF("On try %d, sending query to port %d of machine %s\n",
-				retries, NAMESERVER_PORT, dns);
+				retries+1, NAMESERVER_PORT, dns);
 
 #ifdef __UCLIBC_HAS_IPV6__
 		v6 = inet_pton(AF_INET6, dns, &sa6.sin6_addr) > 0;
@@ -741,6 +745,7 @@ int __dns_lookup(const char *name, int type, int nscount, char **nsip,
 		fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 #endif
 		if (fd < 0) {
+                    retries++;
 		    continue;
 		}
 
@@ -766,6 +771,7 @@ int __dns_lookup(const char *name, int type, int nscount, char **nsip,
 			goto tryall;
 		    } else
 			/* retry */
+                        retries++;
 			continue;
 		}
 
@@ -783,11 +789,11 @@ int __dns_lookup(const char *name, int type, int nscount, char **nsip,
 
 			/* timed out, so retry send and receive, 
 			 * to next nameserver on queue */
-			goto again;
+			goto tryall;
 		}
 
-		i = recv(fd, packet, 512, 0);
-		if (i < HFIXEDSZ) {
+		len = recv(fd, packet, 512, 0);
+		if (len < HFIXEDSZ) {
 			/* too short ! */
 			goto again;
 		}
@@ -855,20 +861,20 @@ int __dns_lookup(const char *name, int type, int nscount, char **nsip,
 		else
 			free(packet);
 		free(lookup);
-		return (0);				/* success! */
+		return (len);				/* success! */
 
 	  tryall:
 		/* if there are other nameservers, give them a go,
 		   otherwise return with error */
 		{
-		    int sdomains;
+		    variant = -1;
+                    LOCK;
+                    ns = (ns + 1) % nscount;
+                    if (ns == 0)
+                      retries++;
 
-		    BIGLOCK;
-		    sdomains=__searchdomains;
-		    BIGUNLOCK;
-		    variant = 0;
-		    if (retries >= nscount*(sdomains+1))
-			goto fail;
+                    UNLOCK;
+                    continue;
 		}
 
 	  again:
@@ -879,15 +885,18 @@ int __dns_lookup(const char *name, int type, int nscount, char **nsip,
 		    sdomains=__searchdomains;
 		    BIGUNLOCK;
 
-		    if (variant < sdomains) {
+		    if (variant < sdomains - 1) {
 			/* next search */
 			variant++;
 		    } else {
 			/* next server, first search */
 			LOCK;
 			ns = (ns + 1) % nscount;
+                        if (ns == 0)
+                          retries++;
+
 			UNLOCK;
-			variant = 0;
+			variant = -1;
 		    }
 		}
 	}
@@ -899,6 +908,7 @@ fail:
 	    free(lookup);
 	if (packet)
 	    free(packet);
+	h_errno = NETDB_INTERNAL;
 	return -1;
 }
 #endif
@@ -933,7 +943,8 @@ int __open_nameservers()
 	}
 
 	if ((fp = fopen("/etc/resolv.conf", "r")) ||
-			(fp = fopen("/etc/config/resolv.conf", "r"))) {
+			(fp = fopen("/etc/config/resolv.conf", "r")))
+	{
 
 		while (fgets(szBuffer, sizeof(szBuffer), fp) != NULL) {
 
@@ -970,12 +981,14 @@ int __open_nameservers()
 			}
 		}
 		fclose(fp);
-	} else {
-	    DPRINTF("failed to open %s\n", "resolv.conf");
+		DPRINTF("nameservers = %d\n", __nameservers);
+		BIGUNLOCK;
+		return 0;
 	}
-	DPRINTF("nameservers = %d\n", __nameservers);
+	DPRINTF("failed to open %s\n", "resolv.conf");
+	h_errno = NO_RECOVERY;
 	BIGUNLOCK;
-	return 0;
+	return -1;
 }
 #endif
 
@@ -1033,13 +1046,6 @@ struct hostent *gethostbyname2(const char *name, int family)
 }
 #endif
 
-#ifdef L_getnetbyname
-
-struct netent * getnetbyname(const char * name)
-{
-	return NULL;
-}
-#endif
 
 
 #ifdef L_res_init
@@ -1115,10 +1121,11 @@ int res_query(const char *dname, int class, int type,
 	char ** __nameserverXX;
 
 	__open_nameservers();
-	
-	if (!dname || class != 1 /* CLASS_IN */)
+	if (!dname || class != 1 /* CLASS_IN */) {
+		h_errno = NO_RECOVERY;
 		return(-1);
-		
+	}
+
 	memset((char *) &a, '\0', sizeof(a));
 
 	BIGLOCK;
@@ -1126,23 +1133,218 @@ int res_query(const char *dname, int class, int type,
 	__nameserverXX=__nameserver;
 	BIGUNLOCK;
 	i = __dns_lookup(dname, type, __nameserversXX, __nameserverXX, &packet, &a);
-	
-	if (i < 0)
+
+	if (i < 0) {
+		h_errno = TRY_AGAIN;
 		return(-1);
-			
+	}
+
 	free(a.dotted);
-		
+
 	if (a.atype == type) { /* CNAME*/
-		if (anslen && answer)
-			memcpy(answer, a.rdata, MIN(anslen, a.rdlength));
+		int len = MIN(anslen, i);
+		memcpy(answer, packet, len);
 		if (packet)
 			free(packet);
-		return(MIN(anslen, a.rdlength));
+		return(len);
 	}
 	if (packet)
 		free(packet);
-	return 0;
+	return i;
 }
+
+/*
+ * Formulate a normal query, send, and retrieve answer in supplied buffer.
+ * Return the size of the response on success, -1 on error.
+ * If enabled, implement search rules until answer or unrecoverable failure
+ * is detected.  Error code, if any, is left in h_errno.
+ */
+int res_search(name, class, type, answer, anslen)
+	const char *name;	/* domain name */
+	int class, type;	/* class and type of query */
+	u_char *answer;		/* buffer to put answer */
+	int anslen;		/* size of answer */
+{
+	const char *cp, * const *domain;
+	HEADER *hp = (HEADER *)(void *)answer;
+	u_int dots;
+	int trailing_dot, ret, saved_herrno;
+	int got_nodata = 0, got_servfail = 0, tried_as_is = 0;
+
+	if ((!name || !answer) || ((_res.options & RES_INIT) == 0 && res_init() == -1)) {
+		h_errno = NETDB_INTERNAL;
+		return (-1);
+	}
+
+	errno = 0;
+	h_errno = HOST_NOT_FOUND;	/* default, if we never query */
+	dots = 0;
+	for (cp = name; *cp; cp++)
+		dots += (*cp == '.');
+	trailing_dot = 0;
+	if (cp > name && *--cp == '.')
+		trailing_dot++;
+
+	/*
+	 * If there are dots in the name already, let's just give it a try
+	 * 'as is'.  The threshold can be set with the "ndots" option.
+	 */
+	saved_herrno = -1;
+	if (dots >= _res.ndots) {
+		ret = res_querydomain(name, NULL, class, type, answer, anslen);
+		if (ret > 0)
+			return (ret);
+		saved_herrno = h_errno;
+		tried_as_is++;
+	}
+
+	/*
+	 * We do at least one level of search if
+	 *	- there is no dot and RES_DEFNAME is set, or
+	 *	- there is at least one dot, there is no trailing dot,
+	 *	  and RES_DNSRCH is set.
+	 */
+	if ((!dots && (_res.options & RES_DEFNAMES)) ||
+	    (dots && !trailing_dot && (_res.options & RES_DNSRCH))) {
+		int done = 0;
+
+		for (domain = (const char * const *)_res.dnsrch;
+		   *domain && !done;
+		   domain++) {
+
+			ret = res_querydomain(name, *domain, class, type,
+			    answer, anslen);
+			if (ret > 0)
+				return (ret);
+
+			/*
+			 * If no server present, give up.
+			 * If name isn't found in this domain,
+			 * keep trying higher domains in the search list
+			 * (if that's enabled).
+			 * On a NO_DATA error, keep trying, otherwise
+			 * a wildcard entry of another type could keep us
+			 * from finding this entry higher in the domain.
+			 * If we get some other error (negative answer or
+			 * server failure), then stop searching up,
+			 * but try the input name below in case it's
+			 * fully-qualified.
+			 */
+			if (errno == ECONNREFUSED) {
+				h_errno = TRY_AGAIN;
+				return (-1);
+			}
+
+			switch (h_errno) {
+			case NO_DATA:
+				got_nodata++;
+				/* FALLTHROUGH */
+			case HOST_NOT_FOUND:
+				/* keep trying */
+				break;
+			case TRY_AGAIN:
+				if (hp->rcode == SERVFAIL) {
+					/* try next search element, if any */
+					got_servfail++;
+					break;
+				}
+				/* FALLTHROUGH */
+			default:
+				/* anything else implies that we're done */
+				done++;
+			}
+			/*
+			 * if we got here for some reason other than DNSRCH,
+			 * we only wanted one iteration of the loop, so stop.
+			 */
+			if (!(_res.options & RES_DNSRCH))
+				done++;
+		}
+	}
+
+	/*
+	 * if we have not already tried the name "as is", do that now.
+	 * note that we do this regardless of how many dots were in the
+	 * name or whether it ends with a dot.
+	 */
+	if (!tried_as_is) {
+		ret = res_querydomain(name, NULL, class, type, answer, anslen);
+		if (ret > 0)
+			return (ret);
+	}
+
+	/*
+	 * if we got here, we didn't satisfy the search.
+	 * if we did an initial full query, return that query's h_errno
+	 * (note that we wouldn't be here if that query had succeeded).
+	 * else if we ever got a nodata, send that back as the reason.
+	 * else send back meaningless h_errno, that being the one from
+	 * the last DNSRCH we did.
+	 */
+	if (saved_herrno != -1)
+		h_errno = saved_herrno;
+	else if (got_nodata)
+		h_errno = NO_DATA;
+	else if (got_servfail)
+		h_errno = TRY_AGAIN;
+	return (-1);
+}
+
+/*
+ * Perform a call on res_query on the concatenation of name and domain,
+ * removing a trailing dot from name if domain is NULL.
+ */
+int res_querydomain(name, domain, class, type, answer, anslen)
+	const char *name, *domain;
+	int class, type;	/* class and type of query */
+	u_char *answer;		/* buffer to put answer */
+	int anslen;		/* size of answer */
+{
+	char nbuf[MAXDNAME];
+	const char *longname = nbuf;
+	size_t n, d;
+
+	if ((!name || !answer) || ((_res.options & RES_INIT) == 0 && res_init() == -1)) {
+		h_errno = NETDB_INTERNAL;
+		return (-1);
+	}
+
+#ifdef DEBUG
+	if (_res.options & RES_DEBUG)
+		printf(";; res_querydomain(%s, %s, %d, %d)\n",
+			name, domain?domain:"<Nil>", class, type);
+#endif
+	if (domain == NULL) {
+		/*
+		 * Check for trailing '.';
+		 * copy without '.' if present.
+		 */
+		n = strlen(name);
+		if (n + 1 > sizeof(nbuf)) {
+			h_errno = NO_RECOVERY;
+			return (-1);
+		}
+		if (n > 0 && name[--n] == '.') {
+			strncpy(nbuf, name, n);
+			nbuf[n] = '\0';
+		} else
+			longname = name;
+	} else {
+		n = strlen(name);
+		d = strlen(domain);
+		if (n + 1 + d + 1 > sizeof(nbuf)) {
+			h_errno = NO_RECOVERY;
+			return (-1);
+		}
+		snprintf(nbuf, sizeof(nbuf), "%s.%s", name, domain);
+	}
+	return (res_query(longname, class, type, answer, anslen));
+}
+
+/* res_mkquery */
+/* res_send */
+/* dn_comp */
+/* dn_expand */
 #endif
 
 #ifdef L_gethostbyaddr
@@ -1358,6 +1560,29 @@ void sethostent (int stay_open)
     UNLOCK;
 }
 
+int gethostent_r(struct hostent *result_buf, char *buf, size_t buflen,
+	struct hostent **result, int *h_errnop)
+{
+    int ret;
+
+    LOCK;
+    if (__gethostent_fp == NULL) {
+	__open_etc_hosts(&__gethostent_fp);
+	if (__gethostent_fp == NULL) {
+	    UNLOCK;
+	    *result=NULL;
+	    return 0;
+	}
+    }
+
+    ret = __read_etc_hosts_r(__gethostent_fp, NULL, AF_INET, GETHOSTENT, 
+		   result_buf, buf, buflen, result, h_errnop);
+    if (__stay_open==0) {
+	fclose(__gethostent_fp);
+    }
+    UNLOCK;
+    return(ret);
+}
 
 struct hostent *gethostent (void)
 {
@@ -1373,19 +1598,7 @@ struct hostent *gethostent (void)
     struct hostent *host;
 
     LOCK;
-    if (__gethostent_fp == NULL) {
-	__open_etc_hosts(&__gethostent_fp);
-	if (__gethostent_fp == NULL) {
-	    UNLOCK;
-	    return((struct hostent *)NULL);
-	}
-    }
-
-    __read_etc_hosts_r(__gethostent_fp, NULL, AF_INET, GETHOSTENT, 
-		   &h, buf, sizeof(buf), &host, &h_errno);
-    if (__stay_open==0) {
-	fclose(__gethostent_fp);
-    }
+    gethostent_r(&h, buf, sizeof(buf), &host, &h_errno);
     UNLOCK;
     return(host);
 }
@@ -1643,6 +1856,7 @@ int gethostbyname_r(const char * name,
 {
 	struct in_addr *in;
 	struct in_addr **addr_list;
+	char **alias;
 	unsigned char *packet;
 	struct resolv_answer a;
 	int i;
@@ -1651,26 +1865,31 @@ int gethostbyname_r(const char * name,
 	char ** __nameserverXX;
 
 	__open_nameservers();
-
 	*result=NULL;
 	if (!name)
 		return EINVAL;
 
 	/* do /etc/hosts first */
-	if ((i=__get_hosts_byname_r(name, AF_INET, result_buf,
-				  buf, buflen, result, h_errnop))==0)
-		return i;
-	switch (*h_errnop) {
-		case HOST_NOT_FOUND:
-		case NO_ADDRESS:
-			break;
-		case NETDB_INTERNAL:
-			if (errno == ENOENT) {
-			    break;
-			}
-			/* else fall through */
-		default:
+	{
+		int old_errno = errno;	/* Save the old errno and reset errno */
+		__set_errno(0);			/* to check for missing /etc/hosts. */
+
+		if ((i=__get_hosts_byname_r(name, AF_INET, result_buf,
+									buf, buflen, result, h_errnop))==0)
 			return i;
+		switch (*h_errnop) {
+			case HOST_NOT_FOUND:
+			case NO_ADDRESS:
+				break;
+			case NETDB_INTERNAL:
+				if (errno == ENOENT) {
+					break;
+				}
+				/* else fall through */
+			default:
+				return i;
+		}
+		__set_errno(old_errno);
 	}
 
 	DPRINTF("Nothing found in /etc/hosts\n");
@@ -1690,10 +1909,19 @@ int gethostbyname_r(const char * name,
 
 	addr_list[0] = in;
 	addr_list[1] = 0;
-	
+
+	if (buflen < sizeof(char *)*(ALIAS_DIM))
+		return ERANGE;
+	alias=(char **)buf;
+	buf+=sizeof(char **)*(ALIAS_DIM);
+	buflen-=sizeof(char **)*(ALIAS_DIM);
+
 	if (buflen<256)
 		return ERANGE;
 	strncpy(buf, name, buflen);
+
+	alias[0] = buf;
+	alias[1] = NULL;
 
 	/* First check if this is already an address */
 	if (inet_aton(name, in)) {
@@ -1701,6 +1929,7 @@ int gethostbyname_r(const char * name,
 	    result_buf->h_addrtype = AF_INET;
 	    result_buf->h_length = sizeof(*in);
 	    result_buf->h_addr_list = (char **) addr_list;
+	    result_buf->h_aliases = alias;
 	    *result=result_buf;
 	    *h_errnop = NETDB_SUCCESS;
 	    return NETDB_SUCCESS;
@@ -1745,6 +1974,10 @@ int gethostbyname_r(const char * name,
 			result_buf->h_addrtype = AF_INET;
 			result_buf->h_length = sizeof(*in);
 			result_buf->h_addr_list = (char **) addr_list;
+#ifdef __UCLIBC_MJN3_ONLY__
+#warning TODO -- generate the full list
+#endif
+			result_buf->h_aliases = alias; /* TODO: generate the full list */
 			free(packet);
 			break;
 		} else {
@@ -1782,26 +2015,36 @@ int gethostbyname2_r(const char *name, int family,
 
 	if (family == AF_INET)
 		return gethostbyname_r(name, result_buf, buf, buflen, result, h_errnop);
-		
+
 	if (family != AF_INET6)
 		return EINVAL;
-		
-	__open_nameservers();
 
+	__open_nameservers();
 	*result=NULL;
 	if (!name)
 		return EINVAL;
 
 	/* do /etc/hosts first */
-	if ((i=__get_hosts_byname_r(name, family, result_buf,
-				  buf, buflen, result, h_errnop))==0)
-		return i;
-	switch (*h_errnop) {
-		case HOST_NOT_FOUND:
-		case NO_ADDRESS:
-			break;
-		default:
+	{
+		int old_errno = errno;	/* Save the old errno and reset errno */
+		__set_errno(0);			/* to check for missing /etc/hosts. */
+
+		if ((i=__get_hosts_byname_r(name, AF_INET, result_buf,
+									buf, buflen, result, h_errnop))==0)
 			return i;
+		switch (*h_errnop) {
+			case HOST_NOT_FOUND:
+			case NO_ADDRESS:
+				break;
+			case NETDB_INTERNAL:
+				if (errno == ENOENT) {
+					break;
+				}
+				/* else fall through */
+			default:
+				return i;
+		}
+		__set_errno(old_errno);
 	}
 
 	DPRINTF("Nothing found in /etc/hosts\n");

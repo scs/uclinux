@@ -1,6 +1,6 @@
 # Makefile for uClibc
 #
-# Copyright (C) 2000,2001 Erik Andersen <andersen@uclibc.org>
+# Copyright (C) 2000-2004 Erik Andersen <andersen@uclibc.org>
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU Library General Public License as published by the Free
@@ -15,10 +15,6 @@
 # You should have received a copy of the GNU Library General Public License
 # along with this program; if not, write to the Free Software Foundation, Inc.,
 # 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-#
-# Derived in part from the Linux-8086 C library, the GNU C Library, and several
-# other sundry sources.  Files within this library are copyright by their
-# respective copyright holders.
 
 TOPDIR=../
 include $(TOPDIR)Rules.mak
@@ -40,13 +36,20 @@ else
 	echo "Not building libdl"
 endif
 
-headers:
+include/dl-progname.h: Makefile
+	echo "const char *_dl_progname=\""$(UCLIBC_LDSO)"\";" \
+		> include/dl-progname.h
+	echo "#include \"$(TARGET_ARCH)/elfinterp.c\"" \
+		>> include/dl-progname.h
+
+headers: include/dl-progname.h
 	$(LN) -fs $(TOPDIR)../include/elf.h include/
-	$(LN) -fs ../ldso/$(TARGET_ARCH)/boot1_arch.h include/
-	$(LN) -fs ../ldso/$(TARGET_ARCH)/ld_syscalls.h include/
-	$(LN) -fs ../ldso/$(TARGET_ARCH)/ld_sysdep.h include/
+	$(LN) -fs ../ldso/$(TARGET_ARCH)/dl-startup.h include/
+	$(LN) -fs ../ldso/$(TARGET_ARCH)/dl-syscalls.h include/
+	$(LN) -fs ../ldso/$(TARGET_ARCH)/dl-sysdep.h include/
 
 clean:
 	set -e ; for d in $(ALL_SUBDIRS) ; do $(MAKE) -C $$d $@ ; done
 	-find . -name '*~' | xargs $(RM)
-	$(RM) include/elf.h include/boot1_arch.h include/ld_syscalls.h include/ld_sysdep.h
+	$(RM) include/elf.h include/dl-startup.h include/dl-syscalls.h \
+		include/dl-sysdep.h include/dl-progname.h

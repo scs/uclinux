@@ -2,8 +2,7 @@
 /*
  * A small little ldd implementation for uClibc
  *
- * Copyright (C) 2000 by Lineo, inc and Erik Andersen
- * Copyright (C) 2000-2002 Erik Andersen <andersee@debian.org>
+ * Copyright (C) 2000-2004 Erik Andersen <andersee@debian.org>
  *
  * Several functions in this file (specifically, elf_find_section_type(),
  * elf_find_phdr_type(), and elf_find_dynamic(), were stolen from elflib.c from
@@ -46,6 +45,7 @@
 #else
 #include "elf.h"
 #endif
+#include "dl-defs.h"
 
 #ifdef DMALLOC
 #include <dmalloc.h>
@@ -70,7 +70,7 @@
 #define ELFCLASSM	ELFCLASS32
 #endif
 
-#if defined(__mc68000__) 
+#if defined(__mc68000__)
 #define MATCH_MACHINE(x) (x == EM_68K)
 #define ELFCLASSM	ELFCLASS32
 #endif
@@ -137,8 +137,6 @@ inline uint32_t byteswap32_to_host(uint32_t value)
 	}
 }
 
-
-
 Elf32_Shdr * elf_find_section_type( int key, Elf32_Ehdr *ehdr)
 {
 	int j;
@@ -164,8 +162,8 @@ Elf32_Phdr * elf_find_phdr_type( int type, Elf32_Ehdr *ehdr)
 	return NULL;
 }
 
-/* Returns value if return_val==1, ptr otherwise */ 
-void * elf_find_dynamic(int const key, Elf32_Dyn *dynp, 
+/* Returns value if return_val==1, ptr otherwise */
+void * elf_find_dynamic(int const key, Elf32_Dyn *dynp,
 	Elf32_Ehdr *ehdr, int return_val)
 {
 	Elf32_Phdr *pt_text = elf_find_phdr_type(PT_LOAD, ehdr);
@@ -181,11 +179,25 @@ void * elf_find_dynamic(int const key, Elf32_Dyn *dynp,
 	return NULL;
 }
 
+static char * elf_find_rpath(Elf32_Ehdr* ehdr, Elf32_Dyn* dynamic)
+{
+	Elf32_Dyn  *dyns;
+
+	for (dyns=dynamic; byteswap32_to_host(dyns->d_tag)!=DT_NULL; ++dyns) {
+		if (DT_RPATH == byteswap32_to_host(dyns->d_tag)) {
+			char *strtab;
+			strtab = (char *)elf_find_dynamic(DT_STRTAB, dynamic, ehdr, 0);
+			return ((char*)strtab + byteswap32_to_host(dyns->d_un.d_val));
+		}
+	}
+	return NULL;
+}
+
 int check_elf_header(Elf32_Ehdr *const ehdr)
 {
-	if (! ehdr || strncmp((void *)ehdr, ELFMAG, SELFMAG) != 0 ||  
+	if (! ehdr || strncmp((void *)ehdr, ELFMAG, SELFMAG) != 0 ||
 			ehdr->e_ident[EI_CLASS] != ELFCLASS32 ||
-			ehdr->e_ident[EI_VERSION] != EV_CURRENT) 
+			ehdr->e_ident[EI_VERSION] != EV_CURRENT)
 	{
 		return 1;
 	}
@@ -205,7 +217,7 @@ int check_elf_header(Elf32_Ehdr *const ehdr)
 #else
 #error Unknown host byte order!
 #endif
-	
+
 	/* Be vary lazy, and only byteswap the stuff we use */
 	if (byteswap==1) {
 		ehdr->e_type=bswap_16(ehdr->e_type);
@@ -218,8 +230,91 @@ int check_elf_header(Elf32_Ehdr *const ehdr)
 	return 0;
 }
 
-/* This function's behavior must exactly match that 
- * in uClibc/ldso/ldso/readelflib1.c */
+#ifdef __LDSO_CACHE_SUPPORT__
+static caddr_t cache_addr = NULL;
+static size_t cache_size = 0;
+
+int map_cache(void)
+{
+	int fd;
+	struct stat st;
+	header_t *header;
+	libentry_t *libent;
+	int i, strtabsize;
+
+	if (cache_addr == (caddr_t) - 1)
+		return -1;
+	else if (cache_addr != NULL)
+		return 0;
+
+	if (stat(LDSO_CACHE, &st)
+			|| (fd = open(LDSO_CACHE, O_RDONLY, 0)) < 0) {
+		dprintf(2, "ldd: can't open cache '%s'\n", LDSO_CACHE);
+		cache_addr = (caddr_t) - 1;	/* so we won't try again */
+		return -1;
+	}
+
+	cache_size = st.st_size;
+	cache_addr = (caddr_t) mmap(0, cache_size, PROT_READ, MAP_SHARED, fd, 0);
+	close(fd);
+	if (cache_addr == MAP_FAILED) {
+		dprintf(2, "ldd: can't map cache '%s'\n", LDSO_CACHE);
+		return -1;
+	}
+
+	header = (header_t *) cache_addr;
+
+	if (cache_size < sizeof(header_t) ||
+			memcmp(header->magic, LDSO_CACHE_MAGIC, LDSO_CACHE_MAGIC_LEN)
+			|| memcmp(header->version, LDSO_CACHE_VER, LDSO_CACHE_VER_LEN)
+			|| cache_size <
+			(sizeof(header_t) + header->nlibs * sizeof(libentry_t))
+			|| cache_addr[cache_size - 1] != '\0')
+	{
+		dprintf(2, "ldd: cache '%s' is corrupt\n", LDSO_CACHE);
+		goto fail;
+	}
+
+	strtabsize = cache_size - sizeof(header_t) -
+		header->nlibs * sizeof(libentry_t);
+	libent = (libentry_t *) & header[1];
+
+	for (i = 0; i < header->nlibs; i++) {
+		if (libent[i].sooffset >= strtabsize ||
+				libent[i].liboffset >= strtabsize)
+		{
+			dprintf(2, "ldd: cache '%s' is corrupt\n", LDSO_CACHE);
+			goto fail;
+		}
+	}
+
+	return 0;
+
+fail:
+	munmap(cache_addr, cache_size);
+	cache_addr = (caddr_t) - 1;
+	return -1;
+}
+
+int unmap_cache(void)
+{
+	if (cache_addr == NULL || cache_addr == (caddr_t) - 1)
+		return -1;
+
+#if 1
+	munmap(cache_addr, cache_size);
+	cache_addr = NULL;
+#endif
+
+	return 0;
+}
+#else
+static inline void map_cache(void) { }
+static inline void unmap_cache(void) { }
+#endif
+
+/* This function's behavior must exactly match that
+ * in uClibc/ldso/ldso/dl-elf.c */
 static void search_for_named_library(char *name, char *result, const char *path_list)
 {
 	int i, count = 1;
@@ -249,8 +344,8 @@ static void search_for_named_library(char *name, char *result, const char *path_
 	}
 	path_n = path;
 	for (i = 0; i < count; i++) {
-		strcpy(result, path_n); 
-		strcat(result, "/"); 
+		strcpy(result, path_n);
+		strcat(result, "/");
 		strcat(result, name);
 		if (stat (result, &filestat) == 0 && filestat.st_mode & S_IRUSR) {
 			free(path);
@@ -267,10 +362,10 @@ void locate_library_file(Elf32_Ehdr* ehdr, Elf32_Dyn* dynamic, int is_suid, stru
 	char *buf;
 	char *path;
 	struct stat filestat;
-	
+
 	/* If this is a fully resolved name, our job is easy */
 	if (stat (lib->name, &filestat) == 0) {
-		lib->path = lib->name;
+		lib->path = strdup(lib->name);
 		return;
 	}
 
@@ -285,7 +380,7 @@ void locate_library_file(Elf32_Ehdr* ehdr, Elf32_Dyn* dynamic, int is_suid, stru
 	 * in readelflib1.c or things won't work out as expected... */
 
 	/* The ABI specifies that RPATH is searched first, so do that now.  */
-	path = (char *)elf_find_dynamic(DT_RPATH, dynamic, ehdr, 0);
+	path = elf_find_rpath(ehdr, dynamic);
 	if (path) {
 		search_for_named_library(lib->name, buf, path);
 		if (*buf != '\0') {
@@ -309,12 +404,27 @@ void locate_library_file(Elf32_Ehdr* ehdr, Elf32_Dyn* dynamic, int is_suid, stru
 		}
 	}
 
-#ifdef USE_CACHE
-	/* FIXME -- add code to check the Cache here */ 
+#ifdef __LDSO_CACHE_SUPPORT__
+	if (cache_addr != NULL && cache_addr != (caddr_t) - 1) {
+		int i;
+		header_t *header = (header_t *) cache_addr;
+		libentry_t *libent = (libentry_t *) & header[1];
+		char *strs = (char *) &libent[header->nlibs];
+
+		for (i = 0; i < header->nlibs; i++) {
+			if ((libent[i].flags == LIB_ELF ||
+			    libent[i].flags == LIB_ELF_LIBC0 ||
+			    libent[i].flags == LIB_ELF_LIBC5) &&
+			    strcmp(lib->name, strs + libent[i].sooffset) == 0) {
+				lib->path = strdup(strs + libent[i].liboffset);
+				return;
+			}
+		}
+	}
 #endif
 
 
-	/* Next look for libraries wherever the shared library 
+	/* Next look for libraries wherever the shared library
 	 * loader was installed -- this is usually where we
 	 * should find things... */
 	if (interp_dir) {
@@ -326,16 +436,17 @@ void locate_library_file(Elf32_Ehdr* ehdr, Elf32_Dyn* dynamic, int is_suid, stru
 	}
 
 	/* Lastly, search the standard list of paths for the library.
-	   This list must exactly match the list in uClibc/ldso/ldso/readelflib1.c */
-	path =	UCLIBC_RUNTIME_PREFIX "usr/X11R6/lib:"
-			UCLIBC_RUNTIME_PREFIX "usr/lib:"
-			UCLIBC_RUNTIME_PREFIX "lib:"
-			"/usr/lib:"
-			"/lib";
+	   This list must exactly match the list in uClibc/ldso/ldso/dl-elf.c */
+	path =	UCLIBC_RUNTIME_PREFIX "lib:"
+		UCLIBC_RUNTIME_PREFIX "usr/lib"
+#ifndef __LDSO_CACHE_SUPPORT__
+		":" UCLIBC_RUNTIME_PREFIX "usr/X11R6/lib"
+#endif
+		;
 	search_for_named_library(lib->name, buf, path);
 	if (*buf != '\0') {
 		lib->path = buf;
-	} else { 
+	} else {
 		free(buf);
 		lib->path = not_found;
 	}
@@ -349,14 +460,14 @@ static int add_library(Elf32_Ehdr* ehdr, Elf32_Dyn* dynamic, int is_setuid, char
 	if (!s || !strlen(s))
 		return 1;
 
-	tmp = s; 
+	tmp = s;
 	while (*tmp) {
 		if (*tmp == '/')
 			s = tmp + 1;
 		tmp++;
 	}
 
-	/* We add libc.so.0 elsewhere */
+	/* We add ldso elsewhere */
 	if (interpreter_already_found && (tmp=strrchr(interp, '/')) != NULL)
 	{
 		int len = strlen(interp_dir);
@@ -366,7 +477,7 @@ static int add_library(Elf32_Ehdr* ehdr, Elf32_Dyn* dynamic, int is_setuid, char
 
 	for (cur = lib_list; cur; cur=cur->next) {
 		/* Check if this library is already in the list */
-		tmp1 = tmp2 = cur->name; 
+		tmp1 = tmp2 = cur->name;
 		while (*tmp1) {
 			if (*tmp1 == '/')
 				tmp2 = tmp1 + 1;
@@ -401,19 +512,21 @@ static int add_library(Elf32_Ehdr* ehdr, Elf32_Dyn* dynamic, int is_setuid, char
 	return 0;
 }
 
-
-static void find_needed_libraries(Elf32_Ehdr* ehdr, Elf32_Dyn* dynamic, char *strtab, int is_setuid)
+static void find_needed_libraries(Elf32_Ehdr* ehdr,
+		Elf32_Dyn* dynamic, int is_setuid)
 {
 	Elf32_Dyn  *dyns;
 
 	for (dyns=dynamic; byteswap32_to_host(dyns->d_tag)!=DT_NULL; ++dyns) {
 		if (DT_NEEDED == byteswap32_to_host(dyns->d_tag)) {
-			add_library(ehdr, dynamic, is_setuid, 
+			char *strtab;
+			strtab = (char *)elf_find_dynamic(DT_STRTAB, dynamic, ehdr, 0);
+			add_library(ehdr, dynamic, is_setuid,
 					(char*)strtab + byteswap32_to_host(dyns->d_un.d_val));
 		}
 	}
 }
-    
+
 static struct library * find_elf_interpreter(Elf32_Ehdr* ehdr)
 {
 	Elf32_Phdr *phdr;
@@ -424,7 +537,7 @@ static struct library * find_elf_interpreter(Elf32_Ehdr* ehdr)
 	if (phdr) {
 		struct library *cur, *newlib=NULL;
 		char *s = (char*)ehdr + byteswap32_to_host(phdr->p_offset);
-	
+
 		char *tmp, *tmp1;
 		interp = strdup(s);
 		interp_dir = strdup(s);
@@ -447,7 +560,11 @@ static struct library * find_elf_interpreter(Elf32_Ehdr* ehdr)
 				//printf("find_elf_interpreter is replacing '%s' (already in list)\n", cur->name);
 				newlib = cur;
 				free(newlib->name);
-				free(newlib->path);
+				if (newlib->path != not_found) {
+					free(newlib->path);
+				}
+				newlib->name = NULL;
+				newlib->path = NULL;
 				return NULL;
 			}
 		}
@@ -457,10 +574,10 @@ static struct library * find_elf_interpreter(Elf32_Ehdr* ehdr)
 			return NULL;
 		newlib->name = malloc(strlen(s)+1);
 		strcpy(newlib->name, s);
-		newlib->path = newlib->name;
+		newlib->path = strdup(newlib->name);
 		newlib->resolved = 1;
 		newlib->next = NULL;
-	
+
 #if 0
 		//printf("find_elf_interpreter is adding '%s' to '%s'\n", newlib->name, newlib->path);
 		if (!lib_list) {
@@ -482,7 +599,6 @@ int find_dependancies(char* filename)
 	int is_suid = 0;
 	FILE *thefile;
 	struct stat statbuf;
-	char *dynstr=NULL;
 	Elf32_Ehdr *ehdr = NULL;
 	Elf32_Shdr *dynsec = NULL;
 	Elf32_Dyn *dynamic = NULL;
@@ -501,6 +617,7 @@ int find_dependancies(char* filename)
 	}
 	if (fstat(fileno(thefile), &statbuf) < 0) {
 		perror(filename);
+		fclose(thefile);
 		return -1;
 	}
 
@@ -511,10 +628,17 @@ int find_dependancies(char* filename)
 		goto foo;
 
 	/* mmap the file to make reading stuff from it effortless */
-	ehdr = (Elf32_Ehdr *)mmap(0, statbuf.st_size, 
+	ehdr = (Elf32_Ehdr *)mmap(0, statbuf.st_size,
 			PROT_READ|PROT_WRITE, MAP_PRIVATE, fileno(thefile), 0);
+	if (ehdr == MAP_FAILED) {
+		fclose(thefile);
+		fprintf(stderr, "Out of memory!\n");
+		return -1;
+	}
 
 foo:
+	fclose(thefile);
+
 	/* Check if this looks like a legit ELF file */
 	if (check_elf_header(ehdr)) {
 		fprintf(stderr, "%s: not an ELF file.\n", filename);
@@ -525,7 +649,7 @@ foo:
 		fprintf(stderr, "%s: not a dynamic executable\n", filename);
 		return -1;
 	}
-	if (ehdr->e_type == ET_EXEC) {
+	if (ehdr->e_type == ET_EXEC || ehdr->e_type == ET_DYN) {
 		if (statbuf.st_mode & S_ISUID)
 			is_suid = 1;
 		if ((statbuf.st_mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP))
@@ -537,11 +661,11 @@ foo:
 
 	interpreter_already_found=0;
 	interp = find_elf_interpreter(ehdr);
-			
-#ifdef __LDSO_LDD_SUPPORT
-	if (interp && ehdr->e_type == ET_EXEC && ehdr->e_ident[EI_CLASS] == ELFCLASSM && 
+
+#ifdef __LDSO_LDD_SUPPORT__
+	if (interp && (ehdr->e_type == ET_EXEC || ehdr->e_type == ET_DYN) && ehdr->e_ident[EI_CLASS] == ELFCLASSM &&
 			ehdr->e_ident[EI_DATA] == ELFDATAM
-		&& ehdr->e_ident[EI_VERSION] == EV_CURRENT && MATCH_MACHINE(ehdr->e_machine)) 
+			&& ehdr->e_ident[EI_VERSION] == EV_CURRENT && MATCH_MACHINE(ehdr->e_machine))
 	{
 		struct stat statbuf;
 		if (stat(interp->path, &statbuf) == 0 && S_ISREG(statbuf.st_mode)) {
@@ -555,7 +679,7 @@ foo:
 			};
 
 			if ((pid = fork()) == 0) {
-				/* Cool, it looks like we should be able to actually 
+				/* Cool, it looks like we should be able to actually
 				 * run this puppy.  Do so now... */
 				execle(filename, filename, NULL, environment);
 				_exit(0xdead);
@@ -577,14 +701,11 @@ foo:
 	dynsec = elf_find_section_type(SHT_DYNAMIC, ehdr);
 	if (dynsec) {
 		dynamic = (Elf32_Dyn*)(byteswap32_to_host(dynsec->sh_offset) + (intptr_t)ehdr);
-		dynstr = (char *)elf_find_dynamic(DT_STRTAB, dynamic, ehdr, 0);
-		find_needed_libraries(ehdr, dynamic, dynstr, is_suid);
+		find_needed_libraries(ehdr, dynamic, is_suid);
 	}
-	
+
 	return 0;
 }
-
-
 
 int main( int argc, char** argv)
 {
@@ -626,6 +747,8 @@ int main( int argc, char** argv)
 			printf("%s:\n", *argv);
 		}
 
+		map_cache();
+
 		if (find_dependancies(filename)!=0)
 			continue;
 
@@ -642,6 +765,7 @@ int main( int argc, char** argv)
 			}
 		}
 
+		unmap_cache();
 
 		/* Print the list */
 		got_em_all=0;
@@ -649,17 +773,18 @@ int main( int argc, char** argv)
 			got_em_all=1;
 			printf("\t%s => %s (0x00000000)\n", cur->name, cur->path);
 		}
-		if (interp_dir && got_em_all==1)
+		if (interp && interpreter_already_found==1)
 			printf("\t%s => %s (0x00000000)\n", interp, interp);
-		if (got_em_all==0)
+		else
 			printf("\tnot a dynamic executable\n");
 
 		for (cur = lib_list; cur; cur=cur->next) {
 			free(cur->name);
 			cur->name=NULL;
-			if (cur->path && cur->path != not_found)
+			if (cur->path && cur->path != not_found) {
 				free(cur->path);
-			cur->path=NULL;
+				cur->path=NULL;
+			}
 		}
 		lib_list=NULL;
 	}

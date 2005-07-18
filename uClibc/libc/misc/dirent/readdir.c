@@ -10,6 +10,7 @@ struct dirent *readdir(DIR * dir)
 {
 	ssize_t bytes;
 	struct dirent *de;
+
 	if (!dir) {
 		__set_errno(EBADF);
 		return NULL;

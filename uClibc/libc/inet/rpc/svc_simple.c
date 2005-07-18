@@ -64,7 +64,7 @@ struct proglst_
     struct proglst_ *p_nxt;
   };
 #ifdef __UCLIBC_HAS_THREADS__
-#define proglst ((struct proglst_ *)RPC_THREAD_VARIABLE(svcsimple_proglst_s))
+#define proglst (*(struct proglst_ **)&RPC_THREAD_VARIABLE(svcsimple_proglst_s))
 #else
 static struct proglst_ *proglst;
 #endif
@@ -72,7 +72,7 @@ static struct proglst_ *proglst;
 
 static void universal (struct svc_req *rqstp, SVCXPRT *transp_s);
 #ifdef __UCLIBC_HAS_THREADS__
-#define transp ((SVCXPRT *)RPC_THREAD_VARIABLE(svcsimple_transp_s))
+#define transp (*(SVCXPRT **)&RPC_THREAD_VARIABLE(svcsimple_transp_s))
 #else
 static SVCXPRT *transp;
 #endif
@@ -161,7 +161,7 @@ universal (struct svc_req *rqstp, SVCXPRT *transp_l)
     if (pl->p_prognum == prog && pl->p_procnum == proc)
       {
 	/* decode arguments into a CLEAN buffer */
-	bzero (xdrbuf, sizeof (xdrbuf));	/* required ! */
+	memset (xdrbuf, 0, sizeof (xdrbuf));	/* required ! */
 	if (!svc_getargs (transp_l, pl->p_inproc, xdrbuf))
 	  {
 	    svcerr_decode (transp_l);

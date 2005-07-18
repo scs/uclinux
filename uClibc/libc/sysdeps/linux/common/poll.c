@@ -17,14 +17,24 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-#include <alloca.h>
+#include "syscalls.h"
 #include <sys/poll.h>
+
+#ifdef __NR_poll
+
+_syscall3(int, poll, struct pollfd *, fds,
+	unsigned long int, nfds, int, timeout);
+#else
+
+#include <alloca.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <unistd.h>
+
+/* uClinux 2.0 doesn't have poll, emulate it using select */
 
 /* Poll the file descriptors described by the NFDS structures starting at
    FDS.  If TIMEOUT is nonzero and not -1, allow TIMEOUT milliseconds for
@@ -52,9 +62,9 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 
     /* We can't call FD_ZERO, since FD_ZERO only works with sets
        of exactly __FD_SETSIZE size.  */
-    bzero (rset, bytes);
-    bzero (wset, bytes);
-    bzero (xset, bytes);
+    memset (rset, 0, bytes);
+    memset (wset, 0, bytes);
+    memset (xset, 0, bytes);
 
     for (f = fds; f < &fds[nfds]; ++f)
     {
@@ -76,9 +86,9 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 		nwset = alloca (nbytes);
 		nxset = alloca (nbytes);
 
-		bzero ((char *) nrset + bytes, nbytes - bytes);
-		bzero ((char *) nwset + bytes, nbytes - bytes);
-		bzero ((char *) nxset + bytes, nbytes - bytes);
+		memset ((char *) nrset + bytes, 0, nbytes - bytes);
+		memset ((char *) nwset + bytes, 0, nbytes - bytes);
+		memset ((char *) nxset + bytes, 0, nbytes - bytes);
 
 		rset = memcpy (nrset, rset, bytes);
 		wset = memcpy (nwset, wset, bytes);
@@ -116,9 +126,9 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 	    struct timeval sngl_tv;
 
 	    /* Clear the original set.  */
-	    bzero (rset, bytes);
-	    bzero (wset, bytes);
-	    bzero (xset, bytes);
+	    memset (rset, 0, bytes);
+	    memset (wset, 0, bytes);
+	    memset (xset, 0, bytes);
 
 	    /* This means we don't wait for input.  */
 	    sngl_tv.tv_sec = 0;
@@ -135,9 +145,9 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 		{
 		    int n;
 
-		    bzero (sngl_rset, bytes);
-		    bzero (sngl_wset, bytes);
-		    bzero (sngl_xset, bytes);
+		    memset (sngl_rset, 0, bytes);
+		    memset (sngl_wset, 0, bytes);
+		    memset (sngl_xset, 0, bytes);
 
 		    if (f->events & POLLIN)
 			FD_SET (f->fd, sngl_rset);
@@ -189,4 +199,6 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 
     return ready;
 }
+
+#endif
 

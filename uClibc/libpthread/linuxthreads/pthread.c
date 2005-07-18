@@ -100,7 +100,7 @@ struct _pthread_descr_struct __pthread_initial_thread = {
   0                           /* int p_untracked_readlock_count; */
 #ifdef __UCLIBC_HAS_XLOCALE__
   ,
-  NULL,                       /* __locale_t locale; */
+  &__global_locale_data,      /* __locale_t locale; */
 #endif /* __UCLIBC_HAS_XLOCALE__ */
 };
 
@@ -156,7 +156,7 @@ struct _pthread_descr_struct __pthread_manager_thread = {
   0                           /* int p_untracked_readlock_count; */
 #ifdef __UCLIBC_HAS_XLOCALE__
   ,
-  NULL,                       /* __locale_t locale; */
+  &__global_locale_data,      /* __locale_t locale; */
 #endif /* __UCLIBC_HAS_XLOCALE__ */
 };
 
@@ -174,9 +174,9 @@ char *__pthread_initial_thread_bos = NULL;
  * This is adapted when other stacks are malloc'ed since we don't know
  * the bounds a-priori. -StS */
 
-#ifndef __UCLIBC_HAS_MMU__
+#ifndef __ARCH_HAS_MMU__
 char *__pthread_initial_thread_tos = NULL;
-#endif /* __UCLIBC_HAS_MMU__ */
+#endif /* __ARCH_HAS_MMU__ */
 
 /* File descriptor for sending requests to the thread manager. */
 /* Initially -1, meaning that the thread manager is not running. */
@@ -223,14 +223,8 @@ int __pthread_timedsuspend_new(pthread_descr self, const struct timespec *abstim
    platform does not support any real-time signals we will define the
    values to some unreasonable value which will signal failing of all
    the functions below.  */
-#ifndef __NR_rt_sigaction
-static int current_rtmin = -1;
-static int current_rtmax = -1;
-int __pthread_sig_restart = SIGUSR1;
-int __pthread_sig_cancel = SIGUSR2;
-int __pthread_sig_debug;
-#else
-#if __SIGRTMAX - __SIGRTMIN >= 3
+
+#if defined(__NR_rt_sigaction) && __SIGRTMAX - __SIGRTMIN >= 3
 static int current_rtmin = __SIGRTMIN + 3;
 static int current_rtmax = __SIGRTMAX;
 int __pthread_sig_restart = __SIGRTMIN;
@@ -250,7 +244,6 @@ void (*__pthread_suspend)(pthread_descr) = __pthread_suspend_old;
 int (*__pthread_timedsuspend)(pthread_descr, const struct timespec *) = __pthread_timedsuspend_old;
 #endif
 
-#endif
 /* Return number of available real-time signal with highest priority.  */
 int __libc_current_sigrtmin (void)
 {
@@ -329,11 +322,22 @@ static void pthread_initialize(void)
   __pthread_initial_thread.locale = __curlocale_var;
 #endif /* __UCLIBC_HAS_XLOCALE__ */
 
+ {			   /* uClibc-specific stdio initialization for threads. */
+	 FILE *fp;
+	 
+	 _stdio_user_locking = 0;	/* 2 if threading not initialized */
+	 for (fp = _stdio_openlist; fp != NULL; fp = fp->__nextopen) {
+		 if (fp->__user_locking != 1) {
+			 fp->__user_locking = 0;
+		 }
+	 }
+ }
+
   /* Play with the stack size limit to make sure that no stack ever grows
      beyond STACK_SIZE minus two pages (one page for the thread descriptor
      immediately beyond, and one page to act as a guard page). */
 
-#ifdef __UCLIBC_HAS_MMU__
+#ifdef __ARCH_HAS_MMU__
   /* We cannot allocate a huge chunk of memory to mmap all thread stacks later
    * on a non-MMU system. Thus, we don't need the rlimit either. -StS */
   getrlimit(RLIMIT_STACK, &limit);
@@ -352,7 +356,7 @@ static void pthread_initialize(void)
   __pthread_initial_thread_bos = (char *) 1; /* set it non-zero so we know we have been here */
   PDEBUG("initial thread stack bounds: bos=%p, tos=%p\n",
 	 __pthread_initial_thread_bos, __pthread_initial_thread_tos);
-#endif /* __UCLIBC_HAS_MMU__ */
+#endif /* __ARCH_HAS_MMU__ */
 
   /* Setup signal handlers for the initial thread.
      Since signal handlers are shared between threads, these settings
@@ -875,7 +879,7 @@ __pthread_timedsuspend_old(pthread_descr self, const struct timespec *abstime)
 	struct timespec reltime;
 
 	/* Compute a time offset relative to now.  */
-	__gettimeofday (&now, NULL);
+	gettimeofday (&now, NULL);
 	reltime.tv_nsec = abstime->tv_nsec - now.tv_usec * 1000;
 	reltime.tv_sec = abstime->tv_sec - now.tv_sec;
 	if (reltime.tv_nsec < 0) {

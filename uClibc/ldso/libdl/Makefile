@@ -21,20 +21,20 @@
 TOPDIR=../../
 include $(TOPDIR)Rules.mak
 
-XXFLAGS=$(XWARNINGS) $(OPTIMIZATION) $(XARCH_CFLAGS) $(CPU_CFLAGS) \
-	-DUCLIBC_RUNTIME_PREFIX=\"$(RUNTIME_PREFIX)\" \
-	-fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)ldso/include -I. -I$(TOPDIR)include
-
+XXFLAGS=$(XWARNINGS) $(SSP_CFLAGS) $(SSP_ALL_CFLAGS)
 ifeq ($(DODEBUG),y)
-XXFLAGS=$(XWARNINGS) -O0 -g3 $(XARCH_CFLAGS) $(CPU_CFLAGS) \
-	-DUCLIBC_RUNTIME_PREFIX=\"$(RUNTIME_PREFIX)\" \
-	-fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)ldso/include -I. -I$(TOPDIR)include
+XXFLAGS+=-O0 -g3
+else
+XXFLAGS+=$(OPTIMIZATION)
 endif
+XXFLAGS+= $(XARCH_CFLAGS) $(CPU_CFLAGS) \
+	-DUCLIBC_RUNTIME_PREFIX=\"$(RUNTIME_PREFIX)\" \
+	-fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)ldso/include -I$(TOPDIR)ldso/ldso -I. -I$(TOPDIR)include
 
-XXFLAGS+=$(shell $(CC) -print-search-dirs | sed -ne "s/install: *\(.*\)/-I\1include/gp")
+XXFLAGS+=-isystem $(shell $(CC) -print-file-name=include)
 XXFLAGS_NOPIC:=$(XXFLAGS)
 ifeq ($(DOPIC),y)
-    XXFLAGS += $(PICFLAG)
+    XXFLAGS += $(PICFLAG) -D__LIBDL_SHARED__
 endif
 ifeq ($(strip $(SUPPORT_LD_DEBUG)),y)
 XXFLAGS+=-D__SUPPORT_LD_DEBUG__
@@ -45,13 +45,15 @@ LIBDL_PIC=libdl_pic.a
 LIBDL_SHARED=libdl.so
 LIBDL_SHARED_FULLNAME=libdl-$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL).so
 
-CSRC=dlib.c
-OBJS=dlib.o
-PIC_OBJS=dlib_pic.o
+CSRC=libdl.c
+OBJS=libdl.o
+PIC_OBJS=libdl_pic.o
 
 all: $(OBJS) $(LIBDL) shared
 
 $(LIBDL): ar-target
+
+$(LIBDL_PIC): ar-target
 
 ar-target: $(OBJS) $(PIC_OBJS)
 	$(AR) $(ARFLAGS) $(LIBDL) ../ldso/$(TARGET_ARCH)/resolve.o $(OBJS)
@@ -61,19 +63,19 @@ ar-target: $(OBJS) $(PIC_OBJS)
 	$(INSTALL) -m 644 $(LIBDL) $(TOPDIR)lib
 
 
-dlib.o: dlib.c
-	$(CC) $(XXFLAGS_NOPIC) -c dlib.c -o dlib.o
+libdl.o: libdl.c
+	$(CC) $(XXFLAGS_NOPIC) -c libdl.c -o libdl.o
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
-dlib_pic.o: dlib.c
-	$(CC) $(XXFLAGS) -c dlib.c -o dlib_pic.o
+libdl_pic.o: libdl.c
+	$(CC) $(XXFLAGS) -c libdl.c -o libdl_pic.o
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 $(OBJ): Makefile
 
-shared:
+shared: $(LIBDL_PIC)
 	$(LD) $(LDFLAGS) -soname=$(LIBDL_SHARED).$(MAJOR_VERSION) \
-		-o $(LIBDL_SHARED_FULLNAME) --whole-archive $(LIBDL_PIC) \
+		-o $(LIBDL_SHARED_FULLNAME) -fini dl_cleanup --whole-archive $(LIBDL_PIC) \
 		--no-whole-archive $(TOPDIR)/libc/misc/internals/interp.o \
 		-L$(TOPDIR)/lib -lc $(LDADD_LIBFLOAT) $(LIBGCC);
 	$(INSTALL) -d $(TOPDIR)lib

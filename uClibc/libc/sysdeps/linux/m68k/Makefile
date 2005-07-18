@@ -18,12 +18,11 @@
 
 TOPDIR=../../../../
 include $(TOPDIR)Rules.mak
-ASFLAGS=$(CFLAGS)
 
 # If you're looking for vfork(), it is defined in include/unistd.h
 
 
-ifeq ($(UCLIBC_HAS_MMU),y)
+ifeq ($(ARCH_HAS_MMU),y)
 CRT0_SRC = crt0.c
 else
 CRT0_SRC = crt0.S
@@ -34,7 +33,7 @@ CTOR_TARGETS=$(TOPDIR)lib/crti.o $(TOPDIR)lib/crtn.o
 SSRC= __longjmp.S bsd-_setjmp.S bsd-setjmp.S clone.S setjmp.S vfork.S
 SOBJS=$(patsubst %.S,%.o, $(SSRC))
 
-CSRC=ptrace.c brk.c
+CSRC=ptrace.c brk.c syscall.c
 COBJS=$(patsubst %.c,%.o, $(CSRC))
 
 OBJS=$(SOBJS) $(MOBJ) $(COBJS)
@@ -48,11 +47,15 @@ ar-target: $(OBJS) $(CRT0_OBJ) $(CTOR_TARGETS)
 	cp $(CRT0_OBJ) $(TOPDIR)lib/
 
 $(CRT0_OBJ): $(CRT0_SRC)
+ifeq ($(ARCH_HAS_MMU),y)
 	$(CC) $(CFLAGS) -DL_$* $< -c -o $*.o
+else
+	$(CC) $(ASFLAGS) -DL_$* $< -c -o $*.o
+endif
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 $(SOBJS): %.o : %.S
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(ASFLAGS) -c $< -o $@
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 $(COBJS): %.o : %.c
@@ -61,14 +64,14 @@ $(COBJS): %.o : %.c
 
 ifeq ($(strip $(UCLIBC_CTOR_DTOR)),y)
 crti.o: crti.S
-	$(CC) $(CFLAGS) -c crti.S -o crti.o
+	$(CC) $(ASFLAGS) -c crti.S -o crti.o
 
 $(TOPDIR)lib/crti.o: crti.o
 	$(INSTALL) -d $(TOPDIR)lib/
 	cp crti.o $(TOPDIR)lib/
 
 crtn.o: crtn.S
-	$(CC) $(CFLAGS) -c crtn.S -o crtn.o
+	$(CC) $(ASFLAGS) -c crtn.S -o crtn.o
 
 $(TOPDIR)lib/crtn.o: crtn.o
 	$(INSTALL) -d $(TOPDIR)lib/

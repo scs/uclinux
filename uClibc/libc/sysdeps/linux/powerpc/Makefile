@@ -18,21 +18,18 @@
 
 TOPDIR=../../../../
 include $(TOPDIR)Rules.mak
-ASFLAGS=$(CFLAGS)
 
 CRT0_SRC = crt0.S
-CRT0_OBJ = crt0.o crt1.o gcrt1.o
+CRT0_OBJ = crt0.o crt1.o
+SCRT0_OBJ = $(patsubst %,S%, $(CRT0_OBJ))
 CRT0_DEPS=gmon-start.S
 CTOR_TARGETS=$(TOPDIR)lib/crti.o $(TOPDIR)lib/crtn.o
 
 SSRC=__longjmp.S setjmp.S bsd-setjmp.S bsd-_setjmp.S brk.S \
 	clone.S __uClibc_syscall.S syscall.S
-ifeq ($(strip $(UCLIBC_PROFILING)),y)
-SSRC+=mcount.S
-endif
 SOBJS=$(patsubst %.S,%.o, $(SSRC))
 
-CSRC=_mmap.c vfork.c __syscall_error.c pread_write.c ioctl.c
+CSRC=mmap.c vfork.c __syscall_error.c pread_write.c ioctl.c
 COBJS=$(patsubst %.c,%.o, $(CSRC))
 
 OBJS=$(SOBJS) $(COBJS)
@@ -41,39 +38,42 @@ all: $(OBJS) $(LIBC)
 
 $(LIBC): ar-target 
 
-ar-target: $(OBJS) $(CRT0_OBJ) $(CTOR_TARGETS)
+ar-target: $(OBJS) $(CRT0_OBJ) $(SCRT0_OBJ) $(CTOR_TARGETS)
 	$(AR) $(ARFLAGS) $(LIBC) $(OBJS)
-	cp $(CRT0_OBJ) $(TOPDIR)lib/
+	cp $(CRT0_OBJ) $(SCRT0_OBJ) $(TOPDIR)lib/
+ifeq ($(strip $(UCLIBC_CTOR_DTOR)),y)
+	$(RM) $(TOPDIR)lib/Scrt0.o
+else
+	mv $(TOPDIR)lib/Scrt0.o $(TOPDIR)lib/Scrt1.o
+endif
 
 $(CRT0_OBJ): $(CRT0_SRC)
-	$(CC) $(CFLAGS) -DL_$* $< -c -o $*.o
+	$(CC) $(ASFLAGS) -DL_$* $< -c -o $*.o
+	$(STRIPTOOL) -x -R .note -R .comment $*.o
+
+$(SCRT0_OBJ): $(CRT0_SRC)
+	$(CC) $(ASFLAGS) $(PIEFLAG) -DL_$* $< -c -o $*.o
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 $(SOBJS): %.o : %.S
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(ASFLAGS) -c $< -o $@
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 $(COBJS): %.o : %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
-ifeq ($(strip $(UCLIBC_PROFILING)),y)
-gmon-start.S: ../common/gmon-start.c
-	$(CC) $(CFLAGS) -c $< -S -o $*.S
-gcrt1.o: $(CRT0_DEPS)
-endif
-
 
 ifeq ($(strip $(UCLIBC_CTOR_DTOR)),y)
 crti.o: crti.S
-	$(CC) $(CFLAGS) -c crti.S -o crti.o
+	$(CC) $(ASFLAGS) -c crti.S -o crti.o
 
 $(TOPDIR)lib/crti.o: crti.o
 	$(INSTALL) -d $(TOPDIR)lib/
 	cp crti.o $(TOPDIR)lib/
 
 crtn.o: crtn.S
-	$(CC) $(CFLAGS) -c crtn.S -o crtn.o
+	$(CC) $(ASFLAGS) -c crtn.S -o crtn.o
 
 $(TOPDIR)lib/crtn.o: crtn.o
 	$(INSTALL) -d $(TOPDIR)lib/

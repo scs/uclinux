@@ -19,6 +19,9 @@ config ARCH_LDFLAGS
 config LIBGCC_CFLAGS
 	string
 
+config ARCH_SUPPORTS_LITTLE_ENDIAN
+	bool
+	default y
 
 choice
 	prompt "Target Architecture Type"
@@ -31,8 +34,7 @@ choice
 		- CRIS  Generic support for Axis' CRIS architecture.
 
 config CONFIG_CRIS
-	select UCLIBC_HAS_MMU
-	select ARCH_LITTLE_ENDIAN
+	select ARCH_HAS_MMU
 	bool "CRIS"
 
 endchoice

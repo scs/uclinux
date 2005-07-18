@@ -35,11 +35,12 @@
    ints.  */
 
 /*
- * Math on arm is little endian except for the FP word order which is
- * big endian.
+ * Math on arm is special:
+ * For FPA, float words are always big-endian.
+ * For VFP, floats words follow the memory system mode.
  */
 
-#if (__BYTE_ORDER == __BIG_ENDIAN) || defined(__arm__)
+#if (__BYTE_ORDER == __BIG_ENDIAN) || defined(__arm__) && !defined(__VFP_FP__)
 
 typedef union 
 {
@@ -53,7 +54,7 @@ typedef union
 
 #endif
 
-#if (__BYTE_ORDER == __LITTLE_ENDIAN) && !defined(__arm__)
+#if (__BYTE_ORDER == __LITTLE_ENDIAN) && (!defined(__arm__) || defined(__VFP_FP__))
 
 typedef union 
 {

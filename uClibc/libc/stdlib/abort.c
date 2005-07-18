@@ -29,7 +29,7 @@ Cambridge, MA 02139, USA.  */
 #include <errno.h>
 
 
-/* Our last ditch effort to commit suicide */ 
+/* Our last ditch effort to commit suicide */
 #if defined(__i386__)
 #define ABORT_INSTRUCTION asm ("hlt")
 #elif defined(__ia64__)
@@ -44,11 +44,20 @@ Cambridge, MA 02139, USA.  */
 #define ABORT_INSTRUCTION asm ("unimp 0xf00")
 #elif defined(__x86_64__)
 #define ABORT_INSTRUCTION asm ("hlt")
+#elif defined(__hppa__)
+#define ABORT_INSTRUCTION asm ("iitlbp %r0,(%r0)")
+#elif defined(__powerpc__)
+#define ABORT_INSTRUCTION asm (".long 0")
+#elif defined(__SH5__)
+#define ABORT_INSTRUCTION asm ("movi 0x10, r9; shori 0xff, r9; trapa r9")
+#elif defined(__sh2__)
+#define ABORT_INSTRUCTION asm ("trapa #32")
+#elif defined(__sh__)
+#define ABORT_INSTRUCTION asm ("trapa #0xff")
 #else
 #define ABORT_INSTRUCTION
 #endif
 
-extern void weak_function _stdio_term(void);
 extern void _exit __P((int __status)) __attribute__ ((__noreturn__));
 static int been_there_done_that = 0;
 
@@ -76,13 +85,6 @@ void abort(void)
     if (__sigemptyset(&sigset) == 0 && __sigaddset(&sigset, SIGABRT) == 0) {
 	sigprocmask(SIG_UNBLOCK, &sigset, (sigset_t *) NULL);
     }
-
-    /* If we are using stdio, try to shut it down.  At the very least,
-	 * this will attempt to commit all buffered writes.  It may also
-	 * unbuffer all writable files, or close them outright.
-	 * Check the stdio routines for details. */
-    if (_stdio_term)
-		_stdio_term();
 
     while (1) {
 	/* Try to suicide with a SIGABRT.  */

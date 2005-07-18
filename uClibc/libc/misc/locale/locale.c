@@ -346,7 +346,7 @@ struct lconv *localeconv(void)
 /**********************************************************************/
 #if defined(L__locale_init) && !defined(__LOCALE_C_ONLY)
 
-static __uclibc_locale_t __global_locale_data;
+__uclibc_locale_t __global_locale_data;
 
 __locale_t __global_locale = &__global_locale_data;
 
@@ -413,9 +413,14 @@ static int init_cur_collate(int der_num, __collate_t *cur_collate)
 	size_t n;
 	uint16_t i, w;
 
+#ifdef __UCLIBC_MJN3_ONLY__
+#warning kill of x86-specific asserts
+#endif
+#if 0
 	assert(sizeof(coldata_base_t) == 19*2);
 	assert(sizeof(coldata_der_t) == 4*2);
 	assert(sizeof(coldata_header_t) == 8*2);
+#endif
 
 	if (!der_num) { 			/* C locale... special */
 		cur_collate->num_weights = 0;
@@ -1420,7 +1425,7 @@ int __locale_mbrtowc_l(wchar_t *__restrict dst,
 		mbstate_t ps;
 		const char *p = src;
 		size_t r;
-		ps.mask = 0;
+		ps.__mask = 0;
 		r = _wchar_utf8sntowcs(dst, 1, &p, SIZE_MAX, &ps, 1);
 		return (r == 1) ? (p-src) : r; /* Need to return 0 if nul char. */
 	}
