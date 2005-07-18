@@ -211,10 +211,14 @@ typedef ad1836_t chip_t; /* used in alsa macro's */
 #endif
 
 
+#define DUMMY_BUF_LEN 256
+unsigned long *dummy_buf_rx; /* used for idle rx/tx channel */
+unsigned long *dummy_buf_tx; /* used for idle rx/tx channel */
 
-unsigned int dummy_buf_rx[256]; /* used for idle rx/tx channel */
-unsigned int dummy_buf_tx[256]; /* used for idle rx/tx channel */
-
+#if L1_DATA_A_LENGTH != 0
+extern unsigned long l1_data_A_sram_alloc(unsigned long size);
+extern int l1_data_A_sram_free(unsigned long addr);
+#endif
 
 static int ad1836_spi_handler(struct bf53x_spi_channel* chan, void* buf, size_t len, void* private){
   ad1836_t *chip = (ad1836_t*) private;
@@ -1170,13 +1174,13 @@ static int snd_ad1836_trigger( snd_pcm_substream_t* substream, int cmd){
   case SNDRV_PCM_TRIGGER_STOP:
     if( substream == chip->rx_substream ) {
       chip->runmode &= ~RUN_RX;
-      bf53x_sport_config_rx_dma( chip->sport, &dummy_buf_rx , 2, sizeof(dummy_buf_rx)/2);
+      bf53x_sport_config_rx_dma( chip->sport, dummy_buf_rx , 2, DUMMY_BUF_LEN/2);
       bf53x_sport_hook_rx_desc(chip->sport);
 /*      printk("stop rx\n");*/
     }
     else if( substream == chip->tx_substream ) {
       chip->runmode &= ~RUN_TX;
-      bf53x_sport_config_tx_dma( chip->sport, &dummy_buf_tx , 2, sizeof(dummy_buf_tx)/2);
+      bf53x_sport_config_tx_dma( chip->sport, dummy_buf_tx , 2, DUMMY_BUF_LEN/2);
       bf53x_sport_hook_tx_desc(chip->sport);
 /*      printk("stop tx\n");*/
     }
@@ -1512,18 +1516,49 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
     snd_ad1836_free(chip);
     return -ENODEV;
   }
-  
-  memset(dummy_buf_tx, sizeof(dummy_buf_tx), 0);
+
+#if L1_DATA_A_LENGTH != 0
+  if((dummy_buf_tx=(unsigned long *)l1_data_A_sram_alloc(DUMMY_BUF_LEN))==NULL) {
+#else
+  if((dummy_buf_tx=(unsigned long *)malloc(DUMMY_BUF_LEN))==NULL) {
+#endif
+    snd_printk( KERN_ERR "Unable to allocate dummy tx buffer\n");
+    snd_ad1836_free(chip);
+    return -ENODEV;
+  }
+#if L1_DATA_A_LENGTH != 0
+  if((dummy_buf_rx=(unsigned long *)l1_data_A_sram_alloc(DUMMY_BUF_LEN))==NULL) {
+#else
+  if((dummy_buf_rx=(unsigned long *)malloc(DUMMY_BUF_LEN))==NULL) {
+#endif
+    snd_printk( KERN_ERR "Unable to allocate dummy rx buffer\n");
+#if L1_DATA_A_LENGTH != 0
+    l1_data_A_sram_free((unsigned long)dummy_buf_tx);
+#else
+    free(dummy_buf_tx);
+#endif
+    snd_ad1836_free(chip);
+    return -ENODEV;
+  }
+
+  memset(dummy_buf_tx, DUMMY_BUF_LEN, 0);
   bf53x_sport_stop(sport);
   err = 0;
   err = err || bf53x_sport_config_rx(sport, RFSR, 0x1f /* 32 bit word len */, 0, 0 );
   err = err || bf53x_sport_config_tx(sport, TFSR, 0x1f /* 32 bit word len */, 0, 0 );
   err = err || bf53x_sport_set_multichannel(sport, 8 /* channels */, 1 /* packed */ );
-  err = err || bf53x_sport_config_rx_dma( sport, &dummy_buf_rx , 2, sizeof(dummy_buf_rx)/2 );
-  err = err || bf53x_sport_config_tx_dma( sport, &dummy_buf_tx , 2, sizeof(dummy_buf_tx)/2 );
+  err = err || bf53x_sport_config_rx_dma( sport, dummy_buf_rx , 2, DUMMY_BUF_LEN/2 );
+  err = err || bf53x_sport_config_tx_dma( sport, dummy_buf_tx , 2, DUMMY_BUF_LEN/2 );
   
   if(err){
     snd_printk( KERN_ERR "Unable to set sport configuration\n");
+#if L1_DATA_A_LENGTH != 0
+    l1_data_A_sram_free((unsigned long)dummy_buf_tx);
+    l1_data_A_sram_free((unsigned long)dummy_buf_rx);
+#else
+    free(dummy_buf_tx);
+    free(dummy_buf_rx);
+#endif
     snd_ad1836_free(chip);
     return -ENODEV;
   }
@@ -1614,6 +1649,13 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
 
   if(err) {
     bf53x_sport_stop(sport);
+#if L1_DATA_A_LENGTH != 0
+    l1_data_A_sram_free((unsigned long)dummy_buf_tx);
+    l1_data_A_sram_free((unsigned long)dummy_buf_rx);
+#else
+    free(dummy_buf_tx);
+    free(dummy_buf_rx);
+#endif
     snd_ad1836_free(chip);
     return err;
   }
@@ -1767,7 +1809,6 @@ static inline void* frag2addr( void* buf, int frag, size_t fragsize_bytes){
 static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
   
   unsigned int rx_stat;
-  DMA_register* dma = chip->sport->dma_rx;
     
   ++(chip->sport_irq_count);
   
@@ -1775,15 +1816,10 @@ static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
     
   if( !(rx_stat & DMA_DONE) )
     return IRQ_NONE;
-      
-  if( chip->sport->dma_rx_change == 1) {
-    if(dma->next_desc_ptr==(unsigned long)chip->sport->dma_rx_desc) {
-/*      printk("rx dma equal\n");*/
-      chip->sport->dma_rx_change = 0;
-    }
+
+  if( bf53x_sport_is_rx_desc_changed(chip->sport) )
     return IRQ_HANDLED;
-  }
-      
+        
   ++(chip->sport_irq_count_rx);
   
 #ifdef  BF53X_SHADOW_REGISTERS 
@@ -1839,7 +1875,6 @@ static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
 static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
 
   unsigned int tx_stat;
-  DMA_register* dma = chip->sport->dma_tx;
 
   ++(chip->sport_irq_count);
   
@@ -1848,13 +1883,8 @@ static irqreturn_t snd_adi1836_sport_handler_tx(ad1836_t* chip, int irq){
   if( !(tx_stat & DMA_DONE))
     return IRQ_NONE;
 
-  if( chip->sport->dma_tx_change == 1) {
-    if(dma->next_desc_ptr==(unsigned long)chip->sport->dma_tx_desc) {
-/*    printk("tx dma equal\n");*/
-      chip->sport->dma_tx_change = 0;
-    }
+  if( bf53x_sport_is_tx_desc_changed(chip->sport) )
     return IRQ_HANDLED;
-  }
     
   ++(chip->sport_irq_count_tx);
 

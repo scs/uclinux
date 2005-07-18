@@ -152,8 +152,8 @@ bf53x_sport_init(int sport_chan,
   sport->dma_tx_desc = NULL;
   sport->dma_rx_expired_desc = NULL;
   sport->dma_tx_expired_desc = NULL;
-  sport->dma_rx_change = 0;
-  sport->dma_tx_change = 0;
+  sport->dma_rx_desc_changed = 0;
+  sport->dma_tx_desc_changed = 0;
 
   return sport;
 } 
@@ -322,7 +322,8 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport)
 /*    printk("tx: dma=%x, desc=%x, next=%x\n oldaddr=0x%x, oldxcount=%d\n", 
     	dma->next_desc_ptr, desc, desc->next_desc,
 	sport->dma_tx_desc->start_addr, sport->dma_tx_desc->xcount);
-*/  }
+*/
+  }
 }
 
 int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf, 
@@ -348,7 +349,7 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
     if( (fragsize_bytes | (fragsize_bytes-1) ) != (2*fragsize_bytes - 1) )
       return -EINVAL;
 
-  if(sport->dma_rx_change==0) {
+  if(sport->dma_rx_desc_changed==0) {
     if( sport->dma_rx_expired_desc) 
       free(sport->dma_rx_expired_desc);
   
@@ -380,7 +381,7 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
   setup_desc( sport->dma_rx_desc, buf, fragcount, fragsize_bytes , cfg|DMAEN, x_count, y_count);
 
   if( sport->regs->rcr1 & RSPEN ) {
-    sport->dma_rx_change=1;
+    sport->dma_rx_desc_changed=1;
   }
   else {  
     dma->next_desc_ptr = (unsigned int)(sport->dma_rx_desc);
@@ -435,7 +436,7 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
     if( (fragsize_bytes | (fragsize_bytes-1) ) != (2*fragsize_bytes - 1) )
       return -EINVAL;
 
-  if(sport->dma_tx_change==0) {
+  if(sport->dma_tx_desc_changed==0) {
     if( sport->dma_tx_expired_desc )
       free(sport->dma_tx_expired_desc);
   
@@ -466,7 +467,7 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
   setup_desc( sport->dma_tx_desc, buf, fragcount, fragsize_bytes, cfg|DMAEN, x_count, y_count);
     
   if( sport->regs->tcr1 & TSPEN ) {
-    sport->dma_tx_change=1;
+    sport->dma_tx_desc_changed=1;
   }
   else {
     dma->next_desc_ptr = (unsigned int)(sport->dma_tx_desc);
@@ -544,6 +545,40 @@ int bf53x_sport_stop(struct bf53x_sport* sport){
 
   return 0;
 
+}
+
+int bf53x_sport_is_rx_desc_changed(struct bf53x_sport* sport){
+#ifdef BF53X_SHADOW_REGISTERS
+  DMA_register* dma = sport->dma_shadow_rx;
+#else
+  DMA_register* dma = sport->dma_rx;
+#endif
+  
+  if( sport->dma_rx_desc_changed == 1) {
+    if(dma->next_desc_ptr==(unsigned long)sport->dma_rx_desc) {
+/*      printk("rx dma equal\n");*/
+      sport->dma_rx_desc_changed = 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+int bf53x_sport_is_tx_desc_changed(struct bf53x_sport* sport){
+#ifdef BF53X_SHADOW_REGISTERS
+  DMA_register* dma = sport->dma_shadow_tx;
+#else
+  DMA_register* dma = sport->dma_tx;
+#endif
+  
+  if( sport->dma_tx_desc_changed == 1) {
+    if(dma->next_desc_ptr==(unsigned long)sport->dma_tx_desc) {
+/*    printk("tx dma equal\n");*/
+      sport->dma_tx_desc_changed = 0;
+    }
+    return 1;
+  }
+  return 0;
 }
 
 

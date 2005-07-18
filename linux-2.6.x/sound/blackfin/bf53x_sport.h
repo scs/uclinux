@@ -28,6 +28,8 @@
 #define BF53X_SPORT_H
 
 #include <linux/types.h>
+#include <linux/wait.h>
+#include <linux/workqueue.h>
 #include <asm/simple_bf533_dma.h>
 
 /* keep copies of the dma registers, updated by us in an irq callback 
@@ -105,8 +107,8 @@ struct bf53x_sport {
   struct bf53x_dma_desc* dma_tx_desc;
   struct bf53x_dma_desc* dma_rx_expired_desc;
   struct bf53x_dma_desc* dma_tx_expired_desc;
-  int dma_rx_change;
-  int dma_tx_change;
+  int dma_rx_desc_changed;
+  int dma_tx_desc_changed;
 
   unsigned int rcr1;
   unsigned int rcr2;
@@ -155,6 +157,8 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
 
 void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport);
 void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport);
+int bf53x_sport_is_tx_desc_changed(struct bf53x_sport* sport);
+int bf53x_sport_is_rx_desc_changed(struct bf53x_sport* sport);
 
 /* rx and tx can only run simultanously, use a dummy buffer to have one
    of them disabled, and disable their irq's with the following */
