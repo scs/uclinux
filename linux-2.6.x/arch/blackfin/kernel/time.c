@@ -33,7 +33,6 @@ extern u_long get_cclk(void);
 #define TIME_SCALE 100
 #define CLOCKS_PER_JIFFY (get_cclk() / HZ / TIME_SCALE)
 
-unsigned long gto_tickmiss;
 
 
 #if (defined(CONFIG_STAMP_BOARD_ALIVE_LED) || defined(CONFIG_STAMP_BOARD_IDLE_LED))
@@ -121,7 +120,6 @@ unsigned long gettimeoffset (void)
 	/* Check if we just wrapped the counters and maybe missed a tick */
 	if ((*pILAT & (1<<IRQ_CORETMR)) && (offset < (100000 / HZ / 2)))
 	{
-		++gto_tickmiss;
 		offset += (1000000 / HZ); 
 	} 
 
