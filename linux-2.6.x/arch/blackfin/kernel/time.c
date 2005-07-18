@@ -28,29 +28,13 @@ extern unsigned long wall_jiffies;
 extern int setup_irq(unsigned int, struct irqaction *);
 inline static void do_leds(void);
 
-/*
- * By setting TSCALE such that TCOUNT counts a binary fraction
- * of microseconds, we can read TCOUNT directly and then with
- * a logical shift trivially calculate how many microseconds 
- * since the last tick, allowing do_gettimeofday() to yield
- * far better time resolution for real time benchmarking.
- */
-
 extern u_long get_cclk(void);
 
-#define CLOCKS_PER_JIFFY (get_cclk()/100)
 #define TIME_SCALE 100
+#define CLOCKS_PER_JIFFY (get_cclk() / HZ / TIME_SCALE)
 
-/*
- *  Actual HZ values are affected by the truncation introduced
- *  by the above TSCALE_SHIFT operations..
- *  In time_sched_init(), we'll compute a more accurate value
- *  for tick_nsec and tick_usec using:
- *    tick_nsec = 10^3 * CLOCKS_PER_JIFFY * SCALE / F[cclk in MHz]
- */
-unsigned long act_num, act_den;	/* numerator, denominator */
-unsigned long act_tick_nsec;
-unsigned long act_tick_usec;
+unsigned long gto_tickmiss;
+
 
 #if (defined(CONFIG_STAMP_BOARD_ALIVE_LED) || defined(CONFIG_STAMP_BOARD_IDLE_LED))
 void __init init_leds(void)
@@ -107,11 +91,6 @@ static struct irqaction bfin_timer_irq = {
  
 void time_sched_init(irqreturn_t (*timer_routine)(int, struct pt_regs *))
 {
-
-	/* update NTP tick_{n,u}sec value with more accurate values */
-	tick_nsec = 1000000000/HZ;
-
-
 	/* power up the timer, but don't enable it just yet */
 	*pTCNTL = 1;
 	asm("csync;");
@@ -121,7 +100,7 @@ void time_sched_init(irqreturn_t (*timer_routine)(int, struct pt_regs *))
 	*/
 	*pTSCALE = (TIME_SCALE - 1);
 
-	*pTCOUNT = *pTPERIOD = ((CLOCKS_PER_JIFFY - 1) / TIME_SCALE);
+	*pTCOUNT = *pTPERIOD = (CLOCKS_PER_JIFFY - 1);
 
 	/* now enable the timer */
 	asm("csync;");
@@ -134,17 +113,18 @@ void time_sched_init(irqreturn_t (*timer_routine)(int, struct pt_regs *))
 
 unsigned long gettimeoffset (void)
 {
- unsigned long offset;
- unsigned long timer_ticks_per_jiffy = *pTPERIOD;
+	unsigned long offset;
+	unsigned long clocks_per_jiffy = CLOCKS_PER_JIFFY;	/* call get_cclk() only once */
 
-    offset = ((1000000/HZ)*(timer_ticks_per_jiffy - *pTCOUNT ))/timer_ticks_per_jiffy;
+	offset = tick_usec * (clocks_per_jiffy - (*pTCOUNT + 1)) / clocks_per_jiffy;
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
-	if ((*pILAT & (1<<IRQ_CORETMR)) && (offset < (100000 / HZ / 2))){
-		
+	if ((*pILAT & (1<<IRQ_CORETMR)) && (offset < (100000 / HZ / 2)))
+	{
+		++gto_tickmiss;
 		offset += (1000000 / HZ); 
-    } 
-		
+	} 
+
 	return offset;
 }
 
