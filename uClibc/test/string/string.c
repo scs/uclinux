@@ -69,8 +69,7 @@ test_strcmp (void)
   check (strcmp ("a", "a") == 0, 2);		/* Identity. */
   check (strcmp ("abc", "abc") == 0, 3);	/* Multicharacter. */
   check (strcmp ("abc", "abcd") < 0, 4);	/* Length mismatches. */
-  check (strcmp ("abd", "abc") > 0, 5);
-  //check (strcmp ("abcd", "abc") > 0, 5);
+  check (strcmp ("abcd", "abc") > 0, 5);
   check (strcmp ("abcd", "abce") < 0, 6);	/* Honest miscompares. */
   check (strcmp ("abce", "abcd") > 0, 7);
   check (strcmp ("a\203", "a") > 0, 8);		/* Tricky if char signed. */
