@@ -103,10 +103,17 @@ struct bf53x_sport {
   DMA_register* dma_shadow_tx;
 #endif
 
-  struct bf53x_dma_desc* dma_rx_desc;
+  struct bf53x_dma_desc* dma_rx_desc;	/* DMA descriptor ring head of current audio stream*/
   struct bf53x_dma_desc* dma_tx_desc;
-  struct bf53x_dma_desc* dma_rx_expired_desc;
+  struct bf53x_dma_desc* dma_rx_expired_desc;  /* DMA descriptor ring head of last audio stream*/
   struct bf53x_dma_desc* dma_tx_expired_desc;
+  struct bf53x_dma_desc* dma_rx_expired2_desc; /* DMA descriptor ring head of the one before last audio stream*/
+  struct bf53x_dma_desc* dma_tx_expired2_desc;
+  /* DMA descriptor state in change procedure.
+   * 0: DMA is walking through current DMA descriptor ring.
+   * 1: New DMA descritor ring is setup, but not hook into current DMA descriptor ring. 
+   * 2: The new DMA descriptor ring is hooked into current DMA descriptor ring, but it hasn't been loaded into DMA.
+   */
   int dma_rx_desc_changed;
   int dma_tx_desc_changed;
 
