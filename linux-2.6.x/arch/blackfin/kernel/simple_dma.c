@@ -119,6 +119,14 @@ static int bf533_channel2irq( unsigned int channel)
 		case CH_EMAC_TX:
 			ret_irq = IRQ_MAC_TX;
 			break;
+
+		case CH_UART1_RX:
+			ret_irq	= IRQ_UART1_RX;
+			break;
+
+		case CH_UART1_TX:
+			ret_irq	= IRQ_UART1_TX;
+			break;
 #endif
 
 		case CH_SPORT0_RX:	

@@ -1403,13 +1403,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	SSYNC;
 
 	shutdown(info);
-#ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	free_dma(info->rx_DMA_channel);
-	free_dma(info->tx_DMA_channel);
-#else
-	free_irq(info->rx_irq, info);
-	free_irq(info->tx_irq, info);
-#endif	
 	if (tty->driver->flush_buffer)
 		tty->driver->flush_buffer(tty);
 	if (tty->ldisc.flush_buffer)
@@ -1434,6 +1427,13 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	}
 	info->flags &= ~(S_NORMAL_ACTIVE|S_CALLOUT_ACTIVE|
 			 S_CLOSING);
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
+	free_dma(info->rx_DMA_channel);
+	free_dma(info->tx_DMA_channel);
+#else
+	free_irq(info->rx_irq, info);
+	free_irq(info->tx_irq, info);
+#endif	
 	wake_up_interruptible(&info->close_wait);
 	local_irq_restore(flags);
 }
@@ -1834,6 +1834,8 @@ static struct tty_operations rs_ops = {
 /* rs_bfin_init inits the driver */
 static int __init rs_bfin_init(void)
 {
+	int i;
+
 	FUNC_ENTER();
 	bfin_serial_driver = alloc_tty_driver(NR_PORTS);
 	if (!bfin_serial_driver)
@@ -1863,6 +1865,10 @@ static int __init rs_bfin_init(void)
 		printk("Blackfin: Couldn't register serial driver\n");
 		put_tty_driver(bfin_serial_driver);
 		return(-EBUSY);
+	}
+
+	for(i=0;i<NR_PORTS;i++) {
+		tty_register_device(bfin_serial_driver, i, NULL);
 	}
 
 	return 0;
