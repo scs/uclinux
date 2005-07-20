@@ -263,8 +263,10 @@ LDFLAGS+=-z now
 endif
 
 # Sigh, some stupid versions of gcc can't seem to cope with '-iwithprefix include'
-#CFLAGS+=-iwithprefix include
-CFLAGS+=-isystem $(shell $(CC) -print-file-name=include || echo)
+# Blackfin gcc can cope with -iwithprefix. The second line would not allow
+# installed toolchain to be moved around.
+CFLAGS+=-iwithprefix include
+# CFLAGS+=-isystem $(shell $(CC) -print-file-name=include || echo)
 
 ifneq ($(DOASSERTS),y)
     CFLAGS += -DNDEBUG
