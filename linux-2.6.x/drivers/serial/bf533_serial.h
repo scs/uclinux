@@ -89,7 +89,7 @@ struct bfin_serial {
 	int			tx_DMA_channel;
 	int			rx_irq;
 	int			tx_irq;
-	unsigned short		tx_xcount;	/* tx_xcount>0 means TX DMA is working. */
+	unsigned int		tx_xcount;	/* tx_xcount>0 means TX DMA is working. */
 	int			flags; 		/* defined in tty.h */
 
 	char break_abort;   /* Is serial console in, so process brk/abrt */
@@ -114,13 +114,12 @@ struct bfin_serial {
 	int			xmit_tail;
 	int			xmit_cnt;
         spinlock_t              xmit_lock;
-        struct timer_list       dma_xmit_timer;
         unsigned char           *recv_buf;
         int                     recv_head;
         int                     recv_tail;
         int                     recv_cnt;
         spinlock_t              recv_lock;
-        struct timer_list       dma_recv_timer;
+        struct timer_list       dma_timer;
 
 	struct work_struct	tqueue;
 	struct work_struct	tqueue_hangup;

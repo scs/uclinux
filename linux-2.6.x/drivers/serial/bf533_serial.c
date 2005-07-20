@@ -40,7 +40,11 @@
 #undef SERIAL_DEBUG_CALLTRACE
 #undef SERIAL_DEBUG_TERMIOS
 
+#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+#define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART1_RX - IVG7)) | (1<<(IRQ_UART1_TX - IVG7)) | (1<<(IRQ_UART_ERROR - IVG7)))
+#else
 #define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART_ERROR - IVG7)))
+#endif
 
 #define CSYNC asm("nop;nop;nop;csync;")
 #define SSYNC asm("nop;nop;nop;ssync;")
@@ -235,24 +239,15 @@ static void rs_stop(struct tty_struct *tty)
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
 	struct uart_registers *regs = &(info->regs);
 	unsigned long flags = 0;
-#ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	unsigned int irqstat;
-#endif
 
 	if (serial_paranoia_check(info, tty->name, "rs_stop"))
 		return;
 
 	local_irq_save(flags);
 	ACCESS_PORT_IER(regs) /* Change access to IER & data port */
-	*(regs->rpUART_IER) &= ~ETBEI;
+	*(regs->rpUART_IER) = 0;
 	SSYNC; 
 	local_irq_restore(flags);
-#ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	irqstat = get_dma_curr_irqstat(info->tx_DMA_channel);
-	if(irqstat&8 && info->tx_xcount>0 && info->xmit_buf) {
-		disable_dma(info->tx_DMA_channel);
-	}
-#endif
 }
 
 static void local_put_char(struct bfin_serial *info, char ch)
@@ -279,9 +274,10 @@ static void local_put_char(struct bfin_serial *info, char ch)
 static void rs_start(struct tty_struct *tty)
 {
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
-#ifndef CONFIG_SERIAL_BLACKFIN_DMA
 	struct uart_registers *regs = &(info->regs);
 	unsigned long flags = 0;
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
+	unsigned int irqstat;
 #endif
 	
         FUNC_ENTER();
@@ -289,22 +285,24 @@ static void rs_start(struct tty_struct *tty)
 	if (serial_paranoia_check(info, tty->name, "rs_start"))
 		return;
 	
-#ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	if(info->xmit_cnt > 0) {
-		info->event |= 1 << RS_EVENT_WRITE;
-		schedule_work(&info->tqueue);
-	}
-#else
 	local_irq_save(flags);
 	ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
+	irqstat = get_dma_curr_irqstat(info->tx_DMA_channel);
+	if(irqstat&8 && info->tx_xcount>0 && info->xmit_buf) {
+		*(regs->rpUART_IER) |= ETBEI;
+		SSYNC;
+	}
+
+#else
 	if (info->xmit_cnt && info->xmit_buf && !(*(regs->rpUART_IER) & ETBEI))
 	{
 		*(regs->rpUART_IER) |= ETBEI;
 		SSYNC;
 	}
+#endif
 	 
 	local_irq_restore(flags);
-#endif
 }
 
 /* Drop into either the boot monitor or kgdb upon receiving a break
@@ -692,19 +690,14 @@ static void dma_start_recv(struct bfin_serial * info)
         }
 }
 
-static void uart_dma_recv_timer(struct bfin_serial * info)
-{
-	dma_receive_chars(info, 1);
-        info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
-        add_timer(&info->dma_recv_timer);
-}
-
-static void uart_dma_xmit_timer(struct bfin_serial * info)
+static void uart_dma_timer(struct bfin_serial * info)
 {
 	dma_transmit_chars(info);
-        info->dma_xmit_timer.expires = jiffies + TIME_INTERVAL;
-        add_timer(&info->dma_xmit_timer);
+	dma_receive_chars(info, 1);
+        info->dma_timer.expires = jiffies + TIME_INTERVAL;
+        add_timer(&info->dma_timer);
 }
+
 #endif
 
 static int startup(struct bfin_serial * info)
@@ -713,8 +706,7 @@ static int startup(struct bfin_serial * info)
 	unsigned long flags = 0;
 	
 	FUNC_ENTER();
-	init_timer(&info->dma_recv_timer);
-	init_timer(&info->dma_xmit_timer);
+	init_timer(&info->dma_timer);
 
 	*(regs->rpUART_GCTL) |= UCEN;
 	SSYNC;
@@ -784,15 +776,14 @@ static int startup(struct bfin_serial * info)
         info->recv_cnt = info->recv_head = info->recv_tail = 0;
         info->recv_lock = SPIN_LOCK_UNLOCKED;
         dma_start_recv(info);
-        info->dma_recv_timer.data = (unsigned long)info;
-        info->dma_recv_timer.function = (void *)uart_dma_recv_timer;
-        info->dma_recv_timer.expires = jiffies + TIME_INTERVAL;
-        add_timer(&info->dma_recv_timer);
 
-        info->dma_xmit_timer.data = (unsigned long)info;
-        info->dma_xmit_timer.function = (void *)uart_dma_xmit_timer;
-        info->dma_xmit_timer.expires = jiffies + TIME_INTERVAL + 1;
-        add_timer(&info->dma_xmit_timer);
+	/*
+	 * Start the DMA timer
+	 */
+        info->dma_timer.data = (unsigned long)info;
+        info->dma_timer.function = (void *)uart_dma_timer;
+        info->dma_timer.expires = jiffies + TIME_INTERVAL;
+        add_timer(&info->dma_timer);
 #endif
 
 	/*
@@ -836,8 +827,7 @@ static void shutdown(struct bfin_serial * info)
 	SSYNC;
 
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	del_timer(&info->dma_recv_timer);
-	del_timer(&info->dma_xmit_timer);
+	del_timer(&info->dma_timer);
 	disable_dma(info->rx_DMA_channel);
 	disable_dma(info->tx_DMA_channel);
 #endif
@@ -1337,6 +1327,7 @@ static void rs_set_termios(struct tty_struct *tty, struct termios *old_termios)
 	bfin_change_speed(info);
 }
 
+
 /*
  * ------------------------------------------------------------
  * rs_close()
@@ -1613,7 +1604,7 @@ irqreturn_t uart_txdma_done(int irq, void *dev_id,struct pt_regs *pt_regs)
 }
 #endif
 
-/* config uart DMA */
+/* configure uart IRQ handler */
 static int bfin_config_uart_IRQ(struct bfin_serial *info)
 {
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
@@ -1630,6 +1621,7 @@ static int bfin_config_uart_IRQ(struct bfin_serial *info)
 	}
 	else 
 		set_dma_callback(info->tx_DMA_channel,uart_txdma_done, info);
+
 #else
 	if (request_irq(info->rx_irq, rs_interrupt, SA_INTERRUPT|SA_SHIRQ, "BFIN_UART_RX",info)) {
 		printk("Unable to attach BlackFin UART RX interrupt\n");
@@ -1668,7 +1660,6 @@ static void bfin_config_uart0(struct bfin_serial *info)
 	info->line = 0;
 	info->is_cons = 0; /* Means shortcuts work */
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	info->tx_xcount = 0;
 	info->rx_DMA_channel = CH_UART_RX;
 	info->tx_DMA_channel = CH_UART_TX;
 #endif
@@ -1716,7 +1707,6 @@ static void bfin_config_uart1(struct bfin_serial *info)
 	info->line = 0;
 	info->is_cons = 0; /* Means shortcuts work */
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	info->tx_xcount = 0;
 	info->rx_DMA_channel = CH_UART1_RX;
 	info->tx_DMA_channel = CH_UART1_TX;
 #endif
@@ -1733,7 +1723,7 @@ static void bfin_config_uart1(struct bfin_serial *info)
 	info->regs.rpUART_MCR = pUART1_MCR;
 	info->regs.rpUART_LSR = pUART1_LSR;
 	info->regs.rpUART_SCR = pUART1_SCR;
-	info->regs.rpUART_GCTL = pUART_GCTL;
+	info->regs.rpUART_GCTL = pUART1_GCTL;
 
 	local_irq_restore(flags);
 
@@ -1787,7 +1777,7 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 		return -ENODEV;
 
 	
-	printk("%s at irq = %d", filp->f_dentry->d_iname, info->rx_irq);
+	printk("%s at irq = %d", tty->name, info->rx_irq);
 	printk(" is a builtin BlackFin UART\n");
 
 	if(bfin_config_uart_IRQ(info)!=0)
@@ -1844,8 +1834,6 @@ static struct tty_operations rs_ops = {
 /* rs_bfin_init inits the driver */
 static int __init rs_bfin_init(void)
 {
-	int i;
-
 	FUNC_ENTER();
 	bfin_serial_driver = alloc_tty_driver(NR_PORTS);
 	if (!bfin_serial_driver)
@@ -1875,11 +1863,6 @@ static int __init rs_bfin_init(void)
 		printk("Blackfin: Couldn't register serial driver\n");
 		put_tty_driver(bfin_serial_driver);
 		return(-EBUSY);
-	}
-
-	for(i=0;i<NR_PORTS;i++) {
-		printk("register uart port %d\n", i);
-		tty_register_device(bfin_serial_driver, i, NULL);
 	}
 
 	return 0;
