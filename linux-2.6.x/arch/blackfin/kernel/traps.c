@@ -59,13 +59,13 @@ extern void _cplb_hdr(void);
 /* Initiate the event table handler */
 void __init trap_init (void)
 {
-	asm("csync;");
+     __builtin_bfin_csync();
 	*pEVT3= trap;
-	asm("csync;");
+	__builtin_bfin_csync();
 	*pEVT14 = evt_system_call;
-	asm("csync;");
+	__builtin_bfin_csync();
 	*pEVT15 = evt_soft_int1;
-	asm("csync;");
+	__builtin_bfin_csync();
 }
 
 asmlinkage void trap_c(struct pt_regs *fp);

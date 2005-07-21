@@ -54,12 +54,12 @@ void machine_restart(char * __unused)
 {
 #if defined(CONFIG_BLKFIN_CACHE)
 	*pIMEM_CONTROL = 0x01;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 #endif	
 	reset();
 	/* Dont do anything till the reset occurs */
 	while(1) {
-		asm("ssync;");
+		__builtin_bfin_ssync();
 	}
 }
 
@@ -264,7 +264,7 @@ inline void static leds_switch(int flag)
 	unsigned short tmp = 0;
 
 	tmp = *pFIO_FLAG_D;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 
 	if( flag== LED_ON )
 		tmp &=~0x8;	/* light on */
@@ -272,7 +272,7 @@ inline void static leds_switch(int flag)
 		tmp |=0x8;	/* light off */
 
 	*pFIO_FLAG_D = tmp;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 
 }	
 #else 

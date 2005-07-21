@@ -541,7 +541,7 @@ int DmaMemCpy(char *dest_addr , char *source_addr, int size)
 	 Enable source DMA */
 
         *pMDMA_S0_CONFIG = (DMAEN) ;
-        asm("ssync;");
+        __builtin_bfin_ssync();
 	mem_dma_status = 0;
         *pMDMA_D0_CONFIG = ( WNR | DMAEN) ;
 

@@ -42,15 +42,15 @@ void __init init_leds(void)
 
 	/* config PF2/3/4 as output. */
 	tmp = *pFIO_DIR;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 	*pFIO_DIR = tmp | 0x1C;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 
 	/*	First set led be off */
 	tmp = *pFIO_FLAG_D;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 	*pFIO_FLAG_D = tmp | 0x1C;	/* light off */
-	asm("ssync;");
+	__builtin_bfin_ssync();
 }
 #else 
 inline void  __init init_leds(void) {}
@@ -68,7 +68,7 @@ inline static void do_leds(void)
 		flag = ~flag;
 	}
 	tmp = *pFIO_FLAG_D;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 
 	if( flag )
 		tmp &=~0x10;	/* light on */
@@ -76,7 +76,7 @@ inline static void do_leds(void)
 		tmp |=0x10;	/* light off */
 
 	*pFIO_FLAG_D = tmp;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 
 }
 #else  
@@ -92,7 +92,7 @@ void time_sched_init(irqreturn_t (*timer_routine)(int, struct pt_regs *))
 {
 	/* power up the timer, but don't enable it just yet */
 	*pTCNTL = 1;
-	asm("csync;");
+	__builtin_bfin_csync();
 
 	/*
 	* the TSCALE prescaler counter.
@@ -102,7 +102,7 @@ void time_sched_init(irqreturn_t (*timer_routine)(int, struct pt_regs *))
 	*pTCOUNT = *pTPERIOD = (CLOCKS_PER_JIFFY - 1);
 
 	/* now enable the timer */
-	asm("csync;");
+	__builtin_bfin_csync();
 	
 	*pTCNTL = 7;
 	

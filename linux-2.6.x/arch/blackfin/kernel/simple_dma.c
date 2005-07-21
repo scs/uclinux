@@ -38,7 +38,7 @@
 /* Remove unused code not exported by symbol or internally called */ 
 #define REMOVE_DEAD_CODE
 
-#define SSYNC asm("nop;nop;nop;ssync;")
+#define SSYNC __builtin_bfin_ssync()
 
 /**************************************************************************
  * Global Variables 
