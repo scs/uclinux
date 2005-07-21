@@ -47,7 +47,7 @@ static inline unsigned int ctr_read()
      unsigned int tmp;
 
      tmp = *pPFCTL;
-     asm("csync;");
+     __builtin_bfin_csync();
      
      return tmp;
 }
@@ -55,21 +55,21 @@ static inline unsigned int ctr_read()
 static inline void ctr_write(unsigned int val)
 {
      *pPFCTL = val;
-     asm("csync;");     
+     __builtin_bfin_csync();     
 }
 
 static inline void count_read(unsigned int *count)
 {
      count[0] = *pPFCNTR0;
      count[1] = *pPFCNTR1;     
-     asm("csync;");
+     __builtin_bfin_csync();
 }
 
 static inline void count_write(unsigned int *count)
 {
      *pPFCNTR0 = count[0];
      *pPFCNTR1 = count[1];
-     asm("csync;");
+     __builtin_bfin_csync();
 }
 
 #endif

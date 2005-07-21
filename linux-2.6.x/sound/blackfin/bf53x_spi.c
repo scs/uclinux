@@ -87,7 +87,7 @@
 
 #include <asm/blackfin.h>
 
-#define SSYNC asm("nop;nop;nop;ssync;nop;nop;nop;")
+#define SSYNC __builtin_bfin_ssync()
 
 struct bf53x_spi_channel {
 

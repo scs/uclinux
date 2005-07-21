@@ -48,7 +48,7 @@ do { printk("Blackfin DMA driver: "fmt, ##args);} while (0)
 #endif
 
 #define ESUCCESS 1
-#define SSYNC() asm("ssync;")
+#define SSYNC() __builtin_bfin_csync()
 
 /*****************************************************************************
 *        Generic DMA  Declarations

@@ -23,7 +23,7 @@
 #endif
 
 #define WINDOW_ADDR 0x20000000
-#define SSYNC asm("nop;nop;nop;ssync;");
+#define SSYNC __builtin_bfin_ssync()
 
 #ifdef CONFIG_BLKFIN_STAMP
 struct flash_save {
@@ -114,8 +114,14 @@ static map_word bf533_read(struct map_info *map, unsigned long ofs)
 		"r2 = r2 + r3; \n\t"
 		"p2 = r2; \n\t"
 		/* The actual thing */
+		"nop;   \n\t"
+		"nop;   \n\t"
+		"nop;   \n\t"
 		"ssync; \n\t"
 		"%0 = w[p2] (z); \n\t"
+		"nop;   \n\t"
+		"nop;   \n\t"
+		"nop;   \n\t"
 		"ssync; \n\t"
 		: "=d" (nValue)
 		: "d" (ofs));
@@ -178,8 +184,14 @@ static void bf533_write(struct map_info *map, map_word d1, unsigned long ofs)
 		"r2 = r2 + r3; \n\t"
 		"p2 = r2; \n\t"
 		/* The actual thing */
+		"nop;   \n\t"
+		"nop;   \n\t"
+		"nop;   \n\t"
 		"ssync; \n\t"
 		"w[p2] = %0; \n\t"
+		"nop;   \n\t"
+		"nop;   \n\t"
+		"nop;   \n\t"
 		"ssync; \n\t"
 		: 
 		: "d" (d), "d" (ofs));

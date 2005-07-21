@@ -77,7 +77,7 @@
 #define FRAME_DELAY (1<<12)  /* delay between frame sync pulse and first data bit
                               in multichannel mode */ 
 
-#define SSYNC asm( "nop;nop;nop;ssync;\n\t" )
+#define SSYNC __builtin_bfin_ssync()
 
 
 static unsigned int sport_iobase[] = {0xffc00800, 0xffc00900 };

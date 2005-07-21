@@ -544,20 +544,20 @@ void bfin_EBIU_AM_setup(void)
 	PRINTK2("EBIU Asynchronous memory setup.\n");
 
 	stmp = *pFIO_DIR;
-        asm("ssync;");
+        __builtin_bfin_ssync();
 	*pFIO_DIR = stmp | 1;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 	*pFIO_FLAG_S = 0x0001;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 
         *pEBIU_AMGCTL = AMGCTLVAL;		/*AMGCTL*/
-        asm("ssync;");
+        __builtin_bfin_ssync();
 #if defined(AMBCTL0VAL)
         *pEBIU_AMBCTL0 = AMBCTL0VAL;	/* AMBCTL0*/
-        asm("ssync;");
+        __builtin_bfin_ssync();
 
         *pEBIU_AMBCTL1 = AMBCTL1VAL;	/* AMBCTL1*/
-        asm("ssync;");
+        __builtin_bfin_ssync();
 #endif
 }
 
@@ -570,46 +570,46 @@ void bfin_SMC_interrupt_setup(int irq)
 #ifndef CONFIG_IRQCHIP_DEMUX_GPIO
 	/* Direction setup*/
 	stmp = *pFIO_DIR;
-        asm("ssync;");
+        __builtin_bfin_ssync();
 	*pFIO_DIR = stmp & (~LAN_FIO_PATTERN);
-        asm("ssync;");
+        __builtin_bfin_ssync();
 
 	/* Clear pending IRQ for PF7*/
 	*pFIO_MASKB_C = LAN_FIO_PATTERN;   	
-        asm("ssync;");
+        __builtin_bfin_ssync();
 
         /* Enable Flag PF7 for IRQ_B */
 	*pFIO_MASKB_S = LAN_FIO_PATTERN;    	
-        asm("ssync;");
+        __builtin_bfin_ssync();
  
         /* Set Polarity for IRQs (8:HIGH)*/
 	stmp = *pFIO_POLAR;    	
-        asm("ssync;");
+        __builtin_bfin_ssync();
         *pFIO_POLAR = stmp & (~LAN_FIO_PATTERN);    	
-        asm("ssync;");
+        __builtin_bfin_ssync();
 
         /* Set Edge Sensitivity PF8, PF9 */
 	stmp = *pFIO_EDGE;
-        asm("ssync;");
+        __builtin_bfin_ssync();
 	*pFIO_EDGE = stmp & (~LAN_FIO_PATTERN);    	
-        asm("ssync;");
+        __builtin_bfin_ssync();
 
         /* Clear Both Edge Sensitivity for IRQ_A and IRQ */
 	stmp = *pFIO_BOTH;    	
-        asm("ssync;");
+        __builtin_bfin_ssync();
 	*pFIO_BOTH = stmp & ~(LAN_FIO_PATTERN);    	
-        asm("ssync;");
+        __builtin_bfin_ssync();
 
 	/* finally clear flag pin value	*/
 	stmp = *pFIO_FLAG_C;    	
-        asm("ssync;");
+        __builtin_bfin_ssync();
 	*pFIO_FLAG_C = stmp & LAN_FIO_PATTERN;    	
-        asm("ssync;");
+        __builtin_bfin_ssync();
 
 	stmp = *pFIO_INEN;    	
-        asm("ssync;");
+        __builtin_bfin_ssync();
 	*pFIO_INEN = stmp | LAN_FIO_PATTERN;    	
-        asm("ssync;");
+        __builtin_bfin_ssync();
 
 #else
 	set_irq_type(irq, IRQT_HIGH);

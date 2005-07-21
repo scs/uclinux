@@ -26,7 +26,7 @@ void Init_EBIU(void)
 }
 
 #else
-#define ssync() __asm__("ssync;");
+#define ssync() __builtin_bfin_ssync()
 #endif
 
 //--------------------------------------------------------------------------//

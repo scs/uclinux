@@ -194,9 +194,9 @@ unsigned long change_sclk(unsigned long clock)
 #endif
 		ssel = MAX_SSEL;
 	}
-	asm("ssync;");
+	__builtin_bfin_ssync();
 	*pEBIU_SDGCTL = (*pEBIU_SDGCTL | SRFS);
-	asm("ssync;");
+	__builtin_bfin_ssync();
 
 	ret = set_pll_div(ssel,FLAG_SSEL);
 
@@ -206,16 +206,16 @@ unsigned long change_sclk(unsigned long clock)
 #endif
 
 	*pEBIU_SDRRC = get_sdrrcval(get_sclk());
-	asm("ssync;");
+	__builtin_bfin_ssync();
 
 	/* Get SDRAM out of self refresh mode */
 	*pEBIU_SDGCTL = (*pEBIU_SDGCTL & ~SRFS);
-	asm("ssync;");
+	__builtin_bfin_ssync();
 
 	/* May not be required */
 #if 0
 	*pEBIU_SDGCTL = (*pEBIU_SDGCTL | SCTLE | CL_2  | SDRAM_tRAS1  | SDRAM_tRP1  | SDRAM_tRCD1  | SDRAM_tWR1);
-	asm("ssync;");
+	__builtin_bfin_ssync();
 #endif
 	return(get_sclk());
 }
@@ -241,7 +241,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 #endif
 			change_baud(CONSOLE_BAUD_RATE);
 			*pSIC_IWR = IWR_ENABLE_ALL;
-			asm("ssync;");
+			__builtin_bfin_ssync();
 
 		break;
 
@@ -249,13 +249,13 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 			active_mode();
 			change_baud(CONSOLE_BAUD_RATE);
 			*pSIC_IWR = IWR_ENABLE_ALL;
-			asm("ssync;");
+			__builtin_bfin_ssync();
 
 		break;
 		case IOCTL_SLEEP_MODE:
 			sleep_mode();
 			*pSIC_IWR = IWR_ENABLE_ALL;
-			asm("ssync;");
+			__builtin_bfin_ssync();
 		break;				
 
 		case IOCTL_DEEP_SLEEP_MODE:
@@ -263,13 +263,13 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 			/* Needed since it comes back to active mode */
 			change_baud(CONSOLE_BAUD_RATE);
 			*pSIC_IWR = IWR_ENABLE_ALL;
-			asm("ssync;");
+			__builtin_bfin_ssync();
 		break;
 		
 		case IOCTL_HIBERNATE_MODE:
 			hibernate_mode();
 			*pSIC_IWR = IWR_ENABLE_ALL;
-			asm("ssync;");
+			__builtin_bfin_ssync();
 		break;
 
 		case IOCTL_CHANGE_FREQUENCY:
@@ -328,7 +328,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 				change_baud(CONSOLE_BAUD_RATE);
 			}
 			*pSIC_IWR = IWR_ENABLE_ALL;
-			asm("ssync;");
+			__builtin_bfin_ssync();
 	    		copy_to_user((unsigned long *)arg, &vco_mhz, sizeof(unsigned long));
 		break;
 		case IOCTL_CHANGE_VOLTAGE:
@@ -427,13 +427,13 @@ void change_baud(int baud)      {
 	
         uartdll = sclk/(16*baud);
         *pUART_LCR = DLAB;
-        asm("ssync;");
+	__builtin_bfin_ssync();
         *pUART_DLL = (uartdll & 0xFF);
-        asm("ssync;");
+	__builtin_bfin_ssync();
         *pUART_DLH = (uartdll >> 8);
-        asm("ssync;");
+	__builtin_bfin_ssync();
         *pUART_LCR = WLS(8);
-        asm("ssync;");
+	__builtin_bfin_ssync();
 
 	asm("sti r6;"
 	"r6 = [sp++];");	
@@ -485,7 +485,7 @@ int set_pll_div(unsigned short sel,unsigned char flag)
 	if(flag == FLAG_CSEL)	{
 		if(sel <= 3)	{
 			*pPLL_DIV = ((*pPLL_DIV & 0xCF) | (sel << 4));
-			asm("ssync;");
+			__builtin_bfin_ssync();
 			return 0;
 		}
 		else	{
@@ -498,7 +498,7 @@ int set_pll_div(unsigned short sel,unsigned char flag)
 	else if(flag == FLAG_SSEL)	{
 		if(sel < 16)	{
 			*pPLL_DIV = (*pPLL_DIV & 0xF0) | sel;
-			asm("ssync;");
+			__builtin_bfin_ssync();
 			return 0;
 		}
 		else	{
@@ -523,14 +523,14 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 
 /* Enable the PLL Wakeup bit in SIC IWR */
 	*pSIC_IWR = IWR_ENABLE(0);
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
 	*pPLL_LOCKCNT = 0x300;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 	
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 	*pEBIU_SDGCTL = (*pEBIU_SDGCTL | SRFS);
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 	
 	vl = *pPLL_CTL;
 	asm("ssync");
@@ -538,26 +538,26 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 	msel |= vl;
 
 	*pPLL_CTL = msel;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
 	asm("[--SP] = R6;"
-	"CLI R6;"
-	"SSYNC;"
-	"IDLE;"
+	    "CLI R6;");
+	__builtin_bfin_ssync();
+	asm("IDLE;"
 	"STI R6;"
 	"R6 = [SP++];");
 
 	while(!(*pPLL_STAT & PLL_LOCKED));
 
 	*pEBIU_SDRRC = get_sdrrcval((get_sclk()));
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
 	*pEBIU_SDGCTL = *pEBIU_SDGCTL & ~SRFS;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
 #if 0
 	*pEBIU_SDGCTL =	(SCTLE | CL_2 | SDRAM_tRAS1 | SDRAM_tRP1 | SDRAM_tRCD1 | SDRAM_tWR1);
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 #endif
 
 #if 0
@@ -565,14 +565,14 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 	if(*pEBIU_SDSTAT & SDRS) {
 
 		*pEBIU_SDRRC = get_sdrrcval((get_sclk()*MHZ));
-		asm("ssync;");
+		 __builtin_bfin_ssync();
 
 		*pEBIU_SDBCTL = 0x13;
-		asm("ssync;");
+		 __builtin_bfin_ssync();
 
 		modeval = (SCTLE | CL_2 | SDRAM_tRAS1 | SDRAM_tRP1 | SDRAM_tRCD1 | SDRAM_tWR1 | PSS);
 		*pEBIU_SDGCTL = modeval;
-		asm("ssync;");
+		 __builtin_bfin_ssync();
 	}
 #endif
 	return(get_vco());
@@ -585,67 +585,67 @@ int calc_msel(int vco_hz)	{
 void fullon_mode(void)	{
 
 	*pSIC_IWR = IWR_ENABLE(0);
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
 	*pPLL_LOCKCNT = 0x300;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 	
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 	*pEBIU_SDGCTL = *pEBIU_SDGCTL | SRFS;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
 /* Together if done, some issues with code generation,so split this way*/
 	*pPLL_CTL &= (unsigned short)~(BYPASS);
 	*pPLL_CTL &= (unsigned short)~(PDWN);
 	*pPLL_CTL &= (unsigned short)~(STOPCK_OFF);
 	*pPLL_CTL &= (unsigned short)~(PLL_OFF);
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
 	asm("[--SP] = R6;"
-	"CLI R6;"
-	"SSYNC;"
-	"IDLE;"
+	    "CLI R6;");
+	__builtin_bfin_ssync();
+	asm("IDLE;"
 	"STI R6;"
 	"R6 = [SP++];");
 
 	while((*pPLL_STAT & PLL_LOCKED) != PLL_LOCKED);
 
 	*pEBIU_SDRRC = get_sdrrcval(get_sclk());
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
 	*pEBIU_SDGCTL = *pEBIU_SDGCTL & ~SRFS;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 }
 
 void active_mode(void)	{
 
 	*pSIC_IWR = IWR_ENABLE(0);
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
 	*pPLL_LOCKCNT = 0x300;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 	
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 	*pEBIU_SDGCTL = *pEBIU_SDGCTL | SRFS;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 	
 	*pPLL_CTL = *pPLL_CTL | BYPASS;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
 	asm("[--SP] = R6;"
-	"CLI R6;"
-	"SSYNC;"
-	"IDLE;"
+	    "CLI R6;");
+	__builtin_bfin_ssync();
+	asm("IDLE;"
 	"STI R6;"
 	"R6 = [SP++];");
 
 	while((*pPLL_STAT & PLL_LOCKED) != PLL_LOCKED);
 
 	*pEBIU_SDRRC = get_sdrrcval(get_sclk());
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
 	*pEBIU_SDGCTL = *pEBIU_SDGCTL & ~SRFS;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 }
 
 /********************************CHANGE OF VOLTAGE*******************************************/
@@ -685,11 +685,11 @@ unsigned long change_voltage(unsigned long volt)	{
 	val = (*pVR_CTL & 0xFF0F);
 	val = (val | (vlt << 4));
 	*pVR_CTL = val;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 	asm("[--SP] = R6;"
-	"CLI R6;"
-	"SSYNC;"
-	"IDLE;"
+	    "CLI R6;");
+	__builtin_bfin_ssync();
+	asm("IDLE;"
 	"STI R6;"
 	"R6 = [SP++];");
 	while(!(get_pll_status() & VOLTAGE_REGULATED));

@@ -159,7 +159,7 @@ static int set_spi_reg(unsigned int addr, unsigned short sdata)
 {
 
     outw(sdata,addr);
-    asm("ssync;");
+    __builtin_bfin_ssync();
     return 0;
 }
 
@@ -865,7 +865,7 @@ static ssize_t spi_read (struct file *filp, char *buf, size_t count, loff_t *pos
 		else 
     		set_dma_x_modify(CH_SPI, 1);
     	
-    	asm("ssync;");
+		__builtin_bfin_ssync();
 		enable_dma(CH_SPI);
 
 	// enable spi
@@ -975,7 +975,7 @@ static ssize_t spi_write (struct file *filp, const char *buf, size_t count, loff
 		else 
     		set_dma_x_modify(CH_SPI, 1);
 
-    	asm("ssync;");
+		__builtin_bfin_ssync();
 		enable_dma(CH_SPI);
 	
 	// enable spi

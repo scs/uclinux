@@ -165,7 +165,7 @@ printk("rtc_interrupt\n");
 	
     
 	*pRTC_ISTAT = *pRTC_ISTAT;
-	asm("ssync;");
+	 __builtin_bfin_ssync();
 
     if (rtc_status & RTC_TIMER_ON)
         mod_timer(&rtc_irq_timer, jiffies + HZ/rtc_freq + 2*HZ/100);
@@ -280,7 +280,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
     {
 	spin_lock_irq(&rtc_lock);
 	*pRTC_ICTL |= STPW_INT_EN;
-	asm("SSYNC;");
+	 __builtin_bfin_ssync();
 	wait_for_complete();
 	spin_unlock_irq(&rtc_lock);
         //set_rtc_irq_bit(STPW_INT_EN);
@@ -484,7 +484,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
     	spin_lock_irq(&rtc_lock);
 	*pRTC_SWCNT = swcnttm;
-	asm("SSYNC;");
+	 __builtin_bfin_ssync();
 	wait_for_complete();
 	spin_unlock_irq(&rtc_lock);
 	return 0;	
@@ -614,13 +614,13 @@ int __init blackfin_rtc_init(void)
     printk("blackfin_rtc_init\n");
 #endif
     *pRTC_PREN = PRESCALE_EN;
-    asm("ssync;");
+     __builtin_bfin_ssync();
     *pRTC_ISTAT = 0x807F;
-    asm("ssync;");
+     __builtin_bfin_ssync();
     *pRTC_ICTL = 0x0;
-    asm("ssync;");
+     __builtin_bfin_ssync();
     *pRTC_ALARM = 0;
-    asm("ssync;");
+     __builtin_bfin_ssync();
     
     if(request_irq(RTC_IRQ, rtc_interrupt, SA_INTERRUPT, "rtc", NULL))
     {

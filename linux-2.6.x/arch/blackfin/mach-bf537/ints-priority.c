@@ -51,6 +51,6 @@ void program_IAR()
 						((CONFIG_IRQ_MEM_DMA0       -7) <<      IRQ_MEM_DMA0_POS ) |   
 						((CONFIG_IRQ_MEM_DMA1       -7) <<      IRQ_MEM_DMA1_POS ) |   
 						((CONFIG_IRQ_WATCH          -7) <<      IRQ_WATCH_POS    );
-	asm("ssync;");	
+		__builtin_bfin_ssync();
 
 }	/*End of program_IAR*/

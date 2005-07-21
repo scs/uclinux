@@ -46,8 +46,8 @@
 #define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART_ERROR - IVG7)))
 #endif
 
-#define CSYNC asm("nop;nop;nop;csync;")
-#define SSYNC asm("nop;nop;nop;ssync;")
+#define CSYNC __builtin_bfin_csync()
+#define SSYNC __builtin_bfin_ssync()
 
 #define ACCESS_LATCH(regs)	{ *(regs->rpUART_LCR) |= DLAB; SSYNC;}
 #define ACCESS_PORT_IER(regs)	{ *(regs->rpUART_LCR) &= (~DLAB); SSYNC;}

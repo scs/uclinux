@@ -460,14 +460,14 @@ static ssize_t ppi_read (struct file *filp, char *buf, size_t count, loff_t *pos
     /* Enable PPI */
 
     *pPPI_CONTROL |= PORT_EN;
-     asm("ssync;");
+    __builtin_bfin_ssync();
 
     if(pdev->ppi_trigger_gpio < NO_TRIGGER)
     {
          *pFIO_FLAG_S = 1 << pdev->ppi_trigger_gpio;
-         asm("ssync;");
+         __builtin_bfin_ssync();
          *pFIO_FLAG_C = 1 << pdev->ppi_trigger_gpio;
-         asm("ssync;");
+         __builtin_bfin_ssync();
      }
 
     DPRINTK("ppi_read: PPI ENABLED : DONE \n");

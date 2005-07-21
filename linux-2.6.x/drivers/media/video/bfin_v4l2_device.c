@@ -274,7 +274,7 @@ bfin_v4l2_memdma_setup(char *ycrcb_buffer_update, char *ycrcb_buffer_raw)
 	/* Enable source DMA */
 	*pMDMA_S0_CONFIG = (DMA2D | WDSIZE_32 | DMAEN) ;
 	*pMDMA_S1_CONFIG = (DMA2D | WDSIZE_32 | DMAEN) ;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 	*pMDMA_D0_CONFIG = ( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) ; 
 	*pMDMA_D1_CONFIG = ( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) ; 
 }

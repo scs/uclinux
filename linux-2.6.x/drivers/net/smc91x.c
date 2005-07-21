@@ -326,25 +326,25 @@ static void bfin_EBIU_AM_setup(void)
     printk("EBIU Asynchronous memory setup.\n");
 
 	stmp = *pFIO_DIR;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 	*pFIO_DIR = stmp | 1;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 	*pFIO_FLAG_S = 0x0001;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 
 	*pEBIU_AMGCTL = AMGCTLVAL;      /*AMGCTL*/
-	asm("ssync;");
+	__builtin_bfin_ssync();
 #ifdef CONFIG_EZKIT
 	*pEBIU_AMBCTL0 = AMBCTL0VAL;    /* AMBCTL0*/
-	asm("ssync;");
+	__builtin_bfin_ssync();
 	*pEBIU_AMBCTL1 = AMBCTL1VAL;    /* AMBCTL1*/
-	asm("ssync;");
+	__builtin_bfin_ssync();
 #endif
 #ifdef CONFIG_BLKFIN_STAMP
 	*pEBIU_AMBCTL0 = AMBCTL0VAL;    /* AMBCTL0*/
-	asm("ssync;");
+	__builtin_bfin_ssync();
 	*pEBIU_AMBCTL1 = AMBCTL1VAL;    /* AMBCTL1*/
-	asm("ssync;");
+	__builtin_bfin_ssync();
 #endif
 }
 
@@ -373,9 +373,9 @@ static void bfin_SMC_interrupt_setup(int irq)
     {
       int ixab = (irq - IRQ_PROG_INTA) * (pFIO_MASKB_D - pFIO_MASKA_D);
 
-      asm("csync;");
+      __builtin_bfin_csync();
       pFIO_MASKA_C[ixab] = LAN_FIO_PATTERN; /* disable int */
-      asm("ssync;");
+      __builtin_bfin_ssync();
 
       *pFIO_POLAR &= ~LAN_FIO_PATTERN; /* active high (input) */
       *pFIO_EDGE  &= ~LAN_FIO_PATTERN; /* by level (input) */
@@ -385,7 +385,7 @@ static void bfin_SMC_interrupt_setup(int irq)
       *pFIO_FLAG_C = LAN_FIO_PATTERN;   /* clear output */
       *pFIO_INEN |=  LAN_FIO_PATTERN;   /* enable pin */
 
-      asm("ssync;");
+      __builtin_bfin_ssync();
       pFIO_MASKA_S[ixab] = LAN_FIO_PATTERN; /* enable int */
     }
 #endif /*CONFIG_IRQCHIP_DEMUX_GPIO*/

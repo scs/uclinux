@@ -128,7 +128,7 @@ static void bf533_internal_unmask_irq(unsigned int irq)
 	local_irq_disable();
 	irq_mask = (1<<(irq - (IRQ_CORETMR+1)));
    	*pSIC_IMASK |= irq_mask;
-	asm("ssync;");
+	__builtin_bfin_ssync();
 	local_irq_enable();
 }
 
@@ -158,7 +158,7 @@ static void bf533_gpio_ack_irq(unsigned int irq)
 //	} else {
 //		/* ack and mask */
 //	}
-	asm("ssync");
+	__builtin_bfin_ssync();
 }
 
 static void bf533_gpio_mask_irq(unsigned int irq)
@@ -166,9 +166,9 @@ static void bf533_gpio_mask_irq(unsigned int irq)
 	int gpionr = irq - IRQ_PF0;
 	int mask = (1L << gpionr);
 	*pFIO_FLAG_C = mask;
-	asm("ssync");
+	__builtin_bfin_ssync();
 	*pFIO_MASKB_C = mask;
-	asm("ssync");
+	__builtin_bfin_ssync();
 }
 
 static void bf533_gpio_unmask_irq(unsigned int irq)
@@ -183,8 +183,8 @@ static int bf533_gpio_irq_type(unsigned int irq, unsigned int type)
 	int gpionr = irq - IRQ_PF0;
 	int mask = (1L << gpionr);
 
-	*pFIO_DIR &= ~mask; asm("ssync");
-	*pFIO_INEN |= mask; asm("ssync");
+	*pFIO_DIR &= ~mask;  __builtin_bfin_ssync();
+	*pFIO_INEN |= mask;  __builtin_bfin_ssync();
 
 	if (type == IRQT_PROBE) {
 		/* only probe unenabled GPIO interrupt lines */
@@ -204,19 +204,19 @@ static int bf533_gpio_irq_type(unsigned int irq, unsigned int type)
 		*pFIO_EDGE &= ~mask;
 		gpio_edge_triggered &= ~mask;
 	}
-	asm("ssync");
+	__builtin_bfin_ssync();
 
 	if ((type & (__IRQT_RISEDGE|__IRQT_FALEDGE)) == (__IRQT_RISEDGE|__IRQT_FALEDGE))
 		*pFIO_BOTH |= mask;
 	else
 		*pFIO_BOTH &= ~mask;
-	asm("ssync");
+	__builtin_bfin_ssync();
 
 	if ((type & (__IRQT_FALEDGE|__IRQT_LOWLVL)) && ((type & (__IRQT_RISEDGE|__IRQT_FALEDGE)) != (__IRQT_RISEDGE|__IRQT_FALEDGE)))
 		*pFIO_POLAR |= mask;  /* low or falling edge denoted by one */
 	else
 		*pFIO_POLAR &= ~mask; /* high or rising edge denoted by zero */
-	asm("ssync");
+	__builtin_bfin_ssync();
 
 	if (type & (__IRQT_RISEDGE|__IRQT_FALEDGE))
 		set_irq_handler(irq, do_edge_IRQ);
@@ -265,7 +265,7 @@ int __init  init_arch_irq(void)
 	unsigned long ilat = 0;
 	/*  Disable all the peripheral intrs  - page 4-29 HW Ref manual */
 	*pSIC_IMASK = SIC_UNMASK_ALL;
-	asm("ssync;");	
+	__builtin_bfin_ssync();	
    
 	local_irq_disable();
 	
@@ -285,7 +285,7 @@ int __init  init_arch_irq(void)
 	*pEVT13	= evt_evt13;	
 	*pEVT14 = evt_system_call;		
 	*pEVT15 = evt_soft_int1;	
-	asm("csync;");	
+	__builtin_bfin_csync();
 
   	for (irq = 0; irq < SYS_IRQS; irq++) {
 		if (irq <= IRQ_CORETMR)
@@ -311,11 +311,11 @@ int __init  init_arch_irq(void)
 	}
 #endif
    	*pIMASK = 0;
-	asm("csync;");
+	__builtin_bfin_csync();
 	ilat  = *pILAT;
-	asm("csync;");
+	__builtin_bfin_csync();
 	*pILAT = ilat;
-	asm("csync;");
+	__builtin_bfin_csync();
 
 	printk(KERN_INFO "Configuring Blackfin Priority Driven Interrupts\n");
 	program_IAR();   /* IMASK=xxx is equivalent to STI xx or irq_flags=xx, local_irq_enable() */
@@ -324,7 +324,7 @@ int __init  init_arch_irq(void)
    	/* Enable interrupts IVG7-15 */
 	*pIMASK = irq_flags = irq_flags | IMASK_IVG15 | IMASK_IVG14 |IMASK_IVG13 |IMASK_IVG12 |IMASK_IVG11 |
 		IMASK_IVG10 |IMASK_IVG9 |IMASK_IVG8 |IMASK_IVG7 |IMASK_IVGHW;	
-	asm("csync;");
+	__builtin_bfin_csync();
 
 	local_irq_enable();
 	return 0;
@@ -338,7 +338,7 @@ void do_irq(int vec, struct pt_regs *fp)
           struct ivgx *ivg_stop = ivg7_13[vec-IVG7].istop;
 	  unsigned long sic_status;	
 
-	  asm("csync;");	
+	  __builtin_bfin_csync();
  	  sic_status = *pSIC_IMASK & *pSIC_ISR;
 
 	  for(;; ivg++) {
