@@ -172,7 +172,7 @@ static int get_spi_reg(spi_device_t *pdev, unsigned int offset, unsigned short *
 {
         
     *pdata = *(unsigned short*)(pdev->regbase + offset);
-    asm("ssync;");
+    __builtin_bfin_ssync();
     return 0;
 }
 
