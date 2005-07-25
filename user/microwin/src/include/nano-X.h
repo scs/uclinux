@@ -1,6 +1,7 @@
 #ifndef	_NANO_X_H
 #define	_NANO_X_H
-/* Copyright (c) 1999, 2000 Greg Haerr <greg@censoft.com>
+/* Copyright (c) 1999, 2000, 2001, 2002, 2003 Greg Haerr <greg@censoft.com>
+ * Portions Copyright (c) 2002 by Koninklijke Philips Electronics N.V.
  * Copyright (c) 2000 Alex Holden <alex@linuxhacker.org>
  * Copyright (c) 1991 David I. Bell
  * Permission is granted to use, distribute, or modify this source,
@@ -22,20 +23,26 @@ extern "C" {
 typedef MWCOORD 	GR_COORD;	/* coordinate value */
 typedef MWCOORD 	GR_SIZE;	/* size value */
 typedef MWCOLORVAL 	GR_COLOR;	/* full color value */
-typedef MWPIXELVAL 	GR_PIXELVAL;	/* hw pixel value*/
+typedef MWPIXELVAL 	GR_PIXELVAL;	/* hw pixel value */
 typedef MWIMAGEBITS 	GR_BITMAP;	/* bitmap unit */
 typedef MWUCHAR 	GR_CHAR;	/* filename, window title */
-typedef MWKEY	 	GR_KEY;		/* keystroke value*/
-typedef MWSCANCODE	GR_SCANCODE;	/* oem keystroke scancode value*/
-typedef MWKEYMOD	GR_KEYMOD;	/* keystroke modifiers*/
-typedef MWSCREENINFO	GR_SCREEN_INFO;	/* screen information*/
-typedef MWFONTINFO	GR_FONT_INFO;	/* font information*/
-typedef MWIMAGEINFO	GR_IMAGE_INFO;	/* image information*/
-typedef MWIMAGEHDR	GR_IMAGE_HDR;	/* multicolor image representation*/
-typedef MWLOGFONT	GR_LOGFONT;	/* logical font descriptor*/
-typedef MWPALENTRY	GR_PALENTRY;	/* palette entry*/
-typedef MWPOINT		GR_POINT;	/* definition of a point*/
+typedef MWTEXTFLAGS	GR_TEXTFLAGS;	/* text encoding flags */
+typedef MWKEY	 	GR_KEY;		/* keystroke value */
+typedef MWSCANCODE	GR_SCANCODE;	/* oem keystroke scancode value */
+typedef MWKEYMOD	GR_KEYMOD;	/* keystroke modifiers */
+typedef MWSCREENINFO	GR_SCREEN_INFO;	/* screen information */
+typedef MWWINDOWFBINFO	GR_WINDOW_FB_INFO; /* direct client-mapped window info */
+typedef MWFONTINFO	GR_FONT_INFO;	/* font information */
+typedef MWIMAGEINFO	GR_IMAGE_INFO;	/* image information */
+typedef MWIMAGEHDR	GR_IMAGE_HDR;	/* multicolor image representation */
+typedef MWLOGFONT	GR_LOGFONT;	/* logical font descriptor */
+typedef MWPALENTRY	GR_PALENTRY;	/* palette entry */
+typedef MWPOINT		GR_POINT;	/* definition of a point */
 typedef MWTIMEOUT	GR_TIMEOUT;	/* timeout value */
+typedef MWFONTLIST	GR_FONTLIST;	/* list of fonts */
+typedef MWKBINFO	GR_KBINFO;	/* keyboard information  */
+typedef MWSTIPPLE       GR_STIPPLE;     /* Stipple information   */
+typedef MWTRANSFORM     GR_TRANSFORM;   /* Transform information */
 
 /* Basic typedefs. */
 typedef int 		GR_COUNT;	/* number of items */
@@ -47,8 +54,10 @@ typedef GR_ID		GR_GC_ID;	/* graphics context id */
 typedef GR_ID		GR_REGION_ID;	/* region id */
 typedef GR_ID		GR_FONT_ID;	/* font id */
 typedef GR_ID		GR_IMAGE_ID;	/* image id */
+typedef GR_ID		GR_TIMER_ID;	/* timer id */
+typedef GR_ID		GR_CURSOR_ID;	/* cursor id */
 typedef unsigned short	GR_BOOL;	/* boolean value */
-typedef int		GR_ERROR;	/* error types*/
+typedef int		GR_ERROR;	/* error types */
 typedef int		GR_EVENT_TYPE;	/* event types */
 typedef int		GR_UPDATE_TYPE;	/* window update types */
 typedef unsigned long	GR_EVENT_MASK;	/* event masks */
@@ -57,41 +66,70 @@ typedef unsigned long	GR_WM_PROPS;	/* window property flags */
 typedef unsigned long	GR_SERIALNO;	/* Selection request ID number */
 typedef unsigned short	GR_MIMETYPE;	/* Index into mime type list */
 typedef unsigned long	GR_LENGTH;	/* Length of a block of data */
-typedef unsigned int	GR_BUTTON;	/* mouse button value*/
+typedef unsigned int	GR_BUTTON;	/* mouse button value */
 
-/* Nano-X rectangle, different from MWRECT*/
+/** Nano-X rectangle, different from MWRECT */
 typedef struct {
-	GR_COORD x;
-	GR_COORD y;
-	GR_SIZE  width;
-	GR_SIZE  height;
+	GR_COORD x;		/**< upper left x coordinate*/
+	GR_COORD y;		/**< upper left y coordinate*/
+	GR_SIZE  width;		/**< rectangle width*/
+	GR_SIZE  height;	/**< rectangle height*/
 } GR_RECT;
 
 /* The root window id. */
 #define	GR_ROOT_WINDOW_ID	((GR_WINDOW_ID) 1)
 
-/* GR_COLOR color constructor*/
+/* GR_COLOR color constructor */
 #define GR_RGB(r,g,b)		MWRGB(r,g,b)
+#define GR_ARGB(a,r,g,b)	MWARGB(a,r,g,b)
 
-/* Drawing modes for GrSetGCMode*/
-#define	GR_MODE_SET		MWMODE_SET
-#define	GR_MODE_XOR		MWMODE_XOR
-#define	GR_MODE_OR		MWMODE_OR
-#define	GR_MODE_AND		MWMODE_AND
+/* Drawing modes for GrSetGCMode */
+#define	GR_MODE_COPY		MWMODE_COPY		/* src*/
+#define	GR_MODE_SET		MWMODE_COPY		/* obsolete, use GR_MODE_COPY*/
+#define	GR_MODE_XOR		MWMODE_XOR		/* src ^ dst*/
+#define	GR_MODE_OR		MWMODE_OR		/* src | dst*/
+#define	GR_MODE_AND		MWMODE_AND		/* src & dst*/
+#define	GR_MODE_CLEAR 		MWMODE_CLEAR		/* 0*/
+#define	GR_MODE_SETTO1		MWMODE_SETTO1		/* 11111111*/ /* will be GR_MODE_SET*/
+#define	GR_MODE_EQUIV		MWMODE_EQUIV		/* ~(src ^ dst)*/
+#define	GR_MODE_NOR		MWMODE_NOR		/* ~(src | dst)*/
+#define	GR_MODE_NAND		MWMODE_NAND		/* ~(src & dst)*/
+#define	GR_MODE_INVERT		MWMODE_INVERT		/* ~dst*/
+#define	GR_MODE_COPYINVERTED	MWMODE_COPYINVERTED	/* ~src*/
+#define	GR_MODE_ORINVERTED	MWMODE_ORINVERTED	/* ~src | dst*/
+#define	GR_MODE_ANDINVERTED	MWMODE_ANDINVERTED	/* ~src & dst*/
+#define GR_MODE_ORREVERSE	MWMODE_ORREVERSE	/* src | ~dst*/
+#define	GR_MODE_ANDREVERSE	MWMODE_ANDREVERSE	/* src & ~dst*/
+#define	GR_MODE_NOOP		MWMODE_NOOP		/* dst*/
+
 #define GR_MODE_DRAWMASK	0x00FF
 #define GR_MODE_EXCLUDECHILDREN	0x0100		/* exclude children on clip*/
 
+/* Line modes */
+#define GR_LINE_SOLID           MWLINE_SOLID
+#define GR_LINE_ONOFF_DASH      MWLINE_ONOFF_DASH
+
+#define GR_FILL_SOLID           MWFILL_SOLID
+#define GR_FILL_STIPPLE         MWFILL_STIPPLE
+#define GR_FILL_OPAQUE_STIPPLE  MWFILL_OPAQUE_STIPPLE
+#define GR_FILL_TILE            MWFILL_TILE
+
+/* Polygon regions*/
+#define GR_POLY_EVENODD		MWPOLY_EVENODD
+#define GR_POLY_WINDING		MWPOLY_WINDING
+
 /* builtin font std names*/
 #define GR_FONT_SYSTEM_VAR	MWFONT_SYSTEM_VAR
-#define GR_FONT_GUI_VAR		MWFONT_GUI_VAR
-#define GR_FONT_OEM_FIXED	MWFONT_OEM_FIXED
 #define GR_FONT_SYSTEM_FIXED	MWFONT_SYSTEM_FIXED
+#define GR_FONT_GUI_VAR		MWFONT_GUI_VAR		/* deprecated*/
+#define GR_FONT_OEM_FIXED	MWFONT_OEM_FIXED	/* deprecated*/
 
 /* GrText/GrGetTextSize encoding flags*/
 #define GR_TFASCII		MWTF_ASCII
 #define GR_TFUTF8		MWTF_UTF8
 #define GR_TFUC16		MWTF_UC16
 #define GR_TFUC32		MWTF_UC32
+#define GR_TFXCHAR2B		MWTF_XCHAR2B
 #define GR_TFPACKMASK		MWTF_PACKMASK
 
 /* GrText alignment flags*/
@@ -108,6 +146,10 @@ typedef struct {
 #define GR_ARC		MWARC		/* arc only*/
 #define GR_ARCOUTLINE	MWARCOUTLINE	/* arc + outline*/
 #define GR_PIE		MWPIE		/* pie (filled)*/
+
+/* GrSetWindowRegion types*/
+#define GR_WINDOW_BOUNDING_MASK	0	/* outer border*/
+#define GR_WINDOW_CLIP_MASK	1	/* inner border*/
 
 /* Booleans */
 #define	GR_FALSE		0
@@ -169,53 +211,80 @@ typedef struct {
 #define GR_WM_FLAGS_BORDERSIZE	0x0008	/* Border size*/
 #define GR_WM_FLAGS_BORDERCOLOR	0x0010	/* Border color*/
 
-/* Window manager properties used by the Gr[GS]etWMProperties calls. */
 /* NOTE: this struct must be hand-packed to a DWORD boundary for nxproto.h*/
+/**
+ * Window manager properties used by the GrGetWMProperties()/GrSetWMProperties() calls.
+ */
 typedef struct {
-  GR_WM_PROPS flags;		/* Which properties valid in struct for set*/
-  GR_WM_PROPS props;		/* Window property bits*/
-  GR_CHAR *title;		/* Window title*/
-  GR_COLOR background;		/* Window background color*/
-  GR_SIZE bordersize;		/* Window border size*/
-  GR_COLOR bordercolor;		/* Window border color*/
+  GR_WM_PROPS flags;		/**< Which properties valid in struct for set*/
+  GR_WM_PROPS props;		/**< Window property bits*/
+  GR_CHAR *title;		/**< Window title*/
+  GR_COLOR background;		/**< Window background color*/
+  GR_SIZE bordersize;		/**< Window border size*/
+  GR_COLOR bordercolor;		/**< Window border color*/
 } GR_WM_PROPERTIES;
 
-/* Window properties returned by the GrGetWindowInfo call. */
+/**
+ * Window properties returned by the GrGetWindowInfo() call.
+ */
 typedef struct {
-  GR_WINDOW_ID wid;		/* window id (or 0 if no such window) */
-  GR_WINDOW_ID parent;		/* parent window id */
-  GR_WINDOW_ID child;		/* first child window id (or 0) */
-  GR_WINDOW_ID sibling;		/* next sibling window id (or 0) */
-  GR_BOOL inputonly;		/* TRUE if window is input only */
-  GR_BOOL mapped;		/* TRUE if window is mapped */
-  GR_COUNT unmapcount;		/* reasons why window is unmapped */
-  GR_COORD x;			/* absolute x position of window */
-  GR_COORD y;			/* absolute y position of window */
-  GR_SIZE width;		/* width of window */
-  GR_SIZE height;		/* height of window */
-  GR_SIZE bordersize;		/* size of border */
-  GR_COLOR bordercolor;		/* color of border */
-  GR_COLOR background;		/* background color */
-  GR_EVENT_MASK eventmask;	/* current event mask for this client */
-  GR_WM_PROPS props;		/* window properties */
+  GR_WINDOW_ID wid;		/**< window id (or 0 if no such window) */
+  GR_WINDOW_ID parent;		/**< parent window id */
+  GR_WINDOW_ID child;		/**< first child window id (or 0) */
+  GR_WINDOW_ID sibling;		/**< next sibling window id (or 0) */
+  GR_BOOL inputonly;		/**< TRUE if window is input only */
+  GR_BOOL mapped;		/**< TRUE if window is mapped */
+  GR_BOOL realized;		/**< TRUE if window is mapped and visible */
+  GR_COORD x;			/**< parent-relative x position of window */
+  GR_COORD y;			/**< parent-relative  y position of window */
+  GR_SIZE width;		/**< width of window */
+  GR_SIZE height;		/**< height of window */
+  GR_SIZE bordersize;		/**< size of border */
+  GR_COLOR bordercolor;		/**< color of border */
+  GR_COLOR background;		/**< background color */
+  GR_EVENT_MASK eventmask;	/**< current event mask for this client */
+  GR_WM_PROPS props;		/**< window properties */
+  GR_CURSOR_ID cursor;		/**< cursor id*/
+  unsigned long processid;	/**< process id of owner*/
 } GR_WINDOW_INFO;
 
-/* Graphics context properties returned by the GrGetGCInfo call. */
+/**
+ * Graphics context properties returned by the GrGetGCInfo() call.
+ */
 typedef struct {
-  GR_GC_ID gcid;		/* GC id (or 0 if no such GC) */
-  int mode;			/* drawing mode */
-  GR_REGION_ID region;		/* user region */
-  GR_FONT_ID font;		/* font number */
-  GR_COLOR foreground;		/* foreground color */
-  GR_COLOR background;		/* background color */
-  GR_BOOL usebackground;	/* use background in bitmaps */
+  GR_GC_ID gcid;		/**< GC id (or 0 if no such GC) */
+  int mode;			/**< drawing mode */
+  GR_REGION_ID region;		/**< user region */
+  int xoff;			/**< x offset of user region */
+  int yoff;			/**< y offset of user region */
+  GR_FONT_ID font;		/**< font number */
+  GR_COLOR foreground;		/**< foreground RGB color or pixel value */
+  GR_COLOR background;		/**< background RGB color or pixel value */
+  GR_BOOL fgispixelval;		/**< TRUE if 'foreground' is actually a GR_PIXELVAL */
+  GR_BOOL bgispixelval;		/**< TRUE if 'background' is actually a GR_PIXELVAL */
+  GR_BOOL usebackground;	/**< use background in bitmaps */
+  GR_BOOL exposure;		/**< send exposure events on GrCopyArea */
 } GR_GC_INFO;
 
-/* color palette*/
+/**
+ * color palette
+ */
 typedef struct {
-  GR_COUNT count;		/* # valid entries*/
-  GR_PALENTRY palette[256];	/* palette*/
+  GR_COUNT count;		/**< # valid entries */
+  GR_PALENTRY palette[256];	/**< palette */
 } GR_PALETTE;
+
+/** Calibration data passed to GrCalcTransform */
+typedef struct {
+  int xres;			/**< X resolution of the screen */
+  int yres;			/**< Y resolution of the screen */
+  int minx;			/**< min raw X value */
+  int miny;			/**< min raw Y values */
+  int maxx;			/**< max raw X value */
+  int maxy;			/**< max raw Y value */
+  GR_BOOL xswap;		/**< true if the x component should be swapped */
+  GR_BOOL yswap;		/**< true if the y component should be swapped */
+} GR_CAL_DATA;
 
 /* Error codes */
 #define	GR_ERROR_BAD_WINDOW_ID		1
@@ -231,6 +300,9 @@ typedef struct {
 #define	GR_ERROR_SCREEN_ERROR		11
 #define	GR_ERROR_UNMAPPED_FOCUS_WINDOW	12
 #define	GR_ERROR_BAD_DRAWING_MODE	13
+#define GR_ERROR_BAD_LINE_ATTRIBUTE     14
+#define GR_ERROR_BAD_FILL_MODE          15
+#define GR_ERROR_BAD_REGION_ID		16
 
 /* Event types.
  * Mouse motion is generated for every motion of the mouse, and is used to
@@ -254,19 +326,21 @@ typedef struct {
 #define	GR_EVENT_TYPE_FOCUS_OUT		11
 #define GR_EVENT_TYPE_FDINPUT		12
 #define GR_EVENT_TYPE_UPDATE		13
-#define GR_EVENT_TYPE_CHLD_UPDATE	14	/* never sent*/
+#define GR_EVENT_TYPE_CHLD_UPDATE	14
 #define GR_EVENT_TYPE_CLOSE_REQ		15
 #define GR_EVENT_TYPE_TIMEOUT		16
 #define GR_EVENT_TYPE_SCREENSAVER	17
 #define GR_EVENT_TYPE_CLIENT_DATA_REQ	18
 #define GR_EVENT_TYPE_CLIENT_DATA	19
 #define GR_EVENT_TYPE_SELECTION_CHANGED 20
+#define GR_EVENT_TYPE_TIMER             21
+#define GR_EVENT_TYPE_PORTRAIT_CHANGED  22
 
 /* Event masks */
 #define	GR_EVENTMASK(n)			(((GR_EVENT_MASK) 1) << (n))
 
 #define	GR_EVENT_MASK_NONE		GR_EVENTMASK(GR_EVENT_TYPE_NONE)
-#define	GR_EVENT_MASK_ERROR		GR_EVENTMASK(GR_EVENT_TYPE_ERROR)
+#define	GR_EVENT_MASK_ERROR		0x80000000L
 #define	GR_EVENT_MASK_EXPOSURE		GR_EVENTMASK(GR_EVENT_TYPE_EXPOSURE)
 #define	GR_EVENT_MASK_BUTTON_DOWN	GR_EVENTMASK(GR_EVENT_TYPE_BUTTON_DOWN)
 #define	GR_EVENT_MASK_BUTTON_UP		GR_EVENTMASK(GR_EVENT_TYPE_BUTTON_UP)
@@ -287,6 +361,11 @@ typedef struct {
 #define GR_EVENT_MASK_CLIENT_DATA_REQ	GR_EVENTMASK(GR_EVENT_TYPE_CLIENT_DATA_REQ)
 #define GR_EVENT_MASK_CLIENT_DATA	GR_EVENTMASK(GR_EVENT_TYPE_CLIENT_DATA)
 #define GR_EVENT_MASK_SELECTION_CHANGED GR_EVENTMASK(GR_EVENT_TYPE_SELECTION_CHANGED)
+#define GR_EVENT_MASK_TIMER             GR_EVENTMASK(GR_EVENT_TYPE_TIMER)
+#define GR_EVENT_MASK_PORTRAIT_CHANGED  GR_EVENTMASK(GR_EVENT_TYPE_PORTRAIT_CHANGED)
+/* Event mask does not affect GR_EVENT_TYPE_HOTKEY_DOWN and
+ * GR_EVENT_TYPE_HOTKEY_UP, hence no masks for those events. */
+
 #define	GR_EVENT_MASK_ALL		((GR_EVENT_MASK) -1L)
 
 /* update event types */
@@ -297,8 +376,10 @@ typedef struct {
 #define GR_UPDATE_UNMAPTEMP	5	/* unmap during window move/resize*/
 #define GR_UPDATE_ACTIVATE	6	/* toplevel window [de]activate*/
 #define GR_UPDATE_DESTROY	7
+#define GR_UPDATE_REPARENT      8
 
-/* Event for errors detected by the server.
+/**
+ * Event for errors detected by the server.
  * These events are not delivered to GrGetNextEvent, but instead call
  * the user supplied error handling function.  Only the first one of
  * these errors at a time is saved for delivery to the client since
@@ -306,163 +387,274 @@ typedef struct {
  * and exit.
  */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  GR_FUNC_NAME name;		/* function name which failed */
-  GR_ERROR code;		/* error code */
-  GR_ID id;			/* resource id (maybe useless) */
+  GR_EVENT_TYPE type;		/**< event type */
+  GR_FUNC_NAME name;		/**< function name which failed */
+  GR_ERROR code;		/**< error code */
+  GR_ID id;			/**< resource id (maybe useless) */
 } GR_EVENT_ERROR;
 
-/* Event for a mouse button pressed down or released. */
+/**
+ * Event for a mouse button pressed down or released.
+ */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  GR_WINDOW_ID wid;		/* window id event delivered to */
-  GR_WINDOW_ID subwid;		/* sub-window id (pointer was in) */
-  GR_COORD rootx;		/* root window x coordinate */
-  GR_COORD rooty;		/* root window y coordinate */
-  GR_COORD x;			/* window x coordinate of mouse */
-  GR_COORD y;			/* window y coordinate of mouse */
-  GR_BUTTON buttons;		/* current state of all buttons */
-  GR_BUTTON changebuttons;	/* buttons which went down or up */
-  GR_KEYMOD modifiers;		/* modifiers (MWKMOD_SHIFT, etc)*/
-  GR_TIMEOUT time;		/* tickcount time value*/
+  GR_EVENT_TYPE type;		/**< event type */
+  GR_WINDOW_ID wid;		/**< window id event delivered to */
+  GR_WINDOW_ID subwid;		/**< sub-window id (pointer was in) */
+  GR_COORD rootx;		/**< root window x coordinate */
+  GR_COORD rooty;		/**< root window y coordinate */
+  GR_COORD x;			/**< window x coordinate of mouse */
+  GR_COORD y;			/**< window y coordinate of mouse */
+  GR_BUTTON buttons;		/**< current state of all buttons */
+  GR_BUTTON changebuttons;	/**< buttons which went down or up */
+  GR_KEYMOD modifiers;		/**< modifiers (MWKMOD_SHIFT, etc)*/
+  GR_TIMEOUT time;		/**< tickcount time value*/
 } GR_EVENT_BUTTON;
 
-/* Event for a keystroke typed for the window with has focus. */
+/**
+ * Event for a keystroke typed for the window with has focus.
+ */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  GR_WINDOW_ID wid;		/* window id event delived to */
-  GR_WINDOW_ID subwid;		/* sub-window id (pointer was in) */
-  GR_COORD rootx;		/* root window x coordinate */
-  GR_COORD rooty;		/* root window y coordinate */
-  GR_COORD x;			/* window x coordinate of mouse */
-  GR_COORD y;			/* window y coordinate of mouse */
-  GR_BUTTON buttons;		/* current state of buttons */
-  GR_KEYMOD modifiers;		/* modifiers (MWKMOD_SHIFT, etc)*/
-  GR_KEY ch;			/* 16-bit unicode key value, MWKEY_xxx */
-  GR_SCANCODE scancode;		/* OEM scancode value if available*/
+  GR_EVENT_TYPE type;		/**< event type */
+  GR_WINDOW_ID wid;		/**< window id event delived to */
+  GR_WINDOW_ID subwid;		/**< sub-window id (pointer was in) */
+  GR_COORD rootx;		/**< root window x coordinate */
+  GR_COORD rooty;		/**< root window y coordinate */
+  GR_COORD x;			/**< window x coordinate of mouse */
+  GR_COORD y;			/**< window y coordinate of mouse */
+  GR_BUTTON buttons;		/**< current state of buttons */
+  GR_KEYMOD modifiers;		/**< modifiers (MWKMOD_SHIFT, etc)*/
+  GR_KEY ch;			/**< 16-bit unicode key value, MWKEY_xxx */
+  GR_SCANCODE scancode;		/**< OEM scancode value if available*/
+  GR_BOOL hotkey;		/**< TRUE if generated from GrGrabKey(GR_GRAB_HOTKEY_x) */
 } GR_EVENT_KEYSTROKE;
 
-/* Event for exposure for a region of a window. */
+/**
+ * Event for exposure for a region of a window.
+ */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  GR_WINDOW_ID wid;		/* window id */
-  GR_COORD x;			/* window x coordinate of exposure */
-  GR_COORD y;			/* window y coordinate of exposure */
-  GR_SIZE width;		/* width of exposure */
-  GR_SIZE height;		/* height of exposure */
+  GR_EVENT_TYPE type;		/**< event type */
+  GR_WINDOW_ID wid;		/**< window id */
+  GR_COORD x;			/**< window x coordinate of exposure */
+  GR_COORD y;			/**< window y coordinate of exposure */
+  GR_SIZE width;		/**< width of exposure */
+  GR_SIZE height;		/**< height of exposure */
 } GR_EVENT_EXPOSURE;
 
-/* General events for focus in or focus out for a window, or mouse enter
+/**
+ * General events for focus in or focus out for a window, or mouse enter
  * or mouse exit from a window, or window unmapping or mapping, etc.
+ * Server portrait mode changes are also sent using this event to
+ * all windows that request it.
  */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  GR_WINDOW_ID wid;		/* window id */
-  GR_WINDOW_ID otherid;		/* new/old focus id for focus events*/
+  GR_EVENT_TYPE type;		/**< event type */
+  GR_WINDOW_ID wid;		/**< window id */
+  GR_WINDOW_ID otherid;		/**< new/old focus id for focus events*/
 } GR_EVENT_GENERAL;
 
-/* Events for mouse motion or mouse position. */
+/**
+ * Events for mouse motion or mouse position.
+ */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  GR_WINDOW_ID wid;		/* window id event delivered to */
-  GR_WINDOW_ID subwid;		/* sub-window id (pointer was in) */
-  GR_COORD rootx;		/* root window x coordinate */
-  GR_COORD rooty;		/* root window y coordinate */
-  GR_COORD x;			/* window x coordinate of mouse */
-  GR_COORD y;			/* window y coordinate of mouse */
-  GR_BUTTON buttons;		/* current state of buttons */
-  GR_KEYMOD modifiers;		/* modifiers (MWKMOD_SHIFT, etc)*/
+  GR_EVENT_TYPE type;		/**< event type */
+  GR_WINDOW_ID wid;		/**< window id event delivered to */
+  GR_WINDOW_ID subwid;		/**< sub-window id (pointer was in) */
+  GR_COORD rootx;		/**< root window x coordinate */
+  GR_COORD rooty;		/**< root window y coordinate */
+  GR_COORD x;			/**< window x coordinate of mouse */
+  GR_COORD y;			/**< window y coordinate of mouse */
+  GR_BUTTON buttons;		/**< current state of buttons */
+  GR_KEYMOD modifiers;		/**< modifiers (MWKMOD_SHIFT, etc)*/
 } GR_EVENT_MOUSE;
 
-/* GrRegisterInput event*/
+/**
+ * GrRegisterInput() event.
+ */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  int		fd;		/* input fd*/
+  GR_EVENT_TYPE type;		/**< event type */
+  int		fd;		/**< input file descriptor*/
 } GR_EVENT_FDINPUT;
 
-/* GR_EVENT_TYPE_UPDATE */
+/**
+ * GR_EVENT_TYPE_UPDATE
+ */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  GR_WINDOW_ID wid;		/* select window id*/
-  GR_WINDOW_ID subwid;		/* update window id (=wid for UPDATE event)*/
-  GR_COORD x;			/* new window x coordinate */
-  GR_COORD y;			/* new window y coordinate */
-  GR_SIZE width;		/* new width */
-  GR_SIZE height;		/* new height */
-  GR_UPDATE_TYPE utype;		/* update_type */
+  GR_EVENT_TYPE type;		/**< event type */
+  GR_WINDOW_ID wid;		/**< select window id*/
+  GR_WINDOW_ID subwid;		/**< update window id (=wid for UPDATE event)*/
+  GR_COORD x;			/**< new window x coordinate */
+  GR_COORD y;			/**< new window y coordinate */
+  GR_SIZE width;		/**< new width */
+  GR_SIZE height;		/**< new height */
+  GR_UPDATE_TYPE utype;		/**< update_type */
 } GR_EVENT_UPDATE;
 
-/* GR_EVENT_TYPE_SCREENSAVER */
+/**
+ * GR_EVENT_TYPE_SCREENSAVER
+ */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  GR_BOOL activate;		/* true = activate, false = deactivate */
+  GR_EVENT_TYPE type;		/**< event type */
+  GR_BOOL activate;		/**< true = activate, false = deactivate */
 } GR_EVENT_SCREENSAVER;
 
-/* GR_EVENT_TYPE_CLIENT_DATA_REQ */
+/**
+ * GR_EVENT_TYPE_CLIENT_DATA_REQ
+ */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  GR_WINDOW_ID wid;		/* ID of requested window */
-  GR_WINDOW_ID rid;		/* ID of window to send data to */
-  GR_SERIALNO serial;		/* Serial number of transaction */
-  GR_MIMETYPE mimetype;		/* Type to supply data as */
+  GR_EVENT_TYPE type;		/**< event type */
+  GR_WINDOW_ID wid;		/**< ID of requested window */
+  GR_WINDOW_ID rid;		/**< ID of window to send data to */
+  GR_SERIALNO serial;		/**< Serial number of transaction */
+  GR_MIMETYPE mimetype;		/**< Type to supply data as */
 } GR_EVENT_CLIENT_DATA_REQ;
 
-/* GR_EVENT_TYPE_CLIENT_DATA */
+/**
+ * GR_EVENT_TYPE_CLIENT_DATA
+ */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  GR_WINDOW_ID wid;		/* ID of window data is destined for */
-  GR_WINDOW_ID rid;		/* ID of window data is from */
-  GR_SERIALNO serial;		/* Serial number of transaction */
-  unsigned long len;		/* Total length of data */
-  unsigned long datalen;	/* Length of following data */
-  void *data;			/* Pointer to data (filled in on client side) */
+  GR_EVENT_TYPE type;		/**< event type */
+  GR_WINDOW_ID wid;		/**< ID of window data is destined for */
+  GR_WINDOW_ID rid;		/**< ID of window data is from */
+  GR_SERIALNO serial;		/**< Serial number of transaction */
+  unsigned long len;		/**< Total length of data */
+  unsigned long datalen;	/**< Length of following data */
+  void *data;			/**< Pointer to data (filled in on client side) */
 } GR_EVENT_CLIENT_DATA;
 
-/* GR_EVENT_TYPE_SELECTION_CHANGED */
+/**
+ * GR_EVENT_TYPE_SELECTION_CHANGED
+ */
 typedef struct {
-  GR_EVENT_TYPE type;		/* event type */
-  GR_WINDOW_ID new_owner;	/* ID of new selection owner */
+  GR_EVENT_TYPE type;		/**< event type */
+  GR_WINDOW_ID new_owner;	/**< ID of new selection owner */
 } GR_EVENT_SELECTION_CHANGED;
 
-/*
+/**
+ * GR_EVENT_TYPE_TIMER
+ */
+typedef struct {
+  GR_EVENT_TYPE  type;		/**< event type, GR_EVENT_TYPE_TIMER */
+  GR_WINDOW_ID   wid;		/**< ID of window timer is destined for */
+  GR_TIMER_ID    tid;		/**< ID of expired timer */
+} GR_EVENT_TIMER;
+
+/**
  * Union of all possible event structures.
- * This is the structure returned by the GrGetNextEvent and similar routines.
+ * This is the structure returned by GrGetNextEvent() and similar routines.
  */
 typedef union {
-  GR_EVENT_TYPE type;			/* event type */
-  GR_EVENT_ERROR error;			/* error event */
-  GR_EVENT_GENERAL general;		/* general window events */
-  GR_EVENT_BUTTON button;		/* button events */
-  GR_EVENT_KEYSTROKE keystroke;		/* keystroke events */
-  GR_EVENT_EXPOSURE exposure;		/* exposure events */
-  GR_EVENT_MOUSE mouse;			/* mouse motion events */
-  GR_EVENT_FDINPUT fdinput;		/* fd input events*/
-  GR_EVENT_UPDATE update;		/* window update events */
-  GR_EVENT_SCREENSAVER screensaver; 	/* Screen saver events */
-  GR_EVENT_CLIENT_DATA_REQ clientdatareq; /* Request for client data events */
-  GR_EVENT_CLIENT_DATA clientdata;	/* Client data events */
-  GR_EVENT_SELECTION_CHANGED selectionchanged; /* Selection owner changed */
+  GR_EVENT_TYPE type;			/**< event type */
+  GR_EVENT_ERROR error;			/**< error event */
+  GR_EVENT_GENERAL general;		/**< general window events */
+  GR_EVENT_BUTTON button;		/**< button events */
+  GR_EVENT_KEYSTROKE keystroke;		/**< keystroke events */
+  GR_EVENT_EXPOSURE exposure;		/**< exposure events */
+  GR_EVENT_MOUSE mouse;			/**< mouse motion events */
+  GR_EVENT_FDINPUT fdinput;		/**< fd input events*/
+  GR_EVENT_UPDATE update;		/**< window update events */
+  GR_EVENT_SCREENSAVER screensaver; 	/**< Screen saver events */
+  GR_EVENT_CLIENT_DATA_REQ clientdatareq; /**< Request for client data events */
+  GR_EVENT_CLIENT_DATA clientdata;	  /**< Client data events */
+  GR_EVENT_SELECTION_CHANGED selectionchanged; /**< Selection owner changed */
+  GR_EVENT_TIMER timer;                 /**< Timer events */
 } GR_EVENT;
 
 typedef void (*GR_FNCALLBACKEVENT)(GR_EVENT *);
 
-/* Pixel packings within words. */
-#define	GR_BITMAPBITS	(sizeof(GR_BITMAP) * 8)
-#define	GR_ZEROBITS	((GR_BITMAP) 0x0000)
-#define	GR_ONEBITS	((GR_BITMAP) 0xffff)
-#define	GR_FIRSTBIT	((GR_BITMAP) 0x8000)
-#define	GR_LASTBIT	((GR_BITMAP) 0x0001)
-#define	GR_BITVALUE(n)	((GR_BITMAP) (((GR_BITMAP) 1) << (n)))
-#define	GR_SHIFTBIT(m)	((GR_BITMAP) ((m) << 1))
-#define	GR_NEXTBIT(m)	((GR_BITMAP) ((m) >> 1))
-#define	GR_TESTBIT(m)	(((m) & GR_FIRSTBIT) != 0)
+/* GR_BITMAP macros*/
+/* size of GR_BITMAP image in words*/
+#define	GR_BITMAP_SIZE(width, height)	MWIMAGE_SIZE(width, height)
+#define	GR_BITMAPBITS			MWIMAGE_BITSPERIMAGE
+#define	GR_BITVALUE(n)			MWIMAGE_BITVALUE(n)
+#define	GR_FIRSTBIT			MWIMAGE_FIRSTBIT
+#define	GR_NEXTBIT(m)			MWIMAGE_NEXTBIT(m)
+#define	GR_TESTBIT(m)			MWIMAGE_TESTBIT(m)
+#define	GR_SHIFTBIT(m)			MWIMAGE_SHIFTBIT(m)
 
-/* Size of bitmaps. */
-#define	GR_BITMAP_SIZE(width, height)	((height) * \
-  (((width) + sizeof(GR_BITMAP) * 8 - 1) / (sizeof(GR_BITMAP) * 8)))
+/* GrGrabKey() types. */
 
-#define	GR_MAX_BITMAP_SIZE \
-  GR_BITMAP_SIZE(MAX_CURSOR_SIZE, MAX_CURSOR_SIZE)
+/**
+ * Key reservation type for GrGrabKey() - a key is reserved exclusively,
+ * and hotkey events are sent regardless of focus.
+ *
+ * Hotkey events are sent to the client that reserved the key.  The window
+ * ID passed to the GrGrabKey() call is passed as the source window.
+ *
+ * This type of reservation is useful for implementing a "main menu" key
+ * or similar hotkeys.
+ *
+ * This can be used to implement the MHP method
+ * org.dvb.event.EventManager.addUserEventListener(listener,client,events).
+ *
+ * @see GrGrabKey()
+ * @see GrUngrabKey()
+ */
+#define GR_GRAB_HOTKEY_EXCLUSIVE        0
+
+/**
+ * Key reservation type for GrGrabKey() - hotkey events are sent when a key
+ * is pressed, regardless of focus.  This is not an exclusive reservation,
+ * so the app that has the focus will get a normal key event.
+ *
+ * Hotkey events are sent to the client that reserved the key.  The window
+ * ID passed to the GrGrabKey() call is passed as the source window.
+ *
+ * Note that because this is not an exclusive grab, it does not stop
+ * other applications from grabbing the same key (using #GR_GRAB_HOTKEY
+ * or any other grab mode).  If an application has an exclusive grab on
+ * a key, then any grabs of type #GR_GRAB_HOTKEY will be ignored when
+ * dispatching that key event.
+ *
+ * This can be used to implement the MHP method
+ * org.dvb.event.EventManager.addUserEventListener(listener,events).
+ *
+ * @see GrGrabKey()
+ * @see GrUngrabKey()
+ */
+#define GR_GRAB_HOTKEY                  1
+
+/**
+ * Key reservation type for GrGrabKey() - a key is reserved exclusively,
+ * and normal key events are sent if the specified window has focus.
+ *
+ * This stops other applications from getting events on the specified key.
+ *
+ * For example, an application could use this to reserve the number
+ * keys before asking the user for a PIN, to prevent other applications
+ * stealing the PIN using #GR_GRAB_TYPE_HOTKEY.  (Note that this assumes
+ * the applications are running in a controlled environment, such as
+ * Java, so they can only interact with the platform in limited ways).
+ *
+ * This can be used to implement the MHP method
+ * org.dvb.event.EventManager.addExclusiveAccessToAWTEvent(client,events).
+ *
+ * @see GrGrabKey()
+ * @see GrUngrabKey()
+ */
+#define GR_GRAB_EXCLUSIVE               2
+
+/**
+ * Key reservation type for GrGrabKey() - a key is reserved exclusively,
+ * and normal key events are sent if the specified window has focus,
+ * or the mouse pointer is over the window.
+ *
+ * This stops other applications from getting events on the specified key.
+ *
+ * This is for compatibility with the first GrGrabKey() API, which only
+ * supported this kind of reservation.
+ *
+ * @see GrGrabKey()
+ * @see GrUngrabKey()
+ */
+#define GR_GRAB_EXCLUSIVE_MOUSE       3
+
+/**
+ * Highest legal value of any GR_GRAB_xxx constant.  (Lowest legal value 
+ * must be 0).
+ *
+ * @internal
+ */
+#define GR_GRAB_MAX                     GR_GRAB_EXCLUSIVE_MOUSE
 
 /* GrGetSysColor colors*/
 /* desktop background*/
@@ -499,7 +691,9 @@ typedef void (*GR_FNCALLBACKEVENT)(GR_EVENT *);
 #define GR_COLOR_MENUTEXT          18
 #define GR_COLOR_MENU              19
 
-/* Error strings per error number*/
+/**
+ * Error strings per error number
+ */
 #define GR_ERROR_STRINGS		\
 	"",				\
 	"Bad window id: %d\n",		\
@@ -514,20 +708,24 @@ typedef void (*GR_FNCALLBACKEVENT)(GR_EVENT *);
 	"Clipping overflow\n",		\
 	"Screen error\n",		\
 	"Unmapped focus window: %d\n",	\
-	"Bad drawing mode gc: %d\n"
-
+	"Bad drawing mode gc: %d\n",    \
+        "Bad line attribute gc: %d\n",  \
+        "Bad fill mode gc: %d\n",       \
+	"Bad region id: %d\n",
+        
 extern char *nxErrorStrings[];
 
 /* Public graphics routines. */
 void		GrFlush(void);
 int		GrOpen(void);
 void		GrClose(void);
+void		GrDelay(GR_TIMEOUT msecs);
 void		GrGetScreenInfo(GR_SCREEN_INFO *sip);
 GR_COLOR	GrGetSysColor(int index);
 GR_WINDOW_ID	GrNewWindow(GR_WINDOW_ID parent, GR_COORD x, GR_COORD y,
 			GR_SIZE width, GR_SIZE height, GR_SIZE bordersize,
 			GR_COLOR background, GR_COLOR bordercolor);
-GR_WINDOW_ID    GrNewPixmap(GR_SIZE width, GR_SIZE height, void * addr);
+GR_WINDOW_ID    GrNewPixmap(GR_SIZE width, GR_SIZE height, void *pixels);
 GR_WINDOW_ID	GrNewInputWindow(GR_WINDOW_ID parent, GR_COORD x, GR_COORD y,
 				GR_SIZE width, GR_SIZE height);
 void		GrDestroyWindow(GR_WINDOW_ID wid);
@@ -536,6 +734,8 @@ GR_GC_ID	GrCopyGC(GR_GC_ID gc);
 void		GrGetGCInfo(GR_GC_ID gc, GR_GC_INFO *gcip);
 void		GrDestroyGC(GR_GC_ID gc);
 GR_REGION_ID	GrNewRegion(void);
+GR_REGION_ID	GrNewBitmapRegion(GR_BITMAP *bitmap, GR_SIZE width,
+			GR_SIZE height);
 GR_REGION_ID	GrNewPolygonRegion(int mode, GR_COUNT count, GR_POINT *points);
 void		GrDestroyRegion(GR_REGION_ID region);
 void		GrUnionRectWithRegion(GR_REGION_ID region, GR_RECT *rect);
@@ -548,6 +748,7 @@ void		GrSubtractRegion(GR_REGION_ID dst_rgn, GR_REGION_ID src_rgn1,
 void		GrXorRegion(GR_REGION_ID dst_rgn, GR_REGION_ID src_rgn1,
 			GR_REGION_ID src_rgn2);
 void		GrSetGCRegion(GR_GC_ID gc, GR_REGION_ID region);
+void		GrSetGCClipOrigin(GR_GC_ID gc, int x, int y);
 GR_BOOL		GrPointInRegion(GR_REGION_ID region, GR_COORD x, GR_COORD y);
 int		GrRectInRegion(GR_REGION_ID region, GR_COORD x, GR_COORD y,
 			GR_COORD w, GR_COORD h);
@@ -568,6 +769,11 @@ void		GrSetWMProperties(GR_WINDOW_ID wid, GR_WM_PROPERTIES *props);
 void		GrGetWMProperties(GR_WINDOW_ID wid, GR_WM_PROPERTIES *props);
 GR_FONT_ID	GrCreateFont(GR_CHAR *name, GR_COORD height,
 			GR_LOGFONT *plogfont);
+GR_FONT_ID	GrCreateFontFromBuffer(const void *buffer, unsigned length,
+			const char *format, GR_COORD height);
+GR_FONT_ID	GrCopyFont(GR_FONT_ID fontid, GR_COORD height);
+void		GrGetFontList(GR_FONTLIST ***fonts, int *numfonts);
+void		GrFreeFontList(GR_FONTLIST ***fonts, int numfonts);
 void		GrSetFontSize(GR_FONT_ID fontid, GR_COORD size);
 void		GrSetFontRotation(GR_FONT_ID fontid, int tenthsdegrees);
 void		GrSetFontAttr(GR_FONT_ID fontid, int setflags, int clrflags);
@@ -575,13 +781,21 @@ void		GrDestroyFont(GR_FONT_ID fontid);
 void		GrGetFontInfo(GR_FONT_ID font, GR_FONT_INFO *fip);
 GR_WINDOW_ID	GrGetFocus(void);
 void		GrSetFocus(GR_WINDOW_ID wid);
-void		GrSetBorderColor(GR_WINDOW_ID wid, GR_COLOR color);
-void		GrClearWindow(GR_WINDOW_ID wid, GR_BOOL exposeflag);
+void		GrClearArea(GR_WINDOW_ID wid, GR_COORD x, GR_COORD y,
+			GR_SIZE width, GR_SIZE height, GR_BOOL exposeflag);
 void		GrSelectEvents(GR_WINDOW_ID wid, GR_EVENT_MASK eventmask);
 void		GrGetNextEvent(GR_EVENT *ep);
+int             GrGetTypedEvent(GR_WINDOW_ID wid, GR_EVENT_MASK mask, 
+			GR_UPDATE_TYPE update, GR_EVENT *ep, GR_BOOL block);
+typedef GR_BOOL (*GR_TYPED_EVENT_CALLBACK)(GR_WINDOW_ID, GR_EVENT_MASK,
+			GR_UPDATE_TYPE, GR_EVENT *, void *);
+int             GrGetTypedEventPred(GR_WINDOW_ID wid, GR_EVENT_MASK mask, 
+			GR_UPDATE_TYPE update, GR_EVENT * ep, GR_BOOL block, 
+			GR_TYPED_EVENT_CALLBACK matchfn, void *arg);
 void		GrGetNextEventTimeout(GR_EVENT *ep, GR_TIMEOUT timeout);
 void		GrCheckNextEvent(GR_EVENT *ep);
 int		GrPeekEvent(GR_EVENT *ep);
+void		GrPeekWaitEvent(GR_EVENT *ep);
 void		GrLine(GR_DRAW_ID id, GR_GC_ID gc, GR_COORD x1, GR_COORD y1,
 			GR_COORD x2, GR_COORD y2);
 void		GrPoint(GR_DRAW_ID id, GR_GC_ID gc, GR_COORD x, GR_COORD y);
@@ -606,19 +820,35 @@ void		GrArcAngle(GR_DRAW_ID id, GR_GC_ID gc, GR_COORD x, GR_COORD y,
 			GR_SIZE rx, GR_SIZE ry, GR_COORD angle1,
 			GR_COORD angle2, int type); /* floating point required*/
 void		GrSetGCForeground(GR_GC_ID gc, GR_COLOR foreground);
+void		GrSetGCForegroundPixelVal(GR_GC_ID gc, GR_PIXELVAL foreground);
 void		GrSetGCBackground(GR_GC_ID gc, GR_COLOR background);
+void		GrSetGCBackgroundPixelVal(GR_GC_ID gc, GR_PIXELVAL background);
 void		GrSetGCUseBackground(GR_GC_ID gc, GR_BOOL flag);
 void		GrSetGCMode(GR_GC_ID gc, int mode);
+
+void            GrSetGCLineAttributes(GR_GC_ID, int);
+void            GrSetGCDash(GR_GC_ID, char *, int);
+void            GrSetGCFillMode(GR_GC_ID, int);
+void            GrSetGCStipple(GR_GC_ID, GR_BITMAP *, GR_SIZE, GR_SIZE);
+void            GrSetGCTile(GR_GC_ID, GR_WINDOW_ID, GR_SIZE, GR_SIZE);
+void            GrSetGCTSOffset(GR_GC_ID, GR_COORD, GR_COORD);
+
+void            GrSetGCGraphicsExposure(GR_GC_ID gc, GR_BOOL exposure);
 void		GrSetGCFont(GR_GC_ID gc, GR_FONT_ID font);
-void		GrGetGCTextSize(GR_GC_ID gc, void *str, int count, int flags,
-			GR_SIZE *retwidth, GR_SIZE *retheight,GR_SIZE *retbase);
+void		GrGetGCTextSize(GR_GC_ID gc, void *str, int count,
+			GR_TEXTFLAGS flags, GR_SIZE *retwidth,
+			GR_SIZE *retheight,GR_SIZE *retbase);
 void		GrReadArea(GR_DRAW_ID id, GR_COORD x, GR_COORD y, GR_SIZE width,
 			GR_SIZE height, GR_PIXELVAL *pixels);
 void		GrArea(GR_DRAW_ID id, GR_GC_ID gc, GR_COORD x, GR_COORD y,
 			GR_SIZE width,GR_SIZE height,void *pixels,int pixtype);
 void            GrCopyArea(GR_DRAW_ID id, GR_GC_ID gc, GR_COORD x, GR_COORD y,
 			GR_SIZE width, GR_SIZE height, GR_DRAW_ID srcid,
-			GR_COORD srcx, GR_COORD srcy, int op);
+			GR_COORD srcx, GR_COORD srcy, unsigned long op);
+void		GrStretchArea(GR_DRAW_ID dstid, GR_GC_ID gc, GR_COORD dx1,
+			GR_COORD dy1, GR_COORD dx2, GR_COORD dy2,
+			GR_DRAW_ID srcid, GR_COORD sx1, GR_COORD sy1,
+			GR_COORD sx2, GR_COORD sy2, unsigned long op);
 void		GrBitmap(GR_DRAW_ID id, GR_GC_ID gc, GR_COORD x, GR_COORD y,
 			GR_SIZE width, GR_SIZE height, GR_BITMAP *imagebits);
 void		GrDrawImageBits(GR_DRAW_ID id,GR_GC_ID gc,GR_COORD x,GR_COORD y,
@@ -627,17 +857,23 @@ void		GrDrawImageFromFile(GR_DRAW_ID id, GR_GC_ID gc, GR_COORD x,
 			GR_COORD y, GR_SIZE width, GR_SIZE height,
 			char *path, int flags);
 GR_IMAGE_ID	GrLoadImageFromFile(char *path, int flags);
+void		GrDrawImageFromBuffer(GR_DRAW_ID id, GR_GC_ID gc, GR_COORD x,
+			GR_COORD y, GR_SIZE width, GR_SIZE height,
+			void *buffer, int size, int flags);
+GR_IMAGE_ID	GrLoadImageFromBuffer(void *buffer, int size, int flags);
 void		GrDrawImageToFit(GR_DRAW_ID id, GR_GC_ID gc, GR_COORD x,
 			GR_COORD y, GR_SIZE width, GR_SIZE height,
 			GR_IMAGE_ID imageid);
 void		GrFreeImage(GR_IMAGE_ID id);
 void		GrGetImageInfo(GR_IMAGE_ID id, GR_IMAGE_INFO *iip);
 void		GrText(GR_DRAW_ID id, GR_GC_ID gc, GR_COORD x, GR_COORD y,
-			void *str, GR_COUNT count, int flags);
-void		GrSetCursor(GR_WINDOW_ID wid, GR_SIZE width, GR_SIZE height,
-			GR_COORD hotx, GR_COORD hoty, GR_COLOR foreground,
-			GR_COLOR background, GR_BITMAP *fbbitmap,
-			GR_BITMAP *bgbitmap);
+			void *str, GR_COUNT count, GR_TEXTFLAGS flags);
+GR_CURSOR_ID	GrNewCursor(GR_SIZE width, GR_SIZE height, GR_COORD hotx,
+			GR_COORD hoty, GR_COLOR foreground, GR_COLOR background,
+			GR_BITMAP *fgbitmap, GR_BITMAP *bgbitmap);
+void		GrDestroyCursor(GR_CURSOR_ID cid);
+void		GrSetWindowCursor(GR_WINDOW_ID wid, GR_CURSOR_ID cid);
+void		GrSetWindowRegion(GR_WINDOW_ID wid, GR_REGION_ID rid, int type);
 void		GrMoveCursor(GR_COORD x, GR_COORD y);
 void		GrGetSystemPalette(GR_PALETTE *pal);
 void		GrSetSystemPalette(GR_COUNT first, GR_PALETTE *pal);
@@ -661,7 +897,19 @@ void		GrSendClientData(GR_WINDOW_ID wid, GR_WINDOW_ID did,
 void		GrBell(void);
 void		GrSetBackgroundPixmap(GR_WINDOW_ID wid, GR_WINDOW_ID pixmap,
 			int flags);
+void		GrQueryPointer(GR_WINDOW_ID *mwin, GR_COORD *x, GR_COORD *y,
+			GR_BUTTON *bmask);
+void		GrQueryTree(GR_WINDOW_ID wid, GR_WINDOW_ID *parentid,
+			GR_WINDOW_ID **children, GR_COUNT *nchildren);
+GR_BOOL         GrGrabKey(GR_WINDOW_ID wid, GR_KEY key, int type);
+void            GrUngrabKey(GR_WINDOW_ID wid, GR_KEY key);
+
+GR_TIMER_ID	GrCreateTimer(GR_WINDOW_ID wid, GR_TIMEOUT period);
+void		GrDestroyTimer(GR_TIMER_ID tid);
+void		GrSetPortraitMode(int portraitmode);
+
 void		GrRegisterInput(int fd);
+void		GrUnregisterInput(int fd);
 void		GrMainLoop(GR_FNCALLBACKEVENT fncb);
 GR_FNCALLBACKEVENT GrSetErrorHandler(GR_FNCALLBACKEVENT fncb);
 void		GrDefaultErrorHandler(GR_EVENT *ep);
@@ -670,15 +918,46 @@ void		GrDefaultErrorHandler(GR_EVENT *ep);
 void		GrPrepareSelect(int *maxfd,void *rfdset);
 void		GrServiceSelect(void *rfdset, GR_FNCALLBACKEVENT fncb);
 
+/* Client side queue count - available only with client/server */
+int             GrQueueLength(void);
+
+void            GrSetTransform(GR_TRANSFORM *);
+
+/* nxtransform.c - mouse utility routines (requires floating point)*/
+int             GrCalcTransform(GR_CAL_DATA *, GR_TRANSFORM *);
+int             GrLoadTransformData(char *filename, GR_TRANSFORM *);
+int             GrSaveTransformData(GR_TRANSFORM *, char *filename);
+
 /* nxutil.c - utility routines*/
 GR_WINDOW_ID	GrNewWindowEx(GR_WM_PROPS props, GR_CHAR *title,
 			GR_WINDOW_ID parent, GR_COORD x, GR_COORD y,
 			GR_SIZE width, GR_SIZE height, GR_COLOR background);
 void		GrDrawLines(GR_DRAW_ID w, GR_GC_ID gc, GR_POINT *points,
 			GR_COUNT count);
+GR_BITMAP *	GrNewBitmapFromData(GR_SIZE width, GR_SIZE height, GR_SIZE bits_width,
+			GR_SIZE bits_height, void *bits, int flags);
 GR_WINDOW_ID    GrNewPixmapFromData(GR_SIZE width, GR_SIZE height, 
 			GR_COLOR foreground, GR_COLOR background, void * bits,
 			int flags);
+GR_BITMAP *	GrNewBitmapFromPixmap(GR_WINDOW_ID pixmap, int x, int y, GR_SIZE width,
+			GR_SIZE height);
+GR_BITMAP *	GrNewBitmapFromPixmap(GR_WINDOW_ID pixmap, int x, int y,
+			GR_SIZE width, GR_SIZE height);
+GR_REGION_ID	GrNewRegionFromPixmap(GR_WINDOW_ID src, MWCOORD x, MWCOORD y,
+			GR_SIZE width, GR_SIZE height);
+
+/* direct client-side framebuffer mapping routines*/
+unsigned char * GrOpenClientFramebuffer(void);
+void		GrCloseClientFramebuffer(void);
+void		GrGetWindowFBInfo(GR_WINDOW_ID wid, GR_WINDOW_FB_INFO *fbinfo);
+
+/* retrofit - no longer used*/
+GR_CURSOR_ID	GrSetCursor(GR_WINDOW_ID wid, GR_SIZE width, GR_SIZE height,
+			GR_COORD hotx, GR_COORD hoty, GR_COLOR foreground,
+			GR_COLOR background, GR_BITMAP *fbbitmap,
+			GR_BITMAP *bgbitmap);
+#define GrSetBorderColor		GrSetWindowBorderColor	/* retrofit*/
+#define GrClearWindow(wid,exposeflag)	GrClearArea(wid,0,0,0,0,exposeflag) /* retrofit*/
 
 /* useful function macros*/
 #define GrSetWindowBackgroundColor(wid,color) \
@@ -713,6 +992,77 @@ GR_WINDOW_ID    GrNewPixmapFromData(GR_SIZE width, GR_SIZE height,
 /* RTEMS requires rtems_main()*/
 #if __rtems__
 #define main	rtems_main
+#endif
+
+/* client side event queue (client.c local)*/
+typedef struct event_list EVENT_LIST;
+struct event_list {
+	EVENT_LIST *	next;
+	GR_EVENT	event;
+};
+
+/* queued request buffer (nxproto.c local)*/
+typedef struct {
+	unsigned char *bufptr;		/* next unused buffer location*/
+	unsigned char *bufmax;		/* max buffer location*/
+	unsigned char *buffer;		/* request buffer*/
+} REQBUF;
+
+#ifdef __ECOS
+#include <sys/select.h>
+#include <cyg/kernel/kapi.h>
+/*
+ * In a single process, multi-threaded environment, we need to keep
+ * all static data of shared code in a structure, with a pointer to
+ * the structure to be stored in thread-local storage
+ */
+typedef struct {                                /* Init to: */
+    int                 _nxSocket;              /*  -1 */
+    MWMUTEX	 	_nxGlobalLock;
+    int                 _storedevent;           /* 0 */
+    GR_EVENT            _storedevent_data;      /* no init(0) */
+    int                 _regfdmax;              /* -1 */
+    fd_set		_regfdset;		/* FD_ZERO */
+    GR_FNCALLBACKEVENT  _GrErrorFunc;           /* GrDefaultErrorHandler */
+    REQBUF              _reqbuf;
+    EVENT_LIST          *_evlist;
+} ecos_nanox_client_data;
+
+extern int     ecos_nanox_client_data_index;
+
+#define ACCESS_PER_THREAD_DATA()                                        \
+    ecos_nanox_client_data *data = (ecos_nanox_client_data*)            \
+        cyg_thread_get_data((cyg_ucount32)ecos_nanox_client_data_index);
+
+#define INIT_PER_THREAD_DATA()                                                  \
+    {                                                                           \
+        ecos_nanox_client_data *dptr = malloc(sizeof(ecos_nanox_client_data));  \
+        ecos_nanox_client_data_index = data;                                    \
+        dptr->_nxSocket = -1;                                                   \
+	dptr->nxGlobalLock = 0;
+        dptr->_storedevent = 0;                                                 \
+        dptr->_regfdmax = -1;                                                   \
+        FD_ZERO(&dptr->_regfdset);                                              \
+        dptr->_GrErrorFunc = GrDefaultErrorHandler;                             \
+        dptr->_reqbuf.bufptr = NULL;                                            \
+        dptr->_reqbuf.bufmax = NULL;                                            \
+        dptr->_reqbuf.buffer = NULL;                                            \
+        dptr->_evlist = NULL;                                                   \
+        cyg_thread_set_data(ecos_nanox_client_data_index,(CYG_ADDRWORD)dptr);   \
+    }
+
+#define nxSocket                (data->_nxSocket)
+#define nxGlobalLock            (data->_nxGlobalLock)
+#define storedevent             (data->_storedevent)
+#define storedevent_data        (data->_storedevent_data)
+#define regfdmax                (data->_regfdmax)
+#define regfdset                (data->_regfdset)
+#define ErrorFunc               (data->_GrErrorFunc)
+#define reqbuf                  (data->_reqbuf)
+#define evlist                  (data->_evlist)
+
+#else
+#define ACCESS_PER_THREAD_DATA()
 #endif
 
 #endif /* _NANO_X_H*/

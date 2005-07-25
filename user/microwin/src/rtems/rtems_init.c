@@ -1,7 +1,5 @@
 /*
 /////////////////////////////////////////////////////////////////////////////
-// $Header$
-//
 // Copyright (c) 1999 ConnectTel, Inc. All Rights Reserved.
 //  
 // MODULE DESCRIPTION:
@@ -14,13 +12,7 @@
 //      http://www.connecttel.com
 //
 // MODIFICATION/HISTORY:
-// $Log$
-// Revision 1.1  2004/07/19 13:11:32  lgsoft
-// Initial revision
-//
-// Revision 1.1.1.1  2004/07/18 13:27:54  nidhi
-// Importing
-//
+// Microwindows pre8 with patches
 //
 /////////////////////////////////////////////////////////////////////////////
 */

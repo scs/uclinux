@@ -13,8 +13,7 @@
 #include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <string.h>
-
-#include <linux/mtd/mtd.h>
+#include "mtd/mtd-user.h"
 
 int main(int argc, char *argv[])
 {

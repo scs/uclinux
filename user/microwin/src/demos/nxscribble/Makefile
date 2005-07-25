@@ -35,7 +35,14 @@ LIBNAME =
 OBJS = nxscribble.o scribwidget.o\
 	hre_api.o li_recognizer.o bitvector.o matrix.o sc.o util.o
 
-all: default $(TOP)/bin/nxscribble
+ifeq ($(ARCH), ECOS)
+DEFINES += -DREC_DEFAULT_USER_DIR=\"/bin\"
+TARGET = $(TOP)/bin/nxscribble.o
+else
+TARGET = $(TOP)/bin/nxscribble
+endif
+
+all: default $(TARGET)
 	$(CP) letters.cl digits.cl punc.cl $(TOP)/bin
 
 endif
@@ -50,6 +57,13 @@ ifeq ($(SHAREDLIBS), Y)
 $(TOP)/bin/nxscribble: $(OBJS) $(NANOXCLIENTLIBS) $(TOP)/config
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@ $(CCNANOXCLIENTLIBS) -lm $(LDLIBS)
 else
+ifeq ($(ARCH), ECOS)
+$(TOP)/bin/nxscribble.o: $(OBJS) $(TOP)/config
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -Wl,-r -Wl,--defsym -Wl,nxscribble_main=main -o XX.o
+	$(NM) XX.o | grep -v _main | grep ' T' | awk -f $(TOP)/ecos/retain.awk | xargs $(OBJCOPY) XX.o $@
+	rm -f XX.o
+else
 $(TOP)/bin/nxscribble: $(OBJS) $(NANOXCLIENTLIBS) $(TOP)/config
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@ $(NANOXCLIENTLIBS) -lm $(LDLIBS)
+endif
 endif

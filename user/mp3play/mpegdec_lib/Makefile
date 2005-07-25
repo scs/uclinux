@@ -18,13 +18,15 @@ ColdFire = 1
 #ColdFireMAC = 1
 endif
 
+ifdef CONFIG_USER_SETKEY_SETKEY
+CFLAGS += -DUSE_RC4 -I../rc4
+endif
 
 ifdef ColdFire
 MYLIB= mpegdec.a
 ifdef MPEGAUD_INT
 CFLAGS	+= -DMPEGAUD_INT -DSPLIT_TABLE -DUSE_IMDCT_TABLE
 endif
-CFLAGS += -DUSE_RC4 -I../rc4
 else
 ifdef MPEGAUD_INT
 CFLAGS	+= -DMPEGAUD_INT -DSPLIT_TABLE -DUSE_IMDCT_TABLE

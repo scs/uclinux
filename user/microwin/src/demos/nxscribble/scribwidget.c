@@ -52,11 +52,13 @@ ResetStroke (ScribbleWidget w)
     ShowMode(w);
 }
 
+/*
 static void
 DisplayStroke (ScribbleWidget	w)
 {
     GrDrawLines(w->win, w->gc, w->pt, w->ps.ps_npts);
 }
+*/
 
 static void
 DisplayLast (ScribbleWidget w)
@@ -130,7 +132,7 @@ create_scribble(void)
     /* set title, disallow focus on input window*/
     props.flags = GR_WM_FLAGS_TITLE | GR_WM_FLAGS_PROPS;
     props.props = GR_WM_PROPS_NOFOCUS | GR_WM_PROPS_BORDER |
-	    GR_WM_PROPS_CAPTION;
+	    GR_WM_PROPS_CAPTION | GR_WM_PROPS_CLOSEBOX;
     props.title = "nxScribble";
     GrSetWMProperties(new->win, &props);
 
@@ -143,7 +145,7 @@ create_scribble(void)
     new->gc = GrNewGC();
     GrSetGCForeground(new->gc, GrGetSysColor(GR_COLOR_APPTEXT));
     GrSetGCBackground(new->gc, GrGetSysColor(GR_COLOR_APPWINDOW));
-    GrSetGCFont(new->gc, GrCreateFont(GR_FONT_OEM_FIXED, 0, NULL));
+    GrSetGCFont(new->gc, GrCreateFont(GR_FONT_SYSTEM_FIXED, 0, NULL));
 
     ResetStroke (new);
     return new;
@@ -212,7 +214,9 @@ static int
 graffiti_load_recognizers(struct graffiti *pg)
 {
 	bool usingDefault;
-	//char* homedir;
+#if 0
+	char* homedir;
+#endif
 	int i;
 	rec_fn *fns;
 
@@ -232,15 +236,19 @@ graffiti_load_recognizers(struct graffiti *pg)
 	}
 
 	/* ...then figure out where the classifiers are... */
-	//if ( (homedir = (char*)getenv("HOME")) == NULL ) {
+#if 0
+	if ( (homedir = (char*)getenv("HOME")) == NULL ) {
+#endif
 		strcpy(pg->cldir, REC_DEFAULT_USER_DIR);
 		usingDefault = true;
-	//} else {
-		//strcpy(pg->cldir, homedir);
-		//strcat(pg->cldir, "/"); 
-		//strcat(pg->cldir, CLASSIFIER_DIR); 
-		//usingDefault = false;
-	//}
+#if 0
+	} else {
+		strcpy(pg->cldir, homedir);
+		strcat(pg->cldir, "/"); 
+		strcat(pg->cldir, CLASSIFIER_DIR); 
+		usingDefault = false;
+	}
+#endif
 
 	/* ...then load the classifiers... */
 	for (i = 0; i < NUM_RECS; i++) {
@@ -331,7 +339,7 @@ ShowMode (ScribbleWidget w)
 static char
 do_recognize(struct graffiti *pg, pen_stroke *ps, int charset)
 {
-       char rec_char;
+       int rec_char;
        int nret;
        rec_alternative *ret;
 
@@ -360,7 +368,9 @@ Recognize (ScribbleWidget w)
     w->lastchar = 0;
 
     c = do_recognize(graf, ps, w->puncShift ? CS_PUNCTUATION : w->curCharSet);
-//printf("class %c (%d)\n", c, c);
+
+    /*printf("class %c (%d)\n", c, c);*/
+
     switch (c) {
     case '\000':
 msg("[Error]");

@@ -72,7 +72,7 @@
 static GR_WINDOW_ID	w1;	/* id for window */
 static GR_GC_ID		gc1;	/* graphics context */
 static GR_FONT_ID       regFont;
-//static GR_FONT_ID       boldFont;
+/*static GR_FONT_ID       boldFont;*/
 
 static GR_SCREEN_INFO	si;	/* screen info */
 static GR_FONT_INFO     fi;     /* Font Info */
@@ -80,7 +80,8 @@ static GR_WINDOW_INFO   wi;
 static GR_GC_INFO       gi;
 static GR_BOOL		havefocus = GR_FALSE;
 
-static short winw, winh, pid, console;
+static pid_t pid;
+static short winw, winh, console;
 static int pipeh;
 static short cblink = 0, visualbell = 0, debug = 0;
 #ifdef __FreeBSD__
@@ -91,9 +92,33 @@ static struct winsize winsz;
 #define fonh fi.height
 #define fonw fi.maxwidth
 
-int term_init();
+int term_init(void);
+void maximize(void);
+void sigpipe(int sig);
+void sigchld(int sig);
+void sigquit(int sig);
+void sflush(void);
+void lineRedraw(void);
+void sadd (char c);
+void show_cursor (void);
+void draw_cursor (void);
+void hide_cursor (void);
+void vscroll(int lines);
+void esc5(unsigned char c);
+void esc4(unsigned char c);
+void esc3(unsigned char c);
+void esc2(unsigned char c);
+void esc1(unsigned char c);
+void esc0(unsigned char c);
+void printc(unsigned char c);
+void init(void);
+void term(void);
+void usage(char *s);
+void *mysignal(int signum, void *handler);
+void sigchild(int signo);
 
-/****************************************************************************/
+
+/* **************************************************************************/
 
 /*
  *
@@ -124,7 +149,7 @@ void maximize(void)
 }
 
 
-/****************************************************************************/
+/* **************************************************************************/
 
 
 /*
@@ -216,7 +241,7 @@ void show_cursor (void)
 	GrSetGCForeground(gc1, WHITE);
 	GrFillRect(w1, gc1, curx*fonw, cury*fonh+1, fonw, fonh-1);
 	GrSetGCForeground(gc1, gi.foreground);
-	GrSetGCMode(gc1,GR_MODE_SET);
+	GrSetGCMode(gc1,GR_MODE_COPY);
 }
 
 
@@ -655,7 +680,7 @@ void printc(unsigned char c)
 }
 
 
-void init()
+void init(void)
 {
     curx = savx = 0;
     cury = savy = 0;
@@ -1078,7 +1103,7 @@ void sigchild(int signo)
 	exit(0);
 }
 
-int term_init()
+int term_init(void)
 {
 	int tfd;
 	int n = 0;

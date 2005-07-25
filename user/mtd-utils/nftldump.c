@@ -31,12 +31,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
-
-#include "kernstubs.h"
 #include <sys/ioctl.h>
 #include <asm/types.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/nftl.h>
+#include "mtd/mtd-user.h"
+#include "mtd/nftl-user.h"
 
 extern ssize_t pread();
 

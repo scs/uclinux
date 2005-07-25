@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 1999, 2000, 2001 Greg Haerr <greg@censoft.com>
  *
  * Microwindows Screen Driver using SVGA Library
  *
@@ -53,7 +53,9 @@ SCREENDEVICE	scrdev = {
 	NULL,			/* SetIOPermissions*/
 	gen_allocatememgc,
 	NULL,			/* MapMemGC*/
-	NULL			/* FreeMemGC*/
+	NULL,			/* FreeMemGC*/
+	NULL,			/* StretchBlit subdriver*/
+	NULL			/* SetPortrait*/
 };
 
 extern int gr_mode;	/* temp kluge*/
@@ -112,8 +114,13 @@ SVGA_getscreeninfo(PSD psd,PMWSCREENINFO psi)
 	psi->planes = psd->planes;
 	psi->bpp = psd->bpp;
 	psi->ncolors = psd->ncolors;
-	psi->pixtype = psd->pixtype;
 	psi->fonts = NUMBER_FONTS;
+	psi->portrait = MWPORTRAIT_NONE;
+	psi->fbdriver = FALSE;	/* not running fb driver, no direct map*/
+	psi->pixtype = psd->pixtype;
+	psi->rmask 	= 0xff;
+	psi->gmask 	= 0xff;
+	psi->bmask	= 0xff;
 
 	if(psd->yvirtres > 480) {
 		/* SVGA 800x600*/
@@ -144,7 +151,7 @@ SVGA_drawpixel(PSD psd,MWCOORD x, MWCOORD y, MWPIXELVAL c)
 {
 	unsigned char gline, line = c;
 
-	if(gr_mode == MWMODE_SET) {
+	if(gr_mode == MWMODE_COPY) {
 		/* vga_drawpixel apparently doesn't work with 256 colors...
 		 * vga_setegacolor(c);
 		 * vga_drawpixel(x, y);
@@ -211,7 +218,7 @@ SVGA_drawhline(PSD psd,MWCOORD x1, MWCOORD x2, MWCOORD y, MWPIXELVAL c)
 static void
 SVGA_drawvline(PSD psd,MWCOORD x, MWCOORD y1, MWCOORD y2, MWPIXELVAL c)
 {
-	if(gr_mode == MWMODE_SET) {
+	if(gr_mode == MWMODE_COPY) {
 		vga_setegacolor(c);
 		vga_drawline(x, y1, x, y2);
 	}
@@ -281,4 +288,3 @@ setfadelevel(PSD psd, int f)
 	}
    SVGA_setpalette( psd, 0,256,local_palette );
 }
-

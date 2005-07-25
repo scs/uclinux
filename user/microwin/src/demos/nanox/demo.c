@@ -1,5 +1,6 @@
 /*
  * Demonstration program for Nano-X graphics.
+ * Portions Copyright (c) 2002 by Koninklijke Philips Electronics N.V.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -454,16 +455,16 @@ do_idle(void)
 	GR_COORD	y;
 	GR_SIZE		rx;
 	GR_SIZE		ry;
-	GR_COLOR	color;
+	GR_PIXELVAL	pixelval;
 
 	x = rand() % 70;
 	y = rand() % 40;
 	rx = (rand() % 10) + 5;
 	ry = (rx * si.ydpcm) / si.xdpcm;	/* make it appear circular */
 	
-	color = rand() % si.ncolors;
+	pixelval = rand() % si.ncolors;
 
-	GrSetGCForeground(gc3, MWPALINDEX(color));
+	GrSetGCForegroundPixelVal(gc3, pixelval);
 	GrFillEllipse(w2, gc3, x, y, rx, ry);	
 }
 

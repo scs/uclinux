@@ -1,4 +1,24 @@
-add stretch blit for background images
+add scr_sgm.c, suifont.c, DrawBitmap
+add X11 mag driver
+wide border rects, ^R redisplay screen
+add MWTF_CENTER, MWTF_COLUMN, compound fonts?
+
+check whether font previously loaded, cache pfont return?
+move image decoders to library
+remove internal server image format, use pixmaps instead
+add amortized background text clear for other subengines
+
+add GrSetLocale flag for text?
+add PIXIL screentop window manager
+add PIXIL nxutil library
+
+TypedReadBlock not checked
+fixup GrNewBitmapFromPixmap
+obsolete MWMODE_SET, MWROP_SRCCOPY, change MWMODE_SETTO1 before 0.89 final
+write X11 stretchblit driver entry point
+check for HAVE_STRETCHBLIT before calling it...
+add psi->fbdriver, psi->rmask, psi->portrait in all drivers/scr*.c
+ability to link in only specified fb Xbpp drivers
 
 send recursive UPDATE_MOVE events to child windows, correct wp->x, wp->y sent
 add WM_KEYDOWN/KEYUP bits to win32
@@ -30,7 +50,6 @@ GdHideCursor/ShowCursor still interferes with GdFixCursor
 	for X11 Enter/LeaveNotify auto-hiding of cursor
 add startup options: -portrait, -landscape
 t1lib UCS2->8859 conversion
-fix fonts/convbdf for > 126 chars, check for constant widths, omit width table
 auto swap x/y for autoportrait mode if y>x unless -portrait
 
 hwnd->update should be an HRGN, make things easier

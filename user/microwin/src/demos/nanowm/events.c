@@ -1,7 +1,7 @@
 /*
  * NanoWM - Window Manager for Nano-X
  *
- * Copyright (C) 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (C) 2000, 2003 Greg Haerr <greg@censoft.com>
  * Copyright (C) 2000 Alex Holden <alex@linuxhacker.org>
  */
 #include <stdio.h>
@@ -9,7 +9,8 @@
 #define MWINCLUDECOLORS
 #include "nano-X.h"
 /* Uncomment this if you want debugging output from this file */
-//#define DEBUG
+/*#define DEBUG*/
+
 #include "nanowm.h"
 
 void do_exposure(GR_EVENT_EXPOSURE *event)
@@ -154,11 +155,10 @@ void do_focus_in(GR_EVENT_GENERAL *event)
 void do_key_down(GR_EVENT_KEYSTROKE *event)
 {
 	Dprintf("do_key_down: wid %d, subwid %d, rootx %d, rooty %d, x %d, "
-		"y %d, buttons %d, modifiers %d, uch %lu, special %d, "
-		"ch %d, content %d\n", event->wid, event->subwid, event->rootx,
+		"y %d, buttons %d, modifiers %d, ch %u, scancode %d\n",
+		event->wid, event->subwid, event->rootx,
 		event->rooty, event->x, event->y, event->buttons,
-		event->modifiers, event->uch, event->special, event->ch,
-		event->content);
+		event->modifiers, event->ch, event->scancode);
 
 	/* FIXME: Implement keyboard shortcuts */
 }
@@ -166,11 +166,10 @@ void do_key_down(GR_EVENT_KEYSTROKE *event)
 void do_key_up(GR_EVENT_KEYSTROKE *event)
 {
 	Dprintf("do_key_up: wid %d, subwid %d, rootx %d, rooty %d, x %d, "
-		"y %d, buttons %d, modifiers %d, uch %lu, special %d, "
-		"ch %d, content %d\n", event->wid, event->subwid, event->rootx,
+		"y %d, buttons %d, modifiers %d, ch %u, scancode %d\n",
+		event->wid, event->subwid, event->rootx,
 		event->rooty, event->x, event->y, event->buttons,
-		event->modifiers, event->uch, event->special, event->ch,
-		event->content);
+		event->modifiers, event->ch, event->scancode);
 }
 
 void do_update(GR_EVENT_UPDATE *event)
@@ -178,13 +177,12 @@ void do_update(GR_EVENT_UPDATE *event)
 	win *window;
 
 	Dprintf("do_update: wid %d, subwid %d, x %d, y %d, width %d, height %d, "
-		"utype %d\n", event->wid, event->subwid, event->x, event->y, event->width,
-		event->height, event->utype);
-
+	       "utype %d\n", event->wid, event->subwid, event->x, event->y, event->width,
+	       event->height, event->utype);
+	
 	if(!(window = find_window(event->subwid))) {
-		if (event->utype == GR_UPDATE_MAP)
-			new_client_window(event->subwid);
-		return;
+	  if (event->utype == GR_UPDATE_MAP) new_client_window(event->subwid);
+	  return;
 	}
 
 	if(window->type == WINDOW_TYPE_CONTAINER) {
@@ -193,9 +191,10 @@ void do_update(GR_EVENT_UPDATE *event)
 		return;
 	}
 
-	if(window->type != WINDOW_TYPE_CLIENT)
-		return;
-
-	if(event->utype == GR_UPDATE_DESTROY)
-		client_window_destroy(window);
+	if (window->type == WINDOW_TYPE_CLIENT) {
+	  if(event->utype == GR_UPDATE_MAP) client_window_remap(window);
+	  if(event->utype == GR_UPDATE_DESTROY) client_window_destroy(window);
+	  if(event->utype == GR_UPDATE_UNMAP) client_window_unmap(window);
+	  if(event->utype == GR_UPDATE_SIZE) client_window_resize(window);
+	}
 }

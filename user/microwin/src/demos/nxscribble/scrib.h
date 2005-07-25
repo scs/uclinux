@@ -33,9 +33,11 @@
 
 #define NUM_RECS    3
 #define DEFAULT_REC_DIR         "classifiers"
+#ifndef REC_DEFAULT_USER_DIR
 #define REC_DEFAULT_USER_DIR    "bin"
-//#define REC_DEFAULT_USER_DIR    "/home/greg/net/microwin/src/apps/scribble"
-//#define CLASSIFIER_DIR          ".classifiers"
+#endif
+/*#define REC_DEFAULT_USER_DIR    "/home/greg/net/microwin/src/apps/scribble"*/
+/*#define CLASSIFIER_DIR          ".classifiers"*/
 #define DEFAULT_LETTERS_FILE    "letters.cl"
 #define DEFAULT_DIGITS_FILE     "digits.cl"
 #define DEFAULT_PUNC_FILE       "punc.cl"

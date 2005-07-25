@@ -11,11 +11,8 @@
 
   $Id$
   $Log$
-  Revision 1.1  2004/07/19 13:11:53  lgsoft
-  Initial revision
-
-  Revision 1.1.1.1  2004/07/18 13:27:56  nidhi
-  Importing
+  Revision 1.2  2005/07/25 04:15:49  magicyang
+  New user folder check in
 
   Revision 1.2  2001/06/21 23:07:18  dwmw2
   Initial import to MTD CVS

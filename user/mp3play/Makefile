@@ -10,6 +10,9 @@ MP3LIB   = mpegdec_lib/mpegdec.a
 RC4LIB   = rc4/librc4.a
 FLTFLAGS += -s 8192
 
+ifdef CONFIG_USER_MP3PLAY_SWAP_WD
+CFLAGS += -DSWAP_WD
+endif
 
 all: $(EXEC)
 

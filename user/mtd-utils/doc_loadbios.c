@@ -7,9 +7,7 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
-
-/* $Id$ */
-#include <linux/mtd/mtd.h>
+#include "mtd/mtd-user.h"
 
 unsigned char databuf[512];
 
@@ -20,7 +18,7 @@ int main(int argc,char **argv)
    struct stat statbuf;
    erase_info_t erase;
    unsigned long retlen, ofs, iplsize, ipltailsize, savebuflen;
-   unsigned char *iplbuf, *savebuf;
+   unsigned char *iplbuf, *savebuf, *buf;
 
    iplbuf = NULL;
    savebuf = NULL;
@@ -129,7 +127,6 @@ int main(int argc,char **argv)
 		   goto error;
 	   }
    }
-
    if (lseek(ofd, iplsize - ipltailsize, SEEK_SET) < 0) {
 	   perror("lseek");
 	   goto error;
@@ -140,9 +137,15 @@ int main(int argc,char **argv)
 		(iplsize - ipltailsize) ? " tail" : "",
 		(long unsigned) ipltailsize,
 		(long unsigned) (iplsize - ipltailsize));
-	   if (write(ofd, iplbuf, ipltailsize) != ipltailsize) {
-		   perror("write");
-		   goto error;
+
+	   for (buf = iplbuf; (ipltailsize > 0); ) {
+		retlen = (ipltailsize > 512) ? 512 : ipltailsize;
+		if (write(ofd, buf, retlen) != retlen) {
+		    perror("write");
+		    goto error;
+		}
+		ipltailsize -= retlen;
+		buf += retlen;
 	   }
    }
 

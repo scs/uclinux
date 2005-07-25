@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1999, 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 1999, 2000, 2001, 2002, 2003 Greg Haerr <greg@censoft.com>
+ * Portions Copyright (c) 2002 by Koninklijke Philips Electronics N.V.
  *
  * Win32 API upper level graphics drawing routines
  */
@@ -286,18 +287,11 @@ SetROP2(HDC hdc, int fnDrawMode)
 {
 	int	newmode, oldmode;
 
-	if(!hdc)
+	if(!hdc || (fnDrawMode <= 0 || fnDrawMode > R2_LAST))
 		return 0;
 
 	oldmode = hdc->drawmode;
-	switch(fnDrawMode) {
-	case R2_XORPEN:
-		newmode = MWMODE_XOR;
-		break;
-	case R2_COPYPEN:
-	default:
-		newmode = MWMODE_SET;
-	}
+	newmode = fnDrawMode - 1;	/* map to MWMODE_xxx*/
 	hdc->drawmode = newmode;
 	GdSetMode(newmode);
 	return oldmode;
@@ -328,14 +322,46 @@ MwPrepareDC(HDC hdc)
 		/* clip memory dc's to the bitmap size*/
 		if(hdc->psd->flags&PSF_MEMORY) {
 #if DYNAMICREGIONS
-			GdSetClipRegion(hdc->psd,
-				GdAllocRectRegion(0, 0, hdc->psd->xvirtres,
-					hdc->psd->yvirtres));
+			/* If hdc has a clip region, use it! */
+			if (hdc->region != NULL && hdc->region->rgn != NULL
+			    && hdc->region->rgn->size != 0) {
+				LPRECT rptr = &(hdc->region->rgn->extents);
+				MWCOORD left, top;
+
+				/* Bound left,top to 0,0 if they are negative
+				 * to avoid an assertion later.
+				 */
+				left = (rptr->left <= 0) ? 0 : rptr->left;
+				top = (rptr->top <= 0) ? 0 : rptr->top;
+				GdSetClipRegion(hdc->psd,
+					GdAllocRectRegion(rptr->left, rptr->top,
+						rptr->right, rptr->bottom));
+			} else {
+				GdSetClipRegion(hdc->psd,
+					GdAllocRectRegion(0, 0,
+						hdc->psd->xvirtres, hdc->psd->yvirtres));
+			}
 #else
 			static MWCLIPRECT crc = {0, 0, 0, 0};
 
-			crc.width = hdc->psd->xvirtres;
-			crc.height = hdc->psd->yvirtres;
+			/* If hdc has a clip region, use it! */
+			if (hdc->region != NULL && hdc->region->rgn != NULL
+			    && hdc->region->rgn->size != 0) {
+				LPRECT rptr = &(hdc->region->rgn->extents);
+
+				/* Bound left,top to 0,0 if they are negative
+				 * to avoid an assertion later.
+				 */
+				if (rptr->left > 0)
+					crc.x = rptr->left;
+				if (rptr->top > 0)
+					crc.y = rptr->top;
+				crc.width = rptr->right;
+				crc.height = rptr->bottom;
+			} else {
+				crc.width = hdc->psd->xvirtres;
+				crc.height = hdc->psd->yvirtres;
+			}
 			GdSetClipRects(hdc->psd, 1, &crc);
 #endif
 		} else MwSetClipWindow(hdc);
@@ -352,7 +378,6 @@ GetPixel(HDC hdc, int x, int y)
 	HWND		hwnd;
 	POINT		pt;
 	MWPIXELVAL	pixel;
-	MWPALENTRY	rgb;
 
 	hwnd = MwPrepareDC(hdc);
 	if(!hwnd)
@@ -365,29 +390,7 @@ GetPixel(HDC hdc, int x, int y)
 	/* read pixel value*/
 	GdReadArea(hdc->psd, pt.x, pt.y, 1, 1, &pixel);
 
-	switch(hdc->psd->pixtype) {
-	case MWPF_TRUECOLOR0888:
-	case MWPF_TRUECOLOR888:
-		/* create RGB colorval from 8/8/8 pixel*/
-		return PIXEL888TOCOLORVAL(pixel);
-
-	case MWPF_TRUECOLOR565:
-		/* create RGB colorval from 5/6/5 pixel*/
-		return PIXEL565TOCOLORVAL(pixel);
-
-	case MWPF_TRUECOLOR555:
-		/* create RGB colorval from 5/5/5 pixel*/
-		return PIXEL555TOCOLORVAL(pixel);
-
-	case MWPF_TRUECOLOR332:
-		/* create RGB colorval from 3/3/2 pixel*/
-		return PIXEL332TOCOLORVAL(pixel);
-
-	case MWPF_PALETTE:
-		if(GdGetPalette(hdc->psd, pixel, 1, &rgb))
-			return RGB(rgb.r, rgb.g, rgb.b);
-	}
-	return CLR_INVALID;
+	return GdGetColorRGB(hdc->psd, pixel);
 }
 
 COLORREF WINAPI
@@ -405,7 +408,7 @@ SetPixel(HDC hdc, int x, int y, COLORREF crColor)
 		ClientToScreen(hwnd, &pt);
 
 	/* draw point in passed color*/
-	GdSetForeground(GdFindColor(crColor));
+	GdSetForegroundColor(hdc->psd, crColor);
 	GdPoint(hdc->psd, pt.x, pt.y);
 	return 0;		/* doesn't return previous color*/
 }
@@ -443,7 +446,7 @@ LineTo(HDC hdc, int x, int y)
 
 	/* draw line in current pen color*/
 	if(hdc->pen->style != PS_NULL) {
-		GdSetForeground(GdFindColor(hdc->pen->color));
+		GdSetForegroundColor(hdc->psd, hdc->pen->color);
 		/* don't draw last point*/
 		GdLine(hdc->psd, beg.x, beg.y, end.x, end.y, FALSE);
 	}
@@ -470,7 +473,7 @@ Polyline(HDC hdc, CONST POINT *lppt, int cPoints)
 		return TRUE;
 
 	/* draw line in current pen color*/
-	GdSetForeground(GdFindColor(hdc->pen->color));
+	GdSetForegroundColor(hdc->psd, hdc->pen->color);
 
 	beg = *lppt++;
 	if(MwIsClientDC(hdc))
@@ -504,7 +507,7 @@ Rectangle(HDC hdc, int nLeft, int nTop, int nRight, int nBottom)
 
 	/* draw rectangle in current pen color*/
 	if(hdc->pen->style != PS_NULL) {
-		GdSetForeground(GdFindColor(hdc->pen->color));
+		GdSetForegroundColor(hdc->psd, hdc->pen->color);
 		GdRect(hdc->psd, rc.left, rc.top,
 			rc.right - rc.left, rc.bottom - rc.top);
 	}
@@ -512,7 +515,7 @@ Rectangle(HDC hdc, int nLeft, int nTop, int nRight, int nBottom)
 	/* fill rectangle in current brush color*/
 	if(hdc->brush->style != BS_NULL) {
 		InflateRect(&rc, -1, -1);
-		GdSetForeground(GdFindColor(hdc->brush->color));
+		GdSetForegroundColor(hdc->psd, hdc->brush->color);
 		GdFillRect(hdc->psd, rc.left, rc.top, rc.right - rc.left,
 			rc.bottom - rc.top);
 	}
@@ -543,13 +546,13 @@ Ellipse(HDC hdc, int nLeftRect, int nTopRect, int nRightRect, int nBottomRect)
 	/* fill ellipse in current brush color*/
 	if(hdc->brush->style != BS_NULL) {
 		InflateRect(&rc, -1, -1);
-		GdSetForeground(GdFindColor(hdc->brush->color));
+		GdSetForegroundColor(hdc->psd, hdc->brush->color);
 		GdEllipse(hdc->psd, rc.left, rc.top, rx, ry, TRUE);
 	}
 
 	/* draw ellipse outline in current pen color*/
 	if(hdc->pen->style != PS_NULL) {
-		GdSetForeground(GdFindColor(hdc->pen->color));
+		GdSetForegroundColor(hdc->psd, hdc->pen->color);
 		GdEllipse(hdc->psd, rc.left, rc.top, rx, ry, FALSE);
 	}
 
@@ -582,14 +585,14 @@ dopiearc(HDC hdc, int nLeftRect, int nTopRect, int nRightRect, int nBottomRect,
 
 	/* fill ellipse in current brush color*/
 	if(hdc->brush->style != BS_NULL && type == MWPIE) {
-		GdSetForeground(GdFindColor(hdc->brush->color));
+		GdSetForegroundColor(hdc->psd, hdc->brush->color);
 		GdArc(hdc->psd, rc.left, rc.top, rx, ry,
 			rc2.left, rc2.top, rc2.right, rc2.bottom, MWPIE);
 	}
 
 	/* draw ellipse outline in current pen color*/
 	if(hdc->pen->style != PS_NULL) {
-		GdSetForeground(GdFindColor(hdc->pen->color));
+		GdSetForegroundColor(hdc->psd, hdc->pen->color);
 		if(type == MWPIE)
 			type = MWARC;	/* MWARCOUTLINE?*/
 		GdArc(hdc->psd, rc.left, rc.top, rx, ry,
@@ -640,13 +643,13 @@ Polygon(HDC hdc, CONST POINT *lpPoints, int nCount)
 
 	/* fill polygon in current brush color*/
 	if(hdc->brush->style != BS_NULL) {
-		GdSetForeground(GdFindColor(hdc->brush->color));
+		GdSetForegroundColor(hdc->psd, hdc->brush->color);
 		GdFillPoly(hdc->psd, nCount, pp);
 	}
 
 	/* draw polygon outline in current pen color*/
 	if(hdc->pen->style != PS_NULL) {
-		GdSetForeground(GdFindColor(hdc->pen->color));
+		GdSetForegroundColor(hdc->psd, hdc->pen->color);
 		GdPoly(hdc->psd, nCount, pp);
 	}
 
@@ -701,7 +704,7 @@ FillRect(HDC hdc, CONST RECT *lprc, HBRUSH hbr)
 	}
 
 	/* fill rectangle in passed brush color*/
-	GdSetForeground(GdFindColor(crFill));
+	GdSetForegroundColor(hdc->psd, crFill);
 	GdFillRect(hdc->psd, rc.left, rc.top,
 		rc.right - rc.left, rc.bottom - rc.top);
 	return TRUE;
@@ -759,7 +762,7 @@ MwExtTextOut(HDC hdc, int x, int y, UINT fuOptions, CONST RECT *lprc,
 			MapWindowPoints(hwnd, NULL, (LPPOINT)&rc, 2);
 
 		/* fill rectangle with current background color*/
-		GdSetForeground(GdFindColor(hdc->bkcolor));
+		GdSetForegroundColor(hdc->psd, hdc->bkcolor);
 		GdFillRect(hdc->psd, rc.left, rc.top, rc.right - rc.left,
 			rc.bottom - rc.top);
 		GdSetUseBackground(FALSE);
@@ -771,13 +774,18 @@ MwExtTextOut(HDC hdc, int x, int y, UINT fuOptions, CONST RECT *lprc,
 		 * if gr_usebg is false...
 		 */
 		/*if(hdc->bkmode == OPAQUE)*/
-			GdSetBackground(GdFindColor(hdc->bkcolor));
+			GdSetBackgroundColor(hdc->psd, hdc->bkcolor);
+	}
+
+	if (cbCount == 0) {
+		/* Special case - no text.  Used to fill rectangle. */
+		return TRUE;
 	}
 
 	/* nyi: lpDx*/
 
 	/* draw text in current text foreground and background color*/
-	GdSetForeground(GdFindColor(hdc->textcolor));
+	GdSetForegroundColor(hdc->psd, hdc->textcolor);
 	GdSetFont(hdc->font->pfont);
 
 	/* this whole text alignment thing needs rewriting*/
@@ -999,7 +1007,7 @@ static MWPENOBJ OBJ_NULL_PEN = {
 };
 
 static MWFONTOBJ OBJ_OEM_FIXED_FONT = {
-	{OBJ_FONT, TRUE}, NULL, MWFONT_OEM_FIXED
+	{OBJ_FONT, TRUE}, NULL, MWFONT_SYSTEM_FIXED	/* was MWFONT_OEM_FIXED*/
 };
 
 static MWFONTOBJ OBJ_ANSI_FIXED_FONT = {
@@ -1015,7 +1023,7 @@ static MWFONTOBJ OBJ_SYSTEM_FONT = {
 };
 
 static MWFONTOBJ OBJ_DEVICE_DEFAULT_FONT = {
-	{OBJ_FONT, TRUE}, NULL, MWFONT_OEM_FIXED
+	{OBJ_FONT, TRUE}, NULL, MWFONT_SYSTEM_FIXED	/* was MWFONT_OEM_FIXED*/
 };
 
 static MWFONTOBJ OBJ_SYSTEM_FIXED_FONT = {
@@ -1023,7 +1031,7 @@ static MWFONTOBJ OBJ_SYSTEM_FIXED_FONT = {
 };
 
 static MWFONTOBJ OBJ_DEFAULT_GUI_FONT = {
-	{OBJ_FONT, TRUE}, NULL, MWFONT_GUI_VAR
+	{OBJ_FONT, TRUE}, NULL, MWFONT_SYSTEM_VAR	/* was MWFONT_GUI_VAR*/
 };
 
 static struct hgdiobj *stockObjects[MAXSTOCKOBJECTS] = {
@@ -1062,6 +1070,9 @@ GetStockObject(int nObject)
 			if(pFont->pfont == NULL) {
 				pFont->pfont = GdCreateFont(&scrdev,
 					pFont->name, 0, NULL);
+				if (!pFont->pfont)
+					pFont->pfont = GdCreateFont(&scrdev,
+						NULL, 0, NULL);
 			}
 			return pObj;
 		}
@@ -1344,15 +1355,26 @@ BOOL WINAPI
 BitBlt(HDC hdcDest, int nXDest, int nYDest, int nWidth, int nHeight,
 	HDC hdcSrc, int nXSrc, int nYSrc, DWORD dwRop)
 {
+	/* use stretch blit with equal src and dest width/height*/
+	return StretchBlt(hdcDest, nXDest, nYDest, nWidth, nHeight,
+		hdcSrc, nXSrc, nYSrc, nWidth, nHeight, dwRop);
+}
+
+BOOL WINAPI
+StretchBlt(HDC hdcDest, int nXOriginDest, int nYOriginDest, int nWidthDest,
+	int nHeightDest, HDC hdcSrc, int nXOriginSrc, int nYOriginSrc,
+	int nWidthSrc, int nHeightSrc, DWORD dwRop)
+{
+
 	HWND	hwnd;
 	POINT	dst, src;
 
 	if(!hdcDest || !hdcSrc)
 		return FALSE;
-	dst.x = nXDest;
-	dst.y = nYDest;
-	src.x = nXSrc;
-	src.y = nYSrc;
+	dst.x = nXOriginDest;
+	dst.y = nYOriginDest;
+	src.x = nXOriginSrc;
+	src.y = nYOriginSrc;
 
 	/* if src screen DC, convert coords*/
 	/* FIXME: src clipping isn't checked, only one set of cliprects also*/
@@ -1369,8 +1391,14 @@ BitBlt(HDC hdcDest, int nXDest, int nYDest, int nWidth, int nHeight,
 		ClientToScreen(hwnd, &dst);
 	}
 
-	GdBlit(hdcDest->psd, dst.x, dst.y, nWidth, nHeight,
-		hdcSrc->psd, src.x, src.y, dwRop);
+	if (nWidthDest == nWidthSrc && nHeightDest == nHeightSrc) {
+		GdBlit(hdcDest->psd, dst.x, dst.y, nWidthDest, nHeightDest,
+			hdcSrc->psd, src.x, src.y, dwRop);
+	} else {
+		GdStretchBlit(hdcDest->psd, dst.x, dst.y,
+			nWidthDest, nHeightDest, hdcSrc->psd, src.x, src.y,
+			nWidthSrc, nHeightSrc, dwRop);
+	}
 	return TRUE;
 }
 

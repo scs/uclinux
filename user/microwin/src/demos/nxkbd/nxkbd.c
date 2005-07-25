@@ -23,7 +23,7 @@
 
 #define TITLE 		"Soft Keyboard"
 #define DISKIMAGES	0		/* =0 use linked-in images*/
-//#define _SOFTKBD_DEBUG	1
+#define _SOFTKBD_DEBUG	0
 
 /* kbd states, each with unique bitmap*/
 #define NORM		1000
@@ -173,7 +173,7 @@ static void
 display_layout(int layout) 
 {
 #if DISKIMAGES
-#define LIBDIR "."	// "/etc/nxkbd.d"
+#define LIBDIR "."	/* "/etc/nxkbd.d" */
 	if (!layout_images_loaded[layout] ) {
         	char buf[128];
 
@@ -287,7 +287,9 @@ main(int argc, char* argv[])
 
 	if (KbdOpen() < 0) {
                 fprintf(stderr, "nxkbd: cannot open kbd named pipe\n");
-                //exit(1);
+#if 0
+                exit(1);
+#endif
         }
     
 #if !DISKIMAGES
@@ -303,14 +305,14 @@ main(int argc, char* argv[])
 			  /*GR_EVENT_MASK_KEY_DOWN |*/	/* required for focus*/
                           GR_EVENT_MASK_BUTTON_DOWN);
 
-#if 0	// this code fails when link-app-into-server
-	//if (props.title)	// can't free with link-into-server
-		//free(props.title);
+#if 0	/* this code fails when link-app-into-server */
+	if (props.title)	/* can't free with link-into-server*/
+		free(props.title);
 
 	/* title must be alloc'd and copied*/
-	//props.title = malloc(18);
-	//if (props.title)
-		//strcpy(props.title, TITLE);
+	props.title = malloc(18);
+	if (props.title)
+		strcpy(props.title, TITLE);
 
 	props.flags =
 		GR_WM_FLAG_NORESIZE   | /* don't let user resize window */
@@ -322,7 +324,7 @@ main(int argc, char* argv[])
 	props.flags = GR_WM_FLAGS_PROPS | GR_WM_FLAGS_TITLE;
 	props.props = GR_WM_PROPS_NOFOCUS;
 	props.props |= /*GR_WM_PROPS_NOMOVE |*/ GR_WM_PROPS_NORAISE |
-		GR_WM_PROPS_BORDER | GR_WM_PROPS_CAPTION;
+		GR_WM_PROPS_BORDER | GR_WM_PROPS_CAPTION | GR_WM_PROPS_CLOSEBOX;
 	props.title = TITLE;
 	GrSetWMProperties(w, &props);
 

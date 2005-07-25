@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1999, 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 1999, 2000, 2001, 2003 Greg Haerr <greg@censoft.com>
+ * Portions Copyright (c) 2002 by Koninklijke Philips Electronics N.V.
  * Portions Copyright (c) 1991 David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
@@ -14,7 +15,10 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 #include "device.h"
+#include "swap.h"
 
 #if MSDOS | ELKS
 #define NOSTDPAL8
@@ -31,26 +35,41 @@
        MWPIXELVAL gr_foreground;      /* current foreground color */
        MWPIXELVAL gr_background;      /* current background color */
        MWBOOL 	gr_usebg;    	    /* TRUE if background drawn in pixmaps */
-       int 	gr_mode = MWMODE_SET; 	    /* drawing mode */
-static MWSCREENINFO gr_sinfo;	    /* screen info for local routines*/
+       int 	gr_mode = MWMODE_COPY; 	    /* drawing mode */
 /*static*/ MWPALENTRY	gr_palette[256];    /* current palette*/
 /*static*/ int	gr_firstuserpalentry;/* first user-changable palette entry*/
 /*static*/ int 	gr_nextpalentry;    /* next available palette entry*/
-	int	gr_portraitmode;    /* =1 for portrait mode*/
 
-/*
- * Open low level graphics driver
+unsigned long gr_dashmask;     /* An actual bitmask of the dash values */
+unsigned long gr_dashcount;    /* The number of bits defined in the dashmask */
+
+int        gr_fillmode;
+MWSTIPPLE  gr_stipple;
+MWTILE     gr_tile;
+
+MWPOINT    gr_ts_offset;
+
+static int	gr_pixtype;	    /* screen pixel format*/
+static long	gr_ncolors;	    /* screen # colors*/
+
+/**
+ * Open low level graphics driver.
+ *
+ * @return The screen drawing surface.
  */
 PSD
 GdOpenScreen(void)
 {
 	PSD			psd;
 	MWPALENTRY *		stdpal;
+	MWSCREENINFO		sinfo;	    
 
 	psd = scrdev.Open(&scrdev);
 	if (!psd)
 		return NULL;
-	GdGetScreenInfo(psd, &gr_sinfo);
+	GdGetScreenInfo(psd, &sinfo);
+	gr_pixtype = sinfo.pixtype;
+	gr_ncolors = sinfo.ncolors;
 
 	/* assume no user changable palette entries*/
 	gr_firstuserpalentry = (int)psd->ncolors;
@@ -120,11 +139,18 @@ GdOpenScreen(void)
 
 #if !NOFONTSORCLIPPING
 	/* init local vars*/
-	GdSetMode(MWMODE_SET);
-	GdSetForeground(GdFindColor(MWRGB(255, 255, 255)));	/* WHITE*/
-	GdSetBackground(GdFindColor(MWRGB(0, 0, 0)));		/* BLACK*/
+	GdSetMode(MWMODE_COPY);
+	GdSetFillMode(MWFILL_SOLID);  /* Set the fill mode to solid */
+
+	GdSetForegroundColor(psd, MWRGB(255, 255, 255));	/* WHITE*/
+	GdSetBackgroundColor(psd, MWRGB(0, 0, 0));		/* BLACK*/
 	GdSetUseBackground(TRUE);
-	GdSetFont(GdCreateFont(psd, MWFONT_SYSTEM_VAR, 0, NULL));
+	/* select first builtin font (usually MWFONT_SYSTEM_VAR)*/
+	GdSetFont(GdCreateFont(psd, NULL, 0, NULL));
+
+	GdSetDash(0, 0);  /* No dashing to start */
+	GdSetStippleBitmap(0,0,0);  /* No stipple to start */
+
 #if DYNAMICREGIONS
 	GdSetClipRegion(psd, 
 		GdAllocRectRegion(0, 0, psd->xvirtres, psd->yvirtres));
@@ -138,8 +164,10 @@ GdOpenScreen(void)
 	return psd;
 }
 
-/*
+/**
  * Close low level graphics driver
+ *
+ * @param psd Screen drawing surface.
  */
 void 
 GdCloseScreen(PSD psd)
@@ -147,8 +175,27 @@ GdCloseScreen(PSD psd)
 	psd->Close(psd);
 }
 
-/*
- * Return about the screen.
+/**
+ * Set dynamic screen portrait mode, return new mode
+ *
+ * @param psd Screen drawing surface.
+ * @param portraitmode New portrait mode requested.
+ * @return New portrait mode actually set.
+ */
+int
+GdSetPortraitMode(PSD psd, int portraitmode)
+{
+	/* set portrait mode if supported*/
+	if (psd->SetPortrait)
+		psd->SetPortrait(psd, portraitmode);
+	return psd->portrait;
+}
+
+/**
+ * Get information about the screen (resolution etc).
+ *
+ * @param psd Screen drawing surface.
+ * @param psi Destination for screen information.
  */
 void
 GdGetScreenInfo(PSD psd, PMWSCREENINFO psi)
@@ -159,7 +206,10 @@ GdGetScreenInfo(PSD psd, PMWSCREENINFO psi)
 	GdGetCursorPos(&psi->xpos, &psi->ypos);
 }
 
-/* reset palette to empty except for system colors*/
+/**
+ *
+ * reset palette to empty except for system colors
+ */
 void
 GdResetPalette(void)
 {
@@ -169,7 +219,14 @@ GdResetPalette(void)
 	gr_nextpalentry = gr_firstuserpalentry;
 }
 
-/* set the system palette section to the passed palette entries*/
+/**
+ * Set the system palette section to the passed palette entries
+ *
+ * @param psd Screen device.
+ * @param first First palette entry to set.
+ * @param count Number of palette entries to set.
+ * @param palette New palette entries (array of size @param count).
+ */
 void
 GdSetPalette(PSD psd, int first, int count, MWPALENTRY *palette)
 {
@@ -191,7 +248,14 @@ GdSetPalette(PSD psd, int first, int count, MWPALENTRY *palette)
 	}
 }
 
-/* get system palette entries, return count*/
+/**
+ * Get system palette entries
+ *
+ * @param psd Screen device.
+ * @param first First palette index to get.
+ * @param count Number of palette entries to retrieve.
+ * @param palette Recieves palette entries (array of size @param count).
+ */
 int
 GdGetPalette(PSD psd, int first, int count, MWPALENTRY *palette)
 {
@@ -212,17 +276,23 @@ GdGetPalette(PSD psd, int first, int count, MWPALENTRY *palette)
 	return count;
 }
 
-/*
+/**
  * Convert a palette-independent value to a hardware color
+ *
+ * @param psd Screen device
+ * @param c 24-bit RGB color.
+ * @return Hardware-specific color.
  */
 MWPIXELVAL
-GdFindColor(MWCOLORVAL c)
+GdFindColor(PSD psd, MWCOLORVAL c)
 {
 	/*
-	 * Handle truecolor displays.  Note that the MWF_PALINDEX
-	 * bit is ignored when running truecolor drivers.
+	 * Handle truecolor displays.
 	 */
-	switch(gr_sinfo.pixtype) {
+	switch(psd->pixtype) {
+	case MWPF_TRUECOLOR8888:
+		return COLOR2PIXEL8888(c);
+
 	case MWPF_TRUECOLOR0888:
 	case MWPF_TRUECOLOR888:
 		/* create 24 bit 8/8/8 pixel (0x00RRGGBB) from RGB colorval*/
@@ -247,20 +317,17 @@ GdFindColor(MWCOLORVAL c)
 
 	/* case MWPF_PALETTE: must be running 1, 2, 4 or 8 bit palette*/
 
-	/*
-	 * Check if color is a palette index.  Note that the index
-	 * isn't error checked against the system palette, for speed.
-	 */
-	if(c & MWF_PALINDEX)
-		return (c & 0xff);
-
 	/* search palette for closest match*/
-	return GdFindNearestColor(gr_palette, (int)gr_sinfo.ncolors, c);
+	return GdFindNearestColor(gr_palette, (int)gr_ncolors, c);
 }
 
-/*
+/**
  * Search a palette to find the nearest color requested.
  * Uses a weighted squares comparison.
+ *
+ * @param pal Palette to search.
+ * @param size Size of palette (number of entries).
+ * @param cr Color to look for.
  */
 MWPIXELVAL
 GdFindNearestColor(MWPALENTRY *pal, int size, MWCOLORVAL cr)
@@ -298,29 +365,262 @@ GdFindNearestColor(MWPALENTRY *pal, int size, MWCOLORVAL cr)
 	return best;
 }
 
+/**
+ * Convert a color from a driver-dependent PIXELVAL to a COLORVAL.
+ *
+ * @param psd Screen device.
+ * @param pixel Hardware-specific color.
+ * @return 24-bit RGB color.
+ */
+MWCOLORVAL
+GdGetColorRGB(PSD psd, MWPIXELVAL pixel)
+{
+	switch (psd->pixtype) {
+	case MWPF_TRUECOLOR8888:
+		return PIXEL8888TOCOLORVAL(pixel);
+
+	case MWPF_TRUECOLOR0888:
+		return PIXEL888TOCOLORVAL(pixel);
+
+	case MWPF_TRUECOLOR888:
+		return PIXEL888TOCOLORVAL(pixel);
+
+	case MWPF_TRUECOLOR565:
+		return PIXEL565TOCOLORVAL(pixel);
+
+	case MWPF_TRUECOLOR555:
+		return PIXEL555TOCOLORVAL(pixel);
+
+	case MWPF_TRUECOLOR332:
+		return PIXEL332TOCOLORVAL(pixel);
+
+	case MWPF_PALETTE:
+		return GETPALENTRY(gr_palette, pixel);
+
+	default:
+		assert(FALSE);
+		return 0;
+	}
+}
+
 #if !VXWORKS
+#if defined(HAVE_FILEIO)
 #include <unistd.h>
 #include <fcntl.h>
-/* capture the screen contents to a file for later makebmp processing*/
+/*
+ * Create .bmp file from framebuffer data
+ *
+ * 1, 4, 8, 16, 24 and 32 bpp supported
+ */
+#define BI_RGB		0L
+#define BI_RLE8		1L
+#define BI_RLE4		2L
+#define BI_BITFIELDS	3L
+
+typedef unsigned char	BYTE;
+typedef unsigned short	WORD;
+typedef unsigned long	DWORD;
+typedef long		LONG;
+
+#pragma pack(1)
+/* windows style bmp*/
+typedef struct {
+	/* BITMAPFILEHEADER*/
+	BYTE	bfType[2];
+	DWORD	bfSize;
+	WORD	bfReserved1;
+	WORD	bfReserved2;
+	DWORD	bfOffBits;
+	/* BITMAPINFOHEADER*/
+	DWORD	BiSize;
+	LONG	BiWidth;
+	LONG	BiHeight;
+	WORD	BiPlanes;
+	WORD	BiBitCount;
+	DWORD	BiCompression;
+	DWORD	BiSizeImage;
+	LONG	BiXpelsPerMeter;
+	LONG	BiYpelsPerMeter;
+	DWORD	BiClrUsed;
+	DWORD	BiClrImportant;
+} BMPHEAD;
+#pragma pack()
+
+/* r/g/b masks for non-palette bitmaps*/
+#define RMASK332	0xe0
+#define GMASK332	0x1c
+#define BMASK332	0x03
+#define RMASK555	0x7c00
+#define GMASK555	0x03e0
+#define BMASK555	0x001f
+#define RMASK565	0xf800
+#define GMASK565	0x07e0
+#define BMASK565	0x001f
+#define RMASK888	0xff0000
+#define GMASK888	0x00ff00
+#define BMASK888	0x0000ff
+
+static void
+putsw(unsigned long dw, FILE *ofp)
+{
+	/* little-endian storage of shortword*/
+	putc((unsigned char)dw, ofp);
+	dw >>= 8;
+	putc((unsigned char)dw, ofp);
+}
+
+static void
+putdw(unsigned long dw, FILE *ofp)
+{
+	/* little-endian storage of longword*/
+	putc((unsigned char)dw, ofp);
+	dw >>= 8;
+	putc((unsigned char)dw, ofp);
+	dw >>= 8;
+	putc((unsigned char)dw, ofp);
+	dw >>= 8;
+	putc((unsigned char)dw, ofp);
+}
+#endif /* HAVE_FILEIO*/
+
+/**
+ * Create .bmp file from framebuffer data
+ *
+ * @param path Output file.
+ * @return 0 on success, nonzero on error.
+ */
 int
 GdCaptureScreen(char *path)
 {
-	int n, ifd, ofd;
-	long i;
-	char buf[256];
+#if defined(HAVE_FILEIO)
+	int	ifd, i, j;
+	FILE *	ofp;
+	int	cx, cy, extra, bpp, bytespp, ncolors, sizecolortable;
+	unsigned long rmask, gmask, bmask;
+	unsigned char *cptr;
+	unsigned short *sptr;
+	unsigned long *lptr;
+	BMPHEAD	bmp;
+	unsigned char buf[2048*4];
 
+	ofp = fopen(path, "wb");
+	if (!ofp)
+		return 1;
 	ifd = open("/dev/fb0", 0);
-	ofd = creat(path, 0666);
-	for(n=0; n<256; ++n)
-		write(ofd, &gr_palette[n], 3);
-	for(i=scrdev.xvirtres*scrdev.yvirtres; i > 0; ) {
-		if((n = read(ifd, buf, 256)) > 0) {
-			write(ofd, buf, n);
-			i -= n;
+
+	cx = scrdev.xvirtres;
+	cy = scrdev.yvirtres;
+	bpp = scrdev.bpp;
+	bytespp = (bpp+7)/8;
+
+	/* dword right padded*/
+	extra = (cx*bytespp) & 3;
+	if (extra)
+		extra = 4 - extra;
+	ncolors = (bpp <= 8)? (1<<bpp): 0;
+	/* color table is either palette or 3 longword r/g/b masks*/
+	sizecolortable = ncolors? ncolors*4: 3*4;
+	if (bpp == 24)
+		sizecolortable = 0;	/* special case 24bpp has no table*/
+
+	/* fill out bmp header*/
+	memset(&bmp, 0, sizeof(bmp));
+	bmp.bfType[0] = 'B';
+	bmp.bfType[1] = 'M';
+	bmp.bfSize = dwswap(sizeof(bmp) + sizecolortable + (long)(cx+extra)*cy*bytespp);
+	bmp.bfOffBits = dwswap(sizeof(bmp) + sizecolortable);
+	bmp.BiSize = dwswap(40);
+	bmp.BiWidth = dwswap(cx);
+	bmp.BiHeight = dwswap(cy);
+	bmp.BiPlanes = wswap(1);
+	bmp.BiBitCount = wswap(bpp);
+	bmp.BiCompression = dwswap((bpp==16 || bpp==32)? BI_BITFIELDS: BI_RGB);
+	bmp.BiSizeImage = dwswap((long)(cx+extra)*cy*bytespp);
+	bmp.BiClrUsed = dwswap((bpp <= 8)? ncolors: 0);
+	/*bmp.BiClrImportant = 0;*/
+
+	/* write header*/
+	fwrite(&bmp, sizeof(bmp), 1, ofp);
+
+	/* write colortable*/
+	if (sizecolortable) {
+		if(bpp <= 8) {
+			/* write palette*/
+			for(i=0; i<ncolors; i++) {
+				putc(gr_palette[i].b, ofp);
+				putc(gr_palette[i].g, ofp);
+				putc(gr_palette[i].r, ofp);
+				putc(0, ofp);
+			}
+		} else {
+			/* write 3 r/g/b masks*/
+			switch (gr_pixtype) {
+			case MWPF_TRUECOLOR8888:
+			case MWPF_TRUECOLOR0888:
+			default:
+				rmask = RMASK888;
+				gmask = GMASK888;
+				bmask = BMASK888;
+				break;
+			case MWPF_TRUECOLOR565:
+				rmask = RMASK565;
+				gmask = GMASK565;
+				bmask = BMASK565;
+				break;
+			case MWPF_TRUECOLOR555:
+				rmask = RMASK555;
+				gmask = GMASK555;
+				bmask = BMASK555;
+				break;
+			case MWPF_TRUECOLOR332:
+				rmask = RMASK332;
+				gmask = GMASK332;
+				bmask = BMASK332;
+				break;
+			}
+			putdw(rmask, ofp);
+			putdw(gmask, ofp);
+			putdw(bmask, ofp);
 		}
 	}
+
+	/* write image data, upside down ;)*/
+	for(i=cy-1; i>=0; --i) {
+		long base = sizeof(bmp) + sizecolortable + (long)i*cx*bytespp;
+		fseek(ofp, base, SEEK_SET);
+		read(ifd, buf, cx*bytespp);
+		switch (bpp) {
+		case 32:
+			lptr = (unsigned long *)buf;
+			for(j=0; j<cx; ++j)
+				putdw(*lptr++, ofp);
+			break;
+		case 24:
+			cptr = (unsigned char *)buf;
+			for(j=0; j<cx; ++j) {
+				putc(*cptr++, ofp);
+				putc(*cptr++, ofp);
+				putc(*cptr++, ofp);
+			}
+			break;
+		case 16:
+			sptr = (unsigned short *)buf;
+			for(j=0; j<cx; ++j)
+				putsw(*sptr++, ofp);
+			break;
+		default:
+			cptr = (unsigned char *)buf;
+			for(j=0; j<cx; ++j)
+				putc(*cptr++, ofp);
+			break;
+		}
+		for(j=0; j<extra; ++j)
+			putc(0, ofp);		/* DWORD pad each line*/
+	}
+
+	fclose(ofp);
 	close(ifd);
-	close(ofd);
-	return (ifd == -1 || ofd == -1);
+#endif /* HAVE_FILEIO*/
+	return 0;
 }
 #endif /* !VXWORKS*/

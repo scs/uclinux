@@ -58,7 +58,7 @@ SCREENDEVICE	scrdev = {
 	NULL			/* FreeMemGC*/
 };
 
-//add by mlkao
+/* add by mlkao */
 extern int gr_mode;	/* temp kluge*/
 static struct linesettingstype lineinfo;
 static struct palettetype bgi_pal;
@@ -78,10 +78,10 @@ BGI_open(PSD psd)
 	psd->yres = psd->yvirtres = getmaxy()+1;
 	psd->linelen = lineinfo.thickness;
 	psd->planes = 1;
-	psd->bpp = 4;		// FIXME??
+	psd->bpp = 4;		/* FIXME?? */
 	psd->ncolors = getmaxcolor() + 1;
 	psd->flags = PSF_SCREEN;
-	psd->addr = 0;		// FIXME
+	psd->addr = 0;		/* FIXME */
 
 	/* note: must change psd->pixtype here for truecolor systems*/
 	psd->pixtype = MWPF_PALETTE;
@@ -130,7 +130,7 @@ static void
 BGI_drawpixel(PSD psd,MWCOORD x, MWCOORD y, MWPIXELVAL c)
 {
 	switch(gr_mode) {
-		case MWMODE_SET: break;
+		case MWMODE_COPY: break;
 		case MWMODE_XOR: c ^= getpixel(x, y); break;
 		case MWMODE_OR:  c |= getpixel(x, y); break;
 		case MWMODE_AND: c &= getpixel(x, y); break;
@@ -157,7 +157,7 @@ BGI_drawhline(PSD psd,MWCOORD x1, MWCOORD x2, MWCOORD y, MWPIXELVAL c)
 
 	setcolor(c);
 	switch(gr_mode) {
-		case MWMODE_SET:
+		case MWMODE_COPY:
 			setwritemode(COPY_PUT);
 			break;
 		case MWMODE_XOR:
@@ -188,7 +188,7 @@ BGI_drawvline(PSD psd,MWCOORD x, MWCOORD y1, MWCOORD y2, MWPIXELVAL c)
 
 	setcolor(c);
 	switch(gr_mode) {
-		case MWMODE_SET:
+		case MWMODE_COPY:
 			setwritemode(COPY_PUT);
 			break;
 		case MWMODE_XOR:
@@ -224,7 +224,7 @@ BGI_fillrect(PSD psd,MWCOORD x1, MWCOORD y1, MWCOORD x2, MWCOORD y2,
 	}
 
 	switch(gr_mode) {
-		case MWMODE_SET:
+		case MWMODE_COPY:
 			setfillstyle(1,c);
 			bar(x1, y1, x2, y2);
 			break;

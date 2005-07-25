@@ -10,7 +10,8 @@
 #define MWINCLUDECOLORS
 #include "nano-X.h"
 /* Uncomment this if you want debugging output from this file */
-/* #define DEBUG */
+/*#define DEBUG*/
+
 #include "nanowm.h"
 
 GR_SCREEN_INFO si;
@@ -36,6 +37,7 @@ int main(int argc, char *argv[])
 	window.pid = GR_ROOT_WINDOW_ID;
 	window.type = WINDOW_TYPE_ROOT;
 	window.clientid = 1;
+	window.sizing = GR_FALSE;
 	window.active = 0;
 	window.data = NULL;
 	add_window(&window);

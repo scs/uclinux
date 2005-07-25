@@ -1,7 +1,4 @@
-/***************************************************************************
- *
- * $Header$
- *
+/* *************************************************************************
  * Copyright (c) 1999 ConnectTel, Inc. All Rights Reserved.
  *  
  * MODULE DESCRIPTION: RTEMS configuration file. This file should be
@@ -13,13 +10,8 @@
  *
  * MODIFICATION/HISTORY:
  *
- * $Log$
- * Revision 1.1  2004/07/19 13:11:32  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:27:54  nidhi
- * Importing
- *
+ * Revision 1.1.1.1  2001/06/21 06:32:42  greg
+ * Microwindows pre8 with patches
  ****************************************************************************/
 
 

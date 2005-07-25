@@ -1,7 +1,7 @@
 /*
  * nano-X launcher/window manager program
  * (C) 1999 Alistair Riddoch <ajr@ecs.soton.ac.uk>
- * (C) 2000 Alex Holden <alex@linuxhacker.org>
+ * (C) 2000 Alex Holden <alex@alexholden.net>
  */
 
 /*
@@ -46,11 +46,11 @@ static	int		fwidth, fheight;
 static	int		fbase;
 static	int		num_apps = 0;
 
-void do_exposure();
-void do_buttondown();
-void do_buttonup();
-void do_update();
-void do_mouse();
+static void do_exposure(GR_EVENT_EXPOSURE *ep);
+static void do_buttondown(GR_EVENT_BUTTON *ep);
+static void do_buttonup(GR_EVENT_BUTTON *ep);
+static void do_update(GR_EVENT_UPDATE *ep);
+static void do_mouse(GR_EVENT_MOUSE *ep);
 
 struct app_info {
 	char		app_id[10];
@@ -62,7 +62,7 @@ struct app_info {
 	{"demo", "/root/demo"},
 	{"demo2", "/root/demo2"},
 #else
-	{"clock", "bin/nclock"},
+	{"clock", "bin/nxclock"},
 	{"term", "bin/nterm"},
 	{"demo", "bin/demo"},
 	{"demo2", "bin/demo2"},
@@ -86,13 +86,17 @@ mwin * in_motion = NULL;
 GR_COORD	move_xoff;
 GR_COORD	move_yoff;
 
+#ifndef WAIT_ANY
+/* For Cygwin.  See:
+ * http://www.opengroup.org/onlinepubs/007908799/xsh/wait.html
+ */
+#define WAIT_ANY (pid_t)-1
+#endif
+
 /*
  * Reap the dead children whenever we get a SIGCHLD.
  */
-#ifndef WAIT_ANY
-#define WAIT_ANY -1
-#endif
-void reaper(int signum) { while(waitpid(WAIT_ANY, NULL, WNOHANG) > 0); }
+static void reaper(int signum) { while(waitpid(WAIT_ANY, NULL, WNOHANG) > 0); }
 
 int
 main(int argc,char **argv)
@@ -121,7 +125,7 @@ main(int argc,char **argv)
 	bgc = GrNewGC();
 
 	GrSetGCForeground(bgc, GRAY);
-	GrSetGCFont(gc, GrCreateFont(GR_FONT_OEM_FIXED, 0, NULL));
+	GrSetGCFont(gc, GrCreateFont(GR_FONT_SYSTEM_FIXED, 0, NULL));
 
 	GrGetGCTextSize(gc, "A", 1, GR_TFASCII, &fwidth, &fheight, &fbase);
 	width = fwidth * 8 + 4;
@@ -188,7 +192,7 @@ main(int argc,char **argv)
 	}
 }
 
-mwin * IsDecoration(GR_WINDOW_ID wid)
+static mwin * IsDecoration(GR_WINDOW_ID wid)
 {
 	mwin * mwp;
 	for(mwp = mwins; mwp; mwp = mwp->next) {
@@ -199,7 +203,7 @@ mwin * IsDecoration(GR_WINDOW_ID wid)
 	return NULL;
 }
 	
-mwin * FindWindow(GR_WINDOW_ID wid)
+static mwin * FindWindow(GR_WINDOW_ID wid)
 {
 	mwin * mwp;
 	for(mwp = mwins; mwp; mwp = mwp->next) {
@@ -210,7 +214,7 @@ mwin * FindWindow(GR_WINDOW_ID wid)
 	return NULL;
 }
 
-mwin * NewWindow(GR_WINDOW_ID wid)
+static mwin * NewWindow(GR_WINDOW_ID wid)
 {
 	mwin * mwp = malloc(sizeof(mwin));
 
@@ -222,9 +226,8 @@ mwin * NewWindow(GR_WINDOW_ID wid)
 	return mwp;
 }
 
-void
-do_update(ep)
-	GR_EVENT_UPDATE	*ep;
+static void
+do_update(GR_EVENT_UPDATE *ep)
 {
 	mwin *	mwp;
 	mwin *	tmwp;
@@ -285,8 +288,8 @@ do_update(ep)
 /*
  * Handle mouse position events
  */
-void do_mouse(ep)
-	GR_EVENT_MOUSE *ep;
+static void
+do_mouse(GR_EVENT_MOUSE *ep)
 {
 #ifdef SHOW_WINDOW_MOTION
 	GR_WINDOW_INFO winfo;
@@ -305,9 +308,8 @@ void do_mouse(ep)
 /*
  * Here when an exposure event occurs.
  */
-void
-do_exposure(ep)
-	GR_EVENT_EXPOSURE	*ep;
+static void
+do_exposure(GR_EVENT_EXPOSURE *ep)
 {
 	struct app_info	* act;
 	int app_no;
@@ -325,9 +327,8 @@ do_exposure(ep)
 
 extern char ** environ;
 
-void
-do_buttondown(ep)
-	GR_EVENT_BUTTON	*ep;
+static void
+do_buttondown(GR_EVENT_BUTTON *ep)
 {
 	mwin *	mwp;
 	static int app_no;
@@ -356,9 +357,8 @@ do_buttondown(ep)
  	}
 }
  
-void
-do_buttonup(ep)
-GR_EVENT_BUTTON	*ep;
+static void
+do_buttonup(GR_EVENT_BUTTON *ep)
 {
 #ifdef SHOW_WINDOW_MOTION
 	in_motion = NULL;

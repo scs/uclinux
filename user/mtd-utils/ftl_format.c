@@ -46,8 +46,7 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-
-#include <linux/mtd/mtd.h>
+#include "mtd/mtd-user.h"
 #include <linux/mtd/ftl.h>
 
 /*====================================================================*/

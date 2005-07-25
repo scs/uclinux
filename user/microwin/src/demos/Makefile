@@ -3,6 +3,11 @@
 # Copyright (c) 2000 Martin Jolicoeur, Greg Haerr
 ##############################################################################
 
+ifndef TOP
+TOP = ..
+CONFIG = $(TOP)/config
+endif
+
 include $(CONFIG)
 
 ######################## Additional Flags section ############################
@@ -26,6 +31,10 @@ LIBNAME =
 
 # List of objects to compile
 OBJS =
+
+#ifeq ($(ARCH), ECOS)
+#dirs = nanowm nanox nxkbd nxscribble
+#endif
 
 ######################### Makefile.rules section #############################
 

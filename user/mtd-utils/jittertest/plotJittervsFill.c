@@ -30,11 +30,8 @@
 
   $Id$
   $Log$
-  Revision 1.1  2004/07/19 13:11:55  lgsoft
-  Initial revision
-
-  Revision 1.1.1.1  2004/07/18 13:27:56  nidhi
-  Importing
+  Revision 1.2  2005/07/25 04:15:49  magicyang
+  New user folder check in
 
   Revision 1.5  2001/08/10 19:23:11  vipin
   Ready to be released under GPL! Added proper headers etc.

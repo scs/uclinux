@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 2000-2001 Greg Haerr <greg@censoft.com>
+ * Portions Copyright (c) 2002 by Koninklijke Philips Electronics N.V.
  *
  * Device-independent arc, pie and ellipse routines.
  * GdArc is integer only and requires start/end points.
@@ -11,30 +12,15 @@
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
- * Line clipping portions used from GPL software by
+ * Arc line clipping and integer qsin/qcos routines used by permission:
  * Copyright (C) 1997-1998 by Eero Tamminen
- * Copyright (C) 1994-1997 by Torsten Scherer, Kay Roemer and Eero Tamminen
- * Heavily bugfixed by Greg Haerr
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * NOTES
+ * Bugfixed by Greg Haerr
  */
 
 #include <stdio.h>
 #include "device.h"
+
+extern int        gr_fillmode;
 
 #if HAVEFLOAT			/* =1 compiles in GdArcAngle*/
 #define HIGHPRECISION	0	/* =1 for high precision angles, uses mathlib*/
@@ -223,9 +209,24 @@ FLOAT QSIN(FLOAT a)
 #endif /* HIGHPRECISION*/
 #endif /* HAVEFLOAT*/
 
-/* 
+/**
  * Draw an arc or pie, angles are specified in 64th's of a degree.
  * This function requires floating point, use GdArc for integer only.
+ *
+ * @param psd Destination surface.
+ * @param x0 Center of arc (X co-ordinate).
+ * @param y0 Center of arc (Y co-ordinate).
+ * @param rx Radius of arc in X direction.
+ * @param ry Radius of arc in Y direction.
+ * @param angle1 Start of arc.  In 64ths of a degree, anticlockwise from
+ * the +x axis.
+ * @param angle2 End of arc.  In 64ths of a degree, anticlockwise from
+ * the +x axis.
+ * @param type Type of arc:
+ * MWARC is a curved line.
+ * MWARCOUTLINE is a curved line plus straight lines joining the ends
+ * to the center of the arc.
+ * MWPIE is a filled shape, like a section of a pie chart.
  */
 void
 GdArcAngle(PSD psd, MWCOORD x0, MWCOORD y0, MWCOORD rx, MWCOORD ry,
@@ -259,9 +260,6 @@ typedef struct {
 	int	adir, bdir;
 	int	type;
 } SLICE;
-
-extern void drawpoint(PSD psd, MWCOORD x, MWCOORD y);
-extern void drawrow(PSD psd, MWCOORD x1, MWCOORD x2, MWCOORD y);
 
 /*
  * Clip a line segment for arc or pie drawing.
@@ -317,8 +315,10 @@ slice->ax, slice->ay, slice->bx, slice->by, slice->adir, slice->bdir);*/
 }
 
 /* relative offsets, direction from left to right. */
+/* Mode indicates if we are in filil mode (1) or line mode (0) */
+
 static void
-draw_line(SLICE *slice, MWCOORD x0, MWCOORD y, MWCOORD x1)
+draw_line(SLICE *slice, MWCOORD x0, MWCOORD y, MWCOORD x1, int mode)
 {
 	int	dbl = (slice->adir > 0 && slice->bdir < 0);
 	int 	discard, ret;
@@ -341,11 +341,18 @@ draw_line(SLICE *slice, MWCOORD x0, MWCOORD y, MWCOORD x1)
 		} else {
 			if (!dbl) {
 				/* FIXME leaving in draws dot in center*/
-				drawpoint(slice->psd, slice->x0, slice->y0);
+
+			        if (gr_fillmode != MWFILL_SOLID && mode) 
+				  ts_drawpoint(slice->psd, slice->x0, slice->y0);
+				else 
+				  drawpoint(slice->psd, slice->x0, slice->y0);
 				return;
 			}
 		}
-		drawrow(slice->psd, slice->x0 + x0, slice->x0 + x1, slice->y0);
+		if (gr_fillmode != MWFILL_SOLID && mode)
+		  ts_drawrow(slice->psd, slice->x0 + x0, slice->x0 + x1, slice->y0);
+		else
+		  drawrow(slice->psd, slice->x0 + x0, slice->x0 + x1, slice->y0);
 		return;
 	}
 
@@ -355,8 +362,13 @@ draw_line(SLICE *slice, MWCOORD x0, MWCOORD y, MWCOORD x1)
 	if (dbl) {
 		if (!ret) {
 			/* edges separate line to two parts */
-			drawrow(slice->psd, slice->x0 + x0, slice->x0 + x1,
-				slice->y0 + y);
+		        if (gr_fillmode != MWFILL_SOLID && mode)
+			  ts_drawrow(slice->psd, slice->x0 + x0, slice->x0 + x1,
+				     slice->y0 + y);
+			else
+			  drawrow(slice->psd, slice->x0 + x0, slice->x0 + x1,
+				  slice->y0 + y);
+
 			x0 = x2;
 			x1 = x3;
 		}
@@ -379,21 +391,46 @@ draw_line(SLICE *slice, MWCOORD x0, MWCOORD y, MWCOORD x1)
 			return;
 		}
 	}
-	drawrow(slice->psd, slice->x0 + x0, slice->x0 + x1, slice->y0 + y);
+	if (gr_fillmode != MWFILL_SOLID && mode)
+	  ts_drawrow(slice->psd, slice->x0 + x0, slice->x0 + x1, slice->y0 + y);
+	else
+	  drawrow(slice->psd, slice->x0 + x0, slice->x0 + x1, slice->y0 + y);
 }
 
-/* draw one line segment or set of points, called from drawarc routine*/
+/*
+ * draw one line segment or set of points, called from drawarc routine
+ *
+ * Note that this is called for all rows in one quadrant of the ellipse.
+ * It mirrors vertically & horizontally to get the entire ellipse.
+ *
+ * It passes on co-ordinates for the *entire* ellipse - for pie and
+ * arc, clipping is done later to ensure that only the requested angle
+ * gets drawn.
+ */
 static void
-drawarcsegment(SLICE *slice, MWCOORD xp, MWCOORD yp)
+drawarcsegment(SLICE *slice, MWCOORD xp, MWCOORD yp, int drawon)
 {
+  unsigned long dm = 0, dc = 0;
 	switch (slice->type) {
 	case MWELLIPSEFILL:
 		/* draw ellipse fill segment*/
-		drawrow(slice->psd, slice->x0-xp, slice->x0+xp, slice->y0-yp);
-		drawrow(slice->psd, slice->x0-xp, slice->x0+xp, slice->y0+yp);
-		return;
+                /* First, save the dash settings, because we don't want to use them here */
+
+	  if (gr_fillmode != MWFILL_SOLID) {
+	    ts_drawrow(slice->psd, slice->x0-xp, slice->x0+xp, slice->y0-yp);
+	    ts_drawrow(slice->psd, slice->x0-xp, slice->x0+xp, slice->y0+yp);
+	  }
+	  else {
+	    GdSetDash(&dm, (int *) &dc); /* Must turn off the dash settings because of drawrow() */
+	    drawrow(slice->psd, slice->x0-xp, slice->x0+xp, slice->y0-yp);
+	    drawrow(slice->psd, slice->x0-xp, slice->x0+xp, slice->y0+yp);
+	    GdSetDash(&dm, (int *) &dc);
+	  }
+
+	  return;
 
 	case MWELLIPSE:
+	  if (!drawon) return;
 		/* set four points symmetrically situated around a point*/
 		drawpoint(slice->psd, slice->x0 + xp, slice->y0 + yp);
 		drawpoint(slice->psd, slice->x0 - xp, slice->y0 + yp);
@@ -403,16 +440,19 @@ drawarcsegment(SLICE *slice, MWCOORD xp, MWCOORD yp)
 
 	case MWPIE:
 		/* draw top and bottom halfs of pie*/
-		draw_line(slice, -xp, -yp, +xp);
-		draw_line(slice, -xp, +yp, +xp);
+	        if (gr_fillmode == MWFILL_SOLID) GdSetDash(&dm, (int *) &dc);
+		draw_line(slice, -xp, -yp, +xp, 1);
+		draw_line(slice, -xp, +yp, +xp, 1);
+		if (gr_fillmode == MWFILL_SOLID) GdSetDash(&dm, (int *) &dc);
 		return;
 
 	default:	/* MWARC, MWARCOUTLINE*/
 		/* set four points symmetrically around a point and clip*/
-		draw_line(slice, +xp, +yp, +xp);
-		draw_line(slice, -xp, +yp, -xp);
-		draw_line(slice, +xp, -yp, +xp);
-		draw_line(slice, -xp, -yp, -xp);
+
+		draw_line(slice, +xp, +yp, +xp, 0);
+		draw_line(slice, -xp, +yp, -xp, 0);
+		draw_line(slice, +xp, -yp, +xp, 0);
+		draw_line(slice, -xp, -yp, -xp, 0);
 		return;
 	}
 }
@@ -421,6 +461,9 @@ drawarcsegment(SLICE *slice, MWCOORD xp, MWCOORD yp)
 static void
 drawarc(SLICE *slice)
 {
+        extern unsigned long gr_dashmask;     
+        extern unsigned long gr_dashcount;    
+
 	MWCOORD xp, yp;		/* current point (based on center) */
 	MWCOORD rx, ry;
 	long Asquared;		/* square of x semi axis */
@@ -429,6 +472,9 @@ drawarc(SLICE *slice)
 	long TwoBsquared;
 	long d;
 	long dx, dy;
+
+	int bit  = 0;
+	int drawon = 1;
 
 	rx = slice->rx;
 	ry = slice->ry;
@@ -443,8 +489,32 @@ drawarc(SLICE *slice)
 	dx = 0;
 	dy = TwoAsquared * ry;
 
+	if (gr_fillmode != MWFILL_SOLID)
+	  set_ts_origin(slice->x0 - rx, slice->y0 - ry);
+
 	while (dx < dy) {
-		drawarcsegment(slice, xp, yp);
+
+		/*
+		 * Only draw if one of the following conditions holds:
+		 * - We're drawing an outline - i.e. slice->type is
+		 *   not MWPIE or MWELLIPSEFILL
+		 * - We're about to move on to the next Y co-ordinate
+		 *   (i.e. we're drawing a filled shape and we're at
+		 *   the widest point for this Y co-ordinate).
+		 *   This is the case if d (the error term) is >0
+		 * Otherwise, we draw multiple times, which messes up
+		 * with SRC_OVER or XOR modes.
+		 */
+		if ((d > 0) || ((slice->type != MWPIE) && (slice->type != MWELLIPSEFILL))) {
+			if (gr_dashcount) {
+				drawon = (gr_dashmask & (1 << bit)) ? 1 : 0;
+				bit = (bit + 1) % gr_dashcount;
+			} else
+				drawon = 1;
+
+			drawarcsegment(slice, xp, yp, drawon);
+		}
+
 		if (d > 0) {
 			yp--;
 			dy -= TwoAsquared;
@@ -458,7 +528,13 @@ drawarc(SLICE *slice)
 	d += ((3L * (Asquared - Bsquared) / 2L - (dx + dy)) >> 1);
 
 	while (yp >= 0) {
-		drawarcsegment(slice, xp, yp);
+	        if (gr_dashcount) {
+	          drawon = (gr_dashmask & (1 << bit)) ? 1 : 0;
+		  bit = (bit + 1) % gr_dashcount;
+		}
+	        else drawon = 1;
+
+		drawarcsegment(slice, xp, yp, drawon);
 		if (d < 0) {
 			xp++;
 			dx += TwoBsquared;
@@ -471,10 +547,25 @@ drawarc(SLICE *slice)
 
 }
 
-/* 
+/**
  * Draw an arc or pie using start/end points.
- * Integer only routine.  To specify start/end angles, 
+ * Integer only routine.  To specify start/end angles,
  * use GdArcAngle, which requires floating point.
+ *
+ * @param psd Destination surface.
+ * @param x0 Center of arc (X co-ordinate).
+ * @param y0 Center of arc (Y co-ordinate).
+ * @param rx Radius of arc in X direction.
+ * @param ry Radius of arc in Y direction.
+ * @param ax Start of arc (X co-ordinate).
+ * @param ay Start of arc (Y co-ordinate).
+ * @param bx End of arc (X co-ordinate).
+ * @param by End of arc (Y co-ordinate).
+ * @param type Type of arc:
+ * MWARC is a curved line.
+ * MWARCOUTLINE is a curved line plus straight lines joining the ends
+ * to the center of the arc.
+ * MWPIE is a filled shape, like a section of a pie chart.
  */
 void
 GdArc(PSD psd, MWCOORD x0, MWCOORD y0, MWCOORD rx, MWCOORD ry,
@@ -560,10 +651,17 @@ GdArc(PSD psd, MWCOORD x0, MWCOORD y0, MWCOORD rx, MWCOORD ry,
 	GdFixCursor(psd);
 }
 
-/*
+/**
  * Draw an ellipse using the current clipping region and foreground color.
  * This draws in the outline of the ellipse, or fills it.
  * Integer only routine.
+ *
+ * @param psd Destination surface.
+ * @param x Center of ellipse (X co-ordinate).
+ * @param y Center of ellipse (Y co-ordinate).
+ * @param rx Radius of ellipse in X direction.
+ * @param ry Radius of ellipse in Y direction.
+ * @param fill Nonzero for a filled ellipse, zero for an outline.
  */
 void
 GdEllipse(PSD psd, MWCOORD x, MWCOORD y, MWCOORD rx, MWCOORD ry, MWBOOL fill)

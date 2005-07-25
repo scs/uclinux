@@ -42,10 +42,14 @@ static unsigned char trig[91] =
 	244, 246, 247, 248, 249, 250, 251, 252, 252, 253, 254, 254, 255, 255,
 	255, 255, 255, 255}; 
 
-void do_exposure();
-void do_clock();
-void do_idle();
-void errorcatcher();			/* routine to handle errors */
+void do_exposure(GR_EVENT_EXPOSURE *ep);
+void do_clock(void);
+#if 0
+void do_idle(void);
+#endif
+int bsin(int angle);
+int bcos(int angle);
+void draw_time(int hour, int minutes, int sec, GR_GC_ID gc);
 
 int
 main(int ac, char **av)
@@ -147,8 +151,7 @@ int bcos(int angle)
  * Here when an exposure event occurs.
  */
 void
-do_exposure(ep)
-	GR_EVENT_EXPOSURE	*ep;
+do_exposure(GR_EVENT_EXPOSURE *ep)
 {
 	GR_COORD	midx = CWIDTH / 2;
 	GR_COORD	midy = CHEIGHT / 2;
@@ -175,7 +178,7 @@ do_exposure(ep)
 	do_clock();
 }
 
-void draw_time(int hour, int minutes, int sec, GR_GC_ID gc )
+void draw_time(int hour, int minutes, int sec, GR_GC_ID gc)
 {
 	GR_COORD	midx = CWIDTH / 2;
 	GR_COORD	midy = CHEIGHT / 2;
@@ -221,7 +224,7 @@ void draw_time(int hour, int minutes, int sec, GR_GC_ID gc )
  * Update the clock if the seconds have changed.
  */
 void
-do_clock()
+do_clock(void)
 {
 	struct timeval tv;
 	struct timezone tz;
@@ -250,7 +253,7 @@ do_clock()
 /*
  * Sleep a while to avoid using too much CPU time.
  */
-void do_idle()
+void do_idle(void)
 {
 	struct timespec idletime;
 	idletime.tv_sec = 0;

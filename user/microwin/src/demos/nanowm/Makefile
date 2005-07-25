@@ -34,7 +34,13 @@ LIBNAME =
 # List of objects to compile
 OBJS = nanowm.o events.o wlist.o clients.o actions.o
 
-all: default $(TOP)/bin/nanowm
+ifeq ($(ARCH), ECOS)
+TARGET = $(TOP)/bin/nanowm.o
+else
+TARGET = $(TOP)/bin/nanowm
+endif
+
+all: default $(TARGET)
 
 endif
 
@@ -43,11 +49,17 @@ endif
 include $(TOP)/Makefile.rules
 
 ######################## Tools targets section ###############################
-
 ifeq ($(SHAREDLIBS), Y)
 $(TOP)/bin/nanowm: $(OBJS) $(NANOXCLIENTLIBS) $(TOP)/config
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@ $(CCNANOXCLIENTLIBS) $(LDLIBS)
 else
+ifeq ($(ARCH), ECOS)
+$(TOP)/bin/nanowm.o: $(OBJS) $(TOP)/config
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -Wl,-r -Wl,--defsym -Wl,nanowm_main=main -o XX.o
+	$(NM) XX.o | grep -v _main | grep ' T' | awk -f $(TOP)/ecos/retain.awk | xargs $(OBJCOPY) XX.o $@
+	rm -f XX.o
+else
 $(TOP)/bin/nanowm: $(OBJS) $(NANOXCLIENTLIBS) $(TOP)/config
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@ $(NANOXCLIENTLIBS) $(LDLIBS)
+endif
 endif

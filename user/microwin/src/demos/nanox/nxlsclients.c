@@ -40,7 +40,7 @@ static COLOURS colour_table[] = {
 };
 #define NR_COLOURS	(sizeof(colour_table) / sizeof(colour_table[0]))
 
-char*
+static char*
 lookupColour(unsigned long c)
 {
 	int i;
@@ -120,7 +120,7 @@ main(int argc, char* argv[])
         }
 
 	for (w = 0; w < LIMIT; w++) {
-		info.wid = -1; // self-sabotaged like CCCP
+		info.wid = -1; /* self-sabotaged like CCCP */
 		
 		GrGetWindowInfo(w, &info);
 		
@@ -129,7 +129,9 @@ main(int argc, char* argv[])
 			continue;
 		}
 		if (info.wid == 0) {
-			//printf("Query wid = %d --> does not exist\n", w);
+#if 0
+			printf("Query wid = %d --> does not exist\n", w);
+#endif
 			continue;
 		}
 		printf("Window id = %d\n", info.wid);
@@ -150,7 +152,7 @@ main(int argc, char* argv[])
 		printf("\t%sinput-only, ", (info.inputonly == TRUE)?"": "not ");
 		printf("%smapped", (info.mapped == TRUE)?"": "not ");
 		if (info.mapped != TRUE)
-			printf(", unmapcount = %d", info.unmapcount);
+			printf(", realized = %d", info.realized);
 		printf("\n");
 
 		printf("\tEvent mask (0x%08lX):\n", info.eventmask);
@@ -170,7 +172,7 @@ main(int argc, char* argv[])
 				printf("\t\tGR_EVENT_MASK_NONE (?!?!?)\n");
 		}
 
-		// We don't use info.props, use GrGetWMProperties() intead
+		/* We don't use info.props, use GrGetWMProperties() intead */
 		printf("\tWM Properties:\n");
 		{
 			GR_WM_PROPERTIES wm_props;
@@ -179,9 +181,12 @@ main(int argc, char* argv[])
 			
 			printf("\t\tTitle: ");	
 			if ((wm_props.flags & GR_WM_FLAGS_TITLE ) == GR_WM_FLAGS_TITLE) 
-				printf("'%s'\n", (char*)wm_props.title?:"(null)");
+				printf("'%s'\n", (char*)wm_props.title ?
+						(char *)wm_props.title : "(null)");
 			else
 				printf("<untitled>\n");
+			if (wm_props.title)
+				free(wm_props.title);
 
 			printf("\t\tBackground colour: ");
 			if ((wm_props.flags & GR_WM_FLAGS_BACKGROUND) == GR_WM_FLAGS_BACKGROUND)

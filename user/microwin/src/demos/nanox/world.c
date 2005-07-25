@@ -6,15 +6,22 @@
  * ported to 16 bit systems by Greg Haerr
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #define MWINCLUDECOLORS
 #include "nano-X.h"
 
-#if MSDOS
+#if defined(MSDOS) || defined(__ECOS)
 #include <fcntl.h>
 #endif
 
-#if LINUX | DOS_DJGPP
+#if defined(__FreeBSD__)
+#include <unistd.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#endif
+
+#if LINUX || DOS_DJGPP || defined(__CYGWIN__)
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -25,8 +32,8 @@
 #define O_BINARY 	0
 #endif
 
-#if DOS_DJGPP
-#define	MAPFILE	"world.map"
+#if defined(DOS_DJGPP) || defined(__ECOS)
+#define	MAPFILE	"/world.map"
 #else
 #define	MAPFILE	"demos/nanox/world.map"		/* was /usr/lib*/
 #endif
@@ -64,9 +71,9 @@ typedef struct {
 	short	Code;		/* type of point (see code_colors below) */
 	short	Lat;		/* latitude in minutes */
 	short	Lon;		/* longitude in minutes */
-} DBPOINT;
+} MWPACKED DBPOINT;
 
-#if BIGENDIAN
+#if MW_CPU_BIG_ENDIAN
 #define SHORT_SWAP(p) (p = ((p & 0xff) << 8) | ((p >> 8) & 0xff))
 #define DBPOINT_CONVERT(p) (SHORT_SWAP(p->Code),SHORT_SWAP(p->Lat),SHORT_SWAP(p->Lon))
 #else
@@ -74,7 +81,7 @@ typedef struct {
 #endif
 
 #define POINTSize	sizeof(DBPOINT)
-#define PCount		1024		/* number of points to read at once */
+#define PCount		128		/* number of points to read at once */
 
 
 /*
@@ -149,24 +156,23 @@ static	GR_COLOR	code_colors[] = {
 	BLACK, GREEN, RED, BLACK, BROWN, GREEN, BLUE, BLUE
 };
 
-
-static	void	load();
-static	void	setzoom();
-static	void	checkevent();
-static	void	doexposure();
-static	void	dobuttondown();
-static	void	dobuttonup();
-static	void	doposition();
-static	void	dokeydown();
-static	void	showselection();
-static	void	showcoords();
-static	void	mintostr();
-
+static void checkevent(void);
+static void doexposure(GR_EVENT_EXPOSURE *ep);
+static void dobuttondown(GR_EVENT_BUTTON *bp);
+static void dobuttonup(GR_EVENT_BUTTON *bp);
+static void doposition(GR_EVENT_MOUSE *mp);
+static void dokeydown(GR_EVENT_KEYSTROKE *kp);
+static void showselection(GR_BOOL show);
+static void showcoords(GR_BOOL show);
+static void mintostr(char *buf, long minutes);
+static void setzoom(FLOAT newzoom);
+static void load(char *fn);
 
 int
 main(int argc, char **argv)
 {
 	GR_SCREEN_INFO	si;
+	GR_WM_PROPERTIES props;
 
 	if (GrOpen() < 0) {
 		fprintf(stderr, "Cannot open graphics\n");
@@ -176,11 +182,23 @@ main(int argc, char **argv)
         GrReqShmCmds(65536); /* Test by Morten Rolland for shm support */
 
 	GrGetScreenInfo(&si);
+#ifdef __ECOS
+/* 240x320 screen*/
+COLS = si.cols - 10;
+ROWS = si.rows - 40;
+#else
 COLS = si.cols - 40;
 ROWS = si.rows - 80;
+#endif
 
 	mainwid = GrNewWindow(GR_ROOT_WINDOW_ID, 0, 0, COLS, ROWS,
 		0, BLACK, BLACK);
+
+	/* set title */
+	props.flags = GR_WM_FLAGS_TITLE | GR_WM_FLAGS_PROPS;
+	props.props = GR_WM_PROPS_BORDER | GR_WM_PROPS_CAPTION;
+	props.title = "NanoX World Map";
+	GrSetWMProperties(mainwid, &props);
 
 	mapwidth = COLS - 2;
 	mapheight = ROWS - 2;
@@ -191,8 +209,11 @@ ROWS = si.rows - 80;
 	coordx = 0;
 	coordy = ROWS - 1;
 	mapwid = GrNewWindow(mainwid, 1, 1, mapwidth, mapheight,
+#if 0
 		1, BLACK, WHITE);
-
+#else
+		1, LTGRAY, BLACK);
+#endif
 	GrSelectEvents(mainwid, GR_EVENT_MASK_CLOSE_REQ);
 	GrSelectEvents(mapwid, GR_EVENT_MASK_EXPOSURE |
 		GR_EVENT_MASK_BUTTON_DOWN | GR_EVENT_MASK_BUTTON_UP |
@@ -215,7 +236,7 @@ ROWS = si.rows - 80;
 
 
 static void
-checkevent()
+checkevent(void)
 {
 	GR_EVENT	event;
 
@@ -244,13 +265,13 @@ checkevent()
 
 
 static void
-doexposure(ep)
-	GR_EVENT_EXPOSURE	*ep;
+doexposure(GR_EVENT_EXPOSURE *ep)
 {
 	if (ep->wid != mapwid)
 		return;
 
-	GrClearWindow(mapwid, GR_FALSE);
+	/* removed: helps with blink with nanowm*/
+	/*GrClearWindow(mapwid, GR_FALSE);*/
 	selectvisible = GR_FALSE;
 	coordvisible = GR_FALSE;
 	load(MAPFILE);
@@ -260,8 +281,7 @@ doexposure(ep)
 
 
 static void
-dobuttondown(bp)
-	GR_EVENT_BUTTON	*bp;
+dobuttondown(GR_EVENT_BUTTON *bp)
 {
 	if (bp->wid != mapwid)
 		return;
@@ -289,8 +309,7 @@ dobuttondown(bp)
 
 
 static void
-dobuttonup(bp)
-	GR_EVENT_BUTTON	*bp;
+dobuttonup(GR_EVENT_BUTTON *bp)
 {
 	if (bp->wid != mapwid)
 		return;
@@ -318,8 +337,7 @@ dobuttonup(bp)
 
 
 static void
-doposition(mp)
-	GR_EVENT_MOUSE	*mp;
+doposition(GR_EVENT_MOUSE *mp)
 {
 	GR_SIZE	temp;
 
@@ -361,8 +379,7 @@ doposition(mp)
 
 
 static void
-dokeydown(kp)
-	GR_EVENT_KEYSTROKE	*kp;
+dokeydown(GR_EVENT_KEYSTROKE *kp)
 {
 	if (kp->wid != mapwid)
 		return;
@@ -407,8 +424,7 @@ dokeydown(kp)
  * same drawing operation because of the XOR operation.
  */
 static void
-showselection(show)
-	GR_BOOL	show;		/* TRUE if show the selection */
+showselection(GR_BOOL show)
 {
 	if ((show == 0) == (selectvisible == 0))
 		return;
@@ -425,8 +441,7 @@ showselection(show)
  * Both of these are the same operation because of the XOR operation.
  */
 static void
-showcoords(show)
-	GR_BOOL	show;		/* TRUE if show the coordinates */
+showcoords(GR_BOOL show)
 {
 	long	curlong;
 	long	curlat;
@@ -463,9 +478,7 @@ showcoords(show)
  * into the indicated buffer.
  */
 static void
-mintostr(buf, minutes)
-	char	*buf;
-	long	minutes;
+mintostr(char *buf, long minutes)
 {
 	if (minutes < 0) {
 		minutes = -minutes;
@@ -480,8 +493,7 @@ mintostr(buf, minutes)
  * Convert "ddd'mm" to mins
  */
 static long
-degtomin(s)
-	char	*s;
+degtomin(char *s)
 {
 	int	deg, minutes;
 	char	str[10],*strchr(),*cp;
@@ -504,8 +516,7 @@ degtomin(s)
  * The factors 3 and 4 are here to compensate for the screen aspect ratio.
  */
 static void
-setzoom(newzoom)
-	FLOAT	newzoom;
+setzoom(FLOAT newzoom)
 {
 	zoom = newzoom;
 
@@ -523,8 +534,7 @@ setzoom(newzoom)
  * Read the database file and draw the world.
  */
 static void
-load(fn)
-	char	*fn;
+load(char *fn)
 {
 	register DBPOINT	*pp;
 	DBPOINT		*pend;
@@ -547,7 +557,7 @@ load(fn)
 	is_out = GR_FALSE;
 	was_out = GR_FALSE;
 
-	fh = open(fn, O_BINARY);
+	fh = open(fn, O_BINARY | O_RDONLY);
 	if (fh < 0) {
 		GrClose();
 		fprintf(stderr, "Cannot open %s\n", fn);

@@ -1,4 +1,4 @@
-/***********************************************************************
+/* *********************************************************************
 
 sc.c - creates classifiers from feature vectors of examples, as well as
    classifying example feature vectors.
@@ -21,7 +21,7 @@ Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ***********************************************************************/
 
-
+#include <string.h>
 #include "bitvector.h"
 #include "matrix.h"
 #include "util.h"

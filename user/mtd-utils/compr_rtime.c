@@ -21,10 +21,9 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/string.h> 
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
 
 /* _compress returns the compressed size, -1 if bigger */
 int jffs2_rtime_compress(unsigned char *data_in, unsigned char *cpage_out, 

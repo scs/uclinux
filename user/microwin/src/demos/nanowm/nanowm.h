@@ -6,7 +6,7 @@
 #ifndef __NANOWM_H
 #define __NANOWM_H
 
-#ifdef DEBUG
+#ifdef WMDEBUG
 #define Dprintf printf
 #else
 #define Dprintf(ignore...)
@@ -23,7 +23,7 @@ enum {
 	WINDOW_TYPE_ROOT,
 	WINDOW_TYPE_CONTAINER,
 	WINDOW_TYPE_CLIENT
-	/***WINDOW_TYPE_TOPBAR,
+	/* *WINDOW_TYPE_TOPBAR,
 	WINDOW_TYPE_LEFTBAR,
 	WINDOW_TYPE_RIGHTBAR,
 	WINDOW_TYPE_BOTTOMBAR,
@@ -97,7 +97,12 @@ int add_window(win *window);
 int remove_window(win *window);
 int remove_window_and_children(win *window);
 int new_client_window(GR_WINDOW_ID wid);
+void client_window_resize(win *window);
 void client_window_destroy(win *window);
+
+void client_window_remap(win *window);
+void client_window_unmap(win *window);
+
 void redraw_ncarea(win *window);
 void do_exposure(GR_EVENT_EXPOSURE *event);
 void do_button_down(GR_EVENT_BUTTON *event);

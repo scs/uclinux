@@ -12,8 +12,8 @@
  * The Original Code is NanoTetris.
  * 
  * The Initial Developer of the Original Code is Alex Holden.
- * Portions created by Alex Holden are Copyright (C) 2000
- * Alex Holden <alex@linuxhacker.org>. All Rights Reserved.
+ * Portions created by Alex Holden are Copyright (C) 2000, 2002
+ * Alex Holden <alex@alexholden.net>. All Rights Reserved.
  * 
  * Contributor(s):
  * 
@@ -73,6 +73,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -81,8 +82,13 @@
 #include <errno.h>
 #include <sys/time.h>
 
-#define MWINCLUDECOLORS
+#ifdef __ECOS
+#define random  rand
+#define srandom srand
+#endif
+
 #include <nano-X.h>
+#include <nxcolors.h>
 
 #include "ntetris.h"
 
@@ -147,6 +153,7 @@ void read_hiscore(nstate *state)
 
 	state->hiscore = state->fhiscore = n;
 }
+
 void write_hiscore(nstate *state)
 {
 	FILE *f;
@@ -159,9 +166,9 @@ void write_hiscore(nstate *state)
 		return;
 	}
 
-	if((fprintf(f, "%d", state->hiscore)) == -1) {
+	if((fprintf(f, "%d", state->hiscore)) == -1)
 		perror("Couldn't write to high score file");
-	}
+	else state->fhiscore = state->hiscore;
 
 	fclose(f);
 }
@@ -170,6 +177,7 @@ void read_hiscore(nstate *state)
 {
 	state->hiscore = 0;
 }
+
 void write_hiscore(nstate *state) {}
 #endif
 
@@ -183,7 +191,7 @@ int will_collide(nstate *state, int x, int y, int orientation)
 		ch = 0;
 		for(c = 0; ch < 2; c++) {
 			ch = shapes[state->current_shape.type]
-				[state->current_shape.orientation][r][c];
+				[orientation][r][c];
 			if(ch == 1) {
 				yy = y + r;
 				xx = x + c;
@@ -405,7 +413,7 @@ void delete_line(nstate *state, int line)
 
 void block_reached_bottom(nstate *state)
 {
-	int x, y;
+	int x, y, nr;
 
 	if(!block_is_all_in_well(state)) {
 		state->state = STATE_STOPPED;
@@ -413,8 +421,14 @@ void block_reached_bottom(nstate *state)
 	}
 
 	for(y = WELL_HEIGHT - 1; y; y--) {
-		for(x = 0; x < WELL_WIDTH; x++)
-			if(!state->blocks[0][y][x]) goto nr;
+		nr = 0;
+		for(x = 0; x < WELL_WIDTH; x++) {
+			if(!state->blocks[0][y][x]) {
+				nr = 1;
+				break;
+			}
+		}
+		if(nr) continue;
 		msleep(DELETE_LINE_DELAY);
 		delete_line(state, y);
 		state->score += SCORE_INCREMENT;
@@ -423,7 +437,6 @@ void block_reached_bottom(nstate *state)
 			state->level++;
 		draw_score(state);
 		y++;
-		nr:
 	}
 
 	choose_new_shape(state);
@@ -484,7 +497,7 @@ void rotate_block(nstate *state, int direction)
 	}
 }
 
-int drop_block_1(nstate *state)
+static int drop_block_1(nstate *state)
 {
 	if(will_collide(state, state->current_shape.x,
 				(state->current_shape.y + 1),
@@ -596,13 +609,16 @@ void handle_mouse_event(nstate *state)
 void handle_keyboard_event(nstate *state)
 {
 	GR_EVENT_KEYSTROKE *event = &state->event.keystroke;
-	char c = toupper(event->ch);
 
-	switch(c) {
+	switch(event->ch) {
+		case 'q':
 		case 'Q':
+		case MWKEY_CANCEL:
 			state->state = STATE_EXIT;
 			return;
+		case 'n':
 		case 'N':
+		case MWKEY_APP1:
 			state->state = STATE_NEWGAME;
 			return;
 	}
@@ -611,23 +627,33 @@ void handle_keyboard_event(nstate *state)
 
 	state->state = STATE_RUNNING;
 
-	switch(c) {
+	switch(event->ch) {
+		case 'p':
 		case 'P':
 			state->state = STATE_PAUSED;
 			break;
+		case 'j':
 		case 'J':
+        	case MWKEY_LEFT:
 			move_block(state, 0);
 			break;
+		case 'k':
 		case 'K':
+        	case MWKEY_RIGHT:
 			move_block(state, 1);
 			break;
+		case 'd':
 		case 'D':
+        	case MWKEY_UP:
 			rotate_block(state, 0);
 			break;
+		case 'f':
 		case 'F':
+        	case MWKEY_DOWN:
 			rotate_block(state, 1);
 			break;
 		case ' ':
+        	case MWKEY_MENU:
 			drop_block(state);
 			break;
 	}
@@ -668,16 +694,6 @@ void clear_well(nstate *state)
 		}
 }
 
-/* Dirty hack alert- this is to avoid using any floating point math */
-int random8(int limit)
-{
-	int ret;
-
-	do { ret = random() & 7; } while(ret > limit);
-
-	return ret;
-}
-
 void choose_new_shape(nstate *state)
 {
 	state->current_shape.type = state->next_shape.type;
@@ -687,9 +703,10 @@ void choose_new_shape(nstate *state)
 	state->current_shape.y = WELL_NOTVISIBLE -
 			shape_sizes[state->next_shape.type]
 				[state->next_shape.orientation][1] - 1;
-	state->next_shape.type = random8(MAXSHAPES - 1);
-	state->next_shape.orientation = random8(MAXORIENTATIONS - 1);
-	state->next_shape.colour = block_colours[random8(MAX_BLOCK_COLOUR)];
+	state->next_shape.type = random() % MAXSHAPES;
+	state->next_shape.orientation = random() % MAXORIENTATIONS;
+	state->next_shape.colour = block_colours[random() %
+						(MAX_BLOCK_COLOUR + 1)];
 }
 
 void new_game(nstate *state)
@@ -707,6 +724,9 @@ void new_game(nstate *state)
 
 void init_game(nstate *state)
 {
+	GR_WM_PROPERTIES props;
+	GR_COORD x = MAIN_WINDOW_X_POSITION;
+
 	if(GrOpen() < 0) {
 		fprintf(stderr, "Couldn't connect to Nano-X server\n");
 		exit(1);
@@ -714,12 +734,17 @@ void init_game(nstate *state)
 
 	state->fontid = GrCreateFont(NULL, 3, NULL);
 
-	state->main_window = GrNewWindow(GR_ROOT_WINDOW_ID,
-					MAIN_WINDOW_X_POSITION,
+	state->main_window = GrNewWindow(GR_ROOT_WINDOW_ID, x,
 					MAIN_WINDOW_Y_POSITION,
 					MAIN_WINDOW_WIDTH,
 					MAIN_WINDOW_HEIGHT, 0,
 					MAIN_WINDOW_BACKGROUND_COLOUR, 0);
+	/* set title */
+	props.flags = GR_WM_FLAGS_TITLE | GR_WM_FLAGS_PROPS;
+	props.props = GR_WM_PROPS_BORDER | GR_WM_PROPS_CAPTION |
+			GR_WM_PROPS_CLOSEBOX;
+	props.title = "Nano-Tetris";
+	GrSetWMProperties(state->main_window, &props);
 	GrSelectEvents(state->main_window, GR_EVENT_MASK_EXPOSURE |
 					GR_EVENT_MASK_CLOSE_REQ |
 					GR_EVENT_MASK_KEY_DOWN |

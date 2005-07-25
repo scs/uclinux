@@ -135,6 +135,7 @@ fiddle unless you really have to. */
 #include <limits.h>
 #include <float.h>
 #include <math.h>
+#include <syslog.h>
 
 #define MAIN
 #include "kludges.h"
@@ -218,7 +219,8 @@ static double outgoing[2*COUNT_MAX],   /* Transmission timestamps */
     prompt = 0.0,                      /* -p value in seconds */
     dispersion = 0.0;                  /* The source dispersion in seconds */
 static FILE *savefile = NULL;          /* Holds the data to restart from */
-
+int msntp_daemon = 0;                        /* value for separation in daemon mode */
+#define daemon msntp_daemon
 
 
 /* The unpacked NTP data structure, with all the fields even remotely relevant
@@ -253,6 +255,9 @@ void fatal (int syserr, const char *message, const char *insert) {
         fprintf(stderr,"%s: ",argv0);
         fprintf(stderr,message,insert);
         fprintf(stderr,"\n");
+		if (daemon) {
+			syslog(LOG_DAEMON|LOG_WARNING, message, insert); 
+		}
     }
     errno = k;
     if (syserr) perror(argv0);
@@ -261,6 +266,8 @@ void fatal (int syserr, const char *message, const char *insert) {
         if (savefile != NULL && fclose(savefile))
             fatal(1,"unable to close the daemon save file",NULL);
         if (locked) set_lock(0);
+		if (daemon)
+			closelog();
     }
     exit(EXIT_FAILURE);
 }
@@ -439,6 +446,8 @@ that it must not change its arguments if it fails. */
 
 /* Read the packet and deal with diagnostics. */
 
+	if (verbose > 2)
+        fprintf(stderr,"calling read_socket with waiting=%d\n",waiting);
     if ((length = read_socket(which,receive,NTP_PACKET_MAX+1,waiting)) <= 0)
         return 1;
     if (length < NTP_PACKET_MIN || length > NTP_PACKET_MAX) {
@@ -1169,6 +1178,8 @@ void query_savefile (void) {
     printf("%s\n",text);
     if (fclose(savefile)) fatal(1,"unable to close daemon save file",NULL);
     if (verbose > 2) fprintf(stderr,"Stopped normally\n");
+	if (daemon)
+		closelog();
     exit(EXIT_SUCCESS);
 }
 
@@ -1593,7 +1604,7 @@ int main (int argc, char *argv[]) {
 one of the specialised routines to do the work. */
 
     char *hostnames[MAX_SOCKETS], *savename = NULL;
-    int daemon = 0, nhosts = 0, help = 0, args = argc-1, k;
+    int nhosts = 0, help = 0, args = argc-1, k;
     char c;
 
     if (argv[0] == NULL || argv[0][0] == '\0')
@@ -1636,6 +1647,7 @@ one of the specialised routines to do the work. */
             k = 2;
         } else if ((strcmp(argv[1],"-x") == 0) &&
                 daemon == 0) {
+			openlog(argv0, LOG_PID, LOG_DAEMON);
             if (argc > 2 && sscanf(argv[2],"%d%c",&daemon,&c) == 1) {
                 if (daemon < 1 || daemon > 1440)
                     fatal(0,"%s option value out of range",argv[1]);

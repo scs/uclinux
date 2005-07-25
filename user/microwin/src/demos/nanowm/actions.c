@@ -10,11 +10,12 @@
 #include "nano-X.h"
 #include "nxdraw.h"
 /* Uncomment this if you want debugging output from this file */
-//#define DEBUG
+/*#define DEBUG*/
+
 #include "nanowm.h"
 
 /* uncomment this line to perform outline move operations*/
-//#define OUTLINE_MOVE
+/*#define OUTLINE_MOVE*/
 
 void redraw_ncarea(win *window)
 {
@@ -39,6 +40,10 @@ void redraw_ncarea(win *window)
 	active = (window->clientid == GrGetFocus());
 	nxPaintNCArea(window->wid, info.width, info.height, props.title,
 		active, props.props);
+
+	/* free title returned from GrGetWMProperties*/
+	if (props.title)
+		free(props.title);
 }
 
 void container_exposure(win *window, GR_EVENT_EXPOSURE *event)
@@ -98,6 +103,11 @@ void container_buttondown(win *window, GR_EVENT_BUTTON *event)
 
 	/* Set focus on button down*/
 	GrSetFocus(window->clientid);
+/*
+ * Note: Resize seems to cause lots of trouble since the resize "handle"
+ * does not seem to be visible/advertized.  Thus at any touch, the window
+ * may get resized and it is often impossible to recover
+ */
 
 	/* check for corner resize */
 	r.x = info.width - 5;
@@ -115,7 +125,7 @@ void container_buttondown(win *window, GR_EVENT_BUTTON *event)
 	  window->sizing = GR_TRUE;
 	  pos = (struct pos_size*)window->data;
 	  
-	  // save off the width/height offset from the window manager
+	  /* save off the width/height offset from the window manager */
 	  GrGetWindowInfo(window->clientid,&info);
 	  pos->xoff = -info.width;
 	  pos->yoff = -info.height;
@@ -129,7 +139,7 @@ void container_buttondown(win *window, GR_EVENT_BUTTON *event)
 	  GrRect(GR_ROOT_WINDOW_ID,gc,info.x, info.y, info.width, info.height);
 	  GrDestroyGC(gc);
 
-	  // save this rectangle's width/height so we can erase it later
+	  /* save this rectangle's width/height so we can erase it later */
 	  pos->width = info.width;
 	  pos->height = info.height;
 
@@ -241,15 +251,15 @@ void container_mousemoved(win *window, GR_EVENT_MOUSE *event)
 	  gc = GrNewGC();
 	  GrSetGCMode(gc, GR_MODE_XOR|GR_MODE_EXCLUDECHILDREN);
 
-	  // erase old rectangle
+	  /* erase old rectangle */
 	  GrRect(GR_ROOT_WINDOW_ID,gc,info.x, info.y, pos->width, pos->height);
-	  // draw new one
+	  /* draw new one */
 	  GrRect(GR_ROOT_WINDOW_ID,gc,info.x, info.y, 
 		 event->rootx - info.x, event->rooty - info.y);
 	  GrDestroyGC(gc);
 
-	  // save this new rectangle's width, height
-	  // I know, this shouldn't be stored in x/y, but...
+	  /* save this new rectangle's width, height */
+	  /* I know, this shouldn't be stored in x/y, but... */
 	  pos->width = event->rootx - info.x;
 	  pos->height = event->rooty - info.y;
 
@@ -287,9 +297,11 @@ void topbar_exposure(win *window, GR_EVENT_EXPOSURE *event)
 	Dprintf("topbar_exposure window %d\n", window->wid);
 
 	GrGetWMProperties(ci->cid, &prop);
-	if (prop.title)
+	if (prop.title) {
 		GrText(window->wid, buttonsgc, 0, 0, prop.title, -1,
 			GR_TFASCII|GR_TFTOP);
+		free(prop.title);
+	}
 }
 
 void closebutton_exposure(win *window, GR_EVENT_EXPOSURE *event)
@@ -394,6 +406,8 @@ void topbar_mousemoved(win *window, GR_EVENT_MOUSE *event)
 
 	/* turn off background erase draw while moving*/
 	GrGetWMProperties(window->pid, &props);
+	if (props.title)
+		free(props.title);
 	props.flags = GR_WM_FLAGS_PROPS;
 	props.props |= GR_WM_PROPS_NOBACKGROUND;
 	GrSetWMProperties(window->pid, &props);

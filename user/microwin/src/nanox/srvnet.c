@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1999 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 1999-2001, 2003 Greg Haerr <greg@censoft.com>
+ * Portions Copyright (c) 2002, 2003 by Koninklijke Philips Electronics N.V.
  * Copyright (c) 1999 Alex Holden <alex@linuxhacker.org>
  * Copyright (c) 2000 Vidar Hokstad
  * Copyright (c) 2000 Morten Rolland <mortenro@screenmedia.no>
@@ -20,7 +21,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/socket.h>
 #if HAVE_SHAREDMEM_SUPPORT
 #include <sys/types.h>
@@ -29,8 +29,13 @@
 #endif
 #if ELKS
 #include <linuxmt/na.h>
+#elif __ECOS
+#include <netinet/in.h>
+
 #else
+#ifndef TRIMEDIA
 #include <sys/un.h>
+#endif
 #endif
 #include "serv.h"
 #include "nxproto.h"
@@ -49,9 +54,24 @@ static int GsWriteType(int,short);
 /*
  * Wrapper functions called after full packet read
  */
+
+
+#if (!MW_FEATURE_TIMERS) || (!MW_FEATURE_IMAGES) || (!defined(HAVE_FILEIO))
+static void
+GrNotImplementedWrapper(void *r)
+{
+    EPRINTF("nano-X: Function %s() not implemented\n", curfunc);
+}
+#endif
+
 static void 
 GrOpenWrapper(void *r)
 {
+	nxOpenReq *req = r;
+
+	/* store process id of client*/
+	curclient->processid = req->pid;
+
 	GrOpen();
 }
 
@@ -290,6 +310,20 @@ GrSetGCRegionWrapper(void *r)
 }
 
 static void
+GrSetGCClipOriginWrapper(void *r)
+{
+	nxSetGCClipOriginReq *req = r;
+	GrSetGCClipOrigin(req->gcid, req->xoff, req->yoff);
+}
+
+static void
+GrSetGCGraphicsExposureWrapper(void *r)
+{
+	nxSetGCGraphicsExposureReq *req = r;
+	GrSetGCGraphicsExposure(req->gcid, req->exposure);
+}
+
+static void
 GrGetRegionBoxWrapper(void *r)
 {
 	nxRectInRegionReq *req = r;
@@ -416,19 +450,20 @@ GrSetFocusWrapper(void *r)
 }
 
 static void
-GrSetBorderColorWrapper(void *r)
+GrSetWindowCursorWrapper(void *r)
 {
-	nxSetBorderColorReq *req = r;
+	nxSetWindowCursorReq *req = r;
 
-	GrSetBorderColor(req->windowid, req->color);
+	GrSetWindowCursor(req->windowid, req->cursorid);
 }
 
 static void
-GrClearWindowWrapper(void *r)
+GrClearAreaWrapper(void *r)
 {
-	nxClearWindowReq *req = r;
+	nxClearAreaReq *req = r;
 
-	GrClearWindow(req->windowid, req->exposeflag);
+	GrClearArea(req->windowid, req->x, req->y, req->width,
+		req->height, req->exposeflag);
 }
 
 static void
@@ -527,6 +562,12 @@ GrPeekEventWrapper(void *r)
 		} cde->datalen = 0;
 	}
 	GsWrite(current_fd, &ret, sizeof(GR_CHAR));
+
+	/* EXPERIMENTAL CODE for GTK+ select wait*/
+	if (ret == 0) {
+		/* tell main loop to call Finish routine on event*/
+		curclient->waiting_for_event = TRUE;
+	}
 }
 
 static void
@@ -645,6 +686,22 @@ GrSetGCBackgroundWrapper(void *r)
 }
 
 static void
+GrSetGCForegroundPixelValWrapper(void *r)
+{
+	nxSetGCForegroundPixelValReq *req = r;
+
+	GrSetGCForegroundPixelVal(req->gcid, req->pixelval);
+}
+
+static void
+GrSetGCBackgroundPixelValWrapper(void *r)
+{
+	nxSetGCBackgroundPixelValReq *req = r;
+
+	GrSetGCBackgroundPixelVal(req->gcid, req->pixelval);
+}
+
+static void
 GrSetGCUseBackgroundWrapper(void *r)
 {
 	nxSetGCUseBackgroundReq *req = r;
@@ -661,17 +718,86 @@ GrSetGCModeWrapper(void *r)
 }
 
 static void
+GrSetGCLineAttributesWrapper(void *r)
+{
+	nxSetGCLineAttributesReq *req = r;
+
+	GrSetGCLineAttributes(req->gcid, req->linestyle);
+}
+
+static void
+GrSetGCDashWrapper(void *r)
+{
+	nxSetGCDashReq *req = r;
+	char *buffer = ALLOCA(req->count);
+
+	memcpy((void *) buffer, GetReqData(req), req->count);
+	GrSetGCDash(req->gcid, buffer, req->count);
+	FREEA(buffer);
+}
+
+
+static void
+GrSetGCFillModeWrapper(void *r)
+{
+	nxSetGCFillModeReq *req = r;
+
+	GrSetGCFillMode(req->gcid, req->fillmode);
+}
+
+static void
+GrSetGCStippleWrapper(void *r)
+{
+	nxSetGCStippleReq *req = r;
+	GR_BITMAP *buffer;
+	
+	buffer = ALLOCA(GR_BITMAP_SIZE(req->width, req->height) *
+		sizeof(GR_BITMAP));
+
+	memcpy((void *) buffer, GetReqData(req),
+	       GR_BITMAP_SIZE(req->width, req->height) * sizeof(GR_BITMAP));
+
+	GrSetGCStipple(req->gcid, (GR_BITMAP *)buffer, req->width, req->height);
+	FREEA(buffer);
+}
+
+static void
+GrSetGCTileWrapper(void *r)
+{
+	nxSetGCTileReq *req = r;
+
+	GrSetGCTile(req->gcid, req->pixmap, req->width, req->height);
+}
+
+static void
+GrSetGCTSOffsetWrapper(void *r)
+{
+	nxSetGCTSOffsetReq *req = r;
+
+	GrSetGCTSOffset(req->gcid, req->xoffset, req->yoffset);
+}
+
+static void
 GrCreateFontWrapper(void *r)
 {
 	nxCreateFontReq *req = r;
 	GR_FONT_ID 	fontid;
 
-	if(req->lf_used)
-		fontid = GrCreateFont(NULL, 0, &req->lf);
-	else
-		fontid = GrCreateFont(req->lf.lfFaceName, req->height, NULL);
+	fontid = GrCreateFont(GetReqData(req), req->height, NULL);
 
 	GsWriteType(current_fd,GrNumCreateFont);
+	GsWrite(current_fd, &fontid, sizeof(fontid));
+}
+
+static void
+GrCreateLogFontWrapper(void *r)
+{
+	nxCreateLogFontReq *req = r;
+	GR_FONT_ID fontid;
+
+	fontid = GrCreateFont(NULL, 0, &req->lf);
+
+	GsWriteType(current_fd, GrNumCreateLogFont);
 	GsWrite(current_fd, &fontid, sizeof(fontid));
 }
 
@@ -721,7 +847,7 @@ GrGetGCTextSizeWrapper(void *r)
 	nxGetGCTextSizeReq *req = r;
 	GR_SIZE             retwidth, retheight, retbase;
 
-	GrGetGCTextSize(req->gcid, GetReqData(req), GetReqVarLen(req),
+	GrGetGCTextSize(req->gcid, GetReqData(req), req->charcount,
 		req->flags, &retwidth, &retheight, &retbase);
 
  	GsWriteType(current_fd,GrNumGetGCTextSize);
@@ -732,7 +858,7 @@ GrGetGCTextSizeWrapper(void *r)
 
 /* FIXME: fails with size > 64k if sizeof(int) == 2*/
 static void
-GsReadAreaWrapper(void *r)
+GrReadAreaWrapper(void *r)
 {
 	nxReadAreaReq *req = r;
 	int            size;
@@ -815,18 +941,22 @@ GrTextWrapper(void *r)
 }
 
 static void
-GrSetCursorWrapper(void *r)
+GrNewCursorWrapper(void *r)
 {
-	nxSetCursorReq *req = r;
+	nxNewCursorReq *req = r;
 	int		varlen;
 	char *          bitmap;
+	GR_CURSOR_ID	cursorid;
 
 	varlen = GetReqVarLen(req);
 	bitmap = GetReqData(req);
 
-	GrSetCursor(req->windowid, req->width, req->height,
-		req->hotx, req->hoty, req->fgcolor, req->bgcolor, 
+	cursorid = GrNewCursor(req->width, req->height,
+		req->hotx, req->hoty, req->fgcolor, req->bgcolor,
 		(GR_BITMAP *)bitmap, (GR_BITMAP *)(bitmap+varlen/2));
+
+	GsWriteType(current_fd, GrNumNewCursor);
+	GsWrite(current_fd, &cursorid, sizeof(cursorid));
 }
 
 static void
@@ -899,7 +1029,7 @@ GrSetWMPropertiesWrapper(void *r)
 	GR_WM_PROPERTIES *props = GetReqData(req);
 
 	if(GetReqVarLen(req) - sizeof(GR_WM_PROPERTIES)) 
-		props->title = (char *)props + sizeof(GR_WM_PROPERTIES);
+		props->title = (GR_CHAR *)props + sizeof(GR_WM_PROPERTIES);
 	else
 		props->title = NULL;
 	GrSetWMProperties(req->windowid, props);
@@ -915,7 +1045,7 @@ GrGetWMPropertiesWrapper(void *r)
 	GrGetWMProperties(req->windowid, &props);
 
 	if(props.title)
-		textlen = strlen(props.title) + 1;
+		textlen = strlen((const char *)props.title) + 1;
 	else textlen = 0;
 
 	GsWriteType(current_fd,GrNumGetWMProperties);
@@ -941,6 +1071,7 @@ GrKillWindowWrapper(void *r)
 	GrKillWindow(req->windowid);
 }
 
+#if MW_FEATURE_IMAGES && defined(HAVE_FILEIO)
 static void
 GrDrawImageFromFileWrapper(void *r)
 {
@@ -960,7 +1091,12 @@ GrLoadImageFromFileWrapper(void *r)
 	GsWriteType(current_fd, GrNumLoadImageFromFile);
 	GsWrite(current_fd, &id, sizeof(id));
 }
+#else /* if ! (MW_FEATURE_IMAGES && defined(HAVE_FILEIO)) */
+#define GrDrawImageFromFileWrapper GrNotImplementedWrapper
+#define GrLoadImageFromFileWrapper GrNotImplementedWrapper
+#endif
 
+#if MW_FEATURE_IMAGES
 static void
 GrDrawImageToFitWrapper(void *r)
 {
@@ -988,6 +1124,11 @@ GrGetImageInfoWrapper(void *r)
 	GsWriteType(current_fd, GrNumGetImageInfo);
 	GsWrite(current_fd, &info, sizeof(info));
 }
+#else /* if ! MW_FEATURE_IMAGES */
+#define GrDrawImageToFitWrapper GrNotImplementedWrapper
+#define GrFreeImageWrapper GrNotImplementedWrapper
+#define GrGetImageInfoWrapper GrNotImplementedWrapper
+#endif
 
 static void
 GrSetScreenSaverTimeoutWrapper(void *r)
@@ -1017,7 +1158,7 @@ GrGetSelectionOwnerWrapper(void *r)
 	GsWrite(current_fd, &wid, sizeof(wid));
 
 	if(wid) {
-		len = strlen(typelist) + 1;
+		len = strlen((const char *)typelist) + 1;
 		GsWrite(current_fd, &len, sizeof(len));
 		GsWrite(current_fd, typelist, len);
 	}
@@ -1037,8 +1178,7 @@ GrSendClientDataWrapper(void *r)
 	nxSendClientDataReq *req = r;
 
 	GrSendClientData(req->wid, req->did, req->serial, req->len,
-							GetReqVarLen(req),
-							GetReqData(req));
+		GetReqVarLen(req), GetReqData(req));
 }
 
 static void
@@ -1055,6 +1195,226 @@ GrSetBackgroundPixmapWrapper(void *r)
 	GrSetBackgroundPixmap(req->wid, req->pixmap, req->flags);
 }
 
+static void
+GrDestroyCursorWrapper(void *r)
+{
+	nxDestroyCursorReq *req = r;
+
+	GrDestroyCursor(req->cursorid);
+}
+
+static void
+GrQueryTreeWrapper(void *r)
+{
+	nxQueryTreeReq *req = r;
+	GR_WINDOW_ID	parentid;
+	GR_WINDOW_ID *	children;
+	GR_COUNT 	nchildren;
+
+	GrQueryTree(req->windowid, &parentid, &children, &nchildren);
+
+	GsWriteType(current_fd, GrNumQueryTree);
+	GsWrite(current_fd, &parentid, sizeof(parentid));
+	GsWrite(current_fd, &nchildren, sizeof(nchildren));
+	if (nchildren) {
+		GsWrite(current_fd, children, nchildren * sizeof(GR_WINDOW_ID));
+		free(children);
+	}
+}
+
+#if MW_FEATURE_TIMERS
+static void
+GrCreateTimerWrapper(void *r)
+{
+    nxCreateTimerReq *req = r;
+    GR_TIMER_ID  timerid;
+
+    timerid = GrCreateTimer(req->wid, req->period);
+
+    GsWriteType(current_fd, GrNumCreateTimer);
+    GsWrite(current_fd, &timerid, sizeof (timerid));
+}
+#else /* if ! MW_FEATURE_TIMERS */
+#define GrCreateTimerWrapper GrNotImplementedWrapper
+#endif
+
+typedef struct image_list {
+ void *data;
+ int id;
+ int size;
+ int offset;
+
+ struct image_list *next;
+} imagelist_t;
+
+static imagelist_t *imageListHead = 0;
+static imagelist_t *imageListTail = 0;
+static int imageListId = 0;
+
+static imagelist_t *findImageBuffer(int buffer_id)
+{
+	imagelist_t *buffer = 0;
+
+	for(buffer = imageListHead; buffer; buffer = buffer->next)
+		if (buffer->id == buffer_id)
+			break;
+
+	return buffer;
+}
+
+static void freeImageBuffer(imagelist_t *buffer)
+{
+ imagelist_t *prev = 0;
+ imagelist_t *ptr = imageListHead;
+
+ while(ptr) {
+   if (ptr == buffer) {
+     if (prev) 
+	prev->next = buffer->next;
+     else 
+	imageListHead = buffer->next;
+     
+     if (!imageListHead) imageListTail = 0;
+     
+     free(buffer->data);
+     free(buffer);
+     return;
+   }
+   
+   prev = ptr;
+   ptr = ptr->next;
+ }  
+}
+
+static void
+GrImageBufferAllocWrapper(void *r)
+{
+ nxImageBufferAllocReq *req = r;
+ 
+ /* Add a new buffer to the end of the list */
+
+ if (!imageListTail) {
+   imageListHead = imageListTail = (imagelist_t *) malloc(sizeof(imagelist_t));
+ }
+ else {
+   imageListTail->next = (imagelist_t *) malloc(sizeof(imagelist_t));
+   imageListTail = imageListTail->next;
+ }
+
+ imageListTail->id = ++imageListId;
+ imageListTail->data = (void *) malloc(req->size);
+ imageListTail->size = req->size;
+ imageListTail->offset = 0;
+
+ imageListTail->next = 0;
+
+ GsWriteType(current_fd,GrNumImageBufferAlloc);
+ GsWrite(current_fd, &imageListTail->id, sizeof(int));
+}
+
+static void
+GrImageBufferSendWrapper(void *r)
+{
+ int csize;
+ imagelist_t *buffer;
+ nxImageBufferSendReq *req = r;
+
+ buffer = findImageBuffer(req->buffer_id);
+
+ if (!buffer) return;
+
+ if (buffer->offset + req->size >= buffer->size) 
+   csize = buffer->size - buffer->offset;
+ else
+   csize = req->size;
+
+ if (!csize) return;
+
+ memcpy((void *) (((char *)buffer->data) + buffer->offset), 
+	 GetReqData(req), csize);
+ 
+ buffer->offset += csize;
+}
+
+#if MW_FEATURE_IMAGES
+static void
+GrLoadImageFromBufferWrapper(void *r)
+{
+ GR_IMAGE_ID		id;
+ imagelist_t *buffer;
+ nxLoadImageFromBufferReq *req = r;
+ 
+ buffer = findImageBuffer(req->buffer);
+ 
+ if (!buffer) return;
+
+ id = GrLoadImageFromBuffer(buffer->data, buffer->size, req->flags);
+
+ GsWriteType(current_fd, GrNumLoadImageFromBuffer);
+ GsWrite(current_fd, &id, sizeof(id));
+
+ freeImageBuffer(buffer);
+}
+
+static void
+GrDrawImageFromBufferWrapper(void *r)
+{
+ imagelist_t *buffer;
+ nxDrawImageFromBufferReq *req = r;
+ 
+ buffer = findImageBuffer(req->buffer);
+ 
+ if (!buffer) return;
+
+ GrDrawImageFromBuffer(req->drawid, req->gcid, req->x, req->y, req->width, 
+			req->height, buffer->data, buffer->size, 
+			req->flags);
+ 
+ freeImageBuffer(buffer);
+}
+#else /* if ! MW_FEATURE_IMAGES */
+#define GrLoadImageFromBufferWrapper GrNotImplementedWrapper
+#define GrDrawImageFromBufferWrapper GrNotImplementedWrapper
+#endif
+
+
+#if MW_FEATURE_TIMERS
+static void
+GrDestroyTimerWrapper(void *r)
+{
+    nxDestroyTimerReq *req = r;
+    
+    GrDestroyTimer(req->timerid);
+}
+#else /* if ! MW_FEATURE_TIMERS */
+#define GrDestroyTimerWrapper GrNotImplementedWrapper
+#endif
+
+static void
+GrSetPortraitModeWrapper(void *r)
+{
+    nxSetPortraitModeReq *req = r;
+    
+    GrSetPortraitMode(req->portraitmode);
+}
+
+static void
+GrQueryPointerWrapper(void *r)
+{
+	GR_WINDOW_ID	mwin;
+	GR_COORD	x, y;
+	GR_BUTTON	bmask;
+
+	GrQueryPointer(&mwin, &x, &y, &bmask);
+
+	GsWriteType(current_fd, GrNumQueryPointer);
+
+	GsWrite(current_fd, &mwin, sizeof(mwin));
+	GsWrite(current_fd, &x, sizeof(x));
+	GsWrite(current_fd, &y, sizeof(y));
+	GsWrite(current_fd, &bmask, sizeof(bmask));
+}
+
 /*
  * This function makes the Nano-X server set up a shared memory segment
  * that the client can use when feeding the Nano-X server with requests.
@@ -1064,7 +1424,7 @@ GrSetBackgroundPixmapWrapper(void *r)
 #define SHMKEY_BASE 1000000
 #define SHMKEY_MAX 256
 
-void
+static void
 GrReqShmCmdsWrapper(void *r)
 {
 #if HAVE_SHAREDMEM_SUPPORT
@@ -1104,6 +1464,139 @@ GrReqShmCmdsWrapper(void *r)
 #endif /* HAVE_SHAREDMEM_SUPPORT*/
 }
 
+static void 
+GrGetFontListWrapper(void *r)
+{
+	MWFONTLIST **list;
+	int num;
+	int i, ttlen, mwlen;
+
+	GrGetFontList(&list, &num);
+
+	GsWriteType(current_fd, GrNumGetFontList);
+
+	/* the number of strings comming in */
+	GsWrite(current_fd, &num, sizeof(int));
+
+	if(num != -1) {
+		for(i = 0; i < num; i++) {
+			ttlen = strlen(list[i]->ttname) + 1;
+			mwlen = strlen(list[i]->mwname) + 1;
+
+			GsWrite(current_fd, &ttlen, sizeof(int));
+			GsWrite(current_fd, list[i]->ttname, ttlen * sizeof(char));
+
+			GsWrite(current_fd, &mwlen, sizeof(int));
+			GsWrite(current_fd, list[i]->mwname, mwlen * sizeof(char));
+		}
+		
+		GrFreeFontList(&list, num);
+	}
+}
+
+static void
+GrNewBitmapRegionWrapper(void *r)
+{
+	GR_REGION_ID region;
+	nxNewBitmapRegionReq *req = r;
+
+	region = GrNewBitmapRegion(GetReqData(req), req->width, req->height);
+
+	GsWriteType(current_fd, GrNumNewBitmapRegion);
+	GsWrite(current_fd, &region, sizeof(region));
+}
+
+static void
+GrSetWindowRegionWrapper(void *r)
+{
+	nxSetWindowRegionReq *req = r;
+
+	GrSetWindowRegion(req->wid, req->rid, req->type);
+}
+ 
+static void
+GrStretchAreaWrapper(void *r)
+{
+	nxStretchAreaReq *req = r;
+
+	GrStretchArea(req->drawid, req->gcid,
+		      req->dx1, req->dy1,
+		      req->dx2, req->dy2,
+		      req->srcid,
+		      req->sx1, req->sy1,
+		      req->sx2, req->sy2,
+		      req->op);
+}
+
+/* handle both GrGrabKey and GrUngrabKey*/
+static void
+GrGrabKeyWrapper(void *r)
+{
+        nxGrabKeyReq *req = r;
+
+	if (req->type != GR_GRAB_MAX + 1) {   /* GrGrabKey */
+		int ret = GrGrabKey(req->wid, req->key, req->type);
+		GsWriteType(current_fd, GrNumGrabKey);
+		GsWrite(current_fd, &ret, sizeof(ret));
+	} else
+		GrUngrabKey(req->wid, req->key);
+}
+
+static void
+GrSetTransformWrapper(void *r) 
+{
+	nxSetTransformReq *req = r;
+	GR_TRANSFORM trans;
+
+	if (req->mode) {
+		trans.a = req->trans_a;
+		trans.b = req->trans_b;
+		trans.c = req->trans_c;
+		trans.d = req->trans_d;
+		trans.e = req->trans_e;
+		trans.f = req->trans_f;
+		trans.s = req->trans_s;
+		GrSetTransform(&trans);
+	} else
+		GrSetTransform(NULL);
+}
+
+static void
+GrCreateFontFromBufferWrapper(void *r)
+{
+#if HAVE_FREETYPE_2_SUPPORT
+	imagelist_t *buffer;
+	nxCreateFontFromBufferReq *req = r;
+	GR_FONT_ID result;
+	
+	buffer = findImageBuffer(req->buffer_id);
+	if (!buffer) {
+		result = 0;
+	} else {
+		result = GrCreateFontFromBuffer(buffer->data, buffer->size,
+			(const char *)req->format, req->height);
+		
+		freeImageBuffer(buffer);
+	}
+	
+	GsWriteType(current_fd, GrNumCreateFontFromBuffer);
+	GsWrite(current_fd, &result, sizeof(result));
+#endif /*HAVE_FREETYPE_2_SUPPORT*/
+}
+
+static void
+GrCopyFontWrapper(void *r)
+{
+#if HAVE_FREETYPE_2_SUPPORT
+	nxCopyFontReq *req = r;
+	GR_FONT_ID result = GrCopyFont(req->fontid, req->height);
+
+	GsWriteType(current_fd, GrNumCopyFont);
+	GsWrite(current_fd, &result, sizeof(result));
+#endif /*HAVE_FREETYPE_2_SUPPORT*/
+}
+
+
 void GrShmCmdsFlushWrapper(void *r);
 
 /*
@@ -1132,8 +1625,8 @@ struct GrFunction {
 	/*  16 */ {GrGetWindowInfoWrapper, "GrGetWindowInfo"},
 	/*  17 */ {GrGetFontInfoWrapper, "GrGetFontInfo"},
 	/*  18 */ {GrSetFocusWrapper, "GrSetFocus"},
-	/*  19 */ {GrSetBorderColorWrapper, "GrSetBorderColor"},
-	/*  20 */ {GrClearWindowWrapper, "GrClearWindowWrapper"},
+	/*  19 */ {GrSetWindowCursorWrapper, "GrSetWindowCursor"},
+	/*  20 */ {GrClearAreaWrapper, "GrClearAreaWrapper"},
 	/*  21 */ {GrSelectEventsWrapper, "GrSelectEvents"},
 	/*  22 */ {GrGetNextEventWrapper, "GrGetNextEvent"},
 	/*  23 */ {GrCheckNextEventWrapper, "GrCheckNextEvent"},
@@ -1152,11 +1645,11 @@ struct GrFunction {
 	/*  36 */ {GrSetGCModeWrapper, "GrSetGCMode"},
 	/*  37 */ {GrSetGCFontWrapper, "GrSetGCFont"},
 	/*  38 */ {GrGetGCTextSizeWrapper, "GrGetGCTextSize"},
-	/*  39 */ {GsReadAreaWrapper, "GsReadArea"},
+	/*  39 */ {GrReadAreaWrapper, "GrReadArea"},
 	/*  40 */ {GrAreaWrapper, "GrArea"},
 	/*  41 */ {GrBitmapWrapper, "GrBitmap"},
 	/*  42 */ {GrTextWrapper, "GrText"},
-	/*  43 */ {GrSetCursorWrapper, "GrSetCursor"},
+	/*  43 */ {GrNewCursorWrapper, "GrNewCursor"},
 	/*  44 */ {GrMoveCursorWrapper, "GrMoveCursor"},
 	/*  45 */ {GrGetSystemPaletteWrapper, "GrGetSystemPalette"},
 	/*  46 */ {GrFindColorWrapper, "GrFindColor"},
@@ -1208,7 +1701,36 @@ struct GrFunction {
 	/*  92 */ {GrRequestClientDataWrapper, "GrRequestClientData"},
 	/*  93 */ {GrSendClientDataWrapper, "GrSendClientData"},
 	/*  94 */ {GrBellWrapper, "GrBell"},
-	/*  95 */ {GrSetBackgroundPixmapWrapper, "GrSetBackgroundPixmap"}
+	/*  95 */ {GrSetBackgroundPixmapWrapper, "GrSetBackgroundPixmap"},
+	/*  96 */ {GrDestroyCursorWrapper, "GrDestroyCursor"},
+	/*  97 */ {GrQueryTreeWrapper, "GrQueryTree"},
+	/*  98 */ {GrCreateTimerWrapper, "GrCreateTimer"},
+	/*  99 */ {GrDestroyTimerWrapper, "GrDestroyTimer"},
+	/* 100 */ {GrSetPortraitModeWrapper, "GrSetPortraitMode"},
+	/* 101 */ {GrImageBufferAllocWrapper, "GrImageBufferAlloc"},
+	/* 102 */ {GrImageBufferSendWrapper, "GrImageBufferSend"},
+	/* 103 */ {GrLoadImageFromBufferWrapper, "GrLoadImageFromBuffer"},
+	/* 104 */ {GrDrawImageFromBufferWrapper, "GrDrawImageFromBuffer"},
+	/* 105 */ {GrGetFontListWrapper, "GrGetFontList"},
+	/* 106 */ {GrSetGCClipOriginWrapper, "GrSetGCClipOrigin"},
+	/* 107 */ {GrSetGCGraphicsExposureWrapper, "GrSetGCGraphicsExposure"},
+	/* 108 */ {GrQueryPointerWrapper, "GrQueryPointer"},
+	/* 109 */ {GrSetGCLineAttributesWrapper, "GretGCLineAttributes"},
+	/* 110 */ {GrSetGCDashWrapper, "GrSetGCDash"},
+	/* 111 */ {GrSetGCFillModeWrapper, "GrSetGCFillMode"},
+	/* 112 */ {GrSetGCStippleWrapper, "GrSetGCStipple"},
+	/* 113 */ {GrSetGCTSOffsetWrapper, "GrSetGCTSOffset"},
+	/* 114 */ {GrSetGCTileWrapper, "GrSetGCTile" },
+	/* 115 */ {GrNewBitmapRegionWrapper, "GrNewBitmapRegion"},
+	/* 116 */ {GrSetWindowRegionWrapper, "GrSetWindowRegion"},
+	/* 117 */ {GrSetGCForegroundPixelValWrapper, "GrSetGCForegroundPixelVal"},
+	/* 118 */ {GrSetGCBackgroundPixelValWrapper, "GrSetGCBackgroundPixelVal"},
+	/* 119 */ {GrCreateLogFontWrapper, "GrCreateLogFont"},
+	/* 120 */ {GrStretchAreaWrapper, "GrStretchArea"},
+	/* 121 */ {GrGrabKeyWrapper, "GrGrabKey" },
+	/* 122 */ {GrSetTransformWrapper, "GrSetTransform" },
+	/* 123 */ {GrCreateFontFromBufferWrapper, "GrCreateFontFromBuffer"},
+	/* 124 */ {GrCopyFontWrapper, "GrCopyFont"},
 };
 
 void
@@ -1265,9 +1787,13 @@ GrShmCmdsFlushWrapper(void *r)
 int 
 GsOpenSocket(void)
 {
-	struct stat s;
 #if ELKS
 	struct sockaddr_na sckt;
+#ifndef SUN_LEN
+#define SUN_LEN(ptr)	(sizeof(sckt))
+#endif
+#elif __ECOS
+	struct sockaddr_in sckt;
 #ifndef SUN_LEN
 #define SUN_LEN(ptr)	(sizeof(sckt))
 #endif
@@ -1285,9 +1811,19 @@ GsOpenSocket(void)
 
 	sckt.sun_family = AF_NANO;
 	sckt.sun_no = GR_NUMB_SOCKET;
+#elif __ECOS
+	/* Create the socket */
+	if((un_sock = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
+	    return -1;
+
+	/* Bind to any/all local IP addresses */
+	memset( &sckt, '\0', sizeof(sckt) );
+	sckt.sin_family = AF_INET;
+	sckt.sin_len = sizeof(sckt);
+	sckt.sin_port = htons(6600);
+	sckt.sin_addr.s_addr = INADDR_ANY;
 #else
-	/* Check if the file already exists: */
-	if(!stat(GR_NAMED_SOCKET, &s)) {
+	if (access(GR_NAMED_SOCKET, F_OK) == 0) {
 		/* FIXME: should try connecting to see if server is active */
 		if(unlink(GR_NAMED_SOCKET))
 			return -1;
@@ -1328,10 +1864,12 @@ GsAcceptClient(void)
 	int i;
 #if ELKS
 	struct sockaddr_na sckt;
+#elif __ECOS
+	struct sockaddr_in sckt;
 #else
 	struct sockaddr_un sckt;
 #endif
-	size_t size = sizeof(sckt);
+	socklen_t size = sizeof(sckt);
 
 	if((i = accept(un_sock, (struct sockaddr *) &sckt, &size)) == -1) {
 		EPRINTF("nano-X: Error accept failed (%d)\n", errno);
@@ -1374,12 +1912,19 @@ GsDestroyClientResources(GR_CLIENT * client)
 	GR_GC 	      * gp, *ngp;
 	GR_REGION     * rp, *nrp;
 	GR_FONT       * fp, *nfp;
-	GR_IMAGE      * ip, *nip;
+	GR_CURSOR     *	cp, *ncp;
 	GR_EVENT_CLIENT *ecp, *necp;
 	GR_EVENT_CLIENT *pecp = NULL;
 	GR_EVENT_LIST	*evp;
+	GR_GRABBED_KEY	*kp, *nkp;
+#if MW_FEATURE_IMAGES
+	GR_IMAGE      * ip, *nip;
+#endif
+#if MW_FEATURE_TIMERS
+	GR_TIMER      * tp, *ntp;
+#endif
 
-printf("Destroy client %d resources\n", client->id);
+DPRINTF("Destroy client %d resources\n", client->id);
 	/* search window list, destroy windows owned by client*/
 	for(wp=listwp; wp; wp=nwp) {
 		nwp = wp->next;
@@ -1390,7 +1935,7 @@ printf("Destroy client %d resources\n", client->id);
 		while (ecp) {
 			necp = ecp->next;
 			if (ecp->client == client) {
-printf( "  Destroy window %d eventclient mask %08lx\n", wp->id, ecp->eventmask);
+DPRINTF( "  Destroy window %d eventclient mask %08lx\n", wp->id, ecp->eventmask);
 				if (ecp == wp->eventclients)
 					wp->eventclients = ecp->next;
 				else
@@ -1401,7 +1946,7 @@ printf( "  Destroy window %d eventclient mask %08lx\n", wp->id, ecp->eventmask);
 			ecp = necp;
 		}
 		if (wp->owner == client) {
-printf("  Destroy window %d\n", wp->id);
+DPRINTF("  Destroy window %d\n", wp->id);
 			GrDestroyWindow(wp->id);
 		}
 	}
@@ -1410,7 +1955,7 @@ printf("  Destroy window %d\n", wp->id);
 	for(pp=listpp; pp; pp=npp) {
 		npp = pp->next;
 		if (pp->owner == client) {
-printf("  Destroy pixmap %d\n", pp->id);
+DPRINTF("  Destroy pixmap %d\n", pp->id);
 			GrDestroyWindow(pp->id);
 		}
 	}
@@ -1419,7 +1964,7 @@ printf("  Destroy pixmap %d\n", pp->id);
 	for(gp=listgcp; gp; gp=ngp) {
 		ngp = gp->next;
 		if (gp->owner == client) {
-printf("  Destroy gc %d\n", gp->id);
+DPRINTF("  Destroy gc %d\n", gp->id);
 			GrDestroyGC(gp->id);
 		}
 	}
@@ -1428,7 +1973,7 @@ printf("  Destroy gc %d\n", gp->id);
 	for(fp=listfontp; fp; fp=nfp) {
 		nfp = fp->next;
 		if (fp->owner == client) {
-printf("  Destroy font %d\n", fp->id);
+DPRINTF("  Destroy font %d\n", fp->id);
 			GrDestroyFont(fp->id);
 		}
 	}
@@ -1437,24 +1982,55 @@ printf("  Destroy font %d\n", fp->id);
 	for(rp=listregionp; rp; rp=nrp) {
 		nrp = rp->next;
 		if (rp->owner == client) {
-printf("  Destroy region %d\n", rp->id);
+DPRINTF("  Destroy region %d\n", rp->id);
 			GrDestroyRegion(rp->id);
 		}
 	}
 
+#if MW_FEATURE_IMAGES
 	/* free images owned by client*/
 	for(ip=listimagep; ip; ip=nip) {
 		nip = ip->next;
 		if (ip->owner == client) {
-printf("  Destroy image %d\n", ip->id);
+DPRINTF("  Destroy image %d\n", ip->id);
 			GrFreeImage(ip->id);
+		}
+	}
+#endif
+
+#if MW_FEATURE_TIMERS
+	/* free timers owned by client*/
+	for(tp=list_timer; tp; tp=ntp) {
+		ntp = tp->next;
+		if (tp->owner == client) {
+DPRINTF("  Destroy timer %d\n", tp->id);
+			GrDestroyTimer(tp->id);
+		}
+	}
+#endif
+
+	/* free cursors owned by client*/
+	for(cp=listcursorp; cp; cp=ncp) {
+		ncp = cp->next;
+		if (cp->owner == client) {
+DPRINTF("  Destroy cursor %d\n", cp->id);
+			GrDestroyCursor(cp->id);
+		}
+	}
+
+	/* Free key grabs associated with client*/
+	for (kp=list_grabbed_keys; kp; kp = nkp) {
+		nkp = kp->next;
+		if (kp->owner == curclient) {
+DPRINTF("  Destroy grabkey %d,%d\n", kp->wid, kp->key);
+			GrUngrabKey(kp->wid, kp->key);
 		}
 	}
 
 	/* Free events associated with client*/
 	evp = client->eventhead;
 	while (evp) {
-printf("  Destroy event %d\n", evp->event.type);
+DPRINTF("  Destroy event %d\n", evp->event.type);
 		client->eventhead = evp->next;
 		evp->next = eventfree;
 		eventfree = evp;
@@ -1465,7 +2041,7 @@ printf("  Destroy event %d\n", evp->event.type);
 /*
  * Display window, pixmap, gc, font, region lists
  */
-void
+static void
 GsPrintResources(void)
 {
 	GR_WINDOW *wp;
@@ -1473,34 +2049,47 @@ GsPrintResources(void)
 	GR_GC *gp;
 	GR_REGION *rp;
 	GR_FONT *fp;
+#if MW_FEATURE_IMAGES
 	GR_IMAGE *ip;
+#endif
+#if MW_FEATURE_TIMERS
+	GR_TIMER *tp;
+#endif
 
 	/* window list*/
-	printf("Window list:\n");
+	DPRINTF("Window list:\n");
 	for(wp=listwp; wp; wp=wp->next) {
-		printf("%d(%d),", wp->id, wp->owner? wp->owner->id: 0);
+		DPRINTF("%d(%d),", wp->id, wp->owner? wp->owner->id: 0);
 	}
-	printf("\nPixmap list:\n");
+	DPRINTF("\nPixmap list:\n");
 	for(pp=listpp; pp; pp=pp->next) {
-		printf("%d(%d),", pp->id, pp->owner->id);
+		DPRINTF("%d(%d),", pp->id, pp->owner->id);
 	}
-	printf("\nGC list:\n");
+	DPRINTF("\nGC list:\n");
 	for(gp=listgcp; gp; gp=gp->next) {
-		printf("%d(%d),", gp->id, gp->owner->id);
+		DPRINTF("%d(%d),", gp->id, gp->owner->id);
 	}
-	printf("\nFont list:\n");
+	DPRINTF("\nFont list:\n");
 	for(fp=listfontp; fp; fp=fp->next) {
-		printf("%d(%d),", fp->id, fp->owner->id);
+		DPRINTF("%d(%d),", fp->id, fp->owner->id);
 	}
-	printf("\nRegion list:\n");
+	DPRINTF("\nRegion list:\n");
 	for(rp=listregionp; rp; rp=rp->next) {
-		printf("%d(%d),", rp->id, rp->owner->id);
+		DPRINTF("%d(%d),", rp->id, rp->owner->id);
 	}
-	printf("\nImage list:\n");
+#if MW_FEATURE_IMAGES
+	DPRINTF("\nImage list:\n");
 	for(ip=listimagep; ip; ip=ip->next) {
-		printf("%d(%d),", ip->id, ip->owner->id);
+		DPRINTF("%d(%d),", ip->id, ip->owner->id);
 	}
-	printf("\n");
+#endif
+#if MW_FEATURE_TIMERS
+	DPRINTF("\nTimer list:\n");
+	for(tp=list_timer; tp; tp=tp->next) {
+		DPRINTF("%d(%d),", tp->id, tp->owner->id);
+	}
+#endif
+	DPRINTF("\n");
 }
 
 /*
@@ -1555,7 +2144,7 @@ GsRead(int fd, void *buf, int c)
 	n = 0;
 
 	while(n < c) {
-		e = read(fd, (buf + n), (c - n));
+		e = read(fd, ((char *)buf) + n, c - n);
 		if(e <= 0) {
 			if (e == 0)
 				EPRINTF("nano-X: client closed socket: %d\n", fd);
@@ -1632,7 +2221,7 @@ GsHandleClient(int fd)
 
 	if(req->reqType < GrTotalNumCalls) {
 		curfunc = GrFunctions[req->reqType].name;
-/*DPRINTF("HandleClient %s\r\n", curfunc);*/
+		/*DPRINTF("HandleClient %s\n", curfunc);*/
 		GrFunctions[req->reqType].func(req);
 	} else {
 		EPRINTF("nano-X: GsHandleClient bad function\n");

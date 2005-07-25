@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <asm/types.h>
 #include <linux/config.h>
-#include <linux/mtd/mtd.h>
+#include "mtd/mtd-user.h"
 
 /*
  * Buffer arrays used for running tests

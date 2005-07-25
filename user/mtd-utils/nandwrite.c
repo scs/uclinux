@@ -28,9 +28,8 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-
 #include <asm/types.h>
-#include <linux/mtd/mtd.h>
+#include "mtd/mtd-user.h"
 
 /*
  * Buffer array used for writing data

@@ -28,8 +28,7 @@
 #include <string.h>
 #include <errno.h>
 #include <getopt.h>
-
-#include <linux/mtd/mtd.h>
+#include "mtd/mtd-user.h"
 
 #define PROGRAM "eraseall"
 #define VERSION "0.1.0"

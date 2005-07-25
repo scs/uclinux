@@ -25,9 +25,8 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
 #include <asm/types.h>
-#include <linux/mtd/mtd.h>
+#include "mtd/mtd-user.h"
 
 /*
  * Buffers for reading data from flash

@@ -5,8 +5,8 @@
 #include <time.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
+#include "mtd/mtd-user.h"
 
-#include <linux/mtd/mtd.h>
 int region_erase(int Fd, int start, int count, int unlock, int regcount)
 {
 	int i, j;

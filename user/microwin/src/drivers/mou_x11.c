@@ -32,7 +32,8 @@ MOUSEDEVICE mousedev = {
     X11_GetButtonInfo,
     X11_GetDefaultAccel,
     X11_Read,
-    NULL
+    NULL,
+    MOUSE_NORMAL	/* flags*/
 };
 
 /*
@@ -85,9 +86,10 @@ X11_GetDefaultAccel(int *pscale,int *pthresh)
 static int
 X11_Read(MWCOORD *dx, MWCOORD *dy, MWCOORD *dz, int *bp)
 {
+    static int noevent_count = 0;
     XEvent ev;
     int events = 0;
-    long mask = x11_event_mask | 
+    long mask = /* x11_event_mask | */
 #ifdef USE_EXPOSURE
       ButtonPressMask | ButtonReleaseMask | PointerMotionMask | ExposureMask;
 #else
@@ -112,16 +114,28 @@ X11_Read(MWCOORD *dx, MWCOORD *dy, MWCOORD *dz, int *bp)
 	    }
 	}
 	else if (ev.type == ButtonPress) {
-	    /* FIXME: handle multiple buttons (should be simple) */
 	    if (ev.xbutton.window == x11_win) {
-		if (ev.xbutton.button == 1)
-		    *bp = MWBUTTON_L;
-		else if (ev.xbutton.button == 2)
-		    *bp = MWBUTTON_M;
-		else if (ev.xbutton.button == 3)
-		    *bp = MWBUTTON_R;
-		else
-		    *bp = 0;
+	        int button = 0;
+		
+		/* Get pressed button */
+	    	if(ev.xbutton.button == 1)
+			button = MWBUTTON_L;
+		else if(ev.xbutton.button == 2)
+			button = MWBUTTON_M;
+		else if(ev.xbutton.button == 3)
+			button = MWBUTTON_R;
+
+		/* Get any other buttons that might be already held */
+		if (ev.xbutton.state & Button1Mask)
+		    button |= MWBUTTON_L;
+		if (ev.xbutton.state & Button2Mask)
+		    button |= MWBUTTON_M;
+		if (ev.xbutton.state & Button3Mask)
+		    button |= MWBUTTON_R;
+		
+/*		printf("!Pressing button: 0x%x, state: 0x%x, button: 0x%x\n",
+			button,ev.xbutton.state, ev.xbutton.button);*/
+		*bp = button;
 		*dx = ev.xbutton.x;
 		*dy = ev.xbutton.y;
 		*dz = 0;
@@ -130,7 +144,29 @@ X11_Read(MWCOORD *dx, MWCOORD *dy, MWCOORD *dz, int *bp)
 	}
 	else if (ev.type == ButtonRelease) {
 	    if (ev.xbutton.window == x11_win) {
-		*bp = 0;
+	        int button = 0;
+		int released = 0;
+	
+		/* Get released button */
+	    	if(ev.xbutton.button == 1)
+			released = MWBUTTON_L;
+		else if(ev.xbutton.button == 2)
+			released = MWBUTTON_M;
+		else if(ev.xbutton.button == 3)
+			released = MWBUTTON_R;
+		
+		/* Get any other buttons that might be already held */
+		if (ev.xbutton.state & Button1Mask)
+		    button |= MWBUTTON_L;
+		if (ev.xbutton.state & Button2Mask)
+		    button |= MWBUTTON_M;
+		if (ev.xbutton.state & Button3Mask)
+		    button |= MWBUTTON_R;
+	
+		/* We need to remove the released button from the button mask*/
+		button &= ~released; 
+
+		*bp = button;
 		*dx = ev.xbutton.x;
 		*dy = ev.xbutton.y;
 		*dz = 0;
@@ -141,7 +177,21 @@ X11_Read(MWCOORD *dx, MWCOORD *dy, MWCOORD *dz, int *bp)
 	    x11_handle_event(&ev);
 	}
     }
-    if (events == 0)
+    if (events == 0) {
+	/* after a bunch of consecutive noevent calls here
+           (meaning select() says there's something to read but nothing
+            is returned......), force an event read (which will
+            most likely terminate the connection) */
+	if (++noevent_count >= 50) {
+            while(XNextEvent(x11_dpy, &ev)) {
+                /* if we return, then we got an event...put it back
+                   so we can properly process it next time through */
+                XPutBackEvent(x11_dpy, &ev);
+            }
+            noevent_count = 0;
+	}
 	return 0;
+    }
+    noevent_count = 0;
     return 2;		/* absolute position returned*/
 }

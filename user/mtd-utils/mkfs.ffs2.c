@@ -19,8 +19,7 @@
 #include <time.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
-
-#include <linux/mtd/mtd.h"
+#include "mtd/mtd-user.h"
 #include <linux/ffs2_fs.h"
 
 static unsigned long BlockSize = 128*1024;

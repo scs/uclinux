@@ -1,9 +1,11 @@
 /*
- * Copyright (c) 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 2000, 2003 Greg Haerr <greg@censoft.com>
  *
  * Microwindows /dev/tty console scancode keyboard driver for Linux
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -37,42 +39,20 @@ KBDDEVICE kbddev = {
 static	int		fd;		/* file descriptor for keyboard */
 static	struct termios	old;		/* original terminal modes */
 static  int 		old_kbd_mode;
-static unsigned char 	key_state[MWKEY_LAST];	//FIXME - make sparse array
+static unsigned char 	key_state[MWKEY_LAST];	/* FIXME - make sparse array */
 static MWKEYMOD 	key_modstate;
 
 /* kernel unicode tables per shiftstate and scancode*/
 #define NUM_VGAKEYMAPS	(1<<KG_CAPSSHIFT)	/* kernel key maps*/
 static unsigned short	os_keymap[NUM_VGAKEYMAPS][NR_KEYS];
 
-/* PC scancode -> Microwindows key value mapping for non-Linux kernel values*/
-static MWKEY		keymap[128] = {
-MWKEY_UNKNOWN, MWKEY_ESCAPE, '1', '2', '3',				/* 0*/
-'4', '5', '6', '7', '8',						/* 5*/
-'9', '0', '-', '=', MWKEY_BACKSPACE,					/* 10*/
-MWKEY_TAB, 'q', 'w', 'e', 'r',						/* 15*/
-'t', 'y', 'u', 'i', 'o',						/* 20*/
-'o', '[', ']', MWKEY_ENTER, MWKEY_LCTRL,				/* 25*/
-'a', 's', 'd', 'f', 'g',						/* 30*/
-'h', 'j', 'k', 'l', ';',						/* 35*/
-'\'', '`', MWKEY_LSHIFT, '\\', 'z',					/* 40*/
-'x', 'c', 'v', 'b', 'n',						/* 45*/
-'m', ',', '.', '/', MWKEY_RSHIFT,					/* 50*/
-MWKEY_KP_MULTIPLY, MWKEY_LALT, ' ', MWKEY_CAPSLOCK, MWKEY_F1, 		/* 55*/
-MWKEY_F2, MWKEY_F3, MWKEY_F4, MWKEY_F5, MWKEY_F6, 			/* 60*/
-MWKEY_F7, MWKEY_F8, MWKEY_F9, MWKEY_F10, MWKEY_NUMLOCK, 		/* 65*/
-MWKEY_SCROLLOCK, MWKEY_KP7, MWKEY_KP8, MWKEY_KP9, MWKEY_KP_MINUS,	/* 70*/
-MWKEY_KP4, MWKEY_KP5, MWKEY_KP6, MWKEY_KP_PLUS, MWKEY_KP1, 		/* 75*/
-MWKEY_KP2, MWKEY_KP3, MWKEY_KP0, MWKEY_KP_PERIOD, MWKEY_UNKNOWN, 	/* 80*/
-MWKEY_UNKNOWN, MWKEY_UNKNOWN, MWKEY_F11, MWKEY_F12, MWKEY_UNKNOWN,	/* 85*/
-MWKEY_UNKNOWN,MWKEY_UNKNOWN,MWKEY_UNKNOWN,MWKEY_UNKNOWN,MWKEY_UNKNOWN,	/* 90*/
-MWKEY_UNKNOWN, MWKEY_KP_ENTER, MWKEY_RCTRL, MWKEY_KP_DIVIDE,MWKEY_PRINT,/* 95*/
-MWKEY_RALT, MWKEY_BREAK, MWKEY_HOME, MWKEY_UP, MWKEY_PAGEUP,		/* 100*/
-MWKEY_LEFT, MWKEY_RIGHT, MWKEY_END, MWKEY_DOWN, MWKEY_PAGEDOWN,		/* 105*/
-MWKEY_INSERT, MWKEY_DELETE, MWKEY_UNKNOWN,MWKEY_UNKNOWN,MWKEY_UNKNOWN,	/* 110*/
-MWKEY_UNKNOWN,MWKEY_UNKNOWN,MWKEY_UNKNOWN,MWKEY_UNKNOWN,MWKEY_PAUSE,	/* 115*/
-MWKEY_UNKNOWN,MWKEY_UNKNOWN,MWKEY_UNKNOWN,MWKEY_UNKNOWN,MWKEY_UNKNOWN,	/* 120*/
-MWKEY_LMETA, MWKEY_RMETA, MWKEY_MENU					/* 125*/
-};
+
+/* Pick the right scancode conversion table */
+#if KBD_ZAURUS
+#include "keymap_zaurus.h"
+#else
+#include "keymap_standard.h"
+#endif
 
 static MWBOOL	UpdateKeyState(int pressed, MWKEY mwkey);
 static void	UpdateLEDState(MWKEYMOD modstate);
@@ -91,10 +71,13 @@ TTY_Open(KBDDEVICE *pkd)
 {
 	int		i;
 	int		ledstate = 0;
+	char *		kbd;
 	struct termios	new;
 
-	/* Open /dev/tty device*/
-	fd = open(KEYBOARD, O_NONBLOCK);
+	/* Open "CONSOLE" or /dev/tty device*/
+	if(!(kbd = getenv("CONSOLE")))
+		kbd = KEYBOARD;
+	fd = open(kbd, O_NONBLOCK);
 	if (fd < 0)
 		return -1;
 
@@ -207,10 +190,14 @@ TTY_Read(MWKEY *kbuf, MWKEYMOD *modifiers, MWSCANCODE *pscancode)
 
 	cc = read(fd, buf, 1);
 	if (cc > 0) {
-//printf("scan %02x (%d)\n", *buf & 0xff, *buf&0xff);
-		pressed = (*buf & 0x80)? RELEASED: PRESSED;
+		pressed = (*buf & 0x80) ? RELEASED: PRESSED;
 		scancode = *buf & 0x7f;
 		mwkey = keymap[scancode];
+
+		/**if(pressed) {
+			printf("scan %02x really: %08x\n", *buf&0x7F, *buf);
+			printf("mwkey: %02x (%c)\n", mwkey, mwkey);
+		}**/
 
 		/* Handle Alt-FN for vt switch */
 		switch (mwkey) {
@@ -229,27 +216,105 @@ TTY_Read(MWKEY *kbuf, MWKEYMOD *modifiers, MWSCANCODE *pscancode)
 			if (key_modstate & MWKMOD_ALT) {
 				if (switch_vt(mwkey-MWKEY_F1+1)) {
 					mwkey = MWKEY_REDRAW;
-					goto returnkey;
 				}
 			}
+			break;
 			/* Fall through to normal processing */
 		default:
 			/* update internal key states*/
 			if (!UpdateKeyState(pressed, mwkey))
 				return 0;
 
-			/* translate scancode to key value*/
-			mwkey = TranslateScancode(scancode, key_modstate);
-
-			if (mwkey) {
-returnkey:
-				*kbuf = mwkey;
-				*modifiers = key_modstate;
-				*pscancode = scancode;
-				return pressed? 1: 2;
+			/* mwkey is 0 if only a modifier is hit */
+			if(mwkey != MWKEY_LCTRL && 
+			   mwkey != MWKEY_RCTRL &&
+			   mwkey != MWKEY_LALT &&
+			   mwkey != MWKEY_RALT &&
+			   mwkey != MWKEY_RSHIFT &&
+			   mwkey != MWKEY_LSHIFT) {
+				/* translate scancode to key value*/
+				mwkey = TranslateScancode(scancode, key_modstate);
+			} else {
+				/*printf("Modifier only\n");*/
+				/*mwkey = 0;*/
 			}
-			return 0;
-		}
+
+#if 0000 /* insert for X11<->microwindows scancode compatibility (mozilla port)*/
+			/* XXX Hack to get scancodes to come out the same as 
+			   everything else */
+			switch(scancode) {
+				case 0x01:          /* esc 		*/
+
+				case 0x29:          /* `		*/
+				case 0x02 ... 0x0e:  /* 1 - BackSpace 	*/
+
+				case 0x0f ... 0x1b: /* TAB - ] 		*/
+				case 0x2b:          /* \		*/
+
+				case 0x3a:	    /* Caps-Lock	*/
+				case 0x1e ... 0x28: /* a - '		*/
+				case 0x1c:          /* Enter		*/
+
+				case 0x2a:          /* LShift		*/
+				case 0x2c ... 0x35: /* z - /		*/
+				case 0x36:          /* RShift		*/
+
+				case 0x1d:          /* LCtrl		*/
+				case 0x38:          /* LAlt		*/
+				case 0x39:          /* Space		*/
+#if 0
+				case 0x7d:          /* LWin		*/
+				case 0x64:          /* RAlt		*/
+				case 0x7e:          /* RWin		*/
+				case 0x7f:          /* Win-PopupMenu	*/
+				case 0x61:          /* RCtrl		*/
+
+				case 0x63:          /* SysReq		*/
+				case 0x46:          /* Scroll Lock	*/
+				case 0x77:          /* Pause/Break	*/
+#endif
+					scancode += 8;
+					break;
+
+				case 0x6e:            /* Insert		*/
+					scancode -= 0x4;
+					break;
+				case 0x66:            /* Home		*/
+				case 0x68:            /* Page-Up	*/
+					scancode -= 0x5;
+					break;
+
+				case 0x6f:            /* Delete		*/
+				case 0x6b:            /* End		*/
+				case 0x6d:            /* Page-Down	*/
+					scancode -= 0x4;
+					break;
+				
+				case 0x67:            /* Up arrow	*/
+				case 0x69:            /* Left arrow	*/
+					scancode -= 0x5;
+					break;
+				
+				case 0x6a:            /* Right arrow	*/
+				case 0x6c:            /* Down arrow	*/
+					scancode -= 0x4;
+					break;
+
+				default: 
+					break;
+			}
+#endif
+			break;
+		}	
+		*kbuf = mwkey;
+		*modifiers = key_modstate;
+		*pscancode = scancode;
+
+		/**if(pressed) {
+			printf("Returning: mwkey: 0x%04x, mods: 0x%x,
+				sc:0x%04x\n\n", *kbuf, *modifiers, *pscancode);
+		}**/
+		return pressed ? 1 : 2;
 	}
 
 	if ((cc < 0) && (errno != EINTR) && (errno != EAGAIN))
@@ -263,7 +328,7 @@ UpdateKeyState(int pressed, MWKEY mwkey)
 {
 	MWKEYMOD modstate = key_modstate;
 
-//printf("UpdateKeyState %d %d\n", pressed, mwkey);
+	/*printf("UpdateKeyState %02x %02x\n", pressed, mwkey);*/
 	if (pressed == PRESSED) {
 		switch (mwkey) {
 		case MWKEY_NUMLOCK:
@@ -374,6 +439,8 @@ TranslateScancode(int scancode, MWKEYMOD modstate)
 	unsigned short	mwkey = 0;
 	int		map = 0;
 
+	/*printf("Translate: 0x%04x\n", scancode);*/
+
 	/* determine appropriate kernel table*/
 	if (modstate & MWKMOD_SHIFT)
 		map |= (1<<KG_SHIFT);
@@ -385,7 +452,7 @@ TranslateScancode(int scancode, MWKEYMOD modstate)
 		map |= (1<<KG_ALTGR);
 	if (KTYP(os_keymap[map][scancode]) == KT_LETTER) {
 		if (modstate & MWKMOD_CAPS)
-			map ^= (1<<KG_SHIFT);
+			map |= (1<<KG_SHIFT);
 	}
 	if (KTYP(os_keymap[map][scancode]) == KT_PAD) {
 		if (modstate & MWKMOD_NUM) {
@@ -433,6 +500,9 @@ TranslateScancode(int scancode, MWKEYMOD modstate)
 
 	/* perform additional translations*/
 	switch (mwkey) {
+	case 127:
+		mwkey = MWKEY_BACKSPACE;
+		break;
 	case MWKEY_BREAK:
 	case MWKEY_PAUSE:
 		mwkey = MWKEY_QUIT;
@@ -443,7 +513,7 @@ TranslateScancode(int scancode, MWKEYMOD modstate)
 		break;
 	}
 
-//printf("TranslateScancode %02x to mwkey %d\n", scancode, mwkey);
+	/* printf("TranslateScancode %02x to mwkey %d\n", scancode, mwkey); */
 	return mwkey;
 }
 
@@ -468,9 +538,9 @@ LoadKernelKeymaps(int fd)
 				if ((KTYP(entry.kb_value) == KT_LATIN) ||
 				    (KTYP(entry.kb_value) == KT_ASCII) ||
 				    (KTYP(entry.kb_value) == KT_PAD) ||
-				    (KTYP(entry.kb_value) == KT_LETTER)) {
+				    (KTYP(entry.kb_value) == KT_LETTER)
+				    )
 					os_keymap[map][i] = entry.kb_value;
-				}
 			}
 		}
 	}

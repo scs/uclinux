@@ -28,8 +28,8 @@ static int kbd_fd = -1; /* keyboar driver FIFO */
 
 static int  soft_Open(KBDDEVICE* pkd);
 static void soft_Close();
-static void soft_GetModifierInfo(int* modifiers);
-static int  soft_Read(MWUCHAR* buf, int* modifiers);
+static void soft_GetModifierInfo(MWKEYMOD* modifiers, MWKEYMOD* curmodifiers);
+static int  soft_Read(MWKEY* buf, MWKEYMOD* modifiers, MWSCANCODE* scancode);
 
 KBDDEVICE kbddev = {
     soft_Open,
@@ -88,12 +88,15 @@ soft_Close()
  * Return the possible modifiers for the keyboard.
  */
 static  void
-soft_GetModifierInfo(int* modifiers)
+soft_GetModifierInfo(MWKEYMOD* modifiers, MWKEYMOD* curmodifiers)
 {
 #if _SOFT_DEBUG
     EPRINTF("kbd_soft.c: soft_GetModifierInfo(): being asked about modifiers\n");
 #endif
-    *modifiers = 0;			/* no modifiers available */
+    if (modifiers)
+        *modifiers = 0;			/* no modifiers available */
+    if (curmodifiers)
+        *curmodifiers = 0;		/* no modifiers available */
 }
 
 /*
@@ -103,10 +106,11 @@ soft_GetModifierInfo(int* modifiers)
  */
 
 static int
-soft_Read(MWUCHAR* buf, int* modifiers)
+soft_Read(MWKEY* buf, MWKEYMOD* modifiers, MWSCANCODE* scancode)
 {
     int cc;
     *modifiers = 0;         /* no modifiers yet */
+    *scancode = 0;          /* no scancode yet */
 
     cc = read(kbd_fd, buf, 1); /* this is NON BLOCKING read */
 

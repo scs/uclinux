@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 2000, 2001 Greg Haerr <greg@censoft.com>
+ * Portions Copyright (c) 2002 by Koninklijke Philips Electronics N.V.
  *
  * Screen Driver Utilities
  * 
@@ -44,7 +45,8 @@ initmemgc(PSD mempsd,MWCOORD w,MWCOORD h,int planes,int bpp,int linelen,
 {
 	assert(mempsd->flags & PSF_MEMORY);
 
-	if (mempsd->flags&PSF_PORTRAIT) {
+	/* create mem psd w/h aligned with hw screen w/h*/
+	if (mempsd->portrait & (MWPORTRAIT_LEFT|MWPORTRAIT_RIGHT)) {
 		mempsd->yres = w;
 		mempsd->xres = h;
 	} else {
@@ -94,6 +96,8 @@ set_subdriver(PSD psd, PSUBDRIVER subdriver, MWBOOL init)
 	psd->FillRect	 	= subdriver->FillRect;
 	psd->Blit 		= subdriver->Blit;
 	psd->DrawArea 		= subdriver->DrawArea;
+	psd->StretchBlit 	= subdriver->StretchBlit;
+	psd->StretchBlitEx	= subdriver->StretchBlitEx;
 
 	/* call driver init procedure to calc map size and linelen*/
 	if (init && !subdriver->Init(psd))
@@ -113,4 +117,6 @@ get_subdriver(PSD psd, PSUBDRIVER subdriver)
 	subdriver->FillRect	 	= psd->FillRect;
 	subdriver->Blit 		= psd->Blit;
 	subdriver->DrawArea 		= psd->DrawArea;
+	subdriver->StretchBlit 		= psd->StretchBlit;
+	subdriver->StretchBlitEx	= psd->StretchBlitEx;
 }

@@ -9,7 +9,8 @@
 #define MWINCLUDECOLORS
 #include "nano-X.h"
 /* Uncomment this to get debugging output from this file */
-//#define DEBUG
+/*#define DEBUG*/
+
 #include "nanowm.h"
 
 static win *windows = NULL;
@@ -52,6 +53,7 @@ int add_window(win *window)
 	w->wid = window->wid;
 	w->pid = window->pid;
 	w->type = window->type;
+	w->sizing = GR_FALSE;	/* window->sizing*/
 	w->active = window->active;
 	w->clientid = window->clientid;
 	w->data = window->data;

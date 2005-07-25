@@ -3,6 +3,11 @@
 # Copyright (c) 2000 Martin Jolicoeur, Greg Haerr
 ##############################################################################
 
+ifndef TOP
+TOP = ../..
+CONFIG = $(TOP)/config
+endif
+
 include $(CONFIG)
 
 ######################## Additional Flags section ############################
@@ -21,17 +26,19 @@ LDFLAGS +=
 
 ############################# targets section ################################
 
-ifeq ($(NANOWM), Y)
-
 # If you want to create a library with the objects files, define the name here
 LIBNAME =
 
 # List of objects to compile
 OBJS = nxkbd.o srvconn.o keynorm.o keyctrl.o keyshft.o keynum.o
 
-all: default $(TOP)/bin/nxkbd
-
+ifeq ($(ARCH), ECOS)
+TARGET = $(TOP)/bin/nxkbd.o
+else
+TARGET = $(TOP)/bin/nxkbd
 endif
+
+all: default $(TARGET)
 
 ######################### Makefile.rules section #############################
 
@@ -43,6 +50,13 @@ ifeq ($(SHAREDLIBS), Y)
 $(TOP)/bin/nxkbd: $(OBJS) $(NANOXCLIENTLIBS) $(TOP)/config
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@ $(CCNANOXCLIENTLIBS) $(LDLIBS)
 else
+ifeq ($(ARCH), ECOS)
+$(TOP)/bin/nxkbd.o: $(OBJS) $(TOP)/config
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -Wl,-r -Wl,--defsym -Wl,nxkbd_main=main -o XX.o
+	$(NM) XX.o | grep -v _main | grep ' T' | awk -f $(TOP)/ecos/retain.awk | xargs $(OBJCOPY) XX.o $@
+	rm -f XX.o
+else
 $(TOP)/bin/nxkbd: $(OBJS) $(NANOXCLIENTLIBS) $(TOP)/config
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@ $(NANOXCLIENTLIBS) $(LDLIBS)
+endif
 endif

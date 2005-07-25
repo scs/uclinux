@@ -1,7 +1,7 @@
 /*
  * NanoWM - Window Manager for Nano-X
  *
- * Copyright (C) 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (C) 2000, 2003 Greg Haerr <greg@censoft.com>
  * Copyright (C) 2000 Alex Holden <alex@linuxhacker.org>
  */
 #include <stdio.h>
@@ -10,7 +10,8 @@
 #include "nano-X.h"
 #include "nxdraw.h"
 /* Uncomment this if you want debugging output from this file */
-//#define DEBUG
+/*#define DEBUG*/
+
 #include "nanowm.h"
 
 /* default window style for GR_WM_PROPS_APPWINDOW*/
@@ -127,6 +128,7 @@ int new_client_window(GR_WINDOW_ID wid)
 	window.wid = pid;
 	window.pid = GR_ROOT_WINDOW_ID;
 	window.type = WINDOW_TYPE_CONTAINER;
+	window.sizing = GR_FALSE;
 	window.active = 0;
 	window.data = NULL;
 	window.clientid = wid;
@@ -143,10 +145,11 @@ int new_client_window(GR_WINDOW_ID wid)
 		| GR_EVENT_MASK_BUTTON_UP | GR_EVENT_MASK_BUTTON_DOWN
 		| GR_EVENT_MASK_MOUSE_POSITION | GR_EVENT_MASK_EXPOSURE);
 
-	/* reparent client to container window*/
-	/* must map before reparent (nano-x bug)*/
-	GrMapWindow(pid);
+	/* reparent client to container window (child is already mapped)*/
 	GrReparentWindow(wid, pid, xoffset, yoffset);
+
+	/* map container window*/
+	GrMapWindow(pid);
 
 	GrSetFocus(wid);	/* force fixed focus*/
 
@@ -154,6 +157,7 @@ int new_client_window(GR_WINDOW_ID wid)
 	window.wid = wid;
 	window.pid = pid;
 	window.type = WINDOW_TYPE_CLIENT;
+	window.sizing = GR_FALSE;
 	window.active = 0;
 	window.clientid = 0;
 	window.data = NULL;
@@ -342,6 +346,76 @@ int new_client_window(GR_WINDOW_ID wid)
 	GrMapWindow(nid);
 #endif
 	return 0;
+}
+
+void client_window_remap(win *window) {
+
+  GR_WINDOW_INFO winfo;
+  win *pwin;
+
+  if(!(pwin = find_window(window->pid))) {
+    fprintf(stderr, "Couldn't find parent of destroyed window "
+	    "%d\n", window->wid);
+    return;
+  }
+  
+  Dprintf("client_window_remap %d (parent %d)\n", window->wid, window->pid);
+  GrGetWindowInfo(pwin->wid, &winfo);
+  if (winfo.mapped == GR_FALSE) GrMapWindow(pwin->wid);
+}
+
+/* If the client chooses to unmap the window, then we should also unmap the container */
+
+void client_window_unmap(win *window) {
+  win *pwin;
+
+  if(!(pwin = find_window(window->pid))) {
+    fprintf(stderr, "Couldn't find parent of destroyed window "
+	    "%d\n", window->wid);
+    return;
+  }
+  
+  GrUnmapWindow(pwin->wid);
+}
+
+void
+client_window_resize(win *window)
+{
+	win *pwin;
+	GR_COORD width, height;
+	GR_WM_PROPS style;
+	GR_WINDOW_INFO winfo;
+
+	Dprintf("client_window_resize %d (parent %d)\n", window->wid, window->pid);
+	if(!(pwin = find_window(window->pid))) {
+		fprintf(stderr, "Couldn't find parent of resize window %d\n", window->wid);
+		return;
+	}
+
+	/* get client window style and size, determine new container size*/
+	GrGetWindowInfo(pwin->clientid, &winfo);
+	style = winfo.props;
+
+	if (style & GR_WM_PROPS_APPFRAME) {
+		width = winfo.width + CXFRAME;
+		height = winfo.height + CYFRAME;
+	} else if (style & GR_WM_PROPS_BORDER) {
+		width = winfo.width + 2;
+		height = winfo.height + 2;
+	} else {
+		width = winfo.width;
+		height = winfo.height;
+	}
+	if (style & GR_WM_PROPS_CAPTION) {
+		height += CYCAPTION;
+		if (style & GR_WM_PROPS_APPFRAME) {
+			/* extra line under caption with appframe*/
+			++height;
+		}
+	}
+
+	/* resize container window based on client size*/
+	GrResizeWindow(pwin->wid, width, height);
 }
 
 /*

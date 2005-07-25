@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #ifndef ELX
-#include <malloc.h>
+#include <stdlib.h>
 #endif
 #include <math.h>
 #include <locale.h>
@@ -53,7 +53,10 @@ static char *lialg_recognize_stroke(rClassifier *, point_list *);
 char* li_err_msg = NULL;
 char _zdebug_flag[128];
 
+#ifndef __ECOS
+/* This is standard - defined in <stdlib.h> */
 #define bcopy(s1,s2,n) memcpy(s2,s1,n)
+#endif
 
 #if 0 /* was #ifdef mips*/
 char *strdup(char* from) {
@@ -193,6 +196,7 @@ read_classifier_points(FILE* fd,int nclss,point_list** ex,char** cnames)
 	/*Read class name and number of examples.*/
 	
 	if( fscanf(fd,"%d %s",&nex,buf) != 2 ) {
+            printf("%s *FAILED* - line: %d\n", __FUNCTION__, __LINE__);
 	    goto unallocate;
 	}
 	
@@ -209,12 +213,14 @@ read_classifier_points(FILE* fd,int nclss,point_list** ex,char** cnames)
 	    /*Read number of points.*/
 	    
 	    if( fscanf(fd,"%d",&npts) != 1 ) {
+                printf("%s *FAILED* - line: %d\n", __FUNCTION__, __LINE__);
 		goto unallocate; /*Boy would I like exceptions!*/
 	    }
 	    
 	    /*Allocate array for points.*/
 	    
 	    if( (pts = make_pen_point_array(npts)) == NULL ) {
+                printf("%s *FAILED* - line: %d\n", __FUNCTION__, __LINE__);
 		goto unallocate;
 	    }
 	    
@@ -222,8 +228,15 @@ read_classifier_points(FILE* fd,int nclss,point_list** ex,char** cnames)
 	    
 	    for( j = 0; j < npts; j++ ) {
 		int x,y;
+                int jj;
 		if( fscanf(fd,"%d %d",&x,&y) != 2 ) {
 		    delete_pen_point_array(pts);
+                    printf("%s *FAILED* - line: %d\n", __FUNCTION__, __LINE__);
+                    printf("class = %d/%d/%s, ex = %d/%d, pt: %d/%d\n", 
+                                k, nclss, names[k], i, nex, j, npts);
+                    for (jj = 0;  jj < j;  jj++) {
+                        printf("pts[%d] = %d/%d\n", jj, pts[jj].x, pts[jj].y);
+                    }
 		    goto unallocate;
 		}
 		pts[j].x = x;
@@ -234,6 +247,7 @@ read_classifier_points(FILE* fd,int nclss,point_list** ex,char** cnames)
 	    
 	    if( (examples[k] = add_example(examples[k],npts,pts)) == NULL ) {
 		delete_pen_point_array(pts);
+                printf("%s *FAILED* - line: %d\n", __FUNCTION__, __LINE__);
 		goto unallocate;
 	    }
 	    
@@ -395,7 +409,6 @@ li_recognizer_get_example (recognizer	r,
 static int li_recognizer_load(recognizer r,char* dir,char* filename)
 { 
     FILE *fd;
-    //int ftype;
     char* pathname;
     li_recognizer* rec;
     rClassifier* rc;
@@ -771,8 +784,6 @@ RECOGNIZER_INITIALIZE(ri)
 {
     recognizer r;
     li_recognizer* rec;
-    //char* homedir;
-    //char rechomedir[BUFSIZ];
     int i;
 
     /*Check that locale matches.*/
@@ -780,7 +791,9 @@ RECOGNIZER_INITIALIZE(ri)
     if( strcmp(ri->ri_locale,LI_SUPPORTED_LOCALE) != 0 ) {
 	li_err_msg = "Not a supported locale";
 fprintf(stderr, "Locale error.\n");
-	//return(NULL);
+#if 0
+	return(NULL);
+#endif
     }
 
     /*
@@ -805,7 +818,7 @@ fprintf(stderr, "charset error.\n");
 	     
 /* ari */
     r = make_recognizer(ri);
-//fprintf(stderr, "past make_recognizer.\n");
+    /*fprintf(stderr, "past make_recognizer.\n");*/
 
     if( r == NULL ) {
 	li_err_msg = "Can't allocate storage";
@@ -925,7 +938,9 @@ RECOGNIZER_FINALIZE(r)
 ************************************************** */
 
 /*#include <assert.h>*/
-#ifndef UNIX
+#if defined(__ECOS) || defined(__CYGWIN__)
+#define MAXINT 0x7FFFFFFF
+#else
 #include <values.h>
 #endif
 #include <sys/time.h>
@@ -1037,7 +1052,7 @@ static int likeatan(int, int);
 static int quadr(int);
 
 
-/*************************************************************
+/* ***********************************************************
 
   Core routines for the Li/Yeung recognition algorithm
 
@@ -1064,8 +1079,8 @@ static char *lialg_recognize_stroke(rClassifier *rec, point_list *stroke) {
     int best_score = WORST_SCORE;
     char *curr_name;
     point_list *curr_dompts = NULL;
-    //struct timeval stv, etv;
-    //int	elapsed;
+    /*struct timeval stv, etv;
+    int	elapsed;*/
 
     /*    (void)gettimeofday(&stv, NULL);*/
 
@@ -1609,7 +1624,6 @@ static point_list *lialg_compute_dompts(point_list *pts, region_list *regions) {
     int *cas = NULL;
     int nonplain;
     region_list *r;
-    //int i;
 
     /* Compute contour angle set. */
     cas = lialg_compute_contour_angle_set(pts, regions);
@@ -1688,7 +1702,6 @@ static int *lialg_compute_contour_angle_set(point_list *pts,
     int *V = NULL;
     region_list *curr_reg, *prev_reg;
     int i;
-    //int j;
 
     /*    V = (int *)safe_malloc(pts->npts * sizeof(int));*/
     V = allocate(pts->npts, int);
@@ -1979,14 +1992,13 @@ static int lialg_compute_distance(point_list *input_dompts,
 }
 
 
-/*************************************************************
+/* ***********************************************************
 
   Digest-processing routines
 
  *************************************************************/
 
 static int lialg_read_classifier_digest(rClassifier *rec) {
-    //int i;
     int nclasses;
     FILE *fp = NULL;
 
@@ -2076,7 +2088,7 @@ failed:
 }
 
 
-/*************************************************************
+/* ***********************************************************
 
   Canonicalization routines
 
@@ -2389,7 +2401,7 @@ static int lialg_compute_equipoints(point_list *points) {
 }
 
 
-/*************************************************************
+/* ***********************************************************
 
   Utility routines
 
@@ -2489,13 +2501,12 @@ static void lialg_get_bounding_box(point_list *points,
     *pmaxy = maxy;
 }
 
-
 static void lialg_compute_lpf_parameters() {
     int i;
 
     for (i = LP_FILTER_WIDTH; i >= 0; i--) {
 	float x = 0.04 * (i * i);
-#ifdef ARM_LINUX
+#if defined(ARM_LINUX) || !defined(__GLIBC__) || defined(__ECOS) || defined(__uclibc__)
 	double tmp = 100.0 * exp((double)x);
 #else
 	float tmp = 100.0 * expf(x);

@@ -1,30 +1,41 @@
 ##############################################################################
 # Microwindows Architecture rules Makefile
 # Copyright (c) 2000 Martin Jolicoeur, Greg Haerr
+# Portions Copyright 2002 by Koninklijke Philips Electronics N.V.
 #
 # This makefile should be placed at the top of a project hierarchy
 #
 # NOTE: The TOP environment variable should be set to that top directory
 ##############################################################################
 
+# Standard set of warnings for all platforms that use GCC
+#GCC_WARNINGS := -Wall -Wstrict-prototypes -Wpointer-arith -Wbad-function-cast -Wmissing-prototypes
+GCC_WARNINGS := -Wall -Wpointer-arith
+
 # Platform dependent flags & definitions
 
-ifeq ($(ARCH), FREEBSD-X86)
+ifeq ($(ARCH), LINUX-NATIVE)
+ifeq ($(USE_CCACHE), 1)
+COMPILER = ccache gcc
+else
 COMPILER = gcc
+endif
 CXX_COMPILER = g++
 TOOLSPREFIX =
 DEFINES += -DLINUX=1 -DUNIX=1
-CFLAGS += -Wall $(OPTFLAGS)
+CFLAGS += $(GCC_WARNINGS) $(OPTFLAGS)
 LDFLAGS +=
+# include the following line for static libraries
+#LDFLAGS += -static
 endif
 
-
-ifeq ($(ARCH), LINUX-NATIVE)
-COMPILER = gcc
-CXX_COMPILER = g++
+ifeq ($(ARCH), LINUX-TCC)
+COMPILER = tcc
+CXX_COMPILER = tcc
 TOOLSPREFIX =
 DEFINES += -DLINUX=1 -DUNIX=1
-CFLAGS += -Wall $(OPTFLAGS)
+CFLAGS += -Dlinux=1
+#CFLAGS += -Wall $(OPTFLAGS)
 LDFLAGS +=
 # include the following line for static libraries
 #LDFLAGS += -static
@@ -35,7 +46,7 @@ COMPILER = gcc
 CXX_COMPILER = g++
 TOOLSPREFIX = $(ARMTOOLSPREFIX)
 DEFINES += -DLINUX=1 -DUNIX=1
-CFLAGS += -Wall $(OPTFLAGS) -mstructure-size-boundary=8
+CFLAGS += $(GCC_WARNINGS) $(OPTFLAGS) -mstructure-size-boundary=8
 LDFLAGS +=
 endif
 
@@ -44,7 +55,10 @@ COMPILER = gcc
 CXX_COMPILER = g++
 TOOLSPREFIX = $(MIPSTOOLSPREFIX)
 DEFINES += -DLINUX=1 -DUNIX=1
-CFLAGS += -msoft-float -s -Wall $(OPTFLAGS)
+CFLAGS += -msoft-float $(GCC_WARNINGS) $(OPTFLAGS)
+ifneq ($(DEBUG), Y)
+CFLAGS += -s
+endif
 LDFLAGS +=
 endif
 
@@ -53,8 +67,13 @@ COMPILER = gcc
 CXX_COMPILER = g++
 TOOLSPREFIX = $(POWERPCTOOLSPREFIX)
 DEFINES += -DLINUX=1 -DUNIX=1
-CFLAGS += -msoft-float -s -Wall $(OPTFLAGS)
+CFLAGS += -msoft-float $(GCC_WARNINGS) $(OPTFLAGS)
+ifneq ($(DEBUG), Y)
+CFLAGS += -s
+endif
 LDFLAGS +=
+# Added define to avoid compiler error for PPC
+DEFINES += -DARCH_LINUX_POWERPPC=1
 endif
 
 ifeq ($(ARCH), LINUX-SH)
@@ -62,8 +81,21 @@ COMPILER = gcc
 CXX_COMPILER = g++
 TOOLSPREFIX =$(SHTOOLSPREFIX)
 DEFINES += -DLINUX=1 -DUNIX=1
-CFLAGS += -m1 -m3 -Wall $(OPTFLAGS)
+CFLAGS += -m1 -m3 $(GCC_WARNINGS) $(OPTFLAGS)
 LDFLAGS +=
+endif
+
+ifeq ($(ARCH), LINUX-SPARC)
+COMPILER = gcc
+CXX_COMPILER = g++
+TOOLSPREFIX =
+DEFINES += -DLINUX=1 -DUNIX=1 -DMW_CPU_BIG_ENDIAN=1
+CFLAGS += $(GCC_WARNINGS) $(OPTFLAGS)
+LDFLAGS +=
+# include the following line for static libraries
+#LDFLAGS += -static
+# Added define to avoid compiler error for SPARC
+DEFINES += -DARCH_LINUX_SPARC=1
 endif
 
 ifeq ($(ARCH), SOLARIS)
@@ -72,9 +104,33 @@ COMPILER = gcc
 HOSTCC = gcc
 CXX_COMPILER = g++
 TOOLSPREFIX =
-DEFINES += -DUNIX=1 -DBIGENDIAN=1
-CFLAGS += $(OPTFLAGS)
+DEFINES += -DUNIX=1 -DMW_CPU_BIG_ENDIAN=1
+CFLAGS += $(GCC_WARNINGS) $(OPTFLAGS)
 LDFLAGS += -lsocket -lnsl -lrt
+endif
+
+ifeq ($(ARCH), TRIMEDIA)
+LUD_ROOT = ../../../../../../..
+COMPILER = cc
+CXX_COMPILER = CC
+TOOLSPREFIX = tm
+DEFINES += -DTRIMEDIA=1 -DTCS2 -DOSAL -DLUD_USE_MEMSPACE
+DEFINES += -DMW_NOSIGNALS -DMW_FEATURE_GDERROR=1
+INCLUDEDIRS += -I$(LUD_ROOT)/src/include -I$(LUD_ROOT)/src/modules/fb/include
+HOSTCFLAGS += -I$(LUD_ROOT)/src/include -I$(LUD_ROOT)/src/modules/fb/include
+CFLAGS += -O2 -el -target tm1 -host nohost -tmconfig=$(LUD_ROOT)/src/misc/tmconfig2.1 -B -Xdiag=1
+LDFLAGS += -O2 -el -target tm1 -host nohost -tmconfig=$(LUD_ROOT)/src/misc/tmconfig2.1 -B -Xdiag=1
+# include the following line for static libraries
+#LDFLAGS += -static
+endif
+
+ifeq ($(ARCH), FREEBSD-X86)
+COMPILER = gcc
+CXX_COMPILER = g++
+TOOLSPREFIX =
+DEFINES += -DUNIX=1
+CFLAGS += -Wall $(OPTFLAGS)
+LDFLAGS +=
 endif
 
 ifeq ($(ARCH), ELKS)
@@ -94,7 +150,7 @@ CXX_COMPILER = g++
 TOOLSPREFIX =
 DEFINES += -DDOS_DJGPP=1 -D_NAIVE_DOS_REGS=1 -DMSDOS=1
 CFLAGS += -Wall $(OPTFLAGS)
-LDFLAGS += -lgrx20
+LDFLAGS +=
 endif
 
 ifeq ($(ARCH), RTEMS)
@@ -166,4 +222,35 @@ endif
 
 endif
 
+
+ifeq ($(ARCH), ECOS)
+    COMPILER = gcc
+    CXX_COMPILER = g++
+    TOOLSPREFIX = $(ARMTOOLSPREFIX)
+    ECOS_PREFIX = /work/iPAQ/ecos/install
+    INCLUDEDIRS += -I$(ECOS_PREFIX)/include
+    DEFINES += -D__ECOS -DUNIX=1
+    CFLAGS += -mcpu=strongarm -Wall -ffunction-sections -fdata-sections -O2 -g
+    LDFLAGS += -nostdlib
+endif
+
+ifeq ($(ARCH), CYGWIN)
+ifeq ($(USE_CCACHE), 1)
+COMPILER = ccache gcc
+else
+COMPILER = gcc
+endif
+CXX_COMPILER = g++
+TOOLSPREFIX =
+#Note: to detect from C code, do "#ifdef __CYGWIN__"
+DEFINES += -DUNIX=1
+CFLAGS += -Wall $(OPTFLAGS)
+LDFLAGS +=
+# include the following line for static libraries
+#LDFLAGS += -static
+endif
+
+ifeq ($(BIGENDIAN), Y)
+DEFINES += -DMW_CPU_BIG_ENDIAN=1
+endif
 

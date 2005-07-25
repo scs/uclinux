@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 2000, 2002 Greg Haerr <greg@censoft.com>
+ * Portions Copyright (c) 2002 by Koninklijke Philips Electronics N.V.
  * Copyright (c) 1991 David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
@@ -14,13 +15,6 @@
 #endif
 
 #include "serv.h"
-
-/*
- * Help prevent future bugs by defining this variable to an illegal value.
- * These routines should not be referencing this, but should be using
- * unmapcount instead.
- */
-#define	mapped	cannotusemapped
 
 /*
  * Redraw the screen completely.
@@ -48,29 +42,44 @@ GsActivateScreenSaver(void *arg)
 void
 GsResetScreenSaver(void)
 {
+#if MW_FEATURE_TIMERS
 	MWTIMER *timer;
+#endif /* MW_FEATURE_TIMERS */
 
 	if(screensaver_active == GR_TRUE) {
 		screensaver_active = GR_FALSE;
 		GsDeliverScreenSaverEvent(GR_FALSE);
 	}
+#if MW_FEATURE_TIMERS
 	if(screensaver_delay) {
 		if((timer = GdFindTimer(GsActivateScreenSaver)))
 			GdDestroyTimer(timer);
 		GdAddTimer(screensaver_delay, GsActivateScreenSaver,
 			GsActivateScreenSaver);
 	}
+#endif /* MW_FEATURE_TIMERS */
 }
- 
+
+#if MW_FEATURE_TIMERS
+void
+GsTimerCB (void *arg) 
+{
+    GR_TIMER *timer = (GR_TIMER*) arg;
+
+    GsDeliverTimerEvent (timer->owner, timer->wid, timer->id);
+}
+#endif /* MW_FEATURE_TIMERS */
+
+
 /*
  * Unmap the window to make it and its children invisible on the screen.
- * This is a recursive routine which increments the unmapcount values for
- * this window and all of its children, and causes exposure events for
- * windows which are newly uncovered.
+ * This is a recursive routine which unrealizes this window and all of its
+ * children, and causes exposure events for windows which are newly uncovered.
  * If temp_unmap set, don't reset focus or generate mouse/focus events,
  * as window will be mapped again momentarily (window move, resize, etc)
  */
-void GsWpUnmapWindow(GR_WINDOW *wp, GR_BOOL temp_unmap)
+void
+GsWpUnrealizeWindow(GR_WINDOW *wp, GR_BOOL temp_unmap)
 {
 	GR_WINDOW	*pwp;		/* parent window */
 	GR_WINDOW	*sibwp;		/* sibling window */
@@ -85,10 +94,15 @@ void GsWpUnmapWindow(GR_WINDOW *wp, GR_BOOL temp_unmap)
 	if (wp == clipwp)
 		clipwp = NULL;
 
-	++wp->unmapcount;
+	/* if window isn't realized, nothing to do*/
+	if (!wp->realized)
+		return;
+
+	/* set window invisible flag*/
+	wp->realized = GR_FALSE;
 
 	for (childwp = wp->children; childwp; childwp = childwp->siblings)
-		GsWpUnmapWindow(childwp, temp_unmap);
+		GsWpUnrealizeWindow(childwp, temp_unmap);
 
 	if (!temp_unmap && wp == mousewp) {
 		GsCheckMouseWindow();
@@ -105,18 +119,15 @@ void GsWpUnmapWindow(GR_WINDOW *wp, GR_BOOL temp_unmap)
 		}
 	}
 
-	/* Send update event if just unmapped*/
-	if (wp->unmapcount == 1) {
-		GsDeliverUpdateEvent(wp, 
-			(temp_unmap? GR_UPDATE_UNMAPTEMP: GR_UPDATE_UNMAP),
-			0, 0, 0, 0);
-	}
+	/* Send unmap update event*/
+	GsDeliverUpdateEvent(wp, 
+		(temp_unmap? GR_UPDATE_UNMAPTEMP: GR_UPDATE_UNMAP), 0, 0, 0, 0);
 
 	/*
 	 * If this is an input-only window or the parent window is
-	 * still unmapped, then we are all done.
+	 * still unrealized, then we are all done.
 	 */
-	if (!wp->output || wp->parent->unmapcount)
+	if (!wp->parent->realized || !wp->output)
 		return;
 
 	/*
@@ -142,40 +153,74 @@ void GsWpUnmapWindow(GR_WINDOW *wp, GR_BOOL temp_unmap)
 
 /*
  * Map the window to possibly make it and its children visible on the screen.
- * This is a recursive routine which decrements the unmapcount values for
- * this window and all of its children, and causes exposure events for
- * those windows which become visible.
+ * This is a recursive routine which realizes this window and all of its
+ * children, and causes exposure events for those windows which become visible.
  * If temp is set, then window is being mapped again after a temporary
  * unmap, so don't reset focus or generate mouse/focus events.
  */
-void GsWpMapWindow(GR_WINDOW *wp, GR_BOOL temp)
+void
+GsWpRealizeWindow(GR_WINDOW *wp, GR_BOOL temp)
 {
 	if (wp == rootwp) {
 		GsError(GR_ERROR_ILLEGAL_ON_ROOT_WINDOW, wp->id);
 		return;
 	}
+/*printf("RealizeWindow %d, map %d realized %d, parent_realized %d\n",
+wp->id, wp->mapped, wp->realized, wp->parent->realized);*/
 
-	if (wp->unmapcount)
-		--wp->unmapcount;
+#define OLDWAY 0
+#if OLDWAY /* old way, doesn't quite work with unmap/map yourself*/
+	/* 
+	 * If window is already realized, or if window
+	 * isn't set to be mapped, or parent isn't
+	 * realized, then we're done
+	 */
+	if (wp->realized || !wp->mapped || !wp->parent->realized)
+		return;
 
-	if (!temp && wp->unmapcount == 0) {
+#else /* new way, still small bug with xfreecell and popup windows*/
+	/* if window is already realized, we're done*/
+	if (wp->realized)
+		return;
+
+	/* 
+	 * Send map update event for window manager or others
+	 */
+	/* send map update event if not temp unmap/map*/
+	if (!temp) {
+		GsDeliverUpdateEvent(wp, GR_UPDATE_MAP, wp->x, wp->y,
+			wp->width, wp->height);
+	}
+
+	/* 
+	 * If window isn't set to be mapped, or parent isn't
+	 * realized, then we're done
+	 */
+	if (!wp->mapped || !wp->parent->realized)
+		return;
+#endif
+
+	/* set window visible flag*/
+	wp->realized = GR_TRUE;
+
+	if (!temp) {
 		GsCheckMouseWindow();
 		GsCheckFocusWindow();
 		GsCheckCursor();
 	}
 
-	/* send update event if just mapped*/
-	if (wp->unmapcount == 0) {
+#if OLDWAY
+	/* send map update event if not temp unmap/map*/
+	if (!temp) {
 		GsDeliverUpdateEvent(wp, GR_UPDATE_MAP, wp->x, wp->y,
 			wp->width, wp->height);
 	}
-
+#endif
 	/*
-	 * If the window is an output window and just became visible,
-	 * then draw its border, clear it to the background color, and
-	 * generate an exposure event.
+	 * If the window is an output window, then draw its border, 
+	 * clear it to the background color, and generate an exposure event.
 	 */
-	if (wp->output && (wp->unmapcount == 0)) {
+	if (wp->output) {
 		GsDrawBorder(wp);
 		GsWpClearWindow(wp, 0, 0, wp->width, wp->height, GR_TRUE);
 	}
@@ -184,18 +229,21 @@ void GsWpMapWindow(GR_WINDOW *wp, GR_BOOL temp)
 	 * Do the same thing for the children.
 	 */
 	for (wp = wp->children; wp; wp = wp->siblings)
-		GsWpMapWindow(wp, temp);
+		GsWpRealizeWindow(wp, temp);
 }
 
 /*
  * Destroy the specified window, and all of its children.
  * This is a recursive routine.
  */
-void GsWpDestroyWindow(GR_WINDOW *wp)
+void
+GsWpDestroyWindow(GR_WINDOW *wp)
 {
 	GR_WINDOW	*prevwp;	/* previous window pointer */
 	GR_EVENT_CLIENT	*ecp;		/* selections for window */
 	GR_WINDOW_ID	oldwid;		/* old selection owner */
+	GR_GRABBED_KEY *keygrab;
+	GR_GRABBED_KEY **keygrab_prev_next;
 
 	if (wp == rootwp) {
 		GsError(GR_ERROR_ILLEGAL_ON_ROOT_WINDOW, wp->id);
@@ -206,17 +254,18 @@ void GsWpDestroyWindow(GR_WINDOW *wp)
 	if(selection_owner.wid == wp->id) {
 		oldwid = selection_owner.wid;
 		selection_owner.wid = 0;
-		if(selection_owner.typelist) free(selection_owner.typelist);
+		if(selection_owner.typelist)
+			free(selection_owner.typelist);
 		GsDeliverSelectionChangedEvent(oldwid, 0);
 	}
 
 	/*
 	 * Unmap the window first.
 	 */
-	if (wp->unmapcount == 0)
-		GsWpUnmapWindow(wp, GR_FALSE);
+	if (wp->realized)
+		GsWpUnrealizeWindow(wp, GR_FALSE);
 
-	/* send update event*/
+	/* send destroy update event*/
 	GsDeliverUpdateEvent(wp, GR_UPDATE_DESTROY, wp->x, wp->y,
 		wp->width, wp->height);
 
@@ -233,14 +282,6 @@ void GsWpDestroyWindow(GR_WINDOW *wp)
 		ecp = wp->eventclients;
 		wp->eventclients = ecp->next;
 		free(ecp);
-	}
-
-	/*
-	 * Free any cursor associated with the window.
-	 */
-	if (wp->cursor->usecount-- == 1) {
-		free(wp->cursor);
-		wp->cursor = NULL;
 	}
 
 	/*
@@ -291,6 +332,23 @@ void GsWpDestroyWindow(GR_WINDOW *wp)
 
 	if(wp->title)
 		free(wp->title);
+	if (wp->clipregion)
+		GdDestroyRegion(wp->clipregion);
+
+	/* Remove any grabbed keys for this window. */
+	keygrab_prev_next = &list_grabbed_keys;
+	keygrab           =  list_grabbed_keys;
+	while (keygrab != NULL) {
+		if (keygrab->wid == wp->id){
+			/* Delete keygrab. */
+			*keygrab_prev_next = keygrab->next;
+			free(keygrab);
+			keygrab = *keygrab_prev_next;
+		} else {
+			keygrab_prev_next = &keygrab->next;
+			keygrab           =  keygrab->next;
+		}
+	}
 
 	free(wp);
 }
@@ -299,20 +357,22 @@ void GsWpDestroyWindow(GR_WINDOW *wp)
  * Draw a window's background pixmap.
  *
  * The flags mean:
+ *   GR_BACKGROUND_TILE- tile the pixmap across the window (default).
  *   GR_BACKGROUND_TOPLEFT- draw the pixmap at (0,0) relative to the window.
  *   GR_BACKGROUND_CENTER- draw the pixmap in the middle of the window.
- *   GR_BACKGROUND_TILE- tile the pixmap across the window.
+ *   GR_BACKGROUND_STRETCH- stretch the pixmap within the window.
  *   GR_BACKGROUND_TRANS- if the pixmap is smaller than the window and not
  *     using tile mode, there will be gaps around the pixmap. This flag causes
  *     to not fill in the spaces with the background colour.
  */
-void GsWpDrawBackgroundPixmap(GR_WINDOW *wp, GR_PIXMAP *pm, GR_COORD x,
+void
+GsWpDrawBackgroundPixmap(GR_WINDOW *wp, GR_PIXMAP *pm, GR_COORD x,
 	GR_COORD y, GR_SIZE width, GR_SIZE height)
 {
 	GR_SIZE destwidth, destheight, fillwidth, fillheight, pmwidth, pmheight;
 	GR_COORD fromx, fromy, destx, desty, pixmapx = 0, pixmapy = 0;
 
-	if(wp->bgpixmapflags & GR_BACKGROUND_TOPLEFT) {
+	if(wp->bgpixmapflags & (GR_BACKGROUND_TOPLEFT|GR_BACKGROUND_STRETCH)) {
 		pixmapx = 0;
 		pixmapy = 0;
 	} else if(wp->bgpixmapflags & GR_BACKGROUND_CENTER) {
@@ -351,12 +411,16 @@ void GsWpDrawBackgroundPixmap(GR_WINDOW *wp, GR_PIXMAP *pm, GR_COORD x,
 		destheight = y + height - pixmapy;
 	}
 
-	if((destwidth > 0) && (destheight > 0)) {
-		GdBlit(wp->psd, destx + wp->x, desty + wp->y, destwidth,
-			destheight, pm->psd, fromx, fromy, MWROP_SRCCOPY);
+	if(destwidth > 0 && destheight > 0) {
+		if (wp->bgpixmapflags & GR_BACKGROUND_STRETCH) {
+			GdStretchBlit(wp->psd, destx + wp->x, desty + wp->y,
+				destwidth, destheight, pm->psd, fromx, fromy,
+				pm->width, pm->height, MWROP_COPY);
+		} else GdBlit(wp->psd, destx + wp->x, desty + wp->y, destwidth,
+			destheight, pm->psd, fromx, fromy, MWROP_COPY);
 	}
 
-	if(wp->bgpixmapflags & GR_BACKGROUND_TRANS)
+	if(wp->bgpixmapflags & (GR_BACKGROUND_TRANS|GR_BACKGROUND_STRETCH))
 		return;
 
 	/* Fill in the gaps around the pixmap */
@@ -468,7 +532,7 @@ GsWpTileBackgroundPixmap(GR_WINDOW *wp, GR_PIXMAP *pm, GR_COORD x, GR_COORD y,
 
 			if((cwidth > 0) && (cheight > 0)) {
 				GdBlit(wp->psd, cx, cy, cwidth, cheight,
-					pm->psd, fromx, fromy, MWROP_SRCCOPY);
+					pm->psd, fromx, fromy, MWROP_COPY);
 			}
 		}
 	}
@@ -476,13 +540,15 @@ GsWpTileBackgroundPixmap(GR_WINDOW *wp, GR_PIXMAP *pm, GR_COORD x, GR_COORD y,
 
 /*
  * Clear the specified area of a window and possibly make an exposure event.
- * This sets the area window to its background color.  If the exposeflag is
- * nonzero, then this also creates an exposure event for the window.
+ * This sets the area window to its background color or pixmap.  If the
+ * exposeflag is nonzero, then this also creates an exposure event for the
+ * window.
  */
-void GsWpClearWindow(GR_WINDOW *wp, GR_COORD x, GR_COORD y, GR_SIZE width,
-			GR_SIZE  height, GR_BOOL exposeflag)
+void
+GsWpClearWindow(GR_WINDOW *wp, GR_COORD x, GR_COORD y, GR_SIZE width,
+	GR_SIZE  height, GR_BOOL exposeflag)
 {
-	if (wp->unmapcount || !wp->output)
+	if (!wp->realized || !wp->output)
 		return;
 	/*
 	 * Reduce the arguments so that they actually lie within the window.
@@ -515,10 +581,13 @@ void GsWpClearWindow(GR_WINDOW *wp, GR_COORD x, GR_COORD y, GR_SIZE width,
 	 */
 	GsSetClipWindow(wp, NULL, 0);
 	curgcp = NULL;
+
+	GdSetFillMode(GR_FILL_SOLID);
+
 	if (!(wp->props & GR_WM_PROPS_NOBACKGROUND)) {
-		GdSetMode(GR_MODE_SET);
-		GdSetForeground(GdFindColor(wp->background));
-		if(wp->bgpixmap) {
+		GdSetMode(GR_MODE_COPY);
+		GdSetForegroundColor(wp->psd, wp->background);
+		if (wp->bgpixmap) {
 			GsWpDrawBackgroundPixmap(wp, wp->bgpixmap, x, y,
 				width, height);
 		} else {
@@ -543,7 +612,7 @@ void
 GsExposeArea(GR_WINDOW *wp, GR_COORD rootx, GR_COORD rooty, GR_SIZE width,
 	GR_SIZE height, GR_WINDOW *stopwp)
 {
-	if (!wp->output || wp->unmapcount || wp == stopwp)
+	if (!wp->realized || wp == stopwp || !wp->output)
 		return;
 
 	/*
@@ -584,7 +653,8 @@ GsExposeArea(GR_WINDOW *wp, GR_COORD rootx, GR_COORD rooty, GR_SIZE width,
  * Note: To allow the border to be drawn with the correct clipping,
  * we temporarily grow the size of the window to include the border.
  */
-void GsDrawBorder(GR_WINDOW *wp)
+void
+GsDrawBorder(GR_WINDOW *wp)
 {
 	GR_COORD	lminx;		/* left edge minimum x */
 	GR_COORD	rminx;		/* right edge minimum x */
@@ -616,10 +686,13 @@ void GsDrawBorder(GR_WINDOW *wp)
 	wp->bordersize = 0;
 
 	clipwp = NULL;
+	/* FIXME: window clipregion will fail here */
 	GsSetClipWindow(wp, NULL, 0);
 	curgcp = NULL;
-	GdSetMode(GR_MODE_SET);
-	GdSetForeground(GdFindColor(wp->bordercolor));
+	GdSetMode(GR_MODE_COPY);
+	GdSetForegroundColor(wp->psd, wp->bordercolor);
+	GdSetDash(0, 0);
+	GdSetFillMode(GR_FILL_SOLID);
 
 	if (bs == 1) {
 		GdLine(wp->psd, lminx, tminy, rminx, tminy, TRUE);
@@ -648,7 +721,8 @@ void GsDrawBorder(GR_WINDOW *wp)
 /*
  * Check to see if the first window overlaps the second window.
  */
-GR_BOOL GsCheckOverlap(GR_WINDOW *topwp, GR_WINDOW *botwp)
+GR_BOOL
+GsCheckOverlap(GR_WINDOW *topwp, GR_WINDOW *botwp)
 {
 	GR_COORD	minx1;
 	GR_COORD	miny1;
@@ -660,7 +734,7 @@ GR_BOOL GsCheckOverlap(GR_WINDOW *topwp, GR_WINDOW *botwp)
 	GR_COORD	maxy2;
 	GR_SIZE		bs;
 
-	if (!topwp->output || topwp->unmapcount || botwp->unmapcount)
+	if (!topwp->output || !topwp->realized || !botwp->realized)
 		return GR_FALSE;
 
 	bs = topwp->bordersize;
@@ -803,13 +877,56 @@ GsFindFont(GR_FONT_ID fontid)
 	return NULL;
 }
 
+/* find a cursor with specified id*/
+GR_CURSOR *
+GsFindCursor(GR_CURSOR_ID cursorid)
+{
+	GR_CURSOR	*cursorp;
+
+	for (cursorp = listcursorp; cursorp; cursorp = cursorp->next) {
+		if (cursorp->id == cursorid)
+			return cursorp;
+	}
+	return NULL;
+}
+
+#if MW_FEATURE_TIMERS
+GR_TIMER *
+GsFindTimer (GR_TIMER_ID timer_id)
+{
+    GR_TIMER   *timer;
+    
+    /*
+     * See if this is the same graphics context as last time.
+     */
+    if ((timer_id == cache_timer_id) && timer_id)
+        return cache_timer;
+    
+    /*
+     * No, search for it and cache it for future calls.
+     */
+    for (timer = list_timer; timer != NULL; timer = timer->next) 
+    {
+        if (timer->id == timer_id) 
+        {
+            cache_timer_id = timer_id;
+            cache_timer = timer;
+            return timer;
+        }
+    }
+    return NULL;
+}
+#endif /* MW_FEATURE_TIMERS */
+
+
 /*
  * Prepare to do drawing in a window or pixmap using the specified
  * graphics context.  Returns the drawable pointer if successful,
  * and the type of drawing id that was supplied.  Returns the special value
  * GR_DRAW_TYPE_NONE if an error is generated, or if drawing is useless.
  */
-GR_DRAW_TYPE GsPrepareDrawing(GR_DRAW_ID id, GR_GC_ID gcid, GR_DRAWABLE **retdp)
+GR_DRAW_TYPE
+GsPrepareDrawing(GR_DRAW_ID id, GR_GC_ID gcid, GR_DRAWABLE **retdp)
 {
 	GR_WINDOW	*wp;		/* found window */
         GR_PIXMAP       *pp;            /* found pixmap */
@@ -824,6 +941,15 @@ GR_DRAW_TYPE GsPrepareDrawing(GR_DRAW_ID id, GR_GC_ID gcid, GR_DRAWABLE **retdp)
 	gcp = GsFindGC(gcid);
 	if (gcp == NULL)
 		return GR_DRAW_TYPE_NONE;
+
+	/*
+	 * If the graphics context is not the current one, then
+	 * make it the current one and remember to update it.
+	 */
+	if (gcp != curgcp) {
+		curgcp = gcp;
+		gcp->changed = GR_TRUE;
+	}
 
 	/*
 	 * Look for window or pixmap id
@@ -865,7 +991,7 @@ GR_DRAW_TYPE GsPrepareDrawing(GR_DRAW_ID id, GR_GC_ID gcid, GR_DRAWABLE **retdp)
 		          return GR_DRAW_TYPE_NONE;
 		}
 
-	        if (wp->unmapcount)
+	        if (!wp->realized)
 		          return GR_DRAW_TYPE_NONE;
 	   
 	        /*
@@ -873,22 +999,29 @@ GR_DRAW_TYPE GsPrepareDrawing(GR_DRAW_ID id, GR_GC_ID gcid, GR_DRAWABLE **retdp)
 		 * then make it the current one and define its clip rectangles.
 		 */
 	        if (wp != clipwp || gcp->changed) {
-			  /* find user region for intersect*/
-			  if (gcp->regionid)
+			/* find user region for intersect*/
+			if (gcp->regionid)
 				regionp = GsFindRegion(gcp->regionid);
-			  else regionp = NULL;
-			  GsSetClipWindow(wp, regionp? regionp->rgn: NULL,
-				gcp->mode & ~GR_MODE_DRAWMASK);
-		}
-	}
+			else regionp = NULL;
 
-	/*
-	 * If the graphics context is not the current one, then
-	 * make it the current one and remember to update it.
-	 */
-	if (gcp != curgcp) {
-		curgcp = gcp;
-		gcp->changed = GR_TRUE;
+			/*
+			 * Special handling if user region is not at offset 0,0
+			 */
+			if (regionp && (gcp->xoff || gcp->yoff)) {
+				MWCLIPREGION *local = GdAllocRegion();
+
+				GdCopyRegion(local, regionp->rgn);
+				GdOffsetRegion(local, gcp->xoff, gcp->yoff);
+
+				GsSetClipWindow(wp, local,  
+					gcp->mode & ~GR_MODE_DRAWMASK);
+
+				GdDestroyRegion(local);
+			  } else {
+				GsSetClipWindow(wp, regionp? regionp->rgn: NULL,
+					gcp->mode & ~GR_MODE_DRAWMASK);
+			  }
+		}
 	}
 
 	/*
@@ -896,10 +1029,48 @@ GR_DRAW_TYPE GsPrepareDrawing(GR_DRAW_ID id, GR_GC_ID gcid, GR_DRAWABLE **retdp)
 	 * device driver about it.
 	 */
 	if (gcp->changed) {
-		GdSetForeground(GdFindColor(gcp->foreground));
-		GdSetBackground(GdFindColor(gcp->background));
+		PSD		psd = (wp ? wp->psd : pp->psd);
+		unsigned long	mask;
+		int		count;
+
+		if (gcp->linestyle == GR_LINE_SOLID) {
+			mask = 0;
+			count = 0;
+		} else {
+			mask = gcp->dashmask;
+			count = gcp->dashcount;
+		}
+
+		if (gcp->fgispixelval)
+			GdSetForegroundPixelVal(psd, gcp->foreground);
+		else
+			GdSetForegroundColor(psd, gcp->foreground);
+
+		if (gcp->bgispixelval)
+			GdSetBackgroundPixelVal(psd, gcp->background);
+		else
+			GdSetBackgroundColor(psd, gcp->background);
+
 		GdSetMode(gcp->mode & GR_MODE_DRAWMASK);
 		GdSetUseBackground(gcp->usebackground);
+		
+		GdSetDash(&mask, &count);
+		GdSetFillMode(gcp->fillmode);
+		GdSetTSOffset(gcp->ts_offset.x, gcp->ts_offset.y);
+
+		switch(gcp->fillmode) {
+		case GR_FILL_STIPPLE:
+		case GR_FILL_OPAQUE_STIPPLE:
+			GdSetStippleBitmap(gcp->stipple.bitmap,
+				gcp->stipple.width, gcp->stipple.height);
+			break;
+
+		case GR_FILL_TILE:
+			GdSetTilePixmap(gcp->tile.psd,
+				gcp->tile.width, gcp->tile.height);
+			break;
+		}
+
 		fontp = GsFindFont(gcp->fontid);
 		pf = fontp? fontp->pfont: stdfont;
 		GdSetFont(pf);
@@ -916,7 +1087,8 @@ GR_DRAW_TYPE GsPrepareDrawing(GR_DRAW_ID id, GR_GC_ID gcid, GR_DRAWABLE **retdp)
  * Returns NULL if the drawing is illegal (with an error generated),
  * or if the window is not mapped.
  */
-GR_WINDOW *GsPrepareWindow(GR_WINDOW_ID wid)
+GR_WINDOW *
+GsPrepareWindow(GR_WINDOW_ID wid)
 {
 	GR_WINDOW	*wp;		/* found window */
 
@@ -929,7 +1101,7 @@ GR_WINDOW *GsPrepareWindow(GR_WINDOW_ID wid)
 		return NULL;
 	}
 
-	if (wp->unmapcount)
+	if (!wp->realized)
 		return NULL;
 
 	if (wp != clipwp) {
@@ -946,7 +1118,8 @@ GR_WINDOW *GsPrepareWindow(GR_WINDOW_ID wid)
  * window which contains the specified point.  If the coordinates are
  * off the screen, the root window is returned.
  */
-GR_WINDOW *GsFindVisibleWindow(GR_COORD x, GR_COORD y)
+GR_WINDOW *
+GsFindVisibleWindow(GR_COORD x, GR_COORD y)
 {
 	GR_WINDOW	*wp;		/* current window */
 	GR_WINDOW	*retwp;		/* returned window */
@@ -954,12 +1127,13 @@ GR_WINDOW *GsFindVisibleWindow(GR_COORD x, GR_COORD y)
 	wp = rootwp;
 	retwp = wp;
 	while (wp) {
-		if ((wp->unmapcount == 0) && (wp->x <= x) && (wp->y <= y) &&
-			(wp->x + wp->width > x) && (wp->y + wp->height > y))
-		{
-			retwp = wp;
-			wp = wp->children;
-			continue;
+		if (wp->realized &&
+		   ((!wp->clipregion && (wp->x <= x) && (wp->y <= y) &&
+		       (wp->x + wp->width > x) && (wp->y + wp->height > y)) ||
+		   (wp->clipregion && GdPtInRegion(wp->clipregion, x - wp->x, y - wp->y)))) {
+				retwp = wp;
+				wp = wp->children;
+				continue;
 		}
 		wp = wp->siblings;
 	}
@@ -970,7 +1144,8 @@ GR_WINDOW *GsFindVisibleWindow(GR_COORD x, GR_COORD y)
  * Check to see if the cursor shape is the correct shape for its current
  * location.  If not, its shape is changed.
  */
-void GsCheckCursor(void)
+void
+GsCheckCursor(void)
 {
 	GR_WINDOW	*wp;		/* window cursor is in */
 	GR_CURSOR	*cp;		/* cursor definition */
@@ -984,7 +1159,9 @@ void GsCheckCursor(void)
 	if (wp == NULL)
 		wp = mousewp;
 
-	cp = wp->cursor;
+	cp = GsFindCursor(wp->cursorid);
+	if (!cp)
+		cp = stdcursor;
 	if (cp == curcursor)
 		return;
 
@@ -1002,7 +1179,8 @@ void GsCheckCursor(void)
  * mouse window is remembered in mousewp.  However, do not change the
  * window while it is grabbed.
  */
-void GsCheckMouseWindow(void)
+void
+GsCheckMouseWindow(void)
 {
 	GR_WINDOW	*wp;		/* newest window for mouse */
 
@@ -1026,16 +1204,14 @@ void GsCheckMouseWindow(void)
  * events.  This also sets the current focus for that found window.
  * The window with focus is remembered in focuswp.
  */
-void GsCheckFocusWindow(void)
+void
+GsCheckFocusWindow(void)
 {
 	GR_WINDOW		*wp;		/* current window */
 	GR_EVENT_CLIENT		*ecp;		/* current event client */
-	GR_EVENT_MASK		eventmask;	/* event mask */
 
 	if (focusfixed)
 		return;
-
-	eventmask = GR_EVENT_MASK_KEY_DOWN;
 
 	/*
 	 * Walk upwards from the current window containing the mouse
@@ -1045,12 +1221,12 @@ void GsCheckFocusWindow(void)
 		if (wp->props & GR_WM_PROPS_NOFOCUS)
 			continue;
 		for (ecp = wp->eventclients; ecp; ecp = ecp->next) {
-			if (ecp->eventmask & eventmask) {
+			if (ecp->eventmask & GR_EVENT_MASK_KEY_DOWN) {
 				GsWpSetFocus(wp);
 				return;
 			}
 		}
-		if ((wp == rootwp) || (wp->nopropmask & eventmask)) {
+		if ((wp == rootwp) || (wp->nopropmask & GR_EVENT_MASK_KEY_DOWN)) {
 			GsWpSetFocus(rootwp);
 			return;
 		}
@@ -1058,7 +1234,7 @@ void GsCheckFocusWindow(void)
 }
 
 /* Send an update activate event to top level window of passed window*/
-static void
+void
 GsWpNotifyActivate(GR_WINDOW *wp)
 {
 	GR_WINDOW	*pwp;
@@ -1074,7 +1250,8 @@ GsWpNotifyActivate(GR_WINDOW *wp)
  * Set the input focus to the specified window.
  * This generates focus out and focus in events as necessary.
  */
-void GsWpSetFocus(GR_WINDOW *wp)
+void
+GsWpSetFocus(GR_WINDOW *wp)
 {
 	GR_WINDOW	*oldfocus;
 
@@ -1089,4 +1266,77 @@ void GsWpSetFocus(GR_WINDOW *wp)
 
 	GsDeliverGeneralEvent(wp, GR_EVENT_TYPE_FOCUS_IN, oldfocus);
 	GsWpNotifyActivate(focuswp);
+}
+
+/*
+ * Set dynamic portrait mode and redraw screen.
+ */
+void
+GsSetPortraitMode(int mode)
+{
+	GdSetPortraitMode(&scrdev, mode);
+	GdRestrictMouse(0, 0, scrdev.xvirtres - 1, scrdev.yvirtres - 1);
+
+	/* reset clip and root window size*/
+	clipwp = NULL;
+	rootwp->width = scrdev.xvirtres;
+	rootwp->height = scrdev.yvirtres;
+
+	/* deliver portrait changed event to all windows selecting it*/
+	GsDeliverPortraitChangedEvent();
+	
+	/* redraw screen - apps may redraw/resize again causing flicker*/
+	GsRedrawScreen();
+}
+
+/*
+ * Check mouse coordinates and possibly set indicated portrait
+ * mode from mouse position.
+ */
+void
+GsSetPortraitModeFromXY(GR_COORD rootx, GR_COORD rooty)
+{
+	int newmode;
+
+	if (rootx == 0) {
+		/* rotate left*/
+		switch (scrdev.portrait) {
+		case MWPORTRAIT_NONE:
+		default:
+			newmode = MWPORTRAIT_LEFT;
+			break;
+		case MWPORTRAIT_LEFT:
+			newmode = MWPORTRAIT_DOWN;
+			break;
+		case MWPORTRAIT_DOWN:
+			newmode = MWPORTRAIT_RIGHT;
+			break;
+		case MWPORTRAIT_RIGHT:
+			newmode = MWPORTRAIT_NONE;
+			break;
+		}
+		GsSetPortraitMode(newmode);
+		GrMoveCursor(5, rooty);
+		GdMoveMouse(5, rooty);
+	} else if (rootx == scrdev.xvirtres-1) {
+		/* rotate right*/
+		switch (scrdev.portrait) {
+		case MWPORTRAIT_NONE:
+		default:
+			newmode = MWPORTRAIT_RIGHT;
+			break;
+		case MWPORTRAIT_LEFT:
+			newmode = MWPORTRAIT_NONE;
+			break;
+		case MWPORTRAIT_DOWN:
+			newmode = MWPORTRAIT_LEFT;
+			break;
+		case MWPORTRAIT_RIGHT:
+			newmode = MWPORTRAIT_DOWN;
+			break;
+		}
+		GsSetPortraitMode(newmode);
+		GrMoveCursor(scrdev.xvirtres-5, rooty);
+		GdMoveMouse(scrdev.xvirtres-5, rooty);
+	}
 }

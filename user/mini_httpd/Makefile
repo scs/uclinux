@@ -1,7 +1,7 @@
 # Makefile for mini_httpd, hacked for Lineo NETtel environment
 
 ifdef CONFIG_USER_MINI_HTTPD_WITH_SSL
-CFLAGS += -DUSE_SSL $(INCSSL)
+CFLAGS += -DUSE_SSL
 EXTRALIBS += $(LIBSSL) $(LIBCRYPTO) #-lRSAglue
 endif
 
@@ -13,12 +13,12 @@ endif
 
 CFLAGS  += -MD
 
-EXTRALIBS += -L$(ROOTDIR)/lib/$(LIBCDIR)/lib $(LIBCRYPT)
+EXTRALIBS += $(LIBCRYPT)
 
 all: mime_types.h mini_httpd htpasswd
 
 mini_httpd: mini_httpd.o tdate_parse.o
-	${CC} ${LDFLAGS} -o $@ $^ ${EXTRALIBS} ${LDLIBS}
+	$(CC) $(LDFLAGS) -o $@ $^ $(EXTRALIBS) $(LDLIBS)
 
 mime_types.h: mime_types.txt
 	rm -f mime_types.h
@@ -27,7 +27,7 @@ mime_types.h: mime_types.txt
 	  -e 's/[ 	][ 	]*/", "/' -e 's/^/{ "/' -e 's/$$/" },/'
 
 htpasswd: htpasswd.o
-	${CC} ${LDFLAGS} -o $@ $^ ${EXTRALIBS} ${LDLIBS}
+	$(CC) $(LDFLAGS) -o $@ $^ $(EXTRALIBS) $(LDLIBS)
 
 clean:
 	-rm -f mini_httpd mime_types.h htpasswd *.o

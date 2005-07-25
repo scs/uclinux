@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 1999 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 1999, 2003 Greg Haerr <greg@censoft.com>
  * Copyright (c) 2000 Alex Holden <alex@linuxhacker.org>
+ * Portions Copyright (c) 2002, 2003 by Koninklijke Philips Electronics N.V.
  *
  * Nano-X Core Protocol Header
  * 
@@ -32,7 +33,7 @@
  * NOTE: MAXREQUESTSZ must be an _aligned_ multiple of 4, meaning
  * that MAXREQUESTSZ = (MAXREQUESTSZ + 3) & ~3.
  */
-#define MAXREQUESTSZ	10000		/* max request size (65532)*/
+#define MAXREQUESTSZ	30000		/* max request size (65532)*/
 
 typedef unsigned char	BYTE8;		/* 1 byte*/
 typedef unsigned short	UINT16;		/* 2 bytes*/
@@ -79,7 +80,7 @@ void * 	nxAllocReq(int type, long size, long extra);
 void	nxFlushReq(long newsize, int reply_needed);
 void 	nxAssignReqbuffer(char *buffer, long size);
 void 	nxWriteSocket(char *buf, int todo);
-int	nxCalcStringBytes(void *str, int count, int flags);
+int	nxCalcStringBytes(void *str, int count, GR_TEXTFLAGS flags);
 
 #if notyet
 /* all replies share this header*/
@@ -99,6 +100,7 @@ typedef struct {
 	BYTE8	reqType;
 	BYTE8	hilength;
 	UINT16	length;
+	UINT32	pid;
 } nxOpenReq;
 
 #define GrNumClose              1
@@ -257,23 +259,27 @@ typedef struct {
 	IDTYPE	windowid;
 } nxSetFocusReq;
 
-#define GrNumSetBorderColor     19
+#define GrNumSetWindowCursor    19
 typedef struct {
 	BYTE8	reqType;
 	BYTE8	hilength;
 	UINT16	length;
 	IDTYPE	windowid;
-	UINT32	color;
-} nxSetBorderColorReq;
+	IDTYPE	cursorid;
+} nxSetWindowCursorReq;
 
-#define GrNumClearWindow        20
+#define GrNumClearArea          20
 typedef struct {
 	BYTE8	reqType;
 	BYTE8	hilength;
 	UINT16	length;
 	IDTYPE	windowid;
+	INT16	x;
+	INT16	y;
+	INT16	width;
+	INT16	height;
 	UINT16	exposeflag;
-} nxClearWindowReq;
+} nxClearAreaReq;
 
 #define GrNumSelectEvents       21
 typedef struct {
@@ -452,8 +458,8 @@ typedef struct {
 	BYTE8	hilength;
 	UINT16	length;
 	IDTYPE	gcid;
-	UINT16	flags;
-	UINT16	pad;
+	UINT32	flags;
+	UINT32	charcount;
 	/*BYTE8	text[];*/
 } nxGetGCTextSizeReq;
 
@@ -509,16 +515,16 @@ typedef struct {
 	INT16	x;
 	INT16	y;
 	INT16	count;
-	INT16	flags;
+	INT16	pad;
+	UINT32	flags;
 	/*BYTE8	text[];*/
 } nxTextReq;
 
-#define GrNumSetCursor          43
+#define GrNumNewCursor          43
 typedef struct {
 	BYTE8	reqType;
 	BYTE8	hilength;
 	UINT16	length;
-	IDTYPE	windowid;
 	INT16	width;
 	INT16	height;
 	INT16	hotx;
@@ -527,7 +533,7 @@ typedef struct {
 	UINT32	bgcolor;
 	/*UINT16 fgbitmap[];*/
 	/*UINT16 bgbitmap[];*/
-} nxSetCursorReq;
+} nxNewCursorReq;
 
 #define GrNumMoveCursor         44
 typedef struct {
@@ -612,7 +618,7 @@ typedef struct {
 	IDTYPE	srcid;
 	INT16	srcx;
 	INT16	srcy;
-	INT16	op;
+	UINT32	op;
 } nxCopyAreaReq;
 
 #define GrNumSetFontSize        52
@@ -630,8 +636,7 @@ typedef struct {
 	BYTE8	hilength;
 	UINT16	length;
 	INT16	height;
-	INT16	lf_used;
-	MWLOGFONT lf;
+	INT16	padding;
 } nxCreateFontReq;
 
 #define GrNumDestroyFont	54
@@ -1062,4 +1067,303 @@ typedef struct {
 	UINT32	flags;
 } nxSetBackgroundPixmapReq;
 
-#define GrTotalNumCalls         96
+#define GrNumDestroyCursor	96
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	IDTYPE	cursorid;
+} nxDestroyCursorReq;
+
+#define GrNumQueryTree   	97
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	IDTYPE	windowid;
+} nxQueryTreeReq;
+
+#define GrNumCreateTimer	98
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	IDTYPE	wid;
+	UINT32	period;
+} nxCreateTimerReq;
+
+#define GrNumDestroyTimer	99
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	IDTYPE	timerid;
+} nxDestroyTimerReq;
+
+#define GrNumSetPortraitMode	100
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	UINT32	portraitmode;
+} nxSetPortraitModeReq;
+
+#define GrNumImageBufferAlloc   101
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	UINT32	size;
+} nxImageBufferAllocReq;
+
+#define GrNumImageBufferSend    102
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	UINT32	buffer_id;
+	UINT32	size;
+} nxImageBufferSendReq;
+
+#define GrNumLoadImageFromBuffer 103
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	UINT32	buffer;
+	INT16	flags;
+	INT16	pad;
+} nxLoadImageFromBufferReq;
+
+#define GrNumDrawImageFromBuffer 104
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	IDTYPE	drawid;
+	IDTYPE	gcid;
+	INT16	x;
+	INT16	y;
+	INT16	width;
+	INT16	height;
+	UINT32	buffer;
+	IDTYPE	flags;
+} nxDrawImageFromBufferReq;
+
+#define GrNumGetFontList        105
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+} nxGetFontListReq;
+
+#define GrNumSetGCClipOrigin    106
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	IDTYPE  gcid;
+	UINT32  xoff;
+	UINT32  yoff;
+} nxSetGCClipOriginReq;
+
+#define GrNumSetGCGraphicsExposure 107
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	IDTYPE  gcid;
+        UINT16  exposure;
+} nxSetGCGraphicsExposureReq;
+
+#define GrNumQueryPointer       108
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;  
+} nxQueryPointerReq;
+
+#define GrNumSetGCLineAttributes 109
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;  
+  	IDTYPE	gcid;
+        UINT16  linestyle;
+} nxSetGCLineAttributesReq;
+
+#define GrNumSetGCDash          110
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;  
+        IDTYPE	gcid;
+        UINT16	count;
+} nxSetGCDashReq;
+
+#define GrNumSetGCFillMode      111
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;  
+        IDTYPE	gcid;
+        UINT16	fillmode;
+} nxSetGCFillModeReq;
+
+#define GrNumSetGCStipple       112
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;  
+        IDTYPE	gcid;
+        INT16	width;
+        INT16	height;
+} nxSetGCStippleReq;
+
+#define GrNumSetGCTSOffset      113
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;  
+        IDTYPE	gcid;
+        INT16	xoffset;
+        INT16	yoffset;
+} nxSetGCTSOffsetReq;
+
+#define GrNumSetGCTile          114
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;  
+        IDTYPE  gcid;
+        IDTYPE  pixmap;
+        INT16	width;
+        INT16	height;
+} nxSetGCTileReq;
+
+#define GrNumNewBitmapRegion    115
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	INT16	width;
+	INT16	height;
+	/* GR_BITMAP bitmap[]*/
+} nxNewBitmapRegionReq;
+
+#define GrNumSetWindowRegion    116
+
+typedef struct {
+	BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	IDTYPE	wid;
+	IDTYPE	rid;
+	UINT16	type;
+} nxSetWindowRegionReq;
+
+#define GrNumSetGCForegroundPixelVal    117
+
+typedef struct {
+	BYTE8 reqType;
+	BYTE8 hilength;
+	UINT16 length;
+	IDTYPE gcid;
+	UINT32 pixelval;
+} nxSetGCForegroundPixelValReq;
+
+#define GrNumSetGCBackgroundPixelVal    118
+
+typedef struct {
+	BYTE8 reqType;
+	BYTE8 hilength;
+	UINT16 length;
+	IDTYPE gcid;
+	UINT32 pixelval;
+} nxSetGCBackgroundPixelValReq;
+
+#define GrNumCreateLogFont      119
+typedef struct {
+	BYTE8 reqType;
+	BYTE8 hilength;
+	UINT16 length;
+	MWLOGFONT lf;
+} nxCreateLogFontReq;
+
+#define GrNumStretchArea        120
+typedef struct {
+	BYTE8 reqType;
+	BYTE8 hilength;
+	UINT16 length;
+	IDTYPE drawid;
+	IDTYPE gcid;
+	INT16 dx1;
+	INT16 dy1;
+	INT16 dx2;
+	INT16 dy2;
+	IDTYPE srcid;
+	INT16 sx1;
+	INT16 sy1;
+	INT16 sx2;
+	INT16 sy2;
+	UINT32 op;
+} nxStretchAreaReq;
+
+#define GrNumGrabKey            121
+typedef struct {
+        BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+        IDTYPE	wid;
+        INT16	type;
+        UINT16	key;  
+} nxGrabKeyReq;
+
+#define GrNumSetTransform       122
+typedef struct {
+        BYTE8	reqType;
+	BYTE8	hilength;
+	UINT16	length;
+	UINT32	mode;
+	UINT32	trans_a;
+	UINT32	trans_b;
+	UINT32	trans_c;
+	UINT32	trans_d;
+	UINT32	trans_e;
+	UINT32	trans_f;
+	UINT32	trans_s;
+} nxSetTransformReq;
+  
+#define GrNumCreateFontFromBuffer	123
+typedef struct {
+	BYTE8 reqType;
+	BYTE8 hilength;
+	UINT16 length;
+	UINT32 buffer_id;
+	BYTE8 format[16];
+	INT16 height;
+	UINT16 padding;
+} nxCreateFontFromBufferReq;
+
+#define GrNumCopyFont		124
+typedef struct {
+	BYTE8 reqType;
+	BYTE8 hilength;
+	UINT16 length;
+	IDTYPE fontid;
+	INT16 height;
+} nxCopyFontReq;
+
+#define GrTotalNumCalls         125

@@ -39,7 +39,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <linux/mtd/mtd.h>
+#include "mtd/mtd-user.h"
 
 /*
  * MEMGETINFO

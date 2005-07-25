@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 #if UNIX | DOS_DJGPP
 #include <fcntl.h>
 #include <unistd.h>
@@ -25,6 +26,18 @@
 
 #define FULLSIZE	(MAXSIZE + 2)	/* board size including borders */
 
+#ifdef __ECOS
+/* 240x320 screen values*/
+#define	BOARDGAP	2		/* millimeter gap around board */
+#define	RIGHTGAP	2		/* mm gap between board, right side */
+#define	BUTTONGAP	5		/* mm gap between buttons */
+#define	STATUSGAP	10		/* mm gap between buttons and status */
+
+#define	BUTTONWIDTH	80		/* width of buttons (pixels) */
+#define	BUTTONHEIGHT	25		/* height of buttons (pixels) */
+#define	RIGHTSIDE	90		/* pixels to guarantee for right side */
+#define	BOARDBORDER	2		/* border size around board */
+#else
 #define	BOARDGAP	10		/* millimeter gap around board */
 #define	RIGHTGAP	15		/* mm gap between board, right side */
 #define	BUTTONGAP	20		/* mm gap between buttons */
@@ -34,6 +47,7 @@
 #define	BUTTONHEIGHT	25		/* height of buttons (pixels) */
 #define	RIGHTSIDE	150		/* pixels to guarantee for right side */
 #define	BOARDBORDER	2		/* border size around board */
+#endif
 
 /*
  * Print the number of steps taken.
@@ -269,35 +283,34 @@ static	char	*savefile;		/* filename for saving game */
 /*
  * Procedures.
  */
-static	void	printline(GR_COORD, char *, ...);
-static	void	newline();
-static	void	delay();
-static	void	dokey();
-static	void	handleevent();
-static	void	doexposure();
-static	void	dobutton();
-static	void	drawbomb();
-static	void	drawstatus();
-static	void	drawbutton();
-static	void	drawboard();
-static	void	drawcell();
-static	void	cellcenter();
-static	void	clearcell();
-static	void	newgame();
-static	void	movetopos();
-static	void	setcursor();
-static	void	togglecell();
-static	void	gameover();
-static	void	readgame();
-static	void	findindex();
-static	POS	findcell();
-static	GR_BOOL	checkpath();
-static	GR_BOOL	writegame();
+static void dokey(GR_EVENT_KEYSTROKE *kp);
+static void drawboard(void);
+static void drawcell(POS pos);
+static void clearcell(POS pos);
+static void drawbomb(POS pos, GR_GC_ID gc, GR_BOOL animate);
+static void drawbutton(GR_WINDOW_ID window, char *label);
+static void setcursor(void);
+static void delay(void);
+static void cellcenter(POS pos, GR_COORD *retx, GR_COORD *rety);
+static void drawstatus(void);
+static void printline(GR_COORD, char *, ...);
+static void newline(void);
+static POS findcell(GR_COORD x, GR_COORD y);
+static void newgame(void);
+static GR_BOOL checkpath(POS pos);
+static void movetopos(POS newpos);
+static void togglecell(POS pos);
+static void findindex(void);
+static void readgame(char *name);
+static GR_BOOL writegame(char *name);
+static void gameover(void);
+static void handleevent(GR_EVENT *ep);
+static void doexposure(GR_EVENT_EXPOSURE *ep);
+static void dobutton(GR_EVENT_BUTTON *bp);
+static void dokey(GR_EVENT_KEYSTROKE *kp);
 
 int
-main(argc,argv)
-	int argc;
-	char **argv;
+main(int argc,char **argv)
 {
 	GR_COORD	x;
 	GR_COORD	y;
@@ -306,8 +319,9 @@ main(argc,argv)
 	GR_COORD	rightx;		/* x coordinate for right half stuff */
 	GR_BOOL		setsize;	/* TRUE if size of board is set */
 	GR_BOOL		setmines;	/* TRUE if number of mines is set */
-	GR_SIZE		newsize = 0;	/* desired size of board */
-	GR_COUNT	newmines = 0;	/* desired number of mines */
+	GR_SIZE		newsize = 10;	/* desired size of board */
+	GR_COUNT	newmines = 25;	/* desired number of mines */
+	GR_WM_PROPERTIES props;
 
 	setmines = GR_FALSE;
 	setsize = GR_FALSE;
@@ -408,10 +422,20 @@ main(argc,argv)
 	/*
 	 * Create the main window which will contain all the others.
 	 */
+#if 0
 COLS = si.cols - 40;
+#else
+COLS = si.cols;
+#endif
 ROWS = si.rows - 80;
 	mainwid = GrNewWindow(GR_ROOT_WINDOW_ID, 0, 0, COLS, ROWS,
 		0, BLACK, WHITE);
+ 
+	/* set title */
+	props.flags = GR_WM_FLAGS_TITLE | GR_WM_FLAGS_PROPS;
+	props.props = GR_WM_PROPS_APPFRAME | GR_WM_PROPS_CAPTION;
+	props.title = "Land Mine";
+	GrSetWMProperties(mainwid, &props);
 
 	/*
 	 * Create the board window which lies at the left side.
@@ -426,14 +450,15 @@ ROWS = si.rows - 80;
 	}
 	xp = width / size;
 	yp = height / size;
+
 	width = xp * size - 1;
 	height = yp * size - 1;
 	x = BOARDBORDER;
 	y = (ROWS - height) / 2;
+
 	rightx = x + width + (si.xdpcm * RIGHTGAP / 10);
 	boardwid = GrNewWindow(mainwid, x, y, width, height, BOARDBORDER,
 		BLUE, WHITE);
-
 	/*
 	 * Create the buttons.
 	 */
@@ -553,8 +578,7 @@ handleevent(GR_EVENT *ep)
  * Handle exposure events.
  */
 static void
-doexposure(ep)
-	GR_EVENT_EXPOSURE	*ep;
+doexposure(GR_EVENT_EXPOSURE *ep)
 {
 	if (ep->wid == boardwid) {
 		drawboard();
@@ -587,8 +611,7 @@ doexposure(ep)
  * Here when we get a button down event.
  */
 static void
-dobutton(bp)
-	GR_EVENT_BUTTON		*bp;
+dobutton(GR_EVENT_BUTTON *bp)
 {
 	if (bp->wid == boardwid) {
 		movetopos(findcell(bp->x, bp->y));
@@ -634,8 +657,7 @@ dobutton(bp)
  * Here when we get a keypress in a window.
  */
 static void
-dokey(kp)
-	GR_EVENT_KEYSTROKE	*kp;
+dokey(GR_EVENT_KEYSTROKE *kp)
 {
 	if ((kp->wid != boardwid) || !playing)
 		return;
@@ -652,7 +674,7 @@ dokey(kp)
  * Redraw the board.
  */
 static void
-drawboard()
+drawboard(void)
 {
 	GR_COORD	row;
 	GR_COORD	col;
@@ -675,8 +697,7 @@ drawboard()
  * Draw a cell on the board.
  */
 static void
-drawcell(pos)
-	POS		pos;		/* position to be drawn */
+drawcell(POS pos)
 {
 	GR_COORD	x;
 	GR_COORD	y;
@@ -714,8 +735,7 @@ drawcell(pos)
  * Clear a particular cell.
  */
 static void
-clearcell(pos)
-	POS		pos;		/* position to be cleared */
+clearcell(POS pos)
 {
 	GR_COORD	row;
 	GR_COORD	col;
@@ -732,10 +752,10 @@ clearcell(pos)
  * The bomb is animated and the terminal is beeped if necessary.
  */
 static void
-drawbomb(pos, gc, animate)
-	POS		pos;		/* position to draw bomb at */
-	GR_GC_ID	gc;		/* GC for drawing (red or green) */
-	GR_BOOL		animate;	/* TRUE to animate the bomb */
+drawbomb(POS pos, GR_GC_ID gc, GR_BOOL animate)
+	/*POS		pos;		position to draw bomb at */
+	/*GR_GC_ID	gc;		GC for drawing (red or green) */
+	/*GR_BOOL		animate;	TRUE to animate the bomb */
 {
 	GR_COORD	x;
 	GR_COORD	y;
@@ -762,9 +782,7 @@ drawbomb(pos, gc, animate)
  * Draw a button which has a specified label string centered in it.
  */
 static void
-drawbutton(window, label)
-	GR_WINDOW_ID	window;
-	char		*label;
+drawbutton(GR_WINDOW_ID window, char *label)
 {
 	GR_SIZE		width;
 	GR_SIZE		height;
@@ -783,7 +801,7 @@ drawbutton(window, label)
  * The cursor changes depending on the number of legs left.
  */
 static void
-setcursor()
+setcursor(void)
 {
 	GR_BITMAP	*fgbits;	/* bitmap for foreground */
 	GR_BITMAP	*bgbits;	/* bitmap for background */
@@ -812,7 +830,7 @@ setcursor()
  * of XOR with the value of 0, (which does nothing except waste time).
  */
 static void
-delay()
+delay(void)
 {
 	GR_COUNT	i;
 
@@ -829,10 +847,7 @@ delay()
  * The coordinates are relative to the origin of the board window.
  */
 static void
-cellcenter(pos, retx, rety)
-	POS		pos;		/* position to find center of */
-	GR_COORD	*retx;		/* returned X coordinate */
-	GR_COORD	*rety;		/* returned Y coordinate */
+cellcenter(POS pos, GR_COORD *retx, GR_COORD *rety)
 {
 	*retx = (pos % FULLSIZE) * xp - 1 - xp / 2;
 	*rety = (pos / FULLSIZE) * yp - 1 - yp / 2;
@@ -843,7 +858,7 @@ cellcenter(pos, retx, rety)
  * Draw the status information in the status window.
  */
 static void
-drawstatus()
+drawstatus(void)
 {
 	long	score;
 	long	allsteps;
@@ -933,7 +948,7 @@ static void printline(GR_COORD row, char * fmt, ...)
  * This assumes output is in the status window.
  */
 static void
-newline()
+newline(void)
 {
 	GrFillRect(statwid, blackgc, charxpos, charypos - charheight + 1,
 		statwidth - charxpos, charheight);
@@ -948,9 +963,7 @@ newline()
  * of the interior lines, then a coordinate of 0 is returned.
  */
 static POS
-findcell(x, y)
-	GR_COORD	x;
-	GR_COORD	y;
+findcell(GR_COORD x, GR_COORD y)
 {
 	GR_COORD	row;
 	GR_COORD	col;
@@ -969,7 +982,7 @@ findcell(x, y)
  * Initialize the board for playing
  */
 static void
-newgame()
+newgame(void)
 {
 	GR_COORD	row;
 	GR_COORD	col;
@@ -1023,8 +1036,7 @@ newgame()
  * Returns GR_TRUE if mine was successfully placed.
  */
 static GR_BOOL
-checkpath(pos)
-	POS		pos;		/* position to place mine at */
+checkpath(POS pos)
 {
 	CELL		*bp;		/* current board position */
 	CELL		*endbp;		/* ending position */
@@ -1100,8 +1112,7 @@ checkpath(pos)
  * locations adjacent to old ones.
  */
 static void
-movetopos(newpos)
-	POS		newpos;		/* position to move to */
+movetopos(POS newpos)
 {
 	POS		fixpos;		/* position to fix up */
 	CELL		cell;		/* current cell */
@@ -1165,8 +1176,7 @@ movetopos(newpos)
  * This is for informational purposes only and does not affect anything.
  */
 static void
-togglecell(pos)
-	POS	pos;		/* position to toggle */
+togglecell(POS pos)
 {
 	CELL	cell;
 
@@ -1192,7 +1202,7 @@ togglecell(pos)
  * Show where the mines are, and give the results.
  */
 static void
-gameover()
+gameover(void)
 {
 	POS	pos;
 	CELL	cell;
@@ -1233,7 +1243,7 @@ gameover()
  * the statistics can be accessed.  Allocates a new index if necessary.
  */
 static void
-findindex()
+findindex(void)
 {
 	for (index = 0; index < MAXPARAMS; index++) {
 		if ((sizeparam[index] == size) && (mineparam[index] == mines))
@@ -1256,8 +1266,7 @@ findindex()
  * Exits if an error is encountered.
  */
 static void
-readgame(name)
-	char	*name;		/* filename */
+readgame(char *name)
 {
 	int	fd;
 
@@ -1289,8 +1298,7 @@ readgame(name)
  * Returns nonzero on an error.
  */
 static GR_BOOL
-writegame(name)
-	char	*name;		/* filename */
+writegame(char *name)
 {
 	int	fd;
 

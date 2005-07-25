@@ -1,5 +1,7 @@
 #define MWINCLUDECOLORS
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "nano-X.h"
 
 #include <signal.h>
@@ -20,12 +22,12 @@ main(int ac,char **av)
 	/* pass errors through main loop*/
 	GrSetErrorHandler(NULL);
 
-#define WIDTH	300
+#define WIDTH	320
 #define HEIGHT	240
 	w = GrNewWindow(GR_ROOT_WINDOW_ID, 20, 20, WIDTH, HEIGHT,
 		0, GREEN, BLACK);
 
-	w2 = GrNewWindow(w, 20, 20, 40, 40, 0, WHITE, BLACK);
+	w2 = GrNewWindow(w, 20, 20, 40, 40, 0, BLUE, BLACK);
 
 	props.flags = GR_WM_FLAGS_PROPS | GR_WM_FLAGS_TITLE;
 	props.props = GR_WM_PROPS_NOBACKGROUND;
@@ -39,10 +41,11 @@ main(int ac,char **av)
 		| GR_EVENT_MASK_KEY_DOWN | GR_EVENT_MASK_KEY_UP);
 	GrMapWindow(w);
 	GrSetFocus(w);
-	//GrMapWindow(w2);
+	/* serious bug here: when wm running, w2 is mapped anyway!!*/
+	/*GrMapWindow(w2);*/
 
 	for (;;) {
-		//GR_EVENT_KEYSTROKE *kev;
+		/*GR_EVENT_KEYSTROKE *kev;*/
 
 		GrGetNextEvent(&event);
 		switch (event.type) {
@@ -53,6 +56,7 @@ main(int ac,char **av)
 			GrSetGCForeground(gc, GrGetSysColor(GR_COLOR_APPTEXT));
 			GrSetGCUseBackground(gc, GR_FALSE);
 			GrText(w, gc, 10, 30, "Hello World", -1, GR_TFASCII);
+GrRect(w, gc, 5, 5, 300, 60);
 			break;
 		case GR_EVENT_TYPE_CLOSE_REQ:
 			GrClose();
@@ -62,6 +66,14 @@ main(int ac,char **av)
 			printf("\7demo2: Error (%s) ", event.error.name);
 			printf(nxErrorStrings[event.error.code],event.error.id);
 			break;
+#if 1
+		case GR_EVENT_TYPE_BUTTON_DOWN:
+			GrUnmapWindow(w);
+			GrFlush();
+			sleep(1);
+			GrMapWindow(w);
+			break;
+#endif
 #if 0
 		case GR_EVENT_TYPE_BUTTON_DOWN:
 			/* test server error on bad syscall*/

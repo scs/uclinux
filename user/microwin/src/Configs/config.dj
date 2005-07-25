@@ -73,6 +73,8 @@ NANOXDEMO                = Y
 #
 ####################################################################
 NANOWM                   = N
+VNC                      = N
+NXSCRIBBLE		 = N
 
 ####################################################################
 #
@@ -225,6 +227,7 @@ HWVGA                    = N
 # IPAQMOUSE for Compaq iPAQ
 ####################################################################
 GPMMOUSE                 = N
+SUNMOUSE                 = N
 SERMOUSE                 = N
 TPMOUSE                  = N
 ADSMOUSE                 = N
@@ -293,6 +296,6 @@ ifeq ($(ARCH), DJGPP)
 
 SCREEN_WIDTH             = 640
 SCREEN_HEIGHT            = 480
-SCREEN_DEPTH             = 4
+SCREEN_DEPTH             = 256
 
 endif

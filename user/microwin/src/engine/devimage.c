@@ -1,15 +1,21 @@
-#define FASTJPEG	1	/* =1 for temp quick jpeg 8bpp display*/
-
-#if defined(HAVE_FILEIO)	/* temp for entire file*/
 /*
- * Copyright (c) 2000, 2001 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 2000, 2001, 2003 Greg Haerr <greg@censoft.com>
  * Portions Copyright (c) 2000 Martin Jolicoeur <martinj@visuaide.com>
  * Portions Copyright (c) 2000 Alex Holden <alex@linuxhacker.org>
  * Portions Copyright (c) Independant JPEG group (ijg)
  *
  * Image load/cache/resize/display routines
  *
- * GIF, BMP, JPEG, PPM, PGM, PBM, PNG, and XPM formats are supported.
+ * If FASTJPEG is defined, JPEG images are decoded to
+ * a 256 color standardized palette (mwstdpal8). Otherwise,
+ * the images are decoded depending on their output
+ * components (usually 24bpp).
+ *
+ * GIF, BMP, JPEG, PPM, PGM, PBM, PNG, XPM and TIFF formats are supported.
+ * JHC:  Instead of working with a file, we work with a buffer
+ *       (either provided by the user or through mmap).  This
+ *	 improves speed, and provides a mechanism by which the
+ *	 client can send image data directly to the engine 
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +23,15 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "device.h"
+#include "swap.h"
+#if HAVE_MMAP
+#include <sys/mman.h>
+#endif
+
+#if MW_FEATURE_IMAGES /* whole file */
 
 /* cached image list*/
 typedef struct {
@@ -30,27 +44,135 @@ typedef struct {
 static MWLISTHEAD imagehead;		/* global image list*/
 static int nextimageid = 1;
 
+typedef struct {  /* structure for reading images from buffer   */
+	unsigned char *start;	/* The pointer to the beginning of the buffer */
+	unsigned long offset;	/* The current offset within the buffer       */
+	unsigned long size;	/* The total size of the buffer               */
+} buffer_t;
+ 
+
 static void ComputePitch(int bpp, int width, int *pitch, int *bytesperpixel);
 #if defined(HAVE_BMP_SUPPORT)
-static int  LoadBMP(FILE *fp, PMWIMAGEHDR pimage);
+static int  LoadBMP(buffer_t *src, PMWIMAGEHDR pimage);
 #endif
 #if defined(HAVE_JPEG_SUPPORT)
-static int  LoadJPEG(FILE *fp, PMWIMAGEHDR pimage, PSD psd,
+static int  LoadJPEG(buffer_t *src, PMWIMAGEHDR pimage, PSD psd,
 		MWBOOL fast_grayscale);
 #endif
 #if defined(HAVE_PNG_SUPPORT)
-static int  LoadPNG(FILE *fp, PMWIMAGEHDR pimage);
+static int  LoadPNG(buffer_t *src, PMWIMAGEHDR pimage);
 #endif
 #if defined(HAVE_GIF_SUPPORT)
-static int  LoadGIF(FILE *fp, PMWIMAGEHDR pimage);
+static int  LoadGIF(buffer_t *src, PMWIMAGEHDR pimage);
 #endif
 #if defined(HAVE_PNM_SUPPORT)
-static int LoadPNM(FILE *fp, PMWIMAGEHDR pimage);
+static int LoadPNM(buffer_t *src, PMWIMAGEHDR pimage);
 #endif
 #if defined(HAVE_XPM_SUPPORT)
-static int LoadXPM(FILE *fp, PMWIMAGEHDR pimage, PSD psd) ;
+static int LoadXPM(buffer_t *src, PMWIMAGEHDR pimage, PSD psd);
+#endif
+#if defined(HAVE_TIFF_SUPPORT)
+static int LoadTIFF(char *path, PMWIMAGEHDR pimage);
 #endif
 
+/*
+ * Buffered input functions to replace stdio functions
+ */
+static void
+binit(buffer_t *buffer, void *startdata, int size)
+{
+	buffer->start = startdata;
+	buffer->size = size;
+	buffer->offset = 0;
+}
+
+static long
+bseek(buffer_t *buffer, long offset, int whence)
+{
+	long new;
+
+	switch(whence) {
+	case SEEK_SET:
+		if (offset >= buffer->size || offset < 0)
+			return -1L;
+		buffer->offset = offset;
+		break;
+
+	case SEEK_CUR:
+		new = buffer->offset + offset;
+		if (new >= buffer->size || new < 0)
+			return -1L;
+		buffer->offset = new;
+		break;
+
+	case SEEK_END:
+		new = buffer->size - 1 + offset;
+		if (new >= buffer->size || new < 0)
+			return -1L;
+		buffer->offset = new;
+		break;
+
+	default:
+		return -1L;
+	}
+	return buffer->offset;
+}
+   
+static int
+bread(buffer_t *buffer, void *dest, unsigned long size)
+{
+	unsigned long copysize;
+
+	if (buffer->offset == buffer->size)
+		return 0;	/* EOF*/
+
+	if (buffer->offset + size > buffer->size) 
+		copysize = buffer->size - buffer->offset;
+	else copysize = size;
+
+	memcpy(dest, buffer->start + buffer->offset, copysize);
+
+	buffer->offset += copysize;
+	return copysize;
+}
+ 
+static int
+bgetc(buffer_t *buffer)
+{
+	if (buffer->offset == buffer->size) 
+		return EOF;
+	return buffer->start[buffer->offset++];
+}
+ 
+static char *
+bgets(buffer_t *buffer, char *dest, unsigned int size)
+{
+	int i,o;
+	unsigned int copysize = size - 1;
+
+	if (buffer->offset == buffer->size) 
+		return 0;
+
+	if (buffer->offset + copysize > buffer->size) 
+		copysize = buffer->size - buffer->offset;
+
+	for(o=0, i=buffer->offset; i < buffer->offset + copysize; i++, o++) {
+		if ((dest[o] = buffer->start[i]) == '\n')
+			break;
+	}
+
+	buffer->offset = i + 1;
+	dest[o + 1] = 0;
+
+	return dest;
+}
+ 
+static int
+beof(buffer_t *buffer)
+{
+	return (buffer->offset == buffer->size);
+}
+ 
 /*
  * Image decoding and display
  * NOTE: This routine and APIs will change in subsequent releases.
@@ -60,6 +182,70 @@ static int LoadXPM(FILE *fp, PMWIMAGEHDR pimage, PSD psd) ;
  * If width/height == -1, don't resize, use image size.
  * Clipping is not currently supported, just stretch/shrink to fit.
  *
+ */
+
+static int GdDecodeImage(PSD psd, buffer_t *src, char *path, int flags);
+
+/**
+ * Load an image from a memory buffer.
+ *
+ * @param psd Screen device.
+ * @param buffer The buffer containing the image data.
+ * @param size The size of the buffer.
+ * @param flags If nonzero, JPEG images will be loaded as grayscale.  Yuck!
+ */
+int
+GdLoadImageFromBuffer(PSD psd, void *buffer, int size, int flags)
+{
+	buffer_t src;
+
+	binit(&src, buffer, size);
+	return GdDecodeImage(psd, &src, NULL, flags);
+}
+
+/**
+ * Draw an image from a memory buffer.
+ *
+ * @param psd Drawing surface.
+ * @param x X destination co-ordinate.
+ * @param y Y destination co-ordinate.
+ * @param width If >=0, the image will be scaled to this width.
+ * If <0, the image will not be scaled horiziontally.
+ * @param height If >=0, the image will be scaled to this height.
+ * If <0, the image will not be scaled vertically.
+ * @param buffer The buffer containing the image data.
+ * @param size The size of the buffer.
+ * @param flags If nonzero, JPEG images will be loaded as grayscale.  Yuck!
+ */
+void
+GdDrawImageFromBuffer(PSD psd, MWCOORD x, MWCOORD y, MWCOORD width,
+	MWCOORD height, void *buffer, int size, int flags)
+{
+	int id;
+	buffer_t src;
+
+	binit(&src, buffer, size);
+	id = GdDecodeImage(psd, &src, NULL, flags);
+
+	if (id) {
+		GdDrawImageToFit(psd, x, y, width, height, id);
+		GdFreeImage(id);
+	}
+}
+
+#if defined(HAVE_FILEIO)
+/**
+ * Draw an image from a file.
+ *
+ * @param psd Drawing surface.
+ * @param x X destination co-ordinate.
+ * @param y Y destination co-ordinate.
+ * @param width If >=0, the image will be scaled to this width.
+ * If <0, the image will not be scaled horiziontally.
+ * @param height If >=0, the image will be scaled to this height.
+ * If <0, the image will not be scaled vertically.
+ * @param path The file containing the image data.
+ * @param flags If nonzero, JPEG images will be loaded as grayscale.  Yuck!
  */
 void
 GdDrawImageFromFile(PSD psd, MWCOORD x, MWCOORD y, MWCOORD width,
@@ -73,58 +259,123 @@ GdDrawImageFromFile(PSD psd, MWCOORD x, MWCOORD y, MWCOORD width,
 		GdFreeImage(id);
 	}
 }
+#endif /* defined(HAVE_FILEIO) */
 
+#if defined(HAVE_FILEIO)
+/**
+ * Load an image from a file.
+ *
+ * @param psd Drawing surface.
+ * @param path The file containing the image data.
+ * @param flags If nonzero, JPEG images will be loaded as grayscale.  Yuck!
+ */
 int
 GdLoadImageFromFile(PSD psd, char *path, int flags)
 {
-	FILE *		fp;
-	int		loadOK = 0;
-	PMWIMAGEHDR	pimage;
-	PIMAGEITEM	pItem;
+  int fd, id;
+  struct stat s;
+  void *buffer = 0;
+  buffer_t src;
+  
+  fd = open(path, O_RDONLY);
+  if (fd < 0 || fstat(fd, &s) < 0) {
+    EPRINTF("GdLoadImageFromFile: can't open image: %s\n", path);
+    return(0);
+  }
+  
+#if HAVE_MMAP
+  buffer = mmap(0, s.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
-	if ((fp = fopen(path, "rb")) == NULL) {
-		EPRINTF("GdLoadImageFromFile: can't open image: %s\n", path);
-		return 0;
-	}
+  if (!buffer) {
+    EPRINTF("GdLoadImageFromFile: Couldn't map image %s\n", path);
+    close(fd);
+    return(0);
+  }
+#else
+  buffer = malloc(s.st_size);
+  if (!buffer) {
+     EPRINTF("GdLoadImageFromFile: Couldn't load image %s\n", path);
+     close(fd);
+     return(0);
+  }
+  
+  if (read(fd, buffer, s.st_size) != s.st_size) {
+    EPRINTF("GdLoadImageFromFile: Couldn't load image %s\n", path);
+    close(fd);
+    return(0);
+  }
+#endif
+
+  binit(&src, buffer, s.st_size);
+  id = GdDecodeImage(psd, &src, path, flags);
+  
+#if HAVE_MMAP
+  munmap(buffer, s.st_size);
+#else
+  free(buffer);
+#endif
+
+  close(fd);
+  return(id);
+}
+#endif /* defined(HAVE_FILEIO) */
+
+/*
+ * GdDecodeImage:
+ * @psd: Drawing surface.
+ * @src: The image data.
+ * @flags: If nonzero, JPEG images will be loaded as grayscale.  Yuck!
+ *
+ * Load an image.
+ */
+static int
+GdDecodeImage(PSD psd, buffer_t * src, char *path, int flags)
+{
+        int         loadOK = 0;
+        PMWIMAGEHDR pimage;
+        PIMAGEITEM  pItem;
 
 	/* allocate image struct*/
 	pimage = (PMWIMAGEHDR)malloc(sizeof(MWIMAGEHDR));
 	if(!pimage) {
-		fclose(fp);
 		return 0;
 	}
 	pimage->imagebits = NULL;
 	pimage->palette = NULL;
 	pimage->transcolor = -1L;
 
+#if defined(HAVE_TIFF_SUPPORT)
+	/* must be first... no buffer support yet*/
+	if (path)
+		loadOK = LoadTIFF(path, pimage);
+#endif
 #if defined(HAVE_BMP_SUPPORT)
 	if (loadOK == 0) 
-		loadOK = LoadBMP(fp, pimage);
+		loadOK = LoadBMP(src, pimage);
 #endif
 #if defined(HAVE_GIF_SUPPORT)
 	if (loadOK == 0) 
-		loadOK = LoadGIF(fp, pimage);
+		loadOK = LoadGIF(src, pimage);
 #endif
 #if defined(HAVE_JPEG_SUPPORT)
 	if (loadOK == 0) 
-		loadOK = LoadJPEG(fp, pimage, psd, flags);
+		loadOK = LoadJPEG(src, pimage, psd, flags);
 #endif
 #if defined(HAVE_PNG_SUPPORT)
 	if (loadOK == 0) 
-		loadOK = LoadPNG(fp, pimage);
+		loadOK = LoadPNG(src, pimage);
 #endif
 #if defined(HAVE_PNM_SUPPORT)
 	if(loadOK == 0)
-		loadOK = LoadPNM(fp, pimage);
+		loadOK = LoadPNM(src, pimage);
 #endif
 #if defined(HAVE_XPM_SUPPORT)
 	if (loadOK == 0) 
-		loadOK = LoadXPM(fp, pimage, psd);
+		loadOK = LoadXPM(src, pimage, psd);
 #endif
 
-	fclose(fp);
 	if (loadOK == 0) {
-		EPRINTF("GdLoadImageFromFile: unknown image type: %s\n", path);
+		EPRINTF("GdLoadImageFromFile: unknown image type\n");
 		goto err;		/* image loading error*/
 	}
 	if (loadOK != 1)
@@ -160,6 +411,18 @@ findimage(int id)
 	return NULL;
 }
 
+/**
+ * Draw an image.
+ *
+ * @param psd Drawing surface.
+ * @param x X destination co-ordinate.
+ * @param y Y destination co-ordinate.
+ * @param width If >=0, the image will be scaled to this width.
+ * If <0, the image will not be scaled horiziontally.
+ * @param height If >=0, the image will be scaled to this height.
+ * If <0, the image will not be scaled vertically.
+ * @param id Image to draw.
+ */
 void
 GdDrawImageToFit(PSD psd, MWCOORD x, MWCOORD y, MWCOORD width, MWCOORD height,
 	int id)
@@ -206,7 +469,7 @@ GdDrawImageToFit(PSD psd, MWCOORD x, MWCOORD y, MWCOORD width, MWCOORD height,
 		rcDst.width = width;
 		rcDst.height = height;
 
-		/* Stretch full soruce to destination rectangle*/
+		/* Stretch full source to destination rectangle*/
 		GdStretchImage(pimage, NULL, &image2, &rcDst);
 		GdDrawImage(psd, x, y, &image2);
 		free(image2.imagebits);
@@ -214,6 +477,11 @@ GdDrawImageToFit(PSD psd, MWCOORD x, MWCOORD y, MWCOORD width, MWCOORD height,
 		GdDrawImage(psd, x, y, pimage);
 }
 
+/**
+ * Destroy an image.
+ *
+ * @param id Image to free.
+ */
 void
 GdFreeImage(int id)
 {
@@ -236,6 +504,13 @@ GdFreeImage(int id)
 	}
 }
 
+/**
+ * Get information about an image.
+ *
+ * @param id Image to query.
+ * @param pii Destination for image information.
+ * @return TRUE on success, FALSE on error.
+ */
 MWBOOL
 GdGetImageInfo(int id, PMWIMAGEINFO pii)
 {
@@ -376,7 +651,14 @@ static void copy_row3(unsigned char *src, int src_w, unsigned char *dst,
 	}
 }
 
-/* Perform a stretch blit between two image structs of the same format.*/
+/**
+ * Perform a stretch blit between two image structs of the same format.
+ *
+ * @param src Source image.
+ * @param srcrect Source rectangle.
+ * @param dst Destination image.
+ * @param dstrect Destination rectangle.
+ */
 void
 GdStretchImage(PMWIMAGEHDR src, MWCLIPRECT *srcrect, PMWIMAGEHDR dst,
 	MWCLIPRECT *dstrect)
@@ -468,7 +750,7 @@ GdStretchImage(PMWIMAGEHDR src, MWCLIPRECT *srcrect, PMWIMAGEHDR dst,
 	}
 }
 
-#if defined(HAVE_FILEIO) && defined(HAVE_JPEG_SUPPORT)
+#if defined(HAVE_JPEG_SUPPORT)
 #include "jpeglib.h"
 /*
  * JPEG decompression routine
@@ -497,53 +779,93 @@ GdStretchImage(PMWIMAGEHDR src, MWCLIPRECT *srcrect, PMWIMAGEHDR dst,
  * On some systems you may need to set up a signal handler to ensure that
  * temporary files are deleted if the program is interrupted.  See libjpeg.doc.
  */
-static int
-LoadJPEG(FILE *fp, PMWIMAGEHDR pimage, PSD psd, MWBOOL fast_grayscale)
+static buffer_t *inptr;
+
+static void
+init_source(j_decompress_ptr cinfo)
 {
-	int 	i;
-	int	ret = 2;	/* image load error*/
-	unsigned char magic[4];
+	cinfo->src->next_input_byte = inptr->start;
+	cinfo->src->bytes_in_buffer = inptr->size;
+}
+
+static void
+fill_input_buffer(j_decompress_ptr cinfo)
+{
+	return;
+}
+
+static void
+skip_input_data(j_decompress_ptr cinfo, long num_bytes)
+{
+	if (num_bytes >= inptr->size)
+		return;
+	cinfo->src->next_input_byte += num_bytes;
+	cinfo->src->bytes_in_buffer -= num_bytes;
+}
+
+static boolean
+resync_to_restart(j_decompress_ptr cinfo, int desired)
+{
+	return jpeg_resync_to_restart(cinfo, desired);
+}
+
+static void
+term_source(j_decompress_ptr cinfo)
+{
+	return;
+}
+
+static int
+LoadJPEG(buffer_t * src, PMWIMAGEHDR pimage, PSD psd, MWBOOL fast_grayscale)
+{
+	int i;
+	int ret = 2;		/* image load error */
+	unsigned char magic[8];
+	struct jpeg_source_mgr smgr;
+	struct jpeg_decompress_struct cinfo;
+	struct jpeg_error_mgr jerr;
 #if FASTJPEG
 	extern MWPALENTRY mwstdpal8[256];
 #else
 	MWPALENTRY palette[256];
 #endif
-	/* This struct contains the JPEG decompression parameters
-	 * and pointers to working space 
-	 * (which is allocated as needed by the JPEG library).
-	 */
-	struct jpeg_decompress_struct cinfo;
-	struct jpeg_error_mgr jerr;
 
-	/* first determine if JPEG file since decoder will error if not*/
-	fseek(fp, 0L, 0);
-	if(!fread(magic, 2, 1, fp))
-		return 0;		/* not JPEG image*/
+	/* first determine if JPEG file since decoder will error if not */
+	bseek(src, 0, SEEK_SET);
+	if (!bread(src, magic, 2))
+		return 0;
 	if (magic[0] != 0xFF || magic[1] != 0xD8)
-		return 0;		/* not JPEG image*/
-	fread(magic, 4, 1, fp);
-	fread(magic, 4, 1, fp);
-	if (strncmp(magic, "JFIF", 4) != 0)
-		return 0;		/* not JPEG image*/
+		return 0;	/* not JPEG image */
 
-	fseek(fp, 0L, 0);
+	bread(src, magic, 8);
+	if (strncmp(magic+4, "JFIF", 4) != 0)
+		return 0;	/* not JPEG image */
+
+	bread(src, 0, SEEK_SET);
 	pimage->imagebits = NULL;
 	pimage->palette = NULL;
 
 	/* Step 1: allocate and initialize JPEG decompression object */
-
 	/* We set up the normal JPEG error routines. */
-	cinfo.err = jpeg_std_error (&jerr);
+	cinfo.err = jpeg_std_error(&jerr);
 
 	/* Now we can initialize the JPEG decompression object. */
-	jpeg_create_decompress (&cinfo);
+	jpeg_create_decompress(&cinfo);
+
+	/* Step 2:  Setup the source manager */
+	smgr.init_source = (void *) init_source;
+	smgr.fill_input_buffer = (void *) fill_input_buffer;
+	smgr.skip_input_data = (void *) skip_input_data;
+	smgr.resync_to_restart = (void *) resync_to_restart;
+	smgr.term_source = (void *) term_source;
+	cinfo.src = &smgr;
+	inptr = src;
 
 	/* Step 2: specify data source (eg, a file) */
-	jpeg_stdio_src (&cinfo, fp);
+	/* jpeg_stdio_src (&cinfo, fp); */
 
 	/* Step 3: read file parameters with jpeg_read_header() */
-	jpeg_read_header (&cinfo, TRUE);
-
+	jpeg_read_header(&cinfo, TRUE);
 	/* Step 4: set parameters for decompression */
 	cinfo.out_color_space = fast_grayscale? JCS_GRAYSCALE: JCS_RGB;
 	cinfo.quantize_colors = FALSE;
@@ -551,13 +873,10 @@ LoadJPEG(FILE *fp, PMWIMAGEHDR pimage, PSD psd, MWBOOL fast_grayscale)
 #if FASTJPEG
 	goto fastjpeg;
 #endif
-	if (!fast_grayscale)
-	{
-		if (psd->pixtype == MWPF_PALETTE)
-		{
+	if (!fast_grayscale) {
+		if (psd->pixtype == MWPF_PALETTE) {
 fastjpeg:
 			cinfo.quantize_colors = TRUE;
-
 #if FASTJPEG
 			cinfo.actual_number_of_colors = 256;
 #else
@@ -573,8 +892,7 @@ fastjpeg:
 				(JDIMENSION)3);
 
 			/* Set colormap from system palette */
-			for(i = 0; i < cinfo.actual_number_of_colors; ++i)
-			{
+			for(i = 0; i < cinfo.actual_number_of_colors; ++i) {
 #if FASTJPEG
 				cinfo.colormap[0][i] = mwstdpal8[i].r;
 				cinfo.colormap[1][i] = mwstdpal8[i].g;
@@ -586,13 +904,11 @@ fastjpeg:
 #endif
 			}
 		}
-	}
-	else 
-	{
+	} else {
 		/* Grayscale output asked */
 		cinfo.quantize_colors = TRUE;
 		cinfo.out_color_space = JCS_GRAYSCALE;
-		cinfo.desired_number_of_colors = psd->ncolors;
+		cinfo.desired_number_of_colors = 256;
 	}
 	jpeg_calc_output_dimensions(&cinfo);
 
@@ -613,15 +929,26 @@ fastjpeg:
 	if(!pimage->imagebits)
 		goto err;
 	pimage->palette = NULL;
-#if FASTJPEG
-	if(pimage->bpp == 8) {
+
+	if(pimage->bpp <= 8) {
 		pimage->palette = malloc(256*sizeof(MWPALENTRY));
 		if(!pimage->palette)
 			goto err;
-		for (i=0; i<256; ++i)
-			pimage->palette[i] = mwstdpal8[i];
-	}
+		if (fast_grayscale) {
+			for (i=0; i<256; ++i) {
+				MWPALENTRY pe;
+				/* FIXME could use static palette here*/
+				pe.r = pe.g = pe.b = i;
+				pimage->palette[i] = pe;
+			}
+		} else {
+#if FASTJPEG
+			/* FASTJPEG case only, normal uses hw palette*/
+			for (i=0; i<256; ++i)
+				pimage->palette[i] = mwstdpal8[i];
 #endif
+		}
+	}
 
 	/* Step 5: Start decompressor */
 	jpeg_start_decompress (&cinfo);
@@ -647,10 +974,14 @@ err:
 	 */
 	return ret;
 }
-#endif /* defined(HAVE_FILEIO) && defined(HAVE_JPEG_SUPPORT)*/
+#endif /* defined(HAVE_JPEG_SUPPORT)*/
 
-#if defined(HAVE_FILEIO) && defined(HAVE_PNG_SUPPORT)
-#include "png.h"
+#if defined(HAVE_PNG_SUPPORT)
+#include <png.h>
+/* png_jmpbuf() macro is not defined prior to libpng-1.0.6*/
+#ifndef png_jmpbuf
+#define png_jmpbuf(png_ptr)	((png_ptr)->jmpbuf)
+#endif
 /*
  * Load a PNG file.
  * Currently for simplicity we get the PNG library to convert the file to
@@ -659,8 +990,16 @@ err:
  * type and depth and acting accordingly. Similarly, > 8 bits per channel,
  * gamma correction, etc. are not supported.
  */
+
+/* This is a quick user defined function to read from the buffer instead of from the file pointer */
+static void
+png_read_buffer(png_structp pstruct, png_bytep pointer, png_size_t size)
+{
+	bread(pstruct->io_ptr, pointer, size);
+}
+
 static int
-LoadPNG(FILE *fp, PMWIMAGEHDR pimage)
+LoadPNG(buffer_t * src, PMWIMAGEHDR pimage)
 {
 	unsigned char hdr[8], **rows;
 	png_structp state;
@@ -668,9 +1007,9 @@ LoadPNG(FILE *fp, PMWIMAGEHDR pimage)
 	png_uint_32 width, height;
 	int bit_depth, colourtype, i;
 
-	fseek(fp, 0L, 0);
+	bseek(src, 0L, SEEK_SET);
 
-	if(fread(hdr, 1, 8, fp) != 8) return 0;
+	if(bread(src, hdr, 8) != 8) return 0;
 
 	if(png_sig_cmp(hdr, 0, 8)) return 0;
 
@@ -687,7 +1026,10 @@ LoadPNG(FILE *fp, PMWIMAGEHDR pimage)
 		return 2;
 	}
 
-	png_init_io(state, fp);
+	/* Set up the input function */
+	png_set_read_fn(state, src, png_read_buffer);
+	/* png_init_io(state, src); */
+
 	png_set_sig_bytes(state, 8);
 	png_read_info(state, pnginfo);
 	png_get_IHDR(state, pnginfo, &width, &height, &bit_depth, &colourtype,
@@ -732,9 +1074,9 @@ nomem:
 	EPRINTF("LoadPNG: Out of memory\n");
 	return 2;
 }
-#endif /* defined(HAVE_FILEIO) && defined(HAVE_PNG_SUPPORT)*/
+#endif /* defined(HAVE_PNG_SUPPORT)*/
 
-#if defined(HAVE_FILEIO) && defined(HAVE_BMP_SUPPORT)
+#if defined(HAVE_BMP_SUPPORT)
 /* BMP stuff*/
 #define BI_RGB		0L
 #define BI_RLE8		1L
@@ -787,15 +1129,18 @@ typedef struct {
 
 #define COREHEADSIZE 12
 
-static int	DecodeRLE8(MWUCHAR *buf,FILE *fp);
-static int	DecodeRLE4(MWUCHAR *buf,FILE *fp);
+static int	DecodeRLE8(MWUCHAR *buf, buffer_t *src);
+static int	DecodeRLE4(MWUCHAR *buf, buffer_t *src);
 static void	put4(int b);
 
 /*
  * BMP decoding routine
  */
+
+/* Changed by JHC to allow a buffer instead of a filename */
+
 static int
-LoadBMP(FILE *fp, PMWIMAGEHDR pimage)
+LoadBMP(buffer_t *src, PMWIMAGEHDR pimage)
 {
 	int		h, i, compression;
 	int		headsize;
@@ -805,40 +1150,43 @@ LoadBMP(FILE *fp, PMWIMAGEHDR pimage)
 	BMPCOREHEAD	bmpc;
 	MWUCHAR 	headbuffer[INFOHEADSIZE];
 
-	fseek(fp, 0L, 0);
+	bseek(src, 0, SEEK_SET);
+
 	pimage->imagebits = NULL;
 	pimage->palette = NULL;
 
 	/* read BMP file header*/
-	if(fread(&headbuffer, 1, FILEHEADSIZE, fp) != FILEHEADSIZE)
-		return 0;	/* not bmp image*/
+	if (bread(src, &headbuffer, FILEHEADSIZE) != FILEHEADSIZE)
+	  return(0);
 
 	bmpf.bfType[0] = headbuffer[0];
 	bmpf.bfType[1] = headbuffer[1];
-	bmpf.bfSize = *(DWORD*)&headbuffer[2];
-	bmpf.bfOffBits = *(DWORD*)&headbuffer[10];
 
 	/* Is it really a bmp file ? */
-	if (*(WORD*)&bmpf.bfType[0] != 0x4D42) /* 'BM' */
+	if (*(WORD*)&bmpf.bfType[0] != wswap(0x4D42)) /* 'BM' */
 		return 0;	/* not bmp image*/
 
+	/*bmpf.bfSize = dwswap(dwread(&headbuffer[2]));*/
+	bmpf.bfOffBits = dwswap(dwread(&headbuffer[10]));
+
 	/* Read remaining header size */
-	if (fread(&headsize, 1, sizeof(DWORD), fp) != sizeof(DWORD))
+	if (bread(src,&headsize,sizeof(DWORD)) != sizeof(DWORD))
 		return 0;	/* not bmp image*/
+	headsize = dwswap(headsize);
 
 	/* might be windows or os/2 header */
 	if(headsize == COREHEADSIZE) {
 
 		/* read os/2 header */
-		if(fread(&headbuffer, 1, COREHEADSIZE-sizeof(DWORD), fp) !=
+		if(bread(src, &headbuffer, COREHEADSIZE-sizeof(DWORD)) !=
 			COREHEADSIZE-sizeof(DWORD))
 				return 0;	/* not bmp image*/
 
 		/* Get data */
-		bmpc.bcWidth = *(WORD*)&headbuffer[0];
-		bmpc.bcHeight = *(WORD*)&headbuffer[2];
-		bmpc.bcPlanes = *(WORD*)&headbuffer[4];
-		bmpc.bcBitCount = *(WORD*)&headbuffer[6];
+		bmpc.bcWidth = wswap(*(WORD*)&headbuffer[0]);
+		bmpc.bcHeight = wswap(*(WORD*)&headbuffer[2]);
+		bmpc.bcPlanes = wswap(*(WORD*)&headbuffer[4]);
+		bmpc.bcBitCount = wswap(*(WORD*)&headbuffer[6]);
 		
 		pimage->width = (int)bmpc.bcWidth;
 		pimage->height = (int)bmpc.bcHeight;
@@ -849,21 +1197,21 @@ LoadBMP(FILE *fp, PMWIMAGEHDR pimage)
 		compression = BI_RGB;
 	} else {
 		/* read windows header */
-		if(fread(&headbuffer, 1, INFOHEADSIZE-sizeof(DWORD), fp) !=
+		if(bread(src, &headbuffer, INFOHEADSIZE-sizeof(DWORD)) !=
 			INFOHEADSIZE-sizeof(DWORD))
 				return 0;	/* not bmp image*/
 
 		/* Get data */
-		bmpi.BiWidth = *(DWORD*)&headbuffer[0];
-		bmpi.BiHeight = *(DWORD*)&headbuffer[4];
-		bmpi.BiPlanes = *(WORD*)&headbuffer[8];
-		bmpi.BiBitCount = *(WORD*)&headbuffer[10];
-		bmpi.BiCompression = *(DWORD*)&headbuffer[12];
-		bmpi.BiSizeImage = *(DWORD*)&headbuffer[16];
-		bmpi.BiXpelsPerMeter = *(DWORD*)&headbuffer[20];
-		bmpi.BiYpelsPerMeter = *(DWORD*)&headbuffer[24];
-		bmpi.BiClrUsed = *(DWORD*)&headbuffer[28];
-		bmpi.BiClrImportant = *(DWORD*)&headbuffer[32];
+		bmpi.BiWidth = dwswap(*(DWORD*)&headbuffer[0]);
+		bmpi.BiHeight = dwswap(*(DWORD*)&headbuffer[4]);
+		bmpi.BiPlanes = wswap(*(WORD*)&headbuffer[8]);
+		bmpi.BiBitCount = wswap(*(WORD*)&headbuffer[10]);
+		bmpi.BiCompression = dwswap(*(DWORD*)&headbuffer[12]);
+		bmpi.BiSizeImage = dwswap(*(DWORD*)&headbuffer[16]);
+		bmpi.BiXpelsPerMeter = dwswap(*(DWORD*)&headbuffer[20]);
+		bmpi.BiYpelsPerMeter = dwswap(*(DWORD*)&headbuffer[24]);
+		bmpi.BiClrUsed = dwswap(*(DWORD*)&headbuffer[28]);
+		bmpi.BiClrImportant = dwswap(*(DWORD*)&headbuffer[32]);
 
 		pimage->width = (int)bmpi.BiWidth;
 		pimage->height = (int)bmpi.BiHeight;
@@ -897,16 +1245,16 @@ LoadBMP(FILE *fp, PMWIMAGEHDR pimage)
 	/* get colormap*/
 	if(pimage->bpp <= 8) {
 		for(i=0; i<pimage->palsize; i++) {
-			pimage->palette[i].b = fgetc(fp);
-			pimage->palette[i].g = fgetc(fp);
-			pimage->palette[i].r = fgetc(fp);
+			pimage->palette[i].b = bgetc(src);
+			pimage->palette[i].g = bgetc(src);
+			pimage->palette[i].r = bgetc(src);
 			if(headsize != COREHEADSIZE)
-				fgetc(fp);
+				bgetc(src);
 		}
 	}
 
 	/* decode image data*/
-	fseek(fp, bmpf.bfOffBits, SEEK_SET);
+	bseek(src, bmpf.bfOffBits, SEEK_SET);
 
 	h = pimage->height;
 	/* For every row ... */
@@ -916,13 +1264,13 @@ LoadBMP(FILE *fp, PMWIMAGEHDR pimage)
 
 		/* Get row data from file */
 		if(compression == BI_RLE8) {
-			if(!DecodeRLE8(imagebits, fp))
+			if(!DecodeRLE8(imagebits, src))
 				break;
 		} else if(compression == BI_RLE4) {
-			if(!DecodeRLE4(imagebits, fp))
+			if(!DecodeRLE4(imagebits, src))
 				break;
 		} else {
-			if(fread(imagebits, 1, pimage->pitch, fp) !=
+			if(bread(src, imagebits, pimage->pitch) !=
 				pimage->pitch)
 					goto err;
 		}
@@ -942,38 +1290,38 @@ err:
  * Decode one line of RLE8, return 0 when done with all bitmap data
  */
 static int
-DecodeRLE8(MWUCHAR *buf,FILE *fp)
+DecodeRLE8(MWUCHAR *buf, buffer_t *src)
 {
 	int		c, n;
 	MWUCHAR *	p = buf;
 
 	for( ;;) {
-		switch( n = fgetc( fp)) {
-		case EOF:
-			return( 0);
-		case 0:			/* 0 = escape*/
-			switch( n = fgetc( fp)) {
-			case 0: 	/* 0 0 = end of current scan line*/
-				return( 1);
-			case 1:		/* 0 1 = end of data*/
-				return( 1);
-			case 2:		/* 0 2 xx yy delta mode NOT SUPPORTED*/
-				(void)fgetc( fp);
-				(void)fgetc( fp);
-				continue;
-			default:	/* 0 3..255 xx nn uncompressed data*/
-				for( c=0; c<n; c++)
-					*p++ = fgetc( fp);
-				if( n & 1)
-					(void)fgetc( fp);
-				continue;
-			}
-		default:
-			c = fgetc( fp);
-			while( n--)
-				*p++ = c;
-			continue;
-		}
+	  switch( n = bgetc(src)) {
+	  case EOF:
+	    return( 0);
+	  case 0:			/* 0 = escape*/
+	    switch( n = bgetc(src)) {
+	    case 0: 	/* 0 0 = end of current scan line*/
+	      return( 1);
+	    case 1:		/* 0 1 = end of data*/
+	      return( 1);
+	    case 2:		/* 0 2 xx yy delta mode NOT SUPPORTED*/
+	      (void)bgetc(src);
+	      (void)bgetc(src);
+	      continue;
+	    default:	/* 0 3..255 xx nn uncompressed data*/
+	      for( c=0; c<n; c++)
+		*p++ = bgetc(src);
+	      if( n & 1)
+		(void)bgetc(src);
+	      continue;
+	    }
+	  default:
+	    c = bgetc(src);
+	    while( n--)
+	      *p++ = c;
+	    continue;
+	  }
 	}
 }
 
@@ -996,7 +1344,7 @@ put4(int b)
 }
 	
 static int
-DecodeRLE4(MWUCHAR *buf,FILE *fp)
+DecodeRLE4(MWUCHAR *buf, buffer_t *src)
 {
 	int		c, n, c1, c2;
 
@@ -1005,45 +1353,45 @@ DecodeRLE4(MWUCHAR *buf,FILE *fp)
 	c1 = 0;
 
 	for( ;;) {
-		switch( n = fgetc( fp)) {
-		case EOF:
-			return( 0);
-		case 0:			/* 0 = escape*/
-			switch( n = fgetc( fp)) {
-			case 0: 	/* 0 0 = end of current scan line*/
-				if( once)
-					put4( 0);
-				return( 1);
-			case 1:		/* 0 1 = end of data*/
-				if( once)
-					put4( 0);
-				return( 1);
-			case 2:		/* 0 2 xx yy delta mode NOT SUPPORTED*/
-				(void)fgetc( fp);
-				(void)fgetc( fp);
-				continue;
-			default:	/* 0 3..255 xx nn uncompressed data*/
-				c2 = (n+3) & ~3;
-				for( c=0; c<c2; c++) {
-					if( (c & 1) == 0)
-							c1 = fgetc( fp);
-					if( c < n)
-							put4( (c1 >> 4) & 0x0f);
-					c1 <<= 4;
-				}
-				continue;
-			}
-		default:
-			c = fgetc( fp);
-			c1 = (c >> 4) & 0x0f;
-			c2 = c & 0x0f;
-			for( c=0; c<n; c++)
-				put4( (c&1)? c2: c1);
-			continue;
-		}
+	  switch( n = bgetc(src)) {
+	  case EOF:
+	    return( 0);
+	  case 0:			/* 0 = escape*/
+	    switch( n = bgetc(src)) {
+	    case 0: 	/* 0 0 = end of current scan line*/
+	      if( once)
+		put4( 0);
+	      return( 1);
+	    case 1:		/* 0 1 = end of data*/
+	      if( once)
+		put4( 0);
+	      return( 1);
+	    case 2:		/* 0 2 xx yy delta mode NOT SUPPORTED*/
+	      (void)bgetc(src);
+	      (void)bgetc(src);
+	      continue;
+	    default:	/* 0 3..255 xx nn uncompressed data*/
+	      c2 = (n+3) & ~3;
+	      for( c=0; c<c2; c++) {
+		if( (c & 1) == 0)
+		  c1 = bgetc(src);
+		if( c < n)
+		  put4( (c1 >> 4) & 0x0f);
+		c1 <<= 4;
+	      }
+	      continue;
+	    }
+	  default:
+	    c = bgetc(src);
+	    c1 = (c >> 4) & 0x0f;
+	    c2 = c & 0x0f;
+	    for( c=0; c<n; c++)
+	      put4( (c&1)? c2: c1);
+	    continue;
+	  }
 	}
 }
-#endif /* defined(HAVE_FILEIO) && defined(HAVE_BMP_SUPPORT)*/
+#endif /* defined(HAVE_BMP_SUPPORT)*/
 
 #if 0
 void print_image(PMWIMAGEHDR image)
@@ -1067,7 +1415,7 @@ void print_image(PMWIMAGEHDR image)
 }
 #endif
 
-#if defined(HAVE_FILEIO) && defined(HAVE_GIF_SUPPORT)
+#if defined(HAVE_GIF_SUPPORT)
 /* Code for GIF decoding has been adapted from XPaint:                   */
 /* +-------------------------------------------------------------------+ */
 /* | Copyright 1990, 1991, 1993 David Koblas.			       | */
@@ -1110,7 +1458,7 @@ void print_image(PMWIMAGEHDR image)
 #define CM_BLUE		2
 
 #define BitSet(byte, bit)	(((byte) & (bit)) == (bit))
-#define	ReadOK(file,buffer,len)	fread(buffer, len, 1, file)
+#define	ReadOK(src,buffer,len)	bread(src, buffer, len)
 #define LM_to_uint(a,b)		(((b)<<8)|(a))
 
 struct {
@@ -1131,18 +1479,18 @@ static struct {
     int disposal;
 } Gif89;
 
-static int ReadColorMap(FILE* src, int number,
+static int ReadColorMap(buffer_t *src, int number,
 		unsigned char buffer[3][MAXCOLORMAPSIZE], int *flag);
-static int DoExtension(FILE* src, int label);
-static int GetDataBlock(FILE* src, unsigned char *buf);
-static int GetCode(FILE* src, int code_size, int flag);
-static int LWZReadByte(FILE* src, int flag, int input_code_size);
-static int ReadImage(FILE* src, PMWIMAGEHDR pimage, int len, int height, int,
+static int DoExtension(buffer_t *src, int label);
+static int GetDataBlock(buffer_t *src, unsigned char *buf);
+static int GetCode(buffer_t *src, int code_size, int flag);
+static int LWZReadByte(buffer_t *src, int flag, int input_code_size);
+static int ReadImage(buffer_t *src, PMWIMAGEHDR pimage, int len, int height, int,
 		unsigned char cmap[3][MAXCOLORMAPSIZE],
 		int gray, int interlace, int ignore);
 
 static int
-LoadGIF(FILE *src, PMWIMAGEHDR pimage)
+LoadGIF(buffer_t *src, PMWIMAGEHDR pimage)
 {
     unsigned char buf[16];
     unsigned char c;
@@ -1155,7 +1503,8 @@ LoadGIF(FILE *src, PMWIMAGEHDR pimage)
     int imageNumber = 1;
     int ok = 0;
 
-    fseek(src, 0L, 0);
+    bseek(src, 0, SEEK_SET);
+
     pimage->imagebits = NULL;
     pimage->palette = NULL;
 
@@ -1260,7 +1609,7 @@ done:
 }
 
 static int
-ReadColorMap(FILE *src, int number, unsigned char buffer[3][MAXCOLORMAPSIZE],
+ReadColorMap(buffer_t *src, int number, unsigned char buffer[3][MAXCOLORMAPSIZE],
     int *gray)
 {
     int i;
@@ -1291,7 +1640,7 @@ ReadColorMap(FILE *src, int number, unsigned char buffer[3][MAXCOLORMAPSIZE],
 }
 
 static int
-DoExtension(FILE *src, int label)
+DoExtension(buffer_t *src, int label)
 {
     static unsigned char buf[256];
 
@@ -1325,7 +1674,7 @@ DoExtension(FILE *src, int label)
 static int ZeroDataBlock = FALSE;
 
 static int
-GetDataBlock(FILE *src, unsigned char *buf)
+GetDataBlock(buffer_t *src, unsigned char *buf)
 {
     unsigned char count;
 
@@ -1339,7 +1688,7 @@ GetDataBlock(FILE *src, unsigned char *buf)
 }
 
 static int
-GetCode(FILE *src, int code_size, int flag)
+GetCode(buffer_t *src, int code_size, int flag)
 {
     static unsigned char buf[280];
     static int curbit, lastbit, done, last_byte;
@@ -1378,7 +1727,7 @@ GetCode(FILE *src, int code_size, int flag)
 }
 
 static int
-LWZReadByte(FILE *src, int flag, int input_code_size)
+LWZReadByte(buffer_t *src, int flag, int input_code_size)
 {
     int code, incode;
     register int i;
@@ -1486,7 +1835,7 @@ LWZReadByte(FILE *src, int flag, int input_code_size)
 }
 
 static int
-ReadImage(FILE* src, PMWIMAGEHDR pimage, int len, int height, int cmapSize,
+ReadImage(buffer_t* src, PMWIMAGEHDR pimage, int len, int height, int cmapSize,
 	  unsigned char cmap[3][MAXCOLORMAPSIZE],
 	  int gray, int interlace, int ignore)
 {
@@ -1581,24 +1930,24 @@ ReadImage(FILE* src, PMWIMAGEHDR pimage, int len, int height, int cmapSize,
 fini:
     return 1;
 }
-#endif /* defined(HAVE_FILEIO) && defined(HAVE_GIF_SUPPORT)*/
+#endif /* defined(HAVE_GIF_SUPPORT)*/
 
-#if defined(HAVE_FILEIO) && defined(HAVE_PNM_SUPPORT)
+#if defined(HAVE_PNM_SUPPORT)
 enum {
 	PNM_TYPE_NOTPNM,
 	PNM_TYPE_PBM,
 	PNM_TYPE_PGM,
 	PNM_TYPE_PPM
 };
-static int LoadPNM(FILE *fp, PMWIMAGEHDR pimage)
+static int LoadPNM(buffer_t *src, PMWIMAGEHDR pimage)
 {
 	char buf[256], *p;
 	int type = PNM_TYPE_NOTPNM, binary = 0, gothdrs = 0, scale = 0;
 	int ch, x = 0, y = 0, i, n, mask, col1, col2, col3;
 
-	fseek(fp, 0L, 0);
+	bseek(src, 0L, SEEK_SET);
 
-	if(!fgets(buf, 4, fp)) return 0;
+	if(!bgets(src,buf, 4)) return 0;
 
 	if(!strcmp("P1\n", buf)) type = PNM_TYPE_PBM;
 	else if(!strcmp("P2\n", buf)) type = PNM_TYPE_PGM;
@@ -1619,7 +1968,7 @@ static int LoadPNM(FILE *fp, PMWIMAGEHDR pimage)
 	if(type == PNM_TYPE_NOTPNM) return 0;
 
 	n = 0;
-	while((p = fgets(buf, 256, fp))) {
+	while((p = bgets(src, buf, 256))) {
 		if(*buf == '#') continue;
 		if(type == PNM_TYPE_PBM) {
 			if(sscanf(buf, "%i %i", &pimage->width,
@@ -1683,7 +2032,7 @@ static int LoadPNM(FILE *fp, PMWIMAGEHDR pimage)
 		if(binary) {
 			x = 0;
 			y = 0;
-			while((ch = fgetc(fp)) != EOF) {
+			while((ch = bgetc(src)) != EOF) {
 				for(i = 0; i < 8; i++) {
 					mask = 0x80 >> i;
 					if(ch & mask) *p |= mask;
@@ -1701,7 +2050,7 @@ static int LoadPNM(FILE *fp, PMWIMAGEHDR pimage)
 			}
 		} else {
 			n = 0;
-			while((ch = fgetc(fp)) != EOF) {
+			while((ch = bgetc(src)) != EOF) {
 				if(isspace(ch)) continue;
 				mask = 0x80 >> n;
 				if(ch == '1') *p |= mask;
@@ -1725,10 +2074,10 @@ static int LoadPNM(FILE *fp, PMWIMAGEHDR pimage)
 		while(1) {
 			if(type == PNM_TYPE_PGM) {
 				if(binary) {
-					if((ch = fgetc(fp)) == EOF)
+					if((ch = bgetc(src)) == EOF)
 						goto baddata;
 				} else {
-					if(fscanf(fp, "%i", &ch) != 1)
+				  /*if(fscanf(fp, "%i", &ch) != 1)*/
 						goto baddata;
 				}
 				*p++ = ch << scale;
@@ -1736,13 +2085,12 @@ static int LoadPNM(FILE *fp, PMWIMAGEHDR pimage)
 				*p++ = ch << scale;
 			} else {
 				if(binary) {
-					if(((col1 = fgetc(fp)) == EOF) ||
-					 	((col2 = fgetc(fp)) == EOF) ||
-					 	((col3 = fgetc(fp)) == EOF))
+					if(((col1 = bgetc(src)) == EOF) ||
+					 	((col2 = bgetc(src)) == EOF) ||
+					 	((col3 = bgetc(src)) == EOF))
 						goto baddata;
 				} else {
-					if(fscanf(fp, "%i %i %i", &col1, &col2,
-								&col3) != 3)
+				  /*if(fscanf(fp, "%i %i %i", &col1, &col2, &col3) != 3)*/
 						goto baddata;
 				}
 				*p++ = col1 << scale;
@@ -1763,9 +2111,9 @@ baddata:
 	if(pimage->palette) free(pimage->palette);
 	return 2;
 }
-#endif /* defined(HAVE_FILEIO) && defined(HAVE_PNM_SUPPORT) */
+#endif /* defined(HAVE_PNM_SUPPORT) */
 
-#if defined(HAVE_FILEIO) && defined(HAVE_XPM_SUPPORT)
+#if defined(HAVE_XPM_SUPPORT)
 struct xpm_cmap {
   char mapstr[3];
   long palette_entry;
@@ -1846,7 +2194,7 @@ static long XPM_parse_color(char *color)
 #define XPM_MAGIC "/* XPM */"
 #define XPM_TRANSCOLOR 0x01000000
 
-static int LoadXPM(FILE *fp, PMWIMAGEHDR pimage, PSD psd) 
+static int LoadXPM(buffer_t *src, PMWIMAGEHDR pimage, PSD psd) 
 {
   struct xpm_cmap *colorheap = 0;  /* A "heap" of color structs */
   struct xpm_cmap *colormap[256];  /* A quick hash of 256 spots for colors */
@@ -1877,19 +2225,20 @@ static int LoadXPM(FILE *fp, PMWIMAGEHDR pimage, PSD psd)
   pimage->palette = NULL;
 
   /* Start over at the beginning with the file */
-  rewind(fp);
-
-  fgets(xline, 300, fp);
+  bseek(src, 0, SEEK_SET);
+ 
+  bgets(src, xline, 300);
+ 
   /* Chop the EOL */
   xline[strlen(xline) - 1] = 0;
 
   /* Check the magic */
   if (strncmp(xline, XPM_MAGIC, sizeof(XPM_MAGIC))) return(0);
 
-  while(!feof(fp))
+  while(!beof(src))
     {
       /* Get the next line from the file */
-      fgets(xline, 300, fp);
+      bgets(src,xline, 300);
       xline[strlen(xline) - 1] = 0;
 
       /* Check it out */
@@ -2030,8 +2379,9 @@ static int LoadXPM(FILE *fp, PMWIMAGEHDR pimage, PSD psd)
 	    }
 	  else
 	    {
-	      if (n->color == -1)
+	      if (n->color == -1) {
 		n->color = XPM_TRANSCOLOR;
+	      }
 	    }
 
 	  if (++in_color == colors)
@@ -2109,7 +2459,6 @@ static int LoadXPM(FILE *fp, PMWIMAGEHDR pimage, PSD psd)
 		  dwordcolor = (long) n->palette_entry;
 		else
 		  dwordcolor = n->color;
-		
 		c += cpp;
 	      }
 
@@ -2204,6 +2553,74 @@ static int LoadXPM(FILE *fp, PMWIMAGEHDR pimage, PSD psd)
     return(-1);
   return(1);
 }
-#endif /* defined(HAVE_FILEIO) && defined(HAVE_XPM_SUPPORT)*/
+#endif /* defined(HAVE_XPM_SUPPORT)*/
 
-#endif /* defined(HAVE_FILEIO)*/
+#if defined(HAVE_TIFF_SUPPORT)
+#include <tiffio.h>
+
+static int
+LoadTIFF(char *path, PMWIMAGEHDR pimage)
+{
+	TIFF 	*tif;
+	int	w, h;
+	long	size;
+
+	tif = TIFFOpen(path, "r");
+	if (!tif)
+		return 0;
+
+	TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &w);
+	TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &h);
+	size = w * h;
+	pimage->width = w;
+	pimage->height = h;
+	pimage->bpp = 32;
+	pimage->pitch = w * sizeof(uint32);
+	pimage->bytesperpixel = 4;
+	pimage->planes = 1;
+	pimage->palsize = 0;
+	pimage->palette = NULL;
+
+	/* upside down, RGB order (with alpha)*/
+	pimage->compression = MWIMAGE_RGB | MWIMAGE_UPSIDEDOWN;
+
+	/* Allocate image */
+	if ((pimage->imagebits = malloc(size * sizeof(uint32))) == NULL)
+		goto err;
+
+	TIFFReadRGBAImage(tif, pimage->width, pimage->height,
+		(uint32 *)pimage->imagebits, 0);
+
+#if 0
+	{
+		/* FIXME alpha channel should be blended with destination*/
+		int i;
+		uint32	*rgba;
+		uint32	rgba_r, rgba_g, rgba_b, rgba_a;
+		rgba = (uint32 *)pimage->imagebits;
+		for (i = 0; i < size; ++i, ++rgba) {
+			if ((rgba_a = TIFFGetA(*rgba) + 1) == 256)
+				continue;
+			rgba_r = (TIFFGetR(*rgba) * rgba_a)>>8;
+			rgba_g = (TIFFGetG(*rgba) * rgba_a)>>8;
+			rgba_b = (TIFFGetB(*rgba) * rgba_a)>>8;
+			*rgba = 0xff000000|(rgba_b<<16)|(rgba_g<<8)|(rgba_r);
+		}
+	}
+#endif
+	TIFFClose(tif);
+	return 1;
+
+err:
+	EPRINTF("LoadTIFF: image loading error\n");
+	if (tif)
+		TIFFClose(tif);
+	if(pimage->imagebits)
+		free(pimage->imagebits);
+	if(pimage->palette)
+		free(pimage->palette);
+	return 2;		/* image error*/
+}
+#endif /* defined(HAVE_TIFF_SUPPORT)*/
+
+#endif /* MW_FEATURE_IMAGES - whole file */

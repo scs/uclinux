@@ -56,6 +56,8 @@
 #include <stdlib.h>
 #include "device.h"
 
+#if MW_FEATURE_TIMERS
+
 static MWTIMER *timerlist = NULL;
 static struct timeval mainloop_timeout;
 static struct timeval current_time;
@@ -63,6 +65,15 @@ static struct timeval current_time;
 static void calculate_timeval(struct timeval *tv, MWTIMEOUT to); 
 static signed long time_to_expiry(struct timeval *t);
 
+/**
+ * Create a new one-shot timer.
+ *
+ * @param timeout number of milliseconds before the timer should activate
+ * @param callback Callback function to call when timer fires.
+ * @param arg Opaque argument to pass to callback function.
+ * @return Timer handle.  NOTE that this is automatically destroyed
+ * after the callback function has been called.
+ */
 MWTIMER *GdAddTimer(MWTIMEOUT timeout, MWTIMERCB callback, void *arg)
 {
 	MWTIMER *newtimer;
@@ -78,11 +89,48 @@ MWTIMER *GdAddTimer(MWTIMEOUT timeout, MWTIMERCB callback, void *arg)
 	newtimer->arg = arg;
 	newtimer->next = timerlist;
 	newtimer->prev = NULL;
+        newtimer->type   = MWTIMER_ONESHOT;
+        newtimer->period = timeout;
 	timerlist = newtimer;
 
 	return newtimer;
 }
 
+/**
+ * Create a new periodic (repeating) timer.
+ *
+ * @param timeout number of milliseconds between activations.
+ * @param callback Callback function to call when timer fires.
+ * @param arg Opaque argument to pass to callback function.
+ * @return Timer handle.
+ */
+MWTIMER *GdAddPeriodicTimer(MWTIMEOUT timeout, MWTIMERCB callback, void *arg)
+{
+    MWTIMER *newtimer;
+
+    if(!(newtimer = malloc(sizeof(MWTIMER)))) return NULL;
+
+    gettimeofday (&current_time, NULL);
+    
+    if (timerlist) timerlist->prev = newtimer;
+    
+    calculate_timeval (&newtimer->timeout, timeout);
+    newtimer->callback = callback;
+    newtimer->arg      = arg;
+    newtimer->next     = timerlist;
+    newtimer->prev     = NULL;
+    newtimer->type     = MWTIMER_PERIODIC;
+    newtimer->period   = timeout;
+    timerlist          = newtimer;
+    
+    return newtimer;
+}
+
+/**
+ * Destroy a timer.
+ *
+ * @param timer Timer to destroy.
+ */
 void GdDestroyTimer(MWTIMER *timer)
 {
 	if(timer->next) timer->next->prev = timer->prev;
@@ -94,6 +142,12 @@ void GdDestroyTimer(MWTIMER *timer)
 	free(timer);
 }
 
+/**
+ * Find the timer associated with a specific callback paramater.
+ *
+ * @param arg The argument passed to the callback function.
+ * @return Timer handle, or NULL.
+ */
 MWTIMER *GdFindTimer(void *arg)
 {
 	MWTIMER *t = timerlist;
@@ -106,6 +160,13 @@ MWTIMER *GdFindTimer(void *arg)
 	return t;
 }
 
+/**
+ * ?? Internal function.
+ *
+ * @param tv ??
+ * @param timeout ??
+ * @return ??
+ */
 MWBOOL GdGetNextTimeout(struct timeval *tv, MWTIMEOUT timeout)
 {
 	signed long i, lowest_timeout;
@@ -141,6 +202,11 @@ MWBOOL GdGetNextTimeout(struct timeval *tv, MWTIMEOUT timeout)
 	return TRUE;
 }
 
+/**
+ * ?? Internal function.
+ *
+ * @return ??
+ */
 MWBOOL GdTimeout(void)
 {
 	MWTIMER *n, *t = timerlist;
@@ -151,12 +217,21 @@ MWBOOL GdTimeout(void)
 		n = t->next;
 		if(time_to_expiry(&t->timeout) <= 0) {
 			t->callback(t->arg);
-			GdDestroyTimer(t);
+                        if (t->type == MWTIMER_ONESHOT)
+                        {
+                            /* One shot timer, is finished delete it now */
+                            GdDestroyTimer(t);
+                        }
+                        else
+                        {
+                            /* Periodic timer needs to be reset */
+                            calculate_timeval (&t->timeout, t->period);
+                        }
 		}
 		t = n;
 	}
 
-	if(mainloop_timeout.tv_sec > 0)
+	if(mainloop_timeout.tv_sec > 0 || mainloop_timeout.tv_usec > 0)
 		if(time_to_expiry(&mainloop_timeout) <= 0)
 			return TRUE;
 
@@ -180,3 +255,5 @@ static signed long time_to_expiry(struct timeval *t)
 
 	return ret;
 }
+
+#endif /* MW_FEATURE_TIMERS */

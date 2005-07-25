@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1999, 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 1999, 2000, 2002 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 2002 Alex Holden <alex@alexholden.net>
  *
  * 4 planes EGA/VGA Memory (blitting) Video Driver for Microwindows
  * Included with #define HAVEBLIT in vgaplan4.h
@@ -10,6 +11,7 @@
  */
 /*#define NDEBUG*/
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 #include "device.h"
 #include "vgaplan4.h"
@@ -31,6 +33,9 @@
 extern int gr_mode;	/* temp kluge*/
 
 static unsigned char notmask[2] = { 0x0f, 0xf0};
+static unsigned char mask[8] = {
+	0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01
+};
 
 /* Calc linelen and mmap size, return 0 on fail*/
 static int
@@ -245,9 +250,6 @@ mempl4_to_vga_blit(PSD dstpsd, MWCOORD dstx, MWCOORD dsty, MWCOORD w, MWCOORD h,
 	int	i;
 	int	slinelen = srcpsd->linelen;
 	int	color, lastcolor = -1;
-	static unsigned char mask[8] = {
-		0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01
-	};
 
 	assert (dstx >= 0 && dstx < dstpsd->xres);
 	assert (dsty >= 0 && dsty < dstpsd->yres);
@@ -262,7 +264,7 @@ mempl4_to_vga_blit(PSD dstpsd, MWCOORD dstx, MWCOORD dsty, MWCOORD w, MWCOORD h,
 	assert (srcy+h <= srcpsd->yres);
 
 	DRAWON;
-	set_op(0);		/* modetable[MWMODE_SET]*/
+	set_op(0);		/* modetable[MWMODE_COPY]*/
 	dst = SCREENBASE(dstpsd) + (dstx>>3) + dsty * BYTESPERLINE(dstpsd);
 	src = (char *)srcpsd->addr + (srcx>>1) + srcy * slinelen;
 	while(--h >= 0) {
@@ -294,7 +296,53 @@ static void
 vga_to_mempl4_blit(PSD dstpsd, MWCOORD dstx, MWCOORD dsty, MWCOORD w, MWCOORD h,
 	PSD srcpsd, MWCOORD srcx, MWCOORD srcy, int op)
 {
-	/* FIXME*/
+	int x, y;
+	int plane;
+	ADDR8 d, dst;
+	FARADDR s, src;
+	MWCOORD sx, dx;
+	unsigned char color;
+	int dlinelen = dstpsd->linelen;
+
+	assert (dstx >= 0 && dstx < dstpsd->xres);
+	assert (dsty >= 0 && dsty < dstpsd->yres);
+	assert (dstpsd->addr != 0);
+	assert (w > 0);
+	assert (h > 0);
+	assert (srcx >= 0 && srcx < srcpsd->xres);
+	assert (srcy >= 0 && srcy < srcpsd->yres);
+	assert (dstx+w <= dstpsd->xres);
+	assert (dsty+h <= dstpsd->yres);
+	assert (srcx+w <= srcpsd->xres);
+	assert (srcy+h <= srcpsd->yres);
+
+	DRAWON;
+	src = SCREENBASE(srcpsd) + (srcx >> 3) + srcy * BYTESPERLINE(srcpsd);
+	dst = (char *)dstpsd->addr + (dstx >> 1) + dsty * dlinelen;
+
+	for(y = 0; y < h; y++) {
+		s = src;
+		d = dst;
+		dx = dstx;
+		sx = srcx;
+		color = 0;
+		for(x = 0; x < w; x++) {
+			for(plane = 0; plane < 4; ++plane) {
+				set_read_plane(plane);
+				if(GETBYTE_FP(s) & mask[sx & 7])
+					color |= 1 <<
+						(plane + ((dx & 1) ? 0 : 4));
+			}
+			if((++sx & 7) == 0) ++s;
+			if((++dx & 1) == 0) {
+				*d++ = color;
+				color = 0;
+			}
+		}
+		dst += dlinelen;
+		src += BYTESPERLINE(srcpsd);
+	}
+	DRAWOFF;
 }
 
 void

@@ -1,4 +1,4 @@
-/***********************************************************************
+/* *********************************************************************
 
 matrix.c - simple matrix operations
 
@@ -343,8 +343,7 @@ Matrix ym, rm;
 			for(j = 0; j < n; j++)
 				rm[i][j] = ym[i][j];
 
-
-	//if(DebugInvertMatrix) PrintMatrix(rm, "Inverting (det=%g)\n", det);
+	/*if(DebugInvertMatrix) PrintMatrix(rm, "Inverting (det=%g)\n", det);*/
 
     /* Allocate permutation vectors for l and m, with the same origin
        as the matrix. */
@@ -534,10 +533,11 @@ FILE *f;
 		exit_error("InputVector check");
 	    }
 	v = NewVector(nrows);
-	for(i = 0; i < nrows; i++)
+	for(i = 0; i < nrows; i++) {
 		if(fscanf(f, "%lf", &v[i]) != 1) {
 			exit_error("InputVector fscanf 2");
 		    }
+        }
 	return v;
 }
 
@@ -572,10 +572,11 @@ FILE *f;
 	    }
 	m = NewMatrix(nrows, ncols);
 	for(i = 0; i < nrows; i++)
-		for(j = 0; j < ncols; j++)
+            for(j = 0; j < ncols; j++) {
 			if(fscanf(f, "%lf", &m[i][j]) != 1) {
 				exit_error("InputMatrix fscanf 2");
 			    }
+            }
 
 	return m;
 }

@@ -31,15 +31,18 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
-#include <linux/mtd/mtd.h>
+#include "mtd/mtd-user.h"
 
 /*****************************************************************************/
 
 #ifndef MEMREADDATA
-#define	MEMREADDATA             _IOWR('M', 10, struct mtd_oob_buf)
-#endif
-#ifndef MEMWRITEDATA
-#define	MEMWRITEDATA            _IOWR('M', 11, struct mtd_oob_buf)
+/*
+ * if the kernel doesn't define these,  then it probably doesn't
+ * support them,  just make sure we use really broken values that
+ * won't try to work
+ */
+#define	MEMREADDATA             _IOWR('M', -1, struct mtd_oob_buf)
+#define	MEMWRITEDATA            _IOWR('M', -1, struct mtd_oob_buf)
 #endif
 
 /*****************************************************************************/

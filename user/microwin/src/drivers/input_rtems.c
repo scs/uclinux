@@ -14,11 +14,14 @@
 // MODIFICATION/HISTORY:
 //
 // $Log$
-// Revision 1.1  2004/07/19 13:10:21  lgsoft
-// Initial revision
+// Revision 1.2  2005/07/25 04:12:42  magicyang
+// New user folder check in
 //
-// Revision 1.1.1.1  2004/07/18 13:27:48  nidhi
-// Importing
+// Revision 1.1.1.1  2001/06/21 06:32:41  greg
+// Microwindows pre8 with patches
+//
+// Revision 1.1.1.1  2001/06/05 03:44:01  root
+// First import of 5/5/2001 Microwindows to CVS
 //
 //
 /////////////////////////////////////////////////////////////////////////////

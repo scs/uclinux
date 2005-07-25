@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 1999, 2000, 2002, 2003 Greg Haerr <greg@censoft.com>
  * Portions Copyright (c) 1991 David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
@@ -46,13 +46,15 @@
 #if ELKS
 #define	MOUSE_PORT	"/dev/ttys0"	/* default mouse tty port */
 #else
-#define	MOUSE_PORT	"/dev/ttyS1"	/* default mouse tty port */
+/*#define MOUSE_PORT	"/dev/ttyS1"	/* default mouse tty port */*/
+#define MOUSE_PORT	"/dev/psaux"	/* default mouse tty port*/
 #endif
 /* For the COBRA5272 we use mouse type ms: */
 #ifdef CONFIG_COBRA5272
 #define	MOUSE_TYPE	"ms"		/* default mouse type "ms","pc","ps2" */
 #else /* not for COBRA5272: */
-#define	MOUSE_TYPE	"pc"		/* default mouse type "ms","pc","ps2" */
+/*#define MOUSE_TYPE	"pc"		/* default mouse type "ms","pc","ps2" */
+#define MOUSE_TYPE	"ps2"		/* default mouse type "ms","pc","ps2" */
 #endif /* end #ifdef CONFIG_COBRA5272 */
 #endif
 #define MAX_BYTES	128		/* number of bytes for buffer */
@@ -120,10 +122,11 @@ MOUSEDEVICE mousedev = {
 	MOU_GetDefaultAccel,
 	MOU_Read,
 #if _MINIX
-	MOU_Poll
+	MOU_Poll,
 #else
-	NULL
+	NULL,
 #endif
+	MOUSE_NORMAL	/* flags*/
 };
 
 /*
@@ -214,16 +217,11 @@ MOU_Open(MOUSEDEVICE *pmd)
 	termios.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
 	termios.c_iflag &= ~(ICRNL | INPCK | ISTRIP | IXON | BRKINT | IGNBRK);
 	termios.c_cflag &= ~(CSIZE | PARENB);
-
-/* For the COBRA5272 we use mouse type ms. According to serial
- * mouse protocol the data width should be 7 bit then:
- * (see http://www.xs4all.nl/~ganswijk/chipdir/oth/mouse.txt)*/
-#ifdef CONFIG_COBRA5272
-   termios.c_cflag |= CS7;
-#else /* Not on COBRA5272: */
-   termios.c_cflag |= CS8;
-#endif /* end #ifdef CONFIG_COBRA5272 */
-
+	/* MS and logi mice use 7 bits*/
+	if (!strcmp(type, "ps2") || !strcmp(type, "pc"))
+		termios.c_cflag |= CS8;
+	else
+		termios.c_cflag |= CS7;
 	termios.c_cc[VMIN] = 0;
 	termios.c_cc[VTIME] = 0;
 
@@ -250,10 +248,9 @@ err:
 static void
 MOU_Close(void)
 {
-	if (mouse_fd > 0) {
+	if (mouse_fd > 0)
 		close(mouse_fd);
-	}
-	mouse_fd = 0;
+	mouse_fd = -1;
 }
 
 /*

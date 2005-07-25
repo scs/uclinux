@@ -1,4 +1,4 @@
-/***********************************************************************
+/* *********************************************************************
 
 util.c - memory allocation, error reporting, and other mundane stuff
 
@@ -20,8 +20,8 @@ the full agreement.
 #include <stdio.h>
 #include <ctype.h>
 #include <setjmp.h>
-/* ari -- for strlen */
 #include <string.h>
+/*#include <stdlib.h>*/ /* removed for conflicting 'error' inline in RH 8.0?*/
 
 extern char* li_err_msg;
 static char err_msg[BUFSIZ];
@@ -51,7 +51,6 @@ scopy(s)
 char *s;
 {
 	register char *p = allocate(strlen(s) + 1, char);
-	//char *strcpy();
 	(void) strcpy(p, s);
 	return p;
 }

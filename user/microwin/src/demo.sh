@@ -1,1 +1,5 @@
-bin/nano-X & bin/nanowm & bin/landmine
+
+# win32 applications, press <BREAK> key to exit
+bin/mdemo
+#bin/mine	# minefield
+#bin/malpha	# alpha blending

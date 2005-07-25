@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1999, 2000 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 1999, 2000, 2001 Greg Haerr <greg@censoft.com>
+ * Portions Copyright (c) 2002 by Koninklijke Philips Electronics N.V.
  *
  * Demo program for Microwindows
  */
@@ -23,6 +24,7 @@ unsigned _stklen = 4096;
 #define ARCDEMO		1	/* arc drawing demo*/
 #define CHILD 		1	/* child window demo*/
 #define CLIENT3D	0	/* old client draw test*/
+#define USEBLIT		1	/* use blit rather than DrawDIB()*/
 
 #if GRAPH3D
 #include "graph3d.h"
@@ -120,12 +122,12 @@ CreateAppWindow(void)
 		CreateWindowEx(0L, APPCHILD,
 			"",
 			WS_BORDER | WS_CHILD | WS_VISIBLE,
-			4, 4, width / 3, height / 3,
+			4, 4, width / 3-6, height / 3,
 			hwnd, (HMENU)2, NULL, NULL);
 		CreateWindowEx(0L, APPCHILD,
 			"",
 			WS_BORDER | WS_CHILD | WS_VISIBLE,
-			width / 3, height / 3, width / 3, height / 3,
+			width / 3, height / 3, width / 3-6, height / 3,
 			hwnd, (HMENU)3, NULL, NULL);
 		CreateWindowEx(0L, APPCHILD,
 			"",
@@ -167,15 +169,42 @@ CreateAppWindow(void)
 LRESULT CALLBACK
 ChildWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-	HDC		hdc;
 	RECT		rc;
 	PAINTSTRUCT	ps;
 
 	switch(msg) {
 	case WM_PAINT:
-		hdc = BeginPaint(hwnd, &ps);
+		BeginPaint(hwnd, &ps);
 		GetClientRect(hwnd, &rc);
-		DrawDIB(hdc, rc.left, rc.top, image);
+#if USEBLIT
+{
+		HDC		hdcMem;
+		HBITMAP		hbmp, hbmpOrg;
+
+		/* redirect painting to offscreen dc, then use blit function*/
+		hdcMem = CreateCompatibleDC(ps.hdc);
+		/*
+		 * Note: rc.right, rc.bottom happens to be smaller than image
+		 * width/height.  We use the image size, so we can stretchblit
+		 * from the whole image.
+		 */
+		hbmp = CreateCompatibleBitmap(hdcMem, image->width, image->height);
+		hbmpOrg = SelectObject(hdcMem, hbmp);
+
+		/* draw onto offscreen dc*/
+		DrawDIB(hdcMem, 0, 0, image);
+
+		/* blit offscreen with physical screen*/
+		//BitBlt(ps.hdc, 0, 0, rc.right*4/5, rc.bottom*4/5, hdcMem,
+			//0, 0, MWROP_SRCCOPY);
+		StretchBlt(ps.hdc, 0, 0, rc.right*4/5, rc.bottom*4/5, hdcMem,
+			0, 0, image->width, image->height, MWROP_SRCCOPY);
+		DeleteObject(SelectObject(hdcMem, hbmpOrg));
+		DeleteDC(hdcMem);
+}
+#else
+		DrawDIB(ps.hdc, rc.left, rc.top, image);
+#endif
 		EndPaint(hwnd, &ps);
 		break;
 	default:
@@ -300,24 +329,23 @@ WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 		GetWindowRect(hwnd, &rc);
 		rc.top += 13;
 		InflateRect(&rc, -3, -3);
-		//Ellipse(hdc, 0, 0, rc.right-rc.left, rc.bottom-rc.top);
-		//Arc(hdc, 0, 0, rc.right-rc.left, rc.bottom-rc.top, 0,0, 0,0);
-		//Pie(hdc, 0, 0, rc.right-rc.left, rc.bottom-rc.top, 0,0, 0,0);
-#if 1
+		/*Ellipse(hdc, 0, 0, rc.right-rc.left, rc.bottom-rc.top);*/
+		/*Arc(hdc, 0, 0, rc.right-rc.left, rc.bottom-rc.top, 0,0, 0,0);*/
+		/*Pie(hdc, 0, 0, rc.right-rc.left, rc.bottom-rc.top, 0,0, 0,0);*/
+
 		x = rc.left;
 		y = rc.top;
 		w = rc.right - rc.left;
 		h = rc.bottom - rc.top;
 		w += 10;
-		GdSetForeground(GdFindColor(RGB(0,255,0)));
+		GdSetForegroundColor(hdc->psd, RGB(0,255,0));
 		GdArcAngle(hdc->psd, x+w/2, y+h/2, w/2, h/2, startdegrees*64,
 			enddegrees*64, MWPIE);
-		GdSetForeground(GdFindColor(RGB(0,0,0)));
+		GdSetForegroundColor(hdc->psd, RGB(0,0,0));
 		GdArcAngle(hdc->psd, x+w/2, y+h/2, w/2, h/2, startdegrees*64,
 			enddegrees*64, MWARCOUTLINE);
-		//GdSetForeground(GdFindColor(RGB(255,255,255)));
-		//GdPoint(hdc->psd, x+w/2, y+h/2);
-#endif
+		/*GdSetForegroundColor(hdc->psd, RGB(255,255,255)));*/
+		/*GdPoint(hdc->psd, x+w/2, y+h/2);*/
 	}
 	EndPaint(hwnd, &ps);
 	break;
@@ -331,8 +359,8 @@ WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 			rose(1.0, 7, 13);
 			break;
 		case 1:
-			//look3(0.5, 0.7, 1.5);
-			//look3(0.2, -2 * gy, 1.0+gx);
+			/*look3(0.5, 0.7, 1.5);*/
+			/*look3(0.2, -2 * gy, 1.0+gx);*/
 			look3(-2 * gx, -2 * gy, 1.2);
 			drawgrid(-8.0, 8.0, 10, -8.0, 8.0, 10);
 			break;

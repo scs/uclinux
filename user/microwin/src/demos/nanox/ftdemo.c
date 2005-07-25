@@ -3,18 +3,23 @@
  * Martin Jolicoeur 2000 martinj@visuaide.com.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #define MWINCLUDECOLORS
 #include "nano-X.h"
 
 #if HAVE_T1LIB_SUPPORT
 #define FONTNAME "bchr"
-//#define FONTNAME "bchb"
-//#define FONTNAME "dcr10"
-//#define FONTNAME "dcbx10"
+#if 0
+#define FONTNAME "bchb"
+#define FONTNAME "dcr10"
+#define FONTNAME "dcbx10"
+#endif
 #elif HAVE_FREETYPE_SUPPORT
 #define FONTNAME "lt1-r-omega-serif"
-//#define FONTNAME "times"
-//#define FONTNAME "cour"
+#if 0
+#define FONTNAME "times"
+#define FONTNAME "cour"
+#endif
 #else
 #define FONTNAME GR_FONT_SYSTEM_VAR
 #endif
@@ -34,7 +39,7 @@ int n;
 void Render(GR_WINDOW_ID window);
 
 int
-main()
+main(void)
 {
   FILE *file;
   GR_EVENT event;
@@ -45,14 +50,15 @@ main()
 	exit(1);
   }
 
-  window = GrNewWindow(GR_ROOT_WINDOW_ID, 50,50, MAXW,MAXH, 4, BLACK, WHITE);
+  window = GrNewWindowEx(GR_WM_PROPS_APPWINDOW, "ftdemo",
+  	GR_ROOT_WINDOW_ID, 50,50, MAXW,MAXH, WHITE);
   GrMapWindow(window);
 
   gid = GrNewGC ();
   GrSelectEvents(window, GR_EVENT_MASK_KEY_DOWN |
 		GR_EVENT_MASK_CLOSE_REQ | GR_EVENT_MASK_EXPOSURE);
 
-  if ((file = fopen("ftdemo.txt", "r")) == NULL) {
+  if ((file = fopen("bin/ftdemo.txt", "r")) == NULL) {
 	printf("Can't open text file\n");
 	return (-1);
   }

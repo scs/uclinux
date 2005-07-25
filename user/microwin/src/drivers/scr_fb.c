@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1999, 2000, 2001 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 1999, 2000, 2001, 2002 Greg Haerr <greg@censoft.com>
+ * Portions Copyright (c) 2002 Koninklijke Philips Electronics
  *
  * Microwindows Screen Driver for Linux kernel framebuffers
  *
@@ -17,10 +18,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef ARCH_LINUX_POWERPPC
-#include <sys/io.h>
-/*#include <asm/io.h>*/
-#endif
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -34,6 +31,9 @@
 
 /* for Osprey and Embedded Planet boards, set HAVETEXTMODE=0*/
 #define HAVETEXTMODE	0	/* =0 for graphics only systems*/
+#ifdef ARCH_LINUX_SPARC
+#endif
+
 #define EMBEDDEDPLANET	0	/* =1 for kluge embeddedplanet ppc framebuffer*/
 
 #ifndef FB_TYPE_VGA_PLANES
@@ -42,8 +42,10 @@
 
 static PSD  fb_open(PSD psd);
 static void fb_close(PSD psd);
+static void fb_setportrait(PSD psd, int portraitmode);
 static void fb_setpalette(PSD psd,int first, int count, MWPALENTRY *palette);
 static void gen_getscreeninfo(PSD psd,PMWSCREENINFO psi);
+
 
 SCREENDEVICE	scrdev = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL,
@@ -63,7 +65,9 @@ SCREENDEVICE	scrdev = {
 	NULL,			/* SetIOPermissions*/
 	gen_allocatememgc,
 	fb_mapmemgc,
-	gen_freememgc
+	gen_freememgc,
+	NULL,			/* StretchBlit subdriver*/
+	fb_setportrait		/* SetPortrait*/
 };
 
 /* static variables*/
@@ -72,9 +76,11 @@ static int status;		/* 0=never inited, 1=once inited, 2=inited. */
 static short saved_red[16];	/* original hw palette*/
 static short saved_green[16];
 static short saved_blue[16];
-#if PORTRAIT
-int gr_portraitmode = PORTRAIT;	/* =1 portrait left, =2 portrait right*/
-#endif
+
+extern SUBDRIVER fbportrait_left, fbportrait_right, fbportrait_down;
+static PSUBDRIVER pdrivers[4] = { /* portrait mode subdrivers*/
+	NULL, &fbportrait_left, &fbportrait_right, &fbportrait_down
+};
 
 /* local functions*/
 static void	set_directcolor_palette(PSD psd);
@@ -86,6 +92,9 @@ fb_open(PSD psd)
 	char *	env;
 	int	type, visual;
 	PSUBDRIVER subdriver;
+#if HAVETEXTMODE
+	int tty;
+#endif
 #if EMBEDDEDPLANET
 	env = "/dev/lcd";
 	fb = open(env, O_RDWR);
@@ -110,7 +119,6 @@ fb_open(PSD psd)
 		goto fail;
 	}
 #else
-	int	tty;
 	struct fb_fix_screeninfo fb_fix;
 	struct fb_var_screeninfo fb_var;
 
@@ -133,17 +141,15 @@ fb_open(PSD psd)
 	type = fb_fix.type;
 	visual = fb_fix.visual;
 
+	psd->portrait = MWPORTRAIT_NONE;
+#ifdef ARCH_LINUX_SPARC
+	psd->xres = psd->xvirtres = fb_var.xres_virtual;
+	psd->yres = psd->yvirtres = fb_var.yres_virtual;
+#else
 	psd->xres = psd->xvirtres = fb_var.xres;
 	psd->yres = psd->yvirtres = fb_var.yres;
-#if PORTRAIT
-	/* init global here in case used as shared library*/
-	gr_portraitmode = PORTRAIT;
-
-	/* automatic portrait mode if y resolution is greater than x res*/
-	/*** commented out, PORTRAIT_MODE=[R,L] used for compile time option***/
-	/***if(psd->yres > psd->xres)
-		gr_portraitmode = 1;***/
 #endif
+
 	/* set planes from fb type*/
 	if (type == FB_TYPE_VGA_PLANES)
 		psd->planes = 4;
@@ -163,17 +169,6 @@ fb_open(PSD psd)
 	if (psd->bpp == 16)
 		psd->flags |= PSF_HAVEOP_COPY;
 
-#if PORTRAIT
-	/* determine whether to run in portrait mode*/
-	if(gr_portraitmode) {
-		psd->flags |= PSF_PORTRAIT;
-
-		/* swap x, y*/
-		psd->xvirtres = psd->yres;
-		psd->yvirtres = psd->xres;
-	}
-#endif
-
 	/* set pixel format*/
 #ifndef TPHELIO /* temp kluge: VTech Helio kernel needs changing*/
 	if(visual == FB_VISUAL_TRUECOLOR || visual == FB_VISUAL_DIRECTCOLOR) {
@@ -192,6 +187,11 @@ fb_open(PSD psd)
 			break;
 		case 32:
 			psd->pixtype = MWPF_TRUECOLOR0888;
+#if !EMBEDDEDPLANET
+			/* Check if we have alpha */
+			if (fb_var.transp.length == 8)
+				psd->pixtype = MWPF_TRUECOLOR8888;
+#endif
 			break;
 		default:
 			EPRINTF(
@@ -225,15 +225,9 @@ fb_open(PSD psd)
 		goto fail;
 	}
 
-#if PORTRAIT
-	if(psd->flags & PSF_PORTRAIT) {
-		/* remember original subdriver*/
-		_subdriver = subdriver;
+	/* remember original subdriver for portrait mode switching*/
+	pdrivers[0] = psd->orgsubdriver = subdriver;
 
-		/* assign portrait subdriver which calls original subdriver*/
-		set_subdriver(psd, &fbportrait, FALSE);
-	}
-#endif
 #if HAVETEXTMODE
 	/* open tty, enter graphics mode*/
 	tty = open ("/dev/tty0", O_RDWR);
@@ -252,7 +246,28 @@ fb_open(PSD psd)
 #ifndef __uClinux__
 	psd->size = (psd->size + getpagesize () - 1)
 			/ getpagesize () * getpagesize ();
+#ifdef ARCH_LINUX_SPARC
+#define CG3_MMAP_OFFSET 	0x4000000
+#define CG6_RAM    		0x70016000
+#define TCX_RAM8BIT             0x00000000
+#define TCX_RAM24BIT            0x01000000
+        switch (fb_fix.accel) {
+            case FB_ACCEL_SUN_CGTHREE:
+	         psd->addr = mmap(NULL, psd->size, PROT_READ|PROT_WRITE,MAP_SHARED,fb,CG3_MMAP_OFFSET);
+                 break;
+            case FB_ACCEL_SUN_CGSIX:
+	         psd->addr = mmap(NULL, psd->size, PROT_READ|PROT_WRITE,MAP_SHARED,fb,CG6_RAM);
+                 break;
+	    case FB_ACCEL_SUN_TCX:
+	         psd->addr = mmap(NULL, psd->size, PROT_READ|PROT_WRITE,MAP_SHARED,fb,TCX_RAM24BIT);
+                 break;
+            default:
+		EPRINTF("Don;t know how to mmap %s with accel %d\n", env, fb_fix.accel);
+		goto fail;
+        }
+#else
 	psd->addr = mmap(NULL, psd->size, PROT_READ|PROT_WRITE,MAP_SHARED,fb,0);
+#endif
 	if(psd->addr == NULL || psd->addr == (unsigned char *)-1) {
 		EPRINTF("Error mmaping %s: %m\n", env);
 		goto fail;
@@ -284,7 +299,9 @@ fail:
 static void
 fb_close(PSD psd)
 {
+#if HAVETEXTMODE
 	int	tty;
+#endif
 
 	/* if not opened, return*/
 	if(status != 2)
@@ -305,6 +322,27 @@ fb_close(PSD psd)
 #endif
 	/* close framebuffer*/
 	close(fb);
+}
+
+static void
+fb_setportrait(PSD psd, int portraitmode)
+{
+	psd->portrait = portraitmode;
+
+	/* swap x and y in left or right portrait modes*/
+	if (portraitmode & (MWPORTRAIT_LEFT|MWPORTRAIT_RIGHT)) {
+		/* swap x, y*/
+		psd->xvirtres = psd->yres;
+		psd->yvirtres = psd->xres;
+	} else {
+		/* normal x, y*/
+		psd->xvirtres = psd->xres;
+		psd->yvirtres = psd->yres;
+	}
+	/* assign portrait subdriver which calls original subdriver*/
+	if (portraitmode == MWPORTRAIT_DOWN)
+		portraitmode = 3;	/* change bitpos to index*/
+	set_subdriver(psd, pdrivers[portraitmode], FALSE);
 }
 
 /* setup directcolor palette - required for ATI cards*/
@@ -334,9 +372,12 @@ static void
 fb_setpalette(PSD psd,int first, int count, MWPALENTRY *palette)
 {
 	int 	i;
-	unsigned short 	red[count];
-	unsigned short 	green[count];
-	unsigned short 	blue[count];
+	unsigned short 	red[256];
+	unsigned short 	green[256];
+	unsigned short 	blue[256];
+
+	if (count > 256)
+		count = 256;
 
 	/* convert palette to framebuffer format*/
 	for(i=0; i < count; i++) {
@@ -440,8 +481,41 @@ gen_getscreeninfo(PSD psd,PMWSCREENINFO psi)
 	psi->planes = psd->planes;
 	psi->bpp = psd->bpp;
 	psi->ncolors = psd->ncolors;
-	psi->pixtype = psd->pixtype;
 	psi->fonts = NUMBER_FONTS;
+	psi->portrait = psd->portrait;
+	psi->fbdriver = TRUE;	/* running fb driver, can direct map*/
+
+	psi->pixtype = psd->pixtype;
+	switch (psd->pixtype) {
+	case MWPF_TRUECOLOR8888:
+	case MWPF_TRUECOLOR0888:
+	case MWPF_TRUECOLOR888:
+		psi->rmask 	= 0xff0000;
+		psi->gmask 	= 0x00ff00;
+		psi->bmask	= 0x0000ff;
+		break;
+	case MWPF_TRUECOLOR565:
+		psi->rmask 	= 0xf800;
+		psi->gmask 	= 0x07e0;
+		psi->bmask	= 0x001f;
+		break;
+	case MWPF_TRUECOLOR555:
+		psi->rmask 	= 0x7c00;
+		psi->gmask 	= 0x03e0;
+		psi->bmask	= 0x001f;
+		break;
+	case MWPF_TRUECOLOR332:
+		psi->rmask 	= 0xe0;
+		psi->gmask 	= 0x1c;
+		psi->bmask	= 0x03;
+		break;
+	case MWPF_PALETTE:
+	default:
+		psi->rmask 	= 0xff;
+		psi->gmask 	= 0xff;
+		psi->bmask	= 0xff;
+		break;
+	}
 
 	if(psd->yvirtres > 480) {
 		/* SVGA 800x600*/

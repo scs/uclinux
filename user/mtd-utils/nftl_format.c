@@ -34,12 +34,10 @@
 #include <errno.h>
 #include <string.h>
 #include <libgen.h>
-
-#include "kernstubs.h"
 #include <asm/types.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/nftl.h>
-#include "inftl.h"
+#include "mtd/mtd-user.h"
+#include "mtd/nftl-user.h"
+#include "mtd/inftl-user.h"
 
 #define swab16(x) \
         ((__u16)( \

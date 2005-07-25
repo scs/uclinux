@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (c) 2000 Greg Haerr <greg@censoft.com>
+ * Portions Copyright (c) 2000, 2003 Greg Haerr <greg@censoft.com>
  *	Somewhat less shamelessly ripped from the Wine distribution
  *	and the X Window System.
  *
@@ -13,7 +13,7 @@
  * Modifications and additions: Copyright 1998 Huw Davies
  */
 
-/************************************************************************
+/* **********************************************************************
 
 Copyright (c) 1987, 1988  X Consortium
 
@@ -329,8 +329,8 @@ typedef struct _ScanLineListBlock {
 
 
 
-#define LARGE_COORDINATE  0x7fffffff /* FIXME */
-#define SMALL_COORDINATE  0x80000000
+#define LARGE_COORDINATE  MWCOORD_MAX
+#define SMALL_COORDINATE  MWCOORD_MIN
 
 /*
  *     REGION_InsertEdgeInET
@@ -676,7 +676,7 @@ static int REGION_PtsToRegion(int numFullPtBlocks, int iCurPtBlock,
 
     numRects = ((numFullPtBlocks * NUMPTSTOBUFFER) + iCurPtBlock) >> 1;
 
-    if (!(reg->rects = realloc( reg->rects, sizeof(MWRECT) * numRects )))
+    if (!(reg->rects = GdRealloc( reg->rects, sizeof(MWRECT) * reg->size, sizeof(MWRECT) * numRects )))
         return(0);
 
     reg->size = numRects;

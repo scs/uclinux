@@ -8,7 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#ifndef __ECOS
 #include <malloc.h>
+#endif
 #include "windows.h"
 #include "device.h"
 
@@ -130,7 +132,7 @@ BOOL WINAPI
 SetCaretBlinkTime(UINT uMSeconds)
 {
 	sysCaret.nBlinkTime = uMSeconds;
-	//SetSysTimer
+	/* SetSysTimer */
 	return TRUE;
 }
 

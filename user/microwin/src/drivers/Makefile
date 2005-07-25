@@ -1,6 +1,7 @@
 ##############################################################################
 # Microwindows template Makefile
 # Copyright (c) 2000 Martin Jolicoeur, Greg Haerr
+# Portions Copyright (c) 2002 by Koninklijke Philips Electronics N.V.
 ##############################################################################
 
 ifndef TOP
@@ -10,27 +11,11 @@ endif
 
 include $(CONFIG)
 
-######################## Additional Flags section ############################
-
-# Directories list for header files
-INCLUDEDIRS +=
-# Defines for preprocessor
-DEFINES +=
-
-# Compilation flags for C files OTHER than include directories
-# Some drivers use outb macro, requires -O optimization
-CFLAGS += -O
-# Preprocessor flags OTHER than defines
-CPPFLAGS +=
-# Linking flags
-LDFLAGS +=
-
-
 ############################# targets section ################################
 
 # If you want to create a library with the objects files, define the name here
 LIBNAME = libmwdrivers.a
-LIBNAMESO = libmwdrivers.so
+#LIBNAMESO = libmwdrivers.so
 
 # List of objects to compile
 
@@ -38,8 +23,12 @@ LIBNAMESO = libmwdrivers.so
 ifneq ($(ARCH), ELKS)
 ifneq ($(ARCH), DJGPP)
 
+ifeq ($(EM8400), Y)
+OBJS += scr_em84xx.o genfont.o genmem.o
+endif
+
 ifeq ($(FRAMEBUFFER), Y)
-OBJS += fblin8.o fblin16.o fblin24.o fblin32.o genmem.o fb.o
+OBJS += fblin8.o fblin16.o fblin24.o fblin32.o fblin32alpha.o genmem.o fb.o
 
 ifeq ($(FBREVERSE), Y)
 OBJS += fblin1rev.o fblin2rev.o
@@ -48,7 +37,6 @@ OBJS += fblin1.o fblin2.o
 endif
 
 ifeq ($(FBVGA), Y)
-CFLAGS += -DFBVGA=1
 OBJS += vgaplan4.o memplan4.o
 endif
 
@@ -58,20 +46,14 @@ else
 OBJS += genfont.o
 endif
 
-ifeq ($(PORTRAIT_MODE),R)
-OBJS += fbportrait_right.o
-CFLAGS += -DPORTRAIT=2
-endif
-
-ifeq ($(PORTRAIT_MODE),L)
-OBJS += fbportrait_left.o
-CFLAGS += -DPORTRAIT=1
-endif
-
+ifeq ($(ARCH), ECOS)
+OBJS += scr_ecos.o
+else
 ifeq ($(ARCH), RTEMS)
 OBJS += scr_rtems.o romfont.o
 else
-OBJS += scr_fb.o
+OBJS += scr_fb.o fbportrait_left.o fbportrait_right.o fbportrait_down.o
+endif
 endif
 
 ifeq ($(FBREVERSE), Y)
@@ -84,15 +66,6 @@ OBJS += fblin4.o
 endif
 endif
 
-ifeq ($(INVERT4BPP), Y)
-CFLAGS += -DINVERT4BPP=1
-endif
-
-# Added define to avoid compiler error for PPC
-ifeq ($(ARCH), LINUX-POWERPC)
-CFLAGS += -DARCH_LINUX_POWERPPC=1
-endif
-
 endif # FRAMEBUFER
 
 ifeq ($(VTSWITCH), Y)
@@ -102,7 +75,7 @@ endif
 ifeq ($(X11), Y)
 OBJS += genmem.o fb.o scr_x11.o \
 	fblin1.o fblin2.o fblin4.o fblin8.o fblin16.o fblin24.o fblin32.o \
-	mou_x11.o 
+	fblin32alpha.o mou_x11.o 
 
 ifneq ($(PIPEKBD), Y)
 OBJS += kbd_x11.o
@@ -116,25 +89,6 @@ else
 OBJS += genfont.o
 endif
 
-ifeq ($(SCREEN_E15), Y)
-CFLAGS += -DSCREEN_E15=1
-endif
-
-ifeq ($(USE_EXPOSURE), Y)
-CFLAGS += -DUSE_EXPOSURE
-endif
-
-ifdef SCREEN_HEIGHT
-CFLAGS += -DSCREEN_HEIGHT=$(SCREEN_HEIGHT)
-endif
-
-ifdef SCREEN_WIDTH
-CFLAGS += -DSCREEN_WIDTH=$(SCREEN_WIDTH)
-endif
-
-ifdef SCREEN_DEPTH
-CFLAGS += -DSCREEN_DEPTH=$(SCREEN_DEPTH)
-endif
 endif # X11 stuff
 
 ifeq ($(ARCH), FREEBSD-X86)
@@ -156,39 +110,66 @@ OBJS +=	scr_cleo.o genfont.o
 endif
 
 ifneq ($(X11), Y)
+
+### Desktop GPM mouse driver
 ifeq ($(GPMMOUSE), Y)
 OBJS += mou_gpm.o
 endif
 
+### serial mouse driver
 ifeq ($(SERMOUSE), Y)
 OBJS += mou_ser.o
 endif
 
-ifeq ($(PSIONMOUSE), Y)
-OBJS += mou_ps5.o
-endif
-
-ifeq ($(TPMOUSE), Y)
-OBJS += mou_tp.o
-endif
-
-ifeq ($(TPHELIO), Y)
-CFLAGS += -DTPHELIO=1
-OBJS += mou_tp.o
-endif
-
+### Generic touchscreen driver
 ifeq ($(ADSMOUSE), Y)
-OBJS += mou_ads.o
+CFLAGS += -DTOUCHSCREEN_ADS=1
+OBJS += mou_touchscreen.o
 endif
 
+ifeq ($(ADS7846MOUSE), Y)
+CFLAGS += -DTOUCHSCREEN_ADS7846=1
+OBJS += mou_touchscreen.o
+endif
+
+ifeq ($(IPAQMOUSE), Y)
+CFLAGS += -DTOUCHSCREEN_IPAQ=1
+OBJS += mou_touchscreen.o
+endif
+
+ifeq ($(TUXSCREENMOUSE), Y)
+CFLAGS += -DTOUCHSCREEN_TUXSCREEN=1
+OBJS += mou_touchscreen.o
+endif
+
+ifeq ($(ZAURUSMOUSE), Y)
+CFLAGS += -DTOUCHSCREEN_ZAURUS=1
+OBJS += mou_touchscreen.o
+endif
+
+### Embedded Planet touchscreen
+ifeq ($(EPMOUSE), Y)
+CFLAGS += -DTOUCHSCREEN_EPLANET
+OBJS += mou_vrlinux.o
+endif
+
+### Vtech Helio touchscreen
+ifeq ($(VHMOUSE), Y)
+CFLAGS += -DTOUCHSCREEN_HELIO=1
+OBJS += mou_vrlinux.o
+endif
+
+#### Yopy touchscreen
 ifeq ($(YOPYMOUSE), Y)
 OBJS += mou_yopy.o
 endif
 
-ifeq ($(IPAQMOUSE), Y)
-OBJS += mou_ipaq.o
+#### Psion 5 touchscreen
+ifeq ($(PSIONMOUSE), Y)
+OBJS += mou_ps5.o
 endif
 
+#### NEC Harrier touchscreen
 ifeq ($(HARRIERMOUSE), Y)
 OBJS += mou_harrier.o
 endif
@@ -199,6 +180,15 @@ endif
 
 ifeq ($(DE2TSMOUSE), Y)
 OBJS += mou_de2ts.o
+endif
+
+#### MicroTouch serial touchscreen
+ifeq ($(MTMOUSE), Y)
+OBJS += mou_mt.o
+endif
+
+ifeq ($(SUNMOUSE), Y)
+OBJS += mou_sun.o
 endif
 
 ifeq ($(ARCH), FREEBSD-X86)
@@ -226,6 +216,11 @@ ifeq ($(IPAQKBD), Y)
 OBJS += kbd_ipaq.o
 endif
 
+ifeq ($(ZAURUSKBD),Y)
+CFLAGS += -DKBD_ZAURUS=1
+OBJS += kbd_ttyscan.o
+endif
+
 ifeq ($(SCANKBD), Y)
 OBJS += kbd_ttyscan.o
 endif
@@ -233,6 +228,10 @@ endif
 ifeq ($(ARCH), FREEBSD-X86)
 #OBJS += kbd_fbsd.o
 OBJS += kbd_tty.o
+endif
+
+ifeq ($(LIRCKBD), Y)
+OBJS += mwlirc.o kbd_lirc.o
 endif
 
 ifeq ($(NOKBD), Y)
@@ -265,8 +264,8 @@ endif # RTEMS architecture
 
 endif # !X11
 
-endif # !ELKS
 endif # !DJGPP
+endif # !ELKS
 
 # For DJGPP flavor
 ifeq ($(ARCH), DJGPP)

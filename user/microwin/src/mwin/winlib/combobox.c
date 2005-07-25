@@ -27,35 +27,17 @@
 **  Functions defined:
 **    
 **------------------------- < Revision Information > -----------------------
-** $Header$
-** $Header$
-** $Header$
 **
 **      Full Revision history at bottom of file
 **      
 **--------------------------------------------------------------------------*/
-#ifndef OEMRESOURCE
-#define OEMRESOURCE     /* for OBM_CLOSE */
-#endif
-/*----------------------------------------------------------------------------
-**              E X T E R N A L     I N C L U D E S 
-**--------------------------------------------------------------------------*/
-
-
-/*----------------------------------------------------------------------------
-**              I N T E R N A L     I N C L U D E S
-**--------------------------------------------------------------------------*/
-
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "windows.h"
 #include "windowsx.h"
+#include "mwsystem.h"
 
-#undef OEMRESOURCE
-#undef LATER
-
-#if 1
-#include <stdlib.h> //free
-#include <stdio.h> //stder
 #define WinMalloc(n)	malloc((n))
 #define WinFree(p)	free(p)
 
@@ -66,9 +48,7 @@
         (WPARAM)MAKELONG(id, cmd), (LONG)(hwnd)
 #define LOSHORT(x)	(short int)LOWORD(x)
 #define Edit_SetSel(hwndCtl, ichStart, ichEnd)  ((void)SendMessage((hwndCtl), EM_SETSEL, (ichStart), (ichEnd)))
-#endif
 
-#include <string.h>
 
 typedef struct  {
     HFONT   hFont;          /* hFont used */
@@ -103,7 +83,7 @@ typedef struct  {
 
 #define BOWNERDRAW(l) ((l)->wStyle & (CBS_OWNERDRAWFIXED|CBS_OWNERDRAWVARIABLE))
 
-/**********************************************
+/* ********************************************
     Styles:
 
     CBS_AUTOHSCROLL     passed to the edit control
@@ -122,7 +102,7 @@ typedef struct  {
 
 *********************************************/
 
-/**********************************************
+/* ********************************************
     CBN_xxx messages to be added
 
     from mouse tracking...
@@ -188,34 +168,37 @@ Draw3DButtonRect(HDC hDC, HPEN hPenHigh, HPEN hPenShadow,
 }
 #endif
 
-#if 0//jmt: fix: no COMBOLBOX
-//-extern LRESULT  DefLISTBOXProc(HWND, UINT, WPARAM, LPARAM);
+#if 0	/* jmt: fix: no COMBOLBOX */
+extern LRESULT  DefLISTBOXProc(HWND, UINT, WPARAM, LPARAM);
 extern LRESULT  ListboxCtrlProc(HWND, UINT, WPARAM, LPARAM);
 #endif
 
 #if 0
-//-static HPEN     GetSysColorPen(int color)//?
-//-{
-//-	return NULL;//?
-//-}
-//-static HBRUSH   GetSysColorBrush(int color)//?
-//-{
-//-	return NULL;//?
-//-}
+static HPEN     GetSysColorPen(int color)
+{
+	return NULL;
+}
+static HBRUSH   GetSysColorBrush(int color)
+{
+	return NULL;
+}
 #endif
+
 typedef HWND HWND32;
-#if 0//jmt: fix: no ownerdraw
-//-typedef HANDLE HCLASS32;
-//-static HCLASS32 FindClass(LPCSTR str, HINSTANCE hInstance)//?
-//-{
-//-	return NULL;//?
-//-}
+
+#if 0	/* jmt: fix: no ownerdraw */
+typedef HANDLE HCLASS32;
+static HCLASS32 FindClass(LPCSTR str, HINSTANCE hInstance)
+{
+	return NULL;
+}
 #endif
-#if 0//jmt: fix: no scrollbar
-//-static HWND TWIN_ConvertToSysScroll(HWND hwnd, BOOL status, LPPOINT pp)//?
-//-{
-//-	return NULL;//?
-//-}
+
+#if 0	/* jmt: fix: no scrollbar */
+static HWND TWIN_ConvertToSysScroll(HWND hwnd, BOOL status, LPPOINT pp)
+{
+	return NULL;
+}
 #endif
 extern HWND listwp;
 static HWND WindowFromPoint(POINT pt)
@@ -223,7 +206,7 @@ static HWND WindowFromPoint(POINT pt)
 	HWND wp,wp1;
 	int dx,dy,dx1,dy1;
 #if 0
-	return NULL;//fix!!
+	return NULL;	/* fix!! */
 #else
 	wp1=NULL;
 	switch(sizeof(dx))
@@ -284,8 +267,8 @@ static void CBoxDrawStatic(COMBOBOX *, HWND, UINT); /* MiD */
 /* handle specific CB messages */
 static LRESULT DefCBProc(HWND , UINT , WPARAM , LPARAM );
 
-#if 0//jmt: fix: no ownerdraw
-//-static WNDPROC lpComboBinToNat = 0;
+#if 0	/* jmt: fix: no ownerdraw */
+static WNDPROC lpComboBinToNat = 0;
 #endif
 
 static LRESULT CALLBACK 
@@ -315,8 +298,8 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     PAINTSTRUCT ps;
     HDC      hDC;
     TEXTMETRIC tm;
-#if 0//jmt: fix: no ownerdraw
-    //-MEASUREITEMSTRUCT mis;
+#if 0	/* jmt: fix: no ownerdraw */
+    MEASUREITEMSTRUCT mis;
 #endif
     COMBOBOX *lp = (COMBOBOX *)NULL;
     LRESULT   rc;
@@ -324,19 +307,19 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     POINT     cp,cpScreen,pp;
     UINT      uiKey;
     LPCREATESTRUCT lpcs;
-#if 1//jmt: fix: no WM_WINDOWPOSCHANGING
+#if 1	/* jmt: fix: no WM_WINDOWPOSCHANGING */
     LPWINDOWPOS lpwp;
 #endif
-#if 0//jmt: fix: no ownerdraw
-    //-HCLASS32 hComboClass32;
-    //-LPMEASUREITEMSTRUCT lpmis;
-    //-LPDRAWITEMSTRUCT lpdis;
-    //-LPDELETEITEMSTRUCT lpdlis;
+#if 0	/* jmt: fix: no ownerdraw */
+    HCLASS32 hComboClass32;
+    LPMEASUREITEMSTRUCT lpmis;
+    LPDRAWITEMSTRUCT lpdis;
+    LPDELETEITEMSTRUCT lpdlis;
 #endif
     DWORD dwStyle,dwExStyle;
     WORD wEditWidth = 0,wEditHeight;
     WORD wCBN;
-#if 0//jmt: fix: no WM_SETFONT/WM_GETFONT
+#if 0	/* jmt: fix: no WM_SETFONT/WM_GETFONT */
     RECT rcClient;
 #endif
 
@@ -346,16 +329,16 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     	return rc;
 
     switch(uMsg) {
-#ifdef  LATER
+#if 0
     case WM_SIZE:
     case WM_ENABLE:
     case WM_LBUTTONDBLCLK:
-    //-case WM_COMPAREITEM:
-    //-case WM_CUT:
-    //-case WM_CLEAR:
+    case WM_COMPAREITEM:
+    case WM_CUT:
+    case WM_CLEAR:
 #endif               
 
-    case WM_SETFOCUS://
+    case WM_SETFOCUS:
         SET_STATE(lp, CSF_FOCUS);
         if ((lp->wStyle & 0x0F) == CBS_DROPDOWNLIST)
            {
@@ -368,7 +351,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
         break;
         
-    case WM_KILLFOCUS://
+    case WM_KILLFOCUS:
         CLEAR_STATE(lp, CSF_FOCUS);
         if ((lp->wStyle & 0x0F) == CBS_DROPDOWNLIST)
         {
@@ -385,7 +368,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         fprintf(stderr," 385: WM_KILLFOCUS\n");
         break;
 
-#if 0//jmt: fix: no WM_KEYDOWN
+#if 0	/* jmt: fix: no WM_KEYDOWN */
     case WM_KEYDOWN:     /* MiD 08/14/95 */
         /*
         **   We have to process this message in order to show
@@ -435,7 +418,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         InvalidateRect(hWnd, NULL, 1);
         break;
         }
-#endif//WM_KEYDOWN
+#endif	/* WM_KEYDOWN */
 
     case WM_CHAR:
         {
@@ -459,7 +442,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
         }
 
-#if 0//jmt: fix: no WM_SETREDRAW
+#if 0	/* jmt: fix: no WM_SETREDRAW */
     case WM_SETREDRAW: 
         lp->bRedraw = wParam;
         if (lp->EditControl)
@@ -473,10 +456,10 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         memset((LPSTR)lp,'\0',sizeof(COMBOBOX));
 
         /* save ptr to internal structure */
-        hWnd->userdata=(DWORD)lp;//-SetWindowLong(hWnd, CWD_LPCBDATA, (LONG) lp);
+        hWnd->userdata=(DWORD)lp;	/* -SetWindowLong(hWnd, CWD_LPCBDATA, (LONG) lp); */
 
         /* this is for CreateWindow calls */
-        hInst = NULL;//-GetWindowInstance(hWnd);
+        hInst = NULL;	/* -GetWindowInstance(hWnd); */
 
         /* fill in the internal structure */
         lpcs = (LPCREATESTRUCT)lParam;
@@ -490,18 +473,18 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         lp->hWndParent = lpcs->hwndParent;
         lp->nID  = (UINT)lpcs->hMenu;
 
-#if 0//jmt: fix: no ownerdraw
+#if 0	/* jmt: fix: no ownerdraw */
         /* calc the height of the edit/static control */
-        if (0)//(BOWNERDRAW(lp)) 
+        if (0)	/* (BOWNERDRAW(lp)) */
            {
            mis.CtlType = ODT_COMBOBOX;
            mis.CtlID = (UINT)lpcs->hMenu;
            mis.itemID = (UINT)-1;
            mis.itemData = 0L;
            SendMessage(lpcs->hwndParent, WM_MEASUREITEM, (WPARAM)lpcs->hMenu, (LPARAM)&mis);
-           /*** wEditHeight = (WORD)mis.itemHeight + 2; ***/
+           /* * wEditHeight = (WORD)mis.itemHeight + 2; ***/
            }
-#endif//ownerdraw
+#endif	/* ownerdraw */
 
         /* get system font dimensions */
         hDC = GetDC((HWND)0);
@@ -510,7 +493,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         /* allow different fonts to fit, don't hard code */
         /* otherwise big fonts won't fit. */
-        /*****wEditHeight = ((tm.tmHeight - tm.tmInternalLeading)*7)/4;*****/
+        /* ***wEditHeight = ((tm.tmHeight - tm.tmInternalLeading)*7)/4;*****/
         wEditHeight = tm.tmHeight + tm.tmInternalLeading * 3;
 
         lp->uHeight = (UINT)wEditHeight;
@@ -541,7 +524,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	     	fprintf(stderr," 528: wEditWidth = lpcs->cx=%d\n",lpcs->cx);
 	     	wEditWidth = lpcs->cx;
 	   }
-           else //?if ((lp->wStyle & 0xf) == CBS_DROPDOWN)
+           else /* ?if ((lp->wStyle & 0xf) == CBS_DROPDOWN) */
 	   {
 		fprintf(stderr," 533: wEditWidth = lp->ButtonRect.left - 5=%d;\n",lp->ButtonRect.left - 5);
                 wEditWidth = lp->ButtonRect.left - 5;
@@ -556,15 +539,17 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
              lp->EditControl = 0;
              
         /* listbox style */
-	//jmt: fix: no WS_EX_SAVEBITS, WS_EX_NOCAPTURE, WS_EX_POPUPMENU
-        dwExStyle = 0L;//WS_EX_SAVEBITS | WS_EX_NOCAPTURE | WS_EX_POPUPMENU;
-        dwStyle =   WS_BORDER | LBS_NOTIFY ; //| LBS_COMBOLBOX;
+	/* jmt: fix: no WS_EX_SAVEBITS, WS_EX_NOCAPTURE, WS_EX_POPUPMENU */
+        dwExStyle = 0L;	/* WS_EX_SAVEBITS | WS_EX_NOCAPTURE | WS_EX_POPUPMENU; */
+        dwStyle =   WS_BORDER | LBS_NOTIFY ; /* | LBS_COMBOLBOX; */
         if ((lp->wStyle & 0xf) == CBS_SIMPLE)
             dwStyle |= WS_VISIBLE | WS_CHILD; 
         else
             dwStyle |= WS_POPUP;
-        //if (lp->wStyle & CBS_DISABLENOSCROLL)
-            //dwStyle |= LBS_DISABLENOSCROLL;
+#if 0
+        if (lp->wStyle & CBS_DISABLENOSCROLL)
+            dwStyle |= LBS_DISABLENOSCROLL;
+#endif
         if (lp->wStyle & CBS_HASSTRINGS)
             dwStyle |= LBS_HASSTRINGS;
         if (lp->wStyle & CBS_NOINTEGRALHEIGHT)
@@ -615,7 +600,9 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	    hWnd, 0,
 	    hInst,(LPVOID)NULL);
 #if MWCLIENT
-        //GrLowerWindow(lp->ListBoxControl->wid);
+#if 0
+        GrLowerWindow(lp->ListBoxControl->wid);
+#endif
 	MwLowerWindow(lp->ListBoxControl);
 #endif           
 #ifdef  LATER
@@ -629,7 +616,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	}
 #endif
 
-#if 0//jmt: fix: no HWND32(LPWININFO)
+#if 0	/* jmt: fix: no HWND32(LPWININFO) */
         /* physically expand client window,
            if there is a scroll style
         */
@@ -648,7 +635,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         **   Finally turn off border drawing and WM_?SCROLL styles to prevent creation
         **   of system scrollbars.
         */ 
-        dwStyle = GetWindowLong(hWnd, GWL_STYLE);//ok
+        dwStyle = GetWindowLong(hWnd, GWL_STYLE);
         dwStyle &= ~(WS_VSCROLL | WS_HSCROLL | WS_BORDER | WS_DLGFRAME | WS_THICKFRAME);
         SetWindowLong(hWnd, GWL_STYLE, dwStyle);
         lp->nListItems = 0;
@@ -665,18 +652,18 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_GETDLGCODE:
         return (LRESULT)(DLGC_WANTCHARS|DLGC_WANTARROWS);
 
-//jmt: twine->mwin bug fixed:
-    case WM_NCLBUTTONDOWN://jmt: a must 
-#if 0//twine->mw buggy
-    //!case WM_LBUTTONDOWN:
+/* jmt: twine->mwin bug fixed: */
+    case WM_NCLBUTTONDOWN:	/* jmt: a must */
+#if 0	/* twine->mw buggy */
+    case WM_LBUTTONDOWN:
 #endif
         if ((lp->wStyle & 0xf) == CBS_SIMPLE)
             break;
 
         cp.x = (int)(short)LOWORD(lParam);
         cp.y = (int)(short)HIWORD(lParam);
-#if 1//WM_NCLBUTTONDOWM:
-        ScreenToClient(hWnd, &cp);//jmt: a must
+#if 1	/* WM_NCLBUTTONDOWM: */
+        ScreenToClient(hWnd, &cp);	/* jmt: a must */
 #endif
         if (!IS_SET(lp, CSF_CAPTUREACTIVE)) /* no listbox yet */
         {                                                                          
@@ -713,7 +700,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
               SendMessage(lp->hWndParent, WM_COMMAND, GET_WM_COMMAND_MPS(lp->nID,hWnd,CBN_DROPDOWN));
 	      /*  ECW   added following conditional...  4/4/96 */
 	      /*  JMT   following conditional is a must for microwindows  8/14/2k */
-	      if (1)//-(!IS_SET(lp, CSF_HASDROPPED))//jmt: a must 
+	      if (1)	/* -(!IS_SET(lp, CSF_HASDROPPED)) jmt: a must */
 	      {
 		  /* ??first time it drops down, size it to hold all items?? */
 
@@ -726,7 +713,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 #endif
 		    nitems = (nitems > 12 ? 12 : nitems); /* a dozen, max */
 
-#if 0//twine->mw buggy?
+#if 0	/* twine->mw buggy? */
 		    lp->ListBoxRect.bottom =
 		      lp->ListBoxRect.top + ((lp->uHeight-2) * nitems);
 #endif
@@ -736,14 +723,14 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			  lp->ListBoxRect.right,
 			  lp->ListBoxRect.bottom);
 
-//jmt: twine->mwin bug fixed:
+/* jmt: twine->mwin bug fixed: */
 	      	    fprintf(stderr," 706: fixed: SetWindowPos(lp->ListBoxControl,,%d,%d,...)\n",cp.x,cp.y);
-#if 0//twine->mwin bug
+#if 0	/* twine->mwin bug */
 		    SetWindowPos(lp->ListBoxControl,HWND_TOP,0,0,
 				 lp->ListBoxRect.right - lp->ListBoxRect.left,
 				 lp->ListBoxRect.bottom - lp->ListBoxRect.top,
 				 SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOZORDER);
-#else//jmt: twine->mwin bug fixed:
+#else	/* jmt: twine->mwin bug fixed: */
 		    SetWindowPos(lp->ListBoxControl,HWND_TOP,cp.x,cp.y,
 				 lp->ListBoxRect.right - lp->ListBoxRect.left,
 				 lp->ListBoxRect.bottom - lp->ListBoxRect.top,
@@ -757,9 +744,9 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	      }
 	      /*  End of addition */
               ShowWindow(lp->ListBoxControl, SW_SHOW);
-#if 0//orig(twine)
-	      //?SetFocus(lp->ListBoxControl);
-#else//jmt: mwclient
+#if 0	/* orig(twine) */
+	      SetFocus(lp->ListBoxControl);
+#else	/* jmt: mwclient */
 	      SetForegroundWindow(lp->ListBoxControl);
 #endif
               CBoxCapture(hWnd, 1);
@@ -785,7 +772,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			  lp->ListBoxRect.right,
 			  lp->ListBoxRect.bottom);
 
-             if (PtInRect(&lp->ListBoxRect, cpScreen))//
+             if (PtInRect(&lp->ListBoxRect, cpScreen))
              {
                 CBoxSendMouseToLBox(lp, WM_LBUTTONDOWN, wParam, cpScreen);
              }
@@ -818,22 +805,22 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                      SendMessage(hwndNewFocus, WM_LBUTTONDOWN, wParam, MAKELONG(cpScreen.x, cpScreen.y));
                   }
-              }//!(PtInRect(&lp->ListBoxRect, cpScreen)) 
+              }	/* !(PtInRect(&lp->ListBoxRect, cpScreen)) */
          }
         break;
 
-//jmt: twine->mwin bug fixed:
-    case WM_NCMOUSEMOVE://?
-#if 0//jmt: twine->mw buggy
-    //!case WM_MOUSEMOVE:
+/* jmt: twine->mwin bug fixed: */
+    case WM_NCMOUSEMOVE:
+#if 0	/* jmt: twine->mw buggy */
+    case WM_MOUSEMOVE:
 #endif
         if (!IS_SET(lp,CSF_BUTTONDOWN) && ((lp->wStyle & 0xf) == CBS_SIMPLE))
             break;
 
         cp.x = (int)(short)LOWORD(lParam);
         cp.y = (int)(short)HIWORD(lParam);
-#if 1//WM_NCMOUSEMOVE:
-        ScreenToClient(hWnd, &cp);//jmt: a must
+#if 1	/* WM_NCMOUSEMOVE: */
+        ScreenToClient(hWnd, &cp);	/* jmt: a must */
 #endif
 
         if (IS_SET(lp, CSF_CAPTUREACTIVE)) 
@@ -855,18 +842,18 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
            }
         break;
 
-//jmt: twine->mwin bug fixed:
-    case WM_NCLBUTTONUP://
-#if 0//twine->mw buggy
-    //!case WM_LBUTTONUP:
+/* jmt: twine->mwin bug fixed: */
+    case WM_NCLBUTTONUP:
+#if 0	/* twine->mw buggy */
+    case WM_LBUTTONUP:
 #endif
         if (!IS_SET(lp, CSF_CAPTUREACTIVE))
             break;
 
         cp.x = (int)(short)LOWORD(lParam);
         cp.y = (int)(short)HIWORD(lParam);
-#if 1//WM_NCLBUTTONUP
-        ScreenToClient(hWnd, &cp);//jmt: a must
+#if 1	/* WM_NCLBUTTONUP */
+        ScreenToClient(hWnd, &cp);	/* jmt: a must */
 #endif
 
         CLEAR_STATE(lp,CSF_BUTTONDOWN);
@@ -917,12 +904,14 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
               CBoxCapture(hWnd, 0);
               CLEAR_STATE(lp,CSF_CAPTUREACTIVE);
-              }//uiKey ok
+              }	/* uiKey ok */
               
            CBoxSendMouseToLBox(lp, WM_LBUTTONUP, wParam, cp);
            CLEAR_STATE(lp,CSF_LBOXBUTTONDOWN);
 #if MWCLIENT
-	   //GrLowerWindow(lp->ListBoxControl->wid);
+#if 0
+	   GrLowerWindow(lp->ListBoxControl->wid);
+#endif
 	   MwLowerWindow(lp->ListBoxControl);
 #endif
            }
@@ -1077,7 +1066,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	    return SendMessage(lp->EditControl,uMsg,wParam,lParam);
 	return CB_ERR;
 
-#if 0//jmt: fix: no WM_SETFONT/WM_GETFONT
+#if 0	/* jmt: fix: no WM_SETFONT/WM_GETFONT */
     case WM_SETFONT:
         lp->hFont = (HFONT)wParam;
 
@@ -1118,7 +1107,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_GETFONT:
         return lp->hFont;
-#endif//WM_SETFONT/WM_GETFONT
+#endif	/* WM_SETFONT/WM_GETFONT */
 
     case WM_MOVE: /*WM_WINDOWPOSCHANGING:*/
 #if 0
@@ -1129,7 +1118,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 #endif
         if (1)/*(lpwp)*/ {
         if (1)/*(!(lpwp->flags & SWP_NOSIZE))*/ {
-            lp->ButtonRect.right  = (hWnd->winrect.right-hWnd->winrect.left);//lpwp->cx;
+            lp->ButtonRect.right  = (hWnd->winrect.right-hWnd->winrect.left);	/* lpwp->cx; */
             if ((lp->wStyle & 0xf) == CBS_SIMPLE) 
                lp->ButtonRect.left = lp->ButtonRect.right;
             else lp->ButtonRect.left = (hWnd->winrect.right-hWnd->winrect.left)/*lpwp->cx*/ - 1 -
@@ -1153,7 +1142,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   {
                   lp->ListBoxRect.left = 5;
                   lp->ListBoxRect.top = lp->uHeight - 1;
-                  lp->ListBoxRect.right = (hWnd->winrect.right-hWnd->winrect.left);//lpwp->cx;
+                  lp->ListBoxRect.right = (hWnd->winrect.right-hWnd->winrect.left);	/* lpwp->cx; */
                   lp->ListBoxRect.bottom = (hWnd->winrect.bottom-hWnd->winrect.top)/*lpwp->cy*/ - 2;
                   }
                else {
@@ -1174,7 +1163,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                             lp->ListBoxRect.bottom - lp->ListBoxRect.top,
                             SWP_NOACTIVATE|SWP_NOZORDER);
                }
-#if 0//jmt: fix: no WM_WINDOWPOSCHANGING
+#if 0	/* jmt: fix: no WM_WINDOWPOSCHANGING */
             /* the height of the normal state stays the same */
             if ((lp->wStyle & 0xf) != CBS_SIMPLE)
                lpwp->cy = (int)lp->uHeight;
@@ -1197,10 +1186,10 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
         return (LRESULT)0;
 
-#if 0//jmt: fix: no ownerdraw
-    /*********************************************/
+#if 0	/* jmt: fix: no ownerdraw */
+    /* *******************************************/
     /* ownerdraw stuff               */
-    /*********************************************/
+    /* *******************************************/
     case WM_DRAWITEM:
         lpdis = (LPDRAWITEMSTRUCT)lParam;
         lpdis->CtlType = ODT_COMBOBOX;
@@ -1234,7 +1223,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         return lpComboBinToNat(hWnd, uMsg, wParam, lParam);
         else
         return (LRESULT)0;
-#endif//ownerdraw
+#endif	/* ownerdraw */
 
     default:
         return DefCBProc( hWnd, uMsg, wParam, lParam);
@@ -1242,7 +1231,7 @@ DefComboboxProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return rc;
 }
 
-/************************************************************************
+/* **********************************************************************
 **
 ************************************************************************/
 static LRESULT DefCBProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -1255,9 +1244,9 @@ static LRESULT DefCBProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     lp = (COMBOBOX *) hWnd->userdata/*GetWindowLong(hWnd,CWD_LPCBDATA)*/;
     switch(uMsg) {
-        /*********************************************/
+        /* *******************************************/
         /* messages specific to the list box control */
-        /*********************************************/
+        /* *******************************************/
         case CB_ADDSTRING:
             lp->nListItems++;  /* shd. test for successful return */
             return SendMessage(lp->ListBoxControl,LB_ADDSTRING,
@@ -1313,9 +1302,9 @@ static LRESULT DefCBProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             return SendMessage(lp->ListBoxControl,LB_SETITEMDATA,
                 wParam,lParam);
             
-        /*********************************************/
+        /* *******************************************/
         /* messages specific to the edit control */
-        /*********************************************/
+        /* *******************************************/
         case CB_GETEDITSEL:
             return SendMessage(lp->EditControl,EM_GETSEL,0,0);
                 
@@ -1327,9 +1316,9 @@ static LRESULT DefCBProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             return SendMessage(lp->EditControl,EM_SETSEL,
                 wParam,lParam);
 
-        /*********************************************/
+        /* *******************************************/
         /* messages handled by the combobox          */
-        /*********************************************/
+        /* *******************************************/
         case CB_GETDROPPEDCONTROLRECT:
             CopyRect((LPRECT)lParam,&lp->ListBoxRect);
             break;
@@ -1420,7 +1409,7 @@ static LRESULT DefCBProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     return 1L;
 
                  SendMessage(lp->hWndParent, WM_COMMAND, GET_WM_COMMAND_MPS(lp->nID,hWnd,CBN_CLOSEUP));
-//test:
+/* test: */
   	         fprintf(stderr," 1343: (hide) SetWindowPos(lp->ListBoxControl, , 0, 0, 0, 0,..)\n");
 
                  SetWindowPos(lp->ListBoxControl, 0,
@@ -1432,9 +1421,9 @@ static LRESULT DefCBProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
              }
             return 1L;
 
-        /*********************************************/
+        /* *******************************************/
         /* messages handled by the defwindowproc.... */
-        /*********************************************/
+        /* *******************************************/
         default:
             return DefWindowProc( hWnd, uMsg, wParam, lParam);
     }
@@ -1448,14 +1437,14 @@ CBoxDrawButton(HWND hWnd,UINT wState,COMBOBOX *lp)
     HDC       hDC;
     int     x,y;
     int     dx,dy;
-#if 0//jmt: fix: no LoadBitmap()
-    //-int     cx,cy;
-    //-static int nWidth,nHeight;
-    //-BITMAP    bmpCombo;
-    //-static HBITMAP hbmpCombo = 0; 
-    //-HBITMAP   hbmpOld = 0;
-    //-HDC       hdcSrc;
-    //-COLORREF  rgbText, rgbBk;
+#if 0	/* jmt: fix: no LoadBitmap() */
+    int     cx,cy;
+    static int nWidth,nHeight;
+    BITMAP    bmpCombo;
+    static HBITMAP hbmpCombo = 0; 
+    HBITMAP   hbmpOld = 0;
+    HDC       hdcSrc;
+    COLORREF  rgbText, rgbBk;
 #endif
     HBRUSH    hBrush;
     HPEN      hPenHigh,hPenShadow;
@@ -1471,19 +1460,19 @@ CBoxDrawButton(HWND hWnd,UINT wState,COMBOBOX *lp)
 
     hPenHigh = GetStockObject(WHITE_PEN);
 #if 0
-    //-hPenShadow = GetSysColorPen(COLOR_BTNSHADOW);
+    hPenShadow = GetSysColorPen(COLOR_BTNSHADOW);
 #else
     hPenShadow = CreatePen(PS_SOLID,1,GetSysColor(COLOR_BTNSHADOW));
 #endif
 #if 0
-    //-hBrush = GetSysColorBrush(COLOR_BTNFACE);
+    hBrush = GetSysColorBrush(COLOR_BTNFACE);
 #else
     hBrush = CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
 #endif
     FillRect(hDC, &rc, hBrush);
 #if 0
     hBrush = GetStockObject(BLACK_BRUSH);
-    FillRect/*FrameRect*/(hDC, &lp->ButtonRect, hBrush);//?
+    FillRect/*FrameRect*/(hDC, &lp->ButtonRect, hBrush);
 #else
     SelectObject(hDC,GetStockObject(BLACK_PEN));
     Rectangle(hDC,lp->ButtonRect.left,lp->ButtonRect.top,lp->ButtonRect.right,lp->ButtonRect.bottom);
@@ -1493,7 +1482,7 @@ CBoxDrawButton(HWND hWnd,UINT wState,COMBOBOX *lp)
 
     Draw3DButtonRect(hDC,hPenHigh,hPenShadow,rc,wState);
 
-#if 0//jmt: fix: no LoadBitmap(),GetObject()
+#if 0	/* jmt: fix: no LoadBitmap(),GetObject() */
     if (hbmpCombo == 0) 
        {
        hbmpCombo = LoadBitmap(0,(LPSTR)OBM_COMBO);
@@ -1523,7 +1512,7 @@ CBoxDrawButton(HWND hWnd,UINT wState,COMBOBOX *lp)
    SetBkColor(hDC, rgbBk);
    SelectObject(hdcSrc,hbmpOld);
    DeleteDC(hdcSrc);
-#endif//BitBlt Bitmap
+#endif	/* BitBlt Bitmap */
 #if 1
    DeleteObject(hBrush);
    DeleteObject(hPenShadow);
@@ -1536,26 +1525,28 @@ CBoxDrawButton(HWND hWnd,UINT wState,COMBOBOX *lp)
         CLEAR_STATE(lp,CSF_LOCALBUTTONDOWN);
 }
 
-#if 0//jmt: fix: no COMBOLBOX
-/************************************************************************
+#if 0	/* jmt: fix: no COMBOLBOX */
+/* **********************************************************************
 **
 ************************************************************************/
 LRESULT DefCOMBOLBOXProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    //-return DefLISTBOXProc(hWnd, msg, wParam,lParam);
+#if 0
+    return DefLISTBOXProc(hWnd, msg, wParam,lParam);
+#endif
     return ListboxCtrlProc(hWnd, msg, wParam,lParam);
 }
 #endif
 
-/************************************************************************
+/* **********************************************************************
 **
 ************************************************************************/
 static void CBoxSendMouseToLBox(COMBOBOX *lp, UINT uiMsg, WPARAM wParam, POINT ptScreen)
 {
     POINT pt;
     int nNCHit;
-#if 0//jmt: fix: no scrollbar
-    //-HWND hWndScroll;
+#if 0	/* jmt: fix: no scrollbar */
+    HWND hWndScroll;
 #endif
     pt = ptScreen;
     ScreenToClient(lp->ListBoxControl,&pt);
@@ -1574,7 +1565,7 @@ static void CBoxSendMouseToLBox(COMBOBOX *lp, UINT uiMsg, WPARAM wParam, POINT p
            SendMessage(lp->ListBoxControl, uiMsg, wParam, MAKELONG((WORD)pt.x,(WORD)pt.y));
            break;
 
-#if 0//jmt: fix: no scrollbar           
+#if 0	/* jmt: fix: no scrollbar */
        case HTVSCROLL:
            if (0 != (hWndScroll = TWIN_ConvertToSysScroll(lp->ListBoxControl, TRUE /* vertical */, &pt)))
               SendMessage(hWndScroll, uiMsg, wParam, MAKELONG((WORD)pt.x,(WORD)pt.y));
@@ -1585,7 +1576,7 @@ static void CBoxSendMouseToLBox(COMBOBOX *lp, UINT uiMsg, WPARAM wParam, POINT p
     }
 }
 
-/************************************************************************
+/* **********************************************************************
 **
 ************************************************************************/
 static void CBoxCapture(HWND hWnd, WORD wFunc)
@@ -1612,16 +1603,16 @@ static void CBoxCapture(HWND hWnd, WORD wFunc)
          }
 }
 
-/************************************************************************
+/* **********************************************************************
 **
 ************************************************************************/
 static void CBoxDrawEdit(COMBOBOX *lp, HWND hWnd, UINT uiKey)
 {
     int    nLen;
     LPVOID lpData;
-#if 0//jmt: fix: no ownerdraw
-    //HRGN   hRgn;
-    //-DRAWITEMSTRUCT dis;
+#if 0	/* jmt: fix: no ownerdraw */
+    HRGN   hRgn;
+    DRAWITEMSTRUCT dis;
 #endif
 /*
     if (uiKey == (UINT)LB_ERR)
@@ -1642,7 +1633,7 @@ static void CBoxDrawEdit(COMBOBOX *lp, HWND hWnd, UINT uiKey)
        Edit_SetSel(lp->EditControl, 0, -1);
        WinFree((LPSTR)lpData);
        }
-#if 0//jmt: fix: no ownerdraw
+#if 0	/* jmt: fix: no ownerdraw */
     else {
          dis.CtlType = ODT_COMBOBOX;
          dis.CtlID = (UINT)lp->nID;
@@ -1665,10 +1656,10 @@ static void CBoxDrawEdit(COMBOBOX *lp, HWND hWnd, UINT uiKey)
          ReleaseDC(lp->EditControl,dis.hDC);
          DeleteObject(hRgn);
          }   
-#endif//ownerdraw
+#endif	/* ownerdraw */
 }
 
-/************************************************************************
+/* **********************************************************************
 **
 ************************************************************************/
 static void CBoxDrawStatic(COMBOBOX *lp, HWND hWnd, UINT uiKey)
@@ -1678,9 +1669,9 @@ static void CBoxDrawStatic(COMBOBOX *lp, HWND hWnd, UINT uiKey)
     LPVOID lpData;
     RECT   rcClient;
     HFONT  hfonOld = 0;
-#if 0//jmt: fix: no ownerdraw
-    //HRGN   hRgn;
-    //-DRAWITEMSTRUCT dis;
+#if 0	/* jmt: fix: no ownerdraw */
+    HRGN   hRgn;
+    DRAWITEMSTRUCT dis;
 #endif
     HBRUSH hbrStatic, hbrOld;               
     
@@ -1702,8 +1693,8 @@ static void CBoxDrawStatic(COMBOBOX *lp, HWND hWnd, UINT uiKey)
     if (uiKey == (UINT)LB_ERR)
        return;
 
-//jmt: no ownerdraw
-    if (1)//(!BOWNERDRAW(lp))
+/* jmt: no ownerdraw */
+    if (1)	/* (!BOWNERDRAW(lp)) */
        {
        /* if necessary, draw text */
        hdc = GetDC(hWnd);
@@ -1723,8 +1714,8 @@ static void CBoxDrawStatic(COMBOBOX *lp, HWND hWnd, UINT uiKey)
                hbrStatic = CreateSolidBrush(GetSysColor(COLOR_HIGHLIGHT));
                hbrOld = SelectObject(hdc, hbrStatic);
                FillRect(hdc, &rcClient, hbrStatic);
-#if 0//jmt: fix: no DrawFocusRect()
-               //?DrawFocusRect(hdc, &rcClient);
+#if 0	/* jmt: fix: no DrawFocusRect() */
+               DrawFocusRect(hdc, &rcClient);
 #endif
                SelectObject(hdc, hbrOld);
                DeleteObject(hbrStatic);
@@ -1739,7 +1730,7 @@ static void CBoxDrawStatic(COMBOBOX *lp, HWND hWnd, UINT uiKey)
           }
        ReleaseDC(hWnd, hdc);
        }
-#if 0//jmt: fix: no ownerdraw
+#if 0	/* jmt: fix: no ownerdraw */
     else { /* fill OWNERDRAWSTRUCT and send WM_DRAWITEM message */
          dis.CtlType    = ODT_COMBOBOX;
          dis.CtlID      = (UINT)lp->nID;
@@ -1762,18 +1753,19 @@ static void CBoxDrawStatic(COMBOBOX *lp, HWND hWnd, UINT uiKey)
          ReleaseDC(hWnd, dis.hDC);
          DeleteObject(hRgn);
          }  
-#endif//ownerdraw
+#endif	/* ownerdraw */
  
 }
 
 
 /*------------------------- < Full Revision History > ----------------------
-** $Log$
-** Revision 1.1  2004/07/19 13:11:17  lgsoft
-** Initial revision
+** Revision 1.2  2001/11/06 23:35:46  greg
 **
-** Revision 1.1.1.1  2004/07/18 13:27:53  nidhi
-** Importing
+** Revision 1.1.1.1  2001/06/21 06:32:42  greg
+** Microwindows pre8 with patches
+**
+** Revision 1.1.1.1  2001/06/05 03:44:01  root
+** First import of 5/5/2001 Microwindows to CVS
 **
 ** Revision 1.8  2000/08/14 jmt
 ** ported to microwin(non-client/server mode)

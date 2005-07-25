@@ -1,7 +1,4 @@
-/***************************************************************************
- *
- * $Header$
- *
+/* *************************************************************************
  * MODULE DESCRIPTION: This module specializes the RTEMS Network configuration 
  *                     for the omniORB examples. It could be used as a starting
  *                     point of an application using omniORB and RTEMS.
@@ -17,13 +14,8 @@
  *
  * MODIFICATION/HISTORY:
  *
- * $Log$
- * Revision 1.1  2004/07/19 13:11:31  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:27:54  nidhi
- * Importing
- *
+ * Revision 1.1.1.1  2001/06/21 06:32:42  greg
+ * Microwindows pre8 with patches
  ****************************************************************************/
 #ifdef __cplusplus
 extern "C" {

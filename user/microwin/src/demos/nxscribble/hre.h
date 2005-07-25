@@ -31,11 +31,6 @@
 typedef unsigned int wchar_t;
 #endif
 
-#ifndef ARM_LINUX  /* SEP - no X on the itsy yet */
-/* ari  -- for Time */
-//#include <X11/X.h>
-#endif
-
 /* Scalar Type Definitions */
 
 /*For better readibility.*/
@@ -75,7 +70,7 @@ typedef unsigned int Time;
 
 #endif
 
-/**************** RECOGNIZER CONFIGURATION INFORMATION *******************/
+/* ************** RECOGNIZER CONFIGURATION INFORMATION *******************/
 
 /*
  * Recognizer information. Gives the locale, category of the character
@@ -112,7 +107,7 @@ typedef struct {
 #define ISO_LATIN12	"ISO_LATIN12"	/* The ISO Latin 12 characters */
 
 
-/********************  RECOGNITION INPUT STRUCTURES ***********************/
+/* ******************  RECOGNITION INPUT STRUCTURES ***********************/
 
 /*
  * WINDOW SYSTEM INTERFACE
@@ -290,7 +285,7 @@ typedef struct {
     void* rc_context;           /*For recognizer-specific context.*/
 } rc;
 
-/**************************  GESTURES  **************************/
+/* ************************  GESTURES  **************************/
 
 /*
  * Gestures. The toolkit initializes the recognizer with a
@@ -325,7 +320,7 @@ typedef void (*xgesture)(gesture*);
 #define TAB	"TAB"		/*Insert tab at target*/
 #define KKCONVERT  "KKCONVERT"	/*Perform kana-kanji conversion on target*/
 
-/********************* RECOGNITION RETURN VALUES *************************/
+/* ******************* RECOGNITION RETURN VALUES *************************/
 
 
 /*Different types in union. "Other" indicates a cast is needed.*/

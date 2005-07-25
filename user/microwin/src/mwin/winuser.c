@@ -187,9 +187,12 @@ GetMessage(LPMSG lpMsg,HWND hwnd,UINT wMsgFilterMin,UINT wMsgFilterMax)
 	return lpMsg->message != WM_QUIT;
 }
 
-BOOL WINAPI 
+BOOL WINAPI
 TranslateMessage(CONST MSG *lpMsg)
 {
+	/* Creat the WM_CHAR on WM_KEYDOWN messages*/
+	if(lpMsg && (lpMsg->message == WM_KEYDOWN))
+		PostMessage(lpMsg->hwnd, WM_CHAR, lpMsg->wParam, lpMsg->lParam);
 	return FALSE;
 }
 
@@ -447,6 +450,7 @@ MwDestroyWindow(HWND hwnd,BOOL bSendMsg)
 		if(pmsg->hwnd == wp) {
 			p = p->next;
 			GdListRemove(&mwMsgHead, &pmsg->link);
+			GdItemFree(p);
 		} else
 			p = p->next;
 	}

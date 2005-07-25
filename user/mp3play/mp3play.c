@@ -42,10 +42,10 @@
 #include <signal.h>
 #include <linux/soundcard.h>
 #include <sys/resource.h>
-#include <linux/config.h>
+#include <config/autoconf.h>
 
-#ifdef CONFIG_KEY
-#include <linux/key.h>
+#ifdef CONFIG_USER_SETKEY_SETKEY
+#include <key/key.h>
 #endif
 
 /****************************************************************************/
@@ -491,9 +491,9 @@ void setdsp(int fd, int playstereo, int playbits)
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 	bits = (playbits == 16) ? AFMT_S16_LE : AFMT_U8;
-#elif BYTE_ORDER == BIG_ENDIAN
+#else
 	bits = (playbits == 16) ? AFMT_S16_BE : AFMT_U8;
-#endif 
+#endif
 	if (ioctl(fd, SNDCTL_DSP_SAMPLESIZE, &bits) < 0) {
 		fprintf(stderr, "ERROR: Unable to set sample size to "
 			"%d, errno=%d\n", bits, errno);
@@ -669,8 +669,13 @@ void usage(int rc)
 		"\t\t-T            do decode, but output test tone\n"
 		"\t\t-g <quality>  decode quality (0,1,2)\n"
 		"\t\t-s <time>     sleep between playing tracks\n"
+#ifdef SWAP_WD
+		"\t\t-w <device>   audio device for playback\n"
+		"\t\t-d <filename> write output to file\n"
+#else
 		"\t\t-d <device>   audio device for playback\n"
 		"\t\t-w <filename> write output to file\n"
+#endif
 		"\t\t-l <line>     display title on LCD line (0,1,2) (0 = no title)\n"
 		"\t\t-t <line>     display time on LCD line (1,2)\n"
 		"\t\t-B <prebuf>   size of pre-buffer\n");
@@ -748,10 +753,15 @@ int main(int argc, char *argv[])
 			break;
 		case 'd':
 			device = optarg;
+#ifdef SWAP_WD
+			dsphw = 0;
+#endif
 			break;
 		case 'w':
 			device = optarg;
+#ifndef SWAP_WD
 			dsphw = 0;
+#endif
 			break;
 		case 'l':
 			lcd_line = atoi(optarg);
@@ -887,7 +897,7 @@ mp3_restream:
 		goto badfile;
 	}
 
-#ifdef CONFIG_KEY
+#ifdef CONFIG_USER_SETKEY_SETKEY
 	if ((i = getdriverkey(&key, sizeof(key))) > 0)
 		MPEGDEC_setkey(mps, &key, i);
 #endif

@@ -1,30 +1,26 @@
 /*
- * Copyright (c) 1999 Greg Haerr <greg@censoft.com>
+ * Copyright (c) 1999, 2002 Greg Haerr <greg@censoft.com>
  *
  * Nano-X Core Protocol Client Request Handling Routines
  */ 
 #include <stdio.h>
 #include <unistd.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include "serv.h"
 #include "nxproto.h"
+#include "lock.h"
 
 #define SZREQBUF	2048	/* initial request buffer size*/
 
-/* queued request buffer*/
-typedef struct {
-	BYTE8 *	bufptr;		/* next unused buffer location*/
-	BYTE8 *	bufmax;		/* max buffer location*/
-	BYTE8 *	buffer;		/* request buffer*/
-} REQBUF;
-
+#ifndef __ECOS
 static REQBUF	reqbuf;		/* request buffer*/
-
 extern int 	nxSocket;
 extern char *	nxSharedMem;
+LOCK_EXTERN(nxGlobalLock);	/* global lock for threads safety*/
+#endif
 
 /* Allocate a request buffer of passed size and fill in header fields*/
 void *
@@ -32,6 +28,7 @@ nxAllocReq(int type, long size, long extra)
 {
 	nxReq *	req;
 	long	aligned_len;
+        ACCESS_PER_THREAD_DATA();
 
 	/* variable size requests must be hand-padded*/
 	if(extra)
@@ -58,6 +55,8 @@ nxAllocReq(int type, long size, long extra)
 
 static void nxAllocReqbuffer(long newsize)
 {
+        ACCESS_PER_THREAD_DATA();
+
 	if(newsize < (long)SZREQBUF)
 		newsize = SZREQBUF;
 	reqbuf.buffer = malloc(newsize);
@@ -72,6 +71,8 @@ static void nxAllocReqbuffer(long newsize)
 void
 nxAssignReqbuffer(char *buffer, long size)
 {
+        ACCESS_PER_THREAD_DATA();
+
 	if ( reqbuf.buffer != 0 )
 		free(reqbuf.buffer);
 	reqbuf.buffer = buffer;
@@ -84,6 +85,7 @@ void
 nxWriteSocket(char *buf, int todo)
 {
 	int written;
+        ACCESS_PER_THREAD_DATA();
 
 	do {
 		written = write(nxSocket, buf, todo);
@@ -102,9 +104,13 @@ nxWriteSocket(char *buf, int todo)
 void
 nxFlushReq(long newsize, int reply_needed)
 {
+        ACCESS_PER_THREAD_DATA();
+	LOCK(&nxGlobalLock);
+
 	/* handle one-time initialization case*/
 	if(reqbuf.buffer == NULL) {
 		nxAllocReqbuffer(newsize);
+		UNLOCK(&nxGlobalLock);
 		return;
 	}
 
@@ -164,6 +170,7 @@ nxFlushReq(long newsize, int reply_needed)
 				EPRINTF("nxFlushReq: shm region too small\n");
 				exit(1);
 			}
+			UNLOCK(&nxGlobalLock);
 			return;
 		}
 #endif /* HAVE_SHAREDMEM_SUPPORT*/
@@ -175,7 +182,7 @@ nxFlushReq(long newsize, int reply_needed)
 
 	/* allocate larger buffer for current request, if needed*/
 	if(reqbuf.bufptr + newsize >= reqbuf.bufmax) {
-		reqbuf.buffer = realloc(reqbuf.buffer, newsize);
+		reqbuf.buffer = GdRealloc(reqbuf.buffer, reqbuf.bufmax - reqbuf.buffer, newsize);
 		if(!reqbuf.buffer) {
 		       EPRINTF("nxFlushReq: Can't reallocate request buffer\n");
 			exit(1);
@@ -183,21 +190,22 @@ nxFlushReq(long newsize, int reply_needed)
 		reqbuf.bufptr = reqbuf.buffer;
 		reqbuf.bufmax = reqbuf.buffer + newsize;
 	}
+	UNLOCK(&nxGlobalLock);
 }
 
 /* calc # bytes required for passed string according to encoding*/
 int
-nxCalcStringBytes(void *str, int count, int flags)
+nxCalcStringBytes(void *str, int count, GR_TEXTFLAGS flags)
 {
 	int	nbytes;
 
 	/* calc byte length of data*/
-	if(flags & MWTF_UC16)
+	if(flags & (MWTF_UC16|MWTF_XCHAR2B))
 		nbytes = count * 2;
 	else if(flags & MWTF_UC32)
 		nbytes = count * 4;
 	else
-		nbytes = count;
+		nbytes = count;	/* count is byte count for ascii & dbcs*/
 
 	return nbytes;
 }

@@ -81,9 +81,9 @@ it needs to set up a timeout. */
 /* Now clear the timer and check the result. */
 
         clear_alarm();
-        if (host == NULL) fatal(1,"unable to locate IP address/number",NULL);
+        if (host == NULL) fatal(1,"unable to locate IP address/number: %s", hostname);
         if (host->h_length != sizeof(struct in_addr))
-            fatal(0,"the address does not seem to be an Internet one",NULL);
+            fatal(0,"the address does not seem to be an Internet one: %s", hostname);
         *address = *((struct in_addr **)host->h_addr_list)[0];
         if (memcmp(address,nowhere,sizeof(struct in_addr)) == 0 ||
                 memcmp(address,anywhere,sizeof(struct in_addr)) == 0 ||

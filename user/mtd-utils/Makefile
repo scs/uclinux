@@ -6,11 +6,10 @@
 # These flags are used for build native versions of the tools for the
 # host system so it can generate images etc
 #
-#MY_CFLAGS = -I$(ROOTDIR)/$(LINUXDIR)/include
-MY_CFLAGS = -I/usr/include
+MY_CFLAGS = -I/usr/include -I.
 BUILD_CFLAGS += $(MY_CFLAGS)
 BUILD_CC = gcc
-CFLAGS += $(INCZ) -D__USE_BSD
+CFLAGS += -D__USE_BSD -I.
 
 TARGETS = erase eraseall \
 	      nftl_format nftldump doc_loadbios doc_loadipl \
@@ -85,10 +84,10 @@ build/compr.o: compr.c
 	$(BUILD_CC) $(BUILD_CFLAGS) -Dprintk=printf -DKERN_NOTICE= -DKERN_WARNING= -c -o $@ $<
 
 compr_zlib.o: compr_zlib.c
-	$(CC) $(CFLAGS) $(INCZ) -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 build/compr_zlib.o: compr_zlib.c
-	$(BUILD_CC) $(BUILD_CFLAGS) -Dprintk=printf -DKERN_NOTICE= -DKERN_WARNING= $(INCZ) -c -o $@ $<
+	$(BUILD_CC) $(BUILD_CFLAGS) -Dprintk=printf -DKERN_NOTICE= -DKERN_WARNING= -c -o $@ $<
 
 jffs2reader: jffs2reader.c
 	$(CC) $(LDFLAGS) $(CFLAGS) jffs2reader.c -o jffs2reader $(LDPATH) -lz $(LDLIBS)
