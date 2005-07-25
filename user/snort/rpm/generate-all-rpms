@@ -1,0 +1,25 @@
+#!/bin/bash
+# $Id$
+# Generate the "official" Snort.org RPMs.
+
+# The following will build 3 binary and 1 source RPM as follows:
+#	snort-x.x.x-x.i386.rpm
+#	snort-mysql-x.x.x-x.i386.rpm
+#	snort-postgresql-x.x.x-x.i386.rpm
+#	snort-x.x.x-x.src.rpm
+#
+# mysql and postgresql are probably mutually exclusive when building for
+# your own use, and flexresp is optional.  We therefor encourage you to
+# build your own RPMs as you see fit.  See README.build_rpms.
+
+# If you wish to build with Oracle support, you need to use --with-oracle
+# for the build syntax, and have your client libraries installed in 
+# /opt/oracle
+
+rpmbuild -bb --target i386 --with mysql --with postgresql snort.org.spec 
+rpmbuild -bs --target i386 snort.org.spec
+
+rpmbuild -bb --target i386 --with fedora --with mysql --with postgresql snort.org.spec 
+rpmbuild -bs --target i386 --with fedora snort.org.spec
+
+
