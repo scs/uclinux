@@ -402,7 +402,7 @@ void
 prn(u)
 unsigned u;
 {
-	prs(itoa(u, 0));
+	prs(my_itoa(u, 0));
 }
 
 void

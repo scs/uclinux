@@ -195,11 +195,11 @@ _PROTOTYPE(char *space , (int n ));
 _PROTOTYPE(char *strsave , (char *s , int a ));
 _PROTOTYPE(char *evalstr , (char *cp , int f ));
 _PROTOTYPE(char *putn , (int n ));
-_PROTOTYPE(char *itoa , (unsigned u , int n ));
+_PROTOTYPE(char *my_itoa , (unsigned u , int n ));
 _PROTOTYPE(char *unquote , (char *as ));
 _PROTOTYPE(struct var *lookup , (char *n ));
 _PROTOTYPE(int rlookup , (char *n ));
-_PROTOTYPE(struct wdblock *glob , (char *cp , struct wdblock *wb ));
+_PROTOTYPE(struct wdblock *my_glob , (char *cp , struct wdblock *wb ));
 _PROTOTYPE(int subgetc , (int ec , int quoted ));
 _PROTOTYPE(char **makenv , (void));
 _PROTOTYPE(char **eval , (char **ap , int f ));
@@ -387,8 +387,8 @@ Extern	int	areanum;	/* current allocation area */
 #define	NEW(type) (type *)getcell(sizeof(type))
 #define	DELETE(obj)	freecell((char *)obj)
 _PROTOTYPE(char *memcopy, (char *ato, char *from, int nb ));
-_PROTOTYPE(int (*a3), (char *, char *));
-_PROTOTYPE(int (*func), (char *, char *));
+/* _PROTOTYPE(int (*a3), (char *, char *)); 
+_PROTOTYPE(int (*func), (char *, char *)); */
 _PROTOTYPE(int collect, (int c, int c1 ));
 _PROTOTYPE(int dobreak, (struct op *t ));
 _PROTOTYPE(int dochdir, (struct op *t ));
@@ -460,8 +460,8 @@ _PROTOTYPE(static void rdexp, (char **wp, void (*f)(), int key));
 _PROTOTYPE(static void readhere, (char **name, char *s, int ec ));
 _PROTOTYPE(static void word, (char *cp ));
 _PROTOTYPE(static void zzerr, (void));
-_PROTOTYPE(void (*f), (int));
-_PROTOTYPE(void (*qflag), (int));
+/*_PROTOTYPE(void (*f), (int));
+ _PROTOTYPE(void (*qflag), (int)); */
 _PROTOTYPE(void glob0, (char *a0, unsigned int a1, int a2, int (*a3)(char *, char *)));
 _PROTOTYPE(void glob1, (char *base, char *lim ));
 _PROTOTYPE(void glob2, (char *i, char *j ));

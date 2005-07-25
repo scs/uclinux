@@ -72,7 +72,7 @@ register char **argv;
 		setval(homedir, "/");
 	export(homedir);
 
-	setval(lookup("$"), itoa(getpid(), 5));
+	setval(lookup("$"), my_itoa(getpid(), 5));
 
 	path = lookup("PATH");
 	if (path->value == null)
@@ -383,11 +383,11 @@ char *
 putn(n)
 register int n;
 {
-	return(itoa(n, -1));
+	return(my_itoa(n, -1));
 }
 
 char *
-itoa(u, n)
+my_itoa(u, n)
 register unsigned u;
 int n;
 {

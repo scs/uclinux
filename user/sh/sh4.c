@@ -149,7 +149,7 @@ int f;
 					unquote(cp);
 				*wbp = addword(cp, *wbp);
 			} else
-				*wbp = glob(cp, *wbp);
+				*wbp = my_glob(cp, *wbp);
 		}
 		quitenv();
 	} else
@@ -265,6 +265,7 @@ int quoted;
 	char *dolp;
 	register char *s, c, *cp;
 	struct var *vp;
+	int empty;
 
 	c = readc();
 	s = e.linep;
@@ -300,7 +301,7 @@ int quoted;
 	*e.linep = 0;
 	if (*s)
 		for (cp = s+1; *cp; cp++)
-			if (any(*cp, "=-+?#")) {
+			if (any(*cp, "=-+?#:")) {
 				c = *cp;
 				*cp++ = 0;
 				break;
@@ -318,7 +319,14 @@ int quoted;
 		}
 	}
 	vp = lookup(s);
-	if ((dolp = vp->value) == null) {
+	empty = ((dolp = vp->value) == null);
+	if (c == ':') {
+		c = *cp++;
+		if (!empty) {
+			empty = (*dolp == '\0');
+		}
+	}
+	if (empty) {
 		switch (c) {
 		case '=':
 			if (digit(*s)) {
@@ -471,7 +479,7 @@ static	struct wdblock	*cl, *nl;
 static	char	spcl[] = "[?*";
 
 struct wdblock *
-glob(cp, wb)
+my_glob(cp, wb)
 char *cp;
 struct wdblock *wb;
 {

@@ -1,7 +1,3 @@
-.EXPORT_ALL_VARIABLES:
-
-CXXFLAGS += $(INCSG)
-CFLAGS += $(INCSG)
 
 DIRS = snmplib modules snmpd
 
