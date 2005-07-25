@@ -9,7 +9,7 @@ CONFIGURE_SETTINGS := -C --prefix= --build=i386-redhat-linux		\
 		--without-readline --disable-shared			\
 		--with-headers=$(ROOTDIR)/$(LINUXDIR)/include		\
 		--with-mysql=$(ROOTDIR)/lib/libmysqlclient		\
-		--with-named-z-libs==$(ROOTDIR)/lib/zlib
+		--with-named-z-libs==$(ROOTDIR)/lib/zlib --with-pic
 
 #
 # we always have glibc2 style,  so force it so that uClibc works as well
@@ -22,6 +22,9 @@ Makefile:
 
 romfs:
 	-echo "nothing for roms"
+
+clean:
+	make -f Makefile distclean
 
 %: Makefile
 	make -f Makefile $@
