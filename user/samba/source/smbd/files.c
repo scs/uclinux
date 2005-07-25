@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    Files[] structure handling
    Copyright (C) Andrew Tridgell 1998
    
@@ -21,8 +20,6 @@
 
 #include "includes.h"
 
-extern int DEBUGLEVEL;
-
 static int real_max_open_files;
 
 #define VALID_FNUM(fnum)   (((fnum) >= 0) && ((fnum) < real_max_open_files))
@@ -38,18 +35,33 @@ static files_struct *chain_fsp = NULL;
 /* a fsp to use to save when breaking an oplock. */
 static files_struct *oplock_save_chain_fsp = NULL;
 
-/*
- * Indirection for file fd's. Needed as POSIX locking
- * is based on file/process, not fd/process.
- */
-static file_fd_struct *FileFd;
+static int files_used;
 
-static int files_used, fd_ptr_used;
+/* A singleton cache to speed up searching by dev/inode. */
+static struct fsp_singleton_cache {
+	files_struct *fsp;
+	SMB_DEV_T dev;
+	SMB_INO_T inode;
+} fsp_fi_cache;
 
 /****************************************************************************
-  find first available file slot
+ Return a unique number identifying this fsp over the life of this pid.
 ****************************************************************************/
-files_struct *file_new(void )
+
+static unsigned long get_gen_count(void)
+{
+	static unsigned long file_gen_counter;
+
+	if ((++file_gen_counter) == 0)
+		return ++file_gen_counter;
+	return file_gen_counter;
+}
+
+/****************************************************************************
+ Find first available file slot.
+****************************************************************************/
+
+files_struct *file_new(connection_struct *conn)
 {
 	int i;
 	static int first_file;
@@ -61,7 +73,7 @@ files_struct *file_new(void )
 	   increases the chance that the errant client will get an error rather
 	   than causing corruption */
 	if (first_file == 0) {
-		first_file = (getpid() ^ (int)time(NULL)) % real_max_open_files;
+		first_file = (sys_getpid() ^ (int)time(NULL)) % real_max_open_files;
 	}
 
 	i = bitmap_find(file_bmap, first_file);
@@ -78,18 +90,28 @@ files_struct *file_new(void )
 		for (fsp=Files;fsp;fsp=next) {
 			next=fsp->next;
 			if (attempt_close_oplocked_file(fsp)) {
-				return file_new();
+				return file_new(conn);
 			}
 		}
 
 		DEBUG(0,("ERROR! Out of file structures\n"));
+		unix_ERR_class = ERRSRV;
+		unix_ERR_code = ERRnofids;
 		return NULL;
 	}
 
-	fsp = (files_struct *)malloc(sizeof(*fsp));
-	if (!fsp) return NULL;
+	fsp = SMB_MALLOC_P(files_struct);
+	if (!fsp) {
+		unix_ERR_class = ERRSRV;
+		unix_ERR_code = ERRnofids;
+		return NULL;
+	}
 
 	ZERO_STRUCTP(fsp);
+	fsp->fd = -1;
+	fsp->conn = conn;
+	fsp->file_id = get_gen_count();
+	GetTimeOfDay(&fsp->open_time);
 
 	first_file = (i+1) % real_max_open_files;
 
@@ -97,6 +119,8 @@ files_struct *file_new(void )
 	files_used++;
 
 	fsp->fnum = i + FILE_HANDLE_OFFSET;
+	SMB_ASSERT(fsp->fnum < 65536);
+
 	string_set(&fsp->fsp_name,"");
 	
 	DLIST_ADD(Files, fsp);
@@ -105,101 +129,56 @@ files_struct *file_new(void )
 		 i, fsp->fnum, files_used));
 
 	chain_fsp = fsp;
+
+	/* A new fsp invalidates a negative fsp_fi_cache. */
+	if (fsp_fi_cache.fsp == NULL) {
+		ZERO_STRUCT(fsp_fi_cache);
+	}
 	
 	return fsp;
 }
 
-
-
 /****************************************************************************
-fd support routines - attempt to find an already open file by dev
-and inode - increments the ref_count of the returned file_fd_struct *.
+ Close all open files for a connection.
 ****************************************************************************/
-file_fd_struct *fd_get_already_open(SMB_STRUCT_STAT *sbuf)
-{
-	file_fd_struct *fd_ptr;
 
-	if(!sbuf) return NULL;
-
-	for (fd_ptr=FileFd;fd_ptr;fd_ptr=fd_ptr->next) {
-		if ((fd_ptr->ref_count > 0) &&
-		    (sbuf->st_dev == fd_ptr->dev) &&
-		    (sbuf->st_ino == fd_ptr->inode)) {
-			fd_ptr->ref_count++;
-
-			DEBUG(3,("Re-used file_fd_struct dev = %x, inode = %.0f, ref_count = %d\n",
-				 (unsigned int)fd_ptr->dev, (double)fd_ptr->inode, 
-				 fd_ptr->ref_count));
-
-			return fd_ptr;
-		}
-	}
-
-	return NULL;
-}
-
-
-
-/****************************************************************************
-fd support routines - attempt to find a empty slot in the FileFd array.
-Increments the ref_count of the returned entry.
-****************************************************************************/
-file_fd_struct *fd_get_new(void)
-{
-	extern struct current_user current_user;
-	file_fd_struct *fd_ptr;
-
-	fd_ptr = (file_fd_struct *)malloc(sizeof(*fd_ptr));
-	if (!fd_ptr) {
-          DEBUG(0,("ERROR! malloc fail for file_fd struct.\n"));
-          return NULL;
-	}
-	
-	ZERO_STRUCTP(fd_ptr);
-	
-	fd_ptr->dev = (SMB_DEV_T)-1;
-	fd_ptr->inode = (SMB_INO_T)-1;
-	fd_ptr->fd = -1;
-	fd_ptr->fd_readonly = -1;
-	fd_ptr->fd_writeonly = -1;
-	fd_ptr->real_open_flags = -1;
-	fd_add_to_uid_cache(fd_ptr, (uid_t)current_user.uid);
-	fd_ptr->ref_count++;
-
-	fd_ptr_used++;
-
-	DLIST_ADD(FileFd, fd_ptr);
-
-	DEBUG(5,("allocated fd_ptr structure (%d used)\n", fd_ptr_used));
-
-	return fd_ptr;
-}
-
-
-/****************************************************************************
-close all open files for a connection
-****************************************************************************/
 void file_close_conn(connection_struct *conn)
 {
 	files_struct *fsp, *next;
 	
 	for (fsp=Files;fsp;fsp=next) {
 		next = fsp->next;
-		if (fsp->conn == conn && fsp->open) {
+		if (fsp->conn == conn) {
 			close_file(fsp,False); 
 		}
 	}
 }
 
 /****************************************************************************
-initialise file structures
+ Close all open files for a pid.
 ****************************************************************************/
 
-#define MAX_OPEN_FUDGEFACTOR 10
+void file_close_pid(uint16 smbpid)
+{
+	files_struct *fsp, *next;
+	
+	for (fsp=Files;fsp;fsp=next) {
+		next = fsp->next;
+		if (fsp->file_pid == smbpid) {
+			close_file(fsp,False); 
+		}
+	}
+}
+
+/****************************************************************************
+ Initialise file structures.
+****************************************************************************/
+
+#define MAX_OPEN_FUDGEFACTOR 20
 
 void file_init(void)
 {
-        int request_max_open_files = lp_max_open_files();
+	int request_max_open_files = lp_max_open_files();
 	int real_lim;
 
 	/*
@@ -211,10 +190,15 @@ void file_init(void)
 
 	real_max_open_files = real_lim - MAX_OPEN_FUDGEFACTOR;
 
-        if(real_max_open_files != request_max_open_files) {
-        	DEBUG(1,("file_init: Information only: requested %d \
+	if (real_max_open_files + FILE_HANDLE_OFFSET + MAX_OPEN_PIPES > 65536)
+		real_max_open_files = 65536 - FILE_HANDLE_OFFSET - MAX_OPEN_PIPES;
+
+	if(real_max_open_files != request_max_open_files) {
+		DEBUG(1,("file_init: Information only: requested %d \
 open files, %d are available.\n", request_max_open_files, real_max_open_files));
 	}
+
+	SMB_ASSERT(real_max_open_files > 100);
 
 	file_bmap = bitmap_allocate(real_max_open_files);
 	
@@ -228,42 +212,79 @@ open files, %d are available.\n", request_max_open_files, real_max_open_files));
 	set_pipe_handle_offset(real_max_open_files);
 }
 
-
 /****************************************************************************
-close files open by a specified vuid
+ Close files open by a specified vuid.
 ****************************************************************************/
+
 void file_close_user(int vuid)
 {
 	files_struct *fsp, *next;
 
 	for (fsp=Files;fsp;fsp=next) {
 		next=fsp->next;
-		if ((fsp->vuid == vuid) && fsp->open) {
+		if (fsp->vuid == vuid) {
 			close_file(fsp,False);
 		}
 	}
 }
 
-
-/****************************************************************************
- Find a fsp given a device, inode and timevalue
- If this is from a kernel oplock break request then tval may be NULL.
-****************************************************************************/
-
-files_struct *file_find_dit(SMB_DEV_T dev, SMB_INO_T inode, struct timeval *tval)
+void file_dump_open_table(void)
 {
 	int count=0;
 	files_struct *fsp;
 
 	for (fsp=Files;fsp;fsp=fsp->next,count++) {
-		if (fsp->open && 
-			fsp->fd_ptr != NULL &&
-		    fsp->fd_ptr->dev == dev && 
-		    fsp->fd_ptr->inode == inode &&
-		    (tval ? (fsp->open_time.tv_sec == tval->tv_sec) : True ) &&
-		    (tval ? (fsp->open_time.tv_usec == tval->tv_usec) : True )) {
+		DEBUG(10,("Files[%d], fnum = %d, name %s, fd = %d, fileid = %lu, dev = %x, inode = %.0f\n",
+			count, fsp->fnum, fsp->fsp_name, fsp->fd, (unsigned long)fsp->file_id,
+			(unsigned int)fsp->dev, (double)fsp->inode ));
+	}
+}
+
+/****************************************************************************
+ Find a fsp given a file descriptor.
+****************************************************************************/
+
+files_struct *file_find_fd(int fd)
+{
+	int count=0;
+	files_struct *fsp;
+
+	for (fsp=Files;fsp;fsp=fsp->next,count++) {
+		if (fsp->fd == fd) {
 			if (count > 10) {
 				DLIST_PROMOTE(Files, fsp);
+			}
+			return fsp;
+		}
+	}
+
+	return NULL;
+}
+
+/****************************************************************************
+ Find a fsp given a device, inode and file_id.
+****************************************************************************/
+
+files_struct *file_find_dif(SMB_DEV_T dev, SMB_INO_T inode, unsigned long file_id)
+{
+	int count=0;
+	files_struct *fsp;
+
+	for (fsp=Files;fsp;fsp=fsp->next,count++) {
+		/* We can have a fsp->fd == -1 here as it could be a stat open. */
+		if (fsp->dev == dev && 
+		    fsp->inode == inode &&
+		    fsp->file_id == file_id ) {
+			if (count > 10) {
+				DLIST_PROMOTE(Files, fsp);
+			}
+			/* Paranoia check. */
+			if (fsp->fd == -1 && fsp->oplock_type != NO_OPLOCK) {
+				DEBUG(0,("file_find_dif: file %s dev = %x, inode = %.0f, file_id = %u \
+oplock_type = %u is a stat open with oplock type !\n", fsp->fsp_name, (unsigned int)fsp->dev,
+						(double)fsp->inode, (unsigned int)fsp->file_id,
+						(unsigned int)fsp->oplock_type ));
+				smb_panic("file_find_dif\n");
 			}
 			return fsp;
 		}
@@ -290,21 +311,35 @@ files_struct *file_find_fsp(files_struct *orig_fsp)
 
 /****************************************************************************
  Find the first fsp given a device and inode.
+ We use a singleton cache here to speed up searching from getfilepathinfo
+ calls.
 ****************************************************************************/
 
 files_struct *file_find_di_first(SMB_DEV_T dev, SMB_INO_T inode)
 {
-    files_struct *fsp;
+	files_struct *fsp;
 
-    for (fsp=Files;fsp;fsp=fsp->next) {
-        if (fsp->open &&
-			fsp->fd_ptr != NULL &&
-            fsp->fd_ptr->dev == dev &&
-            fsp->fd_ptr->inode == inode )
-            return fsp;
-    }
+	if (fsp_fi_cache.dev == dev && fsp_fi_cache.inode == inode) {
+		/* Positive or negative cache hit. */
+		return fsp_fi_cache.fsp;
+	}
 
-    return NULL;
+	fsp_fi_cache.dev = dev;
+	fsp_fi_cache.inode = inode;
+
+	for (fsp=Files;fsp;fsp=fsp->next) {
+		if ( fsp->fd != -1 &&
+				fsp->dev == dev &&
+				fsp->inode == inode ) {
+			/* Setup positive cache. */
+			fsp_fi_cache.fsp = fsp;
+			return fsp;
+		}
+	}
+
+	/* Setup negative cache. */
+	fsp_fi_cache.fsp = NULL;
+	return NULL;
 }
 
 /****************************************************************************
@@ -313,79 +348,88 @@ files_struct *file_find_di_first(SMB_DEV_T dev, SMB_INO_T inode)
 
 files_struct *file_find_di_next(files_struct *start_fsp)
 {
-    files_struct *fsp;
+	files_struct *fsp;
 
-    for (fsp = start_fsp->next;fsp;fsp=fsp->next) {
-        if (fsp->open &&
-			fsp->fd_ptr != NULL &&
-            fsp->fd_ptr->dev == start_fsp->fd_ptr->dev &&
-            fsp->fd_ptr->inode == start_fsp->fd_ptr->inode )
-            return fsp;
-    }
+	for (fsp = start_fsp->next;fsp;fsp=fsp->next) {
+		if ( fsp->fd != -1 &&
+				fsp->dev == start_fsp->dev &&
+				fsp->inode == start_fsp->inode )
+			return fsp;
+	}
 
-    return NULL;
+	return NULL;
 }
 
 /****************************************************************************
-find a fsp that is open for printing
+ Find a fsp that is open for printing.
 ****************************************************************************/
+
 files_struct *file_find_print(void)
 {
 	files_struct *fsp;
 
 	for (fsp=Files;fsp;fsp=fsp->next) {
-		if (fsp->open && fsp->print_file) return fsp;
+		if (fsp->print_file) {
+			return fsp;
+		}
 	} 
 
 	return NULL;
 }
 
+/****************************************************************************
+ Set a pending modtime across all files with a given dev/ino pair.
+ Record the owner of that modtime.
+****************************************************************************/
+
+void fsp_set_pending_modtime(files_struct *tfsp, time_t pmod)
+{
+	files_struct *fsp;
+
+	if (null_mtime(pmod)) {
+		return;
+	}
+
+	for (fsp = Files;fsp;fsp=fsp->next) {
+		if ( fsp->fd != -1 &&
+				fsp->dev == tfsp->dev &&
+				fsp->inode == tfsp->inode ) {
+			fsp->pending_modtime = pmod;
+			fsp->pending_modtime_owner = False;
+		}
+	}
+
+	tfsp->pending_modtime_owner = True;
+}
 
 /****************************************************************************
-sync open files on a connection
+ Sync open files on a connection.
 ****************************************************************************/
+
 void file_sync_all(connection_struct *conn)
 {
 	files_struct *fsp, *next;
 
 	for (fsp=Files;fsp;fsp=next) {
 		next=fsp->next;
-		if (fsp->open && (conn == fsp->conn) && (fsp->fd_ptr != NULL)) {
+		if ((conn == fsp->conn) && (fsp->fd != -1)) {
 			sync_file(conn,fsp);
 		}
 	}
 }
 
-
 /****************************************************************************
-free up a fd_ptr
+ Free up a fsp.
 ****************************************************************************/
-void fd_ptr_free(file_fd_struct *fd_ptr)
-{
-	DLIST_REMOVE(FileFd, fd_ptr);
 
-	fd_ptr_used--;
-
-	DEBUG(5,("freed fd_ptr structure (%d used)\n", fd_ptr_used));
-
-	/* paranoia */
-	ZERO_STRUCTP(fd_ptr);
-
-	free(fd_ptr);
-}
-
-
-/****************************************************************************
-free up a fsp
-****************************************************************************/
 void file_free(files_struct *fsp)
 {
 	DLIST_REMOVE(Files, fsp);
 
 	string_free(&fsp->fsp_name);
 
-	if ((fsp->fd_ptr != NULL) && fsp->fd_ptr->ref_count == 0) {
-		fd_ptr_free(fsp->fd_ptr);
+	if (fsp->fake_file_handle) {
+		destroy_fake_file_handle(&fsp->fake_file_handle);
 	}
 
 	bitmap_clear(file_bmap, fsp->fnum - FILE_HANDLE_OFFSET);
@@ -398,22 +442,32 @@ void file_free(files_struct *fsp)
 	   information */
 	ZERO_STRUCTP(fsp);
 
-	if (fsp == chain_fsp) chain_fsp = NULL;
+	if (fsp == chain_fsp) {
+		chain_fsp = NULL;
+	}
 
-	free(fsp);
+	/* Closing a file can invalidate the positive cache. */
+	if (fsp == fsp_fi_cache.fsp) {
+		ZERO_STRUCT(fsp_fi_cache);
+	}
+
+	SAFE_FREE(fsp);
 }
 
-
 /****************************************************************************
-get a fsp from a packet given the offset of a 16 bit fnum
+ Get a fsp from a packet given the offset of a 16 bit fnum.
 ****************************************************************************/
+
 files_struct *file_fsp(char *buf, int where)
 {
 	int fnum, count=0;
 	files_struct *fsp;
 
-	if (chain_fsp) return chain_fsp;
+	if (chain_fsp)
+		return chain_fsp;
 
+	if (!buf)
+		return NULL;
 	fnum = SVAL(buf, where);
 
 	for (fsp=Files;fsp;fsp=fsp->next, count++) {
@@ -429,7 +483,7 @@ files_struct *file_fsp(char *buf, int where)
 }
 
 /****************************************************************************
- Reset the chained fsp - done at the start of a packet reply
+ Reset the chained fsp - done at the start of a packet reply.
 ****************************************************************************/
 
 void file_chain_reset(void)
@@ -449,6 +503,7 @@ void file_chain_save(void)
 /****************************************************************************
 Restore the chained fsp - done after an oplock break.
 ****************************************************************************/
+
 void file_chain_restore(void)
 {
 	chain_fsp = oplock_save_chain_fsp;

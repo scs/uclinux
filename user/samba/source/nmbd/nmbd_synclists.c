@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    NBT netbios routines and daemon - version 2
    Copyright (C) Andrew Tridgell 1994-1998
    Copyright (C) Luke Kenneth Casson Leighton 1994-1998
@@ -29,14 +28,11 @@
    also allows us to have more than 1 sync going at once (tridge) */
 
 #include "includes.h"
-#include "smb.h"
-
-extern int DEBUGLEVEL;
 
 struct sync_record {
 	struct sync_record *next, *prev;
-	fstring workgroup;
-	fstring server;
+	unstring workgroup;
+	unstring server;
 	pstring fname;
 	struct in_addr ip;
 	pid_t pid;
@@ -45,44 +41,49 @@ struct sync_record {
 /* a linked list of current sync connections */
 static struct sync_record *syncs;
 
-static FILE *fp;
+static XFILE *fp;
 
 /*******************************************************************
   This is the NetServerEnum callback.
+  Note sname and comment are in UNIX codepage format.
   ******************************************************************/
-static void callback(const char *sname, uint32 stype, const char *comment)
-{
-	fprintf(fp,"\"%s\" %08X \"%s\"\n", sname, stype, comment);
-}
 
+static void callback(const char *sname, uint32 stype, 
+                     const char *comment, void *state)
+{
+	x_fprintf(fp,"\"%s\" %08X \"%s\"\n", sname, stype, comment);
+}
 
 /*******************************************************************
   Synchronise browse lists with another browse server.
   Log in on the remote server's SMB port to their IPC$ service,
   do a NetServerEnum and record the results in fname
 ******************************************************************/
+
 static void sync_child(char *name, int nm_type, 
 		       char *workgroup,
 		       struct in_addr ip, BOOL local, BOOL servers,
 		       char *fname)
 {
 	extern fstring local_machine;
+	fstring unix_workgroup;
 	static struct cli_state cli;
 	uint32 local_type = local ? SV_TYPE_LOCAL_LIST_ONLY : 0;
 	struct nmb_name called, calling;
 
-	if (!cli_initialise(&cli) || !cli_connect(&cli, name, &ip)) {
-		fclose(fp);
+	/* W2K DMB's return empty browse lists on port 445. Use 139.
+	 * Patch from Andy Levine andyl@epicrealm.com.
+	 */
+
+	if (!cli_initialise(&cli) || !cli_set_port(&cli, 139) || !cli_connect(&cli, name, &ip)) {
 		return;
 	}
 
 	make_nmb_name(&calling, local_machine, 0x0);
 	make_nmb_name(&called , name, nm_type);
 
-	if (!cli_session_request(&cli, &calling, &called))
-	{
+	if (!cli_session_request(&cli, &calling, &called)) {
 		cli_shutdown(&cli);
-		fclose(fp);
 		return;
 	}
 
@@ -101,27 +102,31 @@ static void sync_child(char *name, int nm_type,
 		return;
 	}
 
+	/* All the cli_XX functions take UNIX character set. */
+	fstrcpy(unix_workgroup, cli.server_domain?cli.server_domain:workgroup);
+
 	/* Fetch a workgroup list. */
-	cli_NetServerEnum(&cli, cli.server_domain?cli.server_domain:workgroup, 
-			  local_type|SV_TYPE_DOMAIN_ENUM,
-			  callback);
+	cli_NetServerEnum(&cli, unix_workgroup,
+			  local_type|SV_TYPE_DOMAIN_ENUM, 
+			  callback, NULL);
 	
 	/* Now fetch a server list. */
 	if (servers) {
-		cli_NetServerEnum(&cli, workgroup, 
+		fstrcpy(unix_workgroup, workgroup);
+		cli_NetServerEnum(&cli, unix_workgroup, 
 				  local?SV_TYPE_LOCAL_LIST_ONLY:SV_TYPE_ALL,
-				  callback);
+				  callback, NULL);
 	}
 	
 	cli_shutdown(&cli);
 }
-
 
 /*******************************************************************
   initialise a browse sync with another browse server.  Log in on the
   remote server's SMB port to their IPC$ service, do a NetServerEnum
   and record the results
 ******************************************************************/
+
 void sync_browse_lists(struct work_record *work,
 		       char *name, int nm_type, 
 		       struct in_addr ip, BOOL local, BOOL servers)
@@ -129,19 +134,22 @@ void sync_browse_lists(struct work_record *work,
 	struct sync_record *s;
 	static int counter;
 
+	START_PROFILE(sync_browse_lists);
 	/* Check we're not trying to sync with ourselves. This can
 	   happen if we are a domain *and* a local master browser. */
 	if (ismyip(ip)) {
+done:
+		END_PROFILE(sync_browse_lists);
 		return;
 	}
 
-	s = (struct sync_record *)malloc(sizeof(*s));
-	if (!s) return;
+	s = SMB_MALLOC_P(struct sync_record);
+	if (!s) goto done;
 
 	ZERO_STRUCTP(s);
 	
-	fstrcpy(s->workgroup, work->work_group);
-	fstrcpy(s->server, name);
+	unstrcpy(s->workgroup, work->work_group);
+	unstrcpy(s->server, name);
 	s->ip = ip;
 
 	slprintf(s->fname, sizeof(pstring)-1,
@@ -150,31 +158,34 @@ void sync_browse_lists(struct work_record *work,
 	
 	DLIST_ADD(syncs, s);
 
-#ifndef __uClinux__
 	/* the parent forks and returns, leaving the child to do the
-	   actual sync */
+	   actual sync and call END_PROFILE*/
 	CatchChild();
-	if ((s->pid = fork())) return;
+	if ((s->pid = sys_fork())) return;
 
 	BlockSignals( False, SIGTERM );
 
 	DEBUG(2,("Initiating browse sync for %s to %s(%s)\n",
 		 work->work_group, name, inet_ntoa(ip)));
 
-	fp = sys_fopen(s->fname,"w");
-	if (!fp) _exit(1);	
+	fp = x_fopen(s->fname,O_WRONLY|O_CREAT|O_TRUNC, 0644);
+	if (!fp) {
+		END_PROFILE(sync_browse_lists);
+		_exit(1);	
+	}
 
 	sync_child(name, nm_type, work->work_group, ip, local, servers,
 		   s->fname);
 
-	fclose(fp);
+	x_fclose(fp);
+	END_PROFILE(sync_browse_lists);
 	_exit(0);
-#endif
 }
 
 /**********************************************************************
-handle one line from a completed sync file
+ Handle one line from a completed sync file.
  **********************************************************************/
+
 static void complete_one(struct sync_record *s, 
 			 char *sname, uint32 stype, char *comment)
 {
@@ -195,8 +206,7 @@ static void complete_one(struct sync_record *s,
 							  sname, lp_max_ttl());
 			if (work) {
 				/* remember who the master is */
-				fstrcpy(work->local_master_browser_name, 
-					comment);
+				unstrcpy(work->local_master_browser_name, comment);
 			}
 		}
 		return;
@@ -226,27 +236,29 @@ static void complete_one(struct sync_record *s,
 	create_server_on_workgroup(work, sname,stype, lp_max_ttl(), comment);
 }
 		
-
 /**********************************************************************
-read the completed sync info
- **********************************************************************/
+ Read the completed sync info.
+**********************************************************************/
+
 static void complete_sync(struct sync_record *s)
 {
-	FILE *f;
-	fstring server, type_str;
+	XFILE *f;
+	unstring server, type_str;
 	unsigned type;
 	pstring comment;
 	pstring line;
-	char *ptr;
+	const char *ptr;
 	int count=0;
 
-	f = sys_fopen(s->fname,"r");
+	f = x_fopen(s->fname,O_RDONLY, 0);
 
-	if (!f) return;
+	if (!f)
+		return;
 	
-	while (!feof(f)) {
+	while (!x_feof(f)) {
 		
-		if (!fgets_slash(line,sizeof(pstring),f)) continue;
+		if (!fgets_slash(line,sizeof(pstring),f))
+			continue;
 		
 		ptr = line;
 
@@ -263,7 +275,7 @@ static void complete_sync(struct sync_record *s)
 		count++;
 	}
 
-	fclose(f);
+	x_fclose(f);
 
 	unlink(s->fname);
 
@@ -272,8 +284,9 @@ static void complete_sync(struct sync_record *s)
 }
 
 /**********************************************************************
-check for completion of any of the child processes
- **********************************************************************/
+ Check for completion of any of the child processes.
+**********************************************************************/
+
 void sync_check_completion(void)
 {
 	struct sync_record *s, *next;
@@ -285,7 +298,7 @@ void sync_check_completion(void)
 			complete_sync(s);
 			DLIST_REMOVE(syncs, s);
 			ZERO_STRUCTP(s);
-			free(s);
+			SAFE_FREE(s);
 		}
 	}
 }

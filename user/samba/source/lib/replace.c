@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    replacement routines for broken systems
    Copyright (C) Andrew Tridgell 1992-1998
    
@@ -21,11 +20,8 @@
 
 #include "includes.h"
 
-extern int DEBUGLEVEL;
-
  void replace_dummy(void);
  void replace_dummy(void) {}
-
 
 #ifndef HAVE_FTRUNCATE
  /*******************************************************************
@@ -43,6 +39,45 @@ ftruncate for operating systems that don't have it
 }
 #endif /* HAVE_FTRUNCATE */
 
+
+#ifndef HAVE_STRLCPY
+/* like strncpy but does not 0 fill the buffer and always null 
+   terminates. bufsize is the size of the destination buffer */
+ size_t strlcpy(char *d, const char *s, size_t bufsize)
+{
+	size_t len = strlen(s);
+	size_t ret = len;
+	if (bufsize <= 0) return 0;
+	if (len >= bufsize) len = bufsize-1;
+	memcpy(d, s, len);
+	d[len] = 0;
+	return ret;
+}
+#endif
+
+#ifndef HAVE_STRLCAT
+/* like strncat but does not 0 fill the buffer and always null 
+   terminates. bufsize is the length of the buffer, which should
+   be one more than the maximum resulting string length */
+ size_t strlcat(char *d, const char *s, size_t bufsize)
+{
+	size_t len1 = strlen(d);
+	size_t len2 = strlen(s);
+	size_t ret = len1 + len2;
+
+	if (len1 >= bufsize) {
+		return 0;
+	}
+	if (len1+len2 >= bufsize) {
+		len2 = bufsize - (len1+1);
+	}
+	if (len2 > 0) {
+		memcpy(d+len1, s, len2);
+		d[len1+len2] = 0;
+	}
+	return ret;
+}
+#endif
 
 #ifndef HAVE_MKTIME
 /*******************************************************************
@@ -127,7 +162,7 @@ Corrections by richard.kettlewell@kewill.com
 /*
  * Search for a match in a netgroup. This replaces it on broken systems.
  */
- int innetgr(char *group,char *host,char *user,char *dom)
+ int innetgr(const char *group,const char *host,const char *user,const char *dom)
 {
 	char *hst, *usr, *dm;
   
@@ -170,8 +205,8 @@ Corrections by richard.kettlewell@kewill.com
 	struct group *g;
 	char   *gr;
 	
-	if((grouplst = (gid_t *)malloc(sizeof(gid_t) * max_gr)) == NULL) {
-		DEBUG(0,("initgroups: malloc fail !\n");
+	if((grouplst = SMB_MALLOC_ARRAY(gid_t, max_gr)) == NULL) {
+		DEBUG(0,("initgroups: malloc fail !\n"));
 		return -1;
 	}
 
@@ -194,7 +229,7 @@ Corrections by richard.kettlewell@kewill.com
 	}
 	endgrent();
 	ret = sys_setgroups(i,grouplst);
-	free((char *)grouplst);
+	SAFE_FREE(grouplst);
 	return ret;
 #endif /* HAVE_SETGROUPS */
 }
@@ -276,6 +311,11 @@ needs.
 /****************************************************************************
 duplicate a string
 ****************************************************************************/
+
+#ifdef strdup
+#undef strdup
+#endif
+
  char *strdup(const char *s)
 {
 	size_t len;
@@ -284,7 +324,7 @@ duplicate a string
 	if (!s) return(NULL);
 
 	len = strlen(s)+1;
-	ret = (char *)malloc(len);
+	ret = (char *)SMB_MALLOC(len);
 	if (!ret) return(NULL);
 	memcpy(ret,s,len);
 	return(ret);
@@ -296,13 +336,8 @@ char *rep_inet_ntoa(struct in_addr ip)
 {
 	unsigned char *p = (unsigned char *)&ip.s_addr;
 	static char buf[18];
-#if WORDS_BIGENDIAN
 	slprintf(buf, 17, "%d.%d.%d.%d", 
 		 (int)p[0], (int)p[1], (int)p[2], (int)p[3]);
-#else /* WORDS_BIGENDIAN */
-	slprintf(buf, 17, "%d.%d.%d.%d", 
-		 (int)p[3], (int)p[2], (int)p[1], (int)p[0]);
-#endif /* WORDS_BIGENDIAN */
 	return buf;
 }
 #endif /* REPLACE_INET_NTOA */
@@ -375,3 +410,48 @@ char *rep_inet_ntoa(struct in_addr ip)
 	return (acc);
 }
 #endif /* HAVE_STRTOUL */
+
+#ifndef HAVE_SETLINEBUF
+ int setlinebuf(FILE *stream)
+{
+	return setvbuf(stream, (char *)NULL, _IOLBF, 0);
+}
+#endif /* HAVE_SETLINEBUF */
+
+#ifndef HAVE_VSYSLOG
+#ifdef HAVE_SYSLOG
+ void vsyslog (int facility_priority, const char *format, va_list arglist)
+{
+	char *msg = NULL;
+	vasprintf(&msg, format, arglist);
+	if (!msg)
+		return;
+	syslog(facility_priority, "%s", msg);
+	SAFE_FREE(msg);
+}
+#endif /* HAVE_SYSLOG */
+#endif /* HAVE_VSYSLOG */
+
+
+#ifndef HAVE_TIMEGM
+/*
+  yes, I know this looks insane, but its really needed. The function in the 
+  Linux timegm() manpage does not work on solaris.
+*/
+ time_t timegm(struct tm *tm) 
+{
+	struct tm tm2, tm3;
+	time_t t;
+
+	tm2 = *tm;
+
+	t = mktime(&tm2);
+	tm3 = *localtime(&t);
+	tm2 = *tm;
+	tm2.tm_isdst = tm3.tm_isdst;
+	t = mktime(&tm2);
+	t -= TimeDiff(t);
+
+	return t;
+}
+#endif

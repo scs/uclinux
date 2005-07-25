@@ -8,7 +8,7 @@
 #include "includes.h"
 
 #include <mntent.h>
-
+#define __kernel_key_t __smb_____kernel_key_t
 #include <asm/types.h>
 #include <asm/posix_types.h>
 #include <linux/smb.h>
@@ -39,7 +39,7 @@ umount_ok(const char *mount_point)
 	/* we set O_NOFOLLOW to prevent users playing games with symlinks to
 	   umount filesystems they don't own */
         int fid = open(mount_point, O_RDONLY|O_NOFOLLOW, 0);
-        __kernel_uid_t mount_uid;
+        __kernel_uid32_t mount_uid;
 	
         if (fid == -1) {
                 fprintf(stderr, "Could not open %s: %s\n",
@@ -47,10 +47,14 @@ umount_ok(const char *mount_point)
                 return -1;
         }
         
-        if (ioctl(fid, SMB_IOC_GETMOUNTUID, &mount_uid) != 0) {
-                fprintf(stderr, "%s probably not smb-filesystem\n",
-                        mount_point);
-                return -1;
+        if (ioctl(fid, SMB_IOC_GETMOUNTUID32, &mount_uid) != 0) {
+                __kernel_uid_t mount_uid16;
+                if (ioctl(fid, SMB_IOC_GETMOUNTUID, &mount_uid16) != 0) {
+                        fprintf(stderr, "%s probably not smb-filesystem\n",
+                                mount_point);
+                        return -1;
+                }
+                mount_uid = mount_uid16;
         }
 
         if ((getuid() != 0)
@@ -74,6 +78,11 @@ canonicalize (char *path)
 {
 	char *canonical = malloc (PATH_MAX + 1);
 
+	if (!canonical) {
+		fprintf(stderr, "Error! Not enough memory!\n");
+		return NULL;
+	}
+
 	if (strlen(path) > PATH_MAX) {
 		fprintf(stderr, "Mount point string too long\n");
 		return NULL;
@@ -85,7 +94,8 @@ canonicalize (char *path)
 	if (realpath (path, canonical))
 		return canonical;
 
-	pstrcpy (canonical, path);
+	strncpy (canonical, path, PATH_MAX);
+	canonical[PATH_MAX] = '\0';
 	return canonical;
 }
 

@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
 
    a partial implementation of DES designed for use in the 
    SMB authentication protocol
@@ -49,7 +48,7 @@
 
 #define uchar unsigned char
 
-static uchar perm1[56] = {57, 49, 41, 33, 25, 17,  9,
+static const uchar perm1[56] = {57, 49, 41, 33, 25, 17,  9,
 			 1, 58, 50, 42, 34, 26, 18,
 			10,  2, 59, 51, 43, 35, 27,
 			19, 11,  3, 60, 52, 44, 36,
@@ -58,7 +57,7 @@ static uchar perm1[56] = {57, 49, 41, 33, 25, 17,  9,
 			14,  6, 61, 53, 45, 37, 29,
 			21, 13,  5, 28, 20, 12,  4};
 
-static uchar perm2[48] = {14, 17, 11, 24,  1,  5,
+static const uchar perm2[48] = {14, 17, 11, 24,  1,  5,
                          3, 28, 15,  6, 21, 10,
                         23, 19, 12,  4, 26,  8,
                         16,  7, 27, 20, 13,  2,
@@ -67,7 +66,7 @@ static uchar perm2[48] = {14, 17, 11, 24,  1,  5,
                         44, 49, 39, 56, 34, 53,
                         46, 42, 50, 36, 29, 32};
 
-static uchar perm3[64] = {58, 50, 42, 34, 26, 18, 10,  2,
+static const uchar perm3[64] = {58, 50, 42, 34, 26, 18, 10,  2,
 			60, 52, 44, 36, 28, 20, 12,  4,
 			62, 54, 46, 38, 30, 22, 14,  6,
 			64, 56, 48, 40, 32, 24, 16,  8,
@@ -76,7 +75,7 @@ static uchar perm3[64] = {58, 50, 42, 34, 26, 18, 10,  2,
 			61, 53, 45, 37, 29, 21, 13,  5,
 			63, 55, 47, 39, 31, 23, 15,  7};
 
-static uchar perm4[48] = {   32,  1,  2,  3,  4,  5,
+static const uchar perm4[48] = {   32,  1,  2,  3,  4,  5,
                             4,  5,  6,  7,  8,  9,
                             8,  9, 10, 11, 12, 13,
                            12, 13, 14, 15, 16, 17,
@@ -85,7 +84,7 @@ static uchar perm4[48] = {   32,  1,  2,  3,  4,  5,
                            24, 25, 26, 27, 28, 29,
                            28, 29, 30, 31, 32,  1};
 
-static uchar perm5[32] = {      16,  7, 20, 21,
+static const uchar perm5[32] = {      16,  7, 20, 21,
                               29, 12, 28, 17,
                                1, 15, 23, 26,
                                5, 18, 31, 10,
@@ -95,7 +94,7 @@ static uchar perm5[32] = {      16,  7, 20, 21,
                               22, 11,  4, 25};
 
 
-static uchar perm6[64] ={ 40,  8, 48, 16, 56, 24, 64, 32,
+static const uchar perm6[64] ={ 40,  8, 48, 16, 56, 24, 64, 32,
                         39,  7, 47, 15, 55, 23, 63, 31,
                         38,  6, 46, 14, 54, 22, 62, 30,
                         37,  5, 45, 13, 53, 21, 61, 29,
@@ -105,9 +104,9 @@ static uchar perm6[64] ={ 40,  8, 48, 16, 56, 24, 64, 32,
                         33,  1, 41,  9, 49, 17, 57, 25};
 
 
-static uchar sc[16] = {1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1};
+static const uchar sc[16] = {1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1};
 
-static uchar sbox[8][4][16] = {
+static const uchar sbox[8][4][16] = {
 	{{14,  4, 13,  1,  2, 15, 11,  8,  3, 10,  6, 12,  5,  9,  0,  7},
 	 {0, 15,  7,  4, 14,  2, 13,  1, 10,  6, 12, 11,  9,  5,  3,  8},
 	 {4,  1, 14,  8, 13,  6,  2, 11, 15, 12,  9,  7,  3, 10,  5,  0},
@@ -148,7 +147,7 @@ static uchar sbox[8][4][16] = {
 	 {7, 11,  4,  1,  9, 12, 14,  2,  0,  6, 10, 13, 15,  3,  5,  8},
 	 {2,  1, 14,  7,  4, 10,  8, 13, 15, 12,  9,  0,  3,  5,  6, 11}}};
 
-static void permute(char *out, char *in, uchar *p, int n)
+static void permute(char *out, const char *in, const uchar *p, int n)
 {
 	int i;
 	for (i=0;i<n;i++)
@@ -259,7 +258,7 @@ static void dohash(char *out, char *in, char *key, int forw)
 	permute(out, rl, perm6, 64);
 }
 
-static void str_to_key(unsigned char *str,unsigned char *key)
+static void str_to_key(const unsigned char *str,unsigned char *key)
 {
 	int i;
 
@@ -277,7 +276,7 @@ static void str_to_key(unsigned char *str,unsigned char *key)
 }
 
 
-static void smbhash(unsigned char *out, unsigned char *in, unsigned char *key, int forw)
+static void smbhash(unsigned char *out, const unsigned char *in, const unsigned char *key, int forw)
 {
 	int i;
 	char outb[64];
@@ -305,33 +304,33 @@ static void smbhash(unsigned char *out, unsigned char *in, unsigned char *key, i
 	}
 }
 
-void E_P16(unsigned char *p14,unsigned char *p16)
+void E_P16(const unsigned char *p14,unsigned char *p16)
 {
 	unsigned char sp8[8] = {0x4b, 0x47, 0x53, 0x21, 0x40, 0x23, 0x24, 0x25};
 	smbhash(p16, sp8, p14, 1);
 	smbhash(p16+8, sp8, p14+7, 1);
 }
 
-void E_P24(unsigned char *p21, unsigned char *c8, unsigned char *p24)
+void E_P24(const unsigned char *p21, const unsigned char *c8, unsigned char *p24)
 {
 	smbhash(p24, c8, p21, 1);
 	smbhash(p24+8, c8, p21+7, 1);
 	smbhash(p24+16, c8, p21+14, 1);
 }
 
-void D_P16(unsigned char *p14, unsigned char *in, unsigned char *out)
+void D_P16(const unsigned char *p14, const unsigned char *in, unsigned char *out)
 {
 	smbhash(out, in, p14, 0);
         smbhash(out+8, in+8, p14+7, 0);
 }
 
-void E_old_pw_hash( unsigned char *p14, unsigned char *in, unsigned char *out)
+void E_old_pw_hash( unsigned char *p14, const unsigned char *in, unsigned char *out)
 {
         smbhash(out, in, p14, 1);
         smbhash(out+8, in+8, p14+7, 1);
 }
 
-void cred_hash1(unsigned char *out,unsigned char *in,unsigned char *key)
+void cred_hash1(unsigned char *out, const unsigned char *in, const unsigned char *key)
 {
 	unsigned char buf[8];
 
@@ -339,7 +338,7 @@ void cred_hash1(unsigned char *out,unsigned char *in,unsigned char *key)
 	smbhash(out, buf, key+9, 1);
 }
 
-void cred_hash2(unsigned char *out,unsigned char *in,unsigned char *key)
+void cred_hash2(unsigned char *out, const unsigned char *in, const unsigned char *key)
 {
 	unsigned char buf[8];
 	static unsigned char key2[8];
@@ -349,7 +348,7 @@ void cred_hash2(unsigned char *out,unsigned char *in,unsigned char *key)
 	smbhash(out, buf, key2, 1);
 }
 
-void cred_hash3(unsigned char *out,unsigned char *in,unsigned char *key, int forw)
+void cred_hash3(unsigned char *out, unsigned char *in, const unsigned char *key, int forw)
 {
         static unsigned char key2[8];
 
@@ -358,7 +357,7 @@ void cred_hash3(unsigned char *out,unsigned char *in,unsigned char *key, int for
         smbhash(out + 8, in + 8, key2, forw);
 }
 
-void SamOEMhash( unsigned char *data, unsigned char *key, int val)
+void SamOEMhash( unsigned char *data, const unsigned char *key, int val)
 {
   unsigned char s_box[256];
   unsigned char index_i = 0;
@@ -381,7 +380,7 @@ void SamOEMhash( unsigned char *data, unsigned char *key, int val)
      s_box[ind] = s_box[j];
      s_box[j] = tc;
   }
-  for( ind = 0; ind < (val ? 516 : 16); ind++)
+  for( ind = 0; ind < val; ind++)
   {
     unsigned char tc;
     unsigned char t;
@@ -396,4 +395,61 @@ void SamOEMhash( unsigned char *data, unsigned char *key, int val)
     t = s_box[index_i] + s_box[index_j];
     data[ind] = data[ind] ^ s_box[t];
   }
+}
+
+void SamOEMhashBlob( unsigned char *data, int len, DATA_BLOB *key)
+{
+  unsigned char s_box[256];
+  unsigned char index_i = 0;
+  unsigned char index_j = 0;
+  unsigned char j = 0;
+  int ind;
+
+  for (ind = 0; ind < 256; ind++)
+  {
+    s_box[ind] = (unsigned char)ind;
+  }
+
+  for( ind = 0; ind < 256; ind++)
+  {
+     unsigned char tc;
+
+     j += (s_box[ind] + key->data[ind%key->length]);
+
+     tc = s_box[ind];
+     s_box[ind] = s_box[j];
+     s_box[j] = tc;
+  }
+  for( ind = 0; ind < len; ind++)
+  {
+    unsigned char tc;
+    unsigned char t;
+
+    index_i++;
+    index_j += s_box[index_i];
+
+    tc = s_box[index_i];
+    s_box[index_i] = s_box[index_j];
+    s_box[index_j] = tc;
+
+    t = s_box[index_i] + s_box[index_j];
+    data[ind] = data[ind] ^ s_box[t];
+  }
+}
+
+/* Decode a sam password hash into a password.  The password hash is the
+   same method used to store passwords in the NT registry.  The DES key
+   used is based on the RID of the user. */
+
+void sam_pwd_hash(unsigned int rid, const uchar *in, uchar *out, int forw)
+{
+	uchar s[14];
+
+	s[0] = s[4] = s[8] = s[12] = (uchar)(rid & 0xFF);
+	s[1] = s[5] = s[9] = s[13] = (uchar)((rid >> 8) & 0xFF);
+	s[2] = s[6] = s[10]        = (uchar)((rid >> 16) & 0xFF);
+	s[3] = s[7] = s[11]        = (uchar)((rid >> 24) & 0xFF);
+
+	smbhash(out, in, s, forw);
+	smbhash(out+8, in+8, s+7, forw);
 }

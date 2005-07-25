@@ -1,7 +1,5 @@
-
 /* 
- *  Unix SMB/Netbios implementation.
- *  Version 1.9.
+ *  Unix SMB/CIFS implementation.
  *  RPC Pipe client / server routines
  *  Copyright (C) Andrew Tridgell              1992-1997,
  *  Copyright (C) Luke Kenneth Casson Leighton 1996-1997,
@@ -23,11 +21,10 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-
 #include "includes.h"
 
-extern int DEBUGLEVEL;
-
+#undef DBGC_CLASS
+#define DBGC_CLASS DBGC_RPC_PARSE
 
 /*******************************************************************
 interface/version dce/rpc pipe identification
@@ -37,7 +34,8 @@ interface/version dce/rpc pipe identification
 {                                           \
 	{                                   \
 		0x8a885d04, 0x1ceb, 0x11c9, \
-		{ 0x9f, 0xe8, 0x08, 0x00,   \
+		{ 0x9f, 0xe8 },             \
+		{ 0x08, 0x00,               \
 		0x2b, 0x10, 0x48, 0x60 }    \
 	}, 0x02                             \
 }
@@ -46,7 +44,8 @@ interface/version dce/rpc pipe identification
 {                                           \
 	{                                   \
 		0x8a885d04, 0x1ceb, 0x11c9, \
-		{ 0x9f, 0xe8, 0x08, 0x00,   \
+		{ 0x9f, 0xe8 },             \
+		{ 0x08, 0x00,               \
 		0x2b, 0x10, 0x48, 0x60 }    \
 	}, 0x02                             \
 }
@@ -55,7 +54,8 @@ interface/version dce/rpc pipe identification
 {                                           \
 	{                                   \
 		0x6bffd098, 0xa112, 0x3610, \
-		{ 0x98, 0x33, 0x46, 0xc3,   \
+		{ 0x98, 0x33 },             \
+		{ 0x46, 0xc3,               \
 		0xf8, 0x7e, 0x34, 0x5a }    \
 	}, 0x01                             \
 }
@@ -64,7 +64,8 @@ interface/version dce/rpc pipe identification
 {                                           \
 	{                                   \
 		0x4b324fc8, 0x1670, 0x01d3, \
-		{ 0x12, 0x78, 0x5a, 0x47,   \
+		{ 0x12, 0x78 },             \
+		{ 0x5a, 0x47,               \
 		0xbf, 0x6e, 0xe1, 0x88 }    \
 	}, 0x03                             \
 }
@@ -73,8 +74,19 @@ interface/version dce/rpc pipe identification
 {                                           \
 	{                                   \
 		0x12345778, 0x1234, 0xabcd, \
-		{ 0xef, 0x00, 0x01, 0x23,   \
+		{ 0xef, 0x00 },             \
+		{ 0x01, 0x23,               \
 		0x45, 0x67, 0x89, 0xab }    \
+	}, 0x00                             \
+}
+
+#define SYNT_LSARPC_V0_DS                \
+{                                           \
+	{                                   \
+		0x3919286a, 0xb10c, 0x11d0, \
+		{ 0x9b, 0xa8 },             \
+		{ 0x00, 0xc0,               \
+		0x4f, 0xd9, 0x2e, 0xf5 }    \
 	}, 0x00                             \
 }
 
@@ -82,7 +94,8 @@ interface/version dce/rpc pipe identification
 {                                           \
 	{                                   \
 		0x12345778, 0x1234, 0xabcd, \
-		{ 0xef, 0x00, 0x01, 0x23,   \
+		{ 0xef, 0x00 },             \
+		{ 0x01, 0x23,               \
 		0x45, 0x67, 0x89, 0xac }    \
 	}, 0x01                             \
 }
@@ -91,7 +104,8 @@ interface/version dce/rpc pipe identification
 {                                           \
 	{                                   \
 		0x12345678, 0x1234, 0xabcd, \
-		{ 0xef, 0x00, 0x01, 0x23,   \
+		{ 0xef, 0x00 },             \
+		{ 0x01, 0x23,               \
 		0x45, 0x67, 0xcf, 0xfb }    \
 	}, 0x01                             \
 }
@@ -100,8 +114,19 @@ interface/version dce/rpc pipe identification
 {                                           \
 	{                                   \
 		0x338cd001, 0x2244, 0x31f1, \
-		{ 0xaa, 0xaa, 0x90, 0x00,   \
+		{ 0xaa, 0xaa },             \
+		{ 0x90, 0x00,               \
 		0x38, 0x00, 0x10, 0x03 }    \
+	}, 0x01                             \
+}
+
+#define SYNT_SPOOLSS_V1                     \
+{                                           \
+	{                                   \
+		0x12345678, 0x1234, 0xabcd, \
+		{ 0xef, 0x00 },             \
+		{ 0x01, 0x23,               \
+		0x45, 0x67, 0x89, 0xab }    \
 	}, 0x01                             \
 }
 
@@ -109,32 +134,62 @@ interface/version dce/rpc pipe identification
 {                                           \
 	{                                   \
 		0x0, 0x0, 0x0,              \
-		{ 0x00, 0x00, 0x00, 0x00,   \
+		{ 0x00, 0x00 },             \
+		{ 0x00, 0x00,               \
 		0x00, 0x00, 0x00, 0x00 }    \
 	}, 0x00                             \
 }
 
-/* pipe string names */
-#define PIPE_SRVSVC   "\\PIPE\\srvsvc"
-#define PIPE_SAMR     "\\PIPE\\samr"
-#define PIPE_WINREG   "\\PIPE\\winreg"
-#define PIPE_WKSSVC   "\\PIPE\\wkssvc"
-#define PIPE_NETLOGON "\\PIPE\\NETLOGON"
-#define PIPE_NTLSA    "\\PIPE\\ntlsa"
-#define PIPE_NTSVCS   "\\PIPE\\ntsvcs"
-#define PIPE_LSASS    "\\PIPE\\lsass"
-#define PIPE_LSARPC   "\\PIPE\\lsarpc"
+#define SYNT_NETDFS_V3                      \
+{                                           \
+        {                                   \
+                0x4fc742e0, 0x4a10, 0x11cf, \
+                { 0x82, 0x73 },             \
+		{ 0x00, 0xaa,               \
+                  0x00, 0x4a, 0xe6, 0x73 }  \
+        }, 0x03                             \
+}
 
-struct pipe_id_info pipe_names [] =
+#define SYNT_ECHO_V1                        \
+{                                           \
+        {                                   \
+                0x60a15ec5, 0x4de8, 0x11d7, \
+                { 0xa6, 0x37 },             \
+		{ 0x00, 0x50,               \
+                  0x56, 0xa2, 0x01, 0x82 }  \
+        }, 0x01                             \
+}
+
+#define SYNT_SHUTDOWN_V1                    \
+{                                           \
+        {                                   \
+                0x894de0c0, 0x0d55, 0x11d3, \
+                { 0xa3, 0x22 },             \
+		{ 0x00, 0xc0,               \
+                  0x4f, 0xa3, 0x21, 0xa1 }  \
+        }, 0x01                             \
+}
+
+/*
+ * IMPORTANT!!  If you update this structure, make sure to
+ * update the index #defines in smb.h.
+ */
+
+const struct pipe_id_info pipe_names [] =
 {
-	/* client pipe , abstract syntax , server pipe   , transfer syntax */
-	{ PIPE_LSARPC  , SYNT_LSARPC_V0  , PIPE_LSASS    , TRANS_SYNT_V2 },
-	{ PIPE_SAMR    , SYNT_SAMR_V1    , PIPE_LSASS    , TRANS_SYNT_V2 },
-	{ PIPE_NETLOGON, SYNT_NETLOGON_V1, PIPE_LSASS    , TRANS_SYNT_V2 },
-	{ PIPE_SRVSVC  , SYNT_SRVSVC_V3  , PIPE_NTSVCS   , TRANS_SYNT_V2 },
-	{ PIPE_WKSSVC  , SYNT_WKSSVC_V1  , PIPE_NTSVCS   , TRANS_SYNT_V2 },
-	{ PIPE_WINREG  , SYNT_WINREG_V1  , PIPE_WINREG   , TRANS_SYNT_V2 },
-	{ NULL         , SYNT_NONE_V0    , NULL          , SYNT_NONE_V0  }
+	/* client pipe , abstract syntax       , server pipe   , transfer syntax */
+	{ PIPE_LSARPC  , SYNT_LSARPC_V0        , PIPE_LSASS    , TRANS_SYNT_V2 },
+	{ PIPE_LSARPC  , SYNT_LSARPC_V0_DS     , PIPE_LSASS    , TRANS_SYNT_V2 },
+	{ PIPE_SAMR    , SYNT_SAMR_V1          , PIPE_LSASS    , TRANS_SYNT_V2 },
+	{ PIPE_NETLOGON, SYNT_NETLOGON_V1      , PIPE_LSASS    , TRANS_SYNT_V2 },
+	{ PIPE_SRVSVC  , SYNT_SRVSVC_V3        , PIPE_NTSVCS   , TRANS_SYNT_V2 },
+	{ PIPE_WKSSVC  , SYNT_WKSSVC_V1        , PIPE_NTSVCS   , TRANS_SYNT_V2 },
+	{ PIPE_WINREG  , SYNT_WINREG_V1        , PIPE_WINREG   , TRANS_SYNT_V2 },
+	{ PIPE_SPOOLSS , SYNT_SPOOLSS_V1       , PIPE_SPOOLSS  , TRANS_SYNT_V2 },
+	{ PIPE_NETDFS  , SYNT_NETDFS_V3        , PIPE_NETDFS   , TRANS_SYNT_V2 },
+	{ PIPE_ECHO    , SYNT_ECHO_V1          , PIPE_ECHO     , TRANS_SYNT_V2 },
+	{ PIPE_SHUTDOWN, SYNT_SHUTDOWN_V1      , PIPE_SHUTDOWN , TRANS_SYNT_V2 },
+	{ NULL         , SYNT_NONE_V0          , NULL          , SYNT_NONE_V0  }
 };
 
 /*******************************************************************
@@ -161,7 +216,7 @@ void init_rpc_hdr(RPC_HDR *hdr, enum RPC_PKT_TYPE pkt_type, uint8 flags,
  Reads or writes an RPC_HDR structure.
 ********************************************************************/
 
-BOOL smb_io_rpc_hdr(char *desc,  RPC_HDR *rpc, prs_struct *ps, int depth)
+BOOL smb_io_rpc_hdr(const char *desc,  RPC_HDR *rpc, prs_struct *ps, int depth)
 {
 	if (rpc == NULL)
 		return False;
@@ -178,6 +233,11 @@ BOOL smb_io_rpc_hdr(char *desc,  RPC_HDR *rpc, prs_struct *ps, int depth)
 		return False;
 	if(!prs_uint8 ("flags     ", ps, depth, &rpc->flags))
 		return False;
+
+	/* We always marshall in little endian format. */
+	if (MARSHALLING(ps))
+		rpc->pack_type[0] = 0x10;
+
 	if(!prs_uint8("pack_type0", ps, depth, &rpc->pack_type[0]))
 		return False;
 	if(!prs_uint8("pack_type1", ps, depth, &rpc->pack_type[1]))
@@ -192,9 +252,9 @@ BOOL smb_io_rpc_hdr(char *desc,  RPC_HDR *rpc, prs_struct *ps, int depth)
 	 * format. Set the flag in the prs_struct to specify reverse-endainness.
 	 */
 
-	if (ps->io && rpc->pack_type[0] == 0) {
+	if (UNMARSHALLING(ps) && rpc->pack_type[0] == 0) {
 		DEBUG(10,("smb_io_rpc_hdr: PDU data format is big-endian. Setting flag.\n"));
-		prs_set_bigendian_data(ps);
+		prs_set_endian_data(ps, RPC_BIG_ENDIAN);
 	}
 
 	if(!prs_uint16("frag_len  ", ps, depth, &rpc->frag_len))
@@ -210,7 +270,7 @@ BOOL smb_io_rpc_hdr(char *desc,  RPC_HDR *rpc, prs_struct *ps, int depth)
  Reads or writes an RPC_IFACE structure.
 ********************************************************************/
 
-static BOOL smb_io_rpc_iface(char *desc, RPC_IFACE *ifc, prs_struct *ps, int depth)
+static BOOL smb_io_rpc_iface(const char *desc, RPC_IFACE *ifc, prs_struct *ps, int depth)
 {
 	if (ifc == NULL)
 		return False;
@@ -218,19 +278,13 @@ static BOOL smb_io_rpc_iface(char *desc, RPC_IFACE *ifc, prs_struct *ps, int dep
 	prs_debug(ps, depth, desc, "smb_io_rpc_iface");
 	depth++;
 
-	if(!prs_align(ps))
+	if (!prs_align(ps))
 		return False;
 
-	if(!prs_uint32 ("data   ", ps, depth, &ifc->uuid.time_low))
-		return False;
-	if(!prs_uint16 ("data   ", ps, depth, &ifc->uuid.time_mid))
-		return False;
-	if(!prs_uint16 ("data   ", ps, depth, &ifc->uuid.time_hi_and_version))
+	if (!smb_io_uuid(  "uuid", &ifc->uuid, ps, depth))
 		return False;
 
-	if(!prs_uint8s (False, "data   ", ps, depth, ifc->uuid.remaining, sizeof(ifc->uuid.remaining)))
-		return False;
-	if(!prs_uint32 (       "version", ps, depth, &(ifc->version)))
+	if(!prs_uint32 ("version", ps, depth, &ifc->version))
 		return False;
 
 	return True;
@@ -240,7 +294,7 @@ static BOOL smb_io_rpc_iface(char *desc, RPC_IFACE *ifc, prs_struct *ps, int dep
  Inits an RPC_ADDR_STR structure.
 ********************************************************************/
 
-static void init_rpc_addr_str(RPC_ADDR_STR *str, char *name)
+static void init_rpc_addr_str(RPC_ADDR_STR *str, const char *name)
 {
 	str->len = strlen(name) + 1;
 	fstrcpy(str->str, name);
@@ -250,7 +304,7 @@ static void init_rpc_addr_str(RPC_ADDR_STR *str, char *name)
  Reads or writes an RPC_ADDR_STR structure.
 ********************************************************************/
 
-static BOOL smb_io_rpc_addr_str(char *desc,  RPC_ADDR_STR *str, prs_struct *ps, int depth)
+static BOOL smb_io_rpc_addr_str(const char *desc,  RPC_ADDR_STR *str, prs_struct *ps, int depth)
 {
 	if (str == NULL)
 		return False;
@@ -282,7 +336,7 @@ static void init_rpc_hdr_bba(RPC_HDR_BBA *bba, uint16 max_tsize, uint16 max_rsiz
  Reads or writes an RPC_HDR_BBA structure.
 ********************************************************************/
 
-static BOOL smb_io_rpc_hdr_bba(char *desc,  RPC_HDR_BBA *rpc, prs_struct *ps, int depth)
+static BOOL smb_io_rpc_hdr_bba(const char *desc,  RPC_HDR_BBA *rpc, prs_struct *ps, int depth)
 {
 	if (rpc == NULL)
 		return False;
@@ -325,7 +379,7 @@ void init_rpc_hdr_rb(RPC_HDR_RB *rpc,
  Reads or writes an RPC_HDR_RB structure.
 ********************************************************************/
 
-BOOL smb_io_rpc_hdr_rb(char *desc, RPC_HDR_RB *rpc, prs_struct *ps, int depth)
+BOOL smb_io_rpc_hdr_rb(const char *desc, RPC_HDR_RB *rpc, prs_struct *ps, int depth)
 {
 	if (rpc == NULL)
 		return False;
@@ -371,7 +425,7 @@ static void init_rpc_results(RPC_RESULTS *res,
  lkclXXXX only one reason at the moment!
 ********************************************************************/
 
-static BOOL smb_io_rpc_results(char *desc, RPC_RESULTS *res, prs_struct *ps, int depth)
+static BOOL smb_io_rpc_results(const char *desc, RPC_RESULTS *res, prs_struct *ps, int depth)
 {
 	if (res == NULL)
 		return False;
@@ -404,7 +458,7 @@ static BOOL smb_io_rpc_results(char *desc, RPC_RESULTS *res, prs_struct *ps, int
 
 void init_rpc_hdr_ba(RPC_HDR_BA *rpc, 
 				uint16 max_tsize, uint16 max_rsize, uint32 assoc_gid,
-				char *pipe_addr,
+				const char *pipe_addr,
 				uint8 num_results, uint16 result, uint16 reason,
 				RPC_IFACE *transfer)
 {
@@ -420,7 +474,7 @@ void init_rpc_hdr_ba(RPC_HDR_BA *rpc,
  Reads or writes an RPC_HDR_BA structure.
 ********************************************************************/
 
-BOOL smb_io_rpc_hdr_ba(char *desc, RPC_HDR_BA *rpc, prs_struct *ps, int depth)
+BOOL smb_io_rpc_hdr_ba(const char *desc, RPC_HDR_BA *rpc, prs_struct *ps, int depth)
 {
 	if (rpc == NULL)
 		return False;
@@ -454,7 +508,7 @@ void init_rpc_hdr_req(RPC_HDR_REQ *hdr, uint32 alloc_hint, uint16 opnum)
  Reads or writes an RPC_HDR_REQ structure.
 ********************************************************************/
 
-BOOL smb_io_rpc_hdr_req(char *desc, RPC_HDR_REQ *rpc, prs_struct *ps, int depth)
+BOOL smb_io_rpc_hdr_req(const char *desc, RPC_HDR_REQ *rpc, prs_struct *ps, int depth)
 {
 	if (rpc == NULL)
 		return False;
@@ -475,7 +529,7 @@ BOOL smb_io_rpc_hdr_req(char *desc, RPC_HDR_REQ *rpc, prs_struct *ps, int depth)
  Reads or writes an RPC_HDR_RESP structure.
 ********************************************************************/
 
-BOOL smb_io_rpc_hdr_resp(char *desc, RPC_HDR_RESP *rpc, prs_struct *ps, int depth)
+BOOL smb_io_rpc_hdr_resp(const char *desc, RPC_HDR_RESP *rpc, prs_struct *ps, int depth)
 {
 	if (rpc == NULL)
 		return False;
@@ -498,7 +552,7 @@ BOOL smb_io_rpc_hdr_resp(char *desc, RPC_HDR_RESP *rpc, prs_struct *ps, int dept
  Reads or writes an RPC_HDR_FAULT structure.
 ********************************************************************/
 
-BOOL smb_io_rpc_hdr_fault(char *desc, RPC_HDR_FAULT *rpc, prs_struct *ps, int depth)
+BOOL smb_io_rpc_hdr_fault(const char *desc, RPC_HDR_FAULT *rpc, prs_struct *ps, int depth)
 {
 	if (rpc == NULL)
 		return False;
@@ -506,7 +560,7 @@ BOOL smb_io_rpc_hdr_fault(char *desc, RPC_HDR_FAULT *rpc, prs_struct *ps, int de
 	prs_debug(ps, depth, desc, "smb_io_rpc_hdr_fault");
 	depth++;
 
-	if(!prs_uint32("status  ", ps, depth, &rpc->status))
+	if(!prs_ntstatus("status  ", ps, depth, &rpc->status))
 		return False;
 	if(!prs_uint32("reserved", ps, depth, &rpc->reserved))
 		return False;
@@ -538,7 +592,7 @@ void init_rpc_hdr_autha(RPC_HDR_AUTHA *rai,
  Reads or writes an RPC_HDR_AUTHA structure.
 ********************************************************************/
 
-BOOL smb_io_rpc_hdr_autha(char *desc, RPC_HDR_AUTHA *rai, prs_struct *ps, int depth)
+BOOL smb_io_rpc_hdr_autha(const char *desc, RPC_HDR_AUTHA *rai, prs_struct *ps, int depth)
 {
 	if (rai == NULL)
 		return False;
@@ -567,36 +621,27 @@ BOOL smb_io_rpc_hdr_autha(char *desc, RPC_HDR_AUTHA *rai, prs_struct *ps, int de
 }
 
 /*******************************************************************
- Checks an RPC_HDR_AUTH structure.
-********************************************************************/
-
-BOOL rpc_hdr_auth_chk(RPC_HDR_AUTH *rai)
-{
-	return (rai->auth_type == NTLMSSP_AUTH_TYPE && rai->auth_level == NTLMSSP_AUTH_LEVEL);
-}
-
-/*******************************************************************
  Inits an RPC_HDR_AUTH structure.
 ********************************************************************/
 
 void init_rpc_hdr_auth(RPC_HDR_AUTH *rai,
 				uint8 auth_type, uint8 auth_level,
-				uint8 stub_type_len,
+				uint8 padding,
 				uint32 ptr)
 {
 	rai->auth_type     = auth_type; /* nt lm ssp 0x0a */
 	rai->auth_level    = auth_level; /* 0x06 */
-	rai->stub_type_len = stub_type_len; /* 0x00 */
-	rai->padding       = 0; /* padding 0x00 */
+	rai->padding       = padding;
+	rai->reserved      = 0;
 
-	rai->unknown       = ptr; /* non-zero pointer to something */
+	rai->auth_context  = ptr; /* non-zero pointer to something */
 }
 
 /*******************************************************************
  Reads or writes an RPC_HDR_AUTH structure.
 ********************************************************************/
 
-BOOL smb_io_rpc_hdr_auth(char *desc, RPC_HDR_AUTH *rai, prs_struct *ps, int depth)
+BOOL smb_io_rpc_hdr_auth(const char *desc, RPC_HDR_AUTH *rai, prs_struct *ps, int depth)
 {
 	if (rai == NULL)
 		return False;
@@ -611,12 +656,11 @@ BOOL smb_io_rpc_hdr_auth(char *desc, RPC_HDR_AUTH *rai, prs_struct *ps, int dept
 		return False;
 	if(!prs_uint8 ("auth_level   ", ps, depth, &rai->auth_level)) /* 0x06 */
 		return False;
-	if(!prs_uint8 ("stub_type_len", ps, depth, &rai->stub_type_len))
-		return False;
 	if(!prs_uint8 ("padding      ", ps, depth, &rai->padding))
 		return False;
-
-	if(!prs_uint32("unknown      ", ps, depth, &rai->unknown)) /* 0x0014a0c0 */
+	if(!prs_uint8 ("reserved     ", ps, depth, &rai->reserved))
+		return False;
+	if(!prs_uint32("auth_context ", ps, depth, &rai->auth_context))
 		return False;
 
 	return True;
@@ -627,7 +671,7 @@ BOOL smb_io_rpc_hdr_auth(char *desc, RPC_HDR_AUTH *rai, prs_struct *ps, int dept
 ********************************************************************/
 
 BOOL rpc_auth_verifier_chk(RPC_AUTH_VERIFIER *rav,
-				char *signature, uint32 msg_type)
+				const char *signature, uint32 msg_type)
 {
 	return (strequal(rav->signature, signature) && rav->msg_type == msg_type);
 }
@@ -637,7 +681,7 @@ BOOL rpc_auth_verifier_chk(RPC_AUTH_VERIFIER *rav,
 ********************************************************************/
 
 void init_rpc_auth_verifier(RPC_AUTH_VERIFIER *rav,
-				char *signature, uint32 msg_type)
+				const char *signature, uint32 msg_type)
 {
 	fstrcpy(rav->signature, signature); /* "NTLMSSP" */
 	rav->msg_type = msg_type; /* NTLMSSP_MESSAGE_TYPE */
@@ -647,7 +691,7 @@ void init_rpc_auth_verifier(RPC_AUTH_VERIFIER *rav,
  Reads or writes an RPC_AUTH_VERIFIER structure.
 ********************************************************************/
 
-BOOL smb_io_rpc_auth_verifier(char *desc, RPC_AUTH_VERIFIER *rav, prs_struct *ps, int depth)
+BOOL smb_io_rpc_auth_verifier(const char *desc, RPC_AUTH_VERIFIER *rav, prs_struct *ps, int depth)
 {
 	if (rav == NULL)
 		return False;
@@ -656,10 +700,32 @@ BOOL smb_io_rpc_auth_verifier(char *desc, RPC_AUTH_VERIFIER *rav, prs_struct *ps
 	depth++;
 
 	/* "NTLMSSP" */
-	if(!prs_string("signature", ps, depth, rav->signature, strlen("NTLMSSP"),
+	if(!prs_string("signature", ps, depth, rav->signature,
 			sizeof(rav->signature)))
 		return False;
 	if(!prs_uint32("msg_type ", ps, depth, &rav->msg_type)) /* NTLMSSP_MESSAGE_TYPE */
+		return False;
+
+	return True;
+}
+
+/*******************************************************************
+ This parses an RPC_AUTH_VERIFIER for NETLOGON schannel. I think
+ assuming "NTLMSSP" in sm_io_rpc_auth_verifier is somewhat wrong.
+ I have to look at that later...
+********************************************************************/
+
+BOOL smb_io_rpc_netsec_verifier(const char *desc, RPC_AUTH_VERIFIER *rav, prs_struct *ps, int depth)
+{
+	if (rav == NULL)
+		return False;
+
+	prs_debug(ps, depth, desc, "smb_io_rpc_auth_verifier");
+	depth++;
+
+	if(!prs_string("signature", ps, depth, rav->signature, sizeof(rav->signature)))
+		return False;
+	if(!prs_uint32("msg_type ", ps, depth, &rav->msg_type))
 		return False;
 
 	return True;
@@ -671,7 +737,7 @@ BOOL smb_io_rpc_auth_verifier(char *desc, RPC_AUTH_VERIFIER *rav, prs_struct *ps
 
 void init_rpc_auth_ntlmssp_neg(RPC_AUTH_NTLMSSP_NEG *neg,
 				uint32 neg_flgs,
-				fstring myname, fstring domain)
+				const char *myname, const char *domain)
 {
 	int len_myname = strlen(myname);
 	int len_domain = strlen(domain);
@@ -691,7 +757,7 @@ void init_rpc_auth_ntlmssp_neg(RPC_AUTH_NTLMSSP_NEG *neg,
  *** lkclXXXX HACK ALERT! ***
 ********************************************************************/
 
-BOOL smb_io_rpc_auth_ntlmssp_neg(char *desc, RPC_AUTH_NTLMSSP_NEG *neg, prs_struct *ps, int depth)
+BOOL smb_io_rpc_auth_ntlmssp_neg(const char *desc, RPC_AUTH_NTLMSSP_NEG *neg, prs_struct *ps, int depth)
 {
 	uint32 start_offset = prs_offset(ps);
 	if (neg == NULL)
@@ -778,7 +844,7 @@ void init_rpc_auth_ntlmssp_chal(RPC_AUTH_NTLMSSP_CHAL *chl,
  Reads or writes an RPC_AUTH_NTLMSSP_CHAL structure.
 ********************************************************************/
 
-BOOL smb_io_rpc_auth_ntlmssp_chal(char *desc, RPC_AUTH_NTLMSSP_CHAL *chl, prs_struct *ps, int depth)
+BOOL smb_io_rpc_auth_ntlmssp_chal(const char *desc, RPC_AUTH_NTLMSSP_CHAL *chl, prs_struct *ps, int depth)
 {
 	if (chl == NULL)
 		return False;
@@ -810,7 +876,7 @@ BOOL smb_io_rpc_auth_ntlmssp_chal(char *desc, RPC_AUTH_NTLMSSP_CHAL *chl, prs_st
 
 void init_rpc_auth_ntlmssp_resp(RPC_AUTH_NTLMSSP_RESP *rsp,
 				uchar lm_resp[24], uchar nt_resp[24],
-				char *domain, char *user, char *wks,
+				const char *domain, const char *user, const char *wks,
 				uint32 neg_flags)
 {
 	uint32 offset;
@@ -834,8 +900,7 @@ void init_rpc_auth_ntlmssp_resp(RPC_AUTH_NTLMSSP_RESP *rsp,
 
 	offset = 0x40;
 
-	if (IS_BITS_SET_ALL(neg_flags, NTLMSSP_NEGOTIATE_UNICODE))
-	{
+	if (neg_flags & NTLMSSP_NEGOTIATE_UNICODE) {
 		dom_len *= 2;
 		wks_len *= 2;
 		usr_len *= 2;
@@ -863,15 +928,16 @@ void init_rpc_auth_ntlmssp_resp(RPC_AUTH_NTLMSSP_RESP *rsp,
 	memcpy(rsp->lm_resp, lm_resp, 24);
 	memcpy(rsp->nt_resp, nt_resp, 24);
 
-	if (IS_BITS_SET_ALL(neg_flags, NTLMSSP_NEGOTIATE_UNICODE)) {
-		dos_struni2(rsp->domain, domain, sizeof(rsp->domain));
-		dos_struni2(rsp->user, user, sizeof(rsp->user));
-		dos_struni2(rsp->wks, wks, sizeof(rsp->wks));
+	if (neg_flags & NTLMSSP_NEGOTIATE_UNICODE) {
+		rpcstr_push(rsp->domain, domain, sizeof(rsp->domain), 0);
+		rpcstr_push(rsp->user, user, sizeof(rsp->user), 0);
+		rpcstr_push(rsp->wks, wks, sizeof(rsp->wks), 0);
 	} else {
 		fstrcpy(rsp->domain, domain);
 		fstrcpy(rsp->user, user);
 		fstrcpy(rsp->wks, wks);
 	}
+	
 	rsp->sess_key[0] = 0;
 }
 
@@ -882,7 +948,7 @@ void init_rpc_auth_ntlmssp_resp(RPC_AUTH_NTLMSSP_RESP *rsp,
  *** lkclXXXX the actual offset is at the start of the auth verifier    ***
 ********************************************************************/
 
-BOOL smb_io_rpc_auth_ntlmssp_resp(char *desc, RPC_AUTH_NTLMSSP_RESP *rsp, prs_struct *ps, int depth)
+BOOL smb_io_rpc_auth_ntlmssp_resp(const char *desc, RPC_AUTH_NTLMSSP_RESP *rsp, prs_struct *ps, int depth)
 {
 	if (rsp == NULL)
 		return False;
@@ -1031,9 +1097,10 @@ BOOL rpc_auth_ntlmssp_chk(RPC_AUTH_NTLMSSP_CHK *chk, uint32 crc32, uint32 seq_nu
 	    chk->seq_num != seq_num)
 	{
 		DEBUG(5,("verify failed - crc %x ver %x seq %d\n",
-			crc32, NTLMSSP_SIGN_VERSION, seq_num));
+			 chk->crc32, chk->ver, chk->seq_num));
+			
 		DEBUG(5,("verify expect - crc %x ver %x seq %d\n",
-			chk->crc32, chk->ver, chk->seq_num));
+			crc32, NTLMSSP_SIGN_VERSION, seq_num));
 		return False;
 	}
 	return True;
@@ -1056,7 +1123,7 @@ void init_rpc_auth_ntlmssp_chk(RPC_AUTH_NTLMSSP_CHK *chk,
  Reads or writes an RPC_AUTH_NTLMSSP_CHK structure.
 ********************************************************************/
 
-BOOL smb_io_rpc_auth_ntlmssp_chk(char *desc, RPC_AUTH_NTLMSSP_CHK *chk, prs_struct *ps, int depth)
+BOOL smb_io_rpc_auth_ntlmssp_chk(const char *desc, RPC_AUTH_NTLMSSP_CHK *chk, prs_struct *ps, int depth)
 {
 	if (chk == NULL)
 		return False;
@@ -1078,3 +1145,74 @@ BOOL smb_io_rpc_auth_ntlmssp_chk(char *desc, RPC_AUTH_NTLMSSP_CHK *chk, prs_stru
 
 	return True;
 }
+
+/*******************************************************************
+creates an RPC_AUTH_NETSEC_NEG structure.
+********************************************************************/
+void init_rpc_auth_netsec_neg(RPC_AUTH_NETSEC_NEG *neg,
+			      const char *domain, const char *myname)
+{
+	neg->type1 = 0;
+	neg->type2 = 0x3;
+	fstrcpy(neg->domain, domain);
+	fstrcpy(neg->myname, myname);
+}
+
+/*******************************************************************
+ Reads or writes an RPC_AUTH_NETSEC_NEG structure.
+********************************************************************/
+
+BOOL smb_io_rpc_auth_netsec_neg(const char *desc, RPC_AUTH_NETSEC_NEG *neg,
+				prs_struct *ps, int depth)
+{
+	if (neg == NULL)
+		return False;
+
+	prs_debug(ps, depth, desc, "smb_io_rpc_auth_netsec_neg");
+	depth++;
+
+	if(!prs_align(ps))
+		return False;
+
+	if(!prs_uint32("type1", ps, depth, &neg->type1))
+		return False;
+	if(!prs_uint32("type2", ps, depth, &neg->type2))
+		return False;
+	if(!prs_string("domain  ", ps, depth, neg->domain, sizeof(neg->domain)))
+		return False;
+	if(!prs_string("myname  ", ps, depth, neg->myname, sizeof(neg->myname)))
+		return False;
+
+	return True;
+}
+
+/*******************************************************************
+reads or writes an RPC_AUTH_NETSEC_CHK structure.
+********************************************************************/
+BOOL smb_io_rpc_auth_netsec_chk(const char *desc, int auth_len, 
+                                RPC_AUTH_NETSEC_CHK * chk,
+				prs_struct *ps, int depth)
+{
+	if (chk == NULL)
+		return False;
+
+	prs_debug(ps, depth, desc, "smb_io_rpc_auth_netsec_chk");
+	depth++;
+
+	if ( !prs_uint8s(False, "sig  ", ps, depth, chk->sig, sizeof(chk->sig)) )
+		return False;
+		
+	if ( !prs_uint8s(False, "seq_num", ps, depth, chk->seq_num, sizeof(chk->seq_num)) )
+		return False;
+		
+	if ( !prs_uint8s(False, "packet_digest", ps, depth, chk->packet_digest, sizeof(chk->packet_digest)) )
+		return False;
+	
+	if ( auth_len == RPC_AUTH_NETSEC_SIGN_OR_SEAL_CHK_LEN ) {
+		if ( !prs_uint8s(False, "confounder", ps, depth, chk->confounder, sizeof(chk->confounder)) )
+			return False;
+	}
+
+	return True;
+}
+

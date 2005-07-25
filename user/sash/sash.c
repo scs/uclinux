@@ -277,7 +277,7 @@ main(argc, argv, env)
 	sigaction(SIGCHLD, &act, NULL);
 
 	if (getenv("PATH") == NULL)
-		putenv("PATH=/bin:/usr/bin:/etc");
+		putenv("PATH=/bin:/usr/bin:/etc:/sbin:/usr/sbin");
 
 /*	cp = getenv("HOME");
 	if (cp) {
@@ -360,20 +360,20 @@ readfile(name)
 		while ((cc > 0) && isspace(buf[cc - 1]))
 			cc--;
 		buf[cc] = '\0';
-		//;'pa990523 +
-		if (fp != stdin)
-			{
-			//taking commands from file - echo
-			printf("Command: %s\n",buf);
+		/* remove leading spaces and look for a '#' */
+		ptr = &buf[0];
+		while (*ptr == ' ') {
+			ptr++;
+		}
+		if (*ptr != '#') {
+			//;'pa990523 +
+			if (fp != stdin) {
+				//taking commands from file - echo
+				printf("Command: %s\n",buf);
 			} //end if (fp != stdin)
 
-                /* remove leading spaces and look for a '#' */
-                ptr = &buf[0];
-                while (*ptr == ' ') {
-                        ptr++;
-                }
-                if (*ptr != '#')
-                        do_command(buf, fp == stdin);
+			do_command(buf, fp == stdin);
+		}
 	}
 
 
@@ -625,9 +625,15 @@ trybuiltin(argc, argv)
 	oac = 0;
 
 	while (++oac < argc) {
-		matches = expandwildcards(argv[oac], MAXARGS, nametable);
-		if (matches < 0)
-			return TRUE;
+		if (argv[oac][0] == '"' || argv[oac][0] == '\'') {
+			argv[oac]++;
+			matches = 0;
+		}
+		else {
+			matches = expandwildcards(argv[oac], MAXARGS, nametable);
+			if (matches < 0)
+				return TRUE;
+		}
 
 		if ((newargc + matches) >= MAXARGS) {
 			fprintf(stderr, "Too many arguments\n");
@@ -711,9 +717,15 @@ runcmd(cmd, bg, argc, argv)
 	oac = 0;
 
 	while (++oac < argc) {
-		matches = expandwildcards(argv[oac], MAXARGS, nametable);
-		if (matches < 0)
-			return;
+		if (argv[oac][0] == '"' || argv[oac][0] == '\'') {
+			argv[oac]++;
+			matches = 0;
+		}
+		else {
+			matches = expandwildcards(argv[oac], MAXARGS, nametable);
+			if (matches < 0)
+				return;
+		}
 
 		if ((newargc + matches) >= MAXARGS) {
 			fprintf(stderr, "Too many arguments\n");
@@ -839,13 +851,10 @@ runcmd(cmd, bg, argc, argv)
 			(status & 0x80) ? "core dumped" : "killed",
 			status & 0x7f);
 #else
-#if defined(BFIN_WAS_HERE)
 		fprintf(stderr, "pid %d: failed %d\n", pid, status);
 #endif
-#endif
-#if defined(BFIN_WAS_HERE)
 		fflush(stderr);
-#endif
+
 		return;
 	}
 	

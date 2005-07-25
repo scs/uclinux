@@ -10,6 +10,15 @@
 #define WORKGROUP "WORKGROUP"
 #endif
 
+/* the maximum debug level to compile into the code. This assumes a good 
+   optimising compiler that can remove unused code 
+   for embedded or low-memory systems set this to a value like 2 to get
+   only important messages. This gives *much* smaller binaries
+*/
+#ifndef MAX_DEBUG_LEVEL
+#define MAX_DEBUG_LEVEL 1000
+#endif
+
 /* This defines the section name in the configuration file that will contain */
 /* global parameters - that is, parameters relating to the whole server, not */
 /* just services. This name is then reserved, and may not be used as a       */
@@ -47,11 +56,6 @@
 #define SYSLOG_FACILITY LOG_DAEMON
 #endif
 
-/* Default size of shared memory used for share mode locking */
-#ifndef SHMEM_SIZE
-#define SHMEM_SIZE (1024*1024)
-#endif
-
 /* 
  * Default number of maximum open files per smbd. This is
  * also limited by the maximum available file descriptors
@@ -63,28 +67,19 @@
 #define MAX_OPEN_FILES 10000
 #endif
  
-/* the max number of simultanous connections to the server by all clients */
-#define MAXSTATUS 100000
-
 #define WORDMAX 0xFFFF
 
 /* the maximum password length before we declare a likely attack */
 #define MAX_PASS_LEN 200
 
 /* separators for lists */
-#define LIST_SEP " \t,;:\n\r"
+#define LIST_SEP " \t,;\n\r"
 
-#ifndef LOCKDIR
-/* this should have been set in the Makefile */
-#define LOCKDIR "/tmp/samba"
-#endif
+/* wchar separators for lists */
+#define LIST_SEP_W wchar_list_sep
 
 /* this is where browse lists are kept in the lock dir */
 #define SERVER_LIST "browse.dat"
-
-/* shall guest entries in printer queues get changed to user entries,
-   so they can be deleted using the windows print manager? */
-#define LPQ_GUEST_TO_USER
 
 /* shall filenames with illegal chars in them get mangled in long
    filename listings? */
@@ -106,6 +101,11 @@
 #define GUEST_ACCOUNT "nobody"
 #endif
 
+/* user to test password server with as invalid in security=server mode. */
+#ifndef INVALID_USER_PREFIX
+#define INVALID_USER_PREFIX "sambatest"
+#endif
+
 /* the default pager to use for the client "more" command. Users can
    override this with the PAGER environment variable */
 #ifndef PAGER
@@ -113,12 +113,7 @@
 #endif
 
 /* the size of the uid cache used to reduce valid user checks */
-#define UID_CACHE_SIZE 4
-
-/* if mmap is enabled, then this is the maximum size of file to use
-   the mmap code on. We don't want to mmap huge files as virtual
-   address spaces are limited */
-#define MAX_MMAP_SIZE (100*0x100000)
+#define VUID_CACHE_SIZE 32
 
 /* the following control timings of various actions. Don't change 
    them unless you know what you are doing. These are all in seconds */
@@ -127,7 +122,6 @@
 #define IDLE_CLOSED_TIMEOUT (60)
 #define DPTR_IDLE_TIMEOUT (120)
 #define SMBD_SELECT_TIMEOUT (60)
-#define SMBD_SELECT_TIMEOUT_WITH_PENDING_LOCKS (10)
 #define NMBD_SELECT_LOOP (10)
 #define BROWSE_INTERVAL (60)
 #define REGISTRATION_INTERVAL (10*60)
@@ -135,6 +129,7 @@
 #define NMBD_MAX_TTL (24*60*60)
 #define LPQ_LOCK_TIMEOUT (5)
 #define NMBD_INTERFACES_RELOAD (120)
+#define NMBD_UNEXPECTED_TIMEOUT (15)
 
 /* the following are in milliseconds */
 #define LOCK_RETRY_TIMEOUT (100)
@@ -143,9 +138,6 @@
    encountered? Samba will be careful to make the core file only
    accessible to root */
 #define DUMP_CORE 1
-
-#define SMB_ALIGNMENT 1
-
 
 /* shall we support browse requests via a FIFO to nmbd? */
 #define ENABLE_FIFO 1
@@ -174,9 +166,6 @@
    it are worked out */
 #define USE_READ_PREDICTION 0
 
-/* name of directory that netatalk uses to store macintosh resource forks */
-#define APPLEDOUBLE ".AppleDouble/"
-
 /*
  * Default passwd chat script.
  */
@@ -185,5 +174,65 @@
 
 /* Minimum length of allowed password when changing UNIX password. */
 #define MINPASSWDLENGTH 5
+
+/* maximum ID number used for session control. This cannot be larger
+   than 62*62 for the current code */
+#define MAX_SESSION_ID 3000
+
+/* For the benifit of PAM and the 'session exec' scripts, we fake up a terminal
+   name. This can be in one of two forms:  The first for systems not using
+   utmp (and therefore not constrained as to length or the need for a number
+   < 3000 or so) and the second for systems with this 'well behaved terminal
+   like name' constraint.
+*/
+
+#ifndef SESSION_TEMPLATE
+/* Paramaters are 'pid' and 'vuid' */
+#define SESSION_TEMPLATE "smb/%lu/%d"
+#endif
+
+#ifndef SESSION_UTMP_TEMPLATE
+#define SESSION_UTMP_TEMPLATE "smb/%d"
+#endif
+
+/* the maximum age in seconds of a password. Should be a lp_ parameter */
+#define MAX_PASSWORD_AGE (21*24*60*60)
+
+/* Default allocation roundup. */
+#define SMB_ROUNDUP_ALLOCATION_SIZE 0x100000
+
+/* shall we deny oplocks to clients that get timeouts? */
+#define FASCIST_OPLOCK_BACKOFF 1
+
+/* this enables the "rabbit pellet" fix for SMBwritebraw */
+#define RABBIT_PELLET_FIX 1
+
+/* Max number of jobs per print queue. */
+#define PRINT_MAX_JOBID 10000
+
+/* Max number of open RPC pipes. */
+#define MAX_OPEN_PIPES 2048
+
+/* Tuning for server auth mutex. */
+#define CLI_AUTH_TIMEOUT 5000 /* In milli-seconds. */
+#define NUM_CLI_AUTH_CONNECT_RETRIES 3
+/* Number in seconds to wait for the mutex. This must be less than 30 seconds. */
+#define SERVER_MUTEX_WAIT_TIME ( ((NUM_CLI_AUTH_CONNECT_RETRIES) * ((CLI_AUTH_TIMEOUT)/1000)) + 5)
+/* Number in seconds for winbindd to wait for the mutex. Make this 2 * smbd wait time. */
+#define WINBIND_SERVER_MUTEX_WAIT_TIME (( ((NUM_CLI_AUTH_CONNECT_RETRIES) * ((CLI_AUTH_TIMEOUT)/1000)) + 5)*2)
+
+/* Max number of simultaneous winbindd socket connections. */
+#define WINBINDD_MAX_SIMULTANEOUS_CLIENTS 200
+
+/* Buffer size to use when printing backtraces */
+#define BACKTRACE_STACK_SIZE 64
+
+/* size of listen() backlog in smbd */
+#define SMBD_LISTEN_BACKLOG 50
+
+/* Number of microseconds to wait before a sharing violation. */
+#define SHARING_VIOLATION_USEC_WAIT 950000
+
+#define MAX_LDAP_REPLICATION_SLEEP_TIME 5000 /* In milliseconds. */
 
 #endif

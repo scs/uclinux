@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    test printer setup
    Copyright (C) Karl Auer 1993, 1994-1998
    
@@ -32,41 +31,36 @@
  */
 
 #include "includes.h"
-#include "smb.h"
 
-/* these live in util.c */
-extern FILE *dbf;
-extern int DEBUGLEVEL;
+/*
+ * NOTE: this code is likely to be removed, and no longer supports
+ *       checking against non-configured printcap files.  -Rob
+ */
 
 int main(int argc, char *argv[])
 {
-   char *pszTemp;
-
-   TimeInit();
-
    setup_logging(argv[0],True);
 
-   charset_initialise();
+   printf("NOTICE: This program is now deprecated and will be removed \n");
+   printf("in a future Samba release.\n\n");
 
-   if (argc < 2 || argc > 3)
-      printf("Usage: testprns printername [printcapfile]\n");
+   if (argc != 2)
+      printf("Usage: testprns printername\n");
    else
    {
-      dbf = sys_fopen("test.log", "w");
+      dbf = x_fopen("test.log", O_WRONLY|O_CREAT|O_TRUNC, 0644);
       if (dbf == NULL) {
          printf("Unable to open logfile.\n");
       } else {
          DEBUGLEVEL = 3;
-         pszTemp = (argc < 3) ? PRINTCAP_NAME : argv[2];
-         printf("Looking for printer %s in printcap file %s\n", 
-                 argv[1], pszTemp);
-         if (!pcap_printername_ok(argv[1], pszTemp))
+         printf("Looking for printer %s\n", argv[1]);
+	load_printers();
+         if (!pcap_printername_ok(argv[1]))
             printf("Printer name %s is not valid.\n", argv[1]);
          else
             printf("Printer name %s is valid.\n", argv[1]);
-         fclose(dbf);
+         x_fclose(dbf);
       }
    }
    return (0);
 }
-

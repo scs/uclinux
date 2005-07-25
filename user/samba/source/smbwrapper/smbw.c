@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 2.0
+   Unix SMB/CIFS implementation.
    SMB wrapper functions
    Copyright (C) Andrew Tridgell 1998
    
@@ -28,8 +27,6 @@ static struct smbw_file *smbw_files;
 static struct smbw_server *smbw_srvs;
 
 struct bitmap *smbw_file_bmap;
-extern pstring global_myname;
-extern int DEBUGLEVEL;
 
 fstring smbw_prefix = SMBW_PREFIX;
 
@@ -46,8 +43,6 @@ void smbw_init(void)
 {
 	extern BOOL in_client;
 	static int initialised;
-	static pstring servicesf = CONFIGFILE;
-	extern FILE *dbf;
 	char *p;
 	int eno;
 	pstring line;
@@ -62,7 +57,7 @@ void smbw_init(void)
 	DEBUGLEVEL = 0;
 	setup_logging("smbsh",True);
 
-	dbf = stderr;
+	dbf = x_stderr;
 
 	if ((p=smbw_getshared("LOGFILE"))) {
 		dbf = sys_fopen(p, "a");
@@ -73,15 +68,18 @@ void smbw_init(void)
 		exit(1);
 	}
 
-	charset_initialise();
-
 	in_client = True;
 
 	load_interfaces();
 
-	lp_load(servicesf,True,False,False);
+	if ((p=smbw_getshared("SERVICESF"))) {
+		pstrcpy(dyn_CONFIGFILE, p);
+	}
 
-	get_myname(global_myname);
+	lp_load(dyn_CONFIGFILE,True,False,False);
+
+	if (!init_names())
+		exit(1);
 
 	if ((p=smbw_getshared("DEBUG"))) {
 		DEBUGLEVEL = atoi(p);
@@ -246,86 +244,106 @@ void clean_fname(char *name)
 }
 
 
+
+/***************************************************** 
+find a workgroup (any workgroup!) that has a master 
+browser on the local network
+*******************************************************/
+static char *smbw_find_workgroup(void)
+{
+	fstring server;
+	char *p;
+	struct in_addr *ip_list = NULL;
+	int count = 0;
+	int i;
+
+	/* first off see if an existing workgroup name exists */
+	p = smbw_getshared("WORKGROUP");
+	if (!p) p = lp_workgroup();
+	
+	slprintf(server, sizeof(server), "%s#1D", p);
+	if (smbw_server(server, "IPC$")) return p;
+
+	/* go looking for workgroups */
+	if (!name_resolve_bcast(MSBROWSE, 1, &ip_list, &count)) {
+		DEBUG(1,("No workgroups found!"));
+		return p;
+	}
+
+	for (i=0;i<count;i++) {
+		static fstring name;
+		if (name_status_find("*", 0, 0x1d, ip_list[i], name)) {
+			slprintf(server, sizeof(server), "%s#1D", name);
+			if (smbw_server(server, "IPC$")) {
+				smbw_setshared("WORKGROUP", name);
+				SAFE_FREE(ip_list);
+				return name;
+			}
+		}
+	}
+
+	SAFE_FREE(ip_list);
+
+	return p;
+}
+
 /***************************************************** 
 parse a smb path into its components. 
+server is one of
+  1) the name of the SMB server
+  2) WORKGROUP#1D for share listing
+  3) WORKGROUP#__ for workgroup listing
+share is the share on the server to query
+path is the SMB path on the server
+return the full path (ie. add cwd if needed)
 *******************************************************/
 char *smbw_parse_path(const char *fname, char *server, char *share, char *path)
 {
 	static pstring s;
-	char *p, *p2;
-	int len = strlen(smbw_prefix)-1;
+	char *p;
+	int len;
+	fstring workgroup;
 
-	*server = *share = *path = 0;
-
-	if (fname[0] == '/') {
-		pstrcpy(s, fname);
+	/* add cwd if necessary */
+	if (fname[0] != '/') {
+		slprintf(s, sizeof(s), "%s/%s", smbw_cwd, fname);
 	} else {
-		slprintf(s,sizeof(s)-1, "%s/%s", smbw_cwd, fname);
+		pstrcpy(s, fname);
 	}
 	clean_fname(s);
 
-	DEBUG(5,("cleaned %s (fname=%s cwd=%s)\n", 
-		 s, fname, smbw_cwd));
-
+	/* see if it has the right prefix */
+	len = strlen(smbw_prefix)-1;
 	if (strncmp(s,smbw_prefix,len) || 
 	    (s[len] != '/' && s[len] != 0)) return s;
 
-	p = s + len;
+	/* ok, its for us. Now parse out the workgroup, share etc. */
+	p = s+len;
 	if (*p == '/') p++;
-
-	p2 = strchr(p,'/');
-
-	if (p2) {
-		len = (int)(p2-p);
-	} else {
-		len = strlen(p);
-	}
-
-	len = MIN(len,sizeof(fstring)-1);
-
-	strncpy(server, p, len);
-	server[len] = 0;		
-
-	p = p2;
-	if (!p) {
-		if (len == 0) {
-			char *workgroup = smbw_getshared("WORKGROUP");
-			if (!workgroup) workgroup = lp_workgroup();
-			slprintf(server,sizeof(fstring)-1, "%s#1D", workgroup);
-		}
+	if (!next_token(&p, workgroup, "/", sizeof(fstring))) {
+		/* we're in /smb - give a list of workgroups */
+		slprintf(server,sizeof(fstring), "%s#01", smbw_find_workgroup());
 		fstrcpy(share,"IPC$");
 		pstrcpy(path,"");
-		goto ok;
+		return s;
 	}
 
-	p++;
-	p2 = strchr(p,'/');
-
-	if (p2) {
-		len = (int)(p2-p);
-	} else {
-		len = strlen(p);
+	if (!next_token(&p, server, "/", sizeof(fstring))) {
+		/* we are in /smb/WORKGROUP */
+		slprintf(server,sizeof(fstring), "%s#1D", workgroup);
+		fstrcpy(share,"IPC$");
+		pstrcpy(path,"");
 	}
 
-	len = MIN(len,sizeof(fstring)-1);
-	
-	strncpy(share, p, len);
-	share[len] = 0;
-
-	p = p2;
-	if (!p) {
-		pstrcpy(path,"\\");
-		goto ok;
+	if (!next_token(&p, share, "/", sizeof(fstring))) {
+		/* we are in /smb/WORKGROUP/SERVER */
+		fstrcpy(share,"IPC$");
+		pstrcpy(path,"");
 	}
 
-	pstrcpy(path,p);
+	pstrcpy(path, p);
 
 	all_string_sub(path, "/", "\\", 0);
-
- ok:
-	DEBUG(4,("parsed path name=%s cwd=%s [%s] [%s] [%s]\n", 
-		 fname, smbw_cwd,
-		 server, share, path));
 
 	return s;
 }
@@ -377,17 +395,35 @@ return a unix errno from a SMB error pair
 *******************************************************/
 int smbw_errno(struct cli_state *c)
 {
-	uint8 eclass;
-	uint32 ecode;
-	int ret;
+	return cli_errno(c);
+}
 
-	ret = cli_error(c, &eclass, &ecode, NULL);
+/* Return a username and password given a server and share name */
 
-	if (ret) {
-		DEBUG(3,("smbw_error %d %d (0x%x) -> %d\n", 
-			 (int)eclass, (int)ecode, (int)ecode, ret));
-	}
-	return ret;
+void get_envvar_auth_data(char *server, char *share, char **workgroup,
+			  char **username, char **password)
+{
+	/* Fall back to shared memory/environment variables */
+
+	*username = smbw_getshared("USER");
+	if (!*username) *username = getenv("USER");
+	if (!*username) *username = "guest";
+
+	*workgroup = smbw_getshared("WORKGROUP");
+	if (!*workgroup) *workgroup = lp_workgroup();
+
+	*password = smbw_getshared("PASSWORD");
+	if (!*password) *password = "";
+}
+
+static smbw_get_auth_data_fn get_auth_data_fn = get_envvar_auth_data;
+
+/*****************************************************
+set the get auth data function
+******************************************************/
+void smbw_set_auth_data_fn(smbw_get_auth_data_fn fn)
+{
+	get_auth_data_fn = fn;
 }
 
 /***************************************************** 
@@ -405,25 +441,19 @@ struct smbw_server *smbw_server(char *server, char *share)
 	fstring group;
 	pstring ipenv;
 	struct in_addr ip;
-	extern struct in_addr ipzero;
 
-	ip = ipzero;
+        zero_ip(&ip);
 	ZERO_STRUCT(c);
 
-	username = smbw_getshared("USER");
-	if (!username) username = getenv("USER");
-	if (!username) username = "guest";
-
-	workgroup = smbw_getshared("WORKGROUP");
-	if (!workgroup) workgroup = lp_workgroup();
-
-	password = smbw_getshared("PASSWORD");
-	if (!password) password = "";
+	get_auth_data_fn(server, share, &workgroup, &username, &password);
 
 	/* try to use an existing connection */
 	for (srv=smbw_srvs;srv;srv=srv->next) {
 		if (strcmp(server,srv->server_name)==0 &&
-		    strcmp(share,srv->share_name)==0) return srv;
+		    strcmp(share,srv->share_name)==0 &&
+		    strcmp(workgroup,srv->workgroup)==0 &&
+		    strcmp(username, srv->username) == 0) 
+			return srv;
 	}
 
 	if (server[0] == 0) {
@@ -431,17 +461,18 @@ struct smbw_server *smbw_server(char *server, char *share)
 		return NULL;
 	}
 
-	make_nmb_name(&calling, global_myname, 0x0);
+	make_nmb_name(&calling, global_myname(), 0x0);
 	make_nmb_name(&called , server, 0x20);
 
 	DEBUG(4,("server_n=[%s] server=[%s]\n", server_n, server));
 
-	if ((p=strchr(server_n,'#')) && strcmp(p+1,"1D")==0) {
+	if ((p=strchr_m(server_n,'#')) && 
+	    (strcmp(p+1,"1D")==0 || strcmp(p+1,"01")==0)) {
 		struct in_addr sip;
 		pstring s;
 
 		fstrcpy(group, server_n);
-		p = strchr(group,'#');
+		p = strchr_m(group,'#');
 		*p = 0;
 		
 		/* cache the workgroup master lookup */
@@ -462,7 +493,7 @@ struct smbw_server *smbw_server(char *server, char *share)
  again:
 	slprintf(ipenv,sizeof(ipenv)-1,"HOST_%s", server_n);
 
-	ip = ipzero;
+        zero_ip(&ip);
 	if ((p=smbw_getshared(ipenv))) {
 		ip = *(interpret_addr2(p));
 	}
@@ -515,7 +546,7 @@ struct smbw_server *smbw_server(char *server, char *share)
 	
 	DEBUG(4,(" tconx ok\n"));
 
-	srv = (struct smbw_server *)malloc(sizeof(*srv));
+	srv = SMB_MALLOC_P(struct smbw_server);
 	if (!srv) {
 		errno = ENOMEM;
 		goto failed;
@@ -527,14 +558,26 @@ struct smbw_server *smbw_server(char *server, char *share)
 
 	srv->dev = (dev_t)(str_checksum(server) ^ str_checksum(share));
 
-	srv->server_name = strdup(server);
+	srv->server_name = SMB_STRDUP(server);
 	if (!srv->server_name) {
 		errno = ENOMEM;
 		goto failed;
 	}
 
-	srv->share_name = strdup(share);
+	srv->share_name = SMB_STRDUP(share);
 	if (!srv->share_name) {
+		errno = ENOMEM;
+		goto failed;
+	}
+
+	srv->workgroup = SMB_STRDUP(workgroup);
+	if (!srv->workgroup) {
+		errno = ENOMEM;
+		goto failed;
+	}
+
+	srv->username = SMB_STRDUP(username);
+	if (!srv->username) {
 		errno = ENOMEM;
 		goto failed;
 	}
@@ -557,9 +600,9 @@ struct smbw_server *smbw_server(char *server, char *share)
 	cli_shutdown(&c);
 	if (!srv) return NULL;
 
-	if (srv->server_name) free(srv->server_name);
-	if (srv->share_name) free(srv->share_name);
-	free(srv);
+	SAFE_FREE(srv->server_name);
+	SAFE_FREE(srv->share_name);
+	SAFE_FREE(srv);
 	return NULL;
 }
 
@@ -621,7 +664,7 @@ int smbw_open(const char *fname, int flags, mode_t mode)
 		return fd;
 	}
 
-	file = (struct smbw_file *)malloc(sizeof(*file));
+	file = SMB_MALLOC_P(struct smbw_file);
 	if (!file) {
 		errno = ENOMEM;
 		goto failed;
@@ -629,7 +672,7 @@ int smbw_open(const char *fname, int flags, mode_t mode)
 
 	ZERO_STRUCTP(file);
 
-	file->f = (struct smbw_filedes *)malloc(sizeof(*(file->f)));
+	file->f = SMB_MALLOC_P(struct smbw_filedes);
 	if (!file->f) {
 		errno = ENOMEM;
 		goto failed;
@@ -638,7 +681,7 @@ int smbw_open(const char *fname, int flags, mode_t mode)
 	ZERO_STRUCTP(file->f);
 
 	file->f->cli_fd = fd;
-	file->f->fname = strdup(path);
+	file->f->fname = SMB_STRDUP(path);
 	if (!file->f->fname) {
 		errno = ENOMEM;
 		goto failed;
@@ -673,12 +716,10 @@ int smbw_open(const char *fname, int flags, mode_t mode)
 	}
 	if (file) {
 		if (file->f) {
-			if (file->f->fname) {
-				free(file->f->fname);
-			}
-			free(file->f);
+			SAFE_FREE(file->f->fname);
+			SAFE_FREE(file->f);
 		}
-		free(file);
+		SAFE_FREE(file);
 	}
 	smbw_busy--;
 	return -1;
@@ -843,11 +884,11 @@ int smbw_close(int fd)
 
 	file->f->ref_count--;
 	if (file->f->ref_count == 0) {
-		free(file->f->fname);
-		free(file->f);
+		SAFE_FREE(file->f->fname);
+		SAFE_FREE(file->f);
 	}
 	ZERO_STRUCTP(file);
-	free(file);
+	SAFE_FREE(file);
 	
 	smbw_busy--;
 
@@ -1247,7 +1288,7 @@ int smbw_dup(int fd)
 		goto failed;
 	}
 
-	file2 = (struct smbw_file *)malloc(sizeof(*file2));
+	file2 = SMB_MALLOC_P(struct smbw_file);
 	if (!file2) {
 		close(fd2);
 		errno = ENOMEM;
@@ -1299,7 +1340,7 @@ int smbw_dup2(int fd, int fd2)
 		goto failed;
 	}
 
-	file2 = (struct smbw_file *)malloc(sizeof(*file2));
+	file2 = SMB_MALLOC_P(struct smbw_file);
 	if (!file2) {
 		close(fd2);
 		errno = ENOMEM;
@@ -1335,14 +1376,14 @@ static void smbw_srv_close(struct smbw_server *srv)
 
 	cli_shutdown(&srv->cli);
 
-	free(srv->server_name);
-	free(srv->share_name);
+	SAFE_FREE(srv->server_name);
+	SAFE_FREE(srv->share_name);
 
 	DLIST_REMOVE(smbw_srvs, srv);
 
 	ZERO_STRUCTP(srv);
 
-	free(srv);
+	SAFE_FREE(srv);
 	
 	smbw_busy--;
 }
@@ -1423,7 +1464,7 @@ say no to acls
 }
 #endif
 
-
+#ifdef HAVE_EXPLICIT_LARGEFILE_SUPPORT
 #ifdef HAVE_STAT64
 /* this can't be in wrapped.c because of include conflicts */
  void stat64_convert(struct stat *st, struct stat64 *st64)
@@ -1439,8 +1480,12 @@ say no to acls
 	st64->st_atime = st->st_atime;
 	st64->st_mtime = st->st_mtime;
 	st64->st_ctime = st->st_ctime;
+#ifdef HAVE_STAT_ST_BLKSIZE
 	st64->st_blksize = st->st_blksize;
+#endif
+#ifdef HAVE_STAT_ST_BLOCKS
 	st64->st_blocks = st->st_blocks;
+#endif
 }
 #endif
 
@@ -1452,6 +1497,7 @@ say no to acls
 	d64->d_reclen = d->d_reclen;
 	pstrcpy(d64->d_name, d->d_name);
 }
+#endif
 #endif
 
 
@@ -1470,11 +1516,11 @@ struct kernel_stat {
 	unsigned long int st_size;
 	unsigned long int st_blksize;
 	unsigned long int st_blocks;
-	unsigned long int st_atime;
+	unsigned long int st_atime_;
 	unsigned long int __unused1;
-	unsigned long int st_mtime;
+	unsigned long int st_mtime_;
 	unsigned long int __unused2;
-	unsigned long int st_ctime;
+	unsigned long int st_ctime_;
 	unsigned long int __unused3;
 	unsigned long int __unused4;
 	unsigned long int __unused5;
@@ -1503,10 +1549,14 @@ struct kernel_stat {
 	st->st_gid = kbuf->st_gid;
 	st->st_rdev = kbuf->st_rdev;
 	st->st_size = kbuf->st_size;
+#ifdef HAVE_STAT_ST_BLKSIZE
 	st->st_blksize = kbuf->st_blksize;
+#endif
+#ifdef HAVE_STAT_ST_BLOCKS
 	st->st_blocks = kbuf->st_blocks;
-	st->st_atime = kbuf->st_atime;
-	st->st_mtime = kbuf->st_mtime;
-	st->st_ctime = kbuf->st_ctime;
+#endif
+	st->st_atime = kbuf->st_atime_;
+	st->st_mtime = kbuf->st_mtime_;
+	st->st_ctime = kbuf->st_ctime_;
 }
 #endif

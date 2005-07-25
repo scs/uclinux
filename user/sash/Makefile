@@ -1,13 +1,19 @@
 
+ifdef CONFIG_USER_SASH_SH
 SH = sh
 SHOBJS = sash.o cmds.o cmd_uclinux.o ls.o ps.o hexdump.o df.o free.o \
 	hostname.o date.o
+endif
 
+ifdef CONFIG_USER_SASH_SHUTDOWN
 SHUTDOWN = shutdown
 SHUTDOWNOBJS = shutdown.o
+endif
 
+ifdef CONFIG_USER_SASH_REBOOT
 REBOOT = reboot
 REBOOTOBJS = reboot.o
+endif
 
 LIBSASH = libsash/libsash.a
 

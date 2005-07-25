@@ -1,8 +1,9 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    Samba Web Administration Tool
-   Copyright (C) Andrew Tridgell 1997-1998
+   Version 3.0.0
+   Copyright (C) Andrew Tridgell 1997-2002
+   Copyright (C) John H Terpstra 2002
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,17 +20,19 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#ifdef SYSLOG
-#undef SYSLOG
-#endif
+/**
+ * @defgroup swat SWAT - Samba Web Administration Tool
+ * @{ 
+ * @file swat.c
+ *
+ * @brief Samba Web Administration Tool.
+ **/
 
 #include "includes.h"
-#include "smb.h"
+#include "web/swat_proto.h"
 
-#define GLOBALS_SNUM -1
-
-static pstring servicesf = CONFIGFILE;
 static BOOL demo_mode = False;
+static BOOL passwd_only = False;
 static BOOL have_write_access = False;
 static BOOL have_read_access = False;
 static int iNumNonAutoPrintServices = 0;
@@ -49,24 +52,21 @@ static int iNumNonAutoPrintServices = 0;
 #define ENABLE_USER_FLAG "enable_user_flag"
 #define RHOST "remote_host"
 
-/* we need these because we link to locking*.o */
- void become_root(BOOL save_dir) {}
- void unbecome_root(BOOL restore_dir) {}
 
 /****************************************************************************
 ****************************************************************************/
-static int enum_index(int value, struct enum_list *enumlist)
+static int enum_index(int value, const struct enum_list *enumlist)
 {
-int i;
+	int i;
 	for (i=0;enumlist[i].name;i++)
 		if (value == enumlist[i].value) break;
 	return(i);
 }
 
-static char *fix_backslash(char *str)
+static char *fix_backslash(const char *str)
 {
-static char newstring[1024];
-char *p = newstring;
+	static char newstring[1024];
+	char *p = newstring;
 
         while (*str) {
                 if (*str == '\\') {*p++ = '\\';*p++ = '\\';}
@@ -77,20 +77,20 @@ char *p = newstring;
 	return newstring;
 }
 
-static char *stripspace(char *str)
+static char *stripspaceupper(const char *str)
 {
-static char newstring[1024];
-char *p = newstring;
+	static char newstring[1024];
+	char *p = newstring;
 
-        while (*str) {
-                if (*str != ' ') *p++ = *str;
-                ++str;
-        }
+	while (*str) {
+		if (*str != ' ') *p++ = toupper(*str);
+		++str;
+	}
 	*p = '\0';
 	return newstring;
 }
 
-static char *make_parm_name(char *label)
+static char *make_parm_name(const char *label)
 {
 	static char parmname[1024];
 	char *p = parmname;
@@ -107,24 +107,25 @@ static char *make_parm_name(char *label)
 /****************************************************************************
   include a lump of html in a page 
 ****************************************************************************/
-static int include_html(char *fname)
+static int include_html(const char *fname)
 {
-	FILE *f = sys_fopen(fname,"r");
+	int fd;
 	char buf[1024];
 	int ret;
 
-	if (!f) {
-		printf("ERROR: Can't open %s\n", fname);
+	fd = web_open(fname, O_RDONLY, 0);
+
+	if (fd == -1) {
+		printf(_("ERROR: Can't open %s"), fname);
+		printf("\n");
 		return 0;
 	}
 
-	while (!feof(f)) {
-		ret = fread(buf, 1, sizeof(buf), f);
-		if (ret <= 0) break;
-		fwrite(buf, 1, ret, stdout);
+	while ((ret = read(fd, buf, sizeof(buf))) > 0) {
+		write(1, buf, ret);
 	}
 
-	fclose(f);
+	close(fd);
 	return 1;
 }
 
@@ -144,6 +145,38 @@ static void print_header(void)
 	}
 }
 
+/* *******************************************************************
+   show parameter label with translated name in the following form
+   because showing original and translated label in one line looks
+   too long, and showing translated label only is unusable for
+   heavy users.
+   -------------------------------
+   HELP       security   [combo box][button]
+   SECURITY
+   -------------------------------
+   (capital words are translated by gettext.)
+   if no translation is available, then same form as original is
+   used.
+   "i18n_translated_parm" class is used to change the color of the
+   translated parameter with CSS.
+   **************************************************************** */
+static const char* get_parm_translated(
+	const char* pAnchor, const char* pHelp, const char* pLabel)
+{
+	const char* pTranslated = _(pLabel);
+	static pstring output;
+	if(strcmp(pLabel, pTranslated) != 0)
+	{
+		pstr_sprintf(output,
+		  "<A HREF=\"/swat/help/smb.conf.5.html#%s\" target=\"docs\"> %s</A>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; %s <br><span class=\"i18n_translated_parm\">%s</span>",
+		   pAnchor, pHelp, pLabel, pTranslated);
+		return output;
+	}
+	pstr_sprintf(output, 
+	  "<A HREF=\"/swat/help/smb.conf.5.html#%s\" target=\"docs\"> %s</A>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; %s",
+	  pAnchor, pHelp, pLabel);
+	return output;
+}
 /****************************************************************************
  finish off the page 
 ****************************************************************************/
@@ -161,36 +194,75 @@ static void show_parameter(int snum, struct parm_struct *parm)
 {
 	int i;
 	void *ptr = parm->ptr;
+	char *utf8_s1, *utf8_s2;
 
 	if (parm->class == P_LOCAL && snum >= 0) {
 		ptr = lp_local_ptr(snum, ptr);
 	}
 
-	printf("<tr><td><A HREF=\"/swat/help/smb.conf.5.html#%s\" target=\"docs\">Help</A>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; %s</td><td>", 
-	       stripspace(parm->label), parm->label);
-
+	printf("<tr><td>%s</td><td>", get_parm_translated(stripspaceupper(parm->label), _("Help"), parm->label));
 	switch (parm->type) {
 	case P_CHAR:
 		printf("<input type=text size=2 name=\"parm_%s\" value=\"%c\">",
 		       make_parm_name(parm->label), *(char *)ptr);
-		printf("<input type=button value=\"Set Default\" onClick=\"swatform.parm_%s.value=\'%c\'\">",
-			make_parm_name(parm->label),(char)(parm->def.cvalue));
+		printf("<input type=button value=\"%s\" onClick=\"swatform.parm_%s.value=\'%c\'\">",
+			_("Set Default"), make_parm_name(parm->label),(char)(parm->def.cvalue));
+		break;
+
+	case P_LIST:
+		printf("<input type=text size=40 name=\"parm_%s\" value=\"",
+			make_parm_name(parm->label));
+		if ((char ***)ptr && *(char ***)ptr && **(char ***)ptr) {
+			char **list = *(char ***)ptr;
+			for (;*list;list++) {
+				/* enclose in quotes if the string contains a space */
+				if ( strchr_m(*list, ' ') ) {
+					push_utf8_allocate(&utf8_s1, *list);
+					push_utf8_allocate(&utf8_s2, ((*(list+1))?", ":""));
+					printf("\'%s\'%s", utf8_s1, utf8_s2);
+				} else {
+					push_utf8_allocate(&utf8_s1, *list);
+					push_utf8_allocate(&utf8_s2, ((*(list+1))?", ":""));
+					printf("%s%s", utf8_s1, utf8_s2);
+				}
+				SAFE_FREE(utf8_s1);
+				SAFE_FREE(utf8_s2);
+			}
+		}
+		printf("\">");
+		printf("<input type=button value=\"%s\" onClick=\"swatform.parm_%s.value=\'",
+			_("Set Default"), make_parm_name(parm->label));
+		if (parm->def.lvalue) {
+			char **list = (char **)(parm->def.lvalue);
+			for (; *list; list++) {
+				/* enclose in quotes if the string contains a space */
+				if ( strchr_m(*list, ' ') ) 
+					printf("\'%s\'%s", *list, ((*(list+1))?", ":""));
+				else
+					printf("%s%s", *list, ((*(list+1))?", ":""));
+			}
+		}
+		printf("\'\">");
 		break;
 
 	case P_STRING:
 	case P_USTRING:
+		push_utf8_allocate(&utf8_s1, *(char **)ptr);
 		printf("<input type=text size=40 name=\"parm_%s\" value=\"%s\">",
-		       make_parm_name(parm->label), *(char **)ptr);
-		printf("<input type=button value=\"Set Default\" onClick=\"swatform.parm_%s.value=\'%s\'\">",
-			make_parm_name(parm->label),fix_backslash((char *)(parm->def.svalue)));
+		       make_parm_name(parm->label), utf8_s1);
+		SAFE_FREE(utf8_s1);
+		printf("<input type=button value=\"%s\" onClick=\"swatform.parm_%s.value=\'%s\'\">",
+			_("Set Default"), make_parm_name(parm->label),fix_backslash((char *)(parm->def.svalue)));
 		break;
 
 	case P_GSTRING:
 	case P_UGSTRING:
+		push_utf8_allocate(&utf8_s1, (char *)ptr);
 		printf("<input type=text size=40 name=\"parm_%s\" value=\"%s\">",
-		       make_parm_name(parm->label), (char *)ptr);
-		printf("<input type=button value=\"Set Default\" onClick=\"swatform.parm_%s.value=\'%s\'\">",
-			make_parm_name(parm->label),fix_backslash((char *)(parm->def.svalue)));
+		       make_parm_name(parm->label), utf8_s1);
+		SAFE_FREE(utf8_s1);
+		printf("<input type=button value=\"%s\" onClick=\"swatform.parm_%s.value=\'%s\'\">",
+			_("Set Default"), make_parm_name(parm->label),fix_backslash((char *)(parm->def.svalue)));
 		break;
 
 	case P_BOOL:
@@ -198,8 +270,8 @@ static void show_parameter(int snum, struct parm_struct *parm)
 		printf("<option %s>Yes", (*(BOOL *)ptr)?"selected":"");
 		printf("<option %s>No", (*(BOOL *)ptr)?"":"selected");
 		printf("</select>");
-		printf("<input type=button value=\"Set Default\" onClick=\"swatform.parm_%s.selectedIndex=\'%d\'\">",
-			make_parm_name(parm->label),(BOOL)(parm->def.bvalue)?0:1);
+		printf("<input type=button value=\"%s\" onClick=\"swatform.parm_%s.selectedIndex=\'%d\'\">",
+			_("Set Default"), make_parm_name(parm->label),(BOOL)(parm->def.bvalue)?0:1);
 		break;
 
 	case P_BOOLREV:
@@ -207,30 +279,33 @@ static void show_parameter(int snum, struct parm_struct *parm)
 		printf("<option %s>Yes", (*(BOOL *)ptr)?"":"selected");
 		printf("<option %s>No", (*(BOOL *)ptr)?"selected":"");
 		printf("</select>");
-		printf("<input type=button value=\"Set Default\" onClick=\"swatform.parm_%s.selectedIndex=\'%d\'\">",
-			make_parm_name(parm->label),(BOOL)(parm->def.bvalue)?1:0);
+		printf("<input type=button value=\"%s\" onClick=\"swatform.parm_%s.selectedIndex=\'%d\'\">",
+			_("Set Default"), make_parm_name(parm->label),(BOOL)(parm->def.bvalue)?1:0);
 		break;
 
 	case P_INTEGER:
-		printf("<input type=text size=8 name=\"parm_%s\" value=%d>", make_parm_name(parm->label), *(int *)ptr);
-		printf("<input type=button value=\"Set Default\" onClick=\"swatform.parm_%s.value=\'%d\'\">",
-			make_parm_name(parm->label),(int)(parm->def.ivalue));
+		printf("<input type=text size=8 name=\"parm_%s\" value=\"%d\">", make_parm_name(parm->label), *(int *)ptr);
+		printf("<input type=button value=\"%s\" onClick=\"swatform.parm_%s.value=\'%d\'\">",
+			_("Set Default"), make_parm_name(parm->label),(int)(parm->def.ivalue));
 		break;
 
 	case P_OCTAL:
 		printf("<input type=text size=8 name=\"parm_%s\" value=%s>", make_parm_name(parm->label), octal_string(*(int *)ptr));
-		printf("<input type=button value=\"Set Default\" onClick=\"swatform.parm_%s.value=\'%s\'\">",
-		       make_parm_name(parm->label),
+		printf("<input type=button value=\"%s\" onClick=\"swatform.parm_%s.value=\'%s\'\">",
+		       _("Set Default"), make_parm_name(parm->label),
 		       octal_string((int)(parm->def.ivalue)));
 		break;
 
 	case P_ENUM:
 		printf("<select name=\"parm_%s\">",make_parm_name(parm->label)); 
-		for (i=0;parm->enum_list[i].name;i++)
-			printf("<option %s>%s",(*(int *)ptr)==parm->enum_list[i].value?"selected":"",parm->enum_list[i].name);
+		for (i=0;parm->enum_list[i].name;i++) {
+			if (i == 0 || parm->enum_list[i].value != parm->enum_list[i-1].value) {
+				printf("<option %s>%s",(*(int *)ptr)==parm->enum_list[i].value?"selected":"",parm->enum_list[i].name);
+			}
+		}
 		printf("</select>");
-		printf("<input type=button value=\"Set Default\" onClick=\"swatform.parm_%s.selectedIndex=\'%d\'\">",
-			make_parm_name(parm->label),enum_index((int)(parm->def.ivalue),parm->enum_list));
+		printf("<input type=button value=\"%s\" onClick=\"swatform.parm_%s.selectedIndex=\'%d\'\">",
+			_("Set Default"), make_parm_name(parm->label),enum_index((int)(parm->def.ivalue),parm->enum_list));
 		break;
 	case P_SEP:
 		break;
@@ -241,12 +316,12 @@ static void show_parameter(int snum, struct parm_struct *parm)
 /****************************************************************************
   display a set of parameters for a service 
 ****************************************************************************/
-static void show_parameters(int snum, int allparameters, int advanced, int printers)
+static void show_parameters(int snum, int allparameters, unsigned int parm_filter, int printers)
 {
 	int i = 0;
 	struct parm_struct *parm;
-	char *heading = NULL;
-	char *last_heading = NULL;
+	const char *heading = NULL;
+	const char *last_heading = NULL;
 
 	while ((parm = lp_next_parameter(snum, &i, allparameters))) {
 		if (snum < 0 && parm->class == P_LOCAL && !(parm->flags & FLAG_GLOBAL))
@@ -260,9 +335,10 @@ static void show_parameters(int snum, int allparameters, int advanced, int print
 			if (printers & !(parm->flags & FLAG_PRINT)) continue;
 			if (!printers & !(parm->flags & FLAG_SHARE)) continue;
 		}
-		if (!advanced) {
+
+		if (!( parm_filter & FLAG_ADVANCED )) {
 			if (!(parm->flags & FLAG_BASIC)) {
-				void *ptr = parm->ptr;
+					void *ptr = parm->ptr;
 
 				if (parm->class == P_LOCAL && snum >= 0) {
 					ptr = lp_local_ptr(snum, ptr);
@@ -271,6 +347,10 @@ static void show_parameters(int snum, int allparameters, int advanced, int print
 				switch (parm->type) {
 				case P_CHAR:
 					if (*(char *)ptr == (char)(parm->def.cvalue)) continue;
+					break;
+
+				case P_LIST:
+					if (!str_list_compare(*(char ***)ptr, (char **)(parm->def.lvalue))) continue;
 					break;
 
 				case P_STRING:
@@ -299,12 +379,17 @@ static void show_parameters(int snum, int allparameters, int advanced, int print
 					break;
 				case P_SEP:
 					continue;
-				}
+					}
 			}
 			if (printers && !(parm->flags & FLAG_PRINT)) continue;
 		}
+
+		if ((parm_filter & FLAG_WIZARD) && !(parm->flags & FLAG_WIZARD)) continue;
+		
+		if ((parm_filter & FLAG_ADVANCED) && !(parm->flags & FLAG_ADVANCED)) continue;
+		
 		if (heading && heading != last_heading) {
-			printf("<tr><td></td></tr><tr><td><b><u>%s</u></b></td></tr>\n", heading);
+			printf("<tr><td></td></tr><tr><td><b><u>%s</u></b></td></tr>\n", _(heading));
 			last_heading = heading;
 		}
 		show_parameter(snum, parm);
@@ -317,7 +402,7 @@ static void show_parameters(int snum, int allparameters, int advanced, int print
 static BOOL load_config(BOOL save_def)
 {
 	lp_resetnumservices();
-	return lp_load(servicesf,False,save_def,False);
+	return lp_load(dyn_CONFIGFILE,False,save_def,False);
 }
 
 /****************************************************************************
@@ -329,20 +414,32 @@ static void write_config(FILE *f, BOOL show_defaults)
 	fprintf(f, "# from %s (%s)\n", cgi_remote_host(), cgi_remote_addr());
 	fprintf(f, "# Date: %s\n\n", timestring(False));
 	
-	lp_dump(f, show_defaults, iNumNonAutoPrintServices);	
+	lp_dump(f, show_defaults, iNumNonAutoPrintServices);
 }
 
 /****************************************************************************
-  save and reoad the smb.conf config file 
+  save and reload the smb.conf config file 
 ****************************************************************************/
 static int save_reload(int snum)
 {
 	FILE *f;
+	struct stat st;
 
-	f = sys_fopen(servicesf,"w");
+	f = sys_fopen(dyn_CONFIGFILE,"w");
 	if (!f) {
-		printf("failed to open %s for writing\n", servicesf);
+		printf(_("failed to open %s for writing"), dyn_CONFIGFILE);
+		printf("\n");
 		return 0;
+	}
+
+	/* just in case they have used the buggy xinetd to create the file */
+	if (fstat(fileno(f), &st) == 0 &&
+	    (st.st_mode & S_IWOTH)) {
+#if defined HAVE_FCHMOD
+		fchmod(fileno(f), S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+#else
+		chmod(dyn_CONFIGFILE, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+#endif
 	}
 
 	write_config(f, False);
@@ -353,7 +450,8 @@ static int save_reload(int snum)
 	lp_killunused(NULL);
 
 	if (!load_config(False)) {
-                printf("Can't reload %s\n", servicesf);
+                printf(_("Can't reload %s"), dyn_CONFIGFILE);
+		printf("\n");
                 return 0;
         }
 	iNumNonAutoPrintServices = lp_numservices();
@@ -365,7 +463,7 @@ static int save_reload(int snum)
 /****************************************************************************
   commit one parameter 
 ****************************************************************************/
-static void commit_parameter(int snum, struct parm_struct *parm, char *v)
+static void commit_parameter(int snum, struct parm_struct *parm, const char *v)
 {
 	int i;
 	char *s;
@@ -393,7 +491,7 @@ static void commit_parameters(int snum)
 	int i = 0;
 	struct parm_struct *parm;
 	pstring label;
-	char *v;
+	const char *v;
 
 	while ((parm = lp_next_parameter(snum, &i, 1))) {
 		slprintf(label, sizeof(label)-1, "parm_%s", make_parm_name(parm->label));
@@ -407,9 +505,9 @@ static void commit_parameters(int snum)
 /****************************************************************************
   spit out the html for a link with an image 
 ****************************************************************************/
-static void image_link(char *name,char *hlink, char *src)
+static void image_link(const char *name, const char *hlink, const char *src)
 {
-	printf("<A HREF=\"%s/%s\"><img src=\"/swat/%s\" alt=\"%s\"></A>\n", 
+	printf("<A HREF=\"%s/%s\"><img border=\"0\" src=\"/swat/%s\" alt=\"%s\"></A>\n", 
 	       cgi_baseurl(), hlink, src, name);
 }
 
@@ -422,22 +520,39 @@ static void show_main_buttons(void)
 	char *p;
 	
 	if ((p = cgi_user_name()) && strcmp(p, "root")) {
-		printf("Logged in as <b>%s</b><p>\n", p);
+		printf(_("Logged in as <b>%s</b>"), p);
+		printf("<p>\n");
 	}
 
-	image_link("Home", "", "images/home.gif");
+	image_link(_("Home"), "", "images/home.gif");
 	if (have_write_access) {
-		image_link("Globals", "globals", "images/globals.gif");
-		image_link("Shares", "shares", "images/shares.gif");
-		image_link("Printers", "printers", "images/printers.gif");
+		image_link(_("Globals"), "globals", "images/globals.gif");
+		image_link(_("Shares"), "shares", "images/shares.gif");
+		image_link(_("Printers"), "printers", "images/printers.gif");
+		image_link(_("Wizard"), "wizard", "images/wizard.gif");
 	}
-	if (have_read_access) {
-		image_link("Status", "status", "images/status.gif");
-		image_link("View Config", "viewconfig","images/viewconfig.gif");
+   /* root always gets all buttons, otherwise look for -P */
+	if ( have_write_access || (!passwd_only && have_read_access) ) {
+		image_link(_("Status"), "status", "images/status.gif");
+		image_link(_("View Config"), "viewconfig", "images/viewconfig.gif");
 	}
-	image_link("Password Management", "passwd", "images/passwd.gif");
+	image_link(_("Password Management"), "passwd", "images/passwd.gif");
 
 	printf("<HR>\n");
+}
+
+/****************************************************************************
+ * Handle Display/Edit Mode CGI
+ ****************************************************************************/
+static void ViewModeBoxes(int mode)
+{
+	printf("<p>%s:&nbsp;\n", _("Current View Is"));
+	printf("<input type=radio name=\"ViewMode\" value=0 %s>%s\n", ((mode == 0) ? "checked" : ""), _("Basic"));
+	printf("<input type=radio name=\"ViewMode\" value=1 %s>%s\n", ((mode == 1) ? "checked" : ""), _("Advanced"));
+	printf("<br>%s:&nbsp;\n", _("Change View To"));
+	printf("<input type=submit name=\"BasicMode\" value=\"%s\">\n", _("Basic"));
+	printf("<input type=submit name=\"AdvMode\" value=\"%s\">\n", _("Advanced"));
+	printf("</p><br>\n");
 }
 
 /****************************************************************************
@@ -459,13 +574,13 @@ static void viewconfig_page(void)
 		full_view = 1;
 	}
 
-	printf("<H2>Current Config</H2>\n");
+	printf("<H2>%s</H2>\n", _("Current Config"));
 	printf("<form method=post>\n");
 
 	if (full_view) {
-		printf("<input type=submit name=\"normal_view\" value=\"Normal View\">\n");
+		printf("<input type=submit name=\"normal_view\" value=\"%s\">\n", _("Normal View"));
 	} else {
-		printf("<input type=submit name=\"full_view\" value=\"Full View\">\n");
+		printf("<input type=submit name=\"full_view\" value=\"%s\">\n", _("Full View"));
 	}
 
 	printf("<p><pre>");
@@ -475,65 +590,281 @@ static void viewconfig_page(void)
 }
 
 /****************************************************************************
-  display a globals editing page  
+  second screen of the wizard ... Fetch Configuration Parameters
 ****************************************************************************/
-static void globals_page(void)
+static void wizard_params_page(void)
 {
-	int advanced = 0;
+	unsigned int parm_filter = FLAG_WIZARD;
 
-	printf("<H2>Global Variables</H2>\n");
+	/* Here we first set and commit all the parameters that were selected
+ 	   in the previous screen. */
 
-	if (cgi_variable("Advanced") && !cgi_variable("Basic"))
-		advanced = 1;
+	printf("<H2>%s</H2>\n", _("Wizard Parameter Edit Page"));
 
 	if (cgi_variable("Commit")) {
-		commit_parameters(GLOBALS_SNUM);
+		commit_parameters(GLOBAL_SECTION_SNUM);
 		save_reload(0);
 	}
 
-	printf("<FORM name=\"swatform\" method=post>\n");
+	printf("<form name=\"swatform\" method=post action=wizard_params>\n");
 
 	if (have_write_access) {
 		printf("<input type=submit name=\"Commit\" value=\"Commit Changes\">\n");
 	}
 
-	printf("<input type=reset name=\"Reset Values\" value=\"Reset Values\">\n");
-	if (advanced == 0) {
-		printf("<input type=submit name=\"Advanced\" value=\"Advanced View\">\n");
-	} else {
-		printf("<input type=submit name=\"Basic\" value=\"Basic View\">\n");
-	}
+	printf("<input type=reset name=\"Reset Values\" value=\"Reset\">\n");
 	printf("<p>\n");
 	
 	printf("<table>\n");
-	show_parameters(GLOBALS_SNUM, 1, advanced, 0);
+	show_parameters(GLOBAL_SECTION_SNUM, 1, parm_filter, 0);
 	printf("</table>\n");
-
-	if (advanced) {
-		printf("<input type=hidden name=\"Advanced\" value=1>\n");
-	}
-
-	printf("</FORM>\n");
+	printf("</form>\n");
 }
 
 /****************************************************************************
-  display a shares editing page  
+  Utility to just rewrite the smb.conf file - effectively just cleans it up
+****************************************************************************/
+static void rewritecfg_file(void)
+{
+	commit_parameters(GLOBAL_SECTION_SNUM);
+	save_reload(0);
+	printf("<H2>%s</H2>\n", _("Note: smb.conf file has been read and rewritten"));
+}
+
+/****************************************************************************
+  wizard to create/modify the smb.conf file
+****************************************************************************/
+static void wizard_page(void)
+{
+	/* Set some variables to collect data from smb.conf */
+	int role = 0;
+	int winstype = 0;
+	int have_home = -1;
+	int HomeExpo = 0;
+	int SerType = 0;
+
+	if (cgi_variable("Rewrite")) {
+		(void) rewritecfg_file();
+		return;
+	}
+
+	if (cgi_variable("GetWizardParams")){
+		(void) wizard_params_page();
+		return;
+	}
+
+	if (cgi_variable("Commit")){
+		SerType = atoi(cgi_variable("ServerType"));
+		winstype = atoi(cgi_variable("WINSType"));
+		have_home = lp_servicenumber(HOMES_NAME);
+		HomeExpo = atoi(cgi_variable("HomeExpo"));
+
+		/* Plain text passwords are too badly broken - use encrypted passwords only */
+		lp_do_parameter( GLOBAL_SECTION_SNUM, "encrypt passwords", "Yes");
+		
+		switch ( SerType ){
+			case 0:
+				/* Stand-alone Server */
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "security", "USER" );
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "domain logons", "No" );
+				break;
+			case 1:
+				/* Domain Member */
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "security", "DOMAIN" );
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "domain logons", "No" );
+				break;
+			case 2:
+				/* Domain Controller */
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "security", "USER" );
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "domain logons", "Yes" );
+				break;
+		}
+		switch ( winstype ) {
+			case 0:
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "wins support", "No" );
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "wins server", "" );
+				break;
+			case 1:
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "wins support", "Yes" );
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "wins server", "" );
+				break;
+			case 2:
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "wins support", "No" );
+				lp_do_parameter( GLOBAL_SECTION_SNUM, "wins server", cgi_variable("WINSAddr"));
+				break;
+		}
+
+		/* Have to create Homes share? */
+		if ((HomeExpo == 1) && (have_home == -1)) {
+			pstring unix_share;
+			
+			pstrcpy(unix_share,HOMES_NAME);
+			load_config(False);
+			lp_copy_service(GLOBAL_SECTION_SNUM, unix_share);
+			iNumNonAutoPrintServices = lp_numservices();
+			have_home = lp_servicenumber(HOMES_NAME);
+			lp_do_parameter( have_home, "read only", "No");
+			lp_do_parameter( have_home, "valid users", "%S");
+			lp_do_parameter( have_home, "browseable", "No");
+			commit_parameters(have_home);
+		}
+
+		/* Need to Delete Homes share? */
+		if ((HomeExpo == 0) && (have_home != -1)) {
+			lp_remove_service(have_home);
+			have_home = -1;
+		}
+
+		commit_parameters(GLOBAL_SECTION_SNUM);
+		save_reload(0);
+	}
+	else
+	{
+		/* Now determine smb.conf WINS settings */
+		if (lp_wins_support())
+			winstype = 1;
+		if (lp_wins_server_list() && strlen(*lp_wins_server_list()))
+ 		        winstype = 2;
+ 		
+
+		/* Do we have a homes share? */
+		have_home = lp_servicenumber(HOMES_NAME);
+	}
+	if ((winstype == 2) && lp_wins_support())
+		winstype = 3;
+
+	role = lp_server_role();
+	
+	/* Here we go ... */
+	printf("<H2>%s</H2>\n", _("Samba Configuration Wizard"));
+	printf("<form method=post action=wizard>\n");
+
+	if (have_write_access) {
+		printf("%s\n", _("The \"Rewrite smb.conf file\" button will clear the smb.conf file of all default values and of comments."));
+		printf("%s", _("The same will happen if you press the commit button."));
+		printf("<br><br>\n");
+		printf("<center>");
+		printf("<input type=submit name=\"Rewrite\" value=\"%s\"> &nbsp;&nbsp;",_("Rewrite smb.conf file"));
+		printf("<input type=submit name=\"Commit\" value=\"%s\"> &nbsp;&nbsp;",_("Commit"));
+		printf("<input type=submit name=\"GetWizardParams\" value=\"%s\">", _("Edit Parameter Values"));
+		printf("</center>\n");
+	}
+
+	printf("<hr>");
+	printf("<center><table border=0>");
+	printf("<tr><td><b>%s:&nbsp;</b></td>\n", _("Server Type"));
+	printf("<td><input type=radio name=\"ServerType\" value=\"0\" %s> %s&nbsp;</td>", ((role == ROLE_STANDALONE) ? "checked" : ""), _("Stand Alone"));
+	printf("<td><input type=radio name=\"ServerType\" value=\"1\" %s> %s&nbsp;</td>", ((role == ROLE_DOMAIN_MEMBER) ? "checked" : ""), _("Domain Member")); 
+	printf("<td><input type=radio name=\"ServerType\" value=\"2\" %s> %s&nbsp;</td>", ((role == ROLE_DOMAIN_PDC) ? "checked" : ""), _("Domain Controller"));
+	printf("</tr>\n");
+	if (role == ROLE_DOMAIN_BDC) {
+		printf("<tr><td></td><td colspan=3><font color=\"#ff0000\">%s</font></td></tr>\n", _("Unusual Type in smb.conf - Please Select New Mode"));
+	}
+	printf("<tr><td><b>%s:&nbsp;</b></td>\n", _("Configure WINS As"));
+	printf("<td><input type=radio name=\"WINSType\" value=\"0\" %s> %s&nbsp;</td>", ((winstype == 0) ? "checked" : ""), _("Not Used"));
+	printf("<td><input type=radio name=\"WINSType\" value=\"1\" %s> %s&nbsp;</td>", ((winstype == 1) ? "checked" : ""), _("Server for client use"));
+	printf("<td><input type=radio name=\"WINSType\" value=\"2\" %s> %s&nbsp;</td>", ((winstype == 2) ? "checked" : ""), _("Client of another WINS server"));
+	printf("</tr>\n");
+	printf("<tr><td></td><td></td><td></td><td>%s&nbsp;<input type=text size=\"16\" name=\"WINSAddr\" value=\"", _("Remote WINS Server"));
+
+	/* Print out the list of wins servers */
+	if(lp_wins_server_list()) {
+		int i;
+		const char **wins_servers = lp_wins_server_list();
+		for(i = 0; wins_servers[i]; i++) printf("%s ", wins_servers[i]);
+	}
+	
+	printf("\"></td></tr>\n");
+	if (winstype == 3) {
+		printf("<tr><td></td><td colspan=3><font color=\"#ff0000\">%s</font></td></tr>\n", _("Error: WINS Server Mode and WINS Support both set in smb.conf"));
+		printf("<tr><td></td><td colspan=3><font color=\"#ff0000\">%s</font></td></tr>\n", _("Please Select desired WINS mode above."));
+	}
+	printf("<tr><td><b>%s:&nbsp;</b></td>\n", _("Expose Home Directories"));
+	printf("<td><input type=radio name=\"HomeExpo\" value=\"1\" %s> Yes</td>", (have_home == -1) ? "" : "checked ");
+	printf("<td><input type=radio name=\"HomeExpo\" value=\"0\" %s> No</td>", (have_home == -1 ) ? "checked" : "");
+	printf("<td></td></tr>\n");
+	
+	/* Enable this when we are ready ....
+	 * printf("<tr><td><b>%s:&nbsp;</b></td>\n", _("Is Print Server"));
+	 * printf("<td><input type=radio name=\"PtrSvr\" value=\"1\" %s> Yes</td>");
+	 * printf("<td><input type=radio name=\"PtrSvr\" value=\"0\" %s> No</td>");
+	 * printf("<td></td></tr>\n");
+	 */
+	
+	printf("</table></center>");
+	printf("<hr>");
+
+	printf("%s\n", _("The above configuration options will set multiple parameters and will generally assist with rapid Samba deployment."));
+	printf("</form>\n");
+}
+
+
+/****************************************************************************
+  display a globals editing page  
+****************************************************************************/
+static void globals_page(void)
+{
+	unsigned int parm_filter = FLAG_BASIC;
+	int mode = 0;
+
+	printf("<H2>%s</H2>\n", _("Global Parameters"));
+
+	if (cgi_variable("Commit")) {
+		commit_parameters(GLOBAL_SECTION_SNUM);
+		save_reload(0);
+	}
+
+	if ( cgi_variable("ViewMode") )
+		mode = atoi(cgi_variable("ViewMode"));
+	if ( cgi_variable("BasicMode"))
+		mode = 0;
+	if ( cgi_variable("AdvMode"))
+		mode = 1;
+
+	printf("<form name=\"swatform\" method=post action=globals>\n");
+
+	ViewModeBoxes( mode );
+	switch ( mode ) {
+		case 0:
+			parm_filter = FLAG_BASIC;
+			break;
+		case 1:
+			parm_filter = FLAG_ADVANCED;
+			break;
+	}
+	printf("<br>\n");
+	if (have_write_access) {
+		printf("<input type=submit name=\"Commit\" value=\"%s\">\n",
+			_("Commit Changes"));
+	}
+
+	printf("<input type=reset name=\"Reset Values\" value=\"%s\">\n", 
+		 _("Reset Values"));
+
+	printf("<p>\n");
+	printf("<table>\n");
+	show_parameters(GLOBAL_SECTION_SNUM, 1, parm_filter, 0);
+	printf("</table>\n");
+	printf("</form>\n");
+}
+
+/****************************************************************************
+  display a shares editing page. share is in unix codepage, 
 ****************************************************************************/
 static void shares_page(void)
 {
-	char *share = cgi_variable("share");
+	const char *share = cgi_variable("share");
 	char *s;
-	int snum=-1;
+	char *utf8_s;
+	int snum = -1;
 	int i;
-	int advanced = 0;
+	int mode = 0;
+	unsigned int parm_filter = FLAG_BASIC;
 
 	if (share)
 		snum = lp_servicenumber(share);
 
-	printf("<H2>Share Parameters</H2>\n");
-
-	if (cgi_variable("Advanced") && !cgi_variable("Basic"))
-		advanced = 1;
+	printf("<H2>%s</H2>\n", _("Share Parameters"));
 
 	if (cgi_variable("Commit") && snum >= 0) {
 		commit_parameters(snum);
@@ -549,7 +880,7 @@ static void shares_page(void)
 
 	if (cgi_variable("createshare") && (share=cgi_variable("newshare"))) {
 		load_config(False);
-		lp_copy_service(GLOBALS_SNUM, share);
+		lp_copy_service(GLOBAL_SECTION_SNUM, share);
 		iNumNonAutoPrintServices = lp_numservices();
 		save_reload(0);
 		snum = lp_servicenumber(share);
@@ -558,29 +889,49 @@ static void shares_page(void)
 	printf("<FORM name=\"swatform\" method=post>\n");
 
 	printf("<table>\n");
-	printf("<tr>\n");
-	printf("<td><input type=submit name=selectshare value=\"Choose Share\"></td>\n");
+
+	if ( cgi_variable("ViewMode") )
+		mode = atoi(cgi_variable("ViewMode"));
+	if ( cgi_variable("BasicMode"))
+		mode = 0;
+	if ( cgi_variable("AdvMode"))
+		mode = 1;
+
+	ViewModeBoxes( mode );
+	switch ( mode ) {
+		case 0:
+			parm_filter = FLAG_BASIC;
+			break;
+		case 1:
+			parm_filter = FLAG_ADVANCED;
+			break;
+	}
+	printf("<br><tr>\n");
+	printf("<td><input type=submit name=selectshare value=\"%s\"></td>\n", _("Choose Share"));
 	printf("<td><select name=share>\n");
 	if (snum < 0)
 		printf("<option value=\" \"> \n");
 	for (i=0;i<lp_numservices();i++) {
 		s = lp_servicename(i);
 		if (s && (*s) && strcmp(s,"IPC$") && !lp_print_ok(i)) {
+			push_utf8_allocate(&utf8_s, s);
 			printf("<option %s value=\"%s\">%s\n", 
 			       (share && strcmp(share,s)==0)?"SELECTED":"",
-			       s, s);
+			       utf8_s, utf8_s);
+			SAFE_FREE(utf8_s);
+			
 		}
 	}
 	printf("</select></td>\n");
 	if (have_write_access) {
-		printf("<td><input type=submit name=\"Delete\" value=\"Delete Share\"></td>\n");
+		printf("<td><input type=submit name=\"Delete\" value=\"%s\"></td>\n", _("Delete Share"));
 	}
 	printf("</tr>\n");
 	printf("</table>");
 	printf("<table>");
 	if (have_write_access) {
 		printf("<tr>\n");
-		printf("<td><input type=submit name=createshare value=\"Create Share\"></td>\n");
+		printf("<td><input type=submit name=createshare value=\"%s\"></td>\n", _("Create Share"));
 		printf("<td><input type=text size=30 name=newshare></td></tr>\n");
 	}
 	printf("</table>");
@@ -588,26 +939,17 @@ static void shares_page(void)
 
 	if (snum >= 0) {
 		if (have_write_access) {
-			printf("<input type=submit name=\"Commit\" value=\"Commit Changes\">\n");
+			printf("<input type=submit name=\"Commit\" value=\"%s\">\n", _("Commit Changes"));
 		}
 
-		printf("<input type=reset name=\"Reset Values\" value=\"Reset Values\">\n");
-		if (advanced == 0) {
-			printf("<input type=submit name=\"Advanced\" value=\"Advanced View\">\n");
-		} else {
-			printf("<input type=submit name=\"Basic\" value=\"Basic View\">\n");
-		}
+		printf("<input type=reset name=\"Reset Values\" value=\"%s\">\n", _("Reset Values"));
 		printf("<p>\n");
 	}
 
 	if (snum >= 0) {
 		printf("<table>\n");
-		show_parameters(snum, 1, advanced, 0);
+		show_parameters(snum, 1, parm_filter, 0);
 		printf("</table>\n");
-	}
-
-	if (advanced) {
-		printf("<input type=hidden name=\"Advanced\" value=1>\n");
 	}
 
 	printf("</FORM>\n");
@@ -616,8 +958,8 @@ static void shares_page(void)
 /*************************************************************
 change a password either locally or remotely
 *************************************************************/
-static BOOL change_password(const char *remote_machine, char *user_name, 
-			    char *old_passwd, char *new_passwd, 
+static BOOL change_password(const char *remote_machine, const char *user_name, 
+			    const char *old_passwd, const char *new_passwd, 
 				int local_flags)
 {
 	BOOL ret = False;
@@ -625,7 +967,7 @@ static BOOL change_password(const char *remote_machine, char *user_name,
 	pstring msg_str;
 
 	if (demo_mode) {
-		printf("password change in demo mode rejected\n<p>");
+		printf("%s\n<p>", _("password change in demo mode rejected"));
 		return False;
 	}
 	
@@ -637,8 +979,8 @@ static BOOL change_password(const char *remote_machine, char *user_name,
 		return ret;
 	}
 
-	if(!initialize_password_db()) {
-		printf("Can't setup password database vectors.\n<p>");
+	if(!initialize_password_db(True)) {
+		printf("%s\n<p>", _("Can't setup password database vectors."));
 		return False;
 	}
 	
@@ -658,13 +1000,13 @@ static BOOL change_password(const char *remote_machine, char *user_name,
 ****************************************************************************/
 static void chg_passwd(void)
 {
-	char *host;
+	const char *host;
 	BOOL rslt;
 	int local_flags = 0;
 
 	/* Make sure users name has been specified */
 	if (strlen(cgi_variable(SWAT_USER)) == 0) {
-		printf("<p> Must specify \"User Name\" \n");
+		printf("<p>%s\n", _(" Must specify \"User Name\" "));
 		return;
 	}
 
@@ -680,26 +1022,26 @@ static void chg_passwd(void)
 		 */
 		if (((!am_root()) && (strlen( cgi_variable(OLD_PSWD)) <= 0)) ||
 		    ((cgi_variable(CHG_R_PASSWD_FLAG)) &&  (strlen( cgi_variable(OLD_PSWD)) <= 0))) {
-			printf("<p> Must specify \"Old Password\" \n");
+			printf("<p>%s\n", _(" Must specify \"Old Password\" "));
 			return;
 		}
 
 		/* If changing a users password on a remote hosts we have to know what host */
 		if ((cgi_variable(CHG_R_PASSWD_FLAG)) && (strlen( cgi_variable(RHOST)) <= 0)) {
-			printf("<p> Must specify \"Remote Machine\" \n");
+			printf("<p>%s\n", _(" Must specify \"Remote Machine\" "));
 			return;
 		}
 
 		/* Make sure new passwords have been specified */
 		if ((strlen( cgi_variable(NEW_PSWD)) <= 0) ||
 		    (strlen( cgi_variable(NEW2_PSWD)) <= 0)) {
-			printf("<p> Must specify \"New, and Re-typed Passwords\" \n");
+			printf("<p>%s\n", _(" Must specify \"New, and Re-typed Passwords\" "));
 			return;
 		}
 
 		/* Make sure new passwords was typed correctly twice */
 		if (strcmp(cgi_variable(NEW_PSWD), cgi_variable(NEW2_PSWD)) != 0) {
-			printf("<p> Re-typed password didn't match new password\n");
+			printf("<p>%s\n", _(" Re-typed password didn't match new password "));
 			return;
 		}
 	}
@@ -717,20 +1059,26 @@ static void chg_passwd(void)
 	 */
 
 	local_flags |= (cgi_variable(ADD_USER_FLAG) ? LOCAL_ADD_USER : 0);
+	local_flags |= (cgi_variable(ADD_USER_FLAG) ?  LOCAL_SET_PASSWORD : 0);
+	local_flags |= (cgi_variable(CHG_S_PASSWD_FLAG) ? LOCAL_SET_PASSWORD : 0);
 	local_flags |= (cgi_variable(DELETE_USER_FLAG) ? LOCAL_DELETE_USER : 0);
 	local_flags |= (cgi_variable(ENABLE_USER_FLAG) ? LOCAL_ENABLE_USER : 0);
 	local_flags |= (cgi_variable(DISABLE_USER_FLAG) ? LOCAL_DISABLE_USER : 0);
+	
 
 	rslt = change_password(host,
 			       cgi_variable(SWAT_USER),
 			       cgi_variable(OLD_PSWD), cgi_variable(NEW_PSWD),
 				   local_flags);
 
-	if(local_flags == 0) {
+	if(cgi_variable(CHG_S_PASSWD_FLAG)) {
+		printf("<p>");
 		if (rslt == True) {
-			printf("<p> The passwd for '%s' has been changed. \n", cgi_variable(SWAT_USER));
+			printf(_(" The passwd for '%s' has been changed."), cgi_variable(SWAT_USER));
+			printf("\n");
 		} else {
-			printf("<p> The passwd for '%s' has NOT been changed. \n",cgi_variable(SWAT_USER));
+			printf(_(" The passwd for '%s' has NOT been changed."), cgi_variable(SWAT_USER));
+			printf("\n");
 		}
 	}
 	
@@ -742,7 +1090,7 @@ static void chg_passwd(void)
 ****************************************************************************/
 static void passwd_page(void)
 {
-	char *new_name = cgi_user_name();
+	const char *new_name = cgi_user_name();
 
 	/* 
 	 * After the first time through here be nice. If the user
@@ -754,7 +1102,7 @@ static void passwd_page(void)
 
 	if (!new_name) new_name = "";
 
-	printf("<H2>Server Password Management</H2>\n");
+	printf("<H2>%s</H2>\n", _("Server Password Management"));
 
 	printf("<FORM name=\"swatform\" method=post>\n");
 
@@ -763,32 +1111,32 @@ static void passwd_page(void)
 	/* 
 	 * Create all the dialog boxes for data collection
 	 */
-	printf("<tr><td> User Name : </td>\n");
+	printf("<tr><td> %s : </td>\n", _("User Name"));
 	printf("<td><input type=text size=30 name=%s value=%s></td></tr> \n", SWAT_USER, new_name);
 	if (!am_root()) {
-		printf("<tr><td> Old Password : </td>\n");
+		printf("<tr><td> %s : </td>\n", _("Old Password"));
 		printf("<td><input type=password size=30 name=%s></td></tr> \n",OLD_PSWD);
 	}
-	printf("<tr><td> New Password : </td>\n");
+	printf("<tr><td> %s : </td>\n", _("New Password"));
 	printf("<td><input type=password size=30 name=%s></td></tr>\n",NEW_PSWD);
-	printf("<tr><td> Re-type New Password : </td>\n");
+	printf("<tr><td> %s : </td>\n", _("Re-type New Password"));
 	printf("<td><input type=password size=30 name=%s></td></tr>\n",NEW2_PSWD);
 	printf("</table>\n");
 
 	/*
 	 * Create all the control buttons for requesting action
 	 */
-	printf("<input type=submit name=%s value=\"Change Password\">\n", 
-	       CHG_S_PASSWD_FLAG);
+	printf("<input type=submit name=%s value=\"%s\">\n", 
+	       CHG_S_PASSWD_FLAG, _("Change Password"));
 	if (demo_mode || am_root()) {
-		printf("<input type=submit name=%s value=\"Add New User\">\n",
-		       ADD_USER_FLAG);
-		printf("<input type=submit name=%s value=\"Delete User\">\n",
-		       DELETE_USER_FLAG);
-		printf("<input type=submit name=%s value=\"Disable User\">\n", 
-		       DISABLE_USER_FLAG);
-		printf("<input type=submit name=%s value=\"Enable User\">\n", 
-		       ENABLE_USER_FLAG);
+		printf("<input type=submit name=%s value=\"%s\">\n",
+		       ADD_USER_FLAG, _("Add New User"));
+		printf("<input type=submit name=%s value=\"%s\">\n",
+		       DELETE_USER_FLAG, _("Delete User"));
+		printf("<input type=submit name=%s value=\"%s\">\n", 
+		       DISABLE_USER_FLAG, _("Disable User"));
+		printf("<input type=submit name=%s value=\"%s\">\n", 
+		       ENABLE_USER_FLAG, _("Enable User"));
 	}
 	printf("<p></FORM>\n");
 
@@ -801,7 +1149,7 @@ static void passwd_page(void)
 		chg_passwd();		
 	}
 
-	printf("<H2>Client/Server Password Management</H2>\n");
+	printf("<H2>%s</H2>\n", _("Client/Server Password Management"));
 
 	printf("<FORM name=\"swatform\" method=post>\n");
 
@@ -810,15 +1158,15 @@ static void passwd_page(void)
 	/* 
 	 * Create all the dialog boxes for data collection
 	 */
-	printf("<tr><td> User Name : </td>\n");
+	printf("<tr><td> %s : </td>\n", _("User Name"));
 	printf("<td><input type=text size=30 name=%s value=%s></td></tr>\n",SWAT_USER, new_name);
-	printf("<tr><td> Old Password : </td>\n");
+	printf("<tr><td> %s : </td>\n", _("Old Password"));
 	printf("<td><input type=password size=30 name=%s></td></tr>\n",OLD_PSWD);
-	printf("<tr><td> New Password : </td>\n");
+	printf("<tr><td> %s : </td>\n", _("New Password"));
 	printf("<td><input type=password size=30 name=%s></td></tr>\n",NEW_PSWD);
-	printf("<tr><td> Re-type New Password : </td>\n");
+	printf("<tr><td> %s : </td>\n", _("Re-type New Password"));
 	printf("<td><input type=password size=30 name=%s></td></tr>\n",NEW2_PSWD);
-	printf("<tr><td> Remote Machine : </td>\n");
+	printf("<tr><td> %s : </td>\n", _("Remote Machine"));
 	printf("<td><input type=text size=30 name=%s></td></tr>\n",RHOST);
 
 	printf("</table>");
@@ -826,8 +1174,8 @@ static void passwd_page(void)
 	/*
 	 * Create all the control buttons for requesting action
 	 */
-	printf("<input type=submit name=%s value=\"Change Password\">", 
-	       CHG_R_PASSWD_FLAG);
+	printf("<input type=submit name=%s value=\"%s\">", 
+	       CHG_R_PASSWD_FLAG, _("Change Password"));
 
 	printf("<p></FORM>\n");
 
@@ -847,25 +1195,23 @@ static void passwd_page(void)
 ****************************************************************************/
 static void printers_page(void)
 {
-	char *share = cgi_variable("share");
+	const char *share = cgi_variable("share");
 	char *s;
 	int snum=-1;
 	int i;
-	int advanced = 0;
+	int mode = 0;
+	unsigned int parm_filter = FLAG_BASIC;
 
 	if (share)
 		snum = lp_servicenumber(share);
 
-	printf("<H2>Printer Parameters</H2>\n");
-
-	printf("<H3>Important Note:</H3>\n");
-	printf("Printer names marked with [*] in the Choose Printer drop-down box ");
-	printf("are autoloaded printers from ");
-	printf("<A HREF=\"/swat/help/smb.conf.5.html#printcapname\" target=\"docs\">Printcap Name</A>.\n");
-	printf("Attempting to delete these printers from SWAT will have no effect.\n");
-
-	if (cgi_variable("Advanced") && !cgi_variable("Basic"))
-		advanced = 1;
+        printf("<H2>%s</H2>\n", _("Printer Parameters"));
+ 
+        printf("<H3>%s</H3>\n", _("Important Note:"));
+        printf(_("Printer names marked with [*] in the Choose Printer drop-down box "));
+        printf(_("are autoloaded printers from "));
+        printf("<A HREF=\"/swat/help/smb.conf.5.html#printcapname\" target=\"docs\">%s</A>\n", _("Printcap Name"));
+        printf("%s\n", _("Attempting to delete these printers from SWAT will have no effect."));
 
 	if (cgi_variable("Commit") && snum >= 0) {
 		commit_parameters(snum);
@@ -884,7 +1230,7 @@ static void printers_page(void)
 
 	if (cgi_variable("createshare") && (share=cgi_variable("newshare"))) {
 		load_config(False);
-		lp_copy_service(GLOBALS_SNUM, share);
+		lp_copy_service(GLOBAL_SECTION_SNUM, share);
 		iNumNonAutoPrintServices = lp_numservices();
 		snum = lp_servicenumber(share);
 		lp_do_parameter(snum, "print ok", "Yes");
@@ -894,9 +1240,25 @@ static void printers_page(void)
 
 	printf("<FORM name=\"swatform\" method=post>\n");
 
+	if ( cgi_variable("ViewMode") )
+		mode = atoi(cgi_variable("ViewMode"));
+        if ( cgi_variable("BasicMode"))
+                mode = 0;
+        if ( cgi_variable("AdvMode"))
+                mode = 1;
+
+	ViewModeBoxes( mode );
+	switch ( mode ) {
+		case 0:
+			parm_filter = FLAG_BASIC;
+			break;
+		case 1:
+			parm_filter = FLAG_ADVANCED;
+			break;
+	}
 	printf("<table>\n");
-	printf("<tr><td><input type=submit name=selectshare value=\"Choose Printer\"></td>\n");
-	printf("<td><select name=share>\n");
+	printf("<tr><td><input type=submit name=\"selectshare\" value=\"%s\"></td>\n", _("Choose Printer"));
+	printf("<td><select name=\"share\">\n");
 	if (snum < 0 || !lp_print_ok(snum))
 		printf("<option value=\" \"> \n");
 	for (i=0;i<lp_numservices();i++) {
@@ -914,57 +1276,54 @@ static void printers_page(void)
 	}
 	printf("</select></td>");
 	if (have_write_access) {
-		printf("<td><input type=submit name=\"Delete\" value=\"Delete Printer\"></td>\n");
+		printf("<td><input type=submit name=\"Delete\" value=\"%s\"></td>\n", _("Delete Printer"));
 	}
 	printf("</tr>");
 	printf("</table>\n");
 
 	if (have_write_access) {
 		printf("<table>\n");
-		printf("<tr><td><input type=submit name=createshare value=\"Create Printer\"></td>\n");
-		printf("<td><input type=text size=30 name=newshare></td></tr>\n");
+		printf("<tr><td><input type=submit name=\"createshare\" value=\"%s\"></td>\n", _("Create Printer"));
+		printf("<td><input type=text size=30 name=\"newshare\"></td></tr>\n");
 		printf("</table>");
 	}
 
 
 	if (snum >= 0) {
 		if (have_write_access) {
-			printf("<input type=submit name=\"Commit\" value=\"Commit Changes\">\n");
+			printf("<input type=submit name=\"Commit\" value=\"%s\">\n", _("Commit Changes"));
 		}
-		printf("<input type=reset name=\"Reset Values\" value=\"Reset Values\">\n");
-		if (advanced == 0) {
-			printf("<input type=submit name=\"Advanced\" value=\"Advanced View\">\n");
-		} else {
-			printf("<input type=submit name=\"Basic\" value=\"Basic View\">\n");
-		}
+		printf("<input type=reset name=\"Reset Values\" value=\"%s\">\n", _("Reset Values"));
 		printf("<p>\n");
 	}
 
 	if (snum >= 0) {
 		printf("<table>\n");
-		show_parameters(snum, 1, advanced, 1);
+		show_parameters(snum, 1, parm_filter, 1);
 		printf("</table>\n");
 	}
-
-	if (advanced) {
-		printf("<input type=hidden name=\"Advanced\" value=1>\n");
-	}
-
 	printf("</FORM>\n");
 }
 
-/****************************************************************************
-  MAIN()
-****************************************************************************/
+
+/**
+ * main function for SWAT.
+ **/
  int main(int argc, char *argv[])
 {
-	extern char *optarg;
-	extern int optind;
-	extern FILE *dbf;
 	int opt;
-	char *page;
+	const char *page;
+	poptContext pc;
+	struct poptOption long_options[] = {
+		POPT_AUTOHELP
+		{ "disable-authentication", 'a', POPT_ARG_VAL, &demo_mode, True, "Disable authentication (demo mode)" },
+        { "password-menu-only", 'P', POPT_ARG_VAL, &passwd_only, True, "Show only change password menu" }, 
+		POPT_COMMON_SAMBA
+		POPT_TABLEEND
+	};
 
 	fault_setup(NULL);
+	umask(S_IWGRP | S_IWOTH);
 
 #if defined(HAVE_SET_AUTH_PARAMETERS)
 	set_auth_parameters(argc, argv);
@@ -973,51 +1332,49 @@ static void printers_page(void)
 	/* just in case it goes wild ... */
 	alarm(300);
 
+	setlinebuf(stdout);
+
 	/* we don't want any SIGPIPE messages */
 	BlockSignals(True,SIGPIPE);
 
-	dbf = sys_fopen("/dev/null", "w");
-	if (!dbf) dbf = stderr;
+	dbf = x_fopen("/dev/null", O_WRONLY, 0);
+	if (!dbf) dbf = x_stderr;
 
 	/* we don't want stderr screwing us up */
 	close(2);
 	open("/dev/null", O_WRONLY);
 
-	while ((opt = getopt(argc, argv,"s:a")) != EOF) {
-		switch (opt) {
-		case 's':
-			pstrcpy(servicesf,optarg);
-			break;	  
-		case 'a':
-			demo_mode = True;
-			break;	  
-		}
-	}
+	pc = poptGetContext("swat", argc, (const char **) argv, long_options, 0);
 
-	charset_initialise();
+	/* Parse command line options */
+
+	while((opt = poptGetNextOpt(pc)) != -1) { }
+
+	poptFreeContext(pc);
+
+	setup_logging(argv[0],False);
 	load_config(True);
 	iNumNonAutoPrintServices = lp_numservices();
 	load_printers();
 
-	cgi_setup(SWATDIR, !demo_mode);
+	cgi_setup(dyn_SWATDIR, !demo_mode);
 
 	print_header();
-	
-	cgi_load_variables(NULL);
 
-	if (!file_exist(servicesf, NULL)) {
+	cgi_load_variables();
+
+	if (!file_exist(dyn_CONFIGFILE, NULL)) {
 		have_read_access = True;
 		have_write_access = True;
 	} else {
 		/* check if the authenticated user has write access - if not then
 		   don't show write options */
-		have_write_access = (access(servicesf,W_OK) == 0);
+		have_write_access = (access(dyn_CONFIGFILE,W_OK) == 0);
 
 		/* if the user doesn't have read access to smb.conf then
 		   don't let them view it */
-		have_read_access = (access(servicesf,R_OK) == 0);
+		have_read_access = (access(dyn_CONFIGFILE,R_OK) == 0);
 	}
-
 
 	show_main_buttons();
 
@@ -1036,6 +1393,12 @@ static void printers_page(void)
 		viewconfig_page();
 	} else if (strcmp(page,"passwd")==0) {
 		passwd_page();
+	} else if (have_read_access && strcmp(page,"wizard")==0) {
+		wizard_page();
+	} else if (have_read_access && strcmp(page,"wizard_params")==0) {
+		wizard_params_page();
+	} else if (have_read_access && strcmp(page,"rewritecfg")==0) {
+		rewritecfg_file();
 	} else {
 		welcome_page();
 	}
@@ -1043,3 +1406,5 @@ static void printers_page(void)
 	print_footer();
 	return 0;
 }
+
+/** @} **/

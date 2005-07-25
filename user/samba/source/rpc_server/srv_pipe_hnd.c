@@ -1,6 +1,5 @@
 /* 
- *  Unix SMB/Netbios implementation.
- *  Version 1.9.
+ *  Unix SMB/CIFS implementation.
  *  RPC Pipe client / server routines
  *  Copyright (C) Andrew Tridgell              1992-1998,
  *  Copyright (C) Luke Kenneth Casson Leighton 1996-1998,
@@ -21,23 +20,82 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-
 #include "includes.h"
 
+#undef DBGC_CLASS
+#define DBGC_CLASS DBGC_RPC_SRV
 
 #define	PIPE		"\\PIPE\\"
 #define	PIPELEN		strlen(PIPE)
 
-extern int DEBUGLEVEL;
-static pipes_struct *chain_p;
+static smb_np_struct *chain_p;
 static int pipes_open;
 
-#ifndef MAX_OPEN_PIPES
-#define MAX_OPEN_PIPES 64
+/*
+ * Sometimes I can't decide if I hate Windows printer driver
+ * writers more than I hate the Windows spooler service driver
+ * writers. This gets around a combination of bugs in the spooler
+ * and the HP 8500 PCL driver that causes a spooler spin. JRA.
+ *
+ * bumped up from 20 -> 64 after viewing traffic from WordPerfect
+ * 2002 running on NT 4.- SP6
+ * bumped up from 64 -> 256 after viewing traffic from con2prt
+ * for lots of printers on a WinNT 4.x SP6 box.
+ */
+ 
+#ifndef MAX_OPEN_SPOOLSS_PIPES
+#define MAX_OPEN_SPOOLSS_PIPES 256
 #endif
+static int current_spoolss_pipes_open;
 
-static pipes_struct *Pipes;
+static smb_np_struct *Pipes;
+static pipes_struct *InternalPipes;
 static struct bitmap *bmap;
+
+/* TODO
+ * the following prototypes are declared here to avoid
+ * code being moved about too much for a patch to be
+ * disrupted / less obvious.
+ *
+ * these functions, and associated functions that they
+ * call, should be moved behind a .so module-loading
+ * system _anyway_.  so that's the next step...
+ */
+
+static ssize_t read_from_internal_pipe(void *np_conn, char *data, size_t n,
+		BOOL *is_data_outstanding);
+static ssize_t write_to_internal_pipe(void *np_conn, char *data, size_t n);
+static BOOL close_internal_rpc_pipe_hnd(void *np_conn);
+static void *make_internal_rpc_pipe_p(char *pipe_name, 
+			      connection_struct *conn, uint16 vuid);
+
+/****************************************************************************
+ Pipe iterator functions.
+****************************************************************************/
+
+smb_np_struct *get_first_pipe(void)
+{
+	return Pipes;
+}
+
+smb_np_struct *get_next_pipe(smb_np_struct *p)
+{
+	return p->next;
+}
+
+/****************************************************************************
+ Internal Pipe iterator functions.
+****************************************************************************/
+
+pipes_struct *get_first_internal_pipe(void)
+{
+	return InternalPipes;
+}
+
+pipes_struct *get_next_internal_pipe(pipes_struct *p)
+{
+	return p->next;
+}
 
 /* this must be larger than the sum of the open files and directories */
 static int pipe_handle_offset;
@@ -57,6 +115,7 @@ void set_pipe_handle_offset(int max_open_files)
 /****************************************************************************
  Reset pipe chain handle number.
 ****************************************************************************/
+
 void reset_chain_p(void)
 {
 	chain_p = NULL;
@@ -70,15 +129,17 @@ void init_rpc_pipe_hnd(void)
 {
 	bmap = bitmap_allocate(MAX_OPEN_PIPES);
 	if (!bmap)
-		exit_server("out of memory in init_rpc_pipe_hnd\n");
+		exit_server("out of memory in init_rpc_pipe_hnd");
 }
 
 /****************************************************************************
  Initialise an outgoing packet.
 ****************************************************************************/
 
-static BOOL pipe_init_outgoing_data(output_data *o_data)
+static BOOL pipe_init_outgoing_data(pipes_struct *p)
 {
+	output_data *o_data = &p->out_data;
+
 	/* Reset the offset counters. */
 	o_data->data_sent_length = 0;
 	o_data->current_pdu_len = 0;
@@ -93,7 +154,7 @@ static BOOL pipe_init_outgoing_data(output_data *o_data)
 	 * Initialize the outgoing RPC data buffer.
 	 * we will use this as the raw data area for replying to rpc requests.
 	 */	
-	if(!prs_init(&o_data->rdata, MAX_PDU_FRAG_LEN, 4, MARSHALL)) {
+	if(!prs_init(&o_data->rdata, MAX_PDU_FRAG_LEN, p->mem_ctx, MARSHALL)) {
 		DEBUG(0,("pipe_init_outgoing_data: malloc fail.\n"));
 		return False;
 	}
@@ -105,21 +166,31 @@ static BOOL pipe_init_outgoing_data(output_data *o_data)
  Find first available pipe slot.
 ****************************************************************************/
 
-pipes_struct *open_rpc_pipe_p(char *pipe_name, 
+smb_np_struct *open_rpc_pipe_p(char *pipe_name, 
 			      connection_struct *conn, uint16 vuid)
 {
 	int i;
-	pipes_struct *p;
+	smb_np_struct *p, *p_it;
 	static int next_pipe;
+	BOOL is_spoolss_pipe = False;
 
 	DEBUG(4,("Open pipe requested %s (pipes_open=%d)\n",
 		 pipe_name, pipes_open));
-	
+
+	if (strstr(pipe_name, "spoolss"))
+		is_spoolss_pipe = True;
+ 
+	if (is_spoolss_pipe && current_spoolss_pipes_open >= MAX_OPEN_SPOOLSS_PIPES) {
+		DEBUG(10,("open_rpc_pipe_p: spooler bug workaround. Denying open on pipe %s\n",
+			pipe_name ));
+		return NULL;
+	}
+
 	/* not repeating pipe numbers makes it easier to track things in 
 	   log files and prevents client bugs where pipe numbers are reused
 	   over connection restarts */
 	if (next_pipe == 0)
-		next_pipe = (getpid() ^ time(NULL)) % MAX_OPEN_PIPES;
+		next_pipe = (sys_getpid() ^ time(NULL)) % MAX_OPEN_PIPES;
 
 	i = bitmap_find(bmap, next_pipe);
 
@@ -131,14 +202,30 @@ pipes_struct *open_rpc_pipe_p(char *pipe_name,
 	next_pipe = (i+1) % MAX_OPEN_PIPES;
 
 	for (p = Pipes; p; p = p->next)
-		DEBUG(5,("open pipes: name %s pnum=%x\n", p->name, p->pnum));  
+		DEBUG(5,("open_rpc_pipe_p: name %s pnum=%x\n", p->name, p->pnum));  
 
-	p = (pipes_struct *)malloc(sizeof(*p));
-
-	if (!p)
+	p = SMB_MALLOC_P(smb_np_struct);
+	if (!p) {
+		DEBUG(0,("ERROR! no memory for pipes_struct!\n"));
 		return NULL;
+	}
 
 	ZERO_STRUCTP(p);
+
+	/* add a dso mechanism instead of this, here */
+
+	p->namedpipe_create = make_internal_rpc_pipe_p;
+	p->namedpipe_read = read_from_internal_pipe;
+	p->namedpipe_write = write_to_internal_pipe;
+	p->namedpipe_close = close_internal_rpc_pipe_hnd;
+
+	p->np_state = p->namedpipe_create(pipe_name, conn, vuid);
+
+	if (p->np_state == NULL) {
+		DEBUG(0,("open_rpc_pipe_p: make_internal_rpc_pipe_p failed.\n"));
+		SAFE_FREE(p);
+		return NULL;
+	}
 
 	DLIST_ADD(Pipes, p);
 
@@ -148,11 +235,6 @@ pipes_struct *open_rpc_pipe_p(char *pipe_name,
 	 * data directly into the prs_struct and we want it to auto grow. We will
 	 * change the type to UNMARSALLING before processing the stream.
 	 */
-
-	if(!prs_init(&p->in_data.data, MAX_PDU_FRAG_LEN, 4, MARSHALL)) {
-		DEBUG(0,("open_rpc_pipe_p: malloc fail for in_data struct.\n"));
-		return NULL;
-	}
 
 	bitmap_set(bmap, i);
 	i += pipe_handle_offset;
@@ -169,12 +251,98 @@ pipes_struct *open_rpc_pipe_p(char *pipe_name,
 
 	p->max_trans_reply = 0;
 	
+	fstrcpy(p->name, pipe_name);
+	
+	DEBUG(4,("Opened pipe %s with handle %x (pipes_open=%d)\n",
+		 pipe_name, i, pipes_open));
+	
+	chain_p = p;
+	
+	/* Iterate over p_it as a temp variable, to display all open pipes */ 
+	for (p_it = Pipes; p_it; p_it = p_it->next)
+		DEBUG(5,("open pipes: name %s pnum=%x\n", p_it->name, p_it->pnum));  
+
+	return chain_p;
+}
+
+/****************************************************************************
+ Make an internal namedpipes structure
+****************************************************************************/
+
+static void *make_internal_rpc_pipe_p(char *pipe_name, 
+			      connection_struct *conn, uint16 vuid)
+{
+	pipes_struct *p;
+	user_struct *vuser = get_valid_user_struct(vuid);
+
+	DEBUG(4,("Create pipe requested %s\n", pipe_name));
+
+	if (!vuser && vuid != UID_FIELD_INVALID) {
+		DEBUG(0,("ERROR! vuid %d did not map to a valid vuser struct!\n", vuid));
+		return NULL;
+	}
+
+	p = SMB_MALLOC_P(pipes_struct);
+
+	if (!p) {
+		DEBUG(0,("ERROR! no memory for pipes_struct!\n"));
+		return NULL;
+	}
+
+	ZERO_STRUCTP(p);
+
+	if ((p->mem_ctx = talloc_init("pipe %s %p", pipe_name, p)) == NULL) {
+		DEBUG(0,("open_rpc_pipe_p: talloc_init failed.\n"));
+		SAFE_FREE(p);
+		return NULL;
+	}
+
+	if (!init_pipe_handle_list(p, pipe_name)) {
+		DEBUG(0,("open_rpc_pipe_p: init_pipe_handles failed.\n"));
+		talloc_destroy(p->mem_ctx);
+		SAFE_FREE(p);
+		return NULL;
+	}
+
+	/*
+	 * Initialize the incoming RPC data buffer with one PDU worth of memory.
+	 * We cheat here and say we're marshalling, as we intend to add incoming
+	 * data directly into the prs_struct and we want it to auto grow. We will
+	 * change the type to UNMARSALLING before processing the stream.
+	 */
+
+	if(!prs_init(&p->in_data.data, MAX_PDU_FRAG_LEN, p->mem_ctx, MARSHALL)) {
+		DEBUG(0,("open_rpc_pipe_p: malloc fail for in_data struct.\n"));
+		return NULL;
+	}
+
+	DLIST_ADD(InternalPipes, p);
+
+	p->conn = conn;
+
+	/* Ensure the connection isn't idled whilst this pipe is open. */
+	p->conn->num_files_open++;
+
+	p->vuid  = vuid;
+
 	p->ntlmssp_chal_flags = 0;
 	p->ntlmssp_auth_validated = False;
 	p->ntlmssp_auth_requested = False;
 
 	p->pipe_bound = False;
 	p->fault_state = False;
+	p->endian = RPC_LITTLE_ENDIAN;
+
+	ZERO_STRUCT(p->pipe_user);
+
+	p->pipe_user.uid = (uid_t)-1;
+	p->pipe_user.gid = (gid_t)-1;
+	
+	/* Store the session key and NT_TOKEN */
+	if (vuser) {
+		p->session_key = data_blob(vuser->session_key.data, vuser->session_key.length);
+		p->pipe_user.nt_user_token = dup_nt_token(vuser->nt_user_token);
+	}
 
 	/*
 	 * Initialize the incoming RPC struct.
@@ -194,23 +362,14 @@ pipes_struct *open_rpc_pipe_p(char *pipe_name,
 	/*
 	 * Initialize the outgoing RPC data buffer with no memory.
 	 */	
-	prs_init(&p->out_data.rdata, 0, 4, MARSHALL);
-	
-	p->uid = (uid_t)-1;
-	p->gid = (gid_t)-1;
+	prs_init(&p->out_data.rdata, 0, p->mem_ctx, MARSHALL);
 	
 	fstrcpy(p->name, pipe_name);
 	
-	DEBUG(4,("Opened pipe %s with handle %x (pipes_open=%d)\n",
-		 pipe_name, i, pipes_open));
-	
-	chain_p = p;
-	
-	/* OVERWRITE p as a temp variable, to display all open pipes */ 
-	for (p = Pipes; p; p = p->next)
-		DEBUG(5,("open pipes: name %s pnum=%x\n", p->name, p->pnum));  
+	DEBUG(4,("Created internal pipe %s (pipes_open=%d)\n",
+		 pipe_name, pipes_open));
 
-	return chain_p;
+	return (void*)p;
 }
 
 /****************************************************************************
@@ -223,8 +382,8 @@ static void set_incoming_fault(pipes_struct *p)
 	p->in_data.pdu_needed_len = 0;
 	p->in_data.pdu_received_len = 0;
 	p->fault_state = True;
-	DEBUG(10,("set_incoming_fault: Setting fault state on pipe %s : pnum = 0x%x\n",
-		p->name, p->pnum ));
+	DEBUG(10,("set_incoming_fault: Setting fault state on pipe %s : vuid = 0x%x\n",
+		p->name, p->vuid ));
 }
 
 /****************************************************************************
@@ -263,18 +422,22 @@ static ssize_t unmarshall_rpc_header(pipes_struct *p)
 		return -1;
 	}
 
-	prs_init( &rpc_in, 0, 4, UNMARSHALL);
+	prs_init( &rpc_in, 0, p->mem_ctx, UNMARSHALL);
+	prs_set_endian_data( &rpc_in, p->endian);
+
 	prs_give_memory( &rpc_in, (char *)&p->in_data.current_in_pdu[0],
 					p->in_data.pdu_received_len, False);
 
 	/*
 	 * Unmarshall the header as this will tell us how much
 	 * data we need to read to get the complete pdu.
+	 * This also sets the endian flag in rpc_in.
 	 */
 
 	if(!smb_io_rpc_hdr("", &p->hdr, &rpc_in, 0)) {
 		DEBUG(0,("unmarshall_rpc_header: failed to unmarshall RPC_HDR.\n"));
 		set_incoming_fault(p);
+		prs_mem_free(&rpc_in);
 		return -1;
 	}
 
@@ -285,19 +448,56 @@ static ssize_t unmarshall_rpc_header(pipes_struct *p)
 	if(p->hdr.major != 5 && p->hdr.minor != 0) {
 		DEBUG(0,("unmarshall_rpc_header: invalid major/minor numbers in RPC_HDR.\n"));
 		set_incoming_fault(p);
+		prs_mem_free(&rpc_in);
 		return -1;
 	}
 
 	/*
-	 * If there is no data in the incoming buffer and it's a requst pdu then
-	 * ensure that the FIRST flag is set. If not then we have
-	 * a stream missmatch.
+	 * If there's not data in the incoming buffer this should be the start of a new RPC.
 	 */
 
-	if((p->hdr.pkt_type == RPC_REQUEST) && (prs_offset(&p->in_data.data) == 0) && !(p->hdr.flags & RPC_FLG_FIRST)) {
-		DEBUG(0,("unmarshall_rpc_header: FIRST flag not set in first PDU !\n"));
-		set_incoming_fault(p);
-		return -1;
+	if(prs_offset(&p->in_data.data) == 0) {
+
+		/*
+		 * AS/U doesn't set FIRST flag in a BIND packet it seems.
+		 */
+
+		if ((p->hdr.pkt_type == RPC_REQUEST) && !(p->hdr.flags & RPC_FLG_FIRST)) {
+			/*
+			 * Ensure that the FIRST flag is set. If not then we have
+			 * a stream missmatch.
+			 */
+
+			DEBUG(0,("unmarshall_rpc_header: FIRST flag not set in first PDU !\n"));
+			set_incoming_fault(p);
+			prs_mem_free(&rpc_in);
+			return -1;
+		}
+
+		/*
+		 * If this is the first PDU then set the endianness
+		 * flag in the pipe. We will need this when parsing all
+		 * data in this RPC.
+		 */
+
+		p->endian = rpc_in.bigendian_data;
+
+		DEBUG(5,("unmarshall_rpc_header: using %sendian RPC\n",
+				p->endian == RPC_LITTLE_ENDIAN ? "little-" : "big-" ));
+
+	} else {
+
+		/*
+		 * If this is *NOT* the first PDU then check the endianness
+		 * flag in the pipe is the same as that in the PDU.
+		 */
+
+		if (p->endian != rpc_in.bigendian_data) {
+			DEBUG(0,("unmarshall_rpc_header: FIRST endianness flag (%d) different in next PDU !\n", (int)p->endian));
+			set_incoming_fault(p);
+			prs_mem_free(&rpc_in);
+			return -1;
+		}
 	}
 
 	/*
@@ -307,6 +507,7 @@ static ssize_t unmarshall_rpc_header(pipes_struct *p)
 	if((p->hdr.frag_len < RPC_HEADER_LEN) || (p->hdr.frag_len > MAX_PDU_FRAG_LEN)) {
 		DEBUG(0,("unmarshall_rpc_header: assert on frag length failed.\n"));
 		set_incoming_fault(p);
+		prs_mem_free(&rpc_in);
 		return -1;
 	}
 
@@ -325,7 +526,26 @@ static ssize_t unmarshall_rpc_header(pipes_struct *p)
 
 	memset((char *)&p->in_data.current_in_pdu[0], '\0', RPC_HEADER_LEN);
 
+	prs_mem_free(&rpc_in);
+
 	return 0; /* No extra data processed. */
+}
+
+/****************************************************************************
+ Call this to free any talloc'ed memory. Do this before and after processing
+ a complete PDU.
+****************************************************************************/
+
+void free_pipe_context(pipes_struct *p)
+{
+	if (p->mem_ctx) {
+		DEBUG(3,("free_pipe_context: destroying talloc pool of size %lu\n", (unsigned long)talloc_pool_size(p->mem_ctx) ));
+		talloc_destroy_pool(p->mem_ctx);
+	} else {
+		p->mem_ctx = talloc_init("pipe %s %p", p->name, p);
+		if (p->mem_ctx == NULL)
+			p->fault_state = True;
+	}
 }
 
 /****************************************************************************
@@ -335,7 +555,7 @@ static ssize_t unmarshall_rpc_header(pipes_struct *p)
 
 static BOOL process_request_pdu(pipes_struct *p, prs_struct *rpc_in_p)
 {
-	BOOL auth_verify = IS_BITS_SET_ALL(p->ntlmssp_chal_flags, NTLMSSP_NEGOTIATE_SIGN);
+	BOOL auth_verify = ((p->ntlmssp_chal_flags & NTLMSSP_NEGOTIATE_SIGN) != 0);
 	size_t data_len = p->hdr.frag_len - RPC_HEADER_LEN - RPC_HDR_REQ_LEN -
 				(auth_verify ? RPC_HDR_AUTH_LEN : 0) - p->hdr.auth_len;
 
@@ -372,17 +592,27 @@ static BOOL process_request_pdu(pipes_struct *p, prs_struct *rpc_in_p)
 		 * Authentication _was_ requested and it already failed.
 		 */
 
-		DEBUG(0,("process_request_pdu: RPC request received on pipe %s where \
-authentication failed. Denying the request.\n", p->name));
+		DEBUG(0,("process_request_pdu: RPC request received on pipe %s "
+			 "where authentication failed. Denying the request.\n",
+			 p->name));
 		set_incoming_fault(p);
-        return False;
-    }
+		return False;
+	}
+
+	if (p->netsec_auth_validated && !api_pipe_netsec_process(p, rpc_in_p)) {
+		DEBUG(3,("process_request_pdu: failed to do schannel processing.\n"));
+		set_incoming_fault(p);
+		return False;
+	}
 
 	/*
-	 * Check the data length doesn't go over the 1Mb limit.
+	 * Check the data length doesn't go over the 15Mb limit.
+	 * increased after observing a bug in the Windows NT 4.0 SP6a
+	 * spoolsv.exe when the response to a GETPRINTERDRIVER2 RPC
+	 * will not fit in the initial buffer of size 0x1068   --jerry 22/01/2002
 	 */
 	
-	if(prs_data_size(&p->in_data.data) + data_len > 1024*1024) {
+	if(prs_offset(&p->in_data.data) + data_len > 15*1024*1024) {
 		DEBUG(0,("process_request_pdu: rpc data buffer too large (%u) + (%u)\n",
 				(unsigned int)prs_data_size(&p->in_data.data), (unsigned int)data_len ));
 		set_incoming_fault(p);
@@ -393,16 +623,11 @@ authentication failed. Denying the request.\n", p->name));
 	 * Append the data portion into the buffer and return.
 	 */
 
-	{
-		char *data_from = prs_data_p(rpc_in_p) + prs_offset(rpc_in_p);
-
-		if(!prs_append_data(&p->in_data.data, data_from, data_len)) {
-			DEBUG(0,("process_request_pdu: Unable to append data size %u to parse buffer of size %u.\n",
-					(unsigned int)data_len, (unsigned int)prs_data_size(&p->in_data.data) ));
-			set_incoming_fault(p);
-			return False;
-		}
-
+	if(!prs_append_some_prs_data(&p->in_data.data, rpc_in_p, prs_offset(rpc_in_p), data_len)) {
+		DEBUG(0,("process_request_pdu: Unable to append data size %u to parse buffer of size %u.\n",
+				(unsigned int)data_len, (unsigned int)prs_data_size(&p->in_data.data) ));
+		set_incoming_fault(p);
+		return False;
 	}
 
 	if(p->hdr.flags & RPC_FLG_LAST) {
@@ -411,6 +636,18 @@ authentication failed. Denying the request.\n", p->name));
 		 * Ok - we finally have a complete RPC stream.
 		 * Call the rpc command to process it.
 		 */
+
+		/*
+		 * Ensure the internal prs buffer size is *exactly* the same
+		 * size as the current offset.
+		 */
+
+ 		if(!prs_set_buffer_size(&p->in_data.data, prs_offset(&p->in_data.data)))
+		{
+			DEBUG(0,("process_request_pdu: Call to prs_set_buffer_size failed!\n"));
+			set_incoming_fault(p);
+			return False;
+		}
 
 		/*
 		 * Set the parse offset to the start of the data and set the
@@ -424,8 +661,12 @@ authentication failed. Denying the request.\n", p->name));
 		 * Process the complete data stream here.
 		 */
 
-		if(pipe_init_outgoing_data(&p->out_data))
+		free_pipe_context(p);
+
+		if(pipe_init_outgoing_data(p))
 			ret = api_pipe_request(p);
+
+		free_pipe_context(p);
 
 		/*
 		 * We have consumed the whole data stream. Set back to
@@ -459,11 +700,20 @@ static ssize_t process_complete_pdu(pipes_struct *p)
 		DEBUG(10,("process_complete_pdu: pipe %s in fault state.\n",
 			p->name ));
 		set_incoming_fault(p);
-		setup_fault_pdu(p);
+		setup_fault_pdu(p, NT_STATUS(0x1c010002));
 		return (ssize_t)data_len;
 	}
 
-	prs_init( &rpc_in, 0, 4, UNMARSHALL);
+	prs_init( &rpc_in, 0, p->mem_ctx, UNMARSHALL);
+
+	/*
+	 * Ensure we're using the corrent endianness for both the 
+	 * RPC header flags and the raw data we will be reading from.
+	 */
+
+	prs_set_endian_data( &rpc_in, p->endian);
+	prs_set_endian_data( &p->in_data.data, p->endian);
+
 	prs_give_memory( &rpc_in, data_p, (uint32)data_len, False);
 
 	DEBUG(10,("process_complete_pdu: processing packet type %u\n",
@@ -475,14 +725,14 @@ static ssize_t process_complete_pdu(pipes_struct *p)
 			/*
 			 * We assume that a pipe bind is only in one pdu.
 			 */
-			if(pipe_init_outgoing_data(&p->out_data))
+			if(pipe_init_outgoing_data(p))
 				reply = api_pipe_bind_req(p, &rpc_in);
 			break;
 		case RPC_BINDRESP:
 			/*
 			 * We assume that a pipe bind_resp is only in one pdu.
 			 */
-			if(pipe_init_outgoing_data(&p->out_data))
+			if(pipe_init_outgoing_data(p))
 				reply = api_pipe_bind_auth_resp(p, &rpc_in);
 			break;
 		case RPC_REQUEST:
@@ -493,10 +743,14 @@ static ssize_t process_complete_pdu(pipes_struct *p)
 			break;
 	}
 
+	/* Reset to little endian. Probably don't need this but it won't hurt. */
+	prs_set_endian_data( &p->in_data.data, RPC_LITTLE_ENDIAN);
+
 	if (!reply) {
 		DEBUG(3,("process_complete_pdu: DCE/RPC fault sent on pipe %s\n", p->pipe_srv_name));
 		set_incoming_fault(p);
-		setup_fault_pdu(p);
+		setup_fault_pdu(p, NT_STATUS(0x1c010002));
+		prs_mem_free(&rpc_in);
 	} else {
 		/*
 		 * Reset the lengths. We're ready for a new pdu.
@@ -505,6 +759,7 @@ static ssize_t process_complete_pdu(pipes_struct *p)
 		p->in_data.pdu_received_len = 0;
 	}
 
+	prs_mem_free(&rpc_in);
 	return (ssize_t)data_len;
 }
 
@@ -515,6 +770,7 @@ static ssize_t process_complete_pdu(pipes_struct *p)
 static ssize_t process_incoming_data(pipes_struct *p, char *data, size_t n)
 {
 	size_t data_to_copy = MIN(n, MAX_PDU_FRAG_LEN - p->in_data.pdu_received_len);
+	size_t old_pdu_received_len = p->in_data.pdu_received_len;
 
 	DEBUG(10,("process_incoming_data: Start: pdu_received_len = %u, pdu_needed_len = %u, incoming data = %u\n",
 		(unsigned int)p->in_data.pdu_received_len, (unsigned int)p->in_data.pdu_needed_len,
@@ -574,10 +830,11 @@ incoming data size = %u\n", (unsigned int)p->in_data.pdu_received_len, (unsigned
 
 	/*
 	 * Do we have a complete PDU ?
+	 * (return the nym of bytes handled in the call)
 	 */
 
 	if(p->in_data.pdu_received_len == p->in_data.pdu_needed_len)
-		return process_complete_pdu(p);
+		return process_complete_pdu(p) - old_pdu_received_len;
 
 	DEBUG(10,("process_incoming_data: not a complete PDU yet. pdu_received_len = %u, pdu_needed_len = %u\n",
 		(unsigned int)p->in_data.pdu_received_len, (unsigned int)p->in_data.pdu_needed_len ));
@@ -590,16 +847,26 @@ incoming data size = %u\n", (unsigned int)p->in_data.pdu_received_len, (unsigned
  Accepts incoming data on an rpc pipe.
 ****************************************************************************/
 
-ssize_t write_to_pipe(pipes_struct *p, char *data, size_t n)
+ssize_t write_to_pipe(smb_np_struct *p, char *data, size_t n)
 {
-	size_t data_left = n;
-
 	DEBUG(6,("write_to_pipe: %x", p->pnum));
 
 	DEBUG(6,(" name: %s open: %s len: %d\n",
 		 p->name, BOOLSTR(p->open), (int)n));
 
 	dump_data(50, data, n);
+
+	return p->namedpipe_write(p->np_state, data, n);
+}
+
+/****************************************************************************
+ Accepts incoming data on an internal rpc pipe.
+****************************************************************************/
+
+static ssize_t write_to_internal_pipe(void *np_conn, char *data, size_t n)
+{
+	pipes_struct *p = (pipes_struct*)np_conn;
+	size_t data_left = n;
 
 	while(data_left) {
 		ssize_t data_used;
@@ -620,9 +887,8 @@ ssize_t write_to_pipe(pipes_struct *p, char *data, size_t n)
 	return n;
 }
 
-
 /****************************************************************************
- Replyies to a request to read data from a pipe.
+ Replies to a request to read data from a pipe.
 
  Headers are interspersed with the data at PDU intervals. By the time
  this function is called, the start of the data could possibly have been
@@ -630,20 +896,43 @@ ssize_t write_to_pipe(pipes_struct *p, char *data, size_t n)
 
  Calling create_rpc_reply() here is a hack. The data should already
  have been prepared into arrays of headers + data stream sections.
+****************************************************************************/
 
- ****************************************************************************/
-
-ssize_t read_from_pipe(pipes_struct *p, char *data, size_t n)
+ssize_t read_from_pipe(smb_np_struct *p, char *data, size_t n,
+		BOOL *is_data_outstanding)
 {
-	uint32 pdu_remaining = 0;
-	ssize_t data_returned = 0;
-
 	if (!p || !p->open) {
 		DEBUG(0,("read_from_pipe: pipe not open\n"));
 		return -1;		
 	}
 
 	DEBUG(6,("read_from_pipe: %x", p->pnum));
+
+	return p->namedpipe_read(p->np_state, data, n, is_data_outstanding);
+}
+
+/****************************************************************************
+ Replies to a request to read data from a pipe.
+
+ Headers are interspersed with the data at PDU intervals. By the time
+ this function is called, the start of the data could possibly have been
+ read by an SMBtrans (file_offset != 0).
+
+ Calling create_rpc_reply() here is a hack. The data should already
+ have been prepared into arrays of headers + data stream sections.
+****************************************************************************/
+
+static ssize_t read_from_internal_pipe(void *np_conn, char *data, size_t n,
+		BOOL *is_data_outstanding)
+{
+	pipes_struct *p = (pipes_struct*)np_conn;
+	uint32 pdu_remaining = 0;
+	ssize_t data_returned = 0;
+
+	if (!p) {
+		DEBUG(0,("read_from_pipe: pipe not open\n"));
+		return -1;		
+	}
 
 	DEBUG(6,(" name: %s len: %u\n", p->name, (unsigned int)n));
 
@@ -652,10 +941,15 @@ ssize_t read_from_pipe(pipes_struct *p, char *data, size_t n)
 	 * read request.
 	 */
 
+	/*
+	 * This condition should result in the connection being closed.  
+	 * Netapp filers seem to set it to 0xffff which results in domain
+	 * authentications failing.  Just ignore it so things work.
+	 */
+
 	if(n > MAX_PDU_FRAG_LEN) {
-		DEBUG(0,("read_from_pipe: loo large read (%u) requested on pipe %s. We can \
-only service %d sized reads.\n", (unsigned int)n, p->name, MAX_PDU_FRAG_LEN ));
-		return -1;
+                DEBUG(5,("read_from_pipe: too large read (%u) requested on \
+pipe %s. We can only service %d sized reads.\n", (unsigned int)n, p->name, MAX_PDU_FRAG_LEN ));
 	}
 
 	/*
@@ -675,7 +969,7 @@ returning %d bytes.\n", p->name, (unsigned int)p->out_data.current_pdu_len,
 
 		memcpy( data, &p->out_data.current_pdu[p->out_data.current_pdu_sent], (size_t)data_returned);
 		p->out_data.current_pdu_sent += (uint32)data_returned;
-		return data_returned;
+		goto out;
 	}
 
 	/*
@@ -689,9 +983,10 @@ returning %d bytes.\n", p->name, (unsigned int)p->out_data.current_pdu_len,
 
 	if(p->out_data.data_sent_length >= prs_offset(&p->out_data.rdata)) {
 		/*
-		 * We have sent all possible data. Return 0.
+		 * We have sent all possible data, return 0.
 		 */
-		return 0;
+		data_returned = 0;
+		goto out;
 	}
 
 	/*
@@ -702,8 +997,7 @@ returning %d bytes.\n", p->name, (unsigned int)p->out_data.current_pdu_len,
 	 */
 
 	if(!create_next_pdu(p)) {
-		DEBUG(0,("read_from_pipe: %s: create_next_pdu failed.\n",
-			 p->name));
+		DEBUG(0,("read_from_pipe: %s: create_next_pdu failed.\n", p->name));
 		return -1;
 	}
 
@@ -711,6 +1005,10 @@ returning %d bytes.\n", p->name, (unsigned int)p->out_data.current_pdu_len,
 
 	memcpy( data, p->out_data.current_pdu, (size_t)data_returned);
 	p->out_data.current_pdu_sent += (uint32)data_returned;
+
+  out:
+
+	(*is_data_outstanding) = p->out_data.current_pdu_len > n;
 	return data_returned;
 }
 
@@ -718,7 +1016,7 @@ returning %d bytes.\n", p->name, (unsigned int)p->out_data.current_pdu_len,
  Wait device state on a pipe. Exactly what this is for is unknown...
 ****************************************************************************/
 
-BOOL wait_rpc_pipe_hnd_state(pipes_struct *p, uint16 priority)
+BOOL wait_rpc_pipe_hnd_state(smb_np_struct *p, uint16 priority)
 {
 	if (p == NULL)
 		return False;
@@ -742,7 +1040,7 @@ BOOL wait_rpc_pipe_hnd_state(pipes_struct *p, uint16 priority)
  Set device state on a pipe. Exactly what this is for is unknown...
 ****************************************************************************/
 
-BOOL set_rpc_pipe_hnd_state(pipes_struct *p, uint16 device_state)
+BOOL set_rpc_pipe_hnd_state(smb_np_struct *p, uint16 device_state)
 {
 	if (p == NULL)
 		return False;
@@ -766,15 +1064,14 @@ BOOL set_rpc_pipe_hnd_state(pipes_struct *p, uint16 device_state)
  Close an rpc pipe.
 ****************************************************************************/
 
-BOOL close_rpc_pipe_hnd(pipes_struct *p, connection_struct *conn)
+BOOL close_rpc_pipe_hnd(smb_np_struct *p)
 {
 	if (!p) {
 		DEBUG(0,("Invalid pipe in close_rpc_pipe_hnd\n"));
 		return False;
 	}
 
-	prs_mem_free(&p->out_data.rdata);
-	prs_mem_free(&p->in_data.data);
+	p->namedpipe_close(p->np_state);
 
 	bitmap_clear(bmap, p->pnum - pipe_handle_offset);
 
@@ -787,7 +1084,61 @@ BOOL close_rpc_pipe_hnd(pipes_struct *p, connection_struct *conn)
 
 	ZERO_STRUCTP(p);
 
-	free(p);
+	SAFE_FREE(p);
+
+	return True;
+}
+
+/****************************************************************************
+ Close all pipes on a connection.
+****************************************************************************/
+
+void pipe_close_conn(connection_struct *conn)
+{
+	smb_np_struct *p, *next;
+
+	for (p=Pipes;p;p=next) {
+		next = p->next;
+		if (p->conn == conn) {
+			close_rpc_pipe_hnd(p);
+		}
+	}
+}
+
+/****************************************************************************
+ Close an rpc pipe.
+****************************************************************************/
+
+static BOOL close_internal_rpc_pipe_hnd(void *np_conn)
+{
+	pipes_struct *p = (pipes_struct *)np_conn;
+	if (!p) {
+		DEBUG(0,("Invalid pipe in close_internal_rpc_pipe_hnd\n"));
+		return False;
+	}
+
+	prs_mem_free(&p->out_data.rdata);
+	prs_mem_free(&p->in_data.data);
+
+	if (p->mem_ctx)
+		talloc_destroy(p->mem_ctx);
+		
+	free_pipe_rpc_context( p->contexts );
+
+	/* Free the handles database. */
+	close_policy_by_pipe(p);
+
+	delete_nt_token(&p->pipe_user.nt_user_token);
+	data_blob_free(&p->session_key);
+	SAFE_FREE(p->pipe_user.groups);
+
+	DLIST_REMOVE(InternalPipes, p);
+
+	p->conn->num_files_open--;
+
+	ZERO_STRUCTP(p);
+
+	SAFE_FREE(p);
 	
 	return True;
 }
@@ -796,7 +1147,7 @@ BOOL close_rpc_pipe_hnd(pipes_struct *p, connection_struct *conn)
  Find an rpc pipe given a pipe handle in a buffer and an offset.
 ****************************************************************************/
 
-pipes_struct *get_rpc_pipe_p(char *buf, int where)
+smb_np_struct *get_rpc_pipe_p(char *buf, int where)
 {
 	int pnum = SVAL(buf,where);
 
@@ -810,9 +1161,9 @@ pipes_struct *get_rpc_pipe_p(char *buf, int where)
  Find an rpc pipe given a pipe handle.
 ****************************************************************************/
 
-pipes_struct *get_rpc_pipe(int pnum)
+smb_np_struct *get_rpc_pipe(int pnum)
 {
-	pipes_struct *p;
+	smb_np_struct *p;
 
 	DEBUG(4,("search for pipe pnum=%x\n", pnum));
 

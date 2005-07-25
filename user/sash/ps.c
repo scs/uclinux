@@ -117,6 +117,7 @@ do_ps(argc, argv)
 	
 	while (de = readdir(d)) {
 	
+	
 		for(i=0;i<strlen(de->d_name);i++)
 			if (!isdigit(de->d_name[i]))
 				goto next;

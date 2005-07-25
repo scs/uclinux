@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    start/stop nmbd and smbd
    Copyright (C) Andrew Tridgell 1998
    
@@ -20,12 +19,11 @@
 */
 
 #include "includes.h"
-#include "smb.h"
+#include "web/swat_proto.h"
+#include "dynconfig.h"
 
-/* need to wait for daemons to startup */
-#define SLEEP_TIME 3
 
-/* startup smbd */
+/** Startup smbd from web interface. */
 void start_smbd(void)
 {
 	pstring binfile;
@@ -33,13 +31,12 @@ void start_smbd(void)
 	if (geteuid() != 0) return;
 
 	if (fork()) {
-		sleep(SLEEP_TIME);
 		return;
 	}
 
-	slprintf(binfile, sizeof(pstring) - 1, "%s/smbd", SBINDIR);
+	slprintf(binfile, sizeof(pstring) - 1, "%s/smbd", dyn_SBINDIR);
 
-	become_daemon();
+	become_daemon(True);
 
 	execl(binfile, binfile, "-D", NULL);
 
@@ -54,15 +51,34 @@ void start_nmbd(void)
 	if (geteuid() != 0) return;
 
 	if (fork()) {
-		sleep(SLEEP_TIME);
 		return;
 	}
 
-	slprintf(binfile, sizeof(pstring) - 1, "%s/nmbd", SBINDIR);
+	slprintf(binfile, sizeof(pstring) - 1, "%s/nmbd", dyn_SBINDIR);
 	
-	become_daemon();
+	become_daemon(True);
 
 	execl(binfile, binfile, "-D", NULL);
+
+	exit(0);
+}
+
+/** Startup winbindd from web interface. */
+void start_winbindd(void)
+{
+	pstring binfile;
+
+	if (geteuid() != 0) return;
+
+	if (fork()) {
+		return;
+	}
+
+	slprintf(binfile, sizeof(pstring) - 1, "%s/winbindd", dyn_SBINDIR);
+
+	become_daemon(True);
+
+	execl(binfile, binfile, NULL);
 
 	exit(0);
 }
@@ -75,7 +91,7 @@ void stop_smbd(void)
 
 	if (geteuid() != 0) return;
 
-	if (pid == 0) return;
+	if (pid <= 0) return;
 
 	kill(pid, SIGTERM);
 }
@@ -87,11 +103,23 @@ void stop_nmbd(void)
 
 	if (geteuid() != 0) return;
 
-	if (pid == 0) return;
+	if (pid <= 0) return;
 
 	kill(pid, SIGTERM);
 }
+#ifdef WITH_WINBIND
+/* stop winbindd */
+void stop_winbindd(void)
+{
+	pid_t pid = pidfile_pid("winbindd");
 
+	if (geteuid() != 0) return;
+
+	if (pid <= 0) return;
+
+	kill(pid, SIGTERM);
+}
+#endif
 /* kill a specified process */
 void kill_pid(pid_t pid)
 {
@@ -100,5 +128,4 @@ void kill_pid(pid_t pid)
 	if (pid <= 0) return;
 
 	kill(pid, SIGTERM);
-	sleep(SLEEP_TIME);
 }

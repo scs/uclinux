@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 2.0
+   Unix SMB/CIFS implementation.
    SMB wrapper functions - definitions
    Copyright (C) Andrew Tridgell 1998
    
@@ -19,6 +18,9 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#ifndef _SMBW_H
+#define _SMBW_H
+
 #define SMBW_PREFIX "/smb/"
 #define SMBW_DUMMY "/dev/null"
 
@@ -33,6 +35,8 @@ struct smbw_server {
 	struct cli_state cli;
 	char *server_name;
 	char *share_name;
+	char *workgroup;
+	char *username;
 	dev_t dev;
 	BOOL no_pathinfo2;
 };
@@ -60,3 +64,8 @@ struct smbw_dir {
 	char *path;
 };
 
+typedef void (*smbw_get_auth_data_fn)(char *server, char *share,
+				      char **workgroup, char **username,
+				      char **password);
+
+#endif /* _SMBW_H */

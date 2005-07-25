@@ -1,7 +1,5 @@
-
 /* 
- *  Unix SMB/Netbios implementation.
- *  Version 1.9.
+ *  Unix SMB/CIFS implementation.
  *  RPC Pipe client / server routines
  *  Copyright (C) Andrew Tridgell              1992-1997,
  *  Copyright (C) Luke Kenneth Casson Leighton 1996-1997,
@@ -22,10 +20,10 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-
 #include "includes.h"
 
-extern int DEBUGLEVEL;
+#undef DBGC_CLASS
+#define DBGC_CLASS DBGC_RPC_PARSE
 
 /*******************************************************************
  Init
@@ -44,7 +42,7 @@ void init_wks_q_query_info(WKS_Q_QUERY_INFO *q_u,
  Reads or writes a WKS_Q_QUERY_INFO structure.
 ********************************************************************/
 
-BOOL wks_io_q_query_info(char *desc, WKS_Q_QUERY_INFO *q_u, prs_struct *ps, int depth)
+BOOL wks_io_q_query_info(const char *desc, WKS_Q_QUERY_INFO *q_u, prs_struct *ps, int depth)
 {
 	if (q_u == NULL)
 		return False;
@@ -92,7 +90,7 @@ void init_wks_info_100(WKS_INFO_100 *inf,
  Reads or writes a WKS_INFO_100 structure.
 ********************************************************************/
 
-static BOOL wks_io_wks_info_100(char *desc, WKS_INFO_100 *inf, prs_struct *ps, int depth)
+static BOOL wks_io_wks_info_100(const char *desc, WKS_INFO_100 *inf, prs_struct *ps, int depth)
 {
 	if (inf == NULL)
 		return False;
@@ -135,8 +133,8 @@ static BOOL wks_io_wks_info_100(char *desc, WKS_INFO_100 *inf, prs_struct *ps, i
  ********************************************************************/
 
 void init_wks_r_query_info(WKS_R_QUERY_INFO *r_u,
-				uint32 switch_value, WKS_INFO_100 *wks100,
-				int status)  
+			   uint32 switch_value, WKS_INFO_100 *wks100,
+			   NTSTATUS status)  
 {
 	DEBUG(5,("init_wks_r_unknown_0: %d\n", __LINE__));
 
@@ -152,7 +150,7 @@ void init_wks_r_query_info(WKS_R_QUERY_INFO *r_u,
  Reads or writes a structure.
 ********************************************************************/
 
-BOOL wks_io_r_query_info(char *desc, WKS_R_QUERY_INFO *r_u, prs_struct *ps, int depth)
+BOOL wks_io_r_query_info(const char *desc, WKS_R_QUERY_INFO *r_u, prs_struct *ps, int depth)
 {
 	if (r_u == NULL)
 		return False;
@@ -173,7 +171,7 @@ BOOL wks_io_r_query_info(char *desc, WKS_R_QUERY_INFO *r_u, prs_struct *ps, int 
 	if(!wks_io_wks_info_100("inf", r_u->wks100, ps, depth))
 		return False;
 
-	if(!prs_uint32("status      ", ps, depth, &r_u->status))
+	if(!prs_ntstatus("status      ", ps, depth, &r_u->status))
 		return False;
 
 	return True;

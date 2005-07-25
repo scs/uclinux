@@ -115,6 +115,7 @@ do_ls(argc, argv)
 			perror(name);
 			continue;
 		}
+
 		if ((flags & LSF_DIR) || (!S_ISDIR(statbuf.st_mode))) {
 			lsfile(name, &statbuf, flags);
 			continue;

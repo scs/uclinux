@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 2
+   Unix SMB/CIFS implementation.
    SMB filter/socket plugin
    Copyright (C) Andrew Tridgell 1999
    
@@ -20,23 +19,36 @@
 */
 
 #include "includes.h"
-#include "smb.h"
 
 #define SECURITY_MASK 0
 #define SECURITY_SET  0
 
 /* this forces non-unicode */
-#define CAPABILITY_MASK CAP_UNICODE
+#define CAPABILITY_MASK 0
 #define CAPABILITY_SET  0
 
 /* and non-unicode for the client too */
-#define CLI_CAPABILITY_MASK CAP_UNICODE
+#define CLI_CAPABILITY_MASK 0
 #define CLI_CAPABILITY_SET  0
 
 static char *netbiosname;
 static char packet[BUFFER_SIZE];
 
-extern int DEBUGLEVEL;
+static void save_file(const char *fname, void *ppacket, size_t length)
+{
+	int fd;
+	fd = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+	if (fd == -1) {
+		perror(fname);
+		return;
+	}
+	if (write(fd, ppacket, length) != length) {
+		fprintf(stderr,"Failed to write %s\n", fname);
+		return;
+	}
+	close(fd);
+	printf("Wrote %ld bytes to %s\n", (unsigned long)length, fname);
+}
 
 static void filter_reply(char *buf)
 {
@@ -77,8 +89,8 @@ static void filter_request(char *buf)
 			/* session request */
 			name_extract(buf,4,name1);
 			name_extract(buf,4 + name_len(buf + 4),name2);
-			DEBUG(0,("sesion_request: %s -> %s\n",
-				 name1, name2));
+			d_printf("sesion_request: %s -> %s\n",
+				 name1, name2);
 			if (netbiosname) {
 				/* replace the destination netbios name */
 				name_mangle(netbiosname, buf+4, 0x20);
@@ -92,6 +104,10 @@ static void filter_request(char *buf)
 	case SMBsesssetupX:
 		/* force the client capabilities */
 		x = IVAL(buf,smb_vwv11);
+		d_printf("SMBsesssetupX cap=0x%08x\n", x);
+		d_printf("pwlen=%d/%d\n", SVAL(buf, smb_vwv7), SVAL(buf, smb_vwv8));
+		system("mv sessionsetup.dat sessionsetup1.dat");
+		save_file("sessionsetup.dat", smb_buf(buf), SVAL(buf, smb_vwv7));
 		x = (x | CLI_CAPABILITY_SET) & ~CLI_CAPABILITY_MASK;
 		SIVAL(buf, smb_vwv11, x);
 		break;
@@ -105,10 +121,10 @@ static void filter_child(int c, struct in_addr dest_ip)
 	int s;
 
 	/* we have a connection from a new client, now connect to the server */
-	s = open_socket_out(SOCK_STREAM, &dest_ip, 139, LONG_CONNECT_TIMEOUT);
+	s = open_socket_out(SOCK_STREAM, &dest_ip, 445, LONG_CONNECT_TIMEOUT);
 
 	if (s == -1) {
-		DEBUG(0,("Unable to connect to %s\n", inet_ntoa(dest_ip)));
+		d_printf("Unable to connect to %s\n", inet_ntoa(dest_ip));
 		exit(1);
 	}
 
@@ -120,33 +136,33 @@ static void filter_child(int c, struct in_addr dest_ip)
 		if (s != -1) FD_SET(s, &fds);
 		if (c != -1) FD_SET(c, &fds);
 
-		num = sys_select(MAX(s+1, c+1),&fds,NULL);
+		num = sys_select_intr(MAX(s+1, c+1),&fds,NULL,NULL,NULL);
 		if (num <= 0) continue;
 		
 		if (c != -1 && FD_ISSET(c, &fds)) {
 			if (!receive_smb(c, packet, 0)) {
-				DEBUG(0,("client closed connection\n"));
+				d_printf("client closed connection\n");
 				exit(0);
 			}
 			filter_request(packet);
 			if (!send_smb(s, packet)) {
-				DEBUG(0,("server is dead\n"));
+				d_printf("server is dead\n");
 				exit(1);
 			}			
 		}
 		if (s != -1 && FD_ISSET(s, &fds)) {
 			if (!receive_smb(s, packet, 0)) {
-				DEBUG(0,("server closed connection\n"));
+				d_printf("server closed connection\n");
 				exit(0);
 			}
 			filter_reply(packet);
 			if (!send_smb(c, packet)) {
-				DEBUG(0,("client is dead\n"));
+				d_printf("client is dead\n");
 				exit(1);
 			}			
 		}
 	}
-	DEBUG(0,("Connection closed\n"));
+	d_printf("Connection closed\n");
 	exit(0);
 }
 
@@ -158,20 +174,20 @@ static void start_filter(char *desthost)
 
 	CatchChild();
 
-	/* start listening on port 139 locally */
-	s = open_socket_in(SOCK_STREAM, 139, 0, 0, True);
+	/* start listening on port 445 locally */
+	s = open_socket_in(SOCK_STREAM, 445, 0, 0, True);
 	
 	if (s == -1) {
-		DEBUG(0,("bind failed\n"));
+		d_printf("bind failed\n");
 		exit(1);
 	}
 
 	if (listen(s, 5) == -1) {
-		DEBUG(0,("listen failed\n"));
+		d_printf("listen failed\n");
 	}
 
 	if (!resolve_name(desthost, &dest_ip, 0x20)) {
-		DEBUG(0,("Unable to resolve host %s\n", desthost));
+		d_printf("Unable to resolve host %s\n", desthost);
 		exit(1);
 	}
 
@@ -179,12 +195,12 @@ static void start_filter(char *desthost)
 		fd_set fds;
 		int num;
 		struct sockaddr addr;
-		int in_addrlen = sizeof(addr);
+		socklen_t in_addrlen = sizeof(addr);
 		
 		FD_ZERO(&fds);
 		FD_SET(s, &fds);
 
-		num = sys_select(s+1,&fds,NULL);
+		num = sys_select_intr(s+1,&fds,NULL,NULL,NULL);
 		if (num > 0) {
 			c = accept(s, &addr, &in_addrlen);
 			if (c != -1) {
@@ -206,13 +222,9 @@ int main(int argc, char *argv[])
 	char *desthost;
 	pstring configfile;
 
-	TimeInit();
-
 	setup_logging(argv[0],True);
   
-	charset_initialise();
-
-	pstrcpy(configfile,CONFIGFILE);
+	pstrcpy(configfile,dyn_CONFIGFILE);
  
 	if (argc < 2) {
 		fprintf(stderr,"smbfilter <desthost> <netbiosname>\n");
@@ -225,7 +237,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (!lp_load(configfile,True,False,False)) {
-		DEBUG(0,("Unable to load config file\n"));
+		d_printf("Unable to load config file\n");
 	}
 
 	start_filter(desthost);

@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    Critical Fault handling
    Copyright (C) Andrew Tridgell 1992-1998
    
@@ -20,11 +19,8 @@
 */
 
 #include "includes.h"
-extern int DEBUGLEVEL;
-
 
 static void (*cont_fn)(void *);
-
 
 /*******************************************************************
 report a fault
@@ -38,8 +34,8 @@ static void fault_report(int sig)
 	counter++;
 
 	DEBUG(0,("===============================================================\n"));
-	DEBUG(0,("INTERNAL ERROR: Signal %d in pid %d (%s)",sig,(int)getpid(),VERSION));
-	DEBUG(0,("\nPlease read the file BUGS.txt in the distribution\n"));
+	DEBUG(0,("INTERNAL ERROR: Signal %d in pid %d (%s)",sig,(int)sys_getpid(),SAMBA_VERSION_STRING));
+	DEBUG(0,("\nPlease read the appendix Bugs of the Samba HOWTO collection\n"));
 	DEBUG(0,("===============================================================\n"));
   
 	smb_panic("internal error");
@@ -51,6 +47,9 @@ static void fault_report(int sig)
 #endif
 #ifdef SIGBUS
 		CatchSignal(SIGBUS,SIGNAL_CAST SIG_DFL);
+#endif
+#ifdef SIGABRT
+		CatchSignal(SIGABRT,SIGNAL_CAST SIG_DFL);
 #endif
 		return; /* this should cause a core dump */
 	}
@@ -78,7 +77,7 @@ void fault_setup(void (*fn)(void *))
 #ifdef SIGBUS
 	CatchSignal(SIGBUS,SIGNAL_CAST sig_fault);
 #endif
+#ifdef SIGABRT
+	CatchSignal(SIGABRT,SIGNAL_CAST sig_fault);
+#endif
 }
-
-
-

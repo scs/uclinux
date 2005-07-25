@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    SMB parameters and setup
    Copyright (C) Andrew Tridgell 1992-1997
    Copyright (C) Luke Kenneth Casson Leighton 1996-1997
@@ -26,33 +25,64 @@
 
 #include "rpc_misc.h"
 
-enum SID_NAME_USE
-{
-	SID_NAME_USER    = 1, /* user */
-	SID_NAME_DOM_GRP = 2, /* domain group */
-	SID_NAME_DOMAIN  = 3, /* domain: don't know what this is */
-	SID_NAME_ALIAS   = 4, /* local group */
-	SID_NAME_WKN_GRP = 5, /* well-known group */
-	SID_NAME_DELETED = 6, /* deleted account: needed for c2 rating */
-	SID_NAME_INVALID = 7, /* invalid account */
-	SID_NAME_UNKNOWN = 8  /* oops. */
-};
+/* Opcodes available on PIPE_LSARPC */
 
-/* ntlsa pipe */
+#if 0	/* UNIMPLEMENTED */
+
+#define LSA_LOOKUPSIDS2		0x39
+
+#endif
+
 #define LSA_CLOSE              0x00
+#define LSA_DELETE             0x01
+#define LSA_ENUM_PRIVS         0x02
+#define LSA_QUERYSECOBJ        0x03
+#define LSA_SETSECOBJ          0x04
+#define LSA_CHANGEPASSWORD     0x05
+#define LSA_OPENPOLICY         0x06
 #define LSA_QUERYINFOPOLICY    0x07
+#define LSA_SETINFOPOLICY      0x08
+#define LSA_CLEARAUDITLOG      0x09
+#define LSA_CREATEACCOUNT      0x0a
+#define LSA_ENUM_ACCOUNTS      0x0b
+#define LSA_CREATETRUSTDOM     0x0c
 #define LSA_ENUMTRUSTDOM       0x0d
 #define LSA_LOOKUPNAMES        0x0e
 #define LSA_LOOKUPSIDS         0x0f
-#define LSA_OPENPOLICY         0x06
+#define LSA_CREATESECRET       0x10
+#define LSA_OPENACCOUNT	       0x11
+#define LSA_ENUMPRIVSACCOUNT   0x12
+#define LSA_ADDPRIVS           0x13
+#define LSA_REMOVEPRIVS        0x14
+#define LSA_GETQUOTAS          0x15
+#define LSA_SETQUOTAS          0x16
+#define LSA_GETSYSTEMACCOUNT   0x17
+#define LSA_SETSYSTEMACCOUNT   0x18
+#define LSA_OPENTRUSTDOM       0x19
+#define LSA_QUERYTRUSTDOM      0x1a
+#define LSA_SETINFOTRUSTDOM    0x1b
+#define LSA_OPENSECRET         0x1c
+#define LSA_SETSECRET          0x1d
+#define LSA_QUERYSECRET        0x1e
+#define LSA_LOOKUPPRIVVALUE    0x1f
+#define LSA_LOOKUPPRIVNAME     0x20
+#define LSA_PRIV_GET_DISPNAME  0x21
+#define LSA_DELETEOBJECT       0x22
+#define LSA_ENUMACCTWITHRIGHT  0x23
+#define LSA_ENUMACCTRIGHTS     0x24
+#define LSA_ADDACCTRIGHTS      0x25
+#define LSA_REMOVEACCTRIGHTS   0x26
+#define LSA_QUERYTRUSTDOMINFO  0x27
+#define LSA_SETTRUSTDOMINFO    0x28
+#define LSA_DELETETRUSTDOM     0x29
+#define LSA_STOREPRIVDATA      0x2a
+#define LSA_RETRPRIVDATA       0x2b
 #define LSA_OPENPOLICY2        0x2c
-#define LSA_OPENSECRET         0x1C
+#define LSA_UNK_GET_CONNUSER   0x2d /* LsaGetConnectedCredentials ? */
+#define LSA_QUERYINFO2         0x2e
 
 /* XXXX these are here to get a compile! */
 #define LSA_LOOKUPRIDS      0xFD
-
-#define LSA_MAX_GROUPS 96
-#define LSA_MAX_SIDS 32
 
 /* DOM_QUERY - info class 3 and 5 LSA Query response */
 typedef struct dom_query_info
@@ -66,9 +96,24 @@ typedef struct dom_query_info
 
 } DOM_QUERY;
 
-/* level 5 is same as level 3.  we hope. */
+/* level 5 is same as level 3. */
 typedef DOM_QUERY DOM_QUERY_3;
 typedef DOM_QUERY DOM_QUERY_5;
+
+/* level 2 is auditing settings */
+typedef struct dom_query_2
+{
+	uint32 auditing_enabled;
+	uint32 count1; /* usualy 7, at least on nt4sp4 */
+	uint32 count2; /* the same */
+	uint32 *auditsettings;
+} DOM_QUERY_2;
+
+/* level 6 is server role information */
+typedef struct dom_query_6
+{
+	uint16 server_role; /* 2=backup, 3=primary */
+} DOM_QUERY_6;
 
 typedef struct seq_qos_info
 {
@@ -76,7 +121,6 @@ typedef struct seq_qos_info
 	uint16 sec_imp_level; /* 0x02 - impersonation level */
 	uint8  sec_ctxt_mode; /* 0x01 - context tracking mode */
 	uint8  effective_only; /* 0x00 - effective only */
-	uint32 unknown;        /* 0x2000 0000 - not known */
 
 } LSA_SEC_QOS;
 
@@ -107,7 +151,7 @@ typedef struct lsa_q_open_pol_info
 typedef struct lsa_r_open_pol_info
 {
 	POLICY_HND pol; /* policy handle */
-	uint32 status; /* return code */
+	NTSTATUS status; /* return code */
 
 } LSA_R_OPEN_POL;
 
@@ -126,9 +170,74 @@ typedef struct lsa_q_open_pol2_info
 typedef struct lsa_r_open_pol2_info
 {
 	POLICY_HND pol; /* policy handle */
-	uint32 status; /* return code */
+	NTSTATUS status; /* return code */
 
 } LSA_R_OPEN_POL2;
+
+
+#define POLICY_VIEW_LOCAL_INFORMATION    0x00000001
+#define POLICY_VIEW_AUDIT_INFORMATION    0x00000002
+#define POLICY_GET_PRIVATE_INFORMATION   0x00000004
+#define POLICY_TRUST_ADMIN               0x00000008
+#define POLICY_CREATE_ACCOUNT            0x00000010
+#define POLICY_CREATE_SECRET             0x00000020
+#define POLICY_CREATE_PRIVILEGE          0x00000040
+#define POLICY_SET_DEFAULT_QUOTA_LIMITS  0x00000080
+#define POLICY_SET_AUDIT_REQUIREMENTS    0x00000100
+#define POLICY_AUDIT_LOG_ADMIN           0x00000200
+#define POLICY_SERVER_ADMIN              0x00000400
+#define POLICY_LOOKUP_NAMES              0x00000800
+
+#define POLICY_ALL_ACCESS ( STANDARD_RIGHTS_REQUIRED_ACCESS  |\
+                            POLICY_VIEW_LOCAL_INFORMATION    |\
+                            POLICY_VIEW_AUDIT_INFORMATION    |\
+                            POLICY_GET_PRIVATE_INFORMATION   |\
+                            POLICY_TRUST_ADMIN               |\
+                            POLICY_CREATE_ACCOUNT            |\
+                            POLICY_CREATE_SECRET             |\
+                            POLICY_CREATE_PRIVILEGE          |\
+                            POLICY_SET_DEFAULT_QUOTA_LIMITS  |\
+                            POLICY_SET_AUDIT_REQUIREMENTS    |\
+                            POLICY_AUDIT_LOG_ADMIN           |\
+                            POLICY_SERVER_ADMIN              |\
+                            POLICY_LOOKUP_NAMES )
+
+
+#define POLICY_READ       ( STANDARD_RIGHTS_READ_ACCESS      |\
+                            POLICY_VIEW_AUDIT_INFORMATION    |\
+                            POLICY_GET_PRIVATE_INFORMATION)
+
+#define POLICY_WRITE      ( STD_RIGHT_READ_CONTROL_ACCESS     |\
+                            POLICY_TRUST_ADMIN               |\
+                            POLICY_CREATE_ACCOUNT            |\
+                            POLICY_CREATE_SECRET             |\
+                            POLICY_CREATE_PRIVILEGE          |\
+                            POLICY_SET_DEFAULT_QUOTA_LIMITS  |\
+                            POLICY_SET_AUDIT_REQUIREMENTS    |\
+                            POLICY_AUDIT_LOG_ADMIN           |\
+                            POLICY_SERVER_ADMIN)
+
+#define POLICY_EXECUTE    ( STANDARD_RIGHTS_EXECUTE_ACCESS   |\
+                            POLICY_VIEW_LOCAL_INFORMATION    |\
+                            POLICY_LOOKUP_NAMES )
+
+/* LSA_Q_QUERY_SEC_OBJ - LSA query security */
+typedef struct lsa_query_sec_obj_info
+{
+	POLICY_HND pol; /* policy handle */
+	uint32 sec_info;
+
+} LSA_Q_QUERY_SEC_OBJ;
+
+/* LSA_R_QUERY_SEC_OBJ - probably an open */
+typedef struct r_lsa_query_sec_obj_info
+{
+	uint32 ptr;
+	SEC_DESC_BUF *buf;
+
+	NTSTATUS status;         /* return status */
+
+} LSA_R_QUERY_SEC_OBJ;
 
 /* LSA_Q_QUERY_INFO - LSA query info policy */
 typedef struct lsa_query_info
@@ -138,29 +247,70 @@ typedef struct lsa_query_info
 
 } LSA_Q_QUERY_INFO;
 
+/* LSA_INFO_UNION */
+typedef union lsa_info_union
+{
+	DOM_QUERY_2 id2;
+	DOM_QUERY_3 id3;
+	DOM_QUERY_5 id5;
+	DOM_QUERY_6 id6;
+} LSA_INFO_UNION;
+
 /* LSA_R_QUERY_INFO - response to LSA query info policy */
 typedef struct lsa_r_query_info
 {
     uint32 undoc_buffer; /* undocumented buffer pointer */
     uint16 info_class; /* info class (same as info class in request) */
-    
-	union
-    {
-        DOM_QUERY_3 id3;
-		DOM_QUERY_5 id5;
+   
+	LSA_INFO_UNION dom; 
 
-    } dom;
-
-	uint32 status; /* return code */
+	NTSTATUS status; /* return code */
 
 } LSA_R_QUERY_INFO;
+
+/* LSA_DNS_DOM_INFO - DNS domain info - info class 12*/
+typedef struct lsa_dns_dom_info
+{
+	UNIHDR  hdr_nb_dom_name; /* netbios domain name */
+	UNIHDR  hdr_dns_dom_name;
+	UNIHDR  hdr_forest_name;
+
+	struct uuid dom_guid; /* domain GUID */
+
+	UNISTR2 uni_nb_dom_name;
+	UNISTR2 uni_dns_dom_name;
+	UNISTR2 uni_forest_name;
+
+	uint32 ptr_dom_sid;
+	DOM_SID2   dom_sid; /* domain SID */
+} LSA_DNS_DOM_INFO;
+
+typedef union lsa_info2_union
+{
+	LSA_DNS_DOM_INFO dns_dom_info;
+} LSA_INFO2_UNION;
+
+/* LSA_Q_QUERY_INFO2 - LSA query info */
+typedef struct lsa_q_query_info2
+{
+	POLICY_HND pol;    /* policy handle */
+	uint16 info_class; /* info class */
+} LSA_Q_QUERY_INFO2;
+
+typedef struct lsa_r_query_info2
+{
+	uint32 ptr;    /* pointer to info struct */
+	uint16 info_class;
+	LSA_INFO2_UNION info; /* so far the only one */
+	NTSTATUS status;
+} LSA_R_QUERY_INFO2;
 
 /* LSA_Q_ENUM_TRUST_DOM - LSA enumerate trusted domains */
 typedef struct lsa_enum_trust_dom_info
 {
 	POLICY_HND pol; /* policy handle */
-    uint32 enum_context; /* enumeration context handle */
-    uint32 preferred_len; /* preferred maximum length */
+	uint32 enum_context; /* enumeration context handle */
+	uint32 preferred_len; /* preferred maximum length */
 
 } LSA_Q_ENUM_TRUST_DOM;
 
@@ -172,12 +322,12 @@ typedef struct lsa_r_enum_trust_dom_info
 	uint32 ptr_enum_domains; /* buffer pointer to num domains */
 
 	/* this lot is only added if ptr_enum_domains is non-NULL */
-		uint32 num_domains2; /* number of domains */
-		UNIHDR2 hdr_domain_name;
-		UNISTR2 uni_domain_name;
-		DOM_SID2 other_domain_sid;
+	uint32 num_domains2; /* number of domains */
+	UNIHDR2 *hdr_domain_name;
+	UNISTR2 *uni_domain_name;
+	DOM_SID2 *domain_sid;
 
-    uint32 status; /* return code */
+	NTSTATUS status; /* return code */
 
 } LSA_R_ENUM_TRUST_DOM;
 
@@ -193,7 +343,7 @@ typedef struct lsa_r_close_info
 {
 	POLICY_HND pol; /* policy handle.  should be all zeros. */
 
-	uint32 status; /* return code */
+	NTSTATUS status; /* return code */
 
 } LSA_R_CLOSE;
 
@@ -234,13 +384,14 @@ typedef struct dom_ref_info
 /* LSA_TRANS_NAME - translated name */
 typedef struct lsa_trans_name_info
 {
-	uint32 sid_name_use; /* value is 5 for a well-known group; 2 for a domain group; 1 for a user... */
+	uint16 sid_name_use; /* value is 5 for a well-known group; 2 for a domain group; 1 for a user... */
 	UNIHDR hdr_name; 
 	uint32 domain_idx; /* index into DOM_R_REF array of SIDs */
 
 } LSA_TRANS_NAME;
 
-#define MAX_LOOKUP_SIDS 30
+/* This number is based on Win2k and later maximum response allowed */
+#define MAX_LOOKUP_SIDS 20480
 
 /* LSA_TRANS_NAME_ENUM - LSA Translated Name Enumeration container */
 typedef struct lsa_trans_name_enum_info
@@ -249,8 +400,8 @@ typedef struct lsa_trans_name_enum_info
 	uint32 ptr_trans_names;
 	uint32 num_entries2;
 	
-	LSA_TRANS_NAME name    [MAX_LOOKUP_SIDS]; /* translated names  */
-	UNISTR2        uni_name[MAX_LOOKUP_SIDS]; 
+	LSA_TRANS_NAME *name; /* translated names  */
+	UNISTR2 *uni_name;
 
 } LSA_TRANS_NAME_ENUM;
 
@@ -261,8 +412,8 @@ typedef struct lsa_sid_enum_info
 	uint32 ptr_sid_enum;
 	uint32 num_entries2;
 	
-	uint32   ptr_sid[MAX_LOOKUP_SIDS]; /* domain SID pointers to be looked up. */
-	DOM_SID2 sid    [MAX_LOOKUP_SIDS]; /* domain SIDs to be looked up. */
+	uint32 *ptr_sid; /* domain SID pointers to be looked up. */
+	DOM_SID2 *sid; /* domain SIDs to be looked up. */
 
 } LSA_SID_ENUM;
 
@@ -286,7 +437,7 @@ typedef struct lsa_r_lookup_sids
 	LSA_TRANS_NAME_ENUM *names;
 	uint32              mapped_count;
 
-	uint32              status; /* return code */
+	NTSTATUS            status; /* return code */
 
 } LSA_R_LOOKUP_SIDS;
 
@@ -296,8 +447,8 @@ typedef struct lsa_q_lookup_names
 	POLICY_HND pol; /* policy handle */
 	uint32 num_entries;
 	uint32 num_entries2;
-	UNIHDR  hdr_name[MAX_LOOKUP_SIDS]; /* name buffer pointers */
-	UNISTR2 uni_name[MAX_LOOKUP_SIDS]; /* names to be looked up */
+	UNIHDR  *hdr_name; /* name buffer pointers */
+	UNISTR2 *uni_name; /* names to be looked up */
 
 	uint32 num_trans_entries;
 	uint32 ptr_trans_sids; /* undocumented domain SID buffer pointer */
@@ -319,9 +470,274 @@ typedef struct lsa_r_lookup_names
 
 	uint32 mapped_count;
 
-	uint32 status; /* return code */
-
+	NTSTATUS status; /* return code */
 } LSA_R_LOOKUP_NAMES;
 
-#endif /* _RPC_LSA_H */
+/* This is probably a policy handle but at the moment we
+   never read it - so use a dummy struct. */
 
+typedef struct lsa_q_open_secret
+{
+	uint32 dummy;
+} LSA_Q_OPEN_SECRET;
+
+/* We always return "not found" at present - so just marshal the minimum. */
+
+typedef struct lsa_r_open_secret
+{
+	uint32 dummy1;
+	uint32 dummy2;
+	uint32 dummy3;
+	uint32 dummy4;
+	NTSTATUS status;
+} LSA_R_OPEN_SECRET;
+
+typedef struct lsa_enum_priv_entry
+{
+	UNIHDR hdr_name;
+	uint32 luid_low;
+	uint32 luid_high;
+	UNISTR2 name;
+	
+} LSA_PRIV_ENTRY;
+
+/* LSA_Q_ENUM_PRIVS - LSA enum privileges */
+typedef struct lsa_q_enum_privs
+{
+	POLICY_HND pol; /* policy handle */
+	uint32 enum_context;
+	uint32 pref_max_length;
+} LSA_Q_ENUM_PRIVS;
+
+typedef struct lsa_r_enum_privs
+{
+	uint32 enum_context;
+	uint32 count;
+	uint32 ptr;
+	uint32 count1;
+
+	LSA_PRIV_ENTRY *privs;
+
+	NTSTATUS status;
+} LSA_R_ENUM_PRIVS;
+
+/* LSA_Q_ENUM_ACCT_RIGHTS - LSA enum account rights */
+typedef struct
+{
+	POLICY_HND pol; /* policy handle */
+	DOM_SID2 sid;
+} LSA_Q_ENUM_ACCT_RIGHTS;
+
+/* LSA_R_ENUM_ACCT_RIGHTS - LSA enum account rights */
+typedef struct
+{
+	uint32 count;
+	UNISTR2_ARRAY rights;
+	NTSTATUS status;
+} LSA_R_ENUM_ACCT_RIGHTS;
+
+
+/* LSA_Q_ADD_ACCT_RIGHTS - LSA add account rights */
+typedef struct
+{
+	POLICY_HND pol; /* policy handle */
+	DOM_SID2 sid;
+	UNISTR2_ARRAY rights;
+	uint32 count;
+} LSA_Q_ADD_ACCT_RIGHTS;
+
+/* LSA_R_ADD_ACCT_RIGHTS - LSA add account rights */
+typedef struct
+{
+	NTSTATUS status;
+} LSA_R_ADD_ACCT_RIGHTS;
+
+
+/* LSA_Q_REMOVE_ACCT_RIGHTS - LSA remove account rights */
+typedef struct
+{
+	POLICY_HND pol; /* policy handle */
+	DOM_SID2 sid;
+	uint32 removeall;
+	UNISTR2_ARRAY rights;
+	uint32 count;
+} LSA_Q_REMOVE_ACCT_RIGHTS;
+
+/* LSA_R_REMOVE_ACCT_RIGHTS - LSA remove account rights */
+typedef struct
+{
+	NTSTATUS status;
+} LSA_R_REMOVE_ACCT_RIGHTS;
+
+
+/* LSA_Q_PRIV_GET_DISPNAME - LSA get privilege display name */
+typedef struct lsa_q_priv_get_dispname
+{
+	POLICY_HND pol; /* policy handle */
+	UNIHDR hdr_name;
+	UNISTR2 name;
+	uint16 lang_id;
+	uint16 lang_id_sys;
+} LSA_Q_PRIV_GET_DISPNAME;
+
+typedef struct lsa_r_priv_get_dispname
+{
+	uint32 ptr_info;
+	UNIHDR hdr_desc;
+	UNISTR2 desc;
+	/* Don't align ! */
+	uint16 lang_id;
+	/* align */
+	NTSTATUS status;
+} LSA_R_PRIV_GET_DISPNAME;
+
+/* LSA_Q_ENUM_ACCOUNTS */
+typedef struct lsa_q_enum_accounts
+{
+	POLICY_HND pol; /* policy handle */
+	uint32 enum_context;
+	uint32 pref_max_length;
+} LSA_Q_ENUM_ACCOUNTS;
+
+/* LSA_R_ENUM_ACCOUNTS */
+typedef struct lsa_r_enum_accounts
+{
+	uint32 enum_context;
+	LSA_SID_ENUM sids;
+	NTSTATUS status;
+} LSA_R_ENUM_ACCOUNTS;
+
+/* LSA_Q_UNK_GET_CONNUSER - gets username\domain of connected user
+                  called when "Take Ownership" is clicked -SK */
+typedef struct lsa_q_unk_get_connuser
+{
+  uint32 ptr_srvname;
+  UNISTR2 uni2_srvname;
+  uint32 unk1; /* 3 unknown uint32's are seen right after uni2_srvname */
+  uint32 unk2; /* unk2 appears to be a ptr, unk1 = unk3 = 0 usually */
+  uint32 unk3; 
+} LSA_Q_UNK_GET_CONNUSER;
+
+/* LSA_R_UNK_GET_CONNUSER */
+typedef struct lsa_r_unk_get_connuser
+{
+  uint32 ptr_user_name;
+  UNIHDR hdr_user_name;
+  UNISTR2 uni2_user_name;
+  
+  uint32 unk1;
+  
+  uint32 ptr_dom_name;
+  UNIHDR hdr_dom_name;
+  UNISTR2 uni2_dom_name;
+
+  NTSTATUS status;
+} LSA_R_UNK_GET_CONNUSER;
+
+
+typedef struct lsa_q_createaccount
+{
+	POLICY_HND pol; /* policy handle */
+	DOM_SID2 sid;
+	uint32 access; /* access */
+} LSA_Q_CREATEACCOUNT;
+
+typedef struct lsa_r_createaccount
+{
+	POLICY_HND pol; /* policy handle */
+	NTSTATUS status;
+} LSA_R_CREATEACCOUNT;
+
+
+typedef struct lsa_q_openaccount
+{
+	POLICY_HND pol; /* policy handle */
+	DOM_SID2 sid;
+	uint32 access; /* desired access */
+} LSA_Q_OPENACCOUNT;
+
+typedef struct lsa_r_openaccount
+{
+	POLICY_HND pol; /* policy handle */
+	NTSTATUS status;
+} LSA_R_OPENACCOUNT;
+
+typedef struct lsa_q_enumprivsaccount
+{
+	POLICY_HND pol; /* policy handle */
+} LSA_Q_ENUMPRIVSACCOUNT;
+
+typedef struct lsa_r_enumprivsaccount
+{
+	uint32 ptr;
+	uint32 count;
+	PRIVILEGE_SET set;
+	NTSTATUS status;
+} LSA_R_ENUMPRIVSACCOUNT;
+
+typedef struct lsa_q_getsystemaccount
+{
+	POLICY_HND pol; /* policy handle */
+} LSA_Q_GETSYSTEMACCOUNT;
+
+typedef struct lsa_r_getsystemaccount
+{
+	uint32 access;
+	NTSTATUS status;
+} LSA_R_GETSYSTEMACCOUNT;
+
+
+typedef struct lsa_q_setsystemaccount
+{
+	POLICY_HND pol; /* policy handle */
+	uint32 access;
+} LSA_Q_SETSYSTEMACCOUNT;
+
+typedef struct lsa_r_setsystemaccount
+{
+	NTSTATUS status;
+} LSA_R_SETSYSTEMACCOUNT;
+
+typedef struct {
+	UNIHDR hdr;
+	UNISTR2 unistring;
+} LSA_STRING;
+
+typedef struct {
+	POLICY_HND pol; /* policy handle */
+	LSA_STRING privname;
+} LSA_Q_LOOKUP_PRIV_VALUE;
+
+typedef struct {
+	LUID luid;
+	NTSTATUS status;
+} LSA_R_LOOKUP_PRIV_VALUE;
+
+typedef struct lsa_q_addprivs
+{
+	POLICY_HND pol; /* policy handle */
+	uint32 count;
+	PRIVILEGE_SET set;
+} LSA_Q_ADDPRIVS;
+
+typedef struct lsa_r_addprivs
+{
+	NTSTATUS status;
+} LSA_R_ADDPRIVS;
+
+
+typedef struct lsa_q_removeprivs
+{
+	POLICY_HND pol; /* policy handle */
+	uint32 allrights;
+	uint32 ptr;
+	uint32 count;
+	PRIVILEGE_SET set;
+} LSA_Q_REMOVEPRIVS;
+
+typedef struct lsa_r_removeprivs
+{
+	NTSTATUS status;
+} LSA_R_REMOVEPRIVS;
+
+#endif /* _RPC_LSA_H */

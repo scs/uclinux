@@ -9,18 +9,27 @@
 #include "includes.h"
 
 #include <mntent.h>
+#include <sys/utsname.h>
 
+/*
+ * We don't need these and they conflict with other includes :-(
+ */
+#if 0
 #include <asm/types.h>
 #include <asm/posix_types.h>
 #include <linux/smb.h>
-#include <linux/smb_mount.h>
-#include <unistd.h>
-
-#ifdef EMBED
-#undef NR_FILE
 #endif
 
+/*
+ * This define is here so that we don't re-define __kernel_type_t from the
+ * kernel headers.
+ * It is already defined in bits/ipc.h in uClibc.
+ */
+#define __kernel_key_t __my_kernel_key_t
+#include <linux/smb_mount.h>
+#undef __kernel_key_t
 
+/*#include <asm/unistd.h>*/
 #ifndef	MS_MGC_VAL
 /* This may look strange but MS_MGC_VAL is what we are looking for and
 	is what we need from <linux/fs.h> under libc systems and is
@@ -35,18 +44,21 @@ static int mount_ro;
 static unsigned mount_fmask;
 static unsigned mount_dmask;
 static int user_mount;
+static char *options;
 
 static void
 help(void)
 {
         printf("\n");
-        printf("usage: smbmnt mount-point [options]\n");
+        printf("Usage: smbmnt mount-point [options]\n");
+	printf("Version %s\n\n",SAMBA_VERSION_STRING);
         printf("-s share       share name on server\n"
                "-r             mount read-only\n"
                "-u uid         mount as uid\n"
                "-g gid         mount as gid\n"
                "-f mask        permission mask for files\n"
                "-d mask        permission mask for directories\n"
+               "-o options     name=value, list of options\n"
                "-h             print this help text\n");
 }
 
@@ -55,7 +67,7 @@ parse_args(int argc, char *argv[], struct smb_mount_data *data, char **share)
 {
         int opt;
 
-        while ((opt = getopt (argc, argv, "s:u:g:rf:d:")) != EOF)
+        while ((opt = getopt (argc, argv, "s:u:g:rf:d:o:")) != EOF)
 	{
                 switch (opt)
 		{
@@ -81,6 +93,9 @@ parse_args(int argc, char *argv[], struct smb_mount_data *data, char **share)
                 case 'd':
                         mount_dmask = strtol(optarg, NULL, 8);
                         break;
+		case 'o':
+			options = optarg;
+			break;
                 default:
                         return -1;
                 }
@@ -92,14 +107,15 @@ parse_args(int argc, char *argv[], struct smb_mount_data *data, char **share)
 static char *
 fullpath(const char *p)
 {
-        char path[MAXPATHLEN];
+        char path[PATH_MAX+1];
 
-	if (strlen(p) > MAXPATHLEN-1) {
+	if (strlen(p) > PATH_MAX) {
 		return NULL;
 	}
 
         if (realpath(p, path) == NULL) {
-		fprintf(stderr,"Failed to find real path for mount point\n");
+		fprintf(stderr,"Failed to find real path for mount point %s: %s\n",
+			p, strerror(errno));
 		exit(1);
 	}
 	return strdup(path);
@@ -109,13 +125,13 @@ fullpath(const char *p)
    OK then we change into that directory - this prevents race conditions */
 static int mount_ok(char *mount_point)
 {
-	SMB_STRUCT_STAT st;
+	struct stat st;
 
 	if (chdir(mount_point) != 0) {
 		return -1;
 	}
 
-        if (sys_stat(".", &st) != 0) {
+        if (stat(".", &st) != 0) {
 		return -1;
         }
 
@@ -132,6 +148,38 @@ static int mount_ok(char *mount_point)
         }
 
         return 0;
+}
+
+/* Tries to mount using the appropriate format. For 2.2 the struct,
+   for 2.4 the ascii version. */
+static int
+do_mount(char *share_name, unsigned int flags, struct smb_mount_data *data)
+{
+	pstring opts;
+	struct utsname uts;
+	char *release, *major, *minor;
+	char *data1, *data2;
+
+	uname(&uts);
+	release = uts.release;
+	major = strtok(release, ".");
+	minor = strtok(NULL, ".");
+	if (major && minor && atoi(major) == 2 && atoi(minor) < 4) {
+		/* < 2.4, assume struct */
+		data1 = (char *) data;
+		data2 = opts;
+	} else {
+		/* >= 2.4, assume ascii but fall back on struct */
+		data1 = opts;
+		data2 = (char *) data;
+	}
+
+	slprintf(opts, sizeof(opts)-1,
+		 "version=7,uid=%d,gid=%d,file_mode=0%o,dir_mode=0%o,%s",
+		 mount_uid, mount_gid, data->file_mode, data->dir_mode,options);
+	if (mount(share_name, ".", "smbfs", flags, data1) == 0)
+		return 0;
+	return mount(share_name, ".", "smbfs", flags, data2);
 }
 
  int main(int argc, char *argv[])
@@ -191,7 +239,7 @@ static int mount_ok(char *mount_point)
                 return -1;
         }
 
-        data.uid = mount_uid;
+        data.uid = mount_uid;    // truncates to 16-bits here!!!
         data.gid = mount_gid;
         data.file_mode = (S_IRWXU|S_IRWXG|S_IRWXO) & mount_fmask;
         data.dir_mode  = (S_IRWXU|S_IRWXG|S_IRWXO) & mount_dmask;
@@ -206,12 +254,11 @@ static int mount_ok(char *mount_point)
                         data.dir_mode |= S_IXOTH;
         }
 
-	flags = MS_MGC_VAL;
+	flags = MS_MGC_VAL | MS_NOSUID | MS_NODEV;
 
 	if (mount_ro) flags |= MS_RDONLY;
 
-	if (mount(share_name, ".", "smbfs", flags, (char *)&data) < 0)
-	{
+	if (do_mount(share_name, flags, &data) < 0) {
 		switch (errno) {
 		case ENODEV:
 			fprintf(stderr, "ERROR: smbfs filesystem not supported by the kernel\n");

@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    signal handling functions
 
    Copyright (C) Andrew Tridgell 1998
@@ -58,8 +57,6 @@ static void sig_cld_leave_status(int signum)
 
 #if !defined(HAVE_SIGACTION)
 	CatchSignal(SIGCLD, sig_cld_leave_status);
-#else
-	;
 #endif
 }
 
@@ -75,12 +72,10 @@ void BlockSignals(BOOL block,int signum)
 	sigaddset(&set,signum);
 	sigprocmask(block?SIG_BLOCK:SIG_UNBLOCK,&set,NULL);
 #elif defined(HAVE_SIGBLOCK)
-	int block_mask = sigmask(signum);
-	static int oldmask = 0;
 	if (block) {
-		oldmask = sigblock(block_mask);
+		sigblock(sigmask(signum));
 	} else {
-		sigsetmask(oldmask);
+		sigsetmask(siggetmask() & ~sigmask(signum));
 	}
 #else
 	/* yikes! This platform can't block signals? */
@@ -99,10 +94,11 @@ void BlockSignals(BOOL block,int signum)
  2) The signal should be blocked during handler execution.
 ********************************************************************/
 
-void CatchSignal(int signum,void (*handler)(int ))
+void (*CatchSignal(int signum,void (*handler)(int )))(int)
 {
 #ifdef HAVE_SIGACTION
 	struct sigaction act;
+	struct sigaction oldact;
 
 	ZERO_STRUCT(act);
 
@@ -116,10 +112,11 @@ void CatchSignal(int signum,void (*handler)(int ))
 #endif
 	sigemptyset(&act.sa_mask);
 	sigaddset(&act.sa_mask,signum);
-	sigaction(signum,&act,NULL);
+	sigaction(signum,&act,&oldact);
+	return oldact.sa_handler;
 #else /* !HAVE_SIGACTION */
 	/* FIXME: need to handle sigvec and systems with broken signal() */
-	signal(signum, handler);
+	return signal(signum, handler);
 #endif
 }
 

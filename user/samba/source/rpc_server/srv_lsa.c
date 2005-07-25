@@ -1,12 +1,11 @@
-
 /* 
- *  Unix SMB/Netbios implementation.
- *  Version 1.9.
+ *  Unix SMB/CIFS implementation.
  *  RPC Pipe client / server routines
  *  Copyright (C) Andrew Tridgell              1992-1997,
  *  Copyright (C) Luke Kenneth Casson Leighton 1996-1997,
- *  Copyright (C) Paul Ashton                       1997.
- *  Copyright (C) Jeremy Allison                    1998.
+ *  Copyright (C) Paul Ashton                       1997,
+ *  Copyright (C) Jeremy Allison                    2001,
+ *  Copyright (C) Jim McDonough <jmcd@us.ibm.com> 2002-2003.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,439 +22,40 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+/* This is the interface to the lsa server code. */
 
 #include "includes.h"
-#include "nterr.h"
 
-extern int DEBUGLEVEL;
-extern DOM_SID global_sam_sid;
-extern fstring global_myworkgroup;
-extern pstring global_myname;
-
-/***************************************************************************
- lsa_reply_open_policy2
- ***************************************************************************/
-
-static BOOL lsa_reply_open_policy2(prs_struct *rdata)
-{
-	int i;
-	LSA_R_OPEN_POL2 r_o;
-
-	ZERO_STRUCT(r_o);
-
-	/* set up the LSA QUERY INFO response */
-
-	for (i = 4; i < POL_HND_SIZE; i++)
-		r_o.pol.data[i] = i;
-	r_o.status = 0x0;
-
-	/* store the response in the SMB stream */
-	if(!lsa_io_r_open_pol2("", &r_o, rdata, 0)) {
-		DEBUG(0,("lsa_reply_open_policy2: unable to marshall LSA_R_OPEN_POL2.\n"));
-		return False;
-	}
-
-	return True;
-}
-
-/***************************************************************************
-lsa_reply_open_policy
- ***************************************************************************/
-
-static BOOL lsa_reply_open_policy(prs_struct *rdata)
-{
-	int i;
-	LSA_R_OPEN_POL r_o;
-
-	ZERO_STRUCT(r_o);
-
-	/* set up the LSA QUERY INFO response */
-
-	for (i = 4; i < POL_HND_SIZE; i++)
-		r_o.pol.data[i] = i;
-	r_o.status = 0x0;
-
-	/* store the response in the SMB stream */
-	if(!lsa_io_r_open_pol("", &r_o, rdata, 0)) {
-		DEBUG(0,("lsa_reply_open_policy: unable to marshall LSA_R_OPEN_POL.\n"));
-		return False;
-	}
-
-	return True;
-}
-
-/***************************************************************************
-Init dom_query
- ***************************************************************************/
-
-static void init_dom_query(DOM_QUERY *d_q, char *dom_name, DOM_SID *dom_sid)
-{
-	fstring sid_str;
-	int domlen = strlen(dom_name);
-
-	*sid_str = '\0';
-
-	d_q->uni_dom_max_len = domlen * 2;
-	d_q->uni_dom_str_len = domlen * 2;
-
-	d_q->buffer_dom_name = domlen  != 0    ? 1 : 0; /* domain buffer pointer */
-	d_q->buffer_dom_sid  = dom_sid != NULL ? 1 : 0; /* domain sid pointer */
-
-	/* this string is supposed to be character short */
-	init_unistr2(&d_q->uni_domain_name, dom_name, domlen);
-
-	if(dom_sid) {
-		sid_to_string(sid_str, dom_sid);
-		init_dom_sid2(&d_q->dom_sid, dom_sid);
-	}
-}
-
-/***************************************************************************
- lsa_reply_enum_trust_dom
- ***************************************************************************/
-
-static void lsa_reply_enum_trust_dom(LSA_Q_ENUM_TRUST_DOM *q_e,
-				prs_struct *rdata,
-				uint32 enum_context, char *dom_name, DOM_SID *dom_sid)
-{
-	LSA_R_ENUM_TRUST_DOM r_e;
-
-	ZERO_STRUCT(r_e);
-
-	/* set up the LSA QUERY INFO response */
-	init_r_enum_trust_dom(&r_e, enum_context, dom_name, dom_sid,
-	      dom_name != NULL ? 0x0 : 0x80000000 | NT_STATUS_UNABLE_TO_FREE_VM);
-
-	/* store the response in the SMB stream */
-	lsa_io_r_enum_trust_dom("", &r_e, rdata, 0);
-}
-
-/***************************************************************************
-lsa_reply_query_info
- ***************************************************************************/
-
-static BOOL lsa_reply_query_info(LSA_Q_QUERY_INFO *q_q, prs_struct *rdata,
-				char *dom_name, DOM_SID *dom_sid, uint32 status_code)
-{
-	LSA_R_QUERY_INFO r_q;
-
-	ZERO_STRUCT(r_q);
-
-	/* set up the LSA QUERY INFO response */
-
-	if(status_code == 0) {
-		r_q.undoc_buffer = 0x22000000; /* bizarre */
-		r_q.info_class = q_q->info_class;
-
-		init_dom_query(&r_q.dom.id5, dom_name, dom_sid);
-	}
-
-	r_q.status = status_code;
-
-	/* store the response in the SMB stream */
-	if(!lsa_io_r_query("", &r_q, rdata, 0)) {
-		DEBUG(0,("lsa_reply_query_info: failed to marshall LSA_R_QUERY_INFO.\n"));
-		return False;
-	}
-
-	return True;
-}
-
-/***************************************************************************
- init_dom_ref - adds a domain if it's not already in, returns the index.
-***************************************************************************/
-
-static int init_dom_ref(DOM_R_REF *ref, char *dom_name, DOM_SID *dom_sid)
-{
-	int num = 0;
-	int len;
-
-	if (dom_name != NULL) {
-		for (num = 0; num < ref->num_ref_doms_1; num++) {
-			fstring domname;
-			fstrcpy(domname, dos_unistr2_to_str(&ref->ref_dom[num].uni_dom_name));
-			if (strequal(domname, dom_name))
-				return num;
-		}
-	} else {
-		num = ref->num_ref_doms_1;
-	}
-
-	if (num >= MAX_REF_DOMAINS) {
-		/* index not found, already at maximum domain limit */
-		return -1;
-	}
-
-	ref->num_ref_doms_1 = num+1;
-	ref->ptr_ref_dom  = 1;
-	ref->max_entries = MAX_REF_DOMAINS;
-	ref->num_ref_doms_2 = num+1;
-
-	len = (dom_name != NULL) ? strlen(dom_name) : 0;
-	if(dom_name != NULL && len == 0)
-		len = 1;
-
-	init_uni_hdr(&ref->hdr_ref_dom[num].hdr_dom_name, len);
-	ref->hdr_ref_dom[num].ptr_dom_sid = dom_sid != NULL ? 1 : 0;
-
-	init_unistr2(&ref->ref_dom[num].uni_dom_name, dom_name, len);
-	init_dom_sid2(&ref->ref_dom[num].ref_dom, dom_sid );
-
-	return num;
-}
-
-/***************************************************************************
- init_lsa_rid2s
- ***************************************************************************/
-
-static void init_lsa_rid2s(DOM_R_REF *ref, DOM_RID2 *rid2,
-				int num_entries, UNISTR2 name[MAX_LOOKUP_SIDS],
-				uint32 *mapped_count)
-{
-	int i;
-	int total = 0;
-	*mapped_count = 0;
-
-	SMB_ASSERT(num_entries <= MAX_LOOKUP_SIDS);
-
-	for (i = 0; i < num_entries; i++) {
-		BOOL status = False;
-		DOM_SID dom_sid;
-		DOM_SID sid;
-		uint32 rid = 0xffffffff;
-		int dom_idx = -1;
-		pstring full_name;
-		fstring dom_name;
-		fstring user;
-		uint8 sid_name_use = SID_NAME_UNKNOWN;
-
-		pstrcpy(full_name, dos_unistr2_to_str(&name[i]));
-
-		/*
-		 * Try and split the name into a DOMAIN and
-		 * user component.
-		 */
-
-		split_domain_name(full_name, dom_name, user);
-
-		/*
-		 * We only do anything with this name if we
-		 * can map the Domain into a SID we know.
-		 */
-
-		if (map_domain_name_to_sid(&dom_sid, dom_name)) {
-			dom_idx = init_dom_ref(ref, dom_name, &dom_sid);
-
-			if (lookup_local_name(dom_name, user, &sid, &sid_name_use) && sid_split_rid(&sid, &rid)) 
-				status = True;
-		}
-
-		if (status)
-			(*mapped_count)++;
-		else {
-			dom_idx = -1;
-			rid = 0xffffffff;
-			sid_name_use = SID_NAME_UNKNOWN;
-		}
-
-		init_dom_rid2(&rid2[total], rid, sid_name_use, dom_idx);
-		total++;
-	}
-}
-
-/***************************************************************************
- init_reply_lookup_names
- ***************************************************************************/
-
-static void init_reply_lookup_names(LSA_R_LOOKUP_NAMES *r_l,
-                DOM_R_REF *ref, uint32 num_entries,
-                DOM_RID2 *rid2, uint32 mapped_count)
-{
-	r_l->ptr_dom_ref  = 1;
-	r_l->dom_ref      = ref;
-
-	r_l->num_entries  = num_entries;
-	r_l->ptr_entries  = 1;
-	r_l->num_entries2 = num_entries;
-	r_l->dom_rid      = rid2;
-
-	r_l->mapped_count = mapped_count;
-
-	if (mapped_count == 0)
-		r_l->status = 0xC0000000 | NT_STATUS_NONE_MAPPED;
-	else
-		r_l->status = 0x0;
-}
-
-/***************************************************************************
- Init lsa_trans_names.
- ***************************************************************************/
-
-static void init_lsa_trans_names(DOM_R_REF *ref, LSA_TRANS_NAME_ENUM *trn,
-				int num_entries, DOM_SID2 sid[MAX_LOOKUP_SIDS], uint32 *mapped_count)
-{
-	extern DOM_SID global_sid_S_1_5_0x20; /* BUILTIN sid. */
-	int i;
-	int total = 0;
-	*mapped_count = 0;
-
-	SMB_ASSERT(num_entries <= MAX_LOOKUP_SIDS);
-
-	for (i = 0; i < num_entries; i++) {
-		BOOL status = False;
-		DOM_SID find_sid = sid[i].sid;
-		uint32 rid = 0xffffffff;
-		int dom_idx = -1;
-		fstring name;
-		fstring dom_name;
-		uint8 sid_name_use = 0;
-
-		memset(dom_name, '\0', sizeof(dom_name));
-		memset(name, '\0', sizeof(name));
-
-		/*
-		 * First, check to see if the SID is one of the well
-		 * known ones (this includes our own domain SID).
-		 * Next, check if the domain prefix is one of the
-		 * well known ones. If so and the domain prefix was
-		 * either BUILTIN or our own global sid, then lookup
-		 * the RID as a user or group id and translate to
-		 * a name.
-		 */
-
-		if (map_domain_sid_to_name(&find_sid, dom_name)) {
-			sid_name_use = SID_NAME_DOMAIN;
-		} else if (sid_split_rid(&find_sid, &rid) && map_domain_sid_to_name(&find_sid, dom_name)) {
-			if (sid_equal(&find_sid, &global_sam_sid) ||
-				sid_equal(&find_sid, &global_sid_S_1_5_0x20)) {
-				status = lookup_local_rid(rid, name, &sid_name_use);
-			} else  {
-				status = lookup_known_rid(&find_sid, rid, name, &sid_name_use);
-			}
-		}
-
-		DEBUG(10,("init_lsa_trans_names: adding domain '%s' sid %s to referenced list.\n",
-				dom_name, name ));
-
-		dom_idx = init_dom_ref(ref, dom_name, &find_sid);
-
-		if(!status) {
-			slprintf(name, sizeof(name)-1, "unix.%08x", rid);
-			sid_name_use = SID_NAME_UNKNOWN;
-		}
-
-		DEBUG(10,("init_lsa_trans_names: added user '%s\\%s' to referenced list.\n", dom_name, name ));
-
-		(*mapped_count)++;
-
-		init_lsa_trans_name(&trn->name[total], &trn->uni_name[total],
-					sid_name_use, name, dom_idx);
-		total++;
-	}
-
-	trn->num_entries = total;
-	trn->ptr_trans_names = 1;
-	trn->num_entries2 = total;
-}
-
-/***************************************************************************
- Init_reply_lookup_sids.
- ***************************************************************************/
-
-static void init_reply_lookup_sids(LSA_R_LOOKUP_SIDS *r_l,
-                DOM_R_REF *ref, LSA_TRANS_NAME_ENUM *names,
-                uint32 mapped_count)
-{
-	r_l->ptr_dom_ref  = 1;
-	r_l->dom_ref      = ref;
-	r_l->names        = names;
-	r_l->mapped_count = mapped_count;
-
-	if (mapped_count == 0)
-		r_l->status = 0xC0000000 | NT_STATUS_NONE_MAPPED;
-	else
-		r_l->status = 0x0;
-}
-
-/***************************************************************************
-lsa_reply_lookup_sids
- ***************************************************************************/
-
-static BOOL lsa_reply_lookup_sids(prs_struct *rdata, DOM_SID2 *sid, int num_entries)
-{
-	LSA_R_LOOKUP_SIDS r_l;
-	DOM_R_REF ref;
-	LSA_TRANS_NAME_ENUM names;
-	uint32 mapped_count = 0;
-
-	ZERO_STRUCT(r_l);
-	ZERO_STRUCT(ref);
-	ZERO_STRUCT(names);
-
-	/* set up the LSA Lookup SIDs response */
-	init_lsa_trans_names(&ref, &names, num_entries, sid, &mapped_count);
-	init_reply_lookup_sids(&r_l, &ref, &names, mapped_count);
-
-	/* store the response in the SMB stream */
-	if(!lsa_io_r_lookup_sids("", &r_l, rdata, 0)) {
-		DEBUG(0,("lsa_reply_lookup_sids: Failed to marshall LSA_R_LOOKUP_SIDS.\n"));
-		return False;
-	}
-
-	return True;
-}
-
-/***************************************************************************
-lsa_reply_lookup_names
- ***************************************************************************/
-
-static BOOL lsa_reply_lookup_names(prs_struct *rdata,
-                UNISTR2 names[MAX_LOOKUP_SIDS], int num_entries)
-{
-	LSA_R_LOOKUP_NAMES r_l;
-	DOM_R_REF ref;
-	DOM_RID2 rids[MAX_LOOKUP_SIDS];
-	uint32 mapped_count = 0;
-
-	ZERO_STRUCT(r_l);
-	ZERO_STRUCT(ref);
-	ZERO_ARRAY(rids);
-
-	/* set up the LSA Lookup RIDs response */
-	init_lsa_rid2s(&ref, rids, num_entries, names, &mapped_count);
-	init_reply_lookup_names(&r_l, &ref, num_entries, rids, mapped_count);
-
-	/* store the response in the SMB stream */
-	if(!lsa_io_r_lookup_names("", &r_l, rdata, 0)) {
-		DEBUG(0,("lsa_reply_lookup_names: Failed to marshall LSA_R_LOOKUP_NAMES.\n"));
-		return False;
-	}
-
-	return True;
-}
+#undef DBGC_CLASS
+#define DBGC_CLASS DBGC_RPC_SRV
 
 /***************************************************************************
  api_lsa_open_policy2
  ***************************************************************************/
 
-static BOOL api_lsa_open_policy2( uint16 vuid, prs_struct *data,
-                             prs_struct *rdata )
+static BOOL api_lsa_open_policy2(pipes_struct *p)
 {
-	LSA_Q_OPEN_POL2 q_o;
+	LSA_Q_OPEN_POL2 q_u;
+	LSA_R_OPEN_POL2 r_u;
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
 
-	ZERO_STRUCT(q_o);
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
 
 	/* grab the server, object attributes and desired access flag...*/
-	if(!lsa_io_q_open_pol2("", &q_o, data, 0)) {
+	if(!lsa_io_q_open_pol2("", &q_u, data, 0)) {
 		DEBUG(0,("api_lsa_open_policy2: unable to unmarshall LSA_Q_OPEN_POL2.\n"));
 		return False;
 	}
 
-	/* lkclXXXX having decoded it, ignore all fields in the open policy! */
+	r_u.status = _lsa_open_policy2(p, &q_u, &r_u);
 
-	/* return a 20 byte policy handle */
-	if(!lsa_reply_open_policy2(rdata))
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_open_pol2("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_open_policy2: unable to marshall LSA_R_OPEN_POL2.\n"));
 		return False;
+	}
 
 	return True;
 }
@@ -463,91 +63,89 @@ static BOOL api_lsa_open_policy2( uint16 vuid, prs_struct *data,
 /***************************************************************************
 api_lsa_open_policy
  ***************************************************************************/
-static BOOL api_lsa_open_policy( uint16 vuid, prs_struct *data,
-                             prs_struct *rdata )
-{
-	LSA_Q_OPEN_POL q_o;
 
-	ZERO_STRUCT(q_o);
+static BOOL api_lsa_open_policy(pipes_struct *p)
+{
+	LSA_Q_OPEN_POL q_u;
+	LSA_R_OPEN_POL r_u;
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
 
 	/* grab the server, object attributes and desired access flag...*/
-	if(!lsa_io_q_open_pol("", &q_o, data, 0)) {
+	if(!lsa_io_q_open_pol("", &q_u, data, 0)) {
 		DEBUG(0,("api_lsa_open_policy: unable to unmarshall LSA_Q_OPEN_POL.\n"));
 		return False;
 	}
 
-	/* lkclXXXX having decoded it, ignore all fields in the open policy! */
+	r_u.status = _lsa_open_policy(p, &q_u, &r_u);
 
-	/* return a 20 byte policy handle */
-	if(!lsa_reply_open_policy(rdata))
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_open_pol("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_open_policy: unable to marshall LSA_R_OPEN_POL.\n"));
 		return False;
+	}
 
 	return True;
 }
 
 /***************************************************************************
-api_lsa_enum_trust_dom
+ api_lsa_enum_trust_dom
  ***************************************************************************/
-static BOOL api_lsa_enum_trust_dom( uint16 vuid, prs_struct *data,
-                                    prs_struct *rdata )
-{
-	LSA_Q_ENUM_TRUST_DOM q_e;
 
-	ZERO_STRUCT(q_e);
+static BOOL api_lsa_enum_trust_dom(pipes_struct *p)
+{
+	LSA_Q_ENUM_TRUST_DOM q_u;
+	LSA_R_ENUM_TRUST_DOM r_u;
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
 
 	/* grab the enum trust domain context etc. */
-	if(!lsa_io_q_enum_trust_dom("", &q_e, data, 0))
+	if(!lsa_io_q_enum_trust_dom("", &q_u, data, 0))
 		return False;
 
-	/* construct reply.  return status is always 0x0 */
-	lsa_reply_enum_trust_dom(&q_e, rdata, 0, NULL, NULL);
+	/* get required trusted domains information */
+	r_u.status = _lsa_enum_trust_dom(p, &q_u, &r_u);
+
+	/* prepare the response */
+	if(!lsa_io_r_enum_trust_dom("", &r_u, rdata, 0))
+		return False;
 
 	return True;
 }
 
 /***************************************************************************
-api_lsa_query_info
+ api_lsa_query_info
  ***************************************************************************/
-static BOOL api_lsa_query_info( uint16 vuid, prs_struct *data,
-                                prs_struct *rdata )
+
+static BOOL api_lsa_query_info(pipes_struct *p)
 {
-	LSA_Q_QUERY_INFO q_i;
-	fstring name;
-	DOM_SID *sid = NULL;
-	uint32 status_code = 0;
+	LSA_Q_QUERY_INFO q_u;
+	LSA_R_QUERY_INFO r_u;
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
 
-	memset(name, 0, sizeof(name));
-
-	ZERO_STRUCT(q_i);
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
 
 	/* grab the info class and policy handle */
-	if(!lsa_io_q_query("", &q_i, data, 0)) {
+	if(!lsa_io_q_query("", &q_u, data, 0)) {
 		DEBUG(0,("api_lsa_query_info: failed to unmarshall LSA_Q_QUERY_INFO.\n"));
 		return False;
 	}
 
-	switch (q_i.info_class) {
-	case 0x03:
-		if(lp_domain_logons()) {
-			fstrcpy(name, global_myworkgroup);
-			sid = &global_sam_sid;
-		} else {
-			*name = '\0';
-		}
-		break;
-	case 0x05:
-		fstrcpy(name, global_myname);
-		sid = &global_sam_sid;
-		break;
-	default:
-		DEBUG(3,("api_lsa_query_info: unknown info level in Lsa Query: %d\n", q_i.info_class));
-		status_code = (NT_STATUS_INVALID_INFO_CLASS | 0xC0000000);
-		break;
-	}
+	r_u.status = _lsa_query_info(p, &q_u, &r_u);
 
-	/* construct reply.  return status is always 0x0 */
-	if(!lsa_reply_query_info(&q_i, rdata, name, sid, status_code))
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_query("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_query_info: failed to marshall LSA_R_QUERY_INFO.\n"));
 		return False;
+	}
 
 	return True;
 }
@@ -556,20 +154,28 @@ static BOOL api_lsa_query_info( uint16 vuid, prs_struct *data,
  api_lsa_lookup_sids
  ***************************************************************************/
 
-static BOOL api_lsa_lookup_sids( uint16 vuid, prs_struct *data, prs_struct *rdata )
+static BOOL api_lsa_lookup_sids(pipes_struct *p)
 {
-	LSA_Q_LOOKUP_SIDS q_l;
-	ZERO_STRUCT(q_l);
+	LSA_Q_LOOKUP_SIDS q_u;
+	LSA_R_LOOKUP_SIDS r_u;
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
 
 	/* grab the info class and policy handle */
-	if(!lsa_io_q_lookup_sids("", &q_l, data, 0)) {
+	if(!lsa_io_q_lookup_sids("", &q_u, data, 0)) {
 		DEBUG(0,("api_lsa_lookup_sids: failed to unmarshall LSA_Q_LOOKUP_SIDS.\n"));
 		return False;
 	}
 
-	/* construct reply.  return status is always 0x0 */
-	if(!lsa_reply_lookup_sids(rdata, q_l.sids.sid, q_l.sids.num_entries))
+	r_u.status = _lsa_lookup_sids(p, &q_u, &r_u);
+
+	if(!lsa_io_r_lookup_sids("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_lookup_sids: Failed to marshall LSA_R_LOOKUP_SIDS.\n"));
 		return False;
+	}
 
 	return True;
 }
@@ -578,34 +184,56 @@ static BOOL api_lsa_lookup_sids( uint16 vuid, prs_struct *data, prs_struct *rdat
  api_lsa_lookup_names
  ***************************************************************************/
 
-static BOOL api_lsa_lookup_names( uint16 vuid, prs_struct *data, prs_struct *rdata )
+static BOOL api_lsa_lookup_names(pipes_struct *p)
 {
-	LSA_Q_LOOKUP_NAMES q_l;
-	ZERO_STRUCT(q_l);
+	LSA_Q_LOOKUP_NAMES q_u;
+	LSA_R_LOOKUP_NAMES r_u;
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
 
 	/* grab the info class and policy handle */
-	if(!lsa_io_q_lookup_names("", &q_l, data, 0)) {
+	if(!lsa_io_q_lookup_names("", &q_u, data, 0)) {
 		DEBUG(0,("api_lsa_lookup_names: failed to unmarshall LSA_Q_LOOKUP_NAMES.\n"));
 		return False;
 	}
 
-	SMB_ASSERT_ARRAY(q_l.uni_name, q_l.num_entries);
+	r_u.status = _lsa_lookup_names(p, &q_u, &r_u);
 
-	return lsa_reply_lookup_names(rdata, q_l.uni_name, q_l.num_entries);
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_lookup_names("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_lookup_names: Failed to marshall LSA_R_LOOKUP_NAMES.\n"));
+		return False;
+	}
+
+	return True;
 }
 
 /***************************************************************************
- api_lsa_close
+ api_lsa_close.
  ***************************************************************************/
-static BOOL api_lsa_close( uint16 vuid, prs_struct *data,
-                                  prs_struct *rdata)
-{
-	LSA_R_CLOSE r_c;
 
-	ZERO_STRUCT(r_c);
+static BOOL api_lsa_close(pipes_struct *p)
+{
+	LSA_Q_CLOSE q_u;
+	LSA_R_CLOSE r_u;
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if (!lsa_io_q_close("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_close: lsa_io_q_close failed.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_close(p, &q_u, &r_u);
 
 	/* store the response in the SMB stream */
-	if (!lsa_io_r_close("", &r_c, rdata, 0)) {
+	if (!lsa_io_r_close("", &r_u, rdata, 0)) {
 		DEBUG(0,("api_lsa_close: lsa_io_r_close failed.\n"));
 		return False;
 	}
@@ -614,26 +242,29 @@ static BOOL api_lsa_close( uint16 vuid, prs_struct *data,
 }
 
 /***************************************************************************
- api_lsa_open_secret
+ api_lsa_open_secret.
  ***************************************************************************/
-static BOOL api_lsa_open_secret( uint16 vuid, prs_struct *data,
-                                  prs_struct *rdata)
-{
-	/* XXXX this is NOT good */
-	size_t i;
-	uint32 dummy = 0;
 
-	for(i =0; i < 4; i++) {
-		if(!prs_uint32("api_lsa_close", rdata, 1, &dummy)) {
-			DEBUG(0,("api_lsa_open_secret: prs_uint32 %d failed.\n",
-				(int)i ));
-			return False;
-		}
+static BOOL api_lsa_open_secret(pipes_struct *p)
+{
+	LSA_Q_OPEN_SECRET q_u;
+	LSA_R_OPEN_SECRET r_u;
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_open_secret("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_open_secret: failed to unmarshall LSA_Q_OPEN_SECRET.\n"));
+		return False;
 	}
 
-	dummy = 0xC0000000 | NT_STATUS_OBJECT_NAME_NOT_FOUND;
-	if(!prs_uint32("api_lsa_close", rdata, 1, &dummy)) {
-		DEBUG(0,("api_lsa_open_secret: prs_uint32 status failed.\n"));
+	r_u.status = _lsa_open_secret(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_open_secret("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_open_secret: Failed to marshall LSA_R_OPEN_SECRET.\n"));
 		return False;
 	}
 
@@ -641,25 +272,597 @@ static BOOL api_lsa_open_secret( uint16 vuid, prs_struct *data,
 }
 
 /***************************************************************************
- \PIPE\ntlsa commands
+ api_lsa_open_secret.
  ***************************************************************************/
-static struct api_struct api_lsa_cmds[] =
+
+static BOOL api_lsa_enum_privs(pipes_struct *p)
 {
-	{ "LSA_OPENPOLICY2"     , LSA_OPENPOLICY2     , api_lsa_open_policy2   },
-	{ "LSA_OPENPOLICY"      , LSA_OPENPOLICY      , api_lsa_open_policy    },
-	{ "LSA_QUERYINFOPOLICY" , LSA_QUERYINFOPOLICY , api_lsa_query_info     },
-	{ "LSA_ENUMTRUSTDOM"    , LSA_ENUMTRUSTDOM    , api_lsa_enum_trust_dom },
-	{ "LSA_CLOSE"           , LSA_CLOSE           , api_lsa_close          },
-	{ "LSA_OPENSECRET"      , LSA_OPENSECRET      , api_lsa_open_secret    },
-	{ "LSA_LOOKUPSIDS"      , LSA_LOOKUPSIDS      , api_lsa_lookup_sids    },
-	{ "LSA_LOOKUPNAMES"     , LSA_LOOKUPNAMES     , api_lsa_lookup_names   },
-	{ NULL                  , 0                   , NULL                   }
-};
+	LSA_Q_ENUM_PRIVS q_u;
+	LSA_R_ENUM_PRIVS r_u;
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_enum_privs("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_enum_privs: failed to unmarshall LSA_Q_ENUM_PRIVS.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_enum_privs(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_enum_privs("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_enum_privs: Failed to marshall LSA_R_ENUM_PRIVS.\n"));
+		return False;
+	}
+
+	return True;
+}
 
 /***************************************************************************
- api_ntLsarpcTNP
+ api_lsa_open_secret.
  ***************************************************************************/
-BOOL api_ntlsa_rpc(pipes_struct *p, prs_struct *data)
+
+static BOOL api_lsa_priv_get_dispname(pipes_struct *p)
 {
-	return api_rpcTNP(p, "api_ntlsa_rpc", api_lsa_cmds, data);
+	LSA_Q_PRIV_GET_DISPNAME q_u;
+	LSA_R_PRIV_GET_DISPNAME r_u;
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_priv_get_dispname("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_priv_get_dispname: failed to unmarshall LSA_Q_PRIV_GET_DISPNAME.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_priv_get_dispname(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_priv_get_dispname("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_priv_get_dispname: Failed to marshall LSA_R_PRIV_GET_DISPNAME.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_open_secret.
+ ***************************************************************************/
+
+static BOOL api_lsa_enum_accounts(pipes_struct *p)
+{
+	LSA_Q_ENUM_ACCOUNTS q_u;
+	LSA_R_ENUM_ACCOUNTS r_u;
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_enum_accounts("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_enum_accounts: failed to unmarshall LSA_Q_ENUM_ACCOUNTS.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_enum_accounts(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_enum_accounts("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_enum_accounts: Failed to marshall LSA_R_ENUM_ACCOUNTS.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_UNK_GET_CONNUSER
+ ***************************************************************************/
+
+static BOOL api_lsa_unk_get_connuser(pipes_struct *p)
+{
+	LSA_Q_UNK_GET_CONNUSER q_u;
+	LSA_R_UNK_GET_CONNUSER r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_unk_get_connuser("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_unk_get_connuser: failed to unmarshall LSA_Q_UNK_GET_CONNUSER.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_unk_get_connuser(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_unk_get_connuser("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_unk_get_connuser: Failed to marshall LSA_R_UNK_GET_CONNUSER.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_create_user
+ ***************************************************************************/
+
+static BOOL api_lsa_create_account(pipes_struct *p)
+{
+	LSA_Q_CREATEACCOUNT q_u;
+	LSA_R_CREATEACCOUNT r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_create_account("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_create_account: failed to unmarshall LSA_Q_CREATEACCOUNT.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_create_account(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_create_account("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_create_account: Failed to marshall LSA_R_CREATEACCOUNT.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_open_user
+ ***************************************************************************/
+
+static BOOL api_lsa_open_account(pipes_struct *p)
+{
+	LSA_Q_OPENACCOUNT q_u;
+	LSA_R_OPENACCOUNT r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_open_account("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_open_account: failed to unmarshall LSA_Q_OPENACCOUNT.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_open_account(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_open_account("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_open_account: Failed to marshall LSA_R_OPENACCOUNT.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_get_privs
+ ***************************************************************************/
+
+static BOOL api_lsa_enum_privsaccount(pipes_struct *p)
+{
+	LSA_Q_ENUMPRIVSACCOUNT q_u;
+	LSA_R_ENUMPRIVSACCOUNT r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_enum_privsaccount("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_enum_privsaccount: failed to unmarshall LSA_Q_ENUMPRIVSACCOUNT.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_enum_privsaccount(p, rdata, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_enum_privsaccount("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_enum_privsaccount: Failed to marshall LSA_R_ENUMPRIVSACCOUNT.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_getsystemaccount
+ ***************************************************************************/
+
+static BOOL api_lsa_getsystemaccount(pipes_struct *p)
+{
+	LSA_Q_GETSYSTEMACCOUNT q_u;
+	LSA_R_GETSYSTEMACCOUNT r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_getsystemaccount("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_getsystemaccount: failed to unmarshall LSA_Q_GETSYSTEMACCOUNT.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_getsystemaccount(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_getsystemaccount("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_getsystemaccount: Failed to marshall LSA_R_GETSYSTEMACCOUNT.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+
+/***************************************************************************
+ api_lsa_setsystemaccount
+ ***************************************************************************/
+
+static BOOL api_lsa_setsystemaccount(pipes_struct *p)
+{
+	LSA_Q_SETSYSTEMACCOUNT q_u;
+	LSA_R_SETSYSTEMACCOUNT r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_setsystemaccount("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_setsystemaccount: failed to unmarshall LSA_Q_SETSYSTEMACCOUNT.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_setsystemaccount(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_setsystemaccount("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_setsystemaccount: Failed to marshall LSA_R_SETSYSTEMACCOUNT.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_addprivs
+ ***************************************************************************/
+
+static BOOL api_lsa_addprivs(pipes_struct *p)
+{
+	LSA_Q_ADDPRIVS q_u;
+	LSA_R_ADDPRIVS r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_addprivs("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_addprivs: failed to unmarshall LSA_Q_ADDPRIVS.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_addprivs(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_addprivs("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_addprivs: Failed to marshall LSA_R_ADDPRIVS.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_removeprivs
+ ***************************************************************************/
+
+static BOOL api_lsa_removeprivs(pipes_struct *p)
+{
+	LSA_Q_REMOVEPRIVS q_u;
+	LSA_R_REMOVEPRIVS r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_removeprivs("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_removeprivs: failed to unmarshall LSA_Q_REMOVEPRIVS.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_removeprivs(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_removeprivs("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_removeprivs: Failed to marshall LSA_R_REMOVEPRIVS.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_query_secobj
+ ***************************************************************************/
+
+static BOOL api_lsa_query_secobj(pipes_struct *p)
+{
+	LSA_Q_QUERY_SEC_OBJ q_u;
+	LSA_R_QUERY_SEC_OBJ r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_query_sec_obj("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_query_secobj: failed to unmarshall LSA_Q_QUERY_SEC_OBJ.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_query_secobj(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_query_sec_obj("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_query_secobj: Failed to marshall LSA_R_QUERY_SEC_OBJ.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_add_acct_rights
+ ***************************************************************************/
+
+static BOOL api_lsa_add_acct_rights(pipes_struct *p)
+{
+	LSA_Q_ADD_ACCT_RIGHTS q_u;
+	LSA_R_ADD_ACCT_RIGHTS r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_add_acct_rights("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_add_acct_rights: failed to unmarshall LSA_Q_ADD_ACCT_RIGHTS.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_add_acct_rights(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_add_acct_rights("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_add_acct_rights: Failed to marshall LSA_R_ADD_ACCT_RIGHTS.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_remove_acct_rights
+ ***************************************************************************/
+
+static BOOL api_lsa_remove_acct_rights(pipes_struct *p)
+{
+	LSA_Q_REMOVE_ACCT_RIGHTS q_u;
+	LSA_R_REMOVE_ACCT_RIGHTS r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_remove_acct_rights("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_remove_acct_rights: failed to unmarshall LSA_Q_REMOVE_ACCT_RIGHTS.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_remove_acct_rights(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_remove_acct_rights("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_remove_acct_rights: Failed to marshall LSA_R_REMOVE_ACCT_RIGHTS.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_enum_acct_rights
+ ***************************************************************************/
+
+static BOOL api_lsa_enum_acct_rights(pipes_struct *p)
+{
+	LSA_Q_ENUM_ACCT_RIGHTS q_u;
+	LSA_R_ENUM_ACCT_RIGHTS r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_enum_acct_rights("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_enum_acct_rights: failed to unmarshall LSA_Q_ENUM_ACCT_RIGHTS.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_enum_acct_rights(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_enum_acct_rights("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_enum_acct_rights: Failed to marshall LSA_R_ENUM_ACCT_RIGHTS.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+/***************************************************************************
+ api_lsa_lookup_priv_value
+ ***************************************************************************/
+
+static BOOL api_lsa_lookup_priv_value(pipes_struct *p)
+{
+	LSA_Q_LOOKUP_PRIV_VALUE q_u;
+	LSA_R_LOOKUP_PRIV_VALUE r_u;
+	
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_lookup_priv_value("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_lookup_priv_value: failed to unmarshall LSA_Q_LOOKUP_PRIV_VALUE .\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_lookup_priv_value(p, &q_u, &r_u);
+
+	/* store the response in the SMB stream */
+	if(!lsa_io_r_lookup_priv_value("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_lookup_priv_value: Failed to marshall LSA_R_LOOKUP_PRIV_VALUE.\n"));
+		return False;
+	}
+
+	return True;
+}
+
+#if 0	/* AD DC work in ongoing in Samba 4 */
+
+/***************************************************************************
+ api_lsa_query_info2
+ ***************************************************************************/
+
+static BOOL api_lsa_query_info2(pipes_struct *p)
+{
+	LSA_Q_QUERY_INFO2 q_u;
+	LSA_R_QUERY_INFO2 r_u;
+
+	prs_struct *data = &p->in_data.data;
+	prs_struct *rdata = &p->out_data.rdata;
+
+	ZERO_STRUCT(q_u);
+	ZERO_STRUCT(r_u);
+
+	if(!lsa_io_q_query_info2("", &q_u, data, 0)) {
+		DEBUG(0,("api_lsa_query_info2: failed to unmarshall LSA_Q_QUERY_INFO2.\n"));
+		return False;
+	}
+
+	r_u.status = _lsa_query_info2(p, &q_u, &r_u);
+
+	if (!lsa_io_r_query_info2("", &r_u, rdata, 0)) {
+		DEBUG(0,("api_lsa_query_info2: failed to marshall LSA_R_QUERY_INFO2.\n"));
+		return False;
+	}
+
+	return True;
+}
+#endif	/* AD DC work in ongoing in Samba 4 */
+
+/***************************************************************************
+ \PIPE\ntlsa commands
+ ***************************************************************************/
+ 
+static struct api_struct api_lsa_cmds[] =
+{
+	{ "LSA_OPENPOLICY2"     , LSA_OPENPOLICY2     , api_lsa_open_policy2     },
+	{ "LSA_OPENPOLICY"      , LSA_OPENPOLICY      , api_lsa_open_policy      },
+	{ "LSA_QUERYINFOPOLICY" , LSA_QUERYINFOPOLICY , api_lsa_query_info       },
+	{ "LSA_ENUMTRUSTDOM"    , LSA_ENUMTRUSTDOM    , api_lsa_enum_trust_dom   },
+	{ "LSA_CLOSE"           , LSA_CLOSE           , api_lsa_close            },
+	{ "LSA_OPENSECRET"      , LSA_OPENSECRET      , api_lsa_open_secret      },
+	{ "LSA_LOOKUPSIDS"      , LSA_LOOKUPSIDS      , api_lsa_lookup_sids      },
+	{ "LSA_LOOKUPNAMES"     , LSA_LOOKUPNAMES     , api_lsa_lookup_names     },
+	{ "LSA_ENUM_PRIVS"      , LSA_ENUM_PRIVS      , api_lsa_enum_privs       },
+	{ "LSA_PRIV_GET_DISPNAME",LSA_PRIV_GET_DISPNAME,api_lsa_priv_get_dispname},
+	{ "LSA_ENUM_ACCOUNTS"   , LSA_ENUM_ACCOUNTS   , api_lsa_enum_accounts    },
+	{ "LSA_UNK_GET_CONNUSER", LSA_UNK_GET_CONNUSER, api_lsa_unk_get_connuser },
+	{ "LSA_CREATEACCOUNT"   , LSA_CREATEACCOUNT   , api_lsa_create_account   },
+	{ "LSA_OPENACCOUNT"     , LSA_OPENACCOUNT     , api_lsa_open_account     },
+	{ "LSA_ENUMPRIVSACCOUNT", LSA_ENUMPRIVSACCOUNT, api_lsa_enum_privsaccount},
+	{ "LSA_GETSYSTEMACCOUNT", LSA_GETSYSTEMACCOUNT, api_lsa_getsystemaccount },
+	{ "LSA_SETSYSTEMACCOUNT", LSA_SETSYSTEMACCOUNT, api_lsa_setsystemaccount },
+	{ "LSA_ADDPRIVS"        , LSA_ADDPRIVS        , api_lsa_addprivs         },
+	{ "LSA_REMOVEPRIVS"     , LSA_REMOVEPRIVS     , api_lsa_removeprivs      },
+	{ "LSA_ADDACCTRIGHTS"   , LSA_ADDACCTRIGHTS   , api_lsa_add_acct_rights    },
+	{ "LSA_REMOVEACCTRIGHTS", LSA_REMOVEACCTRIGHTS, api_lsa_remove_acct_rights },
+	{ "LSA_ENUMACCTRIGHTS"  , LSA_ENUMACCTRIGHTS  , api_lsa_enum_acct_rights },
+	{ "LSA_QUERYSECOBJ"     , LSA_QUERYSECOBJ     , api_lsa_query_secobj     },
+	{ "LSA_LOOKUPPRIVVALUE" , LSA_LOOKUPPRIVVALUE , api_lsa_lookup_priv_value }
+#if 0	/* AD DC work in ongoing in Samba 4 */
+	/* be careful of the adding of new RPC's.  See commentrs below about
+	   ADS DC capabilities                                               */
+	{ "LSA_QUERYINFO2"      , LSA_QUERYINFO2      , api_lsa_query_info2      }
+#endif	/* AD DC work in ongoing in Samba 4 */
+};
+
+static int count_fns(void)
+{
+	int funcs = sizeof(api_lsa_cmds) / sizeof(struct api_struct);
+	
+#if 0	/* AD DC work is on going in Samba 4 */
+	/*
+	 * NOTE: Certain calls can not be enabled if we aren't an ADS DC.  Make sure
+	 * these calls are always last and that you decrement by the amount of calls
+	 * to disable.
+	 */
+	if (!(SEC_ADS == lp_security() && ROLE_DOMAIN_PDC == lp_server_role())) {
+		funcs -= 1;
+	}
+#endif	/* AD DC work in ongoing in Samba 4 */
+
+	return funcs;
+}
+void lsa_get_pipe_fns( struct api_struct **fns, int *n_fns )
+{
+	*fns = api_lsa_cmds;
+	*n_fns = count_fns();
+}
+
+
+NTSTATUS rpc_lsa_init(void)
+{
+	int funcs = count_fns();
+
+	return rpc_pipe_register_commands(SMB_RPC_INTERFACE_VERSION, "lsarpc", "lsass", api_lsa_cmds, 
+		funcs);
 }

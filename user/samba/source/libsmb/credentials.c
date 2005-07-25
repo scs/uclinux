@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    code to manipulate domain credentials
    Copyright (C) Andrew Tridgell 1997-1998
    
@@ -21,14 +20,10 @@
 
 #include "includes.h"
 
-extern int DEBUGLEVEL;
-
-
-
 /****************************************************************************
 represent a credential as a string
 ****************************************************************************/
-char *credstr(uchar *cred)
+char *credstr(const uchar *cred)
 {
 	static fstring buf;
 	slprintf(buf, sizeof(buf) - 1, "%02X%02X%02X%02X%02X%02X%02X%02X",
@@ -46,7 +41,7 @@ Input: 8 byte challenge block
 Output:
       8 byte session key
 ****************************************************************************/
-void cred_session_key(DOM_CHAL *clnt_chal, DOM_CHAL *srv_chal, char *pass, 
+void cred_session_key(const DOM_CHAL *clnt_chal, const DOM_CHAL *srv_chal, const uchar *pass, 
 		      uchar session_key[8])
 {
 	uint32 sum[2];
@@ -58,7 +53,7 @@ void cred_session_key(DOM_CHAL *clnt_chal, DOM_CHAL *srv_chal, char *pass,
 	SIVAL(sum2,0,sum[0]);
 	SIVAL(sum2,4,sum[1]);
 
-	cred_hash1(session_key, sum2,(unsigned char *)pass);
+	cred_hash1(session_key, sum2, pass);
 
 	/* debug output */
 	DEBUG(4,("cred_session_key\n"));
@@ -156,8 +151,8 @@ BOOL clnt_deal_with_creds(uchar sess_key[8],
 	new_clnt_time.time = sto_clnt_cred->timestamp.time + 1;
 
 	/* check that the received server credentials are valid */
-	if (!cred_assert(&(rcv_srv_cred->challenge), sess_key,
-			 &(sto_clnt_cred->challenge), new_clnt_time))
+	if (!cred_assert(&rcv_srv_cred->challenge, sess_key,
+			 &sto_clnt_cred->challenge, new_clnt_time))
 	{
 		return False;
 	}
@@ -187,8 +182,8 @@ BOOL deal_with_creds(uchar sess_key[8],
 	DEBUG(5,("deal_with_creds: %d\n", __LINE__));
 
 	/* check that the received client credentials are valid */
-	if (!cred_assert(&(rcv_clnt_cred->challenge), sess_key,
-                    &(sto_clnt_cred->challenge), rcv_clnt_cred->timestamp))
+	if (!cred_assert(&rcv_clnt_cred->challenge, sess_key,
+                    &sto_clnt_cred->challenge, rcv_clnt_cred->timestamp))
 	{
 		return False;
 	}
@@ -208,8 +203,8 @@ BOOL deal_with_creds(uchar sess_key[8],
 	DEBUG(5,("deal_with_creds: new_clnt_time=%x\n", new_clnt_time.time));
 
 	/* create return credentials for inclusion in the reply */
-	cred_create(sess_key, &(sto_clnt_cred->challenge), new_clnt_time,
-	            &(rtn_srv_cred->challenge));
+	cred_create(sess_key, &sto_clnt_cred->challenge, new_clnt_time,
+	            &rtn_srv_cred->challenge);
 	
 	DEBUG(5,("deal_with_creds: clnt_cred=%s\n", credstr(sto_clnt_cred->challenge.data)));
 
@@ -218,5 +213,3 @@ BOOL deal_with_creds(uchar sess_key[8],
 
 	return True;
 }
-
-

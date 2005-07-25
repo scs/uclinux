@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    web status page
    Copyright (C) Andrew Tridgell 1997-1998
    
@@ -20,7 +19,83 @@
 */
 
 #include "includes.h"
+#include "web/swat_proto.h"
 
+#define PIDMAP		struct PidMap
+
+/* how long to wait for start/stops to take effect */
+#define SLEEP_TIME 3
+
+PIDMAP {
+	PIDMAP	*next, *prev;
+	pid_t	pid;
+	char	*machine;
+};
+
+static PIDMAP	*pidmap;
+static int	PID_or_Machine;		/* 0 = show PID, else show Machine name */
+
+static pid_t smbd_pid;
+
+/* from 2nd call on, remove old list */
+static void initPid2Machine (void)
+{
+	/* show machine name rather PID on table "Open Files"? */
+	if (PID_or_Machine) {
+		PIDMAP *p;
+
+		for (p = pidmap; p != NULL; ) {
+			DLIST_REMOVE(pidmap, p);
+			SAFE_FREE(p->machine);
+			SAFE_FREE(p);
+		}
+
+		pidmap = NULL;
+	}
+}
+
+/* add new PID <-> Machine name mapping */
+static void addPid2Machine (pid_t pid, char *machine)
+{
+	/* show machine name rather PID on table "Open Files"? */
+	if (PID_or_Machine) {
+		PIDMAP *newmap;
+
+		if ((newmap = SMB_MALLOC_P(PIDMAP)) == NULL) {
+			/* XXX need error message for this?
+			   if malloc fails, PID is always shown */
+			return;
+		}
+
+		newmap->pid = pid;
+		newmap->machine = SMB_STRDUP(machine);
+
+		DLIST_ADD(pidmap, newmap);
+	}
+}
+
+/* lookup PID <-> Machine name mapping */
+static char *mapPid2Machine (pid_t pid)
+{
+	static char pidbuf [64];
+	PIDMAP *map;
+
+	/* show machine name rather PID on table "Open Files"? */
+	if (PID_or_Machine) {
+		for (map = pidmap; map != NULL; map = map->next) {
+			if (pid == map->pid) {
+				if (map->machine == NULL)	/* no machine name */
+					break;			/* show PID */
+
+				return map->machine;
+			}
+		}
+	}
+
+	/* PID not in list or machine name NULL? return pid as string */
+	snprintf (pidbuf, sizeof (pidbuf) - 1, "%lu", (unsigned long)pid);
+	return pidbuf;
+}
 
 static char *tstring(time_t t)
 {
@@ -32,7 +107,9 @@ static char *tstring(time_t t)
 
 static void print_share_mode(share_mode_entry *e, char *fname)
 {
-	printf("<tr><td>%d</td>",(int)e->pid);
+	char           *utf8_fname;
+
+	printf("<tr><td>%s</td>",_(mapPid2Machine(e->pid)));
 	printf("<td>");
 	switch ((e->share_mode>>4)&0xF) {
 	case DENY_NONE: printf("DENY_NONE"); break;
@@ -45,9 +122,9 @@ static void print_share_mode(share_mode_entry *e, char *fname)
 
 	printf("<td>");
 	switch (e->share_mode&0xF) {
-	case 0: printf("RDONLY     "); break;
-	case 1: printf("WRONLY     "); break;
-	case 2: printf("RDWR       "); break;
+	case 0: printf("%s", _("RDONLY     ")); break;
+	case 1: printf("%s", _("WRONLY     ")); break;
+	case 2: printf("%s", _("RDWR       ")); break;
 	}
 	printf("</td>");
 
@@ -66,48 +143,148 @@ static void print_share_mode(share_mode_entry *e, char *fname)
 		printf("NONE            ");
 	printf("</td>");
 
+	push_utf8_allocate(&utf8_fname, fname);
 	printf("<td>%s</td><td>%s</td></tr>\n",
-	       dos_to_unix(fname,False),tstring(e->time.tv_sec));
+	       utf8_fname,tstring(e->time.tv_sec));
+	SAFE_FREE(utf8_fname);
+}
+
+
+/* kill off any connections chosen by the user */
+static int traverse_fn1(TDB_CONTEXT *tdb, TDB_DATA kbuf, TDB_DATA dbuf, void* state)
+{
+	struct connections_data crec;
+
+	if (dbuf.dsize != sizeof(crec))
+		return 0;
+
+	memcpy(&crec, dbuf.dptr, sizeof(crec));
+
+	if (crec.cnum == -1 && process_exists(crec.pid)) {
+		char buf[30];
+		slprintf(buf,sizeof(buf)-1,"kill_%d", (int)crec.pid);
+		if (cgi_variable(buf)) {
+			kill_pid(crec.pid);
+			sleep(SLEEP_TIME);
+		}
+	}
+	return 0;
+}
+
+/* traversal fn for showing machine connections */
+static int traverse_fn2(TDB_CONTEXT *tdb, TDB_DATA kbuf, TDB_DATA dbuf, void* state)
+{
+	struct connections_data crec;
+
+	if (dbuf.dsize != sizeof(crec))
+		return 0;
+
+	memcpy(&crec, dbuf.dptr, sizeof(crec));
+	
+	if (crec.cnum == -1 || !process_exists(crec.pid) || (crec.pid == smbd_pid))
+		return 0;
+
+	addPid2Machine (crec.pid, crec.machine);
+
+	printf("<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td>\n",
+	       (int)crec.pid,
+	       crec.machine,crec.addr,
+	       tstring(crec.start));
+	if (geteuid() == 0) {
+		printf("<td><input type=submit value=\"X\" name=\"kill_%d\"></td>\n",
+		       (int)crec.pid);
+	}
+	printf("</tr>\n");
+
+	return 0;
+}
+
+/* traversal fn for showing share connections */
+static int traverse_fn3(TDB_CONTEXT *tdb, TDB_DATA kbuf, TDB_DATA dbuf, void* state)
+{
+	struct connections_data crec;
+
+	if (dbuf.dsize != sizeof(crec))
+		return 0;
+
+	memcpy(&crec, dbuf.dptr, sizeof(crec));
+
+	if (crec.cnum == -1 || !process_exists(crec.pid))
+		return 0;
+
+	printf("<tr><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td><td>%s</td></tr>\n",
+	       crec.name,uidtoname(crec.uid),
+	       gidtoname(crec.gid),(int)crec.pid,
+	       crec.machine,
+	       tstring(crec.start));
+	return 0;
 }
 
 
 /* show the current server status */
 void status_page(void)
 {
-	struct connect_record crec;
-	pstring fname;
-	FILE *f;
-	char *v;
+	const char *v;
 	int autorefresh=0;
 	int refresh_interval=30;
+	TDB_CONTEXT *tdb;
+	int nr_running=0;
+	BOOL waitup = False;
 
-	if (cgi_variable("smbd_restart")) {
-		if (smbd_running())
-			stop_smbd();
-		start_smbd();
-	}
+	smbd_pid = pidfile_pid("smbd");
 
-	if (cgi_variable("smbd_start")) {
-		start_smbd();
-	}
-
-	if (cgi_variable("smbd_stop")) {
+	if (cgi_variable("smbd_restart") || cgi_variable("all_restart")) {
 		stop_smbd();
+		start_smbd();
+		waitup=True;
 	}
 
-	if (cgi_variable("nmbd_restart")) {
-		if (nmbd_running())
-			stop_nmbd();
-		start_nmbd();
-	}
-	if (cgi_variable("nmbd_start")) {
-		start_nmbd();
+	if (cgi_variable("smbd_start") || cgi_variable("all_start")) {
+		start_smbd();
+		waitup=True;
 	}
 
-	if (cgi_variable("nmbd_stop")) {
+	if (cgi_variable("smbd_stop") || cgi_variable("all_stop")) {
+		stop_smbd();
+		waitup=True;
+	}
+
+	if (cgi_variable("nmbd_restart") || cgi_variable("all_restart")) {
 		stop_nmbd();
+		start_nmbd();
+		waitup=True;
+	}
+	if (cgi_variable("nmbd_start") || cgi_variable("all_start")) {
+		start_nmbd();
+		waitup=True;
 	}
 
+	if (cgi_variable("nmbd_stop")|| cgi_variable("all_stop")) {
+		stop_nmbd();
+		waitup=True;
+	}
+
+#ifdef WITH_WINBIND
+	if (cgi_variable("winbindd_restart") || cgi_variable("all_restart")) {
+		stop_winbindd();
+		start_winbindd();
+		waitup=True;
+	}
+
+	if (cgi_variable("winbindd_start") || cgi_variable("all_start")) {
+		start_winbindd();
+		waitup=True;
+	}
+
+	if (cgi_variable("winbindd_stop") || cgi_variable("all_stop")) {
+		stop_winbindd();
+		waitup=True;
+	}
+#endif
+	/* wait for daemons to start/stop */
+	if (waitup)
+		sleep(SLEEP_TIME);
+	
 	if (cgi_variable("autorefresh")) {
 		autorefresh = 1;
 	} else if (cgi_variable("norefresh")) {
@@ -120,144 +297,137 @@ void status_page(void)
 		refresh_interval = atoi(v);
 	}
 
-	pstrcpy(fname,lp_lockdir());
-	standard_sub_basic(fname);
-	trim_string(fname,"","/");
-	pstrcat(fname,"/STATUS..LCK");
-
-
-	f = sys_fopen(fname,"r");
-	if (f) {
-		while (!feof(f)) {
-			if (fread(&crec,sizeof(crec),1,f) != 1)	break;
-			if (crec.magic == 0x280267 && crec.cnum == -1 &&
-			    process_exists(crec.pid)) {
-				char buf[30];
-				slprintf(buf,sizeof(buf)-1,"kill_%d", (int)crec.pid);
-				if (cgi_variable(buf)) {
-					kill_pid(crec.pid);
-				}
-			}
-		}
-		fclose(f);
+	if (cgi_variable("show_client_in_col_1")) {
+		PID_or_Machine = 1;
 	}
 
-	printf("<H2>Server Status</H2>\n");
+	if (cgi_variable("show_pid_in_col_1")) {
+		PID_or_Machine = 0;
+	}
+
+	tdb = tdb_open_log(lock_path("connections.tdb"), 0, TDB_DEFAULT, O_RDONLY, 0);
+	if (tdb) tdb_traverse(tdb, traverse_fn1, NULL);
+ 
+	initPid2Machine ();
+
+	printf("<H2>%s</H2>\n", _("Server Status"));
 
 	printf("<FORM method=post>\n");
 
 	if (!autorefresh) {
-		printf("<input type=submit value=\"Auto Refresh\" name=autorefresh>\n");
-		printf("<br>Refresh Interval: ");
-		printf("<input type=text size=2 name=\"refresh_interval\" value=%d>\n", 
+		printf("<input type=submit value=\"%s\" name=\"autorefresh\">\n", _("Auto Refresh"));
+		printf("<br>%s", _("Refresh Interval: "));
+		printf("<input type=text size=2 name=\"refresh_interval\" value=\"%d\">\n", 
 		       refresh_interval);
 	} else {
-		printf("<input type=submit value=\"Stop Refreshing\" name=norefresh>\n");
-		printf("<br>Refresh Interval: %d\n", refresh_interval);
-		printf("<input type=hidden name=refresh value=1>\n");
+		printf("<input type=submit value=\"%s\" name=\"norefresh\">\n", _("Stop Refreshing"));
+		printf("<br>%s%d\n", _("Refresh Interval: "), refresh_interval);
+		printf("<input type=hidden name=\"refresh\" value=\"1\">\n");
 	}
 
 	printf("<p>\n");
 
-	f = sys_fopen(fname,"r");
-	if (!f) {
+	if (!tdb) {
 		/* open failure either means no connections have been
-                   made or status=no */
-		if (!lp_status(-1))
-			printf("You need to have status=yes in your smb config file\n");
+                   made */
 	}
 
 
 	printf("<table>\n");
 
-	printf("<tr><td>version:</td><td>%s</td></tr>",VERSION);
+	printf("<tr><td>%s</td><td>%s</td></tr>", _("version:"), SAMBA_VERSION_STRING);
 
 	fflush(stdout);
-	printf("<tr><td>smbd:</td><td>%srunning</td>\n",smbd_running()?"":"not ");
+	printf("<tr><td>%s</td><td>%s</td>\n", _("smbd:"), smbd_running()?_("running"):_("not running"));
 	if (geteuid() == 0) {
 	    if (smbd_running()) {
-		printf("<td><input type=submit name=\"smbd_stop\" value=\"Stop smbd\"></td>\n");
+		nr_running++;
+		printf("<td><input type=submit name=\"smbd_stop\" value=\"%s\"></td>\n", _("Stop smbd"));
 	    } else {
-		printf("<td><input type=submit name=\"smbd_start\" value=\"Start smbd\"></td>\n");
+		printf("<td><input type=submit name=\"smbd_start\" value=\"%s\"></td>\n", _("Start smbd"));
 	    }
-	    printf("<td><input type=submit name=\"smbd_restart\" value=\"Restart smbd\"></td>\n");
+	    printf("<td><input type=submit name=\"smbd_restart\" value=\"%s\"></td>\n", _("Restart smbd"));
 	}
 	printf("</tr>\n");
 
 	fflush(stdout);
-	printf("<tr><td>nmbd:</td><td>%srunning</td>\n",nmbd_running()?"":"not ");
+	printf("<tr><td>%s</td><td>%s</td>\n", _("nmbd:"), nmbd_running()?_("running"):_("not running"));
 	if (geteuid() == 0) {
 	    if (nmbd_running()) {
-		printf("<td><input type=submit name=\"nmbd_stop\" value=\"Stop nmbd\"></td>\n");
+		nr_running++;
+		printf("<td><input type=submit name=\"nmbd_stop\" value=\"%s\"></td>\n", _("Stop nmbd"));
 	    } else {
-		printf("<td><input type=submit name=\"nmbd_start\" value=\"Start nmbd\"></td>\n");
+		printf("<td><input type=submit name=\"nmbd_start\" value=\"%s\"></td>\n", _("Start nmbd"));
 	    }
-	    printf("<td><input type=submit name=\"nmbd_restart\" value=\"Restart nmbd\"></td>\n");
+	    printf("<td><input type=submit name=\"nmbd_restart\" value=\"%s\"></td>\n", _("Restart nmbd"));    
 	}
 	printf("</tr>\n");
 
+#ifdef WITH_WINBIND
+	fflush(stdout);
+	printf("<tr><td>%s</td><td>%s</td>\n", _("winbindd:"), winbindd_running()?_("running"):_("not running"));
+	if (geteuid() == 0) {
+	    if (winbindd_running()) {
+		nr_running++;
+		printf("<td><input type=submit name=\"winbindd_stop\" value=\"%s\"></td>\n", _("Stop winbindd"));
+	    } else {
+		printf("<td><input type=submit name=\"winbindd_start\" value=\"%s\"></td>\n", _("Start winbindd"));
+	    }
+	    printf("<td><input type=submit name=\"winbindd_restart\" value=\"%s\"></td>\n", _("Restart winbindd"));
+	}
+	printf("</tr>\n");
+#endif
+
+	if (geteuid() == 0) {
+	    printf("<tr><td></td><td></td>\n");
+	    if (nr_running >= 1) {
+	        /* stop, restart all */
+		printf("<td><input type=submit name=\"all_stop\" value=\"%s\"></td>\n", _("Stop All"));
+		printf("<td><input type=submit name=\"all_restart\" value=\"%s\"></td>\n", _("Restart All"));
+	    }
+	    else if (nr_running == 0) {
+	    	/* start all */
+		printf("<td><input type=submit name=\"all_start\" value=\"%s\"></td>\n", _("Start All"));
+	    }
+	    printf("</tr>\n");
+	}
 	printf("</table>\n");
 	fflush(stdout);
 
-	printf("<p><h3>Active Connections</h3>\n");
+	printf("<p><h3>%s</h3>\n", _("Active Connections"));
 	printf("<table border=1>\n");
-	printf("<tr><th>PID</th><th>Client</th><th>IP address</th><th>Date</th>\n");
+	printf("<tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th>\n", _("PID"), _("Client"), _("IP address"), _("Date"));
 	if (geteuid() == 0) {
-		printf("<th>Kill</th>\n");
+		printf("<th>%s</th>\n", _("Kill"));
 	}
 	printf("</tr>\n");
 
-	while (f && !feof(f)) {
-		if (fread(&crec,sizeof(crec),1,f) != 1)
-			break;
-		if (crec.magic == 0x280267 && 
-		    crec.cnum == -1 &&
-		    process_exists(crec.pid)) {
-			printf("<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td>\n",
-			       (int)crec.pid,
-			       crec.machine,crec.addr,
-			       tstring(crec.start));
-			if (geteuid() == 0) {
-			    printf("<td><input type=submit value=\"X\" name=\"kill_%d\"></td>\n",
-			       (int)crec.pid);
-			}
-			printf("</tr>\n");
-		}
-	}
+	if (tdb) tdb_traverse(tdb, traverse_fn2, NULL);
 
 	printf("</table><p>\n");
 
-	if (f) fseek(f, 0, SEEK_SET);
-	
-	printf("<p><h3>Active Shares</h3>\n");
+	printf("<p><h3>%s</h3>\n", _("Active Shares"));
 	printf("<table border=1>\n");
-	printf("<tr><th>Share</th><th>User</th><th>Group</th><th>PID</th><th>Client</th><th>Date</th></tr>\n\n");
+	printf("<tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr>\n\n",
+		_("Share"), _("User"), _("Group"), _("PID"), _("Client"), _("Date"));
 
-	while (f && !feof(f)) {
-		if (fread(&crec,sizeof(crec),1,f) != 1)
-			break;
-		if (crec.cnum == -1) continue;
-		if (crec.magic == 0x280267 && process_exists(crec.pid)) {
-			printf("<tr><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td><td>%s</td></tr>\n",
-			       crec.name,uidtoname(crec.uid),
-			       gidtoname(crec.gid),(int)crec.pid,
-			       crec.machine,
-			       tstring(crec.start));
-		}
-	}
+	if (tdb) tdb_traverse(tdb, traverse_fn3, NULL);
 
 	printf("</table><p>\n");
 
-	printf("<h3>Open Files</h3>\n");
+	printf("<h3>%s</h3>\n", _("Open Files"));
 	printf("<table border=1>\n");
-	printf("<tr><th>PID</th><th>Sharing</th><th>R/W</th><th>Oplock</th><th>File</th><th>Date</th></tr>\n");
+	printf("<tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr>\n", _("PID"), _("Sharing"), _("R/W"), _("Oplock"), _("File"), _("Date"));
 
 	locking_init(1);
 	share_mode_forall(print_share_mode);
 	locking_end();
 	printf("</table>\n");
 
-	if (f) fclose(f);
+	if (tdb) tdb_close(tdb);
+
+	printf("<br><input type=submit name=\"show_client_in_col_1\" value=\"%s\">\n", _("Show Client in col 1"));
+	printf("<input type=submit name=\"show_pid_in_col_1\" value=\"%s\">\n", _("Show PID in col 1"));
 
 	printf("</FORM>\n");
 
@@ -273,4 +443,3 @@ void status_page(void)
 		printf("//-->\n</script>\n");
 	}
 }
-

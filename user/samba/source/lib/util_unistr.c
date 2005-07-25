@@ -1,8 +1,8 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    Samba utility functions
-   Copyright (C) Andrew Tridgell 1992-1998
+   Copyright (C) Andrew Tridgell 1992-2001
+   Copyright (C) Simo Sorce 2001
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,22 +21,172 @@
 
 #include "includes.h"
 
-extern int DEBUGLEVEL;
-
-/*
- * The following are the codepage to ucs2 and vica versa maps.
- * These are dynamically loaded from a unicode translation file.
- */
-
-static smb_ucs2_t *doscp_to_ucs2;
-static uint16 *ucs2_to_doscp;
-
-static smb_ucs2_t *unixcp_to_ucs2;
-static uint16 *ucs2_to_unixcp;
-
 #ifndef MAXUNI
 #define MAXUNI 1024
 #endif
+
+/* these 3 tables define the unicode case handling.  They are loaded
+   at startup either via mmap() or read() from the lib directory */
+static smb_ucs2_t *upcase_table;
+static smb_ucs2_t *lowcase_table;
+static uint8 *valid_table;
+
+/**
+ * This table says which Unicode characters are valid dos
+ * characters.
+ *
+ * Each value is just a single bit.
+ **/
+static uint8 doschar_table[8192]; /* 65536 characters / 8 bits/byte */
+
+
+/**
+ * Load or generate the case handling tables.
+ *
+ * The case tables are defined in UCS2 and don't depend on any
+ * configured parameters, so they never need to be reloaded.
+ **/
+void load_case_tables(void)
+{
+	static int initialised;
+	int i;
+
+	if (initialised) return;
+	initialised = 1;
+
+	upcase_table = map_file(lib_path("upcase.dat"), 0x20000);
+	lowcase_table = map_file(lib_path("lowcase.dat"), 0x20000);
+
+	/* we would like Samba to limp along even if these tables are
+	   not available */
+	if (!upcase_table) {
+		DEBUG(1,("creating lame upcase table\n"));
+		upcase_table = SMB_MALLOC(0x20000);
+		for (i=0;i<0x10000;i++) {
+			smb_ucs2_t v;
+			SSVAL(&v, 0, i);
+			upcase_table[v] = i;
+		}
+		for (i=0;i<256;i++) {
+			smb_ucs2_t v;
+			SSVAL(&v, 0, UCS2_CHAR(i));
+			upcase_table[v] = UCS2_CHAR(islower(i)?toupper(i):i);
+		}
+	}
+
+	if (!lowcase_table) {
+		DEBUG(1,("creating lame lowcase table\n"));
+		lowcase_table = SMB_MALLOC(0x20000);
+		for (i=0;i<0x10000;i++) {
+			smb_ucs2_t v;
+			SSVAL(&v, 0, i);
+			lowcase_table[v] = i;
+		}
+		for (i=0;i<256;i++) {
+			smb_ucs2_t v;
+			SSVAL(&v, 0, UCS2_CHAR(i));
+			lowcase_table[v] = UCS2_CHAR(isupper(i)?tolower(i):i);
+		}
+	}
+}
+
+/*
+  see if a ucs2 character can be mapped correctly to a dos character
+  and mapped back to the same character in ucs2
+*/
+int check_dos_char(smb_ucs2_t c)
+{
+	lazy_initialize_conv();
+	
+	/* Find the right byte, and right bit within the byte; return
+	 * 1 or 0 */
+	return (doschar_table[(c & 0xffff) / 8] & (1 << (c & 7))) != 0;
+}
+
+
+static int check_dos_char_slowly(smb_ucs2_t c)
+{
+	char buf[10];
+	smb_ucs2_t c2 = 0;
+	int len1, len2;
+	len1 = convert_string(CH_UCS2, CH_DOS, &c, 2, buf, sizeof(buf),False);
+	if (len1 == 0) return 0;
+	len2 = convert_string(CH_DOS, CH_UCS2, buf, len1, &c2, 2,False);
+	if (len2 != 2) return 0;
+	return (c == c2);
+}
+
+
+/**
+ * Fill out doschar table the hard way, by examining each character
+ **/
+void init_doschar_table(void)
+{
+	int i, j, byteval;
+
+	/* For each byte of packed table */
+	
+	for (i = 0; i <= 0xffff; i += 8) {
+		byteval = 0;
+		for (j = 0; j <= 7; j++) {
+			smb_ucs2_t c;
+
+			c = i + j;
+			
+			if (check_dos_char_slowly(c))
+				byteval |= 1 << j;
+		}
+		doschar_table[i/8] = byteval;
+	}
+}
+
+
+/**
+ * Load the valid character map table from <tt>valid.dat</tt> or
+ * create from the configured codepage.
+ *
+ * This function is called whenever the configuration is reloaded.
+ * However, the valid character table is not changed if it's loaded
+ * from a file, because we can't unmap files.
+ **/
+void init_valid_table(void)
+{
+	static int mapped_file;
+	int i;
+	const char *allowed = ".!#$%&'()_-@^`~";
+	uint8 *valid_file;
+
+	if (mapped_file) {
+		/* Can't unmap files, so stick with what we have */
+		return;
+	}
+
+	valid_file = map_file(lib_path("valid.dat"), 0x10000);
+	if (valid_file) {
+		valid_table = valid_file;
+		mapped_file = 1;
+		return;
+	}
+
+	/* Otherwise, we're using a dynamically created valid_table.
+	 * It might need to be regenerated if the code page changed.
+	 * We know that we're not using a mapped file, so we can
+	 * free() the old one. */
+	if (valid_table) free(valid_table);
+
+	DEBUG(2,("creating default valid table\n"));
+	valid_table = SMB_MALLOC(0x10000);
+	for (i=0;i<128;i++)
+		valid_table[i] = isalnum(i) || strchr(allowed,i);
+	
+	for (;i<0x10000;i++) {
+		smb_ucs2_t c;
+		SSVAL(&c, 0, i);
+		valid_table[i] = check_dos_char(c);
+	}
+}
+
+
 
 /*******************************************************************
  Write a string in (little-endian) unicode format. src is in
@@ -45,40 +195,16 @@ static uint16 *ucs2_to_unixcp;
 
  if null_terminate is True then null terminate the packet (adds 2 bytes)
 
- the return value is the length consumed by the string, including the
+ the return value is the length in bytes consumed by the string, including the
  null termination if applied
 ********************************************************************/
 
-int dos_PutUniCode(char *dst,const char *src, ssize_t len, BOOL null_terminate)
+size_t dos_PutUniCode(char *dst,const char *src, ssize_t len, BOOL null_terminate)
 {
-    int ret = 0;
-    while (*src && (len > 2)) {
-        size_t skip = get_character_len(*src);
-        smb_ucs2_t val = (*src & 0xff);
-
-        /*
-         * If this is a multibyte character (and all DOS/Windows
-         * codepages have at maximum 2 byte multibyte characters)
-         * then work out the index value for the unicode conversion.
-         */
-
-        if (skip == 2)
-            val = ((val << 8) | (src[1] & 0xff));
-
-        SSVAL(dst,ret,doscp_to_ucs2[val]);
-        ret += 2;
-        len -= 2;
-        if (skip)
-            src += skip;
-        else
-            src++;
-    }
-    if (null_terminate) {
-        SSVAL(dst,ret,0);
-        ret += 2;
-    }
-    return(ret);
+	return push_ucs2(NULL, dst, src, len, 
+			 STR_UNICODE|STR_NOALIGN | (null_terminate?STR_TERMINATE:0));
 }
+
 
 /*******************************************************************
  Skip past a unicode string, but not more than len. Always move
@@ -90,12 +216,42 @@ char *skip_unibuf(char *src, size_t len)
     char *srcend = src + len;
 
     while (src < srcend && SVAL(src,0))
-		src += 2;
+        src += 2;
 
-	if(!SVAL(src,0))
-		src += 2;
+    if(!SVAL(src,0))
+        src += 2;
 
     return src;
+}
+
+/* Copy a string from little-endian or big-endian unicode source (depending
+ * on flags) to internal samba format destination
+ */ 
+int rpcstr_pull(char* dest, void *src, int dest_len, int src_len, int flags)
+{
+	if (!src) {
+		dest[0] = 0;
+		return 0;
+	}
+	if(dest_len==-1) dest_len=MAXUNI-3;
+	return pull_ucs2(NULL, dest, src, dest_len, src_len, flags|STR_UNICODE|STR_NOALIGN);
+}
+
+/* Copy a string from a unistr2 source to internal samba format
+   destination.  Use this instead of direct calls to rpcstr_pull() to avoid
+   having to determine whether the source string is null terminated. */
+
+int rpcstr_pull_unistr2_fstring(char *dest, UNISTR2 *src)
+{
+        return pull_ucs2(NULL, dest, src->buffer, sizeof(fstring),
+                         src->uni_str_len * 2, 0);
+}
+
+/* Converts a string from internal samba format to unicode
+ */ 
+int rpcstr_push(void* dest, const char *src, int dest_len, int flags)
+{
+	return push_ucs2(NULL, dest, src, dest_len, flags|STR_UNICODE|STR_NOALIGN);
 }
 
 /*******************************************************************
@@ -104,91 +260,55 @@ char *skip_unibuf(char *src, size_t len)
  units. Always null terminates.
  Hack alert: uses fixed buffer(s).
 ********************************************************************/
-
-char *dos_unistrn2(uint16 *src, int len)
+char *dos_unistrn2(const uint16 *src, int len)
 {
 	static char lbufs[8][MAXUNI];
 	static int nexti;
 	char *lbuf = lbufs[nexti];
-	char *p;
-
 	nexti = (nexti+1)%8;
-
-	for (p = lbuf; (len > 0) && (p-lbuf < MAXUNI-3) && *src; len--, src++) {
-		uint16 ucs2_val = SVAL(src,0);
-		uint16 cp_val = ucs2_to_doscp[ucs2_val];
-
-		if (cp_val < 256)
-			*p++ = (char)cp_val;
-		else {
-			*p++ = (cp_val >> 8) & 0xff;
-			*p++ = (cp_val & 0xff);
-		}
-	}
-
-	*p = 0;
-	return lbuf;
-}
-
-static char lbufs[8][MAXUNI];
-static int nexti;
-
-/*******************************************************************
- Return a DOS codepage version of a little-endian unicode string.
- Hack alert: uses fixed buffer(s).
-********************************************************************/
-
-char *dos_unistr2(uint16 *src)
-{
-	char *lbuf = lbufs[nexti];
-	char *p;
-
-	nexti = (nexti+1)%8;
-
-	for (p = lbuf; *src && (p-lbuf < MAXUNI-3); src++) {
-		uint16 ucs2_val = SVAL(src,0);
-		uint16 cp_val = ucs2_to_doscp[ucs2_val];
-
-		if (cp_val < 256)
-			*p++ = (char)cp_val;
-		else {
-			*p++ = (cp_val >> 8) & 0xff;
-			*p++ = (cp_val & 0xff);
-		}
-	}
-
-	*p = 0;
+	pull_ucs2(NULL, lbuf, src, MAXUNI-3, len*2, STR_NOALIGN);
 	return lbuf;
 }
 
 /*******************************************************************
-Return a DOS codepage version of a little-endian unicode string
+ Convert a (little-endian) UNISTR2 structure to an ASCII string
 ********************************************************************/
-
-char *dos_unistr2_to_str(UNISTR2 *str)
+void unistr2_to_ascii(char *dest, const UNISTR2 *str, size_t maxlen)
 {
-	char *lbuf = lbufs[nexti];
-	char *p;
-	uint16 *src = str->buffer;
-	int max_size = MIN(sizeof(str->buffer)-3, str->uni_str_len);
-
-	nexti = (nexti+1)%8;
-
-	for (p = lbuf; *src && p-lbuf < max_size; src++) {
-		uint16 ucs2_val = SVAL(src,0);
-		uint16 cp_val = ucs2_to_doscp[ucs2_val];
-
-		if (cp_val < 256)
-			*p++ = (char)cp_val;
-		else {
-			*p++ = (cp_val >> 8) & 0xff;
-			*p++ = (cp_val & 0xff);
-		}
+	if (str == NULL) {
+		*dest='\0';
+		return;
 	}
-
-	*p = 0;
-	return lbuf;
+	pull_ucs2(NULL, dest, str->buffer, maxlen, str->uni_str_len*2, STR_NOALIGN);
 }
+
+/*******************************************************************
+give a static string for displaying a UNISTR2
+********************************************************************/
+const char *unistr2_static(const UNISTR2 *str)
+{
+	static pstring ret;
+	unistr2_to_ascii(ret, str, sizeof(ret));
+	return ret;
+}
+
+
+/*******************************************************************
+ duplicate a UNISTR2 string into a null terminated char*
+ using a talloc context
+********************************************************************/
+char *unistr2_tdup(TALLOC_CTX *ctx, const UNISTR2 *str)
+{
+	char *s;
+	int maxlen = (str->uni_str_len+1)*4;
+	if (!str->buffer) return NULL;
+	s = (char *)TALLOC(ctx, maxlen); /* convervative */
+	if (!s) return NULL;
+	pull_ucs2(NULL, s, str->buffer, maxlen, str->uni_str_len*2, 
+		  STR_NOALIGN);
+	return s;
+}
+
 
 /*******************************************************************
 Return a number stored in a buffer
@@ -203,702 +323,523 @@ uint32 buffer2_to_uint32(BUFFER2 *str)
 }
 
 /*******************************************************************
-Return a DOS codepage version of a NOTunicode string
+ Convert a wchar to upper case.
 ********************************************************************/
 
-char *dos_buffer2_to_str(BUFFER2 *str)
+smb_ucs2_t toupper_w(smb_ucs2_t val)
 {
-	char *lbuf = lbufs[nexti];
-	char *p;
-	uint16 *src = str->buffer;
-	int max_size = MIN(sizeof(str->buffer)-3, str->buf_len/2);
-
-	nexti = (nexti+1)%8;
-
-	for (p = lbuf; *src && p-lbuf < max_size; src++) {
-		uint16 ucs2_val = SVAL(src,0);
-		uint16 cp_val = ucs2_to_doscp[ucs2_val];
-
-		if (cp_val < 256)
-			*p++ = (char)cp_val;
-		else {
-			*p++ = (cp_val >> 8) & 0xff;
-			*p++ = (cp_val & 0xff);
-		}
-	}
-
-	*p = 0;
-	return lbuf;
+	return upcase_table[SVAL(&val,0)];
 }
 
 /*******************************************************************
- Return a dos codepage version of a NOTunicode string
+ Convert a wchar to lower case.
 ********************************************************************/
 
-char *dos_buffer2_to_multistr(BUFFER2 *str)
+smb_ucs2_t tolower_w( smb_ucs2_t val )
 {
-	char *lbuf = lbufs[nexti];
-	char *p;
-	uint16 *src = str->buffer;
-	int max_size = MIN(sizeof(str->buffer)-3, str->buf_len/2);
+	return lowcase_table[SVAL(&val,0)];
 
-	nexti = (nexti+1)%8;
-
-	for (p = lbuf; p-lbuf < max_size; src++) {
-		if (*src == 0) {
-			*p++ = ' ';
-		} else {
-			uint16 ucs2_val = SVAL(src,0);
-			uint16 cp_val = ucs2_to_doscp[ucs2_val];
-
-			if (cp_val < 256)
-				*p++ = (char)cp_val;
-			else {
-				*p++ = (cp_val >> 8) & 0xff;
-				*p++ = (cp_val & 0xff);
-			}
-		}
-	}
-
-	*p = 0;
-	return lbuf;
 }
 
 /*******************************************************************
- Create a null-terminated unicode string from a null-terminated DOS
- codepage string.
- Return number of unicode chars copied, excluding the null character.
- Unicode strings created are in little-endian format.
+determine if a character is lowercase
 ********************************************************************/
-
-size_t dos_struni2(char *dst, const char *src, size_t max_len)
+BOOL islower_w(smb_ucs2_t c)
 {
-	size_t len = 0;
+	return upcase_table[SVAL(&c,0)] != c;
+}
 
-	if (dst == NULL)
-		return 0;
+/*******************************************************************
+determine if a character is uppercase
+********************************************************************/
+BOOL isupper_w(smb_ucs2_t c)
+{
+	return lowcase_table[SVAL(&c,0)] != c;
+}
 
-	if (src != NULL) {
-		for (; *src && len < max_len-2; len++, dst +=2) {
-			size_t skip = get_character_len(*src);
-			smb_ucs2_t val = (*src & 0xff);
 
-			/*
-			 * If this is a multibyte character (and all DOS/Windows
-			 * codepages have at maximum 2 byte multibyte characters)
-			 * then work out the index value for the unicode conversion.
-			 */
+/*******************************************************************
+determine if a character is valid in a 8.3 name
+********************************************************************/
+BOOL isvalid83_w(smb_ucs2_t c)
+{
+	return valid_table[SVAL(&c,0)] != 0;
+}
 
-			if (skip == 2)
-				val = ((val << 8) | (src[1] & 0xff));
+/*******************************************************************
+ Count the number of characters in a smb_ucs2_t string.
+********************************************************************/
+size_t strlen_w(const smb_ucs2_t *src)
+{
+	size_t len;
 
-			SSVAL(dst,0,doscp_to_ucs2[val]);
-			if (skip)
-				src += skip;
-			else
-				src++;
-		}
-	}
-
-	SSVAL(dst,0,0);
+	for(len = 0; *src++; len++) ;
 
 	return len;
 }
 
 /*******************************************************************
- Return a DOS codepage version of a little-endian unicode string.
- Hack alert: uses fixed buffer(s).
+ Count up to max number of characters in a smb_ucs2_t string.
+********************************************************************/
+size_t strnlen_w(const smb_ucs2_t *src, size_t max)
+{
+	size_t len;
+
+	for(len = 0; *src++ && (len < max); len++) ;
+
+	return len;
+}
+
+/*******************************************************************
+ Wide strchr().
 ********************************************************************/
 
-char *dos_unistr(char *buf)
+smb_ucs2_t *strchr_w(const smb_ucs2_t *s, smb_ucs2_t c)
 {
-	char *lbuf = lbufs[nexti];
-	uint16 *src = (uint16 *)buf;
-	char *p;
+	while (*s != 0) {
+		if (c == *s) return (smb_ucs2_t *)s;
+		s++;
+	}
+	if (c == *s) return (smb_ucs2_t *)s;
 
-	nexti = (nexti+1)%8;
+	return NULL;
+}
 
-	for (p = lbuf; *src && p-lbuf < MAXUNI-3; src++) {
-		uint16 ucs2_val = SVAL(src,0);
-		uint16 cp_val = ucs2_to_doscp[ucs2_val];
+smb_ucs2_t *strchr_wa(const smb_ucs2_t *s, char c)
+{
+	return strchr_w(s, UCS2_CHAR(c));
+}
 
-		if (cp_val < 256)
-			*p++ = (char)cp_val;
-		else {
-			*p++ = (cp_val >> 8) & 0xff;
-			*p++ = (cp_val & 0xff);
+/*******************************************************************
+ Wide strrchr().
+********************************************************************/
+
+smb_ucs2_t *strrchr_w(const smb_ucs2_t *s, smb_ucs2_t c)
+{
+	const smb_ucs2_t *p = s;
+	int len = strlen_w(s);
+	if (len == 0) return NULL;
+	p += (len - 1);
+	do {
+		if (c == *p) return (smb_ucs2_t *)p;
+	} while (p-- != s);
+	return NULL;
+}
+
+/*******************************************************************
+ Wide version of strrchr that returns after doing strrchr 'n' times.
+********************************************************************/
+
+smb_ucs2_t *strnrchr_w(const smb_ucs2_t *s, smb_ucs2_t c, unsigned int n)
+{
+	const smb_ucs2_t *p = s;
+	int len = strlen_w(s);
+	if (len == 0 || !n)
+		return NULL;
+	p += (len - 1);
+	do {
+		if (c == *p)
+			n--;
+
+		if (!n)
+			return (smb_ucs2_t *)p;
+	} while (p-- != s);
+	return NULL;
+}
+
+/*******************************************************************
+ Wide strstr().
+********************************************************************/
+
+smb_ucs2_t *strstr_w(const smb_ucs2_t *s, const smb_ucs2_t *ins)
+{
+	smb_ucs2_t *r;
+	size_t inslen;
+
+	if (!s || !*s || !ins || !*ins) 
+		return NULL;
+
+	inslen = strlen_w(ins);
+	r = (smb_ucs2_t *)s;
+
+	while ((r = strchr_w(r, *ins))) {
+		if (strncmp_w(r, ins, inslen) == 0) 
+			return r;
+		r++;
+	}
+
+	return NULL;
+}
+
+/*******************************************************************
+ Convert a string to lower case.
+ return True if any char is converted
+********************************************************************/
+BOOL strlower_w(smb_ucs2_t *s)
+{
+	BOOL ret = False;
+	while (*s) {
+		smb_ucs2_t v = tolower_w(*s);
+		if (v != *s) {
+			*s = v;
+			ret = True;
+		}
+		s++;
+	}
+	return ret;
+}
+
+/*******************************************************************
+ Convert a string to upper case.
+ return True if any char is converted
+********************************************************************/
+BOOL strupper_w(smb_ucs2_t *s)
+{
+	BOOL ret = False;
+	while (*s) {
+		smb_ucs2_t v = toupper_w(*s);
+		if (v != *s) {
+			*s = v;
+			ret = True;
+		}
+		s++;
+	}
+	return ret;
+}
+
+/*******************************************************************
+  convert a string to "normal" form
+********************************************************************/
+
+void strnorm_w(smb_ucs2_t *s, int case_default)
+{
+	if (case_default == CASE_UPPER)
+		strupper_w(s);
+	else
+		strlower_w(s);
+}
+
+int strcmp_w(const smb_ucs2_t *a, const smb_ucs2_t *b)
+{
+	while (*b && *a == *b) { a++; b++; }
+	return (*a - *b);
+	/* warning: if *a != *b and both are not 0 we retrun a random
+		greater or lesser than 0 number not realted to which
+		string is longer */
+}
+
+int strncmp_w(const smb_ucs2_t *a, const smb_ucs2_t *b, size_t len)
+{
+	size_t n = 0;
+	while ((n < len) && *b && *a == *b) { a++; b++; n++;}
+	return (len - n)?(*a - *b):0;	
+}
+
+/*******************************************************************
+case insensitive string comparison
+********************************************************************/
+int strcasecmp_w(const smb_ucs2_t *a, const smb_ucs2_t *b)
+{
+	while (*b && toupper_w(*a) == toupper_w(*b)) { a++; b++; }
+	return (tolower_w(*a) - tolower_w(*b));
+}
+
+/*******************************************************************
+case insensitive string comparison, lenght limited
+********************************************************************/
+int strncasecmp_w(const smb_ucs2_t *a, const smb_ucs2_t *b, size_t len)
+{
+	size_t n = 0;
+	while ((n < len) && *b && (toupper_w(*a) == toupper_w(*b))) { a++; b++; n++; }
+	return (len - n)?(tolower_w(*a) - tolower_w(*b)):0;
+}
+
+/*******************************************************************
+  compare 2 strings 
+********************************************************************/
+BOOL strequal_w(const smb_ucs2_t *s1, const smb_ucs2_t *s2)
+{
+	if (s1 == s2) return(True);
+	if (!s1 || !s2) return(False);
+  
+	return(strcasecmp_w(s1,s2)==0);
+}
+
+/*******************************************************************
+  compare 2 strings up to and including the nth char.
+  ******************************************************************/
+BOOL strnequal_w(const smb_ucs2_t *s1,const smb_ucs2_t *s2,size_t n)
+{
+  if (s1 == s2) return(True);
+  if (!s1 || !s2 || !n) return(False);
+  
+  return(strncasecmp_w(s1,s2,n)==0);
+}
+
+/*******************************************************************
+duplicate string
+********************************************************************/
+smb_ucs2_t *strdup_w(const smb_ucs2_t *src)
+{
+	return strndup_w(src, 0);
+}
+
+/* if len == 0 then duplicate the whole string */
+smb_ucs2_t *strndup_w(const smb_ucs2_t *src, size_t len)
+{
+	smb_ucs2_t *dest;
+	
+	if (!len) len = strlen_w(src);
+	dest = SMB_MALLOC_ARRAY(smb_ucs2_t, len + 1);
+	if (!dest) {
+		DEBUG(0,("strdup_w: out of memory!\n"));
+		return NULL;
+	}
+
+	memcpy(dest, src, len * sizeof(smb_ucs2_t));
+	dest[len] = 0;
+	
+	return dest;
+}
+
+/*******************************************************************
+copy a string with max len
+********************************************************************/
+
+smb_ucs2_t *strncpy_w(smb_ucs2_t *dest, const smb_ucs2_t *src, const size_t max)
+{
+	size_t len;
+	
+	if (!dest || !src) return NULL;
+	
+	for (len = 0; (src[len] != 0) && (len < max); len++)
+		dest[len] = src[len];
+	while (len < max)
+		dest[len++] = 0;
+	
+	return dest;
+}
+
+
+/*******************************************************************
+append a string of len bytes and add a terminator
+********************************************************************/
+
+smb_ucs2_t *strncat_w(smb_ucs2_t *dest, const smb_ucs2_t *src, const size_t max)
+{	
+	size_t start;
+	size_t len;	
+	
+	if (!dest || !src) return NULL;
+	
+	start = strlen_w(dest);
+	len = strnlen_w(src, max);
+
+	memcpy(&dest[start], src, len*sizeof(smb_ucs2_t));			
+	dest[start+len] = 0;
+	
+	return dest;
+}
+
+smb_ucs2_t *strcat_w(smb_ucs2_t *dest, const smb_ucs2_t *src)
+{	
+	size_t start;
+	size_t len;	
+	
+	if (!dest || !src) return NULL;
+	
+	start = strlen_w(dest);
+	len = strlen_w(src);
+
+	memcpy(&dest[start], src, len*sizeof(smb_ucs2_t));			
+	dest[start+len] = 0;
+	
+	return dest;
+}
+
+
+/*******************************************************************
+replace any occurence of oldc with newc in unicode string
+********************************************************************/
+
+void string_replace_w(smb_ucs2_t *s, smb_ucs2_t oldc, smb_ucs2_t newc)
+{
+	for(;*s;s++) {
+		if(*s==oldc) *s=newc;
+	}
+}
+
+/*******************************************************************
+trim unicode string
+********************************************************************/
+
+BOOL trim_string_w(smb_ucs2_t *s, const smb_ucs2_t *front,
+				  const smb_ucs2_t *back)
+{
+	BOOL ret = False;
+	size_t len, front_len, back_len;
+
+	if (!s || !*s) return False;
+
+	len = strlen_w(s);
+
+	if (front && *front) {
+		front_len = strlen_w(front);
+		while (len && strncmp_w(s, front, front_len) == 0) {
+			memmove(s, (s + front_len), (len - front_len + 1) * sizeof(smb_ucs2_t));
+			len -= front_len;
+			ret = True;
+		}
+	}
+	
+	if (back && *back) {
+		back_len = strlen_w(back);
+		while (len && strncmp_w((s + (len - back_len)), back, back_len) == 0) {
+			s[len - back_len] = 0;
+			len -= back_len;
+			ret = True;
 		}
 	}
 
-	*p = 0;
-	return lbuf;
+	return ret;
+}
+
+/*
+  The *_wa() functions take a combination of 7 bit ascii
+  and wide characters They are used so that you can use string
+  functions combining C string constants with ucs2 strings
+
+  The char* arguments must NOT be multibyte - to be completely sure
+  of this only pass string constants */
+
+int strcmp_wa(const smb_ucs2_t *a, const char *b)
+{
+	while (*b && *a == UCS2_CHAR(*b)) { a++; b++; }
+	return (*a - UCS2_CHAR(*b));
+}
+
+int strncmp_wa(const smb_ucs2_t *a, const char *b, size_t len)
+{
+	size_t n = 0;
+	while ((n < len) && *b && *a == UCS2_CHAR(*b)) { a++; b++; n++;}
+	return (len - n)?(*a - UCS2_CHAR(*b)):0;
+}
+
+smb_ucs2_t *strpbrk_wa(const smb_ucs2_t *s, const char *p)
+{
+	while (*s != 0) {
+		int i;
+		for (i=0; p[i] && *s != UCS2_CHAR(p[i]); i++) 
+			;
+		if (p[i]) return (smb_ucs2_t *)s;
+		s++;
+	}
+	return NULL;
+}
+
+smb_ucs2_t *strstr_wa(const smb_ucs2_t *s, const char *ins)
+{
+	smb_ucs2_t *r;
+	size_t inslen;
+
+	if (!s || !*s || !ins || !*ins) 
+		return NULL;
+
+	inslen = strlen(ins);
+	r = (smb_ucs2_t *)s;
+
+	while ((r = strchr_w(r, UCS2_CHAR(*ins)))) {
+		if (strncmp_wa(r, ins, inslen) == 0) 
+			return r;
+		r++;
+	}
+
+	return NULL;
+}
+
+BOOL trim_string_wa(smb_ucs2_t *s, const char *front,
+				  const char *back)
+{
+	wpstring f, b;
+
+	if (front) push_ucs2(NULL, f, front, sizeof(wpstring) - 1, STR_TERMINATE);
+	else *f = 0;
+	if (back) push_ucs2(NULL, b, back, sizeof(wpstring) - 1, STR_TERMINATE);
+	else *b = 0;
+	return trim_string_w(s, f, b);
+}
+
+/*******************************************************************
+ returns the length in number of wide characters
+ ******************************************************************/
+int unistrlen(uint16 *s)
+{
+	int len;
+
+	if (!s)
+		return -1;
+
+	for (len=0; *s; s++,len++);
+
+	return len;
 }
 
 /*******************************************************************
  Strcpy for unicode strings.  returns length (in num of wide chars)
 ********************************************************************/
 
-int unistrcpy(char *dst, char *src)
+int unistrcpy(uint16 *dst, uint16 *src)
 {
 	int num_wchars = 0;
-	uint16 *wsrc = (uint16 *)src;
-	uint16 *wdst = (uint16 *)dst;
 
-	while (*wsrc) {
-		*wdst++ = *wsrc++;
+	while (*src) {
+		*dst++ = *src++;
 		num_wchars++;
 	}
-	*wdst = 0;
+	*dst = 0;
 
 	return num_wchars;
 }
 
-
-
-/*******************************************************************
- Free any existing maps.
-********************************************************************/
-
-static void free_maps(smb_ucs2_t **pp_cp_to_ucs2, uint16 **pp_ucs2_to_cp)
+/**
+ * Samba ucs2 type to UNISTR2 conversion
+ *
+ * @param ctx Talloc context to create the dst strcture (if null) and the 
+ *            contents of the unicode string.
+ * @param dst UNISTR2 destination. If equals null, then it's allocated.
+ * @param src smb_ucs2_t source.
+ * @param max_len maximum number of unicode characters to copy. If equals
+ *        null, then null-termination of src is taken
+ *
+ * @return copied UNISTR2 destination
+ **/
+UNISTR2* ucs2_to_unistr2(TALLOC_CTX *ctx, UNISTR2* dst, smb_ucs2_t* src)
 {
-	/* this handles identity mappings where we share the pointer */
-	if (*pp_ucs2_to_cp == *pp_cp_to_ucs2) {
-		*pp_ucs2_to_cp = NULL;
-	}
-
-	if (*pp_cp_to_ucs2) {
-		free(*pp_cp_to_ucs2);
-		*pp_cp_to_ucs2 = NULL;
-	}
-
-	if (*pp_ucs2_to_cp) {
-		free(*pp_ucs2_to_cp);
-		*pp_ucs2_to_cp = NULL;
-	}
-}
-
-
-/*******************************************************************
- Build a default (null) codepage to unicode map.
-********************************************************************/
-
-void default_unicode_map(smb_ucs2_t **pp_cp_to_ucs2, uint16 **pp_ucs2_to_cp)
-{
-  int i;
-
-  free_maps(pp_cp_to_ucs2, pp_ucs2_to_cp);
-
-  if ((*pp_ucs2_to_cp = (uint16 *)malloc(2*65536)) == NULL) {
-    DEBUG(0,("default_unicode_map: malloc fail for ucs2_to_cp size %u.\n", 2*65536));
-    abort();
-  }
-
-  *pp_cp_to_ucs2 = *pp_ucs2_to_cp; /* Default map is an identity. */
-  for (i = 0; i < 65536; i++)
-    (*pp_cp_to_ucs2)[i] = i;
-}
-
-/*******************************************************************
- Load a codepage to unicode and vica-versa map.
-********************************************************************/
-
-BOOL load_unicode_map(const char *codepage, smb_ucs2_t **pp_cp_to_ucs2, uint16 **pp_ucs2_to_cp)
-{
-  pstring unicode_map_file_name;
-  FILE *fp = NULL;
-  SMB_STRUCT_STAT st;
-  smb_ucs2_t *cp_to_ucs2 = *pp_cp_to_ucs2;
-  uint16 *ucs2_to_cp = *pp_ucs2_to_cp;
-  size_t cp_to_ucs2_size;
-  size_t ucs2_to_cp_size;
-  size_t i;
-  size_t size;
-  char buf[UNICODE_MAP_HEADER_SIZE];
-
-  DEBUG(5, ("load_unicode_map: loading unicode map for codepage %s.\n", codepage));
-
-  if (*codepage == '\0')
-    goto clean_and_exit;
-
-  if(strlen(CODEPAGEDIR) + 13 + strlen(codepage) > sizeof(unicode_map_file_name)) {
-    DEBUG(0,("load_unicode_map: filename too long to load\n"));
-    goto clean_and_exit;
-  }
-
-  pstrcpy(unicode_map_file_name, CODEPAGEDIR);
-  pstrcat(unicode_map_file_name, "/");
-  pstrcat(unicode_map_file_name, "unicode_map.");
-  pstrcat(unicode_map_file_name, codepage);
-
-  if(sys_stat(unicode_map_file_name,&st)!=0) {
-    DEBUG(0,("load_unicode_map: filename %s does not exist.\n",
-              unicode_map_file_name));
-    goto clean_and_exit;
-  }
-
-  size = st.st_size;
-
-  if ((size != UNICODE_MAP_HEADER_SIZE + 4*65536) && (size != UNICODE_MAP_HEADER_SIZE +(2*256 + 2*65536))) {
-    DEBUG(0,("load_unicode_map: file %s is an incorrect size for a \
-unicode map file (size=%d).\n", unicode_map_file_name, (int)size));
-    goto clean_and_exit;
-  }
-
-  if((fp = sys_fopen( unicode_map_file_name, "r")) == NULL) {
-    DEBUG(0,("load_unicode_map: cannot open file %s. Error was %s\n",
-              unicode_map_file_name, strerror(errno)));
-    goto clean_and_exit;
-  }
-
-  if(fread( buf, 1, UNICODE_MAP_HEADER_SIZE, fp)!=UNICODE_MAP_HEADER_SIZE) {
-    DEBUG(0,("load_unicode_map: cannot read header from file %s. Error was %s\n",
-              unicode_map_file_name, strerror(errno)));
-    goto clean_and_exit;
-  }
-
-  /* Check the version value */
-  if(SVAL(buf,UNICODE_MAP_VERSION_OFFSET) != UNICODE_MAP_FILE_VERSION_ID) {
-    DEBUG(0,("load_unicode_map: filename %s has incorrect version id. \
-Needed %hu, got %hu.\n",
-          unicode_map_file_name, (uint16)UNICODE_MAP_FILE_VERSION_ID,
-          SVAL(buf,UNICODE_MAP_VERSION_OFFSET)));
-    goto clean_and_exit;
-  }
-
-  /* Check the codepage value */
-  if(!strequal(&buf[UNICODE_MAP_CLIENT_CODEPAGE_OFFSET], codepage)) {
-    DEBUG(0,("load_unicode_map: codepage %s in file %s is not the same as that \
-requested (%s).\n", &buf[UNICODE_MAP_CLIENT_CODEPAGE_OFFSET], unicode_map_file_name, codepage ));
-    goto clean_and_exit;
-  }
-
-  ucs2_to_cp_size = 2*65536;
-  if (size == UNICODE_MAP_HEADER_SIZE + 4*65536) {
-    /* 
-     * This is a multibyte code page.
-     */
-    cp_to_ucs2_size = 2*65536;
-  } else {
-    /*
-     * Single byte code page.
-     */
-    cp_to_ucs2_size = 2*256;
-  }
-
-  /* 
-   * Free any old translation tables.
-   */
-
-  free_maps(pp_cp_to_ucs2, pp_ucs2_to_cp);
-
-  if ((cp_to_ucs2 = (smb_ucs2_t *)malloc(cp_to_ucs2_size)) == NULL) {
-    DEBUG(0,("load_unicode_map: malloc fail for cp_to_ucs2 size %u.\n", cp_to_ucs2_size ));
-    goto clean_and_exit;
-  }
-
-  if ((ucs2_to_cp = (uint16 *)malloc(ucs2_to_cp_size)) == NULL) {
-    DEBUG(0,("load_unicode_map: malloc fail for ucs2_to_cp size %u.\n", ucs2_to_cp_size ));
-    goto clean_and_exit;
-  }
-
-  if(fread( (char *)cp_to_ucs2, 1, cp_to_ucs2_size, fp)!=cp_to_ucs2_size) {
-    DEBUG(0,("load_unicode_map: cannot read cp_to_ucs2 from file %s. Error was %s\n",
-              unicode_map_file_name, strerror(errno)));
-    goto clean_and_exit;
-  }
-
-  if(fread( (char *)ucs2_to_cp, 1, ucs2_to_cp_size, fp)!=ucs2_to_cp_size) {
-    DEBUG(0,("load_unicode_map: cannot read ucs2_to_cp from file %s. Error was %s\n",
-              unicode_map_file_name, strerror(errno)));
-    goto clean_and_exit;
-  }
-
-  /*
-   * Now ensure the 16 bit values are in the correct endianness.
-   */
-
-  for (i = 0; i < cp_to_ucs2_size/2; i++)
-    cp_to_ucs2[i] = SVAL(cp_to_ucs2,i*2);
-
-  for (i = 0; i < ucs2_to_cp_size/2; i++)
-    ucs2_to_cp[i] = SVAL(ucs2_to_cp,i*2);
-
-  fclose(fp);
-
-  *pp_cp_to_ucs2 = cp_to_ucs2;
-  *pp_ucs2_to_cp = ucs2_to_cp;
-
-  return True;
-
-clean_and_exit:
-
-  /* pseudo destructor :-) */
-
-  if(fp != NULL)
-    fclose(fp);
-
-  free_maps(pp_cp_to_ucs2, pp_ucs2_to_cp);
-
-  default_unicode_map(pp_cp_to_ucs2, pp_ucs2_to_cp);
-
-  return False;
-}
-
-/*******************************************************************
- Load a dos codepage to unicode and vica-versa map.
-********************************************************************/
-
-BOOL load_dos_unicode_map(int codepage)
-{
-  fstring codepage_str;
-
-  slprintf(codepage_str, sizeof(fstring)-1, "%03d", codepage);
-  return load_unicode_map(codepage_str, &doscp_to_ucs2, &ucs2_to_doscp);
-}
-
-/*******************************************************************
- Load a UNIX codepage to unicode and vica-versa map.
-********************************************************************/
-
-BOOL load_unix_unicode_map(const char *unix_char_set)
-{
-  fstring upper_unix_char_set;
-
-  fstrcpy(upper_unix_char_set, unix_char_set);
-  strupper(upper_unix_char_set);
-  return load_unicode_map(upper_unix_char_set, &unixcp_to_ucs2, &ucs2_to_unixcp);
-}
-
-/*******************************************************************
- The following functions reproduce many of the non-UNICODE standard
- string functions in Samba.
-********************************************************************/
-
-/*******************************************************************
- Convert a UNICODE string to multibyte format. Note that the 'src' is in
- native byte order, not little endian. Always zero terminates.
- dst_len is in bytes.
-********************************************************************/
-
-static char *unicode_to_multibyte(char *dst, const smb_ucs2_t *src,
-                                  size_t dst_len, const uint16 *ucs2_to_cp)
-{
-	size_t i;
-
-	for(i = 0; (i < (dst_len  - 1)) && src[i];) {
-		smb_ucs2_t val = ucs2_to_cp[*src];
-		if(val < 256) {
-			dst[i++] = (char)val;
-		} else if (i < (dst_len  - 2)) {
-
-			/*
-			 * A 2 byte value is always written as
-			 * high/low into the buffer stream.
-			 */
-
-			dst[i++] = (char)((val >> 8) & 0xff);
-			dst[i++] = (char)(val & 0xff);
-		}
-	} 	
-
-	dst[i] = '\0';
-
-	return dst;
-}
-
-/*******************************************************************
- Convert a multibyte string to UNICODE format. Note that the 'dst' is in
- native byte order, not little endian. Always zero terminates.
- dst_len is in bytes.
-********************************************************************/
-
-smb_ucs2_t *multibyte_to_unicode(smb_ucs2_t *dst, const char *src,
-                                 size_t dst_len, smb_ucs2_t *cp_to_ucs2)
-{
-	size_t i;
-
-	dst_len /= sizeof(smb_ucs2_t); /* Convert to smb_ucs2_t units. */
-
-	for(i = 0; (i < (dst_len  - 1)) && src[i];) {
-		size_t skip = get_character_len(*src);
-		smb_ucs2_t val = (*src & 0xff);
-
-		/*
-		 * If this is a multibyte character
-		 * then work out the index value for the unicode conversion.
-		 */
-
-		if (skip == 2)
-			val = ((val << 8) | (src[1] & 0xff));
-
-		dst[i++] = cp_to_ucs2[val];
-		if (skip)
-			src += skip;
-		else
-			src++;
-	}
-
-	dst[i] = 0;
-
-	return dst;
-}
-
-/*******************************************************************
- Convert a UNICODE string to multibyte format. Note that the 'src' is in
- native byte order, not little endian. Always zero terminates.
- This function may be replaced if the MB  codepage format is an
- encoded one (ie. utf8, hex). See the code in lib/kanji.c
- for details. dst_len is in bytes.
-********************************************************************/
-
-char *unicode_to_unix(char *dst, const smb_ucs2_t *src, size_t dst_len)
-{
-	return unicode_to_multibyte(dst, src, dst_len, ucs2_to_unixcp);
-}
-
-/*******************************************************************
- Convert a UNIX string to UNICODE format. Note that the 'dst' is in
- native byte order, not little endian. Always zero terminates.
- This function may be replaced if the UNIX codepage format is a
- multi-byte one (ie. JIS, SJIS or utf8). See the code in lib/kanji.c
- for details. dst_len is in bytes, not ucs2 units.
-********************************************************************/
-
-smb_ucs2_t *unix_to_unicode(smb_ucs2_t *dst, const char *src, size_t dst_len)
-{
-	return multibyte_to_unicode(dst, src, dst_len, unixcp_to_ucs2);
-}
-
-/*******************************************************************
- Convert a UNICODE string to DOS format. Note that the 'src' is in
- native byte order, not little endian. Always zero terminates. 
- dst_len is in bytes.
-********************************************************************/ 
-
-char *unicode_to_dos(char *dst, const smb_ucs2_t *src, size_t dst_len)
-{
-	return unicode_to_multibyte(dst, src, dst_len, ucs2_to_doscp);
-}
-
-/*******************************************************************
- Convert a DOS string to UNICODE format. Note that the 'dst' is in
- native byte order, not little endian. Always zero terminates.
- This function may be replaced if the DOS codepage format is a
- multi-byte one (ie. JIS, SJIS or utf8). See the code in lib/kanji.c
- for details. dst_len is in bytes, not ucs2 units.
-********************************************************************/
-
-smb_ucs2_t *dos_to_unicode(smb_ucs2_t *dst, const char *src, size_t dst_len)
-{
-	return multibyte_to_unicode(dst, src, dst_len, doscp_to_ucs2);
-}
-
-/*******************************************************************
- Count the number of characters in a smb_ucs2_t string.
-********************************************************************/
-
-size_t wstrlen(const smb_ucs2_t *src)
-{
-  size_t len;
-
-  for(len = 0; *src; len++)
-    ;
-
-  return len;
-}
-
-/*******************************************************************
- Safe wstring copy into a known length string. maxlength includes
- the terminating zero. maxlength is in bytes.
-********************************************************************/
-
-smb_ucs2_t *safe_wstrcpy(smb_ucs2_t *dest,const smb_ucs2_t *src, size_t maxlength)
-{
-    size_t ucs2_len;
-
-    if (!dest) {
-        DEBUG(0,("ERROR: NULL dest in safe_wstrcpy\n"));
-        return NULL;
-    }
-
-    if (!src) {
-        *dest = 0;
-        return dest;
-    }
-
-	ucs2_len = wstrlen(src);
-
-    if (ucs2_len >= (maxlength/sizeof(smb_ucs2_t))) {
-		fstring out;
-        DEBUG(0,("ERROR: string overflow by %u bytes in safe_wstrcpy [%.50s]\n",
-			(unsigned int)((ucs2_len*sizeof(smb_ucs2_t))-maxlength),
-			unicode_to_unix(out,src,sizeof(out))) );
-		ucs2_len = (maxlength/sizeof(smb_ucs2_t)) - 1;
-    }
-
-    memcpy(dest, src, ucs2_len*sizeof(smb_ucs2_t));
-    dest[ucs2_len] = 0;
-    return dest;
-}
-
-/*******************************************************************
- Safe string cat into a string. maxlength includes the terminating zero.
- maxlength is in bytes.
-********************************************************************/
-
-smb_ucs2_t *safe_wstrcat(smb_ucs2_t *dest, const smb_ucs2_t *src, size_t maxlength)
-{
-    size_t ucs2_src_len, ucs2_dest_len;
-
-    if (!dest) {
-        DEBUG(0,("ERROR: NULL dest in safe_wstrcat\n"));
-        return NULL;
-    }
-
-    if (!src) {
-        return dest;
-    }
-
-    ucs2_src_len = wstrlen(src);
-    ucs2_dest_len = wstrlen(dest);
-
-    if (ucs2_src_len + ucs2_dest_len >= (maxlength/sizeof(smb_ucs2_t))) {
-		fstring out;
-		int new_len = (maxlength/sizeof(smb_ucs2_t)) - ucs2_dest_len - 1;
-        DEBUG(0,("ERROR: string overflow by %u characters in safe_wstrcat [%.50s]\n",
-			(unsigned int)((sizeof(smb_ucs2_t)*(ucs2_src_len + ucs2_dest_len)) - maxlength),
-			unicode_to_unix(out,src,sizeof(out))) );
-        ucs2_src_len = (size_t)(new_len > 0 ? new_len : 0);
-    }
-
-    memcpy(&dest[ucs2_dest_len], src, ucs2_src_len*sizeof(smb_ucs2_t));
-    dest[ucs2_dest_len + ucs2_src_len] = 0;
-    return dest;
-}
-
-/*******************************************************************
- Compare the two strings s1 and s2. len is in ucs2 units.
-********************************************************************/
-
-int wstrcmp(const smb_ucs2_t *s1, const smb_ucs2_t *s2)
-{
-	smb_ucs2_t c1, c2;
-
-	for (;;) {
-		c1 = *s1++;
-		c2 = *s2++;
-
-		if (c1 != c2)
-			return c1 - c2;
-
-		if (c1 == 0)
-            return 0;
-    }
-	return 0;
-}
-
-/*******************************************************************
- Compare the first n characters of s1 to s2. len is in ucs2 units.
-********************************************************************/
-
-int wstrncmp(const smb_ucs2_t *s1, const smb_ucs2_t *s2, size_t len)
-{
-	smb_ucs2_t c1, c2;
-
-	for (; len != 0; --len) {
-		c1 = *s1++;
-		c2 = *s2++;
-
-		if (c1 != c2)
-			return c1 - c2;
-
-		if (c1 == 0)
-			return 0;
-
-    }
-	return 0;
-}
-
-/*******************************************************************
- Search string s2 from s1.
-********************************************************************/
-
-smb_ucs2_t *wstrstr(const smb_ucs2_t *s1, const smb_ucs2_t *s2)
-{
-	size_t len = wstrlen(s2);
-
-	if (!*s2)
-		return (smb_ucs2_t *)s1;
-
-	for(;*s1; s1++) {
-		if (*s1 == *s2) {
-			if (wstrncmp(s1, s2, len) == 0)
-				return (smb_ucs2_t *)s1;
-		}
-	}
-	return NULL; 
-}
-
-/*******************************************************************
- Search for ucs2 char c from the beginning of s.
-********************************************************************/ 
-
-smb_ucs2_t *wstrchr(const smb_ucs2_t *s, smb_ucs2_t c)
-{
-	do {
-		if (*s == c)
-			return (smb_ucs2_t *)s;
-	} while (*s++);
-
-	return NULL;
-}
-
-/*******************************************************************
- Search for ucs2 char c from the end of s.
-********************************************************************/ 
-
-smb_ucs2_t *wstrrchr(const smb_ucs2_t *s, smb_ucs2_t c)
-{
-	smb_ucs2_t *retval = 0;
-
-	do {
-		if (*s == c)
-			retval = (smb_ucs2_t *)s;
-	} while (*s++);
-
-	return retval;
-}
-
-/*******************************************************************
- Search token from s1 separated by any ucs2 char of s2.
-********************************************************************/
-
-smb_ucs2_t *wstrtok(smb_ucs2_t *s1, const smb_ucs2_t *s2)
-{
-	static smb_ucs2_t *s = NULL;
-	smb_ucs2_t *q;
-
-	if (!s1) {
-		if (!s)
+	size_t len;
+
+	if (!src)
+		return NULL;
+	len = strlen_w(src);
+	
+	/* allocate UNISTR2 destination if not given */
+	if (!dst) {
+		dst = TALLOC_P(ctx, UNISTR2);
+		if (!dst)
 			return NULL;
-		s1 = s;
 	}
-
-	for (q = s1; *s1; s1++) {
-		smb_ucs2_t *p = wstrchr(s2, *s1);
-		if (p) {
-			if (s1 != q) {
-				s = s1 + 1;
-				*s1 = '\0';
-				return q;
-			}
-			q = s1 + 1;
-		}
+	if (!dst->buffer) {
+		dst->buffer = TALLOC_ARRAY(ctx, uint16, len + 1);
+		if (!dst->buffer)
+			return NULL;
 	}
-
-	s = NULL;
-	if (*q)
-		return q;
-
-	return NULL;
+	
+	/* set UNISTR2 parameters */
+	dst->uni_max_len = len + 1;
+	dst->offset = 0;
+	dst->uni_str_len = len;
+	
+	/* copy the actual unicode string */
+	strncpy_w(dst->buffer, src, dst->uni_max_len);
+	
+	return dst;
 }

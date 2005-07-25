@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 2.0
+   Unix SMB/CIFS implementation.
    return a list of network interfaces
    Copyright (C) Andrew Tridgell 1998
    
@@ -39,15 +38,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/ioctl.h>
-#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#endif
-
 #include <net/if.h>
-
-#ifndef SIOCGIFCONF
-#include <sys/sockio.h>
-#endif
 
 #ifdef AUTOCONF_TEST
 struct iface_struct {
@@ -58,6 +50,16 @@ struct iface_struct {
 #else
 #include "config.h"
 #include "interfaces.h"
+#endif
+
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
+#ifndef SIOCGIFCONF
+#ifdef HAVE_SYS_SOCKIO_H
+#include <sys/sockio.h>
+#endif
 #endif
 
 #ifdef HAVE_STDLIB_H

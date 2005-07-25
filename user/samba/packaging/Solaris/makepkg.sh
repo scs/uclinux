@@ -1,174 +1,223 @@
 #!/bin/sh
 #
 # Copyright (C) Shirish A Kalele 2000
+# Copyright (C) Gerald Carter    2004
 #
-# Builds a Samba package from the samba distribution. 
-# By default, the package will be built to install samba in /usr/local
-# Change the INSTALL_BASE variable to change this: will modify the pkginfo 
-# and samba.server files to point to the new INSTALL_BASE
+# script for build solaris Samba package
 #
-INSTALL_BASE=/usr/local
+
+INSTALL_BASE=/opt/samba
+
+SBINPROGS="smbd nmbd winbindd swat"
+BINPROGS="findsmb nmblookup pdbedit rpcclient smbclient smbcquotas smbspool smbtar tdbbackup testparm wbinfo net ntlm_auth profiles smbcacls smbcontrol smbpasswd smbstatus smbtree tdbdump testprns"
+MSGFILES="de.msg en.msg fr.msg it.msg ja.msg nl.msg pl.msg tr.msg"
+VFSLIBS="audit.so default_quota.so extd_audit.so full_audit.so readonly.so shadow_copy.so cap.so expand_msdfs.so fake_perms.so netatalk.so recycle.so"
+DATFILES="lowcase.dat upcase.dat valid.dat"
+CHARSETLIBS="CP437.so CP850.so"
 
 add_dynamic_entries() 
 {
-  # First build the codepages and append codepage entries to prototype
-  echo "#\n# Codepages \n#"
-  echo d none samba/lib/codepages 0755 root other
+	# Add the binaries, docs and SWAT files
+	cd $TMPINSTALLDIR/$INSTALL_BASE
 
-  # Check if make_smbcodepage exists
-  if [ ! -f $DISTR_BASE/source/bin/make_smbcodepage ]; then
-    echo "Could not find $DISTR_BASE/source/bin/make_smbcodepage to generate codepages.\n\
-Please create the binaries before packaging." >&2
-    exit 1
-  fi
+	echo "#\n# Server Binaries \n#"	
+ 	for file in $SBINPROGS; do
+		echo f none sbin/$file 0755 root other
+	done
 
-  # PUll in the codepage_def list from source/codepages/codepage_def.*
-  list=`find $DISTR_BASE/source/codepages -name "codepage_def.*" | sed 's|^.*codepage_def\.\(.*\)|\1|'`
-  for cpdef in $list
-  do
-    $DISTR_BASE/source/bin/make_smbcodepage c $cpdef $DISTR_BASE/source/codepages/codepage_def.$cpdef $DISTR_BASE/source/codepages/codepage.$cpdef
-    echo f none samba/lib/codepages/codepage.$cpdef=source/codepages/codepage.$cpdef 0644 root other
-  done
+	echo "#\n# User Binaries \n#"
+ 	for file in $BINPROGS; do
+		echo f none bin/$file 0755 root other
+	done
+	
+	echo "#\n# Libraries\n#"
+ 	for file in $MSGFILES; do
+		echo f none lib/$file 0644 root other
+	done
+ 	for file in $DATFILES; do
+		echo f none lib/$file 0644 root other
+	done
+ 	for file in $VFSLIBS; do
+		echo f none lib/vfs/$file 0755 root other
+	done
+ 	for file in $CHARSETLIBS; do
+		echo f none lib/charset/$file 0755 root other
+	done
+	
+	echo "#\n# libsmbclient\n#"
+	echo f none lib/libsmbclient.so 0755 root other
+	echo f none include/libsmbclient.h 0644 root other
 
-  # Create unicode maps 
-  if [ ! -f $DISTR_BASE/source/bin/make_unicodemap ]; then
-    echo "Missing $DISTR_BASE/source/bin/make_unicodemap. Aborting." >&2
-    exit 1
-  fi
+	if [ -f lib/smbwrapper.so -a -f bin/smbsh ]; then
+		echo "#\n# smbwrapper\n#"
+		echo f none lib/smbwrapper.so 0755 root other
+		echo f none bin/smbsh 0755 root other
+	fi
 
-  # Pull in all the unicode map files from source/codepages/CP*.TXT
-  list=`find $DISTR_BASE/source/codepages -name "CP*.TXT" | sed 's|^.*CP\(.*\)\.TXT|\1|'`
-  for umap in $list
-  do
-    $DISTR_BASE/source/bin/make_unicodemap $umap $DISTR_BASE/source/codepages/CP$umap.TXT $DISTR_BASE/source/codepages/unicode_map.$umap
-    echo f none samba/lib/codepages/unicode_map.$umap=source/codepages/unicode_map.$umap 0644 root other
-  done
+	echo "#\n# nss_winbind.so\n#"
+	echo f none /lib/nss_winbind.so.1=lib/nss_winbind.so.1 0755 root other
+	# echo s none /lib/nss_winbind.so.1=/usr/lib/nss_winbind.so.1 0755 root other
+	if [ -f lib/pam_winbind.so ]; then
+		echo f none /usr/lib/security/pam_winbind.so=lib/pam_winbind.so 0755 root other
+	fi
 
-  # Add the binaries, docs and SWAT files
+	echo "#\n# man pages \n#"
 
-  echo "#\n# Binaries \n#"
-  cd $DISTR_BASE/source/bin
-  for binfile in *
-  do
-    if [ -f $binfile ]; then
-      echo f none samba/bin/$binfile=source/bin/$binfile 0755 root other
-    fi
-  done
+	# Create directories for man page sections if nonexistent
+	cd man
+	for i in 1 2 3 4 5 6 7 8 9; do
+		manpages=`ls man$i 2>/dev/null`
+		if [ $? -eq 0 ]; then
+			echo d none man/man${i} ? ? ?
+			for manpage in $manpages; do
+				echo f none man/man${i}/${manpage} 0644 root other
+			done
+		fi
+	done
+	cd ..
 
-  echo "#\n# HTML documentation \n#"
-  # Create the directories 
-  cd $DISTR_BASE
-  list=`find docs/htmldocs -type d`
-  for docdir in $list
-  do
-    if [ -d $docdir ]; then
-      echo d none samba/$docdir 0755 root other
-    fi
-  done
+	echo "#\n# SWAT \n#"
+	list=`find swat -type d | grep -v "/.svn$"`
+	for dir in $list; do
+		if [ -d $dir ]; then
+			echo d none $dir 0755 root other
+		fi
+	done
 
-  list=`find docs/htmldocs -type f`
-  for htmldoc in $list
-  do
-    if [ -f $htmldoc ]; then
-      echo f none samba/$htmldoc=$htmldoc 0644 root other
-    fi
-  done
+	list=`find swat -type f | grep -v /.svn/`
+	for file in $list; do
+		if [ -f $file ]; then
+			echo f none $file 0644 root other
+		fi
+	done
 
-  # Create a symbolic link to the Samba book in docs/ for beginners
-  echo 's none samba/docs/samba_book=htmldocs/using_samba'
-
-  echo "#\n# Text Docs \n#"
-  echo d none samba/docs/textdocs 0755 root other
-  cd $DISTR_BASE/docs/textdocs
-  for textdoc in *
-  do 
-    if [ -f $textdoc ]; then
-      echo f none samba/docs/textdocs/$textdoc=docs/textdocs/$textdoc 0644 root other
-    fi
-  done
-
-  echo "#\n# SWAT \n#"
-  cd $DISTR_BASE
-  list=`find swat -type d`
-  for i in $list
-  do
-    echo "d none samba/$i 0755 root other"
-  done
-  list=`find swat -type f`
-  for i in $list
-  do
-    echo "f none samba/$i=$i 0644 root other"
-  done
-  
-  echo "#\n# HTML documentation for SWAT\n#"
-  cd $DISTR_BASE/docs/htmldocs
-  for htmldoc in *
-  do
-    if [ -f $htmldoc ]; then
-      echo f none samba/swat/help/$htmldoc=docs/htmldocs/$htmldoc 0644 root other
-    fi
-  done
-
-  echo "#\n# Using Samba Book files for SWAT\n#"
-  cd $DISTR_BASE/docs/htmldocs
- 
-# set up a symbolic link instead of duplicating the book tree
-  echo 's none samba/swat/using_samba=../docs/htmldocs/using_samba'
-
-#  list=`find using_samba -type d`
-#  for bookdir in $list
-#  do
-#    echo d none samba/swat/$bookdir 0755 root other
-#  done
-#  
-#  list=`find using_samba -type f`
-#  for bookdoc in $list
-#  do
-#    echo f none samba/swat/$bookdoc=docs/htmldocs/$bookdoc 0644 root other
-#  done
-
+	# Create entries for docs for the beginner
+	echo 's none docs/using_samba=$BASEDIR/swat/using_samba'
+	for file in docs/*pdf; do
+		echo f none $file 0644 root other
+	done
 }
 
-if [ $# = 0 ]
-then
-	# Try to guess the distribution base..
-	CURR_DIR=`pwd`
-	DISTR_BASE=`echo $CURR_DIR | sed 's|\(.*\)/packaging.*|\1|'`
-	echo "Assuming Samba build tree rooted at $DISTR_BASE.."
-else
-	DISTR_BASE=$1
+#####################################################################
+## BEGIN MAIN 
+#####################################################################
+
+# Try to guess the distribution base..
+DISTR_BASE=`dirname \`pwd\` |sed -e 's@/packaging$@@'`
+echo "Distribution base:  $DISTR_BASE"
+
+TMPINSTALLDIR="/tmp/`basename $DISTR_BASE`-build"
+echo "Temp install dir:   $TMPINSTALLDIR"
+echo "Install directory:  $INSTALL_BASE"
+
+##
+## first build the source
+##
+
+cd $DISTR_BASE/source
+
+if [ "x$1" != "xnobuild" ]; then
+	./configure --prefix=$INSTALL_BASE \
+		--with-acl-support \
+		--with-included-popt \
+		--localstatedir=/var/lib/samba \
+		--with-piddir=/var/run \
+		--with-logfilebase=/var/log/samba \
+		--with-privatedir=/etc/samba/private \
+		--with-configdir=/etc/samba \
+	&& make
+
+	if [ $? -ne 0 ]; then
+		echo "Build failed!  Exiting...."
+		exit 1
+	fi
+fi
+	
+mkdir $TMPINSTALLDIR
+make DESTDIR=$TMPINSTALLDIR install
+
+## clear out *.old
+find $TMPINSTALLDIR -name \*.old |while read x; do rm -rf "$x"; done
+ 
+##
+## Now get the install locations
+##
+SBINDIR=`bin/smbd -b | grep SBINDIR | awk '{print $2}'`
+BINDIR=`bin/smbd -b | grep BINDIR | grep -v SBINDIR |  awk '{print $2}'`
+SWATDIR=`bin/smbd -b | grep SWATDIR | awk '{print $2}'`
+CONFIGFILE=`bin/smbd -b | grep CONFIGFILE | awk '{print $2}'`
+CONFIGDIR=`dirname $CONFIGFILE`
+LOGFILEBASE=`bin/smbd -b | grep LOGFILEBASE | awk '{print $2}'`
+LIBDIR=`bin/smbd -b | grep LIBDIR | awk '{print $2}'`
+PIDDIR=`bin/smbd -b | grep PIDDIR | awk '{print $2}'`
+PRIVATE_DIR=`bin/smbd -b | grep PRIVATE_DIR | awk '{print $2}'`
+DOCDIR=$INSTALL_BASE/docs
+
+## 
+## copy some misc files that are ont done as part of 'make install'
+##
+cp -fp nsswitch/libnss_winbind.so $TMPINSTALLDIR/$LIBDIR/nss_winbind.so.1
+if [ -f nsswitch/pam_winbind.so ]; then
+	cp -fp nsswitch/pam_winbind.so $TMPINSTALLDIR/$LIBDIR/pam_winbind.so
+fi
+if [ -f bin/smbwrapper.so ]; then
+	cp -fp bin/smbwrapper.so $TMPINSTALLDIR/$INSTALL_BASE/lib
+fi
+if [ -f bin/smbsh ]; then
+	cp -fp bin/smbsh $TMPINSTALLDIR/$INSTALL_BASE/bin
 fi
 
-#
-if [ ! -d $DISTR_BASE ]; then
-	echo "Source build directory $DISTR_BASE does not exist."
-	exit 1
-fi
+mkdir -p $TMPINSTALLDIR/$INSTALL_BASE/docs
+cp -p ../docs/*pdf $TMPINSTALLDIR/$INSTALL_BASE/docs
 
-# Set up the prototype file from the static_prototype
-if [ -f prototype ]; then
-	rm prototype
-fi
 
-# Set the INSTALL_BASE in pkginfo, samba.server
-	cp pkginfo pkginfo.bak
-	cp samba.server samba.server.bak
-	sed "s|BASEDIR=.*|BASEDIR=$INSTALL_BASE|g" pkginfo.bak > pkginfo
-	sed "s|BASE=.*|BASE=$INSTALL_BASE/samba|g" samba.server.bak > samba.server
-	rm -f pkginfo.bak samba.server.bak
+cd $DISTR_BASE/packaging/Solaris
 
-cp static_prototype prototype
+##
+## Main driver 
+##
+
+# Setup version from smbd -V
+
+VERSION=`$TMPINSTALLDIR/$SBINDIR/smbd -V | awk '{print $2}'`
+sed -e "s|__VERSION__|$VERSION|" -e "s|__ARCH__|`uname -p`|" -e "s|__BASEDIR__|$INSTALL_BASE|g" pkginfo.master > pkginfo
+
+sed -e "s|__BASEDIR__|$INSTALL_BASE|g" inetd.conf.master   > inetd.conf
+sed -e "s|__BASEDIR__|$INSTALL_BASE|g" samba.init.master > samba.init
+
+##
+## copy over some scripts need for packagaing
+##
+mkdir -p $TMPINSTALLDIR/$INSTALL_BASE/scripts
+for i in inetd.conf samba.init smb.conf.default services; do
+	cp -fp $i $TMPINSTALLDIR/$INSTALL_BASE/scripts
+done
+
+##
+## Start building the prototype file
+##
+echo "CONFIGDIR=$CONFIGDIR" >> pkginfo
+echo "LOGFILEBASE=$LOGFILEBASE" >> pkginfo
+echo "PIDDIR=$PIDDIR" >> pkginfo
+echo "PRIVATE_DIR=$PRIVATE_DIR" >> pkginfo
+
+cp prototype.master prototype
 
 # Add the dynamic part to the prototype file
 (add_dynamic_entries >> prototype)
 
-[ $? != 0 ] && exit 1
+##
+## copy packaging files 
+##
+for i in prototype pkginfo copyright preremove postinstall request i.swat r.swat; do
+	cp $i $TMPINSTALLDIR/$INSTALL_BASE
+done
 
 # Create the package
-pkgmk -o -d /tmp -b $DISTR_BASE -f prototype
-if [ $? = 0 ]
-then
+pkgmk -o -d /tmp -b $TMPINSTALLDIR/$INSTALL_BASE -f prototype
+
+if [ $? = 0 ]; then
 	pkgtrans /tmp samba.pkg samba
 fi
+
 echo The samba package is in /tmp
-rm -f prototype

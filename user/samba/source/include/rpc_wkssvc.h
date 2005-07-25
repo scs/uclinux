@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    SMB parameters and setup
    Copyright (C) Andrew Tridgell 1992-1997
    Copyright (C) Luke Kenneth Casson Leighton 1996-1997
@@ -64,7 +63,7 @@ typedef struct r_wks_query_info_info
 	uint32 ptr_1;              /* pointer 1 */
 	WKS_INFO_100 *wks100;      /* workstation info level 100 */
 
-	uint32 status;             /* return status */
+	NTSTATUS status;             /* return status */
 
 } WKS_R_QUERY_INFO;
 

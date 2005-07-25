@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 2.0
+   Unix SMB/CIFS implementation.
    SMB wrapper functions - frontend
    Copyright (C) Andrew Tridgell 1998
    
@@ -30,22 +29,27 @@ static void smbsh_usage(void)
 	printf(" -R resolve order\n");
 	printf(" -d debug level\n");
 	printf(" -l logfile\n");
+	printf(" -L libdir\n");
 	exit(0);
 }
 
 int main(int argc, char *argv[])
 {
 	char *p, *u;
-	char *libd = BINDIR;	
+	const char *libd = dyn_LIBDIR;
 	pstring line, wd;
 	int opt;
 	extern char *optarg;
 	extern int optind;
 
+	dbf = x_stdout;
 	smbw_setup_shared();
 
-	while ((opt = getopt(argc, argv, "W:U:R:d:P:l:h")) != EOF) {
+	while ((opt = getopt(argc, argv, "W:U:R:d:P:l:hL:")) != EOF) {
 		switch (opt) {
+		case 'L':
+			libd = optarg;
+			break;
 		case 'W':
 			smbw_setshared("WORKGROUP", optarg);
 			break;
@@ -59,7 +63,7 @@ int main(int argc, char *argv[])
 			smbw_setshared("DEBUG", optarg);
 			break;
 		case 'U':
-			p = strchr(optarg,'%');
+			p = strchr_m(optarg,'%');
 			if (p) {
 				*p=0;
 				smbw_setshared("PASSWORD",p+1);
@@ -76,11 +80,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	charset_initialise();
 
 	if (!smbw_getshared("USER")) {
 		printf("Username: ");
-		u = fgets_slash(line, sizeof(line)-1, stdin);
+		u = fgets_slash(line, sizeof(line)-1, x_stdin);
 		smbw_setshared("USER", u);
 	}
 
@@ -89,7 +92,7 @@ int main(int argc, char *argv[])
 		smbw_setshared("PASSWORD", p);
 	}
 
-	smbw_setenv("PS1", "smbsh$ ");
+	setenv("PS1", "smbsh$ ", 1);
 
 	sys_getwd(wd);
 
@@ -98,18 +101,18 @@ int main(int argc, char *argv[])
 	smbw_setshared(line, wd);
 
 	slprintf(line,sizeof(line)-1,"%s/smbwrapper.so", libd);
-	smbw_setenv("LD_PRELOAD", line);
+	setenv("LD_PRELOAD", line, 1);
 
 	slprintf(line,sizeof(line)-1,"%s/smbwrapper.32.so", libd);
 
 	if (file_exist(line, NULL)) {
 		slprintf(line,sizeof(line)-1,"%s/smbwrapper.32.so:DEFAULT", libd);
-		smbw_setenv("_RLD_LIST", line);
+		setenv("_RLD_LIST", line, 1);
 		slprintf(line,sizeof(line)-1,"%s/smbwrapper.so:DEFAULT", libd);
-		smbw_setenv("_RLDN32_LIST", line);
+		setenv("_RLDN32_LIST", line, 1);
 	} else {
 		slprintf(line,sizeof(line)-1,"%s/smbwrapper.so:DEFAULT", libd);
-		smbw_setenv("_RLD_LIST", line);
+		setenv("_RLD_LIST", line, 1);
 	}
 
 	{

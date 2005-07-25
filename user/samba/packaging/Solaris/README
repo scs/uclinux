@@ -3,7 +3,7 @@ INSTRUCTIONS: Preparing Samba packages for Solaris
 
 To produce a package:
 
-* Build the binaries
+* Build the binaries (by running ./configure; make; in the source directory)
 * Type sh makepkg.sh
 
 The package will be created in the /tmp directory.

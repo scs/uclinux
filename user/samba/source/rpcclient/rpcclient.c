@@ -1,9 +1,10 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
-   SMB client
-   Copyright (C) Andrew Tridgell 1994-1998
-   
+   Unix SMB/CIFS implementation.
+   RPC pipe client
+
+   Copyright (C) Tim Potter 2000-2001
+   Copyright (C) Martin Pool 2003
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
@@ -19,755 +20,786 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#ifdef SYSLOG
-#undef SYSLOG
-#endif
-
 #include "includes.h"
+#include "rpcclient.h"
 
-#ifndef REGISTER
-#define REGISTER 0
+DOM_SID domain_sid;
+static int pipe_idx;
+
+
+/* List to hold groups of commands.
+ *
+ * Commands are defined in a list of arrays: arrays are easy to
+ * statically declare, and lists are easier to dynamically extend.
+ */
+
+static struct cmd_list {
+	struct cmd_list *prev, *next;
+	struct cmd_set *cmd_set;
+} *cmd_list;
+
+/****************************************************************************
+handle completion of commands for readline
+****************************************************************************/
+static char **completion_fn(const char *text, int start, int end)
+{
+#define MAX_COMPLETIONS 100
+	char **matches;
+	int i, count=0;
+	struct cmd_list *commands = cmd_list;
+
+#if 0	/* JERRY */
+	/* FIXME!!!  -- what to do when completing argument? */
+	/* for words not at the start of the line fallback 
+	   to filename completion */
+	if (start) 
+		return NULL;
 #endif
 
-extern pstring debugf;
-extern pstring global_myname;
+	/* make sure we have a list of valid commands */
+	if (!commands) 
+		return NULL;
 
-extern pstring user_socket_options;
+	matches = SMB_MALLOC_ARRAY(char *, MAX_COMPLETIONS);
+	if (!matches) return NULL;
 
+	matches[count++] = SMB_STRDUP(text);
+	if (!matches[0]) return NULL;
 
-extern int DEBUGLEVEL;
-
-
-extern file_info def_finfo;
-
-#define CNV_LANG(s) dos2unix_format(s,False)
-#define CNV_INPUT(s) unix2dos_format(s,True)
-
-static int process_tok(fstring tok);
-static void cmd_help(struct client_info *info);
-static void cmd_quit(struct client_info *info);
-
-static struct cli_state smbcli;
-struct cli_state *smb_cli = &smbcli;
-
-FILE *out_hnd;
-
-/****************************************************************************
-initialise smb client structure
-****************************************************************************/
-void rpcclient_init(void)
-{
-	memset((char *)smb_cli, '\0', sizeof(smb_cli));
-	cli_initialise(smb_cli);
-	smb_cli->capabilities |= CAP_NT_SMBS | CAP_STATUS32;
-}
-
-/****************************************************************************
-make smb client connection
-****************************************************************************/
-static BOOL rpcclient_connect(struct client_info *info)
-{
-	struct nmb_name calling;
-	struct nmb_name called;
-
-	make_nmb_name(&called , dns_to_netbios_name(info->dest_host ), info->name_type);
-	make_nmb_name(&calling, dns_to_netbios_name(info->myhostname), 0x0);
-
-	if (!cli_establish_connection(smb_cli, 
-	                          info->dest_host, &info->dest_ip, 
-	                          &calling, &called,
-	                          info->share, info->svc_type,
-	                          False, True))
+	while (commands && count < MAX_COMPLETIONS-1) 
 	{
-		DEBUG(0,("rpcclient_connect: connection failed\n"));
-		cli_shutdown(smb_cli);
-		return False;
+		if (!commands->cmd_set)
+			break;
+		
+		for (i=0; commands->cmd_set[i].name; i++)
+		{
+			if ((strncmp(text, commands->cmd_set[i].name, strlen(text)) == 0) &&
+				(( commands->cmd_set[i].returntype == RPC_RTYPE_NTSTATUS &&
+                        commands->cmd_set[i].ntfn ) || 
+                      ( commands->cmd_set[i].returntype == RPC_RTYPE_WERROR &&
+                        commands->cmd_set[i].wfn)))
+			{
+				matches[count] = SMB_STRDUP(commands->cmd_set[i].name);
+				if (!matches[count]) 
+					return NULL;
+				count++;
+			}
+		}
+		
+		commands = commands->next;
+		
 	}
 
-	return True;
+	if (count == 2) {
+		SAFE_FREE(matches[0]);
+		matches[0] = SMB_STRDUP(matches[1]);
+	}
+	matches[count] = NULL;
+	return matches;
 }
 
-/****************************************************************************
-stop the smb connection(s?)
-****************************************************************************/
-static void rpcclient_stop(void)
+static char* next_command (char** cmdstr)
 {
-	cli_shutdown(smb_cli);
+	static pstring 		command;
+	char			*p;
+	
+	if (!cmdstr || !(*cmdstr))
+		return NULL;
+	
+	p = strchr_m(*cmdstr, ';');
+	if (p)
+		*p = '\0';
+	pstrcpy(command, *cmdstr);
+	if (p)
+		*cmdstr = p + 1;
+	else
+		*cmdstr = NULL;
+	
+	return command;
 }
-/****************************************************************************
- This defines the commands supported by this client
- ****************************************************************************/
-struct
-{
-  char *name;
-  void (*fn)(struct client_info*);
-  char *description;
-} commands[] = 
-{
-  {"regenum",    cmd_reg_enum,         "<keyname> Registry Enumeration (keys, values)"},
-  {"regdeletekey",cmd_reg_delete_key,  "<keyname> Registry Key Delete"},
-  {"regcreatekey",cmd_reg_create_key,  "<keyname> [keyclass] Registry Key Create"},
-  {"regquerykey",cmd_reg_query_key,    "<keyname> Registry Key Query"},
-  {"regdeleteval",cmd_reg_delete_val,  "<valname> Registry Value Delete"},
-  {"regcreateval",cmd_reg_create_val,  "<valname> <valtype> <value> Registry Key Create"},
-  {"reggetsec",  cmd_reg_get_key_sec,  "<keyname> Registry Key Security"},
-  {"regtestsec", cmd_reg_test_key_sec, "<keyname> Test Registry Key Security"},
-  {"ntlogin",    cmd_netlogon_login_test, "[username] [password] NT Domain login test"},
-  {"wksinfo",    cmd_wks_query_info,   "Workstation Query Info"},
-  {"srvinfo",    cmd_srv_query_info,   "Server Query Info"},
-  {"srvsessions",cmd_srv_enum_sess,    "List sessions on a server"},
-  {"srvshares",  cmd_srv_enum_shares,  "List shares on a server"},
-  {"srvconnections",cmd_srv_enum_conn, "List connections on a server"},
-  {"srvfiles",   cmd_srv_enum_files,   "List files on a server"},
-  {"lsaquery",   cmd_lsa_query_info,   "Query Info Policy (domain member or server)"},
-  {"lookupsids", cmd_lsa_lookup_sids,  "Resolve names from SIDs"},
-  {"enumusers",  cmd_sam_enum_users,   "SAM User Database Query (experimental!)"},
-  {"ntpass",     cmd_sam_ntchange_pwd, "NT SAM Password Change"},
-  {"samuser",    cmd_sam_query_user,   "<username> SAM User Query (experimental!)"},
-  {"samtest",    cmd_sam_test      ,   "SAM User Encrypted RPC test (experimental!)"},
-  {"enumaliases",cmd_sam_enum_aliases, "SAM Aliases Database Query (experimental!)"},
-#if 0
-  {"enumgroups", cmd_sam_enum_groups,  "SAM Group Database Query (experimental!)"},
-#endif
-  {"samgroups",  cmd_sam_query_groups, "SAM Group Database Query (experimental!)"},
-  {"quit",       cmd_quit,        "logoff the server"},
-  {"q",          cmd_quit,        "logoff the server"},
-  {"exit",       cmd_quit,        "logoff the server"},
-  {"bye",        cmd_quit,        "logoff the server"},
-  {"help",       cmd_help,        "[command] give help on a command"},
-  {"?",          cmd_help,        "[command] give help on a command"},
-  {"!",          NULL,            "run a shell command on the local system"},
-  {"",           NULL,            NULL}
-};
 
+/* Fetch the SID for this computer */
 
-/****************************************************************************
-do a (presumably graceful) quit...
-****************************************************************************/
-static void cmd_quit(struct client_info *info)
+static void fetch_machine_sid(struct cli_state *cli)
 {
-	rpcclient_stop();
-#ifdef MEM_MAN
+	POLICY_HND pol;
+	NTSTATUS result = NT_STATUS_OK;
+	uint32 info_class = 5;
+	char *domain_name = NULL;
+	static BOOL got_domain_sid;
+	TALLOC_CTX *mem_ctx;
+	DOM_SID *dom_sid = NULL;
+
+	if (got_domain_sid) return;
+
+	if (!(mem_ctx=talloc_init("fetch_machine_sid")))
 	{
-		extern FILE* dbf;
-		smb_mem_write_status(dbf);
-		smb_mem_write_errors(dbf);
-		smb_mem_write_verbose(dbf);
+		DEBUG(0,("fetch_machine_sid: talloc_init returned NULL!\n"));
+		goto error;
 	}
-#endif
-	exit(0);
+
+
+	if (!cli_nt_session_open (cli, PI_LSARPC)) {
+		fprintf(stderr, "could not initialise lsa pipe\n");
+		goto error;
+	}
+	
+	result = cli_lsa_open_policy(cli, mem_ctx, True, 
+				     SEC_RIGHTS_MAXIMUM_ALLOWED,
+				     &pol);
+	if (!NT_STATUS_IS_OK(result)) {
+		goto error;
+	}
+
+	result = cli_lsa_query_info_policy(cli, mem_ctx, &pol, info_class, 
+					   &domain_name, &dom_sid);
+	if (!NT_STATUS_IS_OK(result)) {
+		goto error;
+	}
+
+	got_domain_sid = True;
+	sid_copy( &domain_sid, dom_sid );
+
+	cli_lsa_close(cli, mem_ctx, &pol);
+	cli_nt_session_close(cli);
+	talloc_destroy(mem_ctx);
+
+	return;
+
+ error:
+	fprintf(stderr, "could not obtain sid for domain %s\n", cli->domain);
+
+	if (!NT_STATUS_IS_OK(result)) {
+		fprintf(stderr, "error: %s\n", nt_errstr(result));
+	}
+
+	exit(1);
 }
 
-/****************************************************************************
-help
-****************************************************************************/
-static void cmd_help(struct client_info *info)
+/* List the available commands on a given pipe */
+
+static NTSTATUS cmd_listcommands(struct cli_state *cli, TALLOC_CTX *mem_ctx,
+				 int argc, const char **argv)
 {
-  int i=0,j;
-  fstring buf;
-
-  if (next_token(NULL,buf,NULL, sizeof(buf)))
-    {
-      if ((i = process_tok(buf)) >= 0)
-	fprintf(out_hnd, "HELP %s:\n\t%s\n\n",commands[i].name,commands[i].description);		    
-    }
-  else
-    while (commands[i].description)
-      {
-	for (j=0; commands[i].description && (j<5); j++) {
-	  fprintf(out_hnd, "%-15s",commands[i].name);
-	  i++;
-	}
-	fprintf(out_hnd, "\n");
-      }
-}
-
-/*******************************************************************
-  lookup a command string in the list of commands, including 
-  abbreviations
-  ******************************************************************/
-static int process_tok(fstring tok)
-{
-  int i = 0, matches = 0;
-  int cmd=0;
-  int tok_len = strlen(tok);
-  
-  while (commands[i].fn != NULL)
-    {
-      if (strequal(commands[i].name,tok))
-	{
-	  matches = 1;
-	  cmd = i;
-	  break;
-	}
-      else if (strnequal(commands[i].name, tok, tok_len))
-	{
-	  matches++;
-	  cmd = i;
-	}
-      i++;
-    }
-  
-  if (matches == 0)
-    return(-1);
-  else if (matches == 1)
-    return(cmd);
-  else
-    return(-2);
-}
-
-/****************************************************************************
-wait for keyboard activity, swallowing network packets
-****************************************************************************/
-static void wait_keyboard(struct cli_state *cli)
-{
-  fd_set fds;
-  struct timeval timeout;
-  
-  while (1) 
-    {
-      FD_ZERO(&fds);
-      FD_SET(cli->fd,&fds);
-      FD_SET(fileno(stdin),&fds);
-
-      timeout.tv_sec = 20;
-      timeout.tv_usec = 0;
-      sys_select(MAX(cli->fd,fileno(stdin))+1,&fds,&timeout);
-      
-      if (FD_ISSET(fileno(stdin),&fds))
-  	return;
-
-      /* We deliberately use receive_smb instead of
-         client_receive_smb as we want to receive
-         session keepalives and then drop them here.
-       */
-      if (FD_ISSET(cli->fd,&fds))
-  	receive_smb(cli->fd,cli->inbuf,0);
-    }  
-}
-
-/****************************************************************************
-  process commands from the client
-****************************************************************************/
-static void do_command(struct client_info *info, char *tok, char *line)
-{
+	struct cmd_list *tmp;
+        struct cmd_set *tmp_set;
 	int i;
 
-	if ((i = process_tok(tok)) >= 0)
-	{
-		commands[i].fn(info);
-	}
-	else if (i == -2)
-	{
-		fprintf(out_hnd, "%s: command abbreviation ambiguous\n", CNV_LANG(tok));
-	}
-	else
-	{
-		fprintf(out_hnd, "%s: command not found\n", CNV_LANG(tok));
-	}
-}
+        /* Usage */
 
-/****************************************************************************
-  process commands from the client
-****************************************************************************/
-static BOOL process( struct client_info *info, char *cmd_str)
-{
-	pstring line;
-	char *cmd = cmd_str;
+        if (argc != 2) {
+                printf("Usage: %s <pipe>\n", argv[0]);
+                return NT_STATUS_OK;
+        }
 
-	if (cmd[0] != '\0') while (cmd[0] != '\0')
+        /* Help on one command */
+
+	for (tmp = cmd_list; tmp; tmp = tmp->next) 
 	{
-		char *p;
-		fstring tok;
-
-		if ((p = strchr(cmd, ';')) == 0)
+		tmp_set = tmp->cmd_set;
+		
+		if (!StrCaseCmp(argv[1], tmp_set->name))
 		{
-			strncpy(line, cmd, 999);
-			line[1000] = '\0';
-			cmd += strlen(cmd);
-		}
-		else
-		{
-			if (p - cmd > 999) p = cmd + 999;
-			strncpy(line, cmd, p - cmd);
-			line[p - cmd] = '\0';
-			cmd = p + 1;
-		}
+			printf("Available commands on the %s pipe:\n\n", tmp_set->name);
 
-		/* input language code to internal one */
-		CNV_INPUT (line);
-
-		/* get the first part of the command */
-		{
-			char *ptr = line;
-			if (!next_token(&ptr,tok,NULL, sizeof(tok))) continue;
-		}
-
-		do_command(info, tok, line);
-	}
-	else while (!feof(stdin))
-	{
-		fstring tok;
-
-		/* display a prompt */
-		fprintf(out_hnd, "smb: %s> ", CNV_LANG(info->cur_dir));
-		fflush(out_hnd);
-
-#ifdef CLIX
-		line[0] = wait_keyboard(smb_cli);
-		/* this might not be such a good idea... */
-		if ( line[0] == EOF)
-		{
+			i = 0;
+			tmp_set++;
+			while(tmp_set->name) {
+				printf("%20s", tmp_set->name);
+                                tmp_set++;
+				i++;
+				if (i%4 == 0)
+					printf("\n");
+			}
+			
+			/* drop out of the loop */
 			break;
 		}
-#else
-		wait_keyboard(smb_cli);
-#endif
+        }
+	printf("\n\n");
 
-		/* and get a response */
-#ifdef CLIX
-		fgets( &line[1],999, stdin);
-#else
-		if (!fgets(line,1000,stdin))
-		{
-			break;
+	return NT_STATUS_OK;
+}
+
+/* Display help on commands */
+
+static NTSTATUS cmd_help(struct cli_state *cli, TALLOC_CTX *mem_ctx,
+                         int argc, const char **argv)
+{
+	struct cmd_list *tmp;
+        struct cmd_set *tmp_set;
+
+        /* Usage */
+
+        if (argc > 2) {
+                printf("Usage: %s [command]\n", argv[0]);
+                return NT_STATUS_OK;
+        }
+
+        /* Help on one command */
+
+        if (argc == 2) {
+                for (tmp = cmd_list; tmp; tmp = tmp->next) {
+                        
+                        tmp_set = tmp->cmd_set;
+
+                        while(tmp_set->name) {
+                                if (strequal(argv[1], tmp_set->name)) {
+                                        if (tmp_set->usage &&
+                                            tmp_set->usage[0])
+                                                printf("%s\n", tmp_set->usage);
+                                        else
+                                                printf("No help for %s\n", tmp_set->name);
+
+                                        return NT_STATUS_OK;
+                                }
+
+                                tmp_set++;
+                        }
+                }
+
+                printf("No such command: %s\n", argv[1]);
+                return NT_STATUS_OK;
+        }
+
+        /* List all commands */
+
+	for (tmp = cmd_list; tmp; tmp = tmp->next) {
+
+		tmp_set = tmp->cmd_set;
+
+		while(tmp_set->name) {
+
+			printf("%15s\t\t%s\n", tmp_set->name,
+			       tmp_set->description ? tmp_set->description:
+			       "");
+
+			tmp_set++;
 		}
-#endif
-
-		/* input language code to internal one */
-		CNV_INPUT (line);
-
-		/* special case - first char is ! */
-		if (*line == '!')
-		{
-			system(line + 1);
-			continue;
-		}
-
-		fprintf(out_hnd, "%s\n", line);
-
-		/* get the first part of the command */
-		{
-			char *ptr = line;
-			if (!next_token(&ptr,tok,NULL, sizeof(tok))) continue;
-		}
-
-		do_command(info, tok, line);
 	}
 
-	return(True);
+	return NT_STATUS_OK;
 }
 
-/****************************************************************************
-usage on the program
-****************************************************************************/
-static void usage(char *pname)
-{
-  fprintf(out_hnd, "Usage: %s service <password> [-d debuglevel] [-l log] ",
-	   pname);
+/* Change the debug level */
 
-  fprintf(out_hnd, "\nVersion %s\n",VERSION);
-  fprintf(out_hnd, "\t-d debuglevel         set the debuglevel\n");
-  fprintf(out_hnd, "\t-l log basename.      Basename for log/debug files\n");
-  fprintf(out_hnd, "\t-n netbios name.      Use this name as my netbios name\n");
-  fprintf(out_hnd, "\t-N                    don't ask for a password\n");
-  fprintf(out_hnd, "\t-m max protocol       set the max protocol level\n");
-  fprintf(out_hnd, "\t-I dest IP            use this IP to connect to\n");
-  fprintf(out_hnd, "\t-E                    write messages to stderr instead of stdout\n");
-  fprintf(out_hnd, "\t-U username           set the network username\n");
-  fprintf(out_hnd, "\t-W workgroup          set the workgroup name\n");
-  fprintf(out_hnd, "\t-c command string     execute semicolon separated commands\n");
-  fprintf(out_hnd, "\t-t terminal code      terminal i/o code {sjis|euc|jis7|jis8|junet|hex}\n");
-  fprintf(out_hnd, "\n");
+static NTSTATUS cmd_debuglevel(struct cli_state *cli, TALLOC_CTX *mem_ctx,
+                               int argc, const char **argv)
+{
+	if (argc > 2) {
+		printf("Usage: %s [debuglevel]\n", argv[0]);
+		return NT_STATUS_OK;
+	}
+
+	if (argc == 2) {
+		DEBUGLEVEL = atoi(argv[1]);
+	}
+
+	printf("debuglevel is %d\n", DEBUGLEVEL);
+
+	return NT_STATUS_OK;
 }
 
-enum client_action
+static NTSTATUS cmd_quit(struct cli_state *cli, TALLOC_CTX *mem_ctx,
+                         int argc, const char **argv)
 {
-	CLIENT_NONE,
-	CLIENT_IPC,
-	CLIENT_SVC
+	exit(0);
+	return NT_STATUS_OK; /* NOTREACHED */
+}
+
+static NTSTATUS cmd_sign(struct cli_state *cli, TALLOC_CTX *mem_ctx,
+                         int argc, const char **argv)
+{
+	if (cli->pipe_auth_flags == (AUTH_PIPE_NTLMSSP|AUTH_PIPE_SIGN)) {
+		return NT_STATUS_OK;
+	} else {
+		/* still have session, just need to use it again */
+		cli->pipe_auth_flags = AUTH_PIPE_NTLMSSP;
+		cli->pipe_auth_flags |= AUTH_PIPE_SIGN;
+		if (cli->nt_pipe_fnum[cli->pipe_idx] != 0)
+			cli_nt_session_close(cli);
+	}
+
+	return NT_STATUS_OK; 
+}
+
+static NTSTATUS cmd_seal(struct cli_state *cli, TALLOC_CTX *mem_ctx,
+                         int argc, const char **argv)
+{
+	if (cli->pipe_auth_flags == (AUTH_PIPE_NTLMSSP|AUTH_PIPE_SIGN|AUTH_PIPE_SEAL)) {
+		return NT_STATUS_OK;
+	} else {
+		/* still have session, just need to use it again */
+		cli->pipe_auth_flags = AUTH_PIPE_NTLMSSP;
+		cli->pipe_auth_flags |= AUTH_PIPE_SIGN;
+		cli->pipe_auth_flags |= AUTH_PIPE_SEAL;
+		if (cli->nt_pipe_fnum[cli->pipe_idx] != 0)
+			cli_nt_session_close(cli);
+	}
+	return NT_STATUS_OK; 
+}
+
+static NTSTATUS cmd_none(struct cli_state *cli, TALLOC_CTX *mem_ctx,
+                         int argc, const char **argv)
+{
+	if (cli->pipe_auth_flags == 0) {
+		return NT_STATUS_OK;
+	} else {
+		/* still have session, just need to use it again */
+		cli->pipe_auth_flags = 0;
+		if (cli->nt_pipe_fnum[cli->pipe_idx] != 0)
+			cli_nt_session_close(cli);
+	}
+	cli->pipe_auth_flags = 0;
+
+	return NT_STATUS_OK; 
+}
+
+static NTSTATUS setup_schannel(struct cli_state *cli, int pipe_auth_flags,
+			       int argc, const char **argv)
+{
+	NTSTATUS ret;
+	static uchar zeros[16];
+	uchar trust_password[16];
+	uint32 sec_channel_type;
+	if (argc == 2) {
+		strhex_to_str((char *)cli->auth_info.sess_key,
+			      strlen(argv[1]), 
+			      argv[1]);
+		memcpy(cli->sess_key, cli->auth_info.sess_key, sizeof(cli->sess_key));
+
+		cli->pipe_auth_flags = pipe_auth_flags;
+		return NT_STATUS_OK;
+	}
+
+	/* Cleanup */
+
+	if ((memcmp(cli->auth_info.sess_key, zeros, sizeof(cli->auth_info.sess_key)) != 0)) {
+		if (cli->pipe_auth_flags == pipe_auth_flags) {
+			/* already in this mode nothing to do */
+			return NT_STATUS_OK;
+		} else {
+			/* schannel is setup, just need to use it again with new flags */
+			cli->pipe_auth_flags = pipe_auth_flags;
+
+			if (cli->nt_pipe_fnum[cli->pipe_idx] != 0)
+				cli_nt_session_close(cli);
+			return NT_STATUS_OK;
+		}
+	}
+	
+	if (cli->nt_pipe_fnum[cli->pipe_idx] != 0)
+		cli_nt_session_close(cli);
+
+	if (!secrets_fetch_trust_account_password(lp_workgroup(),
+						  trust_password,
+						  NULL, &sec_channel_type)) {
+		return NT_STATUS_UNSUCCESSFUL;
+	}
+
+	ret = cli_nt_setup_netsec(cli, sec_channel_type, pipe_auth_flags, trust_password);
+	if (NT_STATUS_IS_OK(ret)) {
+		char *hex_session_key;
+		hex_encode(cli->auth_info.sess_key,
+			   sizeof(cli->auth_info.sess_key),
+			   &hex_session_key);
+		printf("Got Session key: %s\n", hex_session_key);
+		SAFE_FREE(hex_session_key);
+	}
+	return ret;
+}
+
+
+static NTSTATUS cmd_schannel(struct cli_state *cli, TALLOC_CTX *mem_ctx,
+			     int argc, const char **argv)
+{
+	d_printf("Setting schannel - sign and seal\n");
+	return setup_schannel(cli, AUTH_PIPE_NETSEC | AUTH_PIPE_SIGN | AUTH_PIPE_SEAL, 
+			      argc, argv);
+}
+
+static NTSTATUS cmd_schannel_sign(struct cli_state *cli, TALLOC_CTX *mem_ctx,
+			     int argc, const char **argv)
+{
+	d_printf("Setting schannel - sign only\n");
+	return setup_schannel(cli, AUTH_PIPE_NETSEC | AUTH_PIPE_SIGN, 
+			      argc, argv);
+}
+
+
+/* Built in rpcclient commands */
+
+static struct cmd_set rpcclient_commands[] = {
+
+	{ "GENERAL OPTIONS" },
+
+	{ "help", RPC_RTYPE_NTSTATUS, cmd_help, NULL, 	  -1,	"Get help on commands", "[command]" },
+	{ "?", 	RPC_RTYPE_NTSTATUS, cmd_help, NULL,	  -1,	"Get help on commands", "[command]" },
+	{ "debuglevel", RPC_RTYPE_NTSTATUS, cmd_debuglevel, NULL,   -1,	"Set debug level", "level" },
+	{ "list",	RPC_RTYPE_NTSTATUS, cmd_listcommands, NULL, -1,	"List available commands on <pipe>", "pipe" },
+	{ "exit", RPC_RTYPE_NTSTATUS, cmd_quit, NULL,   -1,	"Exit program", "" },
+	{ "quit", RPC_RTYPE_NTSTATUS, cmd_quit, NULL,	  -1,	"Exit program", "" },
+	{ "sign", RPC_RTYPE_NTSTATUS, cmd_sign, NULL,	  -1,	"Force RPC pipe connections to be signed", "" },
+	{ "seal", RPC_RTYPE_NTSTATUS, cmd_seal, NULL,	  -1,	"Force RPC pipe connections to be sealed", "" },
+	{ "schannel", RPC_RTYPE_NTSTATUS, cmd_schannel, NULL,	  -1,	"Force RPC pipe connections to be sealed with 'schannel' (NETSEC).  Assumes valid machine account to this domain controller.", "" },
+	{ "schannelsign", RPC_RTYPE_NTSTATUS, cmd_schannel_sign, NULL,	  -1,	"Force RPC pipe connections to be signed (not sealed) with 'schannel' (NETSEC).  Assumes valid machine account to this domain controller.", "" },
+	{ "none", RPC_RTYPE_NTSTATUS, cmd_none, NULL,	  -1,	"Force RPC pipe connections to have no special properties", "" },
+
+	{ NULL }
 };
 
-/****************************************************************************
-  main program
-****************************************************************************/
- int main(int argc,char *argv[])
+static struct cmd_set separator_command[] = {
+	{ "---------------", MAX_RPC_RETURN_TYPE, NULL, NULL,	-1,	"----------------------" },
+	{ NULL }
+};
+
+
+/* Various pipe commands */
+
+extern struct cmd_set lsarpc_commands[];
+extern struct cmd_set samr_commands[];
+extern struct cmd_set spoolss_commands[];
+extern struct cmd_set netlogon_commands[];
+extern struct cmd_set srvsvc_commands[];
+extern struct cmd_set dfs_commands[];
+extern struct cmd_set reg_commands[];
+extern struct cmd_set ds_commands[];
+extern struct cmd_set echo_commands[];
+extern struct cmd_set shutdown_commands[];
+
+static struct cmd_set *rpcclient_command_list[] = {
+	rpcclient_commands,
+	lsarpc_commands,
+	ds_commands,
+	samr_commands,
+	spoolss_commands,
+	netlogon_commands,
+	srvsvc_commands,
+	dfs_commands,
+	reg_commands,
+	echo_commands,
+	shutdown_commands,
+	NULL
+};
+
+static void add_command_set(struct cmd_set *cmd_set)
 {
-	BOOL interactive = True;
+	struct cmd_list *entry;
 
-	int opt;
-	extern FILE *dbf;
-	extern char *optarg;
-	extern int optind;
-	static pstring servicesf = CONFIGFILE;
-	pstring term_code;
-	char *p;
-	BOOL got_pass = False;
-	char *cmd_str="";
-	mode_t myumask = 0755;
-	enum client_action cli_action = CLIENT_NONE;
-
-	struct client_info cli_info;
-
-	pstring password; /* local copy only, if one is entered */
-
-	out_hnd = stdout;
-	fstrcpy(debugf, argv[0]);
-
-	rpcclient_init();
-
-#ifdef KANJI
-	pstrcpy(term_code, KANJI);
-#else /* KANJI */
-	*term_code = 0;
-#endif /* KANJI */
-
-	DEBUGLEVEL = 2;
-
-	cli_info.put_total_size = 0;
-	cli_info.put_total_time_ms = 0;
-	cli_info.get_total_size = 0;
-	cli_info.get_total_time_ms = 0;
-
-	cli_info.dir_total = 0;
-	cli_info.newer_than = 0;
-	cli_info.archive_level = 0;
-	cli_info.print_mode = 1;
-
-	cli_info.translation = False;
-	cli_info.recurse_dir = False;
-	cli_info.lowercase = False;
-	cli_info.prompt = True;
-	cli_info.abort_mget = True;
-
-	cli_info.dest_ip.s_addr = 0;
-	cli_info.name_type = 0x20;
-
-	pstrcpy(cli_info.cur_dir , "\\");
-	pstrcpy(cli_info.file_sel, "");
-	pstrcpy(cli_info.base_dir, "");
-	pstrcpy(smb_cli->domain, "");
-	pstrcpy(smb_cli->user_name, "");
-	pstrcpy(cli_info.myhostname, "");
-	pstrcpy(cli_info.dest_host, "");
-
-	pstrcpy(cli_info.svc_type, "A:");
-	pstrcpy(cli_info.share, "");
-	pstrcpy(cli_info.service, "");
-
-	ZERO_STRUCT(cli_info.dom.level3_sid);
-	ZERO_STRUCT(cli_info.dom.level5_sid);
-	fstrcpy(cli_info.dom.level3_dom, "");
-	fstrcpy(cli_info.dom.level5_dom, "");
-
-	smb_cli->nt_pipe_fnum   = 0xffff;
-
-	TimeInit();
-	charset_initialise();
-
-	myumask = umask(0);
-	umask(myumask);
-
-	if (!get_myname(global_myname))
-	{
-		fprintf(stderr, "Failed to get my hostname.\n");
+	if (!(entry = SMB_MALLOC_P(struct cmd_list))) {
+		DEBUG(0, ("out of memory\n"));
+		return;
 	}
 
-	if (getenv("USER"))
-	{
-		pstrcpy(smb_cli->user_name,getenv("USER"));
+	ZERO_STRUCTP(entry);
 
-		/* modification to support userid%passwd syntax in the USER var
-		25.Aug.97, jdblair@uab.edu */
+	entry->cmd_set = cmd_set;
+	DLIST_ADD(cmd_list, entry);
+}
 
-		if ((p=strchr(smb_cli->user_name,'%')))
-		{
-			*p = 0;
-			pstrcpy(password,p+1);
-			got_pass = True;
-			memset(strchr(getenv("USER"),'%')+1,'X',strlen(password));
+
+/**
+ * Call an rpcclient function, passing an argv array.
+ *
+ * @param cmd Command to run, as a single string.
+ **/
+static NTSTATUS do_cmd(struct cli_state *cli,
+		       struct cmd_set *cmd_entry,
+		       int argc, char **argv)
+{
+	NTSTATUS ntresult;
+	WERROR wresult;
+	uchar trust_password[16];
+	
+	TALLOC_CTX *mem_ctx;
+
+	/* Create mem_ctx */
+
+	if (!(mem_ctx = talloc_init("do_cmd"))) {
+		DEBUG(0, ("talloc_init() failed\n"));
+		return NT_STATUS_NO_MEMORY;
+	}
+
+	/* Open pipe */
+
+	if (cmd_entry->pipe_idx != -1
+	    && cmd_entry->pipe_idx != cli->pipe_idx) {
+		if (cli->nt_pipe_fnum[cli->pipe_idx] != 0)
+			cli_nt_session_close(cli);
+		
+		if (!cli_nt_session_open(cli, cmd_entry->pipe_idx)) {
+			DEBUG(0, ("Could not initialise %s\n",
+				  get_pipe_name_from_index(cmd_entry->pipe_idx)));
+			return NT_STATUS_UNSUCCESSFUL;
 		}
-		strupper(smb_cli->user_name);
 	}
 
-	password[0] = 0;
+	/* some of the DsXXX commands use the netlogon pipe */
 
-	/* modification to support PASSWD environmental var
-	   25.Aug.97, jdblair@uab.edu */
-	if (getenv("PASSWD"))
-	{
-		pstrcpy(password,getenv("PASSWD"));
-	}
-
-	if (*smb_cli->user_name == 0 && getenv("LOGNAME"))
-	{
-		pstrcpy(smb_cli->user_name,getenv("LOGNAME"));
-		strupper(smb_cli->user_name);
-	}
-
-	if (argc < 2)
-	{
-		usage(argv[0]);
-		exit(1);
-	}
-
-	if (*argv[1] != '-')
-	{
-
-		pstrcpy(cli_info.service, argv[1]);  
-		/* Convert any '/' characters in the service name to '\' characters */
-		string_replace( cli_info.service, '/','\\');
-		argc--;
-		argv++;
-
-		fprintf(out_hnd, "service: %s\n", cli_info.service);
-
-		if (count_chars(cli_info.service,'\\') < 3)
-		{
-			usage(argv[0]);
-			printf("\n%s: Not enough '\\' characters in service\n", cli_info.service);
-			exit(1);
+	if (lp_client_schannel() && (cmd_entry->pipe_idx == PI_NETLOGON) && !(cli->pipe_auth_flags & AUTH_PIPE_NETSEC)) {
+		uint32 neg_flags = NETLOGON_NEG_AUTH2_FLAGS;
+		uint32 sec_channel_type;
+	
+		if (!secrets_fetch_trust_account_password(lp_workgroup(),
+							  trust_password,
+							  NULL, &sec_channel_type)) {
+			return NT_STATUS_UNSUCCESSFUL;
 		}
-
-		/*
-		if (count_chars(cli_info.service,'\\') > 3)
-		{
-			usage(pname);
-			printf("\n%s: Too many '\\' characters in service\n", cli_info.service);
-			exit(1);
+		
+		ntresult = cli_nt_setup_creds(cli, sec_channel_type, 
+					      trust_password,
+					      &neg_flags, 2);
+		if (!NT_STATUS_IS_OK(ntresult)) {
+			ZERO_STRUCT(cli->auth_info.sess_key);
+			printf("nt_setup_creds failed with %s\n", nt_errstr(ntresult));
+			return ntresult;
 		}
-		*/
-
-		if (argc > 1 && (*argv[1] != '-'))
-		{
-			got_pass = True;
-			pstrcpy(password,argv[1]);  
-			memset(argv[1],'X',strlen(argv[1]));
-			argc--;
-			argv++;
-		}
-
-		cli_action = CLIENT_SVC;
+		
 	}
 
-	while ((opt = getopt(argc, argv,"s:O:M:S:i:N:n:d:l:hI:EB:U:L:t:m:W:T:D:c:")) != EOF)
-	{
-		switch (opt)
-		{
-			case 'm':
-			{
-				/* FIXME ... max_protocol seems to be funny here */
+     /* Run command */
 
-				int max_protocol = 0;
-				max_protocol = interpret_protocol(optarg,max_protocol);
-				fprintf(stderr, "max protocol not currently supported\n");
-				break;
-			}
+	pipe_idx = cmd_entry->pipe_idx;
+     if ( cmd_entry->returntype == RPC_RTYPE_NTSTATUS ) {
+          ntresult = cmd_entry->ntfn(cli, mem_ctx, argc, (const char **) argv);
+          if (!NT_STATUS_IS_OK(ntresult)) {
+              printf("result was %s\n", nt_errstr(ntresult));
+          }
+     } else {
+          wresult = cmd_entry->wfn( cli, mem_ctx, argc, (const char **) argv);
+          /* print out the DOS error */
+          if (!W_ERROR_IS_OK(wresult)) {
+                  printf( "result was %s\n", dos_errstr(wresult));
+          }
+          ntresult = W_ERROR_IS_OK(wresult)?NT_STATUS_OK:NT_STATUS_UNSUCCESSFUL;
+     }
+            
 
-			case 'O':
-			{
-				pstrcpy(user_socket_options,optarg);
-				break;	
-			}
+	/* Cleanup */
 
-			case 'S':
-			{
-				pstrcpy(cli_info.dest_host,optarg);
-				strupper(cli_info.dest_host);
-				cli_action = CLIENT_IPC;
-				break;
-			}
+	talloc_destroy(mem_ctx);
 
-			case 'i':
-			{
-				extern pstring global_scope;
-				pstrcpy(global_scope, optarg);
-				strupper(global_scope);
-				break;
-			}
+	return ntresult;
+}
 
-			case 'U':
-			{
-				char *lp;
-				pstrcpy(smb_cli->user_name,optarg);
-				if ((lp=strchr(smb_cli->user_name,'%')))
-				{
-					*lp = 0;
-					pstrcpy(password,lp+1);
-					got_pass = True;
-					memset(strchr(optarg,'%')+1,'X',strlen(password));
+
+/**
+ * Process a command entered at the prompt or as part of -c
+ *
+ * @returns The NTSTATUS from running the command.
+ **/
+static NTSTATUS process_cmd(struct cli_state *cli, char *cmd)
+{
+	struct cmd_list *temp_list;
+	NTSTATUS result = NT_STATUS_OK;
+	int ret;
+	int argc;
+	char **argv = NULL;
+
+	if ((ret = poptParseArgvString(cmd, &argc, (const char ***) &argv)) != 0) {
+		fprintf(stderr, "rpcclient: %s\n", poptStrerror(ret));
+		return NT_STATUS_UNSUCCESSFUL;
+	}
+
+
+	/* Walk through a dlist of arrays of commands. */
+	for (temp_list = cmd_list; temp_list; temp_list = temp_list->next) {
+		struct cmd_set *temp_set = temp_list->cmd_set;
+
+		while (temp_set->name) {
+			if (strequal(argv[0], temp_set->name)) {
+				if (!(temp_set->returntype == RPC_RTYPE_NTSTATUS && temp_set->ntfn ) &&
+                         !(temp_set->returntype == RPC_RTYPE_WERROR && temp_set->wfn )) {
+					fprintf (stderr, "Invalid command\n");
+					goto out_free;
 				}
-				break;
-			}
 
-			case 'W':
-			{
-				pstrcpy(smb_cli->domain,optarg);
-				break;
-			}
+				result = do_cmd(cli, temp_set, argc, argv);
 
-			case 'E':
-			{
-				dbf = stderr;
-				break;
+				goto out_free;
 			}
+			temp_set++;
+		}
+	}
 
-			case 'I':
-			{
-				cli_info.dest_ip = *interpret_addr2(optarg);
-				if (zero_ip(cli_info.dest_ip))
-				{
-					exit(1);
-				}
-				break;
-			}
+	if (argv[0]) {
+		printf("command not found: %s\n", argv[0]);
+	}
 
-			case 'n':
-			{
-				fstrcpy(global_myname, optarg);
-				break;
-			}
+out_free:
+/* moved to do_cmd()
+	if (!NT_STATUS_IS_OK(result)) {
+		printf("result was %s\n", nt_errstr(result));
+	}
+*/
 
-			case 'N':
-			{
-				got_pass = True;
-				break;
-			}
+	if (argv) {
+		/* NOTE: popt allocates the whole argv, including the
+		 * strings, as a single block.  So a single free is
+		 * enough to release it -- we don't free the
+		 * individual strings.  rtfm. */
+		free(argv);
+	}
+	
+	return result;
+}
 
-			case 'd':
-			{
-				if (*optarg == 'A')
-					DEBUGLEVEL = 10000;
-				else
-					DEBUGLEVEL = atoi(optarg);
-				break;
-			}
 
-			case 'l':
-			{
-				slprintf(debugf, sizeof(debugf)-1,
-				         "%s.client", optarg);
-				interactive = False;
-				break;
-			}
+/* Main function */
 
-			case 'c':
-			{
-				cmd_str = optarg;
-				got_pass = True;
-				break;
-			}
+ int main(int argc, char *argv[])
+{
+	BOOL 			interactive = True;
+	int 			opt;
+	static char		*cmdstr = NULL;
+	const char *server;
+	struct cli_state	*cli;
+	static char 		*opt_ipaddr=NULL;
+	struct cmd_set 		**cmd_set;
+	struct in_addr 		server_ip;
+	NTSTATUS 		nt_status;
+	static int		opt_port = 0;
 
-			case 'h':
-			{
-				usage(argv[0]);
-				exit(0);
-				break;
-			}
+	/* make sure the vars that get altered (4th field) are in
+	   a fixed location or certain compilers complain */
+	poptContext pc;
+	struct poptOption long_options[] = {
+		POPT_AUTOHELP
+		{"command",	'c', POPT_ARG_STRING,	&cmdstr, 'c', "Execute semicolon separated cmds", "COMMANDS"},
+		{"dest-ip", 'I', POPT_ARG_STRING,   &opt_ipaddr, 'I', "Specify destination IP address", "IP"},
+		{"port", 'p', POPT_ARG_INT,   &opt_port, 'p', "Specify port number", "PORT"},
+		POPT_COMMON_SAMBA
+		POPT_COMMON_CONNECTION
+		POPT_COMMON_CREDENTIALS
+		POPT_TABLEEND
+	};
 
-			case 's':
-			{
-				pstrcpy(servicesf, optarg);
-				break;
-			}
+	ZERO_STRUCT(server_ip);
 
-			case 't':
-			{
-				pstrcpy(term_code, optarg);
-				break;
-			}
+	setlinebuf(stdout);
 
-			default:
-			{
-				usage(argv[0]);
-				exit(1);
-				break;
+	/* the following functions are part of the Samba debugging
+	   facilities.  See lib/debug.c */
+	setup_logging("rpcclient", interactive);
+	if (!interactive) 
+		reopen_logs();
+	
+	/* Load smb.conf file */
+
+	if (!lp_load(dyn_CONFIGFILE,True,False,False))
+		fprintf(stderr, "Can't load %s\n", dyn_CONFIGFILE);
+
+	/* Parse options */
+
+	pc = poptGetContext("rpcclient", argc, (const char **) argv,
+			    long_options, 0);
+
+	if (argc == 1) {
+		poptPrintHelp(pc, stderr, 0);
+		return 0;
+	}
+	
+	while((opt = poptGetNextOpt(pc)) != -1) {
+		switch (opt) {
+
+		case 'I':
+		        if ( (server_ip.s_addr=inet_addr(opt_ipaddr)) == INADDR_NONE ) {
+				fprintf(stderr, "%s not a valid IP address\n",
+					opt_ipaddr);
+				return 1;
 			}
 		}
 	}
 
-	setup_logging(debugf, interactive);
+	/* Get server as remaining unparsed argument.  Print usage if more
+	   than one unparsed argument is present. */
 
-	if (cli_action == CLIENT_NONE)
-	{
-		usage(argv[0]);
-		exit(1);
+	server = poptGetArg(pc);
+	
+	if (!server || poptGetArg(pc)) {
+		poptPrintHelp(pc, stderr, 0);
+		return 1;
 	}
 
-	strupper(global_myname);
-	fstrcpy(cli_info.myhostname, global_myname);
-
-	DEBUG(3,("%s client started (version %s)\n",timestring(False),VERSION));
-
-	if (!lp_load(servicesf,True, False, False))
-	{
-		fprintf(stderr, "Can't load %s - run testparm to debug it\n", servicesf);
-	}
-
-	codepage_initialise(lp_client_code_page());
-
-	if (*smb_cli->domain == 0) pstrcpy(smb_cli->domain,lp_workgroup());
+	poptFreeContext(pc);
 
 	load_interfaces();
 
-	if (cli_action == CLIENT_IPC)
-	{
-		pstrcpy(cli_info.share, "IPC$");
-		pstrcpy(cli_info.svc_type, "IPC");
-	}
+	if (!init_names())
+		return 1;
 
-	fstrcpy(cli_info.mach_acct, cli_info.myhostname);
-	strupper(cli_info.mach_acct);
-	fstrcat(cli_info.mach_acct, "$");
+	/*
+	 * Get password
+	 * from stdin if necessary
+	 */
 
-	/* set the password cache info */
-	if (got_pass)
-	{
-		if (password[0] == 0)
-		{
-			pwd_set_nullpwd(&(smb_cli->pwd));
-		}
-		else
-		{
-			pwd_make_lm_nt_16(&(smb_cli->pwd), password); /* generate 16 byte hashes */
+	if (!cmdline_auth_info.got_pass) {
+		char *pass = getpass("Password:");
+		if (pass) {
+			pstrcpy(cmdline_auth_info.password, pass);
 		}
 	}
-	else 
-	{
-		pwd_read(&(smb_cli->pwd), "Enter Password:", True);
+	
+	nt_status = cli_full_connection(&cli, global_myname(), server, 
+					opt_ipaddr ? &server_ip : NULL, opt_port,
+					"IPC$", "IPC",  
+					cmdline_auth_info.username, 
+					lp_workgroup(),
+					cmdline_auth_info.password, 
+					cmdline_auth_info.use_kerberos ? CLI_FULL_CONNECTION_USE_KERBEROS : 0,
+					cmdline_auth_info.signing_state,NULL);
+	
+	if (!NT_STATUS_IS_OK(nt_status)) {
+		DEBUG(0,("Cannot connect to server.  Error was %s\n", nt_errstr(nt_status)));
+		return 1;
 	}
 
-	/* paranoia: destroy the local copy of the password */
-	memset((char *)password, '\0', sizeof(password)); 
+	memset(cmdline_auth_info.password,'X',sizeof(cmdline_auth_info.password));
 
-	/* establish connections.  nothing to stop these being re-established. */
-	rpcclient_connect(&cli_info);
+	/* Load command lists */
 
-	DEBUG(5,("rpcclient_connect: smb_cli->fd:%d\n", smb_cli->fd));
-	if (smb_cli->fd <= 0)
-	{
-		fprintf(stderr, "warning: connection could not be established to %s<%02x>\n",
-		                 cli_info.dest_host, cli_info.name_type);
-		fprintf(stderr, "this version of smbclient may crash if you proceed\n");
-		exit(-1);
+	cmd_set = rpcclient_command_list;
+
+	while(*cmd_set) {
+		add_command_set(*cmd_set);
+		add_command_set(separator_command);
+		cmd_set++;
 	}
 
-	switch (cli_action)
-	{
-		case CLIENT_IPC:
-		{
-			process(&cli_info, cmd_str);
+	fetch_machine_sid(cli);
+ 
+       /* Do anything specified with -c */
+        if (cmdstr && cmdstr[0]) {
+                char    *cmd;
+                char    *p = cmdstr;
+		int result = 0;
+ 
+                while((cmd=next_command(&p)) != NULL) {
+                        NTSTATUS cmd_result = process_cmd(cli, cmd);
+			result = NT_STATUS_IS_ERR(cmd_result);
+                }
+		
+		cli_shutdown(cli);
+                return result;
+        }
+
+	/* Loop around accepting commands */
+
+	while(1) {
+		pstring prompt;
+		char *line;
+
+		slprintf(prompt, sizeof(prompt) - 1, "rpcclient $> ");
+
+		line = smb_readline(prompt, NULL, completion_fn);
+
+		if (line == NULL)
 			break;
-		}
 
-		default:
-		{
-			fprintf(stderr, "unknown client action requested\n");
-			break;
-		}
+		if (line[0] != '\n')
+			process_cmd(cli, line);
 	}
-
-	rpcclient_stop();
-
-	return(0);
+	
+	cli_shutdown(cli);
+	return 0;
 }

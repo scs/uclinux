@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 2.0
+   Unix SMB/CIFS implementation.
    SMB wrapper functions - shared variables
    Copyright (C) Andrew Tridgell 1998
    
@@ -21,8 +20,6 @@
 
 #include "includes.h"
 
-extern int DEBUGLEVEL;
-
 static int shared_fd;
 static char *variables;
 static int shared_size;
@@ -33,15 +30,14 @@ setup the shared area
 void smbw_setup_shared(void)
 {
 	int fd;
-	pstring s, name;
+	pstring name, s;
 
-	slprintf(s,sizeof(s)-1, "%s/smbw.XXXXXX",tmpdir());
+	slprintf(name,sizeof(name)-1, "%s/smbw.XXXXXX",tmpdir());
 
-	fstrcpy(name,(char *)smbd_mktemp(s));
+	fd = smb_mkstemp(name);
 
-	/* note zero permissions! don't change this */
-	fd = sys_open(name,O_RDWR|O_CREAT|O_TRUNC|O_EXCL,0); 
 	if (fd == -1) goto failed;
+
 	unlink(name);
 
 	shared_fd = set_maxfiles(SMBW_MAX_OPEN);
@@ -56,7 +52,7 @@ void smbw_setup_shared(void)
 
 	slprintf(s,sizeof(s)-1,"%d", shared_fd);
 
-	smbw_setenv("SMBW_HANDLE", s);
+	setenv("SMBW_HANDLE", s, 1);
 
 	return;
 
@@ -107,6 +103,7 @@ char *smbw_getshared(const char *name)
 {
 	int i;
 	struct stat st;
+	char *var;
 
 	lockit();
 
@@ -114,8 +111,9 @@ char *smbw_getshared(const char *name)
 	if (fstat(shared_fd, &st)) goto failed;
 
 	if (st.st_size != shared_size) {
-		variables = (char *)Realloc(variables, st.st_size);
-		if (!variables) goto failed;
+		var = (char *)Realloc(variables, st.st_size);
+		if (!var) goto failed;
+		else variables = var;
 		shared_size = st.st_size;
 		lseek(shared_fd, 0, SEEK_SET);
 		if (read(shared_fd, variables, shared_size) != shared_size) {
@@ -159,6 +157,7 @@ set a variable in the shared area
 void smbw_setshared(const char *name, const char *val)
 {
 	int l1, l2;
+	char *var;
 
 	/* we don't allow variable overwrite */
 	if (smbw_getshared(name)) return;
@@ -168,18 +167,20 @@ void smbw_setshared(const char *name, const char *val)
 	l1 = strlen(name)+1;
 	l2 = strlen(val)+1;
 
-	variables = (char *)Realloc(variables, shared_size + l1+l2+4);
+	var = (char *)Realloc(variables, shared_size + l1+l2+4);
 
-	if (!variables) {
+	if (!var) {
 		DEBUG(0,("out of memory in smbw_setshared\n"));
 		exit(1);
 	}
+	
+	variables = var;
 
 	SSVAL(&variables[shared_size], 0, l1);
 	SSVAL(&variables[shared_size], 2, l2);
 
-	pstrcpy(&variables[shared_size] + 4, name);
-	pstrcpy(&variables[shared_size] + 4 + l1, val);
+	safe_strcpy(&variables[shared_size] + 4, name, l1-1);
+	safe_strcpy(&variables[shared_size] + 4 + l1, val, l2-1);
 
 	shared_size += l1+l2+4;
 
@@ -192,24 +193,6 @@ void smbw_setshared(const char *name, const char *val)
 	unlockit();
 }
 
-
-/*****************************************************************
-set an env variable - some systems don't have this
-*****************************************************************/  
-int smbw_setenv(const char *name, const char *value)
-{
-	pstring s;
-	char *p;
-	int ret = -1;
-
-	slprintf(s,sizeof(s)-1,"%s=%s", name, value);
-
-	p = strdup(s);
-
-	if (p) ret = putenv(p);
-
-	return ret;
-}
 
 /*****************************************************************
 return true if the passed fd is the SMBW_HANDLE

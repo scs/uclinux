@@ -14,7 +14,7 @@
 /*#include "config.h"*/
 
 #define	PATHLEN		256	
-#define	CMDLEN		256 /* 512 */
+#define	CMDLEN		1024
 #define	MAXARGS		50	
 #define	ALIASALLOC	20
 #define	STDIN		0

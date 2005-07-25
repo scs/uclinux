@@ -14,6 +14,7 @@
 #include <time.h>
 #include <utime.h>
 #include <fcntl.h>
+#include <fnmatch.h>
 
 #ifdef L_intflag
 
@@ -443,70 +444,8 @@ match(text, pattern)
 	char	*text;
 	char	*pattern;
 {
-	char	*retrypat;
-	char	*retrytxt;
-	int	ch;
-	BOOL	found;
-
-	retrypat = NULL;
-	retrytxt = NULL;
-
-	while (*text || *pattern) {
-		ch = *pattern++;
-
-		switch (ch) {
-			case '*':  
-				retrypat = pattern;
-				retrytxt = text;
-				break;
-
-			case '[':  
-				found = FALSE;
-				while ((ch = *pattern++) != ']') {
-					if (ch == '\\')
-						ch = *pattern++;
-					if (ch == '\0')
-						return FALSE;
-					if (*text == ch)
-						found = TRUE;
-				}
-				if (!found) {
-					pattern = retrypat;
-					text = ++retrytxt;
-				}
-				/* fall into next case */
-
-			case '?':  
-				if (*text++ == '\0')
-					return FALSE;
-				break;
-
-			case '\\':  
-				ch = *pattern++;
-				if (ch == '\0')
-					return FALSE;
-				/* fall into next case */
-
-			default:        
-				if (*text == ch) {
-					if (*text)
-						text++;
-					break;
-				}
-				if (*text) {
-					pattern = retrypat;
-					text = ++retrytxt;
-					break;
-				}
-				return FALSE;
-		}
-
-		if (pattern == NULL)
-			return FALSE;
-	}
-	return TRUE;
+	return fnmatch(pattern, text, 0) == 0;
 }
-
 #endif
 
 #ifdef L_makeargs
@@ -517,6 +456,9 @@ match(text, pattern)
  * are overwritten on each call.  The argument array is ended with an
  * extra NULL pointer for convenience.  Returns TRUE if successful,
  * or FALSE on an error with a message already output.
+ *
+ * Note that leading quotes are *not* removed at this point, but
+ * trailing quotes are.
  */
 BOOL
 makeargs(cmd, argcptr, argvptr)
@@ -528,6 +470,7 @@ makeargs(cmd, argcptr, argvptr)
 	int		argc;
 	static char	strings[CMDLEN+1];
 	static char	*argtable[MAXARGS+1];
+	static char	quoted[MAXARGS+1];
 
 	/*
 	 * Copy the command string and then break it apart
@@ -543,6 +486,7 @@ makeargs(cmd, argcptr, argvptr)
 			return FALSE;
 		}
 
+		quoted[argc] = 0;
 		argtable[argc++] = cp;
 
 		while (*cp && !isblank(*cp)) {
@@ -553,10 +497,10 @@ makeargs(cmd, argcptr, argvptr)
 					cp++;
 
 				if (*cp == *sp) {
-					/* need bcopy for the overlapping regions */
-					bcopy(sp + 1, sp, (cp - sp) - 1);
-					bcopy(cp + 1, cp - 1, strlen(cp + 1) + 1);
-					cp--;
+					/* Chop off the trailing quote, but leave the leading quote
+					 * so that later processing will know the argument is quoted
+					 */
+					*cp++ = 0;
 				}
 			} else
 				cp++;
@@ -680,6 +624,8 @@ freechunks()
  * next character.
  * Returns NULL if there is an error, otherwise returns a pointer
  * to a static buffer containing the expand command line.
+ *
+ * Makes a lame attempt to not expand inside single quotes.
  */
 char *
 expandenvvar(cmd)
@@ -692,6 +638,7 @@ expandenvvar(cmd)
 	char* varp;
 	char* value;
 	int valuelength;
+	int quoted = 0;
 
 	if (cmd == NULL) {
 		return NULL;
@@ -703,44 +650,47 @@ expandenvvar(cmd)
 	}
 
 	while (*cmd) {
+		int copy = 1;
+
 		switch (*cmd) {
-		case '\\':
-			if (freelength < 1) {
-				fprintf(stderr, "Variable expansion too long\n");
-				return NULL;
-			}
-			cmd++;
-			*newp++ = *cmd++;
-			freelength--;
-			break;
-
 		case '$':
-			cmd++;
-			varp = varname;
-			while (isalnum(*cmd) || (*cmd == '_') || (*cmd == '?')) {
-				*varp++ = *cmd++;
-			}
-			*varp = '\0';
-			if ((*varname) && (value = getenv(varname))) {
-				valuelength = strlen(value);
-				if (valuelength > freelength) {
-					fprintf(stderr, "Variable expansion too long\n");
-					return NULL;
+			if (!quoted) {
+				copy = 0;
+				cmd++;
+				varp = varname;
+				while (isalnum(*cmd) || (*cmd == '_') || (*cmd == '?')) {
+					*varp++ = *cmd++;
 				}
-				strncpy(newp, value, valuelength);
-				newp += valuelength;
-				freelength -= valuelength;
+				*varp = '\0';
+				if ((*varname) && (value = getenv(varname))) {
+					valuelength = strlen(value);
+					if (valuelength > freelength) {
+						fprintf(stderr, "Variable expansion too long\n");
+						return NULL;
+					}
+					strncpy(newp, value, valuelength);
+					newp += valuelength;
+					freelength -= valuelength;
+				}
 			}
 			break;
 
-		default:
+		case '\'':
+			quoted = !quoted;
+			break;
+
+		case '\\':
+			cmd++;
+			break;
+		}
+
+		if (copy) {
 			if (freelength < 1) {
 				fprintf(stderr, "Variable expansion too long\n");
 				return NULL;
 			}
 			*newp++ = *cmd++;
 			freelength--;
-			break;
 		}
 	}
 

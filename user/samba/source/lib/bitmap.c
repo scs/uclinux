@@ -1,6 +1,5 @@
 /*
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    simple bitmap functions
    Copyright (C) Andrew Tridgell 1992-1998
 
@@ -21,11 +20,8 @@
 
 #include "includes.h"
 
-extern int DEBUGLEVEL;
-
 /* these functions provide a simple way to allocate integers from a
-   pool without repitition */
-
+   pool without repetition */
 
 /****************************************************************************
 allocate a bitmap of the specified size
@@ -34,20 +30,71 @@ struct bitmap *bitmap_allocate(int n)
 {
 	struct bitmap *bm;
 
-	bm = (struct bitmap *)malloc(sizeof(*bm));
+	bm = SMB_MALLOC_P(struct bitmap);
 
 	if (!bm) return NULL;
 	
 	bm->n = n;
-	bm->b = (uint32 *)malloc(sizeof(bm->b[0])*(n+31)/32);
+	bm->b = SMB_MALLOC_ARRAY(uint32, (n+31)/32);
 	if (!bm->b) {
-		free(bm);
+		SAFE_FREE(bm);
 		return NULL;
 	}
 
-	memset(bm->b, 0, sizeof(bm->b[0])*(n+31)/32);
+	memset(bm->b, 0, sizeof(uint32)*((n+31)/32));
 
 	return bm;
+}
+
+/****************************************************************************
+free a bitmap.
+****************************************************************************/
+
+void bitmap_free(struct bitmap *bm)
+{
+	if (!bm)
+		return;
+
+	SAFE_FREE(bm->b);
+	SAFE_FREE(bm);
+}
+
+/****************************************************************************
+talloc a bitmap
+****************************************************************************/
+struct bitmap *bitmap_talloc(TALLOC_CTX *mem_ctx, int n)
+{
+	struct bitmap *bm;
+
+	if (!mem_ctx) return NULL;
+
+	bm = TALLOC_P(mem_ctx, struct bitmap);
+
+	if (!bm) return NULL;
+	
+	bm->n = n;
+	bm->b = TALLOC_ARRAY(mem_ctx, uint32, (n+31)/32);
+	if (!bm->b) {
+		return NULL;
+	}
+
+	memset(bm->b, 0, sizeof(uint32)*((n+31)/32));
+
+	return bm;
+}
+
+/****************************************************************************
+copy as much of the source bitmap as will fit in the destination bitmap.
+****************************************************************************/
+
+int bitmap_copy(struct bitmap * const dst, const struct bitmap * const src)
+{
+        int count = MIN(dst->n, src->n);
+
+        SMB_ASSERT(dst->b != src->b);
+	memcpy(dst->b, src->b, sizeof(uint32)*((count+31)/32));
+
+        return count;
 }
 
 /****************************************************************************
@@ -96,7 +143,7 @@ wraparound
 ****************************************************************************/
 int bitmap_find(struct bitmap *bm, unsigned ofs)
 {
-	int i, j;
+	unsigned int i, j;
 
 	if (ofs > bm->n) ofs = 0;
 

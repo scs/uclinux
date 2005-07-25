@@ -1,6 +1,7 @@
+/* this code is broken - there is a race condition with the unlink (tridge) */
+
 /* 
-   Unix SMB/Netbios implementation.
-   Version 1.9.
+   Unix SMB/CIFS implementation.
    pidfile handling
    Copyright (C) Andrew Tridgell 1998
    
@@ -21,25 +22,22 @@
 
 #include "includes.h"
 
-
-extern int DEBUGLEVEL;
-
 #ifndef O_NONBLOCK
 #define O_NONBLOCK
 #endif
 
 /* return the pid in a pidfile. return 0 if the process (or pidfile)
    does not exist */
-pid_t pidfile_pid(char *name)
+pid_t pidfile_pid(const char *name)
 {
 	int fd;
 	char pidstr[20];
 	unsigned ret;
 	pstring pidFile;
 
-	slprintf(pidFile, sizeof(pidFile)-1, "%s/%s.pid", lp_lockdir(), name);
+	slprintf(pidFile, sizeof(pidFile)-1, "%s/%s.pid", lp_piddir(), name);
 
-	fd = sys_open(pidFile, O_NONBLOCK | O_RDWR, 0644);
+	fd = sys_open(pidFile, O_NONBLOCK | O_RDONLY, 0644);
 	if (fd == -1) {
 		return 0;
 	}
@@ -47,38 +45,45 @@ pid_t pidfile_pid(char *name)
 	ZERO_ARRAY(pidstr);
 
 	if (read(fd, pidstr, sizeof(pidstr)-1) <= 0) {
-		goto ok;
+		goto noproc;
 	}
 
 	ret = atoi(pidstr);
+
+	if (ret == 0) {
+		/* Obviously we had some garbage in the pidfile... */
+		DEBUG(1, ("Could not parse contents of pidfile %s\n",
+			  pidFile));
+		goto noproc;
+	}
 	
 	if (!process_exists((pid_t)ret)) {
-		goto ok;
+		goto noproc;
 	}
 
-	if (fcntl_lock(fd,SMB_F_SETLK,0,1,F_WRLCK)) {
+	if (fcntl_lock(fd,SMB_F_SETLK,0,1,F_RDLCK)) {
 		/* we could get the lock - it can't be a Samba process */
-		goto ok;
+		goto noproc;
 	}
 
 	close(fd);
 	return (pid_t)ret;
 
- ok:
+ noproc:
 	close(fd);
 	unlink(pidFile);
 	return 0;
 }
 
-/* create a pid file in the lock directory. open it and leave it locked */
-void pidfile_create(char *name)
+/* create a pid file in the pid directory. open it and leave it locked */
+void pidfile_create(const char *name)
 {
 	int     fd;
 	char    buf[20];
 	pstring pidFile;
 	pid_t pid;
 
-	slprintf(pidFile, sizeof(pidFile)-1, "%s/%s.pid", lp_lockdir(), name);
+	slprintf(pidFile, sizeof(pidFile)-1, "%s/%s.pid", lp_piddir(), name);
 
 	pid = pidfile_pid(name);
 	if (pid != 0) {
@@ -101,8 +106,8 @@ void pidfile_create(char *name)
 	}
 
 	memset(buf, 0, sizeof(buf));
-	slprintf(buf, sizeof(buf) - 1, "%u\n", (unsigned int) getpid());
-	if (write(fd, buf, sizeof(buf)) != sizeof(buf)) {
+	slprintf(buf, sizeof(buf) - 1, "%u\n", (unsigned int) sys_getpid());
+	if (write(fd, buf, strlen(buf)) != (ssize_t)strlen(buf)) {
 		DEBUG(0,("ERROR: can't write to file %s: %s\n", 
 			 pidFile, strerror(errno)));
 		exit(1);

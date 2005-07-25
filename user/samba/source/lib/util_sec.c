@@ -1,6 +1,5 @@
 /*
-   Unix SMB/Netbios implementation.
-   Version 2.0
+   Unix SMB/CIFS implementation.
    Copyright (C) Jeremy Allison 1998.
    rewritten for version 2.0.6 by Tridge
 
@@ -21,7 +20,6 @@
 
 #ifndef AUTOCONF_TEST
 #include "includes.h"
-extern int DEBUGLEVEL;
 #else
 /* we are running this code in autoconf test mode to see which type of setuid
    function works */
@@ -42,7 +40,47 @@ extern int DEBUGLEVEL;
 
 #define DEBUG(x, y) printf y
 #define smb_panic(x) exit(1)
+#define BOOL int
 #endif
+
+/* are we running as non-root? This is used by the regresison test code,
+   and potentially also for sites that want non-root smbd */
+static uid_t initial_uid;
+static gid_t initial_gid;
+
+/****************************************************************************
+remember what uid we got started as - this allows us to run correctly
+as non-root while catching trapdoor systems
+****************************************************************************/
+void sec_init(void)
+{
+	initial_uid = geteuid();
+	initial_gid = getegid();
+}
+
+/****************************************************************************
+some code (eg. winbindd) needs to know what uid we started as
+****************************************************************************/
+uid_t sec_initial_uid(void)
+{
+	return initial_uid;
+}
+
+/****************************************************************************
+some code (eg. winbindd, profiling shm) needs to know what gid we started as
+****************************************************************************/
+gid_t sec_initial_gid(void)
+{
+	return initial_gid;
+}
+
+/****************************************************************************
+are we running in non-root mode?
+****************************************************************************/
+BOOL non_root_mode(void)
+{
+	return (initial_uid != (uid_t)0);
+}
 
 /****************************************************************************
 abort if we haven't set the uid correctly
@@ -51,11 +89,13 @@ static void assert_uid(uid_t ruid, uid_t euid)
 {
 	if ((euid != (uid_t)-1 && geteuid() != euid) ||
 	    (ruid != (uid_t)-1 && getuid() != ruid)) {
-		DEBUG(0,("Failed to set uid privileges to (%d,%d) now set to (%d,%d)\n",
-			 (int)ruid, (int)euid,
-			 (int)getuid(), (int)geteuid()));
-		smb_panic("failed to set uid\n");
-		exit(1);
+		if (!non_root_mode()) {
+			DEBUG(0,("Failed to set uid privileges to (%d,%d) now set to (%d,%d)\n",
+				 (int)ruid, (int)euid,
+				 (int)getuid(), (int)geteuid()));
+			smb_panic("failed to set uid\n");
+			exit(1);
+		}
 	}
 }
 
@@ -66,12 +106,14 @@ static void assert_gid(gid_t rgid, gid_t egid)
 {
 	if ((egid != (gid_t)-1 && getegid() != egid) ||
 	    (rgid != (gid_t)-1 && getgid() != rgid)) {
-		DEBUG(0,("Failed to set gid privileges to (%d,%d) now set to (%d,%d) uid=(%d,%d)\n",
-			 (int)rgid, (int)egid,
-			 (int)getgid(), (int)getegid(),
-			 (int)getuid(), (int)geteuid()));
-		smb_panic("failed to set gid\n");
-		exit(1);
+		if (!non_root_mode()) {
+			DEBUG(0,("Failed to set gid privileges to (%d,%d) now set to (%d,%d) uid=(%d,%d)\n",
+				 (int)rgid, (int)egid,
+				 (int)getgid(), (int)getegid(),
+				 (int)getuid(), (int)geteuid()));
+			smb_panic("failed to set gid\n");
+			exit(1);
+		}
 	}
 }
 
@@ -135,13 +177,22 @@ void gain_root_group_privilege(void)
 
 
 /****************************************************************************
- Set *only* the effective uid.
- we want to end up with ruid==0 and euid==uid
+ Set effective uid, and possibly the real uid too.
+ We want to end up with either:
+  
+   ruid==uid and euid==uid
+
+ or
+
+   ruid==0 and euid==uid
+
+ depending on what the local OS will allow us to regain root from.
 ****************************************************************************/
 void set_effective_uid(uid_t uid)
 {
 #if USE_SETRESUID
-	setresuid(-1,uid,-1);
+        /* Set the effective as well as the real uid. */
+	setresuid(uid,uid,-1);
 #endif
 
 #if USE_SETREUID
@@ -185,6 +236,7 @@ void set_effective_gid(gid_t gid)
 }
 
 static uid_t saved_euid, saved_ruid;
+static gid_t saved_egid, saved_rgid;
 
 /****************************************************************************
  save the real and effective uid for later restoration. Used by the quotas
@@ -221,6 +273,41 @@ void restore_re_uid(void)
 
 	assert_uid(saved_ruid, saved_euid);
 }
+
+
+/****************************************************************************
+ save the real and effective gid for later restoration. Used by the 
+ getgroups code
+****************************************************************************/
+void save_re_gid(void)
+{
+	saved_rgid = getgid();
+	saved_egid = getegid();
+}
+
+/****************************************************************************
+ and restore them!
+****************************************************************************/
+void restore_re_gid(void)
+{
+#if USE_SETRESUID
+	setresgid(saved_rgid, saved_egid, -1);
+#elif USE_SETREUID
+	setregid(saved_rgid, -1);
+	setregid(-1,saved_egid);
+#elif USE_SETUIDX
+	setgidx(ID_REAL, saved_rgid);
+	setgidx(ID_EFFECTIVE, saved_egid);
+#else
+	set_effective_gid(saved_egid);
+	if (getgid() != saved_rgid)
+		setgid(saved_rgid);
+	set_effective_gid(saved_egid);
+#endif
+
+	assert_gid(saved_rgid, saved_egid);
+}
+
 
 /****************************************************************************
  set the real AND effective uid to the current effective uid in a way that
@@ -305,6 +392,7 @@ void become_user_permanently(uid_t uid, gid_t gid)
 	assert_gid(gid, gid);
 }
 
+#ifdef AUTOCONF_TEST
 
 /****************************************************************************
 this function just checks that we don't get ENOSYS back
@@ -334,7 +422,6 @@ static int have_syscall(void)
 	return 0;
 }
 
-#ifdef AUTOCONF_TEST
 main()
 {
         if (getuid() != 0) {
@@ -370,3 +457,11 @@ main()
 	exit(0);
 }
 #endif
+
+/****************************************************************************
+Check if we are setuid root.  Used in libsmb and smbpasswd paranoia checks.
+****************************************************************************/
+BOOL is_setuid_root(void) 
+{
+	return (geteuid() == (uid_t)0) && (getuid() != (uid_t)0);
+}

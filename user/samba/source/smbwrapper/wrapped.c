@@ -1,6 +1,5 @@
 /* 
-   Unix SMB/Netbios implementation.
-   Version 2.0
+   Unix SMB/CIFS implementation.
    SMB wrapper functions
    Copyright (C) Andrew Tridgell 1998
    
@@ -92,7 +91,7 @@
 }
 #endif
 
-#ifdef HAVE_PREAD64
+#if defined(HAVE_PREAD64) && defined(HAVE_EXPLICIT_LARGEFILE_SUPPORT)
  ssize_t pread64(int fd, void *buf, size_t size, off64_t ofs)
 {
 	if (smbw_fd(fd)) {
@@ -114,7 +113,7 @@
 }
 #endif
 
-#ifdef HAVE_PWRITE64
+#if defined(HAVE_PWRITE64) && defined(HAVE_EXPLICIT_LARGEFILE_SUPPORT)
  ssize_t pwrite64(int fd, void *buf, size_t size, off64_t ofs)
 {
 	if (smbw_fd(fd)) {
@@ -462,7 +461,7 @@
 #endif
 
 #ifdef HAVE_UTIMES
- int utimes(char *name,void *tvp)
+ int utimes(const char *name, const struct timeval *tvp)
 {
 	if (smbw_path(name)) {
 		return smbw_utimes(name, tvp);

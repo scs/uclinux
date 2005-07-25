@@ -29,6 +29,39 @@
  * -------------------------------------------------------------------------- **
  *
  * Log: ubi_BinTree.h,v
+ * Revision 4.12  2004/06/06 04:51:56  crh
+ * Fixed a small typo in ubi_BinTree.c (leftover testing cruft).
+ * Did a small amount of formatting touchup to ubi_BinTree.h.
+ *
+ * Revision 4.11  2004/06/06 03:14:09  crh
+ * Rewrote the ubi_btLeafNode() function.  It now takes several paths in an
+ * effort to find a deeper leaf node.  There is a small amount of extra
+ * overhead, but it is limited.
+ *
+ * Revision 4.10  2000/06/06 20:38:40  crh
+ * In the ReplaceNode() function, the old node header was being copied
+ * to the new node header using a byte-by-byte copy.  This was causing
+ * the 'insure' software testing program to report a memory leak.  The
+ * fix was to do a simple assignement: *newnode = *oldnode;
+ * This quieted the (errant) memory leak reports and is probably a bit
+ * faster than the bytewise copy.
+ *
+ * Revision 4.9  2000/01/08 23:24:30  crh
+ * Clarified a variety of if( pointer ) lines, replacing them with
+ * if( NULL != pointer ).  This is more correct, and I have heard
+ * of at least one (obscure?) system out there that uses a non-zero
+ * value for NULL.
+ * Also, speed improvement in Neighbor().  It was comparing pointers
+ * when it could have compared two gender values.  The pointer
+ * comparison was somewhat indirect (does pointer equal the pointer
+ * of the parent of the node pointed to by pointer).  Urq.
+ *
+ * Revision 4.8  1999/09/22 03:40:30  crh
+ * Modified ubi_btTraverse() and ubi_btKillTree().  They now return an
+ * unsigned long indicating the number of nodes processed.  The change
+ * is subtle.  An empty tree formerly returned False, and now returns
+ * zero.
+ *
  * Revision 4.7  1998/10/21 06:15:07  crh
  * Fixed bugs in FirstOf() and LastOf() reported by Massimo Campostrini.
  * See function comments.
@@ -236,6 +269,7 @@ typedef enum {
  *                   is left as is.
  * -------------------------------------------------------------------------- **
  */
+
 #define ubi_trNormalize(W) ((char)( (W) - ubi_trEQUAL ))
 #define ubi_trAbNormal(W)  ((char)( ((char)ubi_btSgn( (long)(W) )) \
                                          + ubi_trEQUAL ))
@@ -246,6 +280,7 @@ typedef enum {
  * DUPlicate KEY bits of the tree root flags field.
  * -------------------------------------------------------------------------- **
  */
+
 #define ubi_trDups_OK(A) \
         ((ubi_trDUPKEY & ((A)->flags))?(ubi_trTRUE):(ubi_trFALSE))
 #define ubi_trOvwt_OK(A) \
@@ -313,6 +348,7 @@ typedef void *ubi_btItemPtr;          /* A pointer to key data within a node. */
  *
  *  ------------------------------------------------------------------------- **
  */
+
 typedef struct ubi_btNodeStruct {
   struct ubi_btNodeStruct *Link[ 3 ];
   char                     gender;
@@ -670,37 +706,49 @@ ubi_btNodePtr ubi_btLastOf( ubi_btRootPtr RootPtr,
    * ------------------------------------------------------------------------ **
    */
 
-ubi_trBool ubi_btTraverse( ubi_btRootPtr   RootPtr,
-                           ubi_btActionRtn EachNode,
-                           void           *UserData );
+unsigned long ubi_btTraverse( ubi_btRootPtr   RootPtr,
+                              ubi_btActionRtn EachNode,
+                              void           *UserData );
   /* ------------------------------------------------------------------------ **
    * Traverse a tree in sorted order (non-recursively).  At each node, call
    * (*EachNode)(), passing a pointer to the current node, and UserData as the
    * second parameter.
+   *
    *  Input:   RootPtr  -  a pointer to an ubi_btRoot structure that indicates
    *                       the tree to be traversed.
-   *           EachNode -  a pointer to a function to be called at each node
+   *           EachNode -  a pointer to a function to be called at each node  
    *                       as the node is visited.
    *           UserData -  a generic pointer that may point to anything that
    *                       you choose.
-   *  Output:  A boolean value.  FALSE if the tree is empty, otherwise TRUE.
+   *           
+   *  Output:  A count of the number of nodes visited.  This will be zero
+   *           if the tree is empty.
+   *             
    * ------------------------------------------------------------------------ **
    */
 
-ubi_trBool ubi_btKillTree( ubi_btRootPtr     RootPtr,
-                           ubi_btKillNodeRtn FreeNode );
+
+unsigned long ubi_btKillTree( ubi_btRootPtr     RootPtr,
+                              ubi_btKillNodeRtn FreeNode );
   /* ------------------------------------------------------------------------ **
    * Delete an entire tree (non-recursively) and reinitialize the ubi_btRoot
-   * structure.  Note that this function will return FALSE if either parameter
-   * is NULL.
+   * structure.  Return a count of the number of nodes deleted.
    *
    *  Input:   RootPtr  -  a pointer to an ubi_btRoot structure that indicates
    *                       the root of the tree to delete.
    *           FreeNode -  a function that will be called for each node in the
    *                       tree to deallocate the memory used by the node.
    *
-   *  Output:  A boolean value.  FALSE if either input parameter was NULL, else
-   *           TRUE.
+   *  Output:  The number of nodes removed from the tree.
+   *           A value of 0 will be returned if:
+   *           - The tree actually contains 0 entries.
+   *           - the value of <RootPtr> is NULL, in which case the tree is
+   *             assumed to be empty
+   *           - the value of <FreeNode> is NULL, in which case entries
+   *             cannot be removed, so 0 is returned.  *Make sure that you
+   *             provide a valid value for <FreeNode>*.
+   *           In all other cases, you should get a positive value equal to
+   *           the value of RootPtr->count upon entry. 
    *
    * ------------------------------------------------------------------------ **
    */
@@ -711,8 +759,8 @@ ubi_btNodePtr ubi_btLeafNode( ubi_btNodePtr leader );
    *
    *  Input:  leader  - Pointer to a node at which to start the descent.
    *
-   *  Output: A pointer to a leaf node selected in a somewhat arbitrary
-   *          manner.
+   *  Output: A pointer to a leaf node, selected in a somewhat arbitrary
+   *          manner but with an effort to dig deep.
    *
    *  Notes:  I wrote this function because I was using splay trees as a
    *          database cache.  The cache had a maximum size on it, and I
@@ -721,7 +769,7 @@ ubi_btNodePtr ubi_btLeafNode( ubi_btNodePtr leader );
    *          tend toward the bottom of the tree, meaning that leaf nodes
    *          are good candidates for removal.  (I really can't think of
    *          any other reason to use this function.)
-   *        + In a simple binary tree or an AVL tree, the most recently
+   *        + In a simple binary tree, or in an AVL tree, the most recently
    *          added nodes tend to be nearer the bottom, making this a *bad*
    *          way to choose which node to remove from the cache.
    *        + Randomizing the traversal order is probably a good idea.  You
@@ -729,6 +777,17 @@ ubi_btNodePtr ubi_btLeafNode( ubi_btNodePtr leader );
    *          in pointers to nodes other than the root node each time.  A
    *          pointer to any node in the tree will do.  Of course, if you
    *          pass a pointer to a leaf node you'll get the same thing back.
+   *        + In an unbalanced splay tree, if you simply traverse downward
+   *          until you hit a leaf node it is possible to accidentally
+   *          stumble onto a short path.  The result will be a leaf node
+   *          that is actually very high in the tree--possibly a very
+   *          recently accessed node.  Not good.  This function can follow
+   *          multiple paths in an effort to find a leaf node deeper
+   *          in the tree.  Following a single path, of course, is the
+   *          fastest way to find a leaf node.  A complete traversal would
+   *          be sure to find the deepest leaf but would be very costly in
+   *          terms of time.  This function uses a compromise that has
+   *          worked well in testing.
    *
    * ------------------------------------------------------------------------ **
    */
