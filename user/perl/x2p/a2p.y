@@ -7,11 +7,8 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log$
- * Revision 1.1  2004/07/19 13:32:19  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:30:21  nidhi
- * Importing
+ * Revision 1.2  2005/07/25 04:55:46  magicyang
+ * New user folder check in
  *
  */
 

@@ -224,7 +224,7 @@ int main(int argc, char **argv, char **envp) {
 
     /* Step 4: Wait on INET or UNIX event */
     if (select(max_fd+1, &read_set, &write_set, &excpt_set, NULL)<0) {
-	  fprintf(stderr, "select: %s\n", sys_errlist[errno]);
+	  fprintf(stderr, "select: %s\n", strerror(errno));
 	  sleep(1); /* hope the error goes away,  but be nice to the host also */
       /* a signal or somesuch. */
       continue;
@@ -387,6 +387,7 @@ int open_unixsock(struct in_addr inetaddr) {
   struct stat st;
   char *dir;
   int s;
+  char *call_id_str = getenv("pptp_call_id");
 
   if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
     fprintf(stderr, "socket: %s", strerror(errno));
@@ -395,7 +396,8 @@ int open_unixsock(struct in_addr inetaddr) {
 
   where.sun_family = AF_UNIX;
   snprintf(where.sun_path, sizeof(where.sun_path), 
-	   PPTP_SOCKET_PREFIX "%s", inet_ntoa(inetaddr));
+	   PPTP_SOCKET_PREFIX "%s%s%s", inet_ntoa(inetaddr),
+	   call_id_str ? "." : "", call_id_str ? call_id_str : "");
 
   if (stat(where.sun_path, &st) >= 0) {
     fprintf(stderr, "Call manager for %s is already running.\n", inet_ntoa(inetaddr)); fflush(stderr);

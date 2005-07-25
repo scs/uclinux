@@ -1469,7 +1469,13 @@ ccp_datainput(unit, pkt, len)
 	    error("Lost compression sync: disabling compression");
 	    ccp_close(unit, "Lost compression sync");
 	} else {
-#ifdef MPPE
+#if 0 // def MPPE
+/*
+ * MPPE does require CCP_RESETREQ as the kernel expects
+ * compressors to behave that way and will not recover from an
+ * error in a packet (ie., corruption) until a RESETREQ/RESETACK
+ * has occured.
+ */
 	    /* MPPE/MPPC does not requires CCP_RESETREQ */
 	    if (ccp_gotoptions[f->unit].method == CI_MPPE)
 		return;

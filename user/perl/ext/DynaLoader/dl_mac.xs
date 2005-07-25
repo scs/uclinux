@@ -5,11 +5,8 @@
  *		Adapted from dl_dlopen.xs reference implementation by
  *              Paul Marquess (pmarquess@bfsec.bt.co.uk)
  * $Log$
- * Revision 1.1  2004/07/19 13:29:16  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:30:04  nidhi
- * Importing
+ * Revision 1.2  2005/07/25 04:55:43  magicyang
+ * New user folder check in
  *
  * Revision 1.3  1998/04/07 01:47:24  neeri
  * MacPerl 5.2.0r4b1

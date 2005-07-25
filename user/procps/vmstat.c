@@ -234,7 +234,7 @@ void getstat(unsigned *cuse, unsigned *cice, unsigned *csys, unsigned long *cide
 
 void getmeminfo(unsigned *memfree, unsigned *membuff, unsigned *swapused, unsigned *memcache) {
   unsigned long long** mem;
-  if (!(mem = meminfo())) crash("/proc/meminfo");
+  if (!(mem = get_meminfo())) crash("/proc/meminfo");
   *memfree  = mem[meminfo_main][meminfo_free]    >> 10;	/* bytes to k */
   *membuff  = mem[meminfo_main][meminfo_buffers] >> 10;
   *swapused = mem[meminfo_swap][meminfo_used]    >> 10;

@@ -194,7 +194,8 @@ PPTP_CONN * pptp_conn_open(int inet_sock, int isclient, pptp_conn_cb callback)
 PPTP_CALL * pptp_call_open(PPTP_CONN * conn,
 			   pptp_call_cb callback){
   PPTP_CALL * call;
-  int i;
+  int i, scan_start, scan_end;
+  char *cp;
   // assert(conn && conn->call);
 
   if (!conn)
@@ -205,6 +206,10 @@ PPTP_CALL * pptp_call_open(PPTP_CONN * conn,
   }
 
   /* Assign call id */
+  scan_start = 0;
+  scan_end = PPTP_MAX_CHANNELS-1;
+  if ((cp = getenv("pptp_call_id")))
+	  scan_start = scan_end = atoi(cp);
   if (!vector_scan(conn->call, 0, PPTP_MAX_CHANNELS-1, &i)) {
 	fprintf(stderr, "No more calls allowed\n");
     return NULL;

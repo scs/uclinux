@@ -30,7 +30,7 @@
 /* Default configuration values, mostly configurable */
 
 #if !defined(PPPD_IP_ALLOC)
-#define MAX_CONNECTIONS			100
+#define MAX_CONNECTIONS			256
 #define DEFAULT_LOCAL_IP_LIST		"192.168.0.1-100"
 #define DEFAULT_REMOTE_IP_LIST		"192.168.1.1-100"
 #endif

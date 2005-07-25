@@ -485,13 +485,13 @@ int main(int argc, char **argv)
     /*
      * Set up signal handlers.
      */
-    sact.sa_handler = end;
+    sact.sa_handler = sig_end;
     sact.sa_flags = 0;
     sigemptyset(&sact.sa_mask);
     sigaction(SIGHUP, &sact, NULL);
     sigaction(SIGINT, &sact, NULL);
     sigaction(SIGQUIT, &sact, NULL);
-    sact.sa_handler = stop;
+    sact.sa_handler = sig_stop;
     sact.sa_flags = SA_RESTART;
     sigaction(SIGTSTP, &sact, NULL);
     sact.sa_handler = window_size;
@@ -506,7 +506,7 @@ int main(int argc, char **argv)
 	show_procs();
 	/* sleep & wait for keyboard input */
 	if (Loops == 0)
-	    end(0);
+	    sig_end(0);
         if (!Batch)
         {
 		tv.tv_sec = Sleeptime;
@@ -522,7 +522,7 @@ int main(int argc, char **argv)
 }
 
 /*#######################################################################
- *#### Signal handled routines: error_end, end, stop, window_size     ###
+ *#### Signal handled routines: error_end, sig_end, sig_stop, window_size     ###
  *#### Small utilities: make_header, getstr, getint, getfloat, getsig ###
  *#######################################################################
  */
@@ -544,7 +544,7 @@ void error_end(int rno)
 /*
 	 * Normal end of execution.
 	 */
-void end(int signo)
+void sig_end(int signo)
 {
     if (psdbsucc)
 	close_psdb();
@@ -558,7 +558,7 @@ void end(int signo)
 /*
 	 * SIGTSTP catcher.
 	 */
-void stop(int signo)
+void sig_stop(int signo)
 {
     /* Reset terminal. */
     if (!Batch)
@@ -1542,7 +1542,7 @@ void do_key(char c)
      * First the commands which don't require a terminal mode switch.
      */
     if (c == 'q')
-	end(0);
+	sig_end(0);
     else if (c == ' ')
         return;
     else if (c == 12) {

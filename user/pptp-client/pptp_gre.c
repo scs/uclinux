@@ -2,7 +2,6 @@
  *                Handle the IP Protocol 47 portion of PPTP.
  *                C. Scott Ananian <cananian@alumni.princeton.edu>
  *
- * $Id$
  */
 
 #include <netinet/in.h>
@@ -60,6 +59,8 @@ void print_packet(int fd, void *pack, unsigned len) {
 #undef assert
 #define assert(x) \
 	if (!(x)) syslog(LOG_INFO,"%s,%d ***ASSERT*** - " #x "\n",__FILE__,__LINE__);else
+#else
+#include <stdio.h>
 #endif
 
 void pptp_gre_copy(u_int16_t call_id, u_int16_t peer_call_id, 
@@ -239,8 +240,13 @@ int decaps_gre (int fd, int (*cb)(int cl, void *pack, unsigned len), int cl) {
 	return(0);
   }
   if (PPTP_GRE_IS_A(ntoh8(header->ver))) { /* acknowledgement present */
-    u_int32_t ack = (PPTP_GRE_IS_S(ntoh8(header->flags)))?
-      header->ack:header->seq; /* ack in different place if S=0 */
+    u_int32_t ack;
+	if (PPTP_GRE_IS_S(ntoh8(header->flags))) {
+		memcpy(&ack, &header->ack, sizeof(ack));
+	} else {
+		/* ack in different place if S=0 */
+		memcpy(&ack, &header->seq, sizeof(ack));
+	}
     if (ack > ack_recv) ack_recv = ack;
     /* also handle sequence number wrap-around (we're cool!) */
     if (((ack>>31)==0)&&((ack_recv>>31)==1)) ack_recv=ack;
@@ -248,7 +254,9 @@ int decaps_gre (int fd, int (*cb)(int cl, void *pack, unsigned len), int cl) {
   if (PPTP_GRE_IS_S(ntoh8(header->flags))) { /* payload present */
     unsigned headersize = sizeof(*header);
     unsigned payload_len= ntoh16(header->payload_len);
-    u_int32_t seq       = ntoh32(header->seq);
+    u_int32_t seq;
+	memcpy(&seq, &header->seq, sizeof(header->seq));
+	seq = ntoh32(seq);
     if (!PPTP_GRE_IS_A(ntoh8(header->ver))) headersize-=sizeof(header->ack);
     /* check for incomplete packet (length smaller than expected) */
     if (status-headersize<payload_len) return 0; 
@@ -260,7 +268,8 @@ int decaps_gre (int fd, int (*cb)(int cl, void *pack, unsigned len), int cl) {
 
       return cb(cl, buffer+ip_len+headersize, payload_len);
     } else {
-      fprintf(stderr, "discarding out-of-order\n"); 
+      fprintf(stderr, "discarding out-of-order 0x%x 0x%x\n",
+			  seq, seq_recv); 
       return 0; /* discard out-of-order packets */
     }
   }

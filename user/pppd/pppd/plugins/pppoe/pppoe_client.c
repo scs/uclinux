@@ -137,6 +137,7 @@ static int std_rcv_padt(struct session* ses,
 
 
 extern int disc_sock;
+extern int ses_sock;
 int client_init_ses (struct session *ses, char* devnam)
 {
     int i=0;
@@ -159,12 +160,20 @@ int client_init_ses (struct session *ses, char* devnam)
 	
     }
     
+    /* Create socket for session frame detection */
+    if (ses_sock < 0) {
+	ses_sock = socket(PF_PACKET, SOCK_DGRAM, 0);
+	if (ses_sock < 0) {
+	    poe_info(ses, "Couldn't create session frame detection socket");
+      } 
+    }
+    
     /* Check for long format */
     retval =sscanf(devnam, FMTSTRING(IFNAMSIZ),addr, addr+1, addr+2,
 		   addr+3, addr+4, addr+5,&sid,dev);
     if( retval != 8 ){
 	/* Verify the device name , construct ses->local */
-	retval = get_sockaddr_ll(devnam,&ses->local);
+	retval = get_sockaddr_ll(devnam,&ses->local,0);
 	if (retval < 0)
 	    poe_fatal(ses, "client_init_ses: "
 		      "Cannot create PF_PACKET socket for PPPoE discovery\n");
@@ -178,7 +187,7 @@ int client_init_ses (struct session *ses, char* devnam)
 	/* long form parsed */
 
 	/* Verify the device name , construct ses->local */
-	retval = get_sockaddr_ll(dev,&ses->local);
+	retval = get_sockaddr_ll(dev,&ses->local,0);
 	if (retval < 0)
 	    poe_fatal(ses,"client_init_ses(2): "
 		      "Cannot create PF_PACKET socket for PPPoE discovery\n");
@@ -210,7 +219,18 @@ int client_init_ses (struct session *ses, char* devnam)
     if( retval < 0 ){
 	error("bind to PF_PACKET socket failed: %m");
     }
+
+    ses->local.sll_protocol = ntohs(ETH_P_PPP_SES);
     
+    retval = bind(ses_sock,
+		    (struct sockaddr *)&ses->local,
+		    sizeof(struct sockaddr_ll));
+    if (retval < 0) {
+    	poe_info(ses, "Couldn't bind session frame detection socket");
+    }
+
+    ses->local.sll_protocol = ntohs(ETH_P_PPP_DISC);
+
     ses->fd = socket(AF_PPPOX,SOCK_STREAM,PX_PROTO_OE);
     if(ses->fd < 0)
     {

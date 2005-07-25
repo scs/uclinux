@@ -5,11 +5,8 @@
 # $RCSfile$$Revision$$Date$
 #
 # $Log$
-# Revision 1.1  2004/07/19 13:29:01  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:30:03  nidhi
-# Importing
+# Revision 1.2  2005/07/25 04:55:43  magicyang
+# New user folder check in
 #
 
 ($op = shift) || die "Usage: rename perlexpr [filenames]\n";

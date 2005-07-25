@@ -13,7 +13,9 @@
 
 #ifdef PATH_ETC_CONFIG
 #define _ROOT_PATH
+#ifndef _PATH_VARRUN
 #define _PATH_VARRUN 	"/var/run/"
+#endif
 #define _PATH_UPAPFILE 	"/etc/config/pap-secrets"
 #define _PATH_CHAPFILE 	"/etc/config/chap-secrets"
 #define _PATH_SYSOPTIONS "/etc/config/options"
@@ -31,7 +33,9 @@
 #define _PATH_TEMP      "/etc/config/resolv.XXXXXX"
 #else
 #define _ROOT_PATH
+#ifndef _PATH_VARRUN
 #define _PATH_VARRUN 	"/etc/ppp/"
+#endif
 #define _PATH_UPAPFILE 	"/etc/ppp/pap-secrets"
 #define _PATH_CHAPFILE 	"/etc/ppp/chap-secrets"
 #define _PATH_SYSOPTIONS "/etc/ppp/options"

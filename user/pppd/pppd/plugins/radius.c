@@ -63,6 +63,7 @@ static char nas_identifier[AUTH_STRING_LEN+1] = "";
 static u_long nas_port_number = -1;
 static u_long nas_port_type = -1;
 static bool radius_allow_any_ip = 0;
+static bool radius_allow_server_ip = 0;
 static u_int32_t radius_remote_ip_addr = 0;
 
 static int radius_get_server(char**);
@@ -272,6 +273,15 @@ radius_auth(struct radius_attrib **attriblist, chap_state *cstate)
 		return 0;
 	}
 
+	if (ipcp_wantoptions[0].hisaddr) {
+		if (!radius_add_attrib(
+				attriblist, PW_VENDOR_NONE,
+				PW_FRAMED_IP_ADDRESS,
+				ntohl(ipcp_wantoptions[0].hisaddr), NULL, 0)) {
+			return 0;
+		}
+	}
+
 	recvattriblist = NULL;
 	ret = radius_send_access_request(
 			radius_server, radius_auth_port, radius_secret,
@@ -304,7 +314,7 @@ radius_auth(struct radius_attrib **attriblist, chap_state *cstate)
 						radius_allow_any_ip = 1;
 					}
 					else if (attrib->u.value == htonl(0xfffffffe)) {
-						/* Use the usual ppp options; this is the default */
+						radius_allow_server_ip = 1;
 					}
 					else {
 						radius_remote_ip_addr = attrib->u.value;
@@ -549,8 +559,12 @@ radius_auth(struct radius_attrib **attriblist, chap_state *cstate)
 		}
 #endif
 #ifdef MPPE
-		if (mppe_send_key && mppe_recv_key && mppe_policy && mppe_types) {
-			mppe_allowed = 1;
+		if (mppe_send_key && mppe_recv_key) {
+			if (mppe_policy && mppe_types) {
+				mppe_allowed = 1;
+			} else if (!mppe_policy) {
+				mppe_allowed = 1;
+			}
 		}
 #endif
 	}
@@ -765,6 +779,8 @@ radius_ip_choose(u_int32_t *addrp)
 static int
 radius_allowed_address(u_int32_t addr)
 {
+	ipcp_options *wo = &ipcp_wantoptions[0];
+
 	if (!use_radius) {
 		if (prev_allowed_address_hook)
 			return prev_allowed_address_hook(addr);
@@ -775,15 +791,24 @@ radius_allowed_address(u_int32_t addr)
 	if (radius_allow_any_ip) {
 		return 1;
 	}
-	else if (radius_remote_ip_addr) {
-		if (addr != radius_remote_ip_addr)
-			return 0;
-		else
+	else if (radius_allow_server_ip) {
+		if (wo->hisaddr && addr == wo->hisaddr)
 			return 1;
+		else
+			return 0;
+	}
+	else if (radius_remote_ip_addr) {
+		if (addr == radius_remote_ip_addr)
+			return 1;
+		else
+			return 0;
+	} else if (wo->accept_remote) {
+		return 1;
+	} else if (wo->hisaddr && addr == wo->hisaddr) {
+		return 1;
 	}
 
-	/* Use the usual ppp options to choose */
-	return -1;
+	return 0;
 }
 
 static int
@@ -834,9 +859,11 @@ radius_common_account_attrib(struct radius_attrib **attriblist)
 			PW_PPP, NULL, 0))
 		return 0;
 
+	/* ntohl here because hisaddr is already network byte order,
+	 * radius_add_attrib will convert back to network byte order again */
 	if (!radius_add_attrib(
 			attriblist, PW_VENDOR_NONE, PW_FRAMED_IP_ADDRESS,
-			ipcp_hisoptions->hisaddr, NULL, 0))
+			ntohl(ipcp_hisoptions->hisaddr), NULL, 0))
 		return 0;
 
 	if (!radius_add_attrib(

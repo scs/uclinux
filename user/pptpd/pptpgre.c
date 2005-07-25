@@ -317,8 +317,11 @@ int decaps_gre(int fd, int (*cb) (int cl, void *pack, unsigned len), int cl)
 		if (!PPTP_GRE_IS_A(ntoh8(header->ver)))
 			headersize -= sizeof(header->ack);
 		/* check for incomplete packet (length smaller than expected) */
-		if (status - headersize < payload_len)
+		if (status - headersize < payload_len) {
+			syslog(LOG_ERR, "GRE: Discarding incomplete packet %d < %d",
+					status - headersize, payload_len);
 			return 0;
+		}
 		/* check for out-of-order sequence number */
 		if (seq_greater(seq, gre.seq_recv)) {
 			gre.seq_recv = seq;

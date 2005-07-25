@@ -3,7 +3,7 @@ EXEC = pppd
 OBJS = main.o magic.o fsm.o lcp.o ipcp.o ccp.o  upap.o chap.o \
 	md5.o auth.o options.o utils.o sys-linux.o random.o
 
-EXINCS = -I../include -I./ $(INCNET)
+EXINCS = -I../include -I.
 DEFS += -D_linux_=1 -DNO_DRAND48 -DHAVE_PATHS_H -DXDEBUGALL
 CFLAGS = $(ARCH) $(DEFS) $(CCFLAGS) $(EXINCS) $(INCS)
 FLTFLAGS += -s 8192
@@ -14,7 +14,6 @@ MPPE=y
 
 ifdef MPPE
 OBJS += md4.o chap_ms.o cbcp.o mppe.o sha1dgst.o extra_crypto.o
-EXINCS += $(INCDES)
 CFLAGS += -DCHAPMS=1 -DMSLANMAN=1 -DMPPE=1
 LDLIBS += $(LIBDES)
 ifdef DYNAMIC

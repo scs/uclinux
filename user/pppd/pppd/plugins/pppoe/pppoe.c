@@ -96,7 +96,11 @@ char	*pppoe_srv_name=NULL;
 char	*pppoe_ac_name=NULL;
 char    *hostuniq = NULL;
 int     retries = -1;
+#ifdef EMBED
+int pppoe_kill = 1;
+#else
 int	pppoe_kill = 0;
+#endif
 
 int setdevname_pppoe(char *cp);
 
@@ -259,7 +263,7 @@ static void init_device_pppoe(void)
 
     if (pppoe_kill) {
 	ses->pppoe_kill = pppoe_kill;
-	poe_info(ses, "Will send PADT on invalid packets");
+	poe_info(ses, "Will send PADT if already in data stream");
     }
 
     memcpy( ses->name, devnam, IFNAMSIZ);
@@ -330,7 +334,7 @@ struct channel pppoe_channel;
  *   devnam: a string representation of the device
  */
 
-int (*old_setdevname_hook)(char* cp) = NULL;
+//int (*old_setdevname_hook)(char* cp) = NULL;
 int setdevname_pppoe(char *cp)
 {
     int ret;
@@ -343,14 +347,17 @@ int setdevname_pppoe(char *cp)
 		addr+3, addr+4, addr+5,&sid,dev);
     if( ret != 8 ){
 
-	ret = get_sockaddr_ll(cp,NULL);
+	ret = get_sockaddr_ll(cp,NULL,0);
         if (ret < 0)
 	    fatal("PPPoE: Cannot create PF_PACKET socket for PPPoE discovery\n");
+	/* not a device name */
+	if (ret == 0)
+	    return 0;
 	if (ret == 1)
 	    strncpy(devnam, cp, sizeof(devnam));
     }else{
 	/* long form parsed */
-	ret = get_sockaddr_ll(dev,NULL);
+	ret = get_sockaddr_ll(dev,NULL,0);
         if (ret < 0)
 	    fatal("PPPoE: Cannot create PF_PACKET socket for PPPoE discovery\n");
 

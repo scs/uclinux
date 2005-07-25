@@ -16,11 +16,8 @@
 # include this script in your own package.
 #
 # $Log$
-# Revision 1.1  2004/07/19 13:28:32  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:29:58  nidhi
-# Importing
+# Revision 1.2  2005/07/25 04:55:42  magicyang
+# New user folder check in
 #
 # Revision 3.0.1.1  1995/07/25  14:16:21  ram
 # patch56: created

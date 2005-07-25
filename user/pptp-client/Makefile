@@ -17,17 +17,13 @@ OBJS2 = pptp_callmgr.o pptp_ctrl.o dirutil.o vector.o \
 CFLAGS += '-DPPPD_BINARY="/bin/pppd"' '-DPPTP_LINUX_VERSION="1.0.2"'
 FLTFLAGS += -s 8192
 
-ifdef BUILD_NETtel
-CFLAGS += -DCONFIG_NETtel
-endif
-
 all:		$(EXEC1) $(EXEC2)
 
 $(EXEC1):	$(OBJS1)
-		$(CC) $(LDFLAGS) -o $@ $(OBJS1) $(LDLIBS)
+		$(CC) $(LDFLAGS) -o $@ $(OBJS1) $(LDLIBS) $(LIBUTIL)
 
 $(EXEC2):	$(OBJS2)
-		$(CC) $(LDFLAGS) -o $@ $(OBJS2) $(LDLIBS)
+		$(CC) $(LDFLAGS) -o $@ $(OBJS2) $(LDLIBS) $(LIBUTIL)
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_PPTP_CLIENT_PPTP /bin/pptp

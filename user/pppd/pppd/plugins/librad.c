@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <syslog.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -515,11 +516,13 @@ radius_send(
 	}
 	sendcount = 1;
 	while (sendcount < 10) {
-		FD_ZERO(&set);
-		FD_SET(s, &set);
-		timeout.tv_sec = RESEND_TIMEOUT;
-		timeout.tv_usec = 0;
-		ret = select(s+1, &set, NULL, NULL, &timeout);
+		do {
+			FD_ZERO(&set);
+			FD_SET(s, &set);
+			timeout.tv_sec = RESEND_TIMEOUT;
+			timeout.tv_usec = 0;
+			ret = select(s+1, &set, NULL, NULL, &timeout);
+		} while (ret < 0 && errno == EINTR);
 		if (ret < 0) {
 			syslog(LOG_ERR, "RADIUS: select failed: %m");
 			close(s);

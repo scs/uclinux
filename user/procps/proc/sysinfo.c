@@ -231,14 +231,12 @@ unsigned long long **get_meminfo(void){
 	    		p+=k;
 	    		sscanf(p," %Ld",&(row[meminfo_main][meminfo_total]));
 	    		row[meminfo_main][meminfo_total]<<=10;
-			printf("%d: %Lu, p=%s\n", __LINE__, row[meminfo_main][meminfo_total], p);
 	    		while(*p++ != '\n');
 	    	}
 	    	else if(!strcmp(fieldbuf,"MemFree:")) {
 	    		p+=k;
 	    		sscanf(p," %Ld",&(row[meminfo_main][meminfo_free]));
 	    		row[meminfo_main][meminfo_free]<<=10;
-			printf("%d: %Lu, p=%s\n", __LINE__, row[meminfo_main][meminfo_free], p);
 	    		while(*p++ != '\n');
 	    	}
 	    	else if(!strcmp(fieldbuf,"MemShared:")) {

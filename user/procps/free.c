@@ -109,7 +109,7 @@ int main( int argc, char **argv ) {
             }
         } else {
             /* memory printing from top.c using meminfo() */
-            if (!(mem = meminfo ()) || mem[meminfo_main][meminfo_total] == 0) {
+            if (!(mem = get_meminfo ()) || mem[meminfo_main][meminfo_total] == 0) {
                 fprintf (stderr, "Cannot get size of memory from /proc/meminfo\n");
                 exit (1);
             }

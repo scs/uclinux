@@ -181,7 +181,7 @@ int main __P((int, char *[]));
  * Stuff for pppoe
  */
 
-#ifdef PLUGIN_PPPOE
+#if defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA)
 int (*tty_open_hook) __P((void)) = NULL;
 int (*tty_close_hook) __P((void)) = NULL;
 void (*ppp_send_config_hook) __P((int, int, u_int32_t, int, int)) = NULL;
@@ -189,7 +189,7 @@ void (*ppp_recv_config_hook) __P((int, int, u_int32_t, int, int)) = NULL;
 int (*setdevname_hook) __P((char *)) = NULL;
 int (*establish_ppp_hook) __P((int)) = NULL;
 void (*disestablish_ppp_hook) __P((int)) = NULL;
-#endif /*PLUGIN_PPPOE*/
+#endif /* defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA) */
 
 #ifdef ultrix
 #undef	O_NONBLOCK
@@ -299,9 +299,9 @@ main(argc, argv)
     /*
      * Work out the device name, if it hasn't already been specified.
      */
-#ifdef PLUGIN_PPPOE
+#if defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA)
 	if(!tty_open_hook){
-#endif /*PLUGIN_PPPOE*/
+#endif /* defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA) */
     using_pty = notty || ptycommand != NULL;
     if (!using_pty && default_device) {
 	char *p;
@@ -336,9 +336,9 @@ main(argc, argv)
 	}
 	default_device = save_defdev;
     }
-#ifdef PLUGIN_PPPOE
+#if defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA)
 	}
-#endif /*PLUGIN_PPPOE*/
+#endif /* defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA) */
 
     if (!parse_args(argc-1, argv+1))
 	exit(EXIT_OPTION_ERROR);
@@ -648,7 +648,7 @@ main(argc, argv)
 	 */
 	hungup = 0;
 	kill_link = 0;
-#ifdef PLUGIN_PPPOE
+#if defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA)
 	if (tty_open_hook) {
 		ttyfd = tty_open_hook();
 		if (ttyfd < 0) {
@@ -658,7 +658,7 @@ main(argc, argv)
 	}
 	
 	else
-#endif
+#endif /* defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA) */
 	if (devnam[0] != 0) {
 	    for (;;) {
 		/* If the user specified the device name, become the
@@ -912,10 +912,10 @@ main(argc, argv)
 	 * XXX we may not be able to do this if the line has hung up!
 	 */
     disconnect:
-#ifdef PLUGIN_PPPOE
+#if defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA)
 	if(tty_close_hook)
 		tty_close_hook();
-#endif /*PLUGIN_PPPOE*/
+#endif /* defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA) */
 	if (disconnector && !hungup) {
 	    if (real_ttyfd >= 0)
 		set_up_tty(real_ttyfd, 1);
@@ -1061,17 +1061,20 @@ create_pidfile()
     FILE *pidfile;
     char numbuf[16];
 
-    syslog(LOG_NOTICE, "pppd create pidfile %s", pid_file);
-
-	if (!pid_file[0])
-		return;
-
+    if (pid_file[0])
 	slprintf(pidfilename, sizeof(pidfilename), "%s%s",
 			pid_file[0] == '/' ? "" : _PATH_VARRUN,
 			pid_file);
+    else
+	slprintf(pidfilename, sizeof(pidfilename), "%s%s.pid",
+			_PATH_VARRUN, ifname);
+
+    syslog(LOG_NOTICE, "pppd create pidfile %s", pidfilename);
 
     if ((pidfile = fopen(pidfilename, "w")) != NULL) {
 	fprintf(pidfile, "%d\n", getpid());
+	if (ipparam)
+		fprintf(pidfile, "%s\n", ipparam);
 	(void) fclose(pidfile);
     } else {
 	error("Failed to create pid file %s: %m", pidfilename);

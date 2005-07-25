@@ -25,11 +25,8 @@ $VERSION = '1.0';
 # Lukasiewicz, Lissajous -> L222
 #
 # $Log$
-# Revision 1.1  2004/07/19 13:30:16  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:30:09  nidhi
-# Importing
+# Revision 1.2  2005/07/25 04:55:44  magicyang
+# New user folder check in
 #
 # Revision 1.2  1994/03/24  00:30:27  mike
 # Subtle bug (any excuse :-) spotted by Rich Pinder <rpinder@hsc.usc.edu>

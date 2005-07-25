@@ -63,6 +63,7 @@ char pkg[] = "netkit-base-0.10";
 
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/signal.h>
@@ -70,6 +71,7 @@ char pkg[] = "netkit-base-0.10";
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#include <net/if.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -93,7 +95,7 @@ char pkg[] = "netkit-base-0.10";
 
 #if defined(__GLIBC__) && (__GLIBC__ >= 2)
 #define icmphdr			icmp
-#ifndef __UCLIBC__
+#if 0
 #define ICMP_DEST_UNREACH	ICMP_UNREACH
 #define ICMP_NET_UNREACH	ICMP_UNREACH_NET
 #define ICMP_HOST_UNREACH	ICMP_UNREACH_HOST
@@ -175,6 +177,9 @@ char DOT = '.';
 static char *hostname;
 static int ident;		/* process id to identify our packets */
 
+/* are we just doing an alive check */
+static int alive_check;
+
 /* counters */
 static long npackets;		/* max packets to transmit */
 static long nreceived;		/* # of packets we got back */
@@ -208,7 +213,6 @@ main(int argc, char *argv[])
 	struct timeval timeout;
 	struct hostent *hp;
 	struct sockaddr_in *to;
-	struct protoent *proto;
 	struct in_addr ifaddr;
 	int i;
 	int ch, fdmask, hold, packlen, preload;
@@ -220,9 +224,6 @@ main(int argc, char *argv[])
 	char rspace[3 + 4 * NROUTES + 1];	/* record route space */
 #endif
 
-	static char *null = NULL;
-
-	/*__environ = &null;*/
 	am_i_root = (getuid()==0);
 
 	/*
@@ -242,8 +243,11 @@ main(int argc, char *argv[])
 
 	preload = 0;
 	datap = &outpack[8 + sizeof(struct timeval)];
-	while ((ch = getopt(argc, argv, "I:LRc:dfh:i:l:np:qrs:t:v")) != EOF)
+	while ((ch = getopt(argc, argv, "aI:LRc:dfh:i:l:np:qrs:t:v")) != EOF)
 		switch(ch) {
+		case 'a':
+			alive_check = 1;
+			break;
 		case 'c':
 			npackets = atoi(optarg);
 			if (npackets <= 0) {
@@ -336,10 +340,41 @@ main(int argc, char *argv[])
 				struct sockaddr_in myaddr;	/* address of ourselves */
 				struct in_addr source_ipaddress;
 
+				source_ipaddress.s_addr = 0;
 				if (inet_aton(optarg, &source_ipaddress) == 0) {
-					(void)fprintf(stderr, "Illegal source address %s\n", optarg);
+					/* its not an address,  so check for an interface */
+					int qs;
+
+					source_ipaddress.s_addr = 0;
+
+					qs = socket(PF_INET, SOCK_DGRAM, 0);
+					if (qs != -1) {
+						struct ifreq ifr;
+
+						strncpy(ifr.ifr_name, optarg, sizeof(ifr.ifr_name));
+						ifr.ifr_name[sizeof(ifr.ifr_name)-1] = '\0';
+						ifr.ifr_addr.sa_family = AF_INET;
+						if (ioctl(qs, SIOCGIFADDR, &ifr) != -1) {
+							source_ipaddress =
+								((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+#ifdef SO_BINDTODEVICE
+							memset(&ifr, 0, sizeof(ifr));
+							strncpy(ifr.ifr_name, optarg, IFNAMSIZ);
+							if (setsockopt(s, SOL_SOCKET, SO_BINDTODEVICE,
+										&ifr, sizeof(ifr)) < 0)
+								fprintf(stderr,
+										"setsockopt(SO_BINDTODEVICE) %m\n");
+#endif
+						}
+						close(qs);
+					}
+				}
+
+				if (source_ipaddress.s_addr == 0) {
+					(void)fprintf(stderr, "Illegal source address %s\n",optarg);
 					exit(2);
 				}
+
 				bzero((char *)&myaddr, sizeof(myaddr));
 				myaddr.sin_family = AF_INET;
 				myaddr.sin_port = 0;
@@ -347,7 +382,9 @@ main(int argc, char *argv[])
 
 				if (bind(s, (struct sockaddr *)&myaddr, sizeof(myaddr)) < 0)
 				{
-					(void)fprintf(stderr, "ping: can't set source address %s.\n", optarg);
+					(void)fprintf(stderr,
+								  "ping: can't set source address %s.\n",
+								  inet_ntoa(source_ipaddress));
 					perror("bind");
 					exit(2);
 				}
@@ -522,6 +559,8 @@ main(int argc, char *argv[])
 		pr_pack((char *)packet, cc, &from);
 		if (npackets && nreceived >= npackets)
 			break;
+		if (alive_check && nreceived)
+			break;
 	}
 	finish(0);
 	/* NOTREACHED */
@@ -556,7 +595,7 @@ catcher(int ignore)
 			if (waittime > MAXWAIT)
 				waittime = MAXWAIT;
 		} else
-			waittime = MAXWAIT;
+			waittime = 2 * interval;
 		(void)signal(SIGALRM, finish);
 		(void)alarm((u_int)waittime);
 	}
@@ -615,7 +654,7 @@ pinger(void)
 
 	/* compute ICMP checksum here */
 	icp->icmp_cksum = in_cksum((u_short *)icp, cc);
-	
+
 	i = sendto(s, (char *)outpack, cc, 0, &whereto,
 	    sizeof(struct sockaddr));
 
@@ -892,13 +931,14 @@ finish(int ignore)
 	(void)printf("%ld packets received, ", nreceived);
 	if (nrepeats)
 		(void)printf("+%ld duplicates, ", nrepeats);
-	if (ntransmitted)
+	if (ntransmitted) {
 		if (nreceived > ntransmitted)
 			(void)printf("-- somebody's printing up packets!");
 		else
 			(void)printf("%d%% packet loss",
 			    (int) (((ntransmitted - nreceived) * 100) /
 			    ntransmitted));
+	}
 	(void)putchar('\n');
 	if (nreceived && timing)
 		(void)printf("round-trip min/avg/max = %ld.%ld/%lu.%ld/%ld.%ld ms\n",
@@ -1204,6 +1244,6 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: ping [-LRdfnqrv] [-c count] [-i wait] [-l preload]\n\t[-p pattern] [-s packetsize] [-t ttl] [-I interface address] host\n");
+	    "usage: ping [-LRdfnqrva] [-c count] [-i wait] [-l preload]\n\t[-p pattern] [-s packetsize] [-t ttl] [-I interface or IP address] host\n");
 	exit(2);
 }

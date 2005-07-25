@@ -44,7 +44,7 @@ lib$(NAME).a: .depend $(OBJ)
 	$(AR) rcs $@ $^
 
 $(SONAME): $(OBJ)
-	$(CC) $(LDFLAGS) -nostdlib -shared -Wl,-soname,$(SONAME) -o $@ $^ -lc
+	$(CC) $(SH_LDFLAGS) -s -shared -Wl,-soname,$(SONAME) -o $@ $^ $(SH_LDLIBS)
 	ln -sf $(SONAME) lib$(NAME).so
 
 # AUTOMATIC DEPENDENCY GENERATION -- GCC AND GNUMAKE DEPENDENT

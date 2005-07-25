@@ -453,7 +453,7 @@ void option_error __P((char *fmt, ...));
 int int_option __P((char *, int *));
 				/* Simplified number_option for decimal ints */
 void add_options __P((option_t *)); /* Add extra options */
-void remove_options __P((char *)); /*remove unwanted options*/
+int remove_option __P((char *)); /*remove unwanted options*/
 void deprecate_option __P((char **)); /*ignorable options*/
 
 /*

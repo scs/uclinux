@@ -236,7 +236,7 @@ int relay_init_ses(struct session *ses, char* from, char* to)
     }
 
     /* Verify the device name , construct ses->local */
-    retval = get_sockaddr_ll(to, &ses->remote);
+    retval = get_sockaddr_ll(to, &ses->remote, 0);
     if (retval < 0)
 	poe_fatal(ses,"relay_init_ses:get_sockaddr_ll failed %m");
 

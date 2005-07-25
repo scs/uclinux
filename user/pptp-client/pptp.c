@@ -42,6 +42,8 @@
 #define pptp_debug(a...)
 #endif
 
+static char *call_id_str = NULL;
+
 /*
  * because we can be run from init,  it seems unwise to just
  * exit quickly for errors that probably won't have resolved
@@ -89,10 +91,11 @@ int main(int argc, char **argv, char **envp) {
   struct in_addr inetaddr;
   int callmgr_sock = -1;
   char ptydev[PTYMAX], ttydev[TTYMAX];
-  int pty_fd = -1;
+  int pty_fd = -1, tty_fd = -1;
   int gre_fd = -1;
   static volatile pid_t child_pid;
   u_int16_t call_id, peer_call_id;
+  char *cp;
   
 #ifdef EMBED
   openlog(argv[0],LOG_PID,LOG_USER);
@@ -100,6 +103,17 @@ int main(int argc, char **argv, char **envp) {
 
   if (argc < 2)
     usage(argv[0]);
+
+  /*
+   * check for hard coded callid
+   */
+  if ((cp = strchr(argv[1], ':'))) {
+	static char call_id_env[] = "pptp_callid=65536";
+	*cp++ = '\0';
+	call_id_str = cp;
+    sprintf(call_id_env, "pptp_call_id=%d", atoi(cp) & 0xffff);
+	putenv(call_id_env);
+  }
 
   /* Step 1: Get IP address for the hostname in argv[1] */
   for (;;) {
@@ -142,15 +156,19 @@ int main(int argc, char **argv, char **envp) {
   }
 
   /* Step 3: Find an open pty/tty pair. */
-  pty_fd = getpseudotty(ttydev, ptydev);
-  if (pty_fd < 0) {
+  if (openpty(&pty_fd, &tty_fd, ttydev, NULL, NULL) == -1) {
+	pptp_error("Could not find free pty, %d.", errno);
     close(gre_fd);
     close(callmgr_sock);
-	pptp_error("Could not find free pty.");
 	sleep(RESPAWN_DELAY);
 	exit(1);
   }
+  strcpy(ptydev, ttydev);
+  cp = strstr(ptydev, "tty");
+  if (cp)
+	  *cp = 'p';
   pptp_debug("got a free ttydev");
+  pptp_error("Using pty %s,%s", ptydev, ttydev);
   
   /* Step 4: fork and wait. */
   signal(SIGUSR1, do_nothing); /* don't die */
@@ -216,6 +234,8 @@ shutdown:
     close(pty_fd);
   if (callmgr_sock != -1)
     close(callmgr_sock);
+  if (tty_fd != -1)
+    close(tty_fd);
   exit(0);
 }
 
@@ -300,7 +320,8 @@ int open_callmgr(struct in_addr inetaddr, int argc, char **argv, char **envp) {
   /* Make address */
   where.sun_family = AF_UNIX;
   snprintf(where.sun_path, sizeof(where.sun_path), 
-	   PPTP_SOCKET_PREFIX "%s", inet_ntoa(inetaddr));
+	   PPTP_SOCKET_PREFIX "%s%s%s", inet_ntoa(inetaddr),
+	   call_id_str ? "." : "", call_id_str ? call_id_str : "");
 
   for (i=0; i<NUM_TRIES; i++) {
     if (connect(fd, (struct sockaddr *) &where, sizeof(where)) < 0) {

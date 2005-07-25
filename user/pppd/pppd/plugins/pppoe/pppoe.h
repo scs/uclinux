@@ -22,6 +22,8 @@
 #include <syslog.h>
 #include <paths.h>
 
+#include <linux/types.h>
+
 #include <sys/types.h>		/* socket types         */
 #include <asm/types.h>
 #include <sys/time.h>
@@ -42,7 +44,6 @@
 #include <linux/if_packet.h>
 #include <linux/if_ether.h>
 #endif
-
 
 #include <asm/byteorder.h>
 
@@ -216,12 +217,12 @@ struct session {
   retransmit retries for the PADR and PADI packets
   during discovery
 */
-int PADR_ret;
-int PADI_ret;
+extern int PADR_ret;
+extern int PADI_ret;
 
-int ctrl_fd;
+extern int ctrl_fd;
 extern int opt_debug;
-int opt_daemonize;
+extern int opt_daemonize;
 
 
 /* Structure for keeping track of connection relays */
@@ -257,7 +258,7 @@ void poe_die (int status);
 
 extern int init_lib();
 
-extern int get_sockaddr_ll(const char *devnam,struct sockaddr_ll* sll);
+extern int get_sockaddr_ll(const char *devnam,struct sockaddr_ll* sll,short proto);
 
 extern int client_init_ses (struct session *ses, char* devnam);
 extern int relay_init_ses(struct session *ses, char* from, char* to);

@@ -17,3 +17,6 @@
 #if defined(__UCLIBC__) && !defined(__UC_LIBC__)
 #define HAVE_STRLCPY 1
 #endif
+#if !defined(__UC_LIBC__)
+#define HAVE_OPENPTY 1
+#endif

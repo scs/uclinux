@@ -10,21 +10,14 @@ OBJS2 = pptpctrl.o ctrlpacket.o inststr.o compat.o pptpgre.o ppphdlc.o
 CFLAGS += -include config.embed.h -DPACKAGE='"$(PACKAGE)"' -DVERSION='"$(pptpd.VERSION).$(pptpd.PATCHLEVEL).$(pptpd.SUBLEVEL)"'
 FLTFLAGS += -s 8192
 
-ifdef BUILD_NETtel
-CFLAGS += -DCONFIG_NETtel
-endif
-ifdef BUILD_NETtel1500
-CFLAGS += -DCONFIG_NETtel
-endif
-
 
 all: $(EXEC1) $(EXEC2)
 
 $(EXEC1):	$(OBJS1)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS1) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS1) $(LDLIBS) $(LIBUTIL)
 
 $(EXEC2):	$(OBJS2)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS2) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS2) $(LDLIBS) $(LIBUTIL)
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_PPTPD_PPTPD /bin/pptpd

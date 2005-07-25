@@ -14,6 +14,7 @@
 #include "pppd.h"
 
 int disc_sock=-1;
+int ses_sock=-1;
 
 int verify_packet( struct session *ses, struct pppoe_packet *p);
 
@@ -193,7 +194,7 @@ static int verify_tag(struct session* ses,
  * Construct an AF_PACKET address struct to match.
  *
  ************************************************************************/
-int get_sockaddr_ll(const char *devnam,struct sockaddr_ll* sll){
+int get_sockaddr_ll(const char *devnam,struct sockaddr_ll* sll, short proto){
     struct ifreq ifr;
     int retval;
 
@@ -228,7 +229,11 @@ int get_sockaddr_ll(const char *devnam,struct sockaddr_ll* sll){
     }
     if(sll){
 	sll->sll_family	= AF_PACKET;
-	sll->sll_protocol= ntohs(ETH_P_PPP_DISC);
+	if (proto) {
+		sll->sll_protocol = ntohs(proto);
+	} else {
+ 		sll->sll_protocol = ntohs(ETH_P_PPP_DISC);
+	}
 	sll->sll_hatype	= ARPHRD_ETHER;
 	sll->sll_pkttype = PACKET_BROADCAST;
     
@@ -369,7 +374,7 @@ int verify_packet( struct session *ses, struct pppoe_packet *p){
     /* A HOST_UNIQ must be present */
     CHECK_TAG(TAG_HOST_UNIQ,1);
 
-    hu_val = *TAG_DATA(struct session* ,p->tags[TAG_HOST_UNIQ]);
+	memcpy(&hu_val,TAG_DATA(struct session* ,p->tags[TAG_HOST_UNIQ]),sizeof(hu_val));
 
     if( hu_val != ses ){
 	poe_info(ses,"HOST_UNIQ mismatch: %08x %i\n",(int)hu_val,getpid());
@@ -403,13 +408,13 @@ int verify_packet( struct session *ses, struct pppoe_packet *p){
  *
  *************************************************************************/
 static int recv_disc( struct session *ses,
-		      struct pppoe_packet *p){
+		      struct pppoe_packet *p, int sock){
     int error = 0;
     unsigned int from_len = sizeof(struct sockaddr_ll);
 
     p->hdr = (struct pppoe_hdr*)p->buf;
 
-    error = recvfrom( disc_sock, p->buf, 1500, 0,
+    error = recvfrom( sock, p->buf, 1500, 0,
 		      (struct sockaddr*)&p->addr, &from_len);
 
     if(error < 0) return error;
@@ -427,6 +432,7 @@ static int recv_disc( struct session *ses,
  *************************************************************************/
 int session_disconnect(struct session *ses){
     struct pppoe_packet padt;
+	int error;
 
     memset(&padt,0,sizeof(struct pppoe_packet));
     memcpy(&padt.addr, &ses->remote, sizeof(struct sockaddr_ll));
@@ -437,10 +443,10 @@ int session_disconnect(struct session *ses){
     padt.hdr->code = PADT_CODE;
     padt.hdr->sid  = ses->sp.sa_addr.pppoe.sid;
 
-    send_disc(ses,&padt);
+    error = send_disc(ses,&padt);
     ses->sp.sa_addr.pppoe.sid = 0 ;
     ses->state = PADO_CODE;
-    return 0;
+    return error;
 
 }
 
@@ -470,17 +476,20 @@ int session_connect(struct session *ses)
 
 		fd_set in;
 		struct timeval tv;
-		FD_ZERO(&in);
 
+		FD_ZERO(&in);
 		FD_SET(disc_sock,&in);
+		if (ses_sock >= 0) {
+			FD_SET(ses_sock, &in);
+		}
 
 		if(ses->retransmits>=0){
-			++ses->retransmits;
 			tv.tv_sec = 1 << ses->retransmits;
 			tv.tv_usec = 0;
-			ret = select(disc_sock+1, &in, NULL, NULL, &tv);
+			ret = select(MAX(disc_sock, ses_sock) + 1, &in, NULL, NULL, &tv);
+			++ses->retransmits;
 		}else{
-			ret = select(disc_sock+1, &in, NULL, NULL, NULL);
+			ret = select(MAX(disc_sock, ses_sock) + 1, &in, NULL, NULL, NULL);
 		}
 
 		if( ret == 0 ){
@@ -496,23 +505,27 @@ int session_connect(struct session *ses)
 				}
 
 			} else if (p_out) {
+				poe_dbglog(ses, "Sending discovery %P", p_out);
 				send_disc(ses,p_out);
 			}
 			continue;
-		} 
+		}
 
-		ret = recv_disc(ses, &rcv_packet);
+		ret = recv_disc(ses,
+				&rcv_packet,
+				FD_ISSET(ses_sock, &in) ?
+				ses_sock :
+				disc_sock);
 
 		/* Should differentiate between system errors and
 		   bad packets and the like... */
 		if( ret < 0 && errno != EINTR){
-
 			poe_info(ses, "couldn't rcv packet");
 			return -1;
 		}
 
 		if (DEB_DISC2)
-			syslog(LOG_ERR, "Recieved packet=%x\n", rcv_packet.hdr->code);
+			syslog(LOG_ERR, "Received packet=%x\n", rcv_packet.hdr->code);
 
 		switch (rcv_packet.hdr->code) {
 
@@ -570,6 +583,10 @@ int session_connect(struct session *ses)
 		{
 			if( rcv_packet.hdr->sid != ses->sp.sa_addr.pppoe.sid ){
 			--ses->retransmits;
+			if (p_out) {
+				poe_dbglog(ses, "Received PADT, sending discovery %P", p_out);
+				send_disc(ses,p_out);
+			}
 			continue;
 			}
 			if(ses->rcv_padt){
@@ -584,16 +601,21 @@ int session_connect(struct session *ses)
 			}
 			break;
 		}
-		case 0:      /*receiving normal seesion frames*/
-		{
-			poe_error(ses, "Already in data stream, sending PADT %P\n",
-				&rcv_packet);
+		case 0:      /* Receiving normal session frames */
+		{ 
+			poe_info(ses, "Already in data stream, received %P", &rcv_packet);
 			if (ses->pppoe_kill) {
+				poe_info(ses, "Sending PADT");
 				memcpy(&ses->remote,&rcv_packet.addr,
-				sizeof(struct sockaddr_ll));
+					sizeof(struct sockaddr_ll));
+				ses->remote.sll_protocol = ntohs(ETH_P_PPP_DISC);
 				ses->sp.sa_addr.pppoe.sid = rcv_packet.hdr->sid;
-				session_disconnect(ses);
-				continue;
+				if (session_disconnect(ses) != -1) {
+					/* PADT successful, re-init for discovery */
+					(*ses->init_disc)(ses, NULL, &p_out);
+					--ses->retransmits;
+					continue;
+				}
 			}
 			return (-1);
 		}

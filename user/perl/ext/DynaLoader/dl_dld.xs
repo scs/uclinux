@@ -13,11 +13,8 @@
  * $State$
  *
  * $Log$
- * Revision 1.1  2004/07/19 13:29:16  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:30:04  nidhi
- * Importing
+ * Revision 1.2  2005/07/25 04:55:43  magicyang
+ * New user folder check in
  *
  * Removed implicit link against libc.  1994/09/14 William Setzer.
  *

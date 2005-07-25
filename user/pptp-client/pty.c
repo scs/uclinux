@@ -1,39 +1,77 @@
-/* pty.c ....... find a free pty/tty pair.  
- *               Inspired/stolen from the xterm source.
- *               NOTE: This is very likely to be highly non-portable.
- *               C. Scott Ananian <cananian@alumni.princeton.edu>
+
+#include <stdio.h>
+#include <config/autoconf.h>
+
+#ifdef __UC_LIBC__
+/*
+ * Finds a free PTY/TTY pair.
  *
- * $Id$
+ * This is derived from C.S. Ananian's pty.c that was with his pptp client.
+ *
+ *************************************************************************
+ * pty.c - find a free pty/tty pair.
+ *         inspired by the xterm source.
+ *         NOTE: This is very likely to be highly non-portable.
+ *         C. Scott Ananian <cananian@alumni.princeton.edu>
+ *
+ * Heavily modified to chage from getpseudopty() to openpty().
  */
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <string.h>
 #include <fcntl.h>
-#include "pty.h"
+#include <syslog.h>
 
-int getpseudotty(char *ttydev, char *ptydev) {
-  /* define static variables so we can call multiple times and get
-   * different tty/pty pairs each time.
-   */
-  static int devindex=0, letter=0;
-  int fd;
+/* These are the Linux values - and fairly sane defaults.
+ * Since we search from the start and just skip errors, they'll do.
+ * Note that Unix98 has an openpty() call so we don't need to worry
+ * about the new pty names here.
+ */
+#define PTYDEV		"/dev/ptyxx"
+#define TTYDEV		"/dev/ttyxx"
+#define PTYMAX		11
+#define TTYMAX		11
+#define PTYCHAR1	"pqrstuvwxyzabcde"
+#define PTYCHAR2	"0123456789abcdef"
 
-  strcpy(ttydev, TTYDEV);
-  strcpy(ptydev, PTYDEV);
+int openpty(int *master, int *slave, char *name, void *unused1, void *unused2)
+{
+	int devindex = 0, letter = 0;
+	int fd1, fd2;
+	char ttydev[PTYMAX], ptydev[TTYMAX];
 
-  while (PTYCHAR1[letter]) {
-    ttydev[strlen(ttydev)-2] = ptydev[strlen(ptydev)-2] = PTYCHAR1[letter];
+	syslog(LOG_DEBUG, "CTRL: Allocating pty/tty pair");
+	strcpy(ttydev, TTYDEV);
+	strcpy(ptydev, PTYDEV);
+	while (PTYCHAR1[letter]) {
+		ttydev[TTYMAX - 3] = ptydev[PTYMAX - 3] = PTYCHAR1[letter];
+		while (PTYCHAR2[devindex]) {
+			ttydev[TTYMAX - 2] = ptydev[PTYMAX - 2] = PTYCHAR2[devindex];
+			if ((fd1 = open(ptydev, O_RDWR)) >= 0) {
+				if ((fd2 = open(ttydev, O_RDWR)) >= 0) {
+					goto out;
+				} else {
+					close(fd1);
+				}
+			}
+			devindex++;
+		}
+		devindex = 0;
+		letter++;
+	}
+	syslog(LOG_ERR, "CTRL: Failed to allocate pty");
+	return -1;		/* Unable to allocate pty */
 
-    while (PTYCHAR2[devindex]) {
-      ttydev[strlen(ttydev)-1] = ptydev[strlen(ptydev)-1] = PTYCHAR2[devindex];
-      /* next time, use next index: */
-      devindex++;
-      if ((fd = open(ptydev, O_RDWR)) >= 0)
-	return fd;
-    }
-    devindex = 0;
-    letter++;
-  }
-  return -1; /* unable to allocate pty!! */
+      out:
+	syslog(LOG_INFO, "CTRL: Allocated pty/tty pair (%s,%s)", ptydev, ttydev);
+	if (master)
+		*master = fd1;
+	if (slave)
+		*slave = fd2;
+	if (name)
+		strcpy(name, ttydev);	/* no way to bounds check */
+	return 0;
 }
+
+#endif
+

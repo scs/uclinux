@@ -1415,7 +1415,7 @@ ip_demand_conf(u)
     if (!sifnpmode(u, PPP_IP, NPMODE_QUEUE))
 	return 0;
     if (wo->default_route)
-	if (sifdefaultroute(u, wo->ouraddr, wo->hisaddr, drmetric);
+	if (sifdefaultroute(u, wo->ouraddr, wo->hisaddr, drmetric))
 	    default_route_set[u] = 1;
     if (wo->proxy_arp)
 	if (sifproxyarp(u, wo->hisaddr))
@@ -1524,7 +1524,7 @@ ipcp_up(f)
 		return;
 	    }
 
-		rtmetricfixup(f->unit, ho->hisaddr, metric)
+		rtmetricfixup(f->unit, ho->hisaddr, metric);
 	    /* assign a default route through the interface if required */
 	    if (ipcp_wantoptions[f->unit].default_route) 
 		if (sifdefaultroute(f->unit, go->ouraddr, ho->hisaddr, drmetric))

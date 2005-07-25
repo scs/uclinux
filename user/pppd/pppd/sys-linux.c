@@ -40,6 +40,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+#ifndef __UC_LIBC__
+#include <pty.h>
+#endif
+
 #if __GLIBC__ >= 2 || defined(__UC_LIBC__)
 #include <asm/types.h>		/* glibc 2 conflicts with linux/types.h */
 #include <net/if.h>
@@ -114,14 +118,12 @@ static int restore_term        = 0;	/* 1 => we've munged the terminal */
 static struct termios inittermios;	/* Initial TTY termios */
 
 #if LINUX_VERSION_CODE >= 0x020400
-static int new_style_driver = 1;
+int new_style_driver = 1;
 #else
-static int new_style_driver = 0;
+int new_style_driver = 0;
 #endif
 
-#ifdef EMBED
 #define multilink 0
-#endif
 
 static char loop_name[20];
 static unsigned char inbuf[512]; /* buffer for chars read from loopback */
@@ -133,17 +135,12 @@ static char proxy_arp_dev[16];		/* Device for proxy arp entry */
 static int looped;					/* 1 is using loop */
 
 #define KVERSION(j,n,p)	((j)*1000000 + (n)*1000 + (p))
-#ifndef EMBED
-#define	kernel_version	KVERSION(2,0,33)
-#else
 static int driver_version      = 0;
 static int driver_modification = 0;
 static int driver_patch        = 0;
 static int driver_is_old       = 0;
 static struct utsname utsname;	/* for the kernel version */
 static int kernel_version;
-#define KVERSION(j,n,p)	((j)*1000000 + (n)*1000 + (p))
-#endif
 
 #define MAX_IFS		100
 
@@ -348,11 +345,11 @@ static int set_kdebugflag (int requested_level)
 
 int establish_ppp(int fd)
 {
-#ifdef PLUGIN_PPPOE
+#if defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA)
 	if (establish_ppp_hook)
 		return establish_ppp_hook(fd);
 	else 
-#endif /*PLUGIN_PPPOE*/
+#endif /* defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA) */
 		return tty_establish_ppp(fd);
 }
 
@@ -518,11 +515,11 @@ int generic_establish_ppp (int fd)
 
 void disestablish_ppp(int fd)
 {
-#ifdef PLUGIN_PPPOE
+#if defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA)
 	if (disestablish_ppp_hook) 
 		disestablish_ppp_hook(fd);
 	 else 
-#endif /*PLUGIN_PPPOE*/
+#endif /* defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA) */
 		tty_disestablish_ppp(fd);
 }
 
@@ -1274,11 +1271,11 @@ get_loop_output(void)
 
 void ppp_send_config (int unit,int mtu,u_int32_t asyncmap,int pcomp,int accomp)
 {
-#ifdef PLUGIN_PPPOE
+#if defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA)
 	if (ppp_send_config_hook)
 		ppp_send_config_hook(unit, mtu, asyncmap, pcomp, accomp);
 	else
-#endif /*PLUGIN_PPPOE*/
+#endif /* defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA) */
 		generic_ppp_send_config(unit, mtu, asyncmap, pcomp, accomp);
 }
 
@@ -1341,11 +1338,11 @@ void ppp_set_xaccm (int unit, ext_accm accm)
 
 void ppp_recv_config (int unit,int mru,u_int32_t asyncmap,int pcomp,int accomp)
 {
-#ifdef PLUGIN_PPPOE
+#if defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA)
 		if(ppp_recv_config_hook)
 			ppp_recv_config_hook(unit, mru, asyncmap, pcomp, accomp);
 		else
-#endif /*PLUGIN_PPPOE*/
+#endif /* defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA) */
 			generic_ppp_recv_config(unit, mru, asyncmap, pcomp, accomp);
 }
 
@@ -2686,9 +2683,11 @@ get_pty(master_fdp, slave_fdp, slave_name, uid)
     char *slave_name;
     int uid;
 {
-    int i, mfd, sfd;
-    char pty_name[12];
     struct termios tios;
+    int mfd, sfd;
+#ifdef __UC_LIBC__
+    int i;
+    char pty_name[12];
 
     sfd = -1;
     for (i = 0; i < 64; ++i) {
@@ -2707,6 +2706,11 @@ get_pty(master_fdp, slave_fdp, slave_name, uid)
 	return 0;
 
     strlcpy(slave_name, pty_name, 12);
+#else
+    if (openpty(&mfd, &sfd, slave_name, NULL, NULL) < 0)
+	return 0;
+#endif
+
     *master_fdp = mfd;
     *slave_fdp = sfd;
     fchown(sfd, uid, -1);

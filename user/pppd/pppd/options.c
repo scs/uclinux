@@ -17,8 +17,10 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] = "$Id$";
+#endif
 #endif
 
 #include <ctype.h>
@@ -38,6 +40,9 @@ static char rcsid[] = "$Id$";
 #ifdef PPP_FILTER
 #include <pcap.h>
 #include <pcap-int.h>	/* XXX: To get struct pcap */
+#endif
+#ifndef EMBED
+#include <dlfcn.h>
 #endif
 
 #include "pppd.h"
@@ -367,20 +372,16 @@ parse_args(argc, argv)
 	    continue;
 	}
 
-#ifdef PLUGIN_PPPOE
-	if(setdevname_hook){
-		if(setdevname_hook(arg)==0){
-			continue;
-		}
-	}
-#endif /*PLUGIN_PPPOE*/
-
 	/*
 	 * Maybe a tty name, speed or IP address?
 	 */
 	if ((ret = setdevname(arg)) == 0
 	    && (ret = setspeed(arg)) == 0
-	    && (ret = setipaddr(arg)) == 0) {
+	    && (ret = setipaddr(arg)) == 0
+#if defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA)
+		&& (!setdevname_hook || setdevname_hook(arg) == 0)
+#endif /* defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA) */
+		) {
 	    if (find_deprecated(arg))
 		option_error("deprecated option '%s' ignored", arg);
 	    else {
@@ -497,16 +498,13 @@ options_from_file(filename, must_exist, check_prot, priv)
 	/*
 	 * Maybe a tty name, speed or IP address?
 	 */
-#ifdef PLUGIN_PPPOE
-	if(setdevname_hook){
-		if(!setdevname_hook(cmd)==0){
-			continue;
-		}
-	}
-#endif /*PLUGIN_PPPOE*/
 	if ((i = setdevname(cmd)) == 0
 	    && (i = setspeed(cmd)) == 0
-	    && (i = setipaddr(cmd)) == 0) {
+	    && (i = setipaddr(cmd)) == 0
+#if defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA)
+		&& (!setdevname_hook || setdevname_hook(cmd) == 0)
+#endif /* defined(PLUGIN_PPPOE) || defined(PLUGIN_PPPOA) */
+		) {
 	    if (find_deprecated(cmd))
 		option_error("In file %s: deprecated option '%s' ignored",
 			     filename, cmd);
@@ -1553,6 +1551,9 @@ extern void radius_plugin_init __P((void));
 #ifdef PLUGIN_PPPOE
 extern void pppoe_plugin_init __P((void));
 #endif
+#ifdef PLUGIN_PPPOA
+extern void pppoa_plugin_init __P((void));
+#endif
 #endif
 
 static int
@@ -1593,6 +1594,11 @@ loadplugin(argv)
 	init = pppoe_plugin_init;
 	} else
 #endif /*PLUGIN_PPPOE*/
+#ifdef PLUGIN_PPPOA
+	if(strcmp(arg, "pppoa") == 0) {
+	init = pppoa_plugin_init;
+	} else
+#endif /*PLUGIN_PPPOA*/
     {
 	option_error("Couldn't load plugin %s", arg);
 	return 0;

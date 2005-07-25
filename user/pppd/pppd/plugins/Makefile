@@ -4,6 +4,9 @@ CFLAGS += -I../../include -I.. -Itacc/include -Wall
 tacacs: tacacs.o
 	make -C tacc/lib libtac.a
 
+.PHONY: pppoatm
+pppoatm: pppoatm.o text2atm.o text2qos.o
+
 
 .PHONY: pppoe
 pppoe: libpppoe.a
