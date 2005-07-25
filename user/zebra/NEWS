@@ -1,5 +1,57 @@
 GNU Zebra is not yet released, so this NEWS is about beta version.
 
+* Changes in zebra-0.94
+
+* Changes in zebra
+
+** Do not listen other process's netlink message.
+
+* Changes in bgpd
+
+** "bgp log-neighbor-changes" is added.
+
+** "set ip next-hop peer-address" is added.
+
+** Community delete bug is fixed.
+
+** Fix bug of router-id display
+
+** Option parameter length bug is fixed.
+
+* Chages in ospfd
+
+** Point-to-Multipoint support.
+
+** OSPF MD5 authentication bug is fixed.
+
+** OSPF NSSA bug is fixed.
+
+** NSM event schedule bug is fixed.
+
+** Update Opaque LSA patch.
+
+** When write queue becomes empty stop write timer.
+
+* Changes in ospf6d
+
+** Update to the latest Ohara's code.
+
+** DR election bug is fixed.
+
+** Update link-local address on interface creation
+
+* Changes in vtysh
+
+** Update for IPv6 handling
+
+** Make all protocol DEFUN/ALIAS consistent
+
+* Changes in lib
+
+** Fix route-map problem
+
+** Fix vty bug cause daemon crash.
+
 * Changes in zebra-0.93
 
 * Changes in bgpd

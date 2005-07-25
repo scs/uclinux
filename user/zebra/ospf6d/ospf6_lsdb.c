@@ -632,7 +632,7 @@ ALIAS (show_ipv6_ospf6_database,
        "Specify LS Type by Hex\n"
        "Dump raw LSA data in Hex\n"
        "show detail of LSAs\n"
-       )
+       );
 
 ALIAS (show_ipv6_ospf6_database,
        show_ipv6_ospf6_database_type_id_cmd,
@@ -654,7 +654,7 @@ ALIAS (show_ipv6_ospf6_database,
        "All Link State ID\n"
        "Dump raw LSA data in Hex\n"
        "show detail of LSAs\n"
-       )
+       );
 
 ALIAS (show_ipv6_ospf6_database,
        show_ipv6_ospf6_database_type_id_adv_router_cmd,
@@ -678,7 +678,7 @@ ALIAS (show_ipv6_ospf6_database,
        "All Advertising Router\n"
        "Dump raw LSA data in Hex\n"
        "show detail of LSAs\n"
-       )
+       );
 
 ALIAS (show_ipv6_ospf6_database,
        show_ipv6_ospf6_database_type_id_adv_router_dump_cmd,
@@ -702,7 +702,7 @@ ALIAS (show_ipv6_ospf6_database,
        "All Advertising Router\n"
        "Dump raw LSA data in Hex\n"
        "show detail of LSAs\n"
-       )
+       );
 
 void
 ospf6_lsdb_init ()

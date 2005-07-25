@@ -42,8 +42,9 @@ struct ospf_lsdb
 };
 
 /* Macros. */
-#define LSDB_LOOP(T,N,L) \
-  for ((N) = route_top ((T)); ((N)); ((N)) = route_next ((N))) \
+#define LSDB_LOOP(T,N,L)                                                      \
+  if ((T) != NULL)                                                            \
+  for ((N) = route_top ((T)); ((N)); ((N)) = route_next ((N)))                \
     if (((L) = (N)->info))
 
 #define ROUTER_LSDB(A)       ((A)->lsdb->type[OSPF_ROUTER_LSA].db)
@@ -77,7 +78,5 @@ unsigned long ospf_lsdb_count_all (struct ospf_lsdb *);
 unsigned long ospf_lsdb_count (struct ospf_lsdb *, int);
 unsigned long ospf_lsdb_count_self (struct ospf_lsdb *, int);
 unsigned long ospf_lsdb_isempty (struct ospf_lsdb *);
-struct ospf_lsa *foreach_lsa (struct route_table *, void *, int,
-	              int (*callback) (struct ospf_lsa *, void *, int));
 
 #endif /* _ZEBRA_OSPF_LSDB_H */

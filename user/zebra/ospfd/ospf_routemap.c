@@ -43,28 +43,32 @@
 void
 ospf_route_map_update (char *name)
 {
+  struct ospf *ospf;
   int type;
 
   /* If OSPF instatnce does not exist, return right now. */
-  if (!ospf_top)
+  ospf = ospf_lookup ();
+  if (ospf == NULL)
     return;
 
   /* Update route-map */
   for (type = 0; type <= ZEBRA_ROUTE_MAX; type++)
     {
-      if (ROUTEMAP_NAME (type) && strcmp (ROUTEMAP_NAME (type), name) == 0)
+      if (ROUTEMAP_NAME (ospf, type)
+	  && strcmp (ROUTEMAP_NAME (ospf, type), name) == 0)
 	{
 	  /* Keep old route-map. */
-	  struct route_map *old = ROUTEMAP (type);
+	  struct route_map *old = ROUTEMAP (ospf, type);
 
 	  /* Update route-map. */
-	  ROUTEMAP (type) = route_map_lookup_by_name (ROUTEMAP_NAME (type));
+	  ROUTEMAP (ospf, type) =
+	    route_map_lookup_by_name (ROUTEMAP_NAME (ospf, type));
 
 	  /* No update for this distribute type. */
-	  if (old == NULL && ROUTEMAP (type) == NULL)
+	  if (old == NULL && ROUTEMAP (ospf, type) == NULL)
 	    continue;
 
-	  ospf_distribute_list_update (type);
+	  ospf_distribute_list_update (ospf, type);
 	}
     }
 }
@@ -72,19 +76,21 @@ ospf_route_map_update (char *name)
 void
 ospf_route_map_event (route_map_event_t event, char *name)
 {
+  struct ospf *ospf;
   int type;
 
   /* If OSPF instatnce does not exist, return right now. */
-  if (!ospf_top)
+  ospf = ospf_lookup ();
+  if (ospf == NULL)
     return;
 
   /* Update route-map. */
   for (type = 0; type <= ZEBRA_ROUTE_MAX; type++)
     {
-      if (ROUTEMAP_NAME (type) &&  ROUTEMAP (type) &&
-          !strcmp (ROUTEMAP_NAME (type), name))
+      if (ROUTEMAP_NAME (ospf, type) &&  ROUTEMAP (ospf, type)
+	  && !strcmp (ROUTEMAP_NAME (ospf, type), name))
         {
-          ospf_distribute_list_update (type);
+          ospf_distribute_list_update (ospf, type);
         }
     }
 }
@@ -565,7 +571,7 @@ ALIAS (no_match_ip_nexthop,
        "Match next-hop address of route\n"
        "IP access-list number\n"
        "IP access-list number (expanded range)\n"
-       "IP access-list name\n")
+       "IP access-list name\n");
 
 DEFUN (match_ip_next_hop_prefix_list,
        match_ip_next_hop_prefix_list_cmd,
@@ -604,7 +610,7 @@ ALIAS (no_match_ip_next_hop_prefix_list,
        IP_STR
        "Match next-hop address of route\n"
        "Match entries of prefix-lists\n"
-       "IP prefix-list name\n")
+       "IP prefix-list name\n");
 
 DEFUN (match_ip_address,
        match_ip_address_cmd,
@@ -642,7 +648,7 @@ ALIAS (no_match_ip_address,
        "Match address of route\n"
        "IP access-list number\n"
        "IP access-list number (expanded range)\n"
-       "IP access-list name\n")
+       "IP access-list name\n");
 
 DEFUN (match_ip_address_prefix_list,
        match_ip_address_prefix_list_cmd,
@@ -681,7 +687,7 @@ ALIAS (no_match_ip_address_prefix_list,
        IP_STR
        "Match address of route\n"
        "Match entries of prefix-lists\n"
-       "IP prefix-list name\n")
+       "IP prefix-list name\n");
 
 DEFUN (match_interface,
        match_interface_cmd,
@@ -712,7 +718,7 @@ ALIAS (no_match_interface,
        NO_STR
        MATCH_STR
        "Match first hop interface of route\n"
-       "Interface name\n")
+       "Interface name\n");
 
 DEFUN (set_metric,
        set_metric_cmd,
@@ -743,7 +749,7 @@ ALIAS (no_set_metric,
        NO_STR
        SET_STR
        "Metric value for destination routing protocol\n"
-       "Metric value\n")
+       "Metric value\n");
 
 DEFUN (set_metric_type,
        set_metric_type_cmd,
@@ -781,7 +787,7 @@ ALIAS (no_set_metric_type,
        SET_STR
        "Type of metric for destination routing protocol\n"
        "OSPF external type 1 metric\n"
-       "OSPF external type 2 metric\n")
+       "OSPF external type 2 metric\n");
 
 /* Route-map init */
 void

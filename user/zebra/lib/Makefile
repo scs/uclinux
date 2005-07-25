@@ -8,7 +8,7 @@ OBJS =  version.o network.o pid_output.o \
 		prefix.o thread.o if.o memory.o buffer.o buffer.o \
 		table.o hash.o filter.o routemap.o distribute.o \
 		stream.o str.o log.o plist.o zclient.o sockopt.o smux.o \
-		md5.o if_rmap.o keychain.o
+		md5.o keychain.o
 
 all: libzebra.a
 

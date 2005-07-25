@@ -1464,7 +1464,7 @@ ALIAS (no_ip_rip_receive_version,
        "Advertisement reception\n"
        "Version control\n"
        "Version 1\n"
-       "Version 2\n")
+       "Version 2\n");
 
 DEFUN (ip_rip_send_version,
        ip_rip_send_version_cmd,
@@ -1566,7 +1566,7 @@ ALIAS (no_ip_rip_send_version,
        "Advertisement transmission\n"
        "Version control\n"
        "Version 1\n"
-       "Version 2\n")
+       "Version 2\n");
 
 DEFUN (ip_rip_authentication_mode,
        ip_rip_authentication_mode_cmd,
@@ -1627,7 +1627,7 @@ ALIAS (no_ip_rip_authentication_mode,
        "Authentication control\n"
        "Authentication mode\n"
        "Keyed message digest\n"
-       "Clear text authentication\n")
+       "Clear text authentication\n");
 
 DEFUN (ip_rip_authentication_string,
        ip_rip_authentication_string_cmd,
@@ -1696,7 +1696,7 @@ ALIAS (no_ip_rip_authentication_string,
        "Routing Information Protocol\n"
        "Authentication control\n"
        "Authentication string\n"
-       "Authentication string\n")
+       "Authentication string\n");
 
 DEFUN (ip_rip_authentication_key_chain,
        ip_rip_authentication_key_chain_cmd,
@@ -1759,7 +1759,7 @@ ALIAS (no_ip_rip_authentication_key_chain,
        "Routing Information Protocol\n"
        "Authentication control\n"
        "Authentication key-chain\n"
-       "name of key-chain\n")
+       "name of key-chain\n");
 
 DEFUN (rip_split_horizon,
        rip_split_horizon_cmd,

@@ -4,8 +4,9 @@ INCLUDES = -I.. -I../lib
 
 CFLAGS += -DHAVE_CONFIG_H -DSYSCONFDIR=\"/etc/config/\" -DMULTIPATH_NUM=1
 
-OBJS =  zserv.o main.o interface.o connected.o ioctl.o rib.o \
-		redistribute.o debug.o rtadv.o zebra_snmp.o
+OBJS =  zserv.o main.o interface.o connected.o ioctl.o \
+		redistribute.o debug.o rtadv.o zebra_snmp.o zebra_rib.o \
+		zebra_vty.o
 #OBJS += rt_ioctl.o
 OBJS += if_ioctl.o
 OBJS += if_proc.o

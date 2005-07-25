@@ -60,22 +60,22 @@ void rip_output_process (struct interface *, struct sockaddr_in *,
 
 /* RIP output routes type. */
 enum
-{
-  rip_all_route,
-  rip_changed_route
-};
+  {
+    rip_all_route,
+    rip_changed_route
+  };
 
 /* RIP command strings. */
 struct message rip_msg[] = 
-{
-  {RIP_REQUEST,    "REQUEST"},
-  {RIP_RESPONSE,   "RESPONSE"},
-  {RIP_TRACEON,    "TRACEON"},
-  {RIP_TRACEOFF,   "TRACEOFF"},
-  {RIP_POLL,       "POLL"},
-  {RIP_POLL_ENTRY, "POLL ENTRY"},
-  {0,              NULL}
-};
+  {
+    {RIP_REQUEST,    "REQUEST"},
+    {RIP_RESPONSE,   "RESPONSE"},
+    {RIP_TRACEON,    "TRACEON"},
+    {RIP_TRACEOFF,   "TRACEOFF"},
+    {RIP_POLL,       "POLL"},
+    {RIP_POLL_ENTRY, "POLL ENTRY"},
+    {0,              NULL}
+  };
 
 /* Each route type's strings and default preference. */
 struct
@@ -84,17 +84,17 @@ struct
   char *str;
   char *str_long;
 } route_info[] =
-{
-  { ZEBRA_ROUTE_SYSTEM,  "X", "system"},
-  { ZEBRA_ROUTE_KERNEL,  "K", "kernel"},
-  { ZEBRA_ROUTE_CONNECT, "C", "connected"},
-  { ZEBRA_ROUTE_STATIC,  "S", "static"},
-  { ZEBRA_ROUTE_RIP,     "R", "rip"},
-  { ZEBRA_ROUTE_RIPNG,   "R", "ripng"},
-  { ZEBRA_ROUTE_OSPF,    "O", "ospf"},
-  { ZEBRA_ROUTE_OSPF6,   "O", "ospf6"},
-  { ZEBRA_ROUTE_BGP,     "B", "bgp"}
-};
+  {
+    { ZEBRA_ROUTE_SYSTEM,  "X", "system"},
+    { ZEBRA_ROUTE_KERNEL,  "K", "kernel"},
+    { ZEBRA_ROUTE_CONNECT, "C", "connected"},
+    { ZEBRA_ROUTE_STATIC,  "S", "static"},
+    { ZEBRA_ROUTE_RIP,     "R", "rip"},
+    { ZEBRA_ROUTE_RIPNG,   "R", "ripng"},
+    { ZEBRA_ROUTE_OSPF,    "O", "ospf"},
+    { ZEBRA_ROUTE_OSPF6,   "O", "ospf6"},
+    { ZEBRA_ROUTE_BGP,     "B", "bgp"}
+  };
 
 /* Utility function to set boradcast option to the socket. */
 int
@@ -1092,15 +1092,15 @@ rip_response_process (struct rip_packet *packet, int size,
 	    }
 	}
 
-     /* For RIPv1, there won't be a valid netmask.  
+      /* For RIPv1, there won't be a valid netmask.  
 
-	This is a best guess at the masks.  If everyone was using old
-	Ciscos before the 'ip subnet zero' option, it would be almost
-	right too :-)
+      This is a best guess at the masks.  If everyone was using old
+      Ciscos before the 'ip subnet zero' option, it would be almost
+      right too :-)
       
-	Cisco summarize ripv1 advertisments to the classful boundary
-	(/16 for class B's) except when the RIP packet does to inside
-	the classful network in question.  */
+      Cisco summarize ripv1 advertisments to the classful boundary
+      (/16 for class B's) except when the RIP packet does to inside
+      the classful network in question.  */
 
       if ((packet->version == RIPv1 && rte->prefix.s_addr != 0) 
 	  || (packet->version == RIPv2 
@@ -1198,8 +1198,8 @@ rip_send_packet (caddr_t buf, int size, struct sockaddr_in *to,
 		sizeof (struct sockaddr_in));
 
   if (IS_RIP_DEBUG_EVENT)
-      zlog_info ("SEND to socket %d port %d addr %s",
-                 sock, ntohs (sin.sin_port), inet_ntoa(sin.sin_addr));
+    zlog_info ("SEND to socket %d port %d addr %s",
+	       sock, ntohs (sin.sin_port), inet_ntoa(sin.sin_addr));
 
   if (ret < 0)
     zlog_warn ("can't send packet : %s", strerror (errno));
@@ -1283,7 +1283,7 @@ rip_redistribute_add (int type, int sub_type, struct prefix_ipv4 *p,
 /* Delete redistributed route from RIP table. */
 void
 rip_redistribute_delete (int type, int sub_type, struct prefix_ipv4 *p, 
-			   unsigned int ifindex)
+			 unsigned int ifindex)
 {
   int ret;
   struct route_node *rp;
@@ -1348,6 +1348,8 @@ rip_request_process (struct rip_packet *packet, int size,
      request, and it has an address family identifier of zero and a
      metric of infinity (i.e., 16), then this is a request to send the
      entire routing table. */
+  if ((rte->family == 0xFFFF) && (lim == ((caddr_t) (rte + 2)) )) rte++;
+  
   if (lim == ((caddr_t) (rte + 1)) &&
       ntohs (rte->family) == 0 &&
       ntohl (rte->metric) == RIP_METRIC_INFINITY)
@@ -1933,17 +1935,17 @@ rip_output_process (struct interface *ifp, struct sockaddr_in *to,
   if (ri->auth_type == RIP_AUTH_SIMPLE_PASSWORD)
     {
       if (ri->key_chain)
-       {
-         struct keychain *keychain;
+	{
+	  struct keychain *keychain;
 
-         keychain = keychain_lookup (ri->key_chain);
-         if (keychain)
-           if (key_lookup_for_send (keychain))
-             rtemax -=1;
-       }
+	  keychain = keychain_lookup (ri->key_chain);
+	  if (keychain)
+	    if (key_lookup_for_send (keychain))
+	      rtemax -=1;
+	}
       else
-       if (ri->auth_str)
-         rtemax -=1;
+	if (ri->auth_str)
+	  rtemax -=1;
     }
 
   for (rp = route_top (rip->table); rp; rp = route_next (rp))
@@ -2315,9 +2317,9 @@ rip_triggered_update (struct thread *t)
   rip_clear_changed_flag ();
 
   /* After a triggered update is sent, a timer should be set for a
-   random interval between 1 and 5 seconds.  If other changes that
-   would trigger updates occur before the timer expires, a single
-   update is triggered when the timer expires. */
+     random interval between 1 and 5 seconds.  If other changes that
+     would trigger updates occur before the timer expires, a single
+     update is triggered when the timer expires. */
   interval = (random () % 5) + 1;
 
   rip->t_triggered_interval = 
@@ -2518,7 +2520,7 @@ ALIAS (no_rip_version,
        "no version <1-2>",
        NO_STR
        "Set routing protocol version\n"
-       "version\n")
+       "version\n");
 
 DEFUN (rip_route,
        rip_route_cmd,
@@ -2638,7 +2640,7 @@ ALIAS (no_rip_default_metric,
        "no default-metric <1-16>",
        NO_STR
        "Set a metric of redistribute routes\n"
-       "Default metric\n")
+       "Default metric\n");
 
 DEFUN (rip_timers,
        rip_timers_cmd,
@@ -3024,18 +3026,18 @@ rip_route_type_print (int sub_type)
 {
   switch (sub_type)
     {
-      case RIP_ROUTE_RTE:
-	return "n";
-      case RIP_ROUTE_STATIC:
-	return "s";
-      case RIP_ROUTE_DEFAULT:
-	return "d";
-      case RIP_ROUTE_REDISTRIBUTE:
-	return "r";
-      case RIP_ROUTE_INTERFACE:
-	return "i";
-      default:
-	return "?";
+    case RIP_ROUTE_RTE:
+      return "n";
+    case RIP_ROUTE_STATIC:
+      return "s";
+    case RIP_ROUTE_DEFAULT:
+      return "d";
+    case RIP_ROUTE_REDISTRIBUTE:
+      return "r";
+    case RIP_ROUTE_INTERFACE:
+      return "i";
+    default:
+      return "?";
     }
 }
 
@@ -3276,11 +3278,11 @@ config_write_rip (struct vty *vty)
 
 /* RIP node structure. */
 struct cmd_node rip_node =
-{
-  RIP_NODE,
-  "%s(config-router)# ",
-  1
-};
+  {
+    RIP_NODE,
+    "%s(config-router)# ",
+    1
+  };
 
 /* Distribute-list update functions. */
 void

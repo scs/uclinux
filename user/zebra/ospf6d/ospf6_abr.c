@@ -42,7 +42,7 @@ ospf6_abr_entry_lookup (struct ospf6_route_req *abr_entry,
 
   inet_ntop (AF_INET, &router_id, router_string, sizeof (router_string));
 
-  zlog_info ("ABR:   Finding router %s in area %s", router_string, area->str);
+  //zlog_info ("ABR:   Finding router %s in area %s", router_string, area->str);
 
   memset (&abr_id, 0, sizeof (abr_id));
   abr_id.family = AF_UNSPEC;

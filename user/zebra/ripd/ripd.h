@@ -38,8 +38,12 @@
 /* RIP metric infinity value.*/
 #define RIP_METRIC_INFINITY             16
 
-/* Normal RIP packet min and max size. */
+/* Normal RIP packet min size. */
 #define RIP_PACKET_MINSIZ                4
+
+/* Normal RIP packet max size is 512 but some implementation has a bug
+   in authentication handling.  In that case 524 length RIP packet may
+   come.  */
 #define RIP_PACKET_MAXSIZ              512
 
 #define RIP_HEADER_SIZE                  4

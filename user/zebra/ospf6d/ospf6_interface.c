@@ -32,10 +32,10 @@
 #include "ospf6_interface.h"
 
 char *ospf6_interface_state_string[] =
-{
-  "None", "Down", "Loopback", "Waiting", "PointToPoint",
-  "DROther", "BDR", "DR", NULL
-};
+  {
+    "None", "Down", "Loopback", "Waiting", "PointToPoint",
+    "DROther", "BDR", "DR", NULL
+  };
 
 static void
 ospf6_interface_foreach_neighbor (struct ospf6_interface *o6i,
@@ -125,6 +125,9 @@ ospf6_interface_create (struct interface *ifp)
   ifp->info = o6i;
 
   CALL_ADD_HOOK (&interface_hook, o6i);
+
+  /* Get the interface's link-local if any */
+  ospf6_interface_address_update(ifp);
 
   return o6i;
 }
@@ -464,11 +467,11 @@ ospf6_interface_show (struct vty *vty, struct interface *iface)
   vty_out (vty, "  DR:%s BDR:%s%s", dr, bdr, VTY_NEWLINE);
 
   vty_out (vty, "  Number of I/F scoped LSAs is %u%s",
-                ospf6_interface->lsdb->count, VTY_NEWLINE);
+	   ospf6_interface->lsdb->count, VTY_NEWLINE);
   vty_out (vty, "  %-16s %5d times, %-16s %5d times%s",
-                "DRElection", ospf6_interface->ospf6_stat_dr_election,
-                "DelayedLSAck", ospf6_interface->ospf6_stat_delayed_lsack,
-                VTY_NEWLINE);
+	   "DRElection", ospf6_interface->ospf6_stat_dr_election,
+	   "DelayedLSAck", ospf6_interface->ospf6_stat_delayed_lsack,
+	   VTY_NEWLINE);
 
   return 0;
 }
@@ -513,7 +516,7 @@ ospf6_interface_statistics_show (struct vty *vty, struct ospf6_interface *o6i)
     }
 
   vty_out (vty, "         Average Link bandwidth: %ldbps"
-                " (Tx: %ldbps Rx: %ldbps)%s",
+	   " (Tx: %ldbps Rx: %ldbps)%s",
            bps_total_avg, bps_tx_avg, bps_rx_avg, VTY_NEWLINE);
 }
 
@@ -560,7 +563,7 @@ ALIAS (show_ipv6_ospf6_interface,
        IP6_STR
        OSPF6_STR
        INTERFACE_STR
-       )
+       );
 
 /* interface variable set command */
 DEFUN (ipv6_ospf6_cost,
@@ -958,20 +961,27 @@ ospf6_interface_config_write (struct vty *vty)
 
       vty_out (vty, "interface %s%s",
                o6i->interface->name, VTY_NEWLINE);
-      vty_out (vty, " ipv6 ospf6 cost %d%s",
-               o6i->cost, VTY_NEWLINE);
-      vty_out (vty, " ipv6 ospf6 hello-interval %d%s",
-               o6i->hello_interval, VTY_NEWLINE);
-      vty_out (vty, " ipv6 ospf6 dead-interval %d%s",
-               o6i->dead_interval, VTY_NEWLINE);
-      vty_out (vty, " ipv6 ospf6 retransmit-interval %d%s",
-               o6i->rxmt_interval, VTY_NEWLINE);
-      vty_out (vty, " ipv6 ospf6 priority %d%s",
-               o6i->priority, VTY_NEWLINE);
-      vty_out (vty, " ipv6 ospf6 transmit-delay %d%s",
-               o6i->transdelay, VTY_NEWLINE);
-      vty_out (vty, " ipv6 ospf6 instance-id %d%s",
-               o6i->instance_id, VTY_NEWLINE);
+      if (o6i->cost != 1)
+	vty_out (vty, " ipv6 ospf6 cost %d%s",
+		 o6i->cost, VTY_NEWLINE);
+      if (o6i->hello_interval != 10)
+	vty_out (vty, " ipv6 ospf6 hello-interval %d%s",
+		 o6i->hello_interval, VTY_NEWLINE);
+      if (o6i->dead_interval != 40)
+	vty_out (vty, " ipv6 ospf6 dead-interval %d%s",
+		 o6i->dead_interval, VTY_NEWLINE);
+      if (o6i->rxmt_interval != 5)
+	vty_out (vty, " ipv6 ospf6 retransmit-interval %d%s",
+		 o6i->rxmt_interval, VTY_NEWLINE);
+      if (o6i->priority != 1)
+	vty_out (vty, " ipv6 ospf6 priority %d%s",
+		 o6i->priority, VTY_NEWLINE);
+      if (o6i->transdelay != 1)
+	vty_out (vty, " ipv6 ospf6 transmit-delay %d%s",
+		 o6i->transdelay, VTY_NEWLINE);
+      if (o6i->instance_id != 0)
+	vty_out (vty, " ipv6 ospf6 instance-id %d%s",
+		 o6i->instance_id, VTY_NEWLINE);
 
       if (CHECK_FLAG (o6i->flag, OSPF6_INTERFACE_FLAG_FORCE_PREFIX))
         vty_out (vty, " ipv6 ospf6 advertise force-prefix%s", VTY_NEWLINE);
@@ -988,10 +998,11 @@ ospf6_interface_config_write (struct vty *vty)
 }
 
 struct cmd_node interface_node =
-{
-  INTERFACE_NODE,
-  "%s(config-if)# ",
-};
+  {
+    INTERFACE_NODE,
+    "%s(config-if)# ",
+    1
+  };
 
 void
 ospf6_interface_init ()
@@ -1021,5 +1032,3 @@ ospf6_interface_init ()
   install_element (INTERFACE_NODE, &ipv6_ospf6_passive_cmd);
   install_element (INTERFACE_NODE, &no_ipv6_ospf6_passive_cmd);
 }
-
-

@@ -74,6 +74,10 @@ community_entry_free (struct community_entry *entry)
 	community_free (entry->u.com);
       break;
     case EXTCOMMUNITY_LIST_STANDARD:
+      /* In case of standard extcommunity-list, configuration string
+	 is made by ecommunity_ecom2str().  */
+      if (entry->config)
+	XFREE (MTYPE_ECOMMUNITY_STR, entry->config);
       if (entry->u.ecom)
 	ecommunity_free (entry->u.ecom);
       break;
@@ -265,7 +269,7 @@ community_list_delete (struct community_list *list)
   community_list_free (list);
 }
 
-int 
+int
 community_list_empty_p (struct community_list *list)
 {
   return (list->head == NULL && list->tail == NULL) ? 1 : 0;
@@ -360,52 +364,24 @@ community_regexp_match (struct community *com, regex_t *reg)
   return 0;
 }
 
-/* Delete community attribute using regular expression match.  Return
-   modified communites attribute.  */
-static struct community *
-community_regexp_delete (struct community *com, regex_t *reg)
+static int
+ecommunity_regexp_match (struct ecommunity *ecom, regex_t *reg)
 {
-  int i;
-  u_int32_t comval;
-  /* Maximum is "65535:65535" + '\0'. */
-  char c[12];
   char *str;
 
-  if (! com)
-    return NULL;
+  /* When there is no communities attribute it is treated as empty
+     string.  */
+  if (ecom == NULL || ecom->size == 0)
+    str = "";
+  else
+    str = ecommunity_str (ecom);
 
-  i = 0;
-  while (i < com->size)
-    {
-      memcpy (&comval, com_nthval (com, i), sizeof (u_int32_t));
-      comval = ntohl (comval);
+  /* Regular expression match.  */
+  if (regexec (reg, str, 0, NULL, 0) == 0)
+    return 1;
 
-      switch (comval)
-	{
-	case COMMUNITY_INTERNET:
-	  str = "internet";
-	  break;
-	case COMMUNITY_NO_EXPORT:
-	  str = "no-export";
-	  break;
-	case COMMUNITY_NO_ADVERTISE:
-	  str = "no-advertise";
-	  break;
-	case COMMUNITY_LOCAL_AS:
-	  str = "local-AS";
-	  break;
-	default:
-	  sprintf (c, "%d:%d", (comval >> 16) & 0xFFFF, comval & 0xFFFF);
-	  str = c;
-	  break;
-	}
-
-      if (regexec (reg, str, 0, NULL, 0) == 0)
-	community_del_val (com, com_nthval (com, i));
-      else
-	i++;
-    }
-  return com;
+  /* No match.  */
+  return 0;
 }
 
 /* When given community attribute matches to the community-list return
@@ -431,6 +407,30 @@ community_list_match (struct community *com, struct community_list *list)
       else if (entry->style == COMMUNITY_LIST_EXPANDED)
 	{
 	  if (community_regexp_match (com, entry->reg))
+	    return entry->direct == COMMUNITY_PERMIT ? 1 : 0;
+	}
+    }
+  return 0;
+}
+
+int
+ecommunity_list_match (struct ecommunity *ecom, struct community_list *list)
+{
+  struct community_entry *entry;
+
+  for (entry = list->head; entry; entry = entry->next)
+    {
+      if (entry->any)
+	return entry->direct == COMMUNITY_PERMIT ? 1 : 0;
+
+      if (entry->style == EXTCOMMUNITY_LIST_STANDARD)
+	{
+	  if (ecommunity_match (ecom, entry->u.ecom))
+	    return entry->direct == COMMUNITY_PERMIT ? 1 : 0;
+	}
+      else if (entry->style == EXTCOMMUNITY_LIST_EXPANDED)
+	{
+	  if (ecommunity_regexp_match (ecom, entry->reg))
 	    return entry->direct == COMMUNITY_PERMIT ? 1 : 0;
 	}
     }
@@ -466,37 +466,89 @@ community_list_exact_match (struct community *com, struct community_list *list)
   return 0;
 }
 
-/* Delete all permitted communities in the list from com1 */
+/* Do regular expression matching with single community val.  */
+static int
+comval_regexp_match (u_int32_t comval, regex_t *reg)
+{
+  /* Maximum is "65535:65535" + '\0'. */
+  char c[12];
+  char *str;
+
+  switch (comval)
+    {
+    case COMMUNITY_INTERNET:
+      str = "internet";
+      break;
+    case COMMUNITY_NO_EXPORT:
+      str = "no-export";
+      break;
+    case COMMUNITY_NO_ADVERTISE:
+      str = "no-advertise";
+      break;
+    case COMMUNITY_LOCAL_AS:
+      str = "local-AS";
+      break;
+    default:
+      snprintf (c, sizeof c,
+		"%d:%d", (comval >> 16) & 0xFFFF, comval & 0xFFFF);
+      str = c;
+      break;
+    }
+
+  if (regexec (reg, str, 0, NULL, 0) == 0)
+    return 1;
+  
+  return 0;
+}
+
+/* Delete all permitted communities in the list from com.  */
 struct community *
 community_list_match_delete (struct community *com,
-			     struct community_list *list)
+                             struct community_list *clist)
 {
+  int i;
+  u_int32_t comval;
+  struct community *merge;
   struct community_entry *entry;
 
-  for (entry = list->head; entry; entry = entry->next)
-    {
-      if (entry->any && entry->direct == COMMUNITY_PERMIT)
-	{
-	  /* This is a tricky part.  Currently only
-	     route_set_community_delete() uses this function.  In the
-	     function com->size is zero, it free the community
-	     structure.  */
-	  com->size = 0;
-	  return com;
-	}
+  /* Empty community value check.  */
+  if (! com)
+    return NULL;
 
-      if (entry->style == COMMUNITY_LIST_STANDARD)
+  /* Duplicate communities value.  */
+  merge = community_dup (com);
+
+  /* For each communities value, we have to check each
+     community-list.  */
+  for (i = 0; i < com->size; i ++)
+    {
+      /* Get one communities value.  */
+      memcpy (&comval, com_nthval (com, i), sizeof (u_int32_t));
+      comval = ntohl (comval);
+
+      /* Loop community-list.  */
+      for (entry = clist->head; entry; entry = entry->next)
 	{
-	  if (entry->direct == COMMUNITY_PERMIT)
-	    community_delete (com, entry->u.com);
-	}
-      else if (entry->style == COMMUNITY_LIST_EXPANDED)
-	{
-	  if (entry->direct == COMMUNITY_PERMIT)
-	    community_regexp_delete (com, entry->reg);
-	}
+	  /* Various match condition check.  */
+	  if (entry->any
+	      || (entry->style == COMMUNITY_LIST_STANDARD
+		  && entry->u.com
+		  && community_include (entry->u.com, comval))
+	      || (entry->style == COMMUNITY_LIST_EXPANDED
+		  && entry->reg
+		  && comval_regexp_match (comval, entry->reg)))
+	    {
+	      /* If the rule is "permit", delete this community value. */
+	      if (entry->direct == COMMUNITY_PERMIT)
+		community_del_val (merge, com_nthval (com, i));
+
+	      /* Exit community-list loop, goto next communities
+		 value.  */
+	      break;
+	    }
+        }		  
     }
-  return com;
+  return merge;
 }
 
 /* To avoid duplicated entry in the community-list, this function

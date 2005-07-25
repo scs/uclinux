@@ -224,7 +224,8 @@ DEFUN (no_debug_ospf6_all,
 struct cmd_node debug_node =
 {
   DEBUG_NODE,
-  ""
+  "",
+  1
 };
 
 int

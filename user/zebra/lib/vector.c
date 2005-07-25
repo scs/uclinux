@@ -1,5 +1,4 @@
-/*
- * generic vector interface routine
+/* Generic vector interface routine
  * Copyright (C) 1997 Kunihiro Ishiguro
  *
  * This file is part of GNU Zebra.
@@ -141,9 +140,18 @@ vector_set_index (vector v, unsigned int i, void *val)
   return i;
 }
 
+/* Look up vector.  */
+void *
+vector_lookup (vector v, unsigned int i)
+{
+  if (i >= v->max)
+    return NULL;
+  return v->index[i];
+}
+
 /* Lookup vector, ensure it. */
 void *
-vector_lookup_index (vector v, unsigned int i)
+vector_lookup_ensure (vector v, unsigned int i)
 {
   vector_ensure (v, i);
   return v->index[i];

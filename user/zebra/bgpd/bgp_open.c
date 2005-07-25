@@ -672,7 +672,7 @@ bgp_open_capability (struct stream *s, struct peer *peer)
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_CAPABILITY_OPEN) 
       || CHECK_FLAG (peer->flags, PEER_FLAG_DONT_CAPABILITY))
     return;
-    
+
   /* When the peer is IPv4 unicast only, do not send capability. */
   if (! peer->afc[AFI_IP][SAFI_MULTICAST] 
       && ! peer->afc[AFI_IP][SAFI_MPLS_VPN]

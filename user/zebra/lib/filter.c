@@ -1414,7 +1414,7 @@ ALIAS (no_access_list_remark,
        "IP extended access list (expanded range)\n"
        "IP zebra access-list\n"
        "Access list entry comment\n"
-       "Comment up to 100 characters\n")
+       "Comment up to 100 characters\n");
 
 #ifdef HAVE_IPV6
 DEFUN (ipv6_access_list,
@@ -1590,7 +1590,7 @@ ALIAS (no_ipv6_access_list_remark,
        "Add an access list entry\n"
        "IPv6 zebra access-list\n"
        "Access list entry comment\n"
-       "Comment up to 100 characters\n")
+       "Comment up to 100 characters\n");
 #endif /* HAVE_IPV6 */
 
 void config_write_access_zebra (struct vty *, struct filter *);

@@ -28,28 +28,9 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_ecommunity.h"
 
-/* Extended community value is eight octet.  */
-struct ecommunity_val
-{
-  char val[8];
-};
-
-/* For parse Extended Community attribute tupple. */
-struct ecommunity_as
-{
-  as_t as;
-  u_int32_t val;
-};
-
-struct ecommunity_ip
-{
-  struct in_addr ip;
-  u_int16_t val;
-};
-
 /* Hash of community attribute. */
 struct hash *ecomhash;
-
+
 /* Allocate a new ecommunities.  */
 struct ecommunity *
 ecommunity_new ()
@@ -64,81 +45,147 @@ ecommunity_free (struct ecommunity *ecom)
 {
   if (ecom->val)
     XFREE (MTYPE_ECOMMUNITY_VAL, ecom->val);
-
   if (ecom->str)
     XFREE (MTYPE_ECOMMUNITY_STR, ecom->str);
-
   XFREE (MTYPE_ECOMMUNITY, ecom);
 }
 
-void *
-ecommunity_hash_alloc (struct ecommunity *val)
+/* Add a new Extended Communities value to Extended Communities
+   Attribute structure.  When the value is already exists in the
+   structure, we don't add the value.  Newly added value is sorted by
+   numerical order.  When the value is added to the structure return 1
+   else return 0.  */
+static int
+ecommunity_add_val (struct ecommunity *ecom, struct ecommunity_val *eval)
 {
-  struct ecommunity *ecom;
+  u_char *p;
+  int ret;
+  int c;
 
-  ecom = ecommunity_new ();
+  /* When this is fist value, just add it.  */
+  if (ecom->val == NULL)
+    {
+      ecom->size++;
+      ecom->val = XMALLOC (MTYPE_ECOMMUNITY_VAL, ecom_length (ecom));
+      memcpy (ecom->val, eval->val, ECOMMUNITY_SIZE);
+      return 1;
+    }
 
-  ecom->size = val->size;
-  ecom->val = XMALLOC (MTYPE_ECOMMUNITY_VAL, val->size * BGP_RD_SIZE);
-  memcpy (ecom->val, val->val, val->size * BGP_RD_SIZE);
+  /* If the value already exists in the structure return 0.  */
+  c = 0;
+  for (p = ecom->val; c < ecom->size; p += ECOMMUNITY_SIZE, c++)
+    {
+      ret = memcmp (p, eval->val, ECOMMUNITY_SIZE);
+      if (ret == 0)
+        return 0;
+      if (ret > 0)
+        break;
+    }
 
-  return ecom;
+  /* Add the value to the structure with numerical sorting.  */
+  ecom->size++;
+  ecom->val = XREALLOC (MTYPE_ECOMMUNITY_VAL, ecom->val, ecom_length (ecom));
+
+  memmove (ecom->val + (c + 1) * ECOMMUNITY_SIZE,
+	   ecom->val + c * ECOMMUNITY_SIZE,
+	   (ecom->size - 1 - c) * ECOMMUNITY_SIZE);
+  memcpy (ecom->val + c * ECOMMUNITY_SIZE, eval->val, ECOMMUNITY_SIZE);
+
+  return 1;
 }
 
+/* This function takes pointer to Extended Communites strucutre then
+   create a new Extended Communities structure by uniq and sort each
+   Exteneded Communities value.  */
+struct ecommunity *
+ecommunity_uniq_sort (struct ecommunity *ecom)
+{
+  int i;
+  struct ecommunity *new;
+  struct ecommunity_val *eval;
+  
+  if (! ecom)
+    return NULL;
+  
+  new = ecommunity_new ();;
+  
+  for (i = 0; i < ecom->size; i++)
+    {
+      eval = (struct ecommunity_val *) (ecom->val + (i * ECOMMUNITY_SIZE));
+      ecommunity_add_val (new, eval);
+    }
+  return new;
+}
+
+/* Parse Extended Communites Attribute in BGP packet.  */
 struct ecommunity *
 ecommunity_parse (char *pnt, u_short length)
 {
   struct ecommunity tmp;
-  struct ecommunity *find;
+  struct ecommunity *new;
 
-  if (length % BGP_RD_SIZE)
+  /* Length check.  */
+  if (length % ECOMMUNITY_SIZE)
     return NULL;
 
-  tmp.size = length / BGP_RD_SIZE;
+  /* Prepare tmporary structure for making a new Extended Communities
+     Attribute.  */
+  tmp.size = length / ECOMMUNITY_SIZE;
   tmp.val = pnt;
 
-  find = (struct ecommunity *) hash_get (ecomhash, &tmp,
-					 ecommunity_hash_alloc);
-  find->refcnt++;
+  /* Create a new Extended Communities Attribute by uniq and sort each
+     Extended Communities value  */
+  new = ecommunity_uniq_sort (&tmp);
 
-  return find;
+  return ecommunity_intern (new);
 }
 
+/* Duplicate the Extended Communities Attribute structure.  */
 struct ecommunity *
 ecommunity_dup (struct ecommunity *ecom)
 {
   struct ecommunity *new;
 
-  new = XMALLOC (MTYPE_ECOMMUNITY, sizeof (struct ecommunity));
-  memset (new, 0, sizeof (struct ecommunity));
+  new = XCALLOC (MTYPE_ECOMMUNITY, sizeof (struct ecommunity));
   new->size = ecom->size;
   if (new->size)
     {
-      new->val = XMALLOC (MTYPE_ECOMMUNITY_VAL, ecom->size * BGP_RD_SIZE);
-      memcpy (new->val, ecom->val, ecom->size * BGP_RD_SIZE);
+      new->val = XMALLOC (MTYPE_ECOMMUNITY_VAL, ecom->size * ECOMMUNITY_SIZE);
+      memcpy (new->val, ecom->val, ecom->size * ECOMMUNITY_SIZE);
     }
   else
     new->val = NULL;
   return new;
 }
 
+/* Retrun string representation of communities attribute. */
+char *
+ecommunity_str (struct ecommunity *ecom)
+{
+  if (! ecom->str)
+    ecom->str = ecommunity_ecom2str (ecom, ECOMMUNITY_FORMAT_DISPLAY);
+  return ecom->str;
+}
+
+/* Merge two Extended Communities Attribute structure.  */
 struct ecommunity *
 ecommunity_merge (struct ecommunity *ecom1, struct ecommunity *ecom2)
 {
   if (ecom1->val)
     ecom1->val = XREALLOC (MTYPE_ECOMMUNITY_VAL, ecom1->val, 
-			   (ecom1->size + ecom2->size) * BGP_RD_SIZE);
+			   (ecom1->size + ecom2->size) * ECOMMUNITY_SIZE);
   else
     ecom1->val = XMALLOC (MTYPE_ECOMMUNITY_VAL,
-			  (ecom1->size + ecom2->size) * BGP_RD_SIZE);
+			  (ecom1->size + ecom2->size) * ECOMMUNITY_SIZE);
 
-  memcpy (ecom1->val + (ecom1->size * BGP_RD_SIZE),
-	  ecom2->val, ecom2->size * BGP_RD_SIZE);
+  memcpy (ecom1->val + (ecom1->size * ECOMMUNITY_SIZE),
+	  ecom2->val, ecom2->size * ECOMMUNITY_SIZE);
   ecom1->size += ecom2->size;
 
   return ecom1;
 }
 
+/* Intern Extended Communities Attribute.  */
 struct ecommunity *
 ecommunity_intern (struct ecommunity *ecom)
 {
@@ -159,16 +206,19 @@ ecommunity_intern (struct ecommunity *ecom)
   return find;
 }
 
+/* Unintern Extended Communities Attribute.  */
 void
 ecommunity_unintern (struct ecommunity *ecom)
 {
+  struct ecommunity *ret;
+
   if (ecom->refcnt)
     ecom->refcnt--;
 
+  /* Pull off from hash.  */
   if (ecom->refcnt == 0)
     {
-      struct ecommunity *ret;
-  
+      /* Extended community must be in the hash.  */
       ret = (struct ecommunity *) hash_release (ecomhash, ecom);
       assert (ret != NULL);
 
@@ -176,6 +226,7 @@ ecommunity_unintern (struct ecommunity *ecom)
     }
 }
 
+/* Utinity function to make hash key.  */
 unsigned int
 ecommunity_hash_make (struct ecommunity *ecom)
 {
@@ -184,57 +235,29 @@ ecommunity_hash_make (struct ecommunity *ecom)
   unsigned char *pnt;
 
   key = 0;
-  pnt = (unsigned char *)ecom->val;
+  pnt = ecom->val;
   
-  for (c = 0; c < ecom->size * BGP_RD_SIZE; c++)
+  for (c = 0; c < ecom->size * ECOMMUNITY_SIZE; c++)
     key += pnt[c];
 
   return key;
 }
 
+/* Compare two Extended Communities Attribute structure.  */
 int
 ecommunity_cmp (struct ecommunity *ecom1, struct ecommunity *ecom2)
 {
   if (ecom1->size == ecom2->size
-      && memcmp (ecom1->val, ecom2->val, ecom1->size * BGP_RD_SIZE) == 0)
+      && memcmp (ecom1->val, ecom2->val, ecom1->size * ECOMMUNITY_SIZE) == 0)
     return 1;
   return 0;
 }
 
-int
-ecommunity_add_val (struct ecommunity *ecom, struct bgp_rd *rd)
+/* Initialize Extended Comminities related hash. */
+void
+ecommunity_init ()
 {
-  u_char *p;
-  int ret;
-  int c;
-
-  if (ecom->val == NULL)
-    {
-      ecom->size++;
-      ecom->val = XMALLOC (MTYPE_ECOMMUNITY_VAL, ecom_length (ecom));
-      memcpy (ecom->val, rd->val, BGP_RD_SIZE);
-      return 1;
-    }
-
-  c = 0;
-  for (p = ecom->val; c < ecom->size; p += 8, c++)
-    {
-      ret = memcmp (p, rd->val, BGP_RD_SIZE);
-      if (ret == 0)
-        return 0;
-
-      if (ret > 0)
-        break;
-    }
-
-  ecom->size++;
-  ecom->val = XREALLOC (MTYPE_ECOMMUNITY_VAL, ecom->val, ecom_length (ecom));
-
-  memmove (ecom->val + (c + 1) * BGP_RD_SIZE,
-	   ecom->val + c * BGP_RD_SIZE, (ecom->size - 1 - c) * BGP_RD_SIZE);
-  memcpy (ecom->val + c * BGP_RD_SIZE, rd->val, BGP_RD_SIZE);
-
-  return 1;
+  ecomhash = hash_create (ecommunity_hash_make, ecommunity_cmp);
 }
 
 /* Extended Communities token enum. */
@@ -469,7 +492,7 @@ ecommunity_str2com (char *str, int type, int keyword_included)
 	  if (ecom == NULL)
 	    ecom = ecommunity_new ();
 	  eval.val[1] = type;
-	  ecommunity_add_val (ecom, (struct bgp_rd *) &eval);
+	  ecommunity_add_val (ecom, &eval);
 	  break;
 	case ecommunity_token_unknown:
 	default:
@@ -508,8 +531,6 @@ ecommunity_ecom2str (struct ecommunity *ecom, int format)
 {
   int i;
   u_char *pnt;
-  struct ecommunity_as eas;
-  struct ecommunity_ip eip;
   int encode = 0;
   int type = 0;
 #define ECOMMUNITY_STR_DEFAULT_LEN  26
@@ -519,6 +540,19 @@ ecommunity_ecom2str (struct ecommunity *ecom, int format)
   char *prefix;
   int len = 0;
   int first = 1;
+
+  /* For parse Extended Community attribute tupple. */
+  struct ecommunity_as
+  {
+    as_t as;
+    u_int32_t val;
+  } eas;
+
+  struct ecommunity_ip
+  {
+    struct in_addr ip;
+    u_int16_t val;
+  } eip;
 
   if (ecom->size == 0)
     {
@@ -615,78 +649,32 @@ ecommunity_ecom2str (struct ecommunity *ecom, int format)
   return str_buf;
 }
 
-/* Transform RFC2547 routing distinguisher to extended communities
-   type.  */
-void
-ecommunity_rd2com (struct bgp_rd *rd, u_char type)
+int
+ecommunity_match (struct ecommunity *ecom1, struct ecommunity *ecom2)
 {
-  rd->val[0] = rd->val[1];
-  rd->val[1] = type;
-}
+  int i = 0;
+  int j = 0;
 
-void
-ecommunity_vty_out (struct vty *vty, struct ecommunity *ecom)
-{
-  int i;
-  u_char *pnt;
-  struct ecommunity_as eas;
-  struct ecommunity_ip eip;
-  int encode = 0;
-  int type = 0;
+  if (ecom1 == NULL && ecom2 == NULL)
+    return 1;
 
-  for (i = 0; i < ecom->size; i++)
+  if (ecom1 == NULL || ecom2 == NULL)
+    return 0;
+
+  if (ecom1->size < ecom2->size)
+    return 0;
+
+  /* Every community on com2 needs to be on com1 for this to match */
+  while (i < ecom1->size && j < ecom2->size)
     {
-      pnt = ecom->val + (i * 8);
-
-      /* High-order octet of type. */
-      if (*pnt == ECOMMUNITY_ENCODE_AS)
-	encode = ECOMMUNITY_ENCODE_AS;
-      else if (*pnt == ECOMMUNITY_ENCODE_IP)
-	encode = ECOMMUNITY_ENCODE_IP;
-      pnt++;
-      
-      /* Low-order octet of type. */
-      if (*pnt == ECOMMUNITY_ROUTE_TARGET)
-	{
-	  if (type != ECOMMUNITY_ROUTE_TARGET)
-	    vty_out (vty, " RT:");
-	  type = ECOMMUNITY_ROUTE_TARGET;
-	}
-      else if (*pnt == ECOMMUNITY_SITE_ORIGIN)
-	{
-	  if (type != ECOMMUNITY_SITE_ORIGIN)
-	    vty_out (vty, " SoO:");
-	  type = ECOMMUNITY_SITE_ORIGIN;
-	}
-      pnt++;
-
-      if (encode == ECOMMUNITY_ENCODE_AS)
-	{
-	  eas.as = (*pnt++ << 8);
-	  eas.as |= (*pnt++);
-
-	  eas.val = (*pnt++ << 24);
-	  eas.val |= (*pnt++ << 16);
-	  eas.val |= (*pnt++ << 8);
-	  eas.val |= (*pnt++);
-
-	  vty_out (vty, "%d:%d", eas.as, eas.val);
-	}
-      else if (encode == ECOMMUNITY_ENCODE_IP)
-	{
-	  memcpy (&eip.ip, pnt, 4);
-	  pnt += 4;
-	  eip.val = (*pnt++ << 8);
-	  eip.val |= (*pnt++);
-
-	  vty_out (vty, "%s:%d", inet_ntoa (eip.ip), eip.val);
-	}
+      if (memcmp (ecom1->val + i, ecom2->val + j, ECOMMUNITY_SIZE) == 0)
+        j++;
+      i++;
     }
+
+  if (j == ecom2->size)
+    return 1;
+  else
+    return 0;
 }
 
-/* Initialize Extended Comminities related hash. */
-void
-ecommunity_init ()
-{
-  ecomhash = hash_create (ecommunity_hash_make, ecommunity_cmp);
-}

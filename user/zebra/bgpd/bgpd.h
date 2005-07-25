@@ -96,6 +96,7 @@ struct bgp
 #define BGP_FLAG_ASPATH_IGNORE            (1 << 8)
 #define BGP_FLAG_IMPORT_CHECK             (1 << 9)
 #define BGP_FLAG_NO_FAST_EXT_FAILOVER     (1 << 10)
+#define BGP_FLAG_LOG_NEIGHBOR_CHANGES     (1 << 11)
 
   /* BGP Per AF flags */
   u_int16_t af_flags[AFI_MAX][SAFI_MAX];
@@ -263,6 +264,7 @@ struct peer
   union sockunion su;		/* Sockunion address of the peer. */
   time_t uptime;		/* Last Up/Down time */
   time_t readtime;		/* Last read time */
+  time_t resettime;		/* Last reset time */
   
   unsigned int ifindex;		/* ifindex of the BGP connection. */
   char *ifname;			/* bind interface name. */
@@ -323,11 +325,12 @@ struct peer
 #define PEER_FLAG_NEXTHOP_UNCHANGED         (1 << 7) /* transparent-next-hop */
 #define PEER_FLAG_MED_UNCHANGED             (1 << 8) /* transparent-next-hop */
 #define PEER_FLAG_DEFAULT_ORIGINATE         (1 << 9) /* default-originate */
-#define PEER_FLAG_DEFAULT_ORIGINATE_CHECK   (1 << 10) /* default-originate check*/
-#define PEER_FLAG_REMOVE_PRIVATE_AS         (1 << 11) /* remove-private-as */
-#define PEER_FLAG_ALLOWAS_IN                (1 << 12) /* set allowas-in */
-#define PEER_FLAG_ORF_PREFIX_SM             (1 << 13) /* orf capability send-mode */
-#define PEER_FLAG_ORF_PREFIX_RM             (1 << 14) /* orf capability receive-mode */
+#define PEER_FLAG_REMOVE_PRIVATE_AS         (1 << 10) /* remove-private-as */
+#define PEER_FLAG_ALLOWAS_IN                (1 << 11) /* set allowas-in */
+#define PEER_FLAG_ORF_PREFIX_SM             (1 << 12) /* orf capability send-mode */
+#define PEER_FLAG_ORF_PREFIX_RM             (1 << 13) /* orf capability receive-mode */
+#define PEER_FLAG_MAX_PREFIX                (1 << 14) /* maximum prefix */
+#define PEER_FLAG_MAX_PREFIX_WARNING        (1 << 15) /* maximum prefix warning-only */
 
   /* default-originate route-map.  */
   struct
@@ -348,6 +351,9 @@ struct peer
   u_int16_t af_sflags[AFI_MAX][SAFI_MAX];
 #define PEER_STATUS_ORF_PREFIX_SEND   (1 << 0) /* prefix-list send peer */
 #define PEER_STATUS_ORF_WAIT_REFRESH  (1 << 1) /* wait refresh received peer */
+#define PEER_STATUS_DEFAULT_ORIGINATE (1 << 2) /* default-originate peer */
+#define PEER_STATUS_PREFIX_THRESHOLD  (1 << 3) /* exceed prefix-threshold */
+#define PEER_STATUS_PREFIX_LIMIT      (1 << 4) /* exceed prefix-limit */
 
   /* Default attribute value for the peer. */
   u_int32_t config;
@@ -391,6 +397,8 @@ struct peer
   u_int32_t notify_out;		/* Notify output count */
   u_int32_t refresh_in;		/* Route Refresh input count */
   u_int32_t refresh_out;	/* Route Refresh output count */
+  u_int32_t dynamic_cap_in;	/* Dynamic Capability input count.  */
+  u_int32_t dynamic_cap_out;	/* Dynamic Capability output count.  */
 
   /* BGP state count */
   u_int32_t established;	/* Established */
@@ -423,10 +431,44 @@ struct peer
 
   /* Max prefix count. */
   unsigned long pmax[AFI_MAX][SAFI_MAX];
-  u_char pmax_warning[AFI_MAX][SAFI_MAX];
+  u_char pmax_threshold[AFI_MAX][SAFI_MAX];
+#define MAXIMUM_PREFIX_THRESHOLD_DEFAULT 75
 
   /* allowas-in. */
   char allowas_in[AFI_MAX][SAFI_MAX];
+
+  /* peer reset cause */
+  char last_reset;
+#define PEER_DOWN_RID_CHANGE             1 /* bgp router-id command */
+#define PEER_DOWN_REMOTE_AS_CHANGE       2 /* neighbor remote-as command */
+#define PEER_DOWN_LOCAL_AS_CHANGE        3 /* neighbor local-as command */
+#define PEER_DOWN_CLID_CHANGE            4 /* bgp cluster-id command */
+#define PEER_DOWN_CONFED_ID_CHANGE       5 /* bgp confederation identifier command */
+#define PEER_DOWN_CONFED_PEER_CHANGE     6 /* bgp confederation peer command */
+#define PEER_DOWN_RR_CLIENT_CHANGE       7 /* neighbor route-reflector-client command */
+#define PEER_DOWN_RS_CLIENT_CHANGE       8 /* neighbor route-server-client command */
+#define PEER_DOWN_UPDATE_SOURCE_CHANGE   9 /* neighbor update-source command */
+#define PEER_DOWN_AF_ACTIVATE           10 /* neighbor activate command */
+#define PEER_DOWN_USER_SHUTDOWN         11 /* neighbor shutdown command */
+#define PEER_DOWN_USER_RESET            12 /* clear ip bgp command */
+#define PEER_DOWN_NOTIFY_RECEIVED       13 /* notification received */
+#define PEER_DOWN_NOTIFY_SEND           14 /* notification send */
+#define PEER_DOWN_CLOSE_SESSION         15 /* tcp session close */
+#define PEER_DOWN_NEIGHBOR_DELETE       16 /* neghbor delete */
+#define PEER_DOWN_RMAP_BIND             17 /* neghbor peer-group command */
+#define PEER_DOWN_RMAP_UNBIND           18 /* no neighbor peer-group command */
+#define PEER_DOWN_CAPABILITY_CHANGE     19 /* neighbor capability command */
+#define PEER_DOWN_PASSIVE_CHANGE        20 /* neighbor passive command */
+#define PEER_DOWN_MULTIHOP_CHANGE       21 /* neighbor multihop command */
+
+  /* The kind of route-map Flags.*/
+  u_char rmap_type;
+#define PEER_RMAP_TYPE_IN             (1 << 0) /* neighbor route-map in */
+#define PEER_RMAP_TYPE_OUT            (1 << 1) /* neighbor route-map out */
+#define PEER_RMAP_TYPE_NETWORK        (1 << 2) /* network route-map */
+#define PEER_RMAP_TYPE_REDISTRIBUTE   (1 << 3) /* redistribute route-map */
+#define PEER_RMAP_TYPE_DEFAULT        (1 << 4) /* default-originate route-map */
+#define PEER_RMAP_TYPE_NOSET          (1 << 5) /* not allow to set commands */
 };
 
 /* This structure's member directly points incoming packet data
@@ -542,14 +584,15 @@ struct bgp_nlri
 #define BGP_NOTIFY_UPDATE_MAL_AS_PATH           11
 #define BGP_NOTIFY_UPDATE_MAX                   12
 
-/* BGP_NOTIFY_CEASE sub codes (draft-ietf-idr-cease-subcode-00).  */
+/* BGP_NOTIFY_CEASE sub codes (draft-ietf-idr-cease-subcode-03).  */
 #define BGP_NOTIFY_CEASE_MAX_PREFIX              1
 #define BGP_NOTIFY_CEASE_ADMIN_SHUTDOWN          2
 #define BGP_NOTIFY_CEASE_PEER_UNCONFIG           3
 #define BGP_NOTIFY_CEASE_ADMIN_RESET             4
 #define BGP_NOTIFY_CEASE_CONNECT_REJECT          5
 #define BGP_NOTIFY_CEASE_CONFIG_CHANGE           6
-#define BGP_NOTIFY_CEASE_MAX                     7
+#define BGP_NOTIFY_CEASE_CONNECT_COLLISION       7
+#define BGP_NOTIFY_CEASE_MAX                     8
 
 /* BGP_NOTIFY_CAPABILITY_ERR sub codes (draft-ietf-idr-dynamic-cap-02). */
 #define BGP_NOTIFY_CAPABILITY_INVALID_ACTION     1
@@ -689,6 +732,7 @@ void bgp_reset (void);
 void bgp_zclient_reset ();
 int bgp_nexthop_set (union sockunion *, union sockunion *, 
 		     struct bgp_nexthop *, struct peer *);
+struct bgp_master *bgp_get_master ();
 struct bgp *bgp_get_default ();
 struct bgp *bgp_lookup (as_t, char *);
 struct bgp *bgp_lookup_by_name (char *);
@@ -814,7 +858,7 @@ int peer_route_map_unset (struct peer *, afi_t, safi_t, int);
 int peer_unsuppress_map_set (struct peer *, afi_t, safi_t, char *);
 int peer_unsuppress_map_unset (struct peer *, afi_t, safi_t);
 
-int peer_maximum_prefix_set (struct peer *, afi_t, safi_t, u_int32_t, int);
+int peer_maximum_prefix_set (struct peer *, afi_t, safi_t, u_int32_t, u_char, int);
 int peer_maximum_prefix_unset (struct peer *, afi_t, safi_t);
 
 int peer_clear (struct peer *);

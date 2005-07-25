@@ -51,7 +51,6 @@
 #include "ospf6_area.h"
 #include "ospf6_interface.h"
 #include "ospf6_neighbor.h"
-#include "ospf6_redistribute.h"
 #include "ospf6_ism.h"
 #include "ospf6_nsm.h"
 #include "ospf6_dbex.h"
@@ -142,8 +141,11 @@ ospf6_lsa_age_set (struct ospf6_lsa *lsa)
 
   lsa->birth.tv_sec = now.tv_sec - ntohs (lsa->header->age);
   lsa->birth.tv_usec = now.tv_usec;
-  lsa->expire = thread_add_timer (master, ospf6_lsa_expire, lsa,
-                                  lsa->birth.tv_sec + MAXAGE - now.tv_sec);
+  if (ntohs (lsa->header->age) != MAXAGE)
+    lsa->expire = thread_add_timer (master, ospf6_lsa_expire, lsa,
+                                    lsa->birth.tv_sec + MAXAGE - now.tv_sec);
+  else
+    lsa->expire = NULL;
   return;
 }
 
@@ -692,38 +694,6 @@ ospf6_lsa_unlock (struct ospf6_lsa *lsa)
     ospf6_lsa_delete (lsa);
 }
 
-/* check necessity to update LSA:
-   returns 1 if it's necessary to reoriginate */
-static int
-ospf6_lsa_is_really_reoriginate (struct ospf6_lsa *new)
-{
-  struct ospf6_lsa *old;
-  int diff;
-
-  /* find previous LSA */
-  old = ospf6_lsdb_lookup (new->header->type, new->header->id,
-                           new->header->adv_router, new->scope);
-  if (! old)
-    return 1;
-
-  /* Check if this is refresh */
-  if (CHECK_FLAG (old->flag, OSPF6_LSA_FLAG_REFRESH))
-    {
-      zlog_warn ("LSA: reoriginate: %s: Refresh", new->str);
-      return 1;
-    }
-
-  /* Are these contents different ? */
-  diff = ospf6_lsa_differ (new, old);
-
-  if (diff)
-    return 1;
-
-  if (IS_OSPF6_DUMP_LSA)
-    zlog_info ("LSA: Suppress updating %s", new->str);
-  return 0;
-}
-
 void
 ospf6_lsa_originate (u_int16_t type, u_int32_t id, u_int32_t adv_router,
                      char *data, int data_len, void *scope)
@@ -731,6 +701,7 @@ ospf6_lsa_originate (u_int16_t type, u_int32_t id, u_int32_t adv_router,
   char buffer[MAXLSASIZE];
   struct ospf6_lsa_header *lsa_header;
   struct ospf6_lsa *lsa;
+  struct ospf6_lsa *old;
 
   assert (data_len <= sizeof (buffer) - sizeof (struct ospf6_lsa_header));
 
@@ -754,18 +725,37 @@ ospf6_lsa_originate (u_int16_t type, u_int32_t id, u_int32_t adv_router,
 
   /* create LSA */
   lsa = ospf6_lsa_create ((struct ospf6_lsa_header *) buffer);
-  lsa->refresh = thread_add_timer (master, ospf6_lsa_refresh, lsa,
-                                   OSPF6_LS_REFRESH_TIME);
   lsa->scope = scope;
 
-  if (ospf6_lsa_is_really_reoriginate (lsa))
+  /* find previous LSA */
+  old = ospf6_lsdb_lookup (lsa->header->type, lsa->header->id,
+                           lsa->header->adv_router, lsa->scope);
+  if (old)
     {
-      ospf6_dbex_remove_from_all_retrans_list (lsa);
-      ospf6_dbex_flood (lsa, NULL);
-      ospf6_lsdb_install (lsa);
+      /* Check if this is neither different instance nor refresh, return */
+      if (! CHECK_FLAG (old->flag, OSPF6_LSA_FLAG_REFRESH) &&
+          ! ospf6_lsa_differ (lsa, old))
+        {
+          if (IS_OSPF6_DUMP_LSA)
+            zlog_info ("LSA: Suppress updating %s", lsa->str);
+          ospf6_lsa_delete (lsa);
+          return;
+        }
     }
-  else
-    ospf6_lsa_delete (lsa);
+
+  lsa->refresh = thread_add_timer (master, ospf6_lsa_refresh, lsa,
+                                   OSPF6_LS_REFRESH_TIME);
+  gettimeofday (&lsa->originated, NULL);
+
+  //if (IS_OSPF6_DUMP_LSA)
+    zlog_info ("LSA: originate %s seq: %#x age: %hu %ld.%06ld",
+               lsa->str, ntohl (lsa->header->seqnum),
+               ospf6_lsa_age_current (lsa),
+               lsa->originated.tv_sec, lsa->originated.tv_usec);
+
+  ospf6_dbex_remove_from_all_retrans_list (lsa);
+  ospf6_dbex_flood (lsa, NULL);
+  ospf6_lsdb_install (lsa);
 }
 
 
@@ -775,6 +765,7 @@ ospf6_lsa_expire (struct thread *thread)
 {
   struct ospf6_lsa *lsa;
   struct ospf6_lsdb *lsdb = NULL;
+  void (*hook) (struct ospf6_lsa *, struct ospf6_lsa *);
 
   lsa = (struct ospf6_lsa *) THREAD_ARG (thread);
   assert (lsa && lsa->lsa_hdr);
@@ -804,12 +795,11 @@ ospf6_lsa_expire (struct thread *thread)
       else
         assert (0);
 
-#if 0
-      if (lsdb->hook)
-        (*lsdb->hook) (lsa, NULL);
-#else /*0*/
-      CALL_REMOVE_HOOK (&database_hook, lsa);
-#endif /*0*/
+      /* call LSDB hook to re-process LSA */
+      hook = ospf6_lsdb_hook[ntohs (lsa->header->type) &
+                             OSPF6_LSTYPE_CODE_MASK].hook;
+      if (hook)
+        (*hook) (NULL, lsa);
 
       /* do not free LSA, and do nothing about lslists.
          wait event (ospf6_lsdb_check_maxage) */
@@ -1130,14 +1120,32 @@ ospf6_lsa_router_show (struct vty *vty, struct ospf6_lsa *lsa)
   return 0;
 }
 
-void
-ospf6_lsa_router_update (u_int32_t area_id)
+u_long
+ospf6_lsa_has_elasped (u_int16_t type, u_int32_t id,
+                       u_int32_t adv_router, void *scope)
+{
+  struct ospf6_lsa *old;
+  struct timeval now;
+
+  if (adv_router != ospf6->router_id)
+    zlog_info ("LSA: Router-ID changed ?");
+
+  old = ospf6_lsdb_lookup (type, id, adv_router, scope);
+  if (! old)
+    return OSPF6_LSA_MAXAGE;
+
+  gettimeofday (&now, NULL);
+  return ((u_long) SEC_TVDIFF (&now, &old->originated));
+}
+
+int
+ospf6_lsa_originate_router (struct thread *thread)
 {
   char buffer [MAXLSASIZE];
   u_int16_t size;
-  struct ospf6_lsa *old;
   struct ospf6_area *o6a;
   int count;
+  u_int32_t area_id;
 
   struct ospf6_router_lsa *router_lsa;
   struct ospf6_router_lsd *router_lsd;
@@ -1145,22 +1153,22 @@ ospf6_lsa_router_update (u_int32_t area_id)
   struct ospf6_interface *o6i;
   struct ospf6_neighbor *o6n = NULL;
 
+  area_id = (u_int32_t) THREAD_ARG (thread);
+
   o6a = ospf6_area_lookup (area_id, ospf6);
   if (! o6a)
     {
       inet_ntop (AF_INET, &area_id, buffer, sizeof (buffer));
       if (IS_OSPF6_DUMP_LSA)
-        zlog_warn ("Update Router-LSA: No such area: %s", buffer);
-      return;
+        zlog_info ("LSA: Update Router-LSA: No such area: %s", buffer);
+      return 0;
     }
 
-  if (IS_OSPF6_DUMP_LSA)
-    zlog_info ("Update Router-LSA: for Area %s", o6a->str);
+  /* clear thread */
+  o6a->thread_router_lsa = NULL;
 
-  /* find previous LSA */
-  /* xxx, there may be multiple Router-LSAs */
-  old = ospf6_lsdb_lookup (htons (OSPF6_LSA_TYPE_ROUTER),
-                           htonl (0), o6a->ospf6->router_id, o6a);
+  if (IS_OSPF6_DUMP_LSA)
+    zlog_info ("LSA: originate Router-LSA for Area %s", o6a->str);
 
   size = sizeof (struct ospf6_router_lsa);
   memset (buffer, 0, sizeof (buffer));
@@ -1277,6 +1285,42 @@ ospf6_lsa_router_update (u_int32_t area_id)
   ospf6_lsa_originate (htons (OSPF6_LSA_TYPE_ROUTER),
                        htonl (0), o6a->ospf6->router_id,
                        (char *) router_lsa, size, o6a);
+  return 0;
+}
+
+void
+ospf6_lsa_schedule_router (struct ospf6_area *area)
+{
+  u_long elasped_time, time = 0;
+
+  if (area->thread_router_lsa)
+    {
+      if (IS_OSPF6_DUMP_LSA)
+        zlog_info ("LSA: schedule: Router-LSA for Area %s: another thread",
+                   area->str);
+      return;
+    }
+
+  elasped_time =
+    ospf6_lsa_has_elasped (htons (OSPF6_LSA_TYPE_ROUTER), htonl (0),
+                           area->ospf6->router_id, area);
+  if (elasped_time < OSPF6_MIN_LS_INTERVAL)
+    time = (u_long) (OSPF6_MIN_LS_INTERVAL - elasped_time);
+  else
+    time = 0;
+
+  if (IS_OSPF6_DUMP_LSA)
+    zlog_info ("LSA: schedule: Router-LSA for Area %s after %lu sec",
+               area->str, time);
+
+  if (time)
+    area->thread_router_lsa =
+      thread_add_timer (master, ospf6_lsa_originate_router,
+                        (void *) area->area_id, time);
+  else
+    area->thread_router_lsa =
+      thread_add_event (master, ospf6_lsa_originate_router,
+                        (void *) area->area_id, 0);
 }
 
 int
@@ -1284,7 +1328,7 @@ ospf6_lsa_router_hook_neighbor (void *neighbor)
 {
   struct ospf6_neighbor *o6n = neighbor;
   if (o6n->ospf6_interface->area)
-    ospf6_lsa_router_update (o6n->ospf6_interface->area->area_id);
+    ospf6_lsa_schedule_router (o6n->ospf6_interface->area);
   return 0;
 }
 
@@ -1293,7 +1337,7 @@ ospf6_lsa_router_hook_interface (void *interface)
 {
   struct ospf6_interface *o6i = interface;
   if (o6i->area)
-    ospf6_lsa_router_update (o6i->area->area_id);
+    ospf6_lsa_schedule_router (o6i->area);
   return 0;
 }
 
@@ -1301,7 +1345,7 @@ int
 ospf6_lsa_router_hook_area (void *area)
 {
   struct ospf6_area *o6a = area;
-  ospf6_lsa_router_update (o6a->area_id);
+  ospf6_lsa_schedule_router (o6a);
   return 0;
 }
 
@@ -1315,7 +1359,7 @@ ospf6_lsa_router_hook_top (void *ospf6)
   for (node = listhead (o6->area_list); node; nextnode (node))
     {
       o6a = getdata (node);
-      ospf6_lsa_router_update (o6a->area_id);
+      ospf6_lsa_schedule_router (o6a);
     }
   return 0;
 }
@@ -1327,7 +1371,7 @@ ospf6_lsa_router_refresh (void *old)
   struct ospf6_area *o6a;
 
   o6a = lsa->scope;
-  ospf6_lsa_router_update (o6a->area_id);
+  ospf6_lsa_schedule_router (o6a);
   return 0;
 }
 

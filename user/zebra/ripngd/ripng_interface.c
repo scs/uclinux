@@ -120,7 +120,7 @@ ripng_if_down (struct interface *ifp)
   struct ripng_info *rinfo;
   struct ripng_interface *ri;
 
-  if (ripng->table)
+  if (ripng)
     {
       for (rp = route_top (ripng->table); rp; rp = route_next (rp))
 	if ((rinfo = rp->info) != NULL)

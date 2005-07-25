@@ -30,16 +30,15 @@
 	 (type) == OSPF_OPAQUE_AS_LSA)
 
 /*
- * Define opaque-lsa handling flag "top->opaque" as follows.
+ * Usage of Opaque-LSA administrative flags in "struct ospf".
  *
  *    7   6   5   4   3   2   1   0
  * +---+---+---+---+---+---+---+---+
- * |///|///|///|B11|B10|B09| O | C |
+ * |///|///|///|///|B11|B10|B09| O |
  * +---+---+---+---+---+---+---+---+
- *             |<--------->| A   A
- *                   |       |   +--- Opaque capability (capable = 1)
- *                   |       +------- Operation status  (operational = 1)
- *                   +--------------- Blocking status for each LSA type
+ *                 |<--------->| A
+ *                       |       +--- Operation status (operational = 1)
+ *                       +----------- Blocking status for each LSA type
  */
 
 #define IS_OPAQUE_LSA_ORIGINATION_BLOCKED(V) \

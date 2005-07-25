@@ -22,7 +22,7 @@
 #include "ospf6d.h"
 
 #include "ospf6_interface.h"
-#include "ospf6_redistribute.h"
+#include "ospf6_asbr.h"
 
 #include "ospf6_linklist.h"
 
@@ -133,7 +133,7 @@ ospf6_zebra_if_state_update (int command, struct zclient *zclient,
 
 int
 ospf6_zebra_if_address_update_add (int command, struct zclient *zclient,
-                               zebra_size_t length)
+				   zebra_size_t length)
 {
   struct connected *c;
   char buf[128];
@@ -156,7 +156,7 @@ ospf6_zebra_if_address_update_add (int command, struct zclient *zclient,
 
 int
 ospf6_zebra_if_address_update_delete (int command, struct zclient *zclient,
-                               zebra_size_t length)
+				      zebra_size_t length)
 {
   struct connected *c;
   char buf[128];
@@ -180,17 +180,17 @@ ospf6_zebra_if_address_update_delete (int command, struct zclient *zclient,
 
 
 const char *zebra_route_name[ZEBRA_ROUTE_MAX] =
-{
-  "System",
-  "Kernel",
-  "Connect",
-  "Static",
-  "RIP",
-  "RIPng",
-  "OSPF",
-  "OSPF6",
-  "BGP",
-};
+  {
+    "System",
+    "Kernel",
+    "Connect",
+    "Static",
+    "RIP",
+    "RIPng",
+    "OSPF",
+    "OSPF6",
+    "BGP",
+  };
 
 const char *zebra_route_abname[ZEBRA_ROUTE_MAX] =
   { "X", "K", "C", "S", "r", "R", "o", "O", "B" };
@@ -202,13 +202,14 @@ ospf6_zebra_read_ipv6 (int command, struct zclient *zclient,
   struct stream *s;
   struct zapi_ipv6 api;
   unsigned long ifindex;
-  struct in6_addr nexthop;
   struct prefix_ipv6 p;
+  struct in6_addr *nexthop;
   char prefixstr[128], nexthopstr[128];
 
   s = zclient->ibuf;
   ifindex = 0;
-  memset (&nexthop, 0, sizeof (struct in6_addr));
+  nexthop = NULL;
+  memset (&api, 0, sizeof (api));
 
   /* Type, flags, message. */
   api.type = stream_getc (s);
@@ -225,7 +226,9 @@ ospf6_zebra_read_ipv6 (int command, struct zclient *zclient,
   if (CHECK_FLAG (api.message, ZAPI_MESSAGE_NEXTHOP))
     {
       api.nexthop_num = stream_getc (s);
-      stream_get (&nexthop, s, 16);
+      nexthop = (struct in6_addr *)
+        malloc (api.nexthop_num * sizeof (struct in6_addr));
+      stream_get (nexthop, s, api.nexthop_num * sizeof (struct in6_addr));
     }
   if (CHECK_FLAG (api.message, ZAPI_MESSAGE_IFINDEX))
     {
@@ -256,11 +259,15 @@ ospf6_zebra_read_ipv6 (int command, struct zclient *zclient,
 		   zebra_route_name [api.type], prefixstr,
 		   nexthopstr, ifindex);
     }
-  
+ 
   if (command == ZEBRA_IPV6_ROUTE_ADD)
-    ospf6_redistribute_route_add (api.type, ifindex, &p);
+    ospf6_asbr_route_add (api.type, ifindex, (struct prefix *) &p,
+                          api.nexthop_num, nexthop);
   else
-    ospf6_redistribute_route_remove (api.type, ifindex, &p);
+    ospf6_asbr_route_remove (api.type, ifindex, (struct prefix *) &p);
+
+  if (CHECK_FLAG (api.message, ZAPI_MESSAGE_NEXTHOP))
+    free (nexthop);
 
   return 0;
 }
@@ -338,10 +345,11 @@ ospf6_zebra_config_write (struct vty *vty)
 
 /* Zebra node structure. */
 struct cmd_node zebra_node =
-{
-  ZEBRA_NODE,
-  "%s(config-zebra)# ",
-};
+  {
+    ZEBRA_NODE,
+    "%s(config-zebra)# ",
+    0
+  };
 
 #define ADD    0
 #define CHANGE 1
@@ -407,7 +415,7 @@ ospf6_zebra_route_update (int type, struct ospf6_route_req *request)
       if (memcmp (&route.path, &request->path, sizeof (route.path)))
         break;
 
-      #define IN6_IS_ILLEGAL_NEXTHOP(a)\
+#define IN6_IS_ILLEGAL_NEXTHOP(a)\
         ((*(u_int32_t *)(void *)(&(a)->s6_addr[0]) == 0xffffffff) &&\
         (*(u_int32_t *)(void *)(&(a)->s6_addr[4]) == 0xffffffff) &&\
         (*(u_int32_t *)(void *)(&(a)->s6_addr[8]) == 0xffffffff) &&\
@@ -433,10 +441,13 @@ ospf6_zebra_route_update (int type, struct ospf6_route_req *request)
       linklist_add (nexthop, nexthop_list);
     }
 
-  if (type == REMOVE && nexthop_list->count == 0)
+  if (type == REMOVE && nexthop_list->count != 0)
+    type = ADD;
+  else if (type == REMOVE && nexthop_list->count == 0)
     {
-      if (! ospf6_route_end (&route))
-        ospf6_route_next (&route);
+      if (IS_OSPF6_DUMP_ZEBRA)
+        zlog_info ("ZEBRA:   all nexthop with the selected path has gone");
+
       if (! memcmp (&request->route, &route.route,
                     sizeof (struct ospf6_route)))
         {
@@ -444,11 +455,7 @@ ospf6_zebra_route_update (int type, struct ospf6_route_req *request)
           struct ospf6_path seconde_path;
 
           if (IS_OSPF6_DUMP_ZEBRA)
-            zlog_info ("ZEBRA:   find alternative path to add");
-
-          linklist_remove (nexthop, nexthop_list);
-          XFREE (MTYPE_OSPF6_OTHER, nexthop);
-          assert (nexthop_list->count == 0);
+            zlog_info ("ZEBRA:   found alternative path to add");
 
           memcpy (&seconde_path, &route.path, sizeof (struct ospf6_path));
           type = ADD;
@@ -476,6 +483,13 @@ ospf6_zebra_route_update (int type, struct ospf6_route_req *request)
              requested route */
           if (IS_OSPF6_DUMP_ZEBRA)
             zlog_info ("ZEBRA:   can't find alternative path, remove");
+
+          if (IS_OSPF6_DUMP_ZEBRA)
+            {
+              zlog_info ("ZEBRA:   Debug: walk over the route ?");
+              ospf6_route_log_request ("Debug route", "***", &route);
+              ospf6_route_log_request ("Debug request", "***", request);
+            }
 
           nexthop = XCALLOC (MTYPE_OSPF6_OTHER,
                              sizeof (struct ospf6_nexthop));

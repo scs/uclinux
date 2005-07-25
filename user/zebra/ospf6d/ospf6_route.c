@@ -1013,6 +1013,10 @@ ospf6_route_table_show (struct vty *vty, int argc, char **argv,
   struct prefix_ls   *pl = (struct prefix_ls *) &prefix;
   struct route_node *node;
 
+  u_int route_count = 0;
+  u_int path_count = 0;
+  u_int route_redundant = 0;
+
   memset (&prefix, 0, sizeof (struct prefix));
 
   for (i = 0; i < argc; i++)
@@ -1101,14 +1105,25 @@ ospf6_route_table_show (struct vty *vty, int argc, char **argv,
 
   for (node = route_top (table->table); node; node = route_next (node))
     {
-      if (! node->info)
+      struct ospf6_route_node *route = node->info;
+
+      if (! route)
         continue;
 
       if (detail)
-        ospf6_route_show_detail (vty, node->info);
+        ospf6_route_show_detail (vty, route);
       else
-        ospf6_route_show (vty, node->info);
+        ospf6_route_show (vty, route);
+
+      route_count++;
+      path_count += route->path_list->count;
+      if (route->path_list->count > 1)
+        route_redundant++;
     }
+
+  vty_out (vty, "===========%s", VTY_NEWLINE);
+  vty_out (vty, "Route: %d Path: %d Redundant: %d%s",
+           route_count, path_count, route_redundant, VTY_NEWLINE);
 
   return CMD_SUCCESS;
 }

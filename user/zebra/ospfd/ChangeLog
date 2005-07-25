@@ -1,3 +1,37 @@
+2003-08-23  Hasso Tepper <hasso@estpak.ee>
+
+	* OSPF NSSA fixes.
+
+2003-01-23  Masahiko Endo <endo@suri.co.jp>
+
+	* ospf_ism.c: NSM event schedule bug fix.
+
+2002-10-30  Greg Troxel <gdt@ir.bbn.com>
+
+	* ospf_packet.c (ospf_make_md5_digest): MD5 length fix. 
+
+2002-10-23  endo@suri.co.jp (Masahiko Endo)
+
+	* ospf_opaque.c: Update Opaque LSA patch.
+
+2002-10-23  Ralph Keller <keller@tik.ee.ethz.ch>
+
+	* ospf_vty.c (show_ip_ospf_database): Fix CLI parse.
+
+2002-10-23  Juris Kalnins <juris@mt.lv>
+
+	* ospf_interface.c (ospf_if_stream_unset): When write queue
+	becomes empty stop write timer.
+
+2002-10-10  Greg Troxel <gdt@ir.bbn.com>
+
+	* ospf_packet.c (ospf_check_md5_digest): Change >= to > to make it
+	conform to RFC.
+
+2002-07-25  Roger Venning <r.venning@telstra.com>
+
+	* ospf_lsa.c: Point-to-Multipoint support is added.
+
 2002-07-07  Kunihiro Ishiguro  <kunihiro@ipinfusion.com>
 
 	* zebra-0.93 released.

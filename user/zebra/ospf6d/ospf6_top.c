@@ -43,7 +43,6 @@
 #include "ospf6_area.h"
 #include "ospf6_top.h"
 
-#include "ospf6_redistribute.h"
 #include "ospf6_route.h"
 #include "ospf6_zebra.h"
 
@@ -152,7 +151,7 @@ ospf6_show (struct vty *vty)
   vty_out (vty, " Supports only single TOS(TOS0) routes%s", VTY_NEWLINE);
 
   /* Redistribute config */
-  ospf6_redistribute_show_config (vty, ospf6);
+  ospf6_redistribute_show_config (vty);
 
   /* LSAs */
   vty_out (vty, " Number of AS scoped LSAs is %u%s",
@@ -250,9 +249,6 @@ ospf6_create (unsigned long process_id)
 
   o6->lsdb = ospf6_lsdb_create ();
 
-  /* route table init */
-  ospf6_redistribute_init (o6);
-
   o6->foreach_area = ospf6_top_foreach_area;
   o6->foreach_if = ospf6_top_foreach_interface;
   o6->foreach_nei = ospf6_top_foreach_neighbor;
@@ -264,12 +260,14 @@ ospf6_create (unsigned long process_id)
                              ospf6_top_topology_remove,
                              o6->topology_table);
 
+#if 0
   snprintf (namebuf, sizeof (namebuf), "External table");
   o6->external_table = ospf6_route_table_create (namebuf);
   ospf6_route_hook_register (ospf6_asbr_external_route_add,
                              ospf6_asbr_external_route_add,
                              ospf6_asbr_external_route_remove,
                              o6->external_table);
+#endif /*0*/
 
   snprintf (namebuf, sizeof (namebuf), "Top route table");
   o6->route_table = ospf6_route_table_create (namebuf);
@@ -346,7 +344,7 @@ ALIAS (show_ipv6_ospf6_route,
        OSPF6_STR
        "Routing table\n"
        "match IPv6 prefix\n"
-       )
+       );
 
 DEFUN (show_ipv6_ospf6_topology,
        show_ipv6_ospf6_topology_cmd,
@@ -371,7 +369,7 @@ ALIAS (show_ipv6_ospf6_topology,
        OSPF6_ROUTER_ID_STR
        OSPF6_ROUTER_ID_STR
        "Detailed information\n"
-       )
+       );
 
 ALIAS (show_ipv6_ospf6_topology,
        show_ipv6_ospf6_topology_router_lsid_cmd,
@@ -384,7 +382,7 @@ ALIAS (show_ipv6_ospf6_topology,
        OSPF6_ROUTER_ID_STR
        OSPF6_LS_ID_STR
        OSPF6_LS_ID_STR
-       )
+       );
 
 void
 ospf6_top_init ()

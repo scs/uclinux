@@ -1609,7 +1609,7 @@ ALIAS (no_ip_prefix_list_description,
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Prefix-list specific description\n"
-       "Up to 80 characters describing this prefix-list\n")
+       "Up to 80 characters describing this prefix-list\n");
 
 DEFUN (show_ip_prefix_list,
        show_ip_prefix_list_cmd,
@@ -2219,7 +2219,7 @@ ALIAS (no_ipv6_prefix_list_description,
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "Prefix-list specific description\n"
-       "Up to 80 characters describing this prefix-list\n")
+       "Up to 80 characters describing this prefix-list\n");
 
 DEFUN (show_ipv6_prefix_list,
        show_ipv6_prefix_list_cmd,

@@ -80,7 +80,8 @@ struct vty
   unsigned char escape;
 
   /* Current vty status. */
-  enum {VTY_NORMAL, VTY_CLOSE, VTY_MORE, VTY_START, VTY_CONTINUE} status;
+  enum {VTY_NORMAL, VTY_CLOSE, VTY_MORE, VTY_MORELINE,
+        VTY_START, VTY_CONTINUE} status;
 
   /* IAC handling */
   unsigned char iac;

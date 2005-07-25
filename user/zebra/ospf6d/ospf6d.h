@@ -59,7 +59,6 @@
 #include "ospf6_neighbor.h"
 #include "ospf6_ism.h"
 #include "ospf6_nsm.h"
-#include "ospf6_redistribute.h"
 #include "ospf6_route.h"
 #include "ospf6_dbex.h"
 #include "ospf6_network.h"
@@ -74,7 +73,7 @@
 #define HASHVAL 64
 #define MAXIOVLIST 1024
 
-#define OSPF6_DAEMON_VERSION    "0.9.6i"
+#define OSPF6_DAEMON_VERSION    "0.9.6p"
 
 #define AF_LINKSTATE  0xff
 

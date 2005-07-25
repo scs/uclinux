@@ -130,7 +130,7 @@ void bgp_clear_adj_in (struct peer *, afi_t, safi_t);
 int bgp_nlri_sanity_check (struct peer *, int, u_char *, bgp_size_t);
 int bgp_nlri_parse (struct peer *, struct attr *, struct bgp_nlri *);
 
-int bgp_maximum_prefix_overflow (struct peer *, afi_t, safi_t);
+int bgp_maximum_prefix_overflow (struct peer *, afi_t, safi_t, int);
 
 void bgp_redistribute_add (struct prefix *, struct in_addr *, u_int32_t, u_char);
 void bgp_redistribute_delete (struct prefix *, u_char);
@@ -147,9 +147,6 @@ int bgp_static_unset_vpnv4 (struct vty *, char *, char *, char *);
 
 int bgp_config_write_network (struct vty *, struct bgp *, afi_t, safi_t, int *);
 int bgp_config_write_distance (struct vty *, struct bgp *);
-
-void route_vty_out_detail (struct vty *, struct prefix *, struct bgp_info *,
-			   afi_t, safi_t);
 
 void bgp_aggregate_increment (struct bgp *, struct prefix *, struct bgp_info *,
 			      afi_t, safi_t);

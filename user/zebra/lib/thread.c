@@ -30,6 +30,33 @@
 /* Struct timeval's tv_usec one second value.  */
 #define TIMER_SECOND_MICRO 1000000L
 
+struct timeval
+timeval_adjust (struct timeval a)
+{
+  while (a.tv_usec >= TIMER_SECOND_MICRO)
+    {
+      a.tv_usec -= TIMER_SECOND_MICRO;
+      a.tv_sec++;
+    }
+
+  while (a.tv_usec < 0)
+    {
+      a.tv_usec += TIMER_SECOND_MICRO;
+      a.tv_sec--;
+    }
+
+  if (a.tv_sec < 0)
+    {
+      a.tv_sec = 0;
+      a.tv_usec = 10;
+    }
+
+  if (a.tv_sec > TIMER_SECOND_MICRO)
+    a.tv_sec = TIMER_SECOND_MICRO;    
+
+  return a;
+}
+
 static struct timeval
 timeval_subtract (struct timeval a, struct timeval b)
 {
@@ -38,13 +65,7 @@ timeval_subtract (struct timeval a, struct timeval b)
   ret.tv_usec = a.tv_usec - b.tv_usec;
   ret.tv_sec = a.tv_sec - b.tv_sec;
 
-  while (ret.tv_usec < 0) 
-    {
-      ret.tv_usec += TIMER_SECOND_MICRO;
-      ret.tv_sec--;
-    }
-
-  return ret;
+  return timeval_adjust (ret);
 }
 
 static int

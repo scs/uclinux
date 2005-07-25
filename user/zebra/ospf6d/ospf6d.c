@@ -21,9 +21,10 @@
 
 #include "ospf6d.h"
 
+#include "ospf6_damp.h"
+
 /* global ospf6d variable */
 int  ospf6_sock;
-list iflist;
 list nexthoplist = NULL;
 struct sockaddr_in6 allspfrouters6;
 struct sockaddr_in6 alldrouters6;
@@ -279,8 +280,8 @@ DEFUN (show_ipv6_ospf6_statistics,
 }
 
 /* change Router_ID commands. */
-DEFUN (router_id,
-       router_id_cmd,
+DEFUN (ospf6_router_id,
+       ospf6_router_id_cmd,
        "router-id ROUTER_ID",
        "Configure ospf Router-ID.\n"
        V4NOTATION_STR)
@@ -401,8 +402,8 @@ ospf6_interface_bind_area (struct vty *vty,
   return CMD_SUCCESS;
 }
 
-DEFUN (interface_area_plist,
-       interface_area_plist_cmd,
+DEFUN (ospf6_interface_area_plist,
+       ospf6_interface_area_plist_cmd,
        "interface IFNAME area A.B.C.D prefix-list WORD",
        "Enable routing on an IPv6 interface\n"
        IFNAME_STR
@@ -410,7 +411,7 @@ DEFUN (interface_area_plist,
        "OSPF6 area ID in IPv4 address notation\n"
        OSPF6_PREFIX_LIST_STR
        "IPv6 prefix-list name\n"
-      )
+       )
 {
   if (IS_OSPF6_DUMP_CONFIG)
     zlog_info ("CONFIG: interface %s area %s prefix-list %s",
@@ -419,8 +420,8 @@ DEFUN (interface_area_plist,
   return ospf6_interface_bind_area (vty, argv[0], argv[1], argv[2], 0);
 }
 
-DEFUN (interface_area_plist_passive,
-       interface_area_plist_passive_cmd,
+DEFUN (ospf6_interface_area_plist_passive,
+       ospf6_interface_area_plist_passive_cmd,
        "interface IFNAME area A.B.C.D prefix-list WORD passive",
        "Enable routing on an IPv6 interface\n"
        IFNAME_STR
@@ -430,7 +431,7 @@ DEFUN (interface_area_plist_passive,
        "IPv6 prefix-list name\n"
        "IPv6 prefix-list name\n"
        OSPF6_PASSIVE_STR
-      )
+       )
 {
   if (IS_OSPF6_DUMP_CONFIG)
     zlog_info ("CONFIG: interface %s area %s prefix-list %s passive",
@@ -439,14 +440,14 @@ DEFUN (interface_area_plist_passive,
   return ospf6_interface_bind_area (vty, argv[0], argv[1], argv[2], 1);
 }
 
-DEFUN (interface_area,
-       interface_area_cmd,
+DEFUN (ospf6_interface_area,
+       ospf6_interface_area_cmd,
        "interface IFNAME area A.B.C.D",
        "Enable routing on an IPv6 interface\n"
        IFNAME_STR
        "Set the OSPF6 area ID\n"
        "OSPF6 area ID in IPv4 address notation\n"
-      )
+       )
 {
   struct interface *ifp;
   struct ospf6_interface *o6i;
@@ -474,15 +475,15 @@ DEFUN (interface_area,
                                     plist_name, passive);
 }
 
-DEFUN (interface_area_passive,
-       interface_area_passive_cmd,
+DEFUN (ospf6_interface_area_passive,
+       ospf6_interface_area_passive_cmd,
        "interface IFNAME area A.B.C.D passive",
        "Enable routing on an IPv6 interface\n"
        IFNAME_STR
        "Set the OSPF6 area ID\n"
        "OSPF6 area ID in IPv4 address notation\n"
        OSPF6_PASSIVE_STR
-      )
+       )
 {
   if (IS_OSPF6_DUMP_CONFIG)
     zlog_info ("CONFIG: interface %s area %s passive",
@@ -491,8 +492,8 @@ DEFUN (interface_area_passive,
   return ospf6_interface_bind_area (vty, argv[0], argv[1], NULL, 1);
 }
 
-DEFUN (no_interface_area,
-       no_interface_area_cmd,
+DEFUN (no_ospf6_interface_area,
+       no_ospf6_interface_area_cmd,
        "no interface IFNAME area A.B.C.D",
        NO_STR
        "Disable routing on an IPv6 interface\n"
@@ -536,8 +537,8 @@ DEFUN (no_interface_area,
   return CMD_SUCCESS;
 }
 
-DEFUN (area_range,
-       area_range_cmd,
+DEFUN (ospf6_area_range,
+       ospf6_area_range_cmd,
        "area A.B.C.D range X:X::X:X/M",
        "OSPFv3 area parameters\n"
        "OSPFv3 area ID in IPv4 address format\n"
@@ -568,8 +569,8 @@ DEFUN (area_range,
   return CMD_SUCCESS;
 }
 
-DEFUN (passive_interface,
-       passive_interface_cmd,
+DEFUN (ospf6_passive_interface,
+       ospf6_passive_interface_cmd,
        "passive-interface IFNAME",
        OSPF6_PASSIVE_STR
        IFNAME_STR)
@@ -594,8 +595,8 @@ DEFUN (passive_interface,
   return CMD_SUCCESS;
 }
 
-DEFUN (no_passive_interface,
-       no_passive_interface_cmd,
+DEFUN (no_ospf6_passive_interface,
+       no_ospf6_passive_interface_cmd,
        "no passive-interface IFNAME",
        NO_STR
        OSPF6_PASSIVE_STR
@@ -689,6 +690,7 @@ ospf6_config_write (struct vty *vty)
   vty_out (vty, " router-id %s%s", buf, VTY_NEWLINE);
 
   ospf6_redistribute_config_write (vty);
+  ospf6_damp_config_write (vty);
 
   for (j = listhead (ospf6->area_list); j; nextnode (j))
     {
@@ -706,10 +708,11 @@ ospf6_config_write (struct vty *vty)
 
 /* OSPF6 node structure. */
 struct cmd_node ospf6_node =
-{
-  OSPF6_NODE,
-  "%s(config-ospf6)# ",
-};
+  {
+    OSPF6_NODE,
+    "%s(config-ospf6)# ",
+    1
+  };
 
 /* Install ospf related commands. */
 void
@@ -737,15 +740,15 @@ ospf6_init ()
 #endif /* HAVE_SETPROCTITLE */
 
   install_default (OSPF6_NODE);
-  install_element (OSPF6_NODE, &router_id_cmd);
-  install_element (OSPF6_NODE, &interface_area_cmd);
-  install_element (OSPF6_NODE, &interface_area_passive_cmd);
-  install_element (OSPF6_NODE, &interface_area_plist_cmd);
-  install_element (OSPF6_NODE, &interface_area_plist_passive_cmd);
-  install_element (OSPF6_NODE, &no_interface_area_cmd);
-  install_element (OSPF6_NODE, &passive_interface_cmd);
-  install_element (OSPF6_NODE, &no_passive_interface_cmd);
-  install_element (OSPF6_NODE, &area_range_cmd);
+  install_element (OSPF6_NODE, &ospf6_router_id_cmd);
+  install_element (OSPF6_NODE, &ospf6_interface_area_cmd);
+  install_element (OSPF6_NODE, &ospf6_interface_area_passive_cmd);
+  install_element (OSPF6_NODE, &ospf6_interface_area_plist_cmd);
+  install_element (OSPF6_NODE, &ospf6_interface_area_plist_passive_cmd);
+  install_element (OSPF6_NODE, &no_ospf6_interface_area_cmd);
+  install_element (OSPF6_NODE, &ospf6_passive_interface_cmd);
+  install_element (OSPF6_NODE, &no_ospf6_passive_interface_cmd);
+  install_element (OSPF6_NODE, &ospf6_area_range_cmd);
 
   /* Make empty list of top list. */
   if_init ();
@@ -757,6 +760,10 @@ ospf6_init ()
   prefix_list_init ();
 
   ospf6_dump_init ();
+
+#ifdef HAVE_OSPF6_DAMP
+  ospf6_damp_init ();
+#endif /*HAVE_OSPF6_DAMP*/
 
   ospf6_hook_init ();
   ospf6_lsa_init ();
@@ -816,4 +823,3 @@ ospf6_lsa_get_scope (u_int16_t type, struct ospf6_interface *o6i)
   else
     return NULL;
 }
-

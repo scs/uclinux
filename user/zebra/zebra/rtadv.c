@@ -143,7 +143,7 @@ rtadv_send_packet (int sock, struct interface *ifp)
   struct cmsghdr  *cmsgptr;
   struct in6_pktinfo *pkt;
   struct sockaddr_in6 addr;
-#if HAVE_SOCKADDR_DL
+#ifdef HAVE_SOCKADDR_DL
   struct sockaddr_dl *sdl;
 #endif /* HAVE_SOCKADDR_DL */
   char adata [sizeof (struct cmsghdr) + sizeof (struct in6_pktinfo)];
@@ -568,7 +568,7 @@ ALIAS (ipv6_nd_suppress_ra,
        NO_STR
        IP_STR
        "Neighbor discovery\n"
-       "Send Router Advertisement\n")
+       "Send Router Advertisement\n");
 
 DEFUN (no_ipv6_nd_suppress_ra,
        no_ipv6_nd_suppress_ra_cmd,
@@ -610,7 +610,7 @@ ALIAS (no_ipv6_nd_suppress_ra,
        "ipv6 nd send-ra",
        IP_STR
        "Neighbor discovery\n"
-       "Send Router Advertisement\n")
+       "Send Router Advertisement\n");
 
 DEFUN (ipv6_nd_ra_interval,
        ipv6_nd_ra_interval_cmd,
@@ -898,7 +898,7 @@ ALIAS (ipv6_nd_prefix_advertisement,
        IP_STR
        "Neighbor discovery\n"
        "Prefix information\n"
-       "IPv6 prefix\n")
+       "IPv6 prefix\n");
 
 DEFUN (no_ipv6_nd_prefix_advertisement,
        no_ipv6_nd_prefix_advertisement_cmd,

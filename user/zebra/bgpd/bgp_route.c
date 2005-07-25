@@ -437,8 +437,13 @@ bgp_input_modifier (struct peer *peer, struct prefix *p, struct attr *attr,
       info.peer = peer;
       info.attr = attr;
 
+      SET_FLAG (peer->rmap_type, PEER_RMAP_TYPE_IN); 
+
       /* Apply BGP route map to the attribute. */
       ret = route_map_apply (ROUTE_MAP_IN (filter), p, RMAP_BGP, &info);
+
+      peer->rmap_type = 0;
+
       if (ret == RMAP_DENYMATCH)
 	{
 	  /* Free newly generated AS path and community by route-map. */
@@ -480,9 +485,8 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
     if (! UNSUPPRESS_MAP_NAME (filter))
       return 0;
 
-  /* Default originate check */
-  if (CHECK_FLAG (peer->af_flags[afi][safi],
-      PEER_FLAG_DEFAULT_ORIGINATE_CHECK))
+  /* Default route check.  */
+  if (CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_DEFAULT_ORIGINATE))
     {
       if (p->family == AF_INET && p->u.prefix4.s_addr == INADDR_ANY)
 	return 0;
@@ -492,8 +496,15 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
 #endif /* HAVE_IPV6 */
     }
 
+  /* Transparency check. */
+  if (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_RSERVER_CLIENT)
+      && CHECK_FLAG (from->af_flags[afi][safi], PEER_FLAG_RSERVER_CLIENT))
+    transparent = 1;
+  else
+    transparent = 0;
+
   /* If community is not disabled check the no-export and local. */
-  if (bgp_community_filter (peer, ri->attr)) 
+  if (! transparent && bgp_community_filter (peer, ri->attr)) 
     return 0;
 
   /* If the attribute has originator-id and it is same as remote
@@ -601,13 +612,6 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
       attr->local_pref = bgp->default_local_pref;
     }
 
-  /* Transparency check. */
-  if (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_RSERVER_CLIENT)
-      && CHECK_FLAG (from->af_flags[afi][safi], PEER_FLAG_RSERVER_CLIENT))
-    transparent = 1;
-  else
-    transparent = 0;
-
   /* Remove MED if its an EBGP peer - will get overwritten by route-maps */
   if (peer_sort (peer) == BGP_PEER_EBGP 
       && attr->flag & ATTR_FLAG_BIT (BGP_ATTR_MULTI_EXIT_DISC))
@@ -621,7 +625,10 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
   if (transparent || reflect
       || (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_NEXTHOP_UNCHANGED)
 	  && ((p->family == AF_INET && attr->nexthop.s_addr)
-	      || (p->family == AF_INET6 && ri->peer != bgp->peer_self))))
+#ifdef HAVE_IPV6
+	      || (p->family == AF_INET6 && ri->peer != bgp->peer_self)
+#endif /* HAVE_IPV6 */
+	      )))
     {
       /* NEXT-HOP Unchanged. */
     }
@@ -700,11 +707,15 @@ bgp_announce_check (struct bgp_info *ri, struct peer *peer, struct prefix *p,
 	  dummy_attr = *attr;
 	  info.attr = &dummy_attr;
 	}
- 
+
+      SET_FLAG (peer->rmap_type, PEER_RMAP_TYPE_OUT); 
+
       if (ri->suppress)
 	ret = route_map_apply (UNSUPPRESS_MAP (filter), p, RMAP_BGP, &info);
       else
 	ret = route_map_apply (ROUTE_MAP_OUT (filter), p, RMAP_BGP, &info);
+
+      peer->rmap_type = 0;
 
       if (ret == RMAP_DENYMATCH)
 	{
@@ -854,36 +865,62 @@ bgp_process (struct bgp *bgp, struct bgp_node *rn, afi_t afi, safi_t safi)
 }
 
 int
-bgp_maximum_prefix_overflow (struct peer *peer, afi_t afi, safi_t safi)
+bgp_maximum_prefix_overflow (struct peer *peer, afi_t afi, safi_t safi, int always)
 {
-  if (peer->pmax[afi][safi]
-      && peer->pcount[afi][safi] >= peer->pmax[afi][safi])
+  if (! CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_MAX_PREFIX))
+    return 0;
+
+  if (peer->pcount[afi][safi] > peer->pmax[afi][safi])
     {
+      if (CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_PREFIX_LIMIT)
+	  && ! always)
+	return 0;
+
       zlog (peer->log, LOG_INFO,
-	    "MAXPFXEXCEED: No. of prefix received from %s (afi %d): %ld exceed limit %ld",
+	    "%%MAXPFXEXCEED: No. of prefix received from %s (afi %d): %ld exceed limit %ld",
 	    peer->host, afi, peer->pcount[afi][safi], peer->pmax[afi][safi]);
-      if (! peer->pmax_warning[afi][safi])
-	{
-	  char ndata[7];
+      SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_PREFIX_LIMIT);
 
-	  ndata[0] = (u_char)(afi >>  8);
-	  ndata[1] = (u_char) afi;
-	  ndata[3] = (u_char)(peer->pmax[afi][safi] >> 24);
-	  ndata[4] = (u_char)(peer->pmax[afi][safi] >> 16);
-	  ndata[5] = (u_char)(peer->pmax[afi][safi] >> 8);
-	  ndata[6] = (u_char)(peer->pmax[afi][safi]);
+      if (CHECK_FLAG (peer->af_flags[afi][safi], PEER_FLAG_MAX_PREFIX_WARNING))
+	return 0;
 
-	  if (safi == SAFI_MPLS_VPN)
-	    safi = BGP_SAFI_VPNV4;
-	  ndata[2] = (u_char) safi;
+      {
+	char ndata[7];
 
-	  bgp_notify_send_with_data (peer, BGP_NOTIFY_CEASE,
-				     BGP_NOTIFY_CEASE_MAX_PREFIX,
-				     ndata, 7);
-	  SET_FLAG (peer->sflags, PEER_STATUS_PREFIX_OVERFLOW);
-	  return 1;
-	}
+	ndata[0] = (u_char)(afi >>  8);
+	ndata[1] = (u_char) afi;
+	ndata[3] = (u_char)(peer->pmax[afi][safi] >> 24);
+	ndata[4] = (u_char)(peer->pmax[afi][safi] >> 16);
+	ndata[5] = (u_char)(peer->pmax[afi][safi] >> 8);
+	ndata[6] = (u_char)(peer->pmax[afi][safi]);
+
+	if (safi == SAFI_MPLS_VPN)
+	  safi = BGP_SAFI_VPNV4;
+	ndata[2] = (u_char) safi;
+
+	SET_FLAG (peer->sflags, PEER_STATUS_PREFIX_OVERFLOW);
+	bgp_notify_send_with_data (peer, BGP_NOTIFY_CEASE,
+				   BGP_NOTIFY_CEASE_MAX_PREFIX, ndata, 7);
+      }
+      return 1;
     }
+  else
+    UNSET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_PREFIX_LIMIT);
+
+  if (peer->pcount[afi][safi] > (peer->pmax[afi][safi] * peer->pmax_threshold[afi][safi] / 100))
+    {
+      if (CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_PREFIX_THRESHOLD)
+	  && ! always)
+	return 0;
+
+      zlog (peer->log, LOG_INFO,
+	    "%%MAXPFX: No. of prefix received from %s (afi %d) reaches %ld, max %ld",
+	    peer->host, afi, peer->pcount[afi][safi], peer->pmax[afi][safi]);
+      SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_PREFIX_THRESHOLD);
+    }
+  else
+    UNSET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_PREFIX_THRESHOLD);
+
   return 0;
 }
 
@@ -1209,9 +1246,8 @@ bgp_update (struct peer *peer, struct prefix *p, struct attr *attr,
 
   /* If maximum prefix count is configured and current prefix
      count exeed it. */
-  if (! peer->pmax_warning[afi][safi])
-    if (bgp_maximum_prefix_overflow (peer, afi, safi))
-      return -1;
+  if (bgp_maximum_prefix_overflow (peer, afi, safi, 0))
+    return -1;
 
   /* Process change. */
   bgp_process (bgp, rn, afi, safi);
@@ -1346,15 +1382,13 @@ bgp_default_originate (struct peer *peer, afi_t afi, safi_t safi, int withdraw)
 
   if (withdraw)
     {
-      if (CHECK_FLAG (peer->af_flags[afi][safi], 
-		      PEER_FLAG_DEFAULT_ORIGINATE_CHECK))
+      if (CHECK_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_DEFAULT_ORIGINATE))
 	bgp_default_withdraw_send (peer, afi, safi);
-      UNSET_FLAG (peer->af_flags[afi][safi], 
-		  PEER_FLAG_DEFAULT_ORIGINATE_CHECK);
+      UNSET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_DEFAULT_ORIGINATE);
     }
   else
     {
-      SET_FLAG (peer->af_flags[afi][safi], PEER_FLAG_DEFAULT_ORIGINATE_CHECK);
+      SET_FLAG (peer->af_sflags[afi][safi], PEER_STATUS_DEFAULT_ORIGINATE);
       bgp_default_update_send (peer, &attr, afi, safi, from);
     }
 
@@ -1780,6 +1814,7 @@ bgp_static_update (struct bgp *bgp, struct prefix *p,
   struct bgp_info *new;
   struct bgp_info info;
   struct attr attr;
+  struct attr attr_tmp;
   struct attr *attr_new;
   int ret;
 
@@ -1796,23 +1831,26 @@ bgp_static_update (struct bgp *bgp, struct prefix *p,
   /* Apply route-map. */
   if (bgp_static->rmap.name)
     {
+      attr_tmp = attr;
       info.peer = bgp->peer_self;
-      info.attr = &attr;
+      info.attr = &attr_tmp;
 
       ret = route_map_apply (bgp_static->rmap.map, p, RMAP_BGP, &info);
+
       if (ret == RMAP_DENYMATCH)
 	{    
 	  /* Free uninterned attribute. */
-	  bgp_attr_flush (&attr);
+	  bgp_attr_flush (&attr_tmp);
 
 	  /* Unintern original. */
 	  aspath_unintern (attr.aspath);
 	  bgp_static_withdraw (bgp, p, afi, safi);
 	  return;
 	}
+      attr_new = bgp_attr_intern (&attr_tmp);
     }
-
-  attr_new = bgp_attr_intern (&attr);
+  else
+    attr_new = bgp_attr_intern (&attr);
 
   for (ri = rn->info; ri; ri = ri->next)
     if (ri->peer == bgp->peer_self && ri->type == ZEBRA_ROUTE_BGP
@@ -2462,7 +2500,7 @@ ALIAS (no_bgp_network,
        "Specify a network to announce via BGP\n"
        "IP prefix <network>/<length>, e.g., 35.0.0.0/8\n"
        "Route-map to modify the attributes\n"
-       "Name of the route map\n")
+       "Name of the route map\n");
 
 ALIAS (no_bgp_network,
        no_bgp_network_backdoor_cmd,
@@ -2470,7 +2508,7 @@ ALIAS (no_bgp_network,
        NO_STR
        "Specify a network to announce via BGP\n"
        "IP prefix <network>/<length>, e.g., 35.0.0.0/8\n"
-       "Specify a BGP backdoor route\n")
+       "Specify a BGP backdoor route\n");
 
 DEFUN (no_bgp_network_mask,
        no_bgp_network_mask_cmd,
@@ -2504,7 +2542,7 @@ ALIAS (no_bgp_network_mask,
        "Network mask\n"
        "Network mask\n"
        "Route-map to modify the attributes\n"
-       "Name of the route map\n")
+       "Name of the route map\n");
 
 ALIAS (no_bgp_network_mask,
        no_bgp_network_mask_backdoor_cmd,
@@ -2514,7 +2552,7 @@ ALIAS (no_bgp_network_mask,
        "Network number\n"
        "Network mask\n"
        "Network mask\n"
-       "Specify a BGP backdoor route\n")
+       "Specify a BGP backdoor route\n");
 
 DEFUN (no_bgp_network_mask_natural,
        no_bgp_network_mask_natural_cmd,
@@ -2544,7 +2582,7 @@ ALIAS (no_bgp_network_mask_natural,
        "Specify a network to announce via BGP\n"
        "Network number\n"
        "Route-map to modify the attributes\n"
-       "Name of the route map\n")
+       "Name of the route map\n");
 
 ALIAS (no_bgp_network_mask_natural,
        no_bgp_network_mask_natural_backdoor_cmd,
@@ -2552,7 +2590,7 @@ ALIAS (no_bgp_network_mask_natural,
        NO_STR
        "Specify a network to announce via BGP\n"
        "Network number\n"
-       "Specify a BGP backdoor route\n")
+       "Specify a BGP backdoor route\n");
 
 #ifdef HAVE_IPV6
 DEFUN (ipv6_bgp_network,
@@ -2593,7 +2631,7 @@ ALIAS (no_ipv6_bgp_network,
        "Specify a network to announce via BGP\n"
        "IPv6 prefix <network>/<length>\n"
        "Route-map to modify the attributes\n"
-       "Name of the route map\n")
+       "Name of the route map\n");
 
 ALIAS (ipv6_bgp_network,
        old_ipv6_bgp_network_cmd,
@@ -2601,7 +2639,7 @@ ALIAS (ipv6_bgp_network,
        IPV6_STR
        BGP_STR
        "Specify a network to announce via BGP\n"
-       "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n")
+       "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n");
 
 ALIAS (no_ipv6_bgp_network,
        old_no_ipv6_bgp_network_cmd,
@@ -2610,7 +2648,7 @@ ALIAS (no_ipv6_bgp_network,
        IPV6_STR
        BGP_STR
        "Specify a network to announce via BGP\n"
-       "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n")
+       "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n");
 #endif /* HAVE_IPV6 */
 
 /* Aggreagete address:
@@ -2862,7 +2900,7 @@ bgp_aggregate_increment (struct bgp *bgp, struct prefix *p,
     if ((aggregate = rn->info) != NULL && rn->p.prefixlen < p->prefixlen)
       {
 	bgp_aggregate_delete (bgp, &rn->p, afi, safi, aggregate);
-	bgp_aggregate_route (bgp, &rn->p, ri, safi, safi, NULL, aggregate);
+	bgp_aggregate_route (bgp, &rn->p, ri, afi, safi, NULL, aggregate);
       }
   bgp_unlock_node (child);
 }
@@ -2889,7 +2927,7 @@ bgp_aggregate_decrement (struct bgp *bgp, struct prefix *p,
     if ((aggregate = rn->info) != NULL && rn->p.prefixlen < p->prefixlen)
       {
 	bgp_aggregate_delete (bgp, &rn->p, afi, safi, aggregate);
-	bgp_aggregate_route (bgp, &rn->p, NULL, safi, safi, del, aggregate);
+	bgp_aggregate_route (bgp, &rn->p, NULL, afi, safi, del, aggregate);
       }
   bgp_unlock_node (child);
 }
@@ -3288,7 +3326,7 @@ ALIAS (aggregate_address_as_set_summary,
        "Configure BGP aggregate entries\n"
        "Aggregate prefix\n"
        "Filter more specific routes from updates\n"
-       "Generate AS set path information\n")
+       "Generate AS set path information\n");
 
 DEFUN (aggregate_address_mask_as_set_summary,
        aggregate_address_mask_as_set_summary_cmd,
@@ -3321,7 +3359,7 @@ ALIAS (aggregate_address_mask_as_set_summary,
        "Aggregate address\n"
        "Aggregate mask\n"
        "Filter more specific routes from updates\n"
-       "Generate AS set path information\n")
+       "Generate AS set path information\n");
 
 DEFUN (no_aggregate_address,
        no_aggregate_address_cmd,
@@ -3339,7 +3377,7 @@ ALIAS (no_aggregate_address,
        NO_STR
        "Configure BGP aggregate entries\n"
        "Aggregate prefix\n"
-       "Filter more specific routes from updates\n")
+       "Filter more specific routes from updates\n");
 
 ALIAS (no_aggregate_address,
        no_aggregate_address_as_set_cmd,
@@ -3347,7 +3385,7 @@ ALIAS (no_aggregate_address,
        NO_STR
        "Configure BGP aggregate entries\n"
        "Aggregate prefix\n"
-       "Generate AS set path information\n")
+       "Generate AS set path information\n");
 
 ALIAS (no_aggregate_address,
        no_aggregate_address_as_set_summary_cmd,
@@ -3356,7 +3394,7 @@ ALIAS (no_aggregate_address,
        "Configure BGP aggregate entries\n"
        "Aggregate prefix\n"
        "Generate AS set path information\n"
-       "Filter more specific routes from updates\n")
+       "Filter more specific routes from updates\n");
 
 ALIAS (no_aggregate_address,
        no_aggregate_address_summary_as_set_cmd,
@@ -3365,7 +3403,7 @@ ALIAS (no_aggregate_address,
        "Configure BGP aggregate entries\n"
        "Aggregate prefix\n"
        "Filter more specific routes from updates\n"
-       "Generate AS set path information\n")
+       "Generate AS set path information\n");
 
 DEFUN (no_aggregate_address_mask,
        no_aggregate_address_mask_cmd,
@@ -3396,7 +3434,7 @@ ALIAS (no_aggregate_address_mask,
        "Configure BGP aggregate entries\n"
        "Aggregate address\n"
        "Aggregate mask\n"
-       "Filter more specific routes from updates\n")
+       "Filter more specific routes from updates\n");
 
 ALIAS (no_aggregate_address_mask,
        no_aggregate_address_mask_as_set_cmd,
@@ -3405,7 +3443,7 @@ ALIAS (no_aggregate_address_mask,
        "Configure BGP aggregate entries\n"
        "Aggregate address\n"
        "Aggregate mask\n"
-       "Generate AS set path information\n")
+       "Generate AS set path information\n");
 
 ALIAS (no_aggregate_address_mask,
        no_aggregate_address_mask_as_set_summary_cmd,
@@ -3415,7 +3453,7 @@ ALIAS (no_aggregate_address_mask,
        "Aggregate address\n"
        "Aggregate mask\n"
        "Generate AS set path information\n"
-       "Filter more specific routes from updates\n")
+       "Filter more specific routes from updates\n");
 
 ALIAS (no_aggregate_address_mask,
        no_aggregate_address_mask_summary_as_set_cmd,
@@ -3425,7 +3463,7 @@ ALIAS (no_aggregate_address_mask,
        "Aggregate address\n"
        "Aggregate mask\n"
        "Filter more specific routes from updates\n"
-       "Generate AS set path information\n")
+       "Generate AS set path information\n");
 
 #ifdef HAVE_IPV6
 DEFUN (ipv6_aggregate_address,
@@ -3475,7 +3513,7 @@ ALIAS (ipv6_aggregate_address,
        IPV6_STR
        BGP_STR
        "Configure BGP aggregate entries\n"
-       "Aggregate prefix\n")
+       "Aggregate prefix\n");
 
 ALIAS (ipv6_aggregate_address_summary_only,
        old_ipv6_aggregate_address_summary_only_cmd,
@@ -3484,7 +3522,7 @@ ALIAS (ipv6_aggregate_address_summary_only,
        BGP_STR
        "Configure BGP aggregate entries\n"
        "Aggregate prefix\n"
-       "Filter more specific routes from updates\n")
+       "Filter more specific routes from updates\n");
 
 ALIAS (no_ipv6_aggregate_address,
        old_no_ipv6_aggregate_address_cmd,
@@ -3493,7 +3531,7 @@ ALIAS (no_ipv6_aggregate_address,
        IPV6_STR
        BGP_STR
        "Configure BGP aggregate entries\n"
-       "Aggregate prefix\n")
+       "Aggregate prefix\n");
 
 ALIAS (no_ipv6_aggregate_address_summary_only,
        old_no_ipv6_aggregate_address_summary_only_cmd,
@@ -3503,7 +3541,7 @@ ALIAS (no_ipv6_aggregate_address_summary_only,
        BGP_STR
        "Configure BGP aggregate entries\n"
        "Aggregate prefix\n"
-       "Filter more specific routes from updates\n")
+       "Filter more specific routes from updates\n");
 #endif /* HAVE_IPV6 */
 
 /* Redistribute route treatment. */
@@ -4115,17 +4153,15 @@ flap_route_vty_out (struct vty *vty, struct prefix *p,
 }
 
 void
-route_vty_out_detail (struct vty *vty, struct prefix *p, 
+route_vty_out_detail (struct vty *vty, struct bgp *bgp, struct prefix *p, 
 		      struct bgp_info *binfo, afi_t afi, safi_t safi)
 {
   char buf[INET6_ADDRSTRLEN];
   char buf1[BUFSIZ];
   struct attr *attr;
-  struct bgp *bgp;
   int sockunion_vty_out (struct vty *, union sockunion *);
 	
   attr = binfo->attr;
-  bgp = bgp_get_default ();
 
   if (attr)
     {
@@ -4255,11 +4291,8 @@ route_vty_out_detail (struct vty *vty, struct prefix *p,
 	  
       /* Line 5 display Extended-community */
       if (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_EXT_COMMUNITIES))
-	{
-	  vty_out (vty, "      Extended Community:");
-	  ecommunity_vty_out (vty, attr->ecommunity);
-	  vty_out (vty, "%s", VTY_NEWLINE);
-	}
+	vty_out (vty, "      Extended Community: %s%s", attr->ecommunity->str,
+		 VTY_NEWLINE);
 	  
       /* Line 6 display Originator, Cluster-id */
       if ((attr->flag & ATTR_FLAG_BIT(BGP_ATTR_ORIGINATOR_ID)) ||
@@ -4979,7 +5012,7 @@ bgp_show_route (struct vty *vty, char *view_name, char *ip_str,
                           header = 0;
                         }
                       display++;
-                      route_vty_out_detail (vty, &rm->p, ri, AFI_IP, SAFI_MPLS_VPN);
+                      route_vty_out_detail (vty, bgp, &rm->p, ri, AFI_IP, SAFI_MPLS_VPN);
                     }
                 }
             }
@@ -5001,7 +5034,7 @@ bgp_show_route (struct vty *vty, char *view_name, char *ip_str,
                       header = 0;
                     }
                   display++;
-                  route_vty_out_detail (vty, &rn->p, ri, afi, safi);
+                  route_vty_out_detail (vty, bgp, &rn->p, ri, afi, safi);
                 }
             }
         }
@@ -5224,7 +5257,7 @@ ALIAS (show_bgp,
        "show bgp ipv6",
        SHOW_STR
        BGP_STR
-       "Address family\n")
+       "Address family\n");
 
 /* old command */
 DEFUN (show_ipv6_bgp,
@@ -5253,7 +5286,7 @@ ALIAS (show_bgp_route,
        SHOW_STR
        BGP_STR
        "Address family\n"
-       "Network in the BGP routing table to display\n")
+       "Network in the BGP routing table to display\n");
 
 /* old command */
 DEFUN (show_ipv6_bgp_route,
@@ -5283,7 +5316,7 @@ ALIAS (show_bgp_prefix,
        SHOW_STR
        BGP_STR
        "Address family\n"
-       "IPv6 prefix <network>/<length>\n")
+       "IPv6 prefix <network>/<length>\n");
 
 /* old command */
 DEFUN (show_ipv6_bgp_prefix,
@@ -5450,7 +5483,7 @@ ALIAS (show_bgp_regexp,
        BGP_STR
        "Address family\n"
        "Display routes matching the AS path regular expression\n"
-       "A regular-expression to match the BGP AS paths\n")
+       "A regular-expression to match the BGP AS paths\n");
 
 /* old command */
 DEFUN (show_ipv6_bgp_regexp, 
@@ -5567,7 +5600,7 @@ ALIAS (show_bgp_prefix_list,
        BGP_STR
        "Address family\n"
        "Display routes conforming to the prefix-list\n"
-       "IPv6 prefix-list name\n")
+       "IPv6 prefix-list name\n");
 
 /* old command */
 DEFUN (show_ipv6_bgp_prefix_list, 
@@ -5683,7 +5716,7 @@ ALIAS (show_bgp_filter_list,
        BGP_STR
        "Address family\n"
        "Display routes conforming to the filter-list\n"
-       "Regular expression access list name\n")
+       "Regular expression access list name\n");
 
 /* old command */
 DEFUN (show_ipv6_bgp_filter_list, 
@@ -5799,7 +5832,7 @@ ALIAS (show_bgp_route_map,
        BGP_STR
        "Address family\n"
        "Display routes matching the route-map\n"
-       "A route-map to match on\n")
+       "A route-map to match on\n");
 
 DEFUN (show_ip_bgp_cidr_only,
        show_ip_bgp_cidr_only_cmd,
@@ -5894,7 +5927,7 @@ ALIAS (show_bgp_community_all,
        SHOW_STR
        BGP_STR
        "Address family\n"
-       "Display routes matching the communities\n")
+       "Display routes matching the communities\n");
 
 /* old command */
 DEFUN (show_ipv6_bgp_community_all,
@@ -5997,7 +6030,7 @@ ALIAS (show_ip_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 	
 ALIAS (show_ip_bgp_community,
        show_ip_bgp_community3_cmd,
@@ -6017,7 +6050,7 @@ ALIAS (show_ip_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 	
 ALIAS (show_ip_bgp_community,
        show_ip_bgp_community4_cmd,
@@ -6041,7 +6074,7 @@ ALIAS (show_ip_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 DEFUN (show_ip_bgp_ipv4_community,
        show_ip_bgp_ipv4_community_cmd,
@@ -6081,7 +6114,7 @@ ALIAS (show_ip_bgp_ipv4_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 	
 ALIAS (show_ip_bgp_ipv4_community,
        show_ip_bgp_ipv4_community3_cmd,
@@ -6104,7 +6137,7 @@ ALIAS (show_ip_bgp_ipv4_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 	
 ALIAS (show_ip_bgp_ipv4_community,
        show_ip_bgp_ipv4_community4_cmd,
@@ -6131,7 +6164,7 @@ ALIAS (show_ip_bgp_ipv4_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 DEFUN (show_ip_bgp_community_exact,
        show_ip_bgp_community_exact_cmd,
@@ -6164,7 +6197,7 @@ ALIAS (show_ip_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 ALIAS (show_ip_bgp_community_exact,
        show_ip_bgp_community3_exact_cmd,
@@ -6185,7 +6218,7 @@ ALIAS (show_ip_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 ALIAS (show_ip_bgp_community_exact,
        show_ip_bgp_community4_exact_cmd,
@@ -6210,7 +6243,7 @@ ALIAS (show_ip_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 DEFUN (show_ip_bgp_ipv4_community_exact,
        show_ip_bgp_ipv4_community_exact_cmd,
@@ -6252,7 +6285,7 @@ ALIAS (show_ip_bgp_ipv4_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 ALIAS (show_ip_bgp_ipv4_community_exact,
        show_ip_bgp_ipv4_community3_exact_cmd,
@@ -6276,7 +6309,7 @@ ALIAS (show_ip_bgp_ipv4_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
        
 ALIAS (show_ip_bgp_ipv4_community_exact,
        show_ip_bgp_ipv4_community4_exact_cmd,
@@ -6304,7 +6337,7 @@ ALIAS (show_ip_bgp_ipv4_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 #ifdef HAVE_IPV6
 DEFUN (show_bgp_community,
@@ -6331,7 +6364,7 @@ ALIAS (show_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 ALIAS (show_bgp_community,
        show_bgp_community2_cmd,
@@ -6346,7 +6379,7 @@ ALIAS (show_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 ALIAS (show_bgp_community,
        show_bgp_ipv6_community2_cmd,
@@ -6362,7 +6395,7 @@ ALIAS (show_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 	
 ALIAS (show_bgp_community,
        show_bgp_community3_cmd,
@@ -6381,7 +6414,7 @@ ALIAS (show_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 ALIAS (show_bgp_community,
        show_bgp_ipv6_community3_cmd,
@@ -6401,7 +6434,7 @@ ALIAS (show_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 ALIAS (show_bgp_community,
        show_bgp_community4_cmd,
@@ -6424,7 +6457,7 @@ ALIAS (show_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 ALIAS (show_bgp_community,
        show_bgp_ipv6_community4_cmd,
@@ -6448,7 +6481,7 @@ ALIAS (show_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 /* old command */
 DEFUN (show_ipv6_bgp_community,
@@ -6481,7 +6514,7 @@ ALIAS (show_ipv6_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 /* old command */
 ALIAS (show_ipv6_bgp_community,
@@ -6502,7 +6535,7 @@ ALIAS (show_ipv6_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 /* old command */
 ALIAS (show_ipv6_bgp_community,
@@ -6527,7 +6560,7 @@ ALIAS (show_ipv6_bgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 DEFUN (show_bgp_community_exact,
        show_bgp_community_exact_cmd,
@@ -6555,7 +6588,7 @@ ALIAS (show_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 ALIAS (show_bgp_community_exact,
        show_bgp_community2_exact_cmd,
@@ -6571,7 +6604,7 @@ ALIAS (show_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 ALIAS (show_bgp_community_exact,
        show_bgp_ipv6_community2_exact_cmd,
@@ -6588,7 +6621,7 @@ ALIAS (show_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 ALIAS (show_bgp_community_exact,
        show_bgp_community3_exact_cmd,
@@ -6608,7 +6641,7 @@ ALIAS (show_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 ALIAS (show_bgp_community_exact,
        show_bgp_ipv6_community3_exact_cmd,
@@ -6629,7 +6662,7 @@ ALIAS (show_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 ALIAS (show_bgp_community_exact,
        show_bgp_community4_exact_cmd,
@@ -6653,7 +6686,7 @@ ALIAS (show_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
  
 ALIAS (show_bgp_community_exact,
        show_bgp_ipv6_community4_exact_cmd,
@@ -6678,7 +6711,7 @@ ALIAS (show_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 /* old command */
 DEFUN (show_ipv6_bgp_community_exact,
@@ -6713,7 +6746,7 @@ ALIAS (show_ipv6_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 /* old command */
 ALIAS (show_ipv6_bgp_community_exact,
@@ -6735,7 +6768,7 @@ ALIAS (show_ipv6_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 /* old command */
 ALIAS (show_ipv6_bgp_community_exact,
@@ -6761,7 +6794,7 @@ ALIAS (show_ipv6_bgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
  
 /* old command */
 DEFUN (show_ipv6_mbgp_community,
@@ -6794,7 +6827,7 @@ ALIAS (show_ipv6_mbgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 /* old command */
 ALIAS (show_ipv6_mbgp_community,
@@ -6815,7 +6848,7 @@ ALIAS (show_ipv6_mbgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 /* old command */
 ALIAS (show_ipv6_mbgp_community,
@@ -6840,7 +6873,7 @@ ALIAS (show_ipv6_mbgp_community,
        "community number\n"
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
-       "Do not export to next AS (well-known community)\n")
+       "Do not export to next AS (well-known community)\n");
 
 /* old command */
 DEFUN (show_ipv6_mbgp_community_exact,
@@ -6875,7 +6908,7 @@ ALIAS (show_ipv6_mbgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 /* old command */
 ALIAS (show_ipv6_mbgp_community_exact,
@@ -6897,7 +6930,7 @@ ALIAS (show_ipv6_mbgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 
 /* old command */
 ALIAS (show_ipv6_mbgp_community_exact,
@@ -6923,7 +6956,7 @@ ALIAS (show_ipv6_mbgp_community_exact,
        "Do not send outside local AS (well-known community)\n"
        "Do not advertise to any peer (well-known community)\n"
        "Do not export to next AS (well-known community)\n"
-       "Exact match of the communities")
+       "Exact match of the communities");
 #endif /* HAVE_IPV6 */
 
 int
@@ -7029,7 +7062,7 @@ ALIAS (show_bgp_community_list,
        BGP_STR
        "Address family\n"
        "Display routes matching the community-list\n"
-       "community-list name\n")
+       "community-list name\n");
 
 /* old command */
 DEFUN (show_ipv6_bgp_community_list,
@@ -7077,7 +7110,7 @@ ALIAS (show_bgp_community_list_exact,
        "Address family\n"
        "Display routes matching the community-list\n"
        "community-list name\n"
-       "Exact match of the communities\n")
+       "Exact match of the communities\n");
 
 /* old command */
 DEFUN (show_ipv6_bgp_community_list_exact,
@@ -7231,7 +7264,7 @@ ALIAS (show_bgp_prefix_longer,
        BGP_STR
        "Address family\n"
        "IPv6 prefix <network>/<length>\n"
-       "Display route and more specific routes\n")
+       "Display route and more specific routes\n");
 
 /* old command */
 DEFUN (show_ipv6_bgp_prefix_longer,
@@ -7284,8 +7317,8 @@ show_adj_route (struct vty *vty, struct peer *peer, afi_t afi, safi_t safi,
 
   output_count = 0;
 	
-  if (! in && CHECK_FLAG (peer->af_flags[afi][safi],
-			  PEER_FLAG_DEFAULT_ORIGINATE_CHECK))
+  if (! in && CHECK_FLAG (peer->af_sflags[afi][safi],
+			  PEER_STATUS_DEFAULT_ORIGINATE))
     {
       vty_out (vty, "BGP table version is 0, local router ID is %s%s", inet_ntoa (bgp->router_id), VTY_NEWLINE);
       vty_out (vty, "Status codes: s suppressed, d damped, h history, * valid, > best, i - internal%s", VTY_NEWLINE);
@@ -7321,30 +7354,30 @@ show_adj_route (struct vty *vty, struct peer *peer, afi_t afi, safi_t safi,
 		}
 	    }
       }
-  else
-    {
-      for (adj = rn->adj_out; adj; adj = adj->next)
-	if (adj->peer == peer)
-	  {
-	    if (header1)
-	      {
-		vty_out (vty, "BGP table version is 0, local router ID is %s%s", inet_ntoa (bgp->router_id), VTY_NEWLINE);
-		vty_out (vty, "Status codes: s suppressed, d damped, h history, * valid, > best, i - internal%s", VTY_NEWLINE);
-		vty_out (vty, "Origin codes: i - IGP, e - EGP, ? - incomplete%s%s", VTY_NEWLINE, VTY_NEWLINE);
-		header1 = 0;
-	      }
-	    if (header2)
-	      {
-		vty_out (vty, BGP_SHOW_HEADER, VTY_NEWLINE);
-		header2 = 0;
-	      }
-	    if (adj->attr)
-	      {	
-		route_vty_out_tmp (vty, &rn->p, adj->attr, safi);
-		output_count++;
-	      }
-	  }
-    }
+    else
+      {
+	for (adj = rn->adj_out; adj; adj = adj->next)
+	  if (adj->peer == peer)
+	    {
+	      if (header1)
+		{
+		  vty_out (vty, "BGP table version is 0, local router ID is %s%s", inet_ntoa (bgp->router_id), VTY_NEWLINE);
+		  vty_out (vty, "Status codes: s suppressed, d damped, h history, * valid, > best, i - internal%s", VTY_NEWLINE);
+		  vty_out (vty, "Origin codes: i - IGP, e - EGP, ? - incomplete%s%s", VTY_NEWLINE, VTY_NEWLINE);
+		  header1 = 0;
+		}
+	      if (header2)
+		{
+		  vty_out (vty, BGP_SHOW_HEADER, VTY_NEWLINE);
+		  header2 = 0;
+		}
+	      if (adj->attr)
+		{	
+		  route_vty_out_tmp (vty, &rn->p, adj->attr, safi);
+		  output_count++;
+		}
+	    }
+      }
   
   if (output_count != 0)
     vty_out (vty, "%sTotal number of prefixes %ld%s",
@@ -7440,7 +7473,7 @@ ALIAS (show_bgp_neighbor_advertised_route,
        "Detailed information on TCP and BGP neighbor connections\n"
        "Neighbor to display information about\n"
        "Neighbor to display information about\n"
-       "Display the routes advertised to a BGP neighbor\n")
+       "Display the routes advertised to a BGP neighbor\n");
 
 /* old command */
 DEFUN (ipv6_bgp_neighbor_advertised_route,
@@ -7619,7 +7652,7 @@ ALIAS (show_bgp_neighbor_received_routes,
        "Detailed information on TCP and BGP neighbor connections\n"
        "Neighbor to display information about\n"
        "Neighbor to display information about\n"
-       "Display the received routes from neighbor\n")
+       "Display the received routes from neighbor\n");
 
 DEFUN (show_bgp_neighbor_received_prefix_filter,
        show_bgp_neighbor_received_prefix_filter_cmd,
@@ -7666,7 +7699,7 @@ ALIAS (show_bgp_neighbor_received_prefix_filter,
        "Neighbor to display information about\n"
        "Neighbor to display information about\n"
        "Display information received from a BGP neighbor\n"
-       "Display the prefixlist filter\n")
+       "Display the prefixlist filter\n");
 
 /* old command */
 DEFUN (ipv6_bgp_neighbor_received_routes,
@@ -7826,7 +7859,7 @@ ALIAS (show_bgp_neighbor_routes,
        "Detailed information on TCP and BGP neighbor connections\n"
        "Neighbor to display information about\n"
        "Neighbor to display information about\n"
-       "Display routes learned from neighbor\n")
+       "Display routes learned from neighbor\n");
 
 /* old command */
 DEFUN (ipv6_bgp_neighbor_routes,
@@ -8108,7 +8141,7 @@ ALIAS (no_bgp_distance,
        "no distance bgp",
        NO_STR
        "Define an administrative distance\n"
-       "BGP distance\n")
+       "BGP distance\n");
 
 DEFUN (bgp_distance_source,
        bgp_distance_source_cmd,
@@ -8197,13 +8230,13 @@ ALIAS (bgp_damp_set,
        "bgp dampening <1-45>",
        "BGP Specific commands\n"
        "Enable route-flap dampening\n"
-       "Half-life time for the penalty\n")
+       "Half-life time for the penalty\n");
 
 ALIAS (bgp_damp_set,
        bgp_damp_set3_cmd,
        "bgp dampening",
        "BGP Specific commands\n"
-       "Enable route-flap dampening\n")
+       "Enable route-flap dampening\n");
 
 DEFUN (bgp_damp_unset,
        bgp_damp_unset_cmd,
@@ -8227,7 +8260,7 @@ ALIAS (bgp_damp_unset,
        "Half-life time for the penalty\n"
        "Value to start reusing a route\n"
        "Value to start suppressing a route\n"
-       "Maximum duration to suppress a stable route\n")
+       "Maximum duration to suppress a stable route\n");
 
 DEFUN (show_ip_bgp_dampened_paths,
        show_ip_bgp_dampened_paths_cmd,

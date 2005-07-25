@@ -62,6 +62,8 @@ struct ospf6_area
                        void (*func) (void *, int, void *));
 
   struct thread *maxage_remover;
+
+  struct thread *thread_router_lsa;
 };
 
 

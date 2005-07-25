@@ -1,22 +1,22 @@
 /* BGP-4, BGP-4+ packet debug routine
    Copyright (C) 1996, 97, 99 Kunihiro Ishiguro
 
-This file is part of GNU Zebra.
+   This file is part of GNU Zebra.
 
-GNU Zebra is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; either version 2, or (at your option) any
-later version.
+   GNU Zebra is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by the
+   Free Software Foundation; either version 2, or (at your option) any
+   later version.
 
-GNU Zebra is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-General Public License for more details.
+   GNU Zebra is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Zebra; see the file COPYING.  If not, write to the Free
-Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with GNU Zebra; see the file COPYING.  If not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 #include <zebra.h>
 
@@ -54,101 +54,102 @@ unsigned long term_bgp_debug_normal;
 
 /* messages for BGP-4 status */
 struct message bgp_status_msg[] = 
-{
-  { 0, "null" },
-  { Idle, "Idle" },
-  { Connect, "Connect" },
-  { Active, "Active" },
-  { OpenSent, "OpenSent" },
-  { OpenConfirm, "OpenConfirm" },
-  { Established, "Established" },
-};
+  {
+    { 0, "null" },
+    { Idle, "Idle" },
+    { Connect, "Connect" },
+    { Active, "Active" },
+    { OpenSent, "OpenSent" },
+    { OpenConfirm, "OpenConfirm" },
+    { Established, "Established" },
+  };
 int bgp_status_msg_max = BGP_STATUS_MAX;
 
 /* BGP message type string. */
 char *bgp_type_str[] =
-{
-  NULL,
-  "OPEN",
-  "UPDATE",
-  "NOTIFICATION",
-  "KEEPALIVE",
-  "ROUTE-REFRESH",
-  "CAPABILITY"
-};
+  {
+    NULL,
+    "OPEN",
+    "UPDATE",
+    "NOTIFICATION",
+    "KEEPALIVE",
+    "ROUTE-REFRESH",
+    "CAPABILITY"
+  };
 
 /* message for BGP-4 Notify */
 struct message bgp_notify_msg[] = 
-{
-  { 0, "" },
-  { BGP_NOTIFY_HEADER_ERR, "Message Header Error"},
-  { BGP_NOTIFY_OPEN_ERR, "OPEN Message Error"},
-  { BGP_NOTIFY_UPDATE_ERR, "UPDATE Message Error"},
-  { BGP_NOTIFY_HOLD_ERR, "Hold Timer Expired"},
-  { BGP_NOTIFY_FSM_ERR, "Finite State Machine Error"},
-  { BGP_NOTIFY_CEASE, "Cease"},
-  { BGP_NOTIFY_CAPABILITY_ERR, "CAPABILITY Message Error"},
-};
+  {
+    { 0, "" },
+    { BGP_NOTIFY_HEADER_ERR, "Message Header Error"},
+    { BGP_NOTIFY_OPEN_ERR, "OPEN Message Error"},
+    { BGP_NOTIFY_UPDATE_ERR, "UPDATE Message Error"},
+    { BGP_NOTIFY_HOLD_ERR, "Hold Timer Expired"},
+    { BGP_NOTIFY_FSM_ERR, "Finite State Machine Error"},
+    { BGP_NOTIFY_CEASE, "Cease"},
+    { BGP_NOTIFY_CAPABILITY_ERR, "CAPABILITY Message Error"},
+  };
 int bgp_notify_msg_max = BGP_NOTIFY_MAX;
 
 struct message bgp_notify_head_msg[] = 
-{
-  { 0, "null"},
-  { BGP_NOTIFY_HEADER_NOT_SYNC, "/Connection Not Synchronized."},
-  { BGP_NOTIFY_HEADER_BAD_MESLEN, "/Bad Message Length."},
-  { BGP_NOTIFY_HEADER_BAD_MESTYPE, "/Bad Message Type."}
-};
+  {
+    { 0, "null"},
+    { BGP_NOTIFY_HEADER_NOT_SYNC, "/Connection Not Synchronized."},
+    { BGP_NOTIFY_HEADER_BAD_MESLEN, "/Bad Message Length."},
+    { BGP_NOTIFY_HEADER_BAD_MESTYPE, "/Bad Message Type."}
+  };
 int bgp_notify_head_msg_max = BGP_NOTIFY_HEADER_MAX;
 
 struct message bgp_notify_open_msg[] = 
-{
-  { 0, "null" },
-  { BGP_NOTIFY_OPEN_UNSUP_VERSION, "/Unsupported Version Number." },
-  { BGP_NOTIFY_OPEN_BAD_PEER_AS, "/Bad Peer AS."},
-  { BGP_NOTIFY_OPEN_BAD_BGP_IDENT, "/Bad BGP Identifier."},
-  { BGP_NOTIFY_OPEN_UNSUP_PARAM, "/Unsupported Optional Parameter."},
-  { BGP_NOTIFY_OPEN_AUTH_FAILURE, "/Authentication Failure."},
-  { BGP_NOTIFY_OPEN_UNACEP_HOLDTIME, "/Unacceptable Hold Time."}, 
-  { BGP_NOTIFY_OPEN_UNSUP_CAPBL, "/Unsupported Capability."},
-};
+  {
+    { 0, "null" },
+    { BGP_NOTIFY_OPEN_UNSUP_VERSION, "/Unsupported Version Number." },
+    { BGP_NOTIFY_OPEN_BAD_PEER_AS, "/Bad Peer AS."},
+    { BGP_NOTIFY_OPEN_BAD_BGP_IDENT, "/Bad BGP Identifier."},
+    { BGP_NOTIFY_OPEN_UNSUP_PARAM, "/Unsupported Optional Parameter."},
+    { BGP_NOTIFY_OPEN_AUTH_FAILURE, "/Authentication Failure."},
+    { BGP_NOTIFY_OPEN_UNACEP_HOLDTIME, "/Unacceptable Hold Time."}, 
+    { BGP_NOTIFY_OPEN_UNSUP_CAPBL, "/Unsupported Capability."},
+  };
 int bgp_notify_open_msg_max = BGP_NOTIFY_OPEN_MAX;
 
 struct message bgp_notify_update_msg[] = 
-{
-  { 0, "null"}, 
-  { BGP_NOTIFY_UPDATE_MAL_ATTR, "/Malformed Attribute List."},
-  { BGP_NOTIFY_UPDATE_UNREC_ATTR, "/Unrecognized Well-known Attribute."},
-  { BGP_NOTIFY_UPDATE_MISS_ATTR, "/Missing Well-known Attribute."},
-  { BGP_NOTIFY_UPDATE_ATTR_FLAG_ERR, "/Attribute Flags Error."},
-  { BGP_NOTIFY_UPDATE_ATTR_LENG_ERR, "/Attribute Length Error."},
-  { BGP_NOTIFY_UPDATE_INVAL_ORIGIN, "/Invalid ORIGIN Attribute."},
-  { BGP_NOTIFY_UPDATE_AS_ROUTE_LOOP, "/AS Routing Loop."},
-  { BGP_NOTIFY_UPDATE_INVAL_NEXT_HOP, "/Invalid NEXT_HOP Attribute."},
-  { BGP_NOTIFY_UPDATE_OPT_ATTR_ERR, "/Optional Attribute Error."},
-  { BGP_NOTIFY_UPDATE_INVAL_NETWORK, "/Invalid Network Field."},
-  { BGP_NOTIFY_UPDATE_MAL_AS_PATH, "/Malformed AS_PATH."},
-};
+  {
+    { 0, "null"}, 
+    { BGP_NOTIFY_UPDATE_MAL_ATTR, "/Malformed Attribute List."},
+    { BGP_NOTIFY_UPDATE_UNREC_ATTR, "/Unrecognized Well-known Attribute."},
+    { BGP_NOTIFY_UPDATE_MISS_ATTR, "/Missing Well-known Attribute."},
+    { BGP_NOTIFY_UPDATE_ATTR_FLAG_ERR, "/Attribute Flags Error."},
+    { BGP_NOTIFY_UPDATE_ATTR_LENG_ERR, "/Attribute Length Error."},
+    { BGP_NOTIFY_UPDATE_INVAL_ORIGIN, "/Invalid ORIGIN Attribute."},
+    { BGP_NOTIFY_UPDATE_AS_ROUTE_LOOP, "/AS Routing Loop."},
+    { BGP_NOTIFY_UPDATE_INVAL_NEXT_HOP, "/Invalid NEXT_HOP Attribute."},
+    { BGP_NOTIFY_UPDATE_OPT_ATTR_ERR, "/Optional Attribute Error."},
+    { BGP_NOTIFY_UPDATE_INVAL_NETWORK, "/Invalid Network Field."},
+    { BGP_NOTIFY_UPDATE_MAL_AS_PATH, "/Malformed AS_PATH."},
+  };
 int bgp_notify_update_msg_max = BGP_NOTIFY_UPDATE_MAX;
 
 struct message bgp_notify_cease_msg[] =
-{
-  { 0, ""},
-  { BGP_NOTIFY_CEASE_MAX_PREFIX, "/Maximum Number of Prefixes Reached."},
-  { BGP_NOTIFY_CEASE_ADMIN_SHUTDOWN, "/Administratively Shutdown."},
-  { BGP_NOTIFY_CEASE_PEER_UNCONFIG, "/Peer Unconfigured."},
-  { BGP_NOTIFY_CEASE_ADMIN_RESET, "/Administratively Reset."},
-  { BGP_NOTIFY_CEASE_CONNECT_REJECT, "/Connection Rejected."},
-  { BGP_NOTIFY_CEASE_CONFIG_CHANGE, "/Other Configuration Change."},
-};
+  {
+    { 0, ""},
+    { BGP_NOTIFY_CEASE_MAX_PREFIX, "/Maximum Number of Prefixes Reached."},
+    { BGP_NOTIFY_CEASE_ADMIN_SHUTDOWN, "/Administratively Shutdown."},
+    { BGP_NOTIFY_CEASE_PEER_UNCONFIG, "/Peer Unconfigured."},
+    { BGP_NOTIFY_CEASE_ADMIN_RESET, "/Administratively Reset."},
+    { BGP_NOTIFY_CEASE_CONNECT_REJECT, "/Connection Rejected."},
+    { BGP_NOTIFY_CEASE_CONFIG_CHANGE, "/Other Configuration Change."},
+    { BGP_NOTIFY_CEASE_CONNECT_COLLISION, "/Connection Collision Resolution."},
+  };
 int bgp_notify_cease_msg_max = BGP_NOTIFY_CEASE_MAX;
 
 struct message bgp_notify_capability_msg[] = 
-{
-  { 0, "null" },
-  { BGP_NOTIFY_CAPABILITY_INVALID_ACTION, "/Invalid Action Value." },
-  { BGP_NOTIFY_CAPABILITY_INVALID_LENGTH, "/Invalid Capability Length."},
-  { BGP_NOTIFY_CAPABILITY_MALFORMED_CODE, "/Malformed Capability Value."},
-};
+  {
+    { 0, "null" },
+    { BGP_NOTIFY_CAPABILITY_INVALID_ACTION, "/Invalid Action Value." },
+    { BGP_NOTIFY_CAPABILITY_INVALID_LENGTH, "/Invalid Capability Length."},
+    { BGP_NOTIFY_CAPABILITY_MALFORMED_CODE, "/Malformed Capability Value."},
+  };
 int bgp_notify_capability_msg_max = BGP_NOTIFY_CAPABILITY_MAX;
 
 /* Origin strings. */
@@ -313,7 +314,7 @@ ALIAS (no_debug_bgp_fsm,
        UNDEBUG_STR
        DEBUG_STR
        BGP_STR
-       "Finite State Machine\n")
+       "Finite State Machine\n");
 
 DEFUN (debug_bgp_events,
        debug_bgp_events_cmd,
@@ -355,7 +356,7 @@ ALIAS (no_debug_bgp_events,
        "undebug bgp events",
        UNDEBUG_STR
        BGP_STR
-       "BGP events\n")
+       "BGP events\n");
 
 DEFUN (debug_bgp_filter,
        debug_bgp_filter_cmd,
@@ -397,7 +398,7 @@ ALIAS (no_debug_bgp_filter,
        "undebug bgp filters",
        UNDEBUG_STR
        BGP_STR
-       "BGP filters\n")
+       "BGP filters\n");
 
 DEFUN (debug_bgp_keepalive,
        debug_bgp_keepalive_cmd,
@@ -439,7 +440,7 @@ ALIAS (no_debug_bgp_keepalive,
        "undebug bgp keepalives",
        UNDEBUG_STR
        BGP_STR
-       "BGP keepalives\n")
+       "BGP keepalives\n");
 
 DEFUN (debug_bgp_update,
        debug_bgp_update_cmd,
@@ -529,7 +530,7 @@ ALIAS (no_debug_bgp_update,
        "undebug bgp updates",
        UNDEBUG_STR
        BGP_STR
-       "BGP updates\n")
+       "BGP updates\n");
 
 DEFUN (debug_bgp_normal,
        debug_bgp_normal_cmd,
@@ -568,7 +569,7 @@ ALIAS (no_debug_bgp_normal,
        undebug_bgp_normal_cmd,
        "undebug bgp",
        UNDEBUG_STR
-       BGP_STR)
+       BGP_STR);
 
 DEFUN (no_debug_bgp_all,
        no_debug_bgp_all_cmd,
@@ -595,7 +596,7 @@ ALIAS (no_debug_bgp_all,
        "undebug all bgp",
        UNDEBUG_STR
        "Enable all debugging\n"
-       BGP_STR)
+       BGP_STR);
 
 DEFUN (show_debugging_bgp,
        show_debugging_bgp_cmd,
@@ -681,11 +682,11 @@ bgp_config_write_debug (struct vty *vty)
 }
 
 struct cmd_node debug_node =
-{
-  DEBUG_NODE,
-  "",
-  1
-};
+  {
+    DEBUG_NODE,
+    "",
+    1
+  };
 
 void
 bgp_debug_init ()

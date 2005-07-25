@@ -74,7 +74,7 @@ hash_get (struct hash *hash, void *data, void * (*alloc_func) ())
   index = key % hash->size;
 
   for (backet = hash->index[index]; backet != NULL; backet = backet->next) 
-    if (backet->key == key && (*hash->hash_cmp) (backet->data, data) == 1)
+    if (backet->key == key && (*hash->hash_cmp) (backet->data, data))
       return backet->data;
 
   if (alloc_func)
@@ -118,7 +118,7 @@ hash_release (struct hash *hash, void *data)
 
   for (backet = pp = hash->index[index]; backet; backet = backet->next)
     {
-      if (backet->key == key && (*hash->hash_cmp) (backet->data, data) == 1) 
+      if (backet->key == key && (*hash->hash_cmp) (backet->data, data)) 
 	{
 	  if (backet == pp) 
 	    hash->index[index] = backet->next;

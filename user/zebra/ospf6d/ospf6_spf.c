@@ -281,7 +281,7 @@ ospf6_spf_is_router_to_root (struct ospf6_vertex *c,
 static struct in6_addr *
 ospf6_spf_get_ipaddr (u_int32_t id, u_int32_t adv_router, u_int32_t ifindex)
 {
-  char buf[64];
+  char buf[64], nhbuf[64];
   struct ospf6_interface *o6i;
   struct ospf6_neighbor *o6n;
   struct ospf6_lsa *lsa;
@@ -303,25 +303,29 @@ ospf6_spf_get_ipaddr (u_int32_t id, u_int32_t adv_router, u_int32_t ifindex)
     lsa = node.lsa;
 
   /* return Linklocal Address field if the Link-LSA exists */
-  if (lsa)
+  if (lsa && lsa->header->adv_router == adv_router)
     {
       struct ospf6_link_lsa *link_lsa;
       link_lsa = (struct ospf6_link_lsa *) (lsa->header + 1);
       return &link_lsa->llsa_linklocal;
     }
 
-  zlog_warn ("SPF: Can't find Link-LSA for %s, "
-             "use source address from his packet",
+  zlog_warn ("SPF: Can't find Link-LSA for %s",
              inet_ntop (AF_INET, &adv_router, buf, sizeof (buf)));
 
   o6n = ospf6_neighbor_lookup (adv_router, o6i);
   if (! o6n)
     {
       inet_ntop (AF_INET, &adv_router, buf, sizeof (buf));
-      zlog_err ("SPF: Can't find neighbor %s in %s",
+      zlog_err ("SPF: Can't find neighbor %s in %s, "
+                "unable to find his linklocal address",
                 buf, o6i->interface->name);
       return (struct in6_addr *) NULL;
     }
+
+  zlog_warn ("SPF: use packet's source address for %s's nexthop: %s",
+             inet_ntop (AF_INET, &adv_router, buf, sizeof (buf)),
+             inet_ntop (AF_INET6, &o6n->hisaddr, nhbuf, sizeof (nhbuf)));
 
   return &o6n->hisaddr;
 }
@@ -379,9 +383,6 @@ ospf6_spf_nexthop_calculation (struct ospf6_vertex *W,
       /* V is broadcast network, W is router */
       assert (V->vertex_id.id.s_addr != 0);
       assert (W->vertex_id.id.s_addr == 0);
-
-      /* there should be the only one nexthop in V */
-      assert (V->nexthop_list->count == 1);
  
       linklist_head (V->nexthop_list, &node);
       n = (struct ospf6_nexthop *) node.data;
@@ -481,18 +482,22 @@ ospf6_spf_vertex_create (int index, struct ospf6_vertex *V,
       inet_ntop (AF_INET, &adv_router, buf_router, sizeof (buf_router));
       inet_ntop (AF_INET, &id, buf_id, sizeof (buf_id));
 
-      if (type == htons (OSPF6_LSA_TYPE_ROUTER))
-        zlog_err ("SPF: Can't find LSA for W (%s *): not found",
-                  buf_router);
-      else
-        zlog_err ("SPF: Can't find LSA for W (%s %s): not found",
-                  buf_router, buf_id);
+      if (IS_OSPF6_DUMP_SPF)
+        {
+          if (type == htons (OSPF6_LSA_TYPE_ROUTER))
+            zlog_info ("SPF: Can't find LSA for W (%s *): not found",
+                      buf_router);
+          else
+            zlog_info ("SPF: Can't find LSA for W (%s %s): not found",
+                      buf_router, buf_id);
+        }
       return (struct ospf6_vertex *) NULL;
     }
 
   if (IS_LSA_MAXAGE (lsa))
     {
-      zlog_err ("SPF: Associated LSA for W is MaxAge: %s", lsa->str);
+      if (IS_OSPF6_DUMP_SPF)
+        zlog_info ("SPF: Associated LSA for W is MaxAge: %s", lsa->str);
       return (struct ospf6_vertex *) NULL;
     }
 
@@ -507,8 +512,9 @@ ospf6_spf_vertex_create (int index, struct ospf6_vertex *V,
     }
   if (! backreference)
     {
-      zlog_err ("SPF: Back reference failed: V: %s, W: %s",
-                V->lsa->str, lsa->str);
+      if (IS_OSPF6_DUMP_SPF)
+        zlog_info ("SPF: Back reference failed: V: %s, W: %s",
+                   V->lsa->str, lsa->str);
       return (struct ospf6_vertex *) NULL;
     }
 
@@ -1411,7 +1417,7 @@ ALIAS (show_ipv6_ospf6_area_topology,
        "Displays SPF topology table\n"
        OSPF6_ROUTER_ID_STR
        OSPF6_ROUTER_ID_STR
-       )
+       );
 
 ALIAS (show_ipv6_ospf6_area_topology,
        show_ipv6_ospf6_area_topology_router_lsid_cmd,
@@ -1427,7 +1433,7 @@ ALIAS (show_ipv6_ospf6_area_topology,
        OSPF6_ROUTER_ID_STR
        OSPF6_LS_ID_STR
        OSPF6_LS_ID_STR
-       )
+       );
 
 void
 ospf6_spf_init ()

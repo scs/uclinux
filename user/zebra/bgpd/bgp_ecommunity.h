@@ -19,33 +19,44 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
 /* High-order octet of the Extended Communities type field.  */
-#define ECOMMUNITY_ENCODE_AS       0x00
-#define ECOMMUNITY_ENCODE_IP       0x01
+#define ECOMMUNITY_ENCODE_AS                0x00
+#define ECOMMUNITY_ENCODE_IP                0x01
 
 /* Low-order octet of the Extended Communityes type field.  */
-#define ECOMMUNITY_ROUTE_TARGET    0x02
-#define ECOMMUNITY_SITE_ORIGIN     0x03
+#define ECOMMUNITY_ROUTE_TARGET             0x02
+#define ECOMMUNITY_SITE_ORIGIN              0x03
 
 /* Extended communities attribute string format.  */
 #define ECOMMUNITY_FORMAT_ROUTE_MAP            0
 #define ECOMMUNITY_FORMAT_COMMUNITY_LIST       1
 #define ECOMMUNITY_FORMAT_DISPLAY              2
 
-/* BGP routing distinguisher size.  */
-#ifndef BGP_RD_SIZE
-#define BGP_RD_SIZE                8
-#endif /* BGP_RD_SIZE */
+/* Extended Communities value is eight octet long.  */
+#define ECOMMUNITY_SIZE                        8
 
 /* Extended Communities attribute.  */
 struct ecommunity
 {
+  /* Reference counter.  */
   unsigned long refcnt;
+
+  /* Size of Extended Communities attribute.  */
   int size;
+
+  /* Extended Communities value.  */
   u_char *val;
+
+  /* Human readable format string.  */
   char *str;
 };
 
-#define ecom_length(X)    ((X)->size * 8)
+/* Extended community value is eight octet.  */
+struct ecommunity_val
+{
+  char val[ECOMMUNITY_SIZE];
+};
+
+#define ecom_length(X)    ((X)->size * ECOMMUNITY_SIZE)
 
 void ecommunity_init (void);
 void ecommunity_free (struct ecommunity *);
@@ -57,8 +68,7 @@ struct ecommunity *ecommunity_intern (struct ecommunity *);
 int ecommunity_cmp (struct ecommunity *, struct ecommunity *);
 void ecommunity_unintern (struct ecommunity *);
 unsigned int ecommunity_hash_make (struct ecommunity *);
-
-void ecommunity_rd2com (struct bgp_rd *, u_char);
 struct ecommunity *ecommunity_str2com (char *, int, int);
-void ecommunity_vty_out (struct vty *, struct ecommunity *);
 char *ecommunity_ecom2str (struct ecommunity *, int);
+int ecommunity_match (struct ecommunity *, struct ecommunity *);
+char *ecommunity_str (struct ecommunity *);

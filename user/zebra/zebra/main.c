@@ -181,6 +181,7 @@ main (int argc, char **argv)
   char *progname;
   struct thread thread;
   void rib_weed_tables ();
+  void zebra_vty_init ();
 
   /* Set umask before anything for security */
   umask (0027);
@@ -262,6 +263,7 @@ main (int argc, char **argv)
   rib_init ();
   zebra_if_init ();
   zebra_debug_init ();
+  zebra_vty_init ();
   access_list_init ();
   rtadv_init ();
 

@@ -1,22 +1,22 @@
 /* AS path management routines.
    Copyright (C) 1996, 97, 98, 99 Kunihiro Ishiguro
 
-This file is part of GNU Zebra.
+   This file is part of GNU Zebra.
 
-GNU Zebra is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; either version 2, or (at your option) any
-later version.
+   GNU Zebra is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by the
+   Free Software Foundation; either version 2, or (at your option) any
+   later version.
 
-GNU Zebra is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-General Public License for more details.
+   GNU Zebra is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Zebra; see the file COPYING.  If not, write to the Free
-Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with GNU Zebra; see the file COPYING.  If not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 #include <zebra.h>
 
@@ -264,7 +264,7 @@ aspath_intern (struct aspath *aspath)
   find = hash_get (ashash, aspath, hash_alloc_intern);
 
   if (find != aspath)
-      aspath_free (aspath);
+    aspath_free (aspath);
 
   find->refcnt++;
 
@@ -978,19 +978,19 @@ aspath_count ()
    One BGP packet size should be less than 4096.
    One BGP attribute size should be less than 4096 - BGP header size.
    One BGP aspath size should be less than 4096 - BGP header size -
-       BGP mandantry attribute size.
+   BGP mandantry attribute size.
 */
 
 /* AS path string lexical token enum. */
 enum as_token
-{
-  as_token_asval,
-  as_token_set_start,
-  as_token_set_end,
-  as_token_confed_start,
-  as_token_confed_end,
-  as_token_unknown
-};
+  {
+    as_token_asval,
+    as_token_set_start,
+    as_token_set_end,
+    as_token_confed_start,
+    as_token_confed_end,
+    as_token_unknown
+  };
 
 /* Return next token and point for string parse. */
 char *
@@ -1117,13 +1117,16 @@ aspath_key_make (struct aspath *aspath)
 {
   unsigned int key = 0;
   int length;
-  caddr_t pnt;
+  unsigned short *pnt;
 
-  length = aspath->length;
-  pnt = aspath->data;
+  length = aspath->length / 2;
+  pnt = (unsigned short *) aspath->data;
 
   while (length)
-    key += pnt[--length];
+    {
+      key += *pnt++;
+      length--;
+    }
 
   return key;
 }
@@ -1143,7 +1146,7 @@ aspath_cmp (struct aspath *as1, struct aspath *as2)
 void
 aspath_init ()
 {
-  ashash = hash_create (aspath_key_make, aspath_cmp);
+  ashash = hash_create_size (32767, aspath_key_make, aspath_cmp);
 }
 
 /* return and as path value */

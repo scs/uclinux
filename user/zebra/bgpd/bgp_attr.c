@@ -1,22 +1,22 @@
 /* BGP attributes management routines.
    Copyright (C) 1996, 97, 98, 1999 Kunihiro Ishiguro
 
-This file is part of GNU Zebra.
+   This file is part of GNU Zebra.
 
-GNU Zebra is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; either version 2, or (at your option) any
-later version.
+   GNU Zebra is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by the
+   Free Software Foundation; either version 2, or (at your option) any
+   later version.
 
-GNU Zebra is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-General Public License for more details.
+   GNU Zebra is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Zebra; see the file COPYING.  If not, write to the Free
-Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with GNU Zebra; see the file COPYING.  If not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 #include <zebra.h>
 
@@ -40,24 +40,24 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 /* Attribute strings for logging. */
 struct message attr_str [] = 
-{
-  { BGP_ATTR_ORIGIN,           "ORIGIN" }, 
-  { BGP_ATTR_AS_PATH,          "AS_PATH" }, 
-  { BGP_ATTR_NEXT_HOP,         "NEXT_HOP" }, 
-  { BGP_ATTR_MULTI_EXIT_DISC,  "MULTI_EXIT_DISC" }, 
-  { BGP_ATTR_LOCAL_PREF,       "LOCAL_PREF" }, 
-  { BGP_ATTR_ATOMIC_AGGREGATE, "ATOMIC_AGGREGATE" }, 
-  { BGP_ATTR_AGGREGATOR,       "AGGREGATOR" }, 
-  { BGP_ATTR_COMMUNITIES,      "COMMUNITY" }, 
-  { BGP_ATTR_ORIGINATOR_ID,    "ORIGINATOR_ID" },
-  { BGP_ATTR_CLUSTER_LIST,     "CLUSTERLIST" }, 
-  { BGP_ATTR_DPA,              "DPA" },
-  { BGP_ATTR_ADVERTISER,       "ADVERTISER"} ,
-  { BGP_ATTR_RCID_PATH,        "RCID_PATH" },
-  { BGP_ATTR_MP_REACH_NLRI,    "MP_REACH_NLRI" },
-  { BGP_ATTR_MP_UNREACH_NLRI,  "MP_UNREACH_NLRI" },
-  { 0, NULL }
-};
+  {
+    { BGP_ATTR_ORIGIN,           "ORIGIN" }, 
+    { BGP_ATTR_AS_PATH,          "AS_PATH" }, 
+    { BGP_ATTR_NEXT_HOP,         "NEXT_HOP" }, 
+    { BGP_ATTR_MULTI_EXIT_DISC,  "MULTI_EXIT_DISC" }, 
+    { BGP_ATTR_LOCAL_PREF,       "LOCAL_PREF" }, 
+    { BGP_ATTR_ATOMIC_AGGREGATE, "ATOMIC_AGGREGATE" }, 
+    { BGP_ATTR_AGGREGATOR,       "AGGREGATOR" }, 
+    { BGP_ATTR_COMMUNITIES,      "COMMUNITY" }, 
+    { BGP_ATTR_ORIGINATOR_ID,    "ORIGINATOR_ID" },
+    { BGP_ATTR_CLUSTER_LIST,     "CLUSTERLIST" }, 
+    { BGP_ATTR_DPA,              "DPA" },
+    { BGP_ATTR_ADVERTISER,       "ADVERTISER"} ,
+    { BGP_ATTR_RCID_PATH,        "RCID_PATH" },
+    { BGP_ATTR_MP_REACH_NLRI,    "MP_REACH_NLRI" },
+    { BGP_ATTR_MP_UNREACH_NLRI,  "MP_UNREACH_NLRI" },
+    { 0, NULL }
+  };
 
 struct hash *cluster_hash;
 
@@ -300,15 +300,15 @@ attrhash_key_make (struct attr *attr)
     key += transit_hash_key_make (attr->transit);
 
 #ifdef HAVE_IPV6
- {
-   int i;
+  {
+    int i;
    
-   key += attr->mp_nexthop_len;
-   for (i = 0; i < 16; i++)
-     key += attr->mp_nexthop_global.s6_addr[i];
-   for (i = 0; i < 16; i++)
-     key += attr->mp_nexthop_local.s6_addr[i];
- }
+    key += attr->mp_nexthop_len;
+    for (i = 0; i < 16; i++)
+      key += attr->mp_nexthop_global.s6_addr[i];
+    for (i = 0; i < 16; i++)
+      key += attr->mp_nexthop_local.s6_addr[i];
+  }
 #endif /* HAVE_IPV6 */
 
   return key;
@@ -622,7 +622,7 @@ bgp_attr_origin (struct peer *peer, bgp_size_t length,
       && (attr->origin != BGP_ORIGIN_INCOMPLETE))
     {
       zlog (peer->log, LOG_ERR, "Origin attribute value is invalid %d",
-	      attr->origin);
+	    attr->origin);
 
       bgp_notify_send_with_data (peer, 
 				 BGP_NOTIFY_UPDATE_ERR, 
@@ -735,7 +735,7 @@ bgp_attr_nexthop (struct peer *peer, bgp_size_t length,
   if (length != 4)
     {
       zlog (peer->log, LOG_ERR, "Nexthop attribute length isn't four [%d]",
-	      length);
+	    length);
 
       bgp_notify_send_with_data (peer, 
 				 BGP_NOTIFY_UPDATE_ERR, 

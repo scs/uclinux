@@ -25,6 +25,13 @@
 
 #include "ospf6_hook.h"
 
+#define ONESECOND_USEC  1000000
+#define USEC_TVDIFF(tv2,tv1) \
+  (((tv2)->tv_sec - (tv1)->tv_sec) * ONESECOND_USEC \
+   + ((tv2)->tv_usec - (tv1)->tv_usec))
+#define SEC_TVDIFF(tv2,tv1) \
+  (USEC_TVDIFF((tv2),(tv1)) / ONESECOND_USEC)
+
 /* LSA definition */
 
 #define MAXLSASIZE   1024
@@ -211,6 +218,7 @@ struct ospf6_lsa
   unsigned char          flag;      /* to decide ack type and refresh */
   struct timeval         birth;     /* tv_sec when LS age 0 */
   struct timeval         installed; /* installed time */
+  struct timeval         originated; /* installed time */
   struct thread         *expire;
   struct thread         *refresh;   /* For self-originated LSA */
   u_int32_t              from;      /* from which neighbor */
@@ -397,22 +405,22 @@ int ospf6_lsa_refresh (struct thread *);
 
 u_short ospf6_lsa_checksum (struct ospf6_lsa_header *);
 
-void ospf6_lsa_update_router (u_int32_t area_id);
 void ospf6_lsa_update_network (char *ifname);
 void ospf6_lsa_update_link (char *ifname);
 void ospf6_lsa_update_as_external (u_int32_t ls_id);
 void ospf6_lsa_update_intra_prefix_transit (char *ifname);
 void ospf6_lsa_update_intra_prefix_stub (u_int32_t area_id);
 
-void ospf6_lsa_reoriginate (struct ospf6_lsa *);
-void
-ospf6_lsa_originate (u_int16_t, u_int32_t, u_int32_t, char *, int, void *);
-
 u_int16_t ospf6_lsa_get_scope_type (u_int16_t);
 int ospf6_lsa_is_known_type (struct ospf6_lsa_header *lsa_header);
 
 char *ospf6_lsa_type_string (u_int16_t type, char *buf, int bufsize);
 char *ospf6_lsa_router_bits_string (u_char router_bits, char *buf, int size);
+
+u_long
+ospf6_lsa_has_elasped (u_int16_t, u_int32_t, u_int32_t, void *);
+void
+ospf6_lsa_originate (u_int16_t, u_int32_t, u_int32_t, char *, int, void *);
 
 #endif /* OSPF6_LSA_H */
 

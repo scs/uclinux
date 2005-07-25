@@ -365,7 +365,7 @@ ALIAS (no_ripng_redistribute_kernel,
        NO_STR
        "Redistribute information from another routing protocol\n"
        "Kernel routes\n"
-       "Metric\n")
+       "Metric\n");
 
 ALIAS (no_ripng_redistribute_kernel,
        no_ripng_redistribute_kernel_metric_val_cmd,
@@ -374,7 +374,7 @@ ALIAS (no_ripng_redistribute_kernel,
        "Redistribute information from another routing protocol\n"
        "Kernel routes\n"
        "Metric\n"
-       "Metric value\n")
+       "Metric value\n");
 
 DEFUN (ripng_redistribute_connected_metric,
        ripng_redistribute_connected_metric_cmd,
@@ -395,7 +395,7 @@ ALIAS (no_ripng_redistribute_connected,
        NO_STR
        "Redistribute information from another routing protocol\n"
        "Connected\n"
-       "Metric\n")
+       "Metric\n");
 
 ALIAS (no_ripng_redistribute_connected,
        no_ripng_redistribute_connected_metric_val_cmd,
@@ -404,7 +404,7 @@ ALIAS (no_ripng_redistribute_connected,
        "Redistribute information from another routing protocol\n"
        "Connected\n"
        "Metric\n"
-       "Metric value\n")
+       "Metric value\n");
 
 DEFUN (ripng_redistribute_static_metric,
        ripng_redistribute_static_metric_cmd,
@@ -425,7 +425,7 @@ ALIAS (no_ripng_redistribute_static,
        NO_STR
        "Redistribute information from another routing protocol\n"
        "Static routes\n"
-       "Metric\n")
+       "Metric\n");
 
 ALIAS (no_ripng_redistribute_static,
        no_ripng_redistribute_static_metric_val_cmd,
@@ -434,7 +434,7 @@ ALIAS (no_ripng_redistribute_static,
        "Redistribute information from another routing protocol\n"
        "Static routes\n"
        "Metric\n"
-       "Metric value\n")
+       "Metric value\n");
 
 DEFUN (ripng_redistribute_ospf6_metric,
        ripng_redistribute_ospf6_metric_cmd,
@@ -455,7 +455,7 @@ ALIAS (no_ripng_redistribute_ospf6,
        NO_STR
        "Redistribute information from another routing protocol\n"
        "IPv6 Open Shortest Path First (OSPFv3)\n"
-       "Metric\n")
+       "Metric\n");
 
 ALIAS (no_ripng_redistribute_ospf6,
        no_ripng_redistribute_ospf6_metric_val_cmd,
@@ -464,7 +464,7 @@ ALIAS (no_ripng_redistribute_ospf6,
        "Redistribute information from another routing protocol\n"
        "IPv6 Open Shortest Path First (OSPFv3)\n"
        "Metric\n"
-       "Metric value\n")
+       "Metric value\n");
 
 DEFUN (ripng_redistribute_bgp_metric,
        ripng_redistribute_bgp_metric_cmd,
@@ -485,7 +485,7 @@ ALIAS (no_ripng_redistribute_bgp,
        NO_STR
        "Redistribute information from another routing protocol\n"
        "Border Gateway Protocol (BGP)\n"
-       "Metric\n")
+       "Metric\n");
 
 ALIAS (no_ripng_redistribute_bgp,
        no_ripng_redistribute_bgp_metric_val_cmd,
@@ -494,7 +494,7 @@ ALIAS (no_ripng_redistribute_bgp,
        "Redistribute information from another routing protocol\n"
        "Border Gateway Protocol (BGP)\n"
        "Metric\n"
-       "Metric value\n")
+       "Metric value\n");
 
 DEFUN (ripng_redistribute_kernel_routemap,
        ripng_redistribute_kernel_routemap_cmd,
@@ -516,7 +516,7 @@ ALIAS (no_ripng_redistribute_kernel,
        "Redistribute information from another routing protocol\n"
        "Kernel routes\n"
        "Route map reference\n"
-       "Pointer to route-map entries\n")
+       "Pointer to route-map entries\n");
 
 DEFUN (ripng_redistribute_connected_routemap,
        ripng_redistribute_connected_routemap_cmd,
@@ -538,7 +538,7 @@ ALIAS (no_ripng_redistribute_connected,
        "Redistribute information from another routing protocol\n"
        "Connected\n"
        "Route map reference\n"
-       "Pointer to route-map entries\n")
+       "Pointer to route-map entries\n");
 
 DEFUN (ripng_redistribute_static_routemap,
        ripng_redistribute_static_routemap_cmd,
@@ -560,7 +560,7 @@ ALIAS (no_ripng_redistribute_static,
        "Redistribute information from another routing protocol\n"
        "Static routes\n"
        "Route map reference\n"
-       "Pointer to route-map entries\n")
+       "Pointer to route-map entries\n");
 
 DEFUN (ripng_redistribute_ospf6_routemap,
        ripng_redistribute_ospf6_routemap_cmd,
@@ -582,7 +582,7 @@ ALIAS (no_ripng_redistribute_ospf6,
        "Redistribute information from another routing protocol\n"
        "IPv6 Open Shortest Path First (OSPFv3)\n"
        "Route map reference\n"
-       "Pointer to route-map entries\n")
+       "Pointer to route-map entries\n");
 
 DEFUN (ripng_redistribute_bgp_routemap,
        ripng_redistribute_bgp_routemap_cmd,
@@ -604,7 +604,7 @@ ALIAS (no_ripng_redistribute_bgp,
        "Redistribute information from another routing protocol\n"
        "Border Gateway Protocol (BGP)\n"
        "Route map reference\n"
-       "Pointer to route-map entries\n")
+       "Pointer to route-map entries\n");
 
 DEFUN (ripng_redistribute_kernel_metric_routemap,
        ripng_redistribute_kernel_metric_routemap_cmd,
@@ -631,7 +631,7 @@ ALIAS (no_ripng_redistribute_kernel,
        "Metric\n"
        "Metric value\n"
        "Route map reference\n"
-       "Pointer to route-map entries\n")
+       "Pointer to route-map entries\n");
 
 DEFUN (ripng_redistribute_connected_metric_routemap,
        ripng_redistribute_connected_metric_routemap_cmd,
@@ -658,7 +658,7 @@ ALIAS (no_ripng_redistribute_connected,
        "Metric\n"
        "Metric value\n"
        "Route map reference\n"
-       "Pointer to route-map entries\n")
+       "Pointer to route-map entries\n");
 
 DEFUN (ripng_redistribute_static_metric_routemap,
        ripng_redistribute_static_metric_routemap_cmd,
@@ -685,7 +685,7 @@ ALIAS (no_ripng_redistribute_static,
        "Metric\n"
        "Metric value\n"
        "Route map reference\n"
-       "Pointer to route-map entries\n")
+       "Pointer to route-map entries\n");
 
 DEFUN (ripng_redistribute_ospf6_metric_routemap,
        ripng_redistribute_ospf6_metric_routemap_cmd,
@@ -712,7 +712,7 @@ ALIAS (no_ripng_redistribute_ospf6,
        "Metric\n"
        "Metric value\n"
        "Route map reference\n"
-       "Pointer to route-map entries\n")
+       "Pointer to route-map entries\n");
 
 DEFUN (ripng_redistribute_bgp_metric_routemap,
        ripng_redistribute_bgp_metric_routemap_cmd,
@@ -739,7 +739,7 @@ ALIAS (no_ripng_redistribute_bgp,
        "Metric\n"
        "Metric value\n"
        "Route map reference\n"
-       "Pointer to route-map entries\n")
+       "Pointer to route-map entries\n");
 
 void
 ripng_redistribute_write (struct vty *vty)

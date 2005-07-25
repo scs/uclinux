@@ -353,14 +353,14 @@ This command bind specific peer to peer group @var{word}.
 
   AS (Autonomous System) is one of the essential element of BGP.  BGP
 is a distance vector routing protocol.  AS framework provides distance
-vector metric and loop detection to BGP.  And also AS can provide
-policy routing by AS path prepend.  @code{RFC1930} - @cite{Guidelines
-for creation, selection, and registration of an Autonomous System
-(AS)} describes how to use AS.
+vector metric and loop detection to BGP.  @code{RFC1930} -
+@cite{Guidelines for creation, selection, and registration of an
+Autonomous System (AS)} describes how to use AS.
 
-  AS number is tow octet.  It's value range is from 1 to 65535.  AS
-numbers 64512 through 65535 are defined as private AS numbers.
-Private AS numbers must not to be advertised in the global Internet.
+  AS number is tow octet digita value.  So the value range is from 1
+to 65535.  AS numbers 64512 through 65535 are defined as private AS
+numbers.  Private AS numbers must not to be advertised in the global
+Internet.
 
 @menu
 * AS Path Regular Expression::  
@@ -398,7 +398,9 @@ Matches the end of the line.
 Character @code{_} has special meanings in AS path regular expression.
 It matches to space and comma , and AS set delimiter @{ and @} and AS
 confederation delimiter @code{(} and @code{)}.  And it also matches to
-the beginning of the line and the end of the line.
+the beginning of the line and the end of the line.  So @code{_} can be
+used for AS value boundaries match.  @code{show ip bgp regexp _7675_}
+matches to all of BGP routes which as AS number include @var{7675}.
 @end table
 
 @node Display BGP Routes by AS Path, AS Path Access List, AS Path Regular Expression, Autonomous System
@@ -502,32 +504,32 @@ values are sorted in numerical order.
 @comment  node-name,  next,  previous,  up
 @subsection BGP Community Lists
 
-  Community-list is a user defined BGP communites attribute list.
-Community-list can be used for matching or manipulating BGP
-communities attribute in BGP updates.
+  BGP community list is a user defined BGP communites attribute list.
+BGP community list can be used for matching or manipulating BGP
+communities attribute in updates.
 
-  There are two types of community-list.  One is standard
-community-list and another is expanded community-list.  Standard
-community-list defines communities attribute.  Expanded community-list
-defines communities attribute string with regular expression.
-Standard community-list is compiled into binary format when user
-define it.  Standard community-list will be directly compared to BGP
-communities attribute in BGP updates.  Therefore the comparison is
-faster than expanded community-list.
+  There are two types of community list.  One is standard community
+list and another is expanded community list.  Standard community list
+defines communities attribute.  Expanded community list defines
+communities attribute string with regular expression.  Standard
+community list is compiled into binary format when user define it.
+Standard community list will be directly compared to BGP communities
+attribute in BGP updates.  Therefore the comparison is faster than
+expanded community list.
 
 @deffn Command {ip community-list standard @var{name} @{permit|deny@} @var{community}} {}
-This command defines a new standard community-list.  @var{community}
+This command defines a new standard community list.  @var{community}
 is communities value.  The @var{community} is compiled into community
-structure.  We can define multiple community-list under same name.  In
+structure.  We can define multiple community list under same name.  In
 that case match will happen user defined order.  Once the
-community-list matches to communities attribute in BGP updates it
-return permit or deny by the community-list definition.  When there is
+community list matches to communities attribute in BGP updates it
+return permit or deny by the community list definition.  When there is
 no matched entry, deny will be returned.  When @var{community} is
 empty it matches to any routes.
 @end deffn
 
 @deffn Command {ip community-list expanded @var{name} @{permit|deny@} @var{line}} {}
-This command defines a new expanded community-list.  @var{line} is a
+This command defines a new expanded community list.  @var{line} is a
 string expression of communities attribute.  @var{line} can include
 regular expression to match communities attribute in BGP updates.
 @end deffn
@@ -542,7 +544,7 @@ removed simpley specifying community lists name.
 
 @deffn {Command} {show ip community-list} {}
 @deffnx {Command} {show ip community-list @var{name}} {}
-This command display current community-list information.  When
+This command display current community list information.  When
 @var{name} is specified the specified community list's information is
 shown.
 
@@ -565,23 +567,23 @@ Named Community standard list CLIST
 @comment  node-name,  next,  previous,  up
 @subsection Numbered BGP Community Lists
 
-  When number is used for BGP community lists name, the number has
+  When number is used for BGP community list name, the number has
 special meanings.  Community list number in the range from 1 and 99 is
-standard community-list.  Community list number in the range from 100
-to 199 is expanded community-list.  These community lists are called
+standard community list.  Community list number in the range from 100
+to 199 is expanded community list.  These community lists are called
 as numbered community lists.  On the other hand normal community lists
 is called as named community lists.
 
 @deffn Command {ip community-list <1-99> @{permit|deny@} @var{community}} {}
-This command defines a new community-list.  <1-99> is standard
-community-list number.  Community-list name within this range defines
+This command defines a new community list.  <1-99> is standard
+community list number.  Community list name within this range defines
 standard community list.  When @var{community} is empty it matches to
 any routes.
 @end deffn
 
 @deffn Command {ip community-list <100-199> @{permit|deny@} @var{community}} {}
-This command defines a new community-list.  <100-199> is expanded
-community-list number.  Community-list name within this range defines
+This command defines a new community list.  <100-199> is expanded
+community list number.  Community list name within this range defines
 expanded community list.
 @end deffn
 
@@ -643,12 +645,15 @@ BGP update's communities attribute is completely removed.
 @code{show ip bgp} command can be used.  The @var{community} value and
 community list can be used for @code{show ip bgp} command.
 
-@deffn Command {show ip bgp community @var{community}} {}
+@deffn Command {show ip bgp community} {}
+@deffnx Command {show ip bgp community @var{community}} {}
 @deffnx Command {show ip bgp community @var{community} exact-match} {}
-This commands display BGP routes that matches @var{community} value.
-For this command, @code{internet} keyword can't be used for
-@var{community} value.  When @code{exact-match} is specified, it
-display only routes that have an exact match.
+@code{show ip bgp community} displays BGP routes which has communities
+attribute.  When @var{community} is specified, BGP routes that matches
+@var{community} value is displayed.  For this command, @code{internet}
+keyword can't be used for @var{community} value.  When
+@code{exact-match} is specified, it display only routes that have an
+exact match.
 @end deffn
 
 @deffn Command {show ip bgp community-list @var{word}} {}
@@ -776,12 +781,12 @@ route-map RMAP permit 10
 @comment  node-name,  next,  previous,  up
 @section BGP Extended Communities Attribute
 
-  MPLS VPN/BGP provides VPN functionality by using MPLS network and
-BGP protocol support.  MPLS VPN/BGP expands capability of network
-infrastructure.  At the same time, it requires a new framework for
-policy routing.  BGP Extended Communities Attribute is introduced for
-that.  With BGP Extended Communities Attribute we can use Route Target
-or Site of Origin for implementing policy routing.
+  BGP extended communities attribute is introduced with MPLS VPN/BGP
+technology.  MPLS VPN/BGP expands capability of network infrastructure
+to provide VPN functionality.  At the same time it requires a new
+framework for policy routing.  With BGP Extended Communities Attribute
+we can use Route Target or Site of Origin for implementing network
+policy for MPLS VPN/BGP.
 
   BGP Extended Communities Attribute is similar to BGP Communities
 Attribute.  It is an optional transitive attribute.  BGP Extended

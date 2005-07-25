@@ -148,6 +148,7 @@ rtm_flag_dump (int flag)
   struct message *mes;
   static char buf[BUFSIZ];
 
+  buf[0] = '0';
   for (mes = rtm_flag_str; mes->key != 0; mes++)
     {
       if (mes->key & flag)
@@ -465,10 +466,6 @@ rtm_read (struct rt_msghdr *rtm)
   if ((rtm->rtm_type == RTM_ADD) && ! (flags & RTF_UP))
     return;
 
-  /* Ignore route which has both HOST and GATEWAY attribute. */
-  if ((flags & RTF_GATEWAY) && (flags & RTF_HOST))
-    return;
-
   /* This is connected route. */
   if (! (flags & RTF_GATEWAY))
       return;
@@ -486,7 +483,10 @@ rtm_read (struct rt_msghdr *rtm)
 
       p.family = AF_INET;
       p.prefix = dest.sin.sin_addr;
-      p.prefixlen = ip_masklen (mask.sin.sin_addr);
+      if (flags & RTF_HOST)
+	p.prefixlen = IPV4_MAX_PREFIXLEN;
+      else
+	p.prefixlen = ip_masklen (mask.sin.sin_addr);
 
       if (rtm->rtm_type == RTM_GET || rtm->rtm_type == RTM_ADD)
 	rib_add_ipv4 (ZEBRA_ROUTE_KERNEL, zebra_flags, 
@@ -503,7 +503,10 @@ rtm_read (struct rt_msghdr *rtm)
 
       p.family = AF_INET6;
       p.prefix = dest.sin6.sin6_addr;
-      p.prefixlen = ip6_masklen (mask.sin6.sin6_addr);
+      if (flags & RTF_HOST)
+	p.prefixlen = IPV6_MAX_PREFIXLEN;
+      else
+	p.prefixlen = ip6_masklen (mask.sin6.sin6_addr);
 
 #ifdef KAME
       if (IN6_IS_ADDR_LINKLOCAL (&gate.sin6.sin6_addr))
@@ -744,7 +747,7 @@ kernel_read (struct thread *thread)
 
   if (nbytes <= 0)
     {
-      if (nbytes < 0 && errno != EWOULDBLOCK)
+      if (nbytes < 0 && errno != EWOULDBLOCK && errno != EAGAIN)
 	zlog_warn ("routing socket error: %s", strerror (errno));
       return 0;
     }

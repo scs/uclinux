@@ -162,25 +162,19 @@ listed below.
 @sp 1
 @itemize @bullet
 @item
-GNU/Linux 2.0.37
-@item
 GNU/Linux 2.2.x
 @item
-GNU/Linux 2.3.x
-@item
-FreeBSD 2.2.8
-@item
-FreeBSD 3.x
+GNU/Linux 2.4.x
 @item
 FreeBSD 4.x
 @item
-NetBSD 1.4
+FreeBSD 5.x
 @item
-OpenBSD 2.5
+NetBSD 1.6.x
 @item
-Solaris 2.6
+OpenBSD 3.x
 @item
-Solaris 7
+Solaris 8
 @end itemize
 
 @sp 1
@@ -192,9 +186,7 @@ not yet supported.
 @item
 Linux IPv6 stack for GNU/Linux 2.2.x and higher.
 @item
-KAME IPv6 stack for BSD.
-@item
-INRIA IPv6 stack for BSD.
+KAME BSD IPv6 stack
 @end itemize
 
 @node Supported RFC, How to get Zebra, Supported Platforms, Overview
@@ -304,18 +296,17 @@ comments or suggestions to Zebra, please send mail to
 notes, and patches are sent to the list.
 
   To subscribe to the @email{zebra@@zebra.org, Zebra mailing list},
-please send a mail to @email{majordomo@@zebra.org} with a message body
-that includes only:
+please send a mail to @email{zebra-request@@ml.zebra.org} with a message with a subject:
 
 @quotation
-subscribe zebra
+subscribe
 @end quotation
 
   To unsubscribe from the list, please send a mail to
-@email{majordomo@@zebra.org} with a message body that includes only:
+@email{zebra-request@@ml.zebra.org} with a message body that includes only:
 
 @quotation
-unsubscribe zebra
+unsubscribe
 @end quotation
 
 @node Bug Reports,  , Mailing List, Overview

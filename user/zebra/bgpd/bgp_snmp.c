@@ -42,6 +42,10 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 /* BGP4-MIB described in RFC1657. */
 #define BGP4MIB 1,3,6,1,2,1,15
 
+/* BGP TRAP. */
+#define BGPESTABLISHED			1
+#define BGPBACKWARDTRANSITION		2	
+
 /* Zebra enterprise BGP MIB.  This variable is used for register
    OSPF MIB to SNMP agent under SMUX protocol.  */
 #define BGPDMIB 1,3,6,1,4,1,3317,1,2,2
@@ -509,12 +513,14 @@ bgpPeerTable (struct variable *v, oid name[], size_t *length,
       return SNMP_INTEGER (peer->update_out);
       break;
     case BGPPEERINTOTALMESSAGES:
-      return SNMP_INTEGER (peer->open_in + peer->update_in 
-			   + peer->keepalive_in + peer->notify_in);
+      return SNMP_INTEGER (peer->open_in + peer->update_in
+			   + peer->keepalive_in + peer->notify_in
+			   + peer->refresh_in + peer->dynamic_cap_in);
       break;
     case BGPPEEROUTTOTALMESSAGES:
       return SNMP_INTEGER (peer->open_out + peer->update_out
-			   + peer->keepalive_out + peer->notify_out);
+			   + peer->keepalive_out + peer->notify_out
+			   + peer->refresh_out + peer->dynamic_cap_out);
       break;
     case BGPPEERLASTERROR:
       {
@@ -820,7 +826,6 @@ bgp4PathAttrTable (struct variable *v, oid name[], size_t *length,
 /* BGP Traps. */
 struct trap_object bgpTrapList[] =
 {
-  {bgpPeerTable, 3, {3, 1, BGPPEERREMOTEADDR}},
   {bgpPeerTable, 3, {3, 1, BGPPEERLASTERROR}},
   {bgpPeerTable, 3, {3, 1, BGPPEERSTATE}}
 };
@@ -841,7 +846,7 @@ bgpTrapEstablished (struct peer *peer)
   smux_trap (bgp_oid, sizeof bgp_oid / sizeof (oid),
 	     index, IN_ADDR_SIZE,
 	     bgpTrapList, sizeof bgpTrapList / sizeof (struct trap_object),
-	     bm->start_time - time (NULL));
+	     bm->start_time - time (NULL), BGPESTABLISHED);
 }
 
 void
@@ -860,7 +865,7 @@ bgpTrapBackwardTransition (struct peer *peer)
   smux_trap (bgp_oid, sizeof bgp_oid / sizeof (oid),
 	     index, IN_ADDR_SIZE,
 	     bgpTrapList, sizeof bgpTrapList / sizeof (struct trap_object),
-	     bm->start_time - time (NULL));
+	     bm->start_time - time (NULL), BGPBACKWARDTRANSITION);
 }
 
 void

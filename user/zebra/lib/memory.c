@@ -415,7 +415,7 @@ ALIAS (show_memory_all,
        show_memory_cmd,
        "show memory",
        "Show running system information\n"
-       "Memory statistics\n")
+       "Memory statistics\n");
 
 DEFUN (show_memory_lib,
        show_memory_lib_cmd,

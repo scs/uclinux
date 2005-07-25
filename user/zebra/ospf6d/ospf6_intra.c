@@ -37,6 +37,16 @@ ospf6_intra_route_calculate (int type, struct ospf6_lsa *lsa,
   struct ospf6_route_req request;
   struct ospf6_area *area;
 
+  if (IS_OSPF6_DUMP_INTRA)
+    {
+      char buf[64];
+      struct prefix_ls *p_ls;
+      p_ls = (struct prefix_ls *) &topo_entry->route.prefix;
+      inet_ntop (AF_INET, &p_ls->adv_router, buf, sizeof (buf));
+      zlog_info ("INTRA: Calculate [%s] %s and %s",
+                 (type == ADD ? "add" : "remove"), lsa->str, buf);
+    }
+
   intra_prefix = OSPF6_LSA_HEADER_END (lsa->header);
 
   area = lsa->scope;
@@ -198,10 +208,6 @@ ospf6_intra_topology_add (void *data)
        ! ospf6_lsdb_is_end (&node);
        ospf6_lsdb_next (&node))
     {
-      if (IS_OSPF6_DUMP_INTRA)
-        zlog_info ("INTRA: topology hook: Examining %s (%p)",
-                   node.lsa->str, node.lsa);
-
       if (IS_LSA_MAXAGE (node.lsa))
         continue;
 

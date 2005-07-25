@@ -186,6 +186,9 @@ void ospf6_route_table_delete (struct ospf6_route_table *);
 void ospf6_route_table_freeze (struct ospf6_route_table *);
 void ospf6_route_table_thaw (struct ospf6_route_table *);
 
+void ospf6_route_log_request (char *what, char *where,
+                              struct ospf6_route_req *request);
+
 void
 ospf6_route_hook_register (void (*add)    (struct ospf6_route_req *),
                            void (*change) (struct ospf6_route_req *),

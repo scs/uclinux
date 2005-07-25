@@ -1,3 +1,9 @@
+2003-05-18  Kunihiro Ishiguro  <kunihiro@ipinfusion.com>
+
+	* ripd.h (RIP_PACKET_MAXSIZ): Increase size to 524 to avoid some
+	implemetation's RIP message size bug.  Reported by: Vladimir
+	Ivaschenko <hazard@francoudi.com>
+
 2002-07-07  Kunihiro Ishiguro  <kunihiro@ipinfusion.com>
 
 	* zebra-0.93 released.

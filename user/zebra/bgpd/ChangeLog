@@ -1,3 +1,35 @@
+2003-01-09  Akihiro Mizutani <mizutani@net-chef.net>
+
+	* bgp_routemap.c: Add match extcommunity command.
+
+2002-10-23  Kunihiro Ishiguro  <kunihiro@ipinfusion.com>
+
+	* bgp_aspath.c (aspath_init): Extend hash size from default to
+	32767.
+	(aspath_key_make): Use unsigned shoft for making hash.  Suggested
+	by: Marc Evans <Marc@SoftwareHackery.Com>
+
+2002-08-19  Kunihiro Ishiguro  <kunihiro@ipinfusion.com>
+
+	* bgp_clist.c (community_entry_free): Fix memory leak of standard
+	extcommunity-list config string.
+
+2002-08-19  Akihiro Mizutani <mizutani@net-chef.net>
+
+	* bgp_route.c (route_vty_out_detail): Fix bug of router-id display
+	when multiple instance is used.
+
+2002-08-18  Akihiro Mizutani <mizutani@net-chef.net>
+
+	* bgpd.c: Make "default-originate" and "maximum-prefix" commands
+	available in peer-group configuration.
+
+2002-08-13  Akihiro Mizutani <mizutani@net-chef.net>
+
+	* bgp_packet.c (bgp_open_send): Put Opt Parm Len 0 when last
+	capability packet cause error or dont-capability-negotiate option
+	is specified.
+
 2002-07-07  Kunihiro Ishiguro  <kunihiro@ipinfusion.com>
 
 	* zebra-0.93 released.

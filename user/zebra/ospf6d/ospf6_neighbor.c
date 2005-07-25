@@ -179,6 +179,13 @@ ospf6_neighbor_retrans_remove (struct ospf6_lsa *lsa,
     }
 
   ospf6_lsdb_remove (lsa, nei->retrans_list);
+
+  if (nei->retrans_list->count == 0)
+    {
+      if (nei->send_update)
+        thread_cancel (nei->send_update);
+      nei->send_update = NULL;
+    }
 }
 
 void
@@ -502,7 +509,7 @@ ALIAS (show_ipv6_ospf6_neighbor_routerid,
        IP6_STR
        OSPF6_STR
        "Neighbor list\n"
-       )
+       );
 
 DEFUN (show_ipv6_ospf6_neighborlist,
        show_ipv6_ospf6_neighborlist_cmd,

@@ -1108,14 +1108,14 @@ ospf6_process_lsack (struct iovec *message,
   if (!o6n)
     {
       if (IS_OSPF6_DUMP_LSACK)
-        zlog_info ("  neighbor not found, reject");
+        zlog_info ("LSACK: neighbor not found, reject");
       return;
     }
 
   if (memcmp (src, &o6n->hisaddr, sizeof (struct in6_addr)))
     {
-      if (IS_OSPF6_DUMP_MESSAGE (ospf6_header->type))
-        zlog_info ("From Secondary I/F of the neighbor: ignore");
+      if (IS_OSPF6_DUMP_LSACK)
+        zlog_info ("LSACK: From Secondary I/F of the neighbor: ignore");
       return;
     }
 
@@ -1123,7 +1123,7 @@ ospf6_process_lsack (struct iovec *message,
   if (o6n->state < NBS_EXCHANGE)
     {
       if (IS_OSPF6_DUMP_LSACK)
-        zlog_info ("  neighbor state less than Exchange, reject");
+        zlog_info ("LSACK: neighbor state less than Exchange, reject");
       return;
     }
 
@@ -1141,7 +1141,7 @@ ospf6_process_lsack (struct iovec *message,
       if (!copy)
         {
           if (IS_OSPF6_DUMP_LSACK)
-            zlog_info ("no database copy, ignore");
+            zlog_info ("LSACK: no database copy, ignore");
           continue;
         }
 
@@ -1152,7 +1152,7 @@ ospf6_process_lsack (struct iovec *message,
       if (rem == NULL)
         {
           if (IS_OSPF6_DUMP_LSACK)
-            zlog_info ("not on %s's retranslist, ignore", o6n->str);
+            zlog_info ("LSACK: not on %s's retranslist, ignore", o6n->str);
           continue;
         }
 
@@ -1167,7 +1167,13 @@ ospf6_process_lsack (struct iovec *message,
         {
           /* Log the questionable acknowledgement,
              and examine the next one. */
-          zlog_warn ("LSAck: questionable acknowledge: LSAs differ");
+          zlog_info ("LSACK: questionable acknowledge: %s", copy->str);
+          zlog_info ("LSACK:   received: seq: %#x age: %hu",
+                     ntohl (lsa->header->seqnum),
+                     ntohs (lsa->header->age));
+          zlog_info ("LSACK:   instance: seq: %#x age: %hu",
+                     ntohl (copy->header->seqnum),
+                     ospf6_lsa_age_current (copy));
         }
 
       /* release temporary LSA from Ack message */
@@ -1242,6 +1248,22 @@ ospf6_message_process (struct iovec *message,
       return;
     }
 
+  /* message type check */
+  type = (ospf6_header->type >= OSPF6_MESSAGE_TYPE_MAX ?
+          OSPF6_MESSAGE_TYPE_UNKNOWN : ospf6_header->type);
+
+  /* log */
+  if (IS_OSPF6_DUMP_MESSAGE (type))
+    {
+      char srcname[64], dstname[64];
+      inet_ntop (AF_INET6, dst, dstname, sizeof (dstname));
+      inet_ntop (AF_INET6, src, srcname, sizeof (srcname));
+      zlog_info ("Receive %s on %s",
+                 ospf6_message_type_string[type], o6i->interface->name);
+      zlog_info ("    %s -> %s", srcname, dstname);
+      ospf6_message_log (message);
+    }
+
   /* router id check */
   router_id = ospf6_header->router_id;
   if (ospf6_header->router_id == o6i->area->ospf6->router_id)
@@ -1251,10 +1273,6 @@ ospf6_message_process (struct iovec *message,
                  srcname, o6i->interface->name);
       return;
     }
-
-  /* message type check */
-  type = (ospf6_header->type >= OSPF6_MESSAGE_TYPE_MAX ?
-          OSPF6_MESSAGE_TYPE_UNKNOWN : ospf6_header->type);
 
   /* octet statistics relies on some asumption:
        on ethernet, no IPv6 Extention header, etc */
@@ -1280,11 +1298,13 @@ ospf6_receive (struct thread *thread)
   struct ospf6_header ospf6_header;
   char buffer[OSPF6_MESSAGE_RECEIVE_BUFSIZE];
   struct ospf6_interface *o6i;
-  char srcname[64], dstname[64];
   unsigned char type;
 
   /* get socket */
   sockfd = THREAD_FD (thread);
+
+  /* add next read thread */
+  thread_add_read (master, ospf6_receive, NULL, sockfd);
 
   /* initialize */
   OSPF6_MESSAGE_CLEAR (message);
@@ -1302,20 +1322,8 @@ ospf6_receive (struct thread *thread)
   o6i = ospf6_interface_lookup_by_index (ifindex);
   if (!o6i || !o6i->area)
     {
-      zlog_warn ("*** received interface ospf6 disabled");
-      thread_add_read (master, ospf6_receive, NULL, sockfd);
+      //zlog_warn ("*** received interface ospf6 disabled");
       return 0;
-    }
-
-  /* log */
-  if (IS_OSPF6_DUMP_MESSAGE (type))
-    {
-      inet_ntop (AF_INET6, &dst, dstname, sizeof (dstname));
-      inet_ntop (AF_INET6, &src, srcname, sizeof (srcname));
-      zlog_info ("Receive %s on %s",
-                 ospf6_message_type_string[type], o6i->interface->name);
-      zlog_info ("    %s -> %s", srcname, dstname);
-      ospf6_message_log (message);
     }
 
   /* if not passive, process message */
@@ -1324,9 +1332,6 @@ ospf6_receive (struct thread *thread)
   else if (IS_OSPF6_DUMP_MESSAGE (type))
     zlog_info ("Ignore message on passive interface %s",
                o6i->interface->name);
-
-  /* add next read thread */
-  thread_add_read (master, ospf6_receive, NULL, sockfd);
 
   return 0;
 }
@@ -1828,6 +1833,9 @@ ospf6_send_lsupdate_rxmt (struct thread *thread)
     return 0;
   lsupdate.lsupdate_num = htonl (lsupdate.lsupdate_num);
 
+  if (IS_OSPF6_DUMP_LSUPDATE)
+    zlog_info ("MESSAGE: retrsnsmit LSUpdate to %s", o6n->str);
+
   /* statistics */
   o6n->ospf6_stat_retrans_lsupdate++;
 
@@ -1915,6 +1923,9 @@ ospf6_send_lsack_delayed (struct thread *thread)
 
   o6i = THREAD_ARG (thread);
   assert (o6i);
+
+  if (IS_OSPF6_DUMP_LSACK)
+    zlog_info ("LSACK: Delayed LSAck for %s\n", o6i->interface->name);
 
   o6i->thread_send_lsack_delayed = (struct thread *) NULL;
 

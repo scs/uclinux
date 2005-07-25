@@ -1,3 +1,62 @@
+
+2003-08-11  Taisuke Sasaki <sasaki@soft.net.fujitsu.co.jp>
+
+        * ospf6_ism.c: DR Election bug fix.
+
+2003-04-25  Yasuhiro Ohara  <yasu@sfc.wide.ad.jp>
+
+	* ospf6_asbr.c: AS-External LSA refresh was based on the
+	prefix of the obsolete LSA. It was wrong so fixed.
+	* version: 0.9.6p
+
+2002-11-09  Vincent Jardin  <jardin@6wind.com>
+
+	* ospf6_interface.c: update link-local address on interface creation.
+
+2002-11-09  Yasuhiro Ohara  <yasu@sfc.wide.ad.jp>
+
+	* ospf6_asbr.c: apply MinLSInterval to AS-External-LSA origination.
+	* ospf6_lsa.c: change not to issue flooding caused by expire event
+	when the received LSA is (already) MaxAge.
+	* ospf6_spf.c: fix a bug which is that ospf6d calculates
+	wrong nexthop when failed to find Link-LSA for the neighbor.
+	* ospf6_damp.c ospf6_dbex.c ospf6_neighbor.c ospf6_spf.c:
+	some clean up
+	* version: 0.9.6o
+
+2002-10-04  Yasuhiro Ohara  <yasu@sfc.wide.ad.jp>
+
+	* ospf6_asbr.c: bug of failing ASE lsa refresh fixed.
+	* version: 0.9.6n
+
+2002-10-01  Yasuhiro Ohara  <yasu@sfc.wide.ad.jp>
+
+	* ospf6_asbr.c: AS-External-LSA origination function
+	is re-written.
+	* ospf6_damp.[ch]: New feature that damps flaps is added.
+	* version: 0.9.6m
+
+2002-07-14  Yasuhiro Ohara  <yasu@sfc.wide.ad.jp>
+
+	* ospf6_spf.c: unwanted assert() in ospf6_spf_nexthop_calculation()
+	is deleted.
+	* version: 0.9.6l
+
+2002-07-14  Yasuhiro Ohara  <yasu@sfc.wide.ad.jp>
+
+	* ospf6_dbex.c: bug that ospf6d fails to refresh self-originated
+	LSA if he have not the LSA before has been fixed.
+	* ospf6_asbr.c: bug of failing removing ASE LSA when remove
+	message arrived from zebra has been fixed.
+	* version: 0.9.6k
+
+2002-07-13  Yasuhiro Ohara  <yasu@sfc.wide.ad.jp>
+
+	* ospf6_zebra.c: bug reported [zebra 14642] fixed.
+	The bug was related to the synchronization between zebra
+	and ospf6d. Now synchronization will be correctly done.
+	* version: 0.9.6j
+
 2002-07-07  Yasuhiro Ohara  <yasu@sfc.wide.ad.jp>
 
 	* ospf6_lsdb.c: bug fixed in ospf6_lsdb_type_router ().

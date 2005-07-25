@@ -36,16 +36,16 @@
 
 /* Vty events */
 enum event 
-{
-  VTY_SERV,
-  VTY_READ,
-  VTY_WRITE,
-  VTY_TIMEOUT_RESET,
+  {
+    VTY_SERV,
+    VTY_READ,
+    VTY_WRITE,
+    VTY_TIMEOUT_RESET,
 #ifdef VTYSH
-  VTYSH_SERV,
-  VTYSH_READ
+    VTYSH_SERV,
+    VTYSH_READ
 #endif /* VTYSH */
-};
+  };
 
 static void vty_event (enum event, int, struct vty *);
 
@@ -140,22 +140,52 @@ vty_out (struct vty *vty, const char *format, ...)
   return len;
 }
 
+#define TIME_BUF 27
+
+/* current time string. */
 int
-vvty_out (struct vty *vty, const char *format, va_list va)
+time_str (char *buf)
+{
+  time_t clock;
+  struct tm *tm;
+  int ret;
+
+  time (&clock);
+  tm = localtime (&clock);
+
+  ret = strftime (buf, TIME_BUF, "%Y/%m/%d %H:%M:%S", tm);
+
+  return ret;
+}
+
+int
+vty_log_out (struct vty *vty, const char *proto_str, const char *format,
+	     va_list va)
 {
   int len;
-  /* XXX need overflow check */
+  int ret;
   char buf[1024];
+  char time_buf[TIME_BUF];
 
-  len = vsnprintf (buf, sizeof buf, format, va);
+  ret = time_str (time_buf);
 
-  if (len < 0)
-    {    
-      zlog (NULL, LOG_INFO, "Vty closed due to vty output buffer shortage.");
-      return -1;
+  if (ret != 0)
+    {
+      snprintf (buf, sizeof buf, "%s ", time_buf);
+      write (vty->fd, buf, strlen (time_buf) + 1);
     }
 
-  buffer_write (vty->obuf, (u_char *)buf, len);
+  snprintf (buf, sizeof buf, "%s: ", proto_str);
+  write (vty->fd, buf, strlen (proto_str) + 2);
+
+  len = vsnprintf (buf, sizeof buf, format, va);
+  if (len < 0)
+    return -1;
+  write (vty->fd, (u_char *)buf, len);
+
+  snprintf (buf, sizeof buf, "\r\n");
+  write (vty->fd, buf, 2);
+
   return len;
 }
 
@@ -164,21 +194,17 @@ void
 vty_time_print (struct vty *vty, int cr)
 {
 #ifdef HAVE_STRFTIME
-  time_t clock;
-  struct tm *tm;
-#define TIME_BUF 25
-  char buf [TIME_BUF];
   int ret;
-  
-  time (&clock);
-  tm = localtime (&clock);
+  char buf [TIME_BUF];
+ 
+  ret = time_str (buf);
 
-  ret = strftime (buf, TIME_BUF, "%Y/%m/%d %H:%M:%S", tm);
   if (ret == 0)
     {
       zlog (NULL, LOG_INFO, "strftime error");
       return;
     }
+
   if (cr)
     vty_out (vty, "%s\n", buf);
   else
@@ -852,7 +878,7 @@ vty_complete_command (struct vty *vty)
 
 void
 vty_describe_fold (struct vty *vty, int cmd_width,
-                 int desc_width, struct desc *desc)
+		   int desc_width, struct desc *desc)
 {
   char *buf, *cmd, *p;
   int pos;
@@ -870,11 +896,11 @@ vty_describe_fold (struct vty *vty, int cmd_width,
   for (p = desc->str; strlen (p) > desc_width; p += pos + 1)
     {
       for (pos = desc_width; pos > 0; pos--)
-      if (*(p + pos) == ' ')
-        break;
+	if (*(p + pos) == ' ')
+	  break;
 
       if (pos == 0)
-      break;
+	break;
 
       strncpy (buf, p, pos);
       buf[pos] = '\0';
@@ -1067,8 +1093,8 @@ vty_hist_add (struct vty *vty)
   if (vty->hist[index])
     if (strcmp (vty->buf, vty->hist[index]) == 0)
       {
-      vty->hp = vty->hindex;
-      return;
+	vty->hp = vty->hindex;
+	return;
       }
 
   /* Insert history entry. */
@@ -1145,13 +1171,16 @@ vty_telnet_option (struct vty *vty, unsigned char *buf, int nbytes)
       break;
     case SE: 
       {
-	char *buffer = (char *)vty->sb_buffer->head->data;
-	int length = vty->sb_buffer->length;
-
-	if (buffer == NULL)
-	  return 0;
+	char *buffer;
+	int length;
 
 	if (!vty->iac_sb_in_progress)
+	  return 0;
+
+	buffer = (char *)vty->sb_buffer->head->data;
+	length = vty->sb_buffer->length;
+
+	if (buffer == NULL)
 	  return 0;
 
 	if (buffer[0] == '\0')
@@ -1286,8 +1315,8 @@ vty_read (struct thread *thread)
       
       if (vty->iac_sb_in_progress && !vty->iac)
 	{
-	    buffer_putc(vty->sb_buffer, buf[i]);
-	    continue;
+	  buffer_putc(vty->sb_buffer, buf[i]);
+	  continue;
 	}
 
       if (vty->iac)
@@ -1310,6 +1339,12 @@ vty_read (struct thread *thread)
 		(*vty->output_func) (vty, 1);
 	      vty_buffer_reset (vty);
 	      break;
+#if 0 /* More line does not work for "show ip bgp".  */
+	    case '\n':
+	    case '\r':
+	      vty->status = VTY_MORELINE;
+	      break;
+#endif
 	    default:
 	      if (vty->output_func)
 		(*vty->output_func) (vty, 0);
@@ -1511,13 +1546,15 @@ vty_flush (struct thread *thread)
     }
   else
     {
-      if (vty->status == VTY_MORE)
+      if (vty->status == VTY_MORE || vty->status == VTY_MORELINE)
 	erase = 1;
       else
 	erase = 0;
 
       if (vty->lines == 0)
 	buffer_flush_window (vty->obuf, vty->fd, vty->width, 25, 0, 1);
+      else if (vty->status == VTY_MORELINE)
+	buffer_flush_window (vty->obuf, vty->fd, vty->width, 1, erase, 0);
       else
 	buffer_flush_window (vty->obuf, vty->fd, vty->width,
 			     vty->lines >= 0 ? vty->lines : vty->height,
@@ -1707,7 +1744,7 @@ vty_accept (struct thread *thread)
   return 0;
 }
 
-#if defined(HAVE_IPV6) && !defined(NRL)
+#if defined(HAVE_IPV6) || defined(HAVE_GETADDRINFO)
 void
 vty_serv_sock_addrinfo (const char *hostname, unsigned short port)
 {
@@ -1755,14 +1792,14 @@ vty_serv_sock_addrinfo (const char *hostname, unsigned short port)
       if (ret < 0)
 	{
 	  close (sock);	/* Avoid sd leak. */
-	continue;
+	  continue;
 	}
 
       ret = listen (sock, 3);
       if (ret < 0) 
 	{
 	  close (sock);	/* Avoid sd leak. */
-	continue;
+	  continue;
 	}
 
       vty_event (VTY_SERV, sock, NULL);
@@ -1771,7 +1808,7 @@ vty_serv_sock_addrinfo (const char *hostname, unsigned short port)
 
   freeaddrinfo (ainfo_save);
 }
-#endif /* HAVE_IPV6 && ! NRL */
+#endif /* ! (defined(HAVE_IPV6) || defined(HAVE_GETADDRINFO)) */
 
 /* Make vty server socket. */
 void
@@ -1971,14 +2008,9 @@ vty_serv_sock (const char *hostname, unsigned short port, char *path)
   if (port)
     {
 
-#ifdef HAVE_IPV6
-#ifdef NRL
-      vty_serv_sock_family (port, AF_INET);
-      vty_serv_sock_family (port, AF_INET6);
-#else /* ! NRL */
+#if defined(HAVE_IPV6) || defined(HAVE_GETADDRINFO)
       vty_serv_sock_addrinfo (hostname, port);
-#endif /* NRL*/
-#else /* ! HAVE_IPV6 */
+#else /* ! (defined(HAVE_IPV6) || defined(HAVE_GETADDRINFO)) */
       vty_serv_sock_family (port, AF_INET);
 #endif /* HAVE_IPV6 */
     }
@@ -2274,7 +2306,7 @@ vty_read_config (char *config_file,
     XFREE(MTYPE_TMP, fullpath);
 }
 
-/* Small utility function which output loggin to the VTY. */
+/* Small utility function which output log to the VTY. */
 void
 vty_log (const char *proto_str, const char *format, va_list va)
 {
@@ -2284,12 +2316,7 @@ vty_log (const char *proto_str, const char *format, va_list va)
   for (i = 0; i < vector_max (vtyvec); i++)
     if ((vty = vector_slot (vtyvec, i)) != NULL)
       if (vty->monitor)
-	{
-	  vty_time_print (vty, 0);
-	  vty_out (vty, "%s: ", proto_str);
-	  vvty_out (vty, format, va);
-	  vty_out (vty, "\r\n");
-	}
+	vty_log_out (vty, proto_str, format, va);
 }
 
 int
@@ -2643,10 +2670,10 @@ vty_config_write (struct vty *vty)
 }
 
 struct cmd_node vty_node =
-{
-  VTY_NODE,
-  "%s(config-line)# ",
-};
+  {
+    VTY_NODE,
+    "%s(config-line)# ",
+  };
 
 /* Reset all VTY status. */
 void
