@@ -60,8 +60,13 @@ static char copyright[] =
 #ifdef USE_SOCKET_FALLBACK
 # if !defined (USE_SOCKET_SEND)
 #  define if_register_send if_register_fallback
+#  define if_register_receive if_register_fallback_receive
 #  define send_packet send_fallback
+# endif
+# if !defined (USE_SOCKET_RECEIVE)
+#  define receive_packet receive_fallback
 #  define if_reinitialize_send if_reinitialize_fallback
+#  define if_reinitialize_receive if_reinitialize_fallback_receive
 # endif
 #endif
 
@@ -84,7 +89,7 @@ void if_reinitialize_send (info)
 }
 #endif
 
-#ifdef USE_SOCKET_RECEIVE
+#if defined (USE_SOCKET_RECEIVE) || defined (USE_SOCKET_FALLBACK)
 void if_reinitialize_receive (info)
 	struct interface_info *info;
 {
@@ -118,7 +123,11 @@ int if_register_socket (info)
 	/* Set up the address we're going to bind to. */
 	name.sin_family = AF_INET;
 	name.sin_port = local_port;
+#if defined (USE_SOCKET_FALLBACK)
+	name.sin_addr.s_addr = info -> primary_address.s_addr;
+#else
 	name.sin_addr.s_addr = INADDR_ANY;
+#endif
 	memset (name.sin_zero, 0, sizeof (name.sin_zero));
 
 	/* Make a socket... */
@@ -141,7 +150,7 @@ int if_register_socket (info)
 	if (bind (sock, (struct sockaddr *)&name, sizeof name) < 0)
 		error ("Can't bind to dhcp address: %m");
 
-#if defined (HAVE_SO_BINDTODEVICE)
+#if defined (HAVE_SO_BINDTODEVICE) && !defined (USE_SOCKET_FALLBACK)
 	/* Bind this socket to this interface. */
 	if (info -> ifp &&
 	    setsockopt (sock, SOL_SOCKET, SO_BINDTODEVICE,
@@ -159,7 +168,7 @@ void if_register_send (info)
 	struct interface_info *info;
 {
 #ifndef USE_SOCKET_RECEIVE
-	info -> wfdesc = if_register_socket (info);
+	info -> fbdesc = if_register_socket (info);
 #else
 	info -> wfdesc = info -> rfdesc;
 #endif
@@ -170,29 +179,19 @@ void if_register_send (info)
 		      (info -> shared_network ?
 		       info -> shared_network -> name : ""));
 }
-
-void  if_register_fallback_receive (info)
-      struct interface_info *info;
-{
-      /* If we're using the socket API for sending and receiving,
-	 we don't need to register this interface twice. */
-      info -> rfdesc = info -> wfdesc;
-      if (!quiet_interface_discovery)
-	      note ("Listening on Socket/%s%s%s",
-		    info -> name,
-		    (info -> shared_network ? "/" : ""),
-		    (info -> shared_network ?
-		     info -> shared_network -> name : ""));
-}
 #endif /* USE_SOCKET_SEND || USE_SOCKET_FALLBACK */
 
-#ifdef USE_SOCKET_RECEIVE
+#if defined (USE_SOCKET_RECEIVE) || defined (USE_SOCKET_FALLBACK)
 void if_register_receive (info)
 	struct interface_info *info;
 {
+#ifdef USE_SOCKET_FALLBACK
+	info -> fbdesc = if_register_socket (info);
+#else
 	/* If we're using the socket API for sending and receiving,
 	   we don't need to register this interface twice. */
 	info -> rfdesc = if_register_socket (info);
+#endif
 	if (!quiet_interface_discovery)
 		note ("Listening on Socket/%s%s%s",
 		      info -> name,
@@ -200,7 +199,7 @@ void if_register_receive (info)
 		      (info -> shared_network ?
 		       info -> shared_network -> name : ""));
 }
-#endif /* USE_SOCKET_RECEIVE */
+#endif /* USE_SOCKET_RECEIVE || USE_SOCKET_FALLBACK */
 
 
 #include <linux/version.h>
@@ -244,6 +243,11 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	struct hardware *hto;
 {
 	int result;
+#ifdef USE_SOCKET_FALLBACK
+	int fdesc = interface -> fbdesc;
+#else
+	int fdesc = interface -> wfdesc;
+#endif
 #ifdef IGNORE_HOSTUNREACH
 	int retry = 0;
 #endif
@@ -253,7 +257,7 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 #ifdef IGNORE_HOSTUNREACH
 	do {
 #endif
-		result = sendto (interface -> wfdesc, (char *)raw, len, 0,
+		result = sendto (fdesc, (char *)raw, len, 0,
 				 (struct sockaddr *)to, sizeof *to);
 #ifdef IGNORE_HOSTUNREACH
 	} while (to -> sin_addr.s_addr == htonl (INADDR_BROADCAST) &&
@@ -275,7 +279,7 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 }
 #endif /* USE_SOCKET_SEND || USE_SOCKET_FALLBACK */
 
-#ifdef USE_SOCKET_RECEIVE
+#if defined (USE_SOCKET_RECEIVE) || defined (USE_SOCKET_FALLBACK)
 ssize_t receive_packet (interface, buf, len, from, hfrom)
 	struct interface_info *interface;
 	unsigned char *buf;
@@ -285,12 +289,17 @@ ssize_t receive_packet (interface, buf, len, from, hfrom)
 {
 	int flen = sizeof *from;
 	int result;
+#ifdef USE_SOCKET_FALLBACK
+	int fdesc = interface -> fbdesc;
+#else
+	int fdesc = interface -> rfdesc;
+#endif
 
 #ifdef IGNORE_HOSTUNREACH
 	int retry = 0;
 	do {
 #endif
-		result = recvfrom (interface -> rfdesc, (char *)buf, len, 0,
+		result = recvfrom (fdesc, (char *)buf, len, 0,
 				   (struct sockaddr *)from, &flen);
 #ifdef IGNORE_HOSTUNREACH
 	} while (result < 0 &&
@@ -303,31 +312,6 @@ ssize_t receive_packet (interface, buf, len, from, hfrom)
 #endif /* USE_SOCKET_RECEIVE */
 
 #if defined (USE_SOCKET_FALLBACK)
-ssize_t receive_fallback (interface, buf, len, from, hfrom)
-      struct interface_info *interface;
-      unsigned char *buf;
-      size_t len;
-      struct sockaddr_in *from;
-      struct hardware *hfrom;
-{
-      int flen = sizeof *from;
-      int result;
-
-#ifdef IGNORE_HOSTUNREACH
-      int retry = 0;
-      do {
-#endif
-	      result = recvfrom (interface -> rfdesc, (char *)buf, len, 0,
-				 (struct sockaddr *)from, &flen);
-#ifdef IGNORE_HOSTUNREACH
-      } while (result < 0 &&
-	       (errno == EHOSTUNREACH ||
-		errno == ECONNREFUSED) &&
-	       retry++ < 10);
-#endif
-      return result;
-}
-
 /* This just reads in a packet and silently discards it. */
 
 void fallback_discard (protocol)
@@ -339,7 +323,7 @@ void fallback_discard (protocol)
 	int status;
 	struct interface_info *interface = protocol -> local;
 
-	status = recvfrom (interface -> wfdesc, buf, sizeof buf, 0,
+	status = recvfrom (interface -> fbdesc, buf, sizeof buf, 0,
 			   (struct sockaddr *)&from, &flen);
 	if (status < 0)
 		warn ("fallback_discard: %m");
@@ -371,9 +355,9 @@ void maybe_setup_fallback ()
 	struct interface_info *fbi;
 	fbi = setup_fallback ();
 	if (fbi) {
-		fbi -> wfdesc = if_register_socket (fbi);
+		fbi -> fbdesc = if_register_socket (fbi);
 		add_protocol ("fallback",
-			      fbi -> wfdesc, fallback_discard, fbi);
+			      fbi -> fbdesc, fallback_discard, fbi);
 	}
 #endif
 }

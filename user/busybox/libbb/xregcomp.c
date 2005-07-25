@@ -2,8 +2,8 @@
 /*
  * Utility routines.
  *
- * Copyright (C) many different people.  If you wrote this, please
- * acknowledge your work.
+ * Copyright (C) many different people.
+ * If you wrote this, please acknowledge your work.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-#if !defined(__UC_LIBC__)
+#if !defined(__UC_LIBC__USE_REGEXP_H__)
 #include <regex.h>
 void xregcomp(regex_t *preg, const char *regex, int cflags)
 {
@@ -35,18 +35,18 @@ void xregcomp(regex_t *preg, const char *regex, int cflags)
 		int errmsgsz = regerror(ret, preg, NULL, 0);
 		char *errmsg = xmalloc(errmsgsz);
 		regerror(ret, preg, errmsg, errmsgsz);
-		error_msg_and_die("xregcomp: %s", errmsg);
+		bb_error_msg_and_die("xregcomp: %s", errmsg);
 	}
 }
 #else
 #include <regexp.h>
-void xregcomp(regexp **preg, const char *reg, int cflags)
+void xregcomp(regex_t *preg, const char *reg, int cflags)
 {
 	regexp *ret;
 	const char *r;
 	r = reg;
 	if (cflags)
-		error_msg_and_die("xregcomp: no support for -i");
+		bb_error_msg_and_die("xregcomp: no support for -i");
 	ret = regcomp(r);
 	if (ret == NULL) {
 		regerror("cannot compile expression");

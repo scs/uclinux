@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,17 +21,16 @@
 
 #include <stdarg.h>
 #include <netdb.h>
-extern int h_errno;
 #include <stdio.h>
 
 #include "libbb.h"
 
 
-extern void vherror_msg(const char *s, va_list p)
+extern void bb_vherror_msg(const char *s, va_list p)
 {
 	if(s == 0)
 		s = "";
-	verror_msg(s, p);
+	bb_verror_msg(s, p);
 	if (*s)
 		fputs(": ", stderr);
 	herror("");

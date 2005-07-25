@@ -2,9 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000 by Lineo, inc. and Erik Andersen
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
- * Patched by a bunch of people.  Feel free to acknowledge your work.
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +27,7 @@
 
 
 
-extern char *find_real_root_device_name(const char* name)
+extern char *find_real_root_device_name(void)
 {
 	DIR *dir;
 	struct dirent *entry;
@@ -37,30 +35,37 @@ extern char *find_real_root_device_name(const char* name)
 	char *fileName = NULL;
 	dev_t dev;
 
-	if (stat("/", &rootStat) != 0) 
-		perror_msg("could not stat '/'");
+	if (stat("/", &rootStat) != 0)
+		bb_perror_msg("could not stat '/'");
 	else {
-		if ((dev = rootStat.st_rdev)==0) 
-			dev=rootStat.st_dev;
+		/* This check is here in case they pass in /dev name */
+		if ((rootStat.st_mode & S_IFMT) == S_IFBLK)
+			dev = rootStat.st_rdev;
+		else
+			dev = rootStat.st_dev;
 
 		dir = opendir("/dev");
-		if (!dir) 
-			perror_msg("could not open '/dev'");
+		if (!dir)
+			bb_perror_msg("could not open '/dev'");
 		else {
 			while((entry = readdir(dir)) != NULL) {
-
-				/* Must skip ".." since that is "/", and so we 
+				const char *myname = entry->d_name;
+				/* Must skip ".." since that is "/", and so we
 				 * would get a false positive on ".."  */
-				if (strcmp(entry->d_name, "..") == 0)
+				if (myname[0] == '.' && myname[1] == '.' && !myname[2])
 					continue;
-
-				fileName = concat_path_file("/dev", entry->d_name);
+#ifdef CONFIG_FEATURE_DEVFS
+				/* if there is a link named /dev/root skip that too */
+				if (strcmp(myname, "root")==0)
+					continue;
+#endif
+				fileName = concat_path_file("/dev", myname);
 
 				/* Some char devices have the same dev_t as block
 				 * devices, so make sure this is a block device */
-				if (stat(fileName, &statBuf) == 0 && 
+				if (stat(fileName, &statBuf) == 0 &&
 						S_ISBLK(statBuf.st_mode)!=0 &&
-						statBuf.st_rdev == dev) 
+						statBuf.st_rdev == dev)
 					break;
 				free(fileName);
 				fileName=NULL;
@@ -69,7 +74,7 @@ extern char *find_real_root_device_name(const char* name)
 		}
 	}
 	if(fileName==NULL)
-		fileName=xstrdup("/dev/root");
+		fileName = bb_xstrdup("/dev/root");
 	return fileName;
 }
 

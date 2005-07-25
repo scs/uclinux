@@ -65,8 +65,8 @@
 #define PATH_ROUTE	"/bin/route"
 #endif
 
-#define SL_DOWN " %d down"
-#define SL_UP " %d up"
+#define SL_DOWN " sl%d down"
+#define SL_UP " sl%d up"
 
 /*
  * We need some defaults for metrics that are compatible
@@ -74,9 +74,8 @@
  */
 
 #ifdef CONFIG_USER_FIREWALL_TOOLS
-#include "prop/firewall-tools/routecfg.h"
 #define	DEFAULT_INTERFACE_METRIC	0
-#define	DEFAULT_DEFAULT_ROUTE_METRIC	METRIC_ALL_DEFROUTE
+#define	DEFAULT_DEFAULT_ROUTE_METRIC	3 /* METRIC_ALL_DEFROUTE */
 #else
 #define	DEFAULT_INTERFACE_METRIC	0
 #define	DEFAULT_DEFAULT_ROUTE_METRIC	0

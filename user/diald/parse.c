@@ -32,6 +32,12 @@ static struct var {
    struct var *next;
 } *vars = 0;
 
+static struct strvar {
+   char *name;
+   char *value;
+   struct strvar *next;
+} *strvars = 0;
+
 typedef struct token {
     int offset;
     int type;
@@ -61,27 +67,94 @@ void parse_init()
 
 void parse_error(char *s)
 {
-int i;
     syslog(LOG_ERR,"%s parsing error. Got token '%s'. %s",context,token->str,s);
     syslog(LOG_ERR,"parse string: '%s'",errstr);
     longjmp(unwind,1);
 }
 
+static const char *find_strvar(const char *name)
+{
+    struct strvar *v;
+    
+    /* Replace an existing strvar, or allocate a new one */
+    for (v = strvars; v; v = v->next) {
+	if (strcmp(v->name, name) == 0) {
+	    return v->value;
+	}
+    }
+    return 0;
+}
+
+typedef struct {
+    char *buf;
+    int pos;
+    int len;
+} growbuf_t;
+
+static void grow_char(growbuf_t *buf, char c)
+{
+    if (buf->pos + 1 >= buf->len) {
+	buf->len += 50;
+	buf->buf = realloc(buf->buf, buf->len);
+	if (buf->buf == 0) { syslog(LOG_ERR,"Out of memory! AIIEEE!"); die(1); }
+    }
+    buf->buf[buf->pos++] = c;
+}
+
+static void grow_str(growbuf_t *buf, const char *str)
+{
+    while (*str) {
+	grow_char(buf, *str++);
+    }
+}
+
 void tokenize(char *cntxt, int argc, char **argv)
 {
-    char *s, *t;
+    char *s;
     int i, len;
     Token *prev = 0, *new;
+    growbuf_t growbuf = { 0, 0, 0 };
 
     context = cntxt;
-    /* merge the arguments into one string */
 
-    for (len = i = 0; i < argc; i++)
-	len += strlen(argv[i])+1;
-    t = errstr = malloc(len);
-    if (errstr == 0) { syslog(LOG_ERR,"Out of memory! AIIEEE!"); die(1); }
-    strcpy(errstr,argv[0]);
-    for (i = 1; i < argc; i++) { strcat(errstr," "); strcat(errstr,argv[i]); }
+    /* merge the arguments into one string, substituting and string variables
+     * as we go
+     */
+    for (i = 0; i < argc; i++) {
+	char *pt;
+
+	if (i != 0) {
+	    grow_char(&growbuf, ' ');
+	}
+	for (pt = argv[i]; *pt; ) {
+	    if (pt[0] == '$' && pt[1] == '{') {
+		/* We need to substitute this variable */
+		char *end = strchr(pt, '}');
+		const char *value;
+
+		if (end) {
+		    *end++ = 0;
+		}
+		pt += 2;
+
+		/* Now pt points to the variable name. See if it exists */
+		value = find_strvar(pt);
+		if (value) {
+		    grow_str(&growbuf, value);
+		}
+		break;
+	    }
+	    grow_char(&growbuf, *pt);
+
+	    pt++;
+	}
+    }
+
+    grow_char(&growbuf, 0);
+
+    /* Now 'growbuf.buf' points to an allocated, null-terminated buffer with variables expanded */
+
+    errstr = growbuf.buf;
 
     tlist = 0;
 
@@ -798,9 +871,59 @@ void flush_vars(void)
     vars = 0;
 }
 
+void flush_strvars(void)
+{
+    struct strvar *next;
+    for (; strvars; strvars = next) {
+	next = strvars->next;
+	free(strvars->name);
+	free(strvars->value);
+	free(strvars);
+    }
+    strvars = 0;
+}
+
 void flush_filters(void)
 {
     struct firewall_req req;
     req.unit = fwunit;
     ctl_firewall(IP_FW_FFLUSH,&req);
 }
+
+void parse_set(void *var, char **argv)
+{
+    struct strvar *v;
+
+    tokenize("set",2,argv);
+    if (setjmp(unwind)) { token = 0; free_tokens(); return; }
+
+    if (token->type != TOK_STR) {
+       parse_error("Expecting a variable name.");
+    }
+
+    /* Replace an existing strvar, or allocate a new one */
+    for (v = strvars; v; v = v->next) {
+	if (strcmp(v->name, token->str) == 0) {
+	    free(v->value);
+	    v->value = 0;
+	    break;
+	}
+    }
+    if (!v) {
+	v = malloc(sizeof(struct strvar));
+	v->name = strdup(token->str);
+    }
+    ADVANCE;
+    parse_whitespace();
+    if (!token->str) {
+       parse_error("Expecting a variable value.");
+    }
+    v->value = strdup(token->str);
+    ADVANCE;
+
+    free_tokens();
+    /* add the new variable to the linked list */
+    v->next = strvars;
+    strvars = v;
+}
+

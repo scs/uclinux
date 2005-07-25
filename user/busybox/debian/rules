@@ -1,193 +1,196 @@
 #!/usr/bin/make -f
 
-# This is a bit unusual, in that I have to completely recompile everything
-# for each package I build (obviously static and dynamic builds require
-# things to be recompiled...)
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
 
-# This is the debhelper compatability version to use.
-#export DH_COMPAT=1
+DEB_HOST_ARCH ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+DEB_HOST_GNU_CPU ?= $(shell dpkg-architecture -qDEB_HOST_GNU_CPU)
+DEB_HOST_GNU_SYSTEM ?= $(shell dpkg-architecture -qDEB_HOST_GNU_SYSTEM)
 
-bbbd=debian/busybox_builddir
-bb=debian/tmp
-bbsbd=debian/busybox_static_builddir
-bbs=debian/busybox-static
-bbubd=debian/busybox_udeb_builddir
-bbu=debian/busybox-udeb
+VERSION = $(shell dpkg-parsechangelog | grep ^Version: | cut -d ' ' -f 2)
+
+ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
+	CONFIG_DEBUG = true
+endif
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+endif
+
+PACKAGE_PREFIX = busybox-cvs
+
+ARCH_FLOPPY_UDEB = $(shell sh debian/control-extract Architecture $(PACKAGE_PREFIX)-floppy-udeb)
+
+PACKAGES_DEB = $(PACKAGE_PREFIX) $(PACKAGE_PREFIX)-static
+PACKAGES_UDEB = $(PACKAGE_PREFIX)-udeb
+ifneq ($(filter $(DEB_HOST_ARCH),$(ARCH_FLOPPY_UDEB)),)
+PACKAGES_UDEB += $(PACKAGE_PREFIX)-floppy-udeb
+endif
+PACKAGES = $(PACKAGES_DEB) $(PACKAGES_UDEB)
+
+DEBHELPER_PACKAGES_DEB = $(patsubst %,-p%,$(PACKAGES_DEB))
+DEBHELPER_PACKAGES_UDEB = $(patsubst %,-p%,$(PACKAGES_UDEB))
+
+CONFIG = $(firstword $(wildcard ./debian/config-$(1)-$(DEB_HOST_GNU_SYSTEM)-$(DEB_HOST_GNU_CPU) ./debian/config-$(1)-$(DEB_HOST_GNU_SYSTEM) ./debian/config-$(1)))
+CONFIG_DEB = $(call CONFIG,deb)
+CONFIG_STATIC = $(call CONFIG,static)
+CONFIG_UDEB = $(call CONFIG,udeb)
+CONFIG_FLOPPY_UDEB = $(call CONFIG,floppy-udeb)
+
+configure: configure-stamp
+configure-stamp:
+	sh ./configure
+
+	touch $@
+
+build-arch: build-arch-deb-all build-arch-udeb-all
+build-arch-deb-all: build-arch-deb build-arch-static build-arch-doc
+build-arch-udeb-all: build-arch-udeb build-arch-floppy-udeb
+
+build-arch-deb: build-arch-deb-stamp
+build-arch-deb-stamp: configure-stamp
+	$(MAKE) clean
+
+	cp $(CONFIG_DEB) .config
+
+	$(MAKE) dep
+	$(MAKE) CONFIG_DEBUG=$(CONFIG_DEBUG)
+
+	install -d install-$(PACKAGE_PREFIX)/bin
+	install busybox install-$(PACKAGE_PREFIX)/bin/busybox
+
+	touch $@
+
+build-arch-static: build-arch-static-stamp
+build-arch-static-stamp: configure-stamp
+	$(MAKE) clean
+
+	cp $(CONFIG_STATIC) .config
+
+	$(MAKE) dep
+	$(MAKE) CONFIG_DEBUG=$(CONFIG_DEBUG)
+
+	install -d install-$(PACKAGE_PREFIX)-static/bin
+	install busybox install-$(PACKAGE_PREFIX)-static/bin/busybox
+
+	touch $@
+
+build-arch-udeb: build-arch-udeb-stamp
+build-arch-udeb-stamp: configure-stamp
+	$(MAKE) clean
+
+	cp $(CONFIG_UDEB) .config
+
+	$(MAKE) dep
+	$(MAKE) CONFIG_DEBUG=$(CONFIG_DEBUG)
+
+	$(MAKE) PREFIX=$(CURDIR)/install-$(PACKAGE_PREFIX)-udeb install
+	# Remove init link, but init support is still compiled in to be
+	# used.
+	rm -f $(CURDIR)/install-$(PACKAGE_PREFIX)-udeb/sbin/init
+
+	touch $@
+
+build-arch-floppy-udeb: build-arch-floppy-udeb-stamp
+build-arch-floppy-udeb-stamp: configure-stamp
+ifneq ($(filter $(DEB_HOST_ARCH),$(ARCH_FLOPPY_UDEB)),)
+	$(MAKE) clean
+
+	cp $(CONFIG_FLOPPY_UDEB) .config
+
+	$(MAKE) dep
+	$(MAKE) CONFIG_DEBUG=$(CONFIG_DEBUG)
+
+	$(MAKE) PREFIX=$(CURDIR)/install-$(PACKAGE_PREFIX)-floppy-udeb install
+endif
+
+	touch $@
+
+build-arch-doc: build-arch-doc-stamp
+build-arch-doc-stamp: configure-stamp
+	$(MAKE) docs/BusyBox.1
+
+	cp docs/BusyBox.1 busybox.1
+
+	touch $@
+
+build: build-arch
 
 clean:
 	dh_testdir
 	dh_testroot
-	rm -f debian/build-stamp-busybox debian/build-stamp-busybox-static debian/build-stamp-busybox-udeb
-	-$(MAKE) clean
-	-rm -rf $(bb) $(bbbd) $(bbs) $(bbsbd) $(bbubd) $(bbu)
+	rm -f build-*-stamp configure-stamp debian/files~
+
+	-$(MAKE) distclean
+	-rm -rf busybox-deb busybox-static install* busybox.1
+
 	dh_clean
 
-build: debian/build-stamp-busybox
-debian/build-stamp-busybox:
-	dh_testdir
-	mkdir -p $(bbbd)
-	cp Makefile $(bbbd)
-	cp debian/Config.h-deb $(bbbd)/Config.h
-	-(cd $(bbbd); $(MAKE) "BB_SRC_DIR=../../" applet_source_list)
-	(cd $(bbbd); $(MAKE) USE_SYSTEM_PWD_GRP=false "BB_SRC_DIR=../../")
-	touch debian/build-stamp-busybox
-
-install: build
+install-deb: build-arch-deb-all
 	dh_testdir
 	dh_testroot
-	dh_clean -k
-	dh_installdirs
-	# Do not run 'make install', since we do not want all the symlinks. 
-	# This just installes the busybox binary...
-	#(cd $(bbbd); $(MAKE) "BB_SRC_DIR=../../" "PREFIX=../../$(bb)" install)
-	mkdir -p $(bb)/bin/
-	cp $(bbbd)/busybox $(bb)/bin/busybox
-	mkdir -p $(bb)/usr/share/doc/busybox
-	cp $(bbbd)/docs/BusyBox.html $(bb)/usr/share/doc/busybox/
-	mkdir -p $(bb)/usr/share/man/man1
-	cp $(bbbd)/docs/BusyBox.1 $(bb)/usr/share/man/man1/busybox.1
+	dh_clean -k $(DEBHELPER_PACKAGES_DEB)
+	dh_installdirs $(DEBHELPER_PACKAGES_DEB)
 
-# Now for the statically linked stuff
-build-static: debian/build-stamp-busybox-static
-debian/build-stamp-busybox-static:
-	dh_testdir
-	mkdir -p $(bbsbd)
-	cp Makefile $(bbsbd)
-	cp debian/Config.h-static $(bbsbd)/Config.h
-	(cd $(bbsbd); $(MAKE) DOSTATIC=true USE_SYSTEM_PWD_GRP=false "BB_SRC_DIR=../../")
-	touch debian/build-stamp-busybox-static
+	for i in $(PACKAGES_DEB); do \
+	( \
+		cd install-$$i; \
+		find -type d -exec install -d $(CURDIR)/debian/$$i/{} \;; \
+		find \( -type f -o -type l \) -exec cp -a {} $(CURDIR)/debian/$$i/{} \;; \
+	); \
+	done
 
-install-static: build
+	install -m644 debian/$(PACKAGE_PREFIX)-static.override \
+		debian/$(PACKAGE_PREFIX)-static/usr/share/lintian/overrides/$(PACKAGE_PREFIX)-static
+
+install-udeb: build-arch-udeb-all
 	dh_testdir
 	dh_testroot
-	dh_clean -k
-	dh_installdirs
-	# Do not run 'make install', since we do not want all the symlinks. 
-	# This just installes the busybox binary...
-	#(cd $(bbsbd); $(MAKE) "BB_SRC_DIR=../../" "PREFIX=../../$(bbs)" install)
-	mkdir -p $(bbs)/bin/
-	cp $(bbsbd)/busybox $(bbs)/bin/busybox
-	mkdir -p $(bbs)/usr/share/doc/busybox-static
-	cp $(bbsbd)/docs/BusyBox.html $(bbs)/usr/share/doc/busybox-static/
-	mkdir -p $(bbs)/usr/share/man/man1/
-	cp $(bbsbd)/docs/BusyBox.1 $(bbs)/usr/share/man/man1/busybox.1
+	dh_clean -k $(DEBHELPER_PACKAGES_UDEB)
+	dh_installdirs $(DEBHELPER_PACKAGES_UDEB)
 
-half_clean:
-	dh_testdir
-	dh_testroot
-	rm -rf $(bbs) debian/build-stamp-busybox-static
-	-$(MAKE) clean
+	for i in $(PACKAGES_UDEB); do \
+	( \
+		cd install-$$i; \
+		find -type d -exec install -d $(CURDIR)/debian/$$i/{} \;; \
+		find \( -type f -o -type l \) -exec cp -a {} $(CURDIR)/debian/$$i/{} \;; \
+	); \
+	done
 
-do_static: half_clean build-static install-static
-
-
-
-# Now for the .udeb stuff
-PACKAGE=busybox-udeb
-VERSION=$(shell dpkg-parsechangelog | grep ^Version: | cut -d ' ' -f 2 | sed -e s/[0-9]://g)
-ARCH=$(shell dpkg --print-architecture)
-FILENAME=$(PACKAGE)_$(VERSION)_$(ARCH).udeb
-
-build-udeb: debian/build-stamp-busybox-udeb
-debian/build-stamp-busybox-udeb:
-	dh_testdir
-	mkdir -p $(bbubd)
-	cp Makefile $(bbubd)
-	cp debian/Config.h-udeb $(bbubd)/Config.h
-	(cd $(bbubd); $(MAKE) USE_SYSTEM_PWD_GRP=false "BB_SRC_DIR=../../")
-	touch debian/build-stamp-busybox-udeb
-
-install-udeb: build
-	dh_testdir
-	dh_testroot
-	dh_clean -k
-	dh_installdirs
-	(cd $(bbubd); $(MAKE) "BB_SRC_DIR=../../" "PREFIX=../../$(bbu)" install)
-	mkdir -p $(bbu)/usr/share/man/man1/
-	cp $(bbubd)/docs/BusyBox.1 $(bbu)/usr/share/man/man1/busybox.1
-
-three_quarter_clean:
-	dh_testdir
-	dh_testroot
-	rm -rf $(bbu) debian/build-stamp-busybox-udeb
-	-$(MAKE) clean
-
-do_udeb: three_quarter_clean build-udeb install-udeb
-
-
-
-# Build architecture-independent files here.
-binary-indep:
-# We have nothing to do by default.
+binary-arch: binary-arch-deb binary-arch-udeb
 
 # Build architecture-dependent files here.
-binary-arch: busybox busybox-static busybox-udeb
-
-busybox: install
-	@echo "--- Building: $@"
+binary-arch-deb: build-arch-deb-all install-deb
 	dh_testdir
 	dh_testroot
-	dh_installdirs
-	dh_installdocs       -p$@  $(bbbd)/docs/BusyBox.txt \
-		$(bbbd)/docs/BusyBox.html docs/style-guide.txt \
-		AUTHORS README TODO
-	rm -rf `find $(bb) -name CVS`
-	rm -f `find $(bb) -name .cvsignore`
-	dh_installchangelogs -p$@ Changelog
-	dh_undocumented      -p$@
-	dh_strip             -p$@
-	dh_compress          -p$@
-	dh_fixperms          -p$@
-	dh_installdeb        -p$@
-	dh_shlibdeps         -p$@
-	dh_gencontrol        -p$@
-	dh_md5sums           -p$@
-	dh_builddeb          -p$@
+	dh_installdocs $(DEBHELPER_PACKAGES_DEB)
+	dh_installman $(DEBHELPER_PACKAGES_DEB)
+	dh_installchangelogs Changelog $(DEBHELPER_PACKAGES_DEB)
+	dh_strip $(DEBHELPER_PACKAGES_DEB)
+	dh_link $(DEBHELPER_PACKAGES_DEB)
+	dh_compress $(DEBHELPER_PACKAGES_DEB)
+	dh_fixperms $(DEBHELPER_PACKAGES_DEB)
+	dh_installdeb $(DEBHELPER_PACKAGES_DEB)
+	dh_shlibdeps $(DEBHELPER_PACKAGES_DEB)
+	dh_gencontrol $(DEBHELPER_PACKAGES_DEB)
+	dh_md5sums $(DEBHELPER_PACKAGES_DEB)
+	dh_builddeb $(DEBHELPER_PACKAGES_DEB)
 
-
-busybox-static: do_static
-	@echo "--- Building: $@"
+# Build architecture-dependent files here.
+binary-arch-udeb: build-arch-udeb-all install-udeb
 	dh_testdir
 	dh_testroot
-	dh_installdirs
-	dh_installdocs       -p$@  $(bbsbd)/docs/BusyBox.txt \
-		$(bbsbd)/docs/BusyBox.html docs/style-guide.txt \
-		AUTHORS README TODO
-	rm -rf `find $(bbs) -name CVS`
-	rm -f `find $(bbs) -name .cvsignore`
-	dh_installchangelogs -p$@ Changelog
-	dh_undocumented      -p$@
-	dh_strip             -p$@
-	dh_compress          -p$@
-	dh_fixperms          -p$@
-	dh_installdeb        -p$@
-	dh_shlibdeps         -p$@
-	dh_gencontrol        -p$@
-	dh_md5sums           -p$@
-	dh_builddeb          -p$@
+	dh_strip $(DEBHELPER_PACKAGES_UDEB)
+	dh_link $(DEBHELPER_PACKAGES_UDEB)
+	dh_compress $(DEBHELPER_PACKAGES_UDEB)
+	dh_fixperms $(DEBHELPER_PACKAGES_UDEB)
+	dh_installdeb $(DEBHELPER_PACKAGES_UDEB)
+	dh_shlibdeps $(DEBHELPER_PACKAGES_UDEB)
+	dh_gencontrol $(DEBHELPER_PACKAGES_DEB)
 
+	$(foreach PACKAGE, $(PACKAGES_UDEB), \
+	dh_gencontrol -p$(PACKAGE) -- -fdebian/files~; \
+	dpkg-distaddfile $(PACKAGE)_$(VERSION)_$(DEB_HOST_ARCH).udeb debian-installer extra; \
+	dh_builddeb -p$(PACKAGE) --filename=$(PACKAGE)_$(VERSION)_$(DEB_HOST_ARCH).udeb; \
+	)
 
-# Note that this builds a .udeb, which is not policy compliant or anything.
-#
-busybox-udeb: do_udeb
-	@echo "--- Building: $@"
-	dh_testdir
-	dh_testroot
-	dh_installdirs
-	dh_strip             -p$@
-	dh_compress          -p$@
-	dh_fixperms          -p$@
-	dh_installdeb        -p$@
-	dh_shlibdeps         -p$@
-	#Make _very_ sure there are no docs lurking about.
-	rm -rf $(bbu)/usr/share/man
-	#dh_gencontrol        -p$@
-	# Don't write your stupid guesses to debian/files.
-	dh_gencontrol        -p$@ -- -fdebian/files~
-	# Register file manually.
-	dpkg-distaddfile $(FILENAME) debian-installer standard
-	dh_md5sums           -p$@
-	dh_builddeb          -p$@ --filename=$(FILENAME)
-
-binary: binary-indep binary-arch
+binary: binary-arch
 .PHONY: build clean binary-indep binary-arch binary install

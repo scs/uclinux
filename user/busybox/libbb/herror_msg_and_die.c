@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,14 +24,14 @@
 
 #include "libbb.h"
 
-extern void herror_msg_and_die(const char *s, ...)
+extern void bb_herror_msg_and_die(const char *s, ...)
 {
 	va_list p;
 
 	va_start(p, s);
-	vherror_msg(s, p);
+	bb_vherror_msg(s, p);
 	va_end(p);
-	exit(EXIT_FAILURE);
+	exit(bb_default_error_retval);
 }
 
 

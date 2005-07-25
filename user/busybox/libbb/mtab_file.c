@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,16 +23,12 @@
 #include "libbb.h"
 
 
-/* Busybox mount uses either /proc/mounts or /dev/mtab to 
- * get the list of currently mounted filesystems */ 
-#if defined BB_FEATURE_MTAB_SUPPORT
-const char mtab_file[] = "/etc/mtab";
+/* Busybox mount uses either /proc/mounts or /etc/mtab to
+ * get the list of currently mounted filesystems */
+#if defined CONFIG_FEATURE_MTAB_SUPPORT
+const char bb_path_mtab_file[] = CONFIG_FEATURE_MTAB_FILENAME;
 #else
-#  if defined BB_FEATURE_USE_DEVPS_PATCH
-      const char mtab_file[] = "/dev/mtab";
-#  else
-      const char mtab_file[] = "/proc/mounts";
-#  endif
+const char bb_path_mtab_file[] = "/proc/mounts";
 #endif
 
 

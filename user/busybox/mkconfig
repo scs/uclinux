@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+#	mkconfig -- convert from uClinux/dist config to local .config
+#
+#	For now we just convert the existing old style configs from the
+#	uClinux-dist setup to new style .config for busybox. Eventually
+#	I want to switch to new style configs in uClinux-dist and then
+#	just include the Kconfig/config.in files here directly.
+#
+
+TMP=.config$$.tmp
+NEW=.config$$.new
+
+cp defconfig $NEW
+
+# NOTE: Converted to use "tr" to add newlines (\n) as using sed directly
+#       to add them is not supported on all platforms.
+
+grep CONFIG_USER_BUSYBOX_ ../../config/.config |
+grep -v "^# " |
+sed -e 's/^CONFIG_USER_BUSYBOX_//g;s/=y$//g' -e 's/TRUE_FALSE/TRUE^FALSE/' |
+tr "^" "\n" |
+grep -v '^BUSYBOX$' |
+while read OPNAME
+do
+	cp $NEW $TMP
+	awk -v CNAME=CONFIG_$OPNAME -v FNAME=CONFIG_FEATURE_$OPNAME \
+		'{ if (($2 == CNAME) || ($2 == FNAME))
+			printf "%s=y\n", $2
+		   else
+			print $0
+		 }' < $TMP > $NEW
+done
+
+cat $NEW
+rm -f $NEW $TMP
+exit 0

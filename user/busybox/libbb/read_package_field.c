@@ -2,8 +2,8 @@
 /*
  * Utility routines.
  *
- * Copyright (C) many different people.  If you wrote this, please
- * acknowledge your work.
+ * Copyright (C) many different people.
+ * If you wrote this, please acknowledge your work.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,7 +77,7 @@ int read_package_field(const char *package_buffer, char **field_name, char **fie
 				}
 				break;
 		}
-		if (exit_flag == TRUE) {
+		if (exit_flag) {
 			/* Check that the names are valid */
 			offset_value_end = offset;
 			name_length = offset_name_end - offset_name_start;
@@ -102,10 +102,10 @@ int read_package_field(const char *package_buffer, char **field_name, char **fie
 	if (name_length == 0) {
 		*field_name = NULL;
 	} else {
-		*field_name = xstrndup(&package_buffer[offset_name_start], name_length);
+		*field_name = bb_xstrndup(&package_buffer[offset_name_start], name_length);
 	}
 	if (value_length > 0) {
-		*field_value = xstrndup(&package_buffer[offset_value_start], value_length);
+		*field_value = bb_xstrndup(&package_buffer[offset_value_start], value_length);
 	} else {
 		*field_value = NULL;
 	}

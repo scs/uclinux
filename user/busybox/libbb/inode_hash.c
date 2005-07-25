@@ -2,8 +2,8 @@
 /*
  * Utility routines.
  *
- * Copyright (C) many different people.  If you wrote this, please
- * acknowledge your work.
+ * Copyright (C) many different people.
+ * If you wrote this, please acknowledge your work.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ void add_to_ino_dev_hashtable(const struct stat *statbuf, const char *name)
 	int i;
 	size_t s;
 	ino_dev_hashtable_bucket_t *bucket;
-    
+
 	i = hash_inode(statbuf->st_ino);
 	s = name ? strlen(name) : 0;
 	bucket = xmalloc(sizeof(ino_dev_hashtable_bucket_t) + s);
@@ -83,6 +83,7 @@ void add_to_ino_dev_hashtable(const struct stat *statbuf, const char *name)
 	ino_dev_hashtable[i] = bucket;
 }
 
+#ifdef CONFIG_FEATURE_CLEAN_UP
 /* Clear statbuf hash table */
 void reset_ino_dev_hashtable(void)
 {
@@ -97,6 +98,7 @@ void reset_ino_dev_hashtable(void)
 		}
 	}
 }
+#endif
 
 
 /* END CODE */

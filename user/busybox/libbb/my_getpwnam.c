@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +21,9 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "../pwd_grp/pwd.h"
-#include "../pwd_grp/grp.h"
 #include "libbb.h"
-
+#include "pwd_.h"
+#include "grp_.h"
 
 
 /* returns a uid given a username */
@@ -34,7 +33,7 @@ long my_getpwnam(const char *name)
 
 	myuser  = getpwnam(name);
 	if (myuser==NULL)
-		error_msg_and_die("unknown user name: %s", name);
+		bb_error_msg_and_die("unknown user name: %s", name);
 
 	return myuser->pw_uid;
 }

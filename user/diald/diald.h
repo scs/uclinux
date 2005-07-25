@@ -178,80 +178,124 @@ typedef struct monitors {
 
 /* Configuration variables */
 
-char **devices;
-int device_count;
-char device[10];
-char device_node[9];
-int device_iface;
-int inspeed;
-int window;
-int mtu;
-int mru;
-char *connector;
-char *disconnector;
-char *orig_local_ip;
-char *orig_remote_ip;
-char *local_ip;
-unsigned long local_addr;
-char *remote_ip;
-char *netmask;
-char *addroute;
-char *delroute;
-char *ip_up;
-char *ip_down;
-char *acctlog;
-char *pidlog;
-char *fifoname;
-char *lock_prefix;
-int pidstring;
-char *run_prefix;
-char *diald_config_file;
-char *diald_defs_file;
-char *path_route;
-char *path_ifconfig;
-char *path_bootpc;
-char *path_pppd;
-int buffer_packets;
-int buffer_size;
-int buffer_fifo_dispose;
-int buffer_timeout;
-FILE *acctfp;
-int call_start_time;
-int mode;
-int debug;
-int modem;
-int rotate_devices;
-int crtscts;
-int dodaemon;
-int dynamic_addrs;
-int dynamic_mode;
-int slip_encap;
-int lock_dev;
-int default_route;
-int pppd_argc;
-char **pppd_argv;
-int connect_timeout;
-int disconnect_timeout;
-int redial_timeout;
-int nodev_retry_timeout;
-int stop_dial_timeout;
-int kill_timeout;
-int start_pppd_timeout;
-int stop_pppd_timeout;
-int first_packet_timeout;
-int retry_count;
-int died_retry_count;
-int redial_backoff_start;
-int redial_backoff_limit;
-int redial_backoff;
-int dial_fail_limit;
-int two_way;
-int give_way;
-int do_reroute;
-int proxyarp;
-int route_wait;
-int metric;
-int drmetric;
+extern char **devices;
+extern int device_count;
+extern char device[10];
+extern char device_node[9];
+extern int device_iface;
+extern int inspeed;
+extern int window;
+extern int mtu;
+extern int mru;
+extern char *connector;
+extern char *disconnector;
+extern char *orig_local_ip;
+extern char *orig_remote_ip;
+extern char *local_ip;
+extern unsigned long local_addr;
+extern char *remote_ip;
+extern char *netmask;
+extern char *addroute;
+extern char *delroute;
+extern char *ip_up;
+extern char *ip_down;
+extern char *acctlog;
+extern char *pidlog;
+extern char *fifoname;
+extern char *lock_prefix;
+extern int pidstring;
+extern char *run_prefix;
+extern char *diald_config_file;
+extern char *diald_defs_file;
+extern char *path_route;
+extern char *path_ifconfig;
+extern char *path_bootpc;
+extern char *path_pppd;
+extern int buffer_packets;
+extern int buffer_size;
+extern int buffer_fifo_dispose;
+extern int buffer_timeout;
+extern FILE *acctfp;
+extern int call_start_time;
+extern int mode;
+extern int debug;
+extern int modem;
+extern int rotate_devices;
+extern int crtscts;
+extern int dodaemon;
+extern int dynamic_addrs;
+extern int dynamic_mode;
+extern int slip_encap;
+extern int lock_dev;
+extern int default_route;
+extern int pppd_argc;
+extern char **pppd_argv;
+extern int connect_timeout;
+extern int disconnect_timeout;
+extern int redial_timeout;
+extern int nodev_retry_timeout;
+extern int stop_dial_timeout;
+extern int kill_timeout;
+extern int start_pppd_timeout;
+extern int stop_pppd_timeout;
+extern int first_packet_timeout;
+extern int retry_count;
+extern int died_retry_count;
+extern int redial_backoff_start;
+extern int redial_backoff_limit;
+extern int redial_backoff;
+extern int dial_fail_limit;
+extern int two_way;
+extern int give_way;
+extern int do_reroute;
+extern int proxyarp;
+extern int route_wait;
+extern int metric;
+extern int drmetric;
+
+/* Global variables */
+
+extern int fifo_fd;			/* FIFO command pipe. */
+extern MONITORS *monitors;		/* List of monitor pipes. */
+extern int proxy_mfd;			/* master pty fd */
+extern FILE *proxy_mfp;		/* also have an fp. Hackery for recv_packet. */
+extern int proxy_sfd;			/* slave pty fd */
+extern int modem_fd;			/* modem device fp (for slip links) */
+extern char packet[4096];		/* slip packet buffer */
+extern int modem_hup;			/* have we seen a modem HUP? */
+extern int request_down;		/* has the user requested link down? */
+extern int request_up;			/* has the user requested link up? */
+extern int forced;			/* has the user requested the link forced up? */
+extern int link_pid;			/* current pppd command pid */
+extern int dial_pid;			/* current dial command pid */
+extern int running_pid;		/* current system command pid */
+extern int dial_status;		/* status from last dial command */
+extern int state_timeout;		/* state machine timeout counter */
+extern int blocked;			/* user has blocked the link */
+extern int state;			/* DFA state */
+extern int current_retry_count;	/* current retry count */
+extern int proxy_iface;		/* Interface number for proxy pty */
+extern int link_iface;			/* Interface number for ppp line */
+extern int orig_disc;			/* original PTY line disciple */
+extern int fwdfd;			/* control socket for packet forwarding */
+extern int snoopfd;			/* snooping socket fd */
+extern int fwunit;			/* firewall unit for firewall control */
+extern int req_pid;			/* pid of process that made "request" */
+extern char *req_dev;			/* name of the device file requested to open */
+extern int use_req;			/* are we actually using the FIFO link-up request device? */
+extern char snoop_dev[10];		/* The interface name we are listening on */
+extern int txtotal,rxtotal;		/* transfer stats for the link */
+extern int itxtotal, irxtotal;		/* instantaneous transfer stats */
+extern int delayed_quit;		/* has the user requested delayed termination?*/
+extern int terminate;			/* has the user requested termination? */
+extern int impulse_time;		/* time for current impulses */
+extern int impulse_init_time;		/* initial time for current impulses */
+extern int impulse_fuzz;		/* fuzz for current impulses */
+extern char *pidfile;			/* full path filename of pid file */
+extern int force_dynamic;		/* 1 if the current connect passed back addrs */
+extern int redial_rtimeout;		/* current real redial timeout */
+extern int dial_failures;		/* number of dial failures since last success */
+extern int ppp_half_dead;		/* is the ppp link half dead? */
 
 #ifdef SIOCSKEEPALIVE
 extern int keepalive;
@@ -261,170 +305,129 @@ extern int keepalive;
 extern int outfill;
 #endif
 
-/* Global variables */
-
-int fifo_fd;			/* FIFO command pipe. */
-MONITORS *monitors;		/* List of monitor pipes. */
-int proxy_mfd;			/* master pty fd */
-FILE *proxy_mfp;		/* also have an fp. Hackery for recv_packet. */
-int proxy_sfd;			/* slave pty fd */
-int modem_fd;			/* modem device fp (for slip links) */
-char packet[4096];		/* slip packet buffer */
-int modem_hup;			/* have we seen a modem HUP? */
-int request_down;		/* has the user requested link down? */
-int request_up;			/* has the user requested link up? */
-int forced;			/* has the user requested the link forced up? */
-int link_pid;			/* current pppd command pid */
-int dial_pid;			/* current dial command pid */
-int running_pid;		/* current system command pid */
-int dial_status;		/* status from last dial command */
-int state_timeout;		/* state machine timeout counter */
-int blocked;			/* user has blocked the link */
-int state;			/* DFA state */
-int current_retry_count;	/* current retry count */
-int proxy_iface;		/* Interface number for proxy pty */
-int link_iface;			/* Interface number for ppp line */
-int orig_disc;			/* original PTY line disciple */
-int fwdfd;			/* control socket for packet forwarding */
-int snoopfd;			/* snooping socket fd */
-int fwunit;			/* firewall unit for firewall control */
-int req_pid;			/* pid of process that made "request" */
-char *req_dev;			/* name of the device file requested to open */
-int use_req;			/* are we actually using the FIFO link-up request device? */
-char snoop_dev[10];		/* The interface name we are listening on */
-int txtotal,rxtotal;		/* transfer stats for the link */
-int itxtotal, irxtotal;		/* instantaneous transfer stats */
-int delayed_quit;		/* has the user requested delayed termination?*/
-int terminate;			/* has the user requested termination? */
-int impulse_time;		/* time for current impulses */
-int impulse_init_time;		/* initial time for current impulses */
-int impulse_fuzz;		/* fuzz for current impulses */
-char *pidfile;			/* full path filename of pid file */
-int force_dynamic;		/* 1 if the current connect passed back addrs */
-int redial_rtimeout;		/* current real redial timeout */
-int dial_failures;		/* number of dial failures since last success */
-int ppp_half_dead;		/* is the ppp link half dead? */
-
 /* function prototypes */
-void init_vars(void);
-void parse_init(void);
-void parse_options_file(char *);
-void parse_args(int, char *[]);
-void check_setup(void);
-void signal_setup(void);
-void default_sigacts(void);
-void block_signals(void);
-void unblock_signals(void);
-void filter_setup(void);
-void get_pty(int *, int *);
-void proxy_up(void);
-void proxy_down(void);
-void proxy_config(char *, char *);
-void dynamic_slip(void);
-void idle_filter_proxy(void);
-void open_fifo(void);
-void filter_read(void);
-void fifo_read(void);
-void proxy_read(void);
-void modem_read(void);
-void advance_filter_queue(void);
-void alrm_timer(int);
-int recv_packet(unsigned char *, int);
-void sig_hup(int);
-void sig_intr(int);
-void sig_term(int);
-void sig_io(int);
-void sig_chld(int);
-void sig_pipe(int);
-void linkup(int);
-void die(int);
-void print_filter_queue(int);
-void monitor_queue(void);
-void become_daemon(void);
-void change_state(void);
-void output_state(void);
-void add_device(void *, char **);
-void set_str(char **, char **);
-void set_int(int *, char **);
-void set_flag(int *, char **);
-void clear_flag(int *, char **);
-void set_mode(char **, char **);
-void set_dslip_mode(char **, char **);
-void read_config_file(int *, char **);
-void add_filter(void *var, char **);
-int insert_packet(unsigned char *, int);
-int lock(char *dev);
-void unlock(void);
-void fork_dialer(char *, int);
-void flush_timeout_queue(void);
-void set_up_tty(int, int, int);
-void flush_prules(void);
-void flush_filters(void);
-void flush_vars(void);
-void parse_impulse(void *var, char **argv);
-void parse_restrict(void *var, char **argv);
-void parse_or_restrict(void *var, char **argv);
-void parse_bringup(void *var, char **argv);
-void parse_keepup(void *var, char **argv);
-void parse_accept(void *var, char **argv);
-void parse_ignore(void *var, char **argv);
-void parse_wait(void *var, char **argv);
-void parse_up(void *var, char **argv);
-void parse_down(void *var, char **argv);
-void parse_prule(void *var, char **argv);
-void parse_var(void *var, char **argv);
-void close_modem(void);
-int open_modem (void);
-void reopen_modem (void);
-void finish_dial(void);
-void ppp_start(void);
-int ppp_set_addrs(void);
-int ppp_dead(void);
-int ppp_route_exists(void);
-void ppp_stop(void);
-void ppp_reroute(void);
-void ppp_kill(void);
-void ppp_zombie(void);
-int ppp_rx_count(void);
-void slip_start(void);
-int slip_set_addrs(void);
-int slip_dead(void);
-void slip_stop(void);
-void slip_reroute(void);
-void slip_kill(void);
-void slip_zombie(void);
-int slip_rx_count(void);
-void dev_start(void);
-int dev_set_addrs(void);
-int dev_dead(void);
-void dev_stop(void);
-void dev_reroute(void);
-void dev_kill(void);
-void dev_zombie(void);
-int dev_rx_count(void);
-void idle_filter_init(void);
-void interface_up(void);
-void interface_down(void);
-void buffer_init(int *, char **);
-int queue_empty(void);
-int fw_wait(void);
-int fw_reset_wait(void);
-int next_alarm(void);
-void buffer_packet(unsigned int,unsigned char *);
-void forward_buffer(void);
-void run_ip_up(void);
-void run_ip_down(void);
-void set_ptp(char *, int, char *, int);
-void add_routes(char *, int, char *, char *, int);
-void del_routes(char *, int, char *, char *, int);
-void pipe_init(int, PIPE *);
-int pipe_read(PIPE *);
-void pipe_flush(PIPE *, int);
-int set_proxyarp (unsigned int);
-int clear_proxyarp (unsigned int);
-int report_system_result(int,char *);
-void mon_write(int,char *,int);
-void background_system(const char *);
-void block_timer();
-void unblock_timer();
+extern void init_vars(void);
+extern void parse_init(void);
+extern void parse_options_file(char *);
+extern void parse_args(int, char *[]);
+extern void check_setup(void);
+extern void signal_setup(void);
+extern void default_sigacts(void);
+extern void block_signals(void);
+extern void unblock_signals(void);
+extern void filter_setup(void);
+extern void get_pty(int *, int *);
+extern void proxy_up(void);
+extern void proxy_down(void);
+extern void proxy_config(char *, char *);
+extern void dynamic_slip(void);
+extern void idle_filter_proxy(void);
+extern void open_fifo(void);
+extern void filter_read(void);
+extern void fifo_read(void);
+extern void proxy_read(void);
+extern void modem_read(void);
+extern void advance_filter_queue(void);
+extern void alrm_timer(int);
+extern int recv_packet(unsigned char *, int);
+extern void sig_hup(int);
+extern void sig_intr(int);
+extern void sig_term(int);
+extern void sig_io(int);
+extern void sig_chld(int);
+extern void sig_pipe(int);
+extern void linkup(int);
+extern void die(int);
+extern void print_filter_queue(int);
+extern void monitor_queue(void);
+extern void create_pidfile(int iface);
+extern void become_daemon(void);
+extern void change_state(void);
+extern void output_state(void);
+extern void add_device(void *, char **);
+extern void set_str(char **, char **);
+extern void set_int(int *, char **);
+extern void set_flag(int *, char **);
+extern void clear_flag(int *, char **);
+extern void set_mode(char **, char **);
+extern void set_dslip_mode(char **, char **);
+extern void read_config_file(int *, char **);
+extern void add_filter(void *var, char **);
+extern int insert_packet(unsigned char *, int);
+extern int lock(char *dev);
+extern void unlock(void);
+extern void fork_dialer(char *, int);
+extern void flush_timeout_queue(void);
+extern void set_up_tty(int, int, int);
+extern void flush_prules(void);
+extern void flush_filters(void);
+extern void flush_vars(void);
+extern void flush_strvars(void);
+extern void parse_impulse(void *var, char **argv);
+extern void parse_restrict(void *var, char **argv);
+extern void parse_or_restrict(void *var, char **argv);
+extern void parse_bringup(void *var, char **argv);
+extern void parse_keepup(void *var, char **argv);
+extern void parse_accept(void *var, char **argv);
+extern void parse_ignore(void *var, char **argv);
+extern void parse_wait(void *var, char **argv);
+extern void parse_up(void *var, char **argv);
+extern void parse_down(void *var, char **argv);
+extern void parse_prule(void *var, char **argv);
+extern void parse_var(void *var, char **argv);
+extern void parse_set(void *var, char **argv);
+extern void close_modem(void);
+extern int open_modem (void);
+extern void reopen_modem (void);
+extern void finish_dial(void);
+extern void ppp_start(void);
+extern int ppp_set_addrs(void);
+extern int ppp_dead(void);
+extern int ppp_route_exists(void);
+extern void ppp_stop(void);
+extern void ppp_reroute(void);
+extern void ppp_kill(void);
+extern void ppp_zombie(void);
+extern int ppp_rx_count(void);
+extern void slip_start(void);
+extern int slip_set_addrs(void);
+extern int slip_dead(void);
+extern void slip_stop(void);
+extern void slip_reroute(void);
+extern void slip_kill(void);
+extern void slip_zombie(void);
+extern int slip_rx_count(void);
+extern void dev_start(void);
+extern int dev_set_addrs(void);
+extern int dev_dead(void);
+extern void dev_stop(void);
+extern void dev_reroute(void);
+extern void dev_kill(void);
+extern void dev_zombie(void);
+extern int dev_rx_count(void);
+extern void idle_filter_init(void);
+extern void interface_up(void);
+extern void interface_down(void);
+extern void buffer_init(int *, char **);
+extern int queue_empty(void);
+extern int fw_wait(void);
+extern int fw_reset_wait(void);
+extern int next_alarm(void);
+extern void buffer_packet(unsigned int,unsigned char *);
+extern void forward_buffer(void);
+extern void run_ip_up(void);
+extern void run_ip_down(void);
+extern void set_ptp(char *, int, char *, int);
+extern void add_routes(char *, int, char *, char *, int);
+extern void del_routes(char *, int, char *, char *, int);
+extern void pipe_init(int, PIPE *);
+extern int pipe_read(PIPE *);
+extern void pipe_flush(PIPE *, int);
+extern int set_proxyarp (unsigned int);
+extern int clear_proxyarp (unsigned int);
+extern int report_system_result(int,char *);
+extern void mon_write(int,char *,int);
+extern void background_system(const char *);
+extern void block_timer();
+extern void unblock_timer();
 

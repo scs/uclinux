@@ -349,16 +349,4 @@ void maybe_setup_fallback ()
 			      fallback_discard, fallback_interface);
 	}
 }
-
-void maybe_setup_fallback_relay ()
-{
-      struct interface_info *fbi;
-      fbi = setup_fallback ();
-      if (fbi) {
-	      if_register_fallback (fbi);
-	      if_register_fallback_receive (fbi);
-	      add_protocol ("fallback", fallback_interface -> wfdesc,
-			    got_one, fallback_interface);
-      }
-}
 #endif

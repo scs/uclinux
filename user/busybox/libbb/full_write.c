@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,21 +28,21 @@
  * This does multiple writes as necessary.
  * Returns the amount written, or -1 on an error.
  */
-int full_write(int fd, const char *buf, int len)
+ssize_t bb_full_write(int fd, const void *buf, size_t len)
 {
-	int cc;
-	int total;
+	ssize_t cc;
+	ssize_t total;
 
 	total = 0;
 
 	while (len > 0) {
-		cc = write(fd, buf, len);
+		cc = safe_write(fd, buf, len);
 
 		if (cc < 0)
-			return -1;
+			return cc;		/* write() returns -1 on failure. */
 
-		buf += cc;
 		total += cc;
+		buf = ((const char *)buf) + cc;
 		len -= cc;
 	}
 

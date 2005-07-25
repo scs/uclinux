@@ -28,12 +28,9 @@
 #include <sys/utsname.h>
 #include <net/if.h>
 #include <net/if_arp.h>
-#ifdef __GLIBC__
-#include <net/if_packet.h>
-#else
-#include <linux/if_packet.h>
-#endif
 #include <net/route.h>
+#include <net/ethernet.h>
+#include <netpacket/packet.h>
 #include <netdb.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -54,20 +51,6 @@
 #include <linux/config.h>
 #ifdef CONFIG_LEDMAN
 #include <linux/ledman.h>
-#endif
-
-#include <linux/version.h>
-
-#ifndef LINUX_VERSION_CODE
-#error Unknown Linux kernel version
-#endif
-
-#ifndef KERNEL_VERSION
-#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,1)
-#define OLD_LINUX_VERSION 1
 #endif
 
 extern	char		*ProgramName,**ProgramEnviron,*Cfilename;
@@ -410,11 +393,13 @@ int dhcpSendAndRecv(xid,msg,buildUdpIpMsg)
 unsigned xid,msg;
 void (*buildUdpIpMsg)(unsigned);
 {
+#ifdef OLD_LINUX_VERSION
   struct sockaddr addr;
+#endif
   struct timeval begin, current, diff;
   int i,len;
   int j=DHCP_INITIAL_RTO/2;
-  int timeout;
+  int timeout = 0;
   int retryCount=dhcpRequestMax;
   do
     {
@@ -422,8 +407,6 @@ void (*buildUdpIpMsg)(unsigned);
     	{
 	  j+=j;
 	  if (j > DHCP_MAX_RTO) j = DHCP_MAX_RTO;
-      	  memset(&addr,0,sizeof(struct sockaddr));
-      	  memcpy(addr.sa_data,IfName,IfName_len);
 	  buildUdpIpMsg(xid);
 	  if ((buildUdpIpMsg == buildDhcpReboot) ||
 			  (buildUdpIpMsg == buildDhcpReboot)) {
@@ -431,10 +414,18 @@ void (*buildUdpIpMsg)(unsigned);
 		  DebugSyslog(LOG_WARNING, "retryCount = %d", 
 				  dhcpRequestMax - retryCount);
 	  }
+#ifdef OLD_LINUX_VERSION
+      	  memset(&addr,0,sizeof(struct sockaddr));
+      	  memcpy(addr.sa_data,IfName,IfName_len);
       	  if ( sendto(dhcpSocket,&UdpIpMsgSend,
 		      sizeof(struct packed_ether_header)+
 		      sizeof(udpiphdr)+sizeof(dhcpMessage),0,
 		      &addr,sizeof(struct sockaddr)) == -1 )
+#else
+      	  if ( send(dhcpSocket,&UdpIpMsgSend,
+		      sizeof(struct packed_ether_header)+
+		      sizeof(udpiphdr)+sizeof(dhcpMessage),0) == -1 )
+#endif
 	    {
 	      /* cable is probably not connected */
 	      if (errno == ENOBUFS) {
@@ -485,14 +476,18 @@ void (*buildUdpIpMsg)(unsigned);
 	{
 	  struct ip ipRecv_local;
 	  memset(&UdpIpMsgRecv,0,sizeof(udpipMessage));
+#ifdef OLD_LINUX_VERSION
       	  i=sizeof(struct sockaddr);
       	  len=recvfrom(dhcpSocket,&UdpIpMsgRecv,sizeof(udpipMessage),0,
 		     (struct sockaddr *)&addr,&i);
+#else
+      	  len=recv(dhcpSocket,&UdpIpMsgRecv,sizeof(udpipMessage),0);
+#endif
 	  if ( len == -1 )
     	    {
 	      if (errno == ENETDOWN) {
 		struct ifreq ifr;
-		int err = 0, flags;
+		int err = 0;
 
 		memset(&ifr,0,sizeof(struct ifreq));
 		memcpy(ifr.ifr_name,IfName,IfName_len);
@@ -598,8 +593,20 @@ int dhcpConfig()
   char *dname=NULL;
   int dname_len=0;
   int failed;
+  char cmd[128];
 
   if ( TestCase ) return 0;
+#ifdef CONFIG_USER_IPROUTE2
+  /* Delete any existing addresses in this subnet, so that we are
+   * a primary address. */
+  memcpy(&p->sin_addr.s_addr,DhcpOptions.val[subnetMask],4);
+  for ( i=0;i<32;i++ )
+    if ( ntohl(p->sin_addr.s_addr) & (1<<i) )
+      break;
+  snprintf(cmd, sizeof(cmd), "ip address flush %s to %s/%d",
+		  IfName, inet_ntoa(DhcpIface.ciaddr), 32-i);
+  system(cmd);
+#endif
   memset(&ifr,0,sizeof(struct ifreq));
   memcpy(ifr.ifr_name,IfName,IfName_len);
   p->sin_family = AF_INET;
@@ -1163,53 +1170,86 @@ void openSocket()
 {
   int o = 1;
   struct ifreq	ifr;
+#ifdef OLD_LINUX_VERSION
   struct sockaddr_pkt sap;
+#else
+  struct sockaddr_ll sap;
+#endif
   memset(&ifr,0,sizeof(struct ifreq));
   memcpy(ifr.ifr_name,IfName,IfName_len);
 #ifdef OLD_LINUX_VERSION
   dhcpSocket = socket(AF_INET,SOCK_PACKET,htons(ETH_P_ALL));
 #else
-  dhcpSocket = socket(AF_PACKET,SOCK_PACKET,htons(ETH_P_ALL));
+  dhcpSocket = socket(AF_PACKET,SOCK_RAW,htons(ETH_P_ALL));
 #endif
   if ( dhcpSocket == -1 )
     {
       syslog(LOG_ERR,"dhcpStart: socket: %m\n");
+	  deletePidFile();
       exit(1);
     }
 
   if ( ioctl(dhcpSocket,SIOCGIFHWADDR,&ifr) )
     {
       syslog(LOG_ERR,"dhcpStart: ioctl SIOCGIFHWADDR: %m\n");
+	  deletePidFile();
       exit(1);
     }
+  memcpy(ClientHwAddr,ifr.ifr_hwaddr.sa_data,ETH_ALEN);
+
   if ( ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER )
     {
       syslog(LOG_ERR,"dhcpStart: interface %s is not Ethernet\n",ifr.ifr_name);
+	  deletePidFile();
       exit(1);
     }
+
   if ( setsockopt(dhcpSocket,SOL_SOCKET,SO_BROADCAST,&o,sizeof(o)) == -1 )
     {
       syslog(LOG_ERR,"dhcpStart: setsockopt: %m\n");
+	  deletePidFile();
       exit(1);
     }
-  ifr.ifr_flags = IFF_UP | IFF_BROADCAST | IFF_NOTRAILERS | IFF_RUNNING;
+
+  if ( ioctl(dhcpSocket,SIOCGIFFLAGS,&ifr) )
+    {
+      syslog(LOG_ERR, "dhcpStart: ioctl SIOCGIFFLAGS: %m\n");
+	  deletePidFile();
+      exit(1);
+    }
+
+  ifr.ifr_flags |= IFF_UP | IFF_BROADCAST | IFF_NOTRAILERS | IFF_RUNNING;
   if ( ioctl(dhcpSocket,SIOCSIFFLAGS,&ifr) )
     {
       syslog(LOG_ERR,"dhcpStart: ioctl SIOCSIFFLAGS: %m\n");
+	  deletePidFile();
       exit(1);
     }
+
   memset(&sap,0,sizeof(sap));
 #ifdef OLD_LINUX_VERSION
   sap.spkt_family = AF_INET;
-#else
-  sap.spkt_family = AF_PACKET;
-#endif
   sap.spkt_protocol = htons(ETH_P_ALL);
   memcpy(sap.spkt_device,IfName,IfName_len);
-  if ( bind(dhcpSocket,(void*)&sap,sizeof(struct sockaddr)) == -1 )
+#else
+  if ( ioctl(dhcpSocket,SIOCGIFINDEX,&ifr) )
+    {
+      syslog(LOG_ERR, "dhcpStart: ioctl SIOCGIFFLAGS: %m\n");
+      exit(1);
+    }
+  sap.sll_family = AF_PACKET;
+  sap.sll_protocol = 0;
+  sap.sll_ifindex = ifr.ifr_ifindex;
+#endif
+
+  if ( bind(dhcpSocket, (void*)&sap, sizeof(sap)) == -1 )
     syslog(LOG_ERR,"dhcpStart: bind: %m\n");
 
-  memcpy(ClientHwAddr,ifr.ifr_hwaddr.sa_data,ETH_ALEN);
+  /* flush any non-bound packets we may have received */
+  /* yes this does happen - DavidM  :-) */
+
+  while ( peekfd(dhcpSocket, 0) == 0 )
+    (void) recv(dhcpSocket, &UdpIpMsgRecv, sizeof(udpipMessage), 0);
 }
 /*****************************************************************************/
 void *dhcpStart()
@@ -1356,6 +1396,7 @@ void *dhcpBound()
 {
   int i;
   close(dhcpSocket);
+  dhcpSocket = -1;
   if ( sigsetjmp(env,0xffff) )
     {
       openSocket();
@@ -1439,14 +1480,16 @@ void *dhcpRebind()
 /*****************************************************************************/
 void *dhcpRelease()
 {
+#ifdef OLD_LINUX_VERSION
   struct sockaddr addr;
+#endif
   deleteDhcpCache();
   if ( DhcpIface.ciaddr == 0 ) return &dhcpInit;
 
+  if ( dhcpSocket < 0 )
+    openSocket();
   buildDhcpRelease(random());
 
-  memset(&addr,0,sizeof(struct sockaddr));
-  memcpy(addr.sa_data,IfName,IfName_len);
   DebugSyslog(LOG_DEBUG,"sending DHCP_RELEASE for %u.%u.%u.%u to %u.%u.%u.%u\n",
 	   ((unsigned char *)&DhcpIface.ciaddr)[0],
 	   ((unsigned char *)&DhcpIface.ciaddr)[1],
@@ -1456,10 +1499,18 @@ void *dhcpRelease()
 	   ((unsigned char *)&DhcpIface.siaddr)[1],
 	   ((unsigned char *)&DhcpIface.siaddr)[2],
 	   ((unsigned char *)&DhcpIface.siaddr)[3]);
+#ifdef OLD_LINUX_VERSION
+  memset(&addr,0,sizeof(struct sockaddr));
+  memcpy(addr.sa_data,IfName,IfName_len);
   if ( sendto(dhcpSocket,&UdpIpMsgSend,sizeof(struct packed_ether_header)+
 	      sizeof(udpiphdr)+sizeof(dhcpMessage),0,
 	      &addr,sizeof(struct sockaddr)) == -1 )
     syslog(LOG_ERR,"dhcpRelease: sendto: %m\n");
+#else
+  if ( send(dhcpSocket,&UdpIpMsgSend,sizeof(struct packed_ether_header)+
+	      sizeof(udpiphdr)+sizeof(dhcpMessage),0) == -1 )
+    syslog(LOG_ERR,"dhcpRelease: send: %m\n");
+#endif
   arpRelease(); /* clear ARP cache entries for client IP addr */
   return &dhcpInit;
 }
@@ -1469,6 +1520,8 @@ void *dhcpStop()
   struct ifreq ifr;
   struct sockaddr_in	*p = (struct sockaddr_in *)&(ifr.ifr_addr);
 
+  if ( dhcpSocket < 0 )
+    openSocket();
   releaseDhcpOptions();
   if ( TestCase ) return &dhcpStart;
   memset(&ifr,0,sizeof(struct ifreq));
@@ -1498,30 +1551,47 @@ void *dhcpDecline()
   buildDhcpDecline(random());
   udpipgen((udpiphdr *)&UdpIpMsgSend.udpipmsg,0,INADDR_BROADCAST,
   htons(DHCP_CLIENT_PORT),htons(DHCP_SERVER_PORT),sizeof(dhcpMessage));
+  DebugSyslog(LOG_DEBUG,"broadcasting DHCP_DECLINE\n");
+#ifdef OLD_LINUX_VERSION
   memset(&addr,0,sizeof(struct sockaddr));
   memcpy(addr.sa_data,IfName,IfName_len);
-  DebugSyslog(LOG_DEBUG,"broadcasting DHCP_DECLINE\n");
   if ( sendto(dhcpSocket,&UdpIpMsgSend,sizeof(struct packed_ether_header)+
 	      sizeof(udpiphdr)+sizeof(dhcpMessage),0,
 	      &addr,sizeof(struct sockaddr)) == -1 )
     syslog(LOG_ERR,"dhcpDecline: sendto: %m\n");
+#else
+  if ( send(dhcpSocket,&UdpIpMsgSend,sizeof(struct packed_ether_header)+
+	      sizeof(udpiphdr)+sizeof(dhcpMessage),0) == -1 )
+    syslog(LOG_ERR,"dhcpDecline: sendto: %m\n");
+#endif
   return &dhcpInit;
 }
 #endif
 /*****************************************************************************/
 void checkIfAlreadyRunning()
 {
-  int o;
+  FILE *fp;
+  pid_t pid;
   char pidfile[48];
   sprintf(pidfile,PID_FILE_PATH,IfName);
-  o=open(pidfile,O_RDONLY);
-  if ( o == -1 ) return;
-  close(o);
-  fprintf(stderr,"\
-****  %s: already running\n\
-****  %s: if not then delete %s file\n",ProgramName,ProgramName,pidfile);
+  fp=fopen(pidfile,"r");
+  if (!fp) return;
+
+  fscanf(fp,"%u",&pid);
+  fclose(fp);
+
+  fprintf(stderr, "kill(pid=%d, sig=0) returned %d\n", pid, kill(pid, 0));
+
+  if ( kill(pid,0) != 0)
+    {
+      unlink(pidfile);
+	  return;
+    }
+
+  fprintf(stderr,"****  %s: already running at pid %d (%m)\n", ProgramName, pid);
   exit(1);
 }
+
 /*****************************************************************************/
 void *dhcpInform()
 {

@@ -1,141 +1,310 @@
-busybox (1:0.60.5-1) unstable; urgency=low
-  
-  * New version released.  See Changelog for non-Debian specific details.
-  * zcat no longer tries to delete source files (closes: #164968)
-  * Eliminate /linuxrc from the .udeb (closes: #163890)
-  * Fix description of the --install option (closes: #164178)
+busybox-cvs (20031212-3) unstable; urgency=low
 
- -- Erik Andersen <andersee@debian.org>  Sat, 26 Oct 2002 06:23:51 -0600
+  * debian/config-udeb-linux:
+    - Enable freeramdisk. (closes: #225360)
 
-busybox (1:0.60.4-1.1) unstable; urgency=low
+ -- Bastian Blank <waldi@debian.org>  Tue, 30 Dec 2003 22:36:50 +0100
+
+busybox-cvs (20031212-2) unstable; urgency=low
+
+  * debian/config-udeb:
+    - Enable freeramdisk
+  * archival/libunarchive/data_extract_to_stdout.c:
+    - Don't extract to much (upstream).
+  * archival/libunarchive/data_extract_all.c:
+    - Don't set permissions on symlinks (upstream).
+  * editors/sed.c:
+    - Fix (upstream). (closes: #224676)
+
+ -- Bastian Blank <waldi@debian.org>  Tue, 23 Dec 2003 16:59:13 +0100
+
+busybox-cvs (20031212-1) unstable; urgency=low
+
+  * new cvs version
+    - fixes IOR in fdisk. (closes: #223773)
+  * debian/config*
+    - update
+    - remove mtab support from mount in busybox-static. (closes: #222386)
+    - enable progress bar for wget. (closes: #223770)
+  * modutils/obj/obj_s390{,x}.c
+    - fix abi change, R_390_GOTOFF -> R_390_GOTOFF32. (closes: #216528)
+  * acknowledge nmu. (closes: #216950, #216756, #215169, #215613)
+
+ -- Bastian Blank <waldi@debian.org>  Fri, 12 Dec 2003 21:19:41 +0100
+
+busybox-cvs (20030926-2.1) unstable; urgency=low
 
   * NMU
-  * Fix cp -a so it handles symlinks properly (closes: #163501)
+  * Remove /sbin/init from the udebs, while still leaving init support
+    compiled in. rootskel takes over providing init, but then calls bb init.
+    Remove linuxrc support from the udebs entirely. Closes: #216756
+  * config-floppy-udeb-linux: add minimal find, grep. Closes: #215169
+  * net-udeb-linux-i386: add loopback mount support. Closes: #215613
 
- -- Tollef Fog Heen <tfheen@debian.org>  Sun,  6 Oct 2002 16:08:45 +0200
+ -- Joey Hess <joeyh@debian.org>  Tue, 21 Oct 2003 12:47:52 -0400
 
-busybox (1:0.60.4-1) unstable; urgency=low
-  
-  * New version released.  See Changelog for non-Debian specific details.
-  * enable uname for the debian-installer (closes: #158706)
-  * enable losetup for the boot floppies (closes: #138060)
-  * init behaves itself better consoles go missing (closes: #129626)
-  * In 'free', buffers change as buffered data increases (closes: #148396)
-  * Functions for debootstrap added to the .udeb (closes: #124388)
-  * This bug is not reproducable (closes: #127522)
+busybox-cvs (20030926-2) unstable; urgency=low
 
- -- Erik Andersen <andersee@debian.org>  Wed, 18 Sep 2002 14:13:05 -0600
+  * debian/config-floppy-udeb-linux
+    - update for new floppy images (closes: #212986, #214102)
 
-busybox (1:0.60.3-1) unstable; urgency=low
-  
-  * New version released.  See Changelog for non-Debian specific details.
-  * makedevs no longer segfaults (closes: #123921)
-  * wget no longer crashes (closes: #138943)
-  * wget now checks the safe_fwrite return code (closes: #143179)
+ -- Bastian Blank <waldi@debian.org>  Thu, 09 Oct 2003 12:25:49 +0200
 
- -- Erik Andersen <andersee@debian.org>  Sat, 27 Apr 2002 01:33:34 -0600
+busybox-cvs (20030926-1) unstable; urgency=low
 
-busybox (1:0.60.2-3) testing unstable; urgency=low
-  
-  * Fix wc stdin handling (closes: #123387).
-  * Fix wget to do just one DNS lookup (closes: #124068)
+  * new cvs version
+  * Makefile
+    - fix libpwdgrp link (upstream) (closes: #211675)
+  * Rules.mak.in
+    - fix optimization (closes: #212485)
+  * debian/config*
+    - update
+  * debian/config*udeb*
+    - move linux-i386 to linux (enable modutils on any linux arch)
+    - rename net to floppy
+    - enable wget status bar (closes: #211457)
+  * init/init.c
+    - workaround race conditions (closes: #212764)
 
- -- Erik Andersen <andersee@debian.org>  Sun, 16 Dec 2001 22:51:03 -0700
+ -- Bastian Blank <waldi@debian.org>  Fri, 26 Sep 2003 15:10:14 +0200
 
-busybox (1:0.60.2-2) unstable; urgency=low
-  
-  * Several small bugfixes (closes: #120353, #120369, #122638, 
-  * Reworked wc.c to fix the severe efficiency problems and make it 
-    smaller.  This one is mainly for the boot-floppies (closes: #120441)
-  * Enable hostname (closes: #120511)
+busybox-cvs (0.60.99.cvs20030819-3) unstable; urgency=low
 
- -- Erik Andersen <andersee@debian.org>  Thu,  6 Dec 2001 00:06:33 -0700
+  * shell/ash.c
+    - fix signal handling (upstream)
 
-busybox (1:0.60.2-1) unstable; urgency=low
-  
-  * New version released.  See Changelog for non-Debian specific details.
-  * dpkg.c now uses an int for getopt (closes: #118975)
-  * s390 console reboot msg is now appropriate (closes: #118859)
-  * the manpage is no longer empty (closes: #117013)
-  * no more .o files in the source tarball (closes: #112046)
-  * the .udeb contents are exactly as Joey wants them (closes: #105352)
-  * busybox ash is the default shell for the -static package,
-    so it can cope with /etc/profile just fine (closes: #95745)
+ -- Bastian Blank <waldi@debian.org>  Mon, 15 Sep 2003 18:12:09 +0200
 
- -- Erik Andersen <andersee@debian.org>  Tue, 20 Nov 2001 03:41:29 -0700
+busybox-cvs (0.60.99.cvs20030819-2) unstable; urgency=low
 
-busybox (1:0.60.1-8) unstable; urgency=low
-  
-  * Adjusted some apps for the debian installer's .udeb package.
-    Enabled ifconfig, route.  
-    Disabled chgrp, clear, date, dd, du, gzip, halt, head, killall,
-    loadkmap, logger, mkswap, more, poweroff, reset, sleep, sort, 
-    swapon, swapoff, touch, tty, uniq, uname, uptime, vi, wc, which,
-    whoami, xargs, and yes.
+  * Fix configure permisions
+  * Set source Section to embedded
 
- -- Erik Andersen <andersee@debian.org>  Thu, 18 Oct 2001 22:59:06 -0600
+ -- Glenn McGrath <bug1@debian.org>  Mon, 25 Aug 2003 06:33:19 +0000
 
-busybox (1:0.60.1-7) unstable; urgency=low
-  
-  * Re-enable wget's status bar for today's dbootstrap change. (closes: #115717)
-  * Enable initrd support (even if they are a bad idea). (closes: #114727)
+busybox-cvs (0.60.99.cvs20030819-1) unstable; urgency=low
 
- -- Erik Andersen <andersee@debian.org>  Mon, 15 Oct 2001 20:45:57 -0600
+  * new cvs version
 
-busybox (1:0.60.1-6) unstable; urgency=low
-  
-  * Re-enable wc, gzip, tty, and expr. (closes: #114906)
+ -- Bastian Blank <waldi@debian.org>  Tue, 19 Aug 2003 13:18:54 +0200
 
- -- Erik Andersen <andersee@debian.org>  Wed, 10 Oct 2001 02:47:50 -0600
+busybox-cvs (0.60.99.cvs20030426-10) unstable; urgency=low
 
-busybox (1:0.60.1-5) unstable; urgency=low
-  
-  * Time to make this official.  This enables several applets, such
-    as ifconfig and route, and disables several others.
-  * Revert ash to the version in the busybox stable branch.  For the 
-    -3 non-release, I tried the one from busybox unstable (which lived 
-    up to its name).  (closes: #112503)
-  * Enable id, disable ash (closes: #114260, #113698)
-  * Backport several bugfixes from unstable
+  * archival/libunarchive/*
+    - add hardlink support (pending)
+  * debian/config-*udeb*
+    - add support for oldgnu tar format
 
- -- Erik Andersen <andersee@debian.org>  Fri,  5 Oct 2001 23:03:15 -0600
+ -- Bastian Blank <waldi@debian.org>  Tue, 10 Jun 2003 12:06:41 +0200
 
-busybox (1:0.60.1-4) unstable; urgency=low
-  
-  * Doh!  With busybox ash, we need test and echo enabled...
+busybox-cvs (0.60.99.cvs20030426-9) unstable; urgency=low
 
- -- Erik Andersen <andersee@debian.org>  Wed, 26 Sep 2001 00:05:04 -0600
+  * modutils/depmod.c
+    - fix base_dir for modules.dep
 
-busybox (1:0.60.1-3) unstable; urgency=low
+ -- Bastian Blank <waldi@debian.org>  Sat, 07 Jun 2003 14:52:54 +0200
 
-  * This upload is to test whether disabling several applets, and
-    enabling several others will help.  Enabled is ifconfig, route,
-    and ash.  Disabled is basename, date, echo, env, expr, gzip, 
-    lsmod, and wc.
+busybox-cvs (0.60.99.cvs20030426-8) unstable; urgency=low
 
- -- Erik Andersen <andersee@debian.org>  Tue, 25 Sep 2001 17:45:16 -0600
+  * util-linux/fdisk.c
+    - fix syscalls. (pending)
+  * libpwd/*
+    - don't build setgroups.o
 
-busybox (1:0.60.1-2) unstable; urgency=low
+ -- Bastian Blank <waldi@debian.org>  Tue, 03 Jun 2003 11:26:28 +0200
 
-  * Disabled several applets to make busybox be a bit thinner, since the 
-    powerpc boot floppies are _very_ tight on space (closes: #112503)
-  * Teach 'mount' about usbdevfs (closes: #111055) 
-  * Busybox supports full online help, but due to space constraints on
-    the boot floppies, it will not be enabled.  People can read the 
-    busybox documentation if they need full details. (closes: #111350) 
+busybox-cvs (0.60.99.cvs20030426-7) unstable; urgency=low
 
- -- Erik Andersen <andersee@debian.org>  Sun, 23 Sep 2001 23:32:15 -0600
+  * libbb/*syscallc.c
+    - fix syscalls. (upstream) (closes: #194631)
+  * modutils/*
+    - update complete objects code from upstream. (pending)
+  * debian/config-*udeb*
+    - update to busybox-applets.txt:1.14
 
-busybox (1:0.60.1-1) unstable; urgency=low
+ -- Bastian Blank <waldi@debian.org>  Thu, 29 May 2003 16:17:14 +0200
 
-  * New stable version released.  See changelog for details.
-  * Enabled 'ar' for the udeb
+busybox-cvs (0.60.99.cvs20030426-6) unstable; urgency=low
 
- -- Erik Andersen <andersee@debian.org>  Thu, 23 Aug 2001 15:44:14 -0600
+  * modutils/Makefile.in
+    - don't build anything if deactivated
+
+ -- Bastian Blank <waldi@debian.org>  Sat, 24 May 2003 18:57:14 +0200
+
+busybox-cvs (0.60.99.cvs20030426-5) unstable; urgency=low
+
+  * debian/config-*udeb*
+    - revert changes (closes: #192717, #192753)
+    - readd initrd support (workaround)
+    - make init quiet
+  * archival/tar.c
+    - fix usage of tar -O (upstream) (closes: #193788)
+
+ -- Bastian Blank <waldi@debian.org>  Sat, 24 May 2003 13:25:36 +0200
+
+busybox-cvs (0.60.99.cvs20030426-4) unstable; urgency=low
+
+  * debian/config-*udeb*
+    - update to busybox-applets.txt:1.12
+  * debian/rules
+    - use system instead of arch to determine which config file to use
+
+ -- Bastian Blank <waldi@debian.org>  Fri, 09 May 2003 11:21:13 +0200
+
+busybox-cvs (0.60.99.cvs20030426-3) unstable; urgency=low
+
+  * debian/config-udeb*
+    - update to busybox-applets.txt:1.11
+
+ -- Bastian Blank <waldi@debian.org>  Wed, 07 May 2003 10:37:40 +0200
+
+busybox-cvs (0.60.99.cvs20030426-2) unstable; urgency=low
+
+  * modutils/*
+    - modprobe failes gracefully if the module is already loaded. (pending)
+    - implement depmod. (pending)
+  * debian/config*
+    - update
+
+ -- Bastian Blank <waldi@debian.org>  Wed, 30 Apr 2003 14:12:36 +0200
+
+busybox-cvs (0.60.99.cvs20030426-1) unstable; urgency=low
+
+  * new cvs version
+
+ -- Bastian Blank <waldi@debian.org>  Sat, 26 Apr 2003 18:33:17 +0200
+
+busybox-cvs (0.60.99.cvs20030420-4) unstable; urgency=low
+
+  * network/libiproute/iproute.c
+    - fix usage of ip route flush (upstream)
+
+ -- Bastian Blank <waldi@debian.org>  Fri, 25 Apr 2003 16:48:43 +0200
+
+busybox-cvs (0.60.99.cvs20030420-3) unstable; urgency=low
+
+  * debian/config-*udeb*
+    - update to busybox-applets.txt:1.10
+
+ -- Bastian Blank <waldi@debian.org>  Fri, 25 Apr 2003 14:03:23 +0200
+
+busybox-cvs (0.60.99.cvs20030420-2) unstable; urgency=low
+
+  * archival/tar.c, archival/libunarchive/data_extract_all.c
+    - unlink files first (upstream patch)
+
+ -- Bastian Blank <waldi@debian.org>  Mon, 21 Apr 2003 12:42:06 +0200
+
+busybox-cvs (0.60.99.cvs20030420-1) unstable; urgency=low
+
+  * new cvs version
+  * debian/config*-udeb*
+    - add ifconfig/route for easier transition
+  * debian/config-net-udeb-i386
+    - add logger
+  * debian/config-udeb*
+    - add uniq
+
+ -- Bastian Blank <waldi@debian.org>  Sun, 20 Apr 2003 21:02:58 +0200
+
+busybox-cvs (0.60.99.cvs20030405-1) unstable; urgency=low
+
+  * new cvs version
+  * debian/control
+    - add busybox-cvs-net-udeb
+  * debian/rules
+    - arch depend debs
+    - new net-udeb
+  * debian/config*
+    - cleanup applet list
+
+ -- Bastian Blank <waldi@debian.org>  Sat, 05 Apr 2003 11:44:50 +0200
+
+busybox-cvs (0.60.99.cvs20030221-1) unstable; urgency=low
+
+  * new cvs version
+  * enable new applets in udeb
+
+ -- Bastian Blank <waldi@debian.org>  Fri, 21 Feb 2003 23:15:16 +0100
+
+busybox-cvs (0.60.99.cvs20030114-1) unstable; urgency=low
+
+  * new cvs version
+
+ -- Bastian Blank <waldi@debian.org>  Tue, 14 Jan 2003 17:06:43 +0000
+
+busybox-cvs (0.60.99.cvs20030105-1) unstable; urgency=low
+
+  * Fix ip command build failure on ia64 (Closes: #172580
+  * Dont build with BSD partition table support in fdisk, fails on m68k
+
+ -- Glenn McGrath <bug1@home>  Sun,  5 Jan 2003 12:48:05 +1100
+
+busybox-cvs (0.60.99.cvs20030104-2) unstable; urgency=low
+
+  * floppy-retriever needs the cut command in the udeb
+
+ -- Glenn McGrath <bug1@debian.org>  Sat,  4 Jan 2003 17:13:05 +1100
+
+busybox-cvs (0.60.99.cvs20030104-1) unstable; urgency=low
+
+  * new cvs version
+  * Include new applets in the static package
+  * Include ash in the udeb
+
+ -- Glenn McGrath <bug1@debian.org>  Sat,  4 Jan 2003 13:39:04 +1100
+
+busybox-cvs (0.60.99.cvs20021214-1) unstable; urgency=low
+
+  * new cvs version
+    - udhcp merge.
+  * fix location of ip link.
+
+ -- Bastian Blank <waldi@debian.org>  Sat, 14 Dec 2002 13:52:15 +0100
+
+busybox-cvs (0.60.99.cvs20021210-1) unstable; urgency=low
+
+  * new cvs version
+    - various upstream fixes found in the last version.
+  * busybox-cvs-udeb
+    - include readlink and realpath.
+
+ -- Bastian Blank <waldi@debian.org>  Tue, 10 Dec 2002 21:23:40 +0100
+
+busybox-cvs (0.60.99.cvs20021209-2) unstable; urgency=low
+
+  * cleanup scripts/config/ within make clean (closes: #172413)
+  * busybox-cvs-udeb
+    - include readlink
+  * include manpages within busybox-cvs and busybox-cvs-static
+
+ -- Bastian Blank <waldi@debian.org>  Mon, 09 Dec 2002 22:09:52 +0100
+
+busybox-cvs (0.60.99.cvs20021209-1) unstable; urgency=low
+
+  * New cvs version.
+    - fix udhcpc for use with ip.
+    - klogd supports -c.
+  * busybox-cvs-udeb
+    - set priority to extra. (closes: #172302)
+    - don't longer provide busybox-udeb.
+
+ -- Bastian Blank <waldi@debian.org>  Mon, 09 Dec 2002 16:22:03 +0100
+
+busybox-cvs (0.60.99.cvs20021203-1) unstable; urgency=low
+
+  * New packages based on busybox cvs.
+  * changes for the udeb
+    - enable ip applet with address, link and route part.
+    - enable udhcpc.
+    - disable ifconfig and route applet.
+    - disable ls color.
+
+ -- Bastian Blank <waldi@debian.org>  Tue, 03 Dec 2002 18:51:00 +0100
 
 busybox (1:0.60.0-1) unstable; urgency=low
 
-  * New stable version released.  See changelog for details.
+  * New version released.  See changelog for details.
 
  -- Erik Andersen <andersee@debian.org>  Thu,  2 Aug 2001 12:12:37 -0600
 
@@ -211,7 +380,7 @@ busybox (1:0.51-4) unstable; urgency=low
 busybox (1:0.51-3) unstable; urgency=low
 
   * This is the "I am an idiot" release.
-  * Make cp and mv work again (closes: #97290) 
+  * Make cp and mv work again (closes: #97290)
   * Fix the version number.
 
  -- Erik Andersen <andersee@debian.org>  Sat, 12 May 2001 17:35:58 -0600
@@ -232,13 +401,13 @@ busybox (0.51-1) unstable; urgency=low
     for complete details)
   * Force USE_SYSTEM_PWD_GRP=false, so busybox bypasses
     the glibc NSS libraries. (closes: #93362)
-  * Fixed a bug in sed's address range handling (closes: #91758) 
+  * Fixed a bug in sed's address range handling (closes: #91758)
   * Removed irrelevant cruft from the bottem of debian/changelog
 
  -- Erik Andersen <andersee@debian.org>  Tue, 10 Apr 2001 14:07:29 -0600
 
 busybox (0.50-2) unstable; urgency=low
-  
+
   * Enabled freeramdisk and pivot_root in the udeb (closes: #91336)
   * Disabled lash (the busybox shell) in the udeb (closes: #91337)
   * fixed a bug in syslog, a problem with rebooting when booted as
@@ -248,7 +417,7 @@ busybox (0.50-2) unstable; urgency=low
 
 
 busybox (0.50-2) unstable; urgency=low
-  
+
   * Enabled freeramdisk and pivot_root in the udeb (closes: #91336)
   * Disabled lash (the busybox shell) in the udeb (closes: #91337)
   * fixed a bug in syslog, a problem with rebooting when booted as
@@ -277,7 +446,7 @@ busybox (0.49-1) unstable; urgency=low
 busybox (0.48-1) unstable; urgency=low
 
   * Lots more source updates and bug fixes.  See changelog for details.
-  * Now includes .udeb support for the debian-installer.  The .udeb 
+  * Now includes .udeb support for the debian-installer.  The .udeb
     probably needs some more work, but this should be a good start.
 
  -- Erik Andersen <andersee@debian.org>  Wed, 13 Dec 2000 08:36:07 -0700
@@ -296,11 +465,11 @@ busybox (0.46-1) unstable; urgency=low
 
 busybox (0.45-1) unstable; urgency=low
 
-  * First attempt at packaging BusyBox as a .deb.  This has been in 
+  * First attempt at packaging BusyBox as a .deb.  This has been in
     in the Debian boot-floppies CVS tree forever.  Hopefully, having it as a
     standalone app will make life easier for me, the debian-installer team, and
     everyone else as well...
-  * I have created a busybox-static that can be used as a rescue shell when you 
+  * I have created a busybox-static that can be used as a rescue shell when you
     hose your system.  Just invoke "busybox sh" to fir up the shell.  This has
     every app provided by busybox staically linked in.  There have been several
     times in the past that I would have loved to have this sitting on my system

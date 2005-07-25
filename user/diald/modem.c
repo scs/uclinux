@@ -116,6 +116,9 @@ struct speed {
 #ifdef B115200
     { 115200, B115200 },
 #endif
+#ifdef B230400
+    { 230400, B230400 },
+#endif
     { 0, 0 }
 };
 

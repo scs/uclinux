@@ -252,7 +252,7 @@ files, you can do the following in the busybox directory:
 If you want to convert all the non-K&R vars in your file all at once, follow
 these steps:
 
- - In the busybox directory type 'scripts/mk2knr.pl files-to-convert'. This
+ - In the busybox directory type 'examples/mk2knr.pl files-to-convert'. This
    does not do the actual conversion, rather, it generates a script called
    'convertme.pl' that shows what will be converted, giving you a chance to
    review the changes beforehand.
@@ -266,10 +266,10 @@ these steps:
    conversion.
 
  - Compile and see if everything still works.
- 
+
 Please be aware of changes that have cascading effects into other files. For
 example, if you're changing the name of something in, say utility.c, you
-should probably run 'scripts/mk2knr.pl utility.c' at first, but when you run
+should probably run 'examples/mk2knr.pl utility.c' at first, but when you run
 the 'convertme.pl' script you should run it on _all_ files like so:
 './convertme.pl *.[ch]'.
 
@@ -293,13 +293,13 @@ Use 'const <type> var' for declaring constants.
 		#define var 80
 
 	Do this instead, when the variable is in a header file and will be used in
-	several source files: 
+	several source files:
 
-		const int var = 80; 
+		const int var = 80;
 
 	Or do this when the variable is used only in a single source file:
 
-		static const int var = 80; 
+		static const int var = 80;
 
 Declaring variables as '[static] const' gives variables an actual type and
 makes the compiler do type checking for you; the preprocessor does _no_ type
@@ -336,14 +336,14 @@ The Folly of #ifdef
 Code cluttered with ifdefs is difficult to read and maintain. Don't do it.
 Instead, put your ifdefs at the top of your .c file (or in a header), and
 conditionally define 'static inline' functions, (or *maybe* macros), which are
-used in the code.  
+used in the code.
 
 	Don't do this:
 
 		ret = my_func(bar, baz);
 		if (!ret)
 			return -1;
-		#ifdef BB_FEATURE_FUNKY
+		#ifdef CONFIG_FEATURE_FUNKY
 			maybe_do_funky_stuff(bar, baz);
 		#endif
 
@@ -351,7 +351,7 @@ used in the code.
 
 	(in .h header file)
 
-		#ifdef BB_FEATURE_FUNKY
+		#ifdef CONFIG_FEATURE_FUNKY
 		static inline void maybe_do_funky_stuff (int bar, int baz)
 		{
 			/* lotsa code in here */
@@ -487,7 +487,7 @@ very limited stack space (e.g., uCLinux).
 A macro is declared in busybox.h that implements compile-time selection
 between xmalloc() and stack creation, so you can code the line in question as
 
-		RESERVE_BB_BUFFER(buffer, BUFSIZ);
+		RESERVE_CONFIG_BUFFER(buffer, BUFSIZ);
 
 and the right thing will happen, based on your configuration.
 
@@ -650,7 +650,7 @@ line in the midst of your #includes:
 And a code block similar to the following near the top of your applet_main()
 routine:
 
-    while ((opt = getopt(argc, argv, "abc")) > 0) { 
+    while ((opt = getopt(argc, argv, "abc")) > 0) {
             switch (opt) {
             case 'a':
                 do_a_opt = 1;

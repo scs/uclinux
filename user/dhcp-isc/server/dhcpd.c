@@ -106,7 +106,7 @@ int main (argc, argv, envp)
 	openlog (appname, LOG_NDELAY);
 	log_priority = DHCPD_LOG_FACILITY;
 #else
-	openlog (appname, LOG_NDELAY, DHCPD_LOG_FACILITY);
+	openlog (appname, LOG_NDELAY|LOG_PID, DHCPD_LOG_FACILITY);
 #endif
 
 #ifndef DEBUG

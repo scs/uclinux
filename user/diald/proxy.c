@@ -147,6 +147,9 @@ void proxy_up(void)
     set_ptp("sl",proxy_iface,orig_remote_ip,metric+1);
     add_routes("sl",proxy_iface,orig_local_ip,orig_remote_ip,drmetric+1);
 
+    /* Write the interface to the pid file */
+    create_pidfile(1);
+
     /* Run the firewall rules to update for the new interface */
     system("/bin/firewall");
 }

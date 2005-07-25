@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,10 +25,10 @@
 #include <stdlib.h>
 #include "libbb.h"
 
-extern void verror_msg(const char *s, va_list p)
+extern void bb_verror_msg(const char *s, va_list p)
 {
 	fflush(stdout);
-	fprintf(stderr, "%s: ", applet_name);
+	fprintf(stderr, "%s: ", bb_applet_name);
 	vfprintf(stderr, s, p);
 }
 

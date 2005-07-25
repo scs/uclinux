@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ extern int get_kernel_revision(void)
 	int i, r;
 
 	if (uname(&name) == -1) {
-		perror_msg("cannot get system information");
+		bb_perror_msg("cannot get system information");
 		return (0);
 	}
 

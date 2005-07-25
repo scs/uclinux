@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,25 +27,26 @@
 #include <mntent.h>
 #include "libbb.h"
 
-extern const char mtab_file[];	/* Defined in utility.c */
+#define MTAB_MAX_ENTRIES 40
 static const int MS_RDONLY = 1;	/* Mount read-only.  */
 
 void erase_mtab(const char *name)
 {
-	struct mntent entries[20];
+	struct mntent entries[MTAB_MAX_ENTRIES];
 	int count = 0;
-	FILE *mountTable = setmntent(mtab_file, "r");
+	FILE *mountTable = setmntent(bb_path_mtab_file, "r");
 	struct mntent *m;
 
 	/* Check if reading the mtab file failed */
 	if (mountTable == 0
 			/* Bummer.  fall back on trying the /proc filesystem */
 			&& (mountTable = setmntent("/proc/mounts", "r")) == 0) {
-		perror_msg("%s", mtab_file);
+		bb_perror_msg(bb_path_mtab_file);
 		return;
 	}
 
-	while ((m = getmntent(mountTable)) != 0) {
+	while (((m = getmntent(mountTable)) != 0) && (count < MTAB_MAX_ENTRIES))
+	{
 		entries[count].mnt_fsname = strdup(m->mnt_fsname);
 		entries[count].mnt_dir = strdup(m->mnt_dir);
 		entries[count].mnt_type = strdup(m->mnt_type);
@@ -55,7 +56,7 @@ void erase_mtab(const char *name)
 		count++;
 	}
 	endmntent(mountTable);
-	if ((mountTable = setmntent(mtab_file, "w"))) {
+	if ((mountTable = setmntent(bb_path_mtab_file, "w"))) {
 		int i;
 
 		for (i = 0; i < count; i++) {
@@ -69,17 +70,17 @@ void erase_mtab(const char *name)
 		}
 		endmntent(mountTable);
 	} else if (errno != EROFS)
-		perror_msg("%s", mtab_file);
+		bb_perror_msg(bb_path_mtab_file);
 }
 
 void write_mtab(char *blockDevice, char *directory,
 				char *filesystemType, long flags, char *string_flags)
 {
-	FILE *mountTable = setmntent(mtab_file, "a+");
+	FILE *mountTable = setmntent(bb_path_mtab_file, "a+");
 	struct mntent m;
 
 	if (mountTable == 0) {
-		perror_msg("%s", mtab_file);
+		bb_perror_msg(bb_path_mtab_file);
 		return;
 	}
 	if (mountTable) {

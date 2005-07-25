@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,12 +30,12 @@
 
 
 /*
- * Walk down all the directories under the specified 
+ * Walk down all the directories under the specified
  * location, and do something (something specified
  * by the fileAction and dirAction function pointers).
  *
- * Unfortunately, while nftw(3) could replace this and reduce 
- * code size a bit, nftw() wasn't supported before GNU libc 2.1, 
+ * Unfortunately, while nftw(3) could replace this and reduce
+ * code size a bit, nftw() wasn't supported before GNU libc 2.1,
  * and so isn't sufficiently portable to take over since glibc2.1
  * is so stinking huge.
  */
@@ -53,29 +53,28 @@ int recursive_action(const char *fileName,
 	struct stat statbuf;
 	struct dirent *next;
 
-	if (followLinks == TRUE)
+	if (followLinks)
 		status = stat(fileName, &statbuf);
 	else
 		status = lstat(fileName, &statbuf);
 
 	if (status < 0) {
 #ifdef DEBUG_RECURS_ACTION
-		fprintf(stderr,
-				"status=%d followLinks=%d TRUE=%d\n",
+		bb_error_msg("status=%d followLinks=%d TRUE=%d",
 				status, followLinks, TRUE);
 #endif
-		perror_msg("%s", fileName);
+		bb_perror_msg("%s", fileName);
 		return FALSE;
 	}
 
-	if ((followLinks == FALSE) && (S_ISLNK(statbuf.st_mode))) {
+	if (! followLinks && (S_ISLNK(statbuf.st_mode))) {
 		if (fileAction == NULL)
 			return TRUE;
 		else
 			return fileAction(fileName, &statbuf, userData);
 	}
 
-	if (recurse == FALSE) {
+	if (! recurse) {
 		if (S_ISDIR(statbuf.st_mode)) {
 			if (dirAction != NULL)
 				return (dirAction(fileName, &statbuf, userData));
@@ -87,47 +86,40 @@ int recursive_action(const char *fileName,
 	if (S_ISDIR(statbuf.st_mode)) {
 		DIR *dir;
 
-		if (dirAction != NULL && depthFirst == FALSE) {
+		if (dirAction != NULL && ! depthFirst) {
 			status = dirAction(fileName, &statbuf, userData);
-			if (status == FALSE) {
-				perror_msg("%s", fileName);
+			if (! status) {
+				bb_perror_msg("%s", fileName);
 				return FALSE;
 			} else if (status == SKIP)
 				return TRUE;
 		}
 		dir = opendir(fileName);
 		if (!dir) {
-			perror_msg("%s", fileName);
+			bb_perror_msg("%s", fileName);
 			return FALSE;
 		}
 		status = TRUE;
 		while ((next = readdir(dir)) != NULL) {
 			char *nextFile;
 
-			nextFile = (char *) malloc(PATH_MAX);
-			if (!nextFile)
-				return(FALSE);
-
-			if ((strcmp(next->d_name, "..") == 0)
-					|| (strcmp(next->d_name, ".") == 0)) {
-				free(nextFile);
+			nextFile = concat_subpath_file(fileName, next->d_name);
+			if(nextFile == NULL)
 				continue;
-			}
-			nextFile = concat_path_file(fileName, next->d_name);
-			if (recursive_action(nextFile, TRUE, followLinks, depthFirst,
-						fileAction, dirAction, userData) == FALSE) {
+			if (! recursive_action(nextFile, TRUE, followLinks, depthFirst,
+						fileAction, dirAction, userData)) {
 				status = FALSE;
 			}
 			free(nextFile);
 		}
 		closedir(dir);
-		if (dirAction != NULL && depthFirst == TRUE) {
-			if (dirAction(fileName, &statbuf, userData) == FALSE) {
-				perror_msg("%s", fileName);
+		if (dirAction != NULL && depthFirst) {
+			if (! dirAction(fileName, &statbuf, userData)) {
+				bb_perror_msg("%s", fileName);
 				return FALSE;
 			}
 		}
-		if (status == FALSE)
+		if (! status)
 			return FALSE;
 	} else {
 		if (fileAction == NULL)

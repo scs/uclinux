@@ -105,7 +105,7 @@ int main (argc, argv, envp)
 	openlog (s, LOG_NDELAY);
 	log_priority = DHCPD_LOG_FACILITY;
 #else
-	openlog (s, LOG_NDELAY, DHCPD_LOG_FACILITY);
+	openlog (s, LOG_NDELAY|LOG_PID, DHCPD_LOG_FACILITY);
 #endif
 
 #if !(defined (DEBUG) || defined (SYSLOG_4_2))
@@ -210,8 +210,10 @@ int main (argc, argv, envp)
 	/* Get the current time... */
 	GET_TIME (&cur_time);
 
+#ifdef USE_FALLBACK
 	/* Set the flag to indicate that we're using dhcrelay */
-	use_relay = 1;
+	fallback_receive = 1;
+#endif
 
 	/* Discover all the network interfaces. */
 	discover_interfaces (DISCOVER_RELAY);
@@ -343,8 +345,7 @@ void relay (ip, packet, length, from_port, from, hfrom)
 	/* Otherwise, it's a BOOTREQUEST, so forward it to all the
 	   servers. */
 	for (sp = servers; sp; sp = sp -> next) {
-		if (!send_packet ((fallback_interface
-				   ? fallback_interface : interfaces),
+		if (!send_fallback (ip,
 				  (struct packet *)0,
 				  packet, length, ip -> primary_address,
 				  &sp -> to, (struct hardware *)0) < 0) {

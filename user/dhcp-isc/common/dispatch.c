@@ -53,7 +53,9 @@ static char copyright[] =
 struct interface_info *interfaces, *dummy_interfaces, *fallback_interface;
 struct protocol *protocols;
 struct timeout *timeouts;
-int use_relay;
+#ifdef USE_FALLBACK
+int fallback_receive;
+#endif
 static struct timeout *free_timeouts;
 static int interfaces_invalidated;
 void (*bootp_packet_handler) PROTO ((struct interface_info *,
@@ -72,10 +74,8 @@ void discover_interfaces (state)
 {
 	struct interface_info *tmp;
 	struct interface_info *last, *next;
-	/*MN - to big
-	char buf [8192];
-	*/
-	char buf [4096];
+	char *buf = NULL;
+	int buf_len;
 	struct ifconf ic;
 	struct ifreq ifr;
 	int i;
@@ -93,10 +93,17 @@ void discover_interfaces (state)
 	if ((sock = socket (AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
 		error ("Can't create addrlist socket");
 
-	/* Get the interface configuration information... */
-	ic.ifc_len = sizeof buf;
-	ic.ifc_ifcu.ifcu_buf = (caddr_t)buf;
-	i = ioctl(sock, SIOCGIFCONF, &ic);
+	buf_len = 512;
+	for (;;) {
+		buf = realloc(buf, buf_len);
+		/* Get the interface configuration information... */
+		ic.ifc_len = buf_len;
+		ic.ifc_ifcu.ifcu_buf = (caddr_t)buf;
+		i = ioctl(sock, SIOCGIFCONF, &ic);
+		if (i < 0 || ic.ifc_len < buf_len)
+			break;
+		buf_len += 512;
+	}
 
 	if (i < 0)
 		error ("ioctl: SIOCGIFCONF: %m");
@@ -257,6 +264,9 @@ void discover_interfaces (state)
 			}
 		}
 	}
+
+	if (buf)
+		free(buf);
 
 #if defined (LINUX_SLASHPROC_DISCOVERY)
 	/* On Linux, interfaces that don't have IP addresses don't show up
@@ -486,18 +496,27 @@ void discover_interfaces (state)
 		/* Register the interface... */
 		if_register_receive (tmp);
 		if_register_send (tmp);
+#ifdef USE_FALLBACK
+		if (fallback_receive)
+			if_register_fallback_receive (tmp);
+#endif
 	}
 
 	/* Now register all the remaining interfaces as protocols. */
-	for (tmp = interfaces; tmp; tmp = tmp -> next)
+	for (tmp = interfaces; tmp; tmp = tmp -> next) {
 		add_protocol (tmp -> name, tmp -> rfdesc, got_one, tmp);
+#ifdef USE_FALLBACK
+		if (fallback_receive)
+			add_protocol (tmp -> name, tmp -> fbdesc, got_one, tmp);
+#endif
+	}
 
 	close (sock);
 
-	 if (use_relay)
-		 maybe_setup_fallback_relay ();
-	 else
-		 maybe_setup_fallback ();
+#ifdef USE_FALLBACK
+	if (!fallback_receive)
+#endif
+		maybe_setup_fallback ();
 }
 
 struct interface_info *setup_fallback ()
@@ -526,10 +545,16 @@ void reinitialize_interfaces ()
 	for (ip = interfaces; ip; ip = ip -> next) {
 		if_reinitialize_receive (ip);
 		if_reinitialize_send (ip);
+#ifdef USE_FALLBACK
+		if (fallback_receive)
+			if_reinitialize_fallback_receive (ip);
+#endif
 	}
 
+#ifdef USE_FALLBACK
 	if (fallback_interface)
-		if_reinitialize_send (fallback_interface);
+		if_reinitialize_fallback (fallback_interface);
+#endif
 
 	interfaces_invalidated = 1;
 }
@@ -710,12 +735,15 @@ void got_one (l)
 	} u;
 	struct interface_info *ip = l -> local;
 
-	if (use_relay && !strcmp (ip -> name, "fallback")) {
+#ifdef USE_FALLBACK
+	if (l -> fd == ip -> fbdesc) {
 	     if ((result = receive_fallback (ip, u.packbuf, sizeof u, &from, &hfrom)) < 0) {
-		warn ("receive_packet failed on %s: %m", ip -> name);
+		warn ("receive_fallback failed on %s: %m", ip -> name);
 		return;
 	     }
-	} else if ((result = receive_packet (ip, u.packbuf, sizeof u, &from, &hfrom)) < 0) {
+	} else
+#endif
+	if ((result = receive_packet (ip, u.packbuf, sizeof u, &from, &hfrom)) < 0) {
 		warn ("receive_packet failed on %s: %m", ip -> name);
 		return;
 	}

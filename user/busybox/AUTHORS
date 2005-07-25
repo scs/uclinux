@@ -8,25 +8,39 @@ incorect, _please_ let me know.
 
 -----------
 
-Erik Andersen <andersen@codepoet.org>, <andersee@debian.org>
+Emanuele Aina <emanuele.aina@tiscali.it>
+    run-parts
+
+Erik Andersen <andersen@codepoet.org>
     Tons of new stuff, major rewrite of most of the
     core apps, tons of new apps as noted in header files.
+    Lots of tedious effort writing these boring docs that
+    nobody is going to actually read.
+
+Laurence Anderson <l.d.anderson@warwick.ac.uk>
+    rpm2cpio, unzip, get_header_cpio, read_gz interface, rpm
+
+Jeff Angielski <jeff@theptrgroup.com>
+    ftpput, ftpget
 
 Edward Betts <edward@debian.org>
-    expr, hostid, logname, tty, wc, whoami, yes
- 
+    expr, hostid, logname, whoami
+
 John Beppu <beppu@codepoet.org>
-    du, head, nslookup, sort, tee, uniq
+    du, nslookup, sort
 
 Brian Candler <B.Candler@pobox.com>
     tiny-ls(ls)
 
 Randolph Chung <tausq@debian.org>
-    fbset, ping, hostname, and mkfifo
+    fbset, ping, hostname
 
-Dave Cinege <dcinege@psychosis.com>	
-    more(v2), makedevs, dutmp, modularization, auto links file, 
+Dave Cinege <dcinege@psychosis.com>
+    more(v2), makedevs, dutmp, modularization, auto links file,
     various fixes, Linux Router Project maintenance
+
+Jordan Crouse <jordan@cosmicpenguin.net>
+    ipcalc
 
 Magnus Damm <damm@opensource.se>
     tftp client
@@ -35,9 +49,16 @@ Magnus Damm <damm@opensource.se>
 Larry Doolittle <ldoolitt@recycle.lbl.gov>
     pristine source directory compilation, lots of patches and fixes.
 
-Gennady Feldman <gfeldman@cachier.com>
+Glenn Engel <glenne@engel.org>
+    httpd
+
+Gennady Feldman <gfeldman@gena01.com>
     Sysklogd (single threaded syslogd, IPC Circular buffer support,
     logread), various fixes.
+
+Robert Griebl <sandman@handhelds.org>
+    modprobe, hwclock, suid/sgid handling, tinylogin integration
+    many bugfixes and enhancements
 
 Karl M. Hegbloom <karlheg@debian.org>
     cp_mv.c, the test suite, various fixes to utility.c, &c.
@@ -45,27 +66,45 @@ Karl M. Hegbloom <karlheg@debian.org>
 Daniel Jacobowitz <dan@debian.org>
     mktemp.c
 
-Matt Kraai <kraai@alumni.carnegiemellon.edu>
+Matt Kraai <kraai@alumni.cmu.edu>
     documentation, bugfixes, test suite
 
-John Lombardo <john@deltanet.com>	
-    dirname, tr
+Stephan Linz <linz@li-pro.net>
+    ipcalc, Red Hat equivalence
 
-Glenn McGrath <bug1@optushome.com.au>
-    ar, dpkg, dpkg-deb
+John Lombardo <john@deltanet.com>
+    tr
+
+Glenn McGrath <bug1@iinet.net.au>
+    Common unarchving code and unarchiving applets, ifupdown, ftpgetput,
+    nameif, sed, patch, fold, install, uudecode. 
+    Various bugfixes, review and apply numerous patches. 
+
+Manuel Novoa III <mjn3@codepoet.org>
+    cat, head, mkfifo, mknod, rmdir, sleep, tee, tty, uniq, usleep, wc, yes,
+    mesg, vconfig, make_directory, parse_mode, dirname, mode_string,
+    get_last_path_component, simplify_path, and a number trivial libbb routines
+
+    also bug fixes, partial rewrites, and size optimizations in
+    ash, basename, cal, cmp, cp, df, du, echo, env, ln, logname, md5sum, mkdir,
+    mv, realpath, rm, sort, tail, touch, uname, watch, arith, human_readable,
+    interface, dutmp, ifconfig, route
 
 Vladimir Oleynik <dzo@simtreas.ru>
-    cmdedit; ports: ash, stty, traceroute; locale, various fixes
+    cmdedit; xargs(current), httpd(current);
+    ports: ash, crond, fdisk, inetd, stty, traceroute, top;
+    locale, various fixes
     and irreconcilable critic of everything not perfect.
 
 Bruce Perens <bruce@pixar.com>
-    Original author of BusyBox. His code is still in many apps.
+    Original author of BusyBox in 1995, 1996. Some of his code can
+    still be found hiding here and there...
 
 Tim Riker <Tim@Rikers.org>
     bug fixes, member of fan club
 
 Kent Robotti <robotti@metconnect.com>
-    reset, tons and tons of bug reports and patchs.
+    reset, tons and tons of bug reports and patches.
 
 Chip Rosenthal <chip@unicom.com>, <crosenth@covad.com>
     wget - Contributed by permission of Covad Communications
@@ -80,7 +119,8 @@ Linus Torvalds <torvalds@transmeta.com>
     mkswap, fsck.minix, mkfs.minix
 
 Mark Whitley <markw@codepoet.org>
-    grep, sed, cut, xargs, style-guide, new-applet-HOWTO, bug fixes, etc.
+    grep, sed, cut, xargs(previous),
+    style-guide, new-applet-HOWTO, bug fixes, etc.
 
 Charles P. Wright <cpwright@villagenet.com>
     gzip, mini-netcat(nc)
@@ -88,6 +128,6 @@ Charles P. Wright <cpwright@villagenet.com>
 Enrique Zanardi <ezanardi@ull.es>
     tarcat (since removed), loadkmap, various fixes, Debian maintenance
 
-Emanuele Aina <emanuele.aina@tiscali.it>
-	run-parts
+Tito Ragusa <farmatito@tiscali.it>
+    devfsd and size optimizations in strings, openvt, chvt, deallocvt, hdparm and fdformat.
 

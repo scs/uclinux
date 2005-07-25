@@ -20,7 +20,7 @@ for i in $h ; do
 	if [ \! -f $prefix$app ]
 	then
 		echo "  $prefix$app -> $bb_path"
-		if [ "$CONFIG_JFFS_FS" = "" ]; then
+		if [ "$CONFIG_JFFS_FS" = "" ] && [ "$CONFIG_JFFS2_FS" = "" ]; then
 			ln $bb_path $prefix$app || exit 1
 		else
 			ln -s busybox $prefix$app || exit 1

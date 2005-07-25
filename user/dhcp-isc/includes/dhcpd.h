@@ -381,6 +381,9 @@ struct interface_info {
 	int rfdesc;			/* Its read file descriptor. */
 	int wfdesc;			/* Its write file descriptor, if
 					   different. */
+#ifdef USE_FALLBACK
+	int fbdesc;			/* Its fallback file descriptor. */
+#endif
 	unsigned char *rbuf;		/* Read buffer, if required. */
 	size_t rbuf_max;		/* Size of read buffer. */
 	size_t rbuf_offset;		/* Current offset into buffer. */
@@ -690,11 +693,19 @@ int if_register_socket PROTO ((struct interface_info *));
 #if defined (USE_SOCKET_FALLBACK) && !defined (USE_SOCKET_SEND)
 void if_reinitialize_fallback PROTO ((struct interface_info *));
 void if_register_fallback PROTO ((struct interface_info *));
-void if_register_fallback_receive PROTO ((struct interface_info *));
 ssize_t send_fallback PROTO ((struct interface_info *,
 			      struct packet *, struct dhcp_packet *, size_t, 
 			      struct in_addr,
 			      struct sockaddr_in *, struct hardware *));
+#else
+#define send_fallback send_packet
+#endif
+#if defined (USE_SOCKET_FALLBACK) && !defined (USE_SOCKET_RECEIVE)
+void if_reinitialize_fallback_receive PROTO ((struct interface_info *));
+void if_register_fallback_receive PROTO ((struct interface_info *));
+ssize_t receive_fallback PROTO ((struct interface_info *,
+				 unsigned char *, size_t,
+				 struct sockaddr_in *, struct hardware *));
 #endif
 
 #ifdef USE_SOCKET_SEND
@@ -714,15 +725,11 @@ void if_register_receive PROTO ((struct interface_info *));
 ssize_t receive_packet PROTO ((struct interface_info *,
 			       unsigned char *, size_t,
 			       struct sockaddr_in *, struct hardware *));
-ssize_t receive_fallback PROTO ((struct interface_info *,
-			     unsigned char *, size_t,
-			     struct sockaddr_in *, struct hardware *));
 #endif
 #if defined (USE_SOCKET_SEND)
 int can_unicast_without_arp PROTO ((void));
 int can_receive_unicast_unconfigured PROTO ((struct interface_info *));
 void maybe_setup_fallback PROTO ((void));
-void maybe_setup_fallback_relay PROTO ((void));
 #endif
 
 /* bpf.c */
@@ -845,9 +852,13 @@ extern void (*bootp_packet_handler) PROTO ((struct interface_info *,
 					    unsigned int,
 					    struct iaddr *, struct hardware *));
 extern struct timeout *timeouts;
-extern int use_relay;
+#ifdef USE_FALLBACK
+extern int fallback_receive;
+#endif
 void discover_interfaces PROTO ((int));
+#ifdef USE_FALLBACK
 struct interface_info *setup_fallback PROTO ((void));
+#endif
 void reinitialize_interfaces PROTO ((void));
 void dispatch PROTO ((void));
 int locate_network PROTO ((struct packet *));
@@ -867,7 +878,7 @@ void delete_hash_entry PROTO ((struct hash_table *, unsigned char *, int));
 unsigned char *hash_lookup PROTO ((struct hash_table *, unsigned char *, int));
 
 /* tables.c */
-extern struct option dhcp_options [90];
+extern struct option dhcp_options [256];
 extern unsigned char dhcp_option_default_priority_list [];
 extern int sizeof_dhcp_option_default_priority_list;
 extern char *hardware_types [256];
@@ -1050,11 +1061,6 @@ void icmp_echoreply PROTO ((struct protocol *));
 void dns_startup PROTO ((void));
 int ns_inaddr_lookup PROTO ((u_int16_t, struct iaddr *));
 void dns_packet PROTO ((struct protocol *));
-
-/* resolv.c */
-extern char path_resolv_conf [];
-struct name_server *name_servers;
-struct domain_search_list *domains;
 
 void read_resolv_conf PROTO ((TIME));
 struct sockaddr_in *pick_name_server PROTO ((void));

@@ -123,7 +123,7 @@ int main (argc, argv, envp)
 	openlog (s, LOG_NDELAY);
 	log_priority = DHCPD_LOG_FACILITY;
 #else
-	openlog (s, LOG_NDELAY, DHCPD_LOG_FACILITY);
+	openlog (s, LOG_NDELAY|LOG_PID, DHCPD_LOG_FACILITY);
 #endif
 
 #if !(defined (DEBUG) || defined (SYSLOG_4_2) || defined (__CYGWIN32__))

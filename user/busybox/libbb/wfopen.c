@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,11 +23,11 @@
 #include <errno.h>
 #include "libbb.h"
 
-FILE *wfopen(const char *path, const char *mode)
+FILE *bb_wfopen(const char *path, const char *mode)
 {
 	FILE *fp;
 	if ((fp = fopen(path, mode)) == NULL) {
-		perror_msg("%s", path);
+		bb_perror_msg("%s", path);
 		errno = 0;
 	}
 	return fp;

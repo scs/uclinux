@@ -15,11 +15,8 @@
  * modification history
  * --------------------
  * $Log$
- * Revision 1.1  2004/07/19 12:58:28  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:27:05  nidhi
- * Importing
+ * Revision 1.2  2005/07/25 01:48:57  magicyang
+ * New user folder check in
  *
  * Revision 1.1  2003/07/18 00:11:46  gerg
  * I followed as much rules as possible (I hope) and generated a patch for the

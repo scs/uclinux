@@ -3,7 +3,7 @@
 use strict;
 use Getopt::Long;
 
-# collect lines continued with a '\' into an array 
+# collect lines continued with a '\' into an array
 sub continuation {
 	my $fh = shift;
 	my @line;
@@ -26,7 +26,7 @@ sub beautify {
 	$text =~ s/"\s*"//sg;
 	my @line = split("\n", $text);
 	$text = join('',
-		map { 
+		map {
 			s/^\s*"//;
 			s/"\s*$//;
 			s/%/%%/g;
@@ -42,10 +42,17 @@ sub pod_for_usage {
 	my $name  = shift;
 	my $usage = shift;
 
+	# Sigh.  Fixup the known odd-name applets.
+	$name =~ s/dpkg_deb/dpkg-deb/g;
+	$name =~ s/fsck_minix/fsck.minix/g;
+	$name =~ s/mkfs_minix/mkfs.minix/g;
+	$name =~ s/run_parts/run-parts/g;
+	$name =~ s/start_stop_daemon/start-stop-daemon/g;
+
 	# make options bold
 	my $trivial = $usage->{trivial};
 	$trivial =~ s/(?<!\w)(-\w+)/B<$1>/sxg;
-	my @f0 = 
+	my @f0 =
 		map { $_ !~ /^\s/ && s/(?<!\w)(-\w+)/B<$1>/g; $_ }
 		split("\n", $usage->{full});
 
@@ -69,39 +76,25 @@ sub pod_for_usage {
 
 	# prepare examples if they exist
 	my $example = (defined $usage->{example})
-		?  
+		?
 			"Example:\n\n" .
-			join ("\n", 
-			map  { "\t$_" } 
+			join ("\n",
+			map  { "\t$_" }
 			split("\n", $usage->{example})) . "\n\n"
 		: "";
 
 	return
 		"=item B<$name>".
-		"\n\n"  .
-		"$name $trivial".
-		"\n\n"  .
-		$full   .
-		"\n\n"  .
-		$notes  .
-		$example.
+		"\n\n$name $trivial\n\n".
+		"$full\n\n"   .
+		"$notes"  .
+		"$example" .
 		"-------------------------------".
 		"\n\n"
 	;
 }
 
-# FIXME | generate SGML for an applet
-sub sgml_for_usage {
-	my $name  = shift;
-	my $usage = shift;
-	return
-		"<fixme>\n".
-		"  $name\n".
-		"</fixme>\n"
-	;
-}
-
-# the keys are applet names, and 
+# the keys are applet names, and
 # the values will contain hashrefs of the form:
 #
 # {
@@ -120,7 +113,6 @@ my %opt;
 GetOptions(
 	\%opt,
 	"help|h",
-	"sgml|s",
 	"pod|p",
 	"verbose|v",
 );
@@ -129,7 +121,6 @@ if (defined $opt{help}) {
 	print
 		"$0 [OPTION]... [FILE]...\n",
 		"\t--help\n",
-		"\t--sgml\n",
 		"\t--pod\n",
 		"\t--verbose\n",
 	;
@@ -159,10 +150,6 @@ foreach (@ARGV) {
 # generate structured documentation
 
 my $generator = \&pod_for_usage;
-if (defined $opt{sgml}) {
-	$generator = \&sgml_for_usage;
-}
-
 foreach my $applet (sort keys %docs) {
 	print $generator->($applet, $docs{$applet});
 }
@@ -187,14 +174,18 @@ Example:
 
 =head1 DESCRIPTION
 
-The purpose of this script is to automagically generate documentation
-for busybox using its usage.h as the original source for content.
-Currently, the same content has to be duplicated in 3 places in
-slightly different formats -- F<usage.h>, F<docs/busybox.pod>, and
-F<docs/busybox.sgml>.  This is tedious, so Perl has come to the rescue.
+The purpose of this script is to automagically generate
+documentation for busybox using its usage.h as the original source
+for content.  It used to be that same content has to be duplicated
+in 3 places in slightly different formats -- F<usage.h>,
+F<docs/busybox.pod>.  This was tedious and error-prone, so it was
+decided that F<usage.h> would contain all the text in a
+machine-readable form, and scripts could be used to transform this
+text into other forms if necessary.
 
-This script was based on a script by Erik Andersen <andersee@debian.org>
-which was in turn based on a script by Mark Whitley <markw@codepoet.org>
+F<autodocifier.pl> is one such script.  It is based on a script by
+Erik Andersen <andersen@codepoet.org> which was in turn based on a
+script by Mark Whitley <markw@codepoet.org>
 
 =head1 OPTIONS
 
@@ -207,10 +198,6 @@ This displays the help message.
 =item B<--pod>
 
 Generate POD (this is the default)
-
-=item B<--sgml>
-
-Generate SGML
 
 =item B<--verbose>
 
@@ -251,20 +238,20 @@ a command.  I<REQUIRED>
 =item B<full>
 
 This should contain descriptions of each option.  This will also
-be displayed along with the trivial help if BB_FEATURE_TRIVIAL_HELP
+be displayed along with the trivial help if CONFIG_FEATURE_TRIVIAL_HELP
 is disabled.  I<REQUIRED>
 
 =item B<notes>
 
 This is documentation that is intended to go in the POD or SGML, but
 not be printed when a B<-h> is given to a command.  To see an example
-of notes being used, see init_notes_usage.  I<OPTIONAL>
+of notes being used, see init_notes_usage in F<usage.h>.  I<OPTIONAL>
 
 =item B<example>
 
-This should be an example of how the command is acutally used.
+This should be an example of how the command is actually used.
 This will not be printed when a B<-h> is given to a command -- it
-is inteded only for the POD or SGML documentation.  I<OPTIONAL>
+will only be included in the POD or SGML documentation.  I<OPTIONAL>
 
 =back
 
@@ -280,7 +267,7 @@ terms as Perl itself.
 
 =head1 AUTHOR
 
-John BEPPU <beppu@codepoet.org>
+John BEPPU <b@ax9.org>
 
 =cut
 

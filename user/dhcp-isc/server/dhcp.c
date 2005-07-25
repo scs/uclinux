@@ -73,20 +73,9 @@ static void force_nameserver(struct tree_cache **opts) {
 #ifdef CONFIG_USER_DNSMASQ_DNSMASQ
 		struct stat st;
 		if (stat(_PATH_DNSMASQ_PID, &st) == 0) {
-			if (stat(_PATH_DHCPCD_ETH0_PID, &st) != 0) {
-				int netfd;
-				if ((netfd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
-					struct ifreq ifr;
-					bzero(&ifr, sizeof(struct ifreq));
-					strcpy(ifr.ifr_name,"eth0");
-					ifr.ifr_addr.sa_family = AF_INET;
-					if (ioctl(netfd, SIOCGIFADDR, &ifr) == 0) {
-						ns = (unsigned long *)malloc(sizeof(unsigned long));
-						ns[0] = (unsigned long) ((*(struct sockaddr_in *) (&ifr.ifr_addr)).sin_addr).s_addr;
-						k = 1;
-					}
-				}
-			}
+			ns = (unsigned long *)malloc(sizeof(unsigned long));
+			ns[0] = *(unsigned long *) opts[DHO_DHCP_SERVER_IDENTIFIER]->value;
+			k = 1;
 		}
 #endif
 		if (k == 0)	{
@@ -819,7 +808,8 @@ void ack_lease (packet, lease, offer, when)
 			
 			/* Don't let the client ask for a longer lease than
 			   is supported for this subnet or host. */
-			if (lease_time > max_lease_time)
+			if ((lease_time < (TIME)0) ||
+			    (lease_time > max_lease_time))
 				lease_time = max_lease_time;
 		} else
 			lease_time = default_lease_time;

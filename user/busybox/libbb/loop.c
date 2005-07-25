@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/posix_types.h>
+#include <asm/posix_types.h>
 #include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -26,18 +28,52 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include "libbb.h"
-#include "loop.h" /* Pull in loop device support */
+
+/* Grumble...  The 2.6.x kernel breaks asm/posix_types.h
+ * so we get to try and cope as best we can... */
+#include <linux/version.h>
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#define __bb_kernel_dev_t   __kernel_old_dev_t
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+#define __bb_kernel_dev_t   __kernel_dev_t
+#else
+#define __bb_kernel_dev_t   unsigned short
+#endif
+
+/* Stuff stolen from linux/loop.h */
+#define LO_NAME_SIZE        64
+#define LO_KEY_SIZE         32
+#define LOOP_SET_FD         0x4C00
+#define LOOP_CLR_FD         0x4C01
+#define LOOP_SET_STATUS     0x4C02
+#define LOOP_GET_STATUS     0x4C03
+struct loop_info {
+	int                lo_number;
+	__bb_kernel_dev_t  lo_device;
+	unsigned long      lo_inode;
+	__bb_kernel_dev_t  lo_rdevice;
+	int                lo_offset;
+	int                lo_encrypt_type;
+	int                lo_encrypt_key_size;
+	int                lo_flags;
+	char               lo_name[LO_NAME_SIZE];
+	unsigned char      lo_encrypt_key[LO_KEY_SIZE];
+	unsigned long      lo_init[2];
+	char               reserved[4];
+};
 
 extern int del_loop(const char *device)
 {
 	int fd;
 
 	if ((fd = open(device, O_RDONLY)) < 0) {
-		perror_msg("%s", device);
+		bb_perror_msg("%s", device);
 		return (FALSE);
 	}
 	if (ioctl(fd, LOOP_CLR_FD, 0) < 0) {
-		perror_msg("ioctl: LOOP_CLR_FD");
+		close(fd);
+		bb_perror_msg("ioctl: LOOP_CLR_FD");
 		return (FALSE);
 	}
 	close(fd);
@@ -53,12 +89,12 @@ extern int set_loop(const char *device, const char *file, int offset,
 	mode = *loopro ? O_RDONLY : O_RDWR;
 	if ((ffd = open(file, mode)) < 0 && !*loopro
 		&& (errno != EROFS || (ffd = open(file, mode = O_RDONLY)) < 0)) {
-		perror_msg("%s", file);
+		bb_perror_msg("%s", file);
 		return 1;
 	}
 	if ((fd = open(device, mode)) < 0) {
 		close(ffd);
-		perror_msg("%s", device);
+		bb_perror_msg("%s", device);
 		return 1;
 	}
 	*loopro = (mode == O_RDONLY);
@@ -70,14 +106,14 @@ extern int set_loop(const char *device, const char *file, int offset,
 
 	loopinfo.lo_encrypt_key_size = 0;
 	if (ioctl(fd, LOOP_SET_FD, ffd) < 0) {
-		perror_msg("ioctl: LOOP_SET_FD");
+		bb_perror_msg("ioctl: LOOP_SET_FD");
 		close(fd);
 		close(ffd);
 		return 1;
 	}
 	if (ioctl(fd, LOOP_SET_STATUS, &loopinfo) < 0) {
 		(void) ioctl(fd, LOOP_CLR_FD, 0);
-		perror_msg("ioctl: LOOP_SET_STATUS");
+		bb_perror_msg("ioctl: LOOP_SET_STATUS");
 		close(fd);
 		close(ffd);
 		return 1;

@@ -113,6 +113,7 @@ int main (int argc, char **argv)
   time_t resolv_changed = 0;
   off_t lease_file_size = (off_t)0;
   ino_t lease_file_inode = (ino_t)0;
+  time_t lease_file_mtime = (time_t)0;
   struct irec *iface, *interfaces = NULL;
   char *mxname = NULL;
   char *mxtarget = NULL;
@@ -424,7 +425,9 @@ int main (int argc, char **argv)
     {
       /* Size: we check after adding each record, so there must be 
 	 memory for the largest packet, and the largest record */
-      static char packet[PACKETSZ+MAXDNAME+RRFIXEDSZ];
+      /* declare packet as below to ensure alignment for header access */
+      static HEADER _packet[(PACKETSZ+MAXDNAME+RRFIXEDSZ)/sizeof(HEADER)+1];
+      unsigned char *packet = (char *) &_packet[0];
       int ready, maxfd = peerfd > peerfd6 ? peerfd : peerfd6;
       fd_set rset;
       HEADER *header;
@@ -491,10 +494,12 @@ int main (int argc, char **argv)
       if (lease_file && (stat(lease_file, &statbuf) == 0) &&
 	  ((lease_file_size == (off_t)0) ||
 	   (statbuf.st_size > lease_file_size) ||
-	   (statbuf.st_ino != lease_file_inode)))
+	   (statbuf.st_ino != lease_file_inode) ||
+	   (statbuf.st_mtime != lease_file_mtime)))
 	{
 	  lease_file_size = statbuf.st_size;
 	  lease_file_inode = statbuf.st_ino;
+	  lease_file_mtime = statbuf.st_mtime;
 	  load_dhcp(lease_file, domain_suffix);
 	}
 		
@@ -585,6 +590,7 @@ static int sa_len(union mysockaddr *addr)
 #endif /*HAVE_SOCKADDR_SA_LEN*/
 }
 
+#ifdef BIND_EACH_INTERFACE
 static struct irec *add_iface(struct irec *list, unsigned int flags, 
 			      char *name, union mysockaddr *addr, 
 			      struct iname *names, struct iname *addrs)
@@ -790,6 +796,25 @@ static struct irec *find_all_interfaces(struct iname *names,
     
   return ret;
 }
+#else
+/* Just bind to PF_INET, INADDR_ANY */
+static struct irec *find_all_interfaces(struct iname *names,
+					struct iname *addrs,
+					int fd, int port)
+{
+  struct irec *ret = safe_malloc(sizeof(*ret));
+
+  memset(ret, 0, sizeof(*ret));
+
+  ret->addr.in.sin_addr.s_addr = INADDR_ANY;
+  ret->addr.in.sin_port = htons(port);
+  ret->addr.in.sin_family = PF_INET;
+
+  printf("sin_port=%d, sin_family=%d\n", port, PF_INET);
+
+  return ret;
+}
+#endif
 
 static void sig_handler(int sig)
 {
@@ -805,13 +830,13 @@ static int reload_servers(char *fname, struct irec *interfaces,
   FILE *f;
   char *line, buff[MAXLIN];
   int i;
-  struct server *srv, *first_server;
+  struct server *first_server = NULL;
 
   f = fopen(fname, "r");
   if (!f)
     {
       syslog(LOG_ERR, "failed to read %s: %m", fname);
-      return;
+      return 0;
     }
   
   syslog(LOG_INFO, "reading %s", fname);
@@ -853,6 +878,8 @@ static int reload_servers(char *fname, struct irec *interfaces,
       
       if (inet_pton(AF_INET, token, &addr.in.sin_addr))
 	{
+	  if (addr.in.sin_addr.s_addr == htonl(INADDR_LOOPBACK))
+	    continue;
 	  if (peerfd == -1)
 	    {
 	      syslog(LOG_WARNING, 
@@ -868,6 +895,8 @@ static int reload_servers(char *fname, struct irec *interfaces,
 #ifndef NO_IPV6
       else if (inet_pton(AF_INET6, token, &addr.in6.sin6_addr))
 	{
+	  if (IN6_IS_ADDR_LOOPBACK(&addr.in6.sin6_addr))
+	    continue;
 	  if (peerfd6 == -1)
 	    {
 	      syslog(LOG_WARNING, 

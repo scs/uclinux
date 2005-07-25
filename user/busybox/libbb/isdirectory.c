@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Based in part on code from sash, Copyright (c) 1999 by David I. Bell 
+ * Based in part on code from sash, Copyright (c) 1999 by David I. Bell
  * Permission has been granted to redistribute this code under the GPL.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,26 +20,24 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/stat.h>
 #include "libbb.h"
 
 /*
  * Return TRUE if a fileName is a directory.
- * Nonexistant files return FALSE.
+ * Nonexistent files return FALSE.
  */
 int is_directory(const char *fileName, const int followLinks, struct stat *statBuf)
 {
 	int status;
-	int didMalloc = 0;
+	struct stat astatBuf;
 
 	if (statBuf == NULL) {
-	    statBuf = (struct stat *)xmalloc(sizeof(struct stat));
-	    ++didMalloc;
+	    /* set from auto stack buffer */
+	    statBuf = &astatBuf;
 	}
 
-	if (followLinks == TRUE)
+	if (followLinks)
 		status = stat(fileName, statBuf);
 	else
 		status = lstat(fileName, statBuf);
@@ -49,10 +47,6 @@ int is_directory(const char *fileName, const int followLinks, struct stat *statB
 	}
 	else status = TRUE;
 
-	if (didMalloc) {
-	    free(statBuf);
-	    statBuf = NULL;
-	}
 	return status;
 }
 

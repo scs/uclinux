@@ -4,7 +4,7 @@
  *
  * This program used the Dallas Semi DS1302 RTC drivers to get and set
  * the Linux Clock.
- * Useage: 	clock				No args = read RTC Chip
+ * Usage: 	clock				No args = read RTC Chip
  *				clock --sys    Update the Linux time to the RTC chip's time
  *				clock --set YY/MM/DD HH:MM  00-98 is 20xx, 24 Hr
  *				clock --other  Any other args displays useage
@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
 				  else
 					{
 					//printf("Illegal arguments.\n");
-					//printf("Useage: clock [--sys] | [--set YY/MM/DD HH:MM]\n");
+					//printf("Usage: clock [--sys] | [--set YY/MM/DD HH:MM]\n");
 					//printf("YY 00-98 = 20xx, Use 24Hr Format\n");
 					error_exit("Illegal arguments.\n");
 					//return(1);
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
 		if (argc != 4)
 			{
 //			printf("Incorrect number of arguments.\n");
-//			printf("Useage: clock [--sys] | [--set YY/MM/DD HH:MM]\n");
+//			printf("Usage: clock [--sys] | [--set YY/MM/DD HH:MM]\n");
 //			printf("YY 00-98 = 20xx, Use 24Hr Format\n");
 			error_exit("Incorrect number of arguments.\n");
 //         return(1);	//error
@@ -413,7 +413,7 @@ int main(int argc, char *argv[])
 void error_exit(char * errmsg)
 	{
 	printf("%s",errmsg);
-	printf("Useage: clock [--sys] | [--set YY/MM/DD HH:MM] [--stop]\n");
+	printf("Usage: clock [--sys] | [--set YY/MM/DD HH:MM] [--stop]\n");
 	printf("YY 00-98 = 20xx, Use 24Hr Format\n");
 	exit(1);
 	}

@@ -93,11 +93,7 @@ void ppp_start()
 	dup2(modem_fd, 1);
 
 	execv(PATH_PPPD,argv);
-#ifdef EMBED
-	syslog(LOG_ERR, "could not exec %s: errno=%s",PATH_PPPD, errno);
-#else
 	syslog(LOG_ERR, "could not exec %s: %m",PATH_PPPD);
-#endif
 	_exit(99);
 	/* NOTREACHED */
     }

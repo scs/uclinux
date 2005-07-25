@@ -48,7 +48,10 @@ static char copyright[] =
 #endif
 
 #include "dhcpd.h"
-#include <linux/autoconf.h>
+#include <config/autoconf.h>
+#if CONFIG_USER_FLATFSD_FLATFSD
+#include "nettel.h"
+#endif
 
 /*#define DEBUG*/
 
@@ -65,7 +68,6 @@ int write_lease (lease)
 {
 	struct tm *t;
 	char tbuf [64];
-	int errors = 0;
 	int i;
 
 #ifdef DEBUG

@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,30 +23,29 @@
 #include <unistd.h>
 #include "libbb.h"
 
-
 /*
  * Read all of the supplied buffer from a file.
  * This does multiple reads as necessary.
  * Returns the amount read, or -1 on an error.
  * A short read is returned on an end of file.
  */
-int full_read(int fd, char *buf, int len)
+ssize_t bb_full_read(int fd, void *buf, size_t len)
 {
-	int cc;
-	int total;
+	ssize_t cc;
+	ssize_t total;
 
 	total = 0;
 
 	while (len > 0) {
-		cc = read(fd, buf, len);
+		cc = safe_read(fd, buf, len);
 
 		if (cc < 0)
-			return -1;
+			return cc;	/* read() returns -1 on failure. */
 
 		if (cc == 0)
 			break;
 
-		buf += cc;
+		buf = ((char *)buf) + cc;
 		total += cc;
 		len -= cc;
 	}

@@ -628,6 +628,36 @@ void parse_class_declaration (cfile, group, type)
 	} while (1);
 }
 
+void parse_interface (cfile, share)
+	FILE *cfile;
+	struct shared_network *share;
+{
+	char *val;
+	struct interface_info *tmp;
+	int token;
+
+	token = next_token (&val, cfile);
+
+	/* See if we've seen an interface that matches this one. */
+	for (tmp = interfaces; tmp; tmp = tmp -> next)
+		if (!strcmp (tmp -> name, val))
+			break;
+
+	/* If there isn't already an interface by this name,
+	   allocate one. */
+	if (!tmp) {
+		tmp = ((struct interface_info *)
+		       dmalloc (sizeof *tmp, "parse_interface"));
+		if (!tmp)
+			error ("Insufficient memory to %s %s",
+			       "record interface", val);
+		strcpy (tmp -> name, val);
+		tmp -> next = interfaces;
+		tmp -> flags = INTERFACE_REQUESTED;
+		interfaces = tmp;
+	}
+}
+
 /* shared-network-declaration :==
 			hostname LBRACE declarations parameters RBRACE */
 
@@ -689,6 +719,11 @@ void parse_shared_net_declaration (cfile, group)
 			token = next_token (&val, cfile);
 			parse_warn ("unexpected end of file");
 			break;
+		} else if (token == INTERFACE) {
+			token = next_token (&val, cfile);
+			parse_interface (cfile, share);
+			parse_semi (cfile);
+			continue;
 		}
 
 		declaration = parse_statement (cfile, share -> group,
@@ -756,6 +791,11 @@ void parse_subnet_declaration (cfile, share)
 			token = next_token (&val, cfile);
 			parse_warn ("unexpected end of file");
 			break;
+		} else if (token == INTERFACE) {
+			token = next_token (&val, cfile);
+			parse_interface (cfile, share);
+			parse_semi (cfile);
+			continue;
 		}
 		declaration = parse_statement (cfile, subnet -> group,
 					       SUBNET_DECL,

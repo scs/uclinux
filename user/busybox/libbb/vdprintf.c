@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ extern int vdprintf(int d, const char *format, va_list ap)
 	char buf[BUF_SIZE];
 	int len;
 
-	len = vsnprintf(buf, sizeof(buf), format, ap);
+	len = vsprintf(buf, format, ap);
 	return write(d, buf, len);
 }
 #endif

@@ -67,7 +67,7 @@ static char copyright[] =
 */
 
 struct universe dhcp_universe;
-struct option dhcp_options [90] = {
+struct option dhcp_options [256] = {
 	{ "pad", "",					&dhcp_universe, 0 },
 	{ "subnet-mask", "I",				&dhcp_universe, 1 },
 	{ "time-offset", "l",				&dhcp_universe, 2 },
@@ -157,7 +157,7 @@ struct option dhcp_options [90] = {
 	{ "nds-tree-name", "X",				&dhcp_universe, 86 },
 	{ "nds-context", "X",				&dhcp_universe, 87 },
 	{ "option-88", "X",				&dhcp_universe, 88 },
-/*	{ "option-89", "X",				&dhcp_universe, 89 },
+	{ "option-89", "X",				&dhcp_universe, 89 },
 	{ "option-90", "X",				&dhcp_universe, 90 },
 	{ "option-91", "X",				&dhcp_universe, 91 },
 	{ "option-92", "X",				&dhcp_universe, 92 },
@@ -322,8 +322,8 @@ struct option dhcp_options [90] = {
 	{ "option-251", "X",				&dhcp_universe, 251 },
 	{ "option-252", "X",				&dhcp_universe, 252 },
 	{ "option-253", "X",				&dhcp_universe, 253 },
-	{ "option-254", "X",				&dhcp_universe, 254 },*/
-	{ "option-end", "e",				&dhcp_universe, 89 },
+	{ "option-254", "X",				&dhcp_universe, 254 },
+	{ "option-end", "e",				&dhcp_universe, 255 },
 };
 
 /* Default dhcp option priority list (this is ad hoc and should not be
@@ -681,7 +681,7 @@ void initialize_universes()
 	dhcp_universe.hash = new_hash ();
 	if (!dhcp_universe.hash)
 		error ("Can't allocate dhcp option hash table.");
-	for (i = 0; i < 90; i++) {
+	for (i = 0; i < 256; i++) {
 		dhcp_universe.options [i] = &dhcp_options [i];
 		add_hash (dhcp_universe.hash,
 			  (unsigned char *)dhcp_options [i].name, 0,

@@ -1,3 +1,0 @@
-sort ../README > logfile.gnu
-busybox sort ../README > logfile.bb
-cmp logfile.gnu logfile.bb

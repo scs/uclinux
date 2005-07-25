@@ -1,3 +1,0 @@
-head ../README > logfile.gnu
-busybox head ../README > logfile.bb
-cmp logfile.gnu logfile.bb

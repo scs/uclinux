@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <config/autoconf.h>
+#include "dhcpd.h"
 #include "nettel.h"
 
 #ifdef CONFIG_USER_FLATFSD_FLATFSD
@@ -57,7 +58,13 @@ static void rebootDevice(void)
 
 int commitChanges(void)
 {
-        return(killProcess(flatfsd_pidfile, SIGUSR1));
+	static TIME commit_time;
+
+	if (cur_time - commit_time > 3600) {
+		commit_time = cur_time;
+		return(killProcess(flatfsd_pidfile, SIGUSR1));
+	}
+	return 0;
 }
 
 void config_exhausted(void)

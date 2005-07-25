@@ -107,6 +107,8 @@ struct {
 /* Debugging options */
     {"debug","<debugmask>",1,&debug,set_int},
     {"-daemon","",0,&dodaemon,clear_flag},
+/* Variable handling */
+    {"set","<name> <value>",2,0,&parse_set},
 /* general options */
     {"accounting-log","<f>",1,&acctlog,set_str},
     {"pidfile","<f>",1,&pidlog,set_str},

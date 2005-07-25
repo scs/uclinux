@@ -2,7 +2,7 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,24 +19,31 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include <stdio.h>
-#include <string.h>
-#include "../pwd_grp/pwd.h"
-#include "../pwd_grp/grp.h"
+ /* Hacked by Tito Ragusa (c) 2004 <farmatito@tiscali.it> to make it more
+  * flexible :
+  *
+  * if bufsize is > 0 char *name can not be set to NULL.
+  *                   On success username is written on the static allocated buffer name 
+  *                   (and a pointer to it is returned).
+  *                   On failure uid as string is written to the static allocated buffer name
+  *                   and NULL is returned.
+  * if bufsize is = 0 char *name can be set to NULL.
+  *                   On success username is returned. 
+  *                   On failure NULL is returned.
+  * if bufsize is < 0 char *name can be set to NULL
+  *                   On success username is returned.
+  *                   On failure an error message is printed and the program exits.   
+  */
+  
 #include "libbb.h"
-
-
+#include "pwd_.h"
 
 /* gets a username given a uid */
-void my_getpwuid(char *name, long uid)
+char * my_getpwuid(char *name, long uid, int bufsize)
 {
-	struct passwd *myuser;
+	struct passwd *myuser = getpwuid(uid);
 
-	myuser  = getpwuid(uid);
-	if (myuser==NULL)
-		sprintf(name, "%-8ld ", (long)uid);
-	else
-		strcpy(name, myuser->pw_name);
+	return  my_getug(name, (myuser) ? myuser->pw_name : (char *)myuser , uid, bufsize, 'u');
 }
 
 /* END CODE */

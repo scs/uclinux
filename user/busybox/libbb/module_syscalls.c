@@ -2,8 +2,7 @@
 /*
  * some system calls possibly missing from libc
  *
- * Copyright (C) 1999,2000 by Lineo, inc. and Erik Andersen
- * Copyright (C) 1999,2000,2001 by Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,57 +23,87 @@
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
-/* Kernel headers before 2.1.mumble need this on the Alpha to get
-   _syscall* defined.  */
-#define __LIBRARY__
 #include <sys/syscall.h>
-#if __GNU_LIBRARY__ < 5
-/* This is needed for libc5 */
-#include <asm/unistd.h>
-#endif
 #include "libbb.h"
 
+/* uClibc always supplies (possibly ENOSYS) versions of these functions. */
+#if !defined(__UCLIBC__) || defined(__UC_LIBC__)
 
-#if __GNU_LIBRARY__ < 5 || ((__GLIBC__ <= 2) && (__GLIBC_MINOR__ < 1))
-/* These syscalls are not included as part of libc5 */
-_syscall1(int, delete_module, const char *, name);
-_syscall1(int, get_kernel_syms, __ptr_t, ks);
+/* These syscalls are not included in very old glibc versions */
+int delete_module(const char *name)
+{
+#ifndef __NR_delete_module
+#warning This kernel does not support the delete_module syscall
+#warning -> The delete_module system call is being stubbed out...
+    errno=ENOSYS;
+    return -1;
+#else
+    return(syscall(__NR_delete_module, name));
+#endif
+}
+
+int get_kernel_syms(__ptr_t ks)
+{
+#ifndef __NR_get_kernel_syms
+#warning This kernel does not support the get_kernel_syms syscall
+#warning -> The get_kernel_syms system call is being stubbed out...
+    errno=ENOSYS;
+    return -1;
+#else
+    return(syscall(__NR_get_kernel_syms, ks));
+#endif
+}
 
 /* This may have 5 arguments (for old 2.0 kernels) or 2 arguments
  * (for 2.2 and 2.4 kernels).  Use the greatest common denominator,
  * and let the kernel cope with whatever it gets.  Its good at that. */
-_syscall5(int, init_module, void *, first, void *, second, void *, third,
-		void *, fourth, void *, fifth);
+int init_module(void *first, void *second, void *third, void *fourth, void *fifth)
+{
+#ifndef __NR_init_module
+#warning This kernel does not support the init_module syscall
+#warning -> The init_module system call is being stubbed out...
+    errno=ENOSYS;
+    return -1;
+#else
+    return(syscall(__NR_init_module, first, second, third, fourth, fifth));
+#endif
+}
 
-#ifndef __NR_query_module
 int query_module(const char *name, int which, void *buf, size_t bufsize, size_t *ret)
 {
-	fprintf(stderr, "\n\nTo make this application work, you will need to recompile\n");
-	fprintf(stderr, "with a kernel supporting the query_module system call. -Erik\n\n");
-	errno=ENOSYS;
-	return -1;
-}
+#ifndef __NR_query_module
+#warning This kernel does not support the query_module syscall
+#warning -> The query_module system call is being stubbed out...
+    bb_error_msg("\n\nTo make this application work, you will need to recompile\n"
+	    "BusyBox with a kernel supporting the query_module system call.\n");
+    errno=ENOSYS;
+    return -1;
 #else
-_syscall5(int, query_module, const char *, name, int, which,
-		void *, buf, size_t, bufsize, size_t*, ret);
+    return(syscall(__NR_query_module, name, which, buf, bufsize, ret));
 #endif
+}
 
 /* Jump through hoops to fixup error return codes */
-#define __NR___create_module  __NR_create_module
-static inline _syscall2(long, __create_module, const char *, name, size_t, size)
 unsigned long create_module(const char *name, size_t size)
 {
-	long ret = __create_module(name, size);
+#ifndef __NR_create_module
+#warning This kernel does not support the create_module syscall
+#warning -> The create_module system call is being stubbed out...
+    errno=ENOSYS;
+    return -1;
+#else
+    long ret = syscall(__NR_create_module, name, size);
 
-	if (ret == -1 && errno > 125) {
-		ret = -errno;
-		errno = 0;
-	}
-	return ret;
+    if (ret == -1 && errno > 125) {
+	ret = -errno;
+	errno = 0;
+    }
+    return ret;
+#endif
 }
 
-#endif /* __GNU_LIBRARY__ < 5 */
 
+#endif /* __UCLIBC__ */
 
 /* END CODE */
 /*

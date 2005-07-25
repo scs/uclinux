@@ -28,6 +28,24 @@
 #include "diald.h"
 #include "version.h"
 
+int call_start_time;
+int fifo_fd;
+int fwdfd;
+int fwunit;
+int orig_disc;
+char packet[4096];
+int pppd_argc;
+char **pppd_argv;
+int proxy_mfd;
+FILE *proxy_mfp;
+int proxy_sfd;
+char *req_dev;
+int req_pid;
+int txtotal, rxtotal;
+char snoop_dev[10];
+int snoopfd;
+int use_req;
+
 /* intialized variables. */
 int modem_fd = -1;		/* modem device fp (for proxy reads) */
 MONITORS *monitors = 0;		/* Monitor pipes */
@@ -60,6 +78,7 @@ void do_config(void)
     init_vars();
     flush_prules();
     flush_vars();
+    flush_strvars();
     flush_filters();
     /* Get the default defs and config files first */
     parse_options_file(DIALD_DEFS_FILE);
@@ -158,6 +177,21 @@ int main(int argc, char *argv[])
     die(0);
 }
 
+/* Write the pid and optionally the proxy interface to the pid file */
+
+void create_pidfile(int iface)
+{
+    FILE *fp;
+    if ((fp = fopen(pidfile,"w")) != NULL) {
+        fprintf(fp,"%d\n",getpid());
+	if (iface)
+        	fprintf(fp,"sl%d\n",proxy_iface);
+        fclose(fp);
+    } else {
+	syslog(LOG_ERR,"Unable to create run file %s: %m",pidfile);
+    }
+}
+
 /*
  * Change into a daemon.
  * Get rid of the stdio streams, and disassociate from the original
@@ -166,10 +200,9 @@ int main(int argc, char *argv[])
 
 void become_daemon()
 {
-    pid_t pid;
-    FILE *fp;
-    if (dodaemon) {
 #ifndef EMBED
+    pid_t pid;
+    if (dodaemon) {
         close(0);
         close(1);
         close(2);
@@ -180,8 +213,8 @@ void become_daemon()
 	}
 	/* parent process is finished */
 	if (pid != 0) exit(0);
-#endif /* EMBED */
     }
+#endif /* EMBED */
     if (pidlog[0] == '/') {
 	pidfile = pidlog;
     }
@@ -189,12 +222,7 @@ void become_daemon()
 	pidfile = malloc(strlen(RUN_PREFIX) + strlen(pidlog) + 2);
 	sprintf(pidfile,"%s/%s",RUN_PREFIX,pidlog);
     }
-    if ((fp = fopen(pidfile,"w")) != NULL) {
-        fprintf(fp,"%d\n",getpid());
-        fclose(fp);
-    } else {
-	syslog(LOG_ERR,"Unable to create run file %s: %m",pidfile);
-    }
+    create_pidfile(0);
 }
 
 /* Open the command fifo, if any */
