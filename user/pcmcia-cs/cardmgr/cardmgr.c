@@ -202,14 +202,12 @@ int open_sock(int sock, int mode)
     
 ======================================================================*/
 
-#ifdef __linux__
-
-#include <linux/major.h>
-#include <scsi/scsi.h>
-#define VERSION(v,p,s) (((v)<<16)+(p<<8)+s)
-#if (LINUX_VERSION_CODE < VERSION(2,1,126))
-#define SCSI_DISK0_MAJOR SCSI_DISK_MAJOR
-#endif
+/* getting these from headers is too much grief */
+#define SCSI_DISK0_MAJOR    8
+#define SCSI_TAPE_MAJOR     9
+#define SCSI_CDROM_MAJOR    11
+#define SCSI_GENERIC_MAJOR  21
+#define SCSI_IOCTL_GET_IDLUN    0x5382
 
 static int xlate_scsi_name(bind_info_t *bind)
 {
@@ -250,7 +248,6 @@ static int xlate_scsi_name(bind_info_t *bind)
     }
     return -1;
 }
-#endif
 
 /*====================================================================*/
 

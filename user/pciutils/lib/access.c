@@ -116,7 +116,7 @@ pci_generic_debug(char *msg, ...)
 }
 
 static void
-pci_null_debug(char * UNUSED msg, ...)
+pci_null_debug(char * msg UNUSED, ...)
 {
 }
 

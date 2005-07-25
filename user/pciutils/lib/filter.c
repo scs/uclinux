@@ -14,7 +14,7 @@
 #include "internal.h"
 
 void
-pci_filter_init(struct pci_access * UNUSED a, struct pci_filter *f)
+pci_filter_init(struct pci_access *a UNUSED, struct pci_filter *f)
 {
   f->bus = f->slot = f->func = -1;
   f->vendor = f->device = -1;

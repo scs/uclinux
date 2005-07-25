@@ -105,6 +105,7 @@ static int INET_setroute(int action, int options, char **args)
     case 2:
        isnet = 0; break;
     default:
+       break;
     }
 
     /* Fill in the other fields. */

@@ -67,7 +67,7 @@ install: all
 romfs:
 	$(ROMFSINST) /bin/lspci
 	$(ROMFSINST) /bin/setpci
-	$(ROMFSINST) /usr/share/pci.ids
+	$(ROMFSINST) -d /usr/share/pci.ids
 
 uninstall: all
 	rm -f $(ROOT)/sbin/lspci $(ROOT)/sbin/setpci

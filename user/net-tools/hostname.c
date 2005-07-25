@@ -98,6 +98,7 @@ static void sethname(char *hname)
 	    fprintf(stderr, _("%s: name too long\n"), program_name);
 	    break;
 	default:
+	    break;
 	}
 	exit(1);
     };
@@ -117,6 +118,7 @@ static void setdname(char *dname)
 	    fprintf(stderr, _("%s: name too long\n"), program_name);
 	    break;
 	default:
+	    break;
 	}
 	exit(1);
     };
@@ -174,6 +176,7 @@ static void showhname(char *hname, int c)
 	printf("%s\n", hp->h_name);
 	break;
     default:
+	break;
     }
 }
 

@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
+#include <assert.h>
+#include <ctype.h>
 #include <getopt.h>
 #include <errno.h>
 #include <unistd.h>
@@ -30,6 +32,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/sysmacros.h>
+#include <sys/syscall.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/termios.h>
@@ -86,7 +89,7 @@
 #define DECOMPRESS_OPTIONS "z"
 #else
 #define DECOMPRESS_OPTIONS
-#endif /*CONFIG_USER_NETFLASH_VERSION*/
+#endif /*CONFIG_USER_NETFLASH_DECOMPRESS*/
 
 #ifdef CONFIG_USER_NETFLASH_SETSRC
 #define SETSRC_OPTIONS "I:"
@@ -96,7 +99,8 @@
 
 #define CMD_LINE_OPTIONS "bc:Cd:fFhiHjkKlno:pr:stuv?" DECOMPRESS_OPTIONS HMACMD5_OPTIONS SETSRC_OPTIONS
 
-#define DHCPCD_PID_FILE "/var/run/dhcpcd-eth0.pid"
+#define PID_DIR "/var/run"
+#define DHCPCD_PID_FILE "dhcpcd-"
 
 #define CHECKSUM_LENGTH	4
 
@@ -129,6 +133,12 @@ int dojffs2;			/* Write the jffs2 magic to unused segments */
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 int doinflate;			/* Decompress the image */
 #endif
+int docgi = 0;			/* Read options and data from stdin in mime multipart format */
+#ifdef CONFIG_USER_NETFLASH_WITH_CGI
+char cgi_data[64];      /* CGI section name for the image part */
+char cgi_options[64];   /* CGI section name for the command line options part */
+extern size_t cgi_load(const char *data_name, const char *options_name, char options[64]);
+#endif
 
 extern int tftpverbose;
 extern int ftpverbose;
@@ -150,25 +160,24 @@ char	*srcaddr = NULL;
 static void (* program_segment)(int rd, char *sgdata,
 		int sgpos, int sglength, int sgsize);
 
+static void exit_failed(int rc);
+
 /****************************************************************************/
 
-void error(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)));
-void error(const char *msg, ...) {
-	va_list ap;
-
-	printf("netflash: ");
-	va_start(ap, msg);
-	vprintf(msg, ap);
-	va_end(ap);
-	printf("\n");
-	exit(1);
-}
+#define notice(a...) fprintf(stdout, "netflash: " a); fprintf(stdout, "\n"); fflush(stdout);
+#ifdef CONFIG_USER_NETFLASH_WITH_CGI
+#define error(a...) fprintf(stdout, "netflash: " a); fprintf(stdout, "\n"); fflush(stdout);
+#else
+#define error(a...) fprintf(stderr, "netflash: " a); fprintf(stderr, "\n"); fflush(stderr);
+#endif
 
 /****************************************************************************/
 
 void restartinit(void)
 {
-	printf("netflash: restarting init process...\n");
+#ifndef CONFIG_USER_NETFLASH_WITH_CGI
+	error("restarting init process...");
+#endif
 	kill(1, SIGCONT);
 }
 
@@ -229,7 +238,9 @@ void add_data(unsigned long address, unsigned char * data, unsigned long len)
 			}
 		}
 	
-		printf("."); fflush(stdout);
+		if (!docgi) {
+			printf("."); fflush(stdout);
+		}
 
 		/* At this point:
 		 * fb = block following the range we are adding,
@@ -257,6 +268,7 @@ void add_data(unsigned long address, unsigned char * data, unsigned long len)
 			fbnew = malloc(sizeof(*fbnew));
 			if (!fbnew) {
 				error("Insufficient memory for image!");
+				exit_failed(NO_MEMORY);
 			}
 			
 			fbnew->pos = address;
@@ -274,6 +286,7 @@ void add_data(unsigned long address, unsigned char * data, unsigned long len)
 				/* Halve the block size and try again, down to 1 page */
 				if (_block_len < 4096) {
 					error("Insufficient memory for image!");
+					exit_failed(NO_MEMORY);
 				}
 				_block_len /= 2;
 			}
@@ -380,10 +393,11 @@ void chksum()
 		if (calc_checksum != file_checksum) {
 			error("bad image checksum=0x%04x, expected checksum=0x%04x",
 					calc_checksum, file_checksum);
+			exit_failed(BAD_CHECKSUM);
 		}
-	}
-	else {
+	} else {
 		error("image is too short to contain a checksum");
+		exit_failed(IMAGE_SHORT);
 	}
 }
 
@@ -423,9 +437,10 @@ int check_hmac_md5(char *key)
 			}
 			if (hash[i] != fb->data[length]) {
 				error("bad HMAC MD5 signature");
+				exit_failed(BAD_HMAC_SIG);
 			}
 		}
-		printf("netflash: HMAC MD5 signature okay\n");
+		notice("HMAC MD5 signature okay");
 
 		remove_data(16);
     }
@@ -458,9 +473,11 @@ static inline void extract_data(int length, char buf[]) {
 			buf[i++] = fb->data[tpos++];
 		}
 		remove_data(length);
-	} else
+	} else {
 		error("insufficent data at end of image need %d only have %d",
 				length, (int)file_length);
+		exit_failed(IMAGE_SHORT);
+	}
 }
 
 /* Grab a block at the specified position.  This could span fileblock boundaries etc so
@@ -515,13 +532,19 @@ void check_crypto_signature(void) {
 		if (stat(PUBLIC_KEY_FILE, &st) == -1 && errno == ENOENT)
 			return;
 		in = BIO_new(BIO_s_file());
-		if (in == NULL)
+		if (in == NULL) {
 			error("cannot allocate a bio structure");
-		if (BIO_read_filename(in, PUBLIC_KEY_FILE) <= 0)
+			exit_failed(BAD_DECRYPT);
+		}
+		if (BIO_read_filename(in, PUBLIC_KEY_FILE) <= 0) {
 			error("cannot open public key file");
+			exit_failed(BAD_PUB_KEY);
+		}
 		pkey = PEM_read_bio_RSA_PUBKEY(in, NULL, NULL, NULL);
-		if (pkey == NULL)
+		if (pkey == NULL) {
 			error("cannot read public key");
+			exit_failed(BAD_PUB_KEY);
+		}
 	}
 	/* Decode header information */
 	extract_data(sizeof(struct little_header), (char *)&lhdr);
@@ -529,9 +552,11 @@ void check_crypto_signature(void) {
 #ifdef CONFIG_USER_NETFLASH_CRYPTO_OPTIONAL
 		add_data(file_length, (char *)&lhdr,
 				sizeof(struct little_header));
+		file_length += sizeof(struct little_header);
 		return;
 #else
 		error("size magic incorrect");
+		exit_failed(BAD_CRYPT_MAGIC);
 #endif
 	}
 	{
@@ -543,16 +568,20 @@ void check_crypto_signature(void) {
 		extract_data(hlen, tmp);
 		len = RSA_public_decrypt(hlen, tmp, t2,
 				pkey, RSA_PKCS1_PADDING);
-		if (len == -1)
+		if (len == -1) {
 			error("decrypt failed");
+			exit_failed(BAD_DECRYPT);
+		}
 		if (len != sizeof(struct header)) {
-			printf("Length mismatch %d %d\n", (int)sizeof(struct header), len);
+			error("Length mismatch %d %d\n", (int)sizeof(struct header), len);
 		}
 		memcpy(&hdr, t2, sizeof(struct header));
 	}
 	RSA_free(pkey);
-	if (hdr.magic != htonl(CRYPTO_MAGIC))
+	if (hdr.magic != htonl(CRYPTO_MAGIC)) {
 		error("image not cryptographically enabled");
+		exit_failed(NO_CRYPT);
+	}
 	/* Decrypt image if needed */
 	if (hdr.flags & FLAG_ENCRYPTED) {
 		aes_context ac;
@@ -560,8 +589,10 @@ void check_crypto_signature(void) {
 		char cout[AES_BLOCK_SIZE];
 		unsigned long s;
 
-		if ((file_length % AES_BLOCK_SIZE) != 0)
+		if ((file_length % AES_BLOCK_SIZE) != 0) {
 			error("image size not miscable with cryptography");
+			exit_failed(BAD_CRYPT);
+		}
 		aes_set_key(&ac, hdr.aeskey, AESKEYSIZE, 0);
 		/* Convert the body of the file */
 		for (fb = fileblocks, s = 0; s<file_length; s += AES_BLOCK_SIZE) {
@@ -582,8 +613,10 @@ void check_crypto_signature(void) {
 			for (fb = fileblocks; fb != NULL; fb = fb->next)
 				MD5_Update(&ctx, fb->data, fb->length);
 			MD5_Final(hash, &ctx);
-			if (memcmp(hdr.md5, hash, MD5_DIGEST_LENGTH) != 0)
+			if (memcmp(hdr.md5, hash, MD5_DIGEST_LENGTH) != 0) {
 				error("bad MD5 signature");
+				exit_failed(BAD_MD5_SIG);
+			}
 		}
 	}
 }
@@ -640,6 +673,7 @@ int decompress_skip_bytes(int pos, int num)
 		zfb = zfb->next;
     }
     error("compressed image is too short");
+	exit_failed(IMAGE_SHORT);
 }
 
 
@@ -655,6 +689,7 @@ int decompress_init()
 	
     if (zfb->data[pos] != 8) {
 		error("image is compressed, unknown compression method");
+		exit_failed(UNKNOWN_COMP);
     }
     pos = decompress_skip_bytes(pos, 1);
 	
@@ -698,11 +733,13 @@ int decompress_init()
     z.opaque = Z_NULL;
     if (inflateInit2(&z, -MAX_WBITS) != Z_OK) {
 		error("image is compressed, decompression failed");
+		exit_failed(BAD_DECOMP);
     }
     
     size = decompress_size();
     if (size <= 0) {
 		error("image is compressed, decompressed length is invalid");
+		exit_failed(BAD_DECOMP);
     }
 
     return size;
@@ -721,6 +758,7 @@ int decompress(char* data, int length)
 			zfb = zfb->next;
 			if (!zfb) {
 				error("unexpected end of file for decompression");
+				exit_failed(BAD_DECOMP);
 			}
 			z.next_in = zfb->data;
 			z.avail_in = zfb->length;
@@ -738,6 +776,7 @@ int decompress(char* data, int length)
 				 * that we append file blocks to...
 				 */
 				error("decompression deadlock");
+				exit_failed(BAD_DECOMP);
 			}
 		}
 		else if (rc == Z_STREAM_END) {
@@ -745,6 +784,7 @@ int decompress(char* data, int length)
 		}
 		else {
 			error("error during decompression: %x", rc);
+			exit_failed(BAD_DECOMP);
 		}
     }
 }
@@ -756,10 +796,10 @@ int check_decompression(int doinflate)
 				&& fileblocks->data[0] == gz_magic[0]
 				&& fileblocks->data[1] == gz_magic[1]) {
 			image_length = decompress_init();
-			printf("netflash: image is compressed, decompressed length=%ld\n",
+			notice("image is compressed, decompressed length=%ld\n",
 					image_length);
 		} else {
-			error("image is not compressed");
+			notice("image is not compressed");
 		}
 	}
 #ifdef CONFIG_USER_NETFLASH_AUTODECOMPRESS
@@ -768,7 +808,7 @@ int check_decompression(int doinflate)
 			&& fileblocks->data[1] == gz_magic[1]) {
 		doinflate = 1;
 		image_length = decompress_init();
-		printf("netflash: image is compressed, decompressed length=%ld\n",
+		notice("image is compressed, decompressed length=%ld\n",
 				image_length);
 	}
 #endif
@@ -855,7 +895,7 @@ int tftpfetch(char *srvname, char *filename)
   tftpmain(tftpmainargc, tftpargv);
   tftpsetbinary();
   
-  printf("netflash: fetching file \"%s\" from %s\n", filename, srvname);
+  notice("fetching file \"%s\" from %s\n", filename, srvname);
   tftpargv[0] = "get";
   tftpargv[1] = filename;
   tftpget(2, tftpargv);
@@ -875,7 +915,7 @@ int ftpconnect(char *srvname)
 
 #ifdef FTP
   ftpverbose = 0;	/* Set to 1 for ftp trace info */
-  printf("netflash: login to remote host %s\n", srvname);
+  notice("login to remote host %s", srvname);
 
   ftpargv[0] = "ftp";
   ftpargv[1] = srvname;
@@ -883,7 +923,7 @@ int ftpconnect(char *srvname)
   return(0);
 
 #else
-  printf("netflash: no ftp support builtin\n");
+  error("no ftp support builtin");
   return(-1);
 #endif /* FTP */
 }
@@ -894,7 +934,7 @@ int ftpfetch(char *srvname, char *filename)
 
 #ifdef FTP
   ftpverbose = 0;	/* Set to 1 for ftp trace info */
-  printf("\nnetflash: ftping file \"%s\" from %s\n", filename, srvname);
+  notice("ftping file \"%s\" from %s", filename, srvname);
   setbinary(); /* make sure we are in binary mode */
 
   ftpargv[0] = "get";
@@ -905,7 +945,7 @@ int ftpfetch(char *srvname, char *filename)
   return(0);
 
 #else
-  printf("NETFLASH: no ftp support builtin\n");
+  error("no ftp support builtin");
   return(-1);
 #endif /* FTP */
 }
@@ -958,6 +998,15 @@ int samedev(struct stat *stat_dev, struct stat *stat_rootfs)
 		if (stat_dev->st_rdev == stat_rootfs->st_dev) {
 			return 1;
 		}
+#if defined(CONFIG_NFTL_RW)
+		/* Check for writing to nftla, with an nftla partition
+		 * as the root device. */
+		else if (major(stat_dev->st_rdev) == NFTL_MAJOR
+				&& major(stat_rootfs->st_dev) == NFTL_MAJOR
+				&& minor(stat_dev->st_rdev) == 0) {
+			return 1;
+		}
+#endif
 	}
 #if defined(CONFIG_MTD) || defined(CONFIG_MTD_MODULES)
 	/* Check for matching block/character mtd devices. */
@@ -983,8 +1032,10 @@ int flashing_rootfs(char *rdev)
 	/* First a generic check:
 	 * is the rootfs device the same as the flash device?
 	 */
-	if (stat("/", &stat_rootfs) != 0)
+	if (stat("/", &stat_rootfs) != 0) {
 		error("stat(\"/\") failed (errno=%d)", errno);
+		exit_failed(BAD_ROOTFS);
+	}
 	if (samedev(&stat_rdev, &stat_rootfs))
 		return 1;
 
@@ -1115,6 +1166,9 @@ static const char *kill_partial[] = {
 #ifdef CONFIG_USER_SQUID_SQUID
 	"squid",
 #endif
+#ifdef CONFIG_USER_FREESWAN
+	"pluto",
+#endif
 	NULL
 };
 
@@ -1127,8 +1181,7 @@ void kill_processes_partial(void)
 	const char **p;
 	int count;
 
-	printf("netflash: killing unnecessary tasks...\n");
-	fflush(stdout);
+	notice("killing unnecessary tasks...");
 	sleep(1);
 
 	kill(1, SIGTSTP);		/* Stop init from reforking tasks */
@@ -1159,6 +1212,9 @@ void kill_processes(char *console)
 {
 	int ttyfd;
 	struct termios tio;
+	DIR *dir;
+	struct dirent *dp;
+	char filename[128];
 
 	if (console == NULL)
 		console = getconsole();
@@ -1171,10 +1227,12 @@ void kill_processes(char *console)
 		}
 		close(ttyfd);
 	}
-	freopen(console, "w", stdout);
-	freopen(console, "w", stderr);
+	if (!docgi) {
+		freopen(console, "w", stdout);
+		freopen(console, "w", stderr);
+	}
 	
-	printf("netflash: killing tasks...\n");
+	notice("killing tasks...");
 	fflush(stdout);
 	sleep(1);
 	
@@ -1189,7 +1247,21 @@ void kill_processes(char *console)
 					 * a closed controlling terminal */
 	
 	/*Don't take down network interfaces that use dhcpcd*/
-	killprocpid(DHCPCD_PID_FILE, SIGKILL);
+	dir = opendir(PID_DIR);
+	if (dir) {
+		while ((dp = readdir(dir)) != NULL) {
+			if (strncmp(dp->d_name, DHCPCD_PID_FILE,
+						sizeof(DHCPCD_PID_FILE)-1) != 0)
+				continue;
+			if (strcmp(dp->d_name + strlen(dp->d_name) - 4,
+						".pid") != 0)
+				continue;
+			snprintf(filename, sizeof(filename), "%s/%s",
+					PID_DIR, dp->d_name);
+			killprocpid(filename, SIGKILL);
+		}
+		closedir(dir);
+	}
 
 	kill(-1, SIGTERM);		/* Kill everything that'll die */
 	sleep(5);			/* give em a moment... (it may take a while for, e.g., pppd to shutdown cleanly */
@@ -1215,9 +1287,14 @@ void umount_all(void)
 	localargv[localargc++] = "-a";
 	localargv[localargc++] = "-r";
 	localargv[localargc++] = NULL;
+#ifdef __uClinux__
 	pid = vfork();
+#else
+	pid = fork();
+#endif
 	if (pid < 0) {
 		error("vfork() failed");
+		exit_failed(VFORK_FAIL);
 	}
 	else if (pid == 0) {
 		execvp("/bin/umount", localargv);
@@ -1243,12 +1320,12 @@ static int get_segment(int rd, char *sgdata, int sgpos, int sgsize)
 	/* XXX: preserve case could be optimized to read less */
 	if (preserve || sgoffset) {
 		if (lseek(rd, sgpos, SEEK_SET) != sgpos) {
-			printf("netflash: lseek(%x) failed\n", sgpos);
-			exit(1);
+			error("lseek(%x) failed\n", sgpos);
+			exit_failed(BAD_SEG_SEEK);
 		} else if (read(rd, sgdata, preserve ? sgsize : sgoffset) < 0) {
-			printf("netflash: read() failed, pos=%x, errno=%d\n",
+			error("read() failed, pos=%x, errno=%d\n",
 					sgpos, errno);
-			exit(1);
+			exit_failed(BAD_SEG_READ);
 		}
 	}
 
@@ -1305,15 +1382,15 @@ static void check_segment(int rd, char *sgdata, int sgpos, int sglength,
 		char *check_buf)
 {
 	if (lseek(rd, sgpos, SEEK_SET) != sgpos) {
-		printf("netflash: lseek(%x) failed\n", sgpos);
-		exitstatus = 1;
+		error("lseek(%x) failed", sgpos);
+		exitstatus = BAD_SEG_SEEK;
 	} else if (read(rd, check_buf, sglength) < 0) {
-		printf("netflash: read failed, pos=%x, errno=%d\n",
+		error("read failed, pos=%x, errno=%d",
 				sgpos, errno);
-		exitstatus = 1;
+		exitstatus = BAD_SEG_READ;
 	} else if (memcmp(sgdata, check_buf, sglength) != 0) {
 		int i;
-		printf("netflash: check failed, pos=%x\n", sgpos);
+		error("check failed, pos=%x", sgpos);
 		for (i = 0; i < sglength; i++) {
 			if (sgdata[i] != check_buf[i])
 				printf("%x(%x,%x) ", sgpos + i,
@@ -1321,7 +1398,7 @@ static void check_segment(int rd, char *sgdata, int sgpos, int sglength,
 						check_buf[i] & 0xff);
 		}
 		printf("\n");
-		exitstatus = 1;
+		exitstatus = BAD_SEG_CHECK;
 	}
 }
 
@@ -1330,7 +1407,7 @@ static void program_mtd_segment(int rd, char *sgdata,
 		int sgpos, int sglength, int sgsize)
 {
 	erase_info_t erase_info;
-	int len, pos;
+	int pos;
 
 	/* Unlock the segment to be reprogrammed.  */
 	if (dounlock) {
@@ -1343,15 +1420,15 @@ static void program_mtd_segment(int rd, char *sgdata,
 	erase_info.start = sgpos;
 	erase_info.length = sgsize;
 	if (lseek(rd, sgpos, SEEK_SET) != sgpos) {
-		printf("netflash: lseek(%x) failed\n", sgpos);
-		exitstatus = 1;
+		error("lseek(%x) failed", sgpos);
+		exitstatus = BAD_SEG_SEEK;
 	} else if (ioctl(rd, MEMERASE, &erase_info) < 0) {
-		printf("netflash: ioctl(MEMERASE) failed, errno=%d\n", errno);
-		exitstatus = 1;
+		error("ioctl(MEMERASE) failed, errno=%d", errno);
+		exitstatus = ERASE_FAIL;
 	} else if (sglength > 0) {
 		if (lseek(rd, sgpos, SEEK_SET) != sgpos) {
-			printf("netflash: lseek(%x) failed\n", sgpos);
-			exitstatus = 1;
+			error("lseek(%x) failed", sgpos);
+			exitstatus = BAD_SEG_SEEK;
 		} else {
 			/*
 			 * Always write in 512 byte chunks as MTD on
@@ -1363,10 +1440,10 @@ static void program_mtd_segment(int rd, char *sgdata,
 			 */
 			for (pos = sgpos; (sglength >= 512); ) {
 				if (write(rd, sgdata, 512) == -1) {
-					printf("netflash: write() failed, "
-						"pos=%x, errno=%d\n",
+					error("write() failed, "
+						"pos=%x, errno=%d",
 						pos, errno);
-					exitstatus = 1;
+					exitstatus = BAD_SEG_WRITE;
 				}
 				pos += 512;
 				sgdata += 512;
@@ -1380,24 +1457,24 @@ static void program_mtd_segment(int rd, char *sgdata,
 				char buf[512];
 
 				if (lseek(rd, pos, SEEK_SET) != pos) {
-					printf("netflash: lseek(%x) failed\n",
+					error("lseek(%x) failed",
 						pos);
-					exitstatus = 1;
+					exitstatus = BAD_SEG_SEEK;
 				} else if (read(rd, buf, 512) == -1) {
-					printf("netflash: read() failed, "
-						"pos=%x, errno=%d\n",
+					error("read() failed, "
+						"pos=%x, errno=%d",
 						pos, errno);
-					exitstatus = 1;
+					exitstatus = BAD_SEG_READ;
 				} else if (lseek(rd, pos, SEEK_SET) != pos) {
-					printf("netflash: lseek(%x) failed\n",
+					error("lseek(%x) failed",
 						pos);
-					exitstatus = 1;
+					exitstatus = BAD_SEG_SEEK;
 				} else {
 					memcpy(buf, sgdata, sglength);
 					if (write(rd, buf, 512) == -1) {
-						printf("netflash: write() failed, pos=%x, errno=%d\n",
+						error("write() failed, pos=%x, errno=%d",
 							pos, errno);
-						exitstatus = 1;
+						exitstatus = BAD_SEG_WRITE;
 					}
 				}
 			}
@@ -1411,12 +1488,12 @@ static void program_mtd_segment(int rd, char *sgdata,
 		};
 
 		if (lseek(rd, sgpos, SEEK_SET) != sgpos) {
-			printf("netflash: lseek(%x) failed\n", sgpos);
-			exitstatus = 1;
+			error("lseek(%x) failed", sgpos);
+			exitstatus = BAD_SEG_SEEK;
 		} else if (write(rd, &marker, sizeof(marker)) < 0) {
-			printf("netflash: write() failed, pos=%x, "
-				"errno=%d\n", sgpos, errno);
-			exitstatus = 1;
+			error("write() failed, pos=%x, "
+				"errno=%d", sgpos, errno);
+			exitstatus = BAD_SEG_WRITE;
 		}
 	}
 
@@ -1424,9 +1501,9 @@ static void program_mtd_segment(int rd, char *sgdata,
 		erase_info.start = sgpos;
 		erase_info.length = sgsize;
 		if (ioctl(rd, MEMLOCK, &erase_info) < 0) {
-			printf("netflash: ioctl(MEMLOCK) failed, "
-				"errno=%d\n", errno);
-			exitstatus = 1;
+			error("ioctl(MEMLOCK) failed, "
+				"errno=%d", errno);
+			exitstatus = ERASE_FAIL;
 		}
 	}
 }
@@ -1446,8 +1523,8 @@ static void program_blkmem_segment(int rd, char *sgdata, int sgpos,
 	prog->block[0].length = sglength;
 	prog->block[0].magic3 = BMPROGRAM_MAGIC_3;
 	if (ioctl(rd, BMPROGRAM, prog) != 0) {
-		printf("netflash: ioctl(BMPROGRAM) failed, errno=%d\n", errno);
-		exitstatus = 1;
+		error("ioctl(BMPROGRAM) failed, errno=%d", errno);
+		exitstatus = BAD_SEG_WRITE;
 	}
 }
 #endif
@@ -1458,16 +1535,16 @@ static void program_generic_segment(int rd, char *sgdata,
 {
 	if (sglength > 0) {
 		if (lseek(rd, sgpos, SEEK_SET) != sgpos) {
-			printf("netflash: lseek(%x) failed\n", sgpos);
-			exitstatus = 1;
+			error("lseek(%x) failed", sgpos);
+			exitstatus = BAD_SEG_SEEK;
 		} else if (write(rd, sgdata, sglength) < 0) {
-			printf("netflash: write() failed, pos=%x, "
-					"errno=%d\n", sgpos, errno);
-			exitstatus = 1;
+			error("write() failed, pos=%x, "
+					"errno=%d", sgpos, errno);
+			exitstatus = BAD_SEG_WRITE;
 		} else if (fdatasync(rd) < 0) {
-			printf("netflash: fdatasync() failed, pos=%x, "
-					"errno=%d\n", sgpos, errno);
-			exitstatus = 1;
+			error("fdatasync() failed, pos=%x, "
+					"errno=%d", sgpos, errno);
+			exitstatus = BAD_SEG_CHECK;
 		}
 	}
 }
@@ -1498,7 +1575,7 @@ static void program_flash(int rd, int devsize, char *sgdata, int sgsize,
 			check_segment(rd, sgdata, sgpos, sglength, check_buf);
 		}
 		else
-#if defined(CONFIG_NETtel) && defined(CONFIG_X86)
+#if defined(CONFIG_MTD_NETtel)
 		if (!preserveconfig || sgpos < 0xe0000 || sgpos >= 0x100000) {
 #endif
 			program_segment(rd, sgdata, sgpos, sglength, sgsize);
@@ -1512,7 +1589,7 @@ static void program_flash(int rd, int devsize, char *sgdata, int sgsize,
 			ledmancount = (ledmancount + 1) & 1;
 #endif
 
-#if defined(CONFIG_NETtel) && defined(CONFIG_X86)
+#if defined(CONFIG_MTD_NETtel)
 		} /* if (!preserveconfig || ...) */
 #endif
 	}
@@ -1536,15 +1613,15 @@ int usage(int rc)
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 	"z"
 #endif
-	"?] [-c <console-device>] [-d <delay>] "
+	"?] [-c console-device] [-d delay] "
 #ifdef CONFIG_USER_NETFLASH_SETSRC
-	"[-I <ip-address>] "
+	"[-I ip-address] "
 #endif
 #ifdef CONFIG_USER_NETFLASH_HMACMD5
-	"[-m <hmac-md5-key>] "
+	"[-m hmac-md5-key] "
 #endif
-	"[-o <offset>] [-r <flash-device>] "
-	"[<net-server>] <file-name>\n\n"
+	"[-o offset] [-r flash-device] "
+	"[net-server] file-name\n\n"
 	"\t-b\tdon't reboot hardware when done\n"
 	"\t-C\tcheck that image was written correctly\n"
 	"\t-f\tuse FTP as load protocol\n"
@@ -1576,6 +1653,15 @@ int usage(int rc)
 }
 
 /****************************************************************************/
+/*
+ * when we call reboot,  we don't want anything in our way, most certainly
+ * not logd !
+ */
+
+#define __NR_raw_reboot __NR_reboot
+static _syscall3(int, raw_reboot, int, magic, int, magic2, int, flag);
+
+/****************************************************************************/
 
 int netflashmain(int argc, char *argv[])
 {
@@ -1591,6 +1677,10 @@ int netflashmain(int argc, char *argv[])
 
 #ifdef CONFIG_USER_NETFLASH_HMACMD5
 	char *hmacmd5key = NULL;
+#endif
+#ifdef CONFIG_USER_NETFLASH_WITH_CGI
+	char options[64];
+	char *new_argv[10];
 #endif
 
 	rdev = "/dev/flash/image";
@@ -1621,6 +1711,51 @@ int netflashmain(int argc, char *argv[])
 #endif /*CONFIG_USER_NETFLASH_VERSION*/
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 	doinflate = 0;
+#endif
+
+#ifdef CONFIG_USER_NETFLASH_WITH_CGI
+	if (argc == 2 && strncmp(argv[1], "cgi://", 6) == 0) {
+		char *pt;
+		char *sep;
+		int new_argc = 0;
+
+		docgi = 1;
+		dokillpartial = 1;
+
+		/* Our "command line" options come from stdin for cgi
+		 * Format of the command line is: cgi://dataname,optionsname
+		 */
+		pt = argv[1] + 6;
+		sep = strchr(pt, ',');
+		if (sep) {
+			int len = sep - pt;
+			if (len >= sizeof(cgi_data)) {
+				len = sizeof(cgi_data) - 1;
+			}
+			strncpy(cgi_data, pt, len);
+			cgi_data[len] = 0;
+			strncpy(cgi_options, sep + 1, sizeof(cgi_options));
+			cgi_options[sizeof(cgi_options) - 1] = 0;
+		} else {
+			exit_failed(BAD_CGI_FORMAT);
+		}
+
+		if ((file_length = cgi_load(cgi_data, cgi_options, options)) <= 0) {
+			exit_failed(BAD_CGI_DATA);
+		}
+
+		new_argv[new_argc++] = argv[0];
+
+		/* Parse the options */
+		pt = strtok(options, " \t");
+		while (pt) {
+			assert(new_argc < 10);
+			new_argv[new_argc++] = pt;
+			pt = strtok(0, " \t");
+		}
+		argc = new_argc;
+		argv = new_argv;
+	}
 #endif
 
 	while ((rc = getopt(argc, argv, CMD_LINE_OPTIONS)) > 0) {
@@ -1691,7 +1826,7 @@ int netflashmain(int argc, char *argv[])
 			dounlock++;
 			break;
 		case 'v':
-			printf("netflash: version %s\n", version);
+			notice("version %s", version);
 			exit(0);
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 		case 'z':
@@ -1709,25 +1844,27 @@ int netflashmain(int argc, char *argv[])
 			break;
 		}
 	}
-  
+
 	if ((nfd = fopen("/dev/null", "rw")) == NULL) {
-		error("failed to open(/dev/null)");
+		error("open(/dev/null) failed: %s", strerror(errno));
+		exit_failed(NO_DEV_NULL);
 	}
 
-	if (optind == (argc - 1)) {
-		srvname = NULL;
-		filename = argv[optind];
-	} else if (optind == (argc - 2)) {
-		srvname = argv[optind++];
-		filename = argv[optind];
-	} else {
-		usage(1);
+	if (!docgi) {
+		if (optind == (argc - 1)) {
+			srvname = NULL;
+			filename = argv[optind];
+		} else if (optind == (argc - 2)) {
+			srvname = argv[optind++];
+			filename = argv[optind];
+		} else {
+			usage(1);
+		}
 	}
 
 	if (delay > 0) {
 		/* sleep the required time */
-		printf("netflash: waiting %d seconds before updating "
-			"flash...\n",delay);
+		notice("waiting %d seconds before updating flash...",delay);
 		sleep(delay);
 	}
 
@@ -1736,8 +1873,10 @@ int netflashmain(int argc, char *argv[])
 	 *	(and this losing association with the controlling tty).
 	 */
 	if (doftp) {
-		if (ftpconnect(srvname))
-			exit(1);
+		if (ftpconnect(srvname)) {
+			error("ftpconnect failed");
+			exit_failed(FTP_CONNECT_FAIL);
+		}
 	}
 
 	if (dokill) {
@@ -1757,12 +1896,13 @@ int netflashmain(int argc, char *argv[])
 
 	rd = open(rdev, O_RDWR);
 	if (rd < 0) {
-		error("open(%s)=%d failed (errno=%d)",
-			rdev, rd, errno);
+		error("open(%s) failed: %s", rdev, strerror(errno));
+		exit_failed(BAD_OPEN_FLASH);
 	}
-  
+
 	if (stat(rdev, &stat_rdev) != 0) {
-		error("stat(%s) failed (errno=%d)", rdev, errno);
+		error("stat(%s) failed: %s", rdev, strerror(errno));
+		exit_failed(BAD_OPEN_FLASH);
 	} else if (S_ISBLK(stat_rdev.st_mode)) {
 #ifdef CONFIG_NFTL_RW
 		if (major(stat_rdev.st_rdev) == NFTL_MAJOR) {
@@ -1773,13 +1913,15 @@ int netflashmain(int argc, char *argv[])
 			if (ioctl(rd, BLKGETSIZE, &l) < 0) {
 				error("ioctl(BLKGETSIZE) failed, errno=%d",
 						errno);
+				exit_failed(BAD_OPEN_FLASH);
 			}
 			devsize = l*512; /* Sectors are always 512 bytes */
 			sgsize = 64*1024; /* Just a random power of 2 */
 		}
 #endif
 #ifdef CONFIG_IDE
-		if (major(stat_rdev.st_rdev) == IDE0_MAJOR) {
+		if (major(stat_rdev.st_rdev) == IDE0_MAJOR ||
+				major(stat_rdev.st_rdev) == IDE1_MAJOR) {
 			struct hd_geometry geo;
 
 			program_segment = program_generic_segment;
@@ -1787,6 +1929,7 @@ int netflashmain(int argc, char *argv[])
 			if (ioctl(rd, HDIO_GETGEO, &geo) < 0) {
 				error("ioctl(HDIO_GETGEO) failed, errno=%d",
 						errno);
+				exit_failed(BAD_OPEN_FLASH);
 			}
 			devsize = geo.heads*geo.cylinders*geo.sectors*512;
 			sgsize = 64*1024; /* Just a random power of 2 */
@@ -1801,6 +1944,7 @@ int netflashmain(int argc, char *argv[])
 
 		if (ioctl(rd, MEMGETINFO, &mtd_info) < 0) {
 			error("ioctl(MEMGETINFO) failed, errno=%d", errno);
+			exit_failed(BAD_OPEN_FLASH);
 		}
 		devsize = mtd_info.size;
 		sgsize = mtd_info.erasesize;
@@ -1826,29 +1970,35 @@ int netflashmain(int argc, char *argv[])
 
 		if (ioctl(rd, BMGETSIZEB, &devsize) != 0) {
 			error("ioctl(BMGETSIZEB) failed, errno=%d", errno);
+			exit_failed(BAD_OPEN_FLASH);
 		}
 		if (ioctl(rd, BMSGSIZE, &sgsize) != 0) {
 			error("ioctl(BMSGSIZE) failed, errno=%d", errno);
+			exit_failed(BAD_OPEN_FLASH);
 		}
 #endif
 	}
   
 	if (offset < 0) {
 		error("offset is less than zero");
+		exit_failed(BAD_OFFSET);
 	}
 	if (offset >= devsize) {
 		error("offset is greater than device size (%d)", devsize);
+		exit_failed(BAD_OFFSET);
 	}
 
 	sgdata = malloc(sgsize);
 	if (!sgdata) {
 		error("Insufficient memory for image!");
+		exit_failed(NO_MEMORY);
 	}
 
 	if (checkimage) {
 		check_buf = malloc(sgsize);
 		if (!check_buf) {
 			error("Insufficient memory for image!");
+			exit_failed(NO_MEMORY);
 		}
 	}
 
@@ -1856,17 +2006,21 @@ int netflashmain(int argc, char *argv[])
 	 * Fetch file into memory buffers. Exactly how depends on the exact
 	 * load method. Support for tftp, http and local file currently.
 	 */
-	fileblocks = NULL;
-	file_offset = 0;
-	file_length = 0;
+	if (!docgi) {
+		fileblocks = NULL;
+		file_offset = 0;
+		file_length = 0;
 
-	if (srvname) {
-		if (doftp)
-			ftpfetch(srvname, filename);
-		else
-			tftpfetch(srvname, filename);
-	} else if (filefetch(filename) < 0)
-			error("failed to find %s", filename);
+		if (srvname) {
+			if (doftp)
+				ftpfetch(srvname, filename);
+			else
+				tftpfetch(srvname, filename);
+		} else if (filefetch(filename) < 0) {
+				error("failed to find %s", filename);
+				exit_failed(NO_IMAGE);
+		}
+	}
 
 	/*
 	 * Do some checks on the data received
@@ -1877,22 +2031,31 @@ int netflashmain(int argc, char *argv[])
 	 */
 	if (fileblocks == NULL) {
 		error("failed to load new image");
+		exit_failed(NO_IMAGE);
 	}
 
 #ifndef CONFIG_USER_NETFLASH_CRYPTO
 	if (!dothrow)
 #endif
-		if (fileblocks->pos != 0)
+		if (fileblocks->pos != 0) {
 			error("failed to load new image");
+			exit_failed(NO_IMAGE);
+		}
 
-	if (file_length == 0)
+	if (file_length == 0) {
 		error("failed to load new image");
+		exit_failed(NO_IMAGE);
+	}
 
 	for (fb = fileblocks; fb->next != NULL; fb = fb->next)
-		if (fb->pos + fb->length != fb->next->pos)
+		if (fb->pos + fb->length != fb->next->pos) {
 			error("failed to load new image");
+			exit_failed(NO_IMAGE);
+		}
 
-	printf("netflash: got \"%s\", length=%ld\n", filename, file_length);
+	if (!docgi) {
+		notice("got \"%s\", length=%ld", filename, file_length);
+	}
 
 #ifdef CONFIG_USER_NETFLASH_CRYPTO
 	check_crypto_signature();
@@ -1915,31 +2078,38 @@ int netflashmain(int argc, char *argv[])
 		rc = check_vendor(vendor_name, product_name, image_version);
 
 #ifdef CONFIG_USER_NETFLASH_VERSION
+	if (doversion || dohardwareversion) {
+		switch (rc){
+		case 5:
+			error("VERSION - you are trying to load an "
+				"image that does not\n         "
+				"contain valid version information.");
+			exit_failed(NO_VERSION);
+		default:
+			break;
+		}
+	}
+
 	if (doversion) {
 		switch (rc){
 #ifndef CONFIG_USER_NETFLASH_VERSION_ALLOW_CURRENT
 		case 3:
-			printf("netflash: VERSION - you are trying to upgrade "
+			error("VERSION - you are trying to upgrade "
 				"with the same firmware\n"
-				"         version that you already have.\n");
-			exit(ALREADY_CURRENT);
+				"         version that you already have.");
+			exit_failed(ALREADY_CURRENT);
 #endif /* !CONFIG_USER_NETFLASH_VERSION_ALLOW_CURRENT */
 #ifndef CONFIG_USER_NETFLASH_VERSION_ALLOW_OLDER
 		case 4:
-			printf("netflash: VERSION - you are trying to upgrade "
+			error("VERSION - you are trying to upgrade "
 				"with an older version of\n"
-				"         the firmware.\n");
-			exit(VERSION_OLDER);
+				"         the firmware.");
+			exit_failed(VERSION_OLDER);
 #endif /* !CONFIG_USER_NETFLASH_VERSION_ALLOW_OLDER */
-		case 5:
-			printf("netflash: VERSION - you are trying to load an "
-				"image that does not\n         "
-				"contain valid version information.\n");
-			exit(NO_VERSION);
 		case 6:
-			printf("netflash: VERSION - you are trying to load an "
-				"image for a different language.\n");
-			exit(BAD_LANGUAGE);
+			error("VERSION - you are trying to load an "
+				"image for a different language.");
+			exit_failed(BAD_LANGUAGE);
 		case 0:
 			default:
 			break;
@@ -1949,11 +2119,11 @@ int netflashmain(int argc, char *argv[])
 	if (dohardwareversion) {
 		switch (rc){
 		case 1:
-			printf("netflash: VERSION - product name incorrect.\n");
-			exit(WRONG_PRODUCT);
+			error("VERSION - product name incorrect.");
+			exit_failed(WRONG_PRODUCT);
 		case 2:
-			printf("netflash: VERSION - vendor name incorrect.\n");
-			exit(WRONG_VENDOR);
+			error("VERSION - vendor name incorrect.");
+			exit_failed(WRONG_VENDOR);
 		case 0:
 			default:
 			break;
@@ -1968,21 +2138,28 @@ int netflashmain(int argc, char *argv[])
 #endif
 
 	/* Check image that we fetched will actually fit in the FLASH device. */
-	if (image_length > devsize - offset)
+	if (image_length > devsize - offset) {
 		error("image too large for FLASH device (size=%d)",
 			devsize - offset);
-
-	if(dothrow) {
-		printf("netflash: the image is good.\n");
-		exit(0);
+			exit_failed(IMAGE_TOO_BIG);
 	}
 
+	if (dothrow) {
+		notice("the image is good.");
+		exit(IMAGE_GOOD);
+	}
+#ifdef CONFIG_USER_NETFLASH_WITH_CGI
+	if (docgi) {
+		// let's let our parent know it's ok.
+		kill(getppid(),SIGUSR1);
+	}
+#endif
 	if (flashing_rootfs(rdev)) {
 		/*
 		 *	Our filesystem is live, so we MUST kill processes if we haven't
 		 *  done it already.
 		 */
-		printf("netflash: flashing root filesystem, kill is forced\n");
+		notice("flashing root filesystem, kill is forced");
 		if (!dokill || dokillpartial) {
 			kill_processes(console);
 		}
@@ -1990,9 +2167,19 @@ int netflashmain(int argc, char *argv[])
 		doreboot = 1;
 	}
 
+#ifdef CONFIG_PROP_LOGD_LOGD
+	log_upgrade();
+#endif
 #if defined(CONFIG_USER_MOUNT_UMOUNT) || defined(CONFIG_USER_BUSYBOX_UMOUNT)
-	if (doreboot)
+	if (doreboot) {
+#if defined(CONFIG_USER_FLATFSD_USE_FLASH_FS) && defined(CONFIG_PROP_LOGD_LOGD)
+		/* Log the reboot to /etc/config before it's umounted */
+		char	tmp[50];
+		sprintf(tmp, "/bin/logd reboot %d: %s", getpid(), basename(argv[0]));	
+		system(tmp);
+#endif
 		umount_all();
+	}
 #endif
 
 #ifdef CONFIG_JFFS_FS
@@ -2004,39 +2191,25 @@ int netflashmain(int argc, char *argv[])
 	killprocname("jffs2_gcd_mtd1", SIGSTOP);
 #endif
 
-#if 0
-{
-	/* Check how much free memory we have */
-	FILE* memfile;
-	char buf[128];
-
-	memfile = fopen("/proc/meminfo", "r");
-	if (memfile) {
-		while (fgets(buf, sizeof(buf), memfile))
-			fputs(buf, stdout);
-		fclose(memfile);
-	}
-}
-#endif
-
 	/*
 	 * Program the FLASH device.
 	 */
 	fflush(stdout);
 	sleep(1);
-	printf("netflash: programming FLASH device %s\n", rdev);
-	fflush(stdout);
-	program_flash(rd, devsize, sgdata, sgsize, check_buf);
+	notice("programming FLASH device %s", rdev);
 
-	if (doreboot) {
-#if __GNU_LIBRARY__ > 5
-		reboot(0x01234567);
-#else
-		reboot(0xfee1dead, 672274793, 0x01234567);
-#endif
-	}
+#ifndef TEST_NO_DEVICE
+	program_flash(rd, devsize, sgdata, sgsize, check_buf);
+#endif /* TEST_NO_DEVICE */
+
+	if (doreboot)
+		raw_reboot(0xfee1dead, 672274793, 0x01234567);
 
 	return exitstatus;
 }
 
+static void exit_failed(int rc)
+{
+	exit(rc);
+}
 /****************************************************************************/

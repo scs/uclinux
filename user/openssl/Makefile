@@ -6,7 +6,7 @@ VPATH= ../../lib/libssl/apps
 DIR=		apps
 TOP=		..
 #CC=		cc
-INCLUDES=	$(INCSSL)
+INCLUDES=
 CFLAG=		-O
 INSTALL_PREFIX=
 INSTALLTOP=	/usr/local/ssl
@@ -43,7 +43,7 @@ E_EXE=	verify asn1pars req dgst dh dhparam enc passwd gendh errstr \
 	ca crl rsa rsautl dsa dsaparam \
 	x509 genrsa gendsa s_server s_client speed \
 	s_time version pkcs7 crl2pkcs7 sess_id ciphers nseq pkcs12 \
-	pkcs8 spkac smime rand engine ocsp
+	pkcs8 spkac smime rand engine ocsp prime
 
 PROGS= $(PROGRAM).c
 
@@ -59,7 +59,7 @@ E_OBJ=	verify.o asn1pars.o req.o dgst.o dh.o dhparam.o enc.o passwd.o gendh.o er
 	rsa.o rsautl.o dsa.o dsaparam.o \
 	x509.o genrsa.o gendsa.o s_server.o s_client.o speed.o \
 	s_time.o $(A_OBJ) $(S_OBJ) $(RAND_OBJ) version.o sess_id.o \
-	ciphers.o nseq.o pkcs12.o pkcs8.o spkac.o smime.o rand.o engine.o ocsp.o
+	ciphers.o nseq.o pkcs12.o pkcs8.o spkac.o smime.o rand.o engine.o ocsp.o prime.o
 
 E_SRC=	verify.c asn1pars.c req.c dgst.c dh.c enc.c passwd.c gendh.c errstr.c ca.c \
 	pkcs7.c crl2p7.c crl.c \

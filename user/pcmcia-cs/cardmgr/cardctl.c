@@ -168,8 +168,10 @@ static void print_status(cs_status_t *status)
 static void print_config(config_info_t *config)
 {
     if (config->Function == 0) {
-	printf("  Vcc %.1fV  Vpp1 %.1fV  Vpp2 %.1fV\n",
-	       config->Vcc/10.0, config->Vpp1/10.0, config->Vpp2/10.0);
+	printf("  Vcc %d.%dV  Vpp1 %d.%dV  Vpp2 %d.%dV\n",
+		config->Vcc / 10,config->Vcc % 10,
+		config->Vpp1 / 10,config->Vpp1 % 10,
+		config->Vpp2 / 10,config->Vpp2 % 10);
 	if (!(config->Attributes & CONF_VALID_CLIENT))
 	    return;
 	printf("  interface type is ");
@@ -354,12 +356,12 @@ static void print_ident(int fd)
 
 typedef enum cmd_t {
     C_STATUS, C_CONFIG, C_IDENT, C_SUSPEND,
-    C_RESUME, C_RESET, C_EJECT, C_INSERT
+    C_RESUME, C_RESET, C_EJECT, C_INSERT, C_BIND, C_UNBIND
 } cmd_t;
 
 static char *cmdname[] = {
     "status", "config", "ident", "suspend",
-    "resume", "reset", "eject", "insert"
+    "resume", "reset", "eject", "insert", "bind", "unbind"
 };
 
 #define NCMD (sizeof(cmdname)/sizeof(char *))
@@ -428,6 +430,26 @@ static int do_cmd(int fd, int cmd)
 	break;
     }
     return ret;
+}
+
+static int do_bind(int fd, char *driver)
+{
+    bind_info_t bind;
+
+    memset(&bind,0,sizeof(bind));
+    bind.function = 0;                                //xxx BIND_FN_ALL;
+    strcpy(bind.dev_info, driver);
+    return ioctl(fd, DS_BIND_REQUEST, &bind);
+}
+
+static int do_unbind(int fd, char *driver)
+{
+    bind_info_t bind;
+
+    memset(&bind,0,sizeof(bind));
+    bind.function = 0;                                //xxx UNBIND_FN_ALL;
+    strcpy(bind.dev_info, driver);
+    return ioctl(fd, DS_UNBIND_REQUEST, &bind);
 }
 
 /*======================================================================
@@ -678,6 +700,22 @@ int main(int argc, char *argv[])
 	if (strcmp(argv[optind], cmdname[cmd]) == 0) break;
     if (cmd == NCMD)
 	usage(argv[0]);
+   
+    if (cmd == C_BIND) {
+	if (argc < optind+2) {
+		fprintf(stderr, "parameter for bind missing\n");
+		exit(EXIT_FAILURE);
+	}
+	optind++;
+    }
+
+    if (cmd == C_UNBIND) {
+	if (argc < optind+2) {
+		fprintf(stderr, "parameter for unbind missing\n");
+		exit(EXIT_FAILURE);
+	}
+	optind++;
+    }
 
     ret = 0;
     if (argc == optind+2) {
@@ -692,7 +730,13 @@ int main(int argc, char *argv[])
 #ifndef UNSAFE_TOOLS
 	setuid(getuid());
 #endif
-	ret = do_cmd(fd[0], cmd);
+	if (cmd == C_BIND) 
+	    ret = do_bind(fd[0], argv[optind]);
+	else if (cmd == C_UNBIND) 
+	    ret = do_unbind(fd[0], argv[optind]);
+	else
+	    ret = do_cmd(fd[0], cmd);
+
 	if (ret != 0)
 	    perror("ioctl()");
     } else {
@@ -710,7 +754,13 @@ int main(int argc, char *argv[])
 	for (ns = 0; (ns < MAX_SOCKS) && (fd[ns] >= 0); ns++) {
 	    if (cmd <= C_IDENT)
 		printf("Socket %d:\n", ns);
-	    i = do_cmd(fd[ns], cmd);
+	    if (cmd == C_BIND)
+		i = do_bind(fd[ns], argv[optind]);
+		else if (cmd == C_UNBIND)
+		i = do_unbind(fd[ns], argv[optind]);
+            else
+		i = do_cmd(fd[ns], cmd);
+
 	    if ((i != 0) && (errno != ENODEV)) {
 		perror("ioctl()");
 		ret = i;

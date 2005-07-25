@@ -8,16 +8,31 @@ CFLAGS += -DFTP
 OBJS += cmds.o cmdtab.o domacro.o ftp.o glob.o ftpmain.o ruserpass.o
 endif
 
+ifdef CONFIG_USER_NETFLASH_WITH_CGI
+OBJS += cgi.o cgiparse.o kmp.o
+endif
+
 ifdef CONFIG_USER_NETFLASH_HMACMD5
 EXEC += hmacmd5
 OBJS += md5.o hmacmd5.o
 endif
 
-CFLAGS+= -DCONFIG_VERSION=\"$(VERSIONPKG)\"
+ifdef HW_VENDOR
+CFLAGS += -DVENDOR=\"$(HW_VENDOR)\"
+else
+CFLAGS += -DVENDOR=\"$(CONFIG_VENDOR)\"
+endif
+
+ifdef HW_PRODUCT
+CFLAGS += -DPRODUCT=\"$(HW_PRODUCT)\"
+else
+CFLAGS += -DPRODUCT=\"$(CONFIG_PRODUCT)\"
+endif
+
+CFLAGS += -DVERSION=\"$(VERSIONPKG)\"
 COBJS += versioning.o
 
 ifdef CONFIG_USER_NETFLASH_DECOMPRESS
-CFLAGS   += $(INCZ)
 ADD_LIBZ  = -lz
 endif
 
@@ -26,11 +41,11 @@ CFLAGS += -DSETSRC
 endif
 
 ifdef CONFIG_USER_NETFLASH_CRYPTO
-CFLAGS += $(INCAES) $(INCSSL)
 ADD_LIBZ += $(LIBAES) $(LIBCRYPTO)
 endif
 
 CFLAGS += -Dnetflashmain=main
+# CFLAGS += -DDEBUG_CGI
 
 
 all: $(EXEC)
@@ -47,6 +62,9 @@ versioning.o: versioning.c $(ROOTDIR)/config.arch
 
 hmacmd5: hmacmd5main.c hmacmd5.c md5.c
 	gcc -o $@ $^
+
+versiontest: versioning.c
+	gcc -DVERSIONTEST -o $@ $^
 
 romfs:
 	$(ROMFSINST) /bin/netflash

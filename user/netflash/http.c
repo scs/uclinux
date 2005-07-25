@@ -112,8 +112,9 @@ int openhttp(char *url)
 		/* Send GET request to server */
 		sprintf(buf, "GET %s HTTP/1.0\r\n"
 			"User-Agent: netflash/100\r\n"
+			"Host: %s\r\n"
 			"\r\n",
-			urlfile);
+			urlfile, urlip);
 
 		if (write(fd, buf, strlen(buf)) < 0) {
 			close(fd);

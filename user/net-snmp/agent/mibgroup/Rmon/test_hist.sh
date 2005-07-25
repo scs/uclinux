@@ -1,11 +1,8 @@
 :
 # Rmon History testing script
 # $Log$
-# Revision 1.1  2004/07/19 13:24:11  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:29:33  nidhi
-# Importing
+# Revision 1.2  2005/07/25 04:44:34  magicyang
+# New user folder check in
 #
 # Revision 5.0  2002/04/20 07:30:01  hardaker
 # cvs file version number change

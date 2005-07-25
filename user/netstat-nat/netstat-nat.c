@@ -4,11 +4,8 @@
 # $Id$     
 #       
 # $Log$
-# Revision 1.1  2004/07/19 13:25:24  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:29:44  nidhi
-# Importing
+# Revision 1.2  2005/07/25 04:44:51  magicyang
+# New user folder check in
 #
 # Revision 1.17  2002/09/12 19:32:12  mardan
 # Added display local connections to NAT box self

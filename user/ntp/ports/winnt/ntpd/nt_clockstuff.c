@@ -3,11 +3,8 @@
  *
  * Revision History:
  * $Log$
- * Revision 1.1  2004/07/19 13:26:57  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:26:48  nidhi
- * Importing
+ * Revision 1.2  2005/07/25 04:46:34  magicyang
+ * New user folder check in
  *
  * Revision 1.9  2000/11/19 09:02:12  dietrich
  * From: Ron Thornton [rthornto@pictel.com]

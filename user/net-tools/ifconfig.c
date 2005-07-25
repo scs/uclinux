@@ -229,12 +229,13 @@ static int set_netmask(int skfd, struct ifreq *ifr, struct sockaddr *sa)
 int main(int argc, char **argv)
 {
     struct sockaddr sa;
+    struct sockaddr sanetmask;
     struct sockaddr_in sin;
     char host[128];
     struct aftype *ap;
     struct hwtype *hw;
     struct ifreq ifr;
-    int goterr = 0, didnetmask = 0;
+    int goterr = 0, didnetmask = 0, gotnetmask;
     char **spp;
     int fd;
 #if HAVE_AFINET6
@@ -922,17 +923,16 @@ int main(int argc, char **argv)
 
 	/* FIXME: sa is too small for INET6 addresses, inet6 should use that too, 
 	   broadcast is unexpected */
+	gotnetmask = 0;
 	if (ap->getmask) {
-	    switch (ap->getmask(host, &sa, NULL)) {
+	    switch (ap->getmask(host, &sanetmask, NULL)) {
 	    case -1:
 		usage();
 		break;
 	    case 1:
 		if (didnetmask)
 		    usage();
-
-		goterr = set_netmask(skfd, &ifr, &sa);
-		didnetmask++;
+		gotnetmask = 1;
 		break;
 	    }
 	}
@@ -978,6 +978,10 @@ int main(int argc, char **argv)
 		perror("SIOCSIFADDR");
 		goterr = 1;
 	    }
+	}
+	if (gotnetmask) {
+		goterr |= set_netmask(skfd, &ifr, &sanetmask);
+		didnetmask++;
 	}
 
        /*
@@ -1161,10 +1165,8 @@ int if_name_is_vlan(char *name)
 
 	vlan_num = strtol(tmp2, &tmp, 10);
 
-	if (*tmp != '\0') {
-		printf("*tmp != \'\\0\'");
+	if (*tmp != '\0')
 		return 0;
-	}
 
 	return 1;
 }

@@ -54,8 +54,7 @@ extern FILE *local_fdopen(int fd, char *flags);
 #define PKTSIZE    SEGSIZE+4
 char    tftpackbuf[PKTSIZE];
 int	tftptimeout;
-jmp_buf	tftptoplevel;
-jmp_buf	tftptimeoutbuf;
+sigjmp_buf	tftptimeoutbuf;
 
 static
 void tftptimer(int signo)
@@ -66,9 +65,9 @@ void tftptimer(int signo)
 	if (tftptimeout >= tftpmaxtimeout) {
 		printf("Transfer timed out.\n");
 		errno = ETIMEDOUT;
-		longjmp(tftptimeoutbuf, -1);
+		siglongjmp(tftptimeoutbuf, -1);
 	}
-	longjmp(tftptimeoutbuf, 1);
+	siglongjmp(tftptimeoutbuf, 1);
 }
 
 #if 0
@@ -110,7 +109,7 @@ tftpsendfile(fd, name, mode)
 			dp->th_block = htons((u_short)block);
 		}
 		tftptimeout = 0;
-		if(setjmp(tftptimeoutbuf) < 0){
+		if(sigsetjmp(tftptimeoutbuf, 1) < 0){
 			printf("Exiting through timeout\n");
 			exit(TF_TIMEOUT);
 		}
@@ -214,7 +213,7 @@ tftprecvfile(fd, name, mode)
 			block++;
 		}
 		tftptimeout = 0;
-		if(setjmp(tftptimeoutbuf)<0){
+		if(sigsetjmp(tftptimeoutbuf, 1)<0){
 			exit(TF_TIMEOUT);
 		}
 send_ack:

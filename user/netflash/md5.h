@@ -37,7 +37,7 @@
  ***********************************************************************
  */
 
-#ifndef __MD5_INCLUDE__
+#ifndef HEADER_MD5_H
 
 /* typedef a 32-bit type */
 typedef unsigned int UINT4;
@@ -54,5 +54,5 @@ void MD5Init ();
 void MD5Update ();
 void MD5Final ();
 
-#define __MD5_INCLUDE__
-#endif /* __MD5_INCLUDE__ */
+#define HEADER_MD5_H
+#endif /* HEADER_MD5_H */

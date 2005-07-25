@@ -1482,7 +1482,7 @@ shell(const char *arg)
 
 	old1 = signal (SIGINT, SIG_IGN);
 	old2 = signal (SIGQUIT, SIG_IGN);
-#ifdef EMBED
+#ifdef __uClinux__
 	if ((pid = vfork()) == 0) {
 #else
 	if ((pid = fork()) == 0) {

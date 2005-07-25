@@ -23,9 +23,9 @@
  * (decimal) numbers.
  *
  ******************************************************************************/
-int check_vendor(char *vendorName, char *productName, char *version);
+extern int check_vendor(char *vendorName, char *productName, char *version);
+extern void log_upgrade(void);
 
 extern char vendor_name[];
 extern char product_name[];
 extern char image_version[];
-

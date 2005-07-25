@@ -20,11 +20,8 @@
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 13:24:10  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:29:32  nidhi
- * Importing
+ * Revision 1.2  2005/07/25 04:44:34  magicyang
+ * New user folder check in
  *
  * Revision 5.0  2002/04/20 07:30:00  hardaker
  * cvs file version number change

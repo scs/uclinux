@@ -1,5 +1,5 @@
 /*
-* config.h	Automatically generated configuration includefile
+* config.h	No longer automatically generated configuration includefile
 *
 * NET-TOOLS	A collection of programs that form the base set of the
 *		NET-3 Networking Distribution for the LINUX operating
@@ -19,6 +19,8 @@
  * internationalization on your system.
  * 
  */
+#include <config/autoconf.h>
+
 #define I18N 0
 
 /* 
@@ -28,7 +30,11 @@
  */
 #define HAVE_AFUNIX 1
 #define HAVE_AFINET 1
+#ifdef CONFIG_USER_IPV6
+#define HAVE_AFINET6 1
+#else
 #define HAVE_AFINET6 0
+#endif
 #define HAVE_AFIPX 0
 #define HAVE_AFATALK 0
 #define HAVE_AFAX25 0
@@ -56,7 +62,11 @@
 #define HAVE_HWNETROM 0
 #define HAVE_HWX25 0
 #define HAVE_HWFR 0
+#ifdef CONFIG_USER_IPV6
+#define HAVE_HWSIT 1
+#else
 #define HAVE_HWSIT 0
+#endif
 #define HAVE_HWFDDI 0
 #define HAVE_HWHIPPI 0
 #define HAVE_HWASH 0

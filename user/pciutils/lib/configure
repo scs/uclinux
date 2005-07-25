@@ -12,9 +12,9 @@ echo_n() {
 echo_n "Configuring libpci for your system..."
 prefix=${1:-/usr}
 version=${2:-0.0}
-sys=linux
+sys=Linux
 rel=2.4.20
-cpu=<unknown>
+cpu=unknown
 # sys=`uname -s`
 # rel=`uname -r`
 # if [ "$sys" = "AIX" -a -x /usr/bin/oslevel -a -x /usr/sbin/lsattr ]

@@ -127,7 +127,11 @@ int main(int argc, char ** argv)
  char * target = NULL;
  char * default_target = "127.0.0.1";
  char * kb_fname;
+#ifdef __UCLIBC__
+ struct hostent * he;
+#else
  void * hg_globals;
+#endif
  struct in_addr ip;
  int start, n; 
  char hostname[1024];
@@ -212,11 +216,22 @@ int main(int argc, char ** argv)
  
  start = optind;
  
+#ifdef __UCLIBC__
+ he = gethostbyname(target);
+#else
  hg_globals = hg_init(target,  4);
+#endif
  efree(&target);
 
+#ifdef __UCLIBC__
+ for (i=0; he->h_addr_list[i]; i++)
+ {
+ ip = *(struct in_addr *)(he->h_addr_list[i]);
+ strcpy(hostname, he->h_name);
+#else
  while(hg_next_host(hg_globals, &ip, hostname, sizeof(hostname)) >= 0)
  {
+#endif
  script_infos = init(hostname, ip);
  n = start;
  while(argv[n])
@@ -225,6 +240,8 @@ int main(int argc, char ** argv)
   n++;
   }
  }
+#ifndef __UCLIBC__
  hg_cleanup(hg_globals);
+#endif
  return(0);
 }

@@ -30,8 +30,10 @@
 #include <signal.h>
 #include <sys/mount.h>
 #include <string.h>
+#ifndef VERSIONTEST
 #include <linux/autoconf.h>
 #include <config/autoconf.h>
+#endif
 #include <ctype.h>
 #include "netflash.h"
 #include "versioning.h"
@@ -41,13 +43,21 @@
 #define MAX_VERSION_SIZE		12
 #define MAX_LANG_SIZE			8
 
+#ifdef VERSIONTEST
+#define VENDOR "Vendor"
+#define PRODUCT "Product"
+#define VERSION "1.0.0"
+#endif
 
 /****************************************************************************/
 extern struct blkmem_program_t * prog;
 
-char vendor_name[] = CONFIG_VENDOR;
-char product_name[] = CONFIG_PRODUCT;
-char image_version[] = CONFIG_VERSION;
+char vendor_name[] = VENDOR;
+char product_name[] = PRODUCT;
+char image_version[] = VERSION;
+#ifdef CONFIG_PROP_LOGD_LOGD
+static char new_image_version[MAX_VERSION_SIZE+1];
+#endif
 
 
 /****************************************************************************/
@@ -119,6 +129,10 @@ int check_vendor(char *vendorName, char *productName, char *version)
 	cp = get_string(&currBlock, cp, imageVersion, MAX_VERSION_SIZE);
 	if (cp == NULL)
 		return 5;
+#ifdef CONFIG_PROP_LOGD_LOGD
+	memcpy(new_image_version, imageVersion, MAX_VERSION_SIZE);
+	new_image_version[MAX_VERSION_SIZE] = '\0';
+#endif
 
 	/* Looks like there was versioning information there, strip it off
 	 * now so that we don't write it to flash, or try to decompress it, etc */
@@ -331,8 +345,15 @@ static int get_version_bits(char *version, char *ver_long, char *letter,
 	for (i=0; (lang[i] = eptr[i]) != '\0'; i++);
 	*eptr-- = '\0';
 
-       	/* Versions with unnumbered trailing letters will be treated as [u|b|p|i]0 */
-        if (strchr("bupi", *eptr) != NULL) {
+	/* Versions ending in jj are Johnson & Johnson custom images
+	 * ignore the jj - it's for their version tracking only
+	 */
+	if (eptr >= version+2 && *eptr == 'j' && *(eptr - 1) == 'j') {
+		*eptr-- = '\0'; *eptr-- = '\0';
+	}
+
+	/* Versions with unnumbered trailing letters will be treated as [u|b|p|i]0 */
+	if (strchr("bupi", *eptr) != NULL) {
 		eptr[1] = '0';
 		eptr[2] = '\0';
 	}
@@ -351,6 +372,15 @@ static int get_version_bits(char *version, char *ver_long, char *letter,
 			if((!(isdigit(tmp[0]))) || ((isdigit(tmp[1]))))
 				return 0;
 			strncat(ver_tmp, "0", sizeof(ver_tmp) - strlen(ver_tmp));
+		}else if(len == 4){
+			if(!((((isdigit(tmp[0]))) && (!(isdigit(tmp[1]))) && 
+				((isdigit(tmp[2]))) && ((isdigit(tmp[3])))) ||
+			  (((isdigit(tmp[0]))) && ((isdigit(tmp[1]))) && 
+				(!(isdigit(tmp[2]))) && ((isdigit(tmp[3]))))))
+				return 0;
+			if(((isdigit(tmp[0]))) && (!(isdigit(tmp[1]))) && 
+				((isdigit(tmp[2]))) && ((isdigit(tmp[3]))))
+				strncat(ver_tmp, "0", sizeof(ver_tmp) - strlen(ver_tmp));
 		}
 		strncat(ver_tmp, tmp, sizeof(ver_tmp) - strlen(ver_tmp));
 		tmp = strtok(NULL, ".");
@@ -410,3 +440,55 @@ int minor_to_int(char letter, int num)
 }
 
 /****************************************************************************/
+
+#ifdef VERSIONTEST
+struct fileblock_t *fileblocks = NULL;
+
+void remove_data(int length)
+{
+}
+int main(int argc, char *argv[])
+{
+	char ver[9];
+	char letter;
+	int minor;
+	char lang[10];
+	int rc;
+
+	if (argc != 2) {
+		fprintf(stderr, "usage: versiontest <version>\n");
+		exit(1);
+	}
+
+	rc = get_version_bits(argv[1], ver, &letter, &minor, lang);
+	printf("rc: %d\n", rc);
+	if (rc) {
+		printf("ver: %s\n", ver);
+		printf("type: %c\n", letter);
+		printf("minor: %d\n", minor);
+		printf("lang: %s\n", lang);
+	}
+}
+#endif
+
+#ifdef CONFIG_PROP_LOGD_LOGD
+void log_upgrade(void) {
+	char *av[20];
+	int ac = 0;
+	pid_t pid;
+
+	av[ac++] = "logd";
+	av[ac++] = "firmware";
+	av[ac++] = image_version;
+	av[ac++] = new_image_version;
+	av[ac++] = NULL;
+
+	pid = vfork();
+	if (pid == 0) {
+		execv("/bin/logd", av);
+		return -1;
+	}
+	if (pid != -1)
+		while (waitpid(pid, NULL, 0) == -1 && errno == EINTR);
+}
+#endif

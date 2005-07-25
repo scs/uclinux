@@ -670,7 +670,7 @@ void ife_print_long(struct interface *ptr)
     if (hw == NULL)
 	hw = get_hwntype(-1);
 
-    printf(_("%-9.9s Link encap:%s  "), ptr->name, hw->title);
+    printf(_("%-9s Link encap:%s  "), ptr->name, hw->title);
     /* For some hardware types (eg Ash, ATM) we don't print the 
        hardware address if it's null.  */
     if (hw->print != NULL && (! (hw_null_address(hw, ptr->hwaddr) &&
