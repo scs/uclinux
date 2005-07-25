@@ -23,7 +23,7 @@
 
 /* boa: response.c */
 
-#include <syslog.h>
+#include "syslog.h"
 #include "boa.h"
 
 static char e_s[MAX_HEADER_LENGTH * 3];
@@ -111,6 +111,13 @@ void send_r_request_ok(request * req)
 				req_write(req, req->header_line);
 				req_write(req, "\r\n");
 			}
+#ifndef NO_COOKIES
+		if (req->cookie)
+		{
+			req_write(req, req->cookie);
+			req_write(req, "\r\n");	
+		}
+#endif
 	}else
 	{
 		print_content_type(req);

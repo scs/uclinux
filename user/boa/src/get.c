@@ -21,7 +21,7 @@
  *
  */
 
-#include <syslog.h>
+#include "syslog.h"
 #include "boa.h"
 #ifdef SERVER_SSL
 #include <openssl/ssl.h>

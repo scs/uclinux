@@ -24,7 +24,7 @@
 /* boa: hash.c */
 
 #include "boa.h"
-#include <syslog.h>
+#include "syslog.h"
 
 /* 
  * There are two hash tables used, each with a key/value pair

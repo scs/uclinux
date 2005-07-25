@@ -24,7 +24,7 @@
 /* boa: cgi.c */
 
 #include "boa.h"
-#include <syslog.h>
+#include "syslog.h"
 
 static char **common_cgi_env;
 
@@ -191,6 +191,14 @@ void complete_env(request * req)
                 req->cgi_env[req->cgi_env_index++] =
                         env_gen("QUERY_STRING", req->query_string);
         }
+
+#ifndef NO_COOKIES
+        if (req->cookie) {
+                req->cgi_env[req->cgi_env_index++] =
+                        env_gen("HTTP_COOKIE", req->cookie);
+		req->cookie = NULL;
+        }
+#endif
 
         req->cgi_env[req->cgi_env_index++] =
                 env_gen("REMOTE_ADDR", req->remote_ip_addr);

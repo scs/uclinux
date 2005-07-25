@@ -1,12 +1,11 @@
 
 EXEC = br2684ctl
 OBJS = br2684ctl.o
-CFLAGS += $(INCATM)
 
 all: $(EXEC)
 
 $(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBATM) $(LDLIBS$(LDLIBS_$@))
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBATM) $(LIBRESOLV) $(LDLIBS$(LDLIBS_$@))
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)

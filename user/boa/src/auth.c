@@ -26,7 +26,7 @@
 #else
 #include <crypt.h>
 #endif
-#include <syslog.h>
+#include "syslog.h"
 #include "md5.h"
 #include "boa.h"
 #ifdef SHADOW_AUTH
@@ -41,7 +41,7 @@
 #include <config/autoconf.h>
 #endif
 
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 #include "../../login/logcnt.c"
 #endif
 
@@ -341,7 +341,7 @@ int auth_authorize(request * req)
 				*pwd++=0;
 
 				denied = auth_check_userpass(auth_userpass,pwd,current->authfile);
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 				if (strncmp(get_mime_type(req->request_uri),"image/",6))
 					access__attempted(denied, auth_userpass);
 #endif

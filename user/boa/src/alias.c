@@ -26,7 +26,7 @@
 
 #include "boa.h"
 #include <sys/stat.h>
-#include <syslog.h>
+#include "syslog.h"
 
 #ifdef EMBED
 #undef index

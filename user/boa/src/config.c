@@ -418,7 +418,7 @@ void read_config_files(void)
 	default_type = strdup("text/html");
 	document_root = strdup("/home/httpd");
 	directory_index = strdup("index.html");
-	server_name = strdup("NETtel");
+	server_name = strdup("");
 	server_admin = strdup("root@localhost");
 #ifdef BOA_TIME_LOG
 	error_log_name = strdup("/var/log/boa.err.log");

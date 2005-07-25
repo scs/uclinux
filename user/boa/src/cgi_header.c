@@ -22,7 +22,7 @@
  */
 
 #include "boa.h"
-#include <syslog.h>
+#include "syslog.h"
 
 /* process_cgi_header
 
@@ -34,7 +34,11 @@
 int process_cgi_header(request * req)
 {
 	char *buf;
+#ifndef NO_COOKIES
+	char *c, *p;
+#else
 	char *c;
+#endif
 	int eoh_len;
 
 	req->cgi_status = CGI_WRITE;
@@ -103,6 +107,19 @@ int process_cgi_header(request * req)
 	{
 		while (eoh_len-- > 0) *c++ = '\0';
 
+#ifndef NO_COOKIES
+		p = strstr(req->header_line, "Set-cookie: ");
+		if (p)
+		{
+			char *q;
+
+			q = strchr(p, '\r');
+			if (q) *q = 0;
+			q = strchr(p, '\n');
+			if (q) *q = 0;
+			req->cookie = p;
+		}
+#endif
 		if (!strncasecmp(req->header_line,"Content-type: ",14))
 		{
 			char *s;

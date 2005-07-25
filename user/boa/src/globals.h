@@ -85,6 +85,9 @@ struct request {				/* pending requests */
 	char *path_translated;		/* env variable */
 	char *script_name;			/* env variable */
 	char *query_string;			/* env variable */
+#ifndef NO_COOKIES
+	char *cookie;				/* env variable */
+#endif
 	char *content_type;			/* env variable */
 	char *content_length;		/* env variable */
 #if (! defined NO_REFERER_LOG ) || (defined USE_NLS_REFERER_REDIR)

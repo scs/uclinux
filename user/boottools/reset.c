@@ -2,8 +2,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <bootstd.h>
-#include <flash.h>
+#include <asm/uCbootstrap.h>
 
 _bsc1(int,reset,int,a)
 

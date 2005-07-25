@@ -51,7 +51,7 @@
 #include <sys/types.h>			/* socket, bind, accept */
 #include <sys/socket.h>			/* socket, bind, accept, setsockopt, */
 #include <sys/stat.h>			/* open */
-#include <syslog.h>
+#include "syslog.h"
 
 #include "compat.h"				/* oh what fun is porting */
 

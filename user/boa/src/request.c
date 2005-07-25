@@ -36,7 +36,7 @@
 #include <support.h>
 #endif
 
-#include <syslog.h>
+#include "syslog.h"
 
 request *get_sock_request(int sock_fd);
 
@@ -613,7 +613,7 @@ int process_option_line(request * req)
 	else if (!memcmp(line, "CONTENT_TYPE", 13) && !req->content_type)
 		req->content_type = value;
 
-	else if (!memcmp(line, "CONTENT_LENGTH", 15) && !req->content_length)
+	else if (!memcmp(line, "CONTENT_LENGTH", 15) && !req->content_length && atoi(value) >= 0)
 		req->content_length = value;
 
 	else if (!memcmp(line, "HOST",5) && !req->host)
@@ -632,6 +632,12 @@ int process_option_line(request * req)
 #ifndef NO_AGENT_LOG
         else if (!memcmp(line, "USER_AGENT", 11) && !req->user_agent)
                 req->user_agent = value;
+#endif
+
+#ifndef NO_COOKIES
+	else if (!memcmp(line, "COOKIE", 6) && !req->cookie) {
+		req->cookie = value;
+	}
 #endif
 
 	else if (!memcmp(line, "CONNECTION", 11) &&

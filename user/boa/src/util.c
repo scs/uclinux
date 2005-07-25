@@ -25,7 +25,7 @@
 
 #include "boa.h"
 #include <ctype.h>
-#include <syslog.h>
+#include "syslog.h"
 #ifdef SERVER_SSL
 #include <openssl/ssl.h>
 #endif

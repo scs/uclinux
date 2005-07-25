@@ -10,7 +10,7 @@
 /* #undef gid_t */
 
 /* Define if you have a working `mmap' system call.  */
-//#define HAVE_MMAP 1
+#define HAVE_MMAP 1
 
 /* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
 #define HAVE_SYS_WAIT_H 1
