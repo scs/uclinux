@@ -17,6 +17,7 @@ static char const RCSID[] =
 "$Id$";
 
 #include "config.h"
+#include <assert.h>
 
 #if defined(HAVE_NETPACKET_PACKET_H) || defined(HAVE_LINUX_IF_PACKET_H)
 #define _POSIX_SOURCE 1 /* For sigaction defines */
@@ -196,10 +197,20 @@ struct ClientSession *
 findSession(pid_t pid)
 {
     size_t i;
-    for (i=0; i<NumSessionSlots; i++) {
-	if (Sessions[i].pid == pid) {
-	    return &Sessions[i];
-	}
+	int tries;
+    for (tries=0,i=rand()%NumSessionSlots; 
+		(tries < 1000); 
+		i=rand()%NumSessionSlots, tries++) {
+		assert(i < NumSessionSlots);
+		if (Sessions[i].pid == pid) {
+			return &Sessions[i];
+		}
+    }
+	syslog(LOG_ERR, "Couldn't get random session slot\n");
+    for (i=0;i<NumSessionSlots; i++) {
+		if (Sessions[i].pid == pid) {
+			return &Sessions[i];
+		}
     }
     return NULL;
 }

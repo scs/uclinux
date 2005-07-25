@@ -2,7 +2,7 @@
 OBJS=	af.o if.o input.o main.o output.o startup.o \
 	tables.o timer.o trace.o inet.o
 
-CFLAGS += -I$(ROOTDIR)/linux/include $(INCNET) -I. -DRIPVERSION=1
+CFLAGS += -I. -DRIPVERSION=1
 
 all: routed
 
