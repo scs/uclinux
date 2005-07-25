@@ -8,6 +8,9 @@
 #include <paths.h>
 #include <config/autoconf.h>
 #include <linux/version.h>
+#if defined(CONFIG_PROP_LOGD_LOGD)
+#include <stdio.h>
+#endif
 
 #if (__GNU_LIBRARY__ > 5) || defined(__dietlibc__) 
   #include <sys/reboot.h>
@@ -44,6 +47,11 @@ int reboot_now(void)
 
 	sync();
 
+#ifdef CONFIG_USER_INIT_INIT
+	/* Stop init from respawning daemons */
+	kill(1, SIGTSTP);
+#endif
+
 	/* Send signals to every process _except_ pid 1 */
 	kill(-1, SIGTERM);
 	sleep(1);
@@ -51,6 +59,10 @@ int reboot_now(void)
 
 	kill(-1, SIGKILL);
 	sleep(1);
+
+#if defined(CONFIG_USER_MOUNT_UMOUNT) || defined (CONFIG_USER_BUSYBOX_UMOUNT)
+	system("/bin/umount -a -r");
+#endif
 
 	sync();
 #if !defined(__UC_LIBC__) && (LINUX_VERSION_CODE <= KERNEL_VERSION(2,2,11))

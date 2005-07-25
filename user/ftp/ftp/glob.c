@@ -57,7 +57,11 @@ char glob_rcsid[] =
 #define	QUOTE 0200
 #define	TRIM 0177
 #define	eq(a,b)		(strcmp(a, b)==0)
+#ifdef EMBED
+#define	GAVSIZ		(128)
+#else
 #define	GAVSIZ		(ARG_MAX/6)
+#endif
 #define	isdir(d)	((d.st_mode & S_IFMT) == S_IFDIR)
 
 const char *globerr;

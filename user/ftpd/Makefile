@@ -29,6 +29,8 @@ $(EXEC): $(OBJS)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
+	$(ROMFSINST) -e CONFIG_USER_FTPD_FTPD \
+		-a "ftp     stream tcp nowait root /bin/ftpd -l" /etc/inetd.conf
 
 clean:
 	-rm -f $(EXEC) *.elf *.elf2flt *.gdb *.o

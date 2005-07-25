@@ -28,6 +28,7 @@
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/4/94
  */
+
 #include <stdio.h>
 #include <setjmp.h>
 #include <sys/types.h>
@@ -70,8 +71,6 @@ extern char *sgetsave      __P ((const char *));
 
 /* Exported from ftpd.c.  */
 extern jmp_buf  errcatch;
-
-
 extern struct sockaddr_in data_dest;
 extern struct sockaddr_in his_addr;
 extern int logged_in;
@@ -141,3 +140,4 @@ extern int  pam_pass       __P ((const char *, struct credentials *));
 # define ST_BLKSIZE(statbuf) ((statbuf).st_blksize > 0 \
                               ? (statbuf).st_blksize : DEV_BSIZE)
 #endif /* HAVE_STRUCT_STAT_ST_BLKSIZE */
+

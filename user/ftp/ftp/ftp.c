@@ -292,6 +292,7 @@ static void
 cmdabort(int ignore)
 {
 	(void)ignore;
+
 	printf("\n");
 	fflush(stdout);
 	abrtflag++;

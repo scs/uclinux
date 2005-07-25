@@ -50,12 +50,14 @@ int	numdropped;
 
 static int current_cmd = 0;
 static void no_action(void) { }
-#ifdef CONFIG_LEDMAN
 static void reset_config_fs(void);
-#endif
 
 #define MAX_LED_PATTERN 4
 #define	ACTION_TIMEOUT 5		/* timeout before action in seconds */
+
+#ifndef CONFIG_LEDMAN
+	#define LEDMAN_RESET 0
+#endif
 
 static struct {
 	void			(*action)(void);
@@ -63,10 +65,8 @@ static struct {
 	unsigned long	timeout;
 } cmd_list[] = {
 	{ no_action,		0 , 0},
-#ifdef CONFIG_LEDMAN
 	{ no_action,		0 , 2},
 	{ reset_config_fs,		LEDMAN_RESET, 0},
-#endif
 	{ NULL,				0 , 0}
 };
 
@@ -137,16 +137,17 @@ static void save_config_to_flash(void)
  *	Default the config filesystem
  */
 
-#ifdef CONFIG_LEDMAN
 static void reset_config_fs(void)
 {
 	int rc;
 
 	block_sig(1);
 
-	flatclean();
-	if ((rc = flatnew(DEFAULTDIR)) < 0) {
-		syslog(LOG_ERR, "Failed to create new flatfs from %s (%d): %m", DEFAULTDIR, rc);
+	printf("Resetting configuration\n");
+
+	/* Don't actually clean out the filesystem. That will be done when we reboot */
+	if (flatclean(0) < 0) {
+		syslog(LOG_ERR, "Failed to prepare flatfs for reset (%d): %m", rc);
 		exit(1);
 	}
 #ifdef LOGGING
@@ -157,7 +158,6 @@ static void reset_config_fs(void)
 	reboot_now();
 	block_sig(0);
 }
-#endif
 
 /*****************************************************************************/
 
@@ -175,6 +175,26 @@ int creatpidfile()
 	fprintf(f, "%d\n", pid);
 	fclose(f);
 	return(0);
+}
+
+int readpidfile(void)
+{
+	FILE	*f;
+	pid_t	pid;
+	char	*pidfile = "/var/run/flatfsd.pid";
+	int	nread;
+
+	pid = getpid();
+	if ((f = fopen(pidfile, "r")) == NULL) {
+		syslog(LOG_ERR, "Failed to open %s: %m", pidfile);
+		return(-1);
+	}
+	nread=fscanf(f, "%d\n", &pid);
+	fclose(f);
+	if(nread)
+		return(pid);
+	else
+		return(-1);
 }
 
 /*****************************************************************************/
@@ -204,16 +224,21 @@ int register_resetpid(void)
 
 /*****************************************************************************/
 
+#if defined(CONFIG_LEDMAN) && defined(LEDMAN_CMD_SIGNAL)
 #define CHECK_FOR_SIG(x) \
-	do { usleep(x); if (recv_usr1 || recv_usr2 || recv_hup) goto skip_out; } while(0);
+	do { usleep(x); if (recv_usr1 || recv_usr2 || recv_hup) goto skip_out; } while(0)
+#else
+#define CHECK_FOR_SIG(x) \
+	do { usleep(x); if (recv_usr1 || recv_usr2 || recv_hup) return; } while(0)
+#endif
 
 static void
 led_pause(void)
 {
-#if defined(CONFIG_LEDMAN) && defined(LEDMAN_CMD_SIGNAL)
 
 	unsigned long start = time(0);
 
+#if defined(CONFIG_LEDMAN) && defined(LEDMAN_CMD_SIGNAL)
 	ledman_cmd(LEDMAN_CMD_ALT_ON, LEDMAN_ALL); /* all leds on */
 	ledman_cmd(LEDMAN_CMD_ON | LEDMAN_CMD_ALTBIT, LEDMAN_ALL); /* all leds on */
 	CHECK_FOR_SIG(100000);
@@ -221,23 +246,25 @@ led_pause(void)
 	CHECK_FOR_SIG(100000);
 	ledman_cmd(LEDMAN_CMD_ON | LEDMAN_CMD_ALTBIT, cmd_list[current_cmd].led);
 	CHECK_FOR_SIG(250000);
+#endif
 
 	while (time(0) - start < cmd_list[current_cmd].timeout) {
 		CHECK_FOR_SIG(250000);
 	}
 
 	block_sig(1);
+#if defined(CONFIG_LEDMAN) && defined(LEDMAN_CMD_SIGNAL)
 	ledman_cmd(LEDMAN_CMD_ON | LEDMAN_CMD_ALTBIT, LEDMAN_ALL); /* all leds on */
+#endif
 	(*cmd_list[current_cmd].action)();
 	block_sig(0);
 
 	current_cmd = 0;
+
+#if defined(CONFIG_LEDMAN) && defined(LEDMAN_CMD_SIGNAL)
 skip_out:
 	ledman_cmd(LEDMAN_CMD_RESET | LEDMAN_CMD_ALTBIT, LEDMAN_ALL);
 	ledman_cmd(LEDMAN_CMD_ALT_OFF, LEDMAN_ALL); /* all leds on */
-
-#else
-	pause();
 #endif
 }
 
@@ -245,45 +272,68 @@ skip_out:
 
 void usage(int rc)
 {
-	printf("usage: flatfsd [-rwh?]\n");
+	printf("usage: flatfsd [-rwish?]\n");
+	printf("-r read from flash, write to config filesystem\n");
+	printf("-w read from default, write to config filesystem\n");
+	printf("-i initialise from default, reboot\n");
+	printf("-s save config filesystem to flash\n");
+	printf("-h this help\n");
 	exit(rc);
 }
 
 /*****************************************************************************/
 
-/**
- * Returns the number of seconds since boot.
- */
-static long get_uptime(void)
+static void
+version()
 {
-	struct sysinfo si;
-
-	sysinfo(&si);
-	return(si.uptime);
+	printf("flatfsd " FLATFSD_VERSION "\n");
 }
+
+/*****************************************************************************/
+
+/* Query PID file, and send USR1 to the running daemon */
+int saveconfig(void)
+{
+	int pid = readpidfile();
+	if(pid>0)
+	{
+		printf("Saving configuration\n");
+		kill(pid,SIGUSR1);
+		return(0);
+	}
+	return(-1);
+}
+
+/*****************************************************************************/
 
 int main(int argc, char *argv[])
 {
 	struct sigaction	act;
 	int			rc, readonly, clobbercfg;
 
-	/* Interval (in seconds) after boot in which a reset button press
-	 *   erases the config. After this interval, a button press will reboot.
-	 * 0 indicates than there is no time limit.
-	 */
-	int erase_time = 0;
-
 	clobbercfg = readonly = 0;
 
 	openlog("flatfsd", LOG_PERROR, LOG_DAEMON);
 
-	if ((rc = getopt(argc, argv, "rwh?")) != EOF) {
+	if ((rc = getopt(argc, argv, "vriwhs?")) != EOF) {
 		switch(rc) {
 		case 'w':
 			clobbercfg++;
 		case 'r':
 			readonly++;
 			break;
+		case 'v':
+			version();
+			exit(0);
+			break;
+		case 's':
+			exit(saveconfig());
+			break;
+		case 'i':
+			reset_config_fs();
+			exit(0);
+			break;
+
 		case 'h':
 		case '?':
 			usage(0);
@@ -294,33 +344,17 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	{
-		/* Pick up some settings from /etc/config/config */
-
-		FILE *fh = fopen("/etc/config/config", "r");
-		char buf[80];
-
-		if (fh != 0) {
-			while ((fgets(buf, sizeof(buf), fh)) != 0) {
-				if (strncmp(buf, "flat_erase ", 11) == 0) {
-					erase_time = strtoul(buf + 11, 0, 0);
-					break;
-				}
-			}
-			fclose(fh);
-		}
-	}
-
 	if (readonly) {
 		if (clobbercfg ||
 #if defined(USING_FLASH_FILESYSTEM)
-			((rc = flatfilecount()) <= 0)
+			((rc = flatfilecount()) <= 0) ||
 #else
-			((rc = flatread(FILEFS)) < 0)
+			((rc = flatread(FILEFS)) < 0) ||
 #endif
+			flatneedinit()
 		) {
 			syslog(LOG_ERR, "Nonexistent or bad flatfs (%d), creating new one...", rc);
-			flatclean();
+			flatclean(1);
 			if ((rc = flatnew(DEFAULTDIR)) < 0) {
 				syslog(LOG_ERR, "Failed to create new flatfs, err=%d errno=%d",
 					rc, errno);
@@ -394,14 +428,9 @@ int main(int argc, char *argv[])
 			system("/bin/logd button");
 #endif
 			recv_usr2 = 0;
-			if (erase_time > 0 && current_cmd == 0 && get_uptime() > erase_time) {
-				syslog(LOG_ERR, "Erase pressed more than %d seconds after boot, ignoring", erase_time);
-			}
-			else {
-				current_cmd++;
-				if (cmd_list[current_cmd].action == NULL) /* wrap */
-					current_cmd = 0;
-			}
+			current_cmd++;
+			if (cmd_list[current_cmd].action == NULL) /* wrap */
+				current_cmd = 0;
 		}
 
 		if (exit_flatfsd) {

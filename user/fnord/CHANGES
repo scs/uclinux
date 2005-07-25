@@ -1,3 +1,28 @@
+1.8a:
+  Steve Bennett <steveb@snapgear.com>
+  -----------------------------------
+  Raise SIGINT, not SIGQUIT if execv fails
+    otherwise we will get a nasty core dump message.
+  Add support for configuring the fnord web server as an alternative to boa
+  If logging is configured (at compile time), fnord now takes a -l flag to turn it on.
+  The full url, including cgi args is given in the log.
+  Don't die with content type but no content length
+  Make sure PATH_INFO and PATH_TRANSLATED are set correctly.
+  Only add index.html with a trailing slash if not executing a CGI script
+  Be more liberal in accepting byte ranges greater than the size of the file.
+    Just return everything we have in this case.
+  Implement the "virtual path" feature for cgis.
+    This is where the url can request a virtual path past the cgi executable.
+  Move into the uClinux build system
+  Add basic auth support, mostly taken directly from boa/src/auth.c
+  Add support for different index.cgi
+  Turn off use of mmap()
+  When using auth, REMOTE_USER is available to cgi
+  Request logging can be stderr, syslog or nothing - set at compile time.
+  Move large buffers off the stack to minimise stack usage
+  Fix a few compiler warnings
+  Allow the default dir to be specified at compile time
+
 1.8:
   keep current environment in CGI (Laurent Bercot)
   make fnord-conf use the UID and not the user name (Fridtjof Busse)

@@ -1,5 +1,9 @@
 ######################################################
 
+VERSION = 1.0.0
+
+######################################################
+
 EXEC = flatfsd
 OBJS = flatfsd.o newfs.o reboot.o
 # FLTFLAGS += -s 2048
@@ -34,17 +38,21 @@ endif
 ifdef USING_DISKLIKE_DEVICE_y
 CFLAGS += -DUSING_DISKLIKE_DEVICE=1
 OBJS += flatfs.o flatfs_disk.o
+SUBSYS = disk
 else
 ifdef USING_MTD_DEVICE_y
 CFLAGS += -DUSING_MTD_DEVICE=1
 OBJS += flatfs.o flatfs_mtd.o
+SUBSYS = mtd
 else
 ifdef USING_BLKMEM_DEVICE_y
 CFLAGS += -DUSING_BLKMEM_DEVICE=1
 OBJS += flatfs.o flatfs_blkmem.o
+SUBSYS = blkmem
 else
 ifdef USING_FLASH_FILESYSTEM_y
 CFLAGS += -DUSING_FLASH_FILESYSTEM=1
+SUBSYS = fs
 else
 all:: ERROR-no-flatfsd-storage-type-defined
 endif
@@ -56,6 +64,7 @@ ifdef CONFIG_PROP_LOGD_LOGD
 CFLAGS += -DLOGGING
 endif
 
+CFLAGS += -DFLATFSD_VERSION='"$(VERSION)$(SUBSYS)"'
 
 ######################################################
 
@@ -69,5 +78,9 @@ romfs:
 
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o
+
+######################################################
+
+flatfsd.o: Makefile
 
 ######################################################

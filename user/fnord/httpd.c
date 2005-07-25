@@ -1,4 +1,6 @@
 /* simple httpd to be started from tcpserver */
+#include <stdio.h>
+
 #define _FILE_OFFSET_BITS 64
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,16 +9,17 @@
 #include <fcntl.h>
 #include <time.h>
 #include <syslog.h>
-//#include <stdio.h>
 #include <string.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <grp.h>
+#include <pwd.h>
 #include <errno.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
 #include <dirent.h>
 #include <sys/mman.h>
 #include <limits.h>
@@ -33,9 +36,11 @@
 
 /*#define CHECK_STR_COPY*/
 
+#ifndef SERVER_MODE
 #ifdef __uClinux__
 #undef fork
 #define fork vfork
+#endif
 #endif
 
 /*#define LOG_TO_SYSLOG*/
@@ -165,10 +170,15 @@ char *auth_type;
 #ifdef USE_AUTH
 char *remote_user;
 char remote_user_buf[15];
+char remote_user_authby[15];
 #endif
 char *post_miss;
 unsigned long post_mlen;
 unsigned long post_len=0;
+#endif
+
+#ifdef USE_AUTH
+char *config_file = "boa.conf";
 #endif
 
 #if _FILE_OFFSET_BITS == 64
@@ -193,6 +203,8 @@ char* remote_ip;
 #ifdef CGI
 char* remote_port;
 char* remote_ident;
+char* local_ip;
+char* local_port;
 #endif
 
 #ifdef CHECK_STR_COPY
@@ -276,9 +288,8 @@ static void badrequest(long code,const char *httpcomment,const char *message) {
 }
 
 #ifdef CGI
-#define CGIENVLEN 20
 
-static const char *cgivars[CGIENVLEN] = {
+static const char *cgivars[] = {
   "GATEWAY_INTERFACE=",
   "SERVER_PROTOCOL=",
   "SERVER_SOFTWARE=",
@@ -290,6 +301,8 @@ static const char *cgivars[CGIENVLEN] = {
   "REMOTE_ADDR=",
   "REMOTE_PORT=",
   "REMOTE_IDENT=",
+  "LOCAL_ADDR=",
+  "LOCAL_PORT=",
   "HTTP_USER_AGENT=",
   "HTTP_COOKIE=",
   "HTTP_REFERER=",
@@ -299,7 +312,10 @@ static const char *cgivars[CGIENVLEN] = {
   "QUERY_STRING=",
   "PATH_INFO=",
   "PATH_TRANSLATED="
+  "PATH=",
 };
+
+#define CGIENVLEN (sizeof(cgivars) / sizeof(*cgivars))
 
 static int iscgivar(const char *s) {
   register unsigned int i=0;
@@ -374,6 +390,20 @@ static void do_cgi(const char* pathinfo,const char* const* envp) {
     *tmp=0; ++tmp;
   }
 
+  if (local_ip) {
+    cgi_env[++i]=tmp;
+    tmp+=str_copy(tmp,"LOCAL_ADDR=");
+    tmp+=str_copy(tmp,local_ip);
+    *tmp=0; ++tmp;
+  }
+
+  if (local_port) {
+    cgi_env[++i]=tmp;
+    tmp+=str_copy(tmp,"LOCAL_PORT=");
+    tmp+=str_copy(tmp,local_port);
+    *tmp=0; ++tmp;
+  }
+
   if (ua) {
     cgi_env[++i]=tmp;
     tmp+=str_copy(tmp,"HTTP_USER_AGENT=");
@@ -407,6 +437,11 @@ static void do_cgi(const char* pathinfo,const char* const* envp) {
     cgi_env[++i]=tmp;
     tmp+=str_copy(tmp,"REMOTE_USER=");
     tmp+=str_copy(tmp,remote_user);
+    *tmp=0; ++tmp;
+
+    cgi_env[++i]=tmp;
+    tmp+=str_copy(tmp,"USER_AUTHBY=");
+    tmp+=str_copy(tmp,remote_user_authby);
     *tmp=0; ++tmp;
   }
 #endif
@@ -442,10 +477,15 @@ static void do_cgi(const char* pathinfo,const char* const* envp) {
     ++tmp;
   }
 
+  /* Set the default path for cgis */
+  cgi_env[++i]="PATH=/bin:/usr/bin:/sbin:/usr/sbin";
+
   {
     unsigned int j=0;
     for (;j<en;j++)
-      if (!iscgivar(envp[j])) cgi_env[++i]=(char*)envp[j];
+      if (!iscgivar(envp[j])) {
+		cgi_env[++i]=(char*)envp[j];
+	  }
   }
   cgi_env[++i]=0;
 
@@ -492,7 +532,11 @@ static void do_cgi(const char* pathinfo,const char* const* envp) {
 }
 
 static void cgi_child(int sig) {
-  int n,pid=waitpid(0,&n,WNOHANG);
+  int n;
+  int pid;
+
+  pid=waitpid(0,&n,WNOHANG);
+
   if (pid>0) {
     if (WIFSIGNALED(n)) {
       if (WTERMSIG(n)==SIGALRM)
@@ -503,6 +547,22 @@ static void cgi_child(int sig) {
   }
   signal(SIGCHLD,cgi_child);
 }
+
+#ifdef SERVER_MODE
+/**
+ * Just reap children and ignore the result
+ */
+static void sig_child_ignore(int sig)
+{
+  int status = 0;
+  int pid;
+
+  while ((pid = waitpid(0,&status,WNOHANG)) > 0) {
+  }
+
+  signal(SIGCHLD, sig_child_ignore);
+}
+#endif
 
 static void cgi_send_correct_http(const char*s,unsigned int sl) {
   unsigned int i;
@@ -1095,20 +1155,45 @@ static void get_ucspi_env(void) {
     remote_port=getenv(buf);
     buf[tmp+str_copy(buf+tmp,"REMOTEINFO")]=0;
     remote_ident=getenv(buf);
+    buf[tmp+str_copy(buf+tmp,"LOCALIP")]=0;
+    local_ip=getenv(buf);
+    buf[tmp+str_copy(buf+tmp,"LOCALPORT")]=0;
+    local_port=getenv(buf);
 #endif
   }
 }
 
 #ifdef CGI
 #if 0
-static int findcgi(const char* c) {
-  return (c[0]=='.' && c[1]=='c' &&
+static char *findcgi(const char* c) {
+  if (c[0]=='.' && c[1]=='c' &&
 	  c[2]=='g' && c[3]=='i' &&
-	  (c[4]=='/' || c[4]==0));
+	  (c[4]=='/' || c[4]==0)) {
+    return c + 4;
+  }
+  return 0;
 }
 #else
-static int findcgi(const char* c) {
-  return (strncmp(c, "cgi-bin/", 8) == 0);
+static char *findcgi(const char* c) {
+  char *pathinfo;
+  /* Checks to see if 'c' represents a valid cgi-bin script.
+   * Returns 0 if not, or a pointer to the first non-script char
+   * if it does.
+   * For example, if given "cgi-bin/myscript/abc" and cgi-bin/myscript exists,
+   * returns a pointer to "/myscript". This is the PATH_INFO.
+   * If given "cgi-bin/myscript", returns a pointer to the null terminator
+   * (thus an empty PATH_INFO).
+   */
+  if (strncmp(c, "cgi-bin/", 8) != 0) {
+    return 0;
+  }
+
+  /* We have a cgi-program, just make a simple guess */
+  pathinfo = strchr(c + 8, '/');
+  if (!pathinfo) {
+    pathinfo = strchr(c, 0);
+  }
+  return pathinfo;
 }
 #endif
 #endif
@@ -1249,13 +1334,17 @@ static int serve_static_data(int fd) {
 #endif
 }
 
-/* Usage: httpd [-l] [rootdir]
+/* Usage: httpd [-l] [-p port] [-f conffile] [-u user] [rootdir]
 */
 int main(int argc,char *argv[],const char *const *envp) {
   static char buf[MAXHEADERLEN];
   char *nurl,*origurl;
   int len;
   int in;
+#ifdef SERVER_MODE
+  int listen_port = 0;
+  const struct passwd *pw = 0;
+#endif
 
   while (argc > 1) {
     --argc;
@@ -1266,6 +1355,18 @@ int main(int argc,char *argv[],const char *const *envp) {
     }
     switch (argv[0][1]) {
       case 'l': logging = 1; break;
+#ifdef SERVER_MODE
+      case 'p': listen_port = atoi(argv[1]); argc--; argv++; break;
+      case 'u': pw = getpwnam(argv[1]);
+				if (!pw) {
+					goto error500;
+				}
+				argc--; argv++;
+				break;
+#endif
+#ifdef USE_AUTH
+      case 'f': config_file = argv[1]; argc--; argv++; break;
+#endif
     }
   }
 
@@ -1274,10 +1375,28 @@ int main(int argc,char *argv[],const char *const *envp) {
   openlog("httpd", 0, 0);
 
 #ifdef USE_AUTH
-#ifdef EMBED
-  /* REVISIT: This is very SnapGear-specific. Should get this from elsewhere */
-  auth_add("/cgi-bin/config", "/etc/config/config");
-#endif
+  /* Very simple parser for lines of the form: "Auth /cgi-bin/saveall /etc/config/htpasswd" */
+  {
+	char buf[100];
+	FILE *fh = fopen(config_file, "r");
+	if (fh) {
+	  while (fgets(buf, sizeof(buf), fh)) {
+		/*syslog(LOG_INFO, "from boa.conf: %s", buf);*/
+		if (strncmp("Auth ", buf, 5) == 0) {
+		  char *pt1 = strchr(buf + 5, ' ');
+		  char *pt2 = strchr(buf + 5, '\n');
+		  if (!pt1 || !pt2) {
+			continue;
+		  }
+		  *pt1++ = 0;
+		  *pt2 = 0;
+		  /*syslog(LOG_INFO, "auth_add(%s, %s)", buf + 5, pt1);*/
+		  auth_add(buf + 5, pt1);
+		}
+	  }
+	  fclose(fh);
+	}
+  }
 #endif
 
 #ifdef CHROOT
@@ -1302,8 +1421,88 @@ int main(int argc,char *argv[],const char *const *envp) {
       } else goto error500;
     }
   }
+#elif defined(SERVER_MODE)
+  if (pw) {
+	if (setuid(pw->pw_uid)) goto error500;
+	/* Set up a minimal environment for this user */
+    setenv("HOME", pw->pw_dir, 1);
+  }
 #endif
   signal(SIGPIPE,SIG_IGN);
+
+#if defined(SERVER_MODE)
+  if (listen_port > 0) {
+	struct sockaddr_in saremote;
+	int s = socket(AF_INET, SOCK_STREAM, 0);
+	struct sockaddr_in salocal;
+	socklen_t salen;
+	int enabled = 1;
+	int fd;
+	char buf[100];
+
+	fprintf(stderr, "Listening on http://localhost:%d/\n", listen_port);
+
+	if (s < 0) {
+	  perror("socket");
+	  exit(1);
+	}
+
+	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled));
+
+	memset(&salocal, 0, sizeof(salocal));
+	salocal.sin_family = AF_INET;
+	salocal.sin_port = htons(listen_port);
+
+	if (bind (s, (struct sockaddr *)&salocal, sizeof (salocal)) < 0) {
+		perror("bind");
+		exit(1);
+	}
+	/* Ignore the error */
+	listen(s, 10);
+
+	/* In the server, reap children */
+	signal(SIGCHLD, sig_child_ignore);
+
+	while (1) {
+	  int child;
+	  salen = sizeof(saremote);
+	  fd = accept(s, (struct sockaddr *)&saremote, &salen);
+	  if (fd < 0) {
+		continue;
+	  }
+	  /* Got a request. So fork */
+	  if ((child = fork()) == 0) {
+		/* Child, so fall through */
+		break;
+	  }
+	  /*fprintf(stderr, "Forked child %d\n", child);*/
+	  /* Server, so go round for the next request */
+	  close(fd);
+	}
+
+	/* Child here, so set up the environment */
+	putenv("PROTO=TCP");
+	salen = sizeof(salocal);
+	if (getsockname(fd, (struct sockaddr *)&salocal, &salen) == 0) {
+		snprintf(buf, sizeof(buf), "TCPLOCALIP=%s", inet_ntoa(salocal.sin_addr));
+		putenv(strdup(buf));
+	} else {
+		putenv("TCPLOCALIP=0.0.0.0");
+	}
+	snprintf(buf, sizeof(buf), "TCPREMOTEIP=%s", inet_ntoa(saremote.sin_addr));
+	putenv(strdup(buf));
+	snprintf(buf, sizeof(buf), "TCPREMOTEPORT=%d", ntohs(saremote.sin_port));
+	putenv(strdup(buf));
+	snprintf(buf, sizeof(buf), "TCPLOCALPORT=%d", listen_port);
+	putenv(strdup(buf));
+
+	/* And make the client socket available on stdin and stdout */
+	close(s);
+	dup2(fd, 0);
+	dup2(fd, 1);
+	close(fd);
+  }
+#endif
   get_ucspi_env();
 
 #ifdef KEEPALIVE
@@ -1536,13 +1735,15 @@ hostb0rken:
 	    "Access to this site is restricted.\r\n"
 	    "Please provide credentials.\r\n");
 	  buffer_flush(buffer_1);
+	  /* Hmmm. Closing 0 seems to make things work better here !?! */
+	  close(0);
 	  exit(0);
 	}
       }
     }
   }
 #elif defined(USE_AUTH)
-  if (!auth_authorize(host, url, remote_ip, header(buf, len, "Authorization"), remote_user_buf)) {
+  if (!auth_authorize(host, url, remote_ip, header(buf, len, "Authorization"), remote_user_buf, remote_user_authby)) {
     retcode = 401;
     dolog(0);
     buffer_puts(buffer_1,"HTTP/1.0 401 Authorization Required\r\n"
@@ -1552,48 +1753,42 @@ hostb0rken:
       "Access to this site is restricted.\r\n"
       "Please provide credentials.\r\n");
     buffer_flush(buffer_1);
+    /* Hmmm. Closing 0 seems to make things work better here !?! */
+    close(0);
     exit(0);
   }
   else {
     remote_user = remote_user_buf;
   }
 #endif /* SIMPLE_AUTH */
-  nurl=url+str_len(url);
-  if (nurl>url) --nurl;
-  if (*nurl=='/') {
-    int i;
-    nurl=alloca(str_len(url)+12);
-    i=str_copy(nurl,url);
-    i+=str_copy(nurl+i,"index.html");
-    nurl[i]=0;
-    url=nurl;
-    nurl=url+i;
-  }
+
 #ifdef CGI
   /*syslog(LOG_INFO, "XXX: check cgi, url=%s, nurl=%s\n", url, nurl);*/
 
-  nurl-=3;
+  nurl=url+str_len(url)-3;
   {
-    char* tmp,* pathinfo;
-    pathinfo=0;
-    for (tmp=url; tmp<nurl; ++tmp)
-      if (findcgi(tmp)) {
+    char* tmp;
+    char* pathinfo = 0;
+    for (tmp=url; tmp<nurl; ++tmp) {
+      if ((pathinfo = findcgi(tmp)) != 0) {
+#ifdef DEBUG
+	/*fprintf(stderr, "findcgi(%s) returned %s\n", tmp, pathinfo);*/
+#endif
 	nurl=tmp;
-	if (tmp[4]=='/')
-	  pathinfo=tmp+4;
 	break;
       }
+    }
 
     /*syslog(LOG_INFO, "XXX: check cgi, url=%s, nurl=%s, pathinfo=%s\n", url, nurl, pathinfo);*/
 
-    if (pathinfo) {
+    if (pathinfo && *pathinfo) {
       int len=str_len(pathinfo)+1;
       tmp=alloca(len);
       memcpy(tmp,pathinfo,len);
       *pathinfo=0;
       pathinfo=tmp;
     }
-    if (findcgi(nurl)) {
+    if (pathinfo) {
       int i;
       /*syslog(LOG_INFO, "XXX: findcgi(%s) OK", nurl);*/
       if ((method==HEAD)) badrequest(400,"Bad Request","Illegal HTTP method for Gateway call.");
@@ -1616,6 +1811,22 @@ hostb0rken:
     }
   }
 #endif
+
+  /* If we end in a /, add index.html */
+  nurl=url+str_len(url);
+  if (nurl>url) --nurl;
+  if (*nurl=='/') {
+    int i;
+#ifdef DEBUG
+    /*fprintf(stderr, "%s ends in /, so adding index.html\n", url);*/
+#endif
+    nurl=alloca(str_len(url)+12);
+    i=str_copy(nurl,url);
+    i+=str_copy(nurl+i,"index.html");
+    nurl[i]=0;
+    url=nurl;
+    nurl=url+i;
+  }
 
   {
     int fd;

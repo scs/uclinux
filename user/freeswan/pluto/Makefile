@@ -4,13 +4,15 @@ srcdir = $(ROOTDIR)/freeswan
 PLUTOINCLS    = -I$(srcdir)/pluto
 FREESWANINCLS = -I$(srcdir)/lib -I$(srcdir)
 FREESWANLIB   = ../lib/libfreeswan.a
-LIBDESINCLS   = $(INCDES)
+LIBDESINCLS   =
 LIBDESLITE    = $(ROOTDIR)/lib/libdes/libdes.a
-LIBGMPINCLS   = $(INCGMP)
+LIBGMPINCLS   =
 LIBGMP        = $(ROOTDIR)/lib/libgmp/libgmp.a
 
 CFLAGS += -DUSE_ASM_BYTEORDER=1 -D__USE_BSD
+ifdef CONFIG_USER_FLATFSD_FLATFSD
 CFLAGS += -DSHARED_SECRETS_FILE=\"/etc/config/ipsec.secrets\"
+endif
 ifdef CONFIG_USER_SASH_SH
 CFLAGS += -DSIMPLE_SCRIPTS=1
 endif
@@ -35,7 +37,7 @@ CFLAGS += -Wmissing-prototypes -Wpointer-arith -Wbad-function-cast \
 endif
 
 # where to find klips headers and FreeS/WAN headers
-HDRDIRS = -I$(ROOTDIR)/lib/$(LIBCDIR)/include -I$(KLIPSD) $(FREESWANINCLS) $(PLUTOINCLS) $(LIBDESINCLS) $(LIBGMPINCLS)
+HDRDIRS = -I$(ROOTDIR)/include -I$(KLIPSD) $(FREESWANINCLS) $(PLUTOINCLS) $(LIBDESINCLS) $(LIBGMPINCLS)
 
 # On non-LINUX systems, these one of these may be needed (see endian.h)
 # BYTE_ORDER = -DBIG_ENDIAN=4321 -DLITTLE_ENDIAN=1234 -DBYTE_ORDER=BIG_ENDIAN

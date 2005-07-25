@@ -28,6 +28,18 @@
 
 /*****************************************************************************/
 
+/**
+ * If the file .init exists, it indicates that the filesystem should be
+ * reinitialised, so return 1.
+ */
+int flatneedinit(void)
+{
+	if (access(SRCDIR "/.init", R_OK) == 0) {
+		return 1;
+	}
+	return 0;
+}
+
 /*
  *	Count the number of files in the config area.
  *  Updates numfiles and numbytes and returns numfiles or < 0 on error.
@@ -67,29 +79,42 @@ int flatfilecount(void)
 
 /*
  *	Remove all files from the config file-system.
+ *	If 'realclean' is 0, actually just writes the .init file
+ *	which indicates that the filesystem should be cleaned out
+ *	after the next reboot (during flatfsd -r)
  */
 
-int flatclean(void)
+int flatclean(int realclean)
 {
-	DIR		*dirp;
-	struct dirent	*dp;
+	if (realclean) {
+		DIR		*dirp;
+		struct dirent	*dp;
+		struct stat sb;
 
-	if (chdir(SRCDIR) < 0)
-		return(ERROR_CODE());
+		if (chdir(SRCDIR) < 0)
+			return(ERROR_CODE());
 
-	/* Scan directory */
-	if ((dirp = opendir(".")) == NULL)
-		return(ERROR_CODE());
+		/* Scan directory */
+		if ((dirp = opendir(".")) == NULL)
+			return(ERROR_CODE());
 
-	while ((dp = readdir(dirp)) != NULL) {
-		if ((strcmp(dp->d_name, ".") == 0) ||
-		    (strcmp(dp->d_name, "..") == 0))
-			continue;
-		unlink(dp->d_name);
+		while ((dp = readdir(dirp)) != NULL) {
+			/* only delete normal files */
+			if (stat(dp->d_name, &sb) == 0 && S_ISREG(sb.st_mode))
+				unlink(dp->d_name);
+		}
+
+		closedir(dirp);
+		return(0);
 	}
-
-	closedir(dirp);
-	return(0);
+	else {
+		FILE *fh = fopen(SRCDIR "/.init", "w");
+		if (fh) {
+			fclose(fh);
+			return 1;
+		}
+		return ERROR_CODE();
+	}
 }
 
 /*****************************************************************************/

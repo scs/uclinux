@@ -9,11 +9,8 @@
  * $Locker$
  *
  * $Log$
- * Revision 1.1  2004/07/19 13:02:33  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:27:26  nidhi
- * Importing
+ * Revision 1.2  2005/07/25 02:00:44  magicyang
+ * New user folder check in
  *
  * Revision 1.1.1.1  2001/11/11 23:20:38  davidm
  * Import of e2fsprogs-1.25

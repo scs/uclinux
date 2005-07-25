@@ -69,6 +69,8 @@ dungeon: $(OBJS) dtextc.dat
 romfs:
 	$(ROMFSINST) /bin/dungeon
 	$(ROMFSINST) dtextc.dat /$(LIBDIR)/dtextc.dat
+	$(ROMFSINST) -e CONFIG_USER_GAMES_DUNGEON \
+		-a "dungeon stream tcp nowait root /bin/dungeon" /etc/inetd.conf
 
 clean:
 	rm -f $(OBJS) dungeon core dsave.dat *~ dungeon.gdb dungeon.elf

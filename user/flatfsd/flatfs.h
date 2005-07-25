@@ -53,8 +53,9 @@ extern int	numdropped;
 extern int flatread(char *flatfs);
 extern int flatwrite(char *flatfs);
 extern int flatnew(const char *dir);
-extern int flatclean(void);
+extern int flatclean(int realclean);
 extern int flatfilecount(void);
+extern int flatneedinit(void);
 
 #define ERROR_CODE()	(-(__LINE__)) /* unique failure codes :-) */
 

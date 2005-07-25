@@ -86,7 +86,6 @@ static char sccsid[] = "@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94";
 #define NBBY CHAR_BIT
 #endif
 
-jmp_buf errcatch;
 off_t restart_point;
 
 static char cbuf[512];           /* Command Buffer.  */

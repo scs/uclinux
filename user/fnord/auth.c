@@ -24,24 +24,18 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
-#define _XOPEN_SOURCE
 #include <unistd.h>
-#ifndef __UC_LIBC__
 #include <crypt.h>
-#endif
 #include <syslog.h>
-#ifdef SHADOW_AUTH
-#include <shadow.h>
-#elif !defined(EMBED)
-#include "md5.h"
-#endif
-#ifdef OLD_CONFIG_PASSWORDS
-#include <crypt_old.h>
-#endif
-#ifdef EMBED
 #include <sys/types.h>
 #include <pwd.h>
+
 #include <config/autoconf.h>
+
+#ifndef HOSTBUILD
+#ifdef CONFIG_USER_OLD_PASSWORDS
+#include <crypt_old.h>
+#endif
 #endif
 
 #ifdef CONFIG_AMAZON
@@ -50,7 +44,7 @@
 
 #include "base64.h"
 
-#undef DEBUG
+/*#undef DEBUG*/
 
 #ifdef DEBUG
 #define DBG(A) A
@@ -68,9 +62,6 @@ struct _auth_dir_ {
 typedef struct _auth_dir_ auth_dir;
 
 static auth_dir *auth_list = 0;
-#ifdef OLD_CONFIG_PASSWORDS
-static char auth_old_password[16];
-#endif
 
 /*
  * Name: auth_add
@@ -89,10 +80,6 @@ void auth_add(char *directory,char *file)
 		old = old->next;
 	}
 
-#ifdef DEBUG
-	syslog(LOG_DEBUG, "auth_add(dir=%s, file=%s)\n", directory, file);
-#endif
-	
 	new_a = (auth_dir *)malloc(sizeof(auth_dir));
 	/* success of this call will be checked later... */
 	new_a->authfile = fopen(file,"rt");
@@ -102,106 +89,82 @@ void auth_add(char *directory,char *file)
 	auth_list = new_a;
 }
 
-#if 0
-void auth_check()
-{
-	auth_dir *cur;
-	
-	cur = auth_list;
-	while (cur) {
-		if (!cur->authfile) {
-			/*log_error_time();*/
-			syslog(LOG_ERR,"Authentication password file for %s not found!\n", cur->directory);
-		}
-		cur = cur->next;
-	}
-}
-#endif
-
 /*
  * Name: auth_check_userpass
  *
- * Description: Checks user's password. Returns 0 when sucessful and password
- * 	is ok, else returns nonzero; As one-way function is used RSA's MD5 w/
- *  BASE64 encoding.
-#ifdef EMBED
- * On embedded environments we use crypt(), instead of MD5.
-#endif
+ * Description: Checks user's password.
+ *  Return 0 if OK, 1 if bad password or 2 if unknown user
+ * 	is ok, else returns nonzero.
+ *  The format of the file is:
+ *  login:crypt(passwd)[:id]
+ *
+ * Note that there can be multiple entries with the *same* login
+ * but possibly different password and id, so if we don't match
+ * the password of the first entry, we keep going.
  */
-static int auth_check_userpass(char *user,char *pass,FILE *authfile)
+static int auth_check_userpass(char *user,char *pass,FILE *fh, char idbuf[15])
 {
-#ifdef SHADOW_AUTH
-	struct spwd *sp;
+	int ret = 2;
 
-	sp = getspnam(user);
-	if (!sp)
-		return 2;
+	char buf[128];
 
-	if (!strcmp(crypt(pass, sp->sp_pwdp), sp->sp_pwdp))
-		return 0;
+	while (fgets(buf, sizeof(buf), fh)) {
+		char *pt;
+		char *id;
+		char *pw = strchr(buf, ':');
 
-#else
-
-#ifndef EMBED
-	char temps[0x100],*pwd;
-	struct MD5Context mc;
- 	unsigned char final[16];
-	char encoded_passwd[0x40];
-  /* Encode password ('pass') using one-way function and then use base64
-		 encoding. */
-	MD5Init(&mc);
-	MD5Update(&mc, pass, strlen(pass));
-	MD5Final(final, &mc);
-	strcpy(encoded_passwd,"$1$");
-	base64encode(final, encoded_passwd+3, 16);
-
-	DBG(printf("auth_check_userpass(%s,%s,...);\n",user,pass);)
-
-	fseek(authfile,0,SEEK_SET);
-	while (fgets(temps,0x100,authfile))
-	{
-		if (temps[strlen(temps)-1]=='\n')
-			temps[strlen(temps)-1] = 0;
-		pwd = strchr(temps,':');
-		if (pwd)
-		{
-			*pwd++=0;
-			if (!strcmp(temps,user))
-			{
-				if (!strcmp(pwd,encoded_passwd))
-					return 0;
-			} else
-				return 2;
+		if (!pw) {
+			continue;
 		}
+		*pw++ = 0;
+
+		if (strcmp(user, buf) != 0) {
+			/* No match on user */
+			continue;
+		}
+
+		/* Make sure we strip the trailing newline */
+		if ((pt = strchr(pw, '\n')) != 0) {
+			*pt = 0;
+		}
+
+		/* There might be an id too */
+		id = strchr(pw, ':');
+		if (id) {
+			*id++ = 0;
+		}
+		else {
+			id = "";
+		}
+
+#ifndef HOSTBUILD
+#ifdef CONFIG_USER_OLD_PASSWORDS
+		if (strcmp(crypt_old(pass, pw), pw) == 0) {
+			/* Matched password */
+		}
+		else
+#endif
+#endif
+
+		if (strcmp(crypt(pass, pw), pw) != 0) {
+			/* Bad password */
+			ret = 1;
+			/* But keep going, because we may find the same username later
+			 * with a different password
+			 */
+			continue;
+		}
+
+		/* We have a match, so remember the id */
+		ret = 0;
+		snprintf(idbuf, 15, "%s", id);
+		break;
 	}
-#else
-	struct passwd *pwp;
 
-	pwp = getpwnam(user);
-	if (pwp != NULL) {
-		if (strcmp(crypt(pass, pwp->pw_passwd), pwp->pw_passwd) == 0)
-			return 0;
-	} else 
-#ifdef OLD_CONFIG_PASSWORDS
-	/* For backwards compatibility we allow the global root password to work too */
-	if ((auth_old_password[0] != '\0') && 
-			((*user == '\0') || (strcmp(user, "root") == 0))) {
-
-		if (strcmp(crypt_old(pass,auth_old_password),auth_old_password) == 0 ||
-				strcmp(crypt(pass,auth_old_password),auth_old_password) == 0) {
-			strcpy(user, "root");
-			return 0;
-		}
-	} else
-#endif	/* OLD_CONFIG_PASSWORDS */
-		return 2;
-
-#endif	/* ! EMBED */
-#endif	/* SHADOW_AUTH */
-	return 1;
+	return ret;
 }
 
-int auth_authorize(const char *host, const char *url, const char *remote_ip_addr, const char *authorization, char username[15])
+int auth_authorize(const char *host, const char *url, const char *remote_ip_addr, const char *authorization, char username[15], char id[15])
 {
 	auth_dir *current;
 	char *pwd;
@@ -237,7 +200,9 @@ int auth_authorize(const char *host, const char *url, const char *remote_ip_addr
 				
 				*pwd++=0;
 
-				denied = auth_check_userpass(auth_userpass,pwd,current->authfile);
+				rewind(current->authfile);
+
+				denied = auth_check_userpass(auth_userpass,pwd,current->authfile, id);
 #ifdef CONFIG_AMAZON
 				access__attempted(denied, auth_userpass);
 #endif

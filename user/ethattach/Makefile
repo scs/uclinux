@@ -2,12 +2,10 @@
 EXEC = ethattach
 OBJS = ethattach.o
 
-CFLAGS += $(INCNET)
-
 all: $(EXEC)
 
 $(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBNET) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBNETOLD) $(LDLIBS)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)

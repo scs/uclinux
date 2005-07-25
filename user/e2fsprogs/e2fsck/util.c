@@ -213,7 +213,9 @@ void init_resource_track(struct resource_track *track)
 	struct rusage r;
 #endif
 	
+#ifdef HAVE_SBRK
 	track->brk_start = sbrk(0);
+#endif
 	gettimeofday(&track->time_start, 0);
 #ifdef HAVE_GETRUSAGE
 #ifdef sun
@@ -279,7 +281,7 @@ void print_resource_track(const char *desc, struct resource_track *track)
 	printf(_("Memory used: %dk/%dk (%dk/%dk), "),
 	       kbytes(malloc_info.arena), kbytes(malloc_info.hblkhd),
 	       kbytes(malloc_info.uordblks), kbytes(malloc_info.fordblks));
-#else
+#elif defined(HAVE_SBRK)
 	printf(_("Memory used: %d, "),
 	       (int) (((char *) sbrk(0)) - ((char *) track->brk_start)));
 #endif	

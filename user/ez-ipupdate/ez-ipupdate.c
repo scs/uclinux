@@ -224,8 +224,8 @@
 #define MAX_WAITRESPONSE_WAIT (24*3600)
 #define MAX_MESSAGE_LEN 256
 #define ARGLENGTH 32
-#define block_file "/var/run/ez-ipupdate.block"
-char *BLOCK_FILE=block_file;
+#define DEFAULT_BLOCK_FILE "/var/run/ez-ipupdate.block"
+char *BLOCK_FILE=DEFAULT_BLOCK_FILE;
 #define PID_FILE "/var/run/ez-ipupdate.pid"
 
 /**************************************************/
@@ -660,7 +660,7 @@ void print_usage( void )
   fprintf(stdout, " Options are:\n");
   fprintf(stdout, "  -a, --address <ip address>\tstring to send as your ip address\n");
   fprintf(stdout, "  -b, --cache-file <file>\tfile to use for caching the ipaddress\n");
-  fprintf(stdout, "  -B, --block-file <file>\tfile to user for blocking.");
+  fprintf(stdout, "  -B, --block-file <file>\tfile to use for blocking\n");
   fprintf(stdout, "  -c, --config-file <file>\tconfiguration file, almost all arguments can be\n");
   fprintf(stdout, "\t\t\t\tgiven with: <name>[=<value>]\n\t\t\t\tto see a list of possible config commands\n");
   fprintf(stdout, "\t\t\t\ttry \"echo help | %s -c -\"\n", program_name);
@@ -862,7 +862,7 @@ void show_message(char *fmt, ...)
     sprintf(buf, "message incomplete because your OS sucks: %s\n", fmt);
 #endif
 
-    syslog(LOG_NOTICE, buf);
+    syslog(LOG_NOTICE, "%s", buf);
   }
   else
   {
@@ -1210,10 +1210,12 @@ int option_handler(int id, char *optarg)
       cache_file = strdup(optarg);
       dprintf((stderr, "cache_file: %s\n", cache_file));
       break;
-	case CMD_block_file:
-		BLOCK_FILE = optarg;
-		dprintf((stderr, "block_file: %s\n", BLOCK_FILE));
-		break;
+
+    case CMD_block_file:
+      BLOCK_FILE = optarg;
+      dprintf((stderr, "block_file: %s\n", BLOCK_FILE));
+      break;
+
     case CMD_once:
       options |= OPT_ONCE;
       dprintf((stderr, "update once only\n"));
@@ -1288,7 +1290,7 @@ void parse_args( int argc, char **argv )
 #endif
   int opt;
 
-  while((opt=xgetopt(argc, argv, "a:b:c:dDe:fF:g:h:i:L:m:M:N:o:p:P:qQ:r:R:s:S:t:T:U:u:wHVCZz:1", 
+  while((opt=xgetopt(argc, argv, "a:bB:c:dDe:fF:g:h:i:L:m:M:N:o:p:P:qQ:r:R:s:S:t:T:U:u:wHVCZz:1", 
           long_options, NULL)) != -1)
   {
     switch (opt)
@@ -1300,9 +1302,10 @@ void parse_args( int argc, char **argv )
       case 'b':
         option_handler(CMD_cache_file, optarg);
         break;
-	 case 'B':
-	 	option_handler(CMD_block_file, optarg);
-		break;
+
+      case 'B':
+        option_handler(CMD_block_file, optarg);
+        break;
 
       case 'c':
         if(config_file) { free(config_file); }

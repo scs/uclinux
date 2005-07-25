@@ -134,9 +134,9 @@ extern int fclose __P ((FILE *));
 #endif
 
 #ifdef HAVE___PROGNAME
-extern char *__prog_name;
+extern char *__progname;
 #else
-char *__prog_name;
+char *__progname;
 #endif
 
 /* Exported to ftpcmd.h.  */
@@ -153,6 +153,8 @@ int	pdata = -1;            /* For passive mode.  */
 char	*hostname;             /* Who we are.  */
 int	usedefault = 1;	       /* For data transfers.  */
 char	tmpline[7];            /* Temp buffer use in OOB.  */
+
+jmp_buf  errcatch;
 
 /* Requester credentials.  */
 struct credentials cred;
@@ -286,12 +288,12 @@ usage (int err)
 {
   if (err != 0)
     {
-      fprintf (stderr, "Usage: %s [OPTION] ...\n", __prog_name);
-      fprintf (stderr, "Try `%s --help' for more information.\n", __prog_name);
+      fprintf (stderr, "Usage: %s [OPTION] ...\n", __progname);
+      fprintf (stderr, "Try `%s --help' for more information.\n", __progname);
     }
   else
     {
-      fprintf (stdout, "Usage: %s [OPTION] ...\n", __prog_name);
+      fprintf (stdout, "Usage: %s [OPTION] ...\n", __progname);
       puts ("Internet File Transfer Protocol server.\n\n\
   -A, --anonymous-only      Server configure for anonymous service only\n\
   -D, --daemon              Start the ftpd standalone\n\
@@ -335,7 +337,7 @@ main(int argc, char *argv[], char **envp)
   int option;
 
 #ifndef HAVE___PROGNAME
-  __prog_name = argv[0];
+  __progname = argv[0];
 #endif
 
 #ifdef HAVE_TZSET
@@ -459,7 +461,7 @@ main(int argc, char *argv[], char **envp)
       if (getpeername (STDIN_FILENO, (struct sockaddr *)&his_addr,
 		       &addrlen) < 0)
 	{
-	  syslog (LOG_ERR, "getpeername (%s): %m", __prog_name);
+	  syslog (LOG_ERR, "getpeername (%s): %m", __progname);
 	  exit (1);
 	}
     }
@@ -479,7 +481,7 @@ main(int argc, char *argv[], char **envp)
     if (getsockname (STDIN_FILENO, (struct sockaddr *)&ctrl_addr,
 		     &addrlen) < 0)
       {
-	syslog (LOG_ERR, "getsockname (%s): %m", __prog_name);
+	syslog (LOG_ERR, "getsockname (%s): %m", __progname);
 	exit (1);
       }
   }

@@ -46,7 +46,7 @@
 #define HAVE_GETUID 1
 
 /* Define if you have the herror function.  */
-#define HAVE_HERROR 1
+#define HAVE_HERROR 0
 
 /* Define if you have the inet_addr function.  */
 #define HAVE_INET_ADDR 1

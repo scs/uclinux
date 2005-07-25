@@ -54,7 +54,9 @@ void init_resource_track(struct resource_track *track)
 {
 	struct rusage r;
 	
+#ifdef HAVE_SBRK
 	track->brk_start = sbrk(0);
+#endif
 	gettimeofday(&track->time_start, 0);
 	getrusage(RUSAGE_SELF, &r);
 	track->user_start = r.ru_utime;
@@ -88,13 +90,17 @@ static void print_resource_track(struct resource_track *track)
 {
 	struct rusage r;
 	struct timeval time_end;
+	int memused = 0;
 
+#ifdef HAVE_SBRK
+	memused = (int) (((char *) sbrk(0)) - ((char *) track->brk_start));
+#endif
 	gettimeofday(&time_end, 0);
 	getrusage(RUSAGE_SELF, &r);
 
 #ifdef EMBED
 	printf(_("Memory used: %d, elapsed time: %6d.%02d/%6d.%02d/%6d.%02d\n"),
-	       (int) (((char *) sbrk(0)) - ((char *) track->brk_start)),
+	       memused,
 	       timeval_subtract(&time_end, &track->time_start),
 	       timeval_subtract_100(&time_end, &track->time_start),
 	       timeval_subtract(&r.ru_utime, &track->user_start),
@@ -103,7 +109,7 @@ static void print_resource_track(struct resource_track *track)
 	       timeval_subtract_100(&r.ru_stime, &track->system_start));
 #else
 	printf(_("Memory used: %d, elapsed time: %6.3f/%6.3f/%6.3f\n"),
-	       (int) (((char *) sbrk(0)) - ((char *) track->brk_start)),
+	       memused,
 	       timeval_subtract(&time_end, &track->time_start),
 	       timeval_subtract(&r.ru_utime, &track->user_start),
 	       timeval_subtract(&r.ru_stime, &track->system_start));

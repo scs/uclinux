@@ -20,6 +20,8 @@ advent0: advent0.o
 
 romfs:
 	$(ROMFSINST) /bin/advent4
+	$(ROMFSINST) -e CONFIG_USER_GAMES_ADVENT4 \
+		-a "advent4 stream tcp nowait root /bin/advent4" /etc/inetd.conf
 
 clean:
 	rm -f *.o *.err advent4 advent4.elf advent4.gdb
