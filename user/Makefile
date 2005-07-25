@@ -33,15 +33,18 @@ dir_  =
 
 dir_$(CONFIG_USER_BLACKFIN_RTC)             += blkfin-test/rtc-test
 dir_$(CONFIG_USER_BLACKFIN_PFLAGS)          += blkfin-test/pflags-test
+dir_$(CONFIG_USER_BLACKFIN_PPIFCDTEST)      += blkfin-test/ppifcd-test
 dir_$(CONFIG_USER_BLACKFIN_DPMC)            += blkfin-test/dpmc-test
 dir_$(CONFIG_USER_BLACKFIN_AUDIOTEST)       += blkfin-test/audio_test
 dir_$(CONFIG_USER_BLACKFIN_VIDEOTEST)       += blkfin-test/video_test
 dir_y             			    += blkfin-apps
 
-#dir_$(CONFIG_JFFS_FS)                       += mtd-utils
-#dir_$(CONFIG_JFFS2_FS)                      += mtd-utils
+dir_$(CONFIG_JFFS_FS)                       += mtd-utils
+dir_$(CONFIG_JFFS2_FS)                      += mtd-utils
 
 dir_$(CONFIG_USER_AGETTY_AGETTY)            += agetty
+dir_$(CONFIG_USER_APPWEB_APPWEB)            += appWeb
+dir_$(CONFIG_USER_ASTERISK) 				+= asterisk
 dir_$(CONFIG_USER_AT_AT)                    += at
 dir_$(CONFIG_USER_AT_ATD)                   += at
 dir_$(CONFIG_USER_AT_ATRUN)                 += at
@@ -55,9 +58,9 @@ dir_$(CONFIG_USER_BR2684CTL_BR2684CTL)      += br2684ctl
 dir_$(CONFIG_USER_BRCFG_BRCFG)              += brcfg
 dir_$(CONFIG_USER_BRCTL_BRCTL)              += bridge-utils
 dir_$(CONFIG_USER_BUSYBOX_BUSYBOX)          += busybox
-dir_$(CONFIG_USER_BUSYBOXNEW_BUSYBOXNEW)    += busybox-1.00-rc3
 dir_$(CONFIG_USER_CAL_CAL)                  += cal
 dir_$(CONFIG_USER_CAL_DATE)                 += cal
+dir_$(CONFIG_USER_CAMSERV)                  += camserv
 dir_$(CONFIG_USER_CAN_EXAMPLES)             += can4linux
 dir_$(CONFIG_USER_CAN_HORCH)                += horch
 dir_$(CONFIG_USER_CGI_GENERIC)              += cgi_generic
@@ -69,6 +72,10 @@ dir_$(CONFIG_USER_CPU_CPU)                  += cpu
 dir_$(CONFIG_USER_CRAMFS_MKCRAMFS)          += cramfs
 dir_$(CONFIG_USER_CRAMFS_CRAMFSCK)          += cramfs
 dir_$(CONFIG_USER_CRON_CRON)                += cron
+dir_$(CONFIG_USER_CRYPTO_TOOLS_CRYPTOTEST)  += crypto-tools
+dir_$(CONFIG_USER_CRYPTO_TOOLS_CRYPTOKEYTEST)  += crypto-tools
+dir_$(CONFIG_USER_CXXTEST_CXXTEST)          += cxxtest
+dir_$(CONFIG_USER_DDNS3_CLIENT_DDNS3)        += ddns3-client
 dir_$(CONFIG_USER_DE2TSCAL_DE2TSCAL)        += de2ts-cal
 dir_$(CONFIG_USER_DEMO_BUTTON)              += demo
 dir_$(CONFIG_USER_DEMO_MORSE)               += demo
@@ -81,7 +88,11 @@ dir_$(CONFIG_USER_DHCPCD_NEW_DHCPCD)        += dhcpcd-new
 dir_$(CONFIG_USER_DHCPD_DHCPD)              += dhcpd
 dir_$(CONFIG_USER_DIALD_DIALD)              += diald
 dir_$(CONFIG_USER_DISCARD_DISCARD)          += discard
+dir_$(CONFIG_USER_DISCARD_ECHO)             += discard
+dir_$(CONFIG_USER_DOSFSTOOLS_MKDOSFS)       += dosfstools/mkdosfs
+dir_$(CONFIG_USER_DOSFSTOOLS_DOSFSCK)       += dosfstools/dosfsck
 dir_$(CONFIG_USER_DNSMASQ_DNSMASQ)          += dnsmasq
+dir_$(CONFIG_USER_DROPBEAR_DROPBEAR)        += dropbear
 dir_$(CONFIG_USER_E2FSPROGS_E2FSCK_E2FSCK)  += e2fsprogs
 dir_$(CONFIG_USER_E2FSPROGS_MISC_BADBLOCKS) += e2fsprogs
 dir_$(CONFIG_USER_E2FSPROGS_MISC_CHATTR)    += e2fsprogs
@@ -95,7 +106,10 @@ dir_$(CONFIG_USER_E2FSPROGS_MISC_TUNE2FS)   += e2fsprogs
 dir_$(CONFIG_USER_E2FSPROGS_MISC_UUIDGEN)   += e2fsprogs
 dir_$(CONFIG_USER_ELVISTINY_VI)             += elvis-tiny
 dir_$(CONFIG_USER_ETHATTACH_ETHATTACH)      += ethattach
+dir_$(CONFIG_USER_ETHTOOL_ETHTOOL)          += ethtool
+dir_$(CONFIG_USER_EXPAT_EXAMPLES)           += expat-examples
 dir_$(CONFIG_USER_EZIPUPDATE_EZIPUPDATE)    += ez-ipupdate
+dir_$(CONFIG_USER_FAKEIDENTD_IDENTD)        += fakeidentd
 dir_$(CONFIG_USER_FDISK_FDISK)              += fdisk
 dir_$(CONFIG_USER_FDISK_SFDISK)             += fdisk
 dir_$(CONFIG_USER_FILEUTILS_CAT)            += fileutils
@@ -128,10 +142,17 @@ dir_$(CONFIG_USER_FTP_FTP_FTP)              += ftp
 dir_$(CONFIG_USER_FTPD_FTPD)                += ftpd
 dir_$(CONFIG_USER_GDBSERVER_GDBREPLAY)      += gdbserver
 dir_$(CONFIG_USER_GDBSERVER_GDBSERVER)      += gdbserver
+dir_$(CONFIG_USER_GDB_GDBREPLAY)            += gdb
+dir_$(CONFIG_USER_GDB_GDBSERVER)            += gdb
 dir_$(CONFIG_USER_GETTYD_GETTYD)            += gettyd
+dir_$(CONFIG_USER_GREP_GREP)                += grep
 dir_$(CONFIG_USER_HD_HD)                    += hd
 dir_$(CONFIG_USER_HOSTAP_HOSTAP)            += hostap
+dir_$(CONFIG_USER_HOSTAP_HOSTAP)            += hostap/utils
+dir_$(CONFIG_USER_HOSTAP_HOSTAPD)           += hostap/hostapd
 dir_$(CONFIG_USER_HTTPD_HTTPD)              += httpd
+dir_$(CONFIG_USER_HTTPTUNNEL_CLIENT)        += httptunnel
+dir_$(CONFIG_USER_HTTPTUNNEL_SERVER)        += httptunnel
 dir_$(CONFIG_USER_HWCLOCK_HWCLOCK)          += hwclock
 dir_$(CONFIG_USER_IFATTACH_IFATTACH)        += ifattach
 dir_$(CONFIG_USER_INETD_INETD)              += inetd
@@ -144,7 +165,10 @@ dir_$(CONFIG_USER_IPMASQADM_IPMASQADM)      += ipmasqadm
 dir_$(CONFIG_USER_IPPORTFW_IPPORTFW)        += ipportfw
 dir_$(CONFIG_USER_IPREDIR_IPREDIR)          += ipredir
 dir_$(CONFIG_USER_IPROUTE2)                 += iproute2
+dir_$(CONFIG_USER_IPSENTINEL_IPSENTINEL)    += ip-sentinel
 dir_$(CONFIG_USER_IPTABLES_IPTABLES)        += iptables
+dir_$(CONFIG_USER_IPTABLES_IP6TABLES)       += iptables
+dir_$(CONFIG_USER_IPUTILS_IPUTILS)          += iputils
 dir_$(CONFIG_USER_KENDIN_CONFIG)            += kendin-config
 dir_$(CONFIG_USER_KLAXON_KLAXON)            += klaxon
 dir_$(CONFIG_USER_L2TPD_L2TPD)              += l2tpd
@@ -152,12 +176,15 @@ dir_$(CONFIG_USER_LANG_A60)                 += a60
 dir_$(CONFIG_USER_LCD_LCD)                  += lcd
 dir_$(CONFIG_USER_LEDCON_LEDCON)            += ledcon
 dir_$(CONFIG_USER_LEVEE_VI)                 += levee
+dir_$(CONFIG_USER_LINUXIGD_LINUXIGD)        += linux-igd
 dir_$(CONFIG_USER_LILO_LILO)                += lilo
 dir_$(CONFIG_USER_LIRC)                     += lirc
 dir_$(CONFIG_USER_LISSA_LISSA)              += lissa
 dir_$(CONFIG_USER_LOATTACH_LOATTACH)        += loattach
 dir_$(CONFIG_USER_LOGIN_LOGIN)              += login
 dir_$(CONFIG_USER_LOGIN_PASSWD)             += login
+dir_$(CONFIG_USER_LPR)                      += lpr
+dir_$(CONFIG_USER_LRPSTAT_LRPSTAT)          += lrpstat
 dir_$(CONFIG_USER_LRZSZ_LRZSZ)              += lrzsz
 dir_$(CONFIG_USER_MAIL_MAIL_IP)             += mail
 dir_$(CONFIG_USER_MATH_TEST)                += mathtest
@@ -173,6 +200,7 @@ dir_$(CONFIG_USER_MUSICBOX_MUSICBOX)        += musicbox
 dir_$(CONFIG_USER_MYSQL)                    += mysql
 dir_$(CONFIG_USER_NDSO)                     += ndso 
 dir_$(CONFIG_USER_NESSUS_NASL)              += nessus
+dir_$(CONFIG_USER_NETCAT_NETCAT)            += netcat
 dir_$(CONFIG_USER_NETFLASH_NETFLASH)        += netflash
 dir_$(CONFIG_USER_NET_TOOLS_ARP)            += net-tools
 dir_$(CONFIG_USER_NET_TOOLS_HOSTNAME)       += net-tools
@@ -187,14 +215,18 @@ dir_$(CONFIG_USER_NET_TOOLS_IPMADDR)        += net-tools
 dir_$(CONFIG_USER_NET_TOOLS_IPTUNNEL)       += net-tools
 dir_$(CONFIG_USER_NET_TOOLS_MII_TOOL)       += net-tools
 dir_$(CONFIG_USER_NETSTAT_NAT_NETSTAT_NAT)  += netstat-nat
-dir_$(CONFIG_USER_NTPD_NTPD)                += ntp
-dir_$(CONFIG_USER_NTPD_NTPDATE)             += ntp
-dir_$(CONFIG_USER_NTPD_NTPQ)                += ntp
+dir_$(CONFIG_USER_NTPCLIENT_NTPCLIENT)      += ntpclient
+dir_$(CONFIG_USER_NTPCLIENT_ADJTIMEX)       += ntpclient
+dir_$(CONFIG_USER_NTPD_NTPD)                += ntp/uCbuild
+dir_$(CONFIG_USER_NTPD_NTPDATE)             += ntp/uCbuild
+dir_$(CONFIG_USER_NTPD_NTPQ)                += ntp/uCbuild
 dir_$(CONFIG_USER_NULL_NULL)                += null
 dir_$(CONFIG_USER_NWSH_SH)                  += nwsh
+dir_$(CONFIG_USER_MSH_SH)                   += msh
 dir_$(CONFIG_USER_OGGPLAY_EXAMPLE)          += oggplay
 dir_$(CONFIG_USER_OGGPLAY_OGG123)           += oggplay
 dir_$(CONFIG_USER_OPENSSL_APPS)             += openssl
+dir_$(CONFIG_USER_OPENSWAN)                 += openswan
 dir_$(CONFIG_USER_PALMBOT_PALMBOT)          += palmbot
 dir_$(CONFIG_USER_PCIUTILS_LSPCI)           += pciutils
 dir_$(CONFIG_USER_PCIUTILS_SETPCI)          += pciutils
@@ -226,7 +258,9 @@ dir_$(CONFIG_USER_PROCPS_UPTIME)            += procps
 dir_$(CONFIG_USER_PROCPS_VMSTAT)            += procps
 dir_$(CONFIG_USER_PROCPS_W)                 += procps
 dir_$(CONFIG_USER_PROCPS_WATCH)             += procps
+dir_$(CONFIG_USER_PROFTPD_PROFTPD)          += proftpd
 dir_$(CONFIG_USER_PYTHON_PYTHON)            += python
+dir_$(CONFIG_USER_RADVD_RADVD)              += radvd
 dir_$(CONFIG_USER_RDATE_RDATE)              += rdate
 dir_$(CONFIG_USER_RAMIMAGE_RAMFS64)         += ramimage
 dir_$(CONFIG_USER_RAMIMAGE_RAMFS128)        += ramimage
@@ -234,18 +268,15 @@ dir_$(CONFIG_USER_RAMIMAGE_RAMFS256)        += ramimage
 dir_$(CONFIG_USER_RAMIMAGE_RAMFS512)        += ramimage
 dir_$(CONFIG_USER_RAMIMAGE_RAMFS1024)       += ramimage
 dir_$(CONFIG_USER_RAMIMAGE_RAMFS2048)       += ramimage
+dir_$(CONFIG_USER_RAMIMAGE_RAMFS8192)       += ramimage
 dir_$(CONFIG_USER_READPROFILE_READPROFILE)  += readprofile
 dir_$(CONFIG_USER_RECOVER_RECOVER)          += recover
 dir_$(CONFIG_USER_REISERFSPROGS)            += reiserfsprogs
 dir_$(CONFIG_USER_ROOTLOADER_ROOTLOADER)    += rootloader
-dir_$(CONFIG_USER_ROUTE_ARP)                += route
-dir_$(CONFIG_USER_ROUTE_IFCONFIG)           += route
-dir_$(CONFIG_USER_ROUTE_MIITOOL)            += route
-dir_$(CONFIG_USER_ROUTE_ROUTE)              += route
-dir_$(CONFIG_USER_ROUTE_NETSTAT)            += route
 dir_$(CONFIG_USER_ROUTED_ROUTED)            += routed
 dir_$(CONFIG_USER_RP_PPPOE_PPPOE)           += rp-pppoe
 dir_$(CONFIG_USER_RP_PPPOE_PPPOE_SERVER)    += rp-pppoe
+dir_$(CONFIG_USER_RSYSLOGD_RSYSLOGD)        += rsyslogd
 dir_$(CONFIG_USER_RTC_M41T11)               += rtc-m41t11
 dir_$(CONFIG_USER_RTC_DS1302)               += rtc-ds1302
 dir_$(CONFIG_USER_SAMBA_SMBD)               += samba
@@ -255,8 +286,11 @@ dir_$(CONFIG_USER_SAMBA_SMBUMOUNT)          += samba
 dir_$(CONFIG_USER_SASH_REBOOT)              += sash
 dir_$(CONFIG_USER_SASH_SH)                  += sash
 dir_$(CONFIG_USER_SASH_SHUTDOWN)            += sash
-dir_$(CONFIG_USER_SASH_SHUTDOWN)            += sash
+dir_$(CONFIG_USER_SASH_REBOOT_SNAPGEAR)     += sash
+dir_$(CONFIG_USER_SER_SER)                  += ser
+dir_$(CONFIG_USER_SER_RTPPROXY)             += ser
 dir_$(CONFIG_USER_SETHDLC_SETHDLC)          += sethdlc
+dir_$(CONFIG_USER_SETMAC_SETMAC)            += setmac
 dir_$(CONFIG_USER_SETSERIAL_SETSERIAL)      += setserial
 dir_$(CONFIG_USER_SH_SH)                    += sh
 dir_$(CONFIG_USER_SHUTILS_BASENAME)         += shutils
@@ -277,6 +311,8 @@ dir_$(CONFIG_USER_SMBMOUNT_SMBMOUNT)        += smbmount
 dir_$(CONFIG_USER_SMBMOUNT_SMBUMOUNT)       += smbmount
 dir_$(CONFIG_USER_SMTP_SMTPCLIENT)          += smtpclient
 dir_$(CONFIG_USER_SNMPD_SNMPD)              += snmpd
+dir_$(CONFIG_USER_SNORT_SNORT)              += snort
+dir_$(CONFIG_USER_SPEEDTOUCH_MODEM_RUN)     += speedtouch/src
 dir_$(CONFIG_USER_STUNNEL_STUNNEL)          += stunnel
 dir_$(CONFIG_USER_SSLWRAP_SSLWRAP)          += sslwrap
 dir_$(CONFIG_USER_SQUID_SQUID)              += squid
@@ -340,7 +376,7 @@ all: config
 	done
 
 romfs:
-	for i in $(dir_v) $(sort $(dir_y)) $(dir_p) ; do \
+	for i in $(sort $(dir_y)) $(dir_p) ; do \
 		[ ! -d $$i ] || make -C $$i romfs || exit $$? ; \
 	done
 
@@ -362,41 +398,4 @@ prune:
 		fi; \
 	done
 
-config::
-
-ifeq ($(CONFIG_USER_SQUID_SQUID),y)
-CONFIG_LANGUAGE ?= english
-ifeq ($(CONFIG_LANGUAGE),)
-CONFIG_LANGUAGE=english
-endif
-
-ifeq ($(CONFIG_LANGUAGE), english)
-SQUID_LANG:=English
-endif
-ifeq ($(CONFIG_LANGUAGE), japanese)
-SQUID_LANG:=Japanese
-endif
-ifeq ($(CONFIG_LANGUAGE), chinese)
-SQUID_LANG:=Simplify_Chinese
-endif
-
-SQUID_TARGET:=$(strip $(subst -, ,$(CROSS)))
-SQUID_TARGET:=$(word 1,$(SQUID_TARGET))-$(word 2,$(SQUID_TARGET))
-config::
-	if [ ! -f squid/config.status ]; then			\
-		cd squid;					\
-		export CFLAGS="$(subst -Wall,,$(CFLAGS))"; 	\
-		unset LDFLAGS;					\
-		chmod a+x configure;				\
-		./configure --prefix= --build=i386-redhat-linux			\
-			--with-headers=$(ROOTDIR)/$(LINUXDIR)/include		\
-			--target=$(SQUID_TARGET)				\
-			--sysconfdir=/etc/config				\
-			--datadir=/etc --libexecdir=/bin			\
-			--enable-err-languages="$(sort $(SQUID_LANG) English)"	\
-			--enable-default-err-language=$(SQUID_LANG)		\
-			--enable-linux-netfilter --disable-ident-lookups	\
-			--disable-internal-dns --enable-dependency-tracking	\
-	; fi
-endif
 
