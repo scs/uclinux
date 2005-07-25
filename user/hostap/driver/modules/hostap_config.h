@@ -1,7 +1,7 @@
 #ifndef HOSTAP_CONFIG_H
 #define HOSTAP_CONFIG_H
 
-#define PRISM2_VERSION "0.1.2 - 2003-11-02"
+#define PRISM2_VERSION "0.2.5 - 2004-10-03"
 
 /* In the previous versions of Host AP driver, support for user space version
  * of IEEE 802.11 management (hostapd) used to be disabled in the default
@@ -26,7 +26,12 @@
  *
  * Note2! Station firmware version 1.3.5 and primary firmware version 1.0.7
  * have some fixes for PCI corruption and these (or newer) versions are
- * recommended especially when using bus mastering. */
+ * recommended especially when using bus mastering.
+ *
+ * NOTE: PCI bus mastering code has not been updated for long time and it is
+ * not likely to compile and it will _not_ work as is. Only enable this if you
+ * are prepared to first fix the implementation..
+ */
 /* #define PRISM2_BUS_MASTER */
 
 #ifdef PRISM2_BUS_MASTER
@@ -39,8 +44,8 @@
 
 #endif /* PRISM2_BUS_MASTER */
 
-/* Include code for downloading firmware images. */
-/* #define PRISM2_DOWNLOAD_SUPPORT */
+/* Include code for downloading firmware images into volatile RAM. */
+#define PRISM2_DOWNLOAD_SUPPORT
 
 /* Allow kernel configuration to enable download support. */
 #if !defined(PRISM2_DOWNLOAD_SUPPORT) && defined(CONFIG_HOSTAP_FIRMWARE)
@@ -88,5 +93,9 @@
 /* Do not include station functionality (i.e., allow only Master (Host AP) mode
  */
 /* #define PRISM2_NO_STATION_MODES */
+
+/* Use Linux crypto API instead of own encryption implementation whenever
+ * possible. */
+/* #define HOSTAP_USE_CRYPTO_API */
 
 #endif /* HOSTAP_CONFIG_H */

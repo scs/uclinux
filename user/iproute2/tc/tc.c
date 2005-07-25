@@ -118,6 +118,7 @@ extern struct qdisc_util hpfq_util;
 #endif
 extern struct qdisc_util prio_util;
 extern struct qdisc_util red_util;
+extern struct qdisc_util wrr_util;
 extern struct qdisc_util sfq_util;
 extern struct qdisc_util tbf_util;
 static struct qdisc_util *qdisc[] = {
@@ -140,6 +141,7 @@ static struct qdisc_util *qdisc[] = {
 #endif
 	&prio_util,
 	&red_util,
+	&wrr_util,
 	&sfq_util,
 	&tbf_util,
 	NULL

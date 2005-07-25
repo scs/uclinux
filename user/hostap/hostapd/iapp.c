@@ -151,7 +151,7 @@ static void iapp_process_add_notify(hostapd *hapd, struct sockaddr_in *from,
 	printf("Removing STA " MACSTR " due to IAPP-ADD notification from "
 	       "%s\n", MAC2STR(sta->addr), inet_ntoa(from->sin_addr));
 	sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC);
-	remove_sta(hapd, sta);
+	remove_sta(hapd->driver.data, sta->addr);
 }
 
 

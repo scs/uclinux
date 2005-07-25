@@ -26,12 +26,12 @@ IPTABLES_VERSION);
 }
 
 static struct option opts[] = {
-	{ "log-level", 1, 0, '!' },
-	{ "log-prefix", 1, 0, '#' },
-	{ "log-tcp-sequence", 0, 0, '1' },
-	{ "log-tcp-options", 0, 0, '2' },
-	{ "log-ip-options", 0, 0, '3' },
-	{ 0 }
+	{ .name = "log-level",        .has_arg = 1, .flag = 0, .val = '!' },
+	{ .name = "log-prefix",       .has_arg = 1, .flag = 0, .val = '#' },
+	{ .name = "log-tcp-sequence", .has_arg = 0, .flag = 0, .val = '1' },
+	{ .name = "log-tcp-options",  .has_arg = 0, .flag = 0, .val = '2' },
+	{ .name = "log-ip-options",   .has_arg = 0, .flag = 0, .val = '3' },
+	{ .name = 0 }
 };
 
 /* Initialize the target. */
@@ -52,15 +52,15 @@ struct ip6t_log_names {
 };
 
 static struct ip6t_log_names ip6t_log_names[]
-= { { "alert", LOG_ALERT },
-    { "crit", LOG_CRIT },
-    { "debug", LOG_DEBUG },
-    { "emerg", LOG_EMERG },
-    { "error", LOG_ERR },		/* DEPRECATED */
-    { "info", LOG_INFO },
-    { "notice", LOG_NOTICE },
-    { "panic", LOG_EMERG },		/* DEPRECATED */
-    { "warning", LOG_WARNING }
+= { { .name = "alert",   .level = LOG_ALERT },
+    { .name = "crit",    .level = LOG_CRIT },
+    { .name = "debug",   .level = LOG_DEBUG },
+    { .name = "emerg",   .level = LOG_EMERG },
+    { .name = "error",   .level = LOG_ERR },		/* DEPRECATED */
+    { .name = "info",    .level = LOG_INFO },
+    { .name = "notice",  .level = LOG_NOTICE },
+    { .name = "panic",   .level = LOG_EMERG },		/* DEPRECATED */
+    { .name = "warning", .level = LOG_WARNING }
 };
 
 static u_int8_t
@@ -134,7 +134,7 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 		if (strlen(optarg) > sizeof(loginfo->prefix) - 1)
 			exit_error(PARAMETER_PROBLEM,
 				   "Maximum prefix length %u for --log-prefix",
-				   sizeof(loginfo->prefix) - 1);
+				   (unsigned int)sizeof(loginfo->prefix) - 1);
 
 		strcpy(loginfo->prefix, optarg);
 		*flags |= IP6T_LOG_OPT_PREFIX;
@@ -225,21 +225,12 @@ save(const struct ip6t_ip6 *ip, const struct ip6t_entry_target *target)
 {
 	const struct ip6t_log_info *loginfo
 		= (const struct ip6t_log_info *)target->data;
-	unsigned int i = 0;
 
 	if (strcmp(loginfo->prefix, "") != 0)
 		printf("--log-prefix \"%s\" ", loginfo->prefix);
 
-	if (loginfo->level != LOG_DEFAULT_LEVEL) {
-		for (i = 0;
-		     i < sizeof(ip6t_log_names) / sizeof(struct ip6t_log_names);
-		     i++) {
-			if (loginfo->level == ip6t_log_names[i].level) {
-				printf("--log-level %s ", ip6t_log_names[i].name);
-				break;
-			}
-        }
-    }
+	if (loginfo->level != LOG_DEFAULT_LEVEL)
+		printf("--log-level %d ", loginfo->level);
 
 	if (loginfo->logflags & IP6T_LOG_TCPSEQ)
 		printf("--log-tcp-sequence ");
@@ -251,18 +242,18 @@ save(const struct ip6t_ip6 *ip, const struct ip6t_entry_target *target)
 
 static
 struct ip6tables_target log
-= { NULL,
-    "LOG",
-    IPTABLES_VERSION,
-    IP6T_ALIGN(sizeof(struct ip6t_log_info)),
-    IP6T_ALIGN(sizeof(struct ip6t_log_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+= {
+    .name          = "LOG",
+    .version       = IPTABLES_VERSION,
+    .size          = IP6T_ALIGN(sizeof(struct ip6t_log_info)),
+    .userspacesize = IP6T_ALIGN(sizeof(struct ip6t_log_info)),
+    .help          = &help,
+    .init          = &init,
+    .parse         = &parse,
+    .final_check   = &final_check,
+    .print         = &print,
+    .save          = &save,
+    .extra_opts    = opts
 };
 
 void _init(void)

@@ -496,7 +496,7 @@ static void do_table(char *part)
     int fd, i;
     struct partition pt [PART_MAX];
     unsigned int second, base;
-    unsigned short boot_sig;
+    unsigned char boot_sig[2];
     
     if (!strncmp(part, "/dev/", 5)) {
 	if (strncmp(part+5, "md", 2) && isdigit(part[strlen(part)-1]) )
@@ -507,8 +507,9 @@ static void do_table(char *part)
     if (fd<0) die("Unable to open '%s'", part);
     if (lseek(fd, PART_TABLE_OFFSET, SEEK_SET)<0) die("lseek failed");
     if (read(fd, pt, sizeof(pt)) != sizeof(pt)) die("read pt failed");
-    if ( read(fd, &boot_sig, sizeof(boot_sig)) != sizeof(boot_sig)  ||
-	boot_sig != BOOT_SIGNATURE ) die("read boot signature failed");
+    if ( read(fd, &boot_sig[0], sizeof(boot_sig)) != sizeof(boot_sig)  ||
+	boot_sig[0] != BOOT_SIGNATURE0 || boot_sig[1] != BOOT_SIGNATURE1 )
+	die("read boot signature failed");
     {
 	if (lseek(fd, MAX_BOOT_SIZE+2, SEEK_SET)<0) die("lseek s/n failed");
 	if (read(fd, &second, sizeof(second)) != sizeof(second))
@@ -529,8 +530,9 @@ static void do_table(char *part)
         if (llseek(fd, SECTORSIZE*(base+second) + PART_TABLE_OFFSET, SEEK_SET) < 0)
             die("secondary llseek failed");
 	if (read(fd, pt, sizeof(pt)) != sizeof(pt)) die("secondary read pt failed");
-	if ( read(fd, &boot_sig, sizeof(boot_sig)) != sizeof(boot_sig)  ||
-	    boot_sig != BOOT_SIGNATURE ) die("read second boot signature failed");
+	if ( read(fd, &boot_sig[0], sizeof(boot_sig)) != sizeof(boot_sig)  ||
+	    boot_sig[0] != BOOT_SIGNATURE0 || boot_sig[1] != BOOT_SIGNATURE1 )
+	    die("read second boot signature failed");
         print_pt(i++, pt[0]);
         if (is_extd_part(pt[1].sys_ind)) second=pt[1].start_sect;
         else base = 0;

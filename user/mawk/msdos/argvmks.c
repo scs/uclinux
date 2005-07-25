@@ -12,11 +12,8 @@
 
 /*
 $Log$
-Revision 1.1  2004/07/19 13:09:04  lgsoft
-Initial revision
-
-Revision 1.1.1.1  2004/07/18 13:27:45  nidhi
-Importing
+Revision 1.2  2005/07/25 04:03:16  magicyang
+New user folder check in
 
  * Revision 1.2  1995/01/07  14:47:24  mike
  * remove return 1 from void function

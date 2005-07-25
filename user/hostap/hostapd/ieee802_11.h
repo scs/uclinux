@@ -73,6 +73,10 @@ struct ieee802_11_elems {
 	u8 ibss_params_len;
 	u8 *challenge;
 	u8 challenge_len;
+	u8 *wpa_ie;
+	u8 wpa_ie_len;
+	u8 *rsn_ie;
+	u8 rsn_ie_len;
 };
 
 typedef enum { ParseOK = 0, ParseUnknown = 1, ParseFailed = -1 } ParseRes;
@@ -85,6 +89,7 @@ void ieee802_11_mgmt_cb(hostapd *hapd, char *buf, size_t len, u16 stype,
 			int ok);
 ParseRes ieee802_11_parse_elems(hostapd *hapd, u8 *start, size_t len,
 				struct ieee802_11_elems *elems);
-
+void ieee80211_michael_mic_failure(struct hostapd_data *hapd, u8 *addr,
+				   int local);
 
 #endif /* IEEE802_11_H */

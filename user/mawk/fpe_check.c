@@ -4,12 +4,9 @@
 */
 
 /* $Log$
- * Revision 1.1  2004/07/19 13:08:56  lgsoft
- * Initial revision
+ * Revision 1.2  2005/07/25 04:03:15  magicyang
+ * New user folder check in
  *
-/* Revision 1.1.1.1  2004/07/18 13:27:44  nidhi
-/* Importing
-/*
  * Revision 1.7  1996/08/30 00:07:14  mike
  * Modifications to the test and implementation of the bug fix for
  * solaris overflow in strtod.

@@ -11,6 +11,8 @@
 #define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
 #endif /* ETH_P_PAE */
 
+#define ETH_P_PREAUTH 0x88C7 /* IEEE 802.11i pre-authentication */
+
 
 
 /* IEEE 802.11 defines */
@@ -96,6 +98,14 @@
 #define WLAN_STATUS_ASSOC_DENIED_NOSHORT 19
 #define WLAN_STATUS_ASSOC_DENIED_NOPBCC 20
 #define WLAN_STATUS_ASSOC_DENIED_NOAGILITY 21
+/* IEEE 802.11i */
+#define WLAN_STATUS_INVALID_IE 40
+#define WLAN_STATUS_GROUP_CIPHER_NOT_VALID 41
+#define WLAN_STATUS_PAIRWISE_CIPHER_NOT_VALID 42
+#define WLAN_STATUS_AKMP_NOT_VALID 43
+#define WLAN_STATUS_UNSUPPORTED_RSN_IE_VERSION 44
+#define WLAN_STATUS_INVALID_RSN_IE_CAPAB 45
+#define WLAN_STATUS_CIPHER_REJECTED_PER_POLICY 46
 
 /* Reason codes */
 #define WLAN_REASON_UNSPECIFIED 1
@@ -107,6 +117,19 @@
 #define WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA 7
 #define WLAN_REASON_DISASSOC_STA_HAS_LEFT 8
 #define WLAN_REASON_STA_REQ_ASSOC_WITHOUT_AUTH 9
+/* IEEE 802.11i */
+#define WLAN_REASON_INVALID_IE 13
+#define WLAN_REASON_MICHAEL_MIC_FAILURE 14
+#define WLAN_REASON_4WAY_HANDSHAKE_TIMEOUT 15
+#define WLAN_REASON_GROUP_KEY_UPDATE_TIMEOUT 16
+#define WLAN_REASON_IE_IN_4WAY_DIFFERS 17
+#define WLAN_REASON_GROUP_CIPHER_NOT_VALID 18
+#define WLAN_REASON_PAIRWISE_CIPHER_NOT_VALID 19
+#define WLAN_REASON_AKMP_NOT_VALID 20
+#define WLAN_REASON_UNSUPPORTED_RSN_IE_VERSION 21
+#define WLAN_REASON_INVALID_RSN_IE_CAPAB 22
+#define WLAN_REASON_IEEE_802_1X_AUTH_FAILED 23
+#define WLAN_REASON_CIPHER_SUITE_REJECTED 24
 
 
 /* Information Element IDs */
@@ -118,6 +141,8 @@
 #define WLAN_EID_TIM 5
 #define WLAN_EID_IBSS_PARAMS 6
 #define WLAN_EID_CHALLENGE 16
+#define WLAN_EID_RSN 48
+#define WLAN_EID_GENERIC 221
 
 
 /* HFA384X Configuration RIDs */
@@ -172,6 +197,7 @@
 #define HFA384X_RID_CNFDBMADJUST 0xFC46 /* added in STA f/w 1.3.1 */
 #define HFA384X_RID_GENERICELEMENT 0xFC48 /* added in STA f/w 1.7.0;
 					   * write only */
+#define HFA384X_RID_PROPAGATIONDELAY 0xFC49 /* added in STA f/w 1.7.6 */
 #define HFA384X_RID_GROUPADDRESSES 0xFC80
 #define HFA384X_RID_CREATEIBSS 0xFC81
 #define HFA384X_RID_FRAGMENTATIONTHRESHOLD 0xFC82
@@ -218,6 +244,9 @@
 #define HFA384X_RID_CAPINFO 0xFCC0 /* added in STA f/w 1.7.0 */
 #define HFA384X_RID_LISTENINTERVAL 0xFCC1 /* added in STA f/w 1.7.0 */
 #define HFA384X_RID_SW_ANT_DIV 0xFCC2 /* added in STA f/w 1.7.0; Prism3 */
+#define HFA384X_RID_LED_CTRL 0xFCC4 /* added in STA f/w 1.7.6 */
+#define HFA384X_RID_HFODELAY 0xFCC5 /* added in STA f/w 1.7.6 */
+#define HFA384X_RID_DISALLOWEDBSSID 0xFCC6 /* added in STA f/w 1.8.0 */
 #define HFA384X_RID_TICKTIME 0xFCE0
 #define HFA384X_RID_SCANREQUEST 0xFCE1
 #define HFA384X_RID_JOINREQUEST 0xFCE2
@@ -272,6 +301,7 @@
 #define HFA384X_RID_HOSTSCANRESULTS 0xFD89 /* added in STA f/w 1.3.1 */
 #define HFA384X_RID_AUTHENTICATIONUSED 0xFD8A /* added in STA f/w 1.3.4 */
 #define HFA384X_RID_CNFFAASWITCHCTRL 0xFD8B /* added in STA f/w 1.6.3 */
+#define HFA384X_RID_ASSOCIATIONFAILURE 0xFD8D /* added in STA f/w 1.8.0 */
 #define HFA384X_RID_PHYTYPE 0xFDC0
 #define HFA384X_RID_CURRENTCHANNEL 0xFDC1
 #define HFA384X_RID_CURRENTPOWERSTATE 0xFDC2
@@ -328,8 +358,6 @@ struct hfa384x_comms_quality {
 
 /* netdevice private ioctls (used, e.g., with iwpriv from user space) */
 
-#if WIRELESS_EXT >= 12
-
 /* New wireless extensions API - SET/GET convention (even ioctl numbers are
  * root only)
  */
@@ -353,36 +381,15 @@ struct hfa384x_comms_quality {
 #define PRISM2_IOCTL_DOWNLOAD (SIOCDEVPRIVATE + 13)
 #define PRISM2_IOCTL_HOSTAPD (SIOCDEVPRIVATE + 14)
 
-#else /* WIRELESS_EXT >= 12 */
-
-/* Old wireless extensions API - check permission in the driver code */
-#define PRISM2_IOCTL_MONITOR (SIOCDEVPRIVATE)
-#define PRISM2_IOCTL_PRISM2_PARAM (SIOCDEVPRIVATE + 1)
-#define PRISM2_IOCTL_READMIF (SIOCDEVPRIVATE + 2)
-#define PRISM2_IOCTL_WRITEMIF (SIOCDEVPRIVATE + 3)
-#define PRISM2_IOCTL_RESET (SIOCDEVPRIVATE + 4)
-#define PRISM2_IOCTL_INQUIRE (SIOCDEVPRIVATE + 5)
-#define PRISM2_IOCTL_WDS_ADD (SIOCDEVPRIVATE + 6)
-#define PRISM2_IOCTL_WDS_DEL (SIOCDEVPRIVATE + 7)
-#define PRISM2_IOCTL_SET_RID_WORD (SIOCDEVPRIVATE + 8)
-#define PRISM2_IOCTL_MACCMD (SIOCDEVPRIVATE + 9)
-#define PRISM2_IOCTL_ADDMAC (SIOCDEVPRIVATE + 10)
-#define PRISM2_IOCTL_DELMAC (SIOCDEVPRIVATE + 11)
-#define PRISM2_IOCTL_KICKMAC (SIOCDEVPRIVATE + 12)
-#define PRISM2_IOCTL_DOWNLOAD (SIOCDEVPRIVATE + 13)
-#define PRISM2_IOCTL_HOSTAPD (SIOCDEVPRIVATE + 14)
-
-#endif /* WIRELESS_EXT >= 12 */
-
 
 /* PRISM2_IOCTL_PRISM2_PARAM ioctl() subtypes: */
 enum {
-	PRISM2_PARAM_PTYPE = 1,
+	/* PRISM2_PARAM_PTYPE = 1, */ /* REMOVED 2003-10-22 */
 	PRISM2_PARAM_TXRATECTRL = 2,
 	PRISM2_PARAM_BEACON_INT = 3,
 	PRISM2_PARAM_PSEUDO_IBSS = 4,
 	PRISM2_PARAM_ALC = 5,
-	PRISM2_PARAM_TXPOWER = 6,
+	/* PRISM2_PARAM_TXPOWER = 6, */ /* REMOVED 2003-10-22 */
 	PRISM2_PARAM_DUMP = 7,
 	PRISM2_PARAM_OTHER_AP_POLICY = 8,
 	PRISM2_PARAM_AP_MAX_INACTIVITY = 9,
@@ -411,6 +418,11 @@ enum {
 	PRISM2_PARAM_BASIC_RATES = 32,
 	PRISM2_PARAM_OPER_RATES = 33,
 	PRISM2_PARAM_HOSTAPD = 34,
+	PRISM2_PARAM_HOSTAPD_STA = 35,
+	PRISM2_PARAM_WPA = 36,
+	PRISM2_PARAM_PRIVACY_INVOKED = 37,
+	PRISM2_PARAM_TKIP_COUNTERMEASURES = 38,
+	PRISM2_PARAM_DROP_UNENCRYPTED = 39,
 };
 
 enum { HOSTAP_ANTSEL_DO_NOT_TOUCH = 0, HOSTAP_ANTSEL_DIVERSITY = 1,
@@ -467,11 +479,16 @@ enum {
 	PRISM2_HOSTAPD_GET_RID = 9,
 	PRISM2_HOSTAPD_SET_RID = 10,
 	PRISM2_HOSTAPD_SET_ASSOC_AP_ADDR = 11,
+	PRISM2_HOSTAPD_SET_GENERIC_ELEMENT = 12,
+	PRISM2_HOSTAPD_MLME = 13,
+	PRISM2_HOSTAPD_SCAN_REQ = 14,
 };
 
 #define PRISM2_HOSTAPD_MAX_BUF_SIZE 1024
 #define PRISM2_HOSTAPD_RID_HDR_LEN \
 ((int) (&((struct prism2_hostapd_param *) 0)->u.rid.data))
+#define PRISM2_HOSTAPD_GENERIC_ELEMENT_HDR_LEN \
+((int) (&((struct prism2_hostapd_param *) 0)->u.generic_elem.data))
 
 /* Maximum length for algorithm names (-1 for nul termination) used in ioctl()
  */
@@ -495,6 +512,7 @@ struct prism2_hostapd_param {
 			u32 flags;
 			u32 err;
 			u8 idx;
+			u8 seq[8]; /* sequence counter (set: RX, get: TX) */
 			u16 key_len;
 			u8 key[0];
 		} crypt;
@@ -507,6 +525,20 @@ struct prism2_hostapd_param {
 			u16 len;
 			u8 data[0];
 		} rid;
+		struct {
+			u8 len;
+			u8 data[0];
+		} generic_elem;
+		struct {
+#define MLME_STA_DEAUTH 0
+#define MLME_STA_DISASSOC 1
+			u16 cmd;
+			u16 reason_code;
+		} mlme;
+		struct {
+			u8 ssid_len;
+			u8 ssid[32];
+		} scan_req;
 	} u;
 };
 

@@ -28,9 +28,16 @@ static int prism2_debug_proc_read(char *page, char **start, off_t off,
 		     local->wds_max_connections);
 	p += sprintf(p, "dev_enabled=%d\n", local->dev_enabled);
 	p += sprintf(p, "sw_tick_stuck=%d\n", local->sw_tick_stuck);
-	if (local->crypt && local->crypt->ops)
-		p += sprintf(p, "crypt=%s\n", local->crypt->ops->name);
+	for (i = 0; i < WEP_KEYS; i++) {
+		if (local->crypt[i] && local->crypt[i]->ops) {
+			p += sprintf(p, "crypt[%d]=%s\n",
+				     i, local->crypt[i]->ops->name);
+		}
+	}
 	p += sprintf(p, "pri_only=%d\n", local->pri_only);
+	p += sprintf(p, "pci=%d\n", local->func->hw_type == HOSTAP_HW_PCI);
+	p += sprintf(p, "sram_type=%d\n", local->sram_type);
+	p += sprintf(p, "no_pri=%d\n", local->no_pri);
 
 	return (p - page);
 }
@@ -125,6 +132,93 @@ static int prism2_wds_proc_read(char *page, char **start, off_t off,
 }
 
 
+static int prism2_bss_list_proc_read(char *page, char **start, off_t off,
+				     int count, int *eof, void *data)
+{
+	char *p = page;
+	local_info_t *local = (local_info_t *) data;
+	struct list_head *ptr;
+	struct hostap_bss_info *bss;
+	int i;
+
+	if (off > PROC_LIMIT) {
+		*eof = 1;
+		return 0;
+	}
+
+	p += sprintf(p, "#BSSID\tlast_update\tcount\tcapab_info\tSSID(txt)\t"
+		     "SSID(hex)\tWPA IE\n");
+	spin_lock_bh(&local->lock);
+	list_for_each(ptr, &local->bss_list) {
+		bss = list_entry(ptr, struct hostap_bss_info, list);
+		p += sprintf(p, MACSTR "\t%lu\t%u\t0x%x\t",
+			     MAC2STR(bss->bssid), bss->last_update,
+			     bss->count, bss->capab_info);
+		for (i = 0; i < bss->ssid_len; i++) {
+			p += sprintf(p, "%c",
+				     bss->ssid[i] >= 32 && bss->ssid[i] < 127 ?
+				     bss->ssid[i] : '_');
+		}
+		p += sprintf(p, "\t");
+		for (i = 0; i < bss->ssid_len; i++) {
+			p += sprintf(p, "%02x", bss->ssid[i]);
+		}
+		p += sprintf(p, "\t");
+		for (i = 0; i < bss->wpa_ie_len; i++) {
+			p += sprintf(p, "%02x", bss->wpa_ie[i]);
+		}
+		p += sprintf(p, "\n");
+		if ((p - page) > PROC_LIMIT) {
+			printk(KERN_DEBUG "%s: BSS proc did not fit\n",
+			       local->dev->name);
+			break;
+		}
+	}
+	spin_unlock_bh(&local->lock);
+
+	if ((p - page) <= off) {
+		*eof = 1;
+		return 0;
+	}
+
+	*start = page + off;
+
+	return (p - page - off);
+}
+
+
+static int prism2_crypt_proc_read(char *page, char **start, off_t off,
+				  int count, int *eof, void *data)
+{
+	char *p = page;
+	local_info_t *local = (local_info_t *) data;
+	int i;
+
+	if (off > PROC_LIMIT) {
+		*eof = 1;
+		return 0;
+	}
+
+	p += sprintf(p, "tx_keyidx=%d\n", local->tx_keyidx);
+	for (i = 0; i < WEP_KEYS; i++) {
+		if (local->crypt[i] && local->crypt[i]->ops &&
+		    local->crypt[i]->ops->print_stats) {
+			p = local->crypt[i]->ops->print_stats(
+				p, local->crypt[i]->priv);
+		}
+	}
+
+	if ((p - page) <= off) {
+		*eof = 1;
+		return 0;
+	}
+
+	*start = page + off;
+
+	return (p - page - off);
+}
+
+
 static int prism2_pda_proc_read(char *page, char **start, off_t off,
 				int count, int *eof, void *data)
 {
@@ -139,6 +233,26 @@ static int prism2_pda_proc_read(char *page, char **start, off_t off,
 		count = PRISM2_PDA_SIZE - off;
 
 	memcpy(page, local->pda + off, count);
+	return count;
+}
+
+
+static int prism2_aux_dump_proc_read(char *page, char **start, off_t off,
+				     int count, int *eof, void *data)
+{
+	local_info_t *local = (local_info_t *) data;
+
+	if (local->func->read_aux == NULL) {
+		*eof = 1;
+		return 0;
+	}
+
+	if (local->func->read_aux(local->dev, off, count, page)) {
+		*eof = 1;
+		return 0;
+	}
+	*start = page;
+
 	return count;
 }
 
@@ -290,10 +404,10 @@ void hostap_init_proc(local_info_t *local)
 		return;
 	}
 
-	local->proc = proc_mkdir(local->dev->name, hostap_proc);
+	local->proc = proc_mkdir(local->ddev->name, hostap_proc);
 	if (local->proc == NULL) {
 		printk(KERN_INFO "/proc/net/hostap/%s creation failed\n",
-		       local->dev->name);
+		       local->ddev->name);
 		return;
 	}
 
@@ -307,6 +421,12 @@ void hostap_init_proc(local_info_t *local)
 			       prism2_wds_proc_read, local);
 	create_proc_read_entry("pda", 0, local->proc,
 			       prism2_pda_proc_read, local);
+	create_proc_read_entry("aux_dump", 0, local->proc,
+			       prism2_aux_dump_proc_read, local);
+	create_proc_read_entry("bss_list", 0, local->proc,
+			       prism2_bss_list_proc_read, local);
+	create_proc_read_entry("crypt", 0, local->proc,
+			       prism2_crypt_proc_read, local);
 #ifdef PRISM2_IO_DEBUG
 	create_proc_read_entry("io_debug", 0, local->proc,
 			       prism2_io_debug_proc_read, local);
@@ -328,14 +448,16 @@ void hostap_remove_proc(local_info_t *local)
 		remove_proc_entry("io_debug", local->proc);
 #endif /* PRISM2_IO_DEBUG */
 		remove_proc_entry("pda", local->proc);
+		remove_proc_entry("aux_dump", local->proc);
 		remove_proc_entry("wds", local->proc);
 		remove_proc_entry("stats", local->proc);
+		remove_proc_entry("bss_list", local->proc);
+		remove_proc_entry("crypt", local->proc);
 #ifndef PRISM2_NO_PROCFS_DEBUG
 		remove_proc_entry("debug", local->proc);
 #endif /* PRISM2_NO_PROCFS_DEBUG */
-		if (local->dev != NULL && local->dev->name != NULL &&
-		    hostap_proc != NULL)
-			remove_proc_entry(local->dev->name, hostap_proc);
+		if (local->ddev != NULL && hostap_proc != NULL)
+			remove_proc_entry(local->ddev->name, hostap_proc);
 	}
 }
 

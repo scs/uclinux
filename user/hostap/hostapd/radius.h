@@ -36,6 +36,7 @@ enum { RADIUS_ATTR_USER_NAME = 1,
        RADIUS_ATTR_NAS_PORT = 5,
        RADIUS_ATTR_FRAMED_MTU = 12,
        RADIUS_ATTR_STATE = 24,
+       RADIUS_ATTR_CLASS = 25,
        RADIUS_ATTR_VENDOR_SPECIFIC = 26,
        RADIUS_ATTR_SESSION_TIMEOUT = 27,
        RADIUS_ATTR_IDLE_TIMEOUT = 28,
@@ -58,7 +59,8 @@ enum { RADIUS_ATTR_USER_NAME = 1,
        RADIUS_ATTR_NAS_PORT_TYPE = 61,
        RADIUS_ATTR_CONNECT_INFO = 77,
        RADIUS_ATTR_EAP_MESSAGE = 79,
-       RADIUS_ATTR_MESSAGE_AUTHENTICATOR = 80
+       RADIUS_ATTR_MESSAGE_AUTHENTICATOR = 80,
+       RADIUS_ATTR_ACCT_INTERIM_INTERVAL = 85,
 };
 
 
@@ -101,6 +103,9 @@ enum { RADIUS_ATTR_USER_NAME = 1,
 #define RADIUS_ACCT_TERMINATE_CAUSE_USER_ERROR 17
 #define RADIUS_ACCT_TERMINATE_CAUSE_HOST_REQUEST 18
 
+
+#define RADIUS_VENDOR_ID_CISCO 9
+#define RADIUS_CISCO_AV_PAIR 1
 
 /* RFC 2548 - Microsoft Vendor-specific RADIUS Attributes */
 #define RADIUS_VENDOR_ID_MICROSOFT 311
@@ -173,6 +178,9 @@ void radius_msg_make_authenticator(struct radius_msg *msg,
 struct radius_ms_mppe_keys *
 radius_msg_get_ms_keys(struct radius_msg *msg, struct radius_msg *sent_msg,
 		       u8 *secret, size_t secret_len);
+struct radius_ms_mppe_keys *
+radius_msg_get_cisco_keys(struct radius_msg *msg, struct radius_msg *sent_msg,
+			  u8 *secret, size_t secret_len);
 struct radius_attr_hdr *
 radius_msg_add_attr_user_password(struct radius_msg *msg,
 				  u8 *data, size_t data_len,
@@ -198,5 +206,7 @@ static inline int radius_msg_get_attr_int32(struct radius_msg *msg, u8 type,
 	*value = ntohl(val);
 	return 0;
 }
+int radius_msg_get_attr_ptr(struct radius_msg *msg, u8 type, u8 **buf,
+			    size_t *len);
 
 #endif /* RADIUS_H */

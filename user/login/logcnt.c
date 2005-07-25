@@ -77,7 +77,7 @@ void access__attempted(const int denied, const char *const user) {
 		fclose(f);
 		return 0;
 	}
-	const int max = get_count("-")?:5;
+	const int max = get_count("-")?:10;
 	void bump_count(const char *const user) {
 		const int n = get_count(user);
 		if (n >= max) {

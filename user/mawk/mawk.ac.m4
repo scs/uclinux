@@ -2,11 +2,8 @@ dnl
 dnl custom mawk macros for autoconf
 dnl 
 dnl $Log$
-dnl Revision 1.1  2004/07/19 13:08:57  lgsoft
-dnl Initial revision
-dnl
-dnl Revision 1.1.1.1  2004/07/18 13:27:45  nidhi
-dnl Importing
+dnl Revision 1.2  2005/07/25 04:03:15  magicyang
+dnl New user folder check in
 dnl
 dnl Revision 1.15  1996/09/04 23:40:34  mike
 dnl Small tweak to strtod bug check

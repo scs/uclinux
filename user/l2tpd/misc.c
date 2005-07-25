@@ -166,9 +166,9 @@ inline void swaps (void *buf_v, int len)
     /* Reverse byte order (if proper to do so) 
        to make things work out easier */
     int x;
-    _u16 *tmp = (_u16 *) buf_v;
-    for (x = 0; x < len / 2; x++)
-        tmp[x] = ntohs (tmp[x]);
+	struct hw { _u16 s; } __attribute__ ((packed)) *p = (struct hw *) buf_v;
+	for (x = 0; x < len / 2; x++, p++)
+		p->s = ntohs(p->s); 
 #endif
 }
 

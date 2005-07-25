@@ -1,7 +1,7 @@
 /*
  * Host AP crypt: host-based WEP encryption implementation for Host AP driver
  *
- * Copyright (c) 2002, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,10 +20,22 @@
 #else
 #include <linux/workqueue.h>
 #endif
+#include <linux/skbuff.h>
 #include <asm/string.h>
 
 #include "hostap_crypt.h"
 #include "hostap_compat.h"
+#include "hostap_config.h"
+
+#ifdef CONFIG_CRYPTO
+#ifdef HOSTAP_USE_CRYPTO_API
+#include <linux/crypto.h>
+#include <asm/scatterlist.h>
+#include <linux/crc32.h>
+#endif /* HOSTAP_USE_CRYPTO_API */
+#else /* CONFIG_CRYPTO */
+#undef HOSTAP_USE_CRYPTO_API
+#endif /* CONFIG_CRYPTO */
 
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP crypt: WEP");
@@ -32,13 +44,16 @@ MODULE_LICENSE("GPL");
 
 struct prism2_wep_data {
 	u32 iv;
-#define WEP_KEYS 4
 #define WEP_KEY_LEN 13
-	u8 keys[WEP_KEYS][WEP_KEY_LEN + 1];
-	u8 key_lens[WEP_KEYS];
-	int tx_key;
+	u8 key[WEP_KEY_LEN + 1];
+	u8 key_len;
+	u8 key_idx;
+#ifdef HOSTAP_USE_CRYPTO_API
+	struct crypto_tfm *tfm;
+#endif /* HOSTAP_USE_CRYPTO_API */
 };
 
+#ifndef HOSTAP_USE_CRYPTO_API
 static const __u32 crc32_table[256] = {
 	0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 0x076dc419L,
 	0x706af48fL, 0xe963a535L, 0x9e6495a3L, 0x0edb8832L, 0x79dcb8a4L,
@@ -93,57 +108,110 @@ static const __u32 crc32_table[256] = {
 	0x5d681b02L, 0x2a6f2b94L, 0xb40bbe37L, 0xc30c8ea1L, 0x5a05df1bL,
 	0x2d02ef8dL
 };
+#endif /* HOSTAP_USE_CRYPTO_API */
 
 
-static void * prism2_wep_init(void)
+static void * prism2_wep_init(int keyidx)
 {
 	struct prism2_wep_data *priv;
 
-#ifndef NEW_MODULE_CODE
+#ifdef NEW_MODULE_CODE
+	if (!try_module_get(THIS_MODULE))
+		return NULL;
+#else
 	MOD_INC_USE_COUNT;
 #endif
 
 	priv = (struct prism2_wep_data *) kmalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL) {
-#ifndef NEW_MODULE_CODE
+#ifdef NEW_MODULE_CODE
+		module_put(THIS_MODULE);
+#else
 		MOD_DEC_USE_COUNT;
 #endif
-		return NULL;
+		goto fail;
 	}
 	memset(priv, 0, sizeof(*priv));
+	priv->key_idx = keyidx;
+
+#ifdef HOSTAP_USE_CRYPTO_API
+	priv->tfm = crypto_alloc_tfm("arc4", 0);
+	if (priv->tfm == NULL) {
+		printk(KERN_DEBUG "hostap_crypt_wep: could not allocate "
+		       "crypto API arc4\n");
+		goto fail;
+	}
+#endif /* HOSTAP_USE_CRYPTO_API */
 
 	/* start WEP IV from a random value */
 	get_random_bytes(&priv->iv, 4);
 
 	return priv;
+
+fail:
+	if (priv) {
+#ifdef HOSTAP_USE_CRYPTO_API
+		if (priv->tfm)
+			crypto_free_tfm(priv->tfm);
+#endif /* HOSTAP_USE_CRYPTO_API */
+		kfree(priv);
+	}
+#ifdef NEW_MODULE_CODE
+	module_put(THIS_MODULE);
+#else
+	MOD_DEC_USE_COUNT;
+#endif
+	return NULL;
 }
 
 
 static void prism2_wep_deinit(void *priv)
 {
+#ifdef HOSTAP_USE_CRYPTO_API
+	struct prism2_wep_data *_priv = priv;
+	if (_priv && _priv->tfm)
+		crypto_free_tfm(_priv->tfm);
+#endif /* HOSTAP_USE_CRYPTO_API */
 	kfree(priv);
-#ifndef NEW_MODULE_CODE
+#ifdef NEW_MODULE_CODE
+	module_put(THIS_MODULE);
+#else
 	MOD_DEC_USE_COUNT;
 #endif
 }
 
 
-/* Perform WEP encryption on given buffer. Buffer needs to has 4 bytes of
- * extra space (IV) in the beginning, then len bytes of data, and finally
- * 4 bytes of extra space (ICV). Both IV and ICV will be transmitted, so the
- * payload length increases with 8 bytes.
+/* Perform WEP encryption on given skb that has at least 4 bytes of headroom
+ * for IV and 4 bytes of tailroom for ICV. Both IV and ICV will be transmitted,
+ * so the payload length increases with 8 bytes.
  *
  * WEP frame payload: IV + TX key idx, RC4(data), ICV = RC4(CRC32(data))
  */
-static int prism2_wep_encrypt(u8 *buf, int len, void *priv)
+static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
-	u32 i, j, k, crc, klen;
-	u8 S[256], key[WEP_KEY_LEN + 3];
+	u32 crc, klen, len;
+	u8 key[WEP_KEY_LEN + 3];
+#ifdef HOSTAP_USE_CRYPTO_API
+	u8 *pos, *icv;
+	struct scatterlist sg;
+#else /* HOSTAP_USE_CRYPTO_API */
+	u32 i, j, k;
+	u8 S[256];
 	u8 kpos, *pos;
 #define S_SWAP(a,b) do { u8 t = S[a]; S[a] = S[b]; S[b] = t; } while(0)
+#endif /* HOSTAP_USE_CRYPTO_API */
 
-	klen = 3 + wep->key_lens[wep->tx_key];
+	if (skb_headroom(skb) < 4 || skb_tailroom(skb) < 4 ||
+	    skb->len < hdr_len)
+		return -1;
+
+	len = skb->len - hdr_len;
+	pos = skb_push(skb, 4);
+	memmove(pos, pos + 4, hdr_len);
+	pos += hdr_len;
+
+	klen = 3 + wep->key_len;
 
 	wep->iv++;
 
@@ -157,15 +225,31 @@ static int prism2_wep_encrypt(u8 *buf, int len, void *priv)
 	}
 
 	/* Prepend 24-bit IV to RC4 key and TX frame */
-	pos = buf;
 	*pos++ = key[0] = (wep->iv >> 16) & 0xff;
 	*pos++ = key[1] = (wep->iv >> 8) & 0xff;
 	*pos++ = key[2] = wep->iv & 0xff;
-	*pos++ = wep->tx_key << 6;
+	*pos++ = wep->key_idx << 6;
 
 	/* Copy rest of the WEP key (the secret part) */
-	memcpy(key + 3, wep->keys[wep->tx_key],
-	       wep->key_lens[wep->tx_key]);
+	memcpy(key + 3, wep->key, wep->key_len);
+
+#ifdef HOSTAP_USE_CRYPTO_API
+
+	/* Append little-endian CRC32 and encrypt it to produce ICV */
+	crc = ~crc32_le(~0, pos, len);
+	icv = skb_put(skb, 4);
+	icv[0] = crc;
+	icv[1] = crc >> 8;
+	icv[2] = crc >> 16;
+	icv[3] = crc >> 24;
+
+	crypto_cipher_setkey(wep->tfm, key, klen);
+	sg.page = virt_to_page(pos);
+	sg.offset = offset_in_page(pos);
+	sg.length = len + 4;
+	crypto_cipher_encrypt(wep->tfm, &sg, &sg, len + 4);
+
+#else /* HOSTAP_USE_CRYPTO_API */
 
 	/* Setup RC4 state */
 	for (i = 0; i < 256; i++)
@@ -193,6 +277,7 @@ static int prism2_wep_encrypt(u8 *buf, int len, void *priv)
 	crc = ~crc;
 
 	/* Append little-endian CRC32 and encrypt it to produce ICV */
+	pos = skb_put(skb, 4);
 	pos[0] = crc;
 	pos[1] = crc >> 8;
 	pos[2] = crc >> 16;
@@ -204,7 +289,9 @@ static int prism2_wep_encrypt(u8 *buf, int len, void *priv)
 		*pos++ ^= S[(S[i] + S[j]) & 0xff];
 	}
 
-	return len + 8;
+#endif /* HOSTAP_USE_CRYPTO_API */
+
+	return 0;
 }
 
 
@@ -213,28 +300,59 @@ static int prism2_wep_encrypt(u8 *buf, int len, void *priv)
  * ICV (4 bytes). len includes both IV and ICV.
  *
  * Returns 0 if frame was decrypted successfully and ICV was correct and -1 on
- * failure. If frame is OK, IV and ICV will be removed, i.e., decrypted payload
- * is moved to beginning of buf and last 8 bytes of buf should be ignored.
+ * failure. If frame is OK, IV and ICV will be removed.
  */
-static int prism2_wep_decrypt(u8 *buf, int len, void *priv)
+static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
-	u32 i, j, k, crc, klen;
-	u8 S[256], key[WEP_KEY_LEN + 3];
-	u8 keyidx, kpos, *dpos, *cpos;
+	u32 crc, klen, plen;
+	u8 key[WEP_KEY_LEN + 3];
+	u8 keyidx, *pos, icv[4];
+#ifdef HOSTAP_USE_CRYPTO_API
+	struct scatterlist sg;
+#else /* HOSTAP_USE_CRYPTO_API */
+	u32 i, j, k;
+	u8 S[256], kpos;
+#endif /* HOSTAP_USE_CRYPTO_API */
 
-	if (len < 8)
+	if (skb->len < hdr_len + 8)
 		return -1;
 
-	key[0] = buf[0];
-	key[1] = buf[1];
-	key[2] = buf[2];
-	keyidx = buf[3] >> 6;
+	pos = skb->data + hdr_len;
+	key[0] = *pos++;
+	key[1] = *pos++;
+	key[2] = *pos++;
+	keyidx = *pos++ >> 6;
+	if (keyidx != wep->key_idx)
+		return -1;
 
-	klen = 3 + wep->key_lens[keyidx];
+	klen = 3 + wep->key_len;
 
 	/* Copy rest of the WEP key (the secret part) */
-	memcpy(key + 3, wep->keys[keyidx], wep->key_lens[keyidx]);
+	memcpy(key + 3, wep->key, wep->key_len);
+
+#ifdef HOSTAP_USE_CRYPTO_API
+
+	/* Apply RC4 to data and compute CRC32 over decrypted data */
+	plen = skb->len - hdr_len - 8;
+
+	crypto_cipher_setkey(wep->tfm, key, klen);
+	sg.page = virt_to_page(pos);
+	sg.offset = offset_in_page(pos);
+	sg.length = plen + 4;
+	crypto_cipher_decrypt(wep->tfm, &sg, &sg, plen + 4);
+
+	crc = ~crc32_le(~0, pos, plen);
+	icv[0] = crc;
+	icv[1] = crc >> 8;
+	icv[2] = crc >> 16;
+	icv[3] = crc >> 24;
+	if (memcmp(icv, pos + plen, 4) != 0) {
+		/* ICV mismatch - drop frame */
+		return -2;
+	}
+
+#else /* HOSTAP_USE_CRYPTO_API */
 
 	/* Setup RC4 state */
 	for (i = 0; i < 256; i++)
@@ -250,83 +368,79 @@ static int prism2_wep_decrypt(u8 *buf, int len, void *priv)
 	}
 
 	/* Apply RC4 to data and compute CRC32 over decrypted data */
-	dpos = buf;
-	cpos = buf + 4;
+	plen = skb->len - hdr_len - 8;
 	crc = ~0;
 	i = j = 0;
-	for (k = 0; k < len - 8; k++) {
+	for (k = 0; k < plen; k++) {
 		i = (i + 1) & 0xff;
 		j = (j + S[i]) & 0xff;
 		S_SWAP(i, j);
-		*dpos = *cpos++ ^ S[(S[i] + S[j]) & 0xff];
-		crc = crc32_table[(crc ^ *dpos++) & 0xff] ^ (crc >> 8);
+		*pos ^= S[(S[i] + S[j]) & 0xff];
+		crc = crc32_table[(crc ^ *pos) & 0xff] ^ (crc >> 8);
+		pos++;
 	}
 	crc = ~crc;
 
 	/* Encrypt little-endian CRC32 and verify that it matches with the
 	 * received ICV */
-	dpos[0] = crc;
-	dpos[1] = crc >> 8;
-	dpos[2] = crc >> 16;
-	dpos[3] = crc >> 24;
+	icv[0] = crc;
+	icv[1] = crc >> 8;
+	icv[2] = crc >> 16;
+	icv[3] = crc >> 24;
 	for (k = 0; k < 4; k++) {
 		i = (i + 1) & 0xff;
 		j = (j + S[i]) & 0xff;
 		S_SWAP(i, j);
-		if ((*dpos++ ^ S[(S[i] + S[j]) & 0xff]) != *cpos++) {
+		if ((icv[k] ^ S[(S[i] + S[j]) & 0xff]) != *pos++) {
 			/* ICV mismatch - drop frame */
-			return -1;
+			return -2;
 		}
 	}
 
-	return len - 8;
-}
+#endif /* HOSTAP_USE_CRYPTO_API */
 
-
-static int prism2_wep_set_key(int idx, void *key, int len, void *priv)
-{
-	struct prism2_wep_data *wep = priv;
-
-	if (idx < 0 || idx >= WEP_KEYS || len < 0 || len > WEP_KEY_LEN)
-		return -1;
-
-	memcpy(wep->keys[idx], key, len);
-	wep->key_lens[idx] = len;
+	/* Remove IV and ICV */
+	memmove(skb->data + 4, skb->data, hdr_len);
+	skb_pull(skb, 4);
+	skb_trim(skb, skb->len - 4);
 
 	return 0;
 }
 
 
-static int prism2_wep_get_key(int idx, void *key, int len, void *priv)
+static int prism2_wep_set_key(void *key, int len, u8 *seq, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
 
-	if (idx < 0 || idx >= WEP_KEYS || len < wep->key_lens[idx])
+	if (len < 0 || len > WEP_KEY_LEN)
 		return -1;
 
-	memcpy(key, wep->keys[idx], wep->key_lens[idx]);
-
-	return wep->key_lens[idx];
-}
-
-
-static int prism2_wep_set_key_idx(int idx, void *priv)
-{
-	struct prism2_wep_data *wep = priv;
-
-	if (idx < 0 || idx >= WEP_KEYS || wep->key_lens[idx] == 0)
-		return -1;
-
-	wep->tx_key = idx;
+	memcpy(wep->key, key, len);
+	wep->key_len = len;
 
 	return 0;
 }
 
 
-static int prism2_wep_get_key_idx(void *priv)
+static int prism2_wep_get_key(void *key, int len, u8 *seq, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
-	return wep->tx_key;
+
+	if (len < wep->key_len)
+		return -1;
+
+	memcpy(key, wep->key, wep->key_len);
+
+	return wep->key_len;
+}
+
+
+static char * prism2_wep_print_stats(char *p, void *priv)
+{
+	struct prism2_wep_data *wep = priv;
+	p += sprintf(p, "key[%d] alg=WEP len=%d\n",
+		     wep->key_idx, wep->key_len);
+	return p;
 }
 
 
@@ -334,12 +448,13 @@ static struct hostap_crypto_ops hostap_crypt_wep = {
 	.name			= "WEP",
 	.init			= prism2_wep_init,
 	.deinit			= prism2_wep_deinit,
-	.encrypt		= prism2_wep_encrypt,
-	.decrypt		= prism2_wep_decrypt,
+	.encrypt_mpdu		= prism2_wep_encrypt,
+	.decrypt_mpdu		= prism2_wep_decrypt,
+	.encrypt_msdu		= NULL,
+	.decrypt_msdu		= NULL,
 	.set_key		= prism2_wep_set_key,
 	.get_key		= prism2_wep_get_key,
-	.set_key_idx		= prism2_wep_set_key_idx,
-	.get_key_idx		= prism2_wep_get_key_idx,
+	.print_stats		= prism2_wep_print_stats,
 	.extra_prefix_len	= 4 /* IV */,
 	.extra_postfix_len	= 4 /* ICV */
 };

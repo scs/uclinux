@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -303,11 +304,60 @@ static int crc16(u8 *buf, int len)
 }
 
 
+static int parse_wlan_pda(struct prism2_pda *pda_info, int update_crc)
+{
+	int pos;
+	u16 *pda, len, pdr;
+	pda = (u16 *) pda_info->pda_buf;
+	pos = 0;
+	while (pos + 1 < PRISM2_PDA_SIZE / 2) {
+		len = le_to_host16(pda[pos]);
+		pdr = le_to_host16(pda[pos + 1]);
+		if (len == 0 || pos + len > PRISM2_PDA_SIZE / 2) {
+			printf("Invalid PDR 0x%04x len=%d\n", pdr, len);
+			return 1;
+		}
+
+		pda_info->pdrs = (struct prism2_pdr *)
+			realloc(pda_info->pdrs,
+				(pda_info->pdr_count + 1) *
+				sizeof(struct prism2_pdr));
+		assert(pda_info->pdrs != NULL);
+		pda_info->pdrs[pda_info->pdr_count].pdr = pdr;
+		pda_info->pdrs[pda_info->pdr_count].len = (len - 1) * 2;
+		pda_info->pdrs[pda_info->pdr_count].data =
+			(unsigned char *) (&pda[pos + 2]);
+		pda_info->pdr_count++;
+
+		if (pdr == PDR_PDA_END_RECORD && len == 2) {
+			/* PDA end found */
+			if (crc16(pda_info->pda_buf, (pos + 3) * 2) != 0) {
+				if (update_crc) {
+					int crc = crc16(pda_info->pda_buf,
+							(pos + 2) * 2);
+					printf("Updating PDA checksum to match"
+					       " with data (%04x -> %04x).\n",
+					       pda[pos + 2], crc);
+					pda[pos + 2] = crc;
+				} else {
+					printf("PDA checksum incorrect.\n");
+					return 1;
+				}
+			}
+			return 0;
+		}
+
+		pos += len + 1;
+	}
+
+	printf("Could not find PDA end record.\n");
+	return 1;
+}
+
+
 int read_wlan_pda(const char *fname, struct prism2_pda *pda_info)
 {
 	FILE *f;
-	int pos;
-	u16 *pda, len, pdr;
 
 	memset(pda_info, 0, sizeof(struct prism2_pda));
 	f = fopen(fname, "r");
@@ -322,36 +372,181 @@ int read_wlan_pda(const char *fname, struct prism2_pda *pda_info)
 
 	fclose(f);
 
-	pda = (u16 *) pda_info->pda_buf;
-	pos = 0;
-	while (pos + 1 < PRISM2_PDA_SIZE / 2) {
-		len = le_to_host16(pda[pos]);
-		pdr = le_to_host16(pda[pos + 1]);
-		if (len == 0 || pos + len > PRISM2_PDA_SIZE / 2)
-			return 1;
+	return parse_wlan_pda(pda_info, 0);
+}
 
-		pda_info->pdrs = (struct prism2_pdr *)
-			realloc(pda_info->pdrs,
-				(pda_info->pdr_count + 1) *
-				sizeof(struct prism2_pdr));
-		assert(pda_info->pdrs != NULL);
-		pda_info->pdrs[pda_info->pdr_count].pdr = pdr;
-		pda_info->pdrs[pda_info->pdr_count].len = (len - 1) * 2;
-		pda_info->pdrs[pda_info->pdr_count].data =
-			(unsigned char *) (&pda[pos + 2]);
-		pda_info->pdr_count++;
 
-		if (pdr == 0x0000 && len == 2) {
-			/* PDA end found */
-			if (crc16(pda_info->pda_buf, (pos + 3) * 2) != 0) {
-				printf("PDA checksum incorrect.\n");
-				return 1;
-			}
-			return 0;
+#define LINE_BUF_LEN 2048
+
+static int get_next_word(FILE *f, char *linebuf, char **_pos)
+{
+	size_t len;
+	char *pos, *end, *pos2;
+	int ret;
+
+	pos = *_pos;
+
+	while (isspace(*pos))
+		pos++;
+	if (*pos == '\0') {
+		do {
+			if (fgets(linebuf, LINE_BUF_LEN, f) == NULL)
+				return -1;
+			len = strcspn(linebuf, ";/#");
+			linebuf[len] = '\0';
+			pos = linebuf;
+			while (isspace(*pos))
+				pos++;
+		} while (*pos == '\0');
+		pos2 = pos;
+		while (*pos2 != '\0') {
+			if (*pos2 == ',')
+				*pos2 = ' ';
+			pos2++;
 		}
-
-		pos += len + 1;
 	}
 
-	return 1;
+	ret = strtol(pos, &end, 16);
+	if (end == pos) {
+		pos = linebuf;
+		printf("Expected a hex number at position marked with *:\n");
+		while (*pos != '\0') {
+			if (pos == end)
+				putchar('*');
+			putchar(*pos++);
+		}
+		printf("\n");
+		return -2;
+	}
+	pos = end;
+	if (pos >= linebuf + LINE_BUF_LEN)
+		pos = linebuf + LINE_BUF_LEN - 1;
+	*_pos = pos;
+
+	return ret;
+}
+
+
+int read_wlan_pda_text(const char *fname, struct prism2_pda *pda_info)
+{
+	FILE *f;
+	char linebuf[LINE_BUF_LEN], *pos;
+	int words, w;
+	u16 *pda;
+
+	f = fopen(fname, "r");
+	if (f == NULL)
+		return -1;
+
+	memset(pda_info, 0, sizeof(struct prism2_pda));
+	memset(pda_info->pda_buf, 0xff, PRISM2_PDA_SIZE);
+	pda = (u16 *) pda_info->pda_buf;
+	linebuf[0] = '\0';
+	pos = linebuf;
+	words = 0;
+	while (words < PRISM2_PDA_SIZE / 2) {
+		w = get_next_word(f, linebuf, &pos);
+		if (w == -2) {
+			printf("Parsing PDA data failed.\n");
+			fclose(f);
+			return -1;
+		} else if (w == -1)
+			break;
+		pda[words++] = host_to_le16(w);
+	}
+
+	fclose(f);
+
+	if (words + 3 < PRISM2_PDA_SIZE / 2) {
+		/* PDA text format is not required to include PDA end
+		 * record, so add a template in the end of the PDA. */
+		pda[words++] = host_to_le16(2);
+		pda[words++] = host_to_le16(PDR_PDA_END_RECORD);
+		pda[words++] = 0; /* will be overriden with correct CRC */
+	}
+
+	return parse_wlan_pda(pda_info, 1);
+}
+
+
+const char * prism2_pdr_name(int pdr)
+{
+	switch (pdr) {
+	case PDR_PDA_END_RECORD:
+		return "PDA End Record";
+	case PDR_PLATFORM_NAME:
+		return "Platform name / Manufacturing part number";
+	case PDR_VERSION:
+		return "PDA Version Record";
+	case PDR_NIC_SERIAL_NUM:
+		return "NIC Serial Number";
+	case PDR_NIC_RAM_SIZE:
+		return "NIC RAM Size";
+	case PDR_RF_MODE_SUPP_RANGE:
+		return "RF Modem Supplier Range";
+	case PDR_MAC_CTRL_SUPP_RANGE:
+		return "MAC Controller Supplier Range";
+	case PDR_NIC_ID_COMP:
+		return "NIC ID (component ID)";
+	case PDR_MAC_ADDR:
+		return "MAC Address";
+	case PDR_REG_DOMAIN_LIST:
+		return "Regulatory Domain List";
+	case PDR_CHANNEL_LIST:
+		return "Allowed Channel Set/Active Channel List";
+	case PDR_DEFAULT_CHANNEL:
+		return "Default Channel";
+	case PDR_TEMPERATURE_TYPE:
+		return "Temperature Type";
+	case PDR_IFR_SETTING:
+		return "IFR Setting";
+	case PDR_RFR_SETTING:
+		return "RFR Setting";
+	case PDR_3861_BASELINE_REG_SETTINGS:
+		return "3861 Baseline Register Settings";
+	case PDR_3861_SHADOW_REG_SETTINGS:
+		return "3861 Shadow Register Settings";
+	case PDR_3861_IFRF_REG_SETTINGS:
+		return "3861 IF/RF Register Settings";
+	case PDR_3861_CHANNEL_CALIB_SP:
+		return "3861 Channel Calibration Set Point";
+	case PDR_3861_CHANNEL_CALIB_INT:
+		return "3861 Channel Calibration Integrator";
+	case PDR_MAX_RADIO_TX_POWER:
+		return "Maximum Radio TX Power";
+	case PDR_MASTER_CHANNEL_LIST:
+		return "Scannable/Master Channel List";
+	case PDR_3842_NIC_CONF:
+		return "3842 PRISM II NIC Configuration";
+	case PDR_USB_ID:
+		return "PRISM USB Identifier";
+	case PDR_PCI_ID:
+		return "PRISM PCI Identifier";
+	case PDR_PCI_INTERFACE_CONF:
+		return "PRISM PCI Interface Configuration";
+	case PDR_PCI_PM_CONF:
+		return "PRISM PCI PM Configuration";
+	case PDR_ZIF_SYNTHESIZER_SETTINGS:
+		return "ZIF Synthesizer Settings";
+	case PDR_RSSI_DBM_CONV:
+		return "RSSI-to-dBm Conversion Constant";
+	case PDR_USB_POWER_TYPE:
+		return "USB Power Type";
+	case PDR_USB_MAX_POWER:
+		return "PRISM USB Max Power";
+	case PDR_USB_MANUF_STRING:
+		return "USB Manufacture String";
+	case PDR_USB_PRODUCT_STRING:
+		return "USB Product String";
+	case PDR_SW_DIVERSITY_CTRL:
+		return "SW Diversity Control";
+	case PDR_HFO_DELAY:
+		return "HFO Delay";
+	case PDR_3861_MANUF_TEST_CHANNEL_SP:
+		return "3861 Manufacturing Test Channel Set Points";
+	case PDR_MANUF_TEST_CHANNEL_INT:
+		return "Manufacturing Test Channel Integrators";
+	}
+
+	return "";
 }

@@ -94,6 +94,7 @@ typedef unsigned int socklen_t;
 #define TC_SET_POLICY		iptc_set_policy
 #define TC_GET_RAW_SOCKET	iptc_get_raw_socket
 #define TC_INIT			iptc_init
+#define TC_FREE			iptc_free
 #define TC_COMMIT		iptc_commit
 #define TC_STRERROR		iptc_strerror
 
@@ -147,7 +148,7 @@ dump_entry(STRUCT_ENTRY *e, const TC_HANDLE_T handle)
 	printf("Flags: %02X\n", e->ip.flags);
 	printf("Invflags: %02X\n", e->ip.invflags);
 	printf("Counters: %llu packets, %llu bytes\n",
-	       e->counters.pcnt, e->counters.bcnt);
+	       (unsigned long long)e->counters.pcnt, (unsigned long long)e->counters.bcnt);
 	printf("Cache: %08X ", e->nfcache);
 	if (e->nfcache & NFC_ALTERED) printf("ALTERED ");
 	if (e->nfcache & NFC_UNKNOWN) printf("UNKNOWN ");
@@ -438,6 +439,19 @@ do_check(TC_HANDLE_T h, unsigned int line)
 			assert(h->info.hook_entry[NF_IP_POST_ROUTING] == n);
 			user_offset = h->info.hook_entry[NF_IP_POST_ROUTING];
 		}
+	} else if (strcmp(h->info.name, "raw") == 0) {
+		assert(h->info.valid_hooks
+		       == (1 << NF_IP_PRE_ROUTING
+			   | 1 << NF_IP_LOCAL_OUT));
+
+		/* Hooks should be first three */
+		assert(h->info.hook_entry[NF_IP_PRE_ROUTING] == 0);
+
+		n = get_chain_end(h, n);
+		n += get_entry(h, n)->next_offset;
+		assert(h->info.hook_entry[NF_IP_LOCAL_OUT] == n);
+
+		user_offset = h->info.hook_entry[NF_IP_LOCAL_OUT];
 
 #ifdef NF_IP_DROPPING
 	} else if (strcmp(h->info.name, "drop") == 0) {

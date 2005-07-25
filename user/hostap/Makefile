@@ -8,18 +8,22 @@ KERNEL_PATH=$(ROOTDIR)/$(LINUXDIR)
 #
 # hostap_cs.o can be compiled either by copying driver/* into pcmcia-cs root
 # directory and compiling pcmcia-cs package or by configuring PCMCIA_PATH
-# and using this Makefile with 'make pccard; make install_pccard'.
+# and using this Makefile.
 # Leave this blank for kernel-tree PCMCIA compilations (CONFIG_PCMCIA):
 PCMCIA_PATH=
+
+# Output directory that you used when building Linux kernel, if any.
+# Note: this driver will be compiled to the current directory regardless.
+O = $(KERNEL_PATH)
 
 # This path will be prepended to every installed file
 DESTDIR=
 
 #CC=gcc
 #CFLAGS=-O2 -D__KERNEL__ -DMODULE -Wall -g -c $(EXTRA_CFLAGS)
-CFLAGS += -D__KERNEL__ -DMODULE -g -c $(EXTRA_CFLAGS) -DHOSTAP_CRYPT_MODULE
+CFLAGS += -D__KERNEL__ -DMODULE -g -c $(EXTRA_CFLAGS) -DHOSTAP_CRYPT_MODULE -I$(ROOTDIR)/$(LINUXDIR)/include/
 
-include $(KERNEL_PATH)/.config
+include $(O)/.config
 
 INCLUDES=-I$(KERNEL_PATH)/include
 ifdef PCMCIA_PATH
@@ -71,14 +75,6 @@ OLDMAKE = $(wildcard $(KERNEL_PATH)/Rules.make)
 
 all: pci pccard
 
-help:
-	@echo "Select the version to be build:"
-	@echo "make pccard      PC Card (PCMCIA) driver (Prism2 or Prism2.5)"
-	@echo "make plx         PLX-based PCI card with PC Card"
-	@echo "make pci         Prism 2.5 PCI Card"
-	@echo "make crypt       Make hostap_crypt_*.o"
-	@echo "make hostap      Make hostap.o"
-
 ifdef CONFIG_ALPHA
 CFLAGS += -mno-fp-regs -ffixed-8
 endif
@@ -94,43 +90,6 @@ endif
 ifndef CONFIG_FRAME_POINTER
 CFLAGS += -fomit-frame-pointer
 endif
-
-
-# Old compilation using this Makefile and not the build system in the kernel
-# tree. This is used when compiling for Linux 2.2.x (or Linux 2.4.x with
-# 'make pccard'). Both Linux 2.6.x and 2.4.x can use kernel tree build system
-# with 'make'.
-
-ifdef CONFIG_MODVERSIONS
-
-VERFILES=$(MSRC)/hostap.ver ## $(MSRC)/hostap_crypt.ver
-$(MSRC)/hostap_crypt_wep.o: $(VERFILES)
-$(MSRC)/hostap.o: $(VERFILES)
-$(MSRC)/hostap_cs.o: $(VERFILES)
-$(MSRC)/hostap_plx.o: $(VERFILES)
-$(MSRC)/hostap_pci.o: $(VERFILES)
-INCLUDES_MODVER=-include $(MSRC)/hostap.ver ##-include $(MSRC)/hostap_crypt.ver
-
-GENKSYMS=/sbin/genksyms
-ifdef CONFIG_SMP
-        GENKSYMS += -p smp_
-endif
-
-##$(MSRC)/hostap_crypt.ver: $(MSRC)/hostap_crypt.c
-##	$(CC) $(INCLUDES) $(CFLAGS) -E -D__GENKSYMS__ $^ | \
-##		$(GENKSYMS) -k $(KERNELVER) > $@
-$(MSRC)/hostap.ver: $(MSRC)/hostap.c
-	$(CC) $(INCLUDES) $(CFLAGS) -E -D__GENKSYMS__ $^ | \
-		$(GENKSYMS) -k $(KERNELVER) > $@
-
-endif
-
-
-.c.o:
-	$(CC) $(INCLUDES) $(INCLUDES_MODVER) $(CFLAGS) -o $@ $<
-
-# end of old compilation
-
 
 2.4:
 	@if ! echo "$(KERNELRELEASE)" | grep -q "^2\.4"; then \
@@ -150,9 +109,9 @@ endif
 		MODVERDIR=$(PWD)/driver/modules modules
 	$(MAKE) install_all_info
 
-pccard:	$(MSRC)/$(MODULE_CS) hostap crypt
-plx:	$(MSRC)/$(MODULE_PLX) hostap crypt
-pci:	$(MSRC)/$(MODULE_PCI) hostap crypt
+pccard: $(MSRC)/$(MODULE_CS) hostap crypt
+plx:    $(MSRC)/$(MODULE_PLX) hostap crypt
+pci:    $(MSRC)/$(MODULE_PCI) hostap crypt
 crypt:  $(MSRC)/hostap_crypt.o $(MSRC)/hostap_crypt_wep.o
 hostap: $(MSRC)/hostap.o
 
@@ -160,30 +119,6 @@ SRC=$(MSRC)/hostap_hw.c $(MSRC)/hostap_wlan.h $(MSRC)/hostap_config.h \
 	$(MSRC)/hostap_download.c \
 	$(MSRC)/hostap_ap.h \
 	$(MSRC)/hostap_crypt.h $(MSRC)/hostap.h $(MSRC)/hostap_compat.h
-
-## $(MSRC)/hostap_crypt.o: $(MSRC)/hostap_crypt.c $(MSRC)/hostap_crypt.h
-
-$(MSRC)/hostap_crypt_wep.o: $(MSRC)/hostap_crypt_wep.c $(MSRC)/hostap_crypt.h
-
-$(MSRC)/hostap.o: $(MSRC)/hostap.c $(MSRC)/hostap.h \
-	$(MSRC)/hostap_ap.h $(MSRC)/hostap_ap.c $(MSRC)/hostap_info.c \
-	$(MSRC)/hostap_ioctl.c $(MSRC)/hostap_proc.c \
-	$(MSRC)/hostap_wlan.h $(MSRC)/hostap_config.h \
-	$(MSRC)/hostap_compat.h
-
-$(MSRC)/$(MODULE_CS): $(MSRC)/hostap_cs.c $(SRC)
-
-$(MSRC)/$(MODULE_PLX): $(MSRC)/hostap_plx.c $(SRC)
-
-$(MSRC)/$(MODULE_PCI): $(MSRC)/hostap_pci.c $(SRC)
-
-
-install_info:
-	@echo
-	@echo "Run 'make install_pccard' as root to install $(MODULE_CS)"
-	@echo "Run 'make install_plx' as root to install $(MODULE_PLX)"
-	@echo "Run 'make install_pci' as root to install $(MODULE_PCI)"
-	@echo
 
 install_all_info:
 	@echo "*** Become superuser and 'make install' to install the modules. ***" 
@@ -227,7 +162,7 @@ install_hostap: $(MSRC)/hostap.o
 	mkdir -p $(MODPATH_PCI)
 	cp -f $(MSRC)/hostap.o $(MODPATH_PCI)
 
-install_crypt: $(MSRC)/hostap_crypt_wep.o ## $(MSRC)/hostap_crypt.o
+install_crypt: $(MSRC)/hostap_crypt_wep.o $(MSRC)/hostap_crypt_tkip.o $(MSRC)/hostap_crypt_ccmp.o
 	@echo "Installing hostap_crypt_*.o to $(MODPATH_PCI)"
 	mkdir -p $(MODPATH_PCI)
 	cp -f $(MSRC)/hostap_crypt_*.o $(MODPATH_PCI)
@@ -244,7 +179,7 @@ ifndef DESTDIR
 endif
 
 install_conf:
-	@if [ ! -r $(DESTDIR)/etc/pcmcia/hostap_cs.conf ]; then \
+	@if [ -d $(DESTDIR)/etc/pcmcia -a ! -r $(DESTDIR)/etc/pcmcia/hostap_cs.conf ]; then \
 		echo "Installing $(DESTDIR)/etc/pcmcia/hostap_cs.conf"; \
 		cp -f driver/etc/hostap_cs.conf $(DESTDIR)/etc/pcmcia/hostap_cs.conf; \
 	fi
@@ -283,7 +218,7 @@ uninstall:
 
 clean:
 	rm -f $(MSRC)/{$(MODULE_CS),$(MODULE_PLX),$(MODULE_PCI)}
-	rm -f $(MSRC)/{hostap.o,hostap_crypt_wep.o}
+	rm -f $(MSRC)/{hostap.o,hostap_crypt_wep.o,hostap_crypt_tkip.o,hostap_crypt_ccmp.o}
 	rm -f $(MSRC)/*.ko
 	rm -f $(MSRC)/*.ver
 	rm -f $(MSRC)/*.mod.[co]

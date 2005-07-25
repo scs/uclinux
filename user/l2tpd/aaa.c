@@ -320,7 +320,7 @@ struct lns *get_lns (struct tunnel *t)
                 log (LOG_DEBUG,
                      "get_lns: Rule %s to %s, sense %s matched %s\n",
                      IPADDY (ipr->start), IPADDY (ipr->end),
-                     (ipr->sense ? "allow" : "deny"), IPADDY (t->addr));
+                     (ipr->sense ? "allow" : "deny"), IPADDY (t->peer.sin_addr.s_addr));
 #endif
                 allow = ipr->sense;
             }

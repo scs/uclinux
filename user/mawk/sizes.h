@@ -11,12 +11,9 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 /* $Log$
- * Revision 1.1  2004/07/19 13:09:00  lgsoft
- * Initial revision
+ * Revision 1.2  2005/07/25 04:03:15  magicyang
+ * New user folder check in
  *
-/* Revision 1.1.1.1  2004/07/18 13:27:45  nidhi
-/* Importing
-/*
  * Revision 1.8  1995/10/14  22:09:51  mike
  * getting MAX__INT from values.h didn't really work since the value was
  * unusable in an #if MAX__INT <= 0x7fff

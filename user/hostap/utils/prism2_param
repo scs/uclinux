@@ -138,13 +138,14 @@ parameter:
 	hostapd: hostapd mode configuration
 		0 = use kernel driver for IEEE 802.11 management
 		1 = use user space daemon, hostapd, for IEEE 802.11 management
+	hostapd_sta: hostapd mode configuration
+		0 = no extra STA interface
+		1 = use hostapd to control extra STA interface (wlan#sta)
 
 	Following parameters are for debug use only;
 	do not use unless you are sure what you are doing!
 
-	ptype: port type (0=IBSS, 1=BSS, 2=WDS, 3=PseudoIBSS, 6=HostAP)
 	alc: 0=disabled ALC, 1=enable ALC (automatic level control)
-	txpower: TX power (normally, 'iwconfig wlan# txpower <arg>' is used)
 EOF
     exit 1;
 }
@@ -161,12 +162,10 @@ if ! $IWPRIV $1 | grep -q prism2_param; then
 fi
 
 case $2 in
-	ptype) param=1 ;;
 	txratectrl) param=2 ;;
 	beacon_int) param=3 ;;
 	pseudo_ibss) param=4 ;;
 	alc) param=5 ;;
-	txpower) param=6 ;;
 	dump) param=7 ;;
 	other_ap_policy) param=8 ;;
 	ap_max_inactivity) param=9 ;;
@@ -195,6 +194,7 @@ case $2 in
 	basic_rates) param=32 ;;
 	oper_rates) param=33 ;;
 	hostapd) param=34 ;;
+	hostapd_sta) param=35 ;;
 
 	*)
 		echo "Unknown parameter '$2'."

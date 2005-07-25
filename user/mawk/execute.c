@@ -11,12 +11,9 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 /* $Log$
- * Revision 1.1  2004/07/19 13:08:54  lgsoft
- * Initial revision
+ * Revision 1.2  2005/07/25 04:03:15  magicyang
+ * New user folder check in
  *
-/* Revision 1.1.1.1  2004/07/18 13:27:44  nidhi
-/* Importing
-/*
  * Revision 1.13  1996/02/01  04:39:40  mike
  * dynamic array scheme
  *

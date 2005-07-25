@@ -12,12 +12,9 @@ the GNU General Public License, version 2, 1991.
 
 
 /*$Log$
- *Revision 1.1  2004/07/19 13:08:55  lgsoft
- *Initial revision
+ *Revision 1.2  2005/07/25 04:03:15  magicyang
+ *New user folder check in
  *
-/*Revision 1.1.1.1  2004/07/18 13:27:44  nidhi
-/*Importing
-/*
  * Revision 1.7  1995/08/27  15:46:47  mike
  * change some errmsgs to compile_errors
  *

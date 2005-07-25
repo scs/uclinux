@@ -1,63 +1,61 @@
 /* ioctl() (mostly Linux Wireless Extensions) routines for Host AP driver */
 
-#ifdef WIRELESS_EXT
-
 #ifdef in_atomic
 /* Get kernel_locked() for in_atomic() */
 #include <linux/smp_lock.h>
 #endif
+#include <linux/ethtool.h>
 
 
 static struct iw_statistics *hostap_get_wireless_stats(struct net_device *dev)
 {
 	struct hostap_interface *iface = dev->priv;
 	local_info_t *local = iface->local;
+	struct iw_statistics *wstats;
 
-	local->wstats.status = 0;
-	local->wstats.discard.code =
+	wstats = &local->wstats;
+
+	wstats->status = 0;
+	wstats->discard.code =
 		local->comm_tallies.rx_discards_wep_undecryptable;
-	local->wstats.discard.misc =
+	wstats->discard.misc =
 		local->comm_tallies.rx_fcs_errors +
 		local->comm_tallies.rx_discards_no_buffer +
 		local->comm_tallies.tx_discards_wrong_sa;
 
-#if WIRELESS_EXT > 11
-	local->wstats.discard.retries =
+	wstats->discard.retries =
 		local->comm_tallies.tx_retry_limit_exceeded;
-	local->wstats.discard.fragment =
+	wstats->discard.fragment =
 		local->comm_tallies.rx_message_in_bad_msg_fragments;
-#endif /* WIRELESS_EXT > 11 */
 
 	if (local->iw_mode != IW_MODE_MASTER &&
 	    local->iw_mode != IW_MODE_REPEAT) {
-		struct hfa384x_comms_quality sq;
+		int update = 1;
 #ifdef in_atomic
-		/* FIX: get_rid() will sleep and it must not be called
-		 * in interrupt context or while atomic. However, this
+		/* RID reading might sleep and it must not be called in
+		 * interrupt context or while atomic. However, this
 		 * function seems to be called while atomic (at least in Linux
-		 * 2.5.59). Now, we just avoid illegal call, but in this case
-		 * the signal quality values are not shown. Statistics could be
-		 * collected before, if this really needs to be called while
-		 * atomic. */
-		if (in_atomic()) {
-			printk(KERN_DEBUG "%s: hostap_get_wireless_stats() "
-			       "called while atomic - skipping signal "
-			       "quality query\n", dev->name);
-		} else
+		 * 2.5.59). Update signal quality values only if in suitable
+		 * context. Otherwise, previous values read from tick timer
+		 * will be used. */
+		if (in_atomic())
+			update = 0;
 #endif /* in_atomic */
-		if (local->func->get_rid(local->dev,
-						HFA384X_RID_COMMSQUALITY,
-						&sq, sizeof(sq), 1) >= 0) {
-			local->wstats.qual.qual = le16_to_cpu(sq.comm_qual);
-			local->wstats.qual.level = HFA384X_LEVEL_TO_dBm(
-				le16_to_cpu(sq.signal_level));
-			local->wstats.qual.noise = HFA384X_LEVEL_TO_dBm(
-				le16_to_cpu(sq.noise_level));
-			local->wstats.qual.updated = 7;
-		}
+
+		if (update && prism2_update_comms_qual(dev) == 0)
+			wstats->qual.updated = 7;
+
+		wstats->qual.qual = local->comms_qual;
+		wstats->qual.level = local->avg_signal;
+		wstats->qual.noise = local->avg_noise;
+	} else {
+		wstats->qual.qual = 0;
+		wstats->qual.level = 0;
+		wstats->qual.noise = 0;
+		wstats->qual.updated = 0;
 	}
 
-	return &local->wstats;
+	return wstats;
 }
 
 
@@ -139,20 +137,31 @@ static int prism2_ioctl_siwencode(struct net_device *dev,
 	struct hostap_interface *iface = dev->priv;
 	local_info_t *local = iface->local;
 	int i;
-	int first = 0;
+	struct prism2_crypt_data **crypt;
+
+	i = erq->flags & IW_ENCODE_INDEX;
+	if (i < 1 || i > 4)
+		i = local->tx_keyidx;
+	else
+		i--;
+	if (i < 0 || i >= WEP_KEYS)
+		return -EINVAL;
+
+	crypt = &local->crypt[i];
 
 	if (erq->flags & IW_ENCODE_DISABLED) {
-		prism2_crypt_delayed_deinit(local, &local->crypt);
+		if (*crypt)
+			prism2_crypt_delayed_deinit(local, crypt);
 		goto done;
 	}
 
-	if (local->crypt != NULL && local->crypt->ops != NULL &&
-	    strcmp(local->crypt->ops->name, "WEP") != 0) {
+	if (*crypt != NULL && (*crypt)->ops != NULL &&
+	    strcmp((*crypt)->ops->name, "WEP") != 0) {
 		/* changing to use WEP; deinit previously used algorithm */
-		prism2_crypt_delayed_deinit(local, &local->crypt);
+		prism2_crypt_delayed_deinit(local, crypt);
 	}
 
-	if (local->crypt == NULL) {
+	if (*crypt == NULL) {
 		struct prism2_crypt_data *new_crypt;
 
 		/* take WEP into use */
@@ -167,7 +176,7 @@ static int prism2_ioctl_siwencode(struct net_device *dev,
 			new_crypt->ops = hostap_get_crypto_ops("WEP");
 		}
 		if (new_crypt->ops)
-			new_crypt->priv = new_crypt->ops->init();
+			new_crypt->priv = new_crypt->ops->init(i);
 		if (!new_crypt->ops || !new_crypt->priv) {
 			kfree(new_crypt);
 			new_crypt = NULL;
@@ -177,28 +186,26 @@ static int prism2_ioctl_siwencode(struct net_device *dev,
 			       dev->name);
 			return -EOPNOTSUPP;
 		}
-		first = 1;
-		local->crypt = new_crypt;
+		*crypt = new_crypt;
 	}
-
-	i = erq->flags & IW_ENCODE_INDEX;
-	if (i < 1 || i > 4)
-		i = local->crypt->ops->get_key_idx(local->crypt->priv);
-	else
-		i--;
-	if (i < 0 || i >= WEP_KEYS)
-		return -EINVAL;
 
 	if (erq->length > 0) {
 		int len = erq->length <= 5 ? 5 : 13;
+		int first = 1, j;
 		if (len > erq->length)
 			memset(keybuf + erq->length, 0, len - erq->length);
-		local->crypt->ops->set_key(i, keybuf, len, local->crypt->priv);
+		(*crypt)->ops->set_key(keybuf, len, NULL, (*crypt)->priv);
+		for (j = 0; j < WEP_KEYS; j++) {
+			if (j != i && local->crypt[j]) {
+				first = 0;
+				break;
+			}
+		}
 		if (first)
-			local->crypt->ops->set_key_idx(i, local->crypt->priv);
+			local->tx_keyidx = i;
 	} else {
-		if (local->crypt->ops->set_key_idx(i, local->crypt->priv) < 0)
-			return -EINVAL; /* keyidx not valid */
+		/* No key data - just set the default TX key index */
+		local->tx_keyidx = i;
 	}
 
  done:
@@ -231,35 +238,36 @@ static int prism2_ioctl_giwencode(struct net_device *dev,
 	local_info_t *local = iface->local;
 	int i, len;
 	u16 val;
-
-	if (local->crypt == NULL || local->crypt->ops == NULL) {
-		erq->length = 0;
-		erq->flags = IW_ENCODE_DISABLED;
-		return 0;
-	}
-
-	if (strcmp(local->crypt->ops->name, "WEP") != 0) {
-		/* only WEP is supported with wireless extensions, so just
-		 * report that encryption is used */
-		erq->length = 0;
-		erq->flags = IW_ENCODE_ENABLED;
-		return 0;
-	}
+	struct prism2_crypt_data *crypt;
 
 	i = erq->flags & IW_ENCODE_INDEX;
 	if (i < 1 || i > 4)
-		i = local->crypt->ops->get_key_idx(local->crypt->priv);
+		i = local->tx_keyidx;
 	else
 		i--;
 	if (i < 0 || i >= WEP_KEYS)
 		return -EINVAL;
 
+	crypt = local->crypt[i];
 	erq->flags = i + 1;
+
+	if (crypt == NULL || crypt->ops == NULL) {
+		erq->length = 0;
+		erq->flags |= IW_ENCODE_DISABLED;
+		return 0;
+	}
+
+	if (strcmp(crypt->ops->name, "WEP") != 0) {
+		/* only WEP is supported with wireless extensions, so just
+		 * report that encryption is used */
+		erq->length = 0;
+		erq->flags |= IW_ENCODE_ENABLED;
+		return 0;
+	}
 
 	/* Reads from HFA384X_RID_CNFDEFAULTKEY* return bogus values, so show
 	 * the keys from driver buffer */
-	len = local->crypt->ops->get_key(i, key, WEP_KEY_LEN,
-					 local->crypt->priv);
+	len = crypt->ops->get_key(key, WEP_KEY_LEN, NULL, crypt->priv);
 	erq->length = (len >= 0 ? len : 0);
 
 	if (local->func->get_rid(dev, HFA384X_RID_CNFWEPFLAGS, &val, 2, 1) < 0)
@@ -291,18 +299,34 @@ static int prism2_ioctl_giwspy(struct net_device *dev,
 	struct sockaddr addr[IW_MAX_SPY];
 	struct iw_quality qual[IW_MAX_SPY];
 
-	if (local->iw_mode != IW_MODE_MASTER) {
-		printk("SIOCGIWSPY is currently only supported in Host AP "
-		       "mode\n");
-		srq->length = 0;
-		return -EOPNOTSUPP;
-	}
-
 	srq->length = prism2_ap_get_sta_qual(local, addr, qual, IW_MAX_SPY, 0);
 
 	memcpy(extra, &addr, sizeof(addr[0]) * srq->length);
 	memcpy(extra + sizeof(addr[0]) * srq->length, &qual,
 	       sizeof(qual[0]) * srq->length);
+
+	return 0;
+}
+
+
+static int prism2_ioctl_siwspy(struct net_device *dev,
+			       struct iw_request_info *info,
+			       struct iw_point *srq, char *extra)
+{
+	struct hostap_interface *iface = dev->priv;
+	local_info_t *local = iface->local;
+	struct sockaddr *addr;
+	int i;
+
+	if (srq->length > IW_MAX_SPY)
+		return -E2BIG;
+
+	addr = (struct sockaddr *) extra;
+	for (i = 0; i < srq->length; i++, addr++) {
+		hostap_add_sta(local->ap, addr->sa_data);
+		/* TODO: how are these entries timed out? is the default
+		 * timeout suitable? probably not.. */
+	}
 
 	return 0;
 }
@@ -588,12 +612,11 @@ static int prism2_ioctl_siwfrag(struct net_device *dev,
 	else
 		val = __cpu_to_le16(rts->value & ~0x1); /* even numbers only */
 
+	local->fragm_threshold = rts->value & ~0x1;
 	if (local->func->set_rid(dev, HFA384X_RID_FRAGMENTATIONTHRESHOLD, &val,
 				 2)
 	    || local->func->reset_port(dev))
 		return -EINVAL;
-
-	local->fragm_threshold = rts->value & ~0x1;
 
 	return 0;
 }
@@ -618,6 +641,7 @@ static int prism2_ioctl_giwfrag(struct net_device *dev,
 }
 
 
+#ifndef PRISM2_NO_STATION_MODES
 static int hostap_join_ap(struct net_device *dev)
 {
 	struct hostap_interface *iface = dev->priv;
@@ -655,6 +679,7 @@ static int hostap_join_ap(struct net_device *dev)
 
 	return 0;
 }
+#endif /* PRISM2_NO_STATION_MODES */
 
 
 static int prism2_ioctl_siwap(struct net_device *dev,
@@ -701,20 +726,27 @@ static int prism2_ioctl_giwap(struct net_device *dev,
 	struct hostap_interface *iface = dev->priv;
 	local_info_t *local = iface->local;
 
-	if (dev == local->stadev) {
-		memcpy(&ap_addr->sa_data, local->assoc_ap_addr, ETH_ALEN);
-		ap_addr->sa_family = ARPHRD_ETHER;
-		return 0;
-	}
-
-	if (local->func->get_rid(dev, HFA384X_RID_CURRENTBSSID,
-				 &ap_addr->sa_data, ETH_ALEN, 1) < 0)
-		return -EOPNOTSUPP;
-
-	/* local->bssid is also updated in LinkStatus handler when in station
-	 * mode */
-	memcpy(local->bssid, &ap_addr->sa_data, ETH_ALEN);
 	ap_addr->sa_family = ARPHRD_ETHER;
+	switch (iface->type) {
+	case HOSTAP_INTERFACE_AP:
+		memcpy(&ap_addr->sa_data, dev->dev_addr, ETH_ALEN);
+		break;
+	case HOSTAP_INTERFACE_STA:
+		memcpy(&ap_addr->sa_data, local->assoc_ap_addr, ETH_ALEN);
+		break;
+	case HOSTAP_INTERFACE_WDS:
+		memcpy(&ap_addr->sa_data, iface->u.wds.remote_addr, ETH_ALEN);
+		break;
+	default:
+		if (local->func->get_rid(dev, HFA384X_RID_CURRENTBSSID,
+					 &ap_addr->sa_data, ETH_ALEN, 1) < 0)
+			return -EOPNOTSUPP;
+
+		/* local->bssid is also updated in LinkStatus handler when in
+		 * station mode */
+		memcpy(local->bssid, &ap_addr->sa_data, ETH_ALEN);
+		break;
+	}
 
 	return 0;
 }
@@ -821,7 +853,10 @@ static int prism2_ioctl_giwfreq(struct net_device *dev,
 
 static void hostap_monitor_set_type(local_info_t *local)
 {
-	struct net_device *dev = local->dev;
+	struct net_device *dev = local->ddev;
+
+	if (dev == NULL)
+		return;
 
 	if (local->monitor_type == PRISM2_MONITOR_PRISM ||
 	    local->monitor_type == PRISM2_MONITOR_CAPHDR) {
@@ -841,6 +876,9 @@ static int prism2_ioctl_siwessid(struct net_device *dev,
 {
 	struct hostap_interface *iface = dev->priv;
 	local_info_t *local = iface->local;
+
+	if (iface->type == HOSTAP_INTERFACE_WDS)
+		return -EOPNOTSUPP;
 
 	if (data->flags == 0)
 		ssid[0] = '\0'; /* ANY */
@@ -872,6 +910,9 @@ static int prism2_ioctl_giwessid(struct net_device *dev,
 	struct hostap_interface *iface = dev->priv;
 	local_info_t *local = iface->local;
 	u16 val;
+
+	if (iface->type == HOSTAP_INTERFACE_WDS)
+		return -EOPNOTSUPP;
 
 	data->flags = 1; /* active */
 	if (local->iw_mode == IW_MODE_MASTER) {
@@ -909,7 +950,6 @@ static int prism2_ioctl_giwrange(struct net_device *dev,
 	data->length = sizeof(struct iw_range);
 	memset(range, 0, sizeof(struct iw_range));
 
-#if WIRELESS_EXT > 9
 	/* TODO: could fill num_txpower and txpower array with
 	 * something; however, there are 128 different values.. */
 
@@ -926,17 +966,14 @@ static int prism2_ioctl_giwrange(struct net_device *dev,
 		range->pm_capa = IW_POWER_PERIOD | IW_POWER_TIMEOUT |
 			IW_POWER_UNICAST_R | IW_POWER_ALL_R;
 	}
-#endif /* WIRELESS_EXT > 9 */
 
-#if WIRELESS_EXT > 10
 	range->we_version_compiled = WIRELESS_EXT;
-	range->we_version_source = 13;
+	range->we_version_source = 14;
 
 	range->retry_capa = IW_RETRY_LIMIT;
 	range->retry_flags = IW_RETRY_LIMIT;
 	range->min_retry = 0;
 	range->max_retry = 255;
-#endif /* WIRELESS_EXT > 10 */
 
 	range->num_channels = FREQ_COUNT;
 
@@ -953,9 +990,22 @@ static int prism2_ioctl_giwrange(struct net_device *dev,
 	}
 	range->num_frequency = val;
 
-	range->max_qual.qual = 92; /* 0 .. 92 */
-	range->max_qual.level = 154; /* 27 .. 154 */
-	range->max_qual.noise = 154; /* 27 .. 154 */
+	if (local->sta_fw_ver >= PRISM2_FW_VER(1,3,1)) {
+		range->max_qual.qual = 70; /* what is correct max? This was not
+					    * documented exactly. At least
+					    * 69 has been observed. */
+		range->max_qual.level = 0; /* dB */
+		range->max_qual.noise = 0; /* dB */
+
+		/* What would be suitable values for "average/typical" qual? */
+		range->avg_qual.qual = 20;
+		range->avg_qual.level = -60;
+		range->avg_qual.noise = -95;
+	} else {
+		range->max_qual.qual = 92; /* 0 .. 92 */
+		range->max_qual.level = 154; /* 27 .. 154 */
+		range->max_qual.noise = 154; /* 27 .. 154 */
+	}
 	range->sensitivity = 3;
 
 	range->max_encoding_tokens = WEP_KEYS;
@@ -1025,7 +1075,10 @@ static int hostap_monitor_mode_enable(local_info_t *local)
 
 static int hostap_monitor_mode_disable(local_info_t *local)
 {
-	struct net_device *dev = local->dev;
+	struct net_device *dev = local->ddev;
+
+	if (dev == NULL)
+		return -1;
 
 	printk(KERN_DEBUG "%s: Disabling monitor mode\n", dev->name);
 	dev->type = ARPHRD_ETHER;
@@ -1099,6 +1152,13 @@ static int prism2_ioctl_siwmode(struct net_device *dev,
 	if (double_reset && local->func->reset_port(dev))
 		return -EINVAL;
 
+	if (local->iw_mode != IW_MODE_INFRA && local->iw_mode != IW_MODE_ADHOC)
+	{
+		/* netif_carrier is used only in client modes for now, so make
+		 * sure carrier is on when moving to non-client modes. */
+		netif_carrier_on(local->dev);
+		netif_carrier_on(local->ddev);
+	}
 	return 0;
 }
 
@@ -1110,12 +1170,17 @@ static int prism2_ioctl_giwmode(struct net_device *dev,
 	struct hostap_interface *iface = dev->priv;
 	local_info_t *local = iface->local;
 
-	if (dev == local->stadev) {
+	switch (iface->type) {
+	case HOSTAP_INTERFACE_STA:
 		*mode = IW_MODE_INFRA;
-		return 0;
+		break;
+	case HOSTAP_INTERFACE_WDS:
+		*mode = IW_MODE_REPEAT;
+		break;
+	default:
+		*mode = local->iw_mode;
+		break;
 	}
-
-	*mode = local->iw_mode;
 	return 0;
 }
 
@@ -1234,7 +1299,6 @@ static int prism2_ioctl_giwpower(struct net_device *dev,
 }
 
 
-#if WIRELESS_EXT > 10
 static int prism2_ioctl_siwretry(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_param *rrq, char *extra)
@@ -1299,7 +1363,7 @@ static int prism2_ioctl_giwretry(struct net_device *dev,
 {
 	struct hostap_interface *iface = dev->priv;
 	local_info_t *local = iface->local;
-	u16 shortretry, longretry, lifetime;
+	u16 shortretry, longretry, lifetime, altretry;
 
 	if (local->func->get_rid(dev, HFA384X_RID_SHORTRETRYLIMIT, &shortretry,
 				 2, 1) < 0 ||
@@ -1321,7 +1385,12 @@ static int prism2_ioctl_giwretry(struct net_device *dev,
 	} else {
 		if (local->manual_retry_count >= 0) {
 			rrq->flags = IW_RETRY_LIMIT;
-			rrq->value = local->manual_retry_count;
+			if (local->func->get_rid(dev,
+						 HFA384X_RID_CNFALTRETRYCOUNT,
+						 &altretry, 2, 1) >= 0)
+				rrq->value = le16_to_cpu(altretry);
+			else
+				rrq->value = local->manual_retry_count;
 		} else if ((rrq->flags & IW_RETRY_MAX)) {
 			rrq->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
 			rrq->value = longretry;
@@ -1334,10 +1403,7 @@ static int prism2_ioctl_giwretry(struct net_device *dev,
 	}
 	return 0;
 }
-#endif /* WIRELESS_EXT > 10 */
 
-
-#if WIRELESS_EXT > 9
 
 /* Note! This TX power controlling is experimental and should not be used in
  * production use. It just sets raw power register and does not use any kind of
@@ -1501,17 +1567,15 @@ static int prism2_ioctl_giwtxpow(struct net_device *dev,
 	return -EOPNOTSUPP;
 #endif /* RAW_TXPOWER_SETTING */
 }
-#endif /* WIRELESS_EXT > 9 */
 
-
-#if WIRELESS_EXT > 13
 
 #ifndef PRISM2_NO_STATION_MODES
 
 /* HostScan request works with and without host_roaming mode. In addition, it
  * does not break current association. However, it requires newer station
  * firmware version (>= 1.3.1) than scan request. */
-static int prism2_request_hostscan(struct net_device *dev)
+static int prism2_request_hostscan(struct net_device *dev,
+				   u8 *ssid, u8 ssid_len)
 {
 	struct hostap_interface *iface = dev->priv;
 	local_info_t *local = iface->local;
@@ -1520,7 +1584,12 @@ static int prism2_request_hostscan(struct net_device *dev)
 	memset(&scan_req, 0, sizeof(scan_req));
 	scan_req.channel_list = __constant_cpu_to_le16(local->channel_mask);
 	scan_req.txrate = __constant_cpu_to_le16(HFA384X_RATES_1MBPS);
-	/* leave target_ssid empty so that all SSIDs are accepted */
+	if (ssid) {
+		if (ssid_len > 32)
+			return -EINVAL;
+		scan_req.target_ssid_len = cpu_to_le16(ssid_len);
+		memcpy(scan_req.target_ssid, ssid, ssid_len);
+	}
 
 	if (local->func->set_rid(dev, HFA384X_RID_HOSTSCAN, &scan_req,
 				 sizeof(scan_req))) {
@@ -1570,7 +1639,8 @@ static int prism2_request_scan(struct net_device *dev)
 
 #else /* !PRISM2_NO_STATION_MODES */
 
-static inline int prism2_request_hostscan(struct net_device *dev)
+static inline int prism2_request_hostscan(struct net_device *dev,
+					  u8 *ssid, u8 ssid_len)
 {
 	return -EOPNOTSUPP;
 }
@@ -1600,8 +1670,11 @@ static int prism2_ioctl_siwscan(struct net_device *dev,
 		return 0;
 	}
 
+	if (!local->dev_enabled)
+		return -ENETDOWN;
+
 	if (local->sta_fw_ver >= PRISM2_FW_VER(1,3,1))
-		ret = prism2_request_hostscan(dev);
+		ret = prism2_request_hostscan(dev, NULL, 0);
 	else
 		ret = prism2_request_scan(dev);
 
@@ -1615,19 +1688,193 @@ static int prism2_ioctl_siwscan(struct net_device *dev,
 
 
 #ifndef PRISM2_NO_STATION_MODES
+static char * __prism2_translate_scan(local_info_t *local,
+				      struct hfa384x_scan_result *scan,
+				      struct hfa384x_hostscan_result *hscan,
+				      int hostscan,
+				      struct hostap_bss_info *bss, u8 *bssid,
+				      char *current_ev, char *end_buf)
+{
+	int i;
+	struct iw_event iwe;
+	char *current_val;
+	u16 capabilities;
+	u8 *pos;
+	u8 *ssid;
+	size_t ssid_len;
+#if WIRELESS_EXT > 14
+	char buf[MAX_WPA_IE_LEN * 2 + 30];
+#endif /* WIRELESS_EXT > 14 */
+
+	if (bss) {
+		ssid = bss->ssid;
+		ssid_len = bss->ssid_len;
+	} else {
+		ssid = hostscan ? hscan->ssid : scan->ssid;
+		ssid_len = le16_to_cpu(hostscan ? hscan->ssid_len :
+				       scan->ssid_len);
+	}
+	if (ssid_len > 32)
+		ssid_len = 32;
+
+	/* First entry *MUST* be the AP MAC address */
+	memset(&iwe, 0, sizeof(iwe));
+	iwe.cmd = SIOCGIWAP;
+	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
+	memcpy(iwe.u.ap_addr.sa_data, bssid, ETH_ALEN);
+	/* FIX:
+	 * I do not know how this is possible, but iwe_stream_add_event
+	 * seems to re-order memcpy execution so that len is set only
+	 * after copying.. Pre-setting len here "fixes" this, but real
+	 * problems should be solved (after which these iwe.len
+	 * settings could be removed from this function). */
+	iwe.len = IW_EV_ADDR_LEN;
+	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
+					  IW_EV_ADDR_LEN);
+
+	/* Other entries will be displayed in the order we give them */
+
+	memset(&iwe, 0, sizeof(iwe));
+	iwe.cmd = SIOCGIWESSID;
+	iwe.u.data.length = ssid_len;
+	iwe.u.data.flags = 1;
+	iwe.len = IW_EV_POINT_LEN + iwe.u.data.length;
+	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, ssid);
+
+	memset(&iwe, 0, sizeof(iwe));
+	iwe.cmd = SIOCGIWMODE;
+	capabilities = le16_to_cpu(hostscan ? hscan->capability :
+				   scan->capability);
+	if (capabilities & (WLAN_CAPABILITY_ESS |
+			    WLAN_CAPABILITY_IBSS)) {
+		if (capabilities & WLAN_CAPABILITY_ESS)
+			iwe.u.mode = IW_MODE_MASTER;
+		else
+			iwe.u.mode = IW_MODE_ADHOC;
+		iwe.len = IW_EV_UINT_LEN;
+		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
+						  IW_EV_UINT_LEN);
+	}
+
+	memset(&iwe, 0, sizeof(iwe));
+	iwe.cmd = SIOCGIWFREQ;
+	iwe.u.freq.m = freq_list[le16_to_cpu(hostscan ? hscan->chid :
+					     scan->chid) - 1] * 100000;
+	iwe.u.freq.e = 1;
+	iwe.len = IW_EV_FREQ_LEN;
+	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
+					  IW_EV_FREQ_LEN);
+
+	memset(&iwe, 0, sizeof(iwe));
+	iwe.cmd = IWEVQUAL;
+	if (hostscan) {
+		iwe.u.qual.level = le16_to_cpu(hscan->sl);
+		iwe.u.qual.noise = le16_to_cpu(hscan->anl);
+	} else {
+		iwe.u.qual.level = HFA384X_LEVEL_TO_dBm(le16_to_cpu(scan->sl));
+		iwe.u.qual.noise = HFA384X_LEVEL_TO_dBm(
+			le16_to_cpu(scan->anl));
+	}
+	iwe.len = IW_EV_QUAL_LEN;
+	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
+					  IW_EV_QUAL_LEN);
+
+	memset(&iwe, 0, sizeof(iwe));
+	iwe.cmd = SIOCGIWENCODE;
+	if (capabilities & WLAN_CAPABILITY_PRIVACY)
+		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
+	else
+		iwe.u.data.flags = IW_ENCODE_DISABLED;
+	iwe.u.data.length = 0;
+	iwe.len = IW_EV_POINT_LEN + iwe.u.data.length;
+	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, "");
+
+	memset(&iwe, 0, sizeof(iwe));
+	iwe.cmd = SIOCGIWRATE;
+	current_val = current_ev + IW_EV_LCP_LEN;
+	pos = hostscan ? hscan->sup_rates : scan->sup_rates;
+	for (i = 0; i < sizeof(scan->sup_rates); i++) {
+		if (pos[i] == 0)
+			break;
+		/* Bit rate given in 500 kb/s units (+ 0x80) */
+		iwe.u.bitrate.value = ((pos[i] & 0x7f) * 500000);
+		current_val = iwe_stream_add_value(
+			current_ev, current_val, end_buf, &iwe,
+			IW_EV_PARAM_LEN);
+	}
+	/* Check if we added any event */
+	if ((current_val - current_ev) > IW_EV_LCP_LEN)
+		current_ev = current_val;
+
+#if WIRELESS_EXT > 14
+	memset(&iwe, 0, sizeof(iwe));
+	iwe.cmd = IWEVCUSTOM;
+	sprintf(buf, "bcn_int=%d",
+		le16_to_cpu(hostscan ? hscan->beacon_interval :
+			    scan->beacon_interval));
+	iwe.u.data.length = strlen(buf);
+	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, buf);
+
+	memset(&iwe, 0, sizeof(iwe));
+	iwe.cmd = IWEVCUSTOM;
+	sprintf(buf, "resp_rate=%d", le16_to_cpu(hostscan ? hscan->rate :
+						 scan->rate));
+	iwe.u.data.length = strlen(buf);
+	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, buf);
+
+	if (hostscan && (capabilities & WLAN_CAPABILITY_IBSS)) {
+		memset(&iwe, 0, sizeof(iwe));
+		iwe.cmd = IWEVCUSTOM;
+		sprintf(buf, "atim=%d", le16_to_cpu(hscan->atim));
+		iwe.u.data.length = strlen(buf);
+		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
+						  buf);
+	}
+
+	if (bss && bss->wpa_ie_len > 0 && bss->wpa_ie_len <= MAX_WPA_IE_LEN ) {
+		u8 *p = buf;
+		p += sprintf(p, "wpa_ie=");
+		for (i = 0; i < bss->wpa_ie_len; i++) {
+			p += sprintf(p, "%02x", bss->wpa_ie[i]);
+		}
+
+		memset(&iwe, 0, sizeof(iwe));
+		iwe.cmd = IWEVCUSTOM;
+		iwe.u.data.length = strlen(buf);
+		current_ev = iwe_stream_add_point(
+			current_ev, end_buf, &iwe, buf);
+	}
+
+	if (bss && bss->rsn_ie_len > 0 && bss->rsn_ie_len <= MAX_WPA_IE_LEN ) {
+		u8 *p = buf;
+		p += sprintf(p, "rsn_ie=");
+		for (i = 0; i < bss->rsn_ie_len; i++) {
+			p += sprintf(p, "%02x", bss->rsn_ie[i]);
+		}
+
+		memset(&iwe, 0, sizeof(iwe));
+		iwe.cmd = IWEVCUSTOM;
+		iwe.u.data.length = strlen(buf);
+		current_ev = iwe_stream_add_point(
+			current_ev, end_buf, &iwe, buf);
+	}
+#endif /* WIRELESS_EXT > 14 */
+
+	return current_ev;
+}
+
+
 /* Translate scan data returned from the card to a card independant
  * format that the Wireless Tools will understand - Jean II */
 static inline int prism2_translate_scan(local_info_t *local, char *buffer)
 {
 	struct hfa384x_scan_result *scan;
 	struct hfa384x_hostscan_result *hscan;
-	int i, entries, entry, hostscan;
-	struct iw_event iwe;
+	int entries, entry, hostscan;
 	char *current_ev = buffer;
 	char *end_buf = buffer + IW_SCAN_MAX_DATA;
-	char *current_val;
-	u16 capabilities;
-	u8 *pos;
+	u8 *bssid;
+	struct list_head *ptr;
 
 	spin_lock_bh(&local->lock);
 
@@ -1635,146 +1882,30 @@ static inline int prism2_translate_scan(local_info_t *local, char *buffer)
 	entries = hostscan ? local->last_hostscan_results_count :
 		local->last_scan_results_count;
 	for (entry = 0; entry < entries; entry++) {
+		int found = 0;
 		scan = &local->last_scan_results[entry];
 		hscan = &local->last_hostscan_results[entry];
 
-		/* First entry *MUST* be the AP MAC address */
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = SIOCGIWAP;
-		iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
-		memcpy(iwe.u.ap_addr.sa_data,
-		       hostscan ? hscan->bssid : scan->bssid, ETH_ALEN);
-		/* FIX:
-		 * I do not know how this is possible, but iwe_stream_add_event
-		 * seems to re-order memcpy execution so that len is set only
-		 * after copying.. Pre-setting len here "fixes" this, but real
-		 * problems should be solved (after which these iwe.len
-		 * settings could be removed from this function). */
-		iwe.len = IW_EV_ADDR_LEN;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
-						  IW_EV_ADDR_LEN);
+		bssid = hostscan ? hscan->bssid : scan->bssid;
 
-		/* Other entries will be displayed in the order we give them */
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = SIOCGIWESSID;
-		iwe.u.data.length = le16_to_cpu(hostscan ? hscan->ssid_len :
-						scan->ssid_len);
-		if (iwe.u.data.length > 32)
-			iwe.u.data.length = 32;
-		iwe.u.data.flags = 1;
-		iwe.len = IW_EV_POINT_LEN + iwe.u.data.length;
-		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
-						  hostscan ? hscan->ssid :
-						  scan->ssid);
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = SIOCGIWMODE;
-		capabilities = le16_to_cpu(hostscan ? hscan->capability :
-					   scan->capability);
-		if (capabilities & (WLAN_CAPABILITY_ESS |
-				    WLAN_CAPABILITY_IBSS)) {
-			if (capabilities & WLAN_CAPABILITY_ESS)
-				iwe.u.mode = IW_MODE_MASTER;
-			else
-				iwe.u.mode = IW_MODE_ADHOC;
-			iwe.len = IW_EV_UINT_LEN;
-			current_ev = iwe_stream_add_event(current_ev, end_buf,
-							  &iwe,
-							  IW_EV_UINT_LEN);
-		}
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = SIOCGIWFREQ;
-		iwe.u.freq.m = freq_list[le16_to_cpu(hostscan ? hscan->chid :
-						     scan->chid) - 1] * 100000;
-		iwe.u.freq.e = 1;
-		iwe.len = IW_EV_FREQ_LEN;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
-						  IW_EV_FREQ_LEN);
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVQUAL;
-		if (hostscan) {
-			iwe.u.qual.level = le16_to_cpu(hscan->sl);
-			iwe.u.qual.noise = le16_to_cpu(hscan->anl);
-		} else {
-			iwe.u.qual.level = HFA384X_LEVEL_TO_dBm(
-				le16_to_cpu(scan->sl));
-			iwe.u.qual.noise = HFA384X_LEVEL_TO_dBm(
-				le16_to_cpu(scan->anl));
-		}
-		iwe.len = IW_EV_QUAL_LEN;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
-						  IW_EV_QUAL_LEN);
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = SIOCGIWENCODE;
-		if (capabilities & WLAN_CAPABILITY_PRIVACY)
-			iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
-		else
-			iwe.u.data.flags = IW_ENCODE_DISABLED;
-		iwe.u.data.length = 0;
-		iwe.len = IW_EV_POINT_LEN + iwe.u.data.length;
-		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
-						  "");
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = SIOCGIWRATE;
-		current_val = current_ev + IW_EV_LCP_LEN;
-		pos = hostscan ? hscan->sup_rates : scan->sup_rates;
-		for (i = 0; i < sizeof(scan->sup_rates); i++) {
-			if (pos[i] == 0)
-				break;
-			/* Bit rate given in 500 kb/s units (+ 0x80) */
-			iwe.u.bitrate.value =
-				((pos[i] & 0x7f) * 500000);
-			current_val = iwe_stream_add_value(
-				current_ev, current_val, end_buf, &iwe,
-				IW_EV_PARAM_LEN);
-		}
-		/* Check if we added any event */
-		if ((current_val - current_ev) > IW_EV_LCP_LEN)
-			current_ev = current_val;
-
-#if WIRELESS_EXT > 14
-		{
-			char buf[20];
-			memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd = IWEVCUSTOM;
-			sprintf(buf, "bcn_int=%d",
-				le16_to_cpu(hostscan ? hscan->beacon_interval :
-					    scan->beacon_interval));
-			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
-							  &iwe, buf);
-
-			memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd = IWEVCUSTOM;
-			sprintf(buf, "resp_rate=%d",
-				le16_to_cpu(hostscan ? hscan->rate :
-					    scan->rate));
-			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
-							  &iwe, buf);
-
-			if (hostscan && (capabilities & WLAN_CAPABILITY_IBSS))
-			{
-				memset(&iwe, 0, sizeof(iwe));
-				iwe.cmd = IWEVCUSTOM;
-				sprintf(buf, "atim=%d",
-					le16_to_cpu(hscan->atim));
-				iwe.u.data.length = strlen(buf);
-				current_ev = iwe_stream_add_point(
-					current_ev, end_buf, &iwe, buf);
+		/* Report every SSID if the AP is using multiple SSIDs. If no
+		 * BSS record is found (e.g., when WPA mode is disabled),
+		 * report the AP once. */
+		list_for_each(ptr, &local->bss_list) {
+			struct hostap_bss_info *bss;
+			bss = list_entry(ptr, struct hostap_bss_info, list);
+			if (memcmp(bss->bssid, bssid, ETH_ALEN) == 0) {
+				current_ev = __prism2_translate_scan(
+					local, scan, hscan, hostscan, bss,
+					bssid, current_ev, end_buf);
+				found++;
 			}
 		}
-#endif /* WIRELESS_EXT > 14 */
-
-
-		/* Could add beacon_interval and rate (of the received
-		 * ProbeResp) to scan results. With hostscan, could also add
-		 * ATIM. */
+		if (!found) {
+			current_ev = __prism2_translate_scan(
+				local, scan, hscan, hostscan, NULL, bssid,
+				current_ev, end_buf);
+		}
 	}
 
 	spin_unlock_bh(&local->lock);
@@ -1859,7 +1990,6 @@ static int prism2_ioctl_giwscan(struct net_device *dev,
 		return prism2_ioctl_giwscan_sta(dev, info, data, extra);
 	}
 }
-#endif /* WIRELESS_EXT > 13 */
 
 
 static const struct iw_priv_args prism2_priv[] = {
@@ -1904,7 +2034,6 @@ static const struct iw_priv_args prism2_priv[] = {
 	/* --- raw access to sub-ioctls --- */
 	{ PRISM2_IOCTL_PRISM2_PARAM,
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 2, 0, "prism2_param" },
-#if WIRELESS_EXT >= 12
 	{ PRISM2_IOCTL_GET_PRISM2_PARAM,
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getprism2_param" },
@@ -1915,10 +2044,6 @@ static const struct iw_priv_args prism2_priv[] = {
 	{ PRISM2_IOCTL_GET_PRISM2_PARAM,
 	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "" },
 	/* --- sub-ioctls definitions --- */
-	{ PRISM2_PARAM_PTYPE,
-	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "ptype" },
-	{ PRISM2_PARAM_PTYPE,
-	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getptype" },
 	{ PRISM2_PARAM_TXRATECTRL,
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "txratectrl" },
 	{ PRISM2_PARAM_TXRATECTRL,
@@ -1937,10 +2062,6 @@ static const struct iw_priv_args prism2_priv[] = {
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "alc" },
 	{ PRISM2_PARAM_ALC,
 	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getalc" },
-	{ PRISM2_PARAM_TXPOWER,
-	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "txpower" },
-	{ PRISM2_PARAM_TXPOWER,
-	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getxpower" },
 	{ PRISM2_PARAM_DUMP,
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "dump" },
 	{ PRISM2_PARAM_DUMP,
@@ -2057,25 +2178,28 @@ static const struct iw_priv_args prism2_priv[] = {
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "hostapd" },
 	{ PRISM2_PARAM_HOSTAPD,
 	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "gethostapd" },
+	{ PRISM2_PARAM_HOSTAPD_STA,
+	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "hostapd_sta" },
+	{ PRISM2_PARAM_HOSTAPD_STA,
+	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "gethostapd_sta" },
+	{ PRISM2_PARAM_WPA,
+	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "wpa" },
+	{ PRISM2_PARAM_WPA,
+	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getwpa" },
+	{ PRISM2_PARAM_PRIVACY_INVOKED,
+	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "privacy_invoked" },
+	{ PRISM2_PARAM_PRIVACY_INVOKED,
+	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getprivacy_invo" },
+	{ PRISM2_PARAM_TKIP_COUNTERMEASURES,
+	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "tkip_countermea" },
+	{ PRISM2_PARAM_TKIP_COUNTERMEASURES,
+	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "gettkip_counter" },
+	{ PRISM2_PARAM_DROP_UNENCRYPTED,
+	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "drop_unencrypte" },
+	{ PRISM2_PARAM_DROP_UNENCRYPTED,
+	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getdrop_unencry" },
 #endif /* PRISM2_USE_WE_SUB_IOCTLS */
-#endif /* WIRELESS_EXT >= 12 */
 };
-
-
-#if WIRELESS_EXT <= 12
-static int prism2_ioctl_giwpriv(struct net_device *dev, struct iw_point *data)
-{
-
-	if (!data->pointer ||
-	    verify_area(VERIFY_WRITE, data->pointer, sizeof(prism2_priv)))
-		return -EINVAL;
-
-	data->length = sizeof(prism2_priv) / sizeof(prism2_priv[0]);
-	if (copy_to_user(data->pointer, prism2_priv, sizeof(prism2_priv)))
-		return -EINVAL;
-	return 0;
-}
-#endif /* WIRELESS_EXT <= 12 */
 
 
 static int prism2_ioctl_priv_inquire(struct net_device *dev, int *i)
@@ -2103,16 +2227,6 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 	u16 val;
 
 	switch (param) {
-	case PRISM2_PARAM_PTYPE:
-		if (hostap_set_word(dev, HFA384X_RID_CNFPORTTYPE, value)) {
-			ret = -EOPNOTSUPP;
-			break;
-		}
-
-		if (local->func->reset_port(dev))
-			ret = -EINVAL;
-		break;
-
 	case PRISM2_PARAM_TXRATECTRL:
 		local->fw_tx_rate_control = value;
 		break;
@@ -2159,13 +2273,6 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 		local->func->cmd(dev, HFA384X_CMDCODE_TEST |
 				 (HFA384X_TEST_CFG_BITS << 8),
 				 value == 0 ? 0 : 1, &val, NULL);
-		break;
-
-	case PRISM2_PARAM_TXPOWER:
-		val = value;
-		if (local->func->cmd(dev, HFA384X_CMDCODE_WRITEMIF,
-				     HFA386X_CR_MANUAL_TX_POWER, &val, NULL))
-			ret = -EOPNOTSUPP;
 		break;
 
 	case PRISM2_PARAM_DUMP:
@@ -2419,6 +2526,34 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 		ret = hostap_set_hostapd(local, value, 1);
 		break;
 
+	case PRISM2_PARAM_HOSTAPD_STA:
+		ret = hostap_set_hostapd_sta(local, value, 1);
+		break;
+
+	case PRISM2_PARAM_WPA:
+		local->wpa = value;
+		if (local->sta_fw_ver < PRISM2_FW_VER(1,7,0))
+			ret = -EOPNOTSUPP;
+		else if (hostap_set_word(dev, HFA384X_RID_SSNHANDLINGMODE,
+					 value ? 1 : 0))
+			ret = -EINVAL;
+		break;
+
+	case PRISM2_PARAM_PRIVACY_INVOKED:
+		local->privacy_invoked = value;
+		if (hostap_set_encryption(local) ||
+		    local->func->reset_port(dev))
+			ret = -EINVAL;
+		break;
+
+	case PRISM2_PARAM_TKIP_COUNTERMEASURES:
+		local->tkip_countermeasures = value;
+		break;
+
+	case PRISM2_PARAM_DROP_UNENCRYPTED:
+		local->drop_unencrypted = value;
+		break;
+
 	default:
 		printk(KERN_DEBUG "%s: prism2_param: unknown param %d\n",
 		       dev->name, param);
@@ -2430,7 +2565,6 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 }
 
 
-#if WIRELESS_EXT >= 12
 static int prism2_ioctl_priv_get_prism2_param(struct net_device *dev,
 					      struct iw_request_info *info,
 					      void *wrqu, char *extra)
@@ -2439,17 +2573,8 @@ static int prism2_ioctl_priv_get_prism2_param(struct net_device *dev,
 	local_info_t *local = iface->local;
 	int *param = (int *) extra;
 	int ret = 0;
-	u16 val;
 
 	switch (*param) {
-	case PRISM2_PARAM_PTYPE:
-		if (local->func->get_rid(dev, HFA384X_RID_CNFPORTTYPE,
-					 &val, 2, 1) < 0)
-			ret = -EINVAL;
-		else
-			*param = le16_to_cpu(val);
-		break;
-
 	case PRISM2_PARAM_TXRATECTRL:
 		*param = local->fw_tx_rate_control;
 		break;
@@ -2464,13 +2589,6 @@ static int prism2_ioctl_priv_get_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_ALC:
 		ret = -EOPNOTSUPP; /* FIX */
-		break;
-
-	case PRISM2_PARAM_TXPOWER:
-		if (local->func->cmd(dev, HFA384X_CMDCODE_READMIF,
-				HFA386X_CR_MANUAL_TX_POWER, NULL, &val))
-			ret = -EOPNOTSUPP;
-		*param = val;
 		break;
 
 	case PRISM2_PARAM_DUMP:
@@ -2602,6 +2720,28 @@ static int prism2_ioctl_priv_get_prism2_param(struct net_device *dev,
 		*param = local->hostapd;
 		break;
 
+	case PRISM2_PARAM_HOSTAPD_STA:
+		*param = local->hostapd_sta;
+		break;
+
+	case PRISM2_PARAM_WPA:
+		if (local->sta_fw_ver < PRISM2_FW_VER(1,7,0))
+			ret = -EOPNOTSUPP;
+		*param = local->wpa;
+		break;
+
+	case PRISM2_PARAM_PRIVACY_INVOKED:
+		*param = local->privacy_invoked;
+		break;
+
+	case PRISM2_PARAM_TKIP_COUNTERMEASURES:
+		*param = local->tkip_countermeasures;
+		break;
+
+	case PRISM2_PARAM_DROP_UNENCRYPTED:
+		*param = local->drop_unencrypted;
+		break;
+
 	default:
 		printk(KERN_DEBUG "%s: get_prism2_param: unknown param %d\n",
 		       dev->name, *param);
@@ -2611,7 +2751,6 @@ static int prism2_ioctl_priv_get_prism2_param(struct net_device *dev,
 
 	return ret;
 }
-#endif /* WIRELESS_EXT >= 12 */
 
 
 static int prism2_ioctl_priv_readmif(struct net_device *dev,
@@ -2716,6 +2855,7 @@ static int prism2_ioctl_priv_reset(struct net_device *dev, int *i)
 		break;
 
 	case 3:
+		prism2_sta_deauth(local, WLAN_REASON_DEAUTH_LEAVING);
 		if (local->func->cmd(dev, HFA384X_CMDCODE_DISABLE, 0, NULL,
 				     NULL))
 			return -EINVAL;
@@ -2918,9 +3058,13 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 	if (param->sta_addr[0] == 0xff && param->sta_addr[1] == 0xff &&
 	    param->sta_addr[2] == 0xff && param->sta_addr[3] == 0xff &&
 	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff) {
+		if (param->u.crypt.idx >= WEP_KEYS)
+			return -EINVAL;
 		sta_ptr = NULL;
-		crypt = &local->crypt;
+		crypt = &local->crypt[param->u.crypt.idx];
 	} else {
+		if (param->u.crypt.idx)
+			return -EINVAL;
 		sta_ptr = ap_crypt_get_ptrs(
 			local->ap, param->sta_addr,
 			(param->u.crypt.flags & HOSTAP_CRYPT_FLAG_PERMANENT),
@@ -2933,13 +3077,20 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 	}
 
 	if (strcmp(param->u.crypt.alg, "none") == 0) {
-		prism2_crypt_delayed_deinit(local, crypt);
+		if (crypt)
+			prism2_crypt_delayed_deinit(local, crypt);
 		goto done;
 	}
 
 	ops = hostap_get_crypto_ops(param->u.crypt.alg);
 	if (ops == NULL && strcmp(param->u.crypt.alg, "WEP") == 0) {
 		request_module("hostap_crypt_wep");
+		ops = hostap_get_crypto_ops(param->u.crypt.alg);
+	} else if (ops == NULL && strcmp(param->u.crypt.alg, "TKIP") == 0) {
+		request_module("hostap_crypt_tkip");
+		ops = hostap_get_crypto_ops(param->u.crypt.alg);
+	} else if (ops == NULL && strcmp(param->u.crypt.alg, "CCMP") == 0) {
+		request_module("hostap_crypt_ccmp");
 		ops = hostap_get_crypto_ops(param->u.crypt.alg);
 	}
 	if (ops == NULL) {
@@ -2967,7 +3118,7 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 		}
 		memset(new_crypt, 0, sizeof(struct prism2_crypt_data));
 		new_crypt->ops = ops;
-		new_crypt->priv = new_crypt->ops->init();
+		new_crypt->priv = new_crypt->ops->init(param->u.crypt.idx);
 		if (new_crypt->priv == NULL) {
 			kfree(new_crypt);
 			param->u.crypt.err =
@@ -2981,8 +3132,9 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 
 	if ((!(param->u.crypt.flags & HOSTAP_CRYPT_FLAG_SET_TX_KEY) ||
 	     param->u.crypt.key_len > 0) && (*crypt)->ops->set_key &&
-	    (*crypt)->ops->set_key(param->u.crypt.idx, param->u.crypt.key,
-			      param->u.crypt.key_len, (*crypt)->priv) < 0) {
+	    (*crypt)->ops->set_key(param->u.crypt.key,
+				   param->u.crypt.key_len, param->u.crypt.seq,
+				   (*crypt)->priv) < 0) {
 		printk(KERN_DEBUG "%s: key setting failed\n",
 		       local->dev->name);
 		param->u.crypt.err = HOSTAP_CRYPT_ERR_KEY_SET_FAILED;
@@ -2990,24 +3142,32 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 		goto done;
 	}
 
-	if ((param->u.crypt.flags & HOSTAP_CRYPT_FLAG_SET_TX_KEY) &&
-	    (*crypt)->ops->set_key_idx &&
-	    (*crypt)->ops->set_key_idx(param->u.crypt.idx, (*crypt)->priv) < 0)
-	{
-		printk(KERN_DEBUG "%s: TX key idx setting failed\n",
-		       local->dev->name);
-		param->u.crypt.err = HOSTAP_CRYPT_ERR_TX_KEY_SET_FAILED;
-		ret = -EINVAL;
-		goto done;
+	if (param->u.crypt.flags & HOSTAP_CRYPT_FLAG_SET_TX_KEY) {
+		if (!sta_ptr)
+			local->tx_keyidx = param->u.crypt.idx;
+		else if (param->u.crypt.idx) {
+			printk(KERN_DEBUG "%s: TX key idx setting failed\n",
+			       local->dev->name);
+			param->u.crypt.err =
+				HOSTAP_CRYPT_ERR_TX_KEY_SET_FAILED;
+			ret = -EINVAL;
+			goto done;
+		}
 	}
 
  done:
 	if (sta_ptr)
 		hostap_handle_sta_release(sta_ptr);
 
+	/* Do not reset port0 if card is in Managed mode since resetting will
+	 * generate new IEEE 802.11 authentication which may end up in looping
+	 * with IEEE 802.1X. Prism2 documentation seem to require port reset
+	 * after WEP configuration. However, keys are apparently changed at
+	 * least in Managed mode. */
 	if (ret == 0 &&
 	    (hostap_set_encryption(local) ||
-	     local->func->reset_port(local->dev))) {
+	     (local->iw_mode != IW_MODE_INFRA &&
+	      local->func->reset_port(local->dev)))) {
 		param->u.crypt.err = HOSTAP_CRYPT_ERR_CARD_CONF_FAILED;
 		return -EINVAL;
 	}
@@ -3035,8 +3195,11 @@ static int prism2_ioctl_get_encryption(local_info_t *local,
 	    param->sta_addr[2] == 0xff && param->sta_addr[3] == 0xff &&
 	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff) {
 		sta_ptr = NULL;
-		crypt = &local->crypt;
+		if (param->u.crypt.idx >= WEP_KEYS)
+			param->u.crypt.idx = local->tx_keyidx;
+		crypt = &local->crypt[param->u.crypt.idx];
 	} else {
+		param->u.crypt.idx = 0;
 		sta_ptr = ap_crypt_get_ptrs(local->ap, param->sta_addr, 0,
 					    &crypt);
 
@@ -3054,17 +3217,15 @@ static int prism2_ioctl_get_encryption(local_info_t *local,
 		strncpy(param->u.crypt.alg, (*crypt)->ops->name,
 			HOSTAP_CRYPT_ALG_NAME_LEN);
 		param->u.crypt.key_len = 0;
-		if (param->u.crypt.idx >= WEP_KEYS &&
-		    (*crypt)->ops->get_key_idx)
-			param->u.crypt.idx =
-				(*crypt)->ops->get_key_idx((*crypt)->priv);
 
-		if (param->u.crypt.idx < WEP_KEYS && (*crypt)->ops->get_key)
+		memset(param->u.crypt.seq, 0, 8);
+		if ((*crypt)->ops->get_key) {
 			param->u.crypt.key_len =
-				(*crypt)->ops->get_key(param->u.crypt.idx,
-						       param->u.crypt.key,
+				(*crypt)->ops->get_key(param->u.crypt.key,
 						       max_key_len,
+						       param->u.crypt.seq,
 						       (*crypt)->priv);
+		}
 	}
 
 	if (sta_ptr)
@@ -3121,6 +3282,77 @@ static int prism2_ioctl_set_assoc_ap_addr(local_info_t *local,
 }
 
 
+static int prism2_ioctl_set_generic_element(local_info_t *local,
+					    struct prism2_hostapd_param *param,
+					    int param_len)
+{
+	int max_len, len;
+	u8 *buf;
+
+	len = param->u.generic_elem.len;
+	max_len = param_len - PRISM2_HOSTAPD_GENERIC_ELEMENT_HDR_LEN;
+	if (max_len < 0 || max_len < len)
+		return -EINVAL;
+
+	/* Add 16-bit length in the beginning of the buffer because Prism2 RID
+	 * includes it. */
+	buf = kmalloc(len + 2, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	*((u16 *) buf) = cpu_to_le16(len);
+	memcpy(buf + 2, param->u.generic_elem.data, len);
+
+	kfree(local->generic_elem);
+	local->generic_elem = buf;
+	local->generic_elem_len = len + 2;
+
+	return local->func->set_rid(local->dev, HFA384X_RID_GENERICELEMENT,
+				    buf, len + 2);
+}
+
+
+static int prism2_ioctl_mlme(local_info_t *local,
+			     struct prism2_hostapd_param *param)
+{
+	u16 reason;
+
+	reason = cpu_to_le16(param->u.mlme.reason_code);
+	switch (param->u.mlme.cmd) {
+	case MLME_STA_DEAUTH:
+		return prism2_sta_send_mgmt(local, param->sta_addr,
+					    WLAN_FC_STYPE_DEAUTH,
+					    (u8 *) &reason, 2);
+	case MLME_STA_DISASSOC:
+		return prism2_sta_send_mgmt(local, param->sta_addr,
+					    WLAN_FC_STYPE_DISASSOC,
+					    (u8 *) &reason, 2);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+
+static int prism2_ioctl_scan_req(local_info_t *local,
+				 struct prism2_hostapd_param *param)
+{
+#ifndef PRISM2_NO_STATION_MODES
+	if ((local->iw_mode != IW_MODE_INFRA &&
+	     local->iw_mode != IW_MODE_ADHOC) ||
+	    (local->sta_fw_ver < PRISM2_FW_VER(1,3,1)))
+		return -EOPNOTSUPP;
+
+	if (!local->dev_enabled)
+		return -ENETDOWN;
+
+	return prism2_request_hostscan(local->dev, param->u.scan_req.ssid,
+				       param->u.scan_req.ssid_len);
+#else /* PRISM2_NO_STATION_MODES */
+	return -EOPNOTSUPP;
+#endif /* PRISM2_NO_STATION_MODES */
+}
+
+
 static int prism2_ioctl_priv_hostapd(local_info_t *local, struct iw_point *p)
 {
 	struct prism2_hostapd_param *param;
@@ -3156,6 +3388,16 @@ static int prism2_ioctl_priv_hostapd(local_info_t *local, struct iw_point *p)
 	case PRISM2_HOSTAPD_SET_ASSOC_AP_ADDR:
 		ret = prism2_ioctl_set_assoc_ap_addr(local, param, p->length);
 		break;
+	case PRISM2_HOSTAPD_SET_GENERIC_ELEMENT:
+		ret = prism2_ioctl_set_generic_element(local, param,
+						       p->length);
+		break;
+	case PRISM2_HOSTAPD_MLME:
+		ret = prism2_ioctl_mlme(local, param);
+		break;
+	case PRISM2_HOSTAPD_SCAN_REQ:
+		ret = prism2_ioctl_scan_req(local, param);
+		break;
 	default:
 		ret = prism2_hostapd(local->ap, param);
 		ap_ioctl = 1;
@@ -3178,7 +3420,32 @@ static int prism2_ioctl_priv_hostapd(local_info_t *local, struct iw_point *p)
 }
 
 
-#if WIRELESS_EXT > 12
+static int prism2_ioctl_ethtool(local_info_t *local, void *useraddr)
+{
+	u32 ethcmd;
+	struct ethtool_drvinfo info = { ETHTOOL_GDRVINFO };
+
+	if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
+		return -EFAULT;
+
+	switch (ethcmd) {
+	case ETHTOOL_GDRVINFO:
+		strncpy(info.driver, "hostap", sizeof(info.driver) - 1);
+		strncpy(info.version, PRISM2_VERSION,
+			sizeof(info.version) - 1);
+		snprintf(info.fw_version, sizeof(info.fw_version) - 1,
+			 "%d.%d.%d", (local->sta_fw_ver >> 16) & 0xff,
+			 (local->sta_fw_ver >> 8) & 0xff,
+			 local->sta_fw_ver & 0xff);
+		if (copy_to_user(useraddr, &info, sizeof(info)))
+			return -EFAULT;
+		return 0;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+
 /* Structures to export the Wireless Handlers */
 
 static const iw_handler prism2_handler[] =
@@ -3205,7 +3472,7 @@ static const iw_handler prism2_handler[] =
 	iw_handler_set_thrspy,				/* SIOCSIWTHRSPY */
 	iw_handler_get_thrspy,				/* SIOCGIWTHRSPY */
 #else /* WIRELESS_EXT > 15 */
-	(iw_handler) NULL,				/* SIOCSIWSPY */
+	(iw_handler) prism2_ioctl_siwspy,		/* SIOCSIWSPY */
 	(iw_handler) prism2_ioctl_giwspy,		/* SIOCGIWSPY */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,				/* -- hole -- */
@@ -3214,13 +3481,8 @@ static const iw_handler prism2_handler[] =
 	(iw_handler) prism2_ioctl_giwap,		/* SIOCGIWAP */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) prism2_ioctl_giwaplist,		/* SIOCGIWAPLIST */
-#if WIRELESS_EXT > 13
 	(iw_handler) prism2_ioctl_siwscan,		/* SIOCSIWSCAN */
 	(iw_handler) prism2_ioctl_giwscan,		/* SIOCGIWSCAN */
-#else /* WIRELESS_EXT > 13 */
-	(iw_handler) NULL,				/* SIOCSIWSCAN */
-	(iw_handler) NULL,				/* SIOCGIWSCAN */
-#endif /* WIRELESS_EXT > 13 */
 	(iw_handler) prism2_ioctl_siwessid,		/* SIOCSIWESSID */
 	(iw_handler) prism2_ioctl_giwessid,		/* SIOCGIWESSID */
 	(iw_handler) prism2_ioctl_siwnickn,		/* SIOCSIWNICKN */
@@ -3263,7 +3525,6 @@ static const struct iw_handler_def hostap_iw_handler_def =
 	.spy_offset	= offsetof(struct hostap_interface, spy_data),
 #endif /* WIRELESS_EXT > 15 */
 };
-#endif	/* WIRELESS_EXT > 12 */
 
 
 int hostap_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -3274,262 +3535,6 @@ int hostap_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	int ret = 0;
 
 	switch (cmd) {
-
-#if WIRELESS_EXT <= 12
-	case SIOCGIWNAME:
-		ret = prism2_get_name(dev, NULL, (char *) &wrq->u, NULL);
-		break;
-
-	case SIOCSIWFREQ:
-		ret = prism2_ioctl_siwfreq(dev, NULL, &wrq->u.freq, NULL);
-		break;
-	case SIOCGIWFREQ:
-		ret = prism2_ioctl_giwfreq(dev, NULL, &wrq->u.freq, NULL);
-		break;
-
-	case SIOCSIWAP:
-		ret = prism2_ioctl_siwap(dev, NULL, &wrq->u.ap_addr, NULL);
-		break;
-	case SIOCGIWAP:
-		ret = prism2_ioctl_giwap(dev, NULL, &wrq->u.ap_addr, NULL);
-		break;
-
-	case SIOCSIWESSID:
-		if (!wrq->u.essid.pointer)
-			ret = -EINVAL;
-		else if (wrq->u.essid.length > IW_ESSID_MAX_SIZE)
-			ret = -E2BIG;
-		else {
-			char ssid[IW_ESSID_MAX_SIZE];
-			if (copy_from_user(ssid, wrq->u.essid.pointer,
-					   wrq->u.essid.length)) {
-				ret = -EFAULT;
-				break;
-			}
-			ret = prism2_ioctl_siwessid(dev, NULL, &wrq->u.essid,
-						    ssid);
-		}
-		break;
-	case SIOCGIWESSID:
-		if (wrq->u.essid.length > IW_ESSID_MAX_SIZE)
-			ret = -E2BIG;
-		else if (wrq->u.essid.pointer) {
-			char ssid[IW_ESSID_MAX_SIZE];
-			ret = prism2_ioctl_giwessid(dev, NULL, &wrq->u.essid,
-						    ssid);
-			if (copy_to_user(wrq->u.essid.pointer, ssid,
-					 wrq->u.essid.length))
-				ret = -EFAULT;
-		}
-		break;
-
-	case SIOCSIWRATE:
-		ret = prism2_ioctl_siwrate(dev, NULL, &wrq->u.bitrate, NULL);
-		break;
-	case SIOCGIWRATE:
-		ret = prism2_ioctl_giwrate(dev, NULL, &wrq->u.bitrate, NULL);
-		break;
-
-	case SIOCSIWRTS:
-		ret = prism2_ioctl_siwrts(dev, NULL, &wrq->u.rts, NULL);
-		break;
-	case SIOCGIWRTS:
-		ret = prism2_ioctl_giwrts(dev, NULL, &wrq->u.rts, NULL);
-		break;
-
-	case SIOCSIWFRAG:
-		ret = prism2_ioctl_siwfrag(dev, NULL, &wrq->u.rts, NULL);
-		break;
-	case SIOCGIWFRAG:
-		ret = prism2_ioctl_giwfrag(dev, NULL, &wrq->u.rts, NULL);
-		break;
-
-	case SIOCSIWENCODE:
-		{
-			char keybuf[WEP_KEY_LEN];
-			if (wrq->u.encoding.pointer) {
-				if (wrq->u.encoding.length > WEP_KEY_LEN) {
-					ret = -E2BIG;
-					break;
-				}
-				if (copy_from_user(keybuf,
-						   wrq->u.encoding.pointer,
-						   wrq->u.encoding.length)) {
-					ret = -EFAULT;
-					break;
-				}
-			} else if (wrq->u.encoding.length != 0) {
-				ret = -EINVAL;
-				break;
-			}
-			ret = prism2_ioctl_siwencode(dev, NULL,
-						     &wrq->u.encoding, keybuf);
-		}
-		break;
-	case SIOCGIWENCODE:
-		if (!capable(CAP_NET_ADMIN))
-			ret = -EPERM;
-		else if (wrq->u.encoding.pointer) {
-			char keybuf[WEP_KEY_LEN];
-			ret = prism2_ioctl_giwencode(dev, NULL,
-						     &wrq->u.encoding, keybuf);
-			if (copy_to_user(wrq->u.encoding.pointer, keybuf,
-					 wrq->u.encoding.length))
-				ret = -EFAULT;
-		}
-		break;
-
-	case SIOCSIWNICKN:
-		if (wrq->u.essid.length > IW_ESSID_MAX_SIZE)
-			ret = -E2BIG;
-		else if (wrq->u.essid.pointer) {
-			char nickbuf[IW_ESSID_MAX_SIZE + 1];
-			if (copy_from_user(nickbuf, wrq->u.essid.pointer,
-					   wrq->u.essid.length)) {
-				ret = -EFAULT;
-				break;
-			}
-			ret = prism2_ioctl_siwnickn(dev, NULL, &wrq->u.essid,
-						    nickbuf);
-		}
-		break;
-	case SIOCGIWNICKN:
-		if (wrq->u.essid.pointer) {
-			char nickbuf[IW_ESSID_MAX_SIZE + 1];
-			ret = prism2_ioctl_giwnickn(dev, NULL, &wrq->u.essid,
-						    nickbuf);
-			if (copy_to_user(wrq->u.essid.pointer, nickbuf,
-					 wrq->u.essid.length))
-				ret = -EFAULT;
-		}
-		break;
-
-	case SIOCGIWSPY:
-		{
-			char buffer[IW_MAX_SPY * (sizeof(struct sockaddr) +
-						  sizeof(struct iw_quality))];
-			ret = prism2_ioctl_giwspy(dev, NULL, &wrq->u.data,
-						  buffer);
-			if (ret == 0 && wrq->u.data.pointer &&
-			    copy_to_user(wrq->u.data.pointer, buffer,
-					 wrq->u.data.length *
-					 (sizeof(struct sockaddr) +
-					  sizeof(struct iw_quality))))
-				ret = -EFAULT;
-		}
-		break;
-
-	case SIOCGIWRANGE:
-		{
-			struct iw_range range;
-			ret = prism2_ioctl_giwrange(dev, NULL, &wrq->u.data,
-						    (char *) &range);
-			if (copy_to_user(wrq->u.data.pointer, &range,
-					 sizeof(struct iw_range)))
-				ret = -EFAULT;
-		}
-		break;
-
-	case SIOCSIWSENS:
-		ret = prism2_ioctl_siwsens(dev, NULL, &wrq->u.sens, NULL);
-		break;
-	case SIOCGIWSENS:
-		ret = prism2_ioctl_giwsens(dev, NULL, &wrq->u.sens, NULL);
-		break;
-
-	case SIOCGIWAPLIST:
-		if (wrq->u.data.pointer) {
-			char buffer[IW_MAX_AP * (sizeof(struct sockaddr) +
-						 sizeof(struct iw_quality))];
-			ret = prism2_ioctl_giwaplist(dev, NULL, &wrq->u.data,
-						     buffer);
-			if (copy_to_user(wrq->u.data.pointer, buffer,
-					 (wrq->u.data.length *
-					  (sizeof(struct sockaddr) +
-					   sizeof(struct iw_quality)))))
-				ret = -EFAULT;
-		}
-		break;
-
-	case SIOCSIWMODE:
-		ret = prism2_ioctl_siwmode(dev, NULL, &wrq->u.mode, NULL);
-		break;
-	case SIOCGIWMODE:
-		ret = prism2_ioctl_giwmode(dev, NULL, &wrq->u.mode, NULL);
-		break;
-
-	case SIOCSIWPOWER:
-		ret = prism2_ioctl_siwpower(dev, NULL, &wrq->u.power, NULL);
-		break;
-	case SIOCGIWPOWER:
-		ret = prism2_ioctl_giwpower(dev, NULL, &wrq->u.power, NULL);
-		break;
-
-	case SIOCGIWPRIV:
-		ret = prism2_ioctl_giwpriv(dev, &wrq->u.data);
-		break;
-
-#if WIRELESS_EXT > 9
-	case SIOCSIWTXPOW:
-		ret = prism2_ioctl_siwtxpow(dev, NULL, &wrq->u.txpower, NULL);
-		break;
-	case SIOCGIWTXPOW:
-		ret = prism2_ioctl_giwtxpow(dev, NULL, &wrq->u.txpower, NULL);
-		break;
-#endif /* WIRELESS_EXT > 9 */
-
-#if WIRELESS_EXT > 10
-	case SIOCSIWRETRY:
-		ret = prism2_ioctl_siwretry(dev, NULL, &wrq->u.retry, NULL);
-		break;
-	case SIOCGIWRETRY:
-		ret = prism2_ioctl_giwretry(dev, NULL, &wrq->u.retry, NULL);
-		break;
-#endif /* WIRELESS_EXT > 10 */
-
-	/* not supported wireless extensions */
-	case SIOCSIWNWID:
-	case SIOCGIWNWID:
-		ret = -EOPNOTSUPP;
-		break;
-
-	/* FIX: add support for this: */
-	case SIOCSIWSPY:
-		printk(KERN_DEBUG "%s unsupported WIRELESS_EXT ioctl(0x%04x)\n"
-		       , dev->name, cmd);
-		ret = -EOPNOTSUPP;
-		break;
-
-
-		/* Private ioctls (iwpriv); these are in SIOCDEVPRIVATE range
-		 * if WIRELESS_EXT < 12, so better check privileges */
-
-	case PRISM2_IOCTL_PRISM2_PARAM:
-		if (!capable(CAP_NET_ADMIN)) ret = -EPERM;
-		else ret = prism2_ioctl_priv_prism2_param(dev, NULL, &wrq->u,
-							  (char *) &wrq->u);
-		break;
-#if WIRELESS_EXT >= 12
-	case PRISM2_IOCTL_GET_PRISM2_PARAM:
-		ret = prism2_ioctl_priv_get_prism2_param(dev, NULL, &wrq->u,
-							 (char *) &wrq->u);
-		break;
-#endif /* WIRELESS_EXT >= 12 */
-
-	case PRISM2_IOCTL_WRITEMIF:
-		if (!capable(CAP_NET_ADMIN)) ret = -EPERM;
-		else ret = prism2_ioctl_priv_writemif(dev, NULL, &wrq->u,
-						      (char *) &wrq->u);
-		break;
-
-	case PRISM2_IOCTL_READMIF:
-		ret = prism2_ioctl_priv_readmif(dev, NULL, &wrq->u,
-						(char *) &wrq->u);
-		break;
-
-#endif /* WIRELESS_EXT <= 12 */
-
-
 		/* Private ioctls (iwpriv) that have not yet been converted
 		 * into new wireless extensions API */
 
@@ -3667,22 +3672,14 @@ int hostap_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		else ret = prism2_ioctl_priv_hostapd(local, &wrq->u.data);
 		break;
 
+	case SIOCETHTOOL:
+		ret = prism2_ioctl_ethtool(local, (void *) ifr->ifr_data);
+		break;
+
 	default:
-#if WIRELESS_EXT > 12
-		if (cmd >= SIOCSIWCOMMIT && cmd <= SIOCGIWPOWER) {
-			/* unsupport wireless extensions get through here - do
-			 * not report these to debug log */
-			ret = -EOPNOTSUPP;
-			break;
-		}
-#endif /* WIRELESS_EXT > 12 */
-		printk(KERN_DEBUG "%s unsupported ioctl(0x%04x)\n",
-		       dev->name, cmd);
 		ret = -EOPNOTSUPP;
 		break;
 	}
 
 	return ret;
 }
-
-#endif /* WIRELESS_EXT */

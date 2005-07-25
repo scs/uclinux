@@ -125,9 +125,10 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 	case '5':
 		check_inverse(optarg, &invert, &optind, 0);
 		if(strlen(optarg) > sizeof(ownerinfo->comm))
-			exit_error(PARAMETER_PROBLEM, "OWNER CMD `%s' too long, max %d characters", optarg, (int)sizeof(ownerinfo->comm));
+			exit_error(PARAMETER_PROBLEM, "OWNER CMD `%s' too long, max %u characters", optarg, (unsigned int)sizeof(ownerinfo->comm));
 
 		strncpy(ownerinfo->comm, optarg, sizeof(ownerinfo->comm));
+		ownerinfo->comm[sizeof(ownerinfo->comm)-1] = '\0';
 
 		if (invert)
 			ownerinfo->invert |= IPT_OWNER_COMM;
@@ -148,7 +149,7 @@ print_item(struct ipt_owner_info *info, u_int8_t flag, int numeric, char *label)
 	if(info->match & flag) {
 
 		if (info->invert & flag)
-			fputc('!', stdout);
+			printf("! ");
 
 		printf(label);
 

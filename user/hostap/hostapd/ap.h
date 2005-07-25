@@ -9,6 +9,7 @@
 #define WLAN_STA_PERM BIT(4)
 #define WLAN_STA_AUTHORIZED BIT(5)
 #define WLAN_STA_PENDING_POLL BIT(6) /* pending activity poll not ACKed */
+#define WLAN_STA_PREAUTH BIT(7)
 
 #define WLAN_RATE_1M BIT(0)
 #define WLAN_RATE_2M BIT(1)
@@ -32,35 +33,38 @@ struct sta_info {
 	u8 supported_rates[WLAN_SUPP_RATES_MAX];
 	u8 tx_supp_rates;
 
-	enum { STA_NULLFUNC = 0, STA_DISASSOC, STA_DEAUTH } timeout_next;
+	enum {
+		STA_NULLFUNC = 0, STA_DISASSOC, STA_DEAUTH, STA_REMOVE
+	} timeout_next;
 
 	/* IEEE 802.1X related data */
 	struct eapol_state_machine *eapol_sm;
-	int radius_identifier;
-	/* TODO: check when the last messages can be released */
-	struct radius_msg *last_recv_radius;
-	u8 *last_eap_supp; /* last received EAP Response from Supplicant */
-	size_t last_eap_supp_len;
-	u8 *last_eap_radius; /* last received EAP Response from Authentication
-			      * Server */
-	size_t last_eap_radius_len;
-	u8 *identity;
-	size_t identity_len;
-
-	/* Keys for encrypting and signing EAPOL-Key frames */
-	u8 *eapol_key_sign;
-	size_t eapol_key_sign_len;
-	u8 *eapol_key_crypt;
-	size_t eapol_key_crypt_len;
 
 	/* IEEE 802.11f (IAPP) related data */
 	struct ieee80211_mgmt *last_assoc_req;
 
 	u32 acct_session_id_lo;
 	time_t acct_session_start;
+	int acct_session_started;
 	int acct_terminate_cause; /* Acct-Terminate-Cause */
+	int acct_interim_interval; /* Acct-Interim-Interval */
 
 	u8 *challenge; /* IEEE 802.11 Shared Key Authentication Challenge */
+
+	int pairwise; /* Pairwise cipher suite, WPA_CIPHER_* */
+	u8 *wpa_ie;
+	size_t wpa_ie_len;
+	struct wpa_state_machine *wpa_sm;
+	enum {
+		WPA_VERSION_NO_WPA = 0 /* WPA not used */,
+		WPA_VERSION_WPA = 1 /* WPA / IEEE 802.11i/D3.0 */,
+		WPA_VERSION_WPA2 = 2 /* WPA2 / IEEE 802.11i */
+	} wpa;
+	int wpa_key_mgmt; /* the selected WPA_KEY_MGMT_* */
+	struct rsn_pmksa_cache *pmksa;
+	struct rsn_preauth_interface *preauth_iface;
+	u8 req_replay_counter[8 /* WPA_REPLAY_COUNTER_LEN */];
+	int req_replay_counter_used;
 };
 
 

@@ -1,7 +1,7 @@
 /*
  * Host AP (software wireless LAN access point) user space daemon for
  * Host AP kernel driver / Station table
- * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,6 +24,25 @@
 #include "ieee802_11.h"
 #include "radius.h"
 #include "driver.h"
+#include "eapol_sm.h"
+#include "wpa.h"
+#include "radius_client.h"
+
+
+int ap_for_each_sta(struct hostapd_data *hapd,
+		    int (*cb)(struct hostapd_data *hapd, struct sta_info *sta,
+			      void *ctx),
+		    void *ctx)
+{
+	struct sta_info *sta;
+
+	for (sta = hapd->sta_list; sta; sta = sta->next) {
+		if (cb(hapd, sta, ctx))
+			return 1;
+	}
+
+	return 0;
+}
 
 
 struct sta_info* ap_get_sta(hostapd *hapd, u8 *sta)
@@ -34,24 +53,6 @@ struct sta_info* ap_get_sta(hostapd *hapd, u8 *sta)
 	while (s != NULL && memcmp(s->addr, sta, 6) != 0)
 		s = s->hnext;
 	return s;
-}
-
-
-struct sta_info* ap_get_sta_radius_identifier(hostapd *hapd,
-					      u8 radius_identifier)
-{
-	struct sta_info *s;
-
-	s = hapd->sta_list;
-
-	while (s) {
-		if (s->radius_identifier >= 0 &&
-		    s->radius_identifier == radius_identifier)
-			return s;
-		s = s->next;
-	}
-
-	return NULL;
 }
 
 
@@ -105,16 +106,9 @@ static void ap_sta_hash_del(hostapd *hapd, struct sta_info *sta)
 
 void ap_free_sta(hostapd *hapd, struct sta_info *sta)
 {
-	struct prism2_hostapd_param param;
-
 	accounting_sta_stop(hapd, sta);
-
-	memset(&param, 0, sizeof(param));
-	param.cmd = PRISM2_HOSTAPD_REMOVE_STA;
-	memcpy(param.sta_addr, sta->addr, ETH_ALEN);
-	if (hostapd_ioctl(hapd, &param, sizeof(param))) {
-		printf("Could not remove station from kernel driver.\n");
-	}
+	if (!(sta->flags & WLAN_STA_PREAUTH))
+		remove_sta(hapd->driver.data, sta->addr);
 
 	ap_sta_hash_del(hapd, sta);
 	ap_sta_list_del(hapd, sta);
@@ -126,11 +120,14 @@ void ap_free_sta(hostapd *hapd, struct sta_info *sta)
 	eloop_cancel_timeout(ap_handle_timer, hapd, sta);
 
 	ieee802_1x_free_station(sta);
+	wpa_free_station(sta);
+	radius_client_flush_auth(hapd, sta->addr);
 
 	if (sta->last_assoc_req)
 		free(sta->last_assoc_req);
 
 	free(sta->challenge);
+	free(sta->wpa_ie);
 
 	free(sta);
 }
@@ -158,13 +155,21 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 	unsigned long next_time = 0;
 	struct prism2_hostapd_param param;
 
+	if (sta->timeout_next == STA_REMOVE) {
+		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
+			       HOSTAPD_LEVEL_INFO, "deauthenticated due to "
+			       "local deauth request");
+		ap_free_sta(hapd, sta);
+		return;
+	}
+
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
 		      "Checking STA " MACSTR " inactivity:\n",
 		      MAC2STR(sta->addr));
 	memset(&param, 0, sizeof(param));
 	param.cmd = PRISM2_HOSTAPD_GET_INFO_STA;
 	memcpy(param.sta_addr, sta->addr, ETH_ALEN);
-	if (hostapd_ioctl(hapd, &param, sizeof(param))) {
+	if (hostapd_ioctl(hapd->driver.data, &param, sizeof(param))) {
 		printf("  Could not get station info from kernel driver.\n");
 		/* assume the station has expired */
 		param.u.get_info_sta.inactive_sec = AP_MAX_INACTIVITY + 1;
@@ -214,7 +219,9 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 		memcpy(hdr.IEEE80211_BSSID_FROMDS, hapd->own_addr, ETH_ALEN);
 		memcpy(hdr.IEEE80211_SA_FROMDS, hapd->own_addr, ETH_ALEN);
 
-		if (send(hapd->sock, &hdr, sizeof(hdr), 0) < 0)
+		if (hapd->driver.send_mgmt_frame &&
+		    hapd->driver.send_mgmt_frame(hapd->driver.data,
+						 &hdr, sizeof(hdr), 0) < 0)
 			perror("ap_handle_timer: send");
 	} else {
 		int deauth = sta->timeout_next == STA_DEAUTH;
@@ -243,6 +250,10 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 	case STA_DISASSOC:
 		sta->flags &= ~WLAN_STA_ASSOC;
 		ieee802_1x_set_port_enabled(hapd, sta, 0);
+		if (!sta->acct_terminate_cause)
+			sta->acct_terminate_cause =
+				RADIUS_ACCT_TERMINATE_CAUSE_IDLE_TIMEOUT;
+		accounting_sta_stop(hapd, sta);
 		ieee802_1x_free_station(sta);
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_INFO, "disassociated due to "
@@ -252,6 +263,7 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 				       hapd, sta);
 		break;
 	case STA_DEAUTH:
+	case STA_REMOVE:
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_INFO, "deauthenticated due to "
 			       "inactivity");

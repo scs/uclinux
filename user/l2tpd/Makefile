@@ -20,17 +20,16 @@
 # -DDEBUG_CONTROL shows info on every control packet
 # -DDEBUG_PPPD shows the command line of pppd
 # -DDEBUG_HIDDEN debugs hidden AVP's
+# -DDEBUG_ENTROPY debug entropy generation
 # -DTEST_HIDDEN makes Assigned Call ID sent as a hidden AVP
 #
 # Also look at the top of network.c for some other (eventually to 
 # become runtime options) debugging flags
 #
 #DFLAGS= -g -O2 -DDEBUG_PPPD
-DFLAGS= -g -O2
 #
 # Uncomment the next line for Linux
 #
-#OSFLAGS= -DLINUX -I/usr/include
 OSFLAGS= -DLINUX
 #
 # Uncomment the following to use the kernel interface under Linux
@@ -56,18 +55,16 @@ OSFLAGS= -DLINUX
 
 FFLAGS= -DIP_ALLOCATION
 
-CFLAGS+= $(DFLAGS) -Wall -DSANITY $(OSFLAGS) $(FFLAGS)
+CFLAGS+= $(DFLAGS) -O2 -fno-builtin -Wall -DSANITY $(OSFLAGS) $(FFLAGS)
 HDRS=l2tp.h avp.h misc.h control.h call.h scheduler.h file.h aaa.h md5.h
 OBJS=l2tpd.o pty.o misc.o control.o avp.o call.o network.o avpsend.o scheduler.o file.o aaa.o md5.o
 #LIBS= $(OSLIB) # -lefence # efence for malloc checking
 EXEC=l2tpd
-BINDIR=/bin
-ETCDIR=/etc/config
 
 all: $(EXEC)
 
 clean:
-	rm -f $(OBJS) $(BIN)
+	rm -f $(OBJS) $(EXEC)
 
 $(EXEC): $(OBJS) $(HDRS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)

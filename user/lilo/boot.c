@@ -240,7 +240,7 @@ char *boot_mbr(const char *boot, int table)
 void boot_other(char *loader,char *boot,char *part,IMAGE_DESCR *descr)
 {
     int b_fd,l_fd,p_fd,walk,found,size;
-    unsigned short magic;
+    unsigned char magic[2];
     BOOT_SECTOR buff[SETUPSECS-1];
     struct stat st;
     char *pos;
@@ -284,10 +284,10 @@ void boot_other(char *loader,char *boot,char *part,IMAGE_DESCR *descr)
 	if (!geo.file) part_verify(st.st_rdev,0);
 	if (lseek(b_fd,(long) BOOT_SIG_OFFSET,SEEK_SET) < 0)
 	    die("lseek %s: %s",boot,strerror(errno));
-	if ((size = read(b_fd, (char *)&magic, 2)) != 2) {
+	if ((size = read(b_fd, &magic[0], 2)) != 2) {
 	    if (size < 0) die("read %s: %s",boot,strerror(errno));
 	    else die("Can't get magic number of %s",boot); }
-	if (magic != BOOT_SIGNATURE)
+	if (magic[0] != BOOT_SIGNATURE0 || magic[1] != BOOT_SIGNATURE1)
 	    die("First sector of %s doesn't have a valid boot signature",boot);
     }
     memset(buff,0,sizeof(buff));

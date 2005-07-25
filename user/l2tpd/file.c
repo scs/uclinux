@@ -779,7 +779,7 @@ int set_iprange (char *word, char *value, int context, void *item)
         return -1;
 #ifdef DEBUG_FILE
     log (LOG_DEBUG, "range start = %x, end = %x, sense=%ud\n",
-         ntohl (ipr->start), ntohl (ipr->end), ipr->sense);
+         ntohl (lns->range->start), ntohl (lns->range->end), lns->range->sense);
 #endif
     return 0;
 }
@@ -801,7 +801,7 @@ int set_lac (char *word, char *value, int context, void *item)
         return -1;
 #ifdef DEBUG_FILE
     log (LOG_DEBUG, "lac start = %x, end = %x, sense=%ud\n",
-         ntohl (ipr->start), ntohl (ipr->end), ipr->sense);
+         ntohl (lns->lacs->start), ntohl (lns->lacs->end), lns->lacs->sense);
 #endif
     return 0;
 }

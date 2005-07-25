@@ -20,7 +20,7 @@ struct avp_hdr
     _u16 length;
     _u16 vendorid;
     _u16 attr;
-};
+} __attribute__((packed));
 
 struct avp
 {

@@ -891,7 +891,7 @@ int dialing_number_avp (struct tunnel *t, struct call *c, void *data,
                  __FUNCTION__, size);
         size = MAXSTRLEN - 1;
     }
-    safe_copy (t->call_head->dialing, (char *) &raw[3], size);
+    safe_copy (t->call_head->dialing, (char *) &raw[3], size - 6);
     if (debug_avp)
     {
         if (DEBUG)
@@ -946,7 +946,7 @@ int dialed_number_avp (struct tunnel *t, struct call *c, void *data,
                  __FUNCTION__, size);
         size = MAXSTRLEN - 1;
     }
-    safe_copy (t->call_head->dialed, (char *) &raw[3], size);
+    safe_copy (t->call_head->dialed, (char *) &raw[3], size - 6);
     if (debug_avp)
     {
         if (DEBUG)
@@ -1001,7 +1001,7 @@ int sub_address_avp (struct tunnel *t, struct call *c, void *data,
                  __FUNCTION__, size);
         size = MAXSTRLEN - 1;
     }
-    safe_copy (t->call_head->subaddy, (char *) &raw[3], size);
+    safe_copy (t->call_head->subaddy, (char *) &raw[3], size - 6);
     if (debug_avp)
     {
         if (DEBUG)
@@ -1054,7 +1054,7 @@ int vendor_avp (struct tunnel *t, struct call *c, void *data, int datalen)
                  __FUNCTION__, size);
         size = MAXSTRLEN - 1;
     }
-    safe_copy (t->vendor, (char *) &raw[3], size);
+    safe_copy (t->vendor, (char *) &raw[3], size - 6);
     if (debug_avp)
     {
         if (DEBUG)
@@ -1591,6 +1591,7 @@ int handle_avps (struct buffer *buf, struct tunnel *t, struct call *c)
      */
 
     struct avp_hdr *avp;
+	static unsigned char packet[1030];
     int len = buf->len - sizeof (struct control_hdr);
     int firstavp = -1;
     int hidlen = 0;
@@ -1608,7 +1609,7 @@ int handle_avps (struct buffer *buf, struct tunnel *t, struct call *c)
             if (AMBIT (avp->length))
             {
                 log (LOG_WARN,
-                     "%s:  dont know how to handle mandatory attribute %d.  Closing %s.\n"
+                     "%s:  dont know how to handle mandatory attribute %d.  Closing %s.\n",
                      __FUNCTION__, avp->attr,
                      (c != t->self) ? "call" : "tunnel");
                 set_error (c, VENDOR_ERROR,
@@ -1696,7 +1697,8 @@ int handle_avps (struct buffer *buf, struct tunnel *t, struct call *c)
             hidlen = 0;
         if (avps[avp->attr].handler)
         {
-            if (avps[avp->attr].handler (t, c, avp, ALENGTH (avp->length)))
+			memcpy(&packet, avp, ALENGTH(avp->length) + sizeof(*avp));
+            if (avps[avp->attr].handler (t, c, &packet, ALENGTH (avp->length)))
             {
                 if (AMBIT (avp->length))
                 {

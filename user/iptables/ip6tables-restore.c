@@ -30,7 +30,8 @@ static int binary = 0, counters = 0, verbose = 0, noflush = 0;
 static struct option options[] = {
 	{ "binary", 0, 0, 'b' },
 	{ "counters", 0, 0, 'c' },
-	{ "verbose", 1, 0, 'v' },
+	{ "verbose", 0, 0, 'v' },
+	{ "test", 0, 0, 't' },
 	{ "help", 0, 0, 'h' },
 	{ "noflush", 0, 0, 'n'},
 	{ "modprobe", 1, 0, 'M'},
@@ -41,10 +42,11 @@ static void print_usage(const char *name, const char *version) __attribute__((no
 
 static void print_usage(const char *name, const char *version)
 {
-	fprintf(stderr, "Usage: %s [-b] [-c] [-v] [-h]\n"
+	fprintf(stderr, "Usage: %s [-b] [-c] [-v] [-t] [-h]\n"
 			"	   [ --binary ]\n"
 			"	   [ --counters ]\n"
 			"	   [ --verbose ]\n"
+			"	   [ --test ]\n"
 			"	   [ --help ]\n"
 			"	   [ --noflush ]\n"
 		        "          [ --modprobe=<command>]\n", name);
@@ -74,7 +76,7 @@ ip6tc_handle_t create_handle(const char *tablename, const char* modprobe)
 
 int parse_counters(char *string, struct ip6t_counters *ctr)
 {
-	return (sscanf(string, "[%llu:%llu]", &ctr->pcnt, &ctr->bcnt) == 2);
+	return (sscanf(string, "[%llu:%llu]", (unsigned long long *)&ctr->pcnt, (unsigned long long *)&ctr->bcnt) == 2);
 }
 
 /* global new argv and argc */
@@ -102,13 +104,13 @@ static void free_argv(void) {
 
 int main(int argc, char *argv[])
 {
-	ip6tc_handle_t handle;
+	ip6tc_handle_t handle = NULL;
 	char buffer[10240];
 	int c;
 	char curtable[IP6T_TABLE_MAXNAMELEN + 1];
 	FILE *in;
 	const char *modprobe = 0;
-	int in_table = 0;
+	int in_table = 0, testing = 0;
 
 	program_name = "ip6tables-restore";
 	program_version = IPTABLES_VERSION;
@@ -118,7 +120,7 @@ int main(int argc, char *argv[])
 	init_extensions();
 #endif
 
-	while ((c = getopt_long(argc, argv, "bcvhnM:", options, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "bcvthnM:", options, NULL)) != -1) {
 		switch (c) {
 			case 'b':
 				binary = 1;
@@ -128,6 +130,9 @@ int main(int argc, char *argv[])
 				break;
 			case 'v':
 				verbose = 1;
+				break;
+			case 't':
+				testing = 1;
 				break;
 			case 'h':
 				print_usage("ip6tables-restore",
@@ -158,16 +163,23 @@ int main(int argc, char *argv[])
 	
 	/* Grab standard input. */
 	while (fgets(buffer, sizeof(buffer), in)) {
-		int ret;
+		int ret = 0;
 
 		line++;
-		if (buffer[0] == '\n') continue;
+		if (buffer[0] == '\n')
+			continue;
 		else if (buffer[0] == '#') {
-			if (verbose) fputs(buffer, stdout);
+			if (verbose)
+				fputs(buffer, stdout);
 			continue;
 		} else if ((strcmp(buffer, "COMMIT\n") == 0) && (in_table)) {
-			DEBUGP("Calling commit\n");
-			ret = ip6tc_commit(&handle);
+			if (!testing) {
+				DEBUGP("Calling commit\n");
+				ret = ip6tc_commit(&handle);
+			} else {
+				DEBUGP("Not calling commit, testing\n");
+				ret = 1;
+			}
 			in_table = 0;
 		} else if ((buffer[0] == '*') && (!in_table)) {
 			/* New table */
@@ -182,6 +194,10 @@ int main(int argc, char *argv[])
 				exit(1);
 			}
 			strncpy(curtable, table, IP6T_TABLE_MAXNAMELEN);
+			curtable[IP6T_TABLE_MAXNAMELEN] = '\0';
+
+			if (handle)
+				ip6tc_free(&handle);
 
 			handle = create_handle(table, modprobe);
 			if (noflush == 0) {
@@ -318,7 +334,11 @@ int main(int argc, char *argv[])
 			
 			for (curchar = parsestart; *curchar; curchar++) {
 				if (*curchar == '"') {
-					if (quote_open) {
+					/* quote_open cannot be true if there
+					 * was no previous character.  Thus, 
+					 * curchar-1 has to be within bounds */
+					if (quote_open && 
+					    *(curchar-1) != '\\') {
 						quote_open = 0;
 						*curchar = ' ';
 					} else {
@@ -378,6 +398,11 @@ int main(int argc, char *argv[])
 					program_name, line);
 			exit(1);
 		}
+	}
+	if (in_table) {
+		fprintf(stderr, "%s: COMMIT expected at line %u\n",
+				program_name, line + 1);
+		exit(1);
 	}
 
 	return 0;

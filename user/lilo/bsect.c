@@ -519,7 +519,8 @@ void bsect_open(char *boot_dev,char *map_file,char *install,int delay,
 
     
 
-    *(unsigned short *) &bsect.sector[BOOT_SIG_OFFSET] = BOOT_SIGNATURE;
+    bsect.sector[BOOT_SIG_OFFSET] = BOOT_SIGNATURE0;
+    bsect.sector[BOOT_SIG_OFFSET+1] = BOOT_SIGNATURE1;
     message = cfg_get_strg(cf_options,"message");
     scheme = cfg_get_strg(cf_options,"bitmap");
     if (message && scheme) die("'bitmap' and 'message' are mutually exclusive");
@@ -1113,7 +1114,7 @@ void bsect_uninstall(char *boot_dev,char *backup_file,int validate)
     int bck_file;
 
     open_bsect(boot_dev);
-    if (*(unsigned short *) &bsect.sector[BOOT_SIG_OFFSET] != BOOT_SIGNATURE)
+    if (bsect.sector[BOOT_SIG_OFFSET] != BOOT_SIGNATURE0 || bsect.sector[BOOT_SIG_OFFSET+1] != BOOT_SIGNATURE1)
 	die("Boot sector of %s does not have a boot signature",boot_dev ?
 	  boot_dev : dev.name);
     if (!strncmp(bsect.par_1.signature-4,"LILO",4))
@@ -1163,7 +1164,8 @@ void bsect_raid_update(char *boot_dev, unsigned long raid_offset,
         bsect.par_1.raid_offset = raid_offset;	/* put in the new partition offset */
         bsect.par_1.prompt &= FLAG_PROMPT;	/* clear all flags but PROMPT */
         bsect.par_1.prompt |= raid_flags;	/* update the raid flags */
-        *(unsigned short *) &bsect.sector[BOOT_SIG_OFFSET] = BOOT_SIGNATURE;
+        bsect.sector[BOOT_SIG_OFFSET] = BOOT_SIGNATURE0;
+        bsect.sector[BOOT_SIG_OFFSET+1] = BOOT_SIGNATURE1;
     }
     bsect_update(backup_file, force_backup, pass);
 }

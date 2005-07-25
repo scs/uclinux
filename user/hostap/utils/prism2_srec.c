@@ -2,7 +2,7 @@
  * Firmware image downloader for Host AP driver
  * (for Intersil Prism2/2.5/3 cards)
  *
- * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -25,6 +25,7 @@
 
 static int verbose = 0;
 static int ignore_incompatible_interface = 0;
+static int skip_pda_read = 0;
 enum { MODE_NO_DOWNLOAD, MODE_VOLATILE, MODE_NON_VOLATILE, MODE_GENESIS };
 
 #define verbose_printf(a...) do { if (verbose) printf(a); } while (0)
@@ -104,6 +105,7 @@ struct wlan_info {
 		pri_sup, sta_sup,
 		mfi_sta_act, cfi_pri_act, cfi_sta_act;
 	struct prism2_pda pda;
+	const char *ifname;
 };
 
 
@@ -1131,6 +1133,14 @@ static int supported_platform(struct s3_info_platform *nicid,
 {
 	int i;
 
+	if (dl_mode == MODE_GENESIS &&
+	    (skip_pda_read ||
+	     (ignore_incompatible_interface &&
+	      srec->component.component == HFA384X_COMP_ID_PRI))) {
+		/* No PRI f/w - NIC/PRI/STA versions were not read */
+		return 1;
+	}
+
 	for (i = 0; i < srec->platform_count; i++) {
 		struct s3_info_platform *p = &srec->platforms[i];
 
@@ -1169,9 +1179,15 @@ static int supported_platform(struct s3_info_platform *nicid,
 
 
 int verify_compatibility(struct wlan_info *wlan, struct srec_data *srec,
-			 struct s3_info_compatibility *pri_sup, int image2)
+			 struct s3_info_compatibility *pri_sup, int image2,
+			 int dl_mode)
 {
 	int i;
+
+	if (dl_mode == MODE_GENESIS && skip_pda_read) {
+		/* No PRI f/w - RIDs were not read */
+		return 0;
+	}
 
 	for (i = 0; i < srec->compatibility_count; i++) {
 		struct s3_info_compatibility *sr, *wr;
@@ -1214,6 +1230,59 @@ int verify_compatibility(struct wlan_info *wlan, struct srec_data *srec,
 }
 
 
+static int plug_pdr_0400(const char *ifname, u8 *pdr)
+{
+	int ram16 = -1, pci = -1, len;
+	char fname[256], buf[1024], *pos, *pos2, *end;
+	FILE *f;
+
+	snprintf(fname, sizeof(fname), "/proc/net/hostap/%s/debug", ifname);
+	f = fopen(fname, "r");
+	if (f == NULL) {
+		printf("Failed to open '%s' for reading.\n", fname);
+		return -1;
+	}
+
+	len = fread(buf, 1, sizeof(buf) - 1, f);
+	if (len < 0) {
+		printf("Failed to read '%s' for reading.\n", fname);
+		return -1;
+	}
+
+	buf[len] = '\0';
+	pos = buf;
+	end = buf + len;
+	while (pos < end) {
+		pos2 = strchr(pos, '\n');
+		if (pos2)
+			*pos2 = '\0';
+
+		if (strncmp(pos, "pci=", 4) == 0) {
+			pci = atoi(pos + 4);
+		} else if (strncmp(pos, "sram_type=", 10) == 0) {
+			ram16 = atoi(pos + 10) == 0 ? 0 : 1;
+		}
+
+		if (pos2 == NULL)
+			break;
+		pos = pos2 + 1;
+	}
+
+	if (pci == -1 || ram16 == -1) {
+		printf("Failed to parse 'pci' or 'sram_type' from %s.\n",
+		       fname);
+		return -1;
+	}
+
+	pdr[0] = (pci ? BIT(2) : 0) | (ram16 ? BIT(1) : 0) | BIT(0);
+	pdr[1] = 0x00;
+	printf("Plugging PDR 0400 (NIC configuration): ram16=%d "
+	       "pci=%d (%02x %02x)\n", ram16, pci, pdr[0], pdr[1]);
+
+	return 0;
+}
+
+
 int plug_pdr_entries(struct wlan_info *wlan, struct srec_data *srec)
 {
 	int i, j, found;
@@ -1228,7 +1297,6 @@ int plug_pdr_entries(struct wlan_info *wlan, struct srec_data *srec)
 			printf("Could not find data position for plugging PDR "
 			       "0x%04x at 0x%08x (len=%d)\n",
 			       p->pdr, p->plug_addr, p->plug_len);
-			return 1;
 		}
 
 		if (p->pdr == 0xffffffff) {
@@ -1236,12 +1304,22 @@ int plug_pdr_entries(struct wlan_info *wlan, struct srec_data *srec)
 			 * (available from RID FFFF); like file name for
 			 * upgrade packet, etc. */
 			int len;
+			if (pos == NULL)
+				return 1;
 			memset(pos, 0, p->plug_len);
 			len = strlen(srec->name);
 			if (p->plug_len > 0)
 				memcpy(pos, srec->name,
 				       len > p->plug_len - 1 ? p->plug_len - 1
 				       : len);
+			continue;
+		}
+
+		if (skip_pda_read && p->pdr == 0x0400 && p->plug_len == 2) {
+			if (pos == NULL)
+				return 1;
+			if (plug_pdr_0400(wlan->ifname, pos))
+				return 1;
 			continue;
 		}
 
@@ -1268,11 +1346,19 @@ int plug_pdr_entries(struct wlan_info *wlan, struct srec_data *srec)
 					} else
 						return 1;
 				}
+				if (pos == NULL)
+					return 1;
 				memcpy(pos, wlan->pda.pdrs[j].data,
 				       wlan->pda.pdrs[j].len);
 				found = 1;
 				break;
 			}
+		}
+		if (!found && pos == NULL) {
+			printf("PDR 0x%04x is not in wlan card PDA and "
+			       "there is no default data. Ignoring plug "
+			       "record.\n", p->pdr);
+			continue;
 		}
 		if (!found && verbose) {
 			int j;
@@ -1344,7 +1430,7 @@ int combine_info(struct wlan_info *wlan, struct srec_data *srec,
 		return 1;
 	}
 
-	if (verify_compatibility(wlan, srec, &wlan->pri_sup, 0) ||
+	if (verify_compatibility(wlan, srec, &wlan->pri_sup, 0, dl_mode) ||
 	    plug_pdr_entries(wlan, srec) ||
 	    generate_crc16(srec))
 		return 1;
@@ -1369,7 +1455,7 @@ int combine_info(struct wlan_info *wlan, struct srec_data *srec,
 		}
 
 		if (!supported_platform(&wlan->nicid, srec2, dl_mode) ||
-		    verify_compatibility(wlan, srec2, pri_sup, 1) ||
+		    verify_compatibility(wlan, srec2, pri_sup, 1, dl_mode) ||
 		    plug_pdr_entries(wlan, srec2) ||
 		    generate_crc16(srec2)) {
 			printf("Compatibility verification failed for the "
@@ -1510,10 +1596,89 @@ int download_srec(const char *iface, struct srec_data *srec, int non_volatile,
 }
 
 
+static void pdr_compid_to_info(struct s3_info_platform *p,
+			       unsigned char *data)
+{
+	struct pdr_compid *comp = (struct pdr_compid *) data;
+	p->platform = le_to_host16(comp->id);
+	p->major = le_to_host16(comp->major);
+	p->minor = le_to_host16(comp->minor);
+	p->variant = le_to_host16(comp->variant);
+}
+
+
+static void pdr_range_to_info(struct s3_info_compatibility *r,
+			      unsigned char *data)
+{
+	struct pdr_supplier_range *range = (struct pdr_supplier_range *) data;
+	r->role = le_to_host16(range->role);
+	r->iface_id = le_to_host16(range->iface_id);
+	r->variant = le_to_host16(range->variant);
+	r->bottom = le_to_host16(range->bottom);
+	r->top = le_to_host16(range->top);
+}
+
+
+static void compat_from_pda(struct wlan_info *wlan)
+{
+	int i;
+
+	for (i = 0; i < wlan->pda.pdr_count; i++) {
+		switch (wlan->pda.pdrs[i].pdr) {
+		case PDR_RF_MODE_SUPP_RANGE:
+			if (wlan->pda.pdrs[i].len ==
+			    sizeof(struct pdr_supplier_range))
+				pdr_range_to_info(&wlan->mfi_pri_sup,
+						  wlan->pda.pdrs[i].data);
+			break;
+		case PDR_MAC_CTRL_SUPP_RANGE:
+			if (wlan->pda.pdrs[i].len ==
+			    sizeof(struct pdr_supplier_range))
+				pdr_range_to_info(&wlan->cfi_pri_sup,
+						  wlan->pda.pdrs[i].data);
+			break;
+		case PDR_NIC_ID_COMP:
+			if (wlan->pda.pdrs[i].len ==
+			    sizeof(struct pdr_compid))
+				pdr_compid_to_info(&wlan->nicid,
+						  wlan->pda.pdrs[i].data);
+			break;
+		}
+	}
+}
+
+
+static void dump_pda_data(struct prism2_pda *pda)
+{
+	int i, j;
+
+	for (i = 0; i < pda->pdr_count; i++) {
+		if (pda->pdrs[i].len & 1)
+			printf("WARNING: odd PDR 0x%04x length (%d)\n",
+			       pda->pdrs[i].pdr, pda->pdrs[i].len);
+		printf("; PDR 0x%04x data len=%i %s\n",
+		       pda->pdrs[i].pdr, pda->pdrs[i].len,
+		       prism2_pdr_name(pda->pdrs[i].pdr));
+		printf("%x %04x\n",
+		       pda->pdrs[i].len / 2 + 1, pda->pdrs[i].pdr);
+		for (j = 0; j < pda->pdrs[i].len; j += 2)
+			printf("%s%02x%02x", j == 0 ? "" : " ",
+			       pda->pdrs[i].data[j + 1], pda->pdrs[i].data[j]);
+		printf("\n");
+	}
+}
+
+
 void usage(void)
 {
-	printf("Usage: prism2_srec [-vvrgfd] <interface> <srec file name> "
-	       "[srec file name]\n"
+	printf("Firmware image downloader for Host AP driver\n"
+	       "  (for Intersil Prism2/2.5/3 cards)\n"
+	       "Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>\n"
+	       "\n"
+	       "Usage:\n"
+	       "  prism2_srec [-vvrgfdpisD] [-P <PDA file>] [-O <PDA binary>] "
+	       "<interface> \\\n"
+	       "              <srec file name> [srec file name]\n"
 	       "Options:\n"
 	       "  -v   verbose (add another for more verbosity\n"
 	       "  -r   download SREC file into RAM (volatile)\n"
@@ -1523,7 +1688,17 @@ void usage(void)
 	       "  -d   dump SREC image into prism2_srec.dump\n"
 	       "  -p   persistent mode for volatile download\n"
 	       "  -i   ignore incompatible interfaces errors\n"
-	       "       Warning! This can result in failed upgrade!\n\n"
+	       "       Warning! This can result in failed upgrade!\n"
+	       "  -s   Skip PDA reading and use defaults from the firmware "
+	       "image\n"
+	       "  -D   Dump PDA in text format (this can be used without "
+	       "srec file)\n"
+	       "  -P <PDA file>   Override card PDA (with a PDA file in text "
+	       "format)\n"
+	       "       Warning! This can result in failed upgrade!\n"
+	       "  -O <PDA binary>   Override procfs path for binary PDA\n"
+	       "       Warning! This can result in failed upgrade!\n"
+	       "\n"
 	       "Options -r, -g, and -f cannot be used together.\n"
 	       "If -r, -g, or -f is not specified, image summary is shown and"
 	       "\n"
@@ -1539,7 +1714,8 @@ int main(int argc, char *argv[])
 	struct srec_data *srec, *srec2;
 	struct wlan_info wlan;
 	int opt, ret;
-	const char *iface, *srec_fname, *srec_fname2;
+	const char *iface, *srec_fname, *srec_fname2, *pda_fname = NULL,
+		*pda_procfs_override = NULL;
 	char fname[256];
 	int dump_image_data = 0;
 	int volatile_download = 0;
@@ -1548,12 +1724,10 @@ int main(int argc, char *argv[])
 	int show_after = 0;
 	int dl_mode = MODE_NO_DOWNLOAD;
 	int persistent = 0;
-
-	if (argc < 3)
-		usage();
+	int dump_pda = 0;
 
 	for (;;) {
-		opt = getopt(argc, argv, "vrgfdip");
+		opt = getopt(argc, argv, "vrgfdipsDP:O:");
 		if (opt < 0)
 			break;
 		switch (opt) {
@@ -1581,6 +1755,18 @@ int main(int argc, char *argv[])
 		case 'p':
 			persistent++;
 			break;
+		case 's':
+			skip_pda_read++;
+			break;
+		case 'D':
+			dump_pda++;
+			break;
+		case 'P':
+			pda_fname = optarg;
+			break;
+		case 'O':
+			pda_procfs_override = optarg;
+			break;
 		default:
 			usage();
 			break;
@@ -1591,23 +1777,30 @@ int main(int argc, char *argv[])
 	if (volatile_download + non_volatile_download +
 	    volatile_download_genesis > 1)
 		usage();
-	if (argc - optind != 2 && argc - optind != 3)
+	if ((!dump_pda || argc - optind != 1) && argc - optind != 2 &&
+	    argc - optind != 3)
 		usage();
 	iface = argv[optind++];
-	srec_fname = argv[optind++];
+	if (argc > optind)
+		srec_fname = argv[optind++];
+	else
+		srec_fname = NULL;
 	if (argc > optind)
 		srec_fname2 = argv[optind++];
 	else
 		srec_fname2 = NULL;
 
-	srec = read_srec(srec_fname);
-	if (srec == NULL) {
-		printf("Parsing '%s' failed.\n", srec_fname);
-		exit(1);
-	}
+	if (srec_fname) {
+		srec = read_srec(srec_fname);
+		if (srec == NULL) {
+			printf("Parsing '%s' failed.\n", srec_fname);
+			exit(1);
+		}
 
-	show_srec(srec);
-	printf("\n");
+		show_srec(srec);
+		printf("\n");
+	} else
+		srec = NULL;
 
 	if (srec_fname2) {
 		srec2 = read_srec(srec_fname2);
@@ -1638,35 +1831,65 @@ int main(int argc, char *argv[])
 			       "images.\n");
 			return 1;
 		}
+
+		/* Start STA f/w if both PRI and STA f/w are loaded */
+		srec->start_addr = srec2->start_addr;
 	} else
 		srec2 = NULL;
 
 	memset(&wlan, 0, sizeof(wlan));
+	wlan.ifname = iface;
 
-	if (read_wlan_rids(iface, &wlan)) {
+	if (srec && (!skip_pda_read || !volatile_download_genesis) &&
+	    read_wlan_rids(iface, &wlan)) {
 		printf("Could not read wlan RIDs\n");
 		exit(1);
 	}
 
+	if (skip_pda_read && non_volatile_download) {
+		printf("Skipping PDA read not allowed for non-volatile "
+		       "download.\n");
+		exit(1);
+	}
+
+	if (pda_fname && read_wlan_pda_text(pda_fname, &wlan.pda)) {
+		printf("Could not read wlan PDA from '%s'\n", pda_fname);
+		exit(1);
+	}
+
 	snprintf(fname, sizeof(fname), "/proc/net/hostap/%s/pda", iface);
-	if (read_wlan_pda(fname, &wlan.pda)) {
+	if (!pda_fname && !skip_pda_read &&
+	    read_wlan_pda(pda_procfs_override ? pda_procfs_override : fname,
+			  &wlan.pda)) {
 		printf("Could not read wlan PDA. This requires "
 		       "PRISM2_DOWNLOAD_SUPPORT definition in\n"
 		       "driver/module/hostap_config.h.\n");
 		exit(1);
 	}
 
+
+	/* If loading primary firmware, trust PDA, not the old firmware */
+	if (!skip_pda_read && srec &&
+	    (srec->component.component == HFA384X_COMP_ID_PRI)) {
+		verbose_printf("Overriding component id and supplied range "
+			       "data using PDA.\n");
+		compat_from_pda(&wlan);
+	}
+
 	show_wlan(&wlan);
 
-	printf("\nVerifying update compatibility and combining data:\n");
-	if (combine_info(&wlan, srec, srec2, dl_mode)) {
-		printf("Incompatible update data.\n");
-		exit(1);
+	if (srec) {
+		printf("\nVerifying update compatibility and combining "
+		       "data:\n");
+		if (combine_info(&wlan, srec, srec2, dl_mode)) {
+			printf("Incompatible update data.\n");
+			exit(1);
+		}
+		printf("OK.\n");
 	}
-	printf("OK.\n");
 
 	ret = 0;
-	if (volatile_download || volatile_download_genesis) {
+	if (srec && (volatile_download || volatile_download_genesis)) {
 		printf("\nDownloading to volatile memory (RAM).\n");
 		if (download_srec(iface, srec, 0, volatile_download_genesis,
 				  persistent)) {
@@ -1679,7 +1902,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (non_volatile_download) {
+	if (srec && non_volatile_download) {
 		if (srec->component.component != HFA384X_COMP_ID_STA &&
 		    srec->component.component != HFA384X_COMP_ID_PRI &&
 		    srec2 == NULL) {
@@ -1700,8 +1923,11 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (dump_image_data)
+	if (srec && dump_image_data)
 		dump_s3_data(srec, "prism2_srec.dump");
+
+	if (dump_pda)
+		dump_pda_data(&wlan.pda);
 
 	if (show_after) {
 		struct s3_info_platform id;

@@ -2,7 +2,7 @@ Host AP driver for Intersil Prism2/2.5/3
 ========================================
 
 Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
-Copyright (c) 2002-2003, Jouni Malinen
+Copyright (c) 2002-2004, Jouni Malinen
 Author: Jouni Malinen <jkmaline@cc.hut.fi>
 
 This program is free software; you can redistribute it and/or modify
@@ -18,11 +18,10 @@ This is a Linux driver for wireless LAN cards based on Intersil's
 Prism2/2.5/3 chipset. The driver supports a so called Host AP mode, i.e.,
 it takes care of IEEE 802.11 management functions in the host computer
 and acts as an access point. This does not require any special
-firmware for the wireless LAN card. In addition to this, it has some
-support for normal station operations in BSS and possible also in
-IBSS. However, the orinoco_cs driver in current 2.4 kernel tree or
-pcmcia-cs package or linux-wlan-ng is probably better supported
-solution for cases that do not use Host AP mode.
+firmware for the wireless LAN card. In addition to this, normal station
+operations in BSS (infrastructure) and in IBSS (ad hoc). Current version
+of the Host AP driver and tools supports WPA in AP (Authenticator) and
+client (Supplicant) modes.
 
 Intersil's station firmware for Prism2/2.5/3 chipset supports a so called
 Host AP mode in which the firmware takes care of time critical tasks
@@ -44,7 +43,7 @@ Distribution
 ============
 
 Before version v0.1.0, Host AP driver used to be distributed as one
-tarball. This has now been separated into three components:
+tarball. This has now been separated into four components:
 
 hostap-driver:
 	Linux driver for Intersil Prism2/2.5/3
@@ -53,18 +52,25 @@ hostap-driver:
 hostapd:
 	User space daemon for extended IEEE 802.11 management
 	IEEE 802.1X Authenticator
+	WPA/WPA2 Authenticator
 	RADIUS Authentication client
 	RADIUS Accounting client
 
-hostap-utils
+hostap-utils:
 	Utility programs for hostap-driver
+
+wpa_supplicant:
+	Additional program needed for WPA and WPA2 client operations. The
+	Supplicant is used in WPA/WPA2 key handshakes to authenticate
+	with the AP and to generate dynamic encryption keys (TKIP or
+	CCMP).
 
 See README files in each of these packages for information about the
 different components of the full Host AP software package.
 
 
-Freedback/Questions
-===================
+Feedback/Questions
+==================
 
 Any comments, reports on success/failure, ideas for further
 improvement, feature requests, etc. are welcome at jkmaline@cc.hut.fi.
@@ -100,6 +106,12 @@ This version has been successfully tested with number of different
 models, e.g., Compaq WL100 and WL200, D-Link DWL-650, and Linksys
 WPC11, but there may still be issues with some models.
 
+Some of the new Prism3-based cards use a smaller flash chip that does
+not include full firmware for the card. For example, D-Link DWL-650
+rev. P1 and D-Link DWL-520 rev. E1 are such cards. These cards require
+that the firmware is downloaded to the card during initialization. See
+utils/hostap_fw_load for example commands on doing this.
+
 If you happen to have a wireless LAN card that is based on Prism2, but
 does not seem to work with this driver, please let me know the model
 and I can try to come up with a solution for any problems. This will
@@ -123,10 +135,11 @@ it working on Alpha and Arm.
 Software
 --------
 
-This driver is developed in Linux 2.4.x and 2.6.x environment, but it
-may also work with Linux 2.2.x kernels (I have tested it few times
-with 2.2.x kernel successfully, but I'm not really used those kernel
-versions anymore so there may be some compatibility problems).
+This driver is developed in Linux 2.4.x and 2.6.x environment and may
+require the latest available kernel version. These are the only
+"officially supported" versions in the development branch of the Host
+AP driver. Older "stable branch" v0.1.x versions may be used with
+Linux 2.2.x and older 2.4.x and 2.6.x versions.
 
 PCI (hostap_pci.o) and PLX9052 (hostap_plx.o) versions require at
 least Linux kernel version 2.4.x for their PCI initialization
@@ -144,10 +157,10 @@ Systems using kernel tree PCMCIA modules:
 'Makefile' includes commands for compiling and installing Host AP
 driver for systems using kernel tree PCMCIA support (i.e., kernel
 modules are not compiled with external pcmcia-cs package). Edit
-KERNEL_PATH in Makefile to match your system. Run 'make pccard' (this
+KERNEL_PATH in Makefile to match your system. Run 'make' (this
 compiles the sources; this step can be run as non-root user). After
 the compilation has finished, you can install hostap_cs.o by running
-'make install_pccard' (as root). You will then need to restart cardmgr
+'make install' (as root). You will then need to restart cardmgr
 to load new configuration from /etc/pcmcia/hostap_cs.conf.
 
 
@@ -178,10 +191,10 @@ PC Cards in PLX9052 adapter	hostap_plx.o
 driver for systems using PLX9052-based PCI adapters for PC Cards.
 These cards do not use pcmcia-cs package and hostap_plx.o is used to
 also initialize the PCI parts of such setup. Edit KERNEL_PATH in
-Makefile to match your system. Run 'make plx' (this compiles the
+Makefile to match your system. Run 'make' (this compiles the
 sources; this step can be run as non-root user). After the compilation
 has finished, you can install hostap_plx.o by running 'make
-install_plx' (as root). You can probe PCI bus for PLX9052 adapters and
+install' (as root). You can probe PCI bus for PLX9052 adapters and
 initialize the devices by loading the module ('modprobe hostap_plx').
 
 PCI cards based on Prism2.5/3	hostap_pci.o
@@ -190,9 +203,9 @@ PCI cards based on Prism2.5/3	hostap_pci.o
 'Makefile' includes commands for compiling and installing Host AP
 driver for systems using Prism2.5/3-based PCI cards. These cards do not
 use pcmcia-cs package. Edit KERNEL_PATH in Makefile to match your
-system. Run 'make pci' (this compiles the sources; this step can be
+system. Run 'make' (this compiles the sources; this step can be
 run as non-root user). After the compilation has finished, you can
-install hostap_pci.o by running 'make install_pci' (as root). You can
+install hostap_pci.o by running 'make install' (as root). You can
 probe PCI bus for Prism2.5/3 PCI cards and initialize the devices by loading
 the module ('modprobe hostap_pci').
 
@@ -227,6 +240,21 @@ initialize any PC Card in PLX adapter as Prism2). If you have a card
 that works with the driver after adding its manfid to the table,
 please let me know the card manufacturer, model, and the manfid
 numbers so that I can include them in the next release of the driver.
+
+Unlike most Linux network drivers, Host AP driver creates multiple
+network devices. wifi0 (or wifi# if you have multiple cards) is the
+"master interface" for the radio device. It uses IEEE 802.11 headers
+and is used internally by the driver to process frames to and from
+other interfaces. wlan0 is the default data interface. It is the
+interface that is used in most configurations, e.g., it is configured
+with an IP address and iwconfig commands can be used with it. When
+using WDS, each link will create a new virtual device (wlan0wds0).
+
+Please note that the current driver version enables the Prism2/2.5/3
+card only when at least one of the interfaces is set up (e.g., with
+'ifconfig wlan0 up'). The device is disabled when all interfaces are
+set down. This means that the card will not associate (in client mode)
+with an AP before at least one of the interfaces is set up.
 
 The driver supports Linux Wireless Extensions and certain configuration
 items can be viewed and changed with iwconfig(8) and iwpriv(8) from
@@ -423,14 +451,15 @@ oper_rates: operational transmit rate bitmap
 hostapd: hostapd mode configuration
 	0 = use kernel driver for IEEE 802.11 management
 	1 = use user space daemon, hostapd, for IEEE 802.11 management
+hostapd_sta: hostapd mode configuration
+	0 = no extra STA interface
+	1 = use hostapd to control extra STA interface (wlan#sta)
 
 
 Following parameters are for debug use only;
 do not use unless you are sure what you are doing!
 
-ptype: port type (0=IBSS, 1=BSS, 2=WDS, 3=PseudoIBSS, 6=HostAP)
 alc: 0=disabled ALC, 1=enable ALC (automatic level control)
-txpower: TX power (normally, 'iwconfig wlan# txpower <arg>' is used)
 
 
 Bridging between wireless and wired networks
@@ -750,13 +779,22 @@ individual keys or other algorithms) must use separate tool,
 utils/hostap_crypt_conf. See hostap-utils package for more instructions
 on how to use that tool.
 
+TKIP (WEP with per packet keys and Michael MIC, hostap_crypt_tkip.o)
+and CCMP (AES-CCM, hostap_crypt_ccmp.o) are used with WPA. These
+algorithms require host-based encryption and decryption because the
+Prism2/2.5/3 firmware does not support them. hostapd and wpa_supplicant
+can be used to negotiate encryption keys for TKIP/CCMP when operating in
+station mode. In addition, these algorithms can be used on WDS
+links. Static TKIP/CCMP keys can be set with hostap_crypt_conf.
+
 
 IEEE 802.1X
 ===========
 
-See separate hostapd package for IEEE 802.1X support. hostapd can be
-used with Host AP driver to implement IEEE 802.1X Authenticator with
-support for dynamic WEP keying.
+See separate hostapd package for IEEE 802.1X and WPA/WPA2
+support. hostapd can be used with Host AP driver to implement IEEE
+802.1X Authenticator with support for dynamic WEP keying and IEEE
+802.11i (WPA/WPA2) with TKIP/CCMP encryption.
 
 
 Roaming in station mode

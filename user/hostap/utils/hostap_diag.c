@@ -1,6 +1,6 @@
 /*
  * Wireless LAN card diagnostics tool for Host AP kernel driver
- * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -113,6 +113,7 @@ static struct {
 	RID(CNFENHSECURITY, RID_WORD),
 	RID(CNFDBMADJUST, RID_WORD),
 	RID(GENERICELEMENT, RID_HEXDUMP),
+	RID(PROPAGATIONDELAY, RID_WORD),
 	RID(GROUPADDRESSES, RID_HEXDUMP),
 	RID(CREATEIBSS, RID_WORD),
 	RID(FRAGMENTATIONTHRESHOLD, RID_WORD),
@@ -160,6 +161,9 @@ static struct {
 	RID(CAPINFO, RID_WORD),
 	RID(LISTENINTERVAL, RID_WORD),
 	RID(SW_ANT_DIV, RID_HEXDUMP),
+	RID(LED_CTRL, RID_HEXDUMP),
+	RID(HFODELAY, RID_WORD),
+	RID(DISALLOWEDBSSID, RID_HEXDUMP),
 	RID(TICKTIME, RID_WORD),
 	RID(SCANREQUEST, RID_HEXDUMP),
 	RID(JOINREQUEST, RID_HEXDUMP),
@@ -212,6 +216,7 @@ static struct {
 	RID(HOSTSCANRESULTS, RID_HEXDUMP),
 	RID(AUTHENTICATIONUSED, RID_HEXDUMP),
 	RID(CNFFAASWITCHCTRL, RID_WORD),
+	RID(ASSOCIATIONFAILURE, RID_HEXDUMP),
 	RID(PHYTYPE, RID_WORD),
 	RID(CURRENTCHANNEL, RID_WORD),
 	RID(CURRENTPOWERSTATE, RID_WORD),
@@ -806,88 +811,6 @@ static void diag_show_bbp(const char *dev)
 		if (res & BIT(0))
 			printf("    not used\n");
 	}
-}
-
-
-static const char * prism2_pdr_name(int pdr) {
-	switch (pdr) {
-	case 0x0000:
-		return "PDA End Record";
-	case 0x0001:
-		return "Platform name / Manufacturing part number";
-	case 0x0002:
-		return "PDA Version Record";
-	case 0x0003:
-		return "NIC Serial Number";
-	case 0x0005:
-		return "NIC RAM Size";
-	case 0x0006:
-		return "RF Modem Supplier Range";
-	case 0x0007:
-		return "MAC Controller Supplier Range";
-	case 0x0008:
-		return "NIC ID (component ID)";
-	case 0x0101:
-		return "MAC Address";
-	case 0x0103:
-		return "Regulatory Domain List";
-	case 0x0104:
-		return "Allowed Channel Set/Active Channel List";
-	case 0x0105:
-		return "Default Channel";
-	case 0x0107:
-		return "Temperature Type";
-	case 0x0200:
-		return "IFR Setting";
-	case 0x0201:
-		return "RFR Setting";
-	case 0x0202:
-		return "3861 Baseline Register Settings";
-	case 0x0203:
-		return "3861 Shadow Register Settings";
-	case 0x0204:
-		return "3861 IF/RF Register Settings";
-	case 0x0300:
-		return "3861 Channel Calibration Set Point";
-	case 0x0301:
-		return "3861 Channel Calibration Integrator";
-	case 0x0302:
-		return "Maximum Radio TX Power";
-	case 0x0303:
-		return "Scannable/Master Channel List";
-	case 0x0400:
-		return "3842 PRISM II NIC Configuration";
-	case 0x0401:
-		return "PRISM USB Identifier";
-	case 0x0402:
-		return "PRISM PCI Identifier";
-	case 0x0403:
-		return "PRISM PCI Interface Configuration";
-	case 0x0404:
-		return "PRISM PCI PM Configuration";
-	case 0x0405:
-		return "ZIF Synthesizer Settings";
-	case 0x0406:
-		return "RSSI-to-dBm Conversion Constant";
-	case 0x0407:
-		return "USB Power Type";
-	case 0x0409:
-		return "PRISM USB Max Power";
-	case 0x0410:
-		return "USB Manufacture String";
-	case 0x0411:
-		return "USB Product String";
-	case 0x0412:
-		return "SW Diversity Control";
-	case 0x0413:
-		return "HFO Delay";
-	case 0x0900:
-		return "3861 Manufacturing Test Channel Set Points";
-	case 0x0901:
-		return "Manufacturing Test Channel Integrators";
-	}
-
-	return "";
 }
 
 

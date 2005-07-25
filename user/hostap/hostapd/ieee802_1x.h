@@ -43,7 +43,8 @@ struct ieee802_1x_eapol_key {
 	 * RC4 key used in encryption = Key-IV + MS-MPPE-Recv-Key */
 } __attribute__ ((packed));
 
-enum { EAPOL_KEY_TYPE_RC4 = 1 };
+enum { EAPOL_KEY_TYPE_RC4 = 1, EAPOL_KEY_TYPE_RSN = 2,
+       EAPOL_KEY_TYPE_WPA = 254 };
 
 
 /* RFC 2284 - PPP Extensible Authentication Protocol (EAP) */
@@ -92,6 +93,17 @@ void ieee802_1x_dump_state(FILE *f, const char *prefix, struct sta_info *sta);
 int ieee802_1x_init(hostapd *hapd);
 void ieee802_1x_deinit(hostapd *hapd);
 void ieee802_1x_new_auth_session(hostapd *hapd, struct sta_info *sta);
-
+int ieee802_1x_tx_status(hostapd *hapd, struct sta_info *sta, u8 *buf,
+			 size_t len, int ack);
+u8 * ieee802_1x_get_identity(struct eapol_state_machine *sm, size_t *len);
+u8 * ieee802_1x_get_radius_class(struct eapol_state_machine *sm, size_t *len);
+u8 * ieee802_1x_get_key_crypt(struct eapol_state_machine *sm, size_t *len);
+void ieee802_1x_notify_port_enabled(struct eapol_state_machine *sm,
+				    int enabled);
+void ieee802_1x_notify_port_valid(struct eapol_state_machine *sm,
+				  int valid);
+void ieee802_1x_notify_key_available(struct eapol_state_machine *sm,
+				     int available);
+void ieee802_1x_notify_pre_auth(struct eapol_state_machine *sm, int pre_auth);
 
 #endif /* IEEE802_1X_H */

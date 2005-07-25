@@ -13,12 +13,9 @@ the GNU General Public License, version 2, 1991.
 /* Zortech C++ under MSDOS */
 
 /* $Log$
- * Revision 1.1  2004/07/19 13:09:05  lgsoft
- * Initial revision
+ * Revision 1.2  2005/07/25 04:03:16  magicyang
+ * New user folder check in
  *
-/* Revision 1.1.1.1  2004/07/18 13:27:45  nidhi
-/* Importing
-/*
  * Revision 1.3  1994/10/08  19:12:08  mike
  * SET_PROGNAME
  *

@@ -1,7 +1,7 @@
 /*
  * Host AP (software wireless LAN access point) user space daemon for
  * Host AP kernel driver / IEEE 802.11 authentication (ACL)
- * Copyright (c) 2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2004, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -33,6 +33,7 @@ struct hostapd_cached_radius_acl {
 	int accepted; /* HOSTAPD_ACL_* */
 	struct hostapd_cached_radius_acl *next;
 	u32 session_timeout;
+	u32 acct_interim_interval;
 };
 
 
@@ -58,7 +59,9 @@ static void hostapd_acl_cache_free(struct hostapd_cached_radius_acl *acl_cache)
 }
 
 
-static int hostapd_acl_cache_get(hostapd *hapd, u8 *addr, u32 *session_timeout)
+static int hostapd_acl_cache_get(struct hostapd_data *hapd, u8 *addr,
+				 u32 *session_timeout,
+				 u32 *acct_interim_interval)
 {
 	struct hostapd_cached_radius_acl *entry;
 	time_t now;
@@ -72,6 +75,7 @@ static int hostapd_acl_cache_get(hostapd *hapd, u8 *addr, u32 *session_timeout)
 				return -1; /* entry has expired */
 			if (entry->accepted == HOSTAPD_ACL_ACCEPT_TIMEOUT)
 				*session_timeout = entry->session_timeout;
+			*acct_interim_interval = entry->acct_interim_interval;
 			return entry->accepted;
 		}
 
@@ -125,6 +129,14 @@ static int hostapd_radius_acl_query(hostapd *hapd, u8 *addr,
 		goto fail;
 	}
 
+	if (hapd->conf->nas_identifier &&
+	    !radius_msg_add_attr(msg, RADIUS_ATTR_NAS_IDENTIFIER,
+				 hapd->conf->nas_identifier,
+				 strlen(hapd->conf->nas_identifier))) {
+		printf("Could not add NAS-Identifier\n");
+		goto fail;
+	}
+
 	snprintf(buf, sizeof(buf), RADIUS_802_1X_ADDR_FORMAT ":%s",
 		 MAC2STR(hapd->own_addr), hapd->conf->ssid);
 	if (!radius_msg_add_attr(msg, RADIUS_ATTR_CALLED_STATION_ID,
@@ -154,7 +166,7 @@ static int hostapd_radius_acl_query(hostapd *hapd, u8 *addr,
 		goto fail;
 	}
 
-	radius_client_send(hapd, msg, RADIUS_AUTH);
+	radius_client_send(hapd, msg, RADIUS_AUTH, addr);
 	return 0;
 
  fail:
@@ -165,26 +177,30 @@ static int hostapd_radius_acl_query(hostapd *hapd, u8 *addr,
 
 
 int hostapd_allowed_address(hostapd *hapd, u8 *addr, u8 *msg, size_t len,
-			    u32 *session_timeout)
+			    u32 *session_timeout, u32 *acct_interim_interval)
 {
+	*session_timeout = 0;
+	*acct_interim_interval = 0;
+
 	if (hostapd_maclist_found(hapd->conf->accept_mac,
 				  hapd->conf->num_accept_mac, addr))
-		return 1;
+		return HOSTAPD_ACL_ACCEPT;
 
 	if (hostapd_maclist_found(hapd->conf->deny_mac,
 				  hapd->conf->num_deny_mac, addr))
-		return 0;
+		return HOSTAPD_ACL_REJECT;
 
 	if (hapd->conf->macaddr_acl == ACCEPT_UNLESS_DENIED)
-		return 1;
+		return HOSTAPD_ACL_ACCEPT;
 	if (hapd->conf->macaddr_acl == DENY_UNLESS_ACCEPTED)
-		return 0;
+		return HOSTAPD_ACL_REJECT;
 
 	if (hapd->conf->macaddr_acl == USE_EXTERNAL_RADIUS_AUTH) {
 		struct hostapd_acl_query_data *query;
 
 		/* Check whether ACL cache has an entry for this station */
-		int res = hostapd_acl_cache_get(hapd, addr, session_timeout);
+		int res = hostapd_acl_cache_get(hapd, addr, session_timeout,
+						acct_interim_interval);
 		if (res == HOSTAPD_ACL_ACCEPT ||
 		    res == HOSTAPD_ACL_ACCEPT_TIMEOUT)
 			return res;
@@ -236,7 +252,7 @@ int hostapd_allowed_address(hostapd *hapd, u8 *addr, u8 *msg, size_t len,
 		return HOSTAPD_ACL_PENDING;
 	}
 
-	return 0;
+	return HOSTAPD_ACL_REJECT;
 }
 
 
@@ -365,6 +381,18 @@ hostapd_acl_recv_radius(hostapd *hapd,
 			cache->accepted = HOSTAPD_ACL_ACCEPT_TIMEOUT;
 		else
 			cache->accepted = HOSTAPD_ACL_ACCEPT;
+
+		if (radius_msg_get_attr_int32(
+			    msg, RADIUS_ATTR_ACCT_INTERIM_INTERVAL,
+			    &cache->acct_interim_interval) == 0 &&
+		    cache->acct_interim_interval < 60) {
+			HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "Ignored too "
+				      "small Acct-Interim-Interval %d for "
+				      "STA " MACSTR "\n",
+				      cache->acct_interim_interval,
+				      MAC2STR(query->addr));
+			cache->acct_interim_interval = 0;
+		}
 	} else
 		cache->accepted = HOSTAPD_ACL_REJECT;
 	cache->next = hapd->acl_cache;

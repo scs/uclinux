@@ -3,7 +3,6 @@
  * Copyright (C) 1998 Adtran, Inc.
  * Copyright (C) 2002 Jeff McAdams
  *
- *
  * Mark Spencer
  *
  * This software is distributed under the terms

@@ -97,11 +97,7 @@ static void handle_data(hostapd *hapd, char *buf, size_t len, u16 stype)
 	left -= 2;
 	switch (ethertype) {
 	case ETH_P_PAE:
-		if (hapd->conf->ieee802_1x)
-			ieee802_1x_receive(hapd, sa, pos, left);
-		else
-			printf("IEEE 802.1X is not configured to be used - "
-			       "dropping packet\n");
+		ieee802_1x_receive(hapd, sa, pos, left);
 		break;
 
 	default:
@@ -145,6 +141,8 @@ static void handle_tx_callback(hostapd *hapd, char *buf, size_t len, int ok)
 			if (ok)
 				sta->flags &= ~WLAN_STA_PENDING_POLL;
 		}
+		if (sta)
+			ieee802_1x_tx_status(hapd, sta, buf, len, ok);
 		break;
 	default:
 		printf("unknown TX callback frame type %d\n", type);
@@ -164,12 +162,24 @@ static void handle_frame(hostapd *hapd, char *buf, size_t len)
 	/* PSPOLL is only 16 bytes, but driver does not (at least yet) pass
 	 * these to user space */
 	if (len < 24) {
-		printf("handle_frame: too short (%d)\n", len);
+		HOSTAPD_DEBUG(HOSTAPD_DEBUG_VERBOSE, "handle_frame: too short "
+			      "(%d)\n", len);
 		return;
 	}
 
 	hdr = (struct ieee80211_hdr *) buf;
 	fc = le_to_host16(hdr->frame_control);
+	type = WLAN_FC_GET_TYPE(fc);
+	stype = WLAN_FC_GET_STYPE(fc);
+
+	if (type != WLAN_FC_TYPE_MGMT || stype != WLAN_FC_STYPE_BEACON ||
+	    hapd->conf->debug >= HOSTAPD_DEBUG_EXCESSIVE) {
+		HOSTAPD_DEBUG(HOSTAPD_DEBUG_VERBOSE,
+			      "Received %d bytes management frame\n", len);
+		if (HOSTAPD_DEBUG_COND(HOSTAPD_DEBUG_MSGDUMPS)) {
+			hostapd_hexdump("RX frame", buf, len);
+		}
+	}
 
 	ver = fc & WLAN_FC_PVER;
 
@@ -177,9 +187,8 @@ static void handle_frame(hostapd *hapd, char *buf, size_t len)
 	 * payload, version 2 for indicating ACKed frame (TX callbacks), and
 	 * version 1 for indicating failed frame (no ACK, TX callbacks) */
 	if (ver == 3) {
-		u16 *elen;
-		elen = (u16 *) (buf + len - 1);
-		extra_len = le_to_host16(*elen);
+		u8 *pos = buf + len - 2;
+		extra_len = (u16) pos[1] << 8 | pos[0];
 		printf("extra data in frame (elen=%d)\n", extra_len);
 		if (extra_len + 2 > len) {
 			printf("  extra data overflow\n");
@@ -195,12 +204,11 @@ static void handle_frame(hostapd *hapd, char *buf, size_t len)
 		return;
 	}
 
-	type = WLAN_FC_GET_TYPE(fc);
-	stype = WLAN_FC_GET_STYPE(fc);
-
 	switch (type) {
 	case WLAN_FC_TYPE_MGMT:
-		HOSTAPD_DEBUG(HOSTAPD_DEBUG_VERBOSE, "MGMT\n");
+		HOSTAPD_DEBUG(stype == WLAN_FC_STYPE_BEACON ?
+			      HOSTAPD_DEBUG_EXCESSIVE : HOSTAPD_DEBUG_VERBOSE,
+			      "MGMT\n");
 		ieee802_11_mgmt(hapd, buf, data_len, stype);
 		break;
 	case WLAN_FC_TYPE_CTRL:
@@ -228,45 +236,37 @@ static void handle_read(int sock, void *eloop_ctx, void *sock_ctx)
 		perror("recv");
 		return;
 	}
-	HOSTAPD_DEBUG(HOSTAPD_DEBUG_VERBOSE,
-		      "Received %d bytes management frame\n", len);
-	if (HOSTAPD_DEBUG_COND(HOSTAPD_DEBUG_MSGDUMPS)) {
-		int i;
-		printf("  dump:");
-		for (i = 0; i < len; i++)
-			printf(" %02x", buf[i]);
-		printf("\n");
-	}
 
 	handle_frame(hapd, buf, len);
 }
 
 
-int hostapd_init_sockets(hostapd *hapd)
+int hostapd_init_sockets(struct hostap_driver_data *drv)
 {
-        struct ifreq ifr;
+	struct hostapd_data *hapd = drv->hapd;
+	struct ifreq ifr;
 	struct sockaddr_ll addr;
 
-	hapd->sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-	if (hapd->sock < 0) {
+	drv->sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+	if (drv->sock < 0) {
 		perror("socket[PF_PACKET,SOCK_RAW]");
 		return -1;
 	}
 
-	if (eloop_register_read_sock(hapd->sock, handle_read, hapd, NULL)) {
+	if (eloop_register_read_sock(drv->sock, handle_read, drv->hapd, NULL))
+	{
 		printf("Could not register read socket\n");
 		return -1;
 	}
 
         memset(&ifr, 0, sizeof(ifr));
-        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%sap",
-		 hapd->conf->iface);
-        if (ioctl(hapd->sock, SIOCGIFINDEX, &ifr) != 0) {
+        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%sap", drv->iface);
+        if (ioctl(drv->sock, SIOCGIFINDEX, &ifr) != 0) {
 		perror("ioctl(SIOCGIFINDEX)");
 		return -1;
         }
 
-	if (hostapd_set_iface_flags(hapd, 1)) {
+	if (hostapd_set_iface_flags(drv, 1)) {
 		return -1;
 	}
 
@@ -277,14 +277,14 @@ int hostapd_init_sockets(hostapd *hapd)
 		      "Opening raw packet socket for ifindex %d\n",
 		      addr.sll_ifindex);
 
-	if (bind(hapd->sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+	if (bind(drv->sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
 		perror("bind");
 		return -1;
 	}
 
         memset(&ifr, 0, sizeof(ifr));
-        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", hapd->conf->iface);
-        if (ioctl(hapd->sock, SIOCGIFHWADDR, &ifr) != 0) {
+        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", drv->iface);
+        if (ioctl(drv->sock, SIOCGIFHWADDR, &ifr) != 0) {
 		perror("ioctl(SIOCGIFHWADDR)");
 		return -1;
         }
@@ -294,7 +294,7 @@ int hostapd_init_sockets(hostapd *hapd)
 		       ifr.ifr_hwaddr.sa_family);
 		return -1;
 	}
-	memcpy(hapd->own_addr, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
+	memcpy(drv->hapd->own_addr, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
 
 	return 0;
 }

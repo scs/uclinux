@@ -3,7 +3,7 @@
 # export-objs was removed in Linux 2.5.60
 # export-objs := hostap.o ## hostap_crypt.o
 
-obj-m += hostap.o hostap_crypt_wep.o
+obj-m += hostap.o hostap_crypt_wep.o hostap_crypt_tkip.o hostap_crypt_ccmp.o
 ## obj-m += hostap_crypt.o
 obj-m += hostap_cs.o
 obj-m += hostap_plx.o
@@ -16,6 +16,8 @@ include $(TOPDIR)/Rules.make
 ifdef CONFIG_MODVERSIONS
 
 VERFILES=hostap.ver ## hostap_crypt.ver
+hostap_crypt_ccmp.o: $(VERFILES)
+hostap_crypt_tkip.o: $(VERFILES)
 hostap_crypt_wep.o: $(VERFILES)
 hostap.o: $(VERFILES)
 hostap_cs.o: $(VERFILES)

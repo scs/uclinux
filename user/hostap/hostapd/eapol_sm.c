@@ -1,7 +1,7 @@
 /*
  * Host AP (software wireless LAN access point) user space daemon for
  * Host AP kernel driver / IEEE 802.1X Authenticator - EAPOL state machine
- * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,6 +20,8 @@
 #include "ieee802_1x.h"
 #include "eapol_sm.h"
 #include "eloop.h"
+#include "wpa.h"
+#include "sta_info.h"
 
 /* TODO:
  * implement state machines: Controlled Directions and Key Receive
@@ -57,7 +59,7 @@ static void sm_ ## machine ## _ ## state ## _Enter(struct eapol_state_machine \
 sm->_data.state = machine ## _ ## _state; \
 if (sm->hapd->conf->debug >= HOSTAPD_DEBUG_MINIMAL) \
 	printf("IEEE 802.1X: " MACSTR " " #machine " entering state " #_state \
-		"\n", MAC2STR(sm->sta->addr));
+		"\n", MAC2STR(sm->addr));
 
 #define SM_ENTER(machine, state) sm_ ## machine ## _ ## state ## _Enter(sm)
 
@@ -86,7 +88,7 @@ static void eapol_port_timers_tick(void *eloop_ctx, void *timeout_ctx)
 
 	if (state->hapd->conf->debug >= HOSTAPD_DEBUG_MSGDUMPS)
 		printf("IEEE 802.1X: " MACSTR " Port Timers TICK "
-		       "(timers: %d %d %d %d)\n", MAC2STR(state->sta->addr),
+		       "(timers: %d %d %d %d)\n", MAC2STR(state->addr),
 		       state->aWhile, state->quietWhile, state->reAuthWhen,
 		       state->txWhen);
 
@@ -130,6 +132,8 @@ SM_STATE(AUTH_PAE, DISCONNECTED)
 	if (!from_initialize) {
 		txCannedFail(sm->currentId);
 		sm->currentId++;
+		if (sm->flags & EAPOL_SM_PREAUTH)
+			rsn_preauth_finished(sm->hapd, sm->sta, 0);
 	}
 }
 
@@ -172,8 +176,10 @@ SM_STATE(AUTH_PAE, HELD)
 	sm->auth_pae.eapLogoff = FALSE;
 	sm->currentId++;
 
-	hostapd_logger(sm->hapd, sm->sta->addr, HOSTAPD_MODULE_IEEE8021X,
+	hostapd_logger(sm->hapd, sm->addr, HOSTAPD_MODULE_IEEE8021X,
 		       HOSTAPD_LEVEL_WARNING, "authentication failed");
+	if (sm->flags & EAPOL_SM_PREAUTH)
+		rsn_preauth_finished(sm->hapd, sm->sta, 0);
 }
 
 
@@ -188,8 +194,10 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
 	setPortAuthorized();
 	sm->auth_pae.reAuthCount = 0;
 	sm->currentId++;
-	hostapd_logger(sm->hapd, sm->sta->addr, HOSTAPD_MODULE_IEEE8021X,
+	hostapd_logger(sm->hapd, sm->addr, HOSTAPD_MODULE_IEEE8021X,
 		       HOSTAPD_LEVEL_INFO, "authenticated");
+	if (sm->flags & EAPOL_SM_PREAUTH)
+		rsn_preauth_finished(sm->hapd, sm->sta, 1);
 }
 
 
@@ -205,6 +213,8 @@ SM_STATE(AUTH_PAE, AUTHENTICATING)
 	sm->authFail = FALSE;
 	sm->authTimeout = FALSE;
 	sm->authStart = TRUE;
+	sm->keyRun = FALSE;
+	sm->keyDone = FALSE;
 }
 
 
@@ -224,6 +234,8 @@ SM_STATE(AUTH_PAE, ABORTING)
 	SM_ENTRY(AUTH_PAE, ABORTING, auth_pae);
 
 	sm->authAbort = TRUE;
+	sm->keyRun = FALSE;
+	sm->keyDone = FALSE;
 	sm->currentId++;
 }
 
@@ -303,7 +315,8 @@ SM_STEP(AUTH_PAE)
 		case AUTH_PAE_AUTHENTICATING:
 			if (sm->authSuccess && sm->portValid)
 				SM_ENTER(AUTH_PAE, AUTHENTICATED);
-			else if (sm->authFail)
+			else if (sm->authFail ||
+				 (sm->keyDone && !sm->portValid))
 				SM_ENTER(AUTH_PAE, HELD);
 			else if (sm->reAuthenticate || sm->auth_pae.eapStart ||
 				 sm->auth_pae.eapLogoff ||
@@ -374,6 +387,7 @@ SM_STATE(BE_AUTH, SUCCESS)
 	sm->currentId = sm->be_auth.idFromServer;
 	txReq(sm->currentId);
 	sm->authSuccess = TRUE;
+	sm->keyRun = TRUE;
 }
 
 
@@ -382,7 +396,10 @@ SM_STATE(BE_AUTH, FAIL)
 	SM_ENTRY(BE_AUTH, FAIL, be_auth);
 
 	sm->currentId = sm->be_auth.idFromServer;
-	txReq(sm->currentId);
+	if (sm->last_eap_radius == NULL)
+		txCannedFail(sm->currentId);
+	else
+		txReq(sm->currentId);
 	sm->authFail = TRUE;
 }
 
@@ -476,6 +493,7 @@ SM_STATE(REAUTH_TIMER, REAUTHENTICATE)
 	SM_ENTRY(REAUTH_TIMER, REAUTHENTICATE, reauth_timer);
 
 	sm->reAuthenticate = TRUE;
+	wpa_sm_event(sm->hapd, sm->sta, WPA_REAUTH_EAPOL);
 }
 
 
@@ -515,6 +533,7 @@ SM_STATE(AUTH_KEY_TX, KEY_TRANSMIT)
 
 	txKey(sm->currentId);
 	sm->keyAvailable = FALSE;
+	sm->keyDone = TRUE;
 }
 
 
@@ -527,20 +546,12 @@ SM_STEP(AUTH_KEY_TX)
 
 	switch (sm->auth_key_tx.state) {
 	case AUTH_KEY_TX_NO_KEY_TRANSMIT:
-		/* NOTE! IEEE 802.1aa/D4 does has this requirement as
-		 * keyTxEnabled && keyAvailable && authSuccess. However, this
-		 * seems to be conflicting with BE_AUTH sm, since authSuccess
-		 * is now set only if keyTxEnabled is true and there are no
-		 * keys to be sent.. I think the purpose is to sent the keys
-		 * first and report authSuccess only after this and adding OR
-		 * be_auth.aSuccess does this. */
-		if (sm->keyTxEnabled && sm->keyAvailable &&
-		    (sm->authSuccess /* || sm->be_auth.aSuccess */))
+		if (sm->keyTxEnabled && sm->keyAvailable && sm->keyRun &&
+		    !sm->sta->wpa)
 			SM_ENTER(AUTH_KEY_TX, KEY_TRANSMIT);
 		break;
 	case AUTH_KEY_TX_KEY_TRANSMIT:
-		if (!sm->keyTxEnabled || sm->authFail ||
-		    sm->auth_pae.eapLogoff)
+		if (!sm->keyTxEnabled || !sm->keyRun)
 			SM_ENTER(AUTH_KEY_TX, NO_KEY_TRANSMIT);
 		else if (sm->keyAvailable)
 			SM_ENTER(AUTH_KEY_TX, KEY_TRANSMIT);
@@ -561,6 +572,10 @@ eapol_sm_alloc(hostapd *hapd, struct sta_info *sta)
 		return NULL;
 	}
 	memset(sm, 0, sizeof(*sm));
+	sm->radius_identifier = -1;
+	memcpy(sm->addr, sta->addr, ETH_ALEN);
+	if (sta->flags & WLAN_STA_PREAUTH)
+		sm->flags |= EAPOL_SM_PREAUTH;
 
 	sm->hapd = hapd;
 	sm->sta = sta;
@@ -586,10 +601,15 @@ eapol_sm_alloc(hostapd *hapd, struct sta_info *sta)
 
 	/* IEEE 802.1aa/D4 */
 	sm->keyAvailable = FALSE;
-	sm->keyTxEnabled = (hapd->default_wep_key ||
-			    hapd->conf->individual_wep_key_len > 0) ?
-		TRUE : FALSE;
-	sm->portValid = TRUE; /* TODO: should this be FALSE sometimes? */
+	if (!hapd->conf->wpa &&
+	    (hapd->default_wep_key || hapd->conf->individual_wep_key_len > 0))
+		sm->keyTxEnabled = TRUE;
+	else
+		sm->keyTxEnabled = FALSE;
+	if (hapd->conf->wpa)
+		sm->portValid = FALSE;
+	else
+		sm->portValid = TRUE;
 
 	eapol_sm_initialize(sm);
 
@@ -608,14 +628,27 @@ void eapol_sm_free(struct eapol_state_machine *sm)
 }
 
 
+static int eapol_sm_sta_entry_alive(struct hostapd_data *hapd, u8 *addr)
+{
+	struct sta_info *sta;
+	sta = ap_get_sta(hapd, addr);
+	if (sta == NULL || sta->eapol_sm == NULL)
+		return 0;
+	return 1;
+}
+
+
 void eapol_sm_step(struct eapol_state_machine *sm)
 {
+	struct hostapd_data *hapd = sm->hapd;
+	u8 addr[6];
 	int prev_auth_pae, prev_be_auth, prev_reauth_timer, prev_auth_key_tx;
 
 	/* FIX: could re-run eapol_sm_step from registered timeout (after
 	 * 0 sec) to make sure that other possible timeouts/events are
 	 * processed */
 
+	memcpy(addr, sm->sta->addr, 6);
 	do {
 		prev_auth_pae = sm->auth_pae.state;
 		prev_be_auth = sm->be_auth.state;
@@ -623,13 +656,24 @@ void eapol_sm_step(struct eapol_state_machine *sm)
 		prev_auth_key_tx = sm->auth_key_tx.state;
 
 		SM_STEP_RUN(AUTH_PAE);
+		if (!eapol_sm_sta_entry_alive(hapd, addr))
+			break;
 		SM_STEP_RUN(BE_AUTH);
+		if (!eapol_sm_sta_entry_alive(hapd, addr))
+			break;
 		SM_STEP_RUN(REAUTH_TIMER);
+		if (!eapol_sm_sta_entry_alive(hapd, addr))
+			break;
 		SM_STEP_RUN(AUTH_KEY_TX);
+		if (!eapol_sm_sta_entry_alive(hapd, addr))
+			break;
 	} while (prev_auth_pae != sm->auth_pae.state ||
 		 prev_be_auth != sm->be_auth.state ||
 		 prev_reauth_timer != sm->reauth_timer.state ||
 		 prev_auth_key_tx != sm->auth_key_tx.state);
+
+	if (eapol_sm_sta_entry_alive(hapd, addr))
+		wpa_sm_notify(sm->hapd, sm->sta);
 }
 
 
@@ -752,6 +796,8 @@ void eapol_sm_dump_state(FILE *f, const char *prefix,
 	fprintf(f, "%s  keyAvailable=%s keyTxEnabled=%s portValid=%s\n",
 		prefix, _SB(sm->keyAvailable), _SB(sm->keyTxEnabled),
 		_SB(sm->portValid));
+	fprintf(f, "%s  keyRun=%s keyDone=%s\n",
+		prefix, _SB(sm->keyRun), _SB(sm->keyDone));
 
 	fprintf(f, "%s  Authenticator PAE:\n"
 		"%s    state=%s\n"

@@ -1,8 +1,101 @@
 ChangeLog for Host AP driver for Intersil Prism2/2.5/3
 
-2003-11-02 - v0.1.2
+2004-10-03 - v0.2.5
+	* fixed card enabling after firmware download in case any of the
+	  netdevs were up when the download was started
+	* fixed netif_carrier_on/off() calls to leave carrier on for Master
+	  mode; previously this may have been left off in some cases which
+	  could prevent packet bridging with new kernel versions
+
+2004-07-17 - v0.2.4 (beginning of 0.2.x stable releases)
+	* fixed wlan#/wifi# interface packet counters (both are supposed to see
+	  data packets once; wlan# was counting TX twice and wifi# did not
+	  count TX or RX at all for most cases)
+	* fixed compilation with PRISM2_NO_STATION_MODES defined
+	* fixed MAC address changing to update address for wifi# interface
+	  (without this, at least Master mode did not work correctly when MAC
+	  address was changed for wlan#)
+	* fixed inner-BSS bridge (ap_bridge_packets=1) not to bridge packets
+	  to unauthorized ports when IEEE 802.1X/WPA is used (i.e., require
+	  that the STA completes authentication before capturing packets in
+	  the inner bridge); previously, only association status was used and
+	  an attacker could have capture packets to any MAC address even
+	  without having proper credentials for using the network (although,
+	  the packets were dropped because the controlled port for the STA was
+	  unauthorized)
+
+2004-06-20 - v0.2.3
+	* merged CryptoAPI versions of WEP/TKIP/CCMP from the wireless-2.6
+	  BitKeeper tree (not used by default, can be enabled by defining
+	  HOSTAP_USE_CRYPTO_API)
+
+2004-05-31 - v0.2.2
+	* fixed a buffer overflow in TKIP encryption (hostap_crypt_tkip
+	  module) on big endian hosts
+
+2004-05-06 - v0.2.1
+	* allow hostapd to send encrypted frames using wlan#ap interface
+	* fixed get_key for TKIP to return the sequence number of the last
+	  transmitted frame, not the seq# of the next frame
+	* added driver support for hostapd WPA Authenticator
+	* fixed TKIP get sequence number
+	* clear IFF_RUNNING and generate linkwatch events based on association
+	  status in Managed mode
+	* added alternative TKIP implementation which uses Michael MIC
+	  implementation in CryptoAPI instead of Host AP specific
+	  implementation
+	* fixed a bug in TKIP Phase1 key caching for the case when ICV
+	  verification fails
+	* added support for RSN (IEEE 802.11i/WPA2)
+	* removed (or added rate limitation to) some of the printk debug
+	  messages to reduce the size of the kernel log
+	* fixed byte order for CCMP packet number get/set
+
+2004-02-15 - v0.2.0
+	* dropped support for Linux 2.2.x and old Linux 2.4.x kernels
+	  (only the latest Linux 2.4.x and Linux 2.6.x versions are "officially
+	  supported", older version may work; Host AP v0.1.x branch can be used
+	  with older kernel versions)
+	* fixed WDS interface selection to not select non-WDS interface. This
+	  fixes cases in which frames from not associated STAs were accepted
+	  because the driver thought it was a WDS frame. In addition, this
+	  meant that the STA was not notified about it not being associated and
+	  consequently, STA did not associate again (this could happen, e.g.,
+	  after driver/AP restart).
+	* fixed hostap_cs unregistration when PC Card is removed while Host AP
+	  interfaces are still up
+	* restructured Linux net device use to be more like IEEE 802.1q VLAN
+	  (add a master IEEE 802.11 radio netdev (wifi#) and make all other
+	  devices virtual; only one netif queue is used; share all IEEE 802.11
+	  handling for all packets using wlan#, wlan#ap, wlan#sta, wlan#wds#
+	  interfaces)
+	* cleaned up encryption to use separate function to encrypt skb's
+	* moved hardware independent TX code (Ethernet -> IEEE 802.11 header
+	  conversion, etc.) into a separate file, hostap_80211_tx.c;
+	  most hardware independent generic code has now been moved away from
+	  hostap_hw.c
+	* disable wlan hardware when radio netdev (wifi#) is down (i.e.,
+	  beacons will not be sent in Host AP mode and STA will not associate
+	  in Managed mode when this interface is down) (this used to be
+	  configurable option, but disabled by default)
+	* register wlan#sta interface only when assoc_ap_addr is configured
+	* remove prism2_params ptype, getptype, txpower, and gettxpower because
+	  these can be replaced with iwpriv set_rid_word (with iwpriv reset 2),
+	  hostap_rid get, and iwpriv readmif/writemif
+	* fixed Shared Key authentication when using host_decrypt and kernel
+	  driver based IEEE 802.11 management
+	* changed Host AP crypto modules to use skb's instead of raw data
+	  buffer
+	* added crypto hooks for full MSDU encrypt/decrypt (or MIC/de-MIC) for
+	  encryption algorithms like TKIP which calculates MIC over the full
+	  MSDU
 	* fixed RTS and Fragmentation thresholds to be restored after hw
 	  reset
+	* modified reading of communications quality values (Managed and Ad-Hoc
+	  modes):
+	  - read Prism2 values every 10 second and when get_wireless_stats()
+	    is called in suitable (non-atomic) context
+	  - use new dBm CommsQuality RID when STA f/w version is 1.3.1 or newer
 	* fixed Managed/Ad-hoc mode authentication with Open System algorithm
 	  when using old (e.g., version 0.6.2) STA firmware
 	* fixed iwspy support with Linux wireless ext v16 (previous version
@@ -10,14 +103,40 @@ ChangeLog for Host AP driver for Intersil Prism2/2.5/3
 	  not being in fixed offset from all dev->priv pointers anymore); only
 	  wlan# device should be used for spy entries because other devices
 	  will not receive statistics updates
-
-2003-10-19 - v0.1.1
-	* fixed WDS interface selection to not select non-WDS interface. This
-	  fixes cases in which frames from not associated STAs were accepted
-	  because the driver thought it was a WDS frame. In addition, this
-	  meant that the STA was not notified about it not being associated and
-	  consequently, STA did not associate again (this could happen, e.g.,
-	  after driver/AP restart).
+	* fixed IEEE 802.11 defragmentation when using host-based WEP
+	  decryption and bridging packets between two associated STAs
+	  (this caused a kernel crash in dev_queue_xmit())
+	* support cards without firmware in flash memory by allowing
+	  initialization to continue even if card reset times out (also useful
+	  to recover from corrupted primary firmware image)
+	* added workaround for fragmentation threshold setting for some cases
+	  that returned to default value (fragmentation disabled)
+	* fixed STA specific RX statistics for Repeater mode
+	* changed last_rx_signal and _silence to use dBm
+	* use cnfDbmAdjust RID (STA f/w 1.3.1 or newer) to configure RSSI->dBm
+	  conversion
+	* added driver support for WPA Authenticator/Supplicant:
+	  - requires STA f/w 1.7.0 or newer
+	  - collect BSSID list (including WPA IE) in Managed mode
+	  - added new encryption algorithm: TKIP (hostap_crypt_tkip module)
+	    (TKIP = Michael MIC and WEP with per-packet temporal keys)
+	  - added new encryption algorithm: CCMP (hostap_crypt_ccmp module)
+	    (CCMP = AES-CCM, i.e., Counter with CBC-MAC)
+	  - added prism2_params for WPA use: wpa, privacy_invoked,
+	    tkip_countermeasures, drop_unencrypted
+	  - added hostapd sub-ioctl for configuring generic IEEE 802.11
+	    information element for Beacon/ProbeResp/(Re)AssocReq frames
+	  - note: to be useful, this needs additional user space daemon for
+	    key management (WPA Supplicant/Authenticator)
+	* fixed a race condition in registering wlan#ap and receiving
+	  management frames (this could cause kernel panic if a management
+	  frame was received before wlan#ap initialization was completed)
+	* added minimal support for ethtool (reporting of driver info and
+	  firmware version)
+	* report WDS peer address when SIOCGIWAP is used on a WDS device
+	* do not show SSID for WDS devices (SIOCGIWESSID, SIOCSIWESSID)
+	* fixed iwpriv wds_add to allow addition of special pre-allocated WDS
+	  interfaces with 00:00:00:00:00:00
 
 2003-10-14 - v0.1.0
 	* fixed wlan#wds#, wlan#ap, and wlan#sta netdevice unregistration

@@ -1,7 +1,7 @@
 /*
  * Host AP (software wireless LAN access point) user space daemon for
  * Host AP kernel driver / Configuration file
- * Copyright (c) 2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2004, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,6 +20,7 @@
 #include <arpa/inet.h>
 
 #include "hostapd.h"
+#include "sha1.h"
 
 
 static struct hostapd_config *hostapd_config_defaults(void)
@@ -43,6 +44,12 @@ static struct hostapd_config *hostapd_config_defaults(void)
 	conf->logger_stdout = (unsigned int) -1;
 
 	conf->auth_algs = HOSTAPD_AUTH_OPEN | HOSTAPD_AUTH_SHARED_KEY;
+
+	conf->wpa_group_rekey = 600;
+	conf->wpa_gmk_rekey = 86400;
+	conf->wpa_key_mgmt = WPA_KEY_MGMT_PSK;
+	conf->wpa_pairwise = WPA_CIPHER_TKIP;
+	conf->wpa_group = WPA_CIPHER_TKIP;
 
 	return conf;
 }
@@ -140,10 +147,119 @@ hostapd_config_read_radius_addr(struct hostapd_radius_server **server,
 }
 
 
+static int hostapd_config_parse_key_mgmt(int line, const char *value)
+{
+	int val = 0, last;
+	char *start, *end, *buf;
+
+	buf = strdup(value);
+	if (buf == NULL)
+		return -1;
+	start = buf;
+
+	while (start != '\0') {
+		while (*start == ' ' || *start == '\t')
+			start++;
+		if (*start == '\0')
+			break;
+		end = start;
+		while (*end != ' ' && *end != '\t' && *end != '\0')
+			end++;
+		last = *end == '\0';
+		*end = '\0';
+		if (strcmp(start, "WPA-PSK") == 0)
+			val |= WPA_KEY_MGMT_PSK;
+		else if (strcmp(start, "WPA-EAP") == 0)
+			val |= WPA_KEY_MGMT_IEEE8021X;
+		else {
+			printf("Line %d: invalid key_mgmt '%s'", line, start);
+			free(buf);
+			return -1;
+		}
+
+		if (last)
+			break;
+		start = end + 1;
+	}
+
+	free(buf);
+	if (val == 0) {
+		printf("Line %d: no key_mgmt values configured.", line);
+		return -1;
+	}
+
+	return val;
+}
+
+
+static int hostapd_config_parse_cipher(int line, const char *value)
+{
+	int val = 0, last;
+	char *start, *end, *buf;
+
+	buf = strdup(value);
+	if (buf == NULL)
+		return -1;
+	start = buf;
+
+	while (start != '\0') {
+		while (*start == ' ' || *start == '\t')
+			start++;
+		if (*start == '\0')
+			break;
+		end = start;
+		while (*end != ' ' && *end != '\t' && *end != '\0')
+			end++;
+		last = *end == '\0';
+		*end = '\0';
+		if (strcmp(start, "CCMP") == 0)
+			val |= WPA_CIPHER_CCMP;
+		else if (strcmp(start, "TKIP") == 0)
+			val |= WPA_CIPHER_TKIP;
+		else if (strcmp(start, "WEP104") == 0)
+			val |= WPA_CIPHER_WEP104;
+		else if (strcmp(start, "WEP40") == 0)
+			val |= WPA_CIPHER_WEP40;
+		else if (strcmp(start, "NONE") == 0)
+			val |= WPA_CIPHER_NONE;
+		else {
+			printf("Line %d: invalid cipher '%s'.", line, start);
+			free(buf);
+			return -1;
+		}
+
+		if (last)
+			break;
+		start = end + 1;
+	}
+	free(buf);
+
+	if (val == 0) {
+		printf("Line %d: no cipher values configured.", line);
+		return -1;
+	}
+	return val;
+}
+
+
 static int hostapd_config_check(struct hostapd_config *conf)
 {
 	if (conf->ieee802_1x && !conf->minimal_eap && !conf->auth_servers) {
 		printf("Invalid IEEE 802.1X configuration.\n");
+		return -1;
+	}
+
+	if (conf->ieee802_1x && conf->minimal_eap &&
+	    (conf->default_wep_key_len || conf->individual_wep_key_len)) {
+		printf("Minimal EAP server cannot be used for dynamic WEP "
+		       "keying.\n");
+		return -1;
+	}
+
+	if (conf->wpa && (conf->wpa_key_mgmt & WPA_KEY_MGMT_PSK) &&
+	    conf->wpa_psk == NULL) {
+		printf("WPA-PSK enabled, but PSK or passphrase is not "
+		       "configured.\n");
 		return -1;
 	}
 
@@ -295,6 +411,8 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 				       line, pos);
 				errors++;
 			}
+		} else if (strcmp(buf, "nas_identifier") == 0) {
+			conf->nas_identifier = strdup(pos);
 		} else if (strcmp(buf, "auth_server_addr") == 0) {
 			if (hostapd_config_read_radius_addr(
 				    &conf->auth_servers,
@@ -347,6 +465,65 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 			conf->radius_acct_interim_interval = atoi(pos);
 		} else if (strcmp(buf, "auth_algs") == 0) {
 			conf->auth_algs = atoi(pos);
+			if (conf->auth_algs == 0) {
+				printf("Line %d: no authentication algorithms "
+				       "allowed\n",
+				       line);
+				errors++;
+			}
+		} else if (strcmp(buf, "wpa") == 0) {
+			conf->wpa = atoi(pos);
+		} else if (strcmp(buf, "wpa_group_rekey") == 0) {
+			conf->wpa_group_rekey = atoi(pos);
+		} else if (strcmp(buf, "wpa_gmk_rekey") == 0) {
+			conf->wpa_gmk_rekey = atoi(pos);
+		} else if (strcmp(buf, "wpa_passphrase") == 0) {
+			int len = strlen(pos);
+			if (len < 8 || len > 63) {
+				printf("Line %d: invalid WPA passphrase length"
+				       " %d (expected 8..63)\n", line, len);
+				errors++;
+			} else
+				conf->wpa_passphrase = strdup(pos);
+		} else if (strcmp(buf, "wpa_psk") == 0) {
+			free(conf->wpa_psk);
+			conf->wpa_psk = malloc(PMK_LEN);
+			if (conf->wpa_psk == NULL)
+				errors++;
+			else if (hexstr2bin(pos, conf->wpa_psk, PMK_LEN) ||
+				 pos[PMK_LEN * 2] != '\0') {
+				printf("Line %d: Invalid PSK '%s'.\n", line,
+				       pos);
+				errors++;
+			}
+		} else if (strcmp(buf, "wpa_key_mgmt") == 0) {
+			conf->wpa_key_mgmt =
+				hostapd_config_parse_key_mgmt(line, pos);
+			if (conf->wpa_key_mgmt == -1)
+				errors++;
+		} else if (strcmp(buf, "wpa_pairwise") == 0) {
+			conf->wpa_pairwise =
+				hostapd_config_parse_cipher(line, pos);
+			if (conf->wpa_pairwise == -1 ||
+			    conf->wpa_pairwise == 0)
+				errors++;
+			else if (conf->wpa_pairwise &
+				 (WPA_CIPHER_NONE | WPA_CIPHER_WEP40 |
+				  WPA_CIPHER_WEP104)) {
+				printf("Line %d: unsupported pairwise "
+				       "cipher suite '%s'\n",
+				       conf->wpa_pairwise, pos);
+				errors++;
+			} else {
+				if (conf->wpa_pairwise & WPA_CIPHER_TKIP)
+					conf->wpa_group = WPA_CIPHER_TKIP;
+				else
+					conf->wpa_group = WPA_CIPHER_CCMP;
+			}
+		} else if (strcmp(buf, "rsn_preauth") == 0) {
+			conf->rsn_preauth = atoi(pos);
+		} else if (strcmp(buf, "rsn_preauth_interfaces") == 0) {
+			conf->rsn_preauth_interfaces = strdup(pos);
 		} else {
 			printf("Line %d: unknown configuration item '%s'\n",
 			       line, buf);
@@ -355,6 +532,22 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 	}
 
 	fclose(f);
+
+	if (conf->wpa_passphrase) {
+		if (conf->wpa_psk) {
+			printf("Warning: both WPA PSK and passphrase set. "
+			       "Using passphrase.\n");
+			free(conf->wpa_psk);
+		}
+		conf->wpa_psk = malloc(PMK_LEN);
+		if (conf->wpa_psk == NULL)
+			errors++;
+		else {
+			pbkdf2_sha1(conf->wpa_passphrase,
+				    conf->ssid, conf->ssid_len,
+				    4096, conf->wpa_psk, PMK_LEN);
+		}
+	}
 
 	if (hostapd_config_read_maclist(accept_mac_file, &conf->accept_mac,
 					&conf->num_accept_mac))
@@ -403,8 +596,12 @@ void hostapd_config_free(struct hostapd_config *conf)
 	free(conf->eap_req_id_text);
 	free(conf->accept_mac);
 	free(conf->deny_mac);
+	free(conf->nas_identifier);
 	hostapd_config_free_radius(conf->auth_servers, conf->num_auth_servers);
 	hostapd_config_free_radius(conf->acct_servers, conf->num_acct_servers);
+	free(conf->wpa_psk);
+	free(conf->wpa_passphrase);
+	free(conf->rsn_preauth_interfaces);
 	free(conf);
 }
 

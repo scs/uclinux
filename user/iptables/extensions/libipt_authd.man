@@ -1,0 +1,2 @@
+This module takes no options, but matches packets against the authd
+kernel module.

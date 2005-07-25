@@ -51,6 +51,7 @@ static int get_rid(const char *dev, u16 rid)
 	}
 	if (res == ENODATA) {
 		printf("Get RID did not return any data.\n");
+		return -1;
 	} else if (res) {
 		printf("Could not communicate with the kernel driver.\n");
 		return -1;

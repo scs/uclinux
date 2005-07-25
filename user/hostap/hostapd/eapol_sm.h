@@ -124,6 +124,8 @@ struct eapol_state_machine {
 	PortState portStatus;
 	Boolean portValid; /* 802.1aa */
 	Boolean reAuthenticate;
+	Boolean keyRun; /* 802.1aa-d6-1 */
+	Boolean keyDone; /* 802.1aa-d6-1 */
 
 
 	/* Port Timers state machine */
@@ -133,6 +135,29 @@ struct eapol_state_machine {
 	struct eapol_backend_auth_sm be_auth;
 	struct eapol_reauth_timer_sm reauth_timer;
 	struct eapol_auth_key_tx auth_key_tx;
+
+	u8 addr[ETH_ALEN]; /* Supplicant address */
+#define EAPOL_SM_PREAUTH BIT(0)
+	int flags; /* EAPOL_SM_* */
+
+	int radius_identifier;
+	/* TODO: check when the last messages can be released */
+	struct radius_msg *last_recv_radius;
+	u8 *last_eap_supp; /* last received EAP Response from Supplicant */
+	size_t last_eap_supp_len;
+	u8 *last_eap_radius; /* last received EAP Response from Authentication
+			      * Server */
+	size_t last_eap_radius_len;
+	u8 *identity;
+	size_t identity_len;
+	u8 *radius_class;
+	size_t radius_class_len;
+
+	/* Keys for encrypting and signing EAPOL-Key frames */
+	u8 *eapol_key_sign;
+	size_t eapol_key_sign_len;
+	u8 *eapol_key_crypt;
+	size_t eapol_key_crypt_len;
 
 	/* Somewhat nasty pointers to global hostapd and STA data to avoid
 	 * passing these to every function */

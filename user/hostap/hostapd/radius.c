@@ -132,6 +132,7 @@ static struct radius_attr_type radius_attrs[] =
 	{ RADIUS_ATTR_NAS_PORT, "NAS-Port", RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_FRAMED_MTU, "Framed-MTU", RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_STATE, "State", RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_CLASS, "Class", RADIUS_ATTR_UNDIST },
 	{ RADIUS_ATTR_VENDOR_SPECIFIC, "Vendor-Specific", RADIUS_ATTR_UNDIST },
 	{ RADIUS_ATTR_SESSION_TIMEOUT, "Session-Timeout", RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_IDLE_TIMEOUT, "Idle-Timeout", RADIUS_ATTR_INT32 },
@@ -166,7 +167,9 @@ static struct radius_attr_type radius_attrs[] =
 	{ RADIUS_ATTR_CONNECT_INFO, "Connect-Info", RADIUS_ATTR_TEXT },
 	{ RADIUS_ATTR_EAP_MESSAGE, "EAP-Message", RADIUS_ATTR_UNDIST },
 	{ RADIUS_ATTR_MESSAGE_AUTHENTICATOR, "Message-Authenticator",
-	  RADIUS_ATTR_UNDIST }
+	  RADIUS_ATTR_UNDIST },
+	{ RADIUS_ATTR_ACCT_INTERIM_INTERVAL, "Acct-Interim-Interval",
+	  RADIUS_ATTR_INT32 }
 
 };
 #define RADIUS_ATTRS (sizeof(radius_attrs) / sizeof(radius_attrs[0]))
@@ -631,13 +634,13 @@ void radius_msg_make_authenticator(struct radius_msg *msg,
 }
 
 
-/* Get Microsoft Vendor-specific RADIUS Attribute from a parsed RADIUS message.
+/* Get Vendor-specific RADIUS Attribute from a parsed RADIUS message.
  * Returns the Attribute payload and sets alen to indicate the length of the
- * payload if a vendor attribute with ms_type is found, otherwise returns NULL.
+ * payload if a vendor attribute with subtype is found, otherwise returns NULL.
  * The returned payload is allocated with malloc() and caller must free it.
  */
-static u8 *radius_msg_get_ms_attr(struct radius_msg *msg, u8 ms_type,
-				  size_t *alen)
+static u8 *radius_msg_get_vendor_attr(struct radius_msg *msg, u32 vendor,
+				      u8 subtype, size_t *alen)
 {
 	char *data, *pos;
 	int i;
@@ -665,7 +668,7 @@ static u8 *radius_msg_get_ms_attr(struct radius_msg *msg, u8 ms_type,
 		pos += 4;
 		left -= 4;
 
-		if (ntohl(vendor_id) != RADIUS_VENDOR_ID_MICROSOFT)
+		if (ntohl(vendor_id) != vendor)
 			continue;
 
 		while (left >= sizeof(*ms)) {
@@ -674,7 +677,7 @@ static u8 *radius_msg_get_ms_attr(struct radius_msg *msg, u8 ms_type,
 				left = 0;
 				continue;
 			}
-			if (ms->vendor_type != ms_type) {
+			if (ms->vendor_type != subtype) {
 				pos += ms->vendor_length;
 				left -= ms->vendor_length;
 				continue;
@@ -777,8 +780,9 @@ radius_msg_get_ms_keys(struct radius_msg *msg, struct radius_msg *sent_msg,
 
 	memset(keys, 0, sizeof(*keys));
 
-	key = radius_msg_get_ms_attr(msg, RADIUS_VENDOR_ATTR_MS_MPPE_SEND_KEY,
-				     &keylen);
+	key = radius_msg_get_vendor_attr(msg, RADIUS_VENDOR_ID_MICROSOFT,
+					 RADIUS_VENDOR_ATTR_MS_MPPE_SEND_KEY,
+					 &keylen);
 	if (key) {
 		keys->send = decrypt_ms_key(key, keylen, sent_msg,
 					    secret, secret_len,
@@ -786,10 +790,41 @@ radius_msg_get_ms_keys(struct radius_msg *msg, struct radius_msg *sent_msg,
 		free(key);
 	}
 
-	key = radius_msg_get_ms_attr(msg, RADIUS_VENDOR_ATTR_MS_MPPE_RECV_KEY,
-				     &keylen);
+	key = radius_msg_get_vendor_attr(msg, RADIUS_VENDOR_ID_MICROSOFT,
+					 RADIUS_VENDOR_ATTR_MS_MPPE_RECV_KEY,
+					 &keylen);
 	if (key) {
 		keys->recv = decrypt_ms_key(key, keylen, sent_msg,
+					    secret, secret_len,
+					    &keys->recv_len);
+		free(key);
+	}
+
+	return keys;
+}
+
+
+struct radius_ms_mppe_keys *
+radius_msg_get_cisco_keys(struct radius_msg *msg, struct radius_msg *sent_msg,
+			  u8 *secret, size_t secret_len)
+{
+	u8 *key;
+	size_t keylen;
+	struct radius_ms_mppe_keys *keys;
+
+	if (msg == NULL || sent_msg == NULL)
+		return NULL;
+
+	keys = (struct radius_ms_mppe_keys *) malloc(sizeof(*keys));
+	if (keys == NULL)
+		return NULL;
+
+	memset(keys, 0, sizeof(*keys));
+
+	key = radius_msg_get_vendor_attr(msg, RADIUS_VENDOR_ID_CISCO,
+					 RADIUS_CISCO_AV_PAIR, &keylen);
+	if (key && keylen == 51 && memcmp(key, "leap:session-key=", 17) == 0) {
+		keys->recv = decrypt_ms_key(key + 17, keylen - 17, sent_msg,
 					    secret, secret_len,
 					    &keys->recv_len);
 		free(key);
@@ -871,4 +906,26 @@ int radius_msg_get_attr(struct radius_msg *msg, u8 type, u8 *buf, size_t len)
 	if (buf)
 		memcpy(buf, (attr + 1), dlen > len ? len : dlen);
 	return dlen;
+}
+
+
+int radius_msg_get_attr_ptr(struct radius_msg *msg, u8 type, u8 **buf,
+			    size_t *len)
+{
+	int i;
+	struct radius_attr_hdr *attr = NULL;
+
+	for (i = 0; i < msg->attr_used; i++) {
+		if (msg->attrs[i]->type == type) {
+			attr = msg->attrs[i];
+			break;
+		}
+	}
+
+	if (!attr)
+		return -1;
+
+	*buf = (u8 *) (attr + 1);
+	*len = attr->length - sizeof(*attr);
+	return 0;
 }

@@ -35,19 +35,12 @@
 #include <pcmcia/config.h>
 #endif /* __IN_PCMCIA_PACKAGE__ */
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-/* This behavior changed in some Linux 2.5.x version. I don't remember when and
- * don't really care if this does not work with some early 2.5.x versions..
- */
-#define HOSTAP_USE_RELEASE_TIMER
-#endif
-
 
 static char *version = PRISM2_VERSION " (Jouni Malinen <jkmaline@cc.hut.fi>)";
 static dev_info_t dev_info = "hostap_cs";
 static dev_link_t *dev_list = NULL;
 
-MODULE_AUTHOR("SSH Communications Security Corp, Jouni Malinen");
+MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Support for Intersil Prism2-based 802.11 wireless LAN "
 		   "cards (PC Card).");
 MODULE_SUPPORTED_DEVICE("Intersil Prism2-based WLAN cards (PC Card)");
@@ -235,8 +228,7 @@ static void prism2_pccard_cor_sreset(local_info_t *local)
 	reg.Action = CS_READ;
 	reg.Offset = CISREG_COR;
 	reg.Value = 0;
-	res = CardServices(AccessConfigurationRegister, local->link->handle,
-			   &reg);
+	res = pcmcia_access_configuration_register(local->link->handle, &reg);
 	if (res != CS_SUCCESS) {
 		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 1 (%d)\n",
 		       res);
@@ -247,26 +239,24 @@ static void prism2_pccard_cor_sreset(local_info_t *local)
 
 	reg.Action = CS_WRITE;
 	reg.Value |= COR_SOFT_RESET;
-	res = CardServices(AccessConfigurationRegister, local->link->handle,
-			   &reg);
+	res = pcmcia_access_configuration_register(local->link->handle, &reg);
 	if (res != CS_SUCCESS) {
 		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 2 (%d)\n",
 		       res);
 		return;
 	}
 
-	mdelay(1);
+	mdelay(2);
 
 	reg.Value &= ~COR_SOFT_RESET;
-	res = CardServices(AccessConfigurationRegister, local->link->handle,
-			   &reg);
+	res = pcmcia_access_configuration_register(local->link->handle, &reg);
 	if (res != CS_SUCCESS) {
 		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 3 (%d)\n",
 		       res);
 		return;
 	}
 
-	mdelay(1);
+	mdelay(2);
 }
 
 
@@ -283,8 +273,7 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 	reg.Action = CS_READ;
 	reg.Offset = CISREG_COR;
 	reg.Value = 0;
-	res = CardServices(AccessConfigurationRegister, local->link->handle,
-			   &reg);
+	res = pcmcia_access_configuration_register(local->link->handle, &reg);
 	if (res != CS_SUCCESS) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 1 "
 		       "(%d)\n", res);
@@ -296,8 +285,7 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 
 	reg.Action = CS_WRITE;
 	reg.Value |= COR_SOFT_RESET;
-	res = CardServices(AccessConfigurationRegister, local->link->handle,
-			   &reg);
+	res = pcmcia_access_configuration_register(local->link->handle, &reg);
 	if (res != CS_SUCCESS) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 2 "
 		       "(%d)\n", res);
@@ -310,8 +298,7 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 	reg.Action = CS_WRITE;
 	reg.Value = hcr;
 	reg.Offset = CISREG_CCSR;
-	res = CardServices(AccessConfigurationRegister, local->link->handle,
-			   &reg);
+	res = pcmcia_access_configuration_register(local->link->handle, &reg);
 	if (res != CS_SUCCESS) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 3 "
 		       "(%d)\n", res);
@@ -322,8 +309,7 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_COR;
 	reg.Value = old_cor & ~COR_SOFT_RESET;
-	res = CardServices(AccessConfigurationRegister, local->link->handle,
-			   &reg);
+	res = pcmcia_access_configuration_register(local->link->handle, &reg);
 	if (res != CS_SUCCESS) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 4 "
 		       "(%d)\n", res);
@@ -354,14 +340,6 @@ static int prism2_pccard_dev_close(local_info_t *local)
 
 	local->link->open--;
 
-	if (local->link->state & DEV_STALE_CONFIG) {
-#ifdef HOSTAP_USE_RELEASE_TIMER
-		mod_timer(&local->link->release, jiffies + HZ / 20);
-#else /* HOSTAP_USE_RELEASE_TIMER */
-		prism2_release((u_long) local->link);
-#endif /* HOSTAP_USE_RELEASE_TIMER */
-	}
-
 	return 0;
 }
 
@@ -373,6 +351,7 @@ static struct prism2_helper_functions prism2_pccard_funcs =
 	.dev_open	= prism2_pccard_dev_open,
 	.dev_close	= prism2_pccard_dev_close,
 	.genesis_reset	= prism2_pccard_genesis_reset,
+	.hw_type	= HOSTAP_HW_PCCARD,
 };
 
 
@@ -380,7 +359,7 @@ static struct prism2_helper_functions prism2_pccard_funcs =
 static void cs_error(client_handle_t handle, int func, int ret)
 {
 	error_info_t err = { func, ret };
-	CardServices(ReportError, handle, &err);
+	pcmcia_report_error(handle, &err);
 }
 #endif
 
@@ -390,41 +369,14 @@ static void cs_error(client_handle_t handle, int func, int ret)
 static dev_link_t *prism2_attach(void)
 {
 	dev_link_t *link;
-	local_info_t *local;
 	client_reg_t client_reg;
 	int ret;
-	struct net_device *dev;
-	struct hostap_interface *iface;
-
-	for (link = dev_list; link; link = link->next) {
-		if (link->state & DEV_STALE_LINK) {
-			printk("%s: flushing stale link\n", dev_info);
-			prism2_detach(link);
-		}
-	}
 
 	link = kmalloc(sizeof(dev_link_t), GFP_KERNEL);
 	if (link == NULL)
 		return NULL;
 
 	memset(link, 0, sizeof(dev_link_t));
-
-	dev = prism2_init_local_data(&prism2_pccard_funcs, 0);
-	if (dev == NULL) {
-		kfree(link);
-		return NULL;
-	}
-	iface = dev->priv;
-	local = iface->local;
-
-	link->priv = dev;
-	local->link = link;
-
-#ifdef HOSTAP_USE_RELEASE_TIMER
-	init_timer(&link->release);
-	link->release.function = &prism2_release;
-	link->release.data = (u_long)link;
-#endif /* HOSTAP_USE_RELEASE_TIMER */
 
 	PDEBUG(DEBUG_HW, "%s: setting Vcc=33 (constant)\n", dev_info);
 	link->conf.Vcc = 33;
@@ -442,7 +394,7 @@ static dev_link_t *prism2_attach(void)
 	client_reg.event_handler = &prism2_event;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
-	ret = CardServices(RegisterClient, &link->handle, &client_reg);
+	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
 		prism2_detach(link);
@@ -467,21 +419,12 @@ static void prism2_detach(dev_link_t *link)
 		return;
 	}
 
-#ifdef HOSTAP_USE_RELEASE_TIMER
-	del_timer(&link->release);
-#endif /* HOSTAP_USE_RELEASE_TIMER */
 	if (link->state & DEV_CONFIG) {
-		printk("%s: detach postponed, '%s' still locked\n",
-		       dev_info, link->dev->dev_name);
 		prism2_release((u_long)link);
-		if (link->state & DEV_STALE_CONFIG) {
-			link->state |= DEV_STALE_LINK;
-			return;
-		}
 	}
 
 	if (link->handle) {
-		int res = CardServices(DeregisterClient, link->handle);
+		int res = pcmcia_deregister_client(link->handle);
 		if (res) {
 			printk("CardService(DeregisterClient) => %d\n", res);
 			cs_error(link->handle, DeregisterClient, res);
@@ -498,11 +441,11 @@ static void prism2_detach(dev_link_t *link)
 }
 
 
-#define CS_CHECK(fn, args...) \
-while ((last_ret = CardServices(last_fn = (fn), args)) != 0) goto cs_failed
+#define CS_CHECK(fn, ret) \
+do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-#define CFG_CHECK2(fn, args...) \
-do { int ret = CardServices(fn, args); \
+#define CFG_CHECK2(fn, retf) \
+do { int ret = (retf); \
 if (ret != 0) { \
 	PDEBUG(DEBUG_EXTRA, "CardServices(" #fn ") returned %d\n", ret); \
 	cs_error(link->handle, fn, ret); \
@@ -511,13 +454,13 @@ if (ret != 0) { \
 } while (0)
 
 
-/* run after a CARD_INSERTATION event is received to configure the PCMCIA
+/* run after a CARD_INSERTION event is received to configure the PCMCIA
  * socket and make the device available to the system */
 static int prism2_config(dev_link_t *link)
 {
-	struct net_device *dev = (struct net_device *) link->priv;
-	struct hostap_interface *iface = dev->priv;
-	local_info_t *local = iface->local;
+	struct net_device *dev;
+	struct hostap_interface *iface;
+	local_info_t *local;
 	int ret;
 	tuple_t tuple;
 	cisparse_t parse;
@@ -533,24 +476,27 @@ static int prism2_config(dev_link_t *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, link->handle, &tuple);
-	CS_CHECK(GetTupleData, link->handle, &tuple);
-	CS_CHECK(ParseTuple, link->handle, &tuple, &parse);
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link->handle, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link->handle, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link->handle, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
-	CS_CHECK(GetConfigurationInfo, link->handle, &conf);
+	CS_CHECK(GetConfigurationInfo,
+		 pcmcia_get_configuration_info(link->handle, &conf));
 	PDEBUG(DEBUG_HW, "%s: %s Vcc=%d (from config)\n", dev_info,
 	       ignore_cis_vcc ? "ignoring" : "setting", conf.Vcc);
 	link->conf.Vcc = conf.Vcc;
 
 	/* Look for an appropriate configuration table entry in the CIS */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, link->handle, &tuple);
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link->handle, &tuple));
 	for (;;) {
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-		CFG_CHECK2(GetTupleData, link->handle, &tuple);
-		CFG_CHECK2(ParseTuple, link->handle, &tuple, &parse);
+		CFG_CHECK2(GetTupleData,
+			   pcmcia_get_tuple_data(link->handle, &tuple));
+		CFG_CHECK2(ParseTuple,
+			   pcmcia_parse_tuple(link->handle, &tuple, &parse));
 
 		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
 			dflt = *cfg;
@@ -629,14 +575,22 @@ static int prism2_config(dev_link_t *link)
 		}
 
 		/* This reserves IO space but doesn't actually enable it */
-		CFG_CHECK2(RequestIO, link->handle, &link->io);
+		CFG_CHECK2(RequestIO,
+			   pcmcia_request_io(link->handle, &link->io));
 
 		/* This configuration table entry is OK */
 		break;
 
 	next_entry:
-		CS_CHECK(GetNextTuple, link->handle, &tuple);
+		CS_CHECK(GetNextTuple,
+			 pcmcia_get_next_tuple(link->handle, &tuple));
 	}
+
+	/* Need to allocate net_device before requesting IRQ handler */
+	dev = prism2_init_local_data(&prism2_pccard_funcs, 0);
+	if (dev == NULL)
+		goto failed;
+	link->priv = dev;
 
 	/*
 	 * Allocate an interrupt line.  Note that this does not assign a
@@ -652,9 +606,10 @@ static int prism2_config(dev_link_t *link)
 		else
 			for (i = 0; i < 4; i++)
 				link->irq.IRQInfo2 |= 1 << irq_list[i];
-		link->irq.Handler = (void *) prism2_interrupt;
+		link->irq.Handler = prism2_interrupt;
 		link->irq.Instance = dev;
-		CS_CHECK(RequestIRQ, link->handle, &link->irq);
+		CS_CHECK(RequestIRQ,
+			 pcmcia_request_irq(link->handle, &link->irq));
 	}
 
 	/*
@@ -662,7 +617,8 @@ static int prism2_config(dev_link_t *link)
 	 * the I/O windows and the interrupt mapping, and putting the
 	 * card and host interface into "Memory and IO" mode.
 	 */
-	CS_CHECK(RequestConfiguration, link->handle, &link->conf);
+	CS_CHECK(RequestConfiguration,
+		 pcmcia_request_configuration(link->handle, &link->conf));
 
 	dev->irq = link->irq.AssignedIRQ;
 	dev->base_addr = link->io.BasePort1;
@@ -687,21 +643,26 @@ static int prism2_config(dev_link_t *link)
 	link->state |= DEV_CONFIG;
 	link->state &= ~DEV_CONFIG_PENDING;
 
-	if (prism2_init_dev(local)) {
-		prism2_release((u_long) link);
-		return 1;
-	}
-
+	iface = dev->priv;
+	local = iface->local;
+	local->link = link;
 	strcpy(local->node.dev_name, dev->name);
 	link->dev = &local->node;
 
 	local->shutdown = 0;
 
 	ret = prism2_hw_config(dev, 1);
+	if (!ret) {
+		ret = hostap_hw_ready(dev);
+		if (ret == 0 && local->ddev)
+			strcpy(local->node.dev_name, local->ddev->name);
+	}
 	return ret;
 
  cs_failed:
 	cs_error(link->handle, last_fn, last_ret);
+
+ failed:
 	prism2_release((u_long)link);
 	return 1;
 }
@@ -710,31 +671,24 @@ static int prism2_config(dev_link_t *link)
 static void prism2_release(u_long arg)
 {
 	dev_link_t *link = (dev_link_t *)arg;
-	struct net_device *dev = (struct net_device *) link->priv;
-	struct hostap_interface *iface = dev->priv;
-	local_info_t *local = iface->local;
 
 	PDEBUG(DEBUG_FLOW, "prism2_release\n");
 
-	if (link->open) {
-		printk("%s: release postponed, '%s' still open\n",
-		      dev_info, link->dev->dev_name);
-		link->state |= DEV_STALE_CONFIG;
-		return;
+	if (link->priv) {
+		struct net_device *dev = link->priv;
+		struct hostap_interface *iface = dev->priv;
+		if (link->state & DEV_CONFIG)
+			prism2_hw_shutdown(dev, 0);
+		iface->local->shutdown = 1;
 	}
 
-	if (dev != NULL)
-		prism2_hw_shutdown(dev, 0);
-
-	local->shutdown = 1;
-
 	if (link->win)
-		CardServices(ReleaseWindow, link->win);
-	CardServices(ReleaseConfiguration, link->handle);
+		pcmcia_release_window(link->win);
+	pcmcia_release_configuration(link->handle);
 	if (link->io.NumPorts1)
-		CardServices(ReleaseIO, link->handle, &link->io);
+		pcmcia_release_io(link->handle, &link->io);
 	if (link->irq.AssignedIRQ)
-		CardServices(ReleaseIRQ, link->handle, &link->irq);
+		pcmcia_release_irq(link->handle, &link->irq);
 
 	link->state &= ~DEV_CONFIG;
 
@@ -752,21 +706,18 @@ static int prism2_event(event_t event, int priority,
 	case CS_EVENT_CARD_INSERTION:
 		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_CARD_INSERTION\n", dev_info);
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		if (prism2_config(link))
-			dev->irq = 0;
+		if (prism2_config(link)) {
+			PDEBUG(DEBUG_EXTRA, "prism2_config() failed\n");
+		}
 		break;
 
 	case CS_EVENT_CARD_REMOVAL:
 		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_CARD_REMOVAL\n", dev_info);
 		link->state &= ~DEV_PRESENT;
 		if (link->state & DEV_CONFIG) {
-			hostap_netif_stop_queues(dev);
+			netif_stop_queue(dev);
 			netif_device_detach(dev);
-#ifdef HOSTAP_USE_RELEASE_TIMER
-			mod_timer(&link->release, jiffies + HZ / 20);
-#else /* HOSTAP_USE_RELEASE_TIMER */
 			prism2_release((u_long) link);
-#endif /* HOSTAP_USE_RELEASE_TIMER */
 		}
 		break;
 
@@ -779,10 +730,10 @@ static int prism2_event(event_t event, int priority,
 		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_RESET_PHYSICAL\n", dev_info);
 		if (link->state & DEV_CONFIG) {
 			if (link->open) {
-				hostap_netif_stop_queues(dev);
+				netif_stop_queue(dev);
 				netif_device_detach(dev);
 			}
-			CardServices(ReleaseConfiguration, link->handle);
+			pcmcia_release_configuration(link->handle);
 		}
 		break;
 
@@ -794,11 +745,11 @@ static int prism2_event(event_t event, int priority,
 	case CS_EVENT_CARD_RESET:
 		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_CARD_RESET\n", dev_info);
 		if (link->state & DEV_CONFIG) {
-			CardServices(RequestConfiguration, link->handle,
-				     &link->conf);
+			pcmcia_request_configuration(link->handle,
+						     &link->conf);
+			prism2_hw_shutdown(dev, 1);
+			prism2_hw_config(dev, link->open ? 0 : 1);
 			if (link->open) {
-				prism2_hw_shutdown(dev, 1);
-				prism2_hw_config(dev, 0);
 				netif_device_attach(dev);
 				netif_start_queue(dev);
 			}
@@ -843,7 +794,7 @@ static int __init init_prism2_pccard(void)
 	servinfo_t serv;
 
 	printk(KERN_INFO "%s: %s\n", dev_info, version);
-	CardServices(GetCardServicesInfo, &serv);
+	pcmcia_get_card_services_info(&serv);
 	if (serv.Revision != CS_RELEASE_CODE) {
 		printk(KERN_NOTICE
 		       "%s: CardServices release does not match!\n", dev_info);
@@ -860,9 +811,6 @@ static void __exit exit_prism2_pccard(void)
 	unregister_pccard_driver(&dev_info);
 	while (dev_list) {
 		PDEBUG(DEBUG_FLOW, "exit_prism2 - detaching device\n");
-#ifdef HOSTAP_USE_RELEASE_TIMER
-		del_timer(&dev_list->release);
-#endif /* HOSTAP_USE_RELEASE_TIMER */
 		if (dev_list->state & DEV_CONFIG)
 			prism2_release((u_long)dev_list);
 		prism2_detach(dev_list);

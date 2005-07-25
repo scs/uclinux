@@ -6,6 +6,14 @@ static int prism2_enable_aux_port(struct net_device *dev, int enable)
 	struct hostap_interface *iface = dev->priv;
 	local_info_t *local = iface->local;
 
+	if (local->no_pri) {
+		if (enable) {
+			PDEBUG(DEBUG_EXTRA2, "%s: no PRI f/w - assuming Aux "
+			       "port is already enabled\n", dev->name);
+		}
+		return 0;
+	}
+
 	spin_lock_irqsave(&local->cmdlock, flags);
 
 	/* wait until busy bit is clear */
@@ -163,15 +171,31 @@ static int prism2_pda_ok(u8 *buf)
 }
 
 
+static int prism2_download_aux_dump(struct net_device *dev,
+				     unsigned int addr, int len, u8 *buf)
+{
+	int res;
+
+	prism2_enable_aux_port(dev, 1);
+	res = hfa384x_from_aux(dev, addr, len, buf);
+	prism2_enable_aux_port(dev, 0);
+	if (res)
+		return -1;
+
+	return 0;
+}
+
+
 static u8 * prism2_read_pda(struct net_device *dev)
 {
 	u8 *buf;
 	int res, i, found = 0;
-#define NUM_PDA_ADDRS 3
+#define NUM_PDA_ADDRS 4
 	unsigned int pda_addr[NUM_PDA_ADDRS] = {
 		0x7f0000 /* others than HFA3841 */,
 		0x3f0000 /* HFA3841 */,
-		0x390000 /* apparently used in older cards */
+		0x390000 /* apparently used in older cards */,
+		0x7f0002 /* Intel PRO/Wireless 2011B (PCI) */,
 	};
 
 	buf = (u8 *) kmalloc(PRISM2_PDA_SIZE, GFP_KERNEL);
@@ -184,23 +208,24 @@ static u8 * prism2_read_pda(struct net_device *dev)
 	prism2_enable_aux_port(dev, 1);
 
 	for (i = 0; i < NUM_PDA_ADDRS; i++) {
-		printk(KERN_DEBUG "%s: trying to read PDA from 0x%08x",
+		PDEBUG(DEBUG_EXTRA2, "%s: trying to read PDA from 0x%08x",
 		       dev->name, pda_addr[i]);
 		res = hfa384x_from_aux(dev, pda_addr[i], PRISM2_PDA_SIZE, buf);
 		if (res)
 			continue;
 		if (res == 0 && prism2_pda_ok(buf)) {
-			printk(": OK\n");
+			PDEBUG2(DEBUG_EXTRA2, ": OK\n");
 			found = 1;
 			break;
 		} else {
-			printk(": failed\n");
+			PDEBUG2(DEBUG_EXTRA2, ": failed\n");
 		}
 	}
 
 	prism2_enable_aux_port(dev, 0);
 
 	if (!found) {
+		printk(KERN_DEBUG "%s: valid PDA not found\n", dev->name);
 		kfree(buf);
 		buf = NULL;
 	}
@@ -258,7 +283,7 @@ static int prism2_download_volatile(local_info_t *local,
 	}
 
 	for (i = 0; i < param->num_areas; i++) {
-		printk(KERN_DEBUG "%s: Writing %d bytes at 0x%08x\n",
+		PDEBUG(DEBUG_EXTRA2, "%s: Writing %d bytes at 0x%08x\n",
 		       dev->name, param->data[i].len, param->data[i].addr);
 		if (hfa384x_to_aux(dev, param->data[i].addr,
 				   param->data[i].len, param->data[i].data)) {
@@ -297,13 +322,11 @@ static int prism2_download_volatile(local_info_t *local,
 		printk(KERN_WARNING "%s: Card configuration after RAM "
 		       "download failed\n", dev->name);
 		ret = -1;
-		goto out2;
+		goto out;
 	}
 
-	goto out2;
  out:
 	local->hw_downloading = 0;
- out2:
 	return ret;
 }
 
@@ -339,16 +362,36 @@ static int prism2_enable_genesis(local_info_t *local, int hcr)
 }
 
 
+static int prism2_get_ram_size(local_info_t *local)
+{
+	int ret;
+
+	/* Try to enable genesis mode; 0x1F for x8 SRAM or 0x0F for x16 SRAM */
+	if (prism2_enable_genesis(local, 0x1f) == 0)
+		ret = 8;
+	else if (prism2_enable_genesis(local, 0x0f) == 0)
+		ret = 16;
+	else
+		ret = -1;
+
+	/* Disable genesis mode */
+	local->func->genesis_reset(local, ret == 16 ? 0x07 : 0x17);
+
+	return ret;
+}
+
+
 static int prism2_download_genesis(local_info_t *local,
 				   struct prism2_download_data *param)
 {
 	struct net_device *dev = local->dev;
 	int ram16 = 0, i;
+	int ret = 0;
 
 	if (local->hw_downloading) {
 		printk(KERN_WARNING "%s: Already downloading - aborting new "
 		       "request\n", dev->name);
-		return -1;
+		return -EBUSY;
 	}
 
 	if (!local->func->genesis_reset || !local->func->cor_sreset) {
@@ -362,58 +405,80 @@ static int prism2_download_genesis(local_info_t *local,
 	if (prism2_enable_aux_port(dev, 1)) {
 		printk(KERN_DEBUG "%s: failed to enable AUX port\n",
 		       dev->name);
-		return 1;
+		ret = -EIO;
+		goto out;
 	}
 
-	/* 0x1F for x8 SRAM or 0x0F for x16 SRAM */
-	if (prism2_enable_genesis(local, 0x1f) == 0) {
-		ram16 = 0;
-		printk(KERN_DEBUG "%s: Genesis mode OK using x8 SRAM\n",
-		       dev->name);
-	} else if (prism2_enable_genesis(local, 0x0f) == 0) {
-		ram16 = 1;
-		printk(KERN_DEBUG "%s: Genesis mode OK using x16 SRAM\n",
-		       dev->name);
+	if (local->sram_type == -1) {
+		/* 0x1F for x8 SRAM or 0x0F for x16 SRAM */
+		if (prism2_enable_genesis(local, 0x1f) == 0) {
+			ram16 = 0;
+			PDEBUG(DEBUG_EXTRA2, "%s: Genesis mode OK using x8 "
+			       "SRAM\n", dev->name);
+		} else if (prism2_enable_genesis(local, 0x0f) == 0) {
+			ram16 = 1;
+			PDEBUG(DEBUG_EXTRA2, "%s: Genesis mode OK using x16 "
+			       "SRAM\n", dev->name);
+		} else {
+			printk(KERN_DEBUG "%s: Could not initiate genesis "
+			       "mode\n", dev->name);
+			ret = -EIO;
+			goto out;
+		}
 	} else {
-		printk(KERN_DEBUG "%s: Could not initiate genesis mode\n",
-		       dev->name);
-		return 1;
+		if (prism2_enable_genesis(local, local->sram_type == 8 ?
+					  0x1f : 0x0f)) {
+			printk(KERN_DEBUG "%s: Failed to set Genesis "
+			       "mode (sram_type=%d)\n", dev->name,
+			       local->sram_type);
+			ret = -EIO;
+			goto out;
+		}
+		ram16 = local->sram_type != 8;
 	}
 
 	for (i = 0; i < param->num_areas; i++) {
-		printk(KERN_DEBUG "%s: Writing %d bytes at 0x%08x\n",
+		PDEBUG(DEBUG_EXTRA2, "%s: Writing %d bytes at 0x%08x\n",
 		       dev->name, param->data[i].len, param->data[i].addr);
 		if (hfa384x_to_aux(dev, param->data[i].addr,
 				   param->data[i].len, param->data[i].data)) {
 			printk(KERN_WARNING "%s: RAM download at 0x%08x "
 			       "(len=%d) failed\n", dev->name,
 			       param->data[i].addr, param->data[i].len);
-			return 1;
+			ret = -EIO;
+			goto out;
 		}
 	}
 
-	printk(KERN_DEBUG "Disable genesis mode\n");
+	PDEBUG(DEBUG_EXTRA2, "Disable genesis mode\n");
 	local->func->genesis_reset(local, ram16 ? 0x07 : 0x17);
 	if (prism2_enable_aux_port(dev, 0)) {
-		printk(KERN_DEBUG "Failed to disable AUX port\n");
+		printk(KERN_DEBUG "%s: Failed to disable AUX port\n",
+		       dev->name);
 	}
 
 	mdelay(5);
 	local->hw_downloading = 0;
 
-	printk(KERN_DEBUG "Trying to initialize card\n");
+	PDEBUG(DEBUG_EXTRA2, "Trying to initialize card\n");
 	if (prism2_hw_init(dev, 1)) {
-		printk(KERN_DEBUG "Initialization failed\n");
-		return 1;
+		printk(KERN_DEBUG "%s: Initialization after genesis mode "
+		       "download failed\n", dev->name);
+		ret = -EIO;
+		goto out;
 	}
 
-	printk(KERN_DEBUG "Card initialized - running PRI only\n");
-	if (prism2_hw_init(dev, 1) || prism2_hw_init2(dev, 1)) {
-		printk(KERN_DEBUG "Initialization failed\n");
-		return 1;
+	PDEBUG(DEBUG_EXTRA2, "Card initialized - running PRI only\n");
+	if (prism2_hw_init2(dev, 1)) {
+		printk(KERN_DEBUG "%s: Initialization(2) after genesis mode "
+		       "download failed\n", dev->name);
+		ret = -EIO;
+		goto out;
 	}
 
-	return 0;
+ out:
+	local->hw_downloading = 0;
+	return ret;
 }
 
 
@@ -483,8 +548,6 @@ static int prism2_download_nonvolatile(local_info_t *local,
 		return -1;
 	}
 
-	local->hw_downloading = 1;
-
 	ret = local->func->get_rid(dev, HFA384X_RID_DOWNLOADBUFFER,
 				   &dlbuffer, 6, 0);
 
@@ -502,6 +565,8 @@ static int prism2_download_nonvolatile(local_info_t *local,
 	       dlbuffer.len, dlbuffer.page, dlbuffer.offset);
 
 	bufaddr = (dlbuffer.page << 7) + dlbuffer.offset;
+
+	local->hw_downloading = 1;
 
 	if (!local->pri_only) {
 		prism2_hw_shutdown(dev, 0);
@@ -624,7 +689,8 @@ static int prism2_download(local_info_t *local,
 	dl->start_addr = param->start_addr;
 	dl->num_areas = param->num_areas;
 	for (i = 0; i < param->num_areas; i++) {
-		printk(KERN_DEBUG "  area %d: addr=0x%08x len=%d ptr=0x%p\n",
+		PDEBUG(DEBUG_EXTRA2,
+		       "  area %d: addr=0x%08x len=%d ptr=0x%p\n",
 		       i, param->data[i].addr, param->data[i].len,
 		       param->data[i].ptr);
 

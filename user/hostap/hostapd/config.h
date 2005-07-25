@@ -24,12 +24,14 @@ struct hostapd_config {
 #define HOSTAPD_MODULE_IEEE80211 BIT(0)
 #define HOSTAPD_MODULE_IEEE8021X BIT(1)
 #define HOSTAPD_MODULE_RADIUS BIT(2)
+#define HOSTAPD_MODULE_WPA BIT(3)
 	unsigned int logger_syslog; /* module bitfield */
 	unsigned int logger_stdout; /* module bitfield */
 
 	enum { HOSTAPD_DEBUG_NO = 0, HOSTAPD_DEBUG_MINIMAL = 1,
 	       HOSTAPD_DEBUG_VERBOSE = 2,
-	       HOSTAPD_DEBUG_MSGDUMPS = 3 } debug; /* debug verbosity level */
+	       HOSTAPD_DEBUG_MSGDUMPS = 3,
+	       HOSTAPD_DEBUG_EXCESSIVE = 4 } debug; /* debug verbosity level */
 	char *dump_log_name; /* file name for state dump (SIGUSR1) */
 	int daemonize; /* fork into background */
 
@@ -38,6 +40,7 @@ struct hostapd_config {
 			  * requires EAP Response-Identity and authorizes any
 			  * station */
 	struct in_addr own_ip_addr;
+	char *nas_identifier;
 	/* RADIUS Authentication and Accounting servers in priority order */
 	struct hostapd_radius_server *auth_servers, *auth_server;
 	int num_auth_servers;
@@ -78,6 +81,27 @@ struct hostapd_config {
 #define HOSTAPD_AUTH_SHARED_KEY BIT(1)
 	int auth_algs; /* bitfield of allowed IEEE 802.11 authentication
 			* algorithms */
+
+#define HOSTAPD_WPA_VERSION_WPA BIT(0)
+#define HOSTAPD_WPA_VERSION_WPA2 BIT(1)
+	int wpa;
+#define PMK_LEN 32
+	u8 *wpa_psk;
+	char *wpa_passphrase;
+#define WPA_KEY_MGMT_IEEE8021X BIT(0)
+#define WPA_KEY_MGMT_PSK BIT(1)
+	int wpa_key_mgmt;
+#define WPA_CIPHER_NONE BIT(0)
+#define WPA_CIPHER_WEP40 BIT(1)
+#define WPA_CIPHER_WEP104 BIT(2)
+#define WPA_CIPHER_TKIP BIT(3)
+#define WPA_CIPHER_CCMP BIT(4)
+	int wpa_pairwise;
+	int wpa_group;
+	int wpa_group_rekey;
+	int wpa_gmk_rekey;
+	int rsn_preauth;
+	char *rsn_preauth_interfaces;
 };
 
 

@@ -27,7 +27,8 @@ static int binary = 0, counters = 0, verbose = 0, noflush = 0;
 static struct option options[] = {
 	{ "binary", 0, 0, 'b' },
 	{ "counters", 0, 0, 'c' },
-	{ "verbose", 1, 0, 'v' },
+	{ "verbose", 0, 0, 'v' },
+	{ "test", 0, 0, 't' },
 	{ "help", 0, 0, 'h' },
 	{ "noflush", 0, 0, 'n'},
 	{ "modprobe", 1, 0, 'M'},
@@ -38,10 +39,11 @@ static void print_usage(const char *name, const char *version) __attribute__((no
 
 static void print_usage(const char *name, const char *version)
 {
-	fprintf(stderr, "Usage: %s [-b] [-c] [-v] [-h]\n"
+	fprintf(stderr, "Usage: %s [-b] [-c] [-v] [-t] [-h]\n"
 			"	   [ --binary ]\n"
 			"	   [ --counters ]\n"
 			"	   [ --verbose ]\n"
+			"	   [ --test ]\n"
 			"	   [ --help ]\n"
 			"	   [ --noflush ]\n"
 		        "          [ --modprobe=<command>]\n", name);
@@ -71,7 +73,7 @@ iptc_handle_t create_handle(const char *tablename, const char* modprobe )
 
 int parse_counters(char *string, struct ipt_counters *ctr)
 {
-	return (sscanf(string, "[%llu:%llu]", &ctr->pcnt, &ctr->bcnt) == 2);
+	return (sscanf(string, "[%llu:%llu]", (unsigned long long *)&ctr->pcnt, (unsigned long long *)&ctr->bcnt) == 2);
 }
 
 /* global new argv and argc */
@@ -97,15 +99,21 @@ static void free_argv(void) {
 		free(newargv[i]);
 }
 
-int main(int argc, char *argv[])
+#ifdef IPTABLES_MULTI
+int
+iptables_restore_main(int argc, char *argv[])
+#else
+int
+main(int argc, char *argv[])
+#endif
 {
-	iptc_handle_t handle;
+	iptc_handle_t handle = NULL;
 	char buffer[10240];
 	int c;
 	char curtable[IPT_TABLE_MAXNAMELEN + 1];
 	FILE *in;
 	const char *modprobe = 0;
-	int in_table = 0;
+	int in_table = 0, testing = 0;
 
 	program_name = "iptables-restore";
 	program_version = IPTABLES_VERSION;
@@ -115,7 +123,7 @@ int main(int argc, char *argv[])
 	init_extensions();
 #endif
 
-	while ((c = getopt_long(argc, argv, "bcvhnM:", options, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "bcvthnM:", options, NULL)) != -1) {
 		switch (c) {
 			case 'b':
 				binary = 1;
@@ -125,6 +133,9 @@ int main(int argc, char *argv[])
 				break;
 			case 'v':
 				verbose = 1;
+				break;
+			case 't':
+				testing = 1;
 				break;
 			case 'h':
 				print_usage("iptables-restore",
@@ -158,13 +169,20 @@ int main(int argc, char *argv[])
 		int ret = 0;
 
 		line++;
-		if (buffer[0] == '\n') continue;
+		if (buffer[0] == '\n')
+			continue;
 		else if (buffer[0] == '#') {
-			if (verbose) fputs(buffer, stdout);
+			if (verbose)
+				fputs(buffer, stdout);
 			continue;
 		} else if ((strcmp(buffer, "COMMIT\n") == 0) && (in_table)) {
-			DEBUGP("Calling commit\n");
-			ret = iptc_commit(&handle);
+			if (!testing) {
+				DEBUGP("Calling commit\n");
+				ret = iptc_commit(&handle);
+			} else {
+				DEBUGP("Not calling commit, testing\n");
+				ret = 1;
+			}
 			in_table = 0;
 		} else if ((buffer[0] == '*') && (!in_table)) {
 			/* New table */
@@ -179,6 +197,10 @@ int main(int argc, char *argv[])
 				exit(1);
 			}
 			strncpy(curtable, table, IPT_TABLE_MAXNAMELEN);
+			curtable[IPT_TABLE_MAXNAMELEN] = '\0';
+
+			if (handle)
+				iptc_free(&handle);
 
 			handle = create_handle(table, modprobe);
 			if (noflush == 0) {
@@ -314,6 +336,13 @@ int main(int argc, char *argv[])
 			param_start = parsestart;
 			
 			for (curchar = parsestart; *curchar; curchar++) {
+				if (*curchar == '\\' && *(curchar+1) == '"') {
+					if (quote_open) {
+						memmove(curchar, curchar+1,
+							strlen(curchar+1));
+						continue;
+					}
+				}
 				if (*curchar == '"') {
 					if (quote_open) {
 						quote_open = 0;
@@ -365,8 +394,8 @@ int main(int argc, char *argv[])
 			for (a = 0; a < newargc; a++)
 				DEBUGP("argv[%u]: %s\n", a, newargv[a]);
 
-			ret = do_command(newargc, newargv, 0,
-					 &newargv[2], &handle, 1);
+			ret = do_command(newargc, newargv, 
+					 &newargv[2], &handle);
 
 			free_argv();
 		}
@@ -375,6 +404,11 @@ int main(int argc, char *argv[])
 					program_name, line);
 			exit(1);
 		}
+	}
+	if (in_table) {
+		fprintf(stderr, "%s: COMMIT expected at line %u\n",
+				program_name, line + 1);
+		exit(1);
 	}
 
 	return 0;

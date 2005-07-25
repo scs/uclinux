@@ -9,7 +9,7 @@ enum {
 };
 
 int hostapd_allowed_address(hostapd *hapd, u8 *addr, u8 *msg, size_t len,
-			    u32 *session_timeout);
+			    u32 *session_timeout, u32 *acct_interim_interval);
 int hostapd_acl_init(hostapd *hapd);
 void hostapd_acl_deinit(hostapd *hapd);
 

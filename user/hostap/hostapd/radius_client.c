@@ -1,7 +1,7 @@
 /*
  * Host AP (software wireless LAN access point) user space daemon for
  * Host AP kernel driver / RADIUS client
- * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <errno.h>
 
 #include "hostapd.h"
 #include "radius.h"
@@ -42,6 +43,8 @@ static int
 radius_change_server(hostapd *hapd, struct hostapd_radius_server *nserv,
 		     struct hostapd_radius_server *oserv,
 		     int sock, int auth);
+static int radius_client_init_acct(hostapd *hapd);
+static int radius_client_init_auth(hostapd *hapd);
 
 
 static void radius_client_msg_free(struct radius_msg_list *req)
@@ -87,12 +90,33 @@ int radius_client_register(hostapd *hapd, RadiusType msg_type,
 }
 
 
+static void radius_client_handle_send_error(struct hostapd_data *hapd, int s,
+					    RadiusType msg_type)
+{
+	int _errno = errno;
+	perror("send[RADIUS]");
+	if (_errno == ENOTCONN || _errno == EDESTADDRREQ || _errno == EINVAL) {
+		hostapd_logger(hapd, NULL, HOSTAPD_MODULE_RADIUS,
+			       HOSTAPD_LEVEL_INFO,
+			       "Send failed - maybe interface status changed -"
+			       " try to connect again");
+		eloop_unregister_read_sock(s);
+		close(s);
+		if (msg_type == RADIUS_ACCT || msg_type == RADIUS_ACCT_INTERIM)
+			radius_client_init_acct(hapd);
+		else
+			radius_client_init_auth(hapd);
+	}
+}
+
+
 static int radius_client_retransmit(hostapd *hapd,
 				    struct radius_msg_list *entry, time_t now)
 {
 	int s;
 
-	if (entry->msg_type == RADIUS_ACCT)
+	if (entry->msg_type == RADIUS_ACCT ||
+	    entry->msg_type == RADIUS_ACCT_INTERIM)
 		s = hapd->radius->acct_serv_sock;
 	else
 		s = hapd->radius->auth_serv_sock;
@@ -103,7 +127,7 @@ static int radius_client_retransmit(hostapd *hapd,
 		      "\n", entry->msg->hdr->identifier);
 
 	if (send(s, entry->msg->buf, entry->msg->buf_used, 0) < 0)
-		perror("send[RADIUS]");
+		radius_client_handle_send_error(hapd, s, entry->msg_type);
 
 	entry->next_try = now + entry->next_wait;
 	entry->next_wait *= 2;
@@ -150,7 +174,8 @@ static void radius_client_timer(void *eloop_ctx, void *timeout_ctx)
 		}
 
 		if (entry->attempts > RADIUS_CLIENT_NUM_FAILOVER) {
-			if (entry->msg_type == RADIUS_ACCT)
+			if (entry->msg_type == RADIUS_ACCT ||
+			    entry->msg_type == RADIUS_ACCT_INTERIM)
 				acct_failover++;
 			else
 				auth_failover++;
@@ -209,7 +234,7 @@ static void radius_client_timer(void *eloop_ctx, void *timeout_ctx)
 
 static void radius_client_list_add(hostapd *hapd, struct radius_msg *msg,
 				   RadiusType msg_type, u8 *shared_secret,
-				   size_t shared_secret_len)
+				   size_t shared_secret_len, u8 *addr)
 {
 	struct radius_msg_list *entry, *prev;
 
@@ -230,6 +255,8 @@ static void radius_client_list_add(hostapd *hapd, struct radius_msg *msg,
 	}
 
 	memset(entry, 0, sizeof(*entry));
+	if (addr)
+		memcpy(entry->addr, addr, ETH_ALEN);
 	entry->msg = msg;
 	entry->msg_type = msg_type;
 	entry->shared_secret = shared_secret;
@@ -263,15 +290,52 @@ static void radius_client_list_add(hostapd *hapd, struct radius_msg *msg,
 }
 
 
+static void radius_client_list_del(struct hostapd_data *hapd,
+				   RadiusType msg_type, u8 *addr)
+{
+	struct radius_msg_list *entry, *prev, *tmp;
+
+	if (addr == NULL)
+		return;
+
+	entry = hapd->radius->msgs;
+	prev = NULL;
+	while (entry) {
+		if (entry->msg_type == msg_type &&
+		    memcmp(entry->addr, addr, ETH_ALEN) == 0) {
+			if (prev)
+				prev->next = entry->next;
+			else
+				hapd->radius->msgs = entry->next;
+			tmp = entry;
+			entry = entry->next;
+			HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
+				      "Removing matching RADIUS message for "
+				      MACSTR "\n", MAC2STR(addr));
+			radius_client_msg_free(tmp);
+			hapd->radius->num_msgs--;
+			continue;
+		}
+		prev = entry;
+		entry = entry->next;
+	}
+}
+
+
 int radius_client_send(hostapd *hapd, struct radius_msg *msg,
-		       RadiusType msg_type)
+		       RadiusType msg_type, u8 *addr)
 {
 	u8 *shared_secret;
 	size_t shared_secret_len;
 	char *name;
 	int s, res;
 
-	if (msg_type == RADIUS_ACCT) {
+	if (msg_type == RADIUS_ACCT_INTERIM) {
+		/* Remove any pending interim acct update for the same STA. */
+		radius_client_list_del(hapd, msg_type, addr);
+	}
+
+	if (msg_type == RADIUS_ACCT || msg_type == RADIUS_ACCT_INTERIM) {
 		shared_secret = hapd->conf->acct_server->shared_secret;
 		shared_secret_len = hapd->conf->acct_server->shared_secret_len;
 		radius_msg_finish_acct(msg, shared_secret, shared_secret_len);
@@ -292,10 +356,10 @@ int radius_client_send(hostapd *hapd, struct radius_msg *msg,
 
 	res = send(s, msg->buf, msg->buf_used, 0);
 	if (res < 0)
-		perror("send[RADIUS]");
+		radius_client_handle_send_error(hapd, s, msg_type);
 
 	radius_client_list_add(hapd, msg, msg_type, shared_secret,
-			       shared_secret_len);
+			       shared_secret_len, addr);
 
 	return res;
 }
@@ -349,7 +413,9 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 	while (req) {
 		/* TODO: also match by src addr:port of the packet when using
 		 * alternative RADIUS servers (?) */
-		if (req->msg_type == msg_type &&
+		if ((req->msg_type == msg_type ||
+		     (req->msg_type == RADIUS_ACCT_INTERIM &&
+		      msg_type == RADIUS_ACCT)) &&
 		    req->msg->hdr->identifier == msg->hdr->identifier)
 			break;
 
@@ -359,8 +425,8 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 
 	if (req == NULL) {
 		HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
-			      "No maching RADIUS request found (type=%d id=%d)"
-			      " - dropping packet\n",
+			      "No matching RADIUS request found (type=%d "
+			      "id=%d) - dropping packet\n",
 			      msg_type, msg->hdr->identifier);
 		goto fail;
 	}
@@ -550,7 +616,7 @@ static int radius_client_init_auth(hostapd *hapd)
 	if (eloop_register_read_sock(hapd->radius->auth_serv_sock,
 				     radius_client_receive, hapd,
 				     (void *) RADIUS_AUTH)) {
-		printf("Could not register read socket for accounting "
+		printf("Could not register read socket for authentication "
 		       "server\n");
 		return -1;
 	}
@@ -618,4 +684,36 @@ void radius_client_deinit(hostapd *hapd)
 	free(hapd->radius->acct_handlers);
 	free(hapd->radius);
 	hapd->radius = NULL;
+}
+
+
+void radius_client_flush_auth(struct hostapd_data *hapd, u8 *addr)
+{
+	struct radius_msg_list *entry, *prev, *tmp;
+
+	prev = NULL;
+	entry = hapd->radius->msgs;
+	while (entry) {
+		if (entry->msg_type == RADIUS_AUTH &&
+		    memcmp(entry->addr, addr, ETH_ALEN) == 0) {
+			hostapd_logger(hapd, addr, HOSTAPD_MODULE_RADIUS,
+				       HOSTAPD_LEVEL_DEBUG,
+				       "Removing pending RADIUS authentication"
+				       " message for removed client");
+
+			if (prev)
+				prev->next = entry->next;
+			else
+				hapd->radius->msgs = entry->next;
+
+			tmp = entry;
+			entry = entry->next;
+			radius_client_msg_free(tmp);
+			hapd->radius->num_msgs--;
+			continue;
+		}
+
+		prev = entry;
+		entry = entry->next;
+	}
 }

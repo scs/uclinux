@@ -143,11 +143,22 @@ static void prism2_info_linkstatus(local_info_t *local, unsigned char *buf,
 		       local->dev->name, val, hfa384x_linkstatus_str(val));
 	}
 
-	if (non_sta_mode)
+	if (non_sta_mode) {
+		netif_carrier_on(local->dev);
+		netif_carrier_on(local->ddev);
 		return;
+	}
 
 	/* Get current BSSID later in scheduled task */
 	set_bit(PRISM2_INFO_PENDING_LINKSTATUS, &local->pending_info);
+#if defined(CONFIG_LEDMAN)
+	if ((val == HFA384X_LINKSTATUS_CONNECTED) ||
+	    (val == HFA384X_LINKSTATUS_AP_CHANGE) ||
+	    (val == HFA384X_LINKSTATUS_AP_IN_RANGE))
+		ledman_cmd(LEDMAN_CMD_ON, LEDMAN_LAN3_LINK);
+	else
+		ledman_cmd(LEDMAN_CMD_OFF, LEDMAN_LAN3_LINK);
+#endif
 	local->prev_link_status = val;
 	PRISM2_SCHEDULE_TASK(&local->info_queue);
 }
@@ -220,7 +231,6 @@ static void prism2_host_roaming(local_info_t *local)
 }
 
 
-#if WIRELESS_EXT > 13
 static void hostap_report_scan_complete(local_info_t *local)
 {
 	union iwreq_data wrqu;
@@ -235,11 +245,6 @@ static void hostap_report_scan_complete(local_info_t *local)
 	 * scanning result */
 	local->scan_timestamp = 0;
 }
-#else /* WIRELESS_EXT > 13 */
-static inline void hostap_report_scan_complete(local_info_t *local)
-{
-}
-#endif /* WIRELESS_EXT > 13 */
 
 
 /* Called only as a tasklet (software IRQ) */
@@ -401,6 +406,7 @@ static void handle_info_queue_linkstatus(local_info_t *local)
 {
 	int val = local->prev_link_status;
 	int connected;
+	union iwreq_data wrqu;
 
 	connected =
 		val == HFA384X_LINKSTATUS_CONNECTED ||
@@ -419,19 +425,18 @@ static void handle_info_queue_linkstatus(local_info_t *local)
 			hostap_add_sta(local->ap, local->bssid);
 	}
 
-#if WIRELESS_EXT > 13
-	{
-		union iwreq_data wrqu;
-
-		/* Get BSSID if we have a valid AP address */
-		if (connected)
-			memcpy(wrqu.ap_addr.sa_data, local->bssid, ETH_ALEN);
-		else
-			memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
-		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-		wireless_send_event(local->dev, SIOCGIWAP, &wrqu, NULL);
+	/* Get BSSID if we have a valid AP address */
+	if (connected) {
+		netif_carrier_on(local->dev);
+		netif_carrier_on(local->ddev);
+		memcpy(wrqu.ap_addr.sa_data, local->bssid, ETH_ALEN);
+	} else {
+		netif_carrier_off(local->dev);
+		netif_carrier_off(local->ddev);
+		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
 	}
-#endif /* WIRELESS_EXT > 13 */
+	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
+	wireless_send_event(local->dev, SIOCGIWAP, &wrqu, NULL);
 }
 
 

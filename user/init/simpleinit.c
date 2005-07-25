@@ -2,6 +2,9 @@
 /* Version 1.21 */
 
 /* gerg@snapgear.com -- modified for direct console support DEC/1999 */
+/* davidm@snapgear.com -- modified for init.conf SEP/2004 */
+/* toby@snapgear.com -- allow the array of commands to grow as needed OCT/2004 */
+/* davidm@snapgear.com -- use dynamically allocated tables APR/2005 */
 
 #define _GNU_SOURCE	/* For crypt() and termios defines */
 
@@ -23,6 +26,7 @@
 #include <linux/version.h>
 #include <utmp.h>
 #include <errno.h>
+#include <time.h>
 #include <termios.h>
 #ifdef SHADOW_PWD
 #include <shadow.h>
@@ -36,14 +40,18 @@
 
 #include "pathnames.h"
 
-#define CMDSIZ 100	/* max size of a line in inittab */
-#define NUMCMD 30	/* max number of lines in inittab */
+#define BUF_SIZ 100	/* max size of a line in inittab */
+#define NUMCMD 30	/* step size when realloc more space for the commands */
 #define NUMTOK 20	/* max number of tokens in inittab command */
 
-#define TESTTIME  90	/* Threshold time for detecting "fast" spawning processes */
-#define MAXSPAWN  5	/* Number of rapid respawns that counts as too fast */
-#define MAXDELAY  595	/* Maximum delay between runs */
-#define DELAYTIME 5	/* Time between successive runs of a process */
+/* Threshold time for detecting "fast" spawning processes */
+static int testtime  = 90;
+/* Number of rapid respawns that counts as too fast */
+static int maxspawn  = 5;
+/* Maximum delay between runs */
+static int maxdelay  = 595;
+/* Time between successive runs of a process */
+static int delaytime = 5;
 
 #define MAXTRIES 3	/* number of tries allowed when giving the password */
 
@@ -54,7 +62,7 @@
 #endif
 
 #ifdef INCLUDE_TIMEZONE
-char tzone[CMDSIZ];
+char tzone[BUF_SIZ];
 #endif
 /* #define DEBUGGING */
 
@@ -66,16 +74,18 @@ struct initline {
 	pid_t	pid;
 	time_t	lastrun;
 	time_t	nextrun;
-	char	*toks[NUMTOK];
+	char	**toks;
 	short	delay;
 	char	tty[10];
 	char	termcap[30];
-	char	line[CMDSIZ];
-	char	fullline[CMDSIZ];
+	char	*line;
+	char	*fullline;
 	unsigned char xcnt;
 };
 
-struct initline inittab[NUMCMD];
+struct initline *inittab;
+/* How many struct initline's will fit in the memory pointed to by inittab */
+int inittab_size = 0; 
 int numcmd;
 int stopped = 0;	/* are we stopped */
 int reload = 0;	/* are we stopped */
@@ -95,6 +105,9 @@ extern void write_wtmp(void);
 extern void make_ascii_tty(void);
 extern void make_console(const char *);
 extern int boot_single(int singlearg, int argc, char *argv[]);
+#ifdef CONFIG_USER_INIT_CONF
+extern void load_init_conf(void);
+#endif
 
 /* Keep track of console device, if any... */
 #if LINUX_VERSION_CODE < 0x020100
@@ -124,6 +137,23 @@ static void err(const char *s)
 	if (have_console)
 		writev(1, output, 2);
 #endif
+}
+
+void
+add_tok(struct initline *p, char *tok)
+{
+	int i;
+	for (i = 0; p->toks && p->toks[i]; i++)
+		;
+
+	/* allocate space for new entry and terminating NULL */
+	p->toks = (char **) realloc(p->toks, (i + 2) * sizeof(char *));
+	if (!p->toks) {
+		err("malloc failed\n");
+		_exit(1);
+	}
+	p->toks[i++] = tok;
+	p->toks[i] = NULL;
 }
 
 static void enter_single(void)
@@ -188,7 +218,7 @@ static int do_command(const char *path, const char *filename, int dowait)
 		/* the child */
 		char *argv[3];
 #ifdef INCLUDE_TIMEZONE
-		char tz[CMDSIZ];
+		char tz[BUF_SIZ];
 #endif
 		char *env[3];
 
@@ -365,13 +395,22 @@ int main(int argc, char *argv[])
 		pause();
 #endif
 
+	/* initialize the array of commands */
+	inittab = (struct initline *)malloc(NUMCMD * sizeof(struct initline));
+	inittab_size = NUMCMD;
+
+	if (!inittab) {
+		/* failure case - what do you do if init fails? */
+		err("malloc failed");
+		_exit(1);
+	}
+
 	write_wtmp();	/* write boottime record */
 	read_inittab();
 
 #ifdef DEBUGGING
 	for(i = 0; i < numcmd; i++) {
-	char **p;
-		p = inittab[i].toks;
+		char **p = inittab[i].toks;
 		printf("toks= %s %s %s %s\n",p[0], p[1], p[2], p[3]);
 		printf("tty= %s\n", inittab[i].tty);
 		printf("termcap= %s\n", inittab[i].termcap);
@@ -496,25 +535,27 @@ void spawn(int i)
 	it = inittab + i;
 
 	t = time(NULL);
-	if (t<0) t=0;				/* Workaround - BFin*/
 	if (it->nextrun > t)			/* Check for held process */
 		return;
-	if (it->lastrun + TESTTIME > t) {	/* Respawning quickly */
+	if (it->lastrun + testtime > t) {	/* Respawning quickly */
 		if (it->xcnt < 0xff)
 			it->xcnt++;
 	} else {				/* Normal respawning */
 		it->xcnt = 0;
 		it->lastrun = t;
-		it->delay = DELAYTIME;
+		it->delay = delaytime;
 	}
-	if (it->xcnt >= MAXSPAWN) {		/* Too many too quickly */
+	if (it->xcnt >= maxspawn) {		/* Too many too quickly */
 		strcpy(buf, it->toks[0]);
 		strcat(buf, " respawning too fast\n");
 		err(buf);
 		it->pid = -1;
-		if (it->delay >= MAXDELAY)		it->delay = MAXDELAY;
-		else if (it->delay < DELAYTIME)		it->delay = DELAYTIME;
-		else if((it->delay *= 2) > MAXDELAY)	it->delay = MAXDELAY;
+		if (it->delay >= maxdelay)
+			it->delay = maxdelay;
+		else if (it->delay < delaytime)
+			it->delay = delaytime;
+		else if((it->delay *= 2) > maxdelay)
+			it->delay = maxdelay;
 		it->nextrun = t + it->delay;
 		/* Fiddle with the tracking vars to ensure that only
 		 * one attempt is made to run this next time around.
@@ -523,7 +564,7 @@ void spawn(int i)
 		it->xcnt -= 2;
 		return;
 	}
-	it->nextrun = t + DELAYTIME;
+	it->nextrun = t + delaytime;
 	
 	if((pid = vfork()) < 0) {
 		it->pid = -1;
@@ -538,7 +579,7 @@ void spawn(int i)
 		/* this is the child */
 		char term[40];
 #ifdef INCLUDE_TIMEZONE
-		char tz[CMDSIZ];
+		char tz[BUF_SIZ];
 #endif
 		char *env[4];
 		
@@ -575,8 +616,26 @@ static void init_itab(struct initline *p) {
 	p->pid = -1;
 }
 
+static void clear_itab(struct initline *p) {
+	if (p->line)
+		free(p->line);
+	if (p->fullline)
+		free(p->fullline);
+	if (p->toks)
+		free(p->toks);
+	bzero(p, sizeof(struct initline));
+	p->pid = -1;
+}
+
 void read_inittab(void)
 {
+	int i;
+
+	/*
+	 * free any old data and start again
+	 */
+	for (i = 0; i < numcmd; i++)
+		clear_itab(&inittab[i]);
 	numcmd = 0;
 
 	/* Fake an inittab entry if boot console defined */
@@ -590,10 +649,10 @@ void read_inittab(void)
 	struct initline *p;
 		p = inittab + numcmd++;
 		init_itab(p);
-		strcpy(p->fullline, "console");
+		p->fullline = strdup("console");
 		strcpy(p->tty, "console");
 		strcpy(p->termcap, "linux");
-		p->toks[0] = "/bin/sh";
+		add_tok(p, "/bin/sh");
 	}
 #endif
 
@@ -603,6 +662,24 @@ void read_inittab(void)
 	read_initfile(_PATH_CONFIGTAB);
 #endif
 
+#ifdef CONFIG_USER_INIT_CONF
+	load_init_conf();
+#endif
+
+	/* if needed, shrink the array using realloc -
+	 * must be done here so that we include the results of all init files
+	 * when calculating number of commands */
+	if ((numcmd + 2) < (inittab_size - NUMCMD)) {
+		/* round up from numcmd to the nearest multiple of NUMCMD */
+		inittab_size = ((numcmd + 2) / NUMCMD + 1) * NUMCMD;
+		inittab = realloc(inittab, inittab_size * sizeof(struct initline));
+		if (!inittab) {
+			/* failure case - what do you do if init fails? */
+			err("malloc failed");
+			_exit(1);
+		}
+	}
+
 	if (numcmd == 0)
 		_exit(1);
 }
@@ -611,7 +688,8 @@ void read_initfile(const char *initfile)
 {
 	struct initline *p;
 	FILE *f;
-	char buf[CMDSIZ];
+	char *buf = NULL;
+	size_t buf_len = 0;
 	int i,j,k;
 	char *ptr, *getty;
 #ifdef SPECIAL_CONSOLE_TERM
@@ -630,11 +708,20 @@ void read_initfile(const char *initfile)
 		return;
 	}
 
-	while(!feof(f) && i < NUMCMD - 2) {
-		if(fgets(buf, CMDSIZ - 1, f) == 0) break;
-		buf[CMDSIZ-1] = '\0';
+	while(!feof(f)) {
+		if (i+2 == inittab_size) {
+			/* need to realloc inittab */
+			inittab_size += NUMCMD;
+			inittab = realloc(inittab, inittab_size * sizeof(struct initline));
+			if (!inittab) {
+				/* failure case - what do you do if init fails? */
+				err("malloc failed");
+				_exit(1);
+			}
+		}
+		if (getline(&buf, &buf_len, f) == -1) break;
 
-		for(k = 0; k < CMDSIZ && buf[k]; k++) {
+		for(k = 0; k < buf_len && buf[k]; k++) {
 			if(buf[k] == '#') { 
 				buf[k] = '\0'; break; 
 			}
@@ -644,11 +731,17 @@ void read_initfile(const char *initfile)
 
 		p = inittab + i;
 		init_itab(p);
-		strcpy(p->line, buf);
-		strcpy(p->fullline, buf);
+		p->line = strdup(buf);
+		p->fullline = strdup(buf);
+		if (!p->line || !p->fullline) {
+			err("Not memory to allocate inittab entry");
+			clear_itab(p);
+			continue;
+		}
 		ptr = strtok(p->line, ":");
 		if (!ptr) {
 			err("Missing TTY/ID field in inittab");
+			clear_itab(p);
 			continue;
 		}
 		strncpy(p->tty, ptr, 9);
@@ -656,21 +749,22 @@ void read_initfile(const char *initfile)
 		ptr = strtok(NULL, ":");
 		if (!ptr) {
 			err("Missing TERMTYPE field in inittab");
+			clear_itab(p);
 			continue;
 		}
 		strncpy(p->termcap, ptr, 29);
 		//p->termcap[29] = '\0';
 
-		getty = strtok(NULL, ":");
+		getty = strtok(NULL, " \t\n");
 		if (!getty) {
 			err("Missing PROCESS field in inittab");
+			clear_itab(p);
 			continue;
 		}
-		strtok(getty, " \t\n");
-		p->toks[0] = getty;
+		add_tok(p, getty);
 		j = 1;
 		while((ptr = strtok(NULL, " \t\n")))
-			p->toks[j++] = ptr;
+			add_tok(p, ptr);
 
 #ifdef SPECIAL_CONSOLE_TERM
 		/* special-case termcap for the console ttys */
@@ -689,6 +783,10 @@ void read_initfile(const char *initfile)
 
 		i++;
 	}
+
+	if (buf)
+		free(buf);
+	
 	fclose(f);
 
 	numcmd = i;
@@ -703,19 +801,30 @@ void reload_inittab()
 {
 	int i;
 	int oldnum;
-	char saveline[NUMCMD][CMDSIZ];
-	pid_t savepid[NUMCMD];
+	char ** saveline = (char **) malloc(inittab_size * sizeof(char *));
+	pid_t * savepid = (pid_t*) malloc(inittab_size * sizeof(pid_t));
+
+	if (!saveline || !savepid) {
+		/* another failure case - what DO you do if init fails */
+		err("malloc failed");
+		_exit(1);
+	}
 
 	for (i=0; i<numcmd; i++) {
 		savepid[i] = inittab[i].pid;
-		strcpy(saveline[i], inittab[i].fullline);
+		saveline[i] = strdup(inittab[i].fullline);
+		if (!saveline[i]) {
+			err("malloc failed");
+			_exit(1);
+		}
 	}
+
 	oldnum = numcmd;		
 	read_inittab();
 
 	/* See which ones still exist */
 	for(i = 0; i < numcmd; i++) {
-	int j;
+		int j;
 		for(j = 0; j < oldnum; j++) {
 			if(strcmp(saveline[j], inittab[i].fullline) == 0) {
 				inittab[i].pid = savepid[j];
@@ -725,11 +834,15 @@ void reload_inittab()
 		}
 	}
 
-	/* Kill off processes no longer needed */
+	/* Kill off processes no longer needed and free memory */
 	for(i = 0; i < oldnum; i++) {
 		if (savepid[i] > 1)
 			kill(savepid[i], SIGTERM);
+		free(saveline[i]);
 	}
+
+	free(saveline);
+	free(savepid);
 }
 
 void tstp_handler()
@@ -791,12 +904,35 @@ void set_tz(void)
 	if((f = fopen("/etc/config/TZ", "r")) == NULL &&
 	   (f = fopen("/etc/TZ", "r")) == NULL)
 		return;
-	fgets(tzone, CMDSIZ-2, f);
+	fgets(tzone, BUF_SIZ-2, f);
 	fclose(f);
 	if((len=strlen(tzone)) < 2)
 		return;
 	tzone[len-1] = 0; /* get rid of the '\n' */
 	setenv("TZ", tzone, 0);
+}
+#endif
+
+#ifdef CONFIG_USER_INIT_CONF
+void load_init_conf(void)
+{
+	char line[BUF_SIZ];
+	FILE *f;
+
+	if ((f = fopen("/etc/config/init.conf", "r")) == NULL &&
+			(f = fopen("/etc/init.conf", "r")) == NULL)
+		return;
+	while (fgets(line, sizeof(line) - 2, f)) {
+		if (strncasecmp(line, "delaytime=", 10) == 0)
+			delaytime = atoi(line + 10);
+		if (strncasecmp(line, "maxdelay=", 9) == 0)
+			maxdelay = atoi(line + 9);
+		if (strncasecmp(line, "maxspawn=", 9) == 0)
+			maxspawn = atoi(line + 9);
+		if (strncasecmp(line, "testtime=", 9) == 0)
+			testtime = atoi(line + 9);
+	}
+	fclose(f);
 }
 #endif
 

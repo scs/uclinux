@@ -4,6 +4,17 @@
 #include "iptables_common.h"
 #include "libiptc/libiptc.h"
 
+#ifndef IPPROTO_SCTP
+#define IPPROTO_SCTP 132
+#endif
+
+struct iptables_rule_match
+{
+	struct iptables_rule_match *next;
+
+	struct iptables_match *match;
+};
+
 /* Include file for additions: new matches and targets. */
 struct iptables_match
 {
@@ -50,7 +61,6 @@ struct iptables_match
 	unsigned int option_offset;
 	struct ipt_entry_match *m;
 	unsigned int mflags;
-	unsigned int used;
 #ifdef NO_SHARED_LIBS
 	unsigned int loaded; /* simulate loading so options are merged properly */
 #endif
@@ -121,8 +131,8 @@ extern void parse_hostnetworkmask(const char *name, struct in_addr **addrpp,
                       struct in_addr *maskp, unsigned int *naddrs);
 extern u_int16_t parse_protocol(const char *s);
 
-extern int do_command(int argc, char *argv[], const char *default_table, char **table,
-		      iptc_handle_t *handle, int max_tables);
+extern int do_command(int argc, char *argv[], char **table,
+		      iptc_handle_t *handle);
 /* Keeping track of external matches and targets: linked lists.  */
 extern struct iptables_match *iptables_matches;
 extern struct iptables_target *iptables_targets;
@@ -134,7 +144,7 @@ enum ipt_tryload {
 };
 
 extern struct iptables_target *find_target(const char *name, enum ipt_tryload);
-extern struct iptables_match *find_match(const char *name, enum ipt_tryload);
+extern struct iptables_match *find_match(const char *name, enum ipt_tryload, struct iptables_rule_match **match);
 
 extern int delete_chain(const ipt_chainlabel chain, int verbose,
 			iptc_handle_t *handle);

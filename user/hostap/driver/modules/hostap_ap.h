@@ -66,9 +66,9 @@ struct sta_info {
 	/* FIX: timeout buffers with an expiry time somehow derived from
 	 * listen_interval */
 
-	u8 last_rx_silence;
-	u8 last_rx_signal;
-	u8 last_rx_rate;
+	s8 last_rx_silence; /* Noise in dBm */
+	s8 last_rx_signal; /* Signal strength in dBm */
+	u8 last_rx_rate; /* TX rate in 0.1 Mbps */
 	u8 last_rx_updated; /* IWSPY's struct iw_quality::updated */
 
 	u8 tx_supp_rates; /* bit field of supported TX rates */
@@ -178,6 +178,9 @@ struct ap_data {
 				       * wireless media */
 	unsigned int bridged_multicast; /* number of non-unicast frames
 					 * bridged on wireless media */
+	unsigned int tx_drop_nonassoc; /* number of unicast TX packets dropped
+					* because they were to an address that
+					* was not associated */
 	int nullfunc_ack; /* use workaround for nullfunc frame ACKs */
 
 	spinlock_t sta_table_lock;
@@ -193,10 +196,6 @@ struct ap_data {
 
 	struct mac_restrictions mac_restrictions; /* MAC-based auth */
 	int last_tx_rate;
-
-	HOSTAP_QUEUE set_tim_queue;
-	struct list_head set_tim_list;
-	spinlock_t set_tim_lock;
 
 	HOSTAP_QUEUE add_sta_proc_queue;
 	struct add_sta_proc_data *add_sta_proc_entries;
@@ -226,6 +225,7 @@ struct ap_data {
 void hostap_rx(struct net_device *dev, struct sk_buff *skb,
 	       struct hostap_80211_rx_status *rx_stats);
 void hostap_init_data(local_info_t *local);
+void hostap_init_ap_proc(local_info_t *local);
 void hostap_free_data(struct ap_data *ap);
 void hostap_check_sta_fw_version(struct ap_data *ap, int sta_fw_ver);
 
@@ -233,14 +233,15 @@ typedef enum {
 	AP_TX_CONTINUE, AP_TX_DROP, AP_TX_RETRY, AP_TX_BUFFERED,
 	AP_TX_CONTINUE_NOT_AUTHORIZED
 } ap_tx_ret;
-ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct sk_buff *skb,
-			       struct hfa384x_tx_frame *txdesc, int wds,
-			       int host_encrypt,
-			       struct prism2_crypt_data **crypt,
-			       void **sta_ptr);
+struct hostap_tx_data {
+	struct sk_buff *skb;
+	int host_encrypt;
+	struct prism2_crypt_data *crypt;
+	void *sta_ptr;
+};
+ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx);
 void hostap_handle_sta_release(void *ptr);
-void hostap_handle_sta_tx_exc(local_info_t *local,
-			      struct hfa384x_tx_frame *txdesc);
+void hostap_handle_sta_tx_exc(local_info_t *local, struct sk_buff *skb);
 int hostap_update_sta_ps(local_info_t *local,
 			 struct hostap_ieee80211_hdr *hdr);
 typedef enum {
@@ -254,6 +255,7 @@ int hostap_handle_sta_crypto(local_info_t *local,
 			     struct hostap_ieee80211_hdr *hdr,
 			     struct prism2_crypt_data **crypt, void **sta_ptr);
 int hostap_is_sta_assoc(struct ap_data *ap, u8 *sta_addr);
+int hostap_is_sta_authorized(struct ap_data *ap, u8 *sta_addr);
 int hostap_add_sta(struct ap_data *ap, u8 *sta_addr);
 int hostap_update_rx_stats(struct ap_data *ap,
 			   struct hostap_ieee80211_hdr *hdr,
@@ -261,8 +263,6 @@ int hostap_update_rx_stats(struct ap_data *ap,
 void hostap_update_rates(local_info_t *local);
 void hostap_add_wds_links(local_info_t *local);
 void hostap_wds_link_oper(local_info_t *local, u8 *addr, wds_oper_type type);
-void hostap_ap_update_sq(struct sta_info *sta,
-			 struct hostap_80211_rx_status *rx_stats);
 
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
 void hostap_deauth_all_stas(struct net_device *dev, struct ap_data *ap,

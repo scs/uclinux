@@ -32,17 +32,11 @@
 #include <pwd.h>
 #include <syslog.h>
 
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 #include "logcnt.c"
 #endif
 
 /*****************************************************************************/
-
-#ifdef CONFIG_USER_FLATFSD_FLATFSD
-#define PATH_OLD_PASSWD	"/etc/config/config"
-#else
-#define PATH_OLD_PASSWD	"/etc/passwd"
-#endif
 
 /* Delay bad password exit.
  * 
@@ -63,48 +57,6 @@ char usernamebuf[128];
 
 /*****************************************************************************/
 
-#ifdef OLD_CONFIG_PASSWORDS
-static inline char *getoldpass(const char *pfile)
-{
-	static char	tmpline[128];
-	FILE		*fp;
-	char		*spass;
-	int		len;
-
-	if ((fp = fopen(pfile, "r")) == NULL) {
-		fprintf(stderr, "ERROR: failed to open(%s), errno=%d \n",
-			pfile, errno);
-		return((char *) NULL);
-	}
-
-	while (fgets(tmpline, sizeof(tmpline), fp)) {
-		spass = strchr(tmpline, ' ');
-		if (spass) {
-			*spass++ = 0;
-			if (strcmp(tmpline, "passwd") == 0) {
-				len = strlen(spass);
-				if (spass[len-1] == '\n')
-					spass[len-1] = 0;
-				fclose(fp);
-				return(spass);
-			}
-		}
-	}
-
-	fclose(fp);
-	return((char *) NULL);
-}
-#endif
-
-static inline char *getrealpass(const char *user) {
-	struct passwd *pwp;
-	
-	pwp = getpwnam(user);
-	if (pwp == NULL)
-		return NULL;
-	return pwp->pw_passwd;
-}
-
 /*****************************************************************************/
 
 int main(int argc, char *argv[])
@@ -113,6 +65,7 @@ int main(int argc, char *argv[])
 	char	*realpwd, *gotpwd, *cpwd;
 	char *host = NULL;
 	int flag;
+	struct passwd *pwp;
 
     while ((flag = getopt(argc, argv, "h:")) != EOF) {
         switch (flag) {
@@ -145,14 +98,9 @@ int main(int argc, char *argv[])
 	}
 
 	gotpwd = getpass("Password: ");
-	realpwd = getrealpass(user);
-#ifdef OLD_CONFIG_PASSWORDS
-	if ((realpwd == NULL) && 
-			((*user == '\0') || (strcmp(user, "root") == 0)))
-		realpwd = getoldpass(PATH_OLD_PASSWD);
-#endif
 	openlog("login", LOG_PID, LOG_AUTHPRIV);
-	if (gotpwd && realpwd
+	pwp = getpwnam(user);
+	if (gotpwd && pwp
 #ifdef ONLY_ALLOW_ROOT
 			&& strcmp(user, "root") == 0
 #endif
@@ -160,34 +108,30 @@ int main(int argc, char *argv[])
 		int good = 0;
 
 
-		cpwd = crypt(gotpwd, realpwd);
-		if (strcmp(cpwd, realpwd) == 0) 
+		cpwd = crypt(gotpwd, pwp->pw_passwd);
+		if (strcmp(cpwd, pwp->pw_passwd) == 0) 
 			good++;
 
 #ifdef OLD_CONFIG_PASSWORDS
-		cpwd = crypt_old(gotpwd, realpwd);
-		if (strcmp(cpwd, realpwd) == 0)
+		cpwd = crypt_old(gotpwd, pwp->pw_passwd);
+		if (strcmp(cpwd, pwp->pw_passwd) == 0)
 			good++;
 #endif
 
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 		access__attempted(!good, user);
 #endif
 		if (good) {
 			syslog(LOG_INFO, "Authentication successful for %s from %s\n",
 					user, host ? host : "unknown");
-#ifdef EMBED
-			execlp("sh", "sh", NULL);
-#else
-			execlp("sh", "sh", "-t", NULL);
-#endif
+			execlp(pwp->pw_shell, "-sh", NULL);
 		} else {
 			syslog(LOG_ERR, "Authentication attempt failed for %s from %s because: Bad Password\n",
 					user, host ? host : "unknown");
 			sleep(DELAY_EXIT);
 		}
 	} else {
-#ifdef CONFIG_AMAZON
+#ifdef SECURITY_COUNTS
 		access__attempted(1, user);
 #endif
 		syslog(LOG_ERR, "Authentication attempt failed for %s from %s because: Invalid Username\n",

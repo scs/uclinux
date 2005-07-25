@@ -44,12 +44,22 @@ struct ieee80211_hdr {
 
 extern unsigned char rfc1042_header[6];
 
-typedef struct hostapd_data {
+typedef struct hostapd_data hostapd;
+
+struct driver_info {
+	void *data; /* driver specific data - each driver can store data for
+		     * its own use in this pointer */
+	int (*send_mgmt_frame)(void *priv, const void *msg, size_t len,
+			       int flags);
+	int (*send_eapol)(void *driver, u8 *addr, u8 *data, size_t data_len,
+			  int encrypt);
+	void (*set_sta_authorized)(void *driver, u8 *addr, int authorized);
+};
+
+struct hostapd_data {
 	struct hostapd_config *conf;
 	char *config_fname;
 
-	int sock; /* raw packet socket for driver access */
-	int ioctl_sock; /* socket for ioctl() use */
 	u8 own_addr[6];
 
 	int num_sta; /* number of entries in sta_list */
@@ -62,6 +72,7 @@ typedef struct hostapd_data {
 	 */
 	struct sta_info *sta_aid[MAX_AID_TABLE_SIZE];
 
+	struct driver_info driver;
 
 	u8 *default_wep_key;
 	u8 default_wep_key_idx;
@@ -81,7 +92,22 @@ typedef struct hostapd_data {
 
 	struct hostapd_cached_radius_acl *acl_cache;
 	struct hostapd_acl_query_data *acl_queries;
-} hostapd;
+
+	u8 *wpa_ie;
+	size_t wpa_ie_len;
+	struct wpa_authenticator *wpa_auth;
+
+#define PMKID_HASH_SIZE 128
+#define PMKID_HASH(pmkid) (unsigned int) ((pmkid)[0] & 0x7f)
+	struct rsn_pmksa_cache *pmkid[PMKID_HASH_SIZE];
+	struct rsn_pmksa_cache *pmksa;
+	int pmksa_count;
+
+	struct rsn_preauth_interface *preauth_iface;
+	time_t michael_mic_failure;
+	int michael_mic_failures;
+	int tkip_countermeasures;
+};
 
 
 void hostapd_new_assoc_sta(hostapd *hapd, struct sta_info *sta);
@@ -96,8 +122,5 @@ do { \
 } while (0)
 
 #define HOSTAPD_DEBUG_COND(level) (hapd->conf->debug >= (level))
-
-/* receive.c */
-int hostapd_init_sockets(hostapd *hapd);
 
 #endif /* HOSTAPD_H */

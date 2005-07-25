@@ -130,19 +130,19 @@ struct hostap_crypto_ops * hostap_get_crypto_ops(const char *name)
 }
 
 
-static void * hostap_crypt_null_init(void) { return (void *) 1; }
+static void * hostap_crypt_null_init(int keyidx) { return (void *) 1; }
 static void hostap_crypt_null_deinit(void *priv) {}
 
 static struct hostap_crypto_ops hostap_crypt_null = {
 	.name			= "NULL",
 	.init			= hostap_crypt_null_init,
 	.deinit			= hostap_crypt_null_deinit,
-	.encrypt		= NULL,
-	.decrypt		= NULL,
+	.encrypt_mpdu		= NULL,
+	.decrypt_mpdu		= NULL,
+	.encrypt_msdu		= NULL,
+	.decrypt_msdu		= NULL,
 	.set_key		= NULL,
 	.get_key		= NULL,
-	.set_key_idx		= NULL,
-	.get_key_idx		= NULL,
 	.extra_prefix_len	= 0,
 	.extra_postfix_len	= 0
 };

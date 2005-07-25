@@ -41,6 +41,10 @@ source directory.
 #include "version.h"
 #define VERSION 256*VERSION_MINOR+VERSION_MAJOR
 
+#define MAJOR(dev)	((dev)>>8)
+#define MINOR(dev)	((dev) & 0xff)
+#define MKDEV(ma,mi)	((ma)<<8 | (mi))
+
 #define MAJMIN_RAM	0x101 /* RAM disk */
 #define MAJOR_FD	2 /* floppy disks */
 #define MAJOR_HD	3 /* IDE-type hard disks */
@@ -126,7 +130,8 @@ source directory.
 				   hacks) scream if the boot sector gets any
 				   bigger */
 
-#define BOOT_SIGNATURE	0xaa55	/* boot signature */
+#define BOOT_SIGNATURE0	0x55	/* boot signature */
+#define BOOT_SIGNATURE1	0xaa	/* boot signature */
 #define BOOT_SIG_OFFSET	510	/* boot signature offset */
 #define MAGIC_SERIAL	0xC9CF	/* LILO installed serial number */
 

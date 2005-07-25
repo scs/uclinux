@@ -59,7 +59,7 @@ void part_verify(int dev_nr,int type)
     unsigned long second, base;
     struct partition part_table[PART_MAX];
     int mask, i, pe;
-    unsigned short boot_sig;
+    unsigned char boot_sig[2];
     
     if (!has_partitions(dev_nr) || !(mask = P_MASK(dev_nr)) || !(dev_nr & mask)
 #if 0
@@ -77,7 +77,8 @@ void part_verify(int dev_nr,int type)
       PART_MAX))) die("Short read on partition table");
     if (size < 0) pdie("read partition table");
     if ( read(fd, &boot_sig, sizeof(boot_sig)) != sizeof(boot_sig)  ||
-	boot_sig != BOOT_SIGNATURE ) die("read boot signature failed");
+	boot_sig[0] != BOOT_SIGNATURE0 || boot_sig[1] != BOOT_SIGNATURE1 )
+	die("read boot signature failed");
 
     if (verbose>=5) printf("part_verify:  part#=%d\n", pe);
 
@@ -94,7 +95,8 @@ void part_verify(int dev_nr,int type)
             die("secondary llseek failed");
 	if (read(fd, part_table, sizeof(part_table)) != sizeof(part_table)) die("secondary read pt failed");
 	if ( read(fd, &boot_sig, sizeof(boot_sig)) != sizeof(boot_sig)  ||
-	    boot_sig != BOOT_SIGNATURE ) die("read second boot signature failed");
+	    boot_sig[0] != BOOT_SIGNATURE0 || boot_sig[1] != BOOT_SIGNATURE1 )
+	    die("read second boot signature failed");
         if (is_extd_part(part_table[1].sys_ind)) second=part_table[1].start_sect;
         else base = 0;
         i++;
@@ -513,7 +515,8 @@ void do_install_mbr(char *where, char *what)
     if ((nfd=open(what,O_RDONLY)) < 0) die("Cannot open %s: %s",what,strerror(errno));
     if (read(nfd,buf,MAX_BOOT_SIZE) != MAX_BOOT_SIZE) die("read %s: %s",what,strerror(errno));
     
-    *(unsigned short*)&buf[BOOT_SIG_OFFSET] = BOOT_SIGNATURE;
+    buf[BOOT_SIG_OFFSET] = BOOT_SIGNATURE0;
+    buf[BOOT_SIG_OFFSET+1] = BOOT_SIGNATURE1;
     if (zflag) {
         char *p = buf+MAX_BOOT_SIZE;
         for (i=0; i<8; i++) *p++ = 0;

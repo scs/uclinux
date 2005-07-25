@@ -1,7 +1,7 @@
 /*
  * Host AP (software wireless LAN access point) user space daemon for
  * Host AP kernel driver
- * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -33,6 +33,7 @@
 #include "sta_info.h"
 #include "driver.h"
 #include "radius_client.h"
+#include "wpa.h"
 
 
 struct hapd_interfaces {
@@ -78,6 +79,9 @@ void hostapd_logger(hostapd *hapd, u8 *addr, unsigned int module, int level,
 		break;
 	case HOSTAPD_MODULE_RADIUS:
 		module_str = "RADIUS";
+		break;
+	case HOSTAPD_MODULE_WPA:
+		module_str = "WPA";
 		break;
 	default:
 		module_str = NULL;
@@ -157,6 +161,7 @@ void hostapd_new_assoc_sta(hostapd *hapd, struct sta_info *sta)
 
 	/* Start IEEE 802.1x authentication process for new stations */
 	ieee802_1x_new_station(hapd, sta);
+	wpa_new_station(hapd, sta);
 }
 
 
@@ -310,8 +315,7 @@ static void hostapd_rotate_wep(void *eloop_ctx, void *timeout_ctx)
 	hostapd_set_broadcast_wep(hapd);
 
 	for (s = hapd->sta_list; s != NULL; s = s->next)
-		if (s->eapol_sm)
-			s->eapol_sm->keyAvailable = TRUE;
+		ieee802_1x_notify_key_available(s->eapol_sm, 1);
 
 	if (HOSTAPD_DEBUG_COND(HOSTAPD_DEBUG_MINIMAL)) {
 		hostapd_hexdump("New WEP key generated",
@@ -321,10 +325,10 @@ static void hostapd_rotate_wep(void *eloop_ctx, void *timeout_ctx)
 
 	/* TODO: Could setup key for RX here, but change default TX keyid only
 	 * after new broadcast key has been sent to all stations. */
-	if (hostapd_set_encryption(hapd, "WEP", NULL,
-    				   hapd->default_wep_key_idx,
-			 	   hapd->default_wep_key,
-			 	   hapd->conf->default_wep_key_len)) {
+	if (hostapd_set_encryption(hapd->driver.data, "WEP", NULL,
+				   hapd->default_wep_key_idx,
+				   hapd->default_wep_key,
+				   hapd->conf->default_wep_key_len)) {
 		printf("Could not set WEP encryption.\n");
 	}
 
@@ -336,17 +340,18 @@ static void hostapd_rotate_wep(void *eloop_ctx, void *timeout_ctx)
 
 static void hostapd_cleanup(hostapd *hapd)
 {
-	if (hapd->sock >= 0)
-		close(hapd->sock);
-	if (hapd->ioctl_sock >= 0)
-		close(hapd->ioctl_sock);
 	free(hapd->default_wep_key);
 	if (hapd->conf->ieee802_11f)
 		iapp_deinit(hapd);
 	accounting_deinit(hapd);
+	wpa_deinit(hapd);
 	ieee802_1x_deinit(hapd);
 	hostapd_acl_deinit(hapd);
 	radius_client_deinit(hapd);
+
+	hostapd_wireless_event_deinit(hapd->driver.data);
+
+	hostapd_driver_deinit(hapd);
 
 	hostapd_config_free(hapd->conf);
 	hapd->conf = NULL;
@@ -360,7 +365,7 @@ static int hostapd_flush_old_stations(hostapd *hapd)
 	int ret = 0;
 
 	printf("Flushing old station entries\n");
-	if (hostapd_flush(hapd)) {
+	if (hostapd_flush(hapd->driver.data)) {
 		printf("Could not connect to kernel driver.\n");
 		ret = -1;
 	}
@@ -377,9 +382,9 @@ static int hostapd_setup_encryption(hostapd *hapd)
 		hostapd_hexdump("Default WEP key", hapd->default_wep_key,
 				hapd->conf->default_wep_key_len);
 
-	hostapd_set_encryption(hapd, "none", NULL, 0, NULL, 0);
+	hostapd_set_encryption(hapd->driver.data, "none", NULL, 0, NULL, 0);
 
-	if (hostapd_set_encryption(hapd, "WEP", NULL,
+	if (hostapd_set_encryption(hapd->driver.data, "WEP", NULL,
 				   hapd->default_wep_key_idx,
 				   hapd->default_wep_key,
 				   hapd->conf->default_wep_key_len)) {
@@ -402,27 +407,17 @@ static int hostapd_setup_encryption(hostapd *hapd)
 
 static int hostapd_setup_interface(hostapd *hapd)
 {
-	hapd->ioctl_sock = socket(PF_INET, SOCK_DGRAM, 0);
-	if (hapd->ioctl_sock < 0) {
-		perror("socket[PF_INET,SOCK_DGRAM]");
+    if (hostapd_driver_init(hapd)) {
+		printf("Host AP driver initialization failed.\n");
 		return -1;
 	}
-
-	if (hostap_ioctl_prism2param(hapd, PRISM2_PARAM_HOSTAPD, 1)) {
-		printf("Could not enable hostapd mode for interface %s\n",
-		       hapd->conf->iface);
-		return -1;
-	}
-
-	if (hostapd_init_sockets(hapd))
-		return -1;
 
 	printf("Using interface %sap with hwaddr " MACSTR " and ssid '%s'\n",
 	       hapd->conf->iface, MAC2STR(hapd->own_addr), hapd->conf->ssid);
 
 	/* Set SSID for the kernel driver (to be used in beacon and probe
 	 * response frames) */
-	if (hostap_ioctl_setiwessid(hapd, hapd->conf->ssid,
+	if (hostap_ioctl_setiwessid(hapd->driver.data, hapd->conf->ssid,
 				    hapd->conf->ssid_len)) {
 		printf("Could not set SSID for kernel driver\n");
 		return -1;
@@ -443,6 +438,11 @@ static int hostapd_setup_interface(hostapd *hapd)
 		return -1;
 	}
 
+	if (hapd->conf->wpa && wpa_init(hapd)) {
+		printf("WPA initialization failed.\n");
+		return -1;
+	}
+
 	if (accounting_init(hapd)) {
 		printf("Accounting initialization failed.\n");
 		return -1;
@@ -452,6 +452,9 @@ static int hostapd_setup_interface(hostapd *hapd)
 		printf("IEEE 802.11f (IAPP) initialization failed.\n");
 		return -1;
 	}
+
+	if (hostapd_wireless_event_init(hapd->driver.data) < 0)
+		return -1;
 
 	if (hapd->default_wep_key && hostapd_setup_encryption(hapd))
 		return -1;
@@ -468,9 +471,9 @@ static void usage(void)
 	fprintf(stderr,
 		"Host AP user space daemon for management functionality of "
 		"Host AP kernel driver\n"
-		"Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>\n"
+		"Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>\n"
 		"\n"
-		"usage: hostapd [-hdB] <configuration file>\n"
+		"usage: hostapd [-hdB] <configuration file(s)>\n"
 		"\n"
 		"options:\n"
 		"   -h   show this usage\n"
@@ -491,8 +494,6 @@ static hostapd * hostapd_init(const char *config_file)
 		exit(1);
 	}
 	memset(hapd, 0, sizeof(*hapd));
-	hapd->sock = hapd->ioctl_sock = -1;
-
 
 	hapd->config_fname = strdup(config_file);
 	if (hapd->config_fname == NULL) {
@@ -521,7 +522,7 @@ static hostapd * hostapd_init(const char *config_file)
 int main(int argc, char *argv[])
 {
 	struct hapd_interfaces interfaces;
-	int ret = 1, i;
+	int ret = 1, i, j;
 	int c, debug = 0, daemonize = 0;
 
 	for (;;) {
@@ -567,6 +568,12 @@ int main(int argc, char *argv[])
 		interfaces.hapd[i] = hostapd_init(argv[optind + i]);
 		if (!interfaces.hapd[i])
 			goto out;
+		for (j = 0; j < debug; j++) {
+			if (interfaces.hapd[i]->conf->logger_stdout_level > 0)
+				interfaces.hapd[i]->conf->
+					logger_stdout_level--;
+			interfaces.hapd[i]->conf->debug++;
+		}
 		hostapd_set_broadcast_wep(interfaces.hapd[i]);
 		if (hostapd_setup_interface(interfaces.hapd[i]))
 			goto out;
@@ -592,9 +599,6 @@ int main(int argc, char *argv[])
 	for (i = 0; i < interfaces.count; i++) {
 		if (!interfaces.hapd[i])
 			continue;
-		(void) hostapd_set_iface_flags(interfaces.hapd[i], 0);
-		(void) hostap_ioctl_prism2param(interfaces.hapd[i],
-						PRISM2_PARAM_HOSTAPD, 0);
 
 		hostapd_cleanup(interfaces.hapd[i]);
 		free(interfaces.hapd[i]);

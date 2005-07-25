@@ -8,8 +8,20 @@
  * and a POLICY for built-ins.
  */
 
-/* (C)1999 Paul ``Rusty'' Russell - Placed under the GNU GPL (See
-   COPYING for details). */
+/* (C) 1999 Paul ``Rusty'' Russell - Placed under the GNU GPL (See
+ * COPYING for details). 
+ * (C) 2000-2003 by the Netfilter Core Team <coreteam@netfilter.org>
+ *
+ * 2003-Jun-20: Harald Welte <laforge@netfilter.org>:
+ *	- Reimplementation of chain cache to use offsets instead of entries
+ * 2003-Jun-23: Harald Welte <laforge@netfilter.org>:
+ * 	- performance optimization, sponsored by Astaro AG (http://www.astaro.com/)
+ * 	  don't rebuild the chain cache after every operation, instead fix it
+ * 	  up after a ruleset change.  
+ */
+
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #ifndef IPT_LIB_DIR
 #define IPT_LIB_DIR "/usr/local/lib/iptables"
@@ -59,9 +71,9 @@ struct chain_cache
 {
 	char name[TABLE_MAXNAMELEN];
 	/* This is the first rule in chain. */
-	STRUCT_ENTRY *start;
+	unsigned int start_off;
 	/* Last rule in chain */
-	STRUCT_ENTRY *end;
+	unsigned int end_off;
 };
 
 STRUCT_TC_HANDLE
@@ -94,13 +106,6 @@ STRUCT_TC_HANDLE
 static void
 set_changed(TC_HANDLE_T h)
 {
-	if (h->cache_chain_heads) {
-		free(h->cache_chain_heads);
-		h->cache_chain_heads = NULL;
-		h->cache_num_chains = 0;
-		h->cache_chain_iteration = NULL;
-		h->cache_rule_end = NULL;
-	}
 	h->changed = 1;
 }
 
@@ -129,8 +134,8 @@ entry2index(const TC_HANDLE_T h, const STRUCT_ENTRY *seek)
 
 	if (ENTRY_ITERATE(h->entries.entrytable, h->entries.size,
 			  get_number, seek, &pos) == 0) {
-		fprintf(stderr, "ERROR: offset %i not an entry!\n",
-			(int)((char *)seek - (char *)h->entries.entrytable));
+		fprintf(stderr, "ERROR: offset %u not an entry!\n",
+			(unsigned int)((char *)seek - (char *)h->entries.entrytable));
 		abort();
 	}
 	return pos;
@@ -171,14 +176,27 @@ get_entry(TC_HANDLE_T h, unsigned int offset)
 static inline unsigned long
 entry2offset(const TC_HANDLE_T h, const STRUCT_ENTRY *e)
 {
-	return (char *)e - (char *)h->entries.entrytable;
+	return (void *)e - (void *)h->entries.entrytable;
 }
 
-static unsigned long
+static inline unsigned long
 index2offset(TC_HANDLE_T h, unsigned int index)
 {
 	return entry2offset(h, index2entry(h, index));
 }
+
+static inline STRUCT_ENTRY *
+offset2entry(TC_HANDLE_T h, unsigned int offset)
+{
+	return (STRUCT_ENTRY *) ((void *)h->entries.entrytable+offset);
+}
+
+static inline unsigned int
+offset2index(const TC_HANDLE_T h, unsigned int offset)
+{
+	return entry2index(h, offset2entry(h, offset));
+}
+
 
 static const char *
 get_errorlabel(TC_HANDLE_T h, unsigned int offset)
@@ -234,25 +252,32 @@ TC_INIT(const char *tablename)
 
 	iptc_fn = TC_INIT;
 
-	if (sockfd != -1)
+	if (sockfd != -1) {
 		close(sockfd);
+		sockfd = -1;
+	}
 
+	if (strlen(tablename) >= TABLE_MAXNAMELEN) {
+		errno = EINVAL;
+		return NULL;
+	}
+	
 	sockfd = socket(TC_AF, SOCK_RAW, IPPROTO_RAW);
 	if (sockfd < 0)
 		return NULL;
 
 	s = sizeof(info);
-	if (strlen(tablename) >= TABLE_MAXNAMELEN) {
-		errno = EINVAL;
-		return NULL;
-	}
+
 	strcpy(info.name, tablename);
 	if (getsockopt(sockfd, TC_IPPROTO, SO_GET_INFO, &info, &s) < 0)
 		return NULL;
 
 	if ((h = alloc_handle(info.name, info.size, info.num_entries))
-	    == NULL)
+	    == NULL) {
+		close(sockfd);
+		sockfd = -1;
 		return NULL;
+	}
 
 /* Too hard --RR */
 #if 0
@@ -284,12 +309,25 @@ TC_INIT(const char *tablename)
 
 	if (getsockopt(sockfd, TC_IPPROTO, SO_GET_ENTRIES, &h->entries,
 		       &tmp) < 0) {
+		close(sockfd);
+		sockfd = -1;
 		free(h);
 		return NULL;
 	}
 
 	CHECK(h);
 	return h;
+}
+
+void
+TC_FREE(TC_HANDLE_T *h)
+{
+	close(sockfd);
+	sockfd = -1;
+	if ((*h)->cache_chain_heads)
+		free((*h)->cache_chain_heads);
+	free(*h);
+	*h = NULL;
 }
 
 static inline int
@@ -349,7 +387,8 @@ add_chain(STRUCT_ENTRY *e, TC_HANDLE_T h, STRUCT_ENTRY **prev)
 	/* Last entry.  End it. */
 	if (entry2offset(h, e) + e->next_offset == h->entries.size) {
 		/* This is the ERROR node at end of the table */
-		h->cache_chain_heads[h->cache_num_chains-1].end = *prev;
+		h->cache_chain_heads[h->cache_num_chains-1].end_off = 
+			entry2offset(h, *prev);
 		return 0;
 	}
 
@@ -357,24 +396,24 @@ add_chain(STRUCT_ENTRY *e, TC_HANDLE_T h, STRUCT_ENTRY **prev)
 	   target, or a hook entry point */
 	if (strcmp(GET_TARGET(e)->u.user.name, ERROR_TARGET) == 0) {
 		/* prev was last entry in previous chain */
-		h->cache_chain_heads[h->cache_num_chains-1].end
-			= *prev;
+		h->cache_chain_heads[h->cache_num_chains-1].end_off
+			= entry2offset(h, *prev);
 
 		strcpy(h->cache_chain_heads[h->cache_num_chains].name,
 		       (const char *)GET_TARGET(e)->data);
-		h->cache_chain_heads[h->cache_num_chains].start
-			= (void *)e + e->next_offset;
+		h->cache_chain_heads[h->cache_num_chains].start_off
+			= entry2offset(h, (void *)e + e->next_offset);
 		h->cache_num_chains++;
 	} else if ((builtin = is_hook_entry(e, h)) != 0) {
 		if (h->cache_num_chains > 0)
 			/* prev was last entry in previous chain */
-			h->cache_chain_heads[h->cache_num_chains-1].end
-				= *prev;
+			h->cache_chain_heads[h->cache_num_chains-1].end_off
+				= entry2offset(h, *prev);
 
 		strcpy(h->cache_chain_heads[h->cache_num_chains].name,
 		       h->hooknames[builtin-1]);
-		h->cache_chain_heads[h->cache_num_chains].start
-			= (void *)e;
+		h->cache_chain_heads[h->cache_num_chains].start_off
+			= entry2offset(h, (void *)e);
 		h->cache_num_chains++;
 	}
 
@@ -417,6 +456,82 @@ static int populate_cache(TC_HANDLE_T h)
 	qsort(h->cache_chain_heads + h->cache_num_builtins,
 	      h->cache_num_chains - h->cache_num_builtins,
 	      sizeof(struct chain_cache), alphasort);
+
+	return 1;
+}
+
+static int 
+correct_cache(TC_HANDLE_T h, unsigned int offset, int delta)
+{
+	int i;		/* needs to be signed because deleting first
+			   chain can make it drop to -1 */
+
+	if (!delta)
+		return 1;
+
+	for (i = 0; i < h->cache_num_chains; i++) {
+		struct chain_cache *cc = &h->cache_chain_heads[i];
+
+		if (delta < 0) {
+			/* take care about deleted chains */
+			if (cc->start_off > offset+delta
+			    && cc->end_off < offset) {
+				/* this chain is within the deleted range,
+				 * let's remove it from the cache */
+				void *start;
+				unsigned int size;
+
+				h->cache_num_chains--;
+
+				/* no need for memmove since we are 
+				 * removing the last entry */
+				if (i >= h->cache_num_chains)
+					continue;
+
+				start = &h->cache_chain_heads[i+1];
+				size = (h->cache_num_chains-i)
+					* sizeof(struct chain_cache);
+				memmove(cc, start, size);
+
+				/* iterate over same index again, since
+				 * it is now a different chain */
+				i--;
+				continue;
+			}
+		}
+
+		if (cc->start_off > offset)
+			cc->start_off += delta;
+
+		if (cc->end_off >= offset)
+			cc->end_off += delta;
+	}
+	/* HW_FIXME: sorting might be needed, but just in case a new chain was
+	 * added */
+
+	return 1;
+}
+
+static int
+add_chain_cache(TC_HANDLE_T h, const char *name, unsigned int start_off,
+		unsigned int end_off)
+{
+	struct chain_cache *ccs = realloc(h->cache_chain_heads, 
+					  (h->new_number / 2 + 4 + 1)
+					   * sizeof(struct chain_cache));
+	struct chain_cache *newcc;
+	
+	if (!ccs)
+		return 0;
+
+	h->cache_chain_heads = ccs;
+	newcc = &h->cache_chain_heads[h->cache_num_chains];
+	h->cache_num_chains++;
+
+	strncpy(newcc->name, name, TABLE_MAXNAMELEN-1);
+	newcc->name[TABLE_MAXNAMELEN-1] = '\0';
+	newcc->start_off = start_off;
+	newcc->end_off = end_off;
 
 	return 1;
 }
@@ -523,11 +638,11 @@ TC_FIRST_RULE(const char *chain, TC_HANDLE_T *handle)
 	}
 
 	/* Empty chain: single return/policy rule */
-	if (c->start == c->end)
+	if (c->start_off == c->end_off)
 		return NULL;
 
-	(*handle)->cache_rule_end = c->end;
-	return c->start;
+	(*handle)->cache_rule_end = offset2entry(*handle, c->end_off);
+	return offset2entry(*handle, c->start_off);
 }
 
 /* Returns NULL when rules run out. */
@@ -666,7 +781,7 @@ TC_GET_POLICY(const char *chain,
 	return target_name(*handle, e);
 }
 
-static int
+static inline int
 correct_verdict(STRUCT_ENTRY *e,
 		char *base,
 		unsigned int offset, int delta_offset)
@@ -767,8 +882,16 @@ insert_rules(unsigned int num_rules, unsigned int rules_size,
 	newh->entries.size = (*handle)->entries.size + rules_size;
 	newh->hooknames = (*handle)->hooknames;
 
-	if ((*handle)->cache_chain_heads)
-		free((*handle)->cache_chain_heads);
+	newh->cache_chain_heads = (*handle)->cache_chain_heads;
+	newh->cache_num_builtins = (*handle)->cache_num_builtins;
+	newh->cache_num_chains = (*handle)->cache_num_chains;
+	newh->cache_rule_end = (*handle)->cache_rule_end;
+	newh->cache_chain_iteration = (*handle)->cache_chain_iteration;
+	if (!correct_cache(newh, offset, rules_size)) {
+		free(newh);
+		return 0;
+	}
+
 	free(*handle);
 	*handle = newh;
 
@@ -827,6 +950,10 @@ delete_rules(unsigned int num_rules, unsigned int rules_size,
 	(*handle)->new_number -= num_rules;
 	(*handle)->entries.size -= rules_size;
 
+	/* Fix the chain cache */
+	if (!correct_cache(*handle, offset+rules_size, -(int)rules_size))
+		return 0;
+
 	return set_verdict(offset, -(int)rules_size, handle);
 }
 
@@ -884,7 +1011,7 @@ map_target(const TC_HANDLE_T handle,
 
 		c = find_label(t->u.user.name, handle);
 		if (c)
-			return standard_map(e, entry2offset(handle, c->start));
+			return standard_map(e, c->start_off);
 	}
 
 	/* Must be a module?  If not, kernel will reject... */
@@ -924,10 +1051,10 @@ TC_INSERT_ENTRY(const IPT_CHAINLABEL chain,
 		return 0;
 	}
 
-	chainindex = entry2index(*handle, c->start);
+	chainindex = offset2index(*handle, c->start_off);
 
 	tmp = index2entry(*handle, chainindex + rulenum);
-	if (!tmp || tmp > c->end) {
+	if (!tmp || tmp > offset2entry(*handle, c->end_off)) {
 		errno = E2BIG;
 		return 0;
 	}
@@ -964,10 +1091,10 @@ TC_REPLACE_ENTRY(const IPT_CHAINLABEL chain,
 		return 0;
 	}
 
-	chainindex = entry2index(*handle, c->start);
+	chainindex = offset2index(*handle, c->start_off);
 
 	tmp = index2entry(*handle, chainindex + rulenum);
-	if (!tmp || tmp >= c->end) {
+	if (!tmp || tmp >= offset2entry(*handle, c->end_off)) {
 		errno = E2BIG;
 		return 0;
 	}
@@ -1005,13 +1132,11 @@ TC_APPEND_ENTRY(const IPT_CHAINLABEL chain,
 	}
 
 	if (!map_target(*handle, (STRUCT_ENTRY *)e,
-			entry2offset(*handle, c->end), &old))
+			c->end_off, &old))
 		return 0;
 
-	ret = insert_rules(1, e->next_offset, e,
-			   entry2offset(*handle, c->end),
-			   entry2index(*handle, c->end),
-			   0, handle);
+	ret = insert_rules(1, e->next_offset, e, c->end_off, 
+			   offset2index(*handle, c->end_off), 0, handle);
 	unmap_target((STRUCT_ENTRY *)e, &old);
 	return ret;
 }
@@ -1085,8 +1210,7 @@ TC_DELETE_ENTRY(const IPT_CHAINLABEL chain,
 		return 0;
 	}
 
-	for (offset = entry2offset(*handle, c->start);
-	     offset < entry2offset(*handle, c->end);
+	for (offset = c->start_off; offset < c->end_off;
 	     offset += e->next_offset) {
 		STRUCT_ENTRY_TARGET discard;
 
@@ -1135,9 +1259,9 @@ TC_DELETE_NUM_ENTRY(const IPT_CHAINLABEL chain,
 		return 0;
 	}
 
-	index = entry2index(*handle, c->start) + rulenum;
+	index = offset2index(*handle, c->start_off) + rulenum;
 
-	if (index >= entry2index(*handle, c->end)) {
+	if (index >= offset2index(*handle, c->end_off)) {
 		errno = E2BIG;
 		return 0;
 	}
@@ -1169,6 +1293,7 @@ int
 TC_FLUSH_ENTRIES(const IPT_CHAINLABEL chain, TC_HANDLE_T *handle)
 {
 	unsigned int startindex, endindex;
+	STRUCT_ENTRY *startentry, *endentry;
 	struct chain_cache *c;
 	int ret;
 
@@ -1177,12 +1302,14 @@ TC_FLUSH_ENTRIES(const IPT_CHAINLABEL chain, TC_HANDLE_T *handle)
 		errno = ENOENT;
 		return 0;
 	}
-	startindex = entry2index(*handle, c->start);
-	endindex = entry2index(*handle, c->end);
+	startindex = offset2index(*handle, c->start_off);
+	endindex = offset2index(*handle, c->end_off);
+	startentry = offset2entry(*handle, c->start_off);
+	endentry = offset2entry(*handle, c->end_off);
 
 	ret = delete_rules(endindex - startindex,
-			   (char *)c->end - (char *)c->start,
-			   entry2offset(*handle, c->start), startindex,
+			   (char *)endentry - (char *)startentry,
+			   c->start_off, startindex,
 			   handle);
 	return ret;
 }
@@ -1199,8 +1326,8 @@ TC_ZERO_ENTRIES(const IPT_CHAINLABEL chain, TC_HANDLE_T *handle)
 		return 0;
 	}
 
-	i = entry2index(*handle, c->start);
-	end = entry2index(*handle, c->end);
+	i = offset2index(*handle, c->start_off);
+	end = offset2index(*handle, c->end_off);
 
 	for (; i <= end; i++) {
 		if ((*handle)->counter_map[i].maptype ==COUNTER_MAP_NORMAL_MAP)
@@ -1228,8 +1355,8 @@ TC_READ_COUNTER(const IPT_CHAINLABEL chain,
 		return NULL;
 	}
 
-	chainindex = entry2index(*handle, c->start);
-	end = entry2index(*handle, c->end);
+	chainindex = offset2index(*handle, c->start_off);
+	end = offset2index(*handle, c->end_off);
 
 	if (chainindex + rulenum > end) {
 		errno = E2BIG;
@@ -1258,8 +1385,8 @@ TC_ZERO_COUNTER(const IPT_CHAINLABEL chain,
 		return 0;
 	}
 
-	chainindex = entry2index(*handle, c->start);
-	end = entry2index(*handle, c->end);
+	chainindex = offset2index(*handle, c->start_off);
+	end = offset2index(*handle, c->end_off);
 
 	if (chainindex + rulenum > end) {
 		errno = E2BIG;
@@ -1297,8 +1424,8 @@ TC_SET_COUNTER(const IPT_CHAINLABEL chain,
 		return 0;
 	}
 
-	chainindex = entry2index(*handle, c->start);
-	end = entry2index(*handle, c->end);
+	chainindex = offset2index(*handle, c->start_off);
+	end = offset2index(*handle, c->end_off);
 
 	if (chainindex + rulenum > end) {
 		errno = E2BIG;
@@ -1330,6 +1457,7 @@ TC_CREATE_CHAIN(const IPT_CHAINLABEL chain, TC_HANDLE_T *handle)
 		STRUCT_ENTRY ret;
 		STRUCT_STANDARD_TARGET target;
 	} newc;
+	unsigned int destination;
 
 	iptc_fn = TC_CREATE_CHAIN;
 
@@ -1367,11 +1495,21 @@ TC_CREATE_CHAIN(const IPT_CHAINLABEL chain, TC_HANDLE_T *handle)
 		= ALIGN(sizeof(STRUCT_STANDARD_TARGET));
 	newc.target.verdict = RETURN;
 
+	destination = index2offset(*handle, (*handle)->new_number -1);
+
 	/* Add just before terminal entry */
 	ret = insert_rules(2, sizeof(newc), &newc.head,
-			   index2offset(*handle, (*handle)->new_number - 1),
+			   destination,
 			   (*handle)->new_number - 1,
 			   0, handle);
+
+	set_changed(*handle);
+
+	/* add chain cache info for this chain */
+	add_chain_cache(*handle, chain, 
+			destination+newc.head.next_offset, 
+			destination+newc.head.next_offset);
+
 	return ret;
 }
 
@@ -1405,7 +1543,7 @@ TC_GET_REFERENCES(unsigned int *ref, const IPT_CHAINLABEL chain,
 	*ref = 0;
 	ENTRY_ITERATE((*handle)->entries.entrytable,
 		      (*handle)->entries.size,
-		      count_ref, entry2offset(*handle, c->start), ref);
+		      count_ref, c->start_off, ref);
 	return 1;
 }
 
@@ -1417,6 +1555,7 @@ TC_DELETE_CHAIN(const IPT_CHAINLABEL chain, TC_HANDLE_T *handle)
 	unsigned int references;
 	struct chain_cache *c;
 	int ret;
+	STRUCT_ENTRY *start;
 
 	if (!TC_GET_REFERENCES(&references, chain, handle))
 		return 0;
@@ -1438,18 +1577,20 @@ TC_DELETE_CHAIN(const IPT_CHAINLABEL chain, TC_HANDLE_T *handle)
 		return 0;
 	}
 
-	if ((void *)c->start != c->end) {
+	if (c->start_off != c->end_off) {
 		errno = ENOTEMPTY;
 		return 0;
 	}
 
 	/* Need label index: preceeds chain start */
-	labelidx = entry2index(*handle, c->start) - 1;
+	labelidx = offset2index(*handle, c->start_off) - 1;
 	labeloff = index2offset(*handle, labelidx);
+
+	start = offset2entry(*handle, c->start_off);
 
 	ret = delete_rules(2,
 			   get_entry(*handle, labeloff)->next_offset
-			   + c->start->next_offset,
+			   + start->next_offset,
 			   labeloff, labelidx, handle);
 	return ret;
 }
@@ -1488,7 +1629,7 @@ int TC_RENAME_CHAIN(const IPT_CHAINLABEL oldname,
 	}
 
 	/* Need label index: preceeds chain start */
-	labelidx = entry2index(*handle, c->start) - 1;
+	labelidx = offset2index(*handle, c->start_off) - 1;
 	labeloff = index2offset(*handle, labelidx);
 
 	t = (struct ipt_error_target *)
@@ -1496,6 +1637,11 @@ int TC_RENAME_CHAIN(const IPT_CHAINLABEL oldname,
 
 	memset(t->error, 0, sizeof(t->error));
 	strcpy(t->error, newname);
+
+	/* update chain cache */
+	memset(c->name, 0, sizeof(c->name));
+	strcpy(c->name, newname);
+
 	set_changed(*handle);
 
 	return 1;
@@ -1582,11 +1728,13 @@ TC_COMMIT(TC_HANDLE_T *handle)
 	STRUCT_REPLACE *repl;
 	STRUCT_COUNTERS_INFO *newcounters;
 	unsigned int i;
-	size_t counterlen
-		= sizeof(STRUCT_COUNTERS_INFO)
-		+ sizeof(STRUCT_COUNTERS) * (*handle)->new_number;
+	size_t counterlen;
 
 	CHECK(*handle);
+
+	counterlen = sizeof(STRUCT_COUNTERS_INFO)
+			+ sizeof(STRUCT_COUNTERS) * (*handle)->new_number;
+
 #if 0
 	TC_DUMP_ENTRIES(*handle);
 #endif
@@ -1713,10 +1861,7 @@ TC_COMMIT(TC_HANDLE_T *handle)
 	free(newcounters);
 
  finished:
-	if ((*handle)->cache_chain_heads)
-		free((*handle)->cache_chain_heads);
-	free(*handle);
-	*handle = NULL;
+	TC_FREE(handle);
 	return 1;
 }
 

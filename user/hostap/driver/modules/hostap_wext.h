@@ -3,18 +3,8 @@
 
 /* Linux Wireless Extensions compatibility code */
 
-#if defined(CONFIG_NET_RADIO) || defined(CONFIG_NET_PCMCIA_RADIO)
 #include <linux/wireless.h>
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
-#endif /* WIRELESS_EXT > 12 */
-#if WIRELESS_EXT < 9
-#warning Linux wireless extensions versions older than 9 are not supported
-/* Compile limited version without wireless ext support */
-#undef WIRELESS_EXT
-#endif /* WIRELESS_EXT < 9 */
-#endif /* CONFIG_NET_RADIO || CONFIG_NET_PCMCIA_RADIO */
-
 
 /* if wireless ext is not supported */
 #ifndef IW_MODE_ADHOC
@@ -37,17 +27,7 @@
 #endif
 
 
-
-#ifdef WIRELESS_EXT
 /* Conversion to new driver API by Jean II */
-
-#if WIRELESS_EXT <= 12
-/* Wireless extensions backward compatibility */
-
-/* Dummy prototype, as we don't really need it */
-struct iw_request_info;
-#endif /* WIRELESS_EXT <= 12 */
-
 
 #if WIRELESS_EXT >= 15
 /* Wireless ext ver15 allows verification of iwpriv support and sub-ioctls can
@@ -71,7 +51,5 @@ struct iw_request_info;
 #define IW_PRIV_TYPE_ADDR 0x6000
 #endif /* IW_PRIV_TYPE_ADDR */
 #endif /* PRISM2_USE_WE_TYPE_ADDR */
-
-#endif /* WIRELESS_EXT */
 
 #endif /* HOSTAP_WEXT_H */

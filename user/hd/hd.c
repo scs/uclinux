@@ -28,8 +28,7 @@
 
 /*****************************************************************************/
 
-char	*version = "1.0.0";
-
+char	*version = "1.0.1";
 char	*progname;
 
 /*
@@ -45,13 +44,14 @@ char	*progname;
 
 int	obase = HEX;
 int	osize = BIT32;
+int	swap = 0;
 
 /*****************************************************************************/
 
 void usage(int rc)
 {
-	printf("usage: %s [-?vodxbcwl] [-s offset] [<filename>]\n\n", progname);
-	printf("\t-?\t-- this help\n"
+	printf("usage: %s [-?vodxbcwly] [-s offset] [<filename>]\n\n", progname);
+	printf( "\t-?\t-- this help\n"
 		"\t-v\t-- print version\n"
 		"\t-s\t-- skip offset bytes from start\n"
 		"\t-o\t-- output in octal\n"
@@ -60,7 +60,8 @@ void usage(int rc)
 		"\t-b\t-- output as bytes\n"
 		"\t-c\t-- output as bytes\n"
 		"\t-w\t-- output as 16 bit words\n"
-		"\t-l\t-- output as 32 bit words (default)\n");
+		"\t-l\t-- output as 32 bit words (default)\n"
+		"\t-y\t-- byte swap (for 16 and 32 bit values)\n");
 	exit(rc);
 }
 
@@ -74,12 +75,13 @@ int main(int argc, char *argv[])
 	char		numspaces[32], numfmt[10];
 	char		numprtc;
 	char		obuf[160];
+	unsigned short	sval;
 	unsigned char	ibuf[16];
 	unsigned long	addr, val, offset = 0L;
 
 	progname = argv[0];
 
-	while ((c = getopt(argc, argv, "?hvodxbcwls:")) != EOF) {
+	while ((c = getopt(argc, argv, "?hvodxbcwlys:")) != EOF) {
 		switch (c) {
 		case 'v':
 			printf("%s: version %s\n", progname, version);
@@ -107,6 +109,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'l':
 			osize = BIT32;
+			break;
+		case 'y':
+			swap = 1;
 			break;
 		case 'h':
 		case '?':
@@ -167,7 +172,8 @@ int main(int argc, char *argv[])
 
 	if (offset)
 		lseek(fd, offset, SEEK_SET);
-	addr = lseek(fd, 0, SEEK_CUR);
+	if ((addr = lseek(fd, 0, SEEK_CUR)) == ((off_t) -1))
+		addr = 0;
 
 	/*
 	 *	Do the actual printing.
@@ -180,14 +186,22 @@ int main(int argc, char *argv[])
 		ostr += sprintf(ostr, addrfmt, addr);
 
 		for (i = 0; (i < len); i += osize) {
-			if (osize == BIT8)
+			if (osize == BIT8) {
 				val = (unsigned long) ibuf[i];
-			else if (osize == BIT16)
-				val = (unsigned long) 
-					*((unsigned short *) &ibuf[i]);
-			else
-				val = (unsigned long) 
-					*((unsigned long *) &ibuf[i]);
+			} else if (osize == BIT16) {
+				sval = *((unsigned short *) &ibuf[i]);
+				if (swap)
+					sval = (sval << 8) | (sval >> 8);
+				val = (unsigned long) sval;
+			} else {
+				val = *((unsigned long *) &ibuf[i]);
+				if (swap) {
+					val = ((val & 0xff) << 24) |
+						((val & 0xff00) << 8) |
+						((val & 0xff0000) >> 8) |
+						((val & 0xff000000) >> 24);
+				}
+			}
 
 			ostr += sprintf(ostr, numfmt, val);
 		}

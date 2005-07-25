@@ -1,9 +1,11 @@
 #ifndef STA_INFO_H
 #define STA_INFO_H
 
+int ap_for_each_sta(struct hostapd_data *hapd,
+		    int (*cb)(struct hostapd_data *hapd, struct sta_info *sta,
+			      void *ctx),
+		    void *ctx);
 struct sta_info* ap_get_sta(hostapd *hapd, u8 *sta);
-struct sta_info* ap_get_sta_radius_identifier(hostapd *hapd,
-					      u8 radius_identifier);
 void ap_sta_hash_add(hostapd *hapd, struct sta_info *sta);
 void ap_free_sta(hostapd *hapd, struct sta_info *sta);
 void ap_free_sta(hostapd *hapd, struct sta_info *sta);

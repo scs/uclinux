@@ -34,3 +34,33 @@ clean:
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_CHARGEN \
+			-a "chargen stream tcp nowait root /bin/klaxon tcp-chargen" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_CHARGEN \
+			-a "chargen stream udp wait   root /bin/klaxon udp-chargen" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_DISCARD \
+			-a "discard stream tcp nowait root /bin/klaxon tcp-discard" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_DISCARD \
+			-a "discard stream udp wait   root /bin/klaxon udp-discard" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_ECHO \
+			-a "echo    stream tcp nowait root /bin/klaxon tcp-echo" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_ECHO \
+			-a "echo    stream udp wait   root /bin/klaxon udp-echo" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_FTP \
+			-a "ftp     stream tcp nowait root /bin/klaxon ftp" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_FTP \
+			-a "ftpdata stream tcp nowait root /bin/klaxon ftp-data" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_HTTP \
+			-a "http    stream tcp nowait root /bin/klaxon http" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_SMTP \
+			-a "smtp    stream tcp nowait root /bin/klaxon smtp" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_SNMP \
+			-a "snmp    stream tcp nowait root /bin/klaxon tcp-snmp" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_SNMP \
+			-a "snmp    stream udp wait   root /bin/klaxon udp-snmp" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_SSH \
+			-a "ssh     stream tcp nowait root /bin/klaxon ssh" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_TELNET \
+			-a "telnet  stream tcp nowait root /bin/klaxon telnet" /etc/inetd.conf
+	$(ROMFSINST) -e CONFIG_USER_KLAXON_TFTP \
+			-a "tftp    stream udp wait   root /bin/klaxon tftp" /etc/inetd.conf

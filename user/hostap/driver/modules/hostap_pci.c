@@ -28,18 +28,11 @@ static char *version = PRISM2_VERSION " (Jouni Malinen <jkmaline@cc.hut.fi>)";
 static char *dev_info = "hostap_pci";
 
 
-MODULE_AUTHOR("SSH Communications Security Corp, Jouni Malinen");
+MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Support for Intersil Prism2.5-based 802.11 wireless LAN "
 		   "PCI cards.");
 MODULE_SUPPORTED_DEVICE("Intersil Prism2.5-based WLAN PCI cards");
 MODULE_LICENSE("GPL");
-
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
-/* PCI initialization uses Linux 2.4.x version and older kernels do not support
- * this */
-#error Prism2.5 PCI version requires at least Linux kernel version 2.4.0
-#endif /* kernel < 2.4.0 */
 
 
 /* FIX: do we need mb/wmb/rmb with memory operations? */
@@ -66,7 +59,7 @@ static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
 
 	spin_lock_irqsave(&local->lock, flags);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTB, a, v);
-	writeb(v, dev->mem_start + a);
+	writeb(v, (void *) dev->mem_start + a);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
@@ -78,7 +71,7 @@ static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
 	u8 v;
 
 	spin_lock_irqsave(&local->lock, flags);
-	v = readb(dev->mem_start + a);
+	v = readb((void *) dev->mem_start + a);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INB, a, v);
 	spin_unlock_irqrestore(&local->lock, flags);
 	return v;
@@ -92,7 +85,7 @@ static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
 
 	spin_lock_irqsave(&local->lock, flags);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTW, a, v);
-	writew(v, dev->mem_start + a);
+	writew(v, (void *) dev->mem_start + a);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
@@ -104,7 +97,7 @@ static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
 	u16 v;
 
 	spin_lock_irqsave(&local->lock, flags);
-	v = readw(dev->mem_start + a);
+	v = readw((void *) dev->mem_start + a);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INW, a, v);
 	spin_unlock_irqrestore(&local->lock, flags);
 	return v;
@@ -119,12 +112,14 @@ static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
 
 #else /* PRISM2_IO_DEBUG */
 
-#define HFA384X_OUTB(v,a) writeb((v), dev->mem_start + (a))
-#define HFA384X_INB(a) (u8) readb(dev->mem_start + (a))
-#define HFA384X_OUTW(v,a) writew((v), dev->mem_start + (a))
-#define HFA384X_INW(a) (u16) readw(dev->mem_start + (a))
-#define HFA384X_OUTW_DATA(v,a) writew(cpu_to_le16(v), dev->mem_start + (a))
-#define HFA384X_INW_DATA(a) (u16) le16_to_cpu(readw(dev->mem_start + (a)))
+#define HFA384X_OUTB(v,a) writeb((v), (void *) dev->mem_start + (a))
+#define HFA384X_INB(a) (u8) readb((void *) dev->mem_start + (a))
+#define HFA384X_OUTW(v,a) writew((v), (void *) dev->mem_start + (a))
+#define HFA384X_INW(a) (u16) readw((void *) dev->mem_start + (a))
+#define HFA384X_OUTW_DATA(v,a) \
+	writew(cpu_to_le16(v), (void *) dev->mem_start + (a))
+#define HFA384X_INW_DATA(a) (u16) \
+	le16_to_cpu(readw((void *) dev->mem_start + (a)))
 
 #endif /* PRISM2_IO_DEBUG */
 
@@ -172,6 +167,10 @@ static int hfa384x_to_bap(struct net_device *dev, u16 bap, void *buf, int len)
 static void prism2_pci_cor_sreset(local_info_t *local)
 {
 	struct net_device *dev = local->dev;
+	u16 reg;
+
+	reg = HFA384X_INB(HFA384X_PCICOR_OFF);
+	printk(KERN_DEBUG "%s: Original COR value: 0x%0x\n", dev->name, reg);
 
 	/* linux-wlan-ng uses extremely long hold and settle times for
 	 * COR sreset. A comment in the driver code mentions that the long
@@ -184,10 +183,10 @@ static void prism2_pci_cor_sreset(local_info_t *local)
 #ifdef PRISM2_PCI_USE_LONG_DELAYS
 	int i;
 
-	HFA384X_OUTW(0x0080, HFA384X_PCICOR_OFF);
+	HFA384X_OUTW(reg | 0x0080, HFA384X_PCICOR_OFF);
 	mdelay(250);
 
-	HFA384X_OUTW(0x0, HFA384X_PCICOR_OFF);
+	HFA384X_OUTW(reg & ~0x0080, HFA384X_PCICOR_OFF);
 	mdelay(500);
 
 	/* Wait for f/w to complete initialization (CMD:BUSY == 0) */
@@ -197,10 +196,10 @@ static void prism2_pci_cor_sreset(local_info_t *local)
 
 #else /* PRISM2_PCI_USE_LONG_DELAYS */
 
-	HFA384X_OUTW(0x0080, HFA384X_PCICOR_OFF);
-	mdelay(1);
-	HFA384X_OUTW(0x0, HFA384X_PCICOR_OFF);
-	mdelay(1);
+	HFA384X_OUTW(reg | 0x0080, HFA384X_PCICOR_OFF);
+	mdelay(2);
+	HFA384X_OUTW(reg & ~0x0080, HFA384X_PCICOR_OFF);
+	mdelay(2);
 
 #endif /* PRISM2_PCI_USE_LONG_DELAYS */
 
@@ -230,6 +229,7 @@ static struct prism2_helper_functions prism2_pci_funcs =
 	.dev_open	= NULL,
 	.dev_close	= NULL,
 	.genesis_reset	= prism2_pci_genesis_reset,
+	.hw_type	= HOSTAP_HW_PCI,
 };
 
 
@@ -275,9 +275,6 @@ static int prism2_pci_probe(struct pci_dev *pdev,
         dev->mem_start = mem;
         dev->mem_end = mem + pci_resource_len(pdev, 0);
 
-	if (prism2_init_dev(local))
-		goto fail;
-
 	prism2_pci_cor_sreset(local);
 
 	pci_set_drvdata(pdev, dev);
@@ -298,7 +295,7 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 	printk(KERN_INFO "%s: Intersil Prism2.5 PCI: "
 	       "mem=0x%lx, irq=%d\n", dev->name, phymem, dev->irq);
 
-	return 0;
+	return hostap_hw_ready(dev);
 
  fail:
 	if (irq_registered && dev)
@@ -310,10 +307,7 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 	release_mem_region(phymem, pci_resource_len(pdev, 0));
 
  err_out_disable:
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4))
 	pci_disable_device(pdev);
-#endif
-
 	prism2_free_local_data(dev);
 
 	return -ENODEV;
@@ -340,10 +334,7 @@ static void prism2_pci_remove(struct pci_dev *pdev)
 
 	release_mem_region(pci_resource_start(pdev, 0),
 			   pci_resource_len(pdev, 0));
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4))
 	pci_disable_device(pdev);
-#endif
 }
 
 
@@ -355,16 +346,12 @@ static int prism2_pci_suspend(struct pci_dev *pdev, u32 state)
 	local_info_t *local = iface->local;
 
 	if (netif_running(dev)) {
-		hostap_netif_stop_queues(dev);
+		netif_stop_queue(dev);
 		netif_device_detach(dev);
 	}
 	prism2_hw_shutdown(dev, 0);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,6))
 	pci_save_state(pdev, local->pci_save_state);
-#endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4))
 	pci_disable_device(pdev);
-#endif
 	pci_set_power_state(pdev, 3);
 
 	return 0;
@@ -377,9 +364,7 @@ static int prism2_pci_resume(struct pci_dev *pdev)
 	local_info_t *local = iface->local;
 
 	pci_enable_device(pdev);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,6))
 	pci_restore_state(pdev, local->pci_save_state);
-#endif
 	prism2_hw_config(dev, 0);
 	if (netif_running(dev)) {
 		netif_device_attach(dev);

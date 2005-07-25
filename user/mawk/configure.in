@@ -1,11 +1,8 @@
 dnl configure.in for mawk
 dnl
 dnl $Log$
-dnl Revision 1.1  2004/07/19 13:08:53  lgsoft
-dnl Initial revision
-dnl
-dnl Revision 1.1.1.1  2004/07/18 13:27:44  nidhi
-dnl Importing
+dnl Revision 1.2  2005/07/25 04:03:15  magicyang
+dnl New user folder check in
 dnl
 dnl Revision 1.13  1995/10/16  12:25:00  mike
 dnl configure cleanup

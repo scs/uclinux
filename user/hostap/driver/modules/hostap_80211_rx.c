@@ -88,22 +88,6 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 	tail_need += 4;
 #endif /* PRISM2_ADD_BOGUS_CRC */
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
-	if (head_need > skb_headroom(skb) || tail_need > skb_tailroom(skb)) {
-		struct sk_buff *nskb;
-
-		nskb = dev_alloc_skb(skb->len + head_need + tail_need);
-		if (nskb == NULL) {
-			dev_kfree_skb_any(skb);
-			return 0;
-		}
-
-		skb_reserve(nskb, head_need);
-		memcpy(skb_put(nskb, skb->len), skb->data, skb->len);
-		dev_kfree_skb_any(skb);
-		skb = nskb;
-	}
-#else /* Linux 2.4.0 or newer */
 	head_need -= skb_headroom(skb);
 	tail_need -= skb_tailroom(skb);
 
@@ -117,7 +101,6 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 			return 0;
 		}
 	}
-#endif
 
 	/* We now have an skb with enough head and tail room, so just insert
 	 * the extra data */
@@ -305,6 +288,147 @@ static int prism2_frag_cache_invalidate(local_info_t *local,
 }
 
 
+static struct hostap_bss_info *__hostap_get_bss(local_info_t *local, u8 *bssid,
+						u8 *ssid, size_t ssid_len)
+{
+	struct list_head *ptr;
+	struct hostap_bss_info *bss;
+
+	list_for_each(ptr, &local->bss_list) {
+		bss = list_entry(ptr, struct hostap_bss_info, list);
+		if (memcmp(bss->bssid, bssid, ETH_ALEN) == 0 &&
+		    (ssid == NULL ||
+		     (ssid_len == bss->ssid_len &&
+		      memcmp(ssid, bss->ssid, ssid_len) == 0))) {
+			list_move(&bss->list, &local->bss_list);
+			return bss;
+		}
+	}
+
+	return NULL;
+}
+
+
+static struct hostap_bss_info *__hostap_add_bss(local_info_t *local, u8 *bssid,
+						u8 *ssid, size_t ssid_len)
+{
+	struct hostap_bss_info *bss;
+
+	if (local->num_bss_info >= HOSTAP_MAX_BSS_COUNT) {
+		bss = list_entry(local->bss_list.prev,
+				 struct hostap_bss_info, list);
+		list_del(&bss->list);
+		local->num_bss_info--;
+	} else {
+		bss = (struct hostap_bss_info *)
+			kmalloc(sizeof(*bss), GFP_ATOMIC);
+		if (bss == NULL)
+			return NULL;
+	}
+
+	memset(bss, 0, sizeof(*bss));
+	memcpy(bss->bssid, bssid, ETH_ALEN);
+	memcpy(bss->ssid, ssid, ssid_len);
+	bss->ssid_len = ssid_len;
+	local->num_bss_info++;
+	list_add(&bss->list, &local->bss_list);
+	return bss;
+}
+
+
+static void __hostap_expire_bss(local_info_t *local)
+{
+	struct hostap_bss_info *bss;
+
+	while (local->num_bss_info > 0) {
+		bss = list_entry(local->bss_list.prev,
+				 struct hostap_bss_info, list);
+		if (!time_after(jiffies, bss->last_update + 60 * HZ))
+			break;
+
+		list_del(&bss->list);
+		local->num_bss_info--;
+		kfree(bss);
+	}
+}
+
+
+/* Both IEEE 802.11 Beacon and Probe Response frames have similar structure, so
+ * the same routine can be used to parse both of them. */
+static void hostap_rx_sta_beacon(local_info_t *local, struct sk_buff *skb,
+				 int stype)
+{
+	struct hostap_ieee80211_mgmt *mgmt;
+	int left;
+	u8 *pos;
+	u8 *ssid = NULL, *wpa = NULL, *rsn = NULL;
+	size_t ssid_len = 0, wpa_len = 0, rsn_len = 0;
+	struct hostap_bss_info *bss;
+
+	if (!local->wpa ||
+	    skb->len < IEEE80211_MGMT_HDR_LEN + sizeof(mgmt->u.beacon))
+		return;
+
+	mgmt = (struct hostap_ieee80211_mgmt *) skb->data;
+	pos = mgmt->u.beacon.variable;
+	left = skb->len - (pos - skb->data);
+
+	while (left >= 2) {
+		if (2 + pos[1] > left)
+			return; /* parse failed */
+		switch (*pos) {
+		case WLAN_EID_SSID:
+			ssid = pos + 2;
+			ssid_len = pos[1];
+			break;
+		case WLAN_EID_GENERIC:
+			if (pos[1] >= 4 &&
+			    pos[2] == 0x00 && pos[3] == 0x50 &&
+			    pos[4] == 0xf2 && pos[5] == 1) {
+				wpa = pos;
+				wpa_len = pos[1] + 2;
+			}
+			break;
+		case WLAN_EID_RSN:
+			rsn = pos;
+			rsn_len = pos[1] + 2;
+			break;
+		}
+		left -= 2 + pos[1];
+		pos += 2 + pos[1];
+	}
+
+	if (wpa_len > MAX_WPA_IE_LEN)
+		wpa_len = MAX_WPA_IE_LEN;
+	if (rsn_len > MAX_WPA_IE_LEN)
+		rsn_len = MAX_WPA_IE_LEN;
+	if (ssid_len > sizeof(bss->ssid))
+		ssid_len = sizeof(bss->ssid);
+
+	spin_lock(&local->lock);
+	bss = __hostap_get_bss(local, mgmt->bssid, ssid, ssid_len);
+	if (bss == NULL)
+		bss = __hostap_add_bss(local, mgmt->bssid, ssid, ssid_len);
+	if (bss) {
+		bss->last_update = jiffies;
+		bss->count++;
+		bss->capab_info = le16_to_cpu(mgmt->u.beacon.capab_info);
+		if (wpa) {
+			memcpy(bss->wpa_ie, wpa, wpa_len);
+			bss->wpa_ie_len = wpa_len;
+		} else
+			bss->wpa_ie_len = 0;
+		if (rsn) {
+			memcpy(bss->rsn_ie, rsn, rsn_len);
+			bss->rsn_ie_len = rsn_len;
+		} else
+			bss->rsn_ie_len = 0;
+	}
+	__hostap_expire_bss(local);
+	spin_unlock(&local->lock);
+}
+
+
 static inline int
 hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 		     struct hostap_80211_rx_status *rx_stats, u16 type,
@@ -330,6 +454,8 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 		 * processing */
 		local->apdevstats.rx_packets++;
 		local->apdevstats.rx_bytes += skb->len;
+		if (local->apdev == NULL)
+			return -1;
 		prism2_rx_80211(local->apdev, skb, rx_stats, PRISM2_RX_MGMT);
 		return 0;
 	}
@@ -344,9 +470,22 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 
 		hostap_rx(skb->dev, skb, rx_stats);
 		return 0;
+	} else if (type == WLAN_FC_TYPE_MGMT &&
+		   (stype == WLAN_FC_STYPE_BEACON ||
+		    stype == WLAN_FC_STYPE_PROBE_RESP)) {
+		hostap_rx_sta_beacon(local, skb, stype);
+		return -1;
+	} else if (type == WLAN_FC_TYPE_MGMT &&
+		   (stype == WLAN_FC_STYPE_ASSOC_RESP ||
+		    stype == WLAN_FC_STYPE_REASSOC_RESP)) {
+		/* Ignore (Re)AssocResp silently since these are not currently
+		 * needed but are still received when WPA/RSN mode is enabled.
+		 */
+		return -1;
 	} else {
-		printk(KERN_DEBUG "%s: hostap_rx_frame_mgmt: management frame "
-		       "received in non-Host AP mode\n", skb->dev->name);
+		printk(KERN_DEBUG "%s: hostap_rx_frame_mgmt: dropped unhandled"
+		       " management frame in non-Host AP mode (type=%d:%d)\n",
+		       skb->dev->name, type, stype);
 		return -1;
 	}
 }
@@ -428,13 +567,17 @@ hostap_rx_frame_wds(local_info_t *local, struct hostap_ieee80211_hdr *hdr,
 }
 
 
-static int hostap_is_eapol_frame(local_info_t *local,
-				 struct hostap_ieee80211_hdr *hdr, u8 *buf,
-				 int len)
+static int hostap_is_eapol_frame(local_info_t *local, struct sk_buff *skb)
 {
 	struct net_device *dev = local->dev;
 	u16 fc, ethertype;
+	struct hostap_ieee80211_hdr *hdr;
+	u8 *pos;
 
+	if (skb->len < 24)
+		return 0;
+
+	hdr = (struct hostap_ieee80211_hdr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
 
 	/* check that the frame is unicast frame to us */
@@ -448,11 +591,12 @@ static int hostap_is_eapol_frame(local_info_t *local,
 	} else
 		return 0;
 
-	if (len < 8)
+	if (skb->len < 24 + 8)
 		return 0;
 
 	/* check for port access entity Ethernet type */
-	ethertype = (buf[6] << 8) | buf[7];
+	pos = skb->data + 24;
+	ethertype = (pos[6] << 8) | pos[7];
 	if (ethertype == ETH_P_PAE)
 		return 1;
 
@@ -462,83 +606,68 @@ static int hostap_is_eapol_frame(local_info_t *local,
 
 /* Called only as a tasklet (software IRQ) */
 static inline int
-hostap_rx_frame_decrypt(local_info_t *local, int iswep, struct sk_buff *skb)
+hostap_rx_frame_decrypt(local_info_t *local, struct sk_buff *skb,
+			struct prism2_crypt_data *crypt)
 {
 	struct hostap_ieee80211_hdr *hdr;
-	struct prism2_crypt_data *crypt;
-	void *sta = NULL;
-	int ret = 0, olen, len, hdrlen;
-	char *payload;
+	int res, hdrlen;
+
+	if (crypt == NULL || crypt->ops->decrypt_mpdu == NULL)
+		return 0;
 
 	hdr = (struct hostap_ieee80211_hdr *) skb->data;
 	hdrlen = hostap_80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
 
-	len = skb->len - hdrlen;
-	payload = ((char *) (hdr)) + hdrlen;
-	crypt = local->crypt;
-	sta = NULL;
-
-	/* Use station specific key to override default keys if the receiver
-	 * address is a unicast address ("individual RA"). If bcrx_sta_key
-	 * parameter is set, station specific key is used even with
-	 * broad/multicast targets (this is against IEEE 802.11, but makes it
-	 * easier to use different keys with stations that do not support WEP
-	 * key mapping). */
-	if (!(hdr->addr1[0] & 0x01) || local->bcrx_sta_key)
-		(void) hostap_handle_sta_crypto(local, hdr, &crypt, &sta);
-
-	/* allow NULL decrypt to indicate an station specific override for
-	 * default encryption */
-	if (crypt && (crypt->ops == NULL || crypt->ops->decrypt == NULL))
-		crypt = NULL;
-
-	if (!crypt && iswep) {
-		printk(KERN_DEBUG "%s: WEP decryption failed (not set) (SA="
-		       MACSTR ")\n", local->dev->name, MAC2STR(hdr->addr2));
-		local->comm_tallies.rx_discards_wep_undecryptable++;
-		ret = -1;
-		goto done;
-	}
-
-	if (!crypt)
-		goto done;
-
-	if (!iswep && !local->open_wep) {
-		if (local->ieee_802_1x &&
-		    hostap_is_eapol_frame(local, hdr, payload, len)) {
-			/* pass unencrypted EAPOL frames even if encryption is
-			 * configured */
-			printk(KERN_DEBUG "%s: RX: IEEE 802.1X - passing "
-			       "unencrypted EAPOL frame\n", local->dev->name);
-			goto done;
+	if (local->tkip_countermeasures &&
+	    strcmp(crypt->ops->name, "TKIP") == 0) {
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
+			       "received packet from " MACSTR "\n",
+			       local->dev->name, MAC2STR(hdr->addr2));
 		}
-		printk(KERN_DEBUG "%s: encryption configured, but RX frame "
-		       "not encrypted (SA=" MACSTR ")\n",
-		       local->dev->name, MAC2STR(hdr->addr2));
-		ret = -1;
-		goto done;
+		return -1;
 	}
 
-	/* decrypt WEP part of the frame: IV (4 bytes), encrypted
-	 * payload (including SNAP header), ICV (4 bytes) */
 	atomic_inc(&crypt->refcnt);
-	olen = crypt->ops->decrypt(payload, len, crypt->priv);
+	res = crypt->ops->decrypt_mpdu(skb, hdrlen, crypt->priv);
 	atomic_dec(&crypt->refcnt);
-	if (olen < 0) {
-		printk(KERN_DEBUG "%s: WEP decryption failed (SA=" MACSTR
-		       ")\n", local->dev->name, MAC2STR(hdr->addr2));
+	if (res < 0) {
+		printk(KERN_DEBUG "%s: decryption failed (SA=" MACSTR
+		       ") res=%d\n",
+		       local->dev->name, MAC2STR(hdr->addr2), res);
 		local->comm_tallies.rx_discards_wep_undecryptable++;
-		ret = -1;
-		goto done;
+		return -1;
 	}
 
-	skb_trim(skb, skb->len - (len - olen));
+	return res;
+}
 
- done:
-	if (sta)
-		hostap_handle_sta_release(sta);
 
-	return ret;
+/* Called only as a tasklet (software IRQ) */
+static inline int
+hostap_rx_frame_decrypt_msdu(local_info_t *local, struct sk_buff *skb,
+			     int keyidx, struct prism2_crypt_data *crypt)
+{
+	struct hostap_ieee80211_hdr *hdr;
+	int res, hdrlen;
+
+	if (crypt == NULL || crypt->ops->decrypt_msdu == NULL)
+		return 0;
+
+	hdr = (struct hostap_ieee80211_hdr *) skb->data;
+	hdrlen = hostap_80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
+
+	atomic_inc(&crypt->refcnt);
+	res = crypt->ops->decrypt_msdu(skb, keyidx, hdrlen, crypt->priv);
+	atomic_dec(&crypt->refcnt);
+	if (res < 0) {
+		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed"
+		       " (SA=" MACSTR " keyidx=%d)\n",
+		       local->dev->name, MAC2STR(hdr->addr2), keyidx);
+		return -1;
+	}
+
+	return 0;
 }
 
 
@@ -563,6 +692,17 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	int from_assoc_ap = 0;
 	u8 dst[ETH_ALEN];
 	u8 src[ETH_ALEN];
+	struct prism2_crypt_data *crypt = NULL;
+	void *sta = NULL;
+	int keyidx = 0;
+
+	iface->stats.rx_packets++;
+	iface->stats.rx_bytes += skb->len;
+
+	/* dev is the master radio device; change this to be the default
+	 * virtual interface (this may be changed to WDS device below) */
+	dev = local->ddev;
+	iface = dev->priv;
 
 	hdr = (struct hostap_ieee80211_hdr *) skb->data;
 	stats = hostap_get_stats(dev);
@@ -592,16 +732,57 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	}
 #endif /* IW_WIRELESS_SPY */
 #endif /* WIRELESS_EXT > 15 */
+	hostap_update_rx_stats(local->ap, hdr, rx_stats);
 
 	if (local->iw_mode == IW_MODE_MONITOR) {
 		monitor_rx(dev, skb, rx_stats);
 		return;
 	}
 
+	if (local->host_decrypt) {
+		int idx = 0;
+		if (skb->len >= hdrlen + 3)
+			idx = skb->data[hdrlen + 3] >> 6;
+		crypt = local->crypt[idx];
+		sta = NULL;
+
+		/* Use station specific key to override default keys if the
+		 * receiver address is a unicast address ("individual RA"). If
+		 * bcrx_sta_key parameter is set, station specific key is used
+		 * even with broad/multicast targets (this is against IEEE
+		 * 802.11, but makes it easier to use different keys with
+		 * stations that do not support WEP key mapping). */
+
+		if (!(hdr->addr1[0] & 0x01) || local->bcrx_sta_key)
+			(void) hostap_handle_sta_crypto(local, hdr, &crypt,
+							&sta);
+
+		/* allow NULL decrypt to indicate an station specific override
+		 * for default encryption */
+		if (crypt && (crypt->ops == NULL ||
+			      crypt->ops->decrypt_mpdu == NULL))
+			crypt = NULL;
+
+		if (!crypt && (fc & WLAN_FC_ISWEP)) {
+#if 0
+			/* This seems to be triggered by some (multicast?)
+			 * frames from other than current BSS, so just drop the
+			 * frames silently instead of filling system log with
+			 * these reports. */
+			printk(KERN_DEBUG "%s: WEP decryption failed (not set)"
+			       " (SA=" MACSTR ")\n",
+			       local->dev->name, MAC2STR(hdr->addr2));
+#endif
+			local->comm_tallies.rx_discards_wep_undecryptable++;
+			goto rx_dropped;
+		}
+	}
+
 	if (type != WLAN_FC_TYPE_DATA) {
 		if (type == WLAN_FC_TYPE_MGMT && stype == WLAN_FC_STYPE_AUTH &&
 		    fc & WLAN_FC_ISWEP && local->host_decrypt &&
-		    hostap_rx_frame_decrypt(local, fc & WLAN_FC_ISWEP, skb)) {
+		    (keyidx = hostap_rx_frame_decrypt(local, skb, crypt)) < 0)
+		{
 			printk(KERN_DEBUG "%s: failed to decrypt mgmt::auth "
 			       "from " MACSTR "\n", dev->name,
 			       MAC2STR(hdr->addr2));
@@ -660,7 +841,9 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 
 	dev->last_rx = jiffies;
 
-	if (local->iw_mode == IW_MODE_MASTER && !from_assoc_ap) {
+	if ((local->iw_mode == IW_MODE_MASTER ||
+	     local->iw_mode == IW_MODE_REPEAT) &&
+	    !from_assoc_ap) {
 		switch (hostap_handle_sta_rx(local, dev, skb, rx_stats,
 					     wds != NULL)) {
 		case AP_RX_CONTINUE_NOT_AUTHORIZED:
@@ -674,9 +857,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		case AP_RX_EXIT:
 			goto rx_exit;
 		}
-	} else if (local->iw_mode == IW_MODE_REPEAT ||
-		   local->wds_type & HOSTAP_WDS_AP_CLIENT)
-		hostap_update_rx_stats(local->ap, hdr, rx_stats);
+	}
 
 	/* Nullfunc frames may have PS-bit set, so they must be passed to
 	 * hostap_handle_sta_rx() before being dropped here. */
@@ -693,9 +874,10 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 
 	/* skb: hdr + (possibly fragmented, possibly encrypted) payload */
 
-	if (local->host_decrypt &&
-	    hostap_rx_frame_decrypt(local, fc & WLAN_FC_ISWEP, skb))
+	if (local->host_decrypt && (fc & WLAN_FC_ISWEP) &&
+	    (keyidx = hostap_rx_frame_decrypt(local, skb, crypt)) < 0)
 		goto rx_dropped;
+	hdr = (struct hostap_ieee80211_hdr *) skb->data;
 
 	/* skb: hdr + (possibly fragmented) plaintext payload */
 
@@ -751,6 +933,39 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		prism2_frag_cache_invalidate(local, hdr);
 	}
 
+	/* skb: hdr + (possible reassembled) full MSDU payload; possibly still
+	 * encrypted/authenticated */
+
+	if (local->host_decrypt && (fc & WLAN_FC_ISWEP) &&
+	    hostap_rx_frame_decrypt_msdu(local, skb, keyidx, crypt))
+		goto rx_dropped;
+
+	hdr = (struct hostap_ieee80211_hdr *) skb->data;
+	if (crypt && !(fc & WLAN_FC_ISWEP) && !local->open_wep) {
+		if (local->ieee_802_1x &&
+		    hostap_is_eapol_frame(local, skb)) {
+			/* pass unencrypted EAPOL frames even if encryption is
+			 * configured */
+			PDEBUG(DEBUG_EXTRA2, "%s: RX: IEEE 802.1X - passing "
+			       "unencrypted EAPOL frame\n", local->dev->name);
+		} else {
+			printk(KERN_DEBUG "%s: encryption configured, but RX "
+			       "frame not encrypted (SA=" MACSTR ")\n",
+			       local->dev->name, MAC2STR(hdr->addr2));
+			goto rx_dropped;
+		}
+	}
+
+	if (local->drop_unencrypted && !(fc & WLAN_FC_ISWEP) &&
+	    !hostap_is_eapol_frame(local, skb)) {
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: dropped unencrypted RX data "
+			       "frame from " MACSTR " (drop_unencrypted=1)\n",
+			       dev->name, MAC2STR(hdr->addr2));
+		}
+		goto rx_dropped;
+	}
+
 	/* skb: hdr + (possible reassembled) full plaintext payload */
 
 	payload = skb->data + hdrlen;
@@ -760,7 +975,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	 * the received frame. */
 	if (local->ieee_802_1x && local->iw_mode == IW_MODE_MASTER) {
 		if (ethertype == ETH_P_PAE) {
-			printk(KERN_DEBUG "%s: RX: IEEE 802.1X frame\n",
+			PDEBUG(DEBUG_EXTRA2, "%s: RX: IEEE 802.1X frame\n",
 			       dev->name);
 			if (local->hostapd && local->apdev) {
 				/* Send IEEE 802.1X frames to the user
@@ -822,7 +1037,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 			if (skb2 == NULL)
 				printk(KERN_DEBUG "%s: skb_clone failed for "
 				       "multicast frame\n", dev->name);
-		} else if (hostap_is_sta_assoc(local->ap, dst)) {
+		} else if (hostap_is_sta_authorized(local->ap, dst)) {
 			/* send frame directly to the associated STA using
 			 * wireless media and not passing to higher layers */
 			local->ap->bridged_unicast++;
@@ -836,6 +1051,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		skb2->protocol = __constant_htons(ETH_P_802_3);
 		skb2->mac.raw = skb2->nh.raw = skb2->data;
 		/* skb2->nh.raw = skb2->data + ETH_HLEN; */
+		skb2->dev = dev;
 		dev_queue_xmit(skb2);
 	}
 
@@ -847,6 +1063,8 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	}
 
  rx_exit:
+	if (sta)
+		hostap_handle_sta_release(sta);
 	return;
 
  rx_dropped:

@@ -11,10 +11,13 @@ ALLOBJ=$(IPOBJ) $(ADDOBJ) $(RTOBJ)
 all: ip rtmon rtacct
 
 ip: $(IPOBJ) $(LIBNETLINK) $(LIBUTIL)
+	$(CC) $(LDFLAGS) -o $@ $(IPOBJ) $(LIBNETLINK) $(LIBUTIL) $(LDLIBS$(LDLIBS_$@))
 
 rtmon: $(RTMONOBJ) $(LIBNETLINK)
+	$(CC) $(LDFLAGS) -o $@ $(RTMONOBJ) $(LIBNETLINK) $(LDLIBS$(LDLIBS_$@))
 
 rtacct: $(RTACCTOBJ)
+	$(CC) $(LDFLAGS) -o $@ $(RTACCTOBJ) $(LDLIBS$(LDLIBS_$@))
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_IPROUTE2_IP_IFCFG  /bin/ifcfg

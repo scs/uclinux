@@ -86,6 +86,7 @@ typedef unsigned int socklen_t;
 #define TC_SET_POLICY		ip6tc_set_policy
 #define TC_GET_RAW_SOCKET	ip6tc_get_raw_socket
 #define TC_INIT			ip6tc_init
+#define TC_FREE			ip6tc_free
 #define TC_COMMIT		ip6tc_commit
 #define TC_STRERROR		ip6tc_strerror
 
@@ -110,7 +111,7 @@ typedef unsigned int socklen_t;
 #include "libiptc.c"
 
 #define BIT6(a, l) \
- (((a->in6_u.u6_addr32[(l) / 32]) >> ((l) & 31)) & 1)
+ ((ntohl(a->in6_u.u6_addr32[(l) / 32]) >> (31 - ((l) & 31))) & 1)
 
 int
 ipv6_prefix_length(const struct in6_addr *a)
@@ -175,7 +176,7 @@ dump_entry(struct ip6t_entry *e, const ip6tc_handle_t handle)
 	printf("Flags: %02X\n", e->ipv6.flags);
 	printf("Invflags: %02X\n", e->ipv6.invflags);
 	printf("Counters: %llu packets, %llu bytes\n",
-	       e->counters.pcnt, e->counters.bcnt);
+	       (unsigned long long)e->counters.pcnt, (unsigned long long)e->counters.bcnt);
 	printf("Cache: %08X ", e->nfcache);
 	if (e->nfcache & NFC_ALTERED) printf("ALTERED ");
 	if (e->nfcache & NFC_UNKNOWN) printf("UNKNOWN ");
@@ -381,6 +382,19 @@ do_check(TC_HANDLE_T h, unsigned int line)
 			assert(h->info.hook_entry[NF_IP6_POST_ROUTING] == n);
 			user_offset = h->info.hook_entry[NF_IP6_POST_ROUTING];
 		}
+	} else if (strcmp(h->info.name, "raw") == 0) {
+		assert(h->info.valid_hooks
+		       == (1 << NF_IP6_PRE_ROUTING
+			   | 1 << NF_IP6_LOCAL_OUT));
+
+		/* Hooks should be first three */
+		assert(h->info.hook_entry[NF_IP6_PRE_ROUTING] == 0);
+
+		n = get_chain_end(h, n);
+		n += get_entry(h, n)->next_offset;
+		assert(h->info.hook_entry[NF_IP6_LOCAL_OUT] == n);
+
+		user_offset = h->info.hook_entry[NF_IP6_LOCAL_OUT];
 	} else {
                 fprintf(stderr, "Unknown table `%s'\n", h->info.name);
 		abort();

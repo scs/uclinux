@@ -1,6 +1,6 @@
 # Path to parent kernel include files directory
 KERNEL_INCLUDE=$(ROOTDIR)/$(LINUXDIR)/include
-LIBC_INCLUDE=$(ROOTDIR)/lib/$(LIBCDIR)/include
+LIBC_INCLUDE=$(ROOTDIR)/include
 
 DEFINES= -DRESOLVE_HOSTNAMES -DNO_DL
 

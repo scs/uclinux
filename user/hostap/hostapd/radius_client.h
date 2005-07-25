@@ -3,11 +3,17 @@
 
 typedef enum {
 	RADIUS_AUTH,
-	RADIUS_ACCT
+	RADIUS_ACCT,
+	RADIUS_ACCT_INTERIM /* used only with radius_client_send(); just like
+			     * RADIUS_ACCT, but removes any pending interim
+			     * RADIUS Accounting packages for the same STA
+			     * before sending the new interim update */
 } RadiusType;
 
 /* RADIUS message retransmit list */
 struct radius_msg_list {
+	u8 addr[ETH_ALEN]; /* STA/client address; used to find RADIUS messages
+			    * for the same STA. */
 	struct radius_msg *msg;
 	RadiusType msg_type;
 	time_t first_try;
@@ -53,10 +59,6 @@ struct radius_client_data {
 	u8 next_radius_identifier;
 	u32 acct_session_id_hi;
 	u32 acct_session_id_lo;
-
-	/* TODO: remove separate acct list */
-	int acct_retransmit_list_len;
-	struct accounting_list *acct_retransmit_list;
 };
 
 
@@ -68,11 +70,12 @@ int radius_client_register(hostapd *hapd, RadiusType msg_type,
 			    void *data),
 			   void *data);
 int radius_client_send(hostapd *hapd, struct radius_msg *msg,
-		       RadiusType msg_type);
+		       RadiusType msg_type, u8 *addr);
 u8 radius_client_get_id(hostapd *hapd);
 
 void radius_client_flush(hostapd *hapd);
 int radius_client_init(hostapd *hapd);
 void radius_client_deinit(hostapd *hapd);
+void radius_client_flush_auth(struct hostapd_data *hapd, u8 *addr);
 
 #endif /* RADIUS_CLIENT_H */

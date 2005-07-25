@@ -48,6 +48,7 @@
 
 struct tunnel_list tunnels;
 int max_tunnels = DEF_MAX_TUNNELS;
+int rand_source;
 struct utsname uts;
 int ppd = 1;                    /* Packet processing delay */
 int control_fd;                 /* descriptor of control area */
@@ -56,9 +57,7 @@ char *args;
 char *dial_no_tmp;              /* jz: Dialnumber for Outgoing Call */
 int switch_io = 0;              /* jz: Switch for Incoming or Outgoing Call */
 
-
 void init_tunnel_list (struct tunnel_list *t)
-
 {
     t->head = NULL;
     t->count = 0;
@@ -373,7 +372,7 @@ int start_pppd (struct call *c, struct ppp_opts *opts)
 #endif
 
         close (0);
-       	close (1);
+        close (1);
         close (2);
 #ifdef USE_KERNEL
         if (!kernel_support && (fd2 < 0))
@@ -502,7 +501,7 @@ void destroy_tunnel (struct tunnel *t)
         if (t->lac->redial && (t->lac->rtimeout > 0) && !t->lac->rsched &&
             t->lac->active)
         {
-            log (LOG_LOG, "Will redial in %d seconds\n", 
+            log (LOG_LOG, "Will redial in %d seconds\n",
                  t->lac->rtimeout);
             tv.tv_sec = t->lac->rtimeout;
             tv.tv_usec = 0;
@@ -942,7 +941,7 @@ void do_control ()
                 show_status (1);
                 break;
             default:
-                log (LOG_DEBUG, "Unknown command %c\n", 
+                log (LOG_DEBUG, "Unknown command %c\n",
                      buf[0]);
             }
         }
@@ -1071,7 +1070,7 @@ void daemonize() {
     if(! pidfilewritten) {
         unlink(gconfig.pidfile);
         if ((i = open (gconfig.pidfile, O_WRONLY | O_CREAT, 0640)) >= 0) {
-			snprintf (buf, sizeof(buf), "%d\n", (int)getpid());
+            snprintf (buf, sizeof(buf), "%d\n", (int)getpid());
             write (i, buf, strlen(buf));
             close (i);
             pidfilewritten = 1;

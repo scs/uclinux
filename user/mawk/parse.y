@@ -11,12 +11,9 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 /* $Log$
- * Revision 1.1  2004/07/19 13:08:59  lgsoft
- * Initial revision
+ * Revision 1.2  2005/07/25 04:03:15  magicyang
+ * New user folder check in
  *
-/* Revision 1.1.1.1  2004/07/18 13:27:45  nidhi
-/* Importing
-/*
  * Revision 1.11  1995/06/11  22:40:09  mike
  * change if(dump_code) -> if(dump_code_flag)
  * cleanup of parse()

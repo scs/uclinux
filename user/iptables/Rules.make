@@ -5,8 +5,14 @@ all: $(SHARED_LIBS) $(EXTRAS)
 experimental: $(EXTRAS_EXP)
 
 # Have to handle extensions which no longer exist.
-.PHONY: clean
-clean: $(EXTRA_CLEANS)
+.PHONY: clean _clean
+clean:
+	# twice because it's just silly and fails because of dependancies :-(
+	-find . -name '*.[do]' | xargs rm -f
+	-$(MAKE) _clean
+	-$(MAKE) _clean
+
+_clean: $(EXTRA_CLEANS)
 	-rm -f $(EXTRAS) $(EXTRAS_EXP)
 	-rm -f $(SHARED_LIBS) $(SHARED_LIBS:%.so=%_sh.o)
 	-rm -f $(STATIC_LIBS) $(STATIC6_LIBS)
@@ -36,7 +42,7 @@ $(SHARED_LIBS:%.so=%.d): %.d: %.c
 	    sed -e 's@^.*\.o:@$*.d $*_sh.o:@' > $@
 
 $(SHARED_LIBS): %.so : %_sh.o
-	$(LD) -shared -o $@ $<
+	$(LD) -shared $(EXT_LDFLAGS) -o $@ $<
 
 %_sh.o : %.c
 	$(CC) $(SH_CFLAGS) -o $@ -c $<
@@ -52,8 +58,8 @@ $(SHARED_LIBS): %.so : %_sh.o
 	rm -f $(SHARED_LIBS) $(SHARED_LIBS:%.so=%_sh.o)
 	rm -f $(STATIC_LIBS) $(STATIC6_LIBS)
 	rm -f extensions/initext.c extensions/initext6.c
-	find . -name '*.[aod]' -o -name '*.so' | xargs rm -f
-	find . -name '*.gdb' -print | xargs rm -f
+	find . -name '*.[aod]' -o -name '*.so' | env -i xargs rm -f
+	find . -name '*.gdb' -print | env -i xargs rm -f
 	-rm -f $(DEPFILES) $(EXTRA_DEPENDS) .makefirst
 	exit 1
 

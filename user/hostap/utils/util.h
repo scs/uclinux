@@ -57,5 +57,62 @@ struct prism2_pda {
 };
 
 int read_wlan_pda(const char *fname, struct prism2_pda *pda_info);
+int read_wlan_pda_text(const char *fname, struct prism2_pda *pda_info);
+
+#define PDR_PDA_END_RECORD 0x0000
+#define PDR_PLATFORM_NAME 0x0001
+#define PDR_VERSION 0x0002
+#define PDR_NIC_SERIAL_NUM 0x0003
+#define PDR_NIC_RAM_SIZE 0x0005
+#define PDR_RF_MODE_SUPP_RANGE 0x0006
+#define PDR_MAC_CTRL_SUPP_RANGE 0x0007
+#define PDR_NIC_ID_COMP 0x0008
+#define PDR_MAC_ADDR 0x0101
+#define PDR_REG_DOMAIN_LIST 0x0103
+#define PDR_CHANNEL_LIST 0x0104
+#define PDR_DEFAULT_CHANNEL 0x0105
+#define PDR_TEMPERATURE_TYPE 0x0107
+#define PDR_IFR_SETTING 0x0200
+#define PDR_RFR_SETTING 0x0201
+#define PDR_3861_BASELINE_REG_SETTINGS 0x0202
+#define PDR_3861_SHADOW_REG_SETTINGS 0x0203
+#define PDR_3861_IFRF_REG_SETTINGS 0x0204
+#define PDR_3861_CHANNEL_CALIB_SP 0x0300
+#define PDR_3861_CHANNEL_CALIB_INT 0x0301
+#define PDR_MAX_RADIO_TX_POWER 0x0302
+#define PDR_MASTER_CHANNEL_LIST 0x0303
+#define PDR_3842_NIC_CONF 0x0400
+#define PDR_USB_ID 0x0401
+#define PDR_PCI_ID 0x0402
+#define PDR_PCI_INTERFACE_CONF 0x0403
+#define PDR_PCI_PM_CONF 0x0404
+#define PDR_ZIF_SYNTHESIZER_SETTINGS 0x0405
+#define PDR_RSSI_DBM_CONV 0x0406
+#define PDR_USB_POWER_TYPE 0x0407
+#define PDR_USB_MAX_POWER 0x0409
+#define PDR_USB_MANUF_STRING 0x0410
+#define PDR_USB_PRODUCT_STRING 0x0411
+#define PDR_SW_DIVERSITY_CTRL 0x0412
+#define PDR_HFO_DELAY 0x0413
+#define PDR_3861_MANUF_TEST_CHANNEL_SP 0x0900
+#define PDR_MANUF_TEST_CHANNEL_INT 0x0901
+
+struct pdr_supplier_range {
+	u16 role;
+	u16 iface_id;
+	u16 variant;
+	u16 bottom;
+	u16 top;
+} __attribute__((packed));
+
+
+struct pdr_compid {
+	u16 id;
+	u16 variant;
+	u16 major;
+	u16 minor;
+} __attribute__((packed));
+
+const char * prism2_pdr_name(int pdr);
 
 #endif /* UTIL_H */

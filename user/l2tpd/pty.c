@@ -42,7 +42,6 @@ int getPtyMaster (char *tty10, char *tty01)
     static char dev[] = PTY00;
     int fd;
 
-
     for (p10 = PTY10; *p10; p10++)
     {
         dev[8] = *p10;

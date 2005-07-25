@@ -31,7 +31,7 @@ static char *version = PRISM2_VERSION " (Jouni Malinen <jkmaline@cc.hut.fi>)";
 static char *dev_info = "hostap_plx";
 
 
-MODULE_AUTHOR("SSH Communications Security Corp, Jouni Malinen");
+MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Support for Intersil Prism2-based 802.11 wireless LAN "
 		   "cards (PLX).");
 MODULE_SUPPORTED_DEVICE("Intersil Prism2-based WLAN cards (PLX)");
@@ -41,13 +41,6 @@ MODULE_LICENSE("GPL");
 static int ignore_cis = 0;
 MODULE_PARM(ignore_cis, "i");
 MODULE_PARM_DESC(ignore_cis, "Do not verify manfid information in CIS");
-
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
-/* PCI initialization uses Linux 2.4.x version and older kernels do not support
- * this */
-#error PLX9052 version requires at least Linux kernel version 2.4.0
-#endif /* kernel < 2.4.0 */
 
 
 #define PLX_MIN_ATTR_LEN 512	/* at least 2 x 256 is needed for CIS */
@@ -88,6 +81,7 @@ static struct pci_device_id prism2_plx_id_table[] __devinitdata = {
 static struct prism2_plx_manfid {
 	u16 manfid1, manfid2;
 } prism2_plx_known_manfids[] = {
+	{ 0x000b, 0x7110 } /* D-Link DWL-650 Rev. P1 */,
 	{ 0x000b, 0x7300 } /* Philips 802.11b WLAN PCMCIA */,
 	{ 0x0101, 0x0777 } /* 3Com AirConnect PCI 777A */,
 	{ 0x0126, 0x8000 } /* Proxim RangeLAN */,
@@ -256,22 +250,22 @@ static void prism2_plx_cor_sreset(local_info_t *local)
 
 	/* Set sreset bit of COR and clear it after hold time */
 
-	if (local->attr_mem == 0) {
+	if (local->attr_mem == NULL) {
 		/* TMD7160 - COR at card's first I/O addr */
 		corsave = inb(local->cor_offset);
 		outb(corsave | COR_SRESET, local->cor_offset);
-		mdelay(1);
+		mdelay(2);
 		outb(corsave & ~COR_SRESET, local->cor_offset);
-		mdelay(1);
+		mdelay(2);
 	} else {
 		/* PLX9052 */
 		corsave = readb(local->attr_mem + local->cor_offset);
 		writeb(corsave | COR_SRESET,
 		       local->attr_mem + local->cor_offset);
-		mdelay(1);
+		mdelay(2);
 		writeb(corsave & ~COR_SRESET,
 		       local->attr_mem + local->cor_offset);
-		mdelay(1);
+		mdelay(2);
 	}
 }
 
@@ -280,7 +274,7 @@ static void prism2_plx_genesis_reset(local_info_t *local, int hcr)
 {
 	unsigned char corsave;
 
-	if (local->attr_mem == 0) {
+	if (local->attr_mem == NULL) {
 		/* TMD7160 - COR at card's first I/O addr */
 		corsave = inb(local->cor_offset);
 		outb(corsave | COR_SRESET, local->cor_offset);
@@ -311,10 +305,11 @@ static struct prism2_helper_functions prism2_plx_funcs =
 	.dev_open	= NULL,
 	.dev_close	= NULL,
 	.genesis_reset	= prism2_plx_genesis_reset,
+	.hw_type	= HOSTAP_HW_PLX,
 };
 
 
-static int prism2_plx_check_cis(unsigned long attr_mem, int attr_len,
+static int prism2_plx_check_cis(void *attr_mem, int attr_len,
 				unsigned int *cor_offset,
 				unsigned int *cor_index)
 {
@@ -409,7 +404,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	unsigned int pccard_ioaddr, plx_ioaddr;
 	unsigned long pccard_attr_mem;
 	unsigned int pccard_attr_len;
-	unsigned long attr_mem = 0;
+	void *attr_mem = NULL;
 	unsigned int cor_offset, cor_index;
 	u32 reg;
 	local_info_t *local = NULL;
@@ -430,7 +425,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 
 	if (tmd7160) {
 		/* TMD7160 */
-		attr_mem = 0; /* no access to PC Card attribute memory */
+		attr_mem = NULL; /* no access to PC Card attribute memory */
 
 		printk(KERN_INFO "TMD7160 PCI/PCMCIA adapter: io=0x%x, "
 		       "irq=%d, pccard_io=0x%x\n",
@@ -456,9 +451,8 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 			goto fail;
 
 
-		attr_mem = (unsigned long) ioremap(pccard_attr_mem,
-						   pccard_attr_len);
-		if (!attr_mem) {
+		attr_mem = ioremap(pccard_attr_mem, pccard_attr_len);
+		if (attr_mem == NULL) {
 			printk(KERN_ERR "%s: cannot remap attr_mem\n",
 			       dev_info);
 			goto fail;
@@ -516,9 +510,6 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	local->attr_mem = attr_mem;
 	local->cor_offset = cor_offset;
 
-	if (prism2_init_dev(local))
-		goto fail;
-
 	pci_set_drvdata(pdev, dev);
 
 	if (request_irq(dev->irq, prism2_interrupt, SA_SHIRQ, dev->name,
@@ -534,7 +525,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 		goto fail;
 	}
 
-	return 0;
+	return hostap_hw_ready(dev);
 
  fail:
 	prism2_free_local_data(dev);
@@ -543,11 +534,9 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 		free_irq(dev->irq, dev);
 
 	if (attr_mem)
-		iounmap((void *) attr_mem);
+		iounmap(attr_mem);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4))
 	pci_disable_device(pdev);
-#endif
 
 	return -ENODEV;
 }
@@ -563,15 +552,12 @@ static void prism2_plx_remove(struct pci_dev *pdev)
 	hfa384x_disable_interrupts(dev);
 
 	if (iface->local->attr_mem)
-		iounmap((void *) iface->local->attr_mem);
+		iounmap(iface->local->attr_mem);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 
 	prism2_free_local_data(dev);
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4))
 	pci_disable_device(pdev);
-#endif
 }
 
 
@@ -582,14 +568,9 @@ static struct pci_driver prism2_plx_drv_id = {
 	.id_table	= prism2_plx_id_table,
 	.probe		= prism2_plx_probe,
 	.remove		= prism2_plx_remove,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,6))
 	.suspend	= NULL,
 	.resume		= NULL,
 	.enable_wake	= NULL
-#else /* Linux < 2.4.6 */
-	.suspend	= NULL,
-	.resume		= NULL
-#endif /* Linux >= 2.4.6 */
 };
 
 

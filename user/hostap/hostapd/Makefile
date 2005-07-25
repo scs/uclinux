@@ -1,4 +1,4 @@
-CC=gcc
+#CC=gcc
 
 ifndef CFLAGS
 CFLAGS = -MMD -O2 -Wall -g
@@ -17,12 +17,15 @@ CFLAGS += -I../driver/modules -I../utils
 
 OBJS =	hostapd.o eloop.o ieee802_1x.o eapol_sm.o radius.o md5.o rc4.o \
 	common.o iapp.o ieee802_11.o config.o ieee802_11_auth.o accounting.o \
-	sta_info.o driver.o receive.o radius_client.o
+	sta_info.o driver.o receive.o radius_client.o sha1.o wpa.o aes_wrap.o
 
 all: hostapd
 
 hostapd: $(OBJS)
-	$(CC) -o hostapd $(OBJS)
+	$(CC) $(LDFLAGS) -o hostapd $(OBJS) $(LDLIBS)
+
+romfs:
+	$(ROMFSINST) /bin/hostapd
 
 clean:
 	rm -f core *~ *.o hostapd *.d

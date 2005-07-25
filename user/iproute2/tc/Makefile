@@ -9,6 +9,7 @@ TCMODULES += q_red.o
 TCMODULES += q_prio.o
 TCMODULES += q_tbf.o
 TCMODULES += q_cbq.o
+TCMODULES += q_wrr.o
 TCMODULES += f_rsvp.o
 TCMODULES += f_u32.o
 TCMODULES += f_route.o
@@ -44,6 +45,7 @@ LDLIBS := -L. -ltc -lm $(LDLIBS)
 all: libtc.a tc
 
 tc: $(TCOBJ) $(LIBNETLINK) $(LIBUTIL) $(TCLIB)
+	$(CC) $(LDFLAGS) -o $@ $(TCOBJ) $(LIBNETLINK) $(LIBUTIL) $(TCLIB) $(LDLIBS$(LDLIBS_$@))
 
 libtc.a: $(TCLIB)
 	$(CROSS)ar rcs $@ $(TCLIB)

@@ -16,6 +16,7 @@
 #include <dlfcn.h>
 #endif
 #include <time.h>
+#include <netdb.h>
 #include "libiptc/libiptc.h"
 #include "iptables.h"
 
@@ -78,6 +79,7 @@ static const struct pprot chain_protos[] = {
 	{ "icmp", IPPROTO_ICMP },
 	{ "esp", IPPROTO_ESP },
 	{ "ah", IPPROTO_AH },
+	{ "sctp", IPPROTO_SCTP },
 };
 
 static void print_proto(u_int16_t proto, int invert)
@@ -85,6 +87,12 @@ static void print_proto(u_int16_t proto, int invert)
 	if (proto) {
 		unsigned int i;
 		const char *invertstr = invert ? "! " : "";
+
+		struct protoent *pent = getprotobynumber(proto);
+		if (pent) {
+			printf("-p %s%s ", invertstr, pent->p_name);
+			return;
+		}
 
 		for (i = 0; i < sizeof(chain_protos)/sizeof(struct pprot); i++)
 			if (chain_protos[i].num == proto) {
@@ -114,7 +122,7 @@ static int print_match(const struct ipt_entry_match *e,
 			const struct ipt_ip *ip)
 {
 	struct iptables_match *match
-		= find_match(e->u.user.name, TRY_LOAD);
+		= find_match(e->u.user.name, TRY_LOAD, NULL);
 
 	if (match) {
 		printf("-m %s ", e->u.user.name);
@@ -160,7 +168,7 @@ static void print_rule(const struct ipt_entry *e,
 
 	/* print counters */
 	if (counters)
-		printf("[%llu:%llu] ", e->counters.pcnt, e->counters.bcnt);
+		printf("[%llu:%llu] ", (unsigned long long)e->counters.pcnt, (unsigned long long)e->counters.bcnt);
 
 	/* print chain name */
 	printf("-A %s ", chain);
@@ -279,7 +287,7 @@ static int do_output(const char *tablename)
 				struct ipt_counters count;
 				printf("%s ",
 				       iptc_get_policy(chain, &count, &h));
-				printf("[%llu:%llu]\n", count.pcnt, count.bcnt);
+				printf("[%llu:%llu]\n", (unsigned long long)count.pcnt, (unsigned long long)count.bcnt);
 			} else {
 				printf("- [0:0]\n");
 			}
@@ -307,6 +315,8 @@ static int do_output(const char *tablename)
 		exit_error(OTHER_PROBLEM, "Binary NYI\n");
 	}
 
+	iptc_free(&h);
+
 	return 1;
 }
 
@@ -314,7 +324,13 @@ static int do_output(const char *tablename)
  * :Chain name POLICY packets bytes
  * rule
  */
-int main(int argc, char *argv[])
+#ifdef IPTABLES_MULTI
+int
+iptables_save_main(int argc, char *argv[])
+#else
+int
+main(int argc, char *argv[])
+#endif
 {
 	const char *tablename = NULL;
 	int c;

@@ -133,9 +133,7 @@ struct hfa384x_rid_hdr
  * dBm value with some accuracy */
 #define HFA384X_LEVEL_TO_dBm(v) 0x100 + (v) * 100 / 255 - 100
 
-/* Macro for converting signal/silence levels (RSSI) from RX descriptor to
- * dBm */
-#define HFA384X_RSSI_LEVEL_TO_dBm(v) ((v) - 100)
+#define HFA384X_LEVEL_TO_dBm_sign(v) (v) * 100 / 255 - 100
 
 struct hfa384x_scan_request {
 	u16 channel_list;
@@ -493,10 +491,11 @@ enum { HFA384X_RX_MSGTYPE_NORMAL = 0, HFA384X_RX_MSGTYPE_RFC1042 = 1,
 #define HFA384X_TX_STATUS_FORMERR BIT(3)
 
 /* HFA3861/3863 (BBP) Control Registers */
-#define HFA386X_CR_TX_CONFIGURE 0x12
-#define HFA386X_CR_RX_CONFIGURE 0x14
-#define HFA386X_CR_A_D_TEST_MODES2 0x1A
-#define HFA386X_CR_MANUAL_TX_POWER 0x3E
+#define HFA386X_CR_TX_CONFIGURE 0x12 /* CR9 */
+#define HFA386X_CR_RX_CONFIGURE 0x14 /* CR10 */
+#define HFA386X_CR_A_D_TEST_MODES2 0x1A /* CR13 */
+#define HFA386X_CR_MANUAL_TX_POWER 0x3E /* CR31 */
+#define HFA386X_CR_MEASURED_TX_POWER 0x74 /* CR58 */
 
 
 #ifdef __KERNEL__
@@ -593,13 +592,17 @@ struct prism2_helper_functions {
 	void (*hw_reset)(struct net_device *dev);
 	void (*hw_shutdown)(struct net_device *dev, int no_disable);
 	int (*reset_port)(struct net_device *dev);
-	int (*tx)(struct sk_buff *skb, struct net_device *dev);
 	void (*schedule_reset)(local_info_t *local);
-#ifdef PRISM2_DOWNLOAD_SUPPORT
 	int (*download)(local_info_t *local,
 			struct prism2_download_param *param);
-#endif /* PRISM2_DOWNLOAD_SUPPORT */
-	int (*tx_80211)(struct sk_buff *skb, struct net_device *dev);
+	int (*tx)(struct sk_buff *skb, struct net_device *dev);
+	int (*set_tim)(struct net_device *dev, int aid, int set);
+	int (*read_aux)(struct net_device *dev, unsigned addr, int len,
+			u8 *buf);
+
+	int need_tx_headroom; /* number of bytes of headroom needed before
+			       * IEEE 802.11 header */
+	enum { HOSTAP_HW_PCCARD, HOSTAP_HW_PLX, HOSTAP_HW_PCI } hw_type;
 };
 
 
@@ -615,6 +618,24 @@ struct prism2_download_data {
 };
 
 
+#define HOSTAP_MAX_BSS_COUNT 64
+#define MAX_WPA_IE_LEN 64
+
+struct hostap_bss_info {
+	struct list_head list;
+	unsigned long last_update;
+	unsigned int count;
+	u8 bssid[ETH_ALEN];
+	u16 capab_info;
+	u8 ssid[32];
+	size_t ssid_len;
+	u8 wpa_ie[MAX_WPA_IE_LEN];
+	size_t wpa_ie_len;
+	u8 rsn_ie[MAX_WPA_IE_LEN];
+	size_t rsn_ie_len;
+};
+
+
 /* Per radio private Host AP data - shared by all net devices interfaces used
  * by each radio (wlan#, wlan#ap, wlan#sta, WDS).
  * ((struct hostap_interface *) dev->priv)->local points to this structure. */
@@ -622,7 +643,10 @@ struct local_info {
 	struct module *hw_module;
 	int card_idx;
 	int dev_enabled;
-	struct net_device *dev; /* main radio device */
+	int master_dev_auto_open; /* was master device opened automatically */
+	int num_dev_open; /* number of open devices */
+	struct net_device *dev; /* master radio device */
+	struct net_device *ddev; /* main data device */
 	struct list_head hostap_interfaces; /* Host AP interface list (contains
 					     * struct hostap_interface entries)
 					     */
@@ -667,7 +691,6 @@ struct local_info {
 	int channel;
 	int beacon_int;
 	int dtim_period;
-	int disable_on_close;
 	int mtu;
 	int frame_dump; /* dump RX/TX frame headers, PRISM2_DUMP_ flags */
 	int fw_tx_rate_control;
@@ -679,6 +702,8 @@ struct local_info {
 	int hw_downloading;
 	int shutdown;
 	int pri_only;
+	int no_pri; /* no PRI f/w present */
+	int sram_type; /* 8 = x8 SRAM, 16 = x16 SRAM, -1 = unknown */
 
 	enum {
 		PRISM2_TXPOWER_AUTO = 0, PRISM2_TXPOWER_OFF,
@@ -702,6 +727,10 @@ struct local_info {
 	int is_promisc;
 	HOSTAP_QUEUE set_multicast_list_queue;
 
+	HOSTAP_QUEUE set_tim_queue;
+	struct list_head set_tim_list;
+	spinlock_t set_tim_lock;
+
 	int wds_max_connections;
 	int wds_connections;
 #define HOSTAP_WDS_BROADCAST_RA BIT(0)
@@ -712,12 +741,8 @@ struct local_info {
 	int manual_retry_count; /* -1 = use f/w default; otherwise retry count
 				 * to be used with all frames */
 
-#ifdef WIRELESS_EXT
 	struct iw_statistics wstats;
-#if WIRELESS_EXT > 13
 	unsigned long scan_timestamp; /* Time started to scan */
-#endif /* WIRELESS_EXT > 13 */
-#endif /* WIRELESS_EXT */
 	enum {
 		PRISM2_MONITOR_80211 = 0, PRISM2_MONITOR_PRISM = 1,
 		PRISM2_MONITOR_CAPHDR = 2
@@ -728,6 +753,8 @@ struct local_info {
 
 	int hostapd; /* whether user space daemon, hostapd, is used for AP
 		      * management */
+	int hostapd_sta; /* whether hostapd is used with an extra STA interface
+			  */
 	struct net_device *apdev;
 	struct net_device_stats apdevstats;
 
@@ -735,15 +762,18 @@ struct local_info {
 	struct net_device *stadev;
 	struct net_device_stats stadevstats;
 
-	struct prism2_crypt_data *crypt;
+#define WEP_KEYS 4
+#define WEP_KEY_LEN 13
+	struct prism2_crypt_data *crypt[WEP_KEYS];
+	int tx_keyidx; /* default TX key index (crypt[tx_keyidx]) */
 	struct timer_list crypt_deinit_timer;
 	struct list_head crypt_deinit_list;
 
-#define WEP_KEYS 4
-#define WEP_KEY_LEN 13
 	int open_wep; /* allow unencrypted frames */
 	int host_encrypt;
 	int host_decrypt;
+	int privacy_invoked; /* force privacy invoked flag even if no keys are
+			      * configured */
 	int fw_encrypt_ok; /* whether firmware-based WEP encrypt is working
 			    * in Host AP mode (STA f/w 1.4.9 or newer) */
 	int bcrx_sta_key; /* use individual keys to override default keys even
@@ -823,6 +853,28 @@ struct local_info {
 	unsigned long last_tick_timer;
 	unsigned int sw_tick_stuck;
 
+	/* commsQuality / dBmCommsQuality data from periodic polling; only
+	 * valid for Managed and Ad-hoc modes */
+	unsigned long last_comms_qual_update;
+	int comms_qual; /* in some odd unit.. */
+	int avg_signal; /* in dB (note: negative) */
+	int avg_noise; /* in dB (note: negative) */
+	HOSTAP_QUEUE comms_qual_update;
+
+	/* RSSI to dBm adjustment (for RX descriptor fields) */
+	int rssi_to_dBm; /* substract from RSSI to get approximate dBm value */
+
+	/* BSS list / protected by local->lock */
+	struct list_head bss_list;
+	int num_bss_info;
+	int wpa; /* WPA support enabled */
+	int tkip_countermeasures;
+	int drop_unencrypted;
+	/* Generic IEEE 802.11 info element to be added to
+	 * ProbeResp/Beacon/(Re)AssocReq */
+	u8 *generic_elem;
+	size_t generic_elem_len;
+
 #ifdef PRISM2_DOWNLOAD_SUPPORT
 	/* Persistent volatile download data */
 	struct prism2_download_data *dl_pri;
@@ -846,7 +898,7 @@ struct local_info {
 #endif /* PRISM2_PCCARD */
 
 #ifdef PRISM2_PLX
-	unsigned long attr_mem;
+	void *attr_mem;
 	unsigned int cor_offset;
 #endif /* PRISM2_PLX */
 
@@ -887,6 +939,7 @@ struct hostap_interface {
 #endif /* WIRELESS_EXT > 15 */
 
 	enum {
+		HOSTAP_INTERFACE_MASTER,
 		HOSTAP_INTERFACE_MAIN,
 		HOSTAP_INTERFACE_AP,
 		HOSTAP_INTERFACE_STA,
@@ -898,13 +951,21 @@ struct hostap_interface {
 			u8 remote_addr[ETH_ALEN];
 		} wds;
 	} u;
+};
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
-	/* struct net_device did not allocate buffer for device name in
-	 * Linux 2.2, so reserve space for it here to provide backwards
-	 * compatibility. */
-	char name[IFNAMSIZ];
-#endif
+
+#define HOSTAP_SKB_TX_DATA_MAGIC 0xf08a36a2
+
+/* TX meta data - stored in skb->cb buffer, so this must be not increase over
+ * 48-byte limit */
+struct hostap_skb_tx_data {
+	unsigned int magic; /* HOSTAP_SKB_TX_DATA_MAGIC */
+	int rate; /* transmit rate */
+	struct hostap_interface *iface;
+	unsigned long jiffies; /* queueing timestamp */
+	int wds;
+	unsigned short ethertype;
+	int tx_cb_idx;
 };
 
 
@@ -950,7 +1011,8 @@ enum { BAP0 = 0, BAP1 = 1 };
 static inline void prism2_io_debug_add(struct net_device *dev, int cmd,
 				       int reg, int value)
 {
-	local_info_t *local = dev->priv;
+	struct hostap_interface *iface = dev->priv;
+	local_info_t *local = iface->local;
 
 	if (!local->io_debug_enabled)
 		return;
@@ -967,7 +1029,8 @@ static inline void prism2_io_debug_add(struct net_device *dev, int cmd,
 
 static inline void prism2_io_debug_error(struct net_device *dev, int err)
 {
-	local_info_t *local = dev->priv;
+	struct hostap_interface *iface = dev->priv;
+	local_info_t *local = iface->local;
 	unsigned long flags;
 
 	if (!local->io_debug_enabled)

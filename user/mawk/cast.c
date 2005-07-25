@@ -12,12 +12,9 @@ the GNU General Public License, version 2, 1991.
 
 
 /*   $Log$
- *   Revision 1.1  2004/07/19 13:08:52  lgsoft
- *   Initial revision
+ *   Revision 1.2  2005/07/25 04:03:15  magicyang
+ *   New user folder check in
  *
-/*   Revision 1.1.1.1  2004/07/18 13:27:44  nidhi
-/*   Importing
-/*
  *   Revision 1.6  1996/08/11 22:07:50  mike
  *   Fix small bozo in rt_error("overflow converting ...")
  *
