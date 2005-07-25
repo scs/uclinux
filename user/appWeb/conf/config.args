@@ -1,0 +1,3 @@
+#!/bin/bash
+
+configure --disable-modules --disable-multi-thread --without-ssl --without-cgi

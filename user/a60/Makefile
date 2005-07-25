@@ -173,7 +173,7 @@ $(PRG):		$(OBJS)
 romfs:
 	$(ROMFSINST) /bin/a60
 	$(ROMFSINST) -e CONFIG_USER_LANG_A60_EGS examples /home/a60-examples
-	$(ROMFSINST) -e CONFIG_USER_LAND_A60_TEST test /home/a60-test
+	$(ROMFSINST) -e CONFIG_USER_LANG_A60_TEST test /home/a60-test
 
 a60-ptab.c:	a60-parse.y
 	$(RM) -f y.tab.c y.tab.h

@@ -20,7 +20,7 @@ char sccsid[] = "@(#) agetty.c 1.29 9/1/91 23:22:00";
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <varargs.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <utmp.h>
 #include <getopt.h>
@@ -183,44 +183,44 @@ struct Speedtab {
 };
 
 static struct Speedtab speedtab[] = {
-    50, B50,
-    75, B75,
-    110, B110,
-    134, B134,
-    150, B150,
-    200, B200,
-    300, B300,
-    600, B600,
-    1200, B1200,
-    1800, B1800,
-    2400, B2400,
-    4800, B4800,
-    9600, B9600,
+	{ 50, B50 },
+	{ 75, B75 },
+	{ 110, B110 },
+	{ 134, B134 },
+	{ 150, B150 },
+	{ 200, B200 },
+	{ 300, B300 },
+	{ 600, B600 },
+	{ 1200, B1200 },
+	{ 1800, B1800 },
+	{ 2400, B2400 },
+	{ 4800, B4800 },
+	{ 9600, B9600 },
 #ifdef	B19200
-    19200, B19200,
+	{ 19200, B19200 },
 #endif
 #ifdef	B38400
-    38400, B38400,
+	{ 38400, B38400 },
 #endif
 #ifdef	EXTA
-    19200, EXTA,
+	{ 19200, EXTA },
 #endif
 #ifdef	EXTB
-    38400, EXTB,
+	{ 38400, EXTB },
 #endif
 #ifdef B57600
-    57600, B57600,
+	{ 57600, B57600 },
 #endif
 #ifdef B115200
-    115200, B115200,
+	{ 115200, B115200 },
 #endif
 #ifdef B230400
-    230400, B230400,
+	{ 230400, B230400 },
 #endif
-    0, 0,
+	{ 0, 0 }
 };
 
-#define P_(s) ()
+#define P_(s) s
 void parse_args P_((int argc, char **argv, struct options *op));
 void parse_speeds P_((struct options *op, char *arg));
 void update_utmp P_((char *line));
@@ -234,7 +234,7 @@ void termio_final P_((struct options *op, struct termio *tp, struct chardata *cp
 int caps_lock P_((char *s));
 int bcode P_((char *s));
 void usage P_((void));
-void error P_((int va_alist));
+void error P_((char *fmt, ...));
 #undef P_
 
 /* The following is used for understandable diagnostics. */
@@ -779,8 +779,7 @@ do_prompt(op, tp)
 {
 #ifdef	ISSUE
     FILE    *fd;
-    int     oflag;
-    char    c;
+    int     c, oflag;
     struct utsname uts;
 
     (void) uname(&uts);
@@ -1165,11 +1164,9 @@ usage()
 
 /* VARARGS */
 void
-error(va_alist)
-     va_dcl
+error(char *fmt, ...)
 {
     va_list ap;
-    char   *fmt;
 #ifndef	USE_SYSLOG
     int     fd;
 #endif
@@ -1199,8 +1196,7 @@ error(va_alist)
      * vsprintf() like interface.
      */
 
-    va_start(ap);
-    fmt = va_arg(ap, char *);
+    va_start(ap, fmt);
     while (*fmt) {
 	if (strncmp(fmt, "%s", 2) == 0) {
 	    (void) strcpy(bp, va_arg(ap, char *));
